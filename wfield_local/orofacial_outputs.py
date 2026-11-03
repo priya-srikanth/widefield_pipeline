@@ -71,7 +71,11 @@ def encoding_root(run: str | None = None, rv=None) -> Path:
     if run is None:
         from wfield_local import orofacial_cohort as oc
         run = oc.RUN
-    return Path((rv or PathResolver()).derived("orofacial", f"{run}/imaging_encoding"))
+    rv = rv or PathResolver()
+    from wfield_local import rebuild_root
+    if rebuild_root.active():
+        return Path(rv.derived("orofacial", f"{run}/imaging_encoding"))
+    return root(rv) / run / "imaging_encoding"          # the default run: exactly the old construction
 
 
 def params_digest() -> str:

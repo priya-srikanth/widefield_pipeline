@@ -56,6 +56,21 @@ def lnmf_part() -> str:
     return "lnmfproj" if locanmf_session.projection_on() else ""
 
 
+def drift_part() -> str:
+    """The encoder / ITI slow-drift cutoff SENSITIVITY arm (Priya 11-03): ``drift<p>s`` when
+    COMBINED_ENCODING_DRIFT_MIN_PERIOD_S sets a period other than the primary 600 s; "" otherwise. It enters both the
+    output tag and the cache keys, so the 1500 s arm never meets the primary outputs."""
+    import sys
+    v = os.environ.get("COMBINED_ENCODING_DRIFT_MIN_PERIOD_S", "").strip()
+    p = float(v) if v else 600.0
+    ce = sys.modules.get("wfield_local.combined_encoding")
+    if ce is not None and float(ce.DRIFT_MIN_PERIOD_S) != p:
+        # the constant is read at IMPORT: an env set after the import would tag outputs with a cutoff never used
+        raise RuntimeError(f"COMBINED_ENCODING_DRIFT_MIN_PERIOD_S = {p:g} s but combined_encoding was imported with "
+                           f"{ce.DRIFT_MIN_PERIOD_S:g} s: set the env (render profile) before importing analysis code")
+    return "" if p == 600.0 else f"drift{p:g}s"
+
+
 def pre_part() -> str:
     from wfield_local import config
     pf = config.pre_from()
@@ -99,10 +114,10 @@ def csig_part() -> str:
     return f"csig-{trial_classes.class_source_signature()}" if trial_classes.camera_gate_on() else ""
 
 
-_ALL = (("hemo", hemo_part), ("lnmf", lnmf_part), ("pre", pre_part), ("selection", selection_part),
+_ALL = (("hemo", hemo_part), ("lnmf", lnmf_part), ("drift", drift_part), ("pre", pre_part), ("selection", selection_part),
         ("refs", refs_part), ("inmem", inmem_part), ("lptrained", lptrained_part), ("projall", projall_part),
         ("csig", csig_part))
-_CACHE = ("hemo", "lnmf", "selection", "projall", "csig")
+_CACHE = ("hemo", "lnmf", "drift", "selection", "projall", "csig")
 #: parts that enter cache keys only, never an output path / tag
 _CACHE_ONLY = ("csig",)
 

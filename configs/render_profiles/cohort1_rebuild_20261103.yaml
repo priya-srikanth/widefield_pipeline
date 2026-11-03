@@ -32,8 +32,20 @@ block_args:
   epoch_grant_figures: ["--pre-from", "0801"]
   grant_figures: ["--pre-from", "0801"]
 
-# recorded, not set: the encoder's slow-drift cutoff stays at combined_encoding.DRIFT_MIN_PERIOD_S = 600 s for now
-# (a cutoff check is still running, coordinator 11-03)
+# SENSITIVITY ARMS: `--arm <name>` (render_profile.apply(name, arm=...)) adds the arm's env on top; each arm's env enters
+# the output tag (run_mode parts), so its outputs and caches never meet the primary ones.
+arms:
+  # Priya 11-03: the encoder / ITI slow-drift cutoff stays 600 s PRIMARY (combined_encoding.DRIFT_MIN_PERIOD_S);
+  # 1500 s is a SENSITIVITY arm (the scheduler's six-position cycle period reaches ~22 min), rendered for the spout
+  # contra - ipsi encoder cells and the ITI pre-cue level readouts only
+  drift1500:
+    env:
+      COMBINED_ENCODING_DRIFT_MIN_PERIOD_S: "1500"
+    blocks: ["encoder spout contra - ipsi cells (frozen_encoder / combined_encoding)",
+             "ITI pre-cue level readouts (scripts/iti_licks.py family)"]
+    expected_run_tag: hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_drift1500s_sel-camera-cue_stop-endlick-stopRun6
+
+# the primary encoder / ITI slow-drift cutoff (Priya 11-03): combined_encoding.DRIFT_MIN_PERIOD_S = 600 s (env unset)
 notes:
   encoder_drift_cutoff_s: 600
   expected_run_tag: hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_sel-camera-cue_stop-endlick-stopRun6

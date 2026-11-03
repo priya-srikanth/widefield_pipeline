@@ -23,16 +23,26 @@ PROFILE_DIR = Path(__file__).resolve().parents[1] / "configs" / "render_profiles
 
 #: env prefixes a profile OWNS: every variable with one of them that the profile does not set is CLEARED by `apply` (R5,
 #: fourth review: a leftover GATE_SOURCE / ENL_WINDOW_S / FROZEN_OUT_ROOT in the shell silently re-routed outputs)
-OWNED_PREFIXES = ("WIDEFIELD_", "WFIELD_")
+OWNED_PREFIXES = ("WIDEFIELD_", "WFIELD_", "COMBINED_ENCODING_")
 
 
-def load(name: str) -> dict:
+def load(name: str, arm: str | None = None) -> dict:
+    """Profile ``name``; with ``arm``, one of its ``arms`` (a SENSITIVITY arm: extra env + its own expected tag) merged
+    on top -- the arm's env enters the output tag, so its outputs never meet the primary ones."""
     import yaml
     p = PROFILE_DIR / f"{name}.yaml"
     if not p.exists():
         raise FileNotFoundError(f"render profile {name!r} not found in {PROFILE_DIR}")
     d = yaml.safe_load(p.read_text(encoding="utf-8")) or {}
     env = {str(k): str(v) for k, v in (d.get("env") or {}).items()}
+    if arm is not None:
+        arms = d.get("arms") or {}
+        if arm not in arms:
+            raise KeyError(f"profile {name!r} has no arm {arm!r} (arms: {sorted(arms)})")
+        a = arms[arm] or {}
+        env.update({str(k): str(v) for k, v in (a.get("env") or {}).items()})
+        d["notes"] = dict(d.get("notes") or {}, expected_run_tag=a.get("expected_run_tag"))
+        d["arm"] = dict(a, name=arm)
     rr = d.get("rebuild_root")
     if rr:
         # THE REBUILD ROOT (coordinator 11-03): every derived root resolves inside it (wfield_local/rebuild_root.py);
@@ -53,10 +63,10 @@ def leftovers(d: dict, environ=None) -> list[str]:
     return sorted(k for k in env if k.startswith(OWNED_PREFIXES) and k not in d["env"])
 
 
-def apply(name: str, environ=None) -> dict:
+def apply(name: str, environ=None, arm: str | None = None) -> dict:
     """CLEAR every leftover WIDEFIELD_* / WFIELD_* variable, then set the profile's env in ``environ`` (default
     os.environ); returns the profile with ``cleared`` (the names removed)."""
-    d = load(name)
+    d = load(name, arm)
     env = os.environ if environ is None else environ
     d["cleared"] = leftovers(d, env)
     for k in d["cleared"]:
@@ -68,21 +78,22 @@ def apply(name: str, environ=None) -> dict:
     return d
 
 
-def shell_lines(name: str, shell: str = "powershell") -> list[str]:
-    """Shell lines that first REMOVE every WIDEFIELD_* / WFIELD_* variable of that shell, then set the profile's."""
-    d = load(name)
+def shell_lines(name: str, shell: str = "powershell", arm: str | None = None) -> list[str]:
+    """Shell lines that first REMOVE every owned-prefix variable of that shell, then set the profile's (+ the arm's)."""
+    d = load(name, arm)
     if shell == "bash":
-        clear = ["for v in $(compgen -e | grep -E '^(WIDEFIELD|WFIELD)_'); do unset \"$v\"; done"]
+        clear = ["for v in $(compgen -e | grep -E '^(WIDEFIELD|WFIELD|COMBINED_ENCODING)_'); do unset \"$v\"; done"]
         return clear + [f'export {k}="{v}"' for k, v in d["env"].items()]
-    clear = ["Get-ChildItem Env: | Where-Object { $_.Name -like 'WIDEFIELD_*' -or $_.Name -like 'WFIELD_*' } | "
+    clear = ["Get-ChildItem Env: | Where-Object { $_.Name -like 'WIDEFIELD_*' -or $_.Name -like 'WFIELD_*' -or "
+             "$_.Name -like 'COMBINED_ENCODING_*' } | "
              "ForEach-Object { Remove-Item \"Env:$($_.Name)\" }"]
     return clear + [f'$env:{k} = "{v}"' for k, v in d["env"].items()]
 
 
-def check(name: str) -> tuple[bool, list[str]]:
+def check(name: str, arm: str | None = None) -> tuple[bool, list[str]]:
     """Apply in-process and compare the FULL output tag (`lp_licks.output_tag`, LP / gate-LP / ENL included) and the
     run tag with the profile's ``notes.expected_run_tag``; report the rebuild root and the derived roots."""
-    d = apply(name)
+    d = apply(name, arm=arm)
     from wfield_local import config, lp_licks, run_mode
     want = (d.get("notes") or {}).get("expected_run_tag")
     full, rt = lp_licks.output_tag(), run_mode.tag()
@@ -105,11 +116,12 @@ def main(argv=None) -> int:
     ap.add_argument("name")
     ap.add_argument("--shell", choices=("powershell", "bash"), default=None)
     ap.add_argument("--check", action="store_true", help="apply in-process and print / verify the tags")
+    ap.add_argument("--arm", default=None, help="a sensitivity arm of the profile (its `arms:` block)")
     a = ap.parse_args(argv)
     if a.shell:
-        print("\n".join(shell_lines(a.name, a.shell)))
+        print("\n".join(shell_lines(a.name, a.shell, a.arm)))
     if a.check or not a.shell:
-        ok, lines = check(a.name)
+        ok, lines = check(a.name, a.arm)
         print("\n".join(lines))
         if not ok:
             print("MISMATCH: the output tag is not the profile's expected tag")

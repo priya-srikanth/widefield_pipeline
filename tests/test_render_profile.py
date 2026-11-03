@@ -51,3 +51,24 @@ def test_shell_lines():
     lines = render_profile.shell_lines(NAME, "powershell")
     assert '$env:WIDEFIELD_TRIAL_GATE = "camera"' in lines
     assert any(ln.startswith("export WIDEFIELD_HEMO_VARIANT=") for ln in render_profile.shell_lines(NAME, "bash"))
+
+
+def test_drift1500_arm_has_its_own_tag(monkeypatch):
+    """Priya 11-03: 600 s primary; the 1500 s drift cutoff is a sensitivity ARM with its own output / cache tag."""
+    from wfield_local import run_mode
+    monkeypatch.delenv("COMBINED_ENCODING_DRIFT_MIN_PERIOD_S", raising=False)
+    assert run_mode.drift_part() == ""
+    env = {}
+    d = render_profile.apply(NAME, env, arm="drift1500")
+    assert env["COMBINED_ENCODING_DRIFT_MIN_PERIOD_S"] == "1500"
+    assert "_drift1500s_" in d["notes"]["expected_run_tag"]
+    monkeypatch.setenv("COMBINED_ENCODING_DRIFT_MIN_PERIOD_S", "600")
+    assert run_mode.drift_part() == ""                                   # the primary value adds no part
+    import sys
+    if "wfield_local.combined_encoding" in sys.modules:                  # imported at 600 s: a 1500 s env is refused
+        monkeypatch.setenv("COMBINED_ENCODING_DRIFT_MIN_PERIOD_S", "1500")
+        with pytest.raises(RuntimeError, match="imported"):
+            run_mode.drift_part()
+    left = render_profile.apply(NAME, {"COMBINED_ENCODING_DRIFT_MIN_PERIOD_S": "1500"})
+    assert "COMBINED_ENCODING_DRIFT_MIN_PERIOD_S" in left["cleared"]     # the primary profile clears a leftover arm
+    assert "drift" in run_mode._CACHE
