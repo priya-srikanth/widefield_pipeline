@@ -276,7 +276,7 @@ class Basis:
         """``signal`` when the session is in the fit, ``project`` when it is not — so callers do not
         have to branch, and cannot accidentally refit."""
         lab = session["label"] if isinstance(session, dict) else session
-        if lab in self.manifest["labels"]:
+        if lab in self.manifest["labels"] and not (project_all() and isinstance(session, dict)):
             return self.signal(lab)
         if not isinstance(session, dict):
             raise KeyError(f"{lab} is not in basis {self.basis_id}; pass the session dict to project it")
@@ -460,6 +460,26 @@ def listing():
     return sorted(out, key=lambda r: r["built_utc"])
 
 
+PROJECT_ALL_ENV = "WIDEFIELD_JOINT_PROJECT_ALL"
+
+
+def project_all() -> bool:
+    """True when EVERY session, in-fit ones included, must be projected rather than served its fitted courses.
+
+    WHY (2026-11-02, cohort-1 swap-mask re-run). An in-fit session's stored ``C_<label>.npy`` was fitted to the SVTcorr
+    the basis was built on. Under another hemo variant (``WIDEFIELD_HEMO_VARIANT``) the pre-stroke in-fit sessions
+    would keep the OLD data while every projected session reads the new one -- two variants silently mixed in one
+    decoder. So the switch is ON whenever ``WIDEFIELD_HEMO_VARIANT`` names a variant other than ``defaults.yaml
+    hemo.variant``, or when ``WIDEFIELD_JOINT_PROJECT_ALL=1`` (e.g. the adopted-variant control of the same method).
+    Unset = False: the default path is unchanged."""
+    if os.environ.get(PROJECT_ALL_ENV, "").strip().lower() in ("1", "true", "yes", "on"):
+        return True
+    v = os.environ.get("WIDEFIELD_HEMO_VARIANT")
+    if not v:
+        return False
+    return config.hemo_variant(v) != config.hemo_variant((config.defaults().get("hemo") or {}).get("variant") or "none")
+
+
 class BasisSource:
     """Lazily project one session onto a fixed basis, remembering the projection diagnostic.
 
@@ -487,16 +507,19 @@ class BasisSource:
         self.basis = basis
         self.session = session
         self.label = session["label"]
-        self.key = f"basis:{basis.basis_id}"
+        self.project_all = project_all()
+        # ":projall" only under the switch, so the default key (and every warm cache) is unchanged
+        self.key = f"basis:{basis.basis_id}" + (":projall" if self.project_all else "")
         self._vc_kind = f"jointvc-{basis.basis_id}"
-        self._vc = 1.0 if self.label in basis.labels else None
+        self._vc = 1.0 if (self.label in basis.labels and not self.project_all) else None
         self._projected = False
 
     def signal(self):
-        """``(signal, regions)``. Projects on first call; in-fit sessions keep their fitted courses."""
+        """``(signal, regions)``. Projects on first call; in-fit sessions keep their fitted courses (unless
+        `project_all()`)."""
         from wfield_local import session_cache
 
-        if self.label in self.basis.labels:
+        if self.label in self.basis.labels and not self.project_all:
             return self.basis.signal(self.label), self.basis.regions
         sig, diag = self.basis.project(self.session, with_diagnostics=True)
         self._vc = float(diag["variance_captured"])

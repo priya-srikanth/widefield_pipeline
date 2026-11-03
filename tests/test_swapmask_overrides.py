@@ -7,7 +7,28 @@ from pathlib import Path
 import pytest
 
 REPO = Path(__file__).resolve().parents[1]
-ENV = ("WIDEFIELD_HEMO_VARIANT", "QS_OUT_ROOT", "RESTNL_OUT_ROOT", "FROZEN_OUT_ROOT")
+ENV = ("WIDEFIELD_HEMO_VARIANT", "QS_OUT_ROOT", "RESTNL_OUT_ROOT", "FROZEN_OUT_ROOT", "WIDEFIELD_JOINT_PROJECT_ALL")
+
+
+class _FakeBasis:
+    basis_id = "abc123"
+    labels = ["PS92_0806"]
+
+
+def test_joint_project_all_default_off_and_key_unchanged(clean_env):
+    from wfield_local import joint_locanmf as jl
+    assert jl.project_all() is False
+    src = jl.BasisSource(_FakeBasis(), {"label": "PS92_0806"})
+    assert src.key == "basis:abc123" and src._vc == 1.0
+    clean_env.setenv("WIDEFIELD_HEMO_VARIANT", "meegkit_hpfit")          # = defaults.yaml hemo.variant -> still off
+    assert jl.project_all() is False
+    clean_env.setenv("WIDEFIELD_HEMO_VARIANT", "meegkit_hpfit_lag_refitT_swapmask")
+    assert jl.project_all() is True
+    src = jl.BasisSource(_FakeBasis(), {"label": "PS92_0806"})
+    assert src.key == "basis:abc123:projall" and src._vc is None
+    clean_env.delenv("WIDEFIELD_HEMO_VARIANT")
+    clean_env.setenv("WIDEFIELD_JOINT_PROJECT_ALL", "1")
+    assert jl.project_all() is True
 
 
 @pytest.fixture
