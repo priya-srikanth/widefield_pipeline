@@ -259,6 +259,16 @@ def install_if_active() -> None:
         install()
 
 
+def require_seed(path) -> None:
+    """Raise when ``path`` (an input a reader would otherwise silently skip) is missing INSIDE the active rebuild root:
+    the root was not seeded (`init`). No-op outside a rebuild root or for paths outside it."""
+    r = root()
+    if r is None or not _norm(path).startswith(_norm(r)) or Path(path).exists():
+        return
+    raise FileNotFoundError(f"{path} is missing from rebuild root {r}: seed it first "
+                            f"(python -m wfield_local.rebuild_root init --profile <profile>)")
+
+
 # ---------------------------------------------------------------------------------------------------------- init
 def _sha256(p: Path) -> str:
     h = hashlib.sha256()

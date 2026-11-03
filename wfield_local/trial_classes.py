@@ -229,6 +229,9 @@ def session_trials(label: str, window: str = DEFAULT_WINDOW, v36: Path | str | N
     # --- jaw, cam4 OR cam1, after the cue (jaw_onsets.csv); unjudgeable at close_center
     jaw_csv = Path(jaw_csv) if jaw_csv else _jaw_csv(v36)
     key = f"{animal}_{date}"
+    if not jaw_csv.exists():
+        from wfield_local import rebuild_root
+        rebuild_root.require_seed(jaw_csv)          # a rebuild never silently drops the jaw calls (unseeded root)
     J = jaw_table(str(jaw_csv)) if jaw_csv.exists() else None
     if J is not None and key in J.index.get_level_values(0):
         j = J.loc[key].reindex(t.to_numpy())
@@ -646,6 +649,8 @@ def coverage_note(path=None) -> str:
     from wfield_local import lp_licks
     p = Path(path) if path else lp_licks._enc_dir() / "qc" / "camera_coverage.csv"
     if not p.exists():
+        from wfield_local import rebuild_root
+        rebuild_root.require_seed(p)
         return "camera gate: video-coverage table missing (run scripts/camera_coverage_tables.py)"
     C = pd.read_csv(p)
     C = C[C.partial.astype(bool)]

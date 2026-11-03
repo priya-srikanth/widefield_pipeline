@@ -549,3 +549,103 @@ the contact no-lick counts above; the acute trial-length difference.
 
 ### 8.9 Final test record (3ef70b5b; ffdf94ab after it is docs only)
 Full suite, 5 shards, frozen worktree copy: 4,476 passed, 176 skipped, 0 failed.
+
+### 8.10 Fourth review (a1b6064a + addendum 0fc49ee8): camera-class items 831f8ff3, rebuild root c812a3c0
+**Camera classes (831f8ff3).**
+- The rest working period now runs from the session's FIRST camera lick to its LAST (`camera_engaged_period` via
+  `_lick_span`). Warm-up trials are outside it. Under the robustness anchors (contact / close) it ends at that anchor,
+  because licks after the anchor are after_end in the classified train.
+- A stop run ends where licking resumes: a contact or incomplete ends it, and a jaw-only trial before the end anchor
+  ends it too. An in-video unknown is skipped. So `[C, NR x3, U, NR x3, C]` is one stop of 6 and
+  `[C, NR x3, C, NR x3, C]` is no stop. Both are tested.
+- The stale docstrings / comments at trial_classes :449, :455-457 and :517-518 are rewritten, and so is the module
+  comment "stopped = no_response".
+- `apply_stopped_rule` / `apply_session_end` (the old rule) are REMOVED. Their tests now call `classify_session`.
+- New tests:
+  - MIN_UNCOVERED_RUN exactly 5, with 4 vs 5 unmatched cues at the head, middle and tail (2-4 fail).
+  - NR3 J NR2 (no stop) and NR3 J NR3 (stop).
+  - No bridging when the video tail is uncovered.
+  - A real T8 test through `cue_classes_for` with an uncovered tail.
+  - The robustness anchor ends the rest period.
+  - Rule "any" excludes warm-up.
+  - test_7 renamed to `..._bridges_but_is_not_counted`.
+- The DECISIONS entry gains:
+  - no-video sessions (PS93_0813);
+  - late_rewarded;
+  - "any" excludes warm-up;
+  - no jaw-only bridging with a missing tail;
+  - robustness anchors and the rest period;
+  - a stop ends where licking resumes;
+  - the rest period starts at the first camera lick.
+- Log 8.8 is corrected: the moved trials are the bridging jaw-only trials. Rows 2 and 7 of 8.6 are marked superseded.
+- Warm-up count: PS94_0805 is outside the curated set (`cross_session_exclude` has 0805). That accounts for the
+  review's 5 vs our 4.
+
+**A. Rebuild root (c812a3c0).** Implemented in `configs/paths.yaml` `rebuild:` and `wfield_local/paths.py`, with the
+fence in `wfield_local/rebuild_root.py`. The profile key `rebuild_root: M:/MICROSCOPE/Priya/Widefield/rebuild_20261103`
+sets `WIDEFIELD_REBUILD_ROOT`, and then:
+
+| what | where under the profile |
+|---|---|
+| figures_working | `<R>/figures_working` |
+| cue_analysis_out (analysis_figures) | `<R>/analysis_figures` |
+| cohort_out: grant_figures, frozen_models (server), joint_bases (publish), the deck, epoch_boundaries.json, chronic_stability, ... | `<R>/labcams` |
+| `<LP_analysis>/<run>/imaging_encoding`: encoder runs, iti_licks, attempt_coding / attempt_maps, qc tables, kinematic_normality, ... | `<R>/LP_analysis/<run>/imaging_encoding` (`PathResolver.derived` / `orofacial_outputs.encoding_root`) |
+| frozen store / session cache / RESTnl caches (beside the cache) / map npz (in the cache) | `<R>/frozen_models`, `<R>/session_cache`, `<R>/session_cache_restnl_<tag>` |
+| rebuild_figs default --out | `<R>/rebuild_figs` |
+| INPUTS, read in place, never written: labcams session folders (SVTcorr, hemo_*, U_atlas, LocaNMF footprints), the joint bases, DAQ, behaviour logs and behavior_summary, cameras, dlc / session_poses, the v36 pose tables (`<run>/sessions`, `<run>/cohort`) | unchanged |
+| inputs inside derived trees: epoch_boundaries.json; imaging_encoding/qc jaw_onsets / nose_onsets / trial_attempts / camera_coverage | COPIED by `python -m wfield_local.rebuild_root init --profile cohort1_rebuild_20261103` (sha256, `REBUILD_ROOT.json`; a different existing copy refuses) |
+
+- **Fence.** A `sys.addaudithook` hook, installed by `import wfield_local` whenever the env var is set (subprocesses
+  inherit it). It sees every Python `open` / `os.*` / `shutil` call:
+  - A WRITE on a data tree outside R is refused. Data trees are any MICROSCOPE / standby path, this box's
+    figures_working, and the default `.widefield_session_cache*` / `frozen_models*` / `joint_bases` beside it.
+  - Exceptions: temp / scratch, and the hemo-variant build step (`WIDEFIELD_REBUILD_VARIANT_BUILD=1`, which may write
+    `hemo_*` dirs only).
+  - A READ of a default derived product is refused: the old figures_working / analysis_figures, any
+    `<run>/imaging_encoding`, every labcams top-level entry that is not a dated session folder, joint_bases or xday,
+    and the default caches / stores.
+  - `writeguard.assert_writable` applies the same write rule.
+  - Not seen: C-level writers (h5py, cv2) and `Path.exists` (an exists check on a default path is True, but the open
+    that follows is refused).
+- **Rewrite.** About 75 imaging_encoding constructions now go through `oo.encoding_root` / `lp_licks._enc_dir`
+  (literal `M:/...` strings, `oo.root(..) / RUN / "imaging_encoding"`, `_run_dir() / "imaging_encoding"`). They are
+  byte-identical in a default run on this box. The joint bases use `input_root`.
+- **Behaviour-only writers** (behaviour events, spout_behavior, DLC frames, ...) are not rebuild outputs. Under the
+  profile their writes to the share are refused. Run them without the profile.
+
+**B.**
+- **R1.** rest_frozen_decoder_nl:
+  - OUT_ROOT goes through `run_mode.subdir`.
+  - The feature cache lives under the run's figures_working.
+  - `_code_key` adds `run_mode.cache_tag()`. The default key is unchanged.
+  - PAGE_SESSIONS is read from `rest_frozen_decoder._epoch_dir()`.
+- **R2.** The deck's section K resolves through the run's cohort_out and `derived()`. A tagged build outside a
+  rebuild root with no grant_dir RAISES. Under the profile, src and grant_dir resolve into R. Remaining:
+  - the section K legends carry pre-rebuild numbers;
+  - its attempt-map entries point at the default attempt_maps names, so a rebuild deck skips them (optional slides).
+- **R3.** rebuild_figs:
+  - the epoch sidecars come from `_common.epoch_data_dir()` (lp_licks.output_dir);
+  - goal_summary fig1 comes from the combined-encoding writer's folder;
+  - the unrouted inputs (the enl_move `.bak` CSV, the PS94 state cache) and the slowband CSV outside a rebuild root
+    must be given explicitly in a non-default run.
+- **R4.** attempt_maps: maps / counts / hemispheres / figures all use `product_name` (the cache key). `--figures`
+  raises on a missing keyed maps file. fig_goal_summary reads `hemispheres_path`.
+- **R5.** `require_default` uses `lp_licks.output_tag()`, so LP, gate-LP and ENL runs refuse. `render_profile.apply`
+  CLEARS every leftover WIDEFIELD_* / WFIELD_* (`cleared` lists them). The shell lines start with a clearing line.
+  `--check` prints the run tag and the full output tag and exits 1 on a mismatch.
+- **O2.** The guard moved out of the RUNNER text into `o2_face_rhythm.main`. frozen_running_compare refuses.
+
+**C.** `tests/test_rebuild_root.py` covers:
+- A subprocess probe under the profile, with R in scratch: old grant / figures_working / imaging_encoding writes
+  raise in `open()` and in writeguard, old derived reads raise, and a derived read resolves inside R.
+- Rule units, init, the package-import hook, R1-R5, and O2.
+- The writer register for `scripts/` subfolders + `wfield_local/`: 32 RESOLVED (land in R) and 45 LITERAL (fenced:
+  refused under the profile, mostly cohort2_qc / one-offs). A new writer fails until classified.
+- test_share_writers_mode_safe's SHARE pattern now includes the new helpers.
+
+- **Unseeded root fails loudly.** Two inputs are silently optional for their reader: the jaw calls (a missing
+  jaw_onsets.csv would drop every jaw_only class) and the coverage table. If either is missing INSIDE the rebuild
+  root, it raises `rebuild_root.require_seed` and asks for `init`.
+
+**Not run:** `rebuild_root init` writes to M:, so it was not run. Run it once before the render.

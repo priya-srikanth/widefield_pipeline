@@ -138,6 +138,21 @@ def test_init_seeds_inputs_with_hashes(monkeypatch, tmp_path):
         rr.init()                                                       # never overwrites a different seed
 
 
+def test_unseeded_root_raises_for_a_silently_optional_input(monkeypatch, tmp_path):
+    """The jaw calls / coverage table are optional for a reader (absent = skipped): inside a rebuild root an absent one
+    means the root was not seeded, so it RAISES instead of silently dropping the jaw-only class."""
+    from wfield_local import rebuild_root as rr
+    from wfield_local import trial_classes as TC
+    monkeypatch.setenv(rr.ENV, str(tmp_path / "rb"))
+    with pytest.raises(FileNotFoundError, match="seed"):
+        rr.require_seed(tmp_path / "rb" / "LP_analysis" / "x" / "imaging_encoding" / "qc" / "jaw_onsets.csv")
+    rr.require_seed(tmp_path / "elsewhere.csv")                                  # outside the root: no-op
+    with pytest.raises(FileNotFoundError, match="seed"):
+        TC.coverage_note(tmp_path / "rb" / "camera_coverage.csv")
+    monkeypatch.delenv(rr.ENV)
+    assert "missing" in TC.coverage_note(tmp_path / "rb" / "camera_coverage.csv")
+
+
 def test_package_import_installs_the_fence(tmp_path):
     code = ("import os, sys; import wfield_local; from wfield_local import rebuild_root as rr; "
             "print('INSTALLED' if rr._installed else 'NOT')")
