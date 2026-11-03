@@ -544,7 +544,9 @@ be read with it, and the "rules out generic explanations" argument holds for 3 /
 2. **CORRECTED 11-02 (late): state decoder now z-scored per session** (it was specified, never applied; DECISIONS
    2026-11-02 late): state retained .967 -> .903 / .865 / .873 (was .976 -> .872 / .820 / .838), position unchanged; PS94
    session means .98 -> .87 / .72 / .67 -- its loss is the LICKING class (licking read as quiet), a within-session refit stays
-   .97-.99, so the definitions hold and state is not a clean non-orofacial control in PS94. The text below is the pre-fix record.
+   .97-.99, so the definitions hold and state is not a clean non-orofacial control in PS94. Change vs pre (boot_delta, Holm):
+   position -.41 / -.19 / -.09, state -.04 / -.10 / -.11 -> the specificity RATIO is an ACUTE claim (~8x); by chronic the two
+   losses are similar, the state part mostly PS94 (PS92 -.10). The text below is the pre-fix record.
 2. **Specificity: position loses far more than behavioural state.** Above-chance performance retained (current sidecar
    `epoch_13n_state_vs_position_cue.csv`): position .863 -> .428 / .696 / .761 (acute / subacute / chronic), state
    .976 -> .872 / .820 / .838, running alone ~.97. State DOES fall (acute -.069, Bonferroni interval excludes 0); the
