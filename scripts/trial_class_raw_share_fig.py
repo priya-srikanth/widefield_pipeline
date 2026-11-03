@@ -29,7 +29,7 @@ MARK = {"PS92": "o", "PS93": "s", "PS94": "^", "PS95": "D"}
 ROWS = ("jaw_only", "incomplete", "none")
 NAME = {**SHOW, "none": "no response\n(no lick, no jaw movement)", "contact": "contact lick",
         "no_response": "no response\n(no lick, no jaw movement)"}
-# --all-engaged (11-03): the table of scripts/trial_class_all_engaged.py -- denominator = EVERY engaged trial (the source
+# --all-engaged (11-03): jaw_only_incomplete_figs' table since 07385b37 -- denominator = EVERY engaged trial (before it
 # table keeps only jaw_pass_qc trials, i.e. trials on which the jaw MOVED, so its `none` is empty by construction)
 ROWS_ALL = ("contact", "incomplete", "jaw_only", "no_response")
 
@@ -37,7 +37,7 @@ ROWS_ALL = ("contact", "incomplete", "jaw_only", "no_response")
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", default=str(ROOT / "figures" / "trial_class_share_raw.png"))
-    ap.add_argument("--all-engaged", default=None, help="dir with trial_class_all_engaged.py's sessions.csv")
+    ap.add_argument("--all-engaged", default=None, help="dir with the all-engaged class table (session_poses/cam1_licks/trial_classes; jaw_only_incomplete_figs.classify, 11-03)")
     ap.add_argument("--change", action="store_true", help="plot change vs each animal's own pre mean (same tests)")
     a = ap.parse_args(argv)
     import matplotlib
