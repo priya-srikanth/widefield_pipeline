@@ -474,6 +474,17 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   matrices, as its trajectory twin lick_path_softmax.boot_change does, probably with a >= 10 licks per row floor). NOT confirmed:
   the landing script is not in the repo (not in rebuild_figs either; lost scratch). REBUILD LIST: recreate it; one estimate
   (session-weighted, = the test) on both figures.
+- PI slides 95-98 (LMM hidden, cued / ITI lick-ramp AUC): MY ERROR. They test AUC 0-0.5 s PER SPOUT (126 cells), taken from the
+  per-spout supplement's window via a DECISIONS 11-03 row ("the response AUC 0-0.5 s already used on lick_cued_ramp_perspout"),
+  while main slide 94 is AUC 0-1.0 s / pre, spouts POOLED (Priya 10-28 evening: "0-1 s should be default now"; RESP_W, d57b6098).
+  Helper redoing both on the main slide's quantity (new files, old kept as per-spout supplement); then a8 swaps; the DECISIONS row
+  gets rewritten (e3).
+- PEAK vs AUC (ramp_window_tests.csv, spouts pooled, change vs pre): CUED -- AUC 0-0.5, AUC 0-1 and peak give the same picture
+  (same cells significant except none differ in sign; median CI width .35 / .32 / .30). ITI -- peak CIs are much tighter (median
+  .71 vs 1.92 for AUC 0-1) because the 0-1 s AUC integrates the slow ITI tail; peak flags ALM acute / subacute where AUC 0-1
+  does not. RECOMMEND keep AUC 0-1 primary (pre-decided; it captures DURATION -- the acute far-contra response reaches the pre
+  peak but decays sooner, which a peak cannot see), peak as a labelled sensitivity. Caveat on peak: the max of a noisy PETH is
+  biased up, more so with fewer trials (acute sessions have fewer licks), so it can inflate acute changes.
 
 ### Findings
 - main moved while the rebuild branch was being fixed (34 commits not in rebuild/cohort1-20261103). Two matter for the rebuild:
