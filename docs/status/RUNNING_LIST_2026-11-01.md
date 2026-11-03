@@ -341,3 +341,8 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   projected mixing, fingerprint on all 15 kinds, prune guard, camera lick class, merges. Imaging 3.4 no longer matches its 11-02
   original (input rewritten 11-03 by main's bal_em decoder). All findings sent to the merge / gate helper to fix; second review
   pass after.
+- 11-03 DECISIONS (Priya): DRIFT option A = NO new drift step in the shared signal; final cohort 1 variant =
+  hemo_meegkit_hpfit_lag_refitT_swapmask (already built, 120 sessions). KEEP the encoder / ITI own drift steps (reverses D9). They
+  are one constant: combined_encoding.DRIFT_MIN_PERIOD_S = 600 s, projected out of Y and every design column (FWL), reused by
+  scripts/iti_licks.py:361. Check whether 10 min is too short (position cycle 5-22 min p95, PS92 up to 40): encoder + ITI
+  headline at 600 vs longer cutoffs, per animal. LocaNMF: PROJECTION (per-session + joint), no refit.
