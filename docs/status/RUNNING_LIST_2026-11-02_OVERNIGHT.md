@@ -4,7 +4,23 @@ Handoff: `docs/status/STATUS_2026-11-01_QUIET_EVENTS_HANDOFF.md` (top block "PI 
 `M:/MICROSCOPE/Priya/Widefield/presentations/PI_overview_2026-11-02.pptx` (edit by slide TITLE via backed-up run-once
 scripts in `_source_PI_overview_2026-11-02/`; one deck writer at a time).
 
-## DECISIONS NEEDED FROM PRIYA (newest first)
+## PRIYA'S ANSWERS 11-03 (morning)
+
+- 1 grant: 2-photon grant figure received (panels A-F); per-tile map 131 / 231 / 3,390 matches panel A (5c settled). Add
+  one NES and one H2B mCherry review sheet (panel C analogue) -> deck helper.
+- 2 fluoroscopy: cohort-4 stroke 11-01 (11-02 = post-stroke day 1 = "post-stroke1"). Mtimes confirm `20261029/` holds
+  the 10-29 session saved as `20261028_*` (written 10-29 18:41-19:12, one day after `20261028/`). Source files NOT renamed;
+  slides label them 10-29.
+- 3, 4, 8: wording and the out-of-section corrections approved.
+- 5a: ipsi / contra are relative to both the planned lesion side and the imaged hemisphere (imaging LEFT).
+  5b: LB333 axon-GCaMP8s injected into left (ipsilesional) VM thalamus.
+- 6: 4-8 Hz NOT adopted; reword the pre-cue event claim (main + exclusion tests). Asked whether the low band is significant.
+- 7: revisit after the state decoder's running class uses the encoding-model speed limits (floor 1.5 mm/s, cap) ->
+  helper running.
+- 9: (a) ENGAGED trials in the deck; (b) 2-D and 3-D paths in CAMERA orientation (contra on the LEFT), sign labels
+  + = contralesional; (c) convert slide 24's figure and its code to + = contralesional (make it the default) -> helper.
+
+## DECISIONS NEEDED FROM PRIYA (newest first; 1-9 answered above)
 
 1. Grant copy (path) — to check the 2-photon slides against the grant figures and add any missing panels.
 2. Fluoroscopy: cohort-4 stroke date; meaning of "post-stroke1"; `20261029/` holds files named `20261028_*` that
