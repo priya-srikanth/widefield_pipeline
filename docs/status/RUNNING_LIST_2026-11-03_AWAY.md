@@ -66,3 +66,7 @@ _(none open yet. Items appear here as the decoder helper reports.)_
   slide is the across-animal test.
 - 11-03 evening: 34 flipped the far-spout mean-path figure (fig:rec_wlc_paths) so contralesional is LEFT (Priya; data
   unchanged). swap_rec_wlc_paths_flip_1103.py is queued behind the same deck lock.
+- 11-03 evening: Priya (via 34) asked for a hidden backup "Backup: lick order, ITI bouts" right after "Lick order:
+  tongue corrects, read-out stays". It shows the ITI row of Fig 13.2 (landing, decoded, lfl by lick order; BH-FDR
+  bars), cropped like the cued row. The main slide's bullet / notes are repointed from a backup title that never
+  existed. backup_lick_order_iti_1103.py is queued behind the deck lock.
