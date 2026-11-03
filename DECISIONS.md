@@ -22283,3 +22283,10 @@ mouse right. Kinematics page v18 uses them (sections 2-5, 7, 9; 3-D table negate
 `presentations/_source_PI_overview_2026-11-02/build_inputs/kin_contra_swaps.json` (crops cut as the deck's, scripts
 beside it). The deck's l_cue / l_phase pictures come from `prepost_alltrials` (no engagement gate) while the page uses
 `prepost` (engaged) -- both now have contra versions; which one the deck should show is Priya's call.
+
+## 2026-11-03 -- Trial classes: `jaw_pass_qc` is the JAW-MOVED call, not a QC gate; shares now over ALL engaged trials (adds NO RESPONSE)
+
+- `tongue_jaw_mismatch.csv` `jaw_pass_qc` is `jaw_kinematics`' sustained-density "jaw moved" predicate. On no-lick engaged trials it equals `candidate_no_lick_with_jaw_move` exactly (PS92 0818 / 0822 crosstabs). Filtering on it (as `scripts/jaw_only_incomplete_figs.py` does, "engaged trials passing jaw QC") keeps only jaw-moved trials: the `none` class is empty by construction and every share is of jaw-moved trials (about half the no-lick engaged trials dropped).
+- `scripts/trial_class_all_engaged.py` re-classifies EVERY engaged trial: contact / incomplete / jaw_only / no_response (`jaw_pass_qc` == 0) / unknown (NaN; 0 trials). Table: `Widefield/kin_page_src/kin_page/trial_classes_all_engaged/sessions.csv`. Figures: `scripts/trial_class_raw_share_fig.py --all-engaged [--change]` -> `tc_share_all.png` / `tc_share_all_change.png` (kinematics page Figs 6.1 / 6.2; PI deck main + hidden slide).
+- Result (Priya 11-03 "fraction of engaged trials with NO response"): far contra acute contact .05, incomplete .59, jaw-only .23, no response .13 (pre .012, chronic .002; 4 / 4 animals .08-.19); far mid / far ipsi no response .11 acute, close .04-.05; all back to pre chronically.
+- Still on the jaw-moved denominator (captions say so): kinematics Figs 6.3 (over days), 6.4-6.5 (traces); the deck's older trial-class slides (speaker-note caveat). The old change-vs-pre figure on the jaw-moved set (`trial_class_share_epochs.png`) is off the page; it largely repeated Fig 1.3 rows 2-3.
