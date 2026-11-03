@@ -139,3 +139,37 @@ Both give acute fC `**`. Most other acute cells and subacute fC get `*`. No chro
 (t), chronic nI / nM / fC get `*`, because all 4 animals change the same way by a similar amount.
 
 With Holm within each epoch (6 cells) rather than across 18, acute fI and the engagement cells (h) reach `**`.
+
+## Is the animal-weighted bootstrap calibrated at n = 4? (simulation, 11-03)
+
+Priya noted that the animal bootstrap "seems better powered". We checked whether that is real power or a false-positive
+rate above 5 % (`scripts/a3_bootstrap_n4_calibration.py`, 400 simulations per row).
+
+Set-up:
+- 4 animals with the acute session counts (pre 16 / 12 / 16 / 16, post 5 / 4 / 6 / 1).
+- Each animal's true change ~ N(effect, tau); session noise sd sigma.
+- A star means the 95 % interval excludes 0: the bootstrap is `analysis_kit.paired_animal_draws`, the A3 code, with
+  1000 draws; the t-test is a one-sample t on the 4 per-animal changes, df 3.
+
+| tau (animals differ) | sigma (session noise) | true effect | bootstrap star | t-test star |
+|---|---|---|---|---|
+| 0 | 0.05 | 0 | 0.06 | 0.06 |
+| 0 | 0.02 | 0 | 0.06 | 0.06 |
+| 0.05 | 0.05 | 0 | **0.16** | 0.07 |
+| 0.05 | 0.02 | 0 | **0.19** | 0.07 |
+| 0.02 | 0.05 | 0 | **0.10** | 0.04 |
+| 0.05 | 0.05 | 0.05 | 0.47 | 0.21 |
+| 0.05 | 0.05 | 0.10 | 0.91 | 0.58 |
+| 0.05 | 0.02 | 0.05 | 0.62 | 0.27 |
+| 0.05 | 0.02 | 0.10 | 0.96 | 0.72 |
+| 0.02 | 0.05 | 0.05 | 0.71 | 0.41 |
+| 0.02 | 0.05 | 0.10 | 0.99 | 0.92 |
+
+When animals truly share the same change (tau = 0), the bootstrap is calibrated. This agrees with the 10-21 pre-vs-pre
+calibration (ENCODING_FINDINGS), which by construction has tau = 0.
+
+When animals truly differ (tau > 0, which is the post-stroke case), its false-positive rate is 10–19 % instead of 5 %.
+That is about 2–4x the nominal rate. Its extra stars are bought with those false positives.
+
+The cause is that resampling 4 animals treats the observed 4 as the whole population. The 10-21 map calibration is
+not affected for null maps; post-stroke map contrasts inherit the same n = 4 limit.
