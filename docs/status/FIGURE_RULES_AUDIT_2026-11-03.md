@@ -71,8 +71,21 @@ R = `M:/MICROSCOPE/Priya/DeepLabCut/Widefield/face_rhythm/cam4/readouts/master_p
 | 9.1 | `M:/MICROSCOPE/Priya/Widefield/labcams/grant_figures/epoch/cd_cim_geometry_lick_cortexonly_vs_ceiling_nolines.png` | scripts/cd_geometry_figure.py --suffix | FIXED (per animal only) |
 | 12.1 | `M:/MICROSCOPE/Priya/Widefield/labcams/grant_figures/epoch/epoch_15f_rest_frozen_restdock05_durmatched_gapmatched_nolines.png` | rest_frozen_decoder.py --from-csv | FIXED |
 | 3.3 | M:/MICROSCOPE/Priya/Widefield/imaging_page_src/s_per_animal_regen_20261102/s_per_animal_nolines.png | scripts/imaging_page/s_per_animal.py | FIXED |
-| 2.1-2.8, 3.1, 3.2, 4.2, 6.1-6.3, 10.1 | -- | wfield_local/epoch_figures bar_row / contrast_panel (+ star overlap, grey -> EPOCH_LINE colours) | IN PROGRESS (epoch_figures helper) |
+| 2.1 d_within_precue | `M:/MICROSCOPE/Priya/Widefield/labcams/grant_figures/epoch/epoch_acc_by_position_precue_working_nolines.png` | epoch_figures.bar_row via scripts/replot_epoch_from_sidecars.py | FIXED (282dea74, cd4b32c8) |
+| 2.2 d_enl1s | `M:/MICROSCOPE/Priya/Widefield/labcams/grant_figures/DAQ_ENL1s/epoch/epoch_acc_by_position_precue_working_nolines.png` | same | FIXED |
+| 2.3 d_acc_cue | `M:/MICROSCOPE/Priya/Widefield/labcams/grant_figures/epoch/epoch_acc_by_position_cue_working_nolines.png` | same | FIXED |
+| 2.4 d_lp_lick | `M:/MICROSCOPE/Priya/Widefield/labcams/grant_figures/LP_licks/epoch/epoch_acc_by_position_lick_lick_nolines.png` | same | FIXED |
+| 2.4b-2.8 (LPfinal variants) | `M:/MICROSCOPE/Priya/Widefield/labcams/grant_figures/LPfinal/trained_{lp,daq}/<variant>/epoch/epoch_acc_by_position_precue_working_nolines.png` (2.8 = trained_lp/LP_licks_gateLP) | same | FIXED |
+| 3.1 d_state | `M:/MICROSCOPE/Priya/Widefield/labcams/grant_figures/epoch/epoch_13n_state_vs_position_cue_nolines.png` | epoch_state._fig_13_state | recoloured only: no per-session values stored, NO session dots |
+| 3.2 d_state_delta | `M:/MICROSCOPE/Priya/Widefield/labcams/grant_figures/epoch/epoch_13delta_state_decoder_cue_nolines.png` | contrast_panel (+ per-session deltas) | FIXED |
+| 4.2 d_refitgap | `M:/MICROSCOPE/Priya/Widefield/labcams/grant_figures/epoch/epoch_5rmgapdelta_frozen_vs_refit_cue_working_nolines.png` | contrast_panel | FIXED |
+| 6.1 e_amp | `M:/MICROSCOPE/Priya/Widefield/labcams/grant_figures/epoch/epoch_11amp_encoder_amplitude_cue_working_nolines.png` | bar_row | FIXED |
+| 6.2 e_ceiling | `M:/MICROSCOPE/Priya/Widefield/labcams/grant_figures/epoch/epoch_11c_encoder_ceiling_cue_working_nolines.png` | bar_row | FIXED |
+| 6.3 e_captured | `M:/MICROSCOPE/Priya/Widefield/labcams/grant_figures/epoch/epoch_11cfrac_encoder_captured_by_position_cue_working_nolines.png` | bar_row | FIXED |
+| 10.1 r_crossnobis | `M:/MICROSCOPE/Priya/Widefield/labcams/grant_figures/epoch/epoch_8diagdelta_matrices_crossnobis_cue_working_nolines.png` | contrast_panel | FIXED |
 | 5.2 | fig2b_attempt_decoder_epochs | scratch fig_goal_epochs.py (encoding window) | NOT FIXED: script not in repo |
+
+Shared changes (epoch_figures, all epoch families on their next render): `bar_row` session dots open / shape = animal / colour = epoch; stars via `sig_marks.star_top` in alternating rows (overlap fixed); `contrast_panel(points=)` per-session deltas; `EPOCH_GREY` = `orofacial_cohort.EPOCH_LINE` (grey ramp replaced). Not re-rendered (no sidecar path; recolour on the next normal render): transfer_matrix.epoch_color users (rotation_maps), cd_trajectories.EPOCH_COLOR users.
 
 ## Encoding page section 23 (this window): `*_nolines.png` beside originals, commit 458f128b
 23.4 `.../v2_quiet_lp/stillness/quiet_stillness_nolines.png`; 23.5 `.../task_events/t13_precue_event_vs_outcome_nolines.png`;
@@ -239,3 +252,18 @@ The goal figures fig2* and fig3_attempt_amplitude come from one-off scratch scri
 | 14.34 | lick_iti_hemo_check_edge_vessel.png | R1 + R2 (bottom row) | widefield_pipeline scripts/iti_hemo_check.py : fig_edge_vessel |
 | 14.35 | lick_iti_hemo_check_state_gap.png | R1 + R2 | widefield_pipeline scripts/iti_hemo_check.py : fig_state_gap |
 | 15.3 | lick_session_shape_d.png | R2 | widefield_pipeline scripts/iti_session_cluster_tests.py : plot_shape_d |
+
+### Figs 15.13 - 19.4
+
+| fig | image | rule | script : function |
+|---|---|---|---|
+| 16.3 | lick_recovery_link_pooled_aim_z_docked.png | R1 + R2 | scripts/iti_recovery_link.py : plot_pooled |
+| 17.1 | fig4p_decomp_pooled.png | R2 | producer not tracked (frozen_encoder_gate-attempted_v7g3_t3d inputs) |
+| 17.2 | fig4_decomp_epochs.png | R2 | producer not tracked |
+| 18.3 | fig12p_residual_trend_pooled.png | R2 (epoch side bars) | producer not tracked (nearest frozen_residual_trend.py) |
+| 19.1 | fig5p_layer2_pooled.png | R2 | producer not tracked (inputs from frozen_fr_compare layer2_change_vs_prelate.csv) |
+| 19.2 | fig5c_layer2_random_splits_pooled.png | R2 (borderline: dots = random splits) | producer not tracked |
+| 19.3 | fig6p_layer2_groups_pooled.png | R2 | producer not tracked |
+
+Deck specs: `build_inputs/figure_rules_swaps.json` (slides 24, 33, 57, 100; applied) and `figure_rules_swaps_2.json`
+(slides 56, 58, 10 d_acc_cue, 19 d_lpf_enl1_lp), crops by `build_inputs/figure_rules_crops.py [2]`.
