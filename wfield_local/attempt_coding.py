@@ -229,6 +229,11 @@ def run_animal(animal, align="precue", verbose=True):
                                            post_s=post_s, basis_id=getattr(feat, "basis_id", None))
     if verbose:
         print(f"[attempt_coding] {animal} {align}: frozen decoder {status}", flush=True)
+    # THE FROZEN MODEL SCORES IN ITS OWN FRAME (`frozen_scored_frame`; bal_em since 2026-11-03, identity under
+    # WIDEFIELD_SPOUT_SCALING=session_z). The attempt axes above stay on the production frame.
+    from wfield_local.locanmf_frozen_decoder import frozen_scored_frame
+    XEf, XUf = frozen_scored_frame(models, XE, GE, XU, GU, kept, pre_list)
+    Xf = np.vstack([XEf, XUf])[keep]
     code = np.concatenate([YE, YU]).astype(int)[keep]
     p_true = np.full(len(X), np.nan)
     pred = np.full(len(X), "", dtype=object)
@@ -237,7 +242,7 @@ def run_animal(animal, align="precue", verbose=True):
     for s in np.unique(G):
         m = G == s
         mdl = models["loso"].get(kept[s], models["full"])
-        pr = mdl.predict_proba(X[m]); cl = [int(c) for c in mdl.classes_]
+        pr = mdl.predict_proba(Xf[m]); cl = [int(c) for c in mdl.classes_]
         idx = np.array([cl.index(c) if c in cl else -1 for c in code[m]])
         p_true[m] = np.where(idx >= 0, pr[np.arange(m.sum()), np.clip(idx, 0, None)], np.nan)
         pred[m] = [LESION_NAME.get(POSITION_NAMES.get(cl[j], str(cl[j])), "?") for j in pr.argmax(1)]

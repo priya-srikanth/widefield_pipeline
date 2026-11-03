@@ -22,6 +22,7 @@ from sklearn.model_selection import LeaveOneGroupOut, cross_val_predict
 
 from wfield_local import frozen_models as F
 from wfield_local import poststroke_compare as pc
+from wfield_local import spout_scaling as ss
 from wfield_local.locanmf_frozen_decoder import _pipe, frozen_decoder_models
 from wfield_local.plot_lick_aligned_averages import DISPLAY_ORDER
 
@@ -54,29 +55,44 @@ def pool():
             "align": "cue", "source": "roi", "_frozen_cache": {}}
 
 
-def test_the_stored_full_model_predicts_identically_to_the_inline_fit(isolated, pool):
+def _train_X(pool):
+    """The rows the frozen models are fitted on: the production frame under session_z, the bal_em TRAINING frame (each
+    pre session centred on its true class means) under session_bal_em (production since 2026-11-03)."""
+    if not ss.spout_scaling():
+        return pool["XE"]
+    return ss.train_frame(pool["XE"], pool["YE"], pool["GE"], sorted(pool["pre_i"]))
+
+
+@pytest.fixture(params=["session_bal_em", "session_z"])
+def scaling(request, monkeypatch):
+    monkeypatch.setenv(ss.SPOUT_SCALING_ENV, request.param)
+    return request.param
+
+
+def test_the_stored_full_model_predicts_identically_to_the_inline_fit(isolated, pool, scaling):
     """The substitution is only legitimate if it is the same object."""
     tr = np.isin(pool["GE"], list(pool["pre_i"]))
     te = np.isin(pool["GE"], list(pool["post_i"]))
-    inline = _pipe().fit(pool["XE"][tr], pool["YE"][tr]).predict(pool["XE"][te])
+    inline = _pipe().fit(_train_X(pool)[tr], pool["YE"][tr]).predict(pool["XE"][te])
     models = pc.frozen(pool)
     assert models is not None, "the stored model was not reachable at all"
     assert np.array_equal(models["full"].predict(pool["XE"][te]), inline)
 
 
-def test_the_stored_loso_arm_reproduces_cross_val_predict(isolated, pool):
+def test_the_stored_loso_arm_reproduces_cross_val_predict(isolated, pool, scaling):
     """The pre-stroke reference band came from `cross_val_predict(LeaveOneGroupOut)`. Keyed by
     LABEL, `models["loso"]` must reproduce it fold for fold -- an index-keyed lookup would depend on
     the order the caller assembled its pool, and a label does not."""
     tr = np.isin(pool["GE"], list(pool["pre_i"]))
-    want = cross_val_predict(_pipe(), pool["XE"][tr], pool["YE"][tr],
+    XT = _train_X(pool)
+    want = cross_val_predict(_pipe(), XT[tr], pool["YE"][tr],
                              cv=LeaveOneGroupOut(), groups=pool["GE"][tr])
     models = pc.frozen(pool)
     got = np.empty_like(want)
     gi = pool["GE"][tr]
     for i in sorted(pool["pre_i"]):
         m = gi == i
-        got[m] = models["loso"][pool["kept"][i]].predict(pool["XE"][tr][m])
+        got[m] = models["loso"][pool["kept"][i]].predict(XT[tr][m])
     assert np.array_equal(got, want)
 
 

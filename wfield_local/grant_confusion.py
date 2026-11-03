@@ -68,6 +68,8 @@ from wfield_local.grant_kit import (  # noqa: F401
     _overlaps,
     _pct3,
     _pooled_bundle,
+    _frozen_frame,
+    _frozen_score_rows,
     _position_metrics,
     _pre_reference,
     _runs_to_blocks,
@@ -278,8 +280,6 @@ def fig_confusion_pre_post_working(out_dir):
     STILL NOT VALIDATED, and the figure says so: nothing in the spout data proves the terminal run is
     satiety rather than a late motor collapse. It is reported BESIDE figure 5, never instead of it.
     """
-    from wfield_local.locanmf_frozen_decoder import _pipe
-
     PANELS = (("pre", "PRE-stroke\nLICK trials"),
               ("post_all", "POST-stroke\nALL trials"),
               ("post_working", "POST-stroke\nquit period REMOVED"))
@@ -341,7 +341,11 @@ def fig_confusion_pre_post_working(out_dir):
                 XU, YU, GU = bd["XU"], bd["YU"], bd["GU"]
                 pre_i, e_pre, not_eng = bd["pre_i"], bd["e_pre"], bd["not_eng"]
                 u_pre = np.isin(GU, list(pre_i)) if len(GU) else np.zeros(0, bool)
-                clf = _pipe().fit(XE[e_pre], YE[e_pre])
+                # THE FROZEN DECODER IN ITS SCORING FRAME (`_frozen_frame`; bal_em since 2026-11-03, identity
+                # under session_z): same models as before, applied to XEs / XUs.
+                _fr = _frozen_frame(bd)
+                clf = _fr["full"]
+                XE, XU = _fr["XEs"], _fr["XUs"]
                 name = np.vectorize(lambda v: POSITION_NAMES.get(int(v), str(v)))
 
                 def conf(X, y, clf=clf, name=name):
@@ -369,7 +373,7 @@ def fig_confusion_pre_post_working(out_dir):
                     te = e_pre & (GE == i)
                     if te.sum() < 5 or len(np.unique(YE[tr])) < 2:
                         continue
-                    c1 = conf(XE[te], YE[te], clf=_pipe().fit(XE[tr], YE[tr]))
+                    c1 = conf(XE[te], YE[te], clf=_fr["loso"][i])
                     Cpre = c1 if Cpre is None else Cpre + c1
                 mats["pre"] = Cpre
                 pe, pu = ~e_pre, (~u_pre if len(u_pre) else np.zeros(0, bool))
@@ -527,7 +531,12 @@ def _matched_frozen(pipe_of, Xp, Yp, Bp, n_target, rng):
             break
     if keep.sum() < 2 or len(np.unique(Yp[keep])) < 2:
         return None
-    return pipe_of().fit(Xp[keep], Yp[keep]), int(keep.sum())
+    fitted = pipe_of().fit(Xp[keep], Yp[keep])
+    # The matched model's TRAINING class mix, for the bal_em scoring centre (`spout_scaling`, 2026-11-03). An
+    # attribute rather than a third return value so existing callers' unpacking is unchanged.
+    from wfield_local import spout_scaling
+    fitted.spout_pi_train_ = spout_scaling.class_prior(Yp[keep])
+    return fitted, int(keep.sum())
 def _refit_pred(pipe_of, X, y, blk, *, max_splits=5):
     """Within-session block-CV prediction on ONE session: what a decoder that SAW this session gets.
 
@@ -616,9 +625,22 @@ def _collect_5c(align, variant="working", mode="frozen"):
             kept, pre_i, e_pre = bd["kept"], bd["pre_i"], bd["e_pre"]
             not_eng, BE_all, BU_all = bd["not_eng"], bd["BE"], bd["BU"]
 
-            clf = _pipe().fit(XE[e_pre], YE[e_pre])
+            # THE FROZEN DECODER AND ITS FRAME (`grant_kit._frozen_frame`, bal_em since 2026-11-03; identity under
+            # WIDEFIELD_SPOUT_SCALING=session_z). The frozen predictions read the SCORING frame (XEs / XUs); the
+            # within-session refit reads the production frame (XE / XU), as it always has -- it never meets the
+            # frozen model. The matched arm trains on the TRAINING frame (XT) and scores in its own EM frame.
+            fr = _frozen_frame(bd)
+            XT, XEs, XUs = fr["XT"], fr["XEs"], fr["XUs"]
+            clf = fr["full"]
 
-            def rec(X, y, blk, model, pool=None):
+            def _stack(i, me, mu, frozen_frame, XEs=XEs, XUs=XUs, XE=XE, XU=XU):
+                A, B = (XEs, XUs) if frozen_frame else (XE, XU)
+                return np.vstack([A[me]] + ([B[mu]] if mu.any() else []))
+
+            def rec(X, y, blk, model, pool=None, X_refit=None, sess=None, me=None, mu=None,
+                    an=an, fr=fr, bd=bd, XE=XE, XU=XU):
+                # loop variables bound as defaults: rec is only called within this iteration, but a late-binding
+                # closure would silently read a later animal's bundle if it ever were not
                 """One record, with `mode` deciding whose prediction fills column(s) of y_pred.
 
                 ``pool`` is the pre-stroke (X, y, blocks) the matched frozen model may draw from --
@@ -642,10 +664,19 @@ def _collect_5c(align, variant="working", mode="frozen"):
                     if got is None:
                         return None
                     model = got[0]
+                    # the matched model scores in ITS OWN bal_em frame (centre from this session's engaged
+                    # rows, its own training prior); identity under session_z
+                    if fr["scaling"] != "session_z":
+                        if [int(c) for c in model.classes_] == list(range(6)):
+                            Xe_, Xu_ = _frozen_score_rows(bd, model, model.spout_pi_train_, sess,
+                                                          XE[me], XU[mu] if mu.any() else None)
+                            X = np.vstack([Xe_] + ([Xu_] if Xu_ is not None else []))
+                        else:
+                            X = X_refit        # a subset missing a spout: no 6-class EM; production frame
                 fz = np.asarray(model.predict(X))
                 if mode == "frozen":
                     return (y, fz, blk)
-                rf = _refit_pred(_pipe, X, y, blk)
+                rf = _refit_pred(_pipe, X if X_refit is None else X_refit, y, blk)
                 if rf is None:
                     return None
                 return (y, rf, blk) if mode == "refit" else (y, np.column_stack([fz, rf]), blk)
@@ -693,13 +724,14 @@ def _collect_5c(align, variant="working", mode="frozen"):
                 else:
                     me_te = e_pre & (GE == i)
                     mu_te = np.zeros(len(GU), bool)
-                Xte = np.vstack([XE[me_te]] + ([XU[mu_te]] if mu_te.any() else []))
+                Xte = _stack(i, me_te, mu_te, True)
+                Xte_r = _stack(i, me_te, mu_te, False)
                 yte = np.concatenate([YE[me_te]] + ([YU[mu_te]] if mu_te.any() else []))
                 bte = np.concatenate([BE_all[me_te]] + ([BU_all[mu_te]] if mu_te.any() else []))
                 if len(yte) < 5 or len(np.unique(YE[tr])) < 2:
                     continue
-                r = rec(Xte, yte, bte, _pipe().fit(XE[tr], YE[tr]),
-                        pool=(XE[tr], YE[tr], BE_all[tr]))
+                r = rec(Xte, yte, bte, fr["loso"][i],
+                        pool=(XT[tr], YE[tr], BE_all[tr]), X_refit=Xte_r, sess=i, me=me_te, mu=mu_te)
                 if r is None:
                     continue
                 pre_recs.append(r)
@@ -716,12 +748,14 @@ def _collect_5c(align, variant="working", mode="frozen"):
                     continue
                 day = _day(an, lab.split("_")[-1])
                 me, mu = _class_select(variant, (GE == i), (GU == i), not_eng)
-                Xs = np.vstack([XE[me]] + ([XU[mu]] if mu.any() else []))
+                Xs = _stack(i, me, mu, True)
+                Xs_r = _stack(i, me, mu, False)
                 ys = np.concatenate([YE[me]] + ([YU[mu]] if mu.any() else []))
                 bs = np.concatenate([BE_all[me]] + ([BU_all[mu]] if mu.any() else []))
                 if not len(ys):
                     continue
-                r = rec(Xs, ys, bs, clf, pool=(XE[e_pre], YE[e_pre], BE_all[e_pre]))
+                r = rec(Xs, ys, bs, clf, pool=(XT[e_pre], YE[e_pre], BE_all[e_pre]), X_refit=Xs_r, sess=i,
+                        me=me, mu=mu)
                 if r is None:
                     continue
                 by_day[day] = r

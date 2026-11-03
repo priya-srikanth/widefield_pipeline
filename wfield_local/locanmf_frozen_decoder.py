@@ -34,7 +34,6 @@ from sklearn.metrics import accuracy_score, confusion_matrix
 
 from wfield_local import config, parallel, frozen_models, decode_ci
 from wfield_local.locanmf_cue_lick_analysis import SESSIONS
-from wfield_local import config
 from wfield_local.locanmf_position_decoder import _trial_features, trial_features_cached
 from wfield_local.plot_lick_aligned_averages import POSITION_NAMES, DISPLAY_ORDER
 
@@ -323,7 +322,7 @@ def pooled_frozen_encoder(labels, source="roi", align="cue", post_s=2.0, alpha=1
     return res
 
 
-def decoder_spec(XE, kept, pre_i, *, align, source, post_s=2.0, zscore=True, basis_id=None):
+def decoder_spec(XE, kept, pre_i, *, align, source, post_s=2.0, zscore=True, basis_id=None, scaling="env"):
     """The frozen-decoder spec for one pooled set -- the identity `frozen_models` stores it under.
 
     WHY THIS IS SEPARATE FROM `frozen_decoder_models`. `pooled_frozen_loso` needs the spec_id for its
@@ -333,14 +332,18 @@ def decoder_spec(XE, kept, pre_i, *, align, source, post_s=2.0, zscore=True, bas
     reintroducing the exact failure the freeze exists to prevent: a result naming an id that is not
     the id its model was stored under. One builder, called with one argument set, cannot drift.
     """
+    # THE SCALING IS PART OF THE IDENTITY (2026-11-03): production = ``session_bal_em`` (`spout_scaling`), a NEW id;
+    # under ``WIDEFIELD_SPOUT_SCALING=session_z`` no key is added, so the pre-11-03 spec and its stored models are
+    # byte-identical and still resolve.
+    from wfield_local import spout_scaling
     return frozen_models.make_spec(
         config.animal_of(kept[0]), "decoder", align=align, source=source,
         train_labels=[kept[i] for i in sorted(pre_i)], post_s=post_s, zscore=zscore,
-        basis_id=basis_id, n_features=int(XE.shape[1]))
+        basis_id=basis_id, n_features=int(XE.shape[1]), **spout_scaling.spec_kw(scaling))
 
 
 def frozen_decoder_models(XE, YE, GE, kept, pre_i, *, align, source, post_s=2.0, zscore=True,
-                          basis_id=None, log=print):
+                          basis_id=None, log=print, scaling="env"):
     """The stored PRE-stroke position decoder for one pooled set: ``(models, status)``.
 
     ``models`` is ``{"full": pipeline, "loso": {held_out_label: pipeline}}`` -- ``full`` is fitted on
@@ -370,22 +373,59 @@ def frozen_decoder_models(XE, YE, GE, kept, pre_i, *, align, source, post_s=2.0,
     features `_align_many` intersects region x bin columns across the pool, so one extra session
     changes the width for every session in it.
     """
+    from wfield_local import spout_scaling
     pre_i = sorted(pre_i)
-    pre_labels_ = [kept[i] for i in pre_i]
+    if scaling == "env":
+        scaling = spout_scaling.spout_scaling()
+    # ``XE`` is the PRODUCTION frame (`pool_sessions`' engaged-trial z-score). Under bal_em (production since
+    # 2026-11-03) the TRAINING rows are each pre session re-centred on the equal-weight mean of its TRUE class means;
+    # a scored session is moved into its scoring frame by `frozen_scored_frame` (label-free EM centre).
+    XT = spout_scaling.train_frame(XE, YE, GE, pre_i) if scaling else XE
 
     def _fit_all():
         # One artifact holds BOTH arms: the leave-one-out models behind the pre-stroke reference band
         # and the single all-pre model applied to post-stroke days. They are determined by the same
         # spec, and splitting them would let one be refrozen without the other.
-        return {"full": _pipe().fit(XE[np.isin(GE, pre_i)], YE[np.isin(GE, pre_i)]),
-                "loso": {kept[i]: _pipe().fit(XE[np.isin(GE, [j for j in pre_i if j != i])],
-                                              YE[np.isin(GE, [j for j in pre_i if j != i])])
-                         for i in pre_i}}
+        out = {"full": _pipe().fit(XT[np.isin(GE, pre_i)], YE[np.isin(GE, pre_i)]),
+               "loso": {kept[i]: _pipe().fit(XT[np.isin(GE, [j for j in pre_i if j != i])],
+                                             YE[np.isin(GE, [j for j in pre_i if j != i])])
+                        for i in pre_i}}
+        if scaling:
+            # THE EM'S TRAINING PRIOR travels with the model: the class mix of the engaged trials that trained it
+            # (for a LOSO model, never the held-out session's). Training labels only.
+            out["scaling"] = scaling
+            out["pi_train"] = {"full": spout_scaling.class_prior(YE[np.isin(GE, pre_i)]),
+                               "loso": {kept[i]: spout_scaling.class_prior(
+                                   YE[np.isin(GE, [j for j in pre_i if j != i])]) for i in pre_i}}
+        return out
 
     return frozen_models.load_or_fit(
         decoder_spec(XE, kept, pre_i, align=align, source=source, post_s=post_s, zscore=zscore,
-                     basis_id=basis_id),
+                     basis_id=basis_id, scaling=scaling),
         _fit_all, meta={"n_engaged": int(len(YE)), "n_pooled_sessions": len(kept)}, log=log)
+
+
+def frozen_scored_frame(models, XE, GE, XU, GU, kept, pre_i):
+    """``(XE_scored, XU_scored)``: the features the FROZEN models must be applied to.
+
+    Under ``session_z`` (models without ``pi_train``) this is ``(XE, XU)`` unchanged -- the pre-11-03 behaviour,
+    bit-identical. Under ``session_bal_em`` every session is moved into its scoring frame with ITS scoring model:
+    a pre-stroke session with its leave-that-session-out model, every other session with ``full``; the centre comes
+    from the session's engaged rows alone (no labels) and is applied to its no-lick rows too (`spout_scaling`).
+    """
+    from wfield_local import spout_scaling
+    if not models or "pi_train" not in models:
+        return XE, XU
+    pre_set = set(pre_i)
+
+    def model_of(i):
+        return models["loso"].get(kept[i], models["full"]) if i in pre_set else models["full"]
+
+    def prior_of(i):
+        pt = models["pi_train"]
+        return pt["loso"].get(kept[i], pt["full"]) if i in pre_set else pt["full"]
+
+    return spout_scaling.scored_frame(XE, GE, XU, GU, range(len(kept)), model_of, prior_of)
 
 
 def pooled_frozen_loso(labels, source="roi", align="cue", post_s=2.0, zscore=True, verbose=True,
@@ -445,15 +485,18 @@ def pooled_frozen_loso(labels, source="roi", align="cue", post_s=2.0, zscore=Tru
     _spec_kw = dict(align=align, source=source, post_s=post_s, zscore=zscore,
                     basis_id=getattr(features, "basis_id", None))
     models, freeze_status = frozen_decoder_models(XE, YE, GE, kept, pre_i, **_spec_kw)
+    # THE FRAME THE FROZEN MODELS SCORE IN (bal_em since 2026-11-03; identity under session_z). The within-session
+    # ceiling below stays on the production frame: it is refitted per session and never meets the frozen model.
+    XEs, XUs = frozen_scored_frame(models, XE, GE, XU, GU, kept, pre_i)
 
     pred = np.empty_like(YE)
     for i in pre_i:                      # reference arm: LOSO among PRE-stroke sessions only
-        pred[GE == i] = models["loso"][kept[i]].predict(XE[GE == i])
+        pred[GE == i] = models["loso"][kept[i]].predict(XEs[GE == i])
     if post_i:                           # post-stroke arm: ONE model, fit on ALL pre, applied unchanged
         clf = models["full"]
         for i in post_i:
             te = GE == i
-            pred[te] = clf.predict(XE[te])
+            pred[te] = clf.predict(XEs[te])
     # The headline is the PRE-STROKE band -- that is what "does a frozen decoder decay across days on
     # its own" asks. Mixing post-stroke sessions into it answers a different question.
     m_pre = np.isin(GE, pre_i)
@@ -502,7 +545,9 @@ def pooled_frozen_loso(labels, source="roi", align="cue", post_s=2.0, zscore=Tru
     res["confusion"] = {lab: confusion_matrix(YE[GE == i], pred[GE == i],
                                               labels=DISPLAY_ORDER).tolist()
                         for i, lab in enumerate(kept)}
-    res["ood"] = ood_control(XE, YE, GE, XU, YU, GU=GU, pre_i=pre_i, models=models, labels=kept)
+    res["ood"] = ood_control(XE, YE, GE, XU, YU, GU=GU, pre_i=pre_i, models=models, labels=kept,
+                             XE_scored=XEs, XU_scored=XUs)
+    res["spout_scaling"] = models.get("scaling", "session_z") if models else "session_z"
     if verbose:
         print(f"\n  pooled: {len(YE)} engaged trials, {len(YU)} no-lick, {XE.shape[1]} {source} "
               f"features, {len(kept)} sessions")
@@ -527,7 +572,8 @@ def pooled_frozen_loso(labels, source="roi", align="cue", post_s=2.0, zscore=Tru
     return res
 
 
-def ood_control(XE, YE, GE, XU, YU, *, GU=None, pre_i=None, models=None, labels=None):
+def ood_control(XE, YE, GE, XU, YU, *, GU=None, pre_i=None, models=None, labels=None, XE_scored=None,
+                XU_scored=None):
     """Out-of-distribution control for a frozen decoder. Confidence is NOT evidence.
 
     A softmax decoder never abstains: applied to input carrying no position information it still
@@ -579,6 +625,11 @@ def ood_control(XE, YE, GE, XU, YU, *, GU=None, pre_i=None, models=None, labels=
     m = np.isin(GE, pre_i)
     if not m.any():
         return {}
+    # THE FROZEN MODELS ARE APPLIED IN THEIR SCORING FRAME (``XE_scored`` / ``XU_scored`` from
+    # `frozen_scored_frame`; bal_em since 2026-11-03). The shuffle null is a refit and stays on ``XE``.
+    XEs = XE if XE_scored is None else XE_scored
+    if XU_scored is not None:
+        XU = XU_scored
     clf = models["full"] if models else _pipe().fit(XE[m], YE[m])
     classes = clf.named_steps["logisticregression"].classes_
     if models and labels:
@@ -586,7 +637,7 @@ def ood_control(XE, YE, GE, XU, YU, *, GU=None, pre_i=None, models=None, labels=
         # original index) and that is harmless here: everything computed from `pe` is a MEAN over
         # rows -- normalised entropy and mean max-probability -- so it is order-invariant. Anything
         # added later that pairs `pe` row-wise with `YE` would need the index map.
-        pe = np.vstack([models["loso"][labels[i]].predict_proba(XE[GE == i]) for i in pre_i])
+        pe = np.vstack([models["loso"][labels[i]].predict_proba(XEs[GE == i]) for i in pre_i])
     else:
         pe = cross_val_predict(_pipe(), XE[m], YE[m], cv=LeaveOneGroupOut(), groups=GE[m],
                                method="predict_proba")
@@ -650,7 +701,7 @@ def write_session_confusions(results, out, basis="roi"):
     bname = BASIS_NAME.get(basis, basis)
     posn = [POSITION_NAMES[c] for c in DISPLAY_ORDER]
     written = []
-    for an, r in results.items():
+    for _an, r in results.items():
         for lab, cm in r.get("confusion", {}).items():
             cm = np.asarray(cm, dtype=float)
             n = cm.sum()
@@ -856,7 +907,6 @@ def project_C_fixed_A(a_ref_label, new_label):
 
 def _transfer_matrix_fig(out):
     fig, axes = plt.subplots(1, 3, figsize=(15, 5), squeeze=False)
-    posn = [POSITION_NAMES[c] for c in DISPLAY_ORDER]
     for ax, an in zip(axes[0], ("PS92", "PS94", "PS95")):
         days = [s["label"] for s in SESSIONS if s["label"].startswith(an) and s["label"][-4:] in BASELINE_DAYS]
         n = len(days); M = np.full((n, n), np.nan)

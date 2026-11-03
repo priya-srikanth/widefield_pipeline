@@ -31,6 +31,7 @@ from wfield_local import nolick_analysis as na
 from wfield_local.locanmf_frozen_decoder import (
     _pipe,
     frozen_decoder_models,
+    frozen_scored_frame,
     pool_sessions,
 )
 from wfield_local.plot_lick_aligned_averages import DISPLAY_ORDER, POSITION_NAMES
@@ -224,6 +225,24 @@ def frozen(d):
     return cache["models"]
 
 
+def frozen_X(d):
+    """``(XE, XU)`` in the frame the STORED models of `frozen` score in, memoised on ``d``.
+
+    Under ``session_bal_em`` (production since 2026-11-03, `spout_scaling`) each session is centred by the label-free
+    EM centre of its engaged trials under its scoring model (LOSO for a pre session, ``full`` otherwise); under
+    ``WIDEFIELD_SPOUT_SCALING=session_z``, or when no stored model is available (local fallback fits), it is
+    ``(d["XE"], d["XU"])`` itself. The scored frame does not depend on ``post_i``, which `poststroke_section_g`
+    mutates, so one frame serves every narrowing of the pool.
+    """
+    cache = d.get("_frozen_cache")
+    models = frozen(d)
+    if models is None or cache is None:
+        return d["XE"], d["XU"]
+    if "X" not in cache:
+        cache["X"] = frozen_scored_frame(models, d["XE"], d["GE"], d["XU"], d["GU"], d["kept"], d["pre_i"])
+    return cache["X"]
+
+
 def preserved_positions_by_session(d):
     """{session label -> preserved positions} for every post-stroke session, for reporting."""
     return {d["kept"][i]: preserved_positions(d, session=i) for i in sorted(d["post_i"])}
@@ -255,6 +274,9 @@ def decode_matched(d, keep, post_all_trials=True):
     # a different chance level), and serving it the 6-way model would silently change what its
     # accuracy means. It keeps fitting locally.
     models = frozen(d) if post_all_trials else None
+    # THE STORED MODEL SCORES IN ITS OWN FRAME (`frozen_X`; bal_em since 2026-11-03). The lick-only arm's local fit
+    # stays on the production frame.
+    XEf, XUf = frozen_X(d) if models is not None else (d["XE"], d["XU"])
     if models is not None:
         clf = models["full"]
         pre_pred = np.empty_like(d["YE"][tr])
@@ -262,7 +284,7 @@ def decode_matched(d, keep, post_all_trials=True):
         for i in sorted(d["pre_i"]):
             m = _gi == i
             if m.sum():
-                pre_pred[m] = models["loso"][d["kept"][i]].predict(d["XE"][tr][m])
+                pre_pred[m] = models["loso"][d["kept"][i]].predict(XEf[tr][m])
     else:
         clf = _pipe().fit(d["XE"][tr], d["YE"][tr])
         # pre-stroke baseline under the SAME restriction, leave-one-session-out
@@ -275,10 +297,10 @@ def decode_matched(d, keep, post_all_trials=True):
             per[d["kept"][i]] = float(accuracy_score(d["YE"][tr][m], pre_pred[m]))
     if post_all_trials:
         teu = np.isin(d["GU"], list(d["post_i"])) & np.isin(d["YU"], pos)
-        Xpost = np.vstack([d["XE"][te], d["XU"][teu]])
+        Xpost = np.vstack([XEf[te], XUf[teu]])
         ypost = np.concatenate([d["YE"][te], d["YU"][teu]])
     else:
-        Xpost, ypost = d["XE"][te], d["YE"][te]
+        Xpost, ypost = XEf[te], d["YE"][te]
     post_pred = clf.predict(Xpost)
     out = na.evaluate_arm(ypost, post_pred, n_perm=1000, labels=pos)
     out["accuracy"] = float(accuracy_score(ypost, post_pred))
@@ -563,6 +585,8 @@ def crossed_confusion(d, labels=DISPLAY_ORDER, post_all_trials=False,
     # does not depend on `post_i` at all -- was redone on every one of those passes.
     models = frozen(d)
     clf = models["full"] if models else _pipe().fit(d["XE"][tr], d["YE"][tr])
+    # the frame the STORED models score in (`frozen_X`; bal_em since 2026-11-03); production frame for local fits
+    XEf, XUf = frozen_X(d) if models else (d["XE"], d["XU"])
 
     # PRE: engaged only, leave-one-session-out -- the reference for a code with a successful movement.
     pre_y = d["YE"][tr]
@@ -572,7 +596,7 @@ def crossed_confusion(d, labels=DISPLAY_ORDER, post_all_trials=False,
         for i in sorted(d["pre_i"]):
             m = _gi == i
             if m.sum():
-                pre_p[m] = models["loso"][d["kept"][i]].predict(d["XE"][tr][m])
+                pre_p[m] = models["loso"][d["kept"][i]].predict(XEf[tr][m])
     else:
         pre_p = cross_val_predict(_pipe(), d["XE"][tr], d["YE"][tr], cv=LeaveOneGroupOut(),
                                   groups=d["GE"][tr])
@@ -600,7 +624,9 @@ def crossed_confusion(d, labels=DISPLAY_ORDER, post_all_trials=False,
             mdl = (models["loso"].get(d["kept"][int(gsess)]) if models else None)
             if mdl is None:
                 mdl = _pipe().fit(d["XE"][trn], d["YE"][trn])
-            pre_nl_p[hold] = mdl.predict(d["XU"][pre_u][hold])
+                pre_nl_p[hold] = mdl.predict(d["XU"][pre_u][hold])
+            else:
+                pre_nl_p[hold] = mdl.predict(XUf[pre_u][hold])
     keep_nl = pre_nl_p >= 0
     pre_nl_y, pre_nl_p = pre_nl_y[keep_nl], pre_nl_p[keep_nl]
 
@@ -609,10 +635,10 @@ def crossed_confusion(d, labels=DISPLAY_ORDER, post_all_trials=False,
     if post_all_trials:
         teu = np.isin(d["GU"], list(d["post_i"]))
         post_y = np.concatenate([d["YE"][te], d["YU"][teu]])
-        post_X = np.vstack([d["XE"][te], d["XU"][teu]])
+        post_X = np.vstack([XEf[te], XUf[teu]])
         post_nolick = np.concatenate([np.zeros(int(te.sum()), bool), np.ones(int(teu.sum()), bool)])
     else:
-        post_y, post_X = d["YE"][te], d["XE"][te]
+        post_y, post_X = d["YE"][te], XEf[te]
         post_nolick = np.zeros(len(post_y), bool)
     post_p = clf.predict(post_X)
 
@@ -623,7 +649,7 @@ def crossed_confusion(d, labels=DISPLAY_ORDER, post_all_trials=False,
     # Computed in both arms: the trials exist regardless of which arm the rest of the record uses.
     post_u = np.isin(d["GU"], list(d["post_i"]))
     post_nl_y = d["YU"][post_u]
-    post_nl_p = clf.predict(d["XU"][post_u]) if post_u.sum() else np.empty(0, dtype=post_nl_y.dtype)
+    post_nl_p = clf.predict(XUf[post_u]) if post_u.sum() else np.empty(0, dtype=post_nl_y.dtype)
 
     out = {"post_arm": "ALL trials (engaged + no-lick)" if post_all_trials else "engaged only",
            "pre_arm": "engaged only, leave-one-session-out",
@@ -868,6 +894,7 @@ def impaired_nolick_readout(d, keep, alignment="precue", n_perm=2000):
     # restrict training, so `tr` is all pre-stroke engaged trials and this is the frozen decoder.
     _m = frozen(d)
     clf = _m["full"] if _m else _pipe().fit(d["XE"][tr], d["YE"][tr])
+    _XUf = frozen_X(d)[1] if _m else d["XU"]          # the stored model's scoring frame (bal_em since 2026-11-03)
     post_u = np.isin(d["GU"], list(d["post_i"]))
     out = {"preserved_positions": [POSITION_NAMES[c] for c in keep],
            "impaired_positions": [POSITION_NAMES[c] for c in impaired]}
@@ -876,7 +903,7 @@ def impaired_nolick_readout(d, keep, alignment="precue", n_perm=2000):
         if m.sum() < MIN_POST:
             out[name] = {"n": int(m.sum()), "note": f"fewer than {MIN_POST} no-lick trials"}
             continue
-        y, pred = d["YU"][m], clf.predict(d["XU"][m])
+        y, pred = d["YU"][m], clf.predict(_XUf[m])
         # Scored over ALL six labels: the frozen decoder may predict any position, and restricting
         # the label set would hand it a chance level it was not operating under.
         r = na.evaluate_arm(y, pred, n_perm=n_perm, labels=list(DISPLAY_ORDER))

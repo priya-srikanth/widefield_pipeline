@@ -22840,3 +22840,87 @@ Robustness rows: anchor "contact", "close" (last lick at close_L / close_center)
 unchanged. Moved from 5b's `scripts/s1_trial_class_snapshot.py` (91664c86); identical on all 57,601 snapshot rows for
 all three anchors. `selection_tag(end="lick")` adds "-endlick" to cache keys built on it (no end = tag unchanged).
 Section 1 already uses it (no cell moved by more than .02).
+
+## 2026-11-03 — Spout-position frozen decoder: bal_em adopted as PRODUCTION at every alignment (arm B, no guard)
+
+**Decision (Priya, 11-03: "I would adopt B everywhere").** The frozen pre-stroke SPOUT-POSITION decoder now scores every
+session with `scaling="session_bal_em"` at precue, cue and lick: arm B of the guard check above (24e9dac1), with NO guard
+(G1 was not adopted: Priya rejected applying pre-stroke structure selectively). Follows the class-mix check (fa70b651).
+
+**Method (one sentence for a methods section).** Each pre-stroke training session was centred on the equal-weight mean of
+its six true spout-class means and scaled by its engaged-trial SD; each scored session kept its engaged-trial SD, and its
+centre was re-estimated without labels as the equal-weight mean of soft class means, with class priors re-estimated from
+the frozen model's posteriors by the expectation-maximisation label-shift correction of Saerens et al. (2002) (3 passes;
+the same centre applied to that session's no-lick trials).
+
+**Code.** `wfield_local/label_shift.py` (the EM primitives, MOVED from `locomotor_decoder`, which re-exports them; the
+state decoder is bit-identical: 20 random cases vs HEAD + `tests/test_state_bal_em.py`); `wfield_local/spout_scaling.py`
+(env `WIDEFIELD_SPOUT_SCALING`, default `session_bal_em`; `session_z` = the pre-11-03 production: no spec key, the old
+models load). Wired into `grant_kit._frozen_frame` (one fit + one frame per bundle) -> `grant_confusion._collect_5c`
+(frozen / paired / paired_matched; the within-session refit stays on the production frame) and the 5b recompute path;
+`locanmf_frozen_decoder` (`decoder_spec`, `frozen_decoder_models`, new `frozen_scored_frame`; `pooled_frozen_loso`,
+`ood_control`); `poststroke_compare.frozen_X` (decode_matched all-trials arm, crossed_confusion, impaired_nolick_readout
+= section G); `attempt_coding`. It works on the production-z matrices: both transforms are affine per session with the
+same SD, so this is algebraically the raw-feature computation. Scored-session labels never enter (by signature;
+`tests/test_spout_bal_em.py` shuffles them and gets bit-identical inputs to the model). NOT converted (still session_z;
+separate in-memory fits, not this frozen model): `precue_engagement_states`, `nolick_decoder`, `enl_decode`,
+`locanmf_decoder_qc`, `precue_significance`, the class-filtered lick-only arm of `poststroke_compare.decode_matched`,
+`scripts/june_august_drift.py`. `scripts/cohort2_qc/quiet_task_events_followup.py` is pinned to the session_z model (it
+rebuilds the session_z frame by hand). No `session_cache` function changed (frozen predictions are not cached there), so
+no CACHE_VERSION bump.
+
+**Spec / store.** `scaling="session_bal_em"`, `scaling_params={"centre_set": "engaged", "guard": None, "min_mass": None,
+"n_outer": 3, "train_centre": "true_class_means_equal_weight"}`; the payload adds `pi_train` (full + LOSO training class
+mix). Every other spec id is unchanged (pinned: the session_z decoder spec equals the HEAD spec; state ids e14c78c2c8e8 /
+85aa81b36cb3). New ids, fitted on the analysis desktop (`spout_balem_production/freeze_models.py`):
+- ROI (`nightly_figs` section D + section G share it), PS92 / PS93 / PS94 / PS95: cue 11f788fdcd2e / a923a8202eac /
+  212f3304cde0 / 34db1b9483ae; precue 80371155c84d / 52d957965847 / 8762d3323b2f / 6f32c4b74251; lick ac21cc7fd647 /
+  809d66844d3c / 3340a62f8ad2 / cdb2f5497c2c.
+- joint basis (`joint_xsession`; also the attempt_coding LP pool for PS92 / PS94 / PS95 cue / lick and ENL-2 s
+  precue), PS92 / PS93 / PS94 / PS95: cue 43be933565d6 / bdaa09c9a07f / 60c657f6a793 / 9338b4dc6f78; precue
+  5fbd3b412a0b / e4447a98b8e0 / 43408ceb0737 / 649c974f40cf; lick a28e0575444d / b33dc775c05b / 99edf4ed8d8f /
+  da987c6217aa.
+- attempt_coding LP pool (PS93 has no LP tables for 0813, so 10 pre sessions): PS93 cue 4f91d6b1669d, lick
+  c579907cd97a, precue 976ee9e18972 (ENL 2 s) / e7ad593ff8fd (ENL 1.0 s); ENL 1.0 s precue PS92 53f54cdd1cdb, PS94
+  36491ca64c95, PS95 7e8de9080498.
+- 31 models, all published to `labcams/frozen_models` with `publish_basis --what frozen` (dry run first; copied 2 /
+  verified 2 each, SHA-256 read back; 0 mismatches; `spout_balem_production/publish_log.txt`). `load_or_fit` reported
+  SPEC-CHANGED for the 24 DAQ ones (`siblings()` matched an older 8-session August-only model); each one's session_z
+  twin (same spec minus `scaling` / `scaling_params`, same 11 training labels and signatures) IS on the server (e.g.
+  PS92 cue roi 12fb93bf5158, PS95 cue roi 5e19afa87323), so the only change is the scaling. Section G's pools resolved
+  to the same ROI ids (`loaded`). The session_z models are untouched.
+- Families 5* / acc_by_position / 5r* / 13s do NOT read the store: `_collect_5c` has always fitted the same pre-stroke
+  model in memory from the bundle (deterministic within a box); that is unchanged, only its frame moved.
+
+**Verification before any render** (`labcams/decoder_mix_checks/spout_balem_production/`: `verify_production.py`,
+`summarise_verify.py`, `verify_collect5c.py`, `compare_collect5c.py`, logs, CSVs).
+- Reproduction on the cached production features (12 animal x alignment units, 600 session x unit rows): the production
+  code under session_z reproduces guard arm P EXACTLY, and the production scoring functions with the diagnostic's
+  production-frame models reproduce arm B EXACTLY (0 of 4,164 cells differ in every unit).
+- Production bal_em (adds the training-side centring) vs arm B: mean |d| .010 per session x position cell (max .12 cue,
+  .19 lick, .10 precue).
+- End-to-end through `_collect_5c` on real bundles (cue/working, precue/working, lick/lick): 228 post days and the pooled
+  pre records equal the cache computation under both scalings (0 / 1,584 cells differ).
+- Change vs production, acute vs pre (boot_delta, animals -> sessions; per-animal tables first, `summarise_log.txt`):
+  - cue/working: far contra -.536 -> -.644 (new - old -.107 [-.179, -.043], 4/4); far mid -.385 -> -.484 (-.099, 4/4);
+    close ipsi -.191 -> -.130 (+.062, 4/4); close mid -.250 -> -.196 (+.054); close contra -.255 -> -.202 (+.053, 4/4);
+    far ipsi -.275 -> -.265; overall -.314 -> -.318. Subacute far contra -.267 -> -.291. Chronic far contra -.130 ->
+    -.179 (-.048, 4/4); chronic overall -.055 -> -.071.
+  - precue/working: far contra -.254 -> -.271 (-.017, ns); close positions +.03 to +.04 (ns); far mid -.121 -> -.162
+    (-.040, 4/4); overall -.177 -> -.171.
+  - lick/lick: far contra -.465 -> -.483 (3 animals: PS95 has < 5 engaged acute far-contra trials); close ipsi -.168 ->
+    -.121; close contra -.191 -> -.131 (+.060, 4/4); overall -.192 -> -.165 (+.027, 4/4). Chronic far contra -.207 ->
+    -.238 (4/4).
+- Pre sessions (new - old, each scored by its LOSO model): cue/working per-animal means within +-.007 and pooled within
+  +-.003 at every position; lick/lick per animal within +-.009, pooled within +-.005; precue up to -.03 per animal (PS92
+  close contra), pooled overall -.005 [-.010, -.000].
+- Overall accuracy moves by <= .03 at every alignment and epoch.
+
+**Limits (state them with the method).** When a spout is nearly absent from the engaged set (acute far contra), about
+30-40 % of the bias remains (stress test: .71 of it removed at the acute share, .60 with far contra absent), in the
+conservative direction: the acute far-contra loss is still slightly UNDER-stated. At precue the EM is weak and only ~37 %
+of the artefact is removed, so precue per-position numbers keep a ~.02-.03 artefact.
+
+**Renders.** Held until A3 (the LMM epoch-star rule, another window) is on origin/main. Families that read this decoder,
+and the page edits: `docs/status/SPOUT_BALEM_PAGE_EDITS_2026-11-03.md`; deck swaps:
+`presentations/_source_PI_overview_2026-11-02/build_inputs/spout_balem_swaps.json`.

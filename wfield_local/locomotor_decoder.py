@@ -116,88 +116,29 @@ def session_zscore(X):
     return (X - mu) / np.where(sd > 0, sd, 1.0)
 
 
-def _session_sd(X):
-    sd = np.asarray(X, float).std(0)
-    return np.where(sd > 0, sd, 1.0)
+# THE EM PRIMITIVES LIVE IN `label_shift` (2026-11-03) -- moved verbatim so the spout-position decoder reuses them
+# (CLAUDE.md rule 9). Re-exported under their old names; tests/test_state_bal_em.py pins the state decoder bit-identical.
+from wfield_local.label_shift import bal_em_centre, saerens_em  # noqa: E402,F401
+from wfield_local.label_shift import proba_full as _proba_full  # noqa: E402,F401
+from wfield_local.label_shift import session_sd as _session_sd  # noqa: E402
 
 
 def balanced_zscore(X, y, classes=ls.THREE_WAY):
     """TRAINING-side centring for bal_em: centre at the EQUAL-weight mean of the session's class means (TRUE labels --
     pre-stroke training labels are allowed), divide by the production per-session SD (all segments). Only ever applied
     to the pre-stroke sessions a model is trained on; a scored session goes through `bal_em_centre`."""
+    from wfield_local.label_shift import balanced_centre
     X = np.asarray(X, float)
     y = np.asarray(y)
     if not len(X):
         return X
-    mu = np.mean([X[y == c].mean(0) for c in classes if (y == c).sum()], 0)
-    return (X - mu) / _session_sd(X)
+    return (X - balanced_centre(X, y, classes)) / _session_sd(X)
 
 
 def class_prior(ys, classes=ls.THREE_WAY):
     """Class proportions of the pooled TRAINING labels (the frozen model's training prior, for the EM)."""
-    y = np.concatenate([np.asarray(v) for v in ys]) if len(ys) else np.array([])
-    return np.array([(y == c).mean() if len(y) else np.nan for c in classes], float)
-
-
-def _proba_full(model, Z, K):
-    P = model.predict_proba(np.asarray(Z))
-    full = np.zeros((len(Z), K))
-    for j, c in enumerate(model.classes_):
-        full[:, int(c)] = P[:, j]
-    return full
-
-
-def saerens_em(P, pi_train, n_iter=200, tol=1e-8):
-    """Label-shift EM (Saerens, Latinne & Decaestecker 2002): re-estimate a session's class priors from the model's
-    posteriors ``P`` (n x K) alone. Returns (adjusted posteriors, estimated priors). No label enters."""
-    pi_train = np.asarray(pi_train, float)
-    pi = pi_train.copy()
-    Q = P
-    for _ in range(n_iter):
-        Q = P * (pi / pi_train)
-        Q = Q / Q.sum(1, keepdims=True)
-        new = Q.mean(0)
-        if np.abs(new - pi).max() < tol:
-            pi = new
-            break
-        pi = new
-    return Q, pi
-
-
-def bal_em_centre(model, X, pi_train, *, n_outer=None, min_mass=None, return_info=False):
-    """SCORING-side centring for bal_em -- LABEL-FREE (DECISIONS 2026-11-03). Takes no labels, by signature.
-
-    Start from the production centring (session mean / session SD); then ``n_outer`` passes of: the frozen model's
-    posteriors -> Saerens EM priors (training prior = ``pi_train``) -> SOFT class means of the RAW features from the
-    adjusted posteriors -> centre at their EQUAL-weight mean (classes with no mass dropped), keeping production's
-    per-session SD -> re-z-score. Returns the scaled features (and, with ``return_info``, the estimated priors, the
-    centre and whether the optional min-mass guard fired). Exactly the ``bal_em`` arm of
-    labcams/state_decoder_ps94_check/prebal/analyse_prebal.py (``prebal_centre(..., w_target=[1/3]*3)``).
-
-    ``min_mass`` (default None = OFF): if set, a pass whose EM-estimated share of any class is below it centres on
-    the training mix ``pi_train`` instead of equal weights."""
-    n_outer = BAL_EM_PASSES if n_outer is None else int(n_outer)
-    X = np.asarray(X, float)
-    pi_train = np.asarray(pi_train, float)
-    K = len(pi_train)
-    sd = _session_sd(X)
-    mu = X.mean(0)
-    Z = (X - mu) / sd
-    pi_hat, guard = pi_train, False
-    for _ in range(n_outer):
-        Q, pi_hat = saerens_em(_proba_full(model, Z, K), pi_train)
-        mass = Q.sum(0)
-        muc = np.array([(Q[:, c:c + 1] * X).sum(0) / mass[c] if mass[c] > 1e-9 else mu for c in range(K)])
-        ok = mass > 1e-9
-        tgt = np.full(K, 1.0 / K)
-        if min_mass is not None and np.any(pi_hat < float(min_mass)):
-            tgt, guard = pi_train, True
-        w = tgt * ok / (tgt * ok).sum()
-        mu = (w[:, None] * muc).sum(0)
-        Z = (X - mu) / sd
-    if return_info:
-        return Z, {"pi_hat": pi_hat, "centre": mu, "guard": guard}
-    return Z
+    from wfield_local.label_shift import class_prior as _cp
+    return _cp(ys, classes)
 
 
 def train_transform(X, y, scaling):
