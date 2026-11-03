@@ -75,3 +75,12 @@ _(none open yet. Items appear here as the decoder helper reports.)_
   / 43, p_phase stats on slide 52, contra-left paths on slide 59, and the ITI backup at slide 119. Hidden-state diff
   keyed by title + shape names: the only change is the new hidden slide 119 (77 -> 78 hidden; 183 slides). PNGs checked.
   Waiting: 34's LMM 0-1 s swap for slides 95-98.
+- 11-03 evening: slides 95-98 (hidden LMM for the lick-ramp main slide 94) now test slide 94's own quantity: per
+  session, spouts pooled, AUC 0-1.0 s / pre; PEAK is secondary (Priya). Finding:
+  - cued AUC: 8 / 21 cells *, subacute + chronic only, no acute cell (p .08-.40);
+  - cued peak: 11 / 21, no acute;
+  - ITI AUC: 0 / 21 (smallest p .07);
+  - ITI peak: 8 / 21 incl. acute in 4 ROIs.
+
+  The acute rise is carried by PS94 and PS95 (PS95: one acute session); PS92 is ~0 acutely. Hidden states unchanged
+  (78 / 183). swap_ramp_lmm_w01_peak_1103.py.
