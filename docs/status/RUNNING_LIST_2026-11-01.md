@@ -377,3 +377,7 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   isolated no_response inside the working period (lapse vs sustained stop); (4) fix the 7 ordering-rule scripts; (5) convert the 3
   in-memory decoders to stored read-outs; (6) KEEP PS92_0908 in camera gating for its 82.5% covered trials (rules computed within the
   covered span; partial coverage flagged + captioned); (7) jaw-only after the last lick does not break a stop run. Sent to the fix helper.
+- 11-03 DECISION (Priya): the no-lick analysis uses the RESPONSE WINDOW (per-session, 3.5 s) for its camera classes, not cue_stop.
+  Requested window="response" in trial_classes from e3 (owner); rebuild no-lick categorisation calls it; tag carries the window.
+  (Correction: the "no-lick trials classed contact" are post-cue no-DAQ-lick trials, not pre-cue windows; likely late licks /
+  sensor misses, being counted.)
