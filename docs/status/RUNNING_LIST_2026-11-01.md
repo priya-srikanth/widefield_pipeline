@@ -256,3 +256,8 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   jaw_only). The DAQ quit-tail "working" becomes a robustness row. Applies in the cohort 1 rebuild (one switch, with the swap-mask
   correction, August-only pre, LP-trained LP arm, new drift step); import the single definition from
   jaw_only_incomplete_figs.classify() + gate helper. Changes frozen-decoder training sets -> new spec ids.
+- 11-03: shared camera gates landed on main aca69271 (sabatinilab-5b): scripts.jaw_only_incomplete_figs GATES / session_classes /
+  cue_classes (matched by cue TIME within 20 ms) / in_gate. No DAQ fallback: PS93_0813 (no video) -> None, PS92_0908 17.5% of
+  cues "unknown" (in neither gate); cam4-only handled (none among curated imaging sessions). Mean share working .97 pre / .81
+  acute / .88 subacute / .97 chronic. Rebuild consequence: PS93_0813 drops out of the August pre set under the camera gate
+  (PS93 August pre 8 -> 7, as in the LP arm). Handoff of that work: STATUS_2026-11-03_TRIAL_GATES_S1_TABLE_HANDOFF.md.
