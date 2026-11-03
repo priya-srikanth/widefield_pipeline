@@ -548,3 +548,102 @@ Exception: in face_offset_partial, the "before" decoder `fits0` (`scripts/face_o
   - `iti_decoder_pattern_stats.py:161` sort key omits `kind`, so ties remain.
   - `o2_face_rhythm.py:424-461` writes `segments` in completion order.
   - `grant_figures.py:1173` lists failures in completion order.
+
+---
+
+# Fourth pass (2026-11-03 late): code tip **3ef70b5b** (branch tip 85786d3b, docs only after it), plus 50f59ff8
+
+**Method:**
+- A clean export of 3ef70b5b.
+- Probes in each mode: default, LP, LP + gate-LP, camera, PRE_FROM=0801, hemo + lnmfproj, the render profile, profile + LP, and profile + PRE. Every probe printed `wfield_local.__file__` to prove it ran the export.
+- Session cache and frozen store pointed at scratch. Nothing was written to M:.
+
+**INCOMPLETE.** The T3 / warm-up / MIN_UNCOVERED_RUN / DECISIONS.md check (items 2 and 4) had not reported when this section was written. Its result is still owed and goes in an addendum. Until then, T3 as Priya approved it, the warm-up rule, MIN_UNCOVERED_RUN = 5, the per-session counts for PS94_0825 / PS93_0925 / PS92_0908 / PS92_0904, and the DECISIONS entry "2026-11-03 (night) -- Camera trial gate" are **NOT verified** by this review.
+
+**Full suite at 3ef70b5b** (6 shards, clean export): **4,470 passed, 182 skipped, 0 failed.**
+- The log's 4,476 passed / 176 skipped has the same collected total (4,652).
+- The 6-test difference is six tests that read git history or need a git checkout, so they skip in an export:
+  - `test_hooks_are_enabled::test_core_hookspath_points_at_the_repo_hooks`
+  - `test_rest_frozen_decoder_nl` x3 (`git show 0e592a20`)
+  - `test_frozen_default::test_rest_digested_sources_unchanged` (`git show 7c53214a`)
+  - `test_grant_kit` (pre-split revision `ae7b70a`)
+- I re-ran those files in the wf_rebuild worktree at 85786d3b, whose code is identical to 3ef70b5b, with PYTHONPATH set to it: **14 passed, 0 skipped.** No collection difference beyond these six.
+
+## 1. Third-pass findings, exercised in the real modes
+
+| id | status | probe evidence |
+|---|---|---|
+| T1 | FIXED | `is_writable(out_dir()/"_")` is True in every mode for attempt_coding, attempt_maps (rest / restnl) and `--out attempt_coding_pp`. Plain LP keeps origin/main's folder; gate-LP gives `attempt_coding/gateLP`; the profile gives `attempt_coding/<tag>`. Writes outside the family under a tag are refused. LOW: under plain LP any subfolder of a registered LP-family root is accepted. |
+| T2 | FIXED | `il.OUT` / `OUT_W` carry the full tag. `XOUT` carries hemo / lnmf only; under the profile it is `iti_licks/hv-..._lnmfproj`. `sd_table_path` == `_sd_dir(None)` in every mode. The zscore writers use `sd_table_path`. The extract content does not depend on selection, so exempting it as a data store is sound. |
+| T4 | FIXED | `attempt_maps.main` with an empty collect raises "no session produced maps" and writes 0 files. `baseline_or_build` builds missing baselines. `position_reference_maps:790` raises on 0 baselines. Remaining issue: R4. |
+| T5 | PARTIAL | The deck save is routed to `labcams/<tag>/` and guarded; the default deck is refused. Its CONTENT is not routed (R2). |
+| T6 | FIXED (code) | remap_lmm, kinematic_normality and `specificity_control --layer2` read what their writers write. `allsession_encoder.py:156-159` is guarded but unrouted: under the profile it refuses unless given `--out-root` (loud, not wrong). LOW: `early_predictors.py:28,51` uses the literal `E`. |
+| T7 (code) | FIXED | `[C,J,C,J,J,N,N | U]` keeps the end cutoff with a single trailing unmatched cue; a 5-cue uncovered tail drops it. Not checked by me: the full MIN_UNCOVERED_RUN edges (head, middle, 4 vs 5); pending addendum. |
+| T8 | FIXED | `camera_engaged_period` ends at the last camera lick unconditionally. LOW: warm-up trials are inside the rest period. |
+| T9 | FIXED | s1 snapshot built from `classify_session` on the same inputs as `cue_classes_for`. `face_offset_partial` `fits0` is stored through `pre_loso_ridge`. |
+| T10 | PARTIAL | Of 12 synthetic cases the detector catches only the plain control. It misses: `for f in as_completed(...)`, an unrelated `sorted(...)` substring, `sorted(res)` in a comment, an unassigned or returned fan_out, `CFG.update` / `.append` mutations, a mutator 2 calls deep, a `functools.partial` worker, a worker reading state through a helper, and joblib. No live bug results today. |
+
+**Render profile.**
+- `python -m wfield_local.render_profile cohort1_rebuild_20261103 --check` prints exactly `hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_sel-camera-cue_stop-endlick-stopRun6`.
+- Under the profile, `lp_licks.output_tag()` and `run_mode.tag()` give the same string; `cache_tag` adds `_csig-30210fb4e4`.
+- Profile + LP gives `LP_licks_<tag>` (full-tag families) and `<tag>` (LP-family).
+- The variant exists on real sessions. `hemo_meegkit_hpfit_lag_refitT_swapmask/SVTcorr.npy` is present for PS93_0818, PS92_0908 and PS95_0818. The manifest records variant meegkit_hpfit_lag, refit_t, iso_shift_16ms and bad_pairs_interpolated, built 11-03.
+
+**50f59ff8 writers.**
+- About 80 scripts got `require_default`; routing was added in kinematic_normality, fr_musall, iti_licks, lick_enl_target_test, attempt_coding and beta_maps.
+- Under the profile all the guarded scripts refuse. An AST check found no write before the guard in any `main`.
+- Exception: in `o2_face_rhythm.py:371-372` the guard landed inside the `RUNNER` string that is shipped to O2 as `fr_runner.py`, while the real `main` at `:1312` is unguarded. This breaks O2 FaceRhythm tasks; it does not affect the imaging render.
+
+## 2. Remaining issues: would a render write a wrong, stale or mislabelled output?
+
+**Yes, in these places.**
+
+### HIGH
+
+**R1. `scripts/rest_migration/rest_frozen_decoder_nl.py` (Fig 12.1b) serves pre-rebuild features and writes the default folder under the profile.**
+- `_code_key` (`:103-108`) hashes code + BINS only. The cache is `fw/rest_decoder_nl_cache` (`:62`), with no hemo / lnmfproj / selection / csig part.
+- `OUT_ROOT = labcams/grant_figures/rest_frozen_decoder_restnl` (`:61`) is literal, and the file has no `require_default` / `assert_writable` / `run_mode` call (grep).
+- So a profile run reuses old-hemo, DAQ-gated session features and overwrites the default 12.1b outputs. Its sibling `rest_frozen_decoder.py` is routed.
+- It was missed because `test_share_writers_mode_safe` scans only `scripts/*.py`, not subfolders and not `wfield_local/`. A broader scan lists about 120 unrouted, unguarded writers in `scripts/rest_migration/`, `scripts/cohort2_qc/`, `scripts/rebuild_figs/` and `wfield_local/` (`review4_A/scan_out.txt`). Most take an explicit `--output`, or are behaviour / cohort-2 products, but each one in the render plan must be checked.
+- Fix: add the run-mode cache tag to `_code_key`, route `OUT_ROOT` through `run_mode.subdir`, and extend the register test to subfolders and `wfield_local/`.
+
+### MED
+
+**R2. The tagged analysis deck shows untagged content.**
+- `locanmf_analysis_deck.py:485-486`: `grant_dir` defaults to the untagged `labcams/grant_figures`. Section K (`deck_registry.py:2361+`) uses literal `grant_figures/LP_licks/...` paths and hard-coded numbers.
+- A tagged nightly (`nightly_figs.py:1043`, `grant_dir` not passed) builds `labcams/<tag>/spout_position_analysis_summary.pptx` from the pre-rebuild grant / LP figures.
+- Standalone `python -m wfield_local.locanmf_analysis_deck` (`:2268-2271`) reads the untagged `figures_working` and saves under the tag: a fully default deck labelled as the rebuild.
+- Fix: derive `src` / `grant_dir` / section-K roots from the run mode.
+
+**R3. `scripts/rebuild_figs/` default inputs are untagged pre-rebuild data.**
+- Affected: `fig_frozen_refit_pooled.py:43`, `fig_s_per_animal.py:51`, `fig_state_position_sessions.py:54`, `fig_decoding_sessions.py:43`, `fig_enl_move.py:47`, `fig_state_ps94_diagnostic.py:64`.
+- `fig_goal_summary.py:47,60` mixes them: fig1 reads the untagged `E_DEF`, while fig2 / 3 read the routed `attempt_coding.out_dir()`.
+- Without an explicit `--src` / `--data-dir`, the "rebuild" figures are drawn from old data.
+- Fix: default to the routed paths, or refuse when the mode is non-default and no `--src` is given.
+
+**R4. attempt_maps `--figures` silently reads partial or no data after a class-code change.**
+- Missing keyed `maps_*` files are skipped silently (`attempt_maps.py:246-248,286`).
+- `hemispheres_{align}.csv` (read by fig_goal_summary) and the figure names are not csig-keyed, and `counts_*.csv` (`:388`) is unkeyed while maps are keyed.
+- Fix: raise when an expected keyed file is missing; key all products the same way.
+
+**R5. `run_mode.require_default` and the profile check ignore the LP / gate-LP / ENL parts.**
+- `require_default` (`run_mode.py:243-248`) tests `run_mode.tag()`, which excludes LP / gate-LP / ENL. Probe: under `WIDEFIELD_LICK_SOURCE=lp`, `GATE_SOURCE=lp` or `ENL_WINDOW_S=1.5` it passes. So the ~80 "refusing" scripts write default folders in those modes; for example, `trial_neural_vs_exec` / `coupling_by_class` under gate-LP overwrite plain-LP `attempt_coding_pp`.
+- `render_profile.apply` / `--check` (`render_profile.py:33-38,58-63`) neither unsets nor checks leftover env. With `GATE_SOURCE` / `ENL_WINDOW_S` / `FROZEN_OUT_ROOT` already set in the shell, `--check` still prints the expected tag while outputs land elsewhere.
+- Fix: `require_default` uses `lp_licks.output_tag()`; the profile unsets every `WIDEFIELD_*` it does not set and `--check` prints the full `output_tag()`.
+
+### LOW
+- The O2 runner guard placement noted above.
+- T10 detector gaps.
+- Plain-LP prefix acceptance under LP-family roots.
+- `early_predictors` uses the literal `E`.
+- Warm-up trials sit inside the rest period.
+- A mid-session run of 6 no_response bridged by an isolated in-video unknown is labelled stopped even when licking resumes (`[C,N,N,N,U,N,N,N,C]`). This is consistent with the rule; worth one line to Priya.
+
+## 3. Verdict for the render
+**Not yet safe.**
+- R1 would write a stale, mislabelled 12.1b into the default folder.
+- R2 / R3 would publish old content under rebuild labels.
+- R5 makes the profile depend on a clean shell.
+- The T3 / DECISIONS check (items 2 and 4) is still outstanding.
+
+The T1-T9 fixes hold in the real modes, and the suite is green.
