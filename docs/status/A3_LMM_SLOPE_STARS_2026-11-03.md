@@ -96,3 +96,30 @@ which are 17 of 21. It needs a pre-specified fallback before any star is final:
 Imaging families: A3's draw code also feeds `epoch_figures.contrast_draws` (imaging scalar families) and
 `matrix_bootstrap.delta_draws` (maps). A per-pixel LMM is not a practical star rule for maps. Which imaging families
 the LMM rule should cover is also Priya's call. Not yet run.
+
+## Pooled-epoch alternative (Priya asked, 11-03)
+
+This is one model per cell, with all four epochs and session rows:
+
+`y ~ C(epoch) + (1 | animal) + (1 | animal:epoch)`, fitted by REML in statsmodels.
+
+The animal × epoch random intercept is ONE variance for how much each animal's epoch effect differs from the cohort's.
+It asks the same question as the per-contrast slope (do the animals agree?). The difference is that the variance is
+estimated from all three post epochs together rather than from 4 animals per contrast.
+
+The tests use containment df = (4 − 1) × (4 − 1) = 9.
+
+Results (`A3_LMM_POOLED_EPOCH_STARS_BEHAVIOUR_2026-11-03.csv`, script `scripts/a3_lmm_pooled_epoch_stars.py`):
+- **18 of 21 fits are estimable without a singular fit.** The 3 singular ones are the engagement cells, where the
+  animal × epoch variance is 0, so the model reduces to the random-intercept-only one.
+- **Stars (Holm within family):**
+  - all 6 acute positions `**`;
+  - subacute far contra `**`;
+  - acute and subacute engagement `**`;
+  - no chronic cell has a star. The closest is chronic far ipsi, β = +0.085, p = 0.084.
+- **Caveat:** the model assumes the between-animal spread of the effect is the same in every epoch. The acute spread
+  is large (far mid: animals change by −0.17 to −0.84), so the chronic tests borrow that spread and are conservative.
+  Some statsmodels fits report not converged, but their estimates match the random-intercept-only fit to within 0.01.
+
+Recommendation (e3): use the pooled animal × epoch model for the stars. Keep the random-intercept-only model and the
+animal-weighted bootstrap as sensitivity columns.
