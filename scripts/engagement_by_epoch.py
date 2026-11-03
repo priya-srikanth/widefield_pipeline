@@ -183,8 +183,11 @@ def main(argv=None) -> int:
         _point, draws = got
         marks[e][KEY] = ef.contrast_marks(draws, n_comparisons=len(post))
 
+    # stats_line wants {epoch: {animal: n}} and bar_row's legend {animal: n}; passing the per-epoch {KEY: n} printed
+    # "N=1 animals" and "PS92 (0)" (fixed 11-03, e3)
+    by_animal = {e: dict(collections.Counter(a for a, _v in points[e][KEY])) for e in points}
     sub = ef.stats_line(
-        counts, n_boot=N_BOOT,
+        by_animal, n_boot=N_BOOT,
         notes=[("bootstrap: animals -> sessions (a session is one number here, so there is no "
                 "block level)"),
                ("WORKING is judged ONLY at the spared reference positions, so a run of misses at "
@@ -196,7 +199,7 @@ def main(argv=None) -> int:
         values, out_dir, name="epoch_1f_engagement_by_epoch",
         title="Engagement: fraction of trials the animal was still working, by epoch "
               "(one dot per session)",
-        subtitle=sub, counts={e: counts[e][KEY] for e in counts}, marks=marks, points=points,
+        subtitle=sub, counts=dict(collections.Counter(a for e in points for a, _v in points[e][KEY])), marks=marks, points=points,
         ylabel="fraction of trials working", positions=[KEY], ylim=(0.0, 1.06))
     print(f"[1f] wrote {made}")
     print(f"[1g] wrote {timecourse(out_dir)}")
