@@ -328,3 +328,10 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   variance > 20 min) -> explains the PS92 subacute outliers; caption flag. Awaiting Priya.
 - 11-03: imaging section 1 (5b) run order added to the rebuild; analysis/attempt-coding must also be merged into the rebuild branch
   (goal-page scripts, v8 ROIs) -> code-prep helper doing a trial merge first.
+- 11-03: REBUILD CODE PREP DONE (wf_rebuild, rebuild/cohort1-20261103 tip 85af6485, not pushed; log REBUILD_CODE_20261103.md):
+  5 branches merged (+ section G); items a-k + fingerprint (FREEZE_VERSION 2, every ID new; fresh store required) committed, 4,159
+  tests pass; 10 recreated figure scripts reproduce their figures pixel-for-pixel (scripts/rebuild_figs/). Exposed + fixed: nolick
+  joint signal mixed stored / projected C. Defaults unchanged (gate=daq, adopted variant) until flipped at render time. Finding:
+  imaging 3.5 is NOT bit-reproducible across BLAS thread counts (contradicts CLAUDE.md). attempt-coding trial merge = 60 conflicts
+  -> new helper resolving + wiring the remaining camera gates (fail closed) + narrowing the map key to the yaml keys used.
+  Independent code REVIEWER launched in parallel (REBUILD_CODE_REVIEW_20261103.md). For Priya: camera "stopped" = no_response?
