@@ -3,13 +3,30 @@
 Window: sabatinilab-e3. Owns the **kinematics page** and the **repo consolidation review**. Read this first, then
 `docs/status/REPO_AUDIT_2026-11-03.md` (the audit) and DECISIONS 2026-11-03 (trial classes).
 
-## 0. State at hand-off
+## 00. LATEST (11-03 evening): consolidation in progress, read this first
+
+Priya approved the plan's Tier A (A1, A2, A3, A5) and A4 (one trial classification), and **approved landing them on
+main BEFORE the cohort-1 rebuild renders** (34's proposal: render each family once). Coordination rules, the file
+ownership table and her answers are in `REPO_CONSOLIDATION_PLAN_2026-11-03.md`.
+
+| item | state | next step |
+|---|---|---|
+| **A4** one trial classification | **ON MAIN 28f2a632**. `wfield_local/trial_classes.py` (`session_trials(label, window="cue_stop" \| "trial")`, GATES working / camera_lick / attempted, `in_gate`, `selection_tag`). trial_attempts.py + jaw_only_incomplete_figs.py import it (names / outputs kept). Tests `tests/test_trial_classes.py`; counts `docs/status/A4_TRIAL_CLASSES_COUNTS_2026-11-03.csv` | re-render kinematics section 6 + trial_classes outputs (e3; 5b OK'd running jaw_only_incomplete_figs main); 34 re-runs trial_attempts.csv in the rebuild |
+| **A4 amendment** (Priya via a8): close_center no-lick / no-contact / no-tongue = no_response, `jaw_judged` flag | **committed locally 23c8f775, NOT PUSHED** | push together with A1; then tell 5b (re-runs the s1 snapshot and asserts working / camera_lick unchanged), 34, a8 |
+| **A2** jaw-without-lick from trial_classes, all-trial denominator (orofacial_cohort `jaw_no_lick_frac`, cam1_incomplete_licks `jaw_only_*`) | **committed locally 23c8f775, NOT PUSHED** | re-render cohort tables / Fig 1.3, incomplete/sessions.csv + Fig 7.6; tell a8 (deck) |
+| **A1** per-session response window (`analysis_kit.response_window_s`; RESP_S = None; quit_point, engagement_decomposition, channel_position_maps quit gate, rest_engagement reader) | **code done, UNCOMMITTED** in the clone (5 files + `tests/test_response_window.py`); 261 related tests pass. Before / after running: `scratchpad/a1_before_after.py` → `a1_before_after.csv` (hit rate + quit point at 2.0 s vs own window, every curated session) | read the result, write the DECISIONS entry with before / after, commit, push (with 23c8f775), tell 34 / 5b / a8 |
+| **A3** animal-weighted change-vs-pre (epoch_figures / epoch_behaviour → analysis_kit.boot_delta) | files released to e3 by a8 (keep a8's 11-03 figure defaults: session dots, star_top rows, EPOCH_GREY; write canonical names, not *_nolines) | next; list every star that changes, show the session-level LMM beside it (Priya: don't waste session power) |
+| **A5** one `responded(source="camera" \| "daq")` beside GATES | design agreed with 34 (default camera; source + window in every cache key via selection_tag; unknown excluded and logged; lick gate separate) | after A3; send 34 the signature |
+| Open with Priya | (1) whether jaw-only trials AFTER the session's last contact (807, ~1.6 % of working; 5b) stay in "working": her inclination is to keep them for uniformity unless they look different / don't occur pre-stroke; analysis running (`bguold2yk`: per-epoch counts + jaw onset / opening, tail vs pre-quit). (2) the FaceRhythm page merge question (§2). | |
+| Publishing | the session switched to psrikanth87@gmail.com; the results pages belong to the HMS account, so page publishes will fail until Priya logs back in as HMS or shares the pages (she'll fix it). Artifact watches dropped | republish after she fixes it |
+
+## 0. State at hand-off (earlier, 11-03 afternoon)
 
 | thread | state | next step |
 |---|---|---|
 | Kinematics page | **v23** live, https://claude.ai/artifact/DKcKRJKbhBoratxxRc6qZv | behaviour / kinematics split (§2), after Priya answers the FaceRhythm question |
-| Repo audit | audit + independent verification DONE (`REPO_AUDIT_2026-11-03.md`, `REPO_AUDIT_VERIFY_2026-11-03.md`); draft plan `REPO_CONSOLIDATION_PLAN_2026-11-03.md` | Priya approves the plan, Tier A decisions first (A1: S28 quit point uses a 2.0 s "responded" window vs the task 3.5 s) |
-| Code changes from the audit | **NONE made** | wait for (1) Priya's approval of the plan, (2) the cohort-1 rebuild window (sabatinilab-34, swap-mask + lag hemo pass) to land, so we don't collide |
+| Repo audit | audit + independent verification DONE (`REPO_AUDIT_2026-11-03.md`, `REPO_AUDIT_VERIFY_2026-11-03.md`); draft plan `REPO_CONSOLIDATION_PLAN_2026-11-03.md` | superseded by §00 |
+| Code changes from the audit | superseded by §00 | |
 
 ## 1. Kinematics page: what changed today (v14 → v23)
 
