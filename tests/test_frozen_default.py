@@ -657,3 +657,167 @@ def test_drift_decoder_rows_uses_the_store():
     assert "(stored if stored is not None else _pipe().fit(XE[tr], YE[tr])).predict(X)" in src
 
 
+# ------------------------------------------------------------------------------- position_coding_directions (4)
+def _cd_pool(seed=0, n_pre=3, n_post=2, n_per=150, n_feat=10):
+    from wfield_local import position_coding_directions as pcd
+    rng = np.random.default_rng(seed)
+    kept = [f"PS92_08{10 + i:02d}" for i in range(n_pre)] + [f"PS92_09{1 + i:02d}" for i in range(n_post)]
+    GE = np.repeat(np.arange(len(kept)), n_per)
+    pos = np.array(pcd.BY_SEVERITY)
+    en = np.tile(pos, len(GE) // len(pos) + 1)[:len(GE)]
+    mu = {P: rng.normal(size=n_feat) for P in pos}
+    XE = np.vstack([mu[p] for p in en]) + rng.normal(size=(len(GE), n_feat))
+    GU = np.repeat(np.arange(len(kept)), 40)
+    XU = rng.normal(size=(len(GU), n_feat)) * 1.3
+    pre_i = set(range(n_pre))
+    return XE, en, np.isin(GE, list(pre_i)), GE, XU, np.isin(GU, list(pre_i)), pre_i, kept
+
+
+def _old_coding_loop(XE, en, e_pre, GE, XU, u_pre, pre_i, methods):
+    """The in-memory construction of `run_animal` at 8debc35e, VERBATIM in what it fits (pinned copy)."""
+    from wfield_local.position_coding_directions import (BY_SEVERITY, direction, engagement_axis, orthogonalise,
+                                                         poles)
+    e_axis = engagement_axis(XE[e_pre], XU[u_pre]) if (e_pre.sum() and u_pre.sum()) else None
+    out = {}
+    for meth in methods:
+        base_m, do_orth = (meth[:-5], True) if meth.endswith("_orth") else (meth, False)
+        W, W_loso, cos, PW, PWL = {}, {}, {}, {}, {}
+        for D in BY_SEVERITY:
+            Xp, Xn = XE[e_pre & (en == D)], XE[e_pre & (en != D)]
+            if len(Xp) < 20 or len(Xn) < 20:
+                continue
+            w_raw = direction(Xp, Xn, base_m)
+            cos[D] = float(w_raw @ e_axis) if e_axis is not None else None
+            w = orthogonalise(w_raw, e_axis) if do_orth else w_raw
+            p0, p1 = poles(Xp, Xn, w)
+            W[D] = (w, p0, p1)
+            for i in pre_i:
+                tr = e_pre & (GE != i)
+                Ap, An = XE[tr & (en == D)], XE[tr & (en != D)]
+                if len(Ap) < 20 or len(An) < 20:
+                    continue
+                wi = direction(Ap, An, base_m)
+                if do_orth:
+                    wi = orthogonalise(wi, e_axis)
+                W_loso[(D, i)] = (wi, *poles(Ap, An, wi))
+        for A in BY_SEVERITY:
+            for B in BY_SEVERITY:
+                if A == B:
+                    continue
+                XA, XB = XE[e_pre & (en == A)], XE[e_pre & (en == B)]
+                if len(XA) < 20 or len(XB) < 20:
+                    continue
+                wab = direction(XA, XB, base_m)
+                if do_orth and e_axis is not None:
+                    wab = orthogonalise(wab, e_axis)
+                a0, a1 = poles(XA, XB, wab)
+                PW[f"{A}|{B}"] = (wab, a0, a1)
+                for i in pre_i:
+                    tr = e_pre & (GE != i)
+                    Ap, Bp = XE[tr & (en == A)], XE[tr & (en == B)]
+                    if len(Ap) < 20 or len(Bp) < 20:
+                        continue
+                    wi = direction(Ap, Bp, base_m)
+                    if do_orth:
+                        wi = orthogonalise(wi, e_axis)
+                    r0, r1 = poles(Ap, Bp, wi)
+                    PWL[(f"{A}|{B}", i)] = (wi, r0, r1)
+        out[meth] = (W, W_loso, cos, PW, PWL)
+    return e_axis, out
+
+
+def _same_triples(a, b):
+    assert sorted(a, key=str) == sorted(b, key=str)
+    for k in a:
+        for x, y in zip(a[k], b[k]):
+            np.testing.assert_array_equal(x, y)
+
+
+@pytest.mark.parametrize("methods", [("dom", "dom_orth"), ("lr", "lr_orth")])
+def test_coding_reference_equals_the_old_in_memory_loop(pass2_env, methods):
+    from wfield_local import frozen_models
+    from wfield_local import position_coding_directions as pcd
+    rec = _Recorder()
+    pass2_env.setattr(frozen_models, "load_or_fit", rec)
+    XE, en, e_pre, GE, XU, u_pre, pre_i, kept = _cd_pool(seed=1)
+    ref = pcd.stored_reference("PS92", "precue", 2.0, "basis0", XE, en, e_pre, GE, XU, u_pre, pre_i, kept, methods)
+    spec = rec.calls[0]["spec"]
+    assert spec["kind"] == "coding_directions" and spec["align"] == f"precue-{'+'.join(methods)}"
+    assert spec["train_labels"] == kept[:3] and "lick_source" not in spec
+    e_old, old = _old_coding_loop(XE, en, e_pre, GE, XU, u_pre, pre_i, methods)
+    np.testing.assert_array_equal(ref["e_axis"], e_old)
+    for meth in methods:
+        W, WL, cos, PW, PWL = old[meth]
+        m = ref["methods"][meth]
+        _same_triples(m["W"], W)
+        _same_triples({(D, kept.index(lab)): v for (D, lab), v in m["W_loso"].items()}, WL)
+        _same_triples(m["PW"], PW)
+        _same_triples({(k, kept.index(lab)): v for (k, lab), v in m["PW_loso"].items()}, PWL)
+        assert {D: float(m["w_raw"][D] @ ref["e_axis"]) for D in m["W"]} == cos
+    pass2_env.setenv("WIDEFIELD_CODING_FROZEN", "0")
+    mem = pcd.stored_reference("PS92", "precue", 2.0, "basis0", XE, en, e_pre, GE, XU, u_pre, pre_i, kept, methods)
+    assert len(rec.calls) == 1
+    for meth in methods:
+        for part in ("W", "W_loso", "PW", "PW_loso"):
+            _same_triples(mem["methods"][meth][part], ref["methods"][meth][part])
+
+
+def test_coding_confusion_decoder_stored_equals_in_memory(pass2_env):
+    from wfield_local import frozen_models
+    from wfield_local import position_coding_directions as pcd
+    from wfield_local.plot_lick_aligned_averages import DISPLAY_ORDER
+    rec = _Recorder()
+    pass2_env.setattr(frozen_models, "load_or_fit", rec)
+    rng = np.random.default_rng(3)
+    GE = np.repeat(np.arange(5), 72)
+    YE = np.tile(np.array(DISPLAY_ORDER), 60)
+    XE = rng.normal(size=(len(GE), 8)) + 0.9 * YE[:, None] * rng.normal(size=(1, 8))
+    XU, YU = XE[:50] + 0.1, YE[:50]
+    e_pre, pre_i, kept = GE < 3, {0, 1, 2}, [f"PS92_08{10 + i}" for i in range(5)]
+
+    def _mask(cls, pos=None):
+        return (~e_pre) if cls == "poststroke_lick" else np.arange(len(XU)) % 2 == (cls == "poststroke_stopped")
+
+    pay = pcd.stored_confusion_decoder("PS92", "cue", 2.0, "basis0", XE, YE, GE, e_pre, pre_i, kept)
+    assert rec.calls[0]["spec"]["kind"] == "coding_decoder"
+    old_pipe = pcd._confusion_pipe
+    full = old_pipe().fit(XE[e_pre], YE[e_pre])
+    _same_model(pay["full"], full)
+    for i in sorted(pre_i):
+        tr = e_pre & (GE != i)
+        _same_model(pay["loso"][kept[i]], old_pipe().fit(XE[tr], YE[tr]))
+    a = pcd._class_confusions(XE, YE, GE, XU, YU, e_pre, pre_i, _mask, kept, models=pay)
+    b = pcd._class_confusions(XE, YE, GE, XU, YU, e_pre, pre_i, _mask, kept)
+    assert a == b
+    est = full[-1]
+    assert est.C == 0.5 and est.max_iter == 2000                     # the module's own settings, not `_pipe`'s
+    pass2_env.setenv("WIDEFIELD_CODING_FROZEN", "0")
+    assert pcd.stored_confusion_decoder("PS92", "cue", 2.0, "b", XE, YE, GE, e_pre, pre_i, kept) is None
+
+
+def test_coding_lp_arm_daq_trained_by_default(pass2_env):
+    from wfield_local import config, frozen_models
+    from wfield_local import position_coding_directions as pcd
+    XE, en, e_pre, GE, XU, u_pre, pre_i, kept = _cd_pool()
+    pass2_env.setenv("WIDEFIELD_LICK_SOURCE", "lp")
+    specs = {}
+    for lf in (None, "lp"):
+        rec = _Recorder()
+        pass2_env.setattr(frozen_models, "load_or_fit", rec)
+        if lf:
+            pass2_env.setenv("WIDEFIELD_LP_FROZEN", lf)
+        pcd.stored_reference("PS92", "cue", 2.0, "b", XE, en, e_pre, GE, XU, u_pre, pre_i, kept, ("dom",))
+        specs[lf] = rec.calls[0]["spec"]
+    assert "lick_source" not in specs[None]
+    assert specs[None]["train_labels"] == sorted(x for x in config.phase_labels("pre") if config.animal_of(x) == "PS92")
+    assert specs["lp"]["lick_source"] == "lp" and specs["lp"]["train_labels"] == kept[:3]
+
+
+def test_coding_run_animal_uses_the_store():
+    from wfield_local import position_coding_directions as pcd
+    src = inspect.getsource(pcd.run_animal)
+    assert "models=stored_confusion_decoder(animal, align, post_s, basis.basis_id" in src
+    assert "ref = stored_reference(animal, align, post_s, basis.basis_id" in src
+    assert "direction(" not in src                                    # no direction is fitted in run_animal itself
+
+
