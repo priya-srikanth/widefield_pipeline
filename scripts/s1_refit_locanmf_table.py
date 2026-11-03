@@ -42,43 +42,73 @@ def main(argv=None) -> int:
     from wfield_local import writeguard
     from wfield_local.paths import PathResolver
     out = oo.root(PathResolver()) / oc.RUN / "imaging_encoding" / "qc"
+    from wfield_local import lp_licks
+    out = lp_licks.output_dir(out)       # camera-lick (LP) runs write under <parent>/<tag>/qc (writeguard rule)
     writeguard.assert_writable(out)
+    out.mkdir(parents=True, exist_ok=True)
+    # CAPTURE the bundle's own features object: its `.indices[label]` = (engaged cue idx, no-lick cue idx), row for row
+    # with XE[GE == i] / XU[GU == i] -- the only way to map a bundle row to its DAQ cue (read-only; `_pooled_bundle`
+    # imports `features_with_indices` at call time, so wrapping the module attribute sees the exact object it builds)
+    from wfield_local import precue_engagement_states as PES
+    from wfield_local.locanmf_cue_lick_analysis import SESSIONS
+    from wfield_local.locanmf_position_decoder import _load_cue_events
+    from scripts import jaw_only_incomplete_figs as J
+    feats, _orig = [], PES.features_with_indices
+    PES.features_with_indices = lambda *a, **k: feats.append(_orig(*a, **k)) or feats[-1]
+    sess = {x["label"]: x for x in SESSIONS}
     rows = []
     for align in ALIGNS:
         for an in GC.ANIMALS:
+            feats.clear()
+            GC._BUNDLE_CACHE.pop((an, align), None)            # rebuild so the wrapper sees this bundle's features
             bd = GC._pooled_bundle(an, align)
+            assert len(feats) == 1, f"{an} {align}: captured {len(feats)} feature objects"
+            idx = feats[0].indices
             XE, YE, GE, XU, YU, GU = (bd[k] for k in ("XE", "YE", "GE", "XU", "YU", "GU"))
             BE, BU, not_eng, e_pre = bd["BE"], bd["BU"], bd["not_eng"], bd["e_pre"]
             for i, lab in enumerate(bd["kept"]):
-                # WORKING trials pre AND post (Priya 11-03). Figs 1.1 / 1.2 use licking trials at pre (the 5c pre rule);
-                # `--fig-rule` keeps that, to check this table against the figure's records.
-                if i in bd["pre_i"] and fig_rule:
-                    me, mu = e_pre & (GE == i), np.zeros(len(GU), bool)
-                else:
-                    me, mu = GC._class_select("working", (e_pre & (GE == i)) if i in bd["pre_i"] else (GE == i),
-                                              (GU == i) if len(GU) else np.zeros(0, bool), not_eng)
-                y = np.concatenate([YE[me]] + ([YU[mu]] if mu.any() else []))
-                if len(y) < 5:
-                    continue
-                X = np.vstack([XE[me]] + ([XU[mu]] if mu.any() else []))
-                b = np.concatenate([BE[me]] + ([BU[mu]] if mu.any() else []))
-                p = GC._refit_pred(_pipe, X, y, b)
-                if p is None:
-                    continue
-                ok = p != GC.REFIT_UNAVAILABLE
-                rows.append(dict(label=lab, animal=an, epoch=epochs.epoch_of(lab), align=align, n=int(ok.sum()),
-                                 acc=float(np.mean(p[ok] == y[ok])) if ok.any() else np.nan))
-            print(f"  {align} {an}: {sum(r['animal'] == an and r['align'] == align for r in rows)} sessions",
-                  flush=True)
+                se = (e_pre & (GE == i)) if i in bd["pre_i"] else (GE == i)
+                su = (GU == i) if len(GU) else np.zeros(0, bool)
+                arms = {}
+                # QUIT-TAIL working (`_class_select`): robustness row; `--fig-rule` = licking trials at pre (Figs 1.1/1.2)
+                arms["quittail"] = ((e_pre & (GE == i), np.zeros(len(GU), bool)) if i in bd["pre_i"] and fig_rule
+                                    else GC._class_select("working", se, su, not_eng))
+                # CAMERA gates (Priya 11-03; working = DEFAULT): shared classes matched to this session's DAQ cues
+                ie, inl = idx.get(lab, (np.zeros(0, int), np.zeros(0, int)))
+                if len(ie) == int(se.sum()) and len(inl) == int(su.sum()) and lab in sess:
+                    cue = _load_cue_events(sess[lab]["h5"])
+                    cs = np.asarray(cue["cue_samples"], float) / float(cue["sample_rate_hz"])
+                    tab = J.session_classes(lab)
+                    ce, cu = J.cue_classes(tab, cs[np.asarray(ie, int)]), J.cue_classes(tab, cs[np.asarray(inl, int)])
+                    for gate, tag in (("working", "camwork"), ("camera_lick", "camlick")):
+                        me, mu = se.copy(), su.copy()
+                        me[np.flatnonzero(se)] = J.in_gate(ce, gate)
+                        if len(mu):
+                            mu[np.flatnonzero(su)] = J.in_gate(cu, gate)
+                        arms[tag] = (me, mu)
+                elif lab in sess:
+                    print(f"  !! {lab} {align}: index / row count mismatch -- camera arms skipped", flush=True)
+                for tag, (me, mu) in arms.items():
+                    y = np.concatenate([YE[me]] + ([YU[mu]] if mu.any() else []))
+                    if len(y) < 5:
+                        continue
+                    X = np.vstack([XE[me]] + ([XU[mu]] if mu.any() else []))
+                    b = np.concatenate([BE[me]] + ([BU[mu]] if mu.any() else []))
+                    p = GC._refit_pred(_pipe, X, y, b)
+                    if p is None:
+                        continue
+                    ok = p != GC.REFIT_UNAVAILABLE
+                    rows.append(dict(label=lab, animal=an, epoch=epochs.epoch_of(lab), align=align, trials=tag,
+                                     n=int(ok.sum()), acc=float(np.mean(p[ok] == y[ok])) if ok.any() else np.nan))
+            print(f"  {align} {an}: {sum(r['animal'] == an and r['align'] == align for r in rows)} rows", flush=True)
+    PES.features_with_indices = _orig
     D = pd.DataFrame(rows)
-    from wfield_local import lp_licks
-    tag = lp_licks.output_tag()                       # camera lick source -> its own file (never the DAQ table)
-    f = out / (f"s1_refit_locanmf{'_' + tag if tag else ''}" + ("_figrule" if fig_rule else "") + ".csv")
+    f = out / ("s1_refit_locanmf" + ("_figrule" if fig_rule else "") + ".csv")   # the run tag is in the directory
     D.to_csv(f, index=False, float_format="%.4g")
     D["aug"] = D.label.str[-4:] >= "0806"
     pd.set_option("display.width", 220)
     for pre_set, m in (("pre = August only", D.aug | (D.epoch != "pre")), ("pre = June + August", D.epoch.notna())):
-        t = D[m].groupby(["align", "animal", "epoch"]).acc.mean().unstack("epoch").reindex(columns=list(EPS))
+        t = D[m].groupby(["trials", "align", "animal", "epoch"]).acc.mean().unstack("epoch").reindex(columns=list(EPS))
         print(f"\n== per animal x epoch, session means ({pre_set}); chance 0.167")
         print(t.round(3).to_string())
     print("->", f)
