@@ -194,15 +194,38 @@ def test_collect_5c_frozen_column_of_paired_is_the_frozen_mode(daq_env):
         np.testing.assert_array_equal(p, pp[:, 0])
 
 
-@pytest.mark.parametrize("mode", ["refit", "paired_matched"])
-def test_collect_5c_refit_and_matched_do_not_ask_the_store(daq_env, mode):
-    """No frozen column (refit) / a per-session size-matched draw (paired_matched): in memory by design."""
+def test_collect_5c_refit_does_not_ask_the_store(daq_env):
+    """No frozen column (refit): in memory by design."""
     from wfield_local import frozen_models
     from wfield_local import grant_confusion as gc
     rec = _Recorder()
     daq_env.setattr(frozen_models, "load_or_fit", rec)
-    _collect(gc, daq_env, mode)
+    daq_env.setattr(frozen_models, "find", lambda spec: (None, None))
+    _collect(gc, daq_env, "refit")
     assert rec.calls == []
+
+
+def test_collect_5c_matched_draws_stored_in_one_seed_keyed_spec(daq_env):
+    """Rebuild 11-03 (item h): 5rm's size-matched draws go to the store under ONE spec per animal x align x class
+    (kind matched_frozen); stored, replayed and in-memory records are identical."""
+    from wfield_local import frozen_models
+    from wfield_local import grant_confusion as gc
+    rec = _Recorder()
+    daq_env.setattr(frozen_models, "load_or_fit", rec)
+    daq_env.setattr(frozen_models, "find", lambda spec: (None, None))
+    stored = _collect(gc, daq_env, "paired_matched")
+    assert len(rec.calls) == 1 and rec.calls[0]["spec"]["kind"] == "matched_frozen"
+    assert "seed" in rec.calls[0]["spec"]["align"] and rec.calls[0]["payload"]
+    payload = rec.calls[0]["payload"]
+    daq_env.setattr(frozen_models, "find", lambda spec: ("hit", "local"))      # replay from the stored payload
+    daq_env.setattr(frozen_models, "_read", lambda d: payload)
+    replay = _collect(gc, daq_env, "paired_matched")
+    assert len(rec.calls) == 1                                                  # nothing refitted / rewritten
+    daq_env.setenv("WIDEFIELD_EPOCH_FROZEN", "0")
+    mem = _collect(gc, daq_env, "paired_matched")
+    assert len(rec.calls) == 1
+    _same_records(stored, mem)
+    _same_records(replay, mem)
 
 
 def _render_5b(gc, monkeypatch, out):
