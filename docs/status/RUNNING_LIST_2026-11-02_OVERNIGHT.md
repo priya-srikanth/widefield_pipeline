@@ -106,3 +106,10 @@ scripts in `_source_PI_overview_2026-11-02/`; one deck writer at a time).
   (07385b37) -> slides 27-32 re-cropped; slide 27 now incomplete far contra +.57 / +.17, jaw-only +.21 / +.19 / +.09;
   jaw-moved caveat removed. Open for Priya: slide 31 as THE main trial-class slide?; RESTW vs REST lead; PS110 mCherry
   count (559 / 3,804 vs refined 891 / 4,276); Big-picture quiet bullet qualifier; imaging page section 15 frozen at ~5x.
+- 11-03 ~11:30 State decoder x running definition (decision 7; labcams/state_decoder_ps94_check/running_def/,
+  DECISIONS 783c04b2): encoder v7 running regressor = forward hinge from 1.5 mm/s, cap at each animal's pre p99.
+  The kinematic class rule (running > 1.5 mm/s) helps PS94 running (chronic .49 -> .78) but costs PS92 .05-.10 balanced
+  accuracy; the cap shows PS94's lost running is faster than any pre-stroke running (20-67 % of its post segments).
+  Class-balanced centring fixes PS94 best (.97 / .96 / .91) and worsens no animal by > .01; state retained .98 -> .94 /
+  .95 / .94. Position still falls 6-15x further acutely under every arm. Recommendation: keep the class rule; adopt
+  class-balanced centring as a new frozen spec (needs Priya).
