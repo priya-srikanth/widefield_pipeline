@@ -70,3 +70,8 @@ _(none open yet. Items appear here as the decoder helper reports.)_
   tongue corrects, read-out stays". It shows the ITI row of Fig 13.2 (landing, decoded, lfl by lick order; BH-FDR
   bars), cropped like the cued row. The main slide's bullet / notes are repointed from a backup title that never
   existed. backup_lick_order_iti_1103.py is queued behind the deck lock.
+- 11-03 evening: Priya saved her hidden / unhidden edits (18:50) and closed the deck; backup at
+  backup_priya_saved_1850_1103.pptx. I applied the four queued changes on HER saved file: natural-width slides 12 / 18
+  / 43, p_phase stats on slide 52, contra-left paths on slide 59, and the ITI backup at slide 119. Hidden-state diff
+  keyed by title + shape names: the only change is the new hidden slide 119 (77 -> 78 hidden; 183 slides). PNGs checked.
+  Waiting: 34's LMM 0-1 s swap for slides 95-98.
