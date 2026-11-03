@@ -14,7 +14,7 @@ CASES = {
     5: ("far_R", 0, [], [], False, 0, 1, False, np.nan, "jaw_only"),                     # cam4 OR cam1
     6: ("far_R", 0, [], [], False, 0, 0, False, np.nan, "no_response"),
     7: ("far_R", 0, [], [], False, np.nan, np.nan, False, np.nan, "unknown"),            # neither camera judged
-    8: ("close_center", 0, [], [], False, 1, 1, False, np.nan, "unknown"),               # jaw unjudgeable here
+    8: ("close_center", 0, [], [], False, 1, 1, False, np.nan, "no_response"),           # jaw unjudgeable: default (11-03)
     9: ("far_R", 0, [], [], False, 1, 1, True, np.nan, "unknown"),                       # moving at cue, no re-onset
     10: ("far_R", 0, [], [], False, 1, 1, True, 400.0, "jaw_only"),                     # ... with a re-onset
     11: ("far_R", 0, [-300.0], [], False, 0, 0, False, np.nan, "no_response"),          # pre-cue lick: outside window
@@ -57,6 +57,7 @@ def test_every_rule(tmp_path):
     got = T.cls.to_dict()
     assert got == {t: c[-1] for t, c in CASES.items()}
     assert (T.window == "cue_stop").all()
+    assert not T.loc[8, "jaw_judged"] and T.loc[6, "jaw_judged"]
     assert TC.in_gate(T.cls, "working").sum() == 6          # 1, 2, 3, 4, 5, 10
     assert TC.in_gate(T.cls, "camera_lick").sum() == 4      # 1, 2, 3, 4
 

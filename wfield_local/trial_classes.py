@@ -9,9 +9,13 @@ What each trial is, first match wins, inside the chosen WINDOW:
   jaw_only     no lick; the jaw moved after the cue on cam4 OR cam1                  -> a reaction, NOT an attempt
                (Priya's 10-21 blind review: 0 / 24 such trials were attempted licks)
   no_response  no lick; the jaw was judged and stayed still                          -> no response at all
-  unknown      no lick, and the jaw could not be judged: no jaw call on either camera; the close_center spout, where
-               neither camera can see the jaw (cam4's chin is hidden; cam1 failed the 10-21 blind review there); or a
-               jaw already moving at the cue that never moved again (it may still have reacted)
+               AT close_center neither camera can judge the jaw (cam4's chin is hidden; cam1 failed the 10-21 blind
+               review there): a trial with no lick, no contact and no tongue seen is NO_RESPONSE by default (Priya
+               11-03: "if we don't see lick or jaw movement or spout contact ... default to no response"), flagged
+               ``jaw_judged`` = False so it can be dropped as a sensitivity check. Jaw-only and no-response cannot be
+               told apart there; jaw-only is ~.03-.05 of trials at the close spouts acutely.
+  unknown      no lick, and the jaw could not be judged elsewhere: no jaw call on either camera, or a jaw already
+               moving at the cue that never moved again (it may still have reacted)
 
 Groupings (GATES), used to select trials:
   working      contact | incomplete | jaw_only   the animal responded to THIS trial's cue (imaging ENL + cue decoding)
@@ -119,7 +123,8 @@ def session_trials(label: str, window: str = DEFAULT_WINDOW, v36: Path | str | N
     label "PS92_0818" or "PS92_20260818". Returns None when the session has no v36 video outputs (no camera-defined
     classes exist; the caller must say what it does then -- there is deliberately no DAQ-only fallback here).
     Columns: trial_id, position, cue_daq (s), stop_ms, cls, window, has_cam1, n_contacts, n_licks, n_nocontact,
-    first_lick_ms, jaw_cam4, jaw_cam1, jaw_at_cue, jaw_onset_ms.
+    first_lick_ms, jaw_cam4, jaw_cam1, jaw_at_cue, jaw_onset_ms, jaw_judged (False = the jaw call was not available;
+    close_center no-response trials carry it, so they can be dropped as a sensitivity check).
     """
     if window not in WINDOWS:
         raise ValueError(f"window must be one of {WINDOWS}, got {window!r}")
@@ -191,14 +196,15 @@ def session_trials(label: str, window: str = DEFAULT_WINDOW, v36: Path | str | N
     T["jaw_onset_ms"] = np.where(hidden, np.nan, np.where(at_cue, reon, on))
     judged = (T.jaw_cam4.notna() | T.jaw_cam1.notna()).to_numpy() & (~at_cue | np.isfinite(reon))
     moved = ((T.jaw_cam4 == 1) | (T.jaw_cam1 == 1)).to_numpy() & judged
+    T["jaw_judged"] = judged
     T["cls"] = np.select([T.n_contacts.to_numpy() > 0,
                           (T.n_licks.to_numpy() > 0) | t.isin(seen).to_numpy(),
-                          moved, judged],
+                          moved, judged | hidden],          # close_center, nothing seen -> no_response (11-03)
                          ["contact", "incomplete", "jaw_only", "no_response"], "unknown")
     T["window"] = window
     T["has_cam1"] = has_cam1
     return T[["trial_id", "position", "cue_daq", "stop_ms", "cls", "window", "has_cam1", "n_contacts", "n_licks",
-              "n_nocontact", "first_lick_ms", "jaw_cam4", "jaw_cam1", "jaw_at_cue", "jaw_onset_ms"]]
+              "n_nocontact", "first_lick_ms", "jaw_cam4", "jaw_cam1", "jaw_at_cue", "jaw_onset_ms", "jaw_judged"]]
 
 
 def in_gate(cls, gate: str) -> np.ndarray:

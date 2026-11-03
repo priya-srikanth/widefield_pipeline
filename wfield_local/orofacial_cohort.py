@@ -498,7 +498,12 @@ def session_metrics(job):
                 if far.notna().all().all() and abs(dsp) > 10 else np.nan)
     # angles are + toward image right = the L positions; flip so + = ipsilesional whatever the lesion side
     sgn = 1.0 if lat == "L" else -1.0
-    jq = M[M.jaw_pass_qc.astype(bool)] if len(M) and "jaw_pass_qc" in M else pd.DataFrame()
+    # JAW WITHOUT A LICK = the "jaw_only" class of THE trial classification (`trial_classes`, consolidation A2, 11-03),
+    # as a share of the trials used here. Until 11-03 this was the share of ``jaw_pass_qc`` trials -- the jaw-MOVED call
+    # read as a QC gate, so the denominator was jaw-moved trials only.
+    from wfield_local import trial_classes as TC
+    _tc = TC.session_trials(f"{animal}_{date}")
+    jcls = (T.trial_id.map(_tc.set_index("trial_id").cls) if _tc is not None else pd.Series(np.nan, index=T.index))
     n_tr = int(len(T))
 
     def kin(g, gm):
@@ -523,7 +528,7 @@ def session_metrics(job):
            "latency_contact_ms": float(contact1.median()) if len(contact1) else np.nan,
            "ili_ms": float(ili[ili < ILI_MAX_MS].median()) if ili.notna().any() else np.nan,
            **kin(L, meas),
-           "jaw_no_lick_frac": float(jq.candidate_no_lick_with_jaw_move.astype(float).mean()) if len(jq) else np.nan,
+           "jaw_no_lick_frac": float((jcls == "jaw_only").mean()) if jcls.notna().any() else np.nan,
            "angle_gain_far": gain_far,
            "ipsi_bias_deg": sgn * float(pos_med.peak_angle_deg.mean()) if len(pos_med) else np.nan,
            "peak_interp_frac": float(L.peak_interp.astype(float).mean())}
@@ -532,7 +537,7 @@ def session_metrics(job):
     tpos = T.set_index("trial_id").position
     for pos, g in L.groupby("position"):
         tids = tpos[tpos == pos].index
-        jp = jq[jq.position == pos] if len(jq) else jq
+        jp = jcls[T.position.to_numpy() == pos]
         rt = g.groupby("trial_id").size()
         ili_p = g.sort_values(["trial_id", "t_ms"]).groupby("trial_id").t_ms.diff()
         pre_s = dur.pre_s.reindex(tids).sum()
@@ -543,7 +548,7 @@ def session_metrics(job):
              "precue_rate_hz": (int(P.trial_id.isin(tids).sum()) / pre_s) if pre_s > 0 else np.nan,
              "ili_ms": float(ili_p[ili_p < ILI_MAX_MS].median()) if ili_p.notna().any() else np.nan,
              "latency_contact_ms": float(contact1.reindex(tids).median()),
-             "jaw_no_lick_frac": float(jp.candidate_no_lick_with_jaw_move.astype(float).mean()) if len(jp) else np.nan,
+             "jaw_no_lick_frac": float((jp == "jaw_only").mean()) if jp.notna().any() else np.nan,
              "peak_angle_deg": float(meas[meas.position == pos].peak_angle_deg.median()),
              "spout_angle_deg": float(meas[meas.position == pos].spout_angle_deg.median()),
              "spout_dist_px": float(g.spout_dist_px.median())}

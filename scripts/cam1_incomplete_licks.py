@@ -28,6 +28,10 @@ MEAS = {"licks_cam4": "cam4 licks / trial", "nocontact_cam4": "cam4 no-contact l
         "jaw_only_corr": "jaw-without-lick share\n(cam1-corrected)"}
 
 
+def _flag(x: pd.Series) -> pd.Series:
+    return x.astype("boolean").fillna(False).astype(bool)
+
+
 def session_rows(rv, s: str, E: pd.DataFrame) -> list[dict]:
     a, d = s.split("_")
     sd = Path(rv.root("orofacial")) / V36 / "sessions" / a / d
@@ -37,8 +41,10 @@ def session_rows(rv, s: str, E: pd.DataFrame) -> list[dict]:
     L = pd.read_csv(sd / "licks.csv") if (sd / "licks.csv").exists() else pd.DataFrame(columns=["trial_id", "contact"])
     M = pd.read_csv(sd / "tongue_jaw_mismatch.csv") if (sd / "tongue_jaw_mismatch.csv").exists() else None
     g = E[E.session == s]
+    from wfield_local import trial_classes as TC
+    _tc = TC.session_trials(s)
+    cls = _tc.set_index("trial_id").cls if _tc is not None else None
     c1 = g[g.cam1_only]
-    seen = set(g.loc[g.jaw_only_trial, "trial_id"])
     out = []
     for p, tp in T.groupby("position"):
         ids = set(tp.trial_id)
@@ -52,12 +58,16 @@ def session_rows(rv, s: str, E: pd.DataFrame) -> list[dict]:
         r["incomplete"] = r["nocontact_cam4"] + r["cam1_only_nocontact"]
         tot = r["licks_cam4"] + r["cam1_only"]
         r["incomplete_frac"] = r["incomplete"] / tot if tot > 0 else np.nan
+        # JAW WITHOUT A LICK, as a share of ALL trials at this position (consolidation A2, 11-03; until then the share of
+        # ``jaw_pass_qc`` trials = jaw-moved trials, the jaw-moved call read as a QC gate):
+        #   jaw_only_cam4  cam4's own no-lick-with-jaw-move flag (no cam1)            -- the cam4-only view
+        #   jaw_only_corr  the "jaw_only" class of THE trial classification (`trial_classes`: cam1 licks / tongue
+        #                  removed, jaw cam4 OR cam1, cue -> stop) -- the number to quote
         if M is not None:
-            q = M[M.trial_id.isin(ids) & M.jaw_pass_qc.astype(bool)]
-            cand = q.candidate_no_lick_with_jaw_move.astype(bool)
-            r["jaw_qc_trials"] = len(q)
-            r["jaw_only_cam4"] = float(cand.mean()) if len(q) else np.nan
-            r["jaw_only_corr"] = float((cand & ~q.trial_id.isin(seen)).mean()) if len(q) else np.nan
+            q = M[M.trial_id.isin(ids)]
+            r["jaw_qc_trials"] = int(len(q))          # kept for readers; = trials with a cam4 jaw row
+            r["jaw_only_cam4"] = float(_flag(q.candidate_no_lick_with_jaw_move).sum()) / n
+            r["jaw_only_corr"] = float((tp.trial_id.map(cls) == "jaw_only").mean()) if cls is not None else np.nan
         out.append(r)
     return out
 

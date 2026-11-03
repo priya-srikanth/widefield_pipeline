@@ -22464,3 +22464,25 @@ still uses pre-cue frames. DAQ spout contact is primary for "contact".
   - session_poses/cam1_licks/trial_classes/* and kinematics section 6 (e3);
   - imaging section 1 (5b, window = cue_stop for both columns);
   - the deck trial-class slides (a8).
+- 11-03 later, A4 amendment. **Priya:** at close_center (jaw unjudgeable on both cameras), a trial with no lick, no contact
+  and no tongue seen is NO_RESPONSE by default ("if we don't see lick or jaw movement or spout contact ... default to no
+  response"), not unknown.
+  - New column `jaw_judged` (False there), so those trials can be dropped as a sensitivity check.
+  - Jaw-only and no-response cannot be told apart at close_center; jaw-only is ~.03-.05 at the close spouts acutely.
+  - `unknown` now = no jaw call elsewhere, or a jaw moving at the cue with no re-onset.
+
+## 2026-11-03 -- A2: "jaw without a lick" = the shared jaw_only class, as a share of ALL trials (not jaw-moved trials)
+
+- **What changed:** `orofacial_cohort.session_metrics` (`jaw_no_lick_frac`; Fig 1.3 row 3 and cohort tables) and
+  `scripts/cam1_incomplete_licks.py` (`jaw_only_corr`, `jaw_only_cam4`) filtered on `jaw_pass_qc` (the jaw-MOVED call
+  read as a QC gate). Their denominator was therefore jaw-moved trials, and NaN read as True.
+- **Now:**
+  - `jaw_no_lick_frac` / `jaw_only_corr` = share of the trials used whose `trial_classes` class is jaw_only (cam1
+    licks and tongue removed, jaw cam4 OR cam1, cue -> stop).
+  - `jaw_only_cam4` = cam4's own flag over all trials (the cam4-only view).
+  - Column names are kept for readers.
+- Example PS92_0818: far contra .21 (session), close_center 0 (jaw unjudged there). Shares are lower than the
+  jaw-moved-denominator numbers by construction.
+- **To re-render:**
+  - cohort tables / Fig 1.3 (kinematics page, e3);
+  - incomplete/sessions.csv and Fig 7.6, which reads it (kinematics page; deck slides via a8).
