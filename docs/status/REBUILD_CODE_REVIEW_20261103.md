@@ -196,3 +196,178 @@ I made no code changes and pushed nothing. The basis is the author's log (`docs/
 | 1.4 | fig_decoding_sessions | max diff 0 | pixel-identical |
 | 4.4 | fig_frozen_refit_pooled | 3 sections, max diff 0 | pixel-identical |
 | 3.4 | fig_state_position_sessions | 0 vs `_balem` (11-03); **0.307 vs the 11-02 21:39 original** | identical to `_balem`; 1.2 % pixels vs the original (M9) |
+
+---
+
+# Second pass (2026-11-03 evening): tip **f7bb4302**
+
+**Range reviewed:** everything after 85af6485.
+- Merge commits: 3988cbe3 (attempt-coding), e74a4579 and 25ce7efb (origin/main).
+- Fix commits: c17be8f5, 8d169197, e04143c6, 5361b2fa, 86280b8a, 464226fd, f7bb4302.
+
+**Method:** same as the first pass, on a clean `git archive` of f7bb4302 with three read-only helpers.
+- I did not trust the log.
+- Code was imported from the export. I checked the import path, because the editable install points to `widefield_pipeline`, and the cwd shadows PYTHONPATH.
+
+**Full suite at f7bb4302** (6 shards, ~22 min wall clock): **4,402 passed, 182 skipped, 11 failed.**
+- The 11 failures are exactly the known `test_parallel_results_are_ordered` cases:
+  - curbd_pilot x2, iti_decoder_pattern_stats, lick_code_subspace (results used unsorted);
+  - arrival_to_cue_traces, lick_cue_to_lick, lick_iti_prelick x3, revup_neural, stopped_trial_traces (runtime globals that workers never see).
+- Nothing else failed. The test_config failure from 86280b8a is fixed.
+
+## 1. Status of the first-pass findings
+
+| id | status | evidence (f7bb4302) | remaining |
+|---|---|---|---|
+| H1 | FIXED | `frozen_models.py:227-232` `lp_only` fingerprints real rows. Callers: `attempt_coding.py:134-137`, `frozen_readouts.py:69-71`. No other kind sets lick_source after make_spec. | - |
+| H2 | PARTIAL, plus regressions N3 / N4 / N5 | 13 modules routed via `run_mode.subdir`. `writeguard.py:90,100-107` now checks figures_working. | Routed writers don't call `assert_writable`. `nightly_figs.py:685,835-853` passes `--output <fw>`, which bypasses the routing. |
+| H3 | FIXED | `attempt_coding.py:378-381,397`, `attempt_maps.py:211-216,359` | Moved the canonical folder (N1) |
+| H4 | FIXED for session caches; PARTIAL for skip-if-exists | `trial_classes.py:369-405` csig (v36 / cam1 / jaw_onsets stats + class-code closure) enters `cache_tag` (`run_mode.py:96-108`) | `attempt_maps maps_*.npz` (`:371`) and `attempt_coding trials_*.csv.gz` (`:403`) have no csig. csig costs ~7 s per spawned worker. |
+| M1 | FIXED | `run_mode.py:91-94` (projall in both the output and cache parts) | - |
+| M2 | FIXED | refusals at `await_locanmf.py:317`, `batch_locanmf.py:68`, `nightly_figs.py:451` | - |
+| M3 | FIXED as asked; regression N1 | `run_mode.py:143-171` | - |
+| M4 | FIXED for the named roots | `position_reference_maps.py:620-632` | The test rebuilds its own root list (it does not read what `_raw_maps_code` hashes). `daq_io.rising_edges` and `behavior_events.get_or_compute` are still unhashed (low). |
+| M5 | FIXED | `require_gate` in enl_state_counts:89, channel_position_maps:917, stopped_trial_traces:857. `enl_states.states_for:127-139` is wired. | - |
+| M6 | FIXED for the listed splits | `GATES["miss_working"]` (`trial_classes.py:70`) | `attempt_coding.py:96` and `attempt_maps.py:77` still split no-lick rows on "working", which includes contact (low) |
+| M7 | REGRESSION (N2) | `_DAQ_LOOKUP_IGNORES=("train_fp",)`, `run_selection` adds `-gateLP` | - |
+| M8 | FIXED | `grant_confusion.py:756-764`: in memory, nothing stored | The 5rm "DAQ-trained" column is LP-row fits. Label it. |
+| M9 | FIXED | origin/main merged (e74a4579). `locomotor_decoder.py:270-273` passes scaling + scaling_params + raw train_data. The 3.4 docstring is corrected. | - |
+| M10 | PARTIAL | `lp_final_compare.py:39-49` uses `final_maps_dir` | That calls `lp_final_render.setup()`, which mutates `os.environ` for the whole process. Readers of attempt_maps_restnl / epoch_restnl were not re-pointed. |
+| L1 | PARTIAL | `test_frozen_fingerprint.py:128-150` adds a real second-call HIT and a row perturbation for iti_readout. `_same_records` now checks lengths. | `test_spec_carries_fingerprint...:42` still uses the same code path. The `test_collect_5c` `_read` stub still returns the in-memory object (`test_frozen_default.py:227`). No perturbation test for the other 14 kinds. |
+| L2 | FIXED | o2_video_me / quiet_hemo_check / iti_hemo_check resolve at call time. locanmf_lick_aligned refuses under projection. | cohort2_qc literals are intentional |
+| L3 | FIXED | `config.py:213-214`, `hemo_variants.py:206-210` | - |
+| L4 | FIXED | pinned by `test_cue_classes_all_nan_table_is_unknown` | - |
+| L5, L6 | NOT FIXED (logged) | - | - |
+
+## 2. New findings, ranked
+
+### HIGH
+
+**N1. The canonical attempt-coding / attempt-maps outputs moved, and readers still read the old folder (from the M3 + H3 fixes).**
+- Both modules require `WIDEFIELD_LICK_SOURCE=lp` (`attempt_coding.py:210`, `attempt_maps.py:180`).
+- `out_dir()` now routes on the full `lp_licks.output_tag()` (`attempt_coding.py:381`, `attempt_maps.py:215`). So EVERY legitimate run writes to `.../attempt_coding/LP_licks`, `attempt_maps/LP_licks` or `attempt_maps_restnl/LP_licks` (probe), while `run_mode.tag()` is "".
+- These readers still read the old folder and silently get the PRE-REBUILD files:
+  - `scripts/rebuild_figs/fig_goal_summary.py:66,81`, `fig_goal_epochs.py:35`
+  - `early_predictors.py:29`, `recovery_timing.py:33`, `precue_class_matched.py:25`, `decoder_retention_sessions.py:23`
+  - `lick_enl_target_test.py:894`, `kinematic_normality.py:272`, `cohort2_qc/quiet_task_events.py:350`
+  - `deck_registry.py:2393-2409`
+- Fix: for LP-only families, route on `run_mode.tag()`, or the output tag minus the plain-LP part. Add a test that `out_dir()` under LP alone equals origin/main's path.
+
+**N2. The lp_final DAQ-trained cross-check cannot find its model (from the M7 fix).**
+- `lp_final_render.setup(source="daq")` sets no gate-LP (`lp_final_render.py:54-57`), so the DAQ models are stored with `selection="sel-daq-quittail"`.
+- The LP run (`--source lp --trained daq`, gate LP) asks for `"sel-daq-quittail-gateLP"` (`trial_classes.py:524-529`).
+- `find_daq_trained` now matches selection (`frozen_models.py:153`), so it misses, and `load_or_fit` raises "loads DAQ-frozen models" (`:500`). The whole `trained_daq` arm fails.
+- Fix: match the camera-vs-DAQ part of the selection but not the gate source (strip `-gateLP`, or compare `run_selection_tag()`). Add a test where the DAQ spec has gate=daq and the LP spec has gate=lp.
+
+**N3. writeguard refuses the lp_final frozen store (from the H2 fix).**
+- `lp_final_render.setup` puts `WIDEFIELD_FROZEN_MODEL_DIR` at `<figures_working>/frozen_models_lpfinal` (`:66-67`).
+- `frozen_models._write` calls `assert_writable(d.parent)` (`:569`). Under the LP / gate-LP / PRE_FROM tag, the new fw check refuses it (probe: `is_writable(...cue_lick\frozen_models_lpfinal\PS92)` = False).
+- Any first freeze in that store raises WriteGuardError. Any store or cache a user puts under figures_working during a tagged run is refused too.
+- Fix: limit the fw check to figure / JSON outputs (exempt `frozen_models.local_dir()` and the session cache), or move the lp_final store beside figures_working.
+
+### MED
+
+**N4. In a tagged run, writers given an explicit `--output` and the readers disagree.**
+- Grant readers use `_fig_root()` = `fw/<tag>`: `grant_kit.py:626`, `grant_confusion.py:102,171,324`, `grant_encoder.py:546,627`, `grant_behaviour.py:248,307`.
+- `joint_xsession.py:262` (`--output` required), and every H2 writer when nightly passes `--output <fw>`, write `fw/<keyed>` instead.
+- Readers then skip silently (`grant_confusion:102`). A tagged nightly also overwrites default-named PNGs in fw, because nightly has no run_mode guard.
+- Fix: nightly routes `out` through `run_mode.subdir` (or `require_default`). joint_xsession warns when `--output` lacks the tag.
+
+**N5. The new tagged figures_working folder is never created.**
+- `poststroke_section_g.py:325-329` runs the full `collect()` and then fails at `open()` with FileNotFoundError.
+- The same applies to miss_vs_stopped:132/144, section_g_figures, evoked_amplitude, fixed_scale_maps, hemispheric_*, pixel_rsa, spatial_reorganisation, vessel_contrast. They succeed only if another writer created the folder first.
+- Fix: mkdir in `subdir`, or in each `main()`.
+
+**N6. D12 is implemented per trial, not per session.**
+- D12 (RECONCILIATION section 5) says sessions without full video (PS93_0813; PS92_0908 at 82.5 %) are EXCLUDED from working-class cells and listed in captions.
+- The code only makes unmatched cues "unknown" (`trial_classes.cue_classes:539-556`), so PS92_0908's matched trials enter working and stopped.
+- PS92_0908's missing video is in its tail. That is where the new rules act:
+  - `apply_stopped_rule` skips unknowns and stitches separate no-response runs together;
+  - the last-camera-lick anchor falls before the real last lick, so working ends early.
+- No caption list exists.
+- Fix: a per-session coverage threshold in `cue_classes_for` that makes the whole session unknown for working and stopped, plus a caption list. Or Priya amends D12 to the trial-level reading.
+
+**N7. Jaw-only trials after the last lick still break stopped runs (an ordering consequence; needs Priya).**
+- `cue_classes_for:577-581` applies the stopped rule BEFORE the session-end rule. A jaw-only trial after the last lick is dropped from working (after_end) but still breaks a no-response run.
+- Probe: `[contact, NR x3, jaw, NR x3, jaw, NR x2]` gives 0 stopped and 10 trials in neither class.
+- This undercounts stopped in the sated tail. Options:
+  - (a) treat after_end like unknown when counting runs;
+  - (b) count them as no_response;
+  - (c) keep this behaviour and document it.
+
+**N8. The RESTnl cache key has no config or helper-code coverage (pre-existing; not covered by e04143c6).**
+- `restnl_mask._key:211-220` hashes VERSION, its own source / constants, the session signature and three file stats.
+- It reads `lick_detection` (`:88`) and `segmentation.rest.min_rest_s` (`:135`), and calls rest_by_position / rest_engagement / quiet_periods / engagement_gate code. None of that is hashed.
+- After a yaml edit, bm / prm rebuild but the old RESTnl baselines are still served and subtracted from them.
+- Fix: put `map_collect.map_yaml_subset()` and the same code closures into `_key`.
+
+**N9. Camera-gate data errors inside the per-session map workers drop the session with one log line.**
+- `map_collect.collect` and `parallel.fan_out` catch Exception (`map_collect.py:166-175`, `parallel.py:74,89`). Callers print `!! beta-map/ref-map` and continue (`beta_maps.py:1673-1675`, `position_reference_maps.py:758-760`).
+- The same happens per animal in grant_confusion:435, attempt_maps:172, hemo_map_control:196 and position_reference_maps:261.
+- `DaqGateRefused` (a SystemExit) does propagate, including from spawned workers. So refusals fail closed, but camera data errors give a silently partial render.
+- Fix: under camera, fail the render when `failures` is non-empty, or write the failures into the sidecar.
+
+**N10. Two goal-page scripts read the default encoder run and write default folders in a tagged run.**
+- `scripts/specificity_control.py:113-115` and `scripts/residual_roi.py:98,173-175` build `run = E/f"frozen_encoder_{tag}"` and `out = E/...` directly.
+- `frozen_encoder.out_root()` now puts a tagged run under `imaging_encoding/<tag>/`. So these scripts read the old-variant run and overwrite the default output, with no writeguard call.
+- More unrouted writers: `recovery_timing.py:32-33,277` (writes `E/attempt_coding` and reads `E/iti_licks` directly, not `il.OUT`), `early_predictors.py:28-29`. Repo-wide, about 44 scripts write under `E` / `M:` with no routing; most predate the merge.
+- Fix: route through `run_mode.subdir` / `frozen_encoder.out_root()`, or `run_mode.require_default()`.
+
+**N11. `il.OUT` serves the skip-if-exists extracts and the outputs from one folder (`scripts/iti_licks.py:50`).**
+- Since M3, any of PRE_FROM, MAP_REFS, `<F>_FROZEN=0`, LP, or gate-LP moves the extracts. `labels()` then raises FileNotFoundError. It fails loudly, but this is broader than the ITI_FROZEN case section 8.1 documents.
+- Fix: put the extracts under a cache-only tag (hemo / lnmf / selection / projall), and put the full tag only on `OUT_W`.
+
+### LOW
+- **Retired script resurrected.** `scripts/iti_nmatch_check.py` is back next to `scripts/archive/iti_nmatch_check.py`. attempt-coding retired it in 3ab92858; git treated the move as add / rename, so it was not among the 60 conflicts. It is still in `tests/test_frozen_default.py:1126 ITI_SCRIPTS`.
+- **Old encoder / basis runs hard-coded.** `iti_licks.py:715,2210` and `iti_basis_decoder.py:46` / `iti_decoder_patterns.py:42` use the old variant's encoder-run label list and te basis. Under a hemo tag, new data is projected onto the old basis with no warning.
+- **Untagged ITI output override.** `WFIELD_ITI_OUT_W` (`iti_licks.py:54`) overrides run_mode untagged. `face_offset_partial.py:35` sets it.
+- **Two definitions of "stopped".** `camera_select("stopped")` (`trial_classes.py:653-654`) includes engaged-arm rows with camera class stopped; `camera_rows("stopped")` (`:619-620`) never does. So grant 12s / 12b and prm / pcd use different stopped sets. Return zeros for engaged rows.
+- **Pre-first-cue rest frames.** A session with no working trial (PS93_0813) keeps pre-first-cue frames as "engaged" rest in `engaged_frame_mask` (`rest_engagement.py:141-167`). The time-local REST baseline then differs in construction from every other session. Under camera, return all-False.
+- **Silent "daq" on config failure.** `_selection_cfg` (`trial_classes.py:422-427`) and `stop_run_min` (`:478-482`) catch every exception, so a config failure silently means "daq" / 6. Dangerous once `gate: camera` is the yaml default. Catch ImportError only, or export `WIDEFIELD_TRIAL_GATE` to workers.
+- **Gate exemptions inside shared functions.** `spout_behavior.reference_engagement:706` and `quit_point.session_quit:122` open `daq_quit_rule` themselves. A future imaging caller would get the DAQ rule unrefused and unregistered. Add both to the register regex.
+- **Unknown variants fall through.** `camera_select` / `_class_select` treat an unknown variant as "lick" (e.g. `"miss_working"` returns every engaged row). Raise instead.
+- **Rule edges to confirm with Priya.** A 6+ no-response run at session START, or a mid-session pause, is labelled stopped; comments still say "terminal by construction" (`position_coding_directions.py:1733`, `position_axes.py:274`). A video session with no camera lick at all has no working trials.
+- **Cache-key coverage gaps** (code and files, pre-existing).
+  - The bm / prm digests do not cover `locanmf_frozen_decoder._args`, `lick_detection.detect_licks`, `classify_cues_with_backup`, `docked_periods` or `daq_io`.
+  - `session_signature` does not stat sessions.yaml `regime` / `fmdir`, the cleanpairs frame map, or `gui_config.json`.
+  - hemo_map_control's `svt415:rank{K}` key ignores the `functional_channel` override.
+- **`.str[:4]` animal ids** in recovery_timing:320, lick_correction:193, lick_rim_overlay:41 (would break on cohort-2 ids).
+
+## 3. Verified OK in this pass
+- **Default behaviour** (no env), probed: `tag()` / `cache_tag()` "", `output_tag` None, `keyed_name` / `subdir` identity, `run_selection` = `sel-daq-quittail`, `effective_kind` identity, figures_working writable.
+- **Attempt-coding merge (3988cbe3).**
+  - The 9 hand-merged scripts are all OK: iti_basis_decoder, iti_contact_check, iti_first_lick, iti_where_3axis, lick_gain_prediction, iti_lick_order, iti_where_angle_reach, iti_licks, iti_hemo_check.
+    - Each differs from the attempt-coding tip only by c61ac5ce's hunks, plus the run_mode line (iti_licks) and the reference row (iti_hemo_check). So every attempt-coding change survives.
+    - The pre_loso_ridge conversions keep the alphas, training data, LOSO set, and scaler + RidgeCV.
+    - Frame-SD / lick-window-SD division happens once, before the fit, unchanged, and is what `data_sig` hashes.
+    - masked LocaNMF and CONTRIB_HOOK are kept.
+  - The 39 byte-for-byte scripts are strict descendants of the rebuild side's blobs.
+  - Across all 52 scripts:
+    - no def is lost from either side;
+    - no frozen_readouts / run_mode / svtcorr_path / output_dir / trial_classes use was dropped;
+    - no duplicate defs, conflict markers or broken cross-script imports;
+    - every non-test make_spec passes train_data.
+  - wfield_local: lp_licks / session_cache keep both sides (gate-LP + run mode), map_collect keeps code_digest + `_Closure`, frozen_encoder keeps `out_root()` + `frame` moments + `--out-root`.
+- **c17be8f5:** lick_balance_imaging_control(+_primary), lick_acad_midline_control and s1_refit_basis_table read `config.hemo_manifest_path` / `config.svtcorr_path`. No `hemo_{ADOPTED}` / literal adopted read remains outside cohort2_qc and the intended `iti_hemo_check.py:159` reference row.
+- **Camera gate: no hard fail-open path.**
+  - Every imaging selection site is wired or fails closed: grant_kit `_class_select` and its callers, beta_maps, position_reference_maps, hemo_map_control, position_coding_directions, position_axes, precue states, nolick categorize, poststroke_engagement, attempt_coding / maps, enl_states, rest_engagement, rest_by_position.
+  - `DaqGateRefused` (a SystemExit) survives `except Exception` and fan_out.
+  - Engagement measures (spout_behavior, quit_point, disengagement_tests, s1 quit-tail rows labelled DAQ) are ungated by design.
+  - The gate-site register test is `tests/test_camera_gate_fail_closed.py`.
+- **Stopped rule** (`apply_stopped_rule:490-514`), by synthetic probes:
+  - a run of 6 or more (5 stays no_response) relabels every trial of the run;
+  - runs at session start and end count;
+  - unknown neither breaks nor extends a run and is never stopped;
+  - any other class breaks a run;
+  - empty and all-unknown inputs work.
+- **End-of-session cutoff:**
+  - the anchor is the last camera lick (contact or incomplete), with `<=`;
+  - only working trials become after_end; stopped is not cut;
+  - no-video sessions stay unknown;
+  - the memo key carries window / rule / min_run / anchor;
+  - unknown is never in working or stopped, nor counted as no_response.
+- **Map-cache key (e04143c6).**
+  - Every `defaults()` read in the 23 map-builder modules and config helpers falls under the hashed subset (decode / lick_detection / segmentation / preprocess.maps.tag / hemo.variant).
+  - trial_selection.* and behavior.tail_min_misses reach the key through the selection tag; SVTcorr / LocaNMF through session-signature paths.
+  - animals.yaml is used only at aggregation.
+  - The only yaml left out entirely is session_overrides.yaml (functional_channel). It is covered only through the regenerated SVTcorr / U mtimes, except in hemo_map_control (LOW above).
