@@ -148,6 +148,23 @@ def _out_tag() -> str:
     return lp_licks.output_tag() or ""
 
 
+def routed_output(path, *, make: bool = True, guard: bool = True, lp_family: bool = False) -> Path:
+    """THE output folder of a writer in this run (review H2 / N4 / N5, 11-03): ``path`` (an explicit ``--output`` or the
+    writer's default) with the run's output tag appended unless the tag is already one of its segments -- so a nightly
+    passing ``--output <figures_working>`` and the readers (`grant_kit._fig_root`) resolve the same tagged folder; the
+    folder is created (``make``) and `writeguard.assert_writable` is called (``guard``). The default run: ``path``."""
+    p = Path(path)
+    t = lp_family_tag() if lp_family else _out_tag()
+    if t and t not in p.parts:
+        p = p / t
+    if make and t:
+        p.mkdir(parents=True, exist_ok=True)
+    if guard:
+        from wfield_local.writeguard import assert_writable
+        assert_writable(p / "_")
+    return p
+
+
 def keyed_name(name: str, *, cache: bool = False) -> str:
     """``name`` with the run's tag inserted before the suffix (``x.json`` -> ``x__<tag>.json``); ``name`` unchanged by
     default. For FIXED-NAME files read by another step (grant 2 / 2b / 4, 3a / 5b, 3b / 5 JSONs) and per-session
@@ -164,11 +181,30 @@ def keyed_path(path, *, cache: bool = False) -> Path:
     return p.with_name(keyed_name(p.name, cache=cache))
 
 
-def subdir(root, *, cache: bool = False) -> Path:
+def lp_family_tag() -> str:
+    """The output tag of an LP-ONLY family (attempt_coding, attempt_maps, ...; review N1, 11-03): `lp_licks.output_tag()`
+    without its plain "LP_licks" part (the LP source is implicit there), so the default LP run keeps the pre-rebuild
+    folder and every OTHER mode (ENL window, gate-LP, hemo variant, camera gate ...) still gets its own."""
+    t = _out_tag()
+    if t.startswith("LP_licks"):
+        t = t[len("LP_licks"):].lstrip("_")
+    return t
+
+
+def subdir(root, *, cache: bool = False, lp_family: bool = False, make: bool = False,
+           include=None) -> Path:
     """``root/<tag>`` for a tagged run, ``root`` by default -- for skip-if-exists per-session folders and output roots
     that do not go through `lp_licks.output_dir`."""
-    t = cache_tag() if cache else _out_tag()
-    return Path(root) / t if t else Path(root)
+    if include is not None:
+        t = "_".join(parts(include=include))
+    elif cache:
+        t = cache_tag()
+    else:
+        t = lp_family_tag() if lp_family else _out_tag()
+    out = Path(root) / t if t else Path(root)
+    if make and t:                       # review N5: a tagged writer's folder is created; default paths untouched
+        out.mkdir(parents=True, exist_ok=True)
+    return out
 
 
 def require_default(what: str) -> None:

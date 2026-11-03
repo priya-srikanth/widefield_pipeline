@@ -177,4 +177,10 @@ def collect(items, worker, *, label="session", jobs=None):
     else:
         res, fail = parallel.fan_out(items, worker, jobs=jobs, label=label,
                                      log=lambda m: print(m[:100], flush=True))
+    from wfield_local import trial_classes
+    if fail and trial_classes.camera_gate_on():
+        # review N9 (11-03): under the camera gate a failed session FAILS the collection (all failures listed), so a
+        # camera-class data error can never give a silently partial render; under daq the caller logs and continues
+        raise RuntimeError(f"camera trial gate: {len(fail)} {label} job(s) failed: "
+                           + "; ".join(f"{it[0]}: {err}" for it, err in fail[:20]))
     return {it[0]: r for it, r in sorted(res, key=lambda kv: kv[0][0])}, fail

@@ -50,8 +50,12 @@ REGISTER = {
     "scripts/rest_migration/archive/restw_reliability.py": "refuses",
     "scripts/engagement_axis_balance.py": "refuses",          # _gate_all mask (RefusedMask)
     "scripts/nocontact_census.py": "refuses",                 # _gate_all mask (RefusedMask)
+    # callers of the two shared MEASURE functions that open daq_quit_rule themselves (second pass 11-03): every new
+    # caller must be classified here too, so an imaging selection cannot reach the DAQ rule through them unregistered
+    "wfield_local/analysis_kit.py": "measure",               # session_behavior -> session_quit (the S28 quit)
+    "wfield_local/behavior_clips.py": "measure",             # reference_engagement (behaviour clip labels)
 }
-CALL = re.compile(r"(?<![\w.])(?:engagement_gate|_gate_all|_quit_mask)\(")
+CALL = re.compile(r"(?<![\w.])(?:engagement_gate|_gate_all|_quit_mask|reference_engagement|session_quit)\(")
 
 
 @pytest.fixture
@@ -82,7 +86,8 @@ def test_every_daq_rule_call_site_is_registered():
                 if CALL.search(code) and not re.match(r"\s*def ", code):
                     found.add(rel)
                     break
-    found -= {"scripts/archive/axis_composition_null.py"}         # archived, never run (uses the RefusedMask anyway)
+    found -= {"scripts/archive/axis_composition_null.py",          # archived, never run (uses the RefusedMask anyway)
+              "scripts/archive/gate_bias_probe.py"}                 # archived behaviour probe
     assert found == set(REGISTER), {"unregistered": sorted(found - set(REGISTER)),
                                     "stale": sorted(set(REGISTER) - found)}
 

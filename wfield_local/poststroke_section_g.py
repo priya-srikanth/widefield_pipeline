@@ -322,7 +322,7 @@ def main(argv=None) -> int:
                          "the cohort size; pass 1 for the serial path)")
     args = ap.parse_args(argv)
     from wfield_local import run_mode  # tagged runs never overwrite default figures (review H2)
-    out = args.output or run_mode.subdir(Path(PathResolver().root("figures_working")))
+    out = run_mode.routed_output(args.output or Path(PathResolver().root("figures_working")))
     rec = collect(args.animals, include_excluded=not args.skip_excluded, jobs=args.jobs)
     from wfield_local import run_mode   # mode-tagged name (rebuild 11-03, trap T21): read by grant 3b / 5
     p = Path(out) / run_mode.keyed_name("section_g.json")

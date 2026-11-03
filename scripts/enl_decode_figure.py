@@ -234,7 +234,7 @@ def main(argv=None) -> int:
     else:
         from wfield_local.paths import PathResolver
         from wfield_local import run_mode  # tagged runs never overwrite default figures (review H2)
-        out = run_mode.subdir(Path(PathResolver().root("figures_working"))) / "enl_decode_pre.png"
+        out = run_mode.routed_output(Path(PathResolver().root("figures_working"))) / "enl_decode_pre.png"
     print(f"[enl_decode_figure] -> {figure(results, out)}", flush=True)
     return 0
 

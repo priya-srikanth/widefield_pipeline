@@ -48,6 +48,11 @@ from wfield_local import run_mode  # noqa: E402
 # RUN-MODE ROOT (rebuild 11-03, trap T18): the per-session extracts under OUT/sessions* are SKIP-IF-EXISTS, so a run in
 # another mode (hemo variant, selection, PRE_FROM ...) gets its own OUT = iti_licks/<tag>; default unchanged.
 OUT = run_mode.subdir(E / "iti_licks")
+# PER-SESSION EXTRACTS (review N11, 11-03): the skip-if-exists session files and their SD tables depend only on the
+# DATA parts of the mode (hemo variant, LocaNMF projection, projall), so they live in XOUT; every OUTPUT stays in the
+# fully tagged OUT. A PRE_FROM / MAP_REFS / in-memory / LP / gate-LP run therefore reads the extracts of its data
+# instead of failing on an empty tagged folder. XOUT == OUT == iti_licks/ by default.
+XOUT = run_mode.subdir(E / "iti_licks", include=("hemo", "lnmf", "projall"))
 # WRITE ROOT (10-28, overnight queue 5a/5b/5d): scripts that adopt it write tables / figures / figdata under OUT_W and keep
 # READING inputs from OUT. Default = OUT (production unchanged); env WFIELD_ITI_OUT_W redirects the writes (a test run
 # under a write guard writes into a local scratch folder and never touches the share).
@@ -551,7 +556,7 @@ def fr_unblanked_session(label: str) -> dict:
     from wfield_local import face_rhythm_outputs as fro
     from wfield_local.paths import PathResolver
     f = OUT_W / FRU_DIR / f"{label}.npz"
-    d = np.load(OUT / SESS_NAME / f"{label}.npz", allow_pickle=False)     # lazy: only bout_t / first_rt are read
+    d = np.load(XOUT / SESS_NAME / f"{label}.npz", allow_pickle=False)     # lazy: only bout_t / first_rt are read
     bt = np.asarray(d["bout_t"], float)
     if f.exists():
         z = np.load(f, allow_pickle=False)
@@ -614,7 +619,7 @@ def attach_fr_unblanked(D: dict, jobs: int | None = None) -> dict:
 
 
 def _load(label: str, sess_dir: Path | None = None) -> dict:
-    z = np.load((sess_dir or OUT / SESS_NAME) / f"{label}.npz", allow_pickle=False)
+    z = np.load((sess_dir or XOUT / SESS_NAME) / f"{label}.npz", allow_pickle=False)
     return {k: z[k] for k in z.files}
 
 
@@ -640,8 +645,8 @@ def pred_file(rel: str) -> Path:
 def _sd_dir(sess_dir: Path | str | None) -> Path:
     """Folder of the SD / split tables for a session folder: OUT/zscore_check for the August sessions, the session
     folder's parent for a separate reference set (June: june_ref/<SD_NAME>, june_ref/<SPLIT_NAME>, `iti_june_ref.py`)."""
-    if not sess_dir or Path(sess_dir) == OUT / SESS_NAME:
-        return OUT / "zscore_check"
+    if not sess_dir or Path(sess_dir) == XOUT / SESS_NAME:
+        return XOUT / "zscore_check"
     return Path(sess_dir).parent
 
 
@@ -718,10 +723,10 @@ def run_labels() -> list[str]:
 
 def labels(pattern: str = "*", sess_dir: Path | None = None, complete: bool = True) -> list[str]:
     """THE session-label list for ITI-lick consumers (Priya 10-27 late: "fix the code base so we don't need the v1
-    folder"): stems of the CURRENT ROI version's session files (OUT / SESS_NAME), never the v1 `sessions/` folder, which
+    folder"): stems of the CURRENT ROI version's session files (XOUT / SESS_NAME), never the v1 `sessions/` folder, which
     ~18 scripts used to glob for labels. Fails loudly on an empty folder, and -- for the default folder and pattern -- on
     an extraction missing any session of the frozen run (a silent drop would shrink every downstream table)."""
-    d = Path(sess_dir) if sess_dir else OUT / SESS_NAME
+    d = Path(sess_dir) if sess_dir else XOUT / SESS_NAME
     got = sorted(p.stem for p in d.glob(f"{pattern}.npz"))
     if not got:
         raise FileNotFoundError(f"no session files matching {pattern}.npz in {d}")
@@ -1101,7 +1106,7 @@ def summarise(labels: list[str]) -> None:
 
     from wfield_local import analysis_kit as ak
     (OUT / "figures").mkdir(parents=True, exist_ok=True)
-    D = {x: _load(x) for x in labels if (OUT / SESS_NAME / f"{x}.npz").exists()}
+    D = {x: _load(x) for x in labels if (XOUT / SESS_NAME / f"{x}.npz").exists()}
     meta = pd.DataFrame([{"label": x, "animal": str(d["animal"]), "epoch": str(d["epoch"]), "clock_med_s": float(d["clock_med_s"]),
                           "n_bout": len(d["bout_side"]), "n_iti": len(d["iti_side"]), "n_first": len(d["first_rt"])}
                          for x, d in D.items()])
@@ -2205,8 +2210,9 @@ def main(argv=None) -> int:
             binned_plot()
         return 0
     assert_writable(OUT)
-    if not (OUT / SESS_NAME).is_dir():                  # (no mkdir call when it exists: the dev write guard refuses any)
-        (OUT / SESS_NAME).mkdir(parents=True, exist_ok=True)
+    assert_writable(XOUT)
+    if not (XOUT / SESS_NAME).is_dir():                  # (no mkdir call when it exists: the dev write guard refuses any)
+        (XOUT / SESS_NAME).mkdir(parents=True, exist_ok=True)
     run = E / "frozen_encoder_gate-attempted_v7g3_t3d_frA" / "joint" / "sessions"
     labels = sorted(a.labels or (p.stem for p in run.glob("*.json")))
     labels = [x for x in labels if x[-4:] >= "0801"]
@@ -2214,7 +2220,7 @@ def main(argv=None) -> int:
         roi_figure(labels[0])
         return 0
     if a.ramp:
-        ramp_figures({x: _load(x) for x in labels if (OUT / SESS_NAME / f"{x}.npz").exists()},
+        ramp_figures({x: _load(x) for x in labels if (XOUT / SESS_NAME / f"{x}.npz").exists()},
                      pd.read_csv(OUT / "ramp_sessions.csv"))
         return 0
     if a.plot_direction:
@@ -2224,22 +2230,22 @@ def main(argv=None) -> int:
         plot_frozen_timecourse(pd.read_csv(OUT / tagged("decode_frozen_lags_sessions.csv")))
         return 0
     if a.ramp_summary:
-        ramp_auc_summary(_ramp_pe({x: _load(x) for x in labels if (OUT / SESS_NAME / f"{x}.npz").exists()}))
+        ramp_auc_summary(_ramp_pe({x: _load(x) for x in labels if (XOUT / SESS_NAME / f"{x}.npz").exists()}))
         return 0
     if a.binned:
-        binned_figures({x: _load(x) for x in labels if (OUT / SESS_NAME / f"{x}.npz").exists()})
+        binned_figures({x: _load(x) for x in labels if (XOUT / SESS_NAME / f"{x}.npz").exists()})
         return 0
     if a.controls:
-        D = {x: _load(x) for x in labels if (OUT / SESS_NAME / f"{x}.npz").exists()}
+        D = {x: _load(x) for x in labels if (XOUT / SESS_NAME / f"{x}.npz").exists()}
         controls(D, pd.read_csv(OUT / "ramp_sessions.csv"), jobs=a.jobs)
         return 0
     if a.key:
-        D = {x: _load(x) for x in labels if (OUT / SESS_NAME / f"{x}.npz").exists()}
+        D = {x: _load(x) for x in labels if (XOUT / SESS_NAME / f"{x}.npz").exists()}
         key_figures(D, pd.read_csv(OUT / "ramp_sessions.csv"))
         return 0
     if not a.summarise:
         roi_figure(labels[0])
-        todo = [(x, str(OUT)) for x in labels if not (OUT / SESS_NAME / f"{x}.npz").exists()]
+        todo = [(x, str(XOUT)) for x in labels if not (XOUT / SESS_NAME / f"{x}.npz").exists()]
         print(f"[iti_licks] {len(labels)} sessions, {len(todo)} to extract -> {OUT}", flush=True)
         got, fail = ak.fan_sessions(todo, extract, jobs=a.jobs, label="extract")
         for it, r in got:

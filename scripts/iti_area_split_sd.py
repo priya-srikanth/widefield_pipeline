@@ -67,7 +67,7 @@ def main(argv=None) -> int:
         from iti_june_ref import JUNE
         out, sess = JUNE / il.SPLIT_NAME, JUNE / il.SESS_NAME
     else:
-        out, sess = F, il.OUT / il.SESS_NAME
+        out, sess = F, il.XOUT / il.SESS_NAME
     from wfield_local.writeguard import assert_writable
     assert_writable(out)
     S = table(sorted(p.stem for p in sess.glob("*.npz")), a.jobs)

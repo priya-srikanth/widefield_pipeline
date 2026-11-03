@@ -44,8 +44,8 @@ def final_maps_dir(lf):
     sys.path.insert(0, str(Path(__file__).resolve().parent))
     import lp_final_render
     from wfield_local import lp_licks
-    lp_final_render.setup()
-    return lp_licks.output_dir(lf / "epoch")
+    with lp_final_render.scoped():                # the render env in this block only; the process env is restored
+        return lp_licks.output_dir(lf / "epoch")
 
 
 def maps(g, lf):

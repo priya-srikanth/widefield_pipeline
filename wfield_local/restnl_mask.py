@@ -208,13 +208,25 @@ def _code() -> str:
     return hashlib.sha1(src.encode()).hexdigest()[:12]
 
 
+def _helper_code() -> str:
+    """Digest of the CROSS-MODULE code a RESTnl baseline depends on (review N8, 11-03): the rest frames and their gate
+    (rest_by_position, rest_engagement, engagement_gate), the quiet / rest masks and response window (quiet_periods,
+    analysis_kit) -- the same roots the prm map digest hashes (`position_reference_maps._raw_maps_code`)."""
+    from wfield_local import map_collect
+    from wfield_local.position_reference_maps import _raw_maps_parts
+    # the CLOSURES of the prm digest (its cross-module helper set, sufficiency-tested), not the prm map functions
+    return map_collect.code_digest(*[x for x in _raw_maps_parts() if hasattr(x, "source")])
+
+
 def _key(s: dict) -> str:
     from wfield_local import map_collect, session_cache
     from wfield_local.quiet_periods import quiet_dir
     import glob
     qs = sorted(glob.glob(f"{quiet_dir(s['mc'])}/*quiet_sample.npy"))
     ua = glob.glob(f"{s['mc']}/wfield_local_results/allen_aligned_affine8v1/U_atlas.npy")
-    parts = [f"v{VERSION}", _code(), repr((BUF_S, MIN_FR, MIN_POS_WR)), session_cache.session_signature(s),
+    # + the defaults.yaml keys and helper code the baseline reads (review N8): a yaml / helper edit now rebuilds it
+    parts = [f"v{VERSION}", _code(), _helper_code(), repr(sorted(map_collect.map_yaml_subset().items())),
+             repr((BUF_S, MIN_FR, MIN_POS_WR)), session_cache.session_signature(s),
              map_collect.stat_sig(qs[0] if qs else None), map_collect.stat_sig(ua[0] if ua else None),
              map_collect.stat_sig(licks_all_path(s["label"]))]
     return hashlib.sha1("|".join(parts).encode()).hexdigest()[:16]

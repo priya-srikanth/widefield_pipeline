@@ -39,6 +39,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+from wfield_local import run_mode
 from wfield_local.attempt_coding import LESION_NAME, SPOUTS, POST_EPOCHS, _cue_classes
 
 CLASSES = ("pre_hit", "pre_incomplete", "hit", "incomplete", "incomplete_pooled", "noattempt", "reaction", "stopped")
@@ -74,7 +75,7 @@ def classes_for_rows(cls_e, cls_u, quit_u, pre, camera_u=None):
     if camera_u is not None:
         from wfield_local import trial_classes as _tc
         cam = np.asarray(camera_u, dtype=object)
-        stop, work = np.isin(cam, list(_tc.STOPPED_CLASSES)), _tc.in_gate(cam, "working")
+        stop, work = np.isin(cam, list(_tc.STOPPED_CLASSES)), _tc.in_gate(cam, "miss_working")   # no contact (M6)
     else:
         stop, work = quit_u, ~quit_u
     cu[stop & ~np.isin(cls_u, ("", "unknown"))] = "stopped"
@@ -170,6 +171,8 @@ def _job(args):
     try:
         return label, session_class_maps(label, align, rest_variant=rv)
     except Exception as ex:                                            # noqa: BLE001
+        from wfield_local import trial_classes as _tc
+        _tc.reraise_under_camera(ex, f"attempt_maps {label} {align}")   # review N9
         print(f"  !! {label} {align}: {type(ex).__name__} {str(ex)[:90]}", flush=True)
         return label, None
 
@@ -213,7 +216,8 @@ def out_dir(rest_variant="rest"):
     from wfield_local import lp_licks, run_mode
     # run-mode routing (rebuild 11-03): a tagged run (camera gate, hemo variant ...) writes <dir>/<tag>/; default unchanged
     return run_mode.subdir(lp_licks._run_dir() / "imaging_encoding" / ("attempt_maps" if rest_variant == "rest"
-                                                                        else f"attempt_maps_{rest_variant}"))
+                                                                        else f"attempt_maps_{rest_variant}"),
+                           lp_family=True)                     # LP-only family (review N1)
 
 
 EPOCHS = ("pre",) + POST_EPOCHS
@@ -238,7 +242,7 @@ def hemisphere_table(od, align, animals):
     m, _e = _mask_edges()
     rows = []
     for an in animals:
-        f = od / f"maps_{align}_{an}.npz"
+        f = od / run_mode.keyed_name(f"maps_{align}_{an}.npz", cache=True)
         if not f.exists():
             continue
         Z = np.load(f)
@@ -277,7 +281,7 @@ def figures(od, align, animals, spouts=("far_contra", "far_mid", "far_ipsi"), re
     m, edges = _mask_edges()
     fd = od / "figures"
     fd.mkdir(exist_ok=True)
-    Zs = {an: np.load(od / f"maps_{align}_{an}.npz") for an in animals if (od / f"maps_{align}_{an}.npz").exists()}
+    Zs = {an: np.load(od / run_mode.keyed_name(f"maps_{align}_{an}.npz", cache=True)) for an in animals if (od / run_mode.keyed_name(f"maps_{align}_{an}.npz", cache=True)).exists()}
     out = []
     for P in spouts:
         for diff in (False, True):
@@ -368,7 +372,7 @@ def main(argv=None) -> int:
     for align in a.aligns:
         counts = []
         for an in a.animals:
-            f = od / f"maps_{align}_{an}.npz"
+            f = od / run_mode.keyed_name(f"maps_{align}_{an}.npz", cache=True)
             if f.exists():
                 print(f"[attempt_maps] {an} {align}: exists, skipped", flush=True)
                 continue

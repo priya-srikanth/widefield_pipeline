@@ -866,6 +866,8 @@ def _class_select(variant, sess_e, sess_u, not_eng, cls=None, rule=None):
         return _tc.camera_select(variant, cls[0], cls[1], sess_e, sess_u)
     e_none = _np.zeros(len(sess_e), bool)
     u_none = _np.zeros(len(sess_u), bool)
+    if variant not in ("lick", "working", "stopped"):        # second pass 11-03: never fall through to "lick"
+        raise ValueError(f"_class_select: unknown trial class {variant!r} (lick / working / stopped)")
     if variant == "stopped":
         return e_none, (sess_u & not_eng) if len(sess_u) else u_none
     if variant == "working":

@@ -94,7 +94,7 @@ def decode(source: str) -> pd.DataFrame:
     """Frozen decoder r per session (lags 0..0.2 averaged) and per lag; same recipe as page 3.9."""
     from wfield_local import frozen_readouts
     sd = il.OUT / f"basis_{wd.basis_dir(source)}" / "sessions" if source not in AREAS else None
-    labels = sorted(p.stem for p in (sd or il.OUT / il.SESS_NAME).glob("*.npz"))
+    labels = sorted(p.stem for p in (sd or il.XOUT / il.SESS_NAME).glob("*.npz"))
     D = {}
     for x in labels:
         if source in AREAS:                    # Allen areas, split or plain (il.area_features, per lag)

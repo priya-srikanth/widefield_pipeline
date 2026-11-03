@@ -331,6 +331,15 @@ def daq_quit_rule(reason: str):
         _DAQ_RULE_OK.reset(tok)
 
 
+def reraise_under_camera(ex: BaseException, where: str) -> None:
+    """Review N9 (11-03): call in an ``except Exception`` that would DROP a session / animal and continue. Under the
+    camera gate the error is re-raised (a camera-class data error must fail the render, not thin it silently); under
+    daq nothing changes (the caller logs and continues, as before)."""
+    if camera_gate_on():
+        raise RuntimeError(f"camera trial gate: {where} failed ({type(ex).__name__}: {str(ex)[:200]}); a camera-gated "
+                           "render does not drop data silently") from ex
+
+
 def require_gate(mode: str, where: str) -> None:
     """Raise `DaqGateRefused` unless the run's gate is ``mode`` (review M5): called at the top of a family that is NOT
     wired to the camera classes, so it refuses before any work (engagement_gate would refuse later anyway)."""
@@ -420,11 +429,14 @@ def camera_engaged_period(label: str, cue_s) -> np.ndarray:
 
 
 def _selection_cfg() -> dict:
+    # NO SILENT "daq" (review, second pass 11-03): a config that exists but fails to load RAISES -- once
+    # `trial_selection.gate: camera` is the yaml default, swallowing the error would silently run the DAQ rule.
+    # Only a missing config module (a bare unit-test import) falls back to the documented defaults.
     try:
         from wfield_local import config
-        return config.defaults().get("trial_selection") or {}
-    except Exception:                                # noqa: BLE001 - config unavailable (bare unit tests)
+    except ImportError:
         return {}
+    return config.defaults().get("trial_selection") or {}
 
 
 def gate_mode() -> str:
@@ -477,9 +489,9 @@ def stop_run_min() -> int:
     """Minimum run of consecutive camera no_response trials for "stopped" = ``behavior.tail_min_misses`` (6)."""
     try:
         from wfield_local import config
-        return int((config.defaults().get("behavior") or {}).get("tail_min_misses", 6))
-    except Exception:                                # noqa: BLE001 - config unavailable (bare unit tests)
+    except ImportError:
         return 6
+    return int((config.defaults().get("behavior") or {}).get("tail_min_misses", 6))   # a broken config RAISES
 
 
 def stopped_rule_name() -> str:
@@ -609,7 +621,10 @@ def camera_rows(label: str, idx_e, idx_n, variant: str):
       working       engaged + no-lick rows whose class is in GATES["working"]
       miss_working  no-lick rows in GATES["working"] (incomplete / jaw-only: responded but no contact)
       stopped       no-lick rows in STOPPED_CLASSES
-      lick          engaged rows unchanged (contact-only)"""
+      lick          engaged rows unchanged (contact-only)
+    Any other variant RAISES (second pass 11-03: it used to fall through to "lick")."""
+    if variant not in ("working", "miss_working", "stopped", "lick"):
+        raise ValueError(f"camera_rows: unknown trial class {variant!r}")
     ce, cu = row_classes(label, idx_e), row_classes(label, idx_n)
     ne, nn = len(ce), len(cu)
     if variant == "working":
@@ -651,7 +666,11 @@ def camera_select(variant: str, cls_e, cls_u, sess_e, sess_u):
     se = np.asarray(sess_e, bool)
     su = np.asarray(sess_u, bool)
     if variant == "stopped":
-        return se & np.isin(ce, list(STOPPED_CLASSES)), su & np.isin(cu, list(STOPPED_CLASSES))
+        # ONE definition of stopped (second pass 11-03): no-lick rows only, as `camera_rows("stopped")` -- an engaged
+        # (DAQ-lick) row is never stopped, whatever its camera class
+        return np.zeros(len(se), bool), su & np.isin(cu, list(STOPPED_CLASSES))
     if variant == "working":
         return se & in_gate(ce, "working"), su & in_gate(cu, "working")
-    return se, np.zeros(len(su), bool)
+    if variant == "lick":
+        return se, np.zeros(len(su), bool)
+    raise ValueError(f"camera_select: unknown trial class {variant!r} (lick / working / stopped)")

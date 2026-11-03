@@ -456,7 +456,7 @@ def main(argv=None) -> int:
     from wfield_local import run_mode
     # run-mode routing (rebuild 11-03): a tagged run (camera gate, hemo variant ...) writes figures_working/<tag>/,
     # never over the default precue_states_<align>.{png,json}; identity for the default run
-    out = args.output or run_mode.subdir(Path(PathResolver().root("figures_working")))
+    out = run_mode.routed_output(args.output or Path(PathResolver().root("figures_working")))
     out.mkdir(parents=True, exist_ok=True)
     animals = config.normalize_animals(args.animals) or [a for a in config.animals()]
     results = {}

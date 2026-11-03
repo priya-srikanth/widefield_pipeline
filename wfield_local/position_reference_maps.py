@@ -259,6 +259,8 @@ def session_rest_svt_timelocal(session, svt, nbins=REST_BASELINE_BINS, frames=No
             return None
         return _timelocal_from_mask(V, qm, int(nbins))
     except Exception as ex:                                            # noqa: BLE001
+        from wfield_local import trial_classes as _tc
+        _tc.reraise_under_camera(ex, f"time-local rest {session['label']}")   # review N9
         print(f"  !! time-local rest {session['label']}: {type(ex).__name__} {str(ex)[:60]}",
               flush=True)
         return None
@@ -616,20 +618,30 @@ def _raw_maps_code() -> str:
     precue_engagement_states) used to be hashed whole, so any edit anywhere in them -- a figure, a docstring of an
     unrelated function -- cold-started ~33 GB of map caches. Now only the functions the map builders call, plus
     everything they reference inside their own module (`map_collect.closure`), enter the digest."""
-    from wfield_local import analysis_kit, beta_maps, map_collect, precue_engagement_states, quiet_periods
-    from wfield_local import rest_by_position, rest_engagement
-    return map_collect.code_digest(
+    from wfield_local import map_collect
+    return map_collect.code_digest(*_raw_maps_parts())
+
+
+def _raw_maps_parts() -> list:
+    """What `_raw_maps_code` hashes, as a list (tests/test_map_cache_key.py reads THIS list for its sufficiency check)."""
+    from wfield_local import (analysis_kit, behavior_events, beta_maps, daq_io, map_collect, precue_engagement_states,
+                              quiet_periods, rest_by_position, rest_engagement)
+    return [
         session_raw_maps, _working_xy, session_rest_svt_timelocal, session_restw_svt, session_quiet_svt,
         beta_maps._quit_mask,
         # + response_window_s / rest_mask / trial_exclusion / widen_bool_sparse / quiet_dir, reached from
-        # rest_by_position / rest_engagement (review M4, 11-03; tests/test_map_cache_key.py checks sufficiency)
+        # rest_by_position / rest_engagement (review M4, 11-03)
         map_collect.closure(quiet_periods, "quiet_variant", "quiet_frame_path", "quiet_baseline_svt",
                             "response_window_s", "rest_mask", "trial_exclusion", "widen_bool_sparse", "quiet_dir"),
         map_collect.closure(analysis_kit, "response_window_s"),
         map_collect.closure(rest_engagement, "engaged_frame_mask"),
         map_collect.closure(rest_by_position, "rest_frames_by_position", "restw_from_frames",
                             "MIN_POSITIONS_FOR_WEIGHTED"),
-        map_collect.closure(precue_engagement_states, "engagement_gate"))
+        map_collect.closure(precue_engagement_states, "engagement_gate"),
+        # second pass (11-03): the frame-edge and canonical-events helpers rest_engagement / rest_by_position call
+        map_collect.closure(daq_io, "rising_edges", "strobe_codes"),
+        map_collect.closure(behavior_events, "get_or_compute"),
+    ]
 
 
 def session_raw_maps_cached(session, align, *, post_s=2.0, variant="working"):

@@ -77,6 +77,14 @@ import lick_enl_angle_decode as ead  # noqa: E402
 OUT = il.OUT_W / "enl_target"
 FIG = il.OUT_W / "figures"
 E = Path("M:/MICROSCOPE/Priya/Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding")
+
+
+def _attempt_dir():
+    """attempt_coding output folder, resolved by its WRITER (review N1 / N10): never a literal path."""
+    from wfield_local import attempt_coding
+    return attempt_coding.out_dir()
+
+
 SP = ["close_ipsi", "close_mid", "close_contra", "far_ipsi", "far_mid", "far_contra"]
 LAB = ["cI", "cM", "cC", "fI", "fM", "fC"]
 LAT = {s: {"ipsi": -1.0, "mid": 0.0, "contra": 1.0}[s.split("_")[1]] for s in SP}
@@ -130,10 +138,12 @@ def precue_trials(TM: pd.DataFrame) -> dict:
         PW["exec_traj"] = np.array(SP)[PW[[f"tw_{p}" for p in SP]].to_numpy().argmax(1)]
         PW = PW[["label", "trial_id", "exec_traj"]]
     out = {}
-    pq = E / "attempt_coding_pp" if all((E / "attempt_coding_pp" / f"trials_precue_{an}.csv.gz").exists() for an in AN) \
-        else E / "attempt_coding"
+    from wfield_local import run_mode
+    PP = run_mode.subdir(E / "attempt_coding_pp", lp_family=True)       # mode-routed, as attempt_coding.out_dir (N1)
+    pq = PP if all((PP / f"trials_precue_{an}.csv.gz").exists() for an in AN) \
+        else _attempt_dir()
     print(f"== precue frozen-decoder trials from {pq}", flush=True)
-    for w, d in (("precue", pq), ("cue", E / "attempt_coding_pp"), ("lick", E / "attempt_coding_pp")):
+    for w, d in (("precue", pq), ("cue", PP), ("lick", PP)):
         T = pd.concat([pd.read_csv(d / f"trials_{w}_{an}.csv.gz") for an in AN], ignore_index=True)
         T = T[(T.method == "dom") & T.cls.isin(["pre_hit", "hit", "incomplete"]) & (T.label.str[-4:] >= "0801")]
         if "pp_far_contra" in T:
@@ -891,7 +901,8 @@ def main() -> int:
     il.split_only("lick_enl_target_test.py")
     jobs = min(int(sys.argv[sys.argv.index("--jobs") + 1]) if "--jobs" in sys.argv else 8, 8)
     T, names = ead.prepare(pd.read_csv(ead.TRIALS))
-    PQ = {an: pd.read_csv(E / "attempt_coding" / f"trials_precue_{an}.csv.gz", usecols=["label"]) for an in AN}
+    from wfield_local import attempt_coding as _ac
+    PQ = {an: pd.read_csv(_ac.out_dir() / f"trials_precue_{an}.csv.gz", usecols=["label"]) for an in AN}   # review N1
     labs = sorted(set(T.label) | {x for v in PQ.values() for x in v.label.unique() if x[-4:] >= "0801"})
     TM = timing(labs, jobs)
     # ---- A: frozen position decoder

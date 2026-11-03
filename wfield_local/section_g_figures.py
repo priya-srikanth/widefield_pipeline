@@ -271,7 +271,7 @@ def main(argv=None) -> int:
     ap.add_argument("--output", type=Path, default=None)
     args = ap.parse_args(argv)
     from wfield_local import run_mode  # tagged runs never overwrite default figures (review H2)
-    src = args.src or run_mode.subdir(Path(PathResolver().root("figures_working")))
+    src = run_mode.routed_output(args.src or Path(PathResolver().root("figures_working")), make=False, guard=False)
     out = args.output or src
     for q in copy_behaviour_figures(out):
         print(f"  copied {Path(q).name}", flush=True)

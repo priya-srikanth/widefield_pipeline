@@ -30,7 +30,9 @@ import numpy as np
 import pandas as pd
 
 E = Path("M:/MICROSCOPE/Priya/Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding")
-A = E / "attempt_coding"
+from wfield_local import attempt_coding as _ac  # noqa: E402
+
+A = _ac.out_dir()   # the writer's folder under the run mode (review N1 / N10)
 AN = ["PS92", "PS93", "PS94", "PS95"]
 ACOL = {"PS92": "#1b9e77", "PS93": "#d95f02", "PS94": "#7570b3", "PS95": "#e7298a"}
 
@@ -274,7 +276,8 @@ def pooled_figures(S: pd.DataFrame, window: str, plt) -> None:
     print("->", A / "figures" / f"recovery_timing_pooled_epoch_{window}.png")
 
 
-AIM_CSV = E / "iti_licks" / "aim_by_spout_sessions.csv"      # scripts/lick_cued_aim_by_spout.py (THE aim definition)
+import iti_licks as _il  # noqa: E402
+AIM_CSV = _il.OUT / "aim_by_spout_sessions.csv"                  # il.OUT: the ITI family's mode-routed root (N10)      # scripts/lick_cued_aim_by_spout.py (THE aim definition)
 AIM_COL = "#2471a3"
 
 

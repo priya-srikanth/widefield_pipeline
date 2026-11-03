@@ -269,7 +269,8 @@ def session_table(T: pd.DataFrame, S: pd.DataFrame) -> pd.DataFrame:
     M = pd.read_csv(E / "iti_licks" / "itidock_main" / "matched_gauss_sessions.csv")
     M = M[(M.scope == "all spouts") & (M.cls == "all") & (M.set == "iti")]
     D = D.merge(M[["label", "resid"]].rename(columns={"resid": "iti_off"}), on="label", how="left")
-    Rt = pd.read_csv(E / "attempt_coding" / "decoder_retention_sessions.csv")
+    from wfield_local import attempt_coding as _ac
+    Rt = pd.read_csv(_ac.out_dir() / "decoder_retention_sessions.csv")   # the writer's folder (review N1)
     Rt = Rt[(Rt.window == "lick") & (Rt.cls2 == "hit")]
     D = D.merge(Rt[["label", "ret"]].rename(columns={"ret": "ret_hit"}), on="label", how="left")
     A = pd.read_csv(E / "iti_licks" / "area_auc_sessions_split_cued.csv")

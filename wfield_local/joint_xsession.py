@@ -225,6 +225,8 @@ def main(argv=None) -> int:
                     help="date spec for the pooled sessions (default: the curated set)")
     args = ap.parse_args(argv)
 
+    from wfield_local import run_mode as _rm
+    args.output = _rm.routed_output(args.output)       # review N4: a tagged run writes under its tag, like the readers
     args.output.mkdir(parents=True, exist_ok=True)
     dates = (set(config.expand_dates(args.from_dates, width=4)) if args.from_dates
              else set(config.curated_dates()))

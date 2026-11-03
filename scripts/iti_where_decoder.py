@@ -103,7 +103,7 @@ def split_names(cols: list[str]) -> list[str]:
 
 def sess_labels(sess_dir: Path | None = None) -> list[str]:
     """Session labels of an ITI session folder (default: the current ROI version's, il.SESS_NAME)."""
-    return sorted(p.stem for p in (Path(sess_dir) if sess_dir else il.OUT / il.SESS_NAME).glob("*.npz"))
+    return sorted(p.stem for p in (Path(sess_dir) if sess_dir else il.XOUT / il.SESS_NAME).glob("*.npz"))
 
 
 def area_basis(sess_dir: Path | None = None, jobs: int | None = None, basis: str | None = None):

@@ -47,27 +47,63 @@ def root() -> Path:
     return Path(PathResolver().root("cohort_out")) / "grant_figures" / "LPfinal"
 
 
-def setup(source="lp", window=None, trained=None, refs=ALL_REFS, august=True, gate=True):
-    for k in ("WIDEFIELD_LICK_SOURCE", "WIDEFIELD_GATE_SOURCE", "WIDEFIELD_ENL_WINDOW_S", "WIDEFIELD_PRE_FROM",
-              "WIDEFIELD_LP_FROZEN", "WIDEFIELD_EPOCH_FROZEN", "WIDEFIELD_MAP_REFS"):
-        os.environ.pop(k, None)
+_SETUP_KEYS = ("WIDEFIELD_LICK_SOURCE", "WIDEFIELD_GATE_SOURCE", "WIDEFIELD_ENL_WINDOW_S", "WIDEFIELD_PRE_FROM",
+               "WIDEFIELD_LP_FROZEN", "WIDEFIELD_EPOCH_FROZEN", "WIDEFIELD_MAP_REFS")
+
+
+def settings(source="lp", window=None, trained=None, refs=ALL_REFS, august=True, gate=True) -> dict:
+    """The env this render runs under, as a dict {name: value | None (= unset)}; NOTHING is changed (review M10,
+    11-03: a reader such as lp_final_compare must be able to resolve the render paths without mutating its process)."""
+    env = {k: None for k in _SETUP_KEYS}
     if source == "lp":
-        os.environ["WIDEFIELD_LICK_SOURCE"] = "lp"
+        env["WIDEFIELD_LICK_SOURCE"] = "lp"
         if gate:
-            os.environ["WIDEFIELD_GATE_SOURCE"] = "lp"
+            env["WIDEFIELD_GATE_SOURCE"] = "lp"
     if window is not None:
-        os.environ["WIDEFIELD_ENL_WINDOW_S"] = f"{float(window):g}"
+        env["WIDEFIELD_ENL_WINDOW_S"] = f"{float(window):g}"
     if august:
-        os.environ["WIDEFIELD_PRE_FROM"] = PRE_FROM
+        env["WIDEFIELD_PRE_FROM"] = PRE_FROM
     if refs:
-        os.environ["WIDEFIELD_MAP_REFS"] = refs
+        env["WIDEFIELD_MAP_REFS"] = refs
     if trained:
-        os.environ["WIDEFIELD_EPOCH_FROZEN"] = "1"
+        env["WIDEFIELD_EPOCH_FROZEN"] = "1"
         wd = Path(os.environ.get("WIDEFIELD_FIGURES_WORKING", str(Path.home() / "cue_lick")))
-        os.environ["WIDEFIELD_FROZEN_MODEL_DIR"] = str(wd / "frozen_models_lpfinal")
-        Path(os.environ["WIDEFIELD_FROZEN_MODEL_DIR"]).mkdir(parents=True, exist_ok=True)
+        env["WIDEFIELD_FROZEN_MODEL_DIR"] = str(wd / "frozen_models_lpfinal")
         if trained == "lp":
-            os.environ["WIDEFIELD_LP_FROZEN"] = "lp"
+            env["WIDEFIELD_LP_FROZEN"] = "lp"
+    return env
+
+
+def _apply(env: dict) -> None:
+    for k, v in env.items():
+        if v is None:
+            os.environ.pop(k, None)
+        else:
+            os.environ[k] = v
+
+
+def scoped(**kw):
+    """Context manager: the render env of `settings(**kw)` inside the block, the caller's env restored after."""
+    import contextlib
+
+    @contextlib.contextmanager
+    def _cm():
+        env = settings(**kw)
+        old = {k: os.environ.get(k) for k in env}
+        _apply(env)
+        try:
+            yield env
+        finally:
+            _apply(old)
+    return _cm()
+
+
+def setup(source="lp", window=None, trained=None, refs=ALL_REFS, august=True, gate=True):
+    """THE RENDER DRIVER: applies `settings(...)` to this process (the render runs in it), makes the frozen store."""
+    env = settings(source=source, window=window, trained=trained, refs=refs, august=august, gate=gate)
+    _apply(env)
+    if env.get("WIDEFIELD_FROZEN_MODEL_DIR"):
+        Path(env["WIDEFIELD_FROZEN_MODEL_DIR"]).mkdir(parents=True, exist_ok=True)
     jobs = min(int(os.environ.get("WIDEFIELD_MAP_JOBS", "4")), 4)
     os.environ["WIDEFIELD_MAP_JOBS"] = str(jobs)
     from wfield_local import parallel

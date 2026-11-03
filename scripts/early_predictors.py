@@ -26,7 +26,9 @@ import numpy as np
 import pandas as pd
 
 E = Path("M:/MICROSCOPE/Priya/Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding")
-A = E / "attempt_coding"
+from wfield_local import attempt_coding as _ac  # noqa: E402
+
+A = _ac.out_dir()   # the writer's folder under the run mode (review N1 / N10)
 AN = ["PS92", "PS93", "PS94", "PS95"]
 ORO = ["SSp-m_left", "SSp-m_right", "MOp_left", "MOp_right"]
 ALMTJ = ["ALM_left", "ALM_right", "tjM1_left", "tjM1_right"]      # split rows (encoder_split_rows), 10-27
@@ -43,14 +45,15 @@ def exact_spearman(x, y):
 
 
 def features() -> pd.DataFrame:
-    sp0 = pd.read_csv(E / "specificity_control" / "gate-attempted_v7g3_t3d_frA" / "sessions.csv")
+    from wfield_local import run_mode
+    sp0 = pd.read_csv(run_mode.subdir(E / "specificity_control") / "gate-attempted_v7g3_t3d_frA" / "sessions.csv")
     sp0 = sp0[sp0.label.str[-4:] >= "0801"]
     sp, spa = sp0[sp0.area.isin(ORO)], sp0[sp0.area.isin(ALMTJ)]
     days = pd.read_csv(A / "recovery_timing_series_lick.csv")[["label", "day"]].drop_duplicates()
     sp = sp.merge(days, on="label", how="left")
     spa = spa.merge(days, on="label", how="left")
     ser = pd.read_csv(A / "recovery_timing_series_lick.csv")
-    allc = pd.read_csv(E / "attempt_coding_pp" / "trial_neural_vs_exec_coupling.csv")
+    allc = pd.read_csv(run_mode.subdir(E / "attempt_coding_pp", lp_family=True) / "trial_neural_vs_exec_coupling.csv")
     half = pd.read_csv(A / "recovery_timing_halftimes_lick.csv").set_index("animal")
     T = pd.concat([pd.read_csv(A / f"trials_lick_{an}.csv.gz") for an in AN])
     T = T[(T.method == "dom") & (T.spout == "far_contra") & (T.label.str[-4:] >= "0801")]

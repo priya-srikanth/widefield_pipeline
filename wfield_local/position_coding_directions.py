@@ -2033,7 +2033,7 @@ def main(argv=None) -> int:
     ap.add_argument("--methods", nargs="+", default=["dom", "dom_orth"], choices=CD_METHODS)
     args = ap.parse_args(argv)
     from wfield_local import run_mode  # tagged runs never overwrite default figures (review H2)
-    out = args.output or run_mode.subdir(Path(PathResolver().root("figures_working")))
+    out = run_mode.routed_output(args.output or Path(PathResolver().root("figures_working")))
     out.mkdir(parents=True, exist_ok=True)
     animals = config.normalize_animals(args.animals) or [a for a in config.animals()]
     want = set(args.windows)

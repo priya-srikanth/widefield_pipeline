@@ -22,7 +22,9 @@ import numpy as np
 import pandas as pd
 
 E = Path("M:/MICROSCOPE/Priya/Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding")
-A = E / "attempt_coding"
+from wfield_local import attempt_coding as _ac  # noqa: E402
+
+A = _ac.out_dir()   # the writer's folder under the run mode (review N1 / N10)
 AN = ["PS92", "PS93", "PS94", "PS95"]
 POST = ["acute", "subacute", "chronic"]
 WIN = [("precue", "pre-cue (ENL)"), ("cue", "cue window"), ("lick", "lick window")]

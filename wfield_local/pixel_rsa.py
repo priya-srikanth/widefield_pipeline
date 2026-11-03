@@ -283,7 +283,7 @@ def main(argv=None) -> int:
     ap.add_argument("--output", type=Path, default=None)
     args = ap.parse_args(argv)
     from wfield_local import run_mode  # tagged runs never overwrite default figures (review H2)
-    out = args.output or run_mode.subdir(Path(PathResolver().root("figures_working")))
+    out = run_mode.routed_output(args.output or Path(PathResolver().root("figures_working")))
     rows = {}
     for s in config.analysis_sessions(animals=args.animals):
         G = gram(s)

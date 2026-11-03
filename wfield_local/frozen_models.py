@@ -233,9 +233,21 @@ def make_spec(animal, kind, *, align, source, train_labels, post_s=2.0, zscore=T
     return spec
 
 
+def _daq_lookup_selection(sel):
+    """The selection as the DAQ-trained lookup compares it (review N2, 11-03): the camera-vs-DAQ rule and its options are
+    matched (M7), but NOT the gate-LP suffix -- the DAQ run that froze the model never runs the LP-inclusive gate, so an
+    LP run with WIDEFIELD_GATE_SOURCE=lp must still find the model frozen under ``sel-daq-quittail``."""
+    s = str(sel) if sel is not None else sel
+    return s[: -len("-gateLP")] if isinstance(s, str) and s.endswith("-gateLP") else s
+
+
 def base_id(spec) -> str:
-    """spec_id without the fields a DAQ-trained lookup from the LP arm cannot know (`_DAQ_LOOKUP_IGNORES`)."""
-    return spec_id({k: v for k, v in spec.items() if k not in _DAQ_LOOKUP_IGNORES})
+    """spec_id without the fields a DAQ-trained lookup from the LP arm cannot know (`_DAQ_LOOKUP_IGNORES`), with the
+    selection normalised by `_daq_lookup_selection`."""
+    d = {k: v for k, v in spec.items() if k not in _DAQ_LOOKUP_IGNORES}
+    if "selection" in d:
+        d["selection"] = _daq_lookup_selection(d["selection"])
+    return spec_id(d)
 
 
 def spec_id(spec) -> str:

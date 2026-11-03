@@ -97,14 +97,40 @@ def assert_writable(path: str | os.PathLike[str]) -> None:
                 "never replace the default (DAQ contact, 2 s ENL) version; route the writer with lp_licks.output_dir().")
 
 
+def _keyed_stores() -> list[str]:
+    """Normalised roots of the stores that are keyed by CONTENT, not by the run tag, so a tagged run may write them
+    (review N3, 11-03): the frozen-model store(s) (spec ids carry hemo variant, selection, training fingerprint) and the
+    per-session cache (kinds carry the run-mode cache tag)."""
+    out = []
+    env = os.environ.get("WIDEFIELD_FROZEN_MODEL_DIR", "").strip()
+    if env:
+        out.append(_normalize(env))
+    try:
+        from wfield_local import frozen_models
+        out.append(_normalize(frozen_models.local_dir()))
+    except Exception:                                                  # noqa: BLE001 - no profile: nothing to exempt
+        pass
+    try:
+        from wfield_local import session_cache
+        out.append(_normalize(session_cache.CACHE_DIR))
+    except Exception:                                                  # noqa: BLE001
+        pass
+    return [x for x in out if x]
+
+
 def _under_figures_working(c: str) -> bool:
-    """True if the normalised path ``c`` lies under this machine's `figures_working` root (False if it is unknown)."""
+    """True if the normalised path ``c`` lies under this machine's `figures_working` root (False if it is unknown) and
+    is NOT inside a content-keyed store (`_keyed_stores`, or any path segment starting "frozen_models")."""
     try:
         from wfield_local import config
         fw = _normalize(config.resolver().root("figures_working"))
     except Exception:                                                  # noqa: BLE001 - no profile root: nothing to check
         return False
-    return bool(fw) and c.startswith(fw)
+    if not (fw and c.startswith(fw)):
+        return False
+    if any(seg.startswith("frozen_models") for seg in c[len(fw):].split("/")):
+        return False
+    return not any(c.startswith(s) for s in _keyed_stores())
 
 
 def is_writable(path: str | os.PathLike[str]) -> bool:

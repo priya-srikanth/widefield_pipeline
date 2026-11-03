@@ -433,6 +433,8 @@ def fig_confusion_pre_post_working(out_dir):
             except _Stored:
                 pass                       # the stored per-class matrices are already in `mats`
             except Exception as ex:                                       # noqa: BLE001
+                from wfield_local import trial_classes as _tc
+                _tc.reraise_under_camera(ex, f"5b {an} {align}")           # review N9
                 print(f"  !! 5b {an} {align}: {type(ex).__name__} {str(ex)[:90]}", flush=True)
                 mats = mats or {}
             side += [(an, "", key, mats.get(key)) for key, _t in PANELS]
@@ -759,8 +761,9 @@ def _collect_5c(align, variant="working", mode="frozen"):
                 # REVIEW M8 (11-03): the LP arm's DAQ-trained cross-check has no stored matched draws to load (their
                 # train_fp is DAQ_RUN_FP and load_or_fit refuses to fit one), which dropped whole animals (PS93 always)
                 # through the outer `except`. The draws are fitted IN MEMORY there, said loudly, never stored.
-                print(f"  [5rm] {an} {align} {variant}: LP DAQ-trained cross-check -> matched draws IN MEMORY "
-                      "(not stored)", flush=True)
+                # LABEL (second pass): these draws are LP-ROW fits, NOT the DAQ-trained model -- say so wherever printed
+                print(f"  [5rm] {an} {align} {variant}: LP DAQ-trained cross-check -> the 5rm matched column is LP-ROW "
+                      "fits IN MEMORY (not the DAQ-trained model; not stored)", flush=True)
             elif mode == "paired_matched" and epoch_frozen_on():
                 mm_spec = frozen_models.make_spec(
                     an, "matched_frozen", align=f"{align}-{variant}-seed{abs(_seed(an, align, variant))}",

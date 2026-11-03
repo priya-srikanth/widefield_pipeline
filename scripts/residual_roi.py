@@ -95,7 +95,8 @@ def main(argv=None) -> int:
     a = ap.parse_args(argv)
     if a.by_spout:
         return by_spout(a.tag)
-    out = E / "specificity_control" / a.tag
+    from wfield_local import run_mode
+    out = run_mode.subdir(E / "specificity_control") / a.tag      # specificity_control's mode-routed folder (N10)
     T = pd.read_csv(out / "sessions.csv")
     T = T[T.area != "cortex"]
     B = pd.concat([ffc.boot(T, c, epochs=EPS).assign(q=c) for c in ("residual", "residual_z")], ignore_index=True)
@@ -170,9 +171,12 @@ def by_spout(tag: str) -> int:
     import frozen_fr_compare as ffc
     from frozen_area_maps import area_image, outline, paint
     from iti_area_maps import _sig_halo
-    out = E / "specificity_control" / tag
+    from wfield_local import frozen_encoder, run_mode
+    from wfield_local.writeguard import assert_writable
+    out = run_mode.subdir(E / "specificity_control", make=True) / tag       # review N10 (11-03)
+    assert_writable(out / "_")
     cache = out / "sessions_by_spout.csv"
-    run = E / f"frozen_encoder_{tag}"
+    run = frozen_encoder.out_root() / f"frozen_encoder_{tag}"
     T = add_split_z(pd.read_csv(cache), run) if cache.exists() else spout_table(run)     # split rows added if missing
     T.to_csv(cache, index=False)
     B = pd.concat([ffc.boot(T, c, epochs=EPS, keys=("window", "spout", "area")).assign(q=c)

@@ -62,8 +62,14 @@ def load_fig1(E: Path) -> pd.DataFrame:
     return c[["animal", "epoch", *cols]].reset_index(drop=True)
 
 
+def _attempt_dir():
+    """attempt_coding output folder, resolved by its WRITER (review N1 / N10): never a literal path."""
+    from wfield_local import attempt_coding
+    return attempt_coding.out_dir()
+
+
 def load_fig2(E: Path) -> dict:
-    A = E / "attempt_coding"
+    A = _attempt_dir()                           # the writer's folder (review N1); E kept for the other inputs
     summ, trials = {}, {}
     for w in WINDOWS:
         s = pd.read_csv(A / f"summary_{w}.csv")
@@ -78,7 +84,8 @@ def load_fig2(E: Path) -> dict:
 
 
 def load_fig3(E: Path) -> pd.DataFrame:
-    h = pd.read_csv(E / "attempt_maps" / "hemispheres_lick.csv")
+    from wfield_local import attempt_maps
+    h = pd.read_csv(attempt_maps.out_dir() / "hemispheres_lick.csv")   # the writer's folder (review N1)
     return h[h.spout == "far_contra"].set_index(["animal", "epoch", "cls"])[["ipsi", "contra"]]
 
 

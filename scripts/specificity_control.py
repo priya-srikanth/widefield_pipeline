@@ -110,8 +110,12 @@ def main(argv=None) -> int:
     ap.add_argument("--reuse", action="store_true", help="reuse sessions.csv (figures / tables only)")
     ap.add_argument("--out", default=None, help="output folder (default <E>/specificity_control/<tag>)")
     a = ap.parse_args(argv)
-    run = E / f"frozen_encoder_{a.tag}"
-    out = Path(a.out) if a.out else E / "specificity_control" / a.tag
+    from wfield_local import frozen_encoder, run_mode
+    from wfield_local.writeguard import assert_writable
+    # review N10 (11-03): the encoder run of THIS mode (frozen_encoder.out_root routes it) and a mode-routed output
+    run = frozen_encoder.out_root() / f"frozen_encoder_{a.tag}"
+    out = Path(a.out) if a.out else run_mode.subdir(E / "specificity_control", make=True) / a.tag
+    assert_writable(out / "_")
     l2dir = Path(a.layer2) if Path(a.layer2).is_absolute() else E / a.layer2       # absolute: a dry-run folder
     (out / "figures").mkdir(parents=True, exist_ok=True)
     if a.reuse and (out / "sessions.csv").exists():

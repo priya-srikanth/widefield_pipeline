@@ -194,6 +194,8 @@ def by_epoch(align="cue", variant="working", post_s=2.0, animals=None):
             try:
                 got = session_control(s, align, post_s=post_s, variant=variant)
             except Exception as ex:                                    # noqa: BLE001
+                from wfield_local import trial_classes as _tc
+                _tc.reraise_under_camera(ex, f"hemo-control {s['label']}")   # review N9
                 print(f"  !! hemo-control {s['label']}: {type(ex).__name__} {str(ex)[:70]}",
                       flush=True)
                 continue

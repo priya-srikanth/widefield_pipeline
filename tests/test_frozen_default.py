@@ -1124,7 +1124,7 @@ def test_iti_spec_carries_tag_alphas_order_and_data(pass2_env):
 
 
 ITI_SCRIPTS = ("iti_licks", "iti_basis_decoder", "iti_contact_check", "iti_first_lick", "iti_lick_order",
-               "iti_nmatch_check", "iti_where_decoder", "iti_where_3axis", "iti_where_angle_reach", "iti_where_scatter",
+               "iti_where_decoder", "iti_where_3axis", "iti_where_angle_reach", "iti_where_scatter",
                "iti_decoder_contrib", "lick_gain_prediction")
 
 

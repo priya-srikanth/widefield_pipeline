@@ -509,7 +509,10 @@ def main():
     # COHORT: SESSIONS was loaded at import, so the cohort must be chosen BEFORE this process starts --
     # `nightly` exports WIDEFIELD_COHORT; a hand run on cohort2 needs `$env:WIDEFIELD_COHORT="cohort2"` first.
     log(f"cohort: {config.cohort()} ({', '.join(config.animals())})")
-    out = args.output or _default_out()
+    from wfield_local import run_mode
+    # review N4 (11-03): a tagged nightly writes (and passes --output) <fw>/<tag>, the folder the readers use; the
+    # default run is unchanged
+    out = str(run_mode.routed_output(args.output or _default_out()))
     Path(out).mkdir(parents=True, exist_ok=True)
     log(f"figure working dir: {out}")
     registered = sorted({s["label"][-4:] for s in SESSIONS})

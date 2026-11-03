@@ -54,6 +54,8 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+from wfield_local import run_mode
+
 #: spout names: POSITION_NAMES (mouse-side L/R) -> lesion-side names (all lesions LEFT: contra = the mouse's RIGHT)
 LESION_NAME = {"close_L": "close_ipsi", "close_center": "close_mid", "close_R": "close_contra",
                "far_L": "far_ipsi", "far_center": "far_mid", "far_R": "far_contra"}
@@ -94,11 +96,13 @@ def classify(cls_e, cls_u, eng_pre_e, eng_pre_u, not_eng_u, camera_u=None):
         cam = np.asarray(camera_u, dtype=object)
         cu[post_u & np.isin(cam, list(_tc.STOPPED_CLASSES)) & ~np.isin(cls_u, ("", "unknown"))] = "stopped"
         work = post_u & _tc.in_gate(cam, "working")
+        work_m = post_u & _tc.in_gate(cam, "miss_working")     # the no-lick miss split: no contact class (M6)
     else:
         cu[post_u & not_eng_u & ~np.isin(cls_u, ("", "unknown"))] = "stopped"
         work = post_u & ~not_eng_u
-    cu[work & (cls_u == "no_try")] = "noattempt"
-    cu[work & (cls_u == "jaw_only")] = "reaction"
+        work_m = work
+    cu[work_m & (cls_u == "no_try")] = "noattempt"
+    cu[work_m & (cls_u == "jaw_only")] = "reaction"
     cu[work & np.isin(cls_u, ("hit", "incomplete"))] = "late"
     return ce, cu
 
@@ -378,7 +382,8 @@ def freeze_reference(animal, align):
 def out_dir():
     from wfield_local import lp_licks, run_mode
     # run-mode routing (rebuild 11-03): a tagged run (camera gate, hemo variant ...) writes attempt_coding/<tag>/
-    return run_mode.subdir(lp_licks._run_dir() / "imaging_encoding" / "attempt_coding")
+    # LP-only family: routed on the mode tag minus the plain LP part (review N1) -> the default LP run keeps its folder
+    return run_mode.subdir(lp_licks._run_dir() / "imaging_encoding" / "attempt_coding", lp_family=True)
 
 
 def main(argv=None) -> int:
@@ -400,7 +405,7 @@ def main(argv=None) -> int:
     for align in a.aligns:
         parts = []
         for an in a.animals:
-            f = od / f"trials_{align}_{an}.csv.gz"
+            f = od / run_mode.keyed_name(f"trials_{align}_{an}.csv.gz", cache=True)
             if f.exists():
                 parts.append(pd.read_csv(f)); continue
             T = run_animal(an, align)

@@ -139,6 +139,10 @@ def engaged_frame_mask(session, n_frames):
         cs = np.asarray(cue["cue_samples"], np.int64)
         codes = np.asarray(classify_cues_with_backup(session, cue, verbose=False))
         eng, note = engaged_by_cue(session, cs, codes)
+        if camera and not eng.any():
+            # second pass 11-03: no camera working period at all (e.g. PS93_0813, no video) -> NO engaged frame, not
+            # the pre-first-cue frames the DAQ rule would keep
+            return np.zeros(n_frames, bool), "no camera working period -- no engaged frames"
         if "UNGATED" in note or bool(eng.all()):
             return keep, note if "UNGATED" in note else "no quit period"
         first_quit_sample = int(cs[int(np.flatnonzero(~eng)[0])])

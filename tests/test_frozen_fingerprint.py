@@ -39,7 +39,7 @@ def test_spec_carries_fingerprint_selection_and_variant():
     assert s["freeze_version"] == 2
     assert s["hemo_variant"] == "meegkit_hpfit"
     assert s["selection"] == "sel-daq-quittail"
-    assert s["train_fp"] == fm.data_fingerprint(X)
+    assert s["train_fp"] == "1efa32e4e56386bb"     # pinned: sha1 of "L2|" + each array dtype / shape / bytes (L1, not a self-comparison)
     assert fm.spec_id(_spec(X)) == fm.spec_id(s)                           # deterministic
 
 

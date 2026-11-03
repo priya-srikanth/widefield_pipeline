@@ -347,7 +347,8 @@ def trial_table(D, sd):
     Tr = Tr.merge(A, on=["label", "trial_id"], how="left")
     P = []
     for an in ANIMALS:
-        f = LP / "attempt_coding" / f"trials_precue_{an}.csv.gz"
+        from wfield_local import attempt_coding as _ac
+        f = _ac.out_dir() / f"trials_precue_{an}.csv.gz"           # the writer's folder (review N1)
         if f.exists():
             x = pd.read_csv(f, usecols=["label", "trial_id", "spout", "cls", "p_true", "method"])
             P.append(x[x.method == "dom"].drop(columns="method").rename(columns={"spout": "spout_ac", "cls": "cls_ac"}))

@@ -31,8 +31,9 @@ import _common  # noqa: E402
 
 NAME = "goal_epochs"
 PNG = "fig2b_attempt_decoder_epochs.png"
-A_DEF = Path("M:/MICROSCOPE/Priya/Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/"
-             "attempt_coding")
+from wfield_local import attempt_coding as _ac  # noqa: E402
+
+A_DEF = _ac.out_dir()          # the writer's folder under the run mode (review N1); was the literal default path
 AN = ["PS92", "PS93", "PS94", "PS95"]
 EP = ["pre", "acute", "subacute", "chronic"]
 CL = [("hit", "#1b9e77"), ("incomplete", "#d95f02"), ("noattempt", "#7570b3"), ("reaction", "#e7298a"),
