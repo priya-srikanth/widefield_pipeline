@@ -6,7 +6,7 @@ the repo"). Status: **RUNNING (started 11-02 evening, in parallel with the froze
 
 ## Why
 
-The cohort 2 QC (docs/COHORT2_QC_2026-10-29.md Â§0b-0d, Â§0i, Â§0l) found two defects in the hemodynamic correction.
+The cohort 2 QC (docs/COHORT2_QC_2026-10-29.md Ã‚Â§0b-0d, Ã‚Â§0i, Ã‚Â§0l) found two defects in the hemodynamic correction.
 Both are also present in cohort 1 (PS92-95):
 
 1. **Swapped frames.** A few frames per session carry the OTHER LED's image. On the DAQ the TTLs look clean at these
@@ -27,11 +27,11 @@ Both are also present in cohort 1 (PS92-95):
 The new variant is `hemo_meegkit_hpfit_lag_refitT_swapmask` (swapped pairs interpolated, 415 advanced 16 ms, T
 refitted). It was compared against the adopted `hemo_meegkit_hpfit`.
 
-- **Â§0i** (`cohort1_impact.py`, 8 sessions, including the worst):
+- **Ã‚Â§0i** (`cohort1_impact.py`, 8 sessions, including the worst):
   - Trial-averaged maps r .97-.997; time courses r .98-.998.
   - Amplitudes -2 to -8%, and -14% in PS93_0826.
   - Residual heartbeat drops from 35-97% to 3-9%.
-- **Â§0l** (`cohort1_subset_headline.py`, 24 sessions: 2 pre / 1 acute / 1 subacute / 2 chronic per animal):
+- **Ã‚Â§0l** (`cohort1_subset_headline.py`, 24 sessions: 2 pre / 1 acute / 1 subacute / 2 chronic per animal):
   - The epoch change in spout decoding keeps every sign and size (largest shift .02).
   - Area-amplitude epoch changes are identical to 3 decimals.
   - Verdict then: no blanket re-analysis needed. The new correction (with the pre-SVD repair) is the default going
@@ -73,7 +73,8 @@ Folded into the same rebuild (decided the same day):
 - **One planned cache rebuild:** drop the WIDEFIELD_PRM_LEGACY_DATE8 shim, convert `precue_engagement_states` to the
   frozen store, and narrow the map-cache code digest to the functions that build maps. Old caches are deleted afterwards
   from a kept list.
-- **Open (Priya to decide):** within-session slow-drift removal in the decoders, as the encoder does.
+- **Slow-drift step in the SHARED signal** (replacing the order-10 polynomial with a block-protected slow cosine basis); cutoff from DRIFT_CUTOFF_CHECK_20261103.md.
+- **New default "working" = camera-defined** (jaw moved OR any camera-seen lick; Priya 11-03); DAQ quit-tail kept as a robustness row. One shared definition (jaw_only_incomplete_figs.classify + gate helper).
 
 Procedure:
 1. Two independent inventories: A from the outputs (pages / decks / share) back to the code, and B from the code

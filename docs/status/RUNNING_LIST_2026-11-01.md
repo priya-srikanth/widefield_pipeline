@@ -252,3 +252,7 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
 - 11-03: "working" trial definition (jaw moved OR any camera lick; camera-lick gate = contact | incomplete) is pending Priya.
   sabatinilab-5b applies it only to its imaging section 1 table and defers the default to the rebuild. If adopted, import
   the single definition from widefield_pipeline scripts/jaw_only_incomplete_figs.classify() + its gate helper (no new copy).
+- 11-03 DECISION (Priya): new default "working" = camera-defined: jaw moved OR any camera-seen lick (contact | incomplete |
+  jaw_only). The DAQ quit-tail "working" becomes a robustness row. Applies in the cohort 1 rebuild (one switch, with the swap-mask
+  correction, August-only pre, LP-trained LP arm, new drift step); import the single definition from
+  jaw_only_incomplete_figs.classify() + gate helper. Changes frozen-decoder training sets -> new spec ids.
