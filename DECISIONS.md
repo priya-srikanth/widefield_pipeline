@@ -22325,3 +22325,52 @@ re-plots, which mirrored the paths to draw contra on the right; those `*_contra.
   cue_angle_*, cohort_cue_raw_*, the session-weighted *_minus_pre lick / cue figures), pose3d_phase `trajectories_*`
   (2-D front / above, + = mouse left drawn right = camera view, ipsi-signed) and `v_side_*`, pose3d_spout_error
   `scatter_*` / traces, the pose3d_cue_traces non-signed figures. Converted only where they feed the pages / deck.
+
+
+## 2026-11-03 — State decoder: does the KINEMATIC running definition fix PS94's running loss? Partly; centring fixes it better (diagnostic, nothing changed in production)
+
+**Question (Priya):** "If we use the running definition we used with the kinematic information (nothing until 1.5 mm/s,
+with a speed cap), does this improve it?" **The definition** is the frozen encoder v7 running regressor
+(`frozen_encoder.running_basis`; `RUN_MODE_DEFAULT="spline_thr"`, `RUN_KNOT0_DEFAULT=1.5`, `RUN_CAP_Q=99`): the signed
+treadmill speed (`behavior_events.treadmill_speed`, Gaussian sigma 0.15 s), clipped at +/- the animal's pooled
+pre-stroke p99 of |speed| on running frames (> 3 mm/s; 14.8 / 17.3 / 13.2 / 16.8 mm/s), then forward hinges
+max(0, s - k) at k = 1.5 mm/s and the p25/50/75 of pre running frames. So: zero below 1.5 mm/s (and for backward
+speed), flat above the cap. Speed never enters the state decoder's FEATURES (cortical only), so it can change only the
+class rule.
+
+**Arms** (all four cohort1 animals; in-memory refits with `fit_frozen`, pre = LOSO; production arm reproduces the stored
+session_z models to <= .006 balanced accuracy): `prod`; `kin` = running bouts re-detected at speed > 1.5 mm/s (gaps
+<= 0.3 s, >= 1 s; `kin2s` keeps the 2 s minimum); `cap` = production labels, running segments faster than the
+pre-stroke cap (own p99 of running-bout speed, 15.4 / 17.9 / 14.2 / 18.3) dropped in train and test (the floor cannot
+change a 3 mm/s rule); `kincap`; each also with class-balanced centring (`_bal`).
+
+| arm | PS94 running recall pre / acute / sub / chronic | all-animal state retained pre / acute / sub / chronic | PS92 balacc vs prod (acute / sub / chronic) |
+|---|---|---|---|
+| prod | .98 / .84 / .54 / .49 | .97 / .90 / .87 / .87 | -- |
+| kin | .99 / .93 / .83 / .78 | .97 / .89 / .89 / .86 | -.05 / -.10 / -.09 |
+| kin2s | .98 / .87 / .66 / .56 | .97 / .90 / .88 / .86 | -.01 / -.02 / -.04 |
+| cap | .98 / .91 / .79 / .81 | .97 / .92 / .90 / .90 | 0 / -.02 / 0 |
+| kincap | .99 / .95 / .91 / .95 | .97 / .90 / .90 / .87 | -.05 / -.11 / -.09 |
+| prod_bal | .99 / .97 / .96 / .91 | .98 / .94 / .95 / .94 | +.01 / +.07 / +.06 |
+| kin_bal | .99 / .98 / .98 / .95 | .98 / .93 / .95 / .93 | -.01 / +.04 / +.04 |
+
+**Reading.** (1) The kinematic floor lifts PS94 running (chronic .49 -> .78) because the pre-stroke running class then
+includes slower running (PS94 pre median 7.4 -> 5.8 mm/s, ~2x the running segments). But it costs PS92 (quiet and
+licking recall fall, balanced accuracy -.05 to -.10), so it improves 1 animal and worsens 1: it is not a 3-of-4 effect
+and the all-animal state number does not move. (2) The cap result says what PS94's failure is: 20 / 54 / 67 % of its
+post-stroke running segments are faster than any pre-stroke running; with those removed, running is read at .91 / .79 /
+.81. That is an evaluation restriction (it discards most of PS94's post running), not a fix. (3) Class-balanced centring
+alone recovers PS94 (.97 / .96 / .91) and never makes another animal worse by > .01; adding the kinematic labels on top
+adds little (chronic .91 -> .95) and brings back a small PS92 cost. (4) PS94 licking holds in every arm (.87-.91 chronic).
+**Position-vs-state ratio:** position retained .86 -> .43 / .70 / .76 (-50 / -19 / -12 %). State loses 7 / 11 / 10 % (prod),
+8 / 9 / 12 % (kin), 5 / 7 / 7 % (cap), 3 / 2 / 4 % (prod_bal). Acutely position falls 6-15x further under every arm; the
+kinematic definition does not change the claim and makes the ratio slightly worse. In every arm the all-animal balanced
+accuracy still falls vs pre (`boot_delta` CI excludes 0 at every post epoch); running-recall changes exclude 0 only for
+kin / kincap / kin_bal subacute (small, -.01 to -.06).
+
+**Recommendation / open decision (Priya):** do NOT switch to the kinematic running definition for the state decoder. If
+anything changes, it is the centring (class-balanced, `prod_bal`, the 11-03 overnight option), which needs a new frozen
+spec id; production models and figures are untouched. Files: `M:/MICROSCOPE/Priya/Widefield/labcams/state_decoder_ps94_check/running_def/`
+(`collect_rundef.py`, `analyse_rundef.py`, `fig_running_def.py`, `per_session_arms.csv`, `animal_epoch_arms.csv`,
+`boot_delta_arms.csv`, `arm_vs_prod.csv`, `retained_arms.csv`, `ps94_confusions.csv`, `segment_stats.csv`, `caps.csv`,
+`fig_running_def.png`).
