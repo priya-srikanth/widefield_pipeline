@@ -358,3 +358,6 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
 - 11-03 interim: under the ENCODER's own procedure (engaged trial rows only, gapped), slow cosines are not orthogonal to faster
   bands: cycle-band kept .71 / .78 / .82 / .88 / .95 at 10 / 15 / 20 / 25 / 40 min. Full 107-session encoder runs + ITI going.
   Possible fix to raise with Priya: fit the drift on the continuous session, apply to the trial rows.
+- 11-03 DECISION (Priya, via e3; main b506c1e3): primary camera "working" also ends at the session's LAST camera lick (contact |
+  incomplete): trial_classes.in_working(..., end="lick"); robustness anchors end="contact" / "close" / "none"; drops 1.0% of working
+  trials (1.8% acute; jaw-only trials after the last lick). Tag "sel-camera-cue_stop-endlick". Sent to the rebuild merge / gate helper.
