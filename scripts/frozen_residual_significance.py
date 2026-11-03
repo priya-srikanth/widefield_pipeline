@@ -92,6 +92,8 @@ def run_tests(pre_by, post_by, n_boot=2000, n_perm=500, methods=("nested", "clus
 
 
 def main(argv=None) -> int:
+    from wfield_local import run_mode as _rm_guard
+    _rm_guard.require_default("frozen_residual_significance")   # unrouted share writer: refuses in a non-default run mode
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt

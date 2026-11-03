@@ -760,6 +760,8 @@ def plots() -> None:
 
 # ------------------------------------------------------------------------------------------------ main
 def main(argv=None) -> int:
+    from wfield_local import run_mode as _rm_guard
+    _rm_guard.require_default("revup_behaviour")   # unrouted share writer: refuses in a non-default run mode
     from wfield_local import analysis_kit as ak
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--jobs", type=int, default=6)

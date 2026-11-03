@@ -46,6 +46,8 @@ def landing(E) -> dict:
 
 
 def main(argv=None) -> int:
+    from wfield_local import run_mode as _rm_guard
+    _rm_guard.require_default("best_match_destination")   # unrouted share writer: refuses in a non-default run mode
     from wfield_local import analysis_kit as ak
     from wfield_local import epochs
     from wfield_local import grant_figures as gf

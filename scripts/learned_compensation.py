@@ -1002,6 +1002,8 @@ def cmd_plot() -> None:
 
 
 def main() -> int:
+    from wfield_local import run_mode as _rm_guard
+    _rm_guard.require_default("learned_compensation")   # unrouted share writer: refuses in a non-default run mode
     a = sys.argv[1:]
     jobs = int(a[a.index("--jobs") + 1]) if "--jobs" in a else 3
     jobs = min(jobs, 3)

@@ -22,6 +22,8 @@ ACOL = {"PS92": "#1b9e77", "PS93": "#d95f02", "PS94": "#7570b3", "PS95": "#e7298
 
 
 def main() -> int:
+    from wfield_local import run_mode as _rm_guard
+    _rm_guard.require_default("slowband_caveat_figure")   # unrouted share writer: refuses in a non-default run mode
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt

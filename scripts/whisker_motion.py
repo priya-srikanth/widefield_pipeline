@@ -173,6 +173,8 @@ def cmd_traces(sessions, cams):
 
 
 def main(argv=None) -> int:
+    from wfield_local import run_mode as _rm_guard
+    _rm_guard.require_default("whisker_motion")   # unrouted share writer: refuses in a non-default run mode
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("cmd", choices=["run", "traces"])
     ap.add_argument("sessions", nargs="+", metavar="ANIMAL:YYYYMMDD")

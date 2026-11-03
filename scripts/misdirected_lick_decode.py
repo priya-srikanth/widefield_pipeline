@@ -273,6 +273,8 @@ def summarise(D: pd.DataFrame) -> pd.DataFrame:
 
 
 def main(argv=None) -> int:
+    from wfield_local import run_mode as _rm_guard
+    _rm_guard.require_default("misdirected_lick_decode")   # unrouted share writer: refuses in a non-default run mode
     from wfield_local import analysis_kit as ak
     from wfield_local import epochs
     from wfield_local import o2_inference as oi

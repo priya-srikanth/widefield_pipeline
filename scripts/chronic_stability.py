@@ -287,6 +287,8 @@ def figure(res, curves, out_png):
 
 
 def main(argv=None) -> int:
+    from wfield_local import run_mode as _rm_guard
+    _rm_guard.require_default("chronic_stability")   # unrouted share writer: refuses in a non-default run mode
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--out", default=None, help="output directory (default <labcams>/chronic_stability)")
     ap.add_argument("--data", default=None, help="epoch figure data dir (default <labcams>/grant_figures/epoch/data)")

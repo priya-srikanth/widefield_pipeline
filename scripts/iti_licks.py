@@ -56,7 +56,19 @@ XOUT = run_mode.subdir(E / "iti_licks", include=("hemo", "lnmf", "projall"))
 # WRITE ROOT (10-28, overnight queue 5a/5b/5d): scripts that adopt it write tables / figures / figdata under OUT_W and keep
 # READING inputs from OUT. Default = OUT (production unchanged); env WFIELD_ITI_OUT_W redirects the writes (a test run
 # under a write guard writes into a local scratch folder and never touches the share).
-OUT_W = Path(os.environ["WFIELD_ITI_OUT_W"]) if os.environ.get("WFIELD_ITI_OUT_W") else OUT
+# the override is TAGGED too (coordinator 11-03): a non-default run writing through it lands in <override>/<tag>
+OUT_W = run_mode.subdir(Path(os.environ["WFIELD_ITI_OUT_W"])) if os.environ.get("WFIELD_ITI_OUT_W") else OUT
+
+
+#: the frozen-encoder run the ITI family reads (its session list, its spatial basis): RUN-MODE DERIVED (coordinator 11-03)
+#: through `frozen_encoder.out_root()` -- the encoder run of THIS mode (imaging_encoding/<tag>/ for a tagged run),
+#: never the old variant's folder. Default run: the same path as before.
+ENCODER_TAG = "gate-attempted_v7g3_t3d_frA"
+
+
+def encoder_run(suffix: str = "") -> Path:
+    from wfield_local import frozen_encoder
+    return frozen_encoder.out_root() / f"frozen_encoder_{ENCODER_TAG}{suffix}"
 # SUBSET ITI FILTERS (Priya 10-29: ITI offset results on licks made while the spout is DOCKED). Unlike gap2 / far1
 # (iti_lick_order: decoder REFIT on the filtered set, outputs tagged "_<filter>"), these keep the FROZEN all-ITI decoder
 # (rule 10: lick_order_preds cache unchanged) and only drop ITI rows downstream (`iti_subset_keep`, flags from
@@ -717,7 +729,7 @@ def area_sd(sess_dir: Path | str | None = None, basis: str | None = None) -> pd.
 
 def run_labels() -> list[str]:
     """August+ session labels of the frozen encoder run = the sessions every ITI extraction covers."""
-    run = E / "frozen_encoder_gate-attempted_v7g3_t3d_frA" / "joint" / "sessions"
+    run = encoder_run() / "joint" / "sessions"
     return [x for x in sorted(p.stem for p in run.glob("*.json")) if x[-4:] >= "0801"]
 
 
@@ -2213,7 +2225,7 @@ def main(argv=None) -> int:
     assert_writable(XOUT)
     if not (XOUT / SESS_NAME).is_dir():                  # (no mkdir call when it exists: the dev write guard refuses any)
         (XOUT / SESS_NAME).mkdir(parents=True, exist_ok=True)
-    run = E / "frozen_encoder_gate-attempted_v7g3_t3d_frA" / "joint" / "sessions"
+    run = encoder_run() / "joint" / "sessions"
     labels = sorted(a.labels or (p.stem for p in run.glob("*.json")))
     labels = [x for x in labels if x[-4:] >= "0801"]
     if a.rois_only:

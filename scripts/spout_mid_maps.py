@@ -21,6 +21,8 @@ import numpy as np
 sys.path.insert(0, "C:/Users/SabatiniLab/Github/widefield_pipeline")
 from wfield_local import analysis_kit as ak  # noqa: E402
 from wfield_local import epochs  # noqa: E402
+from wfield_local import run_mode as _rm_guard  # noqa: E402
+_rm_guard.require_default("spout_mid_maps")   # unrouted share writer: refuses in a non-default run mode
 
 E = "M:/MICROSCOPE/Priya/Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding"
 args = [x for x in sys.argv[1:] if x != "--z"]

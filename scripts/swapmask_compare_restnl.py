@@ -17,6 +17,8 @@ ARMS = {"contact": ("epoch_restnl", ["precue_working", "cue_working", "lick_lick
 
 
 def main():
+    from wfield_local import run_mode as _rm_guard
+    _rm_guard.require_default("swapmask_compare_restnl")   # unrouted share writer: refuses in a non-default run mode
     ap = argparse.ArgumentParser()
     ap.add_argument("--new-root", type=Path, required=True)
     a = ap.parse_args()

@@ -23,6 +23,8 @@ AN = ["PS92", "PS93", "PS94", "PS95"]
 EP = ["pre", "acute", "subacute", "chronic"]
 COL = {"hit": "#2b8a3e", "incomplete": "#f08c00", "jaw_only": "#868e96", "no_try": "#c92a2a", "unknown": "#dee2e6"}
 import os  # noqa: E402
+from wfield_local import run_mode as _rm_guard  # noqa: E402
+_rm_guard.require_default("summary_figures_1021")   # unrouted share writer: refuses in a non-default run mode
 
 for d in ("behaviour", "target_vs_execution"):
     os.makedirs(f"{E}/figures/{d}", exist_ok=True)

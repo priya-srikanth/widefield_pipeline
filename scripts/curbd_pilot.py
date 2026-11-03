@@ -588,6 +588,8 @@ def plot():
 
 
 def main():
+    from wfield_local import run_mode as _rm_guard
+    _rm_guard.require_default("curbd_pilot")   # unrouted share writer: refuses in a non-default run mode
     ap = argparse.ArgumentParser()
     ap.add_argument("cmd", choices=["prep", "fit", "summarise", "plot", "explore", "explore-summary"])
     ap.add_argument("labels", nargs="*")

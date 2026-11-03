@@ -48,7 +48,8 @@ import pandas as pd  # noqa: E402
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 E = Path("M:/MICROSCOPE/Priya/Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding")
-OUT = E / "kinematic_normality"
+from wfield_local import run_mode as _rm  # noqa: E402
+OUT = _rm.subdir(E / "kinematic_normality", lp_family=True)   # mode-routed (LP family; default LP folder kept)
 FIG = OUT / "figures"
 FD = OUT / "figdata"
 P3 = Path("M:/MICROSCOPE/Priya/DeepLabCut/Widefield/session_poses/pose3d/kinematics_all")

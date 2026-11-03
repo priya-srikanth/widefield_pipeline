@@ -73,6 +73,7 @@ import pandas as pd
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import iti_licks as il  # noqa: E402
 import lick_enl_angle_decode as ead  # noqa: E402
+from wfield_local.attempt_coding import trials_name as attempt_trials_name  # noqa: E402
 
 OUT = il.OUT_W / "enl_target"
 FIG = il.OUT_W / "figures"
@@ -140,11 +141,11 @@ def precue_trials(TM: pd.DataFrame) -> dict:
     out = {}
     from wfield_local import run_mode
     PP = run_mode.subdir(E / "attempt_coding_pp", lp_family=True)       # mode-routed, as attempt_coding.out_dir (N1)
-    pq = PP if all((PP / f"trials_precue_{an}.csv.gz").exists() for an in AN) \
+    pq = PP if all((PP / attempt_trials_name("precue", an)).exists() for an in AN) \
         else _attempt_dir()
     print(f"== precue frozen-decoder trials from {pq}", flush=True)
     for w, d in (("precue", pq), ("cue", PP), ("lick", PP)):
-        T = pd.concat([pd.read_csv(d / f"trials_{w}_{an}.csv.gz") for an in AN], ignore_index=True)
+        T = pd.concat([pd.read_csv(d / attempt_trials_name(w, an)) for an in AN], ignore_index=True)
         T = T[(T.method == "dom") & T.cls.isin(["pre_hit", "hit", "incomplete"]) & (T.label.str[-4:] >= "0801")]
         if "pp_far_contra" in T:
             T["dec"] = np.array(SP)[T[[f"pp_{p}" for p in SP]].to_numpy().argmax(1)]
@@ -902,7 +903,7 @@ def main() -> int:
     jobs = min(int(sys.argv[sys.argv.index("--jobs") + 1]) if "--jobs" in sys.argv else 8, 8)
     T, names = ead.prepare(pd.read_csv(ead.TRIALS))
     from wfield_local import attempt_coding as _ac
-    PQ = {an: pd.read_csv(_ac.out_dir() / f"trials_precue_{an}.csv.gz", usecols=["label"]) for an in AN}   # review N1
+    PQ = {an: pd.read_csv(_ac.out_dir() / attempt_trials_name("precue", an), usecols=["label"]) for an in AN}   # review N1
     labs = sorted(set(T.label) | {x for v in PQ.values() for x in v.label.unique() if x[-4:] >= "0801"})
     TM = timing(labs, jobs)
     # ---- A: frozen position decoder

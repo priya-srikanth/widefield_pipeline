@@ -18,6 +18,8 @@ import pandas as pd
 
 
 def main() -> None:
+    from wfield_local import run_mode as _rm_guard
+    _rm_guard.require_default("imaging_baseline_compare")   # unrouted share writer: refuses in a non-default run mode
     from wfield_local.paths import PathResolver
     lab = Path(PathResolver().root("labcams"))
     ap = argparse.ArgumentParser()

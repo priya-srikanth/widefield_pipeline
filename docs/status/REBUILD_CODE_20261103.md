@@ -439,3 +439,44 @@ All in the "second pass" commit after 630c277b; tests in `tests/test_review_seco
 | 7 (N7) | a jaw-only after the last camera lick does not break a no-response run; it counts toward the stop | `classify_session` counts jaw_only-after-end as part of a run (labelled stopped when the run qualifies); the review probe `[contact, NR x3, jaw, NR x3, jaw, NR x2]` = one 10-trial stop |
 
 **Full suite on a frozen copy of b32225f1 (6 shards, ~48 min): 4,441 passed, 176 skipped, 0 failed** (the 11 parallel-ordering cases now pass; fcae2ee2 before this round: 4,425 passed, 176 skipped, 11 failed = those cases).
+
+### 8.7 Before any render (coordinator 11-03)
+1. **Unrouted share writers.** A static scan of `scripts/*.py` (writes + a share / figures_working root + no routing)
+   found 128. Classified (register: `tests/test_share_writers_mode_safe.py`, a new unclassified writer fails):
+   - 75 REFUSE in any non-default mode (`run_mode.require_default` at the top of `main()`, or after the imports for the
+     4 module-level scripts layer2_matched_n, lick_contact_by_epoch, spout_mid_maps, summary_figures_1021). Includes
+     camera_coverage_tables, jaw_onsets, trial_attempts, s1_trial_class_snapshot: run those WITHOUT the render profile
+     (their outputs do not depend on the hemo variant / projection; camera_coverage_tables takes `--out`).
+   - 1 routed: kinematic_normality (`run_mode.subdir(..., lp_family=True)`).
+   - 10 INDIRECT: every write goes through an already-routed root (il.OUT / attempt_coding.out_dir()): coupling_vigour_sm,
+     iti_first_lick, lick_correction, lick_firstlick_extract, lick_vigor_perspout, restw_strict_check, session_pace_table,
+     decoder_retention_sessions, precue_class_matched, recovery_timing.
+   - 42 BEHAVIOUR: behaviour / pose / FaceRhythm / camera products with no imaging input (same file in every mode).
+   Also: `fr_musall.E` (imported by ~36 encoder-family scripts) = `frozen_encoder.out_root()` (the old literal by default,
+   imaging_encoding/<tag>/ in a tagged run), so they read / write the encoder runs of their own mode. Not scanned:
+   scripts/ subfolders (rest_migration routed earlier, 509cd2bd; cohort2_qc is cohort-2 QC; archive).
+2. **ITI scripts.** `iti_licks.encoder_run(suffix)` = `frozen_encoder.out_root()/frozen_encoder_gate-attempted_v7g3_t3d_frA
+   <suffix>` replaces the hard-coded run labels (iti_licks x2, iti_basis_decoder / iti_decoder_patterns `_te_basis`);
+   `WFIELD_ITI_OUT_W` is tagged (`run_mode.subdir(<override>)`).
+3. **Cache-key gaps.** CLOSED: bm / prm digests (+ the RESTnl key, which reuses the prm closures) now hash
+   locanmf_frozen_decoder._args, lick_detection.detect_licks, behavior_position.classify_cues_with_backup,
+   docked_periods.docked_mask_any (and daq_io / behavior_events, second pass). LISTED, cannot affect a rebuild render:
+   `session_signature` not statting sessions.yaml regime / fmdir, the cleanpairs frame map and gui_config.json, and
+   hemo_map_control's `svt415:rank{K}` key ignoring the session_overrides functional_channel -- every rebuild cache entry
+   is NEW (its kind carries the hv- / lnmfproj / selection / csig tags, so no pre-rebuild entry can be served) and none of
+   these inputs is edited during the rebuild; a later edit of one of them requires clearing the rebuild cache (the
+   profile's separate WIDEFIELD_SESSION_CACHE makes that one folder).
+4. **Attempt readers.** `attempt_coding.trials_name(align, animal)` is the writer's mode-keyed name; the 10 readers
+   (quiet_task_events, coupling_by_class, decoder_retention_sessions, early_predictors, exec_vs_neural_match,
+   lick_enl_target_test x3, precue_class_matched, fig_goal_summary, softmax_neural_vs_lick, trial_neural_vs_exec) use it,
+   so the rebuild reads the new files. attempt_maps `maps_*` are read only inside attempt_maps (same keyed name).
+5. **Render profile** `configs/render_profiles/cohort1_rebuild_20261103.yaml` + `wfield_local/render_profile.py`
+   (`--shell powershell|bash` prints the env, `--check` prints the run tag): WIDEFIELD_HEMO_VARIANT =
+   meegkit_hpfit_lag_refitT_swapmask (Priya: no new drift step), WIDEFIELD_LOCANMF_PROJECT=1 (Priya: projection, no
+   refit), gate camera / cue_stop / end lick / stopped run (stopRun6), WIDEFIELD_LP_FROZEN=lp (LP-trained), a fresh
+   frozen store `C:/Users/SabatiniLab/frozen_models_rebuild_20261103`, a separate session cache
+   `C:/Users/SabatiniLab/.widefield_session_cache_rebuild_20261103`; Aug-only pre as per-block `--pre-from 0801`
+   (epoch_grant_figures, grant_figures), never global; encoder drift cutoff recorded at 600 s.
+   tests/test_render_profile.py: run tag = `hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_sel-camera-cue_stop-endlick-
+   stopRun6` (cache tag + `_csig-<sha>`).
+

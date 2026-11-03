@@ -43,7 +43,7 @@ EP = ["pre", "acute", "subacute", "chronic"]
 LAGS = np.round(np.arange(-0.5, 0.5001, 0.05), 3)
 WIN = (LAGS >= 0.0) & (LAGS <= 0.2)
 AREAS = {"areas_split": "split", "areas": "plain"}     # Allen-area rows: source -> basis (both always; split = primary)
-SPATIAL = il.E / "frozen_encoder_gate-attempted_v7g3_t3d_frA_te_basis" / "fit"
+SPATIAL = il.encoder_run("_te_basis") / "fit"       # the encoder basis of THIS run mode (coordinator 11-03)
 
 
 def features(label: str, source: str):

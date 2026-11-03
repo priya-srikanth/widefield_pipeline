@@ -624,7 +624,8 @@ def _raw_maps_code() -> str:
 
 def _raw_maps_parts() -> list:
     """What `_raw_maps_code` hashes, as a list (tests/test_map_cache_key.py reads THIS list for its sufficiency check)."""
-    from wfield_local import (analysis_kit, behavior_events, beta_maps, daq_io, map_collect, precue_engagement_states,
+    from wfield_local import (analysis_kit, behavior_events, behavior_position, beta_maps, daq_io, docked_periods,
+                              lick_detection, locanmf_frozen_decoder, map_collect, precue_engagement_states,
                               quiet_periods, rest_by_position, rest_engagement)
     return [
         session_raw_maps, _working_xy, session_rest_svt_timelocal, session_restw_svt, session_quiet_svt,
@@ -641,6 +642,12 @@ def _raw_maps_parts() -> list:
         # second pass (11-03): the frame-edge and canonical-events helpers rest_engagement / rest_by_position call
         map_collect.closure(daq_io, "rising_edges", "strobe_codes"),
         map_collect.closure(behavior_events, "get_or_compute"),
+        # cache-key gaps closed (review second pass LOW, coordinator 11-03): the trial-feature args, lick detection,
+        # cue classification and docked-window helpers the builders call
+        map_collect.closure(locanmf_frozen_decoder, "_args"),
+        map_collect.closure(lick_detection, "detect_licks"),
+        map_collect.closure(behavior_position, "classify_cues_with_backup"),
+        map_collect.closure(docked_periods, "docked_mask_any"),
     ]
 
 

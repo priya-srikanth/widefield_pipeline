@@ -1592,10 +1592,17 @@ def _session_maps_code() -> str:
     """Source digest of what builds one session's decoder maps (`map_collect.cache_kind`)."""
     import sklearn
 
-    from wfield_local import joint_basis, map_collect, precue_engagement_states
+    from wfield_local import (behavior_position, docked_periods, joint_basis, lick_detection, locanmf_frozen_decoder,
+                              map_collect, precue_engagement_states)
     # NARROWED (rebuild 11-03): precue_engagement_states enters through the functions the maps call, not whole
     return map_collect.code_digest(session_maps, _runs_to_blocks, _quit_mask, joint_basis._load_session,
-                                   map_collect.closure(precue_engagement_states, "engagement_gate")
+                                   map_collect.closure(precue_engagement_states, "engagement_gate"),
+                                   # cache-key gaps closed (review second pass LOW, coordinator 11-03): the trial-feature args, lick detection,
+                                   # cue classification and docked-window helpers the builders call
+                                   map_collect.closure(locanmf_frozen_decoder, "_args"),
+                                   map_collect.closure(lick_detection, "detect_licks"),
+                                   map_collect.closure(behavior_position, "classify_cues_with_backup"),
+                                   map_collect.closure(docked_periods, "docked_mask_any"),
                                    ) + f"-skl{sklearn.__version__}"
 
 

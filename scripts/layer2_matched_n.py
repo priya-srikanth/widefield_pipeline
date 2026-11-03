@@ -8,6 +8,8 @@ import pandas as pd
 from wfield_local import allsession_encoder as ae
 from wfield_local import epochs
 from wfield_local import frozen_encoder as fe
+from wfield_local import run_mode as _rm_guard  # noqa: E402
+_rm_guard.require_default("layer2_matched_n")   # unrouted share writer: refuses in a non-default run mode
 
 E = "M:/MICROSCOPE/Priya/Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/"
 src = E + "frozen_encoder_gate-attempted_v7g3_t3d/"

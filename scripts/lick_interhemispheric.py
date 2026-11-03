@@ -759,6 +759,8 @@ def plot_simple() -> None:
 
 # ------------------------------------------------------------------------------------------------ main
 def main() -> None:
+    from wfield_local import run_mode as _rm_guard
+    _rm_guard.require_default("lick_interhemispheric")   # unrouted share writer: refuses in a non-default run mode
     ap = argparse.ArgumentParser()
     ap.add_argument("--jobs", type=int, default=4)
     ap.add_argument("--extract-rest", action="store_true")

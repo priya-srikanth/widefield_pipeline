@@ -128,6 +128,8 @@ def landing_zones(E: Path, figs: Path) -> None:
 
 
 def main(argv=None) -> int:
+    from wfield_local import run_mode as _rm_guard
+    _rm_guard.require_default("encoding_key_figures")   # unrouted share writer: refuses in a non-default run mode
     from wfield_local import orofacial_cohort as oc
     from wfield_local import orofacial_outputs as oo
     from wfield_local.paths import PathResolver

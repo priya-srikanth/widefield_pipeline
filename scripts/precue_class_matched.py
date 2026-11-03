@@ -23,6 +23,7 @@ import pandas as pd
 
 E = Path("M:/MICROSCOPE/Priya/Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding")
 from wfield_local import attempt_coding as _ac  # noqa: E402
+from wfield_local.attempt_coding import trials_name as attempt_trials_name  # noqa: E402
 
 A = _ac.out_dir()   # the writer's folder under the run mode (review N1 / N10)
 AN = ["PS92", "PS93", "PS94", "PS95"]
@@ -56,7 +57,7 @@ def main() -> int:
     from wfield_local import analysis_kit as ak
     res, ses = [], []
     for w, _wl in WIN:
-        T = pd.concat([pd.read_csv(A / f"trials_{w}_{an}.csv.gz") for an in AN])
+        T = pd.concat([pd.read_csv(A / attempt_trials_name(w, an)) for an in AN])
         T = T[(T.method == "dom") & (T.spout == "far_contra") & (T.label.str[-4:] >= "0801")].copy()
         ref = T[T.cls == "pre_hit"].groupby("animal").p_true.mean()
         T["ret"] = (T.p_true - 1 / 6) / (T.animal.map(ref) - 1 / 6)

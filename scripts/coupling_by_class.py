@@ -27,6 +27,7 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from softmax_neural_vs_lick import lick_weights, path_weights  # noqa: E402
+from wfield_local.attempt_coding import trials_name as attempt_trials_name  # noqa: E402
 
 E = Path("M:/MICROSCOPE/Priya/Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding")
 D = E / "attempt_coding_pp"
@@ -40,7 +41,7 @@ N_BOOT = 2000
 
 
 def load() -> dict:
-    T = pd.concat([pd.read_csv(D / f"trials_lick_{an}.csv.gz") for an in AN])
+    T = pd.concat([pd.read_csv(D / attempt_trials_name("lick", an)) for an in AN])
     T = T[(T.method == "dom") & (T.spout == "far_contra") & T.cls.isin(["pre_hit", "hit", "incomplete"])
           & (T.label.str[-4:] >= "0801")]
     T["neural_d"] = T.pp_far_mid - T.pp_far_contra
@@ -107,6 +108,8 @@ def boot_delta_r(J, ix, ep, cl, animals, rng, nested=True):
 
 
 def main() -> int:
+    from wfield_local import run_mode as _rm_guard
+    _rm_guard.require_default("coupling_by_class")   # unrouted share writer: refuses in a non-default run mode
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt

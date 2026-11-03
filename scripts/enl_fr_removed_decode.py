@@ -186,6 +186,8 @@ def figure(d: pd.DataFrame, path: Path) -> None:
 
 
 def main(argv=None) -> int:
+    from wfield_local import run_mode as _rm_guard
+    _rm_guard.require_default("enl_fr_removed_decode")   # unrouted share writer: refuses in a non-default run mode
     import os
 
     import matplotlib

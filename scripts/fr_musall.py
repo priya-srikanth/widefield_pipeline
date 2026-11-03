@@ -25,7 +25,10 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-E = Path("M:/MICROSCOPE/Priya/Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding")
+from wfield_local import frozen_encoder as _fe  # noqa: E402
+# THE encoder root of THIS run mode (coordinator 11-03): `frozen_encoder.out_root()` = the old literal by default,
+# imaging_encoding/<tag>/ in a tagged run -- the ~36 scripts that import E read the encoder runs of their own mode
+E = _fe.out_root()
 MAIN = E / "movement_first_exec-polar_licks-combined" / "sessions"
 AN = ["PS92", "PS93", "PS94", "PS95"]
 EP = ["pre", "acute", "subacute", "chronic"]
@@ -150,6 +153,8 @@ def pixel_maps(mode: str, windows, T: pd.DataFrame, out: Path) -> None:
 
 
 def main(argv=None) -> int:
+    from wfield_local import run_mode as _rm_guard
+    _rm_guard.require_default("fr_musall")   # unrouted share writer: refuses in a non-default run mode
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt

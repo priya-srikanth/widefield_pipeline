@@ -850,6 +850,8 @@ def cmd_plot() -> None:
 
 
 def main() -> int:
+    from wfield_local import run_mode as _rm_guard
+    _rm_guard.require_default("prelick_hemisphere_tuning")   # unrouted share writer: refuses in a non-default run mode
     from wfield_local import parallel
     parallel.pin_blas()
     args = [a for a in sys.argv[1:] if not a.startswith("--")]

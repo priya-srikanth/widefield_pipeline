@@ -41,6 +41,7 @@ import pandas as pd  # noqa: E402
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import _common  # noqa: E402
+from wfield_local.attempt_coding import trials_name as attempt_trials_name  # noqa: E402
 
 NAME = "goal_summary"
 E_DEF = Path("M:/MICROSCOPE/Priya/Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding")
@@ -77,7 +78,7 @@ def load_fig2(E: Path) -> dict:
                                                                  | (s.cls == "pre_hit"))]
         summ[w] = s[["animal", "cls", "n", "p_true", "p_true_sem"]].reset_index(drop=True)
         for an in AN:
-            t = pd.read_csv(A / f"trials_{w}_{an}.csv.gz")
+            t = pd.read_csv(A / attempt_trials_name(w, an))
             t = t[(t.method == "dom") & (t.spout == "far_contra") & ((t.epoch == "acute") | (t.cls == "pre_hit"))]
             trials[(w, an)] = t[["cls", "pred"]].reset_index(drop=True)
     return {"summary": summ, "trials": trials}

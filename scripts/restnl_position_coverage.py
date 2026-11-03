@@ -290,6 +290,8 @@ def analyse() -> None:
 
 
 def main(argv=None) -> int:
+    from wfield_local import run_mode as _rm_guard
+    _rm_guard.require_default("restnl_position_coverage")   # unrouted share writer: refuses in a non-default run mode
     ap = argparse.ArgumentParser()
     ap.add_argument("stage", choices=("collect", "posmaps", "analyse"))
     ap.add_argument("--arm", choices=tuple(ARM_ALIGNS))

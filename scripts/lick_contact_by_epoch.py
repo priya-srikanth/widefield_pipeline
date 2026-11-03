@@ -15,6 +15,8 @@ import pandas as pd
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 from wfield_local.paths import PathResolver
 from wfield_local import orofacial_outputs as oo, orofacial_cohort as oc, epochs
+from wfield_local import run_mode as _rm_guard  # noqa: E402
+_rm_guard.require_default("lick_contact_by_epoch")   # unrouted share writer: refuses in a non-default run mode
 rv = PathResolver()
 q = oo.root(rv) / oc.RUN / "imaging_encoding" / "qc"
 S = pd.read_csv(q / "trial_attempts_sessions.csv")

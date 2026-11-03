@@ -127,6 +127,8 @@ def half_recovery_day(D: pd.DataFrame, col: str) -> float:
 
 
 def main(argv=None) -> int:
+    from wfield_local import run_mode as _rm_guard
+    _rm_guard.require_default("position_coding_trend_recovery")   # unrouted share writer: refuses in a non-default run mode
     import argparse
 
     from wfield_local import epochs, writeguard

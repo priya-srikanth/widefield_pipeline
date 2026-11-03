@@ -47,6 +47,8 @@ def session_job(job) -> list[dict]:
 
 
 def main(argv=None) -> int:
+    from wfield_local import run_mode as _rm_guard
+    _rm_guard.require_default("s1_trial_class_snapshot")   # unrouted share writer: refuses in a non-default run mode
     from wfield_local import analysis_kit as ak
     from wfield_local import filter_acausality_test as F
     from wfield_local import orofacial_cohort as oc

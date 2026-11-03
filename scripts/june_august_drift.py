@@ -287,6 +287,8 @@ def figure(D: pd.DataFrame, R: pd.DataFrame, out_png: Path) -> None:
 
 
 def main(argv=None) -> int:
+    from wfield_local import run_mode as _rm_guard
+    _rm_guard.require_default("june_august_drift")   # unrouted share writer: refuses in a non-default run mode
     from wfield_local.paths import PathResolver
     from wfield_local.writeguard import assert_writable
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)

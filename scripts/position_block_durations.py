@@ -45,6 +45,8 @@ def session_blocks(label: str) -> list[dict]:
 
 
 def main(argv=None) -> int:
+    from wfield_local import run_mode as _rm_guard
+    _rm_guard.require_default("position_block_durations")   # unrouted share writer: refuses in a non-default run mode
     from wfield_local import analysis_kit as ak
     from wfield_local import combined_encoding as ce
     from wfield_local import orofacial_cohort as oc

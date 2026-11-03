@@ -14,6 +14,8 @@ import pandas as pd
 
 
 def main() -> int:
+    from wfield_local import run_mode as _rm_guard
+    _rm_guard.require_default("compare_map_tests")   # unrouted share writer: refuses in a non-default run mode
     from wfield_local.paths import PathResolver
     from wfield_local.writeguard import assert_writable
     root = Path(PathResolver().root("cohort_out")) / "grant_figures" / "epoch"

@@ -26,6 +26,7 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from softmax_neural_vs_lick import SP, lick_weights, path_weights  # noqa: E402
+from wfield_local.attempt_coding import trials_name as attempt_trials_name  # noqa: E402
 
 E = Path("M:/MICROSCOPE/Priya/Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding")
 AN = ["PS92", "PS93", "PS94", "PS95"]
@@ -65,11 +66,13 @@ def coupling(g: pd.DataFrame, x: str, y: str, rng, n_perm=1000):
 
 
 def main() -> int:
+    from wfield_local import run_mode as _rm_guard
+    _rm_guard.require_default("trial_neural_vs_exec")   # unrouted share writer: refuses in a non-default run mode
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     D = E / "attempt_coding_pp"
-    T = pd.concat([pd.read_csv(D / f"trials_lick_{an}.csv.gz") for an in AN])
+    T = pd.concat([pd.read_csv(D / attempt_trials_name("lick", an)) for an in AN])
     T = T[(T.method == "dom") & (T.spout == "far_contra") & T.cls.isin(["pre_hit", "hit", "incomplete"])]
     T = T[T.label.str[-4:] >= "0801"]          # AUGUST-ONLY pre baseline (primary, Priya 10-18); June was in landing only
     T["neural_d"] = T.pp_far_mid - T.pp_far_contra

@@ -383,6 +383,13 @@ def freeze_reference(animal, align):
     return status
 
 
+def trials_name(align: str, animal: str) -> str:
+    """THE file name of one per-trial table, as the writer keys it (coordinator 11-03): plain by default,
+    `run_mode.keyed_name(..., cache=True)` in a non-default mode (hemo / LocaNMF projection / selection / camera-
+    class signature), so a reader of the rebuild reads the rebuild files. Readers MUST use this."""
+    return run_mode.keyed_name(f"trials_{align}_{animal}.csv.gz", cache=True)
+
+
 def out_dir():
     from wfield_local import lp_licks, run_mode
     # run-mode routing (rebuild 11-03): a tagged run (camera gate, hemo variant ...) writes attempt_coding/<tag>/
@@ -409,7 +416,7 @@ def main(argv=None) -> int:
     for align in a.aligns:
         parts = []
         for an in a.animals:
-            f = od / run_mode.keyed_name(f"trials_{align}_{an}.csv.gz", cache=True)
+            f = od / trials_name(align, an)
             if f.exists():
                 parts.append(pd.read_csv(f)); continue
             T = run_animal(an, align)

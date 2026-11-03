@@ -75,6 +75,8 @@ def stop_lengths(T: pd.DataFrame) -> pd.DataFrame:
 
 
 def main(argv=None) -> int:
+    from wfield_local import run_mode as _rm_guard
+    _rm_guard.require_default("camera_coverage_tables")   # unrouted share writer: refuses in a non-default run mode
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--animals", nargs="+", default=None)
     ap.add_argument("--labels", nargs="+", default=None, help="only these sessions (a quick check)")

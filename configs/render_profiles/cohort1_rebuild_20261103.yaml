@@ -1,0 +1,34 @@
+# THE cohort-1 rebuild render configuration (coordinator 11-03, Priya's decisions). ONE place for every switch the rebuild
+# render runs under. Load it with `python -m wfield_local.render_profile cohort1_rebuild_20261103 --shell powershell`
+# (prints the env lines) or `render_profile.apply("cohort1_rebuild_20261103")` in-process BEFORE importing analysis code
+# (hemo_variants.ADOPTED is resolved at import). tests/test_render_profile.py pins the run tag this profile produces.
+
+env:
+  # Priya 11-03: the final hemo variant -- swap-masked, 415 advanced 16 ms, T refitted. NO new shared drift step.
+  WIDEFIELD_HEMO_VARIANT: meegkit_hpfit_lag_refitT_swapmask
+  # Priya 11-03: LocaNMF = PROJECTION of the corrected data onto the stored per-session and joint footprints (no refit).
+  WIDEFIELD_LOCANMF_PROJECT: "1"
+  # camera trial gate (Priya 11-03): working = contact | incomplete | jaw_only, ending at the session's last camera lick;
+  # stopped = a sustained stop (>= behavior.tail_min_misses = 6 consecutive no_response)
+  WIDEFIELD_TRIAL_GATE: camera
+  WIDEFIELD_TRIAL_WINDOW: cue_stop
+  WIDEFIELD_TRIAL_END: lick
+  WIDEFIELD_TRIAL_STOPPED: run
+  # LP arm: LP-TRAINED stored models (the default since 11-03; "lp" only names it -- the DAQ-trained cross-check is
+  # WIDEFIELD_LP_FROZEN=daq, NOT part of this profile)
+  WIDEFIELD_LP_FROZEN: lp
+  # a FRESH frozen store (FREEZE_VERSION 2 refuses the legacy store) and a SEPARATE session cache
+  WIDEFIELD_FROZEN_MODEL_DIR: C:/Users/SabatiniLab/frozen_models_rebuild_20261103
+  WIDEFIELD_SESSION_CACHE: C:/Users/SabatiniLab/.widefield_session_cache_rebuild_20261103
+
+# Aug-only pre baseline for the DECODER blocks only: passed per render block (`--pre-from 0801`), never as a global env
+# (june_august_drift refuses PRE_FROM; 12.1b lick-free rest selects its own June + August pre set).
+block_args:
+  epoch_grant_figures: ["--pre-from", "0801"]
+  grant_figures: ["--pre-from", "0801"]
+
+# recorded, not set: the encoder's slow-drift cutoff stays at combined_encoding.DRIFT_MIN_PERIOD_S = 600 s for now
+# (a cutoff check is still running, coordinator 11-03)
+notes:
+  encoder_drift_cutoff_s: 600
+  expected_run_tag: hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_sel-camera-cue_stop-endlick-stopRun6

@@ -51,6 +51,8 @@ def _trial_table(E: Path) -> pd.DataFrame:
 
 
 def main() -> int:
+    from wfield_local import run_mode as _rm_guard
+    _rm_guard.require_default("exec3d_pilot_figure")   # unrouted share writer: refuses in a non-default run mode
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt

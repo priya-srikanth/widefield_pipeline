@@ -5,6 +5,8 @@ import numpy as np
 
 
 def main(labels):
+    from wfield_local import run_mode as _rm_guard
+    _rm_guard.require_default("qc_running_speed")   # unrouted share writer: refuses in a non-default run mode
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt

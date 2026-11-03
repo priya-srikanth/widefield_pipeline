@@ -1342,6 +1342,8 @@ def _plot_secondary(fd, plt, EC, AM):
 
 # ================================================================================================ main
 def main() -> int:
+    from wfield_local import run_mode as _rm_guard
+    _rm_guard.require_default("prelaunch_aim_tracking")   # unrouted share writer: refuses in a non-default run mode
     cmd = sys.argv[1] if len(sys.argv) > 1 else "plot"
     if "--plot-only" in sys.argv or cmd == "plot":
         cmd_plot()

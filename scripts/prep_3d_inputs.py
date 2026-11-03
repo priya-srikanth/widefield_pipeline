@@ -45,6 +45,8 @@ def spout_table(dst: Path) -> pd.DataFrame:
 
 
 def main(argv=None) -> int:
+    from wfield_local import run_mode as _rm_guard
+    _rm_guard.require_default("prep_3d_inputs")   # unrouted share writer: refuses in a non-default run mode
     argv = sys.argv[1:] if argv is None else argv
     W, tag = Path(argv[0]), argv[1]
     W.mkdir(parents=True, exist_ok=True)

@@ -368,6 +368,8 @@ def save(out, name, meta, **arrs):
 
 
 def main():
+    from wfield_local import run_mode as _rm_guard
+    _rm_guard.require_default("o2_face_rhythm")   # unrouted share writer: refuses in a non-default run mode
     global S
     task = int(sys.argv[1]) if len(sys.argv) > 1 else int(os.environ["SLURM_ARRAY_TASK_ID"])
     r = task_row(task)

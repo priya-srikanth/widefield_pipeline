@@ -898,6 +898,8 @@ def plot_secondary(fd) -> None:
 
 # ================================================================================================ Q5 offset
 def main() -> int:
+    from wfield_local import run_mode as _rm_guard
+    _rm_guard.require_default("face_prelaunch_aim")   # unrouted share writer: refuses in a non-default run mode
     cmd = sys.argv[1] if len(sys.argv) > 1 else ""
     jobs = int(_arg("--jobs", 4))
     if "--plot-only" in sys.argv or cmd == "plot":

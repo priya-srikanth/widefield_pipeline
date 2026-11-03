@@ -43,6 +43,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from quiet_area_spikes import EP, EVENTS, columns, session_traces  # noqa: E402
 from quiet_spikes_v2 import LICK_SOURCE, V2, busy_frames, detect, detrend  # noqa: E402
+from wfield_local.attempt_coding import trials_name as attempt_trials_name  # noqa: E402
 
 TE = V2 / "task_events"
 K = 4.0
@@ -348,7 +349,7 @@ def trial_table(D, sd):
     P = []
     for an in ANIMALS:
         from wfield_local import attempt_coding as _ac
-        f = _ac.out_dir() / f"trials_precue_{an}.csv.gz"           # the writer's folder (review N1)
+        f = _ac.out_dir() / attempt_trials_name("precue", an)           # the writer's folder (review N1)
         if f.exists():
             x = pd.read_csv(f, usecols=["label", "trial_id", "spout", "cls", "p_true", "method"])
             P.append(x[x.method == "dom"].drop(columns="method").rename(columns={"spout": "spout_ac", "cls": "cls_ac"}))
