@@ -2,12 +2,11 @@
 
 Priya 11-02, asking "did we end up checking whether LED-swapped or bleedthrough images are a problem for cohort 1
 data?", agreed to the re-run below ("sure"), and asked for this record ("keep a record that we're doing this and why in
-the repo"). Status: **QUEUED.** It starts when the frozen-store pass 2 (docs/status/FROZEN_ALL_20261102.md, worktree
-wf_frozendef) finishes, so the two jobs do not compete for the shared box.
+the repo"). Status: **RUNNING (started 11-02 evening, in parallel with the frozen-store pass 2 at Priya's request).**
 
 ## Why
 
-The cohort 2 QC (docs/COHORT2_QC_2026-10-29.md §0b-0d, §0i, §0l) found two defects in the hemodynamic correction.
+The cohort 2 QC (docs/COHORT2_QC_2026-10-29.md Â§0b-0d, Â§0i, Â§0l) found two defects in the hemodynamic correction.
 Both are also present in cohort 1 (PS92-95):
 
 1. **Swapped frames.** A few frames per session carry the OTHER LED's image. On the DAQ the TTLs look clean at these
@@ -28,11 +27,11 @@ Both are also present in cohort 1 (PS92-95):
 The new variant is `hemo_meegkit_hpfit_lag_refitT_swapmask` (swapped pairs interpolated, 415 advanced 16 ms, T
 refitted). It was compared against the adopted `hemo_meegkit_hpfit`.
 
-- **§0i** (`cohort1_impact.py`, 8 sessions, including the worst):
+- **Â§0i** (`cohort1_impact.py`, 8 sessions, including the worst):
   - Trial-averaged maps r .97-.997; time courses r .98-.998.
   - Amplitudes -2 to -8%, and -14% in PS93_0826.
   - Residual heartbeat drops from 35-97% to 3-9%.
-- **§0l** (`cohort1_subset_headline.py`, 24 sessions: 2 pre / 1 acute / 1 subacute / 2 chronic per animal):
+- **Â§0l** (`cohort1_subset_headline.py`, 24 sessions: 2 pre / 1 acute / 1 subacute / 2 chronic per animal):
   - The epoch change in spout decoding keeps every sign and size (largest shift .02).
   - Area-amplitude epoch changes are identical to 3 decimals.
   - Verdict then: no blanket re-analysis needed. The new correction (with the pre-SVD repair) is the default going
@@ -64,3 +63,4 @@ results were not re-checked.
 ## Log
 
 - 2026-11-02: queued. Running list RUNNING_LIST_2026-11-01.md.
+- 2026-11-02 ~22:10: started in parallel with frozen-store pass 2 (Priya: "parallelize where possible"). Own worktree wf_swapmask, branch analysis/cohort1-swapmask; <=4 workers per job; stored frozen models untouched; frozen-decoder family (a) last.
