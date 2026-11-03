@@ -12,6 +12,10 @@ republish the imaging page with re-plotted figures).
   (*_nolines images for 2.1-2.8 except 2.4b [no render], 4.2, 6.1-6.3, 9.1, 9.6-9.8, 10.1, 12.1; captions say faded open
   markers). Script: scratchpad `imgpage/apply_a8_1103.py` (asserts every replacement). Old images stay in the artifact,
   unreferenced. NOT done: 2.4b, 5.2 (no source), FaceRhythm page (asked a8), SPOUT_BALEM (a8 holds it until A3).
+- **FaceRhythm page v36** (id 1793745454-bdeb, on 1793125970-97fe) for a8: the audit's 27 FaceRhythm rows, images uploaded as
+  `fig/<name>_rules.png` (old files kept, unreferenced), a "Plot (figure rules)" note per caption (session markers; fit-level
+  for 7.10 / 7.11 / 8.16 / 8.18). Script: scratchpad `frpage/apply_fr_rules_1103.py`.
+- Account switched back to hhmi after these publishes; further publishing needs the HMS account again.
 - **Kinematics page v25 -> v26** for e3 (source `kin_page_src/kin_page/index.html`, verified as a section-6-only diff against
   live; images uploaded by name).
 
