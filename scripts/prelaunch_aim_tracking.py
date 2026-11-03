@@ -518,6 +518,10 @@ def _bin_feats(X: np.ndarray, b: int) -> np.ndarray:
     return X[:, b] if BB[b] else X[:, b] - X[:, BB].mean(1)
 
 
+#: specs made by run_decoder in this process, keyed (animal, align, source) -- for the cued_PRE lookup
+_SPECS: dict = {}
+
+
 # ------------------------------------------------------------------------------------------------ one decoder
 def run_decoder(an, arm, name, X, meta, kind="std", K=0, nperm=0, spec_src="", n_feat=None, basis_id=None,
                 train_mask=None, log=print) -> tuple[np.ndarray, dict, dict]:
@@ -537,7 +541,9 @@ def run_decoder(an, arm, name, X, meta, kind="std", K=0, nperm=0, spec_src="", n
     cell = np.char.add(np.char.add(sess, "|"), meta.target.to_numpy(str)[pre])
     dig = _digest(Xp, y, cell)
     spec = fm.make_spec(an, "prelaunch_aim", align=f"{arm}_{name.split(':')[-1]}", source=spec_src,
-                        train_labels=labs_pre, n_features=int(n_feat or X.shape[1]), basis_id=basis_id)
+                        train_labels=labs_pre, n_features=int(n_feat or X.shape[1]), basis_id=basis_id,
+                        train_data={"xy_sha1": dig})  # training-data fingerprint (FREEZE_VERSION 2, rebuild 11-03)
+    _SPECS[(an, spec["align"], spec_src)] = spec        # the cued_PRE model is looked up again below (find)
     obs = {}
 
     def fit():
@@ -685,9 +691,13 @@ def fit_animal(an: str) -> dict:
     from wfield_local import frozen_models as fm2
     Mc = preds["cued"]
     labs_pre = sorted(set(Mc.label[Mc.epoch == "pre"]))
-    spec = fm2.make_spec(an, "prelaunch_aim", align="cued_PRE", source="allen_split_r8", train_labels=labs_pre,
-                         n_features=int(_window(D["cued"]["allen"][:1], "PRE").shape[1]))
-    d, _o = fm2.find(spec)
+    # the spec run_decoder made for the cued PRE decoder in THIS run (it carries the training-data fingerprint,
+    # which cannot be rebuilt here); none -> the ITI cross-application is skipped, loudly (rebuild 11-03)
+    spec = _SPECS.get((an, "cued_PRE", "allen_split_r8"))
+    if spec is None:
+        print(f"  !! {an}: no cued_PRE decoder spec in this run ({len(labs_pre)} pre) -- p_cuedx:PRE not written",
+              flush=True)
+    d, _o = fm2.find(spec) if spec is not None else (None, None)
     if d is not None:
         Pc = fm2._read(d)
         preds["iti"]["p_cuedx:PRE"] = _window(D["iti"]["allen"], "PRE") @ Pc["full"]["w"] + Pc["full"]["b"]

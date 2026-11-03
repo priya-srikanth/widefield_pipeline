@@ -503,7 +503,7 @@ def frozen_pre(a: str, st: str, X, y, sess) -> dict:
     dig = hashlib.sha1(np.ascontiguousarray(X).tobytes() + np.ascontiguousarray(y).tobytes()
                        + "|".join(sess).encode()).hexdigest()
     spec = fm.make_spec(a, "lick_code", align=st, source=f"areas_split_r{il.ROI_VERSION}", train_labels=labs,
-                        post_s=0.2, n_features=X.shape[1])
+                        post_s=0.2, n_features=X.shape[1], train_data={"xy_sha1": dig})  # training-data fingerprint (FREEZE_VERSION 2, rebuild 11-03)
 
     def fit():
         return {"full": _fit(X, y), "loso": {s: _fit(X[sess != s], y[sess != s]) for s in labs}, "xy_sha1": dig}

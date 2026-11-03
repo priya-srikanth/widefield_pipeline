@@ -220,7 +220,8 @@ def frozen_ref(an: str, pre: list[dict]) -> dict:
                  + "|".join(s["pos"]).encode())
     dig = h.hexdigest()
     spec = fm.make_spec(an, "reembed", align="first_lick", source=f"areas_split_r{il.ROI_VERSION}_k{K}",
-                        train_labels=labs, post_s=WIN_L[1], n_features=len(pre[0]["names"]))
+                        train_labels=labs, post_s=WIN_L[1], n_features=len(pre[0]["names"]),
+                        train_data={"xy_sha1": dig})  # training-data fingerprint (FREEZE_VERSION 2, rebuild 11-03)
 
     def fit():
         return {"full": build_ref(pre), "loso": {x: build_ref([s for s in pre if s["label"] != x]) for x in labs},

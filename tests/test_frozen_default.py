@@ -148,14 +148,20 @@ def _collect(gc, monkeypatch, mode, variant="working", seed=5):
 
 
 def _same_records(a, b):
+    # LENGTHS FIRST (review L1, 11-03): zip() alone would pass a record set that silently lost an animal / a row
     assert a[1] == b[1]
+    assert sorted(a[0]) == sorted(b[0])
     for an in a[0]:
         pa, pb = a[0][an][0], b[0][an][0]
+        if isinstance(pa, list):
+            assert len(pa) == len(pb), an
         for ra, rb in (zip(pa, pb) if isinstance(pa, list) else [(pa, pb)]):
+            assert len(ra) == len(rb), an
             for x, y in zip(ra, rb):
                 np.testing.assert_array_equal(x, y)
         assert sorted(a[0][an][1]) == sorted(b[0][an][1])
         for d in a[0][an][1]:
+            assert len(a[0][an][1][d]) == len(b[0][an][1][d]), (an, d)
             for x, y in zip(a[0][an][1][d], b[0][an][1][d]):
                 np.testing.assert_array_equal(x, y)
 

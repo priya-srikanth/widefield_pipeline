@@ -269,7 +269,7 @@ def freeze(a: str, align: str, S: dict, script: str) -> dict:
     dig = hashlib.sha1(b"".join(np.ascontiguousarray(S[x][0]).tobytes() + np.ascontiguousarray(S[x][1]).tobytes()
                                 for x in labs)).hexdigest()
     spec = fm.make_spec(a, "lick_reader", align=align, source=f"areas_split_r{il.ROI_VERSION}", train_labels=labs,
-                        post_s=0.2, n_features=S[labs[0]][0].shape[1])
+                        post_s=0.2, n_features=S[labs[0]][0].shape[1], train_data={"xy_sha1": dig})  # training-data fingerprint (FREEZE_VERSION 2, rebuild 11-03)
 
     def fit():
         out = {"xy_sha1": dig, "fits": {}}

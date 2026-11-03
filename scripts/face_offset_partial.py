@@ -273,7 +273,8 @@ def partial_A(C, Xb, Z, cov) -> tuple[dict, dict]:
                 return _ols(np.vstack([Xb[(st, a)][q][okz[q]] for q in labs]), np.vstack([Zs[q][okz[q]] for q in labs]))
             return {"full": one(pre), "loso": {h: one([q for q in pre if q != h]) for h in pre}}
         nf = Xb[(st, a)][pre[0]].shape[1] + Zs[pre[0]].shape[1]
-        spec = fm.make_spec(a, "face_aim", align=f"offset_{st}", source=f"partial_{cov}", train_labels=pre, n_features=nf)
+        spec = fm.make_spec(a, "face_aim", align=f"offset_{st}", source=f"partial_{cov}", train_labels=pre, n_features=nf,
+                            train_data=({q: Xb[(st, a)][q][okz[q]] for q in pre}, {q: Zs[q][okz[q]] for q in pre}))  # training-data fingerprint (FREEZE_VERSION 2, rebuild 11-03)
         Pm, status = fm.load_or_fit(spec, fit, meta={"script": "face_offset_partial.py", "what": f"partial {cov} {st}"}, log=log)
         out, nmiss = {}, 0
         for x in S:
@@ -320,7 +321,8 @@ def refit_frozen(C, Xr, cov) -> dict:
     for (st, a), S in C.items():
         pre = [x for x, v in S.items() if v[0] == "pre"]
         spec = fm.make_spec(a, "face_aim", align=f"offset_{st}", source=f"refitdec_{cov}", train_labels=pre,
-                            n_features=Xr[(st, a)][pre[0]].shape[1])
+                            n_features=Xr[(st, a)][pre[0]].shape[1],
+                            train_data=({q: Xr[(st, a)][q] for q in pre}, {q: S[q] for q in pre}))  # training-data fingerprint (FREEZE_VERSION 2, rebuild 11-03)
         P, _s = fm.load_or_fit(spec, lambda S=S, X=Xr[(st, a)]: fit_dec(S, X), log=log,
                                meta={"script": "face_offset_partial.py", "what": f"refit decoder {cov} {st}"})
         fits[(st, a)] = P

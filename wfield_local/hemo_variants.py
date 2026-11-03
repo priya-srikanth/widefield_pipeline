@@ -203,12 +203,11 @@ def adopted() -> str:
 #: `combined_encoding.hemo_dir` and `config.locanmf_dir_name` can never disagree (trap T4: a partial switch fitted
 #: "variant" models on adopted data). Default unchanged: "meegkit_hpfit". In-process code that may run after the env
 #: changes calls `adopted()`. Builders use `BUILD_DEFAULT` (a `VARIANTS` key, which a read suffix need not be).
-try:
-    from wfield_local import config as _config
-    # zerophase -> "zerophase": `hemo_zerophase/` does not exist, so a `hemo_{ADOPTED}` read fails loudly
-    ADOPTED = _config.hemo_variant() or "zerophase"
-except Exception:                                   # noqa: BLE001 - config unavailable (bare unit-test env)
-    ADOPTED = BUILD_DEFAULT
+# NO FALLBACK (review L3, 11-03): if the config cannot be read the import FAILS, rather than silently reading
+# BUILD_DEFAULT while WIDEFIELD_HEMO_VARIANT / defaults.yaml say otherwise.
+from wfield_local import config as _config  # noqa: E402
+# zerophase -> "zerophase": `hemo_zerophase/` does not exist, so a `hemo_{ADOPTED}` read fails loudly
+ADOPTED = _config.hemo_variant() or "zerophase"
 
 #: Set True by remove_drift when it has to fall back to per-component meegkit detrending (see there).
 #: compute() resets it per session and records the outcome in the manifest for provenance.

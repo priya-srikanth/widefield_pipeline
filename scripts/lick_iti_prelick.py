@@ -321,7 +321,8 @@ def frozen_fits() -> dict:
         dig = hashlib.sha1(b"".join(np.ascontiguousarray(S[x][0]).tobytes() + np.ascontiguousarray(S[x][1]).tobytes()
                                     for x in labs)).hexdigest()
         spec = fm.make_spec(a, "lick_reader", align="iti", source=f"areas_split_r{il.ROI_VERSION}", train_labels=labs,
-                            post_s=0.2, n_features=S[labs[0]][0].shape[1])
+                            post_s=0.2, n_features=S[labs[0]][0].shape[1],
+                            train_data={"xy_sha1": dig})   # = lick_enlv_extract.py (same digest; FREEZE_VERSION 2)
         if fm.find(spec)[0] is None:
             _no_fit()
         Pz, status = fm.load_or_fit(spec, _no_fit)

@@ -272,9 +272,10 @@ def _bin_feats(X: np.ndarray, b: int) -> np.ndarray:
 
 
 # ------------------------------------------------------------------------------------------------ frozen helpers
-def _spec(an, align, source, labs_pre, n_feat):
+def _spec(an, align, source, labs_pre, n_feat, train_data):
     from wfield_local import frozen_models as fm
-    return fm.make_spec(an, "face_aim", align=align, source=source, train_labels=labs_pre, n_features=int(n_feat))
+    return fm.make_spec(an, "face_aim", align=align, source=source, train_labels=labs_pre, n_features=int(n_feat),
+                        train_data=train_data)  # training-data fingerprint (FREEZE_VERSION 2, rebuild 11-03)
 
 
 def frozen_resid(an, arm, w, name, X, Z, meta, log=print):
@@ -298,7 +299,8 @@ def frozen_resid(an, arm, w, name, X, Z, meta, log=print):
     def fit():
         return {"full": ols(pre), "loso": {lab: ols(pre & (sess != lab)) for lab in labs_pre},
                 "xy_sha1": pat._digest(X[pre], Z[pre])}
-    spec = _spec(an, f"{arm}_{w}", f"reg-{name}-x", labs_pre, X.shape[1] + Z.shape[1])   # "-x": no source is a prefix of another (siblings glob)
+    spec = _spec(an, f"{arm}_{w}", f"reg-{name}-x", labs_pre, X.shape[1] + Z.shape[1],
+                 {"xy_sha1": pat._digest(X[pre], Z[pre]), "sess": sess[pre]})   # "-x": no source is a prefix of another (siblings glob)
     P, status = fm.load_or_fit(spec, fit, meta={"script": "face_prelaunch_aim.py", "what": f"resid {name}"}, log=log)
     for lab in np.unique(sess):
         i = np.flatnonzero((sess == lab) & ok)
@@ -327,7 +329,7 @@ def run_decoder(an, arm, name, X, meta, nperm=0, train_mask=None, log=print):
     cell = np.char.add(np.char.add(sess, "|"), meta.target.to_numpy(str)[pre])
     dig = pat._digest(Xp, y, cell)
     fam, w = (name.split(":") + [""])[:2]
-    spec = _spec(an, f"{arm}_{w}", f"{fam}-x", labs_pre, X.shape[1])
+    spec = _spec(an, f"{arm}_{w}", f"{fam}-x", labs_pre, X.shape[1], {"xy_sha1": dig})
 
     def fit():
         L = pat.loso_multi(Xp, y[:, None], sess, "std")

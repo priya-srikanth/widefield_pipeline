@@ -165,7 +165,8 @@ def frozen_cls(a: str, W: float, lf: str, X, y, sess) -> dict:
     labs = sorted(set(np.asarray(sess, str)))
     dig = ead._digest(X, y)
     spec = fm.make_spec(a, "enl_spout", align=f"enl_w{W:g}_lf{lf}", source=f"areas_split_r{il.ROI_VERSION}",
-                        train_labels=labs, post_s=W, n_features=X.shape[1])
+                        train_labels=labs, post_s=W, n_features=X.shape[1],
+                        train_data={"xy_sha1": dig, "sess": np.asarray(sess, str)})  # training-data fingerprint (FREEZE_VERSION 2, rebuild 11-03)
 
     def fit():
         return {"full": _pipe().fit(X, y), "loso": {s: _pipe().fit(X[sess != s], y[sess != s]) for s in labs},

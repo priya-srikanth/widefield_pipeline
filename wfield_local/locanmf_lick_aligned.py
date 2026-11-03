@@ -243,6 +243,10 @@ def main() -> int:
     p.add_argument("--lockout-s", type=float, nargs=2, default=tuple(ld["lockout_falling_edge_s"]))
     p.add_argument("--refractory-s", type=float, default=0.10)
     args = p.parse_args()
+    from wfield_local import config as _cfg
+    if _cfg.locanmf_projection_on():   # review L2 (11-03): this reads the STORED per-session C by path; its untagged
+        raise SystemExit("locanmf_lick_aligned reads stored per-session C directly and writes an untagged folder that "
+                         "locanmf_contralateral / lick_pool / lick_cards glob: refusing under WIDEFIELD_LOCANMF_PROJECT=1")
     if args.frame_map is not None and args.offset is None and args.cleanpairs_summary is None:
         p.error("regime B needs --offset or --cleanpairs-summary")
     return analyze(args)

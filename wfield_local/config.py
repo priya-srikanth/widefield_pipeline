@@ -211,7 +211,8 @@ def hemo_variant(variant: str | None = None) -> str | None:
     zerophase product -- it is what the pipeline wrote. Override per call, or globally with
     ``WIDEFIELD_HEMO_VARIANT``.
     """
-    v = variant if variant is not None else os.environ.get("WIDEFIELD_HEMO_VARIANT")
+    # an EMPTY env var is UNSET (review L3, 11-03): it used to mean zerophase
+    v = variant if variant is not None else (os.environ.get("WIDEFIELD_HEMO_VARIANT", "").strip() or None)
     if v is None:
         v = (defaults().get("hemo") or {}).get("variant")
     return None if v in (None, "", "none", "zerophase") else str(v)

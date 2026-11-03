@@ -66,12 +66,10 @@ def _frame_times(label: str) -> np.ndarray:
     import glob
 
     from wfield_local import config
-    from wfield_local.hemo_variants import ADOPTED
     from wfield_local.locanmf_lick_aligned import _corrected_frame_samples
     from wfield_local.plot_spout_trial_averages import _load_daq_events
     s = next(x for x in config.load_sessions() if x["label"] == label)
-    res = Path(s["mc"]) / "wfield_local_results"
-    nV = np.load(res / f"hemo_{ADOPTED}" / "SVTcorr.npy", mmap_mode="r").shape[1]
+    nV = np.load(config.svtcorr_path(s["mc"]), mmap_mode="r").shape[1]   # the one hemo switch, at call time (review L2)
     cue = _load_daq_events(s["h5"])
     fmdir = s["fmdir"] or s["mc"]
     fm = glob.glob(f"{fmdir}/*cleanpairs_frame_map.npz")[0]

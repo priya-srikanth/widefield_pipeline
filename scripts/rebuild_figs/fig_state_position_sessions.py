@@ -13,8 +13,13 @@ Normalised: retained = (balanced accuracy - chance) / (1 - chance); chance 1/6 p
 INPUTS (figdata sidecars of the epoch render, read as is, nothing re-run), in --data-dir (default = the original's
 hard-coded M:/MICROSCOPE/Priya/Widefield/labcams/grant_figures/epoch/data):
   STATE     epoch_13_state_decoder_cue_sessions.csv      per-session balanced accuracy of the frozen 3-way
-            (rest / running / licking, 1 s segments) decoder, `epoch_state._fig_13_state` <- locomotor_decoder
-            (11-02 per-session z-scored re-render).
+            (rest / running / licking, 1 s segments) decoder, `epoch_state._fig_13_state` <- locomotor_decoder.
+            PROVENANCE CORRECTION (review M9, 11-03): the share sidecar was REWRITTEN 11-03 11:05 by main's bal_em state
+            decoder (9547a773, "bal_em is the PRODUCTION frozen state decoder"; merged into the rebuild e74a4579). On
+            the current sidecar this script reproduces build_inputs/state_position_sessions_balem.{csv,png} exactly,
+            NOT the 11-02 21:39 session_z image (CSV max |diff| .307, 1.2 % pixels). The page / slide 13 image is the
+            11-02 21:39 session_z version until the bal_em page edits (docs/status/STATE_BALEM_PAGE_EDITS_2026-11-03.md)
+            land; the rebuild render uses the merged state spec (scaling session_bal_em + scaling_params + train_data).
   POSITION  per-session, per-true-position recall of the FROZEN pre-stroke position decoder (cue window, working
             trials), derived as refit - gap from
               epoch_5r_refit_by_position_cue_working_sessions.csv   (refit recall)

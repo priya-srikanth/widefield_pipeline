@@ -97,7 +97,8 @@ def work(label):
     """One session -> HO/sessions/<label>.npz. Module-level for spawn."""
     from scipy.signal import welch
     from wfield_local import combined_encoding as ce
-    from wfield_local.hemo_variants import ADOPTED, functional_channel
+    from wfield_local import config
+    from wfield_local.hemo_variants import functional_channel
     f = HO / "sessions" / f"{label}.npz"
     if f.exists() and int(np.load(f)["cache_version"]) == CACHE_VERSION:
         return {"label": label, "cached": True}
@@ -110,7 +111,7 @@ def work(label):
         raise RuntimeError(f"{label}: ROI weights do not reproduce session_traces")
     res = Path(_session(label)["mc"]) / "wfield_local_results"
     fc = functional_channel(label)
-    man = json.loads((res / f"hemo_{ADOPTED}" / "manifest.json").read_text())
+    man = json.loads(Path(config.hemo_manifest_path(res)).read_text())   # selected variant, call time (review L2)
     mf = int(man.get("functional_channel", -1))
     if mf != fc:
         raise RuntimeError(f"{label}: functional slot {fc} vs hemo manifest {mf}")

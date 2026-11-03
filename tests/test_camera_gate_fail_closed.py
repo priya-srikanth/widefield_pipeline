@@ -289,3 +289,10 @@ def test_figures_working_is_tag_checked(monkeypatch, tmp_path):
     monkeypatch.setenv("WIDEFIELD_TRIAL_GATE", "camera")
     assert not writeguard.is_writable(tmp_path / "cue_lick" / "coding_direction_cue.png")
     assert writeguard.is_writable(tmp_path / "cue_lick" / "sel-camera-cue_stop" / "coding_direction_cue.png")
+
+
+def test_cue_classes_all_nan_table_is_unknown():
+    """Review L4: an all-NaN cue_daq table gives "unknown" for every cue (origin/main raised IndexError); pinned."""
+    import pandas as pd
+    t = pd.DataFrame({"cue_daq": [np.nan, np.nan], "cls": ["contact", "no_response"]})
+    assert TC.cue_classes(t, [1.0, 2.0]).tolist() == ["unknown", "unknown"]

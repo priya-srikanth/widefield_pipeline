@@ -380,9 +380,9 @@ def fit_animal(an: str) -> dict:
             # ---- frozen reference (rule 10): full-pre + LOSO siblings, real y only
             src = (f"pix_almtjm1_r{pht_roi()}_{HEMI[hk]}_bin{BIN}_K{K}" if kind == "pix"
                    else f"motorpool_r{pht_roi()}_{HEMI[hk]}")
-            spec = fm.make_spec(an, "prelaunch_svd", align=f"tongue_{w}", source=src, train_labels=pre_labs,
-                                n_features=Xp.shape[1], zscore=True)
             dig = _digest(Xp, yp)
+            spec = fm.make_spec(an, "prelaunch_svd", align=f"tongue_{w}", source=src, train_labels=pre_labs,
+                                n_features=Xp.shape[1], zscore=True, train_data={"xy_sha1": dig, "sess": sp})  # training-data fingerprint (FREEZE_VERSION 2, rebuild 11-03)
 
             def fit(Xp=Xp, yp=yp, sp=sp, K=K, pcas=pcas, full_pca=full_pca, dig=dig, hk=hk, kind=kind):
                 return {"full": _fit_model(Xp, yp, sp, K, full_pca),

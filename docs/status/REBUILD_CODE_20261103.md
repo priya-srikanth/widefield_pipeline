@@ -260,3 +260,117 @@ tests that asserted the OLD design and were updated afterwards, then re-run gree
 - test_frozen_default::test_collect_5c_..._paired_matched (5rm now stored by design; new test pins stored == replayed
   == in-memory records), d919eb55.
 Branch tip d919eb55 + this doc. Scratch test worktrees removed.
+
+## 8. Second helper (11-03 afternoon): attempt-coding merge, camera gate, map key, review fixes
+
+### 8.1 Merge of analysis/attempt-coding (tip 734226d4, committed only): 3988cbe3
+60 conflicts. **52 add/add.** Rule: attempt-coding's body, then this branch's OWN commits re-applied with a 3-way
+`git merge-file` (base = the commit's parent blob, new = the commit's blob). "Own" commits were found with
+`git log --cherry-mark --right-only attempt-coding...HEAD -- <files>`: 509cd2bd, 250b801e, c61ac5ce, 4fbfaa51, 34b3013b
+(335f23f3 touches none of the 52). For every file without an own commit, HEAD's blob is in attempt-coding's history,
+so attempt-coding's version is a strict descendant.
+
+| file(s) | resolution |
+|---|---|
+| 39 scripts: cued_misdirected_licks, early_predictors, goal_page_reorder, iti_area_maps, iti_check_figures, iti_decoded_decomposition, iti_decoder_pattern_stats, iti_decoder_patterns, iti_extension_dist, iti_farcontra_pattern, iti_june_ref, iti_lick_rate, iti_lmm_figures, iti_mixed_models, iti_overcorrection, iti_pattern_area_stats, iti_recovery_link / marker / measure, iti_session_cluster_tests, iti_session_pattern_tests, iti_spout_animal_panels / pattern_stats / patterns, iti_where_beyond_pull / drift / mae / per_spout / rmse_split / signed_error / spread_matched, iti_zscore_check, lick_matched_readout, recovery_timing, residual_roi, specificity_control | attempt-coding byte for byte (no own commit) |
+| iti_decoder_contrib, iti_where_decoder, iti_where_scatter | attempt-coding + c61ac5ce applied cleanly |
+| iti_basis_decoder | c61 by hand: frozen_readouts import + attempt-coding's `wd.basis_dir` / `il.SESS_NAME` lines |
+| iti_contact_check | c61 by hand: attempt-coding's `il.split_only` + `il.area_features` features, stored fit |
+| iti_first_lick, iti_where_3axis, lick_gain_prediction | c61 by hand (import hunk; the now-unused `feature_names` import dropped) |
+| iti_lick_order | c61 by hand: stored fit, then attempt-coding's `CONTRIB_HOOK` |
+| iti_where_angle_reach | c61 by hand (k=3 on attempt-coding's 4-column Y: the same fit of the first three columns) + CONTRIB_HOOK |
+| iti_licks | c61 clean; 509cd2bd by hand: `OUT = run_mode.subdir(E / "iti_licks")` at the head of attempt-coding's OUT_W / ITI_SUBSET / ROI-version block |
+| iti_hemo_check | 250b801e by hand: attempt-coding's ROI-version cache name, `_ref-<variant>` suffix only under ITI_HEMO_REF_VARIANT (default = attempt-coding's path) |
+| lick_aim_deficit | attempt-coding (`rm.aim_licks()` reads the animal column, so 34b3013b's `[:4]` fix is moot) |
+| wfield_local/sig_marks | = HEAD (code identical on both sides; HEAD's comment kept) |
+
+**8 content.** `frozen_encoder`: attempt-coding's `frame` Musall variant and `--out-root`, AND the rebuild's routed
+`out_root()` (`--out-root` wins, also for `--summarise-drop`). `lp_licks`, `session_cache`, `map_collect`: HEAD
+(attempt-coding had nothing new in those hunks; gate-LP is already in `effective_kind` / `output_tag`). `pyproject.toml`:
+both per-file ignores. Docs, both sides in date order:
+- DECISIONS: HEAD's 10-25 FaceRhythm entry; the 10-27 side-camera addenda, then attempt-coding's 10-27 / 10-28 entries,
+  HEAD's 10-29 / 10-30, attempt-coding's 11-02 evening, HEAD's 11-02 late .. 11-03. Every heading present once (checked).
+- FINDINGS: one-side additions; the 4d0 "Behaviour on the same cued licks" line takes attempt-coding's 10-28 rewording.
+- POSE_MODELS: attempt-coding's 11-01 local-cleanup note stays with the cam4 / cam1 parts it describes, then HEAD's
+  Part E (side cameras; those models were not deleted).
+- 10-26 encoding handoff, SVD_GAUSS queue: attempt-coding's additions.
+
+After the merge (c17be8f5): `lick_balance_imaging_control(+_primary)` and `lick_acad_midline_control` read
+`config.hemo_manifest_path(res)`; `s1_refit_basis_table` reads `config.svtcorr_path(mc)`. Same paths by default.
+Later: 12 attempt-coding `make_spec` calls had no `train_data` and would have raised under FREEZE_VERSION 2
+(face_offset_partial x2, face_prelaunch_aim, lick_code_subspace, lick_enl_angle_decode, lick_enl_target_test,
+lick_enlv_extract, lick_iti_prelick, prelaunch_aim_tracking x2, prelick_svd_tuning, reembedding_test). Each now passes its
+own training-data digest (the `xy_sha1` the script already computed, or the rows). The prelaunch_aim_tracking cued_PRE
+re-lookup reuses the spec made in the same run (the fingerprint cannot be rebuilt there; skipped loudly if absent).
+NOT converted to `frozen_readouts` (inline pre-LOSO ridge in attempt-coding-only scripts): face_offset_partial
+(fit_dec), lick_balance_blind_decoder, lick_nonlinear_decoder.
+
+**Default path of the goal-page scripts.** 39 / 52 are attempt-coding byte for byte. In the other 13 the only changes
+are the stored read-out (pinned equal to the inline loop by c61's tests), the run-mode root (identity by default) and the
+iti_hemo_check cache name (= attempt-coding's by default). REAL-DATA IDENTITY CHECK (read-only, scratch frozen store):
+merged `iti_first_lick.predictions()` vs the committed share table `iti_licks/first_lick_preds_splitr8.csv.gz`
+(160,166 licks x 7): every column identical, `dec` max |diff| 4.4e-16 (float summation order).
+TRAP: the opt-out `WIDEFIELD_ITI_FROZEN=0` adds the run-mode part `inmem-iti`, so `il.OUT` moves to
+`iti_licks/inmem-iti/`, where the per-session extracts are not (FileNotFoundError, loud). Any non-default mode of the
+ITI family needs its extracts rebuilt in its own folder, including modes that do not change them (inmem, pre, refs).
+
+**Tests on the merge (c17be8f5, 6 shards, frozen copy):** 4,359 passed, 176 skipped, 11 failed. All 11 are
+`test_parallel_results_are_ordered` on attempt-coding scripts and FAIL IDENTICALLY ON THE attempt-coding TIP (checked in
+a detached worktree): fan_out results consumed unsorted (curbd_pilot x2, iti_decoder_pattern_stats, lick_code_subspace)
+and runtime globals that spawned workers never see (`SFX`: arrival_to_cue_traces, lick_cue_to_lick, revup_neural,
+stopped_trial_traces; `JOBS`: lick_iti_prelick x3). Not fixed here (goal-page owner; SFX may change output names).
+
+### 8.2 Camera gate (8d169197; review fixes 5361b2fa)
+WIRED under gate=camera: nolick_decoder.categorize (-> cd_trajectories classes, enl_decode arms, the nolick undetected
+split; an undetected cue in neither miss_working nor stopped leaves the categorisation), poststroke_engagement /
+nolick_state_vector / undetected_state_split, precue_engagement_states states 5 / 6 (+ D1), attempt_coding.classify,
+attempt_maps.classes_for_rows, position_axes, grant_confusion post_working panels, and the rest-baseline gates
+(rest_engagement.engaged_by_cue / engaged_frame_mask, rest_by_position._engaged_trials; through them rest_frozen_decoder,
+rest_position_decode, rest_position_permutation, shared_position_projection, rest_block_boundary, cd_trajectories'
+rest baseline, attempt_maps' time-local rest). Previously wired: grant_kit, beta_maps, position_reference_maps,
+hemo_map_control, position_coding_directions.
+FAIL CLOSED: `engagement_gate` raises `trial_classes.DaqGateRefused` (a SystemExit, so the fail-open rest gates cannot
+swallow it) under camera unless `daq_quit_rule(reason)` is open. `_gate_all` and the grant bundle hand out a
+`RefusedMask`; the real mask stays in `bundle["not_eng_daq"]` for `rule="daq"`. Exempt (measures, diagnostics, labelled
+DAQ rows): spout_behavior.flag_engagement, disengagement_tests, quit_point, gate_lp_check, lp_gate_option_counts, the
+s1 tables' quit-tail rows. Refuse up front (`require_gate`): enl_states.states_for, enl_state_counts,
+stopped_trial_traces, channel_position_maps; engagement_axis_balance / nocontact_census refuse on the mask.
+Register of every call site: tests/test_camera_gate_fail_closed.py (a new call site fails until classified).
+PROVISIONAL, for Priya:
+1. camera "stopped" = no_response;
+2. miss-while-working = incomplete | jaw_only (a no-lick row with a camera "contact" is in neither; review M6);
+3. rest-baseline "working period" = every cue up to the session's LAST camera-working trial (keeps the DAQ rule's single
+   terminal boundary);
+4. consequence of 1: attempt coding's "noattempt" class is EMPTY under the camera gate (no_try IS no_response), so the
+   noattempt-vs-stopped contrast cannot be formed.
+
+### 8.3 Map-cache key (e04143c6; M4 widening 5361b2fa)
+`map_collect.cache_kind` hashes `MAP_YAML_KEYS` = decode, lick_detection, segmentation, preprocess.maps.tag, hemo.variant
+(every defaults() access in the builder modules, read by hand) instead of all of defaults.yaml. trial_selection is left
+out on purpose (the selection is in the kind). tests/test_map_cache_key.py: unrelated keys keep the key, builder keys
+move it, and the builder modules are re-read for new sections. One-time cold rebuild of bm-* / prm-* at the next render
+(the gate edits move the code digests too).
+
+### 8.4 Review findings (docs/status/REBUILD_CODE_REVIEW_20261103.md, 8c6edf55)
+| id | fix | commit |
+|---|---|---|
+| H1 | `make_spec(lp_only=True)` for attempt_axes / iti_readout: always the real-row fingerprint, never DAQ_RUN_FP | 5361b2fa |
+| H2 | 13 wfield_local figures_working writers, grant_kit._fig_root, enl_decode_figure, enl_sparsity_figure routed by `run_mode.subdir`; writeguard tag-checks the figures_working root | 5361b2fa |
+| H3 | attempt_coding / attempt_maps out_dir routed (their skip-if-exists files are per mode) + assert_writable | 8d169197, 5361b2fa |
+| H4 | `trial_classes.class_source_signature` (v36 trials / licks / windows, cam1 events, jaw_onsets, class code) = cache-only run_mode part `csig` under camera | 5361b2fa |
+| M1 | run_mode part `projall` (output + cache) | 5361b2fa |
+| M2 | await_locanmf / batch_locanmf / nightly_figs refuse under WIDEFIELD_LOCANMF_PROJECT=1 | 5361b2fa |
+| M3 | keyed_name / subdir use the full `lp_licks.output_tag()` | 5361b2fa |
+| M4 | prm digest + quiet_periods.{response_window_s, rest_mask, trial_exclusion, widen_bool_sparse, quiet_dir} and analysis_kit.response_window_s; sufficiency test | 5361b2fa |
+| M5 | see 8.2 | 5361b2fa |
+| M6 | GATES["miss_working"] = incomplete / jaw_only in every no-lick split | 5361b2fa |
+| M7 | find_daq_trained matches selection; run_selection carries `-gateLP` | 5361b2fa |
+| M8 | 5rm under the LP DAQ cross-check: in memory, logged, never stored | 5361b2fa |
+| M9 | origin/main 65d9aee3 merged (trial in a separate worktree; 4 conflicts: make_spec scaling_params + train_data, locomotor_decoder bal_em + train_data, s1 table fanned unit_job + rule="daq" + not_eng_daq, FROZEN_MODELS state row); test_state_bal_em's pinned pre-rebuild ids relaxed (every id changed by design); Fig 3.4 provenance text corrected | e74a4579 + the L commit |
+| M10 | lp_final_compare derives the final maps folder through lp_final_render.setup + lp_licks.output_dir. NOT re-pointed: readers of attempt_maps_restnl / epoch_restnl made under PRE_FROM (logged) | 5361b2fa |
+| L1 | `_same_records` length checks; the frozen_readouts test re-reads a HIT and checks a one-row change misses | L commit |
+| L2 | o2_video_me, quiet_hemo_check, iti_hemo_check read the switch at call time; locanmf_lick_aligned refuses under projection. The cohort2_qc scripts with a literal `hemo_meegkit_hpfit` (channel_drift, early_fade, perpixel_snr, processing_stages, session_qc, slowband_behaviour, slow_is_bleach, slow_spectrum, stage_traces, var_bands, spout_maps, quiet_modes, running_sign_check, indicator_kinetics_spread, and the variant-comparison scripts) stay literal: QC comparisons BY DESIGN | L commit |
+| L3 | hemo_variants: no fallback (the import fails if config cannot load); an empty WIDEFIELD_HEMO_VARIANT = unset | L commit |
+| L4 | pinned by a test (all-NaN cue table -> "unknown") | L commit |
+| L5 | logged: `_BUNDLE_CACHE` / lru caches ignore in-process env changes (tests / notebooks only) | - |
+| L6 | logged: joint-basis edge cases (explicit superseded bid without a manifest field -> legacy label; a missing pin raises) | - |

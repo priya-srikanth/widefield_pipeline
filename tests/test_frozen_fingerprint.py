@@ -135,7 +135,16 @@ def test_stored_readout_payload_equals_the_in_memory_fit(monkeypatch):
     Y = {q: rng.standard_normal(20) for q in pre}
     al = np.logspace(-2, 2, 5)
     mem = fr.fit_all(pre, X, Y, al, None, True)
-    sto = fr.pre_loso_ridge("PS92", "test-tag", pre, X, Y, al, log=lambda *_: None)
+    fr.pre_loso_ridge("PS92", "test-tag", pre, X, Y, al, log=lambda *_: None)          # MISS: fits and writes
+    st = []
+    sto = fr.pre_loso_ridge("PS92", "test-tag", pre, X, Y, al, log=st.append)          # HIT: re-read from the store
+    assert not any("iti_readout" in str(m) for m in st), st                           # only a miss logs a status line
+    # change ONE training row -> a new id (review L1: per-kind perturbation)
+    X2 = {q: v.copy() for q, v in X.items()}
+    X2[pre[0]][0, 0] += 1.0
+    st2 = []
+    fr.pre_loso_ridge("PS92", "test-tag", pre, X2, Y, al, log=st2.append)
+    assert any("iti_readout" in str(m) for m in st2), "a changed training row must miss the stored model"
     for k in mem:
         np.testing.assert_array_equal(mem[k][0].scale_, sto[k][0].scale_)
         np.testing.assert_array_equal(mem[k][0].mean_, sto[k][0].mean_)

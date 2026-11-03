@@ -116,7 +116,8 @@ def work(label: str) -> dict:
     from scipy import ndimage
 
     from wfield_local import combined_encoding as ce
-    from wfield_local.hemo_variants import ADOPTED, functional_channel
+    from wfield_local import config
+    from wfield_local.hemo_variants import functional_channel
     f = CACHE / f"{label}.npz"
     if f.exists() and int(np.load(f)["cache_version"]) == CACHE_VERSION:
         return {"label": label, "cached": True}
@@ -131,7 +132,7 @@ def work(label: str) -> dict:
         raise RuntimeError(f"{label}: ROI columns differ from the saved session npz")
     Ra = np.stack([Ub[M[c]].mean(0) for c in cols], 1).astype(np.float64)        # (K, n_roi)
     fc = functional_channel(label)
-    man = json.loads((res / f"hemo_{ADOPTED}" / "manifest.json").read_text())
+    man = json.loads(Path(config.hemo_manifest_path(res)).read_text())   # selected variant, call time (review L2)
     svt = np.load(res / "SVT.npy", mmap_mode="r")
     if abs(svt.shape[1] // 2 - n) > 2 and abs(svt.shape[1] // 2 - V.shape[0]) > 2:
         raise RuntimeError(f"{label}: raw SVT {svt.shape[1]} samples vs corrected {V.shape[0]} frames")

@@ -192,7 +192,8 @@ def frozen_fits(a: str, W: float, lf: str, X, y, sess, cell, variant: str = "") 
     Xr, yr = _resid(X, cell), _resid(y, cell)
     dig = _digest(X, y, np.asarray(cell, str))
     spec = fm.make_spec(a, "enl_angle", align=f"enl_w{W:g}_lf{lf}{variant}", source=f"areas_split_r{il.ROI_VERSION}",
-                        train_labels=labs, post_s=W, n_features=X.shape[1])
+                        train_labels=labs, post_s=W, n_features=X.shape[1],
+                        train_data={"xy_sha1": dig, "sess": np.asarray(sess, str)})  # training-data fingerprint (FREEZE_VERSION 2, rebuild 11-03)
 
     def fit():
         loso_ = {s: (_fit(X[sess != s], y[sess != s]), _fit(Xr[sess != s], yr[sess != s])) for s in labs}
