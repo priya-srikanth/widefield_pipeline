@@ -75,7 +75,7 @@ def draw_axis(ax, S: pd.DataFrame, T: pd.DataFrame, cs, labels: dict, *, dot_s: 
                            facecolors="none", edgecolors=col, s=dot_s, lw=0.8, alpha=dot_alpha, zorder=2)
             got = ak.paired_animal_draws({a: list(g.value) for a, g in po.groupby("animal")}, pred,
                                          lambda v, _r=None: float(np.mean(v)), np.random.default_rng(1), 2000)
-            if got[0] is not None and len(got[1]):
+            if got[0] is not None and len(got[1]) and len(got[2]) >= 2:   # same condition as the LMM test
                 lo, hi = np.percentile(got[1], [2.5, 97.5])
                 ax.plot([x + 0.10] * 2, [lo, hi], color="0.6", lw=3, solid_capstyle="butt", zorder=3)
             r = T[(T.position == c) & (T.epoch == e)]
@@ -129,14 +129,19 @@ def draw(S: pd.DataFrame, T: pd.DataFrame, cells, out: Path, *, title: str, ylab
         ax.set_title(pname, fontsize=9)
     for row in axes:
         row[0].set_ylabel(ylabel)
-    fig.legend(handles=legend_handles(S), fontsize=7, ncol=5, loc="lower center", frameon=False)
+    hs = legend_handles(S)
+    ncol = max(2, min(len(hs), int(fig.get_figwidth() / 2.4)))          # fits the figure width (34, 11-03)
+    fig.legend(handles=hs, fontsize=7, ncol=ncol, loc="lower center", frameon=False)
+    leg_rows = -(-len(hs) // ncol)
     fam = T.groupby("family").p.apply(lambda q: int(np.isfinite(q).sum()))
     scope = (f"Holm across {fam.iloc[0]} tests" if len(fam) == 1
              else f"Holm within each panel ({', '.join(str(v) for v in fam.unique())} tests)")
     fig.suptitle(f"{title}\nchange vs own pre: mixed model, separate between-animal spread per epoch (df = animals - 1); "
                  f"* p < .05, ** {scope}", fontsize=9)
     sm.reserve_headroom(fig)
-    fig.tight_layout(rect=(0, 0.1 if nr == 1 else 0.06, 1, 1))
+    bottom = min(0.35, (0.22 * leg_rows + 0.1) / fig.get_figheight())   # legend band, in figure fraction
+    top = 1 - 0.55 / fig.get_figheight()                                # two-line suptitle band (34, 11-03)
+    fig.tight_layout(rect=(0, bottom, 1, top))
     out.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out, dpi=150)
     plt.close(fig)
