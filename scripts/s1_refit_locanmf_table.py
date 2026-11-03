@@ -66,7 +66,10 @@ def main(argv=None) -> int:
             assert len(feats) == 1, f"{an} {align}: captured {len(feats)} feature objects"
             idx = feats[0].indices
             XE, YE, GE, XU, YU, GU = (bd[k] for k in ("XE", "YE", "GE", "XU", "YU", "GU"))
-            BE, BU, not_eng, e_pre = bd["BE"], bd["BU"], bd["not_eng"], bd["e_pre"]
+            # the quit-tail row is a LABELLED DAQ robustness row: under the camera trial gate bundle["not_eng"] is a
+            # RefusedMask and the real DAQ mask is bundle["not_eng_daq"] (rebuild 11-03); identical by default
+            BE, BU, e_pre = bd["BE"], bd["BU"], bd["e_pre"]
+            not_eng = bd["not_eng_daq"] if "not_eng_daq" in bd else bd["not_eng"]
             for i, lab in enumerate(bd["kept"]):
                 se = (e_pre & (GE == i)) if i in bd["pre_i"] else (GE == i)
                 su = (GU == i) if len(GU) else np.zeros(0, bool)

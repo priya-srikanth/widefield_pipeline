@@ -260,14 +260,25 @@ def categorize(s, args, with_licks=False):
     #: Derived here rather than imported from `poststroke_compare` (which imports this module).
     ref_codes = tuple(c for c, nm in POSITION_NAMES.items()
                       if nm in ("close_L", "close_center"))
-    try:
-        _not_eng = engagement_gate(np.arange(len(codes)), responded, np.asarray(codes),
-                                   reference=ref_codes)
-        sess_eng = ~np.asarray(_not_eng, bool)
-    except Exception as ex:                                            # noqa: BLE001
-        print(f"  [{s_label(s)}] engagement gate failed ({type(ex).__name__}) -> all engaged",
-              flush=True)
-        sess_eng = np.ones(cue_f.size, bool)
+    from wfield_local import trial_classes as _tc
+    if _tc.camera_gate_on():
+        # CAMERA TRIAL GATE (rebuild 11-03, `trial_classes`): sess_eng = the cue's camera class is in GATES["working"].
+        # Its consumers read `undetected & ~sess_eng` as STOPPED, so an undetected cue that is neither working nor
+        # stopped ("unknown": no video, unmatched cue) leaves the categorisation (cat = ""): it is in neither arm, as
+        # `camera_select`. No fail-open here: a class-table error propagates.
+        ccls = _tc.cue_classes_for(s["label"], np.asarray(cue["cue_samples"], float) / float(lk["sample_rate_hz"]))
+        sess_eng = _tc.in_gate(ccls, "working")
+        neither = ~sess_eng & ~np.isin(ccls, list(_tc.STOPPED_CLASSES))
+        cat = np.where((cat == "undetected") & neither, "", cat).astype(object)
+    else:
+        try:
+            _not_eng = engagement_gate(np.arange(len(codes)), responded, np.asarray(codes),
+                                       reference=ref_codes)
+            sess_eng = ~np.asarray(_not_eng, bool)
+        except Exception as ex:                                            # noqa: BLE001
+            print(f"  [{s_label(s)}] engagement gate failed ({type(ex).__name__}) -> all engaged",
+                  flush=True)
+            sess_eng = np.ones(cue_f.size, bool)
     base = (codes, cat, blk, rt_s, cue_f, np.asarray(sess_eng, bool))
     if not with_licks:
         return base

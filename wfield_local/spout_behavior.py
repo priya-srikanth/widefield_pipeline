@@ -700,7 +700,11 @@ def reference_engagement(responded, positions, *, tail_min_misses=6, reference=N
         return np.zeros(0, bool), {"n_disengaged": 0, "tail_start": None, "n_tail": 0,
                                    "gate": "reference_engagement"}
     ref_names = tuple(reference or REFERENCE)
-    collapse = engagement_gate(np.arange(n), resp, pos)
+    from wfield_local import trial_classes as _tc
+    # a MEASURE / reporting gate of the behaviour figures, not an imaging trial selection: the DAQ rule stays under the
+    # camera trial gate (rebuild 11-03; measures of engagement are not gated)
+    with _tc.daq_quit_rule("spout_behavior.flag_engagement: behaviour reporting gate (measure of engagement)"):
+        collapse = engagement_gate(np.arange(n), resp, pos)
 
     # the terminal tail, counted in REFERENCE trials but marked over the whole session: once the
     # animal has stopped, the interleaved far trials are not evidence about anything either

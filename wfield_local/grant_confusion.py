@@ -406,7 +406,12 @@ def fig_confusion_pre_post_working(out_dir):
                 Xa = np.vstack([XE[pe]] + ([XU[pu]] if len(u_pre) and pu.any() else []))
                 ya = np.concatenate([YE[pe]] + ([YU[pu]] if len(u_pre) and pu.any() else []))
                 mats["post_all"] = conf(Xa, ya)
-                pw = pu & ~not_eng if len(u_pre) else np.zeros(0, bool)
+                if bd.get("cls") is not None:
+                    # CAMERA TRIAL GATE (rebuild 11-03): working through `_class_select` (camera classes), never
+                    # `~not_eng` (a RefusedMask under the camera gate). Default (daq): the line below, unchanged.
+                    pe, pw = _class_select("working", pe, pu, not_eng, cls=bd["cls"])
+                else:
+                    pw = pu & ~not_eng if len(u_pre) else np.zeros(0, bool)
                 Xw = np.vstack([XE[pe]] + ([XU[pw]] if len(u_pre) and pw.any() else []))
                 yw = np.concatenate([YE[pe]] + ([YU[pw]] if len(u_pre) and pw.any() else []))
                 mats["post_working"] = conf(Xw, yw)
@@ -415,9 +420,14 @@ def fig_confusion_pre_post_working(out_dir):
                 for i, lab in enumerate(bd["kept"]):
                     if i in pre_i:
                         continue
-                    mu_s = ((GU == i) & ~not_eng) if len(GU) else np.zeros(0, bool)
-                    Xs = np.vstack([XE[GE == i]] + ([XU[mu_s]] if mu_s.any() else []))
-                    ys = np.concatenate([YE[GE == i]] + ([YU[mu_s]] if mu_s.any() else []))
+                    if bd.get("cls") is not None:   # camera trial gate (rebuild 11-03), as post_working above
+                        me_s, mu_s = _class_select("working", GE == i, (GU == i) if len(GU) else np.zeros(0, bool),
+                                                   not_eng, cls=bd["cls"])
+                    else:
+                        me_s = GE == i
+                        mu_s = ((GU == i) & ~not_eng) if len(GU) else np.zeros(0, bool)
+                    Xs = np.vstack([XE[me_s]] + ([XU[mu_s]] if mu_s.any() else []))
+                    ys = np.concatenate([YE[me_s]] + ([YU[mu_s]] if mu_s.any() else []))
                     side.append((an, lab, "post_working_session", conf(Xs, ys)))
                 side.append((an, "", "decoder", "memory" if frozen is None else "store"))
             except _Stored:
@@ -750,7 +760,8 @@ def _collect_5c(align, variant="working", mode="frozen"):
                     an, "matched_frozen", align=f"{align}-{variant}-seed{abs(_seed(an, align, variant))}",
                     source="locanmf", train_labels=[kept[i] for i in sorted(pre_i)], post_s=2.0,
                     basis_id=bd.get("basis_id"), n_features=int(XE.shape[1]),
-                    train_data=(XE, YE, GE, XU, YU, GU, not_eng, BE_all, BU_all, sorted(pre_i), bd.get("cls")))
+                    train_data=(XE, YE, GE, XU, YU, GU, (not_eng if bd.get("cls") is None else None), BE_all, BU_all,
+                                sorted(pre_i), bd.get("cls")))
                 _d, _o = frozen_models.find(mm_spec)
                 if _d is not None:
                     mm_old = frozen_models._read(_d)

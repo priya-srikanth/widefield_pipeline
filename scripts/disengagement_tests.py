@@ -1295,8 +1295,10 @@ def _redetect(T, cut_s):
     C = T[T.t <= cut_s]
     if len(C) < 10:
         return None
-    ne = np.asarray(engagement_gate(C.order.to_numpy(), C.hit2.astype(bool).to_numpy(),
-                                    np.array([UNCANON.get(p, p) for p in C.pos])), bool)
+    from wfield_local import trial_classes as _tc
+    with _tc.daq_quit_rule("disengagement_tests: quit onset (a measure of engagement)"):
+        ne = np.asarray(engagement_gate(C.order.to_numpy(), C.hit2.astype(bool).to_numpy(),
+                                        np.array([UNCANON.get(p, p) for p in C.pos])), bool)
     if not ne.any():
         return dict(censored=True, k=len(C))
     k = len(ne)

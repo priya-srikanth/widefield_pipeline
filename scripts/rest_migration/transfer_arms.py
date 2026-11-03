@@ -64,7 +64,9 @@ def collect_task(an, align, variant):
     bd = _pooled_bundle(an, align)
     XE, YE, GE, BE = bd["XE"], np.asarray(bd["YE"]), np.asarray(bd["GE"]), np.asarray(bd["BE"])
     XU, YU, GU, BU = bd["XU"], np.asarray(bd["YU"]), np.asarray(bd["GU"]), np.asarray(bd["BU"])
-    not_eng, kept = np.asarray(bd["not_eng"]), bd["kept"]
+    # under the camera trial gate not_eng is a RefusedMask that `_class_select` never reads (it takes cls); never
+    # np.asarray it there (rebuild 11-03, fail closed)
+    not_eng, kept = (bd["not_eng"] if bd.get("cls") is not None else np.asarray(bd["not_eng"])), bd["kept"]
 
     out = {}
     for i, lab in enumerate(kept):

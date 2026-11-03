@@ -72,6 +72,7 @@ WHAT EACH WINDOW CAN ANSWER, AND WHAT IT CANNOT:
 from __future__ import annotations
 
 import argparse
+import contextlib
 import itertools
 import functools
 import json
@@ -680,13 +681,21 @@ def stored_reference(animal, align, post_s, basis_id, XE, en, e_pre, GE, XU, u_p
     return payload
 
 
-def _gate_all(feat, kept, XE, YE, GE, XU, YU, GU):
+def _gate_all(feat, kept, XE, YE, GE, XU, YU, GU, rule=None):
     """(not_eng, frac_nolick, frac_eng), or None if the trial bookkeeping does not line up.
 
     ``frac_*`` is each trial's position WITHIN its session, 0 at the first trial and 1 at the last.
     It comes from the same indices the gate uses, so "where in the session" and "before or after the
     quit" can never disagree about a trial.
+
+    CAMERA TRIAL GATE (rebuild 11-03, fail closed): ``not_eng`` IS the DAQ quit-tail mask, so under
+    gate=camera it is a `trial_classes.RefusedMask` (any use raises) and the gate is not computed; the
+    ``frac_*`` bookkeeping is unchanged. Camera-wired callers take their classes from
+    `trial_classes.pool_row_classes`. ``rule="daq"`` builds the real DAQ mask anyway, for a LABELLED
+    DAQ robustness row (`grant_kit._pooled_bundle["not_eng_daq"]`).
     """
+    from wfield_local import trial_classes as _tc
+    refused = _tc.camera_gate_on() and rule != "daq"
     tables = _session_tables(feat, kept)
     if not tables:
         return None
@@ -696,16 +705,20 @@ def _gate_all(feat, kept, XE, YE, GE, XU, YU, GU):
         if t is None:
             continue
         ie, inl = feat.indices[kept[si]]
-        pos = _positions_for(tables, si, YE, GE, YU, GU, ie, inl)
-        ne = engagement_gate(t["order"], t["responded"], pos)
-        bne = {int(k): bool(v) for k, v in zip(t["order"], ne)}
         span = max(int(t["order"].max()), 1)
-        not_eng += [bne.get(int(k), False) for k in inl]
+        if not refused:
+            pos = _positions_for(tables, si, YE, GE, YU, GU, ie, inl)
+            with _tc.daq_quit_rule("labelled DAQ robustness row (rule='daq')") if rule == "daq" \
+                    else contextlib.nullcontext():
+                ne = engagement_gate(t["order"], t["responded"], pos)
+            bne = {int(k): bool(v) for k, v in zip(t["order"], ne)}
+            not_eng += [bne.get(int(k), False) for k in inl]
         frac_nl += [min(int(k) / span, 1.0) for k in inl]
         frac_e += [min(int(k) / span, 1.0) for k in ie]
-    not_eng = np.array(not_eng, bool)
-    if len(not_eng) != len(XU) or len(frac_e) != len(XE):
+    if len(frac_nl) != len(XU) or len(frac_e) != len(XE):
         return None
+    not_eng = (_tc.RefusedMask("position_coding_directions._gate_all not_eng") if refused
+               else np.array(not_eng, bool))
     return not_eng, np.array(frac_nl, float), np.array(frac_e, float)
 
 
@@ -777,12 +790,13 @@ def run_animal(animal, align="precue", verbose=True, methods=CD_METHODS):
     not_eng, frac_nl, frac_e = _g
     # NO-LICK CLASS MASKS: the DAQ quit-tail rule (default, unchanged) or, under the camera trial gate (rebuild 11-03,
     # `trial_classes`), miss-while-working = camera class in GATES["working"], stopped = no_response ("unknown" = neither)
-    nl_working, nl_stopped = ~not_eng, not_eng
     from wfield_local import trial_classes as _tc
     if _tc.camera_gate_on():
         _ce, _cu = _tc.pool_row_classes(feat, kept, len(YE), len(YU))
         nl_working = _tc.in_gate(_cu, "working")
         nl_stopped = np.isin(_cu, list(_tc.STOPPED_CLASSES))
+    else:
+        nl_working, nl_stopped = ~not_eng, not_eng
 
     order = sorted(range(len(kept)), key=lambda i: kept[i].split("_")[1])
     # VARIANCE CAPTURED PER SESSION, stored so a declining per-session coding value can be tested

@@ -73,19 +73,30 @@ MIN_N = 5           # per class x spout x session to enter a contrast
 N_PERM = 2000
 
 
-def classify(cls_e, cls_u, eng_pre_e, eng_pre_u, not_eng_u):
+def classify(cls_e, cls_u, eng_pre_e, eng_pre_u, not_eng_u, camera_u=None):
     """Class per engaged (XE) row and per no-lick (XU) row.
 
     Under the LP source, XE = attempted within max_rt (hit / incomplete) and XU = everything else. ``cls_*`` are the
     attempts classes of those rows ("" = unmatched), ``eng_pre_*`` True on pre-stroke sessions, ``not_eng_u`` the
-    video engagement gate (True = after the session's final quit)."""
+    video engagement gate (True = after the session's final quit).
+
+    CAMERA TRIAL GATE (rebuild 11-03): ``camera_u`` = the `trial_classes` class per XU row (`pool_row_classes`); then
+    ``not_eng_u`` is not read, stopped = class in STOPPED_CLASSES and the working split = class in GATES["working"]
+    ("unknown" = neither). PROVISIONAL with stopped = no_response: no_try IS no_response, so "noattempt" is EMPTY
+    under the camera gate and the noattempt-vs-stopped contrast cannot be formed (listed for Priya)."""
     ce = np.where(eng_pre_e, np.where(cls_e == "hit", "pre_hit", ""),
                   np.where(np.isin(cls_e, ("hit", "incomplete")), cls_e, ""))
     ce = ce.astype(object)
     cu = np.full(len(cls_u), "", dtype=object)
     post_u = ~eng_pre_u
-    cu[post_u & not_eng_u & ~np.isin(cls_u, ("", "unknown"))] = "stopped"
-    work = post_u & ~not_eng_u
+    if camera_u is not None:
+        from wfield_local import trial_classes as _tc
+        cam = np.asarray(camera_u, dtype=object)
+        cu[post_u & np.isin(cam, list(_tc.STOPPED_CLASSES)) & ~np.isin(cls_u, ("", "unknown"))] = "stopped"
+        work = post_u & _tc.in_gate(cam, "working")
+    else:
+        cu[post_u & not_eng_u & ~np.isin(cls_u, ("", "unknown"))] = "stopped"
+        work = post_u & ~not_eng_u
     cu[work & (cls_u == "no_try")] = "noattempt"
     cu[work & (cls_u == "jaw_only")] = "reaction"
     cu[work & np.isin(cls_u, ("hit", "incomplete"))] = "late"
@@ -232,7 +243,9 @@ def run_animal(animal, align="precue", verbose=True):
 
     pre_set = set(pre)
     pre_i = np.array([lab in pre_set for lab in kept])
-    ce, cu = classify(cls_e, cls_u, pre_i[GE], pre_i[GU], not_eng)
+    from wfield_local import trial_classes as _tc
+    cam_u = _tc.pool_row_classes(feat, kept, len(YE), len(YU))[1] if _tc.camera_gate_on() else None
+    ce, cu = classify(cls_e, cls_u, pre_i[GE], pre_i[GU], not_eng, camera_u=cam_u)
     X = np.vstack([XE, XU])
     G = np.concatenate([GE, GU]).astype(int)
     C = np.concatenate([ce, cu]).astype(str)
@@ -363,8 +376,9 @@ def freeze_reference(animal, align):
 
 
 def out_dir():
-    from wfield_local import lp_licks
-    return lp_licks._run_dir() / "imaging_encoding" / "attempt_coding"
+    from wfield_local import lp_licks, run_mode
+    # run-mode routing (rebuild 11-03): a tagged run (camera gate, hemo variant ...) writes attempt_coding/<tag>/
+    return run_mode.subdir(lp_licks._run_dir() / "imaging_encoding" / "attempt_coding")
 
 
 def main(argv=None) -> int:

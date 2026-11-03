@@ -130,7 +130,13 @@ def engagement_gate(order, responded, positions, reference=REFERENCE):
     Requiring non-recovery is what separates satiety from a motor patch: PS94_0817's reference rate
     drops around trial 420 and is back near 0.95 by 480, and that session should not be called
     disengaged at all. Only the FINAL sustained collapse counts.
+
+    FAIL CLOSED under the camera trial gate (rebuild 11-03): this IS the DAQ quit-tail rule, so under
+    gate=camera it refuses unless the caller opened `trial_classes.daq_quit_rule(reason)` (a measure of
+    engagement, a labelled DAQ robustness row, or bookkeeping a camera-wired caller overrides).
     """
+    from wfield_local import trial_classes as _tc
+    _tc.refuse_daq_gate("precue_engagement_states.engagement_gate")
     ref = np.isin(positions, reference)
     roll = np.full(len(order), np.nan)
     hist: list[bool] = []
@@ -222,13 +228,16 @@ def run_animal(animal, align="precue", post_s=None, verbose=True):
     # ---- engagement gate + late-window flag, per session, on the IMAGING trial universe ----------
     not_eng_nl, late_nl, sess_nl = [], [], []          # aligned to XU rows
     late_e = []                                        # aligned to XE rows
+    from wfield_local import trial_classes as _tc
+    camera = _tc.camera_gate_on()
     for si in range(len(kept)):
         t = tables.get(si)
         if t is None:
             continue
         idx_e, idx_n = feat.indices[kept[si]]
         pos = _positions_for(tables, si, YE, GE, YU, GU, idx_e, idx_n)
-        ne = engagement_gate(t["order"], t["responded"], pos)
+        # under the camera gate the DAQ mask is not built at all (states 5 / 6 come from the camera classes below)
+        ne = np.zeros(len(t["order"]), bool) if camera else engagement_gate(t["order"], t["responded"], pos)
         span = max(int(t["order"].max()), 1)
         late = t["order"] > LATE_FRACTION * span
         by_idx_ne = {int(k): bool(v) for k, v in zip(t["order"], ne)}
@@ -249,14 +258,21 @@ def run_animal(animal, align="precue", post_s=None, verbose=True):
 
     e_pre = np.isin(GE, list(pre_i))
     u_pre = np.isin(GU, list(pre_i))
+    # STATES 5 / 6: the DAQ quit-tail split (default, unchanged) or, under the camera trial gate (rebuild 11-03,
+    # `trial_classes`), 5 = post no-lick rows in GATES["working"], 6 = post no-lick rows in STOPPED_CLASSES (PROVISIONAL
+    # = no_response); "unknown" rows are in neither. The pre-stroke discriminator does not use the gate.
+    nl_eng, nl_not = ~not_eng_nl, not_eng_nl
+    if camera:
+        _ce, _cu = _tc.pool_row_classes(feat, kept, len(YE), len(YU))
+        nl_eng, nl_not = _tc.in_gate(_cu, "working"), np.isin(_cu, list(_tc.STOPPED_CLASSES))
     states = {
         "1_pre_lick": (XE[e_pre], YE[e_pre], GE[e_pre]),
         "2_pre_nolick": (XU[u_pre], YU[u_pre], GU[u_pre]),
         "4_post_lick": (XE[~e_pre], YE[~e_pre], GE[~e_pre]),
-        "5_post_nolick_engaged": (XU[~u_pre & ~not_eng_nl], YU[~u_pre & ~not_eng_nl],
-                                  GU[~u_pre & ~not_eng_nl]),
-        "6_post_nolick_notengaged": (XU[~u_pre & not_eng_nl], YU[~u_pre & not_eng_nl],
-                                     GU[~u_pre & not_eng_nl]),
+        "5_post_nolick_engaged": (XU[~u_pre & nl_eng], YU[~u_pre & nl_eng],
+                                  GU[~u_pre & nl_eng]),
+        "6_post_nolick_notengaged": (XU[~u_pre & nl_not], YU[~u_pre & nl_not],
+                                     GU[~u_pre & nl_not]),
     }
 
     # ---- A. position decoding: ONE frozen pre-stroke decoder, applied to every state -------------
@@ -339,7 +355,7 @@ def run_animal(animal, align="precue", post_s=None, verbose=True):
                 "late_p_disengaged": float(np.mean(pre_l))}
 
         # D1. DRIFT CONTROL: both halves are ENGAGED, so any separation here is time, not state.
-        eng5 = ~u_pre & ~not_eng_nl
+        eng5 = ~u_pre & nl_eng
         if eng5.sum() >= 20:
             early = XU[eng5 & ~late_nl]
             lateX = XU[eng5 & late_nl]
@@ -437,7 +453,10 @@ def main(argv=None) -> int:
     ap.add_argument("--animals", nargs="+", default=None)
     ap.add_argument("--align", default="precue", choices=("precue", "cue"))
     args = ap.parse_args(argv)
-    out = args.output or Path(PathResolver().root("figures_working"))
+    from wfield_local import run_mode
+    # run-mode routing (rebuild 11-03): a tagged run (camera gate, hemo variant ...) writes figures_working/<tag>/,
+    # never over the default precue_states_<align>.{png,json}; identity for the default run
+    out = args.output or run_mode.subdir(Path(PathResolver().root("figures_working")))
     out.mkdir(parents=True, exist_ok=True)
     animals = config.normalize_animals(args.animals) or [a for a in config.animals()]
     results = {}

@@ -55,8 +55,10 @@ def one(d):
     cov = T.lp_cov.to_numpy(bool)
     r["n_cov"] = int(cov.sum())
     att = (T.lp_att35.to_numpy(bool) & cov)
-    lponly = np.asarray(engagement_gate(k[cov], att[cov], pos[cov]), bool)
-    both = np.asarray(engagement_gate(k[cov], (T.daq35.to_numpy(bool) | att)[cov], pos[cov]), bool)
+    from wfield_local import trial_classes as _tc
+    with _tc.daq_quit_rule("lp_gate_option_counts: counts of the DAQ / LP gate options themselves"):
+        lponly = np.asarray(engagement_gate(k[cov], att[cov], pos[cov]), bool)
+        both = np.asarray(engagement_gate(k[cov], (T.daq35.to_numpy(bool) | att)[cov], pos[cov]), bool)
     r["n_ne_lponly_cov"] = int(lponly.sum())
     r["n_ne_daqlp_cov"] = int(both.sum())
     r["n_flip_lp"] = int((lponly != both).sum())

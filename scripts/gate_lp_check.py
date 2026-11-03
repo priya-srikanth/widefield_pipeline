@@ -146,14 +146,18 @@ def one(label):
     T["daq20"] = (T.first_daq > 0) & (T.first_daq <= QUIT_RESP)
     # imaging gate, on the full behavioural trial list (order = cue index)
     pos_raw = np.array([{v: kk for kk, v in CANON.items()}[p] for p in T.pos])
-    T["ne_img"] = engagement_gate(T.k.to_numpy(), T.daq35.to_numpy(bool), pos_raw)
+    from wfield_local import trial_classes as _tc
+    # a diagnostic OF the DAQ / LP gate rules themselves (not a selection under the run's gate; rebuild 11-03)
+    with _tc.daq_quit_rule("gate_lp_check: compares the DAQ and LP gate rules"):
+        T["ne_img"] = engagement_gate(T.k.to_numpy(), T.daq35.to_numpy(bool), pos_raw)
     if lp is not None:
         att = T.lp_cls.isin(lp_licks.ATTEMPT_CLASSES) & np.isfinite(T.lp_first)
         T["lp_att35"] = att & (T.lp_first <= MAX_RT)
         T["lp_att20"] = att & (T.lp_first <= QUIT_RESP)
         # LP-or-DAQ img gate (what an LP-based gate would call engaged)
         resp_lp = (T.daq35 | (T.lp_cov & T.lp_att35)).to_numpy(bool)
-        T["ne_img_lp"] = engagement_gate(T.k.to_numpy(), resp_lp, pos_raw)
+        with _tc.daq_quit_rule("gate_lp_check: compares the DAQ and LP gate rules"):
+            T["ne_img_lp"] = engagement_gate(T.k.to_numpy(), resp_lp, pos_raw)
 
     # ---- the S28 quit, DAQ and LP rule
     tr = session_trials(s, QUIT_RESP)

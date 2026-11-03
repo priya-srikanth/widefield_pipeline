@@ -60,16 +60,26 @@ def _down(m):
     return m[: h // DS * DS, : w // DS * DS].reshape(h // DS, DS, w // DS, DS).mean((1, 3)).astype(np.float32)
 
 
-def classes_for_rows(cls_e, cls_u, quit_u, pre):
-    """Class per engaged row and per no-lick row of ONE session (strings; "" = unused)."""
+def classes_for_rows(cls_e, cls_u, quit_u, pre, camera_u=None):
+    """Class per engaged row and per no-lick row of ONE session (strings; "" = unused).
+
+    CAMERA TRIAL GATE (rebuild 11-03): ``camera_u`` = the `trial_classes` class per no-lick row; then ``quit_u`` is not
+    read, stopped = STOPPED_CLASSES (PROVISIONAL: no_response, so "noattempt" is empty) and the working split = class in
+    GATES["working"] ("unknown" = neither), as `attempt_coding.classify`."""
     if pre:
         ce = np.select([cls_e == "hit", cls_e == "incomplete"], ["pre_hit", "pre_incomplete"], "").astype(object)
         return ce, np.full(len(cls_u), "", dtype=object)
     ce = np.where(np.isin(cls_e, ("hit", "incomplete")), cls_e, "").astype(object)
     cu = np.full(len(cls_u), "", dtype=object)
-    cu[quit_u & ~np.isin(cls_u, ("", "unknown"))] = "stopped"
-    cu[~quit_u & (cls_u == "no_try")] = "noattempt"
-    cu[~quit_u & (cls_u == "jaw_only")] = "reaction"
+    if camera_u is not None:
+        from wfield_local import trial_classes as _tc
+        cam = np.asarray(camera_u, dtype=object)
+        stop, work = np.isin(cam, list(_tc.STOPPED_CLASSES)), _tc.in_gate(cam, "working")
+    else:
+        stop, work = quit_u, ~quit_u
+    cu[stop & ~np.isin(cls_u, ("", "unknown"))] = "stopped"
+    cu[work & (cls_u == "no_try")] = "noattempt"
+    cu[work & (cls_u == "jaw_only")] = "reaction"
     return ce, cu
 
 
@@ -128,9 +138,13 @@ def session_class_maps(label, align, post_s=None, rest_variant="rest"):
     cls_cue, _tid = _cue_classes([label], a.max_rt)[label]
     pick = lambda idx: np.array([cls_cue[k] if k < len(cls_cue) else "" for k in idx], object).astype(str)
     cls_e, cls_u = pick(idx_e), pick(idx_n)
-    quit_u = (_quit_mask(s, idx_e, idx_n, y, yn) if len(yn) else np.zeros(0, bool))
     pre = config.session_phase(config.animal_of(label), label.split("_")[-1]) == "pre"
-    ce, cu = classes_for_rows(cls_e, cls_u, quit_u, pre)
+    from wfield_local import trial_classes as _tc
+    if _tc.camera_gate_on():                  # camera trial gate (rebuild 11-03): no DAQ quit mask is built
+        ce, cu = classes_for_rows(cls_e, cls_u, None, pre, camera_u=_tc.row_classes(label, idx_n))
+    else:
+        quit_u = (_quit_mask(s, idx_e, idx_n, y, yn) if len(yn) else np.zeros(0, bool))
+        ce, cu = classes_for_rows(cls_e, cls_u, quit_u, pre)
     if align == "lick":                       # no-lick rows have no lick to align to (see module docstring)
         cu[:] = ""
     rows = [(X, y, ce)] + ([(Xn, yn, cu)] if len(yn) else [])
@@ -196,9 +210,10 @@ def collect(animal, align, jobs=4, rest_variant="rest"):
 
 def out_dir(rest_variant="rest"):
     """`attempt_maps/` (REST, 10-24) or `attempt_maps_restnl/` (RESTnl, August-only pre; 11-01) -- never the same."""
-    from wfield_local import lp_licks
-    return lp_licks._run_dir() / "imaging_encoding" / ("attempt_maps" if rest_variant == "rest"
-                                                       else f"attempt_maps_{rest_variant}")
+    from wfield_local import lp_licks, run_mode
+    # run-mode routing (rebuild 11-03): a tagged run (camera gate, hemo variant ...) writes <dir>/<tag>/; default unchanged
+    return run_mode.subdir(lp_licks._run_dir() / "imaging_encoding" / ("attempt_maps" if rest_variant == "rest"
+                                                                        else f"attempt_maps_{rest_variant}"))
 
 
 EPOCHS = ("pre",) + POST_EPOCHS

@@ -46,6 +46,8 @@ Decision record: DECISIONS 2026-11-03; plan docs/status/REPO_CONSOLIDATION_PLAN_
 """
 from __future__ import annotations
 
+import contextlib
+import contextvars
 import functools
 from pathlib import Path
 
@@ -234,9 +236,76 @@ GATE_ENV = "WIDEFIELD_TRIAL_GATE"
 WINDOW_ENV = "WIDEFIELD_TRIAL_WINDOW"
 GATE_MODES = ("daq", "camera")
 UNTAGGED_GATE = "daq"
-#: the camera rule's "stopped" set (the complement of working among judged trials)
+#: the camera rule's "stopped" set. PROVISIONAL (rebuild 11-03, to confirm with Priya): the instruction defined camera
+#: "working", not "stopped"; no_response (no lick, jaw judged still) is the nearest camera class. Consequence: a
+#: no-response trial mid-session counts as stopped, and attempt_coding's "noattempt" (no_try while still working)
+#: is empty under the camera gate (no_try IS no_response).
 STOPPED_CLASSES = frozenset({"no_response"})
 CUE_MATCH_S = 0.020          # a DAQ cue and a video trial are the same trial within 20 ms of cue time (as `lp_licks`)
+
+
+# ------------------------------------------------------------------------------------------ FAIL CLOSED (11-03)
+# Under gate=camera every trial-SELECTION gate must come from this module. A gate still on the DAQ quit-tail rule
+# (`precue_engagement_states.engagement_gate`, the masks built on it) would put DAQ-selected trials into an output
+# tagged sel-camera, so it REFUSES instead. Three legitimate DAQ-rule uses remain under camera, each opened explicitly
+# with `daq_quit_rule(reason)`: a measure OF engagement (quit, engagement decline, attempt rate, the behaviour
+# reporting gate), a labelled DAQ robustness row, and a camera-wired caller that builds the DAQ mask only for trial
+# bookkeeping it then overrides. The register of every call site is tests/test_camera_gate_fail_closed.py.
+class DaqGateRefused(SystemExit):
+    """A SystemExit on purpose (as `frozen_models.LegacyStoreError`): the rest gates and many collectors wrap their gate
+    in ``except Exception`` and FAIL OPEN, which would turn a refusal into a silently ungated session."""
+
+
+_DAQ_RULE_OK: contextvars.ContextVar = contextvars.ContextVar("trial_classes_daq_rule_ok", default=None)
+
+
+@contextlib.contextmanager
+def daq_quit_rule(reason: str):
+    """Allow the DAQ quit-tail rule inside this block under gate=camera, for ``reason`` (see the block comment)."""
+    tok = _DAQ_RULE_OK.set(str(reason))
+    try:
+        yield
+    finally:
+        _DAQ_RULE_OK.reset(tok)
+
+
+def refuse_daq_gate(where: str) -> None:
+    """Raise `DaqGateRefused` when the run's gate is camera and no `daq_quit_rule` block is open. No-op under daq."""
+    if _DAQ_RULE_OK.get() is None and camera_gate_on():
+        raise DaqGateRefused(
+            f"camera trial gate ({GATE_ENV} / trial_selection.gate = camera): {where} is the DAQ quit-tail rule and is "
+            "not wired to trial_classes, so its output would be mislabelled sel-camera. Wire it (trial_classes) or run "
+            "with gate=daq; a measure OF engagement opens trial_classes.daq_quit_rule(reason).")
+
+
+class RefusedMask:
+    """Stands in for a DAQ quit-tail mask under gate=camera: any USE of it (numpy, ``~``, ``&``, ``len``, indexing)
+    raises `DaqGateRefused`. Camera-wired readers never touch it (`grant_kit._class_select` reads ``cls``)."""
+    __array_ufunc__ = None             # ndarray & mask -> NotImplemented -> our __rand__ (raises)
+
+    def __init__(self, where: str):
+        self.where = where
+
+    def _refuse(self, *_a, **_k):
+        raise DaqGateRefused(f"camera trial gate: the DAQ quit-tail mask {self.where} was used under gate=camera")
+
+    __array__ = __invert__ = __and__ = __rand__ = __or__ = __ror__ = __xor__ = __rxor__ = _refuse
+    __len__ = __getitem__ = __iter__ = __bool__ = __eq__ = __ne__ = _refuse
+    __hash__ = None
+
+
+def camera_engaged_period(label: str, cue_s) -> np.ndarray:
+    """``bool[n_cues]``: True for cues up to and including the session's LAST camera-working trial -- the camera rule's
+    counterpart of the DAQ terminal quit period, for the REST-BASELINE gates (`rest_engagement`, `rest_by_position`),
+    which ask "is this rest inside the session's working period", not "did this trial respond". PROVISIONAL (rebuild
+    11-03, to confirm with Priya): the DAQ rule is a terminal collapse; this keeps that shape (one terminal boundary,
+    so a mid-session no-response trial does not cut the baseline). A session with no working trial (e.g. no video:
+    all "unknown") has NO working period: every trial is outside it (no DAQ fallback, as `camera_select`)."""
+    w = in_gate(cue_classes_for(label, cue_s), "working")
+    out = np.zeros(len(w), bool)
+    if w.any():
+        out[: int(np.flatnonzero(w)[-1]) + 1] = True
+    return out
 
 
 def _selection_cfg() -> dict:

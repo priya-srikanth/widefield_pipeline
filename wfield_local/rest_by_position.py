@@ -159,6 +159,11 @@ def _engaged_trials(session, cue_samples, codes, fs=5000.0):
     from wfield_local import config
 
     n = len(cue_samples)
+    from wfield_local import trial_classes as _tc
+    if _tc.camera_gate_on():
+        # CAMERA TRIAL GATE (rebuild 11-03): the camera working period (`trial_classes.camera_engaged_period`,
+        # PROVISIONAL) -- the same rule as `rest_engagement.engaged_by_cue`. Outside the try: it must not FAIL OPEN.
+        return _tc.camera_engaged_period(session["label"], np.asarray(cue_samples, float) / float(fs))
     try:
         lk = config.defaults()["lick_detection"]
         with h5py.File(session["h5"], "r") as f:

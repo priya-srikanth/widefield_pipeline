@@ -811,8 +811,12 @@ def _pooled_bundle(an, align):
     from wfield_local import trial_classes as _tc
     if _tc.camera_gate_on():
         # per-row camera classes for `_class_select`'s camera rule (rebuild 11-03); only under the switch, so the
-        # default bundle is unchanged
+        # default bundle is unchanged. FAIL CLOSED: bundle["not_eng"] is then a `trial_classes.RefusedMask` (any use
+        # raises); the real DAQ quit-tail mask is kept as "not_eng_daq" for a LABELLED DAQ robustness row only
+        # (`_class_select(..., rule="daq")`, s1_refit_locanmf_table's quit-tail row).
         bundle["cls"] = _tc.pool_row_classes(feat, kept, len(YE), len(YU))
+        g_daq = _gate_all(feat, kept, XE, YE, GE, XU, YU, GU, rule="daq")
+        bundle["not_eng_daq"] = g_daq[0] if g_daq else np.zeros(len(YU), bool)
     _BUNDLE_CACHE[key] = bundle
     return bundle
 def _runs_to_blocks(sess, pos):

@@ -826,6 +826,21 @@ def poststroke_engagement(s, reference_positions, window=15, min_rate=0.5):
     is_ref = np.isin(codes, list(reference_positions))
 
     eng = np.ones(codes.size, bool)
+    from wfield_local import trial_classes as _tc
+    if _tc.camera_gate_on():
+        # CAMERA TRIAL GATE (rebuild 11-03, `trial_classes`): engaged = the cue's camera class is in GATES["working"],
+        # per trial (no reference positions, no quit tail). ``info["stopped"]`` = class in STOPPED_CLASSES (PROVISIONAL:
+        # no_response); "unknown" cues are neither, so callers must take stopped from there, never as ``~eng``.
+        from wfield_local.plot_spout_trial_averages import _load_daq_events
+        cue = _load_daq_events(s["h5"])
+        ccls = _tc.cue_classes_for(s["label"], np.asarray(cue["cue_samples"], float) / float(cue["sample_rate_hz"]))
+        if ccls.size != codes.size:
+            raise RuntimeError(f"camera trial gate: {ccls.size} classified cues vs {codes.size} categorised")
+        eng = _tc.in_gate(ccls, "working")
+        stopped = np.isin(ccls, list(_tc.STOPPED_CLASSES))
+        return eng, {"gate": f"trial_classes camera ({_tc.run_selection()})", "stopped": stopped,
+                     "frac_working": float(eng.mean()) if eng.size else None,
+                     "frac_stopped": float(stopped.mean()) if stopped.size else None}
     ref_idx = np.flatnonzero(is_ref & (codes >= 0))
     if ref_idx.size < window:
         return eng, {"note": "too few reference-position trials to gate", "n_ref": int(ref_idx.size)}
@@ -846,8 +861,11 @@ def poststroke_engagement(s, reference_positions, window=15, min_rate=0.5):
                  "reference_positions": sorted(int(c) for c in reference_positions)}
 
 
-def nolick_state_vector(kept, args, reference_positions=None):
+def nolick_state_vector(kept, args, reference_positions=None, with_stopped=False):
     """Engagement state + lick category for every trial in the pooled NO-LICK arm, in pool order.
+
+    ``with_stopped=True`` appends the STOPPED mask: ``~state`` under the DAQ rule, the camera STOPPED_CLASSES under the
+    camera trial gate (rebuild 11-03), where a row can be neither ("unknown").
 
     Built by asking `_trial_features` which cues it kept (``with_indices``) and indexing the
     per-cue arrays at those positions -- never by rebuilding the filter. That reconciliation is
@@ -859,7 +877,7 @@ def nolick_state_vector(kept, args, reference_positions=None):
     from wfield_local.locanmf_position_decoder import _trial_features
 
     refs = REFERENCE_POSITIONS if reference_positions is None else reference_positions
-    eng, cats = [], []
+    eng, cats, stop = [], [], []
     for lab in kept:
         s_ = next((x for x in SESSIONS if x["label"] == lab), None)
         if s_ is None:
@@ -871,8 +889,12 @@ def nolick_state_vector(kept, args, reference_positions=None):
         st, _info = poststroke_engagement(s_, refs)
         eng.append(np.asarray(st)[idx_nl])
         cats.append(np.asarray(cat, dtype=object)[idx_nl])
-    return (np.concatenate(eng) if eng else np.array([], bool),
-            np.concatenate(cats) if cats else np.array([], dtype=object))
+        stop.append(np.asarray(_info["stopped"] if "stopped" in _info else ~np.asarray(st, bool))[idx_nl])
+    out = (np.concatenate(eng) if eng else np.array([], bool),
+           np.concatenate(cats) if cats else np.array([], dtype=object))
+    if with_stopped:
+        out = out + (np.concatenate(stop).astype(bool) if stop else np.array([], bool),)
+    return out
 
 
 def undetected_state_split(d, keep, args, seed=0):
@@ -911,7 +933,8 @@ def undetected_state_split(d, keep, args, seed=0):
     if clf is None:
         clf = lick_pipe().fit(X, y)
 
-    state, cats = nolick_state_vector(d["kept"], args)
+    # stopped: ~state under the DAQ rule (unchanged); the camera STOPPED_CLASSES under the camera trial gate (11-03)
+    state, cats, stopped_v = nolick_state_vector(d["kept"], args, with_stopped=True)
     out = dict(base)
     if state.size != d["GU"].size:
         out["split"] = {"note": f"state vector {state.size} vs pooled no-lick {d['GU'].size}; "
@@ -920,7 +943,7 @@ def undetected_state_split(d, keep, args, seed=0):
     post_m = np.isin(d["GU"], list(d["post_i"])) & np.isin(d["YU"], keep)
     p = clf.predict(d["XU"])
     w = post_m & state
-    dis = post_m & ~state
+    dis = post_m & stopped_v
     res = {"n_working": int(w.sum()), "n_disengaged": int(dis.sum()),
            "n_late_rewarded_in_arm": int((cats[post_m] == "late_rewarded").sum())}
     if w.sum() >= 10:

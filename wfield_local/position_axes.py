@@ -256,7 +256,16 @@ def run_animal(animal, align="precue", seed=0, pool_n=1):
     en = np.array([POSITION_NAMES.get(int(v), str(v)) for v in YE])
     un = np.array([POSITION_NAMES.get(int(v), str(v)) for v in YU]) if len(YU) else np.zeros(0, str)
     e_ax = engagement_axis(XE[e_pre], XU[u_pre]) if len(u_pre) and u_pre.sum() >= 10 else None
-    miss = (~u_pre) & ~not_eng
+    # NO-LICK CLASS MASKS: the DAQ quit-tail rule (default, unchanged) or, under the camera trial gate (rebuild 11-03,
+    # `trial_classes`; `not_eng` is then a RefusedMask), working = camera class in GATES["working"], stopped =
+    # STOPPED_CLASSES (PROVISIONAL: no_response); "unknown" rows are neither
+    from wfield_local import trial_classes as _tc
+    if _tc.camera_gate_on():
+        _ce, _cu = _tc.pool_row_classes(feat, kept, len(YE), len(YU))
+        nl_working, nl_stopped = _tc.in_gate(_cu, "working"), np.isin(_cu, list(_tc.STOPPED_CLASSES))
+    else:
+        nl_working, nl_stopped = ~not_eng, not_eng
+    miss = (~u_pre) & nl_working
     # STOPPED IS THE CONTROL FOR THE MISS RESULT (Priya, 2026-08-23). A changed axis on
     # miss-while-working trials is consistent with a failed PLAN -- and equally with a STATE change
     # that happens to be commoner on failed trials. Those separate here: changed in miss but intact
@@ -264,7 +273,7 @@ def run_animal(animal, align="precue", seed=0, pool_n=1):
     # It matters because misses concentrate LATE in a session, exactly where the close-vs-far state
     # drift lives. Stopped is terminal by construction, so its counts are small and end-skewed --
     # a null there needs its reliability read before it is called "intact".
-    stopped = (~u_pre) & not_eng
+    stopped = (~u_pre) & nl_stopped
 
     def all_at(pos, pre_phase, include_stopped=True, blk=None):
         """Every trial at a position REGARDLESS OF OUTCOME, lick and no-lick together.
@@ -291,7 +300,7 @@ def run_animal(animal, align="precue", seed=0, pool_n=1):
             # therefore carrying the close-vs-far state drift that contaminates exactly this kind of
             # comparison. Excluded from BOTH phases, because the pre-stroke equivalent is the sated
             # tail, "a fundamentally different animal state" (Priya, 2026-08-23).
-            mu = mu & ~not_eng
+            mu = mu & nl_working
         parts = [XE[me]] + ([XU[mu]] if len(un) and mu.any() else [])
         return np.vstack(parts) if parts else XE[me]
     post_idx = sorted((i for i in range(len(kept)) if i not in pre_i),

@@ -118,7 +118,9 @@ def session_quit(s, rows, resp_s=None):     # resp_s unused: `rows` already carr
     if rows and "gate_hit" in rows[0]:
         responded = np.array([bool(r["gate_hit"]) for r in rows])
     pos = np.array([POSITION_NAMES.get(r["pos"], str(r["pos"])) for r in rows])
-    ne = np.asarray(engagement_gate(order, responded, pos), bool)
+    from wfield_local import trial_classes as _tc
+    with _tc.daq_quit_rule("quit_point: the S28 quit (a measure of engagement)"):
+        ne = np.asarray(engagement_gate(order, responded, pos), bool)
     dur = float(rows[-1]["elapsed_s"])
     er, el, en = _early_rate(rows)
 

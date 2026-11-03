@@ -98,7 +98,10 @@ def decode_lick_working(s: dict, sig: np.ndarray, regs, align: str) -> dict:
     order = np.concatenate([ie, inl])
     o = np.argsort(order, kind="stable")
     quit_ = np.zeros(len(order), bool)
-    quit_[o] = engagement_gate(order[o], np.r_[np.ones(len(ie), bool), np.zeros(len(inl), bool)][o], name[o])
+    from wfield_local import trial_classes as _tc
+    # the "working" column here is the LABELLED quit-tail robustness row (the camera columns follow from the snapshot)
+    with _tc.daq_quit_rule("s1_refit_basis_table: labelled quit-tail robustness row"):
+        quit_[o] = engagement_gate(order[o], np.r_[np.ones(len(ie), bool), np.zeros(len(inl), bool)][o], name[o])
     keep = ~quit_[len(ie):]
     if len(yn) and keep.any():
         bn = _runs_to_blocks(np.zeros(len(yn), int), name[len(ie):])
