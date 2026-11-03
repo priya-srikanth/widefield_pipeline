@@ -384,3 +384,7 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
 - 11-03: checked trial_classes: "contact" = the DAQ spout-contact sensor (from cue + 70 ms), so "no-lick trials classed contact" are
   LATE contacts (after the no-lick response window, before trial stop), not sensor misses (Priya: sensor misses unlikely). Under the
   response-window rule they should vanish; residuals = mismatch between detect_licks and the contact table, to be reported.
+- 11-03 DECISION (Priya, supersedes the response-window rule): classifier AND no-lick analysis both count to the TRIAL STOP (cue_stop;
+  contacts from cue + 70 ms). Trial stop (v36 response_end_ms) >= 3.5 s, usually 3.525 s, mean 3.7-4.0 s, max ~7 s (PS92 / PS93 / PS94
+  sessions checked) -> helper reports trials > 3.6 s per animal x epoch (trial-length differences matter for licks-per-trial).
+  e3's window="response" request cancelled.
