@@ -242,3 +242,7 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
 - Approved: page text edits in the rebuild page pass; merges before rebuild; remove files of cut figures (goal page 512 limit);
   run RESTnl-over-epochs plot + PS92 subacute per-session check (on the corrected data, in the rebuild).
 - All helpers hit the usage limit at ~07:45 (resets 11:00): inventories A / B partial; grant/epoch family-key map DONE.
+- 11-03 (later): Priya: drift correction goes in the SHARED corrected signal; "10 min+ ok?" -> set from measurement (PS92/PS93
+  blocks can last several minutes). Check launched (DRIFT_CUTOFF_CHECK_20261103.md): block durations per animal x epoch, spout
+  order across sessions, residual band power after hpfit, block-protected cosine removal at 10/15/20/30 min (block-band
+  retention >= .98 in every animal x epoch, block means intact, decoding effect). On the swap-mask variant; nothing adopted yet.
