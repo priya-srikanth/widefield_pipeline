@@ -256,8 +256,7 @@ def _behaviour_contrast(per_session, epoch, position, *, rng, n_boot):
     the figure says so instead of implying it matched the imaging panels.
 
     WITHIN-ANIMAL: each session's delta is its own rate minus that animal's pre rate, and the epoch
-    value is the SESSION-WEIGHTED MEAN of those (every session counts once). So the delta is normalised
-    per animal even though it is still pooled by session -- the interval describes that quantity.
+    value is the MEAN OVER ANIMALS of each animal's mean session delta (A3, 11-03; it was session-weighted).
     """
     animals = sorted({a for e in (epoch, "pre")
                       for a, _h, _n in per_session.get(e, {}).get(position, [])})
@@ -269,42 +268,32 @@ def _behaviour_contrast(per_session, epoch, position, *, rng, n_boot):
         n = sum(x[2] for x in rows)
         return (h / n) if n else None
 
-    # WITHIN-ANIMAL, SESSION-WEIGHTED MEAN (Priya, 2026-08-29). Each epoch session's delta is its own
-    # rate minus THAT animal's pre rate -- so PS94's acute is measured against PS94's pre, not against a
-    # pooled pre that another animal dominates -- and every session counts once, so a six-session animal
-    # weighs 6x (the "just use each session's value" weighting, applied to the within-animal delta).
+    # WITHIN-ANIMAL (Priya, 2026-08-29): each epoch session's delta is its own rate minus THAT animal's pre
+    # rate -- so PS94's acute is measured against PS94's pre, not a pooled pre another animal dominates.
     # ONLY the delta normalises within animal; the absolute/raw panel (behaviour_by_epoch) is unchanged.
     epoch_rows = per_session.get(epoch, {}).get(position, [])          # one (animal, hits, n) per session
     pre_rows = {a: [r for r in per_session.get("pre", {}).get(position, []) if r[0] == a]
                 for a in animals}
-    pre_rate = {a: rate(pre_rows[a]) for a in animals}
 
-    def within_animal_mean(ep_rows, pre_by_animal):
-        ds = [(h / n) - pre_by_animal[a] for a, h, n in ep_rows
-              if n and pre_by_animal.get(a) is not None]
-        return float(np.mean(ds)) if ds else None
+    # ANIMAL-WEIGHTED since 2026-11-03 (consolidation A3, `analysis_kit.paired_animal_draws`): each animal's change
+    # is the mean of its epoch sessions' rates minus its pooled pre rate, and the epoch value is the MEAN OVER
+    # ANIMALS of those changes, over animals with both arms -- for the point and the draws. Until then every session
+    # counted once (the 08-29 "each session's value" weighting), so a six-session animal weighed 6x.
+    from wfield_local import analysis_kit as ak
 
-    point = within_animal_mean(epoch_rows, pre_rate)
-    if point is None:
-        return None
     by_ep = {a: [r for r in epoch_rows if r[0] == a] for a in animals}
-    diffs = []
-    for _ in range(n_boot):                    # ANIMALS then SESSIONS; pre re-estimated per draw
-        pick = [animals[i] for i in rng.integers(0, len(animals), len(animals))]
-        ds = []
-        for an in pick:
-            ep, pr_rows = by_ep[an], pre_rows[an]
-            if not ep or not pr_rows:
-                continue                       # animal absent from one arm
-            pr = rate([pr_rows[i] for i in rng.integers(0, len(pr_rows), len(pr_rows))])
-            if pr is None:
-                continue
-            ds += [(ep[i][1] / ep[i][2]) - pr for i in rng.integers(0, len(ep), len(ep)) if ep[i][2]]
-        if ds:
-            diffs.append(float(np.mean(ds)))
-    if len(diffs) < n_boot // 4:
+
+    def session_mean_rate(rows, _rng):
+        rs = [h / n for _a, h, n in rows if n]
+        return float(np.mean(rs)) if rs else None
+
+    point, diffs, _an = ak.paired_animal_draws(by_ep, pre_rows, session_mean_rate, rng, n_boot,
+                                               reduce_pre=lambda rows, _rng: rate(rows))
+    if point is None or len(diffs) < n_boot // 4:
         return None
-    return point, np.asarray(diffs, float)
+    return float(point), np.asarray(diffs, float)
+
+
 def fig_behaviour(out_dir):
     """1b pooled: hit rate per spout position, per epoch, weighted by session."""
     from wfield_local.grant_figures import CONF_LABELS, _position_metrics, _sessions

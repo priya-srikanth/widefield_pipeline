@@ -22948,3 +22948,25 @@ Consequences:
   `trial_windows.end_at_stop`). They include up to 3.5 s of post-contact (consumption) licking on CONTACT trials only.
   Comparisons of lick counts or rates across classes or epochs, where the contact share changes (e.g. acute far
   contra), should cut at the response window instead.
+
+## 2026-11-03 — Change-vs-pre stars (consolidation A3): animal-weighted bootstrap, labelled, plus the mixed model (Priya)
+
+1. **Every change-vs-pre bootstrap is animal-weighted.** `analysis_kit.paired_animal_draws` is the one draw. Only
+   animals with sessions in both arms count; each animal's change is its own post minus its own pre; the result is
+   the mean over animals; resampling is animals → sessions (→ blocks). It is used by `boot_delta` (pinned tests
+   unchanged), `epoch_figures.scalar_contrast_draws` / `contrast_draws`, `matrix_bootstrap.delta_draws` and
+   `epoch_behaviour._behaviour_contrast`. `boot_ci` / level draws are untouched.
+   Behaviour stars changed: 3 / 21 (`docs/status/A3_STAR_CHANGES_BEHAVIOUR_2026-11-03.csv`).
+2. **The bootstrap is labelled for what it is: a description of THESE 4 animals.** At n = 4 with a real
+   between-animal spread, its 95 % interval excludes 0 in 10–19 % of null simulations (calibrated, 6 %, only when the
+   animals truly share one change, as in the 10-21 pre-vs-pre check).
+3. **The inferential test is `analysis_kit.epoch_change_lmm`.** Session rows, all epochs, `(1 | animal)` plus a
+   SEPARATE animal × epoch variance per post epoch (Priya: the spread differs by epoch), REML; t on df = n_animals − 1.
+   `lmm_stars`: `*` uncorrected p < .05, `**` Holm across ALL the figure's cells (Priya: within-epoch correction would be
+   unfair).
+   - The per-contrast random-slope model was rejected: 17 / 21 fits singular, Satterthwaite undefined.
+   - The pooled shared-spread model was rejected: the spread is not equal across epochs.
+4. **Figures.** For now the bootstrap versions stay as the MAIN deck slides; the LMM versions go in as hidden
+   slides (mean = filled round dot; the bootstrap interval shown beside it, labelled). Maps, time-bin bars and
+   matrices keep their family-wise tests. Lick metrics (deck slide 24) get the mixed model too.
+Record: `docs/status/A3_LMM_SLOPE_STARS_2026-11-03.md`. Imaging preview: 854 → 316 cells with any star, 581 → 27 `**`.
