@@ -104,7 +104,8 @@ def legend_handles(S: pd.DataFrame) -> list:
     return h + cp.animal_handles(sorted(S.animal.unique()))
 
 
-def draw(S: pd.DataFrame, T: pd.DataFrame, cells, out: Path, *, title: str, ylabel: str, labels: dict, panels=None, ncols: int = 0):
+def draw(S: pd.DataFrame, T: pd.DataFrame, cells, out: Path, *, title: str, ylabel: str, labels: dict, panels=None, ncols: int = 0,
+         figsize=None):
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
@@ -119,7 +120,7 @@ def draw(S: pd.DataFrame, T: pd.DataFrame, cells, out: Path, *, title: str, ylab
                                  gridspec_kw={"width_ratios": widths})
     else:                       # a grid of equal panels (one Holm family each, typically)
         w = max(1.6, 1.9 * max(len(cs) for _, cs in groups))
-        fig, axes = plt.subplots(nr, nc, figsize=(w * nc + 1.2, 3.6 * nr + 1.2), squeeze=False)
+        fig, axes = plt.subplots(nr, nc, figsize=figsize or (w * nc + 1.2, 3.6 * nr + 1.2), squeeze=False)
     flat = list(axes.ravel())
     for ax in flat[len(groups):]:
         ax.set_visible(False)
@@ -153,6 +154,7 @@ def main(argv=None) -> int:
     ap.add_argument("--panel-by", default=None, help="column naming each cell's panel")
     ap.add_argument("--holm-by-panel", action="store_true", help="each panel is its own Holm family")
     ap.add_argument("--ncols", type=int, default=0, help="panels per row (default: all in one row)")
+    ap.add_argument("--figsize", default=None, help="W,H inches for a multi-row grid (e.g. 13,5.5 for a slide)")
     a = ap.parse_args(argv)
     S = pd.read_csv(a.sessions)
     S["position"] = S.position.astype(str)
@@ -169,7 +171,8 @@ def main(argv=None) -> int:
     T = statistics(S, cells, family=dict(pm) if (panels and a.holm_by_panel) else None)
     T.to_csv(out.with_name(out.stem + "_lmm.csv"), index=False)
     draw(S, T, cells, out, title=a.title or Path(a.sessions).stem.replace("_sessions", ""), ylabel=a.ylabel,
-         labels=labels, panels=panels, ncols=a.ncols)
+         labels=labels, panels=panels, ncols=a.ncols,
+         figsize=tuple(float(v) for v in a.figsize.split(",")) if a.figsize else None)
     print(out)
     return 0
 

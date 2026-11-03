@@ -98,7 +98,7 @@ def main(argv=None) -> int:
         args = [str(f), "--out", str(out / f"{stem}_lmm.png"), "--title", title, "--ylabel", ylab,
                 "--cells", ",".join(c for c in cells if c in set(D.position))]
         if two:
-            args += ["--panel-by", "panel", "--holm-by-panel", "--ncols", "2"]
+            args += ["--panel-by", "panel", "--holm-by-panel", "--ncols", "1", "--figsize", "13,5.5"]   # stacked (a8 11-03)
         lcf.main(args)
     return 0
 
