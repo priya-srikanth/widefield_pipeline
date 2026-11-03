@@ -284,3 +284,6 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   D9 once the up-front drift step is in the shared signal, the encoder / ITI / stray_licks own drift steps are removed (kept as
   a sensitivity row). D10 (Aug-only pre per decoder render block) and D11 (DAQ robustness row on headline working arms) mine.
   LocaNMF refit: explained; proposed a footprint-stability test before deciding.
+- 11-03: Priya: keep PS93_0813 wherever possible for spout-contact-only analyses (DAQ contact lick class / lick window / DAQ
+  robustness rows need no video); it drops only where the camera classes are required. LocaNMF refit TEST launched
+  (LOCANMF_REFIT_TEST_20261103.md): ~8 sessions refit vs projection, same-machine stability, one joint basis timed.
