@@ -97,6 +97,9 @@ No laterality support for Priya's reduced-thalamocortical-drive hypothesis after
    term in the frozen frame (contra SSp-m target unique +0.010 / +0.011, 4/4). The lick-kernel PARTIAL refit (with
    permutation nulls) is still running. Block-permutation nulls DONE 10-26 (same numbers as the single shift). Failed attempts keep distance, lose side (4.9).
 4b. **Recovery = behavioural compensation with PARTIAL cortical recovery, not restoration (10-25 night; key point).**
+   **NOTE (Priya 10-30, important; 4.22): the residual ipsilesional bias is the SAME in cued and spontaneous (ITI) licks**
+   (ITI landing vs pre after the same previous spout -7.5 deg chronic vs cued first-lick landing -6.8 deg; gap -0.7 n.s.):
+   no capacity-vs-performance gap, so the cortical ITI persistence does not reflect a deficit that cued licks overcome.
    Judge recovery PER SUCCESSFUL TRIAL, not per epoch: acutely ~92 % of far-contra trials are failed attempts, which carry
    no far-contra code (decoder retention ~0 in every window, 4.9 / page 7e) and no trial-by-trial coupling (4.6), so
    epoch-level "cortical recovery" is partly just hits becoming common again (composition). On hits:
@@ -136,6 +139,43 @@ No laterality support for Priya's reduced-thalamocortical-drive hypothesis after
    PRE-REGISTER for the next cohort (direction stated): lesion % -> slower behavioural recovery (+); day 1-3 orofacial
    residual -> lower chronic cortical code on hits (-) and larger chronic residual (+); acute far-contra retention ->
    chronic code (sign open: - here); acute coupling on failed attempts -> recovery speed (open).
+4d0-DAY. **10-28 daytime additions (page v147-v166; handoff 00-COMPACT-12). PROVISIONAL.** (1) LICK-LOCKED ACTIVITY
+   (section 14): ITI bout-start response larger acutely across cortex (41 areas) and reverting by chronic (5 areas: tjM1
+   both sides, contralesional MOp-rest, SSp-m); FIRST CUED lick response larger in every epoch and still in 35 areas
+   chronically (tjM1 contra +5.0 / +5.9 / +5.4 x1e3 dF/F*s); cue response unchanged acutely, up subacute / chronic.
+   Far-contra target trials: acute lick response NOT up, acute cue response LOWER (ALM contra -3.4, 27 areas), both up
+   chronically. Window (0-0.3 .. 0-1.5 s, peak) does not change the cued effect; the chronic ITI effect grows with longer
+   windows (0.53 -> 1.01 of pre). (2) OFFSET CONTRIBUTION MAPS: offset totals agree across bases, decoder weights share
+   the broad lateral structure but agree only modestly in detail (ITI weight-map r 0.13-0.39; cued contributions ~0) --
+   not an area-level attribution. (3) NON-LINEAR decoder: cued offset larger (+0.06 / +0.08 / +0.05 mm, 4/4; subacute
+   +0.11 vs linear +0.03), partly kernel shrinkage on unfamiliar post-stroke patterns (extra offset ~2x larger where few
+   pre licks landed); same-target and per-lick-order versions running. (4) Decoded vs actual position per spout (13.7):
+   cued far-spout read-out follows the landing about half way; ITI read-out stays near pre while landings move
+   ipsilesional.
+4d0-NIGHT. **Overnight 10-28 controls (page v146; docs/status/OVERNIGHT_20261027.md). PROVISIONAL.** ITI offset
+   ROBUST: same-target same-place +0.26 / +0.24 mm acute / chronic (4/4); covariates (kinematics + FaceRhythm) explain
+   5-7 %; non-linear (RBF kernel ridge) decoder: same offset and same r loss; angle offset patterned (uniform part ~0),
+   same cortex as lateral (maps r 0.90-0.95). Behaviour-only decoder (FaceRhythm + reach / speed): ITI r unchanged
+   post-stroke vs cortex -21..-27 % -> the ITI change is cortical. CUED offset mostly TARGET COMPOSITION (same-target
+   +0.01 n.s., 2/4): post-stroke misses read toward their target as pre misses were (10-28, Priya OK: re-worded everywhere --
+   the cued offset is NORMAL TARGET CODING of more misses, not a changed read-out; first cued lick +0.31 -> +0.05 n.s.). Maps: ITI cortex-wide components = variance effect (z-scored check); FWER: ITI lateral pattern shape unchanged,
+   cued lateral pattern changes acutely + chronically; pixel LMM: cued lateral map drops, partly returns, stays changed at
+   full behavioural recovery; far-contra maps scale with first-lick aim deficit.
+4d0-V8. **SYNTHESIS on ROI v8 + Allen areas WITH the ALM / tjM1 split (all decoders; DECISIONS 10-27 late), Gaussian
+   same-place like-for-like reference; supersedes the numbers in 4d0-LATE / 4d0 / 4d0b. PROVISIONAL** (page v140; v2 -> v8
+   in docs/status/V2_VS_V8_SPLIT_20261027.md). HOLDS: cortex reads licks CONTRALESIONAL of where they land -- ITI every
+   epoch +0.37 / +0.23 / +0.28 mm (4/4 each); cued acute +0.16 (4/4), first cued lick +0.31 / +0.22 / +0.15; cued far
+   contra acute +0.22 (4/4) [10-28: TARGET COMPOSITION, not "read ahead of the failing movement" -- same-target
+   reference +0.01 n.s., 4d0-NIGHT]; cued far contra chronic -0.27 (4/4, ipsilesional). Lateral frozen r: ITI -26 / -22 / -24 % (4/4), cued -20 / -12
+   (4/4) / -8 % (n.s., 3/4). CHANGED vs v139: (1) "read further OUT acutely" is GONE -- cued down +0.20 -> +0.03 n.s.;
+   cued read CLOSER subacute (-0.25) and chronic (-0.13), 4/4; cued reach like-for-like acute n.s., -0.27 / -0.14 later
+   (4/4); (2) ITI SAGITTAL r now lost subacute / chronic (-13 / -11 %, 4/4; n.s. in plain Allen -> basis-dependent);
+   (3) cued LATER licks also read contralesional acutely (+0.14, 4/4; was first lick only); (4) no response remains at
+   pre aim in any area (16.12); (5) the pull-based details of 4d0 / 4d0b (60 % expected from the pull; read/landing ratios
+   0.35-0.60) are obsolete with the measure. REFIT DECODERS (lick_refit_decoders.py, page 10.2b): position is still
+   decodable post-stroke -- lateral ITI frozen -0.16 / -0.14 / -0.15 vs epoch refit (vs pre with matched training n)
+   -0.07 [-0.10, -0.04] (3/3) / -0.04 n.s. / -0.02 n.s.; cued acute frozen -0.16 vs refit -0.08 (3/3); angle same. So
+   after the acute epoch the code is intact but the frozen read-out no longer fits it; acutely a smaller real loss remains.
 4d0-LATE. **SYNTHESIS, 10-27 late (supersedes the measure in 4d0; conclusions unchanged). PROVISIONAL.** Primary offset
    measure = SAME-PLACE like-for-like read-out (4d0j; DECISIONS 10-27 late): cortex reads licks CONTRALESIONAL of where
    they land -- ITI licks in every epoch (+0.31 / +0.21 / +0.24 mm, 4/4 each; mixed model with time: step at day 1, no
@@ -154,7 +194,7 @@ No laterality support for Priya's reduced-thalamocortical-drive hypothesis after
    reverses to CLOSER chronically (-0.14, 3/4); cued forward -0.22 -> -0.17 every epoch (4/4). Per-lick error: shift,
    width unchanged (ITI +0.89 / +0.48 / +0.43, 4/4); ~60 % of the acute cued shift is expected from the pull alone
    (control +0.28 of +0.47). Behaviour on the same cued licks: landing vs own pre landing at the spout -0.53 mm acute
-   (4/4; far contra -1 to -3 mm) -> read AHEAD of the failing movement. Tracks recovery within animal (3.37). ITI lateral r
+   (4/4; far contra -1 to -3 mm) [10-28: read like pre misses of the same target, 4d0-NIGHT]. Tracks recovery within animal (3.37). ITI lateral r
    loss beyond drift with the JUNE no-stroke reference: -0.08 [-0.15, -0.02] chronic, 4/4 (August-only fit -0.13; the 8-day
    curve under-predicted 64-day drift in PS92 / PS95). Landing measure note: the lick table's closest-approach `lat_err_mm`
    hides most of the deviation (frame chosen nearest the spout); use extension-peak landing vs own pre landing.
@@ -466,6 +506,508 @@ different windows (4.11 caveat); lick-direction results carry the standing 3-D r
 Also running / queued: per-session vs frozen self-fit in the same windows (`scripts/session_vs_frozen.py`; remapping +
 the scoring caveat), then a second pass in the narrow every-lick window (+/-0.2 s, the refit window) as a secondary
 per-lick measure (proposed 10-25: the first-lick window stays primary; Priya to confirm).
+
+### 0b. Lick-evoked activity and the hemispheric balance (10-28; goal page 12.17-12.18, 14.7-14.22) -- PROVISIONAL
+
+- **Lick-evoked activity is LARGER after the stroke, in both hemispheres.** Cued licks: larger at every target in every
+  epoch (response AUC 0-1 s), EXCEPT far-contra targets acutely -- the response reaches about the pre peak but decays
+  sooner, so over 0-1 s it is, if anything, lower (0.5-1.0 s below pre in 3-4/4 animals; survives lick-vigour and landing
+  regression). ITI licks: larger acutely across most of cortex; chronically mainly orofacial motor cortex (contralesional
+  tjM1). PROVISIONAL.
+- **The hemispheric BALANCE tracks the decoder's read-out OFFSET -- not the tongue's ipsilesional deviation.**
+  Behaviour: acutely the tongue lands ipsilesional of the target (aim deficit). Read-out offset: the frozen decoder reads
+  each lick as more contralesional than where it landed. Balance: at a fixed lick angle, post-stroke licks carry
+  relatively more ipsilesional-hemisphere activity; the pre-stroke mapping reads that as a more contralesional lick, and
+  sessions with a bigger balance shift have a bigger offset (within-animal r -0.76 to -0.95 for cued licks, 4/4; 3/4 for
+  ITI; partly mechanical since the decoder reads the same features). The behavioural link is separate and weaker: pre-stroke
+  the balance tracks lick angle (each hemisphere larger for licks toward the opposite side), post-stroke ~30% flatter
+  (PS94/PS95 every epoch, 3/4 chronically). By target, the contra/ipsi ratio rises mostly for FAR spouts (far ring 4/4,
+  close ring ~0). OPEN (running 10-28): balance-blind decoder, per-hemisphere imaging control, non-orofacial balance.
+- **IMPORTANT (Priya 10-28): cued-lick ORofacial balance estimates how far an UNSEEN animal has recovered, ~2x better
+  than days since the stroke; only orofacial balance does this.** Held-out-animal cvR2 of the far-contra first-lick aim:
+  orofacial balance (same angle & order) 0.50 vs days 0.23 vs non-orofacial balance -0.19; within-animal shuffle null
+  <= -0.12 (p < 0.0005). Lower error than the calendar in 3/4 held-out animals (PS95 the exception). The calendar gets each
+  trajectory's SHAPE; the balance adds HOW FAR the animal recovers (mostly flags PS94, least recovered). Survives
+  nonlinear time models (per-animal splines +0.68 deg/unit, p 0.006); does NOT predict next-session improvement; ITI
+  balance does not do it. Bounds: WITHIN an animal days alone already explains 0.70-0.81 and balance adds little (PS94
+  0.70 -> 0.80, PS92 0.80 -> 0.83); leave-one-SESSION-out (76 sessions, pooled) balance 0.63 vs days 0.48 with the animal
+  unknown, but days wins (0.83; days + balance 0.86) once the animal is known -> the value is placing an animal you have
+  no history for. 4 animals -> a strong hint, not a demonstrated biomarker. PROVISIONAL. (goal page 14.16)
+- Controls 10-28: balance-blind decoders leave the offset unchanged -- global balance removed, ORofacial pair
+  differences zeroed (ITI +0.38/+0.22/+0.27, pre r 0.59), or non-orofacial zeroed (12.20): the offset is carried by the
+  pattern across orofacial areas, not by a left/right difference, so the balance TRACKS the offset without being its
+  sole carrier; orofacial-only decoder reproduces most of the ITI offset; VIS+RSP-only barely decodes (r 0.15); per-hemisphere imaging control: F0 / 415 nm do not explain the
+  subacute / chronic balance shift (14.18; part of the acute shift in PS92 / PS93 could be F0); head-to-head: orofacial
+  balance predicts the offset, non-orofacial adds nothing (12.19).
+- **PRIMARY recovery marker (10-28 late, page 14.17 -- method box 14.16; DECISIONS 10-28 late night):** balance of ALM + tjM1 + SSp-m + SSp-n
+  + SSs as an angle-matched GAIN RATIO 0.1-0.5 s after the FIRST lick (cued: first post-cue lick; ITI: first lick after
+  >= 2 s quiet). Unseen-animal cvR2: cued 0.70 vs days 0.23 (r 0.71/0.82/0.94/0.75; within-animal p 0.001, splines p
+  0.002); ITI vs ITI's own angle axis 0.42 vs 0.17 (r 0.58/0.80/0.91/0.10 -- PS95 no); window confirmed on held-out
+  animals (0.69), pool from 63 subsets with selection cross-validated (SSs drives ITI). No next-session prediction; within
+  a known animal days already 0.75 (balance + days 0.76). ROBUSTNESS: ~1/3 of acute first licks lie beyond the pre
+  angle range (line extrapolated); with only in-range licks cued holds (0.53 vs days 0.23) but ITI cross-animal does not
+  (0.07; within-animal link remains 3/4). Gaussian same-place reference worse (cued 0.37); lateral reference equivalent;
+  lick count cancels (min-20 / weighted unchanged). Tracks the decoder offset (cued r -0.58..-0.92, 4/4). PROVISIONAL.
+- **Controls 10-29:** kinematics-matched reference (angle + reach + speed + elevation): cued 0.63 survives, ITI
+  cross-animal fails (-0.26; within-animal intact). MOs-rest / MOp-rest add nothing (0.70 -> 0.70). The acute excess of
+  cued first licks was the 1500-lick random cap in iti_licks.extract (shorter acute bouts), NOT behaviour (engaged trials /
+  tracked first licks flat or lower acutely; session_pace.csv) -- the earlier "first-lick count tracks recovery" is
+  WITHDRAWN. Balance explains ~65% of the cued acute decoder offset but only 5-15% of the persistent ITI offset; for ITI
+  the decoder offset (0.39) is the better recovery marker. PROVISIONAL.
+- **Decoder-offset decomposition (10-29, page 12.17):** the linear decoder's like-for-like offset splits EXACTLY into
+  per-area left/right DIFFERENCE and SHARED parts. ITI offset is ~70-75% hemispheric difference (acute +0.29 of +0.39,
+  chronic +0.20 of +0.29), carried by orofacial + SSs and concentrated in the SSp-n difference (+0.34 / +0.20); other
+  cortex nets ~0 (RSP/VIS shared terms cancel). The SSp-n difference term tracks recovery WITHIN every animal for ITI and
+  cued licks (r -0.45..-0.94, 4/4, mixed p < 0.001), the shared parts do not; it does not transfer across animals
+  (per-animal decoder scales; rescaling does not help) -- a pre-stroke-referenced, within-animal marker (Priya: fine
+  for now). Cued offset ~0 chronically, so its SSp-n signal is the acute -> chronic course. Trial level: dominated by
+  decoder shrinkage (present pre-stroke) -- uninformative about cause. PROVISIONAL.
+- **Primary balance by lick order (page 14.14):** cued acute ~-0.35 at every order 0-4, ~0 chronic (the raw balance's
+  chronic overshoot is gone); ITI only the acute bout start (-0.28). Uncapped first licks (~476 / session vs ~138):
+  within-animal r 0.77/0.87/0.94/0.74, unseen animal 0.65. PROVISIONAL.
+- **HYPOTHESIS (updated 10-29, with Priya):** after the ipsilesional VLS lesion, the orofacial cortical code for lick
+  direction SHIFTS toward the contralesional reading (frozen-decoder offset), persistently for self-initiated licks. The
+  recovery-relevant part of the shift is a HEMISPHERIC difference concentrated in SSp-n (nose / upper-lip S1) as the
+  pre-stroke code weights it, plus a broader orofacial + SSs gain imbalance (ipsilesional cortex over-responds acutely
+  relative to contralesional at the same lick direction) that places unseen animals for cued licks. Both are
+  POST-MOVEMENT STATE measures (no pre-lick predictive signal, no next-session forecast; the calendar tracks a known
+  animal). Recovery = re-balancing toward the pre-stroke hemispheric relation, complete for cued (goal-directed) licks,
+  incomplete for spontaneous licks. Response SIZE follows a time course that differs between lesion groups (PS92/93 re-lesioned, larger striatal loss: grows; PS94/95 single lesion, smaller loss: largest acutely; PS95 least severe), not recovery. Open alternatives:
+  the balance as altered SENSORY reafference (SSp-n / SSs are sensory; cued licks have spout contact, ITI none) vs a motor
+  command; state / arousal (contralesional VIS tracks ITI recovery). Next tests: cued hit vs miss (contact) balance;
+  SSp-n vs SSp-m sensory mapping; a perturbation.
+- **Is SSp-n special? (10-29, 12.17 supplement)** (1) decoder refit WITHOUT SSp-n: offset still tracks recovery within
+  animals but weaker (ITI mean r -0.48 -> -0.38; -> cued aim -0.28 -> -0.15; cued -0.72 -> -0.69) -- largest single
+  contributor, not necessary; (2) WEIGHT-FREE same-place left/right difference per area: SSp-n #1-2 of 21 for every target
+  (cued r 0.94/0.84/0.84/0.69) but SSp-ul, SSp-un, MO-rest, SSp-m, tjM1, ACAd close behind -> a BROAD sensorimotor
+  left/right imbalance, strongest in SSp-n; (3) FaceRhythm face movement partialled: unchanged -> not facial reafference.
+  Hypothesis wording updated: 'broad sensorimotor hemispheric difference, strongest in SSp-n'. PROVISIONAL.
+- **ACAd midline control (10-29, 12.17 supplement):** ACAd's weight-free left/right link (ITI -> ITI angle r 0.59) is
+  UNDETERMINED, probably not ACAd-specific cortex: it weakens away from the midline (>=0.1 mm 0.48, >=0.2 mm 0.38 ns)
+  and the <0.1 mm strip over the sagittal sinus alone carries it (0.57); registration ruled out (sinus within 7-15 um
+  across sessions, <=3% of d variance; offset-shifted masks unchanged); 415 nm d does not track recovery but F0
+  asymmetry does (partialling either leaves ~0.47); shares most variance with MOs-rest / SSp-n (all confounds together
+  0.18, p 0.065); pixel maps = broad medial-frontal pattern peaking on the sinus in PS92 / PS95. Not a grant candidate
+  region on this evidence. scripts/lick_acad_midline_control.py. PROVISIONAL.
+- **Raw vs angle-referenced balance reconciled (10-29, scratch raw_spout_balance.py, cued first licks, pool ALM/tjM1/
+  SSp-m/SSp-n/SSs, log2 contra/ipsi of post responses):** PRE the raw balance is high for ipsilesional-spout licks (+0.4
+  to +0.6) and low for contralesional ones (-0.5 to -0.8) -> each hemisphere responds more to licks toward the OPPOSITE
+  side (same layout as the SSp-n decoder weights). ACUTE far-contra raw balance rises toward 0 (PS92 -0.04, PS93 -0.40,
+  PS94 +0.13, PS95 +0.18; Priya's 'looks like far-mid') because those licks LAND ipsilesionally (-11 / 0 / -28 / -13 deg);
+  relative to pre licks of the SAME landed angle it is LOWER (referenced -0.18 / -0.47 / -0.94 / -0.14) -> the
+  activity looks like a lick further contralesional than the one made = the decoder's contralesional offset. Same
+  imbalance, two references. Sign conventions differ across analyses (balance + = contralesional hemisphere larger;
+  angle + = contralesional side; aim - = ipsilesional; offset + = read contralesional) -- check each before comparing.
+- **TARGET vs EXECUTED (10-29, 14.18 supplement, IMPORTANT CAVEAT to the cued marker):** pre, the post-lick response
+  (contra - ipsi, primary pool) is predicted better by the TARGET spout than by the landed angle (4/4; target weight w
+  0.80/0.92/0.92/0.76; within-spout angle slope 12-35% of across-spout). A target-aware reference removes the cued
+  acute balance deficit (-0.34 -> +0.01) and the decoder's cued offset (+0.30 -> -0.05 mm), and the target-aware cued
+  balance no longer predicts recovery across animals (LOAO 0.70 -> -0.40) -> the CUED marker is largely the landing
+  error seen through a target component. ITI: no consistent target component; balance deficit survives (-0.32 acute,
+  4/4), decoder keeps a contralesional offset beyond landing error (+0.36/+0.24/+0.25 mm), still tracks recovery
+  (LOAO 0.32-0.37) -> ITI = genuine state shift. Caveat: pre w likely inflated (angle noise), post w lower -> a small
+  cued state shift may remain, not separable. scripts/lick_balance_target_model.py. PROVISIONAL.
+  KEY POINT (Priya 10-29, record): at the SAME landed angle the target matters LESS after the stroke -- the target
+  effect falls from 1.0-1.45x the angle effect pre to 0.25-1.06x acutely (baltarget_matched.csv), and acute far-contra
+  licks look somewhat MORE like where they landed than the pre model predicts (mix-reference acute +0.41). If anything
+  cortex tracks the ACTUAL lick more after the stroke, not less -- the opposite of a stronger target / plan signal.
+  Framing (Priya): post-stroke cued off-target licks look like pre-stroke off-target licks to the same target landing
+  at the same place; such errors are just far more frequent (and larger) after the stroke.
+  TESTED (scripts/lick_balance_matched_error.py, no extrapolation: post licks inside the pre range for their spout vs
+  pre licks to the same spout at the same angle): CUED acute within-spout balance +0.02 [-0.07, 0.09] and decoder
+  offset -0.04 mm (ns) -> framing HOLDS acutely (target-blind reference on the same licks -0.15, 4/4); subacute /
+  chronic within-spout balance +0.13 / +0.16 (4/4) with decoder ~0. ITI: within-spout balance acute -0.18 (4/4),
+  decoder +0.29 / +0.19 / +0.22 mm (4/4, CIs exclude 0) -> genuine ITI state shift.
+  CUED WITHIN-SPOUT BALANCE RISES ABOVE PRE (per animal pre / acute / subacute / chronic: PS92 0 / +0.06 / +0.17 /
+  +0.06, PS93 0 / -0.10 / +0.07 / +0.18, PS94 0 / +0.08 / +0.20 / +0.27, PS95 -0.01 / +0.03 / +0.06 / +0.13): an
+  overshoot, not a return; tracks cued aim within animals r -0.15 / 0.85 / 0.81 / 0.46 but not beyond log(day)
+  (p 0.76). ITI within-spout balance tracks the ITI angle (r 0.53 / 0.74 / 0.61 / 0.23, p 0.005).
+  NOTE (Priya 10-29, keep for the grant): the contralesional hemisphere gains relative weight over weeks, independent
+  of where the lick lands -- fits gradual reorganisation, the intact hemisphere taking on a larger share, more than a
+  direct correlate of aim. Silencing contralesional cortex in the CHRONIC phase would test whether that extra share
+  supports the recovered behaviour.
+  DECIDED (Priya 10-29 morning): (1) WORDING -- the cued imbalance is REDUNDANT with the landing error and appears
+  after the lick; whether it drives the deficit or recovery is UNTESTED (not "a consequence of the errors"). (2)
+  HYPOTHESIS updated (page Biology in brief) without minimising the persistent signals: the ITI contralesional offset
+  and the slow rise of the contralesional share are co-headline. (3) MARKERS: cued balance = sensitive state readout
+  (headline for recovery staging); ITI decoder offset + ITI SSp-n left/right difference + the contralesional-share rise =
+  the mechanistic markers. (5) movement-null plan encoding model DEFERRED (built 10-30 as maps from existing outputs: section 4, 12c).
+  C/I BY SPOUT AND EPOCH (10-29, Priya: "C/I increased after stroke then back to pre? but for the most impaired licks
+  it increases over recovery?"; scripts/lick_ci_spout_epoch.py, pre LOSO, page 14.18 supplement). The answer
+  depends on the reference, HEMISPHERE sign (+ = C/I up):
+  RAW C/I vs pre at the SAME SPOUT (relative to the target): UP after the stroke, largest at far contra, partly falls
+  but stays above pre -- cued far contra +0.58 / +0.34 / +0.35 (4/4 each epoch), far ipsi rises late +0.01 / +0.25 /
+  +0.28; ITI after far-contra trials +0.42 / +0.28 / +0.27 (4/4, 3/4, 4/4).
+  RELATIVE TO WHERE THE LICK LANDED (pre angle line): DOWN acutely at every spout and returns to pre -- cued far
+  contra -0.27 [-0.61, -0.02] / -0.03 / +0.11, ITI after far contra -0.60 [-1.34, -0.12] / -0.13 / -0.05 (PS94 carries
+  the size of the acute; PS95 one acute session); all spouts cued -0.36 (4/4) / -0.12 / -0.03; most negative and
+  persistent at close / far ipsi (cued close ipsi chronic -0.40, 4/4; ITI far ipsi chronic -0.43, 4/4). Target frame,
+  other five spouts also drift up later (cued +0.04 / +0.13 / +0.14).
+  SAME TARGET AND SAME LANDING (matched error, above): ~0 acutely, then rises ABOVE pre (+0.13 / +0.16, 4/4).
+  So "up, then back" is the landing-referenced view; in the target view C/I stays raised; at matched target + landing it
+  climbs over recovery. ITI licks after far-contra trials ARE the most ipsilesionally deviated (acute -29.7 deg vs
+  -8 to -17 deg after other spouts, 4/4; -13.4 / -9.8 later) and follow the same pattern as cued far-contra licks.
+- **HOW DOES THE LICK-DIRECTION CODE CHANGE? (10-29, Priya item 2; scripts/lick_code_subspace.py; page 14.18 supp):**
+  REPRESENTATIONAL CHANGE = contralesional offset + lower gain / precision; RE-MAP OPEN (Priya 10-29: 'no re-map' too strong).
+  WORDING APPROVED (Priya 10-30): "No lick type shows a code rotation beyond ~10-17 deg (power-limited). Uncued (ITI,
+  ENLv) licks show a lasting contralesional offset and a loss of gain; cued first licks show a small offset and no gain
+  change." June-drift comparison NOT used (room move + other rig between June and August).
+  Matched licks, frozen basis, new frozen kind lick_code; drift floor = June 6-8 no-stroke sessions (~60 d before Aug).
+  Cued: pre->post intercept +0.16 [0.08, 0.23] mm acute 4/4, +0.08 sub 4/4, +0.04 chronic ns; r / slope unchanged;
+  nothing beyond June. ITI (all and far1): r -0.20/-0.15/-0.16, slope -0.11/-0.12/-0.12, intercept +0.28/+0.18/+0.22 mm
+  (4/4); beyond June intercept +0.20/+0.09/+0.14 and slope -0.09 (4/4). Post-trained decoders read pre licks as well as
+  their own epoch (post->pre ~ post->post) -> argues against a wholly NEW code only: post licks are less decodable even
+  within epoch, so a noisier shifted code (or a partial rotation) gives the same; the pre ITI axis drifts as much June ->
+  Aug without a stroke, so axis overlap has little power.
+  NOISE-MATCHED NULL + POWER (scripts/lick_code_noisematch.py): cued transfer sits on a noise-matched unrotated null;
+  rotations >= ~10 deg pooled (15-25 per animal) excluded; nothing beyond June. ITI (all, far1): both transfer
+  directions BELOW the null every post epoch, 4/4 (~17 deg acute, ~12 sub / chronic) but June also below (~8-11 deg);
+  beyond June only acute post->pre (-0.054, 4/4; ~6-9 deg) and subspace overlap; frozen slope drops beyond June every
+  epoch (gain / projection loss). Asymmetry = the null's. Axis cosine needs 20-40 deg (unusable for ITI). Proposed
+  reading: cued unchanged within ~10 deg; ITI not re-mapped beyond ~10-15 deg, small acute rotation-like change beyond
+  2-month drift + lasting gain loss. (Pending Priya's discussion.)
+  ENLv + ALL-TYPES SUMMARY 10-29 (lick_code_rotation_summary.png, Fig 14.18 S7): vs the noise-matched null (NOT June:
+  Priya: June->Aug not a clean no-stroke reference, room move + other rig): cued first at the null (0-11 deg); ITI all below
+  4/4 (~12-17 deg); ENLv forward at the null, backward -0.05 (~10 deg, at the detection limit); ENLv axis cosine / subspace
+  below the null 4/4 (implied ~30-37 deg, detectable only >17-43 deg). ENLv offset +0.50/+0.33/+0.23 mm (4/4), gain -0.09
+  chronic. Below the null = more than added noise, not necessarily rotation.
+  Where: ITI excess over ceiling in orofacial cortex bilateral acutely, IPSILESIONAL chronically (SSp-n, SSs, tjM1,
+  SSp-m); non-orofacial change = June-level drift. Caveats: PS95 one acute session; PS94 cued acute 16 % retained; area
+  terms point estimates. PROVISIONAL.
+- **PER-AREA TUNING + MATCHED PIXEL MAPS (10-29, Priya items 1 + 5; lick_area_tuning.py, lick_matched_pixel_maps.py):**
+  cued contralesional-share rise (pool +0.13 / +0.16, 4/4) = both hemispheres above pre with the ipsilesional excess
+  fading faster, plus chronically FLATTER contralesional tuning (depth -0.56, 4/4) -> offset + broader tuning, NOT gain.
+  Strongest SSp-n (+0.30 chronic) / SSs / ALM / tjM1, MOp ~0, BUT VISpm +0.37 and RSPd +0.20 rise too (4/4) -> broad
+  hemispheric re-weighting, NOT orofacial-specific (qualifies the hypothesis line (3)). ITI share deficit acute only
+  (-0.18, 4/4; SSs, SSp-n); lasting piece MOp outside tjM1 (-0.13 chronic; far1 -0.14, 4/4) -> the lasting ITI DECODER
+  offset is not a hemispheric level difference (it is a pattern offset, cf. code subspace). Pixel maps localise the
+  same (cued chronic: anterolateral frontal / SSp-n + posterior-medial; ITI acute: lateral S1 / SSs). PROVISIONAL.
+- **CORRECTION LICKS (10-29, Priya item 4; scripts/lick_correction.py):** behaviour -- the miss-minus-hit correction at
+  matched error (step_b, controlling the previous lick's error) is NEGATIVE pre (-4.1 deg: misses repeat) and rises
+  post-stroke +4.9 / +2.3 / +3.1 deg (4/4), later licks; yet after a far-contra miss the next lick hits ~10 % acutely
+  (51 % pre). Neural -- no evidence of an error signal that predicts the correction: activity adds 0.02-0.04 cvR2
+  (control 0.01), already before lick k and after hits (next-command information); no post-stroke increase; the acute
+  contra-ipsi miss-hit rise (+9.5, 4/4) is an ipsilesional DROP, decays with log day, not robust to deconvolution.
+  GCaMP overlap of lick k+1's command limits all of this. PROVISIONAL.
+- **INTERHEMISPHERIC COORDINATION (10-29, Priya item 3; scripts/lick_interhemispheric.py):** noise correlation between
+  hemispheres rises post-stroke (ITI pool +0.17 sub / chronic, 4/4) but equally in VISpm / RSPd and at docked rest
+  (+0.21 chronic) -> GLOBAL, not lick- or orofacial-specific (lick minus rest ~0 or negative). No measurable lead (peak
+  lag ~0, changes < 1 frame); cross-correlation shape tilts contralesional-earlier (+0.03-0.04, 4/4; lick-specific only
+  acutely); Granger direction moves contralesional but as much at rest (global; gain / SNR-sensitive). More tilt goes
+  with WORSE aim (cued r -0.44, 4/4; also at rest) -- hint only (many tests). GCaMP6s: shape, not lead. PROVISIONAL.
+  Suggested next: partial out the hemispheric balance before Granger / asymmetry; global-signal-removed noise corr.
+  FOLLOW-UPS (10-30, scripts/interhemi_crossarea.py -> iti_licks/interhemi_followup/; raw variant reproduces
+  lick_interhemispheric exactly): GLOBAL REMOVED (partial corr given the mean of all OTHER areas, leave-pair-out) --
+  the orofacial interhemispheric rise SHRINKS to ~0 during licks (ITI all w2 sub / chronic +0.17 -> +0.07 / +0.05, CIs
+  touch 0; cued -0.07 / -0.03) and halves at rest (chronic +0.21 -> +0.11, 4/4), while the CONTROL pairs keep rising
+  (RSPd / VISpm at rest chronic +0.25 / +0.20, 4/4; cued w2 +0.16 / +0.17, 4/4) -> part of the rise is the global mode,
+  and what survives is NOT orofacial-specific (controls >= orofacial). xcorr TILT survives partialling the per-event
+  hemispheric balance AND the global signal on lick sets (cued w2 acute +0.039 -> +0.032 bal / +0.034 gsr / +0.027 both,
+  all 4/4; ITI dock chronic +0.040 -> +0.039 / +0.051 / +0.047, 4/4); still absent at rest. Session-level adjustment for
+  the log SD ratio contra/ipsi or the cued contralesional share (slope within animal x epoch) leaves it unchanged.
+  GRANGER shift: balance partialling changes nothing; global removal REDUCES the rest shift (chronic +0.044 -> +0.011,
+  CI incl. 0; acute +0.055 -> +0.030, 4/4) but INCREASES the acute ITI-docked shift (+0.021 -> +0.062, 4/4) -> after
+  GSR the Granger change looks more lick-set than rest, but values are tiny and variant-sensitive. Tilt <-> worse aim
+  survives both controls (cued w2 within-animal r -0.44 raw, -0.38 bal, -0.35 gsr, 4/4; p <= 0.002; 112 recovery tests run).
+  GCaMP6s caveat unchanged (shape, not lead). PROVISIONAL.
+- **CROSS-AREA CORRELATION STRUCTURE (10-30, Priya "synchronization / correlation across areas pre vs post?";
+  scripts/interhemi_crossarea.py -> iti_licks/cross_area/):** 45 areas, noise correlation of the residual (spout +
+  angle mean removed) 1-s window mean across events, plus within-window ('fast') correlation; raw and global-controlled
+  (partial | mean of other 43 areas). REST: everything rises (all pairs z +0.16 / +0.12 / +0.19 acute / sub / chronic,
+  4/4 each; ipsi = contra; PC1 variance fraction +0.07, 4/4) -> a GLOBAL synchrony increase at quiet rest from acute
+  on; with the global mode controlled the orofacial network still gains relative to other areas (+0.14 / +0.10 / +0.12,
+  4/4 every epoch) and homotopic pairs gain chronically (+0.11, 4/4). LICKS (ITI docked, cued): NO global rise (all
+  pairs, PC1 ns) but the orofacial / frontal-lateral network covaries MORE (raw ITI-dock +0.25 every epoch 4/4; cued
+  +0.18 / +0.09 / +0.19 4/4) while posterior sensory pairs fall -> lick-state change is network-specific, rest change is
+  global. No ipsi- vs contralesional hemisphere difference anywhere. CONFOUND NOT YET TESTED: the residual model does
+  not remove trial-to-trial lick vigour / kinematics, which drive exactly the orofacial areas -- a post-stroke rise in
+  movement variability would produce the lick-state orofacial rise (add reach / speed / lick count to the design next).
+  The global-controlled 'all pairs' mean is ~constant by construction (not a readout). Recovery: 15 / 120 within-animal
+  tests p < 0.05 (~6 expected), 4 also 4/4; rest orofacial coupling vs far-contra aim r -0.49 4/4 (more coupling with
+  worse aim) is the only rest hit with all animals agreeing -> hint only. PROVISIONAL (n = 4).
+- **LICK VIGOUR CONTROL OF THE LICK-STATE COUPLING RISE (10-30; scripts/coupling_vigour_sm.py -> iti_licks/coupling_vigour/):**
+  same events / code as cross_area, residual design + per-event movement (3-D reach, peak speed, lick duration, cam4
+  protrusion, lick count +-0.5 / +-1 s, FaceRhythm 5 factors; cued also trial jaw |deflection| and 3-D landing error);
+  'old' design reproduces xa_sessions exactly; control = same covariates row-permuted (same sessions; PS95 ITI-dock pre
+  has only 2 sessions with enough events for the movement design). Coverage: every event matched to licks_all / 3-D
+  reach; speed 90-99 %, FR ~100 %, jaw 91-100 % (cued); ITI licks have no jaw or landing error. Movement explains ~27 %
+  (cued) / ~33 % (ITI dock) of the orofacial-pool window-mean variance pre (permuted ~3-4 %). RESULT (raw, slow, change vs
+  pre, acute / sub / chronic): CUED orofacial network SURVIVES: +0.17 / +0.09 / +0.19 permuted -> +0.13 / +0.08 / +0.19
+  movement (4/4, 3/4, 4/4); ITI DOCKED absolute rise mostly ABSORBED: +0.25 / +0.22 / +0.25 (4/4) -> +0.05 / +0.10 / +0.17
+  (2/4, 4/4, 3/4; CIs include 0). Orofacial-minus-other-areas survives in both (ITI dock +0.30 / +0.20 / +0.29, cued
+  +0.20 / +0.17 / +0.25, 3-4/4) because movement also lowers the other areas' covariance. Global-controlled: unchanged
+  (nothing in ITI dock either way; cued acute oro +0.08 4/4 only with movement). MOVEMENT VARIABILITY does NOT rise:
+  within-spout SDs of reach, duration, protrusion, lick count FALL post (cued 4/4 for duration all epochs), only jaw
+  (cued acute +20 % of pre SD, 4/4) and peak speed (subacute +11 %, 4/4) rise. What rises in the ITI is the COUPLING of
+  orofacial cortex to movement (R2 of movement on the oro pool +0.27 acute 4/4, +0.12 subacute 4/4, +0.06 chronic). =>
+  The cued-lick orofacial coupling rise is not a vigour artefact; the ITI-docked one is largely shared movement-linked
+  variance (movement-to-cortex coupling is stronger after the stroke, not movement more variable). Linear covariates
+  only; FR in the ITI is 5 Hz; jaw is per trial. PROVISIONAL (n = 4).
+- **SENSORY -> MOTOR COUPLING KINETICS (10-30, Priya "sensory-motor coupling kinetics, inter or intrahemispheric";
+  scripts/coupling_vigour_sm.py -> iti_licks/sensorimotor_kinetics/):** S = SSp-n / SSp-m / SSs / SSp-ul, M = tjM1 / ALM /
+  MOp_rest / MOs_rest; groups Sc->Mc, Si->Mi, Sc->Mi, Si->Mc (16 pairs each); residuals (lick sets movement-partialled),
+  deconvolved tau 0.6, xcorr asymmetry (+ = S earlier) and Granger S->M minus M->S. PRE: Granger S->M > M->S in every
+  group / state (+0.01-0.02 cued, +0.03-0.07 ITI dock, +0.04-0.08 rest); xcorr ~symmetric. POST: the S-earlier side
+  WEAKENS in all four groups and all three states, from acute on: asymmetry -0.02 to -0.07 (mostly 4/4 every epoch;
+  cued subacute / chronic Si->Mc -0.047 / -0.044 4/4), Granger direction -0.02 to -0.07 in ITI dock and rest (3-4/4;
+  cued small, mostly ns) -- carried by LOWER S->M gain (rest -0.03 to -0.05, M->S unchanged). Intra = inter (difference
+  ~0); hemisphere contrast: only Granger at rest / ITI-dock chronic, where ipsilesional Si->Mi loses MORE than Sc->Mc
+  (+0.02, 4/4) -- hint. GLOBAL SIGNAL REMOVED: asymmetry change survives acute / subacute (4/4), fades chronic; the
+  Granger loss VANISHES (rest ~0; cued even +0.01) -> the Granger change rides on the global mode that rises at rest.
+  Same with the published (non-movement) design. READING: post-stroke a sensory-led component of S-M covariation is
+  reduced everywhere, bilaterally and at rest -> state-wide, not lick- or lesion-side-specific; GCaMP6s and any change
+  in relative S vs M signal / kinetics can shift these shape metrics, so this is SHAPE, not lag. PROVISIONAL (n = 4).
+- **DOCKED-SPOUT ITI LICKS (10-29, Priya: ITI offset results should use docked-spout licks; iti_dock_audit.py,
+  lick_iti_dock_compare.py, page 14.18 supp):** docked (dock -> next trial_start) = 35 % of ITI licks. HOLD: same-place
+  offset +0.30 / +0.22 / +0.29 mm, matched-error offset +0.22 / +0.18 / +0.22, SSp-n L/R term +0.26 / +0.23 / +0.20
+  (3-4/4, CIs exclude 0). LOST: primary ITI balance (acute -0.11 ns vs -0.34), within-spout balance, C/I landed frame,
+  ITI-balance recovery tracking (LOAO -0.11 vs 0.42); SSp-n tracking weakened. Moving-spout licks subsampled to the
+  docked count reproduce everything -> not power. => The lasting ITI PATTERN offset is a docked-spout result; the ITI
+  hemispheric BALANCE and its recovery link come from licks while the spout moves (retraction / outbound) -- possibly
+  spout-driven licks. Earlier ITI-balance claims (0b: ITI balance deficit 4/4, LOAO 0.32-0.37 tracking, matched-error
+  ITI within-spout balance) are MOVING-SPOUT results. PROVISIONAL.
+- **ITI pre-lick window (10-29, 12.17 supplement):** around spontaneous ITI licks (first after >= 2 s quiet), the
+  frozen decoder's post-stroke contralesional offset is FLAT ~+0.1 mm before the lick (no ramp; mostly PS94; not a
+  cohort effect) and steps up AT LICK ONSET to +0.25-0.40 mm (4/4, every epoch); SSp-n difference rises from ~-0.2 s
+  acutely (tongue protrusion / interpolation) and only at the lick chronically; chronic balance imbalance only from
+  +0.2 s; pre-lick windows do not track recovery, post window does (4/4, p < 0.001). Pre-stroke there is no direction
+  information beyond the spout before the lick -> plan untestable at area level. Reading: the persistent ITI shift is
+  post-ONSET (execution or self-generated tongue / mouth feedback; NO spout contact on ITI licks -- Priya), not
+  preparatory. GCaMP6s CAVEAT: fluorescence lags spiking by ~0.1-0.2 s, so a step at 0-0.1 s after onset is compatible
+  with a late motor command (~0.1-0.2 s before onset) as well as early feedback -- timing alone cannot separate them.
+  scripts/lick_iti_prelick.py. PROVISIONAL.
+- **'Revving up' to far-contra (10-29, behaviour; 14.21 area supplement; scripts/revup_behaviour.py):** acute far-contra
+  median latency +556 ms (vs other spouts +470, 4/4), contact +766 ms, no-lick +0.27; near pre by subacute, chronic 43 ms
+  faster than pre (4/4). PS92 / PS93 = whole distribution later (slowed initiation); PS94 / PS95 = bimodal (normal or
+  failure to initiate; far-mid affected too). Delay = mostly cue -> first movement WAIT (+190 ms) > movement -> lick
+  (+129 ms); aborted attempts before the first lick do not increase; no long vigour ramp; aborted (no-contact) licks rise
+  AFTER initiation (+0.74 / trial). First licks after the spout left (5.7-10.7% acute): [CORRECTED below -- the
+  'at/below ITI chance' comparison used a ~10x too-high chance rate]. Latency tracks aim within animals (r -0.72 to -0.92, p < 0.001). PROVISIONAL.
+  NEURAL (scripts/revup_neural.py): slow first licks = DELAYED START, not slower ramp -- lick-aligned latency quartiles
+  overlap (same rise, same level at the lick; deconvolution unchanged); acute far-contra slow trials OVERSHOOT
+  (contralesional ALM/tjM1/SSp-m/SSp-n, 3/4); shape conclusions rest on PS92/PS93 (only ones with slow trials). Higher
+  pre-cue level -> slower lick in PS92/PS93 in every epoch incl. pre (pre-existing). Engaged late first licks (48)
+  look like DELAYED CUED licks (cued-size response, cued-like shape) -- conflicts with the behaviour chance-rate result
+  (whose after-left trials are mostly disengaged sated-tail trials) -> reconcile engagement definitions.
+  FOLLOW-UP (10-29, scripts/revup_followup.py; page panel after rev-up NEURAL): JAW -- no ramp: cam4 jaw motion energy
+  and displacement flat until ~-0.2 s then an abrupt normal opening in every latency quartile / epoch incl. acute
+  far-contra slow trials (wait late vs early -0.10 [-0.37, 0.17]; slope slowest - fastest vs pre -2.6 [-16, 11] px/s);
+  slightly more background jitter during acute slow waits (+0.40 [0.11, 0.65], 3/4); slow trials open LESS at lick
+  onset (-6.7 px, 4/4); FR prep-jaw factor LOWER in long waits (-1.03). -> rev-up = a WAIT, not a ramp. LATE LICKS --
+  the behaviour chance rate (all-ITI bout starts) was ~10x too high; against the same no-lick trials' own rate > 1.5 s
+  after the spout left, first licks within 1 s of the spout leaving are above chance in 4/4 acutely (excess +0.12
+  [0.04, 0.22]; far contra +0.15 [0.03, 0.29]) but also pre (+0.25) -> delayed or spout-triggered responses, not chance
+  licks. GATES: the reference (canonical, sated tail out) is what revup_behaviour used; revup_neural used the
+  'attempted' gate (OROFACIAL_GATE=attempted from frozenenv; 200 no-lick trials) -> its 48 late licks are a selected
+  subset, too thin to test (+0.11 [-0.02, 0.30]). PROVISIONAL.
+- **ENL -> first-lick angle (10-29, 14.21 supplement):** pre-cue (-1..-0.1 s, no lick in 2 s) area features predict the
+  upcoming first-lick angle weakly (held-out r 0.30/0.34/0.50/0.45 vs spout means alone 0.89/0.82/0.82/0.76); the part
+  beyond the spout is significant in 4/4 but tiny (r 0.06-0.12) and partly trial history (collapses in PS95 / PS92 with
+  previous-trial controls) -> not yet an aim / plan signal. Frozen all-pre decoder post-stroke: raw r -0.17 acute (4/4),
+  recovered chronic; like-for-like offset +1.55 deg contralesional acute (4/4), gone by subacute. Pre decoders now via
+  frozen_models.load_or_fit (rule 10; results identical). scripts/lick_enl_angle_decode.py. PROVISIONAL.
+  FOLLOW-UPS (scripts/lick_enl_offset_explore.py): within-spout ENL signal over trial history 2/4, over history +
+  pre-cue FaceRhythm 1/4 (PS94) -> no robust pre-cue aim signal. The acute +1.55 deg offset: at the same TARGET the
+  decoded angle barely moves (-0.19, ns) while execution moves -12.9 deg (4/4) -> ENL reads the target; the offset is
+  the aim deficit seen through a target-reading decoder (execution term +1.97 / +1.35 / +0.95, 4/4); not far-contra
+  specific, not a session baseline shift; F0 part in PS92 only. Same lesson as the cued post-lick balance.
+  CAVEAT (10-29): decoder compressed (decoded spread ~1/5-1/2 of actual); at FAR-CONTRA the pre-cue read-out moves
+  ipsilesional acutely in 3/4 (PS92 -5.0 deg = ~full tracking given its gain; PS93 -1.8, PS94 -2.2; PS95 +0.2) ->
+  'pre-cue target representation unchanged' NOT established; next: gain-normalised tracking + frozen spout classifier.
+  RESOLVED (10-29, scripts/lick_enl_target_test.py; frozen position decoder pre-cue softmax, attempt_coding precue
+  generated 10-29): before the cue the target code is DEGRADED but NOT re-aimed -- class-matched within session,
+  deviated far-contra trials look like same-session hits pre-cue (target -0.07 [-0.19, 0.05], landing +0.04 ns) while
+  cue (-0.21 / +0.13) and lick (-0.24 / +0.18) windows show the landing signature 4/4; acute accuracy -0.12 (4/4),
+  far-contra AND close-ipsi diagonals drop alike, no off-diagonal cell grows (row flattens); ridge 'tracking' = PS92 +
+  regression to the mean. Deviation becomes visible in cortex only after the cue. F12 applies (spout present).
+  PRE-STROKE SAME PATTERN (10-29, Priya "what about pre stroke"; now a standard output of lick_enl_target_test.py,
+  --classmatched-only, figure lick_enl_target_classmatched_epochs.png; animal-weighted boot_delta as the post rows):
+  only 34 deviated pre far-contra trials (PS92 1 / PS93 17 / PS94 12 / PS95 4) -> thin. Primary rule (sessions with
+  >= 2 deviated; PS92 drops out): pre-cue target +0.19 [-0.18, 0.75], landing +0.08 [-0.23, 0.36] (ns); cue ~0 (ns);
+  LICK target -0.28 [-0.52, 0.00], landing +0.16 [0.00, 0.32] (borderline). >= 1 rule: lick -0.44 [-0.83, -0.10] /
+  +0.09 [0.00, 0.19]. Pre-stroke errors also look like hits before the cue and show the landing signature at the lick
+  -> the post-stroke pattern looks like the normal error signature, made more frequent (pre-stroke CIs are wide). Post
+  rows unchanged by the change (checked to 4e-6). (An earlier scratch version pooled sessions flat: +0.06 / -0.38.)
+- **Contact vs miss (10-29):** the primary balance is as large or larger on first licks that MISS the spout (acute PS94
+  -1.08 vs -0.67) and tracks recovery as well (cross-animal 0.66 both) -> not mainly touch reafference; on STRICT misses
+  (no contact within 0.5 s) the recovery link fails in PS92 / PS95 -> a partial touch / reward contribution to the link
+  is not excluded. scripts/lick_balance_contact.py. PROVISIONAL.
+- **Lesion size vs phenotype (10-29, n=4 descriptive):** tissue loss PS93 55 ~ PS92 53 > PS94 32 > PS95 18 %, but
+  behavioural severity PS94 > PS95 > PS92 > PS93 (acute aim -39 / -31 / -27 / -21 deg; Priya: PS94 most severe, PS95
+  least); more tissue loss -> smaller deficit (PS92/93 lesioned twice) -> lesion LOCATION likely matters. Acute bilateral
+  response increase and acute balance follow behavioural severity (PS94 largest); chronic response growth follows tissue
+  loss / re-lesioning (PS92/93). lesion_component.csv. PROVISIONAL.
+- **Imaging control, primary balance (10-29):** F0 asymmetry drops acutely (PS92/93) -- wrong sign for an artefact
+  (undoing F0 enlarges the shift); 415 nm balance ~0 and unshifted; F0 shares the time course (partialling it out:
+  cued acute -0.23, recovery cvR2 0.42 cued / 0.27 ITI, both within-animal p < 0.02). Not an imaging artefact.
+  scripts/lick_balance_imaging_control_primary.py. PROVISIONAL.
+- **Trial by trial (10-28 late):** the balance AFTER the first post-cue lick follows that lick's direction within a
+  session and target (r 0.3-0.5) -- equally BEFORE the stroke (normal hemispheric direction code); the balance BEFORE the
+  lick (-0.5..0 s) predicts nothing (r ~ 0, all epochs). No evidence a pre-movement imbalance causes the error; the
+  stroke shifts the post-lick code across sessions (a state). Pre-cue at the far-contra target: contralesional orofacial
+  cortex SUSTAINED raised acutely (not a ramp; 14.20). The balance is only PART of the post-stroke direction change: ~35-50%
+  of the ITI offset (12.17), balance-blind decoders keep the offset (12.20), and for ITI the decoder offset is the better
+  recovery marker (0.39 vs balance 0.07 in-range) -> the change lives in the orofacial PATTERN; balance = its simplest summary. PROVISIONAL.
+- **Recovery markers 10-28 (earlier definition; now a collapsed supplement of 14.17): BALANCE tracks recovery, response SIZE does not.** Cued orofacial balance (contra -
+  ipsi): leave-one-animal-out cvR2 0.50 (z-scored per area 0.53; ALM 0.61, SSp-m 0.60, tjM1 0.52 alone), leave-one-EPOCH-
+  out 0.41 vs days 0.23; same sign 4/4. Orofacial SIZE (mean of both sides), contra or ipsi alone, and the 0-1 s response /
+  cue AUC all fail (LOAO -0.28 to -0.70; epoch-out to -1.23): their sign FLIPS between LESION GROUPS (corrected 10-29: PS94 / PS95 = single 3 mW lesion, SMALLER loss, PS95 least severe; PS92 / PS93 = re-lesioned, larger loss) (PS94 / PS95:
+  largest responses acutely at the worst aim, then shrink; PS92 / PS93: responses grow over recovery). SSp-n balance
+  tracks within animals (r ~0.9) but not across (0.04; z-scoring does not fix it). Cued FIRST lick only: weak (0.06, one
+  lick per trial). ITI all licks: none; ITI first lick after >= 2 s quiet: balance 0.29 (shuffle p 0.006; SSp-n 0.43,
+  z 0.52), 3/4 animals, no epoch-out gain. Pre-fit weighted balance does not transfer across animals (fair weights
+  -0.08). ITI licks have their own recovery: mean ITI angle -12.6 / -6.0 / -3.8 deg vs pre (r with cued aim 0.77-0.95);
+  only SSp-n first-after-quiet balance predicts it in an unseen animal (0.32 vs days 0.17). PROVISIONAL.
+- Pre-cue LEVEL vs restw 10-28 (page Fig 14.21; restw approved by Priya): far-contra target acute, contralesional ALM / tjM1 /
+  SSp-m / SSp-n RAISED before the cue (+4.5 to +5.5 x1e3 dF/F, 4/4, PS94 ~0); chronic all spouts ALM / tjM1 contra
+  +1.5 / +1.7 (4/4) and a posterior VIS / RSP / SSp-tr / bfd decrease (partly a rest-level rise). PROVISIONAL.
+  Caveat (10-29 ENL audit): non-contact ENL licks occur up to the cue on 10-37% of ENL trials, so the pre-cue window is not
+  movement-free; the acute far-contra raise needs an ENL-lick / movement check before it is read as preparatory.
+- ENL lick audit 10-29 (page Fig 14.21 S9, scripts/enl_lick_audit.py, enl_licks/): ENL licks (strobe <= onset < cue; spout
+  stationary, no cue, no reward) are plentiful (107 sessions; no animal x epoch x spout cell < 20; thin only PS95 acute =
+  1 session). Only CONTACT licks reset the pre-cue timer; none abort the trial. Excluded from the ITI and cued decoder sets
+  (in the frozen encoder). Acute far-contra ENL aim error = cued (pooled -25.9 vs -25.4 deg; per animal -26.6 / -13.0 /
+  -30.6 / -34.3 vs -22.2 / -15.5 / -32.5 / -31.3), contact 0.15 vs 0.13, recovers alongside cued -> the far-contra aim
+  deficit does not need the cue. Caveats: selected set (trials with an ENL lick fall to 0.11-0.54 acutely); spout-arrival
+  overlap (PS94 / PS95); chronic ENL vs cued differ in PS94 / PS95 (untested). PROVISIONAL.
+- ENLv licks NEURAL 10-29 (page Fig 14.21 S10, scripts/lick_enlv_*.py, enlv_licks/): primary = onset >= 1 s after spout arrival,
+  window ends before the cue (bout starts alongside; all-lick balance unstable); 21-variant sweep incl. arrival regression,
+  contact-only, first lick: offsets robust. Decoder offset (frozen pre ITI reader, local store) same-place +0.20 / +0.16 /
+  +0.12 mm (4/4, ~half ITI); matched target + landing (bout starts) +0.22 (3/4) / +0.13 / +0.16 -> does NOT vanish (cued
+  does). PS92 ~0 on bout starts (pooled leans on PS93-95). Per spout: largest at far mid (4/4); far contra depends on the
+  lick set (all licks +0.11 / -0.03 / -0.09; bout starts +0.34 / +0.15 / +0.19, PS94 / PS95; contact-only subacute / chronic
+  -0.17 / -0.27, CI excludes 0 chronic: far-contra licks that reach the spout read slightly ipsilesional). SAME in cued
+  licks (Priya 10-29): cued far-contra chronic -0.27 [-0.39, -0.14] 4/4; Fig 12.2 furthest contra landings below pre. With
+  ipsilesional landings reading contralesional, this looks like a flatter read-out (lower gain), not decoder edge
+  compression. GAIN/OFFSET (10-29, scripts/lick_enlv_curves.py, Fig 14.21 S10 curves): ITI slope -0.12 / -0.11 / -0.12 (4/4)
+  + offset +0.35 / +0.22 / +0.27 mm; CUED slope -0.11 / -0.10 / -0.11 (4/4, 3/4, 3/4), offset only acute (+0.17) -> the cued
+  change is mostly a FLATTER read-out; ENLv first lick >= 1 s: mostly offset (+0.33 / +0.21 / +0.22) + modest gain loss.
+  Edge check: pre curves not compressed at the contra end (cued pre local slope 0.49-0.93 vs post 0.18-0.25) -> activity
+  differs; at the ipsi end the pre curve is flat (decoder floor). Untested: noisier post landing measurement (dilution).
+  ALL LICK TYPES (lick_like_for_like_all.png): ITI first-after-quiet and cued FIRST lick also read contralesional every
+  epoch (offset +0.30/+0.19/+0.23; +0.16/+0.13/+0.08 mm, 4/4); cued first: no gain loss. Far-contra chronic ipsilesional
+  reading is in LATER cued licks: 1st +0.11 n.s., 2nd-3rd -0.21 (4/4), 4th+ -0.38 (4/4), growing with time since stroke,
+  with or without contact. Confound: lick order ~ time in trial / repeated contact. Balance (bout starts)
+  acute -0.24 (4/4) -> -0.08 n.s. target-aware; chronic within-spout +0.14 (4/4) = the CUED pattern; pre ENLv post-lick
+  activity carries a target component (w 0.59-0.90). Working description (Priya OK 10-29): ENLv = cued-like target-coded balance + ITI-like
+  persistent decoder offset. First ENLv lick: largest offset but mostly < 0.5 s after arrival. PROVISIONAL.
+- **DISENGAGEMENT tests 1-4 (10-31, pre-registered `docs/status/DISENGAGEMENT_PREREG_20261031.md`, `scripts/disengagement_tests.py`,
+  page S28):** quitting sooner post-stroke is clear only in PS92 / PS93 (pre quits 0/8, 1/8; PS94 / PS95 4/8, 6/8). Holm over
+  P1-P4, primary epoch early post. P1 SATIETY: collected water at quit / session end early post -290 ul [-428, -154], Holm
+  .001, 4/4 (acute -327, subacute -210, chronic -53 n.s.), slower accrual, weight -5 % -> NOT satiety at the old level; the
+  quit threshold moved (motivation / malaise vs lowered set-point undecided). P2 FRUSTRATION (far-contra block lapses)
+  +0.037 n.s.; giving-up rate mixed. P3 FATIGUE n.s. (bouts shorten before quits, tongue does not slow). NB 11-01: P2 / P3 test only
+  failure-SPECIFIC lapses and within-bout lick interval; broader frustration / fatigue is NOT ruled out. P4 STATE: global
+  pre-cue level quit minus time-matched engaged +3.65 [+1.85, +5.30], Holm .001, 4/4 -- BUT running rises 4/4 and on
+  still pre-cue windows the level is BELOW engaged, -7.2 [-10.3, -4.3], 4/4 (post hoc). Cue response falls at, not before,
+  the quit; no prodrome in cortex / face / running. No pupil. Open: RESTW sensitivity, running-regressed level, exact
+  80-min horizon re-run. **PROVISIONAL (n = 4).**
+  ADDENDUM 10-31 (pre-registered A0-A7, page S28d2-g): P1's water shortfall is partly SESSION LENGTH (pre ran to ~150 min,
+  post stopped at 100 trials / spout or 120 min): exact 80-min re-detection -105 ul [-225, +10], 3/4 -> satiety NOT rejected
+  on equal-length data. Minutes to quit (capped 90) -5.6 [-14.3, +0.7] Holm .18 (80-min: -4.5, 4/4); trials capped 300 null;
+  responded trials to quit-or-end -146, 4/4. P6 running-regressed quit-period level -7.8 [-11.3, -4.2], Holm .001, 4/4
+  (RESTW -7.4) = CONFIRMS still disengaged cortex below engaged; mainly RSPd / VISpm (+ ALM), orofacial ~0. Test 4b
+  (Priya: running = self-activation of orofacial cortex?) NOT supported: no re-engagement / response gain after running,
+  orofacial < reference running effect (4/4), running lowers engaged responding (-0.11, 4/4) -> generic disengagement.
+  Licks / responded trial vs own pre per spout: acute far contra ~1/3 (4/4); chronic far contra +0.23 log2 (Holm .018, 4/4,
+  cam4) but not in DAQ contacts (-0.01). Session-end classes for Priya: disengagement/tables/a0_end_class.csv.
+  UNCAPPED time / trials to quit (Priya 10-31, after the capped result; outside Holm): KM restricted mean to a per-animal
+  common horizon, early post -15.1 min [-25.4, -5.6] 4/4, -77 trials [-144, -20] 4/4, responded -103 4/4; chronic ~0.
+  Lower bound (censored ends = quits): -27.4 min, -69 trials (3/4), -146 responded. -> animals DO quit sooner early post
+  (~15 min / ~75 trials), recovered chronically; the 90-min / 300-trial caps sat below most quits.
+- CAVEAT 10-31 to the next line: the raised stopped-trial level is largely RUNNING (disengagement tests P4, post hoc).
+- Stopped-trial traces 10-29 (page Fig 14.21 S11, scripts/stopped_trial_traces.py, stopped_traces/): stopped (quit-period, no
+  lick) trials have NO cue-evoked response in any area / epoch, only a flat level above restw (~4-12 x1e3); miss_working a
+  small cue bump. Stopped reaches only 3 animals per epoch (animal set changes; PS93 pre 40 trials). Engaged jaw-no-lick
+  (mostly incomplete licks) small cue bump; jaw-onset transient ~0.3 s in every area incl. references (broad, movement).
+  Priya's observation: stopped contra tjM1 / SSp-m / ALM pre-cue level rises over recovery within animals (tjM1 PS94 5.1 /
+  8.8 / 11.6, PS93 6.0 / 6.4 / 7.8; chronic > pre in 3/3); ipsi ALM also rises in PS94 / PS95 -> contra specificity
+  untested. FOLLOW-UP: the restw-unit rise (pre->chronic 3/3: ALM +3.9, tjM1 +6.5, SSp-m +7.4) is mostly a FALL of the
+  restw reference; raw dF/F shows it only in PS93 (pre = 1 session); contra-ipsi < 1 unit except PS93 (mostly bilateral);
+  the same chronic restw-unit rise is in hit + miss_working (4/4) -> general level change vs rest, not stopped-specific.
+  No consistent chronic rise in quit-period movement. Late-session confound. DESCRIPTIVE.
+- Cue to lick 10-29 (page Fig 14.21 S12, scripts/lick_cue_to_lick*.py, cue_to_lick/): (A) mean level cue->lick minus restw:
+  contra ALM / tjM1 up every post epoch 4/4 (~+2-3), latency-matched too; above the trial's own pre-cue level acute far
+  contra ~-2 n.s. -> the restw rise is the sustained pre-cue raise. (B) accumulate-to-bound REJECTED (level at lick flat /
+  slightly rising with latency, slope ~ 1/latency, pre and every epoch); a DELAYED START (M3) fits all three (fixed level M2
+  fails the AUC above own pre-cue, which stays small and flat; corrected 10-29); AUC rise
+  with latency is mostly the cue-locked response; acute far-contra slow trials = flat wait then normal rise to a normal
+  level (delayed start). Pre latencies only ~0.1-0.6 s. (C) fixed pre-lick windows after the cue keep few trials
+  (effectively PS92 / PS93). (D) chronic raw pre-cue "dip" in orofacial areas = drop of the restw level relative to the
+  session mean (4/4), removed by restw; F0 not the cause chronically; non-orofacial (bfd, VISp, MOs_rest ipsi) dip is a
+  real pre-cue decrease. CAVEAT for Fig 14.21: the chronic contra ALM / tjM1 pre-cue rise is relative to rest, not absolute
+  (dF/F is session-mean centred). PROVISIONAL.
+- DOCKED-SPOUT ITI = PRIMARY ITI SET 10-29 (Priya): 39 main ITI figure images swapped to docked versions (itidock_main/,
+  scripts/iti_dock_page_figures.py, iti_dock_where_preds.py; default-off WFIELD_ITI_FILTER hooks in 14 scripts). SAME on docked:
+  like-for-like offset (+0.31/+0.21/+0.28), same-target offset, per-lick error shift, balance-blind decoders, lick order,
+  lateral r loss (larger), offset-vs-aim detrended (-0.38, 4/4). WEAKER-SAME: curves, per-spout, decomposition, response
+  increase (subacute lost), LMMs. NOT on docked (kept all-ITI with a caption note): ITI hemispheric balance + recovery
+  tracking (14.18), balance-offset link (12.19), bout-start balance (14.14), SSp-n-term ITI tracking (12.17, 2/4),
+  per-animal offset-vs-aim slopes (16.5), chronic build-up decrease (14.22). PROVISIONAL.
+- RESTnl BASELINE ADOPTED 10-29 (Priya): level family (Fig 14.21, S1, S2, S11-S13) re-rendered on the lick-free rest + current
+  engaged gate (scripts/restnl.py, --rest-variant restnl in 7 scripts; *_restnl outputs; restw kept as sensitivity). Chronic
+  pre-cue rise larger and 4/4 in all key areas, both hemispheres (contra tjM1 +5.2, SSp-m +4.8, SSp-n +3.2, ALM +2.9; ipsi tjM1
+  +4.1, SSp-m +4.5) -> bilateral; tjM1 leads every epoch; acute far-contra raise holds (tjM1 +7.4, 4/4); chronic non-orofacial
+  falls mostly restw artefacts (significant falls 20 -> 4 areas; some posterior / RSP still fall) and the reference-area part
+  of the dip decomposition is n.s. Cue-to-lick level
+  larger (tjM1 chronic +6.3, 4/4); far-contra ALM acute loses significance (+2.7 n.s., 4/4). Stopped: rest-referenced rise is
+  ~76-83% the reference falling. Threshold test unchanged (own pre-cue reference). Caveat: PS93 pre = 2 sessions. PROVISIONAL.
+- RESTnl RULE -> RESCUE VARIANT s20_f50_wr 10-30 (scripts/restnl.py default; strict kept as `--restnl-rule strict` ->
+  *_restnl_strict outputs; sweep scripts/restnl_rescue.py): same mask and 2.0 s post-lick buffer, >= 50 frames per
+  position, but the per-position medians are averaged over the positions present (>= 4 of 6) instead of requiring all 6.
+  107 / 107 sessions (was 97; PS93 pre 2 -> 7, PS92 pre 6 -> 8). All *_restnl level-family outputs re-rendered (same names;
+  per-session caches in new *_wr dirs, strict caches untouched). Headlines unchanged in sign, significance and 4/4:
+  H1 chronic contra pre-cue tjM1 5.24 -> 5.21, ALM 2.93 -> 3.11, SSp-m 4.78 -> 4.44, SSp-n 3.20 -> 2.61; H2 acute
+  far-contra tjM1 7.38 -> 7.44, ALM 6.09 -> 6.40, SSp-m 7.26 -> 7.06, SSp-n 7.22 -> 6.50; H3 chronic cue-to-lick (raw) tjM1
+  6.34 -> 6.39, ALM 3.93 -> 4.29, SSp-m 5.65 -> 5.42, SSp-n 2.88 -> 2.47 (still n.s., 3/4). Only PS92 / PS93 move (PS93's
+  SSp-n / SSp-m shrink most with 5 more pre sessions). PROVISIONAL.
+- RESTnl SUPPLEMENT CAPTIONS 11-01 (goal page Fig 14.21 S1/S2/S11-S13 numbers rewritten from the rescue-rule *_restnl
+  outputs; baseline notes removed). Changed materially: S2 acute far-contra raise now NOT orofacial-specific (contra
+  MOp_rest / MOs_rest / SSp-bfd +7.1 / +6.9 / +5.1, significant; ipsi tjM1 +6.1; PS94 +2-4, was ~0); S11 stopped
+  chronic rise tjM1 +8.4 [+6.5], contra-ipsi only 2/3 positive [3/3], hit chronic rise tjM1 +5.3 [+1.8]; S12 A tjM1
+  +4.3/+4.1/+6.4 [+2.4/+2.2/+2.9], ipsi tjM1 chronic +4.3 4/4 (was no change), B pre AUC residual slope +0.7..+1.1
+  (was ~0; trial set, PS94/95, fragile), C more significant cells (PS95-driven), D RESTnl drop -8.0/-9.0 > raw dip
+  (rel +5.2/+4.4) and the non-orofacial dip is n.s. vs RESTnl; S13 last-lick tjM1 pre values lower, chronic > pre
+  4/4 in the last 0.5 s before the cue (tjM1, ALM). Unchanged: exponents / threshold verdict, own-pre-cue A (-2 n.s.),
+  counts. PROVISIONAL.
+- RESTnl MAIN CAPTION + S7 11-01 (goal Fig 14.21 caption numbers now rule-wr *_restnl; S7 revup_neural --rest-variant restnl,
+  RESTW collapsed). Changed under RESTnl: all-spouts ACUTE = 12 areas RISE 4/4 (RSP / VIS largest, +2.6..+4.7; contra ALM +1.6)
+  [RESTW: only ipsi SSp-ul / -un -4.4, now -2.5 n.s.]; far-contra acute raise broad, 34 / 45 areas (RSPd +8.2, tjM1 +7.4)
+  [RESTW 8]; far-contra chronic bilateral tjM1 / SSp-m / SSp-n +3.4..+5.4, 4/4 [n.s.] and its 11 posterior falls gone;
+  all-spouts chronic falls 20 -> 11 (VIS / RSP only; the earlier '-> 4' was the strict rule). Caveat made explicit: lick-free
+  rest itself falls in contra tjM1 / SSp-m (-8.0 / -9.0 chronic, 4/4) more than the unreferenced pre-cue level (-2.7 / -4.6),
+  so 'rise above rest' = falls less than rest. S7: every within-session revup result identical (flat shift); only trace
+  levels and the session-level r move. PROVISIONAL.
+- FIG 0.12 + FAR-CONTRA AIM 10-30 (Priya: "can 0.12 include the far contra lick angle index?"; scripts/recovery_timing.py
+  --aim [--plot-only] -> attempt_coding/figures/recovery_timing_pooled_day_lick_aim.png, panel B = far-contra first-lick
+  3-D aim, change vs own August pre, deg, + = contralesional; panel A reproduces 0.12 exactly). Aim drops to -32 deg
+  (pooled, day 1; 4/4 ipsilesional) and recovers on the HIT-RATE time course (t1/2 aim 3.1-5.4 d vs hit rate 3.9-7.9 d;
+  ~70% back by day 9-12 when hit rate is 0.8-0.95) but PLATEAUS SHORT like the code: chronic -5 to -6 deg pooled (95% CI
+  below 0 in every day bin to day 51, upper ends -0.1 to -1.4 deg late); recovered fraction of the acute deficit at chronic: aim 0.84 / 0.76 / 0.55 / 0.90
+  (PS92-95), hit rate 1.0 in 4/4, code on hits 0.67 / 0.50 / 0.23 / n.a. (PS95 no acute code). Residual chronic aim is
+  mostly PS94 (-14 to -18 deg; also lowest code); PS92 / PS93 / PS95 within ~0-5 deg. PROVISIONAL, n = 4.
+- ITI PRE-LICK RE-RUN 10-29 (Fig 12.17 S3; windows end >= 0.1 s before lick onset, + jaw-onset windows; jaw leads 52-120 ms):
+  decoder offset flat pre-lick (+0.14/+0.12/+0.15 ns, mostly PS94), steps up post (4/4) -- unchanged; SSp-n L/R difference
+  above 0 pre-lick acutely / subacutely (+0.21-0.24, 3-4/4; also before jaw opening), ~tonic, mostly PS94 -> NOT a movement
+  artefact; acute baseline-subtracted balance build-up remains (4/4); recovery tracking none pre-lick; direction beyond spout
+  ~0 pre-lick. Revised: offset + recovery link post-onset; SSp-n difference / acute balance have a tonic pre-lick part. PROVISIONAL.
+- RESTW check 10-29 (Fig 14.21 S14, scripts/restw_strict_check.py, restw_check/): restw rest contains many NON-contact licks
+  (13-57/min, most pre-stroke); a strict lick-free rest (all cam4 licks, [0.5, 2.0] s; strict_w50) shifts by epoch (contra
+  tjM1 chronic -3.66, ALM -1.72, 4/4; bilateral, cortex-wide) -> restw is NOT epoch-neutral, but conservatively: chronic
+  contra pre-cue rise ALM 1.53 -> 3.00, tjM1 1.73 -> 5.31; acute far-contra raise tjM1 5.50 -> 7.35; cue-to-lick tjM1
+  chronic 2.89 -> 6.39; all keep sign + significance. Contra-ipsi contrasts little affected; ALM vs tjM1 ordering is
+  baseline-dependent. Pre-cue cache engaged counts differ from the current gate in 86/107 sessions (chronic result
+  unchanged, acute +0.4 n.s.). PROVISIONAL.
+- Arrival -> cue traces 10-29 (page Fig 14.21 S13, scripts/arrival_to_cue_traces.py, arrival_to_cue/): three anchors (arrival |
+  last ENLv lick | cue) + wait-sorted heatmaps. Far-contra ENLv contact drops acutely 4/4 (e.g. PS94 0.61 -> 0.00), so those
+  licks do not restart the timer (short acute far-contra waits). Response to the last ENLv lick larger acutely than pre in
+  contra tjM1 / SSp-n (4/4; lick count / bouts differ); contra tjM1 cue response larger chronically (4/4); last 0.5 s
+  before the cue near rest. Long waits = PS92 / PS93 only. Open check: precue_restw cache engaged counts differ slightly
+  from the current engagement gate (2/2 sessions checked: 381 vs 364, 473 vs 472). DESCRIPTIVE.
+- Decoder area attribution 10-28 (11.13 alone / unique, 11.14 nested blocks + Shapley): the orofacial group (+SSs) carries
+  ~40% of the code (Shapley pre r 0.27 of 0.62 ITI, 0.29 of 0.77 cued) and of the ITI offset (0.15 of 0.37 mm acute);
+  the rest is spread and redundant (no block necessary). SSs alone decodes but adds nothing uniquely (a copy of the
+  orofacial signal). PROVISIONAL.
 
 ## 1. Behaviour and orofacial kinematics (cam4)
 
@@ -833,10 +1375,200 @@ bootstrap unless stated; LICK DATA = behaviour only.*
     Musall-layout alone models; page Figs 1t-1uf). **STANDS** at area level (pixel version queued). **Caveat for every
     mean target map:** PS94's target-unique R2 is ~10x the other animals' (cue PETH contra SSp-m .37 vs .004-.029), so mean
     maps are PS94-weighted (tests count animals); cause under test (block-aligned state vs tracking vs tuning).
+12c. **(10-30) MOVEMENT-NULL PLAN MAPS (FINDINGS 0b item (5), built; Musall unique, no refit).** The target (spout
+    identity) entered LAST after every movement group of the frozen encoder (non-directional lick vigour / timing, nose,
+    running, spout-locked lick template, within-spout tongue / jaw direction, the upcoming lick's angle via lick kernels
+    -0.5..+2 s, and in FR-A all FaceRhythm factors). Pixel maps from the existing FROZEN_PIX_MUSALL basis twins (107
+    sessions, frame R2, cue 0-1.5 s / lick -0.1-1.0 s). NO lick-history regressor exists in this model (not added).
+    Pre level is SMALL (contra SSp-n 0.015 cue / 0.021 lick, ALM 0.010 / 0.012, tjM1 0.013 / 0.017, FR-A) and PS94-heavy
+    (PS94 0.04-0.07 vs <= 0.015 in the others). Change: only DECREASES, no bin increases anywhere -- FR-A target cue
+    63 / 11 / 89 of 514 16-px bins down (acute / subacute / chronic), lick 81 / 7 / 91; noFR 123 / 45 / 111 and 367 /
+    44 / 140; spout unique (target + executed spout part) 0-21 bins down, none chronic. By area (FR-A, contra): ALM cue
+    -0.013 acute / -0.009 chronic (0/4 up, CIs exclude 0), SSp-n lick -0.018 acute (0/4) / -0.011 chronic (1/4, ns),
+    tjM1 lick -0.012 acute (0/4) / -0.007 chronic (ns); SSp-m chronic ~0 (+0.005 cue, 3/4). CAVEAT: the CONTROL RSPd
+    also falls chronically (cue -0.006, lick -0.008, 0/4 up) and whole cortex too -> the drop is NOT orofacial-specific;
+    read it as "the plan term beyond movement does not RE-EMERGE after the stroke", not as a localised loss. Subacute
+    is closest to pre (dip-recover-dip pattern). Script `scripts/movement_null_plan_maps.py` (outputs
+    `<E>/movement_null_plan/`). **PROVISIONAL** (n = 4; PS94-weighted mean maps).
+    TASK-A COMPANION (10-30): SSp-n / ALM / tjM1 now in the frozen Musall table (`scripts/frozen_fr_musall_v2.py` ->
+    musall_change_v2.csv; Figs 0.2 / 0.8 v2 = `frozen_musall_<w>_simple_v2.png`): chronic spout-unique contralesional
+    shift (contra - ipsi, FR-A) holds in tjM1 (cue +0.012 [0.001, 0.023], lick +0.020 [0.004, 0.037], 4/4) as in SSp-m;
+    not detectable in SSp-n (+0.008 / +0.014, 3/4, ns) or ALM (~0). **PROVISIONAL.**
 13. **Not established / withdrawn here:** pre-stroke target-over-executed lead (SUSPENDED, 2.4); pooled toward-midline
     within-spout effect (NOT ESTABLISHED, 10-21); misdirected licks carry a plan signature (NOT ESTABLISHED, 2.5);
     lick-level strays decide target vs execution (NOT DECISIVE: reference fails validation, 2.6); Layer 2 pooled-refit
     claim (WITHDRAWN 10-24).
+14. **CURBD pilot (10-30): region -> region currents fitted to encoding residuals are NOT STABLE, so no pre vs chronic
+    comparison was made.** PS94 only (n = 1 animal), pre 0807 / 0811 / 0812; 18 regions (SSp-n, SSp-m, SSs, SSp-ul,
+    tjM1, ALM, MOp_rest, MOs_rest, RSPd x 2 hemispheres; ROI v8 on the stat mask) x 4 spatial units; input = held-out
+    residuals of the per-session encoder's full design refitted on the unit traces, 10.4 Hz, reset to data every 2 s.
+    Fit: pVar 0.27 train / 0.21-0.25 held-out half, against 0.15 for a J = 0 decay model and < 0 for hold-at-reset.
+    Stability of the off-diagonal mean |current| matrix (gate stated beforehand in
+    `docs/status/CURBD_PILOT_PREREG_20261030.md`): seeds r 0.51 (needed 0.8), halves 0.38 (0.7), sessions 0.29 (0.7),
+    pair-specific halves 0.06 (0.5); the one-unit-per-region variant fails the same way (0.51 / 0.22 / 0.40). A weaker
+    initial J (g 0-1, exploratory) does not fix the halves (0.18-0.24). EXPLORATORY comparator: a heavily ridged VAR(1)
+    on the same data gives region matrices with r 0.84-0.97 across halves and sessions, but the matrix depends on the
+    ridge strength (weak ridge vs heavy: r 0.07-0.21) and explains ~6 % of the one-step change. CURBD's chronic session
+    (0910) was prepped but NOT fitted. Code `scripts/curbd_pilot.py`, `wfield_local/curbd_core.py` (port of
+    rajanlab/CURBD, **GPL-3.0**); outputs `<E>/curbd_pilot/` (figures 1-3, tables/). **NOT ESTABLISHED / PILOT.**
+15. **Region-level ridge MVAR (10-30, follow-up of 14): cross-region terms predict held-out, but the region matrix is
+    NOT stable enough in enough animals (gate 2/4, needed 3), so NO pre vs post comparison was made.** Same 18-region
+    residual data as 14 (one unit per region), 31 August pre sessions, all four animals. Lag 1-3 bins and ridge chosen
+    by nested contiguous-block CV (whole trials, no lag crosses a trial); readout W = lag-summed coefficients.
+    Prediction: full MVAR beats each region's own past (AR-only, own CV) in 31/31 sessions and 5/5 held-out folds;
+    gain .010-.025 R2 = 9-15 % of the one-step CHANGE variance (median per animal). Stability (gate written beforehand,
+    `docs/status/MVAR_PREREG_20261030.md`): PS92 and PS94 pass every criterion; PS93 fails only on one session
+    (0814 halves r .28; median .87, sessions .84); PS95 fails (halves median .64, sessions .39). Global-removed and
+    deconvolved (tau 0.6) variants: 1/4 and 2/4. CV picks p = 3 (top of range) and near-OLS ridge everywhere; the
+    ridge-robustness criterion therefore tested a flat region; a heavy ridge (as in 14's comparator) gives a different
+    matrix (r .25-.37). The S18 Granger result (`coupling_vigour_sm.py`) is NOT tested or supported by this. Script
+    `scripts/mvar_regions.py`; outputs `<E>/mvar/` (figures 1-2, tables/). **NOT ESTABLISHED (gate failed; PROVISIONAL
+    n = 4).**
+16. **Pooled sensory / motor MVAR (10-30, follow-up of 15): FAILED its gate on raw (0/4), so again NO pre vs post.**
+    Six nodes (sensory, motor, RSPd x hemisphere), lags up to 8 bins (~0.8 s), same data and CV as 15, gate written
+    beforehand (`docs/status/MVAR_POOLED_PREREG_20261030.md`). Predicts held-out in 31/31 sessions (5-11 % of change
+    variance) but the 6 x 6 matrix is less reproducible than the 18-region one (halves median .57-.87, worst sessions
+    .26-.32 in three animals). Global-removed variant passes 4/4 (sensitivity only, not gated). CV again chooses the
+    longest lag allowed (p = 8) everywhere, and one session's S->M estimate has split-half noise larger than the spread
+    between sessions. Directed-influence models of these area traces are not usable at the session level; the S18
+    Granger / xcorr result stands alone. Script `scripts/mvar_pooled.py`; outputs `<E>/mvar_pooled/`. **NOT ESTABLISHED
+    (gate failed; PROVISIONAL n = 4).**
+17. **Sensory-motor coherence vs CCA on cued first licks (10-30; Guo 2021 / Heimbuch 2026 style; pre-registered,
+    `docs/status/COHERENCE_CCA_PREREG_20261030.md`).** 8 sensory vs 8 motor areas (both hemispheres), -1..+1 s.
+    **CCA fails the gate (1/4)**: held-out CC1 ~0.98 (CC2 ~0.96) in every session, the S and M projections are nearly the
+    same trace (a cortex-wide shared component, not a specific S-M channel), and one session's CC1 is mostly estimation
+    noise (split-half SD > between-session SD in 3/4). So no CCA / stereotypy comparison and **the DLAG criterion is not
+    met**. **Coherence / phase locking pass (4/4, delta coherence 3/4).** Raw S-M coherence stays ~0.9 pre to post;
+    coherence beyond the shuffled-event null falls in the 0.5-1.5 Hz band (subacute -0.074, chronic -0.087, 4/4) because
+    the null rises, i.e. more of the coherence is the shared lick-locked response; lick-locked phase consistency (ITPC)
+    rises from subacute in both groups (sensory 1.5-4 Hz +0.11 / +0.17, others +0.04-0.10, mostly 4/4); acute unchanged;
+    ITI docked licks unchanged. Reading: post-stroke cued-lick responses are MORE phase-locked to the lick, without extra
+    trial-specific S-M coherence -- not a Guo-style coherence loss. Recovery tracking 5/24 tests p < .05 (1.2 expected;
+    e.g. sensory delta ITPC vs far-contra hit rate partial r +0.34, 4/4): hints. Script `scripts/sm_coherence_cca.py`;
+    outputs `iti_licks/sm_coherence_cca/`. Controls (addendum): movement regression leaves the 1.5-4 Hz ITPC rise
+    intact (remaining share ~1.1), behavioural variability does not explain it (and does not clearly fall); response SNR
+    (near-restatement) absorbs ~half the sensory and most of the motor rise -> a larger lick response relative to trial noise,
+    not more stereotyped licking. Page 14.18 S19 (demoted 10-30). **PROVISIONAL (n = 4).**
+    **CAVEAT (Priya 10-30, GCaMP6s kinetics): treat the phase measures as an amplitude / consistency readout of the
+    lick-evoked calcium transient, not as oscillatory phase-locking (no Ramanathan / Khanna LFO analogue).** With
+    tau ~0.6 s the indicator passes ~17 % (1.5 Hz) to ~7 % (4 Hz) of the underlying amplitude; in a +-1 s Hann window the
+    1.5-4 Hz content is mostly the transient's onset edge, so the ITPC rise mostly restates the larger cued lick
+    response (section 0b) relative to non-calcium noise. The pre-registered deconvolved sensitivity (tau 0.6) reproduces
+    every number (e.g. sensory 1.5-4 Hz chronic +.18 / +.22 / +.22 / +.04 raw vs +.17 / +.22 / +.23 / +.06), but that is
+    NOT a test: an exponential deconvolution is a linear filter that multiplies every event's Fourier coefficient by the
+    same factor, so ITPC and coherence are invariant to it by construction (up to edge effects). Not a coupling result.
+18. **Sensory vs motor timing of lick-ANGLE information (10-30; Lemke 2024 style; pre-registered,
+    `docs/status/DIRECTION_INFO_LAG_PREREG_20261030.md`).** Per 0.05-s bin, CV ridge decode of the executed first-lick angle
+    from 8 sensory vs 8 motor areas; half-max lag dL50 = L50_M - L50_S (+ = sensory first) and an amplitude-invariant
+    curve-shape lag. Gate 3/4 (PS92 noisy halves). **Pre-stroke, motor information leads sensory by ~23 ms (4/4, both
+    readouts).** Post-stroke the lead shrinks (dL50 +29 / +11 / +14 ms acute / sub / chronic, 4/4 each), but the shape
+    lag confirms it only chronically (+12 ms, 4/4) -> **chronic motor lead ~23 -> ~10 ms**, mainly because sensory
+    information arrives earlier (L50_S -31 to -38 ms every epoch, 4/4). Peak information rises in both groups
+    chronically (+.07). Within-spout angle, hemisphere pairings and ITI docked fail the gate (not read). Caveats:
+    sub-bin effects; calcium / haemodynamic timing; total angle includes the target; jaw leads tongue by 52-120 ms
+    (movement-locked activity may set the motor-first crossing); information timing, not influence. Page 14.18 S20.
+    **PROVISIONAL (n = 4).**
+19. **Restitution vs compensation: kinematic normality of successful licks (10-30; SRRR / Levin 2009; pre-registered,
+    `docs/status/KINEMATIC_NORMALITY_PREREG_20261030.md`; `scripts/kinematic_normality.py` -> `kinematic_normality/`).**
+    Per hit trial, first post-cue lick, Mahalanobis distance (Ledoit-Wolf) from the animal's August-pre licks at the same
+    spout on 7-9 features (lick angle at the extension peak, sagittal angle, reach, peak speed, landing lateral error, closest approach, latency,
+    jaw onset lead, jaw lateral steering at side spouts); normality = fraction of hits inside the pre 95 % contour (pre
+    scored leave-one-session-out: .89-.92). **Chronically hit rate is back (+0.03, 4/4) but successful licks are still
+    less normal: -0.10 [-0.22, -0.03], 4/4** (PS92 -.03, PS93 -.05, PS94 -.27, PS95 -.06; far contra -0.10, 4/4) ->
+    recovery = fast but INCOMPLETE restitution + compensation, mostly PS94. Normality recovers about as fast as hit rate
+    (half-times PS93 3.6 vs 4.7 d, PS94 2.7 vs 4.1 d; PS92 slower 8.8 vs 4.9) but levels off below pre (asymptote 0.99 /
+    0.87 / 0.56 / unresolved) -- not the expected slow kinematic course. Cortical readouts: the frozen far-contra code on
+    hits follows task SUCCESS session to session (partial r +0.46, p .001, 3/4) while plateauing at 0.3-0.7 of pre; cued
+    balance leans toward normality (PS94 asymptote 0.75 vs normality 0.56; 2/4, undetermined); ITI offset and contra tjM1
+    response undetermined. No readout passes as following normality. The pre-vs-post classifier separates every post
+    session (incl. drift) -> not used. Caveats: no no-stroke drift reference; few acute far-contra hits; permutation p
+    ignores autocorrelation. WHICH features (10-30, `scripts/kn_hits_deviation.py`, page 14.18 S22c; z vs own pre hits at
+    the spout, lateral + = contralesional): chronic hits at all spouts still land IPSILESIONALLY (lick angle -0.89 SD,
+    landing lateral error -1.00 SD, 4/4) and are faster / longer (latency -0.34, speed +0.15, reach +0.39 SD, 4/4); far
+    contra: closest approach +0.70 SD, jaw lateral -1.78 SD acutely only -> residual aim deficit compensated by vigour
+    and reach. **PROVISIONAL (n = 4).**
+20. **Re-embedding test: is the chronic spout code the old code re-embedded, or a new code? (10-30; Gallego 2020 /
+    Degenhart 2020; pre-registered, `docs/status/REEMBEDDING_PREREG_20261030.md`; `scripts/reembedding_test.py` ->
+    `reembedding/`). UNINFORMATIVE: the alignment failed its gate.** Spout decoding (6 classes) from k = 10 PCs of 45
+    areas, cued first licks matched to the pre kinematic range; (i) frozen pre decoder, (ii) frozen decoder after a
+    label-free CCA alignment on spout-pooled time-locked trajectories, (iii) same-session refit. **Gate G1 failed**: on
+    pre -> pre the alignment recovers only 0.29-0.45 of the frozen performance (needed >= 0.7), because spout-pooled
+    trajectories pin the shared dimensions but not the spout dimensions. So the index cannot separate re-embedding from a
+    new code. Descriptive only: the frozen-to-refit gap grows chronically (+0.18, 4/4; PS95 small) and the alignment
+    closes none of it (index 0.12 [-0.33, 0.58]); the June no-stroke reference (~60 d before pre) also opens a gap
+    (+0.076, 4/4), so roughly half of the chronic gap is drift-sized. Next (new prereg): an alignment with spout-resolving
+    but target-free correspondence (kinematics-binned or ITI trajectories, or stable-area anchors) that passes G1 first.
+    Frozen references in the local store only (kind `reembed`; publishing = Priya's call). **NOT ESTABLISHED.**
+21. **Within-lick corrections do NOT carry recovery (10-30; Bollu 2021 style; pre-registered,
+    `docs/status/WITHIN_LICK_CORRECTION_PREREG_20261030.md`; `scripts/within_lick_correction.py` ->
+    `within_lick_correction/`).** 250 Hz 3-D tongue (outward phase ~7-8 frames): launch angle (first 12 ms) vs endpoint
+    (extension peak), each vs the animal's pre hit pattern; corrective submovements (CSMs) = extra speed peaks above a
+    noise-calibrated 50 mm/s threshold (false rate 5 % vs real 15.6 % pre). Pre-stroke the Bollu signatures hold (CSMs
+    .28-.33 at far side spouts vs .04-.08 close; cued .16 vs ITI .10). Far contra, cued: LAUNCH error -25.7 deg acute,
+    -7.0 subacute (4/4, Holm), chronic -3.2 n.s.; the ENDPOINT follows the launch (chronic -3.5, 4/4); within-lick
+    correction unchanged in every epoch (chronic -0.4 [-3.1, +2.4]); CSM share FALLS (-0.13 / -0.15 / -0.14, 3-4/4; not
+    noise, not only slower licks) and missed later licks lose their pre-stroke in-lick re-aim (+10.9 deg pre; -8.0 acute,
+    -5.0 subacute, 4/4). -> **Recovery is restored LAUNCH aim, not added correction; licks become simpler, not more
+    corrected.** Neural: the larger acute lick response is the same on clean licks (+21 vs +18 all licks; carried in 0 /
+    168 cells); CSM licks evoke LESS than matched CSM-free licks post-stroke (-10.7 chronic, 4/4; not in deconvolved).
+    Caveats: 250 Hz resolves only >= ~20 ms submovements; launch noise 5-8 deg per lick. **PROVISIONAL (n = 4).**
+22. **"Learned, context-specific compensation" NOT supported by behaviour (10-30; pre-registered,
+    `docs/status/LEARNED_COMPENSATION_PREREG_20261030.md`; `scripts/learned_compensation.py` -> `learned_compensation/`).**
+    T1 (post days 1-14, far contra): no within-session improvement of launch error (W -1.6 [-5.1, +2.1] deg) and no
+    overnight loss; gains come BETWEEN sessions (overnight +5.8 deg toward the target, mixed model; day step +3.3, 4/4)
+    -> the spontaneous-recovery pattern (cannot be told from offline consolidation). T2: ITI licks after a far-contra
+    trial do NOT carry a re-aimed launch (contrast -5.9 subacute, 4/4, wrong sign; they track the cued deficit acutely).
+    T3: the ITI ipsilesional bias IS behavioural (docked ITI landing vs pre after the same previous spout: chronic -7.5
+    [-14.1, -1.0], 4/4; PS94 -11.0, PS95 -5.8) but the same size as the cued first-lick landing error at the same spouts
+    (GAP -0.7 n.s.; cued landing -6.8 chronic) -> no capacity-vs-performance gap; gain on the previous spout's angle
+    falls (0.23 -> ~0.18). Reading: recovery looks like spontaneous between-day improvement shared by cued and ITI
+    licks; the cortical ITI persistence (offset) sits on a real behavioural bias that cued licks share, not one cued
+    licks overcome. Caveats: PS95 has 1-2 pre ITI sessions; the hit rate falls within post sessions despite the gate.
+    **PROVISIONAL (n = 4).**
+23. **Pre-launch hemispheric tuning to the launch angle: NOT MEASURABLE (10-30; pre-registered,
+    `docs/status/PRELICK_HEMISPHERE_TUNING_PREREG_20261030.md`; `scripts/prelick_hemisphere_tuning.py`).** Cued first licks
+    (no lick in the prior 1 s), per hemisphere orofacial-pool slope on the WITHIN-spout launch angle, pre-launch
+    -0.30..-0.05 s and post-contact +0.05..+0.30 s. Gate failed: 0/4 animals pre-launch, 1/4 post-contact (|partial r|
+    ~0.04; per-session noise 0.24-0.58 ~ between-session spread). The contraversive pattern exists only post-contact
+    (D -0.55, 4/4). No post-stroke change in either window / hemisphere (all Holm p >= 0.59). Later-lick total-angle
+    flattening (+0.35, 4/4) = the known post-lick contralesional-share rise, not launch tuning. -> widefield area signals
+    cannot separate the pathway routes (contralesional takeover vs ipsilesional bypass); needs perturbation (cohort 2).
+    **NOT ESTABLISHED.**
+    PIXEL add-on (Priya 10-30; `docs/status/PRELICK_SVD_TUNING_PREREG_20261030.md`, `scripts/prelick_svd_tuning.py`; page
+    S25b): ALM + tjM1 pixels per hemisphere (PCA K = 10), pooled August pre sessions (LOSO), frozen decoders. PRE gate
+    nominal 3/4 (all IPSILESIONAL hemisphere, r ~0.05; 2/4 Bonferroni x2, 2/4 K = 5, 1/4 K = 20) but POST positive control
+    FAILED (2/4) -> underpowered, no demonstrated pre-launch pattern. No post-stroke change (Holm p >= 0.78). Area pool
+    through the same pooled pipeline: nothing PRE -> pixels recover a little more (esp. post-contact; averaging cancels
+    some spatial pattern). Still NOT ESTABLISHED; perturbation needed. Open check: within-session CV r (`_cv_r` form,
+    fold-wise intercepts) is negatively biased near zero signal -- also affects the area decode's r_ex levels.
+24. **Pre-launch AIM TRACKING with a frozen across-spout decoder: no tracking; INCONCLUSIVE by the prereg rule (10-31;
+    `docs/status/PRELAUNCH_AIM_TRACKING_PREREG_20261031.md`; `scripts/prelaunch_aim_tracking.py`; page S26).** Stroke supplies
+    the variation (launch -12.5 deg acute at the same target). Allen 0.05-s bins -0.50..-0.05 s from tongue emergence,
+    pooled August pre, frozen. Gate: cued 3/4 (r .04-.10), ITI FAILED 2/4; calibration tiny (0.03-0.14 deg/deg). Tracking
+    index (0 = target only, 1 = follows aim): cued acute -0.64 [-1.84, 0.81] (raw decoded +0.4 deg vs -12.5 executed; full
+    tracking rejected p .02), subacute 0.56 [-0.72, 2.22], chronic not estimable; Holm p = 1.0 all; per-animal signs mixed.
+    Positive control post-contact: cued 0.28 / 0.48 (4/4), far contra 0.63 -> cortex follows the EXECUTED angle only after
+    the tongue moves (per-bin from +0.125 s; nothing before jaw onset). No-baseline sensitivity: acute -0.21 / 0.02, upper
+    bounds < 0.5 (target-only reading; sensitivity only). SVD / LocaNMF / -0.10 s end / per hemisphere: no tracking.
+    FACE CONFOUND: FaceRhythm pre-launch decodes angle r 0.44-0.52 and TRACKS acutely 0.49 [0.24, 0.80] (4/4); neural
+    features residualised on face calibrate in no animal. -> no cortical pre-launch aim signal visible in widefield; the
+    face already moves in the deviated direction before launch. NOT ESTABLISHED.
+    CAVEAT (10-31, found while pre-registering the face follow-up): FaceRhythm factors are VQT outputs with centred Hann
+    filters of length Q(f)/f (Q 4 -> 20 over 1-60 Hz); at the lick frequencies (5.8-8.2 Hz) they reach +/-0.56-0.69 s
+    (half-height +/-0.28-0.34 s), so EVERY pre-launch FR bin (and part of the baseline) contains movement from at / after
+    tongue onset. The FR tracking (0.49) may be the launch smeared backwards in time -> NOT a pre-launch face result
+    until the timing-valid measures (face-point PCs, cam4 jaw) confirm it (face follow-up prereg 10-31).
+25. **Face pre-launch aim follow-up: the face tracks the deviated aim only ONCE THE MOVEMENT STARTS; the ITI decoder
+    offset is only PARTLY face-carried (10-31; `docs/status/FACE_PRELAUNCH_AIM_PREREG_20261031.md`;
+    `scripts/face_prelaunch_aim.py`, `scripts/face_offset_partial.py`; page S27).** Timing-valid face measures (point
+    PCs 25 Hz, cam4 jaw 250 Hz): no tracking before launch (cued points 0.39 / 0.19, CIs incl. 0; ITI points acute 0.68
+    [0.13, 1.39] Holm p .09, gone (0.18) without the last 0.05-s bin = jaw opening; nothing before jaw onset); points track
+    from +0.025 s after tongue onset. FaceRhythm reproduces S26 (0.52, 4/4) but equally before jaw onset -> filter leak.
+    Within-spout pre-launch angle not readable from face points (0/4). Q5 offset, FR (11 traces) regressed out of cortex
+    on pre licks, frozen (before reproduces published to 0.001 mm; planted offset >= 98 % removed): docked ITI +0.30/+0.22/
+    +0.29 -> +0.23/+0.17/+0.24 (retained 0.78-0.82, lower bounds < 0.5 -> PARTIAL); PS92 -> ~0 every epoch, PS94/PS95 kept,
+    PS93 small throughout. Variants: 5 groups 0.87-0.97, per-session 0.51-0.59, decoder refit 25-47 % retained. Cued
+    matched-error ~0 -> +0.18 acute after partialling (Holm .051, mixed signs; not interpreted). **PROVISIONAL (n = 4).**
 
 ## 5. FaceRhythm: face movement on one frozen pre-stroke factor set
 
@@ -1147,3 +1879,12 @@ route makes the frozen-encoder movement-vs-mapping separation essential.
   FaceRhythm and have off kinematics, so a June -> August encoder null is not available).
 * Open: per-bout timing of lick_right (5.6); cohort permutation null for factor shape, full 100 x 3 epochs (5.10); other cameras for
   FaceRhythm (cam1-3).
+
+- 11-01 CHECK: the 10-29 line "far-contra ALM acute loses significance (+2.7 n.s.)" does not match the current rescue-rule c2l_A_changes_restnl.csv (far-contra ALM_right acute +3.3, significant, 4/4); likely the strict variant or another panel. Unresolved. Acute far-contra pre-cue raise on RESTnl is NOT orofacial-specific (reference areas rise as much; page 14.21 / S2).
+- GATE vs LP ATTEMPTS 11-01 (docs/status/GATE_LP_CHECK_20261101.md, scripts/gate_lp_check.py): the DAQ-contact engagement
+  gate rarely gates out trials with an LP attempt (pre 0.5 %, acute / subacute ~3 %; not far-contra driven) -> working-trial
+  maps / Haufe and the S28 quit tests are NOT affected (quit shift under an LP rule acute +0.40 min [-0.06, +1.15]; one
+  chronic quit lost). Stopped class: 2.5 % pre -> 4.9 % acute -> 7.0 % chronic hold an LP attempt (borderline; sensitivity
+  re-run optional). DAQ-arm pre-cue "lick-free" windows contain an LP lick in 17-25 % (2 s) / 10-18 % (1 s) of trials in
+  EVERY epoch (no epoch change): DAQ-arm ENL = contact-free, not tongue-free -> cite the LP_licks ENL arm for any
+  "not lick-driven" claim. PROVISIONAL.

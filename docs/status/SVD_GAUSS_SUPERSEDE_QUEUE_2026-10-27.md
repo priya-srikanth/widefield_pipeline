@@ -1,5 +1,9 @@
 # Supersede queue: SVD-basis decoder + Gaussian same-place read-out as PRIMARY (Priya, 10-27 late)
 
+**SUPERSEDED for the basis (10-27 later): Priya chose Allen areas WITH the ALM / tjM1 split as the primary basis
+("use split bases, for consistency"); sections A / B are done on that basis (page v140). Gaussian reference = primary (kept).
+Parts C / D carry over -> docs/status/OVERNIGHT_20261027.md queue item 5.**
+
 Decision: every primary decoder result on the goal page uses the frozen pre-stroke decoder on the animal's pre-stroke
 200-component SVD basis (`WFIELD_LICK_DECODER=svd`; per-session refit decoders on the same basis), and every offset uses
 the Gaussian same-place like-for-like reference (`scripts/lick_matched_readout.py --ref gauss`; width chosen on
@@ -83,3 +87,14 @@ Page numbers below are v134 (stable ids in brackets). Status: Q = queued, R = ru
    beside far-contra-specific neural measures.
 10. Offered: compensation check (first-lick contact rate, licks to first contact, latency vs hit rate; PS95 near-normal
     hit rate ~day 2 with aim still off) -- LOW priority, AFTER the non-linear decoder (Priya).
+
+## Added 10-27 ~16:30 (Priya): Haufe pre + change-map figures
+Every Haufe / pattern figure that shows the PRE map next to epoch - pre change maps: draw the PRE map in a DIFFERENT
+colormap from the change maps (signed pre map -> a second diverging map, e.g. PuOr_r, so 0 still means 0; change maps
+stay RdBu_r), main figure = pre + acute/subacute/chronic - pre; the absolute pre / acute / subacute / chronic maps go
+into a separate PNG shown in a collapsible <details> "Supplementary: epoch maps (not changes)" directly below the figure.
+Scripts (all currently being edited by the figdata helpers -- do after they report): iti_decoder_pattern_stats.py
+(lat, sag), iti_spout_pattern_stats.py (cued, --iti), iti_session_cluster_tests.py (spout cued / ITI, position),
+iti_session_pattern_tests.py, iti_pattern_area_stats.py, plus the new x/y/z / angle / elevation / reach maps (item 6).
+Shared helper in wfield_local (PRE_CMAP) so all map figures match. Page: <details> block after the figure (after the
+restructure helper reports).

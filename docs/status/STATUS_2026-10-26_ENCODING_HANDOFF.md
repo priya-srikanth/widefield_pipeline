@@ -39,6 +39,793 @@ for anything that loads imaging. E = `M:/MICROSCOPE/Priya/Widefield/LP_analysis/
 3. Then tell **sabatinilab-e3** (PI deck) the decoder figures are final: per figure the share PNG path, page Fig N.k,
    script + args, headline numbers, methods text (they asked 10-26 ~22:30; reply sent: not final yet).
 
+### 00-COMPACT-20 (11-03 ~midday; UPDATED 11-03 afternoon, see the block below the "Next" line) -- READ FIRST, then docs/status/COHORT1_SWAPMASK_RERUN_20261102.md + RUNNING_LIST_2026-11-01.md
+Same session f082ee0c; docs commit on wf_attempt branch analysis/attempt-coding **by explicit path only** (another session,
+sabatinilab-5b, keeps uncommitted work in this worktree; `git commit -am` swept it once 11-03, undone). This window = the
+**COHORT 1 FULL REBUILD**. Pages: imaging LIVE v46 (other sessions edit section 1 [5b] - read live before any edit); goal
+LIVE v312 (section 23 = quiet window; at its 512-file limit). NO page edits until the rebuild's page pass.
+
+**Decided by Priya (11-02 / 11-03), all go into ONE rebuild:**
+1. Cohort 1 adopts `hemo_meegkit_hpfit_lag_refitT_swapmask` (swapped pairs interpolated, 415 advanced 16 ms, T refit; built
+   for all 120 curated sessions 11-02; post-SVD, no .dat / SVD redo).
+2. Drift: REPLACE the order-10 polynomial step (keep the 0.1 Hz high-pass used only for the T fit) with a BLOCK-PROTECTED
+   slow cosine basis (cosine + one indicator per position block, subtract only the cosine part), in the SHARED signal.
+   Cutoff >= 10 min, set from measurement; must NOT remove block-level information (PS92 / PS93 blocks can be minutes).
+3. Decoders: August-only pre; LP arm LP-trained (stored), DAQ-trained opt-in cross-check.
+4. New default "working" = camera-defined (jaw moved OR any camera-seen lick); DAQ quit-tail = robustness row. Single
+   definition: widefield_pipeline scripts/jaw_only_incomplete_figs.classify() + gate helper (sabatinilab-5b finishing it).
+5. One cache rebuild (drop WIDEFIELD_PRM_LEGACY_DATE8, convert precue_engagement_states, narrow the map-cache code digest),
+   fresh frozen store; old caches deleted afterwards from a kept list. 5rm stored under one seed-keyed spec.
+6. Merge restnl-maps, lp-final, rest-decoder-nl, frozen-default, cohort1-swapmask into main BEFORE rendering; render from main.
+7. Replace (after verification) in the share, imaging decks, artifact pages, PI deck (owned by sabatinilab-e3: coordinate).
+   Conclusions that change direction / significance go to Priya before their text is rewritten. Captions are rewritten
+   clean (no CORRECTION notes). Page-text items B9-B14 (section 7 takeaway, PS93 / DAQ pre-cue caveats, 12.1b, 12.1 caption,
+   Fig 2.4 caption) are done in the page pass. Remove files of cut figures from the goal page to free slots.
+8. Also on corrected data: RESTnl level over epochs (across + within session, per animal), PS92 subacute per-session check.
+9. Quiet-event swap guard: shrink from 0.5 s to +/-1 pair on swap-masked data (quiet window's code; coordinate).
+
+**Running / done (helpers in this session; they never commit):**
+- Frozen-store pass 2 (wf_frozendef, analysis/frozen-default; doc FROZEN_ALL_20261102.md): converting the last read-outs; told
+  to switch the LP default to LP-trained and to list kinds whose spec misses the variant / pre set. Commits so far up to 1553db6a.
+- Swap-mask re-run (11-02/03) DONE: no headline flips; results in COHORT1_SWAPMASK_RERUN_20261102.md Log; code on
+  analysis/cohort1-swapmask (wf_swapmask: b334316a, 4813c3cf, 3cd00814) + wf_swapmask_enc e80dbef7.
+- Drift cutoff check RUNNING (wf_swapmask, doc DRIFT_CUTOFF_CHECK_20261103.md, outputs grant_figures/drift_cutoff_check_20261103):
+  block durations, spout-order check, residual band power, block-protected removal at 10/15/20/30 min, replacement arm.
+- Inventories DONE: docs/status/rebuild_20261103/ (A outputs->code 5,536 rows; B code->outputs 548 rows + traps).
+  Reconciler RUNNING -> MASTER_MANIFEST.csv + RECONCILIATION.md (commit them when it reports).
+
+**Open for Priya:** per-session LocaNMF families (recommend: project corrected data onto existing per-session footprints);
+preprocessing decks (935 images), stale 10-24 analysis decks, imaging section 15 (copy of goal 23), closed 10-27 review
+page (reconciler will bring recommendations); the drift cutoff (after the check).
+
+**Next:** reconciler report -> commit + review decisions with Priya -> drift check -> code changes on a branch off main
+(single hemo switch driving hemo_variants.ADOPTED + defaults.yaml + load_imaging; project_all; output-root overrides;
+session-cache prune guard; camera working; Aug-only pre; LP-trained) with tests -> renders into NEW folders, logged ->
+2 verifier agents -> replacement pass. Traps: rebuild_20261103/rebuild_order_B.md + RECONCILIATION.md.
+
+**11-03 AFTERNOON UPDATE (supersedes the Running / Open / Next lines above):**
+- **More decisions by Priya** (items 10-16 extend the list above):
+  - 10. ONE trial classification for everything: wfield_local.trial_classes (e3 owns; window "cue_stop" default, whole-trial
+    option). "working" = contact | incomplete | jaw_only, "camera_lick" = contact | incomplete, "attempted" (GATES). Applied
+    EVERYWHERE a trial selection is made (behaviour / kinematics too), but NOT as a gate where engagement is the measured
+    quantity (quit, engagement decline, attempt rate). Cache keys / specs carry trial_classes.selection_tag(source, window).
+  - 11. PS93_0813 (no video) kept wherever an analysis needs only spout contact; drops only where camera classes are needed.
+    PS92_0908: 17.5% of cues "unknown" (in neither gate).
+  - 12. Frozen-model IDs carry a TRAINING-DATA FINGERPRINT (hash of X / y + selection_tag + hemo variant name). Reason: specs
+    were blind to trial/behaviour changes; PS92 section G models of 11-02 21:23 no longer reproduce with an identical spec.
+  - 13. Preprocessing decks: REGENERATE the map slides (maps rebuilt anyway for 15e; new folders, never in place: the
+    affine8v1 tag has no hemo tag). Analysis decks regenerated. Imaging section 15 -> pointer to goal 23. 10-27 review page
+    and June alignment decks untouched. Imaging 5.1/5.2 + goal 6.x/8.x LP-trained. Lost scripts recreated (3 recovered,
+    scripts/recovered_20261103/).
+  - 14. Once the up-front drift step is in the shared signal, the encoder / ITI / stray_licks OWN drift steps are removed
+    (kept as a sensitivity row).
+  - 15. e3's consolidation A1 (per-session response window), A2 (jaw_pass_qc -> classes), A3 (animal-weighted change-vs-pre),
+    A4 (trial_attempts on trial_classes: LANDED main 28f2a632; 62,746 / 62,771 trials identical) and A5 (one responded(),
+    source camera default / daq) land on main BEFORE the rebuild renders. e3 does not touch the rebuild's reserved files
+    (list in RUNNING_LIST, 11-03).
+  - 16. LocaNMF: test before deciding refit vs projection (see below).
+- **Done:**
+  - Frozen-store pass 2 (wf_frozendef analysis/frozen-default up to 876c87b0; FROZEN_ALL_20261102.md P2.1-P2.12): every family
+    identical to in-memory; the LP arm defaults to LP-trained. Section G conversion is UNCOMMITTED in wf_frozendef
+    (poststroke_compare.py + tests; tests were re-running) because of the PS92 mismatch: commit it with that note, or fold it
+    into the rebuild. frozen_encoder not converted (plan P2.6). Bug to fix in the rebuild: nolick_decoder KeyError on arms with
+    < 30 trials.
+  - Reconciliation committed: docs/status/rebuild_20261103/MASTER_MANIFEST.csv (6,099 rows: 3,415 REDO / 930 NO / 1,754
+    DECISION, now mostly resolved by Priya) + RECONCILIATION.md (render order G0-G8, 32 traps, decisions D0-D12).
+- **Not caught by either inventory, now in the plan:**
+  - the FINAL variant does not exist yet (new drift step), so the 11-02 swapmask outputs are a comparison arm only;
+  - no imaging family has a camera-gate path yet;
+  - deck captions in deck_registry.py / deck_text.py state the old rules.
+- **RUNNING (helpers; they never commit in wf_attempt):**
+  - Drift cutoff check (wf_swapmask, DRIFT_CUTOFF_CHECK_20261103.md): block lengths per animal x epoch, spout order,
+    residual band power, block-protected cosine at 10/15/20/30 min, plus the replacement arm (new drift step in place of
+    the polynomial).
+  - LocaNMF refit test (wf_swapmask, scripts/locanmf_refit_test/, LOCANMF_REFIT_TEST_20261103.md): about 8 sessions
+    refit vs projection, same-machine stability, one joint basis timed in a separate dir.
+  Both report to me; I bring Priya per-animal tables for 2 decisions: the drift cutoff, and refit vs project.
+- **Next:**
+  1. Drift decision -> build the final variant (about 1 h).
+  2. LocaNMF decision.
+  3. Wait for A1-A5 on main.
+  4. Merge the branches into main.
+  5. Code changes on a branch off main, with tests:
+     - single hemo switch; project_all / basis selection; output-root tags;
+     - session-cache prune guard; selection_tag + fingerprint in make_spec;
+     - camera working in _class_select; Aug-only pre per decoder block; precue_engagement_states;
+     - map-digest narrowing; drop the legacy date shim; nolick bug; encoder / ITI drift removal.
+  6. Renders G0-G8 into NEW folders, logged.
+  7. 2 verifier agents.
+  8. Replacement pass (share, decks, pages, PI deck with e3; page text B9-B14).
+  Estimated about 1.5-2 days of compute, plus O2 for the encoder bundle.
+
+### 00-COMPACT-19 (11-01 ~23:00, Priya asleep, autonomous) -- READ FIRST, then docs/status/RUNNING_LIST_2026-11-01.md
+Same session f082ee0c / worktree wf_attempt / branch analysis/attempt-coding. Goal page LIVE **v305** (section 23 = quiet window, merge their updates before publishing); imaging page (repo
+widefield_pipeline main, source docs/results_pages/imaging/, publish from repo HTML; must READ the live version first) LIVE
+**v39**. Today: C: disk cleanup (lists docs/status/DELETED_LOCAL_*_2026-11-01.txt); lick-source tags on every figure title
+(both pages; tables docs/status/GOAL_PAGE_LICK_SOURCE_20261101.tsv, imaging provenance/lick_source.tsv); 14.21 S1/S2/S11-S13
+captions on RESTnl (the acute far-contra pre-cue raise is NOT orofacial-specific under RESTnl); S12 stars in the panel
+(wfield_local/sig_marks.star_top + reserve_headroom now also in this branch). Plans: RESTNL_ROLLOUT_PLAN_20261101.md (Priya
+"ok" to my recommendations: RESTnl primary, old baselines collapsed sensitivity, flat RESTnl for maps, August-only pre,
+wr rule, rest decoder 12.1 lick-free first). Running: engagement-gate vs LP-attempt check -> GATE_LP_CHECK_20261101.md.
+Rules unchanged (helpers: exact PIDs only, never commit; <= 4 workers; another session commits on widefield_pipeline main ->
+branch off main for renderer code, never rebase / force-push).
+**11-02 03:05 update:** goal page live v306 (quiet window). DONE: gate check, LP gate option (dea1de5f), 14.21 + S7 on
+RESTnl, RESTnl MAPS (branch analysis/restnl-maps 00f1e2c2 in worktree wf_restnl; results RESTNL_MAPS_20261101.md; pre-cue
+far-contra rise now 4/4; PS94 late flat-baseline caveat). Priya 11-01: "ensure we discuss before you take anything off the
+page or replace headline results" -> ADD only. RUNNING (helpers): imaging-page RESTnl additions (b-suffix figs); FINAL LP
+ARM render (new worktree, branch analysis/lp-final, doc LP_FINAL_ARM_20261102.md there). On their reports: commit their
+work (helpers never commit), log in the running list, then add LP-final figures to the pages (add only). Two decisions
+for Priya at the top of the running list (prm cache digest on main; flat RESTnl for PS94 late).
+**11-02 06:30 update:** imaging page LIVE v44 (v43 RESTnl twins 7.xb/8.xb; v44 Final LP arm block #lpfinal Figs 2.5-2.8);
+page source committed on analysis/restnl-maps (wf_restnl). Goal page LIVE v308 (quiet window), merged locally. Final LP arm
+committed on analysis/lp-final (wf_lpfinal, 5822cbad): no headline change. Fig 2.4 caption error (decoder refit in memory,
+not the stored DAQ model) -> correction note WAITS for Priya. RUNNING: rest decoder 12.1 lick-free (helper, branch
+analysis/rest-decoder-nl). Decisions for Priya: top of RUNNING_LIST_2026-11-01.md.
+
+### 00-COMPACT-18 (10-30 ~late night) -- (previous; then the running list; -17 for the 10-29 state)
+Same session f082ee0c / worktree wf_attempt / branch analysis/attempt-coding. Page LIVE **v292**
+https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d (local source `_goal_page/index.html`, images gitignored -> publish via the
+`files` map; supplement anchors `id="s14-18-N"`). Last commits ccfae557 (page/figure review fixes + FINDINGS 4.23 + S25),
+8aa75cab (running list). **NOTHING RUNNING.** Running list = `docs/status/RUNNING_LIST_2026-10-29.md` (10-30 entries at the end).
+DONE 10-30 (each pre-registered, Outcome section filled; FINDINGS §4 items; page 14.18 supplements):
+- ITPC / coherence (4.17): ITPC rise restates the larger lick response; GCaMP6s kinetics caveat (LTI deconvolution leaves
+  ITPC / coherence unchanged by construction) -> S19 DEMOTED (Priya OK). CCA gate failed; no DLAG.
+- Direction-information timing S vs M (4.18, S20; DIRECTION_INFO_LAG_PREREG): pre motor leads ~23 ms; chronic ~10 ms, 4/4.
+- Literature deep dive: `docs/RECOVERY_MECHANISMS_LIT_20261030.md` (predictions vs results table; pathway routes A-D,
+  route D 'ALM -> bilateral premotor' UNVERIFIED (Priya asked it as a question); ranked analyses; cohort-2 perturbation
+  logic: direction x epoch interaction, contralesional activation, ~3-week viral lead time).
+- Kinematic normality (4.19, S22a-e): hits still less normal chronically (-0.10, 4/4; PS94 most); median deviation raised,
+  95th pct back; recovery-score figure all 4 animals (`scripts/kn_hits_deviation.py`).
+- Re-embedding (4.20, S23): alignment failed gate G1 -> NOT ESTABLISHED; half the chronic frozen-refit gap is drift-sized.
+- Within-lick correction (4.21, S21a-d): 'the brain fixes the LAUNCH command itself rather than adding feedback
+  corrections' (Priya likes this wording); pre-stroke CSM validation reproduces Bollu 2021 (S21a).
+- Learned compensation (4.22, S24): no within-session learning (gains overnight), no ITI carry-over; hit rate FALLS within
+  post sessions; ITI bias = cued landing error (NO gap -- Priya: important; FINDINGS §0 4b note).
+- Pre-launch hemispheric tuning (4.23, S25): gate failed 0/4 at AREA level; contraversive pattern only post-contact.
+FIGURE DEFAULTS (Priya 10-30; memory results-page-conventions + docs/templates/README.md): sessions = OPEN markers, shape =
+animal (PS92 o, PS93 s, PS94 ^, PS95 D), colour = epoch (EPOCH_LINE); pooled = FILLED epoch-colour marker; June grey; NO
+figure numbers inside images (panel letters OK); NO connecting lines between epochs; distributions = faint session curves
++ thick pooled, each epoch's own 50 % / 95 % marked.
+UNREVIEWED BY PRIYA (she said 10-30 late: keep these in the handoff until she reads them):
+- My answer to her 10-30 figure review (fixes applied in page v292): Bollu signatures = S21a; no-gap result bolded (S24b,
+  FINDINGS §0 4b); P(pre) explained in S22a; hit rate worsens within sessions, aim does not (S24a); the two pink acute dots
+  in S24b panel A = close vs far mid (now split open/filled); S2 / S11 / S16 were always text-only; S3 overlaps the offset
+  analyses (recommend collapsing); S25 gate failed.
+- My answer 'why area pools, not SVD within ALM / tjM1' (item 1 below) -> Priya then said RUN IT (10-30 late; in progress).
+OPEN (Priya to decide; asked, no answer yet):
+1. **NEW 10-30: pixel / SVD version of S25** -- Priya asked why area pools rather than SVD within ALM / tjM1 (Allen masks).
+   Answer given: my choice (trial counts, hemisphere comparability), not principled; area averaging may cancel a spatial
+   pattern. Proposed add-on prereg: mirrored ALM + tjM1 masks per hemisphere, SVTcorr projected on masked U_atlas, top
+   components; one FROZEN decoder per animal x hemisphere trained on pooled August pre sessions (load_or_fit), scored on
+   post; same pre gate (>= 3/4 animals, within-spout CV vs shuffle); post-contact window as positive control. Limits either
+   way: launch noise 5-8 deg / lick, GCaMP6s over a 250 ms window. GO given 10-30 late -> prereg
+   docs/status/PRELICK_SVD_TUNING_PREREG_20261030.md + scripts/prelick_svd_tuning.py (helper).
+   DONE 10-30 late: POST positive control FAILED (2/4), PRE nominal 3/4 ipsilesional-only r ~0.05 -> NOT ESTABLISHED;
+   no post change; FINDINGS 4.23 addendum, page S25b (v293). UNREVIEWED by Priya. Open check: `_cv_r` negative bias.
+1b. **DONE 10-31 (FINDINGS 4.24, page S26 v294; UNREVIEWED): no pre-launch tracking, inconclusive by rule; post-contact
+   tracks; FaceRhythm pre-launch tracks the deviated launch (0.49, 4/4).** Was: pre-launch AIM-TRACKING test (Priya GO): frozen across-spout angle decoder (pooled August pre) in
+   the pre-launch window (0.05 s bins, -0.50..-0.05 s) -- at the same target, does the decoded angle follow the deviated
+   launch (aim in cortex) or stay at the target (as pre-cue did)? CUED + ITI (docked, pre-lick, dynamic) arms; Allen /
+   whole-brain SVD / LocaNMF. Two-stage helper (prereg first, I commit, then run). Context given to Priya (UNREVIEWED):
+   within-spout angle IS decodable weakly AFTER contact (4d0g slope +0.17-0.23 4/4; S25 slopes D -0.55 4/4; pixel POST
+   2/4), never before launch; across-spout angle decodes but mostly as spout identity.
+1c. **DONE 10-31 (FINDINGS 4.25, page S27; UNREVIEWED): face tracks aim only after movement starts; ITI offset after FR partialling retained 0.78-0.82 (PARTIAL; PS92 face-carried, PS94/95 kept). Open from prereg deviations: dose control, lick-level history regression, intersection lick set not computed.** Was: FaceRhythm pre-launch aim follow-up (Priya GO; prereg docs/status/FACE_PRELAUNCH_AIM_PREREG_20261031.md
+   expected, script scripts/face_prelaunch_aim.py): which face factor / jaw measure carries the pre-launch angle + deviation,
+   timing vs jaw onset, recovery time course, within-spout pre, and Q5 = FR partialled out of cortex -> does the frozen-DECODER
+   OFFSET change? (Answer given to Priya, UNREVIEWED: FR partialling was done for the SSp-n L/R term (unchanged) and inside
+   the frozen encoder, but NOT on the decoder offset itself.)
+1d. **DONE 10-31 (FINDINGS 0b disengagement line, page S28; UNREVIEWED): not satiety (stop after -290 ul less water, 4/4), no failure-specific frustration and no tongue slowing before quits (narrow tests; broader frustration / fatigue NOT ruled out, 11-01 wording fix); quit state = running, still cortex BELOW engaged (post hoc). Primary epoch early post chosen by me (unreviewed). Addendum DONE (S28d2-g): water shortfall partly session length (80-min -105, 3/4); running-regressed level -7.8 4/4 confirms; self-activation not supported. FOR PRIYA: check session-end classes (a0_end_class.csv); P5t trials cap 300 uninformative -> report uncapped with bounds or drop?** Was: disengagement tests 1-4 (Priya GO): 1 satiety (water before quit), 2 frustration / local reward
+   rate threshold, 3 motor fatigue predicting the quit, 4 state of the quit period (face / running / cortical pre-cue level +
+   slow fluctuations; pupil availability check). Two-stage helper; prereg docs/status/DISENGAGEMENT_PREREG_20261031.md,
+   script scripts/disengagement_tests.py, outputs E/disengagement/. Plus a licks-per-responded-trial figure (claim had none).
+   UNREVIEWED answers given 10-31: differential compensation (lesion-group pattern, PS94 least recovered, PS92 offset
+   face-carried; per-animal profile table proposed, no answer yet); neural correlate of recovery (orofacial post-lick
+   balance: cued marker largely landing error via target; ITI shift genuine within-animal, partial; post-movement state,
+   no lead); figure sources for "compensate not restore" (S21, FR 5d / items 2,4,6, OROFACIAL item 7).
+2. Figures for text-only S2 / S11 / S16? 3. Collapse S3 into the offset section? 4. Publish reembed frozen refs (local
+   store, kind `reembed`) to MICROSCOPE? 5. New re-embedding prereg with spout-resolving label-free alignment?
+6. Cohort-2 design (longer pre baseline; perturbation arm) -- viral lead time means decide soon.
+
+### 00-COMPACT-17 (10-29 ~03:00) -- (previous; then -16 / -15 for the balance definition and decomposition, -12 env)
+Same session / worktree / branch; page LIVE v223 https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d; last commit adf258ee+.
+DONE this stretch (all on the page + FINDINGS 0b):
+- 'Biology in brief' section at the top (7 cards, hypothesis line). 14.18 primary image = UNCAPPED first licks
+  (lick_recovery_primary_full.png; capped version collapsed under it).
+- SSp-n checks (lick_sspn_checks.py; 12.17 supplement): decoder WITHOUT SSp-n still tracks recovery but weaker (largest
+  single contributor, not necessary); WEIGHT-FREE left/right difference: SSp-n #1-2 of 21 areas but SSp-ul, SSp-un,
+  MO-rest, SSp-m, tjM1, ACAd close -> 'broad sensorimotor left/right imbalance, strongest in SSp-n' (hypothesis wording
+  updated in WTS, Biology in brief, FINDINGS); FaceRhythm partialled: unchanged. ACAd = midline strip -> needs vessel /
+  registration check before being called.
+- Contact vs miss (lick_balance_contact.py; 14.18 supplement): balance as large or larger on MISS licks, tracks recovery
+  as well (0.66 both) -> not mainly touch; strict misses lose the link in PS92/95.
+- Imaging control on the primary balance (lick_balance_imaging_control_primary.py; first image of the imaging-control
+  figure): F0 asymmetry wrong sign for an artefact; 415 nm flat; partialling F0 leaves cued 0.42 / ITI 0.27 cvR2.
+- SEVERITY CORRECTED (Priya): phenotype PS94 most severe, PS95 least; histology tissue loss PS93 55 ~ PS92 53 > PS94 32 >
+  PS95 18 % (PS92/93 lesioned twice). Response-size wording now by LESION GROUP; WTS row 'Lesion size vs phenotype':
+  acute bilateral increase + acute balance follow behavioural severity (PS94), chronic growth follows tissue loss.
+RUNNING at this note: helper agent -> scripts/lick_enl_angle_decode.py (Priya: "decode lick angle from ENL?": pre-cue
+lick-free window -> upcoming first-lick angle, raw and BEYOND the spout; frozen post-stroke read-out + offset); outputs
+<OUT_W>/enl_angle_decode*.csv, figures/lick_enl_angle_decode.png -> report, add to page (section 14 near 14.21 pre-cue).
+NEXT: cued-hit balance for the strict-miss subset question.
+ADDED 10-29 (later): ACAd midline control DONE (scripts/lick_acad_midline_control.py; 12.17 supplement; FINDINGS 0b):
+undetermined, probably not ACAd-specific (link lives on the sagittal-sinus strip, shares variance with MOs-rest /
+SSp-n; registration ruled out) -> not a grant candidate region. Grant discussion with Priya (chemogenetics): balance =
+secondary readout next to behaviour, measured off-drug and without the manipulated area; priority SSp-m/n both
+hemispheres, contra tjM1, ALM lower; bilateral arm as specificity control; VIS/RSP as control region.
+ALL 10-29 NIGHT HELPERS DONE (page v234; full state in docs/status/RUNNING_LIST_2026-10-29.md -- decisions needed
+from Priya at its top). New: pre-cue target test (lick_enl_target_test.py: target code DEGRADED but NOT re-aimed;
+landing signature only after the cue; precue attempt_coding_pp outputs generated with approval; its run.json was
+rewritten to list lick+cue+precue, original backed up in the session scratchpad); rev-up behaviour (revup_behaviour.py:
+wait, not aborted attempts) and neural (revup_neural.py: delayed start, not slower ramp; acute far-contra overshoot;
+late-lick engagement-definition conflict open). Page artifact hit the 512-file cap: 75 unreferenced images removed.
+DONE 10-29 night: target model (14.18 supp), matched error (14.18 supp; cued within-spout balance overshoots pre;
+grant note), ITI pre-lick (12.17 supp; lick-onset-locked; no ITI spout contact), ENL follow-ups (14.21 supp; CAVEAT:
+'pre-cue reads the target' NOT established -- decoder compression, far-contra moves in 3/4), implied-direction display
+(WFIELD_BAL_DISPLAY) + sign box, ACAd control (not ACAd-specific). Page v231.
+GRANT NOTE (Priya 10-29): cued within-spout balance rises ABOVE pre over weeks (contralesional hemisphere gains
+relative weight, independent of landing; FINDINGS 0b matched-error entry) -> chronic contralesional silencing tests
+whether that extra share supports the recovered behaviour.
+TO-DO (Priya 10-29) 'REVVING UP' to far-contra: anecdotally post-stroke animals take much longer to start the first lick
+to far-contra, sometimes starting after the spout leaves. Plan: (A) behaviour -- cue -> first-lick-onset and -> first
+contact latency distributions / hazard per spout x epoch, share of trials whose first lick starts after the spout
+leaves (DAQ spout-move strobe); (B) kinematics between cue and first lick -- jaw onsets without tongue (incomplete
+licks, cam1 jaw re-onset), sub-threshold tongue protrusions, FaceRhythm lick-vigour ramp; slow single ramp vs repeated
+aborted attempts; (C) speed-accuracy: within session x spout, does a longer rev-up give better aim?; (D) neural --
+cue- and first-lick-aligned ALM / tjM1 / SSp-m / SSp-n traces by latency quartile (ramp slope vs delayed start, to a
+common level?), late (after-spout-left) licks vs normal / ITI licks; (E) does the raised pre-cue contralesional level
+(14.21) predict latency?; (F) rev-up duration as a recovery marker vs the balance. Reuse: attempt-based deficit / time
+to contact (10-21 encoding handoff), jaw onsets + re-onset (10-21 pose handoff), iti_licks first-lick times.
+TIMING CAVEAT (Priya): GCaMP6s is slow (rise ~0.1-0.2 s, decay ~0.5-1 s; widefield smoother still) -- fluorescence
+lags spikes, so a rise at -0.2 s means activity earlier; a step at 0-0.1 s after lick onset cannot separate a late
+motor command from early self-generated feedback; post-lick decay leaks into the next window. Read every timing claim
+(ITI pre-lick, rev-up ramps) with this; consider a deconvolution sensitivity check.
+ENL angle decode DONE (scripts/lick_enl_angle_decode.py; 14.21 supplement; FINDINGS 0b): weak, mostly spout; tiny
+within-spout part partly trial history; acute contralesional offset +1.55 deg 4/4, not sustained. OPEN: route its
+pre decoders through frozen_models.load_or_fit (rule 10).
+
+### 00-COMPACT-16 (10-29 ~01:30) -- (previous)
+Same session / worktree / branch; page LIVE v218+ https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d. NOTHING RUNNING.
+HYPOTHESIS (updated with Priya): FINDINGS 0b "HYPOTHESIS (updated 10-29)" + the WTS row of the same name.
+NEW this stretch:
+- 12.17 KEY = exact decomposition of the decoder's like-for-like offset into per-area left/right DIFFERENCE and SHARED
+  parts (lick_offset_contrib_map.py now saves terms_sessions_<tag>.csv + terms_licks_<tag>.csv.gz; analysis
+  lick_offset_terms_recovery.py -> offterm_*.csv). ITI offset ~70-75% hemispheric difference, SSp-n difference +0.34 /
+  +0.20 (acute / chronic); SSp-n term tracks recovery within every animal (4/4, ITI + cued), not across animals
+  (per-animal decoder scale). Old 12.18 (balance-explains-offset) and 12.20 (regions) collapsed in place.
+- 14.14 = PRIMARY balance by lick order (lick_balance_order_primary.py, from balsub_order.csv written by
+  lick_balance_subsets.py): cued acute ~-0.35 at orders 0-4, chronic ~0 (raw overshoot gone); raw order figure collapsed.
+- Uncapped cued first licks: lick_firstlick_extract.py -> <OUT_W>/firstlick_full/<label>.npz (every first post-cue
+  lick, ~476 / session vs ~138 in the capped decoder set; identical values on shared licks; shared session files NOT
+  changed); WFIELD_BAL_FULL=1 in lick_balance_subsets / lick_recovery_primary (outputs *_full): within-animal r
+  0.77/0.87/0.94/0.74, unseen animal 0.65. Not yet the page default (14.18 still capped; full in its robustness (vii)).
+- Session pace (session_pace_table.py): acute excess of first licks = 1500-lick cap (N_TRIAL_MAX) x shorter bouts.
+- Trial-by-trial (balance and SSp-n term): dominated by the normal direction code / decoder shrinkage (present pre) ->
+  uninformative about cause; pre-lick balance predicts nothing.
+- Page: section 12 and 14 renumbered by the inserts (refs fixed by script: collapsed-fig summaries regenerated from
+  inner fnum; retired-group numbers kept as historical). Collapsed figures keep their <figure> tags -> renumber() counts
+  them; after any insert, re-sync the collapsed summaries (see scratchpad page_fixrefs.py logic) .
+OPEN / NEXT: (1) cued HIT vs MISS (contact) balance -- sensory-reafference vs motor test; (2) make the uncapped first-lick
+set the 14.18 default?; (3) redo the imaging control (14.19, F0 / 415) on the primary balance; (4) 'Biology in brief'
+section (list awaiting Priya); (5) collapse WTS-unreferenced supporting figures.
+
+### 00-COMPACT-15 (10-29 ~00:30) -- (previous)
+Same session / worktree / branch; page LIVE v213+ https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d. Decisions:
+DECISIONS "2026-10-28 (late night)"; findings FINDINGS 0b (PRIMARY marker block + trial-by-trial).
+PRIMARY BALANCE (fixed): angle-matched GAIN RATIO, log2(contra obs/pred) - log2(ipsi obs/pred), summed over the session's
+licks and ALM + tjM1 + SSp-m + SSp-n + SSs, response 0.1..0.5 s after the FIRST lick minus -1..-0.5 s; cued = first
+post-cue lick, ITI = first lick after >= 2 s quiet; pred = animal's PRE straight line on lick angle per area x hemisphere
+x lick order (pre sessions leave-one-session-out). Code: scripts/lick_balance_subsets.py (per-lick features + session
+sums; env WFIELD_BAL_REF=lateral, WFIELD_BAL_REFMETHOD=gauss, WFIELD_BAL_INSIDE=1, WFIELD_BAL_KIN=1, WFIELD_BAL_MO=1 ->
+suffixed outputs; --sessions-only), scripts/lick_recovery_primary.py (models + figure; same env suffixes).
+PAGE: 14.16 = HOW THE BALANCE IS CALCULATED (method box + area map + PS94 worked example, lick_balance_explainer.py);
+14.17 = PRIMARY marker (KEY) with supplements: window/subset selection (lick_balance_nested.py, lick_balance_subsets.py),
+trial-by-trial (lick_balance_trial.py), and the RETIRED earlier definition (old 14.18-14.20 folded into one collapsed
+supplement, anchors kept). 12.18 first image = primary balance vs decoder offset (lick_balance_offset_primary.py).
+14.14 / 14.15 relabelled as the RAW per-lick hemispheric difference. 14.20 = pre-cue level vs restw + traces
+(lick_precue_restw.py, lick_precue_restw_traces.py; sustained acute raise at far contra, not a ramp).
+RESULTS: cued unseen-animal R2 0.70 (days 0.23); 0.53 with only in-pre-range licks (no extrapolation); ITI 0.42 (days 0.17)
+but 0.07 without extrapolation (within-animal link remains 3/4); Gaussian ref worse; lateral ref equivalent; lick count
+cancels; equal area weights equivalent; tracks decoder offset (cued r -0.58..-0.92 4/4). Trial by trial: post-lick
+balance follows the lick's direction r 0.3-0.5 incl. PRE (normal code); pre-lick balance r ~ 0 -> no pre-movement cause.
+Biology hypothesis discussed with Priya: impairment = loss of normal between-hemisphere balance of orofacial cortex for a
+movement (ipsilesional cortex over-responds acutely), recovery = re-balancing (not restoring size); evidence now favours
+the balance as a post-movement STATE / readout rather than a pre-movement cause.
+DONE after this note (page v216, 80f43e3e; NOTHING RUNNING): kinematics-matched balance -- cued survives (0.63), ITI
+cross-animal fails; MO-rest adds nothing; acute excess of cued first licks = 1500-lick random cap in iti_licks.extract
+(N_TRIAL_MAX), not behaviour (session_pace_table.py) -- 'first-lick count tracks recovery' WITHDRAWN; balance explains ~65%
+of the cued acute decoder offset but 5-15% of the ITI offset -> for ITI the decoder offset (0.39 unseen animal) is the
+better marker. Page decluttered (goal_page_declutter.py: 110 figures collapsed IN PLACE, numbers unchanged, links open
+them; 171 open). NEXT candidates: (i) re-extract cued first licks WITHOUT the 1500 cap (more precise cued marker);
+(ii) per-area decomposition of the ITI decoder offset beyond the balance (within-hemisphere pattern); (iii) 'Biology in
+brief' section (list proposed to Priya, awaiting OK); (iv) collapse supporting figures not referenced from WTS.
+(was) RUNNING at this note: (1) task bxa9t3iuo: WFIELD_BAL_KIN=1 sessions + primary (test 2: reference on angle + reach + speed
++ elevation; outputs *_kin), then WFIELD_BAL_MO=1 full subsets (MOs_rest / MOp_rest added; balsub_*_mo) -- logs
+S2/balsub_kin.log, recprim_kin.log, balsub_mo.log; (2) helper agent: scripts/session_pace_table.py -> session_pace.csv /
+figures/session_pace.png (why acute sessions have MORE first post-cue licks: PS92 128/196/120/122 ... pre/acute/sub/chronic).
+-> report both, add kin result to 14.17 robustness + WTS row, MO result to the subset supplement.
+PENDING with Priya: (a) PAGE DECLUTTER plan (281 figures; proposal: per section, collapse all 'supplementary' tier and
+method-only 'supporting' figures into one 'More figures' details; keep KEY + biology-relevant visible) -- awaiting her OK;
+(b) WTS figure-number references elsewhere may be stale after the section-14 renumbering (links are fine; check
+plain-text numbers); (c) spout-contact covariate for test 2 not available in covref (would need pose contact table).
+
+### 00-COMPACT-14 (10-28 ~20:30) -- (previous)
+Same session / worktree / branch; page LIVE v204 https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d. Same page-edit rules
+(goal_page_insert + fix "CHECK plain mention" by hand; Artifact `edits` refused -> edit file, publish with files={...}).
+Decisions: docs/DECISIONS.md "2026-10-28 (night)". Findings: FINDINGS 0b (recovery markers, pre-cue, attribution).
+NEW / CHANGED on the page this stretch:
+- 11.13 legend fixed; NEW 11.14 nested blocks + ladder + Shapley (scripts/lick_block_compare.py; main image =
+  WFIELD_BLOCK_VARIANT=oroSSs, SSs in the orofacial group; 6-group split = supplement). oro+SSs ~40% of code and ITI offset.
+- 14.16 grey pre cloud; NEW 14.17 KEY recovery markers (scripts/lick_recovery_markers.py): balance tracks recovery
+  (cued LOAO 0.50, epoch-out 0.41 vs days 0.23), SIZE / AUC do not (sign flips with lesion severity PS94/95 vs PS92/93);
+  per-area supplement incl. z-scored balance; ITI first-after-quiet balance 0.29. NEW 14.20 pre-cue level vs restw
+  (scripts/lick_precue_restw.py, helper-built, validated vs cued_wide traces).
+- 18.5-18.9 residual-ROI maps: per-area outlines, untested areas blanked (the 'fragments'), no frames.
+- Non-linear decoder supplements on 12.1 / 12.15 / 12.21 / 13.1 / 13.6. Musall split-row sentences on 0.3 / 0.4 / 0.9 /
+  0.10 / 0.11 (claims_contest / claims_peth / claims_trend_levels; the old "tjM1 r 0.09" note could not be traced and was
+  not used; per-animal r tjM1 contra vs MOp contra movement PETH -0.16).
+- FINDINGS 0b + "Where things stand" recovery row have the bounds (within-animal days 0.70-0.81; LOSO animal-known days wins).
+DONE after this note (page v205): fair weights fail across animals (cued LOAO -0.08; own-animal 0.04; plain average 0.50); ITI recovery axis: ITI licks shift ipsilesionally and recover (mean angle -12.6 / -6.0 / -3.8 deg, r with cued aim 0.77-0.95), but only SSp-n first-after-quiet balance predicts it in an unseen animal (0.32 vs days 0.17) -> 14.17 caption + ITI-axis supplement. Nothing running.
+(was) RUNNING at handoff: scripts/lick_recovery_markers.py full run (task b7rvq4dsk; log S2/recmark.log) adding (a) FAIR pre-fit
+weighted balance oro_balwx (weights from the OTHER animals' pre licks) and (b) ITI's own recovery axis (iti_ang = session
+mean ITI lick angle vs pre, iti_ang90 = contralesional 90th pct; new figure lick_recovery_markers_iti_axis.png). When it
+ends: read recmark_cv.csv (y column: aim / iti_ang / iti_ang90), copy lick_recovery_markers_{cv,size,areas,iti_axis}.png +
+lick_balance_recovery.png to _goal_page, add the ITI-axis image as a supplement of 14.17 and the oro_balwx numbers to its
+caption, publish, commit. Priya: the ITI axis "asks a different question" -- say so in the caption.
+OPEN: PS93 acute MOp / MOp-rest movement-PETH values +0.43..+0.92 (0.4 caption) -- check for an R2 artefact; the
+--models-only path of lick_recovery_markers does not know the ITI axes (run the full script).
+
+### 00-COMPACT-13 (10-28 ~15:45) -- (previous)
+Session f082ee0c, worktree C:/Users/SabatiniLab/Github/wf_attempt, branch analysis/attempt-coding (commits through 01a944f1+).
+Page LIVE v198 https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d. Env as 00-COMPACT-12. Page edits: scripts/goal_page_insert.py
+(insert + renumber; fix the "CHECK plain mention" lines by hand); the Artifact `edits` option is REFUSED here (file-edit hook)
+-> edit _goal_page/index.html with a .py script, then publish with files={...}. Bash heredocs with "\n" inside Python strings
+corrupt files (happened ~6x today) -> use the Write / Edit tools for code. Backgrounded `( ... ) &` subshells LOSE
+non-exported shell vars (logs went to "/x.log") -> literal absolute log paths.
+DECISIONS today (all in docs/DECISIONS.md 2026-10-28 afternoon / evening / late):
+- Response-AUC window = 0..1.0 s for ITI AND cued (Priya: one window, easier to defend); 0..0.5 s secondary. Response
+  baseline -1.0..-0.5 s; PETH curves + build-up keep -1.5..-1.0 s. ITI 0..1 s AUCs come from the wide cued_wide traces
+  (stored ITI PETHs end at +0.75 s).
+- Contra/ipsi ratio figures: PER-SPOUT = KEY (14.9; far ipsi shifts, close ipsi not); by side = supporting (14.10); close vs
+  far ring (14.11; far-close test per epoch); side traces collapsed (14.12). All-spouts pooling demoted (averages
+  opposite-side ratios). Traces: mean over animals defined at each lag, dotted where < 4.
+- Orofacial pool = ALM + tjM1 + SSp-m + SSp-n (SSp-un in NEITHER pool: intermediate, adding it worsens the fit).
+- Area maps: each significant area outlined on its own (black on white halo), non-sig faded, the MOs/MOp edge strip
+  lateral to ALM/tjM1 blanked -- it was a DISPLAY artefact (those pixels are in no ROI mean; checked) ->
+  iti_area_maps.trim_rest, also used by encoder_split_rows.split_image (lick_offset_where / contrib / residual_roi redrawn).
+RESULTS today (PROVISIONAL; FINDINGS 0b + "Where things stand" KEY group):
+- Lick-evoked activity larger post-stroke in both hemispheres; cued far-contra acute = early decay (0.5-1.0 s below pre,
+  survives vigour + landing regression, 14.8). Regression audit: all covariate adjustments correct; nulls real (12.16, 14.8,
+  14.19 captions).
+- HEMISPHERIC BALANCE (X_right - X_left, decoder 0..0.2 s window): pre-stroke tracks lick angle (each hemisphere favours
+  contraversive licks); post ~30% flatter (2-3/4) + shifted ipsilesional at the same angle; per lick order: acute
+  ipsilesional at every early lick, chronic overshoot contralesional licks 1-6 (14.13 / 14.14, angle+order reference).
+  Session balance tracks the read-out offset (12.18, cued r -0.76..-0.95 4/4); ONLY orofacial balance carries it
+  (12.19 head-to-head; non-oro adds nothing). Balance-blind decoders (12.20): offset unchanged with global / orofacial-pair
+  / non-oro differences removed -> offset carried by the orofacial PATTERN, balance tracks but is not its sole carrier;
+  VIS+RSP-only decoder r 0.15. Imaging control (14.17): F0 / 415 nm do not explain the subacute/chronic shift.
+  Musall-style task vs movement maps of the balance (14.15, area + SVD pixel): lateral orofacial only; cued = spout,
+  ITI = movement; acutely movement share halves.
+- IMPORTANT (Priya): cued orofacial balance predicts an UNSEEN animal's recovery (far-contra first-lick aim) cvR2 0.50 vs
+  days 0.23 (non-oro -0.19; shuffle null <= -0.12); 3/4 held-out animals; leave-one-session-out 0.63 vs 0.48 (animal
+  unknown); with animal known days wins 0.83. Same-session link survives nonlinear time (per-animal splines p 0.006); no
+  next-session prediction (14.16).
+DONE after this note (page v199, 5ddf82a1): NEW 11.13 = decoder ALONE / UNIQUE maps (scripts/lick_area_unique_maps.py;
+Priya's actual "Musall-style" request): orofacial block alone ~full (ITI r 0.59 vs 0.62), unique +0.062 ITI (4/4) / +0.036
+cued; non-orofacial block alone ALSO decodes (0.53 / 0.71 -- adjacent S1 areas) and shows the offset -> code + offset
+redundant across sensorimotor cortex; section 11 renumbered (weight-1sd 11.14 ... behaviour-only 11.20). Nothing running.
+Keep 14.15 (balance task/movement maps) unless Priya says drop it.
+TODO / open: two tiny edge fragments may remain on the per-spout residual-ROI maps (check vs masks); residual_roi maps
+still use the merged outline style; 14.8 pre-cue row (restw) still awaiting Priya; Musall split-row caption numbers;
+orofacial area AUC vs recovery LMM (old item 9) partly superseded by the balance-recovery analysis.
+New scripts today: lick_vigor_perspout, lick_lateral_ratio, lick_balance_{reference,angle_lmm,order,offset_lmm,regions,
+maps,maps_svd,recovery,blind_decoder,imaging_control}, lick_area_unique_maps.
+
+### 00-COMPACT-12 (10-28 ~07:20) -- READ FIRST. Session f082ee0c, branch analysis/attempt-coding in worktree
+C:/Users/SabatiniLab/Github/wf_attempt (commits through 3483a064+). Page LIVE v165+ https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d
+(source _goal_page/index.html, committed). Running log + decisions: docs/status/OVERNIGHT_20261027.md (10-28 morning
+section) + docs/DECISIONS.md "2026-10-28". Run env: source S2/rr2/frozenenv.sh; PYTHONPATH="wf_attempt;wf_attempt/scripts";
+python C:/Users/SabatiniLab/miniconda3/envs/locanmf/python.exe; WFIELD_INPUT_CACHE=C:/Users/SabatiniLab/wfield_cache.
+Use the Write/Edit tools (or a .py file) for Python patches -- bash heredocs with nested quotes / "\n" broke 4x today.
+Page edits that insert / move figures: scripts/goal_page_insert.py (insert + renumber section, links, fig_ids; prints
+plain-text mentions to fix by hand -- earlier insertions shifted "Statistics as 14.x" etc. by hand).
+
+DONE 10-28 (Priya reviewing the page live, many small requests):
+- Key figure 1 = scripts/key_figure.py (A behaviour = far-contra FIRST-lick aim; B/C frozen vs epoch-refit decoders + old
+  far-contra code on hits; D ITI like-for-like offset any-spout + same-target). Key figure 2 = Fig 13.2 (lick order).
+  "Where things stand" bottom line rewritten 10-28. Cued "read ahead of the failing movement" RETIRED = target
+  composition (12.15), page + FINDINGS re-worded.
+- 10.3 legend; 10.5 x = far-contra first-lick aim + pooled; 10.7/10.8 pooled pre-normalised column; 12.1 y label; 12.2
+  Gaussian-smoothed curves (solid 4 animals, dashed 3); 12.15 panel titles; 12.17 pooled column; 13.7 NEW decoded vs
+  actual position per spout (absolute; epochs-together + per-epoch images); 13.8 (decomposition) dots = mean of animals
+  (were flat session mean), left column decoded (filled) vs landing (open) change; 13.9 legend; section 13 renumbered.
+- ITI FaceRhythm controls on UNBLANKED FR (helper fr; 14.12/14.13 captions updated; old vs new CSVs). Shared write guard
+  S2/f5/guard/sitecustomize.py is BROKEN (SyntaxError, never loaded) -- use S2/fr/guard or S2/mu/guard (fixed).
+- Section 14 (lick-locked activity): cued versions (scripts/lick_cued_ramp.py: --extract re-samples -2..+3 s traces per
+  session into iti_licks/cued_wide/<label>.npz, validated vs stored; first cued lick lick-/cue-aligned, ITI bout starts;
+  row 3 = difference from the animal's own pre curve; window sensitivity 0-0.3/0.5/1.0/1.5 + peak; masked ratio; per
+  spout). KEY block now 14.1 ITI (-2..+3), 14.2, 14.3 isolated, 14.4 cued lick, 14.5 cue, 14.6 per spout. 14.14 ITI area
+  maps with ALM/tjM1 split + far-contra previous-spout version; 14.15 NEW cued area maps (all + far-contra target).
+  iti_licks.extract now saves bout_prev_pos (bout_pos = window label, never used; no analysis affected).
+- Deleted on M: iti_licks/sessions (v1) + superseded_split_20261027 (Priya OK); roi_v2_backup kept ~1 week.
+- Rim check (ALM/tjM1 rim): no difference -> stat mask kept (scripts/checks/rim_check_alm_tjm1.py).
+
+RUNNING / PENDING at compaction:
+1. Musall + Layer 2 frA (helper mu code merged b6809c27; run S2/mu/run.sh with W=wf_attempt, task b4jttvnw8, ~1.25-1.5 h
+   from ~06:55; logs S2/mu/run_*.log, ends MU_DONE). Then update captions 0.3, 0.4, 0.9, 0.10 (claims_*.csv) and 2.2 / 2.6
+   (specificity_control/gate-attempted_v7g3_t3d_frA, layer2_split_boot.csv); copy PNGs, publish.
+2. ITI per-spout traces by PREVIOUS spout (lick_cued_ramp.py compute, PID 29604 started 06:56, log S2/mk/wide_compute3.log)
+   -> lick_iti_ramp_perspout.png -> add as 3rd image of 14.6 (+ caption).
+3. 14.7 replacement: scripts/lick_iti_ramp_animals.py (animal-averaged ITI PETH -2..+3 s, RAMP_ROIS) running (task
+   b5mfm6g95) -> put right after 14.1 as SUPPLEMENT, drop the old 14.7 (iti_ramp_peth) figure; renumber with goal_page_insert.
+4. 14.15 (cued area maps) -> Priya: "include a pre-cue also" (add row: pre-cue AUC -0.5..0 s before the cue on first_cue,
+   cue-aligned baseline -1.0..-0.5; scripts/iti_area_maps.py session_table_split cued branch) and "14.15 is KEY" (move into
+   the section-14 key block after the per-spout figure, tier key, renumber).
+5. Per-spout cued lick-response table (task b27ty861g; per spout tjM1_right / cortex change vs pre) -> to answer Priya's
+   reading below.
+6. 10.6 (scripts/iti_lick_rate.py, pooled + over days + vs first-lick aim) PID 18132 running since 05:43 (5000-perm x 2
+   behaviour axes); when done copy lick_iti_rate.png, update 10.6 caption (numbers in iti_lick_rate_recovery.csv,
+   behaviour column fc_aim vs hit), publish.
+7. Priya's synthesis to CHECK then write into "Where things stand" + FINDINGS: (a) lick-aligned activity rises
+   dramatically across cortex acutely; ITI: decreases with time (14.14: 41 areas acute -> 5 chronic: tjM1, MOp-rest contra,
+   SSp-m), cued: persists chronically (14.15: 35 areas chronic); (b) cued: mostly from close spouts, least far spouts
+   (verify with item 5; far-contra target acute lick response NOT up, n.s.); (c) "less orofacial activity acutely, above
+   pre subacute-chronic" = true for far-contra target trials (acute cue response LOWER, ALM contra -3.4, 27 areas down;
+   lick response n.s.), NOT for all cued trials (acute lick response up +5.0 tjM1 contra). Cue response: unchanged
+   acutely, up subacute/chronic.
+9. Priya 10-28 ~07:25: "plot orofacial regional AUC vs recovery index (and LMMs)". The ITI key-ROI response is already in
+   the recovery link / mixed models (section 16, e.g. 16.12 key-ROI response vs first-lick aim; scripts/iti_recovery_link.py,
+   iti_mixed_models.py). TO DO: per session, orofacial area AUCs (tjM1, ALM, MOp-rest, MOs-rest, SSp-m; contra / ipsi) for
+   ITI bout starts AND the first cued lick (lick response, cue response) vs the far-contra first-lick aim, within animal
+   (scatter + r, log(day) removed) + LMM (response ~ aim deficit + log(day) + (1|animal), as iti_mixed_models behaviour
+   model); sources area_auc_sessions_split*.csv / cued_ramp_auc_sessions.csv, aim = recovery_measure_sessions.csv.
+10. Baseline sensitivity (Priya OK 10-28: keep current baselines, add -1.0..-0.5 s as a check): lick_cued_ramp.py
+    --baseline-sens (task bm8akbebt) -> ramp_baseline_sens.csv + figures/lick_ramp_baseline_sens.png -> add as an image /
+    caption note of the window-sensitivity figure (14.10). Recovery analysis (item 9): AUC 0-0.5 s primary + 0-1.5 s
+    (also on ISOLATED ITI licks, to tell a slower decay from more licks); pre-cue level needs the RESTW baseline (Priya:
+    an in-trial baseline already carries the pre-cue state) -> per-session pass with the restw mask, then the 14.15
+    pre-cue row (Priya agreed in principle; confirm restw before running).
+    10b. Priya: "add the 0-1.5 check" -> --baseline-sens now also has ISOLATED ITI licks (iti_iso); RERUN it after the
+    first run (task bm8akbebt, without iso) finishes: python scripts/lick_cued_ramp.py --baseline-sens.
+11. Page v166: NEW 11.11 = LATERAL offset contribution maps (lick_{iti,cued}_offset_contrib_map.png, all bases);
+    section 11 renumbered (angle 11.12, reach 11.13, angle-vs-lateral 11.14, NON-LINEAR 11.15, behaviour-only 11.16).
+    Priya: DROP the unmasked LocaNMF row (lick_offset_contrib_map.py TAGS: remove 'locanmfF', keep locanmfFM) and
+    redraw --plot-only; mask the drawn maps to the atlas/brain (LocaNMF |contribution| outside the atlas is only 2-3 %, the
+    'olfactory bulb' look is footprints of kept components extending past the mask). BASES DISAGREE on WHERE: mean-of-
+    animal contribution maps, area-sum r split-areas vs SVD 0.08 / 0.09 (ITI acute / chronic), vs masked LocaNMF 0.36 /
+    0.36, SVD vs LocaNMF 0.20 / 0.03 (cued -0.23..0.42) although the OFFSET totals agree (ITI +0.39 / +0.34 / +0.40 acute).
+    -> say in 11.11-11.14 captions + FINDINGS: the offset is basis-robust, its spatial attribution is NOT (ridge weights
+    are not unique with correlated features; each basis spreads them differently). Pixel-level 'where' = the per-session
+    pattern maps (section 15), not these.
+12. Non-linear decoder follow-ups (Priya "sure do the 11.14 run and caption correction" = now 11.15): table
+    lick_order_preds_nonlinear.csv.gz built by scripts/lick_nonlinear_preds.py (linear column reproduces KEY dec, max
+    0.03 mm); WFIELD_LICK_DECODER=nonlinear runs of lick_matched_readout --ref gauss, iti_lick_order, lick_same_target_place
+    (task b1p5excn3, S2/run_nl.sh, logs S2/mk/nl_*.log) -> add NON-LINEAR versions of 12.2 (lick_matched_gauss_nonlinear_
+    curves.png) and 13.2 (lick_order_iti_cued_slope_nonlinear.png) next to their linear figures; same-target result
+    (sametarget_*_nonlinear) into the 11.15 caption. Shrinkage check DONE: cued extra non-linear offset is ~2x larger for
+    licks landing where few pre licks landed (lowest tercile +0.08 / +0.12 / +0.06 vs highest +0.04 / +0.06 / +0.03 mm,
+    acute / sub / chronic) -> part kernel shrinkage, not all. 11.15 caption: cued offset LARGER non-linear (+0.06 / +0.08
+    / +0.05 mm, 4/4), subacute +0.11 [0.001, 0.22] 3/4 where linear is +0.03; angle +2.2 deg subacute 4/4.
+13. (10-28 ~07:45) DONE: 11.11 main 4th column = decoder weight PER AREA (sum of pixel weights), per-pixel weights as
+    supplement images; unmasked LocaNMF row removed; non-linear 12.2 / 13.2 as 2nd images of 12.2 / 13.2; 11.15 caption
+    corrected (cued offset larger non-linear, partly shrinkage, same-target +0.055 acute -> still composition).
+    RUNNING: (a) SVD first-50-component maps (task bpkvm2wd3: WFIELD_LICK_DECODER=svd WFIELD_CONTRIB_KMAX=50
+    lick_offset_contrib_map.py, then --plot-only) -> new rows 'SVD first 50 components' + 'SVD summed per Allen area
+    (ALM/tjM1)' (Priya asked for both) -> copy lick_{iti,cued}_offset_contrib_map.png, caption: share of the offset in
+    components 1-50 (summary_svdF_k50.csv share_of_offset; exact for an orthonormal basis), publish. (b) Drop-one-area
+    importance scripts/lick_area_importance.py: first run (task btyd4o8fp) uses the OLD groups -> RERUN after it
+    finishes (groups now incl. ALM+tjM1, SSp-m+n, ALM+tjM1+SSp-m+n, MOs_rest, MOp_rest, VIS, RSP each ipsi / contra /
+    bilateral; Priya 10-28) -> new figure in section 11 after 11.11 (lick_area_importance.png) via goal_page_insert.
+    Priya: the SVD per-area weights look as expected for ALM / tjM1 (strong frontal weights, opposite signs across
+    hemispheres); LocaNMF maps look vessel-contaminated (queued idea: vessel-share per component + refit without them,
+    not yet approved).
+14. (10-28 ~08:20) DONE: Musall + Layer 2 run (MU_DONE): figures 0.3/0.4/0.9/0.10/0.11 (frozen_claims_*.png) and 2.2/2.6
+    (spec_groups.png / spec_area_maps.png <- specificity_control/.../figures/specificity_*.png) published v172 with notes;
+    Layer 2 chronic tjM1 +0.075/+0.073 (largest motor area), ALM +0.05, orofacial = control (+0.053 / +0.052).
+    PENDING: a detailed read of the Musall split rows (claims_contest / claims_peth: ALM tracks MOs r~0.9, tjM1 contra differs
+    from MOp r 0.09 PETH) -> proper caption numbers. 10.6 published (ITI rate vs aim r +0.56, detrended +0.26 p 0.03).
+    Importance figure = NEW 11.12 (section 11 renumbered: angle 11.13, reach 11.14, angle-vs-lateral 11.15, NON-LINEAR
+    11.16, behaviour-only 11.17): redundant coding; only SSp-n alone and the ALM+tjM1+SSp-m+n block matter (-0.062 r ITI).
+    STILL RUNNING / TODO: items 2 (ITI per-spout traces), 3 (animal-averaged 14.7), 4 (14.15 pre-cue restw + key), 5
+    (per-spout table), 7 (Priya synthesis -> Where things stand), 9 (orofacial AUC vs recovery + LMM), 10b (baseline
+    sensitivity rerun with iso).
+15. (10-28 ~08:30) Importance detail (11.12): ITI like-for-like offset with any block dropped changes by <= +-0.04 mm
+    (full +0.39 / +0.24 / +0.29; extremes MOp_rest -0.039 acute, ALM+tjM1+SSp-m+n ipsi +0.032 acute, full block
+    bilateral -0.033 / -0.037) -> the ITI offset is not carried by any single area or block. Cued offset moves more (up to
+    +0.10 with the ipsi block acute; full +0.17), consistent with target composition. Priya asked why the SVD per-area
+    weights look more 'biological' than the area basis: SVD = smooth high-variance components (implicit smoothness prior,
+    orthogonal, well-determined weights); area basis = ~45 collinear z-scored features (ridge shares weight arbitrarily;
+    small edge areas can get large coefs); AND per-area SUM of a smooth pixel map grows with area size (MOs / ALM big).
+    PROPOSED (not yet approved): basis-comparable 'effective weight' per area = decoder change for a 1-SD fluctuation of the
+    area mean (saved weights x per-session area SD), redraw 11.11 column 4.
+16. (10-28 ~09:30, page v176, commits 6ab8fded+) DONE:
+    - EFFECTIVE WEIGHT + WHERE (Priya "decoder per 1 SD map"; "where carries the offset, ITI + cued, Allen / LocaNMF /
+      SVD"): scripts/lick_offset_where.py -> NEW 11.13 (lick_decoder_weight_1sd.png) + 11.14 (lick_{iti,cued}_offset_where_
+      maps.png, lick_offset_where_bars.png); section 11 renumbered (angle 11.15 ... behaviour-only 11.19). FINDING: the 11.x
+      weight / contribution maps were per feature-SD (features z-scored per session) -> exact for Allen, MIXED for SVD /
+      LocaNMF (11.11 caption now says so; DECISIONS 10-28 late morning). On pixel dF/F (unit check 0.999-1.002) the bases
+      AGREE on weights: ipsi-minus-contra SSp-n / tjM1 / ALM, SSp-m opposite; ALM/tjM1 ~1/3-1/2 of SSp-n per SD. WHERE:
+      ITI offset spread, no consistent locus; cued acute in ipsi SSp-n (+0.11-0.17) + ipsi tjM1 (+0.06-0.13).
+      Needs terms_<tag>.csv (re-ran lick_offset_contrib_map for areas_split + locanmf mask; maps/summary unchanged).
+    - bout_prev_pos CACHE: <OUT_W>/bout_prev_pos.csv (lick_cued_ramp.py --prev-cache, 8 workers, 18 min; read with
+      float_precision="round_trip" -- the default parser missed 15 %). Section-14 jobs now ~2.5 min instead of ~2 h.
+    - Section 14: 14.2 NEW animal-averaged ITI PETH (replaces old 14.7 iti_ramp_peth); 14.7 per-spout + ITI by previous
+      spout image + per-spout cued table in caption (far contra: cued lick response NOT up acutely, up chronically; ITI
+      licks after far-contra trials: largest acute rise); 14.8 = cued area maps, now KEY (was 14.15); 14.11 window figure +
+      baseline-sensitivity image (conclusions baseline-independent; iti_iso 0-1.5 s under -1..-0.5 unstable).
+    STILL TODO: 14.8 pre-cue row (needs restw confirmation from Priya); item 7 synthesis -> Where things stand / FINDINGS
+    (per-spout table now supports (b): far-contra target the exception acutely); item 9 orofacial AUC vs recovery + LMM;
+    Musall split-row caption numbers (item 14).
+8. Open questions for Priya: restw baseline for the 14.8 pre-cue row (yes / no).
+
+### 00-COMPACT-11 (10-28 ~03:25) -- READ FIRST: docs/status/OVERNIGHT_20261027.md is the running log (queue, results,
+decisions, questions for Priya). Page v145 live (https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d). Done overnight:
+masked LocaNMF (v141), ALM / tjM1 rows in encoder / FR figures (cheap ones; expensive refits = question), first-lick aim
+behaviour axis + FWER max-stat map stats (4b), angle / reach offset-contribution maps (5c-bis), z-scored map check
+(5c-ter: ITI cortex-wide components = variance effect), covariate refs / same-target / per-animal (5a/5b/5d: CUED offset
+= target composition, ITI offset survives), pixel mixed models (5e). RUNNING: 5f helper (non-linear + behaviour-only
+decoders; worktree; writes run_5f.sh) -> merge, run, page. Helper rules: worktree + write guard + no M: writes in
+dev; NEVER kill processes not started by them (memory helpers-never-kill-by-parent). Open questions: see the log.
+
+### 00-COMPACT-10 (10-27 ~22:40) -- READ FIRST
+- **Goal page v140 PUBLISHED** (https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d): ROI v8 + split basis everywhere,
+  90 PNGs refreshed, sections 10-16 captions re-derived from v8 CSVs (page helper + 8 section helpers; pre-edit copy
+  scratchpad pg8/index_before_v8.html; changed-PNG list pg8/changed_pngs.txt); 12.1/12.2/13.6 = Gaussian like-for-like
+  (place + local-linear in collapsible supplements); NEW 11.10 lick_matched_angle_reach; NEW 10.2b lick_refit_decoders;
+  section 15 re-tier (15.1 / 15.2 = per-session LEVEL maps Key; change maps 15.8-15.10 Supporting; epoch-decoder +
+  held-out maps Supplementary; renumbered); 16.12 recomputed; "What changed 10-27" note at the top of section 10.
+  `_goal_page/` is git-EXCLUDED (.git/info/exclude) -- not committed, by design.
+- **Results that CHANGED direction / significance vs v139 (tell Priya; update FINDINGS):** ITI sagittal r now lost
+  subacute / chronic (-13 / -11 %, 4/4; n.s. in plain); cued lateral r chronic n.s. (-8 %, 3/4); "read further OUT
+  acutely" GONE (cued down +0.20 -> +0.03 n.s.; cued read CLOSER subacute -0.25 / chronic -0.13, 4/4); cued reach
+  like-for-like acute n.s., -0.27 subacute / -0.14 chronic (4/4); cued LATER licks now contralesional acutely (+0.14,
+  4/4); 16.12 response at pre aim n.s. everywhere; 11.5 lag bars hold only for split. Full list in the page helper report
+  (this conversation) -- not yet in FINDINGS.md.
+- **Open to Priya:** 11.5 LocaNMF column is the UNMASKED joint LocaNMF (DECISIONS names masked as robustness) -- add masked?
+  SVD-basis like-for-like is weaker (ITI only acute significant). FINDINGS 4d0 / 4d0b ("read ahead of the failing
+  movement") need the like-for-like numbers (cued acute +0.16 4/4; far contra +0.22 4/4; pull-based 60 % / ratio
+  details obsolete).
+- **Next:** FINDINGS.md update; tell e3 / 5b (v140); ALM / tjM1 rows in encoder / FR area figures; delete v1 sessions/ +
+  v2 backup + superseded_split (ask Priya).
+
+### 00-COMPACT-9 (10-27 ~21:30) -- READ FIRST, then 8
+- **Merged** the split-basis + like-for-like branch (147575c6; helper commits 4785cff3, 0918aab1). Switches:
+  WFIELD_AREA_BASIS = split (default) | plain (iti_licks.AREA_BASIS; helpers il.area_features / area_sd / split_table /
+  pred_file / split_only; loader iti_where_decoder.area_basis()); WFIELD_LFL_REF = gauss (default, Priya "ok gaussian")
+  | loclin (likeforlike.offset). iti_lick_order default SOURCE = areas_split. CANONICAL UNTAGGED outputs = split basis
+  (page stems unchanged); plain = "_plain"; per-lick caches carry the basis (*_splitr8; lick_order_preds_areas_splitr8,
+  plain lick_order_preds_r8). Scripts without basis tags refuse a plain run (il.split_only). 'beyond' columns -> 'lfl'
+  (lick_order, per_spout, first_lick, overcorrection, recovery_link, 3axis/check_figures, where_beyond_pull ->
+  where_lfl_*, mixed-model off_*); iti_where_angle_reach lost its bey_* panels (-> lick_matched_angle_reach, now Gaussian
+  primary + local-linear edge check beside it, 4cc5eb04).
+- **v1 folder fix done (3ab92858):** `iti_licks.labels()` (current ROI folder; raises if empty or if any frozen-run
+  session is missing) replaces 16 globs of the v1 `sessions/`; iti_nmatch_check retired to scripts/archive. Remaining
+  SESS_NAME globs take an explicit sess_dir (June). v1 `sessions/` may now go on the delete list after the split run.
+- **INCIDENT:** the helper's PS93-only tests overwrote 31 `iti_licks/figdata/*.pkl` on M: (pathlib writes slipped its
+  redirect; list scratchpad split_test_figdata_overwritten.txt). Derived; all regenerated by the split run. Until
+  V8SPLIT_DONE do not --plot-only those stems.
+- **SPLIT RUN DONE (67 steps, 0 errors, 21:29-21:55); all 31 overwritten figdata regenerated.** v2 vs v8:
+  docs/status/V2_VS_V8_SPLIT_20261027.md (tjM1 chronic build-up: nothing lost v1 -> v2 -> v8).
+- **REFIT DECODERS (Priya "re-do the per session / per-epoch decoders ... to show they can be fit"):** new
+  `scripts/lick_refit_decoders.py` (50c9500d; split, z-scored; frozen vs epoch refit LOSO-within-epoch vs session refit
+  5 contiguous blocks; epoch refit tested against pre trained on the SAME number of licks) -> refit_decoders_{sessions,
+  tests}.csv, figures/lick_refit_decoders.png. Lateral ITI frozen -0.16 / -0.14 / -0.15 (4/4) vs epoch refit -0.07
+  [-0.10,-0.04] 3/3 / -0.04 n.s. / -0.02 n.s.; cued acute frozen -0.16 vs refit -0.08 3/3; angle same pattern (frozen ITI
+  chronic -0.13, refit -0.00). Reading: post-acute the code is still decodable, the frozen read-out moved; acute = a
+  smaller real loss plus the move. PS95 has 1 acute session (no epoch refit). NOT yet on the page (add next to the
+  where-decoder figure after the page helper finishes).
+- (was) **RUNNING:** scratchpad run_v8split.sh (started 21:29; logs rr8/ws_*.log; moves superseded files -> <E>/iti_licks/
+  superseded_split_20261027/ (list rr8/ws_moved.txt); ends V8SPLIT_DONE + "ws tracebacks in:"). Est. 25-35 min.
+- **NEXT:** check tracebacks; v2 vs v8 comparison (roi_v2_backup) incl. ramp_session_tests tjM1 build-up for Priya;
+  page update (re-copy PNGs, captions 10-16, swaps 13.1/13.2 lfl, 11.9 -> lick_matched_angle_reach, 3.14 basis 4 cols,
+  re-tier level maps Key, 15.2/15.4 captions, Fig 16.12 stale caption), publish, tell e3 / 5b. Then ALM/tjM1 rows in
+  encoder / FR area figures (0.3, 0.4, 0.9-0.11, 0.13, 2.2, 2.6, 18.x, 21.4, 21.11, 22.3, 22.4).
+
+### 00-COMPACT-8 (10-27 ~22:30) -- READ FIRST, then 7b / 7 / 6
+- **Priya answered:** primary basis = Allen + ALM/tjM1 split ("I agree"; DECISIONS 10-27 late; robustness = plain Allen,
+  masked LocaNMF, SVD). The "lost tjM1 chronic build-up significance" figure = `lick_iti_ramp_summary`
+  (ramp_session_tests.csv). v1 vs v2 there: NOTHING lost -- raw build_auc chronic CI crosses 0 in both (right v1 -1.03
+  [-2.27, 0.23], v2 -1.05 [-2.22, 0.08]); normalised right significant in both (v1 -0.19 [-0.36, -0.011], v2 -0.17 [-0.32,
+  -0.019]), normalised left n.s. in both (upper CI +0.010 / +0.003). Check v8 and answer Priya with all three.
+- **Code (0f56a173):** iti_licks default ROI_VERSION = "8"; plain-Allen per-lick preds CACHE tagged `_r8`
+  (lick_order_preds_r8.csv.gz; outputs stay untagged = canonical); offset map TAGS + filter-compare BASIS -> areas_splitr8.
+- **v2 tables backed up** (295 csv / csv.gz, 270 MB) -> <E>/iti_licks/roi_v2_backup_20261027/ (same relative paths) for
+  the v2 vs v8 comparison (v1 = roi_v1_backup_20261027/). Add to SUPERSEDED list once v8 is on the page.
+- **RUNNING:** scratchpad run_v8redo.sh (frozen env; logs + runtimes in scratchpad rr8/; ends with V8REDO_DONE and a
+  "tracebacks in:" line): track A = iti_licks main/key/controls/binned, check_figures, area_maps, hemo (+summarise), f0;
+  track B = split decoder (all + gap2 / far1 / gap2far1, gauss read-out), plain Allen (lick_order, gauss, decomposition,
+  where_decoder); then offset maps (areas, split), mixed models, filter compare, lmm figures.
+- **10-27 late decisions (DECISIONS.md):** split basis EVERYWHERE ("use split bases, for consistency"); 'beyond the
+  pull' -> like-for-like offset everywhere ("yes replace beyond pull"); like-for-like reference = LOCAL-LINEAR ("ok local
+  linear it is"; lateral + angle tie with Gaussian, Gaussian = supplement). A helper is coding split + beyond-pull in an
+  isolated WORKTREE (no M: writes) and writes scratchpad run_v8split.sh -> merge after waves 2/3, then run it.
+- **TODO after the split merge (Priya: "fix the code base so we don't need the v1 folder"):** ~18 scripts list labels
+  from `il.OUT / "sessions"` (v1): add `iti_licks.labels()` (stems of OUT/SESS_NAME, fail loudly if empty / < 107) and
+  replace every call site (iti_area_maps x2, iti_area_split_sd, iti_contact_check, iti_decoder_contrib, iti_hemo_check,
+  iti_lick_order, iti_lick_rate, iti_lick_timing_audit, figdata.imaging_grid, iti_where_decoder.load, iti_zscore_check.sds,
+  iti_basis_decoder, lick_session_level_maps, iti_pattern_area_stats, lick_roi_*, lick_offset_contrib_map -- re-grep);
+  retire / convert iti_nmatch_check (hard-codes sessions_v3). Then v1 `sessions/` can join the delete list.
+- **Duplicate run:** the stopped run_v8wave2.sh waiter survived TaskStop (orphan PID 7444) and started a DUPLICATE wave 2
+  at 20:52 when V8REDO_DONE appeared; Priya asked to `taskkill /PID 7444 /T /F`. Harmless for results (split pass redoes
+  all) but costs CPU. Pitfall: TaskStop does not kill a Git-Bash script's subshell tree -- stop waiters by PID tree.
+- **PAGE-FIGURE AUDIT (helper, all 235 page images; map in scratchpad audit_map.txt):** pattern maps 15.x unaffected
+  (SVD basis; lick times identical in v8 files); sections 0-9 / 17-22 unaffected (encoder stat mask). STALE + not in
+  waves 1/2 -> WAVE 3 (scratchpad run_v8wave3.sh, logs rr8/w3_*, ends V8WAVE3_DONE): plain --ref place / spout / pooled
+  (12.1, 12.2, 13.6, matched_sessions.csv) + gain_prediction; split decomposition + split --ref place + split loclin on
+  gap2 / far1 / gap2far1; after V8WAVE2_DONE: filter_compare (now reads matched_loclin_*), mixed models, lmm ALL groups
+  (iti_mixed_models.matched default ref place -> loclin). Wave 1's check_figures output is stale (use wave 2's rerun).
+  Lateral loclin = gauss to 2 decimals on v8 split (share beyond pre range <= 8 %; ref-refit spread ~ +/-0.03 mm).
+  OPEN for Priya (code needed): (i) split basis for the iti_licks frozen/key/binned + the z-scored where-decoder family
+  (10.x, 11.x, 12.3-12.13, 13.3-13.9, 16.3-16.5) -- no split option there yet; (ii) replace 'beyond the pull' columns by
+  loclin in lick_order / per_spout / first_lick / overcorrection / recovery_link / 3axis. New-rows-requested figures
+  (ALM / tjM1 / rest rows): 0.3, 0.4, 0.9-0.11, 0.13, 2.2, 2.6, 18.5/6/9, 21.4, 21.11, 22.3, 22.4.
+  Page swaps planned: 13.1 / 13.2 -> _areas_splitr8; 12.1 / 12.2 / 13.6 -> loclin; 11.9 -> lick_matched_angle_reach.
+  Do NOT delete v1 `sessions/`: ~20 scripts list labels from it.
+- **WAVE 2 STARTED EARLY (~23:15)** as scratchpad run_v8wave2b.sh (run_v8wave2.sh's waiter stopped before it ran anything):
+  wave 1 was down to the hemo check (3 workers, CPU 20 %), and wave 2 needs only the wave-1 decoders. More workers
+  (june_ref 6, zscore 8, rim_overlay 8) + added `lick_matched_angle_reach.py` (after angle_reach) and plain-Allen
+  `lick_matched_readout --ref loclin`; its final check_figures / mixed models / lmm wait for the exact line V8REDO_DONE.
+  Local-linear test on the split basis ran separately (rr8/loclin_split_all.log). CPU ~94 %, 36 GB free after start.
+- **WAVE 2 queued (superseded by the line above):** scratchpad run_v8wave2.sh (waits for V8REDO_DONE; logs rr8/w2_*.log; ends V8WAVE2_DONE). Helper
+  audit (10-27): iti_zscore_check was NOT in wave 1 -> every `_z` page figure was still on v1 numbers (where_decoder_z /
+  where_preds_z dated 10-26); wave 2 runs zscore_check -> where_decoder --z -> scatter / per_spout / rmse / spread /
+  overcorrection / recovery_measure / recovery_link (angle_z, lateral_z, hit), june_ref (june_ref/ held v1 only) -> drift
+  --june, basis --summarise, decoder_contrib, farcontra, 3axis, drift, angle_reach (+extension_dist), first_lick (+misdirected,
+  aim_deficit), contact_check (+recovery_marker), gain_prediction, ROI-mask figures; then check_figures / mixed models / lmm
+  AGAIN (wave 1 ran them on stale inputs). Deleted 2 stale caches first (first_lick_preds, where_angle_reach_preds; copies in
+  roi_v2_backup). NOT affected (helper): decoder / spout / session pattern maps + level maps (lick times / SVD / stat-mask
+  only). Known: iti_nmatch_check hard-codes sessions_v3 (not on page; left); ~20 scripts list labels from v1 `sessions/`
+  (same 107 files; harmless today).
+- **Second wave (audit by a helper):** every other script whose outputs depend on the v8 session files / SDs / area
+  features (Haufe pattern maps, spout patterns, session level maps, ...) -- run after the first wave, then compare v2 vs v8,
+  re-tier + publish page, tell e3 / 5b.
+
+### 00-COMPACT-7b (10-27 ~22:00): the env-correct v8 extraction FINISHED and PASSED -- 107 files in sessions_roi8fr/, FR env
+applied (master_pre_v1 / master_v1:A / attempted), 0 sessions with all-NaN bout_fr, 0 failures. NEXT = 00-COMPACT-6 step 2
+(default ROI_VERSION -> "8", full redo under the frozen env).
+
+### 00-COMPACT-7 (10-27 ~21:15) -- READ FIRST, then 00-COMPACT-6 (still valid except as noted here)
+- **v8 extraction RUNNING (env-correct):** S2/run_roi8fr.sh (sources S2/rr2/frozenenv.sh, WFIELD_ROI_VERSION=8) ->
+  <E>/iti_licks/sessions_roi8fr/ (iti_licks._ROI["8"] now points there). Log S2/roi8fr.log ends with ROI8FR_DONE + a check
+  line "107 files; sessions with all-NaN bout_fr: 0 []" -- if that count is not 0, the env did not apply: stop and fix.
+  SD tables for v8 already exist (zscore_check/session_sd_roi8_rimlat_almline.csv, session_sd_split_roi8_rimlat_almline.csv;
+  imaging-only, env-independent). The env-less first v8 run (sessions_roi8/) was deleted.
+- **Then (00-COMPACT-6 step 2 onward):** default ROI_VERSION -> "8"; full redo UNDER THE FROZEN ENV (source rr2/frozenenv.sh
+  before every iti_licks-based script); split decoder tag becomes areas_splitr8 (check lick_iti_filter_compare BASIS and
+  lick_offset_contrib_map TAGS, currently areas_splitr2); plain Allen decoder chain too; compare v2 (sessions_roi2 +
+  roi_v1_backup for v1) vs v8; then page re-tier + publish + tell e3 / 5b.
+- **Split decoder on v2 ROIs finished** (areas_splitr2: all ITI + gap2 / far1 / gap2far1 read-outs, offset map, filter
+  compare figure redrawn with BASIS areas_splitr2) -- numbers not yet reviewed; superseded by v8 anyway.
+- **Deleted on M: with Priya's permission (10-27 ~21:00):** 5.7 GB + small files, listed (rows marked DELETED) in
+  docs/status/SUPERSEDED_OUTPUTS_20261027.md. Remaining rows wait for their stated condition; Priya: "ask me if you are
+  unsure" -- standing permission to delete superseded / incorrect derived outputs on M: (still never original data).
+- **Open questions to Priya:** primary decoder basis (recommendation: Allen + ALM/tjM1 split; masked LocaNMF + SVD
+  robustness); which figure showed "lost tjM1 chronic build-up significance" (v2 numbers kept it: -0.37 [-0.63, -0.09],
+  17/20 bins); within-spout change test option (relax done; first-lick rows hidden).
+
+### 00-COMPACT-6 (10-27 ~20:30) -- READ FIRST (supersedes 00-COMPACT-3..5 for state; they stay as history)
+**Pages:** goal page LIVE v139 (https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d; v136 = 23 named sections, v137 = Haufe pre
+map PuOr_r vs change RdBu_r + collapsible *_levels supplements, v138 = sign key in 11 Haufe captions, v139 = Fig 12.14 ITI
+lick-set comparison). `_goal_page/index.html` ALSO holds UNPUBLISHED v2-ROI caption edits (20, by the ROI-redo helper; list in
+its report = scratchpad rr2/, pre-edit copy rr2/index_before_roi2.html) + 16 refreshed PNGs (lick_iti_ramp_*, area_compare /
+groups, hemo variants / state_gap, check_f0*, kinematics / face control, binned_*, lmm_*_response) -- they will be redone
+for v8, so do not publish them as-is unless v8 is abandoned. Review page (loose ends + ROI decisions):
+https://claude.ai/artifact/P4Md3KfTSt3Nqq9hxU2knq (v11; source `_review_1027/`, sections A-G).
+**Decisions today (DECISIONS.md):**
+- ITI licks: ALL ITI licks primary; 2 s quiet / >= 1 s from window end and next spout arrival / both = SECONDARY
+  (WFIELD_ITI_FILTER gap2 / far1 / gap2far1; offset holds in all; page 12.14). The ITI is only ~3.1 s; ~70 % of ITI licks
+  sit within 1 s of a trial edge (iti_lick_timing_audit.py).
+- ALM / tjM1 / mask FINAL = ROI v8 (`scripts/iti_licks.py` `_ROI`, WFIELD_ROI_VERSION): ALM 40 % of MOs, tjM1 50 % of MOp,
+  16-px rim thinned to 4 px along the LATERAL edge (anterior of AP -0.5), ALM continued to one horizontal front line
+  (8-px front rim), >= 0.19 mm from FRP, one connected region each. Literature: ALM Guo 2014 / Esmaeili 2021 (AP 2.5 ML 1.5),
+  tjM1 Mayrhofer 2019 (AP 1.8 ML 2.6) inside; CFA / wM2 outside; Esmaeili's tjM1 targeting point (2.0, 2.0) falls in Allen MOs
+  here. Per-pixel map statistics keep the 16-px stat mask. v3-v7 rejected (DECISIONS).
+- Per-session Haufe LEVEL maps (amplitude kept; `scripts/lick_session_level_maps.py`) -> Key map figure; per-session
+  amplitude-kept change maps Supporting; held-out-epoch figures (15.12-15.15) + epoch-decoder maps (15.6-15.8) ->
+  Supplementary. Within-spout first-lick rows hidden (decoders fit ~nothing). APPROVED; re-tier together with the v8 redo.
+- Map tests: NO session / animal gate (Priya never asked for >= 3 / >= 3): every animal with >= 1 session per group;
+  per-animal effect size with a pooled within-animal session SD, summed / sqrt k (shared `iti_session_cluster_tests`
+  change_z / level_z / test_one / test_level); ">= 3 animals agree" only as the dashed outline. Big moves: shape-only ITI
+  lateral subacute change 83 -> 7.5 %; cued lateral level acute / subacute 1 / 7 -> 60 / 46 %; ITI far-contra acute level 91 %.
+**Basis question (OPEN, Priya leaning "if LocaNMF is better use it"):** held-out pre lateral r ITI / cued: Allen split
+0.625 / 0.768, Allen 0.622 / 0.767, LocaNMF masked (glue / MOB comps dropped) 0.622 / 0.761, LocaNMF 0.608 / 0.754, SVD 0.597 /
+0.736. Recommendation given: Allen + ALM/tjM1 split primary, masked LocaNMF + SVD robustness. Offset map
+(`lick_offset_contrib_map.py`): uniform cortex-wide change contributes ~0; SVD's smaller read-out = held-out pre-reference
+term. The joint LocaNMF basis is PRE-STROKE only (corrected earlier claim) and ~1/3 of its comps sit on glue / MOB -> spout
+classifiers on it need the same mask check.
+**Findings today (PROVISIONAL):** ITI offset robust to stricter ITI sets; cued "layout drops then returns" holds (per-session
+maps); ITI "coding increases and spreads" NOT supported as a sustained effect (subacute, PS94-driven, PS95 opposite; the
+cortex-wide component is clearest in ITI first licks chronic); the strongest pre lick response sits at AP -0.1 ML 2.4-2.6 =
+Allen SSp-ul (limb S1 or a registration shift of orofacial S1 -- unresolved; describe by position); ALM is not noisier than
+MOs (SNR 1.35 vs 1.24); tjM1 40 -> 50 % changed tjM1 numbers by ~5-10 %, all directions unchanged (helper report).
+**RUNNING / NEXT (in order):**
+1. Priya asked to kill the v8 extraction (PID 18800; started WITHOUT the frozen env -> empty FaceRhythm fields). Relaunch v8
+   under the frozen env: source scratchpad rr2/frozenenv.sh (COMBINED_ENCODING_FR=master_pre_v1, ..._FR_GROUPS=master_v1:A,
+   OROFACIAL_GATE=attempted, COMBINED_ENCODING_LICKS=combined, ... see the file) then S2/roi8_extract.py with
+   WFIELD_ROI_VERSION=8; writes sessions_roi8fr/ (sessions_roi8/ = complete env-less run, superseded) -- check 107 files and bout_fr not NaN (the launcher S2/run_roi8fr.sh does).
+   The split-SD pass (session_sd_split_roi8_...) does not depend on that env. ALSO compute session_sd_roi8 (iti_zscore_check
+   sds inside roi8_extract.py). EVERY extraction must use the frozen env (pitfall).
+2. Switch iti_licks ROI_VERSION default to "8"; rerun under the frozen env: the ROI-redo set (helper's list: iti_licks
+   --summarise / --binned / --key / --controls, iti_area_maps, iti_hemo_check (cache per ROI version: extend to v8),
+   iti_f0_check, iti_check_figures, iti_mixed_models, iti_lmm_figures --groups response) + split decoder
+   (WFIELD_LICK_DECODER=areas_split; tag areas_splitr8 -- check SRC_TAG rule 'r<ROI_VERSION>') + the 3 ITI filters +
+   lick_offset_contrib_map + lick_iti_filter_compare (BASIS -> areas_splitr8) + the PLAIN Allen decoder chain (where_decoder,
+   lick_order, lick_matched_readout gauss, decomposition, lmm figures): the plain areas features change with the lateral rim.
+   Compare v2 vs v8.
+3. Then: re-tier the page (level maps Key, etc.), fix Fig 16.12 caption (stale deficit numbers -- helper found it; new
+   values in its report), update 15.2 / 15.4 captions for the new test, publish, tell e3 / 5b.
+4. Encoder / FR area figures: per-pixel SSE / SST are saved as 2x2-block sums -> ALM / tjM1 / MOs-rest / MOp-rest R2 rows can
+   be re-aggregated cheaply; trial-PETH-by-area figures may need re-extraction (cost it first). Priya: yes, after the ITI redo.
+5. Basis decision with Priya; then the SVD-GAUSS queue items (SVD_GAUSS_SUPERSEDE_QUEUE_2026-10-27.md).
+**Superseded outputs to delete later (Priya decides):** docs/status/SUPERSEDED_OUTPUTS_20261027.md.
+**Pitfalls (today):** (a) any iti_licks extraction MUST run under the frozen env (rr2/frozenenv.sh) -- without it bout_fr /
+first_fr are NaN and the first-lick set shrinks, silently (log=None hides it); (b) Windows spawn: driver scripts need
+`if __name__ == "__main__":`; (c) never delete on M: -- use new file names (an empty session_sd_roi2.csv blocked a cache);
+(d) `R.map` is the DataFrame method -- use R['map']; (e) lick_order_preds are cached by SRC_TAG -- new inputs need a new tag.
+
+### 00-COMPACT-5 (10-27 ~19:00)
+Page v138: Haufe figures pre map PuOr_r vs change RdBu_r, collapsible *_levels.png supplements (15.12-15.15), sign key in
+11 Haufe captions. Priya: lick_decoder_pattern_stats_lat_levels "may be a key figure"; also candidates for Key: 15.5 within-
+spout, 15.4 position, 15.6 decoder patterns, 15.8 cued spout patterns -> re-tier ONCE the per-session level maps land.
+RUNNING: helper building scripts/lick_session_level_maps.py = per-session self-fit Haufe maps WITH amplitude (/ animal's pre
+RMS), level TFCE (sign-flip) + change TFCE, all licks AND first licks, global-share per animal (tests Priya's reading
+"ITI lateral coding increases and spreads; cued drops then returns" against a cortex-wide component).
+ALM / tjM1 check (scripts/lick_roi_check.py, figures/lick_roi_check.png, roi_check.csv): within MOs the anterolateral 40 %
+carries 1.4-2.5x the |pre map| of the rest (ALM placement supported); tjM1 mixed (0.7-2.7x; the cued SAGITTAL hot spot sits
+posterior to tjM1, ratio < 1); the strongest lateral coding is LATERAL to both ROIs (lateral orofacial S1 edge).
+
+### 00-COMPACT-4 (10-27 ~18:00) -- BASIS COMPARISON (primary basis = Priya's call, pending)
+Held-out pre lateral r (ITI / cued): Allen split (ALM + MOs_rest, tjM1 + MOp_rest; source areas_split) 0.625 / 0.768;
+Allen 0.622 / 0.767; LocaNMF masked (comps > 50 % outside glue / MOB mask dropped; tag _locanmfFM) 0.622 / 0.761; LocaNMF
+0.608 / 0.754; SVD frame-scaled 0.597 / 0.736.
+Same-place gauss, change vs pre (acute / subacute / chronic): ITI all licks -- split Allen +0.37 / +0.22 / +0.26 (all 4/4,
+chronic CI [0.09, 0.46]); masked LocaNMF +0.36 / +0.25 / +0.23 (chronic CI incl. 0, 3/4); SVD +0.19 / +0.07 / +0.14.
+Cued first lick -- split Allen +0.32 / +0.22 / +0.15 (4/4 each).
+Offset map (scripts/lick_offset_contrib_map.py; offset_contrib/): uniform cortex-wide change contributes ~0 in Allen and
+SVD (global part <= 0.02). With all-pre scoring the chronic ITI activity-change offset is similar in every basis (Allen
+0.25, split 0.27, LocaNMF 0.29, masked 0.25, SVD 0.22); SVD's smaller READ-OUT (0.14) is the held-out pre-reference term
+(-0.08 chronic, -0.15 acute; PS95 -0.18, PS94 -0.09): with 200 features, held-out pre sessions are read differently from
+in-sample ones (least stable decoder; matches its lowest held-out accuracy). Unmasked LocaNMF decoder leans on one
+posterior-right component + edge pixels (see maps) -> do not use unmasked LocaNMF; the joint-LocaNMF SPOUT classifiers
+(sections with trial spout decoding) need the same mask check.
+
+### 00-COMPACT-3 (10-27 ~17:00)
+**CORRECTION:** the 'joint' LocaNMF basis is joint ACROSS PRE-STROKE SESSIONS ONLY (manifest labels: 11 sessions per animal,
+June + August, last day -2/-3); NOT fit on post-stroke data. So all three bases are fixed before the stroke and the decoder
+is frozen pre-stroke in all three. The SVD-vs-Allen/LocaNMF persistence gap is NOT 'pre-only vs joint basis'. Leading
+difference: LocaNMF components are LOCALISED (area-constrained) like Allen areas; SVD components are global modes.
+Proposed diagnostic: per-pixel offset-contribution map per basis (decoder pixel weights x post - pre activity at matched
+landing) to show where in cortex each basis's chronic offset comes from. LocaNMF frame-scaled run (tag _locanmfF)
+rerunning after a NaN-padding fix in iti_lick_order.py (component counts differ by animal).
+**Haufe pre-map colormap + collapsible absolute maps:** queued (queue doc), after the figdata / restructure helpers.
+
+### 00-COMPACT-2 (10-27 ~16:00) -- READ FIRST (adds to 00-COMPACT below)
+**Priya's answers on the review page (P4Md3KfTSt3Nqq9hxU2knq):** (1) aim-deficit comparison figure -> SUPPLEMENTARY next to
+the recovery measure; (2) TFCE contours replace the per-pixel contours on the per-session change-map figures (per-pixel kept
+as supplementary; caption: TFCE = family-wise, session labels permuted within animal; a large significant area = broad
+layout change of a shape-only map); (5) shape-distance dots figure (lick_session_shape_d.png) REPLACES the whole-map
+heatmap (heatmap linked as table view); (6, 7) map similarity over days (cued, ITI) -> SUPPLEMENTARY; (8) drift sensitivity
+-> repo only (no page).
+**Page restructure (Priya):** split ballooning sections into named topical sections of ~6-15 figures, Key / Supporting /
+Supplementary within each, every sidebar entry = number + short descriptive name, stable #f-<id> links. A helper agent is
+doing the restructure + the figure changes above on `_goal_page/index.html` (NOT published; backup
+encoding_goal_page_src/index_pre_sections_20261027.html; map docs/status/GOAL_PAGE_FIG_MAP_2026-10-27_SECTIONS.csv). When
+it reports: check, copy the listed new images into the publish `files`, publish as v136, tell e3 + 5b (numbers changed;
+stable ids unchanged).
+**Open observation (not a result):** PS95 cued FAR-MID per-session map similarity to pre dips to 0.31-0.41 on days 25-39
+(pre floor 0.45-0.87, mean ~0.66), recovers by days 46-50; close mid also dips (days 25-36); far contra unaffected (0.79-0.90);
+behaviour unchanged (far-mid landing -0.20..-0.27 mm, aim improving, lick counts normal). Offered checks (Priya: not yet
+answered): session state in 9/10-9/24 (running, engagement, lick-response size); imaging / acquisition notes around 9/10
+(docs/EXPERIMENT_ERRORS.md, preprocessing QC).
+**Priority notes:** compensation check (first-lick contact rate etc.) LOW, after the non-linear decoder.
+**FRAME-SCALED SVD (svdF) RESULT (16:00):** same as lick-scaled and unscaled SVD -> scaling is NOT the reason SVD differs.
+Same-place gauss, change vs pre: ITI all licks +0.19 (4/4, CI [+0.01,+0.40]) / +0.07 / +0.14 (n.s.); ITI bout starts +0.27 (4/4) /
++0.12 / +0.17 (4/4, CI excl 0); cued first lick +0.23 (4/4) / +0.10 / +0.06; cued far contra -0.32 chronic (4/4). PS93
+negative in SVD in later epochs (ITI -0.14 / -0.09), PS95 ~0; PS92 / PS94 positive. So: the acute ITI and first-lick
+contralesional read-out is basis-robust; its PERSISTENCE (subacute / chronic) is Allen / LocaNMF-dependent and in the SVD
+basis rests on PS92 + PS94. Decision needed with Priya before switching the page to SVD (which basis is primary for the
+persistence claim; report basis-dependence explicitly). Run LocaNMF frame-scaled for completeness.
+**Push:** 15 commits since 78e6593d pushing via S2/push51.sh (log S2/push51.log); later commits need a new push script.
+
 ### 00-COMPACT (10-27 ~15:40) -- READ FIRST; then the queue doc docs/status/SVD_GAUSS_SUPERSEDE_QUEUE_2026-10-27.md
 **Pages:** goal page LIVE v135 (https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d; source `_goal_page/index.html`, untracked,
 backup M:/MICROSCOPE/Priya/Widefield/encoding_goal_page_src/). Review page for loose-end figures (not yet on the goal page):

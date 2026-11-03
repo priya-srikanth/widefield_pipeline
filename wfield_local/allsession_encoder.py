@@ -81,9 +81,11 @@ def sse(beta: np.ndarray, G: np.ndarray, b: np.ndarray, yy: np.ndarray) -> np.nd
 
 
 def fit_animal(sessions: list[dict], alphas: dict, groups_of: np.ndarray, pen_of: np.ndarray, ok: np.ndarray,
-               epochs_ref: tuple, kappa: float | None = None) -> dict:
+               epochs_ref: tuple, kappa: float | None = None, score_cols: np.ndarray | None = None) -> dict:
     """sessions: [{"label", "epoch", "G", "b", "yy"}] (scaled design, common areas); epochs_ref = the change epochs
-    (sessions of any other epoch are the reference). Returns kappa, held-out SSE per session x model, beta, dbeta."""
+    (sessions of any other epoch are the reference). Returns kappa, held-out SSE per session x model, beta, dbeta.
+    ``score_cols`` = the target columns kappa is chosen on (default all): the ROI targets (--roi-targets) are left out
+    so the kappa, and with it every existing area's number, stays what it was (ridge columns are independent)."""
     n_ep, p = len(epochs_ref), len(groups_of)
     eidx = {e: i + 1 for i, e in enumerate(epochs_ref)}
     aug = [augment(s["G"], s["b"], eidx.get(s["epoch"], 0), n_ep) for s in sessions]
@@ -107,7 +109,8 @@ def fit_animal(sessions: list[dict], alphas: dict, groups_of: np.ndarray, pen_of
     if kappa is None:                                    # kappa by held-out SSE over the change-epoch sessions
         def score(kap):
             lam = lam_of(kap)
-            return sum(held_out(k, lam, models["all"]).sum() for k in change_sessions)
+            sc = slice(None) if score_cols is None else score_cols
+            return sum(held_out(k, lam, models["all"])[sc].sum() for k in change_sessions)
         kappa = min(KAPPA_GRID, key=score)
     lam = lam_of(kappa)
     out = {m: {sessions[k]["label"]: held_out(k, lam, keep) for k in range(len(sessions))} for m, keep in models.items()}
@@ -140,10 +143,19 @@ def main(argv=None) -> int:
     ap.add_argument("--jobs", type=int, default=2)
     ap.add_argument("--reuse-stats", action="store_true")
     ap.add_argument("--animals", nargs="*", default=None)
+    # ALM / tjM1 / MOs_rest / MOp_rest TARGETS (Priya 10-27 / 10-28 "can definitely do the frA panel"): the four ROI-v8
+    # means per hemisphere on the stat mask (scripts/encoder_split_rows.roi_targets) appended as extra targets. The
+    # pre sessions' Allen statistics stay the --from run's and only the ROI columns are added (the design X'X is
+    # checked against the saved one); kappa is chosen on the Allen targets only, so every existing number is unchanged.
+    ap.add_argument("--roi-targets", action="store_true", help="add the ALM / tjM1 / MOs_rest / MOp_rest targets")
+    ap.add_argument("--post-from", default=None,
+                    help="with --roi-targets: allsession tag whose fit/post_stats.pkl supplies the Allen columns of the "
+                         "post sessions (ROI columns added; X'X checked) -- the existing run's numbers kept exactly")
+    ap.add_argument("--out-root", default=None, help="parent folder of allsession_encoder_<tag> (default: the share)")
     a = ap.parse_args(argv)
     E = oo.root(PathResolver()) / oc.RUN / "imaging_encoding"
     src = E / f"frozen_encoder_{a.src}"
-    out = E / f"allsession_encoder_{a.tag}"
+    out = (Path(a.out_root) if a.out_root else E) / f"allsession_encoder_{a.tag}"
     assert_writable(out)
     (out / "fit").mkdir(parents=True, exist_ok=True)
     pre_stats = pickle.loads((src / "fit" / "pre_stats.pkl").read_bytes())
@@ -152,20 +164,47 @@ def main(argv=None) -> int:
         raise SystemExit(f"{src}: pre statistics are {tags} / v{ {s.get('stats_version') for s in pre_stats} }, this "
                          f"environment is {fe._run_tag()} / v{fe.STATS_VERSION} -- set the same FROZEN_* environment")
     tp = src / "fit" / "templates.pkl"
+    extra = _roi_targets() if a.roi_targets else None
+    xnames = list(extra["names"]) if extra else []
     cur = set(ak.curated_labels())
     post = [x for x in sorted(ce.sessions_available()) if x in cur and x[-4:] >= "0806" and epochs.epoch_of(x) != "pre"]
     if a.animals:
         post = [x for x in post if config.animal_of(x) in a.animals]
+        pre_stats = [s for s in pre_stats if s["animal"] in a.animals]
     sp = out / "fit" / "post_stats.pkl"
-    if a.reuse_stats and sp.exists():
+    spre = out / "fit" / "pre_stats_roi.pkl"
+    if a.reuse_stats and sp.exists() and (not extra or spre.exists()):
         post_stats = pickle.loads(sp.read_bytes())
+        if extra:
+            pre_stats = pickle.loads(spre.read_bytes())
     else:
-        got, fail = ak.fan_sessions([(x, str(tp)) for x in post], fe.stats_job, jobs=a.jobs, label="post stats")
+        todo = post + ([s["label"] for s in pre_stats] if extra else [])
+        got, fail = ak.fan_sessions([(x, str(tp), None, extra) for x in todo], fe.stats_job, jobs=a.jobs,
+                                    label="stats" if extra else "post stats")
         for it, err in fail:
-            print(f"  !! stats {it}: {err}", flush=True)
-        post_stats = [s for _it, s in sorted(got, key=lambda kv: kv[1]["label"])]
+            print(f"  !! stats {it[0]}: {err}", flush=True)
+        fresh = {s["label"]: s for _it, s in got}
+        post_stats = [fresh[x] for x in sorted(fresh) if x in set(post)]
         for s in post_stats:
             s["stats_version"], s["run_mode"] = fe.STATS_VERSION, fe._run_tag()
+        if extra:
+            if fail:
+                raise SystemExit(f"{len(fail)} session(s) failed: refusing a partial ROI-target run")
+            pre_stats = [_append_targets(s, fresh[s["label"]], xnames) for s in pre_stats]
+            if a.post_from:
+                old = {s["label"]: s for s in pickle.loads((E / f"allsession_encoder_{a.post_from}" / "fit" /
+                                                            "post_stats.pkl").read_bytes())}
+                if set(old) < {s["label"] for s in post_stats}:
+                    raise SystemExit(f"--post-from {a.post_from}: missing post sessions "
+                                     f"{sorted({s['label'] for s in post_stats} - set(old))[:5]}")
+                post_stats = [_append_targets(old[s["label"]], s, xnames) for s in post_stats]
+            for nm_, ss in (("pre (saved Allen)", pre_stats), ("post (--post-from Allen)", post_stats if a.post_from
+                                                                                    else [])):
+                if ss:
+                    print(f"  ROI targets appended, {nm_}: max relative |X'X - saved| "
+                          f"{max(s['check_xtx'] for s in ss):.2e}, Allen X'Y {max(s['check_xty'] for s in ss):.2e}",
+                          flush=True)
+            spre.write_bytes(pickle.dumps(pre_stats, protocol=pickle.HIGHEST_PROTOCOL))
         sp.write_bytes(pickle.dumps(post_stats, protocol=pickle.HIGHEST_PROTOCOL))
     rows, drows = [], []
     for an in sorted({s["animal"] for s in pre_stats}):
@@ -199,7 +238,8 @@ def main(argv=None) -> int:
             # PRIMARY: early pre = reference; pre_late + every post epoch change, in ONE fit (module docstring)
             sets["combined"] = ([{**x, "epoch": "pre_late"} if x["label"] in late else x for x in sess],
                                 ("pre_late", *POST_EPOCHS))
-        fits = {k: fit_animal(ss, alphas, groups_of, pen_of, ok, eps) for k, (ss, eps) in sets.items()}
+        sc = np.array([x not in xnames for x in areas]) if xnames else None      # kappa on the Allen targets only
+        fits = {k: fit_animal(ss, alphas, groups_of, pen_of, ok, eps, score_cols=sc) for k, (ss, eps) in sets.items()}
         for fit_name, f in fits.items():
             ss = sets[fit_name][0]
             n_ep = {}
@@ -232,6 +272,36 @@ def main(argv=None) -> int:
     D.to_csv(out / "allsession_dbeta.csv", index=False, float_format="%.5g")
     summarise(out)
     return 0
+
+
+def _roi_targets() -> dict:
+    """The ALM / tjM1 / MOs_rest / MOp_rest ROI-mean weights (one definition: scripts/encoder_split_rows.py)."""
+    import sys
+    sd = str(Path(__file__).resolve().parents[1] / "scripts")
+    if sd not in sys.path:
+        sys.path.insert(0, sd)
+    import encoder_split_rows as esr
+    return esr.roi_targets()
+
+
+def _append_targets(base: dict, fresh: dict, names: list) -> dict:
+    """``base`` session statistics + the ``names`` target columns of ``fresh`` (the same session's statistics computed
+    with the extra targets). The design must be the same: relative max |X'X - X'X_base| and the shared targets' X'Y
+    difference are recorded (check_xtx / check_xty) and anything above 1e-6 is refused (a different frame)."""
+    if base["label"] != fresh["label"]:
+        raise ValueError(f"{base['label']} vs {fresh['label']}")
+    ex = np.abs(fresh["XtX"] - base["XtX"]).max() / max(np.abs(base["XtX"]).max(), 1e-300)
+    sh = [n for n in base["area_names"] if n in fresh["area_names"]]
+    a_, b_ = fresh["XtY"][:, [fresh["area_names"].index(n) for n in sh]], base["XtY"][:, [base["area_names"].index(n)
+                                                                                           for n in sh]]
+    ey = np.abs(a_ - b_).max() / max(np.abs(b_).max(), 1e-300)
+    if not (ex <= 1e-6 and ey <= 1e-6):
+        raise ValueError(f"{base['label']}: design differs from the saved statistics (X'X {ex:.2e}, X'Y {ey:.2e}) -- "
+                         "not the same frame / environment")
+    ix = [fresh["area_names"].index(n) for n in names]
+    return {**base, "area_names": list(base["area_names"]) + list(names),
+            "XtY": np.hstack([base["XtY"], fresh["XtY"][:, ix]]), "YtY": np.concatenate([base["YtY"], fresh["YtY"][ix]]),
+            "check_xtx": float(ex), "check_xty": float(ey)}
 
 
 def summarise(out: Path) -> None:

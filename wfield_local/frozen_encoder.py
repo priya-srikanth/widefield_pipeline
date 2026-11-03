@@ -509,7 +509,7 @@ def _centred(x: np.ndarray) -> np.ndarray:
 
 
 def session_design(label: str, templates: dict | None = None, template_only: bool = False, spatial: dict | None = None,
-                   basis_only: bool = False, relabel: dict | None = None) -> dict:
+                   basis_only: bool = False, relabel: dict | None = None, extra_targets: dict | None = None) -> dict:
     """Raw (drift-removed, session-centred) design X, area targets Rd, column variables, trial alignment frames.
     ``templates`` = the animal's spout-locked templates (`build_templates`), required for the STATS_VERSION 4 layout;
     ``template_only`` = return only this session's template sums (behaviour pass, no imaging targets);
@@ -517,7 +517,9 @@ def session_design(label: str, templates: dict | None = None, template_only: boo
     None above MAX_DENSE_TARGETS: Y and Ra are returned and consumers project on demand); ``basis_only`` = return this
     session's variance-weighted spatial components (the shared-basis pass); ``relabel`` = {spout q: spout j}: q's
     trials get spout j's TARGET columns and j's spout-locked templates (the executed traces stay as recorded: s + d = x),
-    for the relabel test (`frozen_relabel`); ``frame_pos`` keeps the TRUE spout of every frame."""
+    for the relabel test (`frozen_relabel`); ``frame_pos`` keeps the TRUE spout of every frame. ``extra_targets`` =
+    {"names", "P": (stat pixels x m) weights} appended AFTER the Allen areas + cortex (Allen-area targets only; the
+    ALM / tjM1 ROI means of `scripts/encoder_split_rows.roi_targets`, 10-28) -- the existing targets are unchanged."""
     ce = _ce()
     from wfield_local import config, epochs
     from wfield_local.paths import PathResolver
@@ -644,7 +646,12 @@ def session_design(label: str, templates: dict | None = None, template_only: boo
         areas = sorted({int(a) for a in np.unique(parea[pstat]) if a != 0})
         Ra = np.stack([Ub[(parea == a) & pstat].mean(0) for a in areas] + [Ub[pstat].mean(0)], 1)
         area_names = [names.get(a, str(a)) for a in areas] + ["cortex"]
-    else:                                                # SPATIAL targets: projection P (stat pixels x R) + cortex mean
+        if extra_targets is not None:
+            Ra = np.column_stack([Ra, Ub[pstat].astype(np.float64).T @ np.asarray(extra_targets["P"], np.float64)])
+            area_names += list(extra_targets["names"])
+    elif extra_targets is not None:
+        raise ValueError("extra_targets is implemented for Allen-area targets only")
+    else:                                               # SPATIAL targets: projection P (stat pixels x R) + cortex mean
         Ra = np.column_stack([np.asarray((spatial["P"].T @ Ub[pstat].astype(np.float64))).T, Ub[pstat].mean(0)])
         area_names = list(spatial["names"]) + ["cortex"]
     Y = V[ridx].astype(np.float64)
@@ -987,11 +994,11 @@ def _templates_of(tpath: str, animal: str) -> dict:
 
 def stats_job(item):
     """Sufficient statistics of one session (column layout + per-area Gram terms), for the per-animal fit.
-    item = (label, path of fit/templates.pkl)."""
+    item = (label, path of fit/templates.pkl[, spatial fit dir[, extra_targets]])."""
     from wfield_local import config
-    label, tpath, spath = (*item, None)[:3]
+    label, tpath, spath, extra = (*item, None, None)[:4]
     an = config.animal_of(label)
-    d = session_design(label, _templates_of(tpath, an), spatial=_spatial_of(spath, an))
+    d = session_design(label, _templates_of(tpath, an), spatial=_spatial_of(spath, an), extra_targets=extra)
     X, Rd = d["X"], d["Rd"]
     if Rd is None:                                       # lazy targets: X'Y Ra and diag(Ra' Y'Y Ra)
         XtY = (X.T @ d["Y"]) @ d["Ra"]
@@ -1166,10 +1173,11 @@ def _variant_transform(variant: str, col_var: np.ndarray, Gt: np.ndarray, pos: d
     raise ValueError(variant)
 
 
-def fit_animal(stats: list[dict], alpha_grid=None, pen_of=None, variant: str = "joint") -> dict:
+def fit_animal(stats: list[dict], alpha_grid=None, pen_of=None, variant: str = "joint", alphas: dict | None = None) -> dict:
     """Ridge on the animal's pre sessions (scaled by pooled pre SD), penalties by leave-one-session-out R^2.
     Returns scale, C (variant column transform), col_var of the variant columns, areas, alphas, beta_all (p', R) and
-    beta_loso {label: (p', R)}."""
+    beta_loso {label: (p', R)}. ``alphas`` = {penalty group: alpha} HELD (no search; e.g. another run's fit, so a
+    basis-target twin uses the area run's penalties -- the search sums over targets, so it can pick others)."""
     ce = _ce()
     alpha_grid = alpha_grid or ce.ALPHA_GRID
     pen_of = pen_of or FPEN
@@ -1212,8 +1220,11 @@ def fit_animal(stats: list[dict], alpha_grid=None, pen_of=None, variant: str = "
             err += (yy[k] - 2 * (beta * b[k]).sum(0) + np.einsum("pr,pq,qr->r", beta, G[k], beta)).sum()
             tot += yy[k].sum()
         return 1.0 - err / tot
-    alphas = {g: 100.0 for g in groups}
-    if len(stats) >= 2:
+    held = alphas is not None
+    if held and set(alphas) != set(groups):
+        raise ValueError(f"held alphas {sorted(alphas)} != penalty groups {groups}")
+    alphas = {g: float(alphas[g]) for g in groups} if held else {g: 100.0 for g in groups}
+    if len(stats) >= 2 and not held:
         for _ in range(2):
             for g in groups:
                 alphas[g] = max(alpha_grid, key=lambda a: loso_r2({**alphas, g: a}))
@@ -1441,7 +1452,10 @@ EVOKED_WINDOWS = {"lick": ((0.0, 1.0), (-0.3, -0.1)), "cue": ((0.5, 1.5), (-0.5,
 #: `musall_r2` needs, so a pixel's R2 = 1 - diag(W E W') / diag(W S W') (W = the animal's basis):
 #:   avg    per-spout trial-averaged traces, each centred on its own mean over spouts x time (data and prediction apart)
 #:   trial  single trials minus their spout's mean (data and prediction apart)
-#: keys mus_<window>_<avg|trial>_<E|S>; only trials whose window lies inside the record. Variants: joint, the alone
+#:   frame  every frame of every trial, centred on the mean over trials x time (data and prediction apart) -- `musall_r2`
+#:          "frame"; added 10-28 (ALM / tjM1 rows of the frozen claims figures, docs/status/ALM_TJM1_ROWS_PLAN_20261027.md)
+#: keys mus_<window>_<avg|trial|frame>_<E|S>; only trials whose window lies inside the record (`musall_r2` keeps a
+#: partly-outside trial's inside frames: a small difference, measured in the plan doc). Variants: joint, the alone
 #: (<g>_only) and the group drops (no_<g>) -- the per-variable drops keep all-frames moments only.
 PIX_MUSALL = os.environ.get("FROZEN_PIX_MUSALL", "") in ("1", "true", "yes")
 
@@ -1465,6 +1479,7 @@ def musall_moments(d: dict, Z: np.ndarray, Wf: np.ndarray, R: np.ndarray, fs: fl
             continue
         idx, pos = idx[ok], np.asarray(d["pos"])[ok]
         D, Q = R[idx], P[idx]                            # (trials, t, targets)
+        Df, Qf = D - D.mean((0, 1)), Q - Q.mean((0, 1))  # frame: every frame, data and prediction centred apart
         Dt, Qt = D.copy(), Q.copy()
         Dm, Qm = [], []
         for q in np.unique(pos):
@@ -1477,7 +1492,7 @@ def musall_moments(d: dict, Z: np.ndarray, Wf: np.ndarray, R: np.ndarray, fs: fl
         Dm, Qm = np.stack(Dm), np.stack(Qm)
         Dm -= Dm.mean((0, 1))
         Qm -= Qm.mean((0, 1))
-        for kind, (a_, b_) in (("avg", (Dm, Qm)), ("trial", (Dt, Qt))):
+        for kind, (a_, b_) in (("avg", (Dm, Qm)), ("trial", (Dt, Qt)), ("frame", (Df, Qf))):
             A = a_.reshape(-1, a_.shape[-1])
             Bm = (a_ - b_).reshape(-1, a_.shape[-1])
             out[f"mus_{al}_{kind}_E"] = (Bm.T @ Bm).astype(np.float32)
@@ -1497,6 +1512,8 @@ def _predict_spatial(label: str, fits: dict, out_dir: str, d: dict, f0: dict) ->
     part PETH = PETH(Z) @ weights, data PETH = PETH(Y) @ Ra -- so no (frames x targets) array is built. R^2 and the
     Musall readouts on the cortex-mean target. No drop-spout (area runs have it)."""
     ce = _ce()
+    if len(d["col_var"]) != len(f0["col_var"]) or (d["col_var"] != f0["col_var"]).any():
+        raise ValueError(f"{label}: column layout differs from the animal's pre fit (FROZEN_* / FR environment?)")
     ix = [d["area_names"].index(a) for a in f0["areas"]]
     lazy = d["Rd"] is None
     Ra = d["Ra"][:, ix] if lazy else None
@@ -1736,11 +1753,20 @@ def main(argv=None) -> int:
     ap.add_argument("--summarise-drop", action="store_true", help="only rebuild the drop-spout table from saved files")
     ap.add_argument("--target", default="areas", choices=("areas", "basis", "grid"),
                     help="Allen areas (default) | per-animal shared SVD basis | 8 x 8 pixel grid (SPATIAL TARGETS)")
+    # RE-SCORING AN EXISTING FRAME INTO A NEW FOLDER (10-28, ALM / tjM1 rows of the frozen claims: the basis runs re-run
+    # with FROZEN_PIX_MUSALL=1, written next to the originals without touching them)
+    ap.add_argument("--fit-from", default=None,
+                    help="existing run folder whose fit/{pre_stats,templates,spatial_*}.pkl define the frame (read only; "
+                         "its saved statistics must match this environment -- nothing is recomputed)")
+    ap.add_argument("--alphas-from", default=None,
+                    help="run folder whose per animal x variant ridge alphas (<variant>/sessions/*.json) are HELD")
+    ap.add_argument("--predict", nargs="+", default=None, help="predict only these sessions (fits use every pre session)")
+    ap.add_argument("--out-root", default=None, help="parent folder of frozen_encoder_<tag> (default: the share)")
     a = ap.parse_args(argv)
     if a.target != "areas":
         if a.variants == list(VARIANTS):
             a.variants = [*PART_VARIANTS, *_DROP, "task_only"]   # parts (maps) + drop variants (unique-R2 maps)
-    root = out_root()
+    root = Path(a.out_root) if a.out_root else out_root()   # --out-root (attempt-coding) wins; else the run-mode-routed default
     if a.summarise_drop:
         summarise_drop(root / f"frozen_encoder_{a.tag}")
         return 0
@@ -1751,16 +1777,23 @@ def main(argv=None) -> int:
     pre = [x for x in labels if epochs.epoch_of(x) == "pre"]
     print(f"[frozen] {len(labels)} sessions, {len(pre)} August pre -> {out}", flush=True)
     import pickle
-    sp = out / "fit" / "pre_stats.pkl"
-    tp = out / "fit" / "templates.pkl"
+    src_fit = Path(a.fit_from) / "fit" if a.fit_from else out / "fit"            # read-only when --fit-from
+    if a.fit_from and Path(a.fit_from).resolve() == out.resolve():
+        raise SystemExit("--fit-from must be another run folder")
+    sp = src_fit / "pre_stats.pkl"
+    tp = src_fit / "templates.pkl"
     (out / "fit").mkdir(parents=True, exist_ok=True)
-    spath = str(out / "fit") if a.target != "areas" else None
-    spat_ok = a.target == "areas" or all((out / "fit" / f"spatial_{config.animal_of(x)}.pkl").exists() for x in pre)
-    saved = pickle.loads(sp.read_bytes()) if (a.reuse_stats and sp.exists() and tp.exists() and spat_ok) else None
+    spath = str(src_fit) if a.target != "areas" else None
+    spat_ok = a.target == "areas" or all((src_fit / f"spatial_{config.animal_of(x)}.pkl").exists() for x in pre)
+    saved = pickle.loads(sp.read_bytes()) if ((a.reuse_stats or a.fit_from) and sp.exists() and tp.exists()
+                                               and spat_ok) else None
     if saved is not None and any(s_.get("stats_version") != STATS_VERSION or s_.get("run_mode", "linear") != _run_tag()
                                  for s_ in saved):
         print(f"  saved statistics are not STATS_VERSION {STATS_VERSION} / running {_run_tag()}: recomputing", flush=True)
         saved = None
+    if a.fit_from and saved is None:
+        raise SystemExit(f"--fit-from {a.fit_from}: no usable saved statistics for this environment (STATS_VERSION "
+                         f"{STATS_VERSION}, running {_run_tag()}); refusing to recompute into another run's folder")
     if saved is not None:                                # a re-scoring run: the pre statistics are already saved
         got = [(s_["label"], s_) for s_ in saved if s_["label"] in pre and s_.get("pos_order")]
         print(f"  reusing {len(got)} pre-session statistics from {sp}", flush=True)
@@ -1801,12 +1834,24 @@ def main(argv=None) -> int:
     # one fit job per ANIMAL (variants + drop-spout fits are independent across animals; serial in the main process
     # they took ~1.5 min / animal for the variants alone while the workers sat idle). Items stay small: the worker
     # reads the statistics from the pickle written above.
-    fit_items = [(an, str(sp), tuple(sorted(by_an[an])), tuple(a.variants), not a.no_drop_spout) for an in sorted(by_an)]
+    if a.predict:                                        # --predict: only the animals of those sessions need fits
+        by_an = {an: v for an, v in by_an.items() if an in {config.animal_of(x) for x in a.predict}}
+    held = {an: None for an in by_an}
+    if a.alphas_from:                                    # --alphas-from: that run's alphas per animal x variant
+        for an in by_an:
+            held[an] = {}
+            for v in a.variants:
+                js = next(iter(sorted((Path(a.alphas_from) / v / "sessions").glob(f"{an}_*.json"))), None)
+                if js is None:
+                    raise SystemExit(f"--alphas-from {a.alphas_from}: no {v} session of {an}")
+                held[an][v] = json.loads(js.read_text(encoding="utf-8"))["alphas"]
+    fit_items = [(an, str(sp), tuple(sorted(by_an[an])), tuple(a.variants), not a.no_drop_spout, held[an])
+                 for an in sorted(by_an)]
     fres, ffail = ak.fan_sessions(fit_items, fit_animal_job, jobs=min(a.jobs, len(fit_items)), label="fit")
     if ffail:
         raise RuntimeError(f"frozen fits failed: {[(it[0], err) for it, err in ffail]}")
     fits: dict = {}
-    for (an, _sp, labs, _v, _d), fa in fres:
+    for (an, _sp, labs, _v, _d, _h), fa in fres:
         fits[an] = fa
         for v in a.variants:
             f = fa[v]
@@ -1814,7 +1859,8 @@ def main(argv=None) -> int:
                                 beta_all=f["beta_all"], col_var=f["col_var"], areas=np.array(f["areas"]))
             print(f"  {an} {v}: {len(labs)} pre sessions, LOSO R^2 (areas summed) {f['loso_r2']:.3f}, "
                   f"alphas {f['alphas']}", flush=True)
-    jobs = [(x, fits[config.animal_of(x)], str(out), str(tp), spath) for x in labels if config.animal_of(x) in fits]
+    jobs = [(x, fits[config.animal_of(x)], str(out), str(tp), spath) for x in labels if config.animal_of(x) in fits
+            and (not a.predict or x in a.predict)]
     res, fail = _fan(jobs, a.jobs)
     for it, err in fail:
         print(f"  !! predict {it[0]}: {err}", flush=True)
@@ -1832,9 +1878,9 @@ def fit_animal_job(item):
     """All of one animal's frozen fits (each variant, then the drop-one-spout fits under DROP_BASES), from the saved
     pre statistics. Module-level for spawn."""
     import pickle
-    an, sp, labs, variants, drop = item
+    an, sp, labs, variants, drop, held = (*item, None)[:6]          # held = {variant: alphas} (--alphas-from) or None
     st = sorted((s for s in pickle.loads(Path(sp).read_bytes()) if s["label"] in set(labs)), key=lambda s: s["label"])
-    fits = {v: fit_animal(st, variant=v) for v in variants}
+    fits = {v: fit_animal(st, variant=v, alphas=(held or {}).get(v)) for v in variants}
     if drop:                                             # frozen drop-one-spout, each ordering (DROP_BASES)
         for base in DROP_BASES:
             if base in fits:

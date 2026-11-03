@@ -5,19 +5,24 @@ Per measure, the SHARED models of wfield_local.mixed_models (nothing is fitted h
 animal random effects (ladder: intercept + step + slope -> intercept + step -> intercept -> fixed animal intercepts):
   time       y ~ post + post:lday      `post` = day-1 step vs pre, `post:lday` = recovery slope per e-fold of days
   behaviour  y ~ post + post:deficit   deficit = the cued licks' weighted signed AIM (deg, pre - session; 10-27 late,
-                                       Priya); `post` = the change still present at FULL recovery of aim (--deficit ttc =
-                                       far-contra time to contact, the earlier default)
+                                       Priya), FIRST post-cue lick by default (DECISIONS 2026-10-27 late; env
+                                       WFIELD_AIM=all = all-lick sensitivity, every output tagged _aimall); `post` = the
+                                       change still present at FULL recovery of aim (--deficit ttc = far-contra time to
+                                       contact, the earlier default)
 Figures (mx.plot_fits: session values vs day / deficit, coloured by animal, fitted fixed effects), one per group x model,
 <E>/iti_licks/figures/lmm_{time,behaviour}_<group>.png:
-  readout     decoder r (lateral, sagittal, angle) / the animal's pre mean and lateral offset beyond the pull, ITI + cued
+  readout     decoder r (lateral, sagittal, angle) / the animal's pre mean and the like-for-like (same-place) read-out,
+              ITI + cued
   response    ITI post-lick response / pre adopted response: key_mean, cortex, key ROIs (adopted), key_mean at 415 nm
-  lickclass   first vs later licks (beyond the pull, landing), first - later, lick-order slopes; all spouts + far contra
-  perspout    cued beyond-pull offset at far contra and close contra
-  behaviour   cued lick angle offset from own pre landing -- TIME model only (indexing a behavioural measure by
-              behavioural recovery is circular)
+  lickclass   first vs later licks (like-for-like read-out, landing), lick-order slopes; all spouts + far contra
+  perspout    like-for-like read-out per spout, cued + ITI
+Decoder basis = iti_lick_order.SOURCE (Allen + ALM / tjM1 split by default since 10-27 late; its outputs are untagged, so
+the figure stems are unchanged; plain Allen areas write *_plain).
+  behaviour   cued lick angle offset from own pre landing, WFIELD_AIM lick set -- TIME model only (indexing a
+              behavioural measure by behavioural recovery is circular)
 Session values come from the producing scripts' session tables via the readers in scripts/iti_mixed_models.py.
 Fitted tables: <E>/iti_licks/lmm_figures/lmm_<group>.csv. Rule 8: lmm_table prints the per-animal epoch means first.
-Usage: python scripts/iti_lmm_figures.py [--groups readout response ...]
+Usage: [WFIELD_AIM=all] python scripts/iti_lmm_figures.py [--groups readout response ...]
 """
 from __future__ import annotations
 
@@ -30,9 +35,11 @@ import pandas as pd
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import iti_licks as il  # noqa: E402
 import iti_mixed_models as imm  # noqa: E402
+import iti_recovery_measure as rm  # noqa: E402
 
 from wfield_local import mixed_models as mx  # noqa: E402
 
+WOUT = il.OUT_W if il.ITI_SUBSET else il.OUT     # subset runs (dock, ...) write to their own folder (10-29)
 SET = {"iti": "ITI licks", "trial": "cued licks"}
 MM = "mm, + = contralesional"
 RATIO = "/ animal's pre mean, 1 = pre"
@@ -99,9 +106,10 @@ def _perspout() -> list:
 
 
 def _behaviour() -> list:
-    return [("aim_weighted", "weighted signed aim, cued licks (BEHAVIOUR)\n(deg vs own pre landing, + = contralesional)",
+    w = rm.AIM_LABEL[rm.AIM]
+    return [("aim_weighted", f"weighted signed aim, {w} (BEHAVIOUR)\n(deg vs own pre landing, + = contralesional)",
              imm.recovery_measure("weighted_signed")),
-            ("aim_far_contra", "signed aim, far-contra cued licks (BEHAVIOUR)\n(deg vs own pre landing, + = contralesional)",
+            ("aim_far_contra", f"signed aim, far contra, {w} (BEHAVIOUR)\n(deg vs own pre landing, + = contralesional)",
              imm.recovery_measure("far_contra_signed"))]
 
 
@@ -116,11 +124,13 @@ GROUPS = {"readout": (_readout, ("time", "behaviour", "epoch"), 4, "ITI / cued r
 
 
 def lo_tag() -> str:
+    """Decoder-basis tag + the aim lick-set tag (_aimall = all-lick sensitivity; DECISIONS 2026-10-27 late)."""
     import iti_lick_order as lo
-    return lo.SRC_TAG
+    return lo.SRC_TAG + rm.AIM_TAG
 
 
-XLAB = {"aim": "aim deficit: FIRST cued lick's weighted signed aim, pre - session (deg; 0 = pre aim, + = aim shifted ipsilesional)",
+XLAB = {"aim": f"aim deficit: {rm.AIM_LABEL[rm.AIM]} weighted signed aim, pre - session (deg; 0 = pre aim, + = aim "
+               "shifted ipsilesional)",
         "ttc": None}
 DEFICIT = "aim"
 
@@ -140,19 +150,20 @@ def run_group(name: str, dfc: dict) -> pd.DataFrame:
     if T.empty:
         return T
     T.insert(1, "group", name)
+    T["aim_licks"] = rm.AIM
     T["title"] = T.measure.map(lambda m: titles[m].replace("\n", " "))
     pd.set_option("display.width", 240)
     print(mx.summary_table(T, ["measure"]).to_string())
-    od = il.OUT / "lmm_figures"
+    od = WOUT / "lmm_figures"
     od.mkdir(parents=True, exist_ok=True)
     T.to_csv(od / f"lmm_{name}{lo_tag()}.csv", index=False)
     panels = [(titles[m], {"measure": m}) for m in titles]
     for model in models:
         if model == "epoch":                    # supplementary per-epoch view of the same mixed model
-            mx.plot_epoch(L, T, panels, il.OUT / "figures" / f"lmm_epoch_{name}{lo_tag()}.png", title=title,
+            mx.plot_epoch(L, T, panels, WOUT / "figures" / f"lmm_epoch_{name}{lo_tag()}.png", title=title,
                           ylabel="session value (units in panel title)", ncols=ncols)
             continue
-        mx.plot_fits(L, T, panels, model, il.OUT / "figures" / f"lmm_{model}_{name}{lo_tag()}.png", title=title,
+        mx.plot_fits(L, T, panels, model, WOUT / "figures" / f"lmm_{model}_{name}{lo_tag()}.png", title=title,
                      ylabel="session value (units in panel title)", ncols=ncols, xlabel=XLAB[DEFICIT])
     return T
 
@@ -168,9 +179,9 @@ def main() -> int:
     global DEFICIT
     DEFICIT = a.deficit
     if a.deficit == "aim":
-        # FIRST post-cue lick weighted aim (lick_aim_deficit.py; Priya 10-27: reliability 0.98, shows the chronic deficit
-        # that later corrective licks hide)
-        dfc = mx.behaviour_deficit(il.OUT / "aim_deficit_sessions.csv", "weighted_first", True, relative=False)
+        # FIRST post-cue lick weighted aim by default (Priya 10-27: reliability 0.98, shows the chronic deficit that later
+        # corrective licks hide); THE definition + the WFIELD_AIM switch live in iti_recovery_measure (rule 9)
+        dfc = rm.aim_deficit()
     else:
         dfc = mx.deficit(il.OUT.parent / "qc")
     for g in a.groups:

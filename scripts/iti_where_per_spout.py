@@ -1,17 +1,22 @@
 """Per-spout decoding error and r (Priya 10-26: "should we look at r and lateral / distance error also per spout
 position? (ITI using spout position preceding the ITI)").
 
-Frozen where-decoder per lick (`where_preds.csv`, from `iti_where_scatter.py`). Grouping: in-trial licks by the trial's
+Frozen where-decoder per lick (`where_preds<PRED_TAG>.csv`, from `iti_where_scatter.py`; Allen areas with the ALM / tjM1
+split since 10-27 late). Grouping: in-trial licks by the trial's
 TARGET spout; ITI licks by the PREVIOUS trial's spout (`iti_pos`, fixed before the lick -- unlike the nearest-spout
 grouping of 3.20 / 3.21, which depends on where the lick landed). Per spout, change vs pre:
-  beyond_lat / beyond_sag  decoded minus where the animal's pre-stroke pull alone would put the lick (per animal x set x
-                           axis, decoded = a + b * actual fit on pre licks; `iti_where_beyond_pull.py`); + lateral =
-                           contralesional, - sagittal = closer to the mouth;
+  lfl_lat / lfl_sag        LIKE-FOR-LIKE offset (replaces beyond_lat / beyond_sag, 'offset beyond the pull', Priya
+                           10-27 late "yes replace beyond pull"): decoded minus the animal's PRE licks of the set (any
+                           spout) that landed at the same place on that axis (`likeforlike.offset`; Gaussian reference by
+                           default, WFIELD_LFL_REF=loclin); + lateral = read more contralesional, - sagittal = read closer
+                           to the mouth than same-place pre licks;
   r_lat                    per-session r between decoded and actual lateral position within the spout's licks
                            (within-spout range is small, so r is low and spread-sensitive; read the offsets first).
 Cells need >= 15 licks per session x spout. Per-animal table first; paired nested bootstrap (animals > sessions).
 `--z` uses the within-session z-scored predictions (`iti_zscore_check.py`).
-Outputs <E>/iti_licks/per_spout[_z]_{by_animal,tests}.csv, figures/lick_where_per_spout[_z].png.
+Outputs <E>/iti_licks/per_spout[_z]_{by_animal,tests}.csv, figures/lick_where_per_spout[_z].png; figure data
+<E>/iti_licks/figdata/lick_where_per_spout[_z].pkl (`--plot-only` redraws from it alone: no bootstrap).
+Usage: python scripts/iti_where_per_spout.py [--z] [--plot-only]
 """
 from __future__ import annotations
 
@@ -23,31 +28,29 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import iti_licks as il  # noqa: E402
+import likeforlike as lfl  # noqa: E402
+from figdata import load_fd, plot_only, save_fd  # noqa: E402
 
 from wfield_local import analysis_kit as ak  # noqa: E402
 
 POS = ("close_ipsi", "close_mid", "close_contra", "far_ipsi", "far_mid", "far_contra")   # canonical order
 EP = ["acute", "subacute", "chronic"]
-MEAS = {"beyond_lat": "LATERAL offset, mm\n(+ = read contra)",
-        "beyond_sag": "SAGITTAL offset, mm\n(- = read closer)",
+MEAS = {"lfl_lat": "LATERAL like-for-like\noffset, mm (+ = read contra)",
+        "lfl_sag": "SAGITTAL like-for-like\noffset, mm (- = read closer)",
         "r_lat": "frozen r, lateral\n(within spout)"}
 EPC = {"acute": "#e7298a", "subacute": "#d4a017", "chronic": "#1b9e77"}
 MIN_N = 15
 
 
 def table(p: pd.DataFrame) -> pd.DataFrame:
-    p = p.dropna(subset=["act_lat", "act_sag", "dec_lat", "dec_sag"]).copy()
-    for _key, g in p.groupby(["set", "animal"]):
-        pre = g[g.epoch == "pre"]
-        for ax_ in ("lat", "sag"):
-            b, c = np.polyfit(pre[f"act_{ax_}"], pre[f"dec_{ax_}"], 1)
-            p.loc[g.index, f"beyond_{ax_}"] = g[f"dec_{ax_}"] - (c + b * g[f"act_{ax_}"])
+    p = p.dropna(subset=["act_lat", "act_sag", "dec_lat", "dec_sag"]).reset_index(drop=True)
+    for ax_ in ("lat", "sag"):                     # same-place pre reference over ALL the set's licks, then by spout
+        p[f"lfl_{ax_}"] = lfl.offset(p, f"act_{ax_}", f"dec_{ax_}", lfl.SIGMA_MM, f"{ax_} (mm)")[0]
     p = p[p.pos.isin(POS)]
 
     def cell(g):
         r = np.corrcoef(g.dec_lat, g.act_lat)[0, 1] if g.act_lat.std() > 0 else np.nan
-        return pd.Series({"beyond_lat": g.beyond_lat.mean(), "beyond_sag": g.beyond_sag.mean(), "r_lat": r,
-                          "n": len(g)})
+        return pd.Series({"lfl_lat": g.lfl_lat.mean(), "lfl_sag": g.lfl_sag.mean(), "r_lat": r, "n": len(g)})
     s = p.groupby(["set", "animal", "epoch", "label", "pos"]).apply(cell, include_groups=False).reset_index()
     return s[s.n >= MIN_N]
 
@@ -120,21 +123,27 @@ def plot(T: pd.DataFrame, S: pd.DataFrame, tag: str) -> None:
             for s_ in ("top", "right"):
                 ax.spines[s_].set_visible(False)
     fig.suptitle(("Z-SCORED FEATURES (each area / its frame-wise SD in the session, pre and post alike) -- " if tag else "")
-                 + "NEURAL: frozen pre-stroke lick-position decoder PER SPOUT (Allen areas, lags 0..0.2 s)."
+                 + f"NEURAL: frozen pre-stroke lick-position decoder PER SPOUT ({il.basis_label()}, lags 0..0.2 s)."
                  "\nOne dot per SESSION = change from its "
                  "animal's pre mean (all animals pooled; pre sessions show the pre spread); black = mean +- SEM over "
                  "sessions;\n* = paired nested bootstrap (animals > sessions) excludes 0. Cued licks grouped by target, "
-                 "ITI licks by the previous trial's spout (fixed before the lick).\nOffset = decoded minus where "
-                 "the animal's pre-stroke pull toward the middle alone would put the lick.", fontsize=9.5)
+                 "ITI licks by the previous trial's spout (fixed before the lick).\nLike-for-like offset = decoded minus "
+                 f"the animal's pre licks that landed at the same place ({lfl.REF_LAB}).", fontsize=9.5)
     fig.tight_layout(rect=(0, 0, 1, 0.93))
-    fig.savefig(il.OUT / "figures" / f"lick_where_per_spout{tag}.png", dpi=95)
+    fig.savefig(WOUT / "figures" / f"lick_where_per_spout{tag}.png", dpi=95)
     plt.close(fig)
+WOUT = il.OUT_W if il.ITI_SUBSET else il.OUT     # subset runs (dock, ...) write to their own folder (10-29)
 
 
 def main() -> int:
     z = "--z" in sys.argv
     tag = "_z" if z else ""
-    p = pd.read_csv(il.OUT / "zscore_check" / "where_preds_z.csv" if z else il.OUT / "where_preds.csv")
+    if plot_only():                       # redraw from figdata only: no data, no bootstrap
+        F = load_fd(f"lick_where_per_spout{tag}")
+        plot(F["T"], F["S"], F["tag"])
+        return 0
+    il.split_only("iti_where_per_spout")
+    p = pd.read_csv(il.pred_file("zscore_check/where_preds_z.csv" if z else "where_preds.csv"))
     s = table(p)
     T, P = tests(s)
     pd.set_option("display.width", 230)
@@ -146,10 +155,11 @@ def main() -> int:
           .reindex(POS, level=2).round(2).to_string())
     sig = T[(T.lo > 0) | (T.hi < 0)]
     print("\n== cells whose CI excludes 0\n" + sig.round(3).to_string(index=False))
-    P.to_csv(il.OUT / f"per_spout{tag}_by_animal.csv", index=False)
-    T.to_csv(il.OUT / f"per_spout{tag}_tests.csv", index=False)
+    P.to_csv(WOUT / f"per_spout{tag}_by_animal.csv", index=False)
+    T.to_csv(WOUT / f"per_spout{tag}_tests.csv", index=False)
     S = session_changes(s)
-    S.to_csv(il.OUT / f"per_spout{tag}_by_session.csv", index=False)
+    S.to_csv(WOUT / f"per_spout{tag}_by_session.csv", index=False)
+    save_fd(f"lick_where_per_spout{tag}", dict(T=T, S=S, tag=tag))
     plot(T, S, tag)
     return 0
 

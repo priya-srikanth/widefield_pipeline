@@ -3,7 +3,10 @@ threshold used to define 'longer licks' for the angle-decoder r (Priya 10-27: "i
 a single protrusion threshold? show me the protrusion distribution across epochs").
 Threshold candidates drawn: per-animal PRE median (current; one fixed value per animal, applied to every epoch) and one
 cohort-wide value (the pooled pre median). Prints, per animal x epoch, the fraction of licks above each threshold.
-Output figures/lick_extension_dist.png, <E>/iti_licks/extension_thresholds.csv. Usage: python scripts/iti_extension_dist.py
+Output figures/lick_extension_dist.png, <E>/iti_licks/extension_thresholds.csv.
+Figure data (figdata.py convention): <E>/iti_licks/figdata/lick_extension_dist.pkl holds every sample the histograms draw,
+the thresholds and the threshold table, so `--plot-only` redraws from that file alone.
+Usage: python scripts/iti_extension_dist.py [--plot-only]
 """
 from __future__ import annotations
 
@@ -15,37 +18,57 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import iti_licks as il  # noqa: E402
+from figdata import load_fd, plot_only, save_fd  # noqa: E402
 
 AN = ["PS92", "PS93", "PS94", "PS95"]
 EPS = ["pre", "acute", "subacute", "chronic"]
+PANELS = (("iti", "act_sag", "sagittal extension"), ("trial", "act_sag", "sagittal extension"),
+          ("iti", "act_reach", "3-D reach"), ("trial", "act_reach", "3-D reach"))
+FIG = "lick_extension_dist"
 
 
-def main() -> int:
+def compute() -> dict:
+    """Figure data: per (set, measure, animal) the animal's pre median and each epoch's samples (epochs with >= 20 licks);
+    the cohort pre medians; the histogram range top per measure; the threshold table rows."""
+    P = pd.read_csv(il.pred_file("where_angle_reach_preds.csv.gz"))
+    cohort = {v: P[P.epoch == "pre"][v].median() for v in ("act_sag", "act_reach")}
+    top = {v: float(np.nanpercentile(P[v], 99.5)) for v in ("act_sag", "act_reach")}
+    rows, cells = [], {}
+    for st, v, _lab in PANELS:
+        for a in AN:
+            g = P[(P.set == st) & (P.animal == a)]
+            own = g[g.epoch == "pre"][v].median()
+            xs = {}
+            for e in EPS:
+                x = g[g.epoch == e][v].dropna()
+                if len(x) < 20:
+                    continue
+                xs[e] = x.to_numpy()
+                rows.append(dict(set=st, measure=v, animal=a, epoch=e, n=len(x), median=x.median(),
+                                 frac_above_own_pre_median=float((x > own).mean()),
+                                 frac_above_cohort_pre_median=float((x > cohort[v]).mean())))
+            cells[(st, v, a)] = dict(own=own, x=xs)
+    return dict(cells=cells, cohort=cohort, top=top, rows=rows)
+
+
+def draw(D: dict) -> None:
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     from matplotlib.lines import Line2D
 
     from wfield_local.orofacial_cohort import EPOCH_LINE
-    P = pd.read_csv(il.OUT / "where_angle_reach_preds.csv.gz")
-    cohort = {v: P[P.epoch == "pre"][v].median() for v in ("act_sag", "act_reach")}
-    rows = []
+    cohort, rows = D["cohort"], D["rows"]
     fig, axs = plt.subplots(4, 4, figsize=(17, 13), squeeze=False)
-    for i, (st, v, lab) in enumerate((("iti", "act_sag", "sagittal extension"), ("trial", "act_sag", "sagittal extension"),
-                                      ("iti", "act_reach", "3-D reach"), ("trial", "act_reach", "3-D reach"))):
+    for i, (st, v, lab) in enumerate(PANELS):
         for j, a in enumerate(AN):
             ax = axs[i, j]
-            g = P[(P.set == st) & (P.animal == a)]
-            own = g[g.epoch == "pre"][v].median()
-            bins = np.linspace(0, np.nanpercentile(P[v], 99.5), 60)
+            c = D["cells"][(st, v, a)]
+            own = c["own"]
+            bins = np.linspace(0, D["top"][v], 60)
             for e in EPS:
-                x = g[g.epoch == e][v].dropna()
-                if len(x) < 20:
-                    continue
-                ax.hist(x, bins=bins, density=True, histtype="step", lw=1.5, color=EPOCH_LINE[e])
-                rows.append(dict(set=st, measure=v, animal=a, epoch=e, n=len(x), median=x.median(),
-                                 frac_above_own_pre_median=float((x > own).mean()),
-                                 frac_above_cohort_pre_median=float((x > cohort[v]).mean())))
+                if e in c["x"]:
+                    ax.hist(c["x"][e], bins=bins, density=True, histtype="step", lw=1.5, color=EPOCH_LINE[e])
             ax.axvline(own, color="k", lw=1.2, ls="--")
             ax.axvline(cohort[v], color="0.5", lw=1.2, ls=":")
             fr = {r["epoch"]: r["frac_above_own_pre_median"] for r in rows if r["set"] == st and r["measure"] == v
@@ -62,11 +85,21 @@ def main() -> int:
     fig.suptitle("BEHAVIOUR: lick extension per animal x epoch (3-D, extension peak). Text = % of each epoch's licks above "
                  "the animal's pre median.", fontsize=10)
     fig.tight_layout(rect=(0, 0, 1, 0.95))
-    fig.savefig(il.OUT / "figures" / "lick_extension_dist.png", dpi=90)
-    T = pd.DataFrame(rows)
+    fig.savefig(il.OUT / "figures" / f"{FIG}.png", dpi=90)
+    plt.close(fig)
+
+
+def main() -> int:
+    if plot_only():                                       # redraw from the figure data alone
+        draw(load_fd(FIG))
+        return 0
+    D = compute()
+    save_fd(FIG, D)
+    draw(D)
+    T = pd.DataFrame(D["rows"])
     T.to_csv(il.OUT / "extension_thresholds.csv", index=False)
     pd.set_option("display.width", 200)
-    print("cohort pre medians:", {k: round(v, 2) for k, v in cohort.items()})
+    print("cohort pre medians:", {k: round(v, 2) for k, v in D["cohort"].items()})
     print(T.pivot_table(index=["measure", "set", "animal"], columns="epoch",
                         values=["median", "frac_above_own_pre_median", "frac_above_cohort_pre_median"])
           .reindex(columns=EPS, level=1).round(2).to_string())

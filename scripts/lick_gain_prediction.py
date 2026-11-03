@@ -2,12 +2,13 @@
 response SIZE produce through the frozen decoder? (Priya 10-27: "a pan-cortical activity change may be biological, i
 wouldn't want to get rid of it" -> "you can run the prediction step").
 
-Frozen KEY-row lateral decoder per lick set (z-scored Allen areas, lags 0..0.2 s; ridge fit on the animal's pre licks,
+Frozen KEY-row lateral decoder per lick set (z-scored Allen areas with the ALM / tjM1 split since 10-27 late, lags 0..0.2 s; ridge fit on the animal's pre licks,
 as `iti_lick_order.predictions`). Per animal: m = mean activity vector of its pre licks (the lick-response PATTERN).
 Per session: g = projection of (session mean - m) onto m, / |m|^2 -- the response-size change along the pre pattern
 (g = +0.5: the average lick response is 1.5x its pre size in that pattern); the GAIN-ONLY prediction = decoder output
 for (1 + g) m minus decoder output for m (mm). Compared with the observed like-for-like shift
-(lick_matched_readout.py, scope all spouts) per session; change vs pre by the paired nested bootstrap.
+(lick_matched_readout.py --ref <WFIELD_LFL_REF>, scope all spouts; was the binned 'pooled' reference until 10-27 late)
+per session; change vs pre by the paired nested bootstrap.
 Outputs <E>/iti_licks/gain_prediction_sessions.csv, figures/lick_gain_prediction.png.
 Usage: python scripts/lick_gain_prediction.py
 """
@@ -32,12 +33,10 @@ SETS = {"iti": "ITI", "trial": "cued"}
 
 
 def run() -> pd.DataFrame:
-    from iti_decoder_contrib import feature_names
     from wfield_local import frozen_readouts
     from wfield_local import orofacial_cohort as oc
-    SD = pd.read_csv(il.OUT / "zscore_check" / "session_sd.csv", index_col=0)
-    names = feature_names()
-    D = wd.load("areas")
+    # Allen areas in the basis (split by default, Priya 10-27 late) + frame SDs: the shared loader
+    D, names, SD = wd.area_basis()
     rows = []
     for st in SETS:
         for a in AN:
@@ -72,8 +71,11 @@ def run() -> pd.DataFrame:
 
 
 def main() -> int:
+    il.split_only("lick_gain_prediction")   # outputs not basis-tagged: split basis only (10-27 late)
     G = run()
-    M = pd.read_csv(il.OUT / "matched_sessions.csv")
+    import iti_lick_order as lo
+    import likeforlike as lfl
+    M = pd.read_csv(il.OUT / f"matched_{lfl.REF}{lo.SRC_TAG}_sessions.csv")      # the like-for-like read-out in use
     M = M[(M.scope == "all spouts") & (M.cls == "all")][["set", "label", "resid"]]
     G = G.merge(M, on=["set", "label"], how="left")
     G.to_csv(il.OUT / "gain_prediction_sessions.csv", index=False)

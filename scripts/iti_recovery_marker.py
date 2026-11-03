@@ -13,10 +13,17 @@ Per animal Pearson r; summary = mean of animals with a within-animal permutation
 animal's post sessions, N_PERM draws, same shuffle for every statistic of a draw).
 Inputs: <E>/iti_licks/contact_check.csv (`iti_contact_check.py`). Output: <E>/iti_licks/recovery_marker.csv,
 figures/lick_recovery_marker.png.
-Usage: python scripts/iti_recovery_marker.py
+Figure data <E>/iti_licks/figdata/lick_recovery_marker.pkl; --plot-only redraws from it alone (no permutations).
+BEHAVIOUR AXIS (Priya 10-28: "use our new far contra angle metric", + a POOLED panel): env WFIELD_MARKER_BEH =
+fc_aim (default: far-contra FIRST-cued-lick angle offset vs the animal's pre landing, degrees, - = ipsilesional;
+`iti_recovery_measure`, recovery -> 0) | w_aim (the weighted signed aim, THE behaviour axis elsewhere) | hit (far-contra
+hit rate / pre, the original axis). Non-default runs write *_<beh> outputs; recovery_marker_beh_compare.csv collects
+every axis that has been run.
+Usage: [WFIELD_MARKER_BEH=hit] python scripts/iti_recovery_marker.py [--plot-only]
 """
 from __future__ import annotations
 
+import os
 import sys
 from pathlib import Path
 
@@ -25,10 +32,19 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import iti_licks as il  # noqa: E402
+from figdata import load_fd, plot_only, save_fd  # noqa: E402
 from recovery_timing import series  # noqa: E402
 
 AN = ["PS92", "PS93", "PS94", "PS95"]
 N_PERM = 5000
+BEH = os.environ.get("WFIELD_MARKER_BEH", "fc_aim")
+BEH_COL = {"fc_aim": "far_contra_signed", "w_aim": "weighted_signed"}
+BEH_LABEL = {"fc_aim": "far-contra first-lick aim offset (deg; - = ipsilesional)",
+             "w_aim": "weighted first-lick aim offset (deg; - = ipsilesional)", "hit": "far-contra hit rate / pre"}
+if BEH not in BEH_LABEL:
+    raise ValueError(f"WFIELD_MARKER_BEH={BEH!r}: expected one of {list(BEH_LABEL)}")
+TAG = "" if BEH == "fc_aim" else f"_{BEH}"
+REF_X = 0.0 if BEH != "hit" else 1.0                   # the pre level of the behaviour axis
 
 
 KINDS = ("raw", "detrended", "spread", "spread+day")
@@ -60,12 +76,8 @@ def _stats(G: pd.DataFrame, beh: dict) -> dict:
     return out
 
 
-def main() -> int:
-    import matplotlib
-    matplotlib.use("Agg")
-    import matplotlib.pyplot as plt
-
-    from wfield_local.orofacial_cohort import EPOCH_LINE as colors
+def compute() -> dict:
+    """Post sessions (G), per-animal correlations (obs) and the permutation table (T); writes recovery_marker.csv."""
     R = pd.read_csv(il.OUT / "contact_check.csv")
     pre = R[R.epoch == "pre"].groupby(["set", "animal"]).r_all.mean()
     R["r_norm"] = R.r_all / [pre.get((s_, a_), np.nan) for s_, a_ in zip(R.set, R.animal)]
@@ -75,6 +87,10 @@ def main() -> int:
         sd[(x, "trial")], sd[(x, "iti")] = np.nanstd(d_["tr_side"].astype(float)), np.nanstd(d_["iti_side"].astype(float))
     R["side_sd"] = [sd[(x, s_)] for x, s_ in zip(R.label, R.set)]
     B = series("lick")[["label", "day", "beh"]]
+    if BEH != "hit":                                    # aim axis: same sessions / days, behaviour from the aim table
+        import iti_recovery_measure as rm
+        Aim = pd.read_csv(rm.sessions_csv("first"))[["label", BEH_COL[BEH]]].rename(columns={BEH_COL[BEH]: "beh"})
+        B = B.drop(columns="beh").merge(Aim, on="label", how="inner")
     G = R[R.epoch != "pre"].merge(B, on="label", how="inner").dropna(subset=["beh", "r_norm", "day"])
     G = G[G.day > 0].copy()
     # one behaviour vector per animal over its post sessions (shared by both lick sets, so one shuffle serves both)
@@ -103,44 +119,82 @@ def main() -> int:
         p = (np.sum(np.abs(diff_null[kind]) >= abs(dm)) + 1) / (N_PERM + 1)
         rows.append({"set": "trial - iti", "kind": kind, "mean_r": round(dm, 3), "p_perm": p})
     T = pd.DataFrame(rows)
-    T.to_csv(il.OUT / "recovery_marker.csv", index=False)
+    T.to_csv(il.OUT / f"recovery_marker{TAG}.csv", index=False)
+    cmp_ = [pd.read_csv(f).assign(beh=b) for b in BEH_LABEL
+            if (f := il.OUT / f"recovery_marker{'' if b == 'fc_aim' else '_' + b}.csv").exists()]
+    pd.concat(cmp_).to_csv(il.OUT / "recovery_marker_beh_compare.csv", index=False)
     pd.set_option("display.width", 200)
-    print("== within-animal correlation of frozen-decoder r (/ pre) with far-contra hit rate (/ pre), post sessions\n"
+    print("== within-animal correlation of frozen-decoder r (/ pre) with " + BEH_LABEL[BEH] + ", post sessions\n"
           + T.to_string(index=False))
-    fig, axs = plt.subplots(2, 4, figsize=(15, 7), sharex=True, sharey="row")
+    return dict(G=G, obs=obs, T=T, beh=BEH)
+
+
+def plot(F: dict) -> None:
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    from wfield_local.orofacial_cohort import EPOCH_LINE as colors
+    G, obs, T = F["G"], F["obs"], F["T"]
+    beh = F.get("beh", "hit")
+    ref_x = 1.0 if beh == "hit" else 0.0
+    t_ = T.set_index(["set", "kind"])
+    marks = dict(zip(AN, "osD^"))
+    fig, axs = plt.subplots(2, 5, figsize=(18, 7.4), sharex=True, sharey="row")
     for i, st in enumerate(("trial", "iti")):
-        for j, a in enumerate(AN):
+        for j, a in enumerate(AN + ["pooled"]):
             ax = axs[i, j]
-            g = G[(G.animal == a) & (G.set == st)]
+            g = G[G.set == st] if a == "pooled" else G[(G.animal == a) & (G.set == st)]
             for ep in ("acute", "subacute", "chronic"):
                 h = g[g.epoch == ep]
-                ax.scatter(h.beh, h.r_norm, s=22, color=colors[ep], label=ep)
-            rr = obs[(st, "raw")][j]
-            rd = obs[(st, "detrended")][j]
-            ax.set_title(f"{a} {'in-trial' if st == 'trial' else 'ITI'}: r {rr:+.2f} (detrended {rd:+.2f})", fontsize=9)
+                if a == "pooled":                       # every animal, marker = animal
+                    for a_ in AN:
+                        hh = h[h.animal == a_]
+                        ax.scatter(hh.beh, hh.r_norm, s=18, color=colors[ep], marker=marks[a_], alpha=0.8)
+                else:
+                    ax.scatter(h.beh, h.r_norm, s=22, color=colors[ep], label=ep)
+            if a == "pooled":
+                ax.set_title(f"POOLED {'in-trial' if st == 'trial' else 'ITI'}: mean within-animal r "
+                             f"{t_.loc[(st, 'raw'), 'mean_r']:+.2f} (p {t_.loc[(st, 'raw'), 'p_perm']:.3f})\n"
+                             f"detrended {t_.loc[(st, 'detrended'), 'mean_r']:+.2f} (p {t_.loc[(st, 'detrended'), 'p_perm']:.3f})"
+                             "; marker = animal", fontsize=8.5)
+            else:
+                ax.set_title(f"{a} {'in-trial' if st == 'trial' else 'ITI'}: r {obs[(st, 'raw')][j]:+.2f} "
+                             f"(detrended {obs[(st, 'detrended')][j]:+.2f})", fontsize=9)
             ax.axhline(1, color="0.8", lw=0.6)
-            ax.axvline(1, color="0.8", lw=0.6)
+            ax.axvline(ref_x, color="0.8", lw=0.6)
             for sp in ("top", "right"):
                 ax.spines[sp].set_visible(False)
             if j == 0:
-                ax.set_ylabel(f"FROZEN decoder r (decoded vs actual lateral\ntongue-tip position) / pre\n({'in-trial' if st == 'trial' else 'ITI'} licks)", fontsize=9)
+                ax.set_ylabel(f"FROZEN decoder r / pre\n({'in-trial' if st == 'trial' else 'ITI'} licks)", fontsize=9)
             if i == 1:
-                ax.set_xlabel("far-contra hit rate / pre", fontsize=9)
-    axs[0, 0].legend(fontsize=7, frameon=False)
-    t_ = T.set_index(["set", "kind"])
-    fig.suptitle("NEURAL vs BEHAVIOUR: does the FROZEN pre-stroke decoder (fit once on pre licks, never refit) of lateral tongue-tip position track recovery? One dot per post-stroke "
-                 "session. Mean within-animal r: in-trial "
+                ax.set_xlabel(BEH_LABEL[beh], fontsize=8.5)
+    axs[0, 0].legend(fontsize=7, frameon=False, loc="lower right")
+    from matplotlib.lines import Line2D
+    axs[1, 4].legend([Line2D([], [], ls="", marker=marks[a_], color="0.4") for a_ in AN], AN, fontsize=7,
+                     frameon=False, loc="lower right")
+    fig.suptitle("NEURAL vs BEHAVIOUR: does the FROZEN pre-stroke decoder of lateral tongue-tip position (fit once on pre "
+                 "licks, never refit; y = r decoded vs actual, / the animal's pre) track recovery? One dot per post-stroke "
+                 f"session; x = {BEH_LABEL[beh]}. Mean within-animal r: in-trial "
                  f"{t_.loc[('trial', 'raw'), 'mean_r']:+.2f} (p {t_.loc[('trial', 'raw'), 'p_perm']:.3f}), ITI "
-                 f"{t_.loc[('iti', 'raw'), 'mean_r']:+.2f} (p {t_.loc[('iti', 'raw'), 'p_perm']:.3f}); after removing the shared "
-                 f"log(day) trend: in-trial {t_.loc[('trial', 'detrended'), 'mean_r']:+.2f} (p "
-                 f"{t_.loc[('trial', 'detrended'), 'p_perm']:.3f}), ITI {t_.loc[('iti', 'detrended'), 'mean_r']:+.2f} (p "
-                 f"{t_.loc[('iti', 'detrended'), 'p_perm']:.3f}); also removing the session's spread of lick directions: in-trial "
-                 f"{t_.loc[('trial', 'spread+day'), 'mean_r']:+.2f} (p {t_.loc[('trial', 'spread+day'), 'p_perm']:.3f}). "
-                 "p = within-animal permutation of behaviour.",
+                 f"{t_.loc[('iti', 'raw'), 'mean_r']:+.2f} (p {t_.loc[('iti', 'raw'), 'p_perm']:.3f}); log(day) removed: in-trial "
+                 f"{t_.loc[('trial', 'detrended'), 'mean_r']:+.2f} (p {t_.loc[('trial', 'detrended'), 'p_perm']:.3f}), ITI "
+                 f"{t_.loc[('iti', 'detrended'), 'mean_r']:+.2f} (p {t_.loc[('iti', 'detrended'), 'p_perm']:.3f}); also the "
+                 f"session's spread of lick directions: in-trial {t_.loc[('trial', 'spread+day'), 'mean_r']:+.2f} (p "
+                 f"{t_.loc[('trial', 'spread+day'), 'p_perm']:.3f}). p = within-animal permutation of behaviour.",
                  fontsize=9.5, wrap=True)
-    fig.tight_layout(rect=(0, 0, 1, 0.9))
-    fig.savefig(il.OUT / "figures" / "lick_recovery_marker.png", dpi=110)
+    fig.tight_layout(rect=(0, 0, 1, 0.88))
+    fig.savefig(il.OUT / "figures" / f"lick_recovery_marker{'' if beh == 'fc_aim' else '_' + beh}.png", dpi=110)
     plt.close(fig)
+
+
+def main() -> int:
+    if plot_only():                       # redraw from figdata only: no data, no permutations
+        plot(load_fd(f"lick_recovery_marker{TAG}"))
+        return 0
+    F = compute()
+    save_fd(f"lick_recovery_marker{TAG}", F)
+    plot(F)
     return 0
 
 

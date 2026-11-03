@@ -841,3 +841,13 @@ for those sessions cover the trials WITH video only.
   figure is affected.
 * Record rejected workarounds and why, so they are not re-proposed.
 * Anything needing a human decision goes under "still open" with the specific question.
+
+## Pre-stroke session endings (Priya, 2026-10-31) -- affects every quit / time-to-quit / water-at-quit analysis
+
+- PS92-PS95 PRE-STROKE: sessions were often STOPPED BY HAND when the animal quit, so the quit tail is frequently cut
+  off -- a pre session with no detected quit may end AT the quit (session end ~ quit point, not censoring).
+- PS92 and PS93 were very licky (many ENL violations) and were usually stopped FOR TIME -> their pre session ends are
+  time-censored (lower bounds on time / water to quit).
+- POST-STROKE (PS92-PS95): sessions ran until 100 trials PER SPOUT or 120 min, whichever came first (Priya, 10-31) ->
+  a post session ending at the trial cap is a completed task (censored), not a quit.
+- Cohort 2 onward: animals are left to run until they quit.

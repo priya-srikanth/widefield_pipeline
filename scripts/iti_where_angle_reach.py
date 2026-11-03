@@ -1,18 +1,23 @@
 """DIRECTION vs EXTENT: the frozen where-decoder on lick ANGLE and 3-D REACH (Priya 10-27: "redo our lateral vs
 protrusion analysis with angle vs 3d protrusion"; angle = primary coordinate, with x / y / z alongside).
 
-Same decoder as the KEY row (3.15 / 3.21): per animal x lick set, ridge on Allen areas (lags 0..0.2 s), features z-scored
-within session (`zscore_check/session_sd.csv`), trained on August pre licks, pre sessions leave-one-session-out. Targets:
+Same decoder as the KEY row (3.15 / 3.21): per animal x lick set, ridge on Allen areas WITH the ALM / tjM1 split (the
+basis of every area decoder since 10-27 late; iti_where_decoder.area_basis), lags 0..0.2 s, features z-scored within
+session (frame-level SDs), trained on August pre licks, pre sessions leave-one-session-out. Targets:
   angle   atan2(lateral, sagittal) in degrees (the encoder's exec_angle), decoded DIRECTLY (one ridge)
   reach   3-D distance of the tongue tip from the mouth at the extension peak (`reach_mm`, the lick table)
   elev    ELEVATION below the axial (horizontal) plane, atan2(down, sqrt(lateral^2 + forward^2)), degrees (Priya 10-27:
           "should we add angle from axial plane"): with angle and reach a full 3-D polar description of each lick
 Per session: r (decoded vs actual) / the animal's pre mean, ALL tracked licks (Priya 10-27: no extension filter; the
-r_ang_long column = licks above the pre median, kept for reference only); offset
-beyond the pre pull (decoded - (a + b x actual), a, b fit on the animal's pre licks) minus pre. Change vs pre: paired
-nested bootstrap; per-animal tables first (rule 8).
-Outputs <E>/iti_licks/where_angle_reach_{preds.csv.gz,sessions.csv,tests.csv}, figures/lick_where_angle_reach.png.
-Usage: python scripts/iti_where_angle_reach.py
+r_ang_long column = licks above the pre median, kept for reference only). Change vs pre: paired nested bootstrap;
+per-animal tables first (rule 8). The 'offset beyond the pre pull' panels (bey_*) were DROPPED 10-27 late (Priya: "yes
+replace beyond pull"): the like-for-like offsets on angle / elevation / reach are `lick_matched_angle_reach.py`, which
+reads this script's per-lick predictions.
+Outputs <E>/iti_licks/where_angle_reach_{sessions,tests}.csv, figures/lick_where_angle_reach.png; per-lick prediction
+cache where_angle_reach_preds<PRED_TAG>.csv.gz (basis-specific name, il.pred_file).
+Figure data <E>/iti_licks/figdata/lick_where_angle_reach.pkl (every panel's dots, lines and bootstrap CIs);
+--plot-only redraws from it alone (no bootstrap).
+Usage: python scripts/iti_where_angle_reach.py [--plot-only]
 """
 from __future__ import annotations
 
@@ -25,21 +30,23 @@ import pandas as pd
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import iti_licks as il  # noqa: E402
 import iti_where_decoder as wd  # noqa: E402
+from figdata import load_fd, plot_only, save_fd  # noqa: E402
 
 from wfield_local import analysis_kit as ak  # noqa: E402
 
 AN = ["PS92", "PS93", "PS94", "PS95"]
 EP = ["acute", "subacute", "chronic"]
 EPS = ["pre", *EP]
+# optional callable(set, animal, {label: (epoch, X scaled, Y (ang, reach, elev, sag), pos)}, {held-out pre label | None:
+# (scaler, [ridge per coordinate])}): lick_offset_contrib_map.py --coord angle reach (the frozen fit + scaled features)
+CONTRIB_HOOK = None
 
 
 def predictions() -> pd.DataFrame:
     from wfield_local import frozen_readouts
 
-    from iti_decoder_contrib import feature_names
-    SD = pd.read_csv(il.OUT / "zscore_check" / "session_sd.csv", index_col=0)
-    names = feature_names()
-    D = wd.load("areas")
+    # Allen areas in the basis (split by default, Priya 10-27 late) + frame SDs: the shared loader
+    D, names, SD = wd.area_basis()
     rows = []
     for st in ("iti", "trial"):
         for a in AN:
@@ -60,6 +67,8 @@ def predictions() -> pd.DataFrame:
             # STORED BY DEFAULT (11-02 pass 2, `frozen_readouts`, opt-out WIDEFIELD_ITI_FROZEN=0)
             fits = frozen_readouts.pre_loso_ridge(a, f"iti_where_angle_reach-{st}", pre, {q: S[q][1] for q in pre},
                                                   {q: S[q][2] for q in pre}, np.logspace(-1, 5, 13), k=3)
+            if CONTRIB_HOOK is not None:
+                CONTRIB_HOOK(st, a, S, fits)
             for x, (ep, X, Y, P) in S.items():
                 sc, ms = fits[x if x in pre else None]
                 Pr = np.column_stack([m.predict(sc.transform(X)) for m in ms])
@@ -75,28 +84,25 @@ def sessions(P: pd.DataFrame) -> pd.DataFrame:
     for (st, a), g in P.groupby(["set", "animal"]):
         pre = g[g.epoch == "pre"]
         thr = pre.act_sag.median()
-        pull = {t: np.polyfit(pre[f"act_{t}"], pre[f"dec_{t}"], 1) for t in ("ang", "reach", "elev")}
         for (lab, ep), h in g.groupby(["label", "epoch"]):
             r = dict(set=st, animal=a, label=lab, epoch=ep, n=len(h))
             for t in ("ang", "reach", "elev"):
-                b, c = pull[t]
                 r[f"r_{t}"] = float(np.corrcoef(h[f"dec_{t}"], h[f"act_{t}"])[0, 1])
-                r[f"bey_{t}"] = float(np.mean(h[f"dec_{t}"] - (c + b * h[f"act_{t}"])))
             lg = h[h.act_sag > thr]
             r["r_ang_long"] = float(np.corrcoef(lg.dec_ang, lg.act_ang)[0, 1]) if len(lg) >= 20 else np.nan
             rows.append(r)
     S = pd.DataFrame(rows)
-    for c in ("r_ang", "r_reach", "r_elev", "r_ang_long", "bey_ang", "bey_reach", "bey_elev"):
+    for c in ("r_ang", "r_reach", "r_elev", "r_ang_long"):
         pre = S[S.epoch == "pre"].groupby(["set", "animal"])[c].mean()
         ref = np.array([pre.get((s, a), np.nan) for s, a in zip(S.set, S.animal)])
-        S[c + "_d"] = S[c] / ref if c.startswith("r_") else S[c] - ref
+        S[c + "_d"] = S[c] / ref
     return S
 
 
 def tests(S: pd.DataFrame) -> pd.DataFrame:
     out = []
     for st, g in S.groupby("set"):
-        for c in ("r_ang_d", "r_ang_long_d", "r_reach_d", "r_elev_d", "bey_ang_d", "bey_reach_d", "bey_elev_d"):
+        for c in ("r_ang_d", "r_ang_long_d", "r_reach_d", "r_elev_d"):
             prd = {a: h[c].dropna().to_numpy() for a, h in g[g.epoch == "pre"].groupby("animal")}
             for ep in EP:
                 post = {a: h[c].dropna().to_numpy() for a, h in g[g.epoch == ep].groupby("animal") if a in prd}
@@ -108,28 +114,34 @@ def tests(S: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(out)
 
 
-def plot(S: pd.DataFrame) -> None:
+PANELS = [("r_ang_d", "ANGLE r / pre", 1.0),
+          ("r_elev_d", "ELEVATION r / pre", 1.0), ("r_reach_d", "3-D REACH r / pre", 1.0)]
+# (the bey_* 'offset beyond the pre pull' panels were dropped 10-27 late: like-for-like offsets = lick_matched_angle_reach.py)
+
+
+def figure_data(S: pd.DataFrame) -> dict:
+    """Every panel's drawn values (session dots, animal lines, mean, pre SEM, paired nested bootstrap per epoch)."""
+    from iti_check_figures import epoch_compute
+    return {(st, c): epoch_compute(S[S.set == st], c) for st in ("iti", "trial") for c, _lab, _ref in PANELS}
+
+
+def plot(F: dict) -> None:
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
-    from iti_check_figures import epoch_panel
-    panels = [("r_ang_d", "ANGLE r / pre", 1.0),
-              ("r_elev_d", "ELEVATION r / pre", 1.0), ("r_reach_d", "3-D REACH r / pre", 1.0),
-              ("bey_ang_d", "ANGLE offset beyond pre pull (deg)", 0.0),
-              ("bey_elev_d", "ELEVATION offset beyond pull (deg)", 0.0),
-              ("bey_reach_d", "REACH offset beyond pre pull (mm)", 0.0)]
-    fig, axs = plt.subplots(2, len(panels), figsize=(3.3 * len(panels), 8.2), squeeze=False)
+    from iti_check_figures import epoch_draw
+    panels = PANELS
+    fig, axs = plt.subplots(2, len(panels), figsize=(4.8 * len(panels), 8.2), squeeze=False)
     for i, st in enumerate(("iti", "trial")):
-        g = S[S.set == st]
         for j, (c, lab, ref) in enumerate(panels):
-            epoch_panel(axs[i, j], g, c, ref=ref, title=f"{'ITI' if st == 'iti' else 'cued'}: {lab}",
-                        ylab=lab if j in (0, 3) else "")
+            epoch_draw(axs[i, j], F[(st, c)], ref=ref, title=f"{'ITI' if st == 'iti' else 'cued'}: {lab}",
+                       ylab=lab if j == 0 else "")
     axs[0, 0].legend(fontsize=6.5, frameon=False)
-    fig.suptitle("NEURAL: DIRECTION vs EXTENT -- the frozen where-decoder (z-scored Allen areas, lags 0..0.2 s, trained on "
+    fig.suptitle(f"NEURAL: DIRECTION vs EXTENT -- the frozen where-decoder (z-scored {il.basis_label()}, lags 0..0.2 s, trained on "
                  "August pre licks) on the lick's 3-D POLAR coordinates: lateral ANGLE (atan2(lateral, sagittal)), ELEVATION below the axial plane (atan2(down, horizontal extent); + = steeper down) and 3-D REACH.\nr / pre: how well cortex "
-                 "tracks each lick; offset beyond the pull: + = read more contralesional (angle) / further (reach) than "
-                 "the lick. ALL tracked licks (no extension filter).\n"
+                 "tracks each lick (like-for-like OFFSETS on these coordinates: lick_matched_angle_reach.png). ALL tracked licks (no "
+                 "extension filter).\n"
                  "Thin lines = animals, black = mean, grey dots = sessions, diamonds = change vs pre with 95% paired "
                  "nested bootstrap CI (* = excludes 0). PROVISIONAL", fontsize=9)
     fig.tight_layout(rect=(0, 0, 1, 1 - 0.8 / fig.get_size_inches()[1]))
@@ -138,20 +150,26 @@ def plot(S: pd.DataFrame) -> None:
 
 
 def main() -> int:
-    f = il.OUT / "where_angle_reach_preds.csv.gz"
+    if plot_only():                       # redraw from figdata only: no data, no bootstrap
+        plot(load_fd("lick_where_angle_reach"))
+        return 0
+    il.split_only("iti_where_angle_reach")
+    f = il.pred_file("where_angle_reach_preds.csv.gz")      # basis-specific cache name (a plain cache is never reused)
     P = pd.read_csv(f) if f.exists() else predictions()
     if not f.exists():
         P.to_csv(f, index=False)
     S = sessions(P)
     S.to_csv(il.OUT / "where_angle_reach_sessions.csv", index=False)
     pd.set_option("display.width", 220)
-    for c in ("r_ang_long_d", "r_ang_d", "r_elev_d", "r_reach_d", "bey_ang_d", "bey_elev_d", "bey_reach_d"):
+    for c in ("r_ang_long_d", "r_ang_d", "r_elev_d", "r_reach_d"):
         print(f"== per animal (rule 8): {c}")
         print(S.pivot_table(index=["set", "animal"], columns="epoch", values=c).reindex(columns=EPS).round(2).to_string())
     T = tests(S)
     T.to_csv(il.OUT / "where_angle_reach_tests.csv", index=False)
     print("\n== change vs pre (paired nested bootstrap)\n" + T.round(3).to_string(index=False))
-    plot(S)
+    F = figure_data(S)
+    save_fd("lick_where_angle_reach", F)
+    plot(F)
     return 0
 
 

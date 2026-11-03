@@ -22154,6 +22154,156 @@ SINGLE-FRAME, SUPERVISED ONLY (no temporal loss, no context), so the clips judge
 Priya: LP over DLC (cam4 production is LP; temporal loss + context + uniform-heatmap occlusion + multi-view/EKS path are
 LP's; side views lack cam1's tip ambiguity). Next: O2 LP with temporal loss + ctx-semi (cam1 round-2 recipe).
 
+## 2026-10-27 (evening) -- ITI lick definition; ROI review (Priya)
+- ITI licks: KEEP ALL ITI licks (every lick outside the response windows) as the PRIMARY decoder / read-out set. Report as
+  SECONDARY: 2 s quiet before the lick; >= 1 s after the window end and >= 1 s before the next spout arrival; both
+  (WFIELD_ITI_FILTER gap2 / far1 / gap2far1; page Fig 12.14). Why: the ITI is only ~3.1 s, ~70 % of ITI licks sit within
+  1 s of a trial edge, and the offset holds on every stricter set (iti_lick_timing_audit.py).
+- ALM / tjM1: being re-defined (Priya: "make both ROIs bigger"; sketch extends ALM medially/back and tjM1 back to meet
+  ALM). Literature check: our 40 % ROIs were centred on ALM AP +2.5 ML 1.5 (Guo 2014) and tjM1 AP +1.8 ML 2.6 (Mayrhofer
+  2019). Candidates in figures/lick_roi_candidates.png; decision pending (AP-cut levels; RFA overlap of a medially
+  extended ALM). ROI version machinery: WFIELD_ROI_VERSION (v1 = 40 %; v1 files kept).
+- ALM / tjM1 FINAL (Priya 10-27 late): ALM = anterolateral 40 % of MOs (unchanged), tjM1 = anterolateral 50 % of MOp
+  (ROI version 2; WFIELD_ROI_VERSION=2, sessions_roi2/). Literature: ALM Guo 2014 / Esmaeili 2021 (AP 2.5, ML 1.5) and tjM1
+  Mayrhofer 2019 (AP 1.8, ML 2.6) inside; forelimb M1 (CFA) and whisker M2 (Esmaeili 2021) outside; ALM 45 % rejected
+  (takes in part of wM2). Esmaeili's tjM1 targeting point (AP 2.0, ML 2.0) falls in Allen MOs on our registration.
+- ROI MASK FINAL (Priya 10-27 late, v8 = WFIELD_ROI_VERSION 8, sessions_roi8/): ALM 40 % / tjM1 50 % of MOs / MOp, ranked
+  on the stat mask plus (a) the 16-px rim thinned to 4 px along the LATERAL edge (anterior of AP -0.5: lateral MOp / tjM1
+  edge, orofacial S1 strip) and (b) ALM continued toward the front edge to one horizontal line (most anterior row of an
+  8-px front rim), carried laterally to the thin lateral rim, >= 10 px (0.19 mm) from FRP; ALM / tjM1 one connected region
+  each; no PL / FRP / medial front slivers. Per-pixel MAP statistics keep the 16-px stat mask. Rejected: v3 (front
+  slivers), v4 (detached ALM corner), v5 (ALM against FRP), v6 (lost lateral tjM1 / SSp-m), v7 (corner zig-zag).
+
+## 2026-10-27 (late) -- Lick decoder basis: Allen areas with the ALM / tjM1 split is PRIMARY (Priya)
+- Priya, asked "which basis is primary (I recommend Allen with the ALM/tjM1 split)": "I agree".
+- PRIMARY = `WFIELD_LICK_DECODER=areas_split` on ROI v8 (outputs tagged `areas_splitr8`). Robustness rows: plain Allen
+  areas (untagged), masked LocaNMF (`locanmfFM`, glue / MOB components dropped), SVD (`svdF`). Held-out pre lateral r ITI /
+  cued (v2 ROIs): split 0.625 / 0.768, Allen 0.622 / 0.767, LocaNMF masked 0.622 / 0.761, LocaNMF 0.608 / 0.754, SVD
+  0.597 / 0.736 -- the split basis is at least as good as the others, and its features are named areas.
+- Why not LocaNMF (Priya earlier: "if LocaNMF is better, let's use it"): it is not better here; the joint LocaNMF basis
+  is pre-stroke only and ~1/3 of its components sit mostly on glue / MOB.
+- Priya named the figure where tjM1's chronic build-up "lost significance": `lick_iti_ramp_summary` (ramp_session_tests.csv).
+
+## 2026-10-27 (late) -- Like-for-like read-out: LOCAL-LINEAR reference, edge line carried out; angle + reach get it (Priya)
+- Priya: "for the angle decoder, should we use gaussian smoother like for like licks also?", "can we use the same linear
+  strategy for the edges?", "why can't we decode outside pre reach? isn't that what the local linear is for" -> plan
+  accepted ("sounds good"); "sagittal, elevation, reach, xyz - should these be binned as well? may be too much".
+- Reference = Gaussian-weighted LOCAL LINE (decoded vs actual) through the animal's pre licks, read off at the lick's
+  actual value (`scripts/likeforlike.py`); beyond the pre range (0.5-99.5 % of pre values) the edge line is carried out,
+  so EVERY lick gets a reference. Reported on all licks (primary) and inside-range licks (sensitivity); share beyond the
+  range per epoch; epoch effect with the reference refit on resampled pre sessions (edge-slope uncertainty). Width and the
+  local-linear vs weighted-mean choice by held-out pre error (table shown).
+- Lateral: `lick_matched_readout.py --ref loclin`. Angle + 3-D reach (plotted), elevation / lateral / forward / down (table
+  only): `lick_matched_angle_reach.py`; replaces 'offset beyond the pre pull' (bey_*) of iti_where_angle_reach.
+
+## 2026-10-27 (late) -- Split basis EVERYWHERE; 'beyond the pull' replaced by the like-for-like offset (Priya)
+- Priya: "use split bases, for consistency" -> every decoder on Allen areas from the ITI session files (frozen /
+  key / binned in iti_licks, the z-scored where-decoder family, basis summary, angle / reach, 3-axis, first lick, drift,
+  ...) uses Allen areas with the ALM / tjM1 split (ROI v8). Plain Allen = robustness row only.
+- Priya: "yes replace beyond pull" -> every 'offset beyond the pre pull' column (lick_order, per_spout, first_lick,
+  overcorrection, recovery_link, 3axis / check_figures, mixed-model off_* measures) becomes the like-for-like same-place
+  offset (likeforlike.py; reference gauss or loclin -- Priya's choice pending the angle result; Gaussian until then).
+- Gaussian vs local-linear: lateral held-out pre error 0.2312 vs 0.2314 (tie), epoch results identical to 2 decimals;
+  decision deferred to the angle comparison (Priya 10-27 late: "why is local linear decided?" -- it was not).
+- 10-27 late, Priya: "ok local linear it is" -> the like-for-like reference is LOCAL-LINEAR (likeforlike.py; edge line
+  carried out, every lick scored; inside-range-only = sensitivity). Gaussian weighted mean = supplementary check. Basis:
+  lateral held-out error 0.2314 vs 0.2312, angle (sigma 2 deg) 41.60 vs 41.57; epoch effects identical (angle within
+  0.1 deg on all vs inside-range licks); share of acute licks beyond the pre range <= 8 %.
+- 10-27 late, REVISED by Priya: "ok gaussian" (confirmed when asked) -> the like-for-like reference is the GAUSSIAN
+  weighted mean (primary; licks beyond the pre range get no reference, ~1 %); LOCAL-LINEAR with the edge line carried out
+  = supplementary edge check (identical epoch effects on lateral and angle). Supersedes the "local linear it is" line above.
+
+## 2026-10-27 (late) -- Behaviour axis = FIRST-LICK weighted aim; pixel map stats = FWER max-statistic (Priya)
+- Priya, asked whether the FIRST-LICK weighted aim should be the behaviour axis + LMM deficit: "i think so? what do you
+  think?" -> recommended yes (first lick = the aimed movement before spout feedback; split-half 0.98 vs 1.00; r 0.94 with
+  the all-lick measure; chronic deficit ~2x larger, PS94 -12.1 vs -5.8 deg) -> PRIMARY = first-lick weighted aim;
+  all-lick weighted aim = sensitivity row. Affects recovery measure / recovery link / mixed-model behaviour model / lmm
+  figures; old vs new reported side by side.
+- Priya: "2 a yes" -> per-pixel map statistics use the decoder page's FWER MAX-STATISTIC (permutation max over pixels,
+  as iti_session_cluster_tests) instead of per-pixel BH-FDR + >= 3/4 sign (iti_decoder_pattern_stats,
+  iti_spout_pattern_stats, iti_pattern_area_stats); ">= 3 animals agree" stays as an outline only.
+
+## 2026-10-28 (late morning) -- decoder weights / contributions on ONE physical scale; previous-spout cache
+
+- **11.x weight / contribution maps were per feature-SD.** Every frozen lick decoder z-scores its features by their
+  per-session frame SD, so `lick_offset_contrib_map`'s w = M'beta and dx = B dh are per feature-SD: exact in the Allen
+  basis (one area = one feature), MIXED across SVD / LocaNMF components (different SDs). Totals were always exact.
+  `scripts/lick_offset_where.py` puts every basis on pixel dF/F (one reference SD per feature = the animal's pre-session
+  mean; sum still exact for any positive reference, asserted; units checked by rebuilding one pre session's features
+  from the imaging, SD ratio 0.999-1.002 in every basis x animal). New page figs 11.13 (decoder weight per +1 SD of
+  each area: bases AGREE on an ipsi-minus-contra SSp-n / tjM1 / ALM pattern, SSp-m opposite; ALM / tjM1 ~1/3-1/2 of
+  SSp-n per SD) and 11.14 (offset carried per area: ITI spread with no consistent locus; cued acute in ipsilesional
+  SSp-n + tjM1). Use these, not 11.11's per-area column, to compare bases.
+- **`bout_prev_pos` cache.** The ITI session files predate the stored previous-trial spout; the rebuild loads each
+  session's behaviour off the share (~46 s x 107 sessions per job). `lick_cued_ramp.py --prev-cache` builds
+  `<OUT_W>/bout_prev_pos.csv` once (8 workers); `bout_prev_pos` reads it, falling back to the rebuild.
+
+## 2026-10-28 (afternoon) — per-spout stats, per-spout baseline, per-order bars (page v177)
+- Per-spout figures (14.7: cued lick, cue, ITI by previous spout) now carry the 14.1 per-bin test, each spout tested
+  against the animal's pre curve AT THAT SPOUT; plus a per-spout AUC table (0-0.5 s / pre AUC at that spout,
+  `perspout_auc_tests.csv`). Priya 10-28: lick-aligned per-spout figures use baseline -1.0..-0.5 s (BASE_SPOUT), and
+  the all-spout normaliser is recomputed under that baseline. 14.1-14.4 still use -1.5..-1.0 s (asked Priya whether to
+  switch the response figures; recommended keeping -1.5..-1.0 for build-up figures since -1.0..-0.5 lies inside the
+  chronic build-up difference).
+- Reading corrected: ITI licks after far-contra trials are NOT the largest once each spout is scaled to its own pre
+  (tjM1 acute +1.70 vs close contra +1.89); cued far contra acute is split by animal (PS92/93 down, PS94/95 up), not
+  "none"; the far-contra acute CUE-response drop is carried by PS92 and PS93 only.
+- 13.2 columns 1-2 (landing, decoded vs lick order): per-order bars, same test with order as the bin
+  (`lick_order_sig_bins[_nonlinear].csv`). Chronic landing deficit confined to the first cued licks (orders 0-2).
+
+## 2026-10-28 (late afternoon) — response baseline, vigour control, regression audit, per-spout windows (page v179-v180)
+- Baselines (Priya 10-28): response-SIZE AUCs use -1.0..-0.5 s before the lick (14.7 per spout, 14.10 ITI, 14.11 cued,
+  14.12 windows; `iti_licks.BASE_RESP`, `--ramp-summary`); PETH curves and the build-up keep -1.5..-1.0 s. ITI tjM1 contra
+  chronic response +0.53 -> +0.94; cortex chronic now significant (+0.50).
+- Lick-vigour control per spout (`scripts/lick_vigor_perspout.py`, 14.8): vigour and vigour+landing change nothing pooled.
+- Regression AUDIT (independent subagent, 10-28): 14.14 controls, 12.16 covariate reference, 14.8 vigour all correct --
+  correct lick matching, injected effects removed exactly, adjustment = mean(dz).beta to machine precision. Nulls are real:
+  covariates explain 2-40% of pre variance and per-animal adjustments have opposite signs. Caveats on the page: 12.16
+  kinematics add ~0 held-out R2 beyond landing (uninformative null); PS92 ITI offset 73% explained by FaceRhythm; ITI
+  post-onset face is 5 Hz session samples only; '+landing' slope is between-spout. PS93 3-D: pre far-ipsi lands more
+  lateral than close-ipsi (possible offset; pose to-do). Inline reach+speed adjustment folded into `_pre_adjust` (identical).
+- Per-spout windows (Priya: "0-1 s"): acute cued far-contra response reaches the pre peak but decays sooner -- 0.5-1.0 s
+  below pre in 3/4 animals (SSp-m -0.45*, cortex -0.36*, tjM1 -0.41 n.s.). ITI ratios for windows past 0.5 s are not
+  interpretable (pre AUC ~0).
+- Section 14 renamed "Lick-evoked responses, ITI and cued, and confounds" (id itiresp unchanged).
+- Contra/ipsi response ratio per spout (Priya 10-28; `scripts/lick_lateral_ratio.py`, page 14.9): pre, each hemisphere
+  responds more to licks toward the opposite side (all pairs, 4/4 animals; SSp-n up to ~2.4x). Post, far-contra cued
+  licks lose much of their ipsilesional-hemisphere dominance (tjM1 log2 +0.54 / +0.32 / +0.32, 4/4 every epoch).
+  Caveat: executed direction (acute far-contra licks land ipsilesional); landing-matched version is the next check.
+  Mixed-model p-values use sessions as observations (anti-conservative at n=4).
+- (evening) Per-spout window figures (14.7); vigour regression redone for 0-1.0 / 0.5-1.0 s (14.8; every window in pre
+  0-0.5 s AUC units): the acute far-contra early decay survives vigour + landing (tjM1 0.5-1.0 s -0.60*, 4/4 animals).
+  Contra/ipsi ratio pooled over spouts (14.9): post-stroke balance moves toward the contralesional hemisphere in every
+  set. Traces now average the animals defined at each lag (dotted where < 4). Balance-vs-offset regression (12.17,
+  `scripts/lick_balance_reference.py`): ~35-50% of the ITI offset explained, one mean-balance number nearly as good as
+  four, SSp-n most, ALM ~none -- partly circular (decoder reads the same features); direction at fixed landing looks
+  opposite to 14.9's target-based ratio, not yet reconciled.
+- Contra/ipsi ratio pooled BY SIDE (close + far; Priya "pool ipsi / mid / contra"; all-spouts pooling demoted -- it
+  averages opposite-side ratios): the post-stroke shift toward the contralesional hemisphere is a contra-side effect
+  (cued tjM1 +0.24 / +0.22 / +0.22, 4/4 acute; SSp-n +0.44 / +0.40 / +0.45); ipsi-side ~unchanged (except ALM).
+- 0..1.0 s is the DEFAULT response-AUC window (Priya 10-28 evening): ratio (14.9-14.11), vigour (14.8) primary figures
+  0..1.0 s; cued/cue/ITI AUC summaries recomputed (ITI from the wide traces -- stored ITI PETHs end at +0.75 s).
+- 14.9 split (Priya: "a million figures"): KEY = ratio by spout side (0..1 s); 14.10 per spout (supp; far > close on every
+  side, far ipsi shifts / close ipsi not); 14.11 side traces + 0..0.5 s (supp).
+- Balance vs lick angle LMM (14.12, `scripts/lick_balance_angle_lmm.py`): pre, balance tracks lick angle in every pair;
+  post, cued tracking ~30% flatter (4/4) and, at the same angle, shifted toward the ipsilesional hemisphere -- reconciles
+  14.9 (by target) with 12.17 (at fixed landing). ITI: the two balance measures disagree.
+- Window decision (Priya 10-28 late): 0..1.0 s is the response window for BOTH ITI and cued (one window is easier to
+  justify); 0..0.5 s stays as the secondary (it matches the ITI kinetics). Conclusions are the same in both windows.
+- Ratio figures reordered: per-spout = KEY (14.9; far ipsi shifts, close ipsi does not), by side = supporting (14.10),
+  close vs far ring = supplementary (14.11, new: far ring shifts 4/4, close ring ~0), traces collapsed (toggle).
+- Balance vs lick angle per epoch (14.13): flatter in every epoch (tjM1 +0.011 / +0.007 / +0.009 per deg), ipsilesional
+  shift at the same angle largest acutely; per animal the flattening is PS94 / PS95 acutely, 3/4 chronically.
+- (late) 14.11 significance: * on ring changes, far-minus-close per epoch (nested bootstrap) in-panel, bold p in titles.
+  Orofacial POOL (ALM + tjM1 + SSp-m + SSp-n per hemisphere) added to the ratio and balance figures: only modestly less
+  noisy (per-spout CI width as tjM1; ALM alone tightest) -- the areas co-vary. Later licks in 14.13: cued later licks
+  overshoot contralesionally chronically (3/4) while first licks stay ipsilesional. New 14.14 balance over lick order
+  (`scripts/lick_balance_order.py`; cells < 20 licks dropped after a 5-lick PS95 artefact).
+- AUC maps (14.15 cued, 14.22 ITI) on the 0..1.0 s response window (from the long traces; build-up unchanged), sig
+  areas outlined black on a white halo (vector contour), per-epoch LEVEL maps collapsed. With 0..1 s the far-contra
+  acute cued lick response is, if anything, lower (early decay) and fewer all-target areas are significant acutely
+  (18 vs 39). 14.14 rows 2/4 now use a per-order pre balance-angle fit (pre = 0 by construction); angle-only collapsed.
+
 ## 2026-10-29 -- A second cohort is analysed SEPARATELY: one active cohort at a time (Priya)
 
 Imaging of cohort2 (PS118, PS120, PS121, PS122) started 2026-10-29. Priya: the repo must expect it and "not lump these
@@ -22213,6 +22363,15 @@ for Figs 3.1 / 3.6 and adds the first-lick aim figures (1.4 pooled, 1.5 per anim
 encoding window, + = contra). STILL + = ipsi on that page, labelled on every axis: section 2 angle / lateral rows, the 3-D
 midline-angle figures (3.2-3.5, 3.7, 9.x) and the section 4 paths -- convert when those figures are next rendered.
 
+## 2026-11-02 (evening) — cohort 1 to be re-checked on the swap-masked, 415-lag-fixed correction (Priya)
+
+Swapped-LED frames (10-171 per session; PS92_0828 879 pairs; 10% of corrected variance in PS93_0826) and the 16 ms 415
+lag, both found in the cohort 2 QC, are also in cohort 1. A 10-30 check on 24 sessions found the headline epoch decoding
+and area-amplitude changes did not move (max .02). That check did not cover LocaNMF / frozen decoders / encoding /
+RESTnl maps / quiet events. Cross-session amplitudes shrink by a session-dependent 2-14%, which is exactly what epoch
+ratios compare. Decision: build `hemo_meegkit_hpfit_lag_refitT_swapmask` for all cohort 1 sessions and re-render those
+families into new folders. Report what moves; anything that changes is added as a sensitivity check, never replaces a
+page result without discussion. Record and plan: docs/status/COHORT1_SWAPMASK_RERUN_20261102.md.
 
 ## 2026-11-02 (late) — State decoder: per-session z-score added (it was specified, never applied); PS94's state loss is a changed LICKING pattern
 
