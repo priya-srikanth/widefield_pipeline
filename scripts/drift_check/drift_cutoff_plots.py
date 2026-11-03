@@ -138,23 +138,25 @@ def fig_residual(out: Path, M: pd.DataFrame):
     plt.close(fig)
 
 
-def fig_arms(out: Path, M: pd.DataFrame):
+def fig_arms(out: Path, M: pd.DataFrame, arms=ARMS, name="fig4_arms.png", title=""):
     plt = _plt()
     cells = _cells(M)
     panels = [("ret_comp_block", "a. block-band retention (all comps)", [0.98, 1.0]),
-              ("ret_bm_block", "a'. block-band retention (brain-mean)", [0.98, 1.0]),
+              ("ret_comp_cycle", "a'. cycle-band retention (all comps)", [0.98, 1.0]),
+              ("ret_bm_block", "a''. block-band retention (brain-mean)", [0.98, 1.0]),
               ("bmean_posvar_ratio_roi_median", "b. between-position variance of block means (ROI median)", [1.0]),
               ("bmean_r_roi_min", "b'. block-mean r after vs before (worst ROI)", [1.0]),
               ("ret_comp_10-43", "c. 10-43 min power kept (all comps; 1 - removed)", [1.0]),
               ("dprecue", "d. pre-cue (ENL) decode: arm - base", [0.0]),
               ("dcue", "d'. cue-window decode: arm - base", [0.0])]
     D = M.copy()
-    for arm in ARMS:
+    for arm in arms:
         D[f"{arm}_dprecue"] = D[f"dec_precue_{arm}"] - D["dec_precue_base"]
         D[f"{arm}_dcue"] = D[f"dec_cue_{arm}"] - D["dec_cue_base"]
-    fig, axs = plt.subplots(len(panels), len(ARMS), figsize=(22, 3.0 * len(panels)), sharey="row")
+    fig, axs = plt.subplots(len(panels), len(arms), figsize=(3.2 * len(arms) + 3, 3.0 * len(panels)), sharey="row",
+                            squeeze=False)
     for r, (key, title, ref) in enumerate(panels):
-        for c, arm in enumerate(ARMS):
+        for c, arm in enumerate(arms):
             ax = axs[r, c]
             _scatter_cells(ax, D, f"{arm}_{key}", cells, ref=ref)
             if r == 0:
@@ -162,10 +164,11 @@ def fig_arms(out: Path, M: pd.DataFrame):
             if c == 0:
                 ax.set_ylabel(title, fontsize=8)
             ax.tick_params(labelsize=6)
-    fig.suptitle("Fig 4. Block-protected cosine removal stacked on hpfit: retention, block means, removed variance, "
-                 "decoding (sessions; shape = animal, colour = epoch; bar = median)")
-    fig.tight_layout()
-    _save(fig, out, "fig4_arms.png")
+    fig.suptitle(title or "Fig 4. Slow cosine removal stacked on hpfit (pos = position-protected, cos = unprotected): "
+                 "retention, block means, removed variance, decoding\n(sessions; shape = animal, colour = epoch; "
+                 "bar = median). Block-band retention is 1 by construction when the band is faster than the cutoff.")
+    fig.tight_layout(rect=(0, 0, 1, 0.97))
+    _save(fig, out, name)
     plt.close(fig)
 
 
@@ -186,6 +189,9 @@ def tables(out: Path):
                 blockband_ret_bm_median=g[f"{arm}_ret_bm_block"].median(),
                 blockband_ret_bm_min=g[f"{arm}_ret_bm_block"].min(),
                 band12_ret_comp_min=g[f"{arm}_ret_comp_1-2"].min(),
+                cycle_ret_comp_median=g[f"{arm}_ret_comp_cycle"].median(),
+                cycle_ret_comp_min=g[f"{arm}_ret_comp_cycle"].min(),
+                cycle_ret_bm_min=g[f"{arm}_ret_bm_cycle"].min(),
                 bmean_r_roi_median=g[f"{arm}_bmean_r_roi_median"].median(),
                 bmean_r_roi_min=g[f"{arm}_bmean_r_roi_min"].min(),
                 bmean_var_ratio_roi=g[f"{arm}_bmean_var_ratio_roi_median"].median(),
@@ -224,6 +230,36 @@ def tables(out: Path):
     return M
 
 
+def fig_replacement(out: Path):
+    plt = _plt()
+    D = pd.read_csv(out / "replacement_vs_stacked.csv")
+    D["epoch"] = D["epoch"].astype(str)
+    cuts = sorted(D.cutoff_min.unique())
+    panels = [("r2_comp_rep_vs_stk", "R2 replacement vs stacked\n(all components, variance-weighted)"),
+              ("r_bm_rep_vs_stk", "r brain-mean,\nreplacement vs stacked"),
+              ("r_roi_rep_vs_stk_min", "r worst ROI,\nreplacement vs stacked"),
+              ("slow5_power_rep_over_stk_bm", ">= 5 min power, brain-mean:\nreplacement / stacked"),
+              ("dprecue", "pre-cue decode:\nreplacement - stacked"),
+              ("dcue", "cue decode:\nreplacement - stacked")]
+    D["dprecue"] = D.dec_precue_rep - D.dec_precue_stk
+    D["dcue"] = D.dec_cue_rep - D.dec_cue_stk
+    fig, axs = plt.subplots(1, len(panels), figsize=(20, 3.8))
+    for ax, (k, t) in zip(axs, panels):
+        for i, c in enumerate(cuts):
+            g = D[D.cutoff_min == c]
+            for _, r in g.iterrows():
+                ax.scatter(i + np.random.default_rng(int(r.label[-4:])).uniform(-.15, .15), r[k], s=22,
+                           facecolors="none", edgecolors=EP_COL.get(r.epoch, "k"), marker=AN_MK[r.animal])
+        ax.set_xticks(range(len(cuts)))
+        ax.set_xticklabels([f"{c} min" for c in cuts])
+        ax.set_title(t, fontsize=8)
+    fig.suptitle("Fig 5. Replacement (polynomial -> position-protected cosines) vs stacked (hpfit + same cosines); "
+                 "8 sessions, shape = animal, colour = epoch")
+    fig.tight_layout()
+    _save(fig, out, "fig5_replacement_vs_stacked.png")
+    plt.close(fig)
+
+
 def main(out: Path) -> int:
     out = Path(out)
     if (out / "blocks.csv").exists():
@@ -232,5 +268,9 @@ def main(out: Path) -> int:
     if (out / "measure_sessions.csv").exists():
         M = tables(out)
         fig_residual(out, M)
-        fig_arms(out, M)
+        fig_arms(out, M, arms=("pos10", "pos15", "pos20", "pos30", "cos10", "cos20"))
+        fig_arms(out, M, arms=("blk10", "blk20"), name="fig4b_block_protected_literal.png",
+                 title="Fig 4b. The literal per-BLOCK protection (ill-posed): it ADDS slow power and destroys decoding")
+    if (out / "replacement_vs_stacked.csv").exists():
+        fig_replacement(out)
     return 0

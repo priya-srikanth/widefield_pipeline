@@ -58,6 +58,12 @@ def _env_check():
         raise SystemExit("set WIDEFIELD_SESSION_CACHE to the swapmask cache (never the shared one)")
     if os.environ.get("WIDEFIELD_EPOCH_FROZEN") != "0":
         raise SystemExit("set WIDEFIELD_EPOCH_FROZEN=0")
+    # the env's editable install points at the MAIN checkout; running this file puts scripts/drift_check (not the
+    # worktree root) on sys.path, so without PYTHONPATH=<worktree> the workers import the wrong wfield_local
+    import wfield_local
+    root = Path(__file__).resolve().parents[2]
+    if Path(wfield_local.__file__).resolve().parents[1] != root:
+        raise SystemExit(f"wfield_local resolves to {wfield_local.__file__}; set PYTHONPATH={root}")
 
 
 def _session(label):
@@ -226,6 +232,9 @@ def _summarise_blocks(B, S, TR):
     ga = B.groupby("animal").dur_s
     band = pd.DataFrame({"median_s": ga.median(), "p95_s": ga.quantile(0.95), "max_s": ga.max()})
     band["band_lo_s"], band["band_hi_s"] = band.median_s, 2 * band.p95_s
+    # CYCLE band: positions recur every ~6 blocks, so a position's indicator has its fundamental at the alternation
+    # period (Fig 1c): from the median block to the animal's 95th-percentile session peak period
+    band["cycle_hi_s"] = S.groupby("animal").peak_period_min.quantile(0.95) * 60
     band.to_csv(OUT / "block_band_per_animal.csv", float_format="%.5g")
     O = _order_stats(TR, B)
     O.to_csv(OUT / "spout_order.csv", index=False, float_format="%.4g")
@@ -319,15 +328,18 @@ def measure_worker(label):
     band = pd.read_csv(OUT / "block_band_per_animal.csv", index_col=0)
     animal = label.split("_")[0]
     blo, bhi = float(band.loc[animal, "band_lo_s"]), float(band.loc[animal, "band_hi_s"])
+    chi = float(band.loc[animal, "cycle_hi_s"])
     C, mask, segs, R, regs, ub, _cue, _codes = _load_inputs(s)
     K, N = C.shape
     row = dict(label=label, animal=animal, epoch=epochs.epoch_of(label), n_frames=N, minutes=N / FS / 60,
-               mask_frac=float(mask.mean()), n_blocks=len(segs), block_band_lo_s=blo, block_band_hi_s=bhi)
+               mask_frac=float(mask.mean()), n_blocks=len(segs), block_band_lo_s=blo, block_band_hi_s=bhi,
+               cycle_band_hi_s=chi)
     Cc = C - C.mean(1, keepdims=True)
     Z = dct(Cc, norm="ortho", axis=1)                          # (K, N)
     zb = ub @ Z                                                # brain-mean DCT coefficients
     bands = {nm: (lo * 60, hi * 60) for nm, lo, hi in BANDS_MIN}
     bands["block"] = (blo, bhi)
+    bands["cycle"] = (blo, chi)
     bands["10-43"] = (600.0, 2580.0)
     tot_all = {"comp": float((Z ** 2).sum()), "bm": float((zb ** 2).sum())}
     bm_t = ub @ Cc
@@ -366,7 +378,7 @@ def measure_worker(label):
         Za = Z.copy()
         Za[:, 1:kmax + 1] -= beta[:, 1:]
         zba = ub @ Za
-        for nm in ("block", "1-2", "2-5", "5-10", "10-20", "20-43", ">43", "10-43"):
+        for nm in ("block", "cycle", "1-2", "2-5", "5-10", "10-20", "20-43", ">43", "10-43"):
             sel = bmask[nm]
             den_c, den_b = (Z[:, sel] ** 2).sum(), (zb[sel] ** 2).sum()
             row[f"{arm}_ret_comp_{nm}"] = float((Za[:, sel] ** 2).sum() / den_c) if den_c > 0 else np.nan
