@@ -1,5 +1,29 @@
 # Handoff 2026-11-01: quiet-period cortical events after the VLS stroke (cohort1, PS92-95) + literature context
 
+> **WINDOW STATE 11-03 (afternoon) -- START HERE.** This window = PI deck + figure-rules pass (+ quiet events section 23).
+> Deck M:/MICROSCOPE/Priya/Widefield/presentations/PI_overview_2026-11-02.pptx = 138 slides, SHORT titles (map in
+> docs/status/DECK_TITLES_2026-11-03.csv; scripts find slides by TITLE or shape_name). This window is the ONLY deck
+> writer; helpers write swap specs (build_inputs/*.json), this window applies them (apply_*_1103.py, backed up, PowerPoint
+> export check). Today's deck steps: audit_1103 (+fix, fix2), short_titles, recrop_trial_classes_1103 (one all-engaged
+> class table, 07385b37), apply_camera_view_1103. Audit record: docs/status/DECK_AUDIT_2026-11-03.md.
+> RUNNING: figure-rules helper (rules: no lines joining spouts / epochs; faded open session dots, shape = animal,
+> colour = epoch; epochs offset; stars never overlap, top band; grey epoch palettes -> EPOCH_LINE) with sub-helpers on
+> imaging (epoch_figures bar dots, cd / rest / per-animal, acc-by-position star overlap, grey -> epoch colours),
+> FaceRhythm, kinematics (cohort_metrics_minus_pre = fig_cohort_scalars; Fig 1.1 stars; slide-24 4-panel re-cut) and
+> encoding section 23 (ours; publish section 23 ourselves, then tell sabatinilab-34). It publishes imaging + FR pages
+> itself; kinematics _nolines files + deck figure_rules_swaps.json come back to this window. Encoding page outside
+> section 23 belongs to sabatinilab-34: audit chunks (scratchpad audit_chunk*_encoding.md, ~120 violations, mostly
+> wf_attempt scripts + frozen_fr_compare.epoch_lines / bars) -> one list for 34 in docs/status/FIGURE_RULES_AUDIT_2026-11-03.md.
+> Shared helper wfield_local/cat_points.py (a89c1f2d); camera_view.py (9f68c492).
+> PAGES: imaging v49 (+ helper edits; sabatinilab-5b owns section 1 table / Fig 1.2 caption / takeaway -- swap images only;
+> deck slide 9 quotes section 1, 5b will send changes); kinematics v24 (camera-view paths, + = contra default); encoding v312.
+> OPEN FOR PRIYA: (a) state decoder: adopt CLASS-BALANCED session centring as a new frozen spec? (running-definition test
+> 783c04b2: kinematic 1.5 mm/s rule helps PS94 but hurts PS92; balanced centring fixes PS94 .97 / .96 / .91, no animal
+> worse); (b) slide 31 (all-engaged trial classes) as THE main trial-class slide?; (c) RESTW vs REST lead on maps; (d)
+> PS110 mCherry count 559 / 3,804 vs refined 891 / 4,276; (e) Big-picture quiet bullet qualifier; (f) oblique 3-D views
+> relabelled not mirrored -- OK?; (g) path axis + = contra running right-to-left -- OK?; (h) delete 11-02 mirrored path files?
+> Not ours: cohort-1 swapped-frame / hpfit pass (another window); "working" = jaw moved or camera lick (5b, section 1 only).
+>
 > **OVERNIGHT 11-02 -> 11-03: live log + decisions for Priya in [`RUNNING_LIST_2026-11-02_OVERNIGHT.md`](RUNNING_LIST_2026-11-02_OVERNIGHT.md).**
 > State decoder z-score fix DONE (abda8c9c; specificity ratio now an acute claim); cohort2_qc fan_out -> fan_sessions (d74ab907); pushed.
 > **11-03 ~02:30: all overnight jobs DONE, nothing running.** Deck now 134 slides (apply_overnight_specs.py: hidden PS94
