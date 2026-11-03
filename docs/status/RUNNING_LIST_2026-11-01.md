@@ -406,3 +406,6 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   (median stop 3.66-3.77 s). Remaining before render: ~44 older unrouted writers, ITI run labels, cache-key gaps, attempt readers,
   a single render profile (variant, LocaNMF projection, camera end=lick stopRun6, Aug-only pre, LP-trained, fresh store) ->
   helper; THIRD review pass launched in parallel.
+- 11-03: LMM figures re-drawn through main's fixed lmm_change_fig (9a820fbb) + 9 slide-layout splits (_a/_b, _cued/_cue/_iti), stats
+  byte-identical (sha256), each image checked against its _lmm.csv; Holm stays the whole figure's family. Branch lmm-hidden-20261103
+  (09b8feae merge main, 07e2b8de, 73732319). File names sent to a8.
