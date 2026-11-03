@@ -106,39 +106,39 @@ def decode_lick_working(s: dict, sig: np.ndarray, regs, align: str) -> dict:
     else:
         Xw, yw, gw = X, y, g
     out.update(working=_cv_acc(Xw, yw, gw), n_work=len(yw))
-    # CAMERA-DEFINED gates (Priya 11-03, the new default): the shared classes (`jaw_only_incomplete_figs`, main),
-    # matched to this decoder's DAQ cues by cue time; every row (licking or not) is kept iff its class is in the gate
-    from wfield_local.locanmf_position_decoder import _load_cue_events
-    J = shared_gates()
-    cue = _load_cue_events(s["h5"])
-    cue_s = np.asarray(cue["cue_samples"], float) / float(cue["sample_rate_hz"])
-    cls = J.cue_classes(J.session_classes(s["label"]), cue_s[np.r_[ie, inl].astype(int)])
+    # CAMERA-DEFINED gates (Priya 11-03, the new default): the shared A4 classes (window cue_stop for BOTH columns), read
+    # from the snapshot per DAQ cue; every row (licking or not) is kept iff its cue is in the gate
+    snap = class_snapshot(s["label"])                     # per DAQ cue: working / camera_lick flags (main, A4)
+    rows = np.r_[ie, inl].astype(int)
     Xa, ya = np.vstack([X, Xn]) if len(yn) else X, np.r_[y, yn]
     ga = np.r_[np.asarray(g, np.int64), _runs_to_blocks(np.zeros(len(yn), int), name[len(ie):])]
     for gate in ("working", "camera_lick"):
-        m = J.in_gate(cls, gate)
+        m = snap[gate].reindex(rows).fillna(False).to_numpy(bool) if snap is not None else np.zeros(len(rows), bool)
         out[f"cam_{gate}"] = _cv_acc(Xa[m], ya[m], ga[m]) if m.any() else np.nan
         out[f"n_cam_{gate}"] = int(m.sum())
     return out
 
 
-_J = None
+def class_snapshot(label: str) -> pd.DataFrame | None:
+    """This session's rows of the shared class SNAPSHOT (`scripts/s1_trial_class_snapshot.py` on main: the A4 classes,
+    window cue_stop, matched to DAQ cue indices, gate flags set; commit in the .json beside it), indexed by cue_idx.
+    Path from WFIELD_S1_CLASSES (default <run>/imaging_encoding/qc/s1_trial_classes_cue_stop.csv.gz). None = no rows
+    (camera arms then empty). The snapshot is read, never re-derived, so this branch carries no copy of the rules."""
+    import os
+
+    from wfield_local import orofacial_cohort as oc
+    from wfield_local import orofacial_outputs as oo
+    from wfield_local.paths import PathResolver
+    f = os.environ.get("WFIELD_S1_CLASSES") or str(oo.root(PathResolver()) / oc.RUN / "imaging_encoding" / "qc"
+                                                     / "s1_trial_classes_cue_stop.csv.gz")
+    if f not in _SNAP:
+        _SNAP[f] = pd.read_csv(f)
+    d = _SNAP[f]
+    d = d[d.label == label]
+    return d.set_index("cue_idx") if len(d) else None
 
 
-def shared_gates():
-    """`scripts/jaw_only_incomplete_figs` FROM MAIN (widefield_pipeline): the shared camera gates live there (aca69271)
-    and not on this branch. Path from WFIELD_MAIN_REPO (default the sibling checkout)."""
-    global _J
-    if _J is None:
-        import importlib.util
-        import os
-        root = Path(os.environ.get("WFIELD_MAIN_REPO", Path(__file__).resolve().parents[2] / "widefield_pipeline"))
-        spec = importlib.util.spec_from_file_location("jaw_only_incomplete_figs_main",
-                                                      root / "scripts" / "jaw_only_incomplete_figs.py")
-        _J = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(_J)
-        assert hasattr(_J, "GATES"), f"{root}: jaw_only_incomplete_figs has no GATES (needs main >= aca69271)"
-    return _J
+_SNAP: dict = {}
 
 
 def session_job(label: str) -> dict:
