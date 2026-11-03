@@ -444,3 +444,27 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
 - 11-03: a8 DONE: the four LMM hidden slides carry an on-slide bold LMM caption (estimate [95% CI], p, df = 3; "main-slide claim =
   bootstrap"): rec_wlc csm_share -.13 / -.15 / -.14, p .13 / .13 / .17; rec_kn chronic norm -.10, p .14 (acute .052); recovery_timing
   acute gap +.17, p .21; spec_groups acute residuals p .065-.13 (on spec_groups_b). Main captions untouched. Script lmm_not_sig_captions_1103.py.
+
+## 11-03 EVENING (Priya away): questions, findings, decisions, running -- newest block, read this first
+
+### Questions for Priya
+- (none blocking yet; the stop-rule check result and the fifth review will add items here)
+
+### Findings
+- main moved while the rebuild branch was being fixed (34 commits not in rebuild/cohort1-20261103). Two matter for the rebuild:
+  - 054c78df: bal_em centring on every cross-session spout decoder (in-memory fits; store models unchanged). The merge brings it
+    into the rebuild, so rebuild numbers are compared against the bal_em-era pages (imaging v51), not older pages.
+  - 054c78df also put the epoch families' camera "working" gate ON HOLD on main: 13 of 44 pre sessions have no camera classes
+    (all June 0606-0608 + PS93_0813), options (a) DAQ-engaged pre, (b) in_working pre, (c) mixed. The REBUILD already answers it:
+    August-only pre removes June, and PS93_0813 is in neither working class but stays in the lick (contact) class (rebuild
+    DECISIONS "Camera trial gate", "Sessions without video"). That is option (b), consistent with Priya's 11-03 decisions
+    (camera gate everywhere; PS93_0813 for contact-only analyses). No new decision needed; the merge must keep the rebuild's
+    wiring where the two touch poststroke_compare / precue_engagement_states.
+  - e9a7dc31 (DECISIONS, Priya): firmware check -- the spout holds 3.5 s after the first lick, a miss docks at cue + 3.5 s,
+    measured stop - first DAQ contact = 3.53 s; lick counts = cue + 70 ms -> trial stop. Matches the rebuild's task rule.
+
+### Running
+- Code helper (wf_rebuild): rebuild root DONE (c812a3c0, b422ae83: one derived root, fenced by an audit hook, R1-R5 closed);
+  600 s + 1500 s drift arm DONE (bc57f786). Now: the 5-min stop-rule check, licks/trial cue -> stop + ILI rate, trial-stop
+  verification. `rebuild_root init` (copies seed inputs into the root on M:) not yet run -- runs before the render.
+- Next: fifth review -> merge main -> init root -> render G0-G8 -> two verifiers -> replacement pass.
