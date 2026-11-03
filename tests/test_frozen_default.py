@@ -944,6 +944,81 @@ def test_non_precue_specs_ignore_the_enl_window(pass2_env):
         assert frozen_models.spec_id(a) == frozen_models.spec_id(b), align
 
 
+# --------------------------------------------------------------------------------- section G (poststroke_compare) (6)
+def _g_pool(seed=11):
+    from wfield_local.plot_lick_aligned_averages import DISPLAY_ORDER
+    rng = np.random.default_rng(seed)
+    K = len(DISPLAY_ORDER)
+    kept = ["PS99_0601", "PS99_0602", "PS99_0603", "PS99_0604", "PS99_0817", "PS99_0818"]
+    per = 72
+    YE = np.array([DISPLAY_ORDER[i % K] for i in range(per * len(kept))])
+    GE = np.repeat(np.arange(len(kept)), per)
+    XE = rng.normal(size=(YE.size, 10)) + YE[:, None] * 0.4
+    nu = 60 * len(kept)
+    YU = np.array([DISPLAY_ORDER[i % K] for i in range(nu)])
+    GU = np.repeat(np.arange(len(kept)), nu // len(kept))
+    XU = rng.normal(size=(nu, 10)) + YU[:, None] * 0.2
+    return {"XE": XE, "YE": YE, "GE": GE, "BE": [np.zeros(per, int)] * len(kept),
+            "XU": XU, "YU": YU.astype(int), "GU": GU, "kept": kept, "pre_i": {0, 1, 2, 3}, "post_i": {4},
+            "align": "cue", "source": "roi", "common": [("SSp", 0)], "_frozen_cache": {}}
+
+
+def _g_run(monkeypatch, fn, off, **kw):
+    from wfield_local import frozen_models
+    from wfield_local import poststroke_compare as pc
+    from wfield_local.plot_lick_aligned_averages import DISPLAY_ORDER
+    rec = _Recorder()
+    monkeypatch.setattr(frozen_models, "load_or_fit", rec)
+    if off:
+        monkeypatch.setenv("WIDEFIELD_SECTION_G_FROZEN", "0")
+    else:
+        monkeypatch.delenv("WIDEFIELD_SECTION_G_FROZEN", raising=False)
+    keep = list(DISPLAY_ORDER[:4])
+    return getattr(pc, fn)(_g_pool(), keep, **kw), rec
+
+
+@pytest.mark.parametrize("fn,kw,kind", [("decode_matched", {"post_all_trials": False}, "g_lickonly_decoder"),
+                                         ("looks_like_which", {}, "g_lick_disc"),
+                                         ("fits_engaged_distribution", {"n_boot": 300}, "g_lick_disc_folds")])
+def test_section_g_stored_equals_in_memory(pass2_env, fn, kw, kind):
+    """Each section G reference (lick-only arm, lick discriminator, the advancing-RNG fold discriminators + the
+    bootstrap that continues from their generator) gives the SAME record stored and opted out, exactly."""
+    got, rec = _g_run(pass2_env, fn, False, **kw)
+    assert [c["spec"]["kind"] for c in rec.calls] == [kind]
+    spec = rec.calls[0]["spec"]
+    assert spec["train_labels"] == ["PS99_0601", "PS99_0602", "PS99_0603", "PS99_0604"]
+    assert "keep" in spec["align"] and spec["align"].startswith("cue-") and "lick_source" not in spec
+    ref, rec2 = _g_run(pass2_env, fn, True, **kw)
+    assert rec2.calls == []
+    assert got == ref
+
+
+def test_section_g_specs_key_on_preserved_set_seed_and_columns(pass2_env):
+    from wfield_local import frozen_models
+    from wfield_local import poststroke_compare as pc
+    rec = _Recorder()
+    pass2_env.setattr(frozen_models, "load_or_fit", rec)
+    for keep, common in (([1, 2, 3, 4], [("SSp", 0)]), ([1, 2, 3], [("SSp", 0)]), ([1, 2, 3, 4], [("MOp", 0)])):
+        d = _g_pool()
+        d["common"] = common
+        pc._g_store(d, "g_lick_disc", f"{pc._keep_tag(keep)}-seed0", lambda: "m")
+        pc._g_store(d, "g_lick_disc", f"{pc._keep_tag(keep)}-seed1", lambda: "m")
+        pc._g_store(d, "g_lick_disc", f"{pc._keep_tag(keep)}-seed1", lambda: "m")     # memoised on the pool
+    assert len(rec.calls) == 6
+    assert len({frozen_models.spec_id(c["spec"]) for c in rec.calls}) == 6
+    # an unkeyable pool (no identity recorded) fits in memory, as `frozen` does
+    assert pc._g_store({"kept": ["PS99_0601"], "pre_i": {0}, "_frozen_cache": {}}, "g_lick_disc", "x", lambda: 1) is None
+
+
+def test_section_g_sites_use_the_store():
+    from wfield_local import poststroke_compare as pc
+    assert '_g_store(\n            d, "g_lickonly_decoder", _keep_tag(pos)' in inspect.getsource(pc.decode_matched)
+    for fn in (pc.looks_like_which, pc.undetected_state_split):
+        assert '_g_store(d, "g_lick_disc", f"{_keep_tag(keep)}-seed{seed}"' in inspect.getsource(fn)
+    src = inspect.getsource(pc.fits_engaged_distribution)
+    assert '_g_store(d, "g_lick_disc_folds"' in src and 'rng.set_state(folds["rng_after"])' in src
+
+
 # ------------------------------------------------------------------------------- ITI / cued-lick read-outs (7)
 def _iti_data(seed=0, k=None):
     rng = np.random.default_rng(seed)

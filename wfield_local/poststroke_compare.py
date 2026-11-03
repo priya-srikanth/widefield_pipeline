@@ -100,6 +100,9 @@ def _pooled(animal, align, source="roi", post_labels=None):
             # `frozen` must key on the pre-stroke training set rather than on whatever comparison
             # arm the caller has narrowed to, or every narrowing would look like a new model.
             "align": align, "source": source,
+            # THE POOLED FEATURE COLUMNS (ROI: region x bin intersected over the pool), part of every section G stored
+            # model's identity (`_g_store`, 11-02 pass 2): an excluded-session pool can have a different column set.
+            "common": list(_common) if _common is not None else None,
             # DELIBERATELY NOT the frozen model itself. It is loaded lazily and memoised on first
             # use, so a caller that never needs it never pays for it.
             "_frozen_cache": {}}
@@ -224,9 +227,68 @@ def frozen(d):
     return cache["models"]
 
 
+#: STORED BY DEFAULT (11-02 pass 2; Priya: "yes cache all frozen decoders"; CLAUDE.md rule 10). Section G's OTHER
+#: pre-stroke references -- the ones `frozen(d)` (kind `decoder`) cannot serve -- go through `frozen_models.load_or_fit`
+#: too, one kind each, memoised on the pool like `frozen`:
+#:   g_lickonly_decoder   `decode_matched` lick-only arm: the position decoder on pre engaged trials at the session's
+#:                        PRESERVED positions ({"full", "loso"}); align carries the preserved set
+#:   g_lick_disc          `looks_like_which` / `undetected_state_split`: the lick-vs-no-lick discriminator on the
+#:                        position-balanced sample drawn with a FRESH RandomState(seed) (both draw the same sample, so
+#:                        they share one stored model); align carries the preserved set and the seed
+#:   g_lick_disc_folds    `fits_engaged_distribution`: the leave-one-session-out discriminators AND the full one, drawn
+#:                        from ONE RandomState(seed) advancing fold by fold, then the full fit -- stored as one payload
+#:                        so the draws (and the published numbers) are exactly the in-memory ones
+#: Every align also carries a digest of the pooled feature columns. OPT-OUT WIDEFIELD_SECTION_G_FROZEN=0 fits in memory
+#: as before. Under WIDEFIELD_LICK_SOURCE=lp the store serves the DAQ-trained model (training set = the animal's DAQ pre
+#: sessions), LP-trained with WIDEFIELD_LP_FROZEN=lp; a DAQ-trained spec that no DAQ run stored RAISES (the readout is
+#: then reported failed in the log, never refitted on LP trials under a DAQ name).
+#: Still in memory: the fallbacks taken when `frozen(d)` is None (a pool that records no identity, or a failed lookup),
+#: and the within-pre CV estimates of `looks_like_which` (not a reference applied to post-stroke data).
+SECTION_G_FROZEN_ENV = "WIDEFIELD_SECTION_G_FROZEN"
+
+
+def _keep_tag(keep) -> str:
+    return "keep" + "-".join(str(int(c)) for c in sorted(keep))
+
+
+def _g_store(d, kind, extra, fit, meta=None):
+    """The stored model for one section G reference (see SECTION_G_FROZEN_ENV), or None (opted out / unkeyable pool:
+    the caller fits in memory exactly as before)."""
+    import hashlib
+
+    from wfield_local import frozen_models
+    cache = d.get("_frozen_cache")
+    if cache is None or "align" not in d or not frozen_models.family_on(SECTION_G_FROZEN_ENV):
+        return None
+    key = (kind, extra)
+    if key in cache:
+        return cache[key]
+    kept = d["kept"]
+    animal = config.animal_of(kept[0])
+    train = sorted(kept[i] for i in d["pre_i"])
+    if frozen_models.daq_trained_in_lp():
+        train = sorted(x for x in config.phase_labels("pre") if config.animal_of(x) == animal)
+    fdig = hashlib.sha1(repr(d.get("common")).encode()).hexdigest()[:8]
+    spec = frozen_models.make_spec(animal, kind, align=f"{d['align']}-{extra}-f{fdig}", source=d["source"],
+                                   train_labels=train, post_s=2.0, n_features=int(d["XE"].shape[1]))
+    payload, status = frozen_models.load_or_fit(spec, fit, meta=meta or {})
+    print(f"  [section_g] {animal} {kind} {frozen_models._slug(spec)} {status} "
+          f"(trained on {spec.get('lick_source', 'daq')} pre trials)", flush=True)
+    cache[key] = payload
+    return payload
+
+
 def preserved_positions_by_session(d):
     """{session label -> preserved positions} for every post-stroke session, for reporting."""
     return {d["kept"][i]: preserved_positions(d, session=i) for i in sorted(d["post_i"])}
+
+
+def _fit_lickonly(d, tr):
+    """The lick-only arm's fits on pre engaged rows ``tr``: all of them, and one leave-one-session-out model per pre
+    session present (what `cross_val_predict(..., LeaveOneGroupOut, groups=GE[tr])` fits)."""
+    X, Y, G = d["XE"][tr], d["YE"][tr], d["GE"][tr]
+    return {"full": _pipe().fit(X, Y),
+            "loso": {d["kept"][int(g)]: _pipe().fit(X[G != g], Y[G != g]) for g in np.unique(G)}}
 
 
 def decode_matched(d, keep, post_all_trials=True):
@@ -263,6 +325,16 @@ def decode_matched(d, keep, post_all_trials=True):
             m = _gi == i
             if m.sum():
                 pre_pred[m] = models["loso"][d["kept"][i]].predict(d["XE"][tr][m])
+    elif not post_all_trials and (lk := _g_store(
+            d, "g_lickonly_decoder", _keep_tag(pos), lambda: _fit_lickonly(d, tr),
+            meta={"n_train": int(tr.sum())})) is not None:
+        # THE LICK-ONLY ARM'S OWN STORED MODEL (kind g_lickonly_decoder, keyed on the preserved set; 11-02 pass 2)
+        clf = lk["full"]
+        pre_pred = np.empty_like(d["YE"][tr])
+        _gi = d["GE"][tr]
+        for g in np.unique(_gi):
+            m = _gi == g
+            pre_pred[m] = lk["loso"][d["kept"][int(g)]].predict(d["XE"][tr][m])
     else:
         clf = _pipe().fit(d["XE"][tr], d["YE"][tr])
         # pre-stroke baseline under the SAME restriction, leave-one-session-out
@@ -313,7 +385,11 @@ def looks_like_which(d, keep, seed=0):
     if sample is None:
         return {"note": "no position had >=5 of both classes"}
     X, y, grp = sample
-    clf = lick_pipe().fit(X, y)
+    # STORED BY DEFAULT (kind g_lick_disc, 11-02 pass 2): the fit on this fresh-RandomState(seed) sample
+    clf = _g_store(d, "g_lick_disc", f"{_keep_tag(keep)}-seed{seed}", lambda: lick_pipe().fit(X, y),
+                   meta={"n_train": int(len(y))})
+    if clf is None:
+        clf = lick_pipe().fit(X, y)
     # how well does it separate the two PRE-stroke states at all? without this the post-stroke
     # answer is uninterpretable -- a coin-flip discriminator says nothing.
     # GROUPED by session. An ungrouped cv=5 puts trials from one session on both sides of a fold, and
@@ -420,9 +496,22 @@ def fits_engaged_distribution(d, keep, seed=0, n_boot=2000):
         X, y, _grp = sample
         return lick_pipe().fit(X, y)
 
+    def _fit_folds():
+        # THE IN-MEMORY SEQUENCE, in order: every leave-one-session-out fold, then the full pool -- one advancing rng.
+        loso = {d["kept"][i]: balanced_fit(exclude_session=i) for i in sorted(d["pre_i"])}
+        full = balanced_fit()
+        # the generator's state AFTER every fit: the post-value bootstrap below continues from it
+        return {"loso": loso, "full": full, "rng_after": rng.get_state()}
+
+    # STORED BY DEFAULT (kind g_lick_disc_folds, 11-02 pass 2): all fold models + the full one, fitted ONCE in the
+    # in-memory order, so the advancing-RNG draws are exactly the in-memory ones; the stored generator state then
+    # puts the bootstrap of the post-stroke value on the same draws as the in-memory path.
+    folds = _g_store(d, "g_lick_disc_folds", f"{_keep_tag(keep)}-seed{seed}", _fit_folds)
+    if folds is not None:
+        rng.set_state(folds["rng_after"])
     ref = {"engaged": {}, "nolick": {}}
     for i in sorted(d["pre_i"]):
-        clf = balanced_fit(exclude_session=i)
+        clf = folds["loso"][d["kept"][i]] if folds is not None else balanced_fit(exclude_session=i)
         if clf is None:
             continue
         me = pre_e_all & (d["GE"] == i)
@@ -435,7 +524,7 @@ def fits_engaged_distribution(d, keep, seed=0, n_boot=2000):
         return {"note": "too few pre-stroke sessions to build a reference distribution",
                 "n_engaged_sessions": len(ref["engaged"]), "n_nolick_sessions": len(ref["nolick"])}
 
-    clf_all = balanced_fit()
+    clf_all = folds["full"] if folds is not None else balanced_fit()
     post_u = np.isin(d["GU"], list(d["post_i"])) & np.isin(d["YU"], keep)
     post_e = np.isin(d["GE"], list(d["post_i"])) & np.isin(d["YE"], keep)
     if post_u.sum() < 10 or clf_all is None:
@@ -806,7 +895,11 @@ def undetected_state_split(d, keep, args, seed=0):
         # a guard held in place by a caller rather than by this function.
         return dict(base, split={"note": "no position had >=5 of both classes"})
     X, y, _grp = sample
-    clf = lick_pipe().fit(X, y)
+    # the SAME stored model `looks_like_which` loaded (same sample, same spec; kind g_lick_disc)
+    clf = _g_store(d, "g_lick_disc", f"{_keep_tag(keep)}-seed{seed}", lambda: lick_pipe().fit(X, y),
+                   meta={"n_train": int(len(y))})
+    if clf is None:
+        clf = lick_pipe().fit(X, y)
 
     state, cats = nolick_state_vector(d["kept"], args)
     out = dict(base)
