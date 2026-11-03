@@ -463,6 +463,17 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
 - PI slide 52 (3-D lick phase, kinematics_pooled_figs fig_phase): NO test drawn; no sharey (per-panel y blows up near-spout noise),
   phase 0-1 incl. noisy ends, all post-cue licks (no engagement gate; slide 46 is engaged), >= 3 animals per bin, no smoothing.
   Asked e3: add the 2-D phase cluster-permutation bars, sharey per row, 0.1-0.9, engaged licks, figdata / --plot-only.
+  e3 DONE ceb8d2b4 (test bars, sharey, 0.1-0.9, smoothing, animal lines, figdata); a8 has the path. curves.csv.gz has no engaged
+  lick set -> REBUILD LIST: an engaged / working-trial 3-D phase lick set. Kin page Fig 9.7 caption ("engaged") rewritten by e3.
+- PI slide 59 (goal Fig 14.18 S21c paths): x axis flipped, contralesional on the LEFT (c217ae07, within_lick_correction.py,
+  per-animal Fig 5 too); goal-page copy updated locally (page publish at the page pass); a8 asked to re-crop.
+- PI slides 65 vs 66 (landing change matrices): both "epoch minus pre within animal, mean of 4", same licks / width 1, but cells
+  differ by .01-.05 (largest close ipsi own -.19 vs -.22, close contra own -.19 vs -.24, cI->fI +.26 vs +.30; far contra own
+  -.68 vs -.69). The per-animal means on 65 reproduce its "mean of 4" (fC own: mean(-.63,-.54,-.80,-.75) = -.68), so 65 = each
+  animal's licks pooled over sessions; 66 is the bootstrap's point estimate, most likely session-weighted (mean of per-session
+  matrices, as its trajectory twin lick_path_softmax.boot_change does, probably with a >= 10 licks per row floor). NOT confirmed:
+  the landing script is not in the repo (not in rebuild_figs either; lost scratch). REBUILD LIST: recreate it; one estimate
+  (session-weighted, = the test) on both figures.
 
 ### Findings
 - main moved while the rebuild branch was being fixed (34 commits not in rebuild/cohort1-20261103). Two matter for the rebuild:
