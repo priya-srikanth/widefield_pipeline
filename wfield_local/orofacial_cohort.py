@@ -1794,23 +1794,33 @@ COHORT_SCALARS = ("contact_frac", "reach_frac", "protrusion_px", "peak_angle_deg
 STAR = {"both": "*", "MWU only": "(*)", "bootstrap only": "b"}
 
 
-def _stars(ax, st: pd.DataFrame, x: np.ndarray) -> None:
-    """Significance marks above each position, one row per post epoch: * = session MWU (BH-FDR q < 0.05) AND the
-    animal-weighted bootstrap CI excludes 0; (*) = MWU only; b = bootstrap only."""
+def _stars(ax, st: pd.DataFrame, x: np.ndarray, offsets=None) -> None:
+    """Significance marks above each position, one row per post epoch, in the TOP BAND (`sig_marks.star_top`, Priya
+    10-30), each over its epoch's lateral offset: * = session MWU (BH-FDR q < 0.05) AND the animal-weighted bootstrap
+    CI excludes 0; (*) = MWU only; b = bootstrap only."""
+    from wfield_local import cat_points as cp
+    from wfield_local import sig_marks
+    off = cp.epoch_offsets(len(EPOCH_ORDER) - 1) if offsets is None else offsets
     _mark_rows(ax, 3)
     for k, e in enumerate(EPOCH_ORDER[1:]):
         for _, r in st[st.epoch == e].iterrows():
             mk = STAR.get(r.agree)
             if mk and r.pos in POS_ORDER:
-                ax.text(x[POS_ORDER.index(r.pos)] + (k - 1) * 0.12, 0.99 - 0.075 * k, mk, color=EPOCH_LINE[e],
-                        ha="center", va="top", fontsize=11, fontweight="bold", transform=ax.get_xaxis_transform())
+                sig_marks.star_top(ax, x[POS_ORDER.index(r.pos)] + off[k], mk, color=EPOCH_LINE[e], row=k,
+                                   fontsize=11)
 
 
 def fig_cohort_scalars(Pm: pd.DataFrame, path: Path, title: str, jaw: pd.DataFrame | None = None,
-                       weight: str = "session", stats: pd.DataFrame | None = None) -> None:
-    """Per-position metrics as change from each animal's own pre-stroke mean: x = position, line = epoch; bold = mean
-    over animals, error = SEM over animals, faint markers = each animal. Optional last panel: jaw steering FAR_DIR."""
+                       weight: str = "session", stats: pd.DataFrame | None = None, sessions: bool = True) -> None:
+    """Per-position metrics as change from each animal's own pre-stroke mean: x = position. Each spout is its own
+    category (Priya 11-03): NO connecting lines; epochs side by side at `cat_points.epoch_offsets`; bold = mean +- SEM
+    (over sessions, or over animals when ``weight='animal'``); faded OPEN markers = the SESSIONS behind each summary
+    (shape = animal, colour = epoch; ``sessions=False`` draws the old per-animal means instead). Marks in the top band
+    over each epoch (`_stars` -> `sig_marks.star_top`). Optional last panel: jaw steering FAR_DIR (x = epoch)."""
+    from wfield_local import cat_points as cp
+    from wfield_local import sig_marks
     ecol = EPOCH_LINE
+    off = cp.epoch_offsets(len(EPOCH_ORDER) - 1)
     ms = [m for m in COHORT_SCALARS if m in Pm]
     n = len(ms) + (1 if jaw is not None else 0)
     plt = _plt()
@@ -1828,18 +1838,21 @@ def fig_cohort_scalars(Pm: pd.DataFrame, path: Path, title: str, jaw: pd.DataFra
             if e not in A.index.get_level_values(0):
                 continue
             Ma = A.loc[e].unstack("pos").reindex(columns=list(POS_ORDER))                  # animals
-            M = Ssn.loc[e].unstack("pos").reindex(columns=list(POS_ORDER)) if weight == "session" else Ma
-            xo = x + (k - 1) * 0.12
-            for _, r in Ma.iterrows():                                   # faint = each animal
-                ax.plot(xo, r.to_numpy(float), "o", color=ecol[e], ms=2.5, alpha=0.35, zorder=1)
+            Ms = Ssn.loc[e].unstack("pos").reindex(columns=list(POS_ORDER))                # sessions
+            M = Ms if weight == "session" else Ma
+            xo = x + off[k]
+            dots = Ms if sessions else Ma
+            for j, q in enumerate(POS_ORDER):                            # faded = each session (shape = animal)
+                cp.session_dots(ax, xo[j], dots[q].to_numpy(float), dots.index.get_level_values("animal"), ecol[e],
+                                seed=31 * j + k)
             se = M.std(ddof=1) / np.sqrt(M.notna().sum()) if len(M) > 1 else M.mean() * np.nan
             lab = f"{e} (n={int(Ssn.loc[e].index.droplevel('pos').unique().size)} sessions)"
-            ax.errorbar(xo, M.mean().to_numpy(float), yerr=se.to_numpy(float), fmt="o-", color=ecol[e], ms=4,
-                        lw=1.4, capsize=2, elinewidth=0.8, zorder=3, label=lab)
+            cp.summary_point(ax, xo, M.mean().to_numpy(float), se.to_numpy(float), ecol[e], label=lab)
         ax.axhline(0, color="0.8", lw=0.8, zorder=0)
         ax.axvline(2.5, color="0.85", lw=0.8, zorder=0)
+        ax.set_xlim(-0.6, len(POS_ORDER) - 0.4)
         if stats is not None:
-            _stars(ax, stats[stats.metric == m], x)
+            _stars(ax, stats[stats.metric == m], x, off)
         ax.set_xticks(x, [pos_disp(q).replace(" ", "\n") for q in POS_ORDER], fontsize=6.5)
         for t_, q in zip(ax.get_xticklabels(), POS_ORDER):
             t_.set_color(_pos_color(q, "L"))
@@ -1856,27 +1869,31 @@ def fig_cohort_scalars(Pm: pd.DataFrame, path: Path, title: str, jaw: pd.DataFra
             if e not in A.index.get_level_values(0):
                 continue
             v = A.loc[e] if weight == "animal" else d[d.epoch == e]._d
-            ax.plot(np.full(len(v), k) + np.linspace(-0.08, 0.08, len(v)), v.to_numpy(float), "o", color=ecol[e],
-                    ms=3, alpha=0.4)
-            ax.errorbar(k, v.mean(), yerr=v.std(ddof=1) / np.sqrt(len(v)) if len(v) > 1 else 0, fmt="s",
-                        color=ecol[e], ms=6, capsize=3)
+            de = d[d.epoch == e]
+            cp.session_dots(ax, k, de._d.to_numpy(float), de.animal.to_numpy(), ecol[e], jitter=0.12, seed=k)
+            cp.summary_point(ax, k, v.mean(), v.std(ddof=1) / np.sqrt(len(v)) if len(v) > 1 else 0, ecol[e],
+                             marker="s", ms=6.5)
         ax.axhline(0, color="0.8", lw=0.8, zorder=0)
-        if stats is not None:                           # cohort marks for the jaw readout (far pair)
-            _mark_rows(ax, 1)
+        if stats is not None:                           # cohort marks for the jaw readout (far pair), top band
             for k, e in enumerate(EPOCH_ORDER):
                 r = stats[(stats.metric == c) & (stats.pos == "far_pair") & (stats.epoch == e)]
                 if len(r) and STAR.get(r.agree.iloc[0]):
-                    ax.text(k, 0.98, STAR[r.agree.iloc[0]], color=ecol[e], ha="center", va="top", fontsize=11,
-                            fontweight="bold", transform=ax.get_xaxis_transform())
+                    sig_marks.star_top(ax, k, STAR[r.agree.iloc[0]], color=ecol[e], fontsize=11)
+            _mark_rows(ax, 1)
         ax.set_xticks(range(len(EPOCH_ORDER)), EPOCH_ORDER, fontsize=7)
+        ax.set_xlim(-0.5, len(EPOCH_ORDER) - 0.5)
         ax.set_title("jaw steering FAR_DIR -- change vs pre", fontsize=8)
         ax.set_ylabel("change vs pre: jaw FAR_DIR (px)", fontsize=6.5)
         ax.tick_params(labelsize=7)
+    cp.add_animal_entries(axs.flat[0], Pm.animal.unique())
     axs.flat[0].legend(fontsize=6.5, frameon=False)
     note = ("licks: ALL POST-CUE licks (measured peaks for kinematics); change from each animal's OWN pre-stroke mean at "
             "that position; " + ("SESSION-WEIGHTED: bold = mean +- SEM over sessions (animals with more sessions weigh "
-            "more)" if weight == "session" else "ANIMAL-WEIGHTED: bold = mean +- SEM over animals") +
-            "; faint = individual animals. Jaw panel: every far-spout trial (orofacial_jaw_lateral)" + (
+            "more)" if weight == "session" else "ANIMAL-WEIGHTED: bold = mean +- SEM over animals")
+            + ("; faded open markers = individual SESSIONS (shape = animal, colour = epoch)" if sessions else
+               "; faded open markers = individual animals")
+            + "; each spout its own category, no connecting lines. Jaw panel: every far-spout trial "
+            "(orofacial_jaw_lateral)" + (
             ". Marks (one row per epoch): * = session Mann-Whitney BH-FDR q < 0.05 AND animal-weighted bootstrap CI "
             "excludes 0; (*) = MWU only; b = bootstrap only" if stats is not None else ""))
     fig.suptitle(title + "\n" + "\n".join(textwrap.wrap(note, 150)), fontsize=9)

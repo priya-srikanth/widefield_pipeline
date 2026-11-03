@@ -73,6 +73,14 @@ def summary_point(ax, x, mu, se=None, color="k", *, ms: float = 5.5, label=None,
                        capsize=capsize, elinewidth=1.1, zorder=zorder, label=label)
 
 
+def add_animal_entries(ax, animals, color="0.35") -> None:
+    """Put the session-dot shapes in ``ax``'s legend as empty artists, so a layout pass that rebuilds legends from
+    `ax.get_legend_handles_labels()` (e.g. `orofacial_cohort._tidy`) keeps them."""
+    for a in sorted(animals):
+        ax.plot([], [], ls="none", marker=animal_marker(a), mfc="none", mec=color, mew=0.9, ms=SESSION_MS + 1,
+                label=f"{a} sessions")
+
+
 def animal_handles(animals, color="0.35"):
     """Legend handles for the session-dot shapes (open, grey)."""
     from matplotlib.lines import Line2D
