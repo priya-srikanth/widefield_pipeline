@@ -268,3 +268,8 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   old data.
 - 11-03 Priya on within-day LocaNMF: leaning to REFIT on corrected data "for correctness", with all pre-stroke frozen
   decoders redone (already planned: fresh store). Cost estimate + joint-basis question sent to Priya; to measure first.
+- 11-03: e3 repo consolidation (REPO_CONSOLIDATION_PLAN_2026-11-03.md): A1 per-session response window, A2 jaw_pass_qc -> GATES,
+  A3 animal-weighted change-vs-pre (boot_delta) in epoch_figures / epoch_behaviour, A5 one responded(). Proposed to e3: land
+  A1-A5 on main BEFORE the rebuild renders (all change numbers in re-rendered families -> render once). Files reserved for the
+  rebuild sent to e3 (hemo_variants, defaults.yaml, combined_encoding, joint_locanmf, session_cache, map_collect,
+  precue_engagement_states, frozen_models, grant_kit._class_select, config pre_from / date8).
