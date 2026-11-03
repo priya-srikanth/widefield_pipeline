@@ -493,6 +493,10 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   (top row of goal Fig 13.2, docked ITI; whole figure already on slide 177 "Backup: lick-order curves"). Asked a8: hidden backup
   right after 118 with the ITI row only, and fix 118's bullet / notes, which name a non-existent backup title. Pending the deck
   being closed (a8: open in a PowerPoint window since 18:27, likely Priya's).
+- PI DECK UPDATED 18:50 by a8 on Priya's saved file (her hide / unhide edits kept; backup backup_priya_saved_1850_1103.pptx;
+  hidden-state diff before / after: only the new slide changed). Applied: slide 59 paths contra-left; slide 52 p_phase with
+  permutation bars; natural-width one-panel hidden slides 12 / 18 / 43; NEW hidden slide 119 "Backup: lick order, ITI bouts"
+  (slide 118 bullet repointed). Deck now 183 slides (slides after 118 shift by +1). Waiting: 95-98 LMM 0-1 s (+ peak) swap.
 
 ### Findings
 - main moved while the rebuild branch was being fixed (34 commits not in rebuild/cohort1-20261103). Two matter for the rebuild:
