@@ -54,6 +54,7 @@ from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
 
 from wfield_local import config, joint_locanmf
+from wfield_local import gate_source  # [gate-source hook] WIDEFIELD_GATE_SOURCE (see that module)
 from wfield_local.locanmf_frozen_decoder import _pipe, pool_sessions
 from wfield_local.locanmf_position_decoder import _trial_features, trial_features_cached
 from wfield_local.paths import PathResolver
@@ -177,6 +178,7 @@ def _session_tables(feat, kept):
         responded = np.concatenate([np.ones(len(idx_e), bool), np.zeros(len(idx_n), bool)])
         o = np.argsort(order, kind="stable")
         order, responded = order[o], responded[o]
+        responded = gate_source.gate_responded(lab, order, responded)  # [gate-source hook] identity unless =lp
         tables[si] = {"order": order, "responded": responded, "label": lab}
     return tables
 
