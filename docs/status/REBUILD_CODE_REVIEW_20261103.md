@@ -371,3 +371,180 @@ I made no code changes and pushed nothing. The basis is the author's log (`docs/
   - trial_selection.* and behavior.tail_min_misses reach the key through the selection tag; SVTcorr / LocaNMF through session-signature paths.
   - animals.yaml is used only at aggregation.
   - The only yaml left out entirely is session_overrides.yaml (functional_channel). It is covered only through the regenerated SVTcorr / U mtimes, except in hemo_map_control (LOW above).
+
+---
+
+# Third pass (2026-11-03 night): tip **5c17d76a**
+
+**Range reviewed:** fcae2ee2, b32225f1 and 5c17d76a, on a clean `git archive` of 5c17d76a.
+
+**Not reviewed:** 50f59ff8 ("Before the render: unrouted writers refuse or route, ITI run labels mode-derived, key gaps closed, attempt readers keyed, render profile"), which landed during this pass. It may touch T1 / T2 / T4 / T5 below; re-check those against it.
+
+**Method:**
+- Three read-only helpers probed every non-default mode: LP, LP + gate-LP, camera, PRE_FROM, hemo variant, LocaNMF projection, PROJECT_ALL, and the `lp_final_render` settings. Every probe printed `wfield_local.__file__` to prove it ran the export.
+- They checked synthetic class sequences, real sessions (PS92_0908, PS93_0818), and a cohort-wide scan (139 sessions).
+
+**Full suite at 5c17d76a** (6 shards, ~43 min): **4,435 passed, 182 skipped, 0 failed.** The 11 ordering cases now pass. The suite is green, but T1 / T2 below are not covered: no test calls `main()` with a share path in an LP or tagged mode.
+
+## 1. Status of the second-pass findings
+
+| id | status | evidence (5c17d76a) | remaining |
+|---|---|---|---|
+| N1 | PATH FIXED, WRITER BROKEN (T1) | `run_mode.lp_family_tag` (`run_mode.py:184-191`): plain LP equals origin/main's `.../imaging_encoding/attempt_coding`. All 9 readers resolve via `out_dir()`. | `attempt_coding_pp` readers are routed (lp_family) but its writers are literal (`coupling_by_class.py:32`, `exec_vs_neural_match.py:76`, `softmax_neural_vs_lick.py:111`, `trial_neural_vs_exec.py:71`) |
+| N2 | FIXED | `frozen_models.py:236-250`: daq matches daq-gateLP; daq vs camera do not | LOW: the strip is symmetric, so a plain-LP lookup can load a gate-LP DAQ model, or raise "ambiguous" (`:412`) if both exist |
+| N3 | FIXED | `writeguard.py:100-133`: the frozen store and session cache under fw are writable; untagged `fw/x.png` is refused; `fw/<tag>/` is allowed | LOW: any segment starting `frozen_models` is exempt, including files (`fw/frozen_models_summary.png` passes) |
+| N4 | PARTIAL (T3) | `run_mode.routed_output` used by 13 writers, `nightly_figs.py:515`, `joint_xsession.py:228`. Writer and reader agree on `fw/<tag>`. | The default deck on M: is still overwritten by a tagged nightly. `section_g_figures.py:275`: an explicit `--output` is unrouted and unguarded. |
+| N5 | FIXED for routed writers | `routed_output(make=True)` | `section_g_figures.py:274` `make=False`; `copy_behaviour_figures:46-69` has no mkdir |
+| N6 / N7 | IMPLEMENTED per Priya's decisions (classify_session) | see section 2 | see T6 / T7 / T8 |
+| N8 | FIXED | `restnl_mask.py:211-232` (yaml subset + helper closure) | Side effect T4. `analysis_kit.daq_rate` and `lick_detection.detect_licks` are still unhashed (low). |
+| N9 | FIXED | `map_collect.py:180-185`; `reraise_under_camera` (`trial_classes.py:355`) at the 4 per-animal sites | LOW: no allowlist, so any failure that is harmless under daq (e.g. missing LocaNMF) now aborts a camera render |
+| N10 | PARTIAL (T5) | specificity_control / residual_roi read `frozen_encoder.out_root()` and write routed + guarded; recovery_timing / early_predictors are routed | `specificity_control.py:119 --layer2` still reads the default `allsession_encoder`. `remap_lmm.py:35` and `kinematic_normality.py:264` (vs its writer `lick_cued_aim_by_spout.py:74` -> `il.OUT`) are literal. |
+| N11 | NOT FIXED, now a REGRESSION (T2) | `iti_licks.py:55` XOUT; `:2213` `assert_writable(XOUT)` | SD tables are written to `il.OUT/zscore_check` (`iti_zscore_check.py:33`, `iti_area_split_sd.py:26`) but read from `XOUT/zscore_check` (`iti_licks.py:645-649`); they disagree in mixed modes. `iti_licks.py:2216` hard-codes the default encoder run. |
+| H2 | FIXED for the 13 writers | `routed_output` calls `assert_writable` | Unrouted writers repo-wide (N10, T5) |
+| H4 | PARTIAL | `keyed_name(cache=True)` at `attempt_coding.py:412`, `attempt_maps.py:247/286/377` | Plain-name readers fail under hemo / lnmfproj / projall too; `cohort2_qc/quiet_task_events.py:351` silently skips |
+| M4 | FIXED | `position_reference_maps.py:625-644` (daq_io, behavior_events) | - |
+| M6 | FIXED | `attempt_coding.py:99`, `attempt_maps.py:78` | - |
+| M8 | FIXED | provenance label printed, `grant_confusion.py:764-766` | - |
+| M10 | FIXED | `lp_final_render.settings/scoped`, `lp_final_compare.py:47-48` | - |
+| L1 | PARTIAL (logged) | - | `_read` stub; per-kind perturbation tests for the other kinds |
+| LOW items | FIXED | iti_nmatch_check removed; one "stopped" definition (`trial_classes.py:806-809`); unknown variants raise; config errors no longer silently "daq" (ImportError only); pre-first-cue rest frames (`rest_engagement.py:142-145`); gate register extended | Logged and open: encoder / basis labels, `WFIELD_ITI_OUT_W`, stale comments, some cache-key gaps, `.str[:4]` |
+
+**Default runs (no env):** every touched writer resolves the same path as origin/main (attempt_*, iti OUT / XOUT / OUT_W, specificity / encoder roots, the routed fw writers, nightly out). The only default changes are intended one-off cold caches: the RESTnl `_key`, and the prm digest now including daq_io / behavior_events.
+
+## 2. Priya's 11-03 decisions (classify_session, b32225f1)
+
+**Decision text.** DECISIONS.md has NO entry for round 3: the stopped rule, the coverage rule (N6), N7, and decisions 1-3. Its only 11-03 trial-gate entry is the end-of-session cutoff. I therefore checked against `REBUILD_CODE_20261103.md` section 8.6. Record the decisions in DECISIONS.md.
+
+**Real sessions, old (f7bb4302) vs new classifier.**
+
+| session | cues | covered | contact | incomplete | jaw_only | no_resp | stopped | after_end | unknown |
+|---|---|---|---|---|---|---|---|---|---|
+| PS92_0908 old = new | 389 | 0-320 (68-cue tail missing) | 309 | 11 | 1 | 0 | 0 | 0 | 68 |
+| PS93_0818 old = new | 554 | all | 381 | 99 | 23 | 33 | 18 | 0 | 0 |
+
+Neither session changes, for specific reasons:
+- PS92_0908's last covered cue is itself a contact, and it has no no_response trials.
+- PS93_0818 has no jaw_only trial after its last lick.
+
+**Cohort-wide (139 sessions).**
+- 949 trials change class. Working is unchanged in every session (62,771).
+- Stopped grows from 1,474 to 2,385 (+62 %): 485 jaw_only trials move from after_end to stopped, and 426 no_response trials join runs across jaw-only trials.
+- Isolated no_response falls from 3,188 to 2,724. after_end falls from 527 to 80.
+- Uncovered tails: PS92_0908 (68 cues), PS94_0603 (10), PS92_0605 (1). No session has an uncovered head.
+
+**Verified OK.**
+- **(a) No-lick to trial stop with the contact table.** A contact no-lick row is in neither miss_working nor stopped, and is counted exactly. A DAQ-undetected cue with a cue_stop contact becomes `late_rewarded` (PS93_0818 cue 258 is the one real case). There is no double count.
+- **(b) Rest working period.** `rest_engagement.engaged_frame_mask` and `rest_by_position._engaged_trials` both use `camera_engaged_period`, which has the same anchor as the trial cutoff. Exception: uncovered tails (T8).
+- **(c) noattempt.** Runs of 2-5 no_response inside the working period are noattempt. A non-stopped no_response after the last lick is after_end (38 real cases).
+- **(d) Coverage.**
+  - Uncovered cues stay unknown and are in no class, including the nolick categories.
+  - Stop runs do not stitch across an uncovered gap; in-video unknowns are skipped inside a run.
+  - A missing head is handled.
+- **(e) N7.** Jaw-only after the last lick counts toward a run.
+- **One classifier.** Every gate consumer goes through `cue_classes_for` -> `classify_session`. `classify_session` and `_matched_cues` are in the camera cache signature.
+- **Tests.** `tests/test_priya_decisions_1103.py` (11 tests) is real and exact. Its gaps are listed under T11.
+
+## 3. Parallel-ordering fixes (b32225f1)
+
+All 11 cases are fixed and default outputs are unchanged.
+- curbd_pilot sorts by a unique `repr` key. Only `len(res)` is used, so the sort is cosmetic, and the "job order" comments are wrong.
+- iti_decoder_pattern_stats results are re-keyed, so they were already order-independent.
+- lick_code_subspace:57 was docstring prose taken for a call; the real calls use fan_sessions with unique keys.
+- SFX is now resolved from argv at import. A spawn probe confirms workers see it, the default is still `""`, and no output file name changes.
+- JOBS in lick_iti_prelick was a false positive. The `_RUN` dict rename only silences the detector.
+- The test file is unchanged since 335f23f3 (no allowlist, regex or skip added).
+- Sweep of the tip: every raw fan_out, joblib, ex.map and futures site is sorted or order-preserving, except the two LOW items below (o2_face_rhythm, grant_figures).
+
+## 4. Stored read-outs (item 4)
+
+These three carry real per-row fingerprints (not constants, not `DAQ_RUN_FP`), plus selection and hemo_variant:
+- `lick_balance_blind`: `pre_loso_ridge` data_sig over the transformed arrays;
+- `lick_nonlinear`: `make_spec(train_data={q: (X, Y)}, lp_only=True)`;
+- `face_offset_partial` refit: `train_data=(Xr, S)`.
+
+Exception: in face_offset_partial, the "before" decoder `fits0` (`scripts/face_offset_partial.py:397`), used for variants A / C and REPRO 1/2, is still fitted in memory on every run (T9).
+
+## 5. New findings, ranked
+
+### HIGH
+
+**T1. attempt_coding / attempt_maps cannot run in any LP mode (regression from the N1 fix).**
+- Where: `attempt_coding.py:405-407` and `attempt_maps.py:364-366` call `assert_writable(od/"_")`. `out_dir()` no longer contains `LP_licks`, but `writeguard.py:90-97` requires `/<output_tag>/` on every share write under LP.
+- Probe: under `WIDEFIELD_LICK_SOURCE=lp`, `is_writable(M:/.../imaging_encoding/attempt_coding/_)` = False. The same holds in LP + gate-LP, camera, PRE_FROM, hemo, lnmfproj and projall, and for `--out E/attempt_coding_pp`.
+- `main()` raises WriteGuardError before any work, so the goal-page attempt outputs cannot be regenerated.
+- Fix: make writeguard accept `lp_family_tag()` segments under the LP-family roots (e.g. `routed_output(lp_family=True)` registers the root). Add a test of `is_writable(out_dir()/"_")` under LP with an M:-style path.
+
+**T2. The N11 fix blocks the ITI pipeline in every non-data mode.**
+- Where: `iti_licks.py:2213` `assert_writable(XOUT)`. XOUT is the untagged `iti_licks/` under PRE_FROM / MAP_REFS / inmem / LP / gate-LP / camera, so the guard refuses before extract or summarise.
+- Before the fix these modes failed later in `labels()`; now they fail at the guard. Either way the ITI family cannot run in these modes.
+- Fix: treat XOUT as a content-keyed store, exempt like the frozen store in N3, and guard it only when an extract will be written. Move the SD-table writers to `XOUT/zscore_check` so they match `_sd_dir`.
+
+**T3. Decision 7 turns jaw-only trials themselves into "stopped", so a run of only jaw-only trials is a "sustained stop" (needs Priya).**
+- Where: `trial_classes.py:536` (`jaw_late`), `:545` (`seq = nr | jaw_late`), `:555` (labels every trial of the run).
+- Synthetic: `[C, J x6]` gives 6 stopped with no no_response at all. A covered session with no camera lick at all labels every jaw_only and no_response trial stopped.
+- Real data: PS94_0825's only stop run is 12 no_response + 28 jaw_only; PS93_0925 is 38 + 48. 485 jaw-only "reaction" trials now sit in every stopped arm (camera_rows / camera_select, nolick undetected, attempt "stopped", ENL stopped).
+- The decision says jaw-only "counts toward the stop", not that the jaw-only trial is stopped, or that a run needs no no_response.
+- Fix, for Priya to choose:
+  - (a) jaw_late counts toward run length, but only no_response trials are labelled stopped (jaw_late -> after_end); and/or
+  - (b) a run needs at least one no_response (or a majority).
+  - Add all-jaw and no-lick-session tests.
+
+### MED
+
+**T4. The N8 key change silently empties the RESTnl skip-if-exists maps.**
+- Every existing RESTnl baseline becomes invisible under the new `_key`, so `restnl_mask.baseline` (`:297-309`) returns None.
+- `attempt_maps.session_class_maps` (`:113-116`) then prints "skipped" and returns `{}`. `main()` saves an EMPTY `maps_*.npz` (`:377-382`), which every later run skips as existing.
+- `position_reference_maps:779-782` drops the RESTnl column with one log line.
+- Fix: raise when a restnl render finds 0 baselines, and never save empty maps. In the run order, rebuild the RESTnl baselines (`lp_final_render restnl`) first.
+
+**T5. A tagged nightly still overwrites the default analysis deck on M: (N4 remainder).**
+- Where: `nightly_figs.py:1030-1042` -> `locanmf_analysis_deck.py:2239-2240`.
+- Under a tag, `is_writable(M:/.../labcams/spout_position_analysis_summary.pptx)` = False, but `prs.save` is unguarded. The history copy is refused, the code logs "writing anyway", and the run record also goes to the default path.
+- Fix: key the deck output with the run tag, or `require_default` in nightly; `assert_writable` before `save`.
+
+**T6. Reader / writer mismatches in tagged modes.**
+- `attempt_coding_pp`: readers are routed (lp_family, `early_predictors.py:56`, `lick_enl_target_test.py:142`), writers are literal (see N1).
+- `kinematic_normality.py:264` and `remap_lmm.py:35` read default outputs by literal path.
+- `early_predictors` mixes the full-tag `specificity_control/LP_licks` with the lp_family `attempt_coding`.
+- `specificity_control --layer2` reads the default-variant `allsession_encoder`.
+- Fix: route each through its writer's resolver.
+
+**T7. Coverage is decided by whether the LAST cue matched, so one unmatched trailing DAQ cue turns off the end cutoff for a fully filmed session.**
+- Where: `trial_classes.py:531` (`tail_uncovered = last matched < n-1`) and `camera_engaged_period:464`.
+- Synthetic: `[C,J,C,J,J,NR,NR | U]` leaves the jaw-only after the last lick in working and the no_response trials as isolated lapses.
+- Real data: PS92_0605 has one trailing cue 9.35 s from any video trial (harmless there only by chance).
+- The same logic treats an isolated unmatched cue mid-session (PS92_0605 cue 58 misses the 20 ms tolerance by 1 ms) as an uncovered gap that splits stop runs, while an in-video unknown is skipped.
+- Fix: define coverage from the video's time span, and require at least k consecutive unmatched cues before a tail or gap counts as uncovered.
+
+**T8. With an uncovered tail, the rest working period runs past the last camera lick, through sustained stops.**
+- Where: `camera_engaged_period:464-465`.
+- Real data: in PS94_0603 the last lick is cue 444, but the rest period ends at cue 465, the last trial of a stopped run (459-465). Sated-stop rest frames enter the baseline.
+- Decision 2 says the period ends at the last camera lick; the no-cutoff exception was decided for trial classes, not for rest.
+- Fix: end at the last camera lick within coverage, or confirm with Priya.
+
+**T9. Section 1's working set and face_offset_partial's "before" decoder are still off the shared paths.**
+- `scripts/s1_trial_class_snapshot.py:41-44,82` computes `working_pl_lick` with `in_working` on raw `cue_classes`. It has no coverage rule (it cuts at the last covered lick in tail-uncovered sessions) and no stopped / after_end. It agrees with classify_session's working set today only because these data don't differ.
+- `face_offset_partial.py:397` `fits0` is fitted in memory every run. `test_5` is a source grep, so it cannot catch this.
+- Fix: derive the snapshot from `cue_classes_for`, and store `fits0` through `pre_loso_ridge` (or document both as exceptions).
+
+**T10. The ordering test can be bypassed** (`tests/test_parallel_results_are_ordered.py`).
+- The global detector (`:167-210`) only sees `global` statements inside `main`. It misses a helper called from main (the `lick_iti_prelick.configure` pattern) and dict / attribute state (the `_RUN` pattern used on 11-03 to silence it).
+- The ordering detector (`:78`) accepts any `sorted(` within 14 lines, even of an unrelated list. It misses `fan_out as fo` aliases and raw `ProcessPoolExecutor` + `as_completed`, and it scans docstrings.
+- On today's tree no live bug results.
+- Fix: walk the functions reachable from main for stores to module-level names and intersect with what workers read; require that the sorted object is the result variable.
+
+### LOW
+- **T11. Test gaps in `test_priya_decisions_1103.py`:** runs of exactly 5 vs 6, empty session, no-camera-lick session, missing head, single trailing unmatched cue, all-jaw runs. `test_4`, `test_5` and `test_nolick_window...` are source greps.
+- **No-lick naming and window.**
+  - `nolick_decoder.py:277` relabels a DAQ-undetected cue with a contact as `late_rewarded`, which contradicts the categorize docstring ("no arm past the response window").
+  - `poststroke_compare.py:836` uses the run window, not `cue_stop`, for its no-lick split under a non-default window.
+- **Warm-up runs.** A run of 6 or more no_response before the first lick is labelled "stopped" (a warm-up, not satiation); worth one line to Priya. Uncovered-tail sessions never get the N7 rule.
+- **Stale text.**
+  - `attempt_coding.classify` / `attempt_maps.classes_for_rows` docstrings still say noattempt is EMPTY under camera.
+  - `coverage_note` stamps "table missing" until `camera_coverage_tables.py` has run.
+  - `camera_coverage_tables.py:87` forces `TRIAL_GATE=daq`, and the note reads one default-folder table in every mode.
+- **Small code issues.**
+  - `quiet_task_events.py:351` silently skips keyed `trials_precue_*` names under cache-tagged modes.
+  - `iti_decoder_pattern_stats.py:161` sort key omits `kind`, so ties remain.
+  - `o2_face_rhythm.py:424-461` writes `segments` in completion order.
+  - `grant_figures.py:1173` lists failures in completion order.
