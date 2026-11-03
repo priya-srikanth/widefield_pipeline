@@ -431,12 +431,12 @@ All in the "second pass" commit after 630c277b; tests in `tests/test_review_seco
 | 1 | no-lick rows with camera class "contact": in NEITHER miss-while-working nor stopped; count them | `GATES["miss_working"]` excludes contact (already); `trial_classes.contact_nolick_counts` + `scripts/camera_coverage_tables.py` -> `camera_contact_nolick.csv` (per animal x epoch, with the cause split) and `camera_contact_nolick_trials.csv` |
 | 1b (final window) | the no-lick analysis counts licks / contacts EXACTLY as cue_stop (cue -> trial stop, contacts from cue + 70 ms, the contact table) | `nolick_decoder.categorize` under camera: classes from `cue_classes_for(..., window="cue_stop")`; a DAQ-"undetected" cue whose cue_stop class is contact becomes `late_rewarded` (a contact trial, out of the no-lick arm), so the two definitions cannot disagree. `trial_classes.nolick_selection()` (`sel-camera-cue_stop-...`) enters the nolick reference spec and the session-features cache kind (camera only; default keys unchanged). The superseded "response window" variant was written and REMOVED before commit (no fork of the classifier) |
 | 1c (check) | the count table is a check that the disagreement is 0; residuals with cause; trial-stop lengths | causes: late_after_response_window / cue_frame / refractory_merge / definition_mismatch (never a sensor miss: contact IS the DAQ sensor); `camera_stop_lengths.csv` (trials, stops > 3.6 s, their median, median of all). SCRATCH CHECK, 3 sessions (PS92_0908, PS93_0818, PS94_0821; read-only, outputs in scratch): the categorisation's response window = 3.5 s in all (per-session, A1); disagreements 0 / 1 / 0, the one (PS93_0818 acute) = late_after_response_window (now a contact trial); trials with stop > 3.6 s 289/321, 373/554, 376/600, median of those 3.76 / 3.94 / 3.72 s, median of all 3.72 / 3.77 / 3.66 s. The full table needs a run of the script (it writes into the share qc folder) |
-| 2 | rest-baseline working period ends at the LAST CAMERA LICK | `camera_engaged_period`: cues up to the last camera_lick-class cue (uncovered video tail: up to the last covered cue) |
+| 2 | rest-baseline working period ends at the LAST CAMERA LICK | `camera_engaged_period`: cues up to the last camera_lick-class cue. SUPERSEDED in part: T8 (8.8) ends it at the last camera lick also with an uncovered tail, and the fourth review (8.10) starts it at the first camera lick |
 | 3 | attempt "noattempt" = no_response inside the working period, not in a sustained stop | `classify_session`: a non-stopped no_response after the end anchor -> after_end, so "no_response" = an isolated lapse; attempt_coding / attempt_maps label it "noattempt" (contrast: isolated lapse vs sustained stop) |
 | 4 | the 7 parallel-ordering scripts | curbd_pilot x2 / iti_decoder_pattern_stats sort the fan_out results; lick_code_subspace docstring no longer reads as a call; SFX resolved at import from argv (spawned workers re-import with the parent argv) in arrival_to_cue_traces / lick_cue_to_lick / revup_neural / stopped_trial_traces; lick_iti_prelick JOBS -> `_RUN["jobs"]`. test_parallel_results_are_ordered: 261 passed |
 | 5 | face_offset_partial, lick_balance_blind_decoder, lick_nonlinear_decoder stored | face_offset_partial.fit_dec = `frozen_readouts.fit_all` inside its stored face_aim spec (fingerprinted); lick_balance_blind = `frozen_readouts.pre_loso_ridge`; lick_nonlinear = the whole linear + kernel-ridge reference through `load_or_fit` (kind lick_nonlinear, lp_only fingerprint; WIDEFIELD_ITI_FROZEN=0 = in memory) |
 | 6 (N6) | KEEP PS92_0908 for its covered trials; session rules within the covered span; mark partial coverage | `classify_session(cls, matched)`: uncovered cues stay unknown; an uncovered TAIL disables the end cutoff; stop runs per covered segment (an uncovered gap never stitches runs); `session_coverage` + `camera_coverage.csv`; `lp_licks.stamp` adds `trial_classes.coverage_note()` (names partial sessions) to every camera-gate figure. Scratch check: PS92_0908 389 cues, 321 covered (82.5 %), uncovered tail |
-| 7 (N7) | a jaw-only after the last camera lick does not break a no-response run; it counts toward the stop | `classify_session` counts jaw_only-after-end as part of a run (labelled stopped when the run qualifies); the review probe `[contact, NR x3, jaw, NR x3, jaw, NR x2]` = one 10-trial stop |
+| 7 (N7) | a jaw-only after the last camera lick does not break a no-response run; it counts toward the stop | SUPERSEDED by T3 (8.8, Priya): the jaw-only trial BRIDGES the run but is NOT counted and NOT stopped (after_end); a stop needs >= 6 no_response. The probe `[contact, NR x3, jaw, NR x3, jaw, NR x2]` = one bridged run, 8 stopped + 2 after_end |
 
 **Full suite on a frozen copy of b32225f1 (6 shards, ~48 min): 4,441 passed, 176 skipped, 0 failed** (the 11 parallel-ordering cases now pass; fcae2ee2 before this round: 4,425 passed, 176 skipped, 11 failed = those cases).
 
@@ -520,18 +520,22 @@ All in the "second pass" commit after 630c277b; tests in `tests/test_review_seco
   (tests/test_priya_decisions_1103.py); stale docstrings; poststroke no-lick window cue_stop; cache sort key with kind.
 - **DECISIONS.md**: "2026-11-03 (night) -- Camera trial gate for the cohort-1 rebuild" collects the decided rules.
 
-**Classifier effect, 5c17d76a vs 3ef70b5b** (all 119 curated sessions, read-only, scratch CSV): 513 trials in 44
-sessions change class; contact / incomplete / jaw_only / unknown unchanged. Cohort: stopped 2339 -> 1830, after_end
-72 -> 581, no_response 2674 -> 2670, warm-up 0 -> 4. All moved trials go stopped -> after_end (runs after the last lick
-with < 6 no_response once the jaw-only trials no longer count); both classes are outside the engaged period, so the
-working / camera-lick sets do not change.
-- PS94_0825 (subacute, 600 cues): stopped 40 -> 12, after_end 0 -> 28; contact 440, incomplete 27, jaw_only 55,
-  no_response 38 unchanged.
-- PS93_0925 (chronic, 600 cues): stopped 86 -> 38, after_end 0 -> 48; contact 477, incomplete 20, jaw_only 13,
-  no_response 4 unchanged.
+**Classifier effect, 5c17d76a vs 3ef70b5b** (the 119 curated sessions with trial tables, read-only, scratch CSV;
+CORRECTED 11-03 late after the fourth-review addendum): 513 trials in 44 sessions change class. Cohort: stopped
+2339 -> 1830, after_end 72 -> 581, no_response 2674 -> 2670, warm-up 0 -> 4. The 509 stopped -> after_end trials are
+almost all the BRIDGING JAW-ONLY TRIALS THEMSELVES leaving the stopped arm (the old rule labelled a bridging jaw-only
+trial stopped; T3 makes it after_end): the review counts 485 jaw_only + 24 no_response on its 139-session set. In
+PS94_0825 and PS93_0925 every moved trial is jaw-only and every stopped no_response trial is unchanged. (The CSV's
+`old_jaw_only` / `new_jaw_only` columns count only trials still LABELLED jaw_only, i.e. inside working, which is why
+they are equal.) Stopped and after_end are both outside working, so the working / camera-lick sets do not change.
+- PS94_0825 (subacute, 600 cues): stopped 40 -> 12, after_end 0 -> 28 (28 bridging jaw-only trials); contact 440,
+  incomplete 27, working jaw_only 55, no_response 38 unchanged.
+- PS93_0925 (chronic, 600 cues): stopped 86 -> 38, after_end 0 -> 48 (48 bridging jaw-only trials); contact 477,
+  incomplete 20, working jaw_only 13, no_response 4 unchanged.
 - Stopped per animal x epoch, old -> new (pre / acute / subacute / chronic): PS92 0/268/0/0 -> 0/217/0/0;
   PS93 41/232/77/86 -> 24/208/52/38; PS94 225/386/156/94 -> 157/328/116/67; PS95 187/0/355/232 -> 135/0/341/147.
-- **Warm-up (PROVISIONAL, for Priya)**: 4 trials in 4 of 119 sessions -- PS94 acute 2 (PS94_0817, PS94_0820), PS93
+- **Warm-up (PROVISIONAL, for Priya)**: 4 trials in 4 of 119 curated sessions (the review's 5 on 139 sessions adds
+  PS94_0805, which is outside the curated set: `date_policy.cross_session_exclude` has 0805) -- PS94 acute 2 (PS94_0817, PS94_0820), PS93
   subacute 1 (PS93_0824), PS95 subacute 1 (PS95_0818). Labelled neither class.
 
 **Tests.** 50f59ff8 full suite (5 shards): 4,450 passed, 176 skipped, 0 failed. 3ef70b5b: see 8.9.

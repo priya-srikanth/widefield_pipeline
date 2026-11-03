@@ -312,12 +312,13 @@ def test_sustained_stop_rule(monkeypatch):
     Sensitivity rule "any": every no_response is stopped. The rule name is in the selection tag."""
     NR, U, C = "no_response", "unknown", "contact"
     cls = [C, NR, NR, C] + [NR, NR, U, NR, NR, NR, NR] + [C, NR] + [U, U]
-    out = TC.apply_stopped_rule(cls, "run", 6).tolist()
+    run = lambda c, rule="run": TC.classify_session(np.array(c, object), rule=rule, min_run=6, end="none")  # noqa: E731
+    out = run(cls).tolist()
     assert out[:4] == [C, NR, NR, C]                                   # a run of 2: isolated, unchanged
     assert out[4:11] == ["stopped"] * 2 + [U] + ["stopped"] * 4       # 6 no_response across one unknown
     assert out[11:] == [C, NR, U, U]
-    assert TC.apply_stopped_rule([NR] * 5 + [U] * 3, "run", 6).tolist() == [NR] * 5 + [U] * 3   # unknown never extends
-    assert TC.apply_stopped_rule(cls, "any", 6).tolist().count("stopped") == cls.count(NR)
+    assert run([C] + [NR] * 5 + [U] * 3).tolist() == [C] + [NR] * 5 + [U] * 3   # unknown never extends
+    assert run(cls, "any").tolist().count("stopped") == cls.count(NR)
     assert not TC.in_gate(["no_response", "stopped"], "working").any()
     monkeypatch.setenv(TC.GATE_ENV, "camera")
     monkeypatch.delenv(TC.STOPPED_ENV, raising=False)
@@ -343,17 +344,17 @@ def test_enl_states_camera_branch(monkeypatch):
 
 def test_session_end_relabel_equals_in_working(monkeypatch):
     """Priya 11-03 (main b506c1e3): camera working stops at the session LAST camera lick. `cue_classes_for` applies it
-    once (`apply_session_end`), so in_gate(cls, "working") on its output == in_working(raw cls, cue order)."""
+    once (`classify_session`), so in_gate(cls, "working") on its output == in_working(raw cls, cue order)."""
     raw = np.array(["jaw_only", "contact", "jaw_only", "no_response", "incomplete", "jaw_only", "unknown", "jaw_only"],
                    object)
     for end in ("lick", "contact", "none"):
-        rel = TC.apply_session_end(raw, anchor=end)
+        rel = TC.classify_session(raw, rule="run", min_run=6, end=end)
         assert np.array_equal(TC.in_gate(rel, "working"), TC.in_working(raw, np.arange(len(raw)), end=end)), end
-    rel = TC.apply_session_end(raw, anchor="lick")
+    rel = TC.classify_session(raw, rule="run", min_run=6, end="lick")
     assert rel.tolist()[5:] == ["after_end", "unknown", "after_end"]          # jaw-only after the last lick leave
-    assert TC.apply_session_end(raw, anchor="contact").tolist()[4] == "after_end"   # incomplete after the last contact
+    assert TC.classify_session(raw, rule="run", min_run=6, end="contact").tolist()[4] == "after_end"   # incomplete after the last contact
     pos = np.array(["close_L", "close_L", "far_R", "far_R", "far_R", "far_R", "far_R", "far_R"], object)
-    assert not TC.in_gate(TC.apply_session_end(raw, pos, "close"), "working")[2:].any()
+    assert not TC.in_gate(TC.classify_session(raw, None, pos, rule="run", min_run=6, end="close"), "working")[2:].any()
     monkeypatch.setenv(TC.GATE_ENV, "camera")
     monkeypatch.setenv(TC.END_ENV, "contact")
     assert TC.run_selection_tag().startswith("sel-camera-cue_stop-endcontact-")

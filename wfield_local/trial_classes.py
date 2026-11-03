@@ -295,7 +295,8 @@ def selection_tag(source: str = "camera", window: str = DEFAULT_WINDOW, end: str
 # (`grant_kit._class_select` and the gates listed in `docs/status/REBUILD_CODE_20261103.md` item f):
 #   daq     the DAQ quit-tail rule: working = engaged + unengaged outside the terminal quit period, stopped = the quit
 #           period (`precue_engagement_states.engagement_gate`). UNTAGGED: every output made before 11-03.
-#   camera  THIS module's GATES: working = contact | incomplete | jaw_only, stopped = no_response; "unknown" and
+#   camera  THIS module's GATES: working = contact | incomplete | jaw_only, stopped = a sustained stop (`classify_session`,
+#           >= 6 no_response); "unknown" and
 #           sessions without video (PS93_0813) are in NEITHER (no DAQ fallback; reconciliation D12). The lick class
 #           stays the DAQ contact set in both modes (lick-aligned windows need a lick time).
 # Setting: ``defaults.yaml trial_selection.gate`` (default daq), overridden by WIDEFIELD_TRIAL_GATE; the window by
@@ -407,8 +408,7 @@ _CLASS_SIG: dict = {}
 #: functions whose source defines the camera classes; their code enters `class_source_signature` (review H4)
 CLASS_CODE_ROOTS = ("session_trials", "jaw_table", "_trial_times", "_pre_cue_contacts", "cue_classes",
                     "cue_classes_for", "row_classes", "camera_rows", "pool_row_classes", "camera_select",
-                    "camera_engaged_period", "in_gate", "apply_stopped_rule", "apply_session_end",
-                    "before_session_end", "in_working", "classify_session", "_matched_cues",
+                    "camera_engaged_period", "in_gate", "before_session_end", "in_working", "classify_session", "_matched_cues",
                     "_effective_coverage")
 
 
@@ -446,22 +446,30 @@ def class_source_signature(v36: Path | str | None = None, c1: Path | str | None 
 
 
 def camera_engaged_period(label: str, cue_s) -> np.ndarray:
-    """``bool[n_cues]``: True for cues up to and including the session's LAST camera-working trial -- the camera rule's
-    counterpart of the DAQ terminal quit period, for the REST-BASELINE gates (`rest_engagement`, `rest_by_position`),
-    which ask "is this rest inside the session's working period", not "did this trial respond". PROVISIONAL (rebuild
-    11-03, to confirm with Priya): the DAQ rule is a terminal collapse; this keeps that shape (one terminal boundary,
-    so a mid-session no-response trial does not cut the baseline). A session with no working trial (e.g. no video:
-    all "unknown") has NO working period: every trial is outside it (no DAQ fallback, as `camera_select`)."""
-    # DECIDED (Priya 11-03, decision 2): the period ends at the session's LAST CAMERA LICK -- the anchor of
-    # in_working(end="lick"). With an uncovered video tail (N6) the real last lick is unknown: the period ends at the
-    # last COVERED cue instead (never beyond what the video saw).
-    # T8 (third review): the period ends at the last camera lick ALWAYS -- also with an uncovered video tail (the
-    # no-cutoff exception is for the trial classes only; rest after the last seen lick may already be sated)
+    """``bool[n_cues]``: the session's camera WORKING PERIOD for the REST-BASELINE gates (`rest_engagement`,
+    `rest_by_position`), which ask "is this rest inside the working period", not "did this trial respond": the cues
+    from the session's FIRST camera lick to its LAST camera lick, inclusive (one start and one end boundary, so a
+    mid-session no-response trial never cuts the baseline).
+
+    * END (Priya 11-03, decision 2; T8 third review): the last camera lick of the CLASSIFIED train (`cue_classes_for`),
+      always -- also with an uncovered video tail (rest after the last seen lick may already be sated). Under a
+      robustness end anchor ("contact" / "close") the licks after that anchor are AFTER_END_CLASS in the classified
+      train, so the period ends AT THE ANCHOR.
+    * START (fourth review LOW, matching the warm-up rule): the first camera lick; warm-up trials before it are outside.
+    * A session with no camera lick (e.g. no video: all "unknown") has NO working period: every cue is outside it (no
+      DAQ fallback, as `camera_select`)."""
     c = cue_classes_for(label, cue_s)
+    return _lick_span(c)
+
+
+def _lick_span(cls) -> np.ndarray:
+    """``bool[n]``: True from the first to the last camera_lick-class trial of ``cls`` (inclusive); all False without
+    one."""
+    c = np.asarray(cls, dtype=object)
     out = np.zeros(len(c), bool)
-    lick = in_gate(c, "camera_lick")
-    if lick.any():
-        out[: int(np.flatnonzero(lick)[-1]) + 1] = True
+    lick = np.flatnonzero(in_gate(c, "camera_lick"))
+    if len(lick):
+        out[int(lick[0]): int(lick[-1]) + 1] = True
     return out
 
 
@@ -512,10 +520,15 @@ def classify_session(cls, matched=None, position=None, *, rule: str | None = Non
       * END AT THE LAST CAMERA LICK (anchor ``end``): working-gate trials after it -> AFTER_END_CLASS. With an
         UNCOVERED TAIL (video ends before the last cue) the real last lick is unknown, so NO end cutoff is applied
         (a cutoff at the last covered lick would end working early).
-      * SUSTAINED STOP (``rule`` "run"): a run of >= ``min_run`` consecutive no_response trials -> STOPPED_CLASS. Runs
-        are counted per COVERED SEGMENT (an uncovered gap ends a run; it never stitches two runs); in-video "unknown"
-        trials neither break nor extend a run; a jaw_only trial AFTER the last camera lick does NOT break a run and
-        counts toward it (N7: it is never working anyway). Rule "any": every no_response is stopped.
+      * SUSTAINED STOP (``rule`` "run"): a run with >= ``min_run`` no_response trials -> its no_response trials are
+        STOPPED_CLASS. Runs are counted per COVERED SEGMENT (an uncovered gap ends a run; it never stitches two runs);
+        in-video "unknown" trials neither break nor extend a run; a contact / incomplete trial (licking resumed) and a
+        jaw_only trial at or before the end anchor END the run; a jaw_only trial AFTER the end anchor BRIDGES the run
+        (T3, Priya 11-03): it neither breaks it nor counts toward the ``min_run`` and is never stopped (it becomes
+        AFTER_END_CLASS). With an uncovered video tail there is no end cutoff, so nothing bridges. Rule "any": every
+        no_response is stopped, except warm-up trials.
+      * WARM-UP (PROVISIONAL for Priya): no_response trials before the session's first camera lick -> WARMUP_CLASS (in
+        neither class); a session with no camera lick has every no_response as warm-up and no stop.
       * ISOLATED LAPSES (decision 3): a no_response trial not in a sustained stop stays "no_response" only INSIDE the
         working period (at or before the end anchor); after it -> AFTER_END_CLASS. So "no_response" = an isolated lapse.
     """
@@ -644,16 +657,6 @@ def contact_nolick_counts(cls, nolick, animal, epoch) -> "pd.DataFrame":
     return out.reset_index()
 
 
-def apply_session_end(cls, position=None, anchor: str | None = None) -> np.ndarray:
-    """``cls`` (one session, cue order, AFTER `apply_stopped_rule`) with every working-gate trial after the session end
-    relabelled AFTER_END_CLASS: exactly ``in_gate(cls, "working") & ~in_working(cls, arange, end=anchor)``."""
-    anchor = anchor or end_anchor()
-    out = np.asarray(cls, dtype=object).copy()
-    late = in_gate(out, "working") & ~before_session_end(out, np.arange(len(out)), position=position, anchor=anchor)
-    out[late] = AFTER_END_CLASS
-    return out
-
-
 def stopped_rule() -> str:
     """"run" (primary, default) or "any" (sensitivity): the camera stopped rule (see STOPPED_CLASSES)."""
     import os
@@ -675,33 +678,6 @@ def stop_run_min() -> int:
 def stopped_rule_name() -> str:
     """The rule name in selection tags: "stopRun<n>" or "stopAny"."""
     return f"stopRun{stop_run_min()}" if stopped_rule() == "run" else "stopAny"
-
-
-def apply_stopped_rule(cls, rule: str | None = None, min_run: int | None = None) -> np.ndarray:
-    """``cls`` (camera class per trial, in SESSION ORDER, the full train) with the stopped no_response trials relabelled
-    STOPPED_CLASS. "run": runs of consecutive no_response counted with "unknown" trials skipped (they neither break nor
-    extend a run); any other class breaks a run. "any": every no_response."""
-    rule = rule or stopped_rule()
-    out = np.asarray(cls, dtype=object).copy()
-    nr = out == "no_response"
-    if rule == "any":
-        out[nr] = STOPPED_CLASS
-        return out
-    n = int(min_run if min_run is not None else stop_run_min())
-    idx = np.flatnonzero(out != "unknown")             # unknown trials are skipped when counting
-    seq = nr[idx]
-    i = 0
-    while i < len(seq):
-        if not seq[i]:
-            i += 1
-            continue
-        j = i
-        while j < len(seq) and seq[j]:
-            j += 1
-        if j - i >= n:
-            out[idx[i:j]] = STOPPED_CLASS
-        i = j
-    return out
 
 
 def camera_gate_on() -> bool:
@@ -752,7 +728,7 @@ _CUE_CLS: dict = {}
 def cue_classes_for(label: str, cue_s, window: str | None = None) -> np.ndarray:
     """Camera class per DAQ cue of one session (``cue_s`` in DAQ seconds); all "unknown" for a session without video
     outputs. ``cue_s`` must be the session FULL cue train in order (the stopped rule counts runs along it): no_response
-    trials in a sustained stop come back as STOPPED_CLASS (`apply_stopped_rule`, Priya 11-03). Memoised per process.
+    trials in a sustained stop come back as STOPPED_CLASS (`classify_session`, Priya 11-03). Memoised per process.
     THE A5 HOOK: switch the class source to `responded(source=...)` here."""
     import hashlib
     window = window or gate_window()

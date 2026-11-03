@@ -26,13 +26,48 @@ def test_1_contact_nolick_in_neither_and_counted():
     assert (REPO / "scripts" / "camera_coverage_tables.py").exists()
 
 
-def test_2_rest_period_ends_at_the_last_camera_lick(monkeypatch):
-    """Decision 2: the rest-baseline working period ends at the LAST CAMERA LICK (jaw-only after it is outside)."""
-    cls = np.array([C, J, I, J, J, NR], object)
-    monkeypatch.setattr(TC, "cue_classes_for", lambda label, cue_s, window=None: TC.classify_session(
-        cls, rule="run", min_run=6, end="lick"))
-    monkeypatch.setattr(TC, "_matched_cues", lambda label, cue_s, window=None: np.ones(len(cls), bool))
-    assert TC.camera_engaged_period("X_0000", np.arange(6.0)).tolist() == [True, True, True, False, False, False]
+def _fake_session(monkeypatch, cls, cue_s, matched=None):
+    """Route `cue_classes_for` through its REAL path (session_trials -> cue_classes -> classify_session) for a fake
+    session whose video trials are ``cls`` at ``cue_s`` (``matched`` False = no video trial for that cue)."""
+    cue_s = np.asarray(cue_s, float)
+    keep = np.ones(len(cue_s), bool) if matched is None else np.asarray(matched, bool)
+    t = pd.DataFrame({"cue_daq": cue_s[keep], "cls": np.asarray(cls, object)[keep], "position": ["far_R"] * keep.sum()})
+    monkeypatch.setattr(TC, "session_trials", lambda label, window=None: t)
+    monkeypatch.setenv(TC.STOPPED_ENV, "run")
+    monkeypatch.setenv(TC.END_ENV, "lick")
+    TC._CUE_CLS.clear()
+
+
+def test_2_rest_period_is_first_to_last_camera_lick(monkeypatch):
+    """Decision 2 + T8 + fourth review LOW: the rest-baseline working period runs from the session's FIRST camera lick
+    to its LAST camera lick (warm-up before, jaw-only after are outside) -- through the real cue_classes_for path."""
+    cls = [NR, NR, C, J, I, J, J, NR]
+    _fake_session(monkeypatch, cls, np.arange(8.0))
+    assert TC.camera_engaged_period("X_0001", np.arange(8.0)).tolist() == [False, False, True, True, True,
+                                                                           False, False, False]
+
+
+def test_2_t8_uncovered_tail_still_ends_at_the_last_camera_lick(monkeypatch):
+    """T8: with an uncovered video tail the TRIAL classes keep no end cutoff, but the rest period still ends at the
+    last camera lick (never at the last covered cue)."""
+    cls = [C, I, J, J] + [U] * 6
+    matched = [True] * 4 + [False] * 6                                  # 6 unmatched = a real uncovered tail
+    _fake_session(monkeypatch, cls, np.arange(10.0), matched)
+    out = TC.cue_classes_for("X_0002", np.arange(10.0))
+    assert out.tolist() == [C, I, J, J] + [U] * 6                       # no after_end (tail uncovered)
+    assert TC.camera_engaged_period("X_0002", np.arange(10.0)).tolist() == [True, True] + [False] * 8
+    TC._CUE_CLS.clear()
+
+
+def test_2_robustness_anchor_ends_the_rest_period_at_the_anchor(monkeypatch):
+    """Under end anchor "contact" the incomplete licks after the last contact are after_end, so the rest period ends at
+    the last contact (DECISIONS: under a robustness anchor the rest period ends at that anchor)."""
+    cls = [C, I, C, I, I]
+    _fake_session(monkeypatch, cls, np.arange(5.0))
+    monkeypatch.setenv(TC.END_ENV, "contact")
+    TC._CUE_CLS.clear()
+    assert TC.camera_engaged_period("X_0003", np.arange(5.0)).tolist() == [True, True, True, False, False]
+    TC._CUE_CLS.clear()
 
 
 def test_3_noattempt_is_an_isolated_lapse_inside_the_working_period():
@@ -96,8 +131,9 @@ def test_6_coverage_note(tmp_path):
     assert "missing" in TC.coverage_note(tmp_path / "nope.csv")
 
 
-def test_7_jaw_only_after_the_last_lick_counts_toward_the_stop():
-    """Decision 7 (N7): the review probe [contact, NR x3, jaw, NR x3, jaw, NR x2] is ONE sustained stop."""
+def test_7_jaw_only_after_the_last_lick_bridges_but_is_not_counted():
+    """Decision 7 as revised by T3 (Priya): the review probe [contact, NR x3, jaw, NR x3, jaw, NR x2] is ONE bridged run
+    of 8 no_response; the jaw-only trials are after_end, not stopped."""
     # T3 (Priya, as approved): the jaw-only trials BRIDGE the run but are not stopped and do not count toward the 6
     raw = np.array([C, NR, NR, NR, J, NR, NR, NR, J, NR, NR], object)
     out = TC.classify_session(raw, rule="run", min_run=6, end="lick")
@@ -194,3 +230,59 @@ def test_short_unmatched_stretches_are_unknown_not_uncovered():
     head = np.array([U] * 5 + [C, J], object)                                 # a missing HEAD
     mh = np.array([False] * 5 + [True] * 2)
     assert TC.classify_session(head, mh, rule="run", min_run=6, end="lick").tolist() == [U] * 5 + [C, "after_end"]
+
+
+def test_7_bridge_needs_six_no_response_nr3_j_nr2():
+    """T3: a jaw-only bridge does not count, so NR3 J NR2 after the last lick (5 no_response) is NOT a stop: all after_end;
+    NR3 J NR3 (6) is."""
+    A, S = "after_end", "stopped"
+    five = np.array([C, NR, NR, NR, J, NR, NR], object)
+    assert TC.classify_session(five, rule="run", min_run=6, end="lick").tolist() == [C] + [A] * 6
+    six = np.array([C, NR, NR, NR, J, NR, NR, NR], object)
+    assert TC.classify_session(six, rule="run", min_run=6, end="lick").tolist() == [C, S, S, S, A, S, S, S]
+
+
+def test_7_no_bridge_with_an_uncovered_tail():
+    """No end cutoff with an uncovered tail, so jaw-only trials are working and do not bridge: no stop."""
+    raw = np.array([C, NR, NR, NR, J, NR, NR, NR] + [U] * 5, object)
+    m = np.array([True] * 8 + [False] * 5)
+    out = TC.classify_session(raw, m, rule="run", min_run=6, end="lick")
+    assert "stopped" not in out.tolist() and out[4] == J
+
+
+def test_stop_run_ends_where_licking_resumes_and_unknown_is_skipped():
+    """Fourth review LOW: an in-video unknown is skipped (neither breaks nor extends a run), so [C,N,N,N,U,N,N,N,C] is
+    one run of 6 no_response = stopped; a contact or an incomplete inside the run ENDS it (licking resumed): 3 + 3 is
+    not a stop."""
+    S = "stopped"
+    raw = np.array([C, NR, NR, NR, U, NR, NR, NR, C], object)
+    assert TC.classify_session(raw, rule="run", min_run=6, end="lick").tolist() == [C, S, S, S, U, S, S, S, C]
+    for lick in (C, I):
+        split = np.array([C, NR, NR, NR, lick, NR, NR, NR, C], object)
+        assert "stopped" not in TC.classify_session(split, rule="run", min_run=6, end="lick").tolist(), lick
+    jaw_early = np.array([C, NR, NR, NR, J, NR, NR, NR, C], object)       # jaw-only before the last lick ends it too
+    assert "stopped" not in TC.classify_session(jaw_early, rule="run", min_run=6, end="lick").tolist()
+
+
+@pytest.mark.parametrize("where", ["head", "middle", "tail"])
+def test_min_uncovered_run_is_exactly_five(where):
+    """T7: 4 consecutive unmatched cues are NOT uncovered (filled), 5 are -- at the head, mid-session and the tail. Any
+    MIN_UNCOVERED_RUN other than 5 fails one of the two."""
+    assert TC.MIN_UNCOVERED_RUN == 5
+    for k, uncovered in ((4, False), (5, True)):
+        n = 20
+        m = np.ones(n, bool)
+        lo = {"head": 0, "middle": 8, "tail": n - k}[where]
+        m[lo: lo + k] = False
+        eff = TC._effective_coverage(m)
+        assert (not eff.all()) == uncovered, (where, k)
+    # the end cutoff depends on it at the tail: 4 unmatched -> cutoff applies, 5 -> dropped
+    for k, cut in ((4, True), (5, False)):
+        raw = np.array([C, J] + [U] * k, object)
+        m = np.array([True, True] + [False] * k)
+        assert (TC.classify_session(raw, m, rule="run", min_run=6, end="lick")[1] == "after_end") == cut, k
+
+
+def test_rule_any_excludes_warmup():
+    raw = np.array([NR, NR, C, NR, C], object)
+    assert TC.classify_session(raw, rule="any", min_run=6, end="lick").tolist() == ["warmup", "warmup", C, "stopped", C]
