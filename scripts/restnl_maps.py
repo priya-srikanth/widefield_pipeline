@@ -49,7 +49,10 @@ def setup_env(arm: str, refs: str = "restnl", august_only: bool = True) -> None:
 def out_dir(root: Path | None = None) -> Path:
     from wfield_local import lp_licks
     from wfield_local.paths import PathResolver
-    base = root or (Path(PathResolver().root("cohort_out")) / "grant_figures" / "epoch_restnl")
+    # RESTNL_OUT_ROOT (2026-11-02, cohort-1 swap-mask re-run): a run on another hemo variant (WIDEFIELD_HEMO_VARIANT)
+    # writes under its OWN root (arm sub-folders as usual), never over the adopted figures. Unset = unchanged.
+    env = os.environ.get("RESTNL_OUT_ROOT")
+    base = root or (Path(env) if env else Path(PathResolver().root("cohort_out")) / "grant_figures" / "epoch_restnl")
     return lp_licks.output_dir(base)
 
 

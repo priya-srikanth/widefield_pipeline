@@ -26,6 +26,7 @@ Printed per animal x epoch first (CLAUDE.md rule 8).
     python scripts/cohort2_qc/quiet_area_spikes.py [--jobs 6] [--summarise]
 """
 import argparse
+import os
 import sys
 from pathlib import Path
 
@@ -33,7 +34,10 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))       # scripts/ (iti_licks)
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))       # repo root (analysis_kit imports scripts.*)
-OUT = Path("M:/MICROSCOPE/Priya/Widefield/labcams/cohort1_quiet_spikes")
+# QS_OUT_ROOT (2026-11-02, cohort-1 swap-mask re-run): a sensitivity run on another hemo variant
+# (WIDEFIELD_HEMO_VARIANT) writes to its OWN root, so it can never overwrite or mix with the adopted outputs. Unset = the
+# adopted location, unchanged.
+OUT = Path(os.environ.get("QS_OUT_ROOT") or "M:/MICROSCOPE/Priya/Widefield/labcams/cohort1_quiet_spikes")
 EVENTS = Path("M:/MICROSCOPE/Priya/Behavior_logs/Widefield/behavior_summary/events")
 AREAS = ["ALM", "tjM1", "SSp-m", "SSp-n", "SSp-ul", "SSp-ll"]
 GROUPS = {"orofacial": ["ALM", "tjM1", "SSp-m", "SSp-n"], "limb": ["SSp-ul", "SSp-ll"]}
