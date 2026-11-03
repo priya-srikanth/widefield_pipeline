@@ -112,7 +112,7 @@ def decode_lick_working(s: dict, sig: np.ndarray, regs, align: str) -> dict:
     rows = np.r_[ie, inl].astype(int)
     Xa, ya = np.vstack([X, Xn]) if len(yn) else X, np.r_[y, yn]
     ga = np.r_[np.asarray(g, np.int64), _runs_to_blocks(np.zeros(len(yn), int), name[len(ie):])]
-    for gate in ("working", "camera_lick"):
+    for gate in ("working", "camera_lick", "working_pl_contact", "working_pl_lick", "working_pl_close"):
         m = snap[gate].reindex(rows).fillna(False).to_numpy(bool) if snap is not None else np.zeros(len(rows), bool)
         out[f"cam_{gate}"] = _cv_acc(Xa[m], ya[m], ga[m]) if m.any() else np.nan
         out[f"n_cam_{gate}"] = int(m.sum())
@@ -164,6 +164,9 @@ def session_job(label: str) -> dict:
             out[f"{k}_camwork_{w}"] = d["cam_working"]       # camera-defined working (DEFAULT from 11-03)
             out[f"{k}_camlick_{w}"] = d["cam_camera_lick"]   # camera lick gate (contact + incomplete)
             out[f"n_camwork_{w}"], out[f"n_camlick_{w}"] = d["n_cam_working"], d["n_cam_camera_lick"]
+            for pl in ("contact", "lick", "close"):            # + end-of-session cutoff (snapshot docstring)
+                out[f"{k}_campl{pl}_{w}"] = d[f"cam_working_pl_{pl}"]
+                out[f"n_campl{pl}_{w}"] = d[f"n_cam_working_pl_{pl}"]
     print("  {:10s} ".format(label) + "  ".join(f"{k} {v:.3f}" for k, v in out.items()
                                                   if k.endswith(("_pre", "_post")) and not k.startswith("n_")),
           flush=True)
@@ -198,7 +201,10 @@ def main(argv=None) -> int:
     f = Path(out) / ("s1_refit_basis" + ("_subset" if a.labels else "") + ".csv")   # the run tag is in the directory
     D.to_csv(f, index=False, float_format="%.4g")
     pd.set_option("display.width", 250)
-    for trials, tag in (("CAMERA WORKING (jaw or any camera lick; DEFAULT)", "camwork_"),
+    for trials, tag in (("CAMERA WORKING (jaw or any camera lick)", "camwork_"),
+                        ("CAMERA WORKING, to the last CONTACT", "campl" + "contact_"),
+                        ("CAMERA WORKING, to the last CAMERA LICK", "campl" + "lick_"),
+                        ("CAMERA WORKING, to the last lick at the CLOSE ipsi / mid spouts", "campl" + "close_"),
                         ("CAMERA LICK GATE (contact + incomplete)", "camlick_"),
                         ("QUIT-TAIL WORKING (lick source of this run)", "work_"),
                         ("LICKING (lick source of this run)", "")):
