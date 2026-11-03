@@ -100,7 +100,7 @@ def _early_rate(rows, early_s=EARLY_S):
     return licks / span, licks / max(len(early) - 1, 1), len(early)
 
 
-def session_quit(s, rows, resp_s=2.0):
+def session_quit(s, rows, resp_s=None):     # resp_s unused: `rows` already carry hit (A1)
     """``dict`` describing this session's terminal disengagement, or ``None`` if it never quits.
 
     Returns what had ACCUMULATED at the quit trial -- time, licks, rewards -- because those are the
@@ -227,7 +227,7 @@ def session_row(item):
         return None
     ep = epochs.epoch_of(lab)
     try:
-        tr = session_trials(s, 2.0)
+        tr = session_trials(s, ak.response_window_s(s))     # the session's own window (A1; was 2.0 s)
     except Exception as ex:                                          # noqa: BLE001
         return {"label": lab, "epoch": ep, "seen": False, "q": None, "aligned": [],
                 "msg": f"  !! {lab}: {type(ex).__name__} {str(ex)[:70]}"}

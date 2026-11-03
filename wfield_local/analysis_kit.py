@@ -51,9 +51,20 @@ N_BOOT = 4000
 #: are 95%.
 PCTL = (2.5, 97.5)
 
-#: Response window for scoring a trial as a hit, in seconds. 2.0 in `session_trials` call sites
-#: throughout `rest_migration`.
-RESP_S = 2.0
+#: Response window for scoring a trial as a hit: NOT a constant. ``None`` = read THIS session's window from its
+#: behaviour log (`response_window_s`). Until 2026-11-03 this was 2.0 s, which was never the task's window (3.5 s in
+#: every session from June on; 3.0 s in May training) -- Priya 11-03: "2 s was not deliberate" (consolidation A1).
+RESP_S = None
+
+
+def response_window_s(s) -> float:
+    """THE response window of one session, in seconds, read from its own behaviour log (`gui_config.json`,
+    ``timing.response_window``, stored in ms) via `nolick_decoder.response_window_for` -> `daq_trials.response_window_s`.
+    ``s`` is a `config.load_sessions()` record. Every analysis that asks "did the animal respond to this cue" uses
+    this; nothing hard-codes a window (Priya 11-03, consolidation A1)."""
+    from wfield_local.nolick_decoder import response_window_for
+
+    return float(response_window_for(s))
 
 
 class Interval(NamedTuple):
@@ -384,7 +395,7 @@ def session_behavior(lab, *, gate=False, horizon_min=None, resp_s=RESP_S,
     s = next((x for x in config.load_sessions() if x["label"] == lab), None)
     if s is None:
         return None
-    tr = session_trials(s, resp_s)
+    tr = session_trials(s, resp_s if resp_s is not None else response_window_s(s))
     if len(tr) < min_trials:
         return None
     q = session_quit(s, tr)

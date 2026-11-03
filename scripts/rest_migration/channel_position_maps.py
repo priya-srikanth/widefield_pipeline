@@ -135,7 +135,7 @@ def _signals(res: Path, allen: Path):
             ("470 nm (hemo-corrected)", np.asarray(corr))], ev
 
 
-def _quit_trials(s, cue_s, codes, lick_s, resp_s=2.0):
+def _quit_trials(s, cue_s, codes, lick_s, resp_s=None):
     """Bool per cue: True = inside the TERMINAL QUIT PERIOD, i.e. not engaged.
 
     Wraps `precue_engagement_states.engagement_gate`, the gate `beta_maps._quit_mask` uses, so this
@@ -154,7 +154,8 @@ def _quit_trials(s, cue_s, codes, lick_s, resp_s=2.0):
     try:
         lk = np.asarray(lick_s, float)
         lo = np.searchsorted(lk, cue_s, side="left")
-        hi = np.searchsorted(lk, cue_s + resp_s * ak.daq_rate(s), side="right")
+        rw = resp_s if resp_s is not None else ak.response_window_s(s)     # session's own window (A1)
+        hi = np.searchsorted(lk, cue_s + rw * ak.daq_rate(s), side="right")
         responded = (hi - lo) > 0
         order = np.arange(n)
         pos = np.array([POSITION_NAMES.get(int(c), str(c)) for c in np.asarray(codes)])

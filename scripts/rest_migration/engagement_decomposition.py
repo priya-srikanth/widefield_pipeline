@@ -64,7 +64,7 @@ import numpy as np
 #: `boot_delta` (animal-weighted, for CHANGES), and the difference has retracted a result.
 from wfield_local import analysis_kit as ak
 
-DEFAULT_RESP_S = 2.0
+DEFAULT_RESP_S = None    # None = each session's own response window (`analysis_kit.response_window_s`); was 2.0 until 11-03 (A1)
 
 
 def session_trials(s, resp_s):
@@ -200,7 +200,7 @@ def session_rows(item):
         return [], None
     ep = epochs.epoch_of(lab)
     try:
-        rows = session_trials(s, resp_s)
+        rows = session_trials(s, resp_s if resp_s is not None else ak.response_window_s(s))
     except Exception as ex:                                          # noqa: BLE001
         return [], f"  !! {lab}: {type(ex).__name__} {str(ex)[:70]}"
     if len(rows) < 30:
@@ -257,7 +257,8 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--animals", nargs="+", default=None)
-    ap.add_argument("--resp-s", type=float, default=DEFAULT_RESP_S)
+    ap.add_argument("--resp-s", type=float, default=DEFAULT_RESP_S,
+                    help="override the response window (s); default = each session's own, from its behaviour log")
     ap.add_argument("--jobs", type=int, default=None,
                     help="sessions in parallel (default cores-2 capped at 8; 1 for serial)")
     ap.add_argument("--from-csv", action="store_true",

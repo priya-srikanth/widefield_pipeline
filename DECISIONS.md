@@ -22547,3 +22547,23 @@ against this same stress test before freezing: it should be evaluated on the 0 %
 `stress_summary.csv`, `per_session_arms.csv`, `animal_epoch_arms.csv`, `arm_vs_prod.csv`, `boot_delta_arms.csv`,
 `retained_arms.csv`, `ps94_confusions.csv`, `em_diagnostics.csv`, `fig_mix_stress.png`, `fig_mix_poststroke.png`); features
 from `../running_def/cache/`.
+
+## 2026-11-03 -- A1: every "did it respond" uses the session's OWN response window (3.5 s), never 2.0 s
+
+Priya 11-03: "2 s was not deliberate". `analysis_kit.RESP_S` was 2.0 and fed `session_behavior`, `quit_point` (S28),
+`engagement_decomposition`, and the quit gate in `channel_position_maps` / `evoked_hrf_latency`. The task's window
+is in each session's behaviour log (`gui_config.json timing.response_window`, ms).
+- **One reader:** `analysis_kit.response_window_s(s)` -> `nolick_decoder.response_window_for` ->
+  `daq_trials.response_window_s`. `RESP_S = None` means "read the session". `--resp-s` still overrides by hand.
+- `rest_engagement._response_window_s` (wrong key and no ms -> s conversion, right only through its 3.5 s fallback)
+  now calls the same reader (audit B5).
+- **Measured on all 120 curated cohort-1 sessions:** the window is 3.5 s in every one (3.0 s exists only in the May
+  training sessions, which are not curated).
+  - Hit rate rises by +0.016 on average (median +0.008, max +0.087; by epoch: acute +0.027, pre +0.020,
+    subacute +0.012, chronic +0.009). These are trials answered between 2.0 and 3.5 s.
+  - The quit point moves in 7 / 120 sessions, always LATER (+21 to +368 s): PS92_0608, PS93_0814, PS95_0608,
+    PS95_0810 (pre), and PS94_0928, PS95_0903, PS95_0928 (chronic). Censoring is unchanged in every session.
+  - Per session: `docs/status/A1_RESPONSE_WINDOW_BEFORE_AFTER_2026-11-03.csv`.
+- **To re-render** (sabatinilab-34 rebuild, once): quit / engagement (S28), the rest and quit gates
+  (channel_position_maps, evoked_hrf_latency), and anything built on `session_behavior`'s hit column.
+- Test: `tests/test_response_window.py`.

@@ -175,30 +175,9 @@ def _responded_per_cue(session, cue_samples, response_window_s=None):
 
 
 def _response_window_s(session):
-    """The session's REAL response window (3.5 s in every session to date), never a config default.
+    """The session's REAL response window (s): `analysis_kit.response_window_s` (A1, 11-03). This used to read
+    gui_config.json itself with the wrong key and without the ms -> s conversion, and returned the right 3.5 s only
+    through its fallback; there is now one reader."""
+    from wfield_local import analysis_kit as ak
 
-    `defaults.yaml`'s 2.0 s was never the task's window and is only a fallback -- reading it as the
-    truth is a documented error (docs/GUI_TRIALS_LOGGING.md).
-    """
-    import json
-    from pathlib import Path
-
-    from wfield_local import config
-
-    d = session.get("behavior_dir") or session.get("mc")
-    for cand in (Path(str(d)) / "gui_config.json",) if d else ():
-        if cand.exists():
-            try:
-                t = json.loads(cand.read_text()).get("timing", {})
-                if t.get("response_window"):
-                    return float(t["response_window"])
-            except Exception as ex:                                      # noqa: BLE001
-                # SAID OUT LOUD. A malformed gui_config silently falling back to the config default
-                # would substitute a 2.0 s window the task never used, which is a documented error
-                # rather than a harmless default.
-                print(f"  !! response_window from {cand}: "
-                      f"{type(ex).__name__} {str(ex)[:50]} -- falling back", flush=True)
-    try:
-        return float(config.defaults()["behavior"]["response_window_s"])
-    except Exception:                                                    # noqa: BLE001
-        return 3.5
+    return ak.response_window_s(session)
