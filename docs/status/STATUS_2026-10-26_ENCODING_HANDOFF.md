@@ -82,13 +82,22 @@ section 1); goal LIVE v312. No page edits until the rebuild's page pass; e0 can 
   FIFTH review pass before any render.
 - Inventories + reconciliation + check tables: docs/status/rebuild_20261103/ (wf_attempt).
 
-**Open for Priya:**
-1. Encoder / ITI drift cutoff: keep 600 s + a 20-25 min sensitivity row?
-2. Licks per trial: count in a fixed cue -> cue + 3.5 s window, or report a rate? Acute trials are shorter: 53-68 % of
-   trials run past 3.6 s, vs 86-92 % pre.
-3. Confirm warm-up = neither class (about 4-5 trials cohort-wide).
-4. Four main-slide caption claims that do not hold under the LMM: rec_wlc csm_share, rec_kn chronic norm, spec_groups
-   acute residuals, recovery_timing acute gap. Soften them, or keep them with the hidden-slide caveat?
+**Decided late 11-03 (Priya); these replace the open items listed earlier:**
+1. **Encoder / ITI drift:** keep 600 s primary, plus a 1500 s sensitivity arm for the spout contra - ipsi cells and the ITI
+   pre-cue level readouts. The override comes from analysis/encoder-drift-cutoff 25e294d2; ENCODER_DRIFT_CUTOFF_20261103.md.
+   "82 % of the cycle band" is the slow band of PS92 subacute (drift-dominated), NOT 82 % of the position signal.
+2. **Task rule:** after the first lick the animal has 3.5 s to keep licking; with no lick, the trial ends at cue + 3.5 s
+   (trial length = first-lick latency + 3.5 s).
+   - Licks per trial = TOTAL licks from the cue to the trial stop while the spout is present.
+   - Lick RATE comes from the inter-lick intervals, NOT count / time.
+   - The helper verifies the rule on real trials.
+3. **"Stopped"** = a sustained run (>= 6 no_response) that starts >= 5 min after the session's first cue. This replaces the
+   warm-up rule; earlier runs are in neither class. The helper first reports whether any current stopped run starts in the
+   first 5 min (Priya expects none).
+4. **LMM captions:** the main slides keep their bootstrap captions. Each LMM hidden slide carries the LMM results AND its own
+   on-slide LMM caption: rec_wlc csm_share p .13 / .13 / .17; rec_kn chronic norm p .14; spec_groups acute residuals
+   p .065-.16; recovery_timing acute gap p .21. Asked of a8; confirm it is done.
+**Open for Priya:** none right now. Next decisions come with the fifth review and with the render results (per animal first).
 
 **Coordination:**
 - e3 owns trial_classes and the consolidation: A1 / A2 / A4 landed on main; A3 / A5 still to land.
