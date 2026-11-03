@@ -497,6 +497,14 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   hidden-state diff before / after: only the new slide changed). Applied: slide 59 paths contra-left; slide 52 p_phase with
   permutation bars; natural-width one-panel hidden slides 12 / 18 / 43; NEW hidden slide 119 "Backup: lick order, ITI bouts"
   (slide 118 bullet repointed). Deck now 183 slides (slides after 118 shift by +1). Waiting: 95-98 LMM 0-1 s (+ peak) swap.
+- Slides 95-98 REDONE (4cc7cd8d, lmm-hidden-20261103): slide 94's quantity (spouts pooled, AUC 0-1 s / pre), reproduced exactly
+  (cued 749 rows, docked ITI 714 rows; ramp_window_tests 21/21). LMM (df 3, Holm over 21): cued AUC 8 / 21 (subacute + chronic
+  contralesional tjM1 / SSp-m, NO acute cell, p .08-.40); cued peak 11 / 21; docked ITI AUC 0 / 21 (smallest p .07); ITI peak
+  8 / 21 (acute ALM / tjM1 / SSp-m contra, cortex; chronic tjM1 / SSp-m). Bootstrap on the same numbers: cued 18 / 18, ITI AUC 9,
+  peak 17. Per animal: the ACUTE cued rise is PS94 + PS95 (PS95 one session), PS92 ~0; ITI ratios unstable (PS94 small pre AUC ->
+  +8 to +10). Sent to a8 (95 cued AUC, 96 cued peak, 97 ITI AUC, 98 ITI peak); main slide 94 unchanged.
+  FOR PRIYA: slide 94's "larger after stroke" holds subacute / chronic under the LMM but the ACUTE part does not (2 animals);
+  the ITI AUC does not survive the LMM at all, the ITI peak partly does. Main-slide text unchanged pending you.
 
 ### Findings
 - main moved while the rebuild branch was being fixed (34 commits not in rebuild/cohort1-20261103). Two matter for the rebuild:
