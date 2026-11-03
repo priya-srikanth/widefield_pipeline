@@ -145,3 +145,9 @@ scripts in `_source_PI_overview_2026-11-02/`; one deck writer at a time).
   is undone (CI then includes 0, PS95 flips); ITI and first-cued-lick offsets stand. Tell sabatinilab-34 after Priya.
   PS110 mCherry: the refined 891 / 4,276 (20.8 %) call file was built on the MOSAIC detection; the cited per-tile
   detection has only the strict 559 / 3,804 (14.7 %); refined per-tile never run -> asked Priya.
+- 11-03 late: Priya: lick-landing decoder (the more important analysis) unaffected -- caveat sent to 34. Spout decoder:
+  wants a DIFFERENT guard than the state decoder's (training mix ~1/6 there = no-op); asked whether adding jaw-only /
+  incomplete (attempt) trials to the normalisation set helps -> helper running decoder_mix_checks/spout_guard/ (arms P,
+  bal_em, G1 pre-geometry guard 2/5/10 %, G2 drop-absent, ATT engaged+attempt [z and bal_em], ALL). Adoption still
+  Priya's call after that. PS110: Priya approved refined call on the PER-TILE detection -> helper running (2pRAM repo,
+  new files only; reports consumers of the mosaic-based rev74c59ab file).
