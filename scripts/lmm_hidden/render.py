@@ -9,8 +9,9 @@ Writes into --outdir (default grant_figures/lmm_hidden_20261103):
   <name>_draw.json                  the drawing arguments, so `redraw` can re-lay-out the figure WITHOUT re-fitting
 The extractors in this folder write the sessions CSV; this script is the one place that draws.
 
-SLIDE LAYOUT (deck owner a8, 11-03): the drawing itself is `lmm_change_fig.draw` on main, unchanged. This module only
-re-lays-out the finished figure before it is saved (`_slide_layout`): optional figure size, a clear gap of at least
+SLIDE LAYOUT (deck owner a8, 11-03): the drawing itself is `lmm_change_fig.draw` on main (with its own suptitle band
+since 9a820fbb). This module keeps main's layout unless the figure is resized / footnoted or main's band leaves less
+than GAP_PX, and then re-lays-out the finished figure before it is saved (`_slide_layout`): figure size, a clear gap of at least
 GAP_PX (at the saved 150 dpi) between the two-line suptitle and the first panel titles / stars (the deck crops the title
 at that gap), the legend and an optional footnote line at the bottom. `redraw` re-draws any subset of a figure's panels
 from its saved _sessions.csv / _lmm.csv (no re-fit; the stars and the Holm family stay the WHOLE figure's) and checks the
@@ -55,27 +56,56 @@ def _suptitle(title: str, T_full: pd.DataFrame) -> str:
             f"* p < .05, ** {_scope_text(T_full)}")
 
 
+def _gap(fig, st, axes) -> float:
+    r = fig.canvas.get_renderer()
+    return st.get_window_extent(r).y0 - max(a.get_tightbbox(r).y1 for a in axes)
+
+
 def _slide_layout(fig, *, figsize=None, footnote: str | None = None, suptitle: str | None = None) -> None:
-    """Re-lay-out a finished lmm_change_fig figure: size, title gap >= GAP_PX, legend + footnote at the bottom."""
+    """Re-lay-out a finished lmm_change_fig figure ONLY where needed: if the figure is resized (single-row figures,
+    whose size main's draw sets itself) or gets a footnote, lay it out again (legend + footnote at the bottom, title gap
+    >= GAP_PX); otherwise keep main's layout (its suptitle band, 9a820fbb) and only push the panels down if its gap is
+    still < GAP_PX. Records which path ran in fig._wf_layout."""
     fig.set_dpi(DPI)
-    if figsize:
-        fig.set_size_inches(*figsize)
     st = fig._suptitle
+    if st is not None and suptitle:
+        st.set_text(suptitle)
+    axes = [a for a in fig.get_axes() if a.get_visible()]
+    resize = bool(figsize) and tuple(round(v, 2) for v in fig.get_size_inches()) != tuple(round(v, 2) for v in figsize)
+    if not (resize or footnote):
+        fig._wf_layout = "main"
+        if st is not None and _gap(fig, st, axes) < GAP_PX:
+            fig._wf_layout = "main + gap push"
+            H = fig.get_figheight() * DPI
+            for _ in range(12):
+                g = _gap(fig, st, axes)
+                if g >= GAP_PX:
+                    break
+                fig.subplots_adjust(top=fig.subplotpars.top - (GAP_PX + 4 - g) / H)
+        fig._wf_title_gap_px = _gap(fig, st, axes) if st is not None else None
+        return
+    fig._wf_layout = "slide relayout"
+    if resize:
+        fig.set_size_inches(*figsize)
+    for ax in axes:                     # slide legibility: long y labels fit one panel row, crowded x labels shrink
+        ax.yaxis.label.set_fontsize(8)
+        if len(ax.get_xticks()) > 8:
+            ax.tick_params(axis="x", labelsize=6.5)
     if st is not None:
-        if suptitle:
-            st.set_text(suptitle)
         st.set_y(0.995)
         st.set_va("top")
+    leg = fig.legends[0] if fig.legends else None
+    if leg is not None and resize:      # main fits the legend columns to the width it drew at; refit to the new width
+        n = len(leg.legend_handles)
+        leg.set_ncols(max(2, min(n, int(fig.get_figwidth() / 2.4))))
     foot = fig.text(0.005, 0.004, footnote, fontsize=7, ha="left", va="bottom", style="italic") if footnote else None
     r = fig.canvas.get_renderer()
     H = fig.get_figheight() * DPI
     foot_h = (foot.get_window_extent(r).height + 4) if foot else 0
-    leg = fig.legends[0] if fig.legends else None
     if leg is not None:
         leg.set_bbox_to_anchor((0.5, foot_h / H), transform=fig.transFigure)
     leg_h = leg.get_window_extent(r).height if leg is not None else 0
     st_h = st.get_window_extent(r).height if st is not None else 0
-    axes = [a for a in fig.get_axes() if a.get_visible()]
     bottom = (foot_h + leg_h + 6) / H
     top = 1 - (st_h + GAP_PX + 8) / H
     fig.tight_layout(rect=(0, bottom, 1, top))
@@ -98,8 +128,7 @@ def _slide_layout(fig, *, figsize=None, footnote: str | None = None, suptitle: s
         if need_bot:
             kw["bottom"] = sp.bottom + (leg_top - ax_bot + 3) / H
         fig.subplots_adjust(**kw)
-    r = fig.canvas.get_renderer()
-    fig._wf_title_gap_px = (st.get_window_extent(r).y0 - max(a.get_tightbbox(r).y1 for a in axes)) if st else None
+    fig._wf_title_gap_px = _gap(fig, st, axes) if st is not None else None
 
 
 def _draw(S, T_draw, cells, out: Path, *, spec: dict, panels=None, ncols=0, figsize=None, footnote=None,
@@ -123,13 +152,13 @@ def _draw(S, T_draw, cells, out: Path, *, spec: dict, panels=None, ncols=0, figs
                 if isinstance(c, ErrorbarContainer):
                     betas.append(float(np.asarray(c.lines[0].get_ydata())[0]))
             stars += [t.get_text() for t in ax.texts if t.get_text() in ("*", "**")]
-        got.update(betas=sorted(betas), stars=sorted(stars), gap=fig._wf_title_gap_px)
+        got.update(betas=sorted(betas), stars=sorted(stars), gap=fig._wf_title_gap_px, layout=fig._wf_layout)
         return orig(fig, fname, *a, **k)
 
     Figure.savefig = savefig
     try:
         L.draw(S, T_draw, cells, out, title=spec.get("title") or out.stem, ylabel=spec.get("ylabel", "change vs own pre"),
-               labels=spec.get("labels") or {}, panels=panels, ncols=ncols)
+               labels=spec.get("labels") or {}, panels=panels, ncols=ncols, figsize=figsize)
     finally:
         Figure.savefig = orig
     # the check: every drawn estimate is a beta of the table and every star is the table's star, nothing else
@@ -139,7 +168,8 @@ def _draw(S, T_draw, cells, out: Path, *, spec: dict, panels=None, ncols=0, figs
     ok = (len(exp_b) == len(got["betas"]) and np.allclose(exp_b, got["betas"], rtol=0, atol=1e-12)
           and exp_s == got["stars"])
     return dict(file=out.name, estimates=len(got["betas"]), stars=len(got["stars"]),
-                double=got["stars"].count("**"), numbers_match=bool(ok), title_gap_px=round(got["gap"] or -1, 1))
+                double=got["stars"].count("**"), numbers_match=bool(ok), title_gap_px=round(float(got["gap"] or -1), 1),
+                layout=got["layout"])
 
 
 def _panels(S, cells, panel_by):
