@@ -48,9 +48,12 @@ from wfield_local import config, epochs
 #: buried in an expression is invisible to anyone reading for what the analysis assumes.
 LEAD_S = 1.0
 
-#: The ENL window width. Matches `decode.precue_post_s`; read from config rather than assumed.
+#: The ENL window width: THE shared definition (`lp_licks.enl_post_s`: 2 s under DAQ = decode.precue_post_s, 1 s under
+#: LP; Priya 11-04 "every ENL analysis follows the lick source"). The licks it is tested against come from the same
+#: source (`_worker`).
 def _post_s() -> float:
-    return float(config.defaults()["decode"].get("precue_post_s", 2.0))
+    from wfield_local import lp_licks
+    return lp_licks.enl_post_s()
 
 
 def _worker(item):
@@ -74,7 +77,17 @@ def _worker(item):
     try:
         cue = _load_cue_events(s["h5"])
         lk = _load_daq_events(s["h5"], "lick_analog", 2.5, 1.0, (0.001, 0.020), 0.10)
+        # THE WINDOW'S LICK SOURCE (Priya 11-04): under LP the LP train `_trial_features` uses replaces DAQ contact,
+        # and cues without an LP verdict are out of coverage -- the same replacement, one definition (`session_lp`)
+        lp = None
+        if item.get("lick_source", "daq") == "lp":
+            from wfield_local import lp_licks
+            lp = lp_licks.session_lp(lab, cue["cue_samples"], lk["sample_rate_hz"],
+                                     float(config.defaults()["decode"]["max_rt_s"]))
+            lk = dict(lk, lick_samples=lp["lick_samples"])
         cue_f, lick_f, _csmp = _frames(s, cue, lk)
+        if lp is not None:
+            cue_f = np.where(lp["drop"], -1, cue_f)
         codes = classify_cues_with_backup(s, cue)
     except Exception as exc:
         return [{"label": lab, "error": f"{type(exc).__name__}: {exc}"[:80]}]
@@ -101,7 +114,8 @@ def _worker(item):
         if in_win:
             no_clean = lickfree_window(c0, strobe_f[k], ls, post_n) is None
         rows.append({"label": lab, "animal": lab.split("_")[0], "epoch": epochs.epoch_of(lab),
-                     "in_window": in_win, "lead": in_lead, "no_clean": no_clean, "error": None})
+                     "in_window": in_win, "lead": in_lead, "no_clean": no_clean, "error": None,
+                     "lick_source": item.get("lick_source", "daq"), "post_s": float(item["post_s"])})
     return rows
 
 
@@ -134,16 +148,23 @@ def main(argv=None) -> int:
     ap.add_argument("--lead-s", type=float, default=LEAD_S)
     args = ap.parse_args(argv)
 
+    from wfield_local import lp_licks
     cache = Path(args.cache) if args.cache else None
+    post_s, src = _post_s(), lp_licks.lick_source()
     if cache and cache.is_file() and not args.refresh:
         print(f"[lick_rates] reading {cache}", flush=True)
         df = pd.read_csv(cache)
+        # a cache from another lick source / window is another measurement (columns absent = a pre-11-04 DAQ 2 s file)
+        got = (str(df["lick_source"].iloc[0]) if "lick_source" in df and len(df) else "daq",
+               float(df["post_s"].iloc[0]) if "post_s" in df and len(df) else 2.0)
+        if got != (src, post_s):
+            raise SystemExit(f"[lick_rates] {cache} holds lick source / window {got}, this run is {(src, post_s)}: "
+                             "pass --refresh or another --cache")
     else:
-        post_s = _post_s()
-        items = [{"label": s["label"], "post_s": post_s, "lead_s": args.lead_s}
+        items = [{"label": s["label"], "post_s": post_s, "lead_s": args.lead_s, "lick_source": src}
                  for s in ak.curated_sessions()]
         print(f"[lick_rates] {len(items)} curated sessions, "
-              f"window {post_s:g}s, lead {args.lead_s:g}s", flush=True)
+              f"window {post_s:g}s ({src} licks), lead {args.lead_s:g}s", flush=True)
         # `fan_sessions` sorts by the ITEM; a dict is not orderable, so the key is required -- and
         # the sort is not optional, completion order would reorder every downstream table (rule 6).
         res, fail = ak.fan_sessions(items, _worker, jobs=args.jobs, key=lambda it: it["label"])

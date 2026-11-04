@@ -9,7 +9,8 @@ PROVENANCE: the plotting script is LOST (imaging page provenance prov_s5_13.md: 
 
 INPUT: <labcams>/enl_movement_multisession/enl_movement_multisession.csv, one row per session x arm, written by
   scripts/enl_movement_multisession.py (refit within each session: logistic C 0.5, all LocaNMF components, 4 x 0.5 s
-  bins, GroupKFold by position block; window [cue - 2 s, cue], lick-free, engaged trials; chance 1/6). Arms drawn:
+  bins, GroupKFold by position block; window [cue - W, cue], W = `lp_licks.enl_post_s()` (2 s DAQ / 1 s LP since 11-04), lick-free on licks of the
+  same source, engaged trials; chance 1/6). Arms drawn:
     raw        no removal                                                  (black)
     null_3     top-3 movement-potent dimensions projected out               (blue, "top-3 movement dims removed")
     residual   running + 4-camera video motion energy regressed out in-fold (red, "running + video regressed out")

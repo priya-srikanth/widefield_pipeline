@@ -70,7 +70,11 @@ from wfield_local.plot_spout_trial_averages import _load_daq_events as _load_cue
 from wfield_local.precue_attribution import CHANCE, C_REG, encoding_ev, family_columns, region_names
 
 FS = 31.23
-PRE_S = 2.0            # the pipeline's pre-cue window: 2 s ENDING at the cue
+#: The pipeline's pre-cue window ENDING at the cue: THE shared ENL window (`lp_licks.enl_post_s`, Priya 11-04) of the DAQ
+#: source, because this control reads DAQ contact licks only (`trial_table`) -- 2.0 s (decode.precue_post_s), as before;
+#: the window and the licks it is tested against always share a source.
+from wfield_local import lp_licks as _lp_licks  # noqa: E402
+PRE_S = _lp_licks.enl_post_s(source="daq")
 MIN_TRIALS = 40        # below this a decode result is not reported at all
 ENL_LICKFREE_WARN = 0.85   # below this, say so: the ENL assumption is the pre-cue readout's floor
 

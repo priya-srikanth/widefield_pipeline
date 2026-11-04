@@ -53,7 +53,7 @@ from pathlib import Path
 
 import numpy as np
 
-from wfield_local import config, joint_locanmf
+from wfield_local import config, joint_locanmf, lp_licks
 from wfield_local.locanmf_cue_lick_analysis import POSITION_NAMES, SESSIONS
 from wfield_local.locanmf_frozen_decoder import pool_sessions
 from wfield_local.paths import PathResolver
@@ -240,7 +240,7 @@ def run_animal(animal, align="precue", seed=0, pool_n=1):
         return None
     basis = joint_locanmf.load(animal, sessions=SESSIONS)
     feat = features_with_indices(basis, nolick_ref="cue")
-    post_s = float(config.defaults()["decode"].get(f"{align}_post_s", 2.0))
+    post_s = lp_licks.post_s_for(align)
     pooled = pool_sessions(pre + post, source="locanmf", align=align, post_s=post_s, features=feat)
     if pooled is None:
         return None

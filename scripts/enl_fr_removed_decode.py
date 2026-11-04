@@ -11,8 +11,9 @@ of the above-chance code, tracks raw session by session); this is the same test 
 locally on the cohort.
 
 SAME TRIALS, FEATURES, DECODER AND IN-FOLD REMOVAL as `enl_movement_multisession` (its `enl_table`, `lagged`,
-`features`): [cue - 2 s, cue) lick-free (DLC lick onsets), spout strobe >= 2 s before the cue, engaged (lick within
-max_rt after the cue), all LocaNMF components, 4 x 0.5 s bin means, logistic C 0.5, position runs as GroupKFold
+`features`): a W-long lick-free window, W = `lp_licks.enl_post_s()` (2 s DAQ / 1 s LP, licks of the same source,
+slid like the decoders'; Priya 11-04), spout strobe >= W before the cue, engaged (lick within
+max_rt after the cue), all LocaNMF components, 4 bin means (W / 4 each), logistic C 0.5, position runs as GroupKFold
 groups; every movement model (RidgeCV, movement -> dF/F, lags 0 / 0.1 / 0.2 s, movement leads) is fit inside each
 fold on TRAINING trials and subtracted from every frame. Arms:
   raw              no removal (should equal the video analysis's raw on shared sessions -- the check)
@@ -57,16 +58,17 @@ def run_session(label: str, n_perm: int = 1000) -> list[dict]:
     rv = PathResolver()
     s = next(x for x in config.load_sessions() if x["label"] == label)
     dp = config.defaults()["decode"]
-    win_s, lead_s = float(dp["precue_post_s"]), 0.6
+    from wfield_local import lp_licks
+    win_s, lead_s = lp_licks.enl_post_s(), 0.6           # THE ENL window of the lick source (Priya 11-04)
     animal, date, tr = EM.enl_table(s, rv, win_s, float(dp["max_rt_s"]))
     Y, _reg, ft = MS.imaging(label)
-    trial_frames = [np.flatnonzero((ft >= c - win_s) & (ft < c)) for c in tr.cue_s]
+    trial_frames = [np.flatnonzero((ft >= w0) & (ft < w0 + win_s)) for w0 in tr.w0_s]   # the (slid) ENL window
     cov = np.array([len(f) >= 0.9 * int(round(win_s * EM.FPS_IMG)) for f in trial_frames])
     tr = tr[cov].reset_index(drop=True)
     trial_frames = [f for f, k in zip(trial_frames, cov) if k]
-    trial_frames_e = [f[ft[f] < c - END_S] for f, c in zip(trial_frames, tr.cue_s)]
+    trial_frames_e = [f[ft[f] < w0 + win_s - END_S] for f, w0 in zip(trial_frames, tr.w0_s)]
     y, groups = tr.pos_name.to_numpy(), tr.block.to_numpy()
-    enl = [(c - win_s - lead_s, c) for c in tr.cue_s]
+    enl = [(w0 - lead_s, w0 + win_s) for w0 in tr.w0_s]
     wmask = np.zeros(len(ft), bool)
     for t0, t1 in enl:
         wmask |= (ft >= t0) & (ft < t1)

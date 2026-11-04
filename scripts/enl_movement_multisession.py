@@ -9,8 +9,10 @@ analysis?" PS93 0814 (whole-session models) left 0.26-0.30 decodable after DLC +
 bound (the video may over-remove: a stationary rod occludes / changes contrast by position). DLC added ~nothing in
 the lick-free ENL, so the movement model here is running + video only, which needs no whole-session DLC.
 
-ENL-ONLY, so it scales to the cohort: per trial the window is [cue - 2 s, cue] (lick-free: no DAQ lick inside;
-spout strobe >= 2 s before the cue so the spout is stationary; ENGAGED = a lick within decode.max_rt_s after the
+ENL-ONLY, so it scales to the cohort: per trial the window is W long, W = `lp_licks.enl_post_s()` (2 s DAQ,
+1 s LP; Priya 11-04), LICK-FREE on licks of that source and SLID like the decoders' (`precue_window_start`: ending at
+the cue if clean, else the latest lick-free gap after the strobe; dropped if none);
+spout strobe >= W before the cue so the spout is stationary; ENGAGED = a lick within decode.max_rt_s after the
 cue -- the project's ENL decoder population), plus a 0.6 s lead-in for the movement lags. Motion energy is computed
 only in those windows (4 cameras, ds 8, binned to imaging frames on the DAQ clock), PCA 30 per camera fitted on the
 session's ENL frames; running = DAQ treadmill speed (`behavior_events.session_speed`). Movement design per imaging
@@ -43,7 +45,7 @@ K_SWEEP = (1, 2, 3, 5, 8, 12)
 
 
 def enl_table(s, rv, win_s, max_rt):
-    """Clean ENL trials of one registered session: cue_s, pos_name, block (position runs)."""
+    """Clean ENL trials of one registered session: cue_s, pos_name, block (position runs), w0_s (ENL window start)."""
     from wfield_local import dlc_frames
     from wfield_local import trial_windows as TW
     animal = s["label"].split("_")[0]
@@ -55,13 +57,23 @@ def enl_table(s, rv, win_s, max_rt):
     else:                                     # no saved trial table (PS93 0805): the behaviour-log session id
         from wfield_local.docked_periods import behaviour_session_dir
         sid = Path(behaviour_session_dir(s["label"])).name
-    licks = np.sort(dlc_frames.lick_onsets(animal, date, sid, rv))
+    # THE GATE'S LICKS COME FROM THE WINDOW'S SOURCE (Priya 11-04): `win_s` is `lp_licks.enl_post_s()` (1.0 s under
+    # LP), so under LP the lick-free test and the engaged test read the LP train (`lp_licks.gate_licks_s`, the edited
+    # train `_trial_features` uses) and cues without an LP verdict are dropped; DAQ contact otherwise, as before.
+    from wfield_local import lp_licks
+    b = b[np.isfinite(b.cue_s)].copy()
+    licks, has = lp_licks.gate_licks_s(s["label"], b.cue_s.to_numpy(float),
+                                       dlc_frames.lick_onsets(animal, date, sid, rv), max_rt)
+    b = b[has].copy()
     ok = np.isfinite(b.cue_s) & np.isfinite(b.strobe_s) & (b.strobe_s <= b.cue_s - win_s)
     b = b[ok].copy()
-    lo, hi = np.searchsorted(licks, b.cue_s - win_s), np.searchsorted(licks, b.cue_s)
+    # SLIDING lick-free window (Priya 11-04): the decoders' own `precue_window_start` (via
+    # `lp_licks.enl_window_starts_s`) -- the fixed window ending at the cue if clean, else the latest lick-free gap
+    # after the strobe; a trial is dropped only when none exists. `w0_s` = the window start the features use.
+    b["w0_s"] = lp_licks.enl_window_starts_s(b.cue_s.to_numpy(float), b.strobe_s.to_numpy(float), licks, win_s)
     first = np.searchsorted(licks, b.cue_s)
     nxt = np.where(first < len(licks), licks[np.minimum(first, len(licks) - 1)], np.inf)
-    b = b[((hi - lo) == 0) & ((nxt - b.cue_s) <= max_rt)].copy()
+    b = b[np.isfinite(b.w0_s) & ((nxt - b.cue_s) <= max_rt)].copy()
     b["block"] = (b.pos_name != b.pos_name.shift()).cumsum()
     return animal, date, b.reset_index(drop=True)
 
@@ -134,12 +146,13 @@ def run_session(s, cams, ds, workers, n_perm, log=print):
     from wfield_local.paths import PathResolver
     rv = PathResolver()
     dp = config.defaults()["decode"]
-    win_s, lead_s = float(dp["precue_post_s"]), 0.6
+    from wfield_local import lp_licks
+    win_s, lead_s = lp_licks.enl_post_s(), 0.6           # THE ENL window of the lick source (Priya 11-04)
     animal, date, tr = enl_table(s, rv, win_s, float(dp["max_rt_s"]))
     y, groups = tr.pos_name.to_numpy(), tr.block.to_numpy()
     Y, reg, ft = MS.imaging(s["label"])
     # imaging frames of each trial's ENL (feature) window and of the movement-model window (with lead-in)
-    trial_frames = [np.flatnonzero((ft >= c - win_s) & (ft < c)) for c in tr.cue_s]
+    trial_frames = [np.flatnonzero((ft >= w0) & (ft < w0 + win_s)) for w0 in tr.w0_s]   # the (slid) ENL window
     # TRIALS OUTSIDE THE IMAGING COVERAGE are dropped (PS95 0813: 197 of 871 cues fall outside it) -- an ENL window
     # needs (almost) all of its imaging frames; empty windows crashed the feature step
     n_exp = int(round(win_s * FPS_IMG))
@@ -149,7 +162,7 @@ def run_session(s, cams, ds, workers, n_perm, log=print):
         tr = tr[cov].reset_index(drop=True)
         y, groups = tr.pos_name.to_numpy(), tr.block.to_numpy()
         trial_frames = [f for f, k in zip(trial_frames, cov) if k]
-    enl = [(c - win_s - lead_s, c) for c in tr.cue_s]
+    enl = [(w0 - lead_s, w0 + win_s) for w0 in tr.w0_s]
     wmask = np.zeros(len(ft), bool)
     for t0, t1 in enl:
         wmask |= (ft >= t0) & (ft < t1)

@@ -98,7 +98,7 @@ REST_VARIANTS = ("rest", "restnl")
 
 def session_class_maps(label, align, post_s=None, rest_variant="rest"):
     """{(spout, class): (map at half resolution, n trials)} for one session and window."""
-    from wfield_local import config, joint_basis
+    from wfield_local import config, joint_basis, lp_licks
     from wfield_local.beta_maps import _quit_mask
     from wfield_local.locanmf_cue_lick_analysis import SESSIONS
     from wfield_local.locanmf_frozen_decoder import _args
@@ -107,7 +107,7 @@ def session_class_maps(label, align, post_s=None, rest_variant="rest"):
     from wfield_local.position_reference_maps import (MAP_SHAPE, REST_BASELINE_BINS,
                                                       session_rest_svt_timelocal)
     s = next(x for x in SESSIONS if x["label"] == label)
-    post_s = post_s or float(config.defaults()["decode"].get(f"{align}_post_s", 2.0))
+    post_s = post_s or lp_licks.post_s_for(align)
     u, v = joint_basis._load_session(s["mc"])
     a = _args("locanmf", align, post_s, baseline="none")
     b_nl = None

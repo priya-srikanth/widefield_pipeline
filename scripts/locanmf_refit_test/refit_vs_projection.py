@@ -147,12 +147,12 @@ def decode(s, signal, regions):
     from sklearn.model_selection import GroupKFold, cross_val_predict
     from sklearn.pipeline import make_pipeline
     from sklearn.preprocessing import StandardScaler
-    from wfield_local import config
+    from wfield_local import config, lp_licks
     from wfield_local.locanmf_position_decoder import _trial_features
     dp = config.defaults()["decode"]
     out = {}
     for align in ("precue", "cue"):
-        args = SimpleNamespace(align=align, post_s=float(dp[f"{align}_post_s"]), pre_s=1.0, fs=31.23,
+        args = SimpleNamespace(align=align, post_s=lp_licks.post_s_for(align), pre_s=1.0, fs=31.23,
                                max_rt=float(dp["max_rt_s"]), baseline=dp["baseline"], cv=dp["cv"],
                                source="locanmf", bins=None)
         X, y, g, _Xn, _yn, _fr = _trial_features(s, args, signal=signal, feat_region=regions)

@@ -1167,15 +1167,14 @@ ENL_SOURCE_DEFAULT = "lp"
 def enl_spec() -> dict:
     """The enl window's spec: ENL_SOURCE_ENV, default "lp" (Priya 11-04: LP 1.0 s lick-free); "daq" = the DAQ contacts,
     2.0 s; "decoders" = `enl_window.enl_spec()` (the decoders' WIDEFIELD_LICK_SOURCE)."""
-    from wfield_local import config, enl_window, lp_licks
+    from wfield_local import enl_window, lp_licks
     spec = enl_window.enl_spec()
     src = os.environ.get(ENL_SOURCE_ENV, "") or ENL_SOURCE_DEFAULT
     if src != "decoders":
         if src not in ("lp", "daq"):
             raise ValueError(f"{ENL_SOURCE_ENV}={src!r}; expected lp | daq | decoders")
-        w = os.environ.get(lp_licks.ENL_WINDOW_ENV, "").strip()
-        length = (float(w) if w else lp_licks.LP_ENL_WINDOW_S) if src == "lp" else             float(config.defaults()["decode"]["precue_post_s"])
-        spec = dict(spec, source=src, length_s=length, override=ENL_SOURCE_ENV)
+        # the length is THE ENL window of that source (`lp_licks.enl_post_s`, the one definition)
+        spec = dict(spec, source=src, length_s=lp_licks.enl_post_s(source=src), override=ENL_SOURCE_ENV)
     return spec
 
 def enl_licks(B: Behaviour, source: str):

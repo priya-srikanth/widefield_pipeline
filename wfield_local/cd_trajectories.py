@@ -1144,7 +1144,7 @@ def analyse_animal(animal, align="precue", *, method="dom", post_s=None, orth=Fa
     makes caching safe, and `courses_cache_kind` memoises the courses, so a re-run projects nothing.
     """
     from wfield_local import analysis_kit as ak
-    from wfield_local import config, epochs, joint_locanmf, session_cache
+    from wfield_local import epochs, joint_locanmf, lp_licks, session_cache
     from wfield_local.locanmf_frozen_decoder import _args
 
     basis = joint_locanmf.load(animal)
@@ -1155,8 +1155,11 @@ def analyse_animal(animal, align="precue", *, method="dom", post_s=None, orth=Fa
     # the same shape as `enl_state_counts` hardcoding a 2.0 s response window against the decoder's
     # 3.5 s (rule 9).
     if post_s is None:
-        post_s = float(config.defaults()["decode"].get(f"{align}_post_s", 2.0))
-    args = _args(source="roi", align=align, post_s=post_s)
+        post_s = lp_licks.post_s_for(align)
+    # THE ENL WINDOW FOLLOWS THE LICK SOURCE (Priya 11-04): `post_s_for` above (1.0 s under LP) and `apply_enl_window`
+    # here for an explicit post_s, exactly as `_trial_features` does -- `session_arms` slides its lick-free window on
+    # `args.post_s` with the LP train under LP, and until 11-04 it was handed 2.0 s there. Before the cache keys.
+    args = lp_licks.apply_enl_window(_args(source="roi", align=align, post_s=post_s))
     win_n = int(round(args.post_s * args.fs))
     pre_n, post_frames = span_frames(align, args.fs)
     # THE CURATED SET, in `load_sessions()` ORDER -- the same source `enl_decode.sessions_for` uses.

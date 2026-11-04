@@ -3,8 +3,11 @@ share. Moved verbatim from `locanmf_position_decoder` on 2026-11-04 (coordinator
 decoders' lick-free ENL window), so the O2 encoder can use it without that module's sklearn / matplotlib / session
 registry imports. `locanmf_position_decoder` re-exports both functions; nothing else changed.
 
-The window LENGTH is the decoders' too (`enl_spec`): `lp_licks.enl_window_s()` (1.0 s under the LP lick source, or
-WIDEFIELD_ENL_WINDOW_S), else `defaults.yaml decode.precue_post_s` (2.0 s, the DAQ source).
+The window LENGTH is the decoders' too (`enl_spec`): `lp_licks.enl_post_s()`, THE ENL window definition
+(WIDEFIELD_ENL_WINDOW_S if set, else 1.0 s under the LP lick source, else `defaults.yaml decode.precue_post_s` = 2.0 s,
+the DAQ source). Time-based callers (scripts that hold cue / lick TIMES, not frames) reach `precue_window_start` through
+`lp_licks.enl_window_starts_s`, which runs it on a 1 ms grid: one search everywhere (merge of rebuild/encoder-classes
+and rebuild/enl-window, 11-04).
 """
 from __future__ import annotations
 
@@ -15,8 +18,7 @@ def enl_spec() -> dict:
     """{"source": lp | daq, "length_s", "lickfree"}: the ENL decoders' window for this process's lick source."""
     from wfield_local import config, lp_licks
     d = config.defaults()["decode"]
-    w = lp_licks.enl_window_s()
-    return {"source": lp_licks.lick_source(), "length_s": float(w if w is not None else d["precue_post_s"]),
+    return {"source": lp_licks.lick_source(), "length_s": lp_licks.enl_post_s(),
             "lickfree": bool(d.get("precue_lickfree", True))}
 
 

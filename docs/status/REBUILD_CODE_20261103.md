@@ -2283,3 +2283,321 @@ Under rule "run" / "any" every stopped trial is "run" (no stopped tail there). t
 column (camera-gated runs). Tests: test_stop_rule_a2 +3 (a run, a tail and a stopped_licking trial in each; A3; A0;
 `stop_kind_for` with and without a prior `cue_classes_for`), test_trial_attempts (stop_kind in both camera tests).
 Related files: 367 passed + the pre-existing working_trials failure.
+
+### 8.45 ENL window follows the lick source: ONE definition (Priya 11-04; branch rebuild/enl-window off 571b3955)
+
+Written as 8.43 / 8.44 on the branch; renumbered 8.45 / 8.46 at the merge into rebuild/cohort1-20261103 (8.47).
+
+Decision: every ENL analysis follows the lick source. LP licks give 1.0 s; DAQ licks give `decode.precue_post_s` = 2.0 s.
+`WIDEFIELD_ENL_WINDOW_S` still overrides both (the matched DAQ 1.0 s arm, the LP 1.5 / 2.0 s sensitivity arms).
+CODE + TESTS ONLY: no renders, nothing written to M:. Worktree `wf_rebuild_enl`.
+
+**The definition (`wfield_local/lp_licks.py`).**
+- `enl_post_s(source=None)`: THE window. The override if set; else 1.0 under LP; else the config window. `source`
+  forces a lick source ("daq" for code that reads DAQ contact only).
+- `post_s_for(align)`: `decode.{align}_post_s`, except for the pre-cue window (`precue`, `precue-*`), which is
+  `enl_post_s()`.
+- `gate_licks_s(label, cue_s, daq_lick_s, max_rt)`: the lick train an ENL lick-free gate must use, for scripts that
+  gate on times.
+  - DAQ: the DAQ train.
+  - LP: `session_lp`'s edited train (the one `_trial_features` uses); cues without an LP verdict are dropped.
+- `enl_window_s()` and `apply_enl_window` are unchanged. They stay None / identity on the default run, so default keys
+  do not move.
+
+**Sites (before -> after).**
+
+| site | before | after | gate source |
+|---|---|---|---|
+| `precue_engagement_states.py:204` run_animal default | `precue_post_s` (2.0 under LP too; features were already 1.0 via `apply_enl_window`, the spec via make_spec) | `enl_post_s()` for precue; `cue` keeps 2.0 | `_trial_features`: same source |
+| `scripts/enl_movement_removed_decode.py:104` | `precue_post_s` | `enl_post_s()`; output name keyed by the run tag | `_trial_features`: same source |
+| `scripts/enl_movement_multisession.py:137` + `enl_table` | 2.0, DAQ licks always | `enl_post_s()`, `gate_licks_s` | **MISMATCH FIXED** (an LP window would have met DAQ licks) |
+| `scripts/enl_fr_removed_decode.py:60` | 2.0 (via EM.enl_table, DAQ licks) | `enl_post_s()` + the fixed `enl_table` | **MISMATCH FIXED** |
+| `scripts/enl_video_spout_check.py:142` + `enl_trials` | 2.0, DAQ licks always | `enl_post_s()`, `gate_licks_s`; output names keyed by the run tag | **MISMATCH FIXED** |
+| `scripts/enl_lick_rates.py:51-53` | `precue_post_s`, DAQ licks always | `enl_post_s()`; LP train + LP coverage under LP; the `--cache` CSV records (source, window) and a mismatch is refused | **MISMATCH FIXED** |
+| `scripts/cohort2_qc/quiet_task_events.py:57` | `ENL_S = 2.0` | `enl_post_s(source="daq")` = 2.0; each npz records `enl_s` | DAQ masks; see OPEN 1 |
+| `scripts/within_spout_deviation.py:52` | `(-1.0, 0.0)` | `(-enl_post_s(source="lp"), 0)` = (-1, 0) | NOT lick-gated; see OPEN 2 |
+| `wfield_local/precue_lickfree.py` PRE_S | 2.0 | `enl_post_s(source="daq")` = 2.0 | DAQ window, DAQ licks (unchanged) |
+| `wfield_local/cd_trajectories.py:1158` | `decode.{align}_post_s` (2.0 under LP) | `post_s_for(align)` + `apply_enl_window` | **WINDOW FIXED**: under LP, `session_arms` slid a 2 s lick-free window over the LP train and fitted 2 s window means |
+| `cd_overlap_null.py:343`, `scripts/component_exclusion_audit.py:60` | same | `post_s_for(align)` | same fix (they share cd_trajectories' arms cache) |
+| `attempt_coding.py:223/384`, `attempt_maps.py:110`, `position_axes.py:243`, `position_coding_directions.py:772` | `decode.{align}_post_s` | `post_s_for(align)` | value was already corrected downstream (`apply_enl_window` / make_spec); now one read |
+| `nightly_figs.py:256` (`--post-s`), `locanmf_analysis_deck.py:285` (notes text), `scripts/null_potent_session.py:273`, `scripts/locanmf_refit_test/refit_vs_projection.py:155` | config window | `post_s_for` / `enl_post_s` | `_trial_features`: same source |
+| `scripts/epoch_sessions_long.py` CD pre-cue readout `[-2, 0)` | fixed 2 s | the dump's own fitted window (`res["win_s"]`); a DAQ dump keeps the label `[-2,0) s` | n/a |
+| `scripts/rebuild_figs/fig_enl_move.py` | provenance note "[cue - 2 s, cue]" | note updated | n/a |
+
+**Gate-source check (task 3).**
+- The core builders take the window and the licks from the same switch (WIDEFIELD_LICK_SOURCE): `_trial_features`,
+  `nolick_decoder.categorize` / `session_features`, `precue_window_start`. No mismatch there.
+- Mismatches were only in scripts that gate on their own lick times. They read `dlc_frames.lick_onsets` /
+  `_load_daq_events`, both DAQ:
+  - enl_movement_multisession and enl_fr_removed_decode (shared `enl_table`);
+  - enl_video_spout_check;
+  - enl_lick_rates.
+- All four now gate through `gate_licks_s` / `session_lp`.
+- The cd_trajectories family had the right licks and the wrong window (fixed above).
+
+**Other hard-coded windows (task 1 sweep), status.**
+- `combined_encoding.py:1192`: the "enl" R2 scoring window, `max(strobe, cue - 2.0) .. cue`. It is a scoring window,
+  not lick-gated. NOT changed, because changing it moves the O2 encoder outputs. Decision needed: OPEN 4.
+- `combined_encoding.py:1663`: the maps' ENL state = strobe + 0.3 s .. cue. Unrelated to the lick-free window;
+  unchanged.
+- `configs/defaults.yaml decode.precue_lickfree_check_s: 2.0`: no code reads it (the `precue_lick` flag uses the
+  effective window). Dead key; left.
+- FaceRhythm windows `(-2, 0)` (face_rhythm/factors/config PRECUE_S, face_rhythm_readouts, fr position maps, fr_peak,
+  fr asym): behaviour windows on a projection grid that starts at cue - 2 s, not lick-gated ENL analyses. Left.
+- `scripts/fr_enl_decode.py`: explicit W = 1 and 2 s, gate = LP OR DAQ. Left (explicit sweep).
+- `orofacial_w2.py` / `orofacial_heatmaps.py`: "NO-LICK ENL frames cue - 2 s .. cue" with the LP tongue gate
+  (behaviour). Left as a 2 s LP-gated behaviour window. Flag for Priya if "every ENL analysis" includes behaviour.
+- `scripts/lick_enl_angle_decode.py`, `lick_enl_target_test.py`: explicit W = 1.0 / 0.5 s, lick-free rule 2 s on the
+  iti_licks behaviour licks. Left (own family, explicit).
+- `scripts/enl_lp_census.py`, `gate_lp_check.py`: censuses of 2.0 / 1.5 / 1.0 / 0.5 s windows by both sources. Left.
+- `scripts/s1_refit_basis_table.py`, `s1_refit_locanmf_table.py`: their docstrings run `WIDEFIELD_LICK_SOURCE=lp
+  WIDEFIELD_ENL_WINDOW_S=2.0` (ENL pinned at 2 s, Priya 11-03). The override is still honoured. This conflicts with
+  11-04 unless it is meant as the table's sensitivity row: OPEN 3.
+- `state_spout_check.py:49`, `disengagement_tests.py:455/1348`, `revup_neural.py:303`, `iti_licks.py CUE_EXCL`:
+  behaviour / exclusion windows, not ENL lick-free windows. Left.
+- Function defaults `post_s=2.0` (beta_maps, nolick_decoder, enl_decode, enl_lick_control, grant_confusion,
+  poststroke_compare, ...): each reaches its features through `trial_features_cached` / `_trial_features` /
+  `nolick_decoder.session_features`, which apply `apply_enl_window` BEFORE the key. Frozen specs go through
+  `make_spec`. So they resolve to the shared window; left.
+
+**1.5 s (task 5).** No widefield code uses a 2pRAM-style 1.5 s ENL default. 1.5 s appears only:
+- as an explicit `WIDEFIELD_ENL_WINDOW_S` sensitivity arm (`lp_final_render`, tests);
+- in sweeps (`precue_window_sweep`, `enl_lp_census`).
+
+**Frozen ids / cache keys (task 2).**
+- Frozen specs: unchanged. `make_spec` already replaced a pre-cue post_s with `enl_window_s()`; the callers now pass
+  that value themselves, so every id stays the same (tested: `test_frozen_spec_carries_the_window`).
+- tf-* / nolick / map caches: unchanged (the window was already in the key via `apply_enl_window` /
+  `map_collect.cache_kind`). Map digests checked, base vs branch: bm 503fe1b00ac5, prm 94846e2d13ab, restnl
+  47b715c3d0df, all identical.
+- CHANGED under LP / an override only, because the value is now the real window:
+  - cd_trajectories `cdarms-*` (post_s), `cdfit*` (win_n) and courses (win_s), shared by cd_overlap_null and
+    component_exclusion_audit;
+  - cold once; the old LP entries held 2 s windows;
+  - default DAQ keys unchanged.
+- New identity:
+  - enl_lick_rates `--cache` CSV: lick_source and post_s columns;
+  - quiet_task_events per-session npz: `enl_s` (files without it read as 2.0, so existing files stay valid);
+  - enl_movement_removed_decode / enl_video_spout_check: file names via `run_mode.keyed_name` (unchanged on the default
+    run).
+- Side effect: the LP lick-times local sidecar (`lp_lick_times`, keyed on lp_licks' source) recomputes once, with the
+  same values.
+- GAP, not fixed (outside these paths): some session-cache kinds do not carry the window (`evoked_amp__*`,
+  `fixed_scale_maps__*`, `spatial_area_matrix__*`, `within_acc__*`). They are shared between a source's default window
+  and an override arm (DAQ vs DAQ_ENL1s; LP 1.0 vs LP + 1.5 / 2.0).
+  - Fix: an ENL tag in `session_cache.effective_kind` when an override differs from the source default.
+  - Left because it would cold-start the override arms (incl. the s1_refit LP + 2.0 tables).
+
+**O2 encoder (task 6).**
+- combined_encoding, o2_encoding, frozen_encoder and o2_bundle use only `lp_licks.attempts_path` and
+  `lp_licks.output_dir`. Both are unchanged, and none of the switched modules is imported by them.
+- No bundle input changes.
+- The maps' ENL state (strobe + 0.3 s .. cue) is unrelated, as expected.
+- BUT the encoder has a second ENL quantity: the "enl" R2 scoring window, `cue - 2.0 .. cue` (bounded at the strobe).
+  It is hard-coded and does not depend on the source. Left unchanged so the bundles stay valid: OPEN 4.
+
+**OPEN (for Priya).**
+1. `quiet_task_events` is a COHORT-1 script (PS92-95), despite its folder.
+   - Its `ev_enl` / `npre_enl` are "the decoder's window", and the T13 p_true comes from `attempt_coding` (LP-only,
+     1.0 s).
+   - Kept on DAQ 2.0 s as briefed.
+   - Following LP needs MIN_CLEAN_S (1.0 s of clean frames inside the window) re-decided; otherwise only fully clean
+     1 s windows survive.
+2. `within_spout_deviation --window enl` is 1.0 s (= LP) but is not lick-gated by any source. Its trials are engaged
+   and its licks are the bundle's video licks; the ENL is contact-free by task design only.
+3. The s1_refit tables pin ENL at 2.0 s under LP (11-03); 11-04 says LP gives 1.0 s.
+4. The combined_encoding "enl" scoring window is fixed at 2 s on this branch. Closed at the merge: encoder-classes
+   (8.43) made it the decoders' lick-free search (LP 1.0 s; `enl_fixed2s` kept), and its length is now `enl_post_s` (8.47).
+
+**Tests.**
+- New `tests/test_enl_window_source.py` (43 tests):
+  - the window under DAQ / LP / override / a forced source; `post_s_for`; agreement with `apply_enl_window`; the
+    frozen spec;
+  - `gate_licks_s` under both sources;
+  - `enl_table` / `enl_trials` gating on the window's source (fake session);
+  - each switched site resolving to the shared window (at runtime where cheap, static otherwise);
+  - a repo-wide check that only lp_licks (and precue_engagement_states' `cue` branch) read the config window
+    directly.
+- `test_share_writers_mode_safe`: enl_video_spout_check moved out of BEHAVIOUR (it now routes).
+
+**Test record (cb7b1f49).** New file: 43 passed. Related set (23 files): 414 passed. Full suite, 4 shards run one at
+a time (RAM checked before each): 4,787 passed, 171 skipped, 1 failed.
+- Shard 0: 848 passed, 27 skipped, 1 failed.
+- Shard 1: 1,918 passed, 27 skipped.
+- Shard 2: 1,144 passed, 117 skipped.
+- Shard 3: 877 passed.
+- The failure is `test_review_7ab::test_working_trials_stays_byte_identical_to_main`, and it was already there. It
+  compares against the LIVE origin/main, where `working_trials.py` moved in 4a37cbc8 (11-04 B/C/D/G). This branch does
+  not touch the file: its blob equals the one at 571b3955.
+
+### 8.46 Lick-free SLIDING ENL for every ENL predictor; quiet_task_events and s1 refit on LP 1.0 s (Priya 11-04)
+
+Priya's decisions, all relayed by the coordinator on 11-04:
+- quiet_task_events (cohort 1) switches to the LP no-lick 1.0 s ENL.
+- Any ENL prediction must use a LICK-FREE ENL.
+- The window SLIDES with the decoders' own search, and a trial is dropped only when no lick-free window exists. This
+  is neither "fully clean trials" nor a fixed-window gate.
+- The s1 refit tables switch to LP 1.0 s, with 2.0 s kept only as a labelled sensitivity arm.
+
+Commits:
+- 9efc3c22: s1 refit.
+- c73d04ee: quiet_task_events.
+- 8d912ae5: ENL predictors.
+
+**The slide (`lp_licks.enl_window_starts_s`, new).** It runs the decoders' own `precue_window_start` on a 1 ms grid
+(that function works in integer frames); it is not a new rule:
+- the fixed window ending at the cue, if it holds no lick;
+- otherwise the latest lick-free gap after the strobe that fits the window;
+- otherwise NaN, and the trial is dropped.
+
+The licks come from `gate_licks_s` (the window's source). As in `_trial_features`, a CLEAN fixed window is kept even
+when it starts before the strobe (pinned in a test). The scripts that required `strobe <= cue - W` before still do.
+
+**Per site: did it already slide?**
+
+| site | before | now |
+|---|---|---|
+| s1_refit_basis_table / s1_refit_locanmf_table | already slid (`_trial_features`); post_s literal 2.0, run pinned at ENL 2.0 | `post_s_for` -> LP 1.0 s; 2.0 s = sensitivity arm `WIDEFIELD_ENL_WINDOW_S=2.0` (folder LP_licks_ENL2s); CSV `enl_s` |
+| quiet_task_events `ev_enl` / `npre_enl` | fixed DAQ 2 s, NOT lick-gated (window frames only masked) | LP 1.0 s, gated + slid; trials without a window are out of the ENL rows |
+| within_spout_deviation `--window enl` | fixed [cue - 1, cue), UNGATED | `enl_post_s()` of the run's source, gated + slid |
+| enl_movement_multisession / enl_fr_removed_decode (`enl_table`) | gated (8.45), fixed window, dropped on a lick | slid (`w0_s`); features, lead-in, end-0.5 s arm on the slid window |
+| enl_video_spout_check (`enl_trials`) | gated (8.45), fixed | slid; motion energy on the slid window |
+| `_trial_features` / nolick / cd_trajectories / attempt_coding / quiet_task_events_followup | already slid | unchanged |
+| precue_lickfree (Section C control) | already searches (`lickfree_window`) | unchanged |
+| enl_lick_rates | a lick-rate measurement, not a predictor (`no_clean` uses the search) | unchanged |
+
+**Gated but NOT sliding, left unchanged (decision needed).** These use a fixed window and drop on a lick:
+- iti_licks-family ENL predictors: `lick_enl_angle_decode`, `lick_enl_target_test`, `lick_enl_offset_explore`, and
+  the pre-cue parts of `prelaunch_aim_tracking` / `revup_neural`.
+  - They use a fixed [-W, -0.10] window on the cue-aligned traces and drop any trial with a lick in [cue - L, cue)
+    (L = W or 2 s).
+  - They document why they do not slide: the traces start at -2 s, and a slid window mixes in the spout-arrival
+    transient.
+  - They are frozen-decoder families with their own outputs, so converting them is a separate job.
+- `fr_enl_decode`: fixed W = 1 / 2 s, dropped on an LP or DAQ lick. The FaceRhythm grid starts at cue - 2 s, so a
+  slide could only use [max(strobe, cue - 2), cue).
+- Not predictors, so left as they are:
+  - `combined_encoding`'s "enl" R2 scoring window (8.45, OPEN 4);
+  - the `epoch_sessions_long` CD readout (a projection of directions fitted on the slid windows).
+
+**quiet_task_events: what "clean" means, and MIN_CLEAN.**
+- CLEAN = the detection mask, not the lick-free test:
+  - no DAQ contact lick within TASK_BUF_S = 0.5 s (plus LP licks when QS_LICK_SOURCE=daq+lp);
+  - no running bout within 0.5 s;
+  - no swapped pair within 0.5 s;
+  - finite frames.
+- So the LP gate does not make the requirement redundant. It stays, scaled with the window:
+  `MIN_CLEAN_ENL_S = 0.5 x ENL_S` = 0.5 s of 1.0 s. That is the same fraction as the 1.0 s of 2.0 s used until 11-04.
+  The strata bins are scaled the same way (`CLEAN_ENL_BINS`; identical at 2 s).
+- `MIN_CLEAN_S` (whole pre-cue, `ev_pre`) is unchanged.
+
+Cheap count, read-only:
+- Sources: the existing 108 task_events npz (exact old counts), the events npz and the LP tables.
+- New clean time is approximated in continuous time: no swapped-pair / NaN frames. Check: old approx 49,790 vs exact
+  49,113, so the approximation is about 1.4 % high.
+- Totals:
+  - engaged trials with a pre-cue window: 51,455;
+  - old (DAQ 2 s, >= 1.0 s clean): 49,113;
+  - LP lick-free 1 s window exists: 50,407 (6,768 of them slid);
+  - new, >= 0.5 s clean: 48,919;
+  - new, whole window clean (>= 1.0 s): 11,134.
+
+So 0.5 x W keeps the old trial count, whereas a fully clean window would keep about 22 %. Per animal x epoch:
+
+| animal | epoch | trials | old 2 s, >=1.0 | LP window | slid | new, >=0.5 | new, >=1.0 |
+|---|---|---|---|---|---|---|---|
+| PS92 | pre | 2920 | 2577 | 2910 | 494 | 2652 | 661 |
+| PS92 | acute | 2091 | 1945 | 2086 | 261 | 1958 | 973 |
+| PS92 | subacute | 593 | 568 | 587 | 83 | 561 | 136 |
+| PS92 | chronic | 3962 | 3886 | 3863 | 987 | 3835 | 829 |
+| PS93 | pre | 4236 | 3885 | 3630 | 967 | 3441 | 1415 |
+| PS93 | acute | 1755 | 1677 | 1739 | 278 | 1666 | 1073 |
+| PS93 | subacute | 1390 | 1327 | 1383 | 299 | 1338 | 531 |
+| PS93 | chronic | 5939 | 5811 | 5914 | 1085 | 5840 | 1424 |
+| PS94 | pre | 4249 | 4090 | 4220 | 379 | 4120 | 454 |
+| PS94 | acute | 2740 | 2581 | 2721 | 235 | 2574 | 1168 |
+| PS94 | subacute | 2528 | 2388 | 2504 | 285 | 2373 | 314 |
+| PS94 | chronic | 4467 | 4296 | 4408 | 454 | 4279 | 446 |
+| PS95 | pre | 5032 | 4744 | 5027 | 106 | 4981 | 405 |
+| PS95 | acute | 720 | 715 | 718 | 33 | 717 | 298 |
+| PS95 | subacute | 3007 | 2905 | 2995 | 183 | 2916 | 432 |
+| PS95 | chronic | 5826 | 5718 | 5702 | 639 | 5668 | 575 |
+
+PS93 pre loses the most: 606 of its 4,236 trials have no LP lick-free 1 s window, and 551 of those are PS93_0813,
+which has no video and so no LP verdict.
+
+**quiet_task_events identity.**
+- The run's lick source defaults to LP (`os.environ.setdefault`, as in the followup).
+- Each npz records `enl_s`, `enl_src` and `enl_w0` (window start per trial). A pre-11-04 file reads as the fixed
+  2 s window.
+- Outputs go to `task_events_<src>lf<W>s/`; the DAQ 2 s run keeps `task_events/`. The followup imports TE / TE_SUFFIX
+  and keys its own folder the same way.
+- Under LP, V2 itself is already routed to `labcams/LP_licks/...` by the run tag, so the old DAQ files can never be
+  read.
+
+**within_spout_deviation.**
+- `ENL_W = enl_post_s()` of the run's source: LP 1.0 s; a DAQ-env run now gets 2.0 s (it was 1.0 s, ungated).
+- Licks: `dlc_frames.lick_onsets` (DAQ), or the LP train via `gate_licks_s`.
+- The window is slid (`enl_window_starts`); trials without one are dropped.
+- Folder `within_spout_deviation[_..]_enllf<W>s` (was `_enl`), so old ungated per-session npz are never reused. No
+  reader depends on the old name.
+
+Before / after under LP: 46,495 -> 46,092 trials (99.1 %), from a cheap count on behaviour only, all curated sessions
+from 08-06. PS93_0813 is excluded in both, as it has no behaviour bundle (no video).
+
+| animal | pre | acute | subacute | chronic |
+|---|---|---|---|---|
+| PS92 | 2690 -> 2680 | 1485 -> 1480 | 540 -> 534 | 3806 -> 3777 |
+| PS93 | 3272 -> 3226 | 1142 -> 1133 | 1215 -> 1208 | 5724 -> 5705 |
+| PS94 | 4088 -> 4059 | 1980 -> 1962 | 2428 -> 2405 | 4433 -> 4374 |
+| PS95 | 4798 -> 4793 | 512 -> 510 | 2689 -> 2677 | 5693 -> 5569 |
+
+**Tests.**
+- `tests/test_enl_window_source.py`, now 49 tests:
+  - the slide equals `precue_window_start`;
+  - `enl_table` / `enl_trials` slide on the window's source (a fake session with a slid, a no-verdict and a
+    no-window trial; `w0_s` checked);
+  - within_spout's window follows the run source and drops only trials with no lick-free window;
+  - quiet_task_events npz fields and keyed folders, and within_spout's keyed folder.
+- Full-suite record: below.
+
+**Test record (8d912ae5).** Full suite, 4 shards run one at a time (RAM >= 9.5 GB free before each): 4,790 passed,
+171 skipped, 1 failed.
+- Shard 0: 848 passed, 27 skipped, 1 failed.
+- Shard 1: 1,921 passed, 27 skipped.
+- Shard 2: 1,144 passed, 117 skipped.
+- Shard 3: 877 passed.
+- The one failure is the same as in 8.45 and was already there: `test_review_7ab::test_working_trials_stays_byte_identical_to_main`,
+  which compares against the live origin/main; working_trials.py is untouched here.
+
+### 8.47 Merge of encoder-classes, cue70 and enl-window into rebuild/cohort1-20261103 (11-04)
+
+CODE + TESTS ONLY: no renders, nothing written to M:. Merged with `git merge --no-ff`, in this order, onto 571b3955:
+rebuild/encoder-classes (825020c2, merge 3c4eb932, no conflicts), rebuild/cue70 (88b1cb8e, merge 28939c46), rebuild/enl-window
+(f056c223, this merge). rebuild/bcdg-port is NOT merged (follow-ups pending); its log section (written as 8.44) takes the
+next free number, 8.48, when it lands.
+
+**Log numbering.** encoder-classes = 8.43, cue70 = 8.44 (was 8.45), enl-window = 8.45 / 8.46 (were 8.43 / 8.44). Cross-references
+inside the enl sections were renumbered with them; 8.41's "see 8.43" now says no full suite ran at c3cb3c0c.
+
+**Encoder lick contexts (cue70 x encoder-classes).** `_context_licks` reads cue70's ONSET label (`oo.encoder_context`:
+`onset_context`, else `context` for a pre-11-04 licks_all) for pre_cue / iti AND for encoder-classes' `post_extra`
+(post-cue onsets held by the pre-cue / ITI tables). So a licks_excluded_0_70 row (a licks_precue row before 11-04) keeps
+its kernel and LICKS_ALL=split still puts every lick in exactly one kernel. On PS92_0806, relabelling the existing
+licks_all by peak (22 licks_precue rows with a 0-70 ms peak -> excluded_0_70) leaves the three lists unchanged (2,397 /
+967 / 15); a peak-label read would have moved 11 licks out of pre_cue and 11 out of post_extra. test_cue70_response_window's
+encoder test now carries `table` and checks post_extra.
+
+**One LP-vs-DAQ tolerance.** `combined_encoding.LP_DAQ_TOL_S` = `lp_licks.LP_DAQ_TOL_MS` / 1000 (0.05 s, unchanged).
+The two rules are otherwise NOT the same: at a FAR spout with no LP onset the encoder's per-trial alignment falls back to
+the DAQ contact (`timing_source` daq), while `lp_licks.first_lick_timing` leaves the trial untimed. Decision needed.
+Both read max_rt from `decode.max_rt_s`.
+
+**One ENL search, one ENL length.** The search is `enl_window.precue_window_start` (encoder-classes moved it there
+verbatim). The decoders re-export it, the combined encoder calls it on frames, and enl-window's `lp_licks.enl_window_starts_s`
+(time-based scripts, 1 ms grid) now imports it from `enl_window` (it went through the decoder module, which pulls in
+sklearn). The length: `enl_window.enl_spec` and the encoder's `COMBINED_ENCODING_ENL_SOURCE` override both take
+`lp_licks.enl_post_s` (they re-implemented it, reading `precue_post_s` directly). Same numbers under the production
+settings. One change: an encoder run with ENL source daq and WIDEFIELD_ENL_WINDOW_S set now uses that window, like every
+other ENL analysis (8.45). Test: test_enl_window_source::test_one_enl_search_and_length_for_decoders_encoder_and_time_scripts.
+8.45 OPEN 4 (the encoder's fixed 2 s enl window) is closed by 8.43.
