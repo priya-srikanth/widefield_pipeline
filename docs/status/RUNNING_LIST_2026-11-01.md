@@ -1264,3 +1264,12 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   - **DECISION NEEDED (Priya):**
     - (A) bundle the pre-cue licks for scoring only, with the model unchanged;
     - (B) LICKS_ALL=split: add pre-cue and ITI lick kernels to the production model.
+- **11-04 ~17:35: DECISION (Priya): option B. The production encoder gets COMBINED_ENCODING_LICKS_ALL=split.**
+  - It adds its own pre-cue lick kernel and its own ITI lick kernel to the post-cue kernel.
+  - The lick-free enl scoring window uses the same pre-cue licks.
+  - Robustness TAG: main_nolicksall.
+  - Every lick lands in exactly one kernel. 0-70 ms licks are still modelled; the 0-70 exclusion is about counting only.
+  - Implementing on rebuild/encoder-classes.
+- **OPEN (conflicting relay, asked Priya):** a8 relayed "encoder enl not lick-gated", "quiet events fully clean trials",
+  "within_spout lick gate". Priya's direct messages said lick-free / sliding. Proceeding on the direct messages, with
+  both built as options.
