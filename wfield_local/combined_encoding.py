@@ -1195,9 +1195,11 @@ class _TrialScorer:
             if predx is None:
                 self.sse[a][mi][~self.table["fitted"]] = np.nan
         if name == "full":
-            self.cv = P
+            self.cv = P.astype(np.float32)
 
-    def finish(self, parts: dict, intercept, tr_models, scorable) -> dict:
+    def finish(self, names: list, part, intercept, tr_models, scorable) -> dict:
+        """``part(name)`` -> (fit rows, scored-only rows) float32 Ra-space traces of one peth part (built one at a time
+        into the preallocated output: the full set never sits in memory twice)."""
         out = {f"t_{k}": v for k, v in self.table.items()}
         out.update({"tr_models": np.array(tr_models), "tr_scorable": np.isin(tr_models, scorable),
                     "off": self.off, "bin_edges_s": self.edges, "bin_of_off": self.b, "rd_mean": self.rd_mean,
@@ -1206,10 +1208,15 @@ class _TrialScorer:
             out[f"sse_bins_{a}"], out[f"sst_bins_{a}"], out[f"nfr_bins_{a}"] = self.sse[a], self.sst[a], self.nfr[a]
         if self.mode in ("full", "full32"):
             dt = np.float32 if self.mode == "full32" else np.float16
-            names = list(parts) + ["cv"]
-            out["parts"] = np.array(names)
+            out["parts"] = np.array(list(names) + ["cv"])
             out["intercept"] = np.asarray(intercept, np.float64)
-            out["frames"] = np.stack([np.vstack(parts[c]) for c in parts] + [self.cv.astype(np.float32)]).astype(dt)
+            F = np.empty((len(names) + 1, self.nfit + self.nx, self.cv.shape[1]), dt)
+            for i, c in enumerate(names):
+                a, b = part(c)
+                F[i, :self.nfit], F[i, self.nfit:] = a, b
+            F[-1] = self.cv
+            out["frames"] = F
+        self.cv = self.R = None
         return out
 
 
@@ -2039,9 +2046,10 @@ def run_session(label: str, order: str = "movement_first", seed: int = 0, inputs
         for g in GROUPS:
             compx[g] = Axf[:, gcol == g] @ beta[1:][gcol == g]
         compx["pos"] = Axf[:, pm] @ beta[1:][pm]
-        trials_out = trs.finish({c: ((comp[c] @ Ra).astype(np.float32), (compx[c] @ Ra).astype(np.float32))
-                                 for c in comp}, beta[0] @ Ra, tr_models, [m for m in tr_models
-                                                                           if _scorable(models[m])])
+        trials_out = trs.finish(list(comp), lambda c: ((comp[c] @ Ra).astype(np.float32),
+                                                        (compx[c] @ Ra).astype(np.float32)),
+                                beta[0] @ Ra, tr_models, [m for m in tr_models if _scorable(models[m])])
+        del compx, Axf
         res["n_trials_scored_only"] = int(len(X_))
         res["trials_mode"] = tmode
     res["n_lick_aligned_by_pos"] = dict(zip(pos_order, n_lick_pos.tolist()))
