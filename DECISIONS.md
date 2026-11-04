@@ -23172,3 +23172,25 @@ readout: CD score cue .017-.057 vs .06-.19 and precue .05-.12 vs .12-.25 (within
 (PS93 at 1 SD), **precue .015-.138 vs .022-.088: PS92 1.9x and PS93 1.6x the SD -> NOT within noise. CHECK FAILED; the
 projection frame stays OFF (default session_z) and the render (D) was not started.** Post-stroke headline moves if it
 were on: cue far-contra CD score acute -.099 -> -.332, precue .218 -> -.035, precue engagement-axis acute .755 -> 1.092.
+
+## 2026-11-03 — Jaw-only trials read like NO-RESPONSE trials, not like attempts; adding them to training does not move the pre-stroke reference, but centring a post-stroke session on them does (FINDING, no decision — Priya decides)
+
+Checks for Priya's question "jaw_only in working, or its own class like no_response?" (helper of the PI-deck window;
+`docs/status/JAW_ONLY_CHECKS_2026-11-03.md`; scripts / logs `labcams/decoder_mix_checks/jaw_only_checks_1103/`). Joint
+basis = the `grant_kit._frozen_frame` decoder, cue and precue (production 2 s pre-cue window); ROI basis agrees.
+Old and new production endpoints reproduced exactly first (every session, max |d| 1.1e-16; PS95 acute close ipsi .975 /
+.642). Nothing in production changed; no model stored or published.
+- **Test 1** (contact+incomplete decoder, LOSO, pre-August, close mid out, balanced accuracy, chance .167): jaw_only vs
+  none, PS94 cue .206 / .195, precue .387 / .351; PS95 cue .286 / .249, precue .247 / .336; contact .93 / .94 (cue),
+  .70 / .50 (precue). Within-class (train and test on the class, 5 spouts, chance .20): jaw PS94 .204 / .215, PS95 .260
+  / .275 at or just above a within-session permutation null (95th pct .22-.26), against count-matched lick controls
+  .67-.79 at cue. Jaw-only errors are no more neighbour-directed than no-response errors. PS92 (18 jaw-only trials) and
+  PS93 (25) cannot answer it.
+- **Test 2**: adding jaw_only to training changes held-out pre contact+incomplete accuracy by <= .01 (all animals, both
+  windows, own frame / A's frame / count-matched); pooled cue -.002 [-.033, +.030].
+- **Decomposition**: the acute close-ipsi drop (animal mean .789 -> .631; PS95 .975 -> .642) is mostly WHICH ROWS the
+  session's label-free EM centre is computed from: centring acute sessions on in_working rows (their jaw-only trials,
+  far-spout heavy acutely) instead of contact+incomplete lowers close ipsi in all four animals (A model .829 -> .735,
+  .629 -> .557, .619 -> .559, .832 -> .675); the B-vs-A model difference shows only in PS95 (.723 vs .833). The jaw-only
+  trials scored at close ipsi are 1. "Jaw as its own class" (train + score + centre on contact+incomplete) gives acute
+  close ipsi .727 (PS95 .832), far contra .187, pre panel .856, vs new .631 / .191 / .841 and old .789 / .219 / .882.
