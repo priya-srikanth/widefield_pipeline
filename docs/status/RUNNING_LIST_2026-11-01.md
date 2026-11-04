@@ -612,6 +612,9 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   Alternative: jaw_only counts as a non-response toward the 6.
 - Told a8: no current PI-deck figure from this window uses in_working with jaw; the rebuild replacements will move (per-slide
   old vs new list at the replacement pass).
+- a8: will NOT run a main-branch render tonight; holds PI slides 10-13 / 19 / 89 for the rebuild replacement pass (asks Priya in
+  the morning whether she wants an interim swap; will tell us before any render). a8's jaw-only helper on main is light, capped.
+  OWED to a8: per-slide old-vs-new list at the replacement pass.
 
 ### Findings
 - main moved while the rebuild branch was being fixed (34 commits not in rebuild/cohort1-20261103). Two matter for the rebuild:
