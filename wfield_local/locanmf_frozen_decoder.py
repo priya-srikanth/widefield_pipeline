@@ -455,7 +455,8 @@ def frozen_scored_frame(models, XE, GE, XU, GU, kept, pre_i, cls_e=None):
         pt = models["pi_train"]
         return pt["loso"].get(kept[i], pt["full"]) if i in pre_set else pt["full"]
 
-    return spout_scaling.scored_frame(XE, GE, XU, GU, range(len(kept)), model_of, prior_of, centre_mask=cm)
+    return spout_scaling.scored_frame(XE, GE, XU, GU, range(len(kept)), model_of, prior_of, centre_mask=cm,
+                                      labels=kept)
 
 
 def pooled_frozen_loso(labels, source="roi", align="cue", post_s=2.0, zscore=True, verbose=True,

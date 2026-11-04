@@ -909,3 +909,37 @@ Those assertions were updated in the next commit, and both tests pass.
 
   - They DIFFER, so nothing was unified.
 - **N3** stays undone (8.19).
+
+### 8.21 Fifth review scope D + E blockers (D-B1, D-B2, D-B3, N1) and the N5 report
+- **D-B1.** Section G `frozen(d)` no longer catches store errors. A WriteGuardError, the LP "loads DAQ-frozen"
+  refusal, an unreadable entry or a centre refusal now propagates instead of printing "fitting locally" and refitting
+  in memory, untagged. A pool that records no identity (`frozen` / `_g_store`) is still fitted in memory in the
+  DEFAULT run, but raises `SectionGRefused` (a SystemExit) in any tagged run. The WIDEFIELD_SECTION_G_FROZEN=0 opt-out
+  is already tagged `inmem-section_g` by run_mode.
+- **D-B2.** `spout_scaling.BalEmCentreRefused(SystemExit)` is raised by `centre_rows` (bad setting), `centre_mask`
+  (no classes) and `scored_frame` (no mask). A generic `except Exception` cannot swallow it. The reraise_under_camera
+  fixes in `_collect_5c` and `run_animal` stay. Test: the per-class confusions call under the camera gate without
+  classes stops the run even inside `try / except Exception`.
+- **D-B3.** The minimum is now 20 working rows (`MIN_CENTRE_ROWS`).
+  - The only fallback is explicit: `bal_em.centre_fallback_contact: ["PS93_0813"]` (no video). Its centre comes from
+    its DAQ contact (lick-class) rows, the rows its lick-aligned, contact-only selections score; never no-lick rows.
+  - The fallback is recorded in the spec (`scaling_params.centre_set_fallback` + `centre_min_rows`, so the spec id
+    changes), in every `figure_meta` sidecar (`bal_em,centre_fallback_sessions`), in the camera-gate caption
+    (`lp_licks.stamp`), and in a log line naming the session.
+  - Any other session below 20 raises. A session in a WORKING-gated selection cannot be a fallback session: those
+    sessions have no camera-working rows, so `_class_select` never selects them. A session with 1-19 working rows
+    that is not in the list raises at centre time.
+  - DECISIONS line rewritten.
+  - Session labels now reach every centre site (`FrozenFrame(labels=)` and `scored_frame(labels=)` in all callers).
+  - Not done: the fallback list is not written into every result JSON, only figure sidecars, captions, specs and logs.
+- **N1.** quiet_task_events_followup raises `BalEmCentreRefused` under the working centre (it has no mask).
+- **N5 (report only).** File: `C:/Users/SABATI~1/AppData/Local/Temp/claude/C--Users-SabatiniLab/f082ee0c-b33c-49a8-a537-dcee3bb7c84c/scratchpad/n5_report.txt`.
+  The REDO families of MASTER_MANIFEST outside epoch_grant_figures / grant_figures were classified heuristically by
+  source text.
+  - 33 scripts select their pre set from all pre sessions with no PRE_FROM / Aug-only marker. They would use
+    June + August pre under the profile. Among them: rest_migration rest_frozen_decoder, rest_coupling,
+    transfer_arms, rotation_maps, reference_family_figure, quit_point, flatpool_vs_restw; locomotor_decoder,
+    grant_encoder, cd_trajectories, chronic_stability, chronic_drift_vs_reorg, lick_cued_ramp, lick_iti_prelick.
+  - 5 scripts write LP_licks outputs, so their render block must set WIDEFIELD_LICK_SOURCE=lp. Three of them never
+    read the switch themselves: epoch_accuracy, epoch_maps, locanmf_analysis_deck. The other two are lp_final_render
+    and restnl_maps.

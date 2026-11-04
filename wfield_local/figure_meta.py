@@ -81,6 +81,16 @@ def write_meta(q, **fields):
         rows += _flatten(kind, value)
     if not rows:
         return None
+    # THE bal_em CENTRE FALLBACK (fifth review D-B3): every figure sidecar of a run whose centre is the camera working
+    # set names the sessions centred on their DAQ contact rows instead (no video)
+    try:
+        from wfield_local import spout_scaling
+        if spout_scaling.spout_scaling() and spout_scaling.centre_fallback():
+            rows.append(["bal_em", "centre_fallback_sessions", ";".join(sorted(spout_scaling.centre_fallback()))])
+    except SystemExit:
+        raise
+    except Exception:                                                   # noqa: BLE001 - a sidecar never costs a figure
+        pass
     q = pathlib.Path(q)
     out = _layout.sidecar(q, "_meta.csv")
     try:

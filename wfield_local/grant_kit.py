@@ -878,7 +878,7 @@ def _frozen_frame(bd, an=None, align=None, store=True):
             XE, GE, XU, GU, range(len(bd["kept"])),
             model_of=lambda i: loso.get(i) if i in bd["pre_i"] else full,
             prior_of=lambda i: pi_loso.get(i) if i in bd["pre_i"] else pi_full,
-            centre_mask=_bundle_centre_mask(bd))
+            centre_mask=_bundle_centre_mask(bd), labels=bd["kept"])
     else:
         XEs, XUs = XE, XU
     fr = {"scaling": sc or spout_scaling.SCALING_SESSION_Z, "XT": XT, "full": full, "loso": loso,
@@ -901,7 +901,7 @@ def _frozen_score_rows(bd, model, pi, i, Xe_rows, Xu_rows=None):
     if not spout_scaling.spout_scaling():
         return Xe_rows, Xu_rows
     mu, sd = spout_scaling.score_centre(
-        model, spout_scaling._centre_rows_of(bd["XE"], bd["GE"] == i, _bundle_centre_mask(bd)), pi)
+        model, spout_scaling._centre_rows_of(bd["XE"], bd["GE"] == i, _bundle_centre_mask(bd), bd["kept"][i]), pi)
     return ((Xe_rows - mu) / sd, None if Xu_rows is None else (Xu_rows - mu) / sd)
 def _runs_to_blocks(sess, pos):
     """Block ids from runs of the same (session, position), for trials that carry none of their own.

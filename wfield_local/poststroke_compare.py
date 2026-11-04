@@ -244,18 +244,32 @@ def frozen(d):
     """
     cache = d.get("_frozen_cache")
     if cache is None or "align" not in d:
+        _refuse_unkeyed("frozen(d)")
         return None
     if "models" not in cache:
-        try:
-            models, _status = frozen_decoder_models(
-                d["XE"], d["YE"], d["GE"], d["kept"], d["pre_i"],
-                align=d["align"], source=d["source"])
-        except Exception as ex:                                        # noqa: BLE001
-            print(f"  [frozen] unavailable ({type(ex).__name__} {str(ex)[:70]}); fitting locally",
-                  flush=True)
-            models = None
+        # NO SILENT IN-MEMORY FALLBACK (fifth review D-B1): a store error (WriteGuardError, the LP "loads DAQ-frozen"
+        # refusal, an unreadable entry, a centre refusal) propagates; it used to print "fitting locally" and let every
+        # caller refit a pre-stroke decoder in memory, on the session_z frame, untagged
+        models, _status = frozen_decoder_models(
+            d["XE"], d["YE"], d["GE"], d["kept"], d["pre_i"],
+            align=d["align"], source=d["source"])
         cache["models"] = models
     return cache["models"]
+
+
+class SectionGRefused(SystemExit):
+    """A section G reference that cannot come from the frozen store in a non-default run (a SystemExit, as
+    `frozen_models.LegacyStoreError`: no `except Exception` may turn it into a silent in-memory fit)."""
+
+
+def _refuse_unkeyed(what: str) -> None:
+    """A pool that records no identity (an `excluded_labels` pool, a test dict) can only be fitted in memory: allowed
+    in the DEFAULT run (the pre-rebuild behaviour), REFUSED in a tagged run (the render profile)."""
+    from wfield_local import lp_licks
+    if lp_licks.output_tag():
+        raise SectionGRefused(f"section G {what}: the pool records no identity, so its pre-stroke reference cannot "
+                              f"come from the frozen store; refusing an untagged in-memory fit in run "
+                              f"{lp_licks.output_tag()!r}")
 
 
 #: STORED BY DEFAULT (11-02 pass 2; Priya: "yes cache all frozen decoders"; CLAUDE.md rule 10). Section G's OTHER
@@ -289,7 +303,10 @@ def _g_store(d, kind, extra, fit, meta=None, scaling=None):
 
     from wfield_local import frozen_models
     cache = d.get("_frozen_cache")
-    if cache is None or "align" not in d or not frozen_models.family_on(SECTION_G_FROZEN_ENV):
+    if not frozen_models.family_on(SECTION_G_FROZEN_ENV):
+        return None
+    if cache is None or "align" not in d:
+        _refuse_unkeyed(kind)
         return None
     key = (kind, extra)
     if key in cache:

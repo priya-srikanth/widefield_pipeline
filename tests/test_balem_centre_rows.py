@@ -25,10 +25,10 @@ def test_centre_rows_follow_the_gate(camera):
     camera.delenv(ss.CENTRE_ENV)
     assert ss.centre_rows() == "engaged"
     camera.setenv(ss.CENTRE_ENV, "working")
-    with pytest.raises(ValueError, match="camera trial gate"):
+    with pytest.raises(ss.BalEmCentreRefused, match="camera trial gate"):
         ss.centre_rows()
     camera.setenv(ss.CENTRE_ENV, "bogus")
-    with pytest.raises(ValueError):
+    with pytest.raises(ss.BalEmCentreRefused):
         ss.centre_rows()
 
 
@@ -36,7 +36,7 @@ def test_centre_mask_is_the_working_classes_and_fails_closed(camera):
     cls = np.array(["contact", "incomplete", "jaw_only", "after_end", "unknown", "stopped", "early_run",
                     "no_response"], object)
     assert ss.centre_mask(cls).tolist() == [True, True, True, False, False, False, False, False]
-    with pytest.raises(RuntimeError, match="WORKING rows are required"):
+    with pytest.raises(ss.BalEmCentreRefused, match="WORKING rows are required"):
         ss.centre_mask(None)
     camera.setenv(ss.CENTRE_ENV, "engaged")
     assert ss.centre_mask(cls) is None and ss.centre_mask(None) is None
@@ -66,7 +66,7 @@ def test_frozen_frame_centre_uses_only_the_working_rows(camera):
     ff2 = ss.FrozenFrame(XE2, YE, GE, [0, 1], _pipe, loso=False, cls_e=cls,
                          store=lambda fit_all: {"full": ff.full, "loso": {}}, labels=list("abcd"))
     np.testing.assert_allclose(ff.centre(3)[0], ff2.centre(3)[0])
-    with pytest.raises(RuntimeError):
+    with pytest.raises(ss.BalEmCentreRefused):
         ss.FrozenFrame(XE, YE, GE, [0, 1], _pipe, loso=False)         # camera gate, no row classes: fails closed
     camera.setenv(ss.CENTRE_ENV, "engaged")
     e = ss.FrozenFrame(XE2, YE, GE, [0, 1], _pipe, loso=False, store=lambda fit_all: {"full": ff.full, "loso": {}}, labels=list("abcd"))
@@ -74,13 +74,40 @@ def test_frozen_frame_centre_uses_only_the_working_rows(camera):
     assert not np.allclose(e.centre(3)[0], ff2.centre(3)[0])        # the engaged centre DOES see the junk rows
 
 
-def test_session_without_working_rows_falls_back_to_all_engaged_rows(camera, capsys):
+def test_contact_row_fallback_is_explicit_and_the_minimum_is_20(camera, capsys):
+    """Fifth review D-B3: a session below MIN_CENTRE_ROWS working rows is REFUSED unless it is a configured contact
+    fallback (PS93_0813, no video), whose centre comes from its DAQ contact rows and is logged by name."""
     XE, YE, GE = _pool()
     me = GE == 2
     cm = np.ones(len(GE), bool)
     cm[me] = False
-    np.testing.assert_array_equal(ss._centre_rows_of(XE, me, cm), XE[me])
-    assert "falls back" in capsys.readouterr().out
+    np.testing.assert_array_equal(ss._centre_rows_of(XE, me, cm, "PS93_0813"), XE[me])
+    assert "PS93_0813" in capsys.readouterr().out and "PS93_0813" in ss.FALLBACK_USED
+    with pytest.raises(ss.BalEmCentreRefused, match="PS92_0818"):
+        ss._centre_rows_of(XE, me, cm, "PS92_0818")
+    cm[np.flatnonzero(me)[:19]] = True                     # 19 working rows: still refused
+    with pytest.raises(ss.BalEmCentreRefused):
+        ss._centre_rows_of(XE, me, cm, "PS92_0818")
+    cm[np.flatnonzero(me)[19]] = True                      # 20: the working rows
+    assert len(ss._centre_rows_of(XE, me, cm, "PS92_0818")) == 20
+    assert ss.scaling_params()["centre_set_fallback"] == {"PS93_0813": "contact"}
+    camera.setenv(ss.CENTRE_ENV, "engaged")
+    assert "centre_set_fallback" not in ss.scaling_params()
+
+
+def test_a_missing_classes_error_stops_the_confusions_block(camera):
+    """Fifth review D-B2: the refusal is a SystemExit, so the per-class confusions' generic `except Exception` (and any
+    other) cannot swallow it -- the run stops."""
+    from wfield_local import position_coding_directions as pcd
+    XE, YE, GE = _pool()
+    XU, YU, GU = XE[:30], YE[:30], GE[:30]
+    e_pre = GE < 2
+    with pytest.raises(ss.BalEmCentreRefused):
+        try:
+            pcd._class_confusions(XE, YE, GE, XU, YU, e_pre, {0, 1}, lambda c, pos=None: np.zeros(30, bool),
+                                  list("abcd"), GU=GU)
+        except Exception:                                                  # noqa: BLE001 - the block under test
+            pass
 
 
 def test_centre_set_enters_the_spec(camera):
@@ -105,7 +132,7 @@ def test_engaged_centre_under_camera_is_tagged(camera):
 def test_scored_frame_refuses_without_centre_rows(camera):
     XE, YE, GE = _pool()
     ff = ss.FrozenFrame(XE, YE, GE, [0, 1], _pipe, loso=False, cls_e=np.array(["contact"] * len(GE), object))
-    with pytest.raises(RuntimeError, match="WORKING centre rows"):
+    with pytest.raises(ss.BalEmCentreRefused, match="WORKING centre rows"):
         ss.scored_frame(XE, GE, XE[:0], np.zeros(0, int), [2], lambda i: ff.full, lambda i: ff.pi["full"])
 
 

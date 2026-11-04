@@ -80,6 +80,7 @@ trial_selection:
 
 bal_em:
   centre_rows: auto              # EM centre rows: auto = camera WORKING rows under the camera gate, DAQ-engaged under the DAQ gate (Priya 11-03); engaged = alternative
+  centre_fallback_contact: ["PS93_0813"]   # no camera-working rows (no video): centre from its DAQ contact rows (fifth review D-B3)
 
 locanmf:
   r2_thresh: 0.95

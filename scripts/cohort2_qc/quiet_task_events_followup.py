@@ -233,6 +233,11 @@ def score_session(lab, models, pre_set, raw, sd, rng):
     mdl = models["loso"].get(lab, models["full"]) if lab in pre_set else models["full"]
     if "pi_train" in models:                     # bal_em: the scoring centre (no labels), production SD
         from wfield_local import spout_scaling
+        if spout_scaling.centre_rows() == "working":
+            # fifth review N1: this script's centre is every engaged row (no camera classes here) -- refuse under the
+            # camera-working centre rather than silently use another centre set
+            raise spout_scaling.BalEmCentreRefused("quiet_task_events_followup: no camera-working centre mask available "
+                                                   "(bal_em.centre_rows = working); run with centre_rows = engaged")
         pt = models["pi_train"]
         pi = pt["loso"].get(lab, pt["full"]) if lab in pre_set else pt["full"]
         mu, sdv = spout_scaling.score_centre(mdl, z["X"], pi)

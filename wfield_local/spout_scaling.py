@@ -67,6 +67,29 @@ def spout_scaling():
 #: stored-model spec (``scaling_params.centre_set``); a camera run with the engaged centre is tagged (`run_mode`).
 CENTRE_ENV = "WIDEFIELD_BALEM_CENTRE"
 CENTRE_ROWS = ("working", "engaged")
+#: a session's working-row centre needs at least this many camera-working engaged rows (every curated session except
+#: the no-video PS93_0813 has >= 20; fifth review D-B3)
+MIN_CENTRE_ROWS = 20
+
+
+class BalEmCentreRefused(SystemExit):
+    """A bal_em centre that cannot be computed by the run's rule (fifth review D-B2): a SystemExit, so no generic
+    ``except Exception`` can swallow it into a silently ungated or engaged-centred result."""
+
+
+def centre_fallback() -> dict:
+    """{session label: "contact"} -- the sessions whose bal_em centre comes from their DAQ CONTACT (lick-class) rows
+    because they have no camera-working rows (no video; ``bal_em.centre_fallback_contact``, default PS93_0813).
+    Priya's rule keeps such a session in lick-aligned, contact-only selections, so its centre is fitted on exactly the
+    rows those selections score (never no-lick rows). Empty unless the centre is the camera working set."""
+    if centre_rows() != "working":
+        return {}
+    try:
+        from wfield_local import config
+        labs = (config.defaults().get("bal_em") or {}).get("centre_fallback_contact", ["PS93_0813"])
+    except ImportError:
+        labs = ["PS93_0813"]
+    return {str(x): "contact" for x in (labs or [])}
 
 
 def centre_rows() -> str:
@@ -83,9 +106,9 @@ def centre_rows() -> str:
     if v == "auto":
         return "working" if cam else "engaged"
     if v not in CENTRE_ROWS:
-        raise ValueError(f"bal_em.centre_rows / {CENTRE_ENV} = {v!r}; expected auto, working or engaged")
+        raise BalEmCentreRefused(f"bal_em.centre_rows / {CENTRE_ENV} = {v!r}; expected auto, working or engaged")
     if v == "working" and not cam:
-        raise ValueError("bal_em.centre_rows = working needs the camera trial gate (WIDEFIELD_TRIAL_GATE=camera)")
+        raise BalEmCentreRefused("bal_em.centre_rows = working needs the camera trial gate (WIDEFIELD_TRIAL_GATE=camera)")
     return v
 
 
@@ -96,23 +119,33 @@ def centre_mask(cls_e):
     if centre_rows() != "working":
         return None
     if cls_e is None:
-        raise RuntimeError("bal_em centre: the camera WORKING rows are required (bal_em.centre_rows = working) but the "
-                           "caller passed no camera classes for its engaged rows")
+        raise BalEmCentreRefused("bal_em centre: the camera WORKING rows are required (bal_em.centre_rows = working) "
+                                 "but the caller passed no camera classes for its engaged rows")
     from wfield_local import trial_classes
     return trial_classes.in_gate(cls_e, "working")
 
 
-def _centre_rows_of(XE, me, cm):
-    """Engaged rows of one session the centre uses: ``me & cm`` (``cm`` None = all of ``me``). A session with fewer than
-    2 such rows (e.g. no video: every row "unknown") falls back to ALL its engaged rows, said once."""
+#: sessions whose centre came from the contact-row fallback in this process (for result sidecars / captions)
+FALLBACK_USED: set = set()
+
+
+def _centre_rows_of(XE, me, cm, label=None):
+    """Engaged rows of one session the centre uses: ``me & cm`` (``cm`` None = all of ``me``). Under the working centre
+    a session needs >= MIN_CENTRE_ROWS working rows; one below that is REFUSED (BalEmCentreRefused) unless it is a
+    configured contact fallback (`centre_fallback`: no video, e.g. PS93_0813), whose centre then comes from its DAQ
+    contact (lick-class) rows -- the engaged rows here -- with a log line naming it."""
     if cm is None:
         return XE[me]
     sel = me & np.asarray(cm, bool)
-    if sel.sum() >= 2:
+    if sel.sum() >= MIN_CENTRE_ROWS:
         return XE[sel]
-    print(f"  [bal_em] a session has {int(sel.sum())} camera-working engaged rows: its EM centre falls back to all "
-          f"{int(me.sum())} engaged rows", flush=True)
-    return XE[me]
+    if label is not None and str(label) in centre_fallback():
+        FALLBACK_USED.add(str(label))
+        print(f"  [bal_em] {label}: {int(sel.sum())} camera-working rows -> centre from its {int(me.sum())} DAQ contact "
+              f"(lick-class) rows (bal_em.centre_fallback_contact; recorded as centre_set_fallback)", flush=True)
+        return XE[me]
+    raise BalEmCentreRefused(f"bal_em centre: session {label or '?'} has {int(sel.sum())} camera-working engaged rows "
+                             f"(< {MIN_CENTRE_ROWS}) and is not a configured contact fallback")
 
 
 #: The engagement-STATE discriminators (lick vs no-lick: section G looks_like_which / fits_engaged_distribution /
@@ -139,8 +172,13 @@ def state_disc_scaling():
 def scaling_params():
     """The spec ``scaling_params`` for the spout decoder's bal_em. Everything that defines the transform is recorded,
     including the guard that is OFF."""
-    return {"centre_set": centre_rows(), "guard": None, "min_mass": None, "n_outer": BAL_EM_PASSES,
-            "train_centre": "true_class_means_equal_weight"}
+    out = {"centre_set": centre_rows(), "guard": None, "min_mass": None, "n_outer": BAL_EM_PASSES,
+           "train_centre": "true_class_means_equal_weight"}
+    fb = centre_fallback()
+    if fb:                                           # the explicit fallback enters the spec id (fifth review D-B3)
+        out["centre_set_fallback"] = dict(sorted(fb.items()))
+        out["centre_min_rows"] = MIN_CENTRE_ROWS
+    return out
 
 
 def spec_kw(scaling="env"):
@@ -242,6 +280,8 @@ class FrozenFrame:
 
     def __init__(self, XE, YE, GE, train_sessions, pipe, *, classes=None, train_mask=None, loso=True, scaling="env",
                  store=None, cls_e=None, labels=None):
+        self._lab = ({int(k): str(v) for k, v in (labels.items() if hasattr(labels, "items") else enumerate(labels))}
+                     if labels is not None else {})
         self.scaling = spout_scaling() if scaling == "env" else scaling
         # the rows each scored session's EM centre is fitted on (`centre_mask`; camera WORKING rows under the camera gate)
         self.cm = centre_mask(cls_e) if self.scaling else None
@@ -312,7 +352,8 @@ class FrozenFrame:
                 self._c[key] = None
             else:
                 pi = self.pi["full"] if which == "full" else self.pi[("loso", i)]
-                self._c[key] = score_centre(self.model(which, i), _centre_rows_of(self.XE, self.GE == i, self.cm), pi)
+                self._c[key] = score_centre(self.model(which, i),
+                                            _centre_rows_of(self.XE, self.GE == i, self.cm, self._lab.get(int(i))), pi)
         return self._c[key]
 
     def apply(self, X, i, which="full"):
@@ -402,13 +443,16 @@ def score_session(model, Xe, Xu, pi_train, Xc=None):
     return Ze, Zu
 
 
-def scored_frame(XE, GE, XU, GU, sessions, model_of, prior_of, centre_mask=None):
+def scored_frame(XE, GE, XU, GU, sessions, model_of, prior_of, centre_mask=None, labels=None):
     """Copies of the engaged / no-lick matrices with each session in ``sessions`` moved into the bal_em scoring frame,
     centred with ITS scoring model (``model_of(i)``: the LOSO model for a held-out pre session, the full model for a
     post session) and that model's training prior (``prior_of(i)``). Sessions without a model are left as they are.
     ``centre_mask`` = `centre_mask(cls_e)` (the camera working rows); None is refused under centre_rows "working"."""
     if centre_mask is None and centre_rows() == "working":
-        raise RuntimeError("bal_em scored_frame: camera WORKING centre rows required (bal_em.centre_rows = working)")
+        raise BalEmCentreRefused("bal_em scored_frame: camera WORKING centre rows required (bal_em.centre_rows = "
+                                 "working)")
+    lab = ({int(k): str(v) for k, v in (labels.items() if hasattr(labels, "items") else enumerate(labels))}
+           if labels is not None else {})
     XE = np.asarray(XE, float)
     XU = np.asarray(XU, float)
     GE, GU = np.asarray(GE), np.asarray(GU)
@@ -420,7 +464,7 @@ def scored_frame(XE, GE, XU, GU, sessions, model_of, prior_of, centre_mask=None)
         me = GE == i
         mu_ = (GU == i) if len(GU) else np.zeros(0, bool)
         Ze, Zu = score_session(mdl, XE[me], XU[mu_] if mu_.any() else None, prior_of(i),
-                               Xc=_centre_rows_of(XE, me, centre_mask))
+                               Xc=_centre_rows_of(XE, me, centre_mask, lab.get(int(i))))
         XEs[me] = Ze
         if mu_.any():
             XUs[mu_] = Zu

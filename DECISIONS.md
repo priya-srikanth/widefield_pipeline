@@ -23310,8 +23310,13 @@ state-class version on.
   adds no tag part, so the rebuild profile's run tag is unchanged.
 - **Identity.** The centre set is `scaling_params.centre_set` in every bal_em stored-model spec, so models stored under the
   two centres never share an entry.
-- **Edge.** A session with fewer than 2 camera-working engaged rows (no video, e.g. PS93_0813) falls back to all its
-  engaged rows for its centre, and the log says so.
+- **Minimum and the one fallback.** A session needs at least 20 camera-working engaged rows for its centre; every
+  curated session but PS93_0813 has them. PS93_0813 has no video (553 cues, all unknown) and stays only in lick-aligned,
+  contact-only selections, so its centre is fitted on exactly those rows: its DAQ contact (lick-class) rows, never
+  no-lick rows. The fallback is explicit (`bal_em.centre_fallback_contact`). It enters the stored-model spec
+  (`centre_set_fallback`), every figure sidecar (`centre_fallback_sessions`) and the camera-gate caption, and the log
+  names the session. Any other session below the minimum, or any missing camera classes, stops the run
+  (`BalEmCentreRefused`, a SystemExit).
 - Implementation: `spout_scaling.centre_rows` / `centre_mask` (fails closed when a site has no camera classes),
   `FrozenFrame(cls_e=)`, `scored_frame(centre_mask=)`, `locanmf_frozen_decoder.engaged_row_classes`. Log
   docs/status/REBUILD_CODE_20261103.md 8.16.

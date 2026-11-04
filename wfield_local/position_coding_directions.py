@@ -502,7 +502,7 @@ def _class_confusions(XE, YE, GE, XU, YU, e_pre, pre_i, _mask, kept, rt_e=None, 
     _use = _ss.spout_scaling() is not None and GU is not None
     ff = _ss.FrozenFrame(XE, YE, GE, sorted(pre_i), _confusion_pipe, train_mask=e_pre, loso=True,
                          scaling=(_ss.SCALING_BAL_EM if _use else None), store=store,
-                         labels=(dict(enumerate(kept)) if store is not None else None),
+                         labels=dict(enumerate(kept)),
                          cls_e=cls_e)     # the EM centre rows: camera WORKING rows under the camera gate (Priya 11-03)
     res["spout_scaling"] = _ss.SCALING_BAL_EM if _use else _ss.SCALING_SESSION_Z
 

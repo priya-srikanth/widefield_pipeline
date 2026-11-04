@@ -53,7 +53,7 @@ def test_stored_loso_is_label_keyed_and_survives_a_missing_middle_session(monkey
 def test_every_store_hook_site_passes_labels():
     from wfield_local import nolick_decoder, position_coding_directions, poststroke_compare, precue_engagement_states
     assert "labels={k: lab for lab, k in _sid.items()}" in inspect.getsource(nolick_decoder.analyse_animal)
-    assert "labels=(dict(enumerate(kept))" in inspect.getsource(position_coding_directions._class_confusions)
+    assert "labels=dict(enumerate(kept))" in inspect.getsource(position_coding_directions._class_confusions)
     assert "labels=dict(enumerate(kept))" in inspect.getsource(precue_engagement_states)
     assert 'labels=dict(enumerate(d["kept"]))' in inspect.getsource(poststroke_compare.decode_matched)
     src = inspect.getsource(precue_engagement_states)
@@ -84,3 +84,20 @@ def test_n4_drift_matched_draws_are_stored():
     src = inspect.getsource(jad.decoder_rows)
     assert '"drift_matched"' in src and "frozen_models.load_or_fit(mm_spec" in src
     assert "got = mf(" in src and "_matched_frozen(_pipe, ff.XT[tr]" not in src
+
+
+def test_section_g_store_errors_propagate_and_unkeyed_pools_refuse_in_a_tagged_run(monkeypatch):
+    """Fifth review D-B1: `frozen(d)` no longer swallows a store error into an in-memory fit, and a pool without an
+    identity is refused in a tagged run (allowed, as before, in the default run)."""
+    from wfield_local import poststroke_compare as pc
+    monkeypatch.setattr(pc, "frozen_decoder_models", lambda *a, **k: (_ for _ in ()).throw(RuntimeError("store")))
+    d = {"XE": np.zeros((4, 2)), "YE": np.zeros(4), "GE": np.zeros(4, int), "kept": ["PS92_0806"], "pre_i": {0},
+         "align": "cue", "source": "roi", "_frozen_cache": {}}
+    with pytest.raises(RuntimeError, match="store"):
+        pc.frozen(d)
+    for k in ("WIDEFIELD_TRIAL_GATE", "WIDEFIELD_HEMO_VARIANT", "WIDEFIELD_LICK_SOURCE"):
+        monkeypatch.delenv(k, raising=False)
+    assert pc.frozen({"XE": None}) is None                       # default run: the old in-memory path
+    monkeypatch.setenv("WIDEFIELD_TRIAL_GATE", "camera")
+    with pytest.raises(pc.SectionGRefused):
+        pc.frozen({"XE": None})

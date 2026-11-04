@@ -202,6 +202,10 @@ def stamp(fig) -> None:
             txt += "\n" + _tc.coverage_note()
         except Exception as ex:                       # noqa: BLE001 - a caption must not kill a figure; say why
             txt += f"\ncamera gate: coverage note unavailable ({type(ex).__name__})"
+        from wfield_local import spout_scaling
+        if spout_scaling.spout_scaling() and spout_scaling.centre_fallback():      # fifth review D-B3
+            txt += ("\nbal_em centre: camera-working rows; contact-row fallback for "
+                    + ", ".join(sorted(spout_scaling.centre_fallback())))
     fig.text(0.995, 0.002, txt, ha="right", va="bottom", fontsize=6, color="#8a2be2")
 
 
