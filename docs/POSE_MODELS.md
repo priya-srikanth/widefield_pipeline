@@ -1112,7 +1112,11 @@ four review sessions mapped to raw (`lp_sidecam.to_raw`); reference = production
 * **Full four-camera pipeline (11-04, `pose3d_side.fuse_session`; `scripts/pose3d --four-cam`).** Side cleaning (cam4
   thresholds x side px / mm, 0.36-0.39; tongue gap 24 ms; no jaw x-flip rule), robust fusion (worst view dropped beyond
   `REJECT_MM`), water-drop rule, one-view fill, 3-D QC; per-session side NOSE and TONGUE offsets onto cam1 + cam4.
-  Removed by side cleaning: jaw 0.1-4 %, tongue <= 0.7 % (`side_clean_qc_stats.csv`; QC clips `side_clean_qc_*.mp4`).
+  Removed by side cleaning (after the jaw y-ceiling raise below): jaw 0.1-0.5 %, tongue <= 0.7 % of confident points
+  (`side_clean_qc_stats.csv`; QC clips `side_clean_qc_*.mp4`, PENDING Priya's QC). Side jaw Y CEILING x 1.4
+  (`SIDE_Y_CEILING_FACTOR`, ~62-66 px): v3.4 measures the jaw from ONE session-wide rest, and the plainly scaled ceiling
+  (~45-47 px) wiped 192-193 real wide-open frames per side camera on PS93 0908 (y - session rest p99 51-53, max 57-60;
+  cam2 and cam3 lost the same trials) and 1.5-2 % on 0814 -- as cam1 (125 -> 160 px).
   Lick check (PS93 0814 / 0821 / 0908, review trials): without the tongue offset the 4-cam tip sat +0.12 mm ap of the
   2-cam tip on every shared frame (ml / dv 0.00) and the "closer to the spout" miss was that shift (at 112 DAQ contacts
   tip-to-commanded-tip 4-cam vs 2-cam paired -0.01 mm); with it 0.00 in all axes, contact 1.27 vs 1.26 mm. LATERAL (the

@@ -341,6 +341,12 @@ def side_stereo_vs_reference(g, S: pd.DataFrame, side: dict) -> pd.DataFrame:
 REJECT_MM = {"nose": 0.8, "jaw": 1.0, "tongue": 1.2, "spout": 0.5}
 FILL_MS = {"tongue": 24.0, "jaw": 200.0, "nose": 200.0, "spout": 200.0}
 DROPLET_SPREAD_PX, DROPLET_RANGE_PX, DROPLET_MIN_FRAMES = 3.0, 12.0, 5
+#: Side jaw Y CEILING = cam4's x px/mm ratio x this (11-04, PS93 0908 cleaning QC): the v3.4 ceiling is measured from ONE
+#: session-wide resting jaw, and in a profile view the full jaw drop is visible, so the plainly scaled value (~45-47 px)
+#: wiped 192-193 real wide-open frames per side camera on 0908 (y - session rest p99 51-53, max 57-60 px; within a trial
+#: openings stay < 45 px; cam2 and cam3 lost the same trials). cam1 needed the same raise (125 -> 160 px, x 1.28).
+#: x 1.4 -> ~62-66 px: above every real opening seen, far below a jaw jumping to the tongue (`jaw_off_tongue` catches that).
+SIDE_Y_CEILING_FACTOR = 1.4
 #: cam4 px thresholds in `orofacial_clean` that scale with image magnification (side = cam4 value x px/mm ratio)
 PX_KEYS_TONGUE = ("x_range_pm", "interlick_speed_px", "interlick_near_px")
 PX_KEYS_JAW = ("x_range_pm",)
@@ -374,6 +380,8 @@ def side_params(scale: float) -> tuple[dict, dict, dict]:
         if q.get(k) is not None:
             q[k] = float(q[k]) * scale
     q["x_flip_step_px"] = None
+    if q.get("y_ceiling_px") is not None:
+        q["y_ceiling_px"] = float(q["y_ceiling_px"]) * SIDE_Y_CEILING_FACTOR
     return pt, pj, q
 
 

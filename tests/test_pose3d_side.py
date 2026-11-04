@@ -83,7 +83,7 @@ def test_side_params_scale_px_thresholds_and_set_the_side_rules():
     base_t, base_j = OC.params("tongue", "cam4"), OC.params("jaw", "cam4")
     assert np.isclose(pt["x_range_pm"], 0.5 * float(base_t["x_range_pm"]))
     assert np.isclose(pj["x_range_pm"], 0.5 * float(base_j["x_range_pm"]))
-    assert np.isclose(q["y_ceiling_px"], 0.5 * float(base_j["v34"]["y_ceiling_px"]))
+    assert np.isclose(q["y_ceiling_px"], 0.5 * PS.SIDE_Y_CEILING_FACTOR * float(base_j["v34"]["y_ceiling_px"]))
     assert pt["max_gap_ms"] == 24.0 and pt["interp_veto_interlick"] is False
     assert q["x_flip_step_px"] is None                      # a profile view has no left / right flip
     assert float(base_j["v34"]["y_ceiling_px"]) == float(OC.params("jaw", "cam4")["v34"]["y_ceiling_px"])   # no mutation
