@@ -313,6 +313,15 @@ FYI, the 3-class camera variant (lick / jaw-only / none) is thin in PS92 and PS9
     close ipsi acute .975 -> .642).
 
   Cue window primary, precue secondary. (Priya then asked for within-class arms and equal cue / precue.)
+- 11-04: 34 added the engagement switch to the camera-class inventory as row 3h (bd8019be):
+  - quit point = last camera lick;
+  - camera stop rule;
+  - quit_prodrome / bout structure / disengagement tests / LP gate checks and analysis_kit.session_behavior (feeds
+    the quiet-events mask) on camera;
+  - DAQ = robustness or no-video only; epoch boundaries pinned; the 09-20 engagement findings flagged for re-test.
+
+  Also: per-trial O2 encoder outputs (every class scored out of sample, joined by trial_id) are being added on a
+  separate branch. The fit itself is unchanged.
 - 11-04: 34 acknowledged the split area basis: ONE shared wfield_local function, new spec ids. The inventory of ROI
   consumers is running. Order: the O2 encoder bundle goes first (Priya asked for it ASAP); if combined_encoding uses
   Allen areas, its path switches before the bundle is built; everything else switches after.
