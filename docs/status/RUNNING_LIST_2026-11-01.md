@@ -600,6 +600,18 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   Aug pre session with video); wire it in only if they agree (~1-2 points) and Priya confirms.
   PRIYA: "yes if so let's use it" -> criterion set: <= 2 points (hit, no-response) and <= 20 ms (median latency) on every Aug
   pre session with video; pass = wired automatically, fail = back to Priya with the table.
+- PRIYA ASLEEP (11-03 ~23:30): "progress without me ... running list of changed results, new findings, decisions, questions".
+- DECISION RECEIVED via a8 (Priya 11-03 late, main 39bb3d5e; evidence widefield_pipeline JAW_ONLY_CHECKS_2026-11-03.md):
+  JAW-ONLY OUT OF WORKING. Working = contact + incomplete, cut at the last camera lick; jaw_only its own class like
+  no_response; applies to frozen training, bal_em centre, pre panel, scored set. Checks: jaw-only trials decode like
+  no-response (PS94 / PS95 cue .21 / .29 vs none .20 / .25 vs contact .93 / .94); adding them to training does not move the pre
+  reference (<= .01) but centring acute sessions on them lowered every spout (PS95 acute close ipsi .832 -> .642).
+  Rebuild helper implementing it first (new selection tag; validation vs the checks' row: pre .856, acute cI .727).
+- QUESTION FOR PRIYA (default chosen, reversible): stop runs with jaw-only in them. Default = jaw_only BRIDGES a run of
+  no_response but does not count toward the 6 and is not labelled stopped (the old after-last-lick rule, now session-wide).
+  Alternative: jaw_only counts as a non-response toward the 6.
+- Told a8: no current PI-deck figure from this window uses in_working with jaw; the rebuild replacements will move (per-slide
+  old vs new list at the replacement pass).
 
 ### Findings
 - main moved while the rebuild branch was being fixed (34 commits not in rebuild/cohort1-20261103). Two matter for the rebuild:

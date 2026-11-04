@@ -54,7 +54,10 @@ its Questions list). Docs commits on wf_attempt BY EXPLICIT PATH ONLY.
   - (1) August-only pre PROFILE-WIDE (except june_august_drift, 12.1b).
   - (2) PS93_0813 in DAQ-only behaviour rates via a DAQ-defined working period IF the agreement check passes (<= 2 points
     hit / no-response, <= 20 ms latency on every Aug pre session with video); fail -> back to Priya.
-- **Code helper a0dc6e4f1c77fb99f queue:** last non-blockers; working-engaged-row dry count; (1); (2) + agreement table.
+  - (3) JAW-ONLY OUT OF WORKING (via a8; main 39bb3d5e): working = contact + incomplete; jaw_only its own class. Default
+    (flagged to Priya): jaw_only bridges stop runs, not counted.
+- **Code helper a0dc6e4f1c77fb99f queue:** jaw-only-out FIRST (new selection tag, validation vs pre .856 / acute cI .727);
+  last non-blockers; working-engaged-row dry count; (1); (2) + agreement table (on the new working definition).
 - **Reviewer:** aa0138ac1e9c354a7.
 - **Next:**
   - helper reports -> re-verify the new code (reviewer)
