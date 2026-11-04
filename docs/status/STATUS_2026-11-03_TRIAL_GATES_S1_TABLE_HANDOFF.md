@@ -12,6 +12,10 @@ methods paragraph, SPOUT_BALEM section 7. CAVEAT for A11 (the jaw-free s1 table)
 (`LP_licks_ENL2s`, the old table's window). If A9 (ENL follows the lick source: LP 1.0 s) applies to section 1, re-run both
 s1 tables at 1.0 s in that pass (`WIDEFIELD_LICK_SOURCE=lp WIDEFIELD_ENL_WINDOW_S=1.0`, `--suffix`), then
 `p_img_s1_table_20261103.py` pointed at those files. Told a8 11-04.
+**DECIDED (Priya 11-04, via 34 / a8): section-1 refit = LP ENL 1.0 s, 2.0 s as a labelled sensitivity row.** The table
+script is set up for it (`PRIMARY = LP_licks`, `SENSITIVITY = LP_licks_ENL2s`, both with suffix `_1104r`): in the
+post-rebuild pass run the LocaNMF + Allen s1 tables at `WIDEFIELD_ENL_WINDOW_S=1.0` and the Allen table again at 2.0,
+all with `--suffix _1104r`, then the table script (A11 in PAGE_EDITS_PENDING).
 
 **DECIDED 11-04 (Priya): no interim swap — WAIT for 34's cohort-1 rebuild.** The imaging page (sections 1-4, 6, 7,
 the definition captions, the s1 table) and SPOUT_BALEM §7 stay as published (v51) until the rebuild's figures land;

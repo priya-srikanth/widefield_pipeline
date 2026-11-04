@@ -11,8 +11,15 @@ Apply to the LIVE page: replace section 1's per-animal <h4> + table, the Fig 1.2
 rebuild from the live version immediately before publishing (a8's figure-rules helper also republishes the page).
 
 Sources (<run>/imaging_encoding/...):
-  LP_licks_ENL2s/qc/s1_refit_basis_1104.csv    Allen areas, camera arms (split = primary basis; plain_orig = the old table's)
-  LP_licks_ENL2s/qc/s1_refit_locanmf_1104.csv  joint-LocaNMF, camera arms
+  <PRIMARY>/qc/s1_refit_basis<SUFFIX>.csv      Allen areas, camera arms (split = primary basis; plain_orig = the old table's)
+  <PRIMARY>/qc/s1_refit_locanmf<SUFFIX>.csv    joint-LocaNMF, camera arms
+  <SENSITIVITY>/qc/s1_refit_basis<SUFFIX>.csv  the same Allen run at ENL 2.0 s: one labelled robustness row
+ENL WINDOW (Priya 11-04, via 34): the section-1 refit uses the camera-lick ENL of the lick source, LP 1.0 s
+(`lp_licks.output_tag` -> folder LP_licks), with 2.0 s (LP_licks_ENL2s, the old table's window) as a labelled sensitivity
+row. Re-run both s1 tables at 1.0 s in the post-rebuild pass:
+  WIDEFIELD_LICK_SOURCE=lp WIDEFIELD_ENL_WINDOW_S=1.0 scripts/s1_refit_locanmf_table.py --suffix <SUFFIX>   (+ the Allen table;
+  and the Allen table again at WIDEFIELD_ENL_WINDOW_S=2.0 for the sensitivity row)
+and set SUFFIX below (the 11-04 ENL 2.0 s tables are `_1104`; the 1.0 s tables do not exist yet).
   (the _1104 runs add the jaw-free arms camlickpl_*; the 11-03 files without the suffix have only jaw-inclusive arms)
   qc/s1_refit_basis.csv                   Allen, DAQ arms: quit-tail working and DAQ licking (the table until 11-03)
   qc/s1_trial_classes_cue_stop.json       commit of the trial classes the camera arms used
@@ -26,6 +33,8 @@ import pandas as pd
 
 R = Path("M:/MICROSCOPE/Priya/Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding")
 HERE = Path(__file__).parent
+PRIMARY, SUFFIX = "LP_licks", "_1104r"            # ENL 1.0 s (Priya 11-04); "_1104r" = the post-rebuild re-run's suffix
+SENSITIVITY, SENS_SUFFIX = "LP_licks_ENL2s", SUFFIX     # ENL 2.0 s, the robustness row (re-run on the rebuild data too)
 AN = ["PS92", "PS93", "PS94", "PS95"]
 EP = ["pre", "acute", "subacute", "chronic"]
 
@@ -35,8 +44,9 @@ def per_animal(D: pd.DataFrame, col: str) -> pd.DataFrame:
 
 
 def main() -> int:
-    A = pd.read_csv(R / "LP_licks_ENL2s/qc/s1_refit_basis_1104.csv")
-    L = pd.read_csv(R / "LP_licks_ENL2s/qc/s1_refit_locanmf_1104.csv")
+    A = pd.read_csv(R / PRIMARY / "qc" / f"s1_refit_basis{SUFFIX}.csv")
+    L = pd.read_csv(R / PRIMARY / "qc" / f"s1_refit_locanmf{SUFFIX}.csv")
+    S2 = pd.read_csv(R / SENSITIVITY / "qc" / f"s1_refit_basis{SENS_SUFFIX}.csv")
     Q = pd.read_csv(R / "qc/s1_refit_basis.csv")
     L = L[(L.label.str[-4:] >= "0806") | (L.epoch != "pre")]                    # August-only pre, as the Allen rows
     meta = json.loads((R / "qc/s1_trial_classes_cue_stop.json").read_text())
@@ -72,7 +82,9 @@ def main() -> int:
             ("LocaNMF, camera working to the last camera lick — table above", Lw[("camlickpl_lick", "precue")], Lw[("camlickpl_lick", "cue")]),
             ("LocaNMF, camera working, no end-of-session cutoff", Lw[("camlick", "precue")], Lw[("camlick", "cue")]),
             ("LocaNMF, camera working plus jaw-only trials, to the last camera lick", Lw[("camworkpl_lick", "precue")], Lw[("camworkpl_lick", "cue")]),
-            ("LocaNMF, DAQ quit-tail working", Lw[("quittail", "precue")], Lw[("quittail", "cue")])]
+            ("LocaNMF, DAQ quit-tail working", Lw[("quittail", "precue")], Lw[("quittail", "cue")]),
+            ("Allen split, camera working to the last camera lick, ENL 2.0 s (sensitivity)",
+             per_animal(S2, "split_camlickpllick_pre"), per_animal(S2, "split_camlickpllick_post"))]
     rob = ["<tr><th>decoder basis, trials</th>" + "".join(f"<th>{w}: {e}</th>" for w in ("pre-cue", "post-cue")
                                                          for e in EP) + "</tr>"]
     for lab, a, b in arms:
@@ -112,7 +124,7 @@ def main() -> int:
         html + "\n<!-- Fig 1.2 caption sentence (replaces 'A decoder trained on the acute session itself ...'): -->\n<p>"
         + sentence + "</p>\n<!-- takeaway, first sentences (keep the rest of the existing take: position information "
         "not a plan, slow band): -->\n<p>" + take + "</p>\n", encoding="utf8")
-    nums = (f"# Section 1 numbers for PI deck slide 9 (11-03)\n\nSource: {R}/LP_licks_ENL2s/qc/s1_refit_basis_1104.csv "
+    nums = (f"# Section 1 numbers for PI deck slide 9 (11-03)\n\nSource: {R}/{PRIMARY}/qc/s1_refit_basis{SUFFIX}.csv "
             f"(split_camlickpllick_*), classes commit {meta['commit']}.\n\n"
             f"* Decoder refit within each session: post-cue {rng_post[0]:.2f}–{rng_post[1]:.2f}, pre-cue "
             f"{rng_pre[0]:.2f}–{rng_pre[1]:.2f} (chance .17), every animal and epoch (was .55–.91 / .28–.55 on DAQ licking "
