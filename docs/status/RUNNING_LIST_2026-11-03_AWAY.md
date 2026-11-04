@@ -665,6 +665,9 @@ FYI, the 3-class camera variant (lick / jaw-only / none) is thin in PS92 and PS9
 - OPEN: the old measured 3-D table pose3d_spout_positions_20261023.csv still exists in e0's local cache
   (C:/Users/SabatiniLab/wfield_cache/pose3d_inputs/) and in 34's superseded bundle (rebuild_20261103/o2/
   enc_rebuild_20261104/tables/). e0 / 34 were asked to confirm nothing reads it, retire it and log the deletion.
+  UPDATE: 34 DELETED the whole superseded bundle enc_rebuild_20261104 (644 files, 29.3 GB, incl. the old table;
+  never submitted; file list in the rebuild RENDER_LOG.md). The O2 scratch copy was already removed by Priya. Only e0's
+  local cache copy remains. The B12 smoke numbers came from a helper's scratch inputs, and are redone on ...04b.
 
 ## Running
 
