@@ -119,6 +119,50 @@ def shell_lines(name: str, shell: str = "powershell", arm: str | None = None, bl
     return clear + [f'$env:{k} = "{v}"' for k, v in d["env"].items()]
 
 
+def _gitdir_common(repo: Path) -> Path | None:
+    """The COMMON .git directory of a checkout: ``repo/.git`` itself for a main checkout; for a linked worktree (a
+    ``.git`` FILE "gitdir: <common>/worktrees/<name>") that ``<common>``."""
+    g = Path(repo) / ".git"
+    if g.is_dir():
+        return g.resolve()
+    if g.is_file():
+        txt = g.read_text(encoding="utf-8", errors="replace").strip()
+        if txt.startswith("gitdir:"):
+            wd = Path(txt.split(":", 1)[1].strip())
+            return wd.parent.parent.resolve() if wd.parent.name == "worktrees" else wd.resolve()
+    return None
+
+
+def _linked_worktree_of(repo: Path, code_root: Path) -> bool:
+    """True for ANOTHER LINKED WORKTREE of code_root's repository (a test / review copy of the same branch's code): its
+    ``.git`` is a file and it shares code_root's common git dir. The MAIN checkout (a ``.git`` directory, where the
+    editable install points) is never accepted."""
+    g = Path(repo) / ".git"
+    if not g.is_file():
+        return False
+    a, b = _gitdir_common(repo), _gitdir_common(code_root)
+    return a is not None and a == b
+
+
+def code_check(d: dict, module_file: str | None = None) -> tuple[bool, str]:
+    """``(ok, line)``: is the imported ``wfield_local`` the profile's ``code_root`` (the rebuild worktree)? A profile with
+    a rebuild root and a ``code_root`` REFUSES any other copy -- the editable install points at the MAIN checkout, which
+    a process imports unless the worktree is first on sys.path (PYTHONPATH=<code_root>; coordinator 11-04)."""
+    import wfield_local
+    f = Path(module_file or wfield_local.__file__).resolve()
+    line = f"wfield_local: {f}"
+    cr = d.get("code_root")
+    if not cr or not d.get("rebuild_root"):
+        return True, line
+    root = Path(cr).resolve()
+    repo = f.parent.parent                                  # <repo>/wfield_local/__init__.py
+    ok = root == repo or root in f.parents or _linked_worktree_of(repo, root)
+    if not ok:
+        line += (f"\nREFUSED: this profile's code is {root}; set PYTHONPATH={root} (or run `python -m` from it) so the "
+                 "rebuild worktree, not the editable install, is imported")
+    return ok, line
+
+
 def check(name: str, arm: str | None = None, block: str | None = None) -> tuple[bool, list[str]]:
     """Apply in-process (with the block's env when ``block`` is given) and compare the FULL output tag
     (`lp_licks.output_tag`, LP / gate-LP / ENL included) and the run tag with the profile's ``notes.expected_run_tag``;
@@ -145,7 +189,9 @@ def check(name: str, arm: str | None = None, block: str | None = None) -> tuple[
         ok = want is None or (rt == want and bool(full) and full.endswith(want))
     else:
         ok = want is None or (full == want and rt == want)
-    return ok, lines
+    code_ok, code_line = code_check(d)
+    lines.append(code_line)
+    return ok and code_ok, lines
 
 
 def main(argv=None) -> int:
@@ -162,7 +208,8 @@ def main(argv=None) -> int:
         ok, lines = check(a.name, a.arm, a.block)
         print("\n".join(lines))
         if not ok:
-            print("MISMATCH: the output tag is not the profile's expected tag")
+            print("MISMATCH: the output tag is not the profile's expected tag, or the code is not the profile's "
+                  "code_root (see the wfield_local line)")
             return 1
     return 0
 

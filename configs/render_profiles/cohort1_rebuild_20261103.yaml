@@ -32,6 +32,11 @@ env:
 # it is set, writes outside it and reads of default derived products are REFUSED (wfield_local/rebuild_root.py).
 # Seed it once: python -m wfield_local.rebuild_root init --profile cohort1_rebuild_20261103
 rebuild_root: M:/MICROSCOPE/Priya/Widefield/rebuild_20261103
+# THE CODE THIS RENDER MUST RUN (coordinator 11-04): the rebuild worktree. The env's `pip install -e .` points at the MAIN
+# checkout, so a process imports the worktree's wfield_local only when the worktree is first on sys.path:
+#   PYTHONPATH=<code_root> for EVERY command (a `python scripts/x.py` puts scripts/ on sys.path, not the cwd), and
+#   `python -m ...` from <code_root> works too. `render_profile --check` prints wfield_local.__file__ and REFUSES otherwise.
+code_root: C:/Users/SabatiniLab/Github/wf_rebuild
 
 # (block_args --pre-from 0801 for epoch_grant_figures / grant_figures REMOVED 11-03 late: the profile env is the one source)
 

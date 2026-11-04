@@ -245,3 +245,31 @@ def test_store_log_names_the_gate():
 def tc_mod():
     from wfield_local import trial_classes
     return trial_classes
+
+
+# ------------------------------------------------------------------------------------------------------ 11-04 follow-up
+def test_chronic_drift_vs_reorg_is_routed_like_chronic_stability():
+    src = (REPO / "scripts/chronic_drift_vs_reorg.py").read_text(encoding="utf-8")
+    assert 'run_mode.subdir(Path(PathResolver().root("cohort_out")) / "chronic_stability")' in src
+    assert "require_default" not in src and "assert_writable(out_dir)" in src
+
+
+def test_render_profile_check_refuses_code_outside_the_worktree(tmp_path):
+    from wfield_local import render_profile as rp
+    d = rp.load("cohort1_rebuild_20261103")
+    root = Path(d["code_root"])
+    ok, line = rp.code_check(d, str(root / "wfield_local" / "__init__.py"))
+    assert ok and "wfield_local:" in line
+    # the MAIN checkout (a .git DIRECTORY: where the editable install points) is refused
+    main = tmp_path / "main"
+    (main / ".git").mkdir(parents=True)
+    (main / "wfield_local").mkdir()
+    ok, line = rp.code_check(d, str(main / "wfield_local" / "__init__.py"))
+    assert not ok and "REFUSED" in line and "PYTHONPATH" in line
+    # an unrelated linked worktree (another repository's common dir) is refused too
+    other = tmp_path / "other"
+    (other / "wfield_local").mkdir(parents=True)
+    (other / ".git").write_text("gitdir: " + str(tmp_path / "elsewhere" / ".git" / "worktrees" / "x"))
+    assert not rp.code_check(d, str(other / "wfield_local" / "__init__.py"))[0]
+    # without a rebuild root nothing is enforced
+    assert rp.code_check({"code_root": str(root)}, str(main / "wfield_local" / "__init__.py"))[0]
