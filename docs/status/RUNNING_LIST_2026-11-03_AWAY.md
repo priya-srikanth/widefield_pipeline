@@ -309,8 +309,8 @@ FYI, the 3-class camera variant (lick / jaw-only / none) is thin in PS92 and PS9
     (-.46 vs Wt -.64) is what a real spout-specific loss also produces under Iref. So it is NOT evidence that ~.17 of
     the acute loss, or most of the chronic residual, is a day offset. Iref must not be used as a bound on the
     deficit's size.
-  - Suggested next arm (not run): the Wt centre with a FIXED pre-stroke SD. The centre absorbs offsets, and a fixed
-    scale shouldn't re-expand a shrunk class.
+  - RUNNING (Priya OK): WtF = the Wt centre with a FIXED pooled-pre SD, and WtR = the Wt centre with a robust
+    within-spout residual SD, through the same injected-effect grid, plus scoring of the REAL post sessions.
 
 - **11-04: reference-spout anchor + intercept-only refit (docs/status/REFSPOUT_CENTRE_2026-11-04.md, b7d97063).**
   - Rref (day offset from close ipsi / mid) is NOT stroke-free:
