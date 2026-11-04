@@ -13,6 +13,23 @@ log for the earlier part of the day is `RUNNING_LIST_2026-11-02_OVERNIGHT.md`.
 
 ## Questions for Priya (newest first)
 
+13. **NEW (11-04): the lick-response slide (now slide 95, "Lick response larger after stroke") depends on the
+    normalisation** (docs/status/SD_RISE_2026-11-04.md, 371b6e1e).
+    - The traces are raw dF/F x1e3 (wf_attempt lick_cued_ramp.py:91-95, iti_licks.py:359-363), NOT z-scored.
+    - Cued first lick, contralesional tjM1, change vs pre (acute / subacute / chronic):
+
+      | normalisation | acute | subacute | chronic |
+      |---|---|---|---|
+      | as plotted | +.47* | +.39* | +.40* |
+      | per-session z | +.03 (2 / 4) | +.12* | +.14* |
+      | F0-corrected | larger | larger | larger |
+
+    - So the ACUTE cued increase is the global scale-up (the same one that raises the decoder SD). Subacute /
+      chronic contralesional tjM1 / SSp-m keep ~1/3 of it; ALM never survives. Docked ITI licks keep ~60 % in
+      contralesional SSp-m / tjM1.
+    - Options: re-caption the slide; show the z-scored version (main or hidden); or both. [Suggest a z-scored hidden
+      companion, and reword the main claim to the subacute / chronic + ITI result.] It is 34's figure.
+
 12. **RUNNING (Priya OK 11-04): injected-effect validation of the frames.** Held-out pre sessions with the acute mix
     plus known injected effects: far-contra-specific loss / global gain / uniform offset / offset + loss / rest change
     only. Every frame is scored against an oracle frame. Output decoder_mix_checks/injected_effect_1104/,
@@ -288,6 +305,13 @@ FYI, the 3-class camera variant (lick / jaw-only / none) is thin in PS92 and PS9
 165 / 306 per animal. Held-out pre recall at cue: lick .67-.93; jaw-only .60-.63 (PS94 and PS95 only); none .20-.77.
 
 ## Findings (newest first)
+
+- **11-04: the post-stroke SD rise is mostly a GLOBAL GAIN** (SD_RISE_2026-11-04.md).
+  - Acute: noise 1.21x and signal 1.14x (snr .95); rest rises as much as trials; quiet events don't explain it.
+  - F0 ROSE (+.09 acute), so dF/F is not inflated by F0.
+  - Exceptions: PS93 adds noise acutely; the close-spout pattern changes shape (r with pre .72 -> .33).
+  - Chronic: signal rises more than noise.
+  - So per-session SD (Wt) is the right primary. WtF's +.10 far-contra inflation is the gain leaking into the margins.
 
 - **11-04: injected-effect validation (docs/status/INJECTED_EFFECT_2026-11-04.md, 174ea02b; 31 held-out pre sessions,
   production reproduced exactly).**
