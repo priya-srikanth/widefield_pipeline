@@ -1427,3 +1427,7 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   - G9 figure switch estimated at ~2.5-3 days, after the render.
   - The merge helper merges it 4th, and wires g_group to stop_kind (tail -> quit, run -> stopped; stopped_licking on its
     own).
+- **11-04 ~21:10: REQUEST (Priya via a8): a z-scored hidden comparison slide for slide 95.**
+  - Uses current pre-rebuild data. The main slide stays for now.
+  - Session-z per SD_RISE variant (c), plus an LMM version if cheap.
+  - Being rendered with a _sessz suffix; originals are untouched.
