@@ -128,3 +128,14 @@ FYI, the 3-class camera variant (lick / jaw-only / none) is thin in PS92 and PS9
 - 11-03 late: the decoder helper reported. A (in_working + August-only) passed and is on main as 26fd5b44 (731 tests
   passed). B misses the literal AUC target, and C's precue engagement axis fails its check. Per the rule, no render
   was started. Questions 1-3 are at the top of this list.
+- 11-03 late: Priya asked for checks on whether jaw-only trials belong in "working". A helper is running three
+  rescorings of existing bundles (no render, production unchanged), with outputs in
+  `labcams/decoder_mix_checks/jaw_only_checks_1103/` and the write-up in `docs/status/JAW_ONLY_CHECKS_2026-11-03.md`:
+  - **test 1:** a decoder trained on pre contact + incomplete trials, scored per class (contact / incomplete /
+    jaw-only / none). Jaw-only vs none is the key comparison;
+  - **test 2:** train with vs without jaw-only, scored on the same held-out lick trials. Controls: count-matched,
+    per-spout matched, A's centre;
+  - **split of the old -> new change:** training set, scored set and August-only, switched one at a time (e.g. PS95
+    close ipsi acute .975 -> .642).
+
+  Cue window primary, precue secondary.
