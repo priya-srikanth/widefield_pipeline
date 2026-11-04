@@ -94,7 +94,15 @@ These are the backup's `rerender_stars.sh` set plus the `mu/run.sh` items:
 - Layer 2:
   - `layer2_matched_n.py`
   - `layer2_random_splits.py <animal> --max-splits 20`, once each for PS92 / PS93 / PS94 / PS95 (20 is inferred from the existing CSVs)
-  - The Layer-2 figures came from scratch `fig_layer2.py`, `fig_rsplit.py`, `fig_pooled.py` (backup S1). They are NOT in the repo; LOG this as a gap and don't run the scratch copies.
+  - The page figures are now in the repo (rebuild 1806eaf6, `scripts/rebuild_figs/`; default output `<root>/rebuild_figs/<tag>/`).
+    Commands:
+    - `fig_layer2.py`, `fig_rsplit.py`, `fig_pooled.py`. Prerequisites: allsession_encoder, layer2_matched_n,
+      layer2_random_splits, attempt_coding, lp_encoder_decompose (joint lick), frozen_residual_trend. fig_pooled also needs the
+      O2 binned-contest runs, so its binned panels wait on section C.
+    - `fig_softmax.py`, `fig_softmax_stats.py`: need the binned-contest runs, so they wait on section C.
+    - `fig_resid_per_animal.py`, `fig_resid16.py --bin 16` (and `--bin 32`), `fig_resid_spout.py --spout far_contra --bin 16`.
+      Each needs frozen_residual_significance at the same `--bin`.
+    - `fig_farcontra_attempts_sessions.py` (after trial_attempts), `fig_pose_validation_sessions.py`.
 
 ## C. O2-dependent (DEFER; decision for Priya)
 
