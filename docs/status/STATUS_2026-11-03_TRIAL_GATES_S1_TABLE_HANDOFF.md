@@ -4,6 +4,21 @@ Window `sabatinilab-5b`. Peers this touches: **e3** (kinematics page, owns it), 
 frozen decoders, epoch families; owns `_class_select` and the shared gates), **a8** (PI deck; its helper may
 republish the imaging page with re-plotted figures).
 
+## UPDATE 11-04 early — jaw-only OUT of working (Priya decision 11-03 late, via a8)
+
+New definition: working = contact + incomplete camera licks, cut at the session's last camera lick; jaw-only becomes
+its own class, like no-response (`docs/status/JAW_ONLY_CHECKS_2026-11-03.md`, a8 running list 11-03 AWAY). a8 is
+implementing it, then ONE combined render; page edits come to this window (e0) after that render. **HOLD all page
+edits (SPOUT_BALEM §7 included) until a8 sends figure paths.**
+
+Imaging page v51 (scratchpad `imgpage/imaging_page.html`) sections to redo after the render. Rewrite the captions
+cleanly, with no correction notes:
+- the definition "jaw moved or any camera lick" is written out at lines 126, 127 (§0 box) and 154 (§1); change all three to the new wording;
+- figures whose numbers come from working trials: §1 (Fig 1-1, 1-2, S1 table), §2 (2-1, 2-2), §3 (3-1, 3-3),
+  §4 (4-1, 4-2), §6 (6-1..6-3), §7 (7-1..7-4); replace the numbers with the re-rendered ones;
+- the LP-attempt decoder figures (2-3 and the §4 jaw-only mention) already exclude jaw-only trials; no change.
+Kinematics / behaviour / FaceRhythm pages: no "working = jaw or lick" wording found (jaw-only is already its own class there).
+
 ## UPDATE 11-03 night (3) — PUBLISHING FOR OTHER WINDOWS (Priya: this window may publish any page)
 
 - **Imaging page v51** (id 1793740803-1eef, on v50) for a8: `docs/status/STATE_BALEM_PAGE_EDITS_2026-11-03.md` (section 3 ->
