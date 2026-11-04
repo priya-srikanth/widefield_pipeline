@@ -897,3 +897,16 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   - DAQ versions become robustness rows.
   - Recorded as inventory row 3h (bd8019be).
   - The 09-20 engagement findings need a re-test on camera.
+- **11-04 ~10:30: ERROR CAUGHT. The first O2 bundle had the wrong encoder inputs and is being rebuilt.**
+  - Cause: `o2_encoding --profile` -> render_profile.apply clears COMBINED_ENCODING_* / WFIELD_* before setting the
+    profile env.
+  - Effect: the exported production settings were wiped, so the 107 pickles carried the default cam4 licks / tongue / exec:
+    - LICKS=combined, TONGUE=3d, EXEC=polar;
+    - the EXEC3D / TARGET3D / BINS_CALIB tables.
+  - The checks would have passed anyway, because they compare like with like.
+  - Nothing was transferred or submitted.
+  - Rebuild: the profile is applied first, then the vars; same commit; more workers. ETA ~11:00-11:10.
+  - The code fix (preserve the caller's encoder vars across apply, and a test that env.json carries them) goes on
+    rebuild/encoder-classes. The helper is also checking whether other --profile encoder scripts (frozen_encoder,
+    allsession_encoder, the ENCODER_RENDER_COMMANDS frames) have the same wipe.
+  - The render queue stays HELD until that is answered.
