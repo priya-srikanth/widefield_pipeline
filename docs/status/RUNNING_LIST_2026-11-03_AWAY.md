@@ -13,6 +13,12 @@ log for the earlier part of the day is `RUNNING_LIST_2026-11-02_OVERNIGHT.md`.
 
 ## Questions for Priya (newest first)
 
+9. **NEW (11-04): mix-shift test for the SPOUT decoder and the C projections?** Their centre is computed from working
+   rows, and the incomplete-lick share rises post-stroke. Frames to compare: bal_em on working rows / bal_em on
+   contact rows only / z. Awaiting Priya.
+8. **NEW (11-04): convert the coding-direction G9 classes (poststroke_lick / miss_working / stopped) to camera
+   classes?** It touches grant_confusion, miss_vs_stopped, position_axes, the deck and best_match. [Yes, under "camera
+   class everywhere"; 34 told to assume yes.]
 7. **NEW (11-04): camera-class inventory, 12 questions** (34: wf_attempt
    docs/status/rebuild_20261103/CAMERA_CLASS_INVENTORY_20261104.md section 5, 913b9d1a). To switch:
    - G discriminators + precue_engagement_states;
@@ -200,6 +206,37 @@ FYI, the 3-class camera variant (lick / jaw-only / none) is thin in PS92 and PS9
 165 / 306 per animal. Held-out pre recall at cue: lick .67-.93; jaw-only .60-.63 (PS94 and PS95 only); none .20-.77.
 
 ## Findings (newest first)
+
+- **11-04: D / G on main (4a37cbc8, bcdg_1104). Section D scored on WORKING rows moves the acute far spouts a lot.**
+  Animal means:
+
+  | readout | old (engaged rows) | new (working rows) |
+  |---|---|---|
+  | cue far contra acute | .478 | .184 |
+  | cue far mid acute | .518 | .416 |
+  | cue overall acute | .663 | .570 |
+  | precue far contra acute | .271 | .135 |
+
+  - The close spouts move by <= .012. The new rows are mostly far-spout incomplete licks.
+  - The old option reproduces the pre-change code exactly (8 / 8).
+  - Section G frozen accuracy by camera class, cue (pre / acute):
+
+    | class | pre | acute |
+    |---|---|---|
+    | contact | .856 | .662 |
+    | incomplete | .322 | .205 |
+    | jaw_only | .356 | .157 |
+    | none | .250 | .151 |
+    | after_end | .164 | .225 |
+
+    Chance is .167. Pre cells are thin.
+  - C engagement-axis failure explained: in z each session is centred on its engaged (lick) mean, so its lick trials
+    sit at the lick pole by construction. The readout's noise is tiny, and any other centre moves it.
+  - Ported to 34: the list was sent. Gaps not yet on main:
+    - (a) a camera-class state discriminator for G4 (check-script only);
+    - (b) coding-direction G9 classes still DAQ (question 8 below);
+    - (c) decode_matched's lick arm on engaged rows;
+    - (d) attempt_coding is not wired for C.
 
 - **11-04: G4 camera-class split + mix-shift test (docs/status/G4_CAMCLASS_MIXSHIFT_2026-11-04.md, 5f01f2dc). B should
   NOT be adopted: the z frame is the right one.**
