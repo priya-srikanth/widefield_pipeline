@@ -601,7 +601,7 @@ CLASS_CODE_ROOTS = ("session_trials", "jaw_table", "_trial_times", "_pre_cue_con
                     "response_end_ms", "max_rt_ms", "cue_classes",
                     "cue_classes_for", "row_classes", "camera_rows", "pool_row_classes", "camera_select",
                     "camera_engaged_period", "in_gate", "before_session_end", "in_working", "classify_session", "_matched_cues",
-                    "_effective_coverage", "_classify_guarded")
+                    "_effective_coverage", "_classify_guarded", "_breaks", "licks_in_spans")
 
 
 def class_source_signature(v36: Path | str | None = None, c1: Path | str | None = None) -> str:
@@ -709,7 +709,7 @@ def end_anchor() -> str:
 
 def classify_session(cls, matched=None, position=None, *, rule: str | None = None, min_run: int | None = None,
                      end: str | None = None, cue_s=None, min_start_s: float | None = None,
-                     jaw_counts: bool | None = None) -> np.ndarray:
+                     jaw_counts: bool | None = None, breaks=None) -> np.ndarray:
     """THE camera classes of one session, in cue order, after the session-level rules (Priya 11-03). ``cls`` = the raw
     per-cue class (`cue_classes`), ``matched`` = the cue was matched to a video trial (None = all matched).
 
@@ -740,9 +740,10 @@ def classify_session(cls, matched=None, position=None, *, rule: str | None = Non
     rule = rule or stopped_rule()
     n_min = int(min_run if min_run is not None else stop_run_min())
     end = end or end_anchor()
+    breaks = _breaks(breaks, len(cls))
     if rule in GUARDED_RULES:
         return _classify_guarded(cls, position, rule=rule, min_run=min_run, end=end, cue_s=cue_s,
-                                 min_start_s=min_start_s, jaw_counts=jaw_counts)
+                                 min_start_s=min_start_s, jaw_counts=jaw_counts, breaks=breaks)
     out = np.asarray(cls, dtype=object).copy()
     n = len(out)
     m = _effective_coverage(np.ones(n, bool) if matched is None else np.asarray(matched, bool))
@@ -758,7 +759,7 @@ def classify_session(cls, matched=None, position=None, *, rule: str | None = Non
         jaw_counts = jaw_counts_in_stop()
     nr = out == "no_response"
     jaw = out == "jaw_only"
-    member = (nr | jaw) if jaw_counts else (nr | (jaw & after))      # trials a run is made of
+    member = ((nr | jaw) if jaw_counts else (nr | (jaw & after))) & ~breaks   # trials a run is made of
     counted = (nr | jaw) if jaw_counts else nr                         # trials that count toward min_run / are stopped
     # TIME RULE (Priya 11-03): runs starting before first cue + min_start_s are not stops (in neither class)
     if cue_s is not None and n:
@@ -799,8 +800,31 @@ def classify_session(cls, matched=None, position=None, *, rule: str | None = Non
     return out
 
 
+def _breaks(breaks, n: int) -> np.ndarray:
+    """``bool[n]`` run-break mask for `classify_session` (None = no breaks)."""
+    if breaks is None:
+        return np.zeros(n, bool)
+    b = np.asarray(breaks, bool)
+    if b.shape != (n,):
+        raise ValueError(f"breaks has shape {b.shape} for {n} classes")
+    return b
+
+
+def licks_in_spans(lo_s, hi_s, lick_s) -> np.ndarray:
+    """``bool[n]``: a lick time (``lick_s``, any clock shared with the spans) inside [lo_s[k], hi_s[k]) -- the helper a
+    "lick in the span breaks the run" rule builds `classify_session` ``breaks`` from (Priya 11-04, rule pending: which
+    spans -- ENL, 0-70 ms, after max_rt, ITI -- and which lick sources)."""
+    lo, hi = np.asarray(lo_s, float), np.asarray(hi_s, float)
+    lk = np.sort(np.asarray(lick_s, float))
+    lk = lk[np.isfinite(lk)]
+    ok = np.isfinite(lo) & np.isfinite(hi)
+    out = np.zeros(len(lo), bool)
+    out[ok] = np.searchsorted(lk, hi[ok], side="left") > np.searchsorted(lk, lo[ok], side="left")
+    return out
+
+
 def _classify_guarded(cls, position, *, rule: str, min_run: int | None, end: str, cue_s=None,
-                      min_start_s: float | None = None, jaw_counts: bool | None = None) -> np.ndarray:
+                      min_start_s: float | None = None, jaw_counts: bool | None = None, breaks=None) -> np.ndarray:
     """Rules "both" (A2, PRIMARY) and "long" (A3) of `classify_session` (Priya 11-04; see STOPPED_CLASSES). Reproduces
     the census script's A2 / A3 (wf_attempt scratch srg/r2.py) exactly, with early_run folded into the raw class:
 
@@ -814,7 +838,9 @@ def _classify_guarded(cls, position, *, rule: str, min_run: int | None, end: str
         "long": a run of >= 11 is stopped (no guard).
       * A qualifying run whose FIRST trial is < ``min_start_s`` (300 s) after the first cue keeps its raw classes.
     ``position`` (rig names) is needed for "both"; None -> every run counts as reference-free with no reference
-    neighbour, i.e. stopped."""
+    neighbour, i.e. stopped. ``breaks`` (bool per trial, None = none): a trial whose time span holds a lick is never a
+    run member, so it ENDS a run (the hook for Priya's pending 11-04 rule "no licks in the stopped time"; the caller
+    builds it from lick times with `licks_in_spans`). The quit tail is not touched by it (rule pending)."""
     spec = GUARDED_RULES[rule]
     n_min = int(spec["min_run"] or (min_run if min_run is not None else stop_run_min()))
     if jaw_counts is None:
@@ -841,7 +867,8 @@ def _classify_guarded(cls, position, *, rule: str, min_run: int | None, end: str
         L = int(np.flatnonzero(keep)[-1]) if keep.any() else -1
     known = raw != "unknown"
     tail = (idx_all > L) & known
-    member = np.isin(raw, ["no_response", "jaw_only"] if jaw_counts else ["no_response"]) & (idx_all < max(L, 0))
+    member = (np.isin(raw, ["no_response", "jaw_only"] if jaw_counts else ["no_response"]) & (idx_all < max(L, 0))
+              & ~_breaks(breaks, n))
     idx = np.flatnonzero(known)
     seq = member[idx]
     i = 0

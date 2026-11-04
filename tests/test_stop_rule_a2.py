@@ -117,3 +117,25 @@ def test_cue_classes_for_passes_positions_to_the_guard(monkeypatch):
     TC._CUE_CLS.clear()
     assert TC.cue_classes_for("PS92_0901", cue).tolist() == cls
     TC._CUE_CLS.clear()
+
+
+def test_breaks_hook_ends_a_run_and_is_off_by_default():
+    # the hook for the pending "no licks in the stopped time" rule: a trial whose span holds a lick ends a run
+    cls = [C] + [NR] * 7 + [C]
+    pos = [FAR] * 9
+    assert a2(cls, pos)[1:8] == [S] * 7
+    b = np.zeros(9, bool)
+    b[4] = True                                                  # 3 | broken | 3 -> two runs < 6
+    t = np.arange(9) * 10.0 + 400.0
+    t[0] = 0.0
+    for rule in ("both", "run", "long"):
+        out = TC.classify_session(np.array(cls, object), np.ones(9, bool), np.array(pos, object), rule=rule, min_run=6,
+                                  end="lick", cue_s=t, breaks=b).tolist()
+        assert S not in out[1:8], rule
+    with pytest.raises(ValueError):
+        TC.classify_session(np.array(cls, object), rule="both", end="lick", breaks=np.zeros(3, bool))
+
+
+def test_licks_in_spans():
+    got = TC.licks_in_spans([0.0, 10.0, 20.0, np.nan], [10.0, 20.0, 30.0, 5.0], [9.99, 20.0, 35.0, np.nan])
+    assert got.tolist() == [True, False, True, False]
