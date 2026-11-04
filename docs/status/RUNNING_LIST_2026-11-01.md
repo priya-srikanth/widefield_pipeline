@@ -632,6 +632,15 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
     trials never entered; Priya's rule (and main) is contact + incomplete. Helper mirroring main's row construction, then a
     two-arm validation: rebuild code on the checks' old inputs must reproduce .856 / .727 (code check); profile minus that =
     the data effect (first try on rebuild data, contact-only rows: pre .876, acute close ipsi .839).
+- BLOCKER FIXED (rebuild tip 6a85304d; FULL suite 4,593 / 0 failed; log 8.33-8.34): cue / precue frozen decoder trains,
+  centres and scores the camera contact + incomplete rows (DAQ-engaged AND no-lick arms), as main. Acute adds 1,324 no-lick
+  working rows cohort-wide. Dry count: min 224 rows (PS92_0812 pre); only PS93_0813 has 0 (neither trained nor scored in
+  working selections; still in lick-aligned).
+- VALIDATION (finding): rebuild code on the jaw checks' data reproduces their "jaw as its own class" row to .001 in every
+  animal (pre .856, acute close ipsi .727) -> no code difference. DATA EFFECT of the rebuild inputs (swap-mask hemo + LocaNMF
+  projection): pre panel +.004 (.856 -> .860); acute close ipsi +.007 mean (.727 -> .734) but mixed per animal (PS94 +.10,
+  PS93 -.05, PS92 -.01, PS95 -.02). The earlier .839 was the contact-only rows + trial pooling, not data.
+- Final pre-render review sent (reviewer aa0138ac1e9c354a7) on 6a85304d.
 
 ### Findings
 - main moved while the rebuild branch was being fixed (34 commits not in rebuild/cohort1-20261103). Two matter for the rebuild:
