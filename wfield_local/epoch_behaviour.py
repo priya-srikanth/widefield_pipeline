@@ -191,7 +191,7 @@ def fig_behaviour_timecourse(out_dir):
         # AND licks/trial both flat, recovered and settled; with only the hit-rate row drawn,
         # half of what placed that line was invisible. ylim from the data -- licks/trial is
         # not a rate and forcing 0-1 would flatten it against the axis.
-        extra_rows=[(lick_day, "licks / trial (engaged)", None)] if lick_day else None,
+        extra_rows=[(lick_day, "licks / trial (cue + 70 ms to stop; engaged)", None)] if lick_day else None,
         boundaries=bounds)
 def _behaviour_records():
     """``{animal: ([pre records], {day: record})}`` from the persisted per-trial tables.

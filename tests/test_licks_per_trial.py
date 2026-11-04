@@ -42,3 +42,24 @@ def test_readouts_use_the_trial_window_and_ili_rate():
         assert 'r["stop_sample"]' in src or 'n_licks_trial' in src, f
     qp = (REPO / "scripts" / "rest_migration" / "quit_prodrome.py").read_text(encoding="utf-8")
     assert 'float(tt[i]["n_licks_trial"])' in qp and 'tt[i + 1]["cum_licks"]' not in qp
+
+
+def test_gui_fallback_session_counts_to_the_sessions_own_window(tmp_path):
+    """Fifth review (a): a GUI-log (no DAQ) session ends each trial at first contact + ITS OWN response window
+    (gui_config.json 3500 ms), not the yaml default 2.0 s. A lick 3.0 s after a 0.1 s first lick counts."""
+    import json
+
+    import pandas as pd
+    import sys
+    sys.path.insert(0, str(REPO / "tests"))
+    from test_spout_behavior import _events, _write_session
+
+    from wfield_local import config
+    from wfield_local import spout_behavior as sb
+    ev = _events({1: {"cue_ms": 1000, "licks_ms": [1100, 1200, 4100]}, 2: {"cue_ms": 9000, "licks_ms": [9100]}})
+    d = _write_session(tmp_path, "PS92_20260806_120000",
+                       [dict(tid=1, pos_idx=1, hit=True), dict(tid=2, pos_idx=1, hit=True)], ev)
+    (d / "gui_config.json").write_text(json.dumps({"timing": {"response_window": "3500"}}))
+    m = sb.lick_microstructure(d, sb.load_trials(d), config.defaults()["behavior"])
+    per = m["per_position"].set_index("pos_name")
+    assert per.loc["close_L", "licks_per_trial"] == pd.Series([3, 1]).mean()   # the 4.1 s lick counts (old: 2 + 1)

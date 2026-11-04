@@ -90,6 +90,7 @@ import numpy as np
 #: point-estimate convention DIFFERS between `boot_ci` (flat pool, for LEVELS) and
 #: `boot_delta` (animal-weighted, for CHANGES), and the difference has retracted a result.
 from wfield_local import analysis_kit as ak
+from wfield_local.daq_trials import CONTACT_FROM_CUE_S  # noqa: E402 - the ONE cue + 70 ms (fifth review (g))
 
 BOUT_MAX_S = 0.5                    # s; a longer gap is a new bout, not a slow lick
 MIN_LICKS = 4                       # per trial, so the median is over >= 3 intervals
@@ -152,8 +153,10 @@ def session_row(item):
     # on wall-clock, to match the session-quintile convention in `engagement_decomposition` and
     # because trial count is what a session is actually made of.
     per_pos = {"near": [], "far": []}
-    nt = max(len(tt) - 2, 1)
-    for i in range(len(tt) - 1):
+    # EVERY trial, the last one included (fifth review (h)): the window ends at the trial stop (TTL / task rule), so the
+    # next cue is no longer needed
+    nt = max(len(tt) - 1, 1)
+    for i in range(len(tt)):
         # LICKS PER TRIAL = total licks from the cue to the TRIAL STOP (Priya 11-03; was cue -> next cue, which also
         # counted the ITI licks): `n_licks_trial` from `engagement_decomposition.session_trials`
         dl = float(tt[i]["n_licks_trial"])
@@ -166,10 +169,10 @@ def session_row(item):
     cs, lick_s, sr = bh.cue_samples, bh.lick_samples, bh.sample_rate
     for i_r, r in enumerate(tt):
         k = int(r["order"])
-        if k + 1 >= cs.size:
-            continue
-        # the same trial window as licks per trial: cue + 70 ms -> TRIAL STOP (Priya 11-03)
-        seg = lick_s[(lick_s >= cs[k] + 0.070 * sr) & (lick_s <= min(float(r["stop_sample"]), cs[k + 1]))]
+        # the same trial window as licks per trial: cue + 70 ms -> TRIAL STOP (Priya 11-03); the next cue is only a cap
+        # (the session end for the last trial)
+        nxt = cs[k + 1] if k + 1 < cs.size else np.inf
+        seg = lick_s[(lick_s >= cs[k] + CONTACT_FROM_CUE_S * sr) & (lick_s <= min(float(r["stop_sample"]), nxt))]
         if seg.size < MIN_LICKS:
             continue
         iv = np.diff(seg) / sr

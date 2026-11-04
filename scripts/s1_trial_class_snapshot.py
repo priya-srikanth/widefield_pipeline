@@ -45,9 +45,10 @@ def session_job(job) -> list[dict]:
     pos = J.cue_classes(T.assign(cls=T.position), cs)           # the same time matcher, carrying the spout position
     matched = J.cue_classes(T.assign(cls="matched"), cs) == "matched"
     # ONE CLASSIFIER (T9, third review): the session-level rules -- end at the last camera lick within the covered span,
-    # sustained stop (>= 6 no_response, jaw-only bridges), warm-up, coverage -- come from trial_classes.classify_session,
-    # never re-derived here. `working` = the PRIMARY (end "lick"); working_pl_<anchor> = the robustness anchors.
-    fin = {e: tc.classify_session(c, matched, pos, end=e) for e in ("lick", "contact", "close")}
+    # sustained stop (>= 6 no_response starting >= 5 min after the first cue, jaw-only bridges; earlier runs early_run),
+    # coverage -- come from trial_classes.classify_session WITH the cue times (the 5-min rule), never re-derived here.
+    # `working` = the PRIMARY (end "lick"); working_pl_<anchor> = the robustness anchors.
+    fin = {e: tc.classify_session(c, matched, pos, end=e, cue_s=cs) for e in ("lick", "contact", "close")}
     w, lk = tc.in_gate(fin["lick"], "working"), tc.in_gate(c, "camera_lick")
     wpl = {e: tc.in_gate(f, "working") for e, f in fin.items()}
     stop = np.isin(fin["lick"], list(tc.STOPPED_CLASSES))

@@ -23030,6 +23030,8 @@ Collected from the rebuild rounds of 11-03 (coordinator relays; implementation `
   stitch across an uncovered stretch. Only >= 5 consecutive unmatched cues count as uncovered (an isolated cue missing
   the 20 ms match, or a trailing DAQ cue, stays an in-video "unknown"). Partially covered sessions are named on every
   camera-gate figure (`trial_classes.coverage_note`).
+- **A session with no camera lick can have stopped trials:** a run of >= 6 no_response starting >= 300 s after the
+  first cue is a stop there too (no curated session is affected).
 - **A stop must start at least 5 min into the session.** A sustained-stop run counts only if it STARTS >= 5 min
   (`trial_selection.stop_min_start_s: 300`) after the session's first cue. An earlier qualifying run is in neither
   class (`early_run`); under rule "any" every no_response before that time is. A no_response trial outside a stop,
@@ -23152,10 +23154,10 @@ Consequences:
 - **The trial classes are unchanged.** A contact trial is "contact" whatever follows, and every other trial already
   ends at the response window, so cue_stop equals cue → cue + 3.5 s for the classes. Checked: identical on both
   sessions.
-- **Measures windowed "to the trial stop" are affected** (lick counts, licking dynamics, jaw / tongue windows,
-  `trial_windows.end_at_stop`). They include up to 3.5 s of post-contact (consumption) licking on CONTACT trials only.
-  Comparisons of lick counts or rates across classes or epochs, where the contact share changes (e.g. acute far
-  contra), should cut at the response window instead.
+- **Measures windowed "to the trial stop"** (lick counts, licking dynamics, jaw / tongue windows,
+  `trial_windows.end_at_stop`) include up to 3.5 s of post-contact (consumption) licking on CONTACT trials. Lick counts
+  per trial are defined on exactly that window, cue + 70 ms to the trial stop (decided later on 11-03, entry "Spout
+  hold, lick counts to the trial stop"); lick rate comes from the inter-lick intervals.
 
 ## 2026-11-03 — Change-vs-pre stars (consolidation A3): animal-weighted bootstrap, labelled, plus the mixed model (Priya)
 

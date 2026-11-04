@@ -864,3 +864,48 @@ Those assertions were updated in the next commit, and both tests pass.
 - **N3 not done:** in "refit" / "paired_matched" the frame's models are still fitted. `rec` calls `model.predict`
   before branching on the mode, the pre loop passes `fr["loso"][i]`, and a matched model missing a spout falls back
   to XEs, so a fit=False frame is not a small change.
+
+### 8.20 Fifth-review non-blockers (N5, a-i)
+- **N5:** `run_mode.require_input_tag(path, what)` refuses an input folder whose run tag (a tag-like path segment)
+  is not this run's, and prints the tag it read. Applied to a3_lmm_imaging_stars, a3_lmm_preview_fig, lmm_change_fig
+  and lmm_per_lick_fig:
+  - the tag goes into their output CSVs (`input_run_tag`) or a figure footer;
+  - they are registered in test_share_writers_mode_safe (ARGPATH_READERS);
+  - a3_lmm_imaging_stars with no fittable cell now prints a clear message and writes an empty CSV (was KeyError 'p').
+- **(a)** spout_behavior's licks per trial uses the session's own response window (`daq_trials.response_window_s(..,
+  3.5)`). The GUI-fallback sessions used the yaml 2.0 s. Behavioural test (fails on the old code): a lick 3.0 s after
+  the first contact counts.
+- **(b)** rest_start enters the selection tag (`-restsession` when "session"; the default first_lick adds nothing),
+  and with it run_mode tags, cache keys, frozen specs and the `_CUE_CLS` memo. Env overrides: WIDEFIELD_REST_START and
+  WIDEFIELD_STOP_MIN_START_S.
+- **(c)** s1_trial_class_snapshot passes `cue_s` to classify_session (the 5-min rule); its "warm-up" comment is
+  rewritten.
+- **(d)** Tests:
+  - the 299.9 / 300.0 s edge;
+  - `cue_classes_for` applies the time rule;
+  - the `stopRun6t600` suffix;
+  - `-restsession` in the run and cache tags.
+- **(e)** Labels now read "licks / trial (cue + 70 ms to stop)" (spout_behavior POS_METRICS and LICK_METRICS,
+  behavior_deck, epoch_behaviour). The 11-03 DECISIONS line "should cut at the response window" is rewritten to the
+  cue + 70 ms to stop rule.
+- **(f)** DECISIONS: a session with no camera lick can have stopped trials (a run of >= 6 no_response starting >= 300 s);
+  no curated session is affected.
+- **(g)** quit_prodrome and lick_bout_structure use `daq_trials.CONTACT_FROM_CUE_S`.
+- **(h)** quit_prodrome includes the last trial (`range(len(tt))`; the frac denominator is n - 1). Its ILI loop and
+  lick_bout_structure no longer skip the last trial; the next cue is only a cap (the session end for the last trial).
+- **(i) Lick detectors (report only; a decision for the coordinator, CLAUDE.md rule 9).**
+  - Detector A: `lick_detection.detect_licks` with the yaml `lick_detection` params (2.5 / 0.5 V, lockout
+    (0.001, 0.020) s, min ILI 40 ms). Used by `daq_trials.decode` (spout_behavior, the DAQ trial table, trial stops),
+    `dlc_frames.lick_onsets` (trial_classes' DAQ contacts) and `behavior_events` (same params).
+  - Detector B: `plot_lick_aligned_averages._load_daq_events(h5, "lick_analog", 2.5, 1.0, (0.001, 0.020), 0.10)`
+    (lower threshold 1.0 V, 100 ms refractory). Used by `analysis_kit.lick_samples` (quit_prodrome,
+    lick_bout_structure) and `engagement_decomposition.session_trials` (`n_licks_trial`).
+  - Counts from cue + 70 ms to the stop:
+
+    | session | trials | A | B | trials that differ (B - A) |
+    |---|---|---|---|---|
+    | PS93_0908 | 511 | 5,304 | 5,203 | 101 (-1 each) |
+    | PS94_0818 | 600 | 1,486 | 1,484 | 2 (-1 each) |
+
+  - They DIFFER, so nothing was unified.
+- **N3** stays undone (8.19).

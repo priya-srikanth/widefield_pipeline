@@ -313,3 +313,38 @@ def test_rest_start_is_a_named_setting(monkeypatch):
     TC._CUE_CLS.clear()
     assert TC.camera_engaged_period("X_0009", np.arange(8.0)).tolist()[:5] == [True] * 5
     TC._CUE_CLS.clear()
+
+
+def test_time_rule_edge_at_exactly_300_s():
+    """Fifth review (d): a run starting 299.9 s after the first cue is early_run; one starting at 300.0 s is a stop."""
+    raw = np.array([C] + [NR] * 6 + [C], object)
+    for start, want in ((299.9, "early_run"), (300.0, "stopped")):
+        t = np.r_[0.0, start + np.arange(6) * 5.0, start + 40.0]
+        out = TC.classify_session(raw, rule="run", min_run=6, end="none", cue_s=t).tolist()
+        assert out[1:7] == [want] * 6, (start, out)
+
+
+def test_cue_classes_for_applies_the_time_rule(monkeypatch):
+    """cue_classes_for passes the session cue times: a run of 7 no_response in the first minute is early_run."""
+    cls = [C] + [NR] * 7 + [C]
+    cue_s = np.r_[0.0, 10.0 + np.arange(7) * 5.0, 600.0]
+    _fake_session(monkeypatch, cls, cue_s)
+    out = TC.cue_classes_for("X_0010", cue_s).tolist()
+    assert out[1:8] == ["early_run"] * 7
+    TC._CUE_CLS.clear()
+
+
+def test_stop_time_and_rest_start_enter_the_tags(monkeypatch):
+    monkeypatch.setenv(TC.GATE_ENV, "camera")
+    monkeypatch.delenv("WIDEFIELD_STOP_MIN_START_S", raising=False)
+    monkeypatch.delenv("WIDEFIELD_REST_START", raising=False)
+    base = TC.run_selection_tag()
+    assert base.endswith("-stopRun6")
+    monkeypatch.setenv("WIDEFIELD_STOP_MIN_START_S", "600")
+    assert TC.stopped_rule_name() == "stopRun6t600" and TC.run_selection_tag().endswith("-stopRun6t600")
+    monkeypatch.delenv("WIDEFIELD_STOP_MIN_START_S")
+    monkeypatch.setenv("WIDEFIELD_REST_START", "session")
+    assert TC.rest_start() == "session" and TC.run_selection_tag() == base + "-restsession"
+    assert TC.nolick_selection().endswith("-restsession")
+    from wfield_local import run_mode
+    assert "restsession" in run_mode.tag() and "restsession" in run_mode.cache_tag()

@@ -382,7 +382,7 @@ def nolick_selection() -> str:
     the tag names cue_stop whatever `trial_selection.window` says; under daq the run's selection (unchanged)."""
     if not camera_gate_on():
         return run_selection()
-    return selection_tag("camera", "cue_stop", end=end_anchor(), stopped=stopped_rule_name())
+    return selection_tag("camera", "cue_stop", end=end_anchor(), stopped=_stop_rest_name())
 
 
 def require_gate(mode: str, where: str) -> None:
@@ -703,16 +703,25 @@ def stop_run_min() -> int:
 def stop_min_start_s() -> float:
     """A stop counts only if its run starts this long after the session's first cue (``trial_selection.
     stop_min_start_s``, 300 s = 5 min; Priya 11-03)."""
-    return float(_selection_cfg().get("stop_min_start_s", 300.0))
+    import os
+    v = os.environ.get("WIDEFIELD_STOP_MIN_START_S", "").strip()
+    return float(v) if v else float(_selection_cfg().get("stop_min_start_s", 300.0))
 
 
 def rest_start() -> str:
     """Where the camera rest working period STARTS (``trial_selection.rest_start``): "first_lick" (the session's first
     camera lick; the setting in force, an OPEN QUESTION for Priya) or "session" (the first cue)."""
-    v = str(_selection_cfg().get("rest_start", "first_lick")).lower()
+    import os
+    v = (os.environ.get("WIDEFIELD_REST_START", "").strip() or str(_selection_cfg().get("rest_start", "first_lick"))).lower()
     if v not in ("first_lick", "session"):
         raise ValueError(f"trial_selection.rest_start = {v!r}; expected first_lick or session")
     return v
+
+
+def _stop_rest_name() -> str:
+    """The stopped-rule name plus the rest-start setting when it is not the default (fifth review (b)): what every
+    camera selection tag carries -- so cache keys, frozen specs and output folders separate the two rest starts."""
+    return stopped_rule_name() + ("-restsession" if rest_start() == "session" else "")
 
 
 def stopped_rule_name() -> str:
@@ -735,13 +744,13 @@ def run_selection(source: str | None = None) -> str:
         # cache tag (`gate_source.cache_tag`, lp_licks "_gateLP").
         from wfield_local import gate_source
         return "sel-daq-quittail" + ("-gateLP" if gate_source.is_lp() else "")
-    return selection_tag(source or "camera", gate_window(), end=end_anchor(), stopped=stopped_rule_name())
+    return selection_tag(source or "camera", gate_window(), end=end_anchor(), stopped=_stop_rest_name())
 
 
 def run_selection_tag() -> str | None:
     """None for the untagged DAQ rule, else the run's selection tag (output folders, cache kinds; `run_mode`)."""
     return None if gate_mode() == UNTAGGED_GATE else selection_tag("camera", gate_window(), end=end_anchor(),
-                                                                   stopped=stopped_rule_name())
+                                                                   stopped=_stop_rest_name())
 
 
 def cue_classes(table: pd.DataFrame | None, cue_s, tol: float = CUE_MATCH_S) -> np.ndarray:
@@ -775,7 +784,7 @@ def cue_classes_for(label: str, cue_s, window: str | None = None) -> np.ndarray:
     import hashlib
     window = window or gate_window()
     cs = np.ascontiguousarray(np.asarray(cue_s, float))
-    rule = (stopped_rule(), stop_run_min(), stop_min_start_s())
+    rule = (stopped_rule(), stop_run_min(), stop_min_start_s(), rest_start())
     end = end_anchor()
     key = (label, window, rule, end, hashlib.sha1(cs.tobytes()).hexdigest())
     if key not in _CUE_CLS:

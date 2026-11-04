@@ -28,6 +28,9 @@ def main(argv=None) -> int:
     ap.add_argument("--labels", required=True, help="file: comma list cell=label (label = 'factor / direction lick')")
     ap.add_argument("--out", required=True)
     a = ap.parse_args(argv)
+    from wfield_local import run_mode
+    run_tag = run_mode.require_input_tag(a.sessions, "lmm_per_lick_fig")   # fifth review N5
+    run_mode.require_input_tag(a.stats, "lmm_per_lick_fig stats")
     S = pd.read_csv(a.sessions)
     T = pd.read_csv(a.stats)
     T["star"] = T["star"].fillna("")
@@ -61,6 +64,7 @@ def main(argv=None) -> int:
     fig.legend(handles=legend_handles(S), fontsize=7, ncol=9, loc="lower center", frameon=False)
     sm.reserve_headroom(fig)
     fig.subplots_adjust(left=0.06, right=0.99, top=0.86, bottom=0.17)
+    fig.text(0.995, 0.005, f"input run tag: {run_tag or 'default'}", ha="right", va="bottom", fontsize=6, color="0.5")
     fig.savefig(out, dpi=150)
     plt.close(fig)
     print(out)

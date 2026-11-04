@@ -10,6 +10,8 @@ from scipy import stats
 sys.path.insert(0, ".")
 from wfield_local import analysis_kit as ak, cat_points as cp, sig_marks as sm, epoch_figures as ef
 sess, lmm, name, out = sys.argv[1:5]
+from wfield_local import run_mode  # noqa: E402
+RUN_TAG = run_mode.require_input_tag(sess, "a3_lmm_preview_fig")    # fifth review N5
 ylab = sys.argv[5] if len(sys.argv) > 5 else "change vs own pre"
 S = pd.read_csv(sess); H = pd.read_csv(lmm); H = H[H.figure == name]
 EP = ["acute", "subacute", "chronic"]
@@ -52,4 +54,5 @@ fig.legend(handles=h, fontsize=7, ncol=5, loc="lower center", frameon=False)
 ax.set_title(f"{name}  -  LMM version (PREVIEW)\nmixed model, separate between-animal spread per epoch; "
              "* p < .05, ** Holm across the figure's cells", fontsize=9)
 sm.reserve_headroom(fig); fig.tight_layout(rect=(0, 0.1, 1, 1))
+fig.text(0.995, 0.005, f"input run tag: {RUN_TAG or 'default'}", ha="right", va="bottom", fontsize=6, color="0.5")
 fig.savefig(out, dpi=130); print(out)

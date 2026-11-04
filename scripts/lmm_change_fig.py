@@ -164,6 +164,8 @@ def main(argv=None) -> int:
     ap.add_argument("--ncols", type=int, default=0, help="panels per row (default: all in one row)")
     ap.add_argument("--figsize", default=None, help="W,H inches for a multi-row grid (e.g. 13,5.5 for a slide)")
     a = ap.parse_args(argv)
+    from wfield_local import run_mode
+    run_tag = run_mode.require_input_tag(a.sessions, "lmm_change_fig")   # fifth review N5
     S = pd.read_csv(a.sessions)
     S["position"] = S.position.astype(str)
     cells = a.cells.split(",") if a.cells else _order(list(dict.fromkeys(S.position)))
@@ -177,7 +179,7 @@ def main(argv=None) -> int:
     writeguard.assert_writable(out)
     out.parent.mkdir(parents=True, exist_ok=True)
     T = statistics(S, cells, family=dict(pm) if (panels and a.holm_by_panel) else None)
-    T.to_csv(out.with_name(out.stem + "_lmm.csv"), index=False)
+    T.assign(input_run_tag=run_tag or "default").to_csv(out.with_name(out.stem + "_lmm.csv"), index=False)
     draw(S, T, cells, out, title=a.title or Path(a.sessions).stem.replace("_sessions", ""), ylabel=a.ylabel,
          labels=labels, panels=panels, ncols=a.ncols,
          figsize=tuple(float(v) for v in a.figsize.split(",")) if a.figsize else None)

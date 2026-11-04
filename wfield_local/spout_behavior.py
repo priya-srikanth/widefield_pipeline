@@ -539,7 +539,7 @@ def lick_microstructure(session_dir: Path, trials: pd.DataFrame, params: dict,
                         engaged_ids=None) -> dict | None:
     """Lick-rate / ILI / bout / peri-cue microstructure from the DAQ-primary licks. ``None`` if no events.
 
-    Per-position (engaged trials): mean post-cue licks/trial, mean anticipatory (pre-cue) licks/trial,
+    Per-position (engaged trials): mean licks/trial (cue + 70 ms to the trial stop), mean anticipatory (pre-cue) licks/trial,
     median within-trial lick rate (Hz, from median post-cue ILI). Session-level: overall lick rate,
     ILI median, bout count/size/duration/within-bout-ILI. Plus peri-cue delays for the raster/PSTH.
     Per-trial licks are windowed from the sorted train around each cue (post capped at the next cue).
@@ -565,6 +565,9 @@ def lick_microstructure(session_dir: Path, trials: pd.DataFrame, params: dict,
     # the response window + the window, or cue + window). LICK RATE comes from the inter-lick intervals of those licks
     # (1 / median ILI), never a count / duration.
     from wfield_local import daq_trials
+    # THE SESSION'S OWN response window (gui_config.json, 3.5 s; fifth review (a)): the GUI-fallback sessions
+    # (08-05, 08-06, PS92 08-12) used the yaml default (2.0 s) here, so their trial stop came 1.5 s early
+    resp = daq_trials.response_window_s(session_dir, 3.5)[0]
     if "stop_s" in trials.columns and licks.get("source") == "DAQ" and "lick_s" in getattr(trials, "attrs", {}):
         stop_by_trial = pd.Series(trials["stop_s"].to_numpy(float), index=trials["trial_id"].to_numpy())
     else:
@@ -1125,7 +1128,7 @@ def _micro_pos_bars(ax, micro_pos, col, title, ylabel, color):
 # the by-position lick panels shared by the per-session behavior + licking figures, in the same
 # order (and with the same labels) as the across-session per-animal figure's metric families
 LICK_POS_PANELS = [
-    ("licks_per_trial", "licks / trial (cue to trial stop)", "licks"),
+    ("licks_per_trial", "licks / trial (cue + 70 ms to stop)", "licks"),
     ("lick_rate_hz", "within-trial lick rate (1 / median ILI)", "Hz"),
     ("anticipatory_licks", "anticipatory licks / trial", "licks"),
 ]
@@ -1517,7 +1520,7 @@ def discover_sessions(rv: PathResolver, date: str | None, animals=None) -> list[
 POS_METRICS = [
     ("hit", "acc", "hit_rate", "hit rate (engaged)"),
     ("lat", "acc", "median_latency_s", "first-lick latency (s)"),
-    ("lpt", "lick", "licks_per_trial", "licks / trial"),
+    ("lpt", "lick", "licks_per_trial", "licks / trial (cue + 70 ms to stop)"),
     ("rate", "lick", "lick_rate_hz", "within-trial lick rate (Hz)"),
     ("ant", "lick", "anticipatory_licks", "anticipatory licks / trial"),
 ]

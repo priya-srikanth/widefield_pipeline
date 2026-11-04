@@ -72,7 +72,7 @@ ACROSS_METRICS = [
     ("hit", "hit rate per position across sessions",
      "bold + marker = engaged-gated, thin = all trials.  firebrick dashed = lesion"),
     ("latency", "first-lick latency per position across sessions", "firebrick dashed = lesion"),
-    ("licks_per_trial", "licks / trial per position across sessions", "firebrick dashed = lesion"),
+    ("licks_per_trial", "licks / trial (cue + 70 ms to stop) per position across sessions", "firebrick dashed = lesion"),
     ("lick_rate", "within-trial lick rate per position across sessions", "firebrick dashed = lesion"),
     ("anticipatory", "anticipatory licks per position across sessions", "firebrick dashed = lesion"),
     ("session", "session-level metrics across sessions",

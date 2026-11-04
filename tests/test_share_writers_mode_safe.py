@@ -59,3 +59,46 @@ def test_require_default_refuses_in_a_tagged_mode(monkeypatch):
     monkeypatch.setenv("WIDEFIELD_TRIAL_GATE", "camera")
     with pytest.raises(RuntimeError):
         run_mode.require_default("x")
+
+
+#: Scripts whose inputs AND outputs are paths given on the command line (main's A3 / LMM figure scripts): outside the
+#: share-root scan above, so registered here. Each must check the run tag of the folder it reads (fifth review N5).
+ARGPATH_READERS = ("a3_lmm_imaging_stars.py", "a3_lmm_preview_fig.py", "lmm_change_fig.py", "lmm_per_lick_fig.py")
+
+
+def test_argument_path_readers_check_the_input_run_tag():
+    for f in ARGPATH_READERS:
+        assert "run_mode.require_input_tag(" in (REPO / "scripts" / f).read_text(encoding="utf-8"), f
+
+
+def test_require_input_tag(monkeypatch, tmp_path):
+    import pytest
+
+    from wfield_local import run_mode
+    for k in ("WIDEFIELD_TRIAL_GATE", "WIDEFIELD_HEMO_VARIANT", "WIDEFIELD_LICK_SOURCE"):
+        monkeypatch.delenv(k, raising=False)
+    assert run_mode.require_input_tag(tmp_path / "grant_figures" / "epoch" / "data", "t") == ""
+    with pytest.raises(SystemExit, match="run tag"):
+        run_mode.require_input_tag(tmp_path / "LP_licks" / "epoch" / "data", "t")
+    monkeypatch.setenv("WIDEFIELD_LICK_SOURCE", "lp")
+    assert run_mode.require_input_tag(tmp_path / "LP_licks" / "epoch" / "data", "t") == "LP_licks"
+    with pytest.raises(SystemExit):
+        run_mode.require_input_tag(tmp_path / "grant_figures" / "epoch" / "data", "t")
+
+
+def test_a3_imaging_stars_no_fittable_cell_is_an_empty_result(tmp_path):
+    import subprocess
+    import sys
+    import pandas as pd
+    data = tmp_path / "data"
+    data.mkdir()
+    pd.DataFrame({"epoch": ["pre", "acute"], "position": ["a", "a"], "animal": ["PS92", "PS92"],
+                  "value": [1.0, 2.0]}).to_csv(data / "fig_sessions.csv", index=False)
+    pd.DataFrame({"epoch": ["acute"], "position": ["a"], "mark": [""]}).to_csv(data / "fig.csv", index=False)
+    out = tmp_path / "o.csv"
+    env = {k: v for k, v in __import__("os").environ.items() if not k.startswith(("WIDEFIELD_", "WFIELD_"))}
+    env["PYTHONPATH"] = str(REPO)
+    r = subprocess.run([sys.executable, str(REPO / "scripts" / "a3_lmm_imaging_stars.py"), str(data), str(out)],
+                       capture_output=True, text=True, cwd=str(REPO), env=env)
+    assert r.returncode == 0, r.stderr[-2000:]
+    assert "empty result" in r.stdout and pd.read_csv(out).empty

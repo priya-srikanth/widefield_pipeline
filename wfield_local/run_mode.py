@@ -273,3 +273,29 @@ def require_default(what: str) -> None:
     if t:
         raise RuntimeError(f"{what}: refusing to run in mode {t!r} -- its outputs have fixed default names and would "
                            "overwrite the default ones; give it an explicit output root or unset the mode")
+
+
+# ------------------------------------------------------------------------------------- inputs given as paths (N5)
+#: path segments that are run tags (output-folder tags of a non-default run): the LP / ENL / gate-LP names and the
+#: run-mode parts' prefixes
+_TAG_PREFIXES = ("hv-", "lnmfproj", "sel-", "pre0", "LP_licks", "DAQ_ENL", "DAQ_gateLP", "drift", "emc-", "refs-",
+                 "inmem-", "projall", "lpdaqtrained")
+
+
+def input_run_tag(path) -> str:
+    """The run tag a path was written under: its (last) path segment that is a run tag; "" = the default run."""
+    segs = [s for s in Path(path).parts if s.startswith(_TAG_PREFIXES)]
+    return segs[-1] if segs else ""
+
+
+def require_input_tag(path, what: str) -> str:
+    """For a script that READS an input given as a path (fifth review N5): refuse an input written under another run
+    tag than this run's (`lp_licks.output_tag`), and say which tag it read. Returns the tag ("" = default)."""
+    from wfield_local import lp_licks
+    got, want = input_run_tag(path), (lp_licks.output_tag() or "")
+    print(f"[{what}] input run tag: {got or 'default'} (this run: {want or 'default'})", flush=True)
+    if got != want:
+        raise SystemExit(f"{what}: input {path} was written under run tag {got or 'default'!r}, this run is "
+                         f"{want or 'default'!r} -- refusing to mix runs (point it at this run's folder)")
+    return got
+

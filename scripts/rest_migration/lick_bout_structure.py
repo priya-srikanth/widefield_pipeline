@@ -54,6 +54,7 @@ import numpy as np
 #: point-estimate convention DIFFERS between `boot_ci` (flat pool, for LEVELS) and
 #: `boot_delta` (animal-weighted, for CHANGES), and the difference has retracted a result.
 from wfield_local import analysis_kit as ak
+from wfield_local.daq_trials import CONTACT_FROM_CUE_S  # noqa: E402 - the ONE cue + 70 ms (fifth review (g))
 
 BOUT_GAP_S = 0.5            # longer than this starts a new bout, matching `quit_prodrome`
 MIN_BOUT_LICKS = 6          # to split a bout into thirds and still have >= 2 intervals each side
@@ -91,10 +92,10 @@ def session_bouts(item):
     rows, n = [], max(len(tt) - 1, 1)
     for i, r in enumerate(tt):
         k = int(r["order"])
-        if k + 1 >= cs.size:
-            continue
-        # the trial's licks: cue -> TRIAL STOP (Priya 11-03; was cue -> next cue, which also took in the ITI licks)
-        seg = lick_s[(lick_s >= cs[k] + 0.070 * sr) & (lick_s <= min(float(r["stop_sample"]), cs[k + 1]))]
+        # the trial's licks: cue + 70 ms -> TRIAL STOP (Priya 11-03; was cue -> next cue, which also took in the ITI
+        # licks). The next cue is only a cap (the session end for the last trial, which is now included, fifth review)
+        nxt = cs[k + 1] if k + 1 < cs.size else np.inf
+        seg = lick_s[(lick_s >= cs[k] + CONTACT_FROM_CUE_S * sr) & (lick_s <= min(float(r["stop_sample"]), nxt))]
         if seg.size == 0:
             continue
         ts = seg / sr
