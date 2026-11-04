@@ -143,6 +143,9 @@ FYI, the 3-class camera variant (lick / jaw-only / none) is thin in PS92 and PS9
 
 ## Decisions taken today (Priya)
 
+- **(11-04) Wait on the rebuild (question 0).** No main-branch render and no interim deck / page swaps. Slides 9-13,
+  19, 89 and imaging page §1-4, 6, 7 change once, in 34's replacement pass. Questions 1, 2 and 4 are being clarified.
+
 - **(late) Jaw-only trials are OUT of working** and are reported as their own class, like no-response. Working =
   contact + incomplete camera licks, cut at the session's last camera lick. This applies to the frozen training set,
   the per-session centre, the pre panel and the scored set. It replaces the afternoon rule (jaw or any lick). A helper
