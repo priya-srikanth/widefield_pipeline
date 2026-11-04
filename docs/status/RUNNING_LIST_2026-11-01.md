@@ -648,6 +648,17 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   trained. Non-blockers: grant similarity / geometry / encoder / matching pre reference = DAQ lick rows; "working" captions
   stale; PS93_0813's exclusion silent. Spec ids verified distinct for in_working vs in_working_jaw; quit_tail refused under
   camera; jaw_only bridges stop runs as intended. Validation was cue-only, in-memory: helper extending to precue + stored path.
+- REVIEW 7B (Aug-only pre / profile blocks): profile --check tags correct for primary, drift1500, LP and June blocks; typo
+  blocks now raise; every decoder / encoder / CD / ITI family is Aug-only under the profile. 3 BLOCKERS sent to helper:
+  june_august_drift (Fig 4.3) refuses to run under ANY profile tag (its June exemption was dead); map_drift_prepre (Figs 7.2 /
+  7.4 / 7.6) has no June block; reembedding_test silently DROPS its June reference epoch under Aug-only. Also: the analysis
+  deck reads the untagged epoch folder and skips missing files silently (section I would be empty) -> fixing before the pass.
+- CORRECTION OF MY 7A INSTRUCTION (a8 + main DECISIONS 11-03): main deliberately keeps the section D / G SCORED sets as
+  engaged / all trials (only the frozen model + frame are working) and the pattern families' PRE reference as lick trials.
+  Main's 5b already has the camera guard (my "main has the same shortcut" was wrong). Rebuild now FOLLOWS MAIN on D / G /
+  pattern families (captions to say so); 5b gets main's guard.
+  QUESTION FOR PRIYA (a8 is asking it too): should the D / G scored sets and the pattern families' pre reference also be
+  camera working (contact + incomplete), i.e. "working on both sides" everywhere? Both branches would change together.
 
 ### Findings
 - main moved while the rebuild branch was being fixed (34 commits not in rebuild/cohort1-20261103). Two matter for the rebuild:
