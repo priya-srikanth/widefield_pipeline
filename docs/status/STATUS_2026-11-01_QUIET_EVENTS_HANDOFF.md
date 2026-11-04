@@ -42,8 +42,10 @@
 > WATCH: the encoder pre-cue position credit may fall once spontaneous licks are modelled (LICKS_ALL = split; PS93
 > smokes .0072 -> .0029). 34 sends per-animal numbers FIRST when the O2 run (bundle enc_rebuild_20261104b, commanded
 > 3-D targets) lands, with the list of affected claims.
-> OPEN: the old measured 3-D spout table (pose3d_spout_positions_20261023.csv): 34 deleted the superseded bundle
-> enc_rebuild_20261104 (logged in RENDER_LOG.md); only e0's local cache copy remains (e0 asked to retire it). Never start duplicate helpers; resume a stopped one with SendMessage.
+> CLOSED 11-04: the old measured 3-D spout table (pose3d_spout_positions_20261023.csv) is gone everywhere: 34 deleted
+> the superseded bundle enc_rebuild_20261104 (RENDER_LOG.md), e0 deleted the local cache copy (DELETED_LOCAL_2026-11-04.txt),
+> and nothing reads it. Remaining risk: prep_3d_inputs.spout_table would regenerate it; it's on e0's fix list for the
+> next 3-D re-run. Never start duplicate helpers; resume a stopped one with SendMessage.
 >
 > UPDATE 11-03 (late+): helper (B) DONE -- spout decoder biased (prod understates acute far-contra drop ~.10; fix = bal_em
 > centring, new spec, AWAITING PRIYA); lick decoder clean except cued all-lick acute offset caveat (tell 34 after Priya).

@@ -662,12 +662,16 @@ FYI, the 3-class camera variant (lick / jaw-only / none) is thin in PS92 and PS9
   table (it was still on the 10-23 measured table; 34 switched the bundle / check / wrapper env). The exec 3-D table,
   the exec-bins calibration and the frozen-encoder frame are not on the measured table; lick_template_test is set if
   it renders. 34 is already drafting the list of pre-cue position claims for the watch item.
-- OPEN: the old measured 3-D table pose3d_spout_positions_20261023.csv still exists in e0's local cache
-  (C:/Users/SabatiniLab/wfield_cache/pose3d_inputs/) and in 34's superseded bundle (rebuild_20261103/o2/
-  enc_rebuild_20261104/tables/). e0 / 34 were asked to confirm nothing reads it, retire it and log the deletion.
-  UPDATE: 34 DELETED the whole superseded bundle enc_rebuild_20261104 (644 files, 29.3 GB, incl. the old table;
-  never submitted; file list in the rebuild RENDER_LOG.md). The O2 scratch copy was already removed by Priya. Only e0's
-  local cache copy remains. The B12 smoke numbers came from a helper's scratch inputs, and are redone on ...04b.
+- CLOSED 11-04: the old measured 3-D table pose3d_spout_positions_20261023.csv is gone everywhere.
+  - 34 deleted the whole superseded bundle enc_rebuild_20261104 (644 files, 29.3 GB, incl. the table; never
+    submitted; listed in the rebuild RENDER_LOG.md).
+  - Priya had already removed the O2 scratch copy.
+  - e0 deleted the local cache copy (C:/Users/SabatiniLab/wfield_cache/pose3d_inputs/; bytes + sha256 in
+    docs/status/DELETED_LOCAL_2026-11-04.txt).
+  - No code reads it: e0 grepped both repos; a table enters only via COMBINED_ENCODING_TARGET3D_TABLE.
+  - Remaining risk: prep_3d_inputs.spout_table would regenerate it if re-run. It is on e0's fix list for the next
+    3-D re-run.
+  - The B12 smoke numbers came from a helper's scratch inputs and are redone on enc_rebuild_20261104b.
 
 ## Running
 
