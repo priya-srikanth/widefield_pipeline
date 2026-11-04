@@ -178,6 +178,25 @@ Two things to know about the current wiring:
 - stopped_trial_traces (quit-tail traces), channel_position_maps (quit-period exclusion).
 - engagement_decomposition (2 class refs; not checked in detail).
 
+**3h. Measures OF engagement (Priya 11-04 via a8: switch; the DAQ version becomes a labelled robustness row)**
+- `quit_point.session_quit` :103 (the S28 quit):
+  - now: the DAQ quit rule;
+  - becomes: the session's last camera lick (contact or incomplete), the same anchor as working = cut at the last camera
+    lick.
+- `spout_behavior.flag_engagement` :771 and the stopped runs: become the camera stop rule (>= 6 consecutive no_response
+  or jaw_only, starting >= 300 s after the first cue; earlier runs = early_run).
+- These move to camera licks and classes:
+  - quit_prodrome, lick_bout_structure, disengagement_tests;
+  - gate_lp_check, lp_gate_option_counts;
+  - analysis_kit.session_behavior :513, which feeds the quiet-events mask (3f).
+- DAQ only where there is no video: PS93_0813, uncovered trials, June, cohort 2.
+- Epoch boundaries stay pinned (Q11).
+- **Findings these may move** (all were computed on DAQ): the 09-20 engagement results.
+  - time-driven quitting;
+  - a within-session decline that is not the quit tail;
+  - no motor fatigue.
+  Re-test them on camera and flag any that change.
+
 ## 4. Cannot switch, or should stay DAQ
 - **PS93_0813 (no video).** Every cue is "unknown", so it is in neither working nor stopped.
   - It stays only in the DAQ "lick" class (`camera_select` :1006) and in the bal_em centre fallback
@@ -193,10 +212,8 @@ Two things to know about the current wiring:
   - The no-lick arm stays out of lick alignment.
 - **Per-lick outcome** (a lick hit / missed the spout): within_lick_correction OUTC :488, lick_correction :539. This is
   a property of the lick, not a trial class; stays.
-- **Measures OF engagement** stay DAQ, each opened with `daq_quit_rule`.
-  - quit_point.session_quit, spout_behavior.flag_engagement, quit_prodrome, lick_bout_structure, disengagement_tests;
-  - gate_lp_check, lp_gate_option_counts.
-  - A camera "time of first stopped run" could be added alongside.
+- **Measures OF engagement** were moved to 3h (Priya 11-04 via a8). Only their DAQ versions stay, as labelled
+  robustness rows.
 - **Epoch boundaries.** epochs.py :206-227 (hit + licks series, engaged trials) are pinned (`load_boundaries` :361).
   Recomputing them would move epochs, so keep them pinned (Q11).
 - **s1 tables' quit-tail rows** (`rule="daq"`). A labelled DAQ robustness row.
