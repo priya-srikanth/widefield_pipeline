@@ -1367,3 +1367,20 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
     - attempt_coding, position_axes, position_coding_directions, precue_engagement_states (enl / bcdg);
     - the log file in all four.
   - Merge order once cls and the bcdg follow-ups finish: cls -> cue70 -> enl -> bcdg, then the full suite.
+- **11-04 ~19:40: encoder-classes is done with split + the lick-free enl window.**
+  - Commits: f13c608d, 2064c4f4, aa844490, 377f160e, 148af7ec, 29a19ba3.
+  - Full suite: 4,762 passed / 2 failed. One was fixed (148af7ec); the other is the same vs-main test.
+  - FINDING: the old pickles held 0 ENL-period licks, against 3,524 in the LP train. So the pre-cue licking was never in
+    any lick regressor.
+  - Smokes (cortex):
+    - split raises full cvR2: PS93_0814 .526 -> .540, PS93_0818 .405 -> .432;
+    - unique spontaneous licks: .009 / .017;
+    - **drop:pos_enl in the enl window, PS93_0814 (pre): .0085 -> .0019 under split.** Most of that session's pre-cue
+      position credit was unmodelled lick activity. PS93_0818 rises .0029 -> .0064. Conclusion-change watch for every
+      encoder pre-cue position claim; per-animal numbers to come after the O2 run.
+    - Under the LP 1.0 s window: full enl .479 / .190.
+  - Peak RAM 31.5 GiB, so the bundle sbatch default is now 48G.
+  - Decisions (coordinator):
+    - production split = the plain folder name, robustness = the _nolicksall suffix;
+    - ENL source = lp (Priya's 1.0 s);
+    - three-variable vs stacked differ by <= .0015 region R2, because of the group orthogonalisation; accepted.
