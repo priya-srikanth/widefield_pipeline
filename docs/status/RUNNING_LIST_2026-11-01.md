@@ -520,6 +520,19 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   - Trial-stop check (6 sessions): hits stop - first contact median 3.528 s [3.39, 3.72]; misses stop - cue 3.525 s. 49 hits > 250 ms
     off (mostly stop EARLY: the task timer started on a lick before the first DAQ contact after cue + 70 ms).
   - Rebuild root + fence + R1-R5 + 1500 s drift arm done. Next: merge main (helper) -> fifth review -> rebuild_root init -> render.
+- CODE HELPER: 5-MIN RULE + MAIN MERGE DONE (rebuild tip a7b95785; suite 4,550 passed / 178 skipped / 0 failed; log 8.13-8.15).
+  - 5-min rule (c23a7aeb): stop = >= 6 no_response run STARTING >= 300 s after the first cue (trial_selection.stop_min_start_s);
+    an earlier run = new class early_run (neither working nor stopped). Warm-up removed (its 4 trials = isolated lapses); no
+    stopped run moved. Rest start = named setting trial_selection.rest_start: first_lick (question above still open).
+  - Merge of main e8491dc8 (698c4e57 + fixes c6f9be2d): all 9 conflicts kept both sides. Every stored pre-stroke model is now
+    fitted in the bal_em frame (FrozenFrame store= hook; spec carries scaling + train-data fingerprint); camera-gate masks kept
+    everywhere. in_working on-hold item = option (b), nothing extra needed. A5 lands with this branch (cue_classes_for).
+- QUESTION (method, decided by default -- tell me if you disagree): the bal_em EM centre was fitted on ALL DAQ-engaged rows of a
+  session (main's design), so under the camera gate it included rows the camera calls after_end / unknown. Your 11-03 rule is
+  "camera gate everywhere", so I asked the helper to fit the centre on the camera WORKING rows only (named setting; the
+  DAQ-engaged centre kept as the alternative). Still label-free, still never no-lick rows.
+- GAP being closed before the review: june_august_drift's stored month model was the session_z fit; under bal_em it fitted in
+  memory (breaks "every pre-stroke decoder is frozen"). Helper storing it in the bal_em frame.
 
 ### Findings
 - main moved while the rebuild branch was being fixed (34 commits not in rebuild/cohort1-20261103). Two matter for the rebuild:
