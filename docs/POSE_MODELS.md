@@ -1071,3 +1071,26 @@ crop2 handles them best; kept on disk as a held-out set, or back in if round 2 i
 166 targets: 62 cam4 round-4 hard moments + 104 jaw-sequence targets. Seeds rewritten to the listed frames only
 (`prelabel --replace-unchecked`: all 26 folders verified unedited first), so no unchecked machine point sits on an unlisted
 frame: nose 166, jaw 145, tongue 52, spout 154.
+
+**Side cameras in 3-D: offset check (11-04, Priya: "will we need to adjust for any offset between cam 2 vs cam 3 vs cam 4
+nose / spout / jaw").** `wfield_local/pose3d_side.py` + `scripts/pose3d_side_check.py` (dlc env): every camera posed per
+session by `pose3d.pnp_group` (09-11 intrinsics: the ChArUco solve calibrated all four cameras); side points = crop2 on the
+four review sessions mapped to raw (`lp_sidecam.to_raw`); reference = production cam1 + cam4 `session_3d`, paired on
+(trial_id, t_ms). Output `session_poses/pose3d_side/{pnp,offsets,side_stereo}.csv`.
+* Side PnP: spout reprojection 0.4-0.9 px (cam2 / cam3, August), 1.1 px June; cam1 / cam4 poses identical to production.
+* Side keypoint vs the cam1 + cam4 3-D point (perpendicular to the side ray, mm; PS93 0814 / 0821 / 0908 / PS95 0606, side
+  spout keypoint at the commanded tip). cam2 and cam3 mirror each other in ml, as they must:
+  NOSE dv +0.29 to +1.18 (median ~+0.75; side nose HIGHER) -- a labelling-definition difference (profile snout tip vs the
+  front / bottom nose point), session-variable; JAW ap -0.41 to +0.07 (median ~-0.2), dv within 0.12; TONGUE ap +0.12 to
+  +0.30, dv within 0.1, ml +-0.1 mirrored (each side camera sees the near side of the tip); SPOUT ap +0.74 to +0.90 every
+  session / camera (stereo +0.94 to +1.07).
+* cam2 + cam3 alone (side stereo) reproject at 0.3-0.5 (spout), 0.4-1.1 (jaw), ~1 (tongue), 1-3 px (nose) and reproduce the
+  same vectors -- the side pair is self-consistent.
+* Reading: the SPOUT difference is the reference's, not the side's: cam1 (inferior edge) + cam4 (superior edge) per-frame
+  spout triangulation is a blend of two physical points; moving the side keypoint by +0.9 mm ap would shift every side body
+  point by the same amount and break the jaw / tongue agreement. Putting it one rod radius lower instead (-0.62 dv) moves
+  jaw / tongue 0.6 mm low and only helps the nose. So: side spout keypoint = the commanded tip (no edge offset); jaw and
+  tongue fuse across all four cameras without correction (<= 0.4 mm, about the label noise); NOSE does not fuse -- keep
+  the side nose as its own keypoint (or subtract ~0.75 mm dv, but it varies 0.3-1.2 by session).
+* June side (800 x 600, 1.24x face) posed acceptably with the August intrinsics (1.1 px) and gave the same offsets; to be
+  confirmed on more June sessions before trusting June side 3-D.
