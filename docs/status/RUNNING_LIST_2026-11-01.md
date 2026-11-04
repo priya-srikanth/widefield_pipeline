@@ -671,6 +671,10 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   section D (pooled_frozen_loso / joint_xsession) would crash for PS93 cue + precue because PS93_0813 (pre, no video) gets
   treated as a post session with 0 working rows. Sent to helper with small non-blockers (jaw-arm titles, design stamp, sidecar
   wording, env-sensitive test).
+- REVIEW 8B: map_drift_prepre / restnl_mask blocks, reembedding June, 12.1b compare FIXED; --check tags all correct. BLOCKER:
+  Fig 4.3 (june_august_drift) still can't render -- it used the input labcams root, and the recovery CSV it needs has no tagged
+  writer. Deck: LP deck mislabels the DAQ-ENL1s section K figure; sections H / I still silent when a whole family is missing;
+  section K legends carry pre-rebuild numbers (marked for the replacement pass). Sent to helper.
 
 ### Findings
 - main moved while the rebuild branch was being fixed (34 commits not in rebuild/cohort1-20261103). Two matter for the rebuild:
