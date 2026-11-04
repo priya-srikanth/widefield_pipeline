@@ -143,6 +143,17 @@ FYI, the 3-class camera variant (lick / jaw-only / none) is thin in PS92 and PS9
 
 ## Decisions taken today (Priya)
 
+- **(11-04) B, C, D, G (questions 1, 2, 4).**
+  - **B:** state discriminators go in the spout bal_em frame, AFTER a re-check under the new working definition
+    (centre on working rows).
+  - **C:** Priya asked why not all three projections in the spout frame, centred on working rows like the decoders.
+    Being re-checked; not decided.
+  - **D:** section D's scored set -> working trials.
+  - **G:** section G's groups -> camera classes (contact / incomplete / jaw-only / none, plus "after end"); pre panel
+    = working.
+
+  A helper is implementing these on main (no render; outputs in decoder_mix_checks/bcdg_1104/). 34 will copy the
+  commits to the rebuild.
 - **(11-04) Wait on the rebuild (question 0).** No main-branch render and no interim deck / page swaps. Slides 9-13,
   19, 89 and imaging page §1-4, 6, 7 change once, in 34's replacement pass. Questions 1, 2 and 4 are being clarified.
 
