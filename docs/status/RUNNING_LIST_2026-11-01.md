@@ -771,6 +771,11 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
     root, full profile env recorded and applied on O2, tag refusal, bundle-vs-local check), then building bundle
     enc_rebuild_20261104 + COMMANDS.md for Priya.
   - The old-tag epoch render (PIDs 19008 / 35904 / 24008) is still running.
+- Jaw_only stop rule in (c3cb3c0c, tag ...stopRun6j; related tests 144 passed, full suite running). A run of >= 6 jaw_only
+  trials with no no_response now counts as a stop (rule as written). The redo runs from a SECOND worktree
+  (wf_rebuild_render2) so the code under the still-running old render doesn't change. Old-vs-new stop counts per animal x
+  epoch coming.
+- Slide 94 caveat added by a8 (backup_before_ramp_caveat_1104.pptx; hidden states unchanged).
 - The 05:46 incident coverage copies differ from the rebuild ones only by the 12 June sessions (Aug-only pre); the partial-
   coverage rows are identical.
 
