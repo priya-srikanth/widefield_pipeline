@@ -115,22 +115,23 @@ def test_gate_licks_lp_is_the_session_lp_train(lp):
 
 
 def _fake_session(monkeypatch, tmp_path, src):
-    """trial_bounds / DAQ licks / LP train for one fake session: three cues at 10, 20, 30 s.
+    """trial_bounds / DAQ licks / LP train for one fake session: cues at 10, 20, 30, 40 s.
 
-    DAQ licks: one at 9.5 s (inside every pre-cue window of cue 10), the post-cue licks.
-    LP licks: one at 19.5 s (inside cue 20's window), the post-cue licks; cue 30 has no LP verdict."""
+    DAQ licks: 9.5 s (inside cue 10's 2 s window; a 4.5 s lick-free gap after its strobe -> slid, kept), the post-cue
+    licks. LP licks: 19.5 s (inside cue 20's 1 s window; gap after its strobe -> slid, kept), 39.4 s (cue 40, strobe
+    38.5: gaps of 0.9 / 0.6 s -> NO lick-free 1 s window -> dropped), the post-cue licks; cue 30 has no LP verdict."""
     from wfield_local import dlc_frames
     from wfield_local import trial_windows as TW
     monkeypatch.setenv(lp_licks.LICK_SOURCE_ENV, src)
     monkeypatch.delenv(lp_licks.ENL_WINDOW_ENV, raising=False)
-    b = pd.DataFrame({"cue_s": [10.0, 20.0, 30.0], "strobe_s": [5.0, 15.0, 25.0],
-                      "pos_name": ["close_L", "close_R", "far_L"]})
+    b = pd.DataFrame({"cue_s": [10.0, 20.0, 30.0, 40.0], "strobe_s": [5.0, 15.0, 25.0, 38.5],
+                      "pos_name": ["close_L", "close_R", "far_L", "far_R"]})
     monkeypatch.setattr(TW, "trial_bounds", lambda animal, date, rv: b.copy())
-    monkeypatch.setattr(dlc_frames, "lick_onsets", lambda *a, **k: np.array([9.5, 10.3, 20.3, 30.3]))
+    monkeypatch.setattr(dlc_frames, "lick_onsets", lambda *a, **k: np.array([9.5, 10.3, 20.3, 30.3, 40.3]))
 
     def fake_lp(label, cue_samples, sr, max_rt, rv=None):
-        return {"lick_samples": np.round(np.array([10.3, 19.5, 20.3, 30.3]) * sr).astype(np.int64),
-                "drop": np.array([False, False, True])}
+        return {"lick_samples": np.round(np.array([10.3, 19.5, 20.3, 30.3, 39.4, 40.3]) * sr).astype(np.int64),
+                "drop": np.array([False, False, True, False])}
     monkeypatch.setattr(lp_licks, "session_lp", fake_lp)
     d = tmp_path / "sessions" / "PS92" / "20260811"
     d.mkdir(parents=True)
@@ -138,16 +139,21 @@ def _fake_session(monkeypatch, tmp_path, src):
     return SimpleNamespace(root=lambda key: str(tmp_path))
 
 
-@pytest.mark.parametrize("src,kept", [("daq", [20.0, 30.0]), ("lp", [10.0])])
+# DAQ: cue 40's strobe is < 2 s before the cue (out); LP: cue 20 slid, cue 30 no verdict, cue 40 no lick-free window
+@pytest.mark.parametrize("src,kept", [("daq", [10.0, 20.0, 30.0]), ("lp", [10.0, 20.0])])
 def test_enl_movement_table_gates_on_the_window_source(monkeypatch, tmp_path, src, kept):
     EM = importlib.import_module("scripts.enl_movement_multisession")
     rv = _fake_session(monkeypatch, tmp_path, src)
     s = {"label": "PS92_0811", "h5": str(tmp_path / "20260811" / "x.h5")}
     _a, _d, tr = EM.enl_table(s, rv, lp_licks.enl_post_s(), 3.5)
     assert tr.cue_s.tolist() == kept
+    w = lp_licks.enl_post_s()
+    slid = {"daq": {10.0: 9.5 - w}, "lp": {20.0: 19.5 - w}}[src]          # window ends at the lick that broke it
+    for c, w0 in zip(tr.cue_s, tr.w0_s):
+        assert w0 == pytest.approx(slid.get(c, c - w), abs=2e-3)
 
 
-@pytest.mark.parametrize("src,kept", [("daq", [20.0, 30.0]), ("lp", [10.0])])
+@pytest.mark.parametrize("src,kept", [("daq", [10.0, 20.0, 30.0]), ("lp", [10.0, 20.0])])
 def test_enl_video_trials_gate_on_the_window_source(monkeypatch, tmp_path, src, kept):
     VS = importlib.import_module("scripts.enl_video_spout_check")
     rv = _fake_session(monkeypatch, tmp_path, src)
@@ -165,12 +171,32 @@ def test_enl_lick_rates_window(daq, src):
     assert m._post_s() == lp_licks.enl_post_s()
 
 
-@pytest.mark.parametrize("src", ["daq", "lp"])
-def test_within_spout_enl_window_is_the_lp_window(daq, src):
-    """Its licks are the encoding bundle's video licks: LP window (1.0 s, unchanged) under either env source."""
+@pytest.mark.parametrize("src,w", [("daq", 2.0), ("lp", 1.0)])
+def test_within_spout_enl_window_follows_the_run_source(daq, src, w):
     daq.setenv(lp_licks.LICK_SOURCE_ENV, src)
     m = importlib.reload(importlib.import_module("scripts.within_spout_deviation"))
-    assert m.ENL_S == (-lp_licks.enl_post_s(source="lp"), 0.0) == (-1.0, 0.0)
+    assert m.ENL_W == lp_licks.enl_post_s() == w and m.ENL_S == (-w, 0.0)
+
+
+def test_slide_is_the_decoders_rule():
+    """`enl_window_starts_s` = `precue_window_start` on a ms grid: clean -> ends at the cue; dirty -> latest lick-free
+    gap after the strobe; none -> NaN."""
+    w = lp_licks.enl_window_starts_s([10.0, 20.0, 30.0, 40.0], [5.0, 15.0, 29.5, 38.5], [19.5, 39.4], 1.0)
+    assert w[0] == pytest.approx(9.0) and w[1] == pytest.approx(18.5)
+    assert w[2] == pytest.approx(29.0)   # a CLEAN fixed window is kept even before the strobe -- the decoders' rule too
+    assert np.isnan(w[3])                                   # gaps 0.9 / 0.6 s
+    from wfield_local.locanmf_position_decoder import precue_window_start
+    assert precue_window_start(20000, 15000.0, np.array([19500.0]), 1000) == 18500
+
+
+def test_within_spout_drops_only_trials_without_a_lickfree_window(daq, monkeypatch, tmp_path):
+    daq.setenv(lp_licks.LICK_SOURCE_ENV, "lp")
+    m = importlib.reload(importlib.import_module("scripts.within_spout_deviation"))
+    rv = _fake_session(monkeypatch, tmp_path, "lp")
+    E = pd.DataFrame({"cue_s": [10.0, 20.0, 30.0, 40.0], "strobe_s": [5.0, 15.0, 25.0, 38.5]})
+    w0 = m.enl_window_starts("PS92_0811", E, rv)
+    assert np.isfinite(w0).tolist() == [True, True, False, False]
+    assert w0[1] == pytest.approx(18.5, abs=2e-3)
 
 
 @pytest.mark.parametrize("src", ["daq", "lp"])
@@ -193,8 +219,8 @@ SITES = {
     "scripts/enl_fr_removed_decode.py": "win_s, lead_s = lp_licks.enl_post_s(), 0.6",
     "scripts/enl_video_spout_check.py": "win_s = lp_licks.enl_post_s()",
     "scripts/enl_lick_rates.py": "return lp_licks.enl_post_s()",
-    "scripts/cohort2_qc/quiet_task_events.py": 'ENL_S = _lp_licks.enl_post_s(source="daq")',
-    "scripts/within_spout_deviation.py": 'ENL_S = (-_lp_licks.enl_post_s(source="lp"), 0.0)',
+    "scripts/cohort2_qc/quiet_task_events.py": "ENL_S = _lp_licks.enl_post_s()",
+    "scripts/within_spout_deviation.py": "ENL_W = _lp_licks.enl_post_s()",
     "scripts/null_potent_session.py": '("ENL", "precue", lp_licks.enl_post_s())',
     "wfield_local/precue_lickfree.py": 'PRE_S = _lp_licks.enl_post_s(source="daq")',
     "wfield_local/attempt_coding.py": "post_s = lp_licks.post_s_for(align)",
@@ -235,6 +261,12 @@ def test_no_other_direct_reads_of_the_config_window():
     assert found == _ALLOWED, found
 
 
-def test_quiet_task_events_npz_records_its_window():
+def test_quiet_task_events_npz_records_its_window_and_output_is_keyed():
     t = _src("scripts/cohort2_qc/quiet_task_events.py")
-    assert "enl_s=float(ENL_S)" in t and "_npz_enl_s(f) == ENL_S" in t
+    assert "enl_s=float(ENL_S)" in t and "enl_w0=w0" in t and "_npz_enl_s(f) == ENL_S" in t
+    assert 'TE = V2 / f"task_events{TE_SUFFIX}"' in t and "_lp_licks.enl_window_starts_s(" in t
+    assert "from quiet_task_events import TE, TE_SUFFIX" in _src("scripts/cohort2_qc/quiet_task_events_followup.py")
+
+
+def test_within_spout_enl_folder_is_keyed_by_window():
+    assert 'f"_enllf{ENL_W:g}s"' in _src("scripts/within_spout_deviation.py")

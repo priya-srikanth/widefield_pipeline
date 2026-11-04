@@ -10,7 +10,8 @@ to do #3, using a mask around the spout position only for each trial's position,
 during the ENL."
 
 Per camera, ENL windows only (W ending at the cue, W = `lp_licks.enl_post_s()` = 2 s DAQ / 1 s LP; no lick of that
-source inside, spout strobe at least W before the cue -- the spout is stationary there):
+source inside -- slid to the latest lick-free gap like the decoders' window, dropped if none --, spout strobe at least W
+before the cue: the spout is stationary there):
   SPOUT MASKS from the data: the mean ENL frame per position minus the mean over positions; pixels that differ
   strongly (|diff| > thr x robust SD of the difference image) are where THAT position's spout sits; dilated.
     union        the six positions' spout pixels OR-ed, applied to EVERY trial (no mask-induced position cue)
@@ -61,13 +62,16 @@ def enl_trials(animal, date, rv, win_s=None, label=None):
     b = b[has].copy()
     ok = np.isfinite(b.cue_s) & np.isfinite(b.strobe_s) & (b.strobe_s <= b.cue_s - win_s)
     b = b[ok].copy()
-    lo, hi = np.searchsorted(licks, b.cue_s - win_s), np.searchsorted(licks, b.cue_s)
-    b = b[(hi - lo) == 0].reset_index(drop=True)
+    # SLIDING lick-free window, the decoders' rule (`lp_licks.enl_window_starts_s` -> `precue_window_start`): dropped
+    # only when no lick-free window exists after the strobe. `w0_s` = the window start (end = w0_s + win_s).
+    b["w0_s"] = lp_licks.enl_window_starts_s(b.cue_s.to_numpy(float), b.strobe_s.to_numpy(float), licks, win_s)
+    b = b[np.isfinite(b.w0_s)].reset_index(drop=True)
     b["block"] = (b.pos_name != b.pos_name.shift()).cumsum()
     return b
 
 
 def _worker(cam, video, tpl, cues, win_s, ds, n_bins):
+    # ``cues`` = each trial's ENL window END (w0_s + win_s; the cue when the window was not slid)
     """(per-trial binned motion energy (n_trial, n_bins, n_px), per-trial mean frame (n_trial, n_px), shape)."""
     import cv2
 
@@ -169,7 +173,8 @@ def main(argv=None) -> int:
             for c in a.cams}
     res = {}
     with ProcessPoolExecutor(max_workers=a.workers) as ex:
-        futs = [ex.submit(_worker, c, str(vids[c]), tpls[c], tr.cue_s.to_numpy(), win_s, a.ds, n_bins) for c in a.cams]
+        futs = [ex.submit(_worker, c, str(vids[c]), tpls[c], (tr.w0_s + win_s).to_numpy(), win_s, a.ds, n_bins)
+                for c in a.cams]
         for fu in futs:
             cam, me, mf, shape = fu.result()
             res[cam] = (me, mf, shape)
