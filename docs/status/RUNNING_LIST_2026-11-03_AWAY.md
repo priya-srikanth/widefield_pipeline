@@ -20,7 +20,11 @@ log for the earlier part of the day is `RUNNING_LIST_2026-11-02_OVERNIGHT.md`.
     - c. within_spout_deviation uses the sliding lick-free 1 s window;
     - d. s1 refit: LP 1.0 s, with 2.0 s as a sensitivity row.
 
-    Centre (question 10): still open. Cto = Contact rows + true (DAQ) labels + pre-stroke Offset fill; Priya doubts
+    Centre (question 10): PROVISIONAL default sent to 34 = Wt: the DAQ-label balanced centre on all lick (working)
+    rows, no EM, no pre-stroke fill (Priya leans to all lick trials). Robustness rows N and Cto; ~.024 drift caveat.
+    Open: add a rest-centred arm (restdock05 / restw, refit pre decoders)? Concern: rest changes post-stroke (quiet
+    events ~5x acute). 34 will also re-run the 11-03 lick-direction frame check on the rebuild data (Priya yes).
+    Earlier notes: Cto = Contact rows + true (DAQ) labels + pre-stroke Offset fill; Priya doubts
     the pre-stroke fill acutely. Cue far contra acute by centre: W .184, Wt .230, Ct .269, Cto .177, N .259, Z .286;
     pre ~.87 under all. [Suggest Wt (DAQ labels, working rows, no pre fill) primary; test a hybrid (contact rows,
     a thin spout uses its own working rows); Cto and N as robustness.]
