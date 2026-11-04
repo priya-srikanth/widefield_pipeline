@@ -153,7 +153,16 @@ FYI, the 3-class camera variant (lick / jaw-only / none) is thin in PS92 and PS9
   - First-contact latency: median 155 ms, 5th percentile 73 ms.
 
   Priya's rule (0-70 ms licks excluded from the pre-cue AND post-cue tables) would move only the lick tables /
-  lick-count readouts. The bout-run-through and ENL analysis is still running.
+  lick-count readouts.
+  - Helper interim (102 / 107 sessions): the 0-70 ms contacts are NOT cue responses. The first-contact histogram is
+    flat (~280-340 per 10 ms bin) from 0 to 80 ms, rises from 85-90 ms and peaks at 130-140 ms.
+  - They are not bout run-through: only 35 of 2,167 have a contact in the 250 ms before the cue, and the median last
+    pre-cue contact is 2.2-2.7 s earlier. They are isolated anticipatory / spontaneous contacts that the cue happened
+    to follow.
+  - The ENL rule holds in the GUI's licks, but the DAQ sees contacts in the last 2 s that the GUI missed: PS92 pre
+    11.8 % of trials, PS93 pre 7.9 %, PS94 1.7 %, PS95 0.2 %.
+  - 80 ms is the most the data support; 100 ms would cut real responses.
+  - Keep 70 ms.
 
 - **11-04: what the G4 / state discriminators compare.** They are trained on pre DAQ-lick vs DAQ-no-lick trials
   (position-balanced; poststroke_compare.looks_like_which), NOT on camera working. So jaw-only trials were always in the
