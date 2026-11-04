@@ -255,6 +255,7 @@ def run_animal(animal, align="precue", seed=0, pool_n=1):
     from wfield_local import spout_scaling as _ss
     from wfield_local import working_trials as _wt
     from wfield_local.locanmf_frozen_decoder import _pipe as _fpipe
+    XE_prod, XU_prod = XE, XU
     XE, XU = _ss.projection_arrays(XE, YE, GE, XU, GU, pre_i, _fpipe,
                                    work=_wt.projection_work(kept, feat, GE, GU, align), YU=YU,
                                    cls_e=_wt.projection_cls_e(kept, feat, GE, GU, align), labels=kept)
@@ -263,7 +264,10 @@ def run_animal(animal, align="precue", seed=0, pool_n=1):
     u_pre = np.isin(GU, list(pre_i)) if len(GU) else np.zeros(0, bool)
     en = np.array([POSITION_NAMES.get(int(v), str(v)) for v in YE])
     un = np.array([POSITION_NAMES.get(int(v), str(v)) for v in YU]) if len(YU) else np.zeros(0, str)
-    e_ax = engagement_axis(XE[e_pre], XU[u_pre]) if len(u_pre) and u_pre.sum() >= 10 else None
+    # the ENGAGEMENT AXIS in z on contact rows (Priya 11-04 final), from the production rows; the pairwise axes in the
+    # projection (Wt) frame
+    _EX, _EU = _wt.eax_rows(kept, feat, XE_prod, XU_prod, GE, GU) if _ss.projection_frame_on() else (XE, XU)
+    e_ax = engagement_axis(_EX[e_pre], _EU[u_pre]) if len(u_pre) and u_pre.sum() >= 10 else None
     # NO-LICK CLASS MASKS: the DAQ quit-tail rule (default, unchanged) or, under the camera trial gate (rebuild 11-03,
     # `trial_classes`; `not_eng` is then a RefusedMask), working = camera class in GATES["working"], stopped =
     # STOPPED_CLASSES (a sustained stop, Priya 11-03); isolated no_response and "unknown" rows are neither

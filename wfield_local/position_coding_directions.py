@@ -590,13 +590,17 @@ def fit_confusion_decoder(XE, YE, GE, e_pre, pre_i, kept):
     return {"full": _confusion_pipe().fit(XE[e_pre], YE[e_pre]), "loso": loso}
 
 
-def fit_reference(XE, en, e_pre, GE, XU, u_pre, pre_i, kept, methods, use_nolick=True):
+def fit_reference(XE, en, e_pre, GE, XU, u_pre, pre_i, kept, methods, use_nolick=True, e_rows=None):
     """Every coding-direction quantity `run_animal` fits on pre-stroke trials, keyed by LABEL (not pooled index).
 
     {"e_axis": vector | None, "methods": {meth: {"W": {D: (w, p0, p1)}, "w_raw": {D: w before orthogonalising},
     "W_loso": {(D, label): (w, p0, p1)}, "PW": {"A|B": (w, pole_B, pole_A)}, "PW_loso": {("A|B", label): (w, r0, r1)}}}}.
-    Same constructions, same rows, same iteration order as the in-memory loop it replaced."""
-    e_axis = (engagement_axis(XE[e_pre], XU[u_pre])
+    Same constructions, same rows, same iteration order as the in-memory loop it replaced.
+
+    ``e_rows`` = ``(XE, XU)`` in the ENGAGEMENT-AXIS frame (Priya 11-04 final: z on contact rows,
+    `working_trials.eax_rows`) when the directions are fitted in the projection (Wt) frame; None = the same rows."""
+    EXa, EUa = e_rows if e_rows is not None else (XE, XU)
+    e_axis = (engagement_axis(EXa[e_pre], EUa[u_pre])
               if (use_nolick and e_pre.sum() and u_pre.sum()) else None)
     out = {"e_axis": e_axis, "methods": {}}
     for meth in methods:
@@ -675,12 +679,13 @@ def stored_confusion_decoder(animal, align, post_s, basis_id, XE, YE, GE, e_pre,
 
 
 def stored_reference(animal, align, post_s, basis_id, XE, en, e_pre, GE, XU, u_pre, pre_i, kept, methods,
-                     use_nolick=True):
+                     use_nolick=True, e_rows=None):
     """`fit_reference` through the store (default) or in memory (WIDEFIELD_CODING_FROZEN=0)."""
     from wfield_local import frozen_models
 
     def _fit():
-        return fit_reference(XE, en, e_pre, GE, XU, u_pre, pre_i, kept, methods, use_nolick=use_nolick)
+        return fit_reference(XE, en, e_pre, GE, XU, u_pre, pre_i, kept, methods, use_nolick=use_nolick,
+                             e_rows=e_rows)
 
     if not coding_frozen_on():
         print(f"  [coding_dirs] {animal} {align}: {CODING_FROZEN_ENV}=0 -> directions + decoder fitted IN MEMORY",
@@ -690,7 +695,10 @@ def stored_reference(animal, align, post_s, basis_id, XE, en, e_pre, GE, XU, u_p
                                    source="locanmf", train_labels=_coding_train(animal, kept, pre_i), post_s=post_s,
                                    basis_id=basis_id, n_features=int(XE.shape[1]),
                                    train_data=(XE[e_pre], np.asarray(en)[e_pre], GE[e_pre],
-                                               XU[u_pre] if use_nolick and len(XU) else None))
+                                               XU[u_pre] if use_nolick and len(XU) else None)
+                                   # the engagement-axis frame enters the identity when it is not the CD frame
+                                   + ((e_rows[0][e_pre], e_rows[1][u_pre] if len(e_rows[1]) else None)
+                                      if e_rows is not None else ()))
     payload, status = frozen_models.load_or_fit(spec, _fit, meta={"n_engaged_pre": int(e_pre.sum()),
                                                                    "methods": list(methods)})
     print(f"  [coding_dirs] {animal} {align}: coding_directions {frozen_models._slug(spec)} {status}", flush=True)
@@ -1050,8 +1058,11 @@ def run_animal(animal, align="precue", verbose=True, methods=CD_METHODS):
         print(f"  [coding_dirs] {animal}: per-class confusions unavailable ({ex})", flush=True)
 
     # every pre-stroke direction (engagement axis, per-position, LOSO, pairwise), STORED BY DEFAULT (CODING_FROZEN_ENV)
+    # THE PER-READOUT SPLIT (Priya 11-04 final): CD directions / poles / pairwise axes in the projection (Wt) frame,
+    # the ENGAGEMENT AXIS in z on contact rows (`working_trials.eax_rows`, from the production rows)
+    _e_rows = _wt.eax_rows(kept, feat, XE0, XU0, GE, GU) if _ss.projection_frame_on() else None
     ref = stored_reference(animal, align, post_s, basis.basis_id, XE, en, e_pre, GE, XU, u_pre, pre_i, kept,
-                           tuple(methods), use_nolick=use_nolick)
+                           tuple(methods), use_nolick=use_nolick, e_rows=_e_rows)
     # the engagement axis, from pre-stroke lick vs pre-stroke no-lick
     e_axis = ref["e_axis"]
 

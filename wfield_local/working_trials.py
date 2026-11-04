@@ -315,11 +315,24 @@ def projection_work(kept, features, GE, GU, align):
     from wfield_local import spout_scaling as ss
     from wfield_local import trial_classes as tc
     if (align == "lick" or not tc.camera_gate_on() or not is_camera(tc.working_selection())
-            or not getattr(features, "indices", None) or not ss.projection_frame_on()
-            or ss.projection_centre() == "engaged"):
-        return None
+            or not ss.projection_frame_on() or ss.projection_centre() == "engaged"):
+        return None                   # the lick window / the DAQ gate / the frame off: the engaged-row frame
+    if not getattr(features, "indices", None):
+        raise RuntimeError(f"projection frame ({ss.projection_tag()}): a camera {align} pool without cue indices "
+                           "cannot take the working-row centre -- build it with features_with_indices")
     ce, cu = tc.pool_row_classes(features, kept, len(GE), len(GU))
     return tc.in_sel(ce, "working"), tc.in_sel(cu, "working"), ce, cu
+
+
+def eax_rows(kept, features, XE, XU, GE, GU):
+    """``(XE, XU)`` in the ENGAGEMENT-AXIS frame (`spout_scaling.contact_z`: z on the camera contact rows), from the
+    PRODUCTION rows; the inputs themselves under the DAQ gate or without cue indices."""
+    from wfield_local import spout_scaling as ss
+    from wfield_local import trial_classes as tc
+    if not tc.camera_gate_on() or not getattr(features, "indices", None):
+        return XE, XU
+    ce, cu = tc.pool_row_classes(features, kept, len(GE), len(GU))
+    return ss.contact_z(XE, XU, GE, GU, ce, cu)
 
 
 def projection_cls_e(kept, features, GE, GU, align):

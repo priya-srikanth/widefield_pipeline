@@ -644,7 +644,9 @@ def kind_centre_fn(kind, RX, RY, RG, RC, *, label_of=None, model_of=None, train_
 #: EM centre of an in-memory spout model (pre sessions by their leave-one-out model); ``session_z`` = the production
 #: engaged-trial z-score (DEFAULT: the C check failed on the precue engagement axis, 11-03 and 11-04).
 PROJECTION_FRAME_ENV = "WIDEFIELD_PROJECTION_FRAME"
-PROJECTION_DEFAULT = "session_z"
+#: ON since Priya's final 11-04 decision (Wt centre for the CD / pattern projections; the engagement axis stays z on
+#: contact rows, `contact_z`). "session_z" = the previous production frame (robustness; run-tag part "projz").
+PROJECTION_DEFAULT = "spout_frame"
 
 
 def projection_frame_on() -> bool:
@@ -698,10 +700,9 @@ def projection_arrays(XE, YE, GE, XU, GU, pre_sessions, pipe, work=None, YU=None
         return XE, XU
     GE, GU = np.asarray(GE), np.asarray(GU)
     lab = dict(enumerate(labels)) if labels is not None and not hasattr(labels, "items") else labels
-    if projection_centre() != "engaged":
-        if work is None or work[0] is None:
-            raise ValueError(f"{PROJECTION_CENTRE_ENV}={projection_centre()} needs the pool's working-row masks "
-                             "(work=, YU=); this caller has none -- pass them or use the engaged centre")
+    # ``work`` None = the lick window / the DAQ gate (`working_trials.projection_work` decides; it REFUSES a camera
+    # cue / precue pool without cue indices): those keep the engaged-row frame, as the lick-gate spout decoder
+    if projection_centre() != "engaged" and work is not None and work[0] is not None:
         we, wu = np.asarray(work[0], bool), np.asarray(work[1], bool)
         ce, cu = np.asarray(work[2], dtype=object), np.asarray(work[3], dtype=object)
         RX = np.vstack([np.asarray(XE, float)[we], np.asarray(XU, float)[wu]])
@@ -851,3 +852,27 @@ def scored_centre(kind, *, Xw, Yw, Cw, label=None, model=None, pi=None, refs=Non
         m_i, s_i = stats[i]
         return (raw_c - m_i) / s_i, raw_sd / s_i
     raise ValueError(f"unknown scored centre kind {kind!r}")
+
+
+def contact_z(XE, XU, GE, GU, cls_e=None, cls_u=None):
+    """``(XE, XU)`` with every session z-scored (mean / SD) on its camera CONTACT rows, engaged and no-lick arms: the
+    ENGAGEMENT AXIS frame (Priya 11-04 final: the axis stays z on contact rows while the CD / pattern projections move
+    to Wt). Without classes (DAQ gate) the inputs themselves (the production engaged-row z). A session with < 2 contact
+    rows stays in the production frame."""
+    if cls_e is None:
+        return XE, XU
+    XE, XU = np.asarray(XE, float), np.asarray(XU, float)
+    GE, GU = np.asarray(GE), np.asarray(GU)
+    ce = np.asarray(cls_e, dtype=object)
+    cu = np.asarray(cls_u, dtype=object) if cls_u is not None else np.full(len(GU), "", dtype=object)
+    oE, oU = XE.copy(), XU.copy()
+    for i in np.unique(GE):
+        me, mu_ = GE == i, (GU == i) if len(GU) else np.zeros(0, bool)
+        C = np.vstack([XE[me & (ce == "contact")]] + ([XU[mu_ & (cu == "contact")]] if len(GU) else []))
+        if len(C) < 2:
+            continue
+        m, sd = C.mean(0), label_shift.session_sd(C)
+        oE[me] = (XE[me] - m) / sd
+        if len(GU) and mu_.any():
+            oU[mu_] = (XU[mu_] - m) / sd
+    return oE, oU

@@ -137,7 +137,7 @@ def test_switch_defaults(monkeypatch):
                 ss.SCORE_CENTRE_ENV, ss.STATE_DISC_SCALING_ENV, ss.PROJECTION_FRAME_ENV):
         monkeypatch.delenv(env, raising=False)
     assert ss.state_disc_scaling() is None and ss.STATE_DISC_DEFAULT == "session_z"     # B stays OFF
-    assert not ss.projection_frame_on()                                                  # C stays OFF
+    assert ss.projection_frame_on()                      # C ON since Priya's final 11-04 decision (Wt centre)
     # Priya via a8 11-04 (provisional): the scored-frame centre defaults to Wt; W / C / Cto / N selectable
     assert ss.score_centre_rows() == "wt" and ss.score_centre_tag() == "wt_centre"
     for v, k in (("working", "working"), ("contact", "contact"), ("cto", "cto"), ("n", "n")):
@@ -201,7 +201,9 @@ def test_projection_working_centre(monkeypatch):
     monkeypatch.setenv(ss.PROJECTION_FRAME_ENV, "spout_frame")
     monkeypatch.setenv(ss.PROJECTION_CENTRE_ENV, "working")
     monkeypatch.delenv(ss.SPOUT_SCALING_ENV, raising=False)
-    with pytest.raises(ValueError):
+    # no masks = the engaged-row frame (lick window / DAQ gate), which under the camera centre needs the engaged
+    # rows' classes: it fails closed without them
+    with pytest.raises((ValueError, ss.BalEmCentreRefused)):
         ss.projection_arrays(XE, YE, GE, XU, GU, [0, 1, 2], _pipe)
     A, B = ss.projection_arrays(XE, YE, GE, XU, GU, [0, 1, 2], _pipe, work=work, YU=YU)
     RX = np.vstack([XE[we], XU[wu]])
