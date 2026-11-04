@@ -13,6 +13,17 @@ log for the earlier part of the day is `RUNNING_LIST_2026-11-02_OVERNIGHT.md`.
 
 ## Questions for Priya (newest first)
 
+12. **NEW (11-04): run an injected-effect validation of the frames?** The literature review
+    (docs/LITERATURE_CROSS_SESSION_NORMALISATION_2026-11-04.md, 3858e537) found no frozen-decoder cross-session work
+    in widefield. No paper validates recalibration against a KNOWN change; they only check restored performance.
+    - Proposal: inject a known far-contra-specific change, a global gain change and a uniform offset into held-out pre
+      sessions (on top of the observed post-stroke mix), then score them under Wt / N / W / Cto / Rref / Iref and see
+      which frame recovers each injected effect.
+    - Also suggested by the review: Gallego / Degenhart-style alignment fit on the reference spouts only, with
+      pre-vs-pre controls.
+    - Review guidance: report a bracket with each frame's bias direction. N can only overstate a loss; Wt / z can
+      only understate a loss shared by all spouts; W can go either way.
+
 11. ANSWERED (Priya to 34 directly; supersedes my relay):
     - a. the encoder enl scoring window is LICK-FREE (sliding search, 1.0 s under LP), and the production encoder
       gets LICKS_ALL = split (its own pre-cue and ITI lick kernels), with a main_nolicksall robustness tag;
