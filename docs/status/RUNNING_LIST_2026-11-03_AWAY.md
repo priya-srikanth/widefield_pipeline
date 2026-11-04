@@ -54,6 +54,8 @@ The combined render is ON HOLD until Q0-Q2 are answered. Q3 is a default you can
    so main and rebuild differ here. I think converting is the consistent choice (your "working on both sides"). But
    section G was designed to keep misses for the failed-attempt readout, so it is your call. Grant 5b is fine on
    main: under the camera selection it recomputes from working trials rather than reading coding_direction.json.
+   UPDATE: 34's rebuild now follows main, so the branches don't split. If you say "convert", both branches change
+   together. The rebuild also copied main's 5b guard.
 3. **PS93_0813 (default taken; reversible).** It drops only where a camera is needed, so cue and precue training
    sets are 8/7/8/8. The lick-window models keep it at 8/8/8/8, because the lick gate needs no camera.
 
