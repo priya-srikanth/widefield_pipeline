@@ -49,6 +49,12 @@ log for the earlier part of the day is `RUNNING_LIST_2026-11-02_OVERNIGHT.md`.
    counts as stopped only if it includes no response at a REFERENCE spout (close_L / close_center).
    Confirmed from trial_classes: a DAQ contact makes a trial "contact" whatever the cameras see; camera rules only
    classify no-contact trials.
+   Q9 detail (Priya): contact trials with no LP lick time are aligned on the DAQ contact time and flagged
+   (timing_source = daq); 34 is counting them.
+   Cue + 70 ms floor (Priya asked if too long): a helper is measuring the first-contact latency from the raw DAQ
+   channel (decoder_mix_checks/cue70_check_1104/, docs/status/CUE70_CHECK_2026-11-04.md). Priya's intent: if 70 ms
+   stays, licks in 0-70 ms count as NEITHER post-cue NOR pre-cue (today they go into licks_precue). 34 is told to wait
+   for the result.
    STILL OPEN: 3 guard numbers; and 8 (discriminator training classes; helper testing).
    Stays DAQ: pinned epoch boundaries, per-lick outcome, June / PS93_0813 /
    cohort 2. My suggested answers are in the chat reply of 11-04 and copied into the log below once Priya answers.
