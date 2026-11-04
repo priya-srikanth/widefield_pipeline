@@ -999,3 +999,18 @@ The gate and the quit point (hit-based) are still pinned exactly; only those thr
 
 ### 8.25 Test record (8b67097d)
 Full suite, 6 shards: 4,576 passed, 178 skipped, 0 failed.
+
+### 8.26 Re-verify at 3a772a26: non-blockers
+1. **disengagement_tests.** The per-trial loop is now `_trial_rows(.., lk, lk_resp)`. The RESPONSE measures (hit /
+   hit35, latency, n_post, n_pre2, and `coll` through hit) use `analysis_kit.lick_samples` (unchanged); the COUNTS
+   (ILIs, bouts, licks / bout, deceleration) use detector A. Test (real session PS93_0908): the response measures equal
+   the pre-change values (one detector for all), and licks / bout moved.
+2. **Sidecar fallback.** `figure_meta` writes `bal_em,centre_fallback_sessions` = the sessions whose contact-row
+   fallback was actually USED (`spout_scaling.FALLBACK_USED`; an empty value when none was). This is process-level,
+   accumulated up to the write. The caption likewise names only the fallbacks used.
+3. **render_profile.** `--check` honours `--block`: the block's env is applied, the run tag must match, and the full
+   tag must end with it (an LP block prefixes LP_licks). An unknown block name (in neither block_env nor block_args)
+   raises KeyError. Tests added.
+4. **_collect_5c.** The lru cache moved to `_collect_5c_cached(align, variant, mode, _run)`. `_run` = (full output tag,
+   bal_em scaling, centre rows), filled in by `_collect_5c`. Source tests point at `_collect_5c_cached`; grant_figures
+   re-exports it. Test added.

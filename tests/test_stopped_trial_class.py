@@ -138,7 +138,7 @@ def test_pre_panel_is_licking_only_for_lick_and_working():
     """
     import inspect
 
-    src = inspect.getsource(G._collect_5c)
+    src = inspect.getsource(G._collect_5c_cached)
     pre = src[src.index("PRE: leave-one-session-out"):]
     pre = pre[:pre.index("by_day = {}")]
     assert 'if variant == "stopped":' in pre, (

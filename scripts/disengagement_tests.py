@@ -125,6 +125,39 @@ def _bouts(t):
     return np.split(t, cut)
 
 
+def _trial_rows(rows, cue, nxt, t0, rwin, deliv, lk, lk_resp):
+    """Per-trial behaviour rows. RESPONSE measures (hit, lat, n_post, n_pre2) from ``lk_resp`` (the deck's
+    discriminator, `analysis_kit.lick_samples`); lick COUNTS (ILIs, bouts, licks / bout, deceleration) from ``lk`` (the
+    behaviour detector, `analysis_kit.lick_count_samples`). Times in s."""
+    from wfield_local.plot_lick_aligned_averages import POSITION_NAMES
+    T = []
+    for i, r in enumerate(rows):
+        end = min(cue[i] + rwin, nxt[i])
+        post = lk_resp[(lk_resp >= cue[i]) & (lk_resp <= end)]          # response measures: the old detector
+        hit35 = int(post.size > 0)
+        post_c = lk[(lk >= cue[i]) & (lk <= end)]                       # counts: detector A
+        dec = []
+        ilis = []
+        nb = []
+        for bt in _bouts(post_c):
+            iv = np.diff(bt) * 1e3
+            nb.append(bt.size)
+            if iv.size:
+                ilis.extend(iv.tolist())
+            if bt.size >= MIN_BOUT:
+                th = max(2, iv.size // 3)
+                dec.append(float(np.median(iv[-th:]) - np.median(iv[:th])))
+        npre2 = int(((lk_resp >= cue[i] - 2.0) & (lk_resp < cue[i])).sum())
+        T.append(dict(order=int(r["order"]), n_pre2=npre2, pos=CANON.get(POSITION_NAMES.get(r["pos"], str(r["pos"])), str(r["pos"])),
+                      t=float(cue[i] - t0), hit2=int(r["hit"]), hit=hit35, n_post=int(post.size),
+                      lat=float(post[0] - cue[i]) if post.size else np.nan,
+                      dec_sum=float(np.sum(dec)), dec_n=len(dec),
+                      ili=float(np.median(ilis)) if post_c.size >= MIN_ILI_LICKS and ilis else np.nan,
+                      lpb=float(np.mean(nb)) if nb else np.nan,
+                      deliv=float(deliv[i]), coll=float(deliv[i]) * hit35))
+    return T
+
+
 def beh_worker(lab: str) -> dict:
     """One session -> SESS/beh_<label>.pkl (module-level for spawn)."""
     f = SESS / f"beh_{lab}.pkl"
@@ -139,14 +172,17 @@ def beh_worker(lab: str) -> dict:
     from wfield_local import behavior_events as be
     from wfield_local import config, daq_io, epochs
     from wfield_local import face_rhythm_outputs as fro
-    from wfield_local.plot_lick_aligned_averages import POSITION_NAMES
 
     b = ak.session_behavior(lab)
     if b is None:
         raise RuntimeError(f"{lab}: session_behavior None")
     sr = b.sample_rate
     cs = np.asarray(b.cue_samples, float) / sr
+    # TWO DETECTORS, ONE PER QUANTITY (coordinator 11-03, rule 9): the lick COUNTS (ILIs, bouts, licks / bout) use THE
+    # behaviour detector (`session_behavior.lick_samples` = `analysis_kit.lick_count_samples`); the RESPONSE measures
+    # (hit35, latency, n_post, n_pre2) stay on the deck's discriminator (`analysis_kit.lick_samples`), unchanged
     lk = np.sort(np.asarray(b.lick_samples, float) / sr)
+    lk_resp = np.sort(np.asarray(ak.lick_samples(b.session), float) / sr)
     t0 = cs[0]
     s = b.session
     d = _beh_dir(s)
@@ -169,30 +205,7 @@ def beh_worker(lab: str) -> dict:
     deliv = np.zeros(len(rows))
     np.add.at(deliv, ti[ti >= 0], vols[ti >= 0])
 
-    T = []
-    for i, r in enumerate(rows):
-        end = min(cue[i] + rwin, nxt[i])
-        post = lk[(lk >= cue[i]) & (lk <= end)]
-        hit35 = int(post.size > 0)
-        dec = []
-        ilis = []
-        nb = []
-        for bt in _bouts(post):
-            iv = np.diff(bt) * 1e3
-            nb.append(bt.size)
-            if iv.size:
-                ilis.extend(iv.tolist())
-            if bt.size >= MIN_BOUT:
-                th = max(2, iv.size // 3)
-                dec.append(float(np.median(iv[-th:]) - np.median(iv[:th])))
-        npre2 = int(((lk >= cue[i] - 2.0) & (lk < cue[i])).sum())
-        T.append(dict(order=int(r["order"]), n_pre2=npre2, pos=CANON.get(POSITION_NAMES.get(r["pos"], str(r["pos"])), str(r["pos"])),
-                      t=float(cue[i] - t0), hit2=int(r["hit"]), hit=hit35, n_post=int(post.size),
-                      lat=float(post[0] - cue[i]) if post.size else np.nan,
-                      dec_sum=float(np.sum(dec)), dec_n=len(dec),
-                      ili=float(np.median(ilis)) if post.size >= MIN_ILI_LICKS and ilis else np.nan,
-                      lpb=float(np.mean(nb)) if nb else np.nan,
-                      deliv=float(deliv[i]), coll=float(deliv[i]) * hit35))
+    T = _trial_rows(rows, cue, nxt, t0, rwin, deliv, lk, lk_resp)
     q = b.quit
 
     # running: 1-s bins on the trial clock (t - first cue)

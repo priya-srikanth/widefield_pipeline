@@ -87,6 +87,7 @@ from wfield_local.grant_confusion import (  # noqa: F401
     REFIT_UNAVAILABLE,
     _acc_ci,
     _collect_5c,
+    _collect_5c_cached,
     _counts,
     _draw_5c,
     _matched_frozen,

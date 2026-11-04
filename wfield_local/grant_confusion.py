@@ -692,8 +692,17 @@ def _stored_epoch_decoder(an, align, bd, tag="5c", XT=None, scaling=None):
     return payload
 
 
-@lru_cache(maxsize=24)
 def _collect_5c(align, variant="working", mode="frozen"):
+    """`_collect_5c_cached` keyed ALSO by the run (re-verify item 4): the full output tag (hemo / projection / selection /
+    LP / ENL ...) and the bal_em scaling + centre, so a process that switches mode never gets another run's records."""
+    from wfield_local import lp_licks, spout_scaling
+    sc = spout_scaling.spout_scaling()
+    run = (lp_licks.output_tag() or "", sc or "z", spout_scaling.centre_rows() if sc else "")
+    return _collect_5c_cached(align, variant, mode, run)
+
+
+@lru_cache(maxsize=24)
+def _collect_5c_cached(align, variant="working", mode="frozen", _run=None):
     """{animal: (pre-stroke LOSO record, {day: record})} plus the sorted day list.
 
     A RECORD IS (y_true, y_pred, blocks), not a counts matrix. Counts are one reduction of it and a

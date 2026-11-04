@@ -97,3 +97,22 @@ def test_lp_blocks_set_the_lick_source_and_lp_folders_need_it(monkeypatch, tmp_p
     monkeypatch.setenv("WIDEFIELD_LICK_SOURCE", "lp")
     lp_licks.refuse_lp_folder(lp_dir / "x.png", "t")
     figure_layout.sidecar_for(lp_dir, "x", ".csv")
+
+
+def test_check_honours_the_block_and_unknown_blocks_raise(tmp_path):
+    """Re-verify item 3: --check applies the block's env (an LP block's full tag is LP_licks_<run tag>); an unknown block
+    name raises instead of running without its env."""
+    import os
+    import subprocess
+    import sys
+    from pathlib import Path
+    repo = Path(__file__).resolve().parents[1]
+    env = {k: v for k, v in os.environ.items() if not k.startswith(("WIDEFIELD_", "WFIELD_", "COMBINED_ENCODING_"))}
+    env["PYTHONPATH"] = str(repo)
+    code = ("from wfield_local import render_profile as rp; ok, lines = rp.check(%r, block='epoch_maps'); "
+            "print('OK' if ok else 'BAD'); print([l for l in lines if l.startswith('output tag')])" % NAME)
+    r = subprocess.run([sys.executable, "-c", code], env=env, cwd=str(tmp_path), capture_output=True, text=True)
+    assert "OK" in r.stdout and "LP_licks" in r.stdout, r.stdout + r.stderr[-1500:]
+    with pytest.raises(KeyError, match="no block"):
+        render_profile.block_env(NAME, "epoch_mpas")
+    assert render_profile.block_env(NAME, "grant_figures") == {}         # a block_args block without env: {}

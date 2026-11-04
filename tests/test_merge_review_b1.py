@@ -69,7 +69,7 @@ def test_nolick_train_data_carries_the_pooled_label_set():
 
 def test_n2_camera_errors_are_not_swallowed():
     from wfield_local import grant_confusion, position_coding_directions
-    assert "reraise_under_camera(ex, f\"5c {an}" in inspect.getsource(grant_confusion._collect_5c)
+    assert "reraise_under_camera(ex, f\"5c {an}" in inspect.getsource(grant_confusion._collect_5c_cached)
     assert "reraise_under_camera(ex, f\"coding_dirs {animal}" in inspect.getsource(position_coding_directions.run_animal)
 
 
@@ -101,3 +101,16 @@ def test_section_g_store_errors_propagate_and_unkeyed_pools_refuse_in_a_tagged_r
     monkeypatch.setenv("WIDEFIELD_TRIAL_GATE", "camera")
     with pytest.raises(pc.SectionGRefused):
         pc.frozen({"XE": None})
+
+
+def test_collect_5c_cache_is_keyed_by_the_run(monkeypatch):
+    """Re-verify item 4: the 5c collector's cache key carries the run tag / selection and the bal_em centre."""
+    from wfield_local import grant_confusion as gc
+    seen = []
+    monkeypatch.setattr(gc, "_collect_5c_cached", lambda align, variant, mode, run: seen.append(run) or ({}, []))
+    for k in ("WIDEFIELD_TRIAL_GATE", "WIDEFIELD_HEMO_VARIANT", "WIDEFIELD_LICK_SOURCE"):
+        monkeypatch.delenv(k, raising=False)
+    gc._collect_5c("cue")
+    monkeypatch.setenv("WIDEFIELD_TRIAL_GATE", "camera")
+    gc._collect_5c("cue")
+    assert seen[0] != seen[1] and "sel-camera" in seen[1][0]

@@ -117,7 +117,7 @@ def test_collect_5c_frozen_mode_uses_the_store():
     # MERGE with main (11-03): the store sits inside `grant_kit._frozen_frame` (bal_em frames), which every 5c mode
     # and 5b read; WIDEFIELD_EPOCH_FROZEN=0 fits the same models in memory there
     from wfield_local import grant_kit
-    src = inspect.getsource(grant_confusion._collect_5c)
+    src = inspect.getsource(grant_confusion._collect_5c_cached)
     assert 'fr = _frozen_frame(bd, an, align, store=mode in ("frozen", "paired"))' in src and 'clf = fr["full"]' in src and 'fr["loso"][i]' in src
     fsrc = inspect.getsource(grant_kit._frozen_frame)
     assert 'grant_confusion._stored_epoch_decoder(an, align, bd, tag="frame", XT=XT, scaling=sc)' in fsrc
@@ -147,7 +147,7 @@ def _collect(gc, monkeypatch, mode, variant="working", seed=5):
     bd = _full_bundle(seed=seed)
     monkeypatch.setattr(gc, "ANIMALS", ("PS92",))
     monkeypatch.setattr(gc, "_pooled_bundle", lambda an, align: bd)
-    return gc._collect_5c.__wrapped__("cue", variant, mode)
+    return gc._collect_5c_cached.__wrapped__("cue", variant, mode)
 
 
 def _same_records(a, b):

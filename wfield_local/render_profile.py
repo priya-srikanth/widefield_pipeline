@@ -61,6 +61,9 @@ def block_env(name: str, block: str) -> dict:
     """Extra env of one render BLOCK (profile ``block_env``; fifth review N5b), e.g. WIDEFIELD_LICK_SOURCE=lp for the LP
     blocks. {} for a block without one."""
     d = load(name)
+    known = set(d.get("block_env") or {}) | set(d.get("block_args") or {})
+    if block not in known:                                   # a typo must not silently run a block without its env
+        raise KeyError(f"profile {name!r} has no block {block!r} (block_env / block_args: {sorted(known)})")
     return {str(k): str(v) for k, v in ((d.get("block_env") or {}).get(block) or {}).items()}
 
 
@@ -102,10 +105,12 @@ def shell_lines(name: str, shell: str = "powershell", arm: str | None = None, bl
     return clear + [f'$env:{k} = "{v}"' for k, v in d["env"].items()]
 
 
-def check(name: str, arm: str | None = None) -> tuple[bool, list[str]]:
-    """Apply in-process and compare the FULL output tag (`lp_licks.output_tag`, LP / gate-LP / ENL included) and the
-    run tag with the profile's ``notes.expected_run_tag``; report the rebuild root and the derived roots."""
-    d = apply(name, arm=arm)
+def check(name: str, arm: str | None = None, block: str | None = None) -> tuple[bool, list[str]]:
+    """Apply in-process (with the block's env when ``block`` is given) and compare the FULL output tag
+    (`lp_licks.output_tag`, LP / gate-LP / ENL included) and the run tag with the profile's ``notes.expected_run_tag``;
+    for a block the run tag must match and the full tag must END with it (an LP block prefixes LP_licks). Reports the
+    rebuild root and the derived roots."""
+    d = apply(name, arm=arm, block=block)
     from wfield_local import config, lp_licks, run_mode
     want = (d.get("notes") or {}).get("expected_run_tag")
     full, rt = lp_licks.output_tag(), run_mode.tag()
@@ -119,7 +124,11 @@ def check(name: str, arm: str | None = None) -> tuple[bool, list[str]]:
         from wfield_local import orofacial_outputs as oo
         lines.append(f"  imaging_encoding: {oo.encoding_root()}")
     lines.append(f"block args: {d.get('block_args')}")
-    ok = want is None or (full == want and rt == want)
+    if block is not None:
+        lines.append(f"block: {block} {block_env(name, block) or '(no env)'}")
+        ok = want is None or (rt == want and bool(full) and full.endswith(want))
+    else:
+        ok = want is None or (full == want and rt == want)
     return ok, lines
 
 
@@ -134,7 +143,7 @@ def main(argv=None) -> int:
     if a.shell:
         print("\n".join(shell_lines(a.name, a.shell, a.arm, a.block)))
     if a.check or not a.shell:
-        ok, lines = check(a.name, a.arm)
+        ok, lines = check(a.name, a.arm, a.block)
         print("\n".join(lines))
         if not ok:
             print("MISMATCH: the output tag is not the profile's expected tag")
