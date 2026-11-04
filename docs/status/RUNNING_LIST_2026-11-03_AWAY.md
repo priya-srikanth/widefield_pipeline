@@ -22,7 +22,7 @@ log for the earlier part of the day is `RUNNING_LIST_2026-11-02_OVERNIGHT.md`.
 
     Centre (question 10): PROVISIONAL default sent to 34 = Wt: the DAQ-label balanced centre on all lick (working)
     rows, no EM, no pre-stroke fill (Priya leans to all lick trials). Robustness rows N and Cto; ~.024 drift caveat.
-    RUNNING (Priya OK): rest-centred arms R5 (restdock05), RW (restw) and R5q (quiet-event frames dropped); pre
+    DONE: the rest arms fail (see findings), so Wt stays. Previously: rest-centred arms R5 (restdock05), RW (restw) and R5q (quiet-event frames dropped); pre
     decoders refit in memory; W / Wt / N recomputed alongside; plus a rest-state check (does the rest centre move
     post-stroke, and how much bias that adds per spout). Output decoder_mix_checks/rest_centre_1104/,
     docs/status/REST_CENTRE_2026-11-04.md. Concern: rest changes post-stroke (quiet events ~5x acute). 34 will also re-run the 11-03 lick-direction frame check on the rebuild data (Priya yes).
@@ -274,6 +274,17 @@ FYI, the 3-class camera variant (lick / jaw-only / none) is thin in PS92 and PS9
 165 / 306 per animal. Held-out pre recall at cue: lick .67-.93; jaw-only .60-.63 (PS94 and PS95 only); none .20-.77.
 
 ## Findings (newest first)
+
+- **11-04: a rest-centred frame is WORSE, not neutral (docs/status/REST_CENTRE_2026-11-04.md, 2916dde9).** Production
+  W is reproduced exactly; the decoders were refit in memory only.
+  - Cue far contra, Wt -> restdock05: acute .230 -> .151, but chronic .720 -> .296 (collapses in 4 / 4).
+  - Held-out PRE accuracy drops .030 (fails the sanity check).
+  - Precue agrees with Wt (.198 / .198).
+  - Cause: the rest centre itself shifts post-stroke toward a far-contra penalty (acute -.64 log-odds pooled, 4 / 4;
+    quiet events carry 25-100 % of it acutely). The rest SD rises 1.1-1.5x.
+  - The score shifts between centres are large relative to margins: W vs Wt 28-56 % of the margin acutely, 7-13 % of
+    predictions flip. That is why the centre matters for a FROZEN decoder (a refit decoder's intercept absorbs it).
+  - Reading: keep the trial-based Wt; the rest arms are not adopted.
 
 - **11-04: D / G on main (4a37cbc8, bcdg_1104). Section D scored on WORKING rows moves the acute far spouts a lot.**
   Animal means:
