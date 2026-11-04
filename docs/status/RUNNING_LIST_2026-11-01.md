@@ -675,6 +675,12 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   Fig 4.3 (june_august_drift) still can't render -- it used the input labcams root, and the recovery CSV it needs has no tagged
   writer. Deck: LP deck mislabels the DAQ-ENL1s section K figure; sections H / I still silent when a whole family is missing;
   section K legends carry pre-rebuild numbers (marked for the replacement pass). Sent to helper.
+- 8A + 8B FIXED (rebuild tip 78e60f5a, log 8.36; suite 4,612 passed from root and from tests/, 1 scanner-list failure fixed
+  in 2ddcf9fb): pre / post decided by session phase (PS93 section D crash gone, tested); Fig 4.3 + recovery CSV + chronic_stability
+  on tagged paths; deck counts whole missing families; section K legends marked REBUILD-TODO(numbers).
+- RENDER TRAP found: pytest / python run outside the worktree imports wfield_local from the editable install = the MAIN
+  checkout. The render must import the wf_rebuild code; helper making render_profile --check refuse otherwise. Also routing
+  chronic_drift_vs_reorg (Fig 10.2) + a scan for other untagged writers in REDO rows. Then render.
 
 ### Findings
 - main moved while the rebuild branch was being fixed (34 commits not in rebuild/cohort1-20261103). Two matter for the rebuild:
