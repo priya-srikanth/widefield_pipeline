@@ -1399,3 +1399,5 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
     and start >= strobe + 0.3 s, the encoder's ENL-state settle, so the spout-arrival transient stays out.
   - These are frozen-decoder families, so expect new ids.
   - Queued as a new branch off the merged tip, after the current merge.
+- **11-04 ~20:15: Priya deleted the stale O2 scratch copy** (/n/scratch/users/p/ps150/o2/enc_rebuild_20261104).
+  - The M: copy stays until enc_rebuild_20261104b passes its checks. Then it is deleted and logged in RENDER_LOG.md.
