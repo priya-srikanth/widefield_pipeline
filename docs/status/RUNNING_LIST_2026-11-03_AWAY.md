@@ -13,7 +13,10 @@ log for the earlier part of the day is `RUNNING_LIST_2026-11-02_OVERNIGHT.md`.
 
 ## Questions for Priya (newest first)
 
-12. **NEW (11-04): run an injected-effect validation of the frames?** The literature review
+12. **RUNNING (Priya OK 11-04): injected-effect validation of the frames.** Held-out pre sessions with the acute mix
+    plus known injected effects: far-contra-specific loss / global gain / uniform offset / offset + loss / rest change
+    only. Every frame is scored against an oracle frame. Output decoder_mix_checks/injected_effect_1104/,
+    docs/status/INJECTED_EFFECT_2026-11-04.md. Original question: The literature review
     (docs/LITERATURE_CROSS_SESSION_NORMALISATION_2026-11-04.md, 3858e537) found no frozen-decoder cross-session work
     in widefield. No paper validates recalibration against a KNOWN change; they only check restored performance.
     - Proposal: inject a known far-contra-specific change, a global gain change and a uniform offset into held-out pre
