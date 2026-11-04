@@ -4,6 +4,15 @@
     python -m wfield_local.lp_sidecam stage C:/Users/SabatiniLab/lp_stage/lp_side_pilot_20261027
     python -m wfield_local.lp_sidecam unseen C:/Users/SabatiniLab/lp_stage/lp_side_pilot_20261027   # Parts B/C targets
     python -m wfield_local.lp_sidecam audit                  # what is labelled in the side folders, nothing written
+    conda activate dlc            # pytables, for DLC's .h5
+    python -m wfield_local.lp_sidecam prelabel <preds.csv> [--dry-run]   # seed the unlabelled side folders
+
+PRE-LABELS (`prelabel`, Priya 2026-11-04: crop2 pre-labels the round-2 side targets, Parts B / C + the jaw sequences).
+``<preds.csv>`` = `litpose predict <crop2 model> <dest>/<list>.csv` on the frames `unseen` staged (model space). Each
+point with likelihood >= `PRELABEL_CUT` (tongue 0.4, others 0.6, as the review clips) goes back to the RAW frame
+(`to_raw`, the frame's own width); below the cut it stays BLANK for the labeller to place or leave hidden. Written as
+DLC ``CollectedData_Priya`` through `dlc_prelabel.write_labels` (staging) + `dlc_project.sync_frames`, so a folder
+that already holds labels is NEVER touched -- the seeds are a starting point to correct, not labels.
 
 THE PLAN (DECISIONS 2026-10-13 night, `dlc_sidecam`): one shared model for both side views, cam3 flipped at
 TRAINING and INFERENCE time; labelling is on the raw images. The four parts are midline / single structures, so a
@@ -49,6 +58,7 @@ SCORER = "Priya"
 CROPS = {600: (0, 50, 256), 800: (0, 62, 317)}
 OUT = 256
 MIN_PARTS = 2
+PRELABEL_CUT = {"nose": 0.6, "jaw": 0.6, "tongue": 0.4, "spout": 0.6}
 
 
 def labelling_project() -> Path:
@@ -175,13 +185,60 @@ def stage_unseen(dest: Path, exclude: set[str], proj: Path | None = None) -> int
     return len(paths)
 
 
+def prelabel(preds_csv: Path, rv=None, dry: bool = False) -> int:
+    """Seed the side folders listed in ``preds_csv`` (rows ``unseen/<stem>/<img>``) with confident predictions."""
+    from PIL import Image
+
+    from wfield_local import dlc_prelabel as DP
+    from wfield_local import dlc_project
+    from wfield_local.dlc_context_frames import untouched_folders
+    from wfield_local.paths import PathResolver
+    rv = rv or PathResolver()
+    pr = pd.read_csv(preds_csv, header=[0, 1, 2], index_col=0)
+    pr.columns = pr.columns.droplevel(0)
+    proj = labelling_project()
+    free = set(untouched_folders("cam2", rv)) | set(untouched_folders("cam3", rv))
+    rows, idx = [], []
+    for path in pr.index:
+        _, stem, img = str(path).replace("\\", "/").split("/")
+        if stem not in free:
+            continue
+        cam = stem.split("_", 1)[0]
+        with Image.open(proj / "labeled-data" / stem / img) as im:
+            width = im.size[0]
+        rec = {}
+        for part in PARTS:
+            x, y, lk = (float(pr.loc[path, (part, c)]) for c in ("x", "y", "likelihood"))
+            if lk >= PRELABEL_CUT[part]:
+                rec[(SCORER, part, "x")], rec[(SCORER, part, "y")] = to_raw(x, y, cam, width)
+        rows.append(rec)
+        idx.append({"video_stem": stem, "image": img})
+    cols = pd.MultiIndex.from_tuples([(SCORER, p, c) for p in PARTS for c in ("x", "y")],
+                                     names=["scorer", "bodyparts", "coords"])
+    labels = pd.DataFrame(rows, columns=cols, dtype=float)
+    index = pd.DataFrame(idx)
+    print(f"{len(index)} frames in {index.video_stem.nunique()} unlabelled folders; seeded points per part: "
+          + ", ".join(f"{p} {int(labels[(SCORER, p, 'x')].notna().sum())}" for p in PARTS))
+    written = DP.write_labels(labels, index, rv, dry=dry)
+    if written:
+        folders, images, n = dlc_project.sync_frames(dlc_project.project_dir(rv), rv, cams=list(SIDE))
+        print(f"wrote {len(written)} seed files; synced {n} into the labelling project")
+    return len(written)
+
+
 def main(argv=None) -> int:
     sys.stdout.reconfigure(encoding="utf-8")
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("cmd", choices=["stage", "unseen", "audit"])
+    ap.add_argument("cmd", choices=["stage", "unseen", "audit", "prelabel"])
     ap.add_argument("dest", nargs="?", type=Path)
     ap.add_argument("--only", nargs="+", default=None, help="folder names (default: every labelled side folder)")
+    ap.add_argument("--dry-run", action="store_true")
     a = ap.parse_args(argv)
+    if a.cmd == "prelabel":
+        if a.dest is None:
+            ap.error("prelabel needs the predictions csv")
+        prelabel(a.dest, dry=a.dry_run)
+        return 0
     proj = labelling_project()
     if a.cmd == "audit":
         for f in side_folders(proj, a.only):

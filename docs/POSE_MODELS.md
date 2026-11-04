@@ -1055,3 +1055,12 @@ Four review sessions: confident fractions unchanged (jaw 0.89 / 0.86, pre-cue cl
 crop2). The single-frame model had little jitter to remove, and the loss cost some label accuracy (tongue most). crop2 stays
 the pre-labelling model for Parts B / C; revisit the temporal loss on the larger label set. Clips:
 `inference_check_20261027_side_pilot/clips/<a>_<d>/labeled_temporal.mp4` beside `labeled_crop2_singleframe.mp4`.
+
+**Round 2 set-up (11-04, Priya).** (1) JAW SEQUENCES (`dlc_sidecam jawseq`): in the 13 Part B / C sessions, one trial per
+side camera whose jaw was closed at the cue and then opened (`jaw_onsets.csv`), 33 consecutive frames (+-64 ms around the
+opening onset), 4 targets (-48 / -16 / +16 / +48 ms), rest context: 26 runs, 104 targets, 858 PNGs; `assign` keeps every
+existing cam2 / cam3 assignment unchanged (checked: 602 / 602 rows identical) and lists the jaw targets in their own
+camera. (2) PRE-LABELS (`lp_sidecam prelabel`, dlc env): crop2 predicted all 292 listed targets of the 26 unlabelled
+folders (188 Part B / C + 104 jaw), confident points (tongue 0.4, others 0.6) mapped back to the raw frame and seeded as
+CollectedData_Priya (nose 292, jaw 255, tongue 112, spout 265 frames); mapping checked by overlay (June cam3 + August cam2).
+`SIDECAM_GUIDE.html` explains both; a pre-labelled frame counts as to-do on the page until its points are changed.
