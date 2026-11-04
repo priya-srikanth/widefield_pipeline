@@ -14,7 +14,7 @@ from wfield_local import spout_scaling as ss
 REPO = Path(__file__).resolve().parents[1]      # never the cwd (the suite also runs from tests/)
 
 PROFILE_ENV = {"WIDEFIELD_TRIAL_GATE": "camera", "WIDEFIELD_TRIAL_WINDOW": "cue_stop", "WIDEFIELD_TRIAL_END": "lick",
-               "WIDEFIELD_TRIAL_STOPPED": "run", "WIDEFIELD_PRE_FROM": "0801"}
+               "WIDEFIELD_TRIAL_STOPPED": "both", "WIDEFIELD_PRE_FROM": "0801"}
 
 
 @pytest.fixture
@@ -148,7 +148,7 @@ def test_june_dir_and_primary_dir(camera, tmp_path):
     assert "pre0801" in primary
     # the june block's own tag (PRE_FROM unset), for the script and the deck alike
     jd = run_mode.june_august_drift_dir(lab)
-    assert jd.name == "june_august_drift" and "pre0801" not in jd.parent.name and jd.parent.name.endswith("stopRun6j")
+    assert jd.name == "june_august_drift" and "pre0801" not in jd.parent.name and jd.parent.name.endswith("stopA2jrt3500c70")
     camera.delenv("WIDEFIELD_PRE_FROM")                                  # inside the block
     assert run_mode.june_august_drift_dir(lab) == jd
     # the primary run's epoch dir, read from inside the block

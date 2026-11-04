@@ -491,12 +491,26 @@ UNTAGGED_GATE = "daq"
 #:                         extend a run (skipped when counting) and are never stopped. An ISOLATED no_response /
 #:                         jaw_only trial keeps its class: in neither working nor stopped.
 #:   rule "any" (SENSITIVITY)  every no_response trial is stopped (the earlier provisional rule).
-#: Setting: ``trial_selection.stopped`` (run) / WIDEFIELD_TRIAL_STOPPED; the rule name enters `selection_tag`, so
-#: caches and frozen specs of the two rules never meet.
+#:   rule "both" (PRIMARY since 11-04, Priya's A2 "both sides"; docs/status/rebuild_20261103/
+#:                         STOP_RULE_GUARD_CENSUS_R2_20261104.md in wf_attempt): a run of >= 6 consecutive no_response /
+#:                         jaw_only trials before the session's last camera lick is stopped -- EXCEPT a run with NO
+#:                         reference-spout trial (REFERENCE_SPOUTS) whose nearest reference-spout trial before it AND
+#:                         nearest one after it are both camera "contact": that run stays in the working period (its
+#:                         trials keep no_response / jaw_only; a far-spout deficit, not a stop). Everything after the
+#:                         last camera lick is stopped (quit), with no guard. A run starting < 300 s after the first cue
+#:                         keeps its trials' classes (early_run folds into no_response / jaw_only, Priya). "unknown"
+#:                         trials neither break nor extend a run. Tag part "stopA2".
+#:   rule "long" (ROBUSTNESS A3)  as "both" with no reference guard and runs of > 10 (>= 11) trials, stopped from the
+#:                         run's first trial. Tag part "stopA3n11". Rule "run" = A0, the 11-04 morning rule, unchanged.
+#: Setting: ``trial_selection.stopped`` / WIDEFIELD_TRIAL_STOPPED; the rule name enters `selection_tag`, so caches and
+#: frozen specs of different rules never meet. Every camera rule name also carries the class-window token (`_window_token`:
+#: max_rt + the cue + 70 ms peak rule), so no cache / store / attempts table of the pre-11-04 classes is reused.
 STOPPED_CLASS = "stopped"
 STOPPED_CLASSES = frozenset({STOPPED_CLASS})
 STOPPED_ENV = "WIDEFIELD_TRIAL_STOPPED"
-STOPPED_RULES = ("run", "any")
+STOPPED_RULES = ("run", "any", "both", "long")
+#: the guarded / long rules (`_classify_guarded`): r2.py's A2 / A3
+GUARDED_RULES = {"both": {"guard": True, "min_run": None}, "long": {"guard": False, "min_run": 11}}
 #: the class a WORKING-gate trial gets in `cue_classes_for` when it lies after the session end (`before_session_end`,
 #: anchor `end_anchor()`, Priya 11-03): in neither working nor stopped -- so every `in_sel(cls, "working")` consumer IS
 #: `in_working(...)` on the session cue train
@@ -587,7 +601,7 @@ CLASS_CODE_ROOTS = ("session_trials", "jaw_table", "_trial_times", "_pre_cue_con
                     "response_end_ms", "max_rt_ms", "cue_classes",
                     "cue_classes_for", "row_classes", "camera_rows", "pool_row_classes", "camera_select",
                     "camera_engaged_period", "in_gate", "before_session_end", "in_working", "classify_session", "_matched_cues",
-                    "_effective_coverage")
+                    "_effective_coverage", "_classify_guarded")
 
 
 def class_source_signature(v36: Path | str | None = None, c1: Path | str | None = None) -> str:
@@ -726,6 +740,9 @@ def classify_session(cls, matched=None, position=None, *, rule: str | None = Non
     rule = rule or stopped_rule()
     n_min = int(min_run if min_run is not None else stop_run_min())
     end = end or end_anchor()
+    if rule in GUARDED_RULES:
+        return _classify_guarded(cls, position, rule=rule, min_run=min_run, end=end, cue_s=cue_s,
+                                 min_start_s=min_start_s, jaw_counts=jaw_counts)
     out = np.asarray(cls, dtype=object).copy()
     n = len(out)
     m = _effective_coverage(np.ones(n, bool) if matched is None else np.asarray(matched, bool))
@@ -779,6 +796,75 @@ def classify_session(cls, matched=None, position=None, *, rule: str | None = Non
     out[stop] = STOPPED_CLASS
     late = after & ~stop & (in_gate(out, "working") | np.isin(out, ["no_response", "jaw_only"]))
     out[late] = AFTER_END_CLASS
+    return out
+
+
+def _classify_guarded(cls, position, *, rule: str, min_run: int | None, end: str, cue_s=None,
+                      min_start_s: float | None = None, jaw_counts: bool | None = None) -> np.ndarray:
+    """Rules "both" (A2, PRIMARY) and "long" (A3) of `classify_session` (Priya 11-04; see STOPPED_CLASSES). Reproduces
+    the census script's A2 / A3 (wf_attempt scratch srg/r2.py) exactly, with early_run folded into the raw class:
+
+      * L = the last end-anchor trial (`before_session_end`; "lick" = the last camera lick). Trials after it that are
+        not "unknown" -> STOPPED_CLASS (quit; no guard, also with an uncovered video tail).
+      * Runs = maximal stretches of no_response / jaw_only trials BEFORE L over the non-"unknown" sequence ("unknown"
+        neither breaks nor extends a run; no split at uncovered gaps, as r2). Under in_working_jaw (``jaw_counts``
+        False) jaw_only is working and ends a run.
+      * "both": a run of >= ``min_run`` (6) is stopped, unless it holds no reference-spout trial and the nearest
+        reference-spout trial before it and after it (any class) are both "contact" -> it stays (raw classes).
+        "long": a run of >= 11 is stopped (no guard).
+      * A qualifying run whose FIRST trial is < ``min_start_s`` (300 s) after the first cue keeps its raw classes.
+    ``position`` (rig names) is needed for "both"; None -> every run counts as reference-free with no reference
+    neighbour, i.e. stopped."""
+    spec = GUARDED_RULES[rule]
+    n_min = int(spec["min_run"] or (min_run if min_run is not None else stop_run_min()))
+    if jaw_counts is None:
+        jaw_counts = jaw_counts_in_stop()
+    raw = np.asarray(cls, dtype=object)
+    out = raw.copy()
+    n = len(raw)
+    if not n:
+        return out
+    pos = np.full(n, "", dtype=object) if position is None else np.asarray(position, dtype=object)
+    ref = np.isin(pos, REFERENCE_SPOUTS)
+    if cue_s is not None:
+        t = np.asarray(cue_s, float)
+        if len(t) != n:
+            raise ValueError(f"cue_s has {len(t)} cues for {n} classes")
+        early = (t - np.nanmin(t)) < float(min_start_s if min_start_s is not None else stop_min_start_s())
+    else:
+        early = np.zeros(n, bool)
+    idx_all = np.arange(n)
+    if end == "none":
+        L = n                                                   # no end anchor: no quit tail
+    else:
+        keep = before_session_end(raw, idx_all, position=position, anchor=end)
+        L = int(np.flatnonzero(keep)[-1]) if keep.any() else -1
+    known = raw != "unknown"
+    tail = (idx_all > L) & known
+    member = np.isin(raw, ["no_response", "jaw_only"] if jaw_counts else ["no_response"]) & (idx_all < max(L, 0))
+    idx = np.flatnonzero(known)
+    seq = member[idx]
+    i = 0
+    while i < len(seq):
+        if not seq[i]:
+            i += 1
+            continue
+        j = i
+        while j < len(seq) and seq[j]:
+            j += 1
+        run = idx[i:j]
+        i = j
+        if len(run) < n_min:
+            continue
+        if spec["guard"] and not ref[run].any():
+            rb = np.flatnonzero(ref[: run[0]])
+            ra = np.flatnonzero(ref & (idx_all > run[-1]))
+            if len(rb) and len(ra) and raw[rb[-1]] == "contact" and raw[ra[0]] == "contact":
+                continue                                        # contacts at the reference spouts on both sides: kept
+        if early[run[0]]:
+            continue                                            # early_run folds into the raw class (Priya)
+        out[run] = STOPPED_CLASS
+    out[tail] = STOPPED_CLASS
     return out
 
 
@@ -861,9 +947,10 @@ def contact_nolick_counts(cls, nolick, animal, epoch) -> "pd.DataFrame":
 
 
 def stopped_rule() -> str:
-    """"run" (primary, default) or "any" (sensitivity): the camera stopped rule (see STOPPED_CLASSES)."""
+    """"both" (primary, A2, 11-04), "run" (A0), "long" (A3) or "any" (sensitivity): the camera stopped rule (see
+    STOPPED_CLASSES)."""
     import os
-    v = os.environ.get(STOPPED_ENV, "").strip().lower() or str(_selection_cfg().get("stopped") or "run").lower()
+    v = os.environ.get(STOPPED_ENV, "").strip().lower() or str(_selection_cfg().get("stopped") or "both").lower()
     if v not in STOPPED_RULES:
         raise ValueError(f"{STOPPED_ENV} / trial_selection.stopped = {v!r}; expected one of {STOPPED_RULES}")
     return v
@@ -912,9 +999,25 @@ def stopped_rule_name() -> str:
     """The rule name in selection tags: "stopRun<n>" ("stopRun<n>j" when jaw_only counts toward the run, Priya 11-04:
     no cache / store / attempts table of the 11-03 rule is reused) or "stopAny" (+ "t<s>" when the stop start time
     is not 300 s)."""
-    base = (f"stopRun{stop_run_min()}" + ("j" if jaw_counts_in_stop() else "")) if stopped_rule() == "run" else "stopAny"
+    rule = stopped_rule()
+    j = "j" if jaw_counts_in_stop() else ""
+    if rule == "run":
+        base = f"stopRun{stop_run_min()}{j}"
+    elif rule == "both":
+        base = f"stopA2{j}" if stop_run_min() == 6 else f"stopA2n{stop_run_min()}{j}"
+    elif rule == "long":
+        base = f"stopA3n{GUARDED_RULES['long']['min_run']}{j}"
+    else:
+        base = "stopAny"
     t = stop_min_start_s()
-    return base if t == 300.0 else f"{base}t{t:g}"
+    base = base if t == 300.0 else f"{base}t{t:g}"
+    return base + _window_token()
+
+
+def _window_token() -> str:
+    """The class-window part of every camera rule name (Priya 11-04): "rt<max_rt ms>c<post-cue floor ms>", e.g.
+    "rt3500c70" -- licks / contacts / jaw counted in cue + 70 ms (lick PEAK) .. min(cue + max_rt, stop)."""
+    return f"rt{max_rt_ms():g}c{POSTCUE_START_MS:g}"
 
 
 def camera_gate_on() -> bool:
@@ -981,7 +1084,8 @@ def cue_classes_for(label: str, cue_s, window: str | None = None) -> np.ndarray:
         T = session_trials(label, window=window)
         # THE session-level rules (end at the last camera lick, sustained stop, isolated lapses; video coverage span):
         # `classify_session`. The "close" anchor needs each cue position (matched the same way as the class)
-        pos = cue_classes(T.assign(cls=T["position"]) if T is not None else None, cs) if end == "close" else None
+        pos = (cue_classes(T.assign(cls=T["position"]) if T is not None else None, cs)
+               if end == "close" or rule[0] in GUARDED_RULES else None)
         matched = (cue_classes(T.assign(cls="matched"), cs) == "matched") if T is not None else np.zeros(len(cs), bool)
         _CUE_CLS[key] = classify_session(cue_classes(T, cs), matched, pos, rule=rule[0], min_run=rule[1], end=end,
                                          cue_s=cs, jaw_counts=jaw_cnt)

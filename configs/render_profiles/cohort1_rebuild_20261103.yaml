@@ -9,11 +9,14 @@ env:
   # Priya 11-03: LocaNMF = PROJECTION of the corrected data onto the stored per-session and joint footprints (no refit).
   WIDEFIELD_LOCANMF_PROJECT: "1"
   # camera trial gate (Priya 11-03): working = contact | incomplete (jaw_only its own class), ending at the session's last camera lick;
-  # stopped = a sustained stop (>= behavior.tail_min_misses = 6 consecutive no_response)
+  # stopped (Priya 11-04) = A2 "both sides": >= 6 consecutive no_response / jaw_only, unless the run has no reference-spout
+  # trial and the nearest reference-spout trial on each side is a contact; everything after the last camera lick = quit.
+  # Classes count licks (peak) / contacts / jaw in cue + 70 ms .. min(cue + max_rt, stop) (tag token rt3500c70).
+  # Robustness arms stopA0 (the 11-04 morning rule) / stopA3 (runs > 10, no guard) below.
   WIDEFIELD_TRIAL_GATE: camera
   WIDEFIELD_TRIAL_WINDOW: cue_stop
   WIDEFIELD_TRIAL_END: lick
-  WIDEFIELD_TRIAL_STOPPED: run
+  WIDEFIELD_TRIAL_STOPPED: both
   # Priya 11-03 late, main's setting (48f2cc6d `working_trials`): in_working = contact | incomplete (jaw_only out);
   # in_working_jaw = the jaw-inclusive robustness arm; the selection tag carries "-cls-contact-incomplete"
   WIDEFIELD_WORKING_TRIALS: in_working
@@ -66,9 +69,21 @@ arms:
       COMBINED_ENCODING_DRIFT_MIN_PERIOD_S: "1500"
     blocks: ["encoder spout contra - ipsi cells (frozen_encoder / combined_encoding)",
              "ITI pre-cue level readouts (scripts/iti_licks.py family)"]
-    expected_run_tag: hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_drift1500s_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopRun6j
+    expected_run_tag: hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_drift1500s_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jrt3500c70
+  # stop-rule ROBUSTNESS arms (Priya 11-04): A0 = the 11-04 morning rule (runs >= 6, no guard, after-end not stopped);
+  # A3 = runs > 10 stopped from their first trial, no reference guard
+  stopA0:
+    env:
+      WIDEFIELD_TRIAL_STOPPED: run
+    blocks: ["stop-rule robustness: camera working / stopped classes"]
+    expected_run_tag: hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopRun6jrt3500c70
+  stopA3:
+    env:
+      WIDEFIELD_TRIAL_STOPPED: long
+    blocks: ["stop-rule robustness: camera working / stopped classes"]
+    expected_run_tag: hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA3n11jrt3500c70
 
 # the primary encoder / ITI slow-drift cutoff (Priya 11-03): combined_encoding.DRIFT_MIN_PERIOD_S = 600 s (env unset)
 notes:
   encoder_drift_cutoff_s: 600
-  expected_run_tag: hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopRun6j
+  expected_run_tag: hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jrt3500c70

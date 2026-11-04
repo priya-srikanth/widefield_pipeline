@@ -67,19 +67,21 @@ def test_camera_gated_run_uses_the_runs_camera_classes(monkeypatch, tmp_path):
     monkeypatch.setattr(oo, "session_dir", lambda *a, **k: tmp_path)
     monkeypatch.setattr(oc, "engagement_keep", lambda *a, **k: (None, "reference"))
     T = ta.session_trials("PS92_0901")
-    assert T.cls.tolist() == (["hit"] + ["stopped"] * 6 + ["hit", "jaw_only", "incomplete"] + ["after_end"] * 3)
+    # A2 (Priya 11-04): no reference-spout trial near the run -> stopped; after the last lick = quit -> stopped
+    assert T.cls.tolist() == (["hit"] + ["stopped"] * 6 + ["hit", "jaw_only", "incomplete"] + ["stopped"] * 3)
     assert T.canonical.tolist() == [True] + [False] * 6 + [True] * 3 + [False] * 3
     assert T.gate.iloc[0].startswith("camera:sel-camera") and "cls_raw" in T
-    # the 5-min rule: the same run starting < 300 s after the first cue is early_run, not stopped
+    # the 5-min rule: the same run starting < 300 s after the first cue is not stopped; under A2 early_run folds into
+    # no_response (Priya), so it stays in the denominator as a non-attempt
     C["cue_daq"] = np.arange(n) * 10.0
     T = ta.session_trials("PS92_0901")
-    assert T.cls.tolist()[1:7] == ["early_run"] * 6 and not T.canonical.iloc[1:7].any()
+    assert T.cls.tolist()[1:7] == [ta.TA_NAMES.get("no_response", "no_response")] * 6 and T.canonical.iloc[1:7].all()
 
 
 def test_camera_attempts_jaw_only_in_a_stop_run_leaves_the_denominator(monkeypatch, tmp_path):
     """Priya 11-04: jaw_only counts toward the 6 and is stopped, so J,NR,J,NR,NR,NR >= 300 s in leaves the attempt-rate
     denominator (canonical False) while cls_raw keeps the trial-level class; a lone jaw_only stays in it as a
-    non-attempt. The gate names the stopRun6j selection."""
+    non-attempt. The gate names the stopA2jrt3500c70 selection."""
     import sys
     import types
 
@@ -109,7 +111,7 @@ def test_camera_attempts_jaw_only_in_a_stop_run_leaves_the_denominator(monkeypat
     assert T.canonical.tolist() == [True] + [False] * 6 + [True] * 3             # denominator = 4 trials
     assert T.cls_raw.tolist()[1:7] == [ta.TA_NAMES.get(c, c) for c in cls[1:7]]     # the raw jaw_only is kept
     assert not T.attempted.iloc[1:7].any() and not T.attempted.iloc[8]
-    assert T.gate.iloc[0].endswith("-stopRun6j")
+    assert T.gate.iloc[0].endswith("-stopA2jrt3500c70")
     # 5 run members (one fewer no_response): not a stop -- every jaw_only / no_response stays in the denominator
     C.loc[6, "cls"] = "contact"
     T = ta.session_trials("PS92_0901")
