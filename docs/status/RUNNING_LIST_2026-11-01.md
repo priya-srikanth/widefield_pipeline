@@ -807,6 +807,20 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
     areas).
   - (4) keep the cortex rows, with v8 cortex.
   - (5) leave the LocaNMF-label analyses.
+  - residual_roi detail (a8): the area table gets real tests, corrected over the split family (not descriptive).
+- FINDING, jaw_only counting toward stop runs (120 curated sessions):
+  - Stop runs 177 -> 283; stopped trials 3,267 -> 5,944 (2,353 of them jaw_only; +324 no_response newly stopped).
+  - Working trials unchanged (54,676); early_run 0 under both rules.
+  - Biggest moves:
+    - PS94 acute: 543 -> 1,012 stopped;
+    - PS95 subacute: 714 -> 1,173;
+    - PS95 chronic: 246 -> 567;
+    - PS95 pre: 214 -> 425.
+  - Table: scratchpad r4/jawcmp2/jaw_count_compare.csv.
+  - Effect: stopped-trial analyses (5c stopped, nolick stopped, miss_vs_stopped) get ~2x the trials; attempt-rate
+    denominators lose the jaw trials inside stop runs.
+- O2 bundle code committed (fb3b6304 cache key, a6a29dd7 split basis in the encoder, a7aec872 rebuild-aware o2_encoding; 14
+  TAGs). Pre-warm done (107 / 107, 23 min). The bundle waits only on the stopRun6j attempts table.
 - Slide 94 caveat added by a8 (backup_before_ramp_caveat_1104.pptx; hidden states unchanged).
 - The 05:46 incident coverage copies differ from the rebuild ones only by the 12 June sessions (Aug-only pre); the partial-
   coverage rows are identical.
