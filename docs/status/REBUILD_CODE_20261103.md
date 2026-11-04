@@ -837,3 +837,8 @@ test_analysis_kit exact-equality tests and main's new test files.
   bal_em it no longer fits in memory. WIDEFIELD_DRIFT_FROZEN=0 is the in-memory opt-out.
 - The size-matched draws of that script are in memory, as before the merge.
 - Tests: test_drift_month_model_is_stored_in_the_bal_em_frame; test_frozen_default's drift source test updated.
+
+### 8.18 Test record (4a8db872 + the test fix after it)
+Full suite at 4a8db872, 6 shards: 4,556 passed, 178 skipped, 2 failed. Both failures were source-text tests in
+test_frozen_default that matched the old call text (`store=_store)` / `store=_store_conf)`, now followed by `cls_e=`).
+Those assertions were updated in the next commit, and both tests pass.

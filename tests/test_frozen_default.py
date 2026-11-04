@@ -572,7 +572,7 @@ def test_nolick_analyse_animal_uses_the_store():
     from wfield_local import nolick_decoder as nd
     src = inspect.getsource(nd.analyse_animal)
     # MERGE with main (11-03): through the FrozenFrame store hook (bal_em frames)
-    assert "st = _stored_nolick_reference(" in src and "store=_store)" in src
+    assert "st = _stored_nolick_reference(" in src and "store=_store," in src
     assert "clf = ff.full" in src and 'ff.loso[i].predict(ff.apply(XE[rows], i, "loso"))' in src
 
 
@@ -852,7 +852,7 @@ def test_coding_lp_arm_lp_trained_by_default(pass2_env):
 def test_coding_run_animal_uses_the_store():
     from wfield_local import position_coding_directions as pcd
     src = inspect.getsource(pcd.run_animal)
-    assert "st = stored_confusion_decoder(animal, align, post_s, basis.basis_id" in src and "store=_store_conf)" in src
+    assert "st = stored_confusion_decoder(animal, align, post_s, basis.basis_id" in src and "store=_store_conf," in src
     assert "ref = stored_reference(animal, align, post_s, basis.basis_id" in src
     assert "direction(" not in src                                    # no direction is fitted in run_animal itself
 
