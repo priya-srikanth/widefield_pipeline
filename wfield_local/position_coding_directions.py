@@ -766,6 +766,131 @@ def _cells(vals):
             "sd": sd, "low_n": n < MIN_TRIALS}
 
 
+#: G9 CLASSES (Priya 11-04, follow-on b, APPROVED with guards): the coding-direction classes by CAMERA CLASS through
+#: `working_trials.g_group` -- contact / incomplete / jaw_only / none / after_end ("quit"); early_run -> none; the
+#: close-mid unjudged default kept apart (``n_jaw_unjudged``) -- pre and post, engaged and no-lick rows together.
+#: "camera" (default under the camera gate): `_camera_class_block` adds ``camera_classes`` to every method's record.
+#: "daq": the DAQ classes alone (poststroke_lick / poststroke_miss_working / poststroke_stopped). THE DAQ CLASSES ARE
+#: ALWAYS WRITTEN (labelled robustness, ``g9_daq_classes``): every existing figure / consumer still reads them, and
+#: switches only after `g9_old_new` has been run and read (docs/status/REBUILD_CODE_20261103.md 8.43).
+#: Guards: (1) every score is PER SPOUT (no pooled class contrast); (2) a cell needs >= G9_MIN_N rows per animal x epoch
+#: x class x spout, thinner cells are KEPT and flagged ``thin`` (never averaged); (3) each post class is read against the
+#: SAME class pre-stroke where that cell is not thin, else against pre WORKING (contact + incomplete), labelled
+#: ``pre_reference_is``; (4) the rows are z-scored per session on its CONTACT rows (`G9_CENTRE`; no incomplete row in
+#: any centre) until the centre option is decided.
+G9_CLASSES_ENV = "WIDEFIELD_G9_CLASSES"
+G9_MIN_N = 10
+G9_CENTRE = "contact"
+
+
+def g9_classes() -> str:
+    import os
+    v = os.environ.get(G9_CLASSES_ENV, "camera").strip().lower()
+    if v in ("camera", "cam", "classes"):
+        return "camera"
+    if v in ("daq", "old"):
+        return "daq"
+    raise ValueError(f"{G9_CLASSES_ENV}={v!r}: expected camera or daq")
+
+
+def _g9_groups(feat, kept, GE, GU, YE, YU, align):
+    """``(grp_e, grp_u, jj_e, jj_u, have)`` (`working_trials.row_groups`) for the G9 camera classes, or None: the DAQ
+    gate, the lick window, ``WIDEFIELD_G9_CLASSES=daq``, or a builder without cue indices."""
+    from wfield_local import trial_classes as _tc
+    from wfield_local import working_trials as _wt
+    if g9_classes() != "camera" or align == "lick" or not _tc.camera_gate_on() or not getattr(feat, "indices", None):
+        return None
+    return _wt.row_groups(kept, feat.indices, GE, GU, YE=YE, YU=YU)
+
+
+def _g9_contact_frame(X, G, grp, sessions):
+    """Rows of each session z-scored on its CONTACT rows (guard 4); a session without contact rows is left as is."""
+    from wfield_local import label_shift
+    out = np.array(X, float)
+    for i in sessions:
+        m = G == i
+        c = m & (grp == "contact")
+        if c.sum() >= 2:
+            out[m] = (X[m] - X[c].mean(0)) / label_shift.session_sd(X[c])
+    return out
+
+
+def _camera_class_block(proj, W, XE, XU, GE, GU, en, un, pre_i, kept, groups, min_n=G9_MIN_N):
+    """The G9 camera-class record for ONE method: {"pooled": {phase: {group: {spout P: cell}}}, "pre_reference_is":
+    {group: {P: "same" | "working"}}, "contrast": {group: {P: post mean - matched pre mean}}, ...}. ``proj(cls, X, D,
+    sess)`` = the method's projection (held-out direction for a pre session); pre rows of a session are projected on
+    ITS held-out direction (the directions are fitted on pre lick rows). Rows are engaged and no-lick rows of the group
+    stacked, in the contact-row z frame (`_g9_contact_frame`)."""
+    from wfield_local import working_trials as _wt
+    ge, gu, je, ju, _have = groups
+    X = np.vstack([XE, XU])
+    G = np.concatenate([GE, GU])
+    g = np.concatenate([ge, gu])
+    jj = np.concatenate([je, ju])
+    names = np.concatenate([en, un])
+    X = _g9_contact_frame(X, G, g, range(len(kept)))
+    is_pre = np.isin(G, list(pre_i))
+    rec = {"classes": list(_wt.G_GROUPS), "labels": dict(_wt.G_LABELS), "min_n": int(min_n), "frame": "z-contact",
+           "thin_cells": "kept, flagged thin, never averaged", "pooled": {"pre": {}, "post": {}},
+           "pre_reference_is": {}, "contrast": {}}
+
+    def _cell(vals, n_unj):
+        v = np.asarray(vals, float)
+        n = int(v.size)
+        return {"n": n, "mean": float(v.mean()) if n else None, "sd": float(v.std(ddof=1)) if n > 1 else None,
+                "thin": n < min_n, "n_jaw_unjudged": int(n_unj)}
+
+    for phase, pm in (("pre", is_pre), ("post", ~is_pre)):
+        for grp in list(_wt.G_GROUPS) + ["working"]:
+            gm = np.isin(g, list(_wt.G_WORKING)) if grp == "working" else (g == grp)
+            per = {}
+            for P in BY_SEVERITY:
+                if P not in W:
+                    continue
+                m = pm & gm & (names == P)
+                if phase == "pre":
+                    vals = [proj("prestroke_lick", X[m & (G == i)], P, sess=i) for i in sorted(pre_i)]
+                    vals = np.concatenate([v for v in vals if len(v)]) if any(len(v) for v in vals) else []
+                else:
+                    vals = proj("post", X[m], P)
+                per[P] = _cell(vals, (~jj[m]).sum())
+            rec["pooled"][phase][grp] = per
+    for grp in _wt.G_GROUPS:
+        rec["pre_reference_is"][grp], rec["contrast"][grp] = {}, {}
+        for P, c in rec["pooled"]["post"][grp].items():
+            same = rec["pooled"]["pre"][grp].get(P) or {}
+            ref = same if same.get("n", 0) >= min_n else rec["pooled"]["pre"]["working"].get(P) or {}
+            rec["pre_reference_is"][grp][P] = "same" if same.get("n", 0) >= min_n else "working"
+            rec["contrast"][grp][P] = (c["mean"] - ref["mean"]
+                                       if not c["thin"] and ref.get("mean") is not None and ref.get("n", 0) >= min_n
+                                       else None)
+    return rec
+
+
+def g9_old_new(results):
+    """OLD (DAQ) -> NEW (camera) G9 report per animal (guard 5; run before any figure is switched): for each method,
+    the class counts and the pooled per-spout CD scores of the DAQ classes next to the camera classes. ``results`` =
+    {animal: run_animal record}. Returns a list of flat rows (animal, method, scheme, class, spout, n, mean, thin)."""
+    rows = []
+    for an, r in sorted((results or {}).items()):
+        if not r:
+            continue
+        for meth, res in (r.get("methods") or {}).items():
+            for cls, per in (res.get("pooled") or {}).items():
+                for P, c in per.items():
+                    rows.append({"animal": an, "method": meth, "scheme": "daq", "class": cls, "spout": P,
+                                 "n": c.get("n"), "mean": c.get("mean"), "thin": bool(c.get("low_n"))})
+            cam = res.get("camera_classes")
+            if not cam:
+                continue
+            for phase in ("pre", "post"):
+                for grp, per in cam["pooled"][phase].items():
+                    for P, c in per.items():
+                        rows.append({"animal": an, "method": meth, "scheme": "camera", "class": f"{phase}_{grp}",
+                                     "spout": P, "n": c["n"], "mean": c["mean"], "thin": c["thin"]})
+    return rows
+
+
 def run_animal(animal, align="precue", verbose=True, methods=CD_METHODS):
     """Per-position directions for one animal: time course, 6x6 cross matrix, and pairwise axes."""
     disp = dict(ALIGNS)[align]
@@ -825,6 +950,9 @@ def run_animal(animal, align="precue", verbose=True, methods=CD_METHODS):
                                    work=_wt.projection_work(kept, feat, GE, GU, align), YU=YU,
                                    cls_e=_wt.projection_cls_e(kept, feat, GE, GU, align), labels=kept)
 
+    # G9 CAMERA CLASSES (follow-on b): the row groups, from the PRODUCTION rows' cue indices (None = DAQ classes only)
+    g9_groups = _g9_groups(feat, kept, GE, GU, YE, YU, align)
+
     order = sorted(range(len(kept)), key=lambda i: kept[i].split("_")[1])
     # VARIANCE CAPTURED PER SESSION, stored so a declining per-session coding value can be tested
     # against the obvious artefact: the joint basis has FIXED footprints, and a session not in the
@@ -875,7 +1003,11 @@ def run_animal(animal, align="precue", verbose=True, methods=CD_METHODS):
     classes = CLASSES_FULL
     out = {"animal": animal, "align": align, "window": disp, "basis_id": basis.basis_id,
            "ncomp": int(basis.ncomp), "n_features": int(XE.shape[1]), "sessions": sessions,
-           "methods": {}}
+           "methods": {},
+           # which G9 classes this record carries (follow-on b): the DAQ classes always (robustness, what every
+           # figure reads today), the camera classes in methods[*]["camera_classes"] when g9_classes is "camera"
+           "g9_classes": "camera+daq" if g9_groups is not None else "daq",
+           "g9_daq_classes": list(CONFUSION_CLASSES)}
     # BEHAVIOUR, from the same trial indices the features came from. Method-independent, so it is
     # computed once here rather than inside the per-method loop.
     try:
@@ -1052,6 +1184,11 @@ def run_animal(animal, align="precue", verbose=True, methods=CD_METHODS):
                 within[P] = rows
             res.setdefault("pooled", {})[c] = pooled
             res.setdefault("within_session", {})[c] = within
+
+        # ---- 2c. G9 BY CAMERA CLASS (follow-on b, Priya 11-04): per spout, n floor, matched pre reference -----
+        if g9_groups is not None:
+            res["camera_classes"] = _camera_class_block(proj, W, XE, XU, GE, np.asarray(GU), en, un, pre_i, kept,
+                                                        g9_groups)
 
         # ---- 3. PAIRWISE axes: A vs B directly, no five-way mixture in the contrast -----------
         # Sharper for the remapping question: "not-P" above averages five positions, so a trial can
