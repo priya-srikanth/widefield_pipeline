@@ -24,6 +24,19 @@ log for the earlier part of the day is `RUNNING_LIST_2026-11-02_OVERNIGHT.md`.
    - If you want the deck to show today's rules now, I'll render on main (workers capped) and swap. Interim status
      would go in the notes, not on the slide.
 
+5. **NEW (11-04): split-basis details** (34's inventory: wf_attempt docs/status/rebuild_20261103/
+   SPLIT_BASIS_INVENTORY_20261104.md). My suggestions are in brackets.
+   - a. Encoder rows: v8 masks (stat mask + rim, like the decoders and the s1 table) or stat-mask-only? [v8: one
+     definition; SSp / cortex rows move slightly.]
+   - b. Groups that used whole MOs / MOp: orofacial group in specificity_control and quiet events, hemispheric MO
+     group. [ALM + tjM1 + MOs_rest + MOp_rest, pixel-weighted, so the group covers the same cortex as before.]
+   - c. precue_attribution's MOs-vs-MOp contrast. [Keep it as MOs vs MOp via the union, and add ALM vs tjM1 beside
+     it.]
+   - d. residual_roi Bonferroni family grows with the split areas. [Accept the new family.]
+   - e. Keep the "cortex" summary rows. [Yes.]
+   - f. LocaNMF-component analyses: the labels come from Allen seeds and cannot simply switch. [Leave them: split
+     applies to Allen-ROI analyses.]
+
 The combined render is ON HOLD until Q0-Q2 are answered. Q3 is a default you can overrule later. Details:
 `M:/MICROSCOPE/Priya/Widefield/labcams/decoder_mix_checks/spout_balem_production/summarise_{A,B,C}_log.txt`.
 
