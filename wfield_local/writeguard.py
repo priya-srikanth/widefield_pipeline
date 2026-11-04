@@ -100,7 +100,7 @@ def assert_writable(path: str | os.PathLike[str]) -> None:
         tag = lp_licks.output_tag()
         # T1 / T2 (third review): an LP-family root routed by `run_mode.subdir(..., lp_family=True)` and a registered
         # content-keyed data store are accepted at their routed location (the LP source is implicit in the former)
-        if tag is not None and (run_mode.lp_family_root_ok(c) or run_mode.data_store_ok(c)):
+        if tag is not None and (run_mode.lp_family_root_ok(c) or run_mode.data_store_ok(c) or in_keyed_store(c)):
             return
         if tag is not None and f"/{tag.lower()}/" not in c:
             raise WriteGuardError(
@@ -109,14 +109,42 @@ def assert_writable(path: str | os.PathLike[str]) -> None:
                 "never replace the default (DAQ contact, 2 s ENL) version; route the writer with lp_licks.output_dir().")
 
 
+def in_keyed_store(c: str) -> bool:
+    """True if the normalised path ``c`` lies in a CONTENT-KEYED store a tagged run may write (render blocker 11-04: the
+    tag rule refused <root>/frozen_models). The stores are `_keyed_stores`; the RESTnl caches are the session cache's
+    ``<name>_restnl*`` siblings (one per gate source)."""
+    if any(c.startswith(s) for s in _keyed_stores()):
+        return True
+    try:
+        from wfield_local import session_cache
+        base = _normalize(session_cache.CACHE_DIR).rstrip("/")
+        return c.startswith(base + "_restnl")
+    except Exception:                                                  # noqa: BLE001
+        return False
+
+
 def _keyed_stores() -> list[str]:
     """Normalised roots of the stores that are keyed by CONTENT, not by the run tag, so a tagged run may write them
-    (review N3, 11-03): the frozen-model store(s) (spec ids carry hemo variant, selection, training fingerprint) and the
-    per-session cache (kinds carry the run-mode cache tag)."""
+    (review N3, 11-03; render blocker 11-04): the frozen-model store(s) (spec ids carry hemo variant, selection, training
+    fingerprint; incl. a WIDEFIELD_FROZEN_MODEL_DIR store such as lp_final_render's frozen_models_lpfinal), the
+    per-session cache (kinds carry the run-mode cache tag; map_collect and the LP-licks result_cache live inside it),
+    every store the rebuild root declares (paths.yaml ``rebuild.stores``) and the encoder input cache
+    (WFIELD_INPUT_CACHE) when it lies inside the rebuild root."""
     out = []
     env = os.environ.get("WIDEFIELD_FROZEN_MODEL_DIR", "").strip()
     if env:
         out.append(_normalize(env))
+    try:
+        from wfield_local import rebuild_root
+        r = rebuild_root.root()
+        if r is not None:
+            for rel in (rebuild_root.spec().get("stores") or {}).values():
+                out.append(_normalize(r / rel))
+            ic = os.environ.get("WFIELD_INPUT_CACHE", "").strip()
+            if ic and _normalize(ic).startswith(_normalize(r)):
+                out.append(_normalize(ic))
+    except Exception:                                                  # noqa: BLE001 - no rebuild root
+        pass
     try:
         from wfield_local import frozen_models
         out.append(_normalize(frozen_models.local_dir()))

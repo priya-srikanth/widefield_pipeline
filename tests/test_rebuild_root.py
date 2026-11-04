@@ -462,3 +462,56 @@ def test_init_cli_as_main_seeds_under_the_fence(tmp_path):
     dst = rb / "labcams" / "epoch_boundaries.json"
     r = _run(SEED_CLI % (str(orig), str(dst), str(rb), PROFILE), {}, tmp_path)
     assert "EXIT 0" in r.stdout and "COPIED True" in r.stdout, r.stdout[-1500:] + r.stderr[-2500:]
+
+
+STORES_E2E = r"""
+import json, os
+from pathlib import Path
+import numpy as np
+root = Path(%r)                                                 # a SHARE-LIKE temp root: .../MICROSCOPE/Priya/...
+root.mkdir(parents=True, exist_ok=True)                         # init creates it in a real run (before the fence)
+from wfield_local import render_profile
+render_profile.apply("%s")
+os.environ["WIDEFIELD_REBUILD_ROOT"] = str(root)
+os.environ["WIDEFIELD_FROZEN_MODEL_DIR"] = str(root / "frozen_models")
+os.environ["WIDEFIELD_SESSION_CACHE"] = str(root / "session_cache")
+import importlib
+from wfield_local import session_cache
+importlib.reload(session_cache)
+from wfield_local import config, frozen_models, lp_licks, restnl_mask, result_cache, writeguard
+res = {"tag": bool(lp_licks.output_tag())}
+def ok(name, fn):
+    try:
+        fn(); res[name] = "ALLOWED"
+    except writeguard.WriteGuardError as ex:
+        res[name] = "REFUSED " + str(ex)[:80]
+lab = next(s for s in config.load_sessions() if s["label"].startswith("PS92_08"))
+spec = frozen_models.make_spec("PS92", "decoder", align="cue", source="roi", train_labels=[lab["label"]], n_features=3,
+                               train_data=(np.zeros((6, 3)), np.arange(6), np.zeros(6)))
+ok("frozen_models", lambda: frozen_models.load_or_fit(spec, lambda: {"x": 1}, log=lambda *a: None))
+ok("session_cache", lambda: session_cache.cached(lab, "e2e-probe", lambda: {"y": 2}, verbose=False))
+ok("result_cache", lambda: result_cache.cached(session_cache.CACHE_DIR / "lp_licks", "probe", [], "v1", lambda: 3))
+def _restnl():
+    d = restnl_mask.cache_dir(); writeguard.assert_writable(d / "probe.npz"); d.mkdir(parents=True, exist_ok=True)
+    (d / "probe.npz").write_bytes(b"x")
+ok("restnl_cache", _restnl)
+lpf = Path(config.resolver().root("figures_working")) / "frozen_models_lpfinal"
+os.environ["WIDEFIELD_FROZEN_MODEL_DIR"] = str(lpf)
+ok("frozen_models_lpfinal", lambda: writeguard.assert_writable(lpf / "PS92" / "x"))
+ok("untagged_figure", lambda: writeguard.assert_writable(Path(config.resolver().root("cohort_out")) / "grant_figures" / "epoch" / "x.png"))
+print(json.dumps(res))
+"""
+
+
+def test_every_content_keyed_store_is_writable_in_a_tagged_rebuild_run(tmp_path):
+    """Render blocker 11-04: under the profile (a tagged run) with a SHARE-like rebuild root, the real write path of each
+    content-keyed store is allowed by the write guard's tag rule; a write to an untagged figure folder is still refused."""
+    import json
+    root = tmp_path / "MICROSCOPE" / "Priya" / "Widefield" / "rebuild_test"
+    r = _run(STORES_E2E % (str(root), PROFILE), {}, tmp_path)
+    out = [ln for ln in r.stdout.splitlines() if ln.startswith("{")]
+    assert out, r.stdout[-1500:] + r.stderr[-3000:]
+    res = json.loads(out[-1])
+    assert res.pop("tag") is True
+    assert res.pop("untagged_figure").startswith("REFUSED"), res
+    assert all(v == "ALLOWED" for v in res.values()), res
