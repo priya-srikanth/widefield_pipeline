@@ -1145,3 +1145,13 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
       Cost lands on the acute close spouts (close contra .911 -> .881);
     - or EXCISE the touched trials into neither class: hit rates unchanged.
   - The quit tail could start after the last lick EVENT, not the last lick trial: 19 sessions, tail 1,313 -> 1,044.
+- **11-04 ~15:20: FINDING (e0; Priya approved the fix on main): the pose3d per-frame spout was 1.04 mm behind the
+  commanded tip in ap.**
+  - Cause: cam1's spout edge offset was not applied in the triangulation.
+  - Fix: pose3d.edge_shifted.
+  - Effect on the rebuild: the encoder's polar TARGET set (lateral angle, angle^2, tilt, 3-D distance) is computed at
+    bundle time from COMBINED_ENCODING_TARGET3D_TABLE and baked into the 107 O2 input pickles. The shift does not cancel
+    through the polar transform.
+  - So the bundle inputs need re-cutting once the spout table is regenerated. Questions to e0: per-session size,
+    affected columns, re-run cost, a new tagged table.
+  - The O2 submit was already waiting on the final class table, so this adds little delay if run in parallel.
