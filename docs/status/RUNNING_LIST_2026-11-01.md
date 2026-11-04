@@ -1067,3 +1067,13 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   - The port exposes the centre as a spec-carried option.
 - **11-04: DECISION (Priya via a8): G4 state discriminator labels come from camera classes / LP licks, with the z
   centre on CONTACT rows.**
+- **11-04 ~13:20: DECISION (Priya via a8): G9 coding-direction classes move to camera classes, with guards.**
+  - The guards:
+    - per-spout or position-balanced contrasts;
+    - a minimum n of 10 per animal x epoch x class x spout;
+    - a matched pre reference: the same class, otherwise pre working, labelled; never post incomplete vs pre contact;
+    - a contact-row z centre until the centre test reports;
+    - DAQ G9 kept as a robustness row, with old -> new per animal reported before any figure switches;
+    - classes via g_group.
+  - Any figure that cannot meet the guards stays on DAQ and is flagged.
+  - Passed to the port helper.
