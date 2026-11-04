@@ -768,6 +768,14 @@ def pooled_frozen_loso(labels, source="roi", align="cue", post_s=2.0, zscore=Tru
     res["n_scored_from_nolick"] = {lab: int(np.sum(NLsc[Gsc == i])) for i, lab in enumerate(kept) if i in scored}
     if scored_set == "working":
         res["per_session_engaged_scored"] = per_sess_eng
+        # THE SCORED WORKING ROWS SPLIT BY CAMERA CLASS (contact / incomplete; Priya 11-04, the contact-vs-incomplete
+        # panel `contact_incomplete_panel`): count confusions per session and class, same rows / predictions as above
+        RCsc = working_row_classes(work)
+        if RCsc is not None and len(RCsc) == len(Ysc):
+            res["confusion_by_class"] = {
+                lab: {c: confusion_matrix(Ysc[(Gsc == i) & (RCsc == c)], psc[(Gsc == i) & (RCsc == c)],
+                                          labels=DISPLAY_ORDER).tolist() for c in ("contact", "incomplete")}
+                for i, lab in enumerate(kept) if i in scored}
     res["ood"] = ood_control(XE, YE, GE, XU, YU, GU=GU, pre_i=pre_i, models=models, labels=kept,
                              XE_scored=XEs, XU_scored=XUs)
     res["spout_scaling"] = models.get("scaling", "session_z") if models else "session_z"
