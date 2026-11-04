@@ -13,7 +13,19 @@ log for the earlier part of the day is `RUNNING_LIST_2026-11-02_OVERNIGHT.md`.
 
 ## Questions for Priya (newest first)
 
-11. **NEW (11-04): ENL-window follow-ups (34; rebuild/enl-window done: one definition lp_licks.enl_post_s, 4 scripts
+11. ANSWERED (Priya to 34 directly; supersedes my relay):
+    - a. the encoder enl scoring window is LICK-FREE (sliding search, 1.0 s under LP), and the production encoder
+      gets LICKS_ALL = split (its own pre-cue and ITI lick kernels), with a main_nolicksall robustness tag;
+    - b. quiet_task_events uses the SLIDING lick-free 1 s window (not fully-clean trials);
+    - c. within_spout_deviation uses the sliding lick-free 1 s window;
+    - d. s1 refit: LP 1.0 s, with 2.0 s as a sensitivity row.
+
+    Centre (question 10): still open. Cto = Contact rows + true (DAQ) labels + pre-stroke Offset fill; Priya doubts
+    the pre-stroke fill acutely. Cue far contra acute by centre: W .184, Wt .230, Ct .269, Cto .177, N .259, Z .286;
+    pre ~.87 under all. [Suggest Wt (DAQ labels, working rows, no pre fill) primary; test a hybrid (contact rows,
+    a thin spout uses its own working rows); Cto and N as robustness.]
+    Original items:
+    - ENL-window follow-ups (34; rebuild/enl-window done: one definition lp_licks.enl_post_s, 4 scripts
     that gated on DAQ under LP fixed, cd_trajectories fixed, no frozen ids / O2 change).**
     - a. quiet_task_events (cohort 1) ev_enl -> LP 1.0 s? Its MIN_CLEAN_S then means fully clean trials. [Yes; fully
       clean = the strict ENL rule of 09-24.]
