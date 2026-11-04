@@ -272,7 +272,10 @@ def main(argv=None) -> int:
         vp = ME.variance_partition(d, Yk, folds, model.alphas, out_names=names, partitions=parts_here)
         vp["area"] = vp.output.str.split("#").str[0]
         from scripts.session_poses import session_dir
-        out = session_dir(rv, spec)[2]
+        from wfield_local import run_mode
+        _sd = session_dir(rv, spec)[2]          # per-session outputs: the rebuild's derived pose area (11-04)
+        out = run_mode.session_poses_out("movement_encoding_session", _sd.parent) / _sd.name
+        out.mkdir(parents=True, exist_ok=True)
         vp.to_csv(out / f"movement_encoding_vp{tag}.csv", index=False)
         s = vp.groupby(["area", "group"]).agg(r2_full=("r2_full", "median"), unique=("unique", "median"),
                                               alone=("r2_alone", "median")).reset_index()
@@ -308,7 +311,9 @@ def main(argv=None) -> int:
         fig.savefig(out / f"movement_encoding_kernels{tag}.png", dpi=110)
         plt.close(fig)
     S = pd.concat(summary, ignore_index=True)
-    out = Path(rv.root("microscope")) / "DeepLabCut" / "Widefield" / "session_poses" / f"movement_encoding_summary{tag}.csv"
+    from wfield_local import run_mode
+    out = run_mode.session_poses_out("movement_encoding_session", Path(rv.root("microscope")) / "DeepLabCut" / "Widefield"
+                                     / "session_poses") / f"movement_encoding_summary{tag}.csv"
     S.to_csv(out, index=False)
     print(f"\n-> {out}")
     return 0

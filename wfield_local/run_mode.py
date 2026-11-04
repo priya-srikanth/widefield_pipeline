@@ -367,6 +367,20 @@ def deficit_qc_dir() -> Path:
     return attempts_dir()
 
 
+def session_poses_out(script: str, default) -> Path:
+    """The output folder of a pose-tree writer (lick_template_match, movement_encoding_session, movement_position_angle,
+    jaw_only_incomplete_figs; coordinator 11-04): under a rebuild root ``<rebuild_root>/session_poses_derived/<tag>/
+    <script>`` (created) -- the DeepLabCut/session_poses tree is an INPUT tree the fence never writes; ``default`` (its
+    old place in that tree) otherwise. Pose INPUTS stay read in place."""
+    from wfield_local import rebuild_root
+    r = rebuild_root.root()
+    if r is None:
+        return Path(default)
+    out = subdir(Path(r) / "session_poses_derived") / script
+    out.mkdir(parents=True, exist_ok=True)
+    return out
+
+
 def require_default(what: str) -> None:
     """Raise unless this is a default run: for writers whose output name cannot carry a tag (refuse, do not overwrite).
     R5 (fourth review): the FULL output tag (`lp_licks.output_tag`: LP source, gate-LP, ENL window AND the run-mode

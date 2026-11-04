@@ -103,3 +103,24 @@ def test_triaged_writers_are_routed():
     assert r.count("lp_licks.output_dir(") == 2
     m = (REPO / "wfield_local" / "restnl_mask.py").read_text(encoding="utf-8")
     assert 'run_mode.subdir(oo.encoding_root(oc.RUN, PathResolver()) / "iti_licks") / "restw_check"' in m
+
+
+POSE_WRITERS = ["lick_template_match", "movement_encoding_session", "movement_position_angle", "jaw_only_incomplete_figs"]
+
+
+@pytest.mark.parametrize("name", POSE_WRITERS)
+def test_pose_tree_writers_use_the_derived_pose_area(name):
+    src = (REPO / "scripts" / f"{name}.py").read_text(encoding="utf-8")
+    assert re.search(r'session_poses_out\(\s*(#.*)?\s*"' + name + '"', src), name
+
+
+def test_session_poses_out(monkeypatch, tmp_path):
+    for k in list(os.environ):
+        if k.startswith(("WIDEFIELD_", "WFIELD_", "COMBINED_ENCODING_")):
+            monkeypatch.delenv(k, raising=False)
+    from wfield_local import lp_licks, run_mode
+    assert run_mode.session_poses_out("x", tmp_path / "old") == tmp_path / "old"      # no rebuild root: the old place
+    monkeypatch.setenv("WIDEFIELD_REBUILD_ROOT", str(tmp_path / "rb"))
+    monkeypatch.setenv("WIDEFIELD_TRIAL_GATE", "camera")
+    p = run_mode.session_poses_out("x", tmp_path / "old")
+    assert p == tmp_path / "rb" / "session_poses_derived" / lp_licks.output_tag() / "x" and p.is_dir()

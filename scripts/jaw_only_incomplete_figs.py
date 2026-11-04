@@ -332,7 +332,9 @@ def main(argv=None) -> int:
     c1 = Path(rv.root("dlc")) / "session_poses" / "cam1_licks"
     d3 = Path(rv.root("dlc")) / "session_poses" / "pose3d"
     v36 = Path(rv.root("orofacial")) / V36 / "sessions"
-    out = c1 / "trial_classes"
+    from wfield_local import run_mode
+    # the rebuild's derived pose area (coordinator 11-04): this figure uses the run's classes; inputs stay in place
+    out = run_mode.session_poses_out("jaw_only_incomplete_figs", c1 / "trial_classes")
     if a.reuse:
         S = pd.read_csv(out / "sessions.csv", dtype={"date": str})
         Tr = pd.read_csv(out / "traces.csv.gz", dtype={"date": str})
