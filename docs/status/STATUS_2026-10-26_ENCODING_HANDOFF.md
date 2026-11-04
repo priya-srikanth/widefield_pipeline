@@ -39,7 +39,31 @@ for anything that loads imaging. E = `M:/MICROSCOPE/Priya/Widefield/LP_analysis/
 3. Then tell **sabatinilab-e3** (PI deck) the decoder figures are final: per figure the share PNG path, page Fig N.k,
    script + args, headline numbers, methods text (they asked 10-26 ~22:30; reply sent: not final yet).
 
-### 00-COMPACT-21 (11-03 evening) -- READ FIRST; supersedes 00-COMPACT-20 for state (20 kept for the decision history)
+### 00-COMPACT-22 (11-03 late night, Priya asleep) -- READ FIRST; supersedes 21 for state
+Session f082ee0c. Running list = docs/status/RUNNING_LIST_2026-11-01.md, block "11-03 EVENING" (newest entries at the end of
+its Questions list). Docs commits on wf_attempt BY EXPLICIT PATH ONLY.
+- **Rebuild code** (branch rebuild/cohort1-20261103, worktree wf_rebuild, NOT pushed): tip 3a772a26+, full suite 4,576 / 0 failed.
+  - main merged (698c4e57).
+  - 5-min stop rule in; early_run class; warm-up gone.
+  - bal_em centre = camera-working rows; >= 20 rows; PS93_0813 = explicit contact-row fallback, recorded.
+  - LOSO keyed by label; section G refuses instead of refitting.
+  - Lick counts on one detector (imaging alignment unchanged).
+  - Per-block LP lick-source env.
+- **Reviews:** fifth review + re-verify at 3a772a26 = NO BLOCKERS (REBUILD_CODE_20261103.md 8.10-8.25).
+- **Priya 11-03 late:**
+  - (1) August-only pre PROFILE-WIDE (except june_august_drift, 12.1b).
+  - (2) PS93_0813 in DAQ-only behaviour rates via a DAQ-defined working period IF the agreement check passes (<= 2 points
+    hit / no-response, <= 20 ms latency on every Aug pre session with video); fail -> back to Priya.
+- **Code helper a0dc6e4f1c77fb99f queue:** last non-blockers; working-engaged-row dry count; (1); (2) + agreement table.
+- **Reviewer:** aa0138ac1e9c354a7.
+- **Next:**
+  - helper reports -> re-verify the new code (reviewer)
+  - -> `python -m wfield_local.rebuild_root init --profile cohort1_rebuild_20261103`
+  - -> render G0-G8 (plan COHORT1_SWAPMASK_RERUN_20261102.md)
+  - -> two verifiers (per animal first, then what moved)
+  - -> replacement pass. Conclusion changes go to Priya before any text is rewritten.
+
+### 00-COMPACT-21 (11-03 evening) -- superseded by 22 for state (kept for the decision history)
 Session f082ee0c. Docs commit on wf_attempt (analysis/attempt-coding) BY EXPLICIT PATH ONLY. This window = the
 COHORT 1 FULL REBUILD. Running list: docs/status/RUNNING_LIST_2026-11-01.md (every decision + finding of 11-03 is
 logged there, in order). Plan + decisions: COHORT1_SWAPMASK_RERUN_20261102.md. Pages: imaging LIVE v50 (e0 published
