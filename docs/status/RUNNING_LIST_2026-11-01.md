@@ -448,6 +448,12 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
 ## 11-03 EVENING (Priya away): questions, findings, decisions, running -- newest block, read this first
 
 ### Questions for Priya
+- REST PERIOD START: with the warm-up rule replaced by the 5-min stop rule, should the rest-baseline working period still start
+  at the session's FIRST camera lick? RECOMMEND yes (pre-first-lick time is not working; keeps the rest baseline unchanged).
+  Implemented as a named setting.
+- Lick metrics NOT moved to cue -> trial stop (need your call): session licks-per-minute curves (a session-time rate, different
+  quantity), enl_lick_rates (pre-cue ENL), FaceRhythm fixed-window licks. RECOMMEND leave all three (none is "licks per trial").
+- Slide 94 text: acute cued rise carried by 2 animals (PS94, PS95); keep or add that caveat? (see 95-98 entry)
 - PI deck slide 34 (far contra attempts) has NO tests: a8's fig_farcontra_attempts_sessions.py is descriptive only (made to replace
   the per-animal table). RECOMMEND: add paired animal-weighted change-vs-pre stars in the top band + an LMM hidden slide, drawn in
   the rebuild from the new camera-class trial_attempts_sessions.csv (the current inputs are the pre-rebuild v36 tables).
@@ -506,6 +512,14 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   FOR PRIYA: slide 94's "larger after stroke" holds subacute / chronic under the LMM but the ACUTE part does not (2 animals);
   the ITI AUC does not survive the LMM at all, the ITI peak partly does. Main-slide text unchanged pending you.
   a8 SWAPPED 95-98 in the deck (backup backup_before_ramp_w01_peak_1103.pptx; hidden states unchanged, 78 / 183; slide 94 untouched).
+- CODE HELPER round done (rebuild branch f58c5d86, suite 4,517 passed / 0 failed; log 8.10-8.12):
+  - 5-MIN STOP RULE CHECK: 0 of 159 stopped runs (1,830 trials, 119 sessions) start < 5 min after the first cue (earliest 46 min,
+    PS95_0820) -> Priya's condition met; rule being IMPLEMENTED (warm-up class removed; its 4 trials become isolated lapses).
+  - Licks per trial = cue + 70 ms -> trial stop (DAQ trial_end TTL; fallback first contact + 3.5 s / cue + 3.5 s); rate = 1 / median
+    ILI. Moved: spout_behavior, engagement_decomposition, quit_prodrome, lick_bout_structure (were cue -> next cue, incl. ITI licks).
+  - Trial-stop check (6 sessions): hits stop - first contact median 3.528 s [3.39, 3.72]; misses stop - cue 3.525 s. 49 hits > 250 ms
+    off (mostly stop EARLY: the task timer started on a lick before the first DAQ contact after cue + 70 ms).
+  - Rebuild root + fence + R1-R5 + 1500 s drift arm done. Next: merge main (helper) -> fifth review -> rebuild_root init -> render.
 
 ### Findings
 - main moved while the rebuild branch was being fixed (34 commits not in rebuild/cohort1-20261103). Two matter for the rebuild:
