@@ -1894,3 +1894,143 @@ a time (RAM checked before each): 4,787 passed, 171 skipped, 1 failed.
 - The failure is `test_review_7ab::test_working_trials_stays_byte_identical_to_main`, and it was already there. It
   compares against the LIVE origin/main, where `working_trials.py` moved in 4a37cbc8 (11-04 B/C/D/G). This branch does
   not touch the file: its blob equals the one at 571b3955.
+
+### 8.44 Lick-free SLIDING ENL for every ENL predictor; quiet_task_events and s1 refit on LP 1.0 s (Priya 11-04)
+
+Priya's decisions, all relayed by the coordinator on 11-04:
+- quiet_task_events (cohort 1) switches to the LP no-lick 1.0 s ENL.
+- Any ENL prediction must use a LICK-FREE ENL.
+- The window SLIDES with the decoders' own search, and a trial is dropped only when no lick-free window exists. This
+  is neither "fully clean trials" nor a fixed-window gate.
+- The s1 refit tables switch to LP 1.0 s, with 2.0 s kept only as a labelled sensitivity arm.
+
+Commits:
+- 9efc3c22: s1 refit.
+- c73d04ee: quiet_task_events.
+- 8d912ae5: ENL predictors.
+
+**The slide (`lp_licks.enl_window_starts_s`, new).** It runs the decoders' own `precue_window_start` on a 1 ms grid
+(that function works in integer frames); it is not a new rule:
+- the fixed window ending at the cue, if it holds no lick;
+- otherwise the latest lick-free gap after the strobe that fits the window;
+- otherwise NaN, and the trial is dropped.
+
+The licks come from `gate_licks_s` (the window's source). As in `_trial_features`, a CLEAN fixed window is kept even
+when it starts before the strobe (pinned in a test). The scripts that required `strobe <= cue - W` before still do.
+
+**Per site: did it already slide?**
+
+| site | before | now |
+|---|---|---|
+| s1_refit_basis_table / s1_refit_locanmf_table | already slid (`_trial_features`); post_s literal 2.0, run pinned at ENL 2.0 | `post_s_for` -> LP 1.0 s; 2.0 s = sensitivity arm `WIDEFIELD_ENL_WINDOW_S=2.0` (folder LP_licks_ENL2s); CSV `enl_s` |
+| quiet_task_events `ev_enl` / `npre_enl` | fixed DAQ 2 s, NOT lick-gated (window frames only masked) | LP 1.0 s, gated + slid; trials without a window are out of the ENL rows |
+| within_spout_deviation `--window enl` | fixed [cue - 1, cue), UNGATED | `enl_post_s()` of the run's source, gated + slid |
+| enl_movement_multisession / enl_fr_removed_decode (`enl_table`) | gated (8.43), fixed window, dropped on a lick | slid (`w0_s`); features, lead-in, end-0.5 s arm on the slid window |
+| enl_video_spout_check (`enl_trials`) | gated (8.43), fixed | slid; motion energy on the slid window |
+| `_trial_features` / nolick / cd_trajectories / attempt_coding / quiet_task_events_followup | already slid | unchanged |
+| precue_lickfree (Section C control) | already searches (`lickfree_window`) | unchanged |
+| enl_lick_rates | a lick-rate measurement, not a predictor (`no_clean` uses the search) | unchanged |
+
+**Gated but NOT sliding, left unchanged (decision needed).** These use a fixed window and drop on a lick:
+- iti_licks-family ENL predictors: `lick_enl_angle_decode`, `lick_enl_target_test`, `lick_enl_offset_explore`, and
+  the pre-cue parts of `prelaunch_aim_tracking` / `revup_neural`.
+  - They use a fixed [-W, -0.10] window on the cue-aligned traces and drop any trial with a lick in [cue - L, cue)
+    (L = W or 2 s).
+  - They document why they do not slide: the traces start at -2 s, and a slid window mixes in the spout-arrival
+    transient.
+  - They are frozen-decoder families with their own outputs, so converting them is a separate job.
+- `fr_enl_decode`: fixed W = 1 / 2 s, dropped on an LP or DAQ lick. The FaceRhythm grid starts at cue - 2 s, so a
+  slide could only use [max(strobe, cue - 2), cue).
+- Not predictors, so left as they are:
+  - `combined_encoding`'s "enl" R2 scoring window (8.43, OPEN 4);
+  - the `epoch_sessions_long` CD readout (a projection of directions fitted on the slid windows).
+
+**quiet_task_events: what "clean" means, and MIN_CLEAN.**
+- CLEAN = the detection mask, not the lick-free test:
+  - no DAQ contact lick within TASK_BUF_S = 0.5 s (plus LP licks when QS_LICK_SOURCE=daq+lp);
+  - no running bout within 0.5 s;
+  - no swapped pair within 0.5 s;
+  - finite frames.
+- So the LP gate does not make the requirement redundant. It stays, scaled with the window:
+  `MIN_CLEAN_ENL_S = 0.5 x ENL_S` = 0.5 s of 1.0 s. That is the same fraction as the 1.0 s of 2.0 s used until 11-04.
+  The strata bins are scaled the same way (`CLEAN_ENL_BINS`; identical at 2 s).
+- `MIN_CLEAN_S` (whole pre-cue, `ev_pre`) is unchanged.
+
+Cheap count, read-only:
+- Sources: the existing 108 task_events npz (exact old counts), the events npz and the LP tables.
+- New clean time is approximated in continuous time: no swapped-pair / NaN frames. Check: old approx 49,790 vs exact
+  49,113, so the approximation is about 1.4 % high.
+- Totals:
+  - engaged trials with a pre-cue window: 51,455;
+  - old (DAQ 2 s, >= 1.0 s clean): 49,113;
+  - LP lick-free 1 s window exists: 50,407 (6,768 of them slid);
+  - new, >= 0.5 s clean: 48,919;
+  - new, whole window clean (>= 1.0 s): 11,134.
+
+So 0.5 x W keeps the old trial count, whereas a fully clean window would keep about 22 %. Per animal x epoch:
+
+| animal | epoch | trials | old 2 s, >=1.0 | LP window | slid | new, >=0.5 | new, >=1.0 |
+|---|---|---|---|---|---|---|---|
+| PS92 | pre | 2920 | 2577 | 2910 | 494 | 2652 | 661 |
+| PS92 | acute | 2091 | 1945 | 2086 | 261 | 1958 | 973 |
+| PS92 | subacute | 593 | 568 | 587 | 83 | 561 | 136 |
+| PS92 | chronic | 3962 | 3886 | 3863 | 987 | 3835 | 829 |
+| PS93 | pre | 4236 | 3885 | 3630 | 967 | 3441 | 1415 |
+| PS93 | acute | 1755 | 1677 | 1739 | 278 | 1666 | 1073 |
+| PS93 | subacute | 1390 | 1327 | 1383 | 299 | 1338 | 531 |
+| PS93 | chronic | 5939 | 5811 | 5914 | 1085 | 5840 | 1424 |
+| PS94 | pre | 4249 | 4090 | 4220 | 379 | 4120 | 454 |
+| PS94 | acute | 2740 | 2581 | 2721 | 235 | 2574 | 1168 |
+| PS94 | subacute | 2528 | 2388 | 2504 | 285 | 2373 | 314 |
+| PS94 | chronic | 4467 | 4296 | 4408 | 454 | 4279 | 446 |
+| PS95 | pre | 5032 | 4744 | 5027 | 106 | 4981 | 405 |
+| PS95 | acute | 720 | 715 | 718 | 33 | 717 | 298 |
+| PS95 | subacute | 3007 | 2905 | 2995 | 183 | 2916 | 432 |
+| PS95 | chronic | 5826 | 5718 | 5702 | 639 | 5668 | 575 |
+
+PS93 pre loses the most: 606 of its 4,236 trials have no LP lick-free 1 s window, and 551 of those are PS93_0813,
+which has no video and so no LP verdict.
+
+**quiet_task_events identity.**
+- The run's lick source defaults to LP (`os.environ.setdefault`, as in the followup).
+- Each npz records `enl_s`, `enl_src` and `enl_w0` (window start per trial). A pre-11-04 file reads as the fixed
+  2 s window.
+- Outputs go to `task_events_<src>lf<W>s/`; the DAQ 2 s run keeps `task_events/`. The followup imports TE / TE_SUFFIX
+  and keys its own folder the same way.
+- Under LP, V2 itself is already routed to `labcams/LP_licks/...` by the run tag, so the old DAQ files can never be
+  read.
+
+**within_spout_deviation.**
+- `ENL_W = enl_post_s()` of the run's source: LP 1.0 s; a DAQ-env run now gets 2.0 s (it was 1.0 s, ungated).
+- Licks: `dlc_frames.lick_onsets` (DAQ), or the LP train via `gate_licks_s`.
+- The window is slid (`enl_window_starts`); trials without one are dropped.
+- Folder `within_spout_deviation[_..]_enllf<W>s` (was `_enl`), so old ungated per-session npz are never reused. No
+  reader depends on the old name.
+
+Before / after under LP: 46,495 -> 46,092 trials (99.1 %), from a cheap count on behaviour only, all curated sessions
+from 08-06. PS93_0813 is excluded in both, as it has no behaviour bundle (no video).
+
+| animal | pre | acute | subacute | chronic |
+|---|---|---|---|---|
+| PS92 | 2690 -> 2680 | 1485 -> 1480 | 540 -> 534 | 3806 -> 3777 |
+| PS93 | 3272 -> 3226 | 1142 -> 1133 | 1215 -> 1208 | 5724 -> 5705 |
+| PS94 | 4088 -> 4059 | 1980 -> 1962 | 2428 -> 2405 | 4433 -> 4374 |
+| PS95 | 4798 -> 4793 | 512 -> 510 | 2689 -> 2677 | 5693 -> 5569 |
+
+**Tests.**
+- `tests/test_enl_window_source.py`, now 49 tests:
+  - the slide equals `precue_window_start`;
+  - `enl_table` / `enl_trials` slide on the window's source (a fake session with a slid, a no-verdict and a
+    no-window trial; `w0_s` checked);
+  - within_spout's window follows the run source and drops only trials with no lick-free window;
+  - quiet_task_events npz fields and keyed folders, and within_spout's keyed folder.
+- Full-suite record: below.
+
+**Test record (8d912ae5).** Full suite, 4 shards run one at a time (RAM >= 9.5 GB free before each): 4,790 passed,
+171 skipped, 1 failed.
+- Shard 0: 848 passed, 27 skipped, 1 failed.
+- Shard 1: 1,921 passed, 27 skipped.
+- Shard 2: 1,144 passed, 117 skipped.
+- Shard 3: 877 passed.
+- The one failure is the same as in 8.43 and was already there: `test_review_7ab::test_working_trials_stays_byte_identical_to_main`,
+  which compares against the live origin/main; working_trials.py is untouched here.
