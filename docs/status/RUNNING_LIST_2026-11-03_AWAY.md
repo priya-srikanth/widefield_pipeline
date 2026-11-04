@@ -143,6 +143,11 @@ FYI, the 3-class camera variant (lick / jaw-only / none) is thin in PS92 and PS9
 
 ## Decisions taken today (Priya)
 
+- **(11-04) All Allen-ROI analyses use our ALM / tjM1 atlas** (the "split" basis of iti_licks, Priya 10-27: ALM and
+  tjM1 = the anterolateral 40 % of MOs / MOp, plus disjoint MOs_rest / MOp_rest; whole MOs / MOp out; plain basis =
+  robustness only). Until now this was the default only for the ITI decoders and the s1 table. Passed to 34 to apply
+  across the rebuild with one shared definition. 34 will send the inventory of what changes, and anything that cannot
+  switch.
 - **(11-04) B, C, D, G (questions 1, 2, 4).**
   - **B:** state discriminators go in the spout bal_em frame, AFTER a re-check under the new working definition
     (centre on working rows).
