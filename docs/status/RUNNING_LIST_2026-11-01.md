@@ -935,3 +935,11 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
     - the O2 bundle's engaged set (an input rebuild);
     - every class-dependent render.
   - So decide this before the O2 jobs are submitted.
+- **11-04 ~11:05: FINDING (a8, interim): the cue + 70 ms floor does not change classes.**
+  - Counted over 54,808 cohort-1 trials. Only 3 trials change class at floor 0, and 2 at floor 50.
+  - So trial_attempts, the working set and the O2 engaged set do not depend on the floor, and O2 does not wait for it.
+  - 2,167 trials (4 %) have their first post-cue contact < 70 ms, mostly PS92 / PS93. Examples: PS92 pre 401 / 2,314,
+    PS93 chronic 414 / 6,068.
+  - Excluding 0-70 ms licks from licks_precue moves only the pre-cue lick tables and any cue-anchored latency readout.
+  - The encoder's continuous lick kernels use every lick and are not cue-windowed, so they are unaffected.
+  - The final rule is pending from a8.
