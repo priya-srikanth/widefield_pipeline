@@ -6,6 +6,10 @@ republish the imaging page with re-plotted figures).
 
 ## UPDATE 11-04 early — jaw-only OUT of working (Priya decision 11-03 late, via a8)
 
+**DECIDED 11-04 (Priya): no interim swap — WAIT for 34's cohort-1 rebuild.** The imaging page (sections 1-4, 6, 7,
+the definition captions, the s1 table) and SPOUT_BALEM §7 stay as published (v51) until the rebuild's figures land;
+then apply everything in one pass. The jaw-free s1 table below is ready for that pass.
+
 New definition: working = contact + incomplete camera licks, cut at the session's last camera lick; jaw-only becomes
 its own class, like no-response (`docs/status/JAW_ONLY_CHECKS_2026-11-03.md`, a8 running list 11-03 AWAY). a8 is
 implementing it, then ONE combined render; page edits come to this window (e0) after that render. **HOLD all page
