@@ -1751,3 +1751,182 @@ any import.
 
 **Tests.** test_area_basis (sets, disjoint rests, compact masks, refusal, delegation); test_o2_encoding_env (env round
 trip under the profile, tag refusal, runner order, 14 runs, root location); test_input_cache (imaging key).
+
+### 8.45 Cue + 70 ms, response window, stop rule A2, LP first-lick timing (branch rebuild/cue70; Priya 11-04)
+
+Branch `rebuild/cue70` from 571b3955 (worktree `wf_rebuild_cue70`). Commits: 9f0d6efe (rules 1 + 2), 395a9124 (A2),
+0988a1cf (LP timing), 5463a0b6 (run-break hook). Numbered 8.45 so it does not collide with 8.43 / 8.44 on wf_rebuild;
+renumber at merge if needed. Nothing was rendered and no table on M: was rebuilt. Scratch (scripts, CSVs, logs):
+`C:/Users/SABATI~1/AppData/Local/Temp/claude/C--Users-SabatiniLab/f082ee0c-b33c-49a8-a537-dcee3bb7c84c/scratchpad/cue70/`.
+
+**Rule 1: cue .. cue + 70 ms is neither pre- nor post-cue** (widefield_pipeline docs/status/CUE70_CHECK_2026-11-04.md).
+- One definition in `trial_classes`: `POSTCUE_START_MS` = 70 (= `CONTACT_FROM_CUE_S` x 1000, kept),
+  `PRECUE_END_AFTER_CUE_MS` = 0, `EXCLUDED_CONTEXT` = "excluded_0_70". `pose_kinematics_demo` imports them;
+  `daq_contacts_ms` and `orofacial_cohort._first_contacts` use the constant (same value, same floats).
+- Camera licks are judged by PEAK (`t_ms`), never onset: onsets at 60-70 ms are real responses.
+- `trial_classes._pre_cue_contacts` (window "trial" only): strobe .. the cue (was .. cue + 70 ms).
+- `pose_kinematics_demo.precue_and_excluded_licks`: ONE detection pass, strobe .. cue + 70 ms (unchanged, so every lick
+  and its features stay as they were), split on the peak by `split_precue_by_peak`: peak < cue -> `licks_precue.csv`,
+  cue <= peak < cue + 70 -> `licks_excluded_0_70.csv` (new table; manifest `n_excluded_0_70_licks`; `load_session`
+  key). `precue_licks` = the pre-cue part. Every peak still lands in exactly one table (docstring updated).
+- `orofacial_cohort`: `precue_rate_hz` / `precue_trial_frac` numerator = `split_precue_by_peak(licks_precue.csv)`, so
+  the v36 tables written before 11-04 (which still hold the 0-70 ms peaks) give the new numbers without a re-render.
+  Denominator `_windows` pre = (0 - strobe) (was 70 - strobe); response = stop - 70 (unchanged). New column
+  `n_excluded_0_70_licks`.
+- `orofacial_outputs.lick_context(peak_ms, strobe, stop)`: by PEAK; CONTEXTS = pre_cue / excluded_0_70 / post_cue / iti.
+  Before, it split on the ONSET at 0 while the tables split on the peak at 70. The old onset label is `onset_context`.
+  `all_licks_session` writes both (`context` by peak, `onset_context`) and reads `licks_excluded_0_70.csv` when present.
+- Encoder lists: `combined_encoding._context_licks` and `frozen_encoder` read `oo.encoder_context(A)` = `onset_context`
+  when present, else `context` (a pre-11-04 licks_all, whose context IS the onset label). So a re-rendered licks_all
+  keeps every lick in the encoder's pre-cue / ITI lists exactly as before; only the analysis label changes.
+- `scripts/cam1_licks.py` events_all: `context` by `t_peak_ms` + `onset_context`. Deck caption (orofacial_deck) rewritten.
+
+**Rule 2: the response window** (census CONTACT_DAQ_MISMATCH_20261104.md). Camera classes (`session_trials`, both
+windows) count only cue + 70 ms (lick PEAK) .. min(cue + max_rt, stop) (`response_end_ms`; max_rt = `decode.max_rt_s`
+= 3.5 s through `max_rt_ms()`, the DAQ engaged rule's source):
+- cam4 licks by `t_ms`; cam1-only events and the cam1 "saw a tongue" rows by `t_peak_ms` (an untimed "saw" row keeps its
+  call; an events file without `t_peak_ms` is refused);
+- contacts = `n_daq_contacts` (cue + 70 .. stop) minus the DAQ contacts in (cue + max_rt, stop] (`_late_contacts`; no
+  DAQ read for a trial whose stop is <= max_rt);
+- jaw: a moved call counts only when its (re-)onset is <= the window end; a late-only movement = judged and still
+  (no_response). The jaw calls themselves (`scripts/jaw_onsets.py`) are cue .. stop and unchanged; a moved call with no
+  onset time keeps its call.
+- The last-camera-lick end anchor follows the classes: a lick after max_rt no longer makes a lick trial, so it no longer
+  sets the session's last lick (the coordinator's default, adopted). Stop runs follow from the classes.
+- The new functions enter `CLASS_CODE_ROOTS`, so every camera-gated cache starts fresh.
+
+**Rule 3: stop rule A2 "both sides" PRIMARY** (wf_attempt docs/status/rebuild_20261103/STOP_RULE_GUARD_CENSUS_R2_20261104.md).
+- `classify_session(rule="both")` -> `_classify_guarded`. Runs = >= 6 no_response / jaw_only before the last camera
+  lick, over the non-unknown sequence.
+  - A run with no reference-spout trial (`REFERENCE_SPOUTS`) is kept (raw classes) when the nearest reference-spout
+    trial before AND after it are both raw "contact"; otherwise it is stopped.
+  - Runs with a reference trial are stopped.
+  - Everything after the last camera lick (not unknown) is stopped, no guard, also with an uncovered video tail.
+  - A qualifying run starting < 300 s keeps its raw classes: early_run is folded into no_response / jaw_only. It was
+    NOT folded before: rule "run" still emits early_run (the cohort has 0 such runs).
+  - Runs are not split at uncovered gaps (as r2). Under in_working_jaw, jaw_only ends a run.
+- Arms (`WIDEFIELD_TRIAL_STOPPED` / `trial_selection.stopped`): both (default + profile), run (A0, the 11-04 morning
+  rule, code path unchanged), long (A3, runs >= 11, no guard), any. Profile arms `stopA0` / `stopA3`.
+- Tags: every camera rule name now ends in the class-window token `rt<max_rt ms>c<floor ms>` = `rt3500c70`.
+  - Primary `...-cls-contact-incomplete-stopA2jrt3500c70` (was `...-stopRun6j`).
+  - A0 `stopRun6jrt3500c70`, A3 `stopA3n11jrt3500c70`, any `stopAnyrt3500c70`, in_working_jaw `stopA2rt3500c70`.
+  - Profile expected tags updated.
+- `cue_classes_for` passes positions to the guard. `trial_attempts` already passes positions + cue times.
+- **Reproduction of r2.py**: `_classify_guarded` on r2's own `srg/trials.csv` (56,979 trials, 107 sessions; early_run
+  folded). A2: 0 trials differ, 5,611 stopped (r2: 5,611). A3: 0 differ, 5,175 stopped. Script `repro_r2.py`.
+- Run-break hook (for the pending "no licks in the stopped time" rule): `classify_session(..., breaks=bool[n])` ends a
+  run at a True trial in every rule (default None = no change); `licks_in_spans(lo, hi, lick_s)` builds it. Not wired.
+
+**Rule 4: LP first-lick timing for lick-aligned arms** (wf_attempt .../lp_missed_contact/LP_MISSED_CONTACT_20261104.md).
+- `lp_licks.first_lick_timing(pos, lp_ms, contact_ms, stop_ms)`, `LP_DAQ_TOL_MS` = 50. Contact = first DAQ contact in
+  cue + 70 .. min(max_rt, stop).
+  - CLOSE spouts: LP onset missing or > contact + 50 -> the contact time, `timing_source` = daq.
+  - FAR spouts: the LP time, `grooming_suspect` = True when > contact + 50. Classes unchanged.
+- `_session_lp` uses it (an LP-missing close hit is now attempted, with the DAQ time). `_attempts` refuses a table
+  without pos / stop_ms / contact. `first_lick_latency.session_latency` (so trial_attempts too) carries `first_lick_ms`,
+  `timing_source`, `grooming_suspect`. `LP_VERSION` 2 and the tolerance enter `spec_token` (every LP cache key).
+- Counts on the existing attempts table (`.../qc/sel-...-stopRun6j/trial_attempts.csv`, 57,048 trials; LP = combined,
+  else cam4):
+  - close-spout raw hits with DAQ timing: **55** (close_mid 34, close_ipsi 17, close_contra 4, incl. PS93_0810 t403,
+    the close_contra paw trial), all LP-late, none LP-missing. Report: 56 + 1.
+  - far `grooming_suspect`: **6** (far_mid 4, far_ipsi 2). Report: 7. The missed one is PS95_1005 t482: on the report's
+    windows.npz cue clock its first contact is at ~70 ms; on the trial_bounds clock of the `contact` column it is
+    under 70 ms, so the first contact used is 356 ms and the LP onset (156 ms) is not late.
+  - The 2 missing close_ipsi trials are presumably the same clock difference (<= 14 ms); not checked one by one.
+  - 17 more close trials get DAQ timing with LP missing; all are class unknown (not attempted, so never used).
+
+**Class census, full cohort** (107 sessions of `labels107.txt`, 57,048 DAQ cues, under the profile; before = 571b3955
+code, after = 5463a0b6; scripts `census.py` / `census_cmp.py`; per-cue table `merged_census_after.csv`; per animal x
+epoch x spout `transitions_final_animal_epoch_spout.csv`). Session-level classes (`cue_classes_for`):
+
+| before \ after | incomplete | jaw_only | no_response | stopped |
+|---|---|---|---|---|
+| contact | 17 | 6 | 2 | 0 |
+| incomplete | 0 | 7 | 5 | 4 |
+| jaw_only | 0 | 0 | 7 | 5 |
+| no_response | 0 | 0 | 0 | 3 |
+| stopped | 0 | 171 | 143 | 0 |
+| after_end | 0 | 0 | 0 | 43 |
+
+- Rules 1 + 2 alone (A0 kept): 53 raw-class changes (contact -> incomplete 17, -> jaw_only 6, -> no_response 2;
+  incomplete -> jaw_only 10, -> no_response 6; jaw_only -> no_response 12). Stopped 5,882 -> 5,895; stop runs
+  277 -> 276.
+- On PS92_0806 / 0811 and PS93_0925 / 1002 (both windows), rule 1 alone changes 0 classes. With rule 2, 1 trial changes
+  (PS93_0925, cue_stop: contact -> incomplete, its only contact after 3.5 s).
+- All rules: working (contact | incomplete) 49,111 -> 49,087 (-24); stopped 5,882 -> 5,623; after_end 43 -> 0 (all now
+  stopped); jaw_only 1,059 -> 1,231; no_response 883 -> 1,037; stopped stretches 277 -> 258.
+- Restored from stopped by the A2 guard, per epoch (close ipsi / mid / contra, far ipsi / mid / contra):
+  - acute 0 / 0 / 8 / 69 / 68 / 85;
+  - subacute 0 / 0 / 17 / 13 / 14 / 17;
+  - chronic 0 / 0 / 5 / 8 / 2 / 8;
+  - pre 0.
+- Newly stopped (not counting after_end): pre 20, acute 14, subacute 4, chronic 17.
+
+| animal | epoch | stopped>jaw | stopped>no_resp | after_end>stopped | contact>incompl | contact>jaw | contact>no_resp | incompl>jaw | incompl>no_resp | incompl>stopped | jaw>no_resp | jaw>stopped | no_resp>stopped |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| PS92 | pre | 0 | 0 | 5 | 0 | 1 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| PS92 | acute | 18 | 12 | 5 | 0 | 1 | 0 | 0 | 1 | 0 | 0 | 0 | 0 |
+| PS92 | subacute | 0 | 0 | 0 | 0 | 1 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| PS92 | chronic | 0 | 0 | 0 | 1 | 1 | 0 | 1 | 0 | 0 | 0 | 0 | 0 |
+| PS93 | pre | 0 | 0 | 1 | 5 | 0 | 1 | 0 | 1 | 0 | 0 | 0 | 0 |
+| PS93 | acute | 4 | 2 | 0 | 2 | 1 | 0 | 1 | 0 | 2 | 2 | 1 | 2 |
+| PS93 | subacute | 0 | 0 | 0 | 2 | 1 | 0 | 2 | 0 | 0 | 0 | 0 | 0 |
+| PS93 | chronic | 0 | 0 | 6 | 3 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| PS94 | pre | 0 | 0 | 4 | 1 | 0 | 0 | 0 | 0 | 0 | 1 | 0 | 0 |
+| PS94 | acute | 82 | 64 | 2 | 2 | 0 | 0 | 1 | 2 | 0 | 3 | 0 | 0 |
+| PS94 | subacute | 7 | 4 | 2 | 0 | 0 | 0 | 0 | 1 | 0 | 0 | 0 | 0 |
+| PS94 | chronic | 8 | 15 | 3 | 1 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| PS95 | pre | 0 | 0 | 4 | 0 | 0 | 0 | 1 | 0 | 1 | 1 | 4 | 1 |
+| PS95 | acute | 31 | 17 | 2 | 0 | 0 | 1 | 1 | 0 | 0 | 0 | 0 | 0 |
+| PS95 | subacute | 21 | 29 | 1 | 0 | 0 | 0 | 0 | 0 | 1 | 0 | 0 | 0 |
+| PS95 | chronic | 0 | 0 | 8 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+
+**Encoder unchanged.**
+- Check: `combined_encoding._load_behaviour("PS92", "20260806")` under the profile + the bundle env (run_bundle.sh vars,
+  set after `render_profile.apply`), pickled before (571b3955) and after. Every field compared (arrays exact, frames by
+  `assert_frame_equal`).
+- IDENTICAL with LICKS_ALL unset (the bundle's setting) and with `COMBINED_ENCODING_LICKS_ALL=split`.
+- IDENTICAL with split reading a licks_all.csv rebuilt into scratch by the new `all_licks_session`: 7,059 licks, same
+  rows and order; `onset_context` == the on-disk `context` for every row; new `context`: pre_cue 2,398, excluded_0_70 22,
+  post_cue 3,680, iti 959.
+- After the A2 commit the attempts table moves with the tag, so the final check pointed `lp_licks.attempts_path` at the
+  existing stopRun6j table: IDENTICAL. Only `engaged` can move, through the regenerated attempts table.
+
+**Readers and what changes.**
+- Immediately (code only): orofacial_cohort precue rate / frac / n_precue_licks (+ the new n_excluded column);
+  trial_classes classes (rules 2 / 3); the window "trial" pre-cue contacts; trial_attempts (classes, A2, timing
+  columns); the lp_licks first-lick time; cue_classes_for and every camera-gated consumer (new tag).
+- After a licks_all re-render (the on-disk `context` changes):
+  - pre_cue readers: enl_lick_audit, lick_enlv_extract, lick_enlv_balance_offset;
+  - iti readers: iti_lick_rate, lick_cue_to_lick_extract, revup_neural, learned_compensation, restnl_rescue;
+  - post_cue readers: kinematic_normality, prelick_hemisphere_tuning, prelaunch_aim_tracking, lick_firstlick_extract,
+    lick_correction, iti_licks, stray_licks.
+  - The last four (plus lick_enlv_extract) assert that the pose3d kinematics_all `context` matches licks_all by lick_uid,
+    so they REFUSE until pose3d_kinematics (which copies `context`) is rebuilt too.
+  - lp_licks, restnl_mask, epoch_maps and face_rhythm_* read every lick: unaffected. The encoder: unaffected
+    (onset_context).
+- Unchanged cue + 70 users: daq_trials.CONTACT_FROM_CUE_S and its users (spout_behavior:589, lick_bout_structure,
+  quit_prodrome); revup_behaviour:164, tongue_contact_recall:28, tongue_nocontact_qc:109 (literal 0.07);
+  tongue_kinematics:99-104 / defaults.yaml:1146-1153 (post-cue windows); orofacial_jaw_lateral, orofacial_w2,
+  spout_frame; combined_encoding contact_s (daq_contacts_ms, same value).
+
+**Where licks_precue.csv / licks_all.csv live, and what a re-render needs.**
+- Both are per-session files of the v36 LP run:
+  `M:/MICROSCOPE/Priya/Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v36/sessions/<animal>/<date>/`.
+- licks_precue.csv is written by `orofacial_outputs process` (the whole pose pass from the O2 bundle predictions; it
+  rewrites licks.csv, trials.csv, clean.npz ... too). licks_all.csv is written by `orofacial_outputs all-licks`
+  (`_all_licks_worker`; reads only the session tables, cheap).
+- Under cohort1_rebuild_20261103 only `<run>/imaging_encoding` of the orofacial root is routed (paths.yaml
+  rebuild.derived_subtrees). `<run>/sessions` is an INPUT, so both writers target the original LP_analysis tree, and
+  `writeguard.assert_writable` REFUSES them under the profile. Without the profile they would overwrite v36 in place.
+- A re-render is not needed for the numbers. The detection pass is unchanged, so licks_excluded_0_70 = the peak split of
+  today's licks_precue (done on read), and the new `context` = `lick_context(t_ms, ...)` on today's licks_all. If the
+  tables are wanted, the clean route is a routed product under `<run>/imaging_encoding/` (or a new run folder), plus a
+  pose3d_kinematics rebuild for the lick_uid readers.
+
+**Tests.**
+- New: tests/test_cue70_response_window.py (13), tests/test_stop_rule_a2.py (16), tests/test_lp_daq_timing_fallback.py
+  (5); lick_context / onset_context / encoder_context in test_orofacial_outputs.
+- Updated: the test_trial_classes fixture (peaks); tag strings in 9 files (stopRun6j -> stopA2jrt3500c70);
+  test_trial_attempts (A2: the tail is stopped, the early run folded).
+- Related files at 5463a0b6: 241 passed. Full suite: see the test record below.
