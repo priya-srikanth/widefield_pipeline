@@ -641,6 +641,13 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   projection): pre panel +.004 (.856 -> .860); acute close ipsi +.007 mean (.727 -> .734) but mixed per animal (PS94 +.10,
   PS93 -.05, PS92 -.01, PS95 -.02). The earlier .839 was the contact-only rows + trial pooling, not data.
 - Final pre-render review sent (reviewer aa0138ac1e9c354a7) on 6a85304d.
+- REVIEW 7A (working rows) at 6a85304d: 2 BLOCKERS, sent to helper. (1) Fig 5b would still be drawn from coding_direction.json,
+  whose decoder is trained / scored on DAQ-engaged rows (incl. jaw_only / after_end / unknown and PS93_0813) -> the working
+  path never ran. MAIN HAS THE SAME SHORTCUT (main grant_confusion :332) -> tell a8 (main's 5b is not jaw-only-out either).
+  (2) pooled_frozen_loso / joint_xsession and section G scored / pre-panel sets still engaged while the model is working-
+  trained. Non-blockers: grant similarity / geometry / encoder / matching pre reference = DAQ lick rows; "working" captions
+  stale; PS93_0813's exclusion silent. Spec ids verified distinct for in_working vs in_working_jaw; quit_tail refused under
+  camera; jaw_only bridges stop runs as intended. Validation was cue-only, in-memory: helper extending to precue + stored path.
 
 ### Findings
 - main moved while the rebuild branch was being fixed (34 commits not in rebuild/cohort1-20261103). Two matter for the rebuild:
