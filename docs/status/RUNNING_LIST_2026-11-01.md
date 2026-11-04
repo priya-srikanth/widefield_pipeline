@@ -986,3 +986,23 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
       flag timing_source = daq.
     - Read-only investigation of WHY LP misses these (64 trials > 50 ms) is running: lp_missed_contact/.
     - The tolerance is to be confirmed against its cause mix.
+- **11-04 ~11:40: FINDING (STOP_RULE_GUARD_CENSUS_20261104.md): the reference-spout guard matters, through mid-session
+  stop runs.** DECISION NEEDED (Priya).
+  - **Risk (a), the end cut, is small:** only 43 trials are after_end cohort-wide.
+  - **Risk (b) is real:** 85 of 277 stop runs contain no close ipsi / close mid trial (48 acute). In acute, 39 of those 48
+    runs were preceded by a close-spout contact. Example: PS95_0817 has 62 stopped trials, all at far contra / far mid.
+  - **Stopped trials:** 5,882 -> 4,152 (trial-level guard) or 3,265 (block-level). Classes change in 57 of 107 sessions.
+  - **Hit rate, pooled acute:** .691 -> .631. The acute deficit vs pre goes -.265 -> -.310 (far ipsi -.159 -> -.212,
+    close contra -.065 -> -.122). Subacute -.059 -> -.083. Chronic is unchanged.
+  - **The guard is not deficit-specific:** pre hit .956 -> .941, so it also restores some real disengagement. Read the
+    current rule as a lower bound on the deficit and the guard as closer to an upper bound.
+  - **Trial-level is the cleaner version.** Block-level puts reference-spout failures back.
+  - **Unchanged:** the working set, the rest period, contact-given-attempt, and the O2 engaged set.
+  - **Changed:** the stopped set, which moves the no-lick decoder's stopped arm, the ENL working-vs-stopped contrast and
+    the attempt-rate denominator.
+  - **Open calls for Priya:**
+    - trial- vs block-level guard;
+    - whether a stop starts at the first reference failure or at the run start;
+    - the 13 sessions with no reference trial after the last lick;
+    - whether close mid's default no_response counts as stop evidence;
+    - a refinement (a reference contact on both sides of a run).
