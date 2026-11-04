@@ -1226,3 +1226,7 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
     4. The encoder's "enl" R2 scoring window is fixed at cue - 2 s .. cue and not lick-gated. Change it to follow the lick
        source before the new O2 bundle? It is scoring only, not inputs.
     - Gap: the ENL tag is missing in session_cache.effective_kind for override runs. Left as is.
+- **11-04 ~16:50: DECISION (Priya): quiet_task_events moves to the LP no-lick ENL, 1.0 s, matching the frozen LP decoder.**
+  - Implementing on rebuild/enl-window.
+  - MIN_CLEAN_S is to be re-derived. If "clean" means lick-free, the LP gate already covers it.
+  - Still open: ENL decisions 2-4 (within_spout_deviation; the s1_refit 2.0 s; the encoder's "enl" scoring window).
