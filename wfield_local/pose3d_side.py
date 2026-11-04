@@ -97,6 +97,7 @@ def side_session(rv, animal: str, date: str, preds_dir: Path, clips_dir: Path, i
         ix["src_frame"] = idx[f"src_frame_{cam}"].to_numpy()          # raw video frame (for drawing on the raw view)
         ix["strobe_ms"] = ix.trial_id.map(strobe).to_numpy(float)
         ix["width"] = w
+        ix["trial_k"] = idx.trial_k.to_numpy()                       # window id, for `orofacial_clean.clean_windows`
         out[cam] = (ix, flat)
     return out
 
@@ -280,3 +281,249 @@ def side_stereo_vs_reference(g, S: pd.DataFrame, side: dict) -> pd.DataFrame:
                      "rep_cam2_px": float(np.nanmedian(rep[0])) if np.isfinite(rep[0]).any() else np.nan,
                      "rep_cam3_px": float(np.nanmedian(rep[1])) if np.isfinite(rep[1]).any() else np.nan})
     return pd.DataFrame(rows)
+
+
+
+# --------------------------------------------------------------------------- full four-camera pipeline (11-04)
+# Priya 2026-11-04 ("is the current video using cleaned traces for cam 1 and 4, with cross-cam interpolation? can we
+# build in the same types of processing for cam 2/3 and then use all 4 cameras for better interpolation of occluded
+# points?", after a water drop moved keypoints at the start of the PS93 0821 clip). Four stages, each the 4-camera
+# counterpart of a `pose3d.session_3d` stage:
+#   1. SIDE CLEANING  `side_clean`: `orofacial_clean` (v5p3 + jaw v3.4) on cam2 / cam3 with cam4's thresholds scaled by
+#      the side camera's px / mm at the mouth (`px_per_mm`, from the session's PnP poses), tongue max gap 24 ms (cam1's
+#      rule: longer gaps bridge licks) without the between-lick veto, jaw x-flip rule OFF (a profile view has no
+#      left / right ambiguity; the flip rule exists for cam4's side-ambiguous jaw).
+#   2. ROBUST FUSION  `fuse_robust`: triangulate every view, then repeatedly drop the view whose ray passes furthest from
+#      the point while that distance exceeds `REJECT_MM` (mm, so independent of each camera's magnification), down to
+#      two views; two views that still disagree by more than it give no point.
+#   3. DROPLET RULE  (`droplet_mask`, the idea of `cam1_licks.DROPLET_*`): a tongue run seen ONLY by side cameras (no
+#      cam1 / cam4 measurement) that is near-static (spread < 3 px, range < 12 px, at cam4's scale) is a water drop.
+#   4. FILL + QC  `fill_n`: frames left with ONE view take that camera's ray at the depth interpolated from neighbouring
+#      multi-view frames (`FILL_MS`; Akima), dropped beyond 3 mm from the estimate, as `pose3d.fill_single_view`; then
+#      `pose3d.qc_3d` (far / behind / single-frame spikes) on tongue and jaw.
+#   NOSE: the side-nose offset is fitted PER SESSION (`session_nose_offsets`: median side-vs-cam1+cam4 ray offset over
+#   the session's frames) -- it varies 0.3-1.2 mm by session, so the four-session constant left +-0.3 mm.
+#   SPOUT: poses and the mouth come from the ENL no-lick spout medians (`spout_frame.ruler_medians`); cam4 = truth,
+#   cam1's edge offset built in (`part_offsets`).
+
+REJECT_MM = {"nose": 0.8, "jaw": 1.0, "tongue": 1.2, "spout": 0.5}
+FILL_MS = {"tongue": 24.0, "jaw": 200.0, "nose": 200.0, "spout": 200.0}
+DROPLET_SPREAD_PX, DROPLET_RANGE_PX, DROPLET_MIN_FRAMES = 3.0, 12.0, 5
+#: cam4 px thresholds in `orofacial_clean` that scale with image magnification (side = cam4 value x px/mm ratio)
+PX_KEYS_TONGUE = ("x_range_pm", "interlick_speed_px", "interlick_near_px")
+PX_KEYS_JAW = ("x_range_pm",)
+PX_KEYS_V34 = ("y_ceiling_px", "x_ceiling_px", "frame_jump_thr_px", "frame_jump_thr_x_px", "x_flip_flank_agree_px",
+               "x_flip_flank_rest_px", "tongue_ride_px", "tongue_out_px")
+
+
+def px_per_mm(cam) -> float:
+    """Image px per mm at the mouth zero: mean projected length of the two world unit steps most perpendicular to the
+    camera's view (a posed camera, world mm)."""
+    O = np.zeros((1, 3))
+    lens = sorted(float(np.linalg.norm(project(cam, np.eye(3)[k][None]) - project(cam, O))) for k in range(3))
+    return float(np.mean(lens[1:]))
+
+
+def side_params(scale: float) -> tuple[dict, dict, dict]:
+    """(tongue p, jaw p, jaw v34 q) for a side camera: cam4's `orofacial_clean` values, px keys x ``scale``, plus the
+    side rules (module comment, stage 1)."""
+    import copy
+
+    from wfield_local import orofacial_clean as OC
+    pt, pj = copy.deepcopy(OC.params("tongue", "cam4")), copy.deepcopy(OC.params("jaw", "cam4"))
+    for k in PX_KEYS_TONGUE:
+        if pt.get(k) is not None:
+            pt[k] = float(pt[k]) * scale
+    pt["max_gap_ms"], pt["interp_veto_interlick"] = 24.0, False
+    for k in PX_KEYS_JAW:
+        pj[k] = float(pj[k]) * scale
+    q = pj["v34"]
+    for k in PX_KEYS_V34:
+        if q.get(k) is not None:
+            q[k] = float(q[k]) * scale
+    q["x_flip_step_px"] = None
+    return pt, pj, q
+
+
+def side_clean(flat: pd.DataFrame, ix: pd.DataFrame, mouth_px, scale: float) -> dict:
+    """{"tongue" / "jaw": (n, 2) MEASURED raw px after cleaning (NaN = not measured)} for one side camera: the
+    `orofacial_clean.clean_windows` steps with the side parameters (`side_params`)."""
+    from wfield_local import orofacial_clean as OC
+    pt, pj, q = side_params(scale)
+    cols = [c for c in flat.columns if c.startswith(("tongue_", "jaw_"))]
+    df = flat[cols].reset_index(drop=True)
+    index = ix.reset_index(drop=True)
+    parts, pos, cues, k, sep = [], [], [], 0, 300
+    for _tk, g in index.groupby("trial_k", sort=True):
+        rows = g.index.to_numpy()
+        parts.append(df.iloc[rows].reset_index(drop=True))
+        pos.append(np.arange(k, k + len(rows)))
+        cues.append(k + int(np.argmin(np.abs(g.t_ms.to_numpy()))))
+        k += len(rows)
+        parts.append(pd.DataFrame(np.nan, index=range(sep), columns=df.columns))
+        k += sep
+    big = pd.concat(parts, ignore_index=True)
+    pos = np.concatenate(pos)
+    out = {}
+    for part, p in (("tongue", pt), ("jaw", pj)):
+        src = OC.jaw_off_tongue(big, q=q) if part == "jaw" else big
+        c = OC.clean_bodypart(src, part, cues, 250.0, p=p, x0y0=tuple(mouth_px))
+        if part == "jaw" and q.get("enabled", True):
+            c = OC.jaw_v34(c, cues, q=q)
+        x, y, fm = c.x_final[pos] + c.X0, c.y_final[pos] + c.Y0, c.fill_method[pos]
+        ok = (fm == OC.FILL_NONE) & np.isfinite(x) & np.isfinite(y)
+        res = np.full((len(index), 2), np.nan)
+        res[ok] = np.c_[x, y][ok]
+        out[part] = res
+    return out
+
+
+def session_nose_offsets(g, S: pd.DataFrame, side: dict) -> dict:
+    """Per-session side-nose offsets (median ray offset of each side camera's nose vs the cam1 + cam4 nose)."""
+    off = offsets_vs_reference(g, S, side)
+    n = off[off.part == "nose"].set_index("cam")
+    return {c: tuple(float(n.loc[c, f"ray_{a}_mm"]) for a in ("ml", "ap", "dv")) if c in n.index and n.loc[c, "n"] > 50
+            else SIDE_NOSE_OFFSET_MM[c] for c in SIDE}
+
+
+def ray_dist(g, pts: np.ndarray, X: np.ndarray) -> np.ndarray:
+    """(n_cams, n) mm from X to each view's ray (NaN where the view or X is missing)."""
+    return np.stack([np.linalg.norm(ray_offset(c, pts[j], X), axis=1) for j, c in enumerate(g.cameras)])
+
+
+def fuse_robust(g, pts: np.ndarray, reject_mm: float) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """(X (n, 3), used (n_cams, n) bool, ray distance mm (n_cams, n)): triangulate, drop the worst view while it is
+    beyond ``reject_mm`` and > 2 views remain; two views still beyond it give no point."""
+    P = np.array(pts, float)
+    used = np.isfinite(P).all(2)
+    for _ in range(P.shape[0] - 1):
+        X, _rep = triangulate_n(g, np.where(used[:, :, None], P, np.nan))
+        d = np.where(used, ray_dist(g, P, X), np.nan)
+        dd = np.where(np.isfinite(d), d, -1.0)
+        worst = np.argmax(dd, axis=0)
+        dw = dd[worst, np.arange(dd.shape[1])]
+        bad = (dw > reject_mm) & (used.sum(0) > 2)
+        if not bad.any():
+            break
+        used[worst[bad], np.flatnonzero(bad)] = False
+    X, _rep = triangulate_n(g, np.where(used[:, :, None], P, np.nan))
+    d = np.where(used, ray_dist(g, P, X), np.nan)
+    two_bad = (used.sum(0) == 2) & (np.where(np.isfinite(d), d, -1.0).max(0) > reject_mm)
+    X[two_bad] = np.nan
+    used[:, two_bad] = False
+    return X, used, d
+
+
+def droplet_mask(tongue_pts: np.ndarray, order: list[str], trial: np.ndarray, scale_cam4: dict) -> np.ndarray:
+    """(n_cams, n) True = a side-camera tongue point that is a water drop (module comment, stage 3)."""
+    has14 = np.isfinite(tongue_pts[[order.index("cam1"), order.index("cam4")]]).all(2).any(0)
+    out = np.zeros(tongue_pts.shape[:2], bool)
+    for c in SIDE:
+        j = order.index(c)
+        seen = np.isfinite(tongue_pts[j]).all(1) & ~has14
+        s = scale_cam4[c]
+        k = 0
+        while k < len(seen):
+            if not seen[k]:
+                k += 1
+                continue
+            e = k
+            while e + 1 < len(seen) and seen[e + 1] and trial[e + 1] == trial[k]:
+                e += 1
+            if e - k + 1 >= DROPLET_MIN_FRAMES:
+                R = tongue_pts[j, k:e + 1]
+                med = np.median(R, axis=0)
+                spread = np.median(np.linalg.norm(R - med, axis=1))
+                rng = float(np.max(np.linalg.norm(R[:, None] - R[None], axis=2)))
+                if spread < DROPLET_SPREAD_PX * s and rng < DROPLET_RANGE_PX * s:
+                    out[j, k:e + 1] = True
+            k = e + 1
+    return out
+
+
+def fill_n(g, X: np.ndarray, pts: np.ndarray, used: np.ndarray, trial: np.ndarray, t: np.ndarray, max_gap_ms: float,
+           max_ray_miss_mm: float = 3.0) -> tuple[np.ndarray, np.ndarray]:
+    """Frames with ONE used view: that camera's ray at the depth of the neighbouring multi-view frames (Akima through
+    them inside two-sided gaps, nearest within ``max_gap_ms`` one-sided), as `pose3d.fill_single_view`. Returns
+    (X, views: number of views behind each point, -1 for a one-view fill, 0 none)."""
+    from scipy.interpolate import Akima1DInterpolator
+
+    from wfield_local import pose3d as P3
+    X = np.array(X, float)
+    multi = np.isfinite(X).all(1)
+    nv = np.where(multi, used.sum(0), 0)
+    one = (used.sum(0) == 1) & ~multi
+    tt = pd.Series(np.where(multi, t, np.nan))
+    tp, tn = tt.groupby(trial).ffill().to_numpy(), tt.groupby(trial).bfill().to_numpy()
+    Xb = pd.DataFrame(np.where(multi[:, None], X, np.nan))
+    Xp, Xn = Xb.groupby(trial).ffill().to_numpy(), Xb.groupby(trial).bfill().to_numpy()
+    dp, dn = t - tp, tn - t
+    okp, okn = dp <= max_gap_ms, dn <= max_gap_ms
+    with np.errstate(invalid="ignore", divide="ignore"):
+        w = (dp / (dp + dn))[:, None]
+    est = np.where((okp & okn)[:, None], Xp + w * (Xn - Xp),
+                   np.where(okp[:, None], Xp, np.where(okn[:, None], Xn, np.nan)))
+    two = okp & okn & one
+    for tr in np.unique(trial[two]):
+        kb = multi & (trial == tr)
+        if kb.sum() >= 3:
+            kt = two & (trial == tr)
+            est[kt] = Akima1DInterpolator(t[kb], X[kb], axis=0)(t[kt])
+    for j, cam in enumerate(g.cameras):
+        k = one & used[j] & np.isfinite(est).all(1)
+        if k.any():
+            C, U = P3.camera_rays(cam, pts[j][k])
+            Pk = C + ((est[k] - C) * U).sum(1)[:, None] * U
+            Pk[np.linalg.norm(Pk - est[k], axis=1) > max_ray_miss_mm] = np.nan
+            X[k] = Pk
+            nv[k] = np.where(np.isfinite(Pk).all(1), -1, 0)
+    return X, nv
+
+
+def fuse_session(rv, animal: str, date: str, preds_dir: Path, clips_dir: Path, cg=None) -> dict:
+    """The whole four-camera pipeline for one session's side review trials. Returns {"F": frames (S rows + side rows),
+    "order", "g" (posed group), "pts" (cleaned image points per part), "parts": {part: {"X", "views", "used", "dist",
+    "g" (the part's offset group)}}, "stats", "rig"}."""
+    from scripts.apparatus_mouth import _rig
+    from scripts.pose3d import PROD, _cgroup
+    from wfield_local import o2_inference as oi
+    from wfield_local import pose3d as P3
+    from wfield_local import spout_frame as SF
+    c1 = oi.session_windows(rv, PROD["cam1"], animal, date, "cam1")
+    c4 = oi.session_windows(rv, PROD["cam4"], animal, date, "cam4")
+    rig = _rig(rv, animal, date)
+    cg = cg or _cgroup(rv)
+    S, info = P3.session_3d(cg, rig, c1[0], c1[1], c4[0], c4[1])
+    side = side_session(rv, animal, date, preds_dir, clips_dir, c4[0])
+    meds = {"cam1": info["med1"], "cam4": info["med4"], **{c: SF.ruler_medians(side[c][1], side[c][0]) for c in SIDE}}
+    g, _ = pose_all(cg, {c: meds[c] for c in ("cam1", "cam4", "cam2", "cam3")}, rig["geometry"])
+    order = [c.get_name() for c in g.cameras]
+    cams = {c.get_name(): c for c in g.cameras}
+    scale = {c: px_per_mm(cams[c]) / px_per_mm(cams["cam4"]) for c in order}
+    F, pts = four_camera_points(S, info, c1, c4, side, order)
+    for c in SIDE:                                    # stage 1: the side tongue / jaw become their CLEANED measured points
+        mouth = project(cams[c], np.zeros((1, 3)))[0]
+        cl = side_clean(side[c][1], side[c][0], mouth, scale[c])
+        for part in ("tongue", "jaw"):
+            pts[part][order.index(c)] = cl[part][F[f"i_{c}"].to_numpy()]
+    trial, t = F.trial_id.to_numpy(), F.t_ms.to_numpy(float)
+    drop = droplet_mask(pts["tongue"], order, trial, scale)
+    pts["tongue"][drop] = np.nan
+    offsets = {"spout": part_offsets("spout"), "nose": session_nose_offsets(g, S, side), "jaw": {}, "tongue": {}}
+    parts = {}
+    stats = {"scale": scale, "nose_offsets": offsets["nose"], "droplet_frames": int(drop.any(0).sum())}
+    k14 = [order.index("cam1"), order.index("cam4")]
+    for part in PARTS:
+        gs = shifted(g, offsets[part])
+        X, used, d = fuse_robust(gs, pts[part], REJECT_MM[part])
+        rejected = np.isfinite(pts[part]).all(2) & ~used
+        X, nv = fill_n(gs, X, pts[part], used, trial, t, FILL_MS[part])
+        if part in ("tongue", "jaw"):
+            X, qc = P3.qc_3d(X, part, trial, t)
+            nv[~np.isfinite(X).all(1)] = 0
+            stats.update(qc)
+        parts[part] = {"X": X, "views": nv, "used": used, "dist": d, "g": gs}
+        stats[part] = {"cam1+cam4": float(np.isfinite(pts[part][k14]).all(2).all(0).mean()),
+                       "fused": float(np.isfinite(X).all(1).mean()), "one_view_fill": float((nv == -1).mean()),
+                       **{f"rejected_{c}": int(rejected[j].sum()) for j, c in enumerate(order)}}
+    return {"F": F, "order": order, "g": g, "pts": pts, "parts": parts, "stats": stats, "rig": rig, "side": side}

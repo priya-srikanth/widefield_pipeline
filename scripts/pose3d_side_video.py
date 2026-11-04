@@ -1,14 +1,16 @@
 """Four-camera 3-D check clip: cam1 / cam4 / cam2 / cam3 raw views with their 2-D keypoints and the FUSED 3-D point
 reprojected, and the 3-D pose below (Priya 2026-11-04: "show me clips labelled in all 4 cameras with 3d keypoint views
-below"). Fusion = `pose3d_side.fuse` (all four cameras; spout: cam1's edge offset, cam4 = the commanded tip; nose: the side
-nose moved onto the cam1 / cam4 definition, `SIDE_NOSE_OFFSET_MM`; jaw / tongue as measured).
+below"). Pipeline = `pose3d_side.fuse_session` (11-04): cleaned cam1 / cam4 (production) AND cleaned cam2 / cam3 (`side_clean`),
+water-drop rule, robust four-camera triangulation (worst view dropped beyond `REJECT_MM`), one-view fill from the
+neighbouring frames (`fill_n`) and the 3-D QC; spout: cam4 = the commanded tip, cam1's edge offset; nose: the side nose
+moved onto the cam1 / cam4 definition with a per-session offset.
 
     conda activate dlc
     python -m scripts.pose3d_side_video PS93:20260814 [PS93:20260821 ...] [--per-position 1] [--t0 -100 --t1 700]
 
-Trials = the side review-clip trials (2 per position; ``--per-position`` of them), cue + t0 .. t1 ms. Panels: dots = that
-camera's own keypoint (confident, the points that enter the fusion), crosses = the fused 3-D point projected into the
-camera (with that camera's offset for the part, so it lands on its own label definition). 3-D panels: seen from cam2's
+Trials = the side review-clip trials (2 per position; ``--per-position`` of them), cue + t0 .. t1 ms. Panels: filled dots =
+that camera's cleaned keypoint USED in the 3-D point, open circles = a cleaned keypoint the fusion REJECTED (its ray
+disagreed with the other cameras), crosses = the fused 3-D point projected into the camera (with that camera's offset for the part, so it lands on its own label definition). 3-D panels: seen from cam2's
 side (profile: ap / dv) and the oblique front-right view; commanded spouts as rings (the trial's target filled), trails =
 the last 120 ms of tongue and jaw. Also writes ``fused_<a>_<d>.csv.gz`` (per frame, per part: ml / ap / dv, views, rep px
 per camera) and prints how often each part is 3-D with 2 vs 4 cameras. August sessions only (June side intrinsics open).
@@ -59,48 +61,43 @@ def run(rv, session: str, per_position: int, t0: float, t1: float) -> Path:
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
-    from scripts.apparatus_mouth import _rig
-    from scripts.pose3d import PROD, _cgroup, _june_factor
+    from scripts.pose3d import _june_factor
     from scripts.pose3d_figures import OBLIQUE
     from scripts.pose3d_side_check import CLIPS, PREDS
     from wfield_local import o2_inference as oi
-    from wfield_local import pose3d as P3
     from wfield_local import pose3d_side as PS
-    from wfield_local import spout_frame as SF
     from wfield_local import spout_world as SW
     animal, date = session.split(":")
     if _june_factor(date):
         raise SystemExit(f"{session}: June -- side intrinsics not validated, not rendered")
-    c1 = oi.session_windows(rv, PROD["cam1"], animal, date, "cam1")
-    c4 = oi.session_windows(rv, PROD["cam4"], animal, date, "cam4")
-    rig, cg = _rig(rv, animal, date), _cgroup(rv)
-    S, info = P3.session_3d(cg, rig, c1[0], c1[1], c4[0], c4[1])
-    side = PS.side_session(rv, animal, date, Path(PREDS), Path(rv.root("dlc")) / CLIPS, c4[0])
-    meds = {"cam1": info["med1"], "cam4": info["med4"], **{c: SF.ruler_medians(side[c][1], side[c][0]) for c in PS.SIDE}}
-    g, _err = PS.pose_all(cg, {c: meds[c] for c in ORDER}, rig["geometry"])
-    order = [c.get_name() for c in g.cameras]
-    F, pts = PS.four_camera_points(S, info, c1, c4, side, order)
-    R = PS.fuse(g, pts)
+    Z = PS.fuse_session(rv, animal, date, Path(PREDS), Path(rv.root("dlc")) / CLIPS)
+    F, order, g, pts, rig, side = Z["F"], Z["order"], Z["g"], Z["pts"], Z["rig"], Z["side"]
+    R = {p: (Z["parts"][p]["X"], None, Z["parts"][p]["views"]) for p in PS.PARTS}
     out = Path(rv.root("dlc")) / "session_poses" / "pose3d_side"
     out.mkdir(parents=True, exist_ok=True)
 
-    # per-frame table + coverage: 2 cameras (cam1 + cam4) vs all four
+    # per-frame table + coverage: cam1 + cam4 measured vs the four-camera pipeline
     T = F[["trial_id", "position", "t_ms"]].copy()
-    k14 = [order.index("cam1"), order.index("cam4")]
-    print(f"\n{session}: {len(T)} frames with all four cameras' clips")
-    for part, (X, rep, nv) in R.items():
+    print(f"\n{session}: {len(T)} frames; px/mm vs cam4 {Z['stats']['scale']}; side nose offsets {Z['stats']['nose_offsets']}; "
+          f"droplet frames {Z['stats']['droplet_frames']}")
+    for part in PS.PARTS:
+        P = Z["parts"][part]
         for k, ax in enumerate(("ml", "ap", "dv")):
-            T[f"{part}_{ax}"] = X[:, k]
-        T[f"{part}_views"] = nv
+            T[f"{part}_{ax}"] = P["X"][:, k]
+        T[f"{part}_views"] = P["views"]
         for j, c in enumerate(order):
-            T[f"{part}_rep_{c}"] = rep[j]
-        two = np.isfinite(pts[part][k14]).all(2).all(0).mean()
-        print(f"  {part:6s} 3-D: cam1+cam4 {two:5.1%}  ->  any 2 of 4 {np.mean(nv >= 2):5.1%}  | reprojection px "
-              + "  ".join(f"{c} {np.nanmedian(rep[j]):.1f}" for j, c in enumerate(order)))
+            T[f"{part}_used_{c}"] = P["used"][j]
+            T[f"{part}_dist_mm_{c}"] = P["dist"][j]
+        st = Z["stats"][part]
+        print(f"  {part:6s} 3-D: cam1+cam4 {st['cam1+cam4']:5.1%} -> 4-camera {st['fused']:5.1%} (one-view fill "
+              f"{st['one_view_fill']:4.1%}) | rejected views " + " ".join(f"{c} {st['rejected_' + c]}" for c in order)
+              + " | median ray dist mm " + " ".join(f"{c} {np.nanmedian(P['dist'][j]):.2f}" for j, c in enumerate(order)))
+    qc = {k: v for k, v in Z["stats"].items() if k.endswith(("_far", "_behind", "_spike"))}
+    print(f"  3-D QC drops: {qc}")
     T.to_csv(out / f"fused_{animal}_{date}.csv.gz", index=False, float_format="%.3f")
 
     # drawing helpers
-    gpart = {p: PS.shifted(g, PS.part_offsets(p)) for p in PS.PARTS}
+    gpart = {p: Z["parts"][p]["g"] for p in PS.PARTS}
     cams = {c.get_name(): c for c in g.cameras}
     mouth_px = {c: PS.project(cams[c], np.zeros((1, 3)))[0] for c in order}
     nose_w = np.nanmedian(R["nose"][0], axis=0)
@@ -136,7 +133,9 @@ def run(rv, session: str, per_position: int, t0: float, t1: float) -> Path:
                 for p in PS.PARTS:
                     q = pts[p][j, k]
                     if np.isfinite(q).all():
-                        cv2.circle(im, (int(round(q[0])), int(round(q[1]))), 4, BGR[p], -1, cv2.LINE_AA)
+                        used = bool(Z["parts"][p]["used"][j, k])
+                        cv2.circle(im, (int(round(q[0])), int(round(q[1]))), 4 if used else 6, BGR[p], -1 if used else 1,
+                                   cv2.LINE_AA)
                     X = R[p][0][k]
                     if np.isfinite(X).all():
                         r_ = PS.project([cc for cc in gpart[p].cameras if cc.get_name() == c][0], X[None])[0]
@@ -182,7 +181,7 @@ def run(rv, session: str, per_position: int, t0: float, t1: float) -> Path:
             nv = "  ".join(f"{p} {int(R[p][2][k])}" for p in PS.PARTS)
             cv2.putText(bar, f"{animal} {date}  trial {tr}  {pos}  t = {F.t_ms.iloc[k]:+.0f} ms from cue   views: {nv}",
                         (8, 16), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (255, 255, 255), 1, cv2.LINE_AA)
-            cv2.putText(bar, "dot = that camera's keypoint, x = fused 3-D reprojected | nose yellow, jaw green, tongue red, "
+            cv2.putText(bar, "dot = keypoint used, ring = rejected, x = 4-camera 3-D reprojected | nose yellow, jaw green, tongue red, "
                         "spout blue | 3-D: rings = commanded spouts (target filled), trails 120 ms",
                         (8, 33), cv2.FONT_HERSHEY_SIMPLEX, 0.38, (255, 255, 255), 1, cv2.LINE_AA)
             frame = np.vstack([bar, frame])
