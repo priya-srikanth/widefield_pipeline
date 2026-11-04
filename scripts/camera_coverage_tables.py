@@ -75,8 +75,15 @@ def stop_lengths(T: pd.DataFrame) -> pd.DataFrame:
 
 
 def main(argv=None) -> int:
-    from wfield_local import run_mode as _rm_guard
-    _rm_guard.require_default("camera_coverage_tables")   # unrouted share writer: refuses in a non-default run mode
+    from wfield_local import lp_licks as _lpl
+    from wfield_local import rebuild_root as _rr
+    from wfield_local import run_mode as _rm
+    # coordinator 11-04: under the render profile this RUN-INDEPENDENT input (video coverage; the DAQ gate is forced
+    # below; no hemo / projection / pre dependence) is written INSIDE the rebuild root, at the untagged path
+    # `trial_classes.coverage_note` reads (the former seed destination). A tagged run OUTSIDE a rebuild root still refuses.
+    _tagged = bool(_lpl.output_tag())
+    if _tagged and not _rr.active():
+        _rm.require_default("camera_coverage_tables")
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--animals", nargs="+", default=None)
     ap.add_argument("--labels", nargs="+", default=None, help="only these sessions (a quick check)")
@@ -115,7 +122,13 @@ def main(argv=None) -> int:
                                     "contact_ms": contact_ms[:k], "response_window_s": rw})[why != ""])
         stops.append(T.assign(animal=an, epoch=ep)[["animal", "epoch", "stop_ms"]])
     qc = a.out or coverage_path().parent
-    assert_writable(qc / "_")
+    if _tagged:
+        # the fixed-name tables of this run-independent input are a registered data store inside the rebuild root
+        # (writeguard's tag rule exempts exactly these files)
+        for n in (coverage_path().name, contact_path().name, "camera_contact_nolick_trials.csv",
+                  "camera_stop_lengths.csv"):
+            _rm.register_data_store(qc / n)
+    assert_writable(qc / coverage_path().name)
     qc.mkdir(parents=True, exist_ok=True)
     C = pd.DataFrame(cov)
     C.to_csv(qc / coverage_path().name, index=False)

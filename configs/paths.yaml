@@ -215,7 +215,10 @@ rebuild:
       - lp_r4_heatmap_20261013__clean_v36/imaging_encoding/qc/jaw_onsets.csv
       - lp_r4_heatmap_20261013__clean_v36/imaging_encoding/qc/nose_onsets.csv
       - lp_r4_heatmap_20261013__clean_v36/imaging_encoding/qc/trial_attempts.csv
-      - lp_r4_heatmap_20261013__clean_v36/imaging_encoding/qc/camera_coverage.csv
+      # qc/camera_coverage.csv is NOT a seed (coordinator 11-04): it was never produced on the share. It is PRODUCED into
+      # the rebuild root before the camera-gated renders (render step G0b, log 8.38): WITHOUT the profile env,
+      #   python scripts/camera_coverage_tables.py --out <rebuild root>/<orofacial derived>/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/qc
+      # (its content does not depend on the hemo variant / projection / pre set; it forces the DAQ gate itself)
   # top-level entries of the ORIGINAL labcams tree a rebuild run may still READ (session data + the inputs above); every
   # other top-level entry (grant_figures, frozen_models, the deck, ...) is a default derived product: reads are refused
   labcams_inputs: ['re:^\d{8}$', "joint_bases", "xday"]

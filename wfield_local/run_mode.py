@@ -233,7 +233,9 @@ def lp_family_root_ok(c: str) -> bool:
 
 
 def data_store_ok(c: str) -> bool:
-    return any(c.startswith(r) for r in _DATA_STORES)
+    """A registered data store: a folder (anything under it) or an exact FILE (``register_data_store(file)``)."""
+    cc = c.rstrip("/") + "/"
+    return any(c.startswith(r) or cc == r for r in _DATA_STORES)
 
 
 def lp_family_tag() -> str:
@@ -320,6 +322,20 @@ def june_august_drift_dir(labcams):
     with with_env(WIDEFIELD_PRE_FROM=None, **{lp_licks.LICK_SOURCE_ENV: None, lp_licks.ENL_WINDOW_ENV: None,
                                               "WIDEFIELD_GATE_SOURCE": None}):
         return Path(lp_licks.output_dir(d)) if lp_licks.output_tag() else d
+
+
+def encoding_out_root(run: str | None = None) -> Path:
+    """THE RUN'S imaging_encoding tree: ``<orofacial>/<run>/imaging_encoding/<tag>`` in a tagged run (the folder the
+    encoder runs write to: `combined_encoding`, `frozen_encoder.out_root`), the untagged tree by default. Every
+    previously refusing encoding-family script (coordinator 11-04: "the default output dir gains the run tag as a
+    subfolder") reads its run-dependent inputs and writes its outputs here."""
+    from wfield_local import lp_licks
+    from wfield_local import orofacial_outputs as oo
+    from wfield_local.paths import PathResolver
+    if run is None:
+        from wfield_local import orofacial_cohort as oc
+        run = oc.RUN
+    return Path(lp_licks.output_dir(oo.encoding_root(run, PathResolver()) / "_")).parent
 
 
 def require_default(what: str) -> None:

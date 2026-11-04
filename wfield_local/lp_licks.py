@@ -210,6 +210,10 @@ def stamp(fig) -> None:
         try:
             txt += "\n" + _tc.coverage_note()
         except Exception as ex:                       # noqa: BLE001 - a caption must not kill a figure; say why
+            if output_tag():
+                # coordinator 11-04: in a tagged (rebuild) run a missing coverage table is an ERROR, never a quiet
+                # "unavailable" caption on every camera-gated figure
+                raise
             txt += f"\ncamera gate: coverage note unavailable ({type(ex).__name__})"
         from wfield_local import spout_scaling
         if spout_scaling.spout_scaling() and spout_scaling.FALLBACK_USED:          # D-B3: the fallbacks actually used

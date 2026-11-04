@@ -763,6 +763,9 @@ def coverage_note(path=None) -> str:
     if not p.exists():
         from wfield_local import rebuild_root
         rebuild_root.require_seed(p)
+        if lp_licks.output_tag():                   # a tagged (rebuild) run: LOUD (coordinator 11-04)
+            raise FileNotFoundError(f"camera coverage table {p} is missing: run scripts/camera_coverage_tables.py "
+                                    "under the render profile before any camera-gated figure")
         return "camera gate: video-coverage table missing (run scripts/camera_coverage_tables.py)"
     C = pd.read_csv(p)
     C = C[C.partial.astype(bool)]
