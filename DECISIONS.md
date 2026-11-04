@@ -23388,3 +23388,23 @@ reproduces the pre-change `crossed_confusion` / `decode_matched` outputs exactly
   `section_g_grid*`. G4 / G4b are unchanged unless B is switched on.
 - PI deck 11-02: no slide reads these (`figure_provenance.csv`); `build_inputs/spout_balem_swaps.json` key `bcdg_1104`.
 - Tests: `tests/test_bcdg_1104.py`.
+
+## 2026-11-04 — Frozen spout decoder / projection centre = DAQ-label balanced centre on all working rows ("Wt") (Priya)
+
+The per-session centre of the frozen spout decoder and of the coding-direction / pattern projections is the equal-weight
+mean of the session's per-spout means, with spout positions from the DAQ strobe (no EM), computed over ALL working rows
+(contact + incomplete). No pre-stroke fill. The engagement axis stays z on contact rows. Robustness rows: N (pooled pre,
+no centre) and Cto (contact rows + true labels + pre-stroke offset fill).
+- Why not production W (bal_em on working rows): the EM gives acute far contra ~0 weight in PS92 / PS94 / PS95; a
+  mix-shift on held-out pre sessions drifts it -.025 (docs/status/CENTRE_MIXSHIFT_2026-11-04.md).
+- Why not contact-only: 10 / 16 acute sessions have a spout with < 5 contacts, so the centre loses far contra and
+  inflates it. The pre-stroke fill (Cto) fixes that but assumes the pre-stroke spout offsets still hold acutely
+  (Priya: problematic).
+- Why not a rest frame: the rest centre and SD shift post-stroke (a far-contra penalty in 4 / 4 animals, partly quiet
+  events). Chronic far contra collapses, and it costs held-out pre accuracy (docs/status/REST_CENTRE_2026-11-04.md).
+- Known caveat of Wt: ~.024 overall drift under a high incomplete share (incomplete trials' own pattern).
+- Cue far contra acute by centre (animal means): W .184, Wt .230, Cto .177, Ct .269, N .259, Z .286, rest .151;
+  pre ~.87 under all. The deficit holds under every centre.
+- A centre matters for a FROZEN decoder because an offset c shifts each spout score by w_k·c. W vs Wt = 28-56 % of the
+  score margin acutely, flipping 7-13 % of predictions; a decoder refit per session absorbs it in its intercept.
+Implemented in the rebuild by sabatinilab-34 (port branch; scored-frame tag).
