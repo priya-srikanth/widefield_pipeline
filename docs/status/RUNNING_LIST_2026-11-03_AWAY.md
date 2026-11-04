@@ -318,7 +318,16 @@ FYI, the 3-class camera variant (lick / jaw-only / none) is thin in PS92 and PS9
       trial-row SD rise (x1.41 PS94). It has a +.07 mix bias, which suggests added variance rather than gain.
     - WtR barely changes the real numbers.
     - Acute deficit, by frame: Wt -.64, WtF -.53, WtR -.64, N -.60. Chronic is ~unchanged (.72).
-    - Keep Wt primary; report WtF beside N as the gain-sensitive reading.
+    - Keep Wt primary; report WtF beside N as the gain-sensitive reading. Priya: per-session SD (field standard)
+      preferred.
+    - RUNNING: SD-rise checks, gain vs added noise:
+      - a variance split at the reference spouts;
+      - F0 / baseline fluorescence pre vs post (and 415 autofluorescence);
+      - task vs rest SD;
+      - whether the slide-94 "lick response larger after stroke" traces (raw dF/F, not z-scored) survive F0 and
+        per-session z normalisation.
+
+      Output docs/status/SD_RISE_2026-11-04.md.
 
 - **11-04: reference-spout anchor + intercept-only refit (docs/status/REFSPOUT_CENTRE_2026-11-04.md, b7d97063).**
   - Rref (day offset from close ipsi / mid) is NOT stroke-free:
