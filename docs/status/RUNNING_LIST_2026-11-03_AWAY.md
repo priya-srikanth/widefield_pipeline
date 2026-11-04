@@ -187,6 +187,13 @@ FYI, the 3-class camera variant (lick / jaw-only / none) is thin in PS92 and PS9
 
 ## Decisions taken today (Priya)
 
+- **(11-04) Split by CAMERA CLASS for essentially every analysis where it can and should apply** (contact /
+  incomplete / jaw-only / none / after end), replacing DAQ lick / engaged / outcome groupings. First case: the G4 state
+  discriminators. They currently train on DAQ lick vs no-lick, which is out of line with the camera-class rule, so the
+  frame choice must not be judged on them. The helper is adding a camera-class discriminator (working vs none, with
+  jaw-only and after end scored separately) and a 4th frame, z on working rows; the current z frame uses each session's
+  DAQ-lick trials. 34 was asked for an inventory of every analysis grouped by DAQ lick / engagement / outcome.
+
 - **(11-04) Small items.**
   - residual_roi: pixel-based significance stays primary. The area table ALSO gets stats, adjusted for the larger
     split-basis family (sent to 34).
