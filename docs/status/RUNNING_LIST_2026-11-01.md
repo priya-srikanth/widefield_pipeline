@@ -720,6 +720,8 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   QUESTION FOR PRIYA: delete those 4 files (derived, default-mode = adopted hemo / DAQ gate), or keep? I kept them.
 - 22-writer triage done (5cc29488): quiet-events family, cohort1_subset_headline, rest_baseline_epoch_drift fixed (would have
   been refused); 4 DeepLabCut-tree writers being mapped into the root (my decision); iti_nmatch_check retired (NO).
+- CODE COMPLETE for the render (rebuild tip 4dd21a7c, code 621c81de; FULL suite 4,690 passed / 0 failed; log 8.38): every
+  refusing REDO script routed; nothing known un-renderable. Render runner moving to it; required order recorded in log 8.38.
 
 ### Findings
 - main moved while the rebuild branch was being fixed (34 commits not in rebuild/cohort1-20261103). Two matter for the rebuild:
