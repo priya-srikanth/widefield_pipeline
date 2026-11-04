@@ -104,15 +104,16 @@ def boot_change(S: dict, ep: str, nb=4000, seed=0):
 
 
 def main(argv=None) -> int:
-    from wfield_local import run_mode as _rm_guard
-    _rm_guard.require_default("softmax_neural_vs_lick")   # unrouted share writer: refuses in a non-default run mode
+    # coordinator 11-04: routed (outputs under the run tag), no longer refused in a tagged run
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--window", default="lick", choices=("lick", "cue"))
     a = ap.parse_args(argv)
-    D = E / "attempt_coding_pp"
+    from wfield_local import run_mode
+    # attempt_coding --out attempt_coding_pp is routed as an LP family (run_mode.subdir(lp_family=True)); read and write there
+    D = run_mode.subdir(E / "attempt_coding_pp", lp_family=True)
     fd = D / "figures"
     fd.mkdir(exist_ok=True)
     T = pd.concat([pd.read_csv(D / attempt_trials_name(a.window, an)) for an in AN])

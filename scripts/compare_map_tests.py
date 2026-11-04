@@ -14,11 +14,13 @@ import pandas as pd
 
 
 def main() -> int:
-    from wfield_local import run_mode as _rm_guard
-    _rm_guard.require_default("compare_map_tests")   # unrouted share writer: refuses in a non-default run mode
+    # coordinator 11-04: routed (outputs under the run tag), no longer refused in a tagged run
     from wfield_local.paths import PathResolver
     from wfield_local.writeguard import assert_writable
-    root = Path(PathResolver().root("cohort_out")) / "grant_figures" / "epoch"
+    from wfield_local import lp_licks
+    # THIS run's epoch dir (grant_figures/<tag>/epoch; coordinator 11-04): the archived raw-dF tests are compared
+    # against the run's own data, and the result is written there
+    root = Path(lp_licks.output_dir(Path(PathResolver().root("cohort_out")) / "grant_figures" / "epoch"))
     old_dir, new_dir = root / "archive_rawdF_tests_20261021" / "data", root / "data"
     rows = []
     for f in sorted(old_dir.glob("*_stats.csv")):

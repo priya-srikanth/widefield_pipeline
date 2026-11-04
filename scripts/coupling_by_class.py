@@ -31,7 +31,10 @@ from wfield_local.orofacial_outputs import encoding_root as _encoding_root  # no
 from wfield_local.attempt_coding import trials_name as attempt_trials_name  # noqa: E402
 
 E = _encoding_root()
-D = E / "attempt_coding_pp"
+from wfield_local import run_mode as _rmode  # noqa: E402
+
+# attempt_coding --out attempt_coding_pp is routed as an LP family; read and write there (coordinator 11-04)
+D = _rmode.routed_output(E / "attempt_coding_pp", make=False, guard=False, lp_family=True)
 AN = ["PS92", "PS93", "PS94", "PS95"]
 EP = ["pre", "acute", "subacute", "chronic"]
 MK = {"PS92": "o", "PS93": "s", "PS94": "^", "PS95": "D"}
@@ -109,8 +112,7 @@ def boot_delta_r(J, ix, ep, cl, animals, rng, nested=True):
 
 
 def main() -> int:
-    from wfield_local import run_mode as _rm_guard
-    _rm_guard.require_default("coupling_by_class")   # unrouted share writer: refuses in a non-default run mode
+    # coordinator 11-04: routed (outputs under the run tag), no longer refused in a tagged run
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
@@ -164,6 +166,7 @@ def main() -> int:
     print(Tt[["exec", "animal", "epoch", "class", "point", "lo", "hi", "p", "n"]].round(3).to_string(index=False))
 
     out = D / "figures"
+    out.mkdir(parents=True, exist_ok=True)
     xo = {"hit": -0.18, "failed": 0.18}
 
     def legend(fig, extra=()):

@@ -26,6 +26,8 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+from wfield_local import run_mode as _rmode  # the run's (tagged) encoding tree (coordinator 11-04)
+
 VARS = ("cue", "arrival", "pos_enl", "pos_cue", "licks", "exec_angle", "tongue", "jaw", "nose", "running")
 GROUPS = ("task", "instructed", "uninstructed")
 GROUP_OF = {"cue": "task", "arrival": "task", "pos_enl": "task", "pos_cue": "task", "licks": "instructed",
@@ -98,9 +100,7 @@ def _save(fig, path: Path) -> None:
 
 def load(run: str, order: str, baseline: str, late_from: str):
     """Region table (long), per-session map dicts, PETH / SSE arrays and session metadata."""
-    from wfield_local import orofacial_outputs as oo
-    from wfield_local.paths import PathResolver
-    d = oo.encoding_root(run, PathResolver()) / order / "sessions"
+    d = _rmode.encoding_out_root(run) / order / "sessions"
     metas, R, sess = [], [], {}
     for jf in sorted(d.glob("PS*_*.json")):
         m = json.loads(jf.read_text(encoding="utf-8"))
@@ -1083,13 +1083,10 @@ def contest_main(a, base: Path, figs: Path, tabs: Path) -> int:
 
 
 def main(argv=None) -> int:
-    from wfield_local import run_mode as _rm_guard
-    _rm_guard.require_default("combined_encoding_figures")   # unrouted share writer: refuses in a non-default run mode
+    # coordinator 11-04: routed (outputs under the run tag), no longer refused in a tagged run
     from wfield_local import orofacial_cohort as oc
-    from wfield_local import orofacial_outputs as oo
     from wfield_local import writeguard
     from wfield_local.orofacial_stats import session_change_tests
-    from wfield_local.paths import PathResolver
     oc._repo_on_path()
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--run", default=oc.RUN)
@@ -1098,7 +1095,7 @@ def main(argv=None) -> int:
     ap.add_argument("--signed-only", action="store_true",
                     help="only the signed per-spout maps (resp / respdev) of a full run (Priya 10-19)")
     a = ap.parse_args(argv)
-    base = oo.encoding_root(a.run, PathResolver()) / a.order
+    base = _rmode.encoding_out_root(a.run) / a.order
     sfx = "_allpre" if a.baseline == "all" else ""
     figs, tabs = base / f"figures{sfx}", base / f"tables{sfx}"
     writeguard.assert_writable(base)

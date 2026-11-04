@@ -74,20 +74,17 @@ def _bars(ax, Q, cols, colors, labels=None):
 
 
 def main(argv=None) -> int:
-    from wfield_local import run_mode as _rm_guard
-    _rm_guard.require_default("frozen_musall_figures")   # unrouted share writer: refuses in a non-default run mode
+    # coordinator 11-04: routed (outputs under the run tag), no longer refused in a tagged run
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
-    from wfield_local import orofacial_cohort as oc
-    from wfield_local import orofacial_outputs as oo
-    from wfield_local.paths import PathResolver
     from wfield_local.writeguard import assert_writable
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--tag", default="gate-attempted")
     ap.add_argument("--areas", nargs="+", default=["cortex", "SSp-m_left", "MOs_left"])
     a = ap.parse_args(argv)
-    out = oo.encoding_root(oc.RUN, PathResolver()) / f"frozen_encoder_{a.tag}"
+    from wfield_local import frozen_encoder as _fe   # the encoder's (tagged) run root, coordinator 11-04
+    out = _fe.out_root() / f"frozen_encoder_{a.tag}"
     A = pd.read_csv(out / "frozen_musall_r2_by_animal.csv")
     Q = quantities(A)
     fd = out / "figures"

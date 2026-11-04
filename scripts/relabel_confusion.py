@@ -80,8 +80,7 @@ def session_mats(R: pd.DataFrame, prefix: str) -> dict:
 
 
 def main(argv=None) -> int:
-    from wfield_local import run_mode as _rm_guard
-    _rm_guard.require_default("relabel_confusion")   # unrouted share writer: refuses in a non-default run mode
+    # coordinator 11-04: routed (outputs under the run tag), no longer refused in a tagged run
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
@@ -90,7 +89,8 @@ def main(argv=None) -> int:
     ap.add_argument("--window", default="lick", choices=("all", "cue", "lick"))
     ap.add_argument("--trial", action="store_true", help="per-TRIAL best label (needs a trial_sse run, e.g. --tag v7g3_t3d_trial)")
     a = ap.parse_args(argv)
-    D = E / f"frozen_relabel_{a.tag}"
+    from wfield_local import frozen_encoder as fe
+    D = fe.out_root() / f"frozen_relabel_{a.tag}"        # the (tagged) encoder relabel run, coordinator 11-04
     fd = D / "figures"
     fd.mkdir(exist_ok=True)
     unit = "trials" if a.trial else "sessions"

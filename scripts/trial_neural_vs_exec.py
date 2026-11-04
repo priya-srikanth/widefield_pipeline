@@ -67,12 +67,14 @@ def coupling(g: pd.DataFrame, x: str, y: str, rng, n_perm=1000):
 
 
 def main() -> int:
-    from wfield_local import run_mode as _rm_guard
-    _rm_guard.require_default("trial_neural_vs_exec")   # unrouted share writer: refuses in a non-default run mode
+    # coordinator 11-04: routed (outputs under the run tag), no longer refused in a tagged run
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
-    D = E / "attempt_coding_pp"
+    from wfield_local import run_mode
+    # attempt_coding --out attempt_coding_pp is routed as an LP family; read and write there (coordinator 11-04)
+    D = run_mode.routed_output(E / "attempt_coding_pp", guard=False, lp_family=True)
+    (D / "figures").mkdir(parents=True, exist_ok=True)
     T = pd.concat([pd.read_csv(D / attempt_trials_name("lick", an)) for an in AN])
     T = T[(T.method == "dom") & (T.spout == "far_contra") & T.cls.isin(["pre_hit", "hit", "incomplete"])]
     T = T[T.label.str[-4:] >= "0801"]          # AUGUST-ONLY pre baseline (primary, Priya 10-18); June was in landing only

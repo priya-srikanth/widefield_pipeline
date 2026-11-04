@@ -673,15 +673,12 @@ def figures_repo_sig(out: Path, maps: dict, method: str = "nested") -> None:
 
 
 def main(argv=None) -> int:
-    from wfield_local import run_mode as _rm_guard
-    _rm_guard.require_default("within_spout_deviation")   # unrouted share writer: refuses in a non-default run mode
+    # coordinator 11-04: routed (outputs under the run tag), no longer refused in a tagged run
     from wfield_local import analysis_kit as ak
     from wfield_local import combined_encoding as ce
     from wfield_local import epochs
     from wfield_local import orofacial_cohort as oc
-    from wfield_local import orofacial_outputs as oo
     from wfield_local import writeguard
-    from wfield_local.paths import PathResolver
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--run", default=oc.RUN)
     ap.add_argument("--jobs", type=int, default=2)
@@ -712,7 +709,8 @@ def main(argv=None) -> int:
     mode = os.environ.get(ce.EXEC_ENV, "")
     stem = ("within_spout_deviation" + (f"_{mode}" if mode else "") + ("_lick" if a.align == "lick" else "")
             + ("_enl" if a.window == "enl" else ""))
-    qc = oo.encoding_root(a.run, PathResolver()) / "qc"
+    from wfield_local import run_mode
+    qc = run_mode.encoding_out_root(a.run) / "qc"          # the run's (tagged) encoding tree, coordinator 11-04
     outs = ({v: qc / (stem + VARIANT_SUFFIX[v]) for v in variants} if variants else
             {None: qc / (stem + ("_contact" if a.contact else "") + ("_hits" if a.hits_only else ""))})
     writeguard.assert_writable(qc)

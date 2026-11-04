@@ -338,6 +338,15 @@ def encoding_out_root(run: str | None = None) -> Path:
     return Path(lp_licks.output_dir(oo.encoding_root(run, PathResolver()) / "_")).parent
 
 
+def behaviour_qc_dir() -> Path:
+    """The UNTAGGED ``imaging_encoding/qc`` of the adopted run: RUN-INDEPENDENT behaviour tables (trial attempts, contacts,
+    latencies, jaw / nose onsets, camera coverage) -- seeded into / produced inside the rebuild root, never per run tag.
+    Routed encoding-family scripts read their behaviour inputs here and their run-dependent inputs under
+    `encoding_out_root` (coordinator 11-04)."""
+    from wfield_local import lp_licks
+    return Path(lp_licks._enc_dir()) / "qc"
+
+
 def require_default(what: str) -> None:
     """Raise unless this is a default run: for writers whose output name cannot carry a tag (refuse, do not overwrite).
     R5 (fourth review): the FULL output tag (`lp_licks.output_tag`: LP source, gate-LP, ENL window AND the run-mode

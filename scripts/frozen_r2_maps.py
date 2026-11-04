@@ -50,23 +50,20 @@ def pixel_sse(sp: dict, M: np.ndarray, keep: np.ndarray) -> np.ndarray:
 
 
 def main(argv=None) -> int:
-    from wfield_local import run_mode as _rm_guard
-    _rm_guard.require_default("frozen_r2_maps")   # unrouted share writer: refuses in a non-default run mode
+    # coordinator 11-04: routed (outputs under the run tag), no longer refused in a tagged run
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
     from wfield_local import combined_encoding as ce
-    from wfield_local import orofacial_cohort as oc
-    from wfield_local import orofacial_outputs as oo
-    from wfield_local.paths import PathResolver
     from wfield_local.writeguard import assert_writable
     sys.path.insert(0, str(Path(__file__).resolve().parent))
     from frozen_area_maps import area_image, outline
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--tag", default="gate-attempted_v6basis")
     a = ap.parse_args(argv)
-    out = oo.encoding_root(oc.RUN, PathResolver()) / f"frozen_encoder_{a.tag}"
+    from wfield_local import frozen_encoder as _fe   # the encoder's (tagged) run root, coordinator 11-04
+    out = _fe.out_root() / f"frozen_encoder_{a.tag}"
     variants = ["joint"] + sorted({v for _l, v in UNIQUE})
     missing = [v for v in variants if not (out / v / "sessions").is_dir()]
     if missing:

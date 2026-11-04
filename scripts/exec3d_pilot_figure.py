@@ -51,17 +51,14 @@ def _trial_table(E: Path) -> pd.DataFrame:
 
 
 def main() -> int:
-    from wfield_local import run_mode as _rm_guard
-    _rm_guard.require_default("exec3d_pilot_figure")   # unrouted share writer: refuses in a non-default run mode
+    # coordinator 11-04: routed (outputs under the run tag), no longer refused in a tagged run
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
-    from wfield_local import orofacial_cohort as oc
-    from wfield_local import orofacial_outputs as oo
     from wfield_local import writeguard
-    from wfield_local.paths import PathResolver
-    E = oo.encoding_root(oc.RUN, PathResolver())
+    from wfield_local import run_mode
+    E = run_mode.encoding_out_root()                     # the encoder runs' (tagged) tree, coordinator 11-04
     L, T = _lick_table(E), _trial_table(E)
     panels = [("lick window, all variance", L), ("cue 0-1.5 s, TRIAL-TO-TRIAL variance", T)]
     fig, axs = plt.subplots(2 * len(panels), len(AREAS), figsize=(4.6 * len(AREAS), 3.1 * 2 * len(panels) + 1.2),

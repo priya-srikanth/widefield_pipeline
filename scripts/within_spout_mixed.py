@@ -194,24 +194,22 @@ def pixel_maps(folder: Path, labels: list, figs: Path, zf: dict | None = None) -
 
 
 def main(argv=None) -> int:
-    from wfield_local import run_mode as _rm_guard
-    _rm_guard.require_default("within_spout_mixed")   # unrouted share writer: refuses in a non-default run mode
+    # coordinator 11-04: routed (outputs under the run tag), no longer refused in a tagged run
     from wfield_local import orofacial_cohort as oc
-    from wfield_local import orofacial_outputs as oo
-    from wfield_local.paths import PathResolver
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--run", default=oc.RUN)
     ap.add_argument("--folder", default="within_spout_deviation_lick")
     ap.add_argument("--deficit", default=None, help="behavioural index (mixed_models.DEFICITS); non-default -> *_<name>")
     a = ap.parse_args(argv)
-    folder = oo.encoding_root(a.run, PathResolver()) / "qc" / a.folder
+    from wfield_local import run_mode
+    folder = run_mode.encoding_out_root(a.run) / "qc" / a.folder   # within_spout_deviation's (tagged) output
     D = pd.read_csv(folder / "within_spout_deviation.csv")
     L = outcomes(D)
     if (folder / "dirmid.csv").exists():                     # direction / toward-midline coefficients
         L = pd.concat([L, outcomes_dirmid(pd.read_csv(folder / "dirmid.csv"))], ignore_index=True)
     from wfield_local import mixed_models as mm
     print(mm.animal_epoch_table(L[L.measure.str.startswith(FOCUS)], ["kind", "measure"]).round(3).to_string())  # rule 8
-    T = area_table(L, folder.parent, a.deficit)
+    T = area_table(L, run_mode.behaviour_qc_dir(), a.deficit)   # the deficit: a behaviour table (untagged qc)
     sfx = "" if (a.deficit or mm.DEFICIT) == mm.DEFICIT else f"_{a.deficit}"
     T.to_csv(folder / f"mixed_model{sfx}.csv", index=False, float_format="%.5g")
     pd.set_option("display.width", 230)

@@ -80,7 +80,9 @@ def outcomes(E: Path, labels: set, deficit: str | None = None) -> pd.DataFrame:
                             .assign(measure=f"{tag}:{name}"))
     from wfield_local import mixed_models as mm
     L = mm.add_time_covariates(pd.concat(rows, ignore_index=True).dropna(subset=["y"]))
-    return mm.add_deficit(L, mm.deficit(E / "qc", deficit or mm.DEFICIT))
+    from wfield_local import run_mode
+    # the behavioural deficit is a run-independent behaviour table (untagged qc), not this run's encoding output
+    return mm.add_deficit(L, mm.deficit(run_mode.behaviour_qc_dir(), deficit or mm.DEFICIT))
 
 
 FIG_PANELS = (("cue", "cam4:ceiling"), ("cue", "cam4:u_target"), ("cue", "position"),
@@ -96,18 +98,17 @@ def figures(L: pd.DataFrame, T: pd.DataFrame, out: Path, area: str = "cortex", s
 
 
 def main(argv=None) -> int:
-    from wfield_local import run_mode as _rm_guard
-    _rm_guard.require_default("encoding_mixed")   # unrouted share writer: refuses in a non-default run mode
+    # coordinator 11-04: routed (outputs under the run tag), no longer refused in a tagged run
     from wfield_local import analysis_kit as ak
     from wfield_local import orofacial_cohort as oc
-    from wfield_local import orofacial_outputs as oo
-    from wfield_local.paths import PathResolver
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--run", default=oc.RUN)
     ap.add_argument("--deficit", default=None, help="behavioural index (mixed_models.DEFICITS); default = primary, "
                     "others write *_<name> outputs")
     a = ap.parse_args(argv)
-    E = oo.encoding_root(a.run, PathResolver())
+    from wfield_local import run_mode
+    E = run_mode.encoding_out_root(a.run)                # the run's (tagged) encoding tree, coordinator 11-04
+    (E / "qc").mkdir(parents=True, exist_ok=True)
     labels = {x for x in ak.curated_labels() if x[-4:] >= "0806"}
     from wfield_local import mixed_models as mm
     dname = a.deficit or mm.DEFICIT
@@ -116,7 +117,7 @@ def main(argv=None) -> int:
     by = ["measure", "window", "area"]
     T = mm.lmm_table(L[L.area == "cortex"], by, print_animals=True)           # rule 8 table: cortex only (readable)
     T = pd.concat([T, mm.lmm_table(L[L.area != "cortex"], by, print_animals=False)], ignore_index=True)
-    from wfield_local.orofacial_stats import bh_fdr                       # FDR over ALL areas within model x term x window
+    from wfield_local.orofacial_stats import bh_fdr  # FDR over ALL areas within model x term x window
     for _, idx in T.groupby(["model", "term", "window"]).groups.items():
         T.loc[idx, "q"] = bh_fdr(T.loc[idx, "p"].to_numpy())
     T.to_csv(E / "qc" / f"encoding_mixed{sfx}.csv", index=False, float_format="%.5g")

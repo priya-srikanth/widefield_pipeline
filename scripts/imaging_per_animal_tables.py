@@ -77,14 +77,15 @@ def figure(out: dict, path: Path) -> None:
 
 
 def main(argv=None) -> int:
-    from wfield_local import run_mode as _rm_guard
-    _rm_guard.require_default("imaging_per_animal_tables")   # unrouted share writer: refuses in a non-default run mode
+    # coordinator 11-04: routed (outputs under the run tag), no longer refused in a tagged run
     from wfield_local.paths import PathResolver
     from wfield_local.writeguard import assert_writable
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--out", type=Path, default=None)
     a = ap.parse_args(argv)
-    epoch = Path(PathResolver().root("cohort_out")) / "grant_figures" / "epoch"
+    from wfield_local import lp_licks
+    # THIS run's epoch dir (grant_figures/<tag>/epoch): its data in, its per-animal tables out (coordinator 11-04)
+    epoch = Path(lp_licks.output_dir(Path(PathResolver().root("cohort_out")) / "grant_figures" / "epoch"))
     out_dir = a.out or epoch / "per_animal_tables"
     assert_writable(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)

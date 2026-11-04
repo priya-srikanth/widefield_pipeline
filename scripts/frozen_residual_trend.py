@@ -76,21 +76,18 @@ def trend_test(pre_d, pre_y, post_d, post_y):
 
 
 def main(argv=None) -> int:
-    from wfield_local import run_mode as _rm_guard
-    _rm_guard.require_default("frozen_residual_trend")   # unrouted share writer: refuses in a non-default run mode
+    # coordinator 11-04: routed (outputs under the run tag), no longer refused in a tagged run
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
-    from wfield_local import orofacial_cohort as oc
-    from wfield_local import orofacial_outputs as oo
-    from wfield_local.paths import PathResolver
     from wfield_local.writeguard import assert_writable
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--tag", default="gate-attempted_v7g3_t3d")
     ap.add_argument("--variant", default="joint")
     a = ap.parse_args(argv)
-    run = oo.encoding_root(oc.RUN, PathResolver()) / f"frozen_encoder_{a.tag}"
+    from wfield_local import frozen_encoder as _fe   # the encoder's (tagged) run root, coordinator 11-04
+    run = _fe.out_root() / f"frozen_encoder_{a.tag}"
     assert_writable(run)
     T = session_table(run, a.variant)
     sfx = "" if a.variant == "joint" else f"_{a.variant}"   # one file set per variant (no_fr_dir once overwrote joint)

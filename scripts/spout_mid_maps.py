@@ -11,6 +11,7 @@ within-spout lateral SD) / (its PRE-stroke median within-spout cortex response S
 within_spout_mixed.add_z (pre-stroke SD of activity per pre-stroke SD of deviation) -- plus a POOLED row (animals
 weighted equally)."""
 import sys
+from pathlib import Path
 
 import matplotlib
 
@@ -18,14 +19,14 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
-sys.path.insert(0, "C:/Users/SabatiniLab/Github/widefield_pipeline")
-from wfield_local.orofacial_outputs import encoding_root as _encoding_root  # noqa: E402 - rebuild root (11-03)
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))   # THIS checkout (it used to pin the MAIN checkout)
 from wfield_local import analysis_kit as ak  # noqa: E402
 from wfield_local import epochs  # noqa: E402
-from wfield_local import run_mode as _rm_guard  # noqa: E402
-_rm_guard.require_default("spout_mid_maps")   # unrouted share writer: refuses in a non-default run mode
+from wfield_local import run_mode as _rmode  # noqa: E402
 
-E = str(_encoding_root())
+# coordinator 11-04: routed (no longer refused in a tagged run): within_spout_deviation's (tagged) encoding tree is the
+# input, and the figure is written under it too
+E = str(_rmode.encoding_out_root())
 args = [x for x in sys.argv[1:] if x != "--z"]
 Z = "--z" in sys.argv
 folder = args[0] if args else "within_spout_deviation_lick_contact"

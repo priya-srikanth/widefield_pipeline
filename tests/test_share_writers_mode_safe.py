@@ -17,7 +17,7 @@ REPO = Path(__file__).resolve().parents[1]
 W = re.compile(r"\.(to_csv|savefig|write_text|write_bytes|to_pickle|to_parquet)\(|np\.save(z|z_compressed)?\(|save_fd\(|pd\.to_pickle\(")
 SHARE = re.compile(r"M:/MICROSCOPE|oo\.root\(|PathResolver\(\)\.root\(|_run_dir\(\)|encoding_root\(|_enc_dir\(|"
                    r"root\(\"(cohort_out|orofacial|dlc|figures_working|behavior_out|labcams)")
-ROUTED = re.compile(r"run_mode|output_dir\(|routed_output|lp_licks\.output_tag|require_default")
+ROUTED = re.compile(r"run_mode|output_dir\(|routed_output|lp_licks\.output_tag|require_default|fe\.out_root\(\)")  # + encoder root
 BEHAVIOUR = {
     "apparatus_mouth.py", "cam1_clean_qc.py", "cam1_incomplete_licks.py", "cam1_lick_aim.py", "cam1_licks.py",
     "cam4_timing_check.py", "enl_video_spout_check.py", "face_rhythm_aligned_maps.py", "face_rhythm_asym_aligned.py",
