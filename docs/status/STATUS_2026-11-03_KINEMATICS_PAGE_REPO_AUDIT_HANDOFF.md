@@ -65,6 +65,12 @@ always rebuild from the LIVE page (Artifact read) or the current index.html, nev
     re-drawn `fig/*_rules.png` (figure-rules redraws, 11-03) that existed only on the artifact. Every image the page
     references is now in the folder. `rebuild.py` there predates the `_rules` redraws; do not re-run it over this
     index.
+  - **Jaw-only OUT of working (Priya 11-03 late; a8 agreed 11-04):** `trial_classes` gate values stay incl. jaw-only
+    (robustness; cec38954 documents it); production = `in_working & camera_lick` via `working_trials`. Rename to
+    `working_jaw` later, together with working_trials + the s1 snapshot + tests. None of the kin / behaviour / FR
+    outputs change. The s1 table (camwork*, working_pl_*) is on the afternoon definition: flagged to e0 (owner).
+    a8's main-branch imaging render is HELD (34's rebuild replaces those families in 1-2 days; Priya decides any
+    interim swap), so the LMM-slide redraws wait for whichever render feeds the deck.
   - **Sidebar figure toggles (Priya 11-04; e0 published kinematics v28, behaviour v2):** each section's first figure
     shown in the contents, the rest behind a "▸ N" button (localStorage keys `kintoc-` / `behtoc-`). Folded into
     both M: sources by e0's `add_toc_toggles_1104.py` (copy in `behaviour_page_src/behaviour_page/`; backups
