@@ -1384,3 +1384,11 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
     - production split = the plain folder name, robustness = the _nolicksall suffix;
     - ENL source = lp (Priya's 1.0 s);
     - three-variable vs stacked differ by <= .0015 region R2, because of the group orthogonalisation; accepted.
+- **11-04 ~19:50: encoder-classes final (825020c2).**
+  - Production split = plain movement_first; robustness = movement_first_nolicksall.
+  - ENL source = LP 1.0 s by default. Memory 48G.
+  - Correction to the earlier finding: with the PRIMARY LP 1.0 s enl window, drop:pos_enl goes no-licksall -> split:
+    PS93_0814 .0072 -> .0029, PS93_0818 .0044 -> .0037. Both fall. The ".0029 -> .0064 rise" was on the fixed DAQ
+    window.
+  - Merging encoder-classes, cue70 and enl-window into rebuild/cohort1-20261103 now (merge helper). bcdg-port follows
+    after its follow-ups.
