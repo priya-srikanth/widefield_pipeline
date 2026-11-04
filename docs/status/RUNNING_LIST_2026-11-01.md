@@ -1392,3 +1392,10 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
     window.
   - Merging encoder-classes, cue70 and enl-window into rebuild/cohort1-20261103 now (merge helper). bcdg-port follows
     after its follow-ups.
+- **11-04 ~20:00: DECISION (Priya): the between-trial lick ENL family and fr_enl_decode also SLIDE, for consistency.**
+  - Families: lick_enl_angle_decode, lick_enl_target_test, lick_enl_offset_explore, prelaunch_aim_tracking /
+    revup_neural pre-cue parts, fr_enl_decode.
+  - Proposed guard: the window must stay inside each family's extracted span (traces / the FR grid start at cue - 2 s)
+    and start >= strobe + 0.3 s, the encoder's ENL-state settle, so the spout-arrival transient stays out.
+  - These are frozen-decoder families, so expect new ids.
+  - Queued as a new branch off the merged tip, after the current merge.
