@@ -8,12 +8,11 @@ import pandas as pd
 from wfield_local import allsession_encoder as ae
 from wfield_local import epochs
 from wfield_local import frozen_encoder as fe
-from wfield_local import run_mode as _rm_guard  # noqa: E402
-from wfield_local.orofacial_outputs import encoding_root as _encoding_root  # rebuild root (11-03)
-_rm_guard.require_default("layer2_matched_n")   # unrouted share writer: refuses in a non-default run mode
+from wfield_local import run_mode as _rmode  # noqa: E402
 
-E = str(_encoding_root())
-src = E + "frozen_encoder_gate-attempted_v7g3_t3d/"
+# coordinator 11-04: routed -- the run's (tagged) encoding tree (frozen encoder + allsession runs, and the output)
+E = str(_rmode.encoding_out_root()) + "/"
+src = str(fe.out_root()) + "/frozen_encoder_gate-attempted_v7g3_t3d/"
 pre_stats = pickle.loads(open(src + "fit/pre_stats.pkl", "rb").read())
 post_stats = pickle.loads(open(E + "allsession_encoder_v7g3_t3d_ref/fit/post_stats.pkl", "rb").read())
 rows = []

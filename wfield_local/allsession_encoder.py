@@ -132,9 +132,6 @@ def main(argv=None) -> int:
     from wfield_local import analysis_kit as ak
     from wfield_local import combined_encoding as ce
     from wfield_local import config, epochs
-    from wfield_local import orofacial_cohort as oc
-    from wfield_local import orofacial_outputs as oo
-    from wfield_local.paths import PathResolver
     from wfield_local.writeguard import assert_writable
     fe = _fe()
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -153,8 +150,11 @@ def main(argv=None) -> int:
                          "post sessions (ROI columns added; X'X checked) -- the existing run's numbers kept exactly")
     ap.add_argument("--out-root", default=None, help="parent folder of allsession_encoder_<tag> (default: the share)")
     a = ap.parse_args(argv)
-    E = oo.encoding_root(oc.RUN, PathResolver())
-    src = E / f"frozen_encoder_{a.src}"
+    from wfield_local import run_mode
+    # coordinator 11-04: the run's (tagged) encoding tree -- the frozen encoder runs it reads (fe.out_root) and the
+    # allsession runs it writes (read by layer2_matched_n / layer2_random_splits)
+    E = run_mode.encoding_out_root()
+    src = fe.out_root() / f"frozen_encoder_{a.src}"
     out = (Path(a.out_root) if a.out_root else E) / f"allsession_encoder_{a.tag}"
     assert_writable(out)
     (out / "fit").mkdir(parents=True, exist_ok=True)

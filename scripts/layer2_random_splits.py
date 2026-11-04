@@ -24,16 +24,16 @@ import pandas as pd
 from wfield_local import allsession_encoder as ae
 from wfield_local import epochs
 from wfield_local import frozen_encoder as fe
-from wfield_local.orofacial_outputs import encoding_root as _encoding_root  # rebuild root (11-03)
+from wfield_local import run_mode as _rmode
 
-E = _encoding_root()
-SRC = E / "frozen_encoder_gate-attempted_v7g3_t3d"
+# coordinator 11-04: routed -- the run's (tagged) encoding tree (frozen encoder + allsession runs, and the output)
+E = _rmode.encoding_out_root()
+SRC = fe.out_root() / "frozen_encoder_gate-attempted_v7g3_t3d"
 L2 = E / "allsession_encoder_v7g3_t3d_ref"
 
 
 def main(argv=None) -> int:
-    from wfield_local import run_mode as _rm_guard
-    _rm_guard.require_default("layer2_random_splits")   # unrouted share writer: refuses in a non-default run mode
+    # coordinator 11-04: routed (outputs under the run tag), no longer refused in a tagged run
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("animal")
     ap.add_argument("--max-splits", type=int, default=70)

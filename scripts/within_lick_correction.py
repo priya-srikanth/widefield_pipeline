@@ -38,7 +38,6 @@ import numpy as np
 import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from wfield_local.orofacial_outputs import encoding_root as _encoding_root  # noqa: E402 - rebuild root (11-03)
 import lick_correction as lc  # noqa: E402
 
 V36 = "lp_r4_heatmap_20261013__clean_v36"
@@ -64,7 +63,9 @@ SEED = 0
 
 
 def out_root() -> Path:
-    return _encoding_root(V36) / "within_lick_correction"
+    # coordinator 11-04: routed -- <imaging_encoding>/<tag>/within_lick_correction in a tagged run
+    from wfield_local import run_mode
+    return run_mode.encoding_out_root(V36) / "within_lick_correction"
 
 
 OUT = out_root()
@@ -592,6 +593,7 @@ def neural_summary() -> dict:
 
 def cmd_summarise() -> None:
     from figdata import save_fd
+
     from wfield_local import writeguard
     writeguard.assert_writable(OUT)
     cal = json.loads((OUT / "csm_threshold.json").read_text())
@@ -1057,8 +1059,7 @@ def cmd_plot() -> None:
 
 
 def main() -> int:
-    from wfield_local import run_mode as _rm_guard
-    _rm_guard.require_default("within_lick_correction")   # unrouted share writer: refuses in a non-default run mode
+    # coordinator 11-04: routed (out_root under the run tag), no longer refused in a tagged run
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
     cmd = args[0] if args else "run"
     if "--plot-only" in sys.argv or cmd == "plot":
