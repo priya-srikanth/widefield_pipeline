@@ -178,6 +178,18 @@ FYI, the 3-class camera variant (lick / jaw-only / none) is thin in PS92 and PS9
 
     So 1.5 s drops trials by spout, mostly far and mostly PS92 / PS93. DECIDED (Priya 11-04): the LP ENL stays at
     1.0 s.
+  - ENL audit of the rebuild code (Priya asked):
+    - No widefield record that 1.5 s was found fine. The 09 window sweep (DECISIONS ~664) found 1.5 s no better than
+      2.0 s once the filter artefact was fixed. "1.5 s settled" is the 2-photon pipeline (2pRAM handoff 09-26).
+    - The decoders follow the source: DAQ 2.0 s (precue_post_s) or LP 1.0 s (lp_licks.apply_enl_window). This covers
+      the position / nolick / frozen / attempt_coding decoders and map_collect.
+    - BUT these read precue_post_s = 2.0 directly, even under LP: precue_engagement_states :204,
+      enl_movement_removed_decode, enl_movement_multisession, enl_fr_removed_decode, enl_video_spout_check,
+      enl_lick_rates, quiet_task_events (ENL_S = 2.0).
+    - within_spout_deviation uses a fixed 1 s (-1..0).
+    - The encoders use no lick-free window: they model pre-cue licks as kernels. combined_encoding's "enl" measure =
+      the 2 s pre-cue; pos_enl = strobe + 0.3 s .. cue.
+    - Question: make the direct-2.0 s ENL analyses follow the lick source (LP 1.0 s), or label them as DAQ 2 s?
 
 - **11-04: what the G4 / state discriminators compare.** They are trained on pre DAQ-lick vs DAQ-no-lick trials
   (position-balanced; poststroke_compare.looks_like_which), NOT on camera working. So jaw-only trials were always in the
