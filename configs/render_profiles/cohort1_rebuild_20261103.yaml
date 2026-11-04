@@ -8,12 +8,15 @@ env:
   WIDEFIELD_HEMO_VARIANT: meegkit_hpfit_lag_refitT_swapmask
   # Priya 11-03: LocaNMF = PROJECTION of the corrected data onto the stored per-session and joint footprints (no refit).
   WIDEFIELD_LOCANMF_PROJECT: "1"
-  # camera trial gate (Priya 11-03): working = contact | incomplete | jaw_only, ending at the session's last camera lick;
+  # camera trial gate (Priya 11-03): working = contact | incomplete (jaw_only its own class), ending at the session's last camera lick;
   # stopped = a sustained stop (>= behavior.tail_min_misses = 6 consecutive no_response)
   WIDEFIELD_TRIAL_GATE: camera
   WIDEFIELD_TRIAL_WINDOW: cue_stop
   WIDEFIELD_TRIAL_END: lick
   WIDEFIELD_TRIAL_STOPPED: run
+  # Priya 11-03 late, main's setting (48f2cc6d `working_trials`): in_working = contact | incomplete (jaw_only out);
+  # in_working_jaw = the jaw-inclusive robustness arm; the selection tag carries "-cls-contact-incomplete"
+  WIDEFIELD_WORKING_TRIALS: in_working
   # LP arm: LP-TRAINED stored models (the default since 11-03; "lp" only names it -- the DAQ-trained cross-check is
   # WIDEFIELD_LP_FROZEN=daq, NOT part of this profile)
   WIDEFIELD_LP_FROZEN: lp
@@ -54,9 +57,9 @@ arms:
       COMBINED_ENCODING_DRIFT_MIN_PERIOD_S: "1500"
     blocks: ["encoder spout contra - ipsi cells (frozen_encoder / combined_encoding)",
              "ITI pre-cue level readouts (scripts/iti_licks.py family)"]
-    expected_run_tag: hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_drift1500s_pre0801_sel-camera-cue_stop-wkci-endlick-stopRun6
+    expected_run_tag: hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_drift1500s_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopRun6
 
 # the primary encoder / ITI slow-drift cutoff (Priya 11-03): combined_encoding.DRIFT_MIN_PERIOD_S = 600 s (env unset)
 notes:
   encoder_drift_cutoff_s: 600
-  expected_run_tag: hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-wkci-endlick-stopRun6
+  expected_run_tag: hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopRun6

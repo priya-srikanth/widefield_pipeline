@@ -23006,15 +23006,17 @@ Collected from the rebuild rounds of 11-03 (coordinator relays; implementation `
 `classify_session`, called by `cue_classes_for`; log docs/status/REBUILD_CODE_20261103.md sections 8.2, 8.6, 8.8).
 
 - **Working (camera).** contact | incomplete: a camera lick on this cue -- the default "working" of the rebuild
-  (`trial_selection.gate: camera`; selection tag part `wkci`). jaw_only is its OWN class, reported like no_response
-  (Priya 11-03 late, docs/status/JAW_ONLY_CHECKS_2026-11-03.md on main). This applies everywhere: the frozen training
+  (`trial_selection.gate: camera`, `WIDEFIELD_WORKING_TRIALS=in_working` as on main; selection tag part
+  `cls-contact-incomplete`). jaw_only is its OWN class, reported like no_response (Priya 11-03 late,
+  docs/status/JAW_ONLY_CHECKS_2026-11-03.md on main). `in_working_jaw` (jaw-inclusive) is the robustness arm. This applies everywhere: the frozen training
   set, the bal_em centre, the pre panel and the scored sets. The DAQ quit-tail rule stays a labelled robustness row.
 - **End of session.** Working ends at the session's LAST CAMERA LICK (contact or incomplete; `in_working(end="lick")`,
   b506c1e3). Robustness anchors: contact / close / none.
 - **Stopped = a SUSTAINED stop.** At least 6 (`behavior.tail_min_misses`, the task's auto_hold_after_miss) camera
   no_response trials in a run. In-video "unknown" trials neither break nor extend a run. A jaw_only trial ANYWHERE
   BRIDGES a run (it does not break it) but is not stopped and does not count toward the 6. This is the coordinator's
-  default, flagged to Priya. Sensitivity: every no_response (`trial_selection.stopped: any`). The rule name is in the
+  default, flagged to Priya (main has no stop-run rule, so there is nothing to match). Under `in_working_jaw` the
+  afternoon rule holds: a jaw_only trial at or before the last camera lick ends the run. Sensitivity: every no_response (`trial_selection.stopped: any`). The rule name is in the
   selection tag (stopRun6 / stopAny).
 - **Isolated lapses.** A no_response trial inside the working period that is not part of a stop stays "no_response":
   attempt coding's "noattempt" = an isolated lapse; the contrast is isolated lapse vs sustained stop. A jaw_only trial
@@ -23338,11 +23340,18 @@ state-class version on.
 ## 2026-11-03 (late) -- Priya: working = contact + incomplete; jaw_only its own class like no_response
 
 Priya 11-03 late: working = contact + incomplete; jaw_only its own class like no_response
-(JAW_ONLY_CHECKS_2026-11-03.md). In the rebuild:
-- `trial_classes.GATES["working"]` = contact | incomplete, and `miss_working` = incomplete.
-- A jaw_only trial bridges a stop run anywhere without counting.
-- The bal_em centre is fitted on contact + incomplete rows (20-row minimum unchanged).
-- The camera selection tag gains `wkci`, so no store or cache entry of the old working set is reused.
+(JAW_ONLY_CHECKS_2026-11-03.md). In the rebuild, matching main (48f2cc6d) so the merge is trivial:
+- The setting is main's `WIDEFIELD_WORKING_TRIALS` (`wfield_local/working_trials.py`, identical to main): in_working
+  (production, contact | incomplete) | in_working_jaw (jaw-inclusive robustness) | quit_tail (= `WIDEFIELD_TRIAL_GATE=daq`
+  here; under the camera gate it raises). The render profile sets in_working.
+- As on main, the static `trial_classes.GATES["working"]` and `in_working` stay jaw-inclusive. Every rebuild consumer of
+  the camera working set reads `trial_classes.in_sel(cls, "working" | "miss_working")`, which applies the selection
+  (production: working = contact | incomplete, miss_working = incomplete).
+- A jaw_only trial bridges a stop run anywhere without counting (production); under in_working_jaw the afternoon rule.
+- The bal_em centre is fitted on the working rows of the selection (20-row minimum unchanged).
+- The selection tag gains main's class part after the end part: `sel-camera-cue_stop-endlick-cls-contact-incomplete-
+  stopRun6`; in_working_jaw keeps the afternoon tag. No store or cache entry of the jaw-inclusive set is reused.
+- The 5c record cache (`grant_confusion._collect_5c`) is keyed on the run selection and the working selection.
 
 ## 2026-11-03 (late) -- Priya: August-only pre everywhere in the rebuild, except june_august_drift and 12.1b
 

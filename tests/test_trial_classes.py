@@ -58,7 +58,8 @@ def test_every_rule(tmp_path):
     assert got == {t: c[-1] for t, c in CASES.items()}
     assert (T.window == "cue_stop").all()
     assert not T.loc[8, "jaw_judged"] and T.loc[6, "jaw_judged"]
-    assert TC.in_gate(T.cls, "working").sum() == 4          # 1, 2, 3, 4 (11-03 late: jaw_only 5, 10 are not working)
+    assert TC.in_gate(T.cls, "working").sum() == 6          # 1, 2, 3, 4, 5, 10 (the jaw-inclusive gate, as on main)
+    assert TC.in_sel(T.cls, "working").sum() == 4           # 1, 2, 3, 4 (production in_working: jaw_only 5, 10 out)
     assert TC.in_gate(T.cls, "camera_lick").sum() == 4      # 1, 2, 3, 4
 
 
@@ -83,7 +84,7 @@ def test_missing_contact_table_raises(tmp_path):
 
 
 def test_selection_tag():
-    assert TC.selection_tag() == "sel-camera-cue_stop-wkci"           # 11-03 late: camera working = contact + incomplete
+    assert TC.selection_tag() == "sel-camera-cue_stop"                # the base tag, as on main (class part: run tags)
     assert TC.selection_tag("daq", "trial") == "sel-daq-trial"
 
 
@@ -99,11 +100,11 @@ def test_end_of_session_cutoff():
     assert keep("contact") == [True, True] + [False] * 6
     assert keep("close") == [True] + [False] * 7
     assert keep("none") == [True] * 8
-    # 11-03 late: jaw_only is not working
-    assert TC.in_working(cls, order, session=sess).tolist() == [True, True, False, True, False, False, False, False]
+    # the jaw-inclusive in_working, as on main (production narrows it: & camera_lick, `in_sel`)
+    assert TC.in_working(cls, order, session=sess).tolist() == [True, True, True, True, False, False, False, False]
     assert TC.DEFAULT_END == "lick"
 
 
 def test_selection_tag_end():
-    assert TC.selection_tag() == "sel-camera-cue_stop-wkci"            # no end anchor: no end part
-    assert TC.selection_tag(end="lick") == "sel-camera-cue_stop-wkci-endlick"
+    assert TC.selection_tag() == "sel-camera-cue_stop"                 # no end anchor: no end part
+    assert TC.selection_tag(end="lick") == "sel-camera-cue_stop-endlick"

@@ -67,7 +67,7 @@ joint_basis:
 # TRIAL SELECTION (rebuild 2026-11-03; wfield_local/trial_classes.py). `gate` = which rule selects the
 # "working" / "stopped" trial classes: `daq` = the DAQ quit-tail rule (engaged + unengaged outside the terminal
 # quit period; every output made before 11-03, untagged) | `camera` = trial_classes GATES (working = contact |
-# incomplete | jaw_only; Priya 11-03). Overridden by WIDEFIELD_TRIAL_GATE / WIDEFIELD_TRIAL_WINDOW. The rebuild
+# incomplete; jaw_only its own class, Priya 11-03 late). Overridden by WIDEFIELD_TRIAL_GATE / WIDEFIELD_TRIAL_WINDOW. The rebuild
 # renders flip it to camera; a camera run's outputs / caches / frozen specs carry trial_classes.selection_tag.
 # Measures OF engagement (quit point, engagement decline, attempt rate) never use this gate.
 trial_selection:

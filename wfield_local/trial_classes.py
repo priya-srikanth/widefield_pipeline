@@ -18,10 +18,18 @@ What each trial is, first match wins, inside the chosen WINDOW:
                moving at the cue that never moved again (it may still have reacted)
 
 Groupings (GATES), used to select trials:
-  working      contact | incomplete              a lick on THIS trial's cue (Priya 11-03 late: jaw_only is its OWN class,
-                                                 reported like no_response -- JAW_ONLY_CHECKS_2026-11-03.md)
+  working      contact | incomplete | jaw_only   the 11-03 AFTERNOON "working" (any reaction to the cue); since
+                                                 11-03 late a ROBUSTNESS definition only, see below (as on main)
   camera_lick  contact | incomplete              a lick was made (lick-aligned windows always need it)
   attempted    contact | incomplete              = camera_lick; the encoder page's "attempt" (10-21 rule)
+
+PRODUCTION WORKING (Priya 11-03 LATE): contact | incomplete only -- jaw-only trials are their OWN class, reported like
+no-response (docs/status/JAW_ONLY_CHECKS_2026-11-03.md). The SELECTION is main's setting `working_trials`
+(``WIDEFIELD_WORKING_TRIALS`` = in_working, production: the camera_lick classes | in_working_jaw, robustness: the
+jaw-inclusive "working" gate | quit_tail = the DAQ rule, i.e. ``WIDEFIELD_TRIAL_GATE=daq`` here). The static "working"
+gate and `in_working` below stay jaw-INCLUSIVE, exactly as on main (main's `working_trials` pins its s1 snapshot to
+them); every rebuild consumer of the camera working set reads `in_sel(cls, "working" | "miss_working")`, which applies
+the selection.
 
 END OF SESSION (Priya 11-03): primary "working" = the working gate AND at or before the session's LAST CAMERA LICK
 (contact or incomplete): `in_working(...)` / `before_session_end(..., anchor="lick")`. It drops the late, smaller
@@ -63,14 +71,15 @@ import numpy as np
 import pandas as pd
 
 CLASSES = ("contact", "incomplete", "jaw_only", "no_response", "unknown")
-GATES = {"working": frozenset({"contact", "incomplete"}),     # Priya 11-03 late: jaw_only is NOT working
+GATES = {"working": frozenset({"contact", "incomplete", "jaw_only"}),   # jaw-INCLUSIVE, as on main; see `in_sel`
          "camera_lick": frozenset({"contact", "incomplete"}),
          "attempted": frozenset({"contact", "incomplete"}),
          # MISS WHILE WORKING on the NO-LICK arm (review M6, 11-03): responded but NO contact. A no-lick row (no DAQ
          # lick within max_rt) whose camera class is "contact" (a contact later in cue+70 ms .. stop) is in NEITHER
          # miss_working nor stopped -- to confirm with Priya (count them: `in_gate(cls, "working") & ~in_gate(cls,
          # "miss_working")`).
-         "miss_working": frozenset({"incomplete"})}        # a working no-lick-arm miss: licked, no contact
+         # the jaw-inclusive (in_working_jaw) form; `in_sel(cls, "miss_working")` applies the selection
+         "miss_working": frozenset({"incomplete", "jaw_only"})}
 WINDOWS = ("cue_stop", "trial")
 DEFAULT_WINDOW = "cue_stop"
 JAW_UNJUDGED_POSITIONS = ("close_center", "close_mid")   # neither camera can judge the jaw at this spout (10-21)
@@ -265,6 +274,47 @@ def in_gate(cls, gate: str) -> np.ndarray:
     return np.isin(np.asarray(cls, dtype=object), list(GATES[gate]))
 
 
+#: the rebuild's names for the selection-dependent sets (`in_sel`)
+SEL_GATES = ("working", "miss_working")
+
+
+def working_selection() -> str:
+    """main's ``WIDEFIELD_WORKING_TRIALS`` (`working_trials.selection`): in_working (production, default) |
+    in_working_jaw | quit_tail. Under the camera gate quit_tail is a contradiction and RAISES (the quit-tail rule is
+    ``WIDEFIELD_TRIAL_GATE=daq`` in the rebuild)."""
+    from wfield_local import working_trials as wt
+    sel = wt.selection()
+    if sel == wt.QUIT_TAIL and gate_mode() == "camera":
+        raise DaqGateRefused(f"{wt.WORKING_TRIALS_ENV}=quit_tail under {GATE_ENV}=camera: the quit-tail rule is the DAQ "
+                             f"gate -- set {GATE_ENV}=daq")
+    return sel
+
+
+def sel_classes(which: str = "working") -> frozenset:
+    """The camera classes of the run's WORKING set (``which`` "working") or of its no-lick-arm MISS-while-working set
+    (``which`` "miss_working" = working minus contact), under `working_selection` (main's `working_trials`
+    WORKING_CLASSES): in_working = contact | incomplete; in_working_jaw = + jaw_only. quit_tail (DAQ gate) reads as
+    in_working, as main's ``row_masks`` does for quit_tail callers asking for camera masks."""
+    from wfield_local import working_trials as wt
+    if which not in SEL_GATES:
+        raise ValueError(f"in_sel: {which!r} is not one of {SEL_GATES}")
+    sel = working_selection()
+    w = wt.working_classes(sel if wt.is_camera(sel) else wt.IN_WORKING)
+    return w if which == "working" else w - {"contact"}
+
+
+def in_sel(cls, which: str = "working") -> np.ndarray:
+    """Boolean per trial: class in the run's selection-dependent set (`sel_classes`)."""
+    return np.isin(np.asarray(cls, dtype=object), list(sel_classes(which)))
+
+
+def sel_cls_part() -> str | None:
+    """main's spec-tag class part: "contact-incomplete" under in_working (production), None under in_working_jaw
+    (the afternoon tag, unchanged)."""
+    from wfield_local import working_trials as wt
+    return "contact-incomplete" if working_selection() == wt.IN_WORKING else None
+
+
 def before_session_end(cls, order, *, session=None, position=None, anchor: str = DEFAULT_END) -> np.ndarray:
     """Boolean per trial: at or before its session's LAST anchor trial (see END OF SESSION in the module docstring).
 
@@ -292,19 +342,22 @@ def before_session_end(cls, order, *, session=None, position=None, anchor: str =
 
 
 def in_working(cls, order, *, session=None, position=None, end: str = DEFAULT_END) -> np.ndarray:
-    """THE primary working selection: the working gate AND before the session's end (`before_session_end`)."""
+    """The working gate (incl. jaw_only) AND before the session's end (`before_session_end`). Since 11-03 late the
+    PRODUCTION working is this ``& in_gate(cls, "camera_lick")`` (jaw-only out; `working_trials.IN_WORKING`; the
+    rebuild reads it through `in_sel`)."""
     return in_gate(cls, "working") & before_session_end(cls, order, session=session, position=position, anchor=end)
 
 
 def selection_tag(source: str = "camera", window: str = DEFAULT_WINDOW, end: str | None = None,
-                  stopped: str | None = None) -> str:
+                  stopped: str | None = None, cls: str | None = None) -> str:
     """Short tag naming the trial-selection rule; put it in every cache key / frozen-model spec built on a gate, so
     runs with different sources or windows never share a cache entry (agreed with the cohort-1 rebuild, 11-03).
     ``end`` = the end-of-session anchor when the selection uses one (e.g. "lick" -> "-endlick"); ``stopped`` = the
     camera stopped-rule name (`stopped_rule_name`). None leaves the tag as before, so existing keys do not move."""
-    # "-wkci" (Priya 11-03 late): the camera WORKING set is contact + incomplete -- a new selection, so no store / cache
-    # entry built on the old contact + incomplete + jaw_only working set can ever be served
-    return (f"sel-{source}-{window}" + ("-wkci" if source == "camera" else "") + (f"-end{end}" if end else "")
+    # ``cls`` = main's class part (`working_trials.tag`): "-cls-contact-incomplete" for the production in_working set
+    # (Priya 11-03 late, jaw_only out), so no store / cache entry built on the jaw-inclusive set can be served; the
+    # in_working_jaw robustness arm has none (its tag = the 11-03 afternoon one). Placed after the end part, as on main.
+    return (f"sel-{source}-{window}" + (f"-end{end}" if end else "") + (f"-cls-{cls}" if cls else "")
             + (f"-{stopped}" if stopped else ""))
 
 
@@ -339,7 +392,7 @@ STOPPED_CLASSES = frozenset({STOPPED_CLASS})
 STOPPED_ENV = "WIDEFIELD_TRIAL_STOPPED"
 STOPPED_RULES = ("run", "any")
 #: the class a WORKING-gate trial gets in `cue_classes_for` when it lies after the session end (`before_session_end`,
-#: anchor `end_anchor()`, Priya 11-03): in neither working nor stopped -- so every `in_gate(cls, "working")` consumer IS
+#: anchor `end_anchor()`, Priya 11-03): in neither working nor stopped -- so every `in_sel(cls, "working")` consumer IS
 #: `in_working(...)` on the session cue train
 AFTER_END_CLASS = "after_end"
 END_ENV = "WIDEFIELD_TRIAL_END"
@@ -386,7 +439,7 @@ def nolick_selection() -> str:
     the tag names cue_stop whatever `trial_selection.window` says; under daq the run's selection (unchanged)."""
     if not camera_gate_on():
         return run_selection()
-    return selection_tag("camera", "cue_stop", end=end_anchor(), stopped=_stop_rest_name())
+    return selection_tag("camera", "cue_stop", end=end_anchor(), stopped=_stop_rest_name(), cls=sel_cls_part())
 
 
 def require_gate(mode: str, where: str) -> None:
@@ -534,7 +587,8 @@ def end_anchor() -> str:
 
 
 def classify_session(cls, matched=None, position=None, *, rule: str | None = None, min_run: int | None = None,
-                     end: str | None = None, cue_s=None, min_start_s: float | None = None) -> np.ndarray:
+                     end: str | None = None, cue_s=None, min_start_s: float | None = None,
+                     jaw_bridges_all: bool | None = None) -> np.ndarray:
     """THE camera classes of one session, in cue order, after the session-level rules (Priya 11-03). ``cls`` = the raw
     per-cue class (`cue_classes`), ``matched`` = the cue was matched to a video trial (None = all matched).
 
@@ -547,7 +601,9 @@ def classify_session(cls, matched=None, position=None, *, rule: str | None = Non
         in-video "unknown" trials neither break nor extend a run; a contact / incomplete trial (licking resumed) ENDS
         the run; a jaw_only trial anywhere BRIDGES it (Priya 11-03 late, jaw_only out of working: the after-last-lick
         T3 rule extended to the whole session): it neither breaks the run nor counts toward ``min_run`` and is never
-        stopped. Rule "any": every no_response is stopped.
+        stopped. ``jaw_bridges_all`` (None = from the working selection): True under in_working (production); False
+        under in_working_jaw, where jaw_only is working and the 11-03 afternoon rule holds (a jaw_only trial at or
+        before the end anchor ENDS the run, one after it bridges). Rule "any": every no_response is stopped.
       * JAW_ONLY is its own class, reported like no_response: inside the working period it stays "jaw_only"; after the
         end anchor it becomes AFTER_END_CLASS.
       * TIME RULE (Priya 11-03): a stop counts only if its run STARTS >= ``min_start_s`` (`stop_min_start_s()`, 300 s)
@@ -571,7 +627,9 @@ def classify_session(cls, matched=None, position=None, *, rule: str | None = Non
         after = ~before_session_end(out, np.arange(n), position=position, anchor=end)
     # JAW_ONLY BRIDGES a no_response run anywhere in the session (T3 extended; Priya 11-03 late: jaw_only is not
     # working): it does NOT count toward the 6 and is NOT stopped
-    jaw_late = out == "jaw_only"
+    if jaw_bridges_all is None:
+        jaw_bridges_all = "jaw_only" not in sel_classes("working")
+    jaw_late = (out == "jaw_only") if jaw_bridges_all else ((out == "jaw_only") & after)
     nr = out == "no_response"
     # TIME RULE (Priya 11-03): runs starting before first cue + min_start_s are not stops (in neither class)
     if cue_s is not None and n:
@@ -749,13 +807,14 @@ def run_selection(source: str | None = None) -> str:
         # cache tag (`gate_source.cache_tag`, lp_licks "_gateLP").
         from wfield_local import gate_source
         return "sel-daq-quittail" + ("-gateLP" if gate_source.is_lp() else "")
-    return selection_tag(source or "camera", gate_window(), end=end_anchor(), stopped=_stop_rest_name())
+    return selection_tag(source or "camera", gate_window(), end=end_anchor(), stopped=_stop_rest_name(),
+                         cls=sel_cls_part())
 
 
 def run_selection_tag() -> str | None:
     """None for the untagged DAQ rule, else the run's selection tag (output folders, cache kinds; `run_mode`)."""
     return None if gate_mode() == UNTAGGED_GATE else selection_tag("camera", gate_window(), end=end_anchor(),
-                                                                   stopped=_stop_rest_name())
+                                                                   stopped=_stop_rest_name(), cls=sel_cls_part())
 
 
 def cue_classes(table: pd.DataFrame | None, cue_s, tol: float = CUE_MATCH_S) -> np.ndarray:
@@ -791,7 +850,8 @@ def cue_classes_for(label: str, cue_s, window: str | None = None) -> np.ndarray:
     cs = np.ascontiguousarray(np.asarray(cue_s, float))
     rule = (stopped_rule(), stop_run_min(), stop_min_start_s(), rest_start())
     end = end_anchor()
-    key = (label, window, rule, end, hashlib.sha1(cs.tobytes()).hexdigest())
+    jaw_all = "jaw_only" not in sel_classes("working")        # the working selection (main's WIDEFIELD_WORKING_TRIALS)
+    key = (label, window, rule, end, jaw_all, hashlib.sha1(cs.tobytes()).hexdigest())
     if key not in _CUE_CLS:
         if len(_CUE_CLS) > 64:
             _CUE_CLS.clear()
@@ -801,7 +861,7 @@ def cue_classes_for(label: str, cue_s, window: str | None = None) -> np.ndarray:
         pos = cue_classes(T.assign(cls=T["position"]) if T is not None else None, cs) if end == "close" else None
         matched = (cue_classes(T.assign(cls="matched"), cs) == "matched") if T is not None else np.zeros(len(cs), bool)
         _CUE_CLS[key] = classify_session(cue_classes(T, cs), matched, pos, rule=rule[0], min_run=rule[1], end=end,
-                                         cue_s=cs)
+                                         cue_s=cs, jaw_bridges_all=jaw_all)
     return _CUE_CLS[key]
 
 
@@ -829,8 +889,10 @@ def camera_rows(label: str, idx_e, idx_n, variant: str):
     """(keep engaged rows, keep no-lick rows) for ONE session's trial features under the camera rule -- the per-session
     map builders' counterpart of `camera_select` (`beta_maps.session_maps`, `position_reference_maps._working_xy`,
     `hemo_map_control`). ``idx_e`` / ``idx_n`` = DAQ cue indices of the engaged / no-lick rows.
-      working       engaged + no-lick rows whose class is in GATES["working"] (contact | incomplete)
-      miss_working  no-lick rows in GATES["miss_working"] (incomplete: licked, no contact)
+      working       engaged + no-lick rows whose class is in the run's working set (`in_sel`; production contact |
+                    incomplete)
+      miss_working  no-lick rows in the run's miss-while-working set (`in_sel`; production incomplete: licked, no
+                    contact)
       stopped       no-lick rows in STOPPED_CLASSES
       lick          engaged rows unchanged (contact-only)
     Any other variant RAISES (second pass 11-03: it used to fall through to "lick")."""
@@ -839,9 +901,9 @@ def camera_rows(label: str, idx_e, idx_n, variant: str):
     ce, cu = row_classes(label, idx_e), row_classes(label, idx_n)
     ne, nn = len(ce), len(cu)
     if variant == "working":
-        return in_gate(ce, "working"), in_gate(cu, "working")
+        return in_sel(ce, "working"), in_sel(cu, "working")
     if variant == "miss_working":
-        return np.zeros(ne, bool), in_gate(cu, "miss_working")     # no contact class (review M6)
+        return np.zeros(ne, bool), in_sel(cu, "miss_working")     # no contact class (review M6)
     if variant == "stopped":
         return np.zeros(ne, bool), np.isin(cu, list(STOPPED_CLASSES))
     return np.ones(ne, bool), np.zeros(nn, bool)
@@ -881,7 +943,7 @@ def camera_select(variant: str, cls_e, cls_u, sess_e, sess_u):
         # (DAQ-lick) row is never stopped, whatever its camera class
         return np.zeros(len(se), bool), su & np.isin(cu, list(STOPPED_CLASSES))
     if variant == "working":
-        return se & in_gate(ce, "working"), su & in_gate(cu, "working")
+        return se & in_sel(ce, "working"), su & in_sel(cu, "working")
     if variant == "lick":
         return se, np.zeros(len(su), bool)
     raise ValueError(f"camera_select: unknown trial class {variant!r} (lick / working / stopped)")

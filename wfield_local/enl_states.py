@@ -127,13 +127,13 @@ def states_for(order, responded, positions, first_lick, rt, max_rt, cam_cls=None
     if _tc.camera_gate_on():
         # CAMERA TRIAL GATE (rebuild 11-03): ``cam_cls`` = the camera class per entry of ``order``
         # (`trial_classes.cue_classes_for` over the session cue train). working = no lick in time and
-        # miss-while-working (incomplete | jaw_only); stopped = a SUSTAINED stop (STOPPED_CLASSES, Priya
+        # miss-while-working (incomplete; jaw_only is its own class, Priya 11-03 late); stopped = a SUSTAINED stop (STOPPED_CLASSES, Priya
         # 11-03); anything else (isolated no_response, unknown, contact) is "" = in neither class.
         if cam_cls is None:
             raise _tc.DaqGateRefused("enl_states.states_for under the camera gate needs cam_cls (camera classes)")
         c = np.asarray(cam_cls, dtype=object)
         out = np.full(order.size, "", dtype=object)
-        out[~hit & _tc.in_gate(c, "miss_working")] = "working"
+        out[~hit & _tc.in_sel(c, "miss_working")] = "working"
         out[~hit & np.isin(c, list(_tc.STOPPED_CLASSES))] = "stopped"
         out[hit] = "success"
         return out

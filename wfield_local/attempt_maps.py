@@ -75,7 +75,7 @@ def classes_for_rows(cls_e, cls_u, quit_u, pre, camera_u=None):
     if camera_u is not None:
         from wfield_local import trial_classes as _tc
         cam = np.asarray(camera_u, dtype=object)
-        stop, work = np.isin(cam, list(_tc.STOPPED_CLASSES)), _tc.in_gate(cam, "miss_working")   # no contact (M6)
+        stop, work = np.isin(cam, list(_tc.STOPPED_CLASSES)), _tc.in_sel(cam, "miss_working")   # no contact (M6)
     else:
         stop, work = quit_u, ~quit_u
     cu[stop & ~np.isin(cls_u, ("", "unknown"))] = "stopped"

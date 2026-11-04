@@ -277,8 +277,8 @@ def categorize(s, args, with_licks=False):
         ccls = _tc.cue_classes_for(s["label"], np.asarray(cue["cue_samples"], float) / float(lk["sample_rate_hz"]),
                                    window="cue_stop")
         cat = np.where((cat == "undetected") & (ccls == "contact"), "late_rewarded", cat).astype(object)
-        sess_eng = _tc.in_gate(ccls, "miss_working")   # read on UNDETECTED cues only: no contact class (review M6)
-        _CAM_WORKING[s["label"]] = _tc.in_gate(ccls, "working")   # per cue: the bal_em centre rows (Priya 11-03)
+        sess_eng = _tc.in_sel(ccls, "miss_working")   # read on UNDETECTED cues only: no contact class (review M6)
+        _CAM_WORKING[s["label"]] = _tc.in_sel(ccls, "working")   # per cue: the bal_em centre rows (Priya 11-03)
         neither = ~sess_eng & ~np.isin(ccls, list(_tc.STOPPED_CLASSES))
         cat = np.where((cat == "undetected") & neither, "", cat).astype(object)
     else:

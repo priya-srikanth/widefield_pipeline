@@ -231,10 +231,10 @@ def test_every_mode_gets_a_part(monkeypatch):
     monkeypatch.setenv("WIDEFIELD_MAP_REFS", "restnl, rest")
     monkeypatch.setenv("WIDEFIELD_EPOCH_FROZEN", "0")
     monkeypatch.setenv("WIDEFIELD_NOLICK_FROZEN", "off")
-    assert run_mode.parts() == [f"hv-{VAR}", "lnmfproj", "pre0801", "sel-camera-cue_stop-wkci-endlick-stopRun6", "refs-restnl+rest",
+    assert run_mode.parts() == [f"hv-{VAR}", "lnmfproj", "pre0801", "sel-camera-cue_stop-endlick-cls-contact-incomplete-stopRun6", "refs-restnl+rest",
                                 "inmem-epoch+nolick"]
     cp = run_mode.cache_parts()       # + the camera class-source signature, cache only (review H4)
-    assert cp[:3] == [f"hv-{VAR}", "lnmfproj", "sel-camera-cue_stop-wkci-endlick-stopRun6"] and len(cp) == 4 and cp[3].startswith("csig-")
+    assert cp[:3] == [f"hv-{VAR}", "lnmfproj", "sel-camera-cue_stop-endlick-cls-contact-incomplete-stopRun6"] and len(cp) == 4 and cp[3].startswith("csig-")
     assert not any(x.startswith("csig-") for x in run_mode.parts())
     t = run_mode.tag()
     assert lp_licks.output_tag() == t
@@ -387,7 +387,8 @@ def test_class_select_camera_rule(monkeypatch):
     with pytest.raises(RuntimeError):
         _class_select("working", se, su, ne)                               # no silent DAQ fallback
     w = _class_select("working", se, su, ne, cls=(ce, cu))
-    assert w[0].tolist() == [True, True, False, True] and w[1].tolist() == [True, False, False, True]
+    # production in_working (Priya 11-03 late): jaw_only is its own class, not working
+    assert w[0].tolist() == [True, True, False, True] and w[1].tolist() == [False, False, False, True]
     s = _class_select("stopped", se, su, ne, cls=(ce, cu))
     assert not s[0].any() and s[1].tolist() == [False, True, False, False]
     lk = _class_select("lick", se, su, ne, cls=(ce, cu))
@@ -402,9 +403,12 @@ def test_camera_rows(monkeypatch):
     cls = np.array(["contact", "incomplete", "jaw_only", "stopped", "unknown"], object)   # sustained stop (11-03)
     monkeypatch.setattr(tc, "row_classes", lambda lab, idx: cls[np.asarray(idx, int)])
     ie, inl = np.array([0, 4]), np.array([1, 2, 3, 4])
-    assert [m.tolist() for m in tc.camera_rows("L", ie, inl, "working")] == [[True, False], [True, True, False, False]]
+    # production in_working (Priya 11-03 late, main's WIDEFIELD_WORKING_TRIALS): jaw_only is its own class
+    assert [m.tolist() for m in tc.camera_rows("L", ie, inl, "working")] == [[True, False], [True, False, False, False]]
     assert [m.tolist() for m in tc.camera_rows("L", ie, inl, "miss_working")] == [[False, False],
-                                                                                [True, True, False, False]]
+                                                                                [True, False, False, False]]
+    monkeypatch.setenv("WIDEFIELD_WORKING_TRIALS", "in_working_jaw")                  # the jaw-inclusive robustness arm
+    assert [m.tolist() for m in tc.camera_rows("L", ie, inl, "working")] == [[True, False], [True, True, False, False]]
     assert [m.tolist() for m in tc.camera_rows("L", ie, inl, "stopped")] == [[False, False], [False, False, True, False]]
 
 

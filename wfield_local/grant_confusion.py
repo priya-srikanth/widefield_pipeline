@@ -696,8 +696,13 @@ def _collect_5c(align, variant="working", mode="frozen"):
     """`_collect_5c_cached` keyed ALSO by the run (re-verify item 4): the full output tag (hemo / projection / selection /
     LP / ENL ...) and the bal_em scaling + centre, so a process that switches mode never gets another run's records."""
     from wfield_local import lp_licks, spout_scaling
+    from wfield_local import trial_classes as _tc
+    from wfield_local import working_trials as _wt
     sc = spout_scaling.spout_scaling()
-    run = (lp_licks.output_tag() or "", sc or "z", spout_scaling.centre_rows() if sc else "")
+    # the working selection explicitly (a8 / main 48f2cc6d pitfall: the cache was keyed on (align, variant, mode) only),
+    # besides the output tag that already carries the run's selection tag
+    run = (lp_licks.output_tag() or "", sc or "z", spout_scaling.centre_rows() if sc else "",
+           _tc.run_selection(), _wt.selection())
     return _collect_5c_cached(align, variant, mode, run)
 
 

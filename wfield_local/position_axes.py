@@ -262,8 +262,8 @@ def run_animal(animal, align="precue", seed=0, pool_n=1):
     from wfield_local import trial_classes as _tc
     if _tc.camera_gate_on():
         _ce, _cu = _tc.pool_row_classes(feat, kept, len(YE), len(YU))
-        nl_working, nl_stopped = _tc.in_gate(_cu, "working"), np.isin(_cu, list(_tc.STOPPED_CLASSES))
-        nl_miss = _tc.in_gate(_cu, "miss_working")             # responded, no contact (review M6)
+        nl_working, nl_stopped = _tc.in_sel(_cu, "working"), np.isin(_cu, list(_tc.STOPPED_CLASSES))
+        nl_miss = _tc.in_sel(_cu, "miss_working")             # responded, no contact (review M6)
     else:
         nl_working, nl_stopped = ~not_eng, not_eng
         nl_miss = nl_working

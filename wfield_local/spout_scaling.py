@@ -123,7 +123,7 @@ def centre_mask(cls_e):
         raise BalEmCentreRefused("bal_em centre: the camera WORKING rows are required (bal_em.centre_rows = working) "
                                  "but the caller passed no camera classes for its engaged rows")
     from wfield_local import trial_classes
-    return trial_classes.in_gate(cls_e, "working")
+    return trial_classes.in_sel(cls_e, "working")
 
 
 #: sessions whose centre came from the contact-row fallback in this process (for result sidecars / captions)

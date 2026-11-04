@@ -359,7 +359,7 @@ def session_maps(session, align, *, post_s=2.0, balance=False, seed=0, variant="
     X, y, g = np.asarray(X), np.asarray(y), np.asarray(g)
     from wfield_local import trial_classes as _tc
     if variant == "working" and _tc.camera_gate_on():
-        # CAMERA RULE (rebuild 11-03, trial_classes): working = camera classes contact | incomplete | jaw_only on
+        # CAMERA RULE (rebuild 11-03, trial_classes): working = camera classes contact | incomplete on
         # BOTH arms; the session-cache kind carries the selection tag (run_mode), so this never meets a DAQ entry
         ke, kn = _tc.camera_rows(session["label"], idx_e, idx_n, "working")
         X, y, g = X[ke], y[ke], g[ke]

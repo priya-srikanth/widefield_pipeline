@@ -945,7 +945,7 @@ def poststroke_engagement(s, reference_positions, window=15, min_rate=0.5):
                                    window="cue_stop")       # the no-lick definition: cue_stop (Priya FINAL 11-03)
         if ccls.size != codes.size:
             raise RuntimeError(f"camera trial gate: {ccls.size} classified cues vs {codes.size} categorised")
-        eng = _tc.in_gate(ccls, "miss_working")   # its callers split the NO-LICK arm: no contact class (review M6)
+        eng = _tc.in_sel(ccls, "miss_working")   # its callers split the NO-LICK arm: no contact class (review M6)
         stopped = np.isin(ccls, list(_tc.STOPPED_CLASSES))
         return eng, {"gate": f"trial_classes camera ({_tc.run_selection()})", "stopped": stopped,
                      "frac_working": float(eng.mean()) if eng.size else None,
