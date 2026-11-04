@@ -802,3 +802,7 @@ nothing extra is wired.
 - `lmm_curve_summaries` and `kinematics_pooled_figs.fig_phase` wrote figure sidecars in the flat directory (main
   commits 8e2b82e6 / ceb8d2b4; `test_no_writer_bypasses_figure_layout`). Both now use `figure_layout.sidecar_for`,
   and the readers are the same functions.
+
+### 8.15 Test record after the main merge (c6f9be2d)
+Full suite, 6 shards, the merge worktree: 4,550 passed, 178 skipped, 0 failed. This includes the pinned
+test_analysis_kit exact-equality tests and main's new test files.
