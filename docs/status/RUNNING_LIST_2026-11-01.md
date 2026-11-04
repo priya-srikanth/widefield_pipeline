@@ -1359,3 +1359,11 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
     - joint_xsession D on working rows;
     - G9 figure layouts after the render.
   - cue70 is adding stop_kind_for (run / tail) so g_group keeps "quit" and "stopped" separate.
+- **11-04 ~19:25: cue70 + stop_kind_for (88b1cb8e).** The quit tail and mid-session runs are now separable for g_group.
+  - Merge preview, overlapping files:
+    - lp_licks (cue70 / enl);
+    - combined_encoding + test_o2_encoding_env (cue70 / cls);
+    - trial_classes, the profile and test_review_7ab (cue70 / bcdg);
+    - attempt_coding, position_axes, position_coding_directions, precue_engagement_states (enl / bcdg);
+    - the log file in all four.
+  - Merge order once cls and the bcdg follow-ups finish: cls -> cue70 -> enl -> bcdg, then the full suite.
