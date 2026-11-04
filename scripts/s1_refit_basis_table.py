@@ -22,7 +22,7 @@ CAMERA LICK GATE (Priya 11-03: ENL / cue windows on working trials AND with a ca
 WIDEFIELD_LICK_SOURCE=lp WIDEFIELD_ENL_WINDOW_S=2.0 -- the LP video lick train replaces DAQ contact everywhere
 (the `lick` column = trials with a camera lick attempt within max_rt, hit or incomplete; the lick-free pre-cue window
 and the quit-period call read video licks too); ENL pinned at the table's 2 s (LP default 1.0 s). Output tagged.
-Sessions: curated, from 08-06 (as `slowband_decode_check --all`). Output -> <run>/imaging_encoding/qc/s1_refit_basis.csv
+Sessions: curated, from 08-06 (as `slowband_decode_check --all`). Output -> <run>/imaging_encoding/qc/s1_refit_basis[<--suffix>].csv
 """
 from __future__ import annotations
 
@@ -112,7 +112,8 @@ def decode_lick_working(s: dict, sig: np.ndarray, regs, align: str) -> dict:
     rows = np.r_[ie, inl].astype(int)
     Xa, ya = np.vstack([X, Xn]) if len(yn) else X, np.r_[y, yn]
     ga = np.r_[np.asarray(g, np.int64), _runs_to_blocks(np.zeros(len(yn), int), name[len(ie):])]
-    for gate in ("working", "camera_lick", "working_pl_contact", "working_pl_lick", "working_pl_close"):
+    for gate in ("working", "camera_lick", "working_pl_contact", "working_pl_lick", "working_pl_close",
+                 "working_pl_contact_licks", "working_pl_lick_licks", "working_pl_close_licks"):
         m = snap[gate].reindex(rows).fillna(False).to_numpy(bool) if snap is not None else np.zeros(len(rows), bool)
         out[f"cam_{gate}"] = _cv_acc(Xa[m], ya[m], ga[m]) if m.any() else np.nan
         out[f"n_cam_{gate}"] = int(m.sum())
@@ -134,7 +135,10 @@ def class_snapshot(label: str) -> pd.DataFrame | None:
     if f not in _SNAP:
         _SNAP[f] = pd.read_csv(f)
     d = _SNAP[f]
-    d = d[d.label == label]
+    d = d[d.label == label].copy()
+    for pl in ("contact", "lick", "close"):   # jaw-free production working (11-03 late), when the snapshot predates it
+        if f"working_pl_{pl}_licks" not in d:
+            d[f"working_pl_{pl}_licks"] = d[f"working_pl_{pl}"].astype(bool) & d["camera_lick"].astype(bool)
     return d.set_index("cue_idx") if len(d) else None
 
 
@@ -167,6 +171,9 @@ def session_job(label: str) -> dict:
             for pl in ("contact", "lick", "close"):            # + end-of-session cutoff (snapshot docstring)
                 out[f"{k}_campl{pl}_{w}"] = d[f"cam_working_pl_{pl}"]
                 out[f"n_campl{pl}_{w}"] = d[f"n_cam_working_pl_{pl}"]
+                # PRODUCTION working since 11-03 late (Priya: jaw-only OUT): the same cutoff `& camera_lick`
+                out[f"{k}_camlickpl{pl}_{w}"] = d[f"cam_working_pl_{pl}_licks"]
+                out[f"n_camlickpl{pl}_{w}"] = d[f"n_cam_working_pl_{pl}_licks"]
     print("  {:10s} ".format(label) + "  ".join(f"{k} {v:.3f}" for k, v in out.items()
                                                   if k.endswith(("_pre", "_post")) and not k.startswith("n_")),
           flush=True)
@@ -183,6 +190,7 @@ def main(argv=None) -> int:
     from wfield_local.paths import PathResolver
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--jobs", type=int, default=6)
+    ap.add_argument("--suffix", default="", help="output name suffix (M: outputs are never overwritten; e.g. _1104)")
     ap.add_argument("labels", nargs="*")
     a = ap.parse_args(argv)
     out = oo.root(PathResolver()) / oc.RUN / "imaging_encoding" / "qc"
@@ -198,10 +206,13 @@ def main(argv=None) -> int:
     D = pd.DataFrame([r for _lab, r in got]).sort_values("label")
     D["animal"] = D.label.str.split("_").str[0]
     D["epoch"] = D.label.map(epochs.epoch_of)
-    f = Path(out) / ("s1_refit_basis" + ("_subset" if a.labels else "") + ".csv")   # the run tag is in the directory
+    f = Path(out) / ("s1_refit_basis" + ("_subset" if a.labels else "") + a.suffix + ".csv")   # the run tag is in the directory
     D.to_csv(f, index=False, float_format="%.4g")
     pd.set_option("display.width", 250)
-    for trials, tag in (("CAMERA WORKING (jaw or any camera lick)", "camwork_"),
+    for trials, tag in (("CAMERA WORKING = licks only, to the last CAMERA LICK (production, 11-03 late)", "camlickpl" + "lick_"),
+                        ("CAMERA LICKS, to the last CONTACT", "camlickpl" + "contact_"),
+                        ("CAMERA LICKS, to the last lick at the CLOSE ipsi / mid spouts", "camlickpl" + "close_"),
+                        ("CAMERA working incl. jaw-only (jaw or any camera lick; robustness)", "camwork_"),
                         ("CAMERA WORKING, to the last CONTACT", "campl" + "contact_"),
                         ("CAMERA WORKING, to the last CAMERA LICK", "campl" + "lick_"),
                         ("CAMERA WORKING, to the last lick at the CLOSE ipsi / mid spouts", "campl" + "close_"),
