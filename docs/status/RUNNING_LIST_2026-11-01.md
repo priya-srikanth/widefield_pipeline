@@ -588,6 +588,11 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   4 inherit their upstream tables' labels (lick_cued_ramp, lick_code_noisematch, reference_family_figure, face_prelaunch_aim).
   Profile-wide = WIDEFIELD_PRE_FROM 0801 in the profile (adds pre0801 to every tag) + block_env able to unset it for
   june_august_drift and 12.1b. Epoch boundaries unaffected. STILL WAITING ON PRIYA.
+- RE-VERIFY at 3a772a26: NO BLOCKERS; LOSO keying (0 leaks), section G refusal, centre refusal, 20-row minimum + PS93_0813
+  fallback in spec id, cache keys -- all confirmed by probes. Non-blockers sent to helper: disengagement_tests had moved hit /
+  latency to the count detector (would shift goal S28); sidecars list configured not used fallback; profile --check ignores
+  --block and unknown blocks pass silently; one memo key. Plus a dry count of working engaged imaging rows per session (the
+  20-row minimum was checked on cues, not rows) before the render.
 
 ### Findings
 - main moved while the rebuild branch was being fixed (34 commits not in rebuild/cohort1-20261103). Two matter for the rebuild:
