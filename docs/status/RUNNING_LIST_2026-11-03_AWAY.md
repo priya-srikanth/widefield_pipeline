@@ -29,6 +29,11 @@ log for the earlier part of the day is `RUNNING_LIST_2026-11-02_OVERNIGHT.md`.
       contralesional SSp-m / tjM1.
     - Options: re-caption the slide; show the z-scored version (main or hidden); or both. [Suggest a z-scored hidden
       companion, and reword the main claim to the subacute / chronic + ITI result.] It is 34's figure.
+    - Priya's concern: z-scoring may remove a REAL biological gain. Agreed: raw stays the main (absolute dF/F);
+      z = the part beyond the global gain. Offered: a spatial gain map + arousal check to tell biological gain from
+      measurement gain.
+    - Page edits: docs/status/PAGE_EDITS_PENDING_2026-11-04.md (2cb13174) lists every 11-03 / 11-04 change as main
+      or collapsible. Sent to e0 / 34.
     - DECIDED (Priya 11-04): add a z-scored HIDDEN comparison slide after slide 95. 34 was asked to render the
       z-scored figures now (pre-rebuild); a8 inserts the hidden slide. The main slide is unchanged for now. F0
       confirmed: it ROSE post-stroke, so raw dF/F is not inflated by a lower F0.
