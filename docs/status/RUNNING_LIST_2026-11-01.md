@@ -780,6 +780,12 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
 - PRIYA: (3) rest start stays at the first camera lick (rest = docked lick-free stretches inside it) -- settled.
   (4) asked whether the FR validation's fixed window (cue -2..+4 s) should run "until trial stop"; I recommended keeping it
   (it keeps pre-cue licks and a fixed length matched to the FR window); middle option -2 s -> trial stop offered. Waiting.
+- PRIYA wants the O2 bundle ASAP: helper building it (o2_encoding rebuild-aware first, then the bundle). Waiting on the new
+  attempts table (~09:05-09:10).
+- PRIYA via a8 (11-04): ALL Allen-ROI analyses use the SPLIT area basis (iti_licks AREA BASIS, Priya 10-27: no cortex /
+  whole MOs / MOp; ALM + tjM1; MOs_rest / MOp_rest per hemisphere; iti_licks.roi_masks); plain = robustness only. ONE shared
+  function + new spec ids. Inventory of every ROI consumer running (for a8, to put "can't switch" cases to Priya). Checking
+  first whether combined_encoding (the O2 bundle) uses Allen areas; if so, the encoder path switches before the bundle.
 - Slide 94 caveat added by a8 (backup_before_ramp_caveat_1104.pptx; hidden states unchanged).
 - The 05:46 incident coverage copies differ from the rebuild ones only by the 12 June sessions (Aug-only pre); the partial-
   coverage rows are identical.
