@@ -955,3 +955,21 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
     under the profile.
   - Side finding: the DAQ sees contacts inside the GUI's 2 s ENL that the GUI missed: PS92 pre 10.7 %, PS93 8.6 %. Our
     sliding ENL selection already handles them.
+- **11-04 ~11:20: FINDINGS (census CONTACT_DAQ_MISMATCH_20261104.md; 107 sessions, 57,048 video-matched trials).**
+  - **Q6: DAQ no-lick but camera contact = 23 trials.** That is 0.23 % of DAQ no-lick trials.
+    - All 23 have contact AFTER max_rt (3.5 s): first contact at 3501-3686 ms, before the trial stop.
+    - No table mismatches.
+    - 19 of the 23 are at far spouts.
+    - 11 examples with cam4 / cam1 frame ranges are listed.
+    - The reverse case (DAQ engaged, no camera contact) is 2 trials.
+  - **Q4: unjudged close-mid (close_center) no_response = 1,121 trials.**
+    - 852 are in stopped runs, 5 after_end, and 264 in the working period (3.1 % of close-mid working trials; acute 7.4 %).
+    - Side-camera judging could re-class at most ~264 isolated lapses. Stopped runs cannot move, because jaw_only already
+      counts toward the 6.
+  - **Q9: DAQ-timing fallback needed for 0 of 46,825 contact trials.** Every contact trial has an LP time (7 from cam1
+    only).
+    - The real issue is different: in 10 trials the first LP lick is > 100 ms after the first DAQ contact (64 at > 50 ms),
+      i.e. the video missed the contacting lick. 8 of the 10 are at close spouts.
+    - Option: use the DAQ time (timing_source = daq) when LP is later than the contact by more than a tolerance, at
+      lp_licks.py:394-403.
+  - Process note: the census helper briefly pushed free RAM to ~1.5 GB (it stopped its own workers).
