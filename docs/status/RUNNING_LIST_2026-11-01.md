@@ -1179,3 +1179,17 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
       RENDER_LOG.md;
     - give Priya the O2 scratch command to remove /n/scratch/users/p/ps150/o2/enc_rebuild_20261104, together with the new
       rsync and the sbatch commands.
+- **11-04 ~15:55: commanded TARGET3D table built (e0, main scripts/pose3d_spout_commanded.py).**
+  - File: C:/Users/SabatiniLab/wfield_cache/pose3d_inputs/pose3d_spout_positions_commanded_20261104.csv. 642 rows =
+    107 sessions x 6 positions. No June sessions.
+  - New minus old: ap +1.02 (0.89 .. 1.14), dv +0.14, ml ~0.
+  - Verification: within ~0.05 mm of (old minus measured bias); PS94_0820 ap 0.09 at one position.
+  - Flag: PS92_0929 close_R had a measured spout 0.67 mm lower than its other positions (a physical deviation or
+    tracking). The commanded table cannot represent it.
+  - **Bundle plan, revised.** The bundle identity carries the run tag / selection, and the final classes change the tag.
+    So the new bundle (enc_rebuild_20261104b) is built AFTER:
+    1. the four rebuild branches are merged (encoder-classes, cue70, enl-window, bcdg-port) and the full suite passes;
+    2. trial_attempts is regenerated under the new tag (~90 min);
+    3. the inputs are built with COMBINED_ENCODING_TARGET3D_TABLE = the commanded table (~1.5 h);
+    4. the checks run;
+    5. the stale bundle is deleted and the handover goes to Priya.
