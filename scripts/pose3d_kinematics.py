@@ -47,6 +47,7 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+from wfield_local.pose3d import pose3d_dir
 
 V36 = "lp_r4_heatmap_20261013__clean_v36"
 OPEN_MM = 1.5
@@ -167,7 +168,7 @@ def session_result(job) -> tuple:
     s, mode = job
     rv = PathResolver()
     animal, date = s.split(":")
-    d3 = Path(rv.root("dlc")) / "session_poses" / "pose3d"
+    d3 = pose3d_dir(rv)
     fr = d3 / f"{animal}_{date}_frames.csv.gz"
     lk = Path(rv.root("orofacial")) / V36 / "sessions" / animal / date / ("licks_all.csv" if mode == "all" else "licks.csv")
     ver = result_cache.code_version(sys.modules[__name__], pose3d, spout_world, extra=mode)
@@ -228,7 +229,7 @@ def main(argv=None) -> int:
     ap.add_argument("--out", type=Path, default=None, help="output folder (checks)")
     a = ap.parse_args(argv)
     rv = PathResolver()
-    d3 = Path(rv.root("dlc")) / "session_poses" / "pose3d"
+    d3 = pose3d_dir(rv)
     cur = None if a.all else ak.curated_ids()
     sess = a.sessions or sorted(f.name.replace("_frames.csv.gz", "").replace("_", ":", 1) for f in d3.glob("PS*_frames.csv.gz")
                                 if cur is None or f.name.replace("_frames.csv.gz", "") in cur)

@@ -34,6 +34,7 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+from wfield_local.pose3d import pose3d_dir
 
 V36 = "lp_r4_heatmap_20261013__clean_v36"
 POS = ("close_L", "close_center", "close_R", "far_L", "far_center", "far_R")     # = canonical order (lesions left: L = ipsi)
@@ -341,7 +342,7 @@ def main(argv=None) -> int:
     a = ap.parse_args(argv)
     rv = PathResolver()
     c1 = Path(rv.root("dlc")) / "session_poses" / "cam1_licks"
-    d3 = Path(rv.root("dlc")) / "session_poses" / "pose3d"
+    d3 = pose3d_dir(rv)
     v36 = Path(rv.root("orofacial")) / V36 / "sessions"
     out = c1 / "trial_classes"
     if a.reuse:

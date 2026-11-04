@@ -54,6 +54,7 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+from wfield_local.pose3d import pose3d_dir
 
 V36 = "lp_r4_heatmap_20261013__clean_v36"
 CAM1_JAW_CUT = 0.6                      # as trial_attempts.CAM1_JAW_CUT
@@ -128,7 +129,7 @@ def _extras(y: np.ndarray, ix: pd.DataFrame, cam: str) -> pd.DataFrame:
 def _threed(s: str, root_d: str) -> pd.DataFrame | None:
     """Per trial 3-D jaw / nose displacement columns (module docstring, 10-23); None without 3-D frames."""
     from wfield_local import jaw_kinematics as jk
-    f = Path(root_d) / "session_poses" / "pose3d" / f"{s}_frames.csv.gz"
+    f = pose3d_dir(root=root_d) / f"{s}_frames.csv.gz"
     if not f.exists():
         return None
     cols = ["trial_id", "position", "t_ms", "stop_ms", "t_daq_ms"] + [f"{p}_{a}" for p in ("jaw", "nose")
@@ -208,7 +209,7 @@ def session(job) -> pd.DataFrame:
     except Exception:
         h5 = None
     inputs = [sd / "windows.npz", sd / "clean.npz", d1 / "windows_index.csv", d1 / "windows_LP.csv"] + \
-        ([Path(h5)] if h5 else []) + [Path(root_d) / "session_poses" / "pose3d" / f"{s}_frames.csv.gz"]
+        ([Path(h5)] if h5 else []) + [pose3d_dir(root=root_d) / f"{s}_frames.csv.gz"]
     ver = result_cache.code_version(jaw_kinematics, sys.modules[__name__])
     return result_cache.cached(Path(root_o) / V36 / "imaging_encoding" / "qc" / "_cache" / "jaw_onsets", s, inputs, ver,
                                lambda: _session(job))

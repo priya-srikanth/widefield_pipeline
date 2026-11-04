@@ -25,8 +25,10 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+from wfield_local.pose3d import pose3d_dir
 
 PROD = {"cam4": "lp_r4_prod_20261015", "cam1": "lp_cam1_ctx_prod_20261019"}
+SIDE_BUNDLE_ENV = "WIDEFIELD_POSE3D_SIDE_BUNDLE"      # the side model's whole-session O2 bundle (4cam source)
 CAM1_CLIP_MODEL = "o2/lp_train_cam1_r2_20261018/models/mhcrnn_semi_640_b4/video_preds/{a}_{d}_cam1.csv"
 
 
@@ -60,6 +62,14 @@ def _cam1_clip(rv, animal: str, date: str):
     return ix.reset_index(drop=True), P.iloc[:len(ix)].reset_index(drop=True)
 
 
+def _four_cam_source() -> str:
+    """The four-camera output folder: the env source when it is a 4cam variant (e.g. "4cam_clips" for review-clip tests),
+    else "4cam"."""
+    from wfield_local import pose3d as P3
+    s = P3.pose3d_source()
+    return s if s.startswith("4cam") else "4cam"
+
+
 def run_session(s: str, source: str, four_cam: str | None = None, out_dir: str | None = None) -> dict:
     """One session -> files in session_poses/pose3d/ (or ``out_dir``) and its summary row (module level: fan_sessions
     pickles it). ``four_cam``: a side bundle name or "clips" (module docstring)."""
@@ -85,11 +95,13 @@ def run_session(s: str, source: str, four_cam: str | None = None, out_dir: str |
              if four_cam == "clips" else PS.fuse_session(rv, animal, date, side_bundle=four_cam, c1=c1, c4=c4))
         S = PS.frames_table(Z)
         L = P3.lick_peaks(S, rig)
-        out = Path(out_dir) if out_dir else Path(rv.root("dlc")) / "session_poses" / "pose3d_4cam"
+        out = Path(out_dir) if out_dir else pose3d_dir(rv, _four_cam_source())
         out.mkdir(parents=True, exist_ok=True)
         S.to_csv(out / f"{animal}_{date}_frames.csv.gz", index=False, float_format="%.3f")
         L.to_csv(out / f"{animal}_{date}_licks.csv", index=False)
         row.update({"four_cam": four_cam, "n_frames": len(S), "droplet_frames": Z["stats"]["droplet_frames"],
+                    "fit_resid_mm_max": round(Z["stats"]["fit_resid_mm_max"], 3),
+                    "tongue_rep1_med_px": round(Z["stats"]["tongue_rep1_med_px"], 1),
                     **{f"nose_off_{c}_dv": round(Z["stats"]["nose_offsets"][c][2], 2) for c in PS.SIDE},
                     **{f"tongue_off_{c}_ap": round(Z["stats"]["tongue_offsets"][c][1], 3) for c in PS.SIDE}})
         for part in PS.PARTS:
@@ -103,7 +115,7 @@ def run_session(s: str, source: str, four_cam: str | None = None, out_dir: str |
         return row
     S, info = P3.session_3d(_cgroup(rv), rig, c1[0], c1[1], c4[0], c4[1], june_factor=jf)
     L = P3.lick_peaks(S, rig)
-    out = Path(out_dir) if out_dir else Path(rv.root("dlc")) / "session_poses" / "pose3d"
+    out = Path(out_dir) if out_dir else pose3d_dir(rv, "2cam")
     out.mkdir(parents=True, exist_ok=True)
     S.to_csv(out / f"{animal}_{date}_frames.csv.gz", index=False, float_format="%.3f")
     L.to_csv(out / f"{animal}_{date}_licks.csv", index=False)
@@ -146,6 +158,13 @@ def main(argv=None) -> int:
     ap.add_argument("--out", default=None, help="output folder (default session_poses/pose3d, or pose3d_4cam with --four-cam)")
     a = ap.parse_args(argv)
     rv = PathResolver()
+    import os
+
+    from wfield_local import pose3d as P3
+    if P3.pose3d_source() == "4cam" and not a.four_cam:   # the chain sets the source by env; 4cam_clips: pass --four-cam clips
+        a.four_cam = os.environ.get(SIDE_BUNDLE_ENV)
+        if not a.four_cam:
+            raise SystemExit(f"{P3.SOURCE_ENV}=4cam needs --four-cam or {SIDE_BUNDLE_ENV} (the side model's O2 bundle)")
     sess = a.sessions
     if not sess and a.source == "production":
         have = [{p.name for p in (Path(rv.root("dlc")) / "o2" / b / "out").glob("PS*_2026*") if p.is_dir()}
@@ -160,7 +179,7 @@ def main(argv=None) -> int:
     pd.set_option("display.width", 250)
     pd.set_option("display.max_columns", 60)
     print(T.T.to_string(header=False))
-    base = Path(a.out) if a.out else Path(rv.root("dlc")) / "session_poses" / ("pose3d_4cam" if a.four_cam else "pose3d")
+    base = Path(a.out) if a.out else pose3d_dir(rv, _four_cam_source() if a.four_cam else "2cam")
     out = base / f"summary_{a.source}{'_' + a.four_cam if a.four_cam else ''}.csv"
     out.parent.mkdir(parents=True, exist_ok=True)
     if out.exists():           # a SUBSET run replaces only its own sessions' rows (it used to overwrite the whole table)

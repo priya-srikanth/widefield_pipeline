@@ -579,8 +579,13 @@ def fuse_session(rv, animal: str, date: str, preds_dir: Path | None = None, clip
     offsets = {"spout": part_offsets("spout"), "nose": session_nose_offsets(g, S, side), "jaw": {},
                "tongue": session_tongue_offsets(g, S, side)}
     parts = {}
+    ok_t = np.isfinite(S[["tongue_ml", "tongue_ap", "tongue_dv"]].to_numpy(float)).all(1)
     stats = {"scale": scale, "nose_offsets": offsets["nose"], "tongue_offsets": offsets["tongue"],
-             "droplet_frames": int(drop.any(0).sum())}
+             "droplet_frames": int(drop.any(0).sum()),
+             # the SESSION GATES of `pose3d.failed_sessions`, exactly as the two-camera run computes them (its spout fit
+             # and its cam1 tongue reprojection): the same sessions fail in both sources
+             "fit_resid_mm_max": float(max(info["world"].residual_mm.values())),
+             "tongue_rep1_med_px": float(np.nanmedian(S.tongue_rep1.to_numpy(float)[ok_t])) if ok_t.any() else np.nan}
     k14 = [order.index("cam1"), order.index("cam4")]
     for part in PARTS:
         gs = shifted(g, offsets[part])
@@ -598,11 +603,17 @@ def fuse_session(rv, animal: str, date: str, preds_dir: Path | None = None, clip
     return {"F": F, "order": order, "g": g, "pts": pts, "parts": parts, "stats": stats, "rig": rig, "side": side, "S": S}
 
 
+#: ``{part}_src`` of a ONE-camera fill, by camera: 2 / 3 as in `pose3d.session_3d` (cam1 / cam4 + neighbours), so
+#: two-camera readers keep their meaning; 6 / 7 for the side cameras. 1 = >= 2 cameras, 0 = no point.
+SRC_CODES = {"cam1": 2, "cam4": 3, "cam2": 6, "cam3": 7}
+
+
 def frames_table(Z: dict) -> pd.DataFrame:
     """The four-camera result as a `pose3d.session_3d`-style per-frame table, so `pose3d.lick_peaks` and the kinematics
     read it unchanged: trial_id, position, t_ms, stop_ms (+ t_daq_ms, src1, src4), per part ``{part}_ml/_ap/_dv`` mm,
-    ``{part}_src`` (1 = >= 2 cameras, 2 = one camera + neighbours, 0 none), ``{part}_views`` (cameras behind the point;
-    -1 = one-view fill), ``{part}_rep1`` / ``_rep4`` (px, cam1 / cam4, where used) and ``{part}_rep_<cam>`` for all four."""
+    ``{part}_src`` (`SRC_CODES`: 1 = >= 2 cameras; a one-camera fill keeps the two-camera codes 2 = cam1, 3 = cam4 and
+    adds 6 = cam2, 7 = cam3; 0 none), ``{part}_views`` (cameras behind the point; -1 = one-view fill), ``{part}_rep1`` /
+    ``_rep4`` (px, cam1 / cam4, where used) and ``{part}_rep_<cam>`` for all four."""
     F, order = Z["F"], Z["order"]
     keep = [c for c in ("trial_id", "position", "t_ms", "stop_ms", "t_daq_ms", "src1", "src4") if c in F]
     T = F[keep].reset_index(drop=True).copy()
@@ -611,7 +622,8 @@ def frames_table(Z: dict) -> pd.DataFrame:
         for k, ax in enumerate(("ml", "ap", "dv")):
             T[f"{part}_{ax}"] = X[:, k]
         T[f"{part}_views"] = nv
-        T[f"{part}_src"] = np.where(nv >= 2, 1, np.where(nv == -1, 2, 0))
+        lone = np.array([SRC_CODES[order[j]] for j in np.argmax(P["used"], axis=0)])     # the camera of a one-view fill
+        T[f"{part}_src"] = np.where(nv >= 2, 1, np.where(nv == -1, lone, 0))
         pts = Z["pts"][part]
         for j, cam in enumerate(P["g"].cameras):
             r = np.linalg.norm(project(cam, X) - pts[j], axis=1)

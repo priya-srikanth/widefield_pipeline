@@ -14,8 +14,9 @@ from __future__ import annotations
 
 import numpy as np
 import pandas as pd
+from wfield_local.pose3d import pose3d_dir
 
-KIN = "M:/MICROSCOPE/Priya/DeepLabCut/Widefield/session_poses/pose3d/kinematics/licks.csv.gz"
+KIN = str(pose3d_dir() / "kinematics" / "licks.csv.gz")
 DIR = ["abs_midline", "abs_frontal", "abs_sagittal", "midline_err_ipsi"]
 SETS = {"direction": DIR, "reach": ["reach_mm"], "direction+reach": DIR + ["reach_mm"]}
 

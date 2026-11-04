@@ -39,6 +39,7 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+from wfield_local.pose3d import pose3d_dir
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from fr_musall import AN, E  # noqa: E402
@@ -71,8 +72,7 @@ TGT_LAB = {"direction": "lateral tongue-tip position (3-D, mm)",
            "relative": "lateral position relative to the reference spout"}
 
 def lick_table() -> pd.DataFrame:
-    from wfield_local.paths import PathResolver
-    p = Path(PathResolver().root("dlc")) / "session_poses" / "pose3d" / "kinematics_all" / "licks.csv.gz"
+    p = pose3d_dir() / "kinematics_all" / "licks.csv.gz"
     return pd.read_csv(p, usecols=["session", "context", "lick_uid", "side_ml", "out_ap", "down_dv", "position",
                                    "trial_id", "reach_mm", "speed_peak"])
 
@@ -1006,7 +1006,7 @@ def _more_kin(label: str, t_on: np.ndarray) -> pd.DataFrame:
     A = pd.read_csv(oo.session_dir(PathResolver(), oc.RUN, an, date) / "licks_all.csv",
                     usecols=["daq_on_s", "on_ms", "off_ms", "max_retract_velocity_y_px_per_s"])
     if "K" not in _KFULL:
-        pth = Path(PathResolver().root("dlc")) / "session_poses" / "pose3d" / "kinematics_all" / "licks.csv.gz"
+        pth = pose3d_dir() / "kinematics_all" / "licks.csv.gz"
         _KFULL["K"] = pd.read_csv(pth, usecols=["session", "lick_uid", "side_ml", "out_ap", "down_dv"])
     K = _KFULL["K"]
     K = K[K.session == f"{an}_{date}"].drop_duplicates("lick_uid").set_index("lick_uid")

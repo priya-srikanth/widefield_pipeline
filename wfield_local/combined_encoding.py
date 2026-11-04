@@ -63,6 +63,7 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+from wfield_local.pose3d import pose3d_dir
 
 SMOKE_ENV = "COMBINED_ENCODING_SMOKE"
 ONLY_ENV = "COMBINED_ENCODING_ONLY"      # comma-separated model-name prefixes: fit only those (+ full); own folder   # =1: fit only the models the post-fit code needs (a fast end-to-end check)
@@ -321,7 +322,7 @@ TONGUE_ENV = "COMBINED_ENCODING_TONGUE"
 
 
 def pose3d_frames_path(rv, animal: str, date: str) -> Path:
-    return Path(rv.root("dlc")) / "session_poses" / "pose3d" / f"{animal}_{date}_frames.csv.gz"
+    return pose3d_dir(rv) / f"{animal}_{date}_frames.csv.gz"
 
 
 def tongue_3d_traces(ix: pd.DataFrame, cam4_tx: np.ndarray, F: pd.DataFrame) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
@@ -341,8 +342,7 @@ def lick_angle_3d(L: pd.DataFrame, session: str) -> np.ndarray:
     """Per-lick 3-D lateral angle out of the sagittal plane (deg; pose3d `midline`), NaN without a 3-D peak."""
     path = os.environ.get(EXEC3D_TABLE_ENV)
     if not path:
-        from wfield_local.paths import PathResolver
-        path = Path(PathResolver().root("dlc")) / "session_poses" / "pose3d" / "kinematics" / "licks.csv.gz"
+        path = pose3d_dir() / "kinematics" / "licks.csv.gz"
     K = pd.read_csv(path, usecols=["session", "trial_id", "lick_idx", "side_ml", "out_ap", "down_dv"])
     K = K[K.session == session].drop_duplicates(["trial_id", "lick_idx"])
     J = L[["trial_id", "lick_idx"]].merge(K, on=["trial_id", "lick_idx"], how="left")
@@ -483,7 +483,7 @@ def load_behaviour(animal: str, date: str, rv) -> Behaviour:
     if os.environ.get(TONGUE_ENV, "") == "3d":                  # a rewritten 3-D frame / lick table makes a new entry
         src.append(pose3d_frames_path(rv, animal, date))
         src.append(os.environ.get(EXEC3D_TABLE_ENV) or
-                   Path(rv.root("dlc")) / "session_poses" / "pose3d" / "kinematics" / "licks.csv.gz")
+                   pose3d_dir(rv) / "kinematics" / "licks.csv.gz")
     return _cached("behaviour", f"{animal}_{date}", src, lambda: _load_behaviour(animal, date, rv))
 
 
@@ -652,8 +652,7 @@ def _exec_3d(L: pd.DataFrame, ang: np.ndarray, reach: np.ndarray, mode: str, ses
         raise ValueError(f"{EXEC_ENV}={mode!r}; expected one of {EXEC_MODES}")
     path = os.environ.get(EXEC3D_TABLE_ENV)
     if not path:
-        from wfield_local.paths import PathResolver
-        path = Path(PathResolver().root("dlc")) / "session_poses" / "pose3d" / "kinematics" / "licks.csv.gz"
+        path = pose3d_dir() / "kinematics" / "licks.csv.gz"
     K = pd.read_csv(path, usecols=["session", "trial_id", "lick_idx", "reach_mm", "side_ml", "out_ap", "down_dv"])
     K = K[K.session == session].drop_duplicates(["trial_id", "lick_idx"])
     if K.empty:

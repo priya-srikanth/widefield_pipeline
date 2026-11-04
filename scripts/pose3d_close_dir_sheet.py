@@ -21,6 +21,7 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+from wfield_local.pose3d import pose3d_dir
 
 TILE = 260
 CROP4, CROP1 = (320, 300), (320, 300)
@@ -157,7 +158,7 @@ def main(argv=None) -> int:
     ap.add_argument("--per", type=int, default=3, help="trials per close side spout")
     a = ap.parse_args(argv)
     rv = PathResolver()
-    d3 = Path(rv.root("dlc")) / "session_poses" / "pose3d"
+    d3 = pose3d_dir(rv, "2cam")
     out = d3 / "close_dir_sheet"
     out.mkdir(exist_ok=True)
     sess = [x.replace(":", "_") for x in a.sessions] or _pick_sessions(rv, d3, a.animal)

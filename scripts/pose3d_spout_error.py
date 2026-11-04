@@ -30,6 +30,7 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+from wfield_local.pose3d import pose3d_dir
 
 V36 = "lp_r4_heatmap_20261013__clean_v36"
 POS = ("close_L", "close_center", "close_R", "far_L", "far_center", "far_R")
@@ -96,7 +97,7 @@ def _session_traces(s: str) -> list[dict]:
     from wfield_local.paths import PathResolver
     rv = PathResolver()
     animal, date = s.split("_")
-    d3 = Path(rv.root("dlc")) / "session_poses" / "pose3d"
+    d3 = pose3d_dir(rv)
     fr, lk = d3 / f"{s}_frames.csv.gz", Path(rv.root("orofacial")) / V36 / "sessions" / animal / date / "licks.csv"
 
     def compute():
@@ -332,7 +333,7 @@ def main(argv=None) -> int:
     ap.add_argument("--no-contra", action="store_true", help="full run without the + = contra figures")
     a = ap.parse_args(argv)
     rv = PathResolver()
-    d3 = Path(rv.root("dlc")) / "session_poses" / "pose3d"
+    d3 = pose3d_dir(rv)
     if a.contra:                        # scatter_epoch reads only the closest-approach vector, no peak errors needed
         L = pd.read_csv(d3 / "kinematics" / "licks.csv.gz", dtype={"date": str})
         out = a.out or d3 / "spout_error"

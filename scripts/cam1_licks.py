@@ -27,6 +27,7 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+from wfield_local.pose3d import pose3d_dir
 
 PROD = {"cam4": "lp_r4_prod_20261015", "cam1": "lp_cam1_ctx_prod_20261019"}
 V36 = "lp_r4_heatmap_20261013__clean_v36"
@@ -91,7 +92,7 @@ def run_session(s: str) -> dict:
         E["cam4_matched"] = C1.overlaps(E, C4)
     else:
         E["cam4_matched"] = np.nan
-    f3 = Path(rv.root("dlc")) / "session_poses" / "pose3d" / f"{animal}_{date}_frames.csv.gz"
+    f3 = pose3d_dir(rv) / f"{animal}_{date}_frames.csv.gz"
     if f3.exists():
         S = pd.read_csv(f3, usecols=["trial_id", "t_ms", "stop_ms", "position", "tongue_ml", "tongue_ap", "tongue_dv"])
         E["in_3d"] = C1.overlaps(E, P3.lick_events(S.drop_duplicates(["trial_id", "t_ms"])))
@@ -204,7 +205,7 @@ def summarise(d: Path) -> pd.DataFrame:
     E["droplet"] = C1.droplet_flags(E, E.cam1_only)          # water droplets (blind review): dropped from every count
     E = E[~E.droplet].copy()
     from wfield_local import pose3d as P3                    # sessions whose camera timing fails (pose3d gate): out
-    bad = P3.failed_sessions(d.parent / "pose3d")
+    bad = P3.failed_sessions(pose3d_dir(root=d.parent.parent))
     E = E[~E.session.isin(bad)].copy()
     E["incomplete"] = ~E.contact
     g = E.groupby(["animal", "epoch", "session", "position"])

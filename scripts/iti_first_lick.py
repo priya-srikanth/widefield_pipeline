@@ -19,6 +19,7 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+from wfield_local.pose3d import pose3d_dir
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import iti_licks as il  # noqa: E402
@@ -56,8 +57,7 @@ _KC = {}
 
 def _K():
     if "K" not in _KC:
-        from wfield_local.paths import PathResolver
-        f = Path(PathResolver().root("dlc")) / "session_poses" / "pose3d" / "kinematics_all" / "licks.csv.gz"
+        f = pose3d_dir() / "kinematics_all" / "licks.csv.gz"
         _KC["K"] = pd.read_csv(f, usecols=["session", "table", "lick_uid", "lick_idx"])
     return _KC["K"]
 

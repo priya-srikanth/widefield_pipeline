@@ -1131,3 +1131,21 @@ four review sessions mapped to raw (`lp_sidecam.to_raw`); reference = production
   (corrected per session; re-check on the round-2 model); JAW <= 0.17; SPOUT <= 0.02 mm in all four cameras (validates the
   ENL posing + cam1 edge offset with human labels). Nose leave-one-out: cam4 dv -0.65, cam1 -0.27, side +0.43 / +0.76
   (each view labels its own silhouette tip). Small n for the tongue (14-28 moments per camera); Part B adds ~62.
+* **Adoption across the 3-D analyses (11-04): ONE source switch.** `pose3d.pose3d_dir(rv, source)` / env
+  `WIDEFIELD_POSE3D_SOURCE` = `2cam` (session_poses/pose3d, default = today's outputs) | `4cam` (pose3d_4cam) |
+  `4cam_clips` (review-clip tests only). Every reader / writer of 3-D tables now takes its folder from it (30 files:
+  kinematics, phase, cue traces, spout error, summary / pooled figures, cam1 lick events, jaw onsets, ITI / stray licks,
+  trajectories / path softmax, crosschecks, combined_encoding / frozen_encoder / prep_3d_inputs; the two cam1+cam4-only QC
+  sheets pinned to 2cam), so derived products of the two sources never mix. `pose_chain --source 4cam --side-bundle <b>`
+  runs the whole chain on four cameras (children inherit the env; `scripts.pose3d` reads the bundle from
+  `WIDEFIELD_POSE3D_SIDE_BUNDLE`). Compatibility: four-camera frames keep cam4's t_ms / trial_id / stop_ms (joins on the
+  v36 cam4 lick windows hold); one-camera fills keep src codes 2 = cam1, 3 = cam4 (+ 6 cam2, 7 cam3); the four-camera
+  summary carries the session gates' fields (`fit_resid_mm_max`, `tongue_rep1_med_px`, from its cam1+cam4 step) so
+  `failed_sessions` drops the same sessions. NOT yet source-tagged: the encoder snapshot / calibration files
+  (`wfield_cache/pose3d_inputs/*_20261023`, the 34 rebuild's inputs) -- cut a new tag from the 4cam tables when adopting.
+  End-to-end test (PS93 0814 / 0821 / 0908, `4cam_clips`, unmodified `pose3d_kinematics`): 145 / 145 cam4 licks get a 3-D
+  peak (2cam 140); paired with 2cam (140): lateral angle (midline) +0.08 deg (|d| p50 0.73, p90 2.5), frontal +0.07,
+  steepness (sagittal) -0.43 deg (|d| p50 1.8, p90 4.8; depends on ap, which the side views change most), reach +0.004 mm,
+  protrusion (out_ap) -0.04 mm, lat_err +0.02 mm, miss -0.07 mm, peak speed -5.5 mm/s. Precision gain not shown on these
+  licks (contact-lick SD within session x position, 13 cells: midline 5.9 vs 5.7 deg, sagittal 3.7 vs 4.6) -- to test on
+  the whole-session run.

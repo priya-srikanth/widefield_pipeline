@@ -23,6 +23,7 @@ import argparse
 from pathlib import Path
 
 import pandas as pd
+from wfield_local.pose3d import pose3d_dir
 
 POS = ("close_L", "close_center", "close_R", "far_L", "far_center", "far_R")
 EP_COL = {"pre": "0.35", "acute": "#d01c8b", "subacute": "#b8860b", "chronic": "#01665e"}
@@ -180,7 +181,7 @@ def main(argv=None) -> int:
     ap.add_argument("--contra-only", action="store_true", help="only the _contra figures")
     a = ap.parse_args(argv)
     rv = PathResolver()
-    d3 = Path(rv.root("dlc")) / "session_poses" / "pose3d"
+    d3 = pose3d_dir(rv)
     SE = pd.read_csv(d3 / "spout_error" / "per_session.csv", dtype={"date": str})
     K = pd.read_csv(d3 / "kinematics" / "sessions.csv", dtype={"date": str})
     out = d3 / "figures"

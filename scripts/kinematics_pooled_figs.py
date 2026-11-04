@@ -37,6 +37,7 @@ import numpy as np
 import pandas as pd
 
 from wfield_local.sig_marks import reserve_headroom, star_top
+from wfield_local.pose3d import pose3d_dir
 
 ANIMALS = ("PS92", "PS93", "PS94", "PS95")
 EPOCHS = ("acute", "subacute", "chronic")
@@ -153,8 +154,7 @@ def fig_angle(out: Path, rng, contra: bool = False, save: bool = True) -> pd.Dat
 
 def fig_3d(out: Path, rng, contra: bool = False) -> pd.DataFrame:
     import matplotlib.pyplot as plt
-    from wfield_local.paths import PathResolver
-    S = pd.read_csv(Path(PathResolver().root("dlc")) / "session_poses" / "pose3d" / "kinematics" / "sessions.csv")
+    S = pd.read_csv(pose3d_dir() / "kinematics" / "sessions.csv")
     meas = [("midline_err_ipsi", "midline error\n(deg; + = contra)" if contra else "midline error\n(deg; + = ipsi)"), ("miss_mm", "closest approach\nto spout (mm)"),
             ("reach_mm", "reach from\nmouth zero (mm)"), ("speed_peak", "peak tongue\nspeed (mm/s)"),
             ("open_max_mm", "widest jaw\nopening (mm)")]
@@ -201,8 +201,7 @@ def fig_3d(out: Path, rng, contra: bool = False) -> pd.DataFrame:
 
 def fig_cue(out: Path, contra: bool = False) -> pd.DataFrame:
     import matplotlib.pyplot as plt
-    from wfield_local.paths import PathResolver
-    T = pd.read_csv(Path(PathResolver().root("dlc")) / "session_poses" / "pose3d" / "cue_traces" / "traces.csv.gz")
+    T = pd.read_csv(pose3d_dir() / "cue_traces" / "traces.csv.gz")
     T = T[(T.set == "engaged") & T.measure.isin(["mid", "jaw_open"])]
     rows = []
     for (m, p), g in T.groupby(["measure", "position"]):
@@ -289,8 +288,7 @@ def fig_paths3d(out: Path, shared: bool = False, contra: bool = False) -> pd.Dat
     spouts (same limits, equal aspect), so the mouth sits in the same place in every panel of a row ->
     pose3d_paths_pooled_shared.png."""
     import matplotlib.pyplot as plt
-    from wfield_local.paths import PathResolver
-    C = pd.read_csv(Path(PathResolver().root("dlc")) / "session_poses" / "pose3d" / "phase" / "curves.csv.gz")
+    C = pd.read_csv(pose3d_dir() / "phase" / "curves.csv.gz")
     C = C[(C.kind == "norm") & (C.lickset == "all") & C.measure.isin(["side", "out", "down", "j_side", "j_out", "j_down"])
           & (C["cov"] >= 0.5)]
     aug = C[(C.epoch == "pre") & (C.date.astype(str).str[-4:] >= "0801")]
@@ -422,8 +420,7 @@ def fig_days(out: Path, contra: bool = False) -> pd.DataFrame:
     import matplotlib.pyplot as plt
     from matplotlib.lines import Line2D
     from wfield_local.epochs import days_since_stroke
-    from wfield_local.paths import PathResolver
-    S = pd.read_csv(Path(PathResolver().root("dlc")) / "session_poses" / "pose3d" / "kinematics" / "sessions.csv")
+    S = pd.read_csv(pose3d_dir() / "kinematics" / "sessions.csv")
     S["day"] = [days_since_stroke(f"{a}_{str(d)[-4:]}") for a, d in zip(S.animal, S.date)]
     aug = _is_aug_pre(S)
     meas = [("midline_err_ipsi", f"midline error (deg; + = {'contra' if contra else 'ipsi'})"),
@@ -487,8 +484,7 @@ def phase_data(contra: bool = False) -> pd.DataFrame:
     sessions' changes, labels permuted within animal, p < .05; on the bins every tested session covers."""
     from wfield_local.orofacial_cohort import CLUSTER_PERM
     from wfield_local.orofacial_stats import cluster_permutation
-    from wfield_local.paths import PathResolver
-    C = pd.read_csv(Path(PathResolver().root("dlc")) / "session_poses" / "pose3d" / "phase" / "curves.csv.gz")
+    C = pd.read_csv(pose3d_dir() / "phase" / "curves.csv.gz")
     C = C[(C.kind == "norm") & (C.lickset == "all") & C.measure.isin(["mid", "dist"]) & (C["cov"] >= 0.5)
           & C.x.between(*PHASE_WIN)]
     C = C[(C.epoch != "pre") | (C.date.astype(str).str[-4:] >= "0801")]          # August pre only
@@ -616,7 +612,6 @@ def contra_figs(out: Path) -> int:
 
 
 def main(argv=None) -> int:
-    from wfield_local.paths import PathResolver
     from wfield_local.writeguard import assert_writable
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--out", type=Path, default=None)
@@ -628,7 +623,7 @@ def main(argv=None) -> int:
     ap.add_argument("--phase-only", action="store_true", help="only the 3-D lick-phase figures (+ = ipsi and + = contra)")
     ap.add_argument("--plot-only", action="store_true", help="with --phase-only: redraw from the *_figdata.csv")
     a = ap.parse_args(argv)
-    out = a.out or Path(PathResolver().root("dlc")) / "session_poses" / "pose3d" / "figures" / "pooled"
+    out = a.out or pose3d_dir() / "figures" / "pooled"
     assert_writable(out)
     out.mkdir(parents=True, exist_ok=True)
     rng = np.random.default_rng(20261025)

@@ -18,6 +18,7 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+from wfield_local.pose3d import pose3d_dir
 
 V36 = "lp_r4_heatmap_20261013__clean_v36"
 POS = ("close_L", "close_center", "close_R", "far_L", "far_center", "far_R")
@@ -119,7 +120,7 @@ def main(argv=None) -> int:
         E[c] = E[c].astype("boolean").fillna(False).astype(bool)
     E["cam1_only"] = ~E.cam4_matched & ~E.in_3d & ~E.droplet
     E["jaw_only_trial"] &= ~E.droplet
-    bad = P3.failed_sessions(Path(rv.root("dlc")) / "session_poses" / "pose3d")
+    bad = P3.failed_sessions(pose3d_dir(rv))
     rows = []
     from wfield_local import analysis_kit as ak
     for s in sorted((set(E.session) - set(bad)) & ak.curated_ids()):            # curated cohort only (Priya 10-20)

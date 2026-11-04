@@ -18,6 +18,7 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+from wfield_local.pose3d import pose3d_dir
 
 PRE_MS, POST_MS, DT = 120, 80, 4
 GRID = np.arange(-PRE_MS, POST_MS + DT, DT)
@@ -36,7 +37,7 @@ def _dlc() -> Path:
 def session_job(item):
     """(session, licks rows as records) -> {(target, landing): (sum path (T x 3), count)} for one session."""
     session, L = item
-    F = pd.read_csv(_dlc() / "session_poses" / "pose3d" / f"{session}_frames.csv.gz",
+    F = pd.read_csv(pose3d_dir(root=_dlc()) / f"{session}_frames.csv.gz",
                     usecols=["trial_id", "t_ms", "tongue_ml", "tongue_ap", "tongue_dv"])
     F = F.sort_values(["trial_id", "t_ms"])
     by_trial = {t: g for t, g in F.groupby("trial_id")}
@@ -104,7 +105,7 @@ def main(argv=None) -> int:
                 agg[k] = [np.zeros_like(s), np.zeros_like(n)]
             agg[k][0] += s
             agg[k][1] += n
-    out = _dlc() / "session_poses" / "pose3d" / "trajectories"
+    out = pose3d_dir(root=_dlc()) / "trajectories"
     (out / "figures").mkdir(parents=True, exist_ok=True)
     np.savez_compressed(out / "lick_trajectories.npz", grid_ms=GRID,
                         **{"|".join(k): np.where(n > 0, s / np.maximum(n, 1), np.nan) for k, (s, n) in agg.items()},

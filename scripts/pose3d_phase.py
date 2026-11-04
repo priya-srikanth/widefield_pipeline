@@ -23,6 +23,7 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+from wfield_local.pose3d import pose3d_dir
 
 POS = ("close_L", "close_center", "close_R", "far_L", "far_center", "far_R")
 EP_COL = {"pre": "0.2", "acute": "#d01c8b", "subacute": "#b8860b", "chronic": "#01665e"}
@@ -115,7 +116,7 @@ def session_curves(job) -> list[dict]:
     s = job
     rv = PathResolver()
     animal, date = s.split("_")
-    d3 = Path(rv.root("dlc")) / "session_poses" / "pose3d"
+    d3 = pose3d_dir(rv)
     V36 = Path(rv.root("orofacial")) / "lp_r4_heatmap_20261013__clean_v36" / "sessions"
     fr, lk = d3 / f"{s}_frames.csv.gz", V36 / animal / date / "licks.csv"
     ver = result_cache.code_version(sys.modules[__name__], K)
@@ -363,7 +364,7 @@ def main(argv=None) -> int:
     a = ap.parse_args(argv)
     from wfield_local import analysis_kit as ak
     rv = PathResolver()
-    d3 = Path(rv.root("dlc")) / "session_poses" / "pose3d"
+    d3 = pose3d_dir(rv)
     if a.contra:
         out = a.out or d3 / "phase"
         PP = pd.read_csv(out / "curves.csv.gz", dtype={"date": str})

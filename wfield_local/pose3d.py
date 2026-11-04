@@ -33,6 +33,33 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
+#: WHICH 3-D: "2cam" (cam1 + cam4, `session_3d`) or "4cam" (+ cam2 / cam3, `pose3d_side`; 2026-11-04). Each source has its own
+#: folder under <dlc>/session_poses, and every reader / writer of 3-D tables (frames, licks, kinematics*, phase, cue traces,
+#: spout error, figures, trajectories, ...) takes it from `pose3d_dir`, so the two never mix and nothing is overwritten.
+#: Chosen per call or by the env var (inherited by `scripts.pose_chain`'s child steps); default 2cam = today's outputs.
+SOURCES = {"2cam": "pose3d", "4cam": "pose3d_4cam",
+           "4cam_clips": "pose3d_4cam_clips"}   # 4cam on the side REVIEW CLIPS only (partial windows): tests, never production
+SOURCE_ENV = "WIDEFIELD_POSE3D_SOURCE"
+
+
+def pose3d_source(source: str | None = None) -> str:
+    import os
+    s = source or os.environ.get(SOURCE_ENV) or "2cam"
+    if s not in SOURCES:
+        raise ValueError(f"3-D source {s!r}: one of {sorted(SOURCES)} ({SOURCE_ENV})")
+    return s
+
+
+def pose3d_dir(rv=None, source: str | None = None, root=None):
+    """<dlc root>/session_poses/<pose3d | pose3d_4cam>: the 3-D tables of ``source`` (`pose3d_source`). ``root`` = the
+    dlc root as a path (callers that already hold it), else ``rv.root("dlc")``."""
+    from pathlib import Path
+    if root is None:
+        from wfield_local.paths import PathResolver
+        root = (rv or PathResolver()).root("dlc")
+    return Path(root) / "session_poses" / SOURCES[pose3d_source(source)]
+
+
 STATIC_LK = 0.9            # nose / spout: raw points, both cameras at least this confident
 CLEANED = ("tongue", "jaw")
 STATIC = ("nose", "spout")

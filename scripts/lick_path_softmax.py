@@ -22,6 +22,7 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+from wfield_local.pose3d import pose3d_dir
 
 PRE_MS, POST_MS, DT = 32, 32, 4
 GRID = np.arange(-PRE_MS, POST_MS + DT, DT)
@@ -45,7 +46,7 @@ def session_job(item):
     f = Path(out) / f"{session}.npz"
     if f.exists():
         return str(f)
-    F = pd.read_csv(_dlc() / "session_poses" / "pose3d" / f"{session}_frames.csv.gz",
+    F = pd.read_csv(pose3d_dir(root=_dlc()) / f"{session}_frames.csv.gz",
                     usecols=["trial_id", "t_ms", "tongue_ml", "tongue_ap", "tongue_dv"]).sort_values(["trial_id", "t_ms"])
     by = {t: g for t, g in F.groupby("trial_id")}
     P = np.full((len(L), len(GRID), 3), np.nan, np.float32)
@@ -102,7 +103,7 @@ def main(argv=None) -> int:
     K = K[(K.date.astype(str).str[4:6] != "06") & K.t_peak_3d.notna()].copy()       # August-on (encoding rule)
     K["target"] = K.position.map(MOUSE)
     K = K.dropna(subset=["target"]).reset_index(drop=True)
-    out = _dlc() / "session_poses" / "pose3d" / "trajectories"
+    out = pose3d_dir(root=_dlc()) / "trajectories"
     cache = out / "per_lick"
     cache.mkdir(parents=True, exist_ok=True)
     (out / "figures").mkdir(exist_ok=True)

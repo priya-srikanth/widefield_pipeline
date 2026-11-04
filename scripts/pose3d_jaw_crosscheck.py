@@ -15,6 +15,7 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+from wfield_local.pose3d import pose3d_dir
 
 V36 = "lp_r4_heatmap_20261013__clean_v36"
 
@@ -29,7 +30,7 @@ def _r_slope(x, y):
 def main(argv=None) -> int:
     from wfield_local.paths import PathResolver
     rv = PathResolver()
-    d3 = Path(rv.root("dlc")) / "session_poses" / "pose3d"
+    d3 = pose3d_dir(rv)
     J3 = pd.read_csv(d3 / "kinematics" / "jaw_trials.csv.gz", dtype={"date": str})
     J4 = pd.read_csv(Path(rv.root("orofacial")) / V36 / "cohort" / "tables" / "jaw_lateral" / "trials.csv",
                      dtype={"date": str})

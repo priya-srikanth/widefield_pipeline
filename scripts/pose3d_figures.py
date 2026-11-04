@@ -21,6 +21,7 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+from wfield_local.pose3d import pose3d_dir
 
 COL = {"far_L": "#1f77b4", "close_L": "#6baed6", "close_center": "#999999", "far_center": "#333333",
        "close_R": "#fc9272", "far_R": "#d62728"}
@@ -31,7 +32,7 @@ VIEWS = (("top", "ml", "ap", "ml (mm)  mouse left <-> mouse right", "ap (mm)  ou
 
 
 def _out(rv) -> Path:
-    d = Path(rv.root("dlc")) / "session_poses" / "pose3d" / "figures"
+    d = pose3d_dir(rv) / "figures"
     d.mkdir(parents=True, exist_ok=True)
     return d
 
@@ -63,7 +64,7 @@ def cmd_maps(rv, sessions: list[str]) -> Path:
 
     from scripts.apparatus_mouth import _rig
     from wfield_local import spout_world as SW
-    d = Path(rv.root("dlc")) / "session_poses" / "pose3d"
+    d = pose3d_dir(rv)
     fig, axes = plt.subplots(3, len(sessions), figsize=(5.2 * len(sessions), 14), squeeze=False)
     rng = np.random.default_rng(0)
     for j, s in enumerate(sessions):

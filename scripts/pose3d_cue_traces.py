@@ -32,6 +32,7 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+from wfield_local.pose3d import pose3d_dir
 
 V36 = "lp_r4_heatmap_20261013__clean_v36"
 POS = ("close_L", "close_center", "close_R", "far_L", "far_center", "far_R")
@@ -218,7 +219,7 @@ def main(argv=None) -> int:
                          "-> figures/<cue|lick>_<m>_<animal>_contra.png (nothing recomputed)")
     a = ap.parse_args(argv)
     rv = PathResolver()
-    d3 = Path(rv.root("dlc")) / "session_poses" / "pose3d"
+    d3 = pose3d_dir(rv)
     if a.contra:
         out = a.out or d3 / ALIGN[a.align]["dir"]
         T = pd.read_csv(out / "traces.csv.gz", dtype={"date": str})

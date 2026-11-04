@@ -46,6 +46,7 @@ import os
 from pathlib import Path
 
 import numpy as np
+from wfield_local.pose3d import pose3d_dir
 
 STATS_VERSION = 7   # 2: FGROUP split (contact / direction / movement); 3: protrusion -> direction; 4: lick / spout split;
 #                     5: running capped at the pre p99 of ALL frames (superseded); 6: p99 of RUNNING frames (RUN_CAP_Q);
@@ -268,8 +269,7 @@ def lick_landing_weights(B, animal: str, date: str, rv, width: float = 1.0) -> n
         raise ValueError(f"{animal}_{date}: lick table has {len(L)} rows, behaviour {len(B.lick_on_s)} licks")
     path = os.environ.get(ce.EXEC3D_TABLE_ENV)
     if not path:
-        from wfield_local.paths import PathResolver
-        path = Path(PathResolver().root("dlc")) / "session_poses" / "pose3d" / "kinematics" / "licks.csv.gz"
+        path = pose3d_dir() / "kinematics" / "licks.csv.gz"
     K = pd.read_csv(path, usecols=["session", "trial_id", "lick_idx", "side_ml", "out_ap", "down_dv"])
     K = K[K.session == f"{animal}_{date}"].drop_duplicates(["trial_id", "lick_idx"])
     X = L[["trial_id", "lick_idx"]].merge(K, on=["trial_id", "lick_idx"], how="left")[
@@ -304,7 +304,7 @@ _KIN_ALL = {}
 def _kin_all(rv):
     """The whole-session 3-D lick table (pose3d/kinematics_all/licks.csv.gz), read once per process."""
     import pandas as pd
-    path = Path(rv.root("dlc")) / "session_poses" / "pose3d" / "kinematics_all" / "licks.csv.gz"
+    path = pose3d_dir(rv) / "kinematics_all" / "licks.csv.gz"
     if path not in _KIN_ALL:
         _KIN_ALL[path] = pd.read_csv(path, usecols=["session", "lick_uid", "context", "side_ml", "out_ap", "down_dv"])
     return _KIN_ALL[path]

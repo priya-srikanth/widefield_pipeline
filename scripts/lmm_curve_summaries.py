@@ -11,6 +11,7 @@ import argparse
 from pathlib import Path
 
 import pandas as pd
+from wfield_local.pose3d import pose3d_dir
 
 POS = ["close_ipsi", "close_mid", "close_contra", "far_ipsi", "far_mid", "far_contra"]
 P3 = {"close_L": "close_ipsi", "close_center": "close_mid", "close_R": "close_contra", "far_L": "far_ipsi",
@@ -86,7 +87,7 @@ def main(argv=None) -> int:
     out = Path(a.out)
     rv = PathResolver()
     base = Path(rv.root("orofacial")) / oc.RUN / "cohort" / "tables" / "prepost"
-    jobs = {**cam4(base), **pose3d(Path(rv.root("dlc")) / "session_poses" / "pose3d" / "phase" / "curves.csv.gz")}
+    jobs = {**cam4(base), **pose3d(pose3d_dir(rv) / "phase" / "curves.csv.gz")}
     for stem, (D, title, ylab) in jobs.items():
         D = D[D.epoch.isin(["pre", "acute", "subacute", "chronic"])]
         two = "panel" in D

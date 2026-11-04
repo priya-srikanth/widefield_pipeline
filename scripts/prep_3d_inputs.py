@@ -22,8 +22,9 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+from wfield_local.pose3d import pose3d_dir
 
-POSE3D = Path("M:/MICROSCOPE/Priya/DeepLabCut/Widefield/session_poses/pose3d")
+POSE3D = pose3d_dir()
 ANIMALS = ("PS92", "PS93", "PS94", "PS95")
 PRE_FROM = "20260806"          # August-only pre baseline (curated)
 MIN_FRAC_3D, MIN_SPOUTS = 0.5, 6

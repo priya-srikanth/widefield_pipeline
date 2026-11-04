@@ -37,12 +37,12 @@ import json
 from pathlib import Path
 
 import numpy as np
+from wfield_local.pose3d import pose3d_dir
 
 
 def kin_all() -> Path:
     """Per-lick 3-D table for ALL licks (pose window, `--licks all`), under the logical dlc root."""
-    from wfield_local.paths import PathResolver
-    return Path(PathResolver().root("dlc")) / "session_poses" / "pose3d" / "kinematics_all" / "licks.csv.gz"
+    return pose3d_dir() / "kinematics_all" / "licks.csv.gz"
 
 
 LAGS_S = (-0.1, 0.5)
