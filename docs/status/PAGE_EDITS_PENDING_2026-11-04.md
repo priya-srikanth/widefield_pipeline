@@ -28,6 +28,11 @@ Captions follow Priya's rule: rewrite a wrong caption cleanly, and never add COR
 | A10 | Every Allen-ROI analysis on the ALM / tjM1 split basis; orofacial group = ALM, tjM1, SSp-m, SSp-n | 34 SPLIT_BASIS_INVENTORY_20261104.md | imaging, encoding, quiet events | MAIN: panel layouts change; methods line |
 | A11 | Section-1 table without jaw-only trials (camlickpl), ENL 1.0 s | e0, s1_refit_*_1104 | imaging §1 table + deck slide 9 | MAIN |
 | A12 | State discriminators: camera-class (working vs none) as the primary G4 readout, z frame on contact rows | G4_CAMCLASS_MIXSHIFT_2026-11-04.md | imaging section G (G4) | MAIN readout; the mix-shift test COLLAPSIBLE |
+| A13 | Encoder spontaneous licking: LICKS_ALL = split. Three lick variables: licks = cued (instructed); licks_pre and licks_iti (uninstructed). "drop:licks" now means cued only; the instructed / uninstructed group contents change; the Musall maps and unique-R2 figures change. Caveat: the tongue / jaw traces stay instructed over the whole trial | 34 rebuild log 8.43, encoder-classes | encoding | MAIN (methods + variance-partition figures) |
+| A14 | Encoder per-class outputs: every cue trial is scored (non-working by the full-data fit); per-class PETH / cvR2 / trial-to-trial R2. Class comparisons use trial-to-trial R2, not cvR2 | 34 | encoding | new per-class figure, MAIN or COLLAPSIBLE (Priya to choose) |
+| A15 | 3-D spout targets = the commanded positions (the old measured targets sat 1.02 mm behind in ap); affects the encoder's polar targets | e0 bddf02e7, pose3d_spout_commanded | encoding (+ kinematics 3-D) | methods line |
+| A16 | Stopped trials with pre-cue / ITI licks are excised from both stopped and working; the quit tail is labelled "quit", separate from mid-session stops | 34 STOPPED_LICKS_CENSUS_20261104.md | behaviour / imaging per-class tables; quiet events | methods line |
+| A8+ | At FAR spouts, LP > 50 ms late is flagged grooming_suspect and the LP time is kept | 34 LP_MISSED_CONTACT_20261104.md | lick-aligned methods | methods line |
 
 ## B. Robustness checks: COLLAPSIBLE supplementary blocks (one per check, closed by default)
 
@@ -44,6 +49,14 @@ Captions follow Priya's rule: rewrite a wrong caption cleanly, and never add COR
 | B9 | Cue + 70 ms latency check | CUE70_CHECK_2026-11-04.md | kinematics / lick methods | first-contact histogram |
 | B10 | Stop-rule guard comparison | 34 STOP_RULE_GUARD_CENSUS_R2_20261104.md | behaviour page | arms table |
 | B11 | Contact vs incomplete accuracy per spout (new panel, sections D and G) | 34 bcdg-port | imaging §2 / section G | MAIN if Priya wants it on the slide, else COLLAPSIBLE |
+| B12 | Split vs no-licksall encoder (tag main_nolicksall). FINDING: pre-cue position credit (drop:pos_enl, LP ENL window) FALLS once spontaneous licks are modelled (PS93_0814 .0072 -> .0029, PS93_0818 .0044 -> .0037; per-animal numbers after O2). A conclusion-change watch for every encoder pre-cue position claim | 34 | encoding | COLLAPSIBLE (+ caption changes if it holds) |
+| B13 | ENL scoring window: lick-free sliding vs enl_fixed2s | 34 | encoding | COLLAPSIBLE |
+| B14 | LP missed contacts: 56 real close-spout misses (spout occlusion, droplet filter, gate M), 8 grooming | 34 LP_MISSED_CONTACT_20261104.md | kinematics / lick methods | COLLAPSIBLE |
+| B15 | Contact vs DAQ mismatch: 23 trials, all contacts after max_rt; unjudged close-mid 3.1 % | 34 CONTACT_DAQ_MISMATCH_20261104.md | behaviour / kinematics methods | COLLAPSIBLE |
+| B16 | Stopped-time licks census | 34 STOPPED_LICKS_CENSUS_20261104.md | behaviour page (same block as B10) | COLLAPSIBLE |
+
+Encoding-page caption fixes in the pass (34): the window "enl" readers (combined_encoding_figures, encoding_key_figures,
+encoding_mixed, fr_encoding_summary) and the lick variable lists (curbd_pilot).
 
 ## C. Methods text (one methods paragraph, imaging page)
 
