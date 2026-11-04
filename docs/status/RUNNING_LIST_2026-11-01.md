@@ -1198,3 +1198,16 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
     stage's safe z, 4 mm below the mouth.
   - Evidence: per-trial dv is bimodal (-1.55 vs -4.07); reprojection 1.6 px; no geometry changes.
   - The commanded value is correct. No flag needed.
+- **11-04 ~16:30: rebuild/encoder-classes DONE (7 commits, tip 7d463e8a).**
+  - Every cue trial is scored per trial.
+  - The existing outputs are bit-identical on PS93_0814 and PS93_0818 (max |d| = 0).
+  - Full suite: 4,763 passed / 0 failed. Related tests: 194 passed.
+  - Non-engaged trials are predicted by the full-data fit. The shuffle / relabel models cannot be scored for them (NaN,
+    flagged).
+  - Per-trial storage is automatic per TAG: full for main, SSE-only for bins / musall_shuf / fr, off for the others.
+    That is ~53 GB more on O2 scratch.
+  - **Peak RAM ~28-29 GiB per session against the 32G sbatch.** Proposal: --mem=40G for every array.
+  - Caveat for readers: per-class cvR2 is measured against the session mean, so a non-engaged class can score high from
+    its offset alone. Use trial-to-trial R2 for class comparisons.
+  - Smoke check (PS93_0818, acute): contact 0.553 / incomplete 0.386 cvR2.
+  - Also fixed: `--profile` keeps the encoder settings, and refresh-code / check cover trials.npz.
