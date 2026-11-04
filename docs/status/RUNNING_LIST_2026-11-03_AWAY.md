@@ -26,11 +26,6 @@ The combined render is ON HOLD until Q1 and Q2 are answered. Q3 is a default you
 
    The helper centred the projections on the engaged rows of the lick-gate spout model, so that no session drops.
    That is not the working-row centre the decoders use. Built, default OFF.
-0. **NEW: jaw-only trials out of "working" (report them as their own class, like no-response)?** The checks say they
-   behave like non-attempts (findings, top). If yes: train, score and centre on contact + incomplete trials. Acute
-   close ipsi becomes .727 (PS95 .832), against .631 now; the pre panel is .856. The change from the old .975 does
-   not come back, because camera classes + August-only alone give .832. This changes "working" as decided earlier
-   today, so the render also waits on it.
 3. **PS93_0813 (default taken; reversible).** It drops only where a camera is needed, so cue and precue training
    sets are 8/7/8/8. The lick-window models keep it at 8/8/8/8, because the lick gate needs no camera.
 
@@ -90,6 +85,12 @@ FYI, the 3-class camera variant (lick / jaw-only / none) is thin in PS92 and PS9
 
 ## Decisions taken today (Priya)
 
+- **(late) Jaw-only trials are OUT of working** and are reported as their own class, like no-response. Working =
+  contact + incomplete camera licks, cut at the session's last camera lick. This applies to the frozen training set,
+  the per-session centre, the pre panel and the scored set. It replaces the afternoon rule (jaw or any lick). A helper
+  is implementing it, retraining the cue / precue frozen models (new ids; old ones kept) and verifying against the
+  checks' "jaw as its own class" row: acute close ipsi .727, pre panel .856.
+
 - **Pre-stroke baseline.** Frozen decoders and the whole imaging render use AUGUST-ONLY pre sessions.
 - **Working trials.** Working = trial_classes.in_working on both sides: licks + incomplete licks + jaw movement, cut at
   the last camera lick. At close mid it is licks only.
@@ -102,8 +103,9 @@ FYI, the 3-class camera variant (lick / jaw-only / none) is thin in PS92 and PS9
 
 ## Running
 
+- Jaw-only-out helper: production code + new frozen models + verification, then docs. No render.
 - Decoder helper (a44ea79f): checks done and the helper has exited. A is live; B and C are built but OFF. The combined
-  render waits on Q1 and Q2. Once those are answered, the render covers SPOUT_BALEM_PAGE_EDITS sections 2, 5 and 7.
+  render waits on Q1 and Q2 and on the jaw-only-out change. Once those are answered, the render covers SPOUT_BALEM_PAGE_EDITS sections 2, 5 and 7.
   After it, these slides change: 10, 11, 12, 13 (position side), 19 and 89, plus every caption that mentions working
   trials (build_inputs/spout_balem_swaps.json).
 - Deck (183 slides): every starred figure has its hidden LMM slide. Waiting on the re-render for slides 10-12 and 19 and
