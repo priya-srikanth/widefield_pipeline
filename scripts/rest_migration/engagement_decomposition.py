@@ -78,14 +78,17 @@ def session_trials(s, resp_s):
     from wfield_local import daq_io
     from wfield_local.behavior_position import classify_cues_with_backup
     from wfield_local.locanmf_cue_lick_analysis import _load_cue_events
-    from wfield_local.plot_lick_aligned_averages import _load_daq_events
     from wfield_local.rest_by_position import _session_daq
 
     cue = _load_cue_events(s["h5"])
     cs = np.asarray(cue["cue_samples"], float)
     codes = np.asarray(classify_cues_with_backup(s, cue, verbose=False))
-    lk = _load_daq_events(s["h5"], "lick_analog", 2.5, 1.0, (0.001, 0.020), 0.10)
-    licks = np.sort(np.asarray(lk["lick_samples"], float))
+    # LICK COUNTS (n_licks_trial, n_licks_pre, cum_licks) use THE behaviour detector (coordinator 11-03, rule 9;
+    # `analysis_kit.lick_count_samples`). The RESPONSE detection (hit / latency, which the engagement gate and the quit
+    # point are scored on) keeps the deck's discriminator (`analysis_kit.lick_samples`), unchanged.
+    from wfield_local import analysis_kit as _ak
+    licks = np.sort(np.asarray(_ak.lick_count_samples(s), float))
+    licks_resp = np.sort(np.asarray(_ak.lick_samples(s), float))
     with daq_io.open_daq(s["h5"]) as f:
         sr, _ = daq_io.session_attrs(f)
     _r, _cs2, _c, ts, _fs, _sy = _session_daq(s)
@@ -112,7 +115,7 @@ def session_trials(s, resp_s):
         if codes[k] < 0 or not np.isfinite(pre_open[k]) or pre_open[k] >= cs[k]:
             continue
         end = min(cs[k] + resp_s * sr, nxt[k])
-        post = licks[(licks >= cs[k]) & (licks <= end)]
+        post = licks_resp[(licks_resp >= cs[k]) & (licks_resp <= end)]
         npre = int(((licks >= pre_open[k]) & (licks < cs[k])).sum())
         rows.append(dict(pos=int(codes[k]), order=k, frac=k / max(n - 1, 1),
                          n_licks_trial=int(n_trial[k]), stop_sample=float(stop_s[k] * sr),

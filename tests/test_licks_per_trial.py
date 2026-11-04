@@ -63,3 +63,34 @@ def test_gui_fallback_session_counts_to_the_sessions_own_window(tmp_path):
     m = sb.lick_microstructure(d, sb.load_trials(d), config.defaults()["behavior"])
     per = m["per_position"].set_index("pos_name")
     assert per.loc["close_L", "licks_per_trial"] == pd.Series([3, 1]).mean()   # the 4.1 s lick counts (old: 2 + 1)
+
+
+def test_lick_counts_use_the_behaviour_detector_and_imaging_keeps_its_own():
+    """Coordinator 11-03 (rule 9): every lick COUNT uses detector A (`analysis_kit.lick_count_samples` =
+    `daq_trials.decode` with the yaml params); imaging alignment keeps `analysis_kit.lick_samples` (0.1 s refractory)."""
+    import inspect
+
+    from wfield_local import analysis_kit as ak
+    src = inspect.getsource(ak.lick_count_samples)
+    assert "daq_trials.decode(" in src and 'config.defaults()["lick_detection"]' in src
+    assert "lick_samples=np.asarray(lick_count_samples(s), np.int64)" in inspect.getsource(ak.session_behavior)
+    assert '"lick_analog", 2.5, 1.0, (0.001, 0.020), 0.10)' in inspect.getsource(ak.lick_samples)   # imaging: B
+    ed = (REPO / "scripts" / "rest_migration" / "engagement_decomposition.py").read_text(encoding="utf-8")
+    assert "licks = np.sort(np.asarray(_ak.lick_count_samples(s), float))" in ed
+    assert "post = licks_resp[" in ed                      # response detection unchanged
+
+
+def test_lick_count_samples_is_detector_a(monkeypatch):
+    from wfield_local import analysis_kit as ak
+    from wfield_local import daq_trials as dt
+    seen = {}
+
+    def fake(h5, params):
+        seen["params"] = params
+        return {"lick_s": np.array([0.1, 0.25]), "fs": 1000.0}
+
+    monkeypatch.setattr(dt, "decode", fake)
+    ak._COUNT_LICKS.clear()
+    out = ak.lick_count_samples({"h5": "x.h5"})
+    assert out.tolist() == [100, 250] and "min_ili_ms" in seen["params"]
+    ak._COUNT_LICKS.clear()

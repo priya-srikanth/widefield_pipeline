@@ -23321,3 +23321,17 @@ state-class version on.
   `FrozenFrame(cls_e=)`, `scored_frame(centre_mask=)`, `locanmf_frozen_decoder.engaged_row_classes`. Log
   docs/status/REBUILD_CODE_20261103.md 8.16.
 
+## 2026-11-03 (night) -- One DAQ lick detector for lick COUNTS; imaging alignment keeps its own (coordinator)
+
+- **Lick counts** (licks per trial, `n_licks_trial`, `n_licks_pre`, cumulative licks, licks per bout, per-trial ILIs:
+  quit_prodrome, lick_bout_structure, engagement_decomposition, disengagement_tests via `analysis_kit.session_behavior`)
+  use the behaviour detector. That is `lick_detection.detect_licks` with the yaml `lick_detection` params (2.5 / 0.5 V,
+  40 ms floor) through `daq_trials.decode`, the same one the DAQ trial table, the trial stops and the camera contacts
+  use (`analysis_kit.lick_count_samples`). One definition per quantity (CLAUDE.md rule 9).
+- **Imaging lick-event alignment is unchanged.** `analysis_kit.lick_samples` and every `_load_daq_events(..., 0.10)`
+  call that aligns imaging to licks keep the 0.1 s bout-collapse refractory.
+- **Response detection is unchanged.** engagement_decomposition's hit / latency, which the engagement gate and the quit
+  point are scored on, stays on that discriminator.
+- Measured difference (cue + 70 ms to the stop): PS93_0908 detector A 5,304 vs B 5,203 licks (101 of 511 trials
+  differ by 1); PS94_0818 1,486 vs 1,484.
+

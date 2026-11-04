@@ -73,6 +73,15 @@ def is_lp() -> bool:
     return lick_source() == "lp"
 
 
+def refuse_lp_folder(path, what: str) -> None:
+    """An LP_licks output folder is written ONLY by an LP run (fifth review N5b): a render block that forgot to set
+    WIDEFIELD_LICK_SOURCE=lp would otherwise put DAQ-gated figures into an LP-named folder. SystemExit."""
+    from pathlib import Path as _P
+    if any(seg.startswith("LP_licks") for seg in _P(path).parts) and not is_lp():
+        raise SystemExit(f"{what}: refusing to write {path} -- an LP_licks folder, but {LICK_SOURCE_ENV} is not 'lp' "
+                         "(set it in the render block: render_profile block_env)")
+
+
 def _run_dir(rv=None) -> Path:
     from wfield_local import orofacial_cohort as oc
     from wfield_local import orofacial_outputs as oo

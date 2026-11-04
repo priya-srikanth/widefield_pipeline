@@ -72,3 +72,28 @@ def test_drift1500_arm_has_its_own_tag(monkeypatch):
     left = render_profile.apply(NAME, {"COMBINED_ENCODING_DRIFT_MIN_PERIOD_S": "1500"})
     assert "COMBINED_ENCODING_DRIFT_MIN_PERIOD_S" in left["cleared"]     # the primary profile clears a leftover arm
     assert "drift" in run_mode._CACHE
+
+
+def test_lp_blocks_set_the_lick_source_and_lp_folders_need_it(monkeypatch, tmp_path):
+    """Fifth review N5b: the LP render blocks carry WIDEFIELD_LICK_SOURCE=lp in the profile's block_env, and an LP_licks
+    output folder is refused (epoch writers, sidecars, the deck) when the switch is unset."""
+    from wfield_local import figure_layout, lp_licks
+    for b in ("lp_final_render", "restnl_maps", "epoch_accuracy", "epoch_maps", "analysis_deck_lp"):
+        assert render_profile.block_env(NAME, b) == {"WIDEFIELD_LICK_SOURCE": "lp"}, b
+    env = {}
+    render_profile.apply(NAME, env, block="epoch_maps")
+    assert env["WIDEFIELD_LICK_SOURCE"] == "lp"
+    assert any("WIDEFIELD_LICK_SOURCE" in ln for ln in render_profile.shell_lines(NAME, "bash", block="restnl_maps"))
+    monkeypatch.delenv("WIDEFIELD_LICK_SOURCE", raising=False)
+    lp_dir = tmp_path / "grant_figures" / "LP_licks" / "epoch"
+    with pytest.raises(SystemExit, match="LP_licks"):
+        lp_licks.refuse_lp_folder(lp_dir / "x.png", "t")
+    with pytest.raises(SystemExit):
+        figure_layout.sidecar_for(lp_dir, "x", ".csv")
+    from wfield_local import epoch_figures
+    with pytest.raises(SystemExit):
+        epoch_figures.write_values([{"a": 1}], lp_dir / "x.png")
+    figure_layout.sidecar_for(tmp_path / "grant_figures" / "epoch", "x", ".csv")       # a default folder: fine
+    monkeypatch.setenv("WIDEFIELD_LICK_SOURCE", "lp")
+    lp_licks.refuse_lp_folder(lp_dir / "x.png", "t")
+    figure_layout.sidecar_for(lp_dir, "x", ".csv")

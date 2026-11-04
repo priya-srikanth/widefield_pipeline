@@ -469,6 +469,25 @@ def lick_samples(s):
     return _load_daq_events(s["h5"], "lick_analog", 2.5, 1.0, (0.001, 0.020), 0.10)["lick_samples"]
 
 
+def lick_count_samples(s):
+    """Lick onset samples for LICK COUNTS (licks per trial, licks per bout, ILIs, quit / engagement measures): THE
+    behaviour detector (coordinator 11-03, CLAUDE.md rule 9: one definition per quantity) -- `lick_detection.detect_licks`
+    with the yaml ``lick_detection`` params (0.5 V lower threshold, 40 ms physiological floor), the one the DAQ trial
+    table, the trial stops and the camera contacts use (`daq_trials.decode`). NOT for imaging lick-event alignment, which
+    keeps `lick_samples` (the 0.1 s bout-collapse refractory, CLAUDE.md)."""
+    import pathlib
+
+    from wfield_local import config, daq_trials
+    key = str(s["h5"])
+    if key not in _COUNT_LICKS:
+        dec = daq_trials.decode(pathlib.Path(s["h5"]), config.defaults()["lick_detection"])
+        _COUNT_LICKS[key] = np.round(np.asarray(dec["lick_s"], float) * float(dec["fs"])).astype(np.int64)
+    return _COUNT_LICKS[key]
+
+
+_COUNT_LICKS: dict = {}
+
+
 class Behavior(NamedTuple):
     """One session's trial-level behaviour, gated and ready to measure.
 
@@ -537,7 +556,7 @@ def session_behavior(lab, *, gate=False, horizon_min=None, resp_s=RESP_S,
     # per-session cost; a session that cannot contribute should not pay for them.
     cs = np.asarray(_load_cue_events(s["h5"])["cue_samples"], np.int64)
     return Behavior(session=s, trials=tr, gated=tt, quit=q, cue_samples=cs,
-                    lick_samples=np.asarray(lick_samples(s), np.int64),
+                    lick_samples=np.asarray(lick_count_samples(s), np.int64),   # counts / ILIs: detector A
                     sample_rate=float(daq_rate(s)), near=near_codes())
 
 

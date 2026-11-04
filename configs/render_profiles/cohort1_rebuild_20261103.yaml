@@ -32,6 +32,15 @@ block_args:
   epoch_grant_figures: ["--pre-from", "0801"]
   grant_figures: ["--pre-from", "0801"]
 
+# PER-BLOCK ENV (fifth review N5b): `--block <name>` (render_profile.apply(name, block=...)) adds the block's env. The LP
+# blocks set the LP lick source themselves; an LP_licks folder is refused without it (lp_licks.refuse_lp_folder).
+block_env:
+  lp_final_render: {WIDEFIELD_LICK_SOURCE: lp}
+  restnl_maps: {WIDEFIELD_LICK_SOURCE: lp}
+  epoch_accuracy: {WIDEFIELD_LICK_SOURCE: lp}
+  epoch_maps: {WIDEFIELD_LICK_SOURCE: lp}
+  analysis_deck_lp: {WIDEFIELD_LICK_SOURCE: lp}
+
 # SENSITIVITY ARMS: `--arm <name>` (render_profile.apply(name, arm=...)) adds the arm's env on top; each arm's env enters
 # the output tag (run_mode parts), so its outputs and caches never meet the primary ones.
 arms:

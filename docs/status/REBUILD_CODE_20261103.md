@@ -949,3 +949,44 @@ Full suite at a06f7fb7, 6 shards: 4,572 passed, 178 skipped, 1 failed. The failu
 `test_spout_bal_em::test_scoring_takes_no_labels_by_signature`: `scored_frame` had gained a `labels` parameter (session
 names for the centre fallback), a name that test reserves for trial labels. It is renamed `session_names`, and the test
 and the centre suites pass.
+
+### 8.23 Lick detector for counts (i), per-block LP env (N5b), pre-set report (N5a)
+- **(i), coordinator decision.** Every lick COUNT now uses detector A through the new `analysis_kit.lick_count_samples`
+  (`daq_trials.decode` with the yaml `lick_detection` params, the detector of the trial table, stops and camera
+  contacts).
+  - Consumers of the B discriminator (`analysis_kit.lick_samples` / `_load_daq_events(.., 0.10)`) were split:
+    - COUNTS: `analysis_kit.session_behavior` (-> quit_prodrome, lick_bout_structure, disengagement_tests) and
+      `engagement_decomposition.session_trials` (n_licks_trial, n_licks_pre, cum_licks). These now use A.
+    - IMAGING ALIGNMENT / windows, unchanged: locanmf_* (decoder, encoder, cue_lick, lick_aligned, firstlick,
+      weights, dff), precue_lickfree / precue_window_sweep, locomotor_features, rt_drift, nolick_decoder.categorize,
+      gate_source, fixed_scale_maps, channel_position_maps, evoked_hrf_latency, nvc_evoked, enl_lick_rates, fr_enl_decode.
+  - engagement_decomposition's RESPONSE detection (hit / latency -> the engagement gate and the quit point) stays on
+    B, so `test_lp_gate_option`'s pinned quit is unchanged.
+  - DECISIONS entry added; tests in test_licks_per_trial.
+- **N5b.** The profile has a `block_env:` (lp_final_render, restnl_maps, epoch_accuracy, epoch_maps,
+  analysis_deck_lp: WIDEFIELD_LICK_SOURCE=lp), applied by `render_profile.apply(..., block=)` and printed by
+  `--block`. `lp_licks.refuse_lp_folder` stops a write into an LP_licks folder when the switch is unset. It is called
+  in `epoch_figures._save_png_svg` and `write_values` (every epoch family, epoch_accuracy and epoch_maps included), in
+  `figure_layout.sidecar_for` (every sidecar), and in `build_analysis_deck`. Test in test_render_profile.
+- **N5a (report, no code).** Runtime check under the profile (no PRE_FROM):
+  - The selectors: `config.phase_labels("pre")` = 44 sessions incl. 12 June; `analysis_kit.curated_labels` = 120
+    incl. 12 June; `epochs.epoch_of("PS92_0606")` = "pre". With WIDEFIELD_PRE_FROM=0801: 32 pre sessions, 0 June, and
+    June's epoch_of is None.
+  - **June + August (28):** every flagged script whose pre set comes from those selectors: axis_holdout_null,
+    chronic_drift_vs_reorg, chronic_stability, engagement_axis_balance, lick_iti_prelick, lick_template_test,
+    nocontact_census, fig_state_ps94_diagnostic, reembedding_test, cd_trajectories, grant_encoder, locomotor_decoder,
+    and rest_migration channel_evoked_sign, evoked_hrf_latency, flat_vs_timelocal, flatpool_vs_restw, nvc_evoked,
+    quit_point, regen_lick_maps, regen_running_maps, rest_coupling, rest_frozen_decoder, rotation_maps,
+    shared_position_projection, substitute_code, transfer_arms, uniform_shift_check. cohort2_qc/quiet_area_spikes is
+    cohort-1 + 2 QC, not a baseline for this render.
+  - **Pre from upstream tables (4):** lick_code_noisematch, lick_cued_ramp, reference_family_figure and
+    face_prelaunch_aim take "pre" from upstream per-session tables' epoch labels. They inherit the upstream run's pre
+    set, so they follow PRE_FROM wherever the upstream does. Not verified per table.
+  - **Not a pre baseline:** regen_lick_maps / regen_running_maps use phase_labels only to list sessions to rebuild.
+    They are "June + Aug" only in the sense that they rebuild June sessions' maps too.
+  - **Profile-wide PRE_FROM=0801** would take:
+    - `WIDEFIELD_PRE_FROM: "0801"` in the profile env, which changes the expected run tag (adds `pre0801`; every
+      output and cache tag moves, and the frozen specs change with the training labels);
+    - block exemptions that UNSET it for june_august_drift (which refuses PRE_FROM) and 12.1b
+      (rest_frozen_decoder_nl, its own June + Aug pre set). `block_env` needs a "remove" value (e.g. null -> pop);
+    - `epoch_audit.full_cohort` already suspends PRE_FROM, so epoch boundaries do not move.

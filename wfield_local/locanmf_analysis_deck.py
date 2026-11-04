@@ -482,6 +482,8 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
     so a test can keep the build hermetic instead of silently reaching onto the MICROSCOPE share.
     """
     src = Path(src)
+    from wfield_local import lp_licks as _lpl
+    _lpl.refuse_lp_folder(out_path, "analysis deck")      # N5b: an LP deck block must set WIDEFIELD_LICK_SOURCE=lp
     # R2 (fourth review, 11-03): a TAGGED run (hemo variant / projection / camera gate / PRE_FROM ...) builds its deck only
     # from its OWN figures. Under the rebuild root every default below already resolves inside it; outside one, the
     # defaults are the untagged pre-rebuild figures, so a tagged build without an explicit grant_dir REFUSES.

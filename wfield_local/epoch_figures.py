@@ -54,6 +54,7 @@ def _save_png_svg(fig, q, *, dpi=200):
     import pathlib
     q = pathlib.Path(q)
     from wfield_local import lp_licks
+    lp_licks.refuse_lp_folder(q, "epoch figure")          # N5b: epoch_accuracy / epoch_maps and every epoch family
     lp_licks.stamp(fig)                         # LP_licks renders say so on the figure itself
     # WRAP the stamp to the canvas (11-02): one right-aligned line ran off the left edge of the ~6 in bar figures.
     # Done here, not in lp_licks.stamp: that module's source keys the LP lick-times sidecars.
@@ -69,7 +70,8 @@ def _save_png_svg(fig, q, *, dpi=200):
         print(f"  [svg] {q.name}: failed ({type(ex).__name__})", flush=True)
 
 def write_values(values, q, *, points=None, marks=None):
-    """Write the numbers a bar figure PLOTS, beside it as ``<name>.csv``.
+    """Write the numbers a bar figure PLOTS, beside it as ``<name>.csv``. (An LP_licks folder needs the LP switch:
+    `lp_licks.refuse_lp_folder`.)
 
     **A figure whose values exist nowhere else drifts from every text that quotes it, and nothing can
     notice.** That is not hypothetical: `PRELIM_DATA_VLS_STROKE.md` carried chronic frozen-vs-refit

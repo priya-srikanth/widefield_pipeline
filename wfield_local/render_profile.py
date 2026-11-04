@@ -57,16 +57,25 @@ def load(name: str, arm: str | None = None) -> dict:
     return d
 
 
+def block_env(name: str, block: str) -> dict:
+    """Extra env of one render BLOCK (profile ``block_env``; fifth review N5b), e.g. WIDEFIELD_LICK_SOURCE=lp for the LP
+    blocks. {} for a block without one."""
+    d = load(name)
+    return {str(k): str(v) for k, v in ((d.get("block_env") or {}).get(block) or {}).items()}
+
+
 def leftovers(d: dict, environ=None) -> list[str]:
     """Owned-prefix variables set in ``environ`` that profile ``d`` does not set (what `apply` clears)."""
     env = os.environ if environ is None else environ
     return sorted(k for k in env if k.startswith(OWNED_PREFIXES) and k not in d["env"])
 
 
-def apply(name: str, environ=None, arm: str | None = None) -> dict:
+def apply(name: str, environ=None, arm: str | None = None, block: str | None = None) -> dict:
     """CLEAR every leftover WIDEFIELD_* / WFIELD_* variable, then set the profile's env in ``environ`` (default
     os.environ); returns the profile with ``cleared`` (the names removed)."""
     d = load(name, arm)
+    if block is not None:                                  # the block's own env is part of what the profile sets
+        d["env"] = {**d["env"], **block_env(name, block)}
     env = os.environ if environ is None else environ
     d["cleared"] = leftovers(d, env)
     for k in d["cleared"]:
@@ -78,9 +87,12 @@ def apply(name: str, environ=None, arm: str | None = None) -> dict:
     return d
 
 
-def shell_lines(name: str, shell: str = "powershell", arm: str | None = None) -> list[str]:
-    """Shell lines that first REMOVE every owned-prefix variable of that shell, then set the profile's (+ the arm's)."""
+def shell_lines(name: str, shell: str = "powershell", arm: str | None = None, block: str | None = None) -> list[str]:
+    """Shell lines that first REMOVE every owned-prefix variable of that shell, then set the profile's (+ the arm's,
+    + the block's)."""
     d = load(name, arm)
+    if block is not None:
+        d["env"] = {**d["env"], **block_env(name, block)}
     if shell == "bash":
         clear = ["for v in $(compgen -e | grep -E '^(WIDEFIELD|WFIELD|COMBINED_ENCODING)_'); do unset \"$v\"; done"]
         return clear + [f'export {k}="{v}"' for k, v in d["env"].items()]
@@ -117,9 +129,10 @@ def main(argv=None) -> int:
     ap.add_argument("--shell", choices=("powershell", "bash"), default=None)
     ap.add_argument("--check", action="store_true", help="apply in-process and print / verify the tags")
     ap.add_argument("--arm", default=None, help="a sensitivity arm of the profile (its `arms:` block)")
+    ap.add_argument("--block", default=None, help="a render block with its own env (the profile's `block_env:`)")
     a = ap.parse_args(argv)
     if a.shell:
-        print("\n".join(shell_lines(a.name, a.shell, a.arm)))
+        print("\n".join(shell_lines(a.name, a.shell, a.arm, a.block)))
     if a.check or not a.shell:
         ok, lines = check(a.name, a.arm)
         print("\n".join(lines))
