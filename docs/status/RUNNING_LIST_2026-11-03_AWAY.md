@@ -180,6 +180,14 @@ FYI, the 3-class camera variant (lick / jaw-only / none) is thin in PS92 and PS9
     close ipsi acute .975 -> .642).
 
   Cue window primary, precue secondary. (Priya then asked for within-class arms and equal cue / precue.)
+- 11-03 night: e0 added jaw-free arms to the s1 tables, pushed to main:
+  - snapshot columns working_pl_*_licks;
+  - LocaNMF refit arms camlickpl_*;
+  - Allen-refit columns *_camlickpl*;
+  - imaging §1 table primary = camlickpl_lick, with the jaw-inclusive arm kept as a robustness row.
+
+  The reruns are running into LP_licks_ENL2s/qc/s1_refit_{basis,locanmf}_1104.csv; the 11-03 files are not
+  overwritten. The table will be built but NOT applied to the page until you decide.
 - 11-03 night: I HELD the main-branch render (question 0) after 34's timing answer. The rebuild has its own fenced
   output dir (rebuild_20261103), frozen store and spec ids, so there is no file collision, only CPU. The rebuild deck
   swaps are 1-2 days out. e0 is holding the imaging page edits: §1-4, 6 and 7 are working-gated, and the old wording
