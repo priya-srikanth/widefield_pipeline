@@ -1252,3 +1252,15 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   - LP 1.0 s, using the decoders' search, from the bundle's lick data. It changes before the new O2 bundle is built.
   - The old fixed 2 s ungated window is kept as the "enl_fixed2s" robustness row.
   - Implementing on rebuild/encoder-classes. Other outputs must stay bit-identical.
+- **11-04 ~17:25: FINDING. The production encoder has NO pre-cue lick kernels.**
+  - COMBINED_ENCODING_LICKS_ALL is not set in the bundle env.
+  - The lick sources start at the cue: LP licks.csv post-cue, DAQ contacts at cue + 70 ms .. stop.
+  - Pre-cue licking is modelled only by the continuous tongue / jaw / nose video regressors, which are blanked outside
+    strobe .. trial end.
+  - pos_enl = a per-position strobe-locked arrival kernel (0-2 s) + a spout-present state (strobe .. cue). It is fixed
+    timing, independent of licks.
+  - So the lick-free scoring window is only a per-trial frame mask on the same prediction.
+  - BUT the pickle lacks pre-cue licks, so it needs the context-lick data.
+  - **DECISION NEEDED (Priya):**
+    - (A) bundle the pre-cue licks for scoring only, with the model unchanged;
+    - (B) LICKS_ALL=split: add pre-cue and ITI lick kernels to the production model.
