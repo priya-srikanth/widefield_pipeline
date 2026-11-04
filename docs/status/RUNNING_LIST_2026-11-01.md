@@ -615,6 +615,9 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
 - a8: will NOT run a main-branch render tonight; holds PI slides 10-13 / 19 / 89 for the rebuild replacement pass (asks Priya in
   the morning whether she wants an interim swap; will tell us before any render). a8's jaw-only helper on main is light, capped.
   OWED to a8: per-slide old-vs-new list at the replacement pass.
+- 11-04: jaw-only-out landed on main (48f2cc6d; WIDEFIELD_WORKING_TRIALS in_working / in_working_jaw / quit_tail; tag
+  cls-contact-incomplete; 20 new frozen ids in main's store). Rebuild helper told to MATCH main's names / tag / stop-run
+  semantics (and adopt main's stop-run rule if it differs from my default). Box free of a8's jobs.
 
 ### Findings
 - main moved while the rebuild branch was being fixed (34 commits not in rebuild/cohort1-20261103). Two matter for the rebuild:
