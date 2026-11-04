@@ -36,10 +36,10 @@ import numpy as np  # noqa: E402
 import pandas as pd  # noqa: E402
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from wfield_local.orofacial_outputs import encoding_root as _encoding_root  # noqa: E402
+from wfield_local import run_mode as _rmode  # noqa: E402
 
 V36 = Path("M:/MICROSCOPE/Priya/Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v36")
-E = _encoding_root(V36.name)  # rebuild root (11-03)
+E = _rmode.encoding_out_root(V36.name)  # the run's TAGGED encoding tree (coordinator 11-04): outputs + routed inputs
 OUT = Path(os.environ.get("PAT_OUT") or (E / "prelaunch_aim_tracking"))
 FEAT = E / "prelaunch_aim_tracking" / "features"          # feature cache is shared by the smoke test (deterministic)
 FIGS = OUT / "figures"
@@ -123,7 +123,8 @@ def _items(labs: list[str]) -> list:
                      usecols=["label", "lick_uid", "onset_ok", "theta_L", "theta_E", "daq_on_s", "gap", "phase",
                               "since_stop", "prev_pos"])
     IT = IT[IT.label.isin(labs)]
-    DA = pd.read_csv(E / "iti_licks" / "iti_dock_audit.csv", usecols=["label", "onset", "dock01"])
+    import iti_licks as _il
+    DA = pd.read_csv(_il.OUT_W / "iti_dock_audit.csv", usecols=["label", "onset", "dock01"])
     DA = DA[DA.label.isin(labs)]
     return [Item((lab, LS[LS.label == lab].reset_index(drop=True), IT[IT.label == lab].reset_index(drop=True),
                   DA[DA.label == lab].reset_index(drop=True))) for lab in labs]
@@ -1063,7 +1064,8 @@ def cmd_summarise() -> None:
     # ENL pre-cue reference
     enl = pd.DataFrame()
     try:
-        V = pd.read_csv(E / "iti_licks" / "enl_offx_variants.csv")
+        import iti_licks as _il
+        V = pd.read_csv(_il.OUT_W / "enl_offx_variants.csv")
         enl = V[V.variant.str.startswith("B7")][["variant", "epoch", "delta", "lo", "hi"]]
         P("\n== ENL pre-cue reference (lick_enl_offset_explore B7; 3-D first-lick angle; raw deg)")
         P(enl.round(2).to_string(index=False))
@@ -1343,8 +1345,7 @@ def _plot_secondary(fd, plt, EC, AM):
 
 # ================================================================================================ main
 def main() -> int:
-    from wfield_local import run_mode as _rm_guard
-    _rm_guard.require_default("prelaunch_aim_tracking")   # unrouted share writer: refuses in a non-default run mode
+    # coordinator 11-04: routed (outputs under the run tag), no longer refused in a tagged run
     cmd = sys.argv[1] if len(sys.argv) > 1 else "plot"
     if "--plot-only" in sys.argv or cmd == "plot":
         cmd_plot()

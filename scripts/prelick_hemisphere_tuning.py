@@ -32,7 +32,6 @@ import numpy as np
 import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from wfield_local.orofacial_outputs import encoding_root as _encoding_root  # noqa: E402 - rebuild root (11-03)
 import lick_correction as lc  # noqa: E402
 
 V36 = "lp_r4_heatmap_20261013__clean_v36"
@@ -60,7 +59,8 @@ SETS = ("first", "later", "iti", "firstjaw")
 
 
 def out_root() -> Path:
-    return _encoding_root(V36) / "prelick_hemisphere_tuning"
+    from wfield_local import run_mode
+    return run_mode.encoding_out_root(V36) / "prelick_hemisphere_tuning"     # routed (coordinator 11-04)
 
 
 OUT = out_root()
@@ -84,7 +84,8 @@ def _items() -> list:
     L = L[L.animal.isin(AN)]
     labs = sorted(set(lc.imaging_labels()) & set(ak.curated_labels()) & set(L.label.unique()))
     labs = [x for x in labs if x[:4] in AN]
-    J = pd.read_csv(WLC.parent / "qc" / "jaw_onsets.csv", dtype={"date": str},
+    from wfield_local import run_mode
+    J = pd.read_csv(run_mode.behaviour_qc_dir() / "jaw_onsets.csv", dtype={"date": str},
                     usecols=["session", "trial_id", "jaw_onset_ms", "onset_at_cue", "jaw3d_side_ipsi_mm"])
     items = []
     for lab in labs:
@@ -850,8 +851,7 @@ def cmd_plot() -> None:
 
 
 def main() -> int:
-    from wfield_local import run_mode as _rm_guard
-    _rm_guard.require_default("prelick_hemisphere_tuning")   # unrouted share writer: refuses in a non-default run mode
+    # coordinator 11-04: routed (outputs under the run tag), no longer refused in a tagged run
     from wfield_local import parallel
     parallel.pin_blas()
     args = [a for a in sys.argv[1:] if not a.startswith("--")]

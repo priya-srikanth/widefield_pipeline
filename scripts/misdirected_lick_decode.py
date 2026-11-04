@@ -273,8 +273,7 @@ def summarise(D: pd.DataFrame) -> pd.DataFrame:
 
 
 def main(argv=None) -> int:
-    from wfield_local import run_mode as _rm_guard
-    _rm_guard.require_default("misdirected_lick_decode")   # unrouted share writer: refuses in a non-default run mode
+    # coordinator 11-04: routed (outputs under the run tag), no longer refused in a tagged run
     from wfield_local import analysis_kit as ak
     from wfield_local import epochs
     from wfield_local import o2_inference as oi
@@ -294,9 +293,14 @@ def main(argv=None) -> int:
     ap.add_argument("labels", nargs="*")
     a = ap.parse_args(argv)
     rv = PathResolver()
-    out = oo.root(rv) / a.run / "cohort" / "tables" / "misdirected_licks"
-    writeguard.assert_writable(out)
-    cnt = pd.read_csv(out / "counts.csv")
+    # coordinator 11-04: routed. The counts are a BEHAVIOUR input (misdirected_lick_counts, read in place); this
+    # script's outputs go under the run's (tagged) encoding tree, never into the orofacial input tree
+    from wfield_local import run_mode
+    src = oo.root(rv) / a.run / "cohort" / "tables" / "misdirected_licks"
+    out = run_mode.encoding_out_root(a.run) / "misdirected_licks" if run_mode.tag() else src
+    out.mkdir(parents=True, exist_ok=True)
+    writeguard.assert_writable(out / "_")
+    cnt = pd.read_csv(src / "counts.csv")
     n_mis = cnt[cnt.pos == "far_contra"].groupby("label").ipsi_dev.sum()
     bdir = oi.bundle_dir(rv, a.name) / "inputs"
     if a.method == "templates":

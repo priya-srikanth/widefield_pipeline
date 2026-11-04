@@ -40,7 +40,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import prelaunch_aim_tracking as pat  # noqa: E402
 
 V36 = pat.V36
-E = pat.E
+E = pat.E          # pat.E = run_mode.encoding_out_root(...): the TAGGED encoding tree (routed, coordinator 11-04)
 OUT = Path(os.environ.get("FPA_OUT") or (E / "face_prelaunch_aim"))
 FEAT = E / "face_prelaunch_aim" / "features"          # deterministic, shared with the smoke test
 S26F = pat.FEAT
@@ -498,7 +498,8 @@ def analysis(name, arm, D, pcol, sel=None, store=None):
 def recovery(S: pd.DataFrame, tag: dict) -> list:
     """Q3: per-animal r over POST sessions + within-animal MixedLM (log day)."""
     import statsmodels.formula.api as smf
-    R = pd.read_csv(E / "iti_licks" / "recmark_sessions.csv", usecols=["label", "day", "aim", "iti_ang"]).drop_duplicates("label")
+    import iti_licks as _il
+    R = pd.read_csv(_il.OUT_W / "recmark_sessions.csv", usecols=["label", "day", "aim", "iti_ang"]).drop_duplicates("label")
     G = S.merge(R, on="label", how="left")
     G = G[(G.epoch != "pre") & (G.day > 0)].dropna(subset=["d_decs"]).copy()
     G["logday"] = np.log(G.day)
@@ -898,8 +899,7 @@ def plot_secondary(fd) -> None:
 
 # ================================================================================================ Q5 offset
 def main() -> int:
-    from wfield_local import run_mode as _rm_guard
-    _rm_guard.require_default("face_prelaunch_aim")   # unrouted share writer: refuses in a non-default run mode
+    # coordinator 11-04: routed (outputs under the run tag), no longer refused in a tagged run
     cmd = sys.argv[1] if len(sys.argv) > 1 else ""
     jobs = int(_arg("--jobs", 4))
     if "--plot-only" in sys.argv or cmd == "plot":

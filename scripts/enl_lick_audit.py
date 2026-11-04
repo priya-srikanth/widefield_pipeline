@@ -42,7 +42,7 @@ import pandas as pd
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import iti_licks as il  # noqa: E402
 
-OUT = il.OUT_W / "enl_licks"
+OUT = il.OUT_W / "enl_licks"     # il.OUT_W = run_mode.subdir(<imaging_encoding>/iti_licks): routed (coordinator 11-04)
 AN = ["PS92", "PS93", "PS94", "PS95"]
 EP = ["pre", "acute", "subacute", "chronic"]
 BOUT_GAP_S = 0.300          # orofacial_cohort.ILI_MAX_MS
@@ -291,8 +291,7 @@ def figure(S, Pp):
 
 
 def main() -> int:
-    from wfield_local import run_mode as _rm_guard
-    _rm_guard.require_default("enl_lick_audit")   # unrouted share writer: refuses in a non-default run mode
+    # coordinator 11-04: routed (outputs under the run tag), no longer refused in a tagged run
     import time
     from wfield_local import writeguard
     t0 = time.time()

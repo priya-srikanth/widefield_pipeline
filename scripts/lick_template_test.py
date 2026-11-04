@@ -163,15 +163,12 @@ def pass2_one(item) -> list:
 
 
 def main(argv=None) -> int:
-    from wfield_local import run_mode as _rm_guard
-    _rm_guard.require_default("lick_template_test")   # unrouted share writer: refuses in a non-default run mode
+    # coordinator 11-04: routed (outputs under the run tag), no longer refused in a tagged run
     from wfield_local import analysis_kit as ak
     from wfield_local import combined_encoding as ce
     from wfield_local import epochs
     from wfield_local import orofacial_cohort as oc
-    from wfield_local import orofacial_outputs as oo
     from wfield_local import writeguard
-    from wfield_local.paths import PathResolver
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--run", default=oc.RUN)
     ap.add_argument("--jobs", type=int, default=1)
@@ -186,7 +183,8 @@ def main(argv=None) -> int:
     cur = set(ak.curated_labels())
     if any(x not in cur for x in labels):
         raise SystemExit(f"not curated: {[x for x in labels if x not in cur]}")
-    out = oo.encoding_root(a.run, PathResolver()) / "qc" / (f"lick_templates_{mode}" + (f"_{a.tag}" if a.tag else ""))
+    from wfield_local import run_mode
+    out = run_mode.encoding_out_root(a.run) / "qc" / (f"lick_templates_{mode}" + (f"_{a.tag}" if a.tag else ""))   # 11-04
     writeguard.assert_writable(out.parent)
     (out / "sessions").mkdir(parents=True, exist_ok=True)
     os.environ[OUT_ENV] = str(out)

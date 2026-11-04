@@ -59,10 +59,9 @@ import numpy as np
 import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from wfield_local.orofacial_outputs import encoding_root as _encoding_root  # noqa: E402 - rebuild root (11-03)
 import iti_licks as il  # noqa: E402
 
-OUT_W = _encoding_root() / "iti_licks"
+OUT_W = il.OUT_W      # il.OUT_W = run_mode.subdir(<imaging_encoding>/iti_licks): the ITI family's routed folder (11-04)
 IN = il.OUT                                                  # inputs (read only)
 REST_DIR = OUT_W / "interhemi_rest_w1"                      # (interhemi_rest/ = a first 2-s-window attempt: 0 windows)
 FIGD, FIGS = OUT_W / "figdata", OUT_W / "figures"
@@ -760,8 +759,7 @@ def plot_simple() -> None:
 
 # ------------------------------------------------------------------------------------------------ main
 def main() -> None:
-    from wfield_local import run_mode as _rm_guard
-    _rm_guard.require_default("lick_interhemispheric")   # unrouted share writer: refuses in a non-default run mode
+    # coordinator 11-04: routed (outputs under the run tag), no longer refused in a tagged run
     ap = argparse.ArgumentParser()
     ap.add_argument("--jobs", type=int, default=4)
     ap.add_argument("--extract-rest", action="store_true")
