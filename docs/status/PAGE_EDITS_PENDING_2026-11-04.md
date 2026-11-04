@@ -16,7 +16,7 @@ Captions follow Priya's rule: rewrite a wrong caption cleanly, and never add COR
 
 | # | change (decision) | source | pages / sections | placement |
 |---|---|---|---|---|
-| A1 | Working = contact + incomplete camera licks, cut at the session's last camera lick; jaw-only and no-response are their own classes (11-03 late) | DECISIONS 11-03 late; JAW_ONLY_CHECKS_2026-11-03.md | imaging §1-4, 6, 7 (e0 list); encoding (34) | methods line MAIN; the jaw-only check COLLAPSIBLE |
+| A1 | Working = contact + incomplete camera licks, cut at the session's last camera lick; jaw-only and no-response are their own classes (11-03 late) | DECISIONS 11-03 late; JAW_ONLY_CHECKS_2026-11-03.md | imaging §0 (definition box, 2 places), §1-4, 6, 7 (e0 list); encoding (34) | methods line MAIN; the jaw-only check COLLAPSIBLE |
 | A2 | August-only pre baseline for the whole imaging render | DECISIONS 11-03 | imaging (all epoch figures) | methods line |
 | A3 | Spout bal_em, now superseded by the A4 centre | SPOUT_BALEM_PAGE_EDITS_2026-11-03.md | imaging §3 | rewrite under A4 |
 | A4 | Frozen-decoder / CD / pattern centre = Wt: the DAQ-label balanced centre on all working rows. The engagement axis stays z (11-04) | DECISIONS 11-04 "centre = Wt" | imaging §2-4 (decoders, CDs, patterns); encoding where frozen decoders appear | methods line MAIN; the centre checks COLLAPSIBLE (B3) |
