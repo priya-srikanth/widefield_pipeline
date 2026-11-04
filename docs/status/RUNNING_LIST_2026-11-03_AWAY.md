@@ -239,6 +239,9 @@ FYI, the 3-class camera variant (lick / jaw-only / none) is thin in PS92 and PS9
     close ipsi acute .975 -> .642).
 
   Cue window primary, precue secondary. (Priya then asked for within-class arms and equal cue / precue.)
+- 11-04: 34 acknowledged the split area basis: ONE shared wfield_local function, new spec ids. The inventory of ROI
+  consumers is running. Order: the O2 encoder bundle goes first (Priya asked for it ASAP); if combined_encoding uses
+  Allen areas, its path switches before the bundle is built; everything else switches after.
 - 11-04: slide 94 (cued lick ramp) got the caveat line Priya OK'd via 34: "Acute increase rests on 2 animals (PS94,
   PS95; PS95 has 1 acute session); subacute / chronic contralesional tjM1 / SSp-m hold under the LMM (hidden
   slides)." It sits as a second line under the cued-row subtitle; PNG checked; hidden states unchanged (78 / 183).
