@@ -1459,3 +1459,10 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   - It runs in parallel with the merge's final full suite. trial_attempts depends on trial_classes (cue70), not on the
     reader-side g_group wiring.
   - The bundle (enc_rebuild_20261104b) build waits for the suite to pass. Then come the checks and the handover.
+- **11-04 ~18:30 (clock): DELETED the superseded O2 bundle enc_rebuild_20261104 on M:.** Priya asked for the old
+  measured spout table to be gone.
+  - 644 files, 29.3 GB, including tables/pose3d_spout_positions_20261023.csv.
+  - Out/ was empty, nothing was submitted, and no process referenced it. The O2 scratch copy was already removed by Priya.
+  - The file list is in RENDER_LOG.md.
+  - No other copy of the 20261023 table exists in the rebuild root or the scratchpad. The local wfield_cache copy is e0's.
+  - The B12 smoke numbers came from inputs the class helper built in scratch (cls/). They re-run from the new bundle.
