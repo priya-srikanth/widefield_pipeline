@@ -93,6 +93,20 @@ log for the earlier part of the day is `RUNNING_LIST_2026-11-02_OVERNIGHT.md`.
        > 10 non-responses (plus > 8 / > 12), so one far-spout failure block can't make a stop. c. OK. d. Trials
        after the last lick in those 13 sessions are STOPPED. e. Dropped. An "end cut only" arm was added. Sent to 34,
        with pre hit rate as the specificity check.
+     - ROUND 2 (34, STOP_RULE_GUARD_CENSUS_R2_20261104.md; after the last camera lick = stopped in every arm).
+       Pre hit rate Δ / acute pooled deficit:
+
+       | arm | pre Δ | acute deficit |
+       |---|---|---|
+       | A0 current | 0 | -.265 |
+       | A2 both sides | .000 (0 pre trials restored) | -.289 |
+       | A3 > 10 | -.002 | -.299 |
+       | A1 trimmed | -.011 | -.309 |
+       | A4 end cut only | -.023 | -.383 |
+
+       A4 is ruled out: it scores disengagement as failure (acute close ipsi .782). Above > 10, A3 starts restoring
+       close-spout disengagement. Working set / rest are unchanged in every arm. [34 + me: A2 primary; A0 and A3 > 10
+       as robustness rows.] Priya to confirm.
    - 34 merge queue before the render: encoder-classes, cue70 (+ max_rt end), enl-window (ENL follows the source,
      branch rebuild/enl-window), then the stop-rule guard once chosen.
 
@@ -185,6 +199,18 @@ FYI, the 3-class camera variant (lick / jaw-only / none) is thin in PS92 and PS9
 165 / 306 per animal. Held-out pre recall at cue: lick .67-.93; jaw-only .60-.63 (PS94 and PS95 only); none .20-.77.
 
 ## Findings (newest first)
+
+- **11-04: G4 camera-class split + mix-shift test (docs/status/G4_CAMCLASS_MIXSHIFT_2026-11-04.md, 5f01f2dc). B should
+  NOT be adopted: the z frame is the right one.**
+  - Mix-shift on held-out pre sessions: z is mix-stable in all 4 animals (|bias| <= .05). Every frame centred on
+    WORKING rows (z-on-working, spout frame, 11-03 jaw-incl. centre) reads more engaged-like as the mix shifts toward
+    post-stroke: pooled no-lick bias +.06 / +.07 / +.17, mostly PS94 / PS95. The fault is the centre rows, not bal_em.
+  - That artefact explains about half of the .195 -> .323 -> .502 gap, and more with the real post-stroke mix.
+  - The engaged-like share is NOT carried by incomplete licks: calls spread over the classes in proportion to their
+    counts. Incomplete > none only in PS94.
+  - Under the camera-class discriminator in z, acute no-lick trials are no more working-like than pre-stroke ones:
+    .18 vs .20; post - pre -.03 [-.20, .12].
+  - Production stays z; nothing changes. The B option stays OFF. The B / C / D / G code is on main (4a37cbc8).
 
 - **11-04 interim: the cue + 70 ms contact floor is CLASS-NEUTRAL.** 54,808 curated trials, raw DAQ contacts
   (cue70_check_1104/trials.csv). Shortening the floor to 0 / 50 ms changes the class of 3 / 2 trials. So trial classes,
