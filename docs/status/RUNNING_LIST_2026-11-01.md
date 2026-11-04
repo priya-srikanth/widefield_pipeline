@@ -1296,3 +1296,7 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   lick sets. Report per animal first, before / after.
   - Note to a8: the fallback is 50 ms at close spouts, not > 100 ms.
 - **HOLD:** a rest-centred arm (restdock05 / restw frame), pending Priya.
+- **11-04 ~18:10: Priya: there are enough working trials per spout even in acute, now that incomplete licks are
+  included.**
+  - Wt: no fill / fallback; a loud refusal guard instead.
+  - The port reports the minimum per-spout working count per animal x epoch to confirm.
