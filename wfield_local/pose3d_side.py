@@ -332,6 +332,7 @@ def side_stereo_vs_reference(g, S: pd.DataFrame, side: dict) -> pd.DataFrame:
 #   4. FILL + QC  `fill_n`: frames left with ONE view take that camera's ray at the depth interpolated from neighbouring
 #      multi-view frames (`FILL_MS`; Akima), dropped beyond 3 mm from the estimate, as `pose3d.fill_single_view`; then
 #      `pose3d.qc_3d` (far / behind / single-frame spikes) on tongue and jaw.
+#   TONGUE: likewise a per-session side-tongue offset onto the cam1 + cam4 tip (`session_tongue_offsets`; ~+0.1-0.2 mm ap).
 #   NOSE: the side-nose offset is fitted PER SESSION (`session_nose_offsets`: median side-vs-cam1+cam4 ray offset over
 #   the session's frames) -- it varies 0.3-1.2 mm by session, so the four-session constant left +-0.3 mm.
 #   SPOUT: poses and the mouth come from the ENL no-lick spout medians (`spout_frame.ruler_medians`); cam4 = truth,
@@ -415,6 +416,22 @@ def session_nose_offsets(g, S: pd.DataFrame, side: dict) -> dict:
     n = off[off.part == "nose"].set_index("cam")
     return {c: tuple(float(n.loc[c, f"ray_{a}_mm"]) for a in ("ml", "ap", "dv")) if c in n.index and n.loc[c, "n"] > 50
             else SIDE_NOSE_OFFSET_MM[c] for c in SIDE}
+
+
+def session_tongue_offsets(g, S: pd.DataFrame, side: dict, min_n: int = 50) -> dict:
+    """Per-session side-TONGUE offsets onto the cam1 + cam4 tip definition (Priya 2026-11-04 "yes please do"): the
+    median ray offset of each side camera's tongue tip vs the cam1 + cam4 tip, on frames BOTH cam1 and cam4 measured
+    (``tongue_src`` == 1; no one-camera fills in the reference). Without it the four-camera tip sat +0.12 mm forward
+    (ap; 0.07-0.19 by session, ml / dv 0.00) of the two-camera tip on every shared frame -- a definition difference
+    (the side views mark the tip further out), not accuracy: at DAQ spout contacts the paired difference to the
+    commanded tip was -0.01 mm (112 contacts, PS93 0814 / 0821 / 0908). Fewer than ``min_n`` frames -> no offset."""
+    S2 = S.copy()
+    if "tongue_src" in S2:
+        S2.loc[S2.tongue_src.to_numpy() != 1, ["tongue_ml", "tongue_ap", "tongue_dv"]] = np.nan
+    off = offsets_vs_reference(g, S2, side)
+    t = off[off.part == "tongue"].set_index("cam")
+    return {c: tuple(float(t.loc[c, f"ray_{a}_mm"]) for a in ("ml", "ap", "dv")) if c in t.index and t.loc[c, "n"] >= min_n
+            else (0.0, 0.0, 0.0) for c in SIDE}
 
 
 def ray_dist(g, pts: np.ndarray, X: np.ndarray) -> np.ndarray:
@@ -551,9 +568,11 @@ def fuse_session(rv, animal: str, date: str, preds_dir: Path | None = None, clip
     trial, t = F.trial_id.to_numpy(), F.t_ms.to_numpy(float)
     drop = droplet_mask(pts["tongue"], order, trial, scale)
     pts["tongue"][drop] = np.nan
-    offsets = {"spout": part_offsets("spout"), "nose": session_nose_offsets(g, S, side), "jaw": {}, "tongue": {}}
+    offsets = {"spout": part_offsets("spout"), "nose": session_nose_offsets(g, S, side), "jaw": {},
+               "tongue": session_tongue_offsets(g, S, side)}
     parts = {}
-    stats = {"scale": scale, "nose_offsets": offsets["nose"], "droplet_frames": int(drop.any(0).sum())}
+    stats = {"scale": scale, "nose_offsets": offsets["nose"], "tongue_offsets": offsets["tongue"],
+             "droplet_frames": int(drop.any(0).sum())}
     k14 = [order.index("cam1"), order.index("cam4")]
     for part in PARTS:
         gs = shifted(g, offsets[part])

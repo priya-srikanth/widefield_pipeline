@@ -90,7 +90,8 @@ def run_session(s: str, source: str, four_cam: str | None = None, out_dir: str |
         S.to_csv(out / f"{animal}_{date}_frames.csv.gz", index=False, float_format="%.3f")
         L.to_csv(out / f"{animal}_{date}_licks.csv", index=False)
         row.update({"four_cam": four_cam, "n_frames": len(S), "droplet_frames": Z["stats"]["droplet_frames"],
-                    **{f"nose_off_{c}_dv": round(Z["stats"]["nose_offsets"][c][2], 2) for c in PS.SIDE}})
+                    **{f"nose_off_{c}_dv": round(Z["stats"]["nose_offsets"][c][2], 2) for c in PS.SIDE},
+                    **{f"tongue_off_{c}_ap": round(Z["stats"]["tongue_offsets"][c][1], 3) for c in PS.SIDE}})
         for part in PS.PARTS:
             st = Z["stats"][part]
             row[f"{part}_3d_frac"] = round(st["fused"], 4)
