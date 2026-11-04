@@ -207,7 +207,8 @@ FYI, the 3-class camera variant (lick / jaw-only / none) is thin in PS92 and PS9
     - within_spout_deviation uses a fixed 1 s (-1..0).
     - The encoders use no lick-free window: they model pre-cue licks as kernels. combined_encoding's "enl" measure =
       the 2 s pre-cue; pos_enl = strobe + 0.3 s .. cue.
-    - Question: make the direct-2.0 s ENL analyses follow the lick source (LP 1.0 s), or label them as DAQ 2 s?
+    - DECIDED (Priya 11-04): every ENL analysis follows the lick source (LP 1.0 s / DAQ 2.0 s) through the shared
+      window function. The seven direct-2.0 s sites and within_spout_deviation were sent to 34 for the rebuild.
 
 - **11-04: what the G4 / state discriminators compare.** They are trained on pre DAQ-lick vs DAQ-no-lick trials
   (position-balanced; poststroke_compare.looks_like_which), NOT on camera working. So jaw-only trials were always in the
