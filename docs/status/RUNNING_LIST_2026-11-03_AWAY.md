@@ -13,6 +13,10 @@ log for the earlier part of the day is `RUNNING_LIST_2026-11-02_OVERNIGHT.md`.
 
 ## Questions for Priya (newest first)
 
+14. **NEW (11-04): give the FROZEN encoder spontaneous (pre-cue / ITI) lick kernels too, as the combined encoder now
+    has (LICKS_ALL = split)?** Today it has none, so its target columns (page 2.1, 2.10 / 2.12, 20.3-20.7, 1.1) keep
+    crediting pre-cue licking to position. [Suggest yes for consistency, with the current version as a robustness
+    row; new frozen ids.]
 13. **NEW (11-04): the lick-response slide (now slide 95, "Lick response larger after stroke") depends on the
     normalisation** (docs/status/SD_RISE_2026-11-04.md, 371b6e1e).
     - The traces are raw dF/F x1e3 (wf_attempt lick_cued_ramp.py:91-95, iti_licks.py:359-363), NOT z-scored.
@@ -652,6 +656,18 @@ FYI, the 3-class camera variant (lick / jaw-only / none) is thin in PS92 and PS9
 - **Curve figures.** LMM on pre-specified per-session summaries (DECISIONS 82665657).
 
 ## WATCH (Priya 11-04)
+
+- **B12 claim list (34: wf_attempt docs/status/rebuild_20261103/B12_PRECUE_POSITION_CLAIMS_20261104.md).**
+  - (A) Directly on the encoder's ENL readout:
+    - page §21 FaceRhythm encoder figures (21.1 ENL row, both columns; 21.5 / 21.6 ENL rows);
+    - the §21 intro "chronic pre-cue face movement explains more cortex" +.072, likely to shrink.
+    - No deck slide uses the encoder ENL window.
+  - (B) The frozen encoder's all-frames target columns (page 2.1 = a deck slide, 2.10 / 2.12, 20.3-20.7, 1.1) move
+    only if the frozen encoder ALSO gets spontaneous lick kernels (today v7g3_t3d has none). QUESTION 14 below.
+  - (C) Cue / lick-window slides and figures are unaffected.
+  - Decoder pre-cue claims are listed separately: they are not encoder claims.
+  - Note: 34's deck slide numbers may predate today's inserts (+1 after 29, +2 after 99); check by shape name when
+    swapping.
 
 - **Encoder pre-cue position credit may fall once spontaneous licks are modelled** (LICKS_ALL = split): drop:pos_enl,
   PS93_0814 .0072 -> .0029, PS93_0818 .0044 -> .0037 (smokes). If it holds across animals, it touches every encoder
