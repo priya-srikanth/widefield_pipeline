@@ -23012,12 +23012,14 @@ Collected from the rebuild rounds of 11-03 (coordinator relays; implementation `
   set, the bal_em centre, the pre panel and the scored sets. The DAQ quit-tail rule stays a labelled robustness row.
 - **End of session.** Working ends at the session's LAST CAMERA LICK (contact or incomplete; `in_working(end="lick")`,
   b506c1e3). Robustness anchors: contact / close / none.
-- **Stopped = a SUSTAINED stop.** At least 6 (`behavior.tail_min_misses`, the task's auto_hold_after_miss) camera
-  no_response trials in a run. In-video "unknown" trials neither break nor extend a run. A jaw_only trial ANYWHERE
-  BRIDGES a run (it does not break it) but is not stopped and does not count toward the 6. This is the coordinator's
-  default, flagged to Priya (main has no stop-run rule, so there is nothing to match). Under `in_working_jaw` the
-  afternoon rule holds: a jaw_only trial at or before the last camera lick ends the run. Sensitivity: every no_response (`trial_selection.stopped: any`). The rule name is in the
-  selection tag (stopRun6 / stopAny).
+- **Stopped = a SUSTAINED stop.** A stop run = at least 6 (`behavior.tail_min_misses`, the task's
+  auto_hold_after_miss) consecutive camera trials, each no_response or jaw_only, starting >= 300 s after the first
+  cue (an earlier run is early_run). Priya 11-04: jaw_only counts toward the 6. Every trial of the run is stopped,
+  jaw_only included. In-video "unknown" trials neither break nor extend a run; a contact / incomplete trial ends it.
+  Under `in_working_jaw` (jaw_only is working there) the 11-03 rule holds: >= 6 no_response, a jaw_only trial at or
+  before the last camera lick ends the run, one after it bridges without counting. Sensitivity: every no_response
+  (`trial_selection.stopped: any`). The rule name is in the selection tag: stopRun6j (production), stopRun6
+  (in_working_jaw), stopAny.
 - **Isolated lapses.** A no_response trial inside the working period that is not part of a stop stays "no_response":
   attempt coding's "noattempt" = an isolated lapse; the contrast is isolated lapse vs sustained stop. A jaw_only trial
   inside the working period keeps its own label ("reaction" in attempt coding). After the last lick a non-stopped
@@ -23347,7 +23349,8 @@ Priya 11-03 late: working = contact + incomplete; jaw_only its own class like no
 - As on main, the static `trial_classes.GATES["working"]` and `in_working` stay jaw-inclusive. Every rebuild consumer of
   the camera working set reads `trial_classes.in_sel(cls, "working" | "miss_working")`, which applies the selection
   (production: working = contact | incomplete, miss_working = incomplete).
-- A jaw_only trial bridges a stop run anywhere without counting (production); under in_working_jaw the afternoon rule.
+- A jaw_only trial counts toward a stop run and is stopped with it (production, Priya 11-04; tag stopRun6j); under
+  in_working_jaw the 11-03 afternoon rule (tag stopRun6).
 - WHICH ROWS (coordinator 11-04, mirroring main 48f2cc6d): for cue and precue windows the frozen spout decoder's
   TRAINING set, each session's bal_em CENTRE, the pre panel and the scored set are the camera WORKING rows, ENGAGED
   AND NO-LICK, whatever the DAQ lick (a camera-incomplete trial has no DAQ lick, so it is a no-lick row). Sites:

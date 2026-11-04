@@ -66,9 +66,9 @@ arms:
       COMBINED_ENCODING_DRIFT_MIN_PERIOD_S: "1500"
     blocks: ["encoder spout contra - ipsi cells (frozen_encoder / combined_encoding)",
              "ITI pre-cue level readouts (scripts/iti_licks.py family)"]
-    expected_run_tag: hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_drift1500s_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopRun6
+    expected_run_tag: hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_drift1500s_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopRun6j
 
 # the primary encoder / ITI slow-drift cutoff (Priya 11-03): combined_encoding.DRIFT_MIN_PERIOD_S = 600 s (env unset)
 notes:
   encoder_drift_cutoff_s: 600
-  expected_run_tag: hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopRun6
+  expected_run_tag: hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopRun6j

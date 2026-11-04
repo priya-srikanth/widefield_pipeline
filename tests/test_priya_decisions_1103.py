@@ -131,14 +131,12 @@ def test_6_coverage_note(tmp_path):
     assert "missing" in TC.coverage_note(tmp_path / "nope.csv")
 
 
-def test_7_jaw_only_after_the_last_lick_bridges_but_is_not_counted():
-    """Decision 7 as revised by T3 (Priya): the review probe [contact, NR x3, jaw, NR x3, jaw, NR x2] is ONE bridged run
-    of 8 no_response; the jaw-only trials are after_end, not stopped."""
-    # T3 (Priya, as approved): the jaw-only trials BRIDGE the run but are not stopped and do not count toward the 6
+def test_7_jaw_only_counts_toward_the_run_and_is_stopped():
+    """Priya 11-04 (production): the review probe [contact, NR x3, jaw, NR x3, jaw, NR x2] is ONE run of 10 trials; the
+    jaw-only trials COUNT and are stopped with the rest."""
     raw = np.array([C, NR, NR, NR, J, NR, NR, NR, J, NR, NR], object)
     out = TC.classify_session(raw, rule="run", min_run=6, end="lick")
-    S = "stopped"
-    assert out.tolist() == [C, S, S, S, "after_end", S, S, S, "after_end", S, S]
+    assert out.tolist() == [C] + ["stopped"] * 10
     early = np.array([NR, NR, NR, J, C, NR, NR, NR], object)            # a jaw BEFORE the last lick still breaks
     assert "stopped" not in TC.classify_session(early, rule="run", min_run=6, end="lick").tolist()
 
@@ -199,23 +197,26 @@ def test_runs_of_exactly_five_and_six_no_response():
     assert TC.classify_session(six, rule="run", min_run=6, end="lick").tolist() == [C] + ["stopped"] * 6 + [C]
 
 
-def test_all_jaw_run_is_never_a_stop():
+def test_all_jaw_run_is_a_stop_under_production_but_not_under_in_working_jaw():
+    """Priya 11-04: each trial of a run is no_response OR jaw_only, so 8 jaw-only in a row (>= 5 min in) is a stop."""
     jaws = np.array([C] + [J] * 8, object)
-    out = TC.classify_session(jaws, rule="run", min_run=6, end="lick").tolist()
-    assert out == [C] + ["after_end"] * 8 and "stopped" not in out
-    mixed = np.array([C] + [NR, J] * 5 + [NR], object)                      # 6 NR bridged by 5 jaw-only
-    out = TC.classify_session(mixed, rule="run", min_run=6, end="lick").tolist()
-    assert out.count("stopped") == 6 and out.count("after_end") == 5
+    assert TC.classify_session(jaws, rule="run", min_run=6, end="lick").tolist() == [C] + ["stopped"] * 8
+    out = TC.classify_session(jaws, rule="run", min_run=6, end="lick", jaw_counts=False).tolist()
+    assert out == [C] + ["after_end"] * 8                                  # in_working_jaw: jaw never counts
+    mixed = np.array([C] + [NR, J] * 5 + [NR], object)
+    assert TC.classify_session(mixed, rule="run", min_run=6, end="lick").tolist() == [C] + ["stopped"] * 11
+    out = TC.classify_session(mixed, rule="run", min_run=6, end="lick", jaw_counts=False).tolist()
+    assert out.count("stopped") == 6 and out.count("after_end") == 5        # 11-03 rule: after-end jaw bridges
 
 
 def test_empty_session_and_no_camera_lick():
     assert TC.classify_session(np.array([], object), rule="run", min_run=6, end="lick").tolist() == []
     nolick = np.array([NR] * 7 + [J], object)                               # no camera lick at all
     out = TC.classify_session(nolick, rule="run", min_run=6, end="lick").tolist()
-    assert out == ["stopped"] * 7 + ["after_end"]      # no time given: a run of 7 is a stop; no working period
+    assert out == ["stopped"] * 8                      # no time given: a run of 8 (jaw counts) is a stop
     t = np.arange(8) * 10.0                                                 # all within 5 min of the first cue
     out = TC.classify_session(nolick, rule="run", min_run=6, end="lick", cue_s=t).tolist()
-    assert out == ["early_run"] * 7 + ["after_end"]
+    assert out == ["early_run"] * 8
 
 
 def test_time_rule_a_run_must_start_5_min_after_the_first_cue():
@@ -231,7 +232,7 @@ def test_time_rule_a_run_must_start_5_min_after_the_first_cue():
     assert TC.classify_session(straddle, rule="run", min_run=6, end="lick", cue_s=ts).tolist()[1:7] == ["early_run"] * 6
     lapse = np.array([NR, NR, C, C], object)                                 # isolated no_response before the lick
     assert TC.classify_session(lapse, rule="run", min_run=6, end="lick", cue_s=[0, 1, 2, 3.0]).tolist()[:2] == [NR, NR]
-    assert TC.stop_min_start_s() == 300.0 and TC.stopped_rule_name() == "stopRun6"
+    assert TC.stop_min_start_s() == 300.0 and TC.stopped_rule_name() == "stopRun6j"
     with pytest.raises(ValueError):
         TC.classify_session(raw, rule="run", min_run=6, end="lick", cue_s=t[:3])
 
@@ -246,23 +247,43 @@ def test_short_unmatched_stretches_are_unknown_not_uncovered():
     assert TC.classify_session(head, mh, rule="run", min_run=6, end="lick").tolist() == [U] * 5 + [C, "after_end"]
 
 
-def test_7_bridge_needs_six_no_response_nr3_j_nr2():
-    """T3: a jaw-only bridge does not count, so NR3 J NR2 after the last lick (5 no_response) is NOT a stop: all after_end;
-    NR3 J NR3 (6) is."""
+def test_7_jaw_counts_nr3_j_nr2_is_six():
+    """Priya 11-04: jaw-only counts, so NR3 J NR2 is a run of 6 = a stop (all six stopped); NR2 J NR2 (5) is not. Under
+    in_working_jaw (the 11-03 rule) NR3 J NR2 is 5 no_response = not a stop."""
     A, S = "after_end", "stopped"
-    five = np.array([C, NR, NR, NR, J, NR, NR], object)
-    assert TC.classify_session(five, rule="run", min_run=6, end="lick").tolist() == [C] + [A] * 6
-    six = np.array([C, NR, NR, NR, J, NR, NR, NR], object)
-    assert TC.classify_session(six, rule="run", min_run=6, end="lick").tolist() == [C, S, S, S, A, S, S, S]
+    six = np.array([C, NR, NR, NR, J, NR, NR], object)
+    assert TC.classify_session(six, rule="run", min_run=6, end="lick").tolist() == [C] + [S] * 6
+    assert TC.classify_session(six, rule="run", min_run=6, end="lick", jaw_counts=False).tolist() == [C] + [A] * 6
+    five = np.array([C, NR, NR, J, NR, NR], object)
+    assert TC.classify_session(five, rule="run", min_run=6, end="lick").tolist() == [C] + [A] * 5
 
 
-def test_7_jaw_only_bridges_everywhere_also_with_an_uncovered_tail():
-    """Priya 11-03 late (jaw_only is not working): a jaw-only trial bridges a run ANYWHERE, also with an uncovered tail
-    (no end cutoff there): 6 no_response bridged by one jaw-only = a stop; the jaw-only trial stays jaw_only."""
+def test_priya_1104_probe_j_nr_j_nr_nr_nr_and_a_lone_jaw():
+    """Priya 11-04 probes: J,NR,J,NR,NR,NR starting >= 300 s = 6 stopped (both jaw-only included); a lone J is not
+    stopped (it stays jaw_only inside the working period); the 5-min edge decides the whole run."""
+    raw = np.array([C, J, NR, J, NR, NR, NR, C], object)
+    t = np.r_[0.0, 300.0 + np.arange(6) * 10.0, 400.0]
+    out = TC.classify_session(raw, rule="run", min_run=6, end="lick", cue_s=t).tolist()
+    assert out == [C] + ["stopped"] * 6 + [C]
+    lone = np.array([C, J, C, C], object)
+    assert TC.classify_session(lone, rule="run", min_run=6, end="lick", cue_s=[0, 400, 410, 420.0]).tolist() == [C, J, C, C]
+    for start, want in ((299.9, "early_run"), (300.0, "stopped")):          # the run STARTS with a jaw-only trial
+        ts = np.r_[0.0, start + np.arange(6) * 10.0, start + 100.0]
+        assert TC.classify_session(raw, rule="run", min_run=6, end="lick", cue_s=ts).tolist()[1:7] == [want] * 6, start
+    five = np.array([C, J, NR, J, NR, NR, C], object)                       # 5 members: not a stop, classes kept
+    assert TC.classify_session(five, rule="run", min_run=6, end="lick", cue_s=[0, 400, 410, 420, 430, 440, 450.0]
+                               ).tolist() == [C, J, NR, J, NR, NR, C]
+
+
+def test_7_jaw_only_counts_everywhere_also_with_an_uncovered_tail():
+    """Priya 11-04: a jaw-only trial is a run member ANYWHERE, also with an uncovered tail (no end cutoff there): it
+    counts and is stopped. Under in_working_jaw (before the end) it ENDS the run (3 + 3: no stop)."""
     raw = np.array([C, NR, NR, NR, J, NR, NR, NR] + [U] * 5, object)
     m = np.array([True] * 8 + [False] * 5)
     out = TC.classify_session(raw, m, rule="run", min_run=6, end="lick")
-    assert out.tolist()[:8] == [C, "stopped", "stopped", "stopped", J, "stopped", "stopped", "stopped"]
+    assert out.tolist()[:8] == [C] + ["stopped"] * 7
+    out = TC.classify_session(raw, m, rule="run", min_run=6, end="lick", jaw_counts=False)
+    assert "stopped" not in out.tolist()
 
 
 def test_stop_run_ends_where_licking_resumes_and_unknown_is_skipped():
@@ -275,9 +296,14 @@ def test_stop_run_ends_where_licking_resumes_and_unknown_is_skipped():
     for lick in (C, I):
         split = np.array([C, NR, NR, NR, lick, NR, NR, NR, C], object)
         assert "stopped" not in TC.classify_session(split, rule="run", min_run=6, end="lick").tolist(), lick
-    # Priya 11-03 late: a jaw-only trial BRIDGES (also before the last lick) and stays jaw_only, never stopped
+    # Priya 11-04: a jaw-only trial (also before the last lick) is a run member: it counts and is stopped
     jaw_early = np.array([C, NR, NR, NR, J, NR, NR, NR, C], object)
-    assert TC.classify_session(jaw_early, rule="run", min_run=6, end="lick").tolist() == [C, S, S, S, J, S, S, S, C]
+    assert TC.classify_session(jaw_early, rule="run", min_run=6, end="lick").tolist() == [C] + [S] * 7 + [C]
+    # ... and an unknown is still skipped (neither counted nor stopped) in a jaw-bearing run
+    mix5 = np.array([C, NR, J, U, NR, J, NR, C], object)                    # 5 members: not a stop
+    assert TC.classify_session(mix5, rule="run", min_run=6, end="lick").tolist() == mix5.tolist()
+    mix6 = np.array([C, NR, J, U, NR, J, NR, NR, C], object)
+    assert TC.classify_session(mix6, rule="run", min_run=6, end="lick").tolist() == [C, S, S, U, S, S, S, S, C]
 
 
 @pytest.mark.parametrize("where", ["head", "middle", "tail"])
@@ -341,9 +367,9 @@ def test_stop_time_and_rest_start_enter_the_tags(monkeypatch):
     monkeypatch.delenv("WIDEFIELD_STOP_MIN_START_S", raising=False)
     monkeypatch.delenv("WIDEFIELD_REST_START", raising=False)
     base = TC.run_selection_tag()
-    assert base.endswith("-stopRun6")
+    assert base.endswith("-stopRun6j")
     monkeypatch.setenv("WIDEFIELD_STOP_MIN_START_S", "600")
-    assert TC.stopped_rule_name() == "stopRun6t600" and TC.run_selection_tag().endswith("-stopRun6t600")
+    assert TC.stopped_rule_name() == "stopRun6jt600" and TC.run_selection_tag().endswith("-stopRun6jt600")
     monkeypatch.delenv("WIDEFIELD_STOP_MIN_START_S")
     monkeypatch.setenv("WIDEFIELD_REST_START", "session")
     assert TC.rest_start() == "session" and TC.run_selection_tag() == base + "-restsession"

@@ -418,12 +418,15 @@ GATE_ENV = "WIDEFIELD_TRIAL_GATE"
 WINDOW_ENV = "WIDEFIELD_TRIAL_WINDOW"
 GATE_MODES = ("daq", "camera")
 UNTAGGED_GATE = "daq"
-#: CAMERA "STOPPED" (Priya 11-03, decided): a no_response trial that is part of a SUSTAINED stop. `cue_classes_for`
-#: relabels such trials "stopped" (STOPPED_CLASS); every consumer selects stopped through STOPPED_CLASSES.
-#:   rule "run" (PRIMARY)  a no_response trial is stopped only inside a run of >= `stop_run_min()` consecutive camera
-#:                         no_response trials (`behavior.tail_min_misses`, 6 = the task auto_hold_after_miss threshold).
-#:                         "unknown" trials neither break nor extend a run (skipped when counting) and are never
-#:                         stopped. An ISOLATED no_response trial stays "no_response": in neither working nor stopped.
+#: CAMERA "STOPPED" (Priya 11-03, decided; jaw_only counts since 11-04): a trial that is part of a SUSTAINED stop.
+#: `cue_classes_for` relabels such trials "stopped" (STOPPED_CLASS); every consumer selects stopped through
+#: STOPPED_CLASSES.
+#:   rule "run" (PRIMARY)  a run of >= `stop_run_min()` consecutive camera trials (`behavior.tail_min_misses`, 6 = the
+#:                         task auto_hold_after_miss threshold), each no_response OR jaw_only under production
+#:                         in_working (all of them stopped; tag part "stopRun6j"); under in_working_jaw the 11-03
+#:                         no_response-only rule ("stopRun6"; `classify_session`). "unknown" trials neither break nor
+#:                         extend a run (skipped when counting) and are never stopped. An ISOLATED no_response /
+#:                         jaw_only trial keeps its class: in neither working nor stopped.
 #:   rule "any" (SENSITIVITY)  every no_response trial is stopped (the earlier provisional rule).
 #: Setting: ``trial_selection.stopped`` (run) / WIDEFIELD_TRIAL_STOPPED; the rule name enters `selection_tag`, so
 #: caches and frozen specs of the two rules never meet.
@@ -628,7 +631,7 @@ def end_anchor() -> str:
 
 def classify_session(cls, matched=None, position=None, *, rule: str | None = None, min_run: int | None = None,
                      end: str | None = None, cue_s=None, min_start_s: float | None = None,
-                     jaw_bridges_all: bool | None = None) -> np.ndarray:
+                     jaw_counts: bool | None = None) -> np.ndarray:
     """THE camera classes of one session, in cue order, after the session-level rules (Priya 11-03). ``cls`` = the raw
     per-cue class (`cue_classes`), ``matched`` = the cue was matched to a video trial (None = all matched).
 
@@ -636,14 +639,16 @@ def classify_session(cls, matched=None, position=None, *, rule: str | None = Non
       * END AT THE LAST CAMERA LICK (anchor ``end``): working-gate trials after it -> AFTER_END_CLASS. With an
         UNCOVERED TAIL (video ends before the last cue) the real last lick is unknown, so NO end cutoff is applied
         (a cutoff at the last covered lick would end working early).
-      * SUSTAINED STOP (``rule`` "run"): a run with >= ``min_run`` no_response trials -> its no_response trials are
-        STOPPED_CLASS. Runs are counted per COVERED SEGMENT (an uncovered gap ends a run; it never stitches two runs);
-        in-video "unknown" trials neither break nor extend a run; a contact / incomplete trial (licking resumed) ENDS
-        the run; a jaw_only trial anywhere BRIDGES it (Priya 11-03 late, jaw_only out of working: the after-last-lick
-        T3 rule extended to the whole session): it neither breaks the run nor counts toward ``min_run`` and is never
-        stopped. ``jaw_bridges_all`` (None = from the working selection): True under in_working (production); False
-        under in_working_jaw, where jaw_only is working and the 11-03 afternoon rule holds (a jaw_only trial at or
-        before the end anchor ENDS the run, one after it bridges). Rule "any": every no_response is stopped.
+      * SUSTAINED STOP (``rule`` "run"). Runs are counted per COVERED SEGMENT (an uncovered gap ends a run; it never
+        stitches two runs); in-video "unknown" trials neither break nor extend a run; a contact / incomplete trial
+        (licking resumed) ENDS the run. ``jaw_counts`` (None = from the working selection) sets the jaw_only rule:
+          - True (production, in_working; Priya 11-04): a stop run = >= ``min_run`` consecutive trials, each
+            no_response OR jaw_only; jaw_only COUNTS toward ``min_run`` and EVERY trial of the run (jaw_only included)
+            is STOPPED_CLASS.
+          - False (in_working_jaw, where jaw_only is working; the 11-03 afternoon rule): a run needs >= ``min_run``
+            no_response trials; a jaw_only trial at or before the end anchor ENDS the run, one after it bridges
+            without counting; only the no_response trials are stopped.
+        Rule "any": every no_response is stopped.
       * JAW_ONLY is its own class, reported like no_response: inside the working period it stays "jaw_only"; after the
         end anchor it becomes AFTER_END_CLASS.
       * TIME RULE (Priya 11-03): a stop counts only if its run STARTS >= ``min_start_s`` (`stop_min_start_s()`, 300 s)
@@ -665,12 +670,15 @@ def classify_session(cls, matched=None, position=None, *, rule: str | None = Non
         after = np.zeros(n, bool)
     else:
         after = ~before_session_end(out, np.arange(n), position=position, anchor=end)
-    # JAW_ONLY BRIDGES a no_response run anywhere in the session (T3 extended; Priya 11-03 late: jaw_only is not
-    # working): it does NOT count toward the 6 and is NOT stopped
-    if jaw_bridges_all is None:
-        jaw_bridges_all = "jaw_only" not in sel_classes("working")
-    jaw_late = (out == "jaw_only") if jaw_bridges_all else ((out == "jaw_only") & after)
+    # PRODUCTION (Priya 11-04): jaw_only is a run member like no_response -- it COUNTS toward the 6 and is stopped.
+    # in_working_jaw keeps the 11-03 afternoon rule: only an after-end jaw_only bridges, and it is neither counted
+    # nor stopped
+    if jaw_counts is None:
+        jaw_counts = jaw_counts_in_stop()
     nr = out == "no_response"
+    jaw = out == "jaw_only"
+    member = (nr | jaw) if jaw_counts else (nr | (jaw & after))      # trials a run is made of
+    counted = (nr | jaw) if jaw_counts else nr                         # trials that count toward min_run / are stopped
     # TIME RULE (Priya 11-03): runs starting before first cue + min_start_s are not stops (in neither class)
     if cue_s is not None and n:
         t = np.asarray(cue_s, float)
@@ -689,7 +697,7 @@ def classify_session(cls, matched=None, position=None, *, rule: str | None = Non
         seg_id = np.cumsum(np.r_[True, np.diff(m.astype(int)) != 0])   # covered / uncovered segments
         for sid in np.unique(seg_id[m]):
             idx = np.flatnonzero((seg_id == sid) & m & (out != "unknown"))
-            seq = (nr | jaw_late)[idx]
+            seq = member[idx]
             i = 0
             while i < len(seq):
                 if not seq[i]:
@@ -699,9 +707,9 @@ def classify_session(cls, matched=None, position=None, *, rule: str | None = Non
                 while j < len(seq) and seq[j]:
                     j += 1
                 run = idx[i:j]
-                if int(nr[run].sum()) >= n_min:          # >= 6 NO_RESPONSE trials; bridging jaw_only not counted
-                    first_nr = run[nr[run]]
-                    (early if too_early[first_nr[0]] else stop)[first_nr] = True   # the run's START decides
+                if int(counted[run].sum()) >= n_min:     # >= 6 counted trials (production: no_response + jaw_only)
+                    hit = run[counted[run]]
+                    (early if too_early[hit[0]] else stop)[hit] = True   # the run's START decides
                 i = j
     out[early] = EARLY_RUN_CLASS
     out[stop] = STOPPED_CLASS
@@ -830,9 +838,17 @@ def _stop_rest_name() -> str:
     return stopped_rule_name() + ("-restsession" if rest_start() == "session" else "")
 
 
+def jaw_counts_in_stop() -> bool:
+    """Does a jaw_only trial count toward (and get stopped in) a stop run? True under production in_working (Priya
+    11-04), False under in_working_jaw (jaw_only is working there, so it ends a run; the 11-03 afternoon rule)."""
+    return "jaw_only" not in sel_classes("working")
+
+
 def stopped_rule_name() -> str:
-    """The rule name in selection tags: "stopRun<n>" or "stopAny" (+ "t<s>" when the stop start time is not 300 s)."""
-    base = f"stopRun{stop_run_min()}" if stopped_rule() == "run" else "stopAny"
+    """The rule name in selection tags: "stopRun<n>" ("stopRun<n>j" when jaw_only counts toward the run, Priya 11-04:
+    no cache / store / attempts table of the 11-03 rule is reused) or "stopAny" (+ "t<s>" when the stop start time
+    is not 300 s)."""
+    base = (f"stopRun{stop_run_min()}" + ("j" if jaw_counts_in_stop() else "")) if stopped_rule() == "run" else "stopAny"
     t = stop_min_start_s()
     return base if t == 300.0 else f"{base}t{t:g}"
 
@@ -893,8 +909,8 @@ def cue_classes_for(label: str, cue_s, window: str | None = None) -> np.ndarray:
     cs = np.ascontiguousarray(np.asarray(cue_s, float))
     rule = (stopped_rule(), stop_run_min(), stop_min_start_s(), rest_start())
     end = end_anchor()
-    jaw_all = "jaw_only" not in sel_classes("working")        # the working selection (main's WIDEFIELD_WORKING_TRIALS)
-    key = (label, window, rule, end, jaw_all, hashlib.sha1(cs.tobytes()).hexdigest())
+    jaw_cnt = jaw_counts_in_stop()        # the working selection (main's WIDEFIELD_WORKING_TRIALS); Priya 11-04
+    key = (label, window, rule, end, "jawcount" if jaw_cnt else "jawwork", hashlib.sha1(cs.tobytes()).hexdigest())
     if key not in _CUE_CLS:
         if len(_CUE_CLS) > 64:
             _CUE_CLS.clear()
@@ -904,7 +920,7 @@ def cue_classes_for(label: str, cue_s, window: str | None = None) -> np.ndarray:
         pos = cue_classes(T.assign(cls=T["position"]) if T is not None else None, cs) if end == "close" else None
         matched = (cue_classes(T.assign(cls="matched"), cs) == "matched") if T is not None else np.zeros(len(cs), bool)
         _CUE_CLS[key] = classify_session(cue_classes(T, cs), matched, pos, rule=rule[0], min_run=rule[1], end=end,
-                                         cue_s=cs, jaw_bridges_all=jaw_all)
+                                         cue_s=cs, jaw_counts=jaw_cnt)
     return _CUE_CLS[key]
 
 

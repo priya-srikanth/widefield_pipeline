@@ -81,8 +81,9 @@ def session_trials(label: str) -> pd.DataFrame:
     if TC.camera_gate_on():
         # THE RUN'S CAMERA CLASSES (coordinator 11-04; PI slides 34 / 35, the mixed models' deficit): the session-level
         # rules of `trial_classes.classify_session` on the trial train -- end at the last camera lick, sustained stop
-        # (>= 6 no_response, the 5-min rule: a run starting < 300 s after the first cue is early_run), jaw_only its own
-        # class (not an attempt, bridges a stop). The attempt-rate denominator ("canonical") is then the run's WORKING
+        # (>= 6 consecutive no_response / jaw_only, all of them stopped, Priya 11-04; the 5-min rule: a run starting
+        # < 300 s after the first cue is early_run), jaw_only its own class (not an attempt; an isolated one stays in
+        # the working period). The attempt-rate denominator ("canonical") is then the run's WORKING
         # PERIOD: every trial not stopped / early_run / after_end / unknown (jaw_only and no_try inside it are kept as
         # non-attempts, never dropped). cls_raw keeps the trial-level class.
         raw = C.cls.fillna("unknown").to_numpy(object)

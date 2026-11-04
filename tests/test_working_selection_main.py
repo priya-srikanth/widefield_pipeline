@@ -44,7 +44,7 @@ def test_jaw_arm(camera):
 
 
 def test_tags_carry_mains_class_part(camera):
-    assert TC.run_selection_tag() == "sel-camera-cue_stop-endlick-cls-contact-incomplete-stopRun6"
+    assert TC.run_selection_tag() == "sel-camera-cue_stop-endlick-cls-contact-incomplete-stopRun6j"
     assert TC.run_selection() == TC.run_selection_tag() == TC.nolick_selection()
     # main's working_trials.tag on this branch gives main's strings exactly
     assert WT.tag() == "sel-camera-cue_stop-endlick-cls-contact-incomplete"
@@ -61,16 +61,20 @@ def test_quit_tail_under_the_camera_gate_raises(camera):
     assert TC.run_selection_tag() is None                                         # the DAQ rule: untagged
 
 
-def test_jaw_bridging_follows_the_selection(camera):
+def test_jaw_counting_follows_the_selection(camera):
     raw = np.array([C, NR, NR, NR, J, NR, NR, NR, C], object)
-    # production: jaw_only bridges anywhere, never counted, never stopped
-    assert TC.classify_session(raw, rule="run", min_run=6, end="lick").tolist() == [C, S, S, S, J, S, S, S, C]
+    # production (Priya 11-04): jaw_only is a run member anywhere -- it counts toward the 6 and is stopped
+    assert TC.jaw_counts_in_stop() and TC.stopped_rule_name() == "stopRun6j"
+    assert TC.classify_session(raw, rule="run", min_run=6, end="lick").tolist() == [C] + [S] * 7 + [C]
     # in_working_jaw: the afternoon rule -- a jaw_only trial before the last lick is working and ENDS the run
     camera.setenv(WT.WORKING_TRIALS_ENV, "in_working_jaw")
+    assert not TC.jaw_counts_in_stop() and TC.stopped_rule_name() == "stopRun6"
     assert S not in TC.classify_session(raw, rule="run", min_run=6, end="lick").tolist()
-    # ... and after the last lick it still bridges (T3)
+    # ... and after the last lick it still bridges without counting (T3)
     tail = np.array([C, NR, NR, NR, J, NR, NR, NR], object)
-    assert TC.classify_session(tail, rule="run", min_run=6, end="lick").tolist()[1:4] == [S, S, S]
+    assert TC.classify_session(tail, rule="run", min_run=6, end="lick").tolist() == [C, S, S, S, "after_end", S, S, S]
+    tail5 = np.array([C, NR, NR, NR, J, NR, NR], object)
+    assert S not in TC.classify_session(tail5, rule="run", min_run=6, end="lick").tolist()
 
 
 def test_5c_cache_key_carries_the_selection(camera, monkeypatch):
