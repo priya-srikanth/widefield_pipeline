@@ -1401,3 +1401,9 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   - Queued as a new branch off the merged tip, after the current merge.
 - **11-04 ~20:15: Priya deleted the stale O2 scratch copy** (/n/scratch/users/p/ps150/o2/enc_rebuild_20261104).
   - The M: copy stays until enc_rebuild_20261104b passes its checks. Then it is deleted and logged in RENDER_LOG.md.
+- **11-04 ~20:25: e0 says 4cam 3-D is days away.**
+  - Still to do for 4cam: Part B labels -> round-2 side model -> cam2/3 O2 inference -> a 4cam production run.
+  - On review clips it is unbiased vs 2cam (lateral +0.08 deg, reach +0.004 mm); no precision gain shown yet.
+  - Decision: build enc_rebuild_20261104b on 2cam. 4cam is a later revision of the rebuild inputs; whether it replaces
+    2cam is Priya's call.
+  - Main's WIDEFIELD_POSE3D_SOURCE switch defaults to 2cam, so there is no rebuild effect.
