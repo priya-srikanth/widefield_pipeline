@@ -141,7 +141,9 @@ log for the earlier part of the day is `RUNNING_LIST_2026-11-02_OVERNIGHT.md`.
        from the table, with no input rebuild.
      - Q4: OK, no wait for the side cams.
      - Q9: tolerance ~100 ms: use the DAQ contact time (timing_source = daq) if the first LP lick is missing or
-       > 100 ms after the first contact. 34 is checking why LP misses those licks.
+       > 100 ms after the first contact. 34 is checking why LP misses those licks. CORRECTED (34, later Priya rule):
+       the DAQ timing fallback applies at > 50 ms at CLOSE spouts only. At far spouts the LP time is kept, with a
+       grooming flag.
 
    - Stop-rule guard census (34, STOP_RULE_GUARD_CENSUS_20261104.md):
      - The end cut barely matters: 43 trials.
