@@ -1,7 +1,7 @@
 """The combined encoding model (`wfield_local/combined_encoding.py`) on HMS O2 (Priya 2026-10-19: "yes build the o2
 version"). A local pass is 7-8 h on the shared desktop; on O2 every session is its own array task.
 
-    python scripts/o2_encoding.py bundle --name enc_v36_20261019 --user ps150 [--cams cam1,cam4] [--jobs 4] [LABELS ...]
+    python scripts/o2_encoding.py [--profile <render profile>] bundle --name <name> --user ps150 [--cams cam1,cam4] [--jobs 4] [LABELS ... or a label file]
     python scripts/o2_encoding.py check  --name enc_v36_20261019 LABEL [--only drop:task]
     python scripts/o2_encoding.py collect --name enc_v36_20261019 --tag <tag>
 
@@ -17,6 +17,14 @@ check (this desktop): runs one session from its bundled inputs AND from the shar
 the region tables -- the bundle must reproduce the local result before an O2 run is trusted.
 collect (this desktop): out/<TAG>/sessions/* -> <LP_analysis>/<run>/imaging_encoding/<order[_video-..][_subset-..]>/
 sessions/, the folder `combined_encoding.out_dir` gives for those options.
+
+REBUILD RUNS (coordinator 11-04; `--profile <render profile>`, applied before anything is imported): the bundle goes to
+<rebuild root>/o2/<name> (a registered data area of the root); env.json records EVERY setting `run_session` depends on
+(`wfield_local.o2_bundle.settings`: the full profile env + COMBINED_ENCODING_* / OROFACIAL_*) and bundle.json the run
+identity (run tag, selection, area basis), the commit and the attempts table; the runner applies env.json before
+importing wfield_local and REFUSES unless the bundled code computes that identity; inputs carry the area-basis masks
+(built here: the v8 rim reads the share); code/ = `git archive` of the worktree's HEAD (refused if wfield_local / configs
+are dirty). check audits the bundled run for share reads; collect refuses a bundle of another run.
 """
 from __future__ import annotations
 
@@ -42,8 +50,14 @@ label = labels[task - 1]
 # the bundle's INPUT settings (COMBINED_ENCODING_* / OROFACIAL_* at bundle time, e.g. lick set, executed set, binned
 # contest + its calibration table): '@'-paths point into the bundle; submit-time options below still override
 bundle_env = json.loads((b / "env.json").read_text()) if (b / "env.json").exists() else {}
+for k in [k for k in os.environ if k.startswith(("WIDEFIELD_", "WFIELD_", "LOCANMF_", "COMBINED_ENCODING_", "OROFACIAL_"))]:
+    del os.environ[k]                            # ONLY the bundle's settings (+ the submit options below) apply
 for k, v in bundle_env.items():
     os.environ[k] = str(b / v[1:]) if isinstance(v, str) and v.startswith("@") else v
+# REFUSE unless the bundled code computes the recorded run identity from these settings (run tag, selection, area basis)
+if (b / "bundle.json").exists():
+    from wfield_local import o2_bundle
+    o2_bundle.verify(json.loads((b / "bundle.json").read_text())["identity"])
 order, tag = os.environ.get("ORDER", "movement_first"), os.environ["TAG"]
 if os.environ.get("ONLY"):
     os.environ["COMBINED_ENCODING_ONLY"] = os.environ["ONLY"]
@@ -109,22 +123,18 @@ def _inputs_worker(job):
             "fr": x.get("fr") is not None}
 
 
-#: per-submit options (sbatch --export), never part of a bundle's recorded input settings
-_SUBMIT_ENVS = ("COMBINED_ENCODING_ONLY", "COMBINED_ENCODING_VIDEO", "COMBINED_ENCODING_FR",
-                "COMBINED_ENCODING_FR_POINTS", "COMBINED_ENCODING_FR_SHARE", "COMBINED_ENCODING_MATCH",
-                "COMBINED_ENCODING_BINS", "COMBINED_ENCODING_BINS_WIDTH", "COMBINED_ENCODING_FR_GROUPS")
-
-
 def bundle_env(d: Path | None = None) -> dict:
-    """The bundle's INPUT settings: every COMBINED_ENCODING_* / OROFACIAL_* variable set now except the per-submit ones
-    and the local input cache. A value naming an existing file is copied to <bundle>/tables/ and recorded as
-    '@tables/<name>' (the runner resolves it inside the bundle on O2). Recorded so one bundle = one input
-    configuration (lick set, executed set, gate, 3-D tables, binned contest), and `collect` names folders the same."""
+    """The bundle's INPUT settings = `wfield_local.o2_bundle.settings()`: the full render-profile env (WIDEFIELD_* /
+    WFIELD_* / LOCANMF_*) + COMBINED_ENCODING_* / OROFACIAL_*, minus this machine's store paths and the per-submit
+    options. A value naming an existing file is copied to <bundle>/tables/ and recorded as '@tables/<name>' (the runner
+    resolves it inside the bundle on O2); a value naming a DIRECTORY cannot be bundled and is refused. Recorded so one
+    bundle = one input configuration, the runner reproduces it, and `collect` names folders the same."""
+    from wfield_local import o2_bundle
     env = {}
-    for k, v in sorted(os.environ.items()):
-        if not k.startswith(("COMBINED_ENCODING_", "OROFACIAL_")) or k in _SUBMIT_ENVS or not v:
-            continue
-        if d is not None and Path(v).is_file():
+    for k, v in o2_bundle.settings().items():
+        if Path(v).is_absolute() and Path(v).is_dir():
+            raise SystemExit(f"{k}={v} names a directory: O2 cannot see it and it is not a bundle setting")
+        if d is not None and Path(v).is_absolute() and Path(v).is_file():
             (d / "tables").mkdir(exist_ok=True)
             shutil.copy2(v, d / "tables" / Path(v).name)
             v = f"@tables/{Path(v).name}"
@@ -132,41 +142,108 @@ def bundle_env(d: Path | None = None) -> dict:
     return env
 
 
+def bundle_dir(rv, name: str) -> Path:
+    """Where bundle ``name`` lives: in a rebuild-root run <root>/o2/<name> (a registered data area of the root, so the
+    tag rule accepts it; coordinator 11-04), else `o2_inference.bundle_dir` (DeepLabCut/Widefield/o2/<name>)."""
+    from wfield_local import o2_inference as oi
+    from wfield_local import rebuild_root, run_mode
+    r = rebuild_root.root()
+    if r is None:
+        return oi.bundle_dir(rv, name)
+    run_mode.register_data_store(Path(r) / "o2")
+    return Path(r) / "o2" / name
+
+
+def _git(repo: Path, *args) -> str:
+    return subprocess.run(["git", "-C", str(repo), *args], capture_output=True, text=True, check=True).stdout.strip()
+
+
+#: the runs of a full rebuild bundle (TAG, ORDER, ONLY, extra exports): the 10-24 submit_all.sh set (fr_A_tr dropped,
+#: coordinator 11-04: this code computes the FR trial-to-trial outputs in every fr run, so fr_A carries them)
+FULL_RUNS = (("bins_w1", "movement_first", "nokin:", "BINS=1"),
+             ("bins_w05", "movement_first", "nokin:", "BINS=1,BINS_WIDTH=0.5"),
+             ("bins_w2", "movement_first", "nokin:", "BINS=1,BINS_WIDTH=2"),
+             ("main", "movement_first", "", ""),
+             ("droppos", "movement_first", "droppos-", ""),
+             ("shufpos", "movement_first", "shufpos-", ""),
+             ("nodir", "movement_first", "nodir:", ""),
+             ("drop", "movement_first", "drop:", ""),
+             ("trmodels", "movement_first", "trmodels", ""),
+             ("musall_shuf", "musall", "shuf:", ""),
+             ("fr_A", "movement_first", "fr:", "FR=master_pre_v1,FR_GROUPS=master_v1:A"),
+             ("fr_B", "movement_first", "fr:", "FR=master_pre_v1,FR_GROUPS=master_v1:B"),
+             ("fr_S", "movement_first", "fr:", "FR=master_pre_v1,FR_GROUPS=master_v1:S"),
+             ("fr_D", "movement_first", "fr:", "FR=master_pre_v1,FR_GROUPS=master_v1:D"))
+
+
 def cmd_bundle(a) -> Path:
+    import datetime
+
     from wfield_local import analysis_kit as ak
     from wfield_local import combined_encoding as ce
+    from wfield_local import o2_bundle
     from wfield_local import o2_inference as oi
+    from wfield_local import orofacial_cohort as oc
     from wfield_local import writeguard
     from wfield_local.orofacial_cohort import RUN
     from wfield_local.paths import PathResolver
     rv = PathResolver()
     os.environ[ce.RUN_ENV] = a.run or RUN
-    d = oi.bundle_dir(rv, a.name)
-    writeguard.assert_writable(d.parent)
+    # CODE SNAPSHOT = HEAD of the worktree this runs from; refuse uncommitted changes to what is archived
+    repo = Path(__file__).resolve().parents[1]
+    dirty = _git(repo, "status", "--porcelain", "--", "wfield_local", "configs", "scripts/o2_encoding.py")
+    if dirty:
+        raise SystemExit(f"uncommitted changes in {repo} (the bundle archives HEAD):\n{dirty}")
+    commit = _git(repo, "rev-parse", "HEAD")
+    # the run's attempts table (OROFACIAL_GATE=attempted) is read at BUNDLE time (Behaviour.trials.engaged)
+    attempts = None
+    if oc.ENGAGEMENT_GATE != "reference":
+        from wfield_local import lp_licks
+        attempts = lp_licks.attempts_path()
+        if not Path(attempts).exists():
+            raise SystemExit(f"{attempts} missing: run scripts/trial_attempts.py under this profile first")
+    d = bundle_dir(rv, a.name)
+    writeguard.assert_writable(d)
     for sub in ("inputs", "logs", "out"):
         (d / sub).mkdir(parents=True, exist_ok=True)
+    ident = o2_bundle.identity()
+    meta_f = d / "bundle.json"
+    if meta_f.exists():                       # resuming: the inputs already there must be of the same run
+        old = json.loads(meta_f.read_text())
+        if old["identity"] != ident:
+            raise SystemExit(f"{d} holds a bundle of another run: {old['identity']} vs {ident}")
     labels = a.labels or ce.sessions_available()
-    todo = [(lab, str(d / "inputs" / f"{lab}.pkl"), a.cams or "", a.fr or "", a.fr_points or 0, a.fr_share)
-            for lab in labels
-            if not (d / "inputs" / f"{lab}.pkl").exists()]
-    got, fail = ak.fan_sessions(todo, _inputs_worker, jobs=a.jobs, key=lambda j: j[0])
-    for it, err in fail:
-        print(f"  FAILED {it[0]}: {err}")
+    if len(labels) == 1 and Path(labels[0]).is_file():                   # a label FILE (whitespace-separated)
+        labels = Path(labels[0]).read_text().split()
+    if not a.no_inputs:
+        todo = [(lab, str(d / "inputs" / f"{lab}.pkl"), a.cams or "", a.fr or "", a.fr_points or 0, a.fr_share)
+                for lab in labels
+                if not (d / "inputs" / f"{lab}.pkl").exists()]
+        got, fail = ak.fan_sessions(todo, _inputs_worker, jobs=a.jobs, key=lambda j: j[0])
+        for it, err in fail:
+            print(f"  FAILED {it[0]}: {err}")
     ok = sorted(p.stem for p in (d / "inputs").glob("*.pkl"))
     (d / "labels.txt").write_text("".join(f"{x}\n" for x in ok), encoding="utf-8", newline="\n")
-    (d / "env.json").write_text(json.dumps(bundle_env(d), indent=1), encoding="utf-8", newline="\n")
-    repo = Path(__file__).resolve().parents[1]
+    env = bundle_env(d)
+    (d / "env.json").write_text(json.dumps(env, indent=1), encoding="utf-8", newline="\n")
+    if attempts is not None:                  # provenance only: the gate is already inside each inputs/<label>.pkl
+        (d / "tables").mkdir(exist_ok=True)
+        shutil.copy2(attempts, d / "tables" / "trial_attempts.csv")
+    from wfield_local import rebuild_root
+    meta = {"identity": ident, "commit": commit, "code_root": str(repo), "name": a.name,
+            "profile": os.environ.get("O2_BUNDLE_PROFILE", ""), "rebuild_root": str(rebuild_root.root() or ""),
+            "attempts_table": str(attempts or ""), "cams": a.cams, "fr": a.fr, "n_sessions": len(ok),
+            "created": datetime.datetime.now().isoformat(timespec="seconds")}
+    meta_f.write_text(json.dumps(meta, indent=1), encoding="utf-8", newline="\n")
     code = d / "code"
     if code.exists():
         shutil.rmtree(code)
     code.mkdir()
     tar = d / "code.tar"
-    subprocess.run(["git", "-C", str(repo), "archive", "--format=tar", "-o", str(tar), "HEAD", "wfield_local", "configs"],
+    subprocess.run(["git", "-C", str(repo), "archive", "--format=tar", "-o", str(tar), commit, "wfield_local", "configs"],
                    check=True)
     shutil.unpack_archive(str(tar), str(code))
     tar.unlink()
-    commit = subprocess.run(["git", "-C", str(repo), "rev-parse", "--short", "HEAD"], capture_output=True,
-                            text=True).stdout.strip()
     (d / "enc_runner.py").write_text(RUNNER, encoding="utf-8", newline="\n")
     s = oi.scratch(a.user)
     b = f"{s}/o2/{a.name}"
@@ -190,16 +267,19 @@ python {b}/enc_runner.py
 """
     (d / "run_enc.sbatch").write_text(sb, encoding="utf-8", newline="\n")
     share_b = oi.o2_path(d, rv)
-    runs = [("nodir", "", "nodir:", "", ""), ("trmodels", "", "trmodels", "", ""),
-            ("musall_shuf", "musall", "shuf:", "", ""), ("main", "", "", "", ""), ("video", "", "", "cam1,cam4", "")]
-    if a.fr:                  # FR vs motion energy vs both in ONE run (video:*, fr:*, frvideo:* models)
-        runs.append((f"fr_{a.fr.replace('/', '-')}", "", "", "cam1,cam4", a.fr))   # another camera: <bundle>/<set>
-    pts = f",FR_POINTS={a.fr_points}" if a.fr and a.fr_points else ""
-    sub = "\n".join(f"sbatch --array=1-{n}%60 --export=ALL,TAG={t},ORDER={o or 'movement_first'},ONLY={only},"
-                    f"VIDEO={v},FR={f}{pts if f else ''} {b}/run_enc.sbatch      # {t}" for t, o, only, v, f in runs)
-    cmds = f"""# O2 combined encoding model: {a.name} ({n} sessions; code {commit}; run {os.environ[ce.RUN_ENV]})
 
-One bundle, many runs: each submit sets TAG (output folder out/<TAG>/), ORDER, ONLY, VIDEO, FR.
+    def line(t, o, only, extra, arr):
+        return (f"sbatch --array={arr} --export=ALL,TAG={t},ORDER={o},ONLY={only},VIDEO=,FR="
+                + (f",{extra}" if extra else "") + f" {b}/run_enc.sbatch")
+    # FR= first, then the run's own FR=... overrides it (sbatch --export: the last assignment wins)
+    sub = "\n".join(line(t, o, only, extra, f"1-{n}%60") + f"      # {t}" for t, o, only, extra in FULL_RUNS)
+    prof = f" --profile {meta['profile']}" if meta["profile"] else ""
+    cmds = f"""# O2 combined encoding model: {a.name}
+
+{n} sessions; code {commit} ({repo.name}); run tag {ident['run_tag']}
+selection {ident['selection']}; area basis {ident['area_basis']}; lick run {os.environ[ce.RUN_ENV]}
+Settings: env.json (applied by the runner before wfield_local is imported; it REFUSES if the bundled code does not
+compute the recorded run tag / selection / area basis from them). Gate table: tables/trial_attempts.csv (provenance).
 
 ## 1. Transfer node  (ssh {a.user}@transfer.rc.hms.harvard.edu)
 ```bash
@@ -208,26 +288,32 @@ rsync -ah {share_b}/ {b}/
 ls {b}/inputs | wc -l       # expect {n}
 ```
 
-## 2. Login node  (ssh {a.user}@o2.hms.harvard.edu) -- ONE task of one run first
+## 2. Login node  (ssh {a.user}@o2.hms.harvard.edu) -- ONE task first
 ```bash
-sbatch --array=1 --export=ALL,TAG=nodir,ORDER=movement_first,ONLY=nodir:,VIDEO=,FR= {b}/run_enc.sbatch
+{line("main", "movement_first", "", "", "1")}
 squeue -u {a.user}
-tail -n 5 {b}/logs/enc_*_1.out
+tail -n 5 {b}/logs/enc_{a.name}_*_1.out      # must end in "full cvR2 ..."; a settings mismatch stops here
 ```
-When `{b}/out/nodir/sessions/` has the first session (~20-60 min), submit what you need:
+When `{b}/out/main/sessions/` has its first session (~20-60 min), submit all {len(FULL_RUNS)} runs (the 1-task run above is part
+of `main`; its session is skipped as done):
 ```bash
 {sub}
 ```
-(video only finds motion energy for the sessions bundled with --cams; others are skipped by the model.)
+fr_A also carries the FR trial-to-trial / PETH outputs (Figs 21.4 / 21.11; the 10-25 fr_A_tr re-run is not needed with
+this code). A task that runs out of memory: resubmit that index with --mem=64G.
 
 ## 3. Transfer node, when a run is done
 ```bash
-ls {b}/out/<TAG>/sessions/*.json | wc -l
+ls {b}/out/<TAG>/sessions/*.json | wc -l      # expect {n}
 rsync -ah {b}/out/ {share_b}/out/
 ```
 
-## 4. Desktop
-`python scripts/o2_encoding.py collect --name {a.name} --tag <TAG>`
+## 4. Desktop (rebuild worktree, PYTHONPATH=<code_root>)
+```bash
+python scripts/o2_encoding.py{prof} collect --name {a.name} --tag <TAG>
+```
+collect writes to the routed run-tagged encoding folder (combined_encoding.out_dir) and refuses a bundle whose run tag
+differs from the current profile's.
 """
     (d / "COMMANDS.md").write_text(cmds, encoding="utf-8", newline="\n")
     print(f"{n} sessions bundled -> {d}\n{cmds}")
@@ -246,42 +332,87 @@ def _set_env(order_only_video: dict) -> None:
             os.environ.pop(env, None)
 
 
+def _bundle_meta(d: Path) -> dict:
+    f = d / "bundle.json"
+    if not f.exists():
+        raise SystemExit(f"{f} missing: a bundle without its recorded run identity (before 11-04) cannot be checked or "
+                         "collected into a rebuild run")
+    return json.loads(f.read_text())
+
+
+def _refuse_other_run(meta: dict) -> dict:
+    """REFUSE unless this process (the current profile) computes the bundle's recorded run identity."""
+    from wfield_local import o2_bundle
+    try:
+        return o2_bundle.verify(meta["identity"])
+    except o2_bundle.BundleMismatch as ex:
+        raise SystemExit(f"refusing: this bundle is not of the current run ({ex})") from None
+
+
+_SHARE_READS: list = []
+_AUDIT = {"on": False}
+
+
+def _audit(event, args):
+    if _AUDIT["on"] and event == "open" and args and isinstance(args[0], (str, bytes, os.PathLike)):
+        p = os.fsdecode(args[0]).replace("\\", "/")
+        if p[:2].upper() in ("M:", "N:") or "/MICROSCOPE/" in p.upper() or p.startswith("//"):
+            _SHARE_READS.append(p)
+
+
 def cmd_check(a) -> int:
-    """One session from bundled inputs vs from the share, same options: region tables must match."""
+    """One session from its bundled inputs (as on O2: env.json settings, no share reads -- audited) vs loaded here
+    under the current profile, same options: the region tables must agree to < 1e-4."""
+    import sys
+
     import numpy as np
 
     from wfield_local import combined_encoding as ce
-    from wfield_local import o2_inference as oi
     from wfield_local.orofacial_cohort import RUN, _repo_on_path
     from wfield_local.paths import PathResolver
     _repo_on_path()
     os.environ[ce.RUN_ENV] = a.run or RUN
+    d = bundle_dir(PathResolver(), a.name)
+    _refuse_other_run(_bundle_meta(d))
+    env = json.loads((d / "env.json").read_text())
+    for k, v in env.items():                                           # the bundle's settings, as the runner applies
+        if os.environ.get(k) != v and not (isinstance(v, str) and v.startswith("@")):
+            raise SystemExit(f"env.json {k}={v!r} differs from this shell's {os.environ.get(k)!r}")
     _set_env({"only": a.only, "video": a.video, "fr": a.fr,          # submit-time options from this shell's env
               **{k: os.environ.get(e, "") for k, e in (("bins", ce.BINS_ENV), ("bins_width", ce.BINS_WIDTH_ENV),
                                                          ("fr_groups", "COMBINED_ENCODING_FR_GROUPS"))}})
-    d = oi.bundle_dir(PathResolver(), a.name)
     inputs = pickle.loads((d / "inputs" / f"{a.label}.pkl").read_bytes())
-    r1 = ce.run_session(a.label, a.order, inputs=inputs)["region"]
+    sys.addaudithook(_audit)
+    _AUDIT["on"] = True
+    try:
+        r1 = ce.run_session(a.label, a.order, inputs=inputs)["region"]
+    finally:
+        _AUDIT["on"] = False
     r2 = ce.run_session(a.label, a.order)["region"]
     m = r1.merge(r2, on=["model", "window", "area"], suffixes=("_bundle", "_share"))
     diff = np.abs(m.r2_bundle - m.r2_share)
-    print(f"{len(m)} region rows; max |r2 bundle - share| = {diff.max():.2e}; "
-          f"rows differing > 1e-6: {(diff > 1e-6).sum()}")
-    return 0 if diff.max() < 1e-4 else 1
+    print(f"{a.label}: {len(m)} region rows ({len(r1)} bundle / {len(r2)} local); max |r2 bundle - local| = "
+          f"{diff.max():.2e}; rows differing > 1e-6: {(diff > 1e-6).sum()}; share reads during the bundle run: "
+          f"{len(_SHARE_READS)} {sorted(set(_SHARE_READS))[:5]}")
+    ok = diff.max() < 1e-4 and len(m) == len(r1) == len(r2) and not _SHARE_READS
+    print("CHECK", "PASSED" if ok else "FAILED")
+    return 0 if ok else 1
 
 
 def cmd_collect(a) -> int:
     from wfield_local import combined_encoding as ce
-    from wfield_local import o2_inference as oi
     from wfield_local import writeguard
     from wfield_local.orofacial_cohort import RUN
     from wfield_local.paths import PathResolver
     rv = PathResolver()
     os.environ[ce.RUN_ENV] = a.run or RUN
-    src = oi.bundle_dir(rv, a.name) / "out" / a.tag
+    d = bundle_dir(rv, a.name)
+    _refuse_other_run(_bundle_meta(d))                                 # the bundle's run == the current profile's
+    src = d / "out" / a.tag
     meta = json.loads((src / "run.json").read_text())
     for k, v in (meta.get("bundle_env") or {}).items():        # same input settings -> same folder name as a local run
-        os.environ[k] = v
+        if not (isinstance(v, str) and v.startswith("@")):
+            os.environ[k] = v
     _set_env(meta)
     dst = ce.out_dir(rv, meta["order"] or "movement_first") / "sessions"
     writeguard.assert_writable(dst)
@@ -310,14 +441,13 @@ def cmd_match(a) -> int:
 
     from wfield_local import combined_encoding as ce
     from wfield_local import epochs
-    from wfield_local import o2_inference as oi
     from wfield_local import orofacial_cohort as oc
     from wfield_local import orofacial_outputs as oo
     from wfield_local.paths import PathResolver
     oc._repo_on_path()
     rv = PathResolver()
     run = a.run or oc.RUN
-    d = oi.bundle_dir(rv, a.name)
+    d = bundle_dir(rv, a.name)
     labels = [x.strip() for x in (d / "labels.txt").read_text().splitlines() if x.strip()]
     n = {}
     for lab in labels:
@@ -343,6 +473,8 @@ def cmd_match(a) -> int:
 
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--profile", default="", help="render profile applied BEFORE anything is imported (e.g. "
+                    "cohort1_rebuild_20261103): the bundle records its settings, run tag and rebuild-root location")
     sub = ap.add_subparsers(dest="cmd", required=True)
     b = sub.add_parser("bundle")
     b.add_argument("--name", required=True)
@@ -354,7 +486,8 @@ def main(argv=None) -> int:
     b.add_argument("--fr-share", action="store_true", help="with --fr: bundle the per-frame SHARE (the paper) instead "
                    "of absolute expression (a bundle holds one; make a second bundle for the other)")
     b.add_argument("--jobs", type=int, default=4)
-    b.add_argument("labels", nargs="*")
+    b.add_argument("--no-inputs", action="store_true", help="refresh code / env / COMMANDS only (inputs kept)")
+    b.add_argument("labels", nargs="*", help="session labels, or ONE file of whitespace-separated labels")
     c = sub.add_parser("check")
     c.add_argument("--name", required=True)
     c.add_argument("--run", default=None)
@@ -372,6 +505,10 @@ def main(argv=None) -> int:
     m.add_argument("--run", default=None)
     m.add_argument("--frac", type=float, default=0.95, help="target = frac x the animal's smallest session")
     a = ap.parse_args(argv)
+    if a.profile:
+        from wfield_local import render_profile
+        render_profile.apply(a.profile)
+        os.environ["O2_BUNDLE_PROFILE"] = a.profile
     if a.cmd == "bundle":
         cmd_bundle(a)
         return 0
