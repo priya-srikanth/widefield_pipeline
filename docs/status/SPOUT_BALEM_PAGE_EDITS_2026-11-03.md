@@ -95,10 +95,17 @@ in_working, dropping the 13 camera-less sessions from training and the pre band 
 
 ## 7. Working = trial_classes.in_working on both sides + August-only pre (Priya 11-03): ADOPTED; render NOT started
 
-Method line for every working-trial caption (replace the "lick + miss-while-working" wording): *working trials = camera
-trial classes: a lick (contact or incomplete) or a jaw movement between the cue and the trial stop, up to the session's
-last camera lick; at close mid the jaw cannot be judged, so working there = licks only. Pre-stroke baseline = the August
-pre sessions (8 / 7 / 8 / 8; PS93_0813 has no video).* Lick-aligned panels keep "lick trials".
+Method line for every working-trial caption (replace the "lick + miss-while-working" wording; Priya 11-03 late, jaw-only
+out of working): *working trials = camera trial classes: a contact or incomplete lick between the cue and the trial stop,
+up to the session's last camera lick; jaw-only and no-response trials are reported separately. Pre-stroke baseline = the
+August pre sessions (8 / 7 / 8 / 8; PS93_0813 has no video).* Lick-aligned panels keep "lick trials". (Superseded wording,
+11-03 afternoon: "a lick or a jaw movement ...; at close mid licks only" -- jaw-only trials are no longer working, so the
+close-mid exception no longer needs stating.)
+
+Numbers with jaw-only OUT (production since 11-03 late; DECISIONS "Working excludes jaw-only (Priya 11-03 late)"; exact
+values from the render): cue/working frozen overall pre .856, acute .592, subacute .714, chronic .775; close ipsi acute
+.727 (PS92 / 93 / 94 / 95 .829 / .629 / .619 / .832), subacute .824, chronic .924; far contra acute .187; close mid acute
+.738; precue far contra acute .186, close ipsi acute .567. The afternoon (jaw-inclusive) numbers below are superseded.
 
 Numbers that will move (verification; exact values from the render): DECISIONS 2026-11-03 "Epoch families' working ..."
 -- cue/working frozen overall pre .882 -> .841, acute .539 -> .516; far contra acute .219 -> .191; close ipsi acute .789

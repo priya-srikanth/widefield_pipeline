@@ -23194,3 +23194,63 @@ Old and new production endpoints reproduced exactly first (every session, max |d
   .629 -> .557, .619 -> .559, .832 -> .675); the B-vs-A model difference shows only in PS95 (.723 vs .833). The jaw-only
   trials scored at close ipsi are 1. "Jaw as its own class" (train + score + centre on contact+incomplete) gives acute
   close ipsi .727 (PS95 .832), far contra .187, pre panel .856, vs new .631 / .191 / .841 and old .789 / .219 / .882.
+
+## 2026-11-03 (late) — Working excludes jaw-only (Priya 11-03 late)
+
+**Decision (Priya, via the PI-deck coordinator).** Jaw-only trials come OUT of "working" and are reported as their own
+class, like no-response. **Working = `trial_classes.in_working` & `in_gate(cls, "camera_lick")`** = contact or incomplete
+lick (A4 camera classes), cue -> trial stop, cut at the session's last camera lick (every lick trial is before that cut
+by construction, so the cut only ever removed jaw-only / no-response trials). Close mid stays licks only (unchanged). On
+BOTH sides: the pre-stroke frozen training set, each session's label-free bal_em centre / `FrozenFrame` rows, the pre
+panel and the post-stroke scored set. Unchanged from 26fd5b44: August-only pre, the in_working cut, lick window on the
+lick gate, quit-tail = robustness arm. Evidence: `docs/status/JAW_ONLY_CHECKS_2026-11-03.md` and the 2026-11-03 jaw-only
+entry above (jaw_only ~ no_response in PS94 / PS95 at cue and precue; adding it to training does not move the reference;
+centring on rows incl. jaw-only drives PS95 close ipsi acute .975 -> .642). B / C spout-frame options stay OFF.
+
+**Code.** `wfield_local/working_trials.py`: named selections `WIDEFIELD_WORKING_TRIALS` = `in_working` (PRODUCTION,
+default; classes `WORKING_CLASSES["in_working"]` = `trial_classes.GATES["camera_lick"]`), `in_working_jaw` (robustness:
+the 11-03 afternoon in_working incl. jaw_only, = `GATES["working"]`; e3 keeps trial_classes' working gate jaw-inclusive on
+purpose) and `quit_tail`; `is_camera()` replaces the `selection() == IN_WORKING` tests in `grant_kit`, `grant_confusion`,
+`locanmf_frozen_decoder`; `row_masks(..., sel=)`; the snapshot check of `working_pl_lick` against `tc.in_working` is
+unchanged (it pins the jaw-inclusive set). Spec tag: production `scaling_params.trials` =
+`sel-camera-cue_stop-endlick-cls-contact-incomplete` (new ids); `in_working_jaw` keeps `sel-camera-cue_stop-endlick`, so
+it loads the 29 afternoon models unchanged. `grant_kit._pooled_bundle` memo key now includes the selection. No
+session-cached function changed (row masks are read from the snapshot, not cached; bootstrap caches are keyed on the
+data), so no CACHE_VERSION bump. Tests: `tests/test_working_trials.py` (production masks = snapshot working minus jaw,
+in_working_jaw = snapshot `working_pl_lick`, tags pinned, `_class_select` under both camera selections).
+
+**Verification on the PRODUCTION path** (`grant_kit._pooled_bundle` / `_frozen_frame` / `_class_select`, joint basis;
+`labcams/decoder_mix_checks/jaw_out_production_1103/`: `verify_P.py`, `compare_P.py` -> `compare_P_log.txt`,
+`xcheck_5c_fresh.py`). Production reproduces the checks' "jaw as its own class" cell (DEC|inw_nojaw|inw_nojaw|train)
+in every session of every animal, cue and precue: n identical, max |d accuracy| 1.1e-16 (overall and per spout).
+`in_working_jaw` reproduces the afternoon `A_new` and `quit_tail` (June + August) the `A_old` rows exactly (0 difference,
+all three windows); the lick window is identical under all selections (= `A_new_lick`). `_collect_5c(cue, working,
+paired)` in a fresh process agrees with the rows on all 76 post days (to CSV float round-trip). (In-run cross-check of
+verify_P was void for jawout cue: one pool worker ran inwjaw cue then jawout cue, and `_collect_5c` is lru-cached on
+(align, variant, mode) only -- harmless in production, one selection per process.)
+Per animal (cue, close ipsi, session means; PS92 / PS93 / PS94 / PS95 -> animal mean):
+- pre .878 / .912 / .949 / .954 -> .923; acute .829 / .629 / .619 / .832 -> **.727**; subacute .790 / .801 / .792 / .915 ->
+  .824; chronic .985 / .956 / .858 / .896 -> .924 (afternoon in_working .631 / .777 / .916 acute / subacute / chronic).
+- far contra acute .160 / .121 / .296 / .171 -> .187; close mid acute .687 / .518 / .852 / .894 -> .738; overall pre (pre
+  panel) .854 / .724 / .926 / .921 -> **.856**, acute .590 / .424 / .587 / .765 -> .592, subacute .714, chronic .775.
+- Precue (animal means pre / acute / subacute / chronic): close ipsi .737 / .567 / .524 / .709; far contra .522 / .186 /
+  .300 / .349; close mid .446 / .442 / .342 / .393; overall .559 / .390 / .389 / .455.
+- Sessions: 8 / 7 / 8 / 8 pre (August; PS93_0813 no video), acute 5 / 4 / 6 / 1 (PS95 acute = ONE session).
+
+**Frozen models** (fitted on the analysis desktop with `jaw_out_production_1103/freeze_models.py`,
+WIDEFIELD_PRE_FROM=0801; published with `publish_basis --what frozen` after a dry run that listed exactly these 20; 40
+files SHA-verified at the destination and re-hashed by a second dry run). Every older model stays in the store.
+| animal | ROI cue | ROI precue | joint cue | joint precue | attempt pool precue (ENL 1.0) |
+|---|---|---|---|---|---|
+| PS92 | 681c7b9485fb | e0a6af46ecc4 | d961311b8e3e | 8db0badb7e7c | c90dfb5e7537 |
+| PS93 | 9d883a1b467c | 3e6c2fc4d3b9 | 020749478935 | 7e316c230cdd | c68d77c55c19 |
+| PS94 | c0e6a8bad023 | 7f8d7e7bcd06 | 7728362c6bbb | 65af1a772c50 | 3c955083d446 |
+| PS95 | 82f90fcc8ade | b076f3b10ee0 | d412174b0fc5 | 899fdbdd5645 | 2bd02af005ad |
+Unchanged (frozen-hit): lick ROI 4cf2c701ed14 / 23d4ba6b6cff / edfd946b7e08 / e3cc6ebdb4f1, lick joint df989035e339 /
+270d4731309a / 94d9be87d03b / c986ea8f599f; section G loads the ROI ids above; attempt pool cue and lick (both ENL
+windows) and ENL 2.0 precue (= the joint precue ids) are frozen-hits.
+
+**Still jaw-inclusive (outside this change; owners told via the coordinator):** the s1 tables
+(`scripts/s1_trial_class_snapshot.py` working / `working_pl_*`, `scripts/s1_refit_locanmf_table.py` arms `camwork*`,
+`docs/results_pages/imaging/p_img_s1_table_20261103.py`; window e0), and anything else reading
+`trial_classes.GATES["working"]` / `in_working` directly (encoding / kinematics pages).

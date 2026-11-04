@@ -1,4 +1,5 @@
-"""Working = `trial_classes.in_working` on both sides (Priya 11-03; `wfield_local.working_trials`).
+"""Working = `trial_classes.in_working` & class in {contact, incomplete} on both sides (Priya 11-03 late;
+`wfield_local.working_trials`); the afternoon in_working incl. jaw_only = ``in_working_jaw`` (robustness).
 
 Pins: the snapshot's classes map onto pooled rows by cue index exactly as 5b's `scripts/s1_refit_locanmf_table.py`
 does (reindex of the snapshot column, missing cue -> False); a no-video session has no working rows; the working
@@ -32,12 +33,14 @@ def snap(tmp_path, monkeypatch):
     f = tmp_path / "snap.csv.gz"
     D.to_csv(f, index=False)
     monkeypatch.setenv(wt.SNAPSHOT_ENV, str(f))
+    monkeypatch.delenv(wt.WORKING_TRIALS_ENV, raising=False)
     wt._table.cache_clear()
     yield D
     wt._table.cache_clear()
 
 
-def test_row_masks_reproduce_the_s1_reindex(snap):
+@pytest.mark.parametrize("sel", ["in_working", "in_working_jaw"])
+def test_row_masks_reproduce_the_s1_reindex(snap, sel):
     kept = ["PSX_0806", "PSX_0807", "PSX_0809", "PSX_0901"]
     rng = np.random.default_rng(1)
     idx, GE, GU = {}, [], []
@@ -48,17 +51,54 @@ def test_row_masks_reproduce_the_s1_reindex(snap):
         idx[lab] = (ie, inl)
         GE += [i] * len(ie)
         GU += [i] * len(inl)
-    we, wu, have = wt.row_masks(kept, idx, np.array(GE), np.array(GU))
+    we, wu, have = wt.row_masks(kept, idx, np.array(GE), np.array(GU), sel=sel)
     assert have == {0, 1, 3}                                    # the no-video session has no classes
     GE, GU = np.array(GE), np.array(GU)
     for i, lab in enumerate(kept):                              # 5b's construction, independently
         sn = snap[snap.label == lab].set_index("cue_idx")
+        w = sn["working_pl_lick"].astype(bool)
+        if sel == "in_working":                                 # jaw_only is its own class, not working
+            w = w & sn.cls.isin(["contact", "incomplete"])
         ie, inl = idx[lab]
-        exp_e = sn["working_pl_lick"].reindex(ie).fillna(False).to_numpy(bool)
-        exp_u = sn["working_pl_lick"].reindex(inl).fillna(False).to_numpy(bool)
+        exp_e = w.reindex(ie).fillna(False).to_numpy(bool)
+        exp_u = w.reindex(inl).fillna(False).to_numpy(bool)
         if lab == "PSX_0809":
             exp_e[:], exp_u[:] = False, False
         assert np.array_equal(we[GE == i], exp_e) and np.array_equal(wu[GU == i], exp_u)
+
+
+def test_production_working_excludes_jaw_only_and_keeps_every_lick(snap):
+    """Production (default) working = in_working minus jaw_only = every contact / incomplete trial; the robustness
+    selection in_working_jaw is the afternoon in_working exactly (snapshot ``working_pl_lick``)."""
+    from wfield_local import trial_classes as tc
+    assert wt.selection() == wt.IN_WORKING and wt.working_classes() == {"contact", "incomplete"}
+    assert wt.WORKING_CLASSES[wt.IN_WORKING] == tc.GATES["camera_lick"]
+    assert wt.WORKING_CLASSES[wt.IN_WORKING_JAW] == tc.GATES["working"]
+    for sel in ("in_working", "in_working_jaw"):
+        T = wt._table(str(wt.snapshot_path()), sel)
+        for lab, g in snap[snap.cls != "no_video"].groupby("label"):
+            got = np.array([T[lab][k] for k in g.cue_idx])
+            exp = g.working_pl_lick.to_numpy(bool)
+            if sel == "in_working":
+                exp = exp & g.cls.isin(["contact", "incomplete"]).to_numpy()
+                assert np.array_equal(exp, g.cls.isin(["contact", "incomplete"]).to_numpy())  # end cut never drops a lick
+                assert not got[g.cls.to_numpy() == "jaw_only"].any()
+            assert np.array_equal(got, exp)
+
+
+def test_selection_tags_and_names(monkeypatch):
+    # the afternoon tag is pinned: in_working_jaw must reproduce the 29 afternoon spec ids
+    assert wt.tag("in_working_jaw") == "sel-camera-cue_stop-endlick"
+    assert wt.tag("in_working") != wt.tag("in_working_jaw") and wt.tag("in_working").startswith(wt.tag("in_working_jaw"))
+    monkeypatch.setenv(wt.WORKING_TRIALS_ENV, "in_working_jaw")
+    assert wt.selection() == wt.IN_WORKING_JAW and wt.is_camera() and "jaw_only" in wt.working_classes()
+    monkeypatch.setenv(wt.WORKING_TRIALS_ENV, "quit_tail")
+    assert not wt.is_camera()
+    with pytest.raises(ValueError):
+        wt.tag("quit_tail")
+    monkeypatch.setenv(wt.WORKING_TRIALS_ENV, "nonsense")
+    with pytest.raises(ValueError):
+        wt.selection()
 
 
 def test_class_select_switches_only_with_masks_and_in_working(monkeypatch):
@@ -70,6 +110,9 @@ def test_class_select_switches_only_with_masks_and_in_working(monkeypatch):
     assert me.tolist() == [True, False, False, True] and mu.tolist() == [True, False, False]
     old = grant_kit._class_select("working", se, su, ne)
     assert old[0].tolist() == se.tolist() and old[1].tolist() == (su & ~ne).tolist()
+    monkeypatch.setenv(wt.WORKING_TRIALS_ENV, "in_working_jaw")
+    mj = grant_kit._class_select("working", se, su, ne, work=work)
+    assert mj[0].tolist() == me.tolist() and mj[1].tolist() == mu.tolist()
     monkeypatch.setenv(wt.WORKING_TRIALS_ENV, "quit_tail")
     q = grant_kit._class_select("working", se, su, ne, work=work)
     assert q[0].tolist() == old[0].tolist() and q[1].tolist() == old[1].tolist()

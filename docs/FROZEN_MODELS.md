@@ -252,6 +252,14 @@ renders need `WIDEFIELD_PRE_FROM=0801` (`nightly_figs` sets it for cohort 1); wi
 pre set and the ids differ. The 11-03 bal_em models (June + August, engaged-trained) and every earlier model stay in the
 store.
 
+**2026-11-03 (later still): working EXCLUDES jaw-only (Priya 11-03 late).** Cue / precue spout decoders are now trained
+(and centred) on in_working & camera lick (contact | incomplete): `scaling_params["trials"] =
+"sel-camera-cue_stop-endlick-cls-contact-incomplete"`. 20 new models (ROI + joint x cue / precue x 4 animals, 4
+attempt-pool ENL 1.0 precue), ids in DECISIONS "Working excludes jaw-only (Priya 11-03 late)"; published SHA-verified
+from the analysis desktop. Lick models and the attempt pool's cue / lick / ENL 2.0 models are unchanged (frozen-hits).
+The afternoon definition is `WIDEFIELD_WORKING_TRIALS=in_working_jaw` (tag without the class suffix) and loads the 29
+afternoon models unchanged; nothing was retired.
+
 ## 7. EVERY PRE-STROKE DECODER IS FROZEN — the rule for this and future cohorts (Priya, 2026-10-15)
 
 *"Establish in the code for future cohorts that we will make a frozen pre-stroke decoder that is cached / stored

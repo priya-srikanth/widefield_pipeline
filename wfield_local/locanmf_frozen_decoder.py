@@ -357,10 +357,11 @@ def working_rows(work):
 
 def pool_work(XE, YE, GE, XU, YU, GU, kept, features, align):
     """The ``work`` dict of `frozen_decoder_models` for a pool, when the camera working selection applies (cue /
-    precue window, ``WIDEFIELD_WORKING_TRIALS=in_working``, a feature builder that kept cue ``.indices``); else
-    None (the engaged training set, the lick gate)."""
+    precue window; a CAMERA working selection, ``WIDEFIELD_WORKING_TRIALS`` = in_working (production: contact +
+    incomplete licks) or in_working_jaw (robustness); a feature builder that kept cue ``.indices``); else None (the
+    engaged training set, the lick gate)."""
     from wfield_local import working_trials as wt
-    if align == "lick" or wt.selection() != wt.IN_WORKING or not hasattr(features, "indices"):
+    if align == "lick" or not wt.is_camera() or not hasattr(features, "indices"):
         return None
     we, wu, _have = wt.row_masks(kept, features.indices, GE, GU)
     return {"XE": XE, "YE": YE, "GE": GE, "XU": XU, "YU": YU, "GU": GU, "work_e": we, "work_u": wu}
@@ -510,7 +511,7 @@ def pooled_frozen_loso(labels, source="roi", align="cue", post_s=2.0, zscore=Tru
     # the ROI builder that also keeps cue indices, so the pool can be mapped onto the camera working trials (Priya
     # 11-03, `working_trials`); same features, not cached either way
     from wfield_local import working_trials as _wt
-    if features is None and source == "roi" and align != "lick" and _wt.selection() == _wt.IN_WORKING:
+    if features is None and source == "roi" and align != "lick" and _wt.is_camera():
         features = _wt.roi_features_with_indices()
     pooled = pool_sessions(labels, source=source, align=align, post_s=post_s, zscore=zscore,
                            features=features)

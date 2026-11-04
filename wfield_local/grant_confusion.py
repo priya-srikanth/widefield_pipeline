@@ -301,7 +301,7 @@ def fig_confusion_pre_post_working(out_dir):
         # The stored classes are the QUIT-TAIL ones (`position_coding_directions`); under the camera working
         # selection (Priya 11-03, `working_trials`) the panels are recomputed from the bundle instead.
         from wfield_local import working_trials as _wt
-        if _wt.selection() == _wt.IN_WORKING:
+        if _wt.is_camera():
             return None
         f = _fig_root() / "coding_direction.json"
         if not f.exists():

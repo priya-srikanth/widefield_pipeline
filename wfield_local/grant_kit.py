@@ -756,7 +756,9 @@ def _pooled_bundle(an, align):
     reason it was extracted: two figures that claim to describe the same trials should not be able to
     disagree, and now they cannot even in principle -- they hold the same object.
     """
-    key = (an, align)
+    # the working selection is part of the key: the bundle carries its working row masks (`working_trials`)
+    from wfield_local import working_trials as _wt
+    key = (an, align, _wt.selection())
     if key in _BUNDLE_CACHE:
         return _BUNDLE_CACHE[key]
     from wfield_local import joint_locanmf
@@ -821,9 +823,9 @@ def _proj_arrays(bd):
 
 
 def _uses_working(bd, sel):
-    """True when ``sel`` is "working" and the camera working rows exist (cue / precue, in_working selection)."""
+    """True when ``sel`` is "working" and the camera working rows exist (cue / precue, a camera working selection: in_working or in_working_jaw)."""
     from wfield_local import working_trials as wt
-    return sel == "working" and bd.get("work_e") is not None and wt.selection() == wt.IN_WORKING
+    return sel == "working" and bd.get("work_e") is not None and wt.is_camera()
 
 
 def _frozen_frame(bd, sel="engaged"):
@@ -931,7 +933,7 @@ def _class_select(variant, sess_e, sess_u, not_eng, work=None):
     # rule below is the robustness arm (WIDEFIELD_WORKING_TRIALS=quit_tail) and what callers without masks get.
     if variant == "working" and work is not None and work[0] is not None:
         from wfield_local import working_trials as _wt
-        if _wt.selection() == _wt.IN_WORKING:
+        if _wt.is_camera():
             return sess_e & work[0], ((sess_u & work[1]) if len(sess_u) else u_none)
     if variant == "stopped":
         return e_none, (sess_u & not_eng) if len(sess_u) else u_none
