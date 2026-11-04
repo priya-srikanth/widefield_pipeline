@@ -90,3 +90,16 @@ ATTEMPT_READERS = ["cohort2_qc/attempt_effort", "cohort2_qc/quiet_lick_lfo", "co
 def test_redo_attempt_readers_use_this_runs_table(name):
     src = (REPO / "scripts" / f"{name}.py").read_text(encoding="utf-8")
     assert "_lp_licks.attempts_path()" in src and not re.search(r"/ \"qc\" / \"trial_attempts\.csv\"|/trial_attempts\.csv\"", src)
+
+
+def test_triaged_writers_are_routed():
+    """Coordinator 11-04, the 22-writer triage: the real ones are fixed (the rest are routed upstream: il.OUT / il.OUT_W,
+    attempt_coding.out_dir, quiet_spikes_v2.V2)."""
+    q = (REPO / "scripts" / "cohort2_qc" / "quiet_area_spikes.py").read_text(encoding="utf-8")
+    assert 'PathResolver().root("cohort_out")) / "cohort1_quiet_spikes"' in q and "M:/MICROSCOPE/Priya/Widefield/labcams/cohort1" not in q
+    h = (REPO / "scripts" / "cohort2_qc" / "cohort1_subset_headline.py").read_text(encoding="utf-8")
+    assert "run_mode.subdir(" in h and 'OUT = Path("M:/' not in h
+    r = (REPO / "scripts" / "rest_migration" / "rest_baseline_epoch_drift.py").read_text(encoding="utf-8")
+    assert r.count("lp_licks.output_dir(") == 2
+    m = (REPO / "wfield_local" / "restnl_mask.py").read_text(encoding="utf-8")
+    assert 'run_mode.subdir(oo.encoding_root(oc.RUN, PathResolver()) / "iti_licks") / "restw_check"' in m

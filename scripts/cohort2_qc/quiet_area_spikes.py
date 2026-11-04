@@ -43,7 +43,10 @@ def _out_root() -> Path:
     if os.environ.get("QS_OUT_ROOT"):
         return Path(os.environ["QS_OUT_ROOT"])
     from wfield_local import lp_licks
-    return lp_licks.output_dir(Path("M:/MICROSCOPE/Priya/Widefield/labcams/cohort1_quiet_spikes"))
+    from wfield_local.paths import PathResolver
+    # the DERIVED cohort_out root (coordinator 11-04): inside the rebuild root under the profile; the literal labcams
+    # path was the INPUT tree, which the rebuild fence refuses to write
+    return lp_licks.output_dir(Path(PathResolver().root("cohort_out")) / "cohort1_quiet_spikes")
 
 
 OUT = _out_root()

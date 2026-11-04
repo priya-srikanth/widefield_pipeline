@@ -461,7 +461,9 @@ def validate(rows) -> dict:
     from wfield_local import orofacial_cohort as oc
     from wfield_local import orofacial_outputs as oo
     from wfield_local.paths import PathResolver
-    src = oo.encoding_root(oc.RUN, PathResolver()) / "iti_licks" / "restw_check" / "sessions"
+    from wfield_local import run_mode
+    # restw_strict_check writes <iti_licks.OUT>/restw_check = run_mode.subdir(<imaging_encoding>/iti_licks) (11-04)
+    src = run_mode.subdir(oo.encoding_root(oc.RUN, PathResolver()) / "iti_licks") / "restw_check" / "sessions"
     eq, ne, absent = [], [], []
     for r in rows:
         if "nfr_pos" not in r:

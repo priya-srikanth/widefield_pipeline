@@ -280,7 +280,6 @@ RESOLVED = {
     "scripts/recovered_20261103/fig_goal_summary.py",
     "scripts/rest_migration/lick_bout_structure.py",
     "scripts/rest_migration/quit_prodrome.py",
-    "scripts/rest_migration/rest_baseline_epoch_drift.py",
     "wfield_local/animal_weights.py",
     "wfield_local/behavior_clip_deck.py",
     "wfield_local/behavior_events.py",
@@ -312,7 +311,6 @@ RESOLVED = {
 LITERAL = {
     "scripts/cohort2_qc/channel_drift.py",
     "scripts/cohort2_qc/cohort1_impact.py",
-    "scripts/cohort2_qc/cohort1_subset_headline.py",
     "scripts/cohort2_qc/compare_hemo_variants_1029.py",
     "scripts/cohort2_qc/epileptiform_gallery.py",
     "scripts/cohort2_qc/epileptiform_scan.py",
