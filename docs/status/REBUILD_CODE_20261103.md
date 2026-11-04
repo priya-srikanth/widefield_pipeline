@@ -1570,3 +1570,77 @@ lick_template_match, movement_encoding_session, movement_position_angle, jaw_onl
 **Test record.** Full suite, 6 shards, from the repo root with PYTHONPATH = the worktree:
 - at 5cc29488: 4,685 passed, 179 skipped, 0 failed;
 - at 621c81de: 4,690 passed, 179 skipped, 0 failed.
+
+### 8.39 Page figure scripts into the repo (RECONCILIATION section 7; coordinator 11-04)
+
+**Sources.** The scratchpad copies backed up at
+`M:/MICROSCOPE/Priya/Widefield/encoding_goal_page_src/scratchpad_scripts_backup_20261104/S1_cdd1e016/`, and the PI
+source `M:/MICROSCOPE/Priya/Widefield/presentations/_source_PI_overview_2026-11-02/`.
+
+**Where they live.** All go into `scripts/rebuild_figs/`. That is the folder of the recreated page scripts, and it
+already holds fig_goal_summary, fig_goal_epochs, fig_behaviour_hits, fig_decoding_sessions, fig_frozen_refit_pooled,
+fig_state_position_sessions and fig_state_ps94_diagnostic.
+
+**The `_common` contract.**
+- `--out` / `--plot-only`.
+- Figdata: `<out>/data/<name>_figdata.pkl`.
+- The default `--out` is now run-tagged: `<rebuild_root>/rebuild_figs/<tag>/`.
+
+Every script keeps its logic (computation, seeds, layout, styling); only paths, args and figdata change.
+
+**Group 1 (1281b799), goal-page Layer 2 / pooled:**
+- fig_layer2: Figs 5 / 6.
+- fig_rsplit: Fig 5b. The summary CSV now goes to `--out`; it was written into the input folder.
+- fig_pooled: 1p / 2c / 4p / 5p / 5c / 6p / 10p / 12p. The original body is wrapped in `draw()`; the figdata is the
+  input tables, so `--plot-only` re-runs the same seeded bootstraps.
+- Inputs: this run's `allsession_encoder_<tag>`, encoder runs (`run_mode.encoding_out_root`, `frozen_encoder.out_root`),
+  `attempt_coding.out_dir()` and lp_encoder_decompose qc.
+
+**Group 2 (7607f07a), softmax / residual:**
+- fig_softmax: 9 / 9b / 10.
+- fig_softmax_stats: 9c.
+- fig_resid_per_animal: 8.
+- fig_resid16: 7c / 7d.
+- fig_resid_spout: 7. It shares fig_resid16.panel, which the originals duplicated.
+- Inputs: this run's binned-contest and frozen-encoder runs.
+
+**Group 3 (9a3f578d), PI deck / imaging + kinematics pages:**
+- fig_farcontra_attempts_sessions:
+  - attempt rate and completion come from THIS run's `trial_attempts_sessions.csv` (camera classes);
+  - the cam1 incomplete table, a pose output, is read in place through the resolver.
+- fig_pose_validation_sessions: pose3d and v36 lick inputs are read in place through the resolver.
+- fig_decoding_sessions: its default input is now slowband_decode's tagged output.
+- fig_behaviour_hits: its input is resolved through `behavior_out`.
+
+**Manifest.** 43 rows now carry `producing_script` = `scripts/rebuild_figs/<x>.py` and the exact `command`. These
+include the PI-deck and kinematics-page duplicates. Verdicts are unchanged: softmax 9 / 9b / 9c and pose_validation
+stay NO.
+
+**Smoke tests** (`tests/test_page_fig_scripts.py`, 32):
+- no hard-coded machine / adopted-run / scratch path in code;
+- the import and `--help` contract;
+- `--plot-only` draws from synthetic figdata (layer2, rsplit, softmax_stats, resid16, resid_spout);
+- the default `--out` is run-tagged;
+- inputs follow the run.
+
+**Commands.** Run each under the render profile env with `PYTHONPATH=<render worktree>`, from the render worktree:
+
+    python scripts/rebuild_figs/fig_layer2.py
+    python scripts/rebuild_figs/fig_rsplit.py
+    python scripts/rebuild_figs/fig_pooled.py
+    python scripts/rebuild_figs/fig_softmax.py
+    python scripts/rebuild_figs/fig_softmax_stats.py
+    python scripts/rebuild_figs/fig_resid_per_animal.py
+    python scripts/rebuild_figs/fig_resid16.py --bin 16      (and --bin 32 for the 32 px page rows)
+    python scripts/rebuild_figs/fig_resid_spout.py --spout far_contra --bin 16
+    python scripts/rebuild_figs/fig_farcontra_attempts_sessions.py
+    python scripts/rebuild_figs/fig_pose_validation_sessions.py
+
+Prerequisites (render order):
+- layer2 / rsplit / pooled: allsession_encoder, layer2_matched_n, layer2_random_splits, attempt_coding,
+  lp_encoder_decompose (joint lick), frozen_residual_trend, and the binned-contest runs `_bins{,_bw0.5,_bw2}`.
+- resid*: frozen_residual_significance at the matching `--bin`.
+- farcontra: trial_attempts.
+
+**Test record.** Full suite at 9a3f578d, 6 shards, from the repo root with PYTHONPATH = the worktree: 4,722 passed,
+179 skipped, 0 failed.
