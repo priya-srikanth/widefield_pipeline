@@ -849,11 +849,11 @@ def _proj_arrays(bd):
     if not spout_scaling.projection_frame_on():
         return bd["XE"], bd["XU"]
     pc_ = spout_scaling.projection_centre()
-    if pc_ == "engaged" or bd.get("align") == "lick":
+    # no working masks = the lick window / the DAQ gate / a non-camera selection: the engaged-row frame, as
+    # `spout_scaling.projection_arrays` (the lick-gate spout decoder's frame)
+    if pc_ == "engaged" or bd.get("align") == "lick" or _working_masks(bd) is None:
         fr = _frozen_frame(bd, sel="engaged")
     else:
-        if _working_masks(bd) is None:
-            raise ValueError(f"{spout_scaling.PROJECTION_CENTRE_ENV}={pc_}: this bundle has no camera working rows")
         fr = _frozen_frame(bd, sel="working", centre=pc_)
     return fr["XEs"], fr["XUs"]
 

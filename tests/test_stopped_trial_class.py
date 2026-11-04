@@ -102,12 +102,14 @@ def test_class_note_names_every_class_it_is_given():
 
 
 @pytest.mark.parametrize("variant", ["lick", "working", "stopped"])
-def test_session_trials_returns_the_same_rows_for_X_and_for_blk(variant):
+def test_session_trials_returns_the_same_rows_for_X_and_for_blk(variant, monkeypatch):
     """The block vector must line up row-for-row with the data or the bootstrap resamples nonsense.
 
     `_session_trials` computes the mask ONCE for both `field` values, which is the property that
     makes that true; this pins it against a future edit that recomputes the mask per field.
     """
+    # these minimal bundles test the mask bookkeeping, not the projection frame (ON by default since 11-04)
+    monkeypatch.setenv("WIDEFIELD_PROJECTION_FRAME", "session_z")
     n_e, n_u, n_feat = 6, 8, 3
     bd = {
         "XE": np.arange(n_e * n_feat, dtype=float).reshape(n_e, n_feat),
