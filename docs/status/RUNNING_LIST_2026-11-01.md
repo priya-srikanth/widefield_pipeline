@@ -730,6 +730,11 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   QUESTION FOR PRIYA: the per-session combined_encoding runs (Figs 1.13-1.15 binned contest, 21.x FR, 21.12 variance maps,
   22.1) came from an O2 bundle of ADOPTED data; rebuilding them needs a new O2 bundle + ~14 job arrays. Deferred -- want me to
   build and submit it (needs your O2 login), or run a reduced set locally?
+- Scratch-only page figure scripts brought into the repo + routed (rebuild 1806eaf6, suite 4,722 / 0 failed).
+- RENDER 06:35-06:58: the epoch decoders failed on all 5 arms at the first write to the FROZEN MODEL STORE (the write
+  fence's tag rule refused <root>/frozen_models; the store was never registered as a data store). Nothing written. Helper
+  registering every profile store + an end-to-end store-write smoke test. trial_attempts running since 05:47 (checking it
+  is not stuck); coverage table after it.
 
 ### Findings
 - main moved while the rebuild branch was being fixed (34 commits not in rebuild/cohort1-20261103). Two matter for the rebuild:
