@@ -775,6 +775,8 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   trials with no no_response now counts as a stop (rule as written). The redo runs from a SECOND worktree
   (wf_rebuild_render2) so the code under the still-running old render doesn't change. Old-vs-new stop counts per animal x
   epoch coming.
+- Old-tag epoch render stopped externally at 07:57 (Priya); it wrote 0 figures; the old-rule frozen models it stored
+  (PS92-94) are listed SUPERSEDED in RENDER_LOG, not deleted. Redo under stopRun6j started from wf_rebuild_render at c3cb3c0c.
 - Slide 94 caveat added by a8 (backup_before_ramp_caveat_1104.pptx; hidden states unchanged).
 - The 05:46 incident coverage copies differ from the rebuild ones only by the 12 June sessions (Aug-only pre); the partial-
   coverage rows are identical.
