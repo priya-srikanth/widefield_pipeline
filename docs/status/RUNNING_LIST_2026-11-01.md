@@ -1326,3 +1326,8 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   - Cue chronic far contra: .720 -> .296.
   - Held-out pre accuracy: -.030.
   - No rest arm will be built. Wt stays the provisional default.
+- **11-04 ~18:45: DECISION (Priya via a8): Wt is the FINAL centre.**
+  - Applies to the spout decoder and the CD / pattern projections. The engagement axis stays z on contact rows.
+  - Robustness rows: N and Cto.
+  - Method note: ~.024 drift under a high incomplete share; the rest frame was rejected.
+  - Set as the rebuild default on bcdg-port.
