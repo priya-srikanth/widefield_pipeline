@@ -469,6 +469,11 @@ FYI, the 3-class camera variant (lick / jaw-only / none) is thin in PS92 and PS9
 
 ## Decisions taken today (Priya)
 
+- **(11-04) Maps need no re-evaluation for the rest-baseline shift.** Priya: the maps relative to restw, rest,
+  pre-cue and raw were all in reasonable agreement, so no single baseline drives them. They only change in the
+  rebuild (camera-class trial selection, split basis). Offered, not run: a reference-spout-anchored decoder centre
+  (day offset from close ipsi / close mid only).
+
 - **(11-04) Centre = Wt FINAL**: the DAQ-label balanced centre on all working rows, for the frozen spout decoder +
   CD / pattern projections; the engagement axis stays z. Robustness rows N, Cto. DECISIONS 11-04 entry; sent to 34.
 
