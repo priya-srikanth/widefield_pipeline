@@ -26,6 +26,11 @@ The combined render is ON HOLD until Q1 and Q2 are answered. Q3 is a default you
 
    The helper centred the projections on the engaged rows of the lick-gate spout model, so that no session drops.
    That is not the working-row centre the decoders use. Built, default OFF.
+0. **NEW: jaw-only trials out of "working" (report them as their own class, like no-response)?** The checks say they
+   behave like non-attempts (findings, top). If yes: train, score and centre on contact + incomplete trials. Acute
+   close ipsi becomes .727 (PS95 .832), against .631 now; the pre panel is .856. The change from the old .975 does
+   not come back, because camera classes + August-only alone give .832. This changes "working" as decided earlier
+   today, so the render also waits on it.
 3. **PS93_0813 (default taken; reversible).** It drops only where a camera is needed, so cue and precue training
    sets are 8/7/8/8. The lick-window models keep it at 8/8/8/8, because the lick gate needs no camera.
 
@@ -33,6 +38,21 @@ FYI, the 3-class camera variant (lick / jaw-only / none) is thin in PS92 and PS9
 165 / 306 per animal. Held-out pre recall at cue: lick .67-.93; jaw-only .60-.63 (PS94 and PS95 only); none .20-.77.
 
 ## Findings (newest first)
+
+- **Jaw-only trials look like no-response trials, not lick attempts** (`docs/status/JAW_ONLY_CHECKS_2026-11-03.md`).
+  This holds in PS94 and PS95 (96 / 261 pre jaw-only trials), at cue and precue, on the joint and ROI bases. PS92 and
+  PS93 (18 / 25) are too thin.
+  - A decoder trained on pre licks reads jaw-only trials at .21 / .29 at cue (chance .167). That is the same as
+    no-response trials (.20 / .25) and far below contact trials (.93).
+  - Trained within the class, jaw-only reads about .20-.29 (chance .20), against .67-.79 for licks with the same
+    trial count.
+  - Jaw-only errors do not land on the neighbouring spout any more than no-response errors do. Contact errors do.
+  - Adding jaw-only trials to TRAINING does not move the pre reference (B - A = -.002 [-.03, +.03]).
+  - **Most of PS95's close ipsi acute drop (.975 -> .642) comes from CENTRING.** The label-free per-session centre is
+    computed on rows that include the session's jaw-only trials. PS95 acute has 107 of them, all at far mid / far
+    contra, and centring on them lowers close ipsi in all four animals.
+  - Old .975 -> .832 in PS95 is the move from DAQ-lick rows to camera classes + August-only, independent of jaw-only.
+  - Precue: every non-lick class reads .25-.39, against .50-.70 for contact trials. That is state before the cue.
 
 - **in_working + August-only pre is now production (26fd5b44; 29 new frozen models; all older models kept).** These
   are definition effects, and some are large. Frozen accuracy at cue on working trials, animal means, old -> new:
@@ -138,4 +158,7 @@ FYI, the 3-class camera variant (lick / jaw-only / none) is thin in PS92 and PS9
   - **split of the old -> new change:** training set, scored set and August-only, switched one at a time (e.g. PS95
     close ipsi acute .975 -> .642).
 
-  Cue window primary, precue secondary.
+  Cue window primary, precue secondary. (Priya then asked for within-class arms and equal cue / precue.)
+- 11-03 late: the jaw-only checks reported (findings top, question 0). Endpoints were reproduced exactly first. Nothing
+  in production was changed. The write-up is on main (its doc was swept into another window's commit b22686fc;
+  attribution commit 96618fbd).
