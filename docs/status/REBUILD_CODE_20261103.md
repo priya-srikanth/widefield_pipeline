@@ -1499,3 +1499,74 @@ render imports the wf_rebuild worktree only when the worktree is first on sys.pa
 
 **Test record.** Full suite at d394dcbc, 6 shards, from the repo root with PYTHONPATH = the worktree: 4,615 passed,
 179 skipped, 0 failed.
+
+### 8.38 Routing the refusing REDO scripts and the render-runner fixes (coordinator 11-04)
+
+**Layout.**
+- A routed script's default output dir gains the run tag as a subfolder. Its readers resolve the same helper:
+  - `run_mode.encoding_out_root(run)`: `<imaging_encoding>/<tag>`, the root the encoders write to (`combined_encoding`,
+    `frozen_encoder.out_root`);
+  - `lp_licks.output_dir`: `grant_figures/<tag>/epoch`;
+  - `run_mode.subdir` / `routed_output`: `<dir>/<tag>`; attempt_coding_pp uses the LP-family tag;
+  - the ITI family uses `il.OUT` / `il.OUT_W`.
+- Run-independent behaviour tables are read untagged from `run_mode.behaviour_qc_dir()` (seeded): jaw / nose onsets,
+  precue_contacts, first_lick_latency_late_licked_trials, position_block_summary.
+
+**Commits:**
+- 41cfe67e: init's scoped seed allow-list.
+- f31b72b1: `python -m rebuild_root` runs in the imported module.
+- 38f81c0c: camera_coverage_tables produces the coverage table inside the root, and a missing table is loud.
+- b97a39f9: family 1, the encoder family (29 scripts).
+- f49709ca + c22507df: trial_attempts (REDO).
+  - It runs on the run's camera classes, and its denominator is the working period.
+  - Its tables live in `run_mode.attempts_dir()`: `qc/<selection tag>/`, shared by every arm and block.
+  - Every reader goes through `lp_licks.attempts_path()`. The pre-rebuild table is dropped from the seeds.
+- a6e4e512: manifest. compare_map_tests and imaging_baseline_compare are NO; trial_attempts is REDO.
+- 74986bd6: family 2, fr_* (4 scripts).
+- f8e690b9: family 3 (layer2_*, summary_figures_1021, within_lick_correction) and the upstream allsession_encoder.
+- 934f9ccf: the other 10 refusers.
+- 09290e7f: learned_compensation (REDO, whole script) and misdirected_lick_counts (REDO). The counts depend on the
+  engagement gate, so a camera run now produces its own, on the working period.
+- 5cc29488: the 22-writer triage.
+  - Real ones fixed:
+    - the quiet family root (it used the labcams INPUT tree);
+    - cohort1_subset_headline;
+    - rest_baseline_epoch_drift;
+    - the restnl_mask reader.
+  - False positives are routed upstream.
+  - iti_nmatch_check is NO (retired ROI-v3 one-off). Fig 10.1's producer is corrected to iti_licks.py.
+
+**Pose-tree writers (621c81de).** These four now write, under a rebuild root, to
+`<rebuild_root>/session_poses_derived/<tag>/<script>/` through `run_mode.session_poses_out`:
+lick_template_match, movement_encoding_session, movement_position_angle, jaw_only_incomplete_figs.
+- Per-session outputs go into `<...>/<script>/<session>/`.
+- Without a rebuild root they keep their old place.
+- Pose INPUTS are still read in place.
+- No downstream REDO script reads their outputs (grep: none).
+
+**Render order constraints:**
+1. `rebuild_root init`. Re-run it for the new seeds.
+2. RESTnl baselines.
+3. camera_coverage_tables.
+4. trial_attempts. It must run before:
+   - the LP arm, attempt_coding and attempt_maps;
+   - combined_encoding with a non-reference gate;
+   - the mixed models;
+   - misdirected_lick_counts, then misdirected_lick_decode;
+   - every attempts reader.
+5. within_lick_correction, then learned_compensation run, then prelaunch_aim_tracking, then face_prelaunch_aim.
+6. attempt_coding with `--out <imaging_encoding>/attempt_coding_pp` before its readers.
+
+**Tests.**
+- `tests/test_routed_redo_scripts.py`:
+  - every routed script has no require_default and uses a routing helper;
+  - the encoding root equals the encoder's tagged root;
+  - every attempts reader reads this run's table (LP blocks included);
+  - the triage fixes.
+- `tests/test_trial_attempts.py`: camera classes and the working denominator.
+- `tests/test_coverage_routing.py`.
+- `tests/test_rebuild_root.py`: init under the fence, and the CLI run as `__main__`.
+
+**Test record.** Full suite, 6 shards, from the repo root with PYTHONPATH = the worktree:
+- at 5cc29488: 4,685 passed, 179 skipped, 0 failed;
+- at 621c81de: 4,690 passed, 179 skipped, 0 failed.
