@@ -1331,3 +1331,17 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   - Robustness rows: N and Cto.
   - Method note: ~.024 drift under a high incomplete share; the rest frame was rejected.
   - Set as the rebuild default on bcdg-port.
+- **11-04 ~19:00: rebuild/enl-window DONE.**
+  - Commits: cb7b1f49, 17deee17, b8632a07, 9efc3c22, c73d04ee, 8d912ae5, f056c223.
+  - Full suite: 4,790 passed / 1 failed (the same byte-identity-vs-main test).
+  - s1 refit, quiet_task_events, within_spout_deviation, enl_table and enl_trials now use the decoders' sliding search
+    at LP 1.0 s. Outputs are keyed by window.
+  - quiet_task_events "clean" = the event-detection mask (no contact / run / swap within 0.5 s), not the lick test. So
+    MIN_CLEAN_ENL_S = 0.5 x window. Kept 48,919 vs 49,113 before; a fully clean window would keep only 22 %.
+  - within_spout_deviation: 46,495 -> 46,092 trials (99.1 %).
+  - **DECISION (Priya):** two families are lick-gated but do NOT slide:
+    - the iti_licks ENL family (lick_enl_angle_decode, lick_enl_target_test, lick_enl_offset_explore, the pre-cue parts
+      of prelaunch_aim_tracking / revup_neural): fixed [-W, -0.10] window, a lick drops the trial. Their traces start at
+      -2 s, and sliding would mix in the spout-arrival transient;
+    - fr_enl_decode: fixed 1 / 2 s on the FaceRhythm grid.
+    - Recommendation: keep them fixed (lick-free by drop) and say so in the methods.
