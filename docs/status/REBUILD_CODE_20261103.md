@@ -1907,3 +1907,103 @@ with no lick has no lick-aligned trace.
 - Related suites: 189 passed, 1 skipped.
 - Full suite, 3 shards on 75f6a40c..c08c7396: 4,763 passed, 172 skipped, 0 failed.
 - After the lick-timing rule (0223f7a8): test_encoder_trials + test_o2_encoding_env 24 / 24.
+
+**Lick-free enl window (f13c608d, aa844490; Priya 11-04).**
+- "enl" is now, per engaged trial, the ENL decoders' own lick-free window. The search is
+  `precue_window_start` / `lickfree_window`, moved verbatim to `wfield_local/enl_window.py` and re-exported by
+  `locanmf_position_decoder` (one definition; the decoder module's sklearn / matplotlib / registry imports kept it off O2).
+  The fixed window ending at the cue is kept if it is clean; otherwise the window slides to the latest clean gap after the
+  strobe. Trials with neither are left out and counted in json `enl_window`.
+- Length / source = the decoders' spec: `lp_licks.enl_window_s()` = 1.0 s under LP, else `decode.precue_post_s` = 2.0 s.
+  `COMBINED_ENCODING_ENL_SOURCE=lp|daq` overrides it. The profile clears WIDEFIELD_LICK_SOURCE and the bundle env does
+  not set it, so the bundle resolves to DAQ unless this is set.
+- Licks seen by the search are only what the pickle carries:
+  - lp = licks.csv + licks_all pre-cue / ITI / post_extra + cam1-only, i.e. `lp_lick_times` UNEDITED. The decoders'
+    `edit_train` moves attempts-table licks; it touches 8 / 3,532 (PS93_0814) and 4 / 3,198 (PS93_0818) ENL licks, and
+    unedited keeps the inputs class-free.
+  - daq = the whole-window contacts (`dlc_frames.lick_onsets`).
+- The old window stays as "enl_fixed2s" (max(strobe, cue - 2 s) .. cue, ungated).
+- Pickles before 11-04 carry no pre-cue licks (licks.csv starts at the cue; the contact table at cue + 70 ms): 0 cam4 /
+  0 DAQ ENL licks in the 11-04 PS93_0814 pickle vs 3,524 in the LP train. There "enl" falls back to the fixed window and
+  the json says so.
+- LICKS_ALL "score" = load the context licks for scoring only (no kernels, no folder suffix).
+- Readers of window "enl" whose meaning changes:
+  - scripts/combined_encoding_figures.py: WINDOWS, and a WIN_DESC caption "pre-cue 2 s (ENL)" that is now wrong;
+  - scripts/encoding_key_figures.py:42 (cortex enl full vs drop:position);
+  - scripts/encoding_mixed.py:29;
+  - scripts/fr_encoding_summary.py:72 (default windows).
+  - Unchanged: the resp / respdev "|enl" maps (strobe + 0.3 .. cue, not the window; position_coding_trend_recovery), and
+    frozen_encoder / allsession_encoder (own windows).
+
+**LICKS_ALL=split = production (Priya 11-04, option B; f13c608d, 2064c4f4, 377f160e).**
+- `o2_encoding bundle --licks-all split` is now the default; env.json records COMBINED_ENCODING_LICKS_ALL. The pickles carry
+  ctx (pre_cue / iti / post_extra) and the whole-window contacts, and keep the cue-table contacts.
+- Submit-time `LICKS_ALL=none` (new TAG `main_nolicksall`, TRIALS=sse) drops the kernels from the same pickles. The design
+  picks the contacts at design time, so this path is exactly the old model. collect routes by the run's own LICKS_ALL.
+- Folders: split -> `<order>_licksall-split`, main_nolicksall -> `<order>`. The page scripts that hard-code the default
+  folder would read the ROBUSTNESS run unless pointed at the split folder: a decision before collect.
+- licks_all source: `_context_licks` (combined_encoding.py `_context_licks`, `sd / "licks_all.csv"`, sd =
+  `orofacial_outputs.session_dir(rv, run, ...)`) = `LP_analysis/lp_r4_heatmap_20261013__clean_v36/sessions/<animal>/<date>/
+  licks_all.csv`. Present for all 107 bundle sessions.
+- Every lick in exactly ONE kernel (`split_licks`):
+  - post-cue = licks.csv (every row post-cue; the 0-70 ms licks, 14 / 4 on PS93_0814 / 0818, are here: the 70 ms floor is
+    for counting contacts, not modelling) + the pre-cue / ITI-table rows whose onset is post-cue (`post_extra`, 11 per
+    session, >= 60 ms from any licks.csv lick, before this in NO kernel) + cam1-only post-cue;
+  - pre-cue = licks_all pre_cue;
+  - ITI = licks_all iti.
+  - cam1-only onsets are routed by time. Those outside their own trial that lie within CAM1_DUP_TOL_S = 50 ms of a cam4
+    pre-cue / ITI lick are dropped as duplicates (cam4_matched only compares the same trial_id): 13 / 22 (PS93_0814),
+    6 / 11 (PS93_0818).
+  - DAQ contacts: one contact kernel over the whole trial windows (strobe - 0.5 .. stop + 3 s, raw channel; covers every
+    fit row), incl. 0-70 ms and pre-cue contacts.
+- Three variables: licks = cued post-cue licks + contacts (instructed); licks_pre, licks_iti (UNINSTRUCTED); all penalty
+  group lick. New model drop:licks_pre+licks_iti, plus the generic drop / alone / shuf / task+ of each. The nodir / nokin
+  bases keep the spontaneous lick-timing kernels.
+- Caveat (accepted): the tongue / jaw traces stay instructed over the whole trial.
+- Stacked vs three variables is NOT identical: the uninstructed group is orthogonalised against instructed, so the ridge
+  sees another basis (same alphas). Full-model region R2, max |d| = 0.0015 (PS93_0814) / 0.0008 (PS93_0818); full cvR2
+  0.54037 vs 0.54041 and 0.43161 vs 0.43166.
+- Group maps / peth parts follow the local GROUP_OF (uninstructed now includes the spontaneous licks).
+- Readers that hard-code the lick variable:
+  - scripts/combined_encoding_figures.py:31-33 (own VARS / GROUP_OF copies, no licks_pre / iti);
+  - scripts/curbd_pilot.py:131-134 (`ce.GROUP_OF`, static);
+  - frozen_encoder.split_blocks refuses LICKS_ALL (fine for O2; a frame render must not inherit LICKS_ALL);
+  - every reader of drop:instructed / drop:uninstructed / alone:* / shuf:* (the group contents changed);
+  - drop:licks = cued licks only.
+- sbatch `--mem` is now a bundle option, default 48G (32G is below the measured peaks).
+
+**Smokes (split-built scratch inputs; one at a time; enl = DAQ 2.0 s, the bundle default).**
+- Unset path vs the original 571b3955 code: every non-enl output is BIT-IDENTICAL (maps 234 keys, every npz array, 12,240
+  region rows, shared json keys) and enl_fixed2s = the old enl rows exactly (2,040 rows), on both sessions. The json
+  changes `window_frames` and adds `enl_window`.
+- Cortex, models from ONLY=drop:; unique = full - drop.
+
+| | PS93_0814 nolicksall | PS93_0814 split | PS93_0818 nolicksall | PS93_0818 split |
+| --- | --- | --- | --- | --- |
+| full cvR2, all frames | 0.5264 | 0.5404 | 0.4054 | 0.4316 |
+| full, enl (lick-free) / enl_fixed2s | 0.4593 / 0.4595 | 0.4709 / 0.4712 | 0.2439 / 0.2480 | 0.2816 / 0.2853 |
+| drop:pos_enl, enl / fixed2s | 0.0085 / 0.0086 | 0.0019 / 0.0019 | 0.0029 / 0.0036 | 0.0064 / 0.0068 |
+| unique licks (cued), all / enl | 0.0027 / -0.0009 | 0.0048 / -0.0029 | 0.0129 / 0.0018 | 0.0189 / 0.0037 |
+| unique licks_pre, all / enl | - | 0.0077 / 0.0013 | - | 0.0132 / 0.0191 |
+| unique licks_iti, all / enl | - | 0.0024 / -0.0009 | - | 0.0070 / 0.0065 |
+| unique pre + iti, all / enl | - | 0.0091 / 0.0023 | - | 0.0171 / 0.0261 |
+| DAQ window: fixed / slid / none | 501 / 8 / 0 of 509 | same | 468 / 10 / 2 of 480 | same |
+| full, enl with ENL_SOURCE=lp (1.0 s) | 0.4723 | 0.4794 | 0.1536 | 0.1897 |
+| drop:pos_enl, enl LP | 0.0072 | 0.0029 | 0.0044 | 0.0037 |
+| unique licks_pre / pre + iti, enl LP | - | 0.0016 / 0.0023 | - | 0.0252 / 0.0242 |
+
+- DAQ: the ENL resets on any contact, so the DAQ lick-free window is nearly the fixed one.
+- LP 1.0 s: 408 fixed / 94 slid / 7 none (PS93_0814), 399 / 80 / 1 (PS93_0818). LP 2.0 s would drop 94 / 103 trials.
+- Runtime split vs nolicksall: 11.0 vs 10.1 min, 9.6 vs 8.7 min (+~10 %).
+- Peak commit split vs nolicksall: 31.5 vs 30.0 GiB, 28.7 vs 27.3 GiB (+1.4 GiB). The unset SMOKE + per-trial run peaked
+  at 30.5 GiB (PS93_0814).
+
+**Tests (this addendum).**
+- tests/test_encoder_licks_all.py, 10 tests: exactly one kernel per lick, split variables vs unset from the same pickle,
+  score mode, the enl window equals the decoders' search, the moved search re-exported, run_session enl rows, groups /
+  penalties / drop models, ENL_SOURCE override, bundle default + runner override.
+- test_combined_encoding_options::test_licks_all_modes now asserts the three-variable layout.
+- Full suite, 3 shards on 377f160e: 4,762 passed, 173 skipped, 2 failed.
+  - test_lesion_line_and_window: a hard-coded max_rt fallback; fixed in 148af7ec.
+  - test_review_7ab::test_working_trials_stays_byte_identical_to_main: origin/main changed working_trials.py on 11-04
+    (4a37cbc8), so the file differs from the rebuild base too. Not this branch.
