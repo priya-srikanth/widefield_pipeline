@@ -13,6 +13,17 @@ log for the earlier part of the day is `RUNNING_LIST_2026-11-02_OVERNIGHT.md`.
 
 ## Questions for Priya (newest first)
 
+7. **NEW (11-04): camera-class inventory, 12 questions** (34: wf_attempt
+   docs/status/rebuild_20261103/CAMERA_CLASS_INVENTORY_20261104.md section 5, 913b9d1a). To switch:
+   - G discriminators + precue_engagement_states;
+   - frozen decoders' "lick" class / scored sets;
+   - no-lick arm lists;
+   - hit rate (Fig 0.2 / PI slide 4);
+   - ITI first-lick rows / rt_drift;
+   - the quiet-events engaged mask (ours).
+
+   Stays DAQ: measures OF engagement (quit point, etc.), pinned epoch boundaries, per-lick outcome, June / PS93_0813 /
+   cohort 2. My suggested answers are in the chat reply of 11-04 and copied into the log below once Priya answers.
 6. **NEW (11-04): B and C re-check results (interim; the D / G runs are still going).**
    - **B (state discriminators in the spout frame), under the new working definition: one marginal miss.** PS93's
      cue held-out pre engaged reference is .869 -> .850 (-.019) against a between-session SD of .016. No animal is
