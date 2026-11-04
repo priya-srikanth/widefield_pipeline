@@ -60,8 +60,11 @@ always rebuild from the LIVE page (Artifact read) or the current index.html, nev
   - **ALL THREE PUBLISHED 11-03 (e0):** behaviour https://claude.ai/artifact/M1xhZBWSPS84aELTSFaMMK v1; kinematics
     v27 (split, 12 lmm toggles, new Fig 9.7 3-D phase with tests, behaviour links); FaceRhythm v37 (v36 + 3 lmm
     toggles + xlink to kinematics and behaviour). The M: kinematics source and `build_behaviour_page_1103.py` now carry
-    the real behaviour URL. **The M: FR source is OLDER than live v37** (e0 merged onto live v36): pull v37 with
-    Artifact read before the next FR edit, do not publish from the M: FR copy.
+    the real behaviour URL. **The M: FR source was synced to live v37 on 11-03 (e3, Priya's request):** `index.html` =
+    the v37 page without the publish wrapper (old copy kept as `index_pre_v37_sync_1103.html`), plus the 27
+    re-drawn `fig/*_rules.png` (figure-rules redraws, 11-03) that existed only on the artifact. Every image the page
+    references is now in the folder. `rebuild.py` there predates the `_rules` redraws; do not re-run it over this
+    index.
   - **SPLIT DONE in the M: sources 11-03 (e3).** Behaviour page source `M:/.../Widefield/behaviour_page_src/behaviour_page/` (`build_behaviour_page_1103.py`): Fig 1.1 hit rate over days and Fig 1.2 hit rate by spout (moved from kinematics 1.7 / 1.8, plus the 1.2 mixed-model toggle), and Fig 2.1 engagement by epoch (re-rendered by `scripts.engagement_by_epoch --out`; the script's 'N=1 animals' / 'PS92 (0)' count bug is fixed) plus its mixed-model toggle (acute -.17 p=.043, subacute -.13 p=.030; neither survives Holm). Kinematics: 1.9 -> 1.7, 1.10 -> 1.8, fig_ids.csv updated, backup `index_pre_split_1103.html`. Section 1's summary table stays: its rows are camera-lick measures. Behaviour-page pre = all 44 pre sessions (June + August), as in the two moved figures; it becomes August-only with the cohort-1 rebuild. Not moved yet: engagement over days per animal (`epoch_1g`, old style, lines across epochs).
 - **ANSWERED 11-03:** the FaceRhythm page (https://claude.ai/artifact/X8NDdQNHi3zMP77PBrZAC1, source
   `M:/.../Widefield/fr_page_src/`) stays separate, cross-linked both ways. Merging would exceed the length limit (143
