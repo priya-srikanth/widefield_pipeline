@@ -133,3 +133,46 @@ def test_bundle_goes_under_the_rebuild_root(tmp_path, monkeypatch):
     d = m.bundle_dir(None, "enc_t")
     assert d == tmp_path / "rebuild_x" / "o2" / "enc_t"
     assert run_mode.data_store_ok(writeguard._normalize(d / "inputs" / "a.pkl"))
+
+
+def test_profile_keeps_the_callers_encoder_settings(tmp_path, monkeypatch):
+    """Coordinator 11-04: `o2_encoding --profile` applied the render profile, which CLEARS every COMBINED_ENCODING_*
+    variable, so the first enc_rebuild_20261104 bundle lost the encoder's input settings. They are re-applied on top
+    and env.json carries them."""
+    import os
+
+    import pytest
+
+    m = _mod()
+    for k in list(os.environ):
+        if k.startswith(("COMBINED_ENCODING_", "OROFACIAL_", "WIDEFIELD_", "WFIELD_", "LOCANMF_")):
+            monkeypatch.delenv(k)
+    tabs = {}
+    for k in ("EXEC3D_TABLE", "TARGET3D_TABLE", "BINS_CALIB"):
+        f = tmp_path / f"{k.lower()}.csv"
+        f.write_text("x\n")
+        tabs[f"COMBINED_ENCODING_{k}"] = str(f)
+    caller = {"OROFACIAL_GATE": "attempted", "COMBINED_ENCODING_LICKS": "combined", "COMBINED_ENCODING_TONGUE": "3d",
+              "COMBINED_ENCODING_EXEC": "polar", "COMBINED_ENCODING_RUN": "lp_r4_heatmap_20261013__clean_v36", **tabs,
+              "WFIELD_INPUT_CACHE": str(tmp_path / "cache"), "WIDEFIELD_LEFTOVER": "x"}
+    env = dict(caller)
+    kept = m.apply_profile("cohort1_rebuild_20261103", environ=env)      # a dict: no fence installed in this process
+    assert "WIDEFIELD_LEFTOVER" not in env and "WIDEFIELD_LEFTOVER" not in kept            # leftovers still cleared
+    for k, v in caller.items():
+        if k != "WIDEFIELD_LEFTOVER":
+            assert env[k] == v, k
+    assert env["WIDEFIELD_TRIAL_GATE"] == "camera"                                          # the profile is applied
+    for k, v in env.items():
+        monkeypatch.setenv(k, v)
+    d = tmp_path / "b"
+    d.mkdir()
+    j = m.bundle_env(d)
+    for k in ("COMBINED_ENCODING_LICKS", "COMBINED_ENCODING_TONGUE", "COMBINED_ENCODING_EXEC", "COMBINED_ENCODING_RUN",
+              "OROFACIAL_GATE"):
+        assert j[k] == caller[k], k
+    for k in tabs:
+        assert j[k] == f"@tables/{Path(tabs[k]).name}", k
+    assert "WFIELD_INPUT_CACHE" not in j
+    # an arm-owned encoder setting left in the shell (it would re-tag the run) is refused
+    with pytest.raises(SystemExit, match="arm owns"):
+        m.apply_profile("cohort1_rebuild_20261103", environ={"COMBINED_ENCODING_DRIFT_MIN_PERIOD_S": "1500"})

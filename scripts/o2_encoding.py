@@ -25,6 +25,8 @@ identity (run tag, selection, area basis), the commit and the attempts table; th
 importing wfield_local and REFUSES unless the bundled code computes that identity; inputs carry the area-basis masks
 (built here: the v8 rim reads the share); code/ = `git archive` of the worktree's HEAD (refused if wfield_local / configs
 are dirty). check audits the bundled run for share reads; collect refuses a bundle of another run.
+--profile KEEPS the caller's COMBINED_ENCODING_* / OROFACIAL_* (+ WFIELD_INPUT_CACHE) across the profile's clear
+(`apply_profile`; the first enc_rebuild_20261104 build lost LICKS / TONGUE / EXEC and the 3-D / calibration tables).
 """
 from __future__ import annotations
 
@@ -152,6 +154,34 @@ def bundle_dir(rv, name: str) -> Path:
         return oi.bundle_dir(rv, name)
     run_mode.register_data_store(Path(r) / "o2")
     return Path(r) / "o2" / name
+
+
+#: the caller's settings a --profile must NOT wipe (coordinator 11-04): `render_profile.apply` clears every
+#: COMBINED_ENCODING_* variable it does not set, so the first enc_rebuild_20261104 build lost LICKS / TONGUE / EXEC and the
+#: EXEC3D / TARGET3D / BINS_CALIB tables. The encoder's input settings are the caller's to choose, not the profile's.
+KEEP_PREFIXES = ("COMBINED_ENCODING_", "OROFACIAL_")
+KEEP_LOCAL = ("WFIELD_INPUT_CACHE",)
+#: encoder settings a render profile / arm OWNS (they enter the run tag): never carried over from the shell
+PROFILE_OWNED = frozenset({"COMBINED_ENCODING_DRIFT_MIN_PERIOD_S"})        # machine-local input cache (never recorded in env.json); speeds the bundle
+
+
+def apply_profile(name: str, environ=None) -> dict:
+    """`render_profile.apply` (clears every leftover WIDEFIELD_* / WFIELD_* / COMBINED_ENCODING_* variable, then sets the
+    profile env) with the caller's COMBINED_ENCODING_* / OROFACIAL_* (+ WFIELD_INPUT_CACHE) RE-APPLIED on top. A kept
+    variable that the profile itself sets to a different value is REFUSED (never silently pick one). Returns the kept
+    {name: value}."""
+    from wfield_local import render_profile
+    env = os.environ if environ is None else environ
+    keep = {k: v for k, v in env.items() if (k.startswith(KEEP_PREFIXES) or k in KEEP_LOCAL) and v}
+    owned = {k for k in keep if k in PROFILE_OWNED}
+    if owned:                                    # a profile ARM setting left in the shell would re-tag the whole run
+        raise SystemExit(f"{sorted(owned)} set in this shell: a render-profile arm owns it (unset it, or use the arm)")
+    d = render_profile.apply(name, environ=env)
+    clash = {k: (v, d["env"][k]) for k, v in keep.items() if k in d["env"] and d["env"][k] != v}
+    if clash:
+        raise SystemExit(f"--profile {name} sets {sorted(clash)} differently from this shell: {clash}")
+    env.update(keep)
+    return keep
 
 
 def _git(repo: Path, *args) -> str:
@@ -506,8 +536,9 @@ def main(argv=None) -> int:
     m.add_argument("--frac", type=float, default=0.95, help="target = frac x the animal's smallest session")
     a = ap.parse_args(argv)
     if a.profile:
-        from wfield_local import render_profile
-        render_profile.apply(a.profile)
+        kept = apply_profile(a.profile)
+        if kept:
+            print(f"--profile {a.profile}: kept the caller's {', '.join(sorted(kept))}")
         os.environ["O2_BUNDLE_PROFILE"] = a.profile
     if a.cmd == "bundle":
         cmd_bundle(a)
