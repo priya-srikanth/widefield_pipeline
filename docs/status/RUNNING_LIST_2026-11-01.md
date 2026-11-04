@@ -667,6 +667,10 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   precue pre +.006, acute cI -.017 (per animal PS92 -.14, PS93 .00, PS94 +.05, PS95 +.02) -> small on average, PS92 precue
   acute close ipsi is the one sizeable move (one animal).
 - Focused re-verify + full suite sent to reviewer. If clean -> rebuild_root init -> render.
+- REVIEW 8A (part of re-verify): 5b / captions / _collect_7 / PS93 log FIXED; 1 BLOCKER, a regression from the NB4 fix --
+  section D (pooled_frozen_loso / joint_xsession) would crash for PS93 cue + precue because PS93_0813 (pre, no video) gets
+  treated as a post session with 0 working rows. Sent to helper with small non-blockers (jaw-arm titles, design stamp, sidecar
+  wording, env-sensitive test).
 
 ### Findings
 - main moved while the rebuild branch was being fixed (34 commits not in rebuild/cohort1-20261103). Two matter for the rebuild:
