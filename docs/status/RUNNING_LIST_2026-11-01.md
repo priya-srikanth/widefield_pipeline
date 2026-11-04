@@ -1029,3 +1029,11 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
     - end cut only.
   - Each arm is scored on hit rate and deficit, with the pre hit rate as the specificity check, plus stopped trials and
     no-reference runs.
+- **11-04 ~12:10: FINDING (STOP_RULE_GUARD_CENSUS_R2_20261104.md). DECISION NEEDED (Priya): the stop rule arm.**
+  - **A2 (both sides) is the only arm with pre exactly unchanged** (.956). It restores 222 acute far-spout trials and
+    moves the acute pooled deficit -.265 -> -.289. The effect comes mostly from PS94 / PS95 (PS95_0817).
+  - **A3 run > 8 / > 10:** pre -.002. Acute deficit -.287 / -.299.
+  - **A1 trimmed:** pre -.011. Acute deficit -.309.
+  - **A4 end cut only: ruled out.** Acute close ipsi .782, i.e. disengagement scored as failure.
+  - **Every arm:** working set and rest period unchanged; chronic barely moves.
+  - **A2 caveat:** it requires the NEAREST reference trial on each side of the run to be a contact.
