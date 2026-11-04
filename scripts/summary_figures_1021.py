@@ -25,13 +25,14 @@ EP = ["pre", "acute", "subacute", "chronic"]
 COL = {"hit": "#2b8a3e", "incomplete": "#f08c00", "jaw_only": "#868e96", "no_try": "#c92a2a", "unknown": "#dee2e6"}
 import os  # noqa: E402
 from wfield_local import run_mode as _rm_guard  # noqa: E402
+from wfield_local import lp_licks as _lp_licks  # noqa: E402  (coordinator 11-04: the run's attempts table)
 _rm_guard.require_default("summary_figures_1021")   # unrouted share writer: refuses in a non-default run mode
 
 for d in ("behaviour", "target_vs_execution"):
     os.makedirs(f"{E}/figures/{d}", exist_ok=True)
 
 # 1. attempt classes + time to contact
-A = pd.read_csv(f"{Q}/trial_attempts.csv")
+A = pd.read_csv(_lp_licks.attempts_path())      # THIS run's attempts table (coordinator 11-04)
 A["epoch"] = A.label.map(epochs.epoch_of)
 W = pd.read_csv(f"{Q}/trial_attempts_sessions.csv")
 W["animal"], W["epoch"] = W.label.str.split("_").str[0], W.label.map(epochs.epoch_of)

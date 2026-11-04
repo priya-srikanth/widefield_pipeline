@@ -24,12 +24,12 @@ import numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
-from wfield_local.orofacial_outputs import encoding_root as _encoding_root  # noqa: E402 - rebuild root (11-03)
 from quiet_area_spikes import EVENTS, columns, session_traces  # noqa: E402
 from quiet_spikes_v2 import V2  # noqa: E402
+from wfield_local import lp_licks as _lp_licks  # noqa: E402  (coordinator 11-04: the run's attempts table)
 
 OUTE = V2.parent / "attempt_effort"
-TA = _encoding_root() / "qc" / "trial_attempts.csv"
+TA = _lp_licks.attempts_path()      # THIS run's attempts table (coordinator 11-04)
 WIN_S, BASE_S, CTX_S, CTX_BASE_S = 3.5, 2.0, 1.5, 1.0
 CLS = ["hit", "incomplete", "jaw_only", "no_try"]
 EP = ["pre", "acute", "subacute", "chronic"]

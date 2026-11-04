@@ -41,10 +41,10 @@ import numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
-from wfield_local.orofacial_outputs import encoding_root as _encoding_root  # noqa: E402 - rebuild root (11-03)
 from quiet_area_spikes import EP, EVENTS, columns, session_traces  # noqa: E402
 from quiet_fluct import FL, TRACE_COLS  # noqa: E402
 from quiet_spikes_v2 import LICK_SOURCE, V2, busy_frames  # noqa: E402
+from wfield_local import lp_licks as _lp_licks  # noqa: E402  (coordinator 11-04: the run's attempts table)
 
 LICK_LABEL = "LP video (+ unmatched DAQ contact) lick" if LICK_SOURCE == "daq+lp" else "DAQ lick"
 LL = V2 / "lick_lfo"                                        # follows QS_LICK_SOURCE
@@ -529,7 +529,7 @@ COMP_NOTE = ("T16 trial-composition control (scripts/cohort2_qc/quiet_lick_lfo.p
              "log(day)-detrended, 5000 within-animal permutations) and the epoch / time LMM per subset.\n"
              "NB cued first licks are DAQ CONTACT licks inside the response window, so ~100 % are already hit trials: "
              "failed attempts never enter the cued set.\n")
-ATTEMPTS = _encoding_root() / "qc" / "trial_attempts.csv"
+ATTEMPTS = _lp_licks.attempts_path()      # THIS run's attempts table (coordinator 11-04)
 POS_MAP = {"close_L": "close_ipsi", "close_center": "close_mid", "close_R": "close_contra", "far_L": "far_ipsi",
            "far_center": "far_mid", "far_R": "far_contra"}
 SUBSETS = ("all", "hit", "nonfc", "hit_nonfc")

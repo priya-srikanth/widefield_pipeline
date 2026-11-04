@@ -48,6 +48,40 @@ def test_encoding_out_root_is_the_encoders_tagged_root(monkeypatch):
 
 def test_trial_attempts_is_routed_and_the_deficit_readers_follow():
     src = (REPO / "scripts" / "trial_attempts.py").read_text(encoding="utf-8")
-    assert "require_default(" not in src and "run_mode.encoding_out_root(a.run)" in src
+    assert "require_default(" not in src and "out = run_mode.attempts_dir()" in src
     for name in ("encoding_mixed", "within_spout_mixed"):
         assert "run_mode.deficit_qc_dir()" in (REPO / "scripts" / f"{name}.py").read_text(encoding="utf-8"), name
+
+
+def test_every_attempts_reader_reads_this_runs_table(monkeypatch):
+    """Coordinator 11-04: under the profile the attempts table is the routed one (camera classes), keyed by the
+    selection only, so every arm / block reads the same table; never the pre-rebuild table."""
+    for k in list(os.environ):
+        if k.startswith(("WIDEFIELD_", "WFIELD_", "COMBINED_ENCODING_")):
+            monkeypatch.delenv(k, raising=False)
+    from wfield_local import lp_licks, run_mode
+    from wfield_local import trial_classes as tc
+    base = run_mode.behaviour_qc_dir()
+    assert lp_licks.attempts_path() == base / "trial_attempts.csv"                 # the default run: as before
+    monkeypatch.setenv("WIDEFIELD_TRIAL_GATE", "camera")
+    monkeypatch.setenv("WIDEFIELD_PRE_FROM", "0801")
+    sel = tc.run_selection_tag()
+    p = lp_licks.attempts_path()
+    assert p == base / sel / "trial_attempts.csv" and run_mode.deficit_qc_dir() == p.parent
+    monkeypatch.setenv("WIDEFIELD_LICK_SOURCE", "lp")                               # an LP block: the same table
+    assert lp_licks.attempts_path() == p
+    for name in ("orofacial_cohort", "combined_encoding"):
+        assert "lp_licks.attempts_path(" in (REPO / "wfield_local" / f"{name}.py").read_text(encoding="utf-8"), name
+    seeds = (REPO / "configs" / "paths.yaml").read_text(encoding="utf-8")
+    assert "- lp_r4_heatmap_20261013__clean_v36/imaging_encoding/qc/trial_attempts.csv" not in seeds
+
+
+ATTEMPT_READERS = ["cohort2_qc/attempt_effort", "cohort2_qc/quiet_lick_lfo", "cohort2_qc/quiet_task_events",
+                   "interhemi_crossarea", "matched_residual", "recovery_timing", "relabel_fc_by_class",
+                   "state_spout_check", "stopped_trial_traces", "summary_figures_1021"]
+
+
+@pytest.mark.parametrize("name", ATTEMPT_READERS)
+def test_redo_attempt_readers_use_this_runs_table(name):
+    src = (REPO / "scripts" / f"{name}.py").read_text(encoding="utf-8")
+    assert "_lp_licks.attempts_path()" in src and not re.search(r"/ \"qc\" / \"trial_attempts\.csv\"|/trial_attempts\.csv\"", src)

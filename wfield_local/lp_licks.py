@@ -96,6 +96,11 @@ def _enc_dir(rv=None) -> Path:
 
 
 def attempts_path(rv=None) -> Path:
+    """The per-trial attempts table: THIS run's (`run_mode.attempts_dir`, coordinator 11-04) -- in a camera-gated
+    rebuild run the routed table on the run's camera classes, never the pre-rebuild one; the untagged qc by default."""
+    from wfield_local import run_mode
+    if run_mode.tag():
+        return run_mode.attempts_dir() / "trial_attempts.csv"
     return _enc_dir(rv) / "qc" / "trial_attempts.csv"
 
 
@@ -261,7 +266,12 @@ def _attempts(rv=None) -> pd.DataFrame:
         if not p.exists():
             raise LPUnavailable(f"no attempts table {p}")
         _ATTEMPTS.clear()
-        _ATTEMPTS[key] = pd.read_csv(p, usecols=["label", "trial_id", "cls", "cam4", "combined"])
+        A = pd.read_csv(p)
+        if "cls_raw" in A:
+            # a camera-gated table: `cls` carries the run's session-level classes (stopped / early_run / after_end);
+            # the LP source needs the TRIAL-level class (the camera gate applies the run's rules itself)
+            A["cls"] = A["cls_raw"]
+        _ATTEMPTS[key] = A[["label", "trial_id", "cls", "cam4", "combined"]]
     return _ATTEMPTS[key]
 
 

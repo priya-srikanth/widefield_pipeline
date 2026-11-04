@@ -51,6 +51,7 @@ import figdata as _fd  # noqa: E402
 import iti_licks as il  # noqa: E402
 import restnl  # noqa: E402
 from figdata import plot_only  # noqa: E402
+from wfield_local import lp_licks as _lp_licks  # noqa: E402  (coordinator 11-04: the run's attempts table)
 
 # resolved at IMPORT from argv (`restnl.variant`), so a spawned worker -- which re-imports this module with the
 # parent's argv -- sees the same value; main() no longer sets it (Priya 11-03 / parallel rule: options reach the
@@ -878,7 +879,7 @@ def main() -> int:
         labs = [x for x in labs if x in sys.argv[sys.argv.index("--only") + 1].split(",")]
     T = pd.read_csv(il.OUT / "enl_licks" / "enl_trials.csv.gz", usecols=["label", "trial_id", "pos", "strobe_s", "cue_s",
                                                                         "engaged"])
-    A = pd.read_csv(il.OUT.parent / "qc" / "trial_attempts.csv", usecols=["label", "trial_id", "pos", "cls",
+    A = pd.read_csv(_lp_licks.attempts_path(), usecols=["label", "trial_id", "pos", "cls",
                                                                          "jaw_onset_ms"])
     items = [(x, T[T.label == x].reset_index(drop=True), A[A.label == x].reset_index(drop=True)) for x in labs]
     OUTD.mkdir(parents=True, exist_ok=True)

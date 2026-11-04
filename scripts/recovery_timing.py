@@ -31,6 +31,7 @@ from wfield_local.orofacial_outputs import encoding_root as _encoding_root  # re
 
 E = _encoding_root()
 from wfield_local import attempt_coding as _ac  # noqa: E402
+from wfield_local import lp_licks as _lp_licks  # noqa: E402  (coordinator 11-04: the run's attempts table)
 
 A = _ac.out_dir()   # the writer's folder under the run mode (review N1 / N10)
 AN = ["PS92", "PS93", "PS94", "PS95"]
@@ -38,7 +39,7 @@ ACOL = {"PS92": "#1b9e77", "PS93": "#d95f02", "PS94": "#7570b3", "PS95": "#e7298
 
 
 def series(window: str) -> pd.DataFrame:
-    T = pd.read_csv(E / "qc" / "trial_attempts.csv", usecols=["label", "pos", "cls", "animal", "epoch", "day"])
+    T = pd.read_csv(_lp_licks.attempts_path(), usecols=["label", "pos", "cls", "animal", "epoch", "day"])
     T = T[(T.pos == "far_contra") & (T.label.str[-4:] >= "0801")]
     beh = T.assign(hit=T.cls.isin(["hit", "pre_hit"])).groupby(["animal", "epoch", "label", "day"]).hit.mean().reset_index()
     pre = beh[beh.epoch == "pre"].groupby("animal").hit.mean()

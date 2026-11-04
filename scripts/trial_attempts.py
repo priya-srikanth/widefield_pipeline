@@ -150,9 +150,7 @@ def main(argv=None) -> int:
     from wfield_local import combined_encoding as ce
     from wfield_local import epochs
     from wfield_local import orofacial_cohort as oc
-    from wfield_local import orofacial_outputs as oo
     from wfield_local import writeguard
-    from wfield_local.paths import PathResolver
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--run", default=oc.RUN)
     ap.add_argument("--jobs", type=int, default=2)
@@ -160,8 +158,13 @@ def main(argv=None) -> int:
     from wfield_local import run_mode
     # coordinator 11-04 (REDO, routed): the default run writes the untagged qc as before; a tagged run writes ITS qc
     # (<imaging_encoding>/<tag>/qc), under its camera classes -- where the mixed models' deficit and the PI slides read
-    out = run_mode.encoding_out_root(a.run) / "qc" if run_mode.tag() else oo.encoding_root(a.run, PathResolver()) / "qc"
+    if a.run != oc.RUN:
+        raise SystemExit("trial_attempts: --run other than the adopted run is not routed (attempts_dir is the adopted run's)")
+    out = run_mode.attempts_dir()
     out.mkdir(parents=True, exist_ok=True)
+    if run_mode.tag():
+        for n in run_mode.ATTEMPTS_FILES:              # selection-keyed tables: registered data files (writeguard)
+            run_mode.register_data_store(out / n)
     writeguard.assert_writable(out / "trial_attempts_sessions.csv")
     cur = set(ak.curated_labels())
     labels = [x for x in ce.sessions_available() if x in cur]

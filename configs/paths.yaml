@@ -214,7 +214,8 @@ rebuild:
     orofacial:
       - lp_r4_heatmap_20261013__clean_v36/imaging_encoding/qc/jaw_onsets.csv
       - lp_r4_heatmap_20261013__clean_v36/imaging_encoding/qc/nose_onsets.csv
-      - lp_r4_heatmap_20261013__clean_v36/imaging_encoding/qc/trial_attempts.csv
+      # qc/trial_attempts.csv is NOT a seed (coordinator 11-04): the pre-rebuild table has the old classes. The rebuild
+      # PRODUCES its own (scripts/trial_attempts.py under the profile -> run_mode.attempts_dir) before any reader runs
       # behaviour inputs of the routed encoding family (coordinator 11-04; read via run_mode.behaviour_qc_dir)
       - lp_r4_heatmap_20261013__clean_v36/imaging_encoding/qc/precue_contacts.csv
       - lp_r4_heatmap_20261013__clean_v36/imaging_encoding/qc/first_lick_latency_late_licked_trials.csv

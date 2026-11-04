@@ -1622,9 +1622,10 @@ _ATTEMPTS: dict = {}
 def _attempts_table() -> pd.DataFrame:
     """trial_attempts.csv once per process (label, trial_id, attempted, canonical)."""
     if "T" not in _ATTEMPTS:
-        from wfield_local import orofacial_outputs as oo
-        from wfield_local.paths import PathResolver
-        f = oo.encoding_root(RUN, PathResolver()) / "qc" / "trial_attempts.csv"
+        from wfield_local import lp_licks
+        # THIS run's attempts table (coordinator 11-04): the routed one in a tagged run (camera classes: canonical =
+        # the run's working period), the untagged qc by default
+        f = lp_licks.attempts_path()
         if not f.exists():
             raise FileNotFoundError(f"{f} -- run `PYTHONPATH=. python scripts/trial_attempts.py` first")
         T = pd.read_csv(f, usecols=["label", "trial_id", "attempted", "canonical"])

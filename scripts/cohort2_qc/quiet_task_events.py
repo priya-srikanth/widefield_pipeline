@@ -45,6 +45,7 @@ from quiet_area_spikes import EP, EVENTS, columns, session_traces  # noqa: E402
 from quiet_spikes_v2 import LICK_SOURCE, V2, busy_frames, detect, detrend  # noqa: E402
 from wfield_local.orofacial_outputs import encoding_root as _encoding_root  # noqa: E402 - rebuild root (11-03)
 from wfield_local.attempt_coding import trials_name as attempt_trials_name  # noqa: E402
+from wfield_local import lp_licks as _lp_licks  # noqa: E402  (coordinator 11-04: the run's attempts table)
 
 TE = V2 / "task_events"
 K = 4.0
@@ -345,7 +346,7 @@ def trial_table(D, sd):
                                       clean_s=d["npre"] / fs, clean_enl_s=d["npre_enl"] / fs, eng_tr=d["eng_tr"],
                                       ev_pre=ev_pre, ev_enl=ev_enl, n_ev=np.bincount(tr, minlength=n)[:n])))
     Tr = pd.concat(rows, ignore_index=True)
-    A = pd.read_csv(LP / "qc" / "trial_attempts.csv", usecols=["label", "trial_id", "pos", "cls", "canonical"])
+    A = pd.read_csv(_lp_licks.attempts_path(), usecols=["label", "trial_id", "pos", "cls", "canonical"])
     Tr = Tr.merge(A, on=["label", "trial_id"], how="left")
     P = []
     for an in ANIMALS:

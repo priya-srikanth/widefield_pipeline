@@ -506,7 +506,8 @@ def load_behaviour(animal: str, date: str, rv) -> Behaviour:
     src += [daq_io.session_h5(animal, date, rv) or "", *_env_tables(),       # + the engagement gate's inputs
             *(Path(rv.root("behavior_out")) / "sessions" / animal / date).glob(f"{animal}_{date}_*_trials.csv")]
     if oc.ENGAGEMENT_GATE != "reference":
-        src.append(oo.encoding_root(oc.RUN, rv) / "qc" / "trial_attempts.csv")
+        from wfield_local import lp_licks
+        src.append(lp_licks.attempts_path(rv))                     # THIS run's attempts table (coordinator 11-04)
     if os.environ.get(TONGUE_ENV, "") == "3d":                  # a rewritten 3-D frame / lick table makes a new entry
         src.append(pose3d_frames_path(rv, animal, date))
         src.append(os.environ.get(EXEC3D_TABLE_ENV) or

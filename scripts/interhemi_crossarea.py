@@ -61,6 +61,7 @@ import pandas as pd
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import iti_licks as il  # noqa: E402
 import lick_interhemispheric as lih  # noqa: E402
+from wfield_local import lp_licks as _lp_licks  # noqa: E402  (coordinator 11-04: the run's attempts table)
 
 OUT_W = lih.OUT_W
 O1, O2 = OUT_W / "interhemi_followup", OUT_W / "cross_area"
@@ -323,8 +324,7 @@ def _tests(SS: pd.DataFrame, keys: list[str], metrics: list[str], rng) -> pd.Dat
 
 def _recov_targets() -> pd.DataFrame:
     R = pd.read_csv(IN / "recmark_sessions.csv", usecols=["label", "day", "aim"]).drop_duplicates("label")
-    from fr_musall import E
-    T = pd.read_csv(E / "qc" / "trial_attempts.csv", usecols=["label", "pos", "cls"])
+    T = pd.read_csv(_lp_licks.attempts_path(), usecols=["label", "pos", "cls"])
     T = T[T.pos == "far_contra"]
     H = T.assign(hit=T.cls.isin(["hit", "pre_hit"])).groupby("label").hit.mean().rename("fc_hit").reset_index()
     return R.merge(H, on="label", how="outer")

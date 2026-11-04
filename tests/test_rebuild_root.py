@@ -310,7 +310,6 @@ RESOLVED = {
     "wfield_local/sync_audit.py",
 }
 LITERAL = {
-    "scripts/cohort2_qc/attempt_effort.py",
     "scripts/cohort2_qc/channel_drift.py",
     "scripts/cohort2_qc/cohort1_impact.py",
     "scripts/cohort2_qc/cohort1_subset_headline.py",
@@ -324,7 +323,6 @@ LITERAL = {
     "scripts/cohort2_qc/masked_vs_adopted_1029.py",
     "scripts/cohort2_qc/native_maps_1029.py",
     "scripts/cohort2_qc/quiet_f0_noise.py",
-    "scripts/cohort2_qc/quiet_lick_lfo.py",
     "scripts/cohort2_qc/quiet_modes.py",
     "scripts/cohort2_qc/quiet_task_events.py",
     "scripts/cohort2_qc/quiet_task_events_followup.py",

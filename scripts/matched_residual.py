@@ -27,6 +27,7 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from fr_musall import E  # noqa: E402
+from wfield_local import lp_licks as _lp_licks  # noqa: E402  (coordinator 11-04: the run's attempts table)
 
 KIN = Path("C:/Users/SabatiniLab/wfield_cache/pose3d_inputs/pose3d_kin_licks_snapshot_20261023.csv.gz")
 FEATS = ["side_ml", "out_ap", "down_dv", "reach_mm", "speed_peak", "t_peak_3d", "n_licks"]
@@ -61,7 +62,7 @@ def trial_behaviour() -> pd.DataFrame:
     K = pd.read_csv(KIN)
     K = K[K.lick_idx == 0].copy()
     K["label"] = K.animal + "_" + K.date.astype(str).str[-4:]
-    A = pd.read_csv(E / "qc" / "trial_attempts.csv", usecols=["label", "trial_id", "n_licks", "attempted"])
+    A = pd.read_csv(_lp_licks.attempts_path(), usecols=["label", "trial_id", "n_licks", "attempted"])
     return K[["label", "trial_id", *FEATS[:-1]]].merge(A, on=["label", "trial_id"], how="inner")
 
 

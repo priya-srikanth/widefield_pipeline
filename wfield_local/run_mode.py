@@ -347,11 +347,24 @@ def behaviour_qc_dir() -> Path:
     return Path(lp_licks._enc_dir()) / "qc"
 
 
+def attempts_dir() -> Path:
+    """THE trial-attempts tables of this run (trial_attempts.csv / _sessions / _gate; coordinator 11-04): they depend
+    ONLY on the trial selection (the run's camera classes), so they are keyed by the SELECTION tag, not the full run
+    tag -- every arm and block of one render (hemo / drift / LP / ENL) reads the same table:
+    ``<imaging_encoding>/qc/<selection tag>/`` under a camera selection, the untagged qc otherwise (the default run)."""
+    from wfield_local import trial_classes as tc
+    t = tc.run_selection_tag()
+    return behaviour_qc_dir() / t if t else behaviour_qc_dir()
+
+
+#: the trial-attempts tables, registered as data files when written inside a tagged run (`attempts_dir`)
+ATTEMPTS_FILES = ("trial_attempts.csv", "trial_attempts_sessions.csv", "trial_attempts_gate.csv")
+
+
 def deficit_qc_dir() -> Path:
     """Where the mixed models' behavioural DEFICIT tables live (`mixed_models.DEFICITS`: trial_attempts_sessions.csv
-    ...): THIS run's qc (``encoding_out_root()/qc``) -- trial_attempts is routed and, in a camera-gated run, built on the
-    run's camera classes (coordinator 11-04); the untagged qc in the default run."""
-    return encoding_out_root() / "qc"
+    ...): `attempts_dir` (routed trial_attempts; in a camera-gated run built on the run's camera classes)."""
+    return attempts_dir()
 
 
 def require_default(what: str) -> None:
