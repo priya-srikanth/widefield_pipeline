@@ -762,6 +762,15 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
     pre panel = working; the old DAQ grouping kept as robustness.
   a8's helper implements these on main; the rebuild PORTS those commits (not reimplemented). "Rebuild follows main 11-03"
   is superseded for D / G. The pattern families' pre reference (lick vs working) is not addressed yet: still my question 1.
+- PRIYA (11-04 ~08:30):
+  - D / G confirmed (D scores working, engaged = robustness; G groups by camera class).
+  - (3) asked: "I thought rest was spout docked" -- yes, see chat.
+  - (4) asked what the FR fixed-window licks are -- see chat.
+  - (5) slide 94 caveat YES -> sent to a8.
+  - (7) REBUILD the O2 encoder runs, wants the O2 commands -> the helper is making o2_encoding rebuild-aware (bundle in the
+    root, full profile env recorded and applied on O2, tag refusal, bundle-vs-local check), then building bundle
+    enc_rebuild_20261104 + COMMANDS.md for Priya.
+  - The old-tag epoch render (PIDs 19008 / 35904 / 24008) is still running.
 - The 05:46 incident coverage copies differ from the rebuild ones only by the 12 June sessions (Aug-only pre); the partial-
   coverage rows are identical.
 
