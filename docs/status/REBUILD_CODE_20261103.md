@@ -1970,3 +1970,83 @@ the minimum per animal x epoch; spout names are DAQ (L = ipsi, R = contra).
 
 **Test record (361c83bd, 6 shards, one at a time):** 4,777 passed, 171 skipped, 0 failed. Related files during the
 port: 379 passed. After the profile edit: profile / o2 / rebuild_root / 7ab / bcdg / switches: 108 passed.
+
+### 8.45 Follow-ups to 8.44 (coordinator 11-04): C ON, scoring run-tag parts, G4 figures, joint D, G9 estimate
+
+**1. C ON with Wt, plus a per-readout split (5c62a272).**
+- `WIDEFIELD_PROJECTION_FRAME` now defaults to `spout_frame`; `session_z` is the old frame and carries the tag part
+  `projz`. The projection centre is `wt`.
+- **Readers, and the frame each gets:**
+
+  | reader | frame |
+  |---|---|
+  | `position_coding_directions` directions / poles / pairwise / cross matrices / camera_classes | Wt |
+  | its engagement axis (used to orthogonalise `_orth` directions and in the cos diagnostics) | z on CONTACT rows |
+  | its frozen-decoder confusions (`coding_decoder`) | production rows |
+  | `position_axes` pairwise axes | Wt |
+  | `position_axes` `e_ax` | z on contact rows |
+  | `attempt_coding` attempt axes | Wt |
+  | `grant_kit._session_trials` (pattern / template families, `grant_similarity` x 2) | Wt |
+  | `poststroke_compare.pattern_similarity` (`_proj_X`) | Wt |
+
+  - The contact-row z frame comes from `spout_scaling.contact_z` / `working_trials.eax_rows`.
+  - The production rows are the bundle's own XE / XU.
+- **Lick window and DAQ gate:** these pools have no working masks, so they keep the engaged-row frame.
+  `projection_work` REFUSES a camera cue / precue pool that lacks cue indices.
+- **Frozen ids that change under C ON:** `coding_directions` (projected rows + the eax rows in the fingerprint) and
+  `attempt_axes` (projected X).
+  - `coding_decoder`, the spout decoders and the epoch decoders are unchanged.
+  - Exact ids exist only after a render (content hashes).
+- **Not done:** the stored `position_axes` references (none are frozen) and the grant pattern `_pre_reference` (not
+  frozen) need no ids.
+
+**2. Run-tag parts (bf5a6d69).**
+- `run_mode.scoring_part` builds one output-tag part `sc-<a>+<b>`. It is empty for the default run, so the primary tag
+  is unchanged. It covers:
+  - `ctrN` / `ctrCto` / `ctrW` / `ctrC`: scored-frame centre;
+  - `projz`, `pctr<K>`: projection frame / centre;
+  - `dEng`: section D scored on engaged rows;
+  - `gDaq`: section G grouped by DAQ;
+  - `g4Daq`, `g4cWorking` / `g4cEngaged`: G4 disc / centre;
+  - `g9Daq`: G9 classes;
+  - `sdSpout` / `sdcEng` / `sdStatebal`: state-disc frame.
+- It is not in the cache keys, because none of these change a per-session cached function.
+- Profile arms:
+  - `centreN` -> `..._stopRun6j_sc-ctrN+pctrN`;
+  - `centreCto` -> `..._stopRun6j_sc-ctrCto+pctrCto`.
+
+**3. G4 figures (8089793a).**
+- `wfield_local/g4_figures.py`:
+  - camera-class discriminator PRIMARY;
+  - DAQ `fits_engaged` panel labelled ROBUSTNESS;
+  - figdata + `--plot-only`; stars in the top band; no top spine.
+- `section_g_figures` renders it before the DAQ G4 set, and the deck places it before G4 identity.
+- **Bug fixed** in the 8.44 contact / incomplete panel: `T.align` is `DataFrame.align` (a method), so every filter came
+  back empty. The test now asserts that the dots are drawn.
+
+**4. joint_xsession section D.** No change needed. It calls `pooled_frozen_loso` with the decoder's
+cue-index features (8.33), so it has scored the working rows since 724862f9, with the same `scored_set` /
+`scored_centre` fields.
+
+**5. G9 figures (not switched).** Estimate for the per-spout / thin-cell layouts, after the render and the
+`g9_old_new.py` read:
+
+| item | estimate |
+|---|---|
+| grant_confusion 5b class panels -> class x spout grid with the n floor | ~0.5 day |
+| miss_vs_stopped -> per-spout matched contrast | ~0.5 day |
+| position_axes post-class projections | ~0.5 day |
+| deck G9 slides (text + placement) | ~0.5 day |
+| `scripts/best_match.py` | ~2 h |
+| tests | ~0.5 day |
+| **total** | **~2.5-3 days**, plus camera-class confusions per spout (`_class_confusions` per group), ~0.5 day if wanted |
+
+**Fix (1d59741c).** `grant_kit._proj_arrays` raised on a bundle with no working masks (DAQ gate). It now keeps the
+engaged-row frame, as `projection_arrays` does. Two mask-bookkeeping tests use minimal bundles, so they pin
+`WIDEFIELD_PROJECTION_FRAME=session_z`.
+
+**Test record.**
+- Full suite at 8089793a (6 shards, one at a time): 4,793 passed, 171 skipped, 5 failed. All 5 failures were the
+  `_proj_arrays` case above.
+- After 1d59741c, shards 00 and 05 (where they sat) were re-run: 1,636 + 578 passed.
+- Total: **4,798 passed, 171 skipped, 0 failed**.
