@@ -698,6 +698,11 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   routed (b97a39f9, 29 scripts -> imaging_encoding/<tag>/); render runner told to render it after the current families.
   DECISIONS (mine): trial_attempts.py becomes REDO (the mixed models and PI slides 34 / 35 need its camera-class table);
   compare_map_tests + imaging_baseline_compare -> NO (they compare against the pre-rebuild archive / June+Aug pre).
+- trial_attempts routed (f49709ca) then ALL attempts readers switched to the new camera-class table, old seeded table dropped
+  (c22507df): LP lick source, attempt_coding / maps, combined_encoding fingerprint, orofacial gates, 10 REDO scripts. In the
+  new table stopped trials are "stopped" (not no_try); jaw_only = non-attempt; denominator = working period. Render runner:
+  trial_attempts first, then any attempts-dependent family; anything already rendered on the old table marked SUPERSEDED and
+  redone.
 
 ### Findings
 - main moved while the rebuild branch was being fixed (34 commits not in rebuild/cohort1-20261103). Two matter for the rebuild:
