@@ -910,3 +910,8 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
     rebuild/encoder-classes. The helper is also checking whether other --profile encoder scripts (frozen_encoder,
     allsession_encoder, the ENCODER_RENDER_COMMANDS frames) have the same wipe.
   - The render queue stays HELD until that is answered.
+- **11-04 ~10:40: DECISIONS (Priya via a8): camera-class inventory section 5.**
+  - Answered: 1, 2, 4, 5, 6, 7, 9-12. Still open: 3 (hit-rate period) and 8 (discriminator classes).
+  - The answers are recorded in CAMERA_CLASS_INVENTORY_20261104.md section 5.
+  - Running now: a census for Q6 (contact vs DAQ mismatch, with examples) and for Q4 (unjudged close spouts), both
+    read-only.

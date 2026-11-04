@@ -242,3 +242,29 @@ Two things to know about the current wiring:
 11. **Epoch boundaries.** Keep them pinned on the DAQ hit-rate series?
 12. **Isolated lapses (no_response) and jaw_only in the no-lick decoders.** Add them as arms (as attempt_coding does),
     or leave them out?
+
+**Answers (Priya 11-04, via a8).**
+1. **after_end.**
+   - In quiet events it counts as quiet: it stays in the quiet-period pool.
+   - In per-class tables it is its own class, labelled "quit".
+2. **Hit rate.**
+   - Numerator = contact.
+   - Denominator = all working-period trials (contact + incomplete + jaw_only + no_response).
+   - Also report contact given an attempt.
+   - jaw_only is never a response.
+3. Open.
+4. **Unjudged close spouts.**
+   - Kept APART from no_response (own label, jaw_judged = False); not pooled.
+   - Priya asks whether the side cameras (cam2 / cam3) should judge the jaw there first, and on what timing. A census of
+     how many trials this affects is running (CONTACT_DAQ_MISMATCH_20261104.md).
+5. **No-video sessions.** Dropped from per-class reports, with a DAQ-only row instead.
+6. **DAQ no-lick trials that the camera calls contact.**
+   - Kept excluded.
+   - Priya asked for their frequency (animal x epoch x spout, split into contact after max_rt vs table mismatch) and for
+     ~10 examples with video paths and frame ranges. That census is running.
+7. **early_run.** Folded into no_response. It is not satiety, and no session has an animal that never tries.
+8. Open. a8's helper is testing working vs no_response, with jaw_only / after_end / stopped scored separately.
+9. **"lick" class for the lick-aligned arms.** Contact + incomplete, with LP timing.
+10. **Encoder default gate.** attempted under camera: yes.
+11. **Epoch boundaries.** Stay pinned: yes.
+12. **jaw_only and isolated no_response as no-lick decoder arms.** Yes.
