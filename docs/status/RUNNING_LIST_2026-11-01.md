@@ -1193,3 +1193,8 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
     3. the inputs are built with COMBINED_ENCODING_TARGET3D_TABLE = the commanded table (~1.5 h);
     4. the checks run;
     5. the stale bundle is deleted and the handover goes to Priya.
+- **11-04 ~16:05: PS92_0929 close_R resolved (e0).**
+  - Not a physical spout deviation. The old measured median mixed in frames after the spout had retracted to the
+    stage's safe z, 4 mm below the mouth.
+  - Evidence: per-trial dv is bimodal (-1.55 vs -4.07); reprojection 1.6 px; no geometry changes.
+  - The commanded value is correct. No flag needed.
