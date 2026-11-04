@@ -973,3 +973,16 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
     - Option: use the DAQ time (timing_source = daq) when LP is later than the contact by more than a tolerance, at
       lp_licks.py:394-403.
   - Process note: the census helper briefly pushed free RAM to ~1.5 GB (it stopped its own workers).
+- **11-04 ~11:30: DECISIONS (Priya).**
+  - **(1) Licks after the response window (cue + max_rt, 3.5 s) do not count toward the class**, because the spout is
+    already moving. Camera classes use licks from cue + 70 ms (peak) to min(cue + max_rt, stop).
+    - About 23 contact trials change class (13 become incomplete).
+    - This is a class change: trial_attempts and the working set move slightly.
+    - The O2 engaged set gets re-derived from the shipped table, so no input rebuild.
+    - Being implemented on rebuild/cue70, together with the 0-70 ms exclusion.
+  - **(2) Unjudged close spouts: OK.** Kept apart, no wait for the side cameras.
+  - **(3) DAQ timing fallback: yes, with tolerance ~100 ms** (Priya: "maybe 100 ms?").
+    - Rule: if the first LP lick is > 100 ms after the first DAQ contact, or there is none, align on the DAQ contact and
+      flag timing_source = daq.
+    - Read-only investigation of WHY LP misses these (64 trials > 50 ms) is running: lp_missed_contact/.
+    - The tolerance is to be confirmed against its cause mix.
