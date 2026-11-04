@@ -1439,3 +1439,8 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
     - subacute / chronic contra tjM1 / SSp-m keep +.11-.14 (nested bootstrap *), about 1/4-1/3 of raw;
     - the LMM (Holm) has no stars under z (smallest p .051);
     - docked ITI contra tjM1 / SSp-m keeps ~60 %.
+- **11-04 ~21:50: the deck has hidden slides 100 and 101 (a8).**
+  - 100 = lick response, session-z (slide95_both_sessz). 101 = its LMM version.
+  - Deck: 186 slides, 81 hidden.
+  - TODO for the replacement pass: add fig:lick_slide95_both_sessz and fig:lick_lmm_sessz to the per-slide old -> new
+    list, refreshed together with the raw pair.
