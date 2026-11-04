@@ -16,7 +16,11 @@ log for the earlier part of the day is `RUNNING_LIST_2026-11-02_OVERNIGHT.md`.
 9. **RUNNING (Priya OK 11-04): centre test for the SPOUT decoder and the C projections.** Frames: W = bal_em on
    working rows (production), C = bal_em on contact rows only, Z. Two tests: a direct post-stroke comparison (all
    animals) and a pre-stroke mix-shift (PS93 carries it). Write-up docs/status/CENTRE_MIXSHIFT_2026-11-04.md. Frozen
-   models are unchanged (scored frame only). 34 was told to hold the frozen-frame centre for the render. Also
+   models are unchanged (scored frame only). 34 was told to hold the frozen-frame centre for the render. Arms added
+   after Priya's questions (circularity; why not use the DAQ spout positions):
+   - TRUE-LABEL balanced centre (equal-weight mean of per-spout means, DAQ positions) on working rows and on
+     contact rows;
+   - NO-CENTRE (pooled pre mean / SD; no post-stroke data in the frame). Also
    (Priya): engaged / disengaged LABELS come from camera classes (LP licks); the z centre stays on contact rows.
 8. **DECIDED (Priya 11-04): convert the coding-direction G9 classes to camera classes, if it can be done without unfair
    bias.** Guards sent to 34:
