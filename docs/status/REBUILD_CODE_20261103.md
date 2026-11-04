@@ -996,3 +996,6 @@ Full suite at 3da8e480: 4,570 passed, 178 skipped, 6 failed. All 6 were `test_lp
 LICK-COUNT descriptives (quit_cum_licks, early_lpm, early_lpt). Those moved on purpose with the detector-A decision.
 The gate and the quit point (hit-based) are still pinned exactly; only those three count fields are now skipped
 (COUNT_DESCRIPTIVES). The file passes (18 passed).
+
+### 8.25 Test record (8b67097d)
+Full suite, 6 shards: 4,576 passed, 178 skipped, 0 failed.
