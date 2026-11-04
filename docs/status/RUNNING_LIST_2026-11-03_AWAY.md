@@ -53,6 +53,18 @@ FYI, the 3-class camera variant (lick / jaw-only / none) is thin in PS92 and PS9
 
 ## Findings (newest first)
 
+- **Section-1 within-session refit, with jaw-only taken out (e0; LP_licks_ENL2s/qc/s1_refit_*_1104.csv).** The new gate
+  drops exactly the 2,908 in-working jaw-only trials (pre 404 / acute 1,277 / subacute 808 / chronic 419), and no lick
+  trials.
+  - Allen split: post-cue .47-.90 (was .43-.89), pre-cue .25-.55 (was .26-.56).
+  - The acute post-cue drop is still seen in 4 of 4 animals.
+  - Pre-cue acute is unchanged: up in PS95, down in PS93 / PS94, flat in PS92.
+  - LocaNMF, without minus with jaw-only: post-cue acute +.03 / +.04 / +.10 / +.08 (PS92-95), PS95 subacute +.10,
+    pre-cue within ±.02.
+
+  Conclusions are unchanged; numbers rise slightly. The table is built but NOT applied to the page. Deck slide 9 is not
+  updated either; its numbers are in docs/results_pages/imaging/s1_update_20261103_numbers.md. Both go with question 0.
+
 - **Jaw-only trials look like no-response trials, not lick attempts** (`docs/status/JAW_ONLY_CHECKS_2026-11-03.md`).
   This holds in PS94 and PS95 (96 / 261 pre jaw-only trials), at cue and precue, on the joint and ROI bases. PS92 and
   PS93 (18 / 25) are too thin.
