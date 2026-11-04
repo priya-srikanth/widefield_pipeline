@@ -820,7 +820,7 @@ def _pooled_bundle(an, align):
         bundle["not_eng_daq"] = g_daq[0] if g_daq else np.zeros(len(YU), bool)
     _BUNDLE_CACHE[key] = bundle
     return bundle
-def _frozen_frame(bd, an=None, align=None):
+def _frozen_frame(bd, an=None, align=None, store=True):
     """The pre-stroke SPOUT-POSITION decoder for one bundle, and the frames it is trained and scored in.
 
     ``{"scaling", "XT", "full", "loso": {pre index: model}, "pi_full", "pi_loso", "XEs", "XUs"}``, memoised ON the
@@ -843,7 +843,8 @@ def _frozen_frame(bd, an=None, align=None):
     from wfield_local import grant_confusion as _gc
     an, align = an or bd.get("animal"), align or bd.get("align")
     # a stored and an opt-out frame never mix; keyed by the (animal, window) the store is asked for
-    key = f"_frozen_{sc}_{'store' if _gc.epoch_frozen_on() else 'mem'}_{an}_{align}"
+    use = bool(store) and _gc.epoch_frozen_on()
+    key = f"_frozen_{sc}_{'store' if use else 'mem'}_{an}_{align}"
     if key in bd:
         return bd[key]
     XE, YE, GE, XU, GU = bd["XE"], bd["YE"], bd["GE"], bd["XU"], bd["GU"]
@@ -853,7 +854,7 @@ def _frozen_frame(bd, an=None, align=None):
     # the scaling and the training-data fingerprint) when the bundle knows its animal / alignment and the store is on
     # (`grant_confusion.epoch_frozen_on`); otherwise, and with WIDEFIELD_EPOCH_FROZEN=0, the same fits in memory.
     stored = None
-    if an and align:
+    if use and an and align:
         from wfield_local import grant_confusion
         stored = grant_confusion._stored_epoch_decoder(an, align, bd, tag="frame", XT=XT, scaling=sc)
     if stored is not None:

@@ -755,7 +755,9 @@ def _collect_5c(align, variant="working", mode="frozen"):
             # frozen model. The matched arm trains on the TRAINING frame (XT) and scores in its own EM frame.
             # MERGE (11-03): `_frozen_frame` serves the STORED epoch decoder (rule 10) in "frozen" / "paired" alike --
             # the acc family's model; "refit" has no frozen column; "paired_matched" replaces both with matched draws.
-            fr = _frozen_frame(bd, an, align)
+            # the stored model only where a frozen column is read ("refit" has none; "paired_matched" scores matched
+            # draws, stored under their own spec): both modes fit the frame's models in memory, as before the merge
+            fr = _frozen_frame(bd, an, align, store=mode in ("frozen", "paired"))
             XT, XEs, XUs = fr["XT"], fr["XEs"], fr["XUs"]
             clf = fr["full"]
 

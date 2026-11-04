@@ -25,6 +25,7 @@ BEHAVIOUR = {
     "face_rhythm_lick_epochs.py", "face_rhythm_match.py", "face_rhythm_nontask_state.py", "face_rhythm_param_qc.py",
     "face_rhythm_position_maps.py", "face_rhythm_prep.py", "face_rhythm_readouts.py", "face_rhythm_validate.py",
     "jaw_only_incomplete_figs.py", "kinematics_pooled_figs.py", "lick_floor_qc.py", "lick_path_softmax.py",
+    "lmm_curve_summaries.py",
     "orofacial_cover_sensitivity.py", "orofacial_robustness_table.py", "pose3d.py", "pose3d_close_dir_sheet.py",
     "pose3d_crosscheck.py", "pose3d_cue_traces.py", "pose3d_figures.py", "pose3d_jaw_crosscheck.py",
     "pose3d_jaw_depth_model_check.py", "pose3d_kinematics.py", "pose3d_phase.py", "pose3d_spout_error.py",

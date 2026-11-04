@@ -118,7 +118,7 @@ def test_collect_5c_frozen_mode_uses_the_store():
     # and 5b read; WIDEFIELD_EPOCH_FROZEN=0 fits the same models in memory there
     from wfield_local import grant_kit
     src = inspect.getsource(grant_confusion._collect_5c)
-    assert "fr = _frozen_frame(bd, an, align)" in src and 'clf = fr["full"]' in src and 'fr["loso"][i]' in src
+    assert 'fr = _frozen_frame(bd, an, align, store=mode in ("frozen", "paired"))' in src and 'clf = fr["full"]' in src and 'fr["loso"][i]' in src
     fsrc = inspect.getsource(grant_kit._frozen_frame)
     assert 'grant_confusion._stored_epoch_decoder(an, align, bd, tag="frame", XT=XT, scaling=sc)' in fsrc
 

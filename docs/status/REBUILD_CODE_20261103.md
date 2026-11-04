@@ -793,3 +793,12 @@ nothing extra is wired.
 
 **A5.** It lands with this branch (trial_classes `cue_classes_for` is the single class source). There is no
 `responded()` on main.
+
+**Post-merge fixes** (the suite on 698c4e57 had 4 failures):
+- 5c "refit" and "paired_matched" asked the store for the epoch decoder after the merge. `_frozen_frame(..., store=)`
+  now keeps those two modes in memory, as before the merge.
+- Main's new `scripts/lmm_curve_summaries.py` (pose / kinematics LMM, no imaging) is classified BEHAVIOUR in the
+  writer register.
+- `lmm_curve_summaries` and `kinematics_pooled_figs.fig_phase` wrote figure sidecars in the flat directory (main
+  commits 8e2b82e6 / ceb8d2b4; `test_no_writer_bypasses_figure_layout`). Both now use `figure_layout.sidecar_for`,
+  and the readers are the same functions.
