@@ -432,3 +432,38 @@ def test_init_seeds_under_an_applied_profile_and_only_the_seed_sources(tmp_path)
     seen = json.loads(out[-1])
     assert seen == {"before": "REFUSED", "other": "REFUSED", "after": "REFUSED", "copied": True}, (seen, r.stderr[-2000:])
     assert dst.read_text() == '{"boundaries": {}}'
+
+
+SEED_CLI = r"""
+import os, runpy, sys
+from pathlib import Path
+from wfield_local import rebuild_root as rr          # the IMPORTED module (the one the audit hook reads)
+orig, dst = Path(%r), Path(%r)
+f0 = rr._fence
+rr._fence = lambda key: dict(f0(key), deny_read=list(f0(key)["deny_read"]) + [rr._norm(orig)])
+rr.seed_plan = lambda: [("cohort_out/epoch_boundaries.json", orig / "epoch_boundaries.json", dst)]
+_apply = __import__("wfield_local.render_profile", fromlist=["apply"]).apply
+def apply(name, *a, **k):
+    d = _apply(name, *a, **k)
+    os.environ["WIDEFIELD_REBUILD_ROOT"] = %r            # the profile's root, pointed at the temp root
+    return d
+sys.modules["wfield_local.render_profile"].apply = apply
+sys.argv = ["rebuild_root", "init", "--profile", "%s"]
+try:
+    runpy.run_module("wfield_local.rebuild_root", run_name="__main__")   # exactly `python -m wfield_local.rebuild_root`
+except SystemExit as ex:
+    print("EXIT", ex.code)
+print("COPIED", dst.exists())
+"""
+
+
+def test_init_cli_as_main_seeds_under_the_fence(tmp_path):
+    """Coordinator 11-04: `python -m wfield_local.rebuild_root init` (runpy: the file runs as __main__, a SECOND copy of
+    the module) must seed through the IMPORTED module's allow-list, the one the installed hook reads."""
+    orig = tmp_path / "orig"
+    orig.mkdir()
+    (orig / "epoch_boundaries.json").write_text('{"boundaries": {}}')
+    rb = tmp_path / "rb"
+    dst = rb / "labcams" / "epoch_boundaries.json"
+    r = _run(SEED_CLI % (str(orig), str(dst), str(rb), PROFILE), {}, tmp_path)
+    assert "EXIT 0" in r.stdout and "COPIED True" in r.stdout, r.stdout[-1500:] + r.stderr[-2500:]

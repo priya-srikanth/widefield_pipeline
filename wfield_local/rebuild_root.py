@@ -373,4 +373,8 @@ def main(argv=None) -> int:
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    # `python -m wfield_local.rebuild_root` runs THIS file as __main__, a second copy of the module: the audit hook that
+    # render_profile.apply installs is the IMPORTED module's and reads ITS state (_SEED_ALLOW, _BUSY). Run the CLI in
+    # the imported module, so init's seed allow-list is the one the hook checks (coordinator 11-04).
+    from wfield_local import rebuild_root as _rr
+    raise SystemExit(_rr.main())
