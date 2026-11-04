@@ -544,6 +544,10 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   (silent leak; proven by probe). Same hazard latent in the default arm for nolick (N1). Non-blockers: two except blocks swallow
   the camera fail-closed raise (N2), dead in-memory fits (N3), june_august_drift size-matched draws still in memory (N4), memo
   keys miss gate / centre (N8). Merge conflict resolutions otherwise all OK; A3 draws respect ordering rules. Sent to the helper.
+- FIFTH REVIEW (partial): full suite at 642d7b3b 4,552 passed / 0 failed; profile --check and drift1500 arm tags correct and
+  separate. Confirms the same B1 + N1-N8; N5 (A3 path-argument scripts outside the writer register, no run-tag check) added to
+  the helper batch. STILL OWED: early_run consumers / 5-min rule (Q3) and centre_rows / stores / < 2-row fallback (Q1, Q4).
+  Render waits for B1 fixed + those two checks.
 
 ### Findings
 - main moved while the rebuild branch was being fixed (34 commits not in rebuild/cohort1-20261103). Two matter for the rebuild:
