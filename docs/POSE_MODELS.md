@@ -1035,7 +1035,7 @@ Labelled review clips (single-frame model: judge labels / crop, not smoothness):
 Priya 11-04 on the clips: "pretty darn good"; cam2 (sometimes cam3) less confident when the mouth is closed before cue /
 reward -> worth extra closed-mouth frames in Parts B / C.
 
-| **LP side temporal** *(training 11-04)* | LP `heatmap`, ResNet-50 + unlabelled-video TEMPORAL loss | same 228 Part A frames | crop2 recipe (256 px, batch 4, seed 42 split, 300 epochs, patience 20); WSL (DALI), `lp_capped.py` 0.75 + 6.8 GB guard; DALI train sequence 8, predict 16; **epsilon [nose 5, jaw 8, tongue 20, spout 5] model px** | Priya: temporal loss with per-part jump thresholds and plenty of unlabelled frames; its predictions then pre-label Parts B / C for the student | WSL `/root/lp/side-2026-11-04/models/side_temporal_20261104`; script `lp_stage/lp_train_side_temporal_wsl.sh` |
+| **LP side temporal** *(trained 11-04; NOT adopted)* | LP `heatmap`, ResNet-50 + unlabelled-video TEMPORAL loss | same 228 Part A frames | crop2 recipe (256 px, batch 4, seed 42 split, 300 epochs, patience 20); WSL (DALI), `lp_capped.py` 0.75 + 6.8 GB guard; DALI train sequence 8, predict 16; **epsilon [nose 5, jaw 8, tongue 20, spout 5] model px** | Priya: temporal loss with per-part jump thresholds and plenty of unlabelled frames; its predictions then pre-label Parts B / C for the student | WSL `/root/lp/side-2026-11-04/models/side_temporal_20261104`; script `lp_stage/lp_train_side_temporal_wsl.sh` |
 
 Epsilon from measured genuine motion (model px per 4-ms frame, crop2 single-frame predictions, both frames confident, cutoffs
 tongue 0.4 / others 0.6). Cue windows of the four review sessions (~4 x 10^4 steps per part, 7.6k tongue): p99 / p99.9 nose
@@ -1048,3 +1048,10 @@ Unlabelled set: `scripts/lp_unlabelled_clips.py --project side-2026-11-04 --cam 
 `DeepLabCut/Widefield/lightning-pose/side-2026-11-04/videos/`: 126 clips (21 labelled sessions x 3 non-overlapping 30-s
 cue-anchored windows x 2 cameras; ~945k frames, 0.57 GB), cut in MODEL space by an ffmpeg chain equal to
 `lp_sidecam.transform_image` (checked: no pixel shift or frame offset; residual = h264 on noisy IR, as cam4's clips).
+**Result (11-04): no gain over crop2.** Held-out median px (same seed-42 split, 22 val / 24 test frames), test crop2 vs
+temporal: nose 0.9 / 1.1, jaw 2.0 / 2.8, tongue 1.3 / 2.7, spout 1.1 / 1.4 (val 1.1 / 1.6, 2.7 / 3.5, 1.9 / 3.3, 1.6 / 1.5).
+Four review sessions: confident fractions unchanged (jaw 0.89 / 0.86, pre-cue closed-mouth jaw 0.83 / 0.83, tongue 0.20 /
+0.20, spout 0.96 / 0.94); jitter unchanged (p99 step jaw 5.0 / 4.9, spout 3.0 / 2.9; steps > epsilon <= 0.6 % already in
+crop2). The single-frame model had little jitter to remove, and the loss cost some label accuracy (tongue most). crop2 stays
+the pre-labelling model for Parts B / C; revisit the temporal loss on the larger label set. Clips:
+`inference_check_20261027_side_pilot/clips/<a>_<d>/labeled_temporal.mp4` beside `labeled_crop2_singleframe.mp4`.
