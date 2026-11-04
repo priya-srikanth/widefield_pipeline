@@ -786,6 +786,12 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   whole MOs / MOp; ALM + tjM1; MOs_rest / MOp_rest per hemisphere; iti_licks.roi_masks); plain = robustness only. ONE shared
   function + new spec ids. Inventory of every ROI consumer running (for a8, to put "can't switch" cases to Priya). Checking
   first whether combined_encoding (the O2 bundle) uses Allen areas; if so, the encoder path switches before the bundle.
+- O2 BUNDLE PLAN (helper, 08:10):
+  - The attempts table is read at bundle time (engagement gate), but the heavy imaging (~28 GB) is pre-warmed into the input
+    cache now.
+  - combined_encoding uses Allen areas ONLY for its region tables. The split basis is computed on O2 from the bundled
+    imaging, so no re-bundle is needed; it goes into the bundle's code as primary, with plain as robustness rows.
+  - The 10-24 bundle took ~2 h. ETA to a checked bundle ~2.5-3 h from 08:10 (~10:40-11:10), mostly share reads.
 - Slide 94 caveat added by a8 (backup_before_ramp_caveat_1104.pptx; hidden states unchanged).
 - The 05:46 incident coverage copies differ from the rebuild ones only by the 12 June sessions (Aug-only pre); the partial-
   coverage rows are identical.
