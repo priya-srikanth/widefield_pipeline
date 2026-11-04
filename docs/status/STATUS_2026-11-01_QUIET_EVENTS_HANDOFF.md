@@ -4,7 +4,9 @@
 > DECISIONS.md last two entries (11-03 late "Working excludes jaw-only", 11-04 "Deck / pages wait for the rebuild ...").
 > Deck = 184 slides, 79 hidden (11-04: e3 added hidden slide 30 "Preliminary: 3-D from all four cameras" at Priya's
 > request, add_4cam_video_1104.py; slides after 29 shifted +1; verified with hidden_state_1103.py diff, latest dump
-> hidden_after_4cam_1104.csv). Diff hidden states before/after every change. Python on
+> hidden_after_4cam_v2_1104.csv; e3 swapped in the 12:51 clip re-render, update_4cam_video_1104.py). PITFALL (e3):
+> deleting a movie shape with python-pptx leaves its <p:video> timing node behind, and PowerPoint then refuses to open
+> the file; remove the node too. Diff hidden states before/after every change. Python on
 > this box: C:/Users/SabatiniLab/miniconda3/envs/locanmf/python.exe (NOT C:/Users/sabatini/...). Slide export:
 > scratchpad export_slides.ps1 (PowerPoint COM).
 > PRIYA 11-04:
