@@ -24,6 +24,13 @@ env:
   # the full pre set regardless: epoch_audit.full_cohort suspends it). Exceptions in block_env: june_august_drift and
   # 12.1b (rest_frozen_decoder_nl) keep their own June + August pre set.
   WIDEFIELD_PRE_FROM: "0801"
+  # Priya 11-04 (FINAL): the frozen spout decoder's scored frame AND the CD / pattern projection frame are centred by Wt,
+  # the true-label balanced centre of the session's camera WORKING rows (contact + incomplete; no EM, no pre-stroke
+  # fill; >= 20 working rows per spout or it refuses). Robustness arms: n / cto. The engagement axis (G4) stays z on
+  # contact rows (WIDEFIELD_G4_CENTRE default). Caveat: ~-.024 drift under a high incomplete share
+  # (CENTRE_MIXSHIFT_2026-11-04); the rest-centred frame was tested and rejected (REST_CENTRE_2026-11-04).
+  WIDEFIELD_SPOUT_SCORE_CENTRE: wt
+  WIDEFIELD_PROJECTION_CENTRE: wt
 
 # THE REBUILD ROOT (coordinator 11-03, fourth review): EVERY derived output of this render -- cohort_out / grant_figures,
 # figures_working, analysis_figures, LP_analysis/<run>/imaging_encoding (encoder, ITI, attempt, qc), the frozen store

@@ -947,7 +947,7 @@ def _frozen_frame(bd, an=None, align=None, store=True, sel="engaged", centre=Non
         # scored either
         XEs, XUs = np.array(XE, float), np.array(XU, float)
         GEa, GUa = np.asarray(GE), np.asarray(GU)
-        # THE SCORED-FRAME CENTRE KIND (Priya via a8 11-04, provisional; `spout_scaling.kind_centre_fn`): wt (default) |
+        # THE SCORED-FRAME CENTRE KIND (Priya 11-04, FINAL; `spout_scaling.kind_centre_fn`): wt (default) |
         # working | contact | cto | n, from the session's working rows; the models do not depend on it
         _cls = bd.get("cls")
         RC = (np.concatenate([np.asarray(_cls[0], dtype=object)[work[0]], np.asarray(_cls[1], dtype=object)[work[1]]])

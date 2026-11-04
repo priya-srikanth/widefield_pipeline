@@ -567,7 +567,7 @@ def state_disc_centre() -> str:
     raise ValueError(f"{STATE_DISC_CENTRE_ENV}={v!r}: expected working or engaged")
 
 
-#: THE FROZEN SPOUT DECODER'S SCORED-FRAME CENTRE (coordinator 11-04; Priya via a8, PROVISIONAL): for a WORKING-trained
+#: THE FROZEN SPOUT DECODER'S SCORED-FRAME CENTRE (Priya 11-04, FINAL: Wt; via a8 / the coordinator): for a WORKING-trained
 #: cue / precue model, the centre KIND of every scored session (`SCORE_CENTRE_KINDS`, defined with `scored_centre`):
 #: "wt" (DEFAULT: true-label balanced centre of the working rows), "working" (W, label-free bal_em of the working rows:
 #: the rebuild's 11-04 rule until this decision), "contact" (C), "cto" and "n" (robustness). The MODELS are the same
@@ -662,7 +662,7 @@ def projection_frame_on() -> bool:
 #: centred on the camera WORKING rows, engaged and no-lick, as the cue / precue decoders) or "contact" (the same
 #: working-trained model, each session centred on its CONTACT rows only). Read only while the projection frame is on
 #: (default OFF). The lick window keeps the engaged centre.
-#: Priya via a8 11-04 (PROVISIONAL): the projection centre follows the scored-frame centre decision, DEFAULT "wt"
+#: Priya 11-04 (FINAL): the projection centre follows the scored-frame centre decision, DEFAULT "wt"
 #: (true-label balanced centre of the working rows); "cto" / "n" robustness; "engaged" = the 11-03 build. The frame itself
 #: stays OFF by default. The engagement axis of G4 (the camera-class state discriminator) stays z on contact rows.
 PROJECTION_CENTRE_ENV = "WIDEFIELD_PROJECTION_CENTRE"
@@ -750,7 +750,7 @@ def projection_arrays(XE, YE, GE, XU, GU, pre_sessions, pipe, work=None, YU=None
 
 # ------------------------------------------------------------------ scored-frame centre KINDS (Priya 11-04, a8)
 #: THE SCORED-FRAME CENTRE of a WORKING-trained cue / precue spout model (and of the projection frame when it is on).
-#: Provisional decision (Priya via a8, 11-04; docs/status/CENTRE_MIXSHIFT_2026-11-04.md on main, frames as its
+#: FINAL decision (Priya 11-04: Wt; robustness N and Cto; docs/status/CENTRE_MIXSHIFT_2026-11-04.md on main, frames as its
 #: cmcommon.Engine, ported exactly except where noted):
 #:   wt       DEFAULT. TRUE-LABEL balanced centre: the equal-weight mean of the per-spout means of the session's camera
 #:            WORKING rows (contact + incomplete, engaged and no-lick; spout = the DAQ strobe label), SD over those rows.
@@ -771,6 +771,9 @@ def projection_arrays(XE, YE, GE, XU, GU, pre_sessions, pipe, work=None, YU=None
 #: carried in the scored-frame tag (`score_centre_tag`) and every memo key of a scored frame, never in a spec.
 #: KNOWN CAVEAT (CENTRE_MIXSHIFT 3d): Wt drifts like W when the incomplete share rises (mix-shift bias ~ -.024 overall,
 #: [-.042, -.011], cue acute target): the incomplete trials' own pattern, not the EM.
+#: REST-CENTRED FRAME TESTED AND REJECTED (main docs/status/REST_CENTRE_2026-11-04.md): a restdock05 / restw centre
+#: absorbs the post-stroke change of the rest state (centre shift, SD x1.2-1.5) and collapses subacute / chronic far
+#: contra (~.29 vs .72 chronic); it is not offered as a kind.
 SCORE_CENTRE_KINDS = ("wt", "working", "contact", "cto", "n")
 SCORE_CENTRE_DEFAULT = "wt"
 

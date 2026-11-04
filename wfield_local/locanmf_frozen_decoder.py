@@ -514,7 +514,7 @@ def frozen_scored_frame(models, XE, GE, XU, GU, kept, pre_i, cls_e=None, work=No
             raise ValueError("a working-trained frozen model needs the pool's `work` rows to centre a session")
         RX, RY, RG = working_rows(work)
         pre_set = set(kept.index(lab) for lab in models.get("pre_labels", []) if lab in kept)
-        # THE SCORED FRAME'S CENTRE (Priya via a8 11-04, provisional; `spout_scaling.score_centre_rows`): wt (default,
+        # THE SCORED FRAME'S CENTRE (Priya 11-04, FINAL; `spout_scaling.score_centre_rows`): wt (default,
         # true-label balanced centre of the working rows) | working (label-free bal_em) | contact | cto | n. The model
         # is the same under every kind.
         kind = spout_scaling.score_centre_rows()
