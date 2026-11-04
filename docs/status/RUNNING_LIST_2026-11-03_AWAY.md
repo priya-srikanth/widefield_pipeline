@@ -43,7 +43,13 @@ log for the earlier part of the day is `RUNNING_LIST_2026-11-02_OVERNIGHT.md`.
    jaw_only, which could move stop runs). Recommendation (34 and me): don't block the rebuild; add side-cam judging
    later as a class revision with a diff table. A census of trials at stake and of Q6 (counts + ~10 example clips) is
    running: wf_attempt docs/status/rebuild_20261103/CONTACT_DAQ_MISMATCH_20261104.md.
-   STILL OPEN: 3 (hit-rate period: camera working period?) and 8 (discriminator training classes; helper testing).
+   Q3 (Priya): YES, the camera working period, AS LONG AS final far-contra / far-mid failure blocks before the quit
+   tail are not cut. Risk: the last-camera-lick end cut, and a >= 6-trial stop run equal to one far-spout failure
+   block, would both remove genuine deficits. Proposed guard (sent to 34 with a census request): a tail / stop run
+   counts as stopped only if it includes no response at a REFERENCE spout (close_L / close_center).
+   Confirmed from trial_classes: a DAQ contact makes a trial "contact" whatever the cameras see; camera rules only
+   classify no-contact trials.
+   STILL OPEN: 3 guard numbers; and 8 (discriminator training classes; helper testing).
    Stays DAQ: pinned epoch boundaries, per-lick outcome, June / PS93_0813 /
    cohort 2. My suggested answers are in the chat reply of 11-04 and copied into the log below once Priya answers.
 6. **NEW (11-04): B and C re-check results (interim; the D / G runs are still going).**
