@@ -176,8 +176,8 @@ FYI, the 3-class camera variant (lick / jaw-only / none) is thin in PS92 and PS9
       subacute far_R 79 %, PS93 acute far_R 82 %;
     - at 1.0 s: >= 94 % everywhere.
 
-    So 1.5 s drops trials by spout, mostly far and mostly PS92 / PS93. [Suggest: keep 1.0 s primary and 1.5 s as a
-    robustness arm.]
+    So 1.5 s drops trials by spout, mostly far and mostly PS92 / PS93. DECIDED (Priya 11-04): the LP ENL stays at
+    1.0 s.
 
 - **11-04: what the G4 / state discriminators compare.** They are trained on pre DAQ-lick vs DAQ-no-lick trials
   (position-balanced; poststroke_compare.looks_like_which), NOT on camera working. So jaw-only trials were always in the
