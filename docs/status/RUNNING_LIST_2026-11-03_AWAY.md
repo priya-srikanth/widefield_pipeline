@@ -89,6 +89,10 @@ log for the earlier part of the day is `RUNNING_LIST_2026-11-02_OVERNIGHT.md`.
      - c. Unjudged close-mid no_response counts as stop evidence. [Yes: no lick at an easy spout]
      - d. The 13 sessions with no reference trial after the last lick get no end cut, flagged.
      - e. Drop the block-level guard.
+     - ANSWERED (Priya 11-04): a. test it. b. Also test longer runs: the stop starts at the FIRST trial of a run of
+       > 10 non-responses (plus > 8 / > 12), so one far-spout failure block can't make a stop. c. OK. d. Trials
+       after the last lick in those 13 sessions are STOPPED. e. Dropped. An "end cut only" arm was added. Sent to 34,
+       with pre hit rate as the specificity check.
    - 34 merge queue before the render: encoder-classes, cue70 (+ max_rt end), enl-window (ENL follows the source,
      branch rebuild/enl-window), then the stop-rule guard once chosen.
 
