@@ -1994,3 +1994,12 @@ pinned to the existing stopRun6j table, since the new tag's table does not exist
 origin/main, which has moved (origin/main 2eeead86 vs 571b3955 1a56bb25; this branch does not touch the file).
 New tests in 3613cf0b: test_stop_rule_a2.py now 24 (span categories, touched definition, excise, strict, tail-event,
 tags / raise, session_span_licks), test_trial_attempts.py +1 (stopped_licking leaves both sets).
+
+**Per-cue stop kind (for the bcdg port g_group_final; coordinator 11-04).** `trial_classes.stop_kind_for(label, cue_s)` ->
+"run" (a mid-session stop run) / "tail" (the quit tail after the last camera lick) / "" per DAQ cue, memoised with
+`cue_classes_for` (`_CUE_KIND`, shared key `_cue_key`). `classify_session(..., return_kind=True)` returns (classes,
+kind); `_classify_guarded` now returns both. stopped_licking trials keep the kind of the run / tail they came from.
+Under rule "run" / "any" every stopped trial is "run" (no stopped tail there). trial_attempts writes a `stop_kind`
+column (camera-gated runs). Tests: test_stop_rule_a2 +3 (a run, a tail and a stopped_licking trial in each; A3; A0;
+`stop_kind_for` with and without a prior `cue_classes_for`), test_trial_attempts (stop_kind in both camera tests).
+Related files: 367 passed + the pre-existing working_trials failure.

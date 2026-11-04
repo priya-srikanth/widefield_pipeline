@@ -620,7 +620,7 @@ CLASS_CODE_ROOTS = ("session_trials", "jaw_table", "_trial_times", "_pre_cue_con
                     "camera_engaged_period", "in_gate", "before_session_end", "in_working", "classify_session", "_matched_cues",
                     "_effective_coverage", "_classify_guarded", "_breaks", "licks_in_spans",
                     "span_lick_matrix", "touched_by_licks", "_lick_breaks", "session_span_licks", "cue_span_licks",
-                    "stop_lick_rule",
+                    "stop_lick_rule", "stop_kind_for", "_cue_key",
                     "stop_tail_start")
 
 
@@ -730,9 +730,12 @@ def end_anchor() -> str:
 def classify_session(cls, matched=None, position=None, *, rule: str | None = None, min_run: int | None = None,
                      end: str | None = None, cue_s=None, min_start_s: float | None = None,
                      jaw_counts: bool | None = None, breaks=None, span_licks=None, lick_rule: str | None = None,
-                     tail_start: str | None = None) -> np.ndarray:
+                     tail_start: str | None = None, return_kind: bool = False):
     """THE camera classes of one session, in cue order, after the session-level rules (Priya 11-03). ``cls`` = the raw
     per-cue class (`cue_classes`), ``matched`` = the cue was matched to a video trial (None = all matched).
+    ``return_kind`` -> ``(classes, stop_kind)``: STOP_KINDS per cue, "run" (a mid-session stop run), "tail" (the quit
+    tail after the last camera lick) or "" -- stopped_licking trials keep the kind of the run / tail they were cut from
+    (`stop_kind_for`). Under rule "run" / "any" every stopped trial is "run" (those rules have no stopped tail).
 
     VIDEO COVERAGE (N6): trials outside the video stay "unknown". Both session-level rules use only the covered span:
       * END AT THE LAST CAMERA LICK (anchor ``end``): working-gate trials after it -> AFTER_END_CLASS. With an
@@ -763,9 +766,14 @@ def classify_session(cls, matched=None, position=None, *, rule: str | None = Non
     end = end or end_anchor()
     breaks = _breaks(breaks, len(cls))
     if rule in GUARDED_RULES:
-        return _classify_guarded(cls, position, rule=rule, min_run=min_run, end=end, cue_s=cue_s,
-                                 min_start_s=min_start_s, jaw_counts=jaw_counts, breaks=breaks,
-                                 span_licks=span_licks, lick_rule=lick_rule, tail_start=tail_start)
+        out, kind = _classify_guarded(cls, position, rule=rule, min_run=min_run, end=end, cue_s=cue_s,
+                                      min_start_s=min_start_s, jaw_counts=jaw_counts, breaks=breaks,
+                                      span_licks=span_licks, lick_rule=lick_rule, tail_start=tail_start)
+        return (out, kind) if return_kind else out
+    if return_kind:
+        out = classify_session(cls, matched, position, rule=rule, min_run=min_run, end=end, cue_s=cue_s,
+                               min_start_s=min_start_s, jaw_counts=jaw_counts, breaks=breaks)
+        return out, np.where(out == STOPPED_CLASS, "run", "").astype(object)
     out = np.asarray(cls, dtype=object).copy()
     n = len(out)
     m = _effective_coverage(np.ones(n, bool) if matched is None else np.asarray(matched, bool))
@@ -975,8 +983,9 @@ def _classify_guarded(cls, position, *, rule: str, min_run: int | None, end: str
     raw = np.asarray(cls, dtype=object)
     out = raw.copy()
     n = len(raw)
+    kind = np.full(n, "", dtype=object)
     if not n:
-        return out
+        return out, kind
     pos = np.full(n, "", dtype=object) if position is None else np.asarray(position, dtype=object)
     ref = np.isin(pos, REFERENCE_SPOUTS)
     if cue_s is not None:
@@ -1035,10 +1044,12 @@ def _classify_guarded(cls, position, *, rule: str, min_run: int | None, end: str
         if early[run[0]]:
             continue                                            # early_run folds into the raw class (Priya)
         out[run] = STOPPED_CLASS
+        kind[run] = "run"
     out[tail] = STOPPED_CLASS
+    kind[tail] = "tail"
     if lick_rule == "excise":
-        out[(out == STOPPED_CLASS) & touched_by_licks(M)] = STOPPED_LICKING_CLASS
-    return out
+        out[(out == STOPPED_CLASS) & touched_by_licks(M)] = STOPPED_LICKING_CLASS   # keeps its stop kind
+    return out, kind
 
 
 #: T7 (third review): an unmatched stretch counts as UNCOVERED only when it is at least this many consecutive cues;
@@ -1266,22 +1277,46 @@ def cue_classes(table: pd.DataFrame | None, cue_s, tol: float = CUE_MATCH_S) -> 
 _CUE_CLS: dict = {}
 
 
+#: per-cue stop kinds (`stop_kind_for`): a mid-session stop "run", the quit "tail", or ""
+STOP_KINDS = ("run", "tail", "")
+_CUE_KIND: dict = {}
+
+
+def stop_kind_for(label: str, cue_s, window: str | None = None) -> np.ndarray:
+    """Per DAQ cue of one session (the full cue train, as `cue_classes_for`): "run" = part of a mid-session stop run,
+    "tail" = the quit tail after the last camera lick, "" = neither. stopped_licking trials keep the kind of the run /
+    tail they came from, so readers can split them (bcdg port's g_group_final). Same memo as `cue_classes_for`."""
+    cue_classes_for(label, cue_s, window)
+    return _CUE_KIND[_cue_key(label, cue_s, window)]
+
+
+def _cue_key(label: str, cue_s, window: str | None) -> tuple:
+    import hashlib
+    window = window or gate_window()
+    cs = np.ascontiguousarray(np.asarray(cue_s, float))
+    rule = (stopped_rule(), stop_run_min(), stop_min_start_s(), rest_start())
+    jaw_cnt = jaw_counts_in_stop()
+    lk = (stop_lick_rule(), stop_tail_start()) if rule[0] in GUARDED_RULES else None
+    return (label, window, rule, end_anchor(), "jawcount" if jaw_cnt else "jawwork", lk,
+            hashlib.sha1(cs.tobytes()).hexdigest())
+
+
 def cue_classes_for(label: str, cue_s, window: str | None = None) -> np.ndarray:
     """Camera class per DAQ cue of one session (``cue_s`` in DAQ seconds); all "unknown" for a session without video
     outputs. ``cue_s`` must be the session FULL cue train in order (the stopped rule counts runs along it): no_response
     trials in a sustained stop come back as STOPPED_CLASS (`classify_session`, Priya 11-03). Memoised per process.
     THE A5 HOOK: switch the class source to `responded(source=...)` here."""
-    import hashlib
     window = window or gate_window()
     cs = np.ascontiguousarray(np.asarray(cue_s, float))
     rule = (stopped_rule(), stop_run_min(), stop_min_start_s(), rest_start())
     end = end_anchor()
     jaw_cnt = jaw_counts_in_stop()        # the working selection (main's WIDEFIELD_WORKING_TRIALS); Priya 11-04
     lk = (stop_lick_rule(), stop_tail_start()) if rule[0] in GUARDED_RULES else None
-    key = (label, window, rule, end, "jawcount" if jaw_cnt else "jawwork", lk, hashlib.sha1(cs.tobytes()).hexdigest())
-    if key not in _CUE_CLS:
+    key = _cue_key(label, cs, window)
+    if key not in _CUE_CLS or key not in _CUE_KIND:
         if len(_CUE_CLS) > 64:
             _CUE_CLS.clear()
+            _CUE_KIND.clear()
         T = session_trials(label, window=window)
         # THE session-level rules (end at the last camera lick, sustained stop, isolated lapses; video coverage span):
         # `classify_session`. The "close" anchor needs each cue position (matched the same way as the class)
@@ -1289,8 +1324,9 @@ def cue_classes_for(label: str, cue_s, window: str | None = None) -> np.ndarray:
                if end == "close" or rule[0] in GUARDED_RULES else None)
         matched = (cue_classes(T.assign(cls="matched"), cs) == "matched") if T is not None else np.zeros(len(cs), bool)
         span = cue_span_licks(label, T, cs) if lk is not None and lk != ("none", "lick_trial") else None
-        _CUE_CLS[key] = classify_session(cue_classes(T, cs), matched, pos, rule=rule[0], min_run=rule[1], end=end,
-                                         cue_s=cs, jaw_counts=jaw_cnt, span_licks=span)
+        _CUE_CLS[key], _CUE_KIND[key] = classify_session(cue_classes(T, cs), matched, pos, rule=rule[0],
+                                                         min_run=rule[1], end=end, cue_s=cs, jaw_counts=jaw_cnt,
+                                                         span_licks=span, return_kind=True)
     return _CUE_CLS[key]
 
 

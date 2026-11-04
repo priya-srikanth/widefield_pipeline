@@ -239,3 +239,55 @@ def test_trial_attempts_excludes_stopped_licking():
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
     import scripts.trial_attempts as ta
     assert "stopped_licking" in ta.RUN_EXCLUDED
+
+
+# ---------------------------------------------------------------- per-cue stop kind (bcdg port's g_group_final)
+def _kind_session():
+    # contact, run of 7 (trial 3 lick-touched), contact, tail of 3 (trial 11 lick-touched)
+    cls = [C] + [NR] * 7 + [C, NR, J, NR]
+    pos = [FAR] * 12
+    M = _span(12, k3_precue=1, k11_after_max_rt=1)
+    t = np.arange(12) * 10.0 + 400.0
+    t[0] = 0.0
+    return np.array(cls, object), np.array(pos, object), M, t
+
+
+def test_stop_kind_marks_run_and_tail_and_keeps_it_for_stopped_licking():
+    cls, pos, M, t = _kind_session()
+    for rule in ("both", "long"):
+        out, kind = TC.classify_session(cls, np.ones(12, bool), pos, rule=rule, min_run=6, end="lick", cue_s=t,
+                                        span_licks=M, lick_rule="excise", return_kind=True)
+        if rule == "long":                                  # 7 < 11: no run under A3; the tail is the same
+            assert kind.tolist()[1:8] == [""] * 7
+            continue
+        assert out.tolist() == [C, S, S, SL, S, S, S, S, C, S, S, SL]
+        assert kind.tolist() == ["", "run", "run", "run", "run", "run", "run", "run", "", "tail", "tail", "tail"]
+        assert set(kind) <= set(TC.STOP_KINDS)
+
+
+def test_stop_kind_default_return_and_a0():
+    cls, pos, M, t = _kind_session()
+    assert isinstance(TC.classify_session(cls, None, pos, rule="both", end="lick", cue_s=t, span_licks=M), np.ndarray)
+    out, kind = TC.classify_session(cls, None, pos, rule="run", min_run=6, end="lick", cue_s=t, return_kind=True)
+    assert kind.tolist() == ["run" if c == S else "" for c in out]   # A0: no stopped tail (after_end), runs only
+
+
+def test_stop_kind_for_matches_cue_classes_for(monkeypatch):
+    import pandas as pd
+    cls, pos, M, t = _kind_session()
+    T = pd.DataFrame({"trial_id": np.arange(12), "cue_daq": t, "cls": cls, "position": pos, "strobe_ms": -2000.0,
+                      "stop_ms": 3000.0})
+    monkeypatch.setattr(TC, "session_trials", lambda lab, window=None: T.copy())
+    monkeypatch.setattr(TC, "cue_span_licks", lambda lab, T_, cs: M)
+    for k in (TC.STOPPED_ENV, TC.STOP_LICKS_ENV, TC.STOP_TAIL_ENV, "WIDEFIELD_TRIAL_END"):
+        monkeypatch.delenv(k, raising=False)
+    TC._CUE_CLS.clear()
+    TC._CUE_KIND.clear()
+    assert TC.cue_classes_for("PS92_0901", t).tolist()[3] == SL
+    assert TC.stop_kind_for("PS92_0901", t).tolist() == ["", "run", "run", "run", "run", "run", "run", "run", "",
+                                                         "tail", "tail", "tail"]
+    TC._CUE_CLS.clear()
+    TC._CUE_KIND.clear()
+    assert TC.stop_kind_for("PS92_0901", t)[11] == "tail"           # works without a prior cue_classes_for call
+    TC._CUE_CLS.clear()
+    TC._CUE_KIND.clear()

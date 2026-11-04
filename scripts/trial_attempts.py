@@ -98,8 +98,10 @@ def session_trials(label: str) -> pd.DataFrame:
             strobe = C.strobe_ms.to_numpy(float) if "strobe_ms" in C else np.full(len(C), np.nan)
             stop_ms = (C.stop_ms if "stop_ms" in C else T.stop_ms).to_numpy(float)
             span = TC.session_span_licks(f"{a}_{d}", cue_s, cue_s + strobe / 1000.0, cue_s + stop_ms / 1000.0)
-        run = TC.classify_session(raw, None, pos, rule=TC.stopped_rule(), min_run=TC.stop_run_min(),
-                                  end=TC.end_anchor(), cue_s=cue_s, min_start_s=TC.stop_min_start_s(), span_licks=span)
+        run, kind = TC.classify_session(raw, None, pos, rule=TC.stopped_rule(), min_run=TC.stop_run_min(),
+                                        end=TC.end_anchor(), cue_s=cue_s, min_start_s=TC.stop_min_start_s(),
+                                        span_licks=span, return_kind=True)
+        T["stop_kind"] = kind               # "run" / "tail" / "" (stopped_licking keeps its kind; bcdg g_group_final)
         T["cls_raw"] = T["cls"]
         T["cls"] = pd.Series(run, index=T.index).replace(TA_NAMES).to_numpy()
         T["attempted"] = T.cls.isin(ATTEMPT_CLASSES)

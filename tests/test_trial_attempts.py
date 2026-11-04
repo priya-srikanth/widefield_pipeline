@@ -70,6 +70,7 @@ def test_camera_gated_run_uses_the_runs_camera_classes(monkeypatch, tmp_path):
     T = ta.session_trials("PS92_0901")
     # A2 (Priya 11-04): no reference-spout trial near the run -> stopped; after the last lick = quit -> stopped
     assert T.cls.tolist() == (["hit"] + ["stopped"] * 6 + ["hit", "jaw_only", "incomplete"] + ["stopped"] * 3)
+    assert T.stop_kind.tolist() == [""] + ["run"] * 6 + [""] * 3 + ["tail"] * 3
     assert T.canonical.tolist() == [True] + [False] * 6 + [True] * 3 + [False] * 3
     assert T.gate.iloc[0].startswith("camera:sel-camera") and "cls_raw" in T
     # the 5-min rule: the same run starting < 300 s after the first cue is not stopped; under A2 early_run folds into
@@ -154,5 +155,6 @@ def test_camera_attempts_lick_touched_stopped_trials_leave_both_sets(monkeypatch
     monkeypatch.setattr(oc, "engagement_keep", lambda *a, **k: (None, "reference"))
     T = ta.session_trials("PS92_0901")
     assert T.cls.tolist() == ["hit", "stopped", "stopped", "stopped_licking", "stopped", "stopped", "stopped", "hit"]
+    assert T.stop_kind.tolist() == [""] + ["run"] * 6 + [""]          # stopped_licking keeps its run kind
     assert T.canonical.tolist() == [True] + [False] * 6 + [True]
     assert T.gate.iloc[0].endswith("-stopA2jexrt3500c70")
