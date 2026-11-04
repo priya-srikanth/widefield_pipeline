@@ -1,19 +1,34 @@
 # Handoff 2026-11-01: quiet-period cortical events after the VLS stroke (cohort1, PS92-95) + literature context
 
-> **OVERNIGHT 11-03 -> 11-04 (Priya asleep) -- START HERE.** Live log + questions: docs/status/RUNNING_LIST_2026-11-03_AWAY.md.
-> Deck = 183 slides, 78 hidden (Priya's 18:50 states; diff with hidden_state_1103.py before/after every change).
-> Production now: working = contact + incomplete camera licks, cut at last camera lick (jaw-only = own class, Priya
-> 11-03 late; JAW_ONLY_CHECKS_2026-11-03.md), August-only pre, spout bal_em + extension. B (state discriminators in
-> spout frame) and C (projections in spout frame) are built, OFF, awaiting Priya.
+> **11-04 (day) -- START HERE.** Live log + questions: docs/status/RUNNING_LIST_2026-11-03_AWAY.md; decisions:
+> DECISIONS.md last two entries (11-03 late "Working excludes jaw-only", 11-04 "Deck / pages wait for the rebuild ...").
+> Deck = 183 slides, 78 hidden (Priya's 18:50 states; diff with hidden_state_1103.py before/after every change). Python on
+> this box: C:/Users/SabatiniLab/miniconda3/envs/locanmf/python.exe (NOT C:/Users/sabatini/...). Slide export:
+> scratchpad export_slides.ps1 (PowerPoint COM).
+> PRIYA 11-04:
+> - WAIT FOR THE REBUILD: no main render, no interim swaps. Slides 9-13, 19, 89 and imaging §1-4, 6, 7 change once, in 34's
+>   replacement pass. 34 sends a per-slide old-vs-new list; e0 applies the page edits in one pass.
+> - ALL Allen-ROI analyses on the ALM / tjM1 SPLIT basis (iti_licks AREA BASIS). 34 implements it in the rebuild as one
+>   shared function, with new spec ids; its inventory of ROI consumers (and any that cannot switch) is pending -> relay
+>   to Priya. 34 does the O2 encoder bundle first.
+> - B: state discriminators -> spout bal_em frame after a re-check (centre on working rows). C: projections re-checked
+>   with the centre on WORKING rows; Priya decides. D: scored set -> working. G: groups -> camera classes (+ "after end").
+> RUNNING: helper implementing B / C-check / D / G on main (uncommitted edits in grant_kit, locanmf_frozen_decoder,
+> position_axes, position_coding_directions, poststroke_compare, poststroke_section_g, precue_engagement_states,
+> spout_scaling, working_trials are THEIRS; don't commit them). Outputs -> labcams/decoder_mix_checks/bcdg_1104/. When it
+> reports: relay B pass/fail + C numbers to Priya, send 34 the "for 34" port list, and tell e0 which D / G figures move.
+> DONE 11-04: slide 94 caveat line (ramp_caveat_1104.py, Priya via 34).
+> Production on main: working = contact + incomplete camera licks, cut at last camera lick (jaw-only = own class, Priya
+> 11-03 late; JAW_ONLY_CHECKS_2026-11-03.md), August-only pre, spout bal_em + extension.
 > (1) DONE 11-04: jaw-only out of working on main, 48f2cc6d (WIDEFIELD_WORKING_TRIALS = in_working [prod] /
 > in_working_jaw / quit_tail; 20 new frozen ids published + verified; reproduces the checks exactly; trial_classes
 > unchanged, e3 cec38954). PITFALL: grant_confusion._collect_5c is cached on (align, variant, mode) only, so switching
 > WIDEFIELD_WORKING_TRIALS mid-process returns the previous setting's result. Run one setting per process.
 > (2) Main-branch combined render HELD (running list question 0): 34's cohort-1 rebuild (rebuild_20261103, fenced dirs /
 > store / spec ids; new data = swap mask + LocaNMF projection + today's rules) replaces the same families in 1-2 days.
-> Ask Priya: interim swap or wait. If interim: tell 34 before starting (shared CPU; keep >= 6 GB free), then apply
-> build_inputs/spout_balem_swaps.json (slides 10-13, 19, 89 + captions), send e3 the *_sessions.csv paths, and send e0
-> the paths for imaging §1-4, 6, 7. (3) e0 holds the s1 tables / imaging §1 table (still jaw-inclusive) and page edits.
+> Priya 11-04: WAIT (above). When the rebuild lands: apply 34's swaps (build_inputs/spout_balem_swaps.json captions
+> still useful), send e3 the rebuild's *_sessions.csv paths for the hidden LMM slides, and send e0 the figure paths.
+> (3) e0 holds the s1 tables / imaging §1 table (still jaw-inclusive) and page edits.
 > Never start duplicate helpers; resume a stopped one with SendMessage.
 >
 > UPDATE 11-03 (late+): helper (B) DONE -- spout decoder biased (prod understates acute far-contra drop ~.10; fix = bal_em

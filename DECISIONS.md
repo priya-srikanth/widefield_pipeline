@@ -23254,3 +23254,24 @@ windows) and ENL 2.0 precue (= the joint precue ids) are frozen-hits.
 (`scripts/s1_trial_class_snapshot.py` working / `working_pl_*`, `scripts/s1_refit_locanmf_table.py` arms `camwork*`,
 `docs/results_pages/imaging/p_img_s1_table_20261103.py`; window e0), and anything else reading
 `trial_classes.GATES["working"]` / `in_working` directly (encoding / kinematics pages).
+
+## 2026-11-04 — Deck / pages wait for the cohort-1 rebuild; every Allen-ROI analysis on the ALM / tjM1 split basis; B / C / D / G direction (Priya)
+
+- **No interim render or swaps (Priya 11-04).** The main-branch combined render (bal_em + extension + working + August-only)
+  is NOT run. Deck slides 9-13, 19, 89 and imaging page sections 1-4, 6, 7 (and SPOUT_BALEM section 7, the jaw-free s1
+  table) change ONCE, in sabatinilab-34's replacement pass from the cohort-1 rebuild (rebuild/cohort1-20261103; outputs
+  fenced under `Priya/Widefield/rebuild_20261103`). Reason: the rebuild uses new data (swap mask, LocaNMF projection) as
+  well as today's rules, so a main render now would be swapped twice.
+- **Allen-ROI basis = the ALM / tjM1 split for EVERY Allen-ROI analysis (Priya 11-04).** The split basis of `iti_licks`
+  (Priya 10-27: ALM / tjM1 = the anterolateral 40 % of MOs / MOp per hemisphere; disjoint MOs_rest / MOp_rest; whole MOs /
+  MOp out; masks `iti_licks.roi_masks`). Until now it was the default only for the ITI decoders and the s1 table. Being
+  implemented in the rebuild as ONE shared wfield_local function with new spec ids; plain Allen = robustness row only.
+  34 is inventorying consumers (and any that cannot switch).
+- **B: state discriminators in the spout bal_em frame**, after a re-check under the new working definition (centre on
+  working rows). **C: projections** (coding directions, patterns, engagement axis) re-checked with the centre on WORKING
+  rows as the decoders use (the 11-03 check centred on lick-gate engaged rows and the precue engagement axis failed);
+  Priya decides from the re-check. **D: section D's scored set -> working trials. G: section G's groups -> camera
+  classes** (contact / incomplete / jaw-only / none within cue -> stop, plus "after end"; pre panel = working; old DAQ
+  grouping = robustness). Implemented on main by a helper of the PI-deck window (`labcams/decoder_mix_checks/bcdg_1104/`);
+  34 ports the commits to the rebuild. The rebuild's stop rule (jaw-only counts toward >= 6 consecutive non-responses,
+  Priya 11-04 to 34) does not exist on main.
