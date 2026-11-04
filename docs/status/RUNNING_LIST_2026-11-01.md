@@ -681,6 +681,15 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
 - RENDER TRAP found: pytest / python run outside the worktree imports wfield_local from the editable install = the MAIN
   checkout. The render must import the wf_rebuild code; helper making render_profile --check refuse otherwise. Also routing
   chronic_drift_vs_reorg (Fig 10.2) + a scan for other untagged writers in REDO rows. Then render.
+- Helper (tip 47a36184; suite 4,615 / 0 failed; log 8.37): Fig 10.2 routed; render_profile --check prints the imported
+  wfield_local and refuses the main checkout. SCAN: 47 REDO scripts still refuse under the profile by design (encoder family,
+  frozen_* / encoding_* / spout_* / within_spout_* / exec_*, fr_*, layer2_*, summary_figures_1021, within_lick_correction) --
+  they fail loudly, never write wrong. DECISION (mine, layout): route each to <its default dir>/<run tag>/ like
+  chronic_stability; helper doing it family by family. 22 possible untagged writers being triaged.
+- RENDER STARTED (render runner, from a PINNED worktree wf_rebuild_render at 47a36184, PYTHONPATH set; log
+  M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/RENDER_LOG.md): rebuild_root init -> RESTnl baselines -> frozen fits ->
+  maps / epoch decoders / grant figures / LP arm / rest 12.1 + 12.1b / section G / nolick / cd / coding / attempt / recovery /
+  chronic / June drift / drift maps / joint. Encoder / fr / ITI / quiet / O2 families join as they are routed.
 
 ### Findings
 - main moved while the rebuild branch was being fixed (34 commits not in rebuild/cohort1-20261103). Two matter for the rebuild:

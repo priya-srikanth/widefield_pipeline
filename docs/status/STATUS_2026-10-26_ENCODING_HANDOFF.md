@@ -62,7 +62,14 @@ its Questions list). Docs commits on wf_attempt BY EXPLICIT PATH ONLY.
   - Jaw-only-out matches main 48f2cc6d.
   - The DAQ fallback for PS93_0813 FAILED its agreement check and is not used.
   - Dry count OK.
-- **OPEN BLOCKER (helper a0dc6e4f1c77fb99f):** working imaging rows must be camera contact + INCOMPLETE (mirror main's row
+- **11-04 later: RENDER RUNNING.**
+  - Render runner agent a0db502ebea3b948d, from the pinned worktree C:/Users/SabatiniLab/Github/wf_rebuild_render at 47a36184.
+  - Env: PYTHONPATH = that worktree (the editable install is MAIN's code!).
+  - Log: M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/RENDER_LOG.md.
+  - The code helper is routing the 47 require_default scripts (encoder / fr / layer2 / ...) family by family. Move the render
+    worktree to each routed commit and render that family.
+  - Next: two verifiers (per animal first, then what moved) -> replacement pass; owe a8 a per-slide old-vs-new list.
+- **(resolved) BLOCKER (helper a0dc6e4f1c77fb99f):** working imaging rows must be camera contact + INCOMPLETE (mirror main's row
   construction); the rebuild had DAQ-contact rows only.
   - Validation, arm (b): rebuild code on the checks' old inputs must hit .856 / .727.
   - Arm (a) minus arm (b) = the data effect.
