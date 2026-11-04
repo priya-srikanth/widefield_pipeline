@@ -943,3 +943,15 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   - Excluding 0-70 ms licks from licks_precue moves only the pre-cue lick tables and any cue-anchored latency readout.
   - The encoder's continuous lick kernels use every lick and are not cue-windowed, so they are unaffected.
   - The final rule is pending from a8.
+- **11-04 ~11:10: DECISION (Priya via a8): the cue + 70 ms rule.**
+  - Source: widefield_pipeline docs/status/CUE70_CHECK_2026-11-04.md, 9533758f.
+  - KEEP the 70 ms post-cue floor: DAQ contacts from cue + 70 ms; camera licks by lick PEAK >= cue + 70 ms.
+  - 0-70 ms licks are excluded, marked with the explicit context "excluded_0_70". They count as neither pre-cue nor
+    post-cue. Camera licks are judged by peak, not onset.
+  - Effect: 2,277 DAQ contacts and 608 camera licks leave the pre-cue tables. Post-cue counts, classes and the O2 engaged
+    set are unchanged.
+  - Being implemented on branch rebuild/cue70 (worktree wf_rebuild_cue70). The helper checks that the encoder Behaviour
+    and the trial classes are unchanged, and identifies who writes licks_precue / licks_all and how they re-render
+    under the profile.
+  - Side finding: the DAQ sees contacts inside the GUI's 2 s ENL that the GUI missed: PS92 pre 10.7 %, PS93 8.6 %. Our
+    sliding ENL selection already handles them.
