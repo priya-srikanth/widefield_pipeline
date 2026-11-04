@@ -55,7 +55,15 @@ ATTEMPT_CLASSES = ("hit", "incomplete")
 #: LP cue <-> DAQ cue match tolerance (s).
 MATCH_TOL_S = 0.02
 #: Bump when the definition above changes (enters every LP cache key).
-LP_VERSION = 1
+LP_VERSION = 2          # 2 (11-04): first-lick timing falls back to the DAQ contact at the close spouts
+#: LP-vs-DAQ timing tolerance, ms (Priya 11-04; wf_attempt docs/status/rebuild_20261103/lp_missed_contact/
+#: LP_MISSED_CONTACT_20261104.md): a first LP lick ONSET more than this after the trial's first DAQ contact (in the
+#: response window, cue + 70 ms .. min(cue + max_rt, stop)) is late -- at a CLOSE spout the contact time is used instead
+#: (LP missed the lick; ``timing_source`` = "daq"), at a FAR spout the LP time is kept and the trial is flagged
+#: ``grooming_suspect`` (a paw on the spout: 7 / 8 paw contacts caught, 0 false alarms). Classes are unchanged. Enters
+#: `spec_token`, so every LP cache key / lick-aligned frame carries it.
+LP_DAQ_TOL_MS = 50.0
+CLOSE_POSITIONS = ("close_ipsi", "close_mid", "close_contra", "close_L", "close_center", "close_R")
 
 
 class LPUnavailable(RuntimeError):
@@ -130,7 +138,28 @@ def spec_token(rv=None) -> str:
     trial_attempts.csv -- the jaw_onsets reruns -- invalidates every LP entry) + the cam1 event folder's identity."""
     p = attempts_path(rv)
     st = p.stat() if p.exists() else None
-    return f"lp{LP_VERSION}:{st.st_mtime_ns if st else 0}:{st.st_size if st else 0}:cam1-{_cam1_signature(rv)}"
+    return (f"lp{LP_VERSION}t{LP_DAQ_TOL_MS:g}:{st.st_mtime_ns if st else 0}:{st.st_size if st else 0}"
+            f":cam1-{_cam1_signature(rv)}")
+
+
+def first_lick_timing(pos, lp_ms, contact_ms, stop_ms, tol_ms: float = LP_DAQ_TOL_MS) -> pd.DataFrame:
+    """Per trial (Priya 11-04, `LP_DAQ_TOL_MS`): ``first_lick_ms`` (the lick time lick-aligned frames use, ms from the
+    cue), ``timing_source`` ("lp" | "daq" | "" = no time) and ``grooming_suspect``. ``lp_ms`` = first LP lick onset
+    (combined, else cam4), ``contact_ms`` = first DAQ contact from cue + 70 ms; only a contact inside the response
+    window (<= min(max_rt, stop), `trial_classes.response_end_ms`) is used. CLOSE spouts: LP missing or > tol after the
+    contact -> the contact time ("daq"). FAR spouts: the LP time, flagged when > tol after the contact."""
+    from wfield_local import trial_classes as TC
+    lp = np.asarray(lp_ms, float)
+    ct = np.asarray(contact_ms, float)
+    ct = np.where((ct >= TC.POSTCUE_START_MS) & (ct <= TC.response_end_ms(stop_ms)), ct, np.nan)
+    close = np.isin(np.asarray(pos, dtype=object), CLOSE_POSITIONS)
+    has_c = np.isfinite(ct)
+    late = has_c & (~np.isfinite(lp) | (lp > ct + tol_ms))
+    use_daq = close & late
+    t = np.where(use_daq, ct, lp)
+    src = np.where(use_daq, "daq", np.where(np.isfinite(lp), "lp", ""))
+    groom = ~close & has_c & np.isfinite(lp) & (lp > ct + tol_ms)
+    return pd.DataFrame({"first_lick_ms": t, "timing_source": src, "grooming_suspect": groom})
 
 
 #: Pre-cue (ENL) lick-free window length, s (Priya 10-21, after `scripts/enl_lp_census.py`: "1.0 s, plus DAQ 1.0 s").
@@ -271,7 +300,14 @@ def _attempts(rv=None) -> pd.DataFrame:
             # a camera-gated table: `cls` carries the run's session-level classes (stopped / early_run / after_end);
             # the LP source needs the TRIAL-level class (the camera gate applies the run's rules itself)
             A["cls"] = A["cls_raw"]
-        _ATTEMPTS[key] = A[["label", "trial_id", "cls", "cam4", "combined"]]
+        for c in ("pos", "stop_ms", "contact"):
+            if c not in A:
+                raise LPUnavailable(f"{p}: no {c!r} column (the first-lick DAQ fallback needs it; rebuild the table)")
+        A = A[["label", "trial_id", "cls", "cam4", "combined", "pos", "stop_ms", "contact"]].copy()
+        tm = first_lick_timing(A.pos, A.combined.fillna(A.cam4), A.contact, A.stop_ms)
+        A["first_lick_ms"], A["timing_source"] = tm.first_lick_ms.to_numpy(), tm.timing_source.to_numpy()
+        A["grooming_suspect"] = tm.grooming_suspect.to_numpy()
+        _ATTEMPTS[key] = A
     return _ATTEMPTS[key]
 
 
@@ -391,7 +427,8 @@ def _session_lp(label: str, cue_samples, sr: float, max_rt: float, rv=None) -> d
     first_s = np.full(n, np.nan)
     cue_cls = np.full(n, "", dtype=object)          # attempts class per DAQ cue ("" = no attempts row matched)
     cue_tid = np.full(n, -1, int)                   # trial_attempts trial_id per DAQ cue (-1 = none)
-    lat = A.combined.fillna(A.cam4).to_numpy(float) / 1000.0
+    # first lick time: LP, or at a close spout the DAQ contact when LP missed / was late (`first_lick_timing`, 11-04)
+    lat = A.first_lick_ms.to_numpy(float) / 1000.0
     cls = A.cls.astype(str).to_numpy()
     for kk, good, c, la, tid in zip(k, ok, cls, lat, A.index.to_numpy(int)):
         if not good:
