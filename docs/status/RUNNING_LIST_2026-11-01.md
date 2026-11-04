@@ -1172,3 +1172,10 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   - Why: it equals the corrected measurement to PnP residual; it needs no 2.5 h pose3d re-run; and lick aim uses
     commanded targets too.
   - Then the O2 bundle inputs are rebuilt (~1.5 h) and Priya does a full re-rsync.
+- **11-04 ~15:45: INSTRUCTION (Priya): when the updated bundle is handed over, the stale one is deleted.**
+  - Plan: build the corrected bundle under a NEW name (enc_rebuild_20261104b) so nothing mixes.
+  - When it passes its checks:
+    - delete M:/.../rebuild_20261103/o2/enc_rebuild_20261104. It is a derived output; the deletion list goes in
+      RENDER_LOG.md;
+    - give Priya the O2 scratch command to remove /n/scratch/users/p/ps150/o2/enc_rebuild_20261104, together with the new
+      rsync and the sbatch commands.
