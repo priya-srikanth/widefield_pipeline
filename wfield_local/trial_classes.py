@@ -18,11 +18,21 @@ What each trial is, first match wins, inside the chosen WINDOW:
                moving at the cue that never moved again (it may still have reacted)
 
 Groupings (GATES), used to select trials:
-  working      contact | incomplete | jaw_only   the animal responded to THIS trial's cue (imaging ENL + cue decoding)
+  working      contact | incomplete | jaw_only   the 11-03 AFTERNOON "working" (any reaction to the cue); since
+                                                 11-03 late a ROBUSTNESS definition only, see below
   camera_lick  contact | incomplete              a lick was made (lick-aligned windows always need it)
   attempted    contact | incomplete              = camera_lick; the encoder page's "attempt" (10-21 rule)
 
-END OF SESSION (Priya 11-03): primary "working" = the working gate AND at or before the session's LAST CAMERA LICK
+PRODUCTION WORKING (Priya 11-03 LATE): contact | incomplete only, i.e. ``in_working(...) & in_gate(cls,
+"camera_lick")`` -- jaw-only trials are their OWN class, reported like no-response (they decode like no-response in
+PS94 / PS95 at cue and pre-cue; centring on rows incl. jaw-only moved PS95 close ipsi acute .975 -> .642;
+docs/status/JAW_ONLY_CHECKS_2026-11-03.md). Close mid = licks only. Implemented for imaging in
+`working_trials` (IN_WORKING; the jaw-incl. arm is IN_WORKING_JAW). The "working" gate and `in_working` below are
+deliberately LEFT incl. jaw-only: `working_trials` checks `in_working` against the s1 snapshot's ``working_pl_lick``
+and pins the 29 afternoon frozen-model spec ids to it. New code wanting production working: intersect with
+camera_lick, or use `working_trials`.
+
+END OF SESSION (Priya 11-03): working = the gate AND at or before the session's LAST CAMERA LICK
 (contact or incomplete): `in_working(...)` / `before_session_end(..., anchor="lick")`. It drops the late, smaller
 jaw-only trials of the sated tail (docs/status/QUIT_TAIL_JAW_ONLY_2026-11-03.md: 1.0 % of working; 0.8 / 1.8 / 1.0 /
 0.8 % pre / acute / subacute / chronic) and, by construction, no lick. Robustness anchors: "contact" (last spout
@@ -249,7 +259,8 @@ def before_session_end(cls, order, *, session=None, position=None, anchor: str =
 
 
 def in_working(cls, order, *, session=None, position=None, end: str = DEFAULT_END) -> np.ndarray:
-    """THE primary working selection: the working gate AND before the session's end (`before_session_end`)."""
+    """The working gate (incl. jaw_only) AND before the session's end (`before_session_end`). Since 11-03 late the
+    PRODUCTION working is this ``& in_gate(cls, "camera_lick")`` (jaw-only out; `working_trials.IN_WORKING`)."""
     return in_gate(cls, "working") & before_session_end(cls, order, session=session, position=position, anchor=end)
 
 
