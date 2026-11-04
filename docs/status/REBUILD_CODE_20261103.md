@@ -1884,3 +1884,13 @@ CODE + TESTS ONLY: no renders, nothing written to M:. Worktree `wf_rebuild_enl`.
   - a repo-wide check that only lp_licks (and precue_engagement_states' `cue` branch) read the config window
     directly.
 - `test_share_writers_mode_safe`: enl_video_spout_check moved out of BEHAVIOUR (it now routes).
+
+**Test record (cb7b1f49).** New file: 43 passed. Related set (23 files): 414 passed. Full suite, 4 shards run one at
+a time (RAM checked before each): 4,787 passed, 171 skipped, 1 failed.
+- Shard 0: 848 passed, 27 skipped, 1 failed.
+- Shard 1: 1,918 passed, 27 skipped.
+- Shard 2: 1,144 passed, 117 skipped.
+- Shard 3: 877 passed.
+- The failure is `test_review_7ab::test_working_trials_stays_byte_identical_to_main`, and it was already there. It
+  compares against the LIVE origin/main, where `working_trials.py` moved in 4a37cbc8 (11-04 B/C/D/G). This branch does
+  not touch the file: its blob equals the one at 571b3955.
