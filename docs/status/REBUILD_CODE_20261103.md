@@ -1675,3 +1675,79 @@ from their definitions:
 
 **Test record.** Full suite at 7b5d3334, 6 shards, from the repo root with PYTHONPATH = the worktree: 4,723 passed,
 179 skipped, 0 failed.
+
+### 8.41 Stop rule: jaw_only counts toward the 6 (Priya 11-04; c3cb3c0c)
+
+**Rule (production, in_working).**
+- A stop run = >= 6 consecutive camera trials, each no_response OR jaw_only, starting >= 300 s after the first cue.
+- Every trial of the run is stopped, jaw_only included.
+- Unknown trials are skipped; a contact / incomplete trial ends a run.
+- An earlier qualifying run is early_run (all of its trials).
+- in_working_jaw keeps the 11-03 rule (>= 6 no_response; a jaw_only trial at or before the end ends the run, after it it
+  bridges without counting).
+
+**Code.**
+- `classify_session(jaw_counts=None)` replaces `jaw_bridges_all`; None = `trial_classes.jaw_counts_in_stop()` (True
+  unless jaw_only is in the working selection).
+- The tag part is `stopRun6j` under production (`stopRun6` under in_working_jaw), so no cache, store or attempts table of
+  the old rule is reused. The `cue_classes_for` key carries the flag. The profile's expected tags were updated.
+- trial_attempts: stopped trials (jaw_only included) leave the attempt-rate denominator; cls_raw keeps the trial class.
+- DECISIONS: both stop-rule bullets rewritten.
+
+**Tests.**
+- J,NR,J,NR,NR,NR at >= 300 s gives 6 stopped; a lone J stays jaw_only; the 299.9 / 300.0 s edge with a jaw-first run.
+- An unknown inside a jaw-bearing run is skipped.
+- The in_working_jaw rule is unchanged.
+- The tag strings.
+- The attempts denominator / cls_raw.
+
+**Old vs new on the 120 curated sessions** (under the profile; script and table in the session scratchpad,
+`jaw_count_compare2.py`):
+- Stop runs 177 -> 283; stopped trials 3,267 -> 5,944, of which 2,353 are jaw_only (+324 no_response trials from runs
+  that reach 6 only with jaw counting).
+- early_run: 0 under both rules. Working counts are unchanged in every session.
+- Acute stopped: PS92 417 -> 708, PS93 396 -> 661, PS94 543 -> 1,012, PS95 6 -> 60.
+- August pre stopped: 10 -> 17, 30 -> 53, 188 -> 310, 214 -> 425.
+
+**Test record.** Related files 144 passed. Full suite at c3cb3c0c (6 shards): see 8.43.
+
+### 8.42 Split area basis in the encoder; rebuild-aware O2 bundles (fb3b6304, a6a29dd7, a7aec872)
+
+**Imaging input cache (fb3b6304).** The imaging entry is keyed on `_load_imaging` + `hemo_dir` source and beta_maps
+(plus the sources' mtimes). Before, it hashed all of combined_encoding.py and every COMBINED_ENCODING_* / OROFACIAL_*
+switch, so any edit discarded ~1 GB per session of share reads. That let the O2 bundle's imaging be pre-warmed while the
+code changed: 107 sessions in 23.4 min (4 jobs).
+
+**Split basis (a6a29dd7; Priya 11-04: every Allen-ROI analysis uses the iti_licks split basis).**
+- `iti_licks.roi_masks` moved verbatim to `wfield_local/area_basis.py` (bit-identical on PS92_0806 / 0807).
+- iti_licks delegates to it; the (fraction, rim) per ROI version is `area_basis.ROI_SPEC`; iti_licks keeps the file
+  names.
+- `session_area_masks` returns compact pixel indices for:
+  - split (primary): every area except cortex and whole MOs / MOp, + ALM, tjM1, MOs_rest, MOp_rest;
+  - plain (robustness): ALM / tjM1 out, whole MOs / MOp in;
+  - the v8 cortex.
+- combined_encoding: one region row per area of either basis, with a `basis` column. The same areas go into Ra (peth /
+  sse / sse_trial), + `cortex_stat` (the old stat-mask cortex) + `cortex` (v8). `res["area_basis"]` names the basis
+  (splitr8).
+- The masks are built at BUNDLE time (the v8 rim reads `beta_maps.brain_mask()` from the share) and stored in each
+  inputs pickle. run_session on bundled inputs refuses inputs without them.
+- No folder suffix: about ten page scripts hard-code the encoder folder names. The stopRun6j tag separates the outputs.
+- Mask sizes on PS92_0806 (pixels): cortex 166,974 -> 172,322; SSp-m_left 2,486 -> 3,271; MOs_left 15,613 -> 16,381;
+  MOp_right 8,190 -> 8,688; SSp-bfd and VISp unchanged.
+
+**O2 bundles (a7aec872; coordinator 11-04).** `scripts/o2_encoding.py --profile <profile>` applies the profile before
+any import.
+- Location: the bundle goes to `<rebuild root>/o2/<name>`, a registered data area of the root.
+- env.json = `wfield_local.o2_bundle.settings()`: the full profile env + COMBINED_ENCODING_* / OROFACIAL_*. Local store
+  paths and per-submit options are excluded; files go to tables/; a directory value is refused.
+- bundle.json = run identity (run tag, selection, area basis), full commit, attempts table (copied to tables/ for
+  provenance; the gate is inside each Behaviour).
+- Runner: clears the O2 shell's settings, applies env.json before importing wfield_local, and refuses unless the bundled
+  code recomputes the identity.
+- code/ = `git archive` of the recorded commit, refused when wfield_local / configs are dirty.
+- check: audits the bundled run for share reads (sys audit hook), needs max |dr2| < 1e-4 and equal row counts.
+- collect: refuses a bundle of another run, and writes to the routed `combined_encoding.out_dir`.
+- COMMANDS.md: the 14 runs of `FULL_RUNS` (fr_A_tr dropped: fr_A carries the FR trial-to-trial outputs in this code).
+
+**Tests.** test_area_basis (sets, disjoint rests, compact masks, refusal, delegation); test_o2_encoding_env (env round
+trip under the profile, tag refusal, runner order, 14 runs, root location); test_input_cache (imaging key).
