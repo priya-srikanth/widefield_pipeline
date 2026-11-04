@@ -32,6 +32,13 @@ Kinematics / behaviour / FaceRhythm pages: no "working = jaw or lick" wording fo
 - RUNNING 11-04 (LP licks, ENL 2 s): Allen `--jobs 6 --suffix _1104` -> `LP_licks_ENL2s/qc/s1_refit_basis_1104.csv`,
   LocaNMF `--jobs 4 --suffix _1104` -> `LP_licks_ENL2s/qc/s1_refit_locanmf_1104.csv`; logs in e0 scratchpad
   `s1_allen_1104.log`, `s1_locanmf_1104.log`. Then run the table script; do NOT apply to the page until Priya decides.
+- **DONE 11-04** (both runs exit 0; only PS93_0813 fails, no video, as before). Jaw-free gate drops exactly the
+  in-working jaw-only trials (2908; pre 404 / acute 1277 / subacute 808 / chronic 419; no contact or incomplete lost).
+  Table rebuilt (`docs/results_pages/imaging/s1_update_20261103{.html,_numbers.md}`, NOT applied to the page).
+  Allen split, jaw-free: post-cue .47-.90, pre-cue .25-.55 (was .43-.89 / .26-.56 with jaw-only in); acute post-cue
+  drop still 4 / 4; pre-cue acute up PS95, down PS93 / PS94, flat PS92 (unchanged). LocaNMF jaw-free minus incl-jaw:
+  post-cue acute +.03 / +.04 / +.10 / +.08 (PS92-95), other epochs <= +.04 except PS95 subacute +.10; pre-cue within
+  +-.02. Robustness spread across arms now up to .09 (the incl-jaw row), sentence prints it.
 
 ## UPDATE 11-03 night (3) — PUBLISHING FOR OTHER WINDOWS (Priya: this window may publish any page)
 
