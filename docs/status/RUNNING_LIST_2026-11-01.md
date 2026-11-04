@@ -1273,3 +1273,8 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
 - **OPEN (conflicting relay, asked Priya):** a8 relayed "encoder enl not lick-gated", "quiet events fully clean trials",
   "within_spout lick gate". Priya's direct messages said lick-free / sliding. Proceeding on the direct messages, with
   both built as options.
+- **11-04 ~17:40: CONFIRMED (Priya, direct; this supersedes a8's relay).**
+  - Encoder enl = lick-free.
+  - quiet_task_events = sliding lick-free 1 s.
+  - within_spout_deviation = sliding lick-free 1 s.
+  - s1 refit = LP 1.0 s, with 2.0 s as a sensitivity row.
