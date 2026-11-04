@@ -18,9 +18,14 @@ log for the earlier part of the day is `RUNNING_LIST_2026-11-02_OVERNIGHT.md`.
    animals) and a pre-stroke mix-shift (PS93 carries it). Write-up docs/status/CENTRE_MIXSHIFT_2026-11-04.md. Frozen
    models are unchanged (scored frame only). 34 was told to hold the frozen-frame centre for the render. Also
    (Priya): engaged / disengaged LABELS come from camera classes (LP licks); the z centre stays on contact rows.
-8. **NEW (11-04): convert the coding-direction G9 classes (poststroke_lick / miss_working / stopped) to camera
-   classes?** It touches grant_confusion, miss_vs_stopped, position_axes, the deck and best_match. [Yes, under "camera
-   class everywhere"; 34 told to assume yes.]
+8. **DECIDED (Priya 11-04): convert the coding-direction G9 classes to camera classes, if it can be done without unfair
+   bias.** Guards sent to 34:
+   - per-spout or position-balanced comparisons, so a class contrast is never a spout-difficulty contrast;
+   - a minimum-n floor per animal x epoch x class x spout;
+   - each post class against the same pre class;
+   - no incomplete rows in a centre;
+   - the DAQ classes kept as a robustness row, with old -> new reported first;
+   - any figure that can't meet these stays on the DAQ classes, flagged.
 7. **NEW (11-04): camera-class inventory, 12 questions** (34: wf_attempt
    docs/status/rebuild_20261103/CAMERA_CLASS_INVENTORY_20261104.md section 5, 913b9d1a). To switch:
    - G discriminators + precue_engagement_states;
