@@ -55,6 +55,9 @@ def test_pattern_families_caption_their_lick_pre_reference():
 
 
 def test_no_video_session_is_logged_and_a_post_session_without_rows_raises(camera, capsys):
+    # these synthetic pools have < 20 working rows per spout, which the 11-04 Wt centre refuses by design; this test
+    # is about which sessions are excluded / refused, so it runs on the label-free working centre (W)
+    camera.setenv(ss.SCORE_CENTRE_ENV, "working")
     from wfield_local import locanmf_frozen_decoder as lfd
     ss.WORKING_EXCLUDED.discard("PS93_0813")
     ss.note_working_excluded("PS93_0813", "test")
@@ -87,6 +90,9 @@ def test_no_video_session_is_logged_and_a_post_session_without_rows_raises(camer
 def test_pooled_frozen_loso_survives_a_pre_session_without_working_rows(camera, monkeypatch, tmp_path, capsys):
     """Review 8A B1: the pooled_frozen_loso sequence (section D / joint_xsession / nightly ROI decoder) with a no-video
     PRE session (PS93_0813: 0 working rows) must not raise; it logs EXCLUDED and leaves that session out of the band."""
+    # these synthetic pools have < 20 working rows per spout, which the 11-04 Wt centre refuses by design; this test
+    # is about which sessions are excluded / refused, so it runs on the label-free working centre (W)
+    camera.setenv(ss.SCORE_CENTRE_ENV, "working")
     from wfield_local import locanmf_frozen_decoder as lfd
     monkeypatch.setenv("WIDEFIELD_FROZEN_MODEL_DIR", str(tmp_path / "fm"))
     kept = ["PS93_0806", "PS93_0807", "PS93_0813", "PS93_0820"]
@@ -122,16 +128,29 @@ def test_store_log_line_names_the_lick_source_and_selection():
     assert "lick source" in src and "selection {_sel}" in src and "trained on {spec.get('lick_source'" not in src
 
 
-def test_working_trials_stays_byte_identical_to_main():
+def test_working_trials_keeps_every_name_of_main():
+    """Was a byte-identity pin. Since the 11-04 B/C/D/G port (8.44) the rebuild's `working_trials` reads the camera
+    classes LIVE for section G (`row_groups` via `trial_classes.cue_groups_for`; `projection_work` returns the classes
+    too), so it cannot stay byte-identical; it must still define every top-level name main's version defines."""
+    import ast
     import subprocess
     try:
-        blob = subprocess.run(["git", "rev-parse", "origin/main:wfield_local/working_trials.py"], capture_output=True,
-                              text=True, check=True, cwd=REPO).stdout.strip()
-        mine = subprocess.run(["git", "hash-object", "wfield_local/working_trials.py"], capture_output=True, text=True,
-                              check=True, cwd=REPO).stdout.strip()
+        src = subprocess.run(["git", "show", "origin/main:wfield_local/working_trials.py"], capture_output=True,
+                             text=True, check=True, cwd=REPO).stdout
     except Exception as ex:                                              # noqa: BLE001 - no git / no origin here
         pytest.skip(f"git unavailable: {ex}")
-    assert blob == mine
+
+    def names(text):
+        out = set()
+        for n in ast.parse(text).body:
+            if isinstance(n, (ast.FunctionDef, ast.ClassDef)):
+                out.add(n.name)
+            elif isinstance(n, ast.Assign):
+                out |= {t.id for t in n.targets if isinstance(t, ast.Name)}
+        return out
+
+    mine = (REPO / "wfield_local" / "working_trials.py").read_text(encoding="utf-8")
+    assert names(src) <= names(mine), sorted(names(src) - names(mine))
 
 
 # ------------------------------------------------------------------------------------------------------ 7B

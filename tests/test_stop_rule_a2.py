@@ -291,3 +291,30 @@ def test_stop_kind_for_matches_cue_classes_for(monkeypatch):
     assert TC.stop_kind_for("PS92_0901", t)[11] == "tail"           # works without a prior cue_classes_for call
     TC._CUE_CLS.clear()
     TC._CUE_KIND.clear()
+
+
+def test_section_g_groups_split_run_tail_and_stopped_licking(monkeypatch):
+    """Merge of rebuild/bcdg-port onto cue70 (8.50): `working_trials.row_groups` on a synthetic session, through the live
+    classes. stopped_licking is its OWN group (run or tail); a stopped trial of the quit TAIL is "after_end" ("quit");
+    a stopped trial of a mid-session RUN is "stopped"; working trials keep their class."""
+    import pandas as pd
+
+    from wfield_local import working_trials as wt
+    cls, pos, M, t = _kind_session()
+    T = pd.DataFrame({"trial_id": np.arange(12), "cue_daq": t, "cls": cls, "position": pos, "strobe_ms": -2000.0,
+                      "stop_ms": 3000.0})
+    monkeypatch.setattr(TC, "session_trials", lambda lab, window=None: T.copy())
+    monkeypatch.setattr(TC, "cue_span_licks", lambda lab, T_, cs: M)
+    monkeypatch.setattr(TC, "daq_cue_seconds", lambda lab: t)
+    for k in (TC.STOPPED_ENV, TC.STOP_LICKS_ENV, TC.STOP_TAIL_ENV, "WIDEFIELD_TRIAL_END"):
+        monkeypatch.delenv(k, raising=False)
+    for memo in (TC._CUE_CLS, TC._CUE_KIND, TC._CUE_GRP):
+        memo.clear()
+    ge, gu, je, ju, have = wt.row_groups(["PS92_0901"], {"PS92_0901": (np.arange(12), np.zeros(0, int))},
+                                         np.zeros(12, int), np.zeros(0, int))
+    assert have == {0} and len(gu) == 0
+    assert ge.tolist() == ["contact", "stopped", "stopped", "stopped_licking", "stopped", "stopped", "stopped",
+                           "stopped", "contact", "after_end", "after_end", "stopped_licking"]
+    assert set(ge) <= set(wt.G_ALL) and wt.G_LABELS["after_end"] == "quit"
+    for memo in (TC._CUE_CLS, TC._CUE_KIND, TC._CUE_GRP):
+        memo.clear()

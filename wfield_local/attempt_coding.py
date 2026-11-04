@@ -257,7 +257,16 @@ def run_animal(animal, align="precue", verbose=True):
     from wfield_local import trial_classes as _tc
     cam_u = _tc.pool_row_classes(feat, kept, len(YE), len(YU))[1] if _tc.camera_gate_on() else None
     ce, cu = classify(cls_e, cls_u, pre_i[GE], pre_i[GU], not_eng, camera_u=cam_u)
-    X = np.vstack([XE, XU])
+    # THE PROJECTION FRAME for the attempt axes (main 26fd5b44 item C; identity when off, the default). The pool's
+    # working-row masks and engaged-row classes ARE passed (follow-on d, 11-04): main passes none, so its
+    # WIDEFIELD_PROJECTION_CENTRE=working raises here; in the rebuild every centre option works.
+    from wfield_local import spout_scaling as _ss
+    from wfield_local import working_trials as _wt
+    from wfield_local.locanmf_frozen_decoder import _pipe as _fpipe
+    _XEp, _XUp = _ss.projection_arrays(XE, YE, GE, XU, GU, [i for i in range(len(kept)) if pre_i[i]], _fpipe,
+                                       work=_wt.projection_work(kept, feat, GE, GU, align), YU=YU,
+                                       cls_e=_wt.projection_cls_e(kept, feat, GE, GU, align), labels=kept)
+    X = np.vstack([_XEp, _XUp])
     G = np.concatenate([GE, GU]).astype(int)
     C = np.concatenate([ce, cu]).astype(str)
     T = np.concatenate([tid_e, tid_u]).astype(int)

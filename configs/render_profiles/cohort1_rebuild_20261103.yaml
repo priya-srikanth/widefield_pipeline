@@ -27,6 +27,13 @@ env:
   # the full pre set regardless: epoch_audit.full_cohort suspends it). Exceptions in block_env: june_august_drift and
   # 12.1b (rest_frozen_decoder_nl) keep their own June + August pre set.
   WIDEFIELD_PRE_FROM: "0801"
+  # Priya 11-04 (FINAL): the frozen spout decoder's scored frame AND the CD / pattern projection frame are centred by Wt,
+  # the true-label balanced centre of the session's camera WORKING rows (contact + incomplete; no EM, no pre-stroke
+  # fill; >= 20 working rows per spout or it refuses). Robustness arms: n / cto. The engagement axis (G4) stays z on
+  # contact rows (WIDEFIELD_G4_CENTRE default). Caveat: ~-.024 drift under a high incomplete share
+  # (CENTRE_MIXSHIFT_2026-11-04); the rest-centred frame was tested and rejected (REST_CENTRE_2026-11-04).
+  WIDEFIELD_SPOUT_SCORE_CENTRE: wt
+  WIDEFIELD_PROJECTION_CENTRE: wt
 
 # THE REBUILD ROOT (coordinator 11-03, fourth review): EVERY derived output of this render -- cohort_out / grant_figures,
 # figures_working, analysis_figures, LP_analysis/<run>/imaging_encoding (encoder, ITI, attempt, qc), the frozen store
@@ -94,6 +101,24 @@ arms:
       WIDEFIELD_STOP_TAIL: lick_event
     blocks: ["stop-rule robustness: camera working / stopped classes"]
     expected_run_tag: hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jextert3500c70
+  # Priya 11-04 (final): the scored-frame / projection centre is Wt; N (pooled pre, no session centre) and Cto
+  # (contact rows + pre-stroke offset fill) are the ROBUSTNESS arms, each with its own run-tag part (run_mode
+  # `scoring_part`), so they never write into the primary folders. Blocks: everything that scores the frozen spout
+  # decoder or projects (sections D / G, 5b / 5c, attempt coding, coding directions / axes, pattern families).
+  centreN:
+    env:
+      WIDEFIELD_SPOUT_SCORE_CENTRE: n
+      WIDEFIELD_PROJECTION_CENTRE: n
+    blocks: ["section D / G frozen decoder", "5b / 5c epoch decoders", "attempt coding", "coding directions / axes",
+             "pattern / template families"]
+    expected_run_tag: hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_sc-ctrN+pctrN
+  centreCto:
+    env:
+      WIDEFIELD_SPOUT_SCORE_CENTRE: cto
+      WIDEFIELD_PROJECTION_CENTRE: cto
+    blocks: ["section D / G frozen decoder", "5b / 5c epoch decoders", "attempt coding", "coding directions / axes",
+             "pattern / template families"]
+    expected_run_tag: hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_sc-ctrCto+pctrCto
 
 # the primary encoder / ITI slow-drift cutoff (Priya 11-03): combined_encoding.DRIFT_MIN_PERIOD_S = 600 s (env unset)
 notes:

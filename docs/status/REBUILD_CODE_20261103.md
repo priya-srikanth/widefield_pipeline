@@ -2574,8 +2574,8 @@ from 08-06. PS93_0813 is excluded in both, as it has no behaviour bundle (no vid
 
 CODE + TESTS ONLY: no renders, nothing written to M:. Merged with `git merge --no-ff`, in this order, onto 571b3955:
 rebuild/encoder-classes (825020c2, merge 3c4eb932, no conflicts), rebuild/cue70 (88b1cb8e, merge 28939c46), rebuild/enl-window
-(f056c223, this merge). rebuild/bcdg-port is NOT merged (follow-ups pending); its log section (written as 8.44) takes the
-next free number, 8.48, when it lands.
+(f056c223, this merge). rebuild/bcdg-port is NOT merged (follow-ups pending); its log sections (written as 8.44 / 8.45) became
+8.48 / 8.49 when it was merged after this one (8.50).
 
 **Log numbering.** encoder-classes = 8.43, cue70 = 8.44 (was 8.45), enl-window = 8.45 / 8.46 (were 8.43 / 8.44). Cross-references
 inside the enl sections were renumbered with them; 8.41's "see 8.43" now says no full suite ran at c3cb3c0c.
@@ -2612,3 +2612,330 @@ The run tag under cohort1_rebuild_20261103 is ...stopA2jexrt3500c70 (= the profi
 **Test record (2387cf20).** Full suite, 4 shards run one at a time (>= 45 GB free before each): 4,868 passed,
 173 skipped, 1 failed (shards: 1,902 + 140 skipped; 949 + 27; 883 + 5; 1,134 + 1, 1 failed). The failure is the known
 `test_review_7ab::test_working_trials_stays_byte_identical_to_main` (bcdg-port replaces it).
+
+### 8.48 Port of main 4a37cbc8 (B / C / D / G, Priya 11-04) + follow-ons (branch rebuild/bcdg-port, from 571b3955)
+
+Written as 8.44 / 8.45 on the branch; renumbered 8.48 / 8.49 at the merge into rebuild/cohort1-20261103 (8.50).
+
+Code and tests only: no render, nothing written to M:. Worktree `wf_rebuild_bcdg`.
+
+**Why a hand port.** `git cherry-pick -n 4a37cbc8` conflicts in 8 of 11 files. The main cause: the rebuild never
+took main 26fd5b44's items B / C (spout-frame state discriminators, the projection frame). Those were default OFF;
+the rebuild ported only the working-row training from that commit (8.33). a8's B / C edits sit on that missing
+infrastructure, so it is ported here first, still default OFF.
+
+**Defaults that land.**
+- Section D is scored on working rows (`WIDEFIELD_SECTION_D_SCORED=working`).
+- Section G is grouped by camera class (`WIDEFIELD_SECTION_G_GROUPS=camera`).
+- The state discriminators stay z: `STATE_DISC_DEFAULT = session_z`, so B is OFF.
+- The projection frame stays off: `WIDEFIELD_PROJECTION_FRAME=session_z`, so C is OFF. Its working / contact centre
+  is an option only.
+- G4's primary is the camera-class discriminator (`WIDEFIELD_G4_DISC=camera`).
+- The G9 camera-class block is computed alongside the DAQ classes (`WIDEFIELD_G9_CLASSES=camera`); every figure
+  still reads the DAQ classes.
+
+**Port map (main -> rebuild).**
+
+| main (4a37cbc8 / 26fd5b44) | rebuild location | note |
+|---|---|---|
+| `working_trials.G_GROUPS / G_WORKING / g_group / g_jaw_judged / _group_table` | same | verbatim; `G_LABELS` added (after_end reads "quit") |
+| `working_trials.row_groups` (s1 snapshot) | same name, LIVE classes | via the new `trial_classes.cue_groups_for` (raw class, after-end flag, matched), the same end and coverage rule as `classify_session`. Stopped and early_run map through their RAW class: early_run -> none; stopped -> none / jaw_only, or after_end when past the last camera lick. after_end -> after_end. So the five groups are main's. Positions come from YE / YU for `jaw_judged`. A session with no matched cue is not in `have`. |
+| `working_trials.projection_work` | same | live classes; returns `(we, wu, cls_e, cls_u)`; + `projection_cls_e` (the engaged centre needs classes under the camera gate) |
+| `locanmf_frozen_decoder.section_d_scored / SECTION_D_SCORED_ENV / _scored_rows` + scoring block | same | Reconciled with 8.33, which already TRAINED and centred on working rows but scored engaged rows (`scored_rows: "engaged"`). The field now reports the scored set. New fields: `scored_set`, `n_scored`, `n_scored_from_nolick`, `per_session_engaged_scored`, `scored_centre` (+ `confusion_by_class`, panel commit). |
+| `spout_scaling.state_disc_centre / STATE_DISC_CENTRE_ENV` | same | |
+| `spout_scaling.projection_centre / PROJECTION_CENTRE_ENV / projection_arrays(work=, YU=)` | same + `cls_e=`, `labels=` | engaged / working / **contact** (coordinator 11-04); `projection_tag` |
+| 26fd5b44: `SCALING_SPOUT_FRAME`, `STATE_DISC_DEFAULT`, `state_disc_scaling` spout option, `FrozenFrame.train_apply`, `PROJECTION_FRAME_ENV`, `projection_frame_on` | `spout_scaling` | the state_bal_em helpers now act only on state_bal_em |
+| `grant_kit._proj_arrays` (+ `_session_trials` through it) | `grant_kit` | `_frozen_frame(..., centre=)`: working or contact centre; the memo key carries it |
+| `grant_similarity` (2 sites) | same | 26fd5b44 |
+| `poststroke_compare.section_g_groups, _camera_groups, _conf_panel, _loso_rows, _by_class_panels, _state_frame_tag` | same | `_camera_groups` gates on the camera gate + `working_selection()` (the rebuild's tests); `_by_class_panels` adds `group_labels` |
+| `poststroke_compare` crossed_confusion / decode_matched / `_proj_X` / looks_like_which / fits_engaged | same | + 26fd5b44 `_spout_train_d`, `_lick_train` / `_lick_scored` spout branch, `pattern_similarity` in `_proj_X` (memo keyed by `projection_tag`) |
+| `poststroke_section_g._counts` by_class | same | design sidecar `section_g_design.json` now says camera grouping, `scored_centre`, `state_disc_frame` |
+| `precue_engagement_states._working_frame` + spout-frame block in `run_animal` | `_working_frame` + `_spout_frame_block` | Kept to a few lines in `run_animal`: the bookkeeping moved into `_spout_frame_block`, and the `post_s` default line (204) is untouched for rebuild/enl-window. The stored discriminator's spec scaling = `spout_frame/<working or engaged>` when ON; unchanged (None) when OFF. |
+| `position_coding_directions.run_animal`, `position_axes.run_animal` | same | projection with masks + classes; the confusion block and its STORED decoder keep the production rows (`XE0`) |
+| `attempt_coding` (26fd5b44 projection) | same | **follow-on (d)**: masks and classes passed, so every centre works |
+
+**Conflicts and how they were resolved.**
+- DECISIONS.md: not cherry-picked. The rebuild's own 11-04 entry stands; this log is the record.
+- `grant_kit`: main replaced `_frozen_frame`. The rebuild's version (store, centre rule, working centre) is kept, and
+  `_proj_arrays` is added before it.
+- `locanmf_frozen_decoder`: the rebuild's working training, `frozen_scored_frame(work=)` and PS93_0813 rules are kept;
+  main's scoring block is grafted on.
+- `poststroke_compare` / `precue_engagement_states`: the rebuild's stored references (`_g_store`, `_stored`) are kept;
+  main's branches are added around them.
+- `position_*`, `spout_scaling`: the 26fd5b44 code was missing, so it was added.
+
+**Coordinator 11-04 additions.**
+- **Scored-frame centre kind: `WIDEFIELD_SPOUT_SCORE_CENTRE`** (Priya 11-04, **FINAL: Wt**; also set in the rebuild profile).
+  - Kinds: `wt` (DEFAULT) | `working` (W, the label-free bal_em that was the rebuild rule until today) | `contact` (C)
+    | `cto` | `n`.
+  - Definitions: main `docs/status/CENTRE_MIXSHIFT_2026-11-04.md` and its `centre_mixshift_1104/cmcommon.Engine`.
+    Implemented in `spout_scaling.scored_centre` / `true_label_centre` / `centre_refs` / `kind_centre_fn`.
+    - **Wt** = the equal-weight mean of the per-spout means of the session's WORKING rows (spout = DAQ strobe label),
+      SD over those rows; no EM, no pre fill.
+    - **Cto** = the mean of the contact rows − sd · (true spout share of the contact rows) · δC. δC = the pooled pre
+      contact-row offsets from each training session's balanced working centre, in working-SD units, averaged over the
+      scoring model's training sessions (nan → 0).
+    - **N** = one fixed raw-unit frame from the scoring model's PRE training sessions (mean of m_s + s_s·c_s, mean of
+      s_s·sdw_s), expressed in each session's z. It needs `pool_sessions`' per-session z stats, now registered per XE
+      object (`register_pool_stats` / `pool_stats_of`; the return value is unchanged).
+  - **Min-rows guard (Priya 11-04).** Wt needs >= 20 (MIN_CENTRE_ROWS) working rows at EVERY spout and REFUSES
+    (BalEmCentreRefused) otherwise. The check's "drop spouts < 5 and renormalise" is deliberately NOT ported: no fill,
+    no fallback. A session with no working rows (PS93_0813) is unscored as before; a post session with none raises.
+    Dry count of the minimum below.
+  - Applies to: `frozen_scored_frame` (sections D, G, attempt, joint) and `grant_kit._frozen_frame` (5b / 5c and the
+    working projection).
+    - On the lick-only working arm (a `pos`-spout model): wt is the balanced centre over the `pos` spouts; cto and n
+      refuse there.
+    - The lick window / engaged models are unchanged.
+  - The models are unchanged (training frame unchanged); only the scored frame moves.
+  - The kind is carried in `frozen_X`'s memo key (`X<tag>`), the `_frozen_frame` memo key (`_c<kind>`),
+    `pooled_frozen_loso` `scored_centre` (e.g. `wt_centre`), the section G sidecar and `_state_frame_tag`.
+  - **Known caveat (CENTRE_MIXSHIFT 3d):** Wt drifts like W under a high incomplete share, about −.024 overall
+    [−.042, −.011] (cue, acute mix). That is mechanism (ii), the incomplete trials' own pattern, not the EM.
+- **Projection centre `WIDEFIELD_PROJECTION_CENTRE`** = `wt` (default, following the decision) | engaged | working |
+  contact | cto | n. It is used only while `WIDEFIELD_PROJECTION_FRAME=spout_frame`; the frame stays OFF by default.
+  The G4 engagement discriminator stays z on contact rows (`WIDEFIELD_G4_CENTRE=contact`).
+- **(a) G4 camera-class discriminator** (`poststroke_compare.g4_camclass`; section G record `g4_camclass_{precue,cue}`,
+  `g4_primary`). Ported from g4common.cam_balanced_sample.
+  - Training: pre WORKING (contact + incomplete) vs NONE, position-balanced. jaw_only and after_end are scored as their
+    own groups, never trained on.
+  - Frame: z on CONTACT rows by default (`WIDEFIELD_G4_CENTRE` = contact | working | engaged; engaged = the production
+    z, identity).
+  - Scores are spout-balanced per group. Cells with n < 10 are kept, flagged `thin`, and left out of the means.
+  - Each post group is read against the same pre group, else against pre working (labelled).
+  - Stored as kind `g_cam_disc`. The spec extra carries keep, seed, `camclass/z-<centre>/pos-contact+incomplete/
+    neg-none` and the run's selection tag.
+  - The DAQ G4 readouts stay as robustness. `WIDEFIELD_G4_DISC=daq` drops the camera block. The G4 FIGURES still draw
+    the DAQ readouts: no figure function reads `g4_camclass_*` yet.
+- **(c)** `decode_matched` lick-only arm under the camera grouping: `_lickonly_working`.
+  - It trains on pre working rows at the kept spouts; the pre band is their working rows (LOSO); the post arm is the
+    post session's working rows.
+  - Stored as kind `g_lickonly_decoder`, align `...-ffwork-<run_selection>`: new ids.
+
+**New frozen-model identities.** Ids are content hashes of the training data, so they exist only after a render. Spec
+changes:
+- `g_lickonly_decoder` with align `<cue|precue>-keep<spouts>-ffwork-<selection tag>-f<cols>`: NEW, one per animal x
+  window x preserved-spout set.
+- `g_cam_disc`: NEW kind, one per animal x window x keep x seed x centre.
+- Unchanged ids (spec unchanged):
+  - the stored cue / precue spout decoders (`decoder`): the score centre is not in the spec;
+  - `g_lick_disc` / `g_lick_disc_folds` / `engagement_states` while B is OFF;
+  - `attempt_axes` / `coding_decoder` while C is OFF. With C on, the projected rows change the training-data
+    fingerprint, so ids change automatically.
+- FREEZE_VERSION stays 2; the class set rides in the spec extra.
+
+**Not ported / left as is.**
+- joint_xsession's section D decoder still scores engaged rows. a8 changed `pooled_frozen_loso` only.
+- main's s1-snapshot `row_groups` behaviour is replaced by live classes. `_group_table` is kept for parity.
+- B's / C's re-check numbers (bcdg_1104) are main-data numbers, not re-run here.
+
+**Tests.**
+- `tests/test_bcdg_1104.py` (a8's file, adapted):
+  - g_group pins and the live `row_groups`;
+  - stopped / early_run through `cue_groups_for`, including the uncovered-tail rule;
+  - the contact score / projection centre;
+  - D with a no-video PRE session: a post session without working rows raises in the rebuild.
+- `tests/test_g4_camclass.py`: cam sample = g4common; contact z frame; groups, thin flags and pre-reference fallback;
+  spec extra; lick-only working arm.
+
+**(b) G9 by camera class (fecc69c9, its own commit; drop it to revert).** Priya approved this with guards.
+- `position_coding_directions.g9_classes` / `WIDEFIELD_G9_CLASSES` (camera | daq).
+- Under camera, each method record gains `camera_classes`:
+  - classes: pre / post x the five groups, plus pre working;
+  - per-spout CD scores (pre rows on their held-out direction);
+  - n floor 10: thin cells are kept and flagged, never averaged;
+  - `pre_reference_is`: "same" when the pre class has a cell, else "working";
+  - `contrast` = post - matched pre (None for thin cells);
+  - frame `z-contact`: rows re-z-scored per session on CONTACT rows.
+- The DAQ classes are still written (`g9_daq_classes`). `g9_old_new()` and `scripts/g9_old_new.py` report old -> new
+  per animal (counts and pooled CD scores).
+- **No figure switches in this commit.** These stay on the DAQ classes until the report is read: grant_confusion 5b,
+  miss_vs_stopped, position_axes, the deck G9 slides and scripts/best_match.py. Each needs a per-spout / thin-cell
+  layout, so all are flagged.
+- Camera-class CONFUSIONS (`_class_confusions` per camera class) are not built; only the CD scores are.
+
+**Contact vs incomplete panel (d15fe9af, its own commit).**
+- `wfield_local/contact_incomplete_panel.py`:
+  - rows = cue / precue, columns = epochs; x = canonical spouts, contact | incomplete side by side;
+  - open session dots (shape = animal, colour = epoch), no lines across epochs;
+  - pre reference per class, else pre working (dotted, labelled); chance 1/6;
+  - cells with n < 10 are OMITTED and counted ("n<10:k");
+  - stars in the top band from `analysis_kit.boot_delta`; no top spine;
+  - figdata + `--plot-only`.
+- Data:
+  - section G: `by_class.post`;
+  - section D: the new `pooled_frozen_loso` `confusion_by_class` (scored working rows split into contact /
+    incomplete).
+- The centre is the producer's (printed tag).
+- Test: test_contact_incomplete_panel.
+
+**Wt per-spout dry count** (read-only, under the cohort1_rebuild profile; working cues per spout per curated session,
+August pre). The imaging pool can drop a few window-edge cues, so these are upper bounds by a few rows. The table is
+the minimum per animal x epoch; spout names are DAQ (L = ipsi, R = contra).
+
+| animal | epoch | close_L | close_center | close_R | far_L | far_center | far_R |
+|---|---|---|---|---|---|---|---|
+| PS92 | pre | 36 | 41 | 29 | 47 | 33 | 38 |
+| PS92 | acute | 52 | 55 | 53 | 49 | 47 | 46 |
+| PS92 | subacute | 48 | 41 | 45 | 41 | 48 | 37 |
+| PS92 | chronic | 42 | 41 | 44 | 45 | 40 | 42 |
+| PS93 | pre | 73 | 84 | 80 | 79 | 76 | 80 |
+| PS93 | acute | 53 | 52 | 60 | 45 | 49 | 43 |
+| PS93 | subacute | 58 | 69 | 63 | 56 | 68 | 64 |
+| PS93 | chronic | 69 | 68 | 70 | 70 | 71 | 68 |
+| PS94 | pre | 57 | 49 | 54 | 48 | 52 | 55 |
+| PS94 | acute | 43 | 51 | 48 | 39 | 34 | **21** |
+| PS94 | subacute | 74 | 74 | 76 | 74 | 62 | 75 |
+| PS94 | chronic | 86 | 81 | 84 | 82 | 85 | 84 |
+| PS95 | pre | 65 | 74 | 81 | 71 | 66 | 73 |
+| PS95 | acute | 119 | 113 | 113 | 106 | 53 | 41 |
+| PS95 | subacute | 56 | 50 | 49 | 45 | 41 | 40 |
+| PS95 | chronic | 57 | 72 | 63 | 59 | 56 | 62 |
+
+- No session has a spout below 20. The tightest cell is PS94 acute far contra at 21, so a dropped edge cue or two could
+  trip the refusal there.
+- PS93_0813 has no working rows and stays unscored.
+- Script: scratchpad `dry_count_wt.py` (outside the repo).
+
+**cue70 merge (rebuild/cue70 read only, 3613cf0b / 395a9124).**
+- `stopped_licking` (a lick-touched stop trial) gets its own group (`g_group_final`).
+- Under A2, `_classify_guarded` marks the tail only internally (`tail = idx >= ts`); no run / tail marker leaves the
+  function.
+- **Needed from cue70:** a `stop_kind` per cue ("run" / "tail" / ""), exposed as
+  `trial_classes.stop_kind_for(label, cue_s)`, memoised like `cue_classes_for`. With it, g_group_final sends a tail
+  stop to "after_end" (labelled "quit") and a run stop to "stopped". Without it, stopped trials keep the raw-class
+  route, and under A2 every post-last-lick trial would become none / jaw_only.
+- `G_ALL = G_GROUPS + ("stopped", "stopped_licking")` is iterated by every by-class consumer.
+
+**Commits (branch rebuild/bcdg-port, from 571b3955):**
+- 724862f9: the port + (a) / (c) / (d).
+- fecc69c9: (b) G9, separable.
+- d15fe9af: the contact / incomplete panel, separable.
+- 361c83bd: the centre kinds (Wt default) + the cue70 hooks.
+- This log.
+
+**Wt final (Priya 11-04).**
+- `WIDEFIELD_SPOUT_SCORE_CENTRE=wt` and `WIDEFIELD_PROJECTION_CENTRE=wt` are now in
+  `configs/render_profiles/cohort1_rebuild_20261103.yaml` (the code defaults were already wt). The run tag is
+  unchanged.
+- Robustness kinds: `n`, `cto`. The engagement axis / G4 stays z on contact rows.
+- Method note:
+  - ~-.024 drift under a high incomplete share (CENTRE_MIXSHIFT_2026-11-04 3d);
+  - the rest-centred frame was tested and REJECTED (REST_CENTRE_2026-11-04: it absorbs the post-stroke rest-state
+    change; chronic far contra ~.29 vs .72).
+- **Open (for Priya / the coordinator):**
+  - The projection FRAME itself is still OFF (`WIDEFIELD_PROJECTION_FRAME=session_z`): Wt only acts on CD / pattern
+    rows once it is switched on. And `position_coding_directions` projects the engagement axis from the same rows, so
+    "eax stays z" needs a per-readout split before the frame goes on.
+  - The centre kind is in the scored-frame tags and memo keys but NOT in the run tag, so N / Cto robustness arms
+    rendered under this profile would write into the primary folders. They need a run-tag part first, so no arm was
+    added.
+
+**Test record (361c83bd, 6 shards, one at a time):** 4,777 passed, 171 skipped, 0 failed. Related files during the
+port: 379 passed. After the profile edit: profile / o2 / rebuild_root / 7ab / bcdg / switches: 108 passed.
+
+### 8.49 Follow-ups to 8.48 (coordinator 11-04): C ON, scoring run-tag parts, G4 figures, joint D, G9 estimate
+
+**1. C ON with Wt, plus a per-readout split (5c62a272).**
+- `WIDEFIELD_PROJECTION_FRAME` now defaults to `spout_frame`; `session_z` is the old frame and carries the tag part
+  `projz`. The projection centre is `wt`.
+- **Readers, and the frame each gets:**
+
+  | reader | frame |
+  |---|---|
+  | `position_coding_directions` directions / poles / pairwise / cross matrices / camera_classes | Wt |
+  | its engagement axis (used to orthogonalise `_orth` directions and in the cos diagnostics) | z on CONTACT rows |
+  | its frozen-decoder confusions (`coding_decoder`) | production rows |
+  | `position_axes` pairwise axes | Wt |
+  | `position_axes` `e_ax` | z on contact rows |
+  | `attempt_coding` attempt axes | Wt |
+  | `grant_kit._session_trials` (pattern / template families, `grant_similarity` x 2) | Wt |
+  | `poststroke_compare.pattern_similarity` (`_proj_X`) | Wt |
+
+  - The contact-row z frame comes from `spout_scaling.contact_z` / `working_trials.eax_rows`.
+  - The production rows are the bundle's own XE / XU.
+- **Lick window and DAQ gate:** these pools have no working masks, so they keep the engaged-row frame.
+  `projection_work` REFUSES a camera cue / precue pool that lacks cue indices.
+- **Frozen ids that change under C ON:** `coding_directions` (projected rows + the eax rows in the fingerprint) and
+  `attempt_axes` (projected X).
+  - `coding_decoder`, the spout decoders and the epoch decoders are unchanged.
+  - Exact ids exist only after a render (content hashes).
+- **Not done:** the stored `position_axes` references (none are frozen) and the grant pattern `_pre_reference` (not
+  frozen) need no ids.
+
+**2. Run-tag parts (bf5a6d69).**
+- `run_mode.scoring_part` builds one output-tag part `sc-<a>+<b>`. It is empty for the default run, so the primary tag
+  is unchanged. It covers:
+  - `ctrN` / `ctrCto` / `ctrW` / `ctrC`: scored-frame centre;
+  - `projz`, `pctr<K>`: projection frame / centre;
+  - `dEng`: section D scored on engaged rows;
+  - `gDaq`: section G grouped by DAQ;
+  - `g4Daq`, `g4cWorking` / `g4cEngaged`: G4 disc / centre;
+  - `g9Daq`: G9 classes;
+  - `sdSpout` / `sdcEng` / `sdStatebal`: state-disc frame.
+- It is not in the cache keys, because none of these change a per-session cached function.
+- Profile arms:
+  - `centreN` -> `..._stopRun6j_sc-ctrN+pctrN`;
+  - `centreCto` -> `..._stopRun6j_sc-ctrCto+pctrCto`.
+
+**3. G4 figures (8089793a).**
+- `wfield_local/g4_figures.py`:
+  - camera-class discriminator PRIMARY;
+  - DAQ `fits_engaged` panel labelled ROBUSTNESS;
+  - figdata + `--plot-only`; stars in the top band; no top spine.
+- `section_g_figures` renders it before the DAQ G4 set, and the deck places it before G4 identity.
+- **Bug fixed** in the 8.48 contact / incomplete panel: `T.align` is `DataFrame.align` (a method), so every filter came
+  back empty. The test now asserts that the dots are drawn.
+
+**4. joint_xsession section D.** No change needed. It calls `pooled_frozen_loso` with the decoder's
+cue-index features (8.33), so it has scored the working rows since 724862f9, with the same `scored_set` /
+`scored_centre` fields.
+
+**5. G9 figures (not switched).** Estimate for the per-spout / thin-cell layouts, after the render and the
+`g9_old_new.py` read:
+
+| item | estimate |
+|---|---|
+| grant_confusion 5b class panels -> class x spout grid with the n floor | ~0.5 day |
+| miss_vs_stopped -> per-spout matched contrast | ~0.5 day |
+| position_axes post-class projections | ~0.5 day |
+| deck G9 slides (text + placement) | ~0.5 day |
+| `scripts/best_match.py` | ~2 h |
+| tests | ~0.5 day |
+| **total** | **~2.5-3 days**, plus camera-class confusions per spout (`_class_confusions` per group), ~0.5 day if wanted |
+
+**Fix (1d59741c).** `grant_kit._proj_arrays` raised on a bundle with no working masks (DAQ gate). It now keeps the
+engaged-row frame, as `projection_arrays` does. Two mask-bookkeeping tests use minimal bundles, so they pin
+`WIDEFIELD_PROJECTION_FRAME=session_z`.
+
+**Test record.**
+- Full suite at 8089793a (6 shards, one at a time): 4,793 passed, 171 skipped, 5 failed. All 5 failures were the
+  `_proj_arrays` case above.
+- After 1d59741c, shards 00 and 05 (where they sat) were re-run: 1,636 + 578 passed.
+- Total: **4,798 passed, 171 skipped, 0 failed**.
+
+### 8.50 Merge of rebuild/bcdg-port into rebuild/cohort1-20261103 (11-04)
+
+CODE + TESTS ONLY. rebuild/bcdg-port (81dbf4cc) merged with `git merge --no-ff` after 8.47's three merges. Its log
+sections (8.44 / 8.45 on the branch) are 8.48 / 8.49; their internal cross-references were renumbered with them.
+
+**Conflicts.**
+- `configs/render_profiles/cohort1_rebuild_20261103.yaml`: both sides added arms. Kept cue70's (drift1500 on the new tag,
+  stopA0, stopA3, stopStrict, stopTailEvent) and bcdg's centreN / centreCto, whose expected tags were computed on the old
+  ...stopRun6j base and are now ...stopA2jexrt3500c70_sc-ctrN+pctrN / _sc-ctrCto+pctrCto. Every arm's tag, recomputed with
+  `render_profile.apply(arm=...)` + `run_mode.tag()`, equals its expected_run_tag (primary, drift1500, stopA0, stopA3,
+  stopStrict, stopTailEvent, centreN, centreCto). The primary env's SPOUT_SCORE_CENTRE / PROJECTION_CENTRE = wt (the default)
+  adds no tag part.
+- This log (sections appended on both sides).
+- Auto-merged, checked: trial_classes (bcdg's `cue_groups_for` beside cue70's `stop_kind_for`), test_review_7ab
+  (cue70's A2 profile env / tag, bcdg's names check in place of the byte-identity test), and the enl overlaps
+  (attempt_coding, position_axes, position_coding_directions, precue_engagement_states: line 204's `enl_post_s` post_s
+  default is enl's).
+
+**Section G groups wired to cue70.** `working_trials.row_groups` calls `trial_classes.stop_kind_for` directly (was a
+`getattr` hook for the then-missing function). `g_group_final`: stopped_licking -> its own group (run or tail); a
+stopped trial of the quit tail (stop_kind "tail") -> "after_end" (captioned "quit"); of a mid-session run -> "stopped";
+working trials keep their class. Test: test_stop_rule_a2::test_section_g_groups_split_run_tail_and_stopped_licking (a
+synthetic session through the live classes: run of 7 with one lick-touched trial, tail of 3 with one).
+  test_bcdg_1104's `_fake_session` also fakes `stop_kind_for` (its fake `cue_classes_for` had no `window` argument, which
+  the real `stop_kind_for` passes).

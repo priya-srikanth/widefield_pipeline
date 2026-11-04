@@ -80,6 +80,53 @@ def emcentre_part() -> str:
     return "emc-engaged" if spout_scaling.centre_rows() == "engaged" else ""
 
 
+def scoring_part() -> str:
+    """``sc-<a>+<b>...`` for every NON-DEFAULT option that changes scored outputs without changing a frozen-model id or
+    another part (coordinator 11-04), "" for the default run:
+      ctr<K>     scored-frame centre kind != wt (`spout_scaling.score_centre_rows`): ctrN, ctrCto, ctrW, ctrC
+      projz      projection frame OFF (`spout_scaling.projection_frame_on`; default ON since 11-04)
+      pctr<K>    projection centre != wt while the frame is on: pctrEngaged, pctrN, pctrCto, pctrW, pctrC
+      dEng       section D scored on engaged rows (`locanmf_frozen_decoder.section_d_scored`)
+      gDaq       section G grouped by DAQ (`poststroke_compare.section_g_groups`)
+      g4Daq      G4 primary = the DAQ discriminators (`poststroke_compare.g4_disc`)
+      g4c<K>     G4 frame centre != contact (`poststroke_compare.g4_centre`): g4cWorking, g4cEngaged
+      g9Daq      G9 camera-class block off (`position_coding_directions.g9_classes`)
+      sd<K>      state-discriminator frame != session_z (`spout_scaling.state_disc_scaling`): sdSpout, sdStatebal
+      sdcEng     its spout-frame centre on engaged rows (only with sdSpout)
+    Each reads its env only (no heavy import of the analysis modules' state)."""
+    import os as _os
+    from wfield_local import spout_scaling as ss
+    out = []
+    names = {"n": "N", "cto": "Cto", "working": "W", "contact": "C", "engaged": "Engaged"}
+    k = ss.score_centre_rows()
+    if k != "wt":
+        out.append("ctr" + names[k])
+    if not ss.projection_frame_on():
+        out.append("projz")
+    elif ss.projection_centre() != "wt":
+        out.append("pctr" + names[ss.projection_centre()])
+    env = lambda key, d: _os.environ.get(key, d).strip().lower()          # noqa: E731
+    if env("WIDEFIELD_SECTION_D_SCORED", "working") in ("engaged", "daq", "old"):
+        out.append("dEng")
+    if env("WIDEFIELD_SECTION_G_GROUPS", "camera") in ("daq", "engaged", "old"):
+        out.append("gDaq")
+    if env("WIDEFIELD_G4_DISC", "camera") in ("daq", "lick", "old"):
+        out.append("g4Daq")
+    g4c = env("WIDEFIELD_G4_CENTRE", "contact")
+    if g4c != "contact":
+        out.append("g4c" + g4c.capitalize())
+    if env("WIDEFIELD_G9_CLASSES", "camera") in ("daq", "old"):
+        out.append("g9Daq")
+    sd = ss.state_disc_scaling()
+    if sd == ss.SCALING_SPOUT_FRAME:
+        out.append("sdSpout")
+        if ss.state_disc_centre() == "engaged":
+            out.append("sdcEng")
+    elif sd == ss.SCALING_STATE_BAL_EM:
+        out.append("sdStatebal")
+    return ("sc-" + "+".join(out)) if out else ""
+
+
 def pre_part() -> str:
     from wfield_local import config
     pf = config.pre_from()
@@ -125,7 +172,7 @@ def csig_part() -> str:
 
 _ALL = (("hemo", hemo_part), ("lnmf", lnmf_part), ("drift", drift_part), ("pre", pre_part), ("selection", selection_part), ("emcentre", emcentre_part),
         ("refs", refs_part), ("inmem", inmem_part), ("lptrained", lptrained_part), ("projall", projall_part),
-        ("csig", csig_part))
+        ("scoring", scoring_part), ("csig", csig_part))
 _CACHE = ("hemo", "lnmf", "drift", "selection", "emcentre", "projall", "csig")
 #: parts that enter cache keys only, never an output path / tag
 _CACHE_ONLY = ("csig",)
@@ -396,7 +443,7 @@ def require_default(what: str) -> None:
 #: path segments that are run tags (output-folder tags of a non-default run): the LP / ENL / gate-LP names and the
 #: run-mode parts' prefixes
 _TAG_PREFIXES = ("hv-", "lnmfproj", "sel-", "pre0", "LP_licks", "DAQ_ENL", "DAQ_gateLP", "drift", "emc-", "refs-",
-                 "inmem-", "projall", "lpdaqtrained")
+                 "inmem-", "projall", "lpdaqtrained", "sc-")
 
 
 def input_run_tag(path) -> str:

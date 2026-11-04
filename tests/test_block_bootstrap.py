@@ -127,9 +127,11 @@ def test_delta_ci_holds_sessions_fixed_and_brackets_a_known_shift(monkeypatch):
 
 
 @pytest.mark.parametrize("field", ["X", "blk"])
-def test_session_trials_mask_is_shared_between_fields(field):
+def test_session_trials_mask_is_shared_between_fields(field, monkeypatch):
     """The bootstrap is only valid if the block vector lines up row-for-row with the data. The mask
     is computed once inside _session_trials, so the two selections cannot drift apart."""
+    # these minimal bundles test the mask bookkeeping, not the projection frame (ON by default since 11-04)
+    monkeypatch.setenv("WIDEFIELD_PROJECTION_FRAME", "session_z")
     n, dim = 40, 7
     rng = np.random.default_rng(8)
     bd = {
