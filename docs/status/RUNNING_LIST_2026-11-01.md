@@ -1052,3 +1052,10 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   - the checks;
   - the class-output merge and code refresh;
   - the final trial_attempts.
+- **11-04 ~12:50: Priya's review of the LP missed-contact sheets (lp_missed_contact/).**
+  - The non-grooming cases are real licks at close_center that cam1 (and maybe cam4) doesn't see.
+    - The DAQ timing fallback is the right handling for now.
+    - Side cameras (cam2/3) should help later. Add this to the side-camera class revision with the unjudged close-spout
+      jaw trials.
+  - Some cases are grooming: a DAQ contact that is not a lick. The helper is quantifying them, checking where they count
+    as contact, and proposing an automatic grooming flag.
