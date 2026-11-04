@@ -1155,3 +1155,11 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   - So the bundle inputs need re-cutting once the spout table is regenerated. Questions to e0: per-session size,
     affected columns, re-run cost, a new tagged table.
   - The O2 submit was already waiting on the final class table, so this adds little delay if run in parallel.
+- **11-04 ~15:30: DECISION (Priya, leaning): stopped-period trials with pre-cue / ITI licks but no response are EXCISED.**
+  - They get their own class, stopped_licking (273 under A2).
+  - They are in neither stopped nor working, but are reportable.
+  - The remaining run trials stay stopped, and A2 hit rates are unchanged.
+  - The strict break is a robustness option.
+  - Implemented on rebuild/cue70.
+  - Still open: does the quit tail start after the last lick EVENT? It is an option; the default stays the last lick
+    trial.
