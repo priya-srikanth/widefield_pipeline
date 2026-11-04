@@ -65,6 +65,12 @@ always rebuild from the LIVE page (Artifact read) or the current index.html, nev
     re-drawn `fig/*_rules.png` (figure-rules redraws, 11-03) that existed only on the artifact. Every image the page
     references is now in the folder. `rebuild.py` there predates the `_rules` redraws; do not re-run it over this
     index.
+  - **Sidebar figure toggles (Priya 11-04; e0 published kinematics v28, behaviour v2):** each section's first figure
+    shown in the contents, the rest behind a "▸ N" button (localStorage keys `kintoc-` / `behtoc-`). Folded into
+    both M: sources by e0's `add_toc_toggles_1104.py` (copy in `behaviour_page_src/behaviour_page/`; backups
+    `index_pre_toctoggle_1104.html`). `build_behaviour_page_1103.py` predates this: if it is re-run, re-apply the
+    script (`behtoc-` on the behaviour page; the kinematics page it rewrites already has the toggle, so check for a
+    doubled assert failure rather than running it twice there).
   - **SPLIT DONE in the M: sources 11-03 (e3).** Behaviour page source `M:/.../Widefield/behaviour_page_src/behaviour_page/` (`build_behaviour_page_1103.py`): Fig 1.1 hit rate over days and Fig 1.2 hit rate by spout (moved from kinematics 1.7 / 1.8, plus the 1.2 mixed-model toggle), and Fig 2.1 engagement by epoch (re-rendered by `scripts.engagement_by_epoch --out`; the script's 'N=1 animals' / 'PS92 (0)' count bug is fixed) plus its mixed-model toggle (acute -.17 p=.043, subacute -.13 p=.030; neither survives Holm). Kinematics: 1.9 -> 1.7, 1.10 -> 1.8, fig_ids.csv updated, backup `index_pre_split_1103.html`. Section 1's summary table stays: its rows are camera-lick measures. Behaviour-page pre = all 44 pre sessions (June + August), as in the two moved figures; it becomes August-only with the cohort-1 rebuild. Not moved yet: engagement over days per animal (`epoch_1g`, old style, lines across epochs).
 - **ANSWERED 11-03:** the FaceRhythm page (https://claude.ai/artifact/X8NDdQNHi3zMP77PBrZAC1, source
   `M:/.../Widefield/fr_page_src/`) stays separate, cross-linked both ways. Merging would exceed the length limit (143
