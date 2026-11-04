@@ -234,6 +234,10 @@ FYI, the 3-class camera variant (lick / jaw-only / none) is thin in PS92 and PS9
     close ipsi acute .975 -> .642).
 
   Cue window primary, precue secondary. (Priya then asked for within-class arms and equal cue / precue.)
+- 11-04: slide 94 (cued lick ramp) got the caveat line Priya OK'd via 34: "Acute increase rests on 2 animals (PS94,
+  PS95; PS95 has 1 acute session); subacute / chronic contralesional tjM1 / SSp-m hold under the LMM (hidden
+  slides)." It sits as a second line under the cued-row subtitle; PNG checked; hidden states unchanged (78 / 183).
+  Script ramp_caveat_1104.py.
 - 11-04: 34 will port the B / D / G commits from main (not implement them itself); C waits on the re-check. 34
   reports a Priya decision on the rebuild: jaw-only trials COUNT toward the >= 6 consecutive non-responses of a stop
   run. Main has no stop rule; section G's "after end" group = after the last camera lick. I passed this to the
