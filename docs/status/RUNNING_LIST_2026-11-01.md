@@ -1321,3 +1321,8 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
     - g_group must give stopped_licking its own group;
     - the quit tail needs its own "quit" label, because after_end is now 0 (sent to the port helper);
     - renumber the log sections.
+- **11-04 ~18:35: FINDING (a8, REST_CENTRE_2026-11-04.md, 2916dde9): the rest-centred arm fails.**
+  - The rest centre shifts toward a far-contra penalty post-stroke in 4 of 4 animals.
+  - Cue chronic far contra: .720 -> .296.
+  - Held-out pre accuracy: -.030.
+  - No rest arm will be built. Wt stays the provisional default.
