@@ -707,6 +707,10 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   read the old attempts table -> SUPERSEDED, rebuilt after trial_attempts. No figure drawn yet. fr_* routed (74986bd6),
   family 3 (layer2, summary_figures_1021, within_lick_correction + allsession_encoder) routed (f8e690b9). Helper: 10 misc
   refusers + 22-writer triage next.
+- All 47 refusing scripts routed (934f9ccf). learned_compensation (needed by the prelaunch-aim goal-page rows) and
+  misdirected_lick_counts made REDO + routed (09290e7f). FINDING: the misdirected-lick behaviour counts used by
+  misdirected_lick_decode went through the old DAQ engagement gate -> the existing ones are stale; the rebuild recomputes them on
+  the camera working period with attempts (Aug-only pre).
 
 ### Findings
 - main moved while the rebuild branch was being fixed (34 commits not in rebuild/cohort1-20261103). Two matter for the rebuild:
