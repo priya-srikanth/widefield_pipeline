@@ -168,12 +168,35 @@ def write_refusal(path) -> str | None:
     return None
 
 
+#: EXACT source paths `init` may read while it seeds (coordinator 11-04): filled from `seed_plan()` for the duration of
+#: `init` only (`_seeding`), so the seed copies can be made under an applied profile without opening the fence to any
+#: other default derived product
+_SEED_ALLOW: set = set()
+
+
+class _seeding:
+    """Context: allow reads of exactly these seed SOURCE paths (normalised) while `init` copies them."""
+
+    def __init__(self, paths):
+        self.paths = {_norm(p) for p in paths}
+
+    def __enter__(self):
+        _SEED_ALLOW.update(self.paths)
+        return self
+
+    def __exit__(self, *exc):
+        _SEED_ALLOW.difference_update(self.paths)
+        return False
+
+
 def read_refusal(path) -> str | None:
     """Why a read of ``path`` is refused in the active rebuild (None = allowed): a DEFAULT derived product."""
     r = root()
     if r is None:
         return None
     c = _norm(path)
+    if c in _SEED_ALLOW:                      # a planned seed SOURCE, while `init` runs (and only then)
+        return None
     f = _fence(str(r))
     if c.startswith(f["root"]):
         return None
@@ -301,7 +324,20 @@ def init(dry_run: bool = False) -> dict:
     rv = PathResolver()
     rec = {"rebuild_root": str(r), "derived_roots": {n: derived_root(n) for n in spec().get("derived_roots") or {}},
            "seeded": []}
-    for key, src, dst in seed_plan():
+    plan = seed_plan()
+    # the fence (installed by render_profile.apply) refuses default derived products; the planned seed SOURCES -- and
+    # nothing else -- are readable for the duration of the copy (coordinator 11-04)
+    with _seeding([src for _k, src, _d in plan]):
+        _seed_copy(plan, rec, dry_run)
+    rec["cohort_out"] = rv.root("cohort_out")
+    if not dry_run:
+        r.mkdir(parents=True, exist_ok=True)
+        (r / MANIFEST).write_text(json.dumps(rec, indent=1), encoding="utf-8")
+    return rec
+
+
+def _seed_copy(plan, rec, dry_run):
+    for key, src, dst in plan:
         if not src.exists():
             rec["seeded"].append({"input": key, "source": str(src), "missing": True})
             continue
@@ -315,11 +351,6 @@ def init(dry_run: bool = False) -> dict:
             if _sha256(dst) != hs:
                 raise SystemExit(f"seed copy {dst} does not match {src}")
         rec["seeded"].append({"input": key, "source": str(src), "dest": str(dst), "sha256": hs})
-    rec["cohort_out"] = rv.root("cohort_out")
-    if not dry_run:
-        r.mkdir(parents=True, exist_ok=True)
-        (r / MANIFEST).write_text(json.dumps(rec, indent=1), encoding="utf-8")
-    return rec
 
 
 def main(argv=None) -> int:

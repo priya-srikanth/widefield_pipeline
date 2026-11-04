@@ -376,3 +376,59 @@ def test_subfolder_and_package_writers_are_classified():
     lit = {k for k, v in got.items() if v == "LITERAL"}
     assert res == RESOLVED and lit == LITERAL, {"new_resolved": sorted(res - RESOLVED), "new_literal": sorted(lit - LITERAL),
                                                 "stale": sorted((RESOLVED | LITERAL) - set(got))}
+
+
+SEED_UNDER_FENCE = r"""
+import os, json
+from pathlib import Path
+from wfield_local import render_profile
+render_profile.apply("%s")                                       # installs the fence
+os.environ["WIDEFIELD_REBUILD_ROOT"] = %r
+from wfield_local import rebuild_root as rr
+orig, dst = Path(%r), Path(%r)
+src, other = orig / "epoch_boundaries.json", orig / "not_a_seed.json"
+f0 = rr._fence
+rr._fence = lambda key: dict(f0(key), deny_read=list(f0(key)["deny_read"]) + [rr._norm(orig)])   # orig = a default product
+rr.seed_plan = lambda: [("cohort_out/epoch_boundaries.json", src, dst)]
+seen = {}
+c0 = rr._seed_copy
+def probe(plan, rec, dry_run):
+    try:
+        open(other).read()
+        seen["other"] = "READ"
+    except rr.RebuildFenceError:
+        seen["other"] = "REFUSED"
+    return c0(plan, rec, dry_run)
+rr._seed_copy = probe
+try:
+    open(src).read()
+    seen["before"] = "READ"
+except rr.RebuildFenceError:
+    seen["before"] = "REFUSED"
+rec = rr.init()
+try:
+    open(src).read()
+    seen["after"] = "READ"
+except rr.RebuildFenceError:
+    seen["after"] = "REFUSED"
+seen["copied"] = dst.exists()
+print(json.dumps(seen))
+"""
+
+
+def test_init_seeds_under_an_applied_profile_and_only_the_seed_sources(tmp_path):
+    """Coordinator 11-04: `rebuild_root init --profile ...` applies the profile (the fence) BEFORE init; init reads
+    exactly the seed_plan() sources (a scoped allow-list), never any other default derived product, also during init."""
+    orig = tmp_path / "orig"
+    orig.mkdir()
+    (orig / "epoch_boundaries.json").write_text('{"boundaries": {}}')
+    (orig / "not_a_seed.json").write_text("{}")
+    rb = tmp_path / "rb"
+    dst = rb / "labcams" / "epoch_boundaries.json"
+    r = _run(SEED_UNDER_FENCE % (PROFILE, str(rb), str(orig), str(dst)), {}, tmp_path)
+    out = r.stdout.strip().splitlines()
+    assert out, r.stderr[-3000:]
+    import json
+    seen = json.loads(out[-1])
+    assert seen == {"before": "REFUSED", "other": "REFUSED", "after": "REFUSED", "copied": True}, (seen, r.stderr[-2000:])
+    assert dst.read_text() == '{"boundaries": {}}'
