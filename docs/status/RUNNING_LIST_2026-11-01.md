@@ -924,3 +924,14 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   - **Expected effect on the O2 bundle: none.** Stop runs and the quit tail contain only no_response / jaw_only, so the
     guard only moves failure trials back into the working period. contact + incomplete (the encoder's engaged set and the
     decoders' working rows) cannot change. The census confirms this.
+- **11-04 ~11:00: PENDING (Priya via a8): the cue + 70 ms contact floor (trial_classes.CONTACT_FROM_CUE_S).**
+  - a8 is measuring first-contact latency. No change until a8 sends the rule.
+  - If 70 ms stays, licks at 0-70 ms are excluded from both post-cue and pre-cue (today they count in licks_precue).
+    That moves the pre-cue lick tables only; the classes stay the same.
+  - If the floor is SHORTENED, trials with a contact at <floor..70 ms> can change class (e.g. no_response -> contact).
+    That changes:
+    - the working set;
+    - trial_attempts (a new tag);
+    - the O2 bundle's engaged set (an input rebuild);
+    - every class-dependent render.
+  - So decide this before the O2 jobs are submitted.
