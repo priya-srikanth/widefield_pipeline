@@ -11,6 +11,8 @@ import pytest
 from wfield_local import run_mode
 from wfield_local import spout_scaling as ss
 
+REPO = Path(__file__).resolve().parents[1]      # never the cwd (the suite also runs from tests/)
+
 PROFILE_ENV = {"WIDEFIELD_TRIAL_GATE": "camera", "WIDEFIELD_TRIAL_WINDOW": "cue_stop", "WIDEFIELD_TRIAL_END": "lick",
                "WIDEFIELD_TRIAL_STOPPED": "run", "WIDEFIELD_PRE_FROM": "0801"}
 
@@ -48,7 +50,7 @@ def test_class_note_describes_the_active_selection(camera):
 
 def test_pattern_families_caption_their_lick_pre_reference():
     for mod in ("grant_encoder", "grant_geometry", "grant_matching", "grant_similarity"):
-        src = Path(f"wfield_local/{mod}.py").read_text(encoding="utf-8")
+        src = (REPO / f"wfield_local/{mod}.py").read_text(encoding="utf-8")
         assert "_class_note(v)" not in src and "_class_note(v, pattern=True)" in src, mod
 
 
@@ -124,9 +126,9 @@ def test_working_trials_stays_byte_identical_to_main():
     import subprocess
     try:
         blob = subprocess.run(["git", "rev-parse", "origin/main:wfield_local/working_trials.py"], capture_output=True,
-                              text=True, check=True).stdout.strip()
+                              text=True, check=True, cwd=REPO).stdout.strip()
         mine = subprocess.run(["git", "hash-object", "wfield_local/working_trials.py"], capture_output=True, text=True,
-                              check=True).stdout.strip()
+                              check=True, cwd=REPO).stdout.strip()
     except Exception as ex:                                              # noqa: BLE001 - no git / no origin here
         pytest.skip(f"git unavailable: {ex}")
     assert blob == mine
@@ -174,7 +176,7 @@ def test_june_august_drift_refuses_a_missing_primary_input_and_a_pre_from_run(ca
 
 
 def test_reembedding_selects_june_explicitly():
-    src = Path("scripts/reembedding_test.py").read_text(encoding="utf-8")
+    src = (REPO / "scripts/reembedding_test.py").read_text(encoding="utf-8")
     assert "with run_mode.with_env(WIDEFIELD_PRE_FROM=None)" in src and "no June reference session" in src
 
 
@@ -192,23 +194,23 @@ def test_deck_reads_the_tagged_grant_dir_and_counts_missing(camera):
 
 
 def test_reembedding_cache_is_keyed_by_the_output_tag():
-    src = Path("scripts/reembedding_test.py").read_text(encoding="utf-8")
+    src = (REPO / "scripts/reembedding_test.py").read_text(encoding="utf-8")
     assert "sessions_cache_{t}.pkl" in src and "lp_licks.output_tag()" in src
 
 
 
 # ------------------------------------------------------------------------------------------------------ 8A / 8B
 def test_june_script_and_deck_use_the_derived_cohort_out_root():
-    src = Path("scripts/june_august_drift.py").read_text(encoding="utf-8")
+    src = (REPO / "scripts/june_august_drift.py").read_text(encoding="utf-8")
     assert 'PathResolver().root("cohort_out")' in src and 'root("labcams")' not in src
-    dsrc = Path("wfield_local/locanmf_analysis_deck.py").read_text(encoding="utf-8")
+    dsrc = (REPO / "wfield_local/locanmf_analysis_deck.py").read_text(encoding="utf-8")
     assert "run_mode.june_august_drift_dir(_grant_root.parent)" in dsrc        # _grant_root = cohort_out/grant_figures
 
 
 def test_recovery_trajectory_and_chronic_stability_write_tagged():
     from wfield_local import recovery_trajectory as rt
     assert "lp_licks.output_dir(" in inspect.getsource(rt.run)
-    src = Path("scripts/chronic_stability.py").read_text(encoding="utf-8")
+    src = (REPO / "scripts/chronic_stability.py").read_text(encoding="utf-8")
     assert "require_default" not in src and "_lpl.output_dir(" in src and "_rm.subdir(" in src
 
 
