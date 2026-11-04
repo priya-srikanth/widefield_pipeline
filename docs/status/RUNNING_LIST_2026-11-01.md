@@ -869,3 +869,12 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   - Inventory requested, now being built (read-only helper):
     docs/status/rebuild_20261103/CAMERA_CLASS_INVENTORY_20261104.md.
   - Bundle at 10:05: 85 / 107 inputs.
+- **11-04 ~10:12: camera-class inventory written** (docs/status/rebuild_20261103/CAMERA_CLASS_INVENTORY_20261104.md).
+  - 6 groups are already on camera classes, 7 kinds should switch, 8 cases stay on DAQ, and there are 12 questions for
+    Priya. Sent to a8.
+  - **The O2 bundle is NOT affected.** It runs with OROFACIAL_GATE=attempted. Its engaged set = attempted (contact +
+    incomplete) in this run's camera-class trial_attempts.csv (stopRun6j), so stopped, after_end, jaw_only and none trials
+    are all non-engaged.
+  - Per-class readouts (e.g. jaw_only on its own) would be a reader-side or model-spec change made later, not a rebundle.
+  - Inventory item 3e ("encoder default gate is reference") applies only to runs that don't set OROFACIAL_GATE. Every
+    production encoder block sets it.
