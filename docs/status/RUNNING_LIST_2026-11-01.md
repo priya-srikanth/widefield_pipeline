@@ -742,6 +742,14 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
 - a8 (Priya): WAIT for the rebuild -- no main render, no interim swaps. The replacement pass's per-slide old-vs-new list
   must cover PI slides 9-13, 19, 89 and imaging page sections 1-4, 6, 7. Still open with Priya: B (state discriminators in
   spout frame), C (projections in spout frame), the D / G scored-set question; a8 forwards answers.
+- PRIYA 11-04 ~08:00:
+  - (2) YES: jaw_only COUNTS toward the 6 in a stop run. The render was stopped (it started at 07:30, epoch decoders, no
+    outputs yet); the helper is implementing it with a new selection tag; then redo trial_attempts / coverage / RESTnl /
+    epoch decoders.
+  - (6) DELETED the 4 mistaken tables in LP_analysis/.../imaging_encoding/qc (camera_coverage, camera_contact_nolick,
+    camera_contact_nolick_trials, camera_stop_lengths; all timestamped 05:46:27, the incident run). Kept list = this entry.
+  - Asked to clarify: (1) the D / G scored-set question, (3) the rest-period start, (4) the three lick measures, (5) the
+    slide 94 caveat, and (7) why the O2 encoder runs need rebuilding. Answered in chat.
 - The 05:46 incident coverage copies differ from the rebuild ones only by the 12 June sessions (Aug-only pre); the partial-
   coverage rows are identical.
 
