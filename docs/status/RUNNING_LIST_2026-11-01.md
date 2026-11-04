@@ -1248,3 +1248,7 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   - Proposal: keep the bundle window (2 s, ungated, for comparability) and compute the lick-free 1 s ENL R2 post hoc from
     the per-trial outputs (0.5 s cue-aligned bins, per-trial exclusion), as the primary readout.
   - Checks proposed: bin alignment, models covered, which figures use the enl rows.
+- **11-04 ~17:15: DECISION (Priya): the encoder "enl" scoring window becomes the lick-free sliding ENL.**
+  - LP 1.0 s, using the decoders' search, from the bundle's lick data. It changes before the new O2 bundle is built.
+  - The old fixed 2 s ungated window is kept as the "enl_fixed2s" robustness row.
+  - Implementing on rebuild/encoder-classes. Other outputs must stay bit-identical.
