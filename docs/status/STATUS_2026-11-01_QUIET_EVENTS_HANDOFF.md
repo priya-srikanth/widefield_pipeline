@@ -5,11 +5,14 @@
 > Production now: working = contact + incomplete camera licks, cut at last camera lick (jaw-only = own class, Priya
 > 11-03 late; JAW_ONLY_CHECKS_2026-11-03.md), August-only pre, spout bal_em + extension. B (state discriminators in
 > spout frame) and C (projections in spout frame) are built, OFF, awaiting Priya.
-> PLAN: (1) jaw-only-out helper RUNNING (code, new frozen ids, verification vs .727 / .856, docs; no render). (2) then
-> ONE combined render with B/C OFF (current production; if Priya turns B/C on, only state-disc / projection families
-> re-render) -> SPOUT_BALEM_PAGE_EDITS sections 2/5/7. (3) deck swaps from build_inputs/spout_balem_swaps.json (slides
-> 10-13, 19, 89 + working-trial captions), e3 redraws hidden LMM slides from the new *_sessions.csv; tell 5b / 34 / e0
-> that working excludes jaw-only. Never start duplicate helpers; resume a stopped one with SendMessage.
+> PLAN: (1) jaw-only-out helper RUNNING (code = in_working & camera_lick in working_trials.py; trial_classes stays
+> jaw-inclusive on purpose, e3 cec38954; new frozen ids; verification vs .727 / .856; docs; no render; workers <= 4).
+> (2) Main-branch combined render HELD (running list question 0): 34's cohort-1 rebuild (rebuild_20261103, fenced dirs /
+> store / spec ids; new data = swap mask + LocaNMF projection + today's rules) replaces the same families in 1-2 days.
+> Ask Priya: interim swap or wait. If interim: tell 34 before starting (shared CPU; keep >= 6 GB free), then apply
+> build_inputs/spout_balem_swaps.json (slides 10-13, 19, 89 + captions), send e3 the *_sessions.csv paths, and send e0
+> the paths for imaging §1-4, 6, 7. (3) e0 holds the s1 tables / imaging §1 table (still jaw-inclusive) and page edits.
+> Never start duplicate helpers; resume a stopped one with SendMessage.
 >
 > UPDATE 11-03 (late+): helper (B) DONE -- spout decoder biased (prod understates acute far-contra drop ~.10; fix = bal_em
 > centring, new spec, AWAITING PRIYA); lick decoder clean except cued all-lick acute offset caveat (tell 34 after Priya).

@@ -2,10 +2,10 @@
 
 **Overnight plan (Priya asleep from ~11-03 late; my decisions, reversible):**
 1. Implement jaw-only out of working (helper running).
-2. Then run ONE combined render with B and C OFF. That is current production; if you turn either on, only the
-   state-discriminator / projection families re-render.
-3. Then deck swaps and the hidden LMM redraws (e3).
-4. Page edits go to e0 after the render.
+2. ~~Then run ONE combined render with B and C OFF~~ HELD (question 0): 34's rebuild will replace those families
+   on new data within 1-2 days.
+3. Deck swaps and the hidden LMM redraws (e3) wait for the same answer.
+4. Page edits (e0) are held too.
 5. Other windows (e3, 34, e0) were told that working now excludes jaw-only.
 
 Read top to bottom: questions for Priya first, then findings, then decisions taken, then what is running. The detailed
@@ -13,7 +13,18 @@ log for the earlier part of the day is `RUNNING_LIST_2026-11-02_OVERNIGHT.md`.
 
 ## Questions for Priya (newest first)
 
-The combined render is ON HOLD until Q1 and Q2 are answered. Q3 is a default you can overrule later. Details:
+0. **NEW (night): interim deck swap now, or wait for 34's cohort-1 rebuild?** I HELD tonight's main-branch combined
+   render; that was my call, and it is reversible. 34's rebuild uses new data: the swap mask and LocaNMF
+   projection, plus today's rules (jaw-only out, August-only, bal_em). It will replace the same epoch families,
+   decoders and maps. Its render may start late tonight; it takes about a day, then verifiers. Deck swaps are 1-2
+   days out and need you for any conclusion change.
+   - A main render now would run on the OLD data. Slides 10-13 / 19 / 89 would then be swapped twice, and the render
+     would compete with the rebuild for CPU.
+   - The rule effects on main are already measured (jaw-only checks + the helper's verification, findings above).
+   - If you want the deck to show today's rules now, I'll render on main (workers capped) and swap. Interim status
+     would go in the notes, not on the slide.
+
+The combined render is ON HOLD until Q0-Q2 are answered. Q3 is a default you can overrule later. Details:
 `M:/MICROSCOPE/Priya/Widefield/labcams/decoder_mix_checks/spout_balem_production/summarise_{A,B,C}_log.txt`.
 
 1. **State discriminators in the spout frame (B): switch on?** On the pre checks the frame changes nothing:
@@ -169,6 +180,16 @@ FYI, the 3-class camera variant (lick / jaw-only / none) is thin in PS92 and PS9
     close ipsi acute .975 -> .642).
 
   Cue window primary, precue secondary. (Priya then asked for within-class arms and equal cue / precue.)
+- 11-03 night: I HELD the main-branch render (question 0) after 34's timing answer. The rebuild has its own fenced
+  output dir (rebuild_20261103), frozen store and spec ids, so there is no file collision, only CPU. The rebuild deck
+  swaps are 1-2 days out. e0 is holding the imaging page edits: §1-4, 6 and 7 are working-gated, and the old wording
+  appears 3 times. e3 kept trial_classes' "working" gate jaw-inclusive on purpose, as the robustness definition
+  (cec38954); production = in_working & camera_lick. Still jaw-inclusive and passed to e0: the s1 tables
+  (working_pl_*, camwork* refit arms) and the imaging §1 table.
+- 11-03 night: 34 adopted jaw-only-out on its cohort-1 rebuild branch (rebuild/cohort1-20261103, not rendered yet). No
+  current deck figure from 34 moves: those use the DAQ engagement or lick gate. The rebuild's render will REPLACE the
+  camera-working-gated epoch families, decoders and maps. I asked 34 about timing and collisions before starting
+  tonight's main-branch render.
 - 11-03 late: the jaw-only checks reported (findings top, question 0). Endpoints were reproduced exactly first. Nothing
   in production was changed. The write-up is on main (its doc was swept into another window's commit b22686fc;
   attribution commit 96618fbd).
