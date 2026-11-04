@@ -1443,3 +1443,59 @@ worktree). Each run: 4,612 passed, 179 skipped, 1 failed.
 - The failure is `test_rebuild_root::test_subfolder_and_package_writers_are_classified`: recovery_trajectory is now
   routed (8B B1b), so it leaves the scanner's RESOLVED list. The list is updated in 2ddcf9fb.
 - At 2ddcf9fb, test_rebuild_root + test_review_7ab pass from both cwds (37 passed each).
+
+### 8.37 Pre-render follow-ups (d394dcbc)
+
+**1. chronic_drift_vs_reorg (Fig 10.2, M00086).** It now writes `chronic_stability/<tag>/` (`run_mode.subdir`), like
+chronic_stability.py, and calls `assert_writable` first.
+- It reads no epoch data file: its inputs are the pooled bundles (`grant_kit._collect_7`), which follow the run.
+- Test added.
+
+**REDO / NO scan.** Scanned every producing script named in MASTER_MANIFEST REDO / NO rows for `require_default` and
+for share writers without routing. The scan is heuristic: a writer AND a share root AND no run_mode / output_dir /
+output_tag routing. Results:
+- **REDO, refuses under the profile (`require_default`), 47 scripts, all in G5 families** (fr_musall /
+  fr_direction_mechanism are in the O2 batch; within_lick_correction is in G4 extracts):
+  best_match_destination, combined_encoding_figures, compare_map_tests, coupling_by_class, encoder_trialavg_r2,
+  encoding_key_figures, encoding_mixed, enl_fr_removed_decode, enl_lick_audit, exec3d_pilot_figure,
+  exec_angle_spread_check, exec_vs_neural_match, face_prelaunch_aim, fr_direction_mechanism, fr_encoding_summary,
+  fr_musall, frozen_area_maps, frozen_group_leakage, frozen_musall_figures, frozen_pixel_maps, frozen_r2_maps,
+  frozen_residual_significance, frozen_residual_trend, frozen_running_compare, frozen_spout_maps,
+  imaging_baseline_compare, imaging_per_animal_tables, layer2_matched_n, layer2_random_splits, lick_interhemispheric,
+  lick_template_test, lp_encoder_decompose, misdirected_lick_decode, position_coding_trend_recovery,
+  prelaunch_aim_tracking, prelick_hemisphere_tuning, qc_running_speed, relabel_confusion, slowband_caveat_figure,
+  softmax_neural_vs_lick, spout_mid_maps, spout_reliability, summary_figures_1021, trial_neural_vs_exec,
+  within_lick_correction, within_spout_deviation, within_spout_mixed.
+  - These were made to refuse on purpose (fourth review R5: fixed default names).
+  - Under the profile each one stops before writing, so the render fails loudly rather than contaminating anything.
+  - They are NOT fixed in this batch: 47 per-script output routings are not a small change, and the output layout
+    (`<root>/<tag>/...`) is a decision for the coordinator. Proposal in the report.
+- **REDO, possible untagged writer, 22 scripts** (heuristic): cohort2_qc/{attempt_effort, cohort1_subset_headline,
+  quiet_f0_noise, quiet_lick_lfo, quiet_task_events, quiet_task_events_followup}, coupling_vigour_sm,
+  decoder_retention_sessions, iti_first_lick, jaw_only_incomplete_figs, lick_correction, lick_firstlick_extract,
+  lick_template_match, lick_vigor_perspout, movement_encoding_session, movement_position_angle, precue_class_matched,
+  recovery_timing, rest_migration/rest_baseline_epoch_drift, restw_strict_check, wfield_local/restnl_mask, and
+  archive/iti_nmatch_check.
+  - Under a tagged run, `writeguard.assert_writable` refuses any share write outside `/<tag>/`, so these too fail
+    loudly at write time if they really are unrouted. Each needs a look; some write keyed stores or take `--out`.
+- **REDO, missing file:** `scripts/iti_nmatch_check.py`. It now lives in `scripts/archive/`.
+- **NO rows:** 100 flagged, not fixed (no re-render planned).
+
+**2. Which code a render imports.** The env's editable install (`pip install -e .`) points at the MAIN checkout. A
+render imports the wf_rebuild worktree only when the worktree is first on sys.path:
+- **Always set `PYTHONPATH=C:/Users/SabatiniLab/Github/wf_rebuild`.**
+  - `python scripts/x.py` puts `scripts/` (not the cwd) on sys.path, so cwd = wf_rebuild alone is NOT enough for
+    scripts run by path.
+  - `python -m wfield_local.x` from the wf_rebuild root works without it (cwd first on sys.path), but PYTHONPATH covers
+    both.
+- The profile records it as `code_root: C:/Users/SabatiniLab/Github/wf_rebuild`.
+- `render_profile --check` prints `wfield_local: <file>` and fails (exit 1) when a rebuild-root profile is active and
+  the imported package is neither in code_root nor another LINKED WORKTREE of the same repository. The MAIN checkout
+  (a `.git` directory) is always refused; test / review worktrees of the branch are accepted.
+- Limitation: a command run on MAIN's code never reaches this check. Main has no render_profile / rebuild_root, so it
+  would silently ignore the profile's env and write to the default locations. PYTHONPATH on every render command is
+  the guard.
+- Test added.
+
+**Test record.** Full suite at d394dcbc, 6 shards, from the repo root with PYTHONPATH = the worktree: 4,615 passed,
+179 skipped, 0 failed.
