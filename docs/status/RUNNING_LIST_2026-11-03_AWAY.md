@@ -13,6 +13,14 @@ log for the earlier part of the day is `RUNNING_LIST_2026-11-02_OVERNIGHT.md`.
 
 ## Questions for Priya (newest first)
 
+11. **NEW (11-04): ENL-window follow-ups (34; rebuild/enl-window done: one definition lp_licks.enl_post_s, 4 scripts
+    that gated on DAQ under LP fixed, cd_trajectories fixed, no frozen ids / O2 change).**
+    - a. quiet_task_events (cohort 1) ev_enl -> LP 1.0 s? Its MIN_CLEAN_S then means fully clean trials. [Yes; fully
+      clean = the strict ENL rule of 09-24.]
+    - b. within_spout_deviation --window enl is 1 s but not lick-gated. [Gate on the source's licks.]
+    - c. The s1 refit tables pin ENL 2.0 s under LP (Priya 11-03). [1.0 s primary, 2.0 s labelled sensitivity.]
+    - d. The encoder "enl" R2 scoring window, fixed 2 s, not gated: follow the source (1.0 s under LP)? Scoring only;
+      it must be decided BEFORE the new O2 bundle. [Yes, 1.0 s; no gate, since licks are modelled as kernels.]
 10. **NEW (11-04): centre test result (docs/status/CENTRE_MIXSHIFT_2026-11-04.md, 2e809e8a). Switch the spout decoder
     and the CD / pattern projections to "Cto"?** Cto = centre on CONTACT rows, true DAQ spout mix, thin spouts filled
     with the animal's pre-stroke spout offsets.
