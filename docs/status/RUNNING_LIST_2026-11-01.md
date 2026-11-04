@@ -735,6 +735,12 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   fence's tag rule refused <root>/frozen_models; the store was never registered as a data store). Nothing written. Helper
   registering every profile store + an end-to-end store-write smoke test. trial_attempts running since 05:47 (checking it
   is not stuck); coverage table after it.
+- Store fix 7b5d3334 (suite 4,723 / 0 failed). RENDER MILESTONE G2 DONE (07:30): coverage note reads "PS93_0813 0.0%,
+  PS92_0908 82.5%"; RESTnl baselines DAQ gate + LP gate (new attempts table) 120 / 120 each, 0 errors (PS93_0813 excluded, no
+  video licks). trial_attempts 63 min. Epoch decoders (all families but 15e) running since 07:30; then grant figures,
+  section G, then the encoder frames.
+- The 05:46 incident coverage copies differ from the rebuild ones only by the 12 June sessions (Aug-only pre); the partial-
+  coverage rows are identical.
 
 ### Findings
 - main moved while the rebuild branch was being fixed (34 commits not in rebuild/cohort1-20261103). Two matter for the rebuild:
