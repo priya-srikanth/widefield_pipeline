@@ -709,3 +709,16 @@ the time rule those 4 become isolated lapses (no_response), unless they sit in a
 Full suite, 6 shards, frozen worktree copy: 4,517 passed, 176 skipped, 0 failed. The b422ae83 run in between had 11
 failures, all `test_combined_encoding_options::test_out_dir_names`; they were fixed in bc57f786, where encoding_root
 outside a rebuild root is `oo.root(rv) / run / imaging_encoding`.
+
+### 8.13 The 5-min stop rule (Priya 11-03, GO after the 0 / 159 check)
+- `classify_session(..., cue_s=)`: a qualifying run (>= 6 no_response) is a STOP only if it starts >= 5 min after the
+  session's first cue (`trial_selection.stop_min_start_s: 300`). An earlier run is `early_run`, in neither class.
+  Under rule "any", every no_response before 5 min is `early_run`.
+- `cue_classes_for` passes the cue train and keys its memo on the setting. The selection tag stays `stopRun6` at 300 s;
+  another value adds `t<s>`.
+- The warm-up class is REMOVED. The 4 former warm-up trials are isolated lapses (no_response).
+- The rest working period keeps its start at the first camera lick as the named setting `trial_selection.rest_start:
+  first_lick` (`session` = the first cue; OPEN for Priya).
+- DECISIONS entry rewritten for the time rule, the rest start setting and rule "any".
+- Tests: time rule (early run, a straddling run is decided by its start, isolated lapse before the first lick, length
+  check), rule "any" with the time rule, the rest_start setting.

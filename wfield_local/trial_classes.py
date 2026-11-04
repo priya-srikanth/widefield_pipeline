@@ -469,11 +469,15 @@ def camera_engaged_period(label: str, cue_s) -> np.ndarray:
       always -- also with an uncovered video tail (rest after the last seen lick may already be sated). Under a
       robustness end anchor ("contact" / "close") the licks after that anchor are AFTER_END_CLASS in the classified
       train, so the period ends AT THE ANCHOR.
-    * START (fourth review LOW, matching the warm-up rule): the first camera lick; warm-up trials before it are outside.
+    * START: the first camera lick (``trial_selection.rest_start: first_lick``, in force; an open question for Priya --
+      "session" starts it at the first cue).
     * A session with no camera lick (e.g. no video: all "unknown") has NO working period: every cue is outside it (no
       DAQ fallback, as `camera_select`)."""
     c = cue_classes_for(label, cue_s)
-    return _lick_span(c)
+    out = _lick_span(c)
+    if rest_start() == "session" and out.any():
+        out[: int(np.flatnonzero(out)[-1]) + 1] = True
+    return out
 
 
 def _lick_span(cls) -> np.ndarray:
@@ -526,7 +530,7 @@ def end_anchor() -> str:
 
 
 def classify_session(cls, matched=None, position=None, *, rule: str | None = None, min_run: int | None = None,
-                     end: str | None = None) -> np.ndarray:
+                     end: str | None = None, cue_s=None, min_start_s: float | None = None) -> np.ndarray:
     """THE camera classes of one session, in cue order, after the session-level rules (Priya 11-03). ``cls`` = the raw
     per-cue class (`cue_classes`), ``matched`` = the cue was matched to a video trial (None = all matched).
 
@@ -540,9 +544,12 @@ def classify_session(cls, matched=None, position=None, *, rule: str | None = Non
         jaw_only trial at or before the end anchor END the run; a jaw_only trial AFTER the end anchor BRIDGES the run
         (T3, Priya 11-03): it neither breaks it nor counts toward the ``min_run`` and is never stopped (it becomes
         AFTER_END_CLASS). With an uncovered video tail there is no end cutoff, so nothing bridges. Rule "any": every
-        no_response is stopped, except warm-up trials.
-      * WARM-UP (PROVISIONAL for Priya): no_response trials before the session's first camera lick -> WARMUP_CLASS (in
-        neither class); a session with no camera lick has every no_response as warm-up and no stop.
+        no_response is stopped.
+      * TIME RULE (Priya 11-03): a stop counts only if its run STARTS >= ``min_start_s`` (`stop_min_start_s()`, 300 s)
+        after the session's first cue (``cue_s``, the session cue times in s; None = no time rule). An earlier
+        qualifying run -> EARLY_RUN_CLASS (in neither working nor stopped); under rule "any", every no_response
+        before that time is EARLY_RUN_CLASS. Checked before adoption: 0 of the 159 current stopped runs started that
+        early.
       * ISOLATED LAPSES (decision 3): a no_response trial not in a sustained stop stays "no_response" only INSIDE the
         working period (at or before the end anchor); after it -> AFTER_END_CLASS. So "no_response" = an isolated lapse.
     """
@@ -561,25 +568,25 @@ def classify_session(cls, matched=None, position=None, *, rule: str | None = Non
     # trial after the last camera lick BRIDGES a no_response run; it does NOT count toward the 6 and is NOT stopped
     jaw_late = (out == "jaw_only") & after
     nr = out == "no_response"
-    lick = in_gate(out, "camera_lick")
-    # WARM-UP (third review LOW, PROVISIONAL for Priya): no_response trials BEFORE the session's first camera lick
-    # are a warm-up, not satiation: in neither class
-    warm = np.zeros(n, bool)
-    if lick.any():
-        k0 = int(np.flatnonzero(lick)[0])
-        warm[:k0] = nr[:k0]
+    # TIME RULE (Priya 11-03): runs starting before first cue + min_start_s are not stops (in neither class)
+    if cue_s is not None and n:
+        t = np.asarray(cue_s, float)
+        if len(t) != n:
+            raise ValueError(f"cue_s has {len(t)} cues for {n} classes")
+        t_min = float(min_start_s if min_start_s is not None else stop_min_start_s())
+        too_early = (t - np.nanmin(t)) < t_min
     else:
-        # no camera lick at all: the animal never started -- every no_response is warm-up, nothing is stopped, and
-        # (no working period) any jaw-only leaves working through the end rule below
-        warm = nr.copy()
+        too_early = np.zeros(n, bool)
     stop = np.zeros(n, bool)
+    early = np.zeros(n, bool)
     if rule == "any":
-        stop = nr & ~warm
+        stop = nr & ~too_early
+        early = nr & too_early
     else:
         seg_id = np.cumsum(np.r_[True, np.diff(m.astype(int)) != 0])   # covered / uncovered segments
         for sid in np.unique(seg_id[m]):
             idx = np.flatnonzero((seg_id == sid) & m & (out != "unknown"))
-            seq = ((nr & ~warm) | jaw_late)[idx]
+            seq = (nr | jaw_late)[idx]
             i = 0
             while i < len(seq):
                 if not seq[i]:
@@ -590,9 +597,10 @@ def classify_session(cls, matched=None, position=None, *, rule: str | None = Non
                     j += 1
                 run = idx[i:j]
                 if int(nr[run].sum()) >= n_min:          # >= 6 NO_RESPONSE trials; bridging jaw_only not counted
-                    stop[run[nr[run]]] = True
+                    first_nr = run[nr[run]]
+                    (early if too_early[first_nr[0]] else stop)[first_nr] = True   # the run's START decides
                 i = j
-    out[warm] = WARMUP_CLASS
+    out[early] = EARLY_RUN_CLASS
     out[stop] = STOPPED_CLASS
     late = after & ~stop & (in_gate(out, "working") | (out == "no_response"))
     out[late] = AFTER_END_CLASS
@@ -603,8 +611,9 @@ def classify_session(cls, matched=None, position=None, *, rule: str | None = Non
 #: a shorter one (an isolated cue missing the 20 ms match, a trailing DAQ cue after the video stopped) stays "unknown"
 #: inside the covered span -- skipped in stop runs, never a split, never a reason to drop the end cutoff
 MIN_UNCOVERED_RUN = 5
-#: no_response trials before the session's first camera lick (warm-up; PROVISIONAL for Priya): in neither class
-WARMUP_CLASS = "warmup"
+#: a qualifying no_response run that STARTS within `stop_min_start_s()` of the session's first cue (Priya 11-03): in
+#: neither working nor stopped
+EARLY_RUN_CLASS = "early_run"
 
 
 def _effective_coverage(matched) -> np.ndarray:
@@ -691,9 +700,26 @@ def stop_run_min() -> int:
     return int((config.defaults().get("behavior") or {}).get("tail_min_misses", 6))   # a broken config RAISES
 
 
+def stop_min_start_s() -> float:
+    """A stop counts only if its run starts this long after the session's first cue (``trial_selection.
+    stop_min_start_s``, 300 s = 5 min; Priya 11-03)."""
+    return float(_selection_cfg().get("stop_min_start_s", 300.0))
+
+
+def rest_start() -> str:
+    """Where the camera rest working period STARTS (``trial_selection.rest_start``): "first_lick" (the session's first
+    camera lick; the setting in force, an OPEN QUESTION for Priya) or "session" (the first cue)."""
+    v = str(_selection_cfg().get("rest_start", "first_lick")).lower()
+    if v not in ("first_lick", "session"):
+        raise ValueError(f"trial_selection.rest_start = {v!r}; expected first_lick or session")
+    return v
+
+
 def stopped_rule_name() -> str:
-    """The rule name in selection tags: "stopRun<n>" or "stopAny"."""
-    return f"stopRun{stop_run_min()}" if stopped_rule() == "run" else "stopAny"
+    """The rule name in selection tags: "stopRun<n>" or "stopAny" (+ "t<s>" when the stop start time is not 300 s)."""
+    base = f"stopRun{stop_run_min()}" if stopped_rule() == "run" else "stopAny"
+    t = stop_min_start_s()
+    return base if t == 300.0 else f"{base}t{t:g}"
 
 
 def camera_gate_on() -> bool:
@@ -749,7 +775,7 @@ def cue_classes_for(label: str, cue_s, window: str | None = None) -> np.ndarray:
     import hashlib
     window = window or gate_window()
     cs = np.ascontiguousarray(np.asarray(cue_s, float))
-    rule = (stopped_rule(), stop_run_min())
+    rule = (stopped_rule(), stop_run_min(), stop_min_start_s())
     end = end_anchor()
     key = (label, window, rule, end, hashlib.sha1(cs.tobytes()).hexdigest())
     if key not in _CUE_CLS:
@@ -760,7 +786,8 @@ def cue_classes_for(label: str, cue_s, window: str | None = None) -> np.ndarray:
         # `classify_session`. The "close" anchor needs each cue position (matched the same way as the class)
         pos = cue_classes(T.assign(cls=T["position"]) if T is not None else None, cs) if end == "close" else None
         matched = (cue_classes(T.assign(cls="matched"), cs) == "matched") if T is not None else np.zeros(len(cs), bool)
-        _CUE_CLS[key] = classify_session(cue_classes(T, cs), matched, pos, rule=rule[0], min_run=rule[1], end=end)
+        _CUE_CLS[key] = classify_session(cue_classes(T, cs), matched, pos, rule=rule[0], min_run=rule[1], end=end,
+                                         cue_s=cs)
     return _CUE_CLS[key]
 
 

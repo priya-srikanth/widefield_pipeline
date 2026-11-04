@@ -212,14 +212,28 @@ def test_empty_session_and_no_camera_lick():
     assert TC.classify_session(np.array([], object), rule="run", min_run=6, end="lick").tolist() == []
     nolick = np.array([NR] * 7 + [J], object)                               # no camera lick at all
     out = TC.classify_session(nolick, rule="run", min_run=6, end="lick").tolist()
-    assert out == ["warmup"] * 7 + ["after_end"]       # never started: no stop, no working period
+    assert out == ["stopped"] * 7 + ["after_end"]      # no time given: a run of 7 is a stop; no working period
+    t = np.arange(8) * 10.0                                                 # all within 5 min of the first cue
+    out = TC.classify_session(nolick, rule="run", min_run=6, end="lick", cue_s=t).tolist()
+    assert out == ["early_run"] * 7 + ["after_end"]
 
 
-def test_warmup_run_before_the_first_lick_is_neither_class():
-    raw = np.array([NR] * 7 + [C, J, C], object)
-    out = TC.classify_session(raw, rule="run", min_run=6, end="lick").tolist()
-    assert out[:7] == ["warmup"] * 7 and "stopped" not in out
-    assert not TC.in_gate(["warmup"], "working").any() and "warmup" not in TC.STOPPED_CLASSES
+def test_time_rule_a_run_must_start_5_min_after_the_first_cue():
+    """Priya 11-03: a stop counts only if its run STARTS >= 5 min (300 s) after the session's first cue; an earlier run
+    is in neither class (the warm-up class is gone: isolated no_response before the first lick is a lapse)."""
+    raw = np.array([NR] * 7 + [C, J, C] + [NR] * 6 + [C], object)
+    t = np.r_[np.arange(7) * 10.0, 100.0, 110.0, 120.0, 400.0 + np.arange(6) * 10.0, 470.0]
+    out = TC.classify_session(raw, rule="run", min_run=6, end="lick", cue_s=t).tolist()
+    assert out[:7] == ["early_run"] * 7 and out[10:16] == ["stopped"] * 6
+    assert not TC.in_gate(["early_run"], "working").any() and "early_run" not in TC.STOPPED_CLASSES
+    straddle = np.array([C] + [NR] * 6 + [C], object)                       # starts at 290 s, ends after 300 s
+    ts = np.r_[0.0, 290.0 + np.arange(6) * 5.0, 330.0]
+    assert TC.classify_session(straddle, rule="run", min_run=6, end="lick", cue_s=ts).tolist()[1:7] == ["early_run"] * 6
+    lapse = np.array([NR, NR, C, C], object)                                 # isolated no_response before the lick
+    assert TC.classify_session(lapse, rule="run", min_run=6, end="lick", cue_s=[0, 1, 2, 3.0]).tolist()[:2] == [NR, NR]
+    assert TC.stop_min_start_s() == 300.0 and TC.stopped_rule_name() == "stopRun6"
+    with pytest.raises(ValueError):
+        TC.classify_session(raw, rule="run", min_run=6, end="lick", cue_s=t[:3])
 
 
 def test_short_unmatched_stretches_are_unknown_not_uncovered():
@@ -283,6 +297,19 @@ def test_min_uncovered_run_is_exactly_five(where):
         assert (TC.classify_session(raw, m, rule="run", min_run=6, end="lick")[1] == "after_end") == cut, k
 
 
-def test_rule_any_excludes_warmup():
+def test_rule_any_applies_the_time_rule():
     raw = np.array([NR, NR, C, NR, C], object)
-    assert TC.classify_session(raw, rule="any", min_run=6, end="lick").tolist() == ["warmup", "warmup", C, "stopped", C]
+    t = np.array([0.0, 10.0, 20.0, 400.0, 410.0])
+    assert TC.classify_session(raw, rule="any", min_run=6, end="lick", cue_s=t).tolist() == ["early_run", "early_run", C,
+                                                                                          "stopped", C]
+
+
+def test_rest_start_is_a_named_setting(monkeypatch):
+    cls = [NR, NR, C, J, I, J, J, NR]
+    _fake_session(monkeypatch, cls, np.arange(8.0))
+    assert TC.rest_start() == "first_lick"
+    assert TC.camera_engaged_period("X_0009", np.arange(8.0)).tolist()[:5] == [False, False, True, True, True]
+    monkeypatch.setattr(TC, "_selection_cfg", lambda: {"rest_start": "session"})
+    TC._CUE_CLS.clear()
+    assert TC.camera_engaged_period("X_0009", np.arange(8.0)).tolist()[:5] == [True] * 5
+    TC._CUE_CLS.clear()
