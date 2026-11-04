@@ -659,6 +659,14 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   pattern families (captions to say so); 5b gets main's guard.
   QUESTION FOR PRIYA (a8 is asking it too): should the D / G scored sets and the pattern families' pre reference also be
   camera working (contact + incomplete), i.e. "working on both sides" everywhere? Both branches would change together.
+- 7A + 7B FIXED (rebuild tip 11817e27, code cf94e7c3, log 8.35): 5b always on the working path (main's guard); D / G / pattern
+  families documented as main's design (corner stamp + sidecar + captions); PS93_0813's exclusion logged + in sidecars;
+  Fig 4.3 / 7.2-7.6 / RESTnl CLI run in June blocks; reembedding keeps June; deck reads the tagged folders and counts MISSING.
+- VALIDATION (finding, clean export, stored path): rebuild code on the jaw checks' data reproduces cue AND precue to .001
+  (cue pre .856 / acute cI .727; precue .558 / .568). DATA EFFECT of the rebuild inputs: cue pre +.004, acute cI +.007;
+  precue pre +.006, acute cI -.017 (per animal PS92 -.14, PS93 .00, PS94 +.05, PS95 +.02) -> small on average, PS92 precue
+  acute close ipsi is the one sizeable move (one animal).
+- Focused re-verify + full suite sent to reviewer. If clean -> rebuild_root init -> render.
 
 ### Findings
 - main moved while the rebuild branch was being fixed (34 commits not in rebuild/cohort1-20261103). Two matter for the rebuild:
