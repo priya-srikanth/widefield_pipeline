@@ -579,6 +579,15 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   pick their own)? RECOMMEND yes (rebuild plan: "Aug-only pre ... aligning with the imaging maps, encoding model and
   kinematics"). Helper checking each at run time first.
 - LP blocks: the profile gets per-block WIDEFIELD_LICK_SOURCE=lp; three LP writers will refuse without it.
+- HELPER ROUND DONE (rebuild tip 3a772a26; FULL suite 4,576 passed / 0 failed at 8b67097d; log 8.23-8.25): lick counts on the one
+  detector (lick_count_samples; imaging alignment + engagement-gate response detection unchanged); profile block_env sets the LP
+  lick source per block, LP_licks writers refuse without it. Reviewer re-verifying all fixes on 3a772a26.
+- PRE-SET CHECK (run time, under the profile): pre = 44 sessions incl. 12 June; Aug-only = 32. 27 scripts would use June + Aug
+  pre (12 non-rest incl. grant_encoder, locomotor_decoder, cd_trajectories, chronic_stability / drift_vs_reorg, lick_iti_prelick;
+  15 rest_migration incl. rest_frozen_decoder, rest_coupling, transfer_arms, rotation_maps, quit_point, flatpool_vs_restw);
+  4 inherit their upstream tables' labels (lick_cued_ramp, lick_code_noisematch, reference_family_figure, face_prelaunch_aim).
+  Profile-wide = WIDEFIELD_PRE_FROM 0801 in the profile (adds pre0801 to every tag) + block_env able to unset it for
+  june_august_drift and 12.1b. Epoch boundaries unaffected. STILL WAITING ON PRIYA.
 
 ### Findings
 - main moved while the rebuild branch was being fixed (34 commits not in rebuild/cohort1-20261103). Two matter for the rebuild:
