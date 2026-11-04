@@ -36,6 +36,13 @@ log for the earlier part of the day is `RUNNING_LIST_2026-11-02_OVERNIGHT.md`.
    - e. Keep the "cortex" summary rows. [Yes.]
    - f. LocaNMF-component analyses: the labels come from Allen seeds and cannot simply switch. [Leave them: split
      applies to Allen-ROI analyses.]
+   - ANSWERED with 34 (Priya, 11-04, both branches):
+     - f: LEAVE the LocaNMF-label analyses as they are.
+     - b / c: every orofacial group = the quiet-events definition: ALM, tjM1, SSp-m, SSp-n (limb = SSp-ul, SSp-ll).
+       MOs_rest / MOp_rest are NOT in it. The MO-group / MOs-vs-MOp analyses default to ALM vs tjM1.
+     - d: 34 proposes that pixel-based significance stays primary and the area table becomes descriptive, so there is
+       no Bonferroni-family question.
+     - a (rim extent) and e (which "cortex" rows): still being clarified with 34.
 
 The combined render is ON HOLD until Q0-Q2 are answered. Q3 is a default you can overrule later. Details:
 `M:/MICROSCOPE/Priya/Widefield/labcams/decoder_mix_checks/spout_balem_production/summarise_{A,B,C}_log.txt`.
