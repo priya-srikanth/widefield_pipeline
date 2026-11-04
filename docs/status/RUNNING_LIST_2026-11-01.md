@@ -703,6 +703,10 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   new table stopped trials are "stopped" (not no_try); jaw_only = non-attempt; denominator = working period. Render runner:
   trial_attempts first, then any attempts-dependent family; anything already rendered on the old table marked SUPERSEDED and
   redone.
+- Render progress: setup done; DAQ-gate RESTnl baselines 120 / 120 OK (PS93_0813 excluded, no video licks). LP-gate baselines
+  read the old attempts table -> SUPERSEDED, rebuilt after trial_attempts. No figure drawn yet. fr_* routed (74986bd6),
+  family 3 (layer2, summary_figures_1021, within_lick_correction + allsession_encoder) routed (f8e690b9). Helper: 10 misc
+  refusers + 22-writer triage next.
 
 ### Findings
 - main moved while the rebuild branch was being fixed (34 commits not in rebuild/cohort1-20261103). Two matter for the rebuild:
