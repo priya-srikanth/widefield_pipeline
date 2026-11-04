@@ -39,7 +39,74 @@ for anything that loads imaging. E = `M:/MICROSCOPE/Priya/Widefield/LP_analysis/
 3. Then tell **sabatinilab-e3** (PI deck) the decoder figures are final: per figure the share PNG path, page Fig N.k,
    script + args, headline numbers, methods text (they asked 10-26 ~22:30; reply sent: not final yet).
 
-### 00-COMPACT-22 (11-03 late night, Priya asleep) -- READ FIRST; supersedes 21 for state
+### 00-COMPACT-23 (11-04 ~08:05) -- READ FIRST; supersedes 22 for state
+Session f082ee0c. The running list (`docs/status/RUNNING_LIST_2026-11-01.md`, block "11-03 EVENING", newest at the end) holds
+every decision and finding in order. Commit docs on wf_attempt BY EXPLICIT PATH ONLY.
+
+**Code: rebuild/cohort1-20261103 (worktree wf_rebuild, NOT pushed), tip c3cb3c0c.** Last full suite 4,723 / 0 failed
+(7b5d3334); after c3cb3c0c only the related tests have run (144 passed).
+- Log: `wf_rebuild/docs/status/REBUILD_CODE_20261103.md` sections 8.10-8.40.
+- Profile: `cohort1_rebuild_20261103`. Run tag: `hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopRun6j`.
+- Rebuild root: `M:/MICROSCOPE/Priya/Widefield/rebuild_20261103`, fenced.
+- The profile also sets `code_root`. Render commands need PYTHONPATH = the render worktree: the editable install is MAIN's code.
+- Rules now in force:
+  - camera gate;
+  - working = contact + incomplete, cut at the last camera lick; jaw_only is its own class;
+  - stopped = >= 6 consecutive no_response OR jaw_only, starting >= 5 min after the first cue (Priya 11-04); earlier runs = early_run;
+  - rest = docked lick-free stretches from the first to the last camera lick;
+  - August-only pre for everything except june_august_drift / 12.1b / map_drift_prepre / restnl_mask (their blocks unset it);
+  - lick counts = cue + 70 ms -> trial stop on one detector;
+  - bal_em centre on working rows (>= 20), with PS93_0813 excluded from working selections (no video);
+  - every pre-stroke model is stored (FREEZE_VERSION 2), keyed by label;
+  - all 47 former require_default scripts are routed to <default dir>/<tag>;
+  - the scratch-only page figure scripts are in scripts/rebuild_figs;
+  - the attempts table comes from the run's camera classes (qc/<selection tag>/);
+  - section 5b is on the working path.
+
+**Render:**
+- Runner agent a0db502ebea3b948d. Worktree `C:/Users/SabatiniLab/Github/wf_rebuild_render` at c3cb3c0c.
+- Log: `<root>/RENDER_LOG.md`.
+- Running now: trial_attempts under stopRun6j (started ~08:05, about 63 min serial), the coverage tables, the RESTnl DAQ gate,
+  then the RESTnl LP gate.
+- HELD until the O2 bundle is written: the epoch decoders, then grant_figures, section G, the encoder frames (see
+  `docs/status/rebuild_20261103/ENCODER_RENDER_COMMANDS.md`), the ITI / lick chain and the page figures.
+- Earlier attempts were superseded: the old-rule tag (stopRun6) got no figures, and its stored PS92-94 models are listed as
+  superseded, not deleted.
+
+**O2 encoder bundle (Priya wants it ASAP):**
+- Code helper a0dc6e4f1c77fb99f is making scripts/o2_encoding.py rebuild-aware:
+  - bundle inside the root;
+  - the full profile env in env.json, applied on O2;
+  - tag refusal;
+  - a bundle-vs-local check.
+- Then it builds `enc_rebuild_20261104` (production env = S1 run_bundle_full.sh; `--fr master_pre_v1`) and writes COMMANDS.md
+  (transfer-node rsync, login-node test task, 15 TAG arrays on `short`: 4 c / 32G / 6 h, %60, then rsync back and collect).
+- The bundle needs the stopRun6j attempts table.
+- OPEN: does combined_encoding use Allen areas? If so, the new split-basis decision has to land in the encoder path first.
+
+**New decisions pending implementation:**
+- Split area basis for ALL Allen-ROI analyses (Priya via a8): one shared function with iti_licks, new spec ids. A read-only
+  inventory agent (aea1c6b2f2540339c) is running; send its result to a8.
+- B / D / G (Priya via a8): D scores working trials (engaged = robustness); G groups by camera class; B state discriminators in
+  the spout frame. a8's helper builds these on MAIN; the rebuild PORTS those commits. C (projections) is still being re-checked.
+
+**Open questions for Priya** (running list):
+- the pattern-family pre reference (lick vs working);
+- the FR validation window (-2..+4 s vs -2 s -> trial stop; I recommend keeping it).
+
+The PS93_0813 DAQ fallback failed its check and is not used. Deleted with Priya's OK: the 4 mistaken qc tables.
+
+**Owed:**
+- a8: a per-slide old-vs-new list at the replacement pass (PI slides 9-13, 19, 89, everything rebuilt; imaging page sections
+  1-4, 6, 7);
+- e3: the *_sessions.csv paths.
+
+Scratchpad launchers are backed up at `M:/MICROSCOPE/Priya/Widefield/encoding_goal_page_src/scratchpad_scripts_backup_20261104/`.
+
+**Next:** O2 bundle -> Priya runs O2 -> epoch decoders and the rest of the render -> collect O2 -> encoder figures -> two
+verifiers (per animal first, then what moved) -> replacement pass (conclusion changes go to Priya first).
+
+### 00-COMPACT-22 (11-03 late night, Priya asleep) -- superseded by 23 for state
 Session f082ee0c. Running list = docs/status/RUNNING_LIST_2026-11-01.md, block "11-03 EVENING" (newest entries at the end of
 its Questions list). Docs commits on wf_attempt BY EXPLICIT PATH ONLY.
 - **Rebuild code** (branch rebuild/cohort1-20261103, worktree wf_rebuild, NOT pushed): tip 3a772a26+, full suite 4,576 / 0 failed.
