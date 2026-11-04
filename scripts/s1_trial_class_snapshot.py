@@ -80,6 +80,8 @@ def main(argv=None) -> int:
     from wfield_local import trial_classes as tc
     for name in ("contact", "lick", "close"):
         D[f"working_pl_{name}"] = tc.in_working(D.cls, D.cue_idx, session=D.label, position=D.position, end=name)
+        # PRODUCTION working since 11-03 late (Priya: jaw-only OUT, its own class like no-response): `& camera_lick`
+        D[f"working_pl_{name}_licks"] = D[f"working_pl_{name}"] & D.camera_lick
     f = out / f"s1_trial_classes_{a.window}.csv.gz"
     D.to_csv(f, index=False, float_format="%.6f")
     commit = subprocess.run(["git", "rev-parse", "--short", "HEAD"], capture_output=True, text=True,

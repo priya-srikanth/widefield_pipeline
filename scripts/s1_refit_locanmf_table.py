@@ -15,7 +15,7 @@ so every prediction equals the one in the figure. Recomputed here, not read from
 entry is an unlabelled list (a session that cannot be scored is skipped, so list position does not identify it).
 Accuracy = share of trials predicted right, trials the session could not train on (REFIT_UNAVAILABLE) dropped, as
 `_refit_at`; one number per session over all positions.
-Output -> <run>/imaging_encoding/qc/s1_refit_locanmf[_<lick-source tag>][_figrule].csv (label, animal, epoch, align, n, acc).
+Output -> <run>/imaging_encoding/qc/s1_refit_locanmf[_<lick-source tag>][_figrule][<--suffix>].csv (label, animal, epoch, align, n, acc).
 SHOWN: imaging results page section 1, per-animal table (LocaNMF row). Writes a CSV only (no figure): the CSV is the
 figdata, so there is no separate plot step for the cohort 1 rebuild inventory.
 """
@@ -29,7 +29,19 @@ EPS = ("pre", "acute", "subacute", "chronic")
 
 
 GATE_ARMS = (("working", "camwork"), ("camera_lick", "camlick"), ("working_pl_contact", "camworkpl_contact"),
-             ("working_pl_lick", "camworkpl_lick"), ("working_pl_close", "camworkpl_close"))
+             ("working_pl_lick", "camworkpl_lick"), ("working_pl_close", "camworkpl_close"),
+             # production working since 11-03 late (jaw-only OUT): the cutoff gates `& camera_lick`
+             ("working_pl_contact_licks", "camlickpl_contact"), ("working_pl_lick_licks", "camlickpl_lick"),
+             ("working_pl_close_licks", "camlickpl_close"))
+
+
+def snapshot_gates(snap: pd.DataFrame) -> pd.DataFrame:
+    """Add the jaw-free `working_pl_<anchor>_licks` columns (= `working_pl_<anchor> & camera_lick`, as
+    `scripts/s1_trial_class_snapshot.py` now writes them) when the snapshot predates them."""
+    for pl in ("contact", "lick", "close"):
+        if f"working_pl_{pl}_licks" not in snap:
+            snap[f"working_pl_{pl}_licks"] = snap[f"working_pl_{pl}"].astype(bool) & snap["camera_lick"].astype(bool)
+    return snap
 
 
 def unit_job(unit) -> list[dict]:
@@ -45,7 +57,7 @@ def unit_job(unit) -> list[dict]:
     from wfield_local import grant_confusion as GC
     from wfield_local import precue_engagement_states as PES
     from wfield_local.locanmf_frozen_decoder import _pipe
-    snap = pd.read_csv(snap_path)
+    snap = snapshot_gates(pd.read_csv(snap_path))
     feats, _orig = [], PES.features_with_indices
     PES.features_with_indices = lambda *a, **k: feats.append(_orig(*a, **k)) or feats[-1]
     try:
@@ -98,6 +110,7 @@ def main(argv=None) -> int:
     ap.add_argument("--fig-rule", action="store_true",
                     help="pre-stroke sessions on LICKING trials (the rule of Figs 1.1 / 1.2), to check against them")
     ap.add_argument("--jobs", type=int, default=8)
+    ap.add_argument("--suffix", default="", help="output name suffix (M: outputs are never overwritten; e.g. _1104)")
     a_ = ap.parse_args(argv)
     fig_rule, jobs = a_.fig_rule, a_.jobs
     import os
@@ -121,7 +134,7 @@ def main(argv=None) -> int:
         print(f"  FAILED {u[:2]}: {err}")
     rows = [r for _u, rr in got for r in rr]
     D = pd.DataFrame(rows)
-    f = out / ("s1_refit_locanmf" + ("_figrule" if fig_rule else "") + ".csv")   # the run tag is in the directory
+    f = out / ("s1_refit_locanmf" + ("_figrule" if fig_rule else "") + a_.suffix + ".csv")   # the run tag is in the directory
     D.to_csv(f, index=False, float_format="%.4g")
     D["aug"] = D.label.str[-4:] >= "0806"
     pd.set_option("display.width", 220)

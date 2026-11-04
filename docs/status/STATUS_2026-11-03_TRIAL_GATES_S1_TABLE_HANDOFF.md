@@ -19,6 +19,20 @@ cleanly, with no correction notes:
 - the LP-attempt decoder figures (2-3 and the §4 jaw-only mention) already exclude jaw-only trials; no change.
 Kinematics / behaviour / FaceRhythm pages: no "working = jaw or lick" wording found (jaw-only is already its own class there).
 
+**a8 11-04: main combined render NOT run tonight** (34's cohort-1 rebuild will replace the working-gated families in
+1-2 days; interim swap = Priya's call in the morning). Keep holding all imaging page edits.
+**s1 tables made jaw-free (off the main render path; e3 flagged they still included jaw-only):**
+- `scripts/s1_trial_class_snapshot.py` now also writes `working_pl_{contact,lick,close}_licks` (= the cutoff gate
+  `& camera_lick`); the existing snapshot is not rerun (overwrite on M:), readers derive the columns when absent.
+- `scripts/s1_refit_locanmf_table.py`: arms `camlickpl_{contact,lick,close}`; `--suffix` for the output name.
+- `wf_attempt` (analysis/attempt-coding, local) `scripts/s1_refit_basis_table.py`: columns `*_camlickpl{contact,lick,close}_*`; `--suffix`.
+- `docs/results_pages/imaging/p_img_s1_table_20261103.py`: primary = `split_camlickpllick` / LocaNMF `camlickpl_lick`;
+  no-cutoff row = camera lick gate; working-incl.-jaw-only kept as a robustness row; robustness sentence states the
+  measured max difference instead of "a few hundredths".
+- RUNNING 11-04 (LP licks, ENL 2 s): Allen `--jobs 6 --suffix _1104` -> `LP_licks_ENL2s/qc/s1_refit_basis_1104.csv`,
+  LocaNMF `--jobs 4 --suffix _1104` -> `LP_licks_ENL2s/qc/s1_refit_locanmf_1104.csv`; logs in e0 scratchpad
+  `s1_allen_1104.log`, `s1_locanmf_1104.log`. Then run the table script; do NOT apply to the page until Priya decides.
+
 ## UPDATE 11-03 night (3) — PUBLISHING FOR OTHER WINDOWS (Priya: this window may publish any page)
 
 - **Imaging page v51** (id 1793740803-1eef, on v50) for a8: `docs/status/STATE_BALEM_PAGE_EDITS_2026-11-03.md` (section 3 ->
