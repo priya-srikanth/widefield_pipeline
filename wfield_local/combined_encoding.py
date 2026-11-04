@@ -1079,7 +1079,10 @@ def session_inputs(label: str, cams=None, fr: str | None = None) -> dict:
     rv = PathResolver()
     animal, date = config.animal_of(label), config.date8(label.split("_")[-1])
     imaging = load_imaging(label)
+    from wfield_local import area_basis
+    _V, _ft, _Ub, flat_, parea_, names_a, shape_, pstat_ = imaging
     out = {"label": label, "imaging": imaging, "behaviour": load_behaviour(animal, date, rv),
+           "area_masks": area_basis.session_area_masks(parea_, pstat_, names_a, flat_, shape_),
            "epoch": epochs.epoch_of(label), "day": epochs.days_since_stroke(label), "video": None, "fr": None}
     fr = fr or os.environ.get(FR_ENV)
     if fr:
@@ -1119,6 +1122,20 @@ def session_inputs(label: str, cams=None, fr: str | None = None) -> dict:
     return out
 
 
+def area_masks_for(inputs, parea, pstat, names, flat, shape) -> dict:
+    """The session's AREA BASIS masks (`area_basis.session_area_masks`; Priya 11-04: split primary, plain robustness, v8
+    ROI masks). From the bundled inputs when given (built at bundle time: the v8 rim needs `beta_maps.brain_mask()`,
+    which reads the share) -- never recomputed there; else built here."""
+    if inputs is not None:
+        am = inputs.get("area_masks")
+        if am is None:
+            raise RuntimeError(f"{inputs.get('label')}: bundled inputs carry no area_masks (bundles before 11-04); rebuild "
+                               "the bundle -- the split basis cannot be built on O2")
+        return am
+    from wfield_local import area_basis
+    return area_basis.session_area_masks(parea, pstat, names, flat, shape)
+
+
 def run_session(label: str, order: str = "movement_first", seed: int = 0, inputs: dict | None = None) -> dict:
     """``inputs`` (from `session_inputs`) = run without touching the share (O2); None = load everything here."""
     from wfield_local import config
@@ -1137,6 +1154,7 @@ def run_session(label: str, order: str = "movement_first", seed: int = 0, inputs
         V, ft, Ub, flat, parea, names, shape, pstat = inputs["imaging"]
         B = inputs["behaviour"]
         epoch_, day_ = inputs["epoch"], inputs["day"]
+    am = area_masks_for(inputs, parea, pstat, names, flat, shape)
     T = B.trials
     if os.environ.get(MATCH_ENV):
         T = _match_trials(T, B, label, os.environ[MATCH_ENV], seed)
@@ -1556,7 +1574,7 @@ def run_session(label: str, order: str = "movement_first", seed: int = 0, inputs
             al[g] = max(ALPHA_GRID, key=lambda a: score(spec, {**al, g: a}))
         model_alphas[name] = al
     # evaluate: per model x window -> pixel SSE (as e), shared total t per window
-    areas = sorted({int(a) for a in np.unique(parea[pstat]) if a != 0})
+    areas = list(am["areas"])                               # AREA BASIS (Priya 11-04): split + plain, one set
     res = {"label": label, "animal": animal, "date": date, "epoch": epoch_,
            "day": day_, "order": order, "alphas": alphas, "penalty_groups": list(PEN_GROUPS), "gate": B.gate,
            "exec_set": os.environ.get(EXEC_ENV) or "cam4", "lick_set": os.environ.get(LICKS_ENV) or "cam4",
@@ -1567,7 +1585,10 @@ def run_session(label: str, order: str = "movement_first", seed: int = 0, inputs
            "fr_measure": ("absolute" if _fr_absolute() else "share") if fr_raw is not None else None,
            "fr_k": (int(fr_raw.shape[1]) if fr_raw is not None else 0),
            "frpts_k": (int(frpts_raw.shape[1]) if frpts_raw is not None else 0),
-           "drift_min_period_s": DRIFT_MIN_PERIOD_S, "drift_n_basis": int(Q.shape[1])}
+           "drift_min_period_s": DRIFT_MIN_PERIOD_S, "drift_n_basis": int(Q.shape[1]),
+           "area_basis": {"primary": "split", "tag": am["tag"], "roi_version": am["version"], "split": am["split"],
+                          "plain": am["plain"], "cortex": "roi_masks cortex (stat mask + v8 rim + ALM)",
+                          "cortex_stat": "eroded stat mask (the pre-11-04 cortex row)"}}
     if os.environ.get(BINS_ENV):                     # how often the tongue went to its own spout, per spout
         tl_, el_, fr_, Wt_, P_ = exec_bins(B, weights=True)
         u_ = tl_ != ""
@@ -1579,7 +1600,8 @@ def run_session(label: str, order: str = "movement_first", seed: int = 0, inputs
                                         for t in sorted(set(tl_[u_]))} if len(P_) else {})}
     maps, region = {}, []
     tot_pix = {}
-    amask = {a: (parea == a) & pstat for a in areas}          # region values on the eroded stat mask
+    amask = am["areas"]                                       # pixel indices (area_basis, v8 masks)
+    bas = {n: "+".join(b for b in ("split", "plain") if n in am[b]) for n in areas}
     for name, spec in models.items():
         ix = cols(spec)
         pen = np.array([model_alphas[name][pen_of_col[i]] for i in ix])
@@ -1593,9 +1615,13 @@ def run_session(label: str, order: str = "movement_first", seed: int = 0, inputs
                 tot_pix[w] = t
             t = tot_pix[w]
             maps[(name, w)] = bsum(e)
-            region.append({"model": name, "window": w, "area": "cortex", "r2": 1 - e[pstat].sum() / t[pstat].sum()})
+            cx = am["cortex"]
+            region.append({"model": name, "window": w, "area": "cortex", "basis": am["tag"],
+                           "r2": 1 - e[cx].sum() / t[cx].sum()})
+            region.append({"model": name, "window": w, "area": "cortex_stat", "basis": "stat",
+                           "r2": 1 - e[pstat].sum() / t[pstat].sum()})
             for a, m in amask.items():
-                region.append({"model": name, "window": w, "area": names.get(a, str(a)),
+                region.append({"model": name, "window": w, "area": a, "basis": bas[a],
                                "r2": 1 - e[m].sum() / t[m].sum()})
     # collinearity: cumulative subspace angles of the full design (normalised columns)
     ixf = cols(full_spec) + 1
@@ -1617,7 +1643,7 @@ def run_session(label: str, order: str = "movement_first", seed: int = 0, inputs
     ii, beta = eng.full_beta(ix, pen)
     Afull = A[:, ii[1:] - 1]
     gcol = grp_of_col[ix]
-    Ra = np.stack([Ub[(parea == a) & pstat].mean(0) for a in areas] + [Ub[pstat].mean(0)], 1)   # stat mask
+    Ra = np.stack([Ub[amask[a]].mean(0) for a in areas] + [Ub[pstat].mean(0), Ub[am["cortex"]].mean(0)], 1)
     comp = {"data": Y.astype(np.float64), "full": Afull @ beta[1:] + beta[0]}
     for g in GROUPS:
         comp[g] = Afull[:, gcol == g] @ beta[1:][gcol == g]
@@ -1732,7 +1758,7 @@ def run_session(label: str, order: str = "movement_first", seed: int = 0, inputs
     res["n_lick_aligned_by_pos"] = dict(zip(pos_order, n_lick_pos.tolist()))
     res["target_angle"] = B.target_angle
     res.update({"tr_models": tr_models, "pos_order": pos_order, "peth_parts": list(comp), "model_alphas": model_alphas,
-                "areas": [names.get(a, str(a)) for a in areas] + ["cortex"]})
+                "areas": areas + ["cortex_stat", "cortex"]})
     return {"res": res, "maps": maps, "flat": ublk, "shape": ((shape[0] + 1) // 2, (shape[1] + 1) // 2),
             "region": pd.DataFrame(region),
             "peth": peth, "peth_lick": peth_lick, "peth_off_s": off / res["fs"], "sse": sse, "sst": sst,
