@@ -1454,3 +1454,8 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
 - **Priya (via a8): close watch on B12.** When O2 lands, send FIRST: drop:pos_enl split vs no-licksall per animal x
   epoch (LP enl + enl_fixed2s), with n sessions and CIs, plus the list of encoder page / deck pre-cue position claims.
   The claim list is being prepared now.
+- **11-04 ~18:20 (clock): trial_attempts regeneration started under the new tag.**
+  - The render worktree is moved to 9fb2d964, the merged tip of all four branches. The runner is a new helper.
+  - It runs in parallel with the merge's final full suite. trial_attempts depends on trial_classes (cue70), not on the
+    reader-side g_group wiring.
+  - The bundle (enc_rebuild_20261104b) build waits for the suite to pass. Then come the checks and the handover.
