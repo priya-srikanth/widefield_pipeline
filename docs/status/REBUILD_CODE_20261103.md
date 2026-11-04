@@ -1755,7 +1755,7 @@ trip under the profile, tag refusal, runner order, 14 runs, root location); test
 ### 8.45 Cue + 70 ms, response window, stop rule A2, LP first-lick timing (branch rebuild/cue70; Priya 11-04)
 
 Branch `rebuild/cue70` from 571b3955 (worktree `wf_rebuild_cue70`). Commits: 9f0d6efe (rules 1 + 2), 395a9124 (A2),
-0988a1cf (LP timing), 5463a0b6 (run-break hook). Numbered 8.45 so it does not collide with 8.43 / 8.44 on wf_rebuild;
+0988a1cf (LP timing), 5463a0b6 (run-break hook), 3613cf0b (stopped-time licks, excise). Numbered 8.45 so it does not collide with 8.43 / 8.44 on wf_rebuild;
 renumber at merge if needed. Nothing was rendered and no table on M: was rebuilt. Scratch (scripts, CSVs, logs):
 `C:/Users/SABATI~1/AppData/Local/Temp/claude/C--Users-SabatiniLab/f082ee0c-b33c-49a8-a537-dcee3bb7c84c/scratchpad/cue70/`.
 
@@ -1808,8 +1808,8 @@ windows) count only cue + 70 ms (lick PEAK) .. min(cue + max_rt, stop) (`respons
 - Arms (`WIDEFIELD_TRIAL_STOPPED` / `trial_selection.stopped`): both (default + profile), run (A0, the 11-04 morning
   rule, code path unchanged), long (A3, runs >= 11, no guard), any. Profile arms `stopA0` / `stopA3`.
 - Tags: every camera rule name now ends in the class-window token `rt<max_rt ms>c<floor ms>` = `rt3500c70`.
-  - Primary `...-cls-contact-incomplete-stopA2jrt3500c70` (was `...-stopRun6j`).
-  - A0 `stopRun6jrt3500c70`, A3 `stopA3n11jrt3500c70`, any `stopAnyrt3500c70`, in_working_jaw `stopA2rt3500c70`.
+  - Primary `...-cls-contact-incomplete-stopA2jexrt3500c70` (was `...-stopRun6j`).
+  - A0 `stopRun6jrt3500c70`, A3 `stopA3n11jexrt3500c70`, any `stopAnyrt3500c70`, in_working_jaw `stopA2exrt3500c70`.
   - Profile expected tags updated.
 - `cue_classes_for` passes positions to the guard. `trial_attempts` already passes positions + cue times.
 - **Reproduction of r2.py**: `_classify_guarded` on r2's own `srg/trials.csv` (56,979 trials, 107 sessions; early_run
@@ -1927,6 +1927,70 @@ epoch x spout `transitions_final_animal_epoch_spout.csv`). Session-level classes
 **Tests.**
 - New: tests/test_cue70_response_window.py (13), tests/test_stop_rule_a2.py (16), tests/test_lp_daq_timing_fallback.py
   (5); lick_context / onset_context / encoder_context in test_orofacial_outputs.
-- Updated: the test_trial_classes fixture (peaks); tag strings in 9 files (stopRun6j -> stopA2jrt3500c70);
+- Updated: the test_trial_classes fixture (peaks); tag strings in 9 files (stopRun6j -> stopA2jexrt3500c70);
   test_trial_attempts (A2: the tail is stopped, the early run folded).
-- Related files at 5463a0b6: 241 passed. Full suite: see the test record below.
+- Related files at 5463a0b6: 241 passed; at 3613cf0b: 352 passed + the pre-existing failure below.
+
+**Rule 5: stopped time holds no licks, EXCISE** (Priya 11-04, leaning; commit 3613cf0b; wf_attempt
+docs/status/rebuild_20261103/STOPPED_LICKS_CENSUS_20261104.md, scripts scratchpad/slc/).
+- The runs and the quit tail are formed exactly as A2 (or A3). Then every stopped trial TOUCHED by a lick becomes
+  `stopped_licking` (`STOPPED_LICKING_CLASS`): in NEITHER stopped (`STOPPED_CLASSES`) NOR the working period, so it is
+  out of the hit denominator and out of the stopped arms (trial_attempts `RUN_EXCLUDED`), but reportable as a class.
+  The other run trials stay stopped; runs are not re-formed.
+- **Touched (the census definition):** a lick anywhere in the trial's own span, strobe (missing: cue - 3 s) .. stop,
+  or in the ITI on EITHER side of it (previous stop .. its strobe, its stop .. the next strobe). Licks = camera licks
+  by PEAK (v36 `licks_all.csv` `daq_peak_s`, every context) + DAQ contacts (`dlc_frames.lick_onsets`). cam1-only events
+  are not used (post-cue only; census: they add nothing in stopped spans). A lick belongs to the trial whose strobe is
+  the last one at or before it (`span_lick_matrix`, categories precue / 0_70 / response / after_max_rt / iti_after =
+  the census's `bin_events`).
+- Options (env / `trial_selection`, named in the tag):
+  - `WIDEFIELD_STOP_LICKS` / `stop_licks` = excise (default, tag "ex") | strict (tag "sb": the census's strict break,
+    runs cut at lick break points and re-formed, touched trials leave them; the quit tail is not touched) | none.
+  - `WIDEFIELD_STOP_TAIL` / `stop_tail` = lick_trial (default: the tail starts after the last camera-lick TRIAL) |
+    lick_event (tag "te": the tail starts at the last trial with a lick break point, the census's tail-event). Open
+    with Priya.
+  - A guarded rule without span lick counts RAISES unless none + lick_trial (no silent pre-11-04 classes). A0 ("run")
+    does not use lick times.
+- Spans are passed by `cue_classes_for` (`cue_span_licks`, the DAQ cue train; unmatched cues strobe = cue - 3 s,
+  stop = cue + max_rt), `trial_attempts` (trial rows) and `scripts/s1_trial_class_snapshot.py`. licks_all.csv enters
+  `class_source_signature`.
+- Tags: primary `...-cls-contact-incomplete-stopA2jexrt3500c70` (one run-tag change covering max_rt + cue70 + A2 +
+  excise); strict `stopA2jsbrt3500c70`, tail-event `stopA2jextert3500c70`; profile arms `stopStrict` / `stopTailEvent`
+  (with `stopA0` / `stopA3`).
+- **section G `g_group`** lives on rebuild/bcdg-port (724862f9), not on this branch: at merge it must map
+  `stopped_licking` to its own group (it routes stopped through the raw class today, which would put these trials back
+  in none / jaw_only).
+- **Reproduction** (`repro_slc.py` on the census's own gather.pkl + srg trials, pre-11-04 classes): A2 + excise =
+  5,338 stopped + **273 stopped_licking (pre 50, acute 141, subacute 51, chronic 31)**; A2 hit rates identical (max
+  |diff| 0 over animal x epoch; cohort pooled pre .956, acute .667); strict = 5,255 stopped (cohort pooled pre .953,
+  acute .652, as the census); strict + tail-event 5,228; excise + tail-event 5,332 + 271.
+- **On the final code** (census `census_final.csv`, 57,048 cues): stopped_licking **276** (pre 51, acute 143, subacute
+  51, chronic 31; the census's pending-rule count on trial rows is 275), all of them A2-stopped trials; nothing else
+  moves; hit rates identical to A2 without the excise (cohort pooled pre .9559, acute .6668, subacute .892, chronic
+  .9731).
+
+**Combined transition table, all five rules** (571b3955 -> 3613cf0b, session-level classes, 57,048 cues):
+
+| before \ after | incomplete | jaw_only | no_response | stopped | stopped_licking |
+|---|---|---|---|---|---|
+| contact | 17 | 6 | 2 | 0 | 0 |
+| incomplete | 0 | 7 | 5 | 1 | 3 |
+| jaw_only | 0 | 0 | 7 | 5 | 0 |
+| no_response | 0 | 0 | 0 | 3 | 0 |
+| stopped | 0 | 171 | 143 | 0 | 266 |
+| after_end | 0 | 0 | 0 | 36 | 7 |
+
+stopped 5,882 -> 5,347; stopped_licking 0 -> 276; after_end 43 -> 0; working 49,111 -> 49,087. stopped_licking per
+animal (pre / acute / subacute / chronic): PS92 8 / 44 / 0 / 0, PS93 8 / 39 / 22 / 7, PS94 23 / 58 / 3 / 9, PS95 12 / 2 /
+26 / 15. Per animal x epoch x spout: `transitions_final_animal_epoch_spout.csv` (A2 without the excise) and
+`merged_census_final.csv` (per cue).
+
+**Encoder (final code, 3613cf0b):** PS92_0806 Behaviour IDENTICAL again (LICKS_ALL unset and split; attempts table
+pinned to the existing stopRun6j table, since the new tag's table does not exist until trial_attempts is regenerated).
+
+**Test record (3613cf0b, full suite, 4 shards run one at a time):** 4,790 passed, 171 skipped, 1 failed
+(731 / 1,819 + 1 failed / 1,088 / 1,152). The failure is pre-existing and unrelated:
+ compares wfield_local/working_trials.py with
+origin/main, which has moved (origin/main 2eeead86 vs 571b3955 1a56bb25; this branch does not touch the file).
+New tests in 3613cf0b: test_stop_rule_a2.py now 24 (span categories, touched definition, excise, strict, tail-event,
+tags / raise, session_span_licks), test_trial_attempts.py +1 (stopped_licking leaves both sets).
