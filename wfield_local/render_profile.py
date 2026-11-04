@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import argparse
 import os
+import re
 from pathlib import Path
 
 PROFILE_DIR = Path(__file__).resolve().parents[1] / "configs" / "render_profiles"
@@ -59,12 +60,29 @@ def load(name: str, arm: str | None = None) -> dict:
 
 def block_env(name: str, block: str) -> dict:
     """Extra env of one render BLOCK (profile ``block_env``; fifth review N5b), e.g. WIDEFIELD_LICK_SOURCE=lp for the LP
-    blocks. {} for a block without one."""
+    blocks. {} for a block without one. A null value UNSETS that variable for the block (Priya 11-03 late: the
+    blocks that keep their own pre set clear the profile's WIDEFIELD_PRE_FROM)."""
     d = load(name)
     known = set(d.get("block_env") or {}) | set(d.get("block_args") or {})
     if block not in known:                                   # a typo must not silently run a block without its env
         raise KeyError(f"profile {name!r} has no block {block!r} (block_env / block_args: {sorted(known)})")
-    return {str(k): str(v) for k, v in ((d.get("block_env") or {}).get(block) or {}).items()}
+    return {str(k): (None if v is None else str(v)) for k, v in ((d.get("block_env") or {}).get(block) or {}).items()}
+
+
+def _with_block(d: dict, name: str, block: str | None) -> dict:
+    """``d`` with the block's env merged: set values added, null values removed (listed in ``d["unset"]``)."""
+    d["unset"] = []
+    if block is None:
+        return d
+    env = dict(d["env"])
+    for k, v in block_env(name, block).items():
+        if v is None:
+            env.pop(k, None)
+            d["unset"].append(k)
+        else:
+            env[k] = v
+    d["env"] = env
+    return d
 
 
 def leftovers(d: dict, environ=None) -> list[str]:
@@ -76,9 +94,7 @@ def leftovers(d: dict, environ=None) -> list[str]:
 def apply(name: str, environ=None, arm: str | None = None, block: str | None = None) -> dict:
     """CLEAR every leftover WIDEFIELD_* / WFIELD_* variable, then set the profile's env in ``environ`` (default
     os.environ); returns the profile with ``cleared`` (the names removed)."""
-    d = load(name, arm)
-    if block is not None:                                  # the block's own env is part of what the profile sets
-        d["env"] = {**d["env"], **block_env(name, block)}
+    d = _with_block(load(name, arm), name, block)       # the block's own env is part of what the profile sets
     env = os.environ if environ is None else environ
     d["cleared"] = leftovers(d, env)
     for k in d["cleared"]:
@@ -93,9 +109,7 @@ def apply(name: str, environ=None, arm: str | None = None, block: str | None = N
 def shell_lines(name: str, shell: str = "powershell", arm: str | None = None, block: str | None = None) -> list[str]:
     """Shell lines that first REMOVE every owned-prefix variable of that shell, then set the profile's (+ the arm's,
     + the block's)."""
-    d = load(name, arm)
-    if block is not None:
-        d["env"] = {**d["env"], **block_env(name, block)}
+    d = _with_block(load(name, arm), name, block)       # unset variables are simply not set again after the clear
     if shell == "bash":
         clear = ["for v in $(compgen -e | grep -E '^(WIDEFIELD|WFIELD|COMBINED_ENCODING)_'); do unset \"$v\"; done"]
         return clear + [f'export {k}="{v}"' for k, v in d["env"].items()]
@@ -113,6 +127,8 @@ def check(name: str, arm: str | None = None, block: str | None = None) -> tuple[
     d = apply(name, arm=arm, block=block)
     from wfield_local import config, lp_licks, run_mode
     want = (d.get("notes") or {}).get("expected_run_tag")
+    if want and "WIDEFIELD_PRE_FROM" in d.get("unset", []):
+        want = re.sub(r"_pre[0-9A-Za-z]+(?=_|$)", "", want)    # a block that keeps its own pre set: no pre part
     full, rt = lp_licks.output_tag(), run_mode.tag()
     lines = [f"cleared: {d['cleared'] or 'none'}", f"run tag: {rt}", f"output tag: {full}", f"expected: {want}"]
     rr = d["env"].get("WIDEFIELD_REBUILD_ROOT")

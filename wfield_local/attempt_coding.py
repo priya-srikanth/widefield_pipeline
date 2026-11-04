@@ -101,6 +101,9 @@ def classify(cls_e, cls_u, eng_pre_e, eng_pre_u, not_eng_u, camera_u=None):
         # period that is not part of a sustained stop (class "no_response" after `classify_session`). Contrast with
         # "stopped" = isolated lapse vs sustained stop.
         cu[post_u & (cam == "no_response") & (cls_u == "no_try")] = "noattempt"
+        # JAW_ONLY its own class (Priya 11-03 late): a camera jaw_only trial inside the working period keeps its own
+        # label ("reaction"), never merged into noattempt; it is no longer in the working gate
+        cu[post_u & (cam == "jaw_only") & (cls_u == "jaw_only")] = "reaction"
     else:
         cu[post_u & not_eng_u & ~np.isin(cls_u, ("", "unknown"))] = "stopped"
         work = post_u & ~not_eng_u

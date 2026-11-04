@@ -82,7 +82,10 @@ def classes_for_rows(cls_e, cls_u, quit_u, pre, camera_u=None):
     cu[work & (cls_u == "no_try")] = "noattempt"
     if camera_u is not None:     # decision 3 (Priya 11-03): noattempt = isolated lapse (camera no_response in period)
         cu[(np.asarray(camera_u, dtype=object) == "no_response") & (cls_u == "no_try")] = "noattempt"
-    cu[work & (cls_u == "jaw_only")] = "reaction"
+        # jaw_only its own class (Priya 11-03 late): camera jaw_only inside the working period -> "reaction"
+        cu[(np.asarray(camera_u, dtype=object) == "jaw_only") & (cls_u == "jaw_only")] = "reaction"
+    else:
+        cu[work & (cls_u == "jaw_only")] = "reaction"
     return ce, cu
 
 

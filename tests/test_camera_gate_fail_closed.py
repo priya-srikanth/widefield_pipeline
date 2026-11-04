@@ -211,9 +211,9 @@ def test_camera_miss_working_excludes_contact(monkeypatch):
     cls = np.array(["contact", "incomplete", "jaw_only", "no_response", "unknown"], object)
     monkeypatch.setattr(TC, "row_classes", lambda label, idx: cls[np.asarray(idx)])
     ke, kn = TC.camera_rows("X_0000", np.array([], int), np.arange(5), "miss_working")
-    assert kn.tolist() == [False, True, True, False, False]
+    assert kn.tolist() == [False, True, False, False, False]       # 11-03 late: jaw_only is not working
     ke, kn = TC.camera_rows("X_0000", np.array([], int), np.arange(5), "working")
-    assert kn.tolist() == [True, True, True, False, False]
+    assert kn.tolist() == [True, True, False, False, False]
 
 
 def test_require_gate(monkeypatch):
@@ -296,7 +296,7 @@ def test_figures_working_is_tag_checked(monkeypatch, tmp_path):
     assert writeguard.is_writable(tmp_path / "cue_lick" / "coding_direction_cue.png")
     monkeypatch.setenv("WIDEFIELD_TRIAL_GATE", "camera")
     assert not writeguard.is_writable(tmp_path / "cue_lick" / "coding_direction_cue.png")
-    assert writeguard.is_writable(tmp_path / "cue_lick" / "sel-camera-cue_stop-endlick-stopRun6" / "coding_direction_cue.png")
+    assert writeguard.is_writable(tmp_path / "cue_lick" / "sel-camera-cue_stop-wkci-endlick-stopRun6" / "coding_direction_cue.png")
 
 
 def test_cue_classes_all_nan_table_is_unknown():
@@ -322,9 +322,9 @@ def test_sustained_stop_rule(monkeypatch):
     assert not TC.in_gate(["no_response", "stopped"], "working").any()
     monkeypatch.setenv(TC.GATE_ENV, "camera")
     monkeypatch.delenv(TC.STOPPED_ENV, raising=False)
-    assert TC.run_selection_tag() == "sel-camera-cue_stop-endlick-stopRun6"
+    assert TC.run_selection_tag() == "sel-camera-cue_stop-wkci-endlick-stopRun6"
     monkeypatch.setenv(TC.STOPPED_ENV, "any")
-    assert TC.run_selection_tag() == "sel-camera-cue_stop-endlick-stopAny" and TC.run_selection() == TC.run_selection_tag()
+    assert TC.run_selection_tag() == "sel-camera-cue_stop-wkci-endlick-stopAny" and TC.run_selection() == TC.run_selection_tag()
     monkeypatch.setenv(TC.STOPPED_ENV, "bogus")
     with pytest.raises(ValueError):
         TC.stopped_rule()
@@ -357,7 +357,7 @@ def test_session_end_relabel_equals_in_working(monkeypatch):
     assert not TC.in_gate(TC.classify_session(raw, None, pos, rule="run", min_run=6, end="close"), "working")[2:].any()
     monkeypatch.setenv(TC.GATE_ENV, "camera")
     monkeypatch.setenv(TC.END_ENV, "contact")
-    assert TC.run_selection_tag().startswith("sel-camera-cue_stop-endcontact-")
+    assert TC.run_selection_tag().startswith("sel-camera-cue_stop-wkci-endcontact-")
     monkeypatch.setenv(TC.END_ENV, "bogus")
     with pytest.raises(ValueError):
         TC.end_anchor()

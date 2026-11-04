@@ -60,8 +60,8 @@ def spout_scaling():
 
 
 #: WHICH ROWS THE EM CENTRE IS FITTED ON (Priya 11-03, "camera gate everywhere"): ``working`` = the session's camera
-#: WORKING rows (contact | incomplete | jaw_only inside the working period: never after_end, unknown, stopped,
-#: early_run), the default under the camera trial gate; ``engaged`` = every DAQ-engaged row of the session (main's
+#: WORKING rows (contact | incomplete inside the working period -- Priya 11-03 late, jaw_only is its own class: never
+#: jaw_only, after_end, unknown, stopped, early_run), the default under the camera trial gate; ``engaged`` = every DAQ-engaged row of the session (main's
 #: 11-03 rule), the default under the DAQ gate and the alternative under the camera gate. Label-free either way, never
 #: no-lick rows. Setting ``bal_em.centre_rows`` (auto | working | engaged) / WIDEFIELD_BALEM_CENTRE. It enters the
 #: stored-model spec (``scaling_params.centre_set``); a camera run with the engaged centre is tagged (`run_mode`).
@@ -113,7 +113,8 @@ def centre_rows() -> str:
 
 
 def centre_mask(cls_e):
-    """``bool[n engaged rows]`` -- the rows the EM centre is fitted on: the camera WORKING rows (``cls_e`` = the camera
+    """``bool[n engaged rows]`` -- the rows the EM centre is fitted on: the camera WORKING rows (contact | incomplete;
+    ``cls_e`` = the camera
     class per engaged row, `trial_classes.pool_row_classes`) under ``centre_rows() == "working"``; None (= every
     engaged row) under "engaged". FAILS CLOSED: "working" without row classes raises."""
     if centre_rows() != "working":

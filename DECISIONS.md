@@ -23005,18 +23005,21 @@ Section 1 already uses it (no cell moved by more than .02).
 Collected from the rebuild rounds of 11-03 (coordinator relays; implementation `wfield_local/trial_classes.py`
 `classify_session`, called by `cue_classes_for`; log docs/status/REBUILD_CODE_20261103.md sections 8.2, 8.6, 8.8).
 
-- **Working (camera).** contact | incomplete | jaw_only (the A4 classes), i.e. "responded to this cue" -- the default
-  "working" of the rebuild (`trial_selection.gate: camera`). The DAQ quit-tail rule stays a labelled robustness row.
+- **Working (camera).** contact | incomplete: a camera lick on this cue -- the default "working" of the rebuild
+  (`trial_selection.gate: camera`; selection tag part `wkci`). jaw_only is its OWN class, reported like no_response
+  (Priya 11-03 late, docs/status/JAW_ONLY_CHECKS_2026-11-03.md on main). This applies everywhere: the frozen training
+  set, the bal_em centre, the pre panel and the scored sets. The DAQ quit-tail rule stays a labelled robustness row.
 - **End of session.** Working ends at the session's LAST CAMERA LICK (contact or incomplete; `in_working(end="lick")`,
   b506c1e3). Robustness anchors: contact / close / none.
 - **Stopped = a SUSTAINED stop.** At least 6 (`behavior.tail_min_misses`, the task's auto_hold_after_miss) camera
-  no_response trials in a run. In-video "unknown" trials neither break nor extend a run. A jaw_only trial AFTER the
-  last camera lick BRIDGES a run (it does not break it) but is not stopped and does not count toward the 6 ("a jaw-only
-  trial after the last lick shouldn't BREAK a stop run"). Sensitivity: every no_response (`trial_selection.stopped:
-  any`). The rule name is in the selection tag (stopRun6 / stopAny).
+  no_response trials in a run. In-video "unknown" trials neither break nor extend a run. A jaw_only trial ANYWHERE
+  BRIDGES a run (it does not break it) but is not stopped and does not count toward the 6. This is the coordinator's
+  default, flagged to Priya. Sensitivity: every no_response (`trial_selection.stopped: any`). The rule name is in the
+  selection tag (stopRun6 / stopAny).
 - **Isolated lapses.** A no_response trial inside the working period that is not part of a stop stays "no_response":
-  attempt coding's "noattempt" = an isolated lapse; the contrast is isolated lapse vs sustained stop. After the last
-  lick a non-stopped no_response is in neither class.
+  attempt coding's "noattempt" = an isolated lapse; the contrast is isolated lapse vs sustained stop. A jaw_only trial
+  inside the working period keeps its own label ("reaction" in attempt coding). After the last lick a non-stopped
+  no_response or jaw_only trial is in neither class.
 - **No-lick trials with a camera contact** are in neither miss-while-working nor stopped, and are counted.
 - **No-lick analysis window = cue -> trial stop** (FINAL, supersedes the response-window proposal): licks and contacts
   counted exactly as trial_classes' cue_stop does (contacts from cue + 70 ms, the contact table), so the two definitions
@@ -23044,10 +23047,7 @@ Collected from the rebuild rounds of 11-03 (coordinator relays; implementation `
   contact trial: it moves to `late_rewarded` (out of the no-lick arm), so the no-lick arm and the camera classes cannot
   disagree.
 - **Rule "any" (sensitivity)** stops every no_response from 5 min after the first cue on.
-- **No jaw-only bridging when the video tail is missing.** With an uncovered tail there is no end cutoff, so jaw-only
-  trials stay working and do not bridge a run (the last lick is unknown). No current session is affected.
-- **A stop run ends where licking resumes.** A contact or incomplete trial (or a jaw-only trial before the end anchor)
-  ends a run; an in-video "unknown" is skipped. So `[C, NR x3, U, NR x3, C]` is one stop of 6, `[C, NR x3, C, NR x3, C]`
+- **A stop run ends where licking resumes.** A contact or incomplete trial ends a run; an in-video "unknown" is skipped. So `[C, NR x3, U, NR x3, C]` is one stop of 6, `[C, NR x3, C, NR x3, C]`
   is none.
 
 
@@ -23302,8 +23302,8 @@ state-class version on.
 ## 2026-11-03 (night) -- bal_em centre fitted on the rows the gate scores (Priya: camera gate everywhere); the DAQ-engaged centre is the alternative
 
 - **Rule.** Under the camera trial gate the bal_em EM centre of every scored session is fitted on that session's camera
-  WORKING engaged rows: contact | incomplete | jaw_only inside the working period, never after_end, unknown, stopped or
-  early_run. It stays label-free and never uses no-lick rows. Under the DAQ gate the centre uses every DAQ-engaged row of
+  WORKING engaged rows: contact | incomplete inside the working period, never jaw_only, after_end, unknown, stopped
+  or early_run. It stays label-free and never uses no-lick rows. Under the DAQ gate the centre uses every DAQ-engaged row of
   the session (main's 11-03 rule).
 - **Alternative.** The DAQ-engaged centre under the camera gate: `bal_em.centre_rows: engaged` (or
   WIDEFIELD_BALEM_CENTRE=engaged). Such a run is tagged `emc-engaged` (output and cache tags). The default (`auto`)
@@ -23334,4 +23334,22 @@ state-class version on.
   point are scored on, stays on that discriminator.
 - Measured difference (cue + 70 ms to the stop): PS93_0908 detector A 5,304 vs B 5,203 licks (101 of 511 trials
   differ by 1); PS94_0818 1,486 vs 1,484.
+
+## 2026-11-03 (late) -- Priya: working = contact + incomplete; jaw_only its own class like no_response
+
+Priya 11-03 late: working = contact + incomplete; jaw_only its own class like no_response
+(JAW_ONLY_CHECKS_2026-11-03.md). In the rebuild:
+- `trial_classes.GATES["working"]` = contact | incomplete, and `miss_working` = incomplete.
+- A jaw_only trial bridges a stop run anywhere without counting.
+- The bal_em centre is fitted on contact + incomplete rows (20-row minimum unchanged).
+- The camera selection tag gains `wkci`, so no store or cache entry of the old working set is reused.
+
+## 2026-11-03 (late) -- Priya: August-only pre everywhere in the rebuild, except june_august_drift and 12.1b
+
+Priya 11-03 late: August-only pre everywhere in the rebuild, except june_august_drift and 12.1b.
+- The render profile sets WIDEFIELD_PRE_FROM=0801 (run tag part `pre0801`); the per-block `--pre-from` arguments are
+  removed (one source).
+- june_august_drift and 12.1b (`rest_frozen_decoder_nl`) unset it in their blocks (`block_env: null`).
+- Epoch boundaries still come from the full pre set (`epoch_audit.full_cohort` suspends it).
+- ITI extracts are keyed by the pre set, so their downstream families inherit it.
 

@@ -41,7 +41,7 @@ def test_lp_family_out_dirs_keep_the_default_lp_folder(monkeypatch):
     monkeypatch.setenv("WIDEFIELD_GATE_SOURCE", "lp")
     assert attempt_coding.out_dir() == base / "attempt_coding" / "gateLP"
     monkeypatch.setenv("WIDEFIELD_TRIAL_GATE", "camera")
-    assert attempt_coding.out_dir().name.startswith("gateLP_sel-camera-cue_stop-endlick-stopRun6")
+    assert attempt_coding.out_dir().name.startswith("gateLP_sel-camera-cue_stop-wkci-endlick-stopRun6")
 
 
 #: readers of the attempt_coding / attempt_maps outputs: each must resolve its folder through the WRITER's out_dir

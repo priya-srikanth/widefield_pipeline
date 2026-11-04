@@ -52,7 +52,10 @@ OUT = run_mode.subdir(E / "iti_licks")
 # DATA parts of the mode (hemo variant, LocaNMF projection, projall), so they live in XOUT; every OUTPUT stays in the
 # fully tagged OUT. A PRE_FROM / MAP_REFS / in-memory / LP / gate-LP run therefore reads the extracts of its data
 # instead of failing on an empty tagged folder. XOUT == OUT == iti_licks/ by default.
-XOUT = run_mode.subdir(E / "iti_licks", include=("hemo", "lnmf", "drift", "projall"))   # extracts are drift-removed
+# extracts are drift-removed, and each carries its session's EPOCH label at extraction time (`epochs.epoch_of`, which
+# under WIDEFIELD_PRE_FROM drops June from "pre"), so the pre set is part of the key (Priya 11-03 late: Aug-only pre
+# everywhere; the downstream lick_cued_ramp / lick_code_* families inherit it from these extracts)
+XOUT = run_mode.subdir(E / "iti_licks", include=("hemo", "lnmf", "drift", "pre", "projall"))
 # T2 (third review): XOUT is CONTENT-keyed (the data parts of the mode), so it is registered as a data store: writeguard
 # does not tag-check it (like the frozen store), and the extract step writes it in every mode
 

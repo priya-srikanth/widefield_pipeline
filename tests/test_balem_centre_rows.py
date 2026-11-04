@@ -35,7 +35,8 @@ def test_centre_rows_follow_the_gate(camera):
 def test_centre_mask_is_the_working_classes_and_fails_closed(camera):
     cls = np.array(["contact", "incomplete", "jaw_only", "after_end", "unknown", "stopped", "early_run",
                     "no_response"], object)
-    assert ss.centre_mask(cls).tolist() == [True, True, True, False, False, False, False, False]
+    # Priya 11-03 late: working = contact + incomplete (jaw_only its own class)
+    assert ss.centre_mask(cls).tolist() == [True, True, False, False, False, False, False, False]
     with pytest.raises(ss.BalEmCentreRefused, match="WORKING rows are required"):
         ss.centre_mask(None)
     camera.setenv(ss.CENTRE_ENV, "engaged")

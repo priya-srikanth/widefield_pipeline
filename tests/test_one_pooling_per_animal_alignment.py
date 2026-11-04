@@ -87,7 +87,7 @@ def test_the_four_migrated_figures_go_through_the_bundle():
         tree = ast.parse(src.read_text(encoding="utf-8"))
         owner = _enclosing_function(tree)
         users |= {owner.get(ln) for ln in _calls_to(tree, "_pooled_bundle")}
-    for fn in ("fig_confusion_pre_post_working", "_collect_5c",
+    for fn in ("fig_confusion_pre_post_working", "_collect_5c_cached",   # (the cached body; re-verify item 4)
                "fig_pattern_similarity_per_session", "fig_pattern_similarity", "_collect_7"):
         assert fn in users, f"{fn} no longer obtains its trials from _pooled_bundle"
 

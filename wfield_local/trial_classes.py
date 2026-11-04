@@ -18,7 +18,8 @@ What each trial is, first match wins, inside the chosen WINDOW:
                moving at the cue that never moved again (it may still have reacted)
 
 Groupings (GATES), used to select trials:
-  working      contact | incomplete | jaw_only   the animal responded to THIS trial's cue (imaging ENL + cue decoding)
+  working      contact | incomplete              a lick on THIS trial's cue (Priya 11-03 late: jaw_only is its OWN class,
+                                                 reported like no_response -- JAW_ONLY_CHECKS_2026-11-03.md)
   camera_lick  contact | incomplete              a lick was made (lick-aligned windows always need it)
   attempted    contact | incomplete              = camera_lick; the encoder page's "attempt" (10-21 rule)
 
@@ -62,14 +63,14 @@ import numpy as np
 import pandas as pd
 
 CLASSES = ("contact", "incomplete", "jaw_only", "no_response", "unknown")
-GATES = {"working": frozenset({"contact", "incomplete", "jaw_only"}),
+GATES = {"working": frozenset({"contact", "incomplete"}),     # Priya 11-03 late: jaw_only is NOT working
          "camera_lick": frozenset({"contact", "incomplete"}),
          "attempted": frozenset({"contact", "incomplete"}),
          # MISS WHILE WORKING on the NO-LICK arm (review M6, 11-03): responded but NO contact. A no-lick row (no DAQ
          # lick within max_rt) whose camera class is "contact" (a contact later in cue+70 ms .. stop) is in NEITHER
          # miss_working nor stopped -- to confirm with Priya (count them: `in_gate(cls, "working") & ~in_gate(cls,
          # "miss_working")`).
-         "miss_working": frozenset({"incomplete", "jaw_only"})}
+         "miss_working": frozenset({"incomplete"})}        # a working no-lick-arm miss: licked, no contact
 WINDOWS = ("cue_stop", "trial")
 DEFAULT_WINDOW = "cue_stop"
 JAW_UNJUDGED_POSITIONS = ("close_center", "close_mid")   # neither camera can judge the jaw at this spout (10-21)
@@ -301,7 +302,10 @@ def selection_tag(source: str = "camera", window: str = DEFAULT_WINDOW, end: str
     runs with different sources or windows never share a cache entry (agreed with the cohort-1 rebuild, 11-03).
     ``end`` = the end-of-session anchor when the selection uses one (e.g. "lick" -> "-endlick"); ``stopped`` = the
     camera stopped-rule name (`stopped_rule_name`). None leaves the tag as before, so existing keys do not move."""
-    return f"sel-{source}-{window}" + (f"-end{end}" if end else "") + (f"-{stopped}" if stopped else "")
+    # "-wkci" (Priya 11-03 late): the camera WORKING set is contact + incomplete -- a new selection, so no store / cache
+    # entry built on the old contact + incomplete + jaw_only working set can ever be served
+    return (f"sel-{source}-{window}" + ("-wkci" if source == "camera" else "") + (f"-end{end}" if end else "")
+            + (f"-{stopped}" if stopped else ""))
 
 
 # ------------------------------------------------------------------------------------------ the run's trial gate
@@ -309,7 +313,7 @@ def selection_tag(source: str = "camera", window: str = DEFAULT_WINDOW, end: str
 # (`grant_kit._class_select` and the gates listed in `docs/status/REBUILD_CODE_20261103.md` item f):
 #   daq     the DAQ quit-tail rule: working = engaged + unengaged outside the terminal quit period, stopped = the quit
 #           period (`precue_engagement_states.engagement_gate`). UNTAGGED: every output made before 11-03.
-#   camera  THIS module's GATES: working = contact | incomplete | jaw_only, stopped = a sustained stop (`classify_session`,
+#   camera  THIS module's GATES: working = contact | incomplete, stopped = a sustained stop (`classify_session`,
 #           >= 6 no_response); "unknown" and
 #           sessions without video (PS93_0813) are in NEITHER (no DAQ fallback; reconciliation D12). The lick class
 #           stays the DAQ contact set in both modes (lick-aligned windows need a lick time).
@@ -540,11 +544,12 @@ def classify_session(cls, matched=None, position=None, *, rule: str | None = Non
         (a cutoff at the last covered lick would end working early).
       * SUSTAINED STOP (``rule`` "run"): a run with >= ``min_run`` no_response trials -> its no_response trials are
         STOPPED_CLASS. Runs are counted per COVERED SEGMENT (an uncovered gap ends a run; it never stitches two runs);
-        in-video "unknown" trials neither break nor extend a run; a contact / incomplete trial (licking resumed) and a
-        jaw_only trial at or before the end anchor END the run; a jaw_only trial AFTER the end anchor BRIDGES the run
-        (T3, Priya 11-03): it neither breaks it nor counts toward the ``min_run`` and is never stopped (it becomes
-        AFTER_END_CLASS). With an uncovered video tail there is no end cutoff, so nothing bridges. Rule "any": every
-        no_response is stopped.
+        in-video "unknown" trials neither break nor extend a run; a contact / incomplete trial (licking resumed) ENDS
+        the run; a jaw_only trial anywhere BRIDGES it (Priya 11-03 late, jaw_only out of working: the after-last-lick
+        T3 rule extended to the whole session): it neither breaks the run nor counts toward ``min_run`` and is never
+        stopped. Rule "any": every no_response is stopped.
+      * JAW_ONLY is its own class, reported like no_response: inside the working period it stays "jaw_only"; after the
+        end anchor it becomes AFTER_END_CLASS.
       * TIME RULE (Priya 11-03): a stop counts only if its run STARTS >= ``min_start_s`` (`stop_min_start_s()`, 300 s)
         after the session's first cue (``cue_s``, the session cue times in s; None = no time rule). An earlier
         qualifying run -> EARLY_RUN_CLASS (in neither working nor stopped); under rule "any", every no_response
@@ -564,9 +569,9 @@ def classify_session(cls, matched=None, position=None, *, rule: str | None = Non
         after = np.zeros(n, bool)
     else:
         after = ~before_session_end(out, np.arange(n), position=position, anchor=end)
-    # T3 (Priya 11-03, as approved: "a jaw-only trial after the last lick shouldn't BREAK a stop run"): a jaw_only
-    # trial after the last camera lick BRIDGES a no_response run; it does NOT count toward the 6 and is NOT stopped
-    jaw_late = (out == "jaw_only") & after
+    # JAW_ONLY BRIDGES a no_response run anywhere in the session (T3 extended; Priya 11-03 late: jaw_only is not
+    # working): it does NOT count toward the 6 and is NOT stopped
+    jaw_late = out == "jaw_only"
     nr = out == "no_response"
     # TIME RULE (Priya 11-03): runs starting before first cue + min_start_s are not stops (in neither class)
     if cue_s is not None and n:
@@ -602,7 +607,7 @@ def classify_session(cls, matched=None, position=None, *, rule: str | None = Non
                 i = j
     out[early] = EARLY_RUN_CLASS
     out[stop] = STOPPED_CLASS
-    late = after & ~stop & (in_gate(out, "working") | (out == "no_response"))
+    late = after & ~stop & (in_gate(out, "working") | np.isin(out, ["no_response", "jaw_only"]))
     out[late] = AFTER_END_CLASS
     return out
 
@@ -824,8 +829,8 @@ def camera_rows(label: str, idx_e, idx_n, variant: str):
     """(keep engaged rows, keep no-lick rows) for ONE session's trial features under the camera rule -- the per-session
     map builders' counterpart of `camera_select` (`beta_maps.session_maps`, `position_reference_maps._working_xy`,
     `hemo_map_control`). ``idx_e`` / ``idx_n`` = DAQ cue indices of the engaged / no-lick rows.
-      working       engaged + no-lick rows whose class is in GATES["working"]
-      miss_working  no-lick rows in GATES["working"] (incomplete / jaw-only: responded but no contact)
+      working       engaged + no-lick rows whose class is in GATES["working"] (contact | incomplete)
+      miss_working  no-lick rows in GATES["miss_working"] (incomplete: licked, no contact)
       stopped       no-lick rows in STOPPED_CLASSES
       lick          engaged rows unchanged (contact-only)
     Any other variant RAISES (second pass 11-03: it used to fall through to "lick")."""

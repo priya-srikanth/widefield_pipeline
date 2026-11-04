@@ -17,6 +17,10 @@ env:
   # LP arm: LP-TRAINED stored models (the default since 11-03; "lp" only names it -- the DAQ-trained cross-check is
   # WIDEFIELD_LP_FROZEN=daq, NOT part of this profile)
   WIDEFIELD_LP_FROZEN: lp
+  # Priya 11-03 late: AUGUST-ONLY PRE EVERYWHERE in the rebuild (one source, the env; epoch boundaries are derived from
+  # the full pre set regardless: epoch_audit.full_cohort suspends it). Exceptions in block_env: june_august_drift and
+  # 12.1b (rest_frozen_decoder_nl) keep their own June + August pre set.
+  WIDEFIELD_PRE_FROM: "0801"
 
 # THE REBUILD ROOT (coordinator 11-03, fourth review): EVERY derived output of this render -- cohort_out / grant_figures,
 # figures_working, analysis_figures, LP_analysis/<run>/imaging_encoding (encoder, ITI, attempt, qc), the frozen store
@@ -26,11 +30,7 @@ env:
 # Seed it once: python -m wfield_local.rebuild_root init --profile cohort1_rebuild_20261103
 rebuild_root: M:/MICROSCOPE/Priya/Widefield/rebuild_20261103
 
-# Aug-only pre baseline for the DECODER blocks only: passed per render block (`--pre-from 0801`), never as a global env
-# (june_august_drift refuses PRE_FROM; 12.1b lick-free rest selects its own June + August pre set).
-block_args:
-  epoch_grant_figures: ["--pre-from", "0801"]
-  grant_figures: ["--pre-from", "0801"]
+# (block_args --pre-from 0801 for epoch_grant_figures / grant_figures REMOVED 11-03 late: the profile env is the one source)
 
 # PER-BLOCK ENV (fifth review N5b): `--block <name>` (render_profile.apply(name, block=...)) adds the block's env. The LP
 # blocks set the LP lick source themselves; an LP_licks folder is refused without it (lp_licks.refuse_lp_folder).
@@ -40,6 +40,8 @@ block_env:
   epoch_accuracy: {WIDEFIELD_LICK_SOURCE: lp}
   epoch_maps: {WIDEFIELD_LICK_SOURCE: lp}
   analysis_deck_lp: {WIDEFIELD_LICK_SOURCE: lp}
+  june_august_drift: {WIDEFIELD_PRE_FROM: null}          # its own June-vs-August design
+  rest_frozen_decoder_nl: {WIDEFIELD_PRE_FROM: null}     # 12.1b: its own June + August pre set
 
 # SENSITIVITY ARMS: `--arm <name>` (render_profile.apply(name, arm=...)) adds the arm's env on top; each arm's env enters
 # the output tag (run_mode parts), so its outputs and caches never meet the primary ones.
@@ -52,9 +54,9 @@ arms:
       COMBINED_ENCODING_DRIFT_MIN_PERIOD_S: "1500"
     blocks: ["encoder spout contra - ipsi cells (frozen_encoder / combined_encoding)",
              "ITI pre-cue level readouts (scripts/iti_licks.py family)"]
-    expected_run_tag: hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_drift1500s_sel-camera-cue_stop-endlick-stopRun6
+    expected_run_tag: hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_drift1500s_pre0801_sel-camera-cue_stop-wkci-endlick-stopRun6
 
 # the primary encoder / ITI slow-drift cutoff (Priya 11-03): combined_encoding.DRIFT_MIN_PERIOD_S = 600 s (env unset)
 notes:
   encoder_drift_cutoff_s: 600
-  expected_run_tag: hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_sel-camera-cue_stop-endlick-stopRun6
+  expected_run_tag: hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-wkci-endlick-stopRun6

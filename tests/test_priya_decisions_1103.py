@@ -256,12 +256,13 @@ def test_7_bridge_needs_six_no_response_nr3_j_nr2():
     assert TC.classify_session(six, rule="run", min_run=6, end="lick").tolist() == [C, S, S, S, A, S, S, S]
 
 
-def test_7_no_bridge_with_an_uncovered_tail():
-    """No end cutoff with an uncovered tail, so jaw-only trials are working and do not bridge: no stop."""
+def test_7_jaw_only_bridges_everywhere_also_with_an_uncovered_tail():
+    """Priya 11-03 late (jaw_only is not working): a jaw-only trial bridges a run ANYWHERE, also with an uncovered tail
+    (no end cutoff there): 6 no_response bridged by one jaw-only = a stop; the jaw-only trial stays jaw_only."""
     raw = np.array([C, NR, NR, NR, J, NR, NR, NR] + [U] * 5, object)
     m = np.array([True] * 8 + [False] * 5)
     out = TC.classify_session(raw, m, rule="run", min_run=6, end="lick")
-    assert "stopped" not in out.tolist() and out[4] == J
+    assert out.tolist()[:8] == [C, "stopped", "stopped", "stopped", J, "stopped", "stopped", "stopped"]
 
 
 def test_stop_run_ends_where_licking_resumes_and_unknown_is_skipped():
@@ -274,8 +275,9 @@ def test_stop_run_ends_where_licking_resumes_and_unknown_is_skipped():
     for lick in (C, I):
         split = np.array([C, NR, NR, NR, lick, NR, NR, NR, C], object)
         assert "stopped" not in TC.classify_session(split, rule="run", min_run=6, end="lick").tolist(), lick
-    jaw_early = np.array([C, NR, NR, NR, J, NR, NR, NR, C], object)       # jaw-only before the last lick ends it too
-    assert "stopped" not in TC.classify_session(jaw_early, rule="run", min_run=6, end="lick").tolist()
+    # Priya 11-03 late: a jaw-only trial BRIDGES (also before the last lick) and stays jaw_only, never stopped
+    jaw_early = np.array([C, NR, NR, NR, J, NR, NR, NR, C], object)
+    assert TC.classify_session(jaw_early, rule="run", min_run=6, end="lick").tolist() == [C, S, S, S, J, S, S, S, C]
 
 
 @pytest.mark.parametrize("where", ["head", "middle", "tail"])

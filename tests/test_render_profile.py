@@ -30,7 +30,8 @@ def test_profile_yields_the_intended_run_tag(profile, monkeypatch):
     assert trial_classes.gate_mode() == "camera" and trial_classes.end_anchor() == "lick"
     assert trial_classes.stopped_rule_name() == "stopRun6"
     assert run_mode.tag() == profile["notes"]["expected_run_tag"]
-    assert run_mode.cache_tag() == profile["notes"]["expected_run_tag"] + "_csig-sig"
+    # the pre set is an OUTPUT part, not a cache part (per-session caches do not depend on which sessions are "pre")
+    assert run_mode.cache_tag() == profile["notes"]["expected_run_tag"].replace("_pre0801", "") + "_csig-sig"
     from wfield_local import frozen_models
     assert not frozen_models.daq_trained_in_lp()
 
@@ -42,8 +43,8 @@ def test_profile_stores_are_fresh_and_separate(profile):
     assert env["WIDEFIELD_SESSION_CACHE"] == profile["rebuild_root"] + "/session_cache"
     assert env["WIDEFIELD_FROZEN_MODEL_DIR"].rstrip("/\\") != "C:/Users/SabatiniLab/frozen_models"
     assert "rebuild" in env["WIDEFIELD_SESSION_CACHE"]
-    assert "WIDEFIELD_PRE_FROM" not in env                     # Aug-only pre is per decoder block, never global
-    assert profile["block_args"]["epoch_grant_figures"] == ["--pre-from", "0801"]
+    # Priya 11-03 late: August-only pre EVERYWHERE (one source, the env); the two blocks with their own pre set unset it
+    assert env["WIDEFIELD_PRE_FROM"] == "0801" and not (profile.get("block_args") or {})
     assert profile["notes"]["encoder_drift_cutoff_s"] == 600
 
 
@@ -115,4 +116,23 @@ def test_check_honours_the_block_and_unknown_blocks_raise(tmp_path):
     assert "OK" in r.stdout and "LP_licks" in r.stdout, r.stdout + r.stderr[-1500:]
     with pytest.raises(KeyError, match="no block"):
         render_profile.block_env(NAME, "epoch_mpas")
-    assert render_profile.block_env(NAME, "grant_figures") == {}         # a block_args block without env: {}
+    assert render_profile.block_env(NAME, "june_august_drift") == {"WIDEFIELD_PRE_FROM": None}
+
+
+def test_aug_only_pre_profile_wide_with_two_exemptions(monkeypatch):
+    """Priya 11-03 late: WIDEFIELD_PRE_FROM=0801 in the profile; june_august_drift and 12.1b UNSET it in their blocks;
+    the epoch derivation still sees the full pre set (epoch_audit.full_cohort suspends it)."""
+    env = {"WIDEFIELD_PRE_FROM": "0801"}
+    d = render_profile.apply(NAME, env)
+    assert env["WIDEFIELD_PRE_FROM"] == "0801" and "_pre0801_" in d["notes"]["expected_run_tag"]
+    for b in ("june_august_drift", "rest_frozen_decoder_nl"):
+        env = {}
+        d = render_profile.apply(NAME, env, block=b)
+        assert "WIDEFIELD_PRE_FROM" not in env and d["unset"] == ["WIDEFIELD_PRE_FROM"], b
+        assert not any("WIDEFIELD_PRE_FROM" in ln for ln in render_profile.shell_lines(NAME, "bash", block=b)[1:])
+    from wfield_local import config, epoch_audit
+    monkeypatch.setenv("WIDEFIELD_PRE_FROM", "0801")
+    assert config.pre_from() == "0801"
+    with epoch_audit.full_cohort():
+        assert config.pre_from() is None
+    assert config.pre_from() == "0801"
