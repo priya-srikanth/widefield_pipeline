@@ -1106,3 +1106,13 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   - Added to the port helper as its own commit.
 - **OPEN for Priya:** the DAQ timing fallback. Recommended: 50 ms at close spouts only, with a grooming flag at far
   spouts (LP_MISSED_CONTACT_20261104.md).
+- **11-04 ~14:15: The O2 bundle checks PASSED.**
+  - PS93_0814: max |diff| 6.5e-8, 952 / 952 rows. PS93_0818: max |diff| 6.4e-8, 952 / 952 rows. Zero share reads.
+  - Recorded in RENDER_LOG.md.
+  - Still to do before submitting:
+    - the class-output merge, then refresh code/ with --no-inputs. Use the wrapper r4/o2_wrap.py, or wait for the
+      --profile env fix, which is on rebuild/encoder-classes (38436a2b);
+    - ship the final trial_attempts;
+    - Priya re-rsyncs code/ and tables/.
+- **11-04 ~14:15: stop-run review clips written.** 8 clips + index.md, 50 MB, at
+  M:/MICROSCOPE/Priya/Widefield/review_clips/stop_runs_20261104/.
