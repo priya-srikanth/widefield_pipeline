@@ -377,8 +377,18 @@ def _cached(kind: str, label: str, sources, build):
     import hashlib
     import pickle
     repo = Path(__file__).resolve().parents[1]
-    code = hashlib.sha1(b"".join((repo / f).read_bytes() for f in _CACHE_CODE if (repo / f).exists())).hexdigest()
-    env = sorted((k, v) for k, v in os.environ.items() if k.startswith(("COMBINED_ENCODING_", "OROFACIAL_")))
+    if kind == "imaging":
+        # the IMAGING entry is keyed on its own loader only (coordinator 11-04, O2 pre-warm): `_load_imaging` + `hemo_dir`
+        # source and beta_maps (the masks); no COMBINED_ENCODING_* / OROFACIAL_* switch reaches it, so an edit elsewhere
+        # in this module or a behaviour switch never throws away ~1 GB per session of share reads. The SVTcorr path (hemo
+        # variant) and the input files' mtimes are in the sources, as before.
+        import inspect
+        code = hashlib.sha1((inspect.getsource(_load_imaging) + inspect.getsource(hemo_dir)).encode()
+                            + (repo / "wfield_local" / "beta_maps.py").read_bytes()).hexdigest()
+        env = []
+    else:
+        code = hashlib.sha1(b"".join((repo / f).read_bytes() for f in _CACHE_CODE if (repo / f).exists())).hexdigest()
+        env = sorted((k, v) for k, v in os.environ.items() if k.startswith(("COMBINED_ENCODING_", "OROFACIAL_")))
     mt = []
     for f in sources:
         f = Path(f)
