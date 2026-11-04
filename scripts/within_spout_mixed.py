@@ -209,7 +209,7 @@ def main(argv=None) -> int:
         L = pd.concat([L, outcomes_dirmid(pd.read_csv(folder / "dirmid.csv"))], ignore_index=True)
     from wfield_local import mixed_models as mm
     print(mm.animal_epoch_table(L[L.measure.str.startswith(FOCUS)], ["kind", "measure"]).round(3).to_string())  # rule 8
-    T = area_table(L, run_mode.behaviour_qc_dir(), a.deficit)   # the deficit: a behaviour table (untagged qc)
+    T = area_table(L, run_mode.deficit_qc_dir(), a.deficit)   # the deficit: THIS run's trial_attempts_sessions.csv
     sfx = "" if (a.deficit or mm.DEFICIT) == mm.DEFICIT else f"_{a.deficit}"
     T.to_csv(folder / f"mixed_model{sfx}.csv", index=False, float_format="%.5g")
     pd.set_option("display.width", 230)

@@ -347,6 +347,13 @@ def behaviour_qc_dir() -> Path:
     return Path(lp_licks._enc_dir()) / "qc"
 
 
+def deficit_qc_dir() -> Path:
+    """Where the mixed models' behavioural DEFICIT tables live (`mixed_models.DEFICITS`: trial_attempts_sessions.csv
+    ...): THIS run's qc (``encoding_out_root()/qc``) -- trial_attempts is routed and, in a camera-gated run, built on the
+    run's camera classes (coordinator 11-04); the untagged qc in the default run."""
+    return encoding_out_root() / "qc"
+
+
 def require_default(what: str) -> None:
     """Raise unless this is a default run: for writers whose output name cannot carry a tag (refuse, do not overwrite).
     R5 (fourth review): the FULL output tag (`lp_licks.output_tag`: LP source, gate-LP, ENL window AND the run-mode

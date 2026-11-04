@@ -44,3 +44,10 @@ def test_encoding_out_root_is_the_encoders_tagged_root(monkeypatch):
     t = lp_licks.output_tag()
     assert run_mode.encoding_out_root() == base / t == fe.out_root()             # tagged: <imaging_encoding>/<tag>
     assert run_mode.behaviour_qc_dir() == base / "qc"                            # behaviour inputs stay untagged
+
+
+def test_trial_attempts_is_routed_and_the_deficit_readers_follow():
+    src = (REPO / "scripts" / "trial_attempts.py").read_text(encoding="utf-8")
+    assert "require_default(" not in src and "run_mode.encoding_out_root(a.run)" in src
+    for name in ("encoding_mixed", "within_spout_mixed"):
+        assert "run_mode.deficit_qc_dir()" in (REPO / "scripts" / f"{name}.py").read_text(encoding="utf-8"), name

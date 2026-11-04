@@ -81,8 +81,8 @@ def outcomes(E: Path, labels: set, deficit: str | None = None) -> pd.DataFrame:
     from wfield_local import mixed_models as mm
     L = mm.add_time_covariates(pd.concat(rows, ignore_index=True).dropna(subset=["y"]))
     from wfield_local import run_mode
-    # the behavioural deficit is a run-independent behaviour table (untagged qc), not this run's encoding output
-    return mm.add_deficit(L, mm.deficit(run_mode.behaviour_qc_dir(), deficit or mm.DEFICIT))
+    # the behavioural deficit: THIS run's trial_attempts_sessions.csv (routed trial_attempts, camera classes)
+    return mm.add_deficit(L, mm.deficit(run_mode.deficit_qc_dir(), deficit or mm.DEFICIT))
 
 
 FIG_PANELS = (("cue", "cam4:ceiling"), ("cue", "cam4:u_target"), ("cue", "position"),

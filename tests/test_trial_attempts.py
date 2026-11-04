@@ -36,3 +36,41 @@ def test_denominators_and_composite():
     assert r.lateral_bias_far_contra == pytest.approx(12.0 - 1.0)          # vs August-pre mean angle 1.0
     assert W.loc["PS92_0806"].lateral_bias_far_contra == pytest.approx(0.0)
     assert r.latency_move_ms_far_contra == pytest.approx(60.0)            # jaw onset precedes the first lick
+
+
+def test_camera_gated_run_uses_the_runs_camera_classes(monkeypatch, tmp_path):
+    """Coordinator 11-04: under the camera gate the classes are the run's (classify_session: end at the last camera
+    lick, sustained stop, the 5-min early_run rule, jaw_only bridging) and the attempt-rate denominator is the working
+    period (stopped / early_run / after_end / unknown out; jaw_only and no_try in, as non-attempts)."""
+    import sys
+    import types
+
+    for k in list(__import__("os").environ):
+        if k.startswith(("WIDEFIELD_", "WFIELD_")):
+            monkeypatch.delenv(k, raising=False)
+    monkeypatch.setenv("WIDEFIELD_TRIAL_GATE", "camera")
+    cls = (["contact"] + ["no_response"] * 6 + ["contact", "jaw_only", "incomplete"]   # a 6-run 400 s in: stopped
+           + ["no_response"] * 3)                                                  # after the last lick
+    n = len(cls)
+    cue = np.array([0.0] + [400.0 + 10 * i for i in range(1, n)])                 # the run starts >= 300 s in
+    C = pd.DataFrame({"trial_id": np.arange(n), "cls": cls, "position": "far_contra", "cue_daq": cue,
+                      "n_licks": 0, "n_nocontact": 0, "jaw_cam4": np.nan, "jaw_cam1": np.nan, "jaw_at_cue": False,
+                      "jaw_onset_ms": np.nan})
+    monkeypatch.setattr(ta.TC, "session_trials", lambda lab, window=None: C.copy())
+    T0 = pd.DataFrame({"trial_id": np.arange(n), "stop_ms": 3000.0, "pos": "far_contra", "contact": np.nan,
+                       "cam4": np.nan, "combined": np.nan, "has_cam1": True, "label": "PS92_0901"})
+    monkeypatch.setitem(sys.modules, "scripts.first_lick_latency",
+                        types.SimpleNamespace(session_latency=lambda lab: T0.copy()))
+    from wfield_local import orofacial_cohort as oc
+    from wfield_local import orofacial_outputs as oo
+    (tmp_path / "licks.csv").write_text("trial_id,on_ms,peak_angle_deg\n0,100,1.0\n")
+    monkeypatch.setattr(oo, "session_dir", lambda *a, **k: tmp_path)
+    monkeypatch.setattr(oc, "engagement_keep", lambda *a, **k: (None, "reference"))
+    T = ta.session_trials("PS92_0901")
+    assert T.cls.tolist() == (["hit"] + ["stopped"] * 6 + ["hit", "jaw_only", "incomplete"] + ["after_end"] * 3)
+    assert T.canonical.tolist() == [True] + [False] * 6 + [True] * 3 + [False] * 3
+    assert T.gate.iloc[0].startswith("camera:sel-camera") and "cls_raw" in T
+    # the 5-min rule: the same run starting < 300 s after the first cue is early_run, not stopped
+    C["cue_daq"] = np.arange(n) * 10.0
+    T = ta.session_trials("PS92_0901")
+    assert T.cls.tolist()[1:7] == ["early_run"] * 6 and not T.canonical.iloc[1:7].any()
