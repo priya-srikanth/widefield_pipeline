@@ -704,3 +704,8 @@ PS95_0820 at 46.0 min (6 trials), PS95_0820 at 54.2, PS92_0818 at 55.2, PS95_082
 the rule would move no current stopped time. Per the coordinator's order it waits for the go-ahead after this report.
 Implementing it means replacing the warm-up rule, which today covers 4 no_response trials before the first lick. With
 the time rule those 4 become isolated lapses (no_response), unless they sit in a >= 6 run, which none do.
+
+### 8.12 Test record (f58c5d86)
+Full suite, 6 shards, frozen worktree copy: 4,517 passed, 176 skipped, 0 failed. The b422ae83 run in between had 11
+failures, all `test_combined_encoding_options::test_out_dir_names`; they were fixed in bc57f786, where encoding_root
+outside a rebuild root is `oo.root(rv) / run / imaging_encoding`.
