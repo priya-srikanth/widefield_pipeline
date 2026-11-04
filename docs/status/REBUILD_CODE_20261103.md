@@ -1644,3 +1644,34 @@ Prerequisites (render order):
 
 **Test record.** Full suite at 9a3f578d, 6 shards, from the repo root with PYTHONPATH = the worktree: 4,722 passed,
 179 skipped, 0 failed.
+
+### 8.40 Render blocker: content-keyed stores refused by the tag rule (7b5d3334)
+
+**Symptom** (render at 621c81de). Every arm of `epoch_grant_figures` failed at the first collect with "5c PS92 ...
+WriteGuardError: refusing a <tag> run's write outside a <tag> directory". `frozen_models._write` calls
+`assert_writable(d.parent)`. Under the profile the store is `<rebuild_root>/frozen_models`, a share path that is
+neither under `/<tag>/` nor a registered data store.
+
+**Fix.** The write guard's tag rule now also accepts `writeguard.in_keyed_store(c)`. The stores are computed every time
+from their definitions:
+- `WIDEFIELD_FROZEN_MODEL_DIR` (incl. lp_final_render's `frozen_models_lpfinal`) and `frozen_models.local_dir()`;
+- the session cache;
+- every `rebuild.stores` entry;
+- `WFIELD_INPUT_CACHE` when it lies under the root;
+- the RESTnl caches (`<session cache>_restnl*`).
+
+**Audit of the write sites.**
+- Only `frozen_models._write` calls the guard among the stores.
+- session_cache, map_collect (in the session cache), result_cache (LP licks, in the session cache) and the RESTnl cache
+  do not call the guard; the fence allows them inside the root.
+- The attempts tables and the coverage tables are registered data files (8.38).
+
+**Test** (`test_every_content_keyed_store_is_writable_in_a_tagged_rebuild_run`).
+- It runs in a subprocess under the applied profile, with a share-like temp rebuild root (`.../MICROSCOPE/Priya/...`).
+- It calls the real write paths: `frozen_models.load_or_fit`, `session_cache.cached`, `result_cache.cached`, the RESTnl
+  cache write, and the lpfinal store path. All are allowed.
+- An untagged `grant_figures/epoch` write is still refused.
+- On the old guard the test fails with the render's error.
+
+**Test record.** Full suite at 7b5d3334, 6 shards, from the repo root with PYTHONPATH = the worktree: 4,723 passed,
+179 skipped, 0 failed.
