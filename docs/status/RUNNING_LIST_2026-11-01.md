@@ -565,6 +565,20 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   imaging YES (lick class = DAQ contacts); hit rate / miss / no-response / cue-aligned working / rest NO (denominator = camera
   working trials, none; no DAQ fallback by design). Recommended keep; alternative = DAQ-gate denominator for that session's
   DAQ-only behaviour rates, labelled. Waiting on her choice.
+- HELPER BATCH DONE (rebuild tip c86be4a0; suite 4,572 passed / 1 failed at a06f7fb7, fixed by a rename in c86be4a0, full re-run
+  pending; log 8.19-8.22): all review blockers fixed (LOSO keyed by label; section G refuses instead of refitting; centre errors
+  can't be swallowed; PS93_0813 centre = its DAQ contact rows, recorded in spec / sidecars / captions / log, min 20 rows) and
+  the non-blockers (A3 scripts check run tag; GUI-fallback licks/trial uses the session window; rest_start in tags; edge tests;
+  labels; one 70 ms constant; last trial included).
+- DECIDED (mine, method): lick COUNTS use one detector (detect_licks, yaml params -- the trial table / camera contacts one);
+  two count consumers used a second detector (2.5 / 1.0 V, 100 ms refractory): PS93_0908 differs on 101 / 511 trials by 1 lick.
+  Imaging lick alignment keeps its deliberate 0.1 s refractory.
+- QUESTION FOR PRIYA (blocks the render): August-only pre is passed only to the two decoder render blocks. A source scan finds
+  33 other scripts (rest arm, transfer / rotation maps, locomotor decoder, grant encoder, CD trajectories, chronic stability,
+  lick ramps ...) that would take June + August pre. Make Aug-only pre profile-wide (except june_august_drift and 12.1b, which
+  pick their own)? RECOMMEND yes (rebuild plan: "Aug-only pre ... aligning with the imaging maps, encoding model and
+  kinematics"). Helper checking each at run time first.
+- LP blocks: the profile gets per-block WIDEFIELD_LICK_SOURCE=lp; three LP writers will refuse without it.
 
 ### Findings
 - main moved while the rebuild branch was being fixed (34 commits not in rebuild/cohort1-20261103). Two matter for the rebuild:
