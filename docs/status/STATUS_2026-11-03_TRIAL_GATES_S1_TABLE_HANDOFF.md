@@ -4,6 +4,50 @@ Window `sabatinilab-5b`. Peers this touches: **e3** (kinematics page, owns it), 
 frozen decoders, epoch families; owns `_class_select` and the shared gates), **a8** (PI deck; its helper may
 republish the imaging page with re-plotted figures).
 
+## START HERE (window e0, 11-04 late) — what is held, what runs next, where everything is
+
+This window is now `sabatinilab-e0` (it was 5b). Peers: **34** (cohort-1 rebuild, encoding page), **a8** (PI deck, keeps
+the page-edit list), **e3** (kinematics page sources on M:).
+
+**1. HELD for the single post-rebuild page pass (Priya 11-04: no interim swaps).** The list is
+`docs/status/PAGE_EDITS_PENDING_2026-11-04.md` (a8). e0 applies the imaging items (A1 incl. the section-0 definition box,
+A2-A6, A8-A12, B1-B3, B5-B7, B11, C paragraph, SPOUT_BALEM section 7). TRIGGER: 34's "render done" message with the old ->
+new figure list. Then, in this order:
+  a. Section-1 tables on the rebuild data (Priya 11-04: LP ENL 1.0 s primary, 2.0 s labelled sensitivity row):
+     `WIDEFIELD_LICK_SOURCE=lp WIDEFIELD_ENL_WINDOW_S=1.0 python scripts/s1_refit_locanmf_table.py --suffix _1104r` and the
+     Allen table (`wf_attempt` analysis/attempt-coding, `PYTHONPATH=. python scripts/s1_refit_basis_table.py --jobs 6
+     --suffix _1104r`) at 1.0, then the Allen table again at `WIDEFIELD_ENL_WINDOW_S=2.0`; then
+     `python docs/results_pages/imaging/p_img_s1_table_20261103.py` (PRIMARY / SENSITIVITY / SUFFIX set at its top).
+  b. Rewrite every working-trial caption cleanly (no CORRECTION notes): working = contact + incomplete camera licks, cut
+     at the session's last camera lick; jaw-only / no-response own classes.
+  c. Read the LIVE imaging page first (https://claude.ai/artifact/PvraHiF82BFXur1hnNUCeV, v51), apply, publish.
+  The imaging page still needs sharing with the organization (Priya, Share menu).
+
+**2. Side cameras + four-camera 3-D (all in `docs/POSE_MODELS.md` Part E; memory `four-camera-3d-ready`).**
+  * Side model round 1 = crop2 (single-frame LP; temporal-loss variant tried, not adopted). Round 2 = Part B only
+    (`SIDECAM_GUIDE.html`, Part B first): 166 pre-labelled frames (62 cam4 round-4 moments + 104 jaw-sequence targets);
+    routine old-Part-C frames deferred (`side_assignment.csv` `deferred`). Waiting on the student.
+  * Four-camera 3-D built + validated on review clips: `wfield_local/pose3d_side.py` (`fuse_session`: side cleaning
+    APPROVED by Priya, robust fusion, water-drop rule, one-view fill, per-session side nose + tongue offsets),
+    `scripts/pose3d.py production --four-cam <bundle>`, the 3-D SOURCE SWITCH `pose3d.pose3d_dir` / env
+    `WIDEFIELD_POSE3D_SOURCE` = 2cam (default, unchanged) | 4cam | 4cam_clips (30 readers/writers converted),
+    `pose_chain --source 4cam --side-bundle <b>`. Results: lateral position unchanged and on the rod surface at contact
+    (0.61 mm); lick detection 100 vs 87 % of DAQ contacts; kinematics unbiased (lateral angle +0.08 deg); precision gain
+    not shown yet. Student-label check (`scripts/side_label_offsets.py`) confirms the nose offset is a view definition and
+    the tongue offset a side-model bias.
+  * NEXT: student labels Part B -> train round 2 -> Priya runs whole-session cam2 / cam3 O2 inference (model space) ->
+    `pose_chain --source 4cam --side-bundle <b>` -> re-run `side_label_offsets.py` with Part B, check the tongue bias,
+    whole-session precision test; June side sessions need intrinsics first. Not before that: 4cam is NOT for the
+    current rebuild (told 34).
+
+**3. Spout.** Per-frame 3-D spout fixed in production code (bddf02e7: was a blend 1.04 mm behind the tip; production
+frames NOT re-run). Encoder targets = commanded positions (`wfield_cache/pose3d_inputs/pose3d_spout_positions_commanded_
+20261104.csv`, `scripts/pose3d_spout_commanded.py`; 34 adopted). ENL no-lick spout rule for the v36 2-D chain: FIX WITH
+THE NEXT 3-D RE-RUN (Priya; list in `docs/status/SPOUT_POSITION_AUDIT_2026-11-04.md`; memory
+`spout-enl-rule-next-3d-rerun`).
+
+**4. Published 11-04 (HMS account):** behaviour v2, kinematics v28, FaceRhythm v37 (e3's M: sources synced); imaging v51.
+
 ## UPDATE 11-04 early — jaw-only OUT of working (Priya decision 11-03 late, via a8)
 
 **11-04 late: page edits are listed in `docs/status/PAGE_EDITS_PENDING_2026-11-04.md` (a8 keeps it; one pass after the
