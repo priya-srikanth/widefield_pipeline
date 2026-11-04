@@ -1303,3 +1303,81 @@ through monkeypatch before the import. Re-run of that shard: 646 passed, 26 skip
 
 ### 8.34 Test record (2c59f85b)
 Full suite, 6 shards: 4,593 passed, 179 skipped, 0 failed.
+
+### 8.35 Review 7A / 7B at 6a85304d (cf94e7c3, plus a test pin)
+Following the coordinator's revision, the rebuild follows MAIN's 11-03 design pending Priya. The section D / G scored
+sets and the pattern families' pre reference were therefore NOT converted to working rows (DECISIONS 2026-11-04).
+
+**7A**
+- **B1 (5b).** `_from_json` carries main's guard verbatim (`if _wt.is_camera(): return None`). 5b therefore always
+  recomputes from `_frozen_frame(bd, an, align, sel="working")`: working-trained, with the pre panel on the held-out
+  working rows. The panel titles and suptitle name camera WORKING (c+i) under the camera gate.
+- **B2.** Kept as main. Section D (`pooled_frozen_loso`, also behind joint_xsession) and section G (`crossed_confusion`,
+  `decode_matched`) score engaged / all trials with the working-trained model. This is recorded:
+  - `pooled_frozen_loso` result: `scored_rows` = "engaged", `model_trials`;
+  - `section_g_design.json` beside section_g.json;
+  - `trial_classes.DESIGN_NOTE` in the corner stamp of every camera-gated figure.
+- **attempt_coding.** Its pre reference is `pre_hit` (the LP attempt classes). It is an attempt-class analysis by
+  design and is left as it is; its frozen model is working-trained (DECISIONS).
+- **NB1.** The `_collect_7` pre reference stays LICK trials, as main. The captions say so via
+  `_class_note(v, pattern=True)` in grant_similarity / geometry / encoder / matching.
+- **NB2.** `_class_note("working")` describes the active selection: "camera WORKING trials: contact + incomplete, cue to
+  the session's last camera lick; jaw_only excluded" (+ jaw_only under in_working_jaw). The DAQ text is unchanged.
+- **NB3.** PS93_0813 is now visible as excluded:
+  - `spout_scaling.note_working_excluded` logs "[working] PS93_0813: ... EXCLUDED from the working selection" once;
+  - figure sidecars carry `working,working_excluded_sessions`, and the corner caption names it;
+  - the store log line names the lick source AND the selection.
+- **NB4.** A post session with 0 working rows raises `BalEmCentreRefused`, in both `frozen_scored_frame(work=)` and
+  `_frozen_frame`. Pre sessions without rows are excluded and logged.
+- **NB6.** The `_collect_7` bundle failure calls `reraise_under_camera`. `_collect_7` is also keyed by the selection
+  (`_collect_7_cached(..., _run)`), the same pitfall as 5c.
+- **NB7.** `working_trials.py` stays byte-identical to main (pinned by a test); the rebuild note is in DECISIONS.
+
+**7B**
+- **B1 (june_august_drift).**
+  - A tagged run is allowed only with PRE_FROM unset (the profile's block); a PRE_FROM run raises.
+  - It writes to `run_mode.june_august_drift_dir` (`chronic_stability/<own tag>/june_august_drift`).
+  - It reads the stroke twin from the primary run via `primary_chronic_csv` → `run_mode.primary_output_dir`
+    (pre0801), and refuses if that file is missing.
+  - The deck reads Fig 4.3 through `june_august_drift_dir`, so it no longer depends on the relative `../../` path.
+- **B2.** New `block_env map_drift_prepre: {WIDEFIELD_PRE_FROM: null}`. The script sets its own arm's lick source.
+- **B3.** reembedding_test selects June from the curated set with PRE_FROM suspended (`run_mode.with_env`). It raises
+  on an empty June set. Its pickle cache is keyed by the output tag.
+- **N1.** New `block_env restnl_mask: {WIDEFIELD_PRE_FROM: null}`.
+- **N2.** rest_frozen_decoder_nl `--compare` reads page 12.1's 15f from the primary tag (`page_sessions()`). Its labels
+  say "Aug pre" in a tagged run.
+- **N3 (deck).** The default `grant_dir` of a tagged run is `lp_licks.output_dir(grant_figures)`, i.e.
+  `grant_figures/<tag>` and its `epoch`.
+  - Sections H and I count registered figures they cannot find as MISSING (a tagged build only).
+  - Section K resolves the LP / DAQ_ENL1s epoch families and the LP attempt maps under their blocks' tags
+    (`_tagged_k`).
+  - Sections A–G read `src` (figures_working, inside the rebuild root).
+  - Section J reads the tagged epoch dir.
+- **New helpers:** `run_mode.with_env`, `primary_output_dir`, `june_august_drift_dir`, `PRIMARY_PRE_FROM`.
+- **Tests:** `tests/test_review_7ab.py` (13); updated pin in test_one_pooling_per_animal_alignment (`_collect_7_cached`).
+
+**Validation (extended).**
+- Code from a CLEAN export of cf94e7c3 (`git archive`; imports checked to come from the export).
+- The STORED path: `WIDEFIELD_EPOCH_FROZEN=1`, store = scratch `fm/`; the models were frozen there (new spec ids).
+- Run as `_collect_5c(align, "working")`, session means per animal, then the animal mean.
+- (b) uses the checks' data: production hemo, no projection, PRE_FROM 0801. (a) uses the rebuild profile.
+
+| window | arm | pre panel PS92 / 93 / 94 / 95 → mean | acute close ipsi PS92 / 93 / 94 / 95 → mean |
+|---|---|---|---|
+| cue | checks | .854 / .724 / .926 / .921 → .856 | .829 / .629 / .619 / .832 → .727 |
+| cue | (b) | .853 / .724 / .926 / .922 → **.856** | .829 / .629 / .619 / .832 → **.727** |
+| cue | (a) | .855 / .729 / .934 / .922 → .860 | .818 / .584 / .717 / .815 → .734 |
+| precue | checks | → .559 | → .567 (PS95 .513) |
+| precue | (b) | .552 / .517 / .696 / .468 → **.558** | .729 / .476 / .556 / .513 → **.568** |
+| precue | (a) | .564 / .508 / .704 / .481 → .564 | .590 / .473 / .610 / .529 → .551 |
+
+- (b) reproduces the checks for cue (to .001) and precue (.558 / .568 vs .559 / .567; PS95 .513 exact).
+- The stored path gives the same numbers as the in-memory path of 8.33 for cue.
+- The data effect (a) − (b):
+  - cue: pre +.004, acute close ipsi +.007;
+  - precue: pre +.006, acute close ipsi −.017 (PS92 −.139, PS93 −.003, PS94 +.054, PS95 +.016).
+- A store note: the frozen-models lookup reported SPEC-CHANGED against an earlier PS95 model frozen on 11 sessions
+  (with June). The new August-only model was frozen under its own id in the scratch store; nothing was overwritten.
+
+**Test record.** Full suite at cf94e7c3, 6 shards: 4,605 passed, 179 skipped, 1 failed. The failure was the source
+pin of `_collect_7` (it is now `_collect_7_cached`); the pin is updated and the file passes (3 passed).
