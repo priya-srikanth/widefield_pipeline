@@ -13,9 +13,11 @@ log for the earlier part of the day is `RUNNING_LIST_2026-11-02_OVERNIGHT.md`.
 
 ## Questions for Priya (newest first)
 
-9. **NEW (11-04): mix-shift test for the SPOUT decoder and the C projections?** Their centre is computed from working
-   rows, and the incomplete-lick share rises post-stroke. Frames to compare: bal_em on working rows / bal_em on
-   contact rows only / z. Awaiting Priya.
+9. **RUNNING (Priya OK 11-04): centre test for the SPOUT decoder and the C projections.** Frames: W = bal_em on
+   working rows (production), C = bal_em on contact rows only, Z. Two tests: a direct post-stroke comparison (all
+   animals) and a pre-stroke mix-shift (PS93 carries it). Write-up docs/status/CENTRE_MIXSHIFT_2026-11-04.md. Frozen
+   models are unchanged (scored frame only). 34 was told to hold the frozen-frame centre for the render. Also
+   (Priya): engaged / disengaged LABELS come from camera classes (LP licks); the z centre stays on contact rows.
 8. **NEW (11-04): convert the coding-direction G9 classes (poststroke_lick / miss_working / stopped) to camera
    classes?** It touches grant_confusion, miss_vs_stopped, position_axes, the deck and best_match. [Yes, under "camera
    class everywhere"; 34 told to assume yes.]
