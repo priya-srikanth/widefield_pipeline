@@ -163,6 +163,14 @@ FYI, the 3-class camera variant (lick / jaw-only / none) is thin in PS92 and PS9
     11.8 % of trials, PS93 pre 7.9 %, PS94 1.7 %, PS95 0.2 %.
   - 80 ms is the most the data support; 100 ms would cut real responses.
   - Keep 70 ms.
+  - FINAL (107 sessions; docs/status/CUE70_CHECK_2026-11-04.md, 9533758f): the conclusion holds. The rule sent to 34:
+    keep 70 ms (DAQ contact time; camera lick PEAK); 0-70 ms licks are excluded from both tables with a flag. Camera
+    licks are judged by PEAK: onsets at 60-70 ms are real responses, so excluding by onset would cut ~1000 licks.
+    This removes 2,277 DAQ contacts and 608 camera licks from the pre-cue tables. orofacial_outputs.lick_context
+    splits on onset while the table splits on peak, an existing inconsistency to fix.
+  - ENL windows (Priya asked; I said 1.0 s for LP): the widefield LP ENL is 1.0 s (DECISIONS 10-21, Priya "1.0 s, plus
+    DAQ 1.0 s"); the 1.5 s ENL was the 2-photon pipeline's (2pRAM handoff 09-26). The widefield task ENL is
+    2000-3000 ms. Open: switch the widefield LP ENL to 1.5 s?
 
 - **11-04: what the G4 / state discriminators compare.** They are trained on pre DAQ-lick vs DAQ-no-lick trials
   (position-balanced; poststroke_compare.looks_like_which), NOT on camera working. So jaw-only trials were always in the
