@@ -630,8 +630,12 @@ def _context_licks(rv, animal: str, date: str, sd: Path, b: pd.DataFrame, contac
     f = sd / "licks_all.csv"
     if not f.exists():                                  # never mix event sets silently
         raise FileNotFoundError(f"{LICKS_ALL_ENV} needs {f} (python -m wfield_local.orofacial_outputs all-licks)")
-    A = pd.read_csv(f, usecols=["context", "daq_on_s"])
-    ctx = {c: np.sort(A.loc[A.context == c, "daq_on_s"].to_numpy(float)) for c in ("pre_cue", "iti")}
+    from wfield_local import orofacial_outputs as oo
+    # the ONSET label (`oo.encoder_context`): the 11-04 peak rule (cue .. cue + 70 ms = excluded_0_70) relabels licks for
+    # the pre- / post-cue ANALYSES only; these whole-session lick lists keep every lick they held before
+    A = pd.read_csv(f, usecols=lambda c: c in ("context", "onset_context", "daq_on_s"))
+    lab = oo.encoder_context(A)
+    ctx = {c: np.sort(A.loc[lab == c, "daq_on_s"].to_numpy(float)) for c in ("pre_cue", "iti")}
     sid = sorted((Path(rv.root("behavior_out")) / "sessions" / animal / date).glob("*_trials.csv"))[-1].name[:-11]
     raw = np.sort(np.asarray(dlc_frames.lick_onsets(animal, date, sid, rv), float))
     st = np.where(np.isfinite(b.strobe_s), b.strobe_s, b.cue_s - 3.0).astype(float) - 0.5

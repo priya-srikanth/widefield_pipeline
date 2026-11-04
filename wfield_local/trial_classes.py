@@ -38,12 +38,19 @@ jaw-only trials of the sated tail (docs/status/QUIT_TAIL_JAW_ONLY_2026-11-03.md:
 contact; cuts real acute far-spout incomplete attempts, 94), "close" (last camera lick at the reference spouts close_L /
 close_center), "none" (no cutoff). The classes and GATES themselves are unchanged; the cutoff is a separate step.
 
-WINDOW (keyword, default "cue_stop", Priya 11-03):
-  "cue_stop"  licks from the cue to the trial stop; spout contacts from cue + 70 ms to the trial stop (the DAQ contact
-              table built with the video outputs, `orofacial_outputs` / `pose_kinematics_demo.daq_contacts_ms`).
+WINDOW (keyword, default "cue_stop", Priya 11-03; the RESPONSE WINDOW rules of Priya 11-04 below):
+  "cue_stop"  the RESPONSE WINDOW, cue + 70 ms .. min(cue + max_rt, trial stop) (`response_end_ms`; max_rt =
+              ``decode.max_rt_s``, 3.5 s, the DAQ engaged rule's own source): video licks (cam4 and cam1) by their PEAK,
+              spout contacts by their DAQ onset (the contact table built with the video outputs, cue + 70 ms .. stop,
+              `pose_kinematics_demo.daq_contacts_ms`, minus the contacts after cue + max_rt), the jaw by its onset
+              (cue .. the same end). Priya 11-04 (docs/status/CUE70_CHECK_2026-11-04.md): a lick whose peak is in
+              cue .. cue + 70 ms is NEITHER pre- nor post-cue (judged by the PEAK: camera onsets at 60-70 ms are real
+              responses), and a lick or jaw movement AFTER cue + max_rt does not count (the spout is already starting
+              to move). Until 11-04 licks counted by onset from the cue and contacts / jaw up to the stop.
               This is the gate for ENL / pre-cue analyses too: it asks whether the animal responded to that trial's
               cue, while ENL decoding itself still uses pre-cue frames.
-  "trial"     licks and contacts from the trial strobe to the stop, i.e. pre-cue licking counts as a lick. The jaw
+  "trial"     licks and contacts from the trial strobe (pre-cue: strobe .. the cue; 0-70 ms excluded) plus the
+              response window above, i.e. pre-cue licking counts as a lick. The jaw
               call is always the after-cue call (no pre-cue jaw call exists), so this option changes only the lick /
               contact classes. Contacts need the raw DAQ (slower, ~20-40 s per session).
 
@@ -84,6 +91,13 @@ WINDOWS = ("cue_stop", "trial")
 DEFAULT_WINDOW = "cue_stop"
 JAW_UNJUDGED_POSITIONS = ("close_center", "close_mid")   # neither camera can judge the jaw at this spout (10-21)
 CONTACT_FROM_CUE_S = 0.070                               # DAQ contacts count from cue + 70 ms (daq_contacts_ms)
+#: THE cue / 70 ms split of licks (Priya 11-04, docs/status/CUE70_CHECK_2026-11-04.md), one definition for every table and
+#: label: post-cue from cue + 70 ms (camera licks by PEAK, DAQ contacts by onset); pre-cue ends AT the cue; a lick whose
+#: peak is in cue .. cue + 70 ms is NEITHER (context / flag `EXCLUDED_CONTEXT`). Judged by the PEAK, never the onset:
+#: camera onsets at 60-70 ms are real responses (an onset rule would cut ~1000 of them).
+POSTCUE_START_MS = CONTACT_FROM_CUE_S * 1000.0
+PRECUE_END_AFTER_CUE_MS = 0.0
+EXCLUDED_CONTEXT = "excluded_0_70"
 V36 = "lp_r4_heatmap_20261013__clean_v36"
 REFERENCE_SPOUTS = ("close_L", "close_center")           # barely affected by the stroke: anchor of the "close" cutoff
 END_ANCHORS = ("lick", "contact", "close", "none")
@@ -139,6 +153,34 @@ def _trial_times(sd: Path) -> pd.DataFrame:
                                                  stop_ms=("stop_ms", "first")).reset_index()
 
 
+def max_rt_ms() -> float:
+    """The response window's length, ms: ``decode.max_rt_s`` (3.5 s) -- the SAME source as the DAQ engaged rule
+    (`locanmf_position_decoder.is_engaged` via ``--max-rt``), never a constant of its own (Priya 11-04)."""
+    from wfield_local import config
+    return float(config.defaults()["decode"]["max_rt_s"]) * 1000.0
+
+
+def response_end_ms(stop_ms) -> np.ndarray:
+    """End of each trial's RESPONSE WINDOW, ms from the cue: min(max_rt, trial stop); a missing stop -> max_rt."""
+    st = np.asarray(stop_ms, float)
+    return np.fmin(st, max_rt_ms())
+
+
+def _late_contacts(animal: str, date: str, times: pd.DataFrame) -> pd.Series:
+    """{trial_id: DAQ contacts in (cue + max_rt, cue + stop]}: the contacts the trial's contact table (n_daq_contacts,
+    cue + 70 ms .. stop) holds that fall AFTER the response window (Priya 11-04). Zero for a trial whose stop is at or
+    before cue + max_rt -- so those trials need no DAQ read."""
+    mrt = max_rt_ms()
+    late = times.stop_ms.to_numpy(float) > mrt
+    out = pd.Series(0, index=times.trial_id.to_numpy(), dtype=int)
+    if not late.any():
+        return out
+    licks = _daq_contact_onsets(animal, date)
+    for t, c, s in zip(times.trial_id[late], times.cue_daq[late], times.stop_ms[late]):
+        out[t] = int(np.sum((licks > c + mrt / 1000.0) & (licks <= c + s / 1000.0)))
+    return out
+
+
 def _daq_contact_onsets(animal: str, date: str) -> np.ndarray:
     """DAQ spout-contact (lick) onsets of one session, s on the DAQ clock (`dlc_frames.lick_onsets`)."""
     from wfield_local import dlc_frames
@@ -161,7 +203,11 @@ def trial_contact_times(animal: str, date: str, times: pd.DataFrame) -> pd.Serie
 
 
 def _pre_cue_contacts(animal: str, date: str, times: pd.DataFrame) -> set:
-    """Trials with a DAQ spout contact between the strobe and cue + 70 ms (only needed for window="trial")."""
+    """Trials with a DAQ spout contact between the strobe and the CUE (only needed for window="trial").
+
+    Contacts in cue .. cue + 70 ms count as NEITHER pre-cue NOR post-cue (Priya 11-04,
+    docs/status/CUE70_CHECK_2026-11-04.md): they are isolated background contacts, not cue responses, and their rate is
+    inflated by the ENL selection at the cue. The post-cue side keeps its cue + ``CONTACT_FROM_CUE_S`` floor."""
     from wfield_local import dlc_frames
     from wfield_local.paths import PathResolver
     rv = PathResolver()
@@ -169,7 +215,7 @@ def _pre_cue_contacts(animal: str, date: str, times: pd.DataFrame) -> set:
     licks = np.asarray(dlc_frames.lick_onsets(animal, date, sid, rv), float)
     out = set()
     for t, c, s in zip(times.trial_id, times.cue_daq, times.strobe_ms):
-        lo, hi = c + s / 1000.0, c + CONTACT_FROM_CUE_S
+        lo, hi = c + s / 1000.0, c                       # pre-cue ends AT the cue: 0-70 ms is excluded (11-04)
         if np.any((licks >= lo) & (licks < hi)):
             out.add(int(t))
     return out
@@ -195,20 +241,26 @@ def session_trials(label: str, window: str = DEFAULT_WINDOW, v36: Path | str | N
         return None
     T = pd.read_csv(sd / "trials.csv", usecols=lambda c: c in ("trial_id", "position", "n_daq_contacts"))
     T = T.merge(_trial_times(sd), on="trial_id", how="left")
-    lo_ms = (T.strobe_ms if window == "trial" else pd.Series(0.0, index=T.index)).to_numpy(float)
-    lo = dict(zip(T.trial_id, lo_ms))
-    hi = dict(zip(T.trial_id, T.stop_ms.to_numpy(float)))
+    end = dict(zip(T.trial_id, response_end_ms(T.stop_ms)))
+    strobe = dict(zip(T.trial_id, T.strobe_ms.to_numpy(float)))
 
-    def in_win(df: pd.DataFrame) -> pd.Series:
-        t = df.trial_id
-        return (df.on_ms >= t.map(lo)) & (df.on_ms <= t.map(hi))
+    def in_win(df: pd.DataFrame, peak: str, keep_untimed: bool = False) -> pd.Series:
+        """Rows whose lick PEAK (column ``peak``, ms from the cue) is in the RESPONSE WINDOW, cue + 70 ms .. min(cue +
+        max_rt, stop) (Priya 11-04), or, for window "trial", also pre-cue (strobe <= peak < cue)."""
+        if not len(df):
+            return pd.Series(False, index=df.index)
+        t, pk = df.trial_id, pd.to_numeric(df[peak], errors="coerce")
+        ok = (pk >= POSTCUE_START_MS) & (pk <= t.map(end))
+        if window == "trial":
+            ok |= (pk >= t.map(strobe)) & (pk < PRECUE_END_AFTER_CUE_MS)
+        return ok | pk.isna() if keep_untimed else ok
 
-    # --- licks seen on video (cam4), in the window
+    # --- licks seen on video (cam4), in the window (by PEAK)
     if (sd / "licks.csv").exists():
-        L = pd.read_csv(sd / "licks.csv", usecols=["trial_id", "on_ms", "contact"])
+        L = pd.read_csv(sd / "licks.csv", usecols=["trial_id", "on_ms", "t_ms", "contact"])
     else:
-        L = pd.DataFrame(columns=["trial_id", "on_ms", "contact"])
-    L = L[in_win(L)]
+        L = pd.DataFrame(columns=["trial_id", "on_ms", "t_ms", "contact"])
+    L = L[in_win(L, "t_ms")]
     # --- cam1-only tongue events (no cam4 lick, no 3-D lick overlaps; droplets out), in the window
     fe = c1 / f"{animal}_{date}_events.csv"
     has_cam1 = fe.exists()
@@ -216,9 +268,13 @@ def session_trials(label: str, window: str = DEFAULT_WINDOW, v36: Path | str | N
         E = pd.read_csv(fe)
         for c in ("cam4_matched", "in_3d", "contact", "jaw_only_trial", "droplet"):
             E[c] = _flag(E[c]) if c in E else False
-        seen = set(E.loc[E.jaw_only_trial & ~E.droplet, "trial_id"])        # cam1 saw a tongue, no lick counted it
+        if "t_peak_ms" not in E:
+            raise ValueError(f"{fe} has no t_peak_ms: the response window is judged on the event PEAK (11-04)")
+        # cam1 saw a tongue, no lick counted it -- inside the response window (an untimed row keeps the old call)
+        sv = E.jaw_only_trial & ~E.droplet
+        seen = set(E.loc[sv & in_win(E, "t_peak_ms", keep_untimed=True), "trial_id"])
         E = E[~E.cam4_matched & ~E.in_3d & ~E.droplet]
-        E = E[in_win(E)] if "on_ms" in E else E.iloc[0:0]
+        E = E[in_win(E, "t_peak_ms")]
     else:
         E, seen = pd.DataFrame(columns=["trial_id", "on_ms", "contact"]), set()
     t = T.trial_id
@@ -228,11 +284,13 @@ def session_trials(label: str, window: str = DEFAULT_WINDOW, v36: Path | str | N
     T["n_nocontact"] = t.map(nc4).fillna(0) + t.map(nc1).fillna(0)
     first = pd.concat([L[["trial_id", "on_ms"]], E[["trial_id", "on_ms"]]]).groupby("trial_id").on_ms.min()
     T["first_lick_ms"] = t.map(first)
-    # --- spout contact (DAQ sensor = primary, Priya 11-03): cue + 70 ms .. stop, from the contact table
+    # --- spout contact (DAQ sensor = primary, Priya 11-03): cue + 70 ms .. min(cue + max_rt, stop) = the contact table
+    # (cue + 70 ms .. stop) minus the contacts after cue + max_rt (Priya 11-04)
     if "n_daq_contacts" not in T:
         raise ValueError(f"{label}: trials.csv has no n_daq_contacts (video outputs built without the DAQ contact "
                          "table) -- rebuild the session's outputs; no silent fallback to video-matched contact")
-    T["n_contacts"] = pd.to_numeric(T.n_daq_contacts, errors="coerce").fillna(0)
+    late = t.map(_late_contacts(animal, date, T)).fillna(0).to_numpy(float)
+    T["n_contacts"] = (pd.to_numeric(T.n_daq_contacts, errors="coerce").fillna(0) - late).clip(lower=0)
     if window == "trial":
         pre = _pre_cue_contacts(animal, date, T)
         T["n_contacts"] = T.n_contacts + t.isin(pre).astype(int)
@@ -257,7 +315,12 @@ def session_trials(label: str, window: str = DEFAULT_WINDOW, v36: Path | str | N
     T["jaw_at_cue"] = at_cue
     T["jaw_onset_ms"] = np.where(hidden, np.nan, np.where(at_cue, reon, on))
     judged = (T.jaw_cam4.notna() | T.jaw_cam1.notna()).to_numpy() & (~at_cue | np.isfinite(reon))
-    moved = ((T.jaw_cam4 == 1) | (T.jaw_cam1 == 1)).to_numpy() & judged
+    # the jaw's movement counts only when its (re-)onset is inside the response window's end (Priya 11-04: after cue +
+    # max_rt the spout is starting to move); the camera calls themselves are cue .. stop (`scripts/jaw_onsets.py`). A
+    # moved call without an onset time keeps its call. A trial whose jaw moved only after the end is judged and still.
+    jon = T.jaw_onset_ms.to_numpy(float)
+    in_time = ~(jon > response_end_ms(T.stop_ms))
+    moved = ((T.jaw_cam4 == 1) | (T.jaw_cam1 == 1)).to_numpy() & judged & in_time
     T["jaw_judged"] = judged
     T["cls"] = np.select([T.n_contacts.to_numpy() > 0,
                           (T.n_licks.to_numpy() > 0) | t.isin(seen).to_numpy(),
@@ -520,7 +583,8 @@ class RefusedMask:
 
 _CLASS_SIG: dict = {}
 #: functions whose source defines the camera classes; their code enters `class_source_signature` (review H4)
-CLASS_CODE_ROOTS = ("session_trials", "jaw_table", "_trial_times", "_pre_cue_contacts", "cue_classes",
+CLASS_CODE_ROOTS = ("session_trials", "jaw_table", "_trial_times", "_pre_cue_contacts", "_late_contacts",
+                    "response_end_ms", "max_rt_ms", "cue_classes",
                     "cue_classes_for", "row_classes", "camera_rows", "pool_row_classes", "camera_select",
                     "camera_engaged_period", "in_gate", "before_session_end", "in_working", "classify_session", "_matched_cues",
                     "_effective_coverage")

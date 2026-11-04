@@ -18,12 +18,18 @@ most useful for finding figures and analyses in the future". Layout (root = path
                                                  pose (n_rows, parts, x/y/lk), x/y x px_scale (June only; v36+)
           clean.npz                              cleaned tongue / jaw per window row: x, y, fill (0 meas, 1-2 interp, 3 fill)
           licks.csv                              post-cue licks: cue + 70 ms .. DAQ trial stop
-          licks_precue.csv                       spontaneous licks: position strobe (spout arrived) .. cue + 70 ms
+          licks_precue.csv                       spontaneous licks: position strobe (spout arrived) .. the cue, by
+                                                 lick peak (tables written before 11-04 run to cue + 70 ms: readers
+                                                 split them with `pose_kinematics_demo.split_precue_by_peak`)
+          licks_excluded_0_70.csv                (11-04) licks whose PEAK is in cue .. cue + 70 ms: neither pre- nor
+                                                 post-cue (Priya 11-04, docs/status/CUE70_CHECK_2026-11-04.md)
           licks_iti.csv                          inter-trial licks: trial stop .. window end ('tail'), window start ..
                                                  strobe ('lead'); reach fields blank (spout moving / retracted)
           licks_all.csv                          (10-20, `all-licks`) EVERY lick of the windows, one table: licks.csv's
-                                                 columns first (post-cue rows unchanged) + context (pre_cue / post_cue /
-                                                 iti by onset), table (source file), daq_on_s / daq_peak_s (absolute DAQ s);
+                                                 columns first (post-cue rows unchanged) + context (pre_cue /
+                                                 excluded_0_70 / post_cue / iti by PEAK, 11-04), onset_context (the
+                                                 pre-11-04 onset label, kept for the encoder's whole-session lick lists),
+                                                 table (source file), daq_on_s / daq_peak_s (absolute DAQ s);
                                                  licks_all_coverage.json = share of the video in windows (~98-99 %)
           trials.csv, jaw_trials.csv, tongue_jaw_mismatch.csv
           qc.png
@@ -202,7 +208,7 @@ def process_session(rv, bundle: str, animal: str, date: str, force: bool = False
     contacts = D.daq_contacts_ms(animal, date, b, rv)
     T, J, M, clean = D.run(flat, ix, frame, stops, contacts)
     lick_s, cue_s = D.daq_lick_onsets_s(animal, date, rv), dict(zip(b.trial_id, b.cue_s))
-    P = D.precue_licks(clean, ix, frame, flat, lick_s, cue_s)          # spout arrival -> cue + 70 ms
+    P, X = D.precue_and_excluded_licks(clean, ix, frame, flat, lick_s, cue_s)   # spout arrival -> cue; cue -> cue + 70 ms
     Q = D.iti_licks(clean, ix, frame, flat, lick_s, cue_s)             # trial stop -> next window; window start -> strobe
     from wfield_local import writeguard
     writeguard.assert_writable(sd.parent)
@@ -220,6 +226,7 @@ def process_session(rv, bundle: str, animal: str, date: str, force: bool = False
                         spout_ap_axis=np.asarray(frame.ap_axis), px_scale=np.float64(px_scale))
     T.per_lick.to_csv(sd / "licks.csv", index=False)
     P.to_csv(sd / "licks_precue.csv", index=False)
+    X.to_csv(sd / f"{EXCLUDED_TABLE}.csv", index=False)
     Q.to_csv(sd / "licks_iti.csv", index=False)
     T.per_trial.to_csv(sd / "trials.csv", index=False)
     J.to_csv(sd / "jaw_trials.csv", index=False)
@@ -230,7 +237,7 @@ def process_session(rv, bundle: str, animal: str, date: str, force: bool = False
         log(f"{animal} {date}: QC figure failed ({type(ex).__name__}: {ex})")
     man = {"run": run, "animal": animal, "date": date, "phase": config.session_phase(animal, date),
            "source_bundle": bundle, "videos": srcs, "n_trials": int(ix.trial_k.nunique()), "n_rows": int(len(ix)),
-           "n_licks": int(len(T.per_lick)), "n_precue_licks": int(len(P)), "n_iti_licks": int(len(Q)), "n_contact_licks": int(T.per_lick.get("contact", pd.Series(dtype=bool))
+           "n_licks": int(len(T.per_lick)), "n_precue_licks": int(len(P)), "n_excluded_0_70_licks": int(len(X)), "n_iti_licks": int(len(Q)), "n_contact_licks": int(T.per_lick.get("contact", pd.Series(dtype=bool))
                                                                     .fillna(False).astype(bool).sum()),
            "px_scale": px_scale, "params_digest": params_digest(), "code_commit": code_commit(),
            "created": time.strftime("%Y-%m-%d %H:%M")}
@@ -251,6 +258,7 @@ def load_session(rv, run: str, animal: str, date: str) -> dict:
     rd = lambda n: pd.read_csv(sd / n) if (sd / n).exists() else None       # noqa: E731
     return {"index": ix, "pose": _flat(len(ix), w["pose"], parts), "clean": clean, "licks": rd("licks.csv"),
             "licks_precue": rd("licks_precue.csv"),
+            EXCLUDED_TABLE: rd(f"{EXCLUDED_TABLE}.csv"),
             "licks_iti": rd("licks_iti.csv"),
             "trials": rd("trials.csv"), "jaw_trials": rd("jaw_trials.csv"), "mismatch": rd("tongue_jaw_mismatch.csv"),
             "manifest": json.loads((sd / "manifest.json").read_text(encoding="utf-8"))}
@@ -305,25 +313,53 @@ def qc_figure(ix, flat, tongue_y, tongue_x, jaw_y, out: Path, title: str) -> Non
 
 # --------------------------------------------------------------------------- every lick of the session (10-20)
 
-#: lick CONTEXT by onset (encoding window via Priya, 10-20: "output every lick with a context label"): ``pre_cue`` = the
-#: spout in place before the cue (position strobe <= onset < cue), ``post_cue`` = cue <= onset <= DAQ trial stop, ``iti``
-#: = the spout away (before the strobe or after the stop). Times are template time from the cue (ms).
-CONTEXTS = ("pre_cue", "post_cue", "iti")
+#: lick CONTEXT by PEAK (encoding window via Priya, 10-20: "output every lick with a context label"; 11-04: the peak, the
+#: same time the tables split on): ``pre_cue`` = the spout in place before the cue (position strobe <= peak < cue),
+#: ``excluded_0_70`` = cue <= peak < cue + 70 ms (Priya 11-04: NEITHER pre- nor post-cue -- isolated background licks,
+#: their rate inflated by the ENL selection at the cue; docs/status/CUE70_CHECK_2026-11-04.md), ``post_cue`` = cue + 70 ms
+#: <= peak <= DAQ trial stop, ``iti`` = the spout away (before the strobe or after the stop). Times are template time
+#: from the cue (ms). Until 11-04 the label split on the ONSET at 0 ms while the tables split on the PEAK at 70 ms;
+#: that onset label is kept as ``onset_context`` (`onset_context`) for the encoder's whole-session lick lists.
+CONTEXTS = ("pre_cue", "excluded_0_70", "post_cue", "iti")
+#: per-session table of the excluded licks (`pose_kinematics_demo.precue_and_excluded_licks`)
+EXCLUDED_TABLE = "licks_excluded_0_70"
 #: per-lick times that the pre-cue / ITI tables hold relative to their segment start (converted to the cue clock)
 TIMING_MS_COLS = ("on_ms", "off_ms", "rise_start_ms", "fall_end_ms", "t_peak_lick1_ms", "first_peak_t_ms")
 
 
-def lick_context(on_ms, strobe_ms, stop_ms) -> np.ndarray:
+def lick_context(peak_ms, strobe_ms, stop_ms) -> np.ndarray:
+    """`CONTEXTS` label of each lick from its PEAK time (ms from the cue; ``t_ms`` of the lick tables)."""
+    from wfield_local.trial_classes import EXCLUDED_CONTEXT, POSTCUE_START_MS, PRECUE_END_AFTER_CUE_MS
+    pk, sb, sp = (np.asarray(x, float) for x in (peak_ms, strobe_ms, stop_ms))
+    post = (pk >= POSTCUE_START_MS) & ~(pk > sp)        # a missing stop (NaN) keeps a post-cue peak post-cue
+    excl = (pk >= PRECUE_END_AFTER_CUE_MS) & (pk < POSTCUE_START_MS)
+    pre = (pk < PRECUE_END_AFTER_CUE_MS) & ~(pk < sb)   # a missing strobe keeps a pre-cue peak pre-cue
+    return np.where(post, "post_cue", np.where(excl, EXCLUDED_CONTEXT, np.where(pre, "pre_cue", "iti")))
+
+
+def onset_context(on_ms, strobe_ms, stop_ms) -> np.ndarray:
+    """The PRE-11-04 label, by ONSET at the cue: ``pre_cue`` = strobe <= onset < cue, ``post_cue`` = cue <= onset <=
+    stop, ``iti`` otherwise. Kept (as licks_all ``onset_context``) ONLY so the encoder's whole-session pre-cue / ITI lick
+    lists (`combined_encoding._context_licks`, `frozen_encoder`) are unchanged by the 11-04 rule: a lick in cue .. cue +
+    70 ms is still a lick there; only its pre- / post-cue analysis label changed. Not an analysis context."""
     on, sb, sp = (np.asarray(x, float) for x in (on_ms, strobe_ms, stop_ms))
     post = (on >= 0) & ~(on > sp)                       # a missing stop (NaN) keeps a post-cue onset post-cue
     pre = (on < 0) & ~(on < sb)                         # a missing strobe keeps a pre-cue onset pre-cue
     return np.where(post, "post_cue", np.where(pre, "pre_cue", "iti"))
 
 
+def encoder_context(A: pd.DataFrame) -> np.ndarray:
+    """The label the ENCODER's whole-session lick lists split on: ``onset_context`` when the table has it (licks_all
+    written from 11-04), else ``context`` (a pre-11-04 licks_all, whose ``context`` IS the onset label)."""
+    return (A.onset_context if "onset_context" in A else A.context).astype(str).to_numpy()
+
+
 def all_licks_session(rv, run: str, animal: str, date: str) -> tuple[pd.DataFrame, dict]:
-    """``licks_all.csv``: EVERY cam4 lick the v36 windows hold (= `licks.csv` + `licks_precue.csv` + `licks_iti.csv`, the
-    same detector; NO re-detection), one table. Columns: `licks.csv`'s, in its order (post-cue rows unchanged), then
-    ``context`` (`lick_context` on ``on_ms``), ``table`` (source file: ``table == "licks"`` is exactly today's
+    """``licks_all.csv``: EVERY cam4 lick the v36 windows hold (= `licks.csv` + `licks_precue.csv` +
+    `licks_excluded_0_70.csv` + `licks_iti.csv`, the same detector; NO re-detection), one table. Columns: `licks.csv`'s,
+    in its order (post-cue rows unchanged), then ``context`` (`lick_context` on the PEAK ``t_ms``; a pre-11-04
+    licks_precue.csv's 0-70 ms peaks get ``excluded_0_70`` here too), ``onset_context`` (`onset_context` on ``on_ms``:
+    the pre-11-04 label, for the encoder only), ``table`` (source file: ``table == "licks"`` is exactly today's
     `licks.csv`), ``segment`` / ``t_from_strobe_ms`` (from the pre-cue / ITI tables), ``daq_on_s`` / ``daq_peak_s``
     (ABSOLUTE DAQ time of the onset / peak frame: the window's per-frame camera time through the alignment template,
     ``ix_daq_s``). Coverage: the trial windows (strobe - 0.5 s .. stop + 3 s, cut at the next trial) hold ~98-99 % of the
@@ -337,7 +373,7 @@ def all_licks_session(rv, run: str, animal: str, date: str) -> tuple[pd.DataFram
     base = pd.read_csv(sd / "licks.csv")
     cols = list(base.columns)
     parts = []
-    for name in ("licks", "licks_precue", "licks_iti"):
+    for name in ("licks", "licks_precue", EXCLUDED_TABLE, "licks_iti"):
         f = sd / f"{name}.csv"
         if not f.exists():
             continue
@@ -358,7 +394,8 @@ def all_licks_session(rv, run: str, animal: str, date: str) -> tuple[pd.DataFram
     extra = [c for c in A.columns if c not in cols and c != "table"]
     A = A[cols + ["table"] + extra]
     t = tr.reindex(A.trial_id)
-    A["context"] = lick_context(A.on_ms, t.strobe_ms.to_numpy(float), t.stop_ms.to_numpy(float))
+    A["context"] = lick_context(A.t_ms, t.strobe_ms.to_numpy(float), t.stop_ms.to_numpy(float))
+    A["onset_context"] = onset_context(A.on_ms, t.strobe_ms.to_numpy(float), t.stop_ms.to_numpy(float))
 
     by_trial = {k: (g.t_ms.to_numpy(float), g.daq_s.to_numpy(float))
                 for k, g in ix.sort_values(["trial_id", "t_ms"]).groupby("trial_id")}
@@ -435,11 +472,13 @@ Generated by `widefield_pipeline` (`wfield_local/orofacial_outputs.py`); do not 
   from the camera timestamps), `clean.npz` (cleaned tongue / jaw; fill 0 =
   measured, 1-2 = interpolated, 3 = filled: tongue in the mouth = 0 px, jaw hidden = NaN), `licks.csv` (post-cue
   licks, cue + 70 ms .. the DAQ trial stop; incl. `peak_interp`, `interp_frac`, `protrusion_max_measured_px`),
-  `licks_precue.csv` (spontaneous licks from the position strobe -- spout in place -- to cue + 70 ms, same detector and
-  columns, `t_ms` from the cue (negative) + `t_from_strobe_ms`), `licks_iti.csv` (inter-trial licks: `segment` 'tail' =
+  `licks_precue.csv` (spontaneous licks from the position strobe -- spout in place -- to the cue, by lick peak, same
+  detector and columns, `t_ms` from the cue (negative) + `t_from_strobe_ms`; tables written before 11-04 run to cue +
+  70 ms), `licks_excluded_0_70.csv` (11-04: peak in cue .. cue + 70 ms = neither pre- nor post-cue), `licks_iti.csv` (inter-trial licks: `segment` 'tail' =
   trial stop .. the next trial's window, 'lead' = window start .. strobe; spout-reach fields blank), `trials.csv`, `jaw_trials.csv`,
   `tongue_jaw_mismatch.csv`, `qc.png`; `licks_all.csv` (every lick of the trial windows in ONE table: `licks.csv`'s
-  columns first, post-cue rows unchanged, + `context` = pre_cue / post_cue / iti by onset, `table` = source file,
+  columns first, post-cue rows unchanged, + `context` = pre_cue / excluded_0_70 / post_cue / iti by PEAK (11-04),
+  `onset_context` = the pre-11-04 onset label (encoder lick lists only), `table` = source file,
   `daq_on_s` / `daq_peak_s` = absolute DAQ time; the pre-cue / ITI timing columns on the cue clock) and
   `licks_all_coverage.json` (share of the video inside the windows, time before the first / after the last window).
 * `<run>/cohort/tables/<analysis>.csv`, `<run>/cohort/figures/<analysis>/` -- cross-session analyses, each figure
