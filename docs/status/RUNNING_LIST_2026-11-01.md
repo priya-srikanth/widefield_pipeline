@@ -1059,3 +1059,11 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
       jaw trials.
   - Some cases are grooming: a DAQ contact that is not a lick. The helper is quantifying them, checking where they count
     as contact, and proposing an automatic grooming flag.
+- **11-04 ~13:10: PENDING (a8): the frozen spout decoder's bal_em centre, and the C projection centre.**
+  - Question: working rows or contact-only?
+  - Reason: working-row centres drift as the incomplete share rises.
+  - Test: CENTRE_MIXSHIFT_2026-11-04.md.
+  - Do not lock it in the render until the result arrives. It changes the scored frame only; models stay.
+  - The port exposes the centre as a spec-carried option.
+- **11-04: DECISION (Priya via a8): G4 state discriminator labels come from camera classes / LP licks, with the z
+  centre on CONTACT rows.**
