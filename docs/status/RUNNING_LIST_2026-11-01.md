@@ -800,6 +800,13 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   - (1) asked what the rim is: v8 = the thin LATERAL rim anterior of AP -0.5 (not the full rim) + the ALM front line.
   - (4) asked where the cortex rows are.
   Replies in chat; a8 told.
+  PRIYA CONFIRMED:
+  - (1) v8 masks everywhere, encoder rows included. Cortex +3.2 % pixels, SSp-m +32 %, MOs / MOp +5-6 %.
+  - (2) orofacial = ALM, tjM1, SSp-m, SSp-n; MOs-vs-MOp contrasts become ALM vs tjM1.
+  - (3) residual_roi: pixel-based stays primary; the per-area stats adjust for the larger family of comparisons (split
+    areas).
+  - (4) keep the cortex rows, with v8 cortex.
+  - (5) leave the LocaNMF-label analyses.
 - Slide 94 caveat added by a8 (backup_before_ramp_caveat_1104.pptx; hidden states unchanged).
 - The 05:46 incident coverage copies differ from the rebuild ones only by the 12 June sessions (Aug-only pre); the partial-
   coverage rows are identical.
