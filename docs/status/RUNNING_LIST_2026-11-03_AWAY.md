@@ -651,6 +651,15 @@ FYI, the 3-class camera variant (lick / jaw-only / none) is thin in PS92 and PS9
 - **Stars.** Main slides keep bootstrap stars. LMM versions go on hidden slides right after each main slide.
 - **Curve figures.** LMM on pre-specified per-session summaries (DECISIONS 82665657).
 
+## WATCH (Priya 11-04)
+
+- **Encoder pre-cue position credit may fall once spontaneous licks are modelled** (LICKS_ALL = split): drop:pos_enl,
+  PS93_0814 .0072 -> .0029, PS93_0818 .0044 -> .0037 (smokes). If it holds across animals, it touches every encoder
+  claim about pre-cue position coding. 34 was asked to report the per-animal / per-epoch split vs no-licksall numbers
+  FIRST when the O2 run lands, plus the list of affected page / deck claims.
+- 3-D spout targets: the encoder TARGET3D is now the commanded positions (e0 bddf02e7). Per e0, kinematics / lick-aim
+  trajectories already used commanded targets. 34 was asked to confirm the O2 bundle uses them.
+
 ## Running
 
 - Nothing of mine is running (11-04). Jaw-only-out is DONE (48f2cc6d). e0's s1 reruns are done. 34's rebuild may be
