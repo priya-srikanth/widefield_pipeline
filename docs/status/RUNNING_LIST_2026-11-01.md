@@ -598,6 +598,8 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   with a DAQ-defined working period (last DAQ lick, same stop rule on DAQ no-response) for the DAQ-only behaviour rates only;
   cost = one session on a different gate definition. Helper building it + an agreement check (camera vs DAQ fallback on every
   Aug pre session with video); wire it in only if they agree (~1-2 points) and Priya confirms.
+  PRIYA: "yes if so let's use it" -> criterion set: <= 2 points (hit, no-response) and <= 20 ms (median latency) on every Aug
+  pre session with video; pass = wired automatically, fail = back to Priya with the table.
 
 ### Findings
 - main moved while the rebuild branch was being fixed (34 commits not in rebuild/cohort1-20261103). Two matter for the rebuild:
