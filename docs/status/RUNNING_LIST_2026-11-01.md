@@ -1278,3 +1278,12 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   - quiet_task_events = sliding lick-free 1 s.
   - within_spout_deviation = sliding lick-free 1 s.
   - s1 refit = LP 1.0 s, with 2.0 s as a sensitivity row.
+- **11-04 ~17:55: DECISION (Priya): the encoder separates cued from spontaneous licking.**
+  - Variables:
+    - licks (post-cue + contacts) = instructed;
+    - licks_pre (ENL) = UNINSTRUCTED;
+    - licks_iti = UNINSTRUCTED.
+  - They share one lick penalty, so the fit is the same.
+  - New drop models in main: drop:licks_pre, drop:licks_iti, drop:both (all spontaneous licking).
+  - Caveat: the tongue / jaw traces stay instructed over the whole trial.
+  - Implementing on rebuild/encoder-classes.
