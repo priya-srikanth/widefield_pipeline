@@ -169,8 +169,8 @@ def build(rv=None, dest: Path | None = None) -> Path:
 opening in profile, with no spout rod across the chin, and how far forward and down the tongue reaches. One network
 will learn both side views together (camera 3 is mirrored for it automatically, later) &mdash; so <b>each moment
 is labelled in only ONE of the two side cameras</b>, the one it is listed under below. About one moment in five is
-listed under both; label it in both. Work in order: <a href="#A">Part A</a> (a pilot that covers every animal and
-recovery stage, done), then <a href="#B">Part B</a> (the last round). Installing and napari basics:
+listed under both; label it in both. <b>Start with <a href="#B">Part B</a></b>, the last round, listed first below;
+<a href="#A">Part A</a> (the pilot) is done and listed at the end for reference. Installing and napari basics:
 <code>LABELLING_GUIDE.html</code>; camera 4 / camera 1 work stays on <code>CAM1_GUIDE.html</code>.</p>
 
 <div class="card note">
@@ -247,8 +247,9 @@ connection</b> makes a save fail: check the sidebar after a break.</p>
                "frames from camera 4's bursts and other moments that are not listed; label only the listed frames."
                "</p></div>")
     part_b = r4 + [s for s in rest if s not in r4]
-    body = (_part("Part A &mdash; pilot (done)", "A", a_intro, df, pilot, "A", live)
-            + _part("Part B &mdash; hard moments and jaw sequences (last round)", "B", b_intro, df, part_b, "B", live))
+    # Part B FIRST: the work to do (Priya 11-04: "start with part B, not the part she's already completed")
+    body = (_part("Part B &mdash; hard moments and jaw sequences (last round)", "B", b_intro, df, part_b, "B", live)
+            + _part("Part A &mdash; pilot (done)", "A", a_intro, df, pilot, "A", live))
     page = ("<!doctype html><html><head><meta charset='utf-8'>"
             "<meta name='viewport' content='width=device-width, initial-scale=1'>"
             f"<title>Side-camera labelling</title><style>{CSS}</style></head><body>{head}{body}</div></body></html>")
