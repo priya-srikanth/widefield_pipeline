@@ -878,7 +878,7 @@ def _frozen_frame(bd, an=None, align=None, store=True):
             XE, GE, XU, GU, range(len(bd["kept"])),
             model_of=lambda i: loso.get(i) if i in bd["pre_i"] else full,
             prior_of=lambda i: pi_loso.get(i) if i in bd["pre_i"] else pi_full,
-            centre_mask=_bundle_centre_mask(bd), labels=bd["kept"])
+            centre_mask=_bundle_centre_mask(bd), session_names=bd["kept"])
     else:
         XEs, XUs = XE, XU
     fr = {"scaling": sc or spout_scaling.SCALING_SESSION_Z, "XT": XT, "full": full, "loso": loso,

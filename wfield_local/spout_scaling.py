@@ -443,7 +443,7 @@ def score_session(model, Xe, Xu, pi_train, Xc=None):
     return Ze, Zu
 
 
-def scored_frame(XE, GE, XU, GU, sessions, model_of, prior_of, centre_mask=None, labels=None):
+def scored_frame(XE, GE, XU, GU, sessions, model_of, prior_of, centre_mask=None, session_names=None):
     """Copies of the engaged / no-lick matrices with each session in ``sessions`` moved into the bal_em scoring frame,
     centred with ITS scoring model (``model_of(i)``: the LOSO model for a held-out pre session, the full model for a
     post session) and that model's training prior (``prior_of(i)``). Sessions without a model are left as they are.
@@ -451,8 +451,10 @@ def scored_frame(XE, GE, XU, GU, sessions, model_of, prior_of, centre_mask=None,
     if centre_mask is None and centre_rows() == "working":
         raise BalEmCentreRefused("bal_em scored_frame: camera WORKING centre rows required (bal_em.centre_rows = "
                                  "working)")
-    lab = ({int(k): str(v) for k, v in (labels.items() if hasattr(labels, "items") else enumerate(labels))}
-           if labels is not None else {})
+    # session NAMES (pooled id -> label), for the centre fallback; never trial class labels
+    lab = ({int(k): str(v) for k, v in (session_names.items() if hasattr(session_names, "items")
+                                         else enumerate(session_names))}
+           if session_names is not None else {})
     XE = np.asarray(XE, float)
     XU = np.asarray(XU, float)
     GE, GU = np.asarray(GE), np.asarray(GU)

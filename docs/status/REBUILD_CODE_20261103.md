@@ -943,3 +943,9 @@ Those assertions were updated in the next commit, and both tests pass.
   - 5 scripts write LP_licks outputs, so their render block must set WIDEFIELD_LICK_SOURCE=lp. Three of them never
     read the switch themselves: epoch_accuracy, epoch_maps, locanmf_analysis_deck. The other two are lp_final_render
     and restnl_maps.
+
+### 8.22 Test record (a06f7fb7 + the rename after it)
+Full suite at a06f7fb7, 6 shards: 4,572 passed, 178 skipped, 1 failed. The failure was
+`test_spout_bal_em::test_scoring_takes_no_labels_by_signature`: `scored_frame` had gained a `labels` parameter (session
+names for the centre fallback), a name that test reserves for trial labels. It is renamed `session_names`, and the test
+and the centre suites pass.
