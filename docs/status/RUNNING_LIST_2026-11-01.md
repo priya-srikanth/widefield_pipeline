@@ -1416,3 +1416,14 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   - An F0 correction would make the raw rise larger.
   - Priya is deciding: re-caption, or add a z-scored companion. NO text change until then.
   - The rebuild render of the lick chain should produce both raw and session-z versions, so either choice is ready.
+- **11-04 ~21:00: bcdg-port follow-ups DONE (tip 81dbf4cc). Full suite: 4,798 passed / 0 failed.**
+  - The projection frame is ON with Wt (C ON). Per-readout split:
+    - Wt for coding directions / position_axes pairwise / attempt axes / grant patterns / pattern_similarity;
+    - z on contact rows for the engagement axis.
+    - coding_directions and attempt_axes get new fingerprints.
+  - sc-* run-tag parts for non-default options. Arms: centreN, centreCto.
+  - G4 figures: the camera-class discriminator is primary, DAQ is robustness.
+  - Bug fixed: the contact / incomplete panel would have drawn no dots (T.align resolved to the pandas method).
+  - G9 figure switch estimated at ~2.5-3 days, after the render.
+  - The merge helper merges it 4th, and wires g_group to stop_kind (tail -> quit, run -> stopped; stopped_licking on its
+    own).
