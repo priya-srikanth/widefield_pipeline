@@ -1431,3 +1431,11 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   - Uses current pre-rebuild data. The main slide stays for now.
   - Session-z per SD_RISE variant (c), plus an LMM version if cheap.
   - Being rendered with a _sessz suffix; originals are untouched.
+- **11-04 ~21:40: the slide-95 session-z hidden slide is rendered (07e03c76, pre-rebuild).** Sent to a8.
+  - Folder: .../v36/imaging_encoding/iti_licks/slide95_sessz_20261104/.
+  - Raw reproduces slide 95 exactly.
+  - Under z:
+    - the acute cued increase is gone in every ROI;
+    - subacute / chronic contra tjM1 / SSp-m keep +.11-.14 (nested bootstrap *), about 1/4-1/3 of raw;
+    - the LMM (Holm) has no stars under z (smallest p .051);
+    - docked ITI contra tjM1 / SSp-m keeps ~60 %.
