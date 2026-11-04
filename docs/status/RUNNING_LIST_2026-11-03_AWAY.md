@@ -25,7 +25,20 @@ log for the earlier part of the day is `RUNNING_LIST_2026-11-02_OVERNIGHT.md`.
    UPDATE (Priya): measures OF engagement (quit point, stop runs, quit prodrome, bout structure, disengagement
    tests) ALSO switch to camera licks / classes, with the session quit = last camera lick and the camera stop rule;
    DAQ stays as robustness and where there is no video. Sent to 34. The 09-20 engagement findings were on DAQ and may
-   move. Stays DAQ: pinned epoch boundaries, per-lick outcome, June / PS93_0813 /
+   move. ANSWERED (Priya 11-04; sent to 34):
+   1. after_end = quiet in quiet events, and a separate "quit" class in per-class tables.
+   2. Hit rate = contact / all working-period trials, with contact-given-attempt alongside; jaw-only is never a
+      response.
+   4. Unjudged close spouts kept APART; asked 34 whether cam2/3 can judge the jaw there first, and when.
+   5. No-video sessions dropped, with a DAQ-only row.
+   6. DAQ-no-lick / camera-contact trials stay excluded; asked 34 for their frequency and ~10 example clips for
+      Priya.
+   7. early_run -> no_response.
+   9. Lick class = contact + incomplete with LP timing.
+   10, 11, 12: yes (attempted encoder gate; pinned epochs; jaw-only / no-response no-lick arms).
+
+   STILL OPEN: 3 (hit-rate period: camera working period?) and 8 (discriminator training classes; helper testing).
+   Stays DAQ: pinned epoch boundaries, per-lick outcome, June / PS93_0813 /
    cohort 2. My suggested answers are in the chat reply of 11-04 and copied into the log below once Priya answers.
 6. **NEW (11-04): B and C re-check results (interim; the D / G runs are still going).**
    - **B (state discriminators in the spout frame), under the new working definition: one marginal miss.** PS93's
