@@ -278,8 +278,19 @@ PEN_GROUP_OF = {"cue": "task", "arrival": "task", "pos_enl": "task", "pos_cue": 
                 "lick_bin_tgt": "lick", "lick_bin_exec": "lick",
                 "tongue": "orofacial", "jaw": "orofacial", "tongue_ps": "orofacial", "jaw_nd": "orofacial",
                 "dir_kin": "orofacial", "kinall": "orofacial",
-                "nose": "uninstructed", "nose_nd": "uninstructed", "running": "uninstructed", "video": "video", "fr": "fr", "frpts": "frpts"}
+                "nose": "uninstructed", "nose_nd": "uninstructed", "running": "uninstructed", "video": "video", "fr": "fr", "frpts": "frpts",
+                "licks_pre": "lick", "licks_iti": "lick"}
 PEN_GROUPS = ("task", "lick", "orofacial", "uninstructed")
+#: LICKS_ALL=split (Priya 11-04, production): the spontaneous licks are their OWN VARIABLES, credited UNINSTRUCTED --
+#: licks_pre (pre-cue / ENL licks) and licks_iti (between-trial licks) -- beside the cued "licks" (post-cue licks + the
+#: contacts, instructed). Same penalty group ("lick") as the cued kernel. CAVEAT (accepted): the continuous tongue / jaw
+#: traces stay instructed over the whole trial, pre-cue and ITI movement included.
+SPLIT_LICK_VARS = {"licks_pre": "uninstructed", "licks_iti": "uninstructed"}
+
+
+def group_of() -> dict:
+    """GROUP_OF of this run: + SPLIT_LICK_VARS under LICKS_ALL=split (`run_session` binds it locally)."""
+    return {**GROUP_OF, **SPLIT_LICK_VARS} if os.environ.get(LICKS_ALL_ENV, "") == "split" else GROUP_OF
 #: DIRECTIONLESS comparison (Priya 10-19: "wouldn't we expect executed to explain more than target ... is it an
 #: appropriate comparison?"). The base of the target / executed models kept jaw x / y and nose x / y, so lateral jaw
 #: (which steers with the tongue) carried EXECUTED direction frame by frame and made the lick-locked executed angle
@@ -930,8 +941,9 @@ def raw_blocks(B: Behaviour, ft, pos_perm: dict | None = None, drop_pos: str | N
         post_k, pre_k, iti_k = split_licks(B)
         lick_t = post_k
     lk = [_event_cols(lick_t, ft, LAGS["lick"]), _event_cols(contacts, ft, LAGS["lick"])]
-    if ctx and mode_all == "split":                      # spontaneous (pre-cue) and ITI licks: their own kernels
-        lk += [_event_cols(pre_k, ft, LAGS["lick"]), _event_cols(iti_k, ft, LAGS["lick"])]
+    if ctx and mode_all == "split":                      # spontaneous (pre-cue) and ITI licks: their own VARIABLES
+        out["licks_pre"] = _event_cols(pre_k, ft, LAGS["lick"])
+        out["licks_iti"] = _event_cols(iti_k, ft, LAGS["lick"])
     lips = getattr(B, "lips_on_s", None)
     if lips is not None and len(lips):                   # LICKS_ENV=lips: lips-only licks get their own kernel
         lk.append(_event_cols(lips, ft, LAGS["lick"]))
@@ -1498,6 +1510,7 @@ def area_masks_for(inputs, parea, pstat, names, flat, shape) -> dict:
 def run_session(label: str, order: str = "movement_first", seed: int = 0, inputs: dict | None = None) -> dict:
     """``inputs`` (from `session_inputs`) = run without touching the share (O2); None = load everything here."""
     from wfield_local import config
+    GROUP_OF = group_of()                              # noqa: N806 -- + licks_pre / licks_iti under LICKS_ALL=split
     animal = config.animal_of(label)
     date = config.date8(label.split("_")[-1])
     rng = np.random.default_rng(seed)
@@ -1867,6 +1880,9 @@ def run_session(label: str, order: str = "movement_first", seed: int = 0, inputs
     for g in GROUPS:
         models[f"drop:{g}"] = [("raw", w) for w in GROUP_OF if GROUP_OF[w] != g]
     models["drop:position"] = [("raw", w) for w in GROUP_OF if w not in POS_VARS]
+    spont = [("raw", v) for v in SPLIT_LICK_VARS if v in GROUP_OF]   # lick TIMING kernels of the nodir / nokin bases
+    if all(v in GROUP_OF for v in SPLIT_LICK_VARS):    # all spontaneous licking (pre-cue + ITI) at once
+        models["drop:licks_pre+licks_iti"] = [("raw", w) for w in GROUP_OF if w not in SPLIT_LICK_VARS]
     # VARIANTS (order-free, raw columns like the drop models)
     models["raw:full"] = [("raw", w) for w in GROUP_OF]
     if ("raw", "angle_cue") in layout:
@@ -1935,7 +1951,7 @@ def run_session(label: str, order: str = "movement_first", seed: int = 0, inputs
             models["frpts:raw:full"] = rawfull + [("raw", "frpts")]
             models["frboth:raw:full"] = rawfull + [("raw", "fr"), ("raw", "frpts")]
     if all(("raw", v) in layout for v in ("jaw_nd", "nose_nd", "dir_kin")):
-        nb = [("raw", v) for v in NODIR_BASE]
+        nb = [("raw", v) for v in NODIR_BASE] + spont           # + the split spontaneous lick timing kernels
         tg, ex, kin = [("raw", "lick_angle_tgt")], [("raw", "lick_angle_abs")], [("raw", "dir_kin")]
         cat = [("raw", v) for v in POS_VARS]
         models["nodir:none"] = nb
@@ -1949,7 +1965,7 @@ def run_session(label: str, order: str = "movement_first", seed: int = 0, inputs
             models["nodir:kin+target+exec"] = nb + kin + tg + ex
         models["nodir:kin"] = nb + kin
     if ("raw", "kinall") in layout:
-        kb = [("raw", v) for v in NOKIN_BASE]
+        kb = [("raw", v) for v in NOKIN_BASE] + spont
         ka, cat = [("raw", "kinall")], [("raw", v) for v in POS_VARS]
         models["nokin:none"] = kb
         models["nokin:category"] = kb + cat

@@ -61,12 +61,14 @@ def test_split_kernels_and_unset_from_the_same_behaviour(monkeypatch):
         np.testing.assert_array_equal(plain[v], ref[v], err_msg=v)
     monkeypatch.setenv(ce.LICKS_ALL_ENV, "split")
     sp = ce.raw_blocks(B, ft)
-    k = ref["licks"].shape[1] // 2                                       # [lick, contact] -> [lick, contact, pre, iti]
-    assert sp["licks"].shape[1] == 4 * k
+    k = ref["licks"].shape[1] // 2                                       # licks = [post-cue lick, contact]
+    assert sp["licks"].shape[1] == 2 * k
     post, pre, iti = ce.split_licks(B)
     np.testing.assert_array_equal(sp["licks"][:, :k], ce._event_cols(post, ft, ce.LAGS["lick"]))
-    np.testing.assert_array_equal(sp["licks"][:, k:2 * k], ce._event_cols(B.context_contact_s, ft, ce.LAGS["lick"]))
-    np.testing.assert_array_equal(sp["licks"][:, 2 * k:3 * k], ce._event_cols(pre, ft, ce.LAGS["lick"]))
+    np.testing.assert_array_equal(sp["licks"][:, k:], ce._event_cols(B.context_contact_s, ft, ce.LAGS["lick"]))
+    np.testing.assert_array_equal(sp["licks_pre"], ce._event_cols(pre, ft, ce.LAGS["lick"]))   # their own variables
+    np.testing.assert_array_equal(sp["licks_iti"], ce._event_cols(iti, ft, ce.LAGS["lick"]))
+    assert set(sp) - set(ref) == {"licks_pre", "licks_iti"}
     for v in ref:
         if v != "licks":
             np.testing.assert_array_equal(sp[v], ref[v], err_msg=v)
@@ -117,7 +119,8 @@ def runs():
     import os
     keys = (ce.TRIALS_ENV, ce.SMOKE_ENV, ce.ONLY_ENV, ce.LICKS_ALL_ENV)
     old = {k: os.environ.get(k) for k in keys}
-    os.environ.update({ce.SMOKE_ENV: "1", ce.TRIALS_ENV: "off", ce.ONLY_ENV: "trmodels"})
+    os.environ.update({ce.TRIALS_ENV: "off", ce.ONLY_ENV: "drop:"})
+    os.environ.pop(ce.SMOKE_ENV, None)
     out = {}
     try:
         for mode in ("", "split"):
@@ -183,3 +186,16 @@ def test_bundle_default_split_and_submit_override():
         "run_session")
     runs = {t: extra for t, _o, _only, extra in m.FULL_RUNS}
     assert "LICKS_ALL=none" in runs["main_nolicksall"]
+
+
+def test_split_variables_groups_and_models(monkeypatch, runs):
+    """licks_pre / licks_iti: credit UNINSTRUCTED, penalty "lick"; their drop models (+ both) are fitted."""
+    monkeypatch.setenv(ce.LICKS_ALL_ENV, "split")
+    g = ce.group_of()
+    assert g["licks_pre"] == g["licks_iti"] == "uninstructed" and g["licks"] == "instructed"
+    assert ce.PEN_GROUP_OF["licks_pre"] == ce.PEN_GROUP_OF["licks_iti"] == ce.PEN_GROUP_OF["licks"] == "lick"
+    monkeypatch.delenv(ce.LICKS_ALL_ENV)
+    assert ce.group_of() is ce.GROUP_OF
+    m = set(runs["split"]["region"].model)
+    assert {"drop:licks_pre", "drop:licks_iti", "drop:licks_pre+licks_iti"} <= m
+    assert not {"drop:licks_pre", "drop:licks_pre+licks_iti"} & set(runs["unset"]["region"].model)
