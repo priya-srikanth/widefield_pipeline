@@ -23275,3 +23275,116 @@ windows) and ENL 2.0 precue (= the joint precue ids) are frozen-hits.
   grouping = robustness). Implemented on main by a helper of the PI-deck window (`labcams/decoder_mix_checks/bcdg_1104/`);
   34 ports the commits to the rebuild. The rebuild's stop rule (jaw-only counts toward >= 6 consecutive non-responses,
   Priya 11-04 to 34) does not exist on main.
+
+## 2026-11-04 — State discriminators in spout frame (B), section D scored on working, section G by camera class (Priya); C re-checked
+
+All on main under production settings (`WIDEFIELD_WORKING_TRIALS=in_working` = jaw-only OUT, `WIDEFIELD_PRE_FROM=0801`, bal_em
+spout decoders). Checks, logs, CSVs: `labcams/decoder_mix_checks/bcdg_1104/` (`summarise_{B,C,DG}_log.txt`, `tables/`).
+**No frozen model changed and nothing was published**: B's discriminators and C's projections are in-memory fits, and D / G
+change only the SCORED rows. Every run reported `frozen-hit` on the 11-03-late ids (ROI cue / precue PS92 681c7b9485fb /
+e0a6af46ecc4, PS93 9d883a1b467c / 3e6c2fc4d3b9, PS94 c0e6a8bad023 / 7f8d7e7bcd06, PS95 82f90fcc8ade / b076f3b10ee0). No
+session-cached function changed, so CACHE_VERSION is unchanged.
+
+**B — state discriminators in the spout bal_em frame: FAILS the criterion by one cell, so it stays OFF**
+(`spout_scaling.STATE_DISC_DEFAULT = "session_z"`; opt in with `WIDEFIELD_STATE_DISC_SCALING=spout_frame`).
+- Criterion (Priya): pre checks within each animal's between-session noise, and no animal's pre reference worse by more than .03.
+- Section G (`fits_engaged_distribution` held-out pre references, z -> spout):
+  - All cells are within noise except **PS93 cue engaged .869 -> .850 (-.019; between-session SD .016)**. The drop is carried
+    by PS93_0811 (-.052) and PS93_0814 (-.056).
+  - PS94 / PS95 cue engaged .951 / .960 -> .950 / .960. Precue engaged PS93 / 94 / 95 .567 / .857 / .803 -> .556 / .855 / .797.
+  - No-lick references move by .009 or less.
+  - PS92 has no reference: there are too few pre-stroke no-lick sessions.
+  - Animal means: cue .927 -> .920 (11-03 afternoon: .925 -> .919); precue .742 -> .736 (.742 -> .730).
+- `precue_engagement_states` (z -> spout, working centre):
+  - LOSO AUC PS92-95 .521 / .325 / .768 / .722 -> .527 / .329 / .767 / .723 (mean .584 -> .587).
+  - Pre-lick and drift controls move by .009 or less.
+  - PS93's no-lick state 2 moves .181 -> .216. Part of that move is PS93_0813 leaving the pre set (it has no camera classes).
+- Post-stroke G4 movement is about HALF of the 11-03 figure under the jaw-out definition:
+  - cue acute no-lick engaged-like .195 -> .323 (11-03: .502);
+  - fits_engaged .170 -> .322 (.498);
+  - precue acute .576 -> .610 and .634 -> .643.
+- **Centre rows.**
+  - Section G's spout frame (`poststroke_compare._spout_train_d` / `frozen_X`) already centred on the camera WORKING rows of the
+    stored cue / precue decoder: frozen_X equals a centre recomputed from `pool_work` rows to 0.0. An engaged-row centre would
+    move rows by up to 3.9 z.
+  - `precue_engagement_states` centred on every DAQ-engaged row (its in-memory `FrozenFrame`). It now uses the working rows
+    (`_working_frame`; a pre session with no camera classes leaves its pre sets).
+  - The old frame is kept as `WIDEFIELD_STATE_DISC_CENTRE=engaged`; it reproduces z to .003 in the pre checks.
+  - Section G outputs now carry `state_disc_frame`.
+
+**C — projections in the spout frame centred on WORKING rows (`WIDEFIELD_PROJECTION_CENTRE=working`; option only, the frame stays
+OFF).**
+- Held-out pre change versus the between-session SD (per animal, session = spout mean):
+  - CD and pattern correlation are within noise under both centres. Max change / SD: cue CD .03-.22, precue CD .09-.65;
+    pattern .03-.48.
+  - **The engagement axis fails under both centres at cue AND precue.** Max / SD for the engaged centre: cue 1.0-2.3, precue
+    3.1-9.7. For the working centre: cue 1.6-3.5, precue 2.2-8.8 (precue PS92 5.7x, PS93 2.2x, PS95 8.8x).
+- Headlines (z -> engaged centre / working centre). The z values moved from the 11-03 C check because the working trials changed:
+  - far-contra CD acute: cue -.051 -> -.284 / -.130; precue .333 -> .078 / .087;
+  - precue engagement axis acute .906 -> 1.246 / 1.230; cue .801 -> .759 / .933.
+- **Why the axis fails: it follows the centre, and the readout is pinned by construction.** In z the session is centred on its
+  ENGAGED mean. Every licking trial then sits at the lick pole (pre z eax .97, SD .007-.08 between sessions), so any other centre
+  moves the readout well past that tiny noise. The decomposition (`summarise_C_log.txt` C4) puts almost all of the change in the
+  scored session's own centre: PS93 precue acute +1.26 own centre vs -.10 axis / poles. The axis is the lick-vs-no-lick contrast,
+  and the session centre is set on rows that all lie at one end of it.
+- Code: `spout_scaling.projection_arrays(work=, YU=)`, `grant_kit._proj_arrays`, `working_trials.projection_work`; wired into
+  `position_coding_directions`, `position_axes`, `poststroke_compare._proj_X`. `attempt_coding` passes no masks and would raise
+  under the working centre.
+
+**D — section D (`locanmf_frozen_decoder.pooled_frozen_loso`) scores the camera WORKING rows** (contact + incomplete, engaged and
+no-lick rows; pre LOSO, post on the full model) whenever the model is working-trained. Option `WIDEFIELD_SECTION_D_SCORED=engaged`
+= the old scored set.
+- Endpoint: under `engaged` the new code reproduces the pre-change code exactly in all 8 animal x window units: per_session,
+  confusion, loso_accuracy, CI, within-session, ids.
+- New JSON fields: `scored_set`, `n_scored`, `n_scored_from_nolick`, and `per_session_engaged_scored` (the old scores).
+- The within-session ceiling (engaged rows) and the OOD control (no-lick rows) are unchanged.
+- Old -> new animal means, cue:
+  - overall pre .857 -> .847, acute .663 -> .570, subacute .762 -> .733, chronic .772 -> .767;
+  - **far contra acute .478 -> .184**, far mid .518 -> .416, subacute far contra .649 -> .565; close spouts within .012.
+- Precue: overall acute .403 -> .356; far contra acute .271 -> .135.
+- Per animal, cue acute overall: PS92 .676 -> .572, PS93 .430 -> .379, PS94 .672 -> .561, PS95 .875 -> .769.
+- The new acute rows are mostly incomplete licks (PS92 acute n 1444 -> 1800), which the frozen decoder reads poorly (see G).
+
+**G — section G (`poststroke_compare`) uses camera classes**. Option `WIDEFIELD_SECTION_G_GROUPS=daq` = the old DAQ grouping. It
+reproduces the pre-change `crossed_confusion` / `decode_matched` outputs exactly (8 / 8 units).
+- **One mapping: `working_trials.g_group(cls, before_end)`.** Groups `G_GROUPS` = contact / incomplete / jaw_only / none /
+  after_end:
+  - after_end = after the session's last camera lick, replacing the quit-tail "stopped";
+  - none = no_response or unknown, with `g_jaw_judged` False for unknown and close-mid defaults;
+  - `row_groups` maps the groups onto pooled rows.
+  - Main has no stop rule; the rebuild maps its stopped / early_run classes through `g_group`.
+- `crossed_confusion`:
+  - The pre panel is the pre sessions' working rows (LOSO). The engaged-only post arm is the post session's working rows.
+  - New `by_class` panels: per group, pre (LOSO) and post (full model) confusion + accuracy + n + n_jaw_unjudged.
+  - The all-trials post panel is unchanged (identical).
+  - The DAQ pre_nolick / post_nolick panels are kept.
+- The `decode_matched` stored-model arm's pre band is now the working rows. The lick-only arm's local class-filtered fit is
+  unchanged.
+- `poststroke_section_g._counts` adds by-class counts.
+- The lick window keeps the lick gate.
+- Sessions without camera classes (PS93_0813, pre) leave the camera panels; no post session lacks them.
+- Old -> new pre panel: within .006 at the close spouts; far spouts -.005 to -.057 (largest PS93 far mid cue .654 -> .597).
+- Pre band means: cue PS92-95 .852 / .736 / .929 / .911 -> .847 / .713 / .925 / .903.
+- **Failed-attempt readout (frozen decoder accuracy by group, animal means of cells with n >= 20, cue; chance 1/6):**
+
+  | epoch | contact | incomplete | jaw_only | none | after_end |
+  |---|---|---|---|---|---|
+  | pre | .856 | .322 | .356 | .250 | .164 |
+  | acute | .662 | .205 | .157 | .151 | .225 |
+  | subacute | .762 | .243 | .278 | .159 | .146 |
+  | chronic | .772 | .249 | .214 | .157 | .284 |
+
+  - Precue: acute incomplete .180, jaw_only .240, none .204; pre .310 / .321 / .268.
+  - Pre-stroke incomplete / jaw_only / none cells are small (PS92 23 / 18 / 33 trials over 8 sessions).
+  - Per-animal tables: `tables/G_{cue,precue}_by_class.csv`.
+- **Not converted:** section G9 coding directions (`position_coding_directions`: poststroke_lick / miss_working / stopped, read
+  by `grant_confusion`, `miss_vs_stopped`, `position_axes`, the deck, `scripts/best_match.py` and three tests). It needs its own
+  decision.
+
+**Touched outputs (no render, no deck / page change made):**
+- Analysis-deck section D: `locanmf_frozen_decoder_loso_roi_{cue,precue}.png`, `locanmf_frozen_grid_*`,
+  `locanmf_frozen_session_*` and the JSONs.
+- Section G: `poststroke_G2*` matched / per-position (pre band), `G3` / `G3b` confusions (pre panel; engaged-only arm), and
+  `section_g_grid*`. G4 / G4b are unchanged unless B is switched on.
+- PI deck 11-02: no slide reads these (`figure_provenance.csv`); `build_inputs/spout_balem_swaps.json` key `bcdg_1104`.
+- Tests: `tests/test_bcdg_1104.py`.

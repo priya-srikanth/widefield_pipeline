@@ -293,11 +293,29 @@ def run_animal(animal, align="precue", post_s=None, verbose=True):
     # of its two TRUE state-class means; a scored session centred, label-free, by the EM over its engaged + no-lick rows.
     # The input arrays themselves when OFF (the production engaged-trial z-score).
     _spf = _ss.state_disc_scaling() == _ss.SCALING_SPOUT_FRAME and ff.scaling
+    # the discriminator's PRE sets (states 1 / 2, training, the D2 loop); the post masks always stay ~e_pre / ~u_pre
+    e_pre_d, u_pre_d, pre_d = e_pre, u_pre, pre_i
+    disc["frame"] = "spout_frame" if _spf else (_ss.state_disc_scaling() or "session_z")
+    if _spf:
+        # THE CENTRE ROWS (Priya 11-04, item B): the camera WORKING rows (contact + incomplete, engaged and no-lick),
+        # as the frozen cue / precue spout decoders are trained and centred (`_working_frame`); a pre session with no
+        # camera classes leaves the discriminator's pre sets. WIDEFIELD_STATE_DISC_CENTRE=engaged = the pre-11-04 frame
+        # (`ff`, every DAQ-engaged row).
+        ffw, pre_w = _working_frame(feat, kept, XE, YE, GE, XU, YU, GU, pre_i, align)
+        disc["centre_rows"] = "engaged" if ffw is None else "working"
+        if ffw is not None:
+            ff = ffw
+            drop = sorted(set(pre_i) - set(pre_w))
+            if drop:
+                disc["pre_sessions_without_working_rows"] = [kept[i] for i in drop]
+                keep_eng &= ~np.isin(GE, drop)
+                keep_dis &= ~np.isin(GU, drop)
+                e_pre_d, u_pre_d, pre_d = np.isin(GE, pre_w), np.isin(GU, pre_w), set(pre_w)
     if _spf:
         # THE SPOUT bal_em FRAME (item B, Priya 11-03): pre sessions in the position decoder's TRAINING frame (true
         # spout-class means), scored sessions in its label-free scoring frame (`ff`, part A's FrozenFrame)
         XEt, XUt = np.array(XE, float), np.array(XU, float)
-        for i in sorted(pre_i):
+        for i in sorted(pre_d):
             XEt[GE == i] = ff.train_apply(XE[GE == i], i)
             if np.any(GU == i):
                 XUt[GU == i] = ff.train_apply(XU[GU == i], i)
@@ -320,7 +338,7 @@ def run_animal(animal, align="precue", post_s=None, verbose=True):
         else:
             XEs, XUs = _ss.state_scored(model, _pi, XEt, GE, XUt, GU, _all_e, _all_u, _post)
         s_states = {
-            "1_pre_lick": XEs[e_pre], "2_pre_nolick": XUs[u_pre], "4_post_lick": XEs[~e_pre],
+            "1_pre_lick": XEs[e_pre_d], "2_pre_nolick": XUs[u_pre_d], "4_post_lick": XEs[~e_pre],
             "5_post_nolick_engaged": XUs[~u_pre & ~not_eng_nl],
             "6_post_nolick_notengaged": XUs[~u_pre & not_eng_nl]}
         if len(np.unique(gd)) > 1:
@@ -342,8 +360,8 @@ def run_animal(animal, align="precue", post_s=None, verbose=True):
         # by a model that never saw that session. Scoring in-sample late trials against out-of-sample
         # early ones would manufacture exactly the difference being tested for.
         pre_e, pre_l = [], []
-        for si in sorted(pre_i):
-            hold = e_pre & (GE == si)
+        for si in sorted(pre_d):
+            hold = e_pre_d & (GE == si)
             tr_e, tr_d = keep_eng & (GE != si), keep_dis & (GU != si)
             if hold.sum() < 20 or tr_e.sum() < 20 or tr_d.sum() < 20:
                 continue
@@ -382,6 +400,26 @@ def run_animal(animal, align="precue", post_s=None, verbose=True):
     return {"animal": animal, "align": align, "basis_id": basis.basis_id, "ncomp": basis.ncomp,
             "chance": CHANCE, "decode": dec, "discriminator": disc,
             "sessions": list(kept), "n_pre_sessions": len(pre_i)}
+
+
+def _working_frame(feat, kept, XE, YE, GE, XU, YU, GU, pre_i, align):
+    """``(FrozenFrame over the camera WORKING rows, pre sessions that have them)`` for the discriminators'
+    ``spout_frame`` (Priya 11-04, item B): the rows the frozen cue / precue spout decoders are trained and centred on
+    (contact + incomplete, engaged AND no-lick rows, `working_trials.row_masks`), so ``train_apply`` centres a pre
+    session on its working rows' true spout-class means and ``apply`` centres any session on the label-free EM centre of
+    its working rows. ``(None, pre_i)`` when the centre is the engaged rows: ``WIDEFIELD_STATE_DISC_CENTRE=engaged``,
+    the lick window, a non-camera working selection, or a builder without cue indices."""
+    from wfield_local import spout_scaling as _ss
+    from wfield_local import working_trials as wt
+    if (_ss.state_disc_centre() != "working" or align == "lick" or not wt.is_camera()
+            or not hasattr(feat, "indices")):
+        return None, sorted(pre_i)
+    we, wu, _have = wt.row_masks(kept, feat.indices, GE, GU)
+    RX = np.vstack([XE[we], XU[wu]])
+    RY = np.concatenate([YE[we], np.asarray(YU)[wu].astype(np.asarray(YE).dtype)])
+    RG = np.concatenate([np.asarray(GE)[we], np.asarray(GU)[wu]])
+    pre_w = sorted(i for i in pre_i if np.any(RG == i))
+    return _ss.FrozenFrame(RX, RY, RG, pre_w, _pipe, loso=True), pre_w
 
 
 def _auc(y, p):

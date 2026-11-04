@@ -654,7 +654,9 @@ def run_animal(animal, align="precue", verbose=True, methods=CD_METHODS):
     from wfield_local import spout_scaling as _ss
     from wfield_local.locanmf_frozen_decoder import _pipe as _fpipe
     XE0, XU0 = XE, XU
-    XE, XU = _ss.projection_arrays(XE, YE, GE, XU, GU, pre_i, _fpipe)
+    from wfield_local import working_trials as _wt
+    XE, XU = _ss.projection_arrays(XE, YE, GE, XU, GU, pre_i, _fpipe,
+                                   work=_wt.projection_work(kept, feat, GE, GU, align), YU=YU)
 
     order = sorted(range(len(kept)), key=lambda i: kept[i].split("_")[1])
     # VARIANCE CAPTURED PER SESSION, stored so a declining per-session coding value can be tested

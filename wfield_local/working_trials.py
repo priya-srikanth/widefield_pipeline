@@ -151,6 +151,83 @@ def row_classes(kept, indices, GE, GU):
     return ce, cu
 
 
+# ------------------------------------------------------------------------------------------ section G groups
+#: SECTION G's post-stroke outcome groups (Priya 11-04, item G): the camera class of the trial within cue -> trial stop,
+#: and trials after the session's LAST CAMERA LICK as their own group ("after_end", replacing the DAQ quit-tail
+#: "stopped"). Close mid follows e3's rule (`trial_classes`): no lick / contact / tongue seen -> no response, flagged
+#: ``jaw_judged`` = False; an "unknown" trial (jaw not judgeable elsewhere) is also "none" with ``jaw_judged`` = False.
+#: Main has NO stop rule; the cohort-1 rebuild maps its stopped / early_run classes through `g_group` instead.
+G_GROUPS = ("contact", "incomplete", "jaw_only", "none", "after_end")
+#: the groups that are WORKING trials (the decoders' training / centre rows; section G's pre panel)
+G_WORKING = ("contact", "incomplete")
+
+
+def g_group(cls, before_end) -> np.ndarray:
+    """THE ONE MAPPING from camera classes to section G's groups (the port seam for the rebuild): per trial, its
+    `trial_classes` class (contact / incomplete / jaw_only / no_response / unknown) and whether it is at or before the
+    session's last camera lick (`trial_classes.before_session_end`, anchor "lick"). Returns one of `G_GROUPS` per
+    trial: "after_end" for every trial after the last camera lick, else contact / incomplete / jaw_only, and "none" for
+    no_response and unknown. Anything else (no video) -> ""."""
+    cls = np.asarray(cls, dtype=object)
+    before_end = np.asarray(before_end, bool)
+    out = np.full(len(cls), "", dtype=object)
+    for c in ("contact", "incomplete", "jaw_only"):
+        out[cls == c] = c
+    out[np.isin(cls, ["no_response", "unknown"])] = "none"
+    out[(out != "") & ~before_end] = "after_end"
+    return out
+
+
+def g_jaw_judged(cls, position) -> np.ndarray:
+    """False where the jaw could not be judged: "unknown" trials, and no-response trials at the close-mid spout
+    (`trial_classes.JAW_UNJUDGED_POSITIONS`), whose "none" is the default rather than an observation."""
+    from wfield_local import trial_classes as tc
+    cls = np.asarray(cls, dtype=object)
+    hidden = np.isin(np.asarray(position, dtype=object), list(tc.JAW_UNJUDGED_POSITIONS))
+    return ~((cls == "unknown") | ((cls == "no_response") & hidden))
+
+
+@functools.lru_cache(maxsize=2)
+def _group_table(path: str):
+    """{label: {cue_idx: (group, jaw_judged)}} from the snapshot (no-video sessions map to an empty dict)."""
+    import pandas as pd
+
+    from wfield_local import trial_classes as tc
+    D = pd.read_csv(path, usecols=["label", "cue_idx", "cls", "position"])
+    be = tc.before_session_end(D.cls, D.cue_idx, session=D.label, position=D.position, anchor=END)
+    D["g"] = g_group(D.cls, be)
+    D["jj"] = g_jaw_judged(D.cls, D.position)
+    out = {}
+    for lab, g in D.groupby("label"):
+        out[lab] = ({} if (g.cls == "no_video").all()
+                    else dict(zip(g.cue_idx.astype(int), zip(g.g, g.jj.astype(bool)))))
+    return out
+
+
+def row_groups(kept, indices, GE, GU):
+    """``(grp_e, grp_u, jj_e, jj_u, have)``: section G's group (`g_group`) and ``jaw_judged`` of every ENGAGED and
+    NO-LICK row of a pool ("" / True where the session has no camera classes or the cue no trial), and the set of
+    pooled session indices that HAVE camera classes. ``indices`` as in `row_masks`."""
+    T = _group_table(str(snapshot_path()))
+    GE, GU = np.asarray(GE), np.asarray(GU)
+    ge, gu = np.full(len(GE), "", dtype=object), np.full(len(GU), "", dtype=object)
+    je, ju = np.ones(len(GE), bool), np.ones(len(GU), bool)
+    have = set()
+    for i, lab in enumerate(kept):
+        tab = T.get(lab) or {}
+        if not tab:
+            continue
+        have.add(i)
+        ie, inl = indices.get(lab, (np.zeros(0, int), np.zeros(0, int)))
+        me, mu = np.flatnonzero(GE == i), np.flatnonzero(GU == i)
+        if len(ie) != len(me) or len(inl) != len(mu):
+            raise RuntimeError(f"{lab}: {len(ie)} / {len(inl)} cue indices for {len(me)} / {len(mu)} pooled rows")
+        for rows, idx, g_, j_ in ((me, ie, ge, je), (mu, inl, gu, ju)):
+            got = [tab.get(int(k), ("", True)) for k in idx]
+            g_[rows] = [a for a, _b in got]
+            j_[rows] = [b for _a, b in got]
+    return ge, gu, je, ju, have
+
 def classes_available(label: str) -> bool:
     return bool(_table(str(snapshot_path()), IN_WORKING).get(label))
 
@@ -180,6 +257,17 @@ def row_masks(kept, indices, GE, GU, sel: str | None = None):
         wu[mu] = [cls.get(int(k), False) for k in inl]
     return we, wu, have
 
+
+def projection_work(kept, features, GE, GU, align):
+    """``(work_e, work_u)`` for `spout_scaling.projection_arrays` under ``WIDEFIELD_PROJECTION_CENTRE=working`` (11-04,
+    item C re-check), or None: the lick window (lick gate), a non-camera selection, the engaged centre, or a builder
+    without cue ``.indices``."""
+    from wfield_local import spout_scaling as ss
+    if (align == "lick" or not is_camera() or not hasattr(features, "indices") or not ss.projection_frame_on()
+            or ss.projection_centre() != "working"):
+        return None
+    we, wu, _have = row_masks(kept, features.indices, GE, GU)
+    return we, wu
 
 def roi_features_with_indices(nolick_ref="cue"):
     """The default (ROI) `pool_sessions` feature builder, also keeping each session's cue indices (``.indices``),

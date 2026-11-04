@@ -72,6 +72,25 @@ def _counts(d, session):
         for c, p in zip(DISPLAY_ORDER, pos):
             out["pre"][arm][p] = float((np.isin(G, list(d["pre_i"])) & (Y == c)).sum()) / npre
             out["post"][arm][p] = int((np.isin(G, [session]) & (Y == c)).sum())
+    # THE CAMERA GROUPS (Priya 11-04, item G; `poststroke_compare._camera_groups`): per group and position, the pre
+    # per-session mean over the pre sessions WITH camera classes, and this session's count; absent under the DAQ
+    # grouping, and an empty post block for a session without camera classes
+    cg = pc._camera_groups(d)
+    if cg is not None:
+        from wfield_local import working_trials as wt
+        pre_c = [i for i in d["pre_i"] if i in cg["have"]]
+        bc = {"pre": {}, "post": {}, "post_has_camera_classes": session in cg["have"],
+              "n_jaw_unjudged_post": int(np.sum(~cg["jj_e"][d["GE"] == session])
+                                         + np.sum(~cg["jj_u"][d["GU"] == session]))}
+        for g in wt.G_GROUPS:
+            bc["pre"][g], bc["post"][g] = {}, {}
+            for c, p in zip(DISPLAY_ORDER, pos):
+                npre = (np.sum(np.isin(d["GE"], pre_c) & (d["YE"] == c) & (cg["grp_e"] == g))
+                        + np.sum(np.isin(d["GU"], pre_c) & (d["YU"] == c) & (cg["grp_u"] == g)))
+                bc["pre"][g][p] = float(npre) / max(len(pre_c), 1)
+                bc["post"][g][p] = int(np.sum((d["GE"] == session) & (d["YE"] == c) & (cg["grp_e"] == g))
+                                       + np.sum((d["GU"] == session) & (d["YU"] == c) & (cg["grp_u"] == g)))
+        out["by_class"] = bc
     return out
 
 

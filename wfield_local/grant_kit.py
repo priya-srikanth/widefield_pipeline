@@ -818,7 +818,8 @@ def _proj_arrays(bd):
     from wfield_local import spout_scaling
     if not spout_scaling.projection_frame_on():
         return bd["XE"], bd["XU"]
-    fr = _frozen_frame(bd, "engaged")
+    # the centre rows (11-04 re-check): engaged (the 11-03 build) or the camera working rows, as the decoders
+    fr = _frozen_frame(bd, "working" if spout_scaling.projection_centre() == "working" else "engaged")
     return fr["XEs"], fr["XUs"]
 
 

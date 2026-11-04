@@ -204,6 +204,19 @@ def _lick_scored(d, keep, clf, y_train, sessions, base):
     return oE, oU
 
 
+def _state_frame_tag():
+    """The engagement-state discriminators' frame, recorded in every output that uses it (they are refitted per run,
+    not stored, so this tag is their identity): "spout_frame/working" (section G's spout frame is the stored cue /
+    precue decoder's own frame, so its centre is always the camera working rows; `WIDEFIELD_STATE_DISC_CENTRE` acts on
+    `precue_engagement_states` only), "session_z", or "state_bal_em"."""
+    from wfield_local import spout_scaling as _ss
+    from wfield_local import working_trials as _wt
+    mode = _ss.state_disc_scaling()
+    if mode == _ss.SCALING_SPOUT_FRAME:
+        return "spout_frame/" + ("working" if _wt.is_camera() else "engaged")
+    return mode or "session_z"
+
+
 def _spout_train_d(d):
     """``d`` with every pre-stroke session in the frozen SPOUT decoder's TRAINING frame (its true spout-class means
     over the rows the model was trained on -- working rows for cue / precue, engaged rows for the lick window -- and
@@ -317,6 +330,111 @@ def frozen_X(d):
     return cache["X"]
 
 
+#: SECTION G's GROUPS (Priya 11-04, item G). "camera" (default): the pre panel of `crossed_confusion` and the pre band
+#: of `decode_matched`'s stored-model arm are the pre-stroke camera WORKING trials (contact + incomplete, engaged and
+#: no-lick rows: the rows the cue / precue decoders are trained and centred on), the engaged-only post arm of
+#: `crossed_confusion` is the post session's working trials, and `crossed_confusion` adds one panel per camera group
+#: (`working_trials.G_GROUPS`: contact / incomplete / jaw_only / none / after_end) for pre and post, with each group's
+#: frozen-decoder accuracy -- the failed-attempt readout. "daq": the pre-11-04 DAQ-engaged rows and no by-class panels
+#: (robustness). The lick window keeps the lick gate. Sessions without camera classes (PS93_0813) leave the camera
+#: panels.
+SECTION_G_GROUPS_ENV = "WIDEFIELD_SECTION_G_GROUPS"
+
+
+def section_g_groups() -> str:
+    import os
+    v = os.environ.get(SECTION_G_GROUPS_ENV, "camera").strip().lower()
+    if v in ("camera", "cam", "classes"):
+        return "camera"
+    if v in ("daq", "engaged", "old"):
+        return "daq"
+    raise ValueError(f"{SECTION_G_GROUPS_ENV}={v!r}: expected camera or daq")
+
+
+def _camera_groups(d):
+    """``{"grp_e", "grp_u", "jj_e", "jj_u", "have", "work_e", "work_u"}`` for a pool under the camera grouping (cue /
+    precue, a camera working selection, a builder with cue indices, a working-trained stored model), memoised on ``d``;
+    else None (the DAQ grouping)."""
+    from wfield_local import working_trials as wt
+    cache = d.get("_frozen_cache")
+    if (section_g_groups() != "camera" or d.get("align") == "lick" or not wt.is_camera()
+            or not hasattr(d.get("_features"), "indices") or cache is None):
+        return None
+    if "groups" not in cache:
+        frozen(d)
+        work = cache.get("work")
+        if work is None:
+            cache["groups"] = None
+        else:
+            ge, gu, je, ju, have = wt.row_groups(d["kept"], d["_features"].indices, d["GE"], d["GU"])
+            cache["groups"] = {"grp_e": ge, "grp_u": gu, "jj_e": je, "jj_u": ju, "have": have,
+                               "work_e": np.asarray(work["work_e"], bool), "work_u": np.asarray(work["work_u"], bool)}
+    return cache["groups"]
+
+
+def _conf_panel(y, p, nl, labels, jj=None):
+    """One row-normalised confusion panel (rows = true position): the dict `crossed_confusion` stores per phase.
+    With ``jj`` (the rows' jaw_judged flags) it also records n, accuracy and the number of jaw-unjudged rows."""
+    M = np.full((len(labels), len(labels)), np.nan)
+    n, n_nolick = [], []
+    for i, c in enumerate(labels):
+        sel = y == c
+        n.append(int(sel.sum()))
+        # how much of this row is carried by trials with no detected lick: a row that is 100%
+        # no-lick is a different kind of evidence from one that is 10%, and the matrix cannot
+        # show that by itself
+        n_nolick.append(int(nl[sel].sum()))
+        if sel.sum():
+            for j, c2 in enumerate(labels):
+                M[i, j] = float((p[sel] == c2).mean())
+    out = {"matrix": M.tolist(), "n_per_true_position": n, "n_nolick_per_true_position": n_nolick,
+           "positions": [POSITION_NAMES[c] for c in labels]}
+    if jj is not None:
+        out["n_jaw_unjudged"] = int((~np.asarray(jj, bool)).sum())
+        out["accuracy"] = float(np.mean(p == y)) if len(y) else None
+        out["n"] = int(len(y))
+    return out
+
+
+def _loso_rows(d, models, XEf, XUf, me, mu):
+    """``(y, pred, from_nolick)`` for PRE-session rows (engaged mask ``me``, no-lick mask ``mu``), each session scored by
+    its leave-that-session-out stored model in the stored models' frame."""
+    y = np.concatenate([d["YE"][me], d["YU"][mu].astype(d["YE"].dtype)])
+    G = np.concatenate([d["GE"][me], d["GU"][mu]])
+    X = np.vstack([XEf[me], XUf[mu]]) if len(y) else np.zeros((0, XEf.shape[1]))
+    p = np.empty_like(y)
+    for i in np.unique(G):
+        m = G == i
+        p[m] = models["loso"][d["kept"][int(i)]].predict(X[m])
+    return y, p, np.concatenate([np.zeros(int(me.sum()), bool), np.ones(int(mu.sum()), bool)])
+
+
+def _by_class_panels(d, models, clf, XEf, XUf, cg, labels):
+    """Section G's per-camera-group panels (Priya 11-04, item G): for every group in `working_trials.G_GROUPS`, the
+    frozen decoder's confusion + accuracy on the PRE sessions' trials of that group (each pre session by its LOSO model)
+    and on the POST session's (the full model). Engaged and no-lick rows both count: the group is the camera class, not
+    the DAQ lick. Sessions without camera classes contribute nothing."""
+    from wfield_local import working_trials as wt
+    lo = [i for i in d["pre_i"] if d["kept"][i] in models["loso"] and i in cg["have"]]
+    post = [i for i in d["post_i"] if i in cg["have"]]
+    out = {"pre": {}, "post": {}, "groups": list(wt.G_GROUPS),
+           "post_sessions_without_camera_classes": [d["kept"][i] for i in sorted(set(d["post_i"]) - set(post))],
+           "pre_sessions_scored": [d["kept"][i] for i in sorted(lo)]}
+    for g in wt.G_GROUPS:
+        me = np.isin(d["GE"], lo) & (cg["grp_e"] == g)
+        mu = np.isin(d["GU"], lo) & (cg["grp_u"] == g)
+        y, p, nl = _loso_rows(d, models, XEf, XUf, me, mu)
+        out["pre"][g] = _conf_panel(y, p, nl, labels, jj=np.concatenate([cg["jj_e"][me], cg["jj_u"][mu]]))
+        me = np.isin(d["GE"], post) & (cg["grp_e"] == g)
+        mu = np.isin(d["GU"], post) & (cg["grp_u"] == g)
+        y = np.concatenate([d["YE"][me], d["YU"][mu].astype(d["YE"].dtype)])
+        X = np.vstack([XEf[me], XUf[mu]])
+        p = clf.predict(X) if len(y) else np.empty(0, dtype=y.dtype)
+        nl = np.concatenate([np.zeros(int(me.sum()), bool), np.ones(int(mu.sum()), bool)])
+        out["post"][g] = _conf_panel(y, p, nl, labels, jj=np.concatenate([cg["jj_e"][me], cg["jj_u"][mu]]))
+    return out
+
+
 def _proj_X(d):
     """``(XE, XU)`` for the pattern readouts in the projection frame (Priya 11-03, item C;
     `spout_scaling.projection_arrays`: the spout decoder's engaged-row EM centre), memoised on ``d``; ``d``'s own
@@ -327,7 +445,10 @@ def _proj_X(d):
     cache = d.get("_frozen_cache")
     if cache is not None and "proj" in cache:
         return cache["proj"]
-    out = _ss.projection_arrays(d["XE"], d["YE"], d["GE"], d["XU"], d["GU"], d["pre_i"], _pipe)
+    from wfield_local import working_trials as _wt
+    out = _ss.projection_arrays(d["XE"], d["YE"], d["GE"], d["XU"], d["GU"], d["pre_i"], _pipe,
+                                work=_wt.projection_work(d["kept"], d.get("_features"), d["GE"], d["GU"],
+                                                         d.get("align")), YU=d["YU"])
     if cache is not None:
         cache["proj"] = out
     return out
@@ -364,6 +485,7 @@ def decode_matched(d, keep, post_all_trials=True):
     # a different chance level), and serving it the 6-way model would silently change what its
     # accuracy means. It keeps fitting locally.
     models = frozen(d) if post_all_trials else None
+    pre_band_rows = None              # (y, session) of the pre band when it is not the engaged rows (camera grouping)
     # THE STORED MODEL SCORES IN ITS OWN FRAME (`frozen_X`; bal_em since 2026-11-03). The lick-only arm's local fit
     # stays on the production frame.
     XEf, XUf = frozen_X(d) if models is not None else (d["XE"], d["XU"])
@@ -378,6 +500,15 @@ def decode_matched(d, keep, post_all_trials=True):
             m = _gi == i
             if m.sum():
                 pre_pred[m] = models["loso"][d["kept"][i]].predict(XEf[tr][m])
+        # THE PRE BAND UNDER THE CAMERA GROUPING (Priya 11-04, item G): the pre sessions' camera WORKING trials
+        # (contact + incomplete, engaged and no-lick rows), each by its LOSO model
+        cg = _camera_groups(d)
+        if cg is not None:
+            _lo = [i for i in d["pre_i"] if d["kept"][i] in models["loso"]]
+            _me = np.isin(d["GE"], _lo) & cg["work_e"] & kp
+            _mu = np.isin(d["GU"], _lo) & cg["work_u"] & np.isin(d["YU"], pos)
+            _y, pre_pred, _nl = _loso_rows(d, models, XEf, XUf, _me, _mu)
+            pre_band_rows = (_y, np.concatenate([d["GE"][_me], d["GU"][_mu]]))
     else:
         # THE LOCAL (class-filtered) FIT, bal_em since 2026-11-03 (`spout_scaling.FrozenFrame` over the ``pos``
         # classes): trained on pre sessions centred on the equal-weight mean of their true class means over
@@ -401,10 +532,11 @@ def decode_matched(d, keep, post_all_trials=True):
             pre_pred = cross_val_predict(_pipe(), d["XE"][tr], d["YE"][tr],
                                          cv=LeaveOneGroupOut(), groups=d["GE"][tr])
     per = {}
+    _pre_y, _pre_g = pre_band_rows if pre_band_rows is not None else (d["YE"][tr], d["GE"][tr])
     for i in sorted(d["pre_i"]):
-        m = d["GE"][tr] == i
+        m = _pre_g == i
         if m.sum():
-            per[d["kept"][i]] = float(accuracy_score(d["YE"][tr][m], pre_pred[m]))
+            per[d["kept"][i]] = float(accuracy_score(_pre_y[m], pre_pred[m]))
     if post_all_trials:
         teu = np.isin(d["GU"], list(d["post_i"])) & np.isin(d["YU"], pos)
         Xpost = np.vstack([XEf[te], XUf[teu]])
@@ -421,7 +553,8 @@ def decode_matched(d, keep, post_all_trials=True):
     out["pre_band"] = {"mean": float(v.mean()), "min": float(v.min()), "max": float(v.max()),
                        "n_sessions": len(per)}
     out["below_every_pre_session"] = bool(out["accuracy"] < out["pre_band"]["min"])
-    out["pre_recall"] = na.per_position_recall(d["YE"][tr], pre_pred, labels=pos)
+    out["pre_recall"] = na.per_position_recall(_pre_y, pre_pred, labels=pos)
+    out["pre_band_rows"] = "camera WORKING (contact + incomplete)" if pre_band_rows is not None else "engaged"
     return out
 
 
@@ -524,6 +657,7 @@ def looks_like_which(d, keep, seed=0):
             # the WHOLE interval must clear zero: a positive point estimate whose interval spans
             # zero is not a control that passed, it is a control that was not measured precisely
             # enough to say either way
+            "state_disc_frame": _state_frame_tag(),
             "boundary_still_discriminates_post": bool(
                 np.isfinite(gap) and gap > 0.10 and gap_ci[0] > 0),
             "reads_as": ("engaged-like (licking)" if p_post > 0.5 else "undetected-like (non-licking)")}
@@ -591,7 +725,7 @@ def fits_engaged_distribution(d, keep, seed=0, n_boot=2000):
     pred_u = clf_all.predict(pXU[post_u]).astype(float)
     P = float(pred_u.mean())
 
-    out = {"post_value": P, "n_post_nolick": int(post_u.sum()),
+    out = {"post_value": P, "n_post_nolick": int(post_u.sum()), "state_disc_frame": _state_frame_tag(),
            "post_engaged_value": float(clf_all.predict(pXE[post_e]).mean())
                                  if post_e.sum() >= 20 else float("nan"),
            "reference_engaged_per_session": ref["engaged"],
@@ -719,6 +853,9 @@ def crossed_confusion(d, labels=DISPLAY_ORDER, post_all_trials=False,
     # PRE: engaged only, leave-one-session-out -- the reference for a code with a successful movement.
     if models:                  # pre sessions without a LOSO model (no camera classes) have no pre panel rows
         tr = tr & np.isin(d["GE"], [i for i in d["pre_i"] if d["kept"][i] in models["loso"]])
+    # UNDER THE CAMERA GROUPING (Priya 11-04, item G; `_camera_groups`) the pre panel is the pre sessions' camera WORKING
+    # trials (contact + incomplete, engaged AND no-lick rows), each scored by its leave-that-session-out model.
+    cg = _camera_groups(d) if models else None
     pre_y = d["YE"][tr]
     if models:
         pre_p = np.empty_like(pre_y)
@@ -731,6 +868,10 @@ def crossed_confusion(d, labels=DISPLAY_ORDER, post_all_trials=False,
         pre_p = cross_val_predict(_pipe(), d["XE"][tr], d["YE"][tr], cv=LeaveOneGroupOut(),
                                   groups=d["GE"][tr])
     pre_nolick = np.zeros(len(pre_y), bool)
+    if cg is not None:
+        _lo = [i for i in d["pre_i"] if d["kept"][i] in models["loso"]]
+        pre_y, pre_p, pre_nolick = _loso_rows(d, models, XEf, XUf, np.isin(d["GE"], _lo) & cg["work_e"],
+                                              np.isin(d["GU"], _lo) & cg["work_u"])
 
     # PRE-NO-LICK: the matched control (Priya, 2026-08-19). Comparing post-stroke NO-LICK trials
     # against a pre-stroke ENGAGED panel confounds the lesion with the absence of a movement -- the
@@ -769,6 +910,13 @@ def crossed_confusion(d, labels=DISPLAY_ORDER, post_all_trials=False,
         post_y = np.concatenate([d["YE"][te], d["YU"][teu]])
         post_X = np.vstack([XEf[te], XUf[teu]])
         post_nolick = np.concatenate([np.zeros(int(te.sum()), bool), np.ones(int(teu.sum()), bool)])
+    elif cg is not None:
+        # the engaged-only arm under the camera grouping: the post session's camera WORKING trials
+        teu = np.isin(d["GU"], list(d["post_i"])) & cg["work_u"]
+        te = te & cg["work_e"]
+        post_y = np.concatenate([d["YE"][te], d["YU"][teu].astype(d["YE"].dtype)])
+        post_X = np.vstack([XEf[te], XUf[teu]])
+        post_nolick = np.concatenate([np.zeros(int(te.sum()), bool), np.ones(int(teu.sum()), bool)])
     else:
         post_y, post_X = d["YE"][te], XEf[te]
         post_nolick = np.zeros(len(post_y), bool)
@@ -783,8 +931,11 @@ def crossed_confusion(d, labels=DISPLAY_ORDER, post_all_trials=False,
     post_nl_y = d["YU"][post_u]
     post_nl_p = clf.predict(XUf[post_u]) if post_u.sum() else np.empty(0, dtype=post_nl_y.dtype)
 
-    out = {"post_arm": "ALL trials (engaged + no-lick)" if post_all_trials else "engaged only",
-           "pre_arm": "engaged only, leave-one-session-out",
+    out = {"post_arm": ("ALL trials (engaged + no-lick)" if post_all_trials else
+                        "camera WORKING trials (contact + incomplete)" if cg is not None else "engaged only"),
+           "pre_arm": ("camera WORKING trials (contact + incomplete), leave-one-session-out" if cg is not None
+                       else "engaged only, leave-one-session-out"),
+           "groups": "camera" if cg is not None else "daq",
            "pre_nolick_arm": "PRE-stroke NO-LICK trials, decoder trained on other sessions' engaged",
            "post_nolick_arm": "POST-stroke NO-LICK trials only, frozen pre-stroke decoder"}
     phases = [("pre", pre_y, pre_p, pre_nolick), ("post", post_y, post_p, post_nolick)]
@@ -795,21 +946,9 @@ def crossed_confusion(d, labels=DISPLAY_ORDER, post_all_trials=False,
         out.pop("pre_nolick_arm", None)
         out.pop("post_nolick_arm", None)
     for phase, y, p, nl in phases:
-        M = np.full((len(labels), len(labels)), np.nan)
-        n, n_nolick = [], []
-        for i, c in enumerate(labels):
-            sel = y == c
-            n.append(int(sel.sum()))
-            # how much of this row is carried by trials with no detected lick: a row that is 100%
-            # no-lick is a different kind of evidence from one that is 10%, and the matrix cannot
-            # show that by itself
-            n_nolick.append(int(nl[sel].sum()))
-            if sel.sum():
-                for j, c2 in enumerate(labels):
-                    M[i, j] = float((p[sel] == c2).mean())
-        out[phase] = {"matrix": M.tolist(), "n_per_true_position": n,
-                      "n_nolick_per_true_position": n_nolick,
-                      "positions": [POSITION_NAMES[c] for c in labels]}
+        out[phase] = _conf_panel(y, p, nl, labels)
+    if cg is not None:
+        out["by_class"] = _by_class_panels(d, models, clf, XEf, XUf, cg, labels)
     return out
 
 

@@ -253,7 +253,9 @@ def run_animal(animal, align="precue", seed=0, pool_n=1):
     # THE PROJECTION FRAME (Priya 11-03, item C; `spout_scaling.projection_arrays`; identity when off)
     from wfield_local import spout_scaling as _ss
     from wfield_local.locanmf_frozen_decoder import _pipe as _fpipe
-    XE, XU = _ss.projection_arrays(XE, YE, GE, XU, GU, pre_i, _fpipe)
+    from wfield_local import working_trials as _wt
+    XE, XU = _ss.projection_arrays(XE, YE, GE, XU, GU, pre_i, _fpipe,
+                                   work=_wt.projection_work(kept, feat, GE, GU, align), YU=YU)
     e_pre = np.isin(GE, list(pre_i))
     GU = np.asarray(GU)
     u_pre = np.isin(GU, list(pre_i)) if len(GU) else np.zeros(0, bool)

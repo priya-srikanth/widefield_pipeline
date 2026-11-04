@@ -72,6 +72,10 @@ SCALING_STATE_BAL_EM = "state_bal_em"
 #: the frozen SPOUT decoder centres them (EM over the six spouts, label-free; training sessions on their true spout
 #: class means), so the spout-mix shift of the engaged set is removed without centring on the state contrast itself.
 SCALING_SPOUT_FRAME = "spout_frame"
+#: STAYS session_z after the 11-04 re-check under the jaw-out working definition (Priya's criterion: pre checks within
+#: the per-animal between-session noise AND no pre reference worse by > .03). One cell missed: PS93's cue held-out pre
+#: engaged reference .869 -> .850 (-.019, between-session SD .016; nothing worse than .03). DECISIONS 2026-11-04;
+#: labcams/decoder_mix_checks/bcdg_1104/summarise_B_log.txt.
 STATE_DISC_DEFAULT = "session_z"
 
 
@@ -87,6 +91,24 @@ def state_disc_scaling():
     if v in ("session_z", "z", "none", "off"):
         return None
     raise ValueError(f"{STATE_DISC_SCALING_ENV}={v!r}: expected spout_frame, state_bal_em or session_z")
+
+
+#: WHICH ROWS centre a session in the discriminators' ``spout_frame`` (Priya 11-04, item B): "working" (default) = the
+#: camera WORKING rows (contact + incomplete, engaged AND no-lick rows; `working_trials`), exactly the rows the cue /
+#: precue spout decoders are trained and centred on (`locanmf_frozen_decoder.frozen_scored_frame`); "engaged" = every
+#: DAQ-engaged row (what `precue_engagement_states` used before 11-04; robustness). Section G's discriminators
+#: (`poststroke_compare._spout_train_d` / `frozen_X`) already centred on the working rows; the lick window always uses
+#: the lick gate (engaged rows).
+STATE_DISC_CENTRE_ENV = "WIDEFIELD_STATE_DISC_CENTRE"
+
+
+def state_disc_centre() -> str:
+    v = os.environ.get(STATE_DISC_CENTRE_ENV, "working").strip().lower()
+    if v in ("working", "work", "camera"):
+        return "working"
+    if v in ("engaged", "daq", "old"):
+        return "engaged"
+    raise ValueError(f"{STATE_DISC_CENTRE_ENV}={v!r}: expected working or engaged")
 
 
 def scaling_params():
@@ -384,12 +406,50 @@ def projection_frame_on() -> bool:
     raise ValueError(f"{PROJECTION_FRAME_ENV}={v!r}: expected spout_frame or session_z")
 
 
-def projection_arrays(XE, YE, GE, XU, GU, pre_sessions, pipe):
+#: WHICH ROWS centre a session in the projection frame (Priya 11-04, item C re-check): "engaged" (the 11-03 build: the
+#: lick-gate spout model's engaged-row EM centre) or "working" (the camera WORKING rows, contact + incomplete, engaged and
+#: no-lick, as the cue / precue decoders: `grant_kit._frozen_frame(bd, "working")`; the lick window keeps the lick
+#: gate). Only read while the projection frame is on (default OFF; Priya decides from the 11-04 re-check numbers).
+PROJECTION_CENTRE_ENV = "WIDEFIELD_PROJECTION_CENTRE"
+
+
+def projection_centre() -> str:
+    v = os.environ.get(PROJECTION_CENTRE_ENV, "engaged").strip().lower()
+    if v in ("engaged", "daq", "lick_gate"):
+        return "engaged"
+    if v in ("working", "work", "camera"):
+        return "working"
+    raise ValueError(f"{PROJECTION_CENTRE_ENV}={v!r}: expected engaged or working")
+
+
+def projection_arrays(XE, YE, GE, XU, GU, pre_sessions, pipe, work=None, YU=None):
     """``(XE, XU)`` for projection: every session moved into the spout decoder's scoring frame (centre = label-free
-    EM centre of its ENGAGED rows; pre sessions under their leave-one-out model, others under the full model). The
-    inputs themselves when the projection frame is off."""
+    EM centre of its ENGAGED rows, or of its camera WORKING rows under ``WIDEFIELD_PROJECTION_CENTRE=working`` with
+    ``work`` = the pool's ``(work_e, work_u)`` masks and ``YU`` its no-lick labels; pre sessions under their
+    leave-one-out model, others under the full model). The inputs themselves when the projection frame is off. Under
+    the working centre a session with no working rows stays in the production frame, as `grant_kit._frozen_frame`."""
     if not projection_frame_on():
         return XE, XU
+    if projection_centre() == "working" and work is not None and work[0] is not None:
+        we, wu = np.asarray(work[0], bool), np.asarray(work[1], bool)
+        GE, GU = np.asarray(GE), np.asarray(GU)
+        RX = np.vstack([np.asarray(XE, float)[we], np.asarray(XU, float)[wu]])
+        RY = np.concatenate([np.asarray(YE)[we], np.asarray(YU)[wu].astype(np.asarray(YE).dtype)])
+        RG = np.concatenate([GE[we], GU[wu]])
+        pre = sorted(i for i in pre_sessions if np.any(RG == i))
+        ff = FrozenFrame(RX, RY, RG, pre, pipe, loso=True)
+        XEp, XUp = np.array(XE, float), np.array(XU, float)
+        for i in np.unique(RG):
+            if i in set(pre_sessions) and i not in ff.loso:
+                continue
+            which = "loso" if i in ff.loso else "full"
+            XEp[GE == i] = ff.apply(np.asarray(XE, float)[GE == i], i, which)
+            if len(GU) and np.any(GU == i):
+                XUp[GU == i] = ff.apply(np.asarray(XU, float)[GU == i], i, which)
+        return XEp, XUp
+    if projection_centre() == "working":
+        raise ValueError("WIDEFIELD_PROJECTION_CENTRE=working needs the pool's working-row masks (work=, YU=); this "
+                         "caller has none -- pass them or use the engaged centre")
     ff = FrozenFrame(XE, YE, GE, sorted(pre_sessions), pipe, loso=True)
     XEp, XUp = np.array(XE, float), np.array(XU, float)
     GE, GU = np.asarray(GE), np.asarray(GU)
