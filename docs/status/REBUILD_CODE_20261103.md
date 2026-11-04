@@ -1014,3 +1014,197 @@ Full suite, 6 shards: 4,576 passed, 178 skipped, 0 failed.
 4. **_collect_5c.** The lru cache moved to `_collect_5c_cached(align, variant, mode, _run)`. `_run` = (full output tag,
    bal_em scaling, centre rows), filled in by `_collect_5c`. Source tests point at `_collect_5c_cached`; grant_figures
    re-exports it. Test added.
+
+### 8.27 Priya 11-03 late: August-only pre profile-wide (5b6f35df)
+- The render profile sets `WIDEFIELD_PRE_FROM=0801` (run tag part `pre0801`, in both expected run tags). The per-block
+  `--pre-from` arguments are removed, so the env is the only source.
+- `block_env` null unsets PRE_FROM for `june_august_drift` and `rest_frozen_decoder_nl` (12.1b). `render_profile.check`
+  strips `_pre...` from the expected tag for such a block.
+- Epoch boundaries come from the full pre set: `epoch_audit.full_cohort` lists WIDEFIELD_PRE_FROM in SUBSET_ENV and
+  suspends it (confirmed).
+- The four inherit-upstream scripts:
+  - `iti_licks`: its extracts are now keyed by pre (`run_mode.subdir(..., include=(... "pre" ...))`).
+  - The ITI consumers read those keyed extracts.
+  - `reference_family_figure` reads routed, pre-tagged epoch outputs.
+  - `face_prelaunch_aim` reads `encoding_root` under the profile.
+
+### 8.28 Jaw-only out of working, matched to main 48f2cc6d (5b6f35df, then db33dac2)
+Priya 11-03 late: working = contact + incomplete; jaw_only is its own class, like no_response. The first version
+(5b6f35df) narrowed `GATES["working"]` and added a `wkci` tag part. db33dac2 replaces that with main's form so that the
+merge is trivial:
+- **Setting.** `wfield_local/working_trials.py` is copied from main and is byte-identical (same blob 1a56bb25).
+  `WIDEFIELD_WORKING_TRIALS` takes the values:
+  - `in_working` (production, the default; the profile sets it);
+  - `in_working_jaw` (the jaw-inclusive robustness arm);
+  - `quit_tail` (the DAQ rule, i.e. `WIDEFIELD_TRIAL_GATE=daq` here). Under the camera gate it raises `DaqGateRefused`.
+- **Classes.**
+  - As on main, the static `trial_classes.GATES["working"]` and `in_working` stay jaw-inclusive.
+  - Every rebuild consumer of the camera working set reads `trial_classes.in_sel(cls, "working" | "miss_working")`,
+    which applies the selection:
+    - production: working = contact | incomplete; miss_working = incomplete;
+    - in_working_jaw: working adds jaw_only; miss_working = incomplete | jaw_only.
+  - The consumers are: camera_rows, camera_select, spout_scaling.centre_mask (the bal_em centre), nolick_decoder,
+    attempt_coding, attempt_maps, enl_states, position_axes, position_coding_directions, poststroke_compare and
+    precue_engagement_states.
+  - Under the camera gate, a jaw_only trial inside the working period keeps its own label ("reaction" in attempt
+    coding).
+- **Tag.** The tag uses main's class part, placed after the end part:
+  `sel-camera-cue_stop-endlick-cls-contact-incomplete-stopRun6`. The drift arm carries the same part.
+  - `in_working_jaw` keeps the afternoon tag `sel-camera-cue_stop-endlick-stopRun6`.
+  - `working_trials.tag()` on this branch returns main's strings exactly.
+  - FREEZE_VERSION stays 2.
+- **Stop runs.** Main has no stop-run rule: its working set is not cut by stops, and it has no stopped class in
+  trial_classes. There is therefore nothing to match, and the coordinator's default stays:
+  - Production: a jaw_only trial bridges a run anywhere, does not count toward the 6, and is never stopped.
+  - Under `in_working_jaw` the afternoon rule holds: a jaw_only trial at or before the last camera lick ends the run,
+    and one after it bridges.
+  - `cue_classes_for` memo keys carry this choice.
+- **5c cache.** `grant_confusion._collect_5c`'s key now carries `trial_classes.run_selection()` and
+  `working_trials.selection()` explicitly. Before this, it carried them only through the output tag (the a8 pitfall).
+- **Kept differences from main:**
+  - Main narrows working in `working_trials.row_masks`, which reads its s1 snapshot. The rebuild narrows it in
+    trial_classes classes computed live (`cue_classes_for`), because the rebuild does not read the snapshot. The class
+    semantics are the same.
+  - The rebuild's tag also carries `stopRun6` (main has no stop rule).
+  - The `in_sel` / `sel_classes` / `sel_cls_part` helpers are rebuild-only. On merge, main's grant_kit and
+    locanmf_frozen_decoder use `working_trials.is_camera()`, and the rebuild's camera branch stays in trial_classes.
+- **Tests:** `tests/test_working_selection_main.py` (static gates = main's; production / jaw-arm sets; tags incl.
+  `working_trials.tag()`; quit_tail raises under camera; bridging by selection; 5c key carries the selection) plus updated
+  pins in test_trial_classes, test_rebuild_switches, test_camera_gate_fail_closed, test_review_second_pass.
+
+### 8.29 Dry count (re-verify item 5) under the new working definition
+Read-only: the profile applied, the rebuild root unset, scratch caches. For each of the 108 curated sessions the count is
+the ENGAGED rows (the decoder's DAQ lick-arm category) whose camera class is production working. These are the rows the
+bal_em centre is fitted on, before the per-alignment window drop. Errors: 0. The lowest 12, minimum first:
+
+| session | epoch | cues | engaged | engaged & working | unknown |
+|---|---|---|---|---|---|
+| PS93_0813 | pre | 553 | 482 | 0 (no video: contact fallback, 482 rows) | 553 |
+| PS94_0819 | acute | 600 | 174 | 174 | 0 |
+| PS92_0812 | pre | 225 | 221 | 221 | 0 |
+| PS93_0820 | acute | 600 | 235 | 235 | 0 |
+| PS94_0818 | acute | 600 | 239 | 239 | 0 |
+| PS92_0820 | acute | 559 | 243 | 243 | 0 |
+| PS93_0821 | acute | 540 | 259 | 259 | 0 |
+| PS92_0826 | subacute | 268 | 260 | 260 | 0 |
+| PS92_1002 | chronic | 270 | 269 | 269 | 0 |
+| PS92_0929 | chronic | 272 | 272 | 272 | 0 |
+| PS92_0824 | subacute | 325 | 273 | 273 | 0 |
+| PS93_0819 | acute | 600 | 277 | 277 | 1 |
+
+- No session other than PS93_0813 is below 20; the minimum is 174 (PS94_0819).
+- By epoch (min / median), excluding PS93_0813 from pre:
+
+  | epoch | min | median |
+  |---|---|---|
+  | pre | 221 | 474 |
+  | acute | 174 | 291.5 |
+  | subacute | 260 | 424 |
+  | chronic | 269 | 490 |
+
+- An engaged row is a DAQ contact, so its camera class is contact, and contact is working under both selections.
+  Engaged and engaged & working differ in only three sessions:
+  - PS93_0813 (no video);
+  - PS92_0908: 373 vs 309, 68 unknown;
+  - PS92_0904: 378 vs 377.
+- The jaw change therefore does not move the centre counts.
+- As flagged before, the centre (engaged XE rows) is effectively the contact rows. The checks' "jaw as its own class"
+  cell centres on contact + incomplete rows.
+
+### 8.30 No-video DAQ fallback: agreement check FAILS, so it is not wired
+The check covers the 31 August pre sessions with video, for all four animals. PS93_0813 has no video. The working period
+is defined two ways:
+- **Camera (new definition).** Cues up to the last camera lick, minus stopped and early_run trials. This is
+  `cue_classes_for` at 5b6f35df, the same as production in_working.
+- **DAQ fallback.** Cues up to the last DAQ hit, minus DAQ stops (a run of 6 or more DAQ no-response trials starting at
+  least 300 s after the first cue).
+
+The measures are the DAQ-only behaviour rates: hit and no-response rate (a DAQ lick from cue + 70 ms to min(cue + 3.5 s,
+next cue)) and the median latency of hits. The pass rule is at most 2 pp for hit and no-response rates and at most 20 ms
+for latency, on every session.
+
+Result: **FAIL on 9 sessions**: PS93_0814, PS94_0806, PS94_0811, PS94_0812, PS94_0814, PS95_0806, PS95_0807,
+PS95_0811 and PS95_0812.
+- The largest is PS95_0806 at +15.9 pp.
+- Latency agrees exactly everywhere: both periods contain the same hits.
+- The fallback always reads higher on hit rate. A camera incomplete or jaw_only trial is a DAQ miss: it extends a DAQ
+  miss run, but it ends a camera no_response run (incomplete) or is not counted in it (jaw_only). So DAQ stops are
+  longer and more frequent, and they remove misses that the camera period keeps. The camera period can also end later,
+  at a last incomplete lick after the last DAQ hit.
+
+Per the rule, the fallback is NOT wired: no `trial_selection.daq_fallback_sessions` setting, and PS93_0813 stays out of
+the DAQ-only behaviour rates under the camera gate. Script: scratchpad `daq_fallback_check.py`.
+
+Agreement table (camera working period vs DAQ fallback; d = DAQ - camera):
+
+| session | n cam | n DAQ | hit cam | hit DAQ | d hit (pp) | no-resp cam | no-resp DAQ | d no-resp (pp) | median lat cam / DAQ (ms) | pass |
+|---|---|---|---|---|---|---|---|---|---|---|
+| PS92_0806 | 380 | 380 | 0.929 | 0.929 | +0.00 | 0.071 | 0.071 | +0.00 | 567.8 / 567.8 | yes |
+| PS92_0807 | 430 | 430 | 0.986 | 0.986 | +0.00 | 0.014 | 0.014 | +0.00 | 287.2 / 287.2 | yes |
+| PS92_0809 | 431 | 424 | 0.956 | 0.972 | +1.58 | 0.044 | 0.028 | -1.58 | 243.2 / 243.2 | yes |
+| PS92_0810 | 404 | 404 | 0.995 | 0.995 | +0.00 | 0.005 | 0.005 | +0.00 | 220.6 / 220.6 | yes |
+| PS92_0811 | 386 | 386 | 0.997 | 0.997 | +0.00 | 0.003 | 0.003 | +0.00 | 199.4 / 199.4 | yes |
+| PS92_0812 | 225 | 225 | 0.982 | 0.982 | +0.00 | 0.018 | 0.018 | +0.00 | 234.6 / 234.6 | yes |
+| PS92_0813 | 339 | 339 | 0.997 | 0.997 | +0.00 | 0.003 | 0.003 | +0.00 | 243.8 / 243.8 | yes |
+| PS92_0814 | 310 | 310 | 0.984 | 0.984 | +0.00 | 0.016 | 0.016 | +0.00 | 225.4 / 225.4 | yes |
+| PS93_0806 | 530 | 530 | 0.919 | 0.919 | +0.00 | 0.081 | 0.081 | +0.00 | 451.6 / 451.6 | yes |
+| PS93_0807 | 547 | 547 | 0.888 | 0.888 | +0.00 | 0.112 | 0.112 | +0.00 | 399.3 / 399.3 | yes |
+| PS93_0809 | 566 | 566 | 0.951 | 0.951 | +0.00 | 0.049 | 0.049 | +0.00 | 360.0 / 360.0 | yes |
+| PS93_0810 | 559 | 559 | 0.866 | 0.866 | +0.00 | 0.134 | 0.134 | +0.00 | 441.7 / 441.7 | yes |
+| PS93_0811 | 491 | 489 | 0.945 | 0.949 | +0.39 | 0.055 | 0.051 | -0.39 | 279.3 / 279.3 | yes |
+| PS93_0812 | 493 | 483 | 0.921 | 0.940 | +1.91 | 0.079 | 0.060 | -1.91 | 233.1 / 233.1 | yes |
+| PS93_0814 | 534 | 512 | 0.908 | 0.947 | +3.90 | 0.092 | 0.053 | -3.90 | 212.8 / 212.8 | **no** |
+| PS94_0806 | 326 | 315 | 0.951 | 0.984 | +3.32 | 0.049 | 0.016 | -3.32 | 172.8 / 172.8 | **no** |
+| PS94_0807 | 444 | 444 | 0.930 | 0.930 | +0.00 | 0.070 | 0.070 | +0.00 | 185.0 / 185.0 | yes |
+| PS94_0809 | 616 | 616 | 0.994 | 0.994 | +0.00 | 0.006 | 0.006 | +0.00 | 178.6 / 178.6 | yes |
+| PS94_0810 | 695 | 693 | 0.955 | 0.958 | +0.28 | 0.045 | 0.042 | -0.28 | 159.2 / 159.2 | yes |
+| PS94_0811 | 411 | 399 | 0.956 | 0.985 | +2.88 | 0.044 | 0.015 | -2.88 | 147.4 / 147.4 | **no** |
+| PS94_0812 | 488 | 466 | 0.934 | 0.979 | +4.41 | 0.066 | 0.021 | -4.41 | 145.3 / 145.3 | **no** |
+| PS94_0813 | 647 | 647 | 0.998 | 0.998 | +0.00 | 0.002 | 0.002 | +0.00 | 146.6 / 146.6 | yes |
+| PS94_0814 | 672 | 650 | 0.960 | 0.992 | +3.25 | 0.040 | 0.008 | -3.25 | 140.0 / 140.0 | **no** |
+| PS95_0806 | 519 | 434 | 0.813 | 0.972 | +15.92 | 0.187 | 0.028 | -15.92 | 135.3 / 135.3 | **no** |
+| PS95_0807 | 666 | 651 | 0.937 | 0.959 | +2.16 | 0.063 | 0.041 | -2.16 | 134.8 / 134.8 | **no** |
+| PS95_0809 | 682 | 682 | 0.993 | 0.993 | +0.00 | 0.007 | 0.007 | +0.00 | 140.6 / 140.6 | yes |
+| PS95_0810 | 706 | 698 | 0.953 | 0.964 | +1.09 | 0.047 | 0.036 | -1.09 | 143.6 / 143.6 | yes |
+| PS95_0811 | 629 | 614 | 0.962 | 0.985 | +2.35 | 0.038 | 0.015 | -2.35 | 139.0 / 139.0 | **no** |
+| PS95_0812 | 605 | 552 | 0.850 | 0.931 | +8.16 | 0.150 | 0.069 | -8.16 | 144.2 / 144.2 | **no** |
+| PS95_0813 | 870 | 870 | 0.900 | 0.900 | +0.00 | 0.100 | 0.100 | +0.00 | 174.8 / 174.8 | yes |
+| PS95_0814 | 609 | 599 | 0.946 | 0.962 | +1.58 | 0.054 | 0.038 | -1.58 | 139.5 / 139.5 | yes |
+
+### 8.31 Read-only validation of the jaw rule (the checks' "jaw as its own class" cell)
+- **Setup:**
+  - `grant_confusion._collect_5c("cue", "working", "frozen")` at 5b6f35df (= production in_working);
+  - under the profile, with the rebuild root unset, scratch caches, and `WIDEFIELD_EPOCH_FROZEN=0` (in-memory fits,
+    nothing stored);
+  - joint basis, bal_em centre.
+- **Measures:**
+  - pre panel = the pre-stroke LOSO record per animal;
+  - acute close ipsi = the close_L trials pooled over each animal's acute days (`epoch_of_day`).
+- The checks average session means instead, so the aggregation differs slightly. Script: scratchpad
+  `jaw_validation.py`.
+
+| animal | pre panel | acute close ipsi (n) | main 48f2cc6d: pre / acute close ipsi |
+|---|---|---|---|
+| PS92 | .864 | .898 (315) | .854 / .829 |
+| PS93 | .769 | .664 (253) | .724 / .629 |
+| PS94 | .936 | .828 (430) | .926 / .619 |
+| PS95 | .935 | .966 (119) | .921 / .832 |
+| **mean** | **.876** (checks .856) | **.839** (checks .727) | |
+
+- **Pre panel:** same ordering and about the same size, +.02.
+- **Acute close ipsi:** the rebuild reads higher, +.11 on the animal mean. Most of the gap is PS94 (+.21) and PS95
+  (+.13).
+- **Expected sources** (not separated):
+  - the rebuild's data: the swap-mask hemo variant and the LocaNMF projection;
+  - pooled trials vs session means (PS94 has 6 acute sessions, PS95 one);
+  - the centre and training rows. In the rebuild the bal_em centre is the engaged (contact) rows and the frozen
+    training set is the engaged pre rows. The checks' cell trains and centres on contact + incomplete. Flagged, not
+    restructured.
+- **Direction:** the jaw rule does not lower the rebuild's acute close-ipsi below the checks' cell.
+
+### 8.32 Test record (db33dac2 + the leak fix)
+Full suite, 6 shards, at db33dac2: 4,580 passed, 179 skipped, 8 failed. All 8 had one cause. `scripts/disengagement_tests.py`
+runs `os.environ.setdefault("WIDEFIELD_PRE_FROM", "0801")` at import, so `test_disengagement_detectors` (8.26) leaked
+pre0801 into the later lp_licks, rebuild_root and share_writers tests of its shard. The test now sets the variable
+through monkeypatch before the import. Re-run of that shard: 646 passed, 26 skipped, 0 failed. Total 4,588 passed,
+179 skipped, 0 failed.

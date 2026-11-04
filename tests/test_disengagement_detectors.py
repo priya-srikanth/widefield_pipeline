@@ -26,7 +26,10 @@ def _inputs(lab):
 
 
 @pytest.mark.parametrize("lab", ["PS93_0908"])
-def test_response_measures_match_the_pre_change_values(lab):
+def test_response_measures_match_the_pre_change_values(lab, monkeypatch):
+    # the script does os.environ.setdefault("WIDEFIELD_PRE_FROM", "0801") at import: set it through monkeypatch first so
+    # the import cannot leak it into later tests (it did: lp_licks / rebuild_root / share_writers ran in mode pre0801)
+    monkeypatch.setenv("WIDEFIELD_PRE_FROM", "0801")
     dt = pytest.importorskip("scripts.disengagement_tests")
     b, cue, nxt, t0, lk_a, lk_b = _inputs(lab)
     deliv = np.zeros(len(b.trials))
