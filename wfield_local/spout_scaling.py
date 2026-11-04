@@ -241,7 +241,7 @@ class FrozenFrame:
     """
 
     def __init__(self, XE, YE, GE, train_sessions, pipe, *, classes=None, train_mask=None, loso=True, scaling="env",
-                 store=None, cls_e=None):
+                 store=None, cls_e=None, labels=None):
         self.scaling = spout_scaling() if scaling == "env" else scaling
         # the rows each scored session's EM centre is fitted on (`centre_mask`; camera WORKING rows under the camera gate)
         self.cm = centre_mask(cls_e) if self.scaling else None
@@ -273,10 +273,27 @@ class FrozenFrame:
                         out["loso"][i] = pipe().fit(self.XT[tr], self.YE[tr])
             return out
 
-        # STORE HOOK (rebuild x main merge, 11-03; CLAUDE.md rule 10): ``store(fit_all)`` returns {"full", "loso":
-        # {session id: model}} -- from the frozen store (fitted by ``fit_all`` on THIS training frame on a miss) -- so a
-        # caller keeps its stored, fingerprinted models; None = the in-memory fits (main's behaviour).
-        pay = store(_fit_all) if store is not None else _fit_all()
+        # STORE HOOK (rebuild x main merge, 11-03; CLAUDE.md rule 10): ``store(fit_all)`` returns the frozen store's
+        # payload -- fitted by ``fit_all`` on THIS training frame on a miss -- so a caller keeps its stored,
+        # fingerprinted models; None = the in-memory fits (main's behaviour). THE STORED LOSO IS KEYED BY SESSION
+        # LABEL (merge review B1): pooled ids differ between pools (the LP pool lacks PS93_0813; a non-pre session
+        # entering a pool shifts ranks), so ``labels`` (id -> label) is REQUIRED with a store; ids are mapped to
+        # labels before storing and back after loading, and a stored label absent from this pool is ignored.
+        if store is not None:
+            if labels is None:
+                raise ValueError("FrozenFrame(store=...) needs labels= (pooled id -> session label): stored LOSO "
+                                 "models are keyed by label, never by pooled index")
+            lab_of = {int(k): str(v) for k, v in (labels.items() if hasattr(labels, "items") else enumerate(labels))}
+            id_of = {v: k for k, v in lab_of.items()}
+
+            def _fit_labelled():
+                got = _fit_all()
+                return {"full": got["full"], "loso": {lab_of[int(i)]: m for i, m in got["loso"].items()}}
+
+            raw = store(_fit_labelled)
+            pay = {"full": raw["full"], "loso": {id_of[k]: m for k, m in (raw.get("loso") or {}).items() if k in id_of}}
+        else:
+            pay = _fit_all()
         self.full = pay["full"]
         self.pi = {"full": model_prior(self.full, self.YE[tm])}
         self.loso = {}

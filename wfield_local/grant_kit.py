@@ -765,7 +765,10 @@ def _pooled_bundle(an, align):
     reason it was extracted: two figures that claim to describe the same trials should not be able to
     disagree, and now they cannot even in principle -- they hold the same object.
     """
-    key = (an, align)
+    from wfield_local import trial_classes as _tck
+    # the gate mode and its selection are part of the key (merge review N8): a bundle built under one gate
+    # (camera row classes, RefusedMask not_eng) must never serve the other
+    key = (an, align, _tck.gate_mode(), _tck.run_selection_tag())
     if key in _BUNDLE_CACHE:
         return _BUNDLE_CACHE[key]
     from wfield_local import joint_locanmf
@@ -844,7 +847,7 @@ def _frozen_frame(bd, an=None, align=None, store=True):
     an, align = an or bd.get("animal"), align or bd.get("align")
     # a stored and an opt-out frame never mix; keyed by the (animal, window) the store is asked for
     use = bool(store) and _gc.epoch_frozen_on()
-    key = f"_frozen_{sc}_{'store' if use else 'mem'}_{an}_{align}"
+    key = f"_frozen_{sc}_{spout_scaling.centre_rows() if sc else 'z'}_{'store' if use else 'mem'}_{an}_{align}"
     if key in bd:
         return bd[key]
     XE, YE, GE, XU, GU = bd["XE"], bd["YE"], bd["GE"], bd["XU"], bd["GU"]

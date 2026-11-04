@@ -353,14 +353,6 @@ def preserved_positions_by_session(d):
     return {d["kept"][i]: preserved_positions(d, session=i) for i in sorted(d["post_i"])}
 
 
-def _fit_lickonly(d, tr):
-    """The lick-only arm's fits on pre engaged rows ``tr``: all of them, and one leave-one-session-out model per pre
-    session present (what `cross_val_predict(..., LeaveOneGroupOut, groups=GE[tr])` fits)."""
-    X, Y, G = d["XE"][tr], d["YE"][tr], d["GE"][tr]
-    return {"full": _pipe().fit(X, Y),
-            "loso": {d["kept"][int(g)]: _pipe().fit(X[G != g], Y[G != g]) for g in np.unique(G)}}
-
-
 def decode_matched(d, keep, post_all_trials=True):
     """Frozen pre-stroke decoder, scored on the SAME positions in both phases.
 
@@ -414,7 +406,7 @@ def decode_matched(d, keep, post_all_trials=True):
             return got if got is not None else fit_all()
 
         ff = _ss.FrozenFrame(d["XE"], d["YE"], d["GE"], sorted(d["pre_i"]), _pipe, classes=pos, train_mask=kp,
-                             loso=True, store=_store_lo, cls_e=_engaged_classes(d))
+                             loso=True, store=_store_lo, cls_e=_engaged_classes(d), labels=dict(enumerate(d["kept"])))
         clf = ff.full
         if ff.scaling or ff.loso:
             pre_pred = np.empty_like(d["YE"][tr])

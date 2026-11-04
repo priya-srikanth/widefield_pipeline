@@ -633,7 +633,8 @@ def _stored_nolick_reference(animal, align, max_rt, basis, XE, YE, SE, m_pre, la
                        if config.session_phase(config.animal_of(s["label"]), s["label"].split("_")[-1]) == "pre")
     Xp, Yp, Sp = XE[m_pre], YE[m_pre], SE[m_pre]
     from wfield_local import spout_scaling
-    spec = nolick_spec(animal, align, max_rt, basis, train, common, int(XE.shape[1]), train_data=(Xp, Yp, Sp),
+    spec = nolick_spec(animal, align, max_rt, basis, train, common, int(XE.shape[1]),
+                       train_data=(Xp, Yp, Sp, tuple(sorted(set(np.asarray(SE).tolist())))),   # + the pooled label set (N1)
                        **spout_scaling.spec_kw(scaling))
 
     def _fit():
@@ -809,6 +810,7 @@ def analyse_animal(animal, dates=None, align="cue", source="roi", post_s=2.0,
     _cw = _cat("engaged", "cw").astype(bool)
     from wfield_local import trial_classes as _tcm
     ff = _ss.FrozenFrame(XE, YE, GEi, [_sid[lab] for lab in labs_pre], _pipe, loso=True, store=_store,
+                         labels={k: lab for lab, k in _sid.items()},
                          cls_e=(np.where(_cw, "contact", "unknown") if _tcm.camera_gate_on() else None))
 
     def _sc(X, sess):

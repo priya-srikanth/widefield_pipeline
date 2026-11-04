@@ -842,3 +842,25 @@ test_analysis_kit exact-equality tests and main's new test files.
 Full suite at 4a8db872, 6 shards: 4,556 passed, 178 skipped, 2 failed. Both failures were source-text tests in
 test_frozen_default that matched the old call text (`store=_store)` / `store=_store_conf)`, now followed by `cls_e=`).
 Those assertions were updated in the next commit, and both tests pass.
+
+### 8.19 Merge-review fixes (B1, N1, N2, N4, N8; N3 not done)
+- **B1 (blocker): label-keyed LOSO in every FrozenFrame store.**
+  - `FrozenFrame(store=, labels=)`: `labels` (pooled id -> session label) is REQUIRED with a store.
+  - The hook maps LOSO keys id -> label before `load_or_fit` stores and label -> id after loading. A stored label
+    absent from the pool is ignored.
+  - Sites: nolick_reference, coding_decoder, engagement_states posdec-ff, g_lickonly_decoder -ff and the drift month
+    hook; the precue `-disc` payload's LOSO is keyed `kept[si]`.
+  - The shift this fixes: the LP pool without PS93_0813 scored each later PS93 pre session with the wrong LOSO model.
+    `frozen_decoder_models`, `_stored_epoch_decoder` and `drift_payload` were already label-keyed.
+  - The dead `poststroke_compare._fit_lickonly` is removed.
+  - Test: `tests/test_merge_review_b1.py` (a pool missing a middle pre session; fails on the old code).
+- **N1:** the nolick_reference train_data now also carries the pooled label set.
+- **N2:** `_collect_5c`'s outer except and `run_animal`'s confusion except call `trial_classes.reraise_under_camera`.
+- **N4:** june_august_drift's size-matched draws are stored like 5rm `matched_frozen`: one `drift_matched` spec per
+  animal (bundle fingerprint + scaling), keyed by (group, session, n_target, seed); a hit replays, a miss stores. The
+  comment now says so.
+- **N8:** the `_pooled_bundle` cache key adds the gate mode and selection tag; the `_frozen_frame` memo adds
+  `centre_rows`.
+- **N3 not done:** in "refit" / "paired_matched" the frame's models are still fitted. `rec` calls `model.predict`
+  before branching on the mode, the pre loop passes `fr["loso"][i]`, and a matched model missing a spout falls back
+  to XEs, so a fit=False frame is not a small change.

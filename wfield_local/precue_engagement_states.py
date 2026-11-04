@@ -284,7 +284,7 @@ def run_animal(animal, align="precue", post_s=None, verbose=True):
     # WIDEFIELD_ENGSTATES_FROZEN=0, which fits exactly this in memory.
     from wfield_local import spout_scaling as _ss
     _sc = _ss.spout_scaling()
-    ff = _ss.FrozenFrame(XE, YE, GE, sorted(pre_i), _pipe, loso=_sc is not None,
+    ff = _ss.FrozenFrame(XE, YE, GE, sorted(pre_i), _pipe, loso=_sc is not None, labels=dict(enumerate(kept)),
                          cls_e=_ce if camera else None,       # EM centre rows: camera WORKING rows (Priya 11-03)
                          store=lambda fit_all: _stored(animal, f"{align}-posdec-ff", basis, kept, pre_i,
                                                        int(XE.shape[1]), (XE[e_pre], YE[e_pre], GE[e_pre]), fit_all,
@@ -333,7 +333,7 @@ def run_animal(animal, align="precue", post_s=None, verbose=True):
                 tr_e, tr_d = keep_eng & (GE != si), keep_dis & (GU != si)
                 if hold.sum() < 20 or tr_e.sum() < 20 or tr_d.sum() < 20:
                     continue
-                loso[si] = _disc().fit(
+                loso[kept[si]] = _disc().fit(            # keyed by LABEL (merge review B1), never pooled id
                     np.vstack([XEt[tr_e], XUt[tr_d]]),
                     np.concatenate([np.zeros(int(tr_e.sum())), np.ones(int(tr_d.sum()))]))
             return {"full": _disc().fit(Xd, yd), "loso": loso}
@@ -376,7 +376,7 @@ def run_animal(animal, align="precue", post_s=None, verbose=True):
             if hold.sum() < 20 or tr_e.sum() < 20 or tr_d.sum() < 20:
                 continue
             _yd = np.concatenate([np.zeros(int(tr_e.sum())), np.ones(int(tr_d.sum()))])
-            m = dpay["loso"][si]                       # stored with the discriminator (same condition, same fit)
+            m = dpay["loso"][kept[si]]                 # stored with the discriminator (same condition, same fit)
             # the held-out session in ITS OWN EM frame under this leave-one-out model (identity under session_z)
             _XEh, _XUh = _ss.state_scored(m, _ss.model_prior(m, _yd), XE, GE, XU, GU, _all_e, _all_u, [si])
             pr = m.predict_proba(_XEh[hold])[:, 1]

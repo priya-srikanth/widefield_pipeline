@@ -935,6 +935,8 @@ def _collect_5c(align, variant="working", mode="frozen"):
                           f"{frozen_models._slug(mm_spec)}; fitted in memory (not stored)", flush=True)
             per_animal[an] = (Cpre, by_day)
         except Exception as ex:                                       # noqa: BLE001
+            from wfield_local import trial_classes as _tcr
+            _tcr.reraise_under_camera(ex, f"5c {an} {align}/{variant}/{mode}")   # merge review N2: never thin silently
             print(f"  !! 5c {an} {align}/{variant}/{mode}: {type(ex).__name__} {str(ex)[:90]}",
                   flush=True)
     return per_animal, sorted(all_days)

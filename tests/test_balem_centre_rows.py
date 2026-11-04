@@ -64,12 +64,12 @@ def test_frozen_frame_centre_uses_only_the_working_rows(camera):
     XE2 = XE.copy()
     XE2[cls == "unknown"] += 50.0                 # junk on the NON-working rows must not move the centre
     ff2 = ss.FrozenFrame(XE2, YE, GE, [0, 1], _pipe, loso=False, cls_e=cls,
-                         store=lambda fit_all: {"full": ff.full, "loso": {}})
+                         store=lambda fit_all: {"full": ff.full, "loso": {}}, labels=list("abcd"))
     np.testing.assert_allclose(ff.centre(3)[0], ff2.centre(3)[0])
     with pytest.raises(RuntimeError):
         ss.FrozenFrame(XE, YE, GE, [0, 1], _pipe, loso=False)         # camera gate, no row classes: fails closed
     camera.setenv(ss.CENTRE_ENV, "engaged")
-    e = ss.FrozenFrame(XE2, YE, GE, [0, 1], _pipe, loso=False, store=lambda fit_all: {"full": ff.full, "loso": {}})
+    e = ss.FrozenFrame(XE2, YE, GE, [0, 1], _pipe, loso=False, store=lambda fit_all: {"full": ff.full, "loso": {}}, labels=list("abcd"))
     assert e.cm is None
     assert not np.allclose(e.centre(3)[0], ff2.centre(3)[0])        # the engaged centre DOES see the junk rows
 
@@ -143,5 +143,5 @@ def test_drift_month_model_is_stored_in_the_bal_em_frame(monkeypatch):
     assert "scaling" not in seen[-1] and m0 is not m
     # through the FrozenFrame hook the frame's full model IS the stored one: no in-memory fit under bal_em
     ff = ss.FrozenFrame(bd["XE"], bd["YE"], bd["GE"], [2, 3], fpipe, train_mask=bd["e_pre"], loso=False,
-                        store=lambda fit_all: {"full": m, "loso": {}})
+                        store=lambda fit_all: {"full": m, "loso": {}}, labels=dict(enumerate(bd["kept"])))
     assert ff.full is m

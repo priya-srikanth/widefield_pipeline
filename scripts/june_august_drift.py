@@ -81,8 +81,10 @@ def distance_rows(n_split: int, log=print) -> pd.DataFrame:
 #: decoder of `decoder_rows` -- trained on the animal's JUNE pre sessions or AUGUST pre sessions, all of them or all but
 #: the scored one -- comes from `frozen_models.load_or_fit`, kind `drift_decoder`, ONE spec per month (align
 #: "cue-june" / "cue-aug": two training sets never share an id), payload {"full", "loso": {label: model}}. OPT-OUT
-#: WIDEFIELD_DRIFT_FROZEN=0 refits per scored session as before. The size-matched draw (`_matched_frozen`, seeded per
-#: scored session) stays in memory by design, like `paired_matched`. Under WIDEFIELD_LICK_SOURCE=lp the store serves
+#: WIDEFIELD_DRIFT_FROZEN=0 refits per scored session as before. The size-matched draws (`_matched_frozen`, seeded per
+#: scored session) are STORED too, like 5rm's `matched_frozen` (merge review N4): ONE spec per animal (kind
+#: `drift_matched`, its fingerprint covering the pooled bundle, + the scaling), keyed inside the payload by (group,
+#: scored session, n_target, seed); a hit replays every draw, a miss fits them in memory and stores them. Under WIDEFIELD_LICK_SOURCE=lp the store serves
 #: the LP-TRAINED model (default since 11-03, Priya), the DAQ-trained one (the animal's DAQ pre sessions of that month)
 #: with WIDEFIELD_LP_FROZEN=daq.
 DRIFT_FROZEN_ENV = "WIDEFIELD_DRIFT_FROZEN"
@@ -166,9 +168,28 @@ def decoder_rows(log=print) -> pd.DataFrame:
         if len(J) < 2 or not A:
             log(f"{an}: june {len(J)} / aug {len(A)} pre sessions -- skipped")
             continue
+        # THE SIZE-MATCHED DRAWS THROUGH THE STORE (merge review N4; as grant_confusion's 5rm matched_frozen)
+        from wfield_local import frozen_models
+        mm_spec, mm_old, mm_new = None, None, {}
+        if frozen_models.family_on(DRIFT_FROZEN_ENV):
+            mm_spec = frozen_models.make_spec(
+                an, "drift_matched", align=f"{ALIGN}-june_aug-seed{abs(_seed(an, ALIGN, 'june_aug'))}",
+                source="locanmf", train_labels=[kept[i] for i in sorted(pre_i)], post_s=2.0,
+                basis_id=bd.get("basis_id"), n_features=int(XE.shape[1]),
+                train_data=(XE, YE, GE, BE, sorted(pre_i), bd.get("cls")), **ss.spec_kw())
+            _d, _o = frozen_models.find(mm_spec)
+            if _d is not None:
+                mm_old = frozen_models._read(_d)
+
+        def _mf(key, pool, n_target, seed, mm_old=mm_old, mm_new=mm_new):
+            if mm_old is not None and key in mm_old:
+                return mm_old[key]
+            got = _matched_frozen(_pipe, *pool, n_target, np.random.default_rng(seed))
+            mm_new[key] = got
+            return got
 
         def score(i, train_sessions, group, XE=XE, YE=YE, GE=GE, BE=BE, e_pre=e_pre, mm=mm, an=an, test_mask=None,
-                  bd=bd):
+                  bd=bd, mf=_mf, kept=kept):
             te = (e_pre & (GE == i)) if test_mask is None else test_mask
             tr = e_pre & np.isin(GE, train_sessions)
             X, y, blk = XE[te], YE[te], BE[te]
@@ -188,11 +209,12 @@ def decoder_rows(log=print) -> pd.DataFrame:
                 return {"full": st, "loso": {}} if st is not None else fit_all()
 
             ff = ss.FrozenFrame(XE, YE, GE, train_sessions, _pipe, train_mask=e_pre, loso=False, store=_store,
+                                labels=dict(enumerate(kept)),
                                 cls_e=bd["cls"][0] if bd.get("cls") is not None else None)
             k = min(5, int(np.unique(blk).size))
             n_target = int(round(len(y) * max(k - 1, 1) / max(k, 1)))
-            got = _matched_frozen(_pipe, ff.XT[tr], YE[tr], BE[tr], n_target,
-                                  np.random.default_rng(abs(_seed(an, ALIGN, "june_aug", group)) + 1000003 * len(y) + int(blk[0])))
+            seed = abs(_seed(an, ALIGN, "june_aug", group)) + 1000003 * len(y) + int(blk[0])
+            got = mf(f"{group}|{kept[i]}|{int(n_target)}|{int(seed)}", (ff.XT[tr], YE[tr], BE[tr]), n_target, seed)
             if got is None:
                 return
             Xm = X
@@ -221,6 +243,14 @@ def decoder_rows(log=print) -> pd.DataFrame:
                 te = GE == i
                 if te.any():
                     score(i, A, f"{ep}_from_aug", test_mask=te)
+        if mm_spec is not None:
+            if mm_old is None:
+                _p, _st = frozen_models.load_or_fit(mm_spec, lambda mm_new=mm_new: dict(mm_new),
+                                                    meta={"n_draws": len(mm_new)})
+                log(f"{an}: drift_matched {frozen_models._slug(mm_spec)} {_st} ({len(mm_new)} draws)")
+            elif mm_new:
+                log(f"  !! {an}: {len(mm_new)} matched draws missing from the stored {frozen_models._slug(mm_spec)}; "
+                    "fitted in memory (not stored)")
         log(f"{an}: decoder june {len(J)} / aug {len(A)} / post {len(post)} sessions")
     return pd.DataFrame(rows)
 

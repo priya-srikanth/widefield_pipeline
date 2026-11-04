@@ -502,6 +502,7 @@ def _class_confusions(XE, YE, GE, XU, YU, e_pre, pre_i, _mask, kept, rt_e=None, 
     _use = _ss.spout_scaling() is not None and GU is not None
     ff = _ss.FrozenFrame(XE, YE, GE, sorted(pre_i), _confusion_pipe, train_mask=e_pre, loso=True,
                          scaling=(_ss.SCALING_BAL_EM if _use else None), store=store,
+                         labels=(dict(enumerate(kept)) if store is not None else None),
                          cls_e=cls_e)     # the EM centre rows: camera WORKING rows under the camera gate (Priya 11-03)
     res["spout_scaling"] = _ss.SCALING_BAL_EM if _use else _ss.SCALING_SESSION_Z
 
@@ -902,6 +903,7 @@ def run_animal(animal, align="precue", verbose=True, methods=CD_METHODS):
                                               cls_e=(_tc.pool_row_classes(feat, kept, len(YE), len(YU))[0]
                                                      if _tc.camera_gate_on() else None))
     except Exception as ex:                                          # noqa: BLE001
+        _tc.reraise_under_camera(ex, f"coding_dirs {animal} per-class confusions")   # merge review N2
         print(f"  [coding_dirs] {animal}: per-class confusions unavailable ({ex})", flush=True)
 
     # every pre-stroke direction (engagement axis, per-position, LOSO, pairwise), STORED BY DEFAULT (CODING_FROZEN_ENV)
