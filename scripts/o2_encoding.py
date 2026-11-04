@@ -4,6 +4,7 @@ version"). A local pass is 7-8 h on the shared desktop; on O2 every session is i
     python scripts/o2_encoding.py [--profile <render profile>] bundle --name <name> --user ps150 [--cams cam1,cam4] [--jobs 4] [LABELS ... or a label file]
     python scripts/o2_encoding.py check  --name enc_v36_20261019 LABEL [--only drop:task]
     python scripts/o2_encoding.py collect --name enc_v36_20261019 --tag <tag>
+    python scripts/o2_encoding.py [--profile <render profile>] refresh-code --name <name>
 
 bundle (this desktop): per session, everything `run_session` reads from the share (`combined_encoding.session_inputs`:
 imaging tuple, Behaviour, epoch / day, and the video motion-energy matrix where it exists) -> inputs/<label>.pkl; a
@@ -25,6 +26,10 @@ identity (run tag, selection, area basis), the commit and the attempts table; th
 importing wfield_local and REFUSES unless the bundled code computes that identity; inputs carry the area-basis masks
 (built here: the v8 rim reads the share); code/ = `git archive` of the worktree's HEAD (refused if wfield_local / configs
 are dirty). check audits the bundled run for share reads; collect refuses a bundle of another run.
+refresh-code (this desktop): replace ONLY code/ (+ enc_runner.py, the commit in COMMANDS.md) of an existing bundle with
+HEAD's; inputs are never rebuilt. Refuses a dirty tree, and refuses unless the NEW code computes the bundle's recorded run
+identity from its env.json (checked in a clean subprocess on the new code); bundle.json records the new commit (the
+inputs' commit stays in `commit_inputs`, every refresh in `code_refreshes`).
 --profile KEEPS the caller's COMBINED_ENCODING_* / OROFACIAL_* (+ WFIELD_INPUT_CACHE) across the profile's clear
 (`apply_profile`; the first enc_rebuild_20261104 build lost LICKS / TONGUE / EXEC and the 3-D / calibration tables).
 """
@@ -415,18 +420,59 @@ def cmd_check(a) -> int:
     sys.addaudithook(_audit)
     _AUDIT["on"] = True
     try:
-        r1 = ce.run_session(a.label, a.order, inputs=inputs)["region"]
+        o1 = ce.run_session(a.label, a.order, inputs=inputs)
+        r1 = o1["region"]
     finally:
         _AUDIT["on"] = False
-    r2 = ce.run_session(a.label, a.order)["region"]
+    o2 = ce.run_session(a.label, a.order)
+    r2 = o2["region"]
     m = r1.merge(r2, on=["model", "window", "area"], suffixes=("_bundle", "_share"))
     diff = np.abs(m.r2_bundle - m.r2_share)
     print(f"{a.label}: {len(m)} region rows ({len(r1)} bundle / {len(r2)} local); max |r2 bundle - local| = "
           f"{diff.max():.2e}; rows differing > 1e-6: {(diff > 1e-6).sum()}; share reads during the bundle run: "
           f"{len(_SHARE_READS)} {sorted(set(_SHARE_READS))[:5]}")
     ok = diff.max() < 1e-4 and len(m) == len(r1) == len(r2) and not _SHARE_READS
+    # the PER-TRIAL outputs (<label>_trials.npz) must agree too (same tolerance, relative to each array's scale)
+    t1, t2 = o1.get("trials"), o2.get("trials")
+    if (t1 is None) != (t2 is None):
+        print("trials: present in only one of the runs")
+        ok = False
+    elif t1 is not None:
+        worst, bad = compare_trials(t1, t2)
+        print(f"trials: {len(t1)} arrays; max relative difference {worst:.2e}; differing: {bad[:5]}")
+        ok = ok and not bad and worst < 1e-4
     print("CHECK", "PASSED" if ok else "FAILED")
     return 0 if ok else 1
+
+
+def compare_trials(t1: dict, t2: dict, tol: float = 1e-4) -> tuple[float, list]:
+    """(worst relative difference over the numeric arrays, keys that differ): NaN patterns must match exactly, numbers
+    to ``tol`` x the array's largest magnitude, everything else (names, labels, shapes) exactly."""
+    import numpy as np
+    worst, bad = 0.0, []
+    for k in sorted(set(t1) | set(t2)):
+        if k not in t1 or k not in t2:
+            bad.append(k)
+            continue
+        a, b = np.asarray(t1[k]), np.asarray(t2[k])
+        if a.shape != b.shape:
+            bad.append(k)
+            continue
+        if a.dtype.kind in "fc" and b.dtype.kind in "fc":
+            a64, b64 = a.astype(np.float64), b.astype(np.float64)
+            if not np.array_equal(np.isnan(a64), np.isnan(b64)):
+                bad.append(k)
+                continue
+            fin = np.isfinite(a64)
+            if fin.any():
+                sc = max(float(np.abs(a64[fin]).max()), 1e-12)
+                d = float(np.abs(a64[fin] - b64[fin]).max()) / sc
+                worst = max(worst, d)
+                if d >= tol:
+                    bad.append(k)
+        elif not np.array_equal(a, b):
+            bad.append(k)
+    return worst, bad
 
 
 def cmd_collect(a) -> int:
@@ -460,6 +506,76 @@ def cmd_collect(a) -> int:
                 (dst / f.name).write_text(json.dumps(obj, indent=1), encoding="utf-8")
                 print(f"  repaired {f.name}: dropped {len(s) - end} trailing byte(s)")
     print(f"collected {n} files ({len(list((src / 'sessions').glob('*.json')))} sessions) -> {dst}")
+    return 0
+
+
+_VERIFY = ("import json, sys; from wfield_local import o2_bundle; "
+           "o2_bundle.verify(json.loads(sys.argv[1])); print('identity ok')")
+
+
+def _bundle_settings_env(d: Path, env_json: dict) -> dict:
+    """A clean process env with ONLY the bundle's settings (as the O2 runner applies them; '@' paths inside the bundle)."""
+    from wfield_local import o2_bundle
+    env = {k: v for k, v in os.environ.items() if not k.startswith(o2_bundle.RECORD_PREFIXES)}
+    env.pop("PYTHONPATH", None)
+    for k, v in env_json.items():
+        env[k] = str(d / v[1:]) if isinstance(v, str) and v.startswith("@") else v
+    return env
+
+
+def cmd_refresh_code(a) -> int:
+    """Replace ONLY the bundle's code snapshot with HEAD's (see the module docstring); inputs are never touched."""
+    import datetime
+    import sys
+
+    from wfield_local import writeguard
+    from wfield_local.paths import PathResolver
+    repo = Path(__file__).resolve().parents[1]
+    dirty = _git(repo, "status", "--porcelain", "--", "wfield_local", "configs", "scripts/o2_encoding.py")
+    if dirty:
+        raise SystemExit(f"uncommitted changes in {repo} (refresh-code archives HEAD):\n{dirty}")
+    commit = _git(repo, "rev-parse", "HEAD")
+    d = Path(a.bundle) if a.bundle else bundle_dir(PathResolver(), a.name)
+    meta = _bundle_meta(d)
+    env_json = json.loads((d / "env.json").read_text())
+    if meta.get("commit") == commit and not a.force:
+        print(f"{d}: code is already {commit}")
+        return 0
+    writeguard.assert_writable(d)
+    new = d / "code.new"
+    if new.exists():
+        shutil.rmtree(new)
+    new.mkdir()
+    tar = d / "code.tar"
+    subprocess.run(["git", "-C", str(repo), "archive", "--format=tar", "-o", str(tar), commit, "wfield_local", "configs"],
+                   check=True)
+    shutil.unpack_archive(str(tar), str(new))
+    tar.unlink()
+    # the NEW code, with ONLY the bundle's settings, must compute the recorded identity (a clean subprocess = O2's view)
+    env = _bundle_settings_env(d, env_json)
+    env["PYTHONPATH"] = str(new)
+    r = subprocess.run([sys.executable, "-c", _VERIFY, json.dumps(meta["identity"])], env=env, cwd=str(new),
+                       capture_output=True, text=True)
+    if r.returncode != 0:
+        shutil.rmtree(new)
+        raise SystemExit(f"refusing: commit {commit} does not compute the bundle's run identity from its env.json:\n"
+                         f"{(r.stderr or r.stdout).strip()[-2000:]}")
+    old = d / "code"
+    if old.exists():
+        shutil.rmtree(old)
+    new.rename(old)
+    (d / "enc_runner.py").write_text(RUNNER, encoding="utf-8", newline="\n")
+    prev = meta.get("commit", "")
+    cm = d / "COMMANDS.md"
+    if cm.exists() and prev:
+        cm.write_text(cm.read_text(encoding="utf-8").replace(prev, commit), encoding="utf-8", newline="\n")
+    meta.setdefault("commit_inputs", prev)
+    meta.setdefault("code_refreshes", []).append({"from": prev, "to": commit,
+                                                  "at": datetime.datetime.now().isoformat(timespec="seconds")})
+    meta["commit"] = commit
+    (d / "bundle.json").write_text(json.dumps(meta, indent=1), encoding="utf-8", newline="\n")
+    print(f"{d}: code {prev[:10]} -> {commit[:10]} (inputs unchanged, built with {meta['commit_inputs'][:10]}); "
+          f"identity verified on the new code")
     return 0
 
 
@@ -530,6 +646,10 @@ def main(argv=None) -> int:
     k.add_argument("--name", required=True)
     k.add_argument("--run", default=None)
     k.add_argument("--tag", required=True)
+    r = sub.add_parser("refresh-code", help="replace only code/ (+ runner) of an existing bundle with HEAD's")
+    r.add_argument("--name", default="")
+    r.add_argument("--bundle", default="", help="the bundle directory itself (instead of --name)")
+    r.add_argument("--force", action="store_true", help="re-copy even if bundle.json already records HEAD")
     m = sub.add_parser("match", help="write match.json (per-session lick targets) into the bundle")
     m.add_argument("--name", required=True)
     m.add_argument("--run", default=None)
@@ -545,6 +665,10 @@ def main(argv=None) -> int:
         return 0
     if a.cmd == "match":
         return cmd_match(a)
+    if a.cmd == "refresh-code":
+        if not (a.name or a.bundle):
+            ap.error("refresh-code needs --name or --bundle")
+        return cmd_refresh_code(a)
     return cmd_check(a) if a.cmd == "check" else cmd_collect(a)
 
 

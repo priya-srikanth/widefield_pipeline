@@ -942,34 +942,50 @@ def raw_blocks(B: Behaviour, ft, pos_perm: dict | None = None, drop_pos: str | N
     return out
 
 
-def _z(X, rows):
-    """z-score with fit-row statistics; NaN -> 0 (unknown contributes nothing); constant columns -> 0."""
+def _zstats(X, rows):
+    """`_z`'s fit-row statistics (mu, sd)."""
     Xr = X[rows]
     mu = np.nanmean(Xr, 0)
     sd = np.nanstd(Xr, 0)
     mu = np.where(np.isfinite(mu), mu, 0.0)
     sd = np.where(np.isfinite(sd) & (sd > 1e-9), sd, np.inf)
+    return mu, sd
+
+
+def _zapply(X, mu, sd):
     Z = (X - mu) / sd
     return np.where(np.isfinite(Z), Z, 0.0).astype(np.float32)
 
 
-def _slow_basis(t: np.ndarray, min_period_s: float) -> np.ndarray:
-    """Cosine (DCT-II style) regressors over [t0, t1] with period >= min_period_s, incl. the constant."""
+def _z(X, rows):
+    """z-score with fit-row statistics; NaN -> 0 (unknown contributes nothing); constant columns -> 0."""
+    return _zapply(X, *_zstats(X, rows))
+
+
+def _slow_basis(t: np.ndarray, min_period_s: float, at: np.ndarray | None = None) -> np.ndarray:
+    """Cosine (DCT-II style) regressors over [t0, t1] with period >= min_period_s, incl. the constant. ``at``: evaluate
+    the SAME basis (t's span and order) at other times (the scored-only frames of `run_session`)."""
     t = np.asarray(t, float)
     T = max(t[-1] - t[0], 1e-9)
     n = int(np.floor(2 * T / min_period_s))
-    u = (t - t[0]) / T
+    u = ((t if at is None else np.asarray(at, float)) - t[0]) / T
     return np.column_stack([np.cos(np.pi * k * u) for k in range(n + 1)])
 
 
-def _residualise(X, E, rows):
-    """X minus its least-squares projection on E (fit rows), re-z-scored (Musall's QR orthogonalisation)."""
+def _residualise(X, E, rows, extra=None):
+    """X minus its least-squares projection on E (fit rows), re-z-scored (Musall's QR orthogonalisation). ``extra`` =
+    (Xx, Ex): rows that are SCORED ONLY (never fitted) get the same projection and z statistics -> returns (Z, Zx)."""
     if E is None or E.shape[1] == 0:
-        return X
+        return X if extra is None else (X, extra[0])
     Er, Xr = E[rows].astype(np.float64), X[rows].astype(np.float64)
     G = Er.T @ Er + 1e-6 * np.eye(E.shape[1])
     beta = np.linalg.solve(G, Er.T @ Xr)
-    return _z((X - E @ beta.astype(np.float32)), rows)
+    if extra is None:
+        return _z((X - E @ beta.astype(np.float32)), rows)
+    b32 = beta.astype(np.float32)
+    R = X - E @ b32
+    mu, sd = _zstats(R, rows)
+    return _zapply(R, mu, sd), _zapply(extra[0] - extra[1] @ b32, mu, sd)
 
 
 # =============================================================================== Gram engine
@@ -1051,6 +1067,150 @@ def _diag_quad(U, C, chunk=50000):
         u = U[s:s + chunk].astype(np.float64)
         out[s:s + chunk] = np.einsum("ij,ij->i", u @ C, u)
     return out
+
+
+# =============================================================================== per-trial outputs
+#: PER-TRIAL OUTPUTS (Priya 11-04: "we must be able to report every camera trial class"): `<label>_trials.npz` beside
+#: the session npz. Values:
+#:   off    nothing (and no scored-only design rows are built)
+#:   sse    trial table + per-trial, per-tr_model SSE and SST in TRIAL_BIN_S bins (cue- and first-lick-aligned): per-class
+#:          cvR2 / dR2 of every time-resolved model (no PETHs, no trial-to-trial R2)
+#:   full   sse + the frame-level area traces (Ra space, every area + cortex_stat + cortex) of data, the full model's
+#:          parts (`peth_parts`: full, task, instructed, uninstructed, pos; full-data betas) and its HELD-OUT prediction
+#:          ("cv"), float16, for fitted and scored-only frames: readers rebuild peth / peth_lick / the full model's sse /
+#:          sse_trial per class at any alignment with `trial_rows` (`encoder_trials.py`)
+#:   full32 full in float32 (exact reproduction of the session npz; tests / checks)
+#: Default (unset): full for the run without a model subset (O2 TAG main), sse for every subset run (ONLY_ENV set):
+#: the full model's parts do not depend on the subset, so main carries them once (sizes: REBUILD_CODE 8.43).
+TRIALS_ENV = "COMBINED_ENCODING_TRIALS"
+TRIAL_MODES = ("off", "sse", "full", "full32")
+TRIAL_BIN_S = 0.5
+
+
+def trials_mode() -> str:
+    v = os.environ.get(TRIALS_ENV, "")
+    if not v:
+        return "sse" if os.environ.get(ONLY_ENV) else "full"
+    if v not in TRIAL_MODES:
+        raise ValueError(f"{TRIALS_ENV}={v!r}; expected one of {TRIAL_MODES}")
+    return v
+
+
+def _scorable(spec) -> bool:
+    """A model can score frames it was never fitted on only if every block is a function of time (raw / orth columns).
+    Shuffled blocks (`shuf`, a circular shift of the FIT rows) and permuted / relabelled position blocks (shufpos-*,
+    shufside, shufdist, droppos-*: labels drawn over the fitted trials only) have no value on other frames."""
+    return all(kind in ("raw", "orth") for kind, _v in spec)
+
+
+def trial_bins(off_s: np.ndarray, width: float = TRIAL_BIN_S) -> tuple[np.ndarray, np.ndarray]:
+    """(edges_s, bin index of each PETH offset): PETH_S cut into ``width`` bins, the last edge closed."""
+    edges = np.arange(PETH_S[0], PETH_S[1] + width / 2, width)
+    b = np.clip(np.searchsorted(edges, np.asarray(off_s) + 1e-9, side="right") - 1, 0, len(edges) - 2)
+    return edges, b
+
+
+def trial_rows(rows: np.ndarray, lo: np.ndarray, hi: np.ndarray, off: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    """(index, ok) of each trial's aligned frames in the stored row space: rows[i] + off, valid inside the trial's own
+    row block [lo, hi) (fitted trials: the fit rows; scored-only: their own rows) -- `run_session`'s PETH rule."""
+    rows, lo, hi = (np.asarray(x, int) for x in (rows, lo, hi))
+    idx = rows[:, None] + np.asarray(off, int)[None, :]
+    ok = (rows[:, None] >= 0) & (idx >= lo[:, None]) & (idx < hi[:, None])
+    return np.where(ok, idx, 0), ok
+
+
+def _binsum(X: np.ndarray, b: np.ndarray, nb: int) -> np.ndarray:
+    """(trials, off, K) -> (trials, nb, K) NaN-sums per bin (as the session sse: an empty bin sums to 0)."""
+    return np.stack([np.nansum(X[:, b == k], 1) for k in range(nb)], 1)
+
+
+class _TrialScorer:
+    """Collects `run_session`'s per-trial outputs (see TRIALS_ENV). Row space = [fit rows ; scored-only rows]."""
+
+    def __init__(self, S, E, X, ridx, xidx, ft, fold, f_of_trial, cue_f, first_f, lk_all, off, fs, Rd, Rdx, n_models,
+                 mode, contact_s=None):
+        self.mode, self.off = mode, np.asarray(off, int)
+        from wfield_local import trial_classes as tc
+        nfit, nx = len(ridx), len(xidx)
+        self.nfit, self.nx = nfit, nx
+        kE = {int(t): i for i, t in enumerate(E.trial_id.to_numpy())}
+        ftx, ftr = np.asarray(ft)[xidx], np.asarray(ft)[ridx]
+        ct = np.sort(np.asarray([] if contact_s is None else contact_s, float))
+        n = len(S)
+        k = np.array([kE.get(int(t), -1) for t in S.trial_id], int)
+        cue_row, lick_row = np.full(n, -1), np.full(n, -1)
+        lo, hi = np.zeros(n, int), np.zeros(n, int)
+        lp_s, daq_s, first_s = np.full(n, np.nan), np.full(n, np.nan), np.full(n, np.nan)
+        src = np.full(n, "none", object)
+        for j, (c_, sp_) in enumerate(zip(S.cue_s.to_numpy(float), S.stop_s.to_numpy(float))):
+            sp_ = sp_ if np.isfinite(sp_) else c_ + 3.5
+            i_ = np.searchsorted(lk_all, c_)
+            if i_ < len(lk_all) and lk_all[i_] < sp_:
+                lp_s[j] = lk_all[i_]                 # the session npz's first lick (LP / camera lick set)
+            i_ = np.searchsorted(ct, c_ + tc.CONTACT_FROM_CUE_S)   # the cue_stop contact window
+            if i_ < len(ct) and ct[i_] < sp_:
+                daq_s[j] = ct[i_]                    # first DAQ spout contact, cue + 70 ms .. stop
+            # LICK ALIGNMENT here (Priya 11-04, Q9): the first LP lick, ELSE the first DAQ contact (timing_source daq,
+            # a sensitivity-check flag); the session npz's peth_lick / sse_lick stay LP-only
+            if np.isfinite(lp_s[j]):
+                first_s[j], src[j] = lp_s[j], "lp"
+            elif np.isfinite(daq_s[j]):
+                first_s[j], src[j] = daq_s[j], "daq"
+            if k[j] >= 0:                            # fitted: exactly the session npz's indices
+                cue_row[j], lo[j], hi[j] = cue_f[k[j]], 0, nfit
+                lick_row[j] = (first_f[k[j]] if src[j] == "lp" else
+                               int(np.searchsorted(ftr, first_s[j])) if src[j] == "daq" else -1)
+            else:
+                cue_row[j] = nfit + np.searchsorted(ftx, c_)
+                lick_row[j] = nfit + np.searchsorted(ftx, first_s[j]) if np.isfinite(first_s[j]) else -1
+                lo[j], hi[j] = nfit, nfit + nx
+        self.table = {"trial_id": S.trial_id.to_numpy(int), "pos": S.pos.to_numpy().astype(str),
+                      "engaged": S.engaged.to_numpy(bool), "fitted": k >= 0,
+                      "fold": np.where(k >= 0, f_of_trial[np.clip(k, 0, None)], -1),
+                      "cue_s": S.cue_s.to_numpy(float), "stop_s": S.stop_s.to_numpy(float),
+                      "first_lick_s": first_s, "timing_source": src.astype(str), "lp_first_lick_s": lp_s,
+                      "daq_first_contact_s": daq_s,
+                      "cue_row": cue_row, "lick_row": lick_row, "row_lo": lo, "row_hi": hi}
+        self.gi = {"cue": trial_rows(cue_row, lo, hi, self.off), "lick": trial_rows(lick_row, lo, hi, self.off)}
+        self.edges, self.b = trial_bins(self.off / fs)
+        nb = len(self.edges) - 1
+        self.R = np.vstack([Rd, Rdx])
+        self.rd_mean = Rd.mean(0)
+        K = Rd.shape[1]
+        self.sse = {a: np.full((n_models, n, nb, K), np.nan, np.float32) for a in self.gi}
+        self.sst, self.nfr = {}, {}
+        for a, (ii, ok) in self.gi.items():
+            self.sst[a] = _binsum(np.where(ok[..., None], (self.R[ii] - self.rd_mean) ** 2, np.nan), self.b,
+                                  nb).astype(np.float32)
+            self.nfr[a] = np.stack([ok[:, self.b == q].sum(1) for q in range(nb)], 1).astype(np.int16)
+        self.cv = None
+
+    def model(self, mi, name, pred, predx):
+        """Per-trial binned SSE of time-resolved model ``mi``: held-out ``pred`` on fitted rows, full-data ``predx`` on
+        scored-only rows (None = not scorable there -> NaN for those trials)."""
+        P = np.vstack([pred, np.full((self.nx, pred.shape[1]), np.nan) if predx is None else predx])
+        for a, (ii, ok) in self.gi.items():
+            self.sse[a][mi] = _binsum(np.where(ok[..., None], (self.R[ii] - P[ii]) ** 2, np.nan), self.b,
+                                      len(self.edges) - 1)
+            if predx is None:
+                self.sse[a][mi][~self.table["fitted"]] = np.nan
+        if name == "full":
+            self.cv = P
+
+    def finish(self, parts: dict, intercept, tr_models, scorable) -> dict:
+        out = {f"t_{k}": v for k, v in self.table.items()}
+        out.update({"tr_models": np.array(tr_models), "tr_scorable": np.isin(tr_models, scorable),
+                    "off": self.off, "bin_edges_s": self.edges, "bin_of_off": self.b, "rd_mean": self.rd_mean,
+                    "n_fit_rows": np.int64(self.nfit), "n_scored_rows": np.int64(self.nx), "mode": np.array(self.mode)})
+        for a in self.gi:
+            out[f"sse_bins_{a}"], out[f"sst_bins_{a}"], out[f"nfr_bins_{a}"] = self.sse[a], self.sst[a], self.nfr[a]
+        if self.mode in ("full", "full32"):
+            dt = np.float32 if self.mode == "full32" else np.float16
+            names = list(parts) + ["cv"]
+            out["parts"] = np.array(names)
+            out["intercept"] = np.asarray(intercept, np.float64)
+            out["frames"] = np.stack([np.vstack(parts[c]) for c in parts] + [self.cv.astype(np.float32)]).astype(dt)
+        return out
 
 
 # =============================================================================== one session
@@ -1167,6 +1327,21 @@ def run_session(label: str, order: str = "movement_first", seed: int = 0, inputs
         rows |= m
         tr_of[m] = k
     ridx = np.flatnonzero(rows)
+    # SCORED-ONLY TRIALS (Priya 11-04: "report every camera trial class"): every cue trial NOT in E (jaw_only, no
+    # response, stopped, after_end, early_run, unknown; matched-out trials under MATCH_ENV) gets its own frames, built
+    # exactly like E's (strobe - 0.5 .. stop + 1 s, concatenated in time) but NEVER fitted: the design / data of these
+    # rows are transformed with the fit rows' statistics (z, orthogonalisation, drift) and predicted by the full-data
+    # betas. The fit (A, Y, folds, penalties) is unchanged. Off with TRIALS_ENV=off.
+    tmode = trials_mode()
+    S_ = B.trials[np.isfinite(B.trials.cue_s.to_numpy(float))].reset_index(drop=True)
+    X_ = S_[~S_.trial_id.isin(E.trial_id)].reset_index(drop=True) if tmode != "off" else S_.iloc[:0]
+    xrows = np.zeros(len(ft), bool)
+    if len(X_):
+        stx = np.where(np.isfinite(X_.strobe_s), X_.strobe_s, X_.cue_s - 3.0)
+        spx = np.where(np.isfinite(X_.stop_s), X_.stop_s, X_.cue_s + 3.5)
+        for a, b_ in zip(stx - 0.5, spx + 1.0):
+            xrows |= (ft >= a) & (ft <= b_)
+    xidx = np.flatnonzero(xrows)
     # folds = contiguous trial blocks
     blk = np.array_split(np.arange(len(E)), FOLDS)
     f_of_trial = np.zeros(len(E), int)
@@ -1203,7 +1378,11 @@ def run_session(label: str, order: str = "movement_first", seed: int = 0, inputs
     d = np.minimum(np.abs(ftr - pk[np.clip(j - 1, 0, len(pk) - 1)]), np.abs(ftr - pk[np.clip(j, 0, len(pk) - 1)]))
     win["lick"] = d <= 0.2
     # raw blocks -> z -> orthogonalised (order) -> universe
-    raw = {v: _z(X, ridx)[ridx] for v, X in raw_blocks(B, ft).items()}
+    raw, rawx = {}, {}
+    for v, X in raw_blocks(B, ft).items():
+        Z_ = _z(X, ridx)
+        raw[v], rawx[v] = Z_[ridx], Z_[xidx]
+    del Z_
     # POSITION IS ONE VARIABLE (Priya 10-18): the spout sits in one place strobe .. stop, so ONE relabelling is applied
     # to both periods (pos_enl / pos_cue are its pre- and post-cue regressors; `shuf:position` / `drop:position` test
     # it whole, the per-period models are the temporal breakdown).
@@ -1259,16 +1438,23 @@ def run_session(label: str, order: str = "movement_first", seed: int = 0, inputs
             rawc[(kind, v)] = _z(raw_blocks(B, ft, {v: lab})[v], ridx)[ridx]
     seq = ORDERS[order]
     orth, earlier = {}, None
+    orthx, earlierx = {}, None                          # the scored-only rows: same projection, fit-row statistics
     for g in seq:
         vs = [v for v in GROUP_OF if GROUP_OF[v] == g]
         Xg = np.hstack([raw[v] for v in vs])
-        Xo = (Xg if (earlier is None or g in ORTH_RAW.get(order, ()))
-              else _residualise(Xg, earlier, slice(None)))
+        Xgx = np.hstack([rawx[v] for v in vs])
+        if earlier is None or g in ORTH_RAW.get(order, ()):
+            Xo, Xox = Xg, Xgx
+        else:
+            Xo, Xox = _residualise(Xg, earlier, slice(None), extra=(Xgx, earlierx))
         c = 0
         for v in vs:
             orth[v] = Xo[:, c:c + raw[v].shape[1]]
+            orthx[v] = Xox[:, c:c + raw[v].shape[1]]
             c += raw[v].shape[1]
         earlier = Xg if earlier is None else np.hstack([earlier, Xg])
+        earlierx = Xgx if earlierx is None else np.hstack([earlierx, Xgx])
+    rawall_x = np.hstack([rawx[v] for v in GROUP_OF])
     # VIDEO (optional, see VIDEO_ENV)
     vid_raw = vid_orth = None
     cams = [c for c in (os.environ.get(VIDEO_ENV) or "").split(",") if c]
@@ -1286,10 +1472,13 @@ def run_session(label: str, order: str = "movement_first", seed: int = 0, inputs
     if sig:
         Xv = (inputs["video"]["X"].astype(np.float64) if inputs is not None
               else np.column_stack([sig[k_][1] for k_ in sorted(sig)]))
-        vid_raw = _z(Xv, ridx)[ridx]                            # blanked (NaN) frames -> 0
+        Zv_ = _z(Xv, ridx)
+        vid_raw, vid_rawx = Zv_[ridx], Zv_[xidx]                # blanked (NaN) frames -> 0
         blank = ~np.isfinite(Xv[ridx]).any(1)
-        vid_orth = _residualise(vid_raw, np.hstack([raw[v] for v in GROUP_OF]), slice(None))
+        vid_orth, vid_orthx = _residualise(vid_raw, np.hstack([raw[v] for v in GROUP_OF]), slice(None),
+                                           extra=(vid_rawx, rawall_x))
         vid_orth[blank] = 0.0                                   # residualising must not put signal back into blanked frames
+        vid_orthx[~np.isfinite(Xv[xidx]).any(1)] = 0.0
     # FR (optional, see FR_ENV): same placement as video
     fr_raw = fr_orth = None
     fr_set = os.environ.get(FR_ENV) or ""
@@ -1309,10 +1498,13 @@ def run_session(label: str, order: str = "movement_first", seed: int = 0, inputs
             except FileNotFoundError:
                 Xf = None
         if Xf is not None:
-            fr_raw = _z(Xf, ridx)[ridx]                         # blanked (NaN) frames -> 0
+            Zf_ = _z(Xf, ridx)
+            fr_raw, fr_rawx = Zf_[ridx], Zf_[xidx]              # blanked (NaN) frames -> 0
             blank_fr = ~np.isfinite(Xf[ridx]).any(1)
-            fr_orth = _residualise(fr_raw, np.hstack([raw[v] for v in GROUP_OF]), slice(None))
+            fr_orth, fr_orthx = _residualise(fr_raw, np.hstack([raw[v] for v in GROUP_OF]), slice(None),
+                                             extra=(fr_rawx, rawall_x))
             fr_orth[blank_fr] = 0.0
+            fr_orthx[~np.isfinite(Xf[xidx]).any(1)] = 0.0
     frpts_raw = None
     kp = int(os.environ.get(FR_POINTS_ENV) or 0)
     if fr_raw is not None and kp:
@@ -1327,7 +1519,8 @@ def run_session(label: str, order: str = "movement_first", seed: int = 0, inputs
             except FileNotFoundError:
                 Xp = None
         if Xp is not None:
-            frpts_raw = _z(Xp, ridx)[ridx]
+            Zp_ = _z(Xp, ridx)
+            frpts_raw, frpts_rawx = Zp_[ridx], Zp_[xidx]
     # shuffled orthogonalised blocks
     shift_min = int(SHIFT_MIN_S / np.median(np.diff(ft)))
     shuf = {}
@@ -1371,14 +1564,41 @@ def run_session(label: str, order: str = "movement_first", seed: int = 0, inputs
         add(("orth", "fr"), fr_orth)
     if frpts_raw is not None:
         add(("raw", "frpts"), frpts_raw)
+    # the scored-only rows' columns, for every key a SCORABLE model uses (raw / orth: a deterministic function of time;
+    # shuffled / permuted / relabelled blocks are defined only on the fit rows, see `_scorable`)
+    xblk = {}
+    for v in GROUP_OF:
+        xblk[("orth", v)] = orthx[v]
+        xblk[("raw", v)] = rawx[v] if GROUP_OF[v] != seq[0] else orthx[v]
+    for v in EXTRA_GROUP:
+        if v in rawx:
+            xblk[("raw", v)] = rawx[v]
+    if vid_raw is not None:
+        xblk[("raw", "video")], xblk[("orth", "video")] = vid_rawx, vid_orthx
+    if fr_raw is not None:
+        xblk[("raw", "fr")], xblk[("orth", "fr")] = fr_rawx, fr_orthx
+    if frpts_raw is not None:
+        xblk[("raw", "frpts")] = frpts_rawx
+    del rawx, orthx, earlierx, rawall_x
     A = np.hstack(blocks)
     Y = V[ridx]
-    Q = np.linalg.qr(_slow_basis(ft[ridx], DRIFT_MIN_PERIOD_S))[0]
+    Q, Rq = np.linalg.qr(_slow_basis(ft[ridx], DRIFT_MIN_PERIOD_S))
     Q = Q.astype(np.float32)
-    Y = (Y - Q @ (Q.T @ Y)).astype(np.float32)
+    CQ = Q.T @ Y                                    # drift coefficients (fit rows) -- also applied to the scored-only rows
+    Y = (Y - Q @ CQ).astype(np.float32)
+    CA = np.empty((Q.shape[1], A.shape[1]), np.float32)
     for c0 in range(0, A.shape[1], 256):           # in place, in column chunks (A is GBs; no full-size temporary)
         sl = slice(c0, min(c0 + 256, A.shape[1]))
-        A[:, sl] -= Q @ (Q.T @ A[:, sl])
+        CA[:, sl] = Q.T @ A[:, sl]
+        A[:, sl] -= Q @ CA[:, sl]
+    Yx = None
+    if len(xidx):
+        # the same slow drift at the scored-only frames: S_x R^-1 extends Q (= S_fit R^-1); frames outside the fit
+        # rows' time span extrapolate the cosine basis (bounded)
+        Qx = (_slow_basis(ft[ridx], DRIFT_MIN_PERIOD_S, at=ft[xidx]) @ np.linalg.inv(Rq)).astype(np.float32)
+        Yx = (V[xidx] - Qx @ CQ).astype(np.float32)
+        xblk = {k: X - Qx @ CA[:, layout[k]] for k, X in xblk.items()}
+    del CA
     eng = Engine(A, Y, fold, win)
     grp_of_col = np.empty(A.shape[1], object)                  # CREDIT group (task / instructed / uninstructed)
     pen_of_col = np.empty(A.shape[1], object)                  # PENALTY group (PEN_GROUP_OF)
@@ -1720,6 +1940,12 @@ def run_session(label: str, order: str = "movement_first", seed: int = 0, inputs
                      "sst_tr": np.nansum(np.where(okm_[..., None], ddev_ ** 2, np.nan), 0).T,
                      "sse": np.zeros((len(tr_models), Ra.shape[1], len(off))),
                      "sse_tr": np.zeros((len(tr_models), Ra.shape[1], len(off)))}
+    # PER-TRIAL OUTPUTS (Priya 11-04, `<label>_trials.npz`): every cue trial, fitted (E) or scored-only (X_)
+    trs = None
+    if tmode != "off":
+        trs = _TrialScorer(S_, E, X_, ridx, xidx, ft, fold, f_of_trial, cue_f, first_f, lk_all, off, res["fs"], Rd,
+                           (Yx.astype(np.float64) @ Ra) if Yx is not None else np.zeros((0, Ra.shape[1])),
+                           len(tr_models), tmode, contact_s=B.contact_s)
     for mi, mname in enumerate(tr_models):
         spec = models[mname]
         ixm = cols(spec)
@@ -1730,6 +1956,12 @@ def run_session(label: str, order: str = "movement_first", seed: int = 0, inputs
         for k, bk in enumerate(Bk):
             m = fold == k
             pred[m] = (Am[m] @ bk[1:] + bk[0]) @ Ra
+        if trs is not None:                                   # scored-only rows: the model fit on ALL fit rows
+            predx = None
+            if len(xidx) and _scorable(spec):
+                bf = eng.full_beta(ixm, penm)[1]
+                predx = (np.hstack([xblk[k_] for k_ in spec]) @ bf[1:] + bf[0]) @ Ra
+            trs.model(mi, mname, pred, predx)
         for a_ in al.values():
             okm_, idc_ = a_["okm"], a_["idc"]
             a_["sse"][mi] = np.nansum(np.where(okm_[..., None], (Rd[idc_] - pred[idc_]) ** 2, np.nan), 0).T
@@ -1755,6 +1987,18 @@ def run_session(label: str, order: str = "movement_first", seed: int = 0, inputs
             seg = np.where(ok[..., None], R[np.clip(idx, 0, len(R) - 1)], np.nan)
             peth_lick[ci, pi] = np.nanmean(seg, 0).T
     res["n_trials_lick_aligned"] = int((first_f >= 0).sum())
+    if trs is not None:
+        Axf = np.hstack([xblk[k_] for k_ in full_spec]) if len(xidx) else np.zeros((0, len(ix)), np.float32)
+        compx = {"data": Yx.astype(np.float64) if Yx is not None else np.zeros((0, Y.shape[1])),
+                 "full": Axf @ beta[1:] + beta[0]}
+        for g in GROUPS:
+            compx[g] = Axf[:, gcol == g] @ beta[1:][gcol == g]
+        compx["pos"] = Axf[:, pm] @ beta[1:][pm]
+        trials_out = trs.finish({c: ((comp[c] @ Ra).astype(np.float32), (compx[c] @ Ra).astype(np.float32))
+                                 for c in comp}, beta[0] @ Ra, tr_models, [m for m in tr_models
+                                                                           if _scorable(models[m])])
+        res["n_trials_scored_only"] = int(len(X_))
+        res["trials_mode"] = tmode
     res["n_lick_aligned_by_pos"] = dict(zip(pos_order, n_lick_pos.tolist()))
     res["target_angle"] = B.target_angle
     res.update({"tr_models": tr_models, "pos_order": pos_order, "peth_parts": list(comp), "model_alphas": model_alphas,
@@ -1764,7 +2008,8 @@ def run_session(label: str, order: str = "movement_first", seed: int = 0, inputs
             "peth": peth, "peth_lick": peth_lick, "peth_off_s": off / res["fs"], "sse": sse, "sst": sst,
             "sse_trial": sse_tr, "sst_trial": sst_tr,
             "sse_lick": al["lick"]["sse"], "sst_lick": al["lick"]["sst"],
-            "sse_trial_lick": al["lick"]["sse_tr"], "sst_trial_lick": al["lick"]["sst_tr"]}
+            "sse_trial_lick": al["lick"]["sse_tr"], "sst_trial_lick": al["lick"]["sst_tr"],
+            **({"trials": trials_out} if trs is not None else {})}
 
 
 def out_dir(rv, order: str) -> Path:
@@ -1814,6 +2059,8 @@ def save(out: dict, d: Path) -> None:
                         peth_off_s=out["peth_off_s"], sse=out["sse"], sst=out["sst"],
                         sse_trial=out["sse_trial"], sst_trial=out["sst_trial"],
                         **{k: out[k] for k in ("sse_lick", "sst_lick", "sse_trial_lick", "sst_trial_lick", "peth_lick") if k in out})
+    if out.get("trials") is not None:            # per-trial outputs: their OWN file, the npz above is unchanged
+        np.savez_compressed(d / "sessions" / f"{lab}_trials.npz", **out["trials"])
     out["region"].assign(label=lab).to_csv(d / "sessions" / f"{lab}_regions.csv", index=False, float_format="%.5f")
     (d / "sessions" / f"{lab}.json").write_text(json.dumps(out["res"], indent=1, default=str), encoding="utf-8")
 

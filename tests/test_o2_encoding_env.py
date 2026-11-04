@@ -176,3 +176,70 @@ def test_profile_keeps_the_callers_encoder_settings(tmp_path, monkeypatch):
     # an arm-owned encoder setting left in the shell (it would re-tag the run) is refused
     with pytest.raises(SystemExit, match="arm owns"):
         m.apply_profile("cohort1_rebuild_20261103", environ={"COMBINED_ENCODING_DRIFT_MIN_PERIOD_S": "1500"})
+
+
+def _fake_bundle(tmp_path, monkeypatch, m):
+    """A bundle dir with the rebuild profile's env.json / identity, an OLD code snapshot and inputs that must survive."""
+    import json
+    import os
+
+    from wfield_local import o2_bundle
+    _profile_env(monkeypatch)
+    d = tmp_path / "bundle"
+    (d / "code" / "wfield_local").mkdir(parents=True)
+    (d / "code" / "wfield_local" / "old.py").write_text("x = 1\n")
+    (d / "inputs").mkdir()
+    (d / "inputs" / "PS93_0814.pkl").write_bytes(b"inputs")
+    env = m.bundle_env(d)
+    (d / "env.json").write_text(json.dumps(env))
+    ident = o2_bundle.identity()
+    (d / "bundle.json").write_text(json.dumps({"identity": ident, "commit": "0" * 40}))
+    (d / "COMMANDS.md").write_text(f"code {'0' * 40} (wf_rebuild)\n")
+    real = m._git
+    monkeypatch.setattr(m, "_git", lambda repo, *a: "" if a[0] == "status" else real(repo, *a))
+    return d, ident, os
+
+
+def test_refresh_code_replaces_only_code(tmp_path, monkeypatch):
+    """refresh-code (11-04): code/ = HEAD's archive, runner rewritten, commit recorded; inputs untouched."""
+    import argparse
+    import json
+    m = _mod()
+    d, ident, _os = _fake_bundle(tmp_path, monkeypatch, m)
+    head = m._git(Path(m.__file__).resolve().parents[1], "rev-parse", "HEAD")
+    assert m.cmd_refresh_code(argparse.Namespace(name="", bundle=str(d), force=False)) == 0
+    assert not (d / "code" / "wfield_local" / "old.py").exists()
+    assert (d / "code" / "wfield_local" / "combined_encoding.py").exists() and (d / "code" / "configs").is_dir()
+    assert not (d / "code.new").exists()
+    assert (d / "inputs" / "PS93_0814.pkl").read_bytes() == b"inputs"
+    meta = json.loads((d / "bundle.json").read_text())
+    assert meta["commit"] == head and meta["commit_inputs"] == "0" * 40 and meta["identity"] == ident
+    assert meta["code_refreshes"][-1]["to"] == head
+    assert head in (d / "COMMANDS.md").read_text() and (d / "enc_runner.py").read_text() == m.RUNNER
+
+
+def test_refresh_code_refuses_identity_change_and_dirty_tree(tmp_path, monkeypatch):
+    import argparse
+    import json
+
+    import pytest
+    m = _mod()
+    d, ident, _os = _fake_bundle(tmp_path, monkeypatch, m)
+    (d / "bundle.json").write_text(json.dumps({"identity": dict(ident, run_tag="another-run"), "commit": "0" * 40}))
+    with pytest.raises(SystemExit, match="does not compute the bundle's run identity"):
+        m.cmd_refresh_code(argparse.Namespace(name="", bundle=str(d), force=False))
+    assert (d / "code" / "wfield_local" / "old.py").exists() and not (d / "code.new").exists()   # untouched
+    monkeypatch.setattr(m, "_git", lambda repo, *a: " M wfield_local/x.py" if a[0] == "status" else "abc")
+    with pytest.raises(SystemExit, match="uncommitted"):
+        m.cmd_refresh_code(argparse.Namespace(name="", bundle=str(d), force=False))
+
+
+def test_compare_trials():
+    import numpy as np
+    m = _mod()
+    a = {"x": np.array([1.0, np.nan, 3.0]), "n": np.array(["a", "b"]), "i": np.arange(3)}
+    assert m.compare_trials(a, dict(a)) == (0.0, [])
+    w, bad = m.compare_trials(a, dict(a, x=np.array([1.0, np.nan, 3.0 + 1e-3])))
+    assert bad == ["x"] and w > 1e-4
+    assert m.compare_trials(a, dict(a, x=np.array([1.0, 2.0, 3.0])))[1] == ["x"]          # NaN pattern differs
+    assert m.compare_trials(a, dict(a, n=np.array(["a", "c"])))[1] == ["n"]
