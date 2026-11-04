@@ -1037,3 +1037,18 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   - **A4 end cut only: ruled out.** Acute close ipsi .782, i.e. disengagement scored as failure.
   - **Every arm:** working set and rest period unchanged; chronic barely moves.
   - **A2 caveat:** it requires the NEAREST reference trial on each side of the run to be a contact.
+- **11-04 ~12:40: DECISION (Priya via a8): stop rule = A2 "both sides" PRIMARY.**
+  - Robustness rows: A0 (current) and A3 > 10.
+  - Everything after the last camera lick is stopped.
+  - Implementation is added to rebuild/cue70 together with cue + 70 and max_rt, so trial_attempts is regenerated ONCE.
+    It gets a new run tag.
+  - Merge it as the last branch before the render.
+- **FYI (a8):** the G4 mix-shift test (widefield_pipeline G4_CAMCLASS_MIXSHIFT_2026-11-04.md, 5f01f2dc) finds the state
+  discriminators' z frame is mix-stable.
+  - B stays OFF, and the discriminators stay in z.
+  - Only the camera-class discriminator version gets ported: working vs none, with jaw_only / after_end scored
+    separately. The port list will come from a8.
+- **O2:** Priya has the inputs on O2 scratch. Submission waits for:
+  - the checks;
+  - the class-output merge and code refresh;
+  - the final trial_attempts.
