@@ -739,6 +739,9 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   PS92_0908 82.5%"; RESTnl baselines DAQ gate + LP gate (new attempts table) 120 / 120 each, 0 errors (PS93_0813 excluded, no
   video licks). trial_attempts 63 min. Epoch decoders (all families but 15e) running since 07:30; then grant figures,
   section G, then the encoder frames.
+- a8 (Priya): WAIT for the rebuild -- no main render, no interim swaps. The replacement pass's per-slide old-vs-new list
+  must cover PI slides 9-13, 19, 89 and imaging page sections 1-4, 6, 7. Still open with Priya: B (state discriminators in
+  spout frame), C (projections in spout frame), the D / G scored-set question; a8 forwards answers.
 - The 05:46 incident coverage copies differ from the rebuild ones only by the 12 June sessions (Aug-only pre); the partial-
   coverage rows are identical.
 
