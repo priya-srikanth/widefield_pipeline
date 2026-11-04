@@ -553,6 +553,18 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   (08-05, 08-06, PS92 08-12) cut licks/trial at 2.0 s not the stop (behaviour writers refused under the profile, so not in the
   render, but the pre lpt__ baseline mixes windows); rest_start missing from cache keys; a snapshot script bypasses the 5-min rule;
   edge tests; "licks / trial" labels; one shared 70 ms constant. Still owed: Q1 / Q4 (centre rows, stores, fallback).
+- FIFTH REVIEW, scope D + E DONE: 3 more BLOCKERS, sent to helper -- (1) section G silently refits a pre-stroke decoder in
+  memory, session_z frame, untagged, on ANY store error (poststroke_compare frozen()); (2) the "fail-closed" centre errors are
+  swallowed by two generic excepts; (3) the PS93_0813 centre fallback was log-only. My decision (method; tell me if you
+  disagree): PS93_0813's centre = its DAQ contact (lick-class) rows, the rows the gate actually scores for it; recorded in the
+  spec id, every result sidecar and the log; minimum raised to 20 working rows (all other sessions have >= 20). Store identity
+  OK (no two settings share an entry unless training rows identical); june_august_drift month model stored OK.
+- QUESTION (open): PRE_FROM 0801 is only passed to the two decoder blocks; asked helper to list other G0-G8 families that would
+  use June + August pre, before deciding whether the profile needs more block_args.
+- PRIYA ASKED (11-03 late): is PS93_0813 (no video) still used for DAQ-contact-only analyses, e.g. hits? Answer: lick-aligned
+  imaging YES (lick class = DAQ contacts); hit rate / miss / no-response / cue-aligned working / rest NO (denominator = camera
+  working trials, none; no DAQ fallback by design). Recommended keep; alternative = DAQ-gate denominator for that session's
+  DAQ-only behaviour rates, labelled. Waiting on her choice.
 
 ### Findings
 - main moved while the rebuild branch was being fixed (34 commits not in rebuild/cohort1-20261103). Two matter for the rebuild:
