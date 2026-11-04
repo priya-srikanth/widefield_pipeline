@@ -658,7 +658,10 @@ FYI, the 3-class camera variant (lick / jaw-only / none) is thin in PS92 and PS9
   claim about pre-cue position coding. 34 was asked to report the per-animal / per-epoch split vs no-licksall numbers
   FIRST when the O2 run lands, plus the list of affected page / deck claims.
 - 3-D spout targets: the encoder TARGET3D is now the commanded positions (e0 bddf02e7). Per e0, kinematics / lick-aim
-  trajectories already used commanded targets. 34 was asked to confirm the O2 bundle uses them.
+  trajectories already used commanded targets. CONFIRMED (34): bundle enc_rebuild_20261104b uses the commanded
+  table (it was still on the 10-23 measured table; 34 switched the bundle / check / wrapper env). The exec 3-D table,
+  the exec-bins calibration and the frozen-encoder frame are not on the measured table; lick_template_test is set if
+  it renders. 34 is already drafting the list of pre-cue position claims for the watch item.
 
 ## Running
 
