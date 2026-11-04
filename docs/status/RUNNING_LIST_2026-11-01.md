@@ -1287,3 +1287,12 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   - New drop models in main: drop:licks_pre, drop:licks_iti, drop:both (all spontaneous licking).
   - Caveat: the tongue / jaw traces stay instructed over the whole trial.
   - Implementing on rebuild/encoder-classes.
+- **11-04 ~18:05: DECISION (Priya via a8, PROVISIONAL): spout-decoder and CD / pattern projection centre = Wt.**
+  - Wt = the true-label balanced centre on all working rows, with no EM and no pre-stroke fill.
+  - Robustness rows: N and Cto. The engagement axis stays z.
+  - Caveat: about -.024 drift under a high incomplete share.
+  - Passed to the port helper.
+- **QUEUED (after render):** re-run the 11-03 lick-direction frame check (decoder_mix_checks/lick/) on the rebuild
+  lick sets. Report per animal first, before / after.
+  - Note to a8: the fallback is 50 ms at close spouts, not > 100 ms.
+- **HOLD:** a rest-centred arm (restdock05 / restw frame), pending Priya.
