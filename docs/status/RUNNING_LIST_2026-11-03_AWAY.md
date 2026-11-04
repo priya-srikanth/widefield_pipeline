@@ -401,6 +401,9 @@ FYI, the 3-class camera variant (lick / jaw-only / none) is thin in PS92 and PS9
 
 ## Decisions taken today (Priya)
 
+- **(11-04) A contact vs incomplete figure panel for sections D and G** (frozen accuracy per spout, both classes, per
+  epoch, cue + precue; page conventions; min-n floor). Sent to 34 for the rebuild.
+
 - **(11-04) Split by CAMERA CLASS for essentially every analysis where it can and should apply** (contact /
   incomplete / jaw-only / none / after end), replacing DAQ lick / engaged / outcome groupings. First case: the G4 state
   discriminators. They currently train on DAQ lick vs no-lick, which is out of line with the camera-class rule, so the
