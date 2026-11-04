@@ -1163,3 +1163,12 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   - Implemented on rebuild/cue70.
   - Still open: does the quit tail start after the last lick EVENT? It is an option; the default stays the last lick
     trial.
+- **11-04 ~15:40: pose3d spout bias (e0, main bddf02e7).**
+  - Size: ap -1.02 mm (range -0.91 .. -1.07) and dv -0.14 in every session.
+  - Only the spout columns and the TARGET3D table are affected. Mouth zero, tongue / jaw xyz and the EXEC3D kinematics
+    are unchanged.
+  - **Decision (coordinator): option (b).** TARGET3D = the commanded spout positions (spout_world.commanded_world), as a
+    new tagged table pose3d_spout_positions_commanded_20261104.csv. e0 is building and verifying it.
+  - Why: it equals the corrected measurement to PnP residual; it needs no 2.5 h pose3d re-run; and lick aim uses
+    commanded targets too.
+  - Then the O2 bundle inputs are rebuilt (~1.5 h) and Priya does a full re-rsync.
