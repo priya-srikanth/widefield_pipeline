@@ -477,6 +477,9 @@ FYI, the 3-class camera variant (lick / jaw-only / none) is thin in PS92 and PS9
   with assumption checks (do the reference spouts change post-stroke? Priya expects yes). Output
   decoder_mix_checks/refspout_centre_1104/, docs/status/REFSPOUT_CENTRE_2026-11-04.md. Wt stays the rebuild default
   regardless.
+- (11-04) RUNNING (Priya asked): literature review on cross-session normalisation / frozen-decoder alignment. It
+  covers widefield longitudinal and stroke work, 2-photon drift, BCI recalibration, latent alignment and label-shift
+  adaptation. Output docs/LITERATURE_CROSS_SESSION_NORMALISATION_2026-11-04.md.
 
 - **(11-04) Centre = Wt FINAL**: the DAQ-label balanced centre on all working rows, for the frozen spout decoder +
   CD / pattern projections; the engagement axis stays z. Robustness rows N, Cto. DECISIONS 11-04 entry; sent to 34.
