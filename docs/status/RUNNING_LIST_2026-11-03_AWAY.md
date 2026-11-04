@@ -13,6 +13,35 @@ log for the earlier part of the day is `RUNNING_LIST_2026-11-02_OVERNIGHT.md`.
 
 ## Questions for Priya (newest first)
 
+10. **NEW (11-04): centre test result (docs/status/CENTRE_MIXSHIFT_2026-11-04.md, 2e809e8a). Switch the spout decoder
+    and the CD / pattern projections to "Cto"?** Cto = centre on CONTACT rows, true DAQ spout mix, thin spouts filled
+    with the animal's pre-stroke spout offsets.
+    - Production W (bal_em on working rows) drifts with the mix: -.025 overall. The cause is the incomplete pattern
+      (true-label working drifts the same), not the EM. The EM also gives acute far contra ~0 weight in PS92 / 94 / 95.
+    - Contact-row centres are stable, but plain contact is inflated (10 / 16 acute sessions have a spout with < 5
+      contacts). Cto is stable and agrees with Wt / Z where the mix is normal.
+    - Headlines W -> Cto:
+
+      | readout | W | Cto |
+      |---|---|---|
+      | cue far contra acute | .184 | .177 |
+      | overall acute | .570 | .620 |
+      | far contra chronic | .656 | .719 |
+      | precue far contra acute | .135 | .120 |
+      | CD far contra acute | -.051 | -.248 |
+      | pattern far contra | -.046 | -.187 |
+      | engagement axis | ~unchanged (z stable) | ~unchanged |
+
+    - Production z is NOT stable for the CD (+.147 drift); the engagement axis is fine in z.
+    - Caveats:
+      - Cto uses the session's DAQ spout labels in the centre (one offset vector);
+      - it assumes the pre-stroke spout offsets still hold;
+      - the mix-shift numbers are lower bounds;
+      - n = 4.
+
+    [Suggest: Cto for the spout decoder + CD / pattern; engagement axis z (Cto gives the same); W and N
+    (no-centre) as robustness rows.]
+
 9. **RUNNING (Priya OK 11-04): centre test for the SPOUT decoder and the C projections.** Frames: W = bal_em on
    working rows (production), C = bal_em on contact rows only, Z. Two tests: a direct post-stroke comparison (all
    animals) and a pre-stroke mix-shift (PS93 carries it). Write-up docs/status/CENTRE_MIXSHIFT_2026-11-04.md. Frozen
