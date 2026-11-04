@@ -68,16 +68,25 @@ def spout_scaling():
 #: with WIDEFIELD_STATE_DISC_SCALING=state_bal_em.
 STATE_DISC_SCALING_ENV = "WIDEFIELD_STATE_DISC_SCALING"
 SCALING_STATE_BAL_EM = "state_bal_em"
+#: The SPOUT bal_em frame for the state discriminators (Priya 11-03, item B): each session's rows centred exactly as
+#: the frozen SPOUT decoder centres them (EM over the six spouts, label-free; training sessions on their true spout
+#: class means), so the spout-mix shift of the engaged set is removed without centring on the state contrast itself.
+SCALING_SPOUT_FRAME = "spout_frame"
+STATE_DISC_DEFAULT = "session_z"
 
 
 def state_disc_scaling():
-    """``"state_bal_em"`` when opted in, else None (the production engaged-trial z-score, default)."""
-    v = os.environ.get(STATE_DISC_SCALING_ENV, "session_z").strip().lower()
+    """``"spout_frame"`` / ``"state_bal_em"`` / None (the production engaged-trial z-score) for the engagement-state
+    discriminators (``WIDEFIELD_STATE_DISC_SCALING``; default `STATE_DISC_DEFAULT`). ``spout_frame`` applies only while
+    the spout decoder itself is on bal_em."""
+    v = os.environ.get(STATE_DISC_SCALING_ENV, STATE_DISC_DEFAULT).strip().lower()
     if v in ("state_bal_em", "bal_em"):
         return SCALING_STATE_BAL_EM
+    if v in ("spout_frame", "spout", "spout_bal_em"):
+        return SCALING_SPOUT_FRAME if spout_scaling() else None
     if v in ("session_z", "z", "none", "off"):
         return None
-    raise ValueError(f"{STATE_DISC_SCALING_ENV}={v!r}: expected state_bal_em or session_z")
+    raise ValueError(f"{STATE_DISC_SCALING_ENV}={v!r}: expected spout_frame, state_bal_em or session_z")
 
 
 def scaling_params():
@@ -87,14 +96,20 @@ def scaling_params():
             "train_centre": "true_class_means_equal_weight"}
 
 
-def spec_kw(scaling="env"):
-    """``{"scaling": ..., "scaling_params": ...}`` for `frozen_models.make_spec`; EMPTY under session_z so that spec
-    (and its id) is byte-identical to the pre-11-03 one."""
+def spec_kw(scaling="env", trials=None):
+    """``{"scaling": ..., "scaling_params": ...}`` for `frozen_models.make_spec`; EMPTY under session_z with the
+    engaged training set, so that spec (and its id) is byte-identical to the pre-11-03 one. ``trials`` = the training
+    trial selection when it is NOT the engaged set (the camera working trials, `working_trials.tag()`, Priya 11-03):
+    recorded as ``scaling_params["trials"]``, so a working-trained model never shares an id with an engaged one."""
     if scaling == "env":
         scaling = spout_scaling()
     if scaling is None:
-        return {}
-    return {"scaling": scaling, "scaling_params": scaling_params()}
+        return {} if trials is None else {"scaling_params": {"trials": trials}}
+    params = scaling_params()
+    if trials is not None:
+        params["trials"] = trials
+        params["centre_set"] = "working"
+    return {"scaling": scaling, "scaling_params": params}
 
 
 # ------------------------------------------------------------------------------------------------ training side
@@ -195,6 +210,7 @@ class FrozenFrame:
         if classes is None:
             classes = sorted(int(c) for c in np.unique(self.YE[tm]))
         self.classes = list(classes)
+        self._tc = {}
         if self.scaling:
             self.XT = self.XE.copy()
             for i in self.train_sessions:
@@ -202,7 +218,9 @@ class FrozenFrame:
                 rows = m & tm
                 if rows.any():
                     c = label_shift.balanced_centre(self.XE[rows], self.YE[rows], self.classes)
-                    self.XT[m] = (self.XE[m] - c) / label_shift.session_sd(self.XE[m])
+                    sd = label_shift.session_sd(self.XE[m])
+                    self.XT[m] = (self.XE[m] - c) / sd
+                    self._tc[i] = (c, sd)
         else:
             self.XT = self.XE
         self.full = pipe().fit(self.XT[tm], self.YE[tm])
@@ -237,6 +255,14 @@ class FrozenFrame:
         mu, sd = self.centre(i, which)
         return (np.asarray(X, float) - mu) / sd
 
+    def train_apply(self, X, i):
+        """Rows of TRAINING session ``i`` (any rows: engaged or no-lick) in the training frame (its true-class-mean
+        centre and SD). The input under session_z, or for a session that is not a training session."""
+        if not self.scaling or i not in self._tc:
+            return X
+        c, sd = self._tc[i]
+        return (np.asarray(X, float) - c) / sd
+
     def apply_rows(self, X, G, which="full"):
         """``apply`` for a stack of rows from several sessions (``G`` = their session ids)."""
         if not self.scaling:
@@ -258,7 +284,7 @@ def state_train_frame(XE, GE, XU, GU, sel_e, sel_u, sessions, scaling="env"):
     shift is applied to all of that session's rows. The input arrays themselves unless opted in
     (``WIDEFIELD_STATE_DISC_SCALING=state_bal_em``; default OFF, see `state_disc_scaling`)."""
     sc = state_disc_scaling() if scaling == "env" else scaling
-    if not sc:
+    if sc != SCALING_STATE_BAL_EM:
         return XE, XU
     XE, XU = np.asarray(XE, float), np.asarray(XU, float)
     GE, GU = np.asarray(GE), np.asarray(GU)
@@ -290,7 +316,7 @@ def state_scored(model, pi_train, XE, GE, XU, GU, sel_e, sel_u, sessions, scalin
     frame (centre from that session's ``sel_e`` engaged + ``sel_u`` no-lick rows). The inputs unless opted in
     (``WIDEFIELD_STATE_DISC_SCALING=state_bal_em``; default OFF)."""
     sc = state_disc_scaling() if scaling == "env" else scaling
-    if not sc:
+    if sc != SCALING_STATE_BAL_EM:
         return XE, XU
     XE, XU = np.asarray(XE, float), np.asarray(XU, float)
     GE, GU = np.asarray(GE), np.asarray(GU)
@@ -336,3 +362,40 @@ def scored_frame(XE, GE, XU, GU, sessions, model_of, prior_of):
         if mu_.any():
             XUs[mu_] = Zu
     return XEs, XUs
+
+
+# ------------------------------------------------------------------------- axes / CDs / pattern templates
+#: The PROJECTION frame (Priya 11-03, item C): coding directions, pole projections, the engagement axis, pairwise
+#: position axes, attempt axes and the pattern / template families project rows centred exactly as the frozen spout
+#: decoder centres them, so a session's class mix no longer shifts every projection. ``spout_frame`` uses the
+#: ENGAGED-row EM centre of the lick-gate (engaged-trained) spout model for every alignment -- label-free for every
+#: session (pre sessions by their leave-one-out model), and no camera needed, so no session drops out of a projection;
+#: ``session_z`` = the production engaged-trial z-score (the previous behaviour). Default set by the C check.
+PROJECTION_FRAME_ENV = "WIDEFIELD_PROJECTION_FRAME"
+PROJECTION_DEFAULT = "session_z"
+
+
+def projection_frame_on() -> bool:
+    v = os.environ.get(PROJECTION_FRAME_ENV, PROJECTION_DEFAULT).strip().lower()
+    if v in ("spout_frame", "spout", "bal_em"):
+        return spout_scaling() is not None
+    if v in ("session_z", "z", "off", "none"):
+        return False
+    raise ValueError(f"{PROJECTION_FRAME_ENV}={v!r}: expected spout_frame or session_z")
+
+
+def projection_arrays(XE, YE, GE, XU, GU, pre_sessions, pipe):
+    """``(XE, XU)`` for projection: every session moved into the spout decoder's scoring frame (centre = label-free
+    EM centre of its ENGAGED rows; pre sessions under their leave-one-out model, others under the full model). The
+    inputs themselves when the projection frame is off."""
+    if not projection_frame_on():
+        return XE, XU
+    ff = FrozenFrame(XE, YE, GE, sorted(pre_sessions), pipe, loso=True)
+    XEp, XUp = np.array(XE, float), np.array(XU, float)
+    GE, GU = np.asarray(GE), np.asarray(GU)
+    for i in np.unique(GE):
+        which = "loso" if i in ff.loso else "full"
+        XEp[GE == i] = ff.apply(XE[GE == i], i, which)
+        if len(GU) and np.any(GU == i):
+            XUp[GU == i] = ff.apply(XU[GU == i], i, which)
+    return XEp, XUp

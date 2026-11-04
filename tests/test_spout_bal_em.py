@@ -296,3 +296,37 @@ def test_lick_helpers_are_identity_by_default(monkeypatch):
     assert pc._lick_train(d, [0, 1, 2, 3, 4, 5]) is d
     A, B = pc._lick_scored(d, [0, 1], None, None, [5], d)
     assert A is XE and B is XU
+
+
+# ------------------------------------------------------------------ (f) items B / C (Priya 11-03)
+def test_spout_frame_mode_needs_the_spout_decoder_on_bal_em(monkeypatch):
+    monkeypatch.setenv(ss.STATE_DISC_SCALING_ENV, "spout_frame")
+    monkeypatch.delenv(ss.SPOUT_SCALING_ENV, raising=False)
+    assert ss.state_disc_scaling() == ss.SCALING_SPOUT_FRAME
+    monkeypatch.setenv(ss.SPOUT_SCALING_ENV, "session_z")
+    assert ss.state_disc_scaling() is None
+
+
+def test_projection_arrays_identity_when_off_and_label_free_when_on(monkeypatch):
+    XE, YE, GE, XU, YU, GU, kept, pre_i = _pool()
+    monkeypatch.setenv(ss.PROJECTION_FRAME_ENV, "session_z")
+    A, B = ss.projection_arrays(XE, YE, GE, XU, GU, pre_i, _pipe_factory)
+    assert A is XE and B is XU
+    monkeypatch.setenv(ss.PROJECTION_FRAME_ENV, "spout_frame")
+    monkeypatch.delenv(ss.SPOUT_SCALING_ENV, raising=False)
+    A1, B1 = ss.projection_arrays(XE, YE, GE, XU, GU, pre_i, _pipe_factory)
+    ys = YE.copy()
+    post = ~np.isin(GE, pre_i)
+    ys[post] = np.random.default_rng(4).permutation(ys[post])
+    A2, B2 = ss.projection_arrays(XE, ys, GE, XU, GU, pre_i, _pipe_factory)
+    assert np.array_equal(A1, A2) and np.array_equal(B1, B2)
+    assert not np.array_equal(A1, XE)
+
+
+def test_frozen_frame_train_apply_matches_the_training_rows(monkeypatch):
+    monkeypatch.delenv(ss.SPOUT_SCALING_ENV, raising=False)
+    XE, YE, GE, XU, YU, GU, kept, pre_i = _pool()
+    ff = ss.FrozenFrame(XE, YE, GE, pre_i, _pipe_factory, loso=False)
+    for i in pre_i:
+        assert np.allclose(ff.train_apply(XE[GE == i], i), ff.XT[GE == i], atol=0, rtol=0)
+    assert ff.train_apply(XE[GE == 6], 6) is not None

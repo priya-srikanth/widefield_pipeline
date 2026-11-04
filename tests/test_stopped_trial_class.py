@@ -141,8 +141,11 @@ def test_pre_panel_is_licking_only_for_lick_and_working():
     src = inspect.getsource(G._collect_5c)
     pre = src[src.index("PRE: leave-one-session-out"):]
     pre = pre[:pre.index("by_day = {}")]
-    assert 'if variant == "stopped":' in pre, (
-        "the pre branch must special-case `stopped`; routing every variant through "
-        "`_class_select` here re-adds miss-while-working trials to the pre panel")
+    # 2026-11-03 (Priya): under the CAMERA working selection (`working_trials`, in_working on BOTH sides) the pre panel
+    # of `working` is the held-out pre session's camera working trials -- deliberately, ``uw``. Under the quit-tail
+    # selection (WIDEFIELD_WORKING_TRIALS=quit_tail) the rule pinned here still holds: only `stopped` takes rows.
+    assert 'if variant == "stopped" or uw:' in pre, (
+        "the pre branch must special-case `stopped` (and only the camera working selection besides); routing every "
+        "variant through `_class_select` here re-adds miss-while-working trials to the pre panel")
     assert "mu_te = np.zeros(len(GU), bool)" in pre, (
         "lick/working must contribute NO unengaged rows to the pre panel")

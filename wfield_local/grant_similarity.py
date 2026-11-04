@@ -69,6 +69,7 @@ from wfield_local.grant_kit import (  # noqa: F401
     _overlaps,
     _pct3,
     _pooled_bundle,
+    _proj_arrays,
     _position_metrics,
     _pre_reference,
     _runs_to_blocks,
@@ -115,6 +116,7 @@ def fig_pattern_similarity_per_session(out_dir, min_trials=10):
                 # read the same trials by construction, not by two recipes agreeing.
                 bd = _pooled_bundle(an, align)
                 XE, GE, XU, GU = bd["XE"], bd["GE"], bd["XU"], bd["GU"]
+                XE, XU = _proj_arrays(bd)          # the projection frame (Priya 11-03, item C); identity when off
                 kept, pre_i, e_pre = bd["kept"], bd["pre_i"], bd["e_pre"]
                 not_eng, en, un = bd["not_eng"], bd["en"], bd["un"]
                 # THE REFERENCE IS ALL PRE-STROKE TRIALS; the no-lesion column is LEAVE-ONE-SESSION-
@@ -149,7 +151,8 @@ def fig_pattern_similarity_per_session(out_dir, min_trials=10):
                         pat = {}
                         for q in CONF_LABELS:
                             _me, _mu = _class_select(v, (GE == i) & (en == q),
-                                                     (GU == i) & (un == q), not_eng)
+                                                     (GU == i) & (un == q), not_eng,
+                                                     work=(bd.get("work_e"), bd.get("work_u")))
                             parts = [XE[_me]] + ([XU[_mu]] if _mu.any() else [])
                             Xp = [z for z in parts if len(z)]
                             if Xp:
@@ -376,6 +379,7 @@ def fig_pattern_similarity(out_dir, min_trials=10):
                 # not over a pooled trial mask, so trials are selected per session below.
                 bd = _pooled_bundle(an, align)
                 XE, GE, XU, GU = bd["XE"], bd["GE"], bd["XU"], bd["GU"]
+                XE, XU = _proj_arrays(bd)          # the projection frame (Priya 11-03, item C); identity when off
                 kept, pre_i = bd["kept"], bd["pre_i"]
                 not_eng, en, un = bd["not_eng"], bd["en"], bd["un"]
                 # SPLIT THE PRE-STROKE **SESSIONS**, NOT THE TRIALS (corrected 2026-08-25).
@@ -419,7 +423,8 @@ def fig_pattern_similarity(out_dir, min_trials=10):
                         by_sess, tot = [], 0
                         for i in post_ids:
                             _me, _mu = _class_select(v, (GE == i) & (en == p),
-                                                     (GU == i) & (un == p), not_eng)
+                                                     (GU == i) & (un == p), not_eng,
+                                                     work=(bd.get("work_e"), bd.get("work_u")))
                             parts = [XE[_me]] + ([XU[_mu]] if _mu.any() else [])
                             keep = [q for q in parts if len(q)]
                             if keep:
@@ -756,7 +761,7 @@ def _disattenuated_ci(align, variant, min_trials=10, n_boot=200):
             # per-day result could be cached and reused. One fix, both problems.
             rec = _boot_cached(
                 "7b_disatt", (pre_key, day_x[d], day_b[d], params),
-                lambda an=an, d=d: _disatt_one(
+                lambda an=an, d=d, pre_x=pre_x, pre_b=pre_b, day_x=day_x, day_b=day_b: _disatt_one(
                     pre_x, pre_b, day_x[d], day_b[d],
                     np.random.default_rng(_seed(an, align, variant, d, "7bci")), n_boot))
             if rec:

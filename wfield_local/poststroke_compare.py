@@ -32,6 +32,7 @@ from wfield_local.locanmf_frozen_decoder import (
     _pipe,
     frozen_decoder_models,
     frozen_scored_frame,
+    pool_work,
     pool_sessions,
 )
 from wfield_local.plot_lick_aligned_averages import DISPLAY_ORDER, POSITION_NAMES
@@ -88,7 +89,9 @@ def _pooled(animal, align, source="roi", post_labels=None):
         post = [l for l in post_labels if l.startswith(animal)]
     if not pre or not post:
         return None
-    p = pool_sessions(pre + post, source=source, align=align, post_s=2.0)
+    from wfield_local import working_trials as _wt
+    feat = _wt.roi_features_with_indices() if source == "roi" else None
+    p = pool_sessions(pre + post, source=source, align=align, post_s=2.0, features=feat)
     if p is None:
         return None
     XE, YE, GE, BE, XU, YU, kept, _common, GU = p
@@ -100,7 +103,7 @@ def _pooled(animal, align, source="roi", post_labels=None):
             # `poststroke_section_g` to isolate one session at a time; `align`/`source` are not, and
             # `frozen` must key on the pre-stroke training set rather than on whatever comparison
             # arm the caller has narrowed to, or every narrowing would look like a new model.
-            "align": align, "source": source,
+            "align": align, "source": source, "_features": feat,
             # DELIBERATELY NOT the frozen model itself. It is loaded lazily and memoised on first
             # use, so a caller that never needs it never pays for it.
             "_frozen_cache": {}}
@@ -168,8 +171,11 @@ def _lick_train(d, keep):
     and no-lick means over the ``keep`` positions. OPT-IN (``WIDEFIELD_STATE_DISC_SCALING=state_bal_em``), default OFF:
     ``d`` itself (it fails the discriminator's own pre-stroke check; DECISIONS 2026-11-03, `spout_scaling`)."""
     from wfield_local import spout_scaling as _ss
-    if not _ss.state_disc_scaling():
+    mode = _ss.state_disc_scaling()
+    if not mode:
         return d
+    if mode == _ss.SCALING_SPOUT_FRAME:
+        return _spout_train_d(d)
     XE, XU = _ss.state_train_frame(d["XE"], d["GE"], d["XU"], d["GU"], np.isin(d["YE"], keep),
                                    np.isin(d["YU"], keep), sorted(d["pre_i"]))
     dT = dict(d)
@@ -182,14 +188,48 @@ def _lick_scored(d, keep, clf, y_train, sessions, base):
     scoring frame (centre from that session's PRODUCTION-frame engaged + no-lick rows at the ``keep`` positions,
     equal weight over the two states, production SD). ``base``'s own arrays under session_z."""
     from wfield_local import spout_scaling as _ss
-    if not _ss.state_disc_scaling():
+    mode = _ss.state_disc_scaling()
+    if not mode:
         return base["XE"], base["XU"]
-    XEs, XUs = _ss.state_scored(clf, _ss.model_prior(clf, y_train), d["XE"], d["GE"], d["XU"], d["GU"],
+    if mode == _ss.SCALING_SPOUT_FRAME:
+        # the scored sessions in the frozen SPOUT decoder's scoring frame (`frozen_X`): the discriminator itself plays
+        # no part in the centre
+        XEs, XUs = frozen_X(d)
+    else:
+        XEs, XUs = _ss.state_scored(clf, _ss.model_prior(clf, y_train), d["XE"], d["GE"], d["XU"], d["GU"],
                                 np.isin(d["YE"], keep), np.isin(d["YU"], keep), sorted(sessions))
     oE, oU = np.array(base["XE"], float), np.array(base["XU"], float)
     mE, mU = np.isin(d["GE"], list(sessions)), np.isin(d["GU"], list(sessions))
     oE[mE], oU[mU] = XEs[mE], XUs[mU]
     return oE, oU
+
+
+def _spout_train_d(d):
+    """``d`` with every pre-stroke session in the frozen SPOUT decoder's TRAINING frame (its true spout-class means
+    over the rows the model was trained on -- working rows for cue / precue, engaged rows for the lick window -- and
+    that row set's SD), for the state discriminators' ``spout_frame`` mode (Priya 11-03, item B). Pre sessions the
+    spout model was not trained on (no camera classes) leave ``pre_i``. ``d`` itself when no stored model."""
+    from wfield_local import label_shift
+    from wfield_local.locanmf_frozen_decoder import working_rows
+    models = frozen(d)
+    if not models or "pi_train" not in models:
+        return d
+    R = working_rows(d["_frozen_cache"].get("work")) or (d["XE"], d["YE"], d["GE"])
+    RX, RY, RG = R
+    XE, XU = np.array(d["XE"], float), np.array(d["XU"], float)
+    keep = set()
+    for i in sorted(d["pre_i"]):
+        if d["kept"][i] not in models["loso"] or not np.any(RG == i):
+            continue
+        c = label_shift.balanced_centre(RX[RG == i], RY[RG == i], range(6))
+        sd = label_shift.session_sd(RX[RG == i])
+        XE[d["GE"] == i] = (XE[d["GE"] == i] - c) / sd
+        if len(d["GU"]):
+            XU[d["GU"] == i] = (XU[d["GU"] == i] - c) / sd
+        keep.add(i)
+    dT = dict(d)
+    dT["XE"], dT["XU"], dT["pre_i"] = XE, XU, keep
+    return dT
 
 
 def preserved_positions(d, session=None, combine="intersection"):
@@ -244,9 +284,12 @@ def frozen(d):
         return None
     if "models" not in cache:
         try:
+            # trained on the pre-stroke CAMERA WORKING trials for cue / precue (Priya 11-03, `pool_work`)
+            cache["work"] = pool_work(d["XE"], d["YE"], d["GE"], d["XU"], d["YU"], d["GU"], d["kept"],
+                                      d.get("_features"), d["align"])
             models, _status = frozen_decoder_models(
                 d["XE"], d["YE"], d["GE"], d["kept"], d["pre_i"],
-                align=d["align"], source=d["source"])
+                align=d["align"], source=d["source"], work=cache["work"])
         except Exception as ex:                                        # noqa: BLE001
             print(f"  [frozen] unavailable ({type(ex).__name__} {str(ex)[:70]}); fitting locally",
                   flush=True)
@@ -269,8 +312,25 @@ def frozen_X(d):
     if models is None or cache is None:
         return d["XE"], d["XU"]
     if "X" not in cache:
-        cache["X"] = frozen_scored_frame(models, d["XE"], d["GE"], d["XU"], d["GU"], d["kept"], d["pre_i"])
+        cache["X"] = frozen_scored_frame(models, d["XE"], d["GE"], d["XU"], d["GU"], d["kept"], d["pre_i"],
+                                         work=cache.get("work"))
     return cache["X"]
+
+
+def _proj_X(d):
+    """``(XE, XU)`` for the pattern readouts in the projection frame (Priya 11-03, item C;
+    `spout_scaling.projection_arrays`: the spout decoder's engaged-row EM centre), memoised on ``d``; ``d``'s own
+    rows when the projection frame is off."""
+    from wfield_local import spout_scaling as _ss
+    if not _ss.projection_frame_on():
+        return d["XE"], d["XU"]
+    cache = d.get("_frozen_cache")
+    if cache is not None and "proj" in cache:
+        return cache["proj"]
+    out = _ss.projection_arrays(d["XE"], d["YE"], d["GE"], d["XU"], d["GU"], d["pre_i"], _pipe)
+    if cache is not None:
+        cache["proj"] = out
+    return out
 
 
 def preserved_positions_by_session(d):
@@ -308,6 +368,9 @@ def decode_matched(d, keep, post_all_trials=True):
     # stays on the production frame.
     XEf, XUf = frozen_X(d) if models is not None else (d["XE"], d["XU"])
     if models is not None:
+        # a pre session with no LOSO model (dropped from a camera-working training set: no video, PS93_0813) has no
+        # pre-band entry
+        tr = tr & np.isin(d["GE"], [i for i in d["pre_i"] if d["kept"][i] in models["loso"]])
         clf = models["full"]
         pre_pred = np.empty_like(d["YE"][tr])
         _gi = d["GE"][tr]
@@ -389,6 +452,9 @@ def looks_like_which(d, keep, seed=0):
     X, y, grp = sample
     clf = lick_pipe().fit(X, y)
     XEs, XUs = _lick_scored(d, keep, clf, y, sorted(d["post_i"]), dT)
+    # the pre reference rows: the sessions the frame kept (all of them unless spout_frame dropped a no-camera one)
+    pre_e = np.isin(d["GE"], list(dT["pre_i"])) & np.isin(d["YE"], keep)
+    pre_u = np.isin(d["GU"], list(dT["pre_i"])) & np.isin(d["YU"], keep)
     # how well does it separate the two PRE-stroke states at all? without this the post-stroke
     # answer is uninterpretable -- a coin-flip discriminator says nothing.
     # GROUPED by session. An ungrouped cv=5 puts trials from one session on both sides of a fold, and
@@ -499,7 +565,7 @@ def fits_engaged_distribution(d, keep, seed=0, n_boot=2000):
         return lick_pipe().fit(X, y), y
 
     ref = {"engaged": {}, "nolick": {}}
-    for i in sorted(d["pre_i"]):
+    for i in sorted(dT["pre_i"]):
         got = balanced_fit(exclude_session=i)
         if got is None:
             continue
@@ -587,16 +653,18 @@ def pattern_similarity(d, keep, post_all_trials=True):
     measure only trial noise, giving a ceiling no across-day comparison can reach -- the error this
     docstring exists to prevent recurring.
     """
+    # THE PROJECTION FRAME (Priya 11-03, item C; `_proj_X`): identity when off
+    _PX, _PU = _proj_X(d)
     # ALL six positions when the post arm is all-trials: restricting to `keep` would silently drop
     # far_center and far_R for PS94, which are the positions this comparison most needs to describe.
     pos = list(DISPLAY_ORDER) if post_all_trials else list(keep)
     out = {}
     pre_sessions = sorted(d["pre_i"])
     for c in pos:
-        a = d["XE"][np.isin(d["GE"], list(d["pre_i"])) & (d["YE"] == c)]
-        b = d["XE"][np.isin(d["GE"], list(d["post_i"])) & (d["YE"] == c)]
+        a = _PX[np.isin(d["GE"], list(d["pre_i"])) & (d["YE"] == c)]
+        b = _PX[np.isin(d["GE"], list(d["post_i"])) & (d["YE"] == c)]
         if post_all_trials:
-            bu = d["XU"][np.isin(d["GU"], list(d["post_i"])) & (d["YU"] == c)]
+            bu = _PU[np.isin(d["GU"], list(d["post_i"])) & (d["YU"] == c)]
             if len(bu):
                 b = np.vstack([b, bu]) if len(b) else bu
         if len(a) < 5 or len(b) < 5:
@@ -604,8 +672,8 @@ def pattern_similarity(d, keep, post_all_trials=True):
         ma, mb = a.mean(0), b.mean(0)
         loo = []
         for s in pre_sessions:
-            h = d["XE"][(d["GE"] == s) & (d["YE"] == c)]
-            r = d["XE"][np.isin(d["GE"], [x for x in pre_sessions if x != s]) & (d["YE"] == c)]
+            h = _PX[(d["GE"] == s) & (d["YE"] == c)]
+            r = _PX[np.isin(d["GE"], [x for x in pre_sessions if x != s]) & (d["YE"] == c)]
             if len(h) >= 5 and len(r) >= 5:
                 mh, mr = h.mean(0), r.mean(0)
                 if np.std(mh) and np.std(mr):
@@ -649,6 +717,8 @@ def crossed_confusion(d, labels=DISPLAY_ORDER, post_all_trials=False,
     XEf, XUf = frozen_X(d) if models else (d["XE"], d["XU"])
 
     # PRE: engaged only, leave-one-session-out -- the reference for a code with a successful movement.
+    if models:                  # pre sessions without a LOSO model (no camera classes) have no pre panel rows
+        tr = tr & np.isin(d["GE"], [i for i in d["pre_i"] if d["kept"][i] in models["loso"]])
     pre_y = d["YE"][tr]
     if models:
         pre_p = np.empty_like(pre_y)
@@ -682,6 +752,8 @@ def crossed_confusion(d, labels=DISPLAY_ORDER, post_all_trials=False,
             # session's -- keyed by label rather than by the pooled index, which depends on the
             # order the pool was assembled and this does not.
             mdl = (models["loso"].get(d["kept"][int(gsess)]) if models else None)
+            if models and mdl is None:
+                continue              # no LOSO model: dropped from the camera-working training set (no video)
             if mdl is None:
                 mdl = _pipe().fit(d["XE"][trn], d["YE"][trn])
                 pre_nl_p[hold] = mdl.predict(d["XU"][pre_u][hold])

@@ -322,7 +322,8 @@ def pooled_frozen_encoder(labels, source="roi", align="cue", post_s=2.0, alpha=1
     return res
 
 
-def decoder_spec(XE, kept, pre_i, *, align, source, post_s=2.0, zscore=True, basis_id=None, scaling="env"):
+def decoder_spec(XE, kept, pre_i, *, align, source, post_s=2.0, zscore=True, basis_id=None, scaling="env",
+                 trials=None):
     """The frozen-decoder spec for one pooled set -- the identity `frozen_models` stores it under.
 
     WHY THIS IS SEPARATE FROM `frozen_decoder_models`. `pooled_frozen_loso` needs the spec_id for its
@@ -339,11 +340,34 @@ def decoder_spec(XE, kept, pre_i, *, align, source, post_s=2.0, zscore=True, bas
     return frozen_models.make_spec(
         config.animal_of(kept[0]), "decoder", align=align, source=source,
         train_labels=[kept[i] for i in sorted(pre_i)], post_s=post_s, zscore=zscore,
-        basis_id=basis_id, n_features=int(XE.shape[1]), **spout_scaling.spec_kw(scaling))
+        basis_id=basis_id, n_features=int(XE.shape[1]), **spout_scaling.spec_kw(scaling, trials))
+
+
+def working_rows(work):
+    """``(RX, RY, RG)`` = the camera WORKING rows of a pool (engaged and no-lick stacked), or None. ``work`` =
+    ``{"XE", "YE", "GE", "XU", "YU", "GU", "work_e", "work_u"}`` (`working_trials.row_masks`)."""
+    if work is None:
+        return None
+    we, wu = work["work_e"], work["work_u"]
+    RX = np.vstack([work["XE"][we], work["XU"][wu]])
+    RY = np.concatenate([work["YE"][we], np.asarray(work["YU"])[wu].astype(np.asarray(work["YE"]).dtype)])
+    RG = np.concatenate([np.asarray(work["GE"])[we], np.asarray(work["GU"])[wu]])
+    return RX, RY, RG
+
+
+def pool_work(XE, YE, GE, XU, YU, GU, kept, features, align):
+    """The ``work`` dict of `frozen_decoder_models` for a pool, when the camera working selection applies (cue /
+    precue window, ``WIDEFIELD_WORKING_TRIALS=in_working``, a feature builder that kept cue ``.indices``); else
+    None (the engaged training set, the lick gate)."""
+    from wfield_local import working_trials as wt
+    if align == "lick" or wt.selection() != wt.IN_WORKING or not hasattr(features, "indices"):
+        return None
+    we, wu, _have = wt.row_masks(kept, features.indices, GE, GU)
+    return {"XE": XE, "YE": YE, "GE": GE, "XU": XU, "YU": YU, "GU": GU, "work_e": we, "work_u": wu}
 
 
 def frozen_decoder_models(XE, YE, GE, kept, pre_i, *, align, source, post_s=2.0, zscore=True,
-                          basis_id=None, log=print, scaling="env"):
+                          basis_id=None, log=print, scaling="env", work=None):
     """The stored PRE-stroke position decoder for one pooled set: ``(models, status)``.
 
     ``models`` is ``{"full": pipeline, "loso": {held_out_label: pipeline}}`` -- ``full`` is fitted on
@@ -374,9 +398,19 @@ def frozen_decoder_models(XE, YE, GE, kept, pre_i, *, align, source, post_s=2.0,
     changes the width for every session in it.
     """
     from wfield_local import spout_scaling
+    from wfield_local import working_trials as wt
     pre_i = sorted(pre_i)
     if scaling == "env":
         scaling = spout_scaling.spout_scaling()
+    # THE TRAINING TRIALS (Priya 11-03): with ``work`` (cue / precue, `pool_work`) the pre-stroke CAMERA WORKING
+    # trials -- engaged and no-lick rows -- of the pre sessions that have camera classes (PS93_0813 has none); else
+    # the engaged trials (the lick gate). The spec records which (``scaling_params["trials"]``).
+    R = working_rows(work)
+    trials = None
+    if R is not None:
+        trials = wt.tag()
+        XE, YE, GE = R
+        pre_i = [i for i in pre_i if np.any(GE == i)]
     # ``XE`` is the PRODUCTION frame (`pool_sessions`' engaged-trial z-score). Under bal_em (production since
     # 2026-11-03) the TRAINING rows are each pre session re-centred on the equal-weight mean of its TRUE class means;
     # a scored session is moved into its scoring frame by `frozen_scored_frame` (label-free EM centre).
@@ -390,6 +424,9 @@ def frozen_decoder_models(XE, YE, GE, kept, pre_i, *, align, source, post_s=2.0,
                "loso": {kept[i]: _pipe().fit(XT[np.isin(GE, [j for j in pre_i if j != i])],
                                              YE[np.isin(GE, [j for j in pre_i if j != i])])
                         for i in pre_i}}
+        if trials is not None:
+            out["trials"] = trials
+            out["pre_labels"] = [kept[i] for i in pre_i]
         if scaling:
             # THE EM'S TRAINING PRIOR travels with the model: the class mix of the engaged trials that trained it
             # (for a LOSO model, never the held-out session's). Training labels only.
@@ -401,11 +438,12 @@ def frozen_decoder_models(XE, YE, GE, kept, pre_i, *, align, source, post_s=2.0,
 
     return frozen_models.load_or_fit(
         decoder_spec(XE, kept, pre_i, align=align, source=source, post_s=post_s, zscore=zscore,
-                     basis_id=basis_id, scaling=scaling),
-        _fit_all, meta={"n_engaged": int(len(YE)), "n_pooled_sessions": len(kept)}, log=log)
+                     basis_id=basis_id, scaling=scaling, trials=trials),
+        _fit_all, meta={"n_engaged": int(len(YE)), "n_pooled_sessions": len(kept), "trials": trials or "engaged"},
+        log=log)
 
 
-def frozen_scored_frame(models, XE, GE, XU, GU, kept, pre_i):
+def frozen_scored_frame(models, XE, GE, XU, GU, kept, pre_i, work=None):
     """``(XE_scored, XU_scored)``: the features the FROZEN models must be applied to.
 
     Under ``session_z`` (models without ``pi_train``) this is ``(XE, XU)`` unchanged -- the pre-11-03 behaviour,
@@ -416,6 +454,28 @@ def frozen_scored_frame(models, XE, GE, XU, GU, kept, pre_i):
     from wfield_local import spout_scaling
     if not models or "pi_train" not in models:
         return XE, XU
+    if models.get("trials"):
+        # a WORKING-trained model: each session's centre comes from ITS camera working rows (``work``, the same
+        # `pool_work` dict the models were fitted from); a session with none is left in the production frame
+        if work is None:
+            raise ValueError("a working-trained frozen model needs the pool's `work` rows to centre a session")
+        RX, _RY, RG = working_rows(work)
+        pre_set = set(kept.index(lab) for lab in models.get("pre_labels", []) if lab in kept)
+        XEs, XUs = np.array(XE, float), np.array(XU, float)
+        GE_, GU_ = np.asarray(GE), np.asarray(GU)
+        for i in range(len(kept)):
+            C = RX[RG == i]
+            if not len(C):
+                continue
+            lab = kept[i]
+            mdl = models["loso"].get(lab, models["full"]) if i in pre_set else models["full"]
+            pt = models["pi_train"]
+            pi = pt["loso"].get(lab, pt["full"]) if i in pre_set else pt["full"]
+            mu, sd = spout_scaling.score_centre(mdl, C, pi)
+            XEs[GE_ == i] = (XE[GE_ == i] - mu) / sd
+            if len(GU_) and np.any(GU_ == i):
+                XUs[GU_ == i] = (XU[GU_ == i] - mu) / sd
+        return XEs, XUs
     pre_set = set(pre_i)
 
     def model_of(i):
@@ -447,6 +507,11 @@ def pooled_frozen_loso(labels, source="roi", align="cue", post_s=2.0, zscore=Tru
         same-day ceiling. LOSO minus this is the true cost of freezing across days.
       * ``ood`` -- the out-of-distribution control (see :func:`ood_control`).
     """
+    # the ROI builder that also keeps cue indices, so the pool can be mapped onto the camera working trials (Priya
+    # 11-03, `working_trials`); same features, not cached either way
+    from wfield_local import working_trials as _wt
+    if features is None and source == "roi" and align != "lick" and _wt.selection() == _wt.IN_WORKING:
+        features = _wt.roi_features_with_indices()
     pooled = pool_sessions(labels, source=source, align=align, post_s=post_s, zscore=zscore,
                            features=features)
     if pooled is None:
@@ -484,10 +549,17 @@ def pooled_frozen_loso(labels, source="roi", align="cue", post_s=2.0, zscore=Tru
     # different model than the one that produced the numbers.
     _spec_kw = dict(align=align, source=source, post_s=post_s, zscore=zscore,
                     basis_id=getattr(features, "basis_id", None))
-    models, freeze_status = frozen_decoder_models(XE, YE, GE, kept, pre_i, **_spec_kw)
+    # TRAINED ON THE PRE-STROKE CAMERA WORKING TRIALS for cue / precue (Priya 11-03, `pool_work`); the reported
+    # (scored) set stays this section's engaged trials. A pre session without camera classes (PS93_0813) is not in a
+    # working training set, so it leaves the pre band too.
+    work = pool_work(XE, YE, GE, XU, YU, GU, kept, features, align)
+    models, freeze_status = frozen_decoder_models(XE, YE, GE, kept, pre_i, work=work, **_spec_kw)
+    if work is not None:
+        pre_i = [i for i in pre_i if kept[i] in models["loso"]]
+    _spec_kw["trials"] = models.get("trials")
     # THE FRAME THE FROZEN MODELS SCORE IN (bal_em since 2026-11-03; identity under session_z). The within-session
     # ceiling below stays on the production frame: it is refitted per session and never meets the frozen model.
-    XEs, XUs = frozen_scored_frame(models, XE, GE, XU, GU, kept, pre_i)
+    XEs, XUs = frozen_scored_frame(models, XE, GE, XU, GU, kept, pre_i, work=work)
 
     pred = np.empty_like(YE)
     for i in pre_i:                      # reference arm: LOSO among PRE-stroke sessions only
@@ -501,7 +573,10 @@ def pooled_frozen_loso(labels, source="roi", align="cue", post_s=2.0, zscore=Tru
     # its own" asks. Mixing post-stroke sessions into it answers a different question.
     m_pre = np.isin(GE, pre_i)
     loso = float(accuracy_score(YE[m_pre], pred[m_pre]))
-    per_sess = {lab: float(accuracy_score(YE[GE == i], pred[GE == i])) for i, lab in enumerate(kept)}
+    # SCORED sessions only: a pre session dropped from a working training set (no camera classes) has no LOSO model
+    # and no band entry.
+    scored = set(pre_i) | set(post_i)
+    per_sess = {lab: float(accuracy_score(YE[GE == i], pred[GE == i])) for i, lab in enumerate(kept) if i in scored}
     within = {}
     for i, lab in enumerate(kept):
         m = GE == i
@@ -536,7 +611,8 @@ def pooled_frozen_loso(labels, source="roi", align="cue", post_s=2.0, zscore=Tru
     # treat ~500 correlated trials from one day as 500 observations.
     try:
         blk = np.concatenate([BE[i] + 1000 * i for i in range(len(kept))])   # block ids unique per session
-        res["ci"] = decode_ci.frozen_ci(YE, pred, GE, blk)
+        _ms = np.isin(GE, sorted(scored))
+        res["ci"] = decode_ci.frozen_ci(YE[_ms], pred[_ms], GE[_ms], blk[_ms])
     except Exception as ex:                                                  # noqa: BLE001
         print(f"  !! frozen_ci: {type(ex).__name__} {str(ex)[:70]}", flush=True)
         res["ci"] = None
@@ -544,7 +620,7 @@ def pooled_frozen_loso(labels, source="roi", align="cue", post_s=2.0, zscore=Tru
     # shows the per-session (within-day) decoders. Rows = true position, in DISPLAY_ORDER.
     res["confusion"] = {lab: confusion_matrix(YE[GE == i], pred[GE == i],
                                               labels=DISPLAY_ORDER).tolist()
-                        for i, lab in enumerate(kept)}
+                        for i, lab in enumerate(kept) if i in scored}
     res["ood"] = ood_control(XE, YE, GE, XU, YU, GU=GU, pre_i=pre_i, models=models, labels=kept,
                              XE_scored=XEs, XU_scored=XUs)
     res["spout_scaling"] = models.get("scaling", "session_z") if models else "session_z"

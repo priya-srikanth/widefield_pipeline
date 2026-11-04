@@ -791,7 +791,15 @@ def _pooled_bundle(an, align):
     # changes in that session's trial order. Coarser than the real blocks, never finer, so it
     # cannot make the intervals too narrow.
     BU_all = _runs_to_blocks(np.asarray(GU), un) if len(YU) else np.zeros(0, np.int64)
+    # THE CAMERA WORKING TRIALS (Priya 11-03, `working_trials`: trial_classes.in_working mapped onto these rows through
+    # the feature builder's cue indices). None for the lick window, which keeps the lick gate.
+    work_e = work_u = None
+    with_cls = set()
+    if align != "lick":
+        from wfield_local import working_trials as wt
+        work_e, work_u, with_cls = wt.row_masks(kept, feat.indices, GE, GU)
     bundle = {"XE": XE, "en": en, "GE": np.asarray(GE), "XU": XU, "un": un, "GU": GU,
+              "work_e": work_e, "work_u": work_u, "with_classes": with_cls,
               # The NUMERIC labels as well as the names. `pool_sessions` returns them and
               # this used to discard them, which is the only reason two callers could not
               # adopt the bundle: they fit and score on the integer codes, not the names.
@@ -801,60 +809,88 @@ def _pooled_bundle(an, align):
               "e_pre": np.isin(np.asarray(GE), list(pre_i))}
     _BUNDLE_CACHE[key] = bundle
     return bundle
-def _frozen_frame(bd):
+def _proj_arrays(bd):
+    """``(XE, XU)`` for the pattern / template families: the bundle's rows in the spout decoder's ENGAGED-row scoring
+    frame when the projection frame is on (Priya 11-03, item C; `spout_scaling.projection_frame_on`), else the
+    production rows."""
+    from wfield_local import spout_scaling
+    if not spout_scaling.projection_frame_on():
+        return bd["XE"], bd["XU"]
+    fr = _frozen_frame(bd, "engaged")
+    return fr["XEs"], fr["XUs"]
+
+
+def _uses_working(bd, sel):
+    """True when ``sel`` is "working" and the camera working rows exist (cue / precue, in_working selection)."""
+    from wfield_local import working_trials as wt
+    return sel == "working" and bd.get("work_e") is not None and wt.selection() == wt.IN_WORKING
+
+
+def _frozen_frame(bd, sel="engaged"):
     """The pre-stroke SPOUT-POSITION decoder for one bundle, and the frames it is trained and scored in.
 
-    ``{"scaling", "XT", "full", "loso": {pre index: model}, "pi_full", "pi_loso", "XEs", "XUs"}``, memoised ON the
-    bundle (per scaling), so every frozen-decoder site that reads a bundle uses one fit and one frame.
+    ``sel`` = the TRAINING (and centre) rows: "engaged" (the lick gate: engaged rows, what the lick window and the
+    `lick` / `stopped` classes use) or "working" (Priya 11-03: the camera working trials of `working_trials`, engaged
+    AND no-lick rows, on both sides; falls back to "engaged" for the lick window or under
+    ``WIDEFIELD_WORKING_TRIALS=quit_tail``). Memoised ON the bundle per (scaling, selection, sel).
 
-    ``scaling`` is `spout_scaling.spout_scaling()`: ``session_bal_em`` in production since 2026-11-03 (Priya, "I would
-    adopt B everywhere"; DECISIONS 2026-11-03). Then ``XT`` = the bundle's engaged rows with each pre session
-    re-centred on the equal-weight mean of its TRUE class means (training labels), and ``XEs`` / ``XUs`` = every
-    session in its SCORING frame: label-free EM centre from its engaged rows with its scoring model (LOSO for a pre
-    session, ``full`` otherwise), applied to its no-lick rows too. Under ``WIDEFIELD_SPOUT_SCALING=session_z``,
-    ``XT = XEs = bd["XE"]`` and ``XUs = bd["XU"]`` (the same objects), so the pre-11-03 output is bit-identical.
-
-    The models are the ones `_collect_5c` has always fitted in memory (all pre engaged trials; leave-one-pre-session-
-    out), on the same rows in the same order. The bundle's own ``XE`` / ``XU`` stay the production frame: the
-    within-session refit, the similarity and coding-direction families read them and are not this decoder.
+    ``{"scaling", "sel", "ff", "XT", "full", "loso": {pre index: model}, "XEs", "XUs", "train_sessions"}``:
+      * ``ff``   `spout_scaling.FrozenFrame` over the training rows R (engaged rows, or the working rows of XE and XU
+                 stacked): training frame on each pre session's true class means, full + leave-one-pre-session-out
+                 models, label-free EM centre per scored session from ITS R rows (production SD)
+      * ``XEs`` / ``XUs``  every row of every session in its scoring frame (LOSO model for a pre session, ``full``
+                 otherwise); ``XT`` the training rows of XE in the training frame (engaged sel only; the matched arm
+                 reads ``ff.XT``)
+    Training sessions = the bundle's pre sessions that HAVE training rows (August-only under WIDEFIELD_PRE_FROM=0801;
+    with sel="working" a session without camera classes, PS93_0813, has none). Under session_z + quit_tail the models
+    are exactly the fits `_collect_5c` always made (all pre engaged trials; leave-one-pre-session-out).
     """
     from wfield_local import spout_scaling
+    from wfield_local import working_trials as wt
     from wfield_local.locanmf_frozen_decoder import _pipe
     sc = spout_scaling.spout_scaling()
-    key = f"_frozen_{sc}"
+    use_w = _uses_working(bd, sel)
+    key = f"_frozen_{sc}_{wt.selection()}_{'working' if use_w else 'engaged'}"
     if key in bd:
         return bd[key]
     XE, YE, GE, XU, GU = bd["XE"], bd["YE"], bd["GE"], bd["XU"], bd["GU"]
-    pre_i, e_pre = sorted(bd["pre_i"]), bd["e_pre"]
-    XT = spout_scaling.train_frame(XE, YE, GE, pre_i) if sc else XE
-    full = _pipe().fit(XT[e_pre], YE[e_pre])
-    loso, pi_loso = {}, {}
-    for i in pre_i:
-        tr = e_pre & (GE != i)
-        if len(np.unique(YE[tr])) < 2:
-            continue
-        loso[i] = _pipe().fit(XT[tr], YE[tr])
-        pi_loso[i] = spout_scaling.class_prior(YE[tr])
-    pi_full = spout_scaling.class_prior(YE[e_pre])
-    if sc:
-        XEs, XUs = spout_scaling.scored_frame(
-            XE, GE, XU, GU, range(len(bd["kept"])),
-            model_of=lambda i: loso.get(i) if i in bd["pre_i"] else full,
-            prior_of=lambda i: pi_loso.get(i) if i in bd["pre_i"] else pi_full)
+    YU = bd.get("YU", np.zeros(len(GU), int))
+    if use_w:
+        RX = np.vstack([XE[bd["work_e"]], XU[bd["work_u"]]])
+        RY = np.concatenate([YE[bd["work_e"]], np.asarray(YU)[bd["work_u"]].astype(YE.dtype)])
+        RG = np.concatenate([GE[bd["work_e"]], np.asarray(GU)[bd["work_u"]]])
+    else:
+        RX, RY, RG = XE, YE, GE
+    pre = sorted(i for i in bd["pre_i"] if np.any(RG == i))
+    ff = spout_scaling.FrozenFrame(RX, RY, RG, pre, _pipe, loso=True)
+    if ff.scaling:
+        XEs, XUs = np.array(XE, float), np.array(XU, float)
+        for i in range(len(bd["kept"])):
+            which = "loso" if i in ff.loso else "full"
+            if i in bd["pre_i"] and i not in ff.loso:
+                continue                          # a pre session with no training rows: never scored
+            if not np.any(RG == i):
+                continue                          # nothing to centre on: not a scored session
+            me, mu = GE == i, (np.asarray(GU) == i) if len(GU) else np.zeros(0, bool)
+            XEs[me] = ff.apply(XE[me], i, which)
+            if mu.any():
+                XUs[mu] = ff.apply(XU[mu], i, which)
     else:
         XEs, XUs = XE, XU
-    fr = {"scaling": sc or spout_scaling.SCALING_SESSION_Z, "XT": XT, "full": full, "loso": loso,
-          "pi_full": pi_full, "pi_loso": pi_loso, "XEs": XEs, "XUs": XUs}
+    fr = {"scaling": sc or spout_scaling.SCALING_SESSION_Z, "sel": "working" if use_w else "engaged", "ff": ff,
+          "XT": ff.XT if not use_w else None, "full": ff.full, "loso": ff.loso, "XEs": XEs, "XUs": XUs,
+          "train_sessions": pre, "R": (RX, RY, RG)}
     bd[key] = fr
     return fr
-def _frozen_score_rows(bd, model, pi, i, Xe_rows, Xu_rows=None):
+def _frozen_score_rows(bd, model, pi, i, Xe_rows, Xu_rows=None, centre_rows=None):
     """Session ``i``'s rows in the scoring frame of an AD HOC frozen-style model (the size-matched frozen arm):
     centre from ALL of the session's engaged rows (production-z), label-free, applied to the given rows. Identity under
     session_z."""
     from wfield_local import spout_scaling
     if not spout_scaling.spout_scaling():
         return Xe_rows, Xu_rows
-    mu, sd = spout_scaling.score_centre(model, bd["XE"][bd["GE"] == i], pi)
+    C = bd["XE"][bd["GE"] == i] if centre_rows is None else centre_rows
+    mu, sd = spout_scaling.score_centre(model, C, pi)
     return ((Xe_rows - mu) / sd, None if Xu_rows is None else (Xu_rows - mu) / sd)
 def _runs_to_blocks(sess, pos):
     """Block ids from runs of the same (session, position), for trials that carry none of their own.
@@ -870,7 +906,7 @@ def _runs_to_blocks(sess, pos):
     changed[1:] = (sess[1:] != sess[:-1]) | (pos[1:] != pos[:-1])
     # negative ids so they can never collide with the real BE ids, which are non-negative
     return -(np.cumsum(changed).astype(np.int64) + 1)
-def _class_select(variant, sess_e, sess_u, not_eng):
+def _class_select(variant, sess_e, sess_u, not_eng, work=None):
     """Which ENGAGED and which UNENGAGED rows belong to a trial class, as two boolean masks.
 
     THE THREE COPIES OF THIS RULE DISAGREED THE MOMENT A THIRD CLASS EXISTED. `lick`, `working` and
@@ -890,6 +926,13 @@ def _class_select(variant, sess_e, sess_u, not_eng):
     import numpy as _np
     e_none = _np.zeros(len(sess_e), bool)
     u_none = _np.zeros(len(sess_u), bool)
+    # THE CAMERA WORKING TRIALS (Priya 11-03; `working_trials`): ``work`` = the bundle's (work_e, work_u) row masks.
+    # Given (and the in_working selection on), `working` = those rows of the session, engaged or not; the quit-tail
+    # rule below is the robustness arm (WIDEFIELD_WORKING_TRIALS=quit_tail) and what callers without masks get.
+    if variant == "working" and work is not None and work[0] is not None:
+        from wfield_local import working_trials as _wt
+        if _wt.selection() == _wt.IN_WORKING:
+            return sess_e & work[0], ((sess_u & work[1]) if len(sess_u) else u_none)
     if variant == "stopped":
         return e_none, (sess_u & not_eng) if len(sess_u) else u_none
     if variant == "working":
@@ -943,12 +986,13 @@ def _session_trials(bd, i, q, variant, field="X"):
     # far only ever been used to THROW those trials away.
     me, mu = _class_select(variant, (bd["GE"] == i) & (bd["en"] == q),
                            (bd["GU"] == i) & (bd["un"] == q) if len(bd["un"])
-                           else np.zeros(0, bool), bd["not_eng"])
+                           else np.zeros(0, bool), bd["not_eng"], work=(bd.get("work_e"), bd.get("work_u")))
     if field == "blk":
         parts = [bd["BE"][me]] + ([bd["BU"][mu]] if mu.any() else [])
         keep = [z for z in parts if len(z)]
         return np.concatenate(keep) if keep else np.zeros(0, np.int64)
-    parts = [bd["XE"][me]] + ([bd["XU"][mu]] if mu.any() else [])
+    _XE, _XU = _proj_arrays(bd)          # the projection frame (item C); production rows when off
+    parts = [_XE[me]] + ([_XU[mu]] if mu.any() else [])
     keep = [z for z in parts if len(z)]
     return np.vstack(keep) if keep else np.zeros((0, bd["XE"].shape[1]))
 #: Figures 7, 7b, 8 and 8b all need the SAME per-animal trial collection, and loading it means

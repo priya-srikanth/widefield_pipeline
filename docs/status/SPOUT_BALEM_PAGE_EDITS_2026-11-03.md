@@ -83,7 +83,7 @@ discriminator stay on the engaged-trial z-score. The state-class bal_em was trie
 (held-out pre engaged trials .92 -> .74 cue, .75 -> .40 precue); it is off pending Priya. Axis / CD figures (coding
 directions, position axes, attempt axes, pattern-similarity families) are unchanged pending Priya's decision.
 
-## 6. ON HOLD: epoch families' "working" = `trial_classes.in_working` (Priya approved 11-03)
+## 6. (SUPERSEDED by section 7) ON HOLD: epoch families' "working" = `trial_classes.in_working`
 
 Not implemented: a real conflict in the DAQ arm, reported to the coordinator instead of choosing. All 76 post-stroke
 sessions have camera classes (PS92_0908 17.5 % unknown cues), but 13 of the 44 PRE-stroke sessions have none (the June
@@ -92,3 +92,22 @@ are pre-stroke ENGAGED trials today (the 5c rule: pre = licking trials for lick 
 needs a choice: (a) keep pre = DAQ-engaged licking trials (no conflict; only the post-stroke scored set changes); (b) pre =
 in_working, dropping the 13 camera-less sessions from training and the pre band (an August-only reference minus PS93_0813);
 (c) a mixed rule (in_working where a camera exists, DAQ-engaged otherwise).
+
+## 7. Working = trial_classes.in_working on both sides + August-only pre (Priya 11-03): ADOPTED; render NOT started
+
+Method line for every working-trial caption (replace the "lick + miss-while-working" wording): *working trials = camera
+trial classes: a lick (contact or incomplete) or a jaw movement between the cue and the trial stop, up to the session's
+last camera lick; at close mid the jaw cannot be judged, so working there = licks only. Pre-stroke baseline = the August
+pre sessions (8 / 7 / 8 / 8; PS93_0813 has no video).* Lick-aligned panels keep "lick trials".
+
+Numbers that will move (verification; exact values from the render): DECISIONS 2026-11-03 "Epoch families' working ..."
+-- cue/working frozen overall pre .882 -> .841, acute .539 -> .516; far contra acute .219 -> .191; close ipsi acute .789
+-> .631; close mid acute .635 -> .762; precue far contra acute .216 -> .179. Every pre band moves (August-only).
+
+Render status: STOPPED before D. Item C's check failed (precue engagement-axis projection changes on held-out pre
+sessions by 1.6-1.9x the between-session SD in PS92 / PS93), and item B misses the literal AUC criterion. Both frames are
+OFF; the render waits for Priya. When it runs (one pass: bal_em + extension + in_working + August-only [+ B / C if
+approved]): every family in section 2 and section 5, the pattern / CD families (6-11, 12b, 10e, coding directions,
+position axes), section D, section G, attempt_coding and its readers, with WIDEFIELD_PRE_FROM=0801. The per-session
+tables e3 needs for the hidden LMM slides will be the epoch families' `grant_figures/epoch/data/*_sessions.csv` sidecars
+(and the LP_licks / LPfinal arm equivalents).

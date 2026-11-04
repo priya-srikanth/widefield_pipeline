@@ -241,6 +241,17 @@ was published; they remain the rule-10 gap they were (refitted per run, determin
 discriminators keep the production frame (state-class bal_em is opt-in, `WIDEFIELD_STATE_DISC_SCALING`). DECISIONS
 2026-11-03 "bal_em extended to every cross-session SPOUT decoder".
 
+**2026-11-03 (late): spout decoders retrained on the AUGUST-ONLY pre sessions, cue / precue on the camera WORKING trials
+(`trial_classes.in_working`, Priya 11-03).** 29 new models (ROI + joint x 3 windows x 4 animals, 5 attempt-pool ones),
+ids in DECISIONS 2026-11-03 "Epoch families' working = trial_classes.in_working ..."; published byte-verified from the
+analysis desktop. The spec records the training set: `scaling_params["trials"] = "sel-camera-cue_stop-endlick"` and
+`centre_set = "working"` for cue / precue; lick models are engaged-trained (lick gate) on 8 August pre sessions.
+Producers must pass the pool's working rows (`locanmf_frozen_decoder.pool_work`) to `frozen_decoder_models` /
+`frozen_scored_frame`; a pool built without cue indices gets the engaged-trained spec instead (different id). Imaging
+renders need `WIDEFIELD_PRE_FROM=0801` (`nightly_figs` sets it for cohort 1); without it the June sessions return to the
+pre set and the ids differ. The 11-03 bal_em models (June + August, engaged-trained) and every earlier model stay in the
+store.
+
 ## 7. EVERY PRE-STROKE DECODER IS FROZEN — the rule for this and future cohorts (Priya, 2026-10-15)
 
 *"Establish in the code for future cohorts that we will make a frozen pre-stroke decoder that is cached / stored

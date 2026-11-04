@@ -76,6 +76,10 @@ RUN_START: float = time.time()
 EPOCH_DRIFT: list[str] = []
 
 
+#: The imaging pre-stroke baseline start for cohort 1 (Priya 11-03: August-only, `config.pre_from` semantics).
+IMAGING_PRE_FROM = "0801"
+
+
 def cli(*a):
     log("CLI " + " ".join(a))
     if subprocess.call([PY, "-u", "-m", *a], cwd=str(REPO)):
@@ -505,6 +509,13 @@ def main():
     # COHORT: SESSIONS was loaded at import, so the cohort must be chosen BEFORE this process starts --
     # `nightly` exports WIDEFIELD_COHORT; a hand run on cohort2 needs `$env:WIDEFIELD_COHORT="cohort2"` first.
     log(f"cohort: {config.cohort()} ({', '.join(config.animals())})")
+    # AUGUST-ONLY PRE-STROKE BASELINE FOR THE WHOLE IMAGING RENDER (Priya 11-03; DECISIONS 2026-11-03): cohort 1's
+    # imaging pre bands and frozen training sets use the August pre sessions only, as imaging section 1, orofacial and
+    # the encoding rebuild do. `config.pre_from` semantics; epoch boundaries stay on the full pre set
+    # (`epoch_audit.full_cohort` suspends it). An explicit WIDEFIELD_PRE_FROM (or "" to disable) wins.
+    if config.cohort() == "cohort1":
+        os.environ.setdefault("WIDEFIELD_PRE_FROM", IMAGING_PRE_FROM)
+    log(f"pre-stroke baseline: from {config.pre_from() or 'all pre (June + August)'}")
     out = args.output or _default_out()
     Path(out).mkdir(parents=True, exist_ok=True)
     log(f"figure working dir: {out}")

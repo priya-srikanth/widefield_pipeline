@@ -648,6 +648,13 @@ def run_animal(animal, align="precue", verbose=True, methods=CD_METHODS):
         print(f"[coding_dirs] {animal} {disp}: trial bookkeeping mismatch -- skipped", flush=True)
         return None
     not_eng, frac_nl, frac_e = _g
+    # THE PROJECTION FRAME (Priya 11-03, item C; `spout_scaling.projection_arrays`): directions, poles, the engagement
+    # axis and every projection below use rows centred as the frozen spout decoder centres them (label-free); the
+    # frozen-decoder confusions keep the production rows (they build their own frame). Identity when off.
+    from wfield_local import spout_scaling as _ss
+    from wfield_local.locanmf_frozen_decoder import _pipe as _fpipe
+    XE0, XU0 = XE, XU
+    XE, XU = _ss.projection_arrays(XE, YE, GE, XU, GU, pre_i, _fpipe)
 
     order = sorted(range(len(kept)), key=lambda i: kept[i].split("_")[1])
     # VARIANCE CAPTURED PER SESSION, stored so a declining per-session coding value can be tested
@@ -723,8 +730,8 @@ def run_animal(animal, align="precue", verbose=True, methods=CD_METHODS):
     # coding_direction.json. A second definition elsewhere is how the frozen-decoder contamination
     # happened: two places computing "the same" population and drifting apart.
     try:
-        out["confusions"] = _class_confusions(XE, YE, GE, XU, YU, e_pre, pre_i, _mask, kept,
-                                              rt_e=_rt_engaged(feat, kept, XE), GU=np.asarray(GU))
+        out["confusions"] = _class_confusions(XE0, YE, GE, XU0, YU, e_pre, pre_i, _mask, kept,
+                                              rt_e=_rt_engaged(feat, kept, XE0), GU=np.asarray(GU))
     except Exception as ex:                                          # noqa: BLE001
         print(f"  [coding_dirs] {animal}: per-class confusions unavailable ({ex})", flush=True)
 

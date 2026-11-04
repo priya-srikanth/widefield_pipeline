@@ -23088,3 +23088,87 @@ state-class version on.
   `M:/.../kin_page_src/kin_page/add_lmm_toggles_1103.py`. Each caption states the test, the star rule and the result
   counts read from `lmm_hidden_20261103/<stem>_lmm_lmm.csv`. Imaging-page LMM figures (decoding, ramps, spec_groups,
   recovery timing) belong to the imaging-page window.
+
+## 2026-11-03 — Epoch families' working = `trial_classes.in_working` on BOTH sides, and an August-only pre-stroke baseline for the whole imaging render (Priya 11-03); state discriminators in the spout frame and projections in the spout frame: checked, NOT adopted (C failed)
+
+**Decisions (Priya, 11-03, via the coordinator).**
+- **Working = `trial_classes.in_working`** (5b's A4 classes): jaw moved OR any camera lick (contact or incomplete), window
+  cue -> trial stop, cut at the session's last camera lick = licks + attempted licks + jaw movements. **At close mid
+  (close_center) the jaw cannot be judged on either camera, so working there = licks only.** It replaces the DAQ lick +
+  miss-while-working (`flag_engagement` quit-tail) set, ON BOTH SIDES: the pre-stroke training set of the frozen spout
+  decoder (cue / precue) and the pre-stroke panel are pre-stroke working trials too. The lick window keeps the lick gate.
+  The quit-tail set stays as a robustness arm (`WIDEFIELD_WORKING_TRIALS=quit_tail`).
+- **August-only pre-stroke baseline** (`config.pre_from` = 0801) for the WHOLE imaging render (pre bands and frozen
+  training sets), matching imaging section 1, orofacial and the encoding rebuild. Production setting: `nightly_figs`
+  sets `WIDEFIELD_PRE_FROM=0801` for cohort 1 (`IMAGING_PRE_FROM`; an explicit value wins); epoch boundaries stay on the
+  full pre set (`epoch_audit.full_cohort` suspends it). Hand runs of imaging modules must set it too. Outputs go to the
+  normal (production) directories, not `*_latepre`.
+- Training sets: 8 / 7 / 8 / 8 August pre sessions for cue / precue (PS93_0813 has no behaviour video, so no camera
+  classes); the lick-window models keep PS93_0813 (8 / 8 / 8 / 8: the lick gate needs no camera).
+
+**Code.** `wfield_local/working_trials.py` (selection switch, the A4 snapshot `s1_trial_classes_cue_stop.csv.gz` read
+and its `working_pl_lick` recomputed by `trial_classes.in_working` and checked equal; `row_masks` maps classes onto
+pooled rows by cue index, exactly as 5b's s1 table; `roi_features_with_indices`; `row_classes`). `grant_kit`: bundle
+masks `work_e` / `work_u`, `_class_select(work=)`, `_frozen_frame(bd, sel)` rebuilt on `spout_scaling.FrozenFrame`
+(engaged or working training rows; bit-identical to the 11-03 frame for sel="engaged"). `_collect_5c` (frozen / refit /
+paired / matched) and the 5b recompute (which now replaces the quit-tail JSON classes under in_working) use the working
+model, frame and trials; pattern families' post side uses the working trials (their pre reference stays lick trials).
+`locanmf_frozen_decoder`: `pool_work` / `working_rows`, `frozen_decoder_models(work=)` (spec
+`scaling_params["trials"] = sel-camera-cue_stop-endlick`, `centre_set = working`), `frozen_scored_frame(work=)`
+(centre = the session's working rows), `pooled_frozen_loso` (ROI builder with cue indices; band and outputs restricted
+to scored sessions). Section G (`poststroke_compare._pooled` keeps the builder; `frozen` / `frozen_X` pass the working
+rows; pre sessions without a LOSO model leave the pre panels), `attempt_coding` (run and `--freeze`), `joint_xsession`
+(decoder pool via `features_with_indices`). The scored sets of section D / G keep their designs (engaged / all
+trials); only the frozen model and its frame change there. Not switched to in_working (their own selections, listed
+for the render): the map families (14 / 15 / epoch_maps / beta_maps / hemo_map_control), `nolick_decoder`,
+`position_coding_directions` classes, `precue_engagement_states`.
+
+**Frozen models (new ids; every older model kept).** Published from the analysis desktop with
+`publish_basis --what frozen` (dry run first: exactly these 29, each copied 2 / verified 2 by SHA-256, 0 mismatches;
+`spout_balem_production/publish_log_A.txt`). Section G's ROI pools resolve to the same ids as section D's.
+- ROI, PS92 / PS93 / PS94 / PS95: cue 3e96aa87277d / f4a9e68f1202 / 62a5569c1639 / a7d38f58d841; precue eb11bb505713 /
+  e28483ffeaf5 / f6962875448c / d2a78f35635c; lick 4cf2c701ed14 / 23d4ba6b6cff / edfd946b7e08 / e3cc6ebdb4f1.
+- joint: cue 02f9b4695c54 / c1fe8e2e80ba / 7448ec3f5151 / 7a3f2afadd3e; precue e691f25e9117 / 5fea3fb87f1c / 638e0f08372e /
+  e2819ab20189; lick df989035e339 / 270d4731309a / 94d9be87d03b / c986ea8f599f.
+- attempt_coding LP pool, ENL 1.0 s precue: PS92 5a5412203199, PS93 19d972fb6b78, PS94 710e3a6786ca, PS95 18f413a5c515;
+  PS93 lick (no LP tables for 0813) 5f8e0089667f. Every other attempt spec hit the joint ids.
+
+**Checks** (`labcams/decoder_mix_checks/spout_balem_production/`: `verify_A.py`, `summarise_A.py`, `summarise_A_log.txt`,
+`checkA/`; per-animal tables first).
+- 5b's section-1 trial sets reproduced EXACTLY: the bundle's in_working rows under LP_licks_ENL2s give 214 / 214
+  session x window refit records equal to `s1_refit_locanmf.csv` (trials == camworkpl_lick): refit n identical in every
+  record, accuracy within the CSV's 4-digit rounding. The production collector `_collect_5c` agrees with the check
+  script on every post day (0 mismatches, both settings, all three windows).
+- Working-trial counts (cue, session means old -> new): pre 478 -> 512 (26 from no-lick rows), acute 460 -> 456 (166 ->
+  163 no-lick), subacute 450 -> 476, chronic 473 -> 478; close mid acute 77 -> 70 (licks only there). Sessions 30 -> 27
+  per animal (June out; PS93 26: 0813 has no video).
+- Frozen accuracy, animal means old -> new (cue/working): overall pre .882 -> .841, acute .539 -> .516, subacute .716 ->
+  .667, chronic .786 -> .759; far contra acute .219 -> .191, subacute .572 -> .527; **close ipsi acute .789 -> .631**
+  (PS95 .975 -> .642: its jaw-only trials now count as working), close mid acute .635 -> .762 (licks only). Precue:
+  far contra pre .497 -> .530, acute .216 -> .179; close ipsi chronic .755 -> .705; close mid acute .365 -> .465. Lick
+  window within .04 (August-only only). Within-session refit (cue, overall): pre .806 -> .771, acute .562 -> .589 (the
+  trial set changes; the refit method does not).
+- Tests: `tests/test_working_trials.py` (the s1 reindex, masks only switch in_working, own spec id, no-video session
+  dropped, lick window / quit-tail unchanged), `tests/test_stopped_trial_class.py` updated for the new pre-panel rule.
+
+**B. State discriminators in the SPOUT frame** (`WIDEFIELD_STATE_DISC_SCALING=spout_frame`; `poststroke_compare._spout_train_d`,
+`precue_engagement_states` via its FrozenFrame; `verify_B.py`, `summarise_B_log.txt`). Under A's settings, z -> spout:
+held-out PRE engaged reads engaged .925 -> .919 (cue; criterion ~.92 met) and .742 -> .730 (precue; ~.75); pre no-lick
+.121 -> .128 / .387 -> .377; precue-states LOSO AUC .584 -> .585. The frame itself is neutral on every pre check; the
+AUC criterion (~.656) is NOT met in absolute terms, but the drop to .58 comes from A's settings (August-only pre;
+PS93 .326 in both frames), not from the frame. Post-stroke, the spout frame moves the G4 readout a lot at cue: acute
+no-lick engaged-like .195 -> .502, fits_engaged post .170 -> .498 (precue within .09). PS92 has no fits_engaged
+reference (too few pre sessions). **Kept OFF (default session_z) pending Priya**, because the literal AUC criterion fails
+and C failed. Reported variant (3 camera states, lick / jaw only / none, spout frame): class counts per animal x epoch
+(jaw-only pre 20 / 37 / 165 / 306 trials; none 36 / 52 / 226 / 296), held-out pre recall at cue lick .67-.93, jaw-only
+.60-.63 (PS94 / PS95 only; too few elsewhere), none .20-.77; not adopted.
+
+**C. Axes / CDs / patterns in the spout frame** (`spout_scaling.projection_arrays`, `WIDEFIELD_PROJECTION_FRAME=spout_frame`:
+the engaged-row EM centre of the lick-gate spout model, label-free for every session; wired into
+`position_coding_directions`, `position_axes`, `attempt_coding` axes, grant pattern families via `_proj_arrays`, section
+G `pattern_similarity`; `verify_C.py`, `summarise_C_log.txt`). Held-out PRE change vs the between-session SD of the
+readout: CD score cue .017-.057 vs .06-.19 and precue .05-.12 vs .12-.25 (within noise); pattern correlation cue
+.006-.021 vs .04-.10, precue .03-.06 vs .06-.12 (within noise); engagement-axis projection cue .004-.037 vs .021-.050
+(PS93 at 1 SD), **precue .015-.138 vs .022-.088: PS92 1.9x and PS93 1.6x the SD -> NOT within noise. CHECK FAILED; the
+projection frame stays OFF (default session_z) and the render (D) was not started.** Post-stroke headline moves if it
+were on: cue far-contra CD score acute -.099 -> -.332, precue .218 -> -.035, precue engagement-axis acute .755 -> 1.092.

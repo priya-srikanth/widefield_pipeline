@@ -202,7 +202,11 @@ def run_animal(animal, align="precue", verbose=True):
     pre_set = set(pre)
     pre_i = np.array([lab in pre_set for lab in kept])
     ce, cu = classify(cls_e, cls_u, pre_i[GE], pre_i[GU], not_eng)
-    X = np.vstack([XE, XU])
+    # THE PROJECTION FRAME for the attempt axes (Priya 11-03, item C; `spout_scaling.projection_arrays`, identity off)
+    from wfield_local import spout_scaling as _ss
+    from wfield_local.locanmf_frozen_decoder import _pipe as _fpipe
+    _XEp, _XUp = _ss.projection_arrays(XE, YE, GE, XU, GU, [i for i in range(len(kept)) if pre_i[i]], _fpipe)
+    X = np.vstack([_XEp, _XUp])
     G = np.concatenate([GE, GU]).astype(int)
     C = np.concatenate([ce, cu]).astype(str)
     T = np.concatenate([tid_e, tid_u]).astype(int)
@@ -223,16 +227,18 @@ def run_animal(animal, align="precue", verbose=True):
             tr, te = ref & (G != s), ref & (G == s)
             own[te] = score(X[te], sp[te], fit_axes(X[tr], sp[tr], meth))
         rows.append(pd.DataFrame({"method": meth, "own": own}))
-    from wfield_local.locanmf_frozen_decoder import frozen_decoder_models
+    from wfield_local.locanmf_frozen_decoder import frozen_decoder_models, pool_work
     pre_list = [i for i in range(len(kept)) if pre_i[i]]
-    models, status = frozen_decoder_models(XE, YE, GE, kept, pre_list, align=align, source="locanmf",
+    # trained on the pre-stroke CAMERA WORKING trials for cue / precue (Priya 11-03, `pool_work`)
+    work = pool_work(XE, YE, GE, XU, YU, GU, kept, feat, align)
+    models, status = frozen_decoder_models(XE, YE, GE, kept, pre_list, work=work, align=align, source="locanmf",
                                            post_s=post_s, basis_id=getattr(feat, "basis_id", None))
     if verbose:
         print(f"[attempt_coding] {animal} {align}: frozen decoder {status}", flush=True)
     # THE FROZEN MODEL SCORES IN ITS OWN FRAME (`frozen_scored_frame`; bal_em since 2026-11-03, identity under
     # WIDEFIELD_SPOUT_SCALING=session_z). The attempt axes above stay on the production frame.
     from wfield_local.locanmf_frozen_decoder import frozen_scored_frame
-    XEf, XUf = frozen_scored_frame(models, XE, GE, XU, GU, kept, pre_list)
+    XEf, XUf = frozen_scored_frame(models, XE, GE, XU, GU, kept, pre_list, work=work)
     Xf = np.vstack([XEf, XUf])[keep]
     code = np.concatenate([YE, YU]).astype(int)[keep]
     p_true = np.full(len(X), np.nan)
@@ -311,7 +317,7 @@ def freeze_reference(animal, align):
     its own id; the canonical 2.0 s models are untouched (CLAUDE.md rule 10)."""
     from wfield_local import config, joint_locanmf, lp_licks
     from wfield_local.locanmf_cue_lick_analysis import SESSIONS as _ALL
-    from wfield_local.locanmf_frozen_decoder import frozen_decoder_models, pool_sessions
+    from wfield_local.locanmf_frozen_decoder import frozen_decoder_models, pool_sessions, pool_work
     from wfield_local.precue_engagement_states import features_with_indices
     if lp_licks.is_lp():
         raise RuntimeError("--freeze runs the DAQ path: unset WIDEFIELD_LICK_SOURCE")
@@ -323,10 +329,11 @@ def freeze_reference(animal, align):
     post = [l for l in config.phase_labels("post") if l.startswith(animal) and _lp_available(l)]
     basis = joint_locanmf.load(animal, sessions=_ALL)
     feat = features_with_indices(basis)
-    XE, YE, GE, _BE, _XU, _YU, kept, _c, _GU = pool_sessions(pre + post, source="locanmf", align=align,
-                                                              post_s=post_s, features=feat)
+    XE, YE, GE, _BE, XU, YU, kept, _c, GU = pool_sessions(pre + post, source="locanmf", align=align,
+                                                          post_s=post_s, features=feat)
     pre_list = [i for i, lab in enumerate(kept) if lab in set(pre)]
     _m, status = frozen_decoder_models(XE, YE, GE, kept, pre_list, align=align, source="locanmf", post_s=post_s,
+                                       work=pool_work(XE, YE, GE, XU, YU, GU, kept, feat, align),
                                        basis_id=getattr(feat, "basis_id", None))
     print(f"[attempt_coding] freeze {animal} {align} (ENL window {lp_licks.enl_window_s()}): {status}", flush=True)
     return status

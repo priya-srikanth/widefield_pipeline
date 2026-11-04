@@ -292,7 +292,17 @@ def run_animal(animal, align="precue", post_s=None, verbose=True):
     # it fails the discriminator's own pre-stroke check, 11-03): each pre session's rows centred on the equal-weight mean
     # of its two TRUE state-class means; a scored session centred, label-free, by the EM over its engaged + no-lick rows.
     # The input arrays themselves when OFF (the production engaged-trial z-score).
-    XEt, XUt = _ss.state_train_frame(XE, GE, XU, GU, keep_eng, keep_dis, sorted(pre_i))
+    _spf = _ss.state_disc_scaling() == _ss.SCALING_SPOUT_FRAME and ff.scaling
+    if _spf:
+        # THE SPOUT bal_em FRAME (item B, Priya 11-03): pre sessions in the position decoder's TRAINING frame (true
+        # spout-class means), scored sessions in its label-free scoring frame (`ff`, part A's FrozenFrame)
+        XEt, XUt = np.array(XE, float), np.array(XU, float)
+        for i in sorted(pre_i):
+            XEt[GE == i] = ff.train_apply(XE[GE == i], i)
+            if np.any(GU == i):
+                XUt[GU == i] = ff.train_apply(XU[GU == i], i)
+    else:
+        XEt, XUt = _ss.state_train_frame(XE, GE, XU, GU, keep_eng, keep_dis, sorted(pre_i))
     if keep_dis.sum() >= 20 and keep_eng.sum() >= 20:
         Xd = np.vstack([XEt[keep_eng], XUt[keep_dis]])
         yd = np.concatenate([np.zeros(int(keep_eng.sum())), np.ones(int(keep_dis.sum()))])
@@ -301,7 +311,14 @@ def run_animal(animal, align="precue", post_s=None, verbose=True):
         _pi = _ss.model_prior(model, yd)
         _all_e, _all_u = np.ones(len(XE), bool), np.ones(len(XU), bool)
         _post = sorted(set(range(len(kept))) - set(pre_i))
-        XEs, XUs = _ss.state_scored(model, _pi, XEt, GE, XUt, GU, _all_e, _all_u, _post)
+        if _spf:
+            XEs, XUs = XEt.copy(), XUt.copy()
+            for i in _post:
+                XEs[GE == i] = ff.apply(XE[GE == i], i, "full")
+                if np.any(GU == i):
+                    XUs[GU == i] = ff.apply(XU[GU == i], i, "full")
+        else:
+            XEs, XUs = _ss.state_scored(model, _pi, XEt, GE, XUt, GU, _all_e, _all_u, _post)
         s_states = {
             "1_pre_lick": XEs[e_pre], "2_pre_nolick": XUs[u_pre], "4_post_lick": XEs[~e_pre],
             "5_post_nolick_engaged": XUs[~u_pre & ~not_eng_nl],
@@ -333,7 +350,11 @@ def run_animal(animal, align="precue", post_s=None, verbose=True):
             _yd = np.concatenate([np.zeros(int(tr_e.sum())), np.ones(int(tr_d.sum()))])
             m = _disc().fit(np.vstack([XEt[tr_e], XUt[tr_d]]), _yd)
             # the held-out session in ITS OWN EM frame under this leave-one-out model (identity under session_z)
-            _XEh, _XUh = _ss.state_scored(m, _ss.model_prior(m, _yd), XE, GE, XU, GU, _all_e, _all_u, [si])
+            if _spf:
+                _XEh = np.array(XE, float)
+                _XEh[GE == si] = ff.apply(XE[GE == si], si, "loso")
+            else:
+                _XEh, _XUh = _ss.state_scored(m, _ss.model_prior(m, _yd), XE, GE, XU, GU, _all_e, _all_u, [si])
             pr = m.predict_proba(_XEh[hold])[:, 1]
             lh = late_e[hold]
             pre_e.extend(pr[~lh])

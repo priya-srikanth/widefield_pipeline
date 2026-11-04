@@ -298,6 +298,11 @@ def fig_confusion_pre_post_working(out_dir):
         Returning None (missing file, missing block, missing class) falls through to the recompute
         path, so this is a shortcut and never a new source of truth.
         """
+        # The stored classes are the QUIT-TAIL ones (`position_coding_directions`); under the camera working
+        # selection (Priya 11-03, `working_trials`) the panels are recomputed from the bundle instead.
+        from wfield_local import working_trials as _wt
+        if _wt.selection() == _wt.IN_WORKING:
+            return None
         f = _fig_root() / "coding_direction.json"
         if not f.exists():
             return None
@@ -343,9 +348,13 @@ def fig_confusion_pre_post_working(out_dir):
                 u_pre = np.isin(GU, list(pre_i)) if len(GU) else np.zeros(0, bool)
                 # THE FROZEN DECODER IN ITS SCORING FRAME (`_frozen_frame`; bal_em since 2026-11-03, identity
                 # under session_z): same models as before, applied to XEs / XUs.
-                _fr = _frozen_frame(bd)
+                # the WORKING model and frame (camera working trials on both sides, Priya 11-03; the old engaged
+                # model under WIDEFIELD_WORKING_TRIALS=quit_tail)
+                _fr = _frozen_frame(bd, "working")
                 clf = _fr["full"]
                 XE, XU = _fr["XEs"], _fr["XUs"]
+                _uw = _fr["sel"] == "working"
+                _work = (bd.get("work_e"), bd.get("work_u"))
                 name = np.vectorize(lambda v: POSITION_NAMES.get(int(v), str(v)))
 
                 def conf(X, y, clf=clf, name=name):
@@ -368,12 +377,20 @@ def fig_confusion_pre_post_working(out_dir):
                 # collapse that is mostly overfitting. The POST panels need no such care: those
                 # trials are held out by construction.
                 Cpre = None
-                for i in sorted(pre_i):
-                    tr = e_pre & (GE != i)
-                    te = e_pre & (GE == i)
-                    if te.sum() < 5 or len(np.unique(YE[tr])) < 2:
-                        continue
-                    c1 = conf(XE[te], YE[te], clf=_fr["loso"][i])
+                for i in (_fr["train_sessions"] if _uw else sorted(pre_i)):
+                    if _uw:
+                        me_, mu_ = _class_select("working", e_pre & (GE == i), (GU == i) if len(GU)
+                                                 else np.zeros(0, bool), not_eng, work=_work)
+                        if me_.sum() + mu_.sum() < 5 or i not in _fr["loso"]:
+                            continue
+                        c1 = conf(np.vstack([XE[me_]] + ([XU[mu_]] if mu_.any() else [])),
+                                  np.concatenate([YE[me_]] + ([YU[mu_]] if mu_.any() else [])), clf=_fr["loso"][i])
+                    else:
+                        tr = e_pre & (GE != i)
+                        te = e_pre & (GE == i)
+                        if te.sum() < 5 or len(np.unique(YE[tr])) < 2:
+                            continue
+                        c1 = conf(XE[te], YE[te], clf=_fr["loso"][i])
                     Cpre = c1 if Cpre is None else Cpre + c1
                 mats["pre"] = Cpre
                 pe, pu = ~e_pre, (~u_pre if len(u_pre) else np.zeros(0, bool))
@@ -381,8 +398,11 @@ def fig_confusion_pre_post_working(out_dir):
                 ya = np.concatenate([YE[pe]] + ([YU[pu]] if len(u_pre) and pu.any() else []))
                 mats["post_all"] = conf(Xa, ya)
                 pw = pu & ~not_eng if len(u_pre) else np.zeros(0, bool)
-                Xw = np.vstack([XE[pe]] + ([XU[pw]] if len(u_pre) and pw.any() else []))
-                yw = np.concatenate([YE[pe]] + ([YU[pw]] if len(u_pre) and pw.any() else []))
+                pew = pe
+                if _uw:                    # the camera working trials of the post sessions
+                    pew, pw = pe & _work[0], (pu & _work[1]) if len(u_pre) else pw
+                Xw = np.vstack([XE[pew]] + ([XU[pw]] if len(u_pre) and pw.any() else []))
+                yw = np.concatenate([YE[pew]] + ([YU[pw]] if len(u_pre) and pw.any() else []))
                 mats["post_working"] = conf(Xw, yw)
             except _Stored:
                 pass                       # the stored per-class matrices are already in `mats`
@@ -629,16 +649,28 @@ def _collect_5c(align, variant="working", mode="frozen"):
             # WIDEFIELD_SPOUT_SCALING=session_z). The frozen predictions read the SCORING frame (XEs / XUs); the
             # within-session refit reads the production frame (XE / XU), as it always has -- it never meets the
             # frozen model. The matched arm trains on the TRAINING frame (XT) and scores in its own EM frame.
-            fr = _frozen_frame(bd)
-            XT, XEs, XUs = fr["XT"], fr["XEs"], fr["XUs"]
+            # WORKING = THE CAMERA WORKING TRIALS ON BOTH SIDES (Priya 11-03, `working_trials`): the frozen model of
+            # the working class is trained on pre-stroke working trials (engaged AND no-lick rows), its pre panel is
+            # the held-out pre session's working trials and its centre set is each session's working rows. `lick` /
+            # `stopped` and the lick window keep the engaged (lick-gate) model. Quit-tail selection = the old code.
+            fr = _frozen_frame(bd, "working" if variant == "working" else "engaged")
+            XEs, XUs = fr["XEs"], fr["XUs"]
             clf = fr["full"]
+            uw = fr["sel"] == "working"
+            work = (bd.get("work_e"), bd.get("work_u"))
+            RX, RY, RG = fr["R"]
+            if uw:
+                RB = np.concatenate([BE_all[bd["work_e"]], BU_all[bd["work_u"]]])
+            else:
+                RB = BE_all
+            RT = fr["ff"].XT                       # the training rows in the training frame
 
             def _stack(i, me, mu, frozen_frame, XEs=XEs, XUs=XUs, XE=XE, XU=XU):
                 A, B = (XEs, XUs) if frozen_frame else (XE, XU)
                 return np.vstack([A[me]] + ([B[mu]] if mu.any() else []))
 
             def rec(X, y, blk, model, pool=None, X_refit=None, sess=None, me=None, mu=None,
-                    an=an, fr=fr, bd=bd, XE=XE, XU=XU):
+                    an=an, fr=fr, bd=bd, XE=XE, XU=XU, RX=RX, RG=RG):
                 # loop variables bound as defaults: rec is only called within this iteration, but a late-binding
                 # closure would silently read a later animal's bundle if it ever were not
                 """One record, with `mode` deciding whose prediction fills column(s) of y_pred.
@@ -669,7 +701,8 @@ def _collect_5c(align, variant="working", mode="frozen"):
                     if fr["scaling"] != "session_z":
                         if [int(c) for c in model.classes_] == list(range(6)):
                             Xe_, Xu_ = _frozen_score_rows(bd, model, model.spout_pi_train_, sess,
-                                                          XE[me], XU[mu] if mu.any() else None)
+                                                          XE[me], XU[mu] if mu.any() else None,
+                                                          centre_rows=RX[RG == sess])
                             X = np.vstack([Xe_] + ([Xu_] if Xu_ is not None else []))
                         else:
                             X = X_refit        # a subset missing a spout: no 6-class EM; production frame
@@ -689,8 +722,8 @@ def _collect_5c(align, variant="working", mode="frozen"):
             # training data against one, with no lesion involved. Every post-stroke gap has to be
             # read against it, which is why pre is drawn rather than assumed to be zero.
             pre_y, pre_p, pre_b, pre_recs = [], [], [], []
-            for i in sorted(pre_i):
-                tr = e_pre & (GE != i)
+            for i in (fr["train_sessions"] if uw else sorted(pre_i)):
+                tr = np.isin(RG, fr["train_sessions"]) & (RG != i)
                 # THE TRAINING SET IS ALWAYS THE ENGAGED PRE-STROKE ANIMAL -- that is what "frozen"
                 # means, and it does not depend on the class being SCORED. What the class changes is
                 # the trials the held-out pre-stroke session contributes, and for `stopped` that is
@@ -717,10 +750,10 @@ def _collect_5c(align, variant="working", mode="frozen"):
                 # `_collect_7` states the rule the other collectors follow: a pre-stroke animal is
                 # not missing, so `working` adds nothing at pre except a different KIND of trial,
                 # and the reference then differs from itself.
-                if variant == "stopped":
+                if variant == "stopped" or uw:
                     me_te, mu_te = _class_select(variant, e_pre & (GE == i),
                                                  (GU == i) if len(GU) else np.zeros(0, bool),
-                                                 not_eng)
+                                                 not_eng, work=work)
                 else:
                     me_te = e_pre & (GE == i)
                     mu_te = np.zeros(len(GU), bool)
@@ -728,10 +761,10 @@ def _collect_5c(align, variant="working", mode="frozen"):
                 Xte_r = _stack(i, me_te, mu_te, False)
                 yte = np.concatenate([YE[me_te]] + ([YU[mu_te]] if mu_te.any() else []))
                 bte = np.concatenate([BE_all[me_te]] + ([BU_all[mu_te]] if mu_te.any() else []))
-                if len(yte) < 5 or len(np.unique(YE[tr])) < 2:
+                if len(yte) < 5 or len(np.unique(RY[tr])) < 2 or i not in fr["loso"]:
                     continue
                 r = rec(Xte, yte, bte, fr["loso"][i],
-                        pool=(XT[tr], YE[tr], BE_all[tr]), X_refit=Xte_r, sess=i, me=me_te, mu=mu_te)
+                        pool=(RT[tr], RY[tr], RB[tr]), X_refit=Xte_r, sess=i, me=me_te, mu=mu_te)
                 if r is None:
                     continue
                 pre_recs.append(r)
@@ -747,14 +780,15 @@ def _collect_5c(align, variant="working", mode="frozen"):
                 if i in pre_i:
                     continue
                 day = _day(an, lab.split("_")[-1])
-                me, mu = _class_select(variant, (GE == i), (GU == i), not_eng)
+                me, mu = _class_select(variant, (GE == i), (GU == i), not_eng, work=work)
                 Xs = _stack(i, me, mu, True)
                 Xs_r = _stack(i, me, mu, False)
                 ys = np.concatenate([YE[me]] + ([YU[mu]] if mu.any() else []))
                 bs = np.concatenate([BE_all[me]] + ([BU_all[mu]] if mu.any() else []))
                 if not len(ys):
                     continue
-                r = rec(Xs, ys, bs, clf, pool=(XT[e_pre], YE[e_pre], BE_all[e_pre]), X_refit=Xs_r, sess=i,
+                _tm = np.isin(RG, fr["train_sessions"])
+                r = rec(Xs, ys, bs, clf, pool=(RT[_tm], RY[_tm], RB[_tm]), X_refit=Xs_r, sess=i,
                         me=me, mu=mu)
                 if r is None:
                     continue
