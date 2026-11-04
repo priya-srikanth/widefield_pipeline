@@ -350,3 +350,204 @@ Nothing here changes production; Priya decides.
 - `O_oracle_sessions.csv`;
 - `P_bias_pooled.csv`, `P_effectpart_pooled.csv`, `P_bias_frameonly_pooled.csv`;
 - `M_achieved_mix.csv`, `M_injection_sizes.csv`.
+
+## 7. Follow-up: two scale variants of Wt (WtF, WtR), injected grid and real sessions (11-04, Priya OK)
+
+Same harness, grid, seeds, oracle and readouts as §2. Wt, N and Z are kept as references, and their cells are
+identical to the first run (1.18 M cells, |Δk| = 0). The real-session Wt / N / Z equal `centre_mixshift_1104`
+`D_sessions_frames.csv` to 1e-16 (214 sessions × aligns). Diagnostic only; nothing stored or published.
+
+### The new frames
+
+Both keep the Wt centre (the DAQ-label balanced mean of the session's working rows) and change only the scale.
+
+| tag | scale |
+|---|---|
+| **WtF** | FIXED: the animal's pooled pre-stroke SD, the training frame's own (mean over the model's training sessions of their working-row SD, raw units; the N frame's scale). No per-session SD |
+| **WtR** | ROBUST per session: the within-spout residual SD, sqrt(mean_q var_q), equal weight over spouts with ≥ 5 rows. Calibrated per feature by the pooled pre ratio (working SD / residual SD over the training sessions), so it matches the training scale at pre. A shrunk spout mean cannot lower it |
+| WtR0 | the same residual SD without the calibration (check only) |
+
+### 7a. Pre cost and mix-only bias (cue; per animal 92 / 93 / 94 / 95, then pooled [CI])
+
+**Pre cost** (nat E0, frame − O):
+
+| frame | far contra, per animal | far contra, pooled | overall, pooled |
+|---|---|---|---|
+| Wt | 0 | 0 | 0 |
+| WtF | −.007 / −.021 / −.000 / +.003 | −.006 [−.019, +.004] | −.001 [−.009, +.005] |
+| WtR | −.006 / +.003 / −.003 / +.006 | +.000 [−.008, +.007] | +.002 [−.001, +.005] |
+| WtR0 | | +.012 [+.003, +.021] | +.003 [+.000, +.006] |
+| N | | −.008 | −.016 [−.034, −.002] |
+
+At precue every new frame is within ±.006.
+
+**Mix-only bias** (acute E0):
+
+| frame | far contra, per animal | far contra, pooled | overall, pooled |
+|---|---|---|---|
+| Wt | +.143 / −.002 / +.069 / −.076 | +.034 [−.064, +.148] | −.018 [−.045, +.003] |
+| WtF | +.110 / +.035 / +.106 / +.027 | **+.069 [+.004, +.160]** | −.005 [−.024, +.013] |
+| WtR | +.227 / +.044 / +.105 / +.026 | **+.101 [+.022, +.228]** | +.001 [−.022, +.023] |
+| N | −.005 / +.023 / +.081 / −.102 | −.001 [−.093, +.084] | −.015 |
+| Z | +.227 / −.002 / +.079 / +.060 | +.091 [+.003, +.220] | −.019 |
+
+- **Both new frames remove Wt's small overall mix drift** (−.018 → −.005 / +.001).
+- **But at far contra they read high under the acute mix in all four animals.** Pooled WtF is +.07 and WtR +.10,
+  both with intervals above 0, where Wt's interval spans 0.
+- At precue the new frames are within ±.03, with no interval clear of 0.
+
+### 7b. Recovery of the spout-specific loss (E1 / E4; frame change / oracle change at far contra)
+
+**Cue, nat arm, per animal:**
+
+| frame | E1 f = .5: PS92 / PS93 / PS94 / PS95 | E1 f = .25 / .5 / .75, animal mean | close-spout change at f = .5 (truth 0) |
+|---|---|---|---|
+| Wt | .65 / .79 / .62 / .67 | .75 / .68 / .74 | −.009 |
+| WtF | .69 / .77 / .58 / .69 | .80 / .68 / .73 | −.007 |
+| WtR | .68 / .79 / .69 / .71 | .82 / .71 / .76 | −.008 |
+| WtR0 | | .83 / .68 / .73 | −.010 |
+| N | 1.02 / .98 / .89 / 1.13 | 1.15 / 1.00 / .99 | 0 |
+| Z | | .70 / .67 / .73 | −.011 |
+
+- **Neither scale variant fixes the understatement:** WtF .68 and WtR .71 against Wt .68.
+- E4u / E4r equal E1 f = .5 for every Wt variant (the offset is absorbed). N gives .59 / 1.38: the offset pushes it
+  either way.
+- **Precue, nat** (E1 f = .5): Wt .85, WtF .83, WtR .85, N .97.
+- **Acute arm** (cue E1 f = .5; noisy, §2): Wt .95, WtF 1.13, WtR 1.20, N 1.06. Per animal WtR is 1.96 / 1.07 /
+  1.22 / .92. The over-recovery rides on the mix-only far-contra inflation above.
+
+**Correction to §4.** The mechanism bullet under "Which frame recovers the spout-specific loss" says the larger part
+of Wt's understatement comes from the session SD. That is wrong.
+
+- A fixed scale (WtF) and a scale the class means cannot move (WtR) give the same recovery as Wt (.68-.71). The scale
+  is not the cause.
+- The understatement comes from the CENTRE. Shrinking far contra moves the six-spout centre away from far contra by
+  f/6 of the far-contra offset. Re-centring therefore pushes every row toward far contra:
+  - far contra regains part of its distance;
+  - the other spouts pick up the −.01 spill-over.
+- On a frozen decoder near its boundary, that 1/6 shift is worth about a third of the accuracy change.
+- Only frames whose centre does not include the far-contra rows recover E1 fully: N, Rref and R5.
+
+### 7c. Effect part under E2 / E2s / E3 / E5 (pooled; * = CI excludes 0)
+
+**Cue:**
+
+| effect | Wt | WtF | WtR | N | Z |
+|---|---|---|---|---|---|
+| E2 gain g = .6, nat, far contra | +.026* | **+.008** | +.026* | −.018 | +.026* |
+| E2 g = .6, nat, overall | +.035* | **+.002** | +.035* | −.014 | +.035* |
+| E2 g = .6, acute, far contra | +.137* | **+.013** | +.137* | +.088 | +.137* |
+| E2 g = .8, acute, far contra | +.070* | +.059 | +.070* | +.052 | +.070* |
+| E2 g = 1.25, nat, far contra | −.004 | −.000 | −.004 | +.001 | −.004 |
+| E2s g = .6, nat, far contra | +.008 | +.009 | **+.000** | −.013 | +.011* |
+| E2s g = .6, nat, overall | +.010* | +.002 | **−.000** | −.001 | +.013* |
+| E2s g = .6, acute, far contra | −.008 | −.065* | −.082 | −.007 | −.032 |
+| E3u / E3r, k = 1, 2 | 0 | 0 | 0 | +.05 to +.06 / −.07 to −.19 | 0 |
+| E5 / E5c / E5s | 0 | 0 | 0 | 0 | 0 |
+
+**Precue:** E2 g = .6 nat far contra Wt +.036*, WtF +.001, WtR +.036*. E2s is within ±.01 everywhere. E3 / E5 are 0
+for every Wt variant.
+
+- **WtF is the only frame that sees a proportional gain change and is still immune to offsets and rest changes.** Its
+  E2 effect part is ~0 at every level (acute +.013 against +.137 for Wt).
+- **WtR behaves exactly like Wt under gain** (scatter scaled, so its residual SD scales too). It is the best frame for
+  a signal-only global loss (E2s nat +.000).
+- **Under the acute mix both new frames overstate E2s** (−.07 / −.08).
+
+### 7d. Real post-stroke sessions (section-D working rows; pre = held-out LOSO)
+
+**Cue, far contra, per animal × epoch (session means):**
+
+| animal | epoch | Wt | WtF | WtR | N | Z |
+|---|---|---|---|---|---|---|
+| PS92 | pre | .867 | .860 | .861 | .858 | .870 |
+| PS92 | acute | .156 | .195 | .150 | .175 | .182 |
+| PS92 | subacute | .504 | **.737** | .517 | .420 | .482 |
+| PS92 | chronic | .717 | .721 | .738 | .314 | .725 |
+| PS93 | pre | .746 | .725 | .749 | .726 | .743 |
+| PS93 | acute | .160 | .185 | .175 | .238 | .152 |
+| PS93 | chronic | .640 | .665 | .665 | .608 | .643 |
+| PS94 | pre | .919 | .918 | .916 | .919 | .921 |
+| PS94 | acute | .359 | **.574** | .388 | .329 | .542 |
+| PS94 | chronic | .675 | .660 | .631 | .335 | .689 |
+| PS95 | pre | .926 | .929 | .932 | .922 | .930 |
+| PS95 | acute | .244 | **.366** | .195 | .293 | .268 |
+| PS95 | chronic | .847 | .827 | .816 | .690 | .854 |
+
+**Headlines, pooled.** Level = mean of animal means; Δ = frame − Wt (`boot_delta` of session differences); deficit =
+epoch − held-out pre (`boot_delta`).
+
+| quantity | Wt | WtF | WtR | N | Z |
+|---|---|---|---|---|---|
+| cue far contra, acute | .230 | **.330** (Δ +.100 [+.026, +.183]) | .227 (Δ −.003 [−.034, +.026]) | .259 (+.029) | .286 (+.057) |
+| deficit | −.635 [−.710, −.558] | −.528 [−.645, −.398] | −.638 [−.736, −.538] | −.597 [−.675, −.518] | −.580 |
+| cue far contra, subacute | .602 | .657 (+.055 [−.021, +.205]) | .605 (+.003) | .505 (−.097) | .605 |
+| cue far contra, chronic | .720 | .718 (−.001) | .712 (−.007) | .487 (−.233) | .728 |
+| deficit, chronic | −.145 [−.221, −.080] | −.140 | −.152 | −.369 | −.138 |
+| cue overall, acute | .575 | .637 (+.062 [+.012, +.123]) | .603 (+.028 [+.005, +.053]) | .619 (+.044) | .594 (+.019) |
+| cue overall, chronic | .802 | .797 | .800 | .670 | .804 |
+| cue close spouts, acute | .686 | .759 (+.074 [+.016, +.142]) | .719 (+.033 [+.005, +.064]) | .735 | .672 |
+| precue far contra, acute | .198 | .185 (−.013 [−.043, +.010]) | .198 (+.001) | .251 (+.053) | .209 |
+| deficit | −.321 | −.328 | −.319 | −.271 | −.305 |
+| precue far contra, chronic | .381 | .397 (+.016 [+.005, +.030]) | .385 (+.004) | .488 (+.107) | .385 |
+| precue overall, acute | .355 | .364 (+.009) | .356 (+.001) | .345 (−.010) | .352 |
+
+**Per-animal cue acute far-contra deficit** (Wt / WtF / WtR / N):
+
+| animal | Wt | WtF | WtR | N |
+|---|---|---|---|---|
+| PS92 | −.712 | −.666 | −.711 | −.683 |
+| PS93 | −.586 | −.540 | −.574 | −.488 |
+| PS94 | −.560 | −.345 | −.528 | −.590 |
+| PS95 | −.682 | −.563 | −.737 | −.629 |
+
+### 7e. Reading
+
+**WtR.**
+- On real data it is a drop-in for Wt: acute far contra .227 against .230, chronic .712 against .720, precue
+  identical. Overall rises slightly (+.03 acute).
+- On the injected grid it buys nothing for a spout-specific loss (.71 against .68). It is the best frame for a
+  signal-only global loss.
+- It is mix-biased at far contra (+.10), where Wt is not clearly biased.
+- **No case for switching to it.**
+
+**WtF.**
+- It is the one frame that reports a proportional gain change correctly while staying immune to offsets and rest
+  changes.
+- On real data it changes the headline: acute far contra .230 → .330 (+.10). That is carried by PS94 (+.21) and PS95
+  (+.12), with PS92 +.04 and PS93 +.03. PS92 subacute also rises (+.23).
+- The likely cause is the acute rise in the trial-row SD (REST_CENTRE §5d: ×1.41 PS94, ×1.11-1.14 elsewhere):
+  - Wt divides that rise out; WtF keeps it, as signal.
+  - If the rise is a real gain increase, WtF is right. If it is added trial-to-trial variance (more incomplete,
+    variable trials), WtF reads it as signal and inflates the margins.
+  - The injected grid cannot tell these apart, and WtF's +.07 mix-only far-contra bias points the same way.
+- **The deficit stays large under WtF** (−.53 [−.65, −.40]; −.35 to −.67 per animal).
+
+**For the bracket.**
+- Wt stays the primary.
+- WtF is worth reporting beside N as the gain-sensitive frame, with its offset immunity stated. It is the
+  "Wt-centred but not z-scored" reading.
+- The far-contra deficit holds in every frame (−.53 to −.64 cue acute).
+- How much of the acute gap between frames is a gain change (WtF) and how much is a day offset (N) is the open
+  question.
+
+Nothing here changes production; Priya decides.
+
+### 7f. Limits
+
+- These are the same as §5.
+- WtR's calibration ratio is fitted on the training sessions, so at pre it matches by construction. WtR0 shows that
+  the uncalibrated version costs little: +.012 far contra pre.
+- WtF uses the pre-stroke SD of the model's own training sessions. A real post-stroke change in SD therefore enters
+  WtF in full, whatever its cause.
+
+### 7g. Files (`decoder_mix_checks/injected_effect_1104/`)
+
+- **Scripts:** `injected2.py` (frames, grid, real sessions; 3 workers) and `summarise2.py`.
+- **Logs:** `injected2_log.txt`, `summarise2_log.txt`, and `test2_PS95_cue_1seed_log.txt` (timing test; outputs
+  deleted and rerun).
+- **Per unit (`units2/`):** `<an>_<al>_cells.csv.gz`, `_real.csv.gz`, `_repro.json`.
+- **Tables (`tables2/`):**
+  - `P_pooled.csv` (pre cost, mix-only, recovery, effect parts, with CIs);
+  - `B_bias_sessions.csv`, `B_effectpart_sessions.csv`, `C_change_sessions.csv`;
+  - `REAL_sessions.csv`, `REAL_pooled.csv` (levels, Δ vs Wt and deficits per epoch, with CIs).
