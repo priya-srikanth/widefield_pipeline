@@ -22,7 +22,10 @@ log for the earlier part of the day is `RUNNING_LIST_2026-11-02_OVERNIGHT.md`.
    - ITI first-lick rows / rt_drift;
    - the quiet-events engaged mask (ours).
 
-   Stays DAQ: measures OF engagement (quit point, etc.), pinned epoch boundaries, per-lick outcome, June / PS93_0813 /
+   UPDATE (Priya): measures OF engagement (quit point, stop runs, quit prodrome, bout structure, disengagement
+   tests) ALSO switch to camera licks / classes, with the session quit = last camera lick and the camera stop rule;
+   DAQ stays as robustness and where there is no video. Sent to 34. The 09-20 engagement findings were on DAQ and may
+   move. Stays DAQ: pinned epoch boundaries, per-lick outcome, June / PS93_0813 /
    cohort 2. My suggested answers are in the chat reply of 11-04 and copied into the log below once Priya answers.
 6. **NEW (11-04): B and C re-check results (interim; the D / G runs are still going).**
    - **B (state discriminators in the spout frame), under the new working definition: one marginal miss.** PS93's
