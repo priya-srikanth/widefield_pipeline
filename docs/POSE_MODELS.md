@@ -1109,3 +1109,21 @@ four review sessions mapped to raw (`lp_sidecam.to_raw`); reference = production
   (cam1), 3-4, 1.4-2.4, 1.9-2.3; tongue 7-7.7, 5.5-6, ~2, ~2 (cam1 / cam4 tip definitions differ from the side views').
   Clips: `session_poses/pose3d_side/video_4cam_<a>_<d>.mp4` (four raw views + fused reprojection, 3-D from cam2 and
   oblique); per frame `fused_<a>_<d>.csv.gz`.
+* **Full four-camera pipeline (11-04, `pose3d_side.fuse_session`; `scripts/pose3d --four-cam`).** Side cleaning (cam4
+  thresholds x side px / mm, 0.36-0.39; tongue gap 24 ms; no jaw x-flip rule), robust fusion (worst view dropped beyond
+  `REJECT_MM`), water-drop rule, one-view fill, 3-D QC; per-session side NOSE and TONGUE offsets onto cam1 + cam4.
+  Removed by side cleaning: jaw 0.1-4 %, tongue <= 0.7 % (`side_clean_qc_stats.csv`; QC clips `side_clean_qc_*.mp4`).
+  Lick check (PS93 0814 / 0821 / 0908, review trials): without the tongue offset the 4-cam tip sat +0.12 mm ap of the
+  2-cam tip on every shared frame (ml / dv 0.00) and the "closer to the spout" miss was that shift (at 112 DAQ contacts
+  tip-to-commanded-tip 4-cam vs 2-cam paired -0.01 mm); with it 0.00 in all axes, contact 1.27 vs 1.26 mm. LATERAL (the
+  key readout): |tip ml - spout ml| at contact 0.614 vs 0.615 mm (= the rod radius 0.62: both put a touching tip on
+  the rod surface), per-frame ml |d| p50 0.04 / p90 0.12 mm; the lateral ANGLE moves p50 0.9 / p90 3.5 deg through its
+  depth denominator (hypot(ap, dv)), not ml.
+* **Student-label check (11-04, `scripts/side_label_offsets.py`, 5 August Part A sessions, 151 moments labelled in a side
+  camera + cam1 + cam4).** Her side label vs her cam1 + cam4 3-D point: NOSE dv +0.72 (cam2) / +0.85 (cam3), positive in
+  all 5 sessions -- the model's side-nose offset (+0.68 / +0.90) is a real view-definition difference, so the side-nose
+  correction stands; TONGUE ap +0.15 / -0.02, sessions both signs, leave-one-camera-out <= 0.06 mm in every camera -- her
+  tongue tip is the same 3-D point in all four views, so the model's +0.1-0.2 mm forward shift is the SIDE MODEL's bias
+  (corrected per session; re-check on the round-2 model); JAW <= 0.17; SPOUT <= 0.02 mm in all four cameras (validates the
+  ENL posing + cam1 edge offset with human labels). Nose leave-one-out: cam4 dv -0.65, cam1 -0.27, side +0.43 / +0.76
+  (each view labels its own silhouette tip). Small n for the tongue (14-28 moments per camera); Part B adds ~62.
