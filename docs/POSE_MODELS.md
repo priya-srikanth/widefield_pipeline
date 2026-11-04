@@ -1094,3 +1094,18 @@ four review sessions mapped to raw (`lp_sidecam.to_raw`); reference = production
   the side nose as its own keypoint (or subtract ~0.75 mm dv, but it varies 0.3-1.2 by session).
 * June side (800 x 600, 1.24x face) posed acceptably with the August intrinsics (1.1 px) and gave the same offsets; to be
   confirmed on more June sessions before trusting June side 3-D.
+* **Correction 11-04 (Priya: "I thought we were using cam4 spout as truth and building in the cam1 offset").** Against
+  the commanded tip (= cam4's keypoint), per position, PS93 0814: `session_3d`'s per-frame spout -1.04 mm ap (it
+  triangulates cam1's inferior + cam4's superior edge as one point; identical at all six positions), cam1 + cam4 with
+  cam1's edge offset 0.00, cam2 0.01, cam3 -0.02 mm. So the side spout keypoints ARE the commanded tip -- no side spout
+  offset; the 0.8 mm above was the reference's blend. (Production `pose3d.session_3d` spout_* columns carry this -1.04 mm
+  ap blend; lick aim uses the commanded targets and is unaffected. Fix = triangulate the spout with cam1's pose shifted,
+  pending Priya.)
+* **Four-camera fusion (`pose3d_side.fuse`, `scripts/pose3d_side_video.py`).** Spout: cam1 edge offset (cam4 = truth);
+  nose: `SIDE_NOSE_OFFSET_MM` (cam2 dv +0.68, cam3 +0.90 mm); jaw / tongue as measured. Frames with a 3-D point,
+  cam1 + cam4 -> any 2 of 4 (review trials, PS93 0814 / 0821): nose 68 / 55 % -> 100 / 100 %; jaw 74 / 83 % -> 100 /
+  99.9 %; tongue 13 / 9 % -> 17 / 17 %; spout 99 / 98 % -> 100 %. Median reprojection px (cam1, cam4, cam2, cam3): nose
+  1.6-3.2, 7.0-7.4, 1.7-3.1, 0.5-2.4 (cam4's nose is the outlier once the side nose is moved onto the average); jaw 5-10
+  (cam1), 3-4, 1.4-2.4, 1.9-2.3; tongue 7-7.7, 5.5-6, ~2, ~2 (cam1 / cam4 tip definitions differ from the side views').
+  Clips: `session_poses/pose3d_side/video_4cam_<a>_<d>.mp4` (four raw views + fused reprojection, 3-D from cam2 and
+  oblique); per frame `fused_<a>_<d>.csv.gz`.

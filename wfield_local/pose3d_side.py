@@ -28,6 +28,19 @@ HOW.
     dx, dy: a SYSTEMATIC shift is a labelling offset; the spread is noise), and in mm as the perpendicular vector from
     that 3-D point to the side camera's ray (world ml / ap / dv; the component along the ray is invisible to one camera).
   * SIDE STEREO: cam2 + cam3 triangulated alone, against cam1 + cam4: the full 3-D offset vector per part.
+
+RESULT (11-04, PS93 0814 / 0821 / 0908 + PS95 0606; POSE_MODELS Part E) and the CORRECTIONS `fuse` applies:
+  * SPOUT -- cam4 is the truth (its superior-edge keypoint IS the commanded upper tip) and cam1 carries
+    `pose3d.EDGE_OFFSET_MM` (one rod diameter below). The side spout keypoints sit ON the commanded tip (ray vs
+    commanded 0.00-0.02 mm; and the side jaw / tongue agree with cam1 + cam4 within ~0.3 mm, which a side spout offset
+    would break): NO side spout offset. The 0.8 mm "side spout offset" first measured was against `session_3d`'s
+    per-frame spout, which triangulates cam1's inferior and cam4's superior edge as one point (a blend 1.04 mm behind the
+    commanded tip in ap, identically at every position); `fuse` triangulates the spout with cam1's pose shifted by its
+    edge offset instead (the `_identity_world` rule), which lands on the commanded tip (0.00 mm).
+  * NOSE -- each view places "nose" on its own silhouette: the side nose sits HIGHER than the cam1 / cam4 nose
+    (dv +0.29 to +1.18 mm by session). `SIDE_NOSE_OFFSET_MM` (per-camera medians of the four sessions) moves the side
+    keypoints onto the cam1 / cam4 definition before fusing.
+  * JAW, TONGUE -- fused as measured (offsets <= 0.4 mm, about the label noise).
 """
 from __future__ import annotations
 
@@ -38,6 +51,20 @@ import pandas as pd
 
 SIDE = ("cam2", "cam3")
 PARTS = ("nose", "jaw", "tongue", "spout")
+#: Where each SIDE camera's nose keypoint sits relative to the cam1 / cam4 nose (world ml, ap, dv mm): the per-camera
+#: median of `offsets_vs_reference` over PS93 0814 / 0821 / 0908 + PS95 0606 (dv range 0.29-0.90 cam2, 0.70-1.18 cam3).
+SIDE_NOSE_OFFSET_MM = {"cam2": (0.02, 0.05, 0.68), "cam3": (-0.06, 0.13, 0.90)}
+
+
+def part_offsets(part: str) -> dict:
+    """{camera: offset mm} that `fuse` applies for ``part`` (module docstring: spout = cam1's edge, nose = the side
+    definitions, jaw / tongue none)."""
+    from wfield_local import pose3d as P3
+    if part == "spout":
+        return {c: o for c, o in P3.EDGE_OFFSET_MM.items() if any(o)}
+    if part == "nose":
+        return dict(SIDE_NOSE_OFFSET_MM)
+    return {}
 
 
 def side_width(rv, animal: str, date: str, cam: str) -> int:
@@ -67,6 +94,7 @@ def side_session(rv, animal: str, date: str, preds_dir: Path, clips_dir: Path, i
             x, y = LS.to_raw(pr[(p, "x")].to_numpy(float), pr[(p, "y")].to_numpy(float), cam, w)
             flat[f"{p}_x"], flat[f"{p}_y"], flat[f"{p}_likelihood"] = x, y, pr[(p, "likelihood")].to_numpy(float)
         ix = idx[["trial_id", "position", "t_ms"]].copy()
+        ix["src_frame"] = idx[f"src_frame_{cam}"].to_numpy()          # raw video frame (for drawing on the raw view)
         ix["strobe_ms"] = ix.trial_id.map(strobe).to_numpy(float)
         ix["width"] = w
         out[cam] = (ix, flat)
@@ -125,6 +153,67 @@ def triangulate_n(g, pts: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
         pr = g.project(X[ok])
         rep[:, ok] = np.linalg.norm(pr - pts[:, ok], axis=2)
     return X, rep
+
+
+def shifted(g, offsets: dict):
+    """Copy of ``g`` in which camera c projects X + offsets[c] (its keypoint sits there): t' = t + R o."""
+    import copy
+
+    import cv2
+    gs = copy.deepcopy(g)
+    for cam in gs.cameras:
+        o = np.asarray(offsets.get(cam.get_name(), (0.0, 0.0, 0.0)), float)
+        if o.any():
+            M = cam.get_extrinsics_mat()
+            cam.set_translation(M[:3, 3] + M[:3, :3] @ o)
+            cam.set_rotation(cv2.Rodrigues(M[:3, :3])[0].ravel())
+    return gs
+
+
+def fuse(g, pts_by_part: dict) -> dict:
+    """{part: (X (n, 3) world mm, reprojection px (n_cams, n), n_views (n,))} from ``pts_by_part[part]`` = (n_cams, n, 2)
+    in ``g``'s camera order, NaN = not seen, with each part's `part_offsets` applied."""
+    out = {}
+    for part, pts in pts_by_part.items():
+        gs = shifted(g, part_offsets(part))
+        X, rep = triangulate_n(gs, pts)
+        out[part] = (X, rep, np.isfinite(pts).all(2).sum(0))
+    return out
+
+
+def four_camera_points(S: pd.DataFrame, info: dict, c1, c4, side: dict, order: list[str]) -> tuple[pd.DataFrame, dict]:
+    """The frames shared by cam1 + cam4 (`session_3d`'s pairing) and both side review clips, and per part the
+    (n_cams, n, 2) image points in ``order``: cam1 / cam4 as `session_3d` uses them (tongue / jaw after each camera's
+    cleaning, MEASURED frames only; nose / spout raw >= `pose3d.STATIC_LK`), side points confident at
+    `lp_sidecam.PRELABEL_CUT`. Returns (frames: S rows + side clip row per camera, {part: pts})."""
+    from wfield_local import pose3d as P3
+    from wfield_local import spout_frame as SF
+    ix1, flat1 = c1
+    ix4, flat4 = c4
+    i1, i4 = P3.pair(ix1, ix4)
+    mouth1, mouth4 = SF.from_medians_lr(info["med1"]).origin, SF.from_medians(info["med4"]).origin
+    base = {}
+    for part in PARTS:
+        if part in P3.CLEANED:
+            a = P3.cleaned_xy(flat1, ix1, part, "cam1", mouth1)[0][i1]
+            b = P3.cleaned_xy(flat4, ix4, part, "cam4", mouth4)[0][i4]
+        else:
+            a, b = P3._raw_xy(flat1, part, i1), P3._raw_xy(flat4, part, i4)
+        base[part] = {"cam1": a, "cam4": b}
+    F = S.reset_index(drop=True).reset_index().rename(columns={"index": "iS"})
+    for cam in SIDE:
+        iS, iX = pair_side(S, side[cam][0])
+        F = F.merge(pd.DataFrame({"iS": iS, f"i_{cam}": iX}), on="iS")
+    pts = {}
+    for part in PARTS:
+        cols = []
+        for cam in order:
+            if cam in SIDE:
+                cols.append(confident_xy(side[cam][1], part)[F[f"i_{cam}"].to_numpy()])
+            else:
+                cols.append(base[part][cam][F.iS.to_numpy()])
+        pts[part] = np.stack(cols)
+    return F, pts
 
 
 def pair_side(S: pd.DataFrame, ix: pd.DataFrame) -> tuple[np.ndarray, np.ndarray]:
