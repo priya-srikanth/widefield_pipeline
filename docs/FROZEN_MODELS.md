@@ -218,8 +218,9 @@ desktop (byte-verified). The session_z and unscaled models stay in the store and
 so no other spec id moved. **Expect `SPEC-CHANGED` on a first bal_em fit:** `siblings()` matches on animal / kind / align /
 source, so the session_z model counts as a sibling; the manifests differ only in `scaling` / `scaling_params`. The
 min-mass guard acts only at scoring time but is in the identity, so a guarded run (`min_mass=t`) freezes under its own id.
-An unpublished interim fit (same models, no `scaling_params`) sits outside the store in
-`C:/Users/SabatiniLab/frozen_models_interim_unpublished_20261103/`; it scored nothing published.
+An unpublished interim fit (same models, no `scaling_params`; ids 69392638a11b / 517a902f93ff / 6155e2dfbbde /
+b1fe4b3c65ad) sat outside the store in `C:/Users/SabatiniLab/frozen_models_interim_unpublished_20261103/`. It scored
+nothing published, nothing referenced it, and it was DELETED 2026-11-04 (Priya: "if not being used can delete").
 
 **2026-11-03: PRODUCTION spout-position decoders are now `scaling="session_bal_em"` at precue, cue and lick (Priya, "I would
 adopt B everywhere"; DECISIONS 2026-11-03 "Spout-position frozen decoder: bal_em adopted as PRODUCTION").** `scaling_params =

@@ -163,6 +163,15 @@ FYI, the 3-class camera variant (lick / jaw-only / none) is thin in PS92 and PS9
 
 ## Decisions taken today (Priya)
 
+- **(11-04) Small items.**
+  - residual_roi: pixel-based significance stays primary. The area table ALSO gets stats, adjusted for the larger
+    split-basis family (sent to 34).
+  - PS110 09-25 mCherry = the refined per-tile call after dedupe, 969 / 3,752 (25.8 %). It was already on the deck since
+    11-03 (slides 155 / 157 / 161 notes and the 161 outline); nothing to change.
+  - The 4 interim unpublished state models were DELETED: unused and unreferenced (ids in FROZEN_MODELS.md).
+  - Stale "carried mostly by one animal" removed from the epoch_13pos caption (epoch_state.py); it shows from the next
+    render.
+
 - **(11-04) All Allen-ROI analyses use our ALM / tjM1 atlas** (the "split" basis of iti_licks, Priya 10-27: ALM and
   tjM1 = the anterolateral 40 % of MOs / MOp, plus disjoint MOs_rest / MOp_rest; whole MOs / MOp out; plain basis =
   robustness only). Until now this was the default only for the ITI decoders and the s1 table. Passed to 34 to apply

@@ -655,9 +655,10 @@ def _fig_13_state(out_dir, align, variant, wname):
                 NOTES[0],
                 # "RUNNING IS THE CLEAN EXAMPLE ... flat at every epoch" was an assertion, and after the 2026-11-02
                 # z-score fix the running bars are not flat (PS94's running recall falls to ~.5 subacute / chronic).
-                # Print the measured numbers and say where the fall sits; the per-animal points show it.
-                f"RUNNING {_line('running')} (pre / acute / subacute / chronic) -- any post-stroke fall is "
-                f"carried mostly by one animal (read the per-animal points); LICKING {_line('licking')}",
+                # Print the measured numbers only; "carried mostly by one animal" was a literal that stopped being
+                # true under bal_em (11-03: running .99 / .97 / .98 / .97), so the per-animal points carry it.
+                f"RUNNING {_line('running')} (pre / acute / subacute / chronic; per-animal points show who "
+                f"moves); LICKING {_line('licking')}",
                 f"REST {_qmove} -- and it is also a much larger share of a "
                 f"post-stroke session, so a post-stroke animal sitting still may be in a genuinely "
                 f"different state. A finding about immobility, not a failed control",
