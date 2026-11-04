@@ -408,17 +408,44 @@ def frozen_decoder_models(XE, YE, GE, kept, pre_i, *, align, source, post_s=2.0,
         _fit_all, meta={"n_engaged": int(len(YE)), "n_pooled_sessions": len(kept)}, log=log)
 
 
-def frozen_scored_frame(models, XE, GE, XU, GU, kept, pre_i):
+def engaged_row_classes(kept, n_e, *, n_u=None, features=None, source="locanmf", align="cue", post_s=2.0):
+    """Camera class per POOLED ENGAGED row (`pool_sessions` row order) for the bal_em centre rows
+    (`spout_scaling.centre_mask`), or None when the run's centre is not the camera working set. From ``features``'
+    trial indices when it carries them (`features_with_indices`), else each session's kept cue indices
+    (`trial_features_cached(..., with_indices=True)`, the same rows `pool_sessions` stacked). Raises on a count
+    mismatch (never guesses)."""
+    from wfield_local import spout_scaling
+    from wfield_local import trial_classes as _tc
+    if spout_scaling.spout_scaling() is None or spout_scaling.centre_rows() != "working":
+        return None
+    if features is not None and getattr(features, "indices", None):
+        out = [_tc.row_classes(lab, features.indices[lab][0]) for lab in kept]
+    else:
+        out = []
+        for lab in kept:
+            s = next(x for x in SESSIONS if x["label"] == lab)
+            *_r, idx_e, _idx_nl = trial_features_cached(s, _args(source, align, post_s), with_indices=True)
+            out.append(_tc.row_classes(lab, idx_e))
+    ce = np.concatenate(out) if out else np.zeros(0, object)
+    if len(ce) != int(n_e):
+        raise RuntimeError(f"bal_em centre rows: {len(ce)} classified engaged rows vs a pool of {n_e}")
+    return ce
+
+
+def frozen_scored_frame(models, XE, GE, XU, GU, kept, pre_i, cls_e=None):
     """``(XE_scored, XU_scored)``: the features the FROZEN models must be applied to.
 
     Under ``session_z`` (models without ``pi_train``) this is ``(XE, XU)`` unchanged -- the pre-11-03 behaviour,
     bit-identical. Under ``session_bal_em`` every session is moved into its scoring frame with ITS scoring model:
     a pre-stroke session with its leave-that-session-out model, every other session with ``full``; the centre comes
-    from the session's engaged rows alone (no labels) and is applied to its no-lick rows too (`spout_scaling`).
+    from the session's engaged rows alone (no labels) and is applied to its no-lick rows too (`spout_scaling`). Under
+    the camera gate the centre rows are the session's camera WORKING engaged rows (``cls_e``, `engaged_row_classes`;
+    `spout_scaling.centre_mask`, Priya 11-03 "camera gate everywhere").
     """
     from wfield_local import spout_scaling
     if not models or "pi_train" not in models:
         return XE, XU
+    cm = spout_scaling.centre_mask(cls_e)
     pre_set = set(pre_i)
 
     def model_of(i):
@@ -428,7 +455,7 @@ def frozen_scored_frame(models, XE, GE, XU, GU, kept, pre_i):
         pt = models["pi_train"]
         return pt["loso"].get(kept[i], pt["full"]) if i in pre_set else pt["full"]
 
-    return spout_scaling.scored_frame(XE, GE, XU, GU, range(len(kept)), model_of, prior_of)
+    return spout_scaling.scored_frame(XE, GE, XU, GU, range(len(kept)), model_of, prior_of, centre_mask=cm)
 
 
 def pooled_frozen_loso(labels, source="roi", align="cue", post_s=2.0, zscore=True, verbose=True,
@@ -490,7 +517,9 @@ def pooled_frozen_loso(labels, source="roi", align="cue", post_s=2.0, zscore=Tru
     models, freeze_status = frozen_decoder_models(XE, YE, GE, kept, pre_i, **_spec_kw)
     # THE FRAME THE FROZEN MODELS SCORE IN (bal_em since 2026-11-03; identity under session_z). The within-session
     # ceiling below stays on the production frame: it is refitted per session and never meets the frozen model.
-    XEs, XUs = frozen_scored_frame(models, XE, GE, XU, GU, kept, pre_i)
+    XEs, XUs = frozen_scored_frame(models, XE, GE, XU, GU, kept, pre_i,
+                                   cls_e=engaged_row_classes(kept, len(YE), features=features, source=source,
+                                                             align=align, post_s=post_s))
 
     pred = np.empty_like(YE)
     for i in pre_i:                      # reference arm: LOSO among PRE-stroke sessions only

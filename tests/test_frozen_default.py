@@ -684,9 +684,9 @@ def test_drift_lp_arm_lp_trained_by_default(pass2_env):
 def test_drift_decoder_rows_uses_the_store():
     jad = pytest.importorskip("scripts.june_august_drift")
     src = inspect.getsource(jad.decoder_rows)
-    # MERGE with main (11-03): the stored (session_z) month model serves under session_z; bal_em = FrozenFrame
-    assert "stored = None if ff.scaling else _stored_month_model(an, bd, train_sessions)" in src
-    assert "(stored if stored is not None else ff.full).predict(ff.apply(X, i))" in src
+    # 8.17 (11-03): the month model is stored in BOTH scalings, served through the FrozenFrame store hook
+    assert "st = _stored_month_model(an, bd, list(ts), scaling=ss.spout_scaling())" in src and "store=_store" in src
+    assert "fz = np.asarray(ff.full.predict(ff.apply(X, i)))" in src
 
 
 # ------------------------------------------------------------------------------- position_coding_directions (4)

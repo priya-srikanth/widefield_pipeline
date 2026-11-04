@@ -458,7 +458,7 @@ def _rt_engaged(feat, kept, XE):
     return rt
 
 
-def _class_confusions(XE, YE, GE, XU, YU, e_pre, pre_i, _mask, kept, rt_e=None, GU=None, store=None):
+def _class_confusions(XE, YE, GE, XU, YU, e_pre, pre_i, _mask, kept, rt_e=None, GU=None, store=None, cls_e=None):
     """Confusion of the frozen PRE-stroke decoder, one counts matrix per class.
 
     Rows are the TRUE position and columns the predicted one, both in DISPLAY_ORDER, as raw counts
@@ -501,7 +501,8 @@ def _class_confusions(XE, YE, GE, XU, YU, e_pre, pre_i, _mask, kept, rt_e=None, 
     from wfield_local import spout_scaling as _ss
     _use = _ss.spout_scaling() is not None and GU is not None
     ff = _ss.FrozenFrame(XE, YE, GE, sorted(pre_i), _confusion_pipe, train_mask=e_pre, loso=True,
-                         scaling=(_ss.SCALING_BAL_EM if _use else None), store=store)
+                         scaling=(_ss.SCALING_BAL_EM if _use else None), store=store,
+                         cls_e=cls_e)     # the EM centre rows: camera WORKING rows under the camera gate (Priya 11-03)
     res["spout_scaling"] = _ss.SCALING_BAL_EM if _use else _ss.SCALING_SESSION_Z
 
     # PRE, leave-one-session-out
@@ -897,7 +898,9 @@ def run_animal(animal, align="precue", verbose=True, methods=CD_METHODS):
 
         out["confusions"] = _class_confusions(XE, YE, GE, XU, YU, e_pre, pre_i, _mask, kept,
                                               rt_e=_rt_engaged(feat, kept, XE), GU=np.asarray(GU),
-                                              store=_store_conf)
+                                              store=_store_conf,
+                                              cls_e=(_tc.pool_row_classes(feat, kept, len(YE), len(YU))[0]
+                                                     if _tc.camera_gate_on() else None))
     except Exception as ex:                                          # noqa: BLE001
         print(f"  [coding_dirs] {animal}: per-class confusions unavailable ({ex})", flush=True)
 

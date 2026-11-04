@@ -23296,3 +23296,21 @@ state-class version on.
   `M:/.../kin_page_src/kin_page/add_lmm_toggles_1103.py`. Each caption states the test, the star rule and the result
   counts read from `lmm_hidden_20261103/<stem>_lmm_lmm.csv`. Imaging-page LMM figures (decoding, ramps, spec_groups,
   recovery timing) belong to the imaging-page window.
+
+## 2026-11-03 (night) -- bal_em centre fitted on the rows the gate scores (Priya: camera gate everywhere); the DAQ-engaged centre is the alternative
+
+- **Rule.** Under the camera trial gate the bal_em EM centre of every scored session is fitted on that session's camera
+  WORKING engaged rows: contact | incomplete | jaw_only inside the working period, never after_end, unknown, stopped or
+  early_run. It stays label-free and never uses no-lick rows. Under the DAQ gate the centre uses every DAQ-engaged row of
+  the session (main's 11-03 rule).
+- **Alternative.** The DAQ-engaged centre under the camera gate: `bal_em.centre_rows: engaged` (or
+  WIDEFIELD_BALEM_CENTRE=engaged). Such a run is tagged `emc-engaged` (output and cache tags). The default (`auto`)
+  adds no tag part, so the rebuild profile's run tag is unchanged.
+- **Identity.** The centre set is `scaling_params.centre_set` in every bal_em stored-model spec, so models stored under the
+  two centres never share an entry.
+- **Edge.** A session with fewer than 2 camera-working engaged rows (no video, e.g. PS93_0813) falls back to all its
+  engaged rows for its centre, and the log says so.
+- Implementation: `spout_scaling.centre_rows` / `centre_mask` (fails closed when a site has no camera classes),
+  `FrozenFrame(cls_e=)`, `scored_frame(centre_mask=)`, `locanmf_frozen_decoder.engaged_row_classes`. Log
+  docs/status/REBUILD_CODE_20261103.md 8.16.
+

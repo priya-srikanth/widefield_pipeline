@@ -806,3 +806,34 @@ nothing extra is wired.
 ### 8.15 Test record after the main merge (c6f9be2d)
 Full suite, 6 shards, the merge worktree: 4,550 passed, 178 skipped, 0 failed. This includes the pinned
 test_analysis_kit exact-equality tests and main's new test files.
+
+### 8.16 bal_em centre rows = the rows the gate scores (Priya 11-03, camera gate everywhere)
+- `spout_scaling.centre_rows()`: setting `bal_em.centre_rows` (auto | working | engaged), env WIDEFIELD_BALEM_CENTRE.
+  "auto" means working under the camera gate and engaged under the DAQ gate. "working" under the DAQ gate raises.
+- `centre_mask(cls_e)` is the camera WORKING classes (contact / incomplete / jaw_only). The classified train already
+  turns after_end, stopped and early_run into other classes, and unknown is not working. It FAILS CLOSED: under
+  "working" a site without camera classes raises (in `FrozenFrame` and `scored_frame`).
+- A session with fewer than 2 working rows (no video) falls back to all its engaged rows, and the log says so.
+- Sites wired:
+  - `grant_kit._frozen_frame` / `_frozen_score_rows` (bundle `cls`);
+  - `locanmf_frozen_decoder.frozen_scored_frame(cls_e=)` with the new `engaged_row_classes` (from feature indices or
+    `trial_features_cached(with_indices=True)`), called by `pooled_frozen_loso`, `attempt_coding` and section G
+    `frozen_X`;
+  - `FrozenFrame(cls_e=)` in nolick, position_coding_directions, precue_engagement_states, the section G lick-only arm
+    and june_august_drift.
+- nolick carries a per-row `cam_working` flag through `session_features`. Its cache kind gains `cam_working` under
+  camera, and a stale entry raises.
+- NOT wired: `scripts/cohort2_qc/quiet_task_events_followup.py` calls `score_centre` directly; it is a cohort-2
+  script, outside the cohort-1 render.
+- **Identity:** `scaling_params.centre_set` = the centre rows, so the two centres have different spec ids.
+- **Tags:** the profile's run tag is UNCHANGED (default auto = working). Camera gate + engaged adds `emc-engaged` to the
+  output and cache tags.
+- State discriminators (state_bal_em, default off) are unchanged.
+- DECISIONS entry added. Tests: tests/test_balem_centre_rows.py.
+
+### 8.17 june_august_drift: the month model stored in the bal_em frame
+- `drift_payload(..., scaling=)` fits on `spout_scaling.train_frame` under bal_em; its spec carries `spec_kw`.
+- `decoder_rows` gets the model through the `FrozenFrame` store hook (`_stored_month_model(..., scaling=)`), so under
+  bal_em it no longer fits in memory. WIDEFIELD_DRIFT_FROZEN=0 is the in-memory opt-out.
+- The size-matched draws of that script are in memory, as before the merge.
+- Tests: test_drift_month_model_is_stored_in_the_bal_em_frame; test_frozen_default's drift source test updated.

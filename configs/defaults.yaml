@@ -78,6 +78,9 @@ trial_selection:
   stop_min_start_s: 300         # a stopped run must START >= this long after the session's first cue (Priya 11-03); earlier = neither class
   rest_start: first_lick        # camera rest working period starts at the first camera lick (OPEN for Priya); session = the first cue
 
+bal_em:
+  centre_rows: auto              # EM centre rows: auto = camera WORKING rows under the camera gate, DAQ-engaged under the DAQ gate (Priya 11-03); engaged = alternative
+
 locanmf:
   r2_thresh: 0.95
   loc_thresh: 80

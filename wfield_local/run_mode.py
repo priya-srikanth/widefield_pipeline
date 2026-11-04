@@ -71,6 +71,15 @@ def drift_part() -> str:
     return "" if p == 600.0 else f"drift{p:g}s"
 
 
+def emcentre_part() -> str:
+    """``emc-engaged`` when the camera trial gate runs with the bal_em centre on every DAQ-engaged row (the
+    alternative to its default camera-working centre, `spout_scaling.centre_rows`); "" for each gate's default."""
+    from wfield_local import spout_scaling, trial_classes
+    if spout_scaling.spout_scaling() is None or not trial_classes.camera_gate_on():
+        return ""
+    return "emc-engaged" if spout_scaling.centre_rows() == "engaged" else ""
+
+
 def pre_part() -> str:
     from wfield_local import config
     pf = config.pre_from()
@@ -114,10 +123,10 @@ def csig_part() -> str:
     return f"csig-{trial_classes.class_source_signature()}" if trial_classes.camera_gate_on() else ""
 
 
-_ALL = (("hemo", hemo_part), ("lnmf", lnmf_part), ("drift", drift_part), ("pre", pre_part), ("selection", selection_part),
+_ALL = (("hemo", hemo_part), ("lnmf", lnmf_part), ("drift", drift_part), ("pre", pre_part), ("selection", selection_part), ("emcentre", emcentre_part),
         ("refs", refs_part), ("inmem", inmem_part), ("lptrained", lptrained_part), ("projall", projall_part),
         ("csig", csig_part))
-_CACHE = ("hemo", "lnmf", "drift", "selection", "projall", "csig")
+_CACHE = ("hemo", "lnmf", "drift", "selection", "emcentre", "projall", "csig")
 #: parts that enter cache keys only, never an output path / tag
 _CACHE_ONLY = ("csig",)
 

@@ -278,6 +278,7 @@ def categorize(s, args, with_licks=False):
                                    window="cue_stop")
         cat = np.where((cat == "undetected") & (ccls == "contact"), "late_rewarded", cat).astype(object)
         sess_eng = _tc.in_gate(ccls, "miss_working")   # read on UNDETECTED cues only: no contact class (review M6)
+        _CAM_WORKING[s["label"]] = _tc.in_gate(ccls, "working")   # per cue: the bal_em centre rows (Priya 11-03)
         neither = ~sess_eng & ~np.isin(ccls, list(_tc.STOPPED_CLASSES))
         cat = np.where((cat == "undetected") & neither, "", cat).astype(object)
     else:
@@ -309,6 +310,22 @@ def categorize(s, args, with_licks=False):
 #: `locanmf_position_decoder._FEATURE_ARGS` plus `response_window_s`, which `categorize` takes from
 #: args when present and only otherwise derives from the session.
 _SF_ARGS = ("align", "post_s", "pre_s", "fs", "max_rt", "baseline", "source", "response_window_s")
+
+
+#: per session label, the camera WORKING flag per cue from the last `categorize` (camera gate only): the rows the
+#: bal_em EM centre is fitted on (`spout_scaling.centre_mask`, Priya 11-03 "camera gate everywhere")
+_CAM_WORKING: dict = {}
+
+
+def _cam_working_of(d):
+    """The per-row camera WORKING flags of one category; an entry cached before they existed RAISES under the camera
+    gate (never a silent all-True)."""
+    if "cam_working" in d:
+        return np.asarray(d["cam_working"], bool)
+    from wfield_local import trial_classes as _tc
+    if _tc.camera_gate_on():
+        raise RuntimeError("nolick session features without camera working flags (a stale cache entry): rebuild them")
+    return np.ones(np.asarray(d["y"]).size, bool)
 
 
 def session_features_cache_kind(args, *, signal_key, lead_s) -> str:
@@ -343,6 +360,7 @@ def session_features_cache_kind(args, *, signal_key, lead_s) -> str:
     from wfield_local import trial_classes as _tc
     if _tc.camera_gate_on():          # the no-lick selection (cue_stop window) -- only under camera: default key unchanged
         spec["selection"] = _tc.nolick_selection()
+        spec["cam_working"] = 1       # entries carry per-row camera working flags (bal_em centre rows, 11-03)
     digest = hashlib.sha1(repr(sorted(spec.items(), key=repr)).encode()).hexdigest()[:12]
     return f"sf-{spec['align']}-{digest}"
 
@@ -438,8 +456,9 @@ def session_features(s, args, signal=None, feat_region=None, lead_s=None):
     lickfree = bool(config.defaults()["decode"].get("precue_lickfree", True)) and args.align == "precue"
     n_dropped_dirty = 0
 
-    out = {c: {"X": [], "y": [], "g": [], "rt": [], "sess_eng": [], "lead_lick": [], "shifted": []}
+    out = {c: {"X": [], "y": [], "g": [], "rt": [], "sess_eng": [], "lead_lick": [], "shifted": [], "cam_working": []}
            for c in CATEGORIES}
+    _cw = _CAM_WORKING.get(s["label"])
     for k in range(cue_f.size):
         if not cat[k]:
             continue
@@ -459,6 +478,7 @@ def session_features(s, args, signal=None, feat_region=None, lead_s=None):
         d["g"].append(int(blk[k]))
         d["rt"].append(float(rt_s[k]))
         d["sess_eng"].append(bool(sess_eng[k]))
+        d["cam_working"].append(bool(_cw[k]) if _cw is not None else True)
         # PRIYA'S CONTAMINATION CONTROL (2026-09-24). The gate above protects the window; nothing
         # protects the interval BEFORE it, which sits just after the spout strobe where licking is
         # not suppressed the same way -- and widefield hemodynamics are slow enough for a lick there
@@ -478,6 +498,7 @@ def session_features(s, args, signal=None, feat_region=None, lead_s=None):
         d["X"] = np.array(d["X"]); d["y"] = np.array(d["y"], int)
         d["g"] = np.array(d["g"], int); d["rt"] = np.array(d["rt"], float)
         d["sess_eng"] = np.array(d["sess_eng"], bool)
+        d["cam_working"] = np.array(d["cam_working"], bool)
         d["lead_lick"] = np.array(d["lead_lick"], bool)
         d["shifted"] = np.array(d["shifted"], bool)
     return out, feat_reg
@@ -678,7 +699,8 @@ def analyse_animal(animal, dates=None, align="cue", source="roi", post_s=2.0,
         sd[sd == 0] = 1.0
         per_sess.append({"label": s["label"], "reg": list(np.asarray(feat_reg)),
                          "cats": {c: ((F[c]["X"] - mu) / sd if F[c]["y"].size else None,
-                                      F[c]["y"], F[c]["sess_eng"], F[c]["g"])
+                                      F[c]["y"], F[c]["sess_eng"], F[c]["g"],
+                                      _cam_working_of(F[c]))
                                   for c in CATEGORIES}})
         if verbose:
             print(f"  {s['label']}: " + " ".join(f"{c}={F[c]['y'].size}" for c in CATEGORIES),
@@ -687,7 +709,7 @@ def analyse_animal(animal, dates=None, align="cue", source="roi", post_s=2.0,
     # Sessions can differ in which atlas areas survive registration, so restrict every session to
     # the areas ALL of them have, in one shared order -- otherwise column j is still not the same
     # area everywhere and the per-session z-scoring above would not save it.
-    acc = {c: {"X": [], "y": [], "sess": [], "eng": [], "blk": []} for c in CATEGORIES}
+    acc = {c: {"X": [], "y": [], "sess": [], "eng": [], "blk": [], "cw": []} for c in CATEGORIES}
     if per_sess:
         # MATCH ON (label, occurrence), NOT ON LABEL. Region labels REPEAT -- the joint basis maps
         # several components to one Allen area (PS93: 87 components, 64 distinct labels), and
@@ -712,9 +734,10 @@ def analyse_animal(animal, dates=None, align="cue", source="roi", post_s=2.0,
             pos = {k: i for i, k in enumerate(kk)}
             idx = [pos[k] for k in common]
             for c in CATEGORIES:
-                X, y, eg, bk = p["cats"][c]
+                X, y, eg, bk, cw = p["cats"][c]
                 if X is None or not y.size:
                     continue
+                acc[c]["cw"].append(cw)
                 acc[c]["X"].append(X[:, idx])
                 acc[c]["y"].append(y)
                 acc[c]["eng"].append(eg)
@@ -783,7 +806,10 @@ def analyse_animal(animal, dates=None, align="cue", source="roi", post_s=2.0,
         _prov["frozen_model"] = st["_provenance"]
         return st
 
-    ff = _ss.FrozenFrame(XE, YE, GEi, [_sid[lab] for lab in labs_pre], _pipe, loso=True, store=_store)
+    _cw = _cat("engaged", "cw").astype(bool)
+    from wfield_local import trial_classes as _tcm
+    ff = _ss.FrozenFrame(XE, YE, GEi, [_sid[lab] for lab in labs_pre], _pipe, loso=True, store=_store,
+                         cls_e=(np.where(_cw, "contact", "unknown") if _tcm.camera_gate_on() else None))
 
     def _sc(X, sess):
         """Rows in the frozen (full) model's scoring frame, by the session each row came from."""

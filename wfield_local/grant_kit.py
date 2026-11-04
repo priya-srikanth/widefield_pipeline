@@ -870,16 +870,26 @@ def _frozen_frame(bd, an=None, align=None, store=True):
     pi_loso = {i: spout_scaling.class_prior(YE[e_pre & (GE != i)]) for i in loso}
     pi_full = spout_scaling.class_prior(YE[e_pre])
     if sc:
+        # the centre rows: the camera WORKING engaged rows under the camera gate (Priya 11-03), else every engaged row
         XEs, XUs = spout_scaling.scored_frame(
             XE, GE, XU, GU, range(len(bd["kept"])),
             model_of=lambda i: loso.get(i) if i in bd["pre_i"] else full,
-            prior_of=lambda i: pi_loso.get(i) if i in bd["pre_i"] else pi_full)
+            prior_of=lambda i: pi_loso.get(i) if i in bd["pre_i"] else pi_full,
+            centre_mask=_bundle_centre_mask(bd))
     else:
         XEs, XUs = XE, XU
     fr = {"scaling": sc or spout_scaling.SCALING_SESSION_Z, "XT": XT, "full": full, "loso": loso,
           "pi_full": pi_full, "pi_loso": pi_loso, "XEs": XEs, "XUs": XUs}
     bd[key] = fr
     return fr
+def _bundle_centre_mask(bd):
+    """`spout_scaling.centre_mask` for a pooled bundle: its camera classes per engaged row (``bd["cls"][0]``, present
+    under the camera gate)."""
+    from wfield_local import spout_scaling
+    cls = bd.get("cls")
+    return spout_scaling.centre_mask(cls[0] if cls is not None else None)
+
+
 def _frozen_score_rows(bd, model, pi, i, Xe_rows, Xu_rows=None):
     """Session ``i``'s rows in the scoring frame of an AD HOC frozen-style model (the size-matched frozen arm):
     centre from ALL of the session's engaged rows (production-z), label-free, applied to the given rows. Identity under
@@ -887,7 +897,8 @@ def _frozen_score_rows(bd, model, pi, i, Xe_rows, Xu_rows=None):
     from wfield_local import spout_scaling
     if not spout_scaling.spout_scaling():
         return Xe_rows, Xu_rows
-    mu, sd = spout_scaling.score_centre(model, bd["XE"][bd["GE"] == i], pi)
+    mu, sd = spout_scaling.score_centre(
+        model, spout_scaling._centre_rows_of(bd["XE"], bd["GE"] == i, _bundle_centre_mask(bd)), pi)
     return ((Xe_rows - mu) / sd, None if Xu_rows is None else (Xu_rows - mu) / sd)
 def _runs_to_blocks(sess, pos):
     """Block ids from runs of the same (session, position), for trials that carry none of their own.

@@ -318,6 +318,17 @@ def _g_store(d, kind, extra, fit, meta=None, scaling=None):
           f"(trained on {spec.get('lick_source', 'daq')} pre trials)", flush=True)
     cache[key] = payload
     return payload
+def _engaged_classes(d):
+    """Camera class per pooled engaged row of section G pool ``d`` for the bal_em centre (None unless the run's centre
+    is the camera working set), memoised on the pool."""
+    from wfield_local.locanmf_frozen_decoder import engaged_row_classes
+    cache = d.setdefault("_frozen_cache", {})
+    if "cls_e" not in cache:
+        cache["cls_e"] = engaged_row_classes(d["kept"], len(d["YE"]), source=d.get("source", "roi"),
+                                             align=d.get("align", "cue"))
+    return cache["cls_e"]
+
+
 def frozen_X(d):
     """``(XE, XU)`` in the frame the STORED models of `frozen` score in, memoised on ``d``.
 
@@ -332,7 +343,8 @@ def frozen_X(d):
     if models is None or cache is None:
         return d["XE"], d["XU"]
     if "X" not in cache:
-        cache["X"] = frozen_scored_frame(models, d["XE"], d["GE"], d["XU"], d["GU"], d["kept"], d["pre_i"])
+        cache["X"] = frozen_scored_frame(models, d["XE"], d["GE"], d["XU"], d["GU"], d["kept"], d["pre_i"],
+                                         cls_e=_engaged_classes(d))
     return cache["X"]
 
 
@@ -402,7 +414,7 @@ def decode_matched(d, keep, post_all_trials=True):
             return got if got is not None else fit_all()
 
         ff = _ss.FrozenFrame(d["XE"], d["YE"], d["GE"], sorted(d["pre_i"]), _pipe, classes=pos, train_mask=kp,
-                             loso=True, store=_store_lo)
+                             loso=True, store=_store_lo, cls_e=_engaged_classes(d))
         clf = ff.full
         if ff.scaling or ff.loso:
             pre_pred = np.empty_like(d["YE"][tr])

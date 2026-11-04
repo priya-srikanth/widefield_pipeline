@@ -285,6 +285,7 @@ def run_animal(animal, align="precue", post_s=None, verbose=True):
     from wfield_local import spout_scaling as _ss
     _sc = _ss.spout_scaling()
     ff = _ss.FrozenFrame(XE, YE, GE, sorted(pre_i), _pipe, loso=_sc is not None,
+                         cls_e=_ce if camera else None,       # EM centre rows: camera WORKING rows (Priya 11-03)
                          store=lambda fit_all: _stored(animal, f"{align}-posdec-ff", basis, kept, pre_i,
                                                        int(XE.shape[1]), (XE[e_pre], YE[e_pre], GE[e_pre]), fit_all,
                                                        post_s, scaling=_sc))

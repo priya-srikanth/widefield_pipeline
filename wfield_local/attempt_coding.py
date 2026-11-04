@@ -288,7 +288,10 @@ def run_animal(animal, align="precue", verbose=True):
     # THE FROZEN MODEL SCORES IN ITS OWN FRAME (`frozen_scored_frame`; bal_em since 2026-11-03, identity under
     # WIDEFIELD_SPOUT_SCALING=session_z). The attempt axes above stay on the production frame.
     from wfield_local.locanmf_frozen_decoder import frozen_scored_frame
-    XEf, XUf = frozen_scored_frame(models, XE, GE, XU, GU, kept, pre_list)
+    from wfield_local.locanmf_frozen_decoder import engaged_row_classes
+    XEf, XUf = frozen_scored_frame(models, XE, GE, XU, GU, kept, pre_list,
+                                   cls_e=engaged_row_classes(kept, len(YE), features=feat, align=align,
+                                                             post_s=post_s))
     Xf = np.vstack([XEf, XUf])[keep]
     code = np.concatenate([YE, YU]).astype(int)[keep]
     p_true = np.full(len(X), np.nan)

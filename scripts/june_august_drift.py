@@ -89,9 +89,12 @@ DRIFT_FROZEN_ENV = "WIDEFIELD_DRIFT_FROZEN"
 _DRIFT_MODELS: dict = {}
 
 
-def drift_payload(an, bd, month, log=print):
-    """{"full", "loso"} for one animal x month from the store (fitted once), or None when opted out."""
-    from wfield_local import config, frozen_models
+def drift_payload(an, bd, month, log=print, scaling=None):
+    """{"full", "loso"} for one animal x month from the store (fitted once), or None when opted out. Under bal_em
+    (``scaling``) the models are fitted on the bal_em TRAINING frame (`spout_scaling.train_frame`: each month session
+    centred on its true class means, the frame `FrozenFrame` trains in) and the spec carries the scaling; under
+    session_z on the production frame, as before."""
+    from wfield_local import config, frozen_models, spout_scaling
     from wfield_local.locanmf_frozen_decoder import _pipe
     if not frozen_models.family_on(DRIFT_FROZEN_ENV):
         return None
@@ -104,12 +107,14 @@ def drift_payload(an, bd, month, log=print):
                                    train_labels=train, post_s=2.0, basis_id=bd.get("basis_id"),
                                    n_features=int(XE.shape[1]),
                                    train_data=(XE[e_pre & np.isin(GE, idx)], YE[e_pre & np.isin(GE, idx)],
-                                               GE[e_pre & np.isin(GE, idx)]))
+                                               GE[e_pre & np.isin(GE, idx)]),
+                                   **spout_scaling.spec_kw(scaling))
+    XF = spout_scaling.train_frame(XE, YE, GE, idx) if scaling else XE
 
     def _fit():
         full = e_pre & np.isin(GE, idx)
-        return {"full": _pipe().fit(XE[full], YE[full]),
-                "loso": {kept[i]: _pipe().fit(XE[full & (GE != i)], YE[full & (GE != i)]) for i in idx
+        return {"full": _pipe().fit(XF[full], YE[full]),
+                "loso": {kept[i]: _pipe().fit(XF[full & (GE != i)], YE[full & (GE != i)]) for i in idx
                          if len(np.unique(YE[full & (GE != i)])) >= 2}}
 
     payload, status = frozen_models.load_or_fit(spec, _fit, meta={"month": month, "n_sessions": len(idx)})
@@ -118,7 +123,7 @@ def drift_payload(an, bd, month, log=print):
     return payload
 
 
-def _stored_month_model(an, bd, train_sessions):
+def _stored_month_model(an, bd, train_sessions, scaling=None):
     """The stored model for one `score` training set (all of one month's pre sessions, or all but one), or None.
 
     The in-memory path fits `_pipe()` on ``e_pre & isin(GE, train_sessions)``; the stored payload holds that exact fit
@@ -131,9 +136,9 @@ def _stored_month_model(an, bd, train_sessions):
     if len(months) != 1:
         raise ValueError(f"{an}: a drift training set spans months {sorted(months)}")
     month = months.pop()
-    key = (an, month, id(bd))
+    key = (an, month, id(bd), scaling)
     if key not in _DRIFT_MODELS:
-        _DRIFT_MODELS[key] = drift_payload(an, bd, month)
+        _DRIFT_MODELS[key] = drift_payload(an, bd, month, scaling=scaling)
     pay = _DRIFT_MODELS[key]
     idx = sorted(i for i in bd["pre_i"] if _month(kept[i].split("_")[-1]) == month)
     left = sorted(set(idx) - set(train_sessions))
@@ -175,7 +180,15 @@ def decoder_rows(log=print) -> pd.DataFrame:
             # THE FROZEN ARMS IN THE bal_em FRAMES (production since 2026-11-03, `spout_scaling`), as the chronic twins
             # in `_collect_5c`: training sessions centred on their true class means, the scored session centred by the
             # label-free EM centre of its engaged rows under each frozen model. Identity under session_z.
-            ff = ss.FrozenFrame(XE, YE, GE, train_sessions, _pipe, train_mask=e_pre, loso=False)
+            # THE MONTH MODEL IS STORED (rule 10) in the frame it scores in: the FrozenFrame store hook serves
+            # `drift_payload` (fitted on the bal_em training frame under bal_em, on the production frame under
+            # session_z); WIDEFIELD_DRIFT_FROZEN=0 = the same fit in memory
+            def _store(fit_all, an=an, bd=bd, ts=tuple(train_sessions)):
+                st = _stored_month_model(an, bd, list(ts), scaling=ss.spout_scaling())
+                return {"full": st, "loso": {}} if st is not None else fit_all()
+
+            ff = ss.FrozenFrame(XE, YE, GE, train_sessions, _pipe, train_mask=e_pre, loso=False, store=_store,
+                                cls_e=bd["cls"][0] if bd.get("cls") is not None else None)
             k = min(5, int(np.unique(blk).size))
             n_target = int(round(len(y) * max(k - 1, 1) / max(k, 1)))
             got = _matched_frozen(_pipe, ff.XT[tr], YE[tr], BE[tr], n_target,
@@ -186,11 +199,7 @@ def decoder_rows(log=print) -> pd.DataFrame:
             if ff.scaling and [int(c) for c in got[0].classes_] == list(range(6)):
                 Xm = _frozen_score_rows(bd, got[0], got[0].spout_pi_train_, i, X)[0]
             fz_m = np.asarray(got[0].predict(Xm))
-            # MERGE (11-03): the STORED month model (rebuild, rule 10) is the session_z fit, so it serves only under
-            # WIDEFIELD_SPOUT_SCALING=session_z; under bal_em the FrozenFrame fit (main) is used, in memory (listed in
-            # docs/status/REBUILD_CODE_20261103.md 8.14 as a family to store in the bal_em frame)
-            stored = None if ff.scaling else _stored_month_model(an, bd, train_sessions)
-            fz = np.asarray((stored if stored is not None else ff.full).predict(ff.apply(X, i)))
+            fz = np.asarray(ff.full.predict(ff.apply(X, i)))          # the stored month model, in its scoring frame
             rows.append({"animal": an, "group": group, "session": mm[i], "n_trials": int(len(y)),
                          "frozen_acc": float(np.mean(fz == y)), "frozen_matched_acc": float(np.mean(fz_m == y)),
                          "refit_acc": float(np.mean(np.asarray(rf) == y))})
