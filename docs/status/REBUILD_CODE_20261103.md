@@ -1751,3 +1751,136 @@ any import.
 
 **Tests.** test_area_basis (sets, disjoint rests, compact masks, refusal, delegation); test_o2_encoding_env (env round
 trip under the profile, tag refusal, runner order, 14 runs, root location); test_input_cache (imaging key).
+
+### 8.43 ENL window follows the lick source: ONE definition (Priya 11-04; branch rebuild/enl-window off 571b3955)
+
+Decision: every ENL analysis follows the lick source. LP licks give 1.0 s; DAQ licks give `decode.precue_post_s` = 2.0 s.
+`WIDEFIELD_ENL_WINDOW_S` still overrides both (the matched DAQ 1.0 s arm, the LP 1.5 / 2.0 s sensitivity arms).
+CODE + TESTS ONLY: no renders, nothing written to M:. Worktree `wf_rebuild_enl`.
+
+**The definition (`wfield_local/lp_licks.py`).**
+- `enl_post_s(source=None)`: THE window. The override if set; else 1.0 under LP; else the config window. `source`
+  forces a lick source ("daq" for code that reads DAQ contact only).
+- `post_s_for(align)`: `decode.{align}_post_s`, except for the pre-cue window (`precue`, `precue-*`), which is
+  `enl_post_s()`.
+- `gate_licks_s(label, cue_s, daq_lick_s, max_rt)`: the lick train an ENL lick-free gate must use, for scripts that
+  gate on times.
+  - DAQ: the DAQ train.
+  - LP: `session_lp`'s edited train (the one `_trial_features` uses); cues without an LP verdict are dropped.
+- `enl_window_s()` and `apply_enl_window` are unchanged. They stay None / identity on the default run, so default keys
+  do not move.
+
+**Sites (before -> after).**
+
+| site | before | after | gate source |
+|---|---|---|---|
+| `precue_engagement_states.py:204` run_animal default | `precue_post_s` (2.0 under LP too; features were already 1.0 via `apply_enl_window`, the spec via make_spec) | `enl_post_s()` for precue; `cue` keeps 2.0 | `_trial_features`: same source |
+| `scripts/enl_movement_removed_decode.py:104` | `precue_post_s` | `enl_post_s()`; output name keyed by the run tag | `_trial_features`: same source |
+| `scripts/enl_movement_multisession.py:137` + `enl_table` | 2.0, DAQ licks always | `enl_post_s()`, `gate_licks_s` | **MISMATCH FIXED** (an LP window would have met DAQ licks) |
+| `scripts/enl_fr_removed_decode.py:60` | 2.0 (via EM.enl_table, DAQ licks) | `enl_post_s()` + the fixed `enl_table` | **MISMATCH FIXED** |
+| `scripts/enl_video_spout_check.py:142` + `enl_trials` | 2.0, DAQ licks always | `enl_post_s()`, `gate_licks_s`; output names keyed by the run tag | **MISMATCH FIXED** |
+| `scripts/enl_lick_rates.py:51-53` | `precue_post_s`, DAQ licks always | `enl_post_s()`; LP train + LP coverage under LP; the `--cache` CSV records (source, window) and a mismatch is refused | **MISMATCH FIXED** |
+| `scripts/cohort2_qc/quiet_task_events.py:57` | `ENL_S = 2.0` | `enl_post_s(source="daq")` = 2.0; each npz records `enl_s` | DAQ masks; see OPEN 1 |
+| `scripts/within_spout_deviation.py:52` | `(-1.0, 0.0)` | `(-enl_post_s(source="lp"), 0)` = (-1, 0) | NOT lick-gated; see OPEN 2 |
+| `wfield_local/precue_lickfree.py` PRE_S | 2.0 | `enl_post_s(source="daq")` = 2.0 | DAQ window, DAQ licks (unchanged) |
+| `wfield_local/cd_trajectories.py:1158` | `decode.{align}_post_s` (2.0 under LP) | `post_s_for(align)` + `apply_enl_window` | **WINDOW FIXED**: under LP, `session_arms` slid a 2 s lick-free window over the LP train and fitted 2 s window means |
+| `cd_overlap_null.py:343`, `scripts/component_exclusion_audit.py:60` | same | `post_s_for(align)` | same fix (they share cd_trajectories' arms cache) |
+| `attempt_coding.py:223/384`, `attempt_maps.py:110`, `position_axes.py:243`, `position_coding_directions.py:772` | `decode.{align}_post_s` | `post_s_for(align)` | value was already corrected downstream (`apply_enl_window` / make_spec); now one read |
+| `nightly_figs.py:256` (`--post-s`), `locanmf_analysis_deck.py:285` (notes text), `scripts/null_potent_session.py:273`, `scripts/locanmf_refit_test/refit_vs_projection.py:155` | config window | `post_s_for` / `enl_post_s` | `_trial_features`: same source |
+| `scripts/epoch_sessions_long.py` CD pre-cue readout `[-2, 0)` | fixed 2 s | the dump's own fitted window (`res["win_s"]`); a DAQ dump keeps the label `[-2,0) s` | n/a |
+| `scripts/rebuild_figs/fig_enl_move.py` | provenance note "[cue - 2 s, cue]" | note updated | n/a |
+
+**Gate-source check (task 3).**
+- The core builders take the window and the licks from the same switch (WIDEFIELD_LICK_SOURCE): `_trial_features`,
+  `nolick_decoder.categorize` / `session_features`, `precue_window_start`. No mismatch there.
+- Mismatches were only in scripts that gate on their own lick times. They read `dlc_frames.lick_onsets` /
+  `_load_daq_events`, both DAQ:
+  - enl_movement_multisession and enl_fr_removed_decode (shared `enl_table`);
+  - enl_video_spout_check;
+  - enl_lick_rates.
+- All four now gate through `gate_licks_s` / `session_lp`.
+- The cd_trajectories family had the right licks and the wrong window (fixed above).
+
+**Other hard-coded windows (task 1 sweep), status.**
+- `combined_encoding.py:1192`: the "enl" R2 scoring window, `max(strobe, cue - 2.0) .. cue`. It is a scoring window,
+  not lick-gated. NOT changed, because changing it moves the O2 encoder outputs. Decision needed: OPEN 4.
+- `combined_encoding.py:1663`: the maps' ENL state = strobe + 0.3 s .. cue. Unrelated to the lick-free window;
+  unchanged.
+- `configs/defaults.yaml decode.precue_lickfree_check_s: 2.0`: no code reads it (the `precue_lick` flag uses the
+  effective window). Dead key; left.
+- FaceRhythm windows `(-2, 0)` (face_rhythm/factors/config PRECUE_S, face_rhythm_readouts, fr position maps, fr_peak,
+  fr asym): behaviour windows on a projection grid that starts at cue - 2 s, not lick-gated ENL analyses. Left.
+- `scripts/fr_enl_decode.py`: explicit W = 1 and 2 s, gate = LP OR DAQ. Left (explicit sweep).
+- `orofacial_w2.py` / `orofacial_heatmaps.py`: "NO-LICK ENL frames cue - 2 s .. cue" with the LP tongue gate
+  (behaviour). Left as a 2 s LP-gated behaviour window. Flag for Priya if "every ENL analysis" includes behaviour.
+- `scripts/lick_enl_angle_decode.py`, `lick_enl_target_test.py`: explicit W = 1.0 / 0.5 s, lick-free rule 2 s on the
+  iti_licks behaviour licks. Left (own family, explicit).
+- `scripts/enl_lp_census.py`, `gate_lp_check.py`: censuses of 2.0 / 1.5 / 1.0 / 0.5 s windows by both sources. Left.
+- `scripts/s1_refit_basis_table.py`, `s1_refit_locanmf_table.py`: their docstrings run `WIDEFIELD_LICK_SOURCE=lp
+  WIDEFIELD_ENL_WINDOW_S=2.0` (ENL pinned at 2 s, Priya 11-03). The override is still honoured. This conflicts with
+  11-04 unless it is meant as the table's sensitivity row: OPEN 3.
+- `state_spout_check.py:49`, `disengagement_tests.py:455/1348`, `revup_neural.py:303`, `iti_licks.py CUE_EXCL`:
+  behaviour / exclusion windows, not ENL lick-free windows. Left.
+- Function defaults `post_s=2.0` (beta_maps, nolick_decoder, enl_decode, enl_lick_control, grant_confusion,
+  poststroke_compare, ...): each reaches its features through `trial_features_cached` / `_trial_features` /
+  `nolick_decoder.session_features`, which apply `apply_enl_window` BEFORE the key. Frozen specs go through
+  `make_spec`. So they resolve to the shared window; left.
+
+**1.5 s (task 5).** No widefield code uses a 2pRAM-style 1.5 s ENL default. 1.5 s appears only:
+- as an explicit `WIDEFIELD_ENL_WINDOW_S` sensitivity arm (`lp_final_render`, tests);
+- in sweeps (`precue_window_sweep`, `enl_lp_census`).
+
+**Frozen ids / cache keys (task 2).**
+- Frozen specs: unchanged. `make_spec` already replaced a pre-cue post_s with `enl_window_s()`; the callers now pass
+  that value themselves, so every id stays the same (tested: `test_frozen_spec_carries_the_window`).
+- tf-* / nolick / map caches: unchanged (the window was already in the key via `apply_enl_window` /
+  `map_collect.cache_kind`). Map digests checked, base vs branch: bm 503fe1b00ac5, prm 94846e2d13ab, restnl
+  47b715c3d0df, all identical.
+- CHANGED under LP / an override only, because the value is now the real window:
+  - cd_trajectories `cdarms-*` (post_s), `cdfit*` (win_n) and courses (win_s), shared by cd_overlap_null and
+    component_exclusion_audit;
+  - cold once; the old LP entries held 2 s windows;
+  - default DAQ keys unchanged.
+- New identity:
+  - enl_lick_rates `--cache` CSV: lick_source and post_s columns;
+  - quiet_task_events per-session npz: `enl_s` (files without it read as 2.0, so existing files stay valid);
+  - enl_movement_removed_decode / enl_video_spout_check: file names via `run_mode.keyed_name` (unchanged on the default
+    run).
+- Side effect: the LP lick-times local sidecar (`lp_lick_times`, keyed on lp_licks' source) recomputes once, with the
+  same values.
+- GAP, not fixed (outside these paths): some session-cache kinds do not carry the window (`evoked_amp__*`,
+  `fixed_scale_maps__*`, `spatial_area_matrix__*`, `within_acc__*`). They are shared between a source's default window
+  and an override arm (DAQ vs DAQ_ENL1s; LP 1.0 vs LP + 1.5 / 2.0).
+  - Fix: an ENL tag in `session_cache.effective_kind` when an override differs from the source default.
+  - Left because it would cold-start the override arms (incl. the s1_refit LP + 2.0 tables).
+
+**O2 encoder (task 6).**
+- combined_encoding, o2_encoding, frozen_encoder and o2_bundle use only `lp_licks.attempts_path` and
+  `lp_licks.output_dir`. Both are unchanged, and none of the switched modules is imported by them.
+- No bundle input changes.
+- The maps' ENL state (strobe + 0.3 s .. cue) is unrelated, as expected.
+- BUT the encoder has a second ENL quantity: the "enl" R2 scoring window, `cue - 2.0 .. cue` (bounded at the strobe).
+  It is hard-coded and does not depend on the source. Left unchanged so the bundles stay valid: OPEN 4.
+
+**OPEN (for Priya).**
+1. `quiet_task_events` is a COHORT-1 script (PS92-95), despite its folder.
+   - Its `ev_enl` / `npre_enl` are "the decoder's window", and the T13 p_true comes from `attempt_coding` (LP-only,
+     1.0 s).
+   - Kept on DAQ 2.0 s as briefed.
+   - Following LP needs MIN_CLEAN_S (1.0 s of clean frames inside the window) re-decided; otherwise only fully clean
+     1 s windows survive.
+2. `within_spout_deviation --window enl` is 1.0 s (= LP) but is not lick-gated by any source. Its trials are engaged
+   and its licks are the bundle's video licks; the ENL is contact-free by task design only.
+3. The s1_refit tables pin ENL at 2.0 s under LP (11-03); 11-04 says LP gives 1.0 s.
+4. The combined_encoding "enl" scoring window is fixed at 2 s.
+
+**Tests.**
+- New `tests/test_enl_window_source.py` (43 tests):
+  - the window under DAQ / LP / override / a forced source; `post_s_for`; agreement with `apply_enl_window`; the
+    frozen spec;
+  - `gate_licks_s` under both sources;
+  - `enl_table` / `enl_trials` gating on the window's source (fake session);
+  - each switched site resolving to the shared window (at runtime where cheap, static otherwise);
+  - a repo-wide check that only lp_licks (and precue_engagement_states' `cue` branch) read the config window
+    directly.
+- `test_share_writers_mode_safe`: enl_video_spout_check moved out of BEHAVIOUR (it now routes).
