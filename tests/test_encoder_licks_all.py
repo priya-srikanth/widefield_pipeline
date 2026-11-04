@@ -84,8 +84,7 @@ def test_enl_window_is_the_decoders_search(monkeypatch):
     E = B.trials[B.trials.engaged].reset_index(drop=True)
     ridx = np.arange(len(ft))
     for src, length in (("lp", 1.0), ("daq", 2.0)):
-        monkeypatch.setattr(enl_window, "enl_spec", lambda s=src, w=length: {"source": s, "length_s": w,
-                                                                             "lickfree": True})
+        monkeypatch.setattr(ce, "enl_spec", lambda s=src, w=length: {"source": s, "length_s": w, "lickfree": True})
         rows, info = ce.enl_lickfree(B, E, ft, ridx)
         licks = ce.enl_licks(B, src)
         assert info["kind"] == "lickfree" and info["source"] == src and info["length_s"] == length
@@ -199,3 +198,15 @@ def test_split_variables_groups_and_models(monkeypatch, runs):
     m = set(runs["split"]["region"].model)
     assert {"drop:licks_pre", "drop:licks_iti", "drop:licks_pre+licks_iti"} <= m
     assert not {"drop:licks_pre", "drop:licks_pre+licks_iti"} & set(runs["unset"]["region"].model)
+
+
+def test_enl_source_override(monkeypatch):
+    monkeypatch.delenv("WIDEFIELD_LICK_SOURCE", raising=False)
+    monkeypatch.delenv("WIDEFIELD_ENL_WINDOW_S", raising=False)
+    monkeypatch.delenv(ce.ENL_SOURCE_ENV, raising=False)
+    assert ce.enl_spec()["source"] == "daq" and ce.enl_spec()["length_s"] == 2.0          # the decoders' default
+    monkeypatch.setenv(ce.ENL_SOURCE_ENV, "lp")
+    assert ce.enl_spec()["source"] == "lp" and ce.enl_spec()["length_s"] == 1.0
+    monkeypatch.setenv(ce.ENL_SOURCE_ENV, "video")
+    with pytest.raises(ValueError):
+        ce.enl_spec()

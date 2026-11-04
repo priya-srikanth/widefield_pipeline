@@ -1150,6 +1150,25 @@ def _diag_quad(U, C, chunk=50000):
 
 
 # =============================================================================== the enl scoring window
+#: the enl window's lick source, overriding the decoders' (`lp_licks.lick_source()`, WIDEFIELD_LICK_SOURCE, which a render
+#: profile clears and the O2 bundle env does not set -> DAQ): "lp" = the LP / video licks, 1.0 s (lp_licks.LP_ENL_WINDOW_S
+#: or WIDEFIELD_ENL_WINDOW_S); "daq" = the DAQ contacts, decode.precue_post_s (2.0 s). Unset = the decoders' spec.
+ENL_SOURCE_ENV = "COMBINED_ENCODING_ENL_SOURCE"
+
+
+def enl_spec() -> dict:
+    """`enl_window.enl_spec()` with ENL_SOURCE_ENV applied."""
+    from wfield_local import config, enl_window, lp_licks
+    spec = enl_window.enl_spec()
+    src = os.environ.get(ENL_SOURCE_ENV, "")
+    if src:
+        if src not in ("lp", "daq"):
+            raise ValueError(f"{ENL_SOURCE_ENV}={src!r}; expected lp | daq")
+        w = os.environ.get(lp_licks.ENL_WINDOW_ENV, "").strip()
+        length = (float(w) if w else lp_licks.LP_ENL_WINDOW_S) if src == "lp" else             float(config.defaults()["decode"]["precue_post_s"])
+        spec = dict(spec, source=src, length_s=length, override=ENL_SOURCE_ENV)
+    return spec
+
 def enl_licks(B: Behaviour, source: str):
     """Every lick time (DAQ s) the ENL decoders' lick-free search sees, from what a Behaviour carries; None when it
     does not carry the pre-cue licks (LICKS_ALL_ENV unset: licks.csv / the contact table start at the cue).
@@ -1177,7 +1196,7 @@ def enl_lickfree(B: Behaviour, E: pd.DataFrame, ft: np.ndarray, ridx: np.ndarray
     `enl_window.enl_spec()`. None (with the reason in ``info``) when the inputs carry no pre-cue licks: "enl" is then the
     fixed window, as before."""
     from wfield_local import enl_window
-    spec = enl_window.enl_spec()
+    spec = enl_spec()
     t = enl_licks(B, spec["source"])
     if t is None:
         return None, {"kind": "fixed2s", "reason": f"no pre-cue {spec['source']} licks in the inputs "
