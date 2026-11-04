@@ -145,6 +145,16 @@ FYI, the 3-class camera variant (lick / jaw-only / none) is thin in PS92 and PS9
 
 ## Findings (newest first)
 
+- **11-04 interim: the cue + 70 ms contact floor is CLASS-NEUTRAL.** 54,808 curated trials, raw DAQ contacts
+  (cue70_check_1104/trials.csv). Shortening the floor to 0 / 50 ms changes the class of 3 / 2 trials. So trial classes,
+  the working set and the O2 engaged set don't depend on it, and the O2 submit need not wait.
+  - 2,167 trials (4 %) have their first post-cue contact < 70 ms, mostly PS92 / PS93 (PS92 pre 401 / 2,314, chronic
+    421 / 3,894; PS93 chronic 414 / 6,068; PS94 / PS95 0-2 %).
+  - First-contact latency: median 155 ms, 5th percentile 73 ms.
+
+  Priya's rule (0-70 ms licks excluded from the pre-cue AND post-cue tables) would move only the lick tables /
+  lick-count readouts. The bout-run-through and ENL analysis is still running.
+
 - **11-04: what the G4 / state discriminators compare.** They are trained on pre DAQ-lick vs DAQ-no-lick trials
   (position-balanced; poststroke_compare.looks_like_which), NOT on camera working. So jaw-only trials were always in the
   no-lick class, in both frames. The no-lick group also contains incomplete licks (genuine attempts) and no-response
