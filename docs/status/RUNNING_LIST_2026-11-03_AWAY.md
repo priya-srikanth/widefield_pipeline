@@ -502,6 +502,15 @@ FYI, the 3-class camera variant (lick / jaw-only / none) is thin in PS92 and PS9
     close ipsi acute .975 -> .642).
 
   Cue window primary, precue secondary. (Priya then asked for within-class arms and equal cue / precue.)
+- 11-04: 34 started the port on rebuild/bcdg-port:
+  - 4a37cbc8;
+  - (a) the camera-class G4 discriminator as primary, z frame, new ids;
+  - (b) G9 camera classes as a separate droppable commit, pending Priya;
+  - (c) decode_matched's lick arm moved to working rows;
+  - (d) attempt_coding working masks.
+
+  g_group: early_run -> no_response, after_end = "quit", unjudged close-mid kept apart. A2 is coded on rebuild/cue70.
+  Merge order before the render: encoder-classes -> cue70 (+ max_rt end + A2) -> enl-window -> bcdg-port.
 - 11-04: 34 added the engagement switch to the camera-class inventory as row 3h (bd8019be):
   - quit point = last camera lick;
   - camera stop rule;
