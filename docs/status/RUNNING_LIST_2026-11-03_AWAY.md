@@ -170,7 +170,14 @@ FYI, the 3-class camera variant (lick / jaw-only / none) is thin in PS92 and PS9
     splits on onset while the table splits on peak, an existing inconsistency to fix.
   - ENL windows (Priya asked; I said 1.0 s for LP): the widefield LP ENL is 1.0 s (DECISIONS 10-21, Priya "1.0 s, plus
     DAQ 1.0 s"); the 1.5 s ENL was the 2-photon pipeline's (2pRAM handoff 09-26). The widefield task ENL is
-    2000-3000 ms. Open: switch the widefield LP ENL to 1.5 s?
+    2000-3000 ms. Open: switch the widefield LP ENL to 1.5 s? Census (qc/enl_lp_census_summary.csv, LP licks, sliding
+    window), trials kept per animal x spout x epoch:
+    - at 1.5 s: close spouts 96-100 %, far spouts 78-99 %. Lowest: PS93 pre far_L 78 % / far_center 79 %, PS92
+      subacute far_R 79 %, PS93 acute far_R 82 %;
+    - at 1.0 s: >= 94 % everywhere.
+
+    So 1.5 s drops trials by spout, mostly far and mostly PS92 / PS93. [Suggest: keep 1.0 s primary and 1.5 s as a
+    robustness arm.]
 
 - **11-04: what the G4 / state discriminators compare.** They are trained on pre DAQ-lick vs DAQ-no-lick trials
   (position-balanced; poststroke_compare.looks_like_which), NOT on camera working. So jaw-only trials were always in the
