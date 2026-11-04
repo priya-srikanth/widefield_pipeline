@@ -753,6 +753,15 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   - The render runner's stop of its own epoch render was DENIED by the session permission classifier. Still running under
     the OLD tag (PIDs 19008 parent, 35904 / 24008 arms); outputs go to the old-tag folder (to be marked SUPERSEDED); the
     runner's queue is held by a STOP file. ASKED PRIYA: stop those 3 PIDs herself (recommended), or let them finish.
+- PRIYA via a8 (11-04), for both branches:
+  - (B) state discriminators in the spout bal_em frame (centre from working rows), after a re-check;
+  - (C) projections: she asked why not all three (CDs, patterns, engagement axis) in the spout frame with a working-row
+    centre; being re-checked;
+  - (D) the section D scored set becomes working trials, pre and post;
+  - (G) section G groups by camera classes (contact / incomplete / jaw_only / none within cue -> stop, plus "after end");
+    pre panel = working; the old DAQ grouping kept as robustness.
+  a8's helper implements these on main; the rebuild PORTS those commits (not reimplemented). "Rebuild follows main 11-03"
+  is superseded for D / G. The pattern families' pre reference (lick vs working) is not addressed yet: still my question 1.
 - The 05:46 incident coverage copies differ from the rebuild ones only by the 12 June sessions (Aug-only pre); the partial-
   coverage rows are identical.
 
