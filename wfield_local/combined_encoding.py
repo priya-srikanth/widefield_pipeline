@@ -154,8 +154,12 @@ LICK_MODES = ("cam4", "combined", "lips")
 #:           contacts over the whole trial windows (raw DAQ channel) in the contact kernel
 #:   split   post-cue kernel as before + its OWN pre-cue kernel + its own ITI kernel (all inside `licks`) -- the
 #:           spontaneous-vs-cued contrast is split vs shared (Priya 10-20)
-#: Timing only (no angle). Outputs -> ..._licksall-<mode>/.
+#:   score   SCORING ONLY (coordinator 11-04): the pre-cue / ITI licks and whole-window contacts are loaded (and bundled)
+#:           for the lick-free "enl" scoring window (`enl_lickfree`), with NO regressor added and the contact kernel's
+#:           contacts unchanged -- the model and every other output are those of an unset run. No folder suffix.
+#: Timing only (no angle). Outputs (shared / split) -> ..._licksall-<mode>/.
 LICKS_ALL_ENV = "COMBINED_ENCODING_LICKS_ALL"
+LICKS_ALL_MODES = ("shared", "split", "score")
 BINS_ENV = "COMBINED_ENCODING_BINS"
 #: CALIBRATED executed bins (10-20, measured on the 3-D tables): the tongue peak does not land ON the spout table's
 #: position -- it lands ~2 mm deeper (the table marks the rod's lower edge) and laterally compressed (~0.4x at close,
@@ -614,24 +618,32 @@ def _load_behaviour(animal: str, date: str, rv) -> Behaviour:
             elif mode == "polar":
                 target_amps = _polar(*target_xyz)
     extra, lips = _cam1_lick_events(rv, animal, date, cue_t, os.environ.get(LICKS_ENV, "cam4"))
-    ctx = None
-    if os.environ.get(LICKS_ALL_ENV):
-        ctx, contact_s = _context_licks(rv, animal, date, sd, b, contact_s)
+    ctx = ctx_contacts = None
+    mode_all = os.environ.get(LICKS_ALL_ENV, "")
+    if mode_all and mode_all not in LICKS_ALL_MODES:
+        raise ValueError(f"{LICKS_ALL_ENV}={mode_all!r}; expected one of {LICKS_ALL_MODES}")
+    if mode_all:                                        # contact_s stays the cue + 70 ms .. stop table: shared / split
+        ctx, ctx_contacts = _context_licks(rv, animal, date, sd, b, contact_s)    # use the whole-window contacts at DESIGN
+                                                        # time (`raw_blocks`), so a LICKS_ALL bundle also serves an unset run
     B_ = Behaviour(T, on_s, pk_s, pos, within, np.asarray(contact_s, float), reward_s, analog, gate, tgt, ang,
                    tdist, reach, exec_amps, target_amps, extra, lips, exec_xyz, target_xyz, f"{animal}_{date}")
     B_.context_lick_on_s = ctx
+    B_.context_contact_s = ctx_contacts               # whole-trial-window DAQ contacts (LICKS_ALL; the enl scoring window)
     return B_
 
 
 def _context_licks(rv, animal: str, date: str, sd: Path, b: pd.DataFrame, contact_s: np.ndarray):
-    """LICKS_ALL_ENV: ({'pre_cue': onsets, 'iti': onsets} in DAQ s from the cam4 whole-session table licks_all.csv,
+    """LICKS_ALL_ENV: ({'pre_cue', 'iti', 'post_extra': onsets} in DAQ s from the cam4 whole-session table licks_all.csv,
     contacts over the whole trial windows (strobe - 0.5 .. stop + 3 s) from the raw DAQ channel)."""
     from wfield_local import dlc_frames
     f = sd / "licks_all.csv"
     if not f.exists():                                  # never mix event sets silently
         raise FileNotFoundError(f"{LICKS_ALL_ENV} needs {f} (python -m wfield_local.orofacial_outputs all-licks)")
-    A = pd.read_csv(f, usecols=["context", "daq_on_s"])
+    A = pd.read_csv(f, usecols=["context", "table", "daq_on_s"])
     ctx = {c: np.sort(A.loc[A.context == c, "daq_on_s"].to_numpy(float)) for c in ("pre_cue", "iti")}
+    # post-cue onsets held by the pre-cue / ITI tables (their windows overlap the next cue; ~11 per session, >= 60 ms from
+    # any licks.csv lick, PS93_0814 / 0818): real licks that are in NO kernel without this (licks.csv = table "licks")
+    ctx["post_extra"] = np.sort(A.loc[(A.context == "post_cue") & (A["table"] != "licks"), "daq_on_s"].to_numpy(float))
     sid = sorted((Path(rv.root("behavior_out")) / "sessions" / animal / date).glob("*_trials.csv"))[-1].name[:-11]
     raw = np.sort(np.asarray(dlc_frames.lick_onsets(animal, date, sid, rv), float))
     st = np.where(np.isfinite(b.strobe_s), b.strobe_s, b.cue_s - 3.0).astype(float) - 0.5
@@ -799,6 +811,55 @@ def _analog_cols(t, v, ft) -> np.ndarray:
     return np.column_stack([ME._shift(base, int(round(lag * fs))) for lag in CLAGS]).astype(np.float32)
 
 
+#: a cam1-only onset outside its own trial's cue .. stop within this of a cam4 pre-cue / ITI lick is the same lick
+#: (cam4_matched only compares licks of the SAME trial_id; the cam1 event of trial k after its stop and the cam4 lick of
+#: trial k + 1's pre-cue table were both kept: 13 / 22 PS93_0814, 6 / 11 PS93_0818)
+CAM1_DUP_TOL_S = 0.05
+
+
+def lick_context_s(t, trials: pd.DataFrame) -> np.ndarray:
+    """"post_cue" / "pre_cue" / "iti" of lick times ``t`` (DAQ s) by the trial windows: post = cue .. stop of the latest
+    cue at or before t (`orofacial_outputs.lick_context`: a missing stop keeps it post-cue), pre = the next trial's
+    strobe .. cue, else ITI."""
+    t = np.asarray(t, float)
+    cue = trials.cue_s.to_numpy(float)
+    o = np.argsort(cue)
+    cue = cue[o]
+    stp = trials.stop_s.to_numpy(float)[o]
+    stb = np.where(np.isfinite(trials.strobe_s), trials.strobe_s, trials.cue_s - 3.0).astype(float)[o]
+    k = np.searchsorted(cue, t, side="right") - 1
+    kc = np.clip(k, 0, len(cue) - 1)
+    post = (k >= 0) & ~(t > stp[kc])
+    kn = np.clip(k + 1, 0, len(cue) - 1)
+    pre = ~post & (k + 1 < len(cue)) & (t >= stb[kn])
+    return np.where(post, "post_cue", np.where(pre, "pre_cue", "iti"))
+
+
+def split_licks(B: Behaviour) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """LICKS_ALL=split: (post-cue, pre-cue, ITI) lick onsets, every lick in EXACTLY ONE (Priya 11-04).
+      cam4   licks.csv = post-cue (every row is post-cue: cue .. stop, incl. 0 .. 70 ms after the cue -- the 70 ms floor is
+             for counting contacts, never for modelling); licks_all pre-cue / ITI rows by their context; the pre-cue /
+             ITI-table rows whose onset is post-cue (``post_extra``) -> post-cue
+      cam1   cam1-only onsets (LICKS_ENV) by TIME (`lick_context_s`); one outside its trial's post-cue window that lies
+             within CAM1_DUP_TOL_S of a cam4 pre-cue / ITI lick is that lick and is dropped
+    DAQ contacts are NOT licks here: one contact kernel over the whole trial windows (`_context_licks`)."""
+    ctx = B.context_lick_on_s
+    ex = np.asarray([] if getattr(B, "extra_lick_on_s", None) is None else B.extra_lick_on_s, float)
+    cx = lick_context_s(ex, B.trials) if len(ex) else np.zeros(0, str)
+    c4 = np.sort(np.concatenate([ctx["pre_cue"], ctx["iti"]]))
+    if len(ex) and len(c4):
+        j = np.clip(np.searchsorted(c4, ex), 1, max(len(c4) - 1, 1))
+        d = np.minimum(np.abs(c4[j] - ex), np.abs(c4[j - 1] - ex))
+        dup = (cx != "post_cue") & (d <= CAM1_DUP_TOL_S)
+    else:
+        dup = np.zeros(len(ex), bool)
+    post = np.sort(np.concatenate([np.asarray(B.lick_on_s, float), ctx.get("post_extra", np.zeros(0)),
+                                   ex[(cx == "post_cue")]]))
+    pre = np.sort(np.concatenate([ctx["pre_cue"], ex[(cx == "pre_cue") & ~dup]]))
+    iti = np.sort(np.concatenate([ctx["iti"], ex[(cx == "iti") & ~dup]]))
+    return post, pre, iti
+
+
 def raw_blocks(B: Behaviour, ft, pos_perm: dict | None = None, drop_pos: str | None = None) -> dict:
     """{variable: (T, p) raw columns}. ``pos_perm`` {variable: permuted position per trial} for the label shuffle.
     ``drop_pos`` = p: the position blocks with spout p's OWN response removed (p constrained to the mean of the others)."""
@@ -857,13 +918,20 @@ def raw_blocks(B: Behaviour, ft, pos_perm: dict | None = None, drop_pos: str | N
         lick_t = np.sort(np.concatenate([np.asarray(B.lick_on_s, float), extra]))
     ctx = getattr(B, "context_lick_on_s", None)
     mode_all = os.environ.get(LICKS_ALL_ENV, "")
-    if mode_all and mode_all not in ("shared", "split"):
-        raise ValueError(f"{LICKS_ALL_ENV}={mode_all!r}; expected shared | split")
+    if mode_all and mode_all not in LICKS_ALL_MODES:
+        raise ValueError(f"{LICKS_ALL_ENV}={mode_all!r}; expected one of {LICKS_ALL_MODES}")
+    contacts = B.contact_s
+    if ctx and mode_all in ("shared", "split"):          # contacts over the whole trial windows (raw DAQ channel)
+        cc = getattr(B, "context_contact_s", None)
+        contacts = B.contact_s if cc is None else cc     # (pre-11-04 pickles replaced contact_s itself)
     if ctx and mode_all == "shared":                     # one lick kernel wherever the lick happens
         lick_t = np.sort(np.concatenate([lick_t, ctx["pre_cue"], ctx["iti"]]))
-    lk = [_event_cols(lick_t, ft, LAGS["lick"]), _event_cols(B.contact_s, ft, LAGS["lick"])]
+    if ctx and mode_all == "split":
+        post_k, pre_k, iti_k = split_licks(B)
+        lick_t = post_k
+    lk = [_event_cols(lick_t, ft, LAGS["lick"]), _event_cols(contacts, ft, LAGS["lick"])]
     if ctx and mode_all == "split":                      # spontaneous (pre-cue) and ITI licks: their own kernels
-        lk += [_event_cols(ctx["pre_cue"], ft, LAGS["lick"]), _event_cols(ctx["iti"], ft, LAGS["lick"])]
+        lk += [_event_cols(pre_k, ft, LAGS["lick"]), _event_cols(iti_k, ft, LAGS["lick"])]
     lips = getattr(B, "lips_on_s", None)
     if lips is not None and len(lips):                   # LICKS_ENV=lips: lips-only licks get their own kernel
         lk.append(_event_cols(lips, ft, LAGS["lick"]))
@@ -1067,6 +1135,60 @@ def _diag_quad(U, C, chunk=50000):
         u = U[s:s + chunk].astype(np.float64)
         out[s:s + chunk] = np.einsum("ij,ij->i", u @ C, u)
     return out
+
+
+# =============================================================================== the enl scoring window
+def enl_licks(B: Behaviour, source: str):
+    """Every lick time (DAQ s) the ENL decoders' lick-free search sees, from what a Behaviour carries; None when it
+    does not carry the pre-cue licks (LICKS_ALL_ENV unset: licks.csv / the contact table start at the cue).
+      lp   cam4 LP licks of every context (post-cue licks.csv + LICKS_ALL pre-cue / ITI from licks_all.csv) + the cam1-only
+           onsets (`extra_lick_on_s`, the decoders' cam1 rule) = `lp_licks.lp_lick_times`, UNEDITED (the decoders'
+           `edit_train` moves post-cue licks of the attempts table; it reaches an ENL period on 8 / 3,532 (PS93_0814)
+           and 4 / 3,198 (PS93_0818) ENL licks; unedited keeps the inputs class-free)
+      daq  the whole-trial-window DAQ contact onsets (LICKS_ALL `context_contact_s`, `dlc_frames.lick_onsets`)."""
+    if source == "lp":
+        ctx = getattr(B, "context_lick_on_s", None)
+        if not ctx:
+            return None
+        ex = getattr(B, "extra_lick_on_s", None)
+        parts = [np.asarray(B.lick_on_s, float), ctx["pre_cue"], ctx["iti"], ctx.get("post_extra", np.zeros(0)),
+                 np.asarray([] if ex is None else ex, float)]
+        return np.sort(np.concatenate(parts))
+    c = getattr(B, "context_contact_s", None)
+    return None if c is None else np.sort(np.asarray(c, float))
+
+
+def enl_lickfree(B: Behaviour, E: pd.DataFrame, ft: np.ndarray, ridx: np.ndarray):
+    """(rows mask over the fit rows | None, info) of the lick-free "enl" window: per engaged trial the ENL decoders'
+    window (`enl_window.precue_window_start` on frames: the fixed window ending at the cue if clean, else the latest
+    clean gap after the strobe; None = the trial has none and is left out), length and lick source from
+    `enl_window.enl_spec()`. None (with the reason in ``info``) when the inputs carry no pre-cue licks: "enl" is then the
+    fixed window, as before."""
+    from wfield_local import enl_window
+    spec = enl_window.enl_spec()
+    t = enl_licks(B, spec["source"])
+    if t is None:
+        return None, {"kind": "fixed2s", "reason": f"no pre-cue {spec['source']} licks in the inputs "
+                                                    f"({LICKS_ALL_ENV} unset)", "decoder_spec": spec}
+    fs = float(1 / np.median(np.diff(ft)))
+    win_n = int(round(spec["length_s"] * fs))
+    lf = np.searchsorted(ft, t)                                     # lick frame = first frame at or after the onset
+    rows = np.zeros(len(ridx), bool)
+    n_fixed = n_slid = n_none = 0
+    for c, s_ in zip(E.cue_s.to_numpy(float), E.strobe_s.to_numpy(float)):
+        c0 = int(np.searchsorted(ft, c))
+        strobe_f = c0 - (c - s_) * fs if np.isfinite(s_) else np.nan      # `strobe_frames`: the cue frame minus the lead
+        w0 = enl_window.precue_window_start(c0, strobe_f, lf, win_n, lickfree=spec["lickfree"])
+        if w0 is None:
+            n_none += 1
+            continue
+        n_fixed += int(w0 == c0 - win_n)
+        n_slid += int(w0 != c0 - win_n)
+        a, b = np.searchsorted(ridx, [w0, w0 + win_n])
+        rows[a:b] = True
+    return rows, {"kind": "lickfree", "source": spec["source"], "length_s": spec["length_s"],
+                  "lickfree": spec["lickfree"], "n_trials": int(len(E)), "n_fixed": n_fixed, "n_slid": n_slid,
+                  "n_no_window": n_none, "fixed2s": "enl_fixed2s = max(strobe, cue - 2 s) .. cue, not lick-gated"}
 
 
 # =============================================================================== per-trial outputs
@@ -1443,8 +1565,12 @@ def run_session(label: str, order: str = "movement_first", seed: int = 0, inputs
                                                    # phase on prompt and delayed trials; trials with no lick: none
     ex_ = getattr(B, "extra_lick_on_s", None)
     lk_all = np.sort(np.concatenate([np.asarray(B.lick_on_s, float), np.asarray([] if ex_ is None else ex_, float)]))
+    # "enl" = each engaged trial's LICK-FREE ENL window, the ENL decoders' own search (`enl_lickfree`, Priya 11-04);
+    # the pre-11-04 fixed window (max(strobe, cue - 2 s) .. cue, not lick-gated) stays as "enl_fixed2s"
+    win["enl_fixed2s"] = np.zeros(len(ridx), bool)
+    enl_rows, enl_info = enl_lickfree(B, E, ft, ridx)
     for s_, c, stp in zip(st, E.cue_s.to_numpy(float), E.stop_s.to_numpy(float)):
-        win["enl"] |= (ftr >= max(s_, c - 2.0)) & (ftr < c)
+        win["enl_fixed2s"] |= (ftr >= max(s_, c - 2.0)) & (ftr < c)
         win["cue"] |= (ftr >= c) & (ftr < c + 1.0)
         stp = stp if np.isfinite(stp) else c + 3.5
         i = np.searchsorted(lk_all, c)
@@ -1453,6 +1579,7 @@ def run_session(label: str, order: str = "movement_first", seed: int = 0, inputs
         win["cuestop"] |= (ftr >= c) & (ftr < stp)
         if first < stp:
             win["firstlick"] |= (ftr >= first - 0.1) & (ftr < first + 1.0)
+    win["enl"] = enl_rows if enl_rows is not None else win["enl_fixed2s"].copy()
     pk = np.sort(B.lick_peak_s)
     j = np.searchsorted(pk, ftr)
     d = np.minimum(np.abs(ftr - pk[np.clip(j - 1, 0, len(pk) - 1)]), np.abs(ftr - pk[np.clip(j, 0, len(pk) - 1)]))
@@ -1880,6 +2007,7 @@ def run_session(label: str, order: str = "movement_first", seed: int = 0, inputs
            "exec_set": os.environ.get(EXEC_ENV) or "cam4", "lick_set": os.environ.get(LICKS_ENV) or "cam4",
            "n_trials": int(len(E)), "n_frames": int(len(ridx)),
            "window_frames": {w_: int(m_.sum()) for w_, m_ in win.items()}, "fs": float(1 / np.median(np.diff(ft))),
+           "enl_window": enl_info,
            "video": (cams if vid_raw is not None else None), "video_k": VIDEO_K,
            "fr": (fr_set if fr_raw is not None else None),
            "fr_measure": ("absolute" if _fr_absolute() else "share") if fr_raw is not None else None,
@@ -2126,7 +2254,8 @@ def out_dir(rv, order: str) -> Path:
                                                          + (f"_bw{bins_width():g}" if os.environ.get(BINS_ENV)
                                                             and bins_width() != 1.0 else "")
                                                          + (f"_licksall-{os.environ[LICKS_ALL_ENV]}"
-                                                            if os.environ.get(LICKS_ALL_ENV) else "")
+                                                            if os.environ.get(LICKS_ALL_ENV, "score") != "score"
+                                                            else "")
                                                          + os.environ.get(SUFFIX_ENV, ""))
 
 

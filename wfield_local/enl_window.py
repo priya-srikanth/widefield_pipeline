@@ -1,0 +1,75 @@
+"""The ENL (pre-cue) LICK-FREE window: the ONE search the ENL decoders and the combined encoder's "enl" scoring window
+share. Moved verbatim from `locanmf_position_decoder` on 2026-11-04 (coordinator: the encoder's enl R2 window = the
+decoders' lick-free ENL window), so the O2 encoder can use it without that module's sklearn / matplotlib / session
+registry imports. `locanmf_position_decoder` re-exports both functions; nothing else changed.
+
+The window LENGTH is the decoders' too (`enl_spec`): `lp_licks.enl_window_s()` (1.0 s under the LP lick source, or
+WIDEFIELD_ENL_WINDOW_S), else `defaults.yaml decode.precue_post_s` (2.0 s, the DAQ source).
+"""
+from __future__ import annotations
+
+import numpy as np
+
+
+def enl_spec() -> dict:
+    """{"source": lp | daq, "length_s", "lickfree"}: the ENL decoders' window for this process's lick source."""
+    from wfield_local import config, lp_licks
+    d = config.defaults()["decode"]
+    w = lp_licks.enl_window_s()
+    return {"source": lp_licks.lick_source(), "length_s": float(w if w is not None else d["precue_post_s"]),
+            "lickfree": bool(d.get("precue_lickfree", True))}
+
+
+def lickfree_window(cue_f, strobe_f, licks, win_n):
+    """Latest ``win_n``-frame window before the cue containing NO licks, or None.
+
+    Moved here from `precue_lickfree` on 2026-08-17 when Priya decided the HEADLINE pre-cue number
+    should be lick-free: the rule now governs the production decoder, so it belongs beside it rather
+    than in the module that used to be its only consumer.
+
+    A FIXED window ending at the cue throws a trial away for a single lick anywhere in it -- including
+    one 200 ms before the cue, when 2 s of clean data sits just earlier in the same enforced no-lick
+    period. Instead: take the lick-free GAPS in [strobe, cue] and use the last ``win_n`` frames of the
+    LATEST gap long enough to hold the window. Closest to the cue is preferred, being most informative
+    about the upcoming action.
+
+    BOUNDED AT THE STROBE, deliberately. Before the spout arrives this trial's position does not exist,
+    and because the task avoids recent repeats, prior-trial activity carries real information about the
+    upcoming position -- a window straying earlier would smuggle that in and look like a pre-cue code.
+    """
+    lo = int(np.ceil(strobe_f)) if np.isfinite(strobe_f) else None
+    hi = int(cue_f)
+    if lo is None or hi - lo < win_n:
+        return None
+    inside = np.sort(licks[(licks >= lo) & (licks < hi)])
+    edges = np.concatenate(([lo], inside, [hi]))
+    for i in range(len(edges) - 2, -1, -1):
+        gap_start = int(edges[i]) + (1 if i > 0 else 0)      # a lick occupies its own frame
+        gap_end = int(edges[i + 1])
+        if gap_end - gap_start >= win_n:
+            return gap_end - win_n
+    return None
+
+
+def precue_window_start(c0, strobe_f, licks_sorted, win_n, lickfree=True):
+    """Start frame of this trial's PRE-CUE window, or None meaning DROP the trial.
+
+    THE HEADLINE PRE-CUE NUMBER IS LICK-FREE (Priya, 2026-08-17). Previously only the Section C
+    control restricted; the headline used every engaged trial and relied on the ENL to keep the
+    window quiet, which it does 90.8-99.5% of the time -- but "almost always" is per SESSION, and
+    PS93 8/9 falls to 76%, in the animal whose licking is already atypical. A readout whose whole
+    claim is motor-independence should not rest on a task contingency holding on average.
+
+    Trials with a clean fixed window keep it, so the common case stays exactly cue-aligned. Trials
+    with a lick in it slide to the latest clean gap. Trials with no clean window ANYWHERE are
+    DROPPED rather than kept-and-flagged -- for a headline number, "mostly clean" is the thing being
+    retired.
+    """
+    fixed = int(c0) - win_n
+    if not lickfree:
+        return fixed if fixed >= 0 else None
+    if fixed < 0:
+        return None
+    if not np.any((licks_sorted >= fixed) & (licks_sorted < fixed + win_n)):
+        return fixed                                          # already clean; keep it cue-aligned
+    return lickfree_window(c0, strobe_f, licks_sorted, win_n)

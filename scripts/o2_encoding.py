@@ -84,6 +84,14 @@ if os.environ.get("BINS_WIDTH"):                 # soft-bin width sweep (submit-
     os.environ["COMBINED_ENCODING_BINS_WIDTH"] = os.environ["BINS_WIDTH"]
 if os.environ.get("MATCH"):                      # lick-matched subsampling: MATCH = a JSON in the bundle (match.json)
     os.environ["COMBINED_ENCODING_MATCH"] = str(b / os.environ["MATCH"])
+if "LICKS_ALL" in os.environ:                    # submit-time override of the bundle's LICKS_ALL (none = unset): the
+    v_ = os.environ["LICKS_ALL"]                 # pickles carry the context licks + the cue-table contacts either way
+    if v_ in ("", "none"):
+        os.environ.pop("COMBINED_ENCODING_LICKS_ALL", None)
+    else:
+        os.environ["COMBINED_ENCODING_LICKS_ALL"] = v_
+if os.environ.get("TRIALS"):                     # per-trial outputs mode (combined_encoding.TRIALS_ENV; default auto)
+    os.environ["COMBINED_ENCODING_TRIALS"] = os.environ["TRIALS"]
 attempts = {}
 if os.environ.get("ATTEMPTS"):                   # engagement re-derived from a shipped table (combined_encoding.ATTEMPTS_ENV)
     import hashlib
@@ -100,6 +108,7 @@ out = b / "out" / tag
                                           "bins": os.environ.get("BINS", ""),
                                           "fr_groups": os.environ.get("FR_GROUPS", ""),
                                           "bins_width": os.environ.get("BINS_WIDTH", ""),
+                                          "licks_all": os.environ.get("COMBINED_ENCODING_LICKS_ALL", ""),
                                           **attempts, "bundle_env": bundle_env, "tag": tag}))
 if (out / "sessions" / f"{label}.json").exists():
     print("done already", label); sys.exit(0)
@@ -205,6 +214,9 @@ FULL_RUNS = (("bins_w1", "movement_first", "nokin:", "BINS=1"),
              ("bins_w05", "movement_first", "nokin:", "BINS=1,BINS_WIDTH=0.5"),
              ("bins_w2", "movement_first", "nokin:", "BINS=1,BINS_WIDTH=2"),
              ("main", "movement_first", "", ""),
+             # robustness (Priya 11-04, production = LICKS_ALL=split): main WITHOUT the pre-cue / ITI lick kernels, from
+             # the same pickles (submit-time override)
+             ("main_nolicksall", "movement_first", "", "LICKS_ALL=none,TRIALS=sse"),
              ("droppos", "movement_first", "droppos-", ""),
              ("shufpos", "movement_first", "shufpos-", ""),
              ("nodir", "movement_first", "nodir:", ""),
@@ -215,6 +227,23 @@ FULL_RUNS = (("bins_w1", "movement_first", "nokin:", "BINS=1"),
              ("fr_B", "movement_first", "fr:", "FR=master_pre_v1,FR_GROUPS=master_v1:B"),
              ("fr_S", "movement_first", "fr:", "FR=master_pre_v1,FR_GROUPS=master_v1:S"),
              ("fr_D", "movement_first", "fr:", "FR=master_pre_v1,FR_GROUPS=master_v1:D"))
+
+
+def set_licks_all(mode: str, environ=None) -> None:
+    """The bundle's LICKS_ALL (Priya 11-04, option B: production = split -- the model's own pre-cue and ITI lick kernels,
+    and the lick-free enl scoring window reads the same pre-cue licks). The pickles then carry the context licks
+    (licks_all.csv) and the whole-window contacts; a submit-time LICKS_ALL=none (TAG main_nolicksall) drops the kernels
+    from the same pickles. "none" = unset. A different value already in the shell is refused."""
+    from wfield_local import combined_encoding as ce
+    env = os.environ if environ is None else environ
+    have = env.get(ce.LICKS_ALL_ENV, "")
+    want = "" if mode in ("", "none") else mode
+    if have and have != want:
+        raise SystemExit(f"{ce.LICKS_ALL_ENV}={have} in this shell but --licks-all {mode}")
+    if want:
+        env[ce.LICKS_ALL_ENV] = want
+    else:
+        env.pop(ce.LICKS_ALL_ENV, None)
 
 
 def cmd_bundle(a) -> Path:
@@ -230,6 +259,7 @@ def cmd_bundle(a) -> Path:
     from wfield_local.paths import PathResolver
     rv = PathResolver()
     os.environ[ce.RUN_ENV] = a.run or RUN
+    set_licks_all(a.licks_all)
     # CODE SNAPSHOT = HEAD of the worktree this runs from; refuse uncommitted changes to what is archived
     repo = Path(__file__).resolve().parents[1]
     dirty = _git(repo, "status", "--porcelain", "--", "wfield_local", "configs", "scripts/o2_encoding.py")
@@ -499,6 +529,11 @@ def cmd_collect(a) -> int:
         if not (isinstance(v, str) and v.startswith("@")):
             os.environ[k] = v
     _set_env(meta)
+    if "licks_all" in meta:                                    # the run's own LICKS_ALL (submit-time override)
+        if meta["licks_all"]:
+            os.environ[ce.LICKS_ALL_ENV] = meta["licks_all"]
+        else:
+            os.environ.pop(ce.LICKS_ALL_ENV, None)
     dst = ce.out_dir(rv, meta["order"] or "movement_first") / "sessions"
     writeguard.assert_writable(dst)
     dst.mkdir(parents=True, exist_ok=True)
@@ -672,6 +707,8 @@ def main(argv=None) -> int:
     b.add_argument("--fr-share", action="store_true", help="with --fr: bundle the per-frame SHARE (the paper) instead "
                    "of absolute expression (a bundle holds one; make a second bundle for the other)")
     b.add_argument("--jobs", type=int, default=4)
+    b.add_argument("--licks-all", default="split", choices=("split", "shared", "score", "none"),
+                   help="COMBINED_ENCODING_LICKS_ALL of the bundle (default split = production since 11-04)")
     b.add_argument("--no-inputs", action="store_true", help="refresh code / env / COMMANDS only (inputs kept)")
     b.add_argument("labels", nargs="*", help="session labels, or ONE file of whitespace-separated labels")
     c = sub.add_parser("check")

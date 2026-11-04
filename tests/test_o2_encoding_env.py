@@ -123,7 +123,8 @@ def test_runner_applies_settings_before_importing_and_verifies():
     assert r.index("for k, v in bundle_env.items():") < r.index("o2_bundle.verify(") < r.index("from wfield_local import combined_encoding as ce")
     assert "del os.environ[k]" in r                                             # nothing from the O2 shell leaks in
     tags = [t for t, *_ in m.FULL_RUNS]
-    assert len(tags) == 14 and len(set(tags)) == 14 and {"main", "fr_A", "bins_w05", "musall_shuf"} <= set(tags)
+    assert len(tags) == 15 and len(set(tags)) == 15 and {"main", "main_nolicksall", "fr_A", "bins_w05",
+                                                         "musall_shuf"} <= set(tags)
 
 
 def test_bundle_goes_under_the_rebuild_root(tmp_path, monkeypatch):
