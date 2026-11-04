@@ -1,5 +1,16 @@
 # Handoff 2026-11-01: quiet-period cortical events after the VLS stroke (cohort1, PS92-95) + literature context
 
+> **OVERNIGHT 11-03 -> 11-04 (Priya asleep) -- START HERE.** Live log + questions: docs/status/RUNNING_LIST_2026-11-03_AWAY.md.
+> Deck = 183 slides, 78 hidden (Priya's 18:50 states; diff with hidden_state_1103.py before/after every change).
+> Production now: working = contact + incomplete camera licks, cut at last camera lick (jaw-only = own class, Priya
+> 11-03 late; JAW_ONLY_CHECKS_2026-11-03.md), August-only pre, spout bal_em + extension. B (state discriminators in
+> spout frame) and C (projections in spout frame) are built, OFF, awaiting Priya.
+> PLAN: (1) jaw-only-out helper RUNNING (code, new frozen ids, verification vs .727 / .856, docs; no render). (2) then
+> ONE combined render with B/C OFF (current production; if Priya turns B/C on, only state-disc / projection families
+> re-render) -> SPOUT_BALEM_PAGE_EDITS sections 2/5/7. (3) deck swaps from build_inputs/spout_balem_swaps.json (slides
+> 10-13, 19, 89 + working-trial captions), e3 redraws hidden LMM slides from the new *_sessions.csv; tell 5b / 34 / e0
+> that working excludes jaw-only. Never start duplicate helpers; resume a stopped one with SendMessage.
+>
 > UPDATE 11-03 (late+): helper (B) DONE -- spout decoder biased (prod understates acute far-contra drop ~.10; fix = bal_em
 > centring, new spec, AWAITING PRIYA); lick decoder clean except cued all-lick acute offset caveat (tell 34 after Priya).
 > PS110: refined 891/4,276 is on the MOSAIC detection; per-tile has only strict 559/3,804; asked Priya. See running list.

@@ -1,4 +1,12 @@
-# Running list, 2026-11-03 (Priya away), PI-deck window (sabatinilab-a8)
+# Running list, 2026-11-03 (Priya away) -> overnight into 11-04, PI-deck window (sabatinilab-a8)
+
+**Overnight plan (Priya asleep from ~11-03 late; my decisions, reversible):**
+1. Implement jaw-only out of working (helper running).
+2. Then run ONE combined render with B and C OFF. That is current production; if you turn either on, only the
+   state-discriminator / projection families re-render.
+3. Then deck swaps and the hidden LMM redraws (e3).
+4. Page edits go to e0 after the render.
+5. Other windows (e3, 34, e0) were told that working now excludes jaw-only.
 
 Read top to bottom: questions for Priya first, then findings, then decisions taken, then what is running. The detailed
 log for the earlier part of the day is `RUNNING_LIST_2026-11-02_OVERNIGHT.md`.
