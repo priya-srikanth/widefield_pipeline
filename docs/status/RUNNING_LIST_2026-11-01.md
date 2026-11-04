@@ -548,6 +548,11 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   separate. Confirms the same B1 + N1-N8; N5 (A3 path-argument scripts outside the writer register, no run-tag check) added to
   the helper batch. STILL OWED: early_run consumers / 5-min rule (Q3) and centre_rows / stores / < 2-row fallback (Q1, Q4).
   Render waits for B1 fixed + those two checks.
+- FIFTH REVIEW, scopes A + B DONE: early_run read as neither working nor stopped everywhere (Q3 OK); licks-per-trial window and
+  5-min rule verified on real sessions (159 runs / 1,830 trials match). New non-blockers sent to helper: GUI-fallback sessions
+  (08-05, 08-06, PS92 08-12) cut licks/trial at 2.0 s not the stop (behaviour writers refused under the profile, so not in the
+  render, but the pre lpt__ baseline mixes windows); rest_start missing from cache keys; a snapshot script bypasses the 5-min rule;
+  edge tests; "licks / trial" labels; one shared 70 ms constant. Still owed: Q1 / Q4 (centre rows, stores, fallback).
 
 ### Findings
 - main moved while the rebuild branch was being fixed (34 commits not in rebuild/cohort1-20261103). Two matter for the rebuild:
