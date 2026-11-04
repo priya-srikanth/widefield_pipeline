@@ -175,6 +175,11 @@ def _cached(label):
 #: Under the switch only the QUIT moves: `hit_before` / `hit_after` / `step_sharpness` stay on the row's own `hit`
 #: (the option never changes a hit rate), whereas gate_lp_check overwrote `hit` itself -- so those three are not compared.
 HIT_DESCRIPTIVES = ("hit_before", "hit_after", "step_sharpness")
+#: LICK-COUNT descriptives of the quit (cumulative licks at the quit, early licks / min): since 11-03 they are counted
+#: with THE behaviour detector (`analysis_kit.lick_count_samples`, coordinator decision, DECISIONS "One DAQ lick
+#: detector for lick COUNTS"), so they no longer equal the pinned pre-decision values. The GATE and the QUIT itself
+#: (hit-based) stay pinned, exactly.
+COUNT_DESCRIPTIVES = ("quit_cum_licks", "early_lpm", "early_lpt")
 
 
 def _same_quit(a, b, skip=()):
@@ -210,7 +215,7 @@ def test_default_gate_and_quit_pinned(gate_off, monkeypatch, label):
     assert np.array_equal(_img_gate(label, T, "daq35"), T.ne_img.to_numpy(bool))
     rows = session_trials(s, 2.0)
     assert rows and all("gate_hit" not in r for r in rows)
-    _same_quit(session_quit(s, rows), d["quit_daq"])
+    _same_quit(session_quit(s, rows), d["quit_daq"], skip=COUNT_DESCRIPTIVES)
 
 
 @pytest.mark.parametrize("label", PINNED)
@@ -228,4 +233,4 @@ def test_switch_reproduces_gate_lp_check(gate_on, monkeypatch, label):
     assert ne_lp.sum() <= T.ne_img.sum()                     # the rule only adds responses
     rows = session_trials(s, 2.0)
     assert all("gate_hit" in r for r in rows)
-    _same_quit(session_quit(s, rows), d["quit_lp"], skip=HIT_DESCRIPTIVES)
+    _same_quit(session_quit(s, rows), d["quit_lp"], skip=HIT_DESCRIPTIVES + COUNT_DESCRIPTIVES)

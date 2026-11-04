@@ -972,7 +972,7 @@ and the centre suites pass.
   - The selectors: `config.phase_labels("pre")` = 44 sessions incl. 12 June; `analysis_kit.curated_labels` = 120
     incl. 12 June; `epochs.epoch_of("PS92_0606")` = "pre". With WIDEFIELD_PRE_FROM=0801: 32 pre sessions, 0 June, and
     June's epoch_of is None.
-  - **June + August (28):** every flagged script whose pre set comes from those selectors: axis_holdout_null,
+  - **June + August (27, + cohort2_qc/quiet_area_spikes):** every flagged script whose pre set comes from those selectors: axis_holdout_null,
     chronic_drift_vs_reorg, chronic_stability, engagement_axis_balance, lick_iti_prelick, lick_template_test,
     nocontact_census, fig_state_ps94_diagnostic, reembedding_test, cd_trajectories, grant_encoder, locomotor_decoder,
     and rest_migration channel_evoked_sign, evoked_hrf_latency, flat_vs_timelocal, flatpool_vs_restw, nvc_evoked,
@@ -990,3 +990,9 @@ and the centre suites pass.
     - block exemptions that UNSET it for june_august_drift (which refuses PRE_FROM) and 12.1b
       (rest_frozen_decoder_nl, its own June + Aug pre set). `block_env` needs a "remove" value (e.g. null -> pop);
     - `epoch_audit.full_cohort` already suspends PRE_FROM, so epoch boundaries do not move.
+
+### 8.24 Test record (3da8e480) and the pinned quit test
+Full suite at 3da8e480: 4,570 passed, 178 skipped, 6 failed. All 6 were `test_lp_gate_option` pins of the quit's
+LICK-COUNT descriptives (quit_cum_licks, early_lpm, early_lpt). Those moved on purpose with the detector-A decision.
+The gate and the quit point (hit-based) are still pinned exactly; only those three count fields are now skipped
+(COUNT_DESCRIPTIVES). The file passes (18 passed).
