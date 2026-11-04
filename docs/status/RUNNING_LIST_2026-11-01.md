@@ -915,3 +915,12 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   - The answers are recorded in CAMERA_CLASS_INVENTORY_20261104.md section 5.
   - Running now: a census for Q6 (contact vs DAQ mismatch, with examples) and for Q4 (unjudged close spouts), both
     read-only.
+- **11-04 ~10:50: DECISION (Priya via a8), Q3: hit rate uses the camera working period.**
+  - Condition: the last far-spout failure block(s) before the quit tail must not be left out.
+  - **Proposed guard:** a stop run / quit tail counts as stopped only if it includes non-response at a reference (close)
+    spout. The end of session moves to the first reference-spout block with no camera lick after the last camera lick.
+  - A census of the current rule vs the guarded rule is running: STOP_RULE_GUARD_CENSUS_20261104.md, per animal x epoch
+    x spout, with hit rates.
+  - **Expected effect on the O2 bundle: none.** Stop runs and the quit tail contain only no_response / jaw_only, so the
+    guard only moves failure trials back into the working period. contact + incomplete (the encoder's engaged set and the
+    decoders' working rows) cannot change. The census confirms this.
