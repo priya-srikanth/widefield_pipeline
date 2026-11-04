@@ -1300,3 +1300,6 @@ through monkeypatch before the import. Re-run of that shard: 646 passed, 26 skip
     - `working_centre` refuses 1–19 rows.
   - Updated source pins in test_frozen_default, test_stopped_trial_class (main's wording) and test_merge_review_b1
     (the pool now carries XU).
+
+### 8.34 Test record (2c59f85b)
+Full suite, 6 shards: 4,593 passed, 179 skipped, 0 failed.
