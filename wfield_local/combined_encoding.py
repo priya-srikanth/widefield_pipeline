@@ -1080,20 +1080,34 @@ def _diag_quad(U, C, chunk=50000):
 #:          ("cv"), float16, for fitted and scored-only frames: readers rebuild peth / peth_lick / the full model's sse /
 #:          sse_trial per class at any alignment with `trial_rows` (`encoder_trials.py`)
 #:   full32 full in float32 (exact reproduction of the session npz; tests / checks)
-#: Default (unset): full for the run without a model subset (O2 TAG main), sse for every subset run (ONLY_ENV set):
-#: the full model's parts do not depend on the subset, so main carries them once (sizes: REBUILD_CODE 8.43).
+#: Default (unset) = "auto", decided once the model set is known (`auto_trials_mode`): full for the run without a model
+#: subset (O2 TAG main); sse for a subset run with a time-resolved model main does not compute identically (another
+#: ORDER, nokin / binned, fr); off for a subset run whose time-resolved models are all main's (trmodels, drop, droppos,
+#: shufpos, nodir): main already holds them, per trial. Sizes and the per-TAG table: REBUILD_CODE 8.43.
 TRIALS_ENV = "COMBINED_ENCODING_TRIALS"
 TRIAL_MODES = ("off", "sse", "full", "full32")
 TRIAL_BIN_S = 0.5
+#: the time-resolved models of the main (unsubset, movement_first, no FR) run
+MAIN_TR_MODELS = tuple(m for m in TR_MODELS if not m.startswith("fr:"))
 
 
 def trials_mode() -> str:
+    """The TRIALS_ENV setting: one of TRIAL_MODES, or "auto" when unset."""
     v = os.environ.get(TRIALS_ENV, "")
     if not v:
-        return "sse" if os.environ.get(ONLY_ENV) else "full"
+        return "auto"
     if v not in TRIAL_MODES:
         raise ValueError(f"{TRIALS_ENV}={v!r}; expected one of {TRIAL_MODES}")
     return v
+
+
+def auto_trials_mode(order: str, tr_models) -> str:
+    """"auto" resolved for a run's ORDER and time-resolved models (see TRIALS_ENV)."""
+    if not os.environ.get(ONLY_ENV):
+        return "full"
+    if order != "movement_first" or set(tr_models) - set(MAIN_TR_MODELS):
+        return "sse"
+    return "off"
 
 
 def _scorable(spec) -> bool:
@@ -1994,6 +2008,8 @@ def run_session(label: str, order: str = "movement_first", seed: int = 0, inputs
                      "sse_tr": np.zeros((len(tr_models), Ra.shape[1], len(off)))}
     # PER-TRIAL OUTPUTS (Priya 11-04, `<label>_trials.npz`): every cue trial, fitted (E) or scored-only (X_)
     trs = None
+    if tmode == "auto":
+        tmode = auto_trials_mode(order, tr_models)
     if tmode != "off":
         trs = _TrialScorer(S_, E, X_, ridx, xidx, ft, fold, f_of_trial, cue_f, first_f, lk_all, off, res["fs"], Rd,
                            (Yx.astype(np.float64) @ Ra) if Yx is not None else np.zeros((0, Ra.shape[1])),

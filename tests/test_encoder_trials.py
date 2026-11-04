@@ -187,9 +187,14 @@ def test_helpers_extend_exactly():
 def test_trials_mode_default(monkeypatch):
     monkeypatch.delenv(ce.TRIALS_ENV, raising=False)
     monkeypatch.delenv(ce.ONLY_ENV, raising=False)
-    assert ce.trials_mode() == "full"
+    assert ce.trials_mode() == "auto"
+    assert ce.auto_trials_mode("movement_first", ce.MAIN_TR_MODELS) == "full"            # main
     monkeypatch.setenv(ce.ONLY_ENV, "drop:")
-    assert ce.trials_mode() == "sse"
+    assert ce.auto_trials_mode("movement_first", ("full", "drop:task", "drop:position")) == "off"   # main has them
+    assert ce.auto_trials_mode("movement_first", ("full",)) == "off"                     # droppos / shufpos / nodir
+    assert ce.auto_trials_mode("musall", ("full", "shuf:task")) == "sse"                 # another order
+    assert ce.auto_trials_mode("movement_first", ("full", "nokin:none")) == "sse"        # bins_*
+    assert ce.auto_trials_mode("movement_first", ("full", "fr:full")) == "sse"           # fr_*
     monkeypatch.setenv(ce.TRIALS_ENV, "off")
     assert ce.trials_mode() == "off"
     monkeypatch.setenv(ce.TRIALS_ENV, "bogus")
