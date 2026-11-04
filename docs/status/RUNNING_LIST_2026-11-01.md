@@ -1017,3 +1017,15 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
     - the encoder-classes merge, then refresh-code (through the wrapper or after the --profile fix);
     - a regenerated trial_attempts (max_rt rule) is shipped in tables/;
     - a small re-rsync of code/ and tables/.
+- **11-04 ~11:50: DECISIONS (Priya via a8) on the stop-rule guard, round 1.**
+  - close_center unjudged no_response counts as stop evidence.
+  - Trials after the last camera lick are always stopped.
+  - The block-level guard is dropped.
+  - Census round 2 is running (STOP_RULE_GUARD_CENSUS_R2_20261104.md). Arms:
+    - current;
+    - trial guard;
+    - both-sides refinement;
+    - runs > 8 / > 10 / > 12;
+    - end cut only.
+  - Each arm is scored on hit rate and deficit, with the pre hit rate as the specificity check, plus stopped trials and
+    no-reference runs.
