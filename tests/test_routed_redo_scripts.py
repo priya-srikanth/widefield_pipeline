@@ -11,6 +11,7 @@ import pytest
 REPO = Path(__file__).resolve().parents[1]
 
 #: family 1 (the encoder family + its attempt / epoch readers)
+FAMILY_2 = ["enl_fr_removed_decode", "fr_direction_mechanism", "fr_encoding_summary", "fr_musall"]
 FAMILY_1 = ["best_match_destination", "combined_encoding_figures", "compare_map_tests", "coupling_by_class",
             "encoder_trialavg_r2", "encoding_key_figures", "encoding_mixed", "exec3d_pilot_figure",
             "exec_angle_spread_check", "exec_vs_neural_match", "frozen_area_maps", "frozen_group_leakage",
@@ -23,7 +24,7 @@ ROUTED = re.compile(r"encoding_out_root\(|out_root\(\)|output_dir\(|routed_outpu
 UNROUTED_ROOT = re.compile(r"oo\.encoding_root\((oc\.RUN|a\.run|run), PathResolver\(\)\)|_encoding_root\(\)\s*$")
 
 
-@pytest.mark.parametrize("name", FAMILY_1)
+@pytest.mark.parametrize("name", FAMILY_1 + FAMILY_2)
 def test_family_1_is_routed(name):
     src = (REPO / "scripts" / f"{name}.py").read_text(encoding="utf-8")
     assert "require_default(" not in src, name

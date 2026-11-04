@@ -33,7 +33,7 @@ import numpy as np
 import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from fr_musall import AN, E  # noqa: E402
+from fr_musall import AN, E  # noqa: E402  -- E = fe.out_root(): the encoder's TAGGED root (routed, coordinator 11-04)
 
 BUNDLE = Path("M:/MICROSCOPE/Priya/DeepLabCut/Widefield/o2/enc_v36_full_20261024/inputs")
 LICK = ("fr_lick_ongoing_7Hz", "fr_lick_right", "fr_lick_left", "fr_lick_fast_close", "fr_lick_far_nose", "fr_lick_slow_late")
@@ -126,8 +126,7 @@ def session(pk: Path) -> dict | None:
 
 
 def main(argv=None) -> int:
-    from wfield_local import run_mode as _rm_guard
-    _rm_guard.require_default("fr_direction_mechanism")   # unrouted share writer: refuses in a non-default run mode
+    # coordinator 11-04: routed (outputs under the run tag), no longer refused in a tagged run
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt

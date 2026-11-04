@@ -186,8 +186,7 @@ def figure(d: pd.DataFrame, path: Path) -> None:
 
 
 def main(argv=None) -> int:
-    from wfield_local import run_mode as _rm_guard
-    _rm_guard.require_default("enl_fr_removed_decode")   # unrouted share writer: refuses in a non-default run mode
+    # coordinator 11-04: routed (outputs under the run tag), no longer refused in a tagged run
     import os
 
     import matplotlib
@@ -204,7 +203,8 @@ def main(argv=None) -> int:
     ap.add_argument("--plot-only", action="store_true")
     a = ap.parse_args(argv)
     rv = PathResolver()
-    out = Path(rv.root("cohort_out")) / "enl_fr_removed_decode"
+    from wfield_local import run_mode
+    out = run_mode.subdir(Path(rv.root("cohort_out")) / "enl_fr_removed_decode")   # <...>/<tag>/ (coordinator 11-04)
     assert_writable(out)
     (out / "sessions").mkdir(parents=True, exist_ok=True)
     os.environ["ENL_FR_OUT"] = str(out)

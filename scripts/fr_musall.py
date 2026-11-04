@@ -26,6 +26,7 @@ import numpy as np
 import pandas as pd
 
 from wfield_local import frozen_encoder as _fe  # noqa: E402
+
 # THE encoder root of THIS run mode (coordinator 11-03): `frozen_encoder.out_root()` = the old literal by default,
 # imaging_encoding/<tag>/ in a tagged run -- the ~36 scripts that import E read the encoder runs of their own mode
 E = _fe.out_root()
@@ -155,8 +156,7 @@ def pixel_maps(mode: str, windows, T: pd.DataFrame, out: Path) -> None:
 
 
 def main(argv=None) -> int:
-    from wfield_local import run_mode as _rm_guard
-    _rm_guard.require_default("fr_musall")   # unrouted share writer: refuses in a non-default run mode
+    # coordinator 11-04: routed (outputs under the run tag), no longer refused in a tagged run
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt

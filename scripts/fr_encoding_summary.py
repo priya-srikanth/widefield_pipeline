@@ -19,9 +19,10 @@ import argparse
 
 import numpy as np
 import pandas as pd
-from wfield_local.orofacial_outputs import encoding_root as _encoding_root  # rebuild root (11-03)
 
-E = _encoding_root()
+from wfield_local import run_mode as _rmode  # the run's (tagged) encoding tree (coordinator 11-04)
+
+E = _rmode.encoding_out_root()          # the FR encoder runs live here (combined_encoding routing)
 MAIN = E / "movement_first_exec-polar_licks-combined" / "sessions"
 FR = {m: E / f"movement_first_fr-master_pre_v1_subset-fr_exec-polar_licks-combined_frg-{m}" / "sessions" for m in "ABSD"}
 AN = ["PS92", "PS93", "PS94", "PS95"]
@@ -60,8 +61,7 @@ def session_table(areas, windows) -> pd.DataFrame:
 
 
 def main(argv=None) -> int:
-    from wfield_local import run_mode as _rm_guard
-    _rm_guard.require_default("fr_encoding_summary")   # unrouted share writer: refuses in a non-default run mode
+    # coordinator 11-04: routed (outputs under the run tag), no longer refused in a tagged run
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
