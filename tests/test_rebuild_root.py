@@ -337,7 +337,6 @@ LITERAL = {
     "scripts/imaging_page/s_per_animal.py",
     "scripts/locanmf_refit_test/refit_vs_projection.py",
     "scripts/rebuild_figs/fig_behaviour_hits.py",
-    "scripts/rebuild_figs/fig_decoding_sessions.py",
     "scripts/rebuild_figs/fig_enl_move.py",
     "scripts/rebuild_figs/fig_frozen_refit_pooled.py",
     "scripts/rebuild_figs/fig_goal_epochs.py",

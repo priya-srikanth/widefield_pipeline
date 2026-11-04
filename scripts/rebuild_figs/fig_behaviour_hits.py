@@ -37,7 +37,13 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import _common  # noqa: E402
 
 NAME = "behaviour_hits_by_spout"
-SRC = Path("M:/MICROSCOPE/Priya/Behavior_logs/Widefield/behavior_summary/cohort/cohort_session_metrics.csv")
+def _src() -> Path:
+    """The behaviour pipeline's cohort table, through the path resolver (behavior_out; read in place)."""
+    from wfield_local import config
+    return Path(config.resolver().root("behavior_out")) / "cohort" / "cohort_session_metrics.csv"
+
+
+SRC = _src()
 AN = ["PS92", "PS93", "PS94", "PS95"]
 EP = ["pre", "acute", "subacute", "chronic"]
 POS = {"close_ipsi": "close_L", "close_mid": "close_center", "close_contra": "close_R",

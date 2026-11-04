@@ -37,11 +37,12 @@ import numpy as np  # noqa: E402
 import pandas as pd  # noqa: E402
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from wfield_local.orofacial_outputs import encoding_root as _encoding_root  # noqa: E402 - rebuild root (11-03)
 import _common  # noqa: E402
+from wfield_local import run_mode as _rmode  # noqa: E402
 
 NAME = "decoding_refit_sessions"
-SRC = _encoding_root() / "qc" / "slowband_decode_all.csv"
+#: slowband_decode_check's (tagged) output: <imaging_encoding>/<tag>/qc (coordinator 11-04; was the untagged qc)
+SRC = _rmode.encoding_out_root() / "qc" / "slowband_decode_all.csv"
 ANIMALS = ("PS92", "PS93", "PS94", "PS95")
 MARK = {"PS92": "o", "PS93": "s", "PS94": "^", "PS95": "D"}
 EPOCHS = ("pre", "acute", "subacute", "chronic")
