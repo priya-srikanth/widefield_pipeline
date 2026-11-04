@@ -4,6 +4,7 @@ version"). A local pass is 7-8 h on the shared desktop; on O2 every session is i
     python scripts/o2_encoding.py [--profile <render profile>] bundle --name <name> --user ps150 [--cams cam1,cam4] [--jobs 4] [LABELS ... or a label file]
     python scripts/o2_encoding.py check  --name enc_v36_20261019 LABEL [--only drop:task]
     python scripts/o2_encoding.py collect --name enc_v36_20261019 --tag <tag>
+    python scripts/o2_encoding.py [--profile <render profile>] refresh-code --name <name>
 
 bundle (this desktop): per session, everything `run_session` reads from the share (`combined_encoding.session_inputs`:
 imaging tuple, Behaviour, epoch / day, and the video motion-energy matrix where it exists) -> inputs/<label>.pkl; a
@@ -25,6 +26,12 @@ identity (run tag, selection, area basis), the commit and the attempts table; th
 importing wfield_local and REFUSES unless the bundled code computes that identity; inputs carry the area-basis masks
 (built here: the v8 rim reads the share); code/ = `git archive` of the worktree's HEAD (refused if wfield_local / configs
 are dirty). check audits the bundled run for share reads; collect refuses a bundle of another run.
+refresh-code (this desktop): replace ONLY code/ (+ enc_runner.py, the commit in COMMANDS.md) of an existing bundle with
+HEAD's; inputs are never rebuilt. Refuses a dirty tree, and refuses unless the NEW code computes the bundle's recorded run
+identity from its env.json (checked in a clean subprocess on the new code); bundle.json records the new commit (the
+inputs' commit stays in `commit_inputs`, every refresh in `code_refreshes`).
+--profile KEEPS the caller's COMBINED_ENCODING_* / OROFACIAL_* (+ WFIELD_INPUT_CACHE) across the profile's clear
+(`apply_profile`; the first enc_rebuild_20261104 build lost LICKS / TONGUE / EXEC and the 3-D / calibration tables).
 """
 from __future__ import annotations
 
@@ -77,6 +84,20 @@ if os.environ.get("BINS_WIDTH"):                 # soft-bin width sweep (submit-
     os.environ["COMBINED_ENCODING_BINS_WIDTH"] = os.environ["BINS_WIDTH"]
 if os.environ.get("MATCH"):                      # lick-matched subsampling: MATCH = a JSON in the bundle (match.json)
     os.environ["COMBINED_ENCODING_MATCH"] = str(b / os.environ["MATCH"])
+if "LICKS_ALL" in os.environ:                    # submit-time override of the bundle's LICKS_ALL (none = unset): the
+    v_ = os.environ["LICKS_ALL"]                 # pickles carry the context licks + the cue-table contacts either way
+    if v_ in ("", "none"):
+        os.environ.pop("COMBINED_ENCODING_LICKS_ALL", None)
+    else:
+        os.environ["COMBINED_ENCODING_LICKS_ALL"] = v_
+if os.environ.get("TRIALS"):                     # per-trial outputs mode (combined_encoding.TRIALS_ENV; default auto)
+    os.environ["COMBINED_ENCODING_TRIALS"] = os.environ["TRIALS"]
+attempts = {}
+if os.environ.get("ATTEMPTS"):                   # engagement re-derived from a shipped table (combined_encoding.ATTEMPTS_ENV)
+    import hashlib
+    f_ = b / os.environ["ATTEMPTS"]
+    os.environ["COMBINED_ENCODING_ATTEMPTS"] = str(f_)
+    attempts = {"attempts": os.environ["ATTEMPTS"], "attempts_sha256": hashlib.sha256(f_.read_bytes()).hexdigest()}
 out = b / "out" / tag
 (out / "sessions").mkdir(parents=True, exist_ok=True)
 (out / "run.json").write_text(json.dumps({"order": order, "only": os.environ.get("ONLY", ""),
@@ -87,7 +108,8 @@ out = b / "out" / tag
                                           "bins": os.environ.get("BINS", ""),
                                           "fr_groups": os.environ.get("FR_GROUPS", ""),
                                           "bins_width": os.environ.get("BINS_WIDTH", ""),
-                                          "bundle_env": bundle_env, "tag": tag}))
+                                          "licks_all": os.environ.get("COMBINED_ENCODING_LICKS_ALL", ""),
+                                          **attempts, "bundle_env": bundle_env, "tag": tag}))
 if (out / "sessions" / f"{label}.json").exists():
     print("done already", label); sys.exit(0)
 from wfield_local import combined_encoding as ce
@@ -154,6 +176,34 @@ def bundle_dir(rv, name: str) -> Path:
     return Path(r) / "o2" / name
 
 
+#: the caller's settings a --profile must NOT wipe (coordinator 11-04): `render_profile.apply` clears every
+#: COMBINED_ENCODING_* variable it does not set, so the first enc_rebuild_20261104 build lost LICKS / TONGUE / EXEC and the
+#: EXEC3D / TARGET3D / BINS_CALIB tables. The encoder's input settings are the caller's to choose, not the profile's.
+KEEP_PREFIXES = ("COMBINED_ENCODING_", "OROFACIAL_")
+KEEP_LOCAL = ("WFIELD_INPUT_CACHE",)
+#: encoder settings a render profile / arm OWNS (they enter the run tag): never carried over from the shell
+PROFILE_OWNED = frozenset({"COMBINED_ENCODING_DRIFT_MIN_PERIOD_S"})        # machine-local input cache (never recorded in env.json); speeds the bundle
+
+
+def apply_profile(name: str, environ=None) -> dict:
+    """`render_profile.apply` (clears every leftover WIDEFIELD_* / WFIELD_* / COMBINED_ENCODING_* variable, then sets the
+    profile env) with the caller's COMBINED_ENCODING_* / OROFACIAL_* (+ WFIELD_INPUT_CACHE) RE-APPLIED on top. A kept
+    variable that the profile itself sets to a different value is REFUSED (never silently pick one). Returns the kept
+    {name: value}."""
+    from wfield_local import render_profile
+    env = os.environ if environ is None else environ
+    keep = {k: v for k, v in env.items() if (k.startswith(KEEP_PREFIXES) or k in KEEP_LOCAL) and v}
+    owned = {k for k in keep if k in PROFILE_OWNED}
+    if owned:                                    # a profile ARM setting left in the shell would re-tag the whole run
+        raise SystemExit(f"{sorted(owned)} set in this shell: a render-profile arm owns it (unset it, or use the arm)")
+    d = render_profile.apply(name, environ=env)
+    clash = {k: (v, d["env"][k]) for k, v in keep.items() if k in d["env"] and d["env"][k] != v}
+    if clash:
+        raise SystemExit(f"--profile {name} sets {sorted(clash)} differently from this shell: {clash}")
+    env.update(keep)
+    return keep
+
+
 def _git(repo: Path, *args) -> str:
     return subprocess.run(["git", "-C", str(repo), *args], capture_output=True, text=True, check=True).stdout.strip()
 
@@ -164,6 +214,9 @@ FULL_RUNS = (("bins_w1", "movement_first", "nokin:", "BINS=1"),
              ("bins_w05", "movement_first", "nokin:", "BINS=1,BINS_WIDTH=0.5"),
              ("bins_w2", "movement_first", "nokin:", "BINS=1,BINS_WIDTH=2"),
              ("main", "movement_first", "", ""),
+             # robustness (Priya 11-04, production = LICKS_ALL=split): main WITHOUT the pre-cue / ITI lick kernels, from
+             # the same pickles (submit-time override)
+             ("main_nolicksall", "movement_first", "", "LICKS_ALL=none,TRIALS=sse"),
              ("droppos", "movement_first", "droppos-", ""),
              ("shufpos", "movement_first", "shufpos-", ""),
              ("nodir", "movement_first", "nodir:", ""),
@@ -174,6 +227,23 @@ FULL_RUNS = (("bins_w1", "movement_first", "nokin:", "BINS=1"),
              ("fr_B", "movement_first", "fr:", "FR=master_pre_v1,FR_GROUPS=master_v1:B"),
              ("fr_S", "movement_first", "fr:", "FR=master_pre_v1,FR_GROUPS=master_v1:S"),
              ("fr_D", "movement_first", "fr:", "FR=master_pre_v1,FR_GROUPS=master_v1:D"))
+
+
+def set_licks_all(mode: str, environ=None) -> None:
+    """The bundle's LICKS_ALL (Priya 11-04, option B: production = split -- the model's own pre-cue and ITI lick kernels,
+    and the lick-free enl scoring window reads the same pre-cue licks). The pickles then carry the context licks
+    (licks_all.csv) and the whole-window contacts; a submit-time LICKS_ALL=none (TAG main_nolicksall) drops the kernels
+    from the same pickles. "none" = unset. A different value already in the shell is refused."""
+    from wfield_local import combined_encoding as ce
+    env = os.environ if environ is None else environ
+    have = env.get(ce.LICKS_ALL_ENV, "")
+    want = "" if mode in ("", "none") else mode
+    if have and have != want:
+        raise SystemExit(f"{ce.LICKS_ALL_ENV}={have} in this shell but --licks-all {mode}")
+    if want:
+        env[ce.LICKS_ALL_ENV] = want
+    else:
+        env.pop(ce.LICKS_ALL_ENV, None)
 
 
 def cmd_bundle(a) -> Path:
@@ -189,6 +259,8 @@ def cmd_bundle(a) -> Path:
     from wfield_local.paths import PathResolver
     rv = PathResolver()
     os.environ[ce.RUN_ENV] = a.run or RUN
+    set_licks_all(a.licks_all)
+    os.environ[ce.ENL_SOURCE_ENV] = os.environ.get(ce.ENL_SOURCE_ENV) or a.enl_source   # recorded in env.json
     # CODE SNAPSHOT = HEAD of the worktree this runs from; refuse uncommitted changes to what is archived
     repo = Path(__file__).resolve().parents[1]
     dirty = _git(repo, "status", "--porcelain", "--", "wfield_local", "configs", "scripts/o2_encoding.py")
@@ -226,13 +298,15 @@ def cmd_bundle(a) -> Path:
     (d / "labels.txt").write_text("".join(f"{x}\n" for x in ok), encoding="utf-8", newline="\n")
     env = bundle_env(d)
     (d / "env.json").write_text(json.dumps(env, indent=1), encoding="utf-8", newline="\n")
-    if attempts is not None:                  # provenance only: the gate is already inside each inputs/<label>.pkl
+    attempts_sha = ""
+    if attempts is not None:                  # the gate baked into each inputs/<label>.pkl; ATTEMPTS= re-derives from it
         (d / "tables").mkdir(exist_ok=True)
         shutil.copy2(attempts, d / "tables" / "trial_attempts.csv")
+        attempts_sha = ce.file_sha256(d / "tables" / "trial_attempts.csv")
     from wfield_local import rebuild_root
     meta = {"identity": ident, "commit": commit, "code_root": str(repo), "name": a.name,
             "profile": os.environ.get("O2_BUNDLE_PROFILE", ""), "rebuild_root": str(rebuild_root.root() or ""),
-            "attempts_table": str(attempts or ""), "cams": a.cams, "fr": a.fr, "n_sessions": len(ok),
+            "attempts_table": str(attempts or ""), "attempts_sha256": attempts_sha, "cams": a.cams, "fr": a.fr, "n_sessions": len(ok),
             "created": datetime.datetime.now().isoformat(timespec="seconds")}
     meta_f.write_text(json.dumps(meta, indent=1), encoding="utf-8", newline="\n")
     code = d / "code"
@@ -252,7 +326,7 @@ def cmd_bundle(a) -> Path:
 #SBATCH -J enc_{a.name}
 #SBATCH -p short
 #SBATCH -c 4
-#SBATCH --mem=32G
+#SBATCH --mem={getattr(a, 'mem', '48G')}
 #SBATCH -t 0-06:00:00
 #SBATCH -o {b}/logs/%x_%A_%a.out
 #SBATCH -e {b}/logs/%x_%A_%a.err
@@ -270,6 +344,7 @@ python {b}/enc_runner.py
 
     def line(t, o, only, extra, arr):
         return (f"sbatch --array={arr} --export=ALL,TAG={t},ORDER={o},ONLY={only},VIDEO=,FR="
+                + (",ATTEMPTS=tables/trial_attempts.csv" if attempts is not None else "")
                 + (f",{extra}" if extra else "") + f" {b}/run_enc.sbatch")
     # FR= first, then the run's own FR=... overrides it (sbatch --export: the last assignment wins)
     sub = "\n".join(line(t, o, only, extra, f"1-{n}%60") + f"      # {t}" for t, o, only, extra in FULL_RUNS)
@@ -300,7 +375,8 @@ of `main`; its session is skipped as done):
 {sub}
 ```
 fr_A also carries the FR trial-to-trial / PETH outputs (Figs 21.4 / 21.11; the 10-25 fr_A_tr re-run is not needed with
-this code). A task that runs out of memory: resubmit that index with --mem=64G.
+this code). Memory: {getattr(a, 'mem', '48G')} per task (peak commit measured 11-04 on PS93_0814, SMOKE / drop: model sets: ~30 GiB
+unset, +1.5 GiB with LICKS_ALL=split); a task that runs out of memory: resubmit that index with --mem=64G.
 
 ## 3. Transfer node, when a run is done
 ```bash
@@ -385,18 +461,59 @@ def cmd_check(a) -> int:
     sys.addaudithook(_audit)
     _AUDIT["on"] = True
     try:
-        r1 = ce.run_session(a.label, a.order, inputs=inputs)["region"]
+        o1 = ce.run_session(a.label, a.order, inputs=inputs)
+        r1 = o1["region"]
     finally:
         _AUDIT["on"] = False
-    r2 = ce.run_session(a.label, a.order)["region"]
+    o2 = ce.run_session(a.label, a.order)
+    r2 = o2["region"]
     m = r1.merge(r2, on=["model", "window", "area"], suffixes=("_bundle", "_share"))
     diff = np.abs(m.r2_bundle - m.r2_share)
     print(f"{a.label}: {len(m)} region rows ({len(r1)} bundle / {len(r2)} local); max |r2 bundle - local| = "
           f"{diff.max():.2e}; rows differing > 1e-6: {(diff > 1e-6).sum()}; share reads during the bundle run: "
           f"{len(_SHARE_READS)} {sorted(set(_SHARE_READS))[:5]}")
     ok = diff.max() < 1e-4 and len(m) == len(r1) == len(r2) and not _SHARE_READS
+    # the PER-TRIAL outputs (<label>_trials.npz) must agree too (same tolerance, relative to each array's scale)
+    t1, t2 = o1.get("trials"), o2.get("trials")
+    if (t1 is None) != (t2 is None):
+        print("trials: present in only one of the runs")
+        ok = False
+    elif t1 is not None:
+        worst, bad = compare_trials(t1, t2)
+        print(f"trials: {len(t1)} arrays; max relative difference {worst:.2e}; differing: {bad[:5]}")
+        ok = ok and not bad and worst < 1e-4
     print("CHECK", "PASSED" if ok else "FAILED")
     return 0 if ok else 1
+
+
+def compare_trials(t1: dict, t2: dict, tol: float = 1e-4) -> tuple[float, list]:
+    """(worst relative difference over the numeric arrays, keys that differ): NaN patterns must match exactly, numbers
+    to ``tol`` x the array's largest magnitude, everything else (names, labels, shapes) exactly."""
+    import numpy as np
+    worst, bad = 0.0, []
+    for k in sorted(set(t1) | set(t2)):
+        if k not in t1 or k not in t2:
+            bad.append(k)
+            continue
+        a, b = np.asarray(t1[k]), np.asarray(t2[k])
+        if a.shape != b.shape:
+            bad.append(k)
+            continue
+        if a.dtype.kind in "fc" and b.dtype.kind in "fc":
+            a64, b64 = a.astype(np.float64), b.astype(np.float64)
+            if not np.array_equal(np.isnan(a64), np.isnan(b64)):
+                bad.append(k)
+                continue
+            fin = np.isfinite(a64)
+            if fin.any():
+                sc = max(float(np.abs(a64[fin]).max()), 1e-12)
+                d = float(np.abs(a64[fin] - b64[fin]).max()) / sc
+                worst = max(worst, d)
+                if d >= tol:
+                    bad.append(k)
+        elif not np.array_equal(a, b):
+            bad.append(k)
+    return worst, bad
 
 
 def cmd_collect(a) -> int:
@@ -414,6 +531,11 @@ def cmd_collect(a) -> int:
         if not (isinstance(v, str) and v.startswith("@")):
             os.environ[k] = v
     _set_env(meta)
+    if "licks_all" in meta:                                    # the run's own LICKS_ALL (submit-time override)
+        if meta["licks_all"]:
+            os.environ[ce.LICKS_ALL_ENV] = meta["licks_all"]
+        else:
+            os.environ.pop(ce.LICKS_ALL_ENV, None)
     dst = ce.out_dir(rv, meta["order"] or "movement_first") / "sessions"
     writeguard.assert_writable(dst)
     dst.mkdir(parents=True, exist_ok=True)
@@ -430,6 +552,107 @@ def cmd_collect(a) -> int:
                 (dst / f.name).write_text(json.dumps(obj, indent=1), encoding="utf-8")
                 print(f"  repaired {f.name}: dropped {len(s) - end} trailing byte(s)")
     print(f"collected {n} files ({len(list((src / 'sessions').glob('*.json')))} sessions) -> {dst}")
+    return 0
+
+
+_VERIFY = ("import json, sys; from wfield_local import o2_bundle; "
+           "o2_bundle.verify(json.loads(sys.argv[1])); print('identity ok')")
+
+
+def _bundle_settings_env(d: Path, env_json: dict) -> dict:
+    """A clean process env with ONLY the bundle's settings (as the O2 runner applies them; '@' paths inside the bundle)."""
+    from wfield_local import o2_bundle
+    env = {k: v for k, v in os.environ.items() if not k.startswith(o2_bundle.RECORD_PREFIXES)}
+    env.pop("PYTHONPATH", None)
+    for k, v in env_json.items():
+        env[k] = str(d / v[1:]) if isinstance(v, str) and v.startswith("@") else v
+    return env
+
+
+def _ship_attempts(d: Path, meta: dict, a) -> None:
+    """refresh-code: tables/trial_attempts.csv = this run's CURRENT attempts table (`lp_licks.attempts_path()` under the
+    profile, or --attempts), recorded with its sha256 in bundle.json; a different earlier table is kept beside it as
+    trial_attempts_<sha12>.csv. Submits with ATTEMPTS=tables/trial_attempts.csv re-derive engagement from it."""
+    from wfield_local import combined_encoding as ce
+    src = Path(a.attempts) if getattr(a, "attempts", "") else None
+    if src is None:
+        from wfield_local import orofacial_cohort as oc
+        if oc.ENGAGEMENT_GATE == "reference":
+            return
+        from wfield_local import lp_licks
+        src = Path(lp_licks.attempts_path())
+    if not src.exists():
+        raise SystemExit(f"{src} missing: run scripts/trial_attempts.py under this profile first (or --attempts)")
+    (d / "tables").mkdir(exist_ok=True)
+    dst = d / "tables" / "trial_attempts.csv"
+    new = ce.file_sha256(src)
+    if dst.exists():
+        old = ce.file_sha256(dst)
+        if old != new:
+            keep = d / "tables" / f"trial_attempts_{old[:12]}.csv"
+            if not keep.exists():
+                shutil.copy2(dst, keep)
+    shutil.copy2(src, dst)
+    meta["attempts_table"], meta["attempts_sha256"] = str(src), new
+    print(f"tables/trial_attempts.csv <- {src} (sha256 {new[:12]})")
+
+
+def cmd_refresh_code(a) -> int:
+    """Replace ONLY the bundle's code snapshot with HEAD's (see the module docstring); inputs are never touched."""
+    import datetime
+    import sys
+
+    from wfield_local import writeguard
+    from wfield_local.paths import PathResolver
+    repo = Path(__file__).resolve().parents[1]
+    dirty = _git(repo, "status", "--porcelain", "--", "wfield_local", "configs", "scripts/o2_encoding.py")
+    if dirty:
+        raise SystemExit(f"uncommitted changes in {repo} (refresh-code archives HEAD):\n{dirty}")
+    commit = _git(repo, "rev-parse", "HEAD")
+    d = Path(a.bundle) if a.bundle else bundle_dir(PathResolver(), a.name)
+    meta = _bundle_meta(d)
+    env_json = json.loads((d / "env.json").read_text())
+    if meta.get("commit") == commit and not a.force:
+        _ship_attempts(d, meta, a)
+        (d / "bundle.json").write_text(json.dumps(meta, indent=1), encoding="utf-8", newline="\n")
+        print(f"{d}: code is already {commit}")
+        return 0
+    writeguard.assert_writable(d)
+    new = d / "code.new"
+    if new.exists():
+        shutil.rmtree(new)
+    new.mkdir()
+    tar = d / "code.tar"
+    subprocess.run(["git", "-C", str(repo), "archive", "--format=tar", "-o", str(tar), commit, "wfield_local", "configs"],
+                   check=True)
+    shutil.unpack_archive(str(tar), str(new))
+    tar.unlink()
+    # the NEW code, with ONLY the bundle's settings, must compute the recorded identity (a clean subprocess = O2's view)
+    env = _bundle_settings_env(d, env_json)
+    env["PYTHONPATH"] = str(new)
+    r = subprocess.run([sys.executable, "-c", _VERIFY, json.dumps(meta["identity"])], env=env, cwd=str(new),
+                       capture_output=True, text=True)
+    if r.returncode != 0:
+        shutil.rmtree(new)
+        raise SystemExit(f"refusing: commit {commit} does not compute the bundle's run identity from its env.json:\n"
+                         f"{(r.stderr or r.stdout).strip()[-2000:]}")
+    old = d / "code"
+    if old.exists():
+        shutil.rmtree(old)
+    new.rename(old)
+    (d / "enc_runner.py").write_text(RUNNER, encoding="utf-8", newline="\n")
+    _ship_attempts(d, meta, a)
+    prev = meta.get("commit", "")
+    cm = d / "COMMANDS.md"
+    if cm.exists() and prev:
+        cm.write_text(cm.read_text(encoding="utf-8").replace(prev, commit), encoding="utf-8", newline="\n")
+    meta.setdefault("commit_inputs", prev)
+    meta.setdefault("code_refreshes", []).append({"from": prev, "to": commit,
+                                                  "at": datetime.datetime.now().isoformat(timespec="seconds")})
+    meta["commit"] = commit
+    (d / "bundle.json").write_text(json.dumps(meta, indent=1), encoding="utf-8", newline="\n")
+    print(f"{d}: code {prev[:10]} -> {commit[:10]} (inputs unchanged, built with {meta['commit_inputs'][:10]}); "
+          f"identity verified on the new code")
     return 0
 
 
@@ -486,6 +709,11 @@ def main(argv=None) -> int:
     b.add_argument("--fr-share", action="store_true", help="with --fr: bundle the per-frame SHARE (the paper) instead "
                    "of absolute expression (a bundle holds one; make a second bundle for the other)")
     b.add_argument("--jobs", type=int, default=4)
+    b.add_argument("--enl-source", default="lp", choices=("lp", "daq", "decoders"),
+                   help="COMBINED_ENCODING_ENL_SOURCE (the enl window's licks; default lp = LP 1.0 s, Priya 11-04)")
+    b.add_argument("--mem", default="48G", help="sbatch --mem per task (32G was below the 11-04 peaks)")
+    b.add_argument("--licks-all", default="split", choices=("split", "shared", "score", "none"),
+                   help="COMBINED_ENCODING_LICKS_ALL of the bundle (default split = production since 11-04)")
     b.add_argument("--no-inputs", action="store_true", help="refresh code / env / COMMANDS only (inputs kept)")
     b.add_argument("labels", nargs="*", help="session labels, or ONE file of whitespace-separated labels")
     c = sub.add_parser("check")
@@ -500,20 +728,31 @@ def main(argv=None) -> int:
     k.add_argument("--name", required=True)
     k.add_argument("--run", default=None)
     k.add_argument("--tag", required=True)
+    r = sub.add_parser("refresh-code", help="replace only code/ (+ runner) of an existing bundle with HEAD's")
+    r.add_argument("--name", default="")
+    r.add_argument("--bundle", default="", help="the bundle directory itself (instead of --name)")
+    r.add_argument("--force", action="store_true", help="re-copy even if bundle.json already records HEAD")
+    r.add_argument("--attempts", default="", help="the trial-attempts table to ship (default: this run's, "
+                   "lp_licks.attempts_path() under --profile)")
     m = sub.add_parser("match", help="write match.json (per-session lick targets) into the bundle")
     m.add_argument("--name", required=True)
     m.add_argument("--run", default=None)
     m.add_argument("--frac", type=float, default=0.95, help="target = frac x the animal's smallest session")
     a = ap.parse_args(argv)
     if a.profile:
-        from wfield_local import render_profile
-        render_profile.apply(a.profile)
+        kept = apply_profile(a.profile)
+        if kept:
+            print(f"--profile {a.profile}: kept the caller's {', '.join(sorted(kept))}")
         os.environ["O2_BUNDLE_PROFILE"] = a.profile
     if a.cmd == "bundle":
         cmd_bundle(a)
         return 0
     if a.cmd == "match":
         return cmd_match(a)
+    if a.cmd == "refresh-code":
+        if not (a.name or a.bundle):
+            ap.error("refresh-code needs --name or --bundle")
+        return cmd_refresh_code(a)
     return cmd_check(a) if a.cmd == "check" else cmd_collect(a)
 
 

@@ -154,8 +154,12 @@ LICK_MODES = ("cam4", "combined", "lips")
 #:           contacts over the whole trial windows (raw DAQ channel) in the contact kernel
 #:   split   post-cue kernel as before + its OWN pre-cue kernel + its own ITI kernel (all inside `licks`) -- the
 #:           spontaneous-vs-cued contrast is split vs shared (Priya 10-20)
-#: Timing only (no angle). Outputs -> ..._licksall-<mode>/.
+#:   score   SCORING ONLY (coordinator 11-04): the pre-cue / ITI licks and whole-window contacts are loaded (and bundled)
+#:           for the lick-free "enl" scoring window (`enl_lickfree`), with NO regressor added and the contact kernel's
+#:           contacts unchanged -- the model and every other output are those of an unset run. No folder suffix.
+#: Timing only (no angle). Folders: `licks_all_suffix` (rebuild runs: split = the plain folder, unset = _nolicksall).
 LICKS_ALL_ENV = "COMBINED_ENCODING_LICKS_ALL"
+LICKS_ALL_MODES = ("shared", "split", "score")
 BINS_ENV = "COMBINED_ENCODING_BINS"
 #: CALIBRATED executed bins (10-20, measured on the 3-D tables): the tongue peak does not land ON the spout table's
 #: position -- it lands ~2 mm deeper (the table marks the rod's lower edge) and laterally compressed (~0.4x at close,
@@ -274,8 +278,19 @@ PEN_GROUP_OF = {"cue": "task", "arrival": "task", "pos_enl": "task", "pos_cue": 
                 "lick_bin_tgt": "lick", "lick_bin_exec": "lick",
                 "tongue": "orofacial", "jaw": "orofacial", "tongue_ps": "orofacial", "jaw_nd": "orofacial",
                 "dir_kin": "orofacial", "kinall": "orofacial",
-                "nose": "uninstructed", "nose_nd": "uninstructed", "running": "uninstructed", "video": "video", "fr": "fr", "frpts": "frpts"}
+                "nose": "uninstructed", "nose_nd": "uninstructed", "running": "uninstructed", "video": "video", "fr": "fr", "frpts": "frpts",
+                "licks_pre": "lick", "licks_iti": "lick"}
 PEN_GROUPS = ("task", "lick", "orofacial", "uninstructed")
+#: LICKS_ALL=split (Priya 11-04, production): the spontaneous licks are their OWN VARIABLES, credited UNINSTRUCTED --
+#: licks_pre (pre-cue / ENL licks) and licks_iti (between-trial licks) -- beside the cued "licks" (post-cue licks + the
+#: contacts, instructed). Same penalty group ("lick") as the cued kernel. CAVEAT (accepted): the continuous tongue / jaw
+#: traces stay instructed over the whole trial, pre-cue and ITI movement included.
+SPLIT_LICK_VARS = {"licks_pre": "uninstructed", "licks_iti": "uninstructed"}
+
+
+def group_of() -> dict:
+    """GROUP_OF of this run: + SPLIT_LICK_VARS under LICKS_ALL=split (`run_session` binds it locally)."""
+    return {**GROUP_OF, **SPLIT_LICK_VARS} if os.environ.get(LICKS_ALL_ENV, "") == "split" else GROUP_OF
 #: DIRECTIONLESS comparison (Priya 10-19: "wouldn't we expect executed to explain more than target ... is it an
 #: appropriate comparison?"). The base of the target / executed models kept jaw x / y and nose x / y, so lateral jaw
 #: (which steers with the tongue) carried EXECUTED direction frame by frame and made the lick-locked executed angle
@@ -614,24 +629,32 @@ def _load_behaviour(animal: str, date: str, rv) -> Behaviour:
             elif mode == "polar":
                 target_amps = _polar(*target_xyz)
     extra, lips = _cam1_lick_events(rv, animal, date, cue_t, os.environ.get(LICKS_ENV, "cam4"))
-    ctx = None
-    if os.environ.get(LICKS_ALL_ENV):
-        ctx, contact_s = _context_licks(rv, animal, date, sd, b, contact_s)
+    ctx = ctx_contacts = None
+    mode_all = os.environ.get(LICKS_ALL_ENV, "")
+    if mode_all and mode_all not in LICKS_ALL_MODES:
+        raise ValueError(f"{LICKS_ALL_ENV}={mode_all!r}; expected one of {LICKS_ALL_MODES}")
+    if mode_all:                                        # contact_s stays the cue + 70 ms .. stop table: shared / split
+        ctx, ctx_contacts = _context_licks(rv, animal, date, sd, b, contact_s)    # use the whole-window contacts at DESIGN
+                                                        # time (`raw_blocks`), so a LICKS_ALL bundle also serves an unset run
     B_ = Behaviour(T, on_s, pk_s, pos, within, np.asarray(contact_s, float), reward_s, analog, gate, tgt, ang,
                    tdist, reach, exec_amps, target_amps, extra, lips, exec_xyz, target_xyz, f"{animal}_{date}")
     B_.context_lick_on_s = ctx
+    B_.context_contact_s = ctx_contacts               # whole-trial-window DAQ contacts (LICKS_ALL; the enl scoring window)
     return B_
 
 
 def _context_licks(rv, animal: str, date: str, sd: Path, b: pd.DataFrame, contact_s: np.ndarray):
-    """LICKS_ALL_ENV: ({'pre_cue': onsets, 'iti': onsets} in DAQ s from the cam4 whole-session table licks_all.csv,
+    """LICKS_ALL_ENV: ({'pre_cue', 'iti', 'post_extra': onsets} in DAQ s from the cam4 whole-session table licks_all.csv,
     contacts over the whole trial windows (strobe - 0.5 .. stop + 3 s) from the raw DAQ channel)."""
     from wfield_local import dlc_frames
     f = sd / "licks_all.csv"
     if not f.exists():                                  # never mix event sets silently
         raise FileNotFoundError(f"{LICKS_ALL_ENV} needs {f} (python -m wfield_local.orofacial_outputs all-licks)")
-    A = pd.read_csv(f, usecols=["context", "daq_on_s"])
+    A = pd.read_csv(f, usecols=["context", "table", "daq_on_s"])
     ctx = {c: np.sort(A.loc[A.context == c, "daq_on_s"].to_numpy(float)) for c in ("pre_cue", "iti")}
+    # post-cue onsets held by the pre-cue / ITI tables (their windows overlap the next cue; ~11 per session, >= 60 ms from
+    # any licks.csv lick, PS93_0814 / 0818): real licks that are in NO kernel without this (licks.csv = table "licks")
+    ctx["post_extra"] = np.sort(A.loc[(A.context == "post_cue") & (A["table"] != "licks"), "daq_on_s"].to_numpy(float))
     sid = sorted((Path(rv.root("behavior_out")) / "sessions" / animal / date).glob("*_trials.csv"))[-1].name[:-11]
     raw = np.sort(np.asarray(dlc_frames.lick_onsets(animal, date, sid, rv), float))
     st = np.where(np.isfinite(b.strobe_s), b.strobe_s, b.cue_s - 3.0).astype(float) - 0.5
@@ -799,6 +822,55 @@ def _analog_cols(t, v, ft) -> np.ndarray:
     return np.column_stack([ME._shift(base, int(round(lag * fs))) for lag in CLAGS]).astype(np.float32)
 
 
+#: a cam1-only onset outside its own trial's cue .. stop within this of a cam4 pre-cue / ITI lick is the same lick
+#: (cam4_matched only compares licks of the SAME trial_id; the cam1 event of trial k after its stop and the cam4 lick of
+#: trial k + 1's pre-cue table were both kept: 13 / 22 PS93_0814, 6 / 11 PS93_0818)
+CAM1_DUP_TOL_S = 0.05
+
+
+def lick_context_s(t, trials: pd.DataFrame) -> np.ndarray:
+    """"post_cue" / "pre_cue" / "iti" of lick times ``t`` (DAQ s) by the trial windows: post = cue .. stop of the latest
+    cue at or before t (`orofacial_outputs.lick_context`: a missing stop keeps it post-cue), pre = the next trial's
+    strobe .. cue, else ITI."""
+    t = np.asarray(t, float)
+    cue = trials.cue_s.to_numpy(float)
+    o = np.argsort(cue)
+    cue = cue[o]
+    stp = trials.stop_s.to_numpy(float)[o]
+    stb = np.where(np.isfinite(trials.strobe_s), trials.strobe_s, trials.cue_s - 3.0).astype(float)[o]
+    k = np.searchsorted(cue, t, side="right") - 1
+    kc = np.clip(k, 0, len(cue) - 1)
+    post = (k >= 0) & ~(t > stp[kc])
+    kn = np.clip(k + 1, 0, len(cue) - 1)
+    pre = ~post & (k + 1 < len(cue)) & (t >= stb[kn])
+    return np.where(post, "post_cue", np.where(pre, "pre_cue", "iti"))
+
+
+def split_licks(B: Behaviour) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """LICKS_ALL=split: (post-cue, pre-cue, ITI) lick onsets, every lick in EXACTLY ONE (Priya 11-04).
+      cam4   licks.csv = post-cue (every row is post-cue: cue .. stop, incl. 0 .. 70 ms after the cue -- the 70 ms floor is
+             for counting contacts, never for modelling); licks_all pre-cue / ITI rows by their context; the pre-cue /
+             ITI-table rows whose onset is post-cue (``post_extra``) -> post-cue
+      cam1   cam1-only onsets (LICKS_ENV) by TIME (`lick_context_s`); one outside its trial's post-cue window that lies
+             within CAM1_DUP_TOL_S of a cam4 pre-cue / ITI lick is that lick and is dropped
+    DAQ contacts are NOT licks here: one contact kernel over the whole trial windows (`_context_licks`)."""
+    ctx = B.context_lick_on_s
+    ex = np.asarray([] if getattr(B, "extra_lick_on_s", None) is None else B.extra_lick_on_s, float)
+    cx = lick_context_s(ex, B.trials) if len(ex) else np.zeros(0, str)
+    c4 = np.sort(np.concatenate([ctx["pre_cue"], ctx["iti"]]))
+    if len(ex) and len(c4):
+        j = np.clip(np.searchsorted(c4, ex), 1, max(len(c4) - 1, 1))
+        d = np.minimum(np.abs(c4[j] - ex), np.abs(c4[j - 1] - ex))
+        dup = (cx != "post_cue") & (d <= CAM1_DUP_TOL_S)
+    else:
+        dup = np.zeros(len(ex), bool)
+    post = np.sort(np.concatenate([np.asarray(B.lick_on_s, float), ctx.get("post_extra", np.zeros(0)),
+                                   ex[(cx == "post_cue")]]))
+    pre = np.sort(np.concatenate([ctx["pre_cue"], ex[(cx == "pre_cue") & ~dup]]))
+    iti = np.sort(np.concatenate([ctx["iti"], ex[(cx == "iti") & ~dup]]))
+    return post, pre, iti
+
+
 def raw_blocks(B: Behaviour, ft, pos_perm: dict | None = None, drop_pos: str | None = None) -> dict:
     """{variable: (T, p) raw columns}. ``pos_perm`` {variable: permuted position per trial} for the label shuffle.
     ``drop_pos`` = p: the position blocks with spout p's OWN response removed (p constrained to the mean of the others)."""
@@ -857,13 +929,21 @@ def raw_blocks(B: Behaviour, ft, pos_perm: dict | None = None, drop_pos: str | N
         lick_t = np.sort(np.concatenate([np.asarray(B.lick_on_s, float), extra]))
     ctx = getattr(B, "context_lick_on_s", None)
     mode_all = os.environ.get(LICKS_ALL_ENV, "")
-    if mode_all and mode_all not in ("shared", "split"):
-        raise ValueError(f"{LICKS_ALL_ENV}={mode_all!r}; expected shared | split")
+    if mode_all and mode_all not in LICKS_ALL_MODES:
+        raise ValueError(f"{LICKS_ALL_ENV}={mode_all!r}; expected one of {LICKS_ALL_MODES}")
+    contacts = B.contact_s
+    if ctx and mode_all in ("shared", "split"):          # contacts over the whole trial windows (raw DAQ channel)
+        cc = getattr(B, "context_contact_s", None)
+        contacts = B.contact_s if cc is None else cc     # (pre-11-04 pickles replaced contact_s itself)
     if ctx and mode_all == "shared":                     # one lick kernel wherever the lick happens
         lick_t = np.sort(np.concatenate([lick_t, ctx["pre_cue"], ctx["iti"]]))
-    lk = [_event_cols(lick_t, ft, LAGS["lick"]), _event_cols(B.contact_s, ft, LAGS["lick"])]
-    if ctx and mode_all == "split":                      # spontaneous (pre-cue) and ITI licks: their own kernels
-        lk += [_event_cols(ctx["pre_cue"], ft, LAGS["lick"]), _event_cols(ctx["iti"], ft, LAGS["lick"])]
+    if ctx and mode_all == "split":
+        post_k, pre_k, iti_k = split_licks(B)
+        lick_t = post_k
+    lk = [_event_cols(lick_t, ft, LAGS["lick"]), _event_cols(contacts, ft, LAGS["lick"])]
+    if ctx and mode_all == "split":                      # spontaneous (pre-cue) and ITI licks: their own VARIABLES
+        out["licks_pre"] = _event_cols(pre_k, ft, LAGS["lick"])
+        out["licks_iti"] = _event_cols(iti_k, ft, LAGS["lick"])
     lips = getattr(B, "lips_on_s", None)
     if lips is not None and len(lips):                   # LICKS_ENV=lips: lips-only licks get their own kernel
         lk.append(_event_cols(lips, ft, LAGS["lick"]))
@@ -942,34 +1022,50 @@ def raw_blocks(B: Behaviour, ft, pos_perm: dict | None = None, drop_pos: str | N
     return out
 
 
-def _z(X, rows):
-    """z-score with fit-row statistics; NaN -> 0 (unknown contributes nothing); constant columns -> 0."""
+def _zstats(X, rows):
+    """`_z`'s fit-row statistics (mu, sd)."""
     Xr = X[rows]
     mu = np.nanmean(Xr, 0)
     sd = np.nanstd(Xr, 0)
     mu = np.where(np.isfinite(mu), mu, 0.0)
     sd = np.where(np.isfinite(sd) & (sd > 1e-9), sd, np.inf)
+    return mu, sd
+
+
+def _zapply(X, mu, sd):
     Z = (X - mu) / sd
     return np.where(np.isfinite(Z), Z, 0.0).astype(np.float32)
 
 
-def _slow_basis(t: np.ndarray, min_period_s: float) -> np.ndarray:
-    """Cosine (DCT-II style) regressors over [t0, t1] with period >= min_period_s, incl. the constant."""
+def _z(X, rows):
+    """z-score with fit-row statistics; NaN -> 0 (unknown contributes nothing); constant columns -> 0."""
+    return _zapply(X, *_zstats(X, rows))
+
+
+def _slow_basis(t: np.ndarray, min_period_s: float, at: np.ndarray | None = None) -> np.ndarray:
+    """Cosine (DCT-II style) regressors over [t0, t1] with period >= min_period_s, incl. the constant. ``at``: evaluate
+    the SAME basis (t's span and order) at other times (the scored-only frames of `run_session`)."""
     t = np.asarray(t, float)
     T = max(t[-1] - t[0], 1e-9)
     n = int(np.floor(2 * T / min_period_s))
-    u = (t - t[0]) / T
+    u = ((t if at is None else np.asarray(at, float)) - t[0]) / T
     return np.column_stack([np.cos(np.pi * k * u) for k in range(n + 1)])
 
 
-def _residualise(X, E, rows):
-    """X minus its least-squares projection on E (fit rows), re-z-scored (Musall's QR orthogonalisation)."""
+def _residualise(X, E, rows, extra=None):
+    """X minus its least-squares projection on E (fit rows), re-z-scored (Musall's QR orthogonalisation). ``extra`` =
+    (Xx, Ex): rows that are SCORED ONLY (never fitted) get the same projection and z statistics -> returns (Z, Zx)."""
     if E is None or E.shape[1] == 0:
-        return X
+        return X if extra is None else (X, extra[0])
     Er, Xr = E[rows].astype(np.float64), X[rows].astype(np.float64)
     G = Er.T @ Er + 1e-6 * np.eye(E.shape[1])
     beta = np.linalg.solve(G, Er.T @ Xr)
-    return _z((X - E @ beta.astype(np.float32)), rows)
+    if extra is None:
+        return _z((X - E @ beta.astype(np.float32)), rows)
+    b32 = beta.astype(np.float32)
+    R = X - E @ b32
+    mu, sd = _zstats(R, rows)
+    return _zapply(R, mu, sd), _zapply(extra[0] - extra[1] @ b32, mu, sd)
 
 
 # =============================================================================== Gram engine
@@ -1053,6 +1149,258 @@ def _diag_quad(U, C, chunk=50000):
     return out
 
 
+# =============================================================================== the enl scoring window
+#: the enl window's lick source, overriding the decoders' (`lp_licks.lick_source()`, WIDEFIELD_LICK_SOURCE, which a render
+#: profile clears and the O2 bundle env does not set -> DAQ): "lp" = the LP / video licks, 1.0 s (lp_licks.LP_ENL_WINDOW_S
+#: or WIDEFIELD_ENL_WINDOW_S); "daq" = the DAQ contacts, decode.precue_post_s (2.0 s). Unset = the decoders' spec.
+ENL_SOURCE_ENV = "COMBINED_ENCODING_ENL_SOURCE"
+ENL_SOURCE_DEFAULT = "lp"
+
+
+def enl_spec() -> dict:
+    """The enl window's spec: ENL_SOURCE_ENV, default "lp" (Priya 11-04: LP 1.0 s lick-free); "daq" = the DAQ contacts,
+    2.0 s; "decoders" = `enl_window.enl_spec()` (the decoders' WIDEFIELD_LICK_SOURCE)."""
+    from wfield_local import config, enl_window, lp_licks
+    spec = enl_window.enl_spec()
+    src = os.environ.get(ENL_SOURCE_ENV, "") or ENL_SOURCE_DEFAULT
+    if src != "decoders":
+        if src not in ("lp", "daq"):
+            raise ValueError(f"{ENL_SOURCE_ENV}={src!r}; expected lp | daq | decoders")
+        w = os.environ.get(lp_licks.ENL_WINDOW_ENV, "").strip()
+        length = (float(w) if w else lp_licks.LP_ENL_WINDOW_S) if src == "lp" else             float(config.defaults()["decode"]["precue_post_s"])
+        spec = dict(spec, source=src, length_s=length, override=ENL_SOURCE_ENV)
+    return spec
+
+def enl_licks(B: Behaviour, source: str):
+    """Every lick time (DAQ s) the ENL decoders' lick-free search sees, from what a Behaviour carries; None when it
+    does not carry the pre-cue licks (LICKS_ALL_ENV unset: licks.csv / the contact table start at the cue).
+      lp   cam4 LP licks of every context (post-cue licks.csv + LICKS_ALL pre-cue / ITI from licks_all.csv) + the cam1-only
+           onsets (`extra_lick_on_s`, the decoders' cam1 rule) = `lp_licks.lp_lick_times`, UNEDITED (the decoders'
+           `edit_train` moves post-cue licks of the attempts table; it reaches an ENL period on 8 / 3,532 (PS93_0814)
+           and 4 / 3,198 (PS93_0818) ENL licks; unedited keeps the inputs class-free)
+      daq  the whole-trial-window DAQ contact onsets (LICKS_ALL `context_contact_s`, `dlc_frames.lick_onsets`)."""
+    if source == "lp":
+        ctx = getattr(B, "context_lick_on_s", None)
+        if not ctx:
+            return None
+        ex = getattr(B, "extra_lick_on_s", None)
+        parts = [np.asarray(B.lick_on_s, float), ctx["pre_cue"], ctx["iti"], ctx.get("post_extra", np.zeros(0)),
+                 np.asarray([] if ex is None else ex, float)]
+        return np.sort(np.concatenate(parts))
+    c = getattr(B, "context_contact_s", None)
+    return None if c is None else np.sort(np.asarray(c, float))
+
+
+def enl_lickfree(B: Behaviour, E: pd.DataFrame, ft: np.ndarray, ridx: np.ndarray):
+    """(rows mask over the fit rows | None, info) of the lick-free "enl" window: per engaged trial the ENL decoders'
+    window (`enl_window.precue_window_start` on frames: the fixed window ending at the cue if clean, else the latest
+    clean gap after the strobe; None = the trial has none and is left out), length and lick source from
+    `enl_window.enl_spec()`. None (with the reason in ``info``) when the inputs carry no pre-cue licks: "enl" is then the
+    fixed window, as before."""
+    from wfield_local import enl_window
+    spec = enl_spec()
+    t = enl_licks(B, spec["source"])
+    if t is None:
+        return None, {"kind": "fixed2s", "reason": f"no pre-cue {spec['source']} licks in the inputs "
+                                                    f"({LICKS_ALL_ENV} unset)", "decoder_spec": spec}
+    fs = float(1 / np.median(np.diff(ft)))
+    win_n = int(round(spec["length_s"] * fs))
+    lf = np.searchsorted(ft, t)                                     # lick frame = first frame at or after the onset
+    rows = np.zeros(len(ridx), bool)
+    n_fixed = n_slid = n_none = 0
+    for c, s_ in zip(E.cue_s.to_numpy(float), E.strobe_s.to_numpy(float)):
+        c0 = int(np.searchsorted(ft, c))
+        strobe_f = c0 - (c - s_) * fs if np.isfinite(s_) else np.nan      # `strobe_frames`: the cue frame minus the lead
+        w0 = enl_window.precue_window_start(c0, strobe_f, lf, win_n, lickfree=spec["lickfree"])
+        if w0 is None:
+            n_none += 1
+            continue
+        n_fixed += int(w0 == c0 - win_n)
+        n_slid += int(w0 != c0 - win_n)
+        a, b = np.searchsorted(ridx, [w0, w0 + win_n])
+        rows[a:b] = True
+    return rows, {"kind": "lickfree", "source": spec["source"], "length_s": spec["length_s"],
+                  "lickfree": spec["lickfree"], "n_trials": int(len(E)), "n_fixed": n_fixed, "n_slid": n_slid,
+                  "n_no_window": n_none, "fixed2s": "enl_fixed2s = max(strobe, cue - 2 s) .. cue, not lick-gated"}
+
+
+# =============================================================================== per-trial outputs
+#: PER-TRIAL OUTPUTS (Priya 11-04: "we must be able to report every camera trial class"): `<label>_trials.npz` beside
+#: the session npz. Values:
+#:   off    nothing (and no scored-only design rows are built)
+#:   sse    trial table + per-trial, per-tr_model SSE and SST in TRIAL_BIN_S bins (cue- and first-lick-aligned): per-class
+#:          cvR2 / dR2 of every time-resolved model (no PETHs, no trial-to-trial R2)
+#:   full   sse + the frame-level area traces (Ra space, every area + cortex_stat + cortex) of data, the full model's
+#:          parts (`peth_parts`: full, task, instructed, uninstructed, pos; full-data betas) and its HELD-OUT prediction
+#:          ("cv"), float16, for fitted and scored-only frames: readers rebuild peth / peth_lick / the full model's sse /
+#:          sse_trial per class at any alignment with `trial_rows` (`encoder_trials.py`)
+#:   full32 full in float32 (exact reproduction of the session npz; tests / checks)
+#: Default (unset) = "auto", decided once the model set is known (`auto_trials_mode`): full for the run without a model
+#: subset (O2 TAG main); sse for a subset run with a time-resolved model main does not compute identically (another
+#: ORDER, nokin / binned, fr); off for a subset run whose time-resolved models are all main's (trmodels, drop, droppos,
+#: shufpos, nodir): main already holds them, per trial. Sizes and the per-TAG table: REBUILD_CODE 8.43.
+TRIALS_ENV = "COMBINED_ENCODING_TRIALS"
+TRIAL_MODES = ("off", "sse", "full", "full32")
+TRIAL_BIN_S = 0.5
+#: LICK TIMING of the per-trial lick alignment (Priya 11-04): an LP onset later than the trial's first DAQ contact by
+#: more than this is not the contacting lick -- at a CLOSE spout the alignment then uses the contact (timing_source daq);
+#: at a FAR spout the LP onset is kept and the trial flagged grooming_suspect
+LP_DAQ_TOL_S = 0.05
+#: the time-resolved models of the main (unsubset, movement_first, no FR) run
+MAIN_TR_MODELS = tuple(m for m in TR_MODELS if not m.startswith("fr:"))
+
+
+def trials_mode() -> str:
+    """The TRIALS_ENV setting: one of TRIAL_MODES, or "auto" when unset."""
+    v = os.environ.get(TRIALS_ENV, "")
+    if not v:
+        return "auto"
+    if v not in TRIAL_MODES:
+        raise ValueError(f"{TRIALS_ENV}={v!r}; expected one of {TRIAL_MODES}")
+    return v
+
+
+def auto_trials_mode(order: str, tr_models) -> str:
+    """"auto" resolved for a run's ORDER and time-resolved models (see TRIALS_ENV)."""
+    if not os.environ.get(ONLY_ENV):
+        return "full"
+    if order != "movement_first" or set(tr_models) - set(MAIN_TR_MODELS):
+        return "sse"
+    return "off"
+
+
+def _scorable(spec) -> bool:
+    """A model can score frames it was never fitted on only if every block is a function of time (raw / orth columns).
+    Shuffled blocks (`shuf`, a circular shift of the FIT rows) and permuted / relabelled position blocks (shufpos-*,
+    shufside, shufdist, droppos-*: labels drawn over the fitted trials only) have no value on other frames."""
+    return all(kind in ("raw", "orth") for kind, _v in spec)
+
+
+def trial_bins(off_s: np.ndarray, width: float = TRIAL_BIN_S) -> tuple[np.ndarray, np.ndarray]:
+    """(edges_s, bin index of each PETH offset): PETH_S cut into ``width`` bins, the last edge closed."""
+    edges = np.arange(PETH_S[0], PETH_S[1] + width / 2, width)
+    b = np.clip(np.searchsorted(edges, np.asarray(off_s) + 1e-9, side="right") - 1, 0, len(edges) - 2)
+    return edges, b
+
+
+def trial_rows(rows: np.ndarray, lo: np.ndarray, hi: np.ndarray, off: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    """(index, ok) of each trial's aligned frames in the stored row space: rows[i] + off, valid inside the trial's own
+    row block [lo, hi) (fitted trials: the fit rows; scored-only: their own rows) -- `run_session`'s PETH rule."""
+    rows, lo, hi = (np.asarray(x, int) for x in (rows, lo, hi))
+    idx = rows[:, None] + np.asarray(off, int)[None, :]
+    ok = (rows[:, None] >= 0) & (idx >= lo[:, None]) & (idx < hi[:, None])
+    return np.where(ok, idx, 0), ok
+
+
+def _binsum(X: np.ndarray, b: np.ndarray, nb: int) -> np.ndarray:
+    """(trials, off, K) -> (trials, nb, K) NaN-sums per bin (as the session sse: an empty bin sums to 0)."""
+    return np.stack([np.nansum(X[:, b == k], 1) for k in range(nb)], 1)
+
+
+class _TrialScorer:
+    """Collects `run_session`'s per-trial outputs (see TRIALS_ENV). Row space = [fit rows ; scored-only rows]."""
+
+    def __init__(self, S, E, X, ridx, xidx, ft, fold, f_of_trial, cue_f, first_f, lk_all, off, fs, Rd, Rdx, n_models,
+                 mode, contact_s=None):
+        self.mode, self.off = mode, np.asarray(off, int)
+        from wfield_local import trial_classes as tc
+        nfit, nx = len(ridx), len(xidx)
+        self.nfit, self.nx = nfit, nx
+        kE = {int(t): i for i, t in enumerate(E.trial_id.to_numpy())}
+        ftx, ftr = np.asarray(ft)[xidx], np.asarray(ft)[ridx]
+        ct = np.sort(np.asarray([] if contact_s is None else contact_s, float))
+        n = len(S)
+        k = np.array([kE.get(int(t), -1) for t in S.trial_id], int)
+        cue_row, lick_row, lplick_row = np.full(n, -1), np.full(n, -1), np.full(n, -1)
+        lo, hi = np.zeros(n, int), np.zeros(n, int)
+        lp_s, daq_s, first_s = np.full(n, np.nan), np.full(n, np.nan), np.full(n, np.nan)
+        src, groom = np.full(n, "none", object), np.zeros(n, bool)
+        from wfield_local import config
+        max_rt = float(config.defaults()["decode"]["max_rt_s"])     # the engaged cut: one definition (decode.max_rt_s)
+        close = np.char.startswith(S.pos.to_numpy().astype(str), "close")
+        for j, (c_, sp_) in enumerate(zip(S.cue_s.to_numpy(float), S.stop_s.to_numpy(float))):
+            sp_ = sp_ if np.isfinite(sp_) else c_ + 3.5
+            i_ = np.searchsorted(lk_all, c_)
+            if i_ < len(lk_all) and lk_all[i_] < sp_:
+                lp_s[j] = lk_all[i_]                 # the session npz's first lick (LP / camera lick set)
+            i_ = np.searchsorted(ct, c_ + tc.CONTACT_FROM_CUE_S)
+            if i_ < len(ct) and ct[i_] < min(c_ + max_rt, sp_):
+                daq_s[j] = ct[i_]                    # first DAQ spout contact, cue + 70 ms .. min(cue + max_rt, stop)
+            # LICK ALIGNMENT here (Priya 11-04): the first LP onset, except at a CLOSE spout when it is missing or more
+            # than LP_DAQ_TOL_S after the first DAQ contact (-> the contact, timing_source daq); at a FAR spout a late
+            # LP onset is kept and flagged grooming_suspect, a missing one falls back to the contact (daq). The session
+            # npz's peth_lick / sse_lick stay LP-only.
+            late = np.isfinite(lp_s[j]) and np.isfinite(daq_s[j]) and lp_s[j] - daq_s[j] > LP_DAQ_TOL_S
+            if np.isfinite(daq_s[j]) and (not np.isfinite(lp_s[j]) or (late and close[j])):
+                first_s[j], src[j] = daq_s[j], "daq"
+            elif np.isfinite(lp_s[j]):
+                first_s[j], src[j], groom[j] = lp_s[j], "lp", late
+            if k[j] >= 0:                            # fitted: exactly the session npz's indices
+                cue_row[j], lo[j], hi[j] = cue_f[k[j]], 0, nfit
+                lick_row[j] = (first_f[k[j]] if src[j] == "lp" else
+                               int(np.searchsorted(ftr, first_s[j])) if src[j] == "daq" else -1)
+                lplick_row[j] = first_f[k[j]]       # the session npz's lick alignment (LP onset, -1 = none)
+            else:
+                cue_row[j] = nfit + np.searchsorted(ftx, c_)
+                lick_row[j] = nfit + np.searchsorted(ftx, first_s[j]) if np.isfinite(first_s[j]) else -1
+                lplick_row[j] = nfit + np.searchsorted(ftx, lp_s[j]) if np.isfinite(lp_s[j]) else -1
+                lo[j], hi[j] = nfit, nfit + nx
+        self.table = {"trial_id": S.trial_id.to_numpy(int), "pos": S.pos.to_numpy().astype(str),
+                      "engaged": S.engaged.to_numpy(bool), "fitted": k >= 0,
+                      "fold": np.where(k >= 0, f_of_trial[np.clip(k, 0, None)], -1),
+                      "cue_s": S.cue_s.to_numpy(float), "stop_s": S.stop_s.to_numpy(float),
+                      "first_lick_s": first_s, "timing_source": src.astype(str), "grooming_suspect": groom,
+                      "lp_first_lick_s": lp_s, "daq_first_contact_s": daq_s,
+                      "cue_row": cue_row, "lick_row": lick_row, "lplick_row": lplick_row, "row_lo": lo, "row_hi": hi}
+        self.gi = {"cue": trial_rows(cue_row, lo, hi, self.off), "lick": trial_rows(lick_row, lo, hi, self.off)}
+        self.edges, self.b = trial_bins(self.off / fs)
+        nb = len(self.edges) - 1
+        self.R = np.vstack([Rd, Rdx])
+        self.rd_mean = Rd.mean(0)
+        K = Rd.shape[1]
+        self.sse = {a: np.full((n_models, n, nb, K), np.nan, np.float32) for a in self.gi}
+        self.sst, self.nfr = {}, {}
+        for a, (ii, ok) in self.gi.items():
+            self.sst[a] = _binsum(np.where(ok[..., None], (self.R[ii] - self.rd_mean) ** 2, np.nan), self.b,
+                                  nb).astype(np.float32)
+            self.nfr[a] = np.stack([ok[:, self.b == q].sum(1) for q in range(nb)], 1).astype(np.int16)
+        self.cv = None
+
+    def model(self, mi, name, pred, predx):
+        """Per-trial binned SSE of time-resolved model ``mi``: held-out ``pred`` on fitted rows, full-data ``predx`` on
+        scored-only rows (None = not scorable there -> NaN for those trials)."""
+        P = np.vstack([pred, np.full((self.nx, pred.shape[1]), np.nan) if predx is None else predx])
+        for a, (ii, ok) in self.gi.items():
+            self.sse[a][mi] = _binsum(np.where(ok[..., None], (self.R[ii] - P[ii]) ** 2, np.nan), self.b,
+                                      len(self.edges) - 1)
+            if predx is None:
+                self.sse[a][mi][~self.table["fitted"]] = np.nan
+        if name == "full":
+            self.cv = P.astype(np.float32)
+
+    def finish(self, names: list, part, intercept, tr_models, scorable) -> dict:
+        """``part(name)`` -> (fit rows, scored-only rows) float32 Ra-space traces of one peth part (built one at a time
+        into the preallocated output: the full set never sits in memory twice)."""
+        out = {f"t_{k}": v for k, v in self.table.items()}
+        out.update({"tr_models": np.array(tr_models), "tr_scorable": np.isin(tr_models, scorable),
+                    "off": self.off, "bin_edges_s": self.edges, "bin_of_off": self.b, "rd_mean": self.rd_mean,
+                    "n_fit_rows": np.int64(self.nfit), "n_scored_rows": np.int64(self.nx), "mode": np.array(self.mode)})
+        for a in self.gi:
+            out[f"sse_bins_{a}"], out[f"sst_bins_{a}"], out[f"nfr_bins_{a}"] = self.sse[a], self.sst[a], self.nfr[a]
+        if self.mode in ("full", "full32"):
+            dt = np.float32 if self.mode == "full32" else np.float16
+            out["parts"] = np.array(list(names) + ["cv"])
+            out["intercept"] = np.asarray(intercept, np.float64)
+            F = np.empty((len(names) + 1, self.nfit + self.nx, self.cv.shape[1]), dt)
+            for i, c in enumerate(names):
+                a, b = part(c)
+                F[i, :self.nfit], F[i, self.nfit:] = a, b
+            F[-1] = self.cv
+            out["frames"] = F
+        self.cv = self.R = None
+        return out
+
+
 # =============================================================================== one session
 
 
@@ -1122,6 +1470,47 @@ def session_inputs(label: str, cams=None, fr: str | None = None) -> dict:
     return out
 
 
+#: RE-DERIVED ENGAGEMENT (coordinator 11-04): a path to a trial-attempts table (`scripts/trial_attempts.py` columns label,
+#: trial_id, attempted, canonical). Set, `run_session` recomputes Behaviour.trials.engaged from it with
+#: `orofacial_cohort.engagement_keep`'s rule instead of trusting the flag baked into the inputs at bundle time, so a later
+#: class-rule change needs a new table (o2_encoding refresh-code), not an input rebuild. Refused unless the table covers
+#: every trial of the session. Nothing else in the inputs depends on the classes: trial windows (trial_windows), licks /
+#: pose / cam1 events (LP run), DAQ contacts, imaging and area masks are all class-free; only `engaged` is.
+ATTEMPTS_ENV = "COMBINED_ENCODING_ATTEMPTS"
+
+
+def file_sha256(path) -> str:
+    import hashlib
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        for blk in iter(lambda: f.read(1 << 20), b""):
+            h.update(blk)
+    return h.hexdigest()
+
+
+def rederive_engaged(B: Behaviour, label: str, path, gate: str | None = None) -> Behaviour:
+    """A copy of ``B`` whose trials.engaged = `orofacial_cohort.engagement_keep`'s attempted rule on table ``path``
+    (attempted, AND canonical under the canonical_attempted gate). Refuses the reference gate, an ungated run, and a
+    table that does not cover every (label, trial_id) of ``B.trials``."""
+    import copy
+
+    from wfield_local import orofacial_cohort as oc
+    g = gate or oc.ENGAGEMENT_GATE
+    if g == "reference" or not oc.ENGAGED_ONLY:
+        raise ValueError(f"{ATTEMPTS_ENV}: the {g!r} gate does not come from a trial-attempts table")
+    A = pd.read_csv(path, usecols=lambda c: c in ("label", "trial_id", "attempted", "canonical"))
+    s = A[A.label == label].drop_duplicates("trial_id")
+    missing = sorted(set(B.trials.trial_id.astype(int)) - set(s.trial_id.astype(int)))
+    if missing:
+        raise ValueError(f"{ATTEMPTS_ENV}={path}: {len(missing)} of {len(B.trials)} trials of {label} have no row "
+                         f"(e.g. {missing[:5]}); refusing to re-derive engagement")
+    k = s.attempted.astype(bool) & (s.canonical.astype(bool) if g == "canonical_attempted" else True)
+    keep = set(s.loc[k, "trial_id"].astype(int))
+    B2 = copy.copy(B)
+    B2.trials = B.trials.assign(engaged=B.trials.trial_id.astype(int).isin(keep).to_numpy())
+    return B2
+
+
 def area_masks_for(inputs, parea, pstat, names, flat, shape) -> dict:
     """The session's AREA BASIS masks (`area_basis.session_area_masks`; Priya 11-04: split primary, plain robustness, v8
     ROI masks). From the bundled inputs when given (built at bundle time: the v8 rim needs `beta_maps.brain_mask()`,
@@ -1139,6 +1528,7 @@ def area_masks_for(inputs, parea, pstat, names, flat, shape) -> dict:
 def run_session(label: str, order: str = "movement_first", seed: int = 0, inputs: dict | None = None) -> dict:
     """``inputs`` (from `session_inputs`) = run without touching the share (O2); None = load everything here."""
     from wfield_local import config
+    GROUP_OF = group_of()                              # noqa: N806 -- + licks_pre / licks_iti under LICKS_ALL=split
     animal = config.animal_of(label)
     date = config.date8(label.split("_")[-1])
     rng = np.random.default_rng(seed)
@@ -1155,6 +1545,9 @@ def run_session(label: str, order: str = "movement_first", seed: int = 0, inputs
         B = inputs["behaviour"]
         epoch_, day_ = inputs["epoch"], inputs["day"]
     am = area_masks_for(inputs, parea, pstat, names, flat, shape)
+    attempts = os.environ.get(ATTEMPTS_ENV)
+    if attempts:                                       # engagement from a shipped table, not the baked flag
+        B = rederive_engaged(B, label, attempts)
     T = B.trials
     if os.environ.get(MATCH_ENV):
         T = _match_trials(T, B, label, os.environ[MATCH_ENV], seed)
@@ -1167,6 +1560,21 @@ def run_session(label: str, order: str = "movement_first", seed: int = 0, inputs
         rows |= m
         tr_of[m] = k
     ridx = np.flatnonzero(rows)
+    # SCORED-ONLY TRIALS (Priya 11-04: "report every camera trial class"): every cue trial NOT in E (jaw_only, no
+    # response, stopped, after_end, early_run, unknown; matched-out trials under MATCH_ENV) gets its own frames, built
+    # exactly like E's (strobe - 0.5 .. stop + 1 s, concatenated in time) but NEVER fitted: the design / data of these
+    # rows are transformed with the fit rows' statistics (z, orthogonalisation, drift) and predicted by the full-data
+    # betas. The fit (A, Y, folds, penalties) is unchanged. Off with TRIALS_ENV=off.
+    tmode = trials_mode()
+    S_ = B.trials[np.isfinite(B.trials.cue_s.to_numpy(float))].reset_index(drop=True)
+    X_ = S_[~S_.trial_id.isin(E.trial_id)].reset_index(drop=True) if tmode != "off" else S_.iloc[:0]
+    xrows = np.zeros(len(ft), bool)
+    if len(X_):
+        stx = np.where(np.isfinite(X_.strobe_s), X_.strobe_s, X_.cue_s - 3.0)
+        spx = np.where(np.isfinite(X_.stop_s), X_.stop_s, X_.cue_s + 3.5)
+        for a, b_ in zip(stx - 0.5, spx + 1.0):
+            xrows |= (ft >= a) & (ft <= b_)
+    xidx = np.flatnonzero(xrows)
     # folds = contiguous trial blocks
     blk = np.array_split(np.arange(len(E)), FOLDS)
     f_of_trial = np.zeros(len(E), int)
@@ -1188,8 +1596,12 @@ def run_session(label: str, order: str = "movement_first", seed: int = 0, inputs
                                                    # phase on prompt and delayed trials; trials with no lick: none
     ex_ = getattr(B, "extra_lick_on_s", None)
     lk_all = np.sort(np.concatenate([np.asarray(B.lick_on_s, float), np.asarray([] if ex_ is None else ex_, float)]))
+    # "enl" = each engaged trial's LICK-FREE ENL window, the ENL decoders' own search (`enl_lickfree`, Priya 11-04);
+    # the pre-11-04 fixed window (max(strobe, cue - 2 s) .. cue, not lick-gated) stays as "enl_fixed2s"
+    win["enl_fixed2s"] = np.zeros(len(ridx), bool)
+    enl_rows, enl_info = enl_lickfree(B, E, ft, ridx)
     for s_, c, stp in zip(st, E.cue_s.to_numpy(float), E.stop_s.to_numpy(float)):
-        win["enl"] |= (ftr >= max(s_, c - 2.0)) & (ftr < c)
+        win["enl_fixed2s"] |= (ftr >= max(s_, c - 2.0)) & (ftr < c)
         win["cue"] |= (ftr >= c) & (ftr < c + 1.0)
         stp = stp if np.isfinite(stp) else c + 3.5
         i = np.searchsorted(lk_all, c)
@@ -1198,12 +1610,17 @@ def run_session(label: str, order: str = "movement_first", seed: int = 0, inputs
         win["cuestop"] |= (ftr >= c) & (ftr < stp)
         if first < stp:
             win["firstlick"] |= (ftr >= first - 0.1) & (ftr < first + 1.0)
+    win["enl"] = enl_rows if enl_rows is not None else win["enl_fixed2s"].copy()
     pk = np.sort(B.lick_peak_s)
     j = np.searchsorted(pk, ftr)
     d = np.minimum(np.abs(ftr - pk[np.clip(j - 1, 0, len(pk) - 1)]), np.abs(ftr - pk[np.clip(j, 0, len(pk) - 1)]))
     win["lick"] = d <= 0.2
     # raw blocks -> z -> orthogonalised (order) -> universe
-    raw = {v: _z(X, ridx)[ridx] for v, X in raw_blocks(B, ft).items()}
+    raw, rawx = {}, {}
+    for v, X in raw_blocks(B, ft).items():
+        Z_ = _z(X, ridx)
+        raw[v], rawx[v] = Z_[ridx], Z_[xidx]
+    del Z_
     # POSITION IS ONE VARIABLE (Priya 10-18): the spout sits in one place strobe .. stop, so ONE relabelling is applied
     # to both periods (pos_enl / pos_cue are its pre- and post-cue regressors; `shuf:position` / `drop:position` test
     # it whole, the per-period models are the temporal breakdown).
@@ -1259,16 +1676,23 @@ def run_session(label: str, order: str = "movement_first", seed: int = 0, inputs
             rawc[(kind, v)] = _z(raw_blocks(B, ft, {v: lab})[v], ridx)[ridx]
     seq = ORDERS[order]
     orth, earlier = {}, None
+    orthx, earlierx = {}, None                          # the scored-only rows: same projection, fit-row statistics
     for g in seq:
         vs = [v for v in GROUP_OF if GROUP_OF[v] == g]
         Xg = np.hstack([raw[v] for v in vs])
-        Xo = (Xg if (earlier is None or g in ORTH_RAW.get(order, ()))
-              else _residualise(Xg, earlier, slice(None)))
+        Xgx = np.hstack([rawx[v] for v in vs])
+        if earlier is None or g in ORTH_RAW.get(order, ()):
+            Xo, Xox = Xg, Xgx
+        else:
+            Xo, Xox = _residualise(Xg, earlier, slice(None), extra=(Xgx, earlierx))
         c = 0
         for v in vs:
             orth[v] = Xo[:, c:c + raw[v].shape[1]]
+            orthx[v] = Xox[:, c:c + raw[v].shape[1]]
             c += raw[v].shape[1]
         earlier = Xg if earlier is None else np.hstack([earlier, Xg])
+        earlierx = Xgx if earlierx is None else np.hstack([earlierx, Xgx])
+    rawall_x = np.hstack([rawx[v] for v in GROUP_OF])
     # VIDEO (optional, see VIDEO_ENV)
     vid_raw = vid_orth = None
     cams = [c for c in (os.environ.get(VIDEO_ENV) or "").split(",") if c]
@@ -1286,10 +1710,13 @@ def run_session(label: str, order: str = "movement_first", seed: int = 0, inputs
     if sig:
         Xv = (inputs["video"]["X"].astype(np.float64) if inputs is not None
               else np.column_stack([sig[k_][1] for k_ in sorted(sig)]))
-        vid_raw = _z(Xv, ridx)[ridx]                            # blanked (NaN) frames -> 0
+        Zv_ = _z(Xv, ridx)
+        vid_raw, vid_rawx = Zv_[ridx], Zv_[xidx]                # blanked (NaN) frames -> 0
         blank = ~np.isfinite(Xv[ridx]).any(1)
-        vid_orth = _residualise(vid_raw, np.hstack([raw[v] for v in GROUP_OF]), slice(None))
+        vid_orth, vid_orthx = _residualise(vid_raw, np.hstack([raw[v] for v in GROUP_OF]), slice(None),
+                                           extra=(vid_rawx, rawall_x))
         vid_orth[blank] = 0.0                                   # residualising must not put signal back into blanked frames
+        vid_orthx[~np.isfinite(Xv[xidx]).any(1)] = 0.0
     # FR (optional, see FR_ENV): same placement as video
     fr_raw = fr_orth = None
     fr_set = os.environ.get(FR_ENV) or ""
@@ -1309,10 +1736,13 @@ def run_session(label: str, order: str = "movement_first", seed: int = 0, inputs
             except FileNotFoundError:
                 Xf = None
         if Xf is not None:
-            fr_raw = _z(Xf, ridx)[ridx]                         # blanked (NaN) frames -> 0
+            Zf_ = _z(Xf, ridx)
+            fr_raw, fr_rawx = Zf_[ridx], Zf_[xidx]              # blanked (NaN) frames -> 0
             blank_fr = ~np.isfinite(Xf[ridx]).any(1)
-            fr_orth = _residualise(fr_raw, np.hstack([raw[v] for v in GROUP_OF]), slice(None))
+            fr_orth, fr_orthx = _residualise(fr_raw, np.hstack([raw[v] for v in GROUP_OF]), slice(None),
+                                             extra=(fr_rawx, rawall_x))
             fr_orth[blank_fr] = 0.0
+            fr_orthx[~np.isfinite(Xf[xidx]).any(1)] = 0.0
     frpts_raw = None
     kp = int(os.environ.get(FR_POINTS_ENV) or 0)
     if fr_raw is not None and kp:
@@ -1327,7 +1757,8 @@ def run_session(label: str, order: str = "movement_first", seed: int = 0, inputs
             except FileNotFoundError:
                 Xp = None
         if Xp is not None:
-            frpts_raw = _z(Xp, ridx)[ridx]
+            Zp_ = _z(Xp, ridx)
+            frpts_raw, frpts_rawx = Zp_[ridx], Zp_[xidx]
     # shuffled orthogonalised blocks
     shift_min = int(SHIFT_MIN_S / np.median(np.diff(ft)))
     shuf = {}
@@ -1371,14 +1802,41 @@ def run_session(label: str, order: str = "movement_first", seed: int = 0, inputs
         add(("orth", "fr"), fr_orth)
     if frpts_raw is not None:
         add(("raw", "frpts"), frpts_raw)
+    # the scored-only rows' columns, for every key a SCORABLE model uses (raw / orth: a deterministic function of time;
+    # shuffled / permuted / relabelled blocks are defined only on the fit rows, see `_scorable`)
+    xblk = {}
+    for v in GROUP_OF:
+        xblk[("orth", v)] = orthx[v]
+        xblk[("raw", v)] = rawx[v] if GROUP_OF[v] != seq[0] else orthx[v]
+    for v in EXTRA_GROUP:
+        if v in rawx:
+            xblk[("raw", v)] = rawx[v]
+    if vid_raw is not None:
+        xblk[("raw", "video")], xblk[("orth", "video")] = vid_rawx, vid_orthx
+    if fr_raw is not None:
+        xblk[("raw", "fr")], xblk[("orth", "fr")] = fr_rawx, fr_orthx
+    if frpts_raw is not None:
+        xblk[("raw", "frpts")] = frpts_rawx
+    del rawx, orthx, earlierx, rawall_x
     A = np.hstack(blocks)
     Y = V[ridx]
-    Q = np.linalg.qr(_slow_basis(ft[ridx], DRIFT_MIN_PERIOD_S))[0]
+    Q, Rq = np.linalg.qr(_slow_basis(ft[ridx], DRIFT_MIN_PERIOD_S))
     Q = Q.astype(np.float32)
-    Y = (Y - Q @ (Q.T @ Y)).astype(np.float32)
+    CQ = Q.T @ Y                                    # drift coefficients (fit rows) -- also applied to the scored-only rows
+    Y = (Y - Q @ CQ).astype(np.float32)
+    CA = np.empty((Q.shape[1], A.shape[1]), np.float32)
     for c0 in range(0, A.shape[1], 256):           # in place, in column chunks (A is GBs; no full-size temporary)
         sl = slice(c0, min(c0 + 256, A.shape[1]))
-        A[:, sl] -= Q @ (Q.T @ A[:, sl])
+        CA[:, sl] = Q.T @ A[:, sl]
+        A[:, sl] -= Q @ CA[:, sl]
+    Yx = None
+    if len(xidx):
+        # the same slow drift at the scored-only frames: S_x R^-1 extends Q (= S_fit R^-1); frames outside the fit
+        # rows' time span extrapolate the cosine basis (bounded)
+        Qx = (_slow_basis(ft[ridx], DRIFT_MIN_PERIOD_S, at=ft[xidx]) @ np.linalg.inv(Rq)).astype(np.float32)
+        Yx = (V[xidx] - Qx @ CQ).astype(np.float32)
+        xblk = {k: X - Qx @ CA[:, layout[k]] for k, X in xblk.items()}
+    del CA
     eng = Engine(A, Y, fold, win)
     grp_of_col = np.empty(A.shape[1], object)                  # CREDIT group (task / instructed / uninstructed)
     pen_of_col = np.empty(A.shape[1], object)                  # PENALTY group (PEN_GROUP_OF)
@@ -1440,6 +1898,9 @@ def run_session(label: str, order: str = "movement_first", seed: int = 0, inputs
     for g in GROUPS:
         models[f"drop:{g}"] = [("raw", w) for w in GROUP_OF if GROUP_OF[w] != g]
     models["drop:position"] = [("raw", w) for w in GROUP_OF if w not in POS_VARS]
+    spont = [("raw", v) for v in SPLIT_LICK_VARS if v in GROUP_OF]   # lick TIMING kernels of the nodir / nokin bases
+    if all(v in GROUP_OF for v in SPLIT_LICK_VARS):    # all spontaneous licking (pre-cue + ITI) at once
+        models["drop:licks_pre+licks_iti"] = [("raw", w) for w in GROUP_OF if w not in SPLIT_LICK_VARS]
     # VARIANTS (order-free, raw columns like the drop models)
     models["raw:full"] = [("raw", w) for w in GROUP_OF]
     if ("raw", "angle_cue") in layout:
@@ -1508,7 +1969,7 @@ def run_session(label: str, order: str = "movement_first", seed: int = 0, inputs
             models["frpts:raw:full"] = rawfull + [("raw", "frpts")]
             models["frboth:raw:full"] = rawfull + [("raw", "fr"), ("raw", "frpts")]
     if all(("raw", v) in layout for v in ("jaw_nd", "nose_nd", "dir_kin")):
-        nb = [("raw", v) for v in NODIR_BASE]
+        nb = [("raw", v) for v in NODIR_BASE] + spont           # + the split spontaneous lick timing kernels
         tg, ex, kin = [("raw", "lick_angle_tgt")], [("raw", "lick_angle_abs")], [("raw", "dir_kin")]
         cat = [("raw", v) for v in POS_VARS]
         models["nodir:none"] = nb
@@ -1522,7 +1983,7 @@ def run_session(label: str, order: str = "movement_first", seed: int = 0, inputs
             models["nodir:kin+target+exec"] = nb + kin + tg + ex
         models["nodir:kin"] = nb + kin
     if ("raw", "kinall") in layout:
-        kb = [("raw", v) for v in NOKIN_BASE]
+        kb = [("raw", v) for v in NOKIN_BASE] + spont
         ka, cat = [("raw", "kinall")], [("raw", v) for v in POS_VARS]
         models["nokin:none"] = kb
         models["nokin:category"] = kb + cat
@@ -1580,12 +2041,14 @@ def run_session(label: str, order: str = "movement_first", seed: int = 0, inputs
            "exec_set": os.environ.get(EXEC_ENV) or "cam4", "lick_set": os.environ.get(LICKS_ENV) or "cam4",
            "n_trials": int(len(E)), "n_frames": int(len(ridx)),
            "window_frames": {w_: int(m_.sum()) for w_, m_ in win.items()}, "fs": float(1 / np.median(np.diff(ft))),
+           "enl_window": enl_info,
            "video": (cams if vid_raw is not None else None), "video_k": VIDEO_K,
            "fr": (fr_set if fr_raw is not None else None),
            "fr_measure": ("absolute" if _fr_absolute() else "share") if fr_raw is not None else None,
            "fr_k": (int(fr_raw.shape[1]) if fr_raw is not None else 0),
            "frpts_k": (int(frpts_raw.shape[1]) if frpts_raw is not None else 0),
            "drift_min_period_s": DRIFT_MIN_PERIOD_S, "drift_n_basis": int(Q.shape[1]),
+           **({"attempts_table": {"path": str(attempts), "sha256": file_sha256(attempts)}} if attempts else {}),
            "area_basis": {"primary": "split", "tag": am["tag"], "roi_version": am["version"], "split": am["split"],
                           "plain": am["plain"], "cortex": "roi_masks cortex (stat mask + v8 rim + ALM)",
                           "cortex_stat": "eroded stat mask (the pre-11-04 cortex row)"}}
@@ -1720,6 +2183,14 @@ def run_session(label: str, order: str = "movement_first", seed: int = 0, inputs
                      "sst_tr": np.nansum(np.where(okm_[..., None], ddev_ ** 2, np.nan), 0).T,
                      "sse": np.zeros((len(tr_models), Ra.shape[1], len(off))),
                      "sse_tr": np.zeros((len(tr_models), Ra.shape[1], len(off)))}
+    # PER-TRIAL OUTPUTS (Priya 11-04, `<label>_trials.npz`): every cue trial, fitted (E) or scored-only (X_)
+    trs = None
+    if tmode == "auto":
+        tmode = auto_trials_mode(order, tr_models)
+    if tmode != "off":
+        trs = _TrialScorer(S_, E, X_, ridx, xidx, ft, fold, f_of_trial, cue_f, first_f, lk_all, off, res["fs"], Rd,
+                           (Yx.astype(np.float64) @ Ra) if Yx is not None else np.zeros((0, Ra.shape[1])),
+                           len(tr_models), tmode, contact_s=B.contact_s)
     for mi, mname in enumerate(tr_models):
         spec = models[mname]
         ixm = cols(spec)
@@ -1730,6 +2201,12 @@ def run_session(label: str, order: str = "movement_first", seed: int = 0, inputs
         for k, bk in enumerate(Bk):
             m = fold == k
             pred[m] = (Am[m] @ bk[1:] + bk[0]) @ Ra
+        if trs is not None:                                   # scored-only rows: the model fit on ALL fit rows
+            predx = None
+            if len(xidx) and _scorable(spec):
+                bf = eng.full_beta(ixm, penm)[1]
+                predx = (np.hstack([xblk[k_] for k_ in spec]) @ bf[1:] + bf[0]) @ Ra
+            trs.model(mi, mname, pred, predx)
         for a_ in al.values():
             okm_, idc_ = a_["okm"], a_["idc"]
             a_["sse"][mi] = np.nansum(np.where(okm_[..., None], (Rd[idc_] - pred[idc_]) ** 2, np.nan), 0).T
@@ -1755,6 +2232,19 @@ def run_session(label: str, order: str = "movement_first", seed: int = 0, inputs
             seg = np.where(ok[..., None], R[np.clip(idx, 0, len(R) - 1)], np.nan)
             peth_lick[ci, pi] = np.nanmean(seg, 0).T
     res["n_trials_lick_aligned"] = int((first_f >= 0).sum())
+    if trs is not None:
+        Axf = np.hstack([xblk[k_] for k_ in full_spec]) if len(xidx) else np.zeros((0, len(ix)), np.float32)
+        compx = {"data": Yx.astype(np.float64) if Yx is not None else np.zeros((0, Y.shape[1])),
+                 "full": Axf @ beta[1:] + beta[0]}
+        for g in GROUPS:
+            compx[g] = Axf[:, gcol == g] @ beta[1:][gcol == g]
+        compx["pos"] = Axf[:, pm] @ beta[1:][pm]
+        trials_out = trs.finish(list(comp), lambda c: ((comp[c] @ Ra).astype(np.float32),
+                                                        (compx[c] @ Ra).astype(np.float32)),
+                                beta[0] @ Ra, tr_models, [m for m in tr_models if _scorable(models[m])])
+        del compx, Axf
+        res["n_trials_scored_only"] = int(len(X_))
+        res["trials_mode"] = tmode
     res["n_lick_aligned_by_pos"] = dict(zip(pos_order, n_lick_pos.tolist()))
     res["target_angle"] = B.target_angle
     res.update({"tr_models": tr_models, "pos_order": pos_order, "peth_parts": list(comp), "model_alphas": model_alphas,
@@ -1764,7 +2254,19 @@ def run_session(label: str, order: str = "movement_first", seed: int = 0, inputs
             "peth": peth, "peth_lick": peth_lick, "peth_off_s": off / res["fs"], "sse": sse, "sst": sst,
             "sse_trial": sse_tr, "sst_trial": sst_tr,
             "sse_lick": al["lick"]["sse"], "sst_lick": al["lick"]["sst"],
-            "sse_trial_lick": al["lick"]["sse_tr"], "sst_trial_lick": al["lick"]["sst_tr"]}
+            "sse_trial_lick": al["lick"]["sse_tr"], "sst_trial_lick": al["lick"]["sst_tr"],
+            **({"trials": trials_out} if trs is not None else {})}
+
+
+def licks_all_suffix() -> str:
+    """Folder part of LICKS_ALL. A TAGGED (rebuild) run, where split is PRODUCTION (Priya 11-04): split -> no suffix,
+    no spontaneous kernels (unset / score) -> "_nolicksall", shared -> "_licksall-shared". An untagged (legacy) run keeps
+    the pre-11-04 names (unset -> none, shared / split -> "_licksall-<mode>"), so the adopted folders keep their meaning."""
+    from wfield_local import run_mode
+    mode = os.environ.get(LICKS_ALL_ENV, "")
+    if run_mode.tag():
+        return "" if mode == "split" else ("_nolicksall" if mode in ("", "score") else f"_licksall-{mode}")
+    return f"_licksall-{mode}" if mode not in ("", "score") else ""
 
 
 def out_dir(rv, order: str) -> Path:
@@ -1796,8 +2298,7 @@ def out_dir(rv, order: str) -> Path:
                                                          + ("_bins" if os.environ.get(BINS_ENV) else "")
                                                          + (f"_bw{bins_width():g}" if os.environ.get(BINS_ENV)
                                                             and bins_width() != 1.0 else "")
-                                                         + (f"_licksall-{os.environ[LICKS_ALL_ENV]}"
-                                                            if os.environ.get(LICKS_ALL_ENV) else "")
+                                                         + licks_all_suffix()
                                                          + os.environ.get(SUFFIX_ENV, ""))
 
 
@@ -1814,6 +2315,8 @@ def save(out: dict, d: Path) -> None:
                         peth_off_s=out["peth_off_s"], sse=out["sse"], sst=out["sst"],
                         sse_trial=out["sse_trial"], sst_trial=out["sst_trial"],
                         **{k: out[k] for k in ("sse_lick", "sst_lick", "sse_trial_lick", "sst_trial_lick", "peth_lick") if k in out})
+    if out.get("trials") is not None:            # per-trial outputs: their OWN file, the npz above is unchanged
+        np.savez_compressed(d / "sessions" / f"{lab}_trials.npz", **out["trials"])
     out["region"].assign(label=lab).to_csv(d / "sessions" / f"{lab}_regions.csv", index=False, float_format="%.5f")
     (d / "sessions" / f"{lab}.json").write_text(json.dumps(out["res"], indent=1, default=str), encoding="utf-8")
 
