@@ -73,6 +73,25 @@ log for the earlier part of the day is `RUNNING_LIST_2026-11-02_OVERNIGHT.md`.
      - Q9: tolerance ~100 ms: use the DAQ contact time (timing_source = daq) if the first LP lick is missing or
        > 100 ms after the first contact. 34 is checking why LP misses those licks.
 
+   - Stop-rule guard census (34, STOP_RULE_GUARD_CENSUS_20261104.md):
+     - The end cut barely matters: 43 trials.
+     - Stop runs DO matter: 85 / 277 have no reference-spout trial (48 acute; PS95_0817 62 trials, all far
+       contra / mid).
+     - Trial-level guard: acute hit rate .691 -> .631 (far ipsi .739 -> .662, close contra .916 -> .845), and the
+       acute deficit -.265 -> -.310. The working set / O2 / decoders are unchanged.
+     - But pre also drops (.956 -> .941), so the guard restores some real disengagement: current rule = lower
+       bound, guard = upper bound.
+
+     Questions:
+     - a. Test 34's refinement (keep a no-reference run only if there are reference contacts on BOTH sides)
+       before choosing? [Yes]
+     - b. A stop starts at the first reference failure. [Yes]
+     - c. Unjudged close-mid no_response counts as stop evidence. [Yes: no lick at an easy spout]
+     - d. The 13 sessions with no reference trial after the last lick get no end cut, flagged.
+     - e. Drop the block-level guard.
+   - 34 merge queue before the render: encoder-classes, cue70 (+ max_rt end), enl-window (ENL follows the source,
+     branch rebuild/enl-window), then the stop-rule guard once chosen.
+
    STILL OPEN: 3 guard numbers; and 8 (discriminator training classes; helper testing).
    Stays DAQ: pinned epoch boundaries, per-lick outcome, June / PS93_0813 /
    cohort 2. My suggested answers are in the chat reply of 11-04 and copied into the log below once Priya answers.
