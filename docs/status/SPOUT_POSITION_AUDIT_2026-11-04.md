@@ -1,5 +1,12 @@
 # Spout position: ENL no-lick medians in every kinematics analysis? Audit + impact (2026-11-04, window e0)
 
+**DECIDED (Priya 11-04): fix with the next 3-D re-run, when cam2 / cam3 come in** (round-2 side model + whole-session
+side inference). Until then the cohort-1 v36 / 3-D outputs stay as they are (the deviations below are <= 0.03 mm at the
+session level and unbiased per trial). The fix list for that run: `orofacial_outputs.py:184` -> `SF.ruler_medians`;
+`tongue_kinematics.trial_spout_reference` -> the session ENL medians (or a per-trial ENL median); the whole-window
+scripts (section below, item 3); `prep_3d_inputs.spout_table` -> the commanded table (`scripts/pose3d_spout_commanded.py`);
+re-run production `pose3d` with the per-frame spout fix (bddf02e7) and the four-camera pipeline (`pose3d_side`).
+
 **Rule (Priya 11-04):** each session's spout position (per spout position) = the median spout keypoint over in-trial
 NO-LICK ENL frames (`spout_frame.ruler_medians`: after the spout settles, before the cue, tongue not detected, spout
 confident); in 3-D, the commanded positions (which those medians match). "Ensure this is true for all our kinematics
