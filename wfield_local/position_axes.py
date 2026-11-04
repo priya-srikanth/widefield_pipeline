@@ -250,6 +250,14 @@ def run_animal(animal, align="precue", seed=0, pool_n=1):
         return None
     not_eng, _a, _b = g
     pre_i = {i for i, l in enumerate(kept) if l in set(pre)}
+    # THE PROJECTION FRAME (main 26fd5b44 / 4a37cbc8, Priya 11-03 item C, 11-04 re-check;
+    # `spout_scaling.projection_arrays`; identity when off -- the default)
+    from wfield_local import spout_scaling as _ss
+    from wfield_local import working_trials as _wt
+    from wfield_local.locanmf_frozen_decoder import _pipe as _fpipe
+    XE, XU = _ss.projection_arrays(XE, YE, GE, XU, GU, pre_i, _fpipe,
+                                   work=_wt.projection_work(kept, feat, GE, GU, align), YU=YU,
+                                   cls_e=_wt.projection_cls_e(kept, feat, GE, GU, align), labels=kept)
     e_pre = np.isin(GE, list(pre_i))
     GU = np.asarray(GU)
     u_pre = np.isin(GU, list(pre_i)) if len(GU) else np.zeros(0, bool)

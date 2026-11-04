@@ -813,6 +813,17 @@ def run_animal(animal, align="precue", verbose=True, methods=CD_METHODS):
         nl_stopped = np.isin(_cu, list(_tc.STOPPED_CLASSES))
     else:
         nl_working, nl_stopped = ~not_eng, not_eng
+    # THE PROJECTION FRAME (main 26fd5b44 / 4a37cbc8, Priya 11-03 item C, 11-04 re-check;
+    # `spout_scaling.projection_arrays`; identity when off -- the default)
+    from wfield_local import spout_scaling as _ss
+    from wfield_local import working_trials as _wt
+    from wfield_local.locanmf_frozen_decoder import _pipe as _fpipe
+    # directions, poles, the engagement axis and every projection below use the projected rows; the frozen-decoder
+    # confusions keep the production rows (they build their own frame)
+    XE0, XU0 = XE, XU
+    XE, XU = _ss.projection_arrays(XE, YE, GE, XU, GU, pre_i, _fpipe,
+                                   work=_wt.projection_work(kept, feat, GE, GU, align), YU=YU,
+                                   cls_e=_wt.projection_cls_e(kept, feat, GE, GU, align), labels=kept)
 
     order = sorted(range(len(kept)), key=lambda i: kept[i].split("_")[1])
     # VARIANCE CAPTURED PER SESSION, stored so a declining per-session coding value can be tested
@@ -893,12 +904,12 @@ def run_animal(animal, align="precue", verbose=True, methods=CD_METHODS):
         _scl = _ss.SCALING_BAL_EM if _ss.spout_scaling() is not None else None
 
         def _store_conf(fit_all):
-            st = stored_confusion_decoder(animal, align, post_s, basis.basis_id, XE, YE, GE, e_pre, pre_i, kept,
+            st = stored_confusion_decoder(animal, align, post_s, basis.basis_id, XE0, YE, GE, e_pre, pre_i, kept,
                                           fit=fit_all, scaling=_scl)
             return st if st is not None else fit_all()
 
-        out["confusions"] = _class_confusions(XE, YE, GE, XU, YU, e_pre, pre_i, _mask, kept,
-                                              rt_e=_rt_engaged(feat, kept, XE), GU=np.asarray(GU),
+        out["confusions"] = _class_confusions(XE0, YE, GE, XU0, YU, e_pre, pre_i, _mask, kept,
+                                              rt_e=_rt_engaged(feat, kept, XE0), GU=np.asarray(GU),
                                               store=_store_conf,
                                               cls_e=(_tc.pool_row_classes(feat, kept, len(YE), len(YU))[0]
                                                      if _tc.camera_gate_on() else None))

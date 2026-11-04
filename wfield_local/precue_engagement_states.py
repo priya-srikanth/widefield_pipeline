@@ -318,7 +318,19 @@ def run_animal(animal, align="precue", post_s=None, verbose=True):
     # it fails the discriminator's own pre-stroke check, 11-03): each pre session's rows centred on the equal-weight mean
     # of its two TRUE state-class means; a scored session centred, label-free, by the EM over its engaged + no-lick rows.
     # The input arrays themselves when OFF (the production engaged-trial z-score).
-    XEt, XUt = _ss.state_train_frame(XE, GE, XU, GU, keep_eng, keep_dis, sorted(pre_i))
+    # THE SPOUT bal_em FRAME (main 26fd5b44 / 4a37cbc8, items B; WIDEFIELD_STATE_DISC_SCALING=spout_frame, DEFAULT OFF):
+    # pre sessions in the position decoder's TRAINING frame, scored sessions in its label-free scoring frame
+    # (`_spout_frame_block`); else the state-class frame / the production z (unchanged).
+    _spf, disc_scaling, e_pre_d, u_pre_d, pre_d, ff_s, keep_eng, keep_dis = _spout_frame_block(
+        disc, ff, feat, kept, XE, YE, GE, XU, YU, GU, pre_i, align, e_pre, u_pre, keep_eng, keep_dis)
+    if _spf:
+        XEt, XUt = np.array(XE, float), np.array(XU, float)
+        for i in sorted(pre_d):
+            XEt[GE == i] = ff_s.train_apply(XE[GE == i], i)
+            if np.any(GU == i):
+                XUt[GU == i] = ff_s.train_apply(XU[GU == i], i)
+    else:
+        XEt, XUt = _ss.state_train_frame(XE, GE, XU, GU, keep_eng, keep_dis, sorted(pre_i))
     if keep_dis.sum() >= 20 and keep_eng.sum() >= 20:
         Xd = np.vstack([XEt[keep_eng], XUt[keep_dis]])
         yd = np.concatenate([np.zeros(int(keep_eng.sum())), np.ones(int(keep_dis.sum()))])
@@ -328,8 +340,8 @@ def run_animal(animal, align="precue", post_s=None, verbose=True):
             # the all-pre discriminator AND the per-held-out-session refits of the D2 drift control (below), one
             # payload: they are determined by the same training pool (main 11-03: on the state training frame XEt / XUt)
             loso = {}
-            for si in sorted(pre_i):
-                hold = e_pre & (GE == si)
+            for si in sorted(pre_d):
+                hold = e_pre_d & (GE == si)
                 tr_e, tr_d = keep_eng & (GE != si), keep_dis & (GU != si)
                 if hold.sum() < 20 or tr_e.sum() < 20 or tr_d.sum() < 20:
                     continue
@@ -340,15 +352,22 @@ def run_animal(animal, align="precue", post_s=None, verbose=True):
 
         dpay = _stored(animal, f"{align}-disc", basis, kept, pre_i, int(XE.shape[1]),
                        (Xd, yd, gd, sorted(pre_i), XE[e_pre], GE[e_pre]), _fit_disc, post_s,
-                       scaling=_ss.state_disc_scaling())
+                       scaling=disc_scaling)
         model = dpay["full"]
         _pi = _ss.model_prior(model, yd)
         _all_e, _all_u = np.ones(len(XE), bool), np.ones(len(XU), bool)
         _post = sorted(set(range(len(kept))) - set(pre_i))
-        XEs, XUs = _ss.state_scored(model, _pi, XEt, GE, XUt, GU, _all_e, _all_u, _post)
+        if _spf:
+            XEs, XUs = XEt.copy(), XUt.copy()
+            for i in _post:
+                XEs[GE == i] = ff_s.apply(XE[GE == i], i, "full")
+                if np.any(GU == i):
+                    XUs[GU == i] = ff_s.apply(XU[GU == i], i, "full")
+        else:
+            XEs, XUs = _ss.state_scored(model, _pi, XEt, GE, XUt, GU, _all_e, _all_u, _post)
         # states 5 / 6 by the run's gate (camera classes under the camera gate, rebuild 11-03; DAQ quit tail otherwise)
         s_states = {
-            "1_pre_lick": XEs[e_pre], "2_pre_nolick": XUs[u_pre], "4_post_lick": XEs[~e_pre],
+            "1_pre_lick": XEs[e_pre_d], "2_pre_nolick": XUs[u_pre_d], "4_post_lick": XEs[~e_pre],
             "5_post_nolick_engaged": XUs[~u_pre & nl_eng],
             "6_post_nolick_notengaged": XUs[~u_pre & nl_not]}
         if len(np.unique(gd)) > 1:
@@ -370,15 +389,19 @@ def run_animal(animal, align="precue", post_s=None, verbose=True):
         # by a model that never saw that session. Scoring in-sample late trials against out-of-sample
         # early ones would manufacture exactly the difference being tested for.
         pre_e, pre_l = [], []
-        for si in sorted(pre_i):
-            hold = e_pre & (GE == si)
+        for si in sorted(pre_d):
+            hold = e_pre_d & (GE == si)
             tr_e, tr_d = keep_eng & (GE != si), keep_dis & (GU != si)
             if hold.sum() < 20 or tr_e.sum() < 20 or tr_d.sum() < 20:
                 continue
             _yd = np.concatenate([np.zeros(int(tr_e.sum())), np.ones(int(tr_d.sum()))])
             m = dpay["loso"][kept[si]]                 # stored with the discriminator (same condition, same fit)
             # the held-out session in ITS OWN EM frame under this leave-one-out model (identity under session_z)
-            _XEh, _XUh = _ss.state_scored(m, _ss.model_prior(m, _yd), XE, GE, XU, GU, _all_e, _all_u, [si])
+            if _spf:
+                _XEh = np.array(XE, float)
+                _XEh[GE == si] = ff_s.apply(XE[GE == si], si, "loso")
+            else:
+                _XEh, _XUh = _ss.state_scored(m, _ss.model_prior(m, _yd), XE, GE, XU, GU, _all_e, _all_u, [si])
             pr = m.predict_proba(_XEh[hold])[:, 1]
             lh = late_e[hold]
             pre_e.extend(pr[~lh])
@@ -426,6 +449,59 @@ def _stored(animal, align, basis, kept, pre_i, n_features, train_data, fit, post
     payload, status = frozen_models.load_or_fit(spec, fit, meta={"n_pre_sessions": len(pre_i)})
     print(f"  [precue_states] {animal} {align}: engagement_states {frozen_models._slug(spec)} {status}", flush=True)
     return payload
+
+
+def _spout_frame_block(disc, ff, feat, kept, XE, YE, GE, XU, YU, GU, pre_i, align, e_pre, u_pre, keep_eng,
+                       keep_dis):
+    """The discriminator's frame bookkeeping (main 26fd5b44 / 4a37cbc8, items B), kept out of `run_animal` so that
+    function's body stays as on the other branches. Returns ``(on, spec scaling, e_pre_d, u_pre_d, pre_d, frame,
+    keep_eng, keep_dis)``: the discriminator's PRE sets (states 1 / 2, training, the D2 loop) and, when
+    ``WIDEFIELD_STATE_DISC_SCALING=spout_frame``, the FrozenFrame its rows are centred by -- `_working_frame` (camera
+    WORKING rows, engaged + no-lick; default `spout_scaling.state_disc_centre`) or part A's ``ff`` (engaged rows,
+    WIDEFIELD_STATE_DISC_CENTRE=engaged). A pre session without working rows leaves the pre sets. Records
+    ``disc["frame"]`` / ``disc["centre_rows"]``; the spec scaling carries the centre."""
+    from wfield_local import spout_scaling as _ss
+    mode = _ss.state_disc_scaling()
+    on = mode == _ss.SCALING_SPOUT_FRAME and bool(ff.scaling)
+    disc["frame"] = "spout_frame" if on else (mode or "session_z")
+    if not on:
+        return False, mode, e_pre, u_pre, set(pre_i), None, keep_eng, keep_dis
+    ffw, pre_w = _working_frame(feat, kept, XE, YE, GE, XU, YU, GU, pre_i, align)
+    disc["centre_rows"] = "engaged" if ffw is None else "working"
+    e_pre_d, u_pre_d, pre_d = e_pre, u_pre, set(pre_i)
+    if ffw is not None:
+        drop = sorted(set(pre_i) - set(pre_w))
+        if drop:
+            disc["pre_sessions_without_working_rows"] = [kept[i] for i in drop]
+            keep_eng = keep_eng & ~np.isin(GE, drop)
+            keep_dis = keep_dis & ~np.isin(GU, drop)
+            e_pre_d, u_pre_d, pre_d = np.isin(GE, pre_w), np.isin(GU, pre_w), set(pre_w)
+    return (True, f"{_ss.SCALING_SPOUT_FRAME}/{disc['centre_rows']}", e_pre_d, u_pre_d, pre_d,
+            ff if ffw is None else ffw, keep_eng, keep_dis)
+
+
+def _working_frame(feat, kept, XE, YE, GE, XU, YU, GU, pre_i, align):
+    """``(FrozenFrame over the camera WORKING rows, pre sessions that have them)`` for the discriminators'
+    ``spout_frame`` (main 4a37cbc8, Priya 11-04, item B): the rows the frozen cue / precue spout decoders are trained
+    and centred on (contact + incomplete, engaged AND no-lick rows; rebuild: live classes, `trial_classes.in_sel`), so
+    ``train_apply`` centres a pre session on its working rows' true spout-class means and ``apply`` centres any session
+    on the label-free EM centre of its working rows. ``(None, pre_i)`` when the centre is the engaged rows:
+    ``WIDEFIELD_STATE_DISC_CENTRE=engaged``, the lick window, the DAQ gate / a non-camera working selection, or a
+    builder without cue indices."""
+    from wfield_local import spout_scaling as _ss
+    from wfield_local import trial_classes as _tc
+    from wfield_local import working_trials as wt
+    if (_ss.state_disc_centre() != "working" or align == "lick" or not _tc.camera_gate_on()
+            or not wt.is_camera(_tc.working_selection()) or not getattr(feat, "indices", None)):
+        return None, sorted(pre_i)
+    ce, cu = _tc.pool_row_classes(feat, kept, len(YE), len(YU))
+    we, wu = _tc.in_sel(ce, "working"), _tc.in_sel(cu, "working")
+    RX = np.vstack([XE[we], XU[wu]])
+    RY = np.concatenate([YE[we], np.asarray(YU)[wu].astype(np.asarray(YE).dtype)])
+    RG = np.concatenate([np.asarray(GE)[we], np.asarray(GU)[wu]])
+    RC = np.concatenate([ce[we], cu[wu]])
+    pre_w = sorted(i for i in pre_i if np.any(RG == i))
+    return _ss.FrozenFrame(RX, RY, RG, pre_w, _pipe, loso=True, cls_e=RC, labels=dict(enumerate(kept))), pre_w
 
 
 def _auc(y, p):

@@ -924,6 +924,39 @@ def cue_classes_for(label: str, cue_s, window: str | None = None) -> np.ndarray:
     return _CUE_CLS[key]
 
 
+_CUE_GRP: dict = {}
+
+
+def cue_groups_for(label: str, cue_s, window: str | None = None):
+    """``(raw, after, matched)`` per DAQ cue of one session, for section G's groups (`working_trials.g_group`, main
+    4a37cbc8; rebuild port 11-04): ``raw`` = the per-cue class BEFORE the session-level rules (`cue_classes`: contact /
+    incomplete / jaw_only / no_response / unknown), ``after`` = the cue lies after the session's end anchor exactly as
+    `classify_session` decides it (same coverage rule: no cutoff with an uncovered tail or anchor "none"), ``matched`` =
+    the cue has a video trial. So a stopped / early_run trial of `cue_classes_for` maps through its raw class, and
+    after_end through ``after``. Memoised per process."""
+    import hashlib
+    window = window or gate_window()
+    cs = np.ascontiguousarray(np.asarray(cue_s, float))
+    end = end_anchor()
+    key = (label, window, end, hashlib.sha1(cs.tobytes()).hexdigest())
+    if key not in _CUE_GRP:
+        if len(_CUE_GRP) > 64:
+            _CUE_GRP.clear()
+        T = session_trials(label, window=window)
+        raw = cue_classes(T, cs)
+        matched = (cue_classes(T.assign(cls="matched"), cs) == "matched") if T is not None else np.zeros(len(cs), bool)
+        pos = cue_classes(T.assign(cls=T["position"]) if T is not None else None, cs) if end == "close" else None
+        n = len(raw)
+        m = _effective_coverage(matched)
+        tail_uncovered = bool(m.any()) and int(np.flatnonzero(m)[-1]) < n - 1
+        if end == "none" or tail_uncovered or not m.any():
+            after = np.zeros(n, bool)
+        else:
+            after = ~before_session_end(raw, np.arange(n), position=pos, anchor=end)
+        _CUE_GRP[key] = (raw, after, matched)
+    return _CUE_GRP[key]
+
+
 def daq_cue_seconds(label: str) -> np.ndarray:
     """The session's DAQ cue times (s) -- the train every imaging trial index refers to (`_trial_features`)."""
     from wfield_local import config

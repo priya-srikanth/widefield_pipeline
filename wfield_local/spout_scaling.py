@@ -158,16 +158,30 @@ def _centre_rows_of(XE, me, cm, label=None):
 #: with WIDEFIELD_STATE_DISC_SCALING=state_bal_em.
 STATE_DISC_SCALING_ENV = "WIDEFIELD_STATE_DISC_SCALING"
 SCALING_STATE_BAL_EM = "state_bal_em"
+#: The SPOUT bal_em frame for the state discriminators (main 26fd5b44, Priya 11-03, item B): each session's rows centred
+#: exactly as the frozen SPOUT decoder centres them (EM over the six spouts, label-free; training sessions on their true
+#: spout class means), so the spout-mix shift of the engaged set is removed without centring on the state contrast
+#: itself.
+SCALING_SPOUT_FRAME = "spout_frame"
+#: STAYS session_z after the 11-04 re-check under the jaw-out working definition (main 4a37cbc8; Priya's criterion: pre
+#: checks within the per-animal between-session noise AND no pre reference worse by > .03). One cell missed: PS93's cue
+#: held-out pre engaged reference .869 -> .850 (-.019, between-session SD .016; nothing worse than .03). DECISIONS
+#: 2026-11-04; labcams/decoder_mix_checks/bcdg_1104/summarise_B_log.txt.
+STATE_DISC_DEFAULT = "session_z"
 
 
 def state_disc_scaling():
-    """``"state_bal_em"`` when opted in, else None (the production engaged-trial z-score, default)."""
-    v = os.environ.get(STATE_DISC_SCALING_ENV, "session_z").strip().lower()
+    """``"spout_frame"`` / ``"state_bal_em"`` / None (the production engaged-trial z-score) for the engagement-state
+    discriminators (``WIDEFIELD_STATE_DISC_SCALING``; default `STATE_DISC_DEFAULT`). ``spout_frame`` applies only while
+    the spout decoder itself is on bal_em."""
+    v = os.environ.get(STATE_DISC_SCALING_ENV, STATE_DISC_DEFAULT).strip().lower()
     if v in ("state_bal_em", "bal_em"):
         return SCALING_STATE_BAL_EM
+    if v in ("spout_frame", "spout", "spout_bal_em"):
+        return SCALING_SPOUT_FRAME if spout_scaling() else None
     if v in ("session_z", "z", "none", "off"):
         return None
-    raise ValueError(f"{STATE_DISC_SCALING_ENV}={v!r}: expected state_bal_em or session_z")
+    raise ValueError(f"{STATE_DISC_SCALING_ENV}={v!r}: expected spout_frame, state_bal_em or session_z")
 
 
 def scaling_params():
@@ -340,6 +354,7 @@ class FrozenFrame:
         if classes is None:
             classes = sorted(int(c) for c in np.unique(self.YE[tm]))
         self.classes = list(classes)
+        self._tc = {}
         if self.scaling:
             self.XT = self.XE.copy()
             for i in self.train_sessions:
@@ -347,7 +362,9 @@ class FrozenFrame:
                 rows = m & tm
                 if rows.any():
                     c = label_shift.balanced_centre(self.XE[rows], self.YE[rows], self.classes)
-                    self.XT[m] = (self.XE[m] - c) / label_shift.session_sd(self.XE[m])
+                    sd = label_shift.session_sd(self.XE[m])
+                    self.XT[m] = (self.XE[m] - c) / sd
+                    self._tc[i] = (c, sd)
         else:
             self.XT = self.XE
         def _fit_all():
@@ -409,6 +426,14 @@ class FrozenFrame:
         mu, sd = self.centre(i, which)
         return (np.asarray(X, float) - mu) / sd
 
+    def train_apply(self, X, i):
+        """Rows of TRAINING session ``i`` (any rows: engaged or no-lick) in the training frame (its true-class-mean
+        centre and SD; main 26fd5b44). The input under session_z, or for a session that is not a training session."""
+        if not self.scaling or i not in self._tc:
+            return X
+        c, sd = self._tc[i]
+        return (np.asarray(X, float) - c) / sd
+
     def apply_rows(self, X, G, which="full"):
         """``apply`` for a stack of rows from several sessions (``G`` = their session ids)."""
         if not self.scaling:
@@ -430,7 +455,7 @@ def state_train_frame(XE, GE, XU, GU, sel_e, sel_u, sessions, scaling="env"):
     shift is applied to all of that session's rows. The input arrays themselves unless opted in
     (``WIDEFIELD_STATE_DISC_SCALING=state_bal_em``; default OFF, see `state_disc_scaling`)."""
     sc = state_disc_scaling() if scaling == "env" else scaling
-    if not sc:
+    if sc != SCALING_STATE_BAL_EM:
         return XE, XU
     XE, XU = np.asarray(XE, float), np.asarray(XU, float)
     GE, GU = np.asarray(GE), np.asarray(GU)
@@ -462,7 +487,7 @@ def state_scored(model, pi_train, XE, GE, XU, GU, sel_e, sel_u, sessions, scalin
     frame (centre from that session's ``sel_e`` engaged + ``sel_u`` no-lick rows). The inputs unless opted in
     (``WIDEFIELD_STATE_DISC_SCALING=state_bal_em``; default OFF)."""
     sc = state_disc_scaling() if scaling == "env" else scaling
-    if not sc:
+    if sc != SCALING_STATE_BAL_EM:
         return XE, XU
     XE, XU = np.asarray(XE, float), np.asarray(XU, float)
     GE, GU = np.asarray(GE), np.asarray(GU)
@@ -517,3 +542,149 @@ def scored_frame(XE, GE, XU, GU, sessions, model_of, prior_of, centre_mask=None,
         if mu_.any():
             XUs[mu_] = Zu
     return XEs, XUs
+
+
+# ---------------------------------------------------------------------------- centre-row options (11-04)
+#: WHICH ROWS centre a session in the discriminators' ``spout_frame`` (main 4a37cbc8, Priya 11-04, item B): "working"
+#: (default) = the camera WORKING rows (contact + incomplete, engaged AND no-lick rows), exactly the rows the cue /
+#: precue spout decoders are trained and centred on (`locanmf_frozen_decoder.frozen_scored_frame`); "engaged" = the
+#: pre-11-04 frame of `precue_engagement_states` (its FrozenFrame over the engaged rows; robustness). Section G's
+#: discriminators (`poststroke_compare._spout_train_d` / `frozen_X`) use the stored spout decoder's own frame. Read only
+#: while ``WIDEFIELD_STATE_DISC_SCALING=spout_frame`` (default OFF).
+STATE_DISC_CENTRE_ENV = "WIDEFIELD_STATE_DISC_CENTRE"
+
+
+def state_disc_centre() -> str:
+    v = os.environ.get(STATE_DISC_CENTRE_ENV, "working").strip().lower()
+    if v in ("working", "work", "camera"):
+        return "working"
+    if v in ("engaged", "daq", "old"):
+        return "engaged"
+    raise ValueError(f"{STATE_DISC_CENTRE_ENV}={v!r}: expected working or engaged")
+
+
+#: THE FROZEN SPOUT DECODER'S SCORING CENTRE ROWS (coordinator 11-04; a8's CENTRE_MIXSHIFT_2026-11-04 test pending): for
+#: a WORKING-trained cue / precue model, each scored session's label-free EM centre is fitted on its camera "working"
+#: rows (default: contact + incomplete, engaged AND no-lick; the 11-04 rebuild rule) or on its "contact" rows only
+#: (camera class contact, either arm). The MODELS are the same either way (training frame unchanged); only the scored
+#: frame moves, so the choice is carried in the scored-frame tag (`score_centre_tag`) and in every memo of a scored
+#: frame (`poststroke_compare.frozen_X`, `grant_kit._frozen_frame`), never in a frozen-model spec. A session with
+#: fewer than MIN_CENTRE_ROWS centre rows is refused (BalEmCentreRefused), as for the working centre.
+SCORE_CENTRE_ENV = "WIDEFIELD_SPOUT_SCORE_CENTRE"
+SCORE_CENTRE_ROWS = ("working", "contact")
+
+
+def score_centre_rows() -> str:
+    v = os.environ.get(SCORE_CENTRE_ENV, "working").strip().lower()
+    if v in ("working", "work"):
+        return "working"
+    if v in ("contact", "contact_only"):
+        return "contact"
+    raise ValueError(f"{SCORE_CENTRE_ENV}={v!r}: expected working or contact")
+
+
+def score_centre_tag() -> str:
+    """The scored frame's centre rows, for result sidecars and memo keys: "working_rows" / "contact_rows"."""
+    return score_centre_rows() + "_rows"
+
+
+def score_centre_select(cls_rows):
+    """``bool[len(cls_rows)]``: which of a session's WORKING rows (their camera classes ``cls_rows``) the scored frame's
+    centre uses under `score_centre_rows` -- all of them ("working") or the contact rows ("contact")."""
+    c = np.asarray(cls_rows, dtype=object)
+    if score_centre_rows() == "contact":
+        return c == "contact"
+    return np.ones(len(c), bool)
+
+
+# ------------------------------------------------------------------------- axes / CDs / pattern templates
+#: The PROJECTION frame (main 26fd5b44, Priya 11-03, item C): coding directions, pole projections, the engagement axis,
+#: pairwise position axes, attempt axes and the pattern / template families project rows centred exactly as a spout
+#: decoder centres them, so a session's class mix no longer shifts every projection. ``spout_frame`` uses the label-free
+#: EM centre of an in-memory spout model (pre sessions by their leave-one-out model); ``session_z`` = the production
+#: engaged-trial z-score (DEFAULT: the C check failed on the precue engagement axis, 11-03 and 11-04).
+PROJECTION_FRAME_ENV = "WIDEFIELD_PROJECTION_FRAME"
+PROJECTION_DEFAULT = "session_z"
+
+
+def projection_frame_on() -> bool:
+    v = os.environ.get(PROJECTION_FRAME_ENV, PROJECTION_DEFAULT).strip().lower()
+    if v in ("spout_frame", "spout", "bal_em"):
+        return spout_scaling() is not None
+    if v in ("session_z", "z", "off", "none"):
+        return False
+    raise ValueError(f"{PROJECTION_FRAME_ENV}={v!r}: expected spout_frame or session_z")
+
+
+#: WHICH ROWS centre a session in the projection frame (main 4a37cbc8, Priya 11-04 item C re-check; the coordinator adds
+#: "contact"): "engaged" (the 11-03 build: an engaged-trained spout model; in the rebuild its centre rows follow
+#: `centre_rows` / `centre_mask`, i.e. the camera-working ENGAGED rows under the camera gate), "working" (trained and
+#: centred on the camera WORKING rows, engaged and no-lick, as the cue / precue decoders) or "contact" (the same
+#: working-trained model, each session centred on its CONTACT rows only). Read only while the projection frame is on
+#: (default OFF). The lick window keeps the engaged centre.
+PROJECTION_CENTRE_ENV = "WIDEFIELD_PROJECTION_CENTRE"
+PROJECTION_CENTRES = ("engaged", "working", "contact")
+
+
+def projection_centre() -> str:
+    v = os.environ.get(PROJECTION_CENTRE_ENV, "engaged").strip().lower()
+    if v in ("engaged", "daq", "lick_gate"):
+        return "engaged"
+    if v in ("working", "work", "camera"):
+        return "working"
+    if v in ("contact", "contact_only"):
+        return "contact"
+    raise ValueError(f"{PROJECTION_CENTRE_ENV}={v!r}: expected engaged, working or contact")
+
+
+def projection_tag() -> str:
+    """The projection frame's identity for sidecars and memo keys: "session_z" when off, else "spout_frame/<centre>"."""
+    return ("spout_frame/" + projection_centre()) if projection_frame_on() else "session_z"
+
+
+def projection_arrays(XE, YE, GE, XU, GU, pre_sessions, pipe, work=None, YU=None, cls_e=None, labels=None):
+    """``(XE, XU)`` for projection: every session moved into an in-memory spout decoder's scoring frame (pre sessions
+    under their leave-one-out model, others under the full model). The inputs themselves when the projection frame is
+    off.
+
+    Centre (`projection_centre`): "engaged" = a FrozenFrame over the engaged rows (centre rows by the rebuild's
+    `centre_mask(cls_e)`; ``cls_e`` = camera class per engaged row, required under the camera centre); "working" /
+    "contact" need ``work`` = ``(work_e, work_u, cls_e, cls_u)`` (`working_trials.projection_work`) and ``YU``: the model
+    is trained on the working rows and each session centred on its working (or contact) rows; a session with none stays
+    in the production frame (as `grant_kit._frozen_frame`)."""
+    if not projection_frame_on():
+        return XE, XU
+    GE, GU = np.asarray(GE), np.asarray(GU)
+    lab = dict(enumerate(labels)) if labels is not None and not hasattr(labels, "items") else labels
+    if projection_centre() in ("working", "contact"):
+        if work is None or work[0] is None:
+            raise ValueError(f"{PROJECTION_CENTRE_ENV}={projection_centre()} needs the pool's working-row masks "
+                             "(work=, YU=); this caller has none -- pass them or use the engaged centre")
+        we, wu = np.asarray(work[0], bool), np.asarray(work[1], bool)
+        ce, cu = np.asarray(work[2], dtype=object), np.asarray(work[3], dtype=object)
+        RX = np.vstack([np.asarray(XE, float)[we], np.asarray(XU, float)[wu]])
+        RY = np.concatenate([np.asarray(YE)[we], np.asarray(YU)[wu].astype(np.asarray(YE).dtype)])
+        RG = np.concatenate([GE[we], GU[wu]])
+        RC = np.concatenate([ce[we], cu[wu]])
+        pre = sorted(i for i in pre_sessions if np.any(RG == i))
+        # every R row is a working row; the centre rows within R are all of them (working) or the contact rows
+        ff = FrozenFrame(RX, RY, RG, pre, pipe, loso=True, cls_e=RC, labels=lab)
+        if ff.scaling:
+            ff.cm = (RC == "contact") if projection_centre() == "contact" else np.ones(len(RX), bool)
+        XEp, XUp = np.array(XE, float), np.array(XU, float)
+        for i in np.unique(RG):
+            if i in set(pre_sessions) and i not in ff.loso:
+                continue
+            which = "loso" if i in ff.loso else "full"
+            XEp[GE == i] = ff.apply(np.asarray(XE, float)[GE == i], i, which)
+            if len(GU) and np.any(GU == i):
+                XUp[GU == i] = ff.apply(np.asarray(XU, float)[GU == i], i, which)
+        return XEp, XUp
+    ff = FrozenFrame(XE, YE, GE, sorted(pre_sessions), pipe, loso=True, cls_e=cls_e, labels=lab)
+    XEp, XUp = np.array(XE, float), np.array(XU, float)
+    for i in np.unique(GE):
+        which = "loso" if i in ff.loso else "full"
+        XEp[GE == i] = ff.apply(np.asarray(XE, float)[GE == i], i, which)
+        if len(GU) and np.any(GU == i):
+            XUp[GU == i] = ff.apply(np.asarray(XU, float)[GU == i], i, which)
+    return XEp, XUp

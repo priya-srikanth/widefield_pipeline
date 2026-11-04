@@ -69,6 +69,7 @@ from wfield_local.grant_kit import (  # noqa: F401
     _overlaps,
     _pct3,
     _pooled_bundle,
+    _proj_arrays,
     _position_metrics,
     _pre_reference,
     _runs_to_blocks,
@@ -115,6 +116,7 @@ def fig_pattern_similarity_per_session(out_dir, min_trials=10):
                 # read the same trials by construction, not by two recipes agreeing.
                 bd = _pooled_bundle(an, align)
                 XE, GE, XU, GU = bd["XE"], bd["GE"], bd["XU"], bd["GU"]
+                XE, XU = _proj_arrays(bd)          # the projection frame (main 26fd5b44, item C); identity when off
                 kept, pre_i, e_pre = bd["kept"], bd["pre_i"], bd["e_pre"]
                 not_eng, en, un = bd["not_eng"], bd["en"], bd["un"]
                 # THE REFERENCE IS ALL PRE-STROKE TRIALS; the no-lesion column is LEAVE-ONE-SESSION-
@@ -376,6 +378,7 @@ def fig_pattern_similarity(out_dir, min_trials=10):
                 # not over a pooled trial mask, so trials are selected per session below.
                 bd = _pooled_bundle(an, align)
                 XE, GE, XU, GU = bd["XE"], bd["GE"], bd["XU"], bd["GU"]
+                XE, XU = _proj_arrays(bd)          # the projection frame (main 26fd5b44, item C); identity when off
                 kept, pre_i = bd["kept"], bd["pre_i"]
                 not_eng, en, un = bd["not_eng"], bd["en"], bd["un"]
                 # SPLIT THE PRE-STROKE **SESSIONS**, NOT THE TRIALS (corrected 2026-08-25).

@@ -17,6 +17,7 @@ import argparse
 import glob
 import functools
 import json
+import os
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -373,7 +374,17 @@ def pool_work(XE, YE, GE, XU, YU, GU, kept, features, align):
     ce, cu = tc.pool_row_classes(features, kept, len(YE), len(YU))
     we = tc.in_sel(ce, "working")
     wu = tc.in_sel(cu, "working") if len(cu) else np.zeros(len(YU), bool)
-    return {"XE": XE, "YE": YE, "GE": GE, "XU": XU, "YU": YU, "GU": GU, "work_e": we, "work_u": wu}
+    # the row classes ride along: the scored frame's CONTACT centre option (`spout_scaling.score_centre_rows`) needs them
+    return {"XE": XE, "YE": YE, "GE": GE, "XU": XU, "YU": YU, "GU": GU, "work_e": we, "work_u": wu,
+            "cls_e": ce, "cls_u": cu}
+
+
+def working_row_classes(work):
+    """The camera class of every row of `working_rows` (same order), or None when ``work`` carries no classes."""
+    if work is None or work.get("cls_e") is None:
+        return None
+    ce, cu = np.asarray(work["cls_e"], dtype=object), np.asarray(work["cls_u"], dtype=object)
+    return np.concatenate([ce[work["work_e"]], cu[work["work_u"]] if len(cu) else np.zeros(0, object)])
 
 
 def frozen_decoder_models(XE, YE, GE, kept, pre_i, *, align, source, post_s=2.0, zscore=True,
@@ -497,6 +508,15 @@ def frozen_scored_frame(models, XE, GE, XU, GU, kept, pre_i, cls_e=None, work=No
         if work is None:
             raise ValueError("a working-trained frozen model needs the pool's `work` rows to centre a session")
         RX, _RY, RG = working_rows(work)
+        # THE SCORED FRAME'S CENTRE ROWS (coordinator 11-04, `spout_scaling.score_centre_rows`): every working row
+        # (default) or the CONTACT rows only; the model is the same either way
+        if spout_scaling.score_centre_rows() != "working":
+            RC = working_row_classes(work)
+            if RC is None:
+                raise ValueError(f"{spout_scaling.SCORE_CENTRE_ENV}={spout_scaling.score_centre_rows()} needs the "
+                                 "pool's row classes (pool_work cls_e / cls_u)")
+            keep_c = spout_scaling.score_centre_select(RC)
+            RX, RG = RX[keep_c], RG[keep_c]
         pre_set = set(kept.index(lab) for lab in models.get("pre_labels", []) if lab in kept)
         XEs, XUs = np.array(XE, float), np.array(XU, float)
         GE_, GU_ = np.asarray(GE), np.asarray(GU)
@@ -532,6 +552,46 @@ def frozen_scored_frame(models, XE, GE, XU, GU, kept, pre_i, cls_e=None, work=No
 
     return spout_scaling.scored_frame(XE, GE, XU, GU, range(len(kept)), model_of, prior_of, centre_mask=cm,
                                       session_names=kept)
+
+
+#: SECTION D's SCORED SET (main 4a37cbc8, Priya 11-04, item D). "working" (default): with a working-trained model (cue /
+#: precue, a camera working selection under the camera gate) the frozen decoder is SCORED on the same camera working rows
+#: it was trained and centred on -- contact + incomplete, engaged AND no-lick rows, pre sessions LOSO and post sessions
+#: with the full model. "engaged": every DAQ-engaged row of the scored sessions (the pre-11-04 scored set; robustness,
+#: reproduces it exactly). The lick window and the quit_tail selection have no working rows and always score the engaged
+#: rows. The within-session ceiling and the OOD control are unchanged (engaged rows / no-lick rows).
+SECTION_D_SCORED_ENV = "WIDEFIELD_SECTION_D_SCORED"
+
+
+def section_d_scored() -> str:
+    v = os.environ.get(SECTION_D_SCORED_ENV, "working").strip().lower()
+    if v in ("working", "work", "camera"):
+        return "working"
+    if v in ("engaged", "daq", "old"):
+        return "engaged"
+    raise ValueError(f"{SECTION_D_SCORED_ENV}={v!r}: expected working or engaged")
+
+
+def _scored_rows(work, YE, GE, XEs, XUs, BE_rows):
+    """``(Y, G, X, B, from_nolick)`` = the scored set's rows: the camera WORKING rows of ``work`` (engaged rows first,
+    then no-lick rows, each in pool order) in the frozen models' scoring frame. ``BE_rows`` = the engaged rows' block
+    ids; a no-lick row gets the block of its run of (session, position) among the no-lick rows (negative ids, never
+    colliding with ``BE_rows``; the `grant_kit._runs_to_blocks` rule)."""
+    we, wu = np.asarray(work["work_e"], bool), np.asarray(work["work_u"], bool)
+    GU, YU = np.asarray(work["GU"]), np.asarray(work["YU"])
+    yu = YU[wu].astype(np.asarray(YE).dtype)
+    gu = GU[wu]
+    if len(gu):
+        changed = np.ones(len(gu), bool)
+        changed[1:] = (gu[1:] != gu[:-1]) | (yu[1:] != yu[:-1])
+        bu = -(np.cumsum(changed).astype(np.int64) + 1)
+    else:
+        bu = np.zeros(0, np.int64)
+    Y = np.concatenate([np.asarray(YE)[we], yu])
+    G = np.concatenate([np.asarray(GE)[we], gu])
+    X = np.vstack([np.asarray(XEs)[we], np.asarray(XUs)[wu]])
+    B = np.concatenate([np.asarray(BE_rows, np.int64)[we], bu])
+    return Y, G, X, B, np.concatenate([np.zeros(int(we.sum()), bool), np.ones(int(wu.sum()), bool)])
 
 
 def pooled_frozen_loso(labels, source="roi", align="cue", post_s=2.0, zscore=True, verbose=True,
@@ -614,22 +674,42 @@ def pooled_frozen_loso(labels, source="roi", align="cue", post_s=2.0, zscore=Tru
                                                               align=align, post_s=post_s)),
                                    work=work)
 
-    pred = np.empty_like(YE)
-    for i in pre_i:                      # reference arm: LOSO among PRE-stroke sessions only
-        pred[GE == i] = models["loso"][kept[i]].predict(XEs[GE == i])
-    if post_i:                           # post-stroke arm: ONE model, fit on ALL pre, applied unchanged
-        clf = models["full"]
-        for i in post_i:
-            te = GE == i
-            pred[te] = clf.predict(XEs[te])
-    # The headline is the PRE-STROKE band -- that is what "does a frozen decoder decay across days on
-    # its own" asks. Mixing post-stroke sessions into it answers a different question.
-    m_pre = np.isin(GE, pre_i)
-    loso = float(accuracy_score(YE[m_pre], pred[m_pre]))
+    def _predict(Xs, Gs):
+        p_ = np.empty(len(Gs), dtype=YE.dtype)
+        for i in pre_i:                      # reference arm: LOSO among PRE-stroke sessions only
+            m_ = Gs == i
+            if m_.any():
+                p_[m_] = models["loso"][kept[i]].predict(Xs[m_])
+        for i in post_i:                     # post-stroke arm: ONE model, fit on ALL pre, applied unchanged
+            m_ = Gs == i
+            if m_.any():
+                p_[m_] = models["full"].predict(Xs[m_])
+        return p_
+
+    pred = _predict(XEs, GE)                 # every engaged row (the pre-11-04 scored set)
     # SCORED sessions only (main 48f2cc6d): a pre session dropped from a working training set (no camera classes) has no
     # LOSO model and no band entry
     scored = set(pre_i) | set(post_i)
-    per_sess = {lab: float(accuracy_score(YE[GE == i], pred[GE == i])) for i, lab in enumerate(kept) if i in scored}
+    per_sess_eng = {lab: float(accuracy_score(YE[GE == i], pred[GE == i])) for i, lab in enumerate(kept)
+                    if i in scored}
+    # THE SCORED SET (main 4a37cbc8, Priya 11-04, item D; `section_d_scored`): the camera WORKING rows when the model is
+    # working-trained, else the engaged rows. A session with no working rows (no camera classes) leaves the
+    # working-scored set.
+    BE_rows = np.concatenate([np.asarray(BE[i]) + 1000 * i for i in range(len(kept))]).astype(np.int64)
+    if work is not None and section_d_scored() == "working":
+        Ysc, Gsc, Xsc, Bsc, NLsc = _scored_rows(work, YE, GE, XEs, XUs, BE_rows)
+        psc = _predict(Xsc, Gsc)
+        scored_set = "working"
+        scored = {i for i in scored if np.any(Gsc == i)}
+    else:
+        Ysc, Gsc, Bsc, psc = YE, GE, BE_rows, pred
+        NLsc = np.zeros(len(YE), bool)
+        scored_set = "engaged"
+    # The headline is the PRE-STROKE band -- that is what "does a frozen decoder decay across days on
+    # its own" asks. Mixing post-stroke sessions into it answers a different question.
+    m_pre = np.isin(Gsc, pre_i)
+    loso = float(accuracy_score(Ysc[m_pre], psc[m_pre]))
+    per_sess = {lab: float(accuracy_score(Ysc[Gsc == i], psc[Gsc == i])) for i, lab in enumerate(kept) if i in scored}
     within = {}
     for i, lab in enumerate(kept):
         m = GE == i
@@ -642,9 +722,12 @@ def pooled_frozen_loso(labels, source="roi", align="cue", post_s=2.0, zscore=Tru
     _R = working_rows(work) if work is not None else (XE, YE, GE)
     within_pre = [v for k, v in within.items() if k in set(pre_labels)]
     res = {"labels": kept, "source": source, "align": align, "n_engaged": int(len(YE)),
-           # WHAT WAS SCORED vs WHAT TRAINED THE MODEL (review 7A, main's 11-03 design pending Priya): the scored set is
-           # this section's ENGAGED trials; the frozen model is working-trained for cue / precue under the camera gate
-           "scored_rows": "engaged", "model_trials": models.get("trials") or "engaged",
+           # WHAT WAS SCORED vs WHAT TRAINED THE MODEL (review 7A; Priya 11-04 item D, main 4a37cbc8): the scored set is
+           # the camera WORKING rows of a working-trained model (`section_d_scored`), else the ENGAGED trials
+           "scored_rows": scored_set, "model_trials": models.get("trials") or "engaged",
+           # the scored frame's centre rows (coordinator 11-04, `spout_scaling.score_centre_rows`)
+           "scored_centre": (__import__("wfield_local.spout_scaling", fromlist=["x"]).score_centre_tag()
+                             if models.get("trials") else "engaged_rows"),
            "n_features": int(XE.shape[1]), "n_sessions": len(kept), "n_regions": len(np.unique(common)),
            "loso_accuracy": loso, "per_session": per_sess, "within_session": within,
            # SELF-DOCUMENTING, so a consumer of this JSON can never again have to infer what the
@@ -669,17 +752,22 @@ def pooled_frozen_loso(labels, source="roi", align="cue", post_s=2.0, zscore=Tru
     # SESSIONS, since a held-out DAY is the independent replicate here -- bootstrapping trials would
     # treat ~500 correlated trials from one day as 500 observations.
     try:
-        blk = np.concatenate([BE[i] + 1000 * i for i in range(len(kept))])   # block ids unique per session
-        _ms = np.isin(GE, sorted(scored))
-        res["ci"] = decode_ci.frozen_ci(YE[_ms], pred[_ms], GE[_ms], blk[_ms])
+        _ms = np.isin(Gsc, sorted(scored))                                   # block ids unique per session
+        res["ci"] = decode_ci.frozen_ci(Ysc[_ms], psc[_ms], Gsc[_ms], Bsc[_ms])
     except Exception as ex:                                                  # noqa: BLE001
         print(f"  !! frozen_ci: {type(ex).__name__} {str(ex)[:70]}", flush=True)
         res["ci"] = None
     # per-held-out-DAY confusion, so the deck can show the frozen decoder date by date exactly as it
     # shows the per-session (within-day) decoders. Rows = true position, in DISPLAY_ORDER.
-    res["confusion"] = {lab: confusion_matrix(YE[GE == i], pred[GE == i],
+    res["confusion"] = {lab: confusion_matrix(Ysc[Gsc == i], psc[Gsc == i],
                                               labels=DISPLAY_ORDER).tolist()
                         for i, lab in enumerate(kept) if i in scored}
+    # WHAT WAS SCORED (11-04, item D), and the engaged-row scores kept for robustness when the set is working
+    res["scored_set"] = scored_set
+    res["n_scored"] = {lab: int(np.sum(Gsc == i)) for i, lab in enumerate(kept) if i in scored}
+    res["n_scored_from_nolick"] = {lab: int(np.sum(NLsc[Gsc == i])) for i, lab in enumerate(kept) if i in scored}
+    if scored_set == "working":
+        res["per_session_engaged_scored"] = per_sess_eng
     res["ood"] = ood_control(XE, YE, GE, XU, YU, GU=GU, pre_i=pre_i, models=models, labels=kept,
                              XE_scored=XEs, XU_scored=XUs)
     res["spout_scaling"] = models.get("scaling", "session_z") if models else "session_z"
@@ -690,7 +778,8 @@ def pooled_frozen_loso(labels, source="roi", align="cue", post_s=2.0, zscore=Tru
               f"transfer cost {res['transfer_cost']:+.3f}   (chance {1/6:.3f})")
         for lab in kept:
             w = within.get(lab, float("nan"))
-            print(f"    {lab:12s} LOSO {per_sess[lab]:.3f}   within {w:.3f}   {per_sess[lab]-w:+.3f}")
+            a_ = per_sess.get(lab, float("nan"))          # an unscored session (no camera classes) prints nan
+            print(f"    {lab:12s} LOSO {a_:.3f}   within {w:.3f}   {a_-w:+.3f}   [{scored_set}]")
         o = res["ood"]
         print(f"  OOD control: engaged H={o['engaged_H']:.3f}  no-lick H={o['nolick_H']:.3f}  "
               f"shuffled H={o['shuffle_H']:.3f}  (1.0 = uniform)")

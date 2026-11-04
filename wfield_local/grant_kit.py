@@ -839,12 +839,31 @@ def _working_masks(bd):
     return we, wu
 
 
+def _proj_arrays(bd):
+    """``(XE, XU)`` for the pattern / template families (main 26fd5b44 / 4a37cbc8, Priya 11-03 item C, 11-04 re-check):
+    the bundle's rows in a spout decoder's scoring frame when the projection frame is on
+    (`spout_scaling.projection_frame_on`), else the production rows. The centre rows (`spout_scaling.projection_centre`):
+    "engaged" = the engaged-trained frame (`_frozen_frame(bd)`, its centre rows by the rebuild's `centre_mask`),
+    "working" / "contact" = the working-trained frame centred on the working / contact rows."""
+    from wfield_local import spout_scaling
+    if not spout_scaling.projection_frame_on():
+        return bd["XE"], bd["XU"]
+    pc_ = spout_scaling.projection_centre()
+    if pc_ == "engaged" or bd.get("align") == "lick":
+        fr = _frozen_frame(bd, sel="engaged")
+    else:
+        if _working_masks(bd) is None:
+            raise ValueError(f"{spout_scaling.PROJECTION_CENTRE_ENV}={pc_}: this bundle has no camera working rows")
+        fr = _frozen_frame(bd, sel="working", centre=pc_)
+    return fr["XEs"], fr["XUs"]
+
+
 def _uses_working(bd, sel):
     """True when ``sel`` is "working" and the bundle has camera working rows (cue / precue, camera selection)."""
     return sel == "working" and _working_masks(bd) is not None
 
 
-def _frozen_frame(bd, an=None, align=None, store=True, sel="engaged"):
+def _frozen_frame(bd, an=None, align=None, store=True, sel="engaged", centre=None):
     """The pre-stroke SPOUT-POSITION decoder for one bundle, and the frames it is trained and scored in.
 
     ``{"scaling", "sel", "XT", "full", "loso": {pre index: model}, "pi_full", "pi_loso", "XEs", "XUs", "R", "RT",
@@ -857,7 +876,8 @@ def _frozen_frame(bd, an=None, align=None, store=True, sel="engaged"):
     session's label-free EM centre and the pre panel). "working" falls back to "engaged" for the lick window and the
     DAQ gate. ``R`` = (RX, RY, RG), the training / centre rows; ``RT`` = R in the training frame; ``train_sessions`` =
     the pre sessions with R rows (PS93_0813, no video, has none under "working", so it is neither trained on nor
-    scored).
+    scored). ``centre`` (working frame only) = the SCORED frame's centre rows, "working" or "contact"; None = the run's
+    `spout_scaling.score_centre_rows` (coordinator 11-04). The models do not depend on it; the memo key does.
 
     ``scaling`` is `spout_scaling.spout_scaling()`: ``session_bal_em`` in production since 2026-11-03 (Priya, "I would
     adopt B everywhere"; DECISIONS 2026-11-03). Then ``XT`` = the bundle's engaged rows with each pre session
@@ -881,8 +901,9 @@ def _frozen_frame(bd, an=None, align=None, store=True, sel="engaged"):
     use_w = work is not None
     from wfield_local import trial_classes as _tcs
     selkey = _tcs.run_selection() if use_w else "engaged"
+    centre = (centre or spout_scaling.score_centre_rows()) if use_w else "engaged"
     key = (f"_frozen_{sc}_{spout_scaling.centre_rows() if sc else 'z'}_{'store' if use else 'mem'}_{an}_{align}"
-           f"_{selkey}")
+           f"_{selkey}" + ("" if centre in ("working", "engaged") else f"_c{centre}"))
     if key in bd:
         return bd[key]
     XE, YE, GE, XU, GU = bd["XE"], bd["YE"], bd["GE"], bd["XU"], bd["GU"]
@@ -926,6 +947,12 @@ def _frozen_frame(bd, an=None, align=None, store=True, sel="engaged"):
         # scored either
         XEs, XUs = np.array(XE, float), np.array(XU, float)
         GEa, GUa = np.asarray(GE), np.asarray(GU)
+        # the centre rows within R (coordinator 11-04): every working row, or the CONTACT rows only
+        _cls = bd.get("cls")
+        RCm = np.ones(len(RG), bool)
+        if centre == "contact":
+            RCm = np.concatenate([np.asarray(_cls[0], dtype=object)[work[0]],
+                                  np.asarray(_cls[1], dtype=object)[work[1]]]) == "contact"
         for i in range(len(bd["kept"])):
             if i in bd["pre_i"] and i not in loso:
                 if not np.any(RG == i):
@@ -933,7 +960,7 @@ def _frozen_frame(bd, an=None, align=None, store=True, sel="engaged"):
                 continue
             mdl = loso.get(i) if i in bd["pre_i"] else full
             pi = pi_loso.get(i) if i in bd["pre_i"] else pi_full
-            got = spout_scaling.working_centre(mdl, RX[RG == i], pi, bd["kept"][i])
+            got = spout_scaling.working_centre(mdl, RX[(RG == i) & RCm], pi, bd["kept"][i])
             if got is None:
                 if i in bd["pre_i"] or not spout_scaling.is_post_session(bd["kept"][i]):   # by phase (review 8A B1)
                     spout_scaling.note_working_excluded(bd["kept"][i], "_frozen_frame")
@@ -955,7 +982,7 @@ def _frozen_frame(bd, an=None, align=None, store=True, sel="engaged"):
         XEs, XUs = XE, XU
     fr = {"scaling": sc or spout_scaling.SCALING_SESSION_Z, "sel": "working" if use_w else "engaged",
           "XT": XT, "full": full, "loso": loso, "pi_full": pi_full, "pi_loso": pi_loso, "XEs": XEs, "XUs": XUs,
-          "R": (RX, RY, RG), "RT": RT, "train_sessions": pre_i, "work": work}
+          "R": (RX, RY, RG), "RT": RT, "train_sessions": pre_i, "work": work, "centre": centre}
     bd[key] = fr
     return fr
 def _bundle_centre_mask(bd):
@@ -1094,7 +1121,8 @@ def _session_trials(bd, i, q, variant, field="X"):
         parts = [bd["BE"][me]] + ([bd["BU"][mu]] if mu.any() else [])
         keep = [z for z in parts if len(z)]
         return np.concatenate(keep) if keep else np.zeros(0, np.int64)
-    parts = [bd["XE"][me]] + ([bd["XU"][mu]] if mu.any() else [])
+    _XE, _XU = _proj_arrays(bd)          # the projection frame (item C); production rows when off
+    parts = [_XE[me]] + ([_XU[mu]] if mu.any() else [])
     keep = [z for z in parts if len(z)]
     return np.vstack(keep) if keep else np.zeros((0, bd["XE"].shape[1]))
 #: Figures 7, 7b, 8 and 8b all need the SAME per-animal trial collection, and loading it means
