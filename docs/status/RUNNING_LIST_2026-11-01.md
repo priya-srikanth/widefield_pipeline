@@ -777,6 +777,9 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   epoch coming.
 - Old-tag epoch render stopped externally at 07:57 (Priya); it wrote 0 figures; the old-rule frozen models it stored
   (PS92-94) are listed SUPERSEDED in RENDER_LOG, not deleted. Redo under stopRun6j started from wf_rebuild_render at c3cb3c0c.
+- PRIYA: (3) rest start stays at the first camera lick (rest = docked lick-free stretches inside it) -- settled.
+  (4) asked whether the FR validation's fixed window (cue -2..+4 s) should run "until trial stop"; I recommended keeping it
+  (it keeps pre-cue licks and a fixed length matched to the FR window); middle option -2 s -> trial stop offered. Waiting.
 - Slide 94 caveat added by a8 (backup_before_ramp_caveat_1104.pptx; hidden states unchanged).
 - The 05:46 incident coverage copies differ from the rebuild ones only by the 12 June sessions (Aug-only pre); the partial-
   coverage rows are identical.
