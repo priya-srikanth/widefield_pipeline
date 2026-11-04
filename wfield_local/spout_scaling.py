@@ -207,6 +207,14 @@ def spec_kw(scaling="env", trials=None):
 WORKING_EXCLUDED: set = set()
 
 
+def is_post_session(label) -> bool:
+    """True for a POST-stroke session by its PHASE (`config.session_phase`), never by membership of a caller's (possibly
+    narrowed) pre list (review 8A B1): a pre session with 0 working rows is excluded and logged; only a POST one raises."""
+    from wfield_local import config
+    lab = str(label)
+    return config.session_phase(config.animal_of(lab), lab.split("_")[-1]) == "post"
+
+
 def note_working_excluded(label, where=""):
     """Record (and log once) a session excluded from the working selection: no camera working rows."""
     lab = str(label)

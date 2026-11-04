@@ -308,9 +308,10 @@ def fig_confusion_pre_post_working(out_dir):
     # CAMERA WORKING (Priya 11-03 late, review 7A B1): under the camera gate with a camera selection the panels are the
     # working-trained frozen decoder's pre panel (held-out pre WORKING trials) and the post-stroke working trials
     _cam5 = _tc5.camera_gate_on() and _wt5.is_camera(_tc5.working_selection())
-    PANELS = ((("pre", "PRE-stroke\nWORKING trials (c+i)"),
+    _wc = ("c+i+jaw" if _cam5 and _tc5.working_selection() == _wt5.IN_WORKING_JAW else "c+i")   # review 8A NB-b
+    PANELS = (((("pre", f"PRE-stroke\nWORKING trials ({_wc})"),
                ("post_all", "POST-stroke\nALL trials"),
-               ("post_working", "POST-stroke\nWORKING trials (c+i)")) if _cam5 else
+               ("post_working", f"POST-stroke\nWORKING trials ({_wc})"))) if _cam5 else
               (("pre", "PRE-stroke\nLICK trials"),
                ("post_all", "POST-stroke\nALL trials"),
                ("post_working", "POST-stroke\nquit period REMOVED")))
@@ -732,7 +733,9 @@ def _stored_epoch_decoder(an, align, bd, tag="5c", XT=None, scaling=None, R=None
         spec, _fit, meta={"n_engaged_pre": int(e_pre.sum()), "n_pre_sessions": len(pre_i)})
     # review 7A NB3: name the lick source AND the trial selection the model was trained on
     from wfield_local import lp_licks as _lpl
-    _sel = trials or "engaged (DAQ lick-arm)"
+    # review 8A NB-f: an engaged-trained model is the lick-arm (engaged) rows of THIS run's gate
+    from wfield_local import trial_classes as _tcl
+    _sel = trials or f"engaged rows ({'camera gate' if _tcl.camera_gate_on() else 'DAQ gate'}: DAQ lick-arm trials)"
     print(f"  [{tag}] {an} {align}: epoch_decoder {frozen_models._slug(spec)} {status} "
           f"(trained on pre trials: lick source {'lp' if _lpl.is_lp() else 'daq'}, selection {_sel})", flush=True)
     return payload

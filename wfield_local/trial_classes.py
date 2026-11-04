@@ -280,9 +280,42 @@ SEL_GATES = ("working", "miss_working")
 
 #: WHICH ROWS EACH FAMILY SCORES under the camera working selection (main 11-03 design, pending Priya; review 7A):
 #: stamped on every figure of a camera-gated run (`lp_licks.stamp`) and written into section D / G result sidecars
-DESIGN_NOTE = ("frozen decoders trained + centred on camera WORKING rows (contact + incomplete); scored sets: 5b / 5c = "
-               "working rows on both sides; section D (pooled frozen) / G = engaged / all trials (main's 11-03 design); "
-               "pattern families: post = working, pre reference = LICK trials")
+def sel_class_text() -> str:
+    """The run's working classes in words: "contact + incomplete" (in_working) or "contact + incomplete + jaw_only"
+    (in_working_jaw) -- for titles / captions (review 8A NB-b / NB-c)."""
+    from wfield_local import working_trials as _wt
+    return " + ".join(c for c in ("contact", "incomplete", "jaw_only") if c in _wt.working_classes(
+        working_selection() if _wt.is_camera(working_selection()) else _wt.IN_WORKING))
+
+
+def design_note() -> str:
+    """WHICH ROWS EACH FAMILY SCORES under the camera working selection (main 11-03 design, pending Priya; review 7A),
+    for the run's selection (review 8A NB-c): stamped on every camera-gated figure (`lp_licks.stamp`) and written into
+    the section G design sidecar."""
+    return (f"frozen decoders trained + centred on camera WORKING rows ({sel_class_text()}); scored sets: 5b / 5c = "
+            "working rows on both sides; section D (pooled frozen) / G = engaged / all trials (main's 11-03 design); "
+            "pattern families: post = working, pre reference = LICK trials")
+
+
+def working_excluded_sessions(labels=None) -> list[str]:
+    """Sessions with NO camera classes (no behaviour video: PS93_0813), computed from the session classes themselves
+    (review 8A: not the process state of what a frame happened to build) -- the sessions every working selection
+    leaves out. ``labels`` default = the run's pooled sessions (`config.pooled_labels`, PRE_FROM honoured)."""
+    from wfield_local import config
+    labs = tuple(sorted(labels if labels is not None else config.pooled_labels()))
+    return list(_no_class_sessions(labs))
+
+
+@functools.lru_cache(maxsize=8)
+def _no_class_sessions(labs: tuple) -> tuple:
+    out = []
+    for lab in labs:
+        try:
+            if session_trials(lab) is None:
+                out.append(lab)
+        except Exception:                                                # noqa: BLE001 - unreadable = no classes here
+            out.append(lab)
+    return tuple(out)
 
 
 def working_selection() -> str:

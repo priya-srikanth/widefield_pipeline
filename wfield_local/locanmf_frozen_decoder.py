@@ -500,7 +500,6 @@ def frozen_scored_frame(models, XE, GE, XU, GU, kept, pre_i, cls_e=None, work=No
         pre_set = set(kept.index(lab) for lab in models.get("pre_labels", []) if lab in kept)
         XEs, XUs = np.array(XE, float), np.array(XU, float)
         GE_, GU_ = np.asarray(GE), np.asarray(GU)
-        pre_all = set(pre_i)
         for i in range(len(kept)):
             lab = kept[i]
             mdl = models["loso"].get(lab, models["full"]) if i in pre_set else models["full"]
@@ -508,7 +507,9 @@ def frozen_scored_frame(models, XE, GE, XU, GU, kept, pre_i, cls_e=None, work=No
             pi = pt["loso"].get(lab, pt["full"]) if i in pre_set else pt["full"]
             got = spout_scaling.working_centre(mdl, RX[RG == i], pi, lab)
             if got is None:
-                if i in pre_all or i in pre_set or lab in models.get("pre_labels", []):
+                # PRE vs POST by the session's PHASE (review 8A B1), not by the caller's pre list (pooled_frozen_loso
+                # narrows it to the sessions with a LOSO model, which drops a no-video pre session such as PS93_0813)
+                if not spout_scaling.is_post_session(lab):
                     spout_scaling.note_working_excluded(lab, "frozen_scored_frame")
                     continue
                 # review 7A NB4: a POST session with no working rows is never scored uncentred
@@ -601,12 +602,13 @@ def pooled_frozen_loso(labels, source="roi", align="cue", post_s=2.0, zscore=Tru
     # is not in a working training set, so it leaves the pre band too.
     work = pool_work(XE, YE, GE, XU, YU, GU, kept, features, align)
     models, freeze_status = frozen_decoder_models(XE, YE, GE, kept, pre_i, work=work, **_spec_kw)
+    pre_all = list(pre_i)                 # every pre session of the pool (the scoring frame's pre / post split)
     if work is not None:
         pre_i = [i for i in pre_i if kept[i] in models["loso"]]
     _spec_kw["trials"] = models.get("trials")
     # THE FRAME THE FROZEN MODELS SCORE IN (bal_em since 2026-11-03; identity under session_z). The within-session
     # ceiling below stays on the production frame: it is refitted per session and never meets the frozen model.
-    XEs, XUs = frozen_scored_frame(models, XE, GE, XU, GU, kept, pre_i,
+    XEs, XUs = frozen_scored_frame(models, XE, GE, XU, GU, kept, pre_all,
                                    cls_e=(None if work is not None else
                                           engaged_row_classes(kept, len(YE), features=features, source=source,
                                                               align=align, post_s=post_s)),

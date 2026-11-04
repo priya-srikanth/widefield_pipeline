@@ -215,10 +215,13 @@ def stamp(fig) -> None:
         if spout_scaling.spout_scaling() and spout_scaling.FALLBACK_USED:          # D-B3: the fallbacks actually used
             txt += ("\nbal_em centre: camera-working rows; contact-row fallback for "
                     + ", ".join(sorted(spout_scaling.FALLBACK_USED)))
-        txt += "\n" + _tc.DESIGN_NOTE                                         # review 7A (main's 11-03 design)
-        if spout_scaling.WORKING_EXCLUDED:                                        # review 7A NB3
-            txt += ("\nworking selection excludes (no camera working rows): "
-                    + ", ".join(sorted(spout_scaling.WORKING_EXCLUDED)))
+        txt += "\n" + _tc.design_note()                                       # review 7A (main's 11-03 design)
+        try:                                                                      # review 7A NB3 / 8A: from the classes
+            _ex = _tc.working_excluded_sessions()
+        except Exception as ex:                                                   # noqa: BLE001 - say why, never die
+            _ex = [f"unavailable ({type(ex).__name__})"]
+        if _ex:
+            txt += "\nworking selection excludes (no camera working rows): " + ", ".join(_ex)
     fig.text(0.995, 0.002, txt, ha="right", va="bottom", fontsize=6, color="#8a2be2")
 
 

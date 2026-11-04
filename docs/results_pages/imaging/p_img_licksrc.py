@@ -6,6 +6,7 @@ Two lick sources exist (wfield_local/lp_licks.py):
        grant_figures/epoch/, DAQ_ENL1s/, map_drift_prepre/contact|DAQ_ENL1s/ and the default (untagged) output folders.
   LP   Lightning Pose video licks: cam4 lick onsets + cam1-only events where cam1 exists (sessions without cam1 use cam4
        alone); trial classes from trial_attempts.csv. Renders under grant_figures/LP_licks/ and map_drift_prepre/LP_licks/
+       (pre-rebuild folders; the cohort-1 rebuild writes each under its block's run tag, e.g. map_drift_prepre/LP_licks_<tag>/)
        (writeguard refuses an LP run's write anywhere else), plus attempt_coding / attempt_maps (they refuse to run
        without the LP source) and the combined-encoding runs ("licks-combined").
 Licks enter even when a window is not lick-aligned: working / engaged trials, the lick-free pre-cue window, hit / miss

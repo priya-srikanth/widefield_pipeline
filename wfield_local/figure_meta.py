@@ -91,7 +91,8 @@ def write_meta(q, **fields):
         from wfield_local import trial_classes as _tc
         if _tc.camera_gate_on():
             # review 7A NB3: the sessions a working selection left out (no camera working rows), as used in-process
-            rows.append(["working", "working_excluded_sessions", ";".join(sorted(spout_scaling.WORKING_EXCLUDED))])
+            # computed from the session classes (review 8A), not the frames built so far in this process
+            rows.append(["working", "working_excluded_sessions", ";".join(_tc.working_excluded_sessions())])
     except SystemExit:
         raise
     except Exception:                                                   # noqa: BLE001 - a sidecar never costs a figure

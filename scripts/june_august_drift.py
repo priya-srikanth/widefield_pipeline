@@ -369,7 +369,7 @@ def main(argv=None) -> int:
     a = ap.parse_args(argv)
     from wfield_local import config as _cfg
     _cfg.require_full_pre("june_august_drift (drift decoder)")   # June pre is its reference (rebuild 11-03)
-    lab = Path(PathResolver().root("labcams"))
+    lab = Path(PathResolver().root("cohort_out"))        # review 8B B1: the DERIVED root (labcams is the input tree)
     out = a.out or _rm_guard.june_august_drift_dir(lab)
     assert_writable(out)
     out.mkdir(parents=True, exist_ok=True)

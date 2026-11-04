@@ -23391,8 +23391,10 @@ Priya 11-03 late: August-only pre everywhere in the rebuild, except june_august_
 - attempt_coding's pre reference is `pre_hit` (the LP attempt classes): an attempt-class analysis by design, left as
   it is; its frozen decoder is working-trained as main's.
 - A session without camera working rows (PS93_0813, no video) is excluded from every working selection: a log line
-  names it and figure sidecars carry `working,working_excluded_sessions`. A POST session with no working rows raises
-  rather than being scored uncentred.
+  names it; the figure corner stamp and the epoch-figure sidecars (`figure_meta`: `working,working_excluded_sessions`)
+  name it, computed from the session classes (`trial_classes.working_excluded_sessions`), and section G's design
+  sidecar lists it. A POST session (by its phase) with no working rows raises rather than being scored uncentred; a
+  PRE session with none is excluded and logged (review 8A).
 - `wfield_local/working_trials.py` stays byte-identical to main; its note that June sessions have no camera classes
   describes main's s1 snapshot. In the rebuild the classes are computed live (`trial_classes.cue_classes_for`); the
   June pre sessions have no camera classes either (no June video for these classes), and they are outside the

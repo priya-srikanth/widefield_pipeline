@@ -935,7 +935,7 @@ def _frozen_frame(bd, an=None, align=None, store=True, sel="engaged"):
             pi = pi_loso.get(i) if i in bd["pre_i"] else pi_full
             got = spout_scaling.working_centre(mdl, RX[RG == i], pi, bd["kept"][i])
             if got is None:
-                if i in bd["pre_i"]:
+                if i in bd["pre_i"] or not spout_scaling.is_post_session(bd["kept"][i]):   # by phase (review 8A B1)
                     spout_scaling.note_working_excluded(bd["kept"][i], "_frozen_frame")
                     continue
                 raise spout_scaling.BalEmCentreRefused(            # review 7A NB4: never scored uncentred

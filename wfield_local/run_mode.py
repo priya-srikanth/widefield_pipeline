@@ -300,17 +300,25 @@ def primary_output_dir(default):
     from wfield_local import lp_licks
     if not lp_licks.output_tag():
         return Path(default)
-    with with_env(WIDEFIELD_PRE_FROM=PRIMARY_PRE_FROM):
+    # review 8B N5: the PRIMARY run is the DAQ arm (no LP lick source / ENL window / LP gate); clear those too, so a
+    # caller inside an LP / ENL block still gets the primary path
+    with with_env(WIDEFIELD_PRE_FROM=PRIMARY_PRE_FROM, **{lp_licks.LICK_SOURCE_ENV: None,
+                                                           lp_licks.ENL_WINDOW_ENV: None,
+                                                           "WIDEFIELD_GATE_SOURCE": None}):
         return Path(lp_licks.output_dir(Path(default)))
 
 
 def june_august_drift_dir(labcams):
-    """The june_august_drift output folder (Fig 4.3): ``<labcams>/chronic_stability/june_august_drift`` in the default
+    """``labcams`` = the DERIVED cohort_out root (review 8B B1: never the "labcams" INPUT root).
+    The june_august_drift output folder (Fig 4.3): ``<labcams>/chronic_stability/june_august_drift`` in the default
     run; in a tagged run ``<labcams>/chronic_stability/<the block's own tag: PRE_FROM unset>/june_august_drift`` -- the
     one definition the script writes and the deck reads (review 7B B1)."""
     from wfield_local import lp_licks
     d = Path(labcams) / "chronic_stability" / "june_august_drift"
-    with with_env(WIDEFIELD_PRE_FROM=None):
+    # the block's own env: PRE_FROM unset, and the DAQ arm (review 8B N1: a deck built under an LP / ENL block must
+    # still find it)
+    with with_env(WIDEFIELD_PRE_FROM=None, **{lp_licks.LICK_SOURCE_ENV: None, lp_licks.ENL_WINDOW_ENV: None,
+                                              "WIDEFIELD_GATE_SOURCE": None}):
         return Path(lp_licks.output_dir(d)) if lp_licks.output_tag() else d
 
 

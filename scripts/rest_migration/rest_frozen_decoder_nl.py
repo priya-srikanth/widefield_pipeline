@@ -17,7 +17,9 @@ WHAT CHANGES, AND ONLY THIS
   LICK GAP   the lick-gap matching measures the gap to the nearest lick of DAQ contact UNION cam4 LP (the licks the
              mask removed), not DAQ contact alone.
   PRE        `--pre aug` (PRIMARY): pre-stroke = August sessions only (>= 0801, the cohort rule since 10-18); `--pre
-             all` reproduces the page's pre set (June + August), used to validate this driver against the page CSV.
+             all` reproduces the PRE-REBUILD page's pre set (June + August), used to validate this driver against
+             that page CSV. In the cohort-1 rebuild page 12.1 is August-only (the primary tag); `--compare` reads it
+             there (`page_sessions`), while this block itself runs with PRE_FROM unset (review 8B N6).
   FROZEN     every pre-stroke model (full + one leave-one-session-out model per pre session) goes through
              `frozen_models.load_or_fit` (CLAUDE.md rule 10; kind `rest_frozen`, align carries mask / bins / matching),
              never refit in memory per render. The page's 12.1 did refit in memory; the fitted models are identical

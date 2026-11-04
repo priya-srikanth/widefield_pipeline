@@ -477,8 +477,8 @@ def _tagged_k(root, rel, grant_root):
     from wfield_local import lp_licks, run_mode
     m = re.match(r"grant_figures/(LP_licks|DAQ_ENL1s)/epoch/(.+)$", rel)
     if root in ("labcams", "cohort_out") and m:
-        env = ({lp_licks.LICK_SOURCE_ENV: "lp"} if m.group(1) == "LP_licks"
-               else {lp_licks.ENL_WINDOW_ENV: str(lp_licks.LP_ENL_WINDOW_S)})
+        env = ({lp_licks.LICK_SOURCE_ENV: "lp"} if m.group(1) == "LP_licks"         # review 8B N2: the DAQ ENL arm
+               else {lp_licks.ENL_WINDOW_ENV: str(lp_licks.LP_ENL_WINDOW_S), lp_licks.LICK_SOURCE_ENV: None})
         with run_mode.with_env(**env):
             return Path(lp_licks.output_dir(Path(grant_root) / "epoch")) / m.group(2)
     m = re.match(r".*/imaging_encoding/attempt_maps/figures/(.+)$", rel)
@@ -2016,6 +2016,10 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
     # A DIFFERENT ROOT: these are NOT in `src` (figures_working) but under `labcams`, because they
     # are a deliverable rather than an analysis intermediate.
     _grant = grant_dir
+    if _strict and not _grant.exists():
+        # review 8B N3: a tagged build whose tagged grant dir was never rendered counts EVERY registered figure MISSING
+        for _pat, _t, _b in GRANT_FIGURES:
+            _exists(_grant / _pat)
     if _grant.exists():
         divider("H. GRANT FIGURES — the summary set",
                 "Built by `python -m wfield_local.grant_figures` into <labcams>/grant_figures. "
@@ -2092,6 +2096,9 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
     # magnitudes; the companion carries the effect SIZE and what the multiple-comparison correction
     # costs. A mark says only "not zero", which is the half of the result that travels worst.
     _epoch = _grant / "epoch"
+    if _strict and not _epoch.exists():
+        for _pat, _t, _b in EPOCH_FIGURES:                       # review 8B N3: as section H
+            _exists(_epoch / _pat)
     if _epoch.exists():
         # THE BOUNDARIES ARE NAMED ON THE DIVIDER because `chronic_from` is DERIVED each run
         # (2026-09-07). A deck that shows epoch-stratified panels without saying which epochs it
