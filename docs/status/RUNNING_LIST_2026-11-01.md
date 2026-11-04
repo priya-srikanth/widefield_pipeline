@@ -1132,3 +1132,16 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   - A census is running: STOPPED_LICKS_CENSUS_20261104.md.
   - Likely rule: any camera lick or DAQ contact in the run's time span breaks the run. To be implemented on
     rebuild/cue70 once the counts are in.
+- **11-04 ~15:00: FINDING (STOPPED_LICKS_CENSUS_20261104.md). DECISION NEEDED (Priya).**
+  - Stopped trials never contain a cue response: 0 licks at cue + 70 ms .. max_rt, verified per trial.
+  - Stopped TIME does contain licks, almost all pre-cue (median -2.8 s, often bouts) or in the ITI:
+    - 88 of 200 A2 mid-session runs;
+    - 19 of 59 quit tails;
+    - 273 of 5,611 stopped trials touched (4.9 %).
+  - The pending max_rt / 70 ms rule has almost no effect: 15 trials, 2 become stopped, hit rates move <= .004.
+  - Options:
+    - break runs at each lick and re-form: 5,339 stopped; acute pooled hit .667 -> .656;
+    - STRICT (the touched trial also leaves the run): 5,255 stopped, 0 licks left in stopped time; acute hit .652.
+      Cost lands on the acute close spouts (close contra .911 -> .881);
+    - or EXCISE the touched trials into neither class: hit rates unchanged.
+  - The quit tail could start after the last lick EVENT, not the last lick trial: 19 sessions, tail 1,313 -> 1,044.
