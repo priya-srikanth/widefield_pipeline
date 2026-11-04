@@ -336,9 +336,28 @@ def figure(D: pd.DataFrame, R: pd.DataFrame, out_png: Path) -> None:
     fig.savefig(out_png, dpi=130)
 
 
+def primary_chronic_csv(lab: Path) -> Path:
+    """The stroke twin's input: the PRIMARY run's (August-only pre, `run_mode.PRIMARY_PRE_FROM`) matched recovery
+    trajectory, ``grant_figures/<primary tag>/epoch/data/recovery_trajectory_matched_cue_working.csv`` (untagged in the
+    default run). REFUSES if it is missing (review 7B B1: never a silent untagged / stale read)."""
+    from wfield_local import run_mode
+    f = run_mode.primary_output_dir(Path(lab) / "grant_figures" / "epoch") / "data" / \
+        "recovery_trajectory_matched_cue_working.csv"
+    if not f.exists():
+        raise FileNotFoundError(f"june_august_drift: the primary run's {f} is missing -- render the primary epoch "
+                                "families (recovery_trajectory) first")
+    return f
+
+
 def main(argv=None) -> int:
     from wfield_local import run_mode as _rm_guard
-    _rm_guard.require_default("june_august_drift")   # unrouted share writer: refuses in a non-default run mode
+    # review 7B B1: a TAGGED run is allowed only as the profile's june_august_drift block (PRE_FROM unset: its own
+    # June + August pre set), writing under its own tag (`run_mode.june_august_drift_dir`); the default run is unchanged
+    from wfield_local import config as _cfg0
+    from wfield_local import lp_licks as _lpl0
+    if _lpl0.output_tag() and _cfg0.pre_from():
+        raise RuntimeError("june_august_drift: a tagged run must be the render profile's june_august_drift block "
+                           "(WIDEFIELD_PRE_FROM unset: --block june_august_drift)")
     from wfield_local.paths import PathResolver
     from wfield_local.writeguard import assert_writable
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -351,7 +370,7 @@ def main(argv=None) -> int:
     from wfield_local import config as _cfg
     _cfg.require_full_pre("june_august_drift (drift decoder)")   # June pre is its reference (rebuild 11-03)
     lab = Path(PathResolver().root("labcams"))
-    out = a.out or lab / "chronic_stability" / "june_august_drift"
+    out = a.out or _rm_guard.june_august_drift_dir(lab)
     assert_writable(out)
     out.mkdir(parents=True, exist_ok=True)
     D = pd.read_csv(out / "distance_rows.csv") if a.reuse_distance else distance_rows(a.n_split)
@@ -361,7 +380,7 @@ def main(argv=None) -> int:
     else:
         R = pd.DataFrame(columns=["animal", "group"]) if a.skip_decoder else decoder_rows()
     R.to_csv(out / "decoder_rows.csv", index=False)
-    S = summarise(D, R, lab / "grant_figures" / "epoch" / "data" / "recovery_trajectory_matched_cue_working.csv")
+    S = summarise(D, R, primary_chronic_csv(lab))
     S.to_csv(out / "summary_by_animal.csv", index=False)
     pd.set_option("display.width", 240)
     print(S.round(3).T.to_string())

@@ -500,6 +500,7 @@ def frozen_scored_frame(models, XE, GE, XU, GU, kept, pre_i, cls_e=None, work=No
         pre_set = set(kept.index(lab) for lab in models.get("pre_labels", []) if lab in kept)
         XEs, XUs = np.array(XE, float), np.array(XU, float)
         GE_, GU_ = np.asarray(GE), np.asarray(GU)
+        pre_all = set(pre_i)
         for i in range(len(kept)):
             lab = kept[i]
             mdl = models["loso"].get(lab, models["full"]) if i in pre_set else models["full"]
@@ -507,7 +508,12 @@ def frozen_scored_frame(models, XE, GE, XU, GU, kept, pre_i, cls_e=None, work=No
             pi = pt["loso"].get(lab, pt["full"]) if i in pre_set else pt["full"]
             got = spout_scaling.working_centre(mdl, RX[RG == i], pi, lab)
             if got is None:
-                continue
+                if i in pre_all or i in pre_set or lab in models.get("pre_labels", []):
+                    spout_scaling.note_working_excluded(lab, "frozen_scored_frame")
+                    continue
+                # review 7A NB4: a POST session with no working rows is never scored uncentred
+                raise spout_scaling.BalEmCentreRefused(
+                    f"working-trained frozen model: post session {lab} has 0 camera working rows -- cannot centre it")
             mu, sd = got
             XEs[GE_ == i] = (np.asarray(XE)[GE_ == i] - mu) / sd
             if len(GU_) and np.any(GU_ == i):
@@ -634,6 +640,9 @@ def pooled_frozen_loso(labels, source="roi", align="cue", post_s=2.0, zscore=Tru
     _R = working_rows(work) if work is not None else (XE, YE, GE)
     within_pre = [v for k, v in within.items() if k in set(pre_labels)]
     res = {"labels": kept, "source": source, "align": align, "n_engaged": int(len(YE)),
+           # WHAT WAS SCORED vs WHAT TRAINED THE MODEL (review 7A, main's 11-03 design pending Priya): the scored set is
+           # this section's ENGAGED trials; the frozen model is working-trained for cue / precue under the camera gate
+           "scored_rows": "engaged", "model_trials": models.get("trials") or "engaged",
            "n_features": int(XE.shape[1]), "n_sessions": len(kept), "n_regions": len(np.unique(common)),
            "loso_accuracy": loso, "per_session": per_sess, "within_session": within,
            # SELF-DOCUMENTING, so a consumer of this JSON can never again have to infer what the

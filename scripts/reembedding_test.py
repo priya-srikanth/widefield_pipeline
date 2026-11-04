@@ -42,7 +42,17 @@ from wfield_local.writeguard import assert_writable  # noqa: E402
 OUT = E / "reembedding"
 FIGD = OUT / "figdata"
 FIG = OUT / "figures"
-CACHE = OUT / "sessions_cache.pkl"
+
+
+def _cache_path() -> Path:
+    """The per-session pickle, KEYED BY THE RUN'S OUTPUT TAG (review 7B: hemo / projection / selection / PRE_FROM ...),
+    so a run in another mode never loads this one's sessions; the default run keeps the old name."""
+    from wfield_local import lp_licks
+    t = lp_licks.output_tag()
+    return OUT / (f"sessions_cache_{t}.pkl" if t else "sessions_cache.pkl")
+
+
+CACHE = _cache_path()
 AN = ["PS92", "PS93", "PS94", "PS95"]
 EPS = ["pre", "acute", "subacute", "chronic", "june"]
 POST = ["acute", "subacute", "chronic", "june"]
@@ -130,7 +140,15 @@ def load(jobs: int, reload: bool = False) -> dict:
     T = pd.read_csv(TIMES, float_precision="round_trip")
     TT = {x: g.sort_values("row").t.to_numpy(float) for x, g in T.groupby("label")}
     main = [x for x in il.labels() if x in cur and x[:4] in AN]
-    june = [p.stem for p in sorted(JUNE_DIR.glob("*.npz")) if p.stem in cur and p.stem[:4] in AN]
+    # THE JUNE REFERENCE EPOCH IS SELECTED EXPLICITLY (review 7B B3): the curated set with WIDEFIELD_PRE_FROM suspended
+    # (the curation's own exclusions still apply), as lick_code_subspace / iti_where_drift read the June folder; under
+    # the profile's PRE_FROM=0801 the plain curated set has no June session, so the epoch vanished silently
+    from wfield_local import run_mode
+    with run_mode.with_env(WIDEFIELD_PRE_FROM=None):
+        cur_june = set(ak.curated_labels())
+    june = [p.stem for p in sorted(JUNE_DIR.glob("*.npz")) if p.stem in cur_june and p.stem[:4] in AN]
+    if not june:
+        raise RuntimeError(f"reembedding_test: no June reference session in {JUNE_DIR} (the June epoch would vanish)")
     items = [(x, "", TT.get(x)) for x in main] + [(x, str(JUNE_DIR), None) for x in june]
     res, fails = ak.fan_sessions(items, _session, jobs=jobs, key=lambda it: (it[1], it[0]), label="reembed load")
     if fails:

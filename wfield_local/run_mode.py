@@ -264,6 +264,56 @@ def subdir(root, *, cache: bool = False, lp_family: bool = False, make: bool = F
     return out
 
 
+class with_env:
+    """Context manager: set (value) / unset (None) environment variables for the block, restoring them after (review 7B:
+    the path of another block's output, e.g. the june_august_drift block, which unsets WIDEFIELD_PRE_FROM)."""
+
+    def __init__(self, **kv):
+        self.kv, self.old = kv, {}
+
+    def __enter__(self):
+        for k, v in self.kv.items():
+            self.old[k] = os.environ.get(k)
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = str(v)
+        return self
+
+    def __exit__(self, *exc):
+        for k, v in self.old.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+        return False
+
+
+#: the rebuild's PRIMARY pre set (render profile cohort1_rebuild_20261103: WIDEFIELD_PRE_FROM=0801); a block that keeps
+#: its own pre set (june_august_drift, 12.1b) reads the primary run's outputs under this pre tag (review 7B)
+PRIMARY_PRE_FROM = "0801"
+
+
+def primary_output_dir(default):
+    """`lp_licks.output_dir(default)` of the PRIMARY run (WIDEFIELD_PRE_FROM = `PRIMARY_PRE_FROM`) when this run is
+    tagged; ``default`` itself in the default run. For a pre-less block reading a primary output (review 7B B1 / N2)."""
+    from wfield_local import lp_licks
+    if not lp_licks.output_tag():
+        return Path(default)
+    with with_env(WIDEFIELD_PRE_FROM=PRIMARY_PRE_FROM):
+        return Path(lp_licks.output_dir(Path(default)))
+
+
+def june_august_drift_dir(labcams):
+    """The june_august_drift output folder (Fig 4.3): ``<labcams>/chronic_stability/june_august_drift`` in the default
+    run; in a tagged run ``<labcams>/chronic_stability/<the block's own tag: PRE_FROM unset>/june_august_drift`` -- the
+    one definition the script writes and the deck reads (review 7B B1)."""
+    from wfield_local import lp_licks
+    d = Path(labcams) / "chronic_stability" / "june_august_drift"
+    with with_env(WIDEFIELD_PRE_FROM=None):
+        return Path(lp_licks.output_dir(d)) if lp_licks.output_tag() else d
+
+
 def require_default(what: str) -> None:
     """Raise unless this is a default run: for writers whose output name cannot carry a tag (refuse, do not overwrite).
     R5 (fourth review): the FULL output tag (`lp_licks.output_tag`: LP source, gate-LP, ENL window AND the run-mode

@@ -221,7 +221,7 @@ def fig_pattern_similarity_per_session(out_dir, min_trials=10):
                 plt.close(fig)
                 continue
             fig.colorbar(im, ax=axes, fraction=0.012, pad=0.02, label="pattern correlation r")
-            cls = _class_note(v)
+            cls = _class_note(v, pattern=True)
             _suptitle(fig, f"Mean-pattern similarity session by session — {wname} window\n"
                          f"Post-stroke class: {cls}.  Rows within a panel = the pattern being "
                          f"described; columns within a panel = the PRE-STROKE reference.\n"
@@ -514,7 +514,7 @@ def fig_pattern_similarity(out_dir, min_trials=10):
                 plt.close(fig)
                 continue
             fig.colorbar(im, ax=axes, fraction=0.025, pad=0.03, label="pattern correlation r")
-            cls = _class_note(v)
+            cls = _class_note(v, pattern=True)
             _suptitle(fig, f"Mean-pattern similarity, within and across positions — {wname} window\n"
                          f"Post-stroke class: {cls}.  Rows = the pattern being described, columns = "
                          f"the PRE-STROKE reference it is correlated with.\n"
@@ -695,7 +695,7 @@ def fig_splithalf_matrix(out_dir, min_trials=10):
                 plt.close(fig)
                 continue
             fig.colorbar(im, ax=axes, fraction=0.012, pad=0.02, label="split-half correlation r")
-            cls = _class_note(v)
+            cls = _class_note(v, pattern=True)
             _suptitle(fig, 
                 f"WITHIN-session split-half pattern similarity — {wname} window\n"
                 f"Post-stroke class: {cls}.  BOTH HALVES COME FROM THE SAME SESSION: no lesion "
@@ -963,7 +963,7 @@ def fig_reliability_verdict(out_dir, min_trials=10):
             if not drew:
                 plt.close(fig)
                 continue
-            cls = _class_note(v)
+            cls = _class_note(v, pattern=True)
             _suptitle(fig, 
                 f"Is the lost code a MOVED code or a NOISIER one? — {wname} window\n"
                 f"Post-stroke class: {cls}.  Rows = spout position, columns = days from lesion.\n"
@@ -1032,7 +1032,7 @@ def fig_pattern_delta(out_dir, min_trials=10):
             if not days or not mats:
                 continue
             cis = _delta_cis(align, v, min_trials, _mats_pattern, "6d")
-            cls = _class_note(v)
+            cls = _class_note(v, pattern=True)
             p = _delta_grid(
                 mats, days, out_dir, f"grant_6d_pattern_delta_{align}_{v}.png",
                 title=(f"Mean-pattern similarity, CHANGE FROM PRE-STROKE — {wname} window\n"
@@ -1071,7 +1071,7 @@ def fig_splithalf_delta(out_dir, min_trials=10):
             if not days or not mats:
                 continue
             cis = _delta_cis(align, v, min_trials, _mats_splithalf, "7d")
-            cls = _class_note(v)
+            cls = _class_note(v, pattern=True)
             p = _delta_grid(
                 mats, days, out_dir, f"grant_7d_splithalf_delta_{align}_{v}.png",
                 title=(f"WITHIN-session split-half similarity, CHANGE FROM PRE-STROKE — {wname} "

@@ -23368,7 +23368,33 @@ Priya 11-03 late: working = contact + incomplete; jaw_only its own class like no
 Priya 11-03 late: August-only pre everywhere in the rebuild, except june_august_drift and 12.1b.
 - The render profile sets WIDEFIELD_PRE_FROM=0801 (run tag part `pre0801`); the per-block `--pre-from` arguments are
   removed (one source).
-- june_august_drift and 12.1b (`rest_frozen_decoder_nl`) unset it in their blocks (`block_env: null`).
+- june_august_drift, 12.1b (`rest_frozen_decoder_nl`), map_drift_prepre (Figs 7.2 / 7.4 / 7.6) and the CLI
+  restnl_mask baseline build unset it in their blocks (`block_env: null`; review 7B). Each writes under its own tag.
+  june_august_drift reads the stroke twin from the PRIMARY run (`run_mode.primary_output_dir`, pre0801) and refuses if
+  it is missing; 12.1b --compare reads page 12.1's 15f from the primary tag too. reembedding_test selects its June
+  reference explicitly (PRE_FROM suspended for that selection) and raises if it is empty.
 - Epoch boundaries still come from the full pre set (`epoch_audit.full_cohort` suspends it).
 - ITI extracts are keyed by the pre set, so their downstream families inherit it.
+
+## 2026-11-04 -- Rebuild: which rows each family scores under the camera working selection (review 7A; pending Priya)
+
+- The frozen spout decoders (cue / precue) are trained and centred on the camera WORKING rows (contact + incomplete,
+  engaged + no-lick) everywhere a frozen model is fitted (5b / 5c bundle frame, section D pooled decoders and the
+  joint_xsession decoder, section G, attempt coding).
+- SCORED SETS follow main's 11-03 design until Priya answers a8's question: 5b and 5c score working rows on BOTH sides
+  (pre panel = held-out pre sessions' working rows); section D (`pooled_frozen_loso`, joint_xsession) and section G
+  (`crossed_confusion`, `decode_matched`) keep their designs (engaged / all trials); "only the frozen model and its
+  frame change there". The pattern families (`_collect_7`: similarity, geometry, encoder, matching) score working
+  trials post-stroke against a LICK-trial pre reference. Captions (`_class_note(pattern=True)`, the figure corner
+  stamp `trial_classes.DESIGN_NOTE`) and sidecars (`pooled_frozen_loso` `scored_rows` / `model_trials`,
+  `section_g_design.json`) say so.
+- attempt_coding's pre reference is `pre_hit` (the LP attempt classes): an attempt-class analysis by design, left as
+  it is; its frozen decoder is working-trained as main's.
+- A session without camera working rows (PS93_0813, no video) is excluded from every working selection: a log line
+  names it and figure sidecars carry `working,working_excluded_sessions`. A POST session with no working rows raises
+  rather than being scored uncentred.
+- `wfield_local/working_trials.py` stays byte-identical to main; its note that June sessions have no camera classes
+  describes main's s1 snapshot. In the rebuild the classes are computed live (`trial_classes.cue_classes_for`); the
+  June pre sessions have no camera classes either (no June video for these classes), and they are outside the
+  August-only pre set anyway.
 

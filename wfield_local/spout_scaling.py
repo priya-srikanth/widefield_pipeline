@@ -202,6 +202,20 @@ def spec_kw(scaling="env", trials=None):
     return {"scaling": scaling, "scaling_params": params}
 
 
+#: sessions left OUT of a working-trained model in this process because they have no camera working rows (no video:
+#: PS93_0813), for result sidecars / captions (review 7A NB3)
+WORKING_EXCLUDED: set = set()
+
+
+def note_working_excluded(label, where=""):
+    """Record (and log once) a session excluded from the working selection: no camera working rows."""
+    lab = str(label)
+    if lab not in WORKING_EXCLUDED:
+        print(f"  [working] {lab}: no camera working rows (no video) -> EXCLUDED from the working selection "
+              f"(not trained on, not centred, not scored){' -- ' + where if where else ''}", flush=True)
+    WORKING_EXCLUDED.add(lab)
+
+
 def working_centre(model, C, pi_train, label=None):
     """``(mu, sd)``: the label-free EM centre of ONE session from its camera WORKING rows ``C`` (engaged AND no-lick
     rows of class contact | incomplete, main 48f2cc6d / coordinator 11-04), or None when it has none (the session is

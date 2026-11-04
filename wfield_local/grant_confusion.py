@@ -303,9 +303,17 @@ def fig_confusion_pre_post_working(out_dir):
     STILL NOT VALIDATED, and the figure says so: nothing in the spout data proves the terminal run is
     satiety rather than a late motor collapse. It is reported BESIDE figure 5, never instead of it.
     """
-    PANELS = (("pre", "PRE-stroke\nLICK trials"),
-              ("post_all", "POST-stroke\nALL trials"),
-              ("post_working", "POST-stroke\nquit period REMOVED"))
+    from wfield_local import trial_classes as _tc5
+    from wfield_local import working_trials as _wt5
+    # CAMERA WORKING (Priya 11-03 late, review 7A B1): under the camera gate with a camera selection the panels are the
+    # working-trained frozen decoder's pre panel (held-out pre WORKING trials) and the post-stroke working trials
+    _cam5 = _tc5.camera_gate_on() and _wt5.is_camera(_tc5.working_selection())
+    PANELS = ((("pre", "PRE-stroke\nWORKING trials (c+i)"),
+               ("post_all", "POST-stroke\nALL trials"),
+               ("post_working", "POST-stroke\nWORKING trials (c+i)")) if _cam5 else
+              (("pre", "PRE-stroke\nLICK trials"),
+               ("post_all", "POST-stroke\nALL trials"),
+               ("post_working", "POST-stroke\nquit period REMOVED")))
 
     def _from_json(an, disp):
         """The three panels as SUMS of the stored per-class confusions, or None to recompute.
@@ -321,6 +329,11 @@ def fig_confusion_pre_post_working(out_dir):
         Returning None (missing file, missing block, missing class) falls through to the recompute
         path, so this is a shortcut and never a new source of truth.
         """
+        # The stored classes are the QUIT-TAIL ones (`position_coding_directions`); under the camera working
+        # selection (Priya 11-03, `working_trials`) the panels are recomputed from the bundle instead.
+        from wfield_local import working_trials as _wt
+        if _wt.is_camera():
+            return None
         f = _fig_root() / _mode_name("coding_direction.json")
         if not f.exists():
             return None
@@ -485,15 +498,25 @@ def fig_confusion_pre_post_working(out_dir):
             plt.close(fig)
             continue
         fig.colorbar(im, ax=axes, fraction=0.02, pad=0.07, label="P(predicted | true)")
-        _suptitle(fig, f"Frozen pre-stroke decoder, with and without the terminal quit period — "
+        if _cam5:
+            # CAMERA WORKING (Priya 11-03 late): the working-trained frozen decoder; its pre panel is the held-out pre
+            # sessions' working trials
+            _suptitle(fig, f"Frozen pre-stroke decoder on camera WORKING trials — {wname} window\n"
+                         f"Rows = TRUE spout position, columns = predicted. Working = {_class_note('working')}; "
+                         "trained, centred and scored on working trials (engaged + no-lick) on BOTH sides.\n"
+                         "MIDDLE panel = every post-stroke trial. Post-stroke sessions pooled. Chance = 0.17. "
+                         "A session without video (PS93_0813) has no working trials and is not in this figure.",
+                      fontsize=9.5)
+        else:
+            _suptitle(fig, f"Frozen pre-stroke decoder, with and without the terminal quit period — "
                      f"{wname} window\n"
-                     "Rows = TRUE spout position, columns = predicted. RIGHT panel drops the "
-                     "post-stroke trials after a NON-RECOVERING collapse in responding at the "
-                     "positions the animal can still reach;\nlick and miss-while-working trials are "
-                     "kept, so the impaired rows still have trials. Post-stroke sessions pooled. "
-                     "Chance = 0.17.\nThe quit period is not independently validated as satiety "
-                     "rather than a late motor collapse — read this beside figure 5, not instead "
-                     "of it.", fontsize=9.5)
+                         "Rows = TRUE spout position, columns = predicted. RIGHT panel drops the "
+                         "post-stroke trials after a NON-RECOVERING collapse in responding at the "
+                         "positions the animal can still reach;\nlick and miss-while-working trials are "
+                         "kept, so the impaired rows still have trials. Post-stroke sessions pooled. "
+                         "Chance = 0.17.\nThe quit period is not independently validated as satiety "
+                         "rather than a late motor collapse — read this beside figure 5, not instead "
+                         "of it.", fontsize=9.5)
         # SAY WHERE THE NUMBERS CAME FROM, and whether that source lags. A figure served from
         # coding_direction.json is only as current as the last position_coding_directions run, and
         # this module already has the scar: on 2026-08-25 the JSONs predated both 8/24 sessions while
@@ -707,8 +730,11 @@ def _stored_epoch_decoder(an, align, bd, tag="5c", XT=None, scaling=None, R=None
 
     payload, status = frozen_models.load_or_fit(
         spec, _fit, meta={"n_engaged_pre": int(e_pre.sum()), "n_pre_sessions": len(pre_i)})
+    # review 7A NB3: name the lick source AND the trial selection the model was trained on
+    from wfield_local import lp_licks as _lpl
+    _sel = trials or "engaged (DAQ lick-arm)"
     print(f"  [{tag}] {an} {align}: epoch_decoder {frozen_models._slug(spec)} {status} "
-          f"(trained on {spec.get('lick_source', 'daq')} pre trials)", flush=True)
+          f"(trained on pre trials: lick source {'lp' if _lpl.is_lp() else 'daq'}, selection {_sel})", flush=True)
     return payload
 
 

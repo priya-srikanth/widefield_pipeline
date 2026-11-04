@@ -335,7 +335,7 @@ def fig_crossnobis_cross(out_dir, min_trials=10):
             fig.colorbar(im, ax=axes, fraction=0.012, pad=0.02,
                          label="crossnobis distance -- BRIGHT = unchanged "
                                "(1.0 = mean pre-stroke between-position distance)")
-            cls = _class_note(v)
+            cls = _class_note(v, pattern=True)
             _suptitle(fig, 
                 f"Cross-validated (crossnobis) distance to the pre-stroke pattern — {wname} window\n"
                 f"Post-stroke class: {cls}.  Rows = the post-stroke position, columns = the "
@@ -492,7 +492,7 @@ def fig_crossnobis_geometry(out_dir, min_trials=10):
             if not drew:
                 plt.close(fig)
                 continue
-            cls = _class_note(v)
+            cls = _class_note(v, pattern=True)
             _suptitle(fig,
                 f"Second-order RSA on crossnobis RDMs — {wname} window\n"
                 f"Post-stroke class: {cls}.  Each session's OWN 6x6 crossnobis RDM correlated "
@@ -629,7 +629,7 @@ def fig_crossnobis_delta(out_dir, min_trials=10):
             # the correlation figures; flip the interval back into distance units for display.
             cis = {a2: {d: (-hi, -lo) for d, (lo, hi) in v2.items()}
                    for a2, v2 in _delta_cis(align, v, min_trials, _mats_crossnobis, "8d").items()}
-            cls = _class_note(v)
+            cls = _class_note(v, pattern=True)
             p = _delta_grid(
                 mats, days, out_dir, f"grant_8d_crossnobis_delta_{align}_{v}.png",
                 title=(f"Crossnobis distance to the pre-stroke pattern, CHANGE FROM PRE-STROKE — "
@@ -734,7 +734,7 @@ def fig_delta_trajectory(out_dir, min_trials=10):
                 # first render of this figure. This is the only figure in the module carrying both.
                 fig.legend(h, lab, loc="lower center", ncol=len(POS), fontsize=11, frameon=False,
                            bbox_to_anchor=(0.5, 0.035))
-            cls = _class_note(v)
+            cls = _class_note(v, pattern=True)
             _suptitle(fig, 
                 f"Change from pre-stroke over days, with block-bootstrap intervals — {wname} "
                 f"window\n"
@@ -862,7 +862,7 @@ def fig_asymmetry(out_dir, min_trials=10):
                 continue
             fig.colorbar(im, ax=axes, fraction=0.012, pad=0.02,
                          label="d(post P, pre Q) - d(post Q, pre P)")
-            cls = _class_note(v)
+            cls = _class_note(v, pattern=True)
             _suptitle(fig, 
                 f"Is the distance matrix ASYMMETRIC, and where? -- {wname} window\n"
                 f"Post-stroke class: {cls}.  A[P,Q] = d(post at P, pre at Q) - d(post at Q, pre at "
@@ -1040,7 +1040,7 @@ def _rdm_ci(align, variant, min_trials=10, n_boot=N_BOOT_RDM, n_loo=N_LOO_DRAW):
             "8b_rdm", (pre_x, pre_b, day_x, day_b, obs_all.get(an) or {},
                        (an, align, variant, min_trials, n_boot, n_loo)),
             lambda an=an, pre_x=pre_x, pre_b=pre_b, day_x=day_x, day_b=day_b,
-            orec=(obs_all.get(an) or {}): _rdm_one(
+            orec=(obs_all.get(an) or {}): _rdm_one(  # noqa: B008 (bound per loop iteration on purpose)
                 an, align, variant, pre_x, pre_b, day_x, day_b, orec, n_boot, n_loo))
         if rec:
             out[an] = rec
@@ -1213,7 +1213,7 @@ def fig_geometry_by_position(out_dir, min_trials=10):
             if h:
                 fig.legend(h, lab, loc="lower center", ncol=len(ANIMALS), fontsize=10,
                            frameon=False, bbox_to_anchor=(0.5, 0.035))
-            cls = _class_note(v)
+            cls = _class_note(v, pattern=True)
             # LAY THE PANELS OUT INTO WHAT THE HEADER LEFT, not into the full height. `tight_layout`
             # first and `_suptitle` after -- which compresses every axes into [0, top] -- spread the
             # panels over the whole figure and then shrank them away from the header, wasting about

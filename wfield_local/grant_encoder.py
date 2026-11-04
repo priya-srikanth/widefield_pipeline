@@ -264,7 +264,7 @@ def fig_encoder_gain_shape(out_dir, min_trials=10):
             if h:
                 fig.legend(h, lb, loc="lower center", ncol=3, fontsize=9.5, frameon=False,
                            bbox_to_anchor=(0.5, 0.012))
-            cls = _class_note(v)
+            cls = _class_note(v, pattern=True)
             # LAY THE PANELS OUT INTO WHAT THE HEADER ACTUALLY LEFT. Calling `tight_layout` FIRST
             # and then `_suptitle` -- which compresses every axes into [0, top] afterwards -- left
             # a tenth of the figure blank between the header and the first panel title, because

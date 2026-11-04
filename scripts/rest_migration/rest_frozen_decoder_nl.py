@@ -68,6 +68,22 @@ G = Path(_config.resolver().root("cohort_out")) / "grant_figures"
 OUT_ROOT = _run_mode.subdir(G / "rest_frozen_decoder_restnl")
 CACHE_ROOT = Path(_config.resolver().root("figures_working")) / "rest_decoder_nl_cache"
 PAGE_SESSIONS = rf._epoch_dir() / "data" / "epoch_15f_rest_frozen_restdock05_durmatched_gapmatched_sessions.csv"
+_PAGE_CSV = "epoch_15f_rest_frozen_restdock05_durmatched_gapmatched_sessions.csv"
+
+
+def page_sessions():
+    """Page 12.1's 15f sessions table of the PRIMARY run (review 7B N2): in a tagged run this block keeps its own June +
+    August pre (PRE_FROM unset), so its own tag's 15f folder is not the page's; the primary tag's (August-only pre,
+    `run_mode.PRIMARY_PRE_FROM`) is. The default run reads the default folder, as before."""
+    from wfield_local import lp_licks
+    return _run_mode.primary_output_dir(Path(_config.resolver().root("cohort_out")) / "grant_figures" / "epoch") / \
+        "data" / _PAGE_CSV if lp_licks.output_tag() else PAGE_SESSIONS
+
+
+def page_pre_text() -> str:
+    """The page's pre set: August-only in a tagged (rebuild) run, June + August in the default run."""
+    from wfield_local import lp_licks
+    return "Aug pre" if lp_licks.output_tag() else "June+Aug pre"
 EPOCHS = ("pre", "acute", "subacute", "chronic")
 MASK_TEXT = {
     "restnl": "RESTnl rest (lick-free: DAQ contact + cam4 LP video licks removed [0.5 s, 2.0 s])",
@@ -641,7 +657,7 @@ def plot_compare(out, runs):
     h = [Line2D([], [], color=styles[nm][1], ls=styles[nm][2], marker=styles[nm][0], mfc="none", label=nm)
          for nm in names]
     fig.legend(handles=h, loc="lower center", ncol=len(names), frameon=False, fontsize=9.5)
-    fig.suptitle("Frozen pre-stroke rest decoder, retained per animal: page REST (DAQ contact licks, June+Aug pre) vs "
+    fig.suptitle(f"Frozen pre-stroke rest decoder, retained per animal: page REST (DAQ contact licks, {page_pre_text()}) vs "
                  "REST (Aug pre) vs RESTnl (DAQ + cam4 LP licks, Aug pre)\nmarker colour = epoch; duration- and "
                  "lick-gap-matched", fontsize=10.5)
     fig.tight_layout(rect=(0, 0.08, 1, 0.9))
@@ -706,7 +722,7 @@ def main(argv=None) -> int:
         {"mask": a.mask, "pre": a.pre, "mask_text": MASK_TEXT[a.mask], "lick_text": LICK_TEXT[a.mask],
          "inputs": [f"{stem}_sessions.csv", f"{stem}_confusion.csv"], "redraw": "--plot-only"}, indent=1))
     if a.compare:
-        runs = {"page 12.1: REST, June+Aug pre": _read(PAGE_SESSIONS),
+        runs = {f"page 12.1: REST, {page_pre_text()}": _read(page_sessions()),
                 "REST, Aug pre": _read(a.out / "rest_augpre" / "data" / f"{stem_of('rest', 'aug')}_sessions.csv"),
                 "RESTnl, Aug pre": _read(a.out / "restnl_augpre" / "data" / f"{stem_of('restnl', 'aug')}_sessions.csv")}
         print("wrote", plot_compare(a.out, runs))

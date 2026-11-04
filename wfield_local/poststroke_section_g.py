@@ -328,6 +328,14 @@ def main(argv=None) -> int:
     from wfield_local import run_mode   # mode-tagged name (rebuild 11-03, trap T21): read by grant 3b / 5
     p = Path(out) / run_mode.keyed_name("section_g.json")
     json.dump(rec, open(p, "w"), indent=1, default=float)
+    # review 7A: the design sidecar (scored = engaged / all trials, model = working-trained under the camera gate)
+    from wfield_local import trial_classes as _tcg
+    if _tcg.camera_gate_on():
+        from wfield_local import spout_scaling as _ssg
+        json.dump({"scored_rows": "engaged / all trials (main 11-03 design, pending Priya)",
+                   "model_trials": _tcg.run_selection(), "design": _tcg.DESIGN_NOTE,
+                   "working_excluded_sessions": sorted(_ssg.WORKING_EXCLUDED)},
+                  open(Path(out) / run_mode.keyed_name("section_g_design.json"), "w"), indent=1)
     n_post = sum(1 for r in rec.values() if r["phase_tag"] == "post")
     print(f"\nwrote {p}  ({len(rec)} sessions: {n_post} post, {len(rec) - n_post} excluded)")
     return 0

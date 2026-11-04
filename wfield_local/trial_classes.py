@@ -278,6 +278,13 @@ def in_gate(cls, gate: str) -> np.ndarray:
 SEL_GATES = ("working", "miss_working")
 
 
+#: WHICH ROWS EACH FAMILY SCORES under the camera working selection (main 11-03 design, pending Priya; review 7A):
+#: stamped on every figure of a camera-gated run (`lp_licks.stamp`) and written into section D / G result sidecars
+DESIGN_NOTE = ("frozen decoders trained + centred on camera WORKING rows (contact + incomplete); scored sets: 5b / 5c = "
+               "working rows on both sides; section D (pooled frozen) / G = engaged / all trials (main's 11-03 design); "
+               "pattern families: post = working, pre reference = LICK trials")
+
+
 def working_selection() -> str:
     """main's ``WIDEFIELD_WORKING_TRIALS`` (`working_trials.selection`): in_working (production, default) |
     in_working_jaw | quit_tail. Under the camera gate quit_tail is a contradiction and RAISES (the quit-tail rule is

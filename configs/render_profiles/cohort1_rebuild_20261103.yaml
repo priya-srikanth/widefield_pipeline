@@ -45,6 +45,10 @@ block_env:
   analysis_deck_lp: {WIDEFIELD_LICK_SOURCE: lp}
   june_august_drift: {WIDEFIELD_PRE_FROM: null}          # its own June-vs-August design
   rest_frozen_decoder_nl: {WIDEFIELD_PRE_FROM: null}     # 12.1b: its own June + August pre set
+  # review 7B: Figs 7.2 / 7.4 / 7.6 compare June (early pre) with August (late pre) maps; the script sets its own arm's
+  # lick source / ENL window (--arm contact | lp | enl1s), so only the pre set is unset here
+  map_drift_prepre: {WIDEFIELD_PRE_FROM: null}
+  restnl_mask: {WIDEFIELD_PRE_FROM: null}                # review 7B N1: the CLI RESTnl baseline build
 
 # SENSITIVITY ARMS: `--arm <name>` (render_profile.apply(name, arm=...)) adds the arm's env on top; each arm's env enters
 # the output tag (run_mode parts), so its outputs and caches never meet the primary ones.

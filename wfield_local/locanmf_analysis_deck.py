@@ -470,6 +470,25 @@ def keep_previous(out_path) -> Path | None:
 
 
 
+def _tagged_k(root, rel, grant_root):
+    """Section K's registered path in THIS tagged run (review 7B N3), or None to keep the registered one: the LP /
+    DAQ-ENL1s epoch families live under the LP / ENL block's own tag (``grant_figures/<block tag>/epoch``), the LP
+    attempt maps under ``attempt_maps/<LP tag>/figures`` -- not the untagged pre-rebuild folders the registry names."""
+    from wfield_local import lp_licks, run_mode
+    m = re.match(r"grant_figures/(LP_licks|DAQ_ENL1s)/epoch/(.+)$", rel)
+    if root in ("labcams", "cohort_out") and m:
+        env = ({lp_licks.LICK_SOURCE_ENV: "lp"} if m.group(1) == "LP_licks"
+               else {lp_licks.ENL_WINDOW_ENV: str(lp_licks.LP_ENL_WINDOW_S)})
+        with run_mode.with_env(**env):
+            return Path(lp_licks.output_dir(Path(grant_root) / "epoch")) / m.group(2)
+    m = re.match(r".*/imaging_encoding/attempt_maps/figures/(.+)$", rel)
+    if root == "orofacial" and m:
+        from wfield_local import attempt_maps
+        with run_mode.with_env(**{lp_licks.LICK_SOURCE_ENV: "lp"}):
+            return Path(attempt_maps.out_dir()) / "figures" / m.group(1)
+    return None
+
+
 def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag=None, allow_missing=0,
                         allow_unresolved=0,
                         failed_steps=(), allow_failed_steps=False, run_start=None,
@@ -491,8 +510,15 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
     if grant_dir is None and run_mode.tag() and not rebuild_root.active():
         raise RuntimeError(f"analysis deck in run mode {run_mode.tag()!r} without a rebuild root: its default inputs are "
                            "the untagged figures -- apply the render profile (rebuild_root) or pass grant_dir / --src")
-    grant_dir = Path(grant_dir) if grant_dir is not None else (
-        Path(PathResolver().root("cohort_out")) / "grant_figures")
+    # review 7B N3: the DEFAULT grant_dir of a TAGGED run is THIS run's tagged folder (`lp_licks.output_dir`:
+    # grant_figures/<tag>, whose epoch dir is grant_figures/<tag>/epoch -- where grant_figures / epoch_grant_figures
+    # write); the untagged grant_figures in the default run. ``_grant_root`` = the untagged grant_figures either way.
+    _grant_given = grant_dir is not None
+    _grant_root = (Path(grant_dir) if _grant_given else Path(PathResolver().root("cohort_out")) / "grant_figures")
+    grant_dir = _grant_root if _grant_given else Path(_lpl.output_dir(_grant_root))
+    #: a tagged build counts every registered grant / epoch figure it cannot find as MISSING (the completeness guard);
+    #: the default build keeps skipping absent ones as before
+    _strict = bool(run_mode.tag()) and not _grant_given
     # phase="all" IS LOAD-BEARING. curated_dates() defaults to phase="pre" (stroke-aware since
     # 2026-08-17), so the bare call returns 0606-0814 and SILENTLY DROPS EVERY POST-STROKE DATE.
     # The comment that used to sit here said a hand-run deck covers the same dates as the nightly.
@@ -2023,7 +2049,10 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
         # future deck. The compact PNGs are a deliverable for pasting into the grant document, not
         # deck slides, and nothing else in the repo reads them.
         for _pat, _title, _blurb in sorted(GRANT_FIGURES, key=_hkey):
-            for _gf in sorted(_grant.glob(_pat)) if "*" in _pat else [_grant / _pat]:
+            _hits = sorted(_grant.glob(_pat)) if "*" in _pat else [_grant / _pat]
+            if _strict and not any(h.exists() for h in _hits):
+                _exists(_grant / _pat)                      # review 7B N3: counted (and named) as MISSING
+            for _gf in _hits:
                 if not _gf.exists() or _gf.stem.endswith("_compact"):
                     continue
                 s = slide()
@@ -2085,7 +2114,14 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
         # completeness check cannot report: it reports figures it EXPECTS and is silent about ones
         # it was never told about.
         for _n, (_pat, _ttl, _legend) in enumerate(EPOCH_FIGURES, 1):
-            for _ef in (sorted(_epoch.glob(_pat)) if "*" in _pat else [_epoch / _pat]):
+            if _pat.startswith("../../chronic_stability/june_august_drift/"):
+                # its own block's folder (PRE_FROM unset), one definition with the script (review 7B B1)
+                _hits = [run_mode.june_august_drift_dir(_grant_root.parent) / Path(_pat).name]
+            else:
+                _hits = sorted(_epoch.glob(_pat)) if "*" in _pat else [_epoch / _pat]
+            if _strict and not any(h.exists() for h in _hits):
+                _exists(_hits[0] if len(_hits) == 1 else _epoch / _pat)    # review 7B N3: counted as MISSING
+            for _ef in _hits:
                 if not _ef.exists():
                     continue
                 _sl = slide()
@@ -2168,7 +2204,7 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
     # tmp dir must not have real figures placed from MICROSCOPE -- `test_builds_and_skips_missing`).
     # R2: "on the share" = grant_dir is THIS run's cohort_out/grant_figures (inside the rebuild root under one), and the
     # other roots resolve through `PathResolver.derived` (imaging_encoding inside the rebuild root too)
-    _lab = Path(_grant).parent
+    _lab = _grant_root.parent              # labcams / cohort_out: the untagged root (review 7B N3)
     try:
         _on_share = _lab.resolve() == Path(PathResolver().root("cohort_out")).resolve()
     except Exception:                                                  # noqa: BLE001
@@ -2185,7 +2221,12 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
         if _base is None:
             continue
         _one = (_base / _rel) if _root in ("labcams", "cohort_out") else Path(PathResolver().derived(_root, _rel))
-        for _f in (sorted(_base.glob(_rel)) if "*" in _rel else [_one]):
+        _tagged_one = _tagged_k(_root, _rel, _grant_root) if run_mode.tag() else None
+        if _tagged_one is not None:                       # review 7B N3: THIS run's tagged block output
+            if not _exists(_tagged_one):
+                continue
+            _one = _tagged_one
+        for _f in (sorted(_base.glob(_rel)) if "*" in _rel and _tagged_one is None else [_one]):
             if _f.exists():
                 _k_found.append((_n, _ttl, _legend, _f))
     if _k_found:

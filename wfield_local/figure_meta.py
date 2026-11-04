@@ -88,6 +88,10 @@ def write_meta(q, **fields):
         from wfield_local import spout_scaling
         if spout_scaling.spout_scaling() and spout_scaling.centre_rows() == "working":
             rows.append(["bal_em", "centre_fallback_sessions", ";".join(sorted(spout_scaling.FALLBACK_USED))])
+        from wfield_local import trial_classes as _tc
+        if _tc.camera_gate_on():
+            # review 7A NB3: the sessions a working selection left out (no camera working rows), as used in-process
+            rows.append(["working", "working_excluded_sessions", ";".join(sorted(spout_scaling.WORKING_EXCLUDED))])
     except SystemExit:
         raise
     except Exception:                                                   # noqa: BLE001 - a sidecar never costs a figure

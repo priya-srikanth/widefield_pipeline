@@ -928,12 +928,18 @@ def _frozen_frame(bd, an=None, align=None, store=True, sel="engaged"):
         GEa, GUa = np.asarray(GE), np.asarray(GU)
         for i in range(len(bd["kept"])):
             if i in bd["pre_i"] and i not in loso:
+                if not np.any(RG == i):
+                    spout_scaling.note_working_excluded(bd["kept"][i], "_frozen_frame")
                 continue
             mdl = loso.get(i) if i in bd["pre_i"] else full
             pi = pi_loso.get(i) if i in bd["pre_i"] else pi_full
             got = spout_scaling.working_centre(mdl, RX[RG == i], pi, bd["kept"][i])
             if got is None:
-                continue
+                if i in bd["pre_i"]:
+                    spout_scaling.note_working_excluded(bd["kept"][i], "_frozen_frame")
+                    continue
+                raise spout_scaling.BalEmCentreRefused(            # review 7A NB4: never scored uncentred
+                    f"working frame: post session {bd['kept'][i]} has 0 camera working rows -- cannot centre it")
             mu, sdv = got
             XEs[GEa == i] = (np.asarray(XE)[GEa == i] - mu) / sdv
             if len(GUa) and np.any(GUa == i):
@@ -1049,7 +1055,17 @@ def _class_select(variant, sess_e, sess_u, not_eng, cls=None, rule=None):
 #: version with the pre-stroke stopped column as an explicit "quitting alone" control. So do not
 #: read these generic class arms as the stopped-trial ANALYSIS -- they are the engaged-trial
 #: families with the class switch flipped, and 12/12b are the purpose-built ones.
-def _class_note(variant):
+def _class_note(variant, pattern=False):
+    """How a trial class reads in a caption, for the ACTIVE selection (review 7A NB2). ``pattern`` = a `_collect_7`
+    pattern family, whose PRE-STROKE reference is LICK trials for every class (main's 11-03 design, pending Priya)."""
+    if variant == "working":
+        from wfield_local import trial_classes as _tc
+        from wfield_local import working_trials as _wt
+        if _tc.camera_gate_on() and _wt.is_camera(_tc.working_selection()):
+            jaw = _tc.working_selection() == _wt.IN_WORKING_JAW
+            txt = ("camera WORKING trials: contact + incomplete" + (" + jaw_only" if jaw else "") +
+                   ", cue to the session's last camera lick" + ("" if jaw else "; jaw_only excluded"))
+            return txt + ("; PRE-STROKE REFERENCE IS LICK TRIALS" if pattern else "")
     return {"lick": "LICK trials only",
             "working": "LICK + miss-while-working (quit period removed)",
             "stopped": ("THE TERMINAL QUIT PERIOD ONLY -- no licking trials; PRE-STROKE REFERENCE "
@@ -1085,8 +1101,17 @@ def _session_trials(bd, i, q, variant, field="X"):
 #: reading every session's LocaNMF fit. Six entries covers every (window, class) this module builds,
 #: so a full render loads each one once instead of four times. The features are LocaNMF components,
 #: not pixels, so the whole cache is ~100 MB.
-@lru_cache(maxsize=12)
 def _collect_7(align, variant, min_trials, field="X"):
+    """`_collect_7_cached` keyed ALSO by the run's trial selection (the 5c cache pitfall, review 7A): the camera gate /
+    working selection change the post-stroke `working` trials."""
+    from wfield_local import trial_classes as _tc
+    from wfield_local import working_trials as _wt
+    run = (_tc.run_selection(), _wt.selection() if _tc.camera_gate_on() else "")
+    return _collect_7_cached(align, variant, min_trials, field, run)
+
+
+@lru_cache(maxsize=12)
+def _collect_7_cached(align, variant, min_trials, field="X", _run=None):
     """(per-animal) pre-stroke reference/other halves + per-day post trials, kept AS TRIALS.
 
     CACHED, so callers must treat the result as read-only -- mutating it would corrupt every later
@@ -1106,6 +1131,8 @@ def _collect_7(align, variant, min_trials, field="X"):
         try:
             bd = _pooled_bundle(an, align)
         except Exception as ex:                                          # noqa: BLE001
+            from wfield_local import trial_classes as _tcr
+            _tcr.reraise_under_camera(ex, f"7 {an} {align}/{variant}")    # review 7A NB6: never thin silently
             print(f"  !! 7 {an} {align}: {type(ex).__name__} {str(ex)[:90]}", flush=True)
             continue
         pre_by_sess, by_day = {}, {}
@@ -1114,7 +1141,9 @@ def _collect_7(align, variant, min_trials, field="X"):
             if i in bd["pre_i"]:
                 # PRE-STROKE trials are the LICKING set in every class: the pre-stroke animal is
                 # not missing, so "working" would add nothing and would silently make the reference
-                # a different kind of trial from itself.
+                # a different kind of trial from itself. KEPT under the camera working selection too: main's
+                # 11-03 design ("pattern families' post side uses the working trials, their pre reference stays
+                # lick trials"), pending Priya (review 7A NB1); the captions say so (`_class_note(pattern=True)`).
                 pat = {q: _session_trials(bd, i, q, "lick", field) for q in CONF_LABELS
                        if len(_session_trials(bd, i, q, "lick")) >= min_trials}
                 if pat:
@@ -1614,3 +1643,6 @@ N_BOOT_RDM = 200
 #: 0.82 / 0.95 / 0.97 (day 3) -- indistinguishable, and half the run time. The width is dominated by
 #: the post-stroke session's own trial noise, not by the ceiling.
 N_LOO_DRAW = 4
+
+
+_collect_7.cache_clear = lambda: _collect_7_cached.cache_clear()       # callers that clear the 7 cache
