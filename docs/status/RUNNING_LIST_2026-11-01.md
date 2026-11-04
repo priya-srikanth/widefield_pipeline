@@ -1006,3 +1006,14 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
     - the 13 sessions with no reference trial after the last lick;
     - whether close mid's default no_response counts as stop evidence;
     - a refinement (a reference contact on both sides of a run).
+- **11-04 11:22: O2 bundle enc_rebuild_20261104 written.**
+  - 107 / 107 inputs, 30 GB.
+  - env.json is verified: LICKS=combined, TONGUE=3d, EXEC=polar, the three tables, OROFACIAL_GATE=attempted, and the
+    full profile env.
+  - The rsync was given to Priya.
+  - The checks (PS93_0814 + PS93_0818) started 11:23.
+  - Before submitting:
+    - the checks pass;
+    - the encoder-classes merge, then refresh-code (through the wrapper or after the --profile fix);
+    - a regenerated trial_attempts (max_rt rule) is shipped in tables/;
+    - a small re-rsync of code/ and tables/.
