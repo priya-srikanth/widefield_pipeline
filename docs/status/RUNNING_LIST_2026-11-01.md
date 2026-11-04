@@ -1211,3 +1211,18 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
     its offset alone. Use trial-to-trial R2 for class comparisons.
   - Smoke check (PS93_0818, acute): contact 0.553 / incomplete 0.386 cvR2.
   - Also fixed: `--profile` keeps the encoder settings, and refresh-code / check cover trials.npz.
+- **11-04 ~16:40: rebuild/enl-window DONE (cb7b1f49, 17deee17, b8632a07).**
+  - One ENL window definition, lp_licks.enl_post_s: LP 1.0 / DAQ 2.0.
+  - Four scripts gated on DAQ licks under LP; fixed.
+  - cd_trajectories used 2 s windows under LP; fixed. Its caches recompute once.
+  - Frozen ids and the default cache keys are unchanged. O2 inputs are unchanged.
+  - Full suite: 4,787 passed / 1 failed. The failure is test_review_7ab byte-identity vs live main, because main changed
+    working_trials in 4a37cbc8; the bcdg port resolves it.
+  - **DECISIONS for Priya:**
+    1. quiet_task_events is cohort 1. Its ev_enl should match the LP frozen decoder (1.0 s)? It is still on DAQ 2.0, and
+       switching needs MIN_CLEAN_S re-decided.
+    2. within_spout_deviation enl = 1 s, not lick-gated (contact-free by task design): OK?
+    3. The s1_refit tables pin ENL at 2.0 s under LP (Priya 11-03). Keep that as a sensitivity row?
+    4. The encoder's "enl" R2 scoring window is fixed at cue - 2 s .. cue and not lick-gated. Change it to follow the lick
+       source before the new O2 bundle? It is scoring only, not inputs.
+    - Gap: the ENL tag is missing in session_cache.effective_kind for override runs. Left as is.
