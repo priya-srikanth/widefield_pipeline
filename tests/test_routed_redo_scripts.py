@@ -13,7 +13,7 @@ REPO = Path(__file__).resolve().parents[1]
 #: family 1 (the encoder family + its attempt / epoch readers)
 FAMILY_2 = ["enl_fr_removed_decode", "fr_direction_mechanism", "fr_encoding_summary", "fr_musall"]
 FAMILY_3 = ["layer2_matched_n", "layer2_random_splits", "summary_figures_1021", "within_lick_correction"]
-FAMILY_4 = ["enl_lick_audit", "face_prelaunch_aim", "lick_interhemispheric", "lick_template_test",
+FAMILY_4 = ["learned_compensation", "misdirected_lick_counts", "enl_lick_audit", "face_prelaunch_aim", "lick_interhemispheric", "lick_template_test",
             "misdirected_lick_decode", "position_coding_trend_recovery", "prelaunch_aim_tracking",
             "prelick_hemisphere_tuning", "qc_running_speed", "slowband_caveat_figure"]
 FAMILY_1 = ["best_match_destination", "combined_encoding_figures", "compare_map_tests", "coupling_by_class",

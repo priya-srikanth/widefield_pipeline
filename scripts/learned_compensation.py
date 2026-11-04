@@ -39,10 +39,11 @@ import numpy as np  # noqa: E402
 import pandas as pd  # noqa: E402
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from wfield_local.orofacial_outputs import encoding_root as _encoding_root  # noqa: E402
+from wfield_local import lp_licks as _lp_licks  # noqa: E402
+from wfield_local import run_mode as _rmode  # noqa: E402
 
 V36 = Path("M:/MICROSCOPE/Priya/Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v36")
-E = _encoding_root(V36.name)  # rebuild root (11-03)
+E = _rmode.encoding_out_root(V36.name)  # the run's TAGGED encoding tree (coordinator 11-04: REDO, routed)
 OUT = E / "learned_compensation"
 FIG = OUT / "figures"
 FD = OUT / "figdata"
@@ -141,7 +142,7 @@ def cmd_run(jobs: int) -> None:
             print(f"  !! {it}: {err}", flush=True)
         raise SystemExit("timing extraction failed")
     print(f"timing extracted {(time.time() - t0) / 60:.1f} min", flush=True)
-    TA = pd.read_csv(E / "qc" / "trial_attempts.csv", low_memory=False,
+    TA = pd.read_csv(_lp_licks.attempts_path(), low_memory=False,      # THIS run's attempts table (11-04)
                      usecols=["label", "trial_id", "pos", "cls", "canonical"])
     TA = TA[TA.label.isin(LS.label.unique())].copy()
     TA["canonical"] = _b(TA.canonical)
@@ -167,7 +168,8 @@ def cmd_run(jobs: int) -> None:
     print(f"T1 trials: {len(T)} ({int(T.canonical.sum())} engaged; first-lick e_L on {int(T.eL1.notna().sum())})",
           flush=True)
     # ---------------------------------------------------------------- ITI table
-    D = pd.read_csv(E / "iti_licks" / "iti_dock_audit.csv", usecols=["label", "onset", "phase", "since_stop", "src"])
+    import iti_licks as _il                                          # the ITI family's routed folder (11-04)
+    D = pd.read_csv(_il.OUT_W / "iti_dock_audit.csv", usecols=["label", "onset", "phase", "since_stop", "src"])
     I = LS[LS.context == "iti"].copy()
     rows, diag = [], []
     for sid, g in I.groupby("sid", sort=True):
@@ -1003,8 +1005,7 @@ def cmd_plot() -> None:
 
 
 def main() -> int:
-    from wfield_local import run_mode as _rm_guard
-    _rm_guard.require_default("learned_compensation")   # unrouted share writer: refuses in a non-default run mode
+    # coordinator 11-04: routed (outputs under the run tag), no longer refused in a tagged run
     a = sys.argv[1:]
     jobs = int(a[a.index("--jobs") + 1]) if "--jobs" in a else 3
     jobs = min(jobs, 3)

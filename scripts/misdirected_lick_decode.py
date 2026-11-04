@@ -293,11 +293,12 @@ def main(argv=None) -> int:
     ap.add_argument("labels", nargs="*")
     a = ap.parse_args(argv)
     rv = PathResolver()
-    # coordinator 11-04: routed. The counts are a BEHAVIOUR input (misdirected_lick_counts, read in place); this
-    # script's outputs go under the run's (tagged) encoding tree, never into the orofacial input tree
+    # coordinator 11-04: routed. A tagged run reads the counts misdirected_lick_counts produced for IT (they depend on
+    # the engagement gate) and writes beside them, under the run's tagged encoding tree
     from wfield_local import run_mode
-    src = oo.root(rv) / a.run / "cohort" / "tables" / "misdirected_licks"
-    out = run_mode.encoding_out_root(a.run) / "misdirected_licks" if run_mode.tag() else src
+    out = (run_mode.encoding_out_root(a.run) / "misdirected_licks" if run_mode.tag()
+           else oo.root(rv) / a.run / "cohort" / "tables" / "misdirected_licks")
+    src = out
     out.mkdir(parents=True, exist_ok=True)
     writeguard.assert_writable(out / "_")
     cnt = pd.read_csv(src / "counts.csv")

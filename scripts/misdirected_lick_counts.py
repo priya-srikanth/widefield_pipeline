@@ -21,8 +21,7 @@ import pandas as pd
 
 
 def main(argv=None) -> int:
-    from wfield_local import run_mode as _rm_guard
-    _rm_guard.require_default("misdirected_lick_counts")   # unrouted share writer: refuses in a non-default run mode
+    # coordinator 11-04: routed (outputs under the run tag), no longer refused in a tagged run
     from wfield_local import analysis_kit as ak
     from wfield_local import combined_encoding as ce
     from wfield_local import epochs
@@ -36,8 +35,15 @@ def main(argv=None) -> int:
     ap.add_argument("--dev", type=float, default=15.0, help="deviation threshold (deg) for 'misdirected'")
     a = ap.parse_args(argv)
     rv = PathResolver()
-    out = oo.root(rv) / a.run / "cohort" / "tables" / "misdirected_licks"
-    writeguard.assert_writable(out)
+    from wfield_local import run_mode
+    from wfield_local import trial_classes as _tc
+    # coordinator 11-04 (REDO, routed): the counts depend on the ENGAGEMENT GATE, so a tagged run produces its own,
+    # under its tagged encoding tree; under the camera gate the kept trials are the run's WORKING PERIOD with an
+    # attempt (engagement_keep "canonical_attempted" on THIS run's attempts table: canonical = the working period)
+    gate = "canonical_attempted" if _tc.camera_gate_on() else None
+    out = (run_mode.encoding_out_root(a.run) / "misdirected_licks" if run_mode.tag()
+           else oo.root(rv) / a.run / "cohort" / "tables" / "misdirected_licks")
+    writeguard.assert_writable(out / "_")
     out.mkdir(parents=True, exist_ok=True)
     rows = []
     for s in ak.curated_sessions():
@@ -49,7 +55,7 @@ def main(argv=None) -> int:
         sd = oo.session_dir(rv, a.run, animal, date)
         if not (sd / "licks.csv").exists():
             continue
-        keep, _gate = oc.engagement_keep(animal, date, sd)
+        keep, _gate = oc.engagement_keep(animal, date, sd, gate=gate)
         L = pd.read_csv(sd / "licks.csv")
         if keep is not None:
             L = L[L.trial_id.isin(keep)]
