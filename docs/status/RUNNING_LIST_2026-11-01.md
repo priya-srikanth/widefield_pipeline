@@ -690,6 +690,10 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/RENDER_LOG.md): rebuild_root init -> RESTnl baselines -> frozen fits ->
   maps / epoch decoders / grant figures / LP arm / rest 12.1 + 12.1b / section G / nolick / cd / coding / attempt / recovery /
   chronic / June drift / drift maps / joint. Encoder / fr / ITI / quiet / O2 families join as they are routed.
+- Render: rebuild_root init was blocked by its own read fence (fixed 41cfe67e; a `python -m` double-import bug remains, init
+  run in-process with my OK). INIT DONE: 4 seeds copied + sha256-verified; camera_coverage.csv missing (its producer refused
+  under the profile) -> figure families HELD until it is routed and run, so camera-gated stamps name PS92_0908's 82.5 %
+  coverage. RESTnl baselines + frozen fits running.
 
 ### Findings
 - main moved while the rebuild branch was being fixed (34 commits not in rebuild/cohort1-20261103). Two matter for the rebuild:
