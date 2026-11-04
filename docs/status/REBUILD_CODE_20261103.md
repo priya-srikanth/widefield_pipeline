@@ -2601,3 +2601,14 @@ sklearn). The length: `enl_window.enl_spec` and the encoder's `COMBINED_ENCODING
 settings. One change: an encoder run with ENL source daq and WIDEFIELD_ENL_WINDOW_S set now uses that window, like every
 other ENL analysis (8.45). Test: test_enl_window_source::test_one_enl_search_and_length_for_decoders_encoder_and_time_scripts.
 8.45 OPEN 4 (the encoder's fixed 2 s enl window) is closed by 8.43.
+
+**Smoke (PS92_0806, rebuild profile + the r4 run_bundle.sh env applied after `render_profile.apply`).** `_load_behaviour`
+at the merged tip vs the encoder-classes tip (825020c2), the same attempts table for both (the stopRun6j one; the
+stopA2jexrt3500c70 table is not built yet): LICKS_ALL unset and split are BIT-IDENTICAL (every Behaviour field;
+split lists 2,397 pre_cue / 967 iti / 15 post_extra; 381 trials, 364 engaged, 3,680 licks). The session's licks_all is
+pre-11-04 (no onset_context), so the onset label cannot differ there; the relabel check above covers a re-rendered one.
+The run tag under cohort1_rebuild_20261103 is ...stopA2jexrt3500c70 (= the profile's expected_run_tag).
+
+**Test record (2387cf20).** Full suite, 4 shards run one at a time (>= 45 GB free before each): 4,868 passed,
+173 skipped, 1 failed (shards: 1,902 + 140 skipped; 949 + 27; 883 + 5; 1,134 + 1, 1 failed). The failure is the known
+`test_review_7ab::test_working_trials_stays_byte_identical_to_main` (bcdg-port replaces it).
