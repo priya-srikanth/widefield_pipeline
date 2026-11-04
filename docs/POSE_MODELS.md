@@ -1064,3 +1064,10 @@ camera. (2) PRE-LABELS (`lp_sidecam prelabel`, dlc env): crop2 predicted all 292
 folders (188 Part B / C + 104 jaw), confident points (tongue 0.4, others 0.6) mapped back to the raw frame and seeded as
 CollectedData_Priya (nose 292, jaw 255, tongue 112, spout 265 frames); mapping checked by overlay (June cam3 + August cam2).
 `SIDECAM_GUIDE.html` explains both; a pre-labelled frame counts as to-do on the page until its points are changed.
+**Round 2 = Part B only (11-04, Priya: "let's just make this all Part B, hopefully this is our last round").** Old Part C's
+126 ROUTINE cue-locked targets are DEFERRED (`side_assignment.csv` column `deferred`; rule `dlc_sidecam.PILOT_STEMS`:
+routine targets are listed only in the 16 Part A folders) -- Part A already covers every animal / epoch with 144 of them and
+crop2 handles them best; kept on disk as a held-out set, or back in if round 2 is weak on new sessions. Part B = 13 sessions,
+166 targets: 62 cam4 round-4 hard moments + 104 jaw-sequence targets. Seeds rewritten to the listed frames only
+(`prelabel --replace-unchecked`: all 26 folders verified unedited first), so no unchecked machine point sits on an unlisted
+frame: nose 166, jaw 145, tongue 52, spout 154.

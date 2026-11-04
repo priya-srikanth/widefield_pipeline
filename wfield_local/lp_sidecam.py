@@ -172,7 +172,8 @@ def stage_unseen(dest: Path, exclude: set[str], proj: Path | None = None) -> int
     from wfield_local.dlc_sidecam import ASSIGN_NAME
     proj = proj or labelling_project()
     a = pd.read_csv(proj.parent / ASSIGN_NAME)
-    a = a[a.label & ~a.video_stem.isin(exclude)]
+    listed = a.label & ~(a.deferred if "deferred" in a else False)
+    a = a[listed & ~a.video_stem.isin(exclude)]
     paths = []
     for (stem, cam), g in a.groupby(["video_stem", "cam"]):
         (dest / "unseen" / stem).mkdir(parents=True, exist_ok=True)
@@ -185,8 +186,11 @@ def stage_unseen(dest: Path, exclude: set[str], proj: Path | None = None) -> int
     return len(paths)
 
 
-def prelabel(preds_csv: Path, rv=None, dry: bool = False) -> int:
-    """Seed the side folders listed in ``preds_csv`` (rows ``unseen/<stem>/<img>``) with confident predictions."""
+def prelabel(preds_csv: Path, rv=None, dry: bool = False, replace_unchecked: bool = False) -> int:
+    """Seed the side folders listed in ``preds_csv`` (rows ``unseen/<stem>/<img>``) with confident predictions, for
+    the LISTED targets only (`side_assignment.csv`: label and not deferred). ``replace_unchecked``: a folder whose
+    live CollectedData is still EXACTLY its earlier seed file (nobody has edited it) is re-seeded; any other labelled
+    folder is left alone."""
     from PIL import Image
 
     from wfield_local import dlc_prelabel as DP
@@ -197,11 +201,36 @@ def prelabel(preds_csv: Path, rv=None, dry: bool = False) -> int:
     pr = pd.read_csv(preds_csv, header=[0, 1, 2], index_col=0)
     pr.columns = pr.columns.droplevel(0)
     proj = labelling_project()
+    from wfield_local.dlc_frames import out_root, staging_root
+    from wfield_local.dlc_sidecam import ASSIGN_NAME
+    a = pd.read_csv(out_root(rv) / ASSIGN_NAME)
+    listed = set(zip(a.video_stem, a.image)) if "deferred" not in a else \
+        set(zip(a.video_stem[a.label & ~a.deferred], a.image[a.label & ~a.deferred]))
     free = set(untouched_folders("cam2", rv)) | set(untouched_folders("cam3", rv))
+    if replace_unchecked:
+        from wfield_local.dlc_sidecam_guide import unchecked_seeds
+        stale = []
+        for stem in sorted({str(p).replace("\\", "/").split("/")[1] for p in pr.index} - free):
+            live = proj / "labeled-data" / stem / f"CollectedData_{SCORER}.csv"
+            seed = staging_root(rv) / stem / f"CollectedData_{SCORER}.csv"
+            if not (live.is_file() and seed.is_file()):
+                continue
+            rows_live = pd.read_csv(live, header=[0, 1, 2], index_col=[0, 1, 2]).index
+            if unchecked_seeds(stem, proj, rv, PARTS) >= {ix[2] for ix in rows_live}:
+                stale.append(stem)
+            else:
+                print(f"{stem}: live labels differ from the seeds (edited) -> left alone")
+        for stem in stale:
+            print(f"{stem}: unedited seeds -> re-seeded{' (dry-run)' if dry else ''}")
+            if not dry:
+                for d in (proj / "labeled-data" / stem, staging_root(rv) / stem):
+                    for ext in ("h5", "csv"):
+                        (d / f"CollectedData_{SCORER}.{ext}").unlink(missing_ok=True)
+        free |= set(stale)
     rows, idx = [], []
     for path in pr.index:
         _, stem, img = str(path).replace("\\", "/").split("/")
-        if stem not in free:
+        if stem not in free or (stem, img) not in listed:
             continue
         cam = stem.split("_", 1)[0]
         with Image.open(proj / "labeled-data" / stem / img) as im:
@@ -233,11 +262,13 @@ def main(argv=None) -> int:
     ap.add_argument("dest", nargs="?", type=Path)
     ap.add_argument("--only", nargs="+", default=None, help="folder names (default: every labelled side folder)")
     ap.add_argument("--dry-run", action="store_true")
+    ap.add_argument("--replace-unchecked", action="store_true",
+                    help="prelabel: re-seed folders whose labels are still exactly the earlier seeds")
     a = ap.parse_args(argv)
     if a.cmd == "prelabel":
         if a.dest is None:
             ap.error("prelabel needs the predictions csv")
-        prelabel(a.dest, dry=a.dry_run)
+        prelabel(a.dest, dry=a.dry_run, replace_unchecked=a.replace_unchecked)
         return 0
     proj = labelling_project()
     if a.cmd == "audit":

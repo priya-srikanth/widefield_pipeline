@@ -78,6 +78,7 @@ def sessions(rv, live: Path) -> pd.DataFrame:
     a = pd.read_csv(out_root(rv) / ASSIGN_NAME, dtype=str)
     a["label"] = a.label.astype(str).str.lower() == "true"
     a["both"] = a.both.astype(str).str.lower() == "true"
+    a["deferred"] = a.deferred.astype(str).str.lower() == "true" if "deferred" in a else False
     parts = dlc_frames.bodyparts("cam2")
     rows = []
     for stem in sorted(set(a.video_stem)):
@@ -85,7 +86,7 @@ def sessions(rv, live: Path) -> pd.DataFrame:
         if not folder.is_dir():
             continue
         m = man[man.video_stem == stem].drop_duplicates("image").set_index("image")
-        mine = a[(a.video_stem == stem) & a.label]
+        mine = a[(a.video_stem == stem) & a.label & ~a.deferred]
         st = folder_status(folder, parts, set(m.index) - set(mine.image))      # only MY targets count as targets
         seeded = unchecked_seeds(stem, live, rv, parts)                        # pre-labels not yet touched = to do
         st["blank"] = sorted(set(st["blank"]) | (seeded & set(st["targets"])))
@@ -169,7 +170,7 @@ opening in profile, with no spout rod across the chin, and how far forward and d
 will learn both side views together (camera 3 is mirrored for it automatically, later) &mdash; so <b>each moment
 is labelled in only ONE of the two side cameras</b>, the one it is listed under below. About one moment in five is
 listed under both; label it in both. Work in order: <a href="#A">Part A</a> (a pilot that covers every animal and
-recovery stage), then <a href="#B">Part B</a>, then <a href="#C">Part C</a>. Installing and napari basics:
+recovery stage, done), then <a href="#B">Part B</a> (the last round). Installing and napari basics:
 <code>LABELLING_GUIDE.html</code>; camera 4 / camera 1 work stays on <code>CAM1_GUIDE.html</code>.</p>
 
 <div class="card note">
@@ -216,15 +217,15 @@ paste <pre><code>{html.escape(root)}/config.yaml</code></pre>(nothing visible ha
 </div>
 
 <div class="card note">
-<h3 style="margin-top:.2em">Parts B and C come PRE-LABELLED, and include jaw sequences (new, 2026-11-04)</h3>
+<h3 style="margin-top:.2em">Part B comes PRE-LABELLED, and includes jaw sequences (new, 2026-11-04)</h3>
 <ul>
-<li><b>Pre-labels.</b> In Parts B and C the listed frames already carry points from the first side-camera
+<li><b>Pre-labels.</b> In Part B the listed frames already carry points from the first side-camera
 network. They are a starting point, not answers: <b>check every point and drag it to the right place</b>, delete
 a point that is on the wrong thing, and add any visible part that has no point (the network leaves a part out when
 it is unsure &mdash; most often the jaw with the mouth closed, and the tongue). This page counts a frame as done
 once anything on it has been changed; a frame whose pre-labels were all already right still shows as to do, which
 is fine.</li>
-<li><b>Jaw sequences.</b> Each Part B / C session also has one short run per side camera of about 33 consecutive
+<li><b>Jaw sequences.</b> Each Part B session has one short run per side camera of about 33 consecutive
 frames in which the mouth is closed and then the jaw opens. Four of them are listed (two with the mouth closed,
 one as the jaw starts to open, one open). <b>Scroll through the whole run</b> before placing the jaw: seeing it
 open and close again is the easiest way to find the jaw landmark on the frames where the mouth is shut. The other
@@ -241,18 +242,18 @@ connection</b> makes a save fail: check the sidebar after a break.</p>
 """
     a_intro = ("<div class='card note'><p>The pilot: eight sessions chosen so that every animal and every recovery "
                "stage appears. A first side-camera network is trained on these before anything else is labelled.</p></div>")
-    b_intro = ("<div class='card note'><p>Moments that were hard on camera 4 (mostly incomplete licks and a jaw "
-               "behind the spout). They come with many context frames from camera 4's bursts; label only the listed "
-               "frames.</p></div>")
-    c_intro = "<div class='card note'><p>The remaining sessions, once the pilot has been checked.</p></div>"
-    body = (_part("Part A &mdash; pilot", "A", a_intro, df, pilot, "A", live)
-            + _part("Part B &mdash; camera 4 round-4 moments", "B", b_intro, df, r4, "B", live)
-            + _part("Part C &mdash; the remaining sessions", "C", c_intro, df, rest, "C", live))
+    b_intro = ("<div class='card note'><p>The last round: moments that were hard on camera 4 (mostly incomplete "
+               "licks and a jaw behind the spout) and, in every session, the jaw sequences. Many folders hold context "
+               "frames from camera 4's bursts and other moments that are not listed; label only the listed frames."
+               "</p></div>")
+    part_b = r4 + [s for s in rest if s not in r4]
+    body = (_part("Part A &mdash; pilot (done)", "A", a_intro, df, pilot, "A", live)
+            + _part("Part B &mdash; hard moments and jaw sequences (last round)", "B", b_intro, df, part_b, "B", live))
     page = ("<!doctype html><html><head><meta charset='utf-8'>"
             "<meta name='viewport' content='width=device-width, initial-scale=1'>"
             f"<title>Side-camera labelling</title><style>{CSS}</style></head><body>{head}{body}</div></body></html>")
     dest.write_text(page, encoding="utf-8")
-    for name, order in (("A pilot", pilot), ("B round-4", r4), ("C rest", rest)):
+    for name, order in (("A pilot", pilot), ("B last round", part_b)):
         sub = df[df.session.isin(order)]
         print(f"[dlc_sidecam_guide] {name}: {len(order)} sessions, {int(sum(len(t) for t in sub.targets))} frames "
               f"to label ({int(sum(len(b) for b in sub.blank))} blank)", flush=True)

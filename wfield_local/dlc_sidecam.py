@@ -60,6 +60,13 @@ NOT_TARGET = {CONTEXT, "context_label"}
 OVERLAP_EVERY = 5              # every 5th moment (per session x position) is labelled in BOTH side cameras
 ASSIGN_NAME = "side_assignment.csv"
 JAW = "jaw_seq"                # category of the jaw closed -> open targets (module docstring)
+#: The 16 Part A (pilot) folders: the only ones whose ROUTINE cue-locked targets are listed. Elsewhere routine targets
+#: are DEFERRED (Priya 2026-11-04: round 2 = Part B only, "hopefully this is our last round"): Part A already covers
+#: every animal and epoch with them; round 2 lists only the hard moments (ROUND) and the jaw sequences (JAW). Deferred
+#: frames stay on disk and in the assignment (``deferred`` True) -- a held-out set, or back in if round 2 is weak.
+PILOT_STEMS = frozenset(f"{c}_{t}" for c in SIDE for t in (
+    "2026-06-06T12_25_18", "2026-06-06T14_09_26", "2026-06-06T18_02_39", "2026-08-20T14_08_45", "2026-08-20T16_31_02",
+    "2026-08-21T15_02_47", "2026-09-03T10_54_01", "2026-09-07T17_08_48"))
 JAW_HALF = 16                  # frames either side of the jaw opening onset (250 fps -> +-64 ms)
 JAW_TARGET_FRAMES = (-12, -4, 4, 12)
 JAW_ONSET_MS = (60.0, 1500.0)  # opening onset after the cue: a cue response, not a jaw already moving
@@ -228,10 +235,12 @@ def cmd_jawseq(rv, dry: bool) -> int:
 def cmd_assign(rv) -> Path:
     man = pd.read_csv(DF.manifest_path(rv), dtype=str)
     a = pd.concat([assign(man), jaw_assignment(man)], ignore_index=True)
+    a["deferred"] = ~a.category.isin({ROUND, JAW}) & ~a.video_stem.isin(PILOT_STEMS)
     out = DF.out_root(rv) / ASSIGN_NAME
     assert_writable(out.parent)
     a.to_csv(out, index=False)
-    lab = a[a.label]
+    lab = a[a.label & ~a.deferred]
+    print(f"deferred (routine targets outside Part A, not listed): {int((a.label & a.deferred).sum())} frames")
     print(f"{a.moment_id.nunique()} side target moments -> {len(lab)} frames to label "
           f"({int(lab.both.sum())} in both cameras) of {len(a)} side target frames on disk")
     print(lab.groupby(["cam", "category"]).size().unstack(fill_value=0).to_string())
