@@ -289,6 +289,29 @@ FYI, the 3-class camera variant (lick / jaw-only / none) is thin in PS92 and PS9
 
 ## Findings (newest first)
 
+- **11-04: injected-effect validation (docs/status/INJECTED_EFFECT_2026-11-04.md, 174ea02b; 31 held-out pre sessions,
+  production reproduced exactly).**
+  - A KNOWN far-contra-specific loss:
+    - N, Rref and R5 recover it fully;
+    - Wt / Cto / Z understate it by about 1/3 in all 4 animals, mostly through the session SD re-expanding the
+      shrunk class;
+    - W understates it by about 1/4;
+    - Iref understates it by about half or more.
+  - Nuisance:
+    - every session-centred frame absorbs a uniform offset exactly; N does not (its per-spout numbers move either
+      way, up to ±.2);
+    - only R5 responds to a rest-state change, and it turns it into a far-contra "deficit" (-.19).
+  - Rref doubles a global signal loss (it anchors on the close spouts).
+  - Wt is blind to a proportional global gain change; it recovers a signal-only global loss.
+  - Wt is a sound CONSERVATIVE primary: no nuisance creates a far-contra loss under it, and a real spout-specific loss
+    is reported at ~2/3 of its size.
+  - **CORRECTS the earlier reading** of the intercept refit (11-04 reference-spout entry below): Iref's smaller deficit
+    (-.46 vs Wt -.64) is what a real spout-specific loss also produces under Iref. So it is NOT evidence that ~.17 of
+    the acute loss, or most of the chronic residual, is a day offset. Iref must not be used as a bound on the
+    deficit's size.
+  - Suggested next arm (not run): the Wt centre with a FIXED pre-stroke SD. The centre absorbs offsets, and a fixed
+    scale shouldn't re-expand a shrunk class.
+
 - **11-04: reference-spout anchor + intercept-only refit (docs/status/REFSPOUT_CENTRE_2026-11-04.md, b7d97063).**
   - Rref (day offset from close ipsi / mid) is NOT stroke-free:
     - the reference spouts change post-stroke beyond pre variation in 3 / 4 animals (contrast change acute +.65,
