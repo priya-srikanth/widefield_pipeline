@@ -148,10 +148,10 @@ def pre_reference(T, min_n=MIN_N):
 def _stars(T, ref, al, ep, cls, sp, rng):
     """'*' when the paired bootstrap of post - pre excludes 0 (animals with both, non-thin cells), else ''."""
     from wfield_local import analysis_kit as ak
-    post = T[(T.align == al) & (T.epoch == ep) & (T.cls == cls) & (T.spout == sp) & ~T.thin]
+    post = T[(T["align"] == al) & (T.epoch == ep) & (T.cls == cls) & (T.spout == sp) & ~T.thin]
     refk = "same" if ref.get((al, cls, sp), (None, "working"))[1] == "same" else "working"
     pcls = [cls] if refk == "same" else list(CLASSES)
-    pre = T[(T.align == al) & (T.epoch == "pre") & T.cls.isin(pcls) & (T.spout == sp) & ~T.thin]
+    pre = T[(T["align"] == al) & (T.epoch == "pre") & T.cls.isin(pcls) & (T.spout == sp) & ~T.thin]
     if refk == "working" and len(pre):
         pre = pre.groupby(["animal", "session"], as_index=False).agg(n=("n", "sum"), k=("k", "sum"))
         pre["acc"] = pre.k / pre.n
@@ -195,7 +195,7 @@ def draw(T, out_png, *, min_n=MIN_N, title=None, seed=0):
             for j, sp in enumerate(order):
                 for cls in CLASSES:
                     x = j + CLASS_OFFSET[cls]
-                    cell = T[(T.align == al) & (T.epoch == ep) & (T.cls == cls) & (T.spout == sp)]
+                    cell = T[(T["align"] == al) & (T.epoch == ep) & (T.cls == cls) & (T.spout == sp)]
                     ok, thin = cell[~cell.thin], cell[cell.thin]
                     for _, q in ok.iterrows():
                         ax.scatter(x + rng.uniform(-.05, .05), q.acc, s=16, facecolors="none",

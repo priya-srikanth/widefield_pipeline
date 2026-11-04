@@ -46,6 +46,8 @@ def test_panel_builds_and_respects_the_n_floor(tmp_path):
     xs = np.concatenate([c.get_offsets()[:, 0] for c in ax.collections if len(c.get_offsets())])
     inc = [j + cip.CLASS_OFFSET["incomplete"] for j in range(6)]
     assert not any(abs(x - i) < 0.06 for x in xs for i in inc)
+    con = [j + cip.CLASS_OFFSET["contact"] for j in range(6)]
+    assert sum(abs(x - c) < 0.06 for x in xs for c in con) == 4 * 6        # one dot per animal x spout (non-thin)
     assert not ax.spines["top"].get_visible()
 
 

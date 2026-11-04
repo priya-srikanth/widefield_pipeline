@@ -1301,7 +1301,18 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
                         note(s, M_POSTSTROKE, specific=S_G3)
                         grid(s, _chunk, cols=2, top=1.95)
 
-        # --- G4. identity, with its control read first
+        # --- G4 PRIMARY (coordinator 11-04): the camera-class discriminator; the DAQ slides below are robustness
+        if (src / "section_g_g4_camclass.png").exists():
+            s = slide()
+            title(s, "G4. Post-stroke trials by CAMERA CLASS, read by a pre-stroke working-vs-no-response boundary",
+                  "Pre-stroke WORKING (contact + incomplete) vs NO-RESPONSE, position-balanced; each group's post "
+                  "rows scored separately (spout-balanced, cells < 10 rows left out), against the same group "
+                  "pre-stroke (dotted = pre working where the group is absent pre). Right: the DAQ "
+                  "lick-vs-no-lick discriminator, ROBUSTNESS.")
+            note(s, M_POSTSTROKE, specific=S_G4)
+            big(s, src / "section_g_g4_camclass.png", top=1.7, width=11.5)
+
+        # --- G4. identity, with its control read first (DAQ discriminator: ROBUSTNESS since 11-04)
         if (src / "poststroke_G4_identity.png").exists():
             s = slide()
             title(s, "G4. Do post-stroke NO-LICK trials look like pre-stroke LICKING trials?",

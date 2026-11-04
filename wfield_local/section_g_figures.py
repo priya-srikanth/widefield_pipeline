@@ -203,6 +203,12 @@ def _render_readouts(sub, out, prefix, *, named_only=False):
     therefore takes the fits-engaged pair only, which is the one G7d places.
     """
     made = []
+    # G4 PRIMARY (coordinator 11-04): the camera-class discriminator, with the DAQ discriminator as a labelled robustness
+    # panel (`g4_figures`; figdata + --plot-only there). Prefixed, so the two families never share a path. The DAQ G4
+    # figures below are kept as the robustness set.
+    if any(v.get("g4_camclass_cue") or v.get("g4_camclass_precue") for v in sub.values()):
+        from wfield_local import g4_figures
+        made.append(g4_figures.render(sub, out, prefix))
     ident = {k: v["looks_like_which"] for k, v in sub.items() if v.get("looks_like_which")}
     if ident and not named_only:
         made.append(pp.fig_identity(ident, out))
