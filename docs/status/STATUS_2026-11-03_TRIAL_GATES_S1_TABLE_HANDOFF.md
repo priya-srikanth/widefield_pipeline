@@ -6,6 +6,13 @@ republish the imaging page with re-plotted figures).
 
 ## UPDATE 11-04 early — jaw-only OUT of working (Priya decision 11-03 late, via a8)
 
+**11-04 late: page edits are listed in `docs/status/PAGE_EDITS_PENDING_2026-11-04.md` (a8 keeps it; one pass after the
+rebuild).** e0's imaging items there: A1 (incl. the section-0 definition box), A2-A6, A8-A12, B1-B3, B5-B7, B11, the C
+methods paragraph, SPOUT_BALEM section 7. CAVEAT for A11 (the jaw-free s1 table): it was built with ENL 2.0 s
+(`LP_licks_ENL2s`, the old table's window). If A9 (ENL follows the lick source: LP 1.0 s) applies to section 1, re-run both
+s1 tables at 1.0 s in that pass (`WIDEFIELD_LICK_SOURCE=lp WIDEFIELD_ENL_WINDOW_S=1.0`, `--suffix`), then
+`p_img_s1_table_20261103.py` pointed at those files. Told a8 11-04.
+
 **DECIDED 11-04 (Priya): no interim swap — WAIT for 34's cohort-1 rebuild.** The imaging page (sections 1-4, 6, 7,
 the definition captions, the s1 table) and SPOUT_BALEM §7 stay as published (v51) until the rebuild's figures land;
 then apply everything in one pass. The jaw-free s1 table below is ready for that pass. Same pass also takes the
