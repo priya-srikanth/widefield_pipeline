@@ -1300,3 +1300,24 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   included.**
   - Wt: no fill / fallback; a loud refusal guard instead.
   - The port reports the minimum per-spout working count per animal x epoch to confirm.
+- **11-04 ~18:30: rebuild/cue70 DONE.**
+  - Commits: 9f0d6efe, 395a9124, 0988a1cf, 5463a0b6, 3613cf0b, log 8.45.
+  - Full suite: 4,790 passed / 1 failed (the same byte-identity-vs-main test).
+  - The encoder Behaviour is IDENTICAL, with and without LICKS_ALL=split.
+  - Census counts reproduced: A2 5,611; excise 273 on the census inputs, 276 on the final code.
+  - New primary tag: ...-cls-contact-incomplete-stopA2jexrt3500c70.
+  - Cohort transitions (57,048 cues):
+    - working 49,111 -> 49,087;
+    - stopped 5,882 -> 5,347;
+    - stopped_licking 276;
+    - after_end 43 -> 0 (folded into stopped under A2).
+    - The max_rt rule: contact -> incomplete 17, -> jaw_only 6, -> no_response 2.
+    - The A2 guard returns 314 trials, mostly acute far spouts.
+  - LP fallback: 55 close-spout trials DAQ-timed, 6 far grooming flags (vs 57 / 7 in the report). The difference is cue
+    clocks differing by up to 14 ms.
+  - Pre-cue lick tables: readers split by peak at read time, so no re-render is needed. The writers would target v36 and
+    are refused by writeguard.
+  - Merge actions:
+    - g_group must give stopped_licking its own group;
+    - the quit tail needs its own "quit" label, because after_end is now 0 (sent to the port helper);
+    - renumber the log sections.
