@@ -1113,7 +1113,7 @@ four review sessions mapped to raw (`lp_sidecam.to_raw`); reference = production
   thresholds x side px / mm, 0.36-0.39; tongue gap 24 ms; no jaw x-flip rule), robust fusion (worst view dropped beyond
   `REJECT_MM`), water-drop rule, one-view fill, 3-D QC; per-session side NOSE and TONGUE offsets onto cam1 + cam4.
   Removed by side cleaning (after the jaw y-ceiling raise below): jaw 0.1-0.5 %, tongue <= 0.7 % of confident points
-  (`side_clean_qc_stats.csv`; QC clips `side_clean_qc_*.mp4`, PENDING Priya's QC). Side jaw Y CEILING x 1.4
+  (`side_clean_qc_stats.csv`; QC clips `side_clean_qc_*.mp4`; APPROVED by Priya 11-04: "looks great"). Side jaw Y CEILING x 1.4
   (`SIDE_Y_CEILING_FACTOR`, ~62-66 px): v3.4 measures the jaw from ONE session-wide rest, and the plainly scaled ceiling
   (~45-47 px) wiped 192-193 real wide-open frames per side camera on PS93 0908 (y - session rest p99 51-53, max 57-60;
   cam2 and cam3 lost the same trials) and 1.5-2 % on 0814 -- as cam1 (125 -> 160 px).
