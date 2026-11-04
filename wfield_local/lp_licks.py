@@ -202,6 +202,33 @@ def gate_licks_s(label: str, cue_s, daq_lick_s, max_rt: float, source: str | Non
     return np.asarray(lp["lick_samples"], float) / _GATE_SR, ~np.asarray(lp["drop"], bool)
 
 
+#: ms grid on which `enl_window_starts_s` runs the decoders' frame-based search (licks occupy one tick: 1 ms).
+_SLIDE_TICK_S = 1e-3
+
+
+def enl_window_starts_s(cue_s, strobe_s, lick_s, win_s: float | None = None):
+    """Per trial, the start (DAQ s) of its LICK-FREE ENL window, NaN = no lick-free window -> drop the trial.
+
+    THE DECODERS' OWN RULE, not a copy (Priya 11-04: "reuse that exact function"):
+    `locanmf_position_decoder.precue_window_start` -- the fixed window ending at the cue if it holds no lick, else the
+    latest lick-free gap in [strobe, cue] long enough for the window, else drop -- run on a 1 ms grid, since it works
+    in integer frames. ``lick_s`` must come from the window's source (`gate_licks_s`); ``win_s`` defaults to
+    `enl_post_s()`. For scripts that build ENL windows on times instead of through `_trial_features`."""
+    from wfield_local.locanmf_position_decoder import precue_window_start
+    w = enl_post_s() if win_s is None else float(win_s)
+    k = 1.0 / _SLIDE_TICK_S
+    L = np.sort(np.round(np.asarray(lick_s, float) * k))
+    wn = int(round(w * k))
+    out = np.full(len(np.atleast_1d(cue_s)), np.nan)
+    for i, (c, st) in enumerate(zip(np.atleast_1d(cue_s), np.atleast_1d(strobe_s))):
+        if not np.isfinite(c):
+            continue
+        r = precue_window_start(int(round(c * k)), (st * k) if np.isfinite(st) else np.nan, L, wn)
+        if r is not None:
+            out[i] = r / k
+    return out
+
+
 def apply_enl_window(args):
     """``args`` with post_s replaced by the ENL window for the precue alignment (a copy; others returned as is). Called
     where features are KEYED and where they are built, so the cache key always sees the window actually used."""

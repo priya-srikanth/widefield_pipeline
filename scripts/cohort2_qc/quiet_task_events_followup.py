@@ -61,8 +61,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from quiet_spikes_v2 import LICK_SOURCE, V2  # noqa: E402
 
-TE = V2 / "task_events"
-OUT = V2 / "task_events_followup"
+from quiet_task_events import TE, TE_SUFFIX  # noqa: E402 - keyed by ENL source + window (11-04)
+
+OUT = V2 / f"task_events_followup{TE_SUFFIX}"
 ANIMALS = ("PS92", "PS93", "PS94", "PS95")
 TRIAL_COLS = ("orofacial_left", "orofacial_right")
 K = 4.0
