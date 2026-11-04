@@ -1116,3 +1116,9 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
     - Priya re-rsyncs code/ and tables/.
 - **11-04 ~14:15: stop-run review clips written.** 8 clips + index.md, 50 MB, at
   M:/MICROSCOPE/Priya/Widefield/review_clips/stop_runs_20261104/.
+- **11-04 ~14:20: DECISION (Priya): the DAQ timing fallback for lick-aligned arms.**
+  - Close spouts: if the LP onset is missing or > 50 ms after the first DAQ contact, use the DAQ time
+    (timing_source = daq).
+  - Far spouts: keep LP, and flag grooming_suspect when LP is > 50 ms late.
+  - Implemented on rebuild/cue70 (lp_licks) and in the encoder's per-trial outputs (rebuild/encoder-classes).
+  - LP source fixes (droplet / gate M / onset) are deferred; they are not in this rebuild.
