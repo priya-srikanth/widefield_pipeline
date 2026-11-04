@@ -1345,3 +1345,17 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
       -2 s, and sliding would mix in the spout-arrival transient;
     - fr_enl_decode: fixed 1 / 2 s on the FaceRhythm grid.
     - Recommendation: keep them fixed (lick-free by drop) and say so in the methods.
+- **11-04 ~19:15: rebuild/bcdg-port DONE (first pass).**
+  - Commits: 724862f9, fecc69c9 (G9, separable), d15fe9af (panel, separable), 361c83bd, 3bedd477.
+  - Full suite: 4,777 passed / 0 failed. The port also brought main 26fd5b44's B/C base (default OFF).
+  - Centre: WIDEFIELD_SPOUT_SCORE_CENTRE = wt (default), with a loud refusal below 20 rows.
+  - Dry count: the minimum is PS94 acute far contra at 21 working cues. The imaging pool could drop a few, so the
+    refusal might trip there; watch it.
+  - New frozen kinds: g_lickonly_decoder, g_cam_disc. Other ids are unchanged.
+  - Follow-ups requested:
+    - turn C ON with Wt for the CD / pattern projections, with a per-readout split keeping eax on z;
+    - run-tag parts for non-default centre / option arms;
+    - G4 figures read the camclass primary;
+    - joint_xsession D on working rows;
+    - G9 figure layouts after the render.
+  - cue70 is adding stop_kind_for (run / tail) so g_group keeps "quit" and "stopped" separate.
