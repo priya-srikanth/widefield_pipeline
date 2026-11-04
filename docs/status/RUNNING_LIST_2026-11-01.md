@@ -1122,3 +1122,13 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   - Far spouts: keep LP, and flag grooming_suspect when LP is > 50 ms late.
   - Implemented on rebuild/cue70 (lp_licks) and in the encoder's per-trial outputs (rebuild/encoder-classes).
   - LP source fixes (droplet / gate M / onset) are deferred; they are not in this rebuild.
+- **11-04 ~14:30: Priya: "by definition, there should not be licks in the stopped time."**
+  - The current rule only guarantees no lick in each trial's response window (cue + 70 ms .. stop).
+  - It can still contain licks in:
+    - the ENL / pre-cue period;
+    - 0-70 ms after the cue;
+    - the ITI;
+    - after max_rt. The pending max_rt rule creates these.
+  - A census is running: STOPPED_LICKS_CENSUS_20261104.md.
+  - Likely rule: any camera lick or DAQ contact in the run's time span breaks the run. To be implemented on
+    rebuild/cue70 once the counts are in.
