@@ -750,6 +750,9 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
     camera_contact_nolick_trials, camera_stop_lengths; all timestamped 05:46:27, the incident run). Kept list = this entry.
   - Asked to clarify: (1) the D / G scored-set question, (3) the rest-period start, (4) the three lick measures, (5) the
     slide 94 caveat, and (7) why the O2 encoder runs need rebuilding. Answered in chat.
+  - The render runner's stop of its own epoch render was DENIED by the session permission classifier. Still running under
+    the OLD tag (PIDs 19008 parent, 35904 / 24008 arms); outputs go to the old-tag folder (to be marked SUPERSEDED); the
+    runner's queue is held by a STOP file. ASKED PRIYA: stop those 3 PIDs herself (recommended), or let them finish.
 - The 05:46 incident coverage copies differ from the rebuild ones only by the 12 June sessions (Aug-only pre); the partial-
   coverage rows are identical.
 
