@@ -1381,3 +1381,65 @@ sets and the pattern families' pre reference were therefore NOT converted to wor
 
 **Test record.** Full suite at cf94e7c3, 6 shards: 4,605 passed, 179 skipped, 1 failed. The failure was the source
 pin of `_collect_7` (it is now `_collect_7_cached`); the pin is updated and the file passes (3 passed).
+
+### 8.36 Review 8A / 8B at 11817e27 (fcbcd535, d8e44e6c)
+
+**8A**
+- **B1 (regression from NB4).** `pooled_frozen_loso` narrows `pre_i` to the sessions that have a LOSO model, which
+  drops PS93_0813. `frozen_scored_frame` then took the narrowed list for the pre / post split and raised on PS93_0813 as
+  a "post" session with 0 working rows.
+  - Fix: pre vs post is decided by the session's PHASE (`spout_scaling.is_post_session` → `config.session_phase`).
+    A PRE session with 0 working rows is excluded and logged; only a POST session raises.
+  - `pooled_frozen_loso` also passes the un-narrowed pre list (`pre_all`).
+  - `grant_kit._frozen_frame` applies the same rule.
+  - Section G (`frozen_X` passes the full `d["pre_i"]`) and attempt_coding (full `pre_list`) were checked; both are
+    correct under the rule.
+  - Test: the `pooled_frozen_loso` sequence with a no-video pre session (synthetic pool, real config phases) does not
+    raise, logs EXCLUDED, and leaves PS93_0813 out of `per_session`. A post session with 0 rows still raises.
+- **NB-b.** The 5b titles say "(c+i)" or "(c+i+jaw)" from the selection.
+- **NB-c.** `trial_classes.design_note()` builds its text from `sel_class_text()`.
+- **NB-d.** The excluded sessions are now computed from the session classes (`trial_classes.working_excluded_sessions`:
+  pooled sessions without camera classes; memoised), not from process state.
+  - They are used by the corner stamp, the epoch-figure sidecars (`figure_meta`) and `section_g_design.json`.
+  - DECISIONS now says "corner stamp + epoch-figure sidecars". `grant_kit._save` writes no meta sidecar.
+- **NB-e.** The `test_review_7ab` fixture clears every owned env variable.
+- **NB-f.** The store log names the gate: "engaged rows (camera gate | DAQ gate: DAQ lick-arm trials)".
+
+**8B**
+- **B1.**
+  - june_august_drift uses `root("cohort_out")`, the derived tree, not the labcams input tree.
+  - The deck resolves Fig 4.3 through the same helper on the same root (`_grant_root.parent` = cohort_out).
+  - The test uses a cohort_out root.
+- **B1b.**
+  - `recovery_trajectory.run` writes by default to `lp_licks.output_dir(grant_figures/epoch)`, the tagged epoch dir
+    that june_august_drift's `primary_chronic_csv` reads.
+  - `scripts/chronic_stability.py` is a REDO row (MASTER_MANIFEST M05577). Its `require_default` refusal is replaced
+    by tagged paths: it reads `grant_figures/<tag>/epoch/data` and writes `chronic_stability/<tag>/`.
+  - chronic_drift_vs_reorg (Fig 10.2, M00086) was not touched in this batch.
+- **N1 / N5.** `run_mode.june_august_drift_dir` and `primary_output_dir` clear WIDEFIELD_LICK_SOURCE, the ENL window and
+  WIDEFIELD_GATE_SOURCE, so they resolve the DAQ-arm folders from inside an LP / ENL block (tested).
+- **N2.** Section K's DAQ_ENL1s entry unsets the lick source, so under the LP deck it resolves the DAQ ENL figure
+  (tested).
+- **N3.** In a tagged build, a missing tagged grant dir or epoch dir counts every registered H / I figure as MISSING.
+- **N4.** These legends with PRE-REBUILD numbers are marked `REBUILD-TODO(numbers)` in deck_registry, for the
+  replacement pass:
+  - section K: epoch_acc_by_position_lick_lick, epoch_accdelta_by_position_lick_lick,
+    epoch_acc_by_position_cue_working, epoch_5c_frozen_confusion_lick_lick,
+    DAQ_ENL1s epoch_acc_by_position_precue_working, epoch_15rpa_position_RESTref_by_animal_lick_lick,
+    epoch_15r_position_RESTref_lick_lick, attempt_maps_lick_far_contra, attempt_maps_lick_far_contra_minus_pre,
+    attempt_maps_cue_far_contra (10 entries);
+  - `_DRIFT_GROUP` (Fig 4.3).
+- **N6.** The rest_frozen_decoder_nl docstring now says that `--pre all` is the PRE-REBUILD page set and that the
+  rebuild's page 12.1 is August-only, read via `page_sessions`.
+- **N7.** Page sources name map_drift_prepre's rebuild folders (`<run tag>`): p_img_s7v3.py, p_img_licksrc.py,
+  prov_s7.md.
+- **Tests from tests/.** test_review_7ab now resolves paths from `Path(__file__).parents[1]` and runs git with
+  `cwd=REPO`.
+  - Running the suite with cwd = tests/ imports `wfield_local` from the editable install (the main checkout) unless
+    PYTHONPATH names the worktree. The tests/-cwd suite below sets it.
+
+**Test record.** Full suite at d8e44e6c, 6 shards, run twice: from the repo root, and with cwd = tests/ (PYTHONPATH = the
+worktree). Each run: 4,612 passed, 179 skipped, 1 failed.
+- The failure is `test_rebuild_root::test_subfolder_and_package_writers_are_classified`: recovery_trajectory is now
+  routed (8B B1b), so it leaves the scanner's RESOLVED list. The list is updated in 2ddcf9fb.
+- At 2ddcf9fb, test_rebuild_root + test_review_7ab pass from both cwds (37 passed each).
