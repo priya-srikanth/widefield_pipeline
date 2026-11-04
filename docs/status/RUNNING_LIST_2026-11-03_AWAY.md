@@ -29,6 +29,9 @@ log for the earlier part of the day is `RUNNING_LIST_2026-11-02_OVERNIGHT.md`.
       contralesional SSp-m / tjM1.
     - Options: re-caption the slide; show the z-scored version (main or hidden); or both. [Suggest a z-scored hidden
       companion, and reword the main claim to the subacute / chronic + ITI result.] It is 34's figure.
+    - DECIDED (Priya 11-04): add a z-scored HIDDEN comparison slide after slide 95. 34 was asked to render the
+      z-scored figures now (pre-rebuild); a8 inserts the hidden slide. The main slide is unchanged for now. F0
+      confirmed: it ROSE post-stroke, so raw dF/F is not inflated by a lower F0.
 
 12. **RUNNING (Priya OK 11-04): injected-effect validation of the frames.** Held-out pre sessions with the acute mix
     plus known injected effects: far-contra-specific loss / global gain / uniform offset / offset + loss / rest change
