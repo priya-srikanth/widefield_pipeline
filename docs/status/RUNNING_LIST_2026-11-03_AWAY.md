@@ -100,6 +100,14 @@ FYI, the 3-class camera variant (lick / jaw-only / none) is thin in PS92 and PS9
 
 ## Findings (newest first)
 
+- **11-04: what the G4 / state discriminators compare.** They are trained on pre DAQ-lick vs DAQ-no-lick trials
+  (position-balanced; poststroke_compare.looks_like_which), NOT on camera working. So jaw-only trials were always in the
+  no-lick class, in both frames. The no-lick group also contains incomplete licks (genuine attempts) and no-response
+  trials. The B check's PS93 -.019 and the .195 / .323 / .502 spread are therefore pure CENTRING effects. Running (Priya
+  OK): G4 split by camera class (incomplete / jaw-only / none / after end) under the three centres, plus a mix-shift
+  test on held-out pre sessions resampled to post-stroke class mixes (decoder_mix_checks/g4_camclass_mixshift_1104/).
+  B waits on it.
+
 - **11-04: working excludes jaw-only, now on main (48f2cc6d).** The production path reproduces the jaw-only checks
   exactly in every session (largest difference 1e-16). 20 new frozen models are published and SHA-verified; every
   older model is kept. The lick window is unchanged. The jaw-inclusive (`in_working_jaw`) and quit-tail settings stay
