@@ -39,7 +39,47 @@ for anything that loads imaging. E = `M:/MICROSCOPE/Priya/Widefield/LP_analysis/
 3. Then tell **sabatinilab-e3** (PI deck) the decoder figures are final: per figure the share PNG path, page Fig N.k,
    script + args, headline numbers, methods text (they asked 10-26 ~22:30; reply sent: not final yet).
 
-### 00-COMPACT-23 (11-04 ~08:05) -- READ FIRST; supersedes 22 for state
+### 00-COMPACT-24 (11-04 ~09:50) -- READ FIRST; updates 23 (23 still holds for the code rules / decisions)
+**Code tip:** rebuild/cohort1-20261103 at 571b3955 (log 8.41 / 8.42), NOT pushed.
+- c3cb3c0c: jaw_only counts toward the 6 in a stop run (tag ...stopRun6j). Full suite 4,735 / 0 failed.
+- fb3b6304: imaging input-cache key.
+- a6a29dd7: split area basis, wfield_local/area_basis.py (v8 roi_masks; iti_licks delegates). Encoder region table + Ra on
+  split + plain; "cortex" = v8, "cortex_stat" = old mask.
+- a7aec872: o2_encoding rebuild-aware. Bundle in <root>/o2/<name>; full profile env in env.json, re-applied on O2; identity
+  refusal; check < 1e-4; collect to the tagged out_dir; 14 TAGs, fr_A_tr dropped.
+
+**O2 bundle `enc_rebuild_20261104`:** building since 09:27, helper a0dc6e4f1c77fb99f, --jobs 6, ~1.8 sessions / min.
+- ETA: inputs ~10:25; then `check` on PS93_0814 (pre) + PS93_0818 (acute), done ~10:45.
+- Then send Priya the share path + COMMANDS.md: transfer-node rsync, login-node test task, 14 sbatch arrays on `short`
+  (4 c / 32G / 6 h, %60), rsync back, collect.
+- Smoke on PS92_0806: v8 cortex R2 .6152 vs cortex_stat .6160.
+
+**Render: HELD** (runner a0db502ebea3b948d handed back; resume it by SendMessage or a new runner).
+- Done under stopRun6j: init (6 seeds), trial_attempts, coverage tables.
+- Queue: scratchpad `queue2.sh`. To launch: remove HOLD_j_g2a / HOLD_j_g2b, then `nohup bash queue2.sh &`, after the bundle is
+  written.
+- Then: the encoder family (ENCODER_RENDER_COMMANDS.md A, B, D-F), scripts/rebuild_figs, the drift1500 arm, the O2 collect +
+  section C readers.
+- RENDER_LOG.md in the root lists all SUPERSEDED old-rule caches / models (none deleted).
+
+**Decisions since 23 (all in the running list):**
+- jaw_only counts toward the 6 (done).
+- Split area basis everywhere: v8 masks; orofacial = ALM, tjM1, SSp-m, SSp-n; MOs-vs-MOp contrasts become ALM vs tjM1;
+  residual_roi pixel test primary + area tests corrected over the split family; cortex rows kept (v8); LocaNMF-label analyses
+  left. Done in the encoder path; the FULL SWITCH comes after the bundle (helper; inventory
+  docs/status/rebuild_20261103/SPLIT_BASIS_INVENTORY_20261104.md).
+- Priya via a8: B / D / G. D scores working trials (engaged = robustness); G groups by camera class. Port a8's main commits;
+  C is still open.
+- Rest start = first camera lick (settled). The PS93_0813 DAQ fallback is NOT used (failed check).
+- O2 encoder runs: rebuild them (Priya runs O2).
+- Slide 94 caveat added (a8).
+- Priya waits for the rebuild: no interim swaps.
+
+**Finding (stop rule):** stop runs 177 -> 283, stopped trials 3,267 -> 5,944; working trials unchanged.
+
+**Open for Priya:** the pattern-family pre reference (lick vs working); the FR validation window (keep -2..+4 s recommended).
+
+### 00-COMPACT-23 (11-04 ~08:05) -- updated by 24
 Session f082ee0c. The running list (`docs/status/RUNNING_LIST_2026-11-01.md`, block "11-03 EVENING", newest at the end) holds
 every decision and finding in order. Commit docs on wf_attempt BY EXPLICIT PATH ONLY.
 
