@@ -243,3 +243,33 @@ def test_compare_trials():
     assert bad == ["x"] and w > 1e-4
     assert m.compare_trials(a, dict(a, x=np.array([1.0, 2.0, 3.0])))[1] == ["x"]          # NaN pattern differs
     assert m.compare_trials(a, dict(a, n=np.array(["a", "c"])))[1] == ["n"]
+
+
+def test_runner_ships_attempts_option_and_records_it():
+    """ATTEMPTS (submit option) -> COMBINED_ENCODING_ATTEMPTS inside the bundle, recorded with its hash in run.json;
+    never an env.json setting."""
+    from wfield_local import o2_bundle
+    m = _mod()
+    assert "COMBINED_ENCODING_ATTEMPTS" in o2_bundle.SUBMIT_ENVS
+    r = m.RUNNER
+    assert 'os.environ["COMBINED_ENCODING_ATTEMPTS"] = str(f_)' in r and '"attempts_sha256"' in r
+    assert r.index("COMBINED_ENCODING_ATTEMPTS") < r.index("run_session")
+    assert r.index("**attempts") < r.index("run_session")
+
+
+def test_refresh_code_ships_the_attempts_table(tmp_path, monkeypatch):
+    import argparse
+    import json
+
+    from wfield_local import combined_encoding as ce
+    m = _mod()
+    d, _ident, _os = _fake_bundle(tmp_path, monkeypatch, m)
+    (d / "tables").mkdir(exist_ok=True)
+    (d / "tables" / "trial_attempts.csv").write_text("label,trial_id,attempted,canonical\nA,1,True,True\n")
+    old = ce.file_sha256(d / "tables" / "trial_attempts.csv")
+    new = tmp_path / "new_attempts.csv"
+    new.write_text("label,trial_id,attempted,canonical\nA,1,False,True\n")
+    assert m.cmd_refresh_code(argparse.Namespace(name="", bundle=str(d), force=False, attempts=str(new))) == 0
+    meta = json.loads((d / "bundle.json").read_text())
+    assert meta["attempts_sha256"] == ce.file_sha256(new) == ce.file_sha256(d / "tables" / "trial_attempts.csv")
+    assert (d / "tables" / f"trial_attempts_{old[:12]}.csv").exists()                  # the earlier table is kept

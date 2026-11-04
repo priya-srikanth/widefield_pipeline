@@ -195,3 +195,64 @@ def test_trials_mode_default(monkeypatch):
     monkeypatch.setenv(ce.TRIALS_ENV, "bogus")
     with pytest.raises(ValueError):
         ce.trials_mode()
+
+
+# ------------------------------------------------------------------------------------ engagement from a shipped table
+def _attempts_of(B, label="PS93_0814", canonical=True):
+    T = B.trials
+    return pd.DataFrame({"label": label, "trial_id": T.trial_id, "cls": np.where(T.engaged, "hit", "stopped"),
+                         "attempted": T.engaged.to_numpy(), "canonical": canonical})
+
+
+def test_rederive_engaged_reproduces_baked_flags(tmp_path, monkeypatch):
+    from wfield_local import orofacial_cohort as oc
+    monkeypatch.setattr(oc, "ENGAGEMENT_GATE", "attempted")
+    B = _inputs()["behaviour"]
+    f = tmp_path / "trial_attempts.csv"
+    A = _attempts_of(B)
+    pd.concat([A, A.assign(label="PS92_0806")]).sample(frac=1, random_state=0).to_csv(f, index=False)   # other rows
+    B2 = ce.rederive_engaged(B, "PS93_0814", f)
+    assert B2.trials.engaged.dtype == bool and (B2.trials.engaged.to_numpy() == B.trials.engaged.to_numpy()).all()
+    assert B2.trials is not B.trials and B.trials.engaged.sum() < len(B.trials)                # B itself untouched
+    # a changed rule shows up; canonical_attempted also needs canonical
+    A2 = A.copy()
+    A2.loc[0, "attempted"] = not A2.loc[0, "attempted"]
+    A2.to_csv(f, index=False)
+    assert ce.rederive_engaged(B, "PS93_0814", f).trials.engaged.iloc[0] != B.trials.engaged.iloc[0]
+    _attempts_of(B, canonical=False).to_csv(f, index=False)
+    assert not ce.rederive_engaged(B, "PS93_0814", f, gate="canonical_attempted").trials.engaged.any()
+
+
+def test_rederive_engaged_refuses(tmp_path, monkeypatch):
+    from wfield_local import orofacial_cohort as oc
+    monkeypatch.setattr(oc, "ENGAGEMENT_GATE", "attempted")
+    B = _inputs()["behaviour"]
+    f = tmp_path / "t.csv"
+    _attempts_of(B).iloc[:-2].to_csv(f, index=False)                         # two trials without a row
+    with pytest.raises(ValueError, match="2 of 72 trials"):
+        ce.rederive_engaged(B, "PS93_0814", f)
+    _attempts_of(B).to_csv(f, index=False)
+    with pytest.raises(ValueError, match="trials of PS93_0815"):
+        ce.rederive_engaged(B, "PS93_0815", f)
+    with pytest.raises(ValueError, match="reference"):
+        ce.rederive_engaged(B, "PS93_0814", f, gate="reference")
+
+
+def test_run_session_with_shipped_table_is_identical(tmp_path, monkeypatch):
+    """ATTEMPTS_ENV with the table the flags were baked from: the same session outputs; the table is recorded."""
+    from wfield_local import orofacial_cohort as oc
+    monkeypatch.setattr(oc, "ENGAGEMENT_GATE", "attempted")
+    monkeypatch.setenv(ce.SMOKE_ENV, "1")
+    monkeypatch.setenv(ce.TRIALS_ENV, "off")
+    monkeypatch.setenv(ce.ONLY_ENV, "trmodels")
+    x = _inputs(n_trials=48)
+    a = ce.run_session("PS93_0814", inputs=x)
+    f = tmp_path / "trial_attempts.csv"
+    _attempts_of(x["behaviour"]).to_csv(f, index=False)
+    monkeypatch.setenv(ce.ATTEMPTS_ENV, str(f))
+    b = ce.run_session("PS93_0814", inputs=x)
+    for k in SESSION_KEYS:
+        np.testing.assert_array_equal(a[k], b[k], err_msg=k)
+    pd.testing.assert_frame_equal(a["region"], b["region"])
+    assert b["res"]["attempts_table"] == {"path": str(f), "sha256": ce.file_sha256(f)}
+    assert "attempts_table" not in a["res"]

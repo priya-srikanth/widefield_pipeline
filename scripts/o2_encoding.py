@@ -84,6 +84,12 @@ if os.environ.get("BINS_WIDTH"):                 # soft-bin width sweep (submit-
     os.environ["COMBINED_ENCODING_BINS_WIDTH"] = os.environ["BINS_WIDTH"]
 if os.environ.get("MATCH"):                      # lick-matched subsampling: MATCH = a JSON in the bundle (match.json)
     os.environ["COMBINED_ENCODING_MATCH"] = str(b / os.environ["MATCH"])
+attempts = {}
+if os.environ.get("ATTEMPTS"):                   # engagement re-derived from a shipped table (combined_encoding.ATTEMPTS_ENV)
+    import hashlib
+    f_ = b / os.environ["ATTEMPTS"]
+    os.environ["COMBINED_ENCODING_ATTEMPTS"] = str(f_)
+    attempts = {"attempts": os.environ["ATTEMPTS"], "attempts_sha256": hashlib.sha256(f_.read_bytes()).hexdigest()}
 out = b / "out" / tag
 (out / "sessions").mkdir(parents=True, exist_ok=True)
 (out / "run.json").write_text(json.dumps({"order": order, "only": os.environ.get("ONLY", ""),
@@ -94,7 +100,7 @@ out = b / "out" / tag
                                           "bins": os.environ.get("BINS", ""),
                                           "fr_groups": os.environ.get("FR_GROUPS", ""),
                                           "bins_width": os.environ.get("BINS_WIDTH", ""),
-                                          "bundle_env": bundle_env, "tag": tag}))
+                                          **attempts, "bundle_env": bundle_env, "tag": tag}))
 if (out / "sessions" / f"{label}.json").exists():
     print("done already", label); sys.exit(0)
 from wfield_local import combined_encoding as ce
@@ -261,13 +267,15 @@ def cmd_bundle(a) -> Path:
     (d / "labels.txt").write_text("".join(f"{x}\n" for x in ok), encoding="utf-8", newline="\n")
     env = bundle_env(d)
     (d / "env.json").write_text(json.dumps(env, indent=1), encoding="utf-8", newline="\n")
-    if attempts is not None:                  # provenance only: the gate is already inside each inputs/<label>.pkl
+    attempts_sha = ""
+    if attempts is not None:                  # the gate baked into each inputs/<label>.pkl; ATTEMPTS= re-derives from it
         (d / "tables").mkdir(exist_ok=True)
         shutil.copy2(attempts, d / "tables" / "trial_attempts.csv")
+        attempts_sha = ce.file_sha256(d / "tables" / "trial_attempts.csv")
     from wfield_local import rebuild_root
     meta = {"identity": ident, "commit": commit, "code_root": str(repo), "name": a.name,
             "profile": os.environ.get("O2_BUNDLE_PROFILE", ""), "rebuild_root": str(rebuild_root.root() or ""),
-            "attempts_table": str(attempts or ""), "cams": a.cams, "fr": a.fr, "n_sessions": len(ok),
+            "attempts_table": str(attempts or ""), "attempts_sha256": attempts_sha, "cams": a.cams, "fr": a.fr, "n_sessions": len(ok),
             "created": datetime.datetime.now().isoformat(timespec="seconds")}
     meta_f.write_text(json.dumps(meta, indent=1), encoding="utf-8", newline="\n")
     code = d / "code"
@@ -305,6 +313,7 @@ python {b}/enc_runner.py
 
     def line(t, o, only, extra, arr):
         return (f"sbatch --array={arr} --export=ALL,TAG={t},ORDER={o},ONLY={only},VIDEO=,FR="
+                + (",ATTEMPTS=tables/trial_attempts.csv" if attempts is not None else "")
                 + (f",{extra}" if extra else "") + f" {b}/run_enc.sbatch")
     # FR= first, then the run's own FR=... overrides it (sbatch --export: the last assignment wins)
     sub = "\n".join(line(t, o, only, extra, f"1-{n}%60") + f"      # {t}" for t, o, only, extra in FULL_RUNS)
@@ -523,6 +532,34 @@ def _bundle_settings_env(d: Path, env_json: dict) -> dict:
     return env
 
 
+def _ship_attempts(d: Path, meta: dict, a) -> None:
+    """refresh-code: tables/trial_attempts.csv = this run's CURRENT attempts table (`lp_licks.attempts_path()` under the
+    profile, or --attempts), recorded with its sha256 in bundle.json; a different earlier table is kept beside it as
+    trial_attempts_<sha12>.csv. Submits with ATTEMPTS=tables/trial_attempts.csv re-derive engagement from it."""
+    from wfield_local import combined_encoding as ce
+    src = Path(a.attempts) if getattr(a, "attempts", "") else None
+    if src is None:
+        from wfield_local import orofacial_cohort as oc
+        if oc.ENGAGEMENT_GATE == "reference":
+            return
+        from wfield_local import lp_licks
+        src = Path(lp_licks.attempts_path())
+    if not src.exists():
+        raise SystemExit(f"{src} missing: run scripts/trial_attempts.py under this profile first (or --attempts)")
+    (d / "tables").mkdir(exist_ok=True)
+    dst = d / "tables" / "trial_attempts.csv"
+    new = ce.file_sha256(src)
+    if dst.exists():
+        old = ce.file_sha256(dst)
+        if old != new:
+            keep = d / "tables" / f"trial_attempts_{old[:12]}.csv"
+            if not keep.exists():
+                shutil.copy2(dst, keep)
+    shutil.copy2(src, dst)
+    meta["attempts_table"], meta["attempts_sha256"] = str(src), new
+    print(f"tables/trial_attempts.csv <- {src} (sha256 {new[:12]})")
+
+
 def cmd_refresh_code(a) -> int:
     """Replace ONLY the bundle's code snapshot with HEAD's (see the module docstring); inputs are never touched."""
     import datetime
@@ -539,6 +576,8 @@ def cmd_refresh_code(a) -> int:
     meta = _bundle_meta(d)
     env_json = json.loads((d / "env.json").read_text())
     if meta.get("commit") == commit and not a.force:
+        _ship_attempts(d, meta, a)
+        (d / "bundle.json").write_text(json.dumps(meta, indent=1), encoding="utf-8", newline="\n")
         print(f"{d}: code is already {commit}")
         return 0
     writeguard.assert_writable(d)
@@ -565,6 +604,7 @@ def cmd_refresh_code(a) -> int:
         shutil.rmtree(old)
     new.rename(old)
     (d / "enc_runner.py").write_text(RUNNER, encoding="utf-8", newline="\n")
+    _ship_attempts(d, meta, a)
     prev = meta.get("commit", "")
     cm = d / "COMMANDS.md"
     if cm.exists() and prev:
@@ -650,6 +690,8 @@ def main(argv=None) -> int:
     r.add_argument("--name", default="")
     r.add_argument("--bundle", default="", help="the bundle directory itself (instead of --name)")
     r.add_argument("--force", action="store_true", help="re-copy even if bundle.json already records HEAD")
+    r.add_argument("--attempts", default="", help="the trial-attempts table to ship (default: this run's, "
+                   "lp_licks.attempts_path() under --profile)")
     m = sub.add_parser("match", help="write match.json (per-session lick targets) into the bundle")
     m.add_argument("--name", required=True)
     m.add_argument("--run", default=None)

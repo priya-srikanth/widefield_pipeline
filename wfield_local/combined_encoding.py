@@ -1282,6 +1282,47 @@ def session_inputs(label: str, cams=None, fr: str | None = None) -> dict:
     return out
 
 
+#: RE-DERIVED ENGAGEMENT (coordinator 11-04): a path to a trial-attempts table (`scripts/trial_attempts.py` columns label,
+#: trial_id, attempted, canonical). Set, `run_session` recomputes Behaviour.trials.engaged from it with
+#: `orofacial_cohort.engagement_keep`'s rule instead of trusting the flag baked into the inputs at bundle time, so a later
+#: class-rule change needs a new table (o2_encoding refresh-code), not an input rebuild. Refused unless the table covers
+#: every trial of the session. Nothing else in the inputs depends on the classes: trial windows (trial_windows), licks /
+#: pose / cam1 events (LP run), DAQ contacts, imaging and area masks are all class-free; only `engaged` is.
+ATTEMPTS_ENV = "COMBINED_ENCODING_ATTEMPTS"
+
+
+def file_sha256(path) -> str:
+    import hashlib
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        for blk in iter(lambda: f.read(1 << 20), b""):
+            h.update(blk)
+    return h.hexdigest()
+
+
+def rederive_engaged(B: Behaviour, label: str, path, gate: str | None = None) -> Behaviour:
+    """A copy of ``B`` whose trials.engaged = `orofacial_cohort.engagement_keep`'s attempted rule on table ``path``
+    (attempted, AND canonical under the canonical_attempted gate). Refuses the reference gate, an ungated run, and a
+    table that does not cover every (label, trial_id) of ``B.trials``."""
+    import copy
+
+    from wfield_local import orofacial_cohort as oc
+    g = gate or oc.ENGAGEMENT_GATE
+    if g == "reference" or not oc.ENGAGED_ONLY:
+        raise ValueError(f"{ATTEMPTS_ENV}: the {g!r} gate does not come from a trial-attempts table")
+    A = pd.read_csv(path, usecols=lambda c: c in ("label", "trial_id", "attempted", "canonical"))
+    s = A[A.label == label].drop_duplicates("trial_id")
+    missing = sorted(set(B.trials.trial_id.astype(int)) - set(s.trial_id.astype(int)))
+    if missing:
+        raise ValueError(f"{ATTEMPTS_ENV}={path}: {len(missing)} of {len(B.trials)} trials of {label} have no row "
+                         f"(e.g. {missing[:5]}); refusing to re-derive engagement")
+    k = s.attempted.astype(bool) & (s.canonical.astype(bool) if g == "canonical_attempted" else True)
+    keep = set(s.loc[k, "trial_id"].astype(int))
+    B2 = copy.copy(B)
+    B2.trials = B.trials.assign(engaged=B.trials.trial_id.astype(int).isin(keep).to_numpy())
+    return B2
+
+
 def area_masks_for(inputs, parea, pstat, names, flat, shape) -> dict:
     """The session's AREA BASIS masks (`area_basis.session_area_masks`; Priya 11-04: split primary, plain robustness, v8
     ROI masks). From the bundled inputs when given (built at bundle time: the v8 rim needs `beta_maps.brain_mask()`,
@@ -1315,6 +1356,9 @@ def run_session(label: str, order: str = "movement_first", seed: int = 0, inputs
         B = inputs["behaviour"]
         epoch_, day_ = inputs["epoch"], inputs["day"]
     am = area_masks_for(inputs, parea, pstat, names, flat, shape)
+    attempts = os.environ.get(ATTEMPTS_ENV)
+    if attempts:                                       # engagement from a shipped table, not the baked flag
+        B = rederive_engaged(B, label, attempts)
     T = B.trials
     if os.environ.get(MATCH_ENV):
         T = _match_trials(T, B, label, os.environ[MATCH_ENV], seed)
@@ -1806,6 +1850,7 @@ def run_session(label: str, order: str = "movement_first", seed: int = 0, inputs
            "fr_k": (int(fr_raw.shape[1]) if fr_raw is not None else 0),
            "frpts_k": (int(frpts_raw.shape[1]) if frpts_raw is not None else 0),
            "drift_min_period_s": DRIFT_MIN_PERIOD_S, "drift_n_basis": int(Q.shape[1]),
+           **({"attempts_table": {"path": str(attempts), "sha256": file_sha256(attempts)}} if attempts else {}),
            "area_basis": {"primary": "split", "tag": am["tag"], "roi_version": am["version"], "split": am["split"],
                           "plain": am["plain"], "cortex": "roi_masks cortex (stat mask + v8 rim + ALM)",
                           "cortex_stat": "eroded stat mask (the pre-11-04 cortex row)"}}
