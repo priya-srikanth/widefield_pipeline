@@ -6,7 +6,8 @@ the post-stroke scored set, with an August-only pre. Should jaw_only trials be i
 their own class like no_response? The four camera classes (contact, incomplete, jaw_only, none) stay either way.
 
 Nothing in production changed. No frozen model was stored or published; every model below is an in-memory check fit
-from the production primitives. Priya decides.
+from the production primitives. Priya decides. (First landed inside b22686fc: a concurrent window committed while this
+file and its DECISIONS entry were staged; this note is the attribution commit.)
 
 Everything (scripts, trial-level predictions, tables, logs):
 `M:/MICROSCOPE/Priya/Widefield/labcams/decoder_mix_checks/jaw_only_checks_1103/`
