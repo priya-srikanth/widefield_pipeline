@@ -29,6 +29,12 @@ log for the earlier part of the day is `RUNNING_LIST_2026-11-02_OVERNIGHT.md`.
       contralesional SSp-m / tjM1.
     - Options: re-caption the slide; show the z-scored version (main or hidden); or both. [Suggest a z-scored hidden
       companion, and reword the main claim to the subacute / chronic + ITI result.] It is 34's figure.
+    - RUNNING (Priya OK): biological vs measurement gain:
+      - (1) a spatial map of the SD rise per area, rest and task, with the 415 isosbestic control, set against the F0
+        and quiet-event change maps;
+      - (2) the SD rise in movement / arousal-matched still rest periods, and away from quiet events.
+
+      Output docs/status/GAIN_BIO_2026-11-04.md.
     - Priya's concern: z-scoring may remove a REAL biological gain. Agreed: raw stays the main (absolute dF/F);
       z = the part beyond the global gain. Offered: a spatial gain map + arousal check to tell biological gain from
       measurement gain.
