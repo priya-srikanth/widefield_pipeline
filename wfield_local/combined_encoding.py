@@ -1313,11 +1313,8 @@ class _TrialScorer:
         lo, hi = np.zeros(n, int), np.zeros(n, int)
         lp_s, daq_s, first_s = np.full(n, np.nan), np.full(n, np.nan), np.full(n, np.nan)
         src, groom = np.full(n, "none", object), np.zeros(n, bool)
-        try:
-            from wfield_local import config
-            max_rt = float(config.defaults()["decode"]["max_rt_s"])
-        except (KeyError, TypeError, ValueError, OSError):
-            max_rt = 3.5
+        from wfield_local import config
+        max_rt = float(config.defaults()["decode"]["max_rt_s"])     # the engaged cut: one definition (decode.max_rt_s)
         close = np.char.startswith(S.pos.to_numpy().astype(str), "close")
         for j, (c_, sp_) in enumerate(zip(S.cue_s.to_numpy(float), S.stop_s.to_numpy(float))):
             sp_ = sp_ if np.isfinite(sp_) else c_ + 3.5
