@@ -2,7 +2,9 @@
 
 > **11-04 (day) -- START HERE.** Live log + questions: docs/status/RUNNING_LIST_2026-11-03_AWAY.md; decisions:
 > DECISIONS.md last two entries (11-03 late "Working excludes jaw-only", 11-04 "Deck / pages wait for the rebuild ...").
-> Deck = 183 slides, 78 hidden (Priya's 18:50 states; diff with hidden_state_1103.py before/after every change). Python on
+> Deck = 184 slides, 79 hidden (11-04: e3 added hidden slide 30 "Preliminary: 3-D from all four cameras" at Priya's
+> request, add_4cam_video_1104.py; slides after 29 shifted +1; verified with hidden_state_1103.py diff, latest dump
+> hidden_after_4cam_1104.csv). Diff hidden states before/after every change. Python on
 > this box: C:/Users/SabatiniLab/miniconda3/envs/locanmf/python.exe (NOT C:/Users/sabatini/...). Slide export:
 > scratchpad export_slides.ps1 (PowerPoint COM).
 > PRIYA 11-04:
