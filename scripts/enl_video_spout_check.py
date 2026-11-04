@@ -9,8 +9,8 @@ settling after the strobe, holding vibration, whiskers on a spout whose location
 to do #3, using a mask around the spout position only for each trial's position, since the spout is not moving
 during the ENL."
 
-Per camera, ENL windows only (2 s ending at the cue, no DAQ lick inside, spout strobe at least 2 s before the
-cue -- the spout is stationary there):
+Per camera, ENL windows only (W ending at the cue, W = `lp_licks.enl_post_s()` = 2 s DAQ / 1 s LP; no lick of that
+source inside, spout strobe at least W before the cue -- the spout is stationary there):
   SPOUT MASKS from the data: the mean ENL frame per position minus the mean over positions; pixels that differ
   strongly (|diff| > thr x robust SD of the difference image) are where THAT position's spout sits; dilated.
     union        the six positions' spout pixels OR-ed, applied to EVERY trial (no mask-induced position cue)
@@ -33,13 +33,32 @@ import pandas as pd
 POS = ["close_L", "close_center", "close_R", "far_L", "far_center", "far_R"]
 
 
-def enl_trials(animal, date, rv, win_s=2.0):
-    """Trials with a clean ENL window: (cue_s, pos_name, block id)."""
-    from wfield_local import dlc_frames
+def session_label(animal, date):
+    """The registered label of ``animal`` on ``date`` (YYYYMMDD: the folder name of its DAQ file)."""
+    from wfield_local import config
+    hits = [s["label"] for s in config.load_sessions()
+            if s["label"].split("_")[0] == animal and Path(s["h5"]).parent.name == date]
+    if not hits:
+        raise SystemExit(f"{animal} {date}: not a registered session")
+    return hits[0]
+
+
+def enl_trials(animal, date, rv, win_s=None, label=None):
+    """Trials with a clean ENL window: (cue_s, pos_name, block id).
+
+    ``win_s`` defaults to THE ENL window (`lp_licks.enl_post_s`: 2 s DAQ, 1 s LP; Priya 11-04) and the lick-free test
+    reads licks of THE SAME SOURCE (`lp_licks.gate_licks_s`: the LP train under LP, cues without an LP verdict
+    dropped; DAQ contact otherwise)."""
+    from wfield_local import config, dlc_frames, lp_licks
     from wfield_local import trial_windows as TW
+    win_s = lp_licks.enl_post_s() if win_s is None else float(win_s)
     b = TW.trial_bounds(animal, date, rv)
     sid = sorted((Path(rv.root("behavior_out")) / "sessions" / animal / date).glob("*_trials.csv"))[-1].name[:-11]
-    licks = np.sort(dlc_frames.lick_onsets(animal, date, sid, rv))
+    b = b[np.isfinite(b.cue_s)].copy()
+    licks, has = lp_licks.gate_licks_s(label or session_label(animal, date), b.cue_s.to_numpy(float),
+                                       dlc_frames.lick_onsets(animal, date, sid, rv),
+                                       float(config.defaults()["decode"]["max_rt_s"]))
+    b = b[has].copy()
     ok = np.isfinite(b.cue_s) & np.isfinite(b.strobe_s) & (b.strobe_s <= b.cue_s - win_s)
     b = b[ok].copy()
     lo, hi = np.searchsorted(licks, b.cue_s - win_s), np.searchsorted(licks, b.cue_s)
@@ -139,7 +158,8 @@ def main(argv=None) -> int:
     a = ap.parse_args(argv)
     rv = PathResolver()
     animal, date = a.session.split(":")[:2]
-    win_s = float(config.defaults()["decode"]["precue_post_s"])
+    from wfield_local import lp_licks, run_mode
+    win_s = lp_licks.enl_post_s()                   # THE ENL window of the lick source (Priya 11-04)
     n_bins = int(config.defaults()["decode"]["bins"]["precue"])
     tr = enl_trials(animal, date, rv, win_s)
     y, groups = tr.pos_name.to_numpy(), tr.block.to_numpy()
@@ -194,9 +214,10 @@ def main(argv=None) -> int:
                 f"{r['acc']:.2f}" for r in rows[-F.shape[1]:]), flush=True)
     fig.suptitle(f"{animal} {date}: spout masks from the data (mean ENL frame per position vs all)", fontsize=9)
     fig.tight_layout()
-    fig.savefig(out_dir / "enl_video_spout_masks.png", dpi=100)
-    pd.DataFrame(rows).to_csv(out_dir / "enl_video_spout_check.csv", index=False)
-    print("->", out_dir / "enl_video_spout_check.csv")
+    # keyed by the run tag (LP_licks / DAQ_ENL<w>s / ...): an LP run never overwrites the DAQ file (unchanged by default)
+    fig.savefig(out_dir / run_mode.keyed_name("enl_video_spout_masks.png"), dpi=100)
+    pd.DataFrame(rows).to_csv(out_dir / run_mode.keyed_name("enl_video_spout_check.csv"), index=False)
+    print("->", out_dir / run_mode.keyed_name("enl_video_spout_check.csv"))
     return 0
 
 

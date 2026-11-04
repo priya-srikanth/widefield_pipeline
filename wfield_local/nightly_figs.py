@@ -251,9 +251,11 @@ def _write_run_record(deck_out, date, tag):
 
 def _per_day_cmds(date, out, from_dates):
     """The two CLI groups one date needs: the per-alignment decoders, then its encoder."""
-    dp = config.defaults()["decode"]   # aligns + per-align windows (configs/defaults.yaml decode.*_post_s)
+    # aligns + per-align windows: decode.*_post_s, the pre-cue one from the lick source (`lp_licks.post_s_for`, 11-04)
+    from wfield_local import lp_licks
+    dp = config.defaults()["decode"]
     dec = [("wfield_local.locanmf_position_decoder", "--date", date, "--align", al,
-            "--post-s", str(dp[f"{al}_post_s"]), "--per-session", "--output", str(out))
+            "--post-s", str(lp_licks.post_s_for(al)), "--per-session", "--output", str(out))
            for al in dp["aligns"]]
     enc = ("wfield_local.locanmf_position_encoder", "--date", date,
            "--pool-dates", from_dates, "--output", str(out))

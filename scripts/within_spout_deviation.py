@@ -49,7 +49,13 @@ ALIGN_ENV = "WITHIN_SPOUT_ALIGN"     # set by --align (the session workers read 
 LICK_WIN_S = (0.0, 1.0)
 SIDES = ("contra", "mid", "ipsi")
 WINDOW_ENV = "WITHIN_SPOUT_WINDOW"   # "enl" = pre-cue response window (set by --window)
-ENL_S = (-1.0, 0.0)                  # relative to the cue
+#: PRE-CUE (ENL) response window, relative to the cue: THE shared ENL window (`lp_licks.enl_post_s`, Priya 11-04) of the
+#: LP source -- this analysis's licks (trials, executed deviation, latency) are the encoding bundle's VIDEO licks
+#: (cam4 + cam1, `B.lick_on_s`), so its source is LP: 1.0 s, the value it always had (WIDEFIELD_ENL_WINDOW_S overrides
+#: it, and then also tags the output folder). NOT LICK-GATED: no lick-free test is applied to this window (the ENL
+#: restarts on spout contact, so it is contact-free by task design, but a video lick without contact is not excluded).
+from wfield_local import lp_licks as _lp_licks  # noqa: E402
+ENL_S = (-_lp_licks.enl_post_s(source="lp"), 0.0)
 PRE_ARRIVAL_S = (-0.5, 0.0)          # relative to the spout arrival (strobe)
 KIND_TITLE = {"within_mean": "WITHIN-spout lateral slope; red = more activity for licks toward the mouse's LEFT",
               "between_mean": "ACROSS-spout lateral slope; red = more activity for licks toward the mouse's LEFT",

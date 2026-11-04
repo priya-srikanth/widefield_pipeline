@@ -84,7 +84,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
-from wfield_local import config, parallel, joint_locanmf
+from wfield_local import config, parallel, joint_locanmf, lp_licks
 from wfield_local.locanmf_frozen_decoder import pool_sessions
 from wfield_local.paths import PathResolver
 from wfield_local.plot_lick_aligned_averages import POSITION_NAMES
@@ -769,7 +769,7 @@ def _cells(vals):
 def run_animal(animal, align="precue", verbose=True, methods=CD_METHODS):
     """Per-position directions for one animal: time course, 6x6 cross matrix, and pairwise axes."""
     disp = dict(ALIGNS)[align]
-    post_s = float(config.defaults()["decode"].get(f"{align}_post_s", 2.0))
+    post_s = lp_licks.post_s_for(align)
     pre = [l for l in config.phase_labels("pre") if l.startswith(animal)]
     post = [l for l in config.phase_labels("post") if l.startswith(animal)]
     if not pre or not post:

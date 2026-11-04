@@ -282,7 +282,8 @@ def window_provenance(fig_names) -> str:
                   if ("_" + a + "_") in names or ("_" + a + ".") in names), None)
     if align is None:
         return ""
-    post = float(d.get(align + "_post_s", 2.0))
+    from wfield_local import lp_licks
+    post = lp_licks.post_s_for(align)        # the pre-cue window follows the lick source (Priya 11-04)
     nb = int((d.get("bins") or {}).get(align, 1) or 1)
     binning = (f"{nb} sub-bins of {post / nb:.2f} s (the decoder sees a time course, not one mean)"
                if nb > 1 else "1 bin (the window mean)")

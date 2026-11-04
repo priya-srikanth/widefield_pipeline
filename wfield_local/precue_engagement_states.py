@@ -201,7 +201,11 @@ def _positions_for(tables, si, y_eng, g_eng, y_nl, g_nl, idx_e, idx_n):
 
 def run_animal(animal, align="precue", post_s=None, verbose=True):
     """The five states plus the pre-stroke discriminator, for one animal. ``None`` if unavailable."""
-    post_s = post_s or float(config.defaults()["decode"]["precue_post_s"])
+    # THE ENL WINDOW (Priya 11-04): the lick source's window (`lp_licks.enl_post_s`: 1.0 s under LP, decode.precue_post_s
+    # = 2.0 s under DAQ), never precue_post_s read directly. The `cue` alignment keeps the value it always had.
+    from wfield_local import lp_licks
+    post_s = post_s or (lp_licks.enl_post_s() if lp_licks.is_precue(align)
+                        else float(config.defaults()["decode"]["precue_post_s"]))
     pre = [l for l in config.phase_labels("pre") if l.startswith(animal)]
     post = [l for l in config.phase_labels("post") if l.startswith(animal)]
     if not pre or not post:

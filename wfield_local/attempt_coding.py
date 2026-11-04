@@ -220,7 +220,7 @@ def run_animal(animal, align="precue", verbose=True):
     from wfield_local.precue_engagement_states import features_with_indices
     if not lp_licks.is_lp():
         raise RuntimeError(f"set {lp_licks.LICK_SOURCE_ENV}=lp: the classes are video attempts")
-    post_s = float(config.defaults()["decode"].get(f"{align}_post_s", 2.0))
+    post_s = lp_licks.post_s_for(align)
     pre = [l for l in config.phase_labels("pre") if l.startswith(animal)]
     post = [l for l in config.phase_labels("post") if l.startswith(animal)]
     if not pre or not post:
@@ -381,7 +381,7 @@ def freeze_reference(animal, align):
     from wfield_local.precue_engagement_states import features_with_indices
     if lp_licks.is_lp():
         raise RuntimeError("--freeze runs the DAQ path: unset WIDEFIELD_LICK_SOURCE")
-    post_s = float(config.defaults()["decode"].get(f"{align}_post_s", 2.0))
+    post_s = lp_licks.post_s_for(align)
     # THE LP POOL'S SESSIONS, not the DAQ pool's: a session with no LP lick tables (PS93_0813 has no behaviour video)
     # is dropped by the LP run, so its training set -- and the spec id it asks for -- has one session fewer. Freezing on
     # the DAQ pool would store a model the LP run never finds (found 10-24 on PS93).

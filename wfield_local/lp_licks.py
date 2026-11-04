@@ -144,10 +144,62 @@ LP_ENL_WINDOW_S = 1.0
 
 
 def enl_window_s() -> float | None:
+    """The ENL window OVERRIDE in force (WIDEFIELD_ENL_WINDOW_S, else 1.0 under LP), or None for the default DAQ run.
+    None means "the config window" -- `enl_post_s` resolves it; this form exists for keys that must stay unchanged on
+    the default run (`frozen_models.make_spec`, `map_collect.cache_kind`)."""
     v = os.environ.get(ENL_WINDOW_ENV, "").strip()
     if v:
         return float(v)
     return LP_ENL_WINDOW_S if is_lp() else None
+
+
+def enl_post_s(source: str | None = None) -> float:
+    """THE pre-cue (ENL) window, s -- the ONE definition every ENL analysis reads (Priya 11-04: "every ENL analysis
+    follows the lick source"). WIDEFIELD_ENL_WINDOW_S if set; else 1.0 s under the LP source (`LP_ENL_WINDOW_S`); else
+    the DAQ window `decode.precue_post_s` (2.0 s). ``source`` forces a lick source instead of reading
+    WIDEFIELD_LICK_SOURCE -- cohort 2 has no LP and passes "daq". Never read `precue_post_s` directly for an ENL
+    window: under LP it is the wrong number (the 11-04 audit found six scripts doing so)."""
+    src = lick_source() if source is None else str(source).strip().lower()
+    if src not in LICK_SOURCES:
+        raise ValueError(f"lick source {source!r}; expected one of {LICK_SOURCES}")
+    v = os.environ.get(ENL_WINDOW_ENV, "").strip()
+    if v:
+        return float(v)
+    if src == "lp":
+        return LP_ENL_WINDOW_S
+    from wfield_local import config
+    return float(config.defaults()["decode"]["precue_post_s"])
+
+
+def is_precue(align) -> bool:
+    """True for the pre-cue alignment and its variant names ("precue-rt2-..", see `frozen_models.make_spec`)."""
+    return align == "precue" or str(align).startswith("precue-")
+
+
+def post_s_for(align: str, source: str | None = None) -> float:
+    """``decode.{align}_post_s``, except the pre-cue window, which is `enl_post_s` -- for code that resolves a window
+    per alignment (`position_coding_directions`, `cd_trajectories`, ...)."""
+    if is_precue(align):
+        return enl_post_s(source)
+    from wfield_local import config
+    return float(config.defaults()["decode"].get(f"{align}_post_s", 2.0))
+
+
+#: DAQ-clock sample rate used when a caller has cue / lick TIMES (s) rather than samples (`gate_licks_s`): 10 us.
+_GATE_SR = 100_000.0
+
+
+def gate_licks_s(label: str, cue_s, daq_lick_s, max_rt: float, source: str | None = None, rv=None):
+    """``(lick_s, keep)``: the lick train an ENL lick-free gate must use -- the SAME source as `enl_post_s` -- and a
+    per-cue keep mask. DAQ: ``daq_lick_s`` sorted, every cue kept. LP: `session_lp`'s train (the edited LP train
+    `_trial_features` uses) on these cues, and cues without an LP verdict dropped. For scripts that gate on cue / lick
+    TIMES (DAQ s) instead of through `_trial_features`; ``cue_s`` must be finite."""
+    src = lick_source() if source is None else str(source).strip().lower()
+    cue_s = np.asarray(cue_s, float)
+    if src != "lp":
+        return np.sort(np.asarray(daq_lick_s, float)), np.ones(len(cue_s), bool)
+    lp = session_lp(label, np.round(cue_s * _GATE_SR).astype(np.int64), _GATE_SR, float(max_rt), rv)
+    return np.asarray(lp["lick_samples"], float) / _GATE_SR, ~np.asarray(lp["drop"], bool)
 
 
 def apply_enl_window(args):

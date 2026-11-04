@@ -9,8 +9,9 @@ analysis?" PS93 0814 (whole-session models) left 0.26-0.30 decodable after DLC +
 bound (the video may over-remove: a stationary rod occludes / changes contrast by position). DLC added ~nothing in
 the lick-free ENL, so the movement model here is running + video only, which needs no whole-session DLC.
 
-ENL-ONLY, so it scales to the cohort: per trial the window is [cue - 2 s, cue] (lick-free: no DAQ lick inside;
-spout strobe >= 2 s before the cue so the spout is stationary; ENGAGED = a lick within decode.max_rt_s after the
+ENL-ONLY, so it scales to the cohort: per trial the window is [cue - W, cue], W = `lp_licks.enl_post_s()` (2 s DAQ,
+1 s LP; Priya 11-04) (lick-free: no lick of that source inside;
+spout strobe >= W before the cue so the spout is stationary; ENGAGED = a lick within decode.max_rt_s after the
 cue -- the project's ENL decoder population), plus a 0.6 s lead-in for the movement lags. Motion energy is computed
 only in those windows (4 cameras, ds 8, binned to imaging frames on the DAQ clock), PCA 30 per camera fitted on the
 session's ENL frames; running = DAQ treadmill speed (`behavior_events.session_speed`). Movement design per imaging
@@ -55,7 +56,14 @@ def enl_table(s, rv, win_s, max_rt):
     else:                                     # no saved trial table (PS93 0805): the behaviour-log session id
         from wfield_local.docked_periods import behaviour_session_dir
         sid = Path(behaviour_session_dir(s["label"])).name
-    licks = np.sort(dlc_frames.lick_onsets(animal, date, sid, rv))
+    # THE GATE'S LICKS COME FROM THE WINDOW'S SOURCE (Priya 11-04): `win_s` is `lp_licks.enl_post_s()` (1.0 s under
+    # LP), so under LP the lick-free test and the engaged test read the LP train (`lp_licks.gate_licks_s`, the edited
+    # train `_trial_features` uses) and cues without an LP verdict are dropped; DAQ contact otherwise, as before.
+    from wfield_local import lp_licks
+    b = b[np.isfinite(b.cue_s)].copy()
+    licks, has = lp_licks.gate_licks_s(s["label"], b.cue_s.to_numpy(float),
+                                       dlc_frames.lick_onsets(animal, date, sid, rv), max_rt)
+    b = b[has].copy()
     ok = np.isfinite(b.cue_s) & np.isfinite(b.strobe_s) & (b.strobe_s <= b.cue_s - win_s)
     b = b[ok].copy()
     lo, hi = np.searchsorted(licks, b.cue_s - win_s), np.searchsorted(licks, b.cue_s)
@@ -134,7 +142,8 @@ def run_session(s, cams, ds, workers, n_perm, log=print):
     from wfield_local.paths import PathResolver
     rv = PathResolver()
     dp = config.defaults()["decode"]
-    win_s, lead_s = float(dp["precue_post_s"]), 0.6
+    from wfield_local import lp_licks
+    win_s, lead_s = lp_licks.enl_post_s(), 0.6           # THE ENL window of the lick source (Priya 11-04)
     animal, date, tr = enl_table(s, rv, win_s, float(dp["max_rt_s"]))
     y, groups = tr.pos_name.to_numpy(), tr.block.to_numpy()
     Y, reg, ft = MS.imaging(s["label"])

@@ -54,7 +54,14 @@ COLS = ["orofacial_left", "orofacial_right", "orofacial", "limb_left", "limb_rig
 TRIAL_COLS = ("orofacial_left", "orofacial_right")       # T13 event flag: either hemisphere
 WIN = {0: "precue", 1: "iti", 2: "quiet"}
 MIN_CLEAN_S = 1.0
-ENL_S = 2.0
+#: The ENL window, s (`ev_enl`, `npre_enl`), from the shared definition `lp_licks.enl_post_s` (Priya 11-04) on the DAQ
+#: source: this script's own lick masks are DAQ contact (QS_LICK_SOURCE adds LP licks to the masks, not a window), so it
+#: resolves to decode.precue_post_s = 2.0 s, the value it always had. OPEN (11-04, for Priya): the T13 p_true it is set
+#: against comes from `attempt_coding`, an LP-only family whose frozen decoder reads the LP 1.0 s window
+#: (`quiet_task_events_followup` docstring); switching this to source="lp" also needs MIN_CLEAN_S (1.0 s inside the
+#: window) re-decided -- with a 1.0 s window it would keep only fully clean windows. Each per-session npz records the
+#: window it was built with; a different one is rebuilt.
+ENL_S = _lp_licks.enl_post_s(source="daq")
 CLEAN_BINS = (0, 1.5, 2.0, 2.5, 99)
 N_PERM = 2000
 ANIMALS = ("PS92", "PS93", "PS94", "PS95")
@@ -82,10 +89,16 @@ def near_frames(label, ft, buf):
     return m
 
 
+def _npz_enl_s(f) -> float:
+    """The ENL window a per-session npz was built with (files written before 11-04 carry none: 2.0 s)."""
+    with np.load(f) as z:
+        return float(z["enl_s"]) if "enl_s" in z.files else 2.0
+
+
 def extract(label):
     """One session (spawn worker): events in pre-cue / ITI / quiet masks + per-trial clean-frame bookkeeping."""
     f = TE / "sessions" / f"{label}.npz"
-    if f.exists():
+    if f.exists() and _npz_enl_s(f) == ENL_S:
         return label
     from wfield_local import trial_windows as TW
     Xr, ft, fs, _rest, engaged, quit_s = session_traces(label, detrend=False)
@@ -142,7 +155,7 @@ def extract(label):
         f, ev=np.array(ev, float).reshape(-1, 8), fs=fs, cols=np.array(cols), quit_s=quit_s,
         n_quiet_eng=int((quiet & engaged).sum()), trial_id=tb.trial_id.to_numpy(int),
         pos_name=tb.pos_name.astype(str).to_numpy(), cue=cue, start=start, stop=stop, npre=npre, npre_enl=npre_enl,
-        npre_q=npre_q, npre_all=npre_all, niti=niti, eng_tr=eng_tr, total_min=T / fs / 60)
+        npre_q=npre_q, npre_all=npre_all, niti=niti, eng_tr=eng_tr, total_min=T / fs / 60, enl_s=float(ENL_S))
     return label
 
 
@@ -156,6 +169,8 @@ def load_sessions():
         lab = f.stem
         if lab[:4] not in ANIMALS:
             continue
+        if _npz_enl_s(f) != ENL_S:
+            raise SystemExit(f"{f}: built with ENL window {_npz_enl_s(f)} s, this run uses {ENL_S} s -- re-extract")
         ep = epochs.epoch_of(lab)
         if ep is None or (ep == "pre" and lab[-4:] < "0806"):
             continue
