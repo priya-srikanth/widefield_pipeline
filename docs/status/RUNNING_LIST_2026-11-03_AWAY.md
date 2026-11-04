@@ -53,6 +53,22 @@ FYI, the 3-class camera variant (lick / jaw-only / none) is thin in PS92 and PS9
 
 ## Findings (newest first)
 
+- **11-04: working excludes jaw-only, now on main (48f2cc6d).** The production path reproduces the jaw-only checks
+  exactly in every session (largest difference 1e-16). 20 new frozen models are published and SHA-verified; every
+  older model is kept. The lick window is unchanged. The jaw-inclusive (`in_working_jaw`) and quit-tail settings stay
+  as robustness options and reproduce their earlier rows.
+  - Frozen accuracy, cue, animal means: close ipsi pre .923 / acute **.727** / subacute .824 / chronic .924.
+    Per animal acute .829 / .629 / .619 / .832; the afternoon rule gave .631 and the old one .789.
+  - Far contra acute .187 (.160 / .121 / .296 / .171).
+  - Close mid acute .738.
+  - Overall acute .592, subacute .714, chronic .775.
+  - Pre panel .856.
+  - Precue (pre / acute / subacute / chronic): close ipsi .737 / .567 / .524 / .709; far contra .522 / .186 / .300 /
+    .349.
+
+  Acute sessions 5 / 4 / 6 / 1, so PS95 acute is ONE session. Nothing is rendered; the deck and pages are unchanged
+  (question 0).
+
 - **Section-1 within-session refit, with jaw-only taken out (e0; LP_licks_ENL2s/qc/s1_refit_*_1104.csv).** The new gate
   drops exactly the 2,908 in-working jaw-only trials (pre 404 / acute 1,277 / subacute 808 / chronic 419), and no lick
   trials.
@@ -134,7 +150,8 @@ FYI, the 3-class camera variant (lick / jaw-only / none) is thin in PS92 and PS9
 
 ## Running
 
-- Jaw-only-out helper: production code + new frozen models + verification, then docs. No render.
+- Nothing of mine is running (11-04). Jaw-only-out is DONE (48f2cc6d). e0's s1 reruns are done. 34's rebuild may be
+  rendering on its own fenced dirs.
 - Decoder helper (a44ea79f): checks done and the helper has exited. A is live; B and C are built but OFF. The combined
   render waits on Q1 and Q2 and on the jaw-only-out change. Once those are answered, the render covers SPOUT_BALEM_PAGE_EDITS sections 2, 5 and 7.
   After it, these slides change: 10, 11, 12, 13 (position side), 19 and 89, plus every caption that mentions working

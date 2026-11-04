@@ -5,8 +5,10 @@
 > Production now: working = contact + incomplete camera licks, cut at last camera lick (jaw-only = own class, Priya
 > 11-03 late; JAW_ONLY_CHECKS_2026-11-03.md), August-only pre, spout bal_em + extension. B (state discriminators in
 > spout frame) and C (projections in spout frame) are built, OFF, awaiting Priya.
-> PLAN: (1) jaw-only-out helper RUNNING (code = in_working & camera_lick in working_trials.py; trial_classes stays
-> jaw-inclusive on purpose, e3 cec38954; new frozen ids; verification vs .727 / .856; docs; no render; workers <= 4).
+> (1) DONE 11-04: jaw-only out of working on main, 48f2cc6d (WIDEFIELD_WORKING_TRIALS = in_working [prod] /
+> in_working_jaw / quit_tail; 20 new frozen ids published + verified; reproduces the checks exactly; trial_classes
+> unchanged, e3 cec38954). PITFALL: grant_confusion._collect_5c is cached on (align, variant, mode) only, so switching
+> WIDEFIELD_WORKING_TRIALS mid-process returns the previous setting's result. Run one setting per process.
 > (2) Main-branch combined render HELD (running list question 0): 34's cohort-1 rebuild (rebuild_20261103, fenced dirs /
 > store / spec ids; new data = swap mask + LocaNMF projection + today's rules) replaces the same families in 1-2 days.
 > Ask Priya: interim swap or wait. If interim: tell 34 before starting (shared CPU; keep >= 6 GB free), then apply
