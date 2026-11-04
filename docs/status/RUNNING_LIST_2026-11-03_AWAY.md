@@ -275,6 +275,23 @@ FYI, the 3-class camera variant (lick / jaw-only / none) is thin in PS92 and PS9
 
 ## Findings (newest first)
 
+- **11-04: reference-spout anchor + intercept-only refit (docs/status/REFSPOUT_CENTRE_2026-11-04.md, b7d97063).**
+  - Rref (day offset from close ipsi / mid) is NOT stroke-free:
+    - the reference spouts change post-stroke beyond pre variation in 3 / 4 animals (contrast change acute +.65,
+      chronic +.80 pre-SD units);
+    - it reads far contra lower than Wt (acute -.059, 4 / 4) and has a small pre cost;
+    - its bias sign flips with the proxy, so it is undeterminable.
+    - Not adopted.
+  - Iref (frozen weights, per-session spout offsets free, block CV; the bound over all centrings): the acute
+    far-contra deficit stays large in ALL 4 animals, -.46 [-.53, -.39] (balanced, N frame; per animal -.37 to -.53),
+    against Wt's -.64. So at most ~.17 of the acute loss is offset-dependent; ~-.5 is the pre-stroke pattern failing.
+  - Chronic with offsets free: far contra is near pre (-.05 [-.11, .00] vs Wt -.145), so most of Wt's chronic
+    residual looks like an offset. A precue deficit remains (-.10).
+  - The within-session refit reads acute far contra better (.435), so part of the post-stroke pattern is NEW, not
+    shifted.
+  - Caveats: Iref uses the session's labels (a bound, not a frame); its balanced version adds far-contra false alarms
+    in PS92 / PS95; n = 4.
+
 - **11-04: a rest-centred frame is WORSE, not neutral (docs/status/REST_CENTRE_2026-11-04.md, 2916dde9).** Production
   W is reproduced exactly; the decoders were refit in memory only.
   - Cue far contra, Wt -> restdock05: acute .230 -> .151, but chronic .720 -> .296 (collapses in 4 / 4).
