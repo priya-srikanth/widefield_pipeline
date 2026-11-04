@@ -182,14 +182,37 @@ def scaling_params():
     return out
 
 
-def spec_kw(scaling="env"):
-    """``{"scaling": ..., "scaling_params": ...}`` for `frozen_models.make_spec`; EMPTY under session_z so that spec
-    (and its id) is byte-identical to the pre-11-03 one."""
+def spec_kw(scaling="env", trials=None):
+    """``{"scaling": ..., "scaling_params": ...}`` for `frozen_models.make_spec`; EMPTY under session_z with the
+    engaged training set, so that spec (and its id) is byte-identical to the pre-11-03 one. ``trials`` = the training
+    trial selection when it is NOT the engaged set (the camera WORKING trials, engaged AND no-lick rows: the run's
+    `trial_classes.run_selection`; as main 48f2cc6d `spec_kw(scaling, trials)`): recorded as
+    ``scaling_params["trials"]`` with ``centre_set`` "working_rows", so a working-trained model never shares an id with
+    an engaged one."""
     if scaling == "env":
         scaling = spout_scaling()
     if scaling is None:
-        return {}
-    return {"scaling": scaling, "scaling_params": scaling_params()}
+        return {} if trials is None else {"scaling_params": {"trials": trials}}
+    params = scaling_params()
+    if trials is not None:
+        params["trials"] = trials
+        params["centre_set"] = "working_rows"        # engaged + no-lick camera working rows (coordinator 11-04)
+        params.pop("centre_set_fallback", None)      # no contact fallback for a working-trained model: no rows = unscored
+        params["centre_min_rows"] = MIN_CENTRE_ROWS
+    return {"scaling": scaling, "scaling_params": params}
+
+
+def working_centre(model, C, pi_train, label=None):
+    """``(mu, sd)``: the label-free EM centre of ONE session from its camera WORKING rows ``C`` (engaged AND no-lick
+    rows of class contact | incomplete, main 48f2cc6d / coordinator 11-04), or None when it has none (the session is
+    then not scored by a working-trained model: no video, PS93_0813). 1..MIN_CENTRE_ROWS-1 rows RAISE."""
+    C = np.asarray(C, float)
+    if not len(C):
+        return None
+    if len(C) < MIN_CENTRE_ROWS:
+        raise BalEmCentreRefused(f"bal_em centre: session {label or '?'} has {len(C)} camera-working rows "
+                                 f"(< {MIN_CENTRE_ROWS})")
+    return score_centre(model, C, pi_train)
 
 
 # ------------------------------------------------------------------------------------------------ training side

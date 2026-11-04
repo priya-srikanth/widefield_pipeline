@@ -118,9 +118,11 @@ def test_collect_5c_frozen_mode_uses_the_store():
     # and 5b read; WIDEFIELD_EPOCH_FROZEN=0 fits the same models in memory there
     from wfield_local import grant_kit
     src = inspect.getsource(grant_confusion._collect_5c_cached)
-    assert 'fr = _frozen_frame(bd, an, align, store=mode in ("frozen", "paired"))' in src and 'clf = fr["full"]' in src and 'fr["loso"][i]' in src
+    # coordinator 11-04 / main 48f2cc6d: the working class asks for the WORKING frame (engaged + no-lick working rows)
+    assert 'fr = _frozen_frame(bd, an, align, store=mode in ("frozen", "paired"),' in src and 'clf = fr["full"]' in src and 'fr["loso"][i]' in src
+    assert 'sel="working" if variant == "working" else "engaged"' in src
     fsrc = inspect.getsource(grant_kit._frozen_frame)
-    assert 'grant_confusion._stored_epoch_decoder(an, align, bd, tag="frame", XT=XT, scaling=sc)' in fsrc
+    assert 'grant_confusion._stored_epoch_decoder(an, align, bd, tag="frame", XT=RT, scaling=sc,' in fsrc
 
 
 # ------------------------------------------------------------------------------- 5c paired (5r / 5ro) and 5b (11-02)
@@ -278,7 +280,7 @@ def test_5b_stored_equals_in_memory(daq_env, tmp_path):
 def test_5b_uses_the_stored_epoch_decoder():
     from wfield_local import grant_confusion as gc
     src = inspect.getsource(gc.fig_confusion_pre_post_working)
-    assert "_fr = _frozen_frame(bd, an, align)" in src and 'clf = _fr["full"]' in src and 'clf=_fr["loso"][i]' in src
+    assert '_fr = _frozen_frame(bd, an, align, sel="working")' in src and 'clf = _fr["full"]' in src and 'clf=_fr["loso"][i]' in src
 
 
 @pytest.mark.parametrize("lp_frozen", [None, "lp", "daq"])

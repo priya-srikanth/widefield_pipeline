@@ -132,8 +132,11 @@ def run_animal(animal, labels, align="cue", post_s=2.0, verbose=True):
         print(f"[joint_xsession] {animal}: {ex}", flush=True)
         return None
     feat = joint_features(basis)
+    # THE DECODER'S builder keeps the cue indices (main 26fd5b44), so its frozen model can be trained on the pre-stroke
+    # camera working trials (`locanmf_frozen_decoder.pool_work`); the encoder keeps `joint_features`
+    from wfield_local.precue_engagement_states import features_with_indices
     dec = pooled_frozen_loso(labels, source="locanmf", align=align, post_s=post_s,
-                             verbose=verbose, features=feat)
+                             verbose=verbose, features=features_with_indices(basis))
     enc = pooled_frozen_encoder(labels, source="locanmf", align=align, post_s=post_s,
                                 verbose=verbose, features=feat)
     if dec is None and enc is None:

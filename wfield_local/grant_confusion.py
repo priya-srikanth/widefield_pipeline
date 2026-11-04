@@ -367,9 +367,12 @@ def fig_confusion_pre_post_working(out_dir):
                 u_pre = np.isin(GU, list(pre_i)) if len(GU) else np.zeros(0, bool)
                 # THE FROZEN DECODER IN ITS SCORING FRAME (`_frozen_frame`; bal_em since 2026-11-03, identity
                 # under session_z): same models as before, applied to XEs / XUs.
-                _fr = _frozen_frame(bd, an, align)
+                # the WORKING model and frame (camera working trials, engaged + no-lick, on both sides: Priya 11-03
+                # late, main 48f2cc6d); the engaged model for the lick window and the DAQ gate
+                _fr = _frozen_frame(bd, an, align, sel="working")
                 clf = _fr["full"]
                 XE, XU = _fr["XEs"], _fr["XUs"]
+                _uw = _fr["sel"] == "working"
                 name = np.vectorize(lambda v: POSITION_NAMES.get(int(v), str(v)))
 
                 def conf(X, y, clf=clf, name=name):
@@ -392,12 +395,21 @@ def fig_confusion_pre_post_working(out_dir):
                 # collapse that is mostly overfitting. The POST panels need no such care: those
                 # trials are held out by construction.
                 Cpre = None
-                for i in sorted(pre_i):
-                    tr = e_pre & (GE != i)
-                    te = e_pre & (GE == i)
-                    if te.sum() < 5 or len(np.unique(YE[tr])) < 2:
-                        continue
-                    c1 = conf(XE[te], YE[te], clf=_fr["loso"][i])
+                for i in (_fr["train_sessions"] if _uw else sorted(pre_i)):
+                    if _uw:
+                        # the held-out pre session's WORKING trials (engaged + no-lick), as main 48f2cc6d
+                        me_, mu_ = _class_select("working", e_pre & (GE == i), (GU == i) if len(GU)
+                                                 else np.zeros(0, bool), not_eng, cls=bd["cls"])
+                        if me_.sum() + mu_.sum() < 5 or i not in _fr["loso"]:
+                            continue
+                        c1 = conf(np.vstack([XE[me_]] + ([XU[mu_]] if mu_.any() else [])),
+                                  np.concatenate([YE[me_]] + ([YU[mu_]] if mu_.any() else [])), clf=_fr["loso"][i])
+                    else:
+                        tr = e_pre & (GE != i)
+                        te = e_pre & (GE == i)
+                        if te.sum() < 5 or len(np.unique(YE[tr])) < 2:
+                            continue
+                        c1 = conf(XE[te], YE[te], clf=_fr["loso"][i])
                     Cpre = c1 if Cpre is None else Cpre + c1
                 mats["pre"] = Cpre
                 pe, pu = ~e_pre, (~u_pre if len(u_pre) else np.zeros(0, bool))
@@ -646,7 +658,7 @@ def epoch_frozen_on() -> bool:
     return os.environ.get(EPOCH_FROZEN_ENV, "").strip().lower() not in EPOCH_FROZEN_OFF
 
 
-def _stored_epoch_decoder(an, align, bd, tag="5c", XT=None, scaling=None):
+def _stored_epoch_decoder(an, align, bd, tag="5c", XT=None, scaling=None, R=None):
     """{"full", "loso"} from the frozen store for this animal's pooled bundle, or None when opted out.
 
     ``tag`` only labels the log line: every caller gets the same spec, hence the same stored model. Called by
@@ -662,6 +674,14 @@ def _stored_epoch_decoder(an, align, bd, tag="5c", XT=None, scaling=None):
     XE, YE, GE, kept = bd["XE"], bd["YE"], bd["GE"], bd["kept"]
     pre_i = sorted(bd["pre_i"])
     e_pre = bd["e_pre"]
+    trials = None
+    if R is not None:
+        # THE WORKING TRAINING ROWS (main 48f2cc6d / coordinator 11-04): engaged + no-lick camera working rows of the
+        # pre sessions that have them; the spec records the selection (``scaling_params["trials"]``)
+        from wfield_local import trial_classes as _tcs
+        XE, YE, GE, pre_i = R[0], R[1], np.asarray(R[2]), sorted(R[3])
+        e_pre = np.isin(GE, pre_i)
+        trials = _tcs.run_selection()
     train = [kept[i] for i in pre_i]
     from wfield_local import config
     if frozen_models.daq_trained_in_lp():
@@ -675,7 +695,7 @@ def _stored_epoch_decoder(an, align, bd, tag="5c", XT=None, scaling=None):
                                    train_labels=train, post_s=2.0,
                                    basis_id=bd.get("basis_id"), n_features=int(XE.shape[1]),
                                    train_data=(XE[e_pre], YE[e_pre], GE[e_pre]),
-                                   **spout_scaling.spec_kw(scaling if XT is not None else None))
+                                   **spout_scaling.spec_kw(scaling if XT is not None else None, trials))
 
     def _fit():
         loso = {}
@@ -771,9 +791,22 @@ def _collect_5c_cached(align, variant="working", mode="frozen", _run=None):
             # the acc family's model; "refit" has no frozen column; "paired_matched" replaces both with matched draws.
             # the stored model only where a frozen column is read ("refit" has none; "paired_matched" scores matched
             # draws, stored under their own spec): both modes fit the frame's models in memory, as before the merge
-            fr = _frozen_frame(bd, an, align, store=mode in ("frozen", "paired"))
-            XT, XEs, XUs = fr["XT"], fr["XEs"], fr["XUs"]
+            # WORKING = THE CAMERA WORKING TRIALS ON BOTH SIDES (Priya 11-03 late, main 48f2cc6d): the frozen model of
+            # the working class is trained on pre-stroke working trials (engaged AND no-lick rows of class contact |
+            # incomplete), its pre panel is the held-out pre session's working trials and its centre set is each
+            # session's working rows. `lick` / `stopped` and the lick window keep the engaged (lick-gate) model.
+            fr = _frozen_frame(bd, an, align, store=mode in ("frozen", "paired"),
+                               sel="working" if variant == "working" else "engaged")
+            XEs, XUs = fr["XEs"], fr["XUs"]
             clf = fr["full"]
+            uw = fr["sel"] == "working"
+            RX, RY, RG = fr["R"]
+            RT = fr["RT"]
+            if uw:
+                _we, _wu = fr["work"]
+                RB = np.concatenate([BE_all[_we], BU_all[_wu]])
+            else:
+                RB = BE_all
 
             # 5rm / "paired_matched" THROUGH THE STORE (cohort-1 rebuild 2026-11-03, rule 10): every size-matched draw of
             # this animal x align x class lives in ONE spec (kind `matched_frozen`, align carries the class and the seed
@@ -791,13 +824,15 @@ def _collect_5c_cached(align, variant="working", mode="frozen", _run=None):
                 print(f"  [5rm] {an} {align} {variant}: LP DAQ-trained cross-check -> the 5rm matched column is LP-ROW "
                       "fits IN MEMORY (not the DAQ-trained model; not stored)", flush=True)
             elif mode == "paired_matched" and epoch_frozen_on():
+                from wfield_local import trial_classes as _tcm
                 mm_spec = frozen_models.make_spec(
                     an, "matched_frozen", align=f"{align}-{variant}-seed{abs(_seed(an, align, variant))}",
                     source="locanmf", train_labels=[kept[i] for i in sorted(pre_i)], post_s=2.0,
                     basis_id=bd.get("basis_id"), n_features=int(XE.shape[1]),
                     train_data=(XE, YE, GE, XU, YU, GU, (not_eng if bd.get("cls") is None else None), BE_all, BU_all,
                                 sorted(pre_i), bd.get("cls")),
-                    **spout_scaling.spec_kw(None if fr["scaling"] == spout_scaling.SCALING_SESSION_Z else fr["scaling"]))
+                    **spout_scaling.spec_kw(None if fr["scaling"] == spout_scaling.SCALING_SESSION_Z else fr["scaling"],
+                                            _tcm.run_selection() if uw else None))   # working-row draws: own id
                 _d, _o = frozen_models.find(mm_spec)
                 if _d is not None:
                     mm_old = frozen_models._read(_d)
@@ -846,7 +881,8 @@ def _collect_5c_cached(align, variant="working", mode="frozen", _run=None):
                     if fr["scaling"] != "session_z":
                         if [int(c) for c in model.classes_] == list(range(6)):
                             Xe_, Xu_ = _frozen_score_rows(bd, model, model.spout_pi_train_, sess,
-                                                          XE[me], XU[mu] if mu.any() else None)
+                                                          XE[me], XU[mu] if mu.any() else None,
+                                                          centre_rows=RX[RG == sess] if uw else None)
                             X = np.vstack([Xe_] + ([Xu_] if Xu_ is not None else []))
                         else:
                             X = X_refit        # a subset missing a spout: no 6-class EM; production frame
@@ -866,8 +902,8 @@ def _collect_5c_cached(align, variant="working", mode="frozen", _run=None):
             # training data against one, with no lesion involved. Every post-stroke gap has to be
             # read against it, which is why pre is drawn rather than assumed to be zero.
             pre_y, pre_p, pre_b, pre_recs = [], [], [], []
-            for i in sorted(pre_i):
-                tr = e_pre & (GE != i)
+            for i in (fr["train_sessions"] if uw else sorted(pre_i)):
+                rtr = np.isin(RG, fr["train_sessions"]) & (RG != i)      # the training rows without session i
                 # THE TRAINING SET IS ALWAYS THE ENGAGED PRE-STROKE ANIMAL -- that is what "frozen"
                 # means, and it does not depend on the class being SCORED. What the class changes is
                 # the trials the held-out pre-stroke session contributes, and for `stopped` that is
@@ -894,7 +930,9 @@ def _collect_5c_cached(align, variant="working", mode="frozen", _run=None):
                 # `_collect_7` states the rule the other collectors follow: a pre-stroke animal is
                 # not missing, so `working` adds nothing at pre except a different KIND of trial,
                 # and the reference then differs from itself.
-                if variant == "stopped":
+                if variant == "stopped" or uw:
+                    # `stopped`: the quit period; `working` under the working frame: the held-out session's WORKING
+                    # trials, engaged + no-lick (main 48f2cc6d)
                     me_te, mu_te = _class_select(variant, e_pre & (GE == i),
                                                  (GU == i) if len(GU) else np.zeros(0, bool),
                                                  not_eng, cls=bd.get("cls"))
@@ -905,10 +943,10 @@ def _collect_5c_cached(align, variant="working", mode="frozen", _run=None):
                 Xte_r = _stack(i, me_te, mu_te, False)
                 yte = np.concatenate([YE[me_te]] + ([YU[mu_te]] if mu_te.any() else []))
                 bte = np.concatenate([BE_all[me_te]] + ([BU_all[mu_te]] if mu_te.any() else []))
-                if len(yte) < 5 or len(np.unique(YE[tr])) < 2:
+                if len(yte) < 5 or len(np.unique(RY[rtr])) < 2 or i not in fr["loso"]:
                     continue
                 r = rec(Xte, yte, bte, fr["loso"][i],
-                        pool=(XT[tr], YE[tr], BE_all[tr]), X_refit=Xte_r, sess=i, me=me_te, mu=mu_te,
+                        pool=(RT[rtr], RY[rtr], RB[rtr]), X_refit=Xte_r, sess=i, me=me_te, mu=mu_te,
                         pool_tag=f"pre-{kept[i]}")
                 if r is None:
                     continue
@@ -932,7 +970,8 @@ def _collect_5c_cached(align, variant="working", mode="frozen", _run=None):
                 bs = np.concatenate([BE_all[me]] + ([BU_all[mu]] if mu.any() else []))
                 if not len(ys):
                     continue
-                r = rec(Xs, ys, bs, clf, pool=(XT[e_pre], YE[e_pre], BE_all[e_pre]), X_refit=Xs_r, sess=i,
+                _tm = np.isin(RG, fr["train_sessions"])
+                r = rec(Xs, ys, bs, clf, pool=(RT[_tm], RY[_tm], RB[_tm]), X_refit=Xs_r, sess=i,
                         me=me, mu=mu)
                 if r is None:
                     continue

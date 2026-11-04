@@ -823,11 +823,41 @@ def _pooled_bundle(an, align):
         bundle["not_eng_daq"] = g_daq[0] if g_daq else np.zeros(len(YU), bool)
     _BUNDLE_CACHE[key] = bundle
     return bundle
-def _frozen_frame(bd, an=None, align=None, store=True):
+def _working_masks(bd):
+    """``(work_e, work_u)``: the bundle's camera WORKING rows on the engaged AND no-lick arms (main 48f2cc6d
+    `working_trials.row_masks`; Priya 11-03 late: production contact | incomplete, whatever the DAQ lick), from the
+    rebuild's live classes (``bd["cls"]``, `trial_classes.in_sel`), or None: the lick window (no lick time without a
+    lick), the DAQ gate, or a non-camera working selection."""
+    from wfield_local import trial_classes as _tc
+    from wfield_local import working_trials as _wt
+    cls = bd.get("cls")
+    if cls is None or bd.get("align") == "lick" or not _tc.camera_gate_on() \
+            or not _wt.is_camera(_tc.working_selection()):
+        return None
+    we = _tc.in_sel(cls[0], "working")
+    wu = _tc.in_sel(cls[1], "working") if len(cls[1]) else np.zeros(len(bd["GU"]), bool)
+    return we, wu
+
+
+def _uses_working(bd, sel):
+    """True when ``sel`` is "working" and the bundle has camera working rows (cue / precue, camera selection)."""
+    return sel == "working" and _working_masks(bd) is not None
+
+
+def _frozen_frame(bd, an=None, align=None, store=True, sel="engaged"):
     """The pre-stroke SPOUT-POSITION decoder for one bundle, and the frames it is trained and scored in.
 
-    ``{"scaling", "XT", "full", "loso": {pre index: model}, "pi_full", "pi_loso", "XEs", "XUs"}``, memoised ON the
-    bundle (per scaling), so every frozen-decoder site that reads a bundle uses one fit and one frame.
+    ``{"scaling", "sel", "XT", "full", "loso": {pre index: model}, "pi_full", "pi_loso", "XEs", "XUs", "R", "RT",
+    "train_sessions", "work"}``, memoised ON the bundle (per scaling, centre, store, selection), so every frozen-decoder
+    site that reads a bundle uses one fit and one frame.
+
+    ``sel`` = the TRAINING and CENTRE rows (main 48f2cc6d `_frozen_frame(bd, sel)`): "engaged" (the lick gate; the
+    lick window, the `lick` / `stopped` classes) or "working" (Priya 11-03 late / coordinator 11-04: the camera WORKING
+    trials, ENGAGED AND NO-LICK rows of class contact | incomplete, on both sides -- the pre-stroke training set, each
+    session's label-free EM centre and the pre panel). "working" falls back to "engaged" for the lick window and the
+    DAQ gate. ``R`` = (RX, RY, RG), the training / centre rows; ``RT`` = R in the training frame; ``train_sessions`` =
+    the pre sessions with R rows (PS93_0813, no video, has none under "working", so it is neither trained on nor
+    scored).
 
     ``scaling`` is `spout_scaling.spout_scaling()`: ``session_bal_em`` in production since 2026-11-03 (Priya, "I would
     adopt B everywhere"; DECISIONS 2026-11-03). Then ``XT`` = the bundle's engaged rows with each pre session
@@ -847,32 +877,68 @@ def _frozen_frame(bd, an=None, align=None, store=True):
     an, align = an or bd.get("animal"), align or bd.get("align")
     # a stored and an opt-out frame never mix; keyed by the (animal, window) the store is asked for
     use = bool(store) and _gc.epoch_frozen_on()
-    key = f"_frozen_{sc}_{spout_scaling.centre_rows() if sc else 'z'}_{'store' if use else 'mem'}_{an}_{align}"
+    work = _working_masks(bd) if sel == "working" else None
+    use_w = work is not None
+    from wfield_local import trial_classes as _tcs
+    selkey = _tcs.run_selection() if use_w else "engaged"
+    key = (f"_frozen_{sc}_{spout_scaling.centre_rows() if sc else 'z'}_{'store' if use else 'mem'}_{an}_{align}"
+           f"_{selkey}")
     if key in bd:
         return bd[key]
     XE, YE, GE, XU, GU = bd["XE"], bd["YE"], bd["GE"], bd["XU"], bd["GU"]
-    pre_i, e_pre = sorted(bd["pre_i"]), bd["e_pre"]
+    YU = np.asarray(bd.get("YU", np.zeros(len(GU), int)))
+    if use_w:
+        we, wu = work
+        RX = np.vstack([XE[we]] + ([XU[wu]] if np.any(wu) else []))
+        RY = np.concatenate([YE[we], YU[wu].astype(YE.dtype)])
+        RG = np.concatenate([np.asarray(GE)[we], np.asarray(GU)[wu]])
+        pre_i = sorted(i for i in bd["pre_i"] if np.any(RG == i))
+    else:
+        RX, RY, RG = XE, YE, np.asarray(GE)
+        pre_i = sorted(bd["pre_i"])
+    e_pre = np.isin(RG, pre_i)
     XT = spout_scaling.train_frame(XE, YE, GE, pre_i) if sc else XE
+    RT = (spout_scaling.train_frame(RX, RY, RG, pre_i) if sc else RX) if use_w else XT
     # MERGE (rebuild x main, 11-03): the models come from the FROZEN STORE (kind `epoch_decoder`, rule 10; spec carries
     # the scaling and the training-data fingerprint) when the bundle knows its animal / alignment and the store is on
     # (`grant_confusion.epoch_frozen_on`); otherwise, and with WIDEFIELD_EPOCH_FROZEN=0, the same fits in memory.
     stored = None
     if use and an and align:
         from wfield_local import grant_confusion
-        stored = grant_confusion._stored_epoch_decoder(an, align, bd, tag="frame", XT=XT, scaling=sc)
+        stored = grant_confusion._stored_epoch_decoder(an, align, bd, tag="frame", XT=RT, scaling=sc,
+                                                       R=(RX, RY, RG, pre_i) if use_w else None)
     if stored is not None:
         full = stored["full"]
         loso = {i: stored["loso"][bd["kept"][i]] for i in pre_i if bd["kept"][i] in stored["loso"]}
     else:
-        full = _pipe().fit(XT[e_pre], YE[e_pre])
+        full = _pipe().fit(RT[e_pre], RY[e_pre])
         loso = {}
         for i in pre_i:
-            tr = e_pre & (GE != i)
-            if len(np.unique(YE[tr])) >= 2:
-                loso[i] = _pipe().fit(XT[tr], YE[tr])
-    pi_loso = {i: spout_scaling.class_prior(YE[e_pre & (GE != i)]) for i in loso}
-    pi_full = spout_scaling.class_prior(YE[e_pre])
-    if sc:
+            tr = e_pre & (RG != i)
+            if len(np.unique(RY[tr])) >= 2:
+                loso[i] = _pipe().fit(RT[tr], RY[tr])
+    pi_loso = {i: spout_scaling.class_prior(RY[e_pre & (RG != i)]) for i in loso}
+    pi_full = spout_scaling.class_prior(RY[e_pre])
+    if sc and use_w:
+        # THE WORKING CENTRE (coordinator 11-04, main 48f2cc6d): each session's label-free EM centre from ITS working
+        # rows, engaged AND no-lick, under its scoring model (LOSO for a pre session); a session with none (no video)
+        # is not scored by this model and stays in the production frame; a pre session without a LOSO model is not
+        # scored either
+        XEs, XUs = np.array(XE, float), np.array(XU, float)
+        GEa, GUa = np.asarray(GE), np.asarray(GU)
+        for i in range(len(bd["kept"])):
+            if i in bd["pre_i"] and i not in loso:
+                continue
+            mdl = loso.get(i) if i in bd["pre_i"] else full
+            pi = pi_loso.get(i) if i in bd["pre_i"] else pi_full
+            got = spout_scaling.working_centre(mdl, RX[RG == i], pi, bd["kept"][i])
+            if got is None:
+                continue
+            mu, sdv = got
+            XEs[GEa == i] = (np.asarray(XE)[GEa == i] - mu) / sdv
+            if len(GUa) and np.any(GUa == i):
+                XUs[GUa == i] = (np.asarray(XU)[GUa == i] - mu) / sdv
+    elif sc:
         # the centre rows: the camera WORKING engaged rows under the camera gate (Priya 11-03), else every engaged row
         XEs, XUs = spout_scaling.scored_frame(
             XE, GE, XU, GU, range(len(bd["kept"])),
@@ -881,8 +947,9 @@ def _frozen_frame(bd, an=None, align=None, store=True):
             centre_mask=_bundle_centre_mask(bd), session_names=bd["kept"])
     else:
         XEs, XUs = XE, XU
-    fr = {"scaling": sc or spout_scaling.SCALING_SESSION_Z, "XT": XT, "full": full, "loso": loso,
-          "pi_full": pi_full, "pi_loso": pi_loso, "XEs": XEs, "XUs": XUs}
+    fr = {"scaling": sc or spout_scaling.SCALING_SESSION_Z, "sel": "working" if use_w else "engaged",
+          "XT": XT, "full": full, "loso": loso, "pi_full": pi_full, "pi_loso": pi_loso, "XEs": XEs, "XUs": XUs,
+          "R": (RX, RY, RG), "RT": RT, "train_sessions": pre_i, "work": work}
     bd[key] = fr
     return fr
 def _bundle_centre_mask(bd):
@@ -893,15 +960,17 @@ def _bundle_centre_mask(bd):
     return spout_scaling.centre_mask(cls[0] if cls is not None else None)
 
 
-def _frozen_score_rows(bd, model, pi, i, Xe_rows, Xu_rows=None):
+def _frozen_score_rows(bd, model, pi, i, Xe_rows, Xu_rows=None, centre_rows=None):
     """Session ``i``'s rows in the scoring frame of an AD HOC frozen-style model (the size-matched frozen arm):
     centre from ALL of the session's engaged rows (production-z), label-free, applied to the given rows. Identity under
     session_z."""
     from wfield_local import spout_scaling
     if not spout_scaling.spout_scaling():
         return Xe_rows, Xu_rows
-    mu, sd = spout_scaling.score_centre(
-        model, spout_scaling._centre_rows_of(bd["XE"], bd["GE"] == i, _bundle_centre_mask(bd), bd["kept"][i]), pi)
+    # ``centre_rows``: the session's working rows (engaged + no-lick) when the scored frame is the working one
+    C = (spout_scaling._centre_rows_of(bd["XE"], bd["GE"] == i, _bundle_centre_mask(bd), bd["kept"][i])
+         if centre_rows is None else centre_rows)
+    mu, sd = spout_scaling.score_centre(model, C, pi)
     return ((Xe_rows - mu) / sd, None if Xu_rows is None else (Xu_rows - mu) / sd)
 def _runs_to_blocks(sess, pos):
     """Block ids from runs of the same (session, position), for trials that carry none of their own.

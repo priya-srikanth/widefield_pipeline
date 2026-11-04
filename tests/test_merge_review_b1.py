@@ -91,7 +91,8 @@ def test_section_g_store_errors_propagate_and_unkeyed_pools_refuse_in_a_tagged_r
     identity is refused in a tagged run (allowed, as before, in the default run)."""
     from wfield_local import poststroke_compare as pc
     monkeypatch.setattr(pc, "frozen_decoder_models", lambda *a, **k: (_ for _ in ()).throw(RuntimeError("store")))
-    d = {"XE": np.zeros((4, 2)), "YE": np.zeros(4), "GE": np.zeros(4, int), "kept": ["PS92_0806"], "pre_i": {0},
+    d = {"XE": np.zeros((4, 2)), "YE": np.zeros(4), "GE": np.zeros(4, int), "XU": np.zeros((0, 2)), "YU": np.zeros(0),
+         "GU": np.zeros(0, int), "kept": ["PS92_0806"], "pre_i": {0},
          "align": "cue", "source": "roi", "_frozen_cache": {}}
     with pytest.raises(RuntimeError, match="store"):
         pc.frozen(d)

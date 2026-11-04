@@ -1208,3 +1208,95 @@ runs `os.environ.setdefault("WIDEFIELD_PRE_FROM", "0801")` at import, so `test_d
 pre0801 into the later lp_licks, rebuild_root and share_writers tests of its shard. The test now sets the variable
 through monkeypatch before the import. Re-run of that shard: 646 passed, 26 skipped, 0 failed. Total 4,588 passed,
 179 skipped, 0 failed.
+
+### 8.33 Coordinator BLOCKER 11-04: training, centre, pre panel and scored set on camera working rows (as main 48f2cc6d)
+- **Problem.** For cue and precue, the frozen spout decoder was trained only on the DAQ-engaged (contact) pre rows, and
+  each session's bal_em centre came from those rows too. So camera-INCOMPLETE trials, which have no DAQ lick and are
+  no-lick rows, never entered the training set or the centre. They did enter the scored set through `_class_select`.
+  The 8.31 validation ran on that code.
+- **Now (mirrors main).** For cue and precue, the training set, the centre, the pre panel and the scored set are the
+  camera WORKING rows on both arms: every engaged or no-lick row whose class is in the run's working set
+  (`trial_classes.in_sel`; production contact | incomplete, whatever the DAQ lick).
+- **Lick window.** It keeps the lick class (DAQ contacts), because a trial without a lick has no lick time. The DAQ gate
+  keeps the engaged model.
+- **Sites changed**, each matched to main:
+  - `grant_kit`: new `_working_masks` and `_uses_working`; `_frozen_frame(bd, an, align, store, sel)`.
+    - `sel="working"` trains on R = XE working rows plus XU working rows of the pre sessions that have them.
+    - Each session is centred from its own R rows (LOSO model for a pre session) via `spout_scaling.working_centre`
+      (at least 20 rows, otherwise it raises). A session with no R rows is neither trained on nor scored.
+    - It returns `R`, `RT` (R in the training frame), `train_sessions` and `work`.
+    - The memo key carries the selection. `_frozen_score_rows(..., centre_rows=)` is used by the matched arm.
+  - `grant_confusion`:
+    - 5b: the working frame. Its pre panel is the held-out pre session's working rows (engaged + no-lick).
+    - 5c: `sel="working"` for the working variant. The pre loop runs over the train sessions and scores the held-out
+      session's working rows (`if variant == "stopped" or uw`). The matched-draw pools are R rows, and the matched
+      spec carries the selection.
+    - `_stored_epoch_decoder(..., R=)`: the spec's training data are the R rows, plus `trials`.
+  - `locanmf_frozen_decoder`:
+    - `working_rows`, `pool_work` (rebuild: live classes via `pool_row_classes`, not main's s1 snapshot);
+    - `decoder_spec(trials=)` and `frozen_decoder_models(work=)`, which train on R and record `trials` / `pre_labels`;
+    - `frozen_scored_frame(work=)`, which centres from R rows;
+    - `pooled_frozen_loso`: ROI features with indices; pre band = sessions with a LOSO model; per-session values, CI and
+      confusion over scored sessions only; `frozen_model_id` from the R rows.
+  - `poststroke_compare` (section G):
+    - `_pooled` uses ROI features with indices (`_features`);
+    - `frozen` passes `work`, and `frozen_X` centres from R rows;
+    - `decode_matched` and `crossed_confusion` drop pre sessions without a LOSO model.
+  - `attempt_coding` (scoring and `--freeze`) and `joint_xsession` (decoder features with indices).
+  - `spout_scaling`: `spec_kw(scaling, trials)` (main's signature; `centre_set: working_rows`) and `working_centre`.
+- **Where the rebuild differs from main:**
+  - Classes are computed live (`cue_classes_for`) rather than read from main's s1 snapshot.
+  - The lick-gate (engaged) model centres on its working engaged rows, with the PS93_0813 contact fallback. Main
+    centres it on all engaged rows. This is the rebuild's 11-03 centre rule and is unchanged.
+  - The other `FrozenFrame` sites keep their engaged-row training. Main does not change them either: nolick_decoder,
+    position_coding_directions, precue_engagement_states, poststroke `decode_matched`'s lick-only arm and
+    june_august_drift.
+- **Dry count** (re-run). The centre rows of the working frame are the engaged + no-lick rows of class contact |
+  incomplete, counted per curated session before the window drop. Errors: 0.
+  - No session other than PS93_0813 is below 20. PS93_0813 has 0 rows (no video) and is not trained on or scored.
+  - The lowest sessions:
+    - PS92_0812 (pre): **224**
+    - PS94_0819 (acute): 249
+    - PS92_0826 (subacute): 265
+    - PS92_1002 (chronic): 270
+    - PS92_0929 (chronic): 272
+    - PS95_0820 (subacute): 284
+  - By epoch (min / median, and no-lick working rows added):
+
+    | epoch | min | median | no-lick working rows added |
+    |---|---|---|---|
+    | pre | 224 | 509 | 391 |
+    | acute | 249 | 370 | 1,324 |
+    | subacute | 265 | 446 | 360 |
+    | chronic | 270 | 497 | 225 |
+
+- **Validation** (`_collect_5c("cue", "working")`, in memory, session means per animal, then the animal mean).
+  - The `paired` mode gives per-session records. Column 0 is the frozen prediction, and the refit column is stubbed.
+  - (b) uses the checks' data: production hemo variant, no LocaNMF projection, PRE_FROM 0801, the profile's rules
+    otherwise.
+  - (a) uses the full rebuild profile.
+
+| | pre panel PS92 / 93 / 94 / 95 -> mean | acute close ipsi PS92 / 93 / 94 / 95 -> mean |
+|---|---|---|
+| checks (main 48f2cc6d) | .854 / .724 / .926 / .921 -> **.856** | .829 / .629 / .619 / .832 -> **.727** |
+| (b) rebuild code, checks' data | .853 / .724 / .926 / .922 -> **.856** | .829 / .629 / .619 / .832 -> **.727** |
+| (a) rebuild profile | .855 / .729 / .934 / .922 -> **.860** | .818 / .584 / .717 / .815 -> **.734** |
+| (a) - (b), the data effect | +.002 / +.005 / +.008 / .000 -> +.004 | -.011 / -.045 / +.098 / -.017 -> +.007 |
+
+- (b) reproduces the checks to .001 on every animal, so the rebuild code has no code difference on this cell.
+- The data effect (swap-mask hemo plus the LocaNMF projection) is small on the pre panel. On acute close ipsi it is
+  mixed in sign: PS94 is +.10 and PS93 is -.05, giving +.007 on the mean.
+- 8.31's +.11 came from the contact-only training and centre plus trial pooling, not from the data.
+- Files: scratchpad `jaw_val/{sessions,animals}_a.csv` and `jaw_val_b/{sessions,animals}_b.csv`; script
+  `r4/jaw_validation2.py`.
+- **Tests:**
+  - New `tests/test_working_rows_training.py`:
+    - the working frame trains on and centres from engaged + no-lick working rows;
+    - a no-video session is neither trained nor scored;
+    - the engaged frame and the lick window keep the engaged rows;
+    - the jaw arm adds jaw_only rows;
+    - `pool_work` / `working_rows`;
+    - the spec records the selection;
+    - `working_centre` refuses 1–19 rows.
+  - Updated source pins in test_frozen_default, test_stopped_trial_class (main's wording) and test_merge_review_b1
+    (the pool now carries XU).

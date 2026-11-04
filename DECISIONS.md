@@ -23348,7 +23348,17 @@ Priya 11-03 late: working = contact + incomplete; jaw_only its own class like no
   the camera working set reads `trial_classes.in_sel(cls, "working" | "miss_working")`, which applies the selection
   (production: working = contact | incomplete, miss_working = incomplete).
 - A jaw_only trial bridges a stop run anywhere without counting (production); under in_working_jaw the afternoon rule.
-- The bal_em centre is fitted on the working rows of the selection (20-row minimum unchanged).
+- WHICH ROWS (coordinator 11-04, mirroring main 48f2cc6d): for cue and precue windows the frozen spout decoder's
+  TRAINING set, each session's bal_em CENTRE, the pre panel and the scored set are the camera WORKING rows, ENGAGED
+  AND NO-LICK, whatever the DAQ lick (a camera-incomplete trial has no DAQ lick, so it is a no-lick row). Sites:
+  `grant_kit._frozen_frame(sel="working")` (5b, 5c), `locanmf_frozen_decoder.pool_work` / `frozen_decoder_models(work=)`
+  / `frozen_scored_frame(work=)` / `pooled_frozen_loso`, `poststroke_compare.frozen` / `frozen_X` (section G),
+  `attempt_coding`, `joint_xsession`. Lick-aligned selections keep the lick class (DAQ contacts). A session without
+  working rows (PS93_0813, no video) is neither trained on nor scored by a working-trained model. The spec records the
+  selection (`scaling_params.trials`, `centre_set: working_rows`). Validation: with the checks' data the rebuild code
+  reproduces the checks' "jaw as its own class" cell exactly (log 8.33).
+- The bal_em centre of a working-trained model needs >= 20 working rows (engaged + no-lick); the engaged-row centre of
+  the lick-gate model keeps its rule (working engaged rows, PS93_0813 contact fallback).
 - The selection tag gains main's class part after the end part: `sel-camera-cue_stop-endlick-cls-contact-incomplete-
   stopRun6`; in_working_jaw keeps the afternoon tag. No store or cache entry of the jaw-inclusive set is reused.
 - The 5c record cache (`grant_confusion._collect_5c`) is keyed on the run selection and the working selection.

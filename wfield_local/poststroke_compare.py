@@ -88,7 +88,10 @@ def _pooled(animal, align, source="roi", post_labels=None):
         post = [l for l in post_labels if l.startswith(animal)]
     if not pre or not post:
         return None
-    p = pool_sessions(pre + post, source=source, align=align, post_s=2.0)
+    # the ROI builder that also keeps cue indices (main 48f2cc6d), so the pool maps onto the camera working trials
+    from wfield_local import working_trials as _wt
+    feat = _wt.roi_features_with_indices() if source == "roi" else None
+    p = pool_sessions(pre + post, source=source, align=align, post_s=2.0, features=feat)
     if p is None:
         return None
     XE, YE, GE, BE, XU, YU, kept, _common, GU = p
@@ -100,7 +103,7 @@ def _pooled(animal, align, source="roi", post_labels=None):
             # `poststroke_section_g` to isolate one session at a time; `align`/`source` are not, and
             # `frozen` must key on the pre-stroke training set rather than on whatever comparison
             # arm the caller has narrowed to, or every narrowing would look like a new model.
-            "align": align, "source": source,
+            "align": align, "source": source, "_features": feat,
             # THE POOLED FEATURE COLUMNS (ROI: region x bin intersected over the pool), part of every section G stored
             # model's identity (`_g_store`, 11-02 pass 2): an excluded-session pool can have a different column set.
             "common": list(_common) if _common is not None else None,
@@ -250,9 +253,14 @@ def frozen(d):
         # NO SILENT IN-MEMORY FALLBACK (fifth review D-B1): a store error (WriteGuardError, the LP "loads DAQ-frozen"
         # refusal, an unreadable entry, a centre refusal) propagates; it used to print "fitting locally" and let every
         # caller refit a pre-stroke decoder in memory, on the session_z frame, untagged
+        # trained on the pre-stroke CAMERA WORKING trials for cue / precue (Priya 11-03 late, main 48f2cc6d `pool_work`:
+        # engaged AND no-lick rows of class contact | incomplete); the engaged trials for the lick window
+        from wfield_local.locanmf_frozen_decoder import pool_work
+        cache["work"] = pool_work(d["XE"], d["YE"], d["GE"], d["XU"], d["YU"], d["GU"], d["kept"],
+                                  d.get("_features"), d["align"])
         models, _status = frozen_decoder_models(
             d["XE"], d["YE"], d["GE"], d["kept"], d["pre_i"],
-            align=d["align"], source=d["source"])
+            align=d["align"], source=d["source"], work=cache["work"])
         cache["models"] = models
     return cache["models"]
 
@@ -361,7 +369,8 @@ def frozen_X(d):
         return d["XE"], d["XU"]
     if "X" not in cache:
         cache["X"] = frozen_scored_frame(models, d["XE"], d["GE"], d["XU"], d["GU"], d["kept"], d["pre_i"],
-                                         cls_e=_engaged_classes(d))
+                                         cls_e=None if cache.get("work") is not None else _engaged_classes(d),
+                                         work=cache.get("work"))
     return cache["X"]
 
 
@@ -400,6 +409,9 @@ def decode_matched(d, keep, post_all_trials=True):
     # stays on the production frame.
     XEf, XUf = frozen_X(d) if models is not None else (d["XE"], d["XU"])
     if models is not None:
+        # a pre session with no LOSO model (dropped from a camera-working training set: no video, PS93_0813) has no
+        # pre-band entry (main 48f2cc6d)
+        tr = tr & np.isin(d["GE"], [i for i in d["pre_i"] if d["kept"][i] in models["loso"]])
         clf = models["full"]
         pre_pred = np.empty_like(d["YE"][tr])
         _gi = d["GE"][tr]
@@ -770,6 +782,8 @@ def crossed_confusion(d, labels=DISPLAY_ORDER, post_all_trials=False,
     XEf, XUf = frozen_X(d) if models else (d["XE"], d["XU"])
 
     # PRE: engaged only, leave-one-session-out -- the reference for a code with a successful movement.
+    if models:                  # pre sessions without a LOSO model (no camera classes) have no pre panel rows
+        tr = tr & np.isin(d["GE"], [i for i in d["pre_i"] if d["kept"][i] in models["loso"]])
     pre_y = d["YE"][tr]
     if models:
         pre_p = np.empty_like(pre_y)
@@ -803,6 +817,8 @@ def crossed_confusion(d, labels=DISPLAY_ORDER, post_all_trials=False,
             # session's -- keyed by label rather than by the pooled index, which depends on the
             # order the pool was assembled and this does not.
             mdl = (models["loso"].get(d["kept"][int(gsess)]) if models else None)
+            if models and mdl is None:
+                continue              # no LOSO model: dropped from the camera-working training set (no video)
             if mdl is None:
                 mdl = _pipe().fit(d["XE"][trn], d["YE"][trn])
                 pre_nl_p[hold] = mdl.predict(d["XU"][pre_u][hold])

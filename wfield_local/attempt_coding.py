@@ -282,9 +282,11 @@ def run_animal(animal, align="precue", verbose=True):
             tr, te = ref & (G != s), ref & (G == s)
             own[te] = score(X[te], sp[te], axes[meth]["loso"][kept[s]] if axes else fit_axes(X[tr], sp[tr], meth))
         rows.append(pd.DataFrame({"method": meth, "own": own}))
-    from wfield_local.locanmf_frozen_decoder import frozen_decoder_models
+    from wfield_local.locanmf_frozen_decoder import frozen_decoder_models, pool_work
     pre_list = [i for i in range(len(kept)) if pre_i[i]]
-    models, status = frozen_decoder_models(XE, YE, GE, kept, pre_list, align=align, source="locanmf",
+    # trained on the pre-stroke CAMERA WORKING trials for cue / precue (Priya 11-03 late, main `pool_work`)
+    work = pool_work(XE, YE, GE, XU, YU, GU, kept, feat, align)
+    models, status = frozen_decoder_models(XE, YE, GE, kept, pre_list, work=work, align=align, source="locanmf",
                                            post_s=post_s, basis_id=getattr(feat, "basis_id", None))
     if verbose:
         print(f"[attempt_coding] {animal} {align}: frozen decoder {status}", flush=True)
@@ -293,8 +295,10 @@ def run_animal(animal, align="precue", verbose=True):
     from wfield_local.locanmf_frozen_decoder import frozen_scored_frame
     from wfield_local.locanmf_frozen_decoder import engaged_row_classes
     XEf, XUf = frozen_scored_frame(models, XE, GE, XU, GU, kept, pre_list,
-                                   cls_e=engaged_row_classes(kept, len(YE), features=feat, align=align,
-                                                             post_s=post_s))
+                                   cls_e=(None if work is not None else
+                                          engaged_row_classes(kept, len(YE), features=feat, align=align,
+                                                              post_s=post_s)),
+                                   work=work)
     Xf = np.vstack([XEf, XUf])[keep]
     code = np.concatenate([YE, YU]).astype(int)[keep]
     p_true = np.full(len(X), np.nan)
@@ -385,10 +389,12 @@ def freeze_reference(animal, align):
     post = [l for l in config.phase_labels("post") if l.startswith(animal) and _lp_available(l)]
     basis = joint_locanmf.load(animal, sessions=_ALL)
     feat = features_with_indices(basis)
-    XE, YE, GE, _BE, _XU, _YU, kept, _c, _GU = pool_sessions(pre + post, source="locanmf", align=align,
-                                                              post_s=post_s, features=feat)
+    from wfield_local.locanmf_frozen_decoder import pool_work
+    XE, YE, GE, _BE, XU, YU, kept, _c, GU = pool_sessions(pre + post, source="locanmf", align=align,
+                                                          post_s=post_s, features=feat)
     pre_list = [i for i, lab in enumerate(kept) if lab in set(pre)]
     _m, status = frozen_decoder_models(XE, YE, GE, kept, pre_list, align=align, source="locanmf", post_s=post_s,
+                                       work=pool_work(XE, YE, GE, XU, YU, GU, kept, feat, align),
                                        basis_id=getattr(feat, "basis_id", None))
     print(f"[attempt_coding] freeze {animal} {align} (ENL window {lp_licks.enl_window_s()}): {status}", flush=True)
     return status
