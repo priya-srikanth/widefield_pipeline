@@ -309,8 +309,16 @@ FYI, the 3-class camera variant (lick / jaw-only / none) is thin in PS92 and PS9
     (-.46 vs Wt -.64) is what a real spout-specific loss also produces under Iref. So it is NOT evidence that ~.17 of
     the acute loss, or most of the chronic residual, is a day offset. Iref must not be used as a bound on the
     deficit's size.
-  - RUNNING (Priya OK): WtF = the Wt centre with a FIXED pooled-pre SD, and WtR = the Wt centre with a robust
-    within-spout residual SD, through the same injected-effect grid, plus scoring of the REAL post sessions.
+  - DONE (INJECTED_EFFECT §7, b11b33e4): neither the fixed-SD Wt (WtF) nor the robust-SD Wt (WtR) fixes the ~1/3
+    under-reading.
+    - CORRECTION of the mechanism: it is the CENTRE absorbing 1/6 of the far-contra shift (the equal-weight spout
+      mean), NOT the session SD.
+    - WtF is the only frame that also sees a proportional gain change while ignoring offsets and rest. On real data it
+      raises cue far contra acute .230 -> .330 (PS94 .36 -> .57, PS95 .24 -> .37), probably via the acute
+      trial-row SD rise (x1.41 PS94). It has a +.07 mix bias, which suggests added variance rather than gain.
+    - WtR barely changes the real numbers.
+    - Acute deficit, by frame: Wt -.64, WtF -.53, WtR -.64, N -.60. Chronic is ~unchanged (.72).
+    - Keep Wt primary; report WtF beside N as the gain-sensitive reading.
 
 - **11-04: reference-spout anchor + intercept-only refit (docs/status/REFSPOUT_CENTRE_2026-11-04.md, b7d97063).**
   - Rref (day offset from close ipsi / mid) is NOT stroke-free:
