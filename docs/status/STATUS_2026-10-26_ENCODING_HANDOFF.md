@@ -56,8 +56,17 @@ its Questions list). Docs commits on wf_attempt BY EXPLICIT PATH ONLY.
     hit / no-response, <= 20 ms latency on every Aug pre session with video); fail -> back to Priya.
   - (3) JAW-ONLY OUT OF WORKING (via a8; main 39bb3d5e): working = contact + incomplete; jaw_only its own class. Default
     (flagged to Priya): jaw_only bridges stop runs, not counted.
-- **Code helper a0dc6e4f1c77fb99f queue:** jaw-only-out FIRST (new selection tag, validation vs pre .856 / acute cI .727);
-  last non-blockers; working-engaged-row dry count; (1); (2) + agreement table (on the new working definition).
+- **11-04 state:**
+  - Rebuild tip a8791963, suite green.
+  - Aug-only pre is profile-wide.
+  - Jaw-only-out matches main 48f2cc6d.
+  - The DAQ fallback for PS93_0813 FAILED its agreement check and is not used.
+  - Dry count OK.
+- **OPEN BLOCKER (helper a0dc6e4f1c77fb99f):** working imaging rows must be camera contact + INCOMPLETE (mirror main's row
+  construction); the rebuild had DAQ-contact rows only.
+  - Validation, arm (b): rebuild code on the checks' old inputs must hit .856 / .727.
+  - Arm (a) minus arm (b) = the data effect.
+  - Then a reviewer re-verify -> rebuild_root init -> render.
 - **Reviewer:** aa0138ac1e9c354a7.
 - **Next:**
   - helper reports -> re-verify the new code (reviewer)

@@ -618,6 +618,20 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
 - 11-04: jaw-only-out landed on main (48f2cc6d; WIDEFIELD_WORKING_TRIALS in_working / in_working_jaw / quit_tail; tag
   cls-contact-incomplete; 20 new frozen ids in main's store). Rebuild helper told to MATCH main's names / tag / stop-run
   semantics (and adopt main's stop-run rule if it differs from my default). Box free of a8's jobs.
+- HELPER (rebuild tip a8791963; FULL suite 4,588 / 0 failed; log 8.27-8.32):
+  - Aug-only pre PROFILE-WIDE done (june_august_drift + 12.1b unset it; ITI extracts keyed by pre set).
+  - Jaw-only-out MATCHES main 48f2cc6d (working_trials.py byte-identical; tag ...-endlick-cls-contact-incomplete-stopRun6;
+    in_working_jaw = robustness arm). Main has no stop rule, so my default stands (jaw_only bridges, not counted) -- question
+    for Priya stays open.
+  - Dry count: every session >= 174 working engaged rows (min PS94_0819 acute) except PS93_0813 (0, contact fallback).
+  - RESULT FOR PRIYA: the PS93_0813 DAQ-fallback AGREEMENT CHECK FAILED -> NOT used. On 31 Aug pre sessions with video the
+    DAQ-defined working period reads a HIGHER hit rate on 9 sessions (+2.2 to +15.9 points; PS95_0806 +15.9, PS95_0812 +8.2,
+    PS94_0812 +4.4, PS93_0814 +3.9), latency identical. Why: camera incomplete / jaw-only trials are DAQ misses, so DAQ miss runs
+    get longer and the DAQ stop rule cuts misses the camera keeps. PS93_0813 stays out of hit / miss / no-response rates.
+  - BLOCKER FOUND (mine to fix, sent): the rebuild trained / centred / scored on DAQ-contact rows only, so camera-INCOMPLETE
+    trials never entered; Priya's rule (and main) is contact + incomplete. Helper mirroring main's row construction, then a
+    two-arm validation: rebuild code on the checks' old inputs must reproduce .856 / .727 (code check); profile minus that =
+    the data effect (first try on rebuild data, contact-only rows: pre .876, acute close ipsi .839).
 
 ### Findings
 - main moved while the rebuild branch was being fixed (34 commits not in rebuild/cohort1-20261103). Two matter for the rebuild:
