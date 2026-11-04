@@ -1,41 +1,50 @@
 # Handoff 2026-11-01: quiet-period cortical events after the VLS stroke (cohort1, PS92-95) + literature context
 
-> **11-04 (day) -- START HERE.** Live log + questions: docs/status/RUNNING_LIST_2026-11-03_AWAY.md; decisions:
-> DECISIONS.md last two entries (11-03 late "Working excludes jaw-only", 11-04 "Deck / pages wait for the rebuild ...").
-> Deck = 186 slides, 81 hidden (11-04 late: a8 added hidden slides 100-101 "Backup: lick response, session
-> z-scored" + its mixed-model slide after the lick-ramp group 95-99, add_lick_sessz_backup_1104.py; latest dump
-> hidden_after_sessz2_1104.csv. Earlier 11-04: e3 added hidden slide 30 "Preliminary: 3-D from all four cameras" at Priya's
-> request, add_4cam_video_1104.py; slides after 29 shifted +1; verified with hidden_state_1103.py diff, latest dump
-> hidden_after_4cam_v2_1104.csv; e3 swapped in the 12:51 clip re-render, update_4cam_video_1104.py). PITFALL (e3):
-> deleting a movie shape with python-pptx leaves its <p:video> timing node behind, and PowerPoint then refuses to open
-> the file; remove the node too. Diff hidden states before/after every change. Python on
-> this box: C:/Users/SabatiniLab/miniconda3/envs/locanmf/python.exe (NOT C:/Users/sabatini/...). Slide export:
-> scratchpad export_slides.ps1 (PowerPoint COM).
-> PRIYA 11-04:
-> - WAIT FOR THE REBUILD: no main render, no interim swaps. Slides 9-13, 19, 89 and imaging §1-4, 6, 7 change once, in 34's
->   replacement pass. 34 sends a per-slide old-vs-new list; e0 applies the page edits in one pass.
-> - ALL Allen-ROI analyses on the ALM / tjM1 SPLIT basis (iti_licks AREA BASIS). 34 implements it in the rebuild as one
->   shared function, with new spec ids; its inventory of ROI consumers (and any that cannot switch) is pending -> relay
->   to Priya. 34 does the O2 encoder bundle first.
-> - B: state discriminators -> spout bal_em frame after a re-check (centre on working rows). C: projections re-checked
->   with the centre on WORKING rows; Priya decides. D: scored set -> working. G: groups -> camera classes (+ "after end").
-> RUNNING: helper implementing B / C-check / D / G on main (uncommitted edits in grant_kit, locanmf_frozen_decoder,
-> position_axes, position_coding_directions, poststroke_compare, poststroke_section_g, precue_engagement_states,
-> spout_scaling, working_trials are THEIRS; don't commit them). Outputs -> labcams/decoder_mix_checks/bcdg_1104/. When it
-> reports: relay B pass/fail + C numbers to Priya, send 34 the "for 34" port list, and tell e0 which D / G figures move.
-> DONE 11-04: slide 94 caveat line (ramp_caveat_1104.py, Priya via 34).
-> Production on main: working = contact + incomplete camera licks, cut at last camera lick (jaw-only = own class, Priya
-> 11-03 late; JAW_ONLY_CHECKS_2026-11-03.md), August-only pre, spout bal_em + extension.
-> (1) DONE 11-04: jaw-only out of working on main, 48f2cc6d (WIDEFIELD_WORKING_TRIALS = in_working [prod] /
-> in_working_jaw / quit_tail; 20 new frozen ids published + verified; reproduces the checks exactly; trial_classes
-> unchanged, e3 cec38954). PITFALL: grant_confusion._collect_5c is cached on (align, variant, mode) only, so switching
-> WIDEFIELD_WORKING_TRIALS mid-process returns the previous setting's result. Run one setting per process.
-> (2) Main-branch combined render HELD (running list question 0): 34's cohort-1 rebuild (rebuild_20261103, fenced dirs /
-> store / spec ids; new data = swap mask + LocaNMF projection + today's rules) replaces the same families in 1-2 days.
-> Priya 11-04: WAIT (above). When the rebuild lands: apply 34's swaps (build_inputs/spout_balem_swaps.json captions
-> still useful), send e3 the rebuild's *_sessions.csv paths for the hidden LMM slides, and send e0 the figure paths.
-> (3) e0 holds the s1 tables / imaging §1 table (still jaw-inclusive) and page edits.
-> Never start duplicate helpers; resume a stopped one with SendMessage.
+> **11-04 (evening) -- START HERE (PI-deck window sabatinilab-a8).** Live log, questions and findings:
+> docs/status/RUNNING_LIST_2026-11-03_AWAY.md (questions first, WATCH section, findings newest first). Decisions:
+> DECISIONS.md 11-04 entries ("Deck / pages wait for the rebuild ...", "centre = Wt"). Page work: every 11-03 / 11-04
+> change is listed as main or collapsible in docs/status/PAGE_EDITS_PENDING_2026-11-04.md (checked by e0 and 34).
+> NOTHING OF MINE IS RUNNING except the biological-gain helper (docs/status/GAIN_BIO_2026-11-04.md when it lands).
+>
+> DECK: 186 slides, 81 hidden. Latest hidden-state dump: hidden_after_sessz2_1104.csv (hidden_state_1103.py dump / diff;
+> diff before and after EVERY change; keep Priya's hidden states). 11-04 changes:
+> - slide 94 -> now 95, caveat line (ramp_caveat_1104.py);
+> - e3: hidden slide 30, the four-camera 3-D clip (re-rendered 12:51);
+> - a8: hidden slides 100-101, lick response session z-scored + its LMM (add_lick_sessz_backup_1104.py; 34's _sessz
+>   renders, wf_attempt 07e03c76).
+> Python: C:/Users/SabatiniLab/miniconda3/envs/locanmf/python.exe (NOT C:/Users/sabatini). Slide export: scratchpad
+> export_slides.ps1. PITFALL (e3): deleting a movie shape with python-pptx leaves a <p:video> timing node, and
+> PowerPoint then won't open the file.
+>
+> PRIYA'S 11-04 DECISIONS (all applied in 34's cohort-1 rebuild; main is NOT re-rendered):
+> - Wait for the rebuild: slides 9-13, 19, 89 (+ hidden LMM, lick slides) and the pages change ONCE in 34's
+>   replacement pass.
+> - Working = contact + incomplete camera licks (jaw-only = its own class); camera classes everywhere, including the
+>   engagement measures (quit = last camera lick, stop rule A2 "both sides"; DAQ = robustness).
+> - Section D scored on working; section G and the G9 coding-direction classes by camera class (bias guards); G4 =
+>   the camera-class discriminator, z frame on contact rows.
+> - Frozen spout decoder / CD / pattern CENTRE = Wt (the DAQ-label balanced spout mean over working rows; per-session
+>   SD). Robustness: N, WtF (fixed pre SD). Rejected: bal_em W, contact + fill Cto, rest, reference-spout anchor.
+>   The intercept refit is NOT a bound on the deficit (INJECTED_EFFECT §4 / §7).
+> - Split ALM / tjM1 basis for every Allen-ROI analysis; orofacial group = ALM, tjM1, SSp-m, SSp-n.
+> - Cue + 70 ms floor kept; 0-70 ms licks excluded (camera licks by peak); contacts after max_rt don't count.
+> - Lick class = contact + incomplete with LP timing (DAQ fallback > 50 ms at close spouts; far = grooming flag).
+> - ENL follows the lick source (LP 1.0 s sliding lick-free / DAQ 2.0 s), including the encoder ENL scoring and the
+>   s1 table (e0 re-runs it at 1.0 s in the pass).
+> - Lick response: raw stays main; session-z = a hidden companion (done).
+>
+> CHECKS DONE 11-04 (docs/status/*_2026-11-04.md): CUE70_CHECK, G4_CAMCLASS_MIXSHIFT, CENTRE_MIXSHIFT, REST_CENTRE,
+> REFSPOUT_CENTRE, INJECTED_EFFECT (§7 WtF / WtR), SD_RISE; docs/LITERATURE_CROSS_SESSION_NORMALISATION_2026-11-04.md.
+> Key reading: the acute far-contra deficit holds under every frame (cue acute .15-.39 vs ~.87 pre); Wt is conservative
+> (~2/3 recovery of a known spout-specific loss; immune to offsets / rest changes). The post-stroke SD rise is a
+> global gain (task + rest); F0 ROSE.
+>
+> WATCH: the encoder pre-cue position credit may fall once spontaneous licks are modelled (LICKS_ALL = split; PS93
+> smokes .0072 -> .0029). 34 sends per-animal numbers FIRST when the O2 run (bundle enc_rebuild_20261104b, commanded
+> 3-D targets) lands, with the list of affected claims.
+> OPEN: the old measured 3-D spout table (pose3d_spout_positions_20261023.csv) still exists: e0's local cache and 34's
+> superseded bundle enc_rebuild_20261104. e0 / 34 were asked to confirm nothing reads it and retire it (log the
+> deletion). Never start duplicate helpers; resume a stopped one with SendMessage.
 >
 > UPDATE 11-03 (late+): helper (B) DONE -- spout decoder biased (prod understates acute far-contra drop ~.10; fix = bal_em
 > centring, new spec, AWAITING PRIYA); lick decoder clean except cued all-lick acute offset caveat (tell 34 after Priya).
