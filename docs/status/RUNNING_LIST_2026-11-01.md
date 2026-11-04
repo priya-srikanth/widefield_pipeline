@@ -1077,3 +1077,23 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
     - classes via g_group.
   - Any figure that cannot meet the guards stays on DAQ and is flagged.
   - Passed to the port helper.
+- **11-04 ~13:40: FINDING (lp_missed_contact/LP_MISSED_CONTACT_20261104.md). DECISION NEEDED (Priya).**
+  - Normal lag: the LP onset precedes the DAQ contact (median -16 ms at close spouts, -48 ms at far). The tail starts at
+    +10-20 ms.
+  - The 50-100 ms trials are real misses: in 52 of 54 the first LP lick is the NEXT lick.
+  - Of the 64 trials, 56 are real misses, all at close spouts (41 pre):
+    - 34: the spout hides the tongue in cam4, and cam1's droplet flag drops the event;
+    - 11: gate M's 80 ms interval;
+    - 11: a 1-3 frame or flat tongue.
+    cam4 also misses all 56.
+  - 8 are grooming (paw), 7 of them at far spouts. They keep their class (contact, from later real licks). Only their
+    first-lick time is wrong.
+  - Recommended:
+    - 50 ms tolerance at CLOSE spouts only, with timing_source = daq;
+    - at FAR spouts, > 50 ms = a grooming flag (7 of 8 caught, 0 false alarms). Keep the LP time.
+    - 100 ms would leave 49 misses timed about one lick late.
+  - Optional source fixes (LP lick-detection changes; would recover 38 of the 56):
+    - keep droplet-flagged cam1 events that overlap a DAQ contact;
+    - let a DAQ contact break gate-M ties;
+    - rise-start onset.
+  - RAM fell to 0.6-1.7 GB during this run, caused by two other python processes (15 GB + 12 GB); the helper waited.
