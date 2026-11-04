@@ -859,3 +859,13 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
 - A3 is on main (1decbe53). A5 (one responded(source)) is still open on e3's side; told e3 the rebuild's trial_classes already
   implements that design (gate_mode / run_selection / selection_tag) and proposed A5 lands with the rebuild merge.
 - Next: helper finishes -> merge main -> fifth review -> init root -> render G0-G8 -> two verifiers -> replacement pass.
+
+- **11-04 ~10:05: DECISION (Priya via a8): split by camera class wherever trials are grouped or gated by outcome.**
+  - This covers lick / miss / stopped / DAQ lick vs no-lick / engaged vs undetected.
+  - Classes: contact, incomplete, jaw_only, none, after_end. Close mid (jaw not judged) counts as none, flagged with jaw_judged.
+  - Report per class where it makes sense.
+  - Example: the section G state discriminators train on DAQ lick vs no-lick. a8's helper is testing working vs none, with
+    jaw_only / after_end scored separately; it will be sent for porting.
+  - Inventory requested, now being built (read-only helper):
+    docs/status/rebuild_20261103/CAMERA_CLASS_INVENTORY_20261104.md.
+  - Bundle at 10:05: 85 / 107 inputs.
