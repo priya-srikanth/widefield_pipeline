@@ -878,3 +878,22 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   - Per-class readouts (e.g. jaw_only on its own) would be a reader-side or model-spec change made later, not a rebundle.
   - Inventory item 3e ("encoder default gate is reference") applies only to runs that don't set OROFACIAL_GATE. Every
     production encoder block sets it.
+- **11-04 ~10:25: DECISION (Priya): every camera class must be reportable from the O2 encoder data.**
+  - **Gap.** The encoder fits and scores only working trials (contact + incomplete) and saves per-position averages. It
+    has no per-trial output and no trial ids, so it cannot split contact from incomplete and cannot score jaw_only / none /
+    stopped / after_end / early_run.
+  - **Fix in progress** on branch rebuild/encoder-classes (worktree wf_rebuild_cls, helper):
+    - the fit is unchanged and the existing outputs stay identical;
+    - every cue trial is scored out of sample (non-working trials with the full-data beta);
+    - a new sessions/<label>_trials.npz holds per-trial cue- and lick-aligned area traces for data / prediction /
+      components;
+    - classes are joined locally by trial_id;
+    - a per-class reader is added;
+    - an o2_encoding `refresh-code` step updates the bundle's code snapshot without rebuilding the 40 GB inputs.
+  - **Effect on O2.** Priya can rsync the inputs as soon as the bundle is done. Submitting waits for the code refresh and
+    the check.
+- **11-04 ~10:25: DECISION (Priya via a8): measures OF engagement move to camera.**
+  - quit = last camera lick; the stop rule; quit_prodrome etc.
+  - DAQ versions become robustness rows.
+  - Recorded as inventory row 3h (bd8019be).
+  - The 09-20 engagement findings need a re-test on camera.
