@@ -1407,3 +1407,12 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   - Decision: build enc_rebuild_20261104b on 2cam. 4cam is a later revision of the rebuild inputs; whether it replaces
     2cam is Priya's call.
   - Main's WIDEFIELD_POSE3D_SOURCE switch defaults to 2cam, so there is no rebuild effect.
+- **11-04 ~20:50: FINDING (a8, SD_RISE_2026-11-04.md, 371b6e1e). Conclusion-change watch.**
+  - The PI deck "Lick response larger after stroke" (slide 95; lick_cued_ramp.py / iti_licks.py, raw dF/F) is mostly a
+    global signal-SD gain.
+  - Per-session z-scoring removes the ACUTE cued increase: contra tjM1 +.47* -> +.03 (2 of 4 animals).
+  - Subacute / chronic contra tjM1 / SSp-m keep ~1/3. ALM does not survive. Docked ITI licks keep ~60 % in contra
+    SSp-m / tjM1.
+  - An F0 correction would make the raw rise larger.
+  - Priya is deciding: re-caption, or add a z-scored companion. NO text change until then.
+  - The rebuild render of the lick chain should produce both raw and session-z versions, so either choice is ready.
