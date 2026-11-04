@@ -232,7 +232,7 @@ def test_time_rule_a_run_must_start_5_min_after_the_first_cue():
     assert TC.classify_session(straddle, rule="run", min_run=6, end="lick", cue_s=ts).tolist()[1:7] == ["early_run"] * 6
     lapse = np.array([NR, NR, C, C], object)                                 # isolated no_response before the lick
     assert TC.classify_session(lapse, rule="run", min_run=6, end="lick", cue_s=[0, 1, 2, 3.0]).tolist()[:2] == [NR, NR]
-    assert TC.stop_min_start_s() == 300.0 and TC.stopped_rule_name() == "stopRun6j"
+    assert TC.stop_min_start_s() == 300.0 and TC.stopped_rule_name() == "stopA2jexrt3500c70"
     with pytest.raises(ValueError):
         TC.classify_session(raw, rule="run", min_run=6, end="lick", cue_s=t[:3])
 
@@ -367,9 +367,9 @@ def test_stop_time_and_rest_start_enter_the_tags(monkeypatch):
     monkeypatch.delenv("WIDEFIELD_STOP_MIN_START_S", raising=False)
     monkeypatch.delenv("WIDEFIELD_REST_START", raising=False)
     base = TC.run_selection_tag()
-    assert base.endswith("-stopRun6j")
+    assert base.endswith("-stopA2jexrt3500c70")
     monkeypatch.setenv("WIDEFIELD_STOP_MIN_START_S", "600")
-    assert TC.stopped_rule_name() == "stopRun6jt600" and TC.run_selection_tag().endswith("-stopRun6jt600")
+    assert TC.stopped_rule_name() == "stopA2jt600exrt3500c70" and TC.run_selection_tag().endswith("-stopA2jt600exrt3500c70")
     monkeypatch.delenv("WIDEFIELD_STOP_MIN_START_S")
     monkeypatch.setenv("WIDEFIELD_REST_START", "session")
     assert TC.rest_start() == "session" and TC.run_selection_tag() == base + "-restsession"

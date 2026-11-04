@@ -353,7 +353,9 @@ def te_lick_parts(parts: dict, B, T, animal: str, date: str, rv, ft: np.ndarray,
     ex = getattr(B, "extra_lick_on_s", None)
     on_x = np.asarray([] if ex is None else ex, float)
     tg_x = target_of(on_x)
-    A = pd.read_csv(oo.session_dir(rv, ce._run(), animal, date) / "licks_all.csv", usecols=["context", "daq_on_s"])
+    A = pd.read_csv(oo.session_dir(rv, ce._run(), animal, date) / "licks_all.csv",
+                    usecols=lambda c: c in ("context", "onset_context", "daq_on_s"))
+    A["context"] = oo.encoder_context(A)          # the onset label: unchanged by the 11-04 peak rule (encoder lists)
     A["lick_uid"] = np.arange(len(A))
     K = _kin_all(rv)
     K = K[K.session == f"{animal}_{date}"].drop_duplicates("lick_uid").set_index("lick_uid")

@@ -130,8 +130,9 @@ def run_session(s: str) -> dict:
 def _whole_windows(rv, animal, date, ix, out_, lat, present, src, k, med, to_frame, sd, f3) -> dict:
     """``<s>_events_all.csv`` (encoding window via Priya 10-20: "run the ... cam1 lick detection over the WHOLE session";
     the post-cue ``<s>_events.csv`` is unchanged): the same detector over EVERY frame of the trial windows (strobe -
-    0.5 s .. stop + 3 s, cut at the next trial; ~98-99 % of the video), each event with ``context`` (pre_cue / post_cue /
-    iti by onset, `orofacial_outputs.lick_context`), ``daq_on_s`` / ``daq_peak_s`` (absolute DAQ time of the onset /
+    0.5 s .. stop + 3 s, cut at the next trial; ~98-99 % of the video), each event with ``context`` (pre_cue /
+    excluded_0_70 / post_cue / iti by PEAK, `orofacial_outputs.lick_context`, Priya 11-04), ``onset_context`` (the
+    pre-11-04 onset label, `orofacial_outputs.onset_context`), ``daq_on_s`` / ``daq_peak_s`` (absolute DAQ time of the onset /
     peak frame, the camera timestamp through the alignment template) and the same flags as the post-cue file:
     cam4_matched against v36 ``licks_all.csv`` (every cam4 lick; ``licks.csv`` if absent), in_3d, contact (a DAQ
     contact anywhere in the window, not only cue + 70 .. stop), miss_prev3, droplet, jaw_only_trial."""
@@ -147,7 +148,8 @@ def _whole_windows(rv, animal, date, ix, out_, lat, present, src, k, med, to_fra
     tr = ix.groupby("trial_id").agg(strobe_ms=("strobe_ms", "first"), stop_ms=("stop_ms", "first"),
                                     t0=("t_ms", "min"), t1=("t_ms", "max"))
     t = tr.reindex(A.trial_id)
-    A["context"] = OO.lick_context(A.on_ms, t.strobe_ms.to_numpy(float), t.stop_ms.to_numpy(float))
+    A["context"] = OO.lick_context(A.t_peak_ms, t.strobe_ms.to_numpy(float), t.stop_ms.to_numpy(float))
+    A["onset_context"] = OO.onset_context(A.on_ms, t.strobe_ms.to_numpy(float), t.stop_ms.to_numpy(float))
     look = ix.drop_duplicates(["trial_id", "t_ms"]).set_index(["trial_id", "t_ms"]).daq_s
     for col, tc in (("daq_on_s", "on_ms"), ("daq_peak_s", "t_peak_ms")):
         A[col] = look.reindex(pd.MultiIndex.from_arrays([A.trial_id.to_numpy(), A[tc].to_numpy(float)])).to_numpy(float)

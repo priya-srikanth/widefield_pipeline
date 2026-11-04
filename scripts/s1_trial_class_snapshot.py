@@ -49,7 +49,10 @@ def session_job(job) -> list[dict]:
     # early_run),
     # coverage -- come from trial_classes.classify_session WITH the cue times (the 5-min rule), never re-derived here.
     # `working` = the PRIMARY (end "lick"); working_pl_<anchor> = the robustness anchors.
-    fin = {e: tc.classify_session(c, matched, pos, end=e, cue_s=cs) for e in ("lick", "contact", "close")}
+    # stopped-time licks (Priya 11-04): the guarded rules get the cue train's span lick counts
+    span = (tc.cue_span_licks(label, T, cs) if tc.stopped_rule() in tc.GUARDED_RULES
+            and (tc.stop_lick_rule(), tc.stop_tail_start()) != ("none", "lick_trial") else None)
+    fin = {e: tc.classify_session(c, matched, pos, end=e, cue_s=cs, span_licks=span) for e in ("lick", "contact", "close")}
     w, lk = tc.in_gate(fin["lick"], "working"), tc.in_gate(c, "camera_lick")
     wpl = {e: tc.in_gate(f, "working") for e, f in fin.items()}
     stop = np.isin(fin["lick"], list(tc.STOPPED_CLASSES))

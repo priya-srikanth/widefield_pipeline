@@ -36,7 +36,7 @@ from wfield_local import trial_classes as TC  # noqa: E402  THE trial classifica
 CLASSES = ("hit", "incomplete", "jaw_only", "no_try", "unknown")
 #: the session-level camera classes of a camera-gated run (`trial_classes.classify_session`; coordinator 11-04): a
 #: trial in one of these is OUTSIDE the run's working period -- never in the attempt-rate denominator
-RUN_EXCLUDED = ("stopped", "early_run", "after_end", "unknown")
+RUN_EXCLUDED = ("stopped", "stopped_licking", "early_run", "after_end", "unknown")
 ATTEMPT_CLASSES = ("hit", "incomplete")             # jaw_only = reacted (jaw), NOT an attempt (10-21 blind review)
 TA_NAMES = {"contact": "hit", "no_response": "no_try"}   # trial_classes names -> this table's historical names
 MEASURES = ("attempt_rate", "ttc_ms", "completion", "incomplete_share", "latency_attempt_ms", "latency_move_ms",
@@ -89,8 +89,19 @@ def session_trials(label: str) -> pd.DataFrame:
         raw = C.cls.fillna("unknown").to_numpy(object)
         pos = C.position.to_numpy(object) if "position" in C else None
         cue_s = C.cue_daq.to_numpy(float) if "cue_daq" in C else None
-        run = TC.classify_session(raw, None, pos, rule=TC.stopped_rule(), min_run=TC.stop_run_min(),
-                                  end=TC.end_anchor(), cue_s=cue_s, min_start_s=TC.stop_min_start_s())
+        # STOPPED TIME HOLDS NO LICKS (Priya 11-04): the guarded rules get each trial's span lick counts (camera licks by
+        # peak + DAQ contacts, `trial_classes.session_span_licks`); excise -> lick-touched stopped trials are
+        # "stopped_licking", outside both the working period and stopped (RUN_EXCLUDED)
+        span = None
+        if (TC.stopped_rule() in TC.GUARDED_RULES and (TC.stop_lick_rule(), TC.stop_tail_start()) != ("none", "lick_trial")
+                and cue_s is not None):
+            strobe = C.strobe_ms.to_numpy(float) if "strobe_ms" in C else np.full(len(C), np.nan)
+            stop_ms = (C.stop_ms if "stop_ms" in C else T.stop_ms).to_numpy(float)
+            span = TC.session_span_licks(f"{a}_{d}", cue_s, cue_s + strobe / 1000.0, cue_s + stop_ms / 1000.0)
+        run, kind = TC.classify_session(raw, None, pos, rule=TC.stopped_rule(), min_run=TC.stop_run_min(),
+                                        end=TC.end_anchor(), cue_s=cue_s, min_start_s=TC.stop_min_start_s(),
+                                        span_licks=span, return_kind=True)
+        T["stop_kind"] = kind               # "run" / "tail" / "" (stopped_licking keeps its kind; bcdg g_group_final)
         T["cls_raw"] = T["cls"]
         T["cls"] = pd.Series(run, index=T.index).replace(TA_NAMES).to_numpy()
         T["attempted"] = T.cls.isin(ATTEMPT_CLASSES)

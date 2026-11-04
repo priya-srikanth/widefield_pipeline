@@ -38,12 +38,19 @@ jaw-only trials of the sated tail (docs/status/QUIT_TAIL_JAW_ONLY_2026-11-03.md:
 contact; cuts real acute far-spout incomplete attempts, 94), "close" (last camera lick at the reference spouts close_L /
 close_center), "none" (no cutoff). The classes and GATES themselves are unchanged; the cutoff is a separate step.
 
-WINDOW (keyword, default "cue_stop", Priya 11-03):
-  "cue_stop"  licks from the cue to the trial stop; spout contacts from cue + 70 ms to the trial stop (the DAQ contact
-              table built with the video outputs, `orofacial_outputs` / `pose_kinematics_demo.daq_contacts_ms`).
+WINDOW (keyword, default "cue_stop", Priya 11-03; the RESPONSE WINDOW rules of Priya 11-04 below):
+  "cue_stop"  the RESPONSE WINDOW, cue + 70 ms .. min(cue + max_rt, trial stop) (`response_end_ms`; max_rt =
+              ``decode.max_rt_s``, 3.5 s, the DAQ engaged rule's own source): video licks (cam4 and cam1) by their PEAK,
+              spout contacts by their DAQ onset (the contact table built with the video outputs, cue + 70 ms .. stop,
+              `pose_kinematics_demo.daq_contacts_ms`, minus the contacts after cue + max_rt), the jaw by its onset
+              (cue .. the same end). Priya 11-04 (docs/status/CUE70_CHECK_2026-11-04.md): a lick whose peak is in
+              cue .. cue + 70 ms is NEITHER pre- nor post-cue (judged by the PEAK: camera onsets at 60-70 ms are real
+              responses), and a lick or jaw movement AFTER cue + max_rt does not count (the spout is already starting
+              to move). Until 11-04 licks counted by onset from the cue and contacts / jaw up to the stop.
               This is the gate for ENL / pre-cue analyses too: it asks whether the animal responded to that trial's
               cue, while ENL decoding itself still uses pre-cue frames.
-  "trial"     licks and contacts from the trial strobe to the stop, i.e. pre-cue licking counts as a lick. The jaw
+  "trial"     licks and contacts from the trial strobe (pre-cue: strobe .. the cue; 0-70 ms excluded) plus the
+              response window above, i.e. pre-cue licking counts as a lick. The jaw
               call is always the after-cue call (no pre-cue jaw call exists), so this option changes only the lick /
               contact classes. Contacts need the raw DAQ (slower, ~20-40 s per session).
 
@@ -84,6 +91,13 @@ WINDOWS = ("cue_stop", "trial")
 DEFAULT_WINDOW = "cue_stop"
 JAW_UNJUDGED_POSITIONS = ("close_center", "close_mid")   # neither camera can judge the jaw at this spout (10-21)
 CONTACT_FROM_CUE_S = 0.070                               # DAQ contacts count from cue + 70 ms (daq_contacts_ms)
+#: THE cue / 70 ms split of licks (Priya 11-04, docs/status/CUE70_CHECK_2026-11-04.md), one definition for every table and
+#: label: post-cue from cue + 70 ms (camera licks by PEAK, DAQ contacts by onset); pre-cue ends AT the cue; a lick whose
+#: peak is in cue .. cue + 70 ms is NEITHER (context / flag `EXCLUDED_CONTEXT`). Judged by the PEAK, never the onset:
+#: camera onsets at 60-70 ms are real responses (an onset rule would cut ~1000 of them).
+POSTCUE_START_MS = CONTACT_FROM_CUE_S * 1000.0
+PRECUE_END_AFTER_CUE_MS = 0.0
+EXCLUDED_CONTEXT = "excluded_0_70"
 V36 = "lp_r4_heatmap_20261013__clean_v36"
 REFERENCE_SPOUTS = ("close_L", "close_center")           # barely affected by the stroke: anchor of the "close" cutoff
 END_ANCHORS = ("lick", "contact", "close", "none")
@@ -139,6 +153,34 @@ def _trial_times(sd: Path) -> pd.DataFrame:
                                                  stop_ms=("stop_ms", "first")).reset_index()
 
 
+def max_rt_ms() -> float:
+    """The response window's length, ms: ``decode.max_rt_s`` (3.5 s) -- the SAME source as the DAQ engaged rule
+    (`locanmf_position_decoder.is_engaged` via ``--max-rt``), never a constant of its own (Priya 11-04)."""
+    from wfield_local import config
+    return float(config.defaults()["decode"]["max_rt_s"]) * 1000.0
+
+
+def response_end_ms(stop_ms) -> np.ndarray:
+    """End of each trial's RESPONSE WINDOW, ms from the cue: min(max_rt, trial stop); a missing stop -> max_rt."""
+    st = np.asarray(stop_ms, float)
+    return np.fmin(st, max_rt_ms())
+
+
+def _late_contacts(animal: str, date: str, times: pd.DataFrame) -> pd.Series:
+    """{trial_id: DAQ contacts in (cue + max_rt, cue + stop]}: the contacts the trial's contact table (n_daq_contacts,
+    cue + 70 ms .. stop) holds that fall AFTER the response window (Priya 11-04). Zero for a trial whose stop is at or
+    before cue + max_rt -- so those trials need no DAQ read."""
+    mrt = max_rt_ms()
+    late = times.stop_ms.to_numpy(float) > mrt
+    out = pd.Series(0, index=times.trial_id.to_numpy(), dtype=int)
+    if not late.any():
+        return out
+    licks = _daq_contact_onsets(animal, date)
+    for t, c, s in zip(times.trial_id[late], times.cue_daq[late], times.stop_ms[late]):
+        out[t] = int(np.sum((licks > c + mrt / 1000.0) & (licks <= c + s / 1000.0)))
+    return out
+
+
 def _daq_contact_onsets(animal: str, date: str) -> np.ndarray:
     """DAQ spout-contact (lick) onsets of one session, s on the DAQ clock (`dlc_frames.lick_onsets`)."""
     from wfield_local import dlc_frames
@@ -161,7 +203,11 @@ def trial_contact_times(animal: str, date: str, times: pd.DataFrame) -> pd.Serie
 
 
 def _pre_cue_contacts(animal: str, date: str, times: pd.DataFrame) -> set:
-    """Trials with a DAQ spout contact between the strobe and cue + 70 ms (only needed for window="trial")."""
+    """Trials with a DAQ spout contact between the strobe and the CUE (only needed for window="trial").
+
+    Contacts in cue .. cue + 70 ms count as NEITHER pre-cue NOR post-cue (Priya 11-04,
+    docs/status/CUE70_CHECK_2026-11-04.md): they are isolated background contacts, not cue responses, and their rate is
+    inflated by the ENL selection at the cue. The post-cue side keeps its cue + ``CONTACT_FROM_CUE_S`` floor."""
     from wfield_local import dlc_frames
     from wfield_local.paths import PathResolver
     rv = PathResolver()
@@ -169,7 +215,7 @@ def _pre_cue_contacts(animal: str, date: str, times: pd.DataFrame) -> set:
     licks = np.asarray(dlc_frames.lick_onsets(animal, date, sid, rv), float)
     out = set()
     for t, c, s in zip(times.trial_id, times.cue_daq, times.strobe_ms):
-        lo, hi = c + s / 1000.0, c + CONTACT_FROM_CUE_S
+        lo, hi = c + s / 1000.0, c                       # pre-cue ends AT the cue: 0-70 ms is excluded (11-04)
         if np.any((licks >= lo) & (licks < hi)):
             out.add(int(t))
     return out
@@ -195,20 +241,26 @@ def session_trials(label: str, window: str = DEFAULT_WINDOW, v36: Path | str | N
         return None
     T = pd.read_csv(sd / "trials.csv", usecols=lambda c: c in ("trial_id", "position", "n_daq_contacts"))
     T = T.merge(_trial_times(sd), on="trial_id", how="left")
-    lo_ms = (T.strobe_ms if window == "trial" else pd.Series(0.0, index=T.index)).to_numpy(float)
-    lo = dict(zip(T.trial_id, lo_ms))
-    hi = dict(zip(T.trial_id, T.stop_ms.to_numpy(float)))
+    end = dict(zip(T.trial_id, response_end_ms(T.stop_ms)))
+    strobe = dict(zip(T.trial_id, T.strobe_ms.to_numpy(float)))
 
-    def in_win(df: pd.DataFrame) -> pd.Series:
-        t = df.trial_id
-        return (df.on_ms >= t.map(lo)) & (df.on_ms <= t.map(hi))
+    def in_win(df: pd.DataFrame, peak: str, keep_untimed: bool = False) -> pd.Series:
+        """Rows whose lick PEAK (column ``peak``, ms from the cue) is in the RESPONSE WINDOW, cue + 70 ms .. min(cue +
+        max_rt, stop) (Priya 11-04), or, for window "trial", also pre-cue (strobe <= peak < cue)."""
+        if not len(df):
+            return pd.Series(False, index=df.index)
+        t, pk = df.trial_id, pd.to_numeric(df[peak], errors="coerce")
+        ok = (pk >= POSTCUE_START_MS) & (pk <= t.map(end))
+        if window == "trial":
+            ok |= (pk >= t.map(strobe)) & (pk < PRECUE_END_AFTER_CUE_MS)
+        return ok | pk.isna() if keep_untimed else ok
 
-    # --- licks seen on video (cam4), in the window
+    # --- licks seen on video (cam4), in the window (by PEAK)
     if (sd / "licks.csv").exists():
-        L = pd.read_csv(sd / "licks.csv", usecols=["trial_id", "on_ms", "contact"])
+        L = pd.read_csv(sd / "licks.csv", usecols=["trial_id", "on_ms", "t_ms", "contact"])
     else:
-        L = pd.DataFrame(columns=["trial_id", "on_ms", "contact"])
-    L = L[in_win(L)]
+        L = pd.DataFrame(columns=["trial_id", "on_ms", "t_ms", "contact"])
+    L = L[in_win(L, "t_ms")]
     # --- cam1-only tongue events (no cam4 lick, no 3-D lick overlaps; droplets out), in the window
     fe = c1 / f"{animal}_{date}_events.csv"
     has_cam1 = fe.exists()
@@ -216,9 +268,13 @@ def session_trials(label: str, window: str = DEFAULT_WINDOW, v36: Path | str | N
         E = pd.read_csv(fe)
         for c in ("cam4_matched", "in_3d", "contact", "jaw_only_trial", "droplet"):
             E[c] = _flag(E[c]) if c in E else False
-        seen = set(E.loc[E.jaw_only_trial & ~E.droplet, "trial_id"])        # cam1 saw a tongue, no lick counted it
+        if "t_peak_ms" not in E:
+            raise ValueError(f"{fe} has no t_peak_ms: the response window is judged on the event PEAK (11-04)")
+        # cam1 saw a tongue, no lick counted it -- inside the response window (an untimed row keeps the old call)
+        sv = E.jaw_only_trial & ~E.droplet
+        seen = set(E.loc[sv & in_win(E, "t_peak_ms", keep_untimed=True), "trial_id"])
         E = E[~E.cam4_matched & ~E.in_3d & ~E.droplet]
-        E = E[in_win(E)] if "on_ms" in E else E.iloc[0:0]
+        E = E[in_win(E, "t_peak_ms")]
     else:
         E, seen = pd.DataFrame(columns=["trial_id", "on_ms", "contact"]), set()
     t = T.trial_id
@@ -228,11 +284,13 @@ def session_trials(label: str, window: str = DEFAULT_WINDOW, v36: Path | str | N
     T["n_nocontact"] = t.map(nc4).fillna(0) + t.map(nc1).fillna(0)
     first = pd.concat([L[["trial_id", "on_ms"]], E[["trial_id", "on_ms"]]]).groupby("trial_id").on_ms.min()
     T["first_lick_ms"] = t.map(first)
-    # --- spout contact (DAQ sensor = primary, Priya 11-03): cue + 70 ms .. stop, from the contact table
+    # --- spout contact (DAQ sensor = primary, Priya 11-03): cue + 70 ms .. min(cue + max_rt, stop) = the contact table
+    # (cue + 70 ms .. stop) minus the contacts after cue + max_rt (Priya 11-04)
     if "n_daq_contacts" not in T:
         raise ValueError(f"{label}: trials.csv has no n_daq_contacts (video outputs built without the DAQ contact "
                          "table) -- rebuild the session's outputs; no silent fallback to video-matched contact")
-    T["n_contacts"] = pd.to_numeric(T.n_daq_contacts, errors="coerce").fillna(0)
+    late = t.map(_late_contacts(animal, date, T)).fillna(0).to_numpy(float)
+    T["n_contacts"] = (pd.to_numeric(T.n_daq_contacts, errors="coerce").fillna(0) - late).clip(lower=0)
     if window == "trial":
         pre = _pre_cue_contacts(animal, date, T)
         T["n_contacts"] = T.n_contacts + t.isin(pre).astype(int)
@@ -257,7 +315,12 @@ def session_trials(label: str, window: str = DEFAULT_WINDOW, v36: Path | str | N
     T["jaw_at_cue"] = at_cue
     T["jaw_onset_ms"] = np.where(hidden, np.nan, np.where(at_cue, reon, on))
     judged = (T.jaw_cam4.notna() | T.jaw_cam1.notna()).to_numpy() & (~at_cue | np.isfinite(reon))
-    moved = ((T.jaw_cam4 == 1) | (T.jaw_cam1 == 1)).to_numpy() & judged
+    # the jaw's movement counts only when its (re-)onset is inside the response window's end (Priya 11-04: after cue +
+    # max_rt the spout is starting to move); the camera calls themselves are cue .. stop (`scripts/jaw_onsets.py`). A
+    # moved call without an onset time keeps its call. A trial whose jaw moved only after the end is judged and still.
+    jon = T.jaw_onset_ms.to_numpy(float)
+    in_time = ~(jon > response_end_ms(T.stop_ms))
+    moved = ((T.jaw_cam4 == 1) | (T.jaw_cam1 == 1)).to_numpy() & judged & in_time
     T["jaw_judged"] = judged
     T["cls"] = np.select([T.n_contacts.to_numpy() > 0,
                           (T.n_licks.to_numpy() > 0) | t.isin(seen).to_numpy(),
@@ -265,8 +328,9 @@ def session_trials(label: str, window: str = DEFAULT_WINDOW, v36: Path | str | N
                          ["contact", "incomplete", "jaw_only", "no_response"], "unknown")
     T["window"] = window
     T["has_cam1"] = has_cam1
-    return T[["trial_id", "position", "cue_daq", "stop_ms", "cls", "window", "has_cam1", "n_contacts", "n_licks",
-              "n_nocontact", "first_lick_ms", "jaw_cam4", "jaw_cam1", "jaw_at_cue", "jaw_onset_ms", "jaw_judged"]]
+    return T[["trial_id", "position", "cue_daq", "strobe_ms", "stop_ms", "cls", "window", "has_cam1", "n_contacts",
+              "n_licks", "n_nocontact", "first_lick_ms", "jaw_cam4", "jaw_cam1", "jaw_at_cue", "jaw_onset_ms",
+              "jaw_judged"]]
 
 
 def in_gate(cls, gate: str) -> np.ndarray:
@@ -428,12 +492,42 @@ UNTAGGED_GATE = "daq"
 #:                         extend a run (skipped when counting) and are never stopped. An ISOLATED no_response /
 #:                         jaw_only trial keeps its class: in neither working nor stopped.
 #:   rule "any" (SENSITIVITY)  every no_response trial is stopped (the earlier provisional rule).
-#: Setting: ``trial_selection.stopped`` (run) / WIDEFIELD_TRIAL_STOPPED; the rule name enters `selection_tag`, so
-#: caches and frozen specs of the two rules never meet.
+#:   rule "both" (PRIMARY since 11-04, Priya's A2 "both sides"; docs/status/rebuild_20261103/
+#:                         STOP_RULE_GUARD_CENSUS_R2_20261104.md in wf_attempt): a run of >= 6 consecutive no_response /
+#:                         jaw_only trials before the session's last camera lick is stopped -- EXCEPT a run with NO
+#:                         reference-spout trial (REFERENCE_SPOUTS) whose nearest reference-spout trial before it AND
+#:                         nearest one after it are both camera "contact": that run stays in the working period (its
+#:                         trials keep no_response / jaw_only; a far-spout deficit, not a stop). Everything after the
+#:                         last camera lick is stopped (quit), with no guard. A run starting < 300 s after the first cue
+#:                         keeps its trials' classes (early_run folds into no_response / jaw_only, Priya). "unknown"
+#:                         trials neither break nor extend a run. Tag part "stopA2".
+#:   rule "long" (ROBUSTNESS A3)  as "both" with no reference guard and runs of > 10 (>= 11) trials, stopped from the
+#:                         run's first trial. Tag part "stopA3n11". Rule "run" = A0, the 11-04 morning rule, unchanged.
+#: Setting: ``trial_selection.stopped`` / WIDEFIELD_TRIAL_STOPPED; the rule name enters `selection_tag`, so caches and
+#: frozen specs of different rules never meet. Every camera rule name also carries the class-window token (`_window_token`:
+#: max_rt + the cue + 70 ms peak rule), so no cache / store / attempts table of the pre-11-04 classes is reused.
 STOPPED_CLASS = "stopped"
 STOPPED_CLASSES = frozenset({STOPPED_CLASS})
 STOPPED_ENV = "WIDEFIELD_TRIAL_STOPPED"
-STOPPED_RULES = ("run", "any")
+STOPPED_RULES = ("run", "any", "both", "long")
+#: STOPPED TIME HOLDS NO LICKS (Priya 11-04, wf_attempt docs/status/rebuild_20261103/STOPPED_LICKS_CENSUS_20261104.md):
+#: under the guarded rules a stop run / the quit tail is formed exactly as A2 / A3, then every trial of it TOUCHED by a
+#: lick (`touched_by_licks`) becomes STOPPED_LICKING_CLASS: in NEITHER stopped NOR the working period (out of the hit
+#: denominator and out of the stopped arms; reportable as its own class). The rest stay stopped; runs are not re-formed.
+#:   "excise" (PRIMARY, Priya leaning)  as above
+#:   "strict" (ROBUSTNESS)  break the runs at the licks and re-form them, the touched trials leaving them (the census's
+#:                          "A2 + strict break"; the quit tail is not touched); tag part "sb" (excise: "ex")
+#:   "none"                 the A2 / A3 classes as they were (lick times not used); no tag part
+STOPPED_LICKING_CLASS = "stopped_licking"
+STOP_LICKS_ENV = "WIDEFIELD_STOP_LICKS"
+STOP_LICK_RULES = ("excise", "strict", "none")
+#: where the quit tail starts (open with Priya, 11-04): "lick_trial" (default) = after the last camera-lick TRIAL;
+#: "lick_event" = also after the last lick EVENT (pre-cue / 0-70 ms / after max_rt / ITI; the census's "tail-event":
+#: the tail starts at the last trial whose span break-point holds a lick); tag part "te"
+STOP_TAIL_ENV = "WIDEFIELD_STOP_TAIL"
+STOP_TAIL_STARTS = ("lick_trial", "lick_event")
+#: the guarded / long rules (`_classify_guarded`): r2.py's A2 / A3
+GUARDED_RULES = {"both": {"guard": True, "min_run": None}, "long": {"guard": False, "min_run": 11}}
 #: the class a WORKING-gate trial gets in `cue_classes_for` when it lies after the session end (`before_session_end`,
 #: anchor `end_anchor()`, Priya 11-03): in neither working nor stopped -- so every `in_sel(cls, "working")` consumer IS
 #: `in_working(...)` on the session cue train
@@ -520,10 +614,14 @@ class RefusedMask:
 
 _CLASS_SIG: dict = {}
 #: functions whose source defines the camera classes; their code enters `class_source_signature` (review H4)
-CLASS_CODE_ROOTS = ("session_trials", "jaw_table", "_trial_times", "_pre_cue_contacts", "cue_classes",
+CLASS_CODE_ROOTS = ("session_trials", "jaw_table", "_trial_times", "_pre_cue_contacts", "_late_contacts",
+                    "response_end_ms", "max_rt_ms", "cue_classes",
                     "cue_classes_for", "row_classes", "camera_rows", "pool_row_classes", "camera_select",
                     "camera_engaged_period", "in_gate", "before_session_end", "in_working", "classify_session", "_matched_cues",
-                    "_effective_coverage")
+                    "_effective_coverage", "_classify_guarded", "_breaks", "licks_in_spans",
+                    "span_lick_matrix", "touched_by_licks", "_lick_breaks", "session_span_licks", "cue_span_licks",
+                    "stop_lick_rule", "stop_kind_for", "_cue_key",
+                    "stop_tail_start")
 
 
 def class_source_signature(v36: Path | str | None = None, c1: Path | str | None = None) -> str:
@@ -548,7 +646,7 @@ def class_source_signature(v36: Path | str | None = None, c1: Path | str | None 
         if v36.exists():
             for sd in sorted(p for a in v36.iterdir() if a.is_dir() for p in a.iterdir() if p.is_dir()):
                 h.update(f"[{sd.parent.name}/{sd.name}]".encode())
-                for nm in ("trials.csv", "licks.csv", "windows.npz"):
+                for nm in ("trials.csv", "licks.csv", "windows.npz", "licks_all.csv"):
                     stat(sd / nm)
         for f in (sorted(Path(c1).glob("*_events.csv")) if Path(c1).exists() else []):
             stat(f)
@@ -631,9 +729,13 @@ def end_anchor() -> str:
 
 def classify_session(cls, matched=None, position=None, *, rule: str | None = None, min_run: int | None = None,
                      end: str | None = None, cue_s=None, min_start_s: float | None = None,
-                     jaw_counts: bool | None = None) -> np.ndarray:
+                     jaw_counts: bool | None = None, breaks=None, span_licks=None, lick_rule: str | None = None,
+                     tail_start: str | None = None, return_kind: bool = False):
     """THE camera classes of one session, in cue order, after the session-level rules (Priya 11-03). ``cls`` = the raw
     per-cue class (`cue_classes`), ``matched`` = the cue was matched to a video trial (None = all matched).
+    ``return_kind`` -> ``(classes, stop_kind)``: STOP_KINDS per cue, "run" (a mid-session stop run), "tail" (the quit
+    tail after the last camera lick) or "" -- stopped_licking trials keep the kind of the run / tail they were cut from
+    (`stop_kind_for`). Under rule "run" / "any" every stopped trial is "run" (those rules have no stopped tail).
 
     VIDEO COVERAGE (N6): trials outside the video stay "unknown". Both session-level rules use only the covered span:
       * END AT THE LAST CAMERA LICK (anchor ``end``): working-gate trials after it -> AFTER_END_CLASS. With an
@@ -662,6 +764,16 @@ def classify_session(cls, matched=None, position=None, *, rule: str | None = Non
     rule = rule or stopped_rule()
     n_min = int(min_run if min_run is not None else stop_run_min())
     end = end or end_anchor()
+    breaks = _breaks(breaks, len(cls))
+    if rule in GUARDED_RULES:
+        out, kind = _classify_guarded(cls, position, rule=rule, min_run=min_run, end=end, cue_s=cue_s,
+                                      min_start_s=min_start_s, jaw_counts=jaw_counts, breaks=breaks,
+                                      span_licks=span_licks, lick_rule=lick_rule, tail_start=tail_start)
+        return (out, kind) if return_kind else out
+    if return_kind:
+        out = classify_session(cls, matched, position, rule=rule, min_run=min_run, end=end, cue_s=cue_s,
+                               min_start_s=min_start_s, jaw_counts=jaw_counts, breaks=breaks)
+        return out, np.where(out == STOPPED_CLASS, "run", "").astype(object)
     out = np.asarray(cls, dtype=object).copy()
     n = len(out)
     m = _effective_coverage(np.ones(n, bool) if matched is None else np.asarray(matched, bool))
@@ -677,7 +789,7 @@ def classify_session(cls, matched=None, position=None, *, rule: str | None = Non
         jaw_counts = jaw_counts_in_stop()
     nr = out == "no_response"
     jaw = out == "jaw_only"
-    member = (nr | jaw) if jaw_counts else (nr | (jaw & after))      # trials a run is made of
+    member = ((nr | jaw) if jaw_counts else (nr | (jaw & after))) & ~breaks   # trials a run is made of
     counted = (nr | jaw) if jaw_counts else nr                         # trials that count toward min_run / are stopped
     # TIME RULE (Priya 11-03): runs starting before first cue + min_start_s are not stops (in neither class)
     if cue_s is not None and n:
@@ -716,6 +828,228 @@ def classify_session(cls, matched=None, position=None, *, rule: str | None = Non
     late = after & ~stop & (in_gate(out, "working") | np.isin(out, ["no_response", "jaw_only"]))
     out[late] = AFTER_END_CLASS
     return out
+
+
+def _breaks(breaks, n: int) -> np.ndarray:
+    """``bool[n]`` run-break mask for `classify_session` (None = no breaks)."""
+    if breaks is None:
+        return np.zeros(n, bool)
+    b = np.asarray(breaks, bool)
+    if b.shape != (n,):
+        raise ValueError(f"breaks has shape {b.shape} for {n} classes")
+    return b
+
+
+def licks_in_spans(lo_s, hi_s, lick_s) -> np.ndarray:
+    """``bool[n]``: a lick time (``lick_s``, any clock shared with the spans) inside [lo_s[k], hi_s[k]) -- the helper a
+    "lick in the span breaks the run" rule builds `classify_session` ``breaks`` from (Priya 11-04, rule pending: which
+    spans -- ENL, 0-70 ms, after max_rt, ITI -- and which lick sources)."""
+    lo, hi = np.asarray(lo_s, float), np.asarray(hi_s, float)
+    lk = np.sort(np.asarray(lick_s, float))
+    lk = lk[np.isfinite(lk)]
+    ok = np.isfinite(lo) & np.isfinite(hi)
+    out = np.zeros(len(lo), bool)
+    out[ok] = np.searchsorted(lk, hi[ok], side="left") > np.searchsorted(lk, lo[ok], side="left")
+    return out
+
+
+#: the categories of `span_lick_matrix` (per trial k): pre-cue strobe .. cue, cue .. cue + 70 ms, cue + 70 ms ..
+#: min(cue + max_rt, stop), max_rt .. stop, and the ITI after k (stop .. the next strobe)
+SPAN_CATS = ("precue", "0_70", "response", "after_max_rt", "iti_after")
+
+
+def span_lick_matrix(cue_s, strobe_s, stop_s, lick_s) -> np.ndarray:
+    """``int[n, 5]`` lick counts per trial x `SPAN_CATS` (the census's `bin_events`, STOPPED_LICKS_CENSUS_20261104): a lick
+    at time t (DAQ s) belongs to the trial whose strobe is the last one <= t (a missing strobe = cue - 3 s); inside that
+    trial's strobe .. stop it is pre-cue / 0-70 / response / after max_rt, after its stop it is that trial's ITI (the last
+    trial has no ITI; licks before the first strobe are unassigned). ``cue_s`` / ``strobe_s`` / ``stop_s`` in DAQ s, in
+    trial order."""
+    cue = np.asarray(cue_s, float)
+    n = len(cue)
+    strobe = np.asarray(strobe_s, float)
+    strobe = np.where(np.isfinite(strobe), strobe, cue - 3.0)
+    stop = np.asarray(stop_s, float)
+    stop = np.where(np.isfinite(stop), stop, cue + max_rt_ms() / 1000.0)
+    t = np.sort(np.asarray(lick_s, float))
+    t = t[np.isfinite(t)]
+    M = np.zeros((n, len(SPAN_CATS)), int)
+    if not n or not len(t):
+        return M
+    k = np.searchsorted(strobe, t, side="right") - 1
+    ok = k >= 0
+    kk = np.where(ok, k, 0)
+    rel = t - cue[kk]
+    inside = ok & (t <= stop[kk])
+    hi = np.minimum(max_rt_ms() / 1000.0, stop[kk] - cue[kk])
+    c70 = POSTCUE_START_MS / 1000.0
+    cat = np.full(len(t), -1)
+    cat[inside & (rel < 0)] = 0
+    cat[inside & (rel >= 0) & (rel < c70)] = 1
+    cat[inside & (rel >= c70) & (rel <= hi)] = 2
+    cat[inside & (rel > hi)] = 3
+    cat[ok & ~inside & (kk < n - 1)] = 4
+    good = cat >= 0
+    np.add.at(M, (kk[good], cat[good]), 1)
+    return M
+
+
+def touched_by_licks(M) -> np.ndarray:
+    """``bool[n]``: trial k is TOUCHED by a lick = a lick anywhere in its own span (strobe .. stop) or in the ITI on
+    either side of it (after k-1's stop .. k's strobe, or after k's stop .. k+1's strobe). The census's definition
+    (273 A2 stopped trials on the pre-11-04 classes: pre 50, acute 141, subacute 51, chronic 31)."""
+    M = np.asarray(M)
+    after = M[:, 4] > 0
+    before = np.r_[False, after[:-1]] if len(after) else after
+    return (M[:, :4].sum(1) > 0) | after | before
+
+
+def _lick_breaks(M, strict: bool) -> tuple[np.ndarray, np.ndarray]:
+    """(break-before[k], not-a-member[k]) of the census's break rule (categories i, ii, iv, v): a lick in k's pre-cue /
+    0-70 ms breaks the run before k, one after max_rt or in the ITI after k breaks it after k; a response-window lick makes
+    k a non-member, and under ``strict`` so does a lick in k's own pre-cue / 0-70 ms."""
+    M = np.asarray(M)
+    brk = (M[:, 0] + M[:, 1]) > 0
+    nxt = (M[:, 3] + M[:, 4]) > 0
+    brk = brk.copy()
+    brk[1:] |= nxt[:-1]
+    dirty = M[:, 2] > 0
+    if strict:
+        dirty = dirty | ((M[:, 0] + M[:, 1]) > 0)
+    return brk, dirty
+
+
+def session_span_licks(label: str, cue_s, strobe_s, stop_s, v36: Path | str | None = None) -> np.ndarray:
+    """`span_lick_matrix` of one session from its camera licks (v36 ``licks_all.csv`` PEAK ``daq_peak_s``, every
+    context) + DAQ contacts (`_daq_contact_onsets`). cam1-only events are not used: they are post-cue only (cue .. stop),
+    and a post-cue cam1 lick already makes the trial a lick trial (census: 0 in stopped spans). A session without
+    licks_all.csv gets DAQ contacts only."""
+    animal, date = label.split("_")
+    date = date if len(date) == 8 else f"2026{date}"
+    v36, _ = _paths(v36, None)
+    f = Path(v36) / animal / date / "licks_all.csv"
+    cam = pd.read_csv(f, usecols=["daq_peak_s"]).daq_peak_s.to_numpy(float) if f.exists() else np.zeros(0)
+    daq = _daq_contact_onsets(animal, date)
+    return span_lick_matrix(cue_s, strobe_s, stop_s, np.r_[cam, daq])
+
+
+def cue_span_licks(label: str, T: pd.DataFrame | None, cue_s) -> np.ndarray:
+    """`session_span_licks` on a session's DAQ cue train: strobe / stop per cue from the `session_trials` table ``T``
+    (matched by cue time, `cue_classes`; unmatched cues: strobe = cue - 3 s, stop = cue + max_rt). All zero without
+    video outputs (every cue is "unknown" then)."""
+    cs = np.asarray(cue_s, float)
+    if T is None:
+        return np.zeros((len(cs), len(SPAN_CATS)), int)
+
+    def num(col):
+        if col not in T:
+            return np.full(len(cs), np.nan)
+        return pd.to_numeric(pd.Series(cue_classes(T.assign(cls=T[col]), cs)), errors="coerce").to_numpy(float)
+    return session_span_licks(label, cs, cs + num("strobe_ms") / 1000.0, cs + num("stop_ms") / 1000.0)
+
+
+def _classify_guarded(cls, position, *, rule: str, min_run: int | None, end: str, cue_s=None,
+                      min_start_s: float | None = None, jaw_counts: bool | None = None, breaks=None,
+                      span_licks=None, lick_rule: str | None = None, tail_start: str | None = None) -> np.ndarray:
+    """Rules "both" (A2, PRIMARY) and "long" (A3) of `classify_session` (Priya 11-04; see STOPPED_CLASSES). Reproduces
+    the census script's A2 / A3 (wf_attempt scratch srg/r2.py) exactly, with early_run folded into the raw class:
+
+      * L = the last end-anchor trial (`before_session_end`; "lick" = the last camera lick). Trials after it that are
+        not "unknown" -> STOPPED_CLASS (quit; no guard, also with an uncovered video tail).
+      * Runs = maximal stretches of no_response / jaw_only trials BEFORE L over the non-"unknown" sequence ("unknown"
+        neither breaks nor extends a run; no split at uncovered gaps, as r2). Under in_working_jaw (``jaw_counts``
+        False) jaw_only is working and ends a run.
+      * "both": a run of >= ``min_run`` (6) is stopped, unless it holds no reference-spout trial and the nearest
+        reference-spout trial before it and after it (any class) are both "contact" -> it stays (raw classes).
+        "long": a run of >= 11 is stopped (no guard).
+      * A qualifying run whose FIRST trial is < ``min_start_s`` (300 s) after the first cue keeps its raw classes.
+    ``position`` (rig names) is needed for "both"; None -> every run counts as reference-free with no reference
+    neighbour, i.e. stopped. ``breaks`` (bool per trial, None = none): a trial whose time span holds a lick is never a
+    run member, so it ENDS a run (the hook for Priya's pending 11-04 rule "no licks in the stopped time"; the caller
+    builds it from lick times with `licks_in_spans`). The quit tail is not touched by it.
+    ``span_licks`` = `span_lick_matrix` (int[n, 5]) for the stopped-time lick rule ``lick_rule`` (None = the setting,
+    `stop_lick_rule`; see STOPPED_LICKING_CLASS) and the tail start ``tail_start`` (None = `stop_tail_start`). Without
+    ``span_licks`` the lick rule cannot apply: "excise" / "strict" / "lick_event" then RAISE (no silent pre-11-04
+    classes); "none" + "lick_trial" need none."""
+    spec = GUARDED_RULES[rule]
+    n_min = int(spec["min_run"] or (min_run if min_run is not None else stop_run_min()))
+    lick_rule = lick_rule or stop_lick_rule()
+    tail_start = tail_start or stop_tail_start()
+    if lick_rule not in STOP_LICK_RULES or tail_start not in STOP_TAIL_STARTS:
+        raise ValueError(f"lick_rule {lick_rule!r} / tail_start {tail_start!r}")
+    if span_licks is None and (lick_rule != "none" or tail_start != "lick_trial"):
+        raise ValueError(f"stop lick rule {lick_rule!r} / tail {tail_start!r} needs span_licks (`session_span_licks`)")
+    if jaw_counts is None:
+        jaw_counts = jaw_counts_in_stop()
+    raw = np.asarray(cls, dtype=object)
+    out = raw.copy()
+    n = len(raw)
+    kind = np.full(n, "", dtype=object)
+    if not n:
+        return out, kind
+    pos = np.full(n, "", dtype=object) if position is None else np.asarray(position, dtype=object)
+    ref = np.isin(pos, REFERENCE_SPOUTS)
+    if cue_s is not None:
+        t = np.asarray(cue_s, float)
+        if len(t) != n:
+            raise ValueError(f"cue_s has {len(t)} cues for {n} classes")
+        early = (t - np.nanmin(t)) < float(min_start_s if min_start_s is not None else stop_min_start_s())
+    else:
+        early = np.zeros(n, bool)
+    idx_all = np.arange(n)
+    if end == "none":
+        L = n                                                   # no end anchor: no quit tail
+    else:
+        keep = before_session_end(raw, idx_all, position=position, anchor=end)
+        L = int(np.flatnonzero(keep)[-1]) if keep.any() else -1
+    known = raw != "unknown"
+    M = None if span_licks is None else np.asarray(span_licks)
+    if M is not None and M.shape != (n, len(SPAN_CATS)):
+        raise ValueError(f"span_licks has shape {M.shape} for {n} classes")
+    ts = L + 1                                                  # first tail trial
+    if tail_start == "lick_event" and end != "none":
+        brk_e, _ = _lick_breaks(M, strict=False)
+        if brk_e.any():
+            ts = max(ts, int(np.flatnonzero(brk_e)[-1]))        # the census's tail-event start
+    tail = (idx_all >= ts) & known
+    member = (np.isin(raw, ["no_response", "jaw_only"] if jaw_counts else ["no_response"]) & (idx_all < max(ts, 0))
+              & ~_breaks(breaks, n))
+    seg = np.zeros(n, int)
+    if lick_rule == "strict":
+        brk_s, dirty = _lick_breaks(M, strict=True)
+        member &= ~dirty
+        seg = np.cumsum(brk_s.astype(int))                      # runs are cut where a lick breaks them
+    idx = np.flatnonzero(known)
+    seq = member[idx]
+    runs = []
+    i = 0
+    while i < len(seq):
+        if not seq[i]:
+            i += 1
+            continue
+        j = i
+        while j < len(seq) and seq[j]:
+            j += 1
+        whole = idx[i:j]
+        i = j
+        for s in np.unique(seg[whole]):
+            runs.append(whole[seg[whole] == s])
+    for run in runs:
+        if len(run) < n_min:
+            continue
+        if spec["guard"] and not ref[run].any():
+            rb = np.flatnonzero(ref[: run[0]])
+            ra = np.flatnonzero(ref & (idx_all > run[-1]))
+            if len(rb) and len(ra) and raw[rb[-1]] == "contact" and raw[ra[0]] == "contact":
+                continue                                        # contacts at the reference spouts on both sides: kept
+        if early[run[0]]:
+            continue                                            # early_run folds into the raw class (Priya)
+        out[run] = STOPPED_CLASS
+        kind[run] = "run"
+    out[tail] = STOPPED_CLASS
+    kind[tail] = "tail"
+    if lick_rule == "excise":
+        out[(out == STOPPED_CLASS) & touched_by_licks(M)] = STOPPED_LICKING_CLASS   # keeps its stop kind
+    return out, kind
 
 
 #: T7 (third review): an unmatched stretch counts as UNCOVERED only when it is at least this many consecutive cues;
@@ -797,9 +1131,10 @@ def contact_nolick_counts(cls, nolick, animal, epoch) -> "pd.DataFrame":
 
 
 def stopped_rule() -> str:
-    """"run" (primary, default) or "any" (sensitivity): the camera stopped rule (see STOPPED_CLASSES)."""
+    """"both" (primary, A2, 11-04), "run" (A0), "long" (A3) or "any" (sensitivity): the camera stopped rule (see
+    STOPPED_CLASSES)."""
     import os
-    v = os.environ.get(STOPPED_ENV, "").strip().lower() or str(_selection_cfg().get("stopped") or "run").lower()
+    v = os.environ.get(STOPPED_ENV, "").strip().lower() or str(_selection_cfg().get("stopped") or "both").lower()
     if v not in STOPPED_RULES:
         raise ValueError(f"{STOPPED_ENV} / trial_selection.stopped = {v!r}; expected one of {STOPPED_RULES}")
     return v
@@ -848,9 +1183,52 @@ def stopped_rule_name() -> str:
     """The rule name in selection tags: "stopRun<n>" ("stopRun<n>j" when jaw_only counts toward the run, Priya 11-04:
     no cache / store / attempts table of the 11-03 rule is reused) or "stopAny" (+ "t<s>" when the stop start time
     is not 300 s)."""
-    base = (f"stopRun{stop_run_min()}" + ("j" if jaw_counts_in_stop() else "")) if stopped_rule() == "run" else "stopAny"
+    rule = stopped_rule()
+    j = "j" if jaw_counts_in_stop() else ""
+    if rule == "run":
+        base = f"stopRun{stop_run_min()}{j}"
+    elif rule == "both":
+        base = f"stopA2{j}" if stop_run_min() == 6 else f"stopA2n{stop_run_min()}{j}"
+    elif rule == "long":
+        base = f"stopA3n{GUARDED_RULES['long']['min_run']}{j}"
+    else:
+        base = "stopAny"
     t = stop_min_start_s()
-    return base if t == 300.0 else f"{base}t{t:g}"
+    base = base if t == 300.0 else f"{base}t{t:g}"
+    if rule in GUARDED_RULES:
+        base += _lick_token()
+    return base + _window_token()
+
+
+def stop_lick_rule() -> str:
+    """"excise" (default) | "strict" | "none" (``trial_selection.stop_licks`` / WIDEFIELD_STOP_LICKS)."""
+    import os
+    v = (os.environ.get(STOP_LICKS_ENV, "").strip() or str(_selection_cfg().get("stop_licks", "excise"))).lower()
+    if v not in STOP_LICK_RULES:
+        raise ValueError(f"{STOP_LICKS_ENV} / trial_selection.stop_licks = {v!r}; expected one of {STOP_LICK_RULES}")
+    return v
+
+
+def stop_tail_start() -> str:
+    """"lick_trial" (default) | "lick_event" (``trial_selection.stop_tail`` / WIDEFIELD_STOP_TAIL)."""
+    import os
+    v = (os.environ.get(STOP_TAIL_ENV, "").strip() or str(_selection_cfg().get("stop_tail", "lick_trial"))).lower()
+    if v not in STOP_TAIL_STARTS:
+        raise ValueError(f"{STOP_TAIL_ENV} / trial_selection.stop_tail = {v!r}; expected one of {STOP_TAIL_STARTS}")
+    return v
+
+
+def _lick_token() -> str:
+    """Tag part of the stopped-time lick rule + tail start (guarded rules only): "ex" (excise, primary) | "sb" (strict
+    break) | "" (none), + "te" when the quit tail starts after the last lick EVENT."""
+    return {"excise": "ex", "strict": "sb", "none": ""}[stop_lick_rule()] + (
+        "te" if stop_tail_start() == "lick_event" else "")
+
+
+def _window_token() -> str:
+    """The class-window part of every camera rule name (Priya 11-04): "rt<max_rt ms>c<post-cue floor ms>", e.g.
+    "rt3500c70" -- licks / contacts / jaw counted in cue + 70 ms (lick PEAK) .. min(cue + max_rt, stop)."""
+    return f"rt{max_rt_ms():g}c{POSTCUE_START_MS:g}"
 
 
 def camera_gate_on() -> bool:
@@ -899,28 +1277,56 @@ def cue_classes(table: pd.DataFrame | None, cue_s, tol: float = CUE_MATCH_S) -> 
 _CUE_CLS: dict = {}
 
 
+#: per-cue stop kinds (`stop_kind_for`): a mid-session stop "run", the quit "tail", or ""
+STOP_KINDS = ("run", "tail", "")
+_CUE_KIND: dict = {}
+
+
+def stop_kind_for(label: str, cue_s, window: str | None = None) -> np.ndarray:
+    """Per DAQ cue of one session (the full cue train, as `cue_classes_for`): "run" = part of a mid-session stop run,
+    "tail" = the quit tail after the last camera lick, "" = neither. stopped_licking trials keep the kind of the run /
+    tail they came from, so readers can split them (bcdg port's g_group_final). Same memo as `cue_classes_for`."""
+    cue_classes_for(label, cue_s, window)
+    return _CUE_KIND[_cue_key(label, cue_s, window)]
+
+
+def _cue_key(label: str, cue_s, window: str | None) -> tuple:
+    import hashlib
+    window = window or gate_window()
+    cs = np.ascontiguousarray(np.asarray(cue_s, float))
+    rule = (stopped_rule(), stop_run_min(), stop_min_start_s(), rest_start())
+    jaw_cnt = jaw_counts_in_stop()
+    lk = (stop_lick_rule(), stop_tail_start()) if rule[0] in GUARDED_RULES else None
+    return (label, window, rule, end_anchor(), "jawcount" if jaw_cnt else "jawwork", lk,
+            hashlib.sha1(cs.tobytes()).hexdigest())
+
+
 def cue_classes_for(label: str, cue_s, window: str | None = None) -> np.ndarray:
     """Camera class per DAQ cue of one session (``cue_s`` in DAQ seconds); all "unknown" for a session without video
     outputs. ``cue_s`` must be the session FULL cue train in order (the stopped rule counts runs along it): no_response
     trials in a sustained stop come back as STOPPED_CLASS (`classify_session`, Priya 11-03). Memoised per process.
     THE A5 HOOK: switch the class source to `responded(source=...)` here."""
-    import hashlib
     window = window or gate_window()
     cs = np.ascontiguousarray(np.asarray(cue_s, float))
     rule = (stopped_rule(), stop_run_min(), stop_min_start_s(), rest_start())
     end = end_anchor()
     jaw_cnt = jaw_counts_in_stop()        # the working selection (main's WIDEFIELD_WORKING_TRIALS); Priya 11-04
-    key = (label, window, rule, end, "jawcount" if jaw_cnt else "jawwork", hashlib.sha1(cs.tobytes()).hexdigest())
-    if key not in _CUE_CLS:
+    lk = (stop_lick_rule(), stop_tail_start()) if rule[0] in GUARDED_RULES else None
+    key = _cue_key(label, cs, window)
+    if key not in _CUE_CLS or key not in _CUE_KIND:
         if len(_CUE_CLS) > 64:
             _CUE_CLS.clear()
+            _CUE_KIND.clear()
         T = session_trials(label, window=window)
         # THE session-level rules (end at the last camera lick, sustained stop, isolated lapses; video coverage span):
         # `classify_session`. The "close" anchor needs each cue position (matched the same way as the class)
-        pos = cue_classes(T.assign(cls=T["position"]) if T is not None else None, cs) if end == "close" else None
+        pos = (cue_classes(T.assign(cls=T["position"]) if T is not None else None, cs)
+               if end == "close" or rule[0] in GUARDED_RULES else None)
         matched = (cue_classes(T.assign(cls="matched"), cs) == "matched") if T is not None else np.zeros(len(cs), bool)
-        _CUE_CLS[key] = classify_session(cue_classes(T, cs), matched, pos, rule=rule[0], min_run=rule[1], end=end,
-                                         cue_s=cs, jaw_counts=jaw_cnt)
+        span = cue_span_licks(label, T, cs) if lk is not None and lk != ("none", "lick_trial") else None
+        _CUE_CLS[key], _CUE_KIND[key] = classify_session(cue_classes(T, cs), matched, pos, rule=rule[0],
+                                                         min_run=rule[1], end=end, cue_s=cs, jaw_counts=jaw_cnt,
+                                                         span_licks=span, return_kind=True)
     return _CUE_CLS[key]
 
 

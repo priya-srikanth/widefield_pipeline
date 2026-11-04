@@ -64,6 +64,8 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+from wfield_local import lp_licks as _lp_licks
+
 SMOKE_ENV = "COMBINED_ENCODING_SMOKE"
 ONLY_ENV = "COMBINED_ENCODING_ONLY"      # comma-separated model-name prefixes: fit only those (+ full); own folder   # =1: fit only the models the post-fit code needs (a fast end-to-end check)
 #: VIDEO (Priya 10-18, O2 motion-energy pilot `me_pilot_20261018`): comma-separated cameras, e.g. "cam1,cam4". When set
@@ -650,11 +652,16 @@ def _context_licks(rv, animal: str, date: str, sd: Path, b: pd.DataFrame, contac
     f = sd / "licks_all.csv"
     if not f.exists():                                  # never mix event sets silently
         raise FileNotFoundError(f"{LICKS_ALL_ENV} needs {f} (python -m wfield_local.orofacial_outputs all-licks)")
-    A = pd.read_csv(f, usecols=["context", "table", "daq_on_s"])
-    ctx = {c: np.sort(A.loc[A.context == c, "daq_on_s"].to_numpy(float)) for c in ("pre_cue", "iti")}
+    from wfield_local import orofacial_outputs as oo
+    # the ONSET label (`oo.encoder_context`): the 11-04 peak rule (cue .. cue + 70 ms = excluded_0_70) relabels licks for
+    # the pre- / post-cue ANALYSES only; these whole-session lick lists keep every lick they held before
+    A = pd.read_csv(f, usecols=lambda c: c in ("context", "onset_context", "table", "daq_on_s"))
+    lab = oo.encoder_context(A)
+    ctx = {c: np.sort(A.loc[lab == c, "daq_on_s"].to_numpy(float)) for c in ("pre_cue", "iti")}
     # post-cue onsets held by the pre-cue / ITI tables (their windows overlap the next cue; ~11 per session, >= 60 ms from
-    # any licks.csv lick, PS93_0814 / 0818): real licks that are in NO kernel without this (licks.csv = table "licks")
-    ctx["post_extra"] = np.sort(A.loc[(A.context == "post_cue") & (A["table"] != "licks"), "daq_on_s"].to_numpy(float))
+    # any licks.csv lick, PS93_0814 / 0818): real licks that are in NO kernel without this (licks.csv = table "licks").
+    # Same onset label, so a licks_excluded_0_70 row (was a licks_precue row before 11-04) keeps its kernel
+    ctx["post_extra"] = np.sort(A.loc[(lab == "post_cue") & (A["table"] != "licks"), "daq_on_s"].to_numpy(float))
     sid = sorted((Path(rv.root("behavior_out")) / "sessions" / animal / date).glob("*_trials.csv"))[-1].name[:-11]
     raw = np.sort(np.asarray(dlc_frames.lick_onsets(animal, date, sid, rv), float))
     st = np.where(np.isfinite(b.strobe_s), b.strobe_s, b.cue_s - 3.0).astype(float) - 0.5
@@ -1244,8 +1251,9 @@ TRIAL_MODES = ("off", "sse", "full", "full32")
 TRIAL_BIN_S = 0.5
 #: LICK TIMING of the per-trial lick alignment (Priya 11-04): an LP onset later than the trial's first DAQ contact by
 #: more than this is not the contacting lick -- at a CLOSE spout the alignment then uses the contact (timing_source daq);
-#: at a FAR spout the LP onset is kept and the trial flagged grooming_suspect
-LP_DAQ_TOL_S = 0.05
+#: at a FAR spout the LP onset is kept and the trial flagged grooming_suspect. ONE tolerance: lp_licks.LP_DAQ_TOL_MS
+#: (the lick-aligned arms' `first_lick_timing`, rebuild/cue70)
+LP_DAQ_TOL_S = _lp_licks.LP_DAQ_TOL_MS / 1000.0
 #: the time-resolved models of the main (unsubset, movement_first, no FR) run
 MAIN_TR_MODELS = tuple(m for m in TR_MODELS if not m.startswith("fr:"))
 

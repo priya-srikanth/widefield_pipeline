@@ -48,7 +48,14 @@ def session_latency(label: str) -> pd.DataFrame:
         rows.append({"label": label, "trial_id": t, "pos": pos[t], "stop_ms": stop[t], "cam4": c4,
                      "combined": np.nanmin([c4, c1]) if cam1 is not None else np.nan,
                      "contact": min(ct) if ct else np.nan, "has_cam1": cam1 is not None})
-    return pd.DataFrame(rows)
+    out = pd.DataFrame(rows)
+    # the lick time lick-aligned frames use (Priya 11-04): LP, or the DAQ contact at a close spout when LP missed / was
+    # late by > lp_licks.LP_DAQ_TOL_MS; far-spout late LP = grooming_suspect (count / drop as a sensitivity)
+    from wfield_local import lp_licks
+    tm = lp_licks.first_lick_timing(out.pos, out.combined.fillna(out.cam4), out.contact, out.stop_ms)
+    for c in tm.columns:
+        out[c] = tm[c].to_numpy()
+    return out
 
 
 def main(argv=None) -> int:

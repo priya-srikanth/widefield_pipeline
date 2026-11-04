@@ -74,7 +74,9 @@ trial_selection:
   gate: daq
   window: cue_stop
   end: lick                    # camera working ends at the session LAST camera lick (Priya 11-03); contact / close / none = robustness
-  stopped: run                  # camera "stopped": run = >= behavior.tail_min_misses consecutive no_response (Priya 11-03); any = sensitivity
+  stopped: both                 # camera "stopped" (Priya 11-04): both = A2 (runs >= 6, reference-spout guard on both sides, quit after the last lick); run = A0; long = A3 (runs > 10); any = sensitivity
+  stop_licks: excise              # stopped-time licks (Priya 11-04): excise = lick-touched stopped trials -> stopped_licking (neither class); strict = break + re-form; none
+  stop_tail: lick_trial           # quit tail starts after the last camera-lick TRIAL (default) | lick_event (after the last lick event; open with Priya)
   stop_min_start_s: 300         # a stopped run must START >= this long after the session's first cue (Priya 11-03); earlier = neither class
   rest_start: first_lick        # camera rest working period starts at the first camera lick (OPEN for Priya); session = the first cue
 

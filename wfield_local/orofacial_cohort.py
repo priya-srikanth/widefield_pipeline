@@ -47,7 +47,9 @@ WHAT EACH METRIC IS (per session; post-cue = cue + 70 ms .. DAQ trial stop, `lic
   angle_gain_far     executed-angle vs target from the far side positions: (angle far L - far R) / (spout far L - far R)
   ipsi_bias_deg      mean over positions of the median executed peak angle, signed + = toward the IPSILESIONAL side --
                      a target-independent turn of the tongue
-  precue_rate_hz     spontaneous licks, position strobe (spout arrived) .. cue + 70 ms, per second (`licks_precue.csv`)
+  precue_rate_hz     spontaneous licks, position strobe (spout arrived) .. the CUE, by lick peak, per second
+                     (`licks_precue.csv`; peaks in cue .. cue + 70 ms are excluded = neither pre- nor post-cue,
+                     Priya 11-04 -- `pose_kinematics_demo.split_precue_by_peak`, also on the pre-11-04 tables)
   precue_trial_frac  fraction of trials with >= 1 pre-cue lick
   iti_rate_hz        inter-trial licks per second (`licks_iti.csv`)
   peak_interp_frac   fraction of post-cue licks whose peak is interpolated / imputed (tracking-quality context)
@@ -142,15 +144,19 @@ def raw_position(key: str, laterality: str) -> str:
 
 
 def _windows(sd: Path) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """(per-trial durations: pre-cue, response, ITI seconds; per-trial first row + first t_ms, for frame lookups)."""
+    """(per-trial durations: pre-cue, response, ITI seconds; per-trial first row + first t_ms, for frame lookups).
+
+    pre-cue = strobe .. the CUE (`PRECUE_END_AFTER_CUE_MS`, Priya 11-04: the 70 ms after the cue are neither pre- nor
+    post-cue, so they are in neither denominator); response = cue + 70 ms .. stop."""
+    from wfield_local.trial_classes import POSTCUE_START_MS, PRECUE_END_AFTER_CUE_MS
     w = np.load(sd / "windows.npz")
     ix = pd.DataFrame({k: w[f"ix_{k}"] for k in ("trial_id", "t_ms", "strobe_ms", "stop_ms")})
     ix["row"] = np.arange(len(ix))
     g = ix.groupby("trial_id", sort=True).agg(t0=("t_ms", "min"), t1=("t_ms", "max"), strobe=("strobe_ms", "first"),
                                                stop=("stop_ms", "first"), row0=("row", "min"))
     t1 = g.t1 + FRAME_MS
-    pre = (70.0 - g.strobe).where(np.isfinite(g.strobe), np.nan).clip(lower=0)
-    resp = (g.stop.clip(upper=t1) - 70.0).clip(lower=0)
+    pre = (PRECUE_END_AFTER_CUE_MS - g.strobe).where(np.isfinite(g.strobe), np.nan).clip(lower=0)
+    resp = (g.stop.clip(upper=t1) - POSTCUE_START_MS).clip(lower=0)
     iti = (g.strobe - g.t0).clip(lower=0).fillna(0) + (t1 - g.stop).clip(lower=0).fillna(0)
     rows = g[["row0", "t0"]].copy()
     # (trial, t_ms) -> row by LOOKUP, not row0 + (t - t0) / 4 ms (10-20): windows are cut on the alignment templates'
@@ -181,6 +187,7 @@ def _row_of(rows: pd.DataFrame, trial_id, t_ms) -> np.ndarray:
 def _first_contacts(animal: str, date: str) -> pd.Series:
     """{trial_id: first DAQ spout-contact time, ms from the cue, inside cue + 70 ms .. trial stop}."""
     from scripts import pose_kinematics_demo as D
+    from wfield_local.trial_classes import CONTACT_FROM_CUE_S
     from wfield_local import trial_windows as TW
     from wfield_local.paths import PathResolver
     rv = PathResolver()
@@ -189,7 +196,7 @@ def _first_contacts(animal: str, date: str) -> pd.Series:
     out = {}
     for t, c, s in zip(b.trial_id, b.cue_s, b.stop_s):
         if np.isfinite(c):
-            k = np.searchsorted(lick, c + 0.07)
+            k = np.searchsorted(lick, c + CONTACT_FROM_CUE_S)
             if k < len(lick) and (not np.isfinite(s) or lick[k] <= s):
                 out[t] = (lick[k] - c) * 1000.0
     return pd.Series(out, dtype=float)
@@ -475,14 +482,17 @@ def session_metrics(job):
         rd("tongue_jaw_mismatch.csv")
     if not len(T) or "t_ms" not in L:
         return None
+    # PRE-CUE = peak before the CUE (Priya 11-04): a pre-11-04 licks_precue.csv still holds the cue .. cue + 70 ms peaks
+    from scripts.pose_kinematics_demo import split_precue_by_peak
+    P, X = split_precue_by_peak(P)
     dur, rows = _windows(sd)
     # ENGAGEMENT GATE (Priya 10-17): every table below, the per-trial window durations (rate denominators) and the
     # cue-aligned frames keep ENGAGED trials only; `--all-trials` is the control
     n_tr_all = len(T)
     keep, gate = engagement_keep(animal, date, sd)
     if keep is not None:
-        L, P, Q, T, M = (d[d.trial_id.astype(int).isin(keep)] if len(d) and "trial_id" in d else d
-                         for d in (L, P, Q, T, M))
+        L, P, Q, T, M, X = (d[d.trial_id.astype(int).isin(keep)] if len(d) and "trial_id" in d else d
+                            for d in (L, P, Q, T, M, X))
         dur = dur[dur.index.astype(int).isin(keep)]
         if not len(T) or not len(L):
             return None
@@ -519,6 +529,7 @@ def session_metrics(job):
     row = {"animal": animal, "date": date, "label": f"{animal}_{date[4:]}", "epoch": epoch, "day": day,
            "n_trials_all": n_tr_all, "n_trials_used": len(T), "engagement_gate": gate,
            "n_trials": n_tr, "n_licks": int(len(L)), "n_precue_licks": int(len(P)), "n_iti_licks": int(len(Q)),
+           "n_excluded_0_70_licks": int(len(X)),
            "resp_rate": len(resp_trials) / n_tr,
            "licks_per_resp": float(resp_trials.mean()) if len(resp_trials) else np.nan,
            "post_rate_hz": len(L) / dur.resp_s.sum() if dur.resp_s.sum() > 0 else np.nan,
