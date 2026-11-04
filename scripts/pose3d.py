@@ -2,12 +2,20 @@
 
     python -m scripts.pose3d clips PS93:20260814 PS93:20260821 PS93:20260908      # test: cam1 clip (ctx-semi eval) + cam4 O2
     python -m scripts.pose3d production [ANIMAL:YYYYMMDD ...] [--jobs 4]           # both O2 production outputs
+    python -m scripts.pose3d production ... --four-cam <side bundle | clips>         # + cam2 / cam3 (`pose3d_side`)
 
 dlc env (aniposelib). cam4 = the LP r4 production output (`o2/lp_r4_prod_20261015`) in both modes; cam1 = the ctx-semi eval
 predictions on the desktop trial clip (``clips``, `session_poses/<a>_<d>_cam1/windows_index.csv` rows) or the cam1
 production output (`o2/lp_cam1_ctx_prod_20261019`). Writes to `session_poses/pose3d/`: ``<a>_<d>_frames.csv.gz`` (every
 paired frame), ``<a>_<d>_licks.csv`` (one row per 3-D lick) and ``summary_<source>.csv`` (per session: pairing, how often
 each part triangulates, reprojection px per part and camera, the world fit, lick counts, reach and aim by position).
+
+FOUR CAMERAS (``--four-cam``, 2026-11-04): `pose3d_side.fuse_session` adds cam2 / cam3 (side model, cleaned with the
+side parameters), robust four-camera triangulation, the water-drop rule, one-view fill and the 3-D QC; the per-frame
+table has the same columns (`pose3d_side.frames_table`, + ``{part}_views`` and per-camera reprojection), so lick_peaks
+runs unchanged. ``<side bundle>`` = the whole-session O2 output of the side model (model space, mapped to raw);
+``clips`` = the side review clips (crop2 predictions; only their trials -- a test of the path). Writes to ``--out``
+(default `session_poses/pose3d_4cam/`), never over the two-camera tables.
 """
 from __future__ import annotations
 
@@ -52,8 +60,9 @@ def _cam1_clip(rv, animal: str, date: str):
     return ix.reset_index(drop=True), P.iloc[:len(ix)].reset_index(drop=True)
 
 
-def run_session(s: str, source: str) -> dict:
-    """One session -> files in session_poses/pose3d/ and its summary row (module level: fan_sessions pickles it)."""
+def run_session(s: str, source: str, four_cam: str | None = None, out_dir: str | None = None) -> dict:
+    """One session -> files in session_poses/pose3d/ (or ``out_dir``) and its summary row (module level: fan_sessions
+    pickles it). ``four_cam``: a side bundle name or "clips" (module docstring)."""
     from scripts.apparatus_mouth import _rig
     from wfield_local import o2_inference as oi
     from wfield_local import pose3d as P3
@@ -67,9 +76,33 @@ def run_session(s: str, source: str) -> dict:
         return {**row, "error": f"missing: {'cam1 ' if c1 is None else ''}{'cam4' if c4 is None else ''}".strip()}
     rig = _rig(rv, animal, date)
     jf = _june_factor(date)
+    if four_cam:
+        if jf:
+            return {**row, "error": "June: side-camera intrinsics not validated (four-camera mode skipped)"}
+        from scripts.pose3d_side_check import CLIPS, PREDS
+        from wfield_local import pose3d_side as PS
+        Z = (PS.fuse_session(rv, animal, date, Path(PREDS), Path(rv.root("dlc")) / CLIPS, c1=c1, c4=c4)
+             if four_cam == "clips" else PS.fuse_session(rv, animal, date, side_bundle=four_cam, c1=c1, c4=c4))
+        S = PS.frames_table(Z)
+        L = P3.lick_peaks(S, rig)
+        out = Path(out_dir) if out_dir else Path(rv.root("dlc")) / "session_poses" / "pose3d_4cam"
+        out.mkdir(parents=True, exist_ok=True)
+        S.to_csv(out / f"{animal}_{date}_frames.csv.gz", index=False, float_format="%.3f")
+        L.to_csv(out / f"{animal}_{date}_licks.csv", index=False)
+        row.update({"four_cam": four_cam, "n_frames": len(S), "droplet_frames": Z["stats"]["droplet_frames"],
+                    **{f"nose_off_{c}_dv": round(Z["stats"]["nose_offsets"][c][2], 2) for c in PS.SIDE}})
+        for part in PS.PARTS:
+            st = Z["stats"][part]
+            row[f"{part}_3d_frac"] = round(st["fused"], 4)
+            row[f"{part}_cam14_frac"] = round(st["cam1+cam4"], 4)
+            row[f"{part}_fill_frac"] = round(st["one_view_fill"], 4)
+            for c in Z["order"]:
+                row[f"{part}_rejected_{c}"] = st[f"rejected_{c}"]
+        row["licks_3d"] = len(L)
+        return row
     S, info = P3.session_3d(_cgroup(rv), rig, c1[0], c1[1], c4[0], c4[1], june_factor=jf)
     L = P3.lick_peaks(S, rig)
-    out = Path(rv.root("dlc")) / "session_poses" / "pose3d"
+    out = Path(out_dir) if out_dir else Path(rv.root("dlc")) / "session_poses" / "pose3d"
     out.mkdir(parents=True, exist_ok=True)
     S.to_csv(out / f"{animal}_{date}_frames.csv.gz", index=False, float_format="%.3f")
     L.to_csv(out / f"{animal}_{date}_licks.csv", index=False)
@@ -107,6 +140,9 @@ def main(argv=None) -> int:
     ap.add_argument("--all", action="store_true",
                     help="every session with outputs, not just the curated cohort (`analysis_kit.curated_ids`)")
     ap.add_argument("--jobs", type=int, default=4, help="sessions in parallel (whole-session npz: I/O and ~1 GB RSS each)")
+    ap.add_argument("--four-cam", default=None, metavar="SIDE_BUNDLE|clips",
+                    help="add cam2 / cam3 (`pose3d_side`): an O2 side bundle name, or 'clips' (the side review clips)")
+    ap.add_argument("--out", default=None, help="output folder (default session_poses/pose3d, or pose3d_4cam with --four-cam)")
     a = ap.parse_args(argv)
     rv = PathResolver()
     sess = a.sessions
@@ -117,13 +153,14 @@ def main(argv=None) -> int:
         sess = [x.replace("_", ":", 1) for x in sorted(cur)]
     if not sess:
         raise SystemExit("no sessions")
-    res, fails = ak.fan_sessions([(s, a.source) for s in sess], _worker, jobs=min(a.jobs, len(sess)))
+    res, fails = ak.fan_sessions([(s, a.source, a.four_cam, a.out) for s in sess], _worker, jobs=min(a.jobs, len(sess)))
     rows = [v for _, v in res] + [{"session": it[0].replace(":", "_"), "source": a.source, "error": e} for it, e in fails]
     T = pd.DataFrame(rows)
     pd.set_option("display.width", 250)
     pd.set_option("display.max_columns", 60)
     print(T.T.to_string(header=False))
-    out = Path(rv.root("dlc")) / "session_poses" / "pose3d" / f"summary_{a.source}.csv"
+    base = Path(a.out) if a.out else Path(rv.root("dlc")) / "session_poses" / ("pose3d_4cam" if a.four_cam else "pose3d")
+    out = base / f"summary_{a.source}{'_' + a.four_cam if a.four_cam else ''}.csv"
     out.parent.mkdir(parents=True, exist_ok=True)
     if out.exists():           # a SUBSET run replaces only its own sessions' rows (it used to overwrite the whole table)
         T = pd.concat([pd.read_csv(out), T], ignore_index=True).drop_duplicates("session", keep="last")

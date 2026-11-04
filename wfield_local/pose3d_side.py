@@ -102,6 +102,27 @@ def side_session(rv, animal: str, date: str, preds_dir: Path, clips_dir: Path, i
     return out
 
 
+def side_windows(rv, bundle: str, animal: str, date: str, cam: str, model_space: bool = True):
+    """``(ix, flat)`` for one side camera's WHOLE session from an O2 bundle (`o2_inference.session_windows`: the same
+    cue windows / template timing as cam1 / cam4). ``model_space``: the bundle ran the shared side model on the
+    transformed video (cam3 flipped, cropped, June rescaled, `lp_sidecam`), so its x / y go back to the raw frame with
+    `lp_sidecam.to_raw` here. None when the session is missing or incomplete."""
+    from wfield_local import lp_sidecam as LS
+    from wfield_local import o2_inference as oi
+    got = oi.session_windows(rv, bundle, animal, date, cam)
+    if got is None:
+        return None
+    ix, flat = got
+    ix, flat = ix.copy(), flat.copy()
+    w = side_width(rv, animal, date, cam)
+    if model_space:
+        for part in PARTS:
+            flat[f"{part}_x"], flat[f"{part}_y"] = LS.to_raw(flat[f"{part}_x"].to_numpy(float),
+                                                             flat[f"{part}_y"].to_numpy(float), cam, w)
+    ix["width"] = w
+    return ix, flat
+
+
 def confident_xy(flat: pd.DataFrame, part: str, cut: float | None = None) -> np.ndarray:
     from wfield_local import lp_sidecam as LS
     xy = flat[[f"{part}_x", f"{part}_y"]].to_numpy(float)
@@ -182,11 +203,14 @@ def fuse(g, pts_by_part: dict) -> dict:
     return out
 
 
-def four_camera_points(S: pd.DataFrame, info: dict, c1, c4, side: dict, order: list[str]) -> tuple[pd.DataFrame, dict]:
+def four_camera_points(S: pd.DataFrame, info: dict, c1, c4, side: dict, order: list[str],
+                       keep_all: bool = False) -> tuple[pd.DataFrame, dict]:
     """The frames shared by cam1 + cam4 (`session_3d`'s pairing) and both side review clips, and per part the
     (n_cams, n, 2) image points in ``order``: cam1 / cam4 as `session_3d` uses them (tongue / jaw after each camera's
     cleaning, MEASURED frames only; nose / spout raw >= `pose3d.STATIC_LK`), side points confident at
-    `lp_sidecam.PRELABEL_CUT`. Returns (frames: S rows + side clip row per camera, {part: pts})."""
+    `lp_sidecam.PRELABEL_CUT`. Returns (frames: S rows + side clip row per camera, {part: pts}). ``keep_all``
+    (whole sessions): every S row is kept and a side camera without that frame counts as not seeing it (``i_<cam>``
+    -1); False (review clips): only frames all four cameras have."""
     from wfield_local import pose3d as P3
     from wfield_local import spout_frame as SF
     ix1, flat1 = c1
@@ -204,13 +228,16 @@ def four_camera_points(S: pd.DataFrame, info: dict, c1, c4, side: dict, order: l
     F = S.reset_index(drop=True).reset_index().rename(columns={"index": "iS"})
     for cam in SIDE:
         iS, iX = pair_side(S, side[cam][0])
-        F = F.merge(pd.DataFrame({"iS": iS, f"i_{cam}": iX}), on="iS")
+        F = F.merge(pd.DataFrame({"iS": iS, f"i_{cam}": iX}), on="iS", how="left" if keep_all else "inner")
+        F[f"i_{cam}"] = F[f"i_{cam}"].fillna(-1).astype(int)
     pts = {}
     for part in PARTS:
         cols = []
         for cam in order:
             if cam in SIDE:
-                cols.append(confident_xy(side[cam][1], part)[F[f"i_{cam}"].to_numpy()])
+                k = F[f"i_{cam}"].to_numpy()
+                xy = confident_xy(side[cam][1], part)
+                cols.append(np.where((k >= 0)[:, None], xy[np.clip(k, 0, None)], np.nan))
             else:
                 cols.append(base[part][cam][F.iS.to_numpy()])
         pts[part] = np.stack(cols)
@@ -218,7 +245,11 @@ def four_camera_points(S: pd.DataFrame, info: dict, c1, c4, side: dict, order: l
 
 
 def pair_side(S: pd.DataFrame, ix: pd.DataFrame) -> tuple[np.ndarray, np.ndarray]:
-    """Row numbers (iS, iside) on exact (trial_id, t_ms)."""
+    """Row numbers (iS, iside). Both with ``t_daq_ms`` (whole-session windows): `pose3d.pair` (nearest true time per
+    trial within half a frame, one-to-one -- dropped frames leave gaps). Otherwise (review clips): exact (trial_id, t_ms)."""
+    if "t_daq_ms" in S and "t_daq_ms" in ix:
+        from wfield_local import pose3d as P3
+        return P3.pair(S[["trial_id", "t_ms", "t_daq_ms"]].reset_index(drop=True), ix.reset_index(drop=True))
     a = S[["trial_id", "t_ms"]].reset_index(drop=True).reset_index().rename(columns={"index": "iS"})
     b = ix[["trial_id", "t_ms"]].reset_index(drop=True).reset_index().rename(columns={"index": "iX"})
     a["t_ms"], b["t_ms"] = a.t_ms.round(1), b.t_ms.round(1)
@@ -480,32 +511,43 @@ def fill_n(g, X: np.ndarray, pts: np.ndarray, used: np.ndarray, trial: np.ndarra
     return X, nv
 
 
-def fuse_session(rv, animal: str, date: str, preds_dir: Path, clips_dir: Path, cg=None) -> dict:
-    """The whole four-camera pipeline for one session's side review trials. Returns {"F": frames (S rows + side rows),
-    "order", "g" (posed group), "pts" (cleaned image points per part), "parts": {part: {"X", "views", "used", "dist",
-    "g" (the part's offset group)}}, "stats", "rig"}."""
+def fuse_session(rv, animal: str, date: str, preds_dir: Path | None = None, clips_dir: Path | None = None, cg=None,
+                 side_bundle: str | None = None, c1=None, c4=None) -> dict:
+    """The whole four-camera pipeline for one session. Side input: the review clips (``preds_dir`` + ``clips_dir``;
+    only the frames all four cameras have) or, with ``side_bundle``, the WHOLE-SESSION O2 output of the side model
+    (`side_windows`; every cam1 + cam4 frame kept). ``c1`` / ``c4``: already-loaded production windows (else loaded).
+    Returns {"F": frames (S rows + side rows), "order", "g" (posed group), "pts" (cleaned image points per part),
+    "parts": {part: {"X", "views", "used", "dist", "g" (the part's offset group)}}, "stats", "rig", "side", "S"}."""
     from scripts.apparatus_mouth import _rig
     from scripts.pose3d import PROD, _cgroup
     from wfield_local import o2_inference as oi
     from wfield_local import pose3d as P3
     from wfield_local import spout_frame as SF
-    c1 = oi.session_windows(rv, PROD["cam1"], animal, date, "cam1")
-    c4 = oi.session_windows(rv, PROD["cam4"], animal, date, "cam4")
+    c1 = c1 or oi.session_windows(rv, PROD["cam1"], animal, date, "cam1")
+    c4 = c4 or oi.session_windows(rv, PROD["cam4"], animal, date, "cam4")
+    if c1 is None or c4 is None:
+        raise FileNotFoundError(f"{animal} {date}: cam1 / cam4 production output missing")
     rig = _rig(rv, animal, date)
     cg = cg or _cgroup(rv)
     S, info = P3.session_3d(cg, rig, c1[0], c1[1], c4[0], c4[1])
-    side = side_session(rv, animal, date, preds_dir, clips_dir, c4[0])
+    if side_bundle:
+        side = {c: side_windows(rv, side_bundle, animal, date, c) for c in SIDE}
+        if any(v is None for v in side.values()):
+            raise FileNotFoundError(f"{animal} {date}: side bundle {side_bundle} incomplete")
+    else:
+        side = side_session(rv, animal, date, preds_dir, clips_dir, c4[0])
     meds = {"cam1": info["med1"], "cam4": info["med4"], **{c: SF.ruler_medians(side[c][1], side[c][0]) for c in SIDE}}
     g, _ = pose_all(cg, {c: meds[c] for c in ("cam1", "cam4", "cam2", "cam3")}, rig["geometry"])
     order = [c.get_name() for c in g.cameras]
     cams = {c.get_name(): c for c in g.cameras}
     scale = {c: px_per_mm(cams[c]) / px_per_mm(cams["cam4"]) for c in order}
-    F, pts = four_camera_points(S, info, c1, c4, side, order)
+    F, pts = four_camera_points(S, info, c1, c4, side, order, keep_all=bool(side_bundle))
     for c in SIDE:                                    # stage 1: the side tongue / jaw become their CLEANED measured points
         mouth = project(cams[c], np.zeros((1, 3)))[0]
         cl = side_clean(side[c][1], side[c][0], mouth, scale[c])
+        k = F[f"i_{c}"].to_numpy()
         for part in ("tongue", "jaw"):
-            pts[part][order.index(c)] = cl[part][F[f"i_{c}"].to_numpy()]
+            pts[part][order.index(c)] = np.where((k >= 0)[:, None], cl[part][np.clip(k, 0, None)], np.nan)
     trial, t = F.trial_id.to_numpy(), F.t_ms.to_numpy(float)
     drop = droplet_mask(pts["tongue"], order, trial, scale)
     pts["tongue"][drop] = np.nan
@@ -526,4 +568,27 @@ def fuse_session(rv, animal: str, date: str, preds_dir: Path, clips_dir: Path, c
         stats[part] = {"cam1+cam4": float(np.isfinite(pts[part][k14]).all(2).all(0).mean()),
                        "fused": float(np.isfinite(X).all(1).mean()), "one_view_fill": float((nv == -1).mean()),
                        **{f"rejected_{c}": int(rejected[j].sum()) for j, c in enumerate(order)}}
-    return {"F": F, "order": order, "g": g, "pts": pts, "parts": parts, "stats": stats, "rig": rig, "side": side}
+    return {"F": F, "order": order, "g": g, "pts": pts, "parts": parts, "stats": stats, "rig": rig, "side": side, "S": S}
+
+
+def frames_table(Z: dict) -> pd.DataFrame:
+    """The four-camera result as a `pose3d.session_3d`-style per-frame table, so `pose3d.lick_peaks` and the kinematics
+    read it unchanged: trial_id, position, t_ms, stop_ms (+ t_daq_ms, src1, src4), per part ``{part}_ml/_ap/_dv`` mm,
+    ``{part}_src`` (1 = >= 2 cameras, 2 = one camera + neighbours, 0 none), ``{part}_views`` (cameras behind the point;
+    -1 = one-view fill), ``{part}_rep1`` / ``_rep4`` (px, cam1 / cam4, where used) and ``{part}_rep_<cam>`` for all four."""
+    F, order = Z["F"], Z["order"]
+    keep = [c for c in ("trial_id", "position", "t_ms", "stop_ms", "t_daq_ms", "src1", "src4") if c in F]
+    T = F[keep].reset_index(drop=True).copy()
+    for part, P in Z["parts"].items():
+        X, nv = P["X"], P["views"]
+        for k, ax in enumerate(("ml", "ap", "dv")):
+            T[f"{part}_{ax}"] = X[:, k]
+        T[f"{part}_views"] = nv
+        T[f"{part}_src"] = np.where(nv >= 2, 1, np.where(nv == -1, 2, 0))
+        pts = Z["pts"][part]
+        for j, cam in enumerate(P["g"].cameras):
+            r = np.linalg.norm(project(cam, X) - pts[j], axis=1)
+            r[~P["used"][j]] = np.nan
+            T[f"{part}_rep_{order[j]}"] = r
+        T[f"{part}_rep1"], T[f"{part}_rep4"] = T[f"{part}_rep_cam1"], T[f"{part}_rep_cam4"]
+    return T
