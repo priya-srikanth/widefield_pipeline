@@ -26,7 +26,7 @@ Captions follow Priya's rule: rewrite a wrong caption cleanly, and never add COR
 | A8 | Lick class for lick-aligned arms = contact + incomplete with LP timing; DAQ fallback > 50 ms at close spouts | 34 census; running list | imaging lick-aligned, encoding lick chain | methods line |
 | A9 | ENL windows follow the lick source (LP 1.0 s sliding lick-free / DAQ 2.0 s), encoder ENL scoring included | 34 rebuild/enl-window | imaging precue figures, encoding, quiet events | methods line |
 | A10 | Every Allen-ROI analysis on the ALM / tjM1 split basis; orofacial group = ALM, tjM1, SSp-m, SSp-n | 34 SPLIT_BASIS_INVENTORY_20261104.md | imaging, encoding, quiet events | MAIN: panel layouts change; methods line |
-| A11 | Section-1 table without jaw-only trials (camlickpl), ENL 1.0 s | e0, s1_refit_*_1104 | imaging §1 table + deck slide 9 | MAIN |
+| A11 | Section-1 table without jaw-only trials (camlickpl). The 1104 table was built at ENL 2.0 s; Priya decided LP 1.0 s for the s1 refit (2.0 s as a sensitivity row), so e0 re-runs at 1.0 s in the rebuild pass (~25 min each for Allen / LocaNMF; --suffix ready) | e0, s1_refit_*_1104 | imaging §1 table + deck slide 9 | MAIN |
 | A12 | State discriminators: camera-class (working vs none) as the primary G4 readout, z frame on contact rows | G4_CAMCLASS_MIXSHIFT_2026-11-04.md | imaging section G (G4) | MAIN readout; the mix-shift test COLLAPSIBLE |
 | A13 | Encoder spontaneous licking: LICKS_ALL = split. Three lick variables: licks = cued (instructed); licks_pre and licks_iti (uninstructed). "drop:licks" now means cued only; the instructed / uninstructed group contents change; the Musall maps and unique-R2 figures change. Caveat: the tongue / jaw traces stay instructed over the whole trial | 34 rebuild log 8.43, encoder-classes | encoding | MAIN (methods + variance-partition figures) |
 | A14 | Encoder per-class outputs: every cue trial is scored (non-working by the full-data fit); per-class PETH / cvR2 / trial-to-trial R2. Class comparisons use trial-to-trial R2, not cvR2 | 34 | encoding | new per-class figure, MAIN or COLLAPSIBLE (Priya to choose) |
@@ -66,6 +66,13 @@ encoding_mixed, fr_encoding_summary) and the lick variable lists (curbd_pilot).
   - the bracket (N, WtF);
   - the rejected frames, with reasons.
 - Draft text and likely reviewer questions: docs/LITERATURE_CROSS_SESSION_NORMALISATION_2026-11-04.md (§5).
+
+## NOT in this pass (e0)
+
+These land with the next 3-D re-run, after the round-2 side model, as their own kinematics-page pass:
+
+- the spout-position ENL no-lick rule for the v36 2-D chain (docs/status/SPOUT_POSITION_AUDIT_2026-11-04.md);
+- the four-camera 3-D (cam2 / cam3).
 
 ## Status
 
