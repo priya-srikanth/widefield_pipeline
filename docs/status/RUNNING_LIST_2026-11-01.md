@@ -1239,3 +1239,12 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   - These are the imaging page section 1 / PI slide 9 numbers, previously run as LP_licks_ENL2s.
   - 2.0 s is kept at most as a labelled sensitivity row.
   - **Conclusion-change watch:** slide 9 / section 1 numbers will move. Report old vs new before any text changes.
+- **11-04 ~17:10: CORRECTION (Priya): ENL predictors use the SLIDING lick-free window search.**
+  - That means the decoders' function: find a lick-free 1 s window within the ENL. It does not mean dropping trials that
+    have a lick in a fixed (-1, 0) window.
+  - This applies to within_spout_deviation, quiet_task_events, the s1 refit and any other gated ENL predictor.
+  - A trial is dropped only if no lick-free window exists.
+- **11-04 ~17:10: The encoder "enl" scoring window is under discussion with Priya.**
+  - Proposal: keep the bundle window (2 s, ungated, for comparability) and compute the lick-free 1 s ENL R2 post hoc from
+    the per-trial outputs (0.5 s cue-aligned bins, per-trial exclusion), as the primary readout.
+  - Checks proposed: bin alignment, models covered, which figures use the enl rows.
