@@ -304,7 +304,7 @@ RESOLVED = {
     "wfield_local/pose_windows.py",
     "wfield_local/publish_basis.py",
     "wfield_local/rebuild_root.py",
-    "wfield_local/recovery_trajectory.py",
+    # (wfield_local/recovery_trajectory.py: ROUTED since review 8B B1b, lp_licks.output_dir)
     "wfield_local/spout_behavior.py",
     "wfield_local/stray_licks.py",
     "wfield_local/sync_audit.py",
