@@ -1097,3 +1097,12 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
     - let a DAQ contact break gate-M ties;
     - rise-start onset.
   - RAM fell to 0.6-1.7 GB during this run, caused by two other python processes (15 GB + 12 GB); the helper waited.
+- **11-04 ~14:00: DECISION (Priya via a8): a standard contact vs incomplete panel in sections D and G.**
+  - Frozen-decoder accuracy per spout, per epoch, cue and precue.
+  - Pre reference per class, otherwise pre working (labelled).
+  - Chance .167; n floor 10.
+  - Session dots; stars in the top band.
+  - The same centre for both classes, following the pending centre test.
+  - Added to the port helper as its own commit.
+- **OPEN for Priya:** the DAQ timing fallback. Recommended: 50 ms at close spouts only, with a grooming flag at far
+  spouts (LP_MISSED_CONTACT_20261104.md).
