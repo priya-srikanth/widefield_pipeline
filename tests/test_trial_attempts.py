@@ -57,6 +57,7 @@ def test_camera_gated_run_uses_the_runs_camera_classes(monkeypatch, tmp_path):
                       "n_licks": 0, "n_nocontact": 0, "jaw_cam4": np.nan, "jaw_cam1": np.nan, "jaw_at_cue": False,
                       "jaw_onset_ms": np.nan})
     monkeypatch.setattr(ta.TC, "session_trials", lambda lab, window=None: C.copy())
+    monkeypatch.setattr(ta.TC, "session_span_licks", lambda lab, c, a, b: np.zeros((len(c), len(ta.TC.SPAN_CATS)), int))
     T0 = pd.DataFrame({"trial_id": np.arange(n), "stop_ms": 3000.0, "pos": "far_contra", "contact": np.nan,
                        "cam4": np.nan, "combined": np.nan, "has_cam1": True, "label": "PS92_0901"})
     monkeypatch.setitem(sys.modules, "scripts.first_lick_latency",
@@ -81,7 +82,7 @@ def test_camera_gated_run_uses_the_runs_camera_classes(monkeypatch, tmp_path):
 def test_camera_attempts_jaw_only_in_a_stop_run_leaves_the_denominator(monkeypatch, tmp_path):
     """Priya 11-04: jaw_only counts toward the 6 and is stopped, so J,NR,J,NR,NR,NR >= 300 s in leaves the attempt-rate
     denominator (canonical False) while cls_raw keeps the trial-level class; a lone jaw_only stays in it as a
-    non-attempt. The gate names the stopA2jrt3500c70 selection."""
+    non-attempt. The gate names the stopA2jexrt3500c70 selection."""
     import sys
     import types
 
@@ -97,6 +98,7 @@ def test_camera_attempts_jaw_only_in_a_stop_run_leaves_the_denominator(monkeypat
                       "n_licks": 0, "n_nocontact": 0, "jaw_cam4": np.nan, "jaw_cam1": np.nan, "jaw_at_cue": False,
                       "jaw_onset_ms": np.nan})
     monkeypatch.setattr(ta.TC, "session_trials", lambda lab, window=None: C.copy())
+    monkeypatch.setattr(ta.TC, "session_span_licks", lambda lab, c, a, b: np.zeros((len(c), len(ta.TC.SPAN_CATS)), int))
     T0 = pd.DataFrame({"trial_id": np.arange(n), "stop_ms": 3000.0, "pos": "far_contra", "contact": np.nan,
                        "cam4": np.nan, "combined": np.nan, "has_cam1": True, "label": "PS92_0901"})
     monkeypatch.setitem(sys.modules, "scripts.first_lick_latency",
@@ -111,8 +113,46 @@ def test_camera_attempts_jaw_only_in_a_stop_run_leaves_the_denominator(monkeypat
     assert T.canonical.tolist() == [True] + [False] * 6 + [True] * 3             # denominator = 4 trials
     assert T.cls_raw.tolist()[1:7] == [ta.TA_NAMES.get(c, c) for c in cls[1:7]]     # the raw jaw_only is kept
     assert not T.attempted.iloc[1:7].any() and not T.attempted.iloc[8]
-    assert T.gate.iloc[0].endswith("-stopA2jrt3500c70")
+    assert T.gate.iloc[0].endswith("-stopA2jexrt3500c70")
     # 5 run members (one fewer no_response): not a stop -- every jaw_only / no_response stays in the denominator
     C.loc[6, "cls"] = "contact"
     T = ta.session_trials("PS92_0901")
     assert "stopped" not in T.cls.tolist() and T.canonical.all()
+
+
+def test_camera_attempts_lick_touched_stopped_trials_leave_both_sets(monkeypatch, tmp_path):
+    """Priya 11-04 (excise): a stopped trial touched by a lick (own span or either ITI) is stopped_licking -- out of the
+    attempt-rate denominator (RUN_EXCLUDED) and not stopped; the rest of the run stays stopped."""
+    import sys
+    import types
+
+    for k in list(__import__("os").environ):
+        if k.startswith(("WIDEFIELD_", "WFIELD_")):
+            monkeypatch.delenv(k, raising=False)
+    monkeypatch.setenv("WIDEFIELD_TRIAL_GATE", "camera")
+    cls = ["contact"] + ["no_response"] * 6 + ["contact"]
+    n = len(cls)
+    cue = np.array([0.0] + [400.0 + 10 * i for i in range(1, n)])
+    C = pd.DataFrame({"trial_id": np.arange(n), "cls": cls, "position": "far_contra", "cue_daq": cue,
+                      "n_licks": 0, "n_nocontact": 0, "jaw_cam4": np.nan, "jaw_cam1": np.nan, "jaw_at_cue": False,
+                      "jaw_onset_ms": np.nan, "strobe_ms": -2000.0, "stop_ms": 3000.0})
+    monkeypatch.setattr(ta.TC, "session_trials", lambda lab, window=None: C.copy())
+
+    def span(lab, c, a, b):
+        M = np.zeros((len(c), len(ta.TC.SPAN_CATS)), int)
+        M[3, 0] = 2                                                   # pre-cue licks in trial 3
+        return M
+    monkeypatch.setattr(ta.TC, "session_span_licks", span)
+    T0 = pd.DataFrame({"trial_id": np.arange(n), "stop_ms": 3000.0, "pos": "far_contra", "contact": np.nan,
+                       "cam4": np.nan, "combined": np.nan, "has_cam1": True, "label": "PS92_0901"})
+    monkeypatch.setitem(sys.modules, "scripts.first_lick_latency",
+                        types.SimpleNamespace(session_latency=lambda lab: T0.copy()))
+    from wfield_local import orofacial_cohort as oc
+    from wfield_local import orofacial_outputs as oo
+    (tmp_path / "licks.csv").write_text("trial_id,on_ms,peak_angle_deg\n0,100,1.0\n")
+    monkeypatch.setattr(oo, "session_dir", lambda *a, **k: tmp_path)
+    monkeypatch.setattr(oc, "engagement_keep", lambda *a, **k: (None, "reference"))
+    T = ta.session_trials("PS92_0901")
+    assert T.cls.tolist() == ["hit", "stopped", "stopped", "stopped_licking", "stopped", "stopped", "stopped", "hit"]
+    assert T.canonical.tolist() == [True] + [False] * 6 + [True]
+    assert T.gate.iloc[0].endswith("-stopA2jexrt3500c70")

@@ -296,7 +296,7 @@ def test_figures_working_is_tag_checked(monkeypatch, tmp_path):
     assert writeguard.is_writable(tmp_path / "cue_lick" / "coding_direction_cue.png")
     monkeypatch.setenv("WIDEFIELD_TRIAL_GATE", "camera")
     assert not writeguard.is_writable(tmp_path / "cue_lick" / "coding_direction_cue.png")
-    assert writeguard.is_writable(tmp_path / "cue_lick" / "sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jrt3500c70" / "coding_direction_cue.png")
+    assert writeguard.is_writable(tmp_path / "cue_lick" / "sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70" / "coding_direction_cue.png")
 
 
 def test_cue_classes_all_nan_table_is_unknown():
@@ -322,7 +322,7 @@ def test_sustained_stop_rule(monkeypatch):
     assert not TC.in_gate(["no_response", "stopped"], "working").any()
     monkeypatch.setenv(TC.GATE_ENV, "camera")
     monkeypatch.delenv(TC.STOPPED_ENV, raising=False)
-    assert TC.run_selection_tag() == "sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jrt3500c70"
+    assert TC.run_selection_tag() == "sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70"
     monkeypatch.setenv(TC.STOPPED_ENV, "any")
     assert TC.run_selection_tag() == "sel-camera-cue_stop-endlick-cls-contact-incomplete-stopAnyrt3500c70" and TC.run_selection() == TC.run_selection_tag()
     monkeypatch.setenv(TC.STOPPED_ENV, "bogus")

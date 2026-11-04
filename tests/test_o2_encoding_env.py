@@ -96,7 +96,7 @@ def test_rebuild_env_round_trip_and_tag_refusal(tmp_path, monkeypatch):
     d.mkdir()
     env = m.bundle_env(d)
     ident = o2_bundle.identity()
-    assert ident["run_tag"].endswith("stopA2jrt3500c70") and ident["area_basis"] == "splitr8"
+    assert ident["run_tag"].endswith("stopA2jexrt3500c70") and ident["area_basis"] == "splitr8"
     for k in ("WIDEFIELD_HEMO_VARIANT", "WIDEFIELD_LOCANMF_PROJECT", "WIDEFIELD_TRIAL_GATE", "WIDEFIELD_TRIAL_WINDOW",
               "WIDEFIELD_TRIAL_END", "WIDEFIELD_TRIAL_STOPPED", "WIDEFIELD_WORKING_TRIALS", "WIDEFIELD_PRE_FROM",
               "WIDEFIELD_LP_FROZEN", "OROFACIAL_GATE"):

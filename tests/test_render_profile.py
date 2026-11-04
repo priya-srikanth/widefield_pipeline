@@ -28,7 +28,7 @@ def test_profile_yields_the_intended_run_tag(profile, monkeypatch):
     assert config.hemo_variant() == "meegkit_hpfit_lag_refitT_swapmask"
     assert locanmf_session.projection_on()
     assert trial_classes.gate_mode() == "camera" and trial_classes.end_anchor() == "lick"
-    assert trial_classes.stopped_rule_name() == "stopA2jrt3500c70"
+    assert trial_classes.stopped_rule_name() == "stopA2jexrt3500c70"
     assert run_mode.tag() == profile["notes"]["expected_run_tag"]
     # the pre set is an OUTPUT part, not a cache part (per-session caches do not depend on which sessions are "pre")
     assert run_mode.cache_tag() == profile["notes"]["expected_run_tag"].replace("_pre0801", "") + "_csig-sig"

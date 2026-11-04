@@ -9,11 +9,12 @@ C, I, J, NR, U, S = "contact", "incomplete", "jaw_only", "no_response", "unknown
 REF, FAR = "close_L", "far_R"
 
 
-def a2(cls, pos, t=None, rule="both", end="lick", jaw=True):
+def a2(cls, pos, t=None, rule="both", end="lick", jaw=True, span=None, lick_rule="none", tail="lick_trial"):
     t = np.arange(len(cls)) * 10.0 + 400.0 if t is None else np.asarray(t, float)
     t[0] = 0.0
     return TC.classify_session(np.array(cls, object), np.ones(len(cls), bool), np.array(pos, object), rule=rule,
-                               min_run=6, end=end, cue_s=t, jaw_counts=jaw).tolist()
+                               min_run=6, end=end, cue_s=t, jaw_counts=jaw, span_licks=span, lick_rule=lick_rule,
+                               tail_start=tail).tolist()
 
 
 def test_reference_free_run_between_two_reference_contacts_stays():
@@ -87,20 +88,20 @@ def test_rule_names_and_default(monkeypatch):
     monkeypatch.delenv(TC.STOPPED_ENV, raising=False)
     monkeypatch.delenv("WIDEFIELD_STOP_MIN_START_S", raising=False)
     monkeypatch.delenv("WIDEFIELD_WORKING_TRIALS", raising=False)
-    assert TC.stopped_rule() == "both" and TC.stopped_rule_name() == "stopA2jrt3500c70"
-    for rule, name in (("run", "stopRun6jrt3500c70"), ("long", "stopA3n11jrt3500c70"), ("any", "stopAnyrt3500c70")):
+    assert TC.stopped_rule() == "both" and TC.stopped_rule_name() == "stopA2jexrt3500c70"
+    for rule, name in (("run", "stopRun6jrt3500c70"), ("long", "stopA3n11jexrt3500c70"), ("any", "stopAnyrt3500c70")):
         monkeypatch.setenv(TC.STOPPED_ENV, rule)
         assert TC.stopped_rule_name() == name
     monkeypatch.setenv(TC.STOPPED_ENV, "both")
     monkeypatch.setenv("WIDEFIELD_STOP_MIN_START_S", "600")
-    assert TC.stopped_rule_name() == "stopA2jt600rt3500c70"
+    assert TC.stopped_rule_name() == "stopA2jt600exrt3500c70"
 
 
 def test_profile_arms_name_the_robustness_rules():
     from wfield_local import render_profile as rp
     d = rp.load("cohort1_rebuild_20261103")
     assert d["env"]["WIDEFIELD_TRIAL_STOPPED"] == "both"
-    assert d["notes"]["expected_run_tag"].endswith("-stopA2jrt3500c70")
+    assert d["notes"]["expected_run_tag"].endswith("-stopA2jexrt3500c70")
     assert rp.load("cohort1_rebuild_20261103", arm="stopA0")["env"]["WIDEFIELD_TRIAL_STOPPED"] == "run"
     assert rp.load("cohort1_rebuild_20261103", arm="stopA3")["env"]["WIDEFIELD_TRIAL_STOPPED"] == "long"
 
@@ -110,8 +111,10 @@ def test_cue_classes_for_passes_positions_to_the_guard(monkeypatch):
     cls = [C] + [NR] * 6 + [C, I]
     pos = [REF] + [FAR] * 6 + [REF, FAR]
     cue = np.r_[0.0, 400.0 + np.arange(8) * 10.0]
-    T = pd.DataFrame({"trial_id": np.arange(9), "cue_daq": cue, "cls": cls, "position": pos})
+    T = pd.DataFrame({"trial_id": np.arange(9), "cue_daq": cue, "cls": cls, "position": pos, "strobe_ms": -2000.0,
+                      "stop_ms": 3000.0})
     monkeypatch.setattr(TC, "session_trials", lambda lab, window=None: T.copy())
+    monkeypatch.setattr(TC, "_daq_contact_onsets", lambda a, d: np.zeros(0))       # no licks in any span
     monkeypatch.delenv(TC.STOPPED_ENV, raising=False)
     monkeypatch.delenv("WIDEFIELD_TRIAL_END", raising=False)
     TC._CUE_CLS.clear()
@@ -130,12 +133,109 @@ def test_breaks_hook_ends_a_run_and_is_off_by_default():
     t[0] = 0.0
     for rule in ("both", "run", "long"):
         out = TC.classify_session(np.array(cls, object), np.ones(9, bool), np.array(pos, object), rule=rule, min_run=6,
-                                  end="lick", cue_s=t, breaks=b).tolist()
+                                  end="lick", cue_s=t, breaks=b, lick_rule="none").tolist()
         assert S not in out[1:8], rule
     with pytest.raises(ValueError):
-        TC.classify_session(np.array(cls, object), rule="both", end="lick", breaks=np.zeros(3, bool))
+        TC.classify_session(np.array(cls, object), rule="both", end="lick", breaks=np.zeros(3, bool), lick_rule="none")
 
 
 def test_licks_in_spans():
     got = TC.licks_in_spans([0.0, 10.0, 20.0, np.nan], [10.0, 20.0, 30.0, 5.0], [9.99, 20.0, 35.0, np.nan])
     assert got.tolist() == [True, False, True, False]
+
+
+# ------------------------------------------------------------------- stopped time holds no licks (Priya 11-04)
+SL = "stopped_licking"
+
+
+def _span(n, **cells):
+    """span lick matrix with counts at (trial, category) = n_licks; categories as TC.SPAN_CATS."""
+    M = np.zeros((n, len(TC.SPAN_CATS)), int)
+    for key, v in cells.items():
+        k, c = key[1:].split("_", 1)
+        M[int(k), TC.SPAN_CATS.index(c)] = v
+    return M
+
+
+def test_span_lick_matrix_categories():
+    cue = np.array([10.0, 20.0, 30.0])
+    strobe, stop = cue - 2.0, cue + np.array([4.0, 3.0, 4.0])
+    licks = [7.5, 8.5, 10.03, 10.5, 13.9, 14.5, 18.1, 30.5, 35.0]
+    M = TC.span_lick_matrix(cue, strobe, stop, licks)
+    assert M[0].tolist() == [1, 1, 1, 1, 1]             # precue 8.5, 0-70 10.03, resp 10.5, >max_rt 13.9, ITI 14.5
+    assert M[1].tolist() == [1, 0, 0, 0, 0]             # 18.1
+    assert M[2].tolist() == [0, 0, 1, 0, 0]             # 30.5; 35.0 after the LAST stop is unassigned; 7.5 too early
+    M = TC.span_lick_matrix(cue, [np.nan] * 3, stop, [7.5, 17.5])
+    assert M[0, 0] == 1 and M[1, 0] == 1                # a missing strobe = cue - 3 s
+
+
+def test_touched_is_own_span_or_either_iti():
+    M = _span(5, k1_precue=2, k3_iti_after=1)
+    assert TC.touched_by_licks(M).tolist() == [False, True, False, True, True]
+
+
+def test_excise_marks_touched_stopped_trials_and_keeps_the_rest():
+    cls = [C] + [NR] * 7 + [C, NR, NR]
+    pos = [FAR] * 11
+    M = _span(11, k3_precue=4, k9_iti_after=1)
+    out = a2(cls, pos, span=M, lick_rule="excise")
+    assert out[1:8] == [S, S, SL, S, S, S, S]           # the run is NOT re-formed; only the touched trial moves
+    assert out[9:] == [SL, SL]                          # quit tail: 9 (its own ITI), 10 (the ITI before it)
+    assert out[0] == C and out[8] == C                  # lick trials untouched by the rule
+    assert SL not in TC.STOPPED_CLASSES and not TC.in_gate([SL], "working").any()
+
+
+def test_strict_break_reforms_the_runs():
+    cls = [C] + [NR] * 7 + [C]
+    pos = [FAR] * 9
+    M = _span(9, k4_precue=1)                           # breaks before 4, and 4 leaves the run: 3 | 4 left -> < 6
+    assert a2(cls, pos, span=M, lick_rule="strict")[1:8] == [NR] * 7
+    cls = [C] + [NR] * 14 + [C]
+    M = _span(16, k8_precue=1)
+    out = a2(cls, [FAR] * 16, span=M, lick_rule="strict")
+    assert out[1:8] == [S] * 7 and out[8] == NR and out[9:15] == [S] * 6
+
+
+def test_tail_after_the_last_lick_event():
+    cls = [C, NR, NR, NR, NR]
+    pos = [FAR] * 5
+    M = _span(5, k2_iti_after=1)                         # a lick in the ITI after trial 2: the tail starts at 3
+    assert a2(cls, pos, span=M, lick_rule="none", tail="lick_event") == [C, NR, NR, S, S]
+    assert a2(cls, pos, span=M, lick_rule="none") == [C, S, S, S, S]
+
+
+def test_lick_rule_without_spans_raises_and_names_enter_the_tag(monkeypatch):
+    with pytest.raises(ValueError, match="span_licks"):
+        a2([C, NR], [FAR, FAR], lick_rule="excise")
+    for k in (TC.STOPPED_ENV, TC.STOP_LICKS_ENV, TC.STOP_TAIL_ENV, "WIDEFIELD_STOP_MIN_START_S", "WIDEFIELD_WORKING_TRIALS"):
+        monkeypatch.delenv(k, raising=False)
+    assert TC.stop_lick_rule() == "excise" and TC.stop_tail_start() == "lick_trial"
+    assert TC.stopped_rule_name() == "stopA2jexrt3500c70"
+    monkeypatch.setenv(TC.STOP_LICKS_ENV, "strict")
+    assert TC.stopped_rule_name() == "stopA2jsbrt3500c70"
+    monkeypatch.setenv(TC.STOP_LICKS_ENV, "none")
+    monkeypatch.setenv(TC.STOP_TAIL_ENV, "lick_event")
+    assert TC.stopped_rule_name() == "stopA2jtert3500c70"
+    monkeypatch.setenv(TC.STOPPED_ENV, "run")
+    assert TC.stopped_rule_name() == "stopRun6jrt3500c70"         # A0 does not use the lick rule
+    monkeypatch.setenv(TC.STOP_LICKS_ENV, "bogus")
+    with pytest.raises(ValueError):
+        TC.stop_lick_rule()
+
+
+def test_session_span_licks_reads_licks_all_peaks_and_daq(tmp_path, monkeypatch):
+    import pandas as pd
+    sd = tmp_path / "PS92" / "20260806"
+    sd.mkdir(parents=True)
+    pd.DataFrame({"daq_peak_s": [8.5, 14.5]}).to_csv(sd / "licks_all.csv", index=False)
+    monkeypatch.setattr(TC, "_daq_contact_onsets", lambda a, d: np.array([18.1]))
+    M = TC.session_span_licks("PS92_0806", [10.0, 20.0], [8.0, 18.0], [14.0, 23.0], v36=tmp_path)
+    assert M[0].tolist() == [1, 0, 0, 0, 1] and M[1].tolist() == [1, 0, 0, 0, 0]
+
+
+def test_trial_attempts_excludes_stopped_licking():
+    import sys
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+    import scripts.trial_attempts as ta
+    assert "stopped_licking" in ta.RUN_EXCLUDED
