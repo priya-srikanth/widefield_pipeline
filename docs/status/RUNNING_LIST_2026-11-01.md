@@ -538,6 +538,12 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   (no-video, e.g. PS93_0813) fall back to engaged rows, logged; centre set in the stored-model spec id. june_august_drift month
   model now stored. Suite 4,556 passed / 2 source-text failures fixed in 642d7b3b (full re-run is part of the review).
 - FIFTH REVIEW sent (reviewer aa0138ac1e9c354a7) on 642d7b3b. Next: review -> rebuild_root init -> render G0-G8.
+- MERGE REVIEW (scope C, a38758e5) on 642d7b3b: 1 BLOCKER -- four stored pre-stroke kinds (nolick_reference, coding_decoder,
+  engagement_states posdec-ff, g_lickonly -ff) key their leave-one-session-out models by pooled INTEGER id, not label; under the
+  DAQ-trained LP cross-check the ids shift (LP pool lacks PS93_0813) so PS93 pre sessions get scored by a model trained on them
+  (silent leak; proven by probe). Same hazard latent in the default arm for nolick (N1). Non-blockers: two except blocks swallow
+  the camera fail-closed raise (N2), dead in-memory fits (N3), june_august_drift size-matched draws still in memory (N4), memo
+  keys miss gate / centre (N8). Merge conflict resolutions otherwise all OK; A3 draws respect ordering rules. Sent to the helper.
 
 ### Findings
 - main moved while the rebuild branch was being fixed (34 commits not in rebuild/cohort1-20261103). Two matter for the rebuild:
