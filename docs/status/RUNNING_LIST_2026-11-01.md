@@ -722,6 +722,14 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   been refused); 4 DeepLabCut-tree writers being mapped into the root (my decision); iti_nmatch_check retired (NO).
 - CODE COMPLETE for the render (rebuild tip 4dd21a7c, code 621c81de; FULL suite 4,690 passed / 0 failed; log 8.38): every
   refusing REDO script routed; nothing known un-renderable. Render runner moving to it; required order recorded in log 8.38.
+- ENCODER COMMANDS compiled (docs/status/rebuild_20261103/ENCODER_RENDER_COMMANDS.md) from handoffs + scratchpad launchers.
+  FINDINGS: (1) no rebuild doc held the production command lines -- they lived only in two TEMP scratchpads; backed up to
+  M:/MICROSCOPE/Priya/Widefield/encoding_goal_page_src/scratchpad_scripts_backup_20261104/. (2) Several goal-page figure
+  scripts exist ONLY in scratch (fig_goal_summary / fig_goal_epochs, Layer-2 fig_layer2 / fig_rsplit / fig_pooled, softmax /
+  residual fig_*) -> rebuild gap; need bringing into the repo (RECONCILIATION section 7).
+  QUESTION FOR PRIYA: the per-session combined_encoding runs (Figs 1.13-1.15 binned contest, 21.x FR, 21.12 variance maps,
+  22.1) came from an O2 bundle of ADOPTED data; rebuilding them needs a new O2 bundle + ~14 job arrays. Deferred -- want me to
+  build and submit it (needs your O2 login), or run a reduced set locally?
 
 ### Findings
 - main moved while the rebuild branch was being fixed (34 commits not in rebuild/cohort1-20261103). Two matter for the rebuild:
