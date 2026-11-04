@@ -19,9 +19,12 @@ no-lick trials outside the terminal quit period; `decode_lick_working`, the rule
 comparison, on LICKING trials only (`F.decode`, the table's rule until 11-03, which needs all 6 positions among licking
 trials -- so the acute sessions with no far-contra lick (PS92_0818, PS94_0817, PS94_0820) had no value).
 CAMERA LICK GATE (Priya 11-03: ENL / cue windows on working trials AND with a camera lick gate): run with
-WIDEFIELD_LICK_SOURCE=lp WIDEFIELD_ENL_WINDOW_S=2.0 -- the LP video lick train replaces DAQ contact everywhere
-(the `lick` column = trials with a camera lick attempt within max_rt, hit or incomplete; the lick-free pre-cue window
-and the quit-period call read video licks too); ENL pinned at the table's 2 s (LP default 1.0 s). Output tagged.
+WIDEFIELD_LICK_SOURCE=lp -- the LP video lick train replaces DAQ contact everywhere (the `lick` column = trials with a
+camera lick attempt within max_rt, hit or incomplete; the lick-free pre-cue window and the quit-period call read video
+licks too). ENL WINDOW (Priya 11-04): the shared LP lick-free ENL, `lp_licks.enl_post_s()` = 1.0 s, lick-free on the LP
+train (`_trial_features`, the same train as `lp_licks.gate_licks_s`) -> output folder LP_licks. NO LONGER PINNED at 2 s:
+the 11-03 2.0 s table is the labelled SENSITIVITY arm, `WIDEFIELD_ENL_WINDOW_S=2.0` (folder LP_licks_ENL2s). The
+window is also in the CSV (`enl_s`).
 Sessions: curated, from 08-06 (as `slowband_decode_check --all`). Output -> <run>/imaging_encoding/qc/s1_refit_basis.csv
 """
 from __future__ import annotations
@@ -90,8 +93,10 @@ def decode_lick_working(s: dict, sig: np.ndarray, regs, align: str) -> dict:
     from wfield_local.locanmf_cue_lick_analysis import POSITION_NAMES
     from wfield_local.locanmf_position_decoder import _trial_features
     from wfield_local.precue_engagement_states import engagement_gate
-    args = SimpleNamespace(source="roi", align=align, baseline="none", pre_s=1.0, post_s=2.0, fs=F.FS,
-                           max_rt=F._max_rt())
+    from wfield_local import lp_licks
+    # THE window of this run's lick source (Priya 11-04; was a literal 2.0 that `_trial_features` then overrode)
+    args = SimpleNamespace(source="roi", align=align, baseline="none", pre_s=1.0, post_s=lp_licks.post_s_for(align),
+                           fs=F.FS, max_rt=F._max_rt())
     X, y, g, Xn, yn, _r, ie, inl = _trial_features(s, args, signal=sig, feat_region=regs, with_indices=True)
     out = {"lick": _cv_acc(X, y, g), "n_lick": len(y)}
     name = np.array([POSITION_NAMES.get(int(v), str(v)) for v in np.concatenate([y, yn])])
@@ -202,6 +207,7 @@ def main(argv=None) -> int:
     D = pd.DataFrame([r for _lab, r in got]).sort_values("label")
     D["animal"] = D.label.str.split("_").str[0]
     D["epoch"] = D.label.map(epochs.epoch_of)
+    D["enl_s"], D["lick_source"] = lp_licks.enl_post_s(), lp_licks.lick_source()   # the folder tag says it too
     f = Path(out) / ("s1_refit_basis" + ("_subset" if a.labels else "") + ".csv")   # the run tag is in the directory
     D.to_csv(f, index=False, float_format="%.4g")
     pd.set_option("display.width", 250)

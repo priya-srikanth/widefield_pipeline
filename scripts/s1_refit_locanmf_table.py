@@ -5,8 +5,9 @@ have locanmf based decoders"): the per-animal table of Figs 1.1 / 1.2 (family 5r
 
 TRIALS: WORKING trials pre AND post (Priya 11-03: licking trials + no-lick trials outside the terminal quit period,
 `grant_kit._class_select("working")`). Figs 1.1 / 1.2 score pre-stroke sessions on licking trials only (the 5c pre rule);
-Camera lick gate: WIDEFIELD_LICK_SOURCE=lp WIDEFIELD_ENL_WINDOW_S=2.0 (the bundle's trials, gate and quit then read
-video licks; licking trials = camera attempts). `--fig-rule` reproduces that (output s1_refit_locanmf_figrule.csv) so the table can be checked record for record.
+Camera lick gate: WIDEFIELD_LICK_SOURCE=lp (the bundle's trials, gate and quit then read video licks; licking trials =
+camera attempts). ENL (Priya 11-04): the shared LP lick-free 1.0 s window (`lp_licks.enl_post_s`), not pinned at 2 s;
+WIDEFIELD_ENL_WINDOW_S=2.0 = the labelled 2 s sensitivity arm (its own run tag / folder). `--fig-rule` reproduces that (output s1_refit_locanmf_figrule.csv) so the table can be checked record for record.
 
 Same records as `epoch_accuracy._frozen_vs_refit` (`grant_confusion._collect_5c(align, "working", "paired")`, column 1 =
 refit): per animal the shared pooled bundle (`_pooled_bundle`, cached), per session the SAME trial selection as the
