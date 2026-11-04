@@ -234,6 +234,10 @@ FYI, the 3-class camera variant (lick / jaw-only / none) is thin in PS92 and PS9
     close ipsi acute .975 -> .642).
 
   Cue window primary, precue secondary. (Priya then asked for within-class arms and equal cue / precue.)
+- 11-04: 34 will port the B / D / G commits from main (not implement them itself); C waits on the re-check. 34
+  reports a Priya decision on the rebuild: jaw-only trials COUNT toward the >= 6 consecutive non-responses of a stop
+  run. Main has no stop rule; section G's "after end" group = after the last camera lick. I passed this to the
+  helper.
 - 11-03 night: e0 added jaw-free arms to the s1 tables, pushed to main:
   - snapshot columns working_pl_*_licks;
   - LocaNMF refit arms camlickpl_*;
