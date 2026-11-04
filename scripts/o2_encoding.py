@@ -325,7 +325,7 @@ def cmd_bundle(a) -> Path:
 #SBATCH -J enc_{a.name}
 #SBATCH -p short
 #SBATCH -c 4
-#SBATCH --mem=32G
+#SBATCH --mem={getattr(a, 'mem', '48G')}
 #SBATCH -t 0-06:00:00
 #SBATCH -o {b}/logs/%x_%A_%a.out
 #SBATCH -e {b}/logs/%x_%A_%a.err
@@ -374,7 +374,8 @@ of `main`; its session is skipped as done):
 {sub}
 ```
 fr_A also carries the FR trial-to-trial / PETH outputs (Figs 21.4 / 21.11; the 10-25 fr_A_tr re-run is not needed with
-this code). A task that runs out of memory: resubmit that index with --mem=64G.
+this code). Memory: {getattr(a, 'mem', '48G')} per task (peak commit measured 11-04 on PS93_0814, SMOKE / drop: model sets: ~30 GiB
+unset, +1.5 GiB with LICKS_ALL=split); a task that runs out of memory: resubmit that index with --mem=64G.
 
 ## 3. Transfer node, when a run is done
 ```bash
@@ -707,6 +708,7 @@ def main(argv=None) -> int:
     b.add_argument("--fr-share", action="store_true", help="with --fr: bundle the per-frame SHARE (the paper) instead "
                    "of absolute expression (a bundle holds one; make a second bundle for the other)")
     b.add_argument("--jobs", type=int, default=4)
+    b.add_argument("--mem", default="48G", help="sbatch --mem per task (32G was below the 11-04 peaks)")
     b.add_argument("--licks-all", default="split", choices=("split", "shared", "score", "none"),
                    help="COMBINED_ENCODING_LICKS_ALL of the bundle (default split = production since 11-04)")
     b.add_argument("--no-inputs", action="store_true", help="refresh code / env / COMMANDS only (inputs kept)")
