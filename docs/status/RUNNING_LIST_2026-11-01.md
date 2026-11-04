@@ -1444,3 +1444,13 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   - Deck: 186 slides, 81 hidden.
   - TODO for the replacement pass: add fig:lick_slide95_both_sessz and fig:lick_lmm_sessz to the per-slide old -> new
     list, refreshed together with the raw pair.
+- **11-04 ~22:20: TARGET3D for the new bundle switched to the commanded table.** Changed in run_bundle.sh, run_check.sh
+  and o2_wrap.py; the last two-camera build used the 20261023 measured table.
+  - Other rebuild 3-D inputs are unaffected:
+    - EXEC3D (commanded-relative);
+    - BINS_CALIB (built from tongue peaks);
+    - the frame env blocks don't set EXEC / TARGET3D.
+  - lick_template_test should be given the commanded table if it renders.
+- **Priya (via a8): close watch on B12.** When O2 lands, send FIRST: drop:pos_enl split vs no-licksall per animal x
+  epoch (LP enl + enl_fixed2s), with n sessions and CIs, plus the list of encoder page / deck pre-cue position claims.
+  The claim list is being prepared now.
