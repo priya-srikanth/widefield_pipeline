@@ -198,9 +198,11 @@ def pool_sessions(labels, source="roi", align="cue", post_s=2.0, zscore=True, fe
         mats, nl, common = [p[0] for p in per], [p[3] for p in per], regs[0]
 
     XE, YE, GE, BE, XU, YU, GU = [], [], [], [], [], [], []
+    zstats = {}
     for i, ((_X, y, g, _Xnl, ynl), Xa, Na) in enumerate(zip(per, mats, nl)):
         mu, sd = (Xa.mean(0), Xa.std(0)) if zscore else (0.0, 1.0)
         sd = np.where(np.asarray(sd) > 0, sd, 1.0) if zscore else 1.0
+        zstats[i] = (np.asarray(mu, float), np.asarray(sd, float))
         XE.append((Xa - mu) / sd); YE.append(y); GE.append(np.full(len(y), i)); BE.append(g)
         if len(Na):
             XU.append((Na - mu) / sd); YU.append(ynl); GU.append(np.full(len(ynl), i))
@@ -208,6 +210,9 @@ def pool_sessions(labels, source="roi", align="cue", post_s=2.0, zscore=True, fe
     XU = np.vstack(XU) if XU else np.zeros((0, XE.shape[1]))
     YU = np.concatenate(YU) if YU else np.array([])
     GU = np.concatenate(GU) if GU else np.array([], int)
+    # the per-session z stats, for the "n" scored-frame centre (`spout_scaling.pool_stats_of`; nothing else changes)
+    from wfield_local import spout_scaling as _ssz
+    _ssz.register_pool_stats(XE, zstats)
     return XE, YE, GE, BE, XU, YU, kept, common, GU
 
 
@@ -507,25 +512,29 @@ def frozen_scored_frame(models, XE, GE, XU, GU, kept, pre_i, cls_e=None, work=No
         # the production frame (it is not scored by this model)
         if work is None:
             raise ValueError("a working-trained frozen model needs the pool's `work` rows to centre a session")
-        RX, _RY, RG = working_rows(work)
-        # THE SCORED FRAME'S CENTRE ROWS (coordinator 11-04, `spout_scaling.score_centre_rows`): every working row
-        # (default) or the CONTACT rows only; the model is the same either way
-        if spout_scaling.score_centre_rows() != "working":
-            RC = working_row_classes(work)
-            if RC is None:
-                raise ValueError(f"{spout_scaling.SCORE_CENTRE_ENV}={spout_scaling.score_centre_rows()} needs the "
-                                 "pool's row classes (pool_work cls_e / cls_u)")
-            keep_c = spout_scaling.score_centre_select(RC)
-            RX, RG = RX[keep_c], RG[keep_c]
+        RX, RY, RG = working_rows(work)
         pre_set = set(kept.index(lab) for lab in models.get("pre_labels", []) if lab in kept)
+        # THE SCORED FRAME'S CENTRE (Priya via a8 11-04, provisional; `spout_scaling.score_centre_rows`): wt (default,
+        # true-label balanced centre of the working rows) | working (label-free bal_em) | contact | cto | n. The model
+        # is the same under every kind.
+        kind = spout_scaling.score_centre_rows()
+
+        def _model_of(i):
+            lab_ = kept[i]
+            pt_ = models["pi_train"]
+            if i in pre_set:
+                return models["loso"].get(lab_, models["full"]), pt_["loso"].get(lab_, pt_["full"])
+            return models["full"], pt_["full"]
+
+        centre_of = spout_scaling.kind_centre_fn(
+            kind, RX, RY, RG, working_row_classes(work), label_of=lambda i: kept[i], model_of=_model_of,
+            train_of=lambda i: sorted(pre_set - {i}) if i in pre_set else sorted(pre_set),
+            stats=spout_scaling.pool_stats_of(XE))
         XEs, XUs = np.array(XE, float), np.array(XU, float)
         GE_, GU_ = np.asarray(GE), np.asarray(GU)
         for i in range(len(kept)):
             lab = kept[i]
-            mdl = models["loso"].get(lab, models["full"]) if i in pre_set else models["full"]
-            pt = models["pi_train"]
-            pi = pt["loso"].get(lab, pt["full"]) if i in pre_set else pt["full"]
-            got = spout_scaling.working_centre(mdl, RX[RG == i], pi, lab)
+            got = centre_of(i)
             if got is None:
                 # PRE vs POST by the session's PHASE (review 8A B1), not by the caller's pre list (pooled_frozen_loso
                 # narrows it to the sessions with a LOSO model, which drops a no-video pre session such as PS93_0813)

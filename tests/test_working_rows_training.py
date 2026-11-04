@@ -41,6 +41,9 @@ def _bundle(align="cue", seed=0):
 
 
 def test_working_frame_trains_and_centres_on_engaged_and_nolick_working_rows(camera):
+    # the label-free working centre (W) is what this pins; the 11-04 default (Wt) needs >= 20 working rows per spout,
+    # which this 12-incomplete-row pool does not have (Wt is pinned in test_bcdg_1104)
+    camera.setenv(ss.SCORE_CENTRE_ENV, "working")
     bd = _bundle()
     fr = gk._frozen_frame(bd, sel="working", store=False)
     assert fr["sel"] == "working"
@@ -71,6 +74,7 @@ def test_engaged_frame_and_lick_window_keep_the_engaged_rows(camera):
 
 def test_jaw_arm_adds_jaw_only_rows(camera):
     camera.setenv("WIDEFIELD_WORKING_TRIALS", "in_working_jaw")
+    camera.setenv(ss.SCORE_CENTRE_ENV, "working")          # W: this pool is too thin per spout for Wt
     fr = gk._frozen_frame(_bundle(), sel="working", store=False)
     assert len(fr["R"][0]) == 3 * (60 + 24)
 

@@ -112,7 +112,7 @@ def test_g4_camclass_scores_each_group_and_flags_thin_cells(g4env):
     keep = [0, 1, 2, 3, 4, 5]
     r = pc.g4_camclass(d, keep)
     assert r["frame"].startswith("camclass/z-contact") and r["min_n"] == 10
-    assert set(r["post"]) == set(GROUPS)
+    assert set(r["post"]) == set(GROUPS) | {"stopped", "stopped_licking"}     # rebuild extras (empty here)
     # working vs none separates: post none rows less working-like than post contact rows
     assert r["post"]["none"]["frac_spout_balanced"] < r["post"]["contact"]["frac_spout_balanced"]
     # every group read against the SAME group pre-stroke (all exist pre in this pool)

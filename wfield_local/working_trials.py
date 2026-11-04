@@ -163,9 +163,15 @@ def row_classes(kept, indices, GE, GU):
 G_GROUPS = ("contact", "incomplete", "jaw_only", "none", "after_end")
 #: the groups that are WORKING trials (the decoders' training / centre rows; section G's pre panel)
 G_WORKING = ("contact", "incomplete")
+#: REBUILD-ONLY groups, after merging rebuild/cue70 (coordinator 11-04): "stopped_licking" (a lick-touched trial inside a
+#: stop run / the quit tail, cue70 3613cf0b: in neither stopped nor working) is its OWN group; "stopped" = a mid-session
+#: stop RUN, once the class source marks run vs tail (`g_group_final` ``stop_kind``; cue70 has no marker yet, proposed:
+#: ``stop_kind`` = "run" | "tail" from `classify_session`). Empty until those classes exist.
+G_EXTRA = ("stopped", "stopped_licking")
+G_ALL = G_GROUPS + G_EXTRA
 #: caption labels (Priya 11-04: after_end reads "quit")
 G_LABELS = {"contact": "contact", "incomplete": "incomplete", "jaw_only": "jaw only", "none": "no response",
-            "after_end": "quit"}
+            "after_end": "quit", "stopped": "stopped (mid-session run)", "stopped_licking": "stopped, licking"}
 
 
 def g_group(cls, before_end) -> np.ndarray:
@@ -182,6 +188,23 @@ def g_group(cls, before_end) -> np.ndarray:
         out[cls == c] = c
     out[np.isin(cls, ["no_response", "unknown"])] = "none"
     out[(out != "") & ~before_end] = "after_end"
+    return out
+
+
+def g_group_final(final, raw, before_end, stop_kind=None) -> np.ndarray:
+    """`g_group` on the RAW class, then the rebuild's session-level classes that must keep their own group
+    (coordinator 11-04, for the cue70 merge): ``final`` == "stopped_licking" -> "stopped_licking"; with ``stop_kind``
+    (per trial "run" / "tail" / "", the proposed marker from `classify_session`) a stopped trial of the quit TAIL ->
+    "after_end" ("quit", also when A2 moves every post-last-lick trial into stopped) and of a mid-session RUN ->
+    "stopped". Without ``stop_kind`` stopped / early_run trials keep the raw-class route."""
+    out = g_group(raw, before_end)
+    final = np.asarray(final, dtype=object)
+    if stop_kind is not None:
+        k = np.asarray(stop_kind, dtype=object)
+        st = final == "stopped"
+        out[st & (k == "tail")] = "after_end"
+        out[st & (k == "run")] = "stopped"
+    out[final == "stopped_licking"] = "stopped_licking"
     return out
 
 
@@ -232,11 +255,16 @@ def row_groups(kept, indices, GE, GU, YE=None, YU=None):
         me, mu = np.flatnonzero(GE == i), np.flatnonzero(GU == i)
         if len(ie) != len(me) or len(inl) != len(mu):
             raise RuntimeError(f"{lab}: {len(ie)} / {len(inl)} cue indices for {len(me)} / {len(mu)} pooled rows")
-        raw, after, matched = tc.cue_groups_for(lab, tc.daq_cue_seconds(lab))
+        cs = tc.daq_cue_seconds(lab)
+        raw, after, matched = tc.cue_groups_for(lab, cs)
         if not np.any(matched):
             continue
         have.add(i)
-        grp_all = g_group(raw, ~after)
+        # the final classes keep stopped_licking apart; a class source that marks run vs tail (`stop_kind_for`, the
+        # proposed cue70 hook) routes stopped trials to "stopped" / "after_end"
+        kind_fn = getattr(tc, "stop_kind_for", None)
+        grp_all = g_group_final(tc.cue_classes_for(lab, cs), raw, ~after,
+                                stop_kind=kind_fn(lab, cs) if kind_fn is not None else None)
         for rows, idx, Y, g_, j_ in ((me, ie, YE, ge, je), (mu, inl, YU, gu, ju)):
             idx = np.asarray(idx, np.int64)
             ok = (idx >= 0) & (idx < len(raw))

@@ -62,6 +62,7 @@ def test_group_table_cut_after_the_last_camera_lick(tmp_path, monkeypatch):
 def _fake_session(monkeypatch, raw_by_label, after_by_label):
     from wfield_local import trial_classes as tc
     monkeypatch.setattr(tc, "daq_cue_seconds", lambda lab: np.arange(len(raw_by_label[lab]), dtype=float))
+    monkeypatch.setattr(tc, "cue_classes_for", lambda lab, cs: np.asarray(raw_by_label[lab], dtype=object))
     monkeypatch.setattr(tc, "cue_groups_for", lambda lab, cs: (
         np.asarray(raw_by_label[lab], dtype=object), np.asarray(after_by_label[lab], bool),
         np.asarray([c != "unknown" for c in raw_by_label[lab]], bool) if lab != "PSX_0807"
@@ -137,15 +138,20 @@ def test_switch_defaults(monkeypatch):
         monkeypatch.delenv(env, raising=False)
     assert ss.state_disc_scaling() is None and ss.STATE_DISC_DEFAULT == "session_z"     # B stays OFF
     assert not ss.projection_frame_on()                                                  # C stays OFF
-    assert ss.score_centre_rows() == "working" and ss.score_centre_tag() == "working_rows"
-    monkeypatch.setenv(ss.SCORE_CENTRE_ENV, "contact")
-    assert ss.score_centre_tag() == "contact_rows"
-    assert list(ss.score_centre_select(["contact", "incomplete"])) == [True, False]
+    # Priya via a8 11-04 (provisional): the scored-frame centre defaults to Wt; W / C / Cto / N selectable
+    assert ss.score_centre_rows() == "wt" and ss.score_centre_tag() == "wt_centre"
+    for v, k in (("working", "working"), ("contact", "contact"), ("cto", "cto"), ("n", "n")):
+        monkeypatch.setenv(ss.SCORE_CENTRE_ENV, v)
+        assert ss.score_centre_rows() == k
+    assert ss.score_centre_tag() == "n_centre"
+    monkeypatch.setenv(ss.SCORE_CENTRE_ENV, "bogus")
+    with pytest.raises(ValueError):
+        ss.score_centre_rows()
     monkeypatch.delenv(ss.SCORE_CENTRE_ENV)
     assert pc.section_g_groups() == "camera"
     assert fd.section_d_scored() == "working"
     assert ss.state_disc_centre() == "working"
-    assert ss.projection_centre() == "engaged"          # C is a re-check only: the 11-03 build stays the option
+    assert ss.projection_centre() == "wt"               # follows the centre decision; the frame itself stays OFF
     monkeypatch.setenv(pc.SECTION_G_GROUPS_ENV, "daq")
     monkeypatch.setenv(fd.SECTION_D_SCORED_ENV, "engaged")
     monkeypatch.setenv(ss.STATE_DISC_CENTRE_ENV, "engaged")
@@ -234,7 +240,16 @@ def test_scored_rows_stack_working_rows_with_their_own_blocks():
 
 @pytest.fixture
 def fake_loso(monkeypatch):
-    XE, YE, GE, XU, YU, GU, we, wu = _pool(seed=3)
+    return _fake_loso(monkeypatch)
+
+
+@pytest.fixture
+def fake_loso_big(monkeypatch):
+    return _fake_loso(monkeypatch, n=600)
+
+
+def _fake_loso(monkeypatch, n=120):
+    XE, YE, GE, XU, YU, GU, we, wu = _pool(seed=3, n=n)
     # REBUILD: the session without working rows (index 4) is a PRE session (as PS93_0813, no video): a POST session
     # with none is refused by the rebuild's working centre (review 7A NB4) instead of being left unscored
     kept = ["PSX_0810", "PSX_0811", "PSX_0812", "PSX_0815", "PSX_0809"]
@@ -250,6 +265,9 @@ def fake_loso(monkeypatch):
     monkeypatch.setattr(fd, "ood_control", lambda *a, **k: {})
     monkeypatch.setattr(fd.decode_ci, "frozen_ci", lambda *a, **k: None)
     monkeypatch.setenv(wt.WORKING_TRIALS_ENV, "in_working")
+    # this synthetic pool has < 20 working rows at some spouts, which the Wt centre refuses by design: the D tests
+    # run on the label-free working centre (W); the Wt centre has its own tests below
+    monkeypatch.setenv(ss.SCORE_CENTRE_ENV, "working")
     return XE, YE, GE, XU, YU, GU, we, wu, kept
 
 
@@ -273,3 +291,77 @@ def test_section_d_scores_working_rows_and_engaged_on_request(fake_loso, monkeyp
     for lab in kept[:4]:
         C = np.array(r_w["confusion"][lab])
         assert C.sum() == r_w["n_scored"][lab]
+
+
+# ------------------------------------------------------------------------ the centre kinds (Priya via a8, 11-04)
+def test_wt_is_the_equal_weight_mean_of_spout_means_and_refuses_thin_spouts():
+    rng = np.random.default_rng(0)
+    Y = np.repeat(np.arange(6), [20, 25, 30, 40, 60, 90])
+    X = rng.normal(size=(len(Y), 4)) + Y[:, None]
+    mu, sd = ss.true_label_centre(X, Y, "PSX_0901")
+    np.testing.assert_allclose(mu, np.mean([X[Y == k].mean(0) for k in range(6)], 0))
+    np.testing.assert_allclose(sd, X.std(0))
+    with pytest.raises(ss.BalEmCentreRefused):                 # 19 rows at one spout: refused, no fill / fallback
+        ss.true_label_centre(X[1:], Y[1:], "PSX_0901")
+
+
+def test_cto_and_n_follow_the_check_definitions():
+    rng = np.random.default_rng(1)
+    RX, RY, RG, RC = [], [], [], []
+    for s in range(3):
+        y = np.tile(np.arange(6), 30)
+        RX.append(rng.normal(size=(len(y), 3)) + y[:, None] * .3 + s)
+        RY.append(y)
+        RG.append(np.full(len(y), s))
+        RC.append(np.where(rng.random(len(y)) < .7, "contact", "incomplete"))
+    RX, RY, RG, RC = np.vstack(RX), np.concatenate(RY), np.concatenate(RG), np.concatenate(RC).astype(object)
+    refs = ss.centre_refs(RX, RY, RG, RC, [0, 1, 2])
+    m = RG == 2
+    mu, sd = ss.scored_centre("cto", Xw=RX[m], Yw=RY[m], Cw=RC[m], refs=refs, train=[0, 1])
+    c = m & (RC == "contact")
+    d = np.nanmean([refs[s]["dC"] for s in (0, 1)], 0)
+    p = np.array([(RY[c] == k).sum() for k in range(6)], float)
+    np.testing.assert_allclose(sd, RX[c].std(0))
+    np.testing.assert_allclose(mu, RX[c].mean(0) - sd * ((p / p.sum()) @ d))
+    stats = {s: (rng.normal(size=3), rng.random(3) + .5) for s in range(3)}
+    mu, sd = ss.scored_centre("n", Xw=RX[m], Yw=RY[m], Cw=RC[m], refs=refs, train=[0, 1], stats=stats, i=2)
+    raw_c = np.mean([stats[s][0] + stats[s][1] * refs[s]["c"] for s in (0, 1)], 0)
+    raw_sd = np.mean([stats[s][1] * refs[s]["sdw"] for s in (0, 1)], 0)
+    np.testing.assert_allclose(mu, (raw_c - stats[2][0]) / stats[2][1])
+    np.testing.assert_allclose(sd, raw_sd / stats[2][1])
+    assert ss.scored_centre("wt", Xw=RX[:0], Yw=RY[:0], Cw=RC[:0]) is None   # no working rows: unscored
+
+
+def test_wt_scores_section_d_and_carries_its_tag(fake_loso_big, monkeypatch):
+    """Wt through pooled_frozen_loso on a pool with >= 20 working rows per spout: the scored frame equals
+    (X - Wt centre) / working SD for a post session, and the result is tagged."""
+    XE, YE, GE, XU, YU, GU, we, wu, kept = fake_loso_big     # >= 20 working rows per spout in every session
+    monkeypatch.setenv(ss.SCORE_CENTRE_ENV, "wt")
+    seen = {}
+    real = fd.frozen_scored_frame
+
+    def _spy(*a, **k):
+        seen["X"] = real(*a, **k)
+        return seen["X"]
+
+    monkeypatch.setattr(fd, "frozen_scored_frame", _spy)
+    r = fd.pooled_frozen_loso(kept, verbose=False, features=object())
+    assert r["scored_centre"] == "wt_centre"
+    i = 3                                                     # the post session
+    Xw = np.vstack([XE[(GE == i) & we], XU[(GU == i) & wu]])
+    Yw = np.concatenate([YE[(GE == i) & we], YU[(GU == i) & wu]])
+    mu = np.mean([Xw[Yw == k].mean(0) for k in range(6)], 0)
+    np.testing.assert_allclose(seen["X"][0][GE == i], (XE[GE == i] - mu) / Xw.std(0))
+
+
+def test_g_group_final_keeps_stopped_licking_and_reads_a_stop_kind():
+    """cue70 merge (coordinator 11-04): stopped_licking is its own group; with a run / tail marker a stopped trial of the
+    quit tail is "after_end" ("quit") and one of a mid-session run "stopped"; without it the raw-class route holds."""
+    final = ["contact", "stopped", "stopped", "stopped_licking", "stopped"]
+    raw = ["contact", "no_response", "jaw_only", "contact", "no_response"]
+    be = [True, True, True, True, False]
+    assert list(wt.g_group_final(final, raw, be)) == ["contact", "none", "jaw_only", "stopped_licking", "after_end"]
+    kind = ["", "run", "run", "tail", "tail"]
+    assert list(wt.g_group_final(final, raw, be, stop_kind=kind)) == ["contact", "stopped", "stopped",
+                                                                      "stopped_licking", "after_end"]
+    assert wt.G_ALL == wt.G_GROUPS + ("stopped", "stopped_licking") and wt.G_LABELS["after_end"] == "quit"

@@ -830,7 +830,7 @@ def _camera_class_block(proj, W, XE, XU, GE, GU, en, un, pre_i, kept, groups, mi
     names = np.concatenate([en, un])
     X = _g9_contact_frame(X, G, g, range(len(kept)))
     is_pre = np.isin(G, list(pre_i))
-    rec = {"classes": list(_wt.G_GROUPS), "labels": dict(_wt.G_LABELS), "min_n": int(min_n), "frame": "z-contact",
+    rec = {"classes": list(_wt.G_ALL), "labels": dict(_wt.G_LABELS), "min_n": int(min_n), "frame": "z-contact",
            "thin_cells": "kept, flagged thin, never averaged", "pooled": {"pre": {}, "post": {}},
            "pre_reference_is": {}, "contrast": {}}
 
@@ -841,7 +841,7 @@ def _camera_class_block(proj, W, XE, XU, GE, GU, en, un, pre_i, kept, groups, mi
                 "thin": n < min_n, "n_jaw_unjudged": int(n_unj)}
 
     for phase, pm in (("pre", is_pre), ("post", ~is_pre)):
-        for grp in list(_wt.G_GROUPS) + ["working"]:
+        for grp in list(_wt.G_ALL) + ["working"]:
             gm = np.isin(g, list(_wt.G_WORKING)) if grp == "working" else (g == grp)
             per = {}
             for P in BY_SEVERITY:
@@ -855,7 +855,7 @@ def _camera_class_block(proj, W, XE, XU, GE, GU, en, un, pre_i, kept, groups, mi
                     vals = proj("post", X[m], P)
                 per[P] = _cell(vals, (~jj[m]).sum())
             rec["pooled"][phase][grp] = per
-    for grp in _wt.G_GROUPS:
+    for grp in _wt.G_ALL:
         rec["pre_reference_is"][grp], rec["contrast"][grp] = {}, {}
         for P, c in rec["pooled"]["post"][grp].items():
             same = rec["pooled"]["pre"][grp].get(P) or {}

@@ -903,7 +903,7 @@ def _frozen_frame(bd, an=None, align=None, store=True, sel="engaged", centre=Non
     selkey = _tcs.run_selection() if use_w else "engaged"
     centre = (centre or spout_scaling.score_centre_rows()) if use_w else "engaged"
     key = (f"_frozen_{sc}_{spout_scaling.centre_rows() if sc else 'z'}_{'store' if use else 'mem'}_{an}_{align}"
-           f"_{selkey}" + ("" if centre in ("working", "engaged") else f"_c{centre}"))
+           f"_{selkey}" + ("" if centre == "engaged" else f"_c{centre}"))
     if key in bd:
         return bd[key]
     XE, YE, GE, XU, GU = bd["XE"], bd["YE"], bd["GE"], bd["XU"], bd["GU"]
@@ -947,20 +947,21 @@ def _frozen_frame(bd, an=None, align=None, store=True, sel="engaged", centre=Non
         # scored either
         XEs, XUs = np.array(XE, float), np.array(XU, float)
         GEa, GUa = np.asarray(GE), np.asarray(GU)
-        # the centre rows within R (coordinator 11-04): every working row, or the CONTACT rows only
+        # THE SCORED-FRAME CENTRE KIND (Priya via a8 11-04, provisional; `spout_scaling.kind_centre_fn`): wt (default) |
+        # working | contact | cto | n, from the session's working rows; the models do not depend on it
         _cls = bd.get("cls")
-        RCm = np.ones(len(RG), bool)
-        if centre == "contact":
-            RCm = np.concatenate([np.asarray(_cls[0], dtype=object)[work[0]],
-                                  np.asarray(_cls[1], dtype=object)[work[1]]]) == "contact"
+        RC = (np.concatenate([np.asarray(_cls[0], dtype=object)[work[0]], np.asarray(_cls[1], dtype=object)[work[1]]])
+              if _cls is not None else None)
+        centre_of = spout_scaling.kind_centre_fn(
+            centre, RX, RY, RG, RC, label_of=lambda i: bd["kept"][i],
+            model_of=lambda i: ((loso.get(i), pi_loso.get(i)) if i in bd["pre_i"] else (full, pi_full)),
+            train_of=lambda i: [s for s in pre_i if s != i], stats=spout_scaling.pool_stats_of(XE))
         for i in range(len(bd["kept"])):
             if i in bd["pre_i"] and i not in loso:
                 if not np.any(RG == i):
                     spout_scaling.note_working_excluded(bd["kept"][i], "_frozen_frame")
                 continue
-            mdl = loso.get(i) if i in bd["pre_i"] else full
-            pi = pi_loso.get(i) if i in bd["pre_i"] else pi_full
-            got = spout_scaling.working_centre(mdl, RX[(RG == i) & RCm], pi, bd["kept"][i])
+            got = centre_of(i)
             if got is None:
                 if i in bd["pre_i"] or not spout_scaling.is_post_session(bd["kept"][i]):   # by phase (review 8A B1)
                     spout_scaling.note_working_excluded(bd["kept"][i], "_frozen_frame")

@@ -520,10 +520,10 @@ def _by_class_panels(d, models, clf, XEf, XUf, cg, labels):
     from wfield_local import working_trials as wt
     lo = [i for i in d["pre_i"] if d["kept"][i] in models["loso"] and i in cg["have"]]
     post = [i for i in d["post_i"] if i in cg["have"]]
-    out = {"pre": {}, "post": {}, "groups": list(wt.G_GROUPS), "group_labels": dict(wt.G_LABELS),
+    out = {"pre": {}, "post": {}, "groups": list(wt.G_ALL), "group_labels": dict(wt.G_LABELS),
            "post_sessions_without_camera_classes": [d["kept"][i] for i in sorted(set(d["post_i"]) - set(post))],
            "pre_sessions_scored": [d["kept"][i] for i in sorted(lo)]}
-    for g in wt.G_GROUPS:
+    for g in wt.G_ALL:
         me = np.isin(d["GE"], lo) & (cg["grp_e"] == g)
         mu = np.isin(d["GU"], lo) & (cg["grp_u"] == g)
         y, p, nl = _loso_rows(d, models, XEf, XUf, me, mu)
@@ -718,8 +718,27 @@ def _lickonly_working(d, pos, sc):
 
     ff = _ss.FrozenFrame(RX, RY, RG, pre_w, _pipe, classes=list(pos), train_mask=kR, loso=True, store=_store,
                          cls_e=RC, labels=dict(enumerate(d["kept"])))
-    if ff.scaling and _ss.score_centre_rows() == "contact":
-        ff.cm = RC == "contact"
+    # THE SCORED-FRAME CENTRE KIND (`spout_scaling.score_centre_rows`), on this arm's ``pos``-spout model: wt = the
+    # true-label balanced centre over the ``pos`` spouts' working rows (its training frame is balanced over ``pos``
+    # too; >= 20 rows per spout or it refuses), working = the label-free EM (FrozenFrame's own), contact = the EM on
+    # the contact rows; cto / n are not defined for a spout-subset model and refuse
+    kind = _ss.score_centre_rows()
+    if ff.scaling:
+        if kind == "contact":
+            ff.cm = RC == "contact"
+        elif kind == "wt":
+            pos_sorted = tuple(sorted(int(c) for c in pos))
+
+            def _wt(i, which, _p=pos_sorted):
+                m = (RG == i) & np.isin(RY, _p)
+                if not m.any():
+                    return None
+                mu_, _sd = _ss.true_label_centre(RX[m], np.searchsorted(_p, RY[m]), d["kept"][int(i)],
+                                                 n_classes=len(_p))
+                return mu_, __import__("wfield_local.label_shift", fromlist=["x"]).session_sd(RX[RG == i])
+            ff.centre_fn = _wt
+        elif kind != "working":
+            raise ValueError(f"{_ss.SCORE_CENTRE_ENV}={kind}: not defined for the lick-only arm's spout-subset model")
     pre_y, pre_g, pre_p = [], [], []
     for i in pre_w:
         if i not in ff.loso:
@@ -1724,7 +1743,7 @@ def _g4_cells(clf, X, Y, g, jj, keep, min_n=G4_MIN_N):
     from wfield_local import working_trials as wt
     out = {}
     pr = clf.predict(X).astype(float) if len(X) else np.zeros(0)
-    for grp in wt.G_GROUPS:
+    for grp in wt.G_ALL:
         m = g == grp
         per = {}
         for c in keep:
@@ -1782,7 +1801,7 @@ def g4_camclass(d, keep, seed=0, min_n=G4_MIN_N):
         pre_cells.append(_g4_cells(clf_i, X, Y, g, jj, keep, min_n=1))
     from wfield_local import working_trials as wt
     pre_ref = {}
-    for grp in wt.G_GROUPS:
+    for grp in wt.G_ALL:
         # pooled over pre sessions, per spout (n summed; fraction weighted by n), then spout-balanced at the floor
         per = {}
         for c in keep:
@@ -1802,7 +1821,7 @@ def g4_camclass(d, keep, seed=0, min_n=G4_MIN_N):
     okw = [v["frac"] for v in work_ref.values() if not v["thin"]]
     X, Y, g, jj, _s = _g4_rows(dT, cg, dT["post_i"], keep)
     post = _g4_cells(folds["full"], X, Y, g, jj, keep, min_n=min_n)
-    for grp in wt.G_GROUPS:
+    for grp in wt.G_ALL:
         same = pre_ref[grp]["frac_spout_balanced"]
         post[grp]["pre_reference_is"] = grp if same is not None else "working"
         post[grp]["pre_reference"] = same if same is not None else (float(np.mean(okw)) if okw else None)

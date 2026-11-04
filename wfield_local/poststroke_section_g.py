@@ -83,7 +83,7 @@ def _counts(d, session):
         bc = {"pre": {}, "post": {}, "post_has_camera_classes": session in cg["have"],
               "n_jaw_unjudged_post": int(np.sum(~cg["jj_e"][d["GE"] == session])
                                          + np.sum(~cg["jj_u"][d["GU"] == session]))}
-        for g in wt.G_GROUPS:
+        for g in wt.G_ALL:
             bc["pre"][g], bc["post"][g] = {}, {}
             for c, p in zip(DISPLAY_ORDER, pos):
                 npre = (np.sum(np.isin(d["GE"], pre_c) & (d["YE"] == c) & (cg["grp_e"] == g))
