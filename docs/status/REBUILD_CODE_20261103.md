@@ -1990,7 +1990,7 @@ pinned to the existing stopRun6j table, since the new tag's table does not exist
 
 **Test record (3613cf0b, full suite, 4 shards run one at a time):** 4,790 passed, 171 skipped, 1 failed
 (731 / 1,819 + 1 failed / 1,088 / 1,152). The failure is pre-existing and unrelated:
- compares wfield_local/working_trials.py with
+`test_review_7ab.py::test_working_trials_stays_byte_identical_to_main` compares wfield_local/working_trials.py with
 origin/main, which has moved (origin/main 2eeead86 vs 571b3955 1a56bb25; this branch does not touch the file).
 New tests in 3613cf0b: test_stop_rule_a2.py now 24 (span categories, touched definition, excise, strict, tail-event,
 tags / raise, session_span_licks), test_trial_attempts.py +1 (stopped_licking leaves both sets).
