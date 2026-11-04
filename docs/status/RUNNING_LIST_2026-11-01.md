@@ -711,6 +711,15 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   misdirected_lick_counts made REDO + routed (09290e7f). FINDING: the misdirected-lick behaviour counts used by
   misdirected_lick_decode went through the old DAQ engagement gate -> the existing ones are stale; the rebuild recomputes them on
   the camera working period with attempts (Aug-only pre).
+- INCIDENT (render runner, 11-04 05:46): camera_coverage_tables ran ONCE without the profile (a shell-script argument bug; the
+  profile was never applied, so no fence) and wrote 4 derived tables into the ORIGINAL tree:
+  M:/MICROSCOPE/Priya/Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/qc/{camera_coverage,
+  camera_contact_nolick, camera_contact_nolick_trials, camera_stop_lengths}.csv. No older camera_* files there and the table
+  was previously only in scratch -> very likely NEW files, not overwrites. Nothing deleted. Every other run had the profile (log
+  headers checked). Runner's wrapper now fails closed and runs render_profile --check before every command.
+  QUESTION FOR PRIYA: delete those 4 files (derived, default-mode = adopted hemo / DAQ gate), or keep? I kept them.
+- 22-writer triage done (5cc29488): quiet-events family, cohort1_subset_headline, rest_baseline_epoch_drift fixed (would have
+  been refused); 4 DeepLabCut-tree writers being mapped into the root (my decision); iti_nmatch_check retired (NO).
 
 ### Findings
 - main moved while the rebuild branch was being fixed (34 commits not in rebuild/cohort1-20261103). Two matter for the rebuild:
