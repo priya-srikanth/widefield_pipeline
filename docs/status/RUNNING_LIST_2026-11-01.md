@@ -533,6 +533,11 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   DAQ-engaged centre kept as the alternative). Still label-free, still never no-lick rows.
 - GAP being closed before the review: june_august_drift's stored month model was the session_z fit; under bal_em it fitted in
   memory (breaks "every pre-stroke decoder is frozen"). Helper storing it in the bal_em frame.
+- BOTH DONE (rebuild tip 642d7b3b, log 8.16-8.18; run tag unchanged): bal_em.centre_rows auto (= working under camera gate,
+  engaged under DAQ gate) | working | engaged; fails closed if a site has no camera classes; sessions with < 2 working rows
+  (no-video, e.g. PS93_0813) fall back to engaged rows, logged; centre set in the stored-model spec id. june_august_drift month
+  model now stored. Suite 4,556 passed / 2 source-text failures fixed in 642d7b3b (full re-run is part of the review).
+- FIFTH REVIEW sent (reviewer aa0138ac1e9c354a7) on 642d7b3b. Next: review -> rebuild_root init -> render G0-G8.
 
 ### Findings
 - main moved while the rebuild branch was being fixed (34 commits not in rebuild/cohort1-20261103). Two matter for the rebuild:
