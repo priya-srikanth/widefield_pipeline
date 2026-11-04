@@ -806,7 +806,7 @@ def _pooled_bundle(an, align):
               # adopt the bundle: they fit and score on the integer codes, not the names.
               "YE": YE, "YU": YU,
               "BE": BE_all, "BU": BU_all,
-              "not_eng": not_eng, "kept": kept, "pre_i": pre_i,
+              "not_eng": not_eng, "kept": kept, "pre_i": pre_i, "animal": an, "align": align,
               "basis_id": getattr(basis, "basis_id", None),     # for the frozen epoch decoders (lp-final)
               "e_pre": np.isin(np.asarray(GE), list(pre_i))}
     from wfield_local import trial_classes as _tc
@@ -820,6 +820,74 @@ def _pooled_bundle(an, align):
         bundle["not_eng_daq"] = g_daq[0] if g_daq else np.zeros(len(YU), bool)
     _BUNDLE_CACHE[key] = bundle
     return bundle
+def _frozen_frame(bd, an=None, align=None):
+    """The pre-stroke SPOUT-POSITION decoder for one bundle, and the frames it is trained and scored in.
+
+    ``{"scaling", "XT", "full", "loso": {pre index: model}, "pi_full", "pi_loso", "XEs", "XUs"}``, memoised ON the
+    bundle (per scaling), so every frozen-decoder site that reads a bundle uses one fit and one frame.
+
+    ``scaling`` is `spout_scaling.spout_scaling()`: ``session_bal_em`` in production since 2026-11-03 (Priya, "I would
+    adopt B everywhere"; DECISIONS 2026-11-03). Then ``XT`` = the bundle's engaged rows with each pre session
+    re-centred on the equal-weight mean of its TRUE class means (training labels), and ``XEs`` / ``XUs`` = every
+    session in its SCORING frame: label-free EM centre from its engaged rows with its scoring model (LOSO for a pre
+    session, ``full`` otherwise), applied to its no-lick rows too. Under ``WIDEFIELD_SPOUT_SCALING=session_z``,
+    ``XT = XEs = bd["XE"]`` and ``XUs = bd["XU"]`` (the same objects), so the pre-11-03 output is bit-identical.
+
+    The models are the ones `_collect_5c` has always fitted in memory (all pre engaged trials; leave-one-pre-session-
+    out), on the same rows in the same order. The bundle's own ``XE`` / ``XU`` stay the production frame: the
+    within-session refit, the similarity and coding-direction families read them and are not this decoder.
+    """
+    from wfield_local import spout_scaling
+    from wfield_local.locanmf_frozen_decoder import _pipe
+    sc = spout_scaling.spout_scaling()
+    from wfield_local import grant_confusion as _gc
+    an, align = an or bd.get("animal"), align or bd.get("align")
+    # a stored and an opt-out frame never mix; keyed by the (animal, window) the store is asked for
+    key = f"_frozen_{sc}_{'store' if _gc.epoch_frozen_on() else 'mem'}_{an}_{align}"
+    if key in bd:
+        return bd[key]
+    XE, YE, GE, XU, GU = bd["XE"], bd["YE"], bd["GE"], bd["XU"], bd["GU"]
+    pre_i, e_pre = sorted(bd["pre_i"]), bd["e_pre"]
+    XT = spout_scaling.train_frame(XE, YE, GE, pre_i) if sc else XE
+    # MERGE (rebuild x main, 11-03): the models come from the FROZEN STORE (kind `epoch_decoder`, rule 10; spec carries
+    # the scaling and the training-data fingerprint) when the bundle knows its animal / alignment and the store is on
+    # (`grant_confusion.epoch_frozen_on`); otherwise, and with WIDEFIELD_EPOCH_FROZEN=0, the same fits in memory.
+    stored = None
+    if an and align:
+        from wfield_local import grant_confusion
+        stored = grant_confusion._stored_epoch_decoder(an, align, bd, tag="frame", XT=XT, scaling=sc)
+    if stored is not None:
+        full = stored["full"]
+        loso = {i: stored["loso"][bd["kept"][i]] for i in pre_i if bd["kept"][i] in stored["loso"]}
+    else:
+        full = _pipe().fit(XT[e_pre], YE[e_pre])
+        loso = {}
+        for i in pre_i:
+            tr = e_pre & (GE != i)
+            if len(np.unique(YE[tr])) >= 2:
+                loso[i] = _pipe().fit(XT[tr], YE[tr])
+    pi_loso = {i: spout_scaling.class_prior(YE[e_pre & (GE != i)]) for i in loso}
+    pi_full = spout_scaling.class_prior(YE[e_pre])
+    if sc:
+        XEs, XUs = spout_scaling.scored_frame(
+            XE, GE, XU, GU, range(len(bd["kept"])),
+            model_of=lambda i: loso.get(i) if i in bd["pre_i"] else full,
+            prior_of=lambda i: pi_loso.get(i) if i in bd["pre_i"] else pi_full)
+    else:
+        XEs, XUs = XE, XU
+    fr = {"scaling": sc or spout_scaling.SCALING_SESSION_Z, "XT": XT, "full": full, "loso": loso,
+          "pi_full": pi_full, "pi_loso": pi_loso, "XEs": XEs, "XUs": XUs}
+    bd[key] = fr
+    return fr
+def _frozen_score_rows(bd, model, pi, i, Xe_rows, Xu_rows=None):
+    """Session ``i``'s rows in the scoring frame of an AD HOC frozen-style model (the size-matched frozen arm):
+    centre from ALL of the session's engaged rows (production-z), label-free, applied to the given rows. Identity under
+    session_z."""
+    from wfield_local import spout_scaling
+    if not spout_scaling.spout_scaling():
+        return Xe_rows, Xu_rows
+    mu, sd = spout_scaling.score_centre(model, bd["XE"][bd["GE"] == i], pi)
+    return ((Xe_rows - mu) / sd, None if Xu_rows is None else (Xu_rows - mu) / sd)
 def _runs_to_blocks(sess, pos):
     """Block ids from runs of the same (session, position), for trials that carry none of their own.
 

@@ -114,10 +114,13 @@ def test_epoch_stored_fit_is_the_in_memory_fit(daq_env):
 def test_collect_5c_frozen_mode_uses_the_store():
     """The acc family's collector asks the store in mode "frozen" and only falls back to a fit when opted out."""
     from wfield_local import grant_confusion
+    # MERGE with main (11-03): the store sits inside `grant_kit._frozen_frame` (bal_em frames), which every 5c mode
+    # and 5b read; WIDEFIELD_EPOCH_FROZEN=0 fits the same models in memory there
+    from wfield_local import grant_kit
     src = inspect.getsource(grant_confusion._collect_5c)
-    assert 'if mode in ("frozen", "paired") else None)' in src
-    assert 'clf = stored["full"] if stored else _pipe().fit(XE[e_pre], YE[e_pre])' in src
-    assert 'stored["loso"].get(kept[i]) if stored else None' in src
+    assert "fr = _frozen_frame(bd, an, align)" in src and 'clf = fr["full"]' in src and 'fr["loso"][i]' in src
+    fsrc = inspect.getsource(grant_kit._frozen_frame)
+    assert 'grant_confusion._stored_epoch_decoder(an, align, bd, tag="frame", XT=XT, scaling=sc)' in fsrc
 
 
 # ------------------------------------------------------------------------------- 5c paired (5r / 5ro) and 5b (11-02)
@@ -275,9 +278,7 @@ def test_5b_stored_equals_in_memory(daq_env, tmp_path):
 def test_5b_uses_the_stored_epoch_decoder():
     from wfield_local import grant_confusion as gc
     src = inspect.getsource(gc.fig_confusion_pre_post_working)
-    assert 'frozen = _stored_epoch_decoder(an, align, bd, tag="5b")' in src
-    assert 'clf = frozen["full"] if frozen else _pipe().fit(XE[e_pre], YE[e_pre])' in src
-    assert 'frozen["loso"].get(bd["kept"][i]) if frozen else None) or _pipe().fit(XE[tr], YE[tr])' in src
+    assert "_fr = _frozen_frame(bd, an, align)" in src and 'clf = _fr["full"]' in src and 'clf=_fr["loso"][i]' in src
 
 
 @pytest.mark.parametrize("lp_frozen", [None, "lp", "daq"])
@@ -570,9 +571,9 @@ def test_nolick_lp_arm_lp_trained_by_default(pass2_env):
 def test_nolick_analyse_animal_uses_the_store():
     from wfield_local import nolick_decoder as nd
     src = inspect.getsource(nd.analyse_animal)
-    assert "stored = _stored_nolick_reference(" in src
-    assert 'clf = stored["full"] if stored is not None else _pipe().fit(XE[m_pre], YE[m_pre])' in src
-    assert 'pred_e = _loso_predict(stored["loso"], XE[m_pre], SE[m_pre], YE.dtype)' in src
+    # MERGE with main (11-03): through the FrozenFrame store hook (bal_em frames)
+    assert "st = _stored_nolick_reference(" in src and "store=_store)" in src
+    assert "clf = ff.full" in src and 'ff.loso[i].predict(ff.apply(XE[rows], i, "loso"))' in src
 
 
 # ------------------------------------------------------------------------------------- attempt_coding axes (2)
@@ -683,8 +684,9 @@ def test_drift_lp_arm_lp_trained_by_default(pass2_env):
 def test_drift_decoder_rows_uses_the_store():
     jad = pytest.importorskip("scripts.june_august_drift")
     src = inspect.getsource(jad.decoder_rows)
-    assert "stored = _stored_month_model(an, bd, train_sessions)" in src
-    assert "(stored if stored is not None else _pipe().fit(XE[tr], YE[tr])).predict(X)" in src
+    # MERGE with main (11-03): the stored (session_z) month model serves under session_z; bal_em = FrozenFrame
+    assert "stored = None if ff.scaling else _stored_month_model(an, bd, train_sessions)" in src
+    assert "(stored if stored is not None else ff.full).predict(ff.apply(X, i))" in src
 
 
 # ------------------------------------------------------------------------------- position_coding_directions (4)
@@ -816,7 +818,11 @@ def test_coding_confusion_decoder_stored_equals_in_memory(pass2_env):
     for i in sorted(pre_i):
         tr = e_pre & (GE != i)
         _same_model(pay["loso"][kept[i]], old_pipe().fit(XE[tr], YE[tr]))
-    a = pcd._class_confusions(XE, YE, GE, XU, YU, e_pre, pre_i, _mask, kept, models=pay)
+    # MERGE with main (11-03): the store enters through the FrozenFrame hook; with no GU the frame is session_z, so the
+    # stored path (session id keys) equals the in-memory one
+    a = pcd._class_confusions(XE, YE, GE, XU, YU, e_pre, pre_i, _mask, kept,
+                              store=lambda fit_all: pcd.stored_confusion_decoder(
+                                  "PS92", "cue", 2.0, "basis0", XE, YE, GE, e_pre, pre_i, kept, fit=fit_all))
     b = pcd._class_confusions(XE, YE, GE, XU, YU, e_pre, pre_i, _mask, kept)
     assert a == b
     est = full[-1]
@@ -846,7 +852,7 @@ def test_coding_lp_arm_lp_trained_by_default(pass2_env):
 def test_coding_run_animal_uses_the_store():
     from wfield_local import position_coding_directions as pcd
     src = inspect.getsource(pcd.run_animal)
-    assert "models=stored_confusion_decoder(animal, align, post_s, basis.basis_id" in src
+    assert "st = stored_confusion_decoder(animal, align, post_s, basis.basis_id" in src and "store=_store_conf)" in src
     assert "ref = stored_reference(animal, align, post_s, basis.basis_id" in src
     assert "direction(" not in src                                    # no direction is fitted in run_animal itself
 
@@ -1042,7 +1048,7 @@ def test_section_g_specs_key_on_preserved_set_seed_and_columns(pass2_env):
 
 def test_section_g_sites_use_the_store():
     from wfield_local import poststroke_compare as pc
-    assert '_g_store(\n            d, "g_lickonly_decoder", _keep_tag(pos)' in inspect.getsource(pc.decode_matched)
+    assert '_g_store(d, "g_lickonly_decoder", f"{_keep_tag(pos)}-ff", fit_all' in inspect.getsource(pc.decode_matched)
     for fn in (pc.looks_like_which, pc.undetected_state_split):
         assert '_g_store(d, "g_lick_disc", f"{_keep_tag(keep)}-seed{seed}"' in inspect.getsource(fn)
     src = inspect.getsource(pc.fits_engaged_distribution)

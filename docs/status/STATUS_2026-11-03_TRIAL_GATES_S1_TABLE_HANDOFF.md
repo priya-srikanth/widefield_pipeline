@@ -4,6 +4,50 @@ Window `sabatinilab-5b`. Peers this touches: **e3** (kinematics page, owns it), 
 frozen decoders, epoch families; owns `_class_select` and the shared gates), **a8** (PI deck; its helper may
 republish the imaging page with re-plotted figures).
 
+## UPDATE 11-03 night (3) — PUBLISHING FOR OTHER WINDOWS (Priya: this window may publish any page)
+
+- **Imaging page v51** (id 1793740803-1eef, on v50) for a8: `docs/status/STATE_BALEM_PAGE_EDITS_2026-11-03.md` (section 3 ->
+  bal_em production state decoder; Figs 3.1-3.5 swapped to *_balem images; Closed / Pending updated; the new block is a plain
+  note, not a CORRECTION label, per Priya's rewrite rule) + the imaging rows of `FIGURE_RULES_AUDIT_2026-11-03.md`
+  (*_nolines images for 2.1-2.8 except 2.4b [no render], 4.2, 6.1-6.3, 9.1, 9.6-9.8, 10.1, 12.1; captions say faded open
+  markers). Script: scratchpad `imgpage/apply_a8_1103.py` (asserts every replacement). Old images stay in the artifact,
+  unreferenced. NOT done: 2.4b, 5.2 (no source), FaceRhythm page (asked a8), SPOUT_BALEM (a8 holds it until A3).
+- **FaceRhythm page v36** (id 1793745454-bdeb, on 1793125970-97fe) for a8: the audit's 27 FaceRhythm rows, images uploaded as
+  `fig/<name>_rules.png` (old files kept, unreferenced), a "Plot (figure rules)" note per caption (session markers; fit-level
+  for 7.10 / 7.11 / 8.16 / 8.18). Script: scratchpad `frpage/apply_fr_rules_1103.py`.
+- Account switched back to hhmi after these publishes; further publishing needs the HMS account again.
+- **QUEUED for e3 (needs the HMS account):** kinematics page = `kin_page_src/kin_page/index.html` (v26 + 13 collapsed LMM
+  toggles + FR cross-link; new files `lmm/<stem>_lmm.png`, 13 stems listed in e3's message); FaceRhythm page = 3 LMM toggles
+  + kinematics cross-link, new files `lmm/{peak_side_headline,per_lick_stats,asym_aligned_change}_lmm.png`. The FR M: source
+  (10-27) is OLDER than live v36: refresh it from live v36 first, re-run `kin_page_src/kin_page/add_lmm_toggles_1103.py fr`
+  (idempotent), diff, publish. Send e3 the version numbers.
+  **e3 11-03 (later): HOLD the kinematics publish.** e3 is splitting the page (DAQ-contact figures move to a new behaviour page, cross-linked), so `kin_lmm/` is superseded; publish kinematics + the new behaviour page from M: only when e3 says the sources are ready. FaceRhythm (`fr_lmm/`) still goes ahead. Account: the tool needs a Claude Code restart after switching to HMS (the switch alone left it on the old sign-in, list empty).
+  **e3 11-03 (split READY) — publish order once the tool works:** (1) BEHAVIOUR, new page "Task Behaviour After Stroke", icon chart, from `M:/.../behaviour_page_src/behaviour_page/index.html`; local files `epoch_1f_engagement_by_epoch.png`, `lmm/epoch_1f_engagement_by_epoch_lmm.png`, `lmm/behaviour_hits_by_spout_lmm.png`; copy `b_timecourse.png` + `behaviour_hits_by_spout.png` server-side from the kinematics artifact (v26); NOT `epoch_1g_*`, `svg/` or `data/`. (2) KINEMATICS from `M:/.../kin_page_src/kin_page/index.html` (backups `index_pre_split_1103.html`, `index_v26_pre_lmm.html`), after replacing the 2 `href="#behaviour-page"` (data-behaviour-link) with the behaviour URL; files = 12 `lmm/<stem>_lmm.png`. (3) FACERHYTHM `fr_lmm/` staged + optionally the behaviour link in xlink-kin. Read each live page in full first; send e3 the three versions + the behaviour URL.
+  **+ e3 (later):** kinematics files map also gets `p_phase_contra.png` (Fig 9.7 replaced by the 3-D phase figure with test bars; caption rewritten in index.html; same name, so it replaces the published file).
+  **STAGED 11-03** (scratchpad, session-local): `fr_lmm/index.html` (+ `fr_lmm/lmm/*.png`, `fr_lmm/fig/*_rules.png`) = v36 +
+  toggles + xlink-kin; `kin_lmm/kin_page.html` (+ `kin_lmm/lmm/*.png`) = e3's source. In both the lmm-supp-style block was moved
+  from the publish wrapper's head into the body (the wrapper head is replaced on publish). Before publishing: confirm live is
+  still FR v36 / kin v26, publish with the lmm/ files map.
+- **Kinematics page v25 -> v26** for e3 (source `kin_page_src/kin_page/index.html`, verified as a section-6-only diff against
+  live; images uploaded by name).
+
+## UPDATE 11-03 night (2) — SECTION 1 PUBLISHED (imaging page v50)
+
+Priya moved Claude Code to the HMS account; the Artifact tool works again after a restart (this window is now
+`sabatinilab-e0`). Published https://claude.ai/artifact/PvraHiF82BFXur1hnNUCeV **version 50** (id 1793735906-0006),
+built on the live version 1793703965-38a8 (read in full first; a8's 11-03 Fig 3.5 and Pending item kept). Changes,
+section 1 only, plus its summary row:
+- summary row: ranges .43–.89 / .26–.56, "acute post-cue drop 4 / 4", input = camera trial classes;
+- input line: camera-defined working trials to the last camera lick (Figs 1.1–1.3 still DAQ / engagement);
+- per-animal table (Allen split + LocaNMF) + robustness table from `s1_update_20261103.html`;
+- **Fig 1.4 swapped** to a8's `decoding_refit_sessions_campllick.png` (`fig_decoding_sessions_campllick_1103.py`;
+  per-animal means equal the table; new file uploaded, old `decoding_refit_sessions.png` left unreferenced), caption
+  rewritten;
+- takeaway opening rewritten (old "up in PS92 / PS95" sentence removed); Fig 1.2 sentence (b); "Not the table above"
+  notes in Figs 1.1 / 1.2 updated.
+Published source: scratchpad `imgpage/imaging_page.html` (session-local). Other windows told (a8, e3, 34) and offered
+publishing of their pages from here (Priya: this window may publish any window's pages). **Section 1 is done.**
+
 ## UPDATE 11-03 night — CUTOFF DECIDED: LAST CAMERA LICK IS PRIMARY (supersedes the block below where they differ)
 
 **Priya 11-03: "last camera lick cutoff sounds good".** Primary trial set for section 1 = camera working up to the

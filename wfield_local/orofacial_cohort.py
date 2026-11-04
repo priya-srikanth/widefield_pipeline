@@ -717,6 +717,7 @@ def _tidy(fig) -> None:
     for ax in axes:                                     # readable sizes for grants / papers (Priya 10-17)
         if not ax.axison:
             continue
+        ax.spines["top"].set_visible(False)             # no top frame line: stars sit in that band (Priya 11-03)
         from matplotlib.ticker import AutoLocator, MaxNLocator
         for axis in (ax.xaxis, ax.yaxis):               # fewer ticks so the larger labels do not collide
             if type(axis.get_major_locator()) is AutoLocator:

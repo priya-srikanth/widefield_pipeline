@@ -56,7 +56,7 @@ from sklearn.preprocessing import StandardScaler
 from wfield_local import config, joint_locanmf
 from wfield_local import gate_source  # [gate-source hook] WIDEFIELD_GATE_SOURCE (see that module)
 from wfield_local.locanmf_frozen_decoder import _pipe, pool_sessions
-from wfield_local.locanmf_position_decoder import _trial_features, trial_features_cached
+from wfield_local.locanmf_position_decoder import trial_features_cached
 from wfield_local.paths import PathResolver
 from wfield_local.plot_lick_aligned_averages import POSITION_NAMES
 
@@ -276,19 +276,34 @@ def run_animal(animal, align="precue", post_s=None, verbose=True):
     }
 
     # ---- A. position decoding: ONE frozen pre-stroke decoder, applied to every state -------------
-    # STORED BY DEFAULT (rebuild 2026-11-03, rule 10; kind `engagement_states`, `_stored`): opt out with
+    # bal_em since 2026-11-03 (`spout_scaling.FrozenFrame`): trained on class-balanced pre sessions, each scored
+    # session centred by the label-free EM centre of its engaged trials under the scoring model (identity under
+    # WIDEFIELD_SPOUT_SCALING=session_z, where this is the pre-11-03 code exactly).
+    # STORED BY DEFAULT (rebuild 2026-11-03, rule 10; kind `engagement_states`, `_stored`, through the FrozenFrame store
+    # hook; payload {"full", "loso"} on the FrozenFrame training frame, spec + scaling): opt out with
     # WIDEFIELD_ENGSTATES_FROZEN=0, which fits exactly this in memory.
-    clf = _stored(animal, f"{align}-posdec", basis, kept, pre_i, int(XE.shape[1]),
-                  (XE[e_pre], YE[e_pre], GE[e_pre]), lambda: _pipe().fit(XE[e_pre], YE[e_pre]), post_s)
+    from wfield_local import spout_scaling as _ss
+    _sc = _ss.spout_scaling()
+    ff = _ss.FrozenFrame(XE, YE, GE, sorted(pre_i), _pipe, loso=_sc is not None,
+                         store=lambda fit_all: _stored(animal, f"{align}-posdec-ff", basis, kept, pre_i,
+                                                       int(XE.shape[1]), (XE[e_pre], YE[e_pre], GE[e_pre]), fit_all,
+                                                       post_s, scaling=_sc))
+    clf = ff.full
     dec = {}
     for k, (X, y, g) in states.items():
         if len(y) < 10:
             dec[k] = {"n": len(y), "accuracy": None}
             continue
         if k == "1_pre_lick":       # its own training data: leave-one-session-out instead
-            p = cross_val_predict(_pipe(), X, y, cv=LeaveOneGroupOut(), groups=g)
+            if ff.scaling:
+                p = np.empty_like(y)
+                for i in np.unique(g):
+                    m = g == i
+                    p[m] = ff.loso[i].predict(ff.apply(X[m], i, "loso"))
+            else:
+                p = cross_val_predict(_pipe(), X, y, cv=LeaveOneGroupOut(), groups=g)
         else:
-            p = clf.predict(X)
+            p = clf.predict(ff.apply_rows(X, g))
         dec[k] = {"n": len(y), "accuracy": float(np.mean(p == y))}
 
     # ---- C. the pre-stroke state discriminator, trained in the LATE window -----------------------
@@ -298,14 +313,19 @@ def run_animal(animal, align="precue", post_s=None, verbose=True):
     keep_eng = e_pre & late_e
     disc = {"n_engaged_train": int(keep_eng.sum()), "n_disengaged_train": int(keep_dis.sum()),
             "excluded_positions": list(miss)}
+    # OPTIONAL STATE-CLASS bal_em (`spout_scaling.state_*`; WIDEFIELD_STATE_DISC_SCALING=state_bal_em, DEFAULT OFF since
+    # it fails the discriminator's own pre-stroke check, 11-03): each pre session's rows centred on the equal-weight mean
+    # of its two TRUE state-class means; a scored session centred, label-free, by the EM over its engaged + no-lick rows.
+    # The input arrays themselves when OFF (the production engaged-trial z-score).
+    XEt, XUt = _ss.state_train_frame(XE, GE, XU, GU, keep_eng, keep_dis, sorted(pre_i))
     if keep_dis.sum() >= 20 and keep_eng.sum() >= 20:
-        Xd = np.vstack([XE[keep_eng], XU[keep_dis]])
+        Xd = np.vstack([XEt[keep_eng], XUt[keep_dis]])
         yd = np.concatenate([np.zeros(int(keep_eng.sum())), np.ones(int(keep_dis.sum()))])
         gd = np.concatenate([GE[keep_eng], GU[keep_dis]])
 
         def _fit_disc():
             # the all-pre discriminator AND the per-held-out-session refits of the D2 drift control (below), one
-            # payload: they are determined by the same training pool
+            # payload: they are determined by the same training pool (main 11-03: on the state training frame XEt / XUt)
             loso = {}
             for si in sorted(pre_i):
                 hold = e_pre & (GE == si)
@@ -313,18 +333,29 @@ def run_animal(animal, align="precue", post_s=None, verbose=True):
                 if hold.sum() < 20 or tr_e.sum() < 20 or tr_d.sum() < 20:
                     continue
                 loso[si] = _disc().fit(
-                    np.vstack([XE[tr_e], XU[tr_d]]),
+                    np.vstack([XEt[tr_e], XUt[tr_d]]),
                     np.concatenate([np.zeros(int(tr_e.sum())), np.ones(int(tr_d.sum()))]))
             return {"full": _disc().fit(Xd, yd), "loso": loso}
 
         dpay = _stored(animal, f"{align}-disc", basis, kept, pre_i, int(XE.shape[1]),
-                       (Xd, yd, gd, sorted(pre_i), XE[e_pre], GE[e_pre]), _fit_disc, post_s)
+                       (Xd, yd, gd, sorted(pre_i), XE[e_pre], GE[e_pre]), _fit_disc, post_s,
+                       scaling=_ss.state_disc_scaling())
         model = dpay["full"]
+        _pi = _ss.model_prior(model, yd)
+        _all_e, _all_u = np.ones(len(XE), bool), np.ones(len(XU), bool)
+        _post = sorted(set(range(len(kept))) - set(pre_i))
+        XEs, XUs = _ss.state_scored(model, _pi, XEt, GE, XUt, GU, _all_e, _all_u, _post)
+        # states 5 / 6 by the run's gate (camera classes under the camera gate, rebuild 11-03; DAQ quit tail otherwise)
+        s_states = {
+            "1_pre_lick": XEs[e_pre], "2_pre_nolick": XUs[u_pre], "4_post_lick": XEs[~e_pre],
+            "5_post_nolick_engaged": XUs[~u_pre & nl_eng],
+            "6_post_nolick_notengaged": XUs[~u_pre & nl_not]}
         if len(np.unique(gd)) > 1:
             cvp = cross_val_predict(_disc(), Xd, yd, cv=LeaveOneGroupOut(), groups=gd,
                                     method="predict_proba")[:, 1]
             disc["train_auc_loso"] = _auc(yd, cvp)
-        for k, (X, _y, _g) in states.items():
+        for k in states:
+            X = s_states[k]
             disc[k] = (float(np.mean(model.predict_proba(X)[:, 1])) if len(X) else None)
         # D2. THE STRONGER DRIFT CONTROL: PRE-STROKE LICK trials, early vs late.
         #
@@ -343,8 +374,11 @@ def run_animal(animal, align="precue", post_s=None, verbose=True):
             tr_e, tr_d = keep_eng & (GE != si), keep_dis & (GU != si)
             if hold.sum() < 20 or tr_e.sum() < 20 or tr_d.sum() < 20:
                 continue
+            _yd = np.concatenate([np.zeros(int(tr_e.sum())), np.ones(int(tr_d.sum()))])
             m = dpay["loso"][si]                       # stored with the discriminator (same condition, same fit)
-            pr = m.predict_proba(XE[hold])[:, 1]
+            # the held-out session in ITS OWN EM frame under this leave-one-out model (identity under session_z)
+            _XEh, _XUh = _ss.state_scored(m, _ss.model_prior(m, _yd), XE, GE, XU, GU, _all_e, _all_u, [si])
+            pr = m.predict_proba(_XEh[hold])[:, 1]
             lh = late_e[hold]
             pre_e.extend(pr[~lh])
             pre_l.extend(pr[lh])
@@ -357,8 +391,8 @@ def run_animal(animal, align="precue", post_s=None, verbose=True):
         # D1. DRIFT CONTROL: both halves are ENGAGED, so any separation here is time, not state.
         eng5 = ~u_pre & nl_eng
         if eng5.sum() >= 20:
-            early = XU[eng5 & ~late_nl]
-            lateX = XU[eng5 & late_nl]
+            early = XUs[eng5 & ~late_nl]
+            lateX = XUs[eng5 & late_nl]
             disc["drift_control"] = {
                 "n_early": len(early), "n_late": len(lateX),
                 "early_p_disengaged": (float(np.mean(model.predict_proba(early)[:, 1]))
@@ -376,16 +410,18 @@ def run_animal(animal, align="precue", post_s=None, verbose=True):
 ENGSTATES_FROZEN_ENV = "WIDEFIELD_ENGSTATES_FROZEN"
 
 
-def _stored(animal, align, basis, kept, pre_i, n_features, train_data, fit, post_s):
+def _stored(animal, align, basis, kept, pre_i, n_features, train_data, fit, post_s, scaling=None):
     """``fit()`` through the frozen store (kind ``engagement_states``; default), or in memory when
     WIDEFIELD_ENGSTATES_FROZEN=0. Converted in the cohort-1 rebuild (2026-11-03): this module refitted its pre-stroke
     position decoder and state discriminator in memory on every render (rule 10)."""
     from wfield_local import frozen_models
     if not frozen_models.family_on(ENGSTATES_FROZEN_ENV):
         return fit()
+    from wfield_local import spout_scaling
     spec = frozen_models.make_spec(animal, "engagement_states", align=align, source="locanmf",
                                    train_labels=[kept[i] for i in sorted(pre_i)], post_s=float(post_s),
-                                   basis_id=basis.basis_id, n_features=n_features, train_data=train_data)
+                                   basis_id=basis.basis_id, n_features=n_features, train_data=train_data,
+                                   **spout_scaling.spec_kw(scaling))
     payload, status = frozen_models.load_or_fit(spec, fit, meta={"n_pre_sessions": len(pre_i)})
     print(f"  [precue_states] {animal} {align}: engagement_states {frozen_models._slug(spec)} {status}", flush=True)
     return payload

@@ -165,24 +165,63 @@ def boot_delta(post, pre, rng, n_boot: int = N_BOOT, draws: bool = False):
     print the per-animal table BEFORE the bootstrap -- exists because that is not visible in the
     interval at all.**
     """
-    animals = sorted(set(post) & set(pre))
+    obs, o, animals = paired_animal_draws(post, pre, _mean_of, rng, n_boot)
+    if obs is None:
+        return (None, o) if draws else None
+    if len(o) < n_boot // 4:
+        return (None, o) if draws else None
+    iv = Interval(obs, float(np.percentile(o, PCTL[0])), float(np.percentile(o, PCTL[1])), len(animals))
+    return (iv, o) if draws else iv
+
+
+def _mean_of(values, _rng=None):
+    return float(np.mean(values))
+
+
+def paired_animal_draws(post, pre, reduce, rng, n_boot: int = N_BOOT, *, reduce_pre=None, combine=None):
+    """THE change-vs-pre draw, for every kind of per-session record: ``(point, draws, animals)``.
+
+    ``post`` / ``pre`` are ``{animal: [one record per session, ...]}``. A record can be a number (`boot_delta`), a
+    matrix (`matrix_bootstrap.delta_draws`), a ``(hits, n)`` pair (`epoch_behaviour`) or a session's trial blocks
+    (`epoch_figures.contrast_draws`); ``reduce(records, rng) -> value | None`` turns one animal's sessions into its
+    value for that arm (``rng`` is None for the real data, and a reducer with a level below the session -- trial
+    blocks -- resamples it with ``rng``). ``reduce_pre`` defaults to ``reduce``.
+
+    ONE RULE FOR EVERY CHANGE-VS-PRE (consolidation A3, Priya 11-03):
+      1. only animals with sessions in BOTH arms count -- an animal with no pre cannot supply a change;
+      2. each animal's change = its own post value minus its own pre value;
+      3. the change = the MEAN OVER ANIMALS (``combine``, default `np.mean`), so animals weigh equally and a
+         heavily-sampled animal cannot decide it;
+      4. the draws resample animals (one draw shared by both arms = paired), then sessions within each animal.
+    Every session is still used: more sessions make that animal's value -- and the interval -- tighter (Priya: "don't
+    waste multiple-session power"). The point is computed the same way on the real data, so it always describes the
+    same animals as the draws. An animal whose ``reduce`` returns None in a draw is left out of that draw only.
+    """
+    reduce_pre = reduce_pre or reduce
+    combine = combine or (lambda d: float(np.mean(d)))
+    animals = [a for a in sorted(set(post) & set(pre)) if len(post[a]) and len(pre[a])]
     if not animals:
-        return (None, np.array([])) if draws else None
-    obs = float(np.mean([float(np.mean(post[a])) - float(np.mean(pre[a])) for a in animals]))
+        return None, np.array([]), []
+    obs_d = []
+    for a in animals:
+        va, vb = reduce(list(post[a]), None), reduce_pre(list(pre[a]), None)
+        if va is not None and vb is not None:
+            obs_d.append(np.asarray(va) - np.asarray(vb) if np.ndim(va) else va - vb)
+    if not obs_d:
+        return None, np.array([]), animals
     out = []
     for _ in range(n_boot):
         d = []
         for a in (animals[i] for i in rng.integers(0, len(animals), len(animals))):
             pa, qa = post[a], pre[a]
-            d.append(float(np.mean([pa[i] for i in rng.integers(0, len(pa), len(pa))]))
-                     - float(np.mean([qa[i] for i in rng.integers(0, len(qa), len(qa))])))
+            sa = [pa[i] for i in rng.integers(0, len(pa), len(pa))]
+            sb = [qa[i] for i in rng.integers(0, len(qa), len(qa))]
+            va, vb = reduce(sa, rng), reduce_pre(sb, rng)
+            if va is not None and vb is not None:
+                d.append(np.asarray(va) - np.asarray(vb) if np.ndim(va) else va - vb)
         if d:
-            out.append(float(np.mean(d)))
-    if len(out) < n_boot // 4:
-        return (None, np.asarray(out)) if draws else None
-    o = np.asarray(out)
-    iv = Interval(obs, float(np.percentile(o, PCTL[0])), float(np.percentile(o, PCTL[1])), len(animals))
-    return (iv, o) if draws else iv
+            out.append(combine(d))
+    return combine(obs_d), np.asarray(out), animals
 
 
 def boot_delta_columns(post, pre, rng, n_boot: int = N_BOOT):
@@ -256,6 +295,90 @@ def holm(p) -> np.ndarray:
     r[o] = adj
     out[ok] = r
     return out
+
+
+EPOCH_LMM_ORDER = ("acute", "subacute", "chronic")
+
+
+def epoch_change_lmm(df, *, value: str = "value", animal: str = "animal", epoch: str = "epoch", base: str = "pre",
+                     epochs=EPOCH_LMM_ORDER):
+    """THE change-vs-pre test for a figure's stars (Priya 2026-11-03): one cell's SESSION rows, every epoch in one
+    mixed model, ``value ~ C(epoch) + (1 | animal) + (1 | animal:epoch)``, with a SEPARATE animal-by-epoch variance per
+    post epoch (the between-animal spread differs by epoch -- Priya), REML (statsmodels MixedLM). Each epoch's change
+    is tested with t on df = (animals with sessions in both base and that epoch) - 1: with the spread free per epoch,
+    that epoch's spread is estimated from its own animals, so df cannot be larger (KR / containment df for this
+    design; Satterthwaite is undefined at the singular fits n = 4 produces, docs/status/A3_LMM_SLOPE_STARS_2026-11-03.md).
+
+    Returns a DataFrame, one row per post epoch present: epoch, beta (the change), se, df, lo, hi (95 % t interval),
+    p, n_animals, n_sessions, var_animal_epoch, converged, singular (that epoch's animal variance ~0). A row whose epoch
+    has fewer than 2 animals in both arms carries NaN statistics (no test). Stars: `lmm_stars` across the figure's
+    cells. Why not the animal bootstrap: at n = 4 with a real between-animal spread its 95 % interval excludes 0 in
+    10-19 % of null data (simulation, same doc); it stays on figures as a description of THESE animals."""
+    import warnings
+
+    import pandas as pd
+    import statsmodels.formula.api as smf
+    from scipy import stats
+
+    D = pd.DataFrame({"y": np.asarray(df[value], float), "a": np.asarray(df[animal]).astype(str),
+                      "e": np.asarray(df[epoch]).astype(str)})
+    D = D[np.isfinite(D.y)].reset_index(drop=True)
+    eps = [e for e in epochs if (D.e == e).any()]
+    rows = [dict(epoch=e, n_animals=len(set(D.a[D.e == base]) & set(D.a[D.e == e])),
+                 n_sessions=int((D.e == e).sum())) for e in eps]
+    D = D[D.e.isin([base, *eps])].reset_index(drop=True)
+    vc = {}
+    for e in eps:
+        D[f"a_{e}"] = np.where(D.e == e, D.a, "none")
+        vc[e] = f"0 + C(a_{e}, Treatment('none'))"
+    # OPTIMISER (a8 11-03 found many non-converged fits): try each in turn and keep the FIRST that converges; if none
+    # does, keep the fit with the highest REML log-likelihood (the best estimate available) and report converged=False.
+    fit = None
+    if (D.e == base).any() and eps and D.a.nunique() >= 2:
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            for method in ("lbfgs", "bfgs", "powell", "nm", "cg"):
+                try:
+                    f = smf.mixedlm(f"y ~ C(e, Treatment('{base}'))", D, groups=D.a, re_formula="1",
+                                    vc_formula=vc).fit(reml=True, method=method)
+                except Exception:  # noqa: BLE001 -- a failed optimiser falls through to the next one
+                    continue
+                if not np.isfinite(f.llf):
+                    continue
+                if fit is None or (f.converged and not fit.converged) or (
+                        f.converged == fit.converged and f.llf > fit.llf + 1e-6):
+                    fit = f
+                if fit.converged:
+                    break
+    vcs = dict(zip(fit.model.exog_vc.names, fit.vcomp)) if fit is not None else {}
+    for r in rows:
+        e, k = r["epoch"], f"C(e, Treatment('{base}'))[T.{r['epoch']}]"
+        if fit is None or r["n_animals"] < 2 or k not in fit.params:
+            r.update(beta=np.nan, se=np.nan, df=np.nan, lo=np.nan, hi=np.nan, p=np.nan, var_animal_epoch=np.nan,
+                     converged=False, singular=False)
+            continue
+        b, se, dfree = float(fit.params[k]), float(fit.bse[k]), r["n_animals"] - 1
+        va = float(vcs.get(e, np.nan))
+        if not (np.isfinite(se) and se > 0):     # degenerate cell (e.g. every session at a ceiling): no test
+            r.update(beta=b, se=np.nan, df=dfree, lo=np.nan, hi=np.nan, p=np.nan, var_animal_epoch=va,
+                     converged=bool(fit.converged), singular=True)
+            continue
+        tc = float(stats.t.ppf(0.975, dfree))
+        r.update(beta=b, se=se, df=dfree, lo=b - tc * se, hi=b + tc * se,
+                 p=float(2 * stats.t.sf(abs(b / se), dfree)), var_animal_epoch=va, converged=bool(fit.converged),
+                 singular=bool(va < 1e-4 * float(fit.scale)))
+    cols = ["epoch", "beta", "se", "df", "lo", "hi", "p", "n_animals", "n_sessions", "var_animal_epoch", "converged",
+            "singular"]
+    return pd.DataFrame(rows, columns=cols)
+
+
+def lmm_stars(p) -> np.ndarray:
+    """Stars for a FIGURE's family of `epoch_change_lmm` p-values (every cell x epoch on the figure): "*" uncorrected
+    p < .05, "**" Holm-adjusted p < .05 across the whole family (Priya 11-03: correct across all the figure's cells,
+    e.g. 18 for six spouts x three epochs; within-epoch correction would be unfair), "" otherwise; NaN p -> ""."""
+    p = np.asarray(p, float)
+    h = holm(p)
+    return np.where(np.isfinite(p) & (h < 0.05), "**", np.where(np.isfinite(p) & (p < 0.05), "*", ""))
 
 
 def boot_delta_pairs(pairs, rng, n_boot: int = N_BOOT):

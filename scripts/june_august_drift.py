@@ -147,7 +147,8 @@ def _stored_month_model(an, bd, train_sessions):
 def decoder_rows(log=print) -> pd.DataFrame:
     from wfield_local import epochs
     from wfield_local.grant_confusion import _matched_frozen, _pooled_bundle, _refit_pred
-    from wfield_local.grant_kit import _seed
+    from wfield_local import spout_scaling as ss
+    from wfield_local.grant_kit import _frozen_score_rows, _seed
     from wfield_local.locanmf_frozen_decoder import _pipe
     rows = []
     for an in ANIMALS:
@@ -171,15 +172,25 @@ def decoder_rows(log=print) -> pd.DataFrame:
             rf = _refit_pred(_pipe, X, y, blk)
             if rf is None:
                 return
+            # THE FROZEN ARMS IN THE bal_em FRAMES (production since 2026-11-03, `spout_scaling`), as the chronic twins
+            # in `_collect_5c`: training sessions centred on their true class means, the scored session centred by the
+            # label-free EM centre of its engaged rows under each frozen model. Identity under session_z.
+            ff = ss.FrozenFrame(XE, YE, GE, train_sessions, _pipe, train_mask=e_pre, loso=False)
             k = min(5, int(np.unique(blk).size))
             n_target = int(round(len(y) * max(k - 1, 1) / max(k, 1)))
-            got = _matched_frozen(_pipe, XE[tr], YE[tr], BE[tr], n_target,
+            got = _matched_frozen(_pipe, ff.XT[tr], YE[tr], BE[tr], n_target,
                                   np.random.default_rng(abs(_seed(an, ALIGN, "june_aug", group)) + 1000003 * len(y) + int(blk[0])))
             if got is None:
                 return
-            fz_m = np.asarray(got[0].predict(X))
-            stored = _stored_month_model(an, bd, train_sessions)
-            fz = np.asarray((stored if stored is not None else _pipe().fit(XE[tr], YE[tr])).predict(X))
+            Xm = X
+            if ff.scaling and [int(c) for c in got[0].classes_] == list(range(6)):
+                Xm = _frozen_score_rows(bd, got[0], got[0].spout_pi_train_, i, X)[0]
+            fz_m = np.asarray(got[0].predict(Xm))
+            # MERGE (11-03): the STORED month model (rebuild, rule 10) is the session_z fit, so it serves only under
+            # WIDEFIELD_SPOUT_SCALING=session_z; under bal_em the FrozenFrame fit (main) is used, in memory (listed in
+            # docs/status/REBUILD_CODE_20261103.md 8.14 as a family to store in the bal_em frame)
+            stored = None if ff.scaling else _stored_month_model(an, bd, train_sessions)
+            fz = np.asarray((stored if stored is not None else ff.full).predict(ff.apply(X, i)))
             rows.append({"animal": an, "group": group, "session": mm[i], "n_trials": int(len(y)),
                          "frozen_acc": float(np.mean(fz == y)), "frozen_matched_acc": float(np.mean(fz_m == y)),
                          "refit_acc": float(np.mean(np.asarray(rf) == y))})

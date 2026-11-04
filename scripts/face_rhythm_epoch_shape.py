@@ -509,7 +509,7 @@ GALLERY = ("lick_right", "lick_left", "lick_ongoing_7Hz", "lick_fast_close", "li
 FITS = ("master", "preA", "preB", "acute", "subacute", "chronic")
 
 
-def matched_factor_gallery(fdir: Path, names: list[str], out: Path, factors=GALLERY) -> pd.DataFrame:
+def matched_factor_gallery(fdir: Path, names: list[str], out: Path, factors=GALLERY, only=None) -> pd.DataFrame:
     """Priya 10-25: show the spatial loading and frequency profile of the MATCHED factor in every per-epoch fit, so a
     shape change can be told from a matching artefact. One figure per master factor: rows = animals; columns = the master,
     the two pre-half fits, acute / subacute / chronic -- each the own-fit column the Hungarian match assigns to that master
@@ -525,6 +525,8 @@ def matched_factor_gallery(fdir: Path, names: list[str], out: Path, factors=GALL
     acol = frc.epoch_colors()
     fcol = {"master": "k", "preA": "0.55", "preB": "0.75", **{e: acol[e] for e in frc.POST_EPOCHS}}
     animals = sorted({f.stem.split("_")[0] for f in (fdir / OWN).glob("*.npz")})
+    if only:                                   # Priya 11-03: one animal's pre vs post example (deck), e.g. PS94
+        animals = [a for a in animals if a in set(only)]
     fits = {}
     for an in animals:
         for g in FITS[1:]:
@@ -588,7 +590,7 @@ def matched_factor_gallery(fdir: Path, names: list[str], out: Path, factors=GALL
             axs[0, -1].legend(fontsize=6, frameon=False, loc="upper left")
             fig.suptitle(f"{nm}: its best-matching factor in each per-epoch fit (spatial loading, frequency); "
                          "red = differs from Hungarian, shared, or cos < .8")
-            frf.save(fig, out / f"matched_factor_gallery_{nm}.png", f"""
+            frf.save(fig, out / (f"matched_factor_gallery_{nm}" + (f"_{'_'.join(animals)}" if only else "") + ".png"), f"""
 {nm} in every pooled per-epoch fit (rows = animals). Columns 1-6: spatial loading magnitude per mesh point as a fraction
 of the factor's total (shape only), colour scale per row; image left = contralesional, vertical line = face midline;
 master = the frozen cohort factor. Last column: spectral (frequency) loading, fraction of total, all fits overlaid
@@ -676,6 +678,7 @@ def main(argv=None) -> int:
     ap.add_argument("--plot-only", action="store_true", help="redraw from data/epoch_shape.csv")
     ap.add_argument("--out", type=Path, default=None)
     ap.add_argument("--gallery", action="store_true", help="only the matched-factor gallery (fast)")
+    ap.add_argument("--animals", nargs="+", default=None, help="gallery: only these animals (own file name suffix)")
     ap.add_argument("--candidates", nargs=3, metavar=("ANIMAL", "GROUP", "FACTOR"), action="append", default=None,
                     help="all own factors of one fit vs one master factor (repeatable), e.g. PS95 subacute lick_left")
     ap.add_argument("--factors", nargs="+", default=list(LICK),
@@ -695,7 +698,7 @@ def main(argv=None) -> int:
             print("->", candidates_figure(fdir, frc.factor_names(fdir), out, an, g, fac))
         return 0
     if a.gallery:
-        G = matched_factor_gallery(fdir, frc.factor_names(fdir), out)
+        G = matched_factor_gallery(fdir, frc.factor_names(fdir), out, only=a.animals)
         G.to_csv(figure_layout.sidecar_for(out, "matched_factor_gallery", ".csv"), index=False, float_format="%.4g")
         print(G[G.contested].to_string(index=False))
         print("->", out)

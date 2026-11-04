@@ -565,7 +565,7 @@ def nolick_frozen_on() -> bool:
     return frozen_models.family_on(NOLICK_FROZEN_ENV)
 
 
-def nolick_spec(animal, align, max_rt, basis, train_labels, common, n_features, train_data):
+def nolick_spec(animal, align, max_rt, basis, train_labels, common, n_features, train_data, **scaling_kw):
     """Identity of one stored no-lick reference. align carries the engaged cut (2.0 s / respwin) and a digest of the
     pooled feature columns (for ROI the column set is the intersection over every pooled session); source is the
     feature basis (roi / joint + basis id)."""
@@ -576,7 +576,7 @@ def nolick_spec(animal, align, max_rt, basis, train_labels, common, n_features, 
         animal, "nolick_reference", align=f"{align}-rt{cut}-f{fdig}",
         source="joint" if basis is not None else "roi", train_labels=train_labels, post_s=2.0,
         basis_id=None if basis is None else basis.basis_id, n_features=n_features, train_data=train_data,
-        selection=_nolick_sel())
+        selection=_nolick_sel(), **scaling_kw)
 
 
 def _nolick_sel():
@@ -594,8 +594,11 @@ def _loso_predict(loso, X, S, dtype):
     return out
 
 
-def _stored_nolick_reference(animal, align, max_rt, basis, XE, YE, SE, m_pre, labs_pre, labs, common):
-    """{"full", "loso", "_provenance"} from the frozen store, or None when opted out (then the caller fits in memory)."""
+def _stored_nolick_reference(animal, align, max_rt, basis, XE, YE, SE, m_pre, labs_pre, labs, common, *, fit=None,
+                             scaling=None):
+    """{"full", "loso", "_provenance"} from the frozen store, or None when opted out (then the caller fits in memory).
+    ``fit`` (merge with main 11-03) = the `spout_scaling.FrozenFrame` fitter (models on its training frame, LOSO keyed
+    by pooled session id); ``scaling`` enters the spec (`spout_scaling.spec_kw`)."""
     if not nolick_frozen_on():
         print(f"  [nolick] {animal} {align}: {NOLICK_FROZEN_ENV}=0 -> pre-stroke reference fitted IN MEMORY",
               flush=True)
@@ -608,13 +611,15 @@ def _stored_nolick_reference(animal, align, max_rt, basis, XE, YE, SE, m_pre, la
         train = sorted(s["label"] for s in labs
                        if config.session_phase(config.animal_of(s["label"]), s["label"].split("_")[-1]) == "pre")
     Xp, Yp, Sp = XE[m_pre], YE[m_pre], SE[m_pre]
-    spec = nolick_spec(animal, align, max_rt, basis, train, common, int(XE.shape[1]), train_data=(Xp, Yp, Sp))
+    from wfield_local import spout_scaling
+    spec = nolick_spec(animal, align, max_rt, basis, train, common, int(XE.shape[1]), train_data=(Xp, Yp, Sp),
+                       **spout_scaling.spec_kw(scaling))
 
     def _fit():
         return {"full": _pipe().fit(Xp, Yp),
                 "loso": {lab: _pipe().fit(Xp[Sp != lab], Yp[Sp != lab]) for lab in sorted(set(Sp.tolist()))}}
 
-    payload, status = frozen_models.load_or_fit(spec, _fit, meta={"n_engaged_pre": int(m_pre.sum())})
+    payload, status = frozen_models.load_or_fit(spec, fit or _fit, meta={"n_engaged_pre": int(m_pre.sum())})
     slug = frozen_models._slug(spec)
     print(f"  [nolick] {animal} {align}: nolick_reference {slug} {status} "
           f"(trained on {spec.get('lick_source', 'daq')} pre trials)", flush=True)
@@ -757,13 +762,43 @@ def analyse_animal(animal, dates=None, align="cue", source="roi", post_s=2.0,
     res["post_labels"] = sorted(set(SE.tolist()) - labs_pre)
 
     from sklearn.model_selection import LeaveOneGroupOut
-    # STORED BY DEFAULT (11-02 pass 2, rule 10): the all-pre model and one leave-one-session-out model per pre session
-    # come from `frozen_models` (kind `nolick_reference`); opt-out WIDEFIELD_NOLICK_FROZEN=0 fits them in memory.
-    stored = _stored_nolick_reference(animal, align, max_rt, basis, XE, YE, SE, m_pre, labs_pre, labs, common)
+
+    # bal_em SINCE 2026-11-03 (`spout_scaling.FrozenFrame`; DECISIONS "bal_em extended to every cross-session
+    # decoder"): the pre-stroke model is trained on class-balanced pre sessions and every scored session is
+    # centred by the label-free EM centre of ITS engaged trials (production SD), applied to its no-lick arms too.
+    # Under WIDEFIELD_SPOUT_SCALING=session_z every line below is the pre-11-03 computation exactly.
+    # STORED BY DEFAULT (rebuild, rule 10; kind `nolick_reference`): the all-pre model and one leave-one-session-out
+    # model per pre session, fitted on the frame above, come from `frozen_models` through the FrozenFrame store hook;
+    # opt-out WIDEFIELD_NOLICK_FROZEN=0 fits them in memory.
+    from wfield_local import spout_scaling as _ss
+    _sid = {lab: k for k, lab in enumerate(sorted(set(SE.tolist())))}
+    GEi = np.array([_sid[lab] for lab in SE], int)
+    _prov = {"frozen_model": "in-memory"}
+
+    def _store(fit_all):
+        st = _stored_nolick_reference(animal, align, max_rt, basis, XE, YE, SE, m_pre, labs_pre, labs, common,
+                                      fit=fit_all, scaling=_ss.spout_scaling())
+        if st is None:
+            return fit_all()
+        _prov["frozen_model"] = st["_provenance"]
+        return st
+
+    ff = _ss.FrozenFrame(XE, YE, GEi, [_sid[lab] for lab in labs_pre], _pipe, loso=True, store=_store)
+
+    def _sc(X, sess):
+        """Rows in the frozen (full) model's scoring frame, by the session each row came from."""
+        if not ff.scaling or not len(X):
+            return X
+        return ff.apply_rows(X, np.array([_sid[lab] for lab in sess], int))
+
     # The ENGAGED arm is the pre-stroke reference band, so it is leave-one-session-out among PRE.
     # Mixing post-stroke sessions into it answers a different question.
-    if stored is not None:
-        pred_e = _loso_predict(stored["loso"], XE[m_pre], SE[m_pre], YE.dtype)
+    if ff.loso:
+        _pf = np.empty_like(YE)
+        for i in ff.loso:
+            rows = GEi == i
+            _pf[rows] = ff.loso[i].predict(ff.apply(XE[rows], i, "loso"))
+        pred_e = _pf[m_pre]
     else:
         pred_e = cross_val_predict(_pipe(), XE[m_pre], YE[m_pre], cv=LeaveOneGroupOut(), groups=SE[m_pre])
     res["engaged"] = na.evaluate_arm(YE[m_pre], pred_e, n_perm=n_perm)
@@ -772,21 +807,22 @@ def analyse_animal(animal, dates=None, align="cue", source="roi", post_s=2.0,
     # the other arms are being made comparable to.
     eng_frac = {POSITION_NAMES[c]: float((YE[m_pre] == c).mean()) for c in DISPLAY_ORDER}
 
-    clf = stored["full"] if stored is not None else _pipe().fit(XE[m_pre], YE[m_pre])
-    res["frozen_model"] = stored["_provenance"] if stored is not None else "in-memory"
+    clf = ff.full
+    res["frozen_model"] = _prov["frozen_model"]
     for c in ("late_rewarded", "undetected"):
         Y = _cat(c, "y").astype(int)
         if not Y.size:
             res[c] = {"n": 0}
             continue
-        res[c] = na.evaluate_arm(Y, clf.predict(_cat(c, "X")), target_frac=eng_frac, n_perm=n_perm)
+        res[c] = na.evaluate_arm(Y, clf.predict(_sc(_cat(c, "X"), _cat(c, "sess"))), target_frac=eng_frac,
+                                 n_perm=n_perm)
 
     # SPLIT THE UNDETECTED ARM BY ENGAGEMENT STATE. A miss inside a working stretch is a candidate
     # "tried and fell short"; a miss in the satiation tail is "stopped working". Pre-stroke they are
     # pooled in every previous version of this analysis, which blends the two mechanisms the module
     # exists to separate -- and post-stroke the blend will differ again, so the comparison would be
     # between two different mixtures rather than between two conditions.
-    Yu_all, Xu_all = _cat("undetected", "y"), _cat("undetected", "X")
+    Yu_all, Xu_all = _cat("undetected", "y"), _sc(_cat("undetected", "X"), _cat("undetected", "sess"))
     Eu = _cat("undetected", "eng")
     if Yu_all.size and Eu.size == Yu_all.size:
         # NAMED FOR WHAT THE GATE MEASURES. This arm was called "undetected_sated" until 2026-08-18;
@@ -804,7 +840,8 @@ def analyse_animal(animal, dates=None, align="cue", source="roi", post_s=2.0,
 
     Yp = np.concatenate([_cat("late_rewarded", "y"), _cat("undetected", "y")]).astype(int)
     if Yp.size:
-        Xp = np.concatenate([x for x in (_cat("late_rewarded", "X"), _cat("undetected", "X")) if x.size])
+        Xp = np.concatenate([x for x in (_sc(_cat("late_rewarded", "X"), _cat("late_rewarded", "sess")),
+                                         _sc(_cat("undetected", "X"), _cat("undetected", "sess"))) if x.size])
         res["nolick_pooled"] = na.evaluate_arm(Yp, clf.predict(Xp), target_frac=eng_frac,
                                                n_perm=n_perm)
         res["compare"] = na.compare_arms(res["engaged"], res["nolick_pooled"])
@@ -829,14 +866,14 @@ def analyse_animal(animal, dates=None, align="cue", source="roi", post_s=2.0,
     pred_pooled = np.empty_like(YE)
     pred_pooled[m_pre] = pred_e
     if (~m_pre).any():
-        pred_pooled[~m_pre] = clf.predict(XE[~m_pre])
+        pred_pooled[~m_pre] = clf.predict(_sc(XE[~m_pre], SE[~m_pre]))
 
     sess_labels = sorted(set(SE.tolist()))
     per = {}
     idx_e = {lab: np.flatnonzero(SE == lab) for lab in sess_labels}
     cat_sess = {c: _cat(c, "sess") for c in CATEGORIES}
     cat_y = {c: _cat(c, "y") for c in CATEGORIES}
-    cat_X = {c: _cat(c, "X") for c in CATEGORIES}
+    cat_X = {c: _sc(_cat(c, "X"), cat_sess[c]) for c in CATEGORIES}
     for lab in sess_labels:
         d = {}
         ie = idx_e[lab]

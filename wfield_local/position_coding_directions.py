@@ -458,7 +458,7 @@ def _rt_engaged(feat, kept, XE):
     return rt
 
 
-def _class_confusions(XE, YE, GE, XU, YU, e_pre, pre_i, _mask, kept, rt_e=None, models=None):
+def _class_confusions(XE, YE, GE, XU, YU, e_pre, pre_i, _mask, kept, rt_e=None, GU=None, store=None):
     """Confusion of the frozen PRE-stroke decoder, one counts matrix per class.
 
     Rows are the TRUE position and columns the predicted one, both in DISPLAY_ORDER, as raw counts
@@ -472,8 +472,8 @@ def _class_confusions(XE, YE, GE, XU, YU, e_pre, pre_i, _mask, kept, rt_e=None, 
     value would read a collapse that is mostly overfitting (recorded in
     `grant_figures.fig_confusion_pre_post_working`).
 
-    ``models`` = the STORED {"full", "loso": {pre label: model}} (`stored_confusion_decoder`, the default since 11-02
-    pass 2); None fits both in memory (`fit_confusion_decoder`, the same fits).
+    ``store`` = the frozen-store hook (`stored_confusion_decoder`, the default since 11-02 pass 2); None fits both in
+    memory (the same fits).
     """
     # This module imports only POSITION_NAMES, not the order -- take it from the one place that
     # defines it, so these matrices are in the SAME row order as every other confusion in the deck.
@@ -492,8 +492,18 @@ def _class_confusions(XE, YE, GE, XU, YU, e_pre, pre_i, _mask, kept, rt_e=None, 
     res = {"labels": [POSITION_NAMES.get(int(c), str(c)) for c in DISPLAY_ORDER],
            "counts": True, "note": "raw counts; sum classes to build any population"}
 
-    if models is None:
-        models = fit_confusion_decoder(XE, YE, GE, e_pre, pre_i, kept)
+    # THE FROZEN DECODER IN ITS bal_em FRAMES since 2026-11-03 (`spout_scaling.FrozenFrame`): trained on
+    # class-balanced pre sessions, each scored session centred by the label-free EM centre of its engaged rows
+    # under the scoring model. Needs the no-lick rows' sessions (``GU``); without them, and under
+    # WIDEFIELD_SPOUT_SCALING=session_z, this is the pre-11-03 computation exactly.
+    # STORED (rebuild 11-02 pass 2, rule 10): ``store`` = `stored_confusion_decoder` through the FrozenFrame store hook
+    # (payload {"full", "loso": {pooled index: model}} on the FrozenFrame training frame); None = in memory.
+    from wfield_local import spout_scaling as _ss
+    _use = _ss.spout_scaling() is not None and GU is not None
+    ff = _ss.FrozenFrame(XE, YE, GE, sorted(pre_i), _confusion_pipe, train_mask=e_pre, loso=True,
+                         scaling=(_ss.SCALING_BAL_EM if _use else None), store=store)
+    res["spout_scaling"] = _ss.SCALING_BAL_EM if _use else _ss.SCALING_SESSION_Z
+
     # PRE, leave-one-session-out
     Cpre = np.zeros((len(DISPLAY_ORDER), len(DISPLAY_ORDER)), float)
     got = False
@@ -501,17 +511,18 @@ def _class_confusions(XE, YE, GE, XU, YU, e_pre, pre_i, _mask, kept, rt_e=None, 
         tr, te = e_pre & (GE != i), e_pre & (GE == i)
         if te.sum() < 5 or len(np.unique(YE[tr])) < 2:
             continue
-        Cpre += counts(YE[te], models["loso"][kept[i]].predict(XE[te]))
+        Cpre += counts(YE[te], ff.loso[i].predict(ff.apply(XE[te], i, "loso")))
         got = True
     res["prestroke_lick"] = Cpre.tolist() if got else None
 
     # POST, one matrix per class, all scored by the SAME frozen model fitted on every pre-stroke
     # engaged trial -- so the classes are directly comparable and their sums are meaningful.
-    clf = models["full"]
+    clf = ff.full
     for cls in CONFUSION_CLASSES:
         m = _mask(cls)
-        X, y = ((XE, YE) if cls == "poststroke_lick" else (XU, YU))
-        res[cls] = counts(y[m], clf.predict(X[m])).tolist() if m.any() else None
+        X, y, G = ((XE, YE, GE) if cls == "poststroke_lick" else (XU, YU, GU))
+        res[cls] = (counts(y[m], clf.predict(ff.apply_rows(X[m], G[m]) if _use else X[m])).tolist()
+                    if m.any() else None)
         res[f"n_{cls}"] = int(m.sum())
 
     # EARLY vs LATE REWARDED, a partition of `poststroke_lick` at RT_SPLIT_S.
@@ -532,7 +543,8 @@ def _class_confusions(XE, YE, GE, XU, YU, e_pre, pre_i, _mask, kept, rt_e=None, 
         else:
             res["rt_split_s"] = RT_SPLIT_S
             for cls, m in (("poststroke_lick_early", early), ("poststroke_lick_late", late)):
-                res[cls] = counts(YE[m], clf.predict(XE[m])).tolist() if m.any() else None
+                res[cls] = (counts(YE[m], clf.predict(ff.apply_rows(XE[m], GE[m]) if _use else XE[m])).tolist()
+                            if m.any() else None)
                 res[f"n_{cls}"] = int(m.sum())
     return res
 
@@ -640,7 +652,8 @@ def _coding_train(animal, kept, pre_i):
     return sorted(kept[i] for i in pre_i)
 
 
-def stored_confusion_decoder(animal, align, post_s, basis_id, XE, YE, GE, e_pre, pre_i, kept):
+def stored_confusion_decoder(animal, align, post_s, basis_id, XE, YE, GE, e_pre, pre_i, kept, *, fit=None,
+                             scaling=None):
     """The stored confusion decoder, or None (opted out, or too little pre data -- `_class_confusions` then returns
     None itself without fitting)."""
     from wfield_local import frozen_models
@@ -649,9 +662,10 @@ def stored_confusion_decoder(animal, align, post_s, basis_id, XE, YE, GE, e_pre,
     spec = frozen_models.make_spec(animal, "coding_decoder", align=align, source="locanmf",
                                    train_labels=_coding_train(animal, kept, pre_i), post_s=post_s,
                                    basis_id=basis_id, n_features=int(XE.shape[1]),
-                                   train_data=(XE[e_pre], YE[e_pre], GE[e_pre]))
+                                   train_data=(XE[e_pre], YE[e_pre], GE[e_pre]),
+                                   **__import__("wfield_local.spout_scaling", fromlist=["x"]).spec_kw(scaling))
     payload, status = frozen_models.load_or_fit(
-        spec, lambda: fit_confusion_decoder(XE, YE, GE, e_pre, pre_i, kept),
+        spec, fit or (lambda: fit_confusion_decoder(XE, YE, GE, e_pre, pre_i, kept)),
         meta={"n_engaged_pre": int(e_pre.sum())})
     print(f"  [coding_dirs] {animal} {align}: coding_decoder {frozen_models._slug(spec)} {status} "
           f"(trained on {spec.get('lick_source', 'daq')} pre trials)", flush=True)
@@ -872,10 +886,18 @@ def run_animal(animal, align="precue", verbose=True, methods=CD_METHODS):
     # coding_direction.json. A second definition elsewhere is how the frozen-decoder contamination
     # happened: two places computing "the same" population and drifting apart.
     try:
-        # STORED BY DEFAULT (11-02 pass 2): see CODING_FROZEN_ENV.
-        out["confusions"] = _class_confusions(
-            XE, YE, GE, XU, YU, e_pre, pre_i, _mask, kept, rt_e=_rt_engaged(feat, kept, XE),
-            models=stored_confusion_decoder(animal, align, post_s, basis.basis_id, XE, YE, GE, e_pre, pre_i, kept))
+        # STORED BY DEFAULT (11-02 pass 2): see CODING_FROZEN_ENV; bal_em frames since main 11-03
+        from wfield_local import spout_scaling as _ss
+        _scl = _ss.SCALING_BAL_EM if _ss.spout_scaling() is not None else None
+
+        def _store_conf(fit_all):
+            st = stored_confusion_decoder(animal, align, post_s, basis.basis_id, XE, YE, GE, e_pre, pre_i, kept,
+                                          fit=fit_all, scaling=_scl)
+            return st if st is not None else fit_all()
+
+        out["confusions"] = _class_confusions(XE, YE, GE, XU, YU, e_pre, pre_i, _mask, kept,
+                                              rt_e=_rt_engaged(feat, kept, XE), GU=np.asarray(GU),
+                                              store=_store_conf)
     except Exception as ex:                                          # noqa: BLE001
         print(f"  [coding_dirs] {animal}: per-class confusions unavailable ({ex})", flush=True)
 

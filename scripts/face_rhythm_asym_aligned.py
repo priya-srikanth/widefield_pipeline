@@ -163,6 +163,8 @@ def main(argv=None) -> int:
     Ss = pd.DataFrame(srows).sort_values(["align", "position", "animal", "label"], kind="stable")
     Ss["rel"] = Ss.asym - Ss.groupby(["animal", "align", "position"]).asym.transform(
         lambda x: x[Ss.loc[x.index, "epoch"] == "pre"].mean())
+    # per-session values, for the LMM version of the change figure (Priya 11-03, scripts/lmm_change_fig.py)
+    Ss.to_csv(figure_layout.sidecar_for(out, "asym_aligned_sessions", ".csv"), index=False, float_format="%.5g")
     rng = np.random.default_rng(0)
     st = []
     for al in ALIGN:

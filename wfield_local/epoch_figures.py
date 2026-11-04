@@ -1678,37 +1678,36 @@ def contrast_draws(per_animal, epoch_a, epoch_b, stat, *, rng, n_boot=2000):
     out NARROWER than the uncorrected one it is supposed to contain.
 
     The animal draw is shared between the two epochs, which keeps the contrast paired.
+
+    ANIMAL-WEIGHTED since 2026-11-03 (consolidation A3, `analysis_kit.paired_animal_draws`): ``stat`` is computed
+    on EACH ANIMAL'S pooled trials per epoch, the change is the mean over animals of their own changes, and only
+    animals with sessions in both epochs count -- for the point and every draw alike. Until then ``stat`` ran on the
+    trials pooled across animals (a trial-weighted point that included animals the draws skipped). Within an
+    animal nothing is lost: all its sessions and trials still feed its value.
     """
+    from wfield_local import analysis_kit as ak
+
     animals = sorted(per_animal)
     if not animals:
         return None
-    real_a, real_b = _pooled(per_animal, epoch_a), _pooled(per_animal, epoch_b)
-    if real_a is None or real_b is None:
+    post = {an: _sessions_of(per_animal, an, epoch_a) for an in animals}
+    pre = {an: _sessions_of(per_animal, an, epoch_b) for an in animals}
+
+    def animal_stat(sessions, rng_):
+        """``stat`` on one animal's sessions: all blocks (real data) or blocks resampled within each session."""
+        ys, ps = [], []
+        for blocks in sessions:
+            if not blocks:
+                continue
+            for j in (range(len(blocks)) if rng_ is None else rng_.integers(0, len(blocks), len(blocks))):
+                ys.append(blocks[j][0])
+                ps.append(blocks[j][1])
+        return stat(np.concatenate(ys), np.concatenate(ps)) if ys else None
+
+    point, diffs, _an = ak.paired_animal_draws(post, pre, animal_stat, rng, n_boot)
+    if point is None or len(diffs) < n_boot // 4:
         return None
-    pa, pb = stat(*real_a), stat(*real_b)
-    if pa is None or pb is None:
-        return None
-    sess = {(an, e): _sessions_of(per_animal, an, e)
-            for an in animals for e in (epoch_a, epoch_b)}
-    diffs = []
-    for _ in range(n_boot):
-        pick = [animals[i] for i in rng.integers(0, len(animals), len(animals))]
-        ya, pa_, yb, pb_ = [], [], [], []
-        for an in pick:
-            da, db = _draw(sess[(an, epoch_a)], rng), _draw(sess[(an, epoch_b)], rng)
-            if da is None or db is None:
-                continue                       # this animal has no session in one arm
-            ya.append(da[0]); pa_.append(da[1])
-            yb.append(db[0]); pb_.append(db[1])
-        if not ya or not yb:
-            continue
-        va = stat(np.concatenate(ya), np.concatenate(pa_))
-        vb = stat(np.concatenate(yb), np.concatenate(pb_))
-        if va is not None and vb is not None:
-            diffs.append(va - vb)
-    if len(diffs) < n_boot // 4:
-        return None
-    return float(pa - pb), np.asarray(diffs, float)
+    return float(point), np.asarray(diffs, float)
 
 
 def _pooled(per_animal, epoch):
@@ -2846,7 +2845,14 @@ def scalar_contrast_draws(points, epoch_a, epoch_b, key, *, rng, n_boot=2000):
     to assume they match.
 
     The animal draw is shared between the two epochs, so the contrast stays paired.
+
+    ANIMAL-WEIGHTED since 2026-11-03 (consolidation A3): this IS `analysis_kit.boot_delta` -- the change is the mean
+    over animals of each animal's own change, over the animals present in BOTH epochs, for the point and the draws
+    alike. Until then the point was a flat mean over every session row (animals missing from one epoch included) and
+    each draw pooled sessions, so a many-session animal outweighed the others.
     """
+    from wfield_local import analysis_kit as ak
+
     a_rows = (points.get(epoch_a) or {}).get(key) or []
     b_rows = (points.get(epoch_b) or {}).get(key) or []
     if not a_rows or not b_rows:
@@ -2856,20 +2862,10 @@ def scalar_contrast_draws(points, epoch_a, epoch_b, key, *, rng, n_boot=2000):
         return None
     by_a = {an: [v for x, v in a_rows if x == an] for an in animals}
     by_b = {an: [v for x, v in b_rows if x == an] for an in animals}
-    point = float(np.mean([v for _a, v in a_rows]) - np.mean([v for _a, v in b_rows]))
-    diffs = []
-    for _ in range(n_boot):
-        pick = [animals[i] for i in rng.integers(0, len(animals), len(animals))]
-        va, vb = [], []
-        for an in pick:
-            sa, sb = by_a[an], by_b[an]
-            va += [sa[i] for i in rng.integers(0, len(sa), len(sa))]
-            vb += [sb[i] for i in rng.integers(0, len(sb), len(sb))]
-        if va and vb:
-            diffs.append(float(np.mean(va) - np.mean(vb)))
-    if len(diffs) < n_boot // 4:
+    iv, draws = ak.boot_delta(by_a, by_b, rng, n_boot, draws=True)
+    if iv is None:
         return None
-    return point, np.asarray(diffs, float)
+    return float(iv.point), np.asarray(draws, float)
 
 
 def value_draws(per_animal, epoch, stat, *, rng, n_boot=2000):

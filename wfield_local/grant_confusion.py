@@ -69,6 +69,8 @@ from wfield_local.grant_kit import (  # noqa: F401
     _overlaps,
     _pct3,
     _pooled_bundle,
+    _frozen_frame,
+    _frozen_score_rows,
     _position_metrics,
     _pre_reference,
     _runs_to_blocks,
@@ -301,8 +303,6 @@ def fig_confusion_pre_post_working(out_dir):
     STILL NOT VALIDATED, and the figure says so: nothing in the spout data proves the terminal run is
     satiety rather than a late motor collapse. It is reported BESIDE figure 5, never instead of it.
     """
-    from wfield_local.locanmf_frozen_decoder import _pipe
-
     PANELS = (("pre", "PRE-stroke\nLICK trials"),
               ("post_all", "POST-stroke\nALL trials"),
               ("post_working", "POST-stroke\nquit period REMOVED"))
@@ -365,12 +365,11 @@ def fig_confusion_pre_post_working(out_dir):
                 XU, YU, GU = bd["XU"], bd["YU"], bd["GU"]
                 pre_i, e_pre, not_eng = bd["pre_i"], bd["e_pre"], bd["not_eng"]
                 u_pre = np.isin(GU, list(pre_i)) if len(GU) else np.zeros(0, bool)
-                # THE STORED EPOCH DECODER (11-02, Priya: "yes cache all frozen decoders"): the same bundle, rows and
-                # estimator as the acc family's `epoch_decoder`, so the full and LOSO fits here ARE that stored model
-                # (bit for bit on the DAQ arm). Opt-out WIDEFIELD_EPOCH_FROZEN=0 refits in memory as before.
-                # (named `frozen`, not `stored`: `stored` above is the list of animals served from the JSON)
-                frozen = _stored_epoch_decoder(an, align, bd, tag="5b")
-                clf = frozen["full"] if frozen else _pipe().fit(XE[e_pre], YE[e_pre])
+                # THE FROZEN DECODER IN ITS SCORING FRAME (`_frozen_frame`; bal_em since 2026-11-03, identity
+                # under session_z): same models as before, applied to XEs / XUs.
+                _fr = _frozen_frame(bd, an, align)
+                clf = _fr["full"]
+                XE, XU = _fr["XEs"], _fr["XUs"]
                 name = np.vectorize(lambda v: POSITION_NAMES.get(int(v), str(v)))
 
                 def conf(X, y, clf=clf, name=name):
@@ -398,8 +397,7 @@ def fig_confusion_pre_post_working(out_dir):
                     te = e_pre & (GE == i)
                     if te.sum() < 5 or len(np.unique(YE[tr])) < 2:
                         continue
-                    m_i = (frozen["loso"].get(bd["kept"][i]) if frozen else None) or _pipe().fit(XE[tr], YE[tr])
-                    c1 = conf(XE[te], YE[te], clf=m_i)
+                    c1 = conf(XE[te], YE[te], clf=_fr["loso"][i])
                     Cpre = c1 if Cpre is None else Cpre + c1
                 mats["pre"] = Cpre
                 pe, pu = ~e_pre, (~u_pre if len(u_pre) else np.zeros(0, bool))
@@ -429,7 +427,7 @@ def fig_confusion_pre_post_working(out_dir):
                     Xs = np.vstack([XE[me_s]] + ([XU[mu_s]] if mu_s.any() else []))
                     ys = np.concatenate([YE[me_s]] + ([YU[mu_s]] if mu_s.any() else []))
                     side.append((an, lab, "post_working_session", conf(Xs, ys)))
-                side.append((an, "", "decoder", "memory" if frozen is None else "store"))
+                side.append((an, "", "decoder", "store" if epoch_frozen_on() else "memory"))
             except _Stored:
                 pass                       # the stored per-class matrices are already in `mats`
             except Exception as ex:                                       # noqa: BLE001
@@ -581,7 +579,12 @@ def _matched_frozen(pipe_of, Xp, Yp, Bp, n_target, rng):
             break
     if keep.sum() < 2 or len(np.unique(Yp[keep])) < 2:
         return None
-    return pipe_of().fit(Xp[keep], Yp[keep]), int(keep.sum())
+    fitted = pipe_of().fit(Xp[keep], Yp[keep])
+    # The matched model's TRAINING class mix, for the bal_em scoring centre (`spout_scaling`, 2026-11-03). An
+    # attribute rather than a third return value so existing callers' unpacking is unchanged.
+    from wfield_local import spout_scaling
+    fitted.spout_pi_train_ = spout_scaling.class_prior(Yp[keep])
+    return fitted, int(keep.sum())
 def _refit_pred(pipe_of, X, y, blk, *, max_splits=5):
     """Within-session block-CV prediction on ONE session: what a decoder that SAW this session gets.
 
@@ -643,10 +646,12 @@ def epoch_frozen_on() -> bool:
     return os.environ.get(EPOCH_FROZEN_ENV, "").strip().lower() not in EPOCH_FROZEN_OFF
 
 
-def _stored_epoch_decoder(an, align, bd, tag="5c"):
+def _stored_epoch_decoder(an, align, bd, tag="5c", XT=None, scaling=None):
     """{"full", "loso"} from the frozen store for this animal's pooled bundle, or None when opted out.
 
-    ``tag`` only labels the log line (5c / 5r / 5b): every caller gets the same spec, hence the same stored model."""
+    ``tag`` only labels the log line: every caller gets the same spec, hence the same stored model. Called by
+    `grant_kit._frozen_frame` (merge with main 11-03), which passes ``XT`` -- the bal_em TRAINING frame the models are
+    fitted on (= XE under session_z) -- and ``scaling``, which enters the spec (`spout_scaling.spec_kw`)."""
     if not epoch_frozen_on():
         print(f"  [{tag}] {an} {align}: {EPOCH_FROZEN_ENV}=0 -> pre-stroke decoder fitted IN MEMORY (not stored)",
               flush=True)
@@ -664,18 +669,21 @@ def _stored_epoch_decoder(an, align, bd, tag="5c"):
         # WIDEFIELD_LP_FROZEN=daq.) DAQ-TRAINED model scored in the LP arm: its training set is the DAQ arm's (every pre session of the animal),
         # not the LP-kept list -- a pre session without video (PS93_0813) is in the DAQ fit but cannot be pooled here.
         train = [x for x in config.phase_labels("pre") if config.animal_of(x) == an]
+    from wfield_local import spout_scaling
+    XF = XE if XT is None else XT
     spec = frozen_models.make_spec(an, "epoch_decoder", align=align, source="locanmf",
                                    train_labels=train, post_s=2.0,
                                    basis_id=bd.get("basis_id"), n_features=int(XE.shape[1]),
-                                   train_data=(XE[e_pre], YE[e_pre], GE[e_pre]))
+                                   train_data=(XE[e_pre], YE[e_pre], GE[e_pre]),
+                                   **spout_scaling.spec_kw(scaling if XT is not None else None))
 
     def _fit():
         loso = {}
         for i in pre_i:
             tr = e_pre & (GE != i)
             if len(np.unique(YE[tr])) >= 2:
-                loso[kept[i]] = _pipe().fit(XE[tr], YE[tr])
-        return {"full": _pipe().fit(XE[e_pre], YE[e_pre]), "loso": loso}
+                loso[kept[i]] = _pipe().fit(XF[tr], YE[tr])
+        return {"full": _pipe().fit(XF[e_pre], YE[e_pre]), "loso": loso}
 
     payload, status = frozen_models.load_or_fit(
         spec, _fit, meta={"n_engaged_pre": int(e_pre.sum()), "n_pre_sessions": len(pre_i)})
@@ -741,22 +749,24 @@ def _collect_5c(align, variant="working", mode="frozen"):
             kept, pre_i, e_pre = bd["kept"], bd["pre_i"], bd["e_pre"]
             not_eng, BE_all, BU_all = bd["not_eng"], bd["BE"], bd["BU"]
 
-            # THE FROZEN COLUMN IS THE STORED MODEL in "frozen" AND "paired" (11-02): the same full / LOSO fits as the
-            # in-memory line below (same rows), so the DAQ arm is unchanged bit for bit and the LP arm's paired frozen
-            # column is the acc family's model (LP arm: LP-trained by default since 11-03, DAQ-trained with
-            # WIDEFIELD_LP_FROZEN=daq).
-            # "refit" has no frozen column; "paired_matched" replaces both models with `_matched_frozen` draws.
-            stored = (_stored_epoch_decoder(an, align, bd, tag="5c" if mode == "frozen" else "5r")
-                      if mode in ("frozen", "paired") else None)
-            clf = stored["full"] if stored else _pipe().fit(XE[e_pre], YE[e_pre])
+            # THE FROZEN DECODER AND ITS FRAME (`grant_kit._frozen_frame`, bal_em since 2026-11-03; identity under
+            # WIDEFIELD_SPOUT_SCALING=session_z). The frozen predictions read the SCORING frame (XEs / XUs); the
+            # within-session refit reads the production frame (XE / XU), as it always has -- it never meets the
+            # frozen model. The matched arm trains on the TRAINING frame (XT) and scores in its own EM frame.
+            # MERGE (11-03): `_frozen_frame` serves the STORED epoch decoder (rule 10) in "frozen" / "paired" alike --
+            # the acc family's model; "refit" has no frozen column; "paired_matched" replaces both with matched draws.
+            fr = _frozen_frame(bd, an, align)
+            XT, XEs, XUs = fr["XT"], fr["XEs"], fr["XUs"]
+            clf = fr["full"]
 
             # 5rm / "paired_matched" THROUGH THE STORE (cohort-1 rebuild 2026-11-03, rule 10): every size-matched draw of
             # this animal x align x class lives in ONE spec (kind `matched_frozen`, align carries the class and the seed
             # base `_seed`), keyed inside the payload by (pool, n_target, rng seed). Its training-data fingerprint covers
-            # the whole pooled bundle, so the set of draws is a deterministic function of the spec: a hit replays every
-            # draw, a miss fits them in memory exactly as before and stores them. WIDEFIELD_EPOCH_FROZEN=0 = in memory.
+            # the whole pooled bundle (and the spec the scaling, as the draws train on the bal_em frame), so the set of
+            # draws is a deterministic function of the spec: a hit replays every draw, a miss fits them in memory exactly
+            # as before and stores them. WIDEFIELD_EPOCH_FROZEN=0 = in memory.
             mm_spec, mm_old, mm_new = None, None, {}
-            from wfield_local import frozen_models
+            from wfield_local import frozen_models, spout_scaling
             if mode == "paired_matched" and epoch_frozen_on() and frozen_models.daq_trained_in_lp():
                 # REVIEW M8 (11-03): the LP arm's DAQ-trained cross-check has no stored matched draws to load (their
                 # train_fp is DAQ_RUN_FP and load_or_fit refuses to fit one), which dropped whole animals (PS93 always)
@@ -770,7 +780,8 @@ def _collect_5c(align, variant="working", mode="frozen"):
                     source="locanmf", train_labels=[kept[i] for i in sorted(pre_i)], post_s=2.0,
                     basis_id=bd.get("basis_id"), n_features=int(XE.shape[1]),
                     train_data=(XE, YE, GE, XU, YU, GU, (not_eng if bd.get("cls") is None else None), BE_all, BU_all,
-                                sorted(pre_i), bd.get("cls")))
+                                sorted(pre_i), bd.get("cls")),
+                    **spout_scaling.spec_kw(None if fr["scaling"] == spout_scaling.SCALING_SESSION_Z else fr["scaling"]))
                 _d, _o = frozen_models.find(mm_spec)
                 if _d is not None:
                     mm_old = frozen_models._read(_d)
@@ -783,7 +794,14 @@ def _collect_5c(align, variant="working", mode="frozen"):
                 mm_new[key] = got
                 return got
 
-            def rec(X, y, blk, model, pool=None, pool_tag="post"):
+            def _stack(i, me, mu, frozen_frame, XEs=XEs, XUs=XUs, XE=XE, XU=XU):
+                A, B = (XEs, XUs) if frozen_frame else (XE, XU)
+                return np.vstack([A[me]] + ([B[mu]] if mu.any() else []))
+
+            def rec(X, y, blk, model, pool=None, X_refit=None, sess=None, me=None, mu=None, pool_tag="post",
+                    an=an, fr=fr, bd=bd, XE=XE, XU=XU):
+                # loop variables bound as defaults: rec is only called within this iteration, but a late-binding
+                # closure would silently read a later animal's bundle if it ever were not
                 """One record, with `mode` deciding whose prediction fills column(s) of y_pred.
 
                 ``pool`` is the pre-stroke (X, y, blocks) the matched frozen model may draw from --
@@ -807,10 +825,19 @@ def _collect_5c(align, variant="working", mode="frozen"):
                     if got is None:
                         return None
                     model = got[0]
+                    # the matched model scores in ITS OWN bal_em frame (centre from this session's engaged
+                    # rows, its own training prior); identity under session_z
+                    if fr["scaling"] != "session_z":
+                        if [int(c) for c in model.classes_] == list(range(6)):
+                            Xe_, Xu_ = _frozen_score_rows(bd, model, model.spout_pi_train_, sess,
+                                                          XE[me], XU[mu] if mu.any() else None)
+                            X = np.vstack([Xe_] + ([Xu_] if Xu_ is not None else []))
+                        else:
+                            X = X_refit        # a subset missing a spout: no 6-class EM; production frame
                 fz = np.asarray(model.predict(X))
                 if mode == "frozen":
                     return (y, fz, blk)
-                rf = _refit_pred(_pipe, X, y, blk)
+                rf = _refit_pred(_pipe, X if X_refit is None else X_refit, y, blk)
                 if rf is None:
                     return None
                 return (y, rf, blk) if mode == "refit" else (y, np.column_stack([fz, rf]), blk)
@@ -858,15 +885,15 @@ def _collect_5c(align, variant="working", mode="frozen"):
                 else:
                     me_te = e_pre & (GE == i)
                     mu_te = np.zeros(len(GU), bool)
-                Xte = np.vstack([XE[me_te]] + ([XU[mu_te]] if mu_te.any() else []))
+                Xte = _stack(i, me_te, mu_te, True)
+                Xte_r = _stack(i, me_te, mu_te, False)
                 yte = np.concatenate([YE[me_te]] + ([YU[mu_te]] if mu_te.any() else []))
                 bte = np.concatenate([BE_all[me_te]] + ([BU_all[mu_te]] if mu_te.any() else []))
                 if len(yte) < 5 or len(np.unique(YE[tr])) < 2:
                     continue
-                m_i = (stored["loso"].get(kept[i]) if stored else None) or _pipe().fit(XE[tr], YE[tr])
-                if stored and kept[i] not in stored["loso"]:
-                    print(f"  !! 5c {an}: no stored LOSO model for {kept[i]}; fitted in memory", flush=True)
-                r = rec(Xte, yte, bte, m_i, pool=(XE[tr], YE[tr], BE_all[tr]), pool_tag=f"pre-{kept[i]}")
+                r = rec(Xte, yte, bte, fr["loso"][i],
+                        pool=(XT[tr], YE[tr], BE_all[tr]), X_refit=Xte_r, sess=i, me=me_te, mu=mu_te,
+                        pool_tag=f"pre-{kept[i]}")
                 if r is None:
                     continue
                 pre_recs.append(r)
@@ -883,12 +910,14 @@ def _collect_5c(align, variant="working", mode="frozen"):
                     continue
                 day = _day(an, lab.split("_")[-1])
                 me, mu = _class_select(variant, (GE == i), (GU == i), not_eng, cls=bd.get("cls"))
-                Xs = np.vstack([XE[me]] + ([XU[mu]] if mu.any() else []))
+                Xs = _stack(i, me, mu, True)
+                Xs_r = _stack(i, me, mu, False)
                 ys = np.concatenate([YE[me]] + ([YU[mu]] if mu.any() else []))
                 bs = np.concatenate([BE_all[me]] + ([BU_all[mu]] if mu.any() else []))
                 if not len(ys):
                     continue
-                r = rec(Xs, ys, bs, clf, pool=(XE[e_pre], YE[e_pre], BE_all[e_pre]))
+                r = rec(Xs, ys, bs, clf, pool=(XT[e_pre], YE[e_pre], BE_all[e_pre]), X_refit=Xs_r, sess=i,
+                        me=me, mu=mu)
                 if r is None:
                     continue
                 by_day[day] = r

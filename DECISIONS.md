@@ -23048,3 +23048,251 @@ Collected from the rebuild rounds of 11-03 (coordinator relays; implementation `
   ends a run; an in-video "unknown" is skipped. So `[C, NR x3, U, NR x3, C]` is one stop of 6, `[C, NR x3, C, NR x3, C]`
   is none.
 
+
+## 2026-11-03 — Spout-position frozen decoder: bal_em adopted as PRODUCTION at every alignment (arm B, no guard)
+
+**Decision (Priya, 11-03: "I would adopt B everywhere").** The frozen pre-stroke SPOUT-POSITION decoder now scores every
+session with `scaling="session_bal_em"` at precue, cue and lick: arm B of the guard check above (24e9dac1), with NO guard
+(G1 was not adopted: Priya rejected applying pre-stroke structure selectively). Follows the class-mix check (fa70b651).
+
+**Method (one sentence for a methods section).** Each pre-stroke training session was centred on the equal-weight mean of
+its six true spout-class means and scaled by its engaged-trial SD; each scored session kept its engaged-trial SD, and its
+centre was re-estimated without labels as the equal-weight mean of soft class means, with class priors re-estimated from
+the frozen model's posteriors by the expectation-maximisation label-shift correction of Saerens et al. (2002) (3 passes;
+the same centre applied to that session's no-lick trials).
+
+**Code.** `wfield_local/label_shift.py` (the EM primitives, MOVED from `locomotor_decoder`, which re-exports them; the
+state decoder is bit-identical: 20 random cases vs HEAD + `tests/test_state_bal_em.py`); `wfield_local/spout_scaling.py`
+(env `WIDEFIELD_SPOUT_SCALING`, default `session_bal_em`; `session_z` = the pre-11-03 production: no spec key, the old
+models load). Wired into `grant_kit._frozen_frame` (one fit + one frame per bundle) -> `grant_confusion._collect_5c`
+(frozen / paired / paired_matched; the within-session refit stays on the production frame) and the 5b recompute path;
+`locanmf_frozen_decoder` (`decoder_spec`, `frozen_decoder_models`, new `frozen_scored_frame`; `pooled_frozen_loso`,
+`ood_control`); `poststroke_compare.frozen_X` (decode_matched all-trials arm, crossed_confusion, impaired_nolick_readout
+= section G); `attempt_coding`. It works on the production-z matrices: both transforms are affine per session with the
+same SD, so this is algebraically the raw-feature computation. Scored-session labels never enter (by signature;
+`tests/test_spout_bal_em.py` shuffles them and gets bit-identical inputs to the model). NOT converted (still session_z;
+separate in-memory fits, not this frozen model): `precue_engagement_states`, `nolick_decoder`, `enl_decode`,
+`locanmf_decoder_qc`, `precue_significance`, the class-filtered lick-only arm of `poststroke_compare.decode_matched`,
+`scripts/june_august_drift.py`. `scripts/cohort2_qc/quiet_task_events_followup.py` is pinned to the session_z model (it
+rebuilds the session_z frame by hand). No `session_cache` function changed (frozen predictions are not cached there), so
+no CACHE_VERSION bump.
+
+**Spec / store.** `scaling="session_bal_em"`, `scaling_params={"centre_set": "engaged", "guard": None, "min_mass": None,
+"n_outer": 3, "train_centre": "true_class_means_equal_weight"}`; the payload adds `pi_train` (full + LOSO training class
+mix). Every other spec id is unchanged (pinned: the session_z decoder spec equals the HEAD spec; state ids e14c78c2c8e8 /
+85aa81b36cb3). New ids, fitted on the analysis desktop (`spout_balem_production/freeze_models.py`):
+- ROI (`nightly_figs` section D + section G share it), PS92 / PS93 / PS94 / PS95: cue 11f788fdcd2e / a923a8202eac /
+  212f3304cde0 / 34db1b9483ae; precue 80371155c84d / 52d957965847 / 8762d3323b2f / 6f32c4b74251; lick ac21cc7fd647 /
+  809d66844d3c / 3340a62f8ad2 / cdb2f5497c2c.
+- joint basis (`joint_xsession`; also the attempt_coding LP pool for PS92 / PS94 / PS95 cue / lick and ENL-2 s
+  precue), PS92 / PS93 / PS94 / PS95: cue 43be933565d6 / bdaa09c9a07f / 60c657f6a793 / 9338b4dc6f78; precue
+  5fbd3b412a0b / e4447a98b8e0 / 43408ceb0737 / 649c974f40cf; lick a28e0575444d / b33dc775c05b / 99edf4ed8d8f /
+  da987c6217aa.
+- attempt_coding LP pool (PS93 has no LP tables for 0813, so 10 pre sessions): PS93 cue 4f91d6b1669d, lick
+  c579907cd97a, precue 976ee9e18972 (ENL 2 s) / e7ad593ff8fd (ENL 1.0 s); ENL 1.0 s precue PS92 53f54cdd1cdb, PS94
+  36491ca64c95, PS95 7e8de9080498.
+- 31 models, all published to `labcams/frozen_models` with `publish_basis --what frozen` (dry run first; copied 2 /
+  verified 2 each, SHA-256 read back; 0 mismatches; `spout_balem_production/publish_log.txt`). `load_or_fit` reported
+  SPEC-CHANGED for the 24 DAQ ones (`siblings()` matched an older 8-session August-only model); each one's session_z
+  twin (same spec minus `scaling` / `scaling_params`, same 11 training labels and signatures) IS on the server (e.g.
+  PS92 cue roi 12fb93bf5158, PS95 cue roi 5e19afa87323), so the only change is the scaling. Section G's pools resolved
+  to the same ROI ids (`loaded`). The session_z models are untouched.
+- Families 5* / acc_by_position / 5r* / 13s do NOT read the store: `_collect_5c` has always fitted the same pre-stroke
+  model in memory from the bundle (deterministic within a box); that is unchanged, only its frame moved.
+
+**Verification before any render** (`labcams/decoder_mix_checks/spout_balem_production/`: `verify_production.py`,
+`summarise_verify.py`, `verify_collect5c.py`, `compare_collect5c.py`, logs, CSVs).
+- Reproduction on the cached production features (12 animal x alignment units, 600 session x unit rows): the production
+  code under session_z reproduces guard arm P EXACTLY, and the production scoring functions with the diagnostic's
+  production-frame models reproduce arm B EXACTLY (0 of 4,164 cells differ in every unit).
+- Production bal_em (adds the training-side centring) vs arm B: mean |d| .010 per session x position cell (max .12 cue,
+  .19 lick, .10 precue).
+- End-to-end through `_collect_5c` on real bundles (cue/working, precue/working, lick/lick): 228 post days and the pooled
+  pre records equal the cache computation under both scalings (0 / 1,584 cells differ).
+- Change vs production, acute vs pre (boot_delta, animals -> sessions; per-animal tables first, `summarise_log.txt`):
+  - cue/working: far contra -.536 -> -.644 (new - old -.107 [-.179, -.043], 4/4); far mid -.385 -> -.484 (-.099, 4/4);
+    close ipsi -.191 -> -.130 (+.062, 4/4); close mid -.250 -> -.196 (+.054); close contra -.255 -> -.202 (+.053, 4/4);
+    far ipsi -.275 -> -.265; overall -.314 -> -.318. Subacute far contra -.267 -> -.291. Chronic far contra -.130 ->
+    -.179 (-.048, 4/4); chronic overall -.055 -> -.071.
+  - precue/working: far contra -.254 -> -.271 (-.017, ns); close positions +.03 to +.04 (ns); far mid -.121 -> -.162
+    (-.040, 4/4); overall -.177 -> -.171.
+  - lick/lick: far contra -.465 -> -.483 (3 animals: PS95 has < 5 engaged acute far-contra trials); close ipsi -.168 ->
+    -.121; close contra -.191 -> -.131 (+.060, 4/4); overall -.192 -> -.165 (+.027, 4/4). Chronic far contra -.207 ->
+    -.238 (4/4).
+- Pre sessions (new - old, each scored by its LOSO model): cue/working per-animal means within +-.007 and pooled within
+  +-.003 at every position; lick/lick per animal within +-.009, pooled within +-.005; precue up to -.03 per animal (PS92
+  close contra), pooled overall -.005 [-.010, -.000].
+- Overall accuracy moves by <= .03 at every alignment and epoch.
+
+**Limits (state them with the method).** When a spout is nearly absent from the engaged set (acute far contra), about
+30-40 % of the bias remains (stress test: .71 of it removed at the acute share, .60 with far contra absent), in the
+conservative direction: the acute far-contra loss is still slightly UNDER-stated. At precue the EM is weak and only ~37 %
+of the artefact is removed, so precue per-position numbers keep a ~.02-.03 artefact.
+
+**Renders.** Held until A3 (the LMM epoch-star rule, another window) is on origin/main. Families that read this decoder,
+and the page edits: `docs/status/SPOUT_BALEM_PAGE_EDITS_2026-11-03.md`; deck swaps:
+`presentations/_source_PI_overview_2026-11-02/build_inputs/spout_balem_swaps.json`.
+
+## 2026-11-03 — Why the trial stop runs to ~7 s after the cue: the GUI's posthold after a contact (finding)
+
+Priya asked why the stored trial stop is up to ~7 s after the cue when the GUI response window is 3.5 s.
+The stop is the rig's own `trial_end` TTL (`trial_windows.trial_bounds`), not computed from the window.
+
+`gui_config.json` has `timing.posthold = 3500`. On a trial with a spout contact, the trial ends 3.5 s after the first
+contact. Measured on PS92_0818 and PS94_0928, stop − first lick on contact trials is median 3.55 s (5–95 %: 3.4–3.8 s).
+Every trial without a contact (incomplete, jaw-only, no response) stops at the window, 3.525 s (max 3.74 s).
+A contact near the end of the window therefore gives a stop near 7 s.
+Reward (DAQ `reward_samples`) arrives 7 ms after the cue on rewarded trials (99 % of contact trials, 19–90 % of the
+others), so "3.5 s from reward" equals 3.5 s from the cue. That covers the trials without a contact (stop − reward
+3.52 s), but contact trials stop later: median 3.79 s after reward on PS92_0818 (5–95 %: 3.55–4.96 s), 3.70 s on
+PS94_0928. That is first contact + about 3.55 s. Inferred from timing; not checked against the GUI code, which lives
+in the recorder repo.
+
+Consequences:
+- **The trial classes are unchanged.** A contact trial is "contact" whatever follows, and every other trial already
+  ends at the response window, so cue_stop equals cue → cue + 3.5 s for the classes. Checked: identical on both
+  sessions.
+- **Measures windowed "to the trial stop" are affected** (lick counts, licking dynamics, jaw / tongue windows,
+  `trial_windows.end_at_stop`). They include up to 3.5 s of post-contact (consumption) licking on CONTACT trials only.
+  Comparisons of lick counts or rates across classes or epochs, where the contact share changes (e.g. acute far
+  contra), should cut at the response window instead.
+
+## 2026-11-03 — Change-vs-pre stars (consolidation A3): animal-weighted bootstrap, labelled, plus the mixed model (Priya)
+
+1. **Every change-vs-pre bootstrap is animal-weighted.** `analysis_kit.paired_animal_draws` is the one draw. Only
+   animals with sessions in both arms count; each animal's change is its own post minus its own pre; the result is
+   the mean over animals; resampling is animals → sessions (→ blocks). It is used by `boot_delta` (pinned tests
+   unchanged), `epoch_figures.scalar_contrast_draws` / `contrast_draws`, `matrix_bootstrap.delta_draws` and
+   `epoch_behaviour._behaviour_contrast`. `boot_ci` / level draws are untouched.
+   Behaviour stars changed: 3 / 21 (`docs/status/A3_STAR_CHANGES_BEHAVIOUR_2026-11-03.csv`).
+2. **The bootstrap is labelled for what it is: a description of THESE 4 animals.** At n = 4 with a real
+   between-animal spread, its 95 % interval excludes 0 in 10–19 % of null simulations (calibrated, 6 %, only when the
+   animals truly share one change, as in the 10-21 pre-vs-pre check).
+3. **The inferential test is `analysis_kit.epoch_change_lmm`.** Session rows, all epochs, `(1 | animal)` plus a
+   SEPARATE animal × epoch variance per post epoch (Priya: the spread differs by epoch), REML; t on df = n_animals − 1.
+   `lmm_stars`: `*` uncorrected p < .05, `**` Holm across ALL the figure's cells (Priya: within-epoch correction would be
+   unfair).
+   - The per-contrast random-slope model was rejected: 17 / 21 fits singular, Satterthwaite undefined.
+   - The pooled shared-spread model was rejected: the spread is not equal across epochs.
+4. **Figures.** For now the bootstrap versions stay as the MAIN deck slides; the LMM versions go in as hidden
+   slides (mean = filled round dot; the bootstrap interval shown beside it, labelled). Maps, time-bin bars and
+   matrices keep their family-wise tests. Lick metrics (deck slide 24) get the mixed model too.
+Record: `docs/status/A3_LMM_SLOPE_STARS_2026-11-03.md`. Imaging preview: 854 → 316 cells with any star, 581 → 27 `**`.
+
+## 2026-11-03 — Curve figures: mixed model on PRE-SPECIFIED per-session summaries (Priya, via sabatinilab-a8)
+
+Phase, trajectory and time-course curve figures get an LMM version (hidden deck slide after the main slide). Each
+session's curve is reduced to the summary below; then the same rule as every scalar figure applies:
+`analysis_kit.epoch_change_lmm` (separate animal x epoch variance per epoch, t on df = animals - 1), `lmm_stars`
+(* p < .05, ** Holm across the spout x epoch cells of each summary panel). The main slides keep their
+cluster-permutation markers, which say WHERE along the curve. These summaries were fixed BEFORE any LMM was run:
+
+| figure (deck shape) | table | summary per session x spout | sign / unit |
+|---|---|---|---|
+| lick phase (l_phase_all, kin 2.5) | cohort `lick_phase.csv`, set `postcue_norm` | mean `lat_out_px` (lateral tip, in-mouth excluded) over phase u 0.1-0.9 | + = contra, px |
+| cue-aligned, in-mouth excl / incl (l_cue_excl / l_cue_incl, kin 2.1 / 2.2) | cohort `cue_aligned_traces.csv` | mean `lat_out_px` (excl) / `lat_px` (incl) over cue + 70 to + 1500 ms | + = contra, px |
+| 2-D paths (p_paths_2d, kin 4.2) | cohort `lick_phase.csv`, set `postcue` | mean `lat_out_px` over -72 to +72 ms around the lick peak (the figure's window) | + = contra, px |
+| 3-D paths (p_paths, kin 4.11) | pose3d `phase/curves.csv.gz`, kind `norm`, lickset `all`, cov >= 0.5 | (1) mean tongue `side` over phase 0.1-0.9; (2) jaw-opening peak = max `j_down` over phase 0.1-0.9 | (1) + = contra, mm; (2) mm |
+| 3-D phase (p_phase, kin 9.7) | same | (1) mean midline angle `mid`, (2) mean 3-D distance `dist`, each over phase 0.1-0.9 | (1) + = contra, deg; (2) mm |
+| lick-ramp time courses (wf_attempt: cued_ramp_summary_row2 / iti_ramp_row1, lick_matched_gauss_curves, lick_order_iti_cued_slope) | encoding-window tables (sabatinilab-34) | the response AUC 0-0.5 s already used on lick_cued_ramp_perspout | as that figure |
+
+Midline error, closest approach and reach are NOT repeated here: they are already on p_3d_far_rows123.
+
+## 2026-11-03 — bal_em extended to every cross-session SPOUT decoder; the engagement-state discriminators stay on the engaged-trial z-score (state-class bal_em fails their pre-stroke check); axis / CD projections listed for Priya
+
+**Request (Priya approved, via the coordinator, 11-03):** extend bal_em beyond the frozen spout decoder of the entry above,
+judged by how a model normalises rather than by its name: every fit on one set of sessions scored on another (pre-trained,
+scored post-stroke or on held-out sessions) after a per-session z-score on a class-skewed set. Decoders are converted;
+axis / CD projections are not (Priya's decision). Engagement-state classes: bal_em over the state classes.
+
+**Audit** (a = cross-session score? b = class mix of the normalisation set; c = decoder or projection):
+
+| site | a | b | c | action |
+|---|---|---|---|---|
+| `precue_engagement_states.run_animal` A (position per state) | yes: pre model, scores post states | engaged set per session (spout-skewed post) | decoder (6 spouts) | **converted** |
+| `precue_engagement_states` C / D1 / D2 (engaged vs disengaged) | yes | engaged set (spout-skewed; one state only) | decoder (2 states) | state-class bal_em built, **OFF by default** (below) |
+| `nolick_decoder.analyse_animal` (nightly no-lick reference, ROI + joint) | yes: pre model, scores post engaged / late / undetected; pre engaged LOSO | its own engaged-trial z per session | decoder | **converted** |
+| `nolick_decoder.analyse_session` | no: within-session block-CV | - | decoder | left |
+| `enl_decode` (ENL sensory-vs-plan) | no: block-CV within one epoch's pooled sessions, NO per-session z-score at all | none | decoder | left (the mechanism needs a per-session centre) |
+| `locanmf_decoder_qc`, `precue_significance` | no: within-session block-CV | - | decoder | left |
+| `poststroke_compare.decode_matched` lick-only arm (section G) | yes | engaged z (pool) | decoder over the preserved spouts (4-6) | **converted** (K-way EM; centre from ALL the session's engaged rows, label-free) |
+| `poststroke_compare.looks_like_which` / `fits_engaged_distribution` / `undetected_state_split` (section G G4) | yes | engaged z (pool) | decoder (lick vs no-lick) | state-class bal_em built, **OFF by default** |
+| `poststroke_compare.recoding_test`, `_within_accuracy` | no: within-session | - | decoder | left |
+| `position_coding_directions._class_confusions` (feeds `coding_direction.json`, grant 5b) | yes | engaged z (pool) | decoder | **converted** |
+| `position_coding_directions` CDs / engagement axis / projections | yes | engaged z | projection | **not converted** (for Priya) |
+| `position_axes` (pairwise position axes, poles) | yes | engaged z | projection | not converted |
+| `attempt_coding.fit_axes` ("dom" attempt axes, `own`) | yes | engaged z | projection | not converted (its frozen-decoder p_true was converted 11-03) |
+| `scripts/june_august_drift.py` decoder half | yes (June -> August, Aug -> post) | engaged z (bundle) | decoder | **converted** (as its `_collect_5c` twins) |
+| `scripts/engagement_axis_balance.py` | no: pre-stroke diagnostics only | - | projection | left |
+| `scripts/axis_holdout_null.py` | held-out PRE sessions only (pre mixes ~1/6) | engaged z | projection | left (listed) |
+| `scripts/nocontact_census.py` | no: counts | - | neither | left |
+| `scripts/cohort2_qc/quiet_task_events_followup.py` (T13 follow-up, cohort 1) | yes: stored frozen precue decoder | its own engaged z | decoder | **converted** (bal_em spec + scoring centre; `WIDEFIELD_SPOUT_SCALING=session_z` reproduces the stored T13 run) |
+| grant pattern families 6-11, `poststroke_compare.pattern_similarity` (bundle XE) | yes: post patterns vs pre templates | engaged z | template / projection | not converted (listed) |
+
+**Code.** `spout_scaling.FrozenFrame` (training frame on the true class means of the training classes, full + LOSO models,
+label-free EM centre of each scored session's engaged rows, any spout subset via an index view), `score_centre` generalised
+to any class set, `model_prior`; state frames `state_train_frame` / `state_centre` / `state_scored` (opt-in);
+`label_shift.bal_em_centre(mu0=, sd=)` (defaults unchanged, state decoder bit-identical). Converted sites as in the table.
+Under `WIDEFIELD_SPOUT_SCALING=session_z` every converted site is the pre-11-03 computation exactly (`tests/test_spout_bal_em.py`
+pins the identity and that shuffling scored labels leaves the scored rows bit-identical, six-way and four-way). **No
+frozen-store model changes:** all the newly converted decoders are in-memory fits (they were never frozen; rule 10 gap,
+unchanged); the T13 follow-up reads the already-published bal_em attempt-pool models. So no new spec ids and nothing to
+publish. No `session_cache` function changed.
+
+**Verification** (`labcams/decoder_mix_checks/spout_balem_production/verify_extension.py`, `summarise_extension.py`,
+`summarise_extension_log.txt`, `extension_tables.csv`; each production function run under both scalings in separate
+processes; per-animal old -> new tables first; animal means here, '!' cells > .03 in the log):
+- `nolick_decoder` (ROI and joint, cue and precue, pooled and per session): every balanced accuracy within +-.03 (largest:
+  joint precue late_rewarded .509 -> .537, 2/4 animals > .03). Pre engaged LOSO within .005.
+- `precue_engagement_states` A: pre lick .552 -> .547, post lick .456 -> .451, post no-lick engaged .261 -> .241 (2/4 animals
+  > .03), post no-lick not engaged .210 -> .213.
+- `_class_confusions` accuracy: pre lick within .005; post lick -.005 to -.008; post miss-while-working cue .270 -> .233,
+  lick .253 -> .213, precue .261 -> .241 (**> .03 at cue and lick**, 2/4 animals); stopped within .003.
+- section G lick-only arm, balanced accuracy: cue acute .743 -> .742, subacute .785 -> .761, chronic .813 -> .788; precue within
+  .013.
+- June / August drift (frozen on June / August pre, size-matched or not): drift-group arms within .022 (aug_from_june frozen
+  .710 -> .693, matched .614 -> .592); the stroke twins: **acute_from_aug frozen (unmatched) .666 -> .713 (3/4 animals > .03)**,
+  matched .490 -> .472, chronic frozen .803 -> .786; refit unchanged to the digit (it never meets the frozen model).
+
+**State-class bal_em for the engagement discriminators: built, tested, OFF by default (needs Priya's decision).** Run, it
+breaks the discriminators' own pre-stroke reference: held-out PRE engaged trials read engaged-like .92 -> .74-.81 (cue) and
+.75 -> .39-.42 (precue), pre no-lick .11 -> .04 / .36 -> .09-.11 (fits_engaged_distribution LOSO references); precue_states
+LOSO AUC .656 -> .610 (PS95 .719 -> .612); pre engaged P(disengaged) .089 -> .132. The headline G4 readout would move by
+-.06 to -.10 (cue) and -.29 to -.39 (precue). Mechanism: these discriminators separate the two states only weakly (AUC
+~.6-.8), so the EM cannot recover a session's state mix; the centre lands between the states and pushes every trial
+toward "disengaged". Not a fix for the class-mix artefact here; a candidate alternative (not built) is to give these
+discriminators the SPOUT bal_em frame (EM over the six spouts on the engaged rows, with the frozen spout model), which
+removes the spout-mix shift without centring on the state contrast. `WIDEFIELD_STATE_DISC_SCALING=state_bal_em` turns the
+state-class version on.
+
+**Axis / CD projections NOT converted (Priya's decision), one line each on how the mix biases them:**
+- `position_coding_directions` CDs (dom / contrast), pole projections and the engagement axis: a post session centred on a
+  far-contra-poor engaged set is shifted by (missing class mean - centre) along every direction, so all its trials move
+  toward the far-contra pole of each CD, and the engagement-axis orthogonalisation inherits the same offset.
+- `position_axes` pairwise axes: a constant per-session offset along each pairwise axis proportional to that axis's
+  loading on the missing spout's mean; pairs involving far contra get the largest offset.
+- `attempt_coding.fit_axes` (`own` score): same constant offset of each post session along each spout's attempt axis.
+- grant pattern families 6-11 / section G pattern similarity: every post-stroke position pattern is shifted by the same
+  vector, which lowers correlation with the pre templates, inflates crossnobis distances for all positions together and
+  moves best matches toward the missing spout.
+- `scripts/axis_holdout_null.py`: pre-stroke holdouts only (mixes ~1/6), so the bias is negligible there.
+
+## 2026-11-03 — Spout hold, lick counts to the trial stop, FaceRhythm page kept separate, mixed-model supplements on pages (Priya)
+
+- **Does the spout stay 3.5 s after first touch? Yes.** Firmware v38 (`REWARD_AUTO_AFTER_DELAY`; read only): the reward
+  is given at the cue (+~7 ms). The first lick inside the 3.5 s response window sets `successfulLickThisTrial` and enters
+  `ST_POST_REWARD_HOLD`, with firmware lick sensing off (the DAQ and video still record). After `post_reward_hold_ms`
+  (3500 ms in these sessions) comes `ST_RETURN_TO_DOCK`, which sends the trial-stop TTL and moves the spout to the dock.
+  A miss docks at the response deadline (cue + 3.5 s). Measured stop − first DAQ contact = 3.53 s.
+- **Lick counts: keep "cue + 70 ms → trial stop"** (Priya: "I suppose we should use the 'until trial stop' for lick
+  counts"). Every lick made while the spout is in front of the mouse counts, including post-reward drinking on hit
+  trials. No recount on a fixed window.
+- **FaceRhythm page stays separate, cross-linked both ways.** Priya: merge "unless that would put the page at the limit
+  of figures / length". A merged page would have about 143 figures (kinematics 70 + FaceRhythm 73) and ~90 MB of
+  images, over the 64 MB single-publish limit and twice the kinematics page's length.
+- **Mixed-model figures go on the results pages as collapsed supplements** (`<details class="lmm-supp">` directly
+  below the main figure; the main figure keeps the animal bootstrap). Kinematics: 13 figures (1.1, 1.4, 1.8, 2.1, 2.2,
+  2.5, 3.6, 4.2, 4.11, 5.1, 6.1, 7.5, 9.7). FaceRhythm: 3 (1.1, 2.2, 3.1). Generator:
+  `M:/.../kin_page_src/kin_page/add_lmm_toggles_1103.py`. Each caption states the test, the star rule and the result
+  counts read from `lmm_hidden_20261103/<stem>_lmm_lmm.csv`. Imaging-page LMM figures (decoding, ramps, spec_groups,
+  recovery timing) belong to the imaging-page window.

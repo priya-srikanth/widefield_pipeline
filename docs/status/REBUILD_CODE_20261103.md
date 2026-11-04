@@ -722,3 +722,74 @@ outside a rebuild root is `oo.root(rv) / run / imaging_encoding`.
 - DECISIONS entry rewritten for the time rule, the rest start setting and rule "any".
 - Tests: time rule (early run, a straddling run is decided by its start, isolated lapse before the first lick, length
   check), rule "any" with the time rule, the rest_start setting.
+
+### 8.14 Merge of origin/main (e8491dc8) into the rebuild: merge commit, done in a scratch worktree, then fast-forwarded
+Main brings:
+- A3 (paired animal draws, `epoch_change_lmm` / `lmm_stars`);
+- bal_em: `spout_scaling.FrozenFrame` and the label-free EM centre on every cross-session spout decoder; the state
+  discriminators stay on session_z;
+- A1 per-session response window, and the A2 / A4 amendment;
+- e9a7dc31 DECISIONS (spout hold 3.5 s, lick counts to the trial stop).
+
+Rule for every resolution: keep the rebuild's camera gate / selection tag / rebuild-root routing / FREEZE_VERSION 2
+store AND main's bal_em frames and A3.
+
+**Shared mechanism: `FrozenFrame(..., store=)`** (`spout_scaling`). The hook `store(fit_all)` returns {"full",
+"loso": {session id: model}}: from the frozen store, fitted by `fit_all` on the FrozenFrame TRAINING frame on a miss.
+So the rebuild's stored, fingerprinted models are the bal_em models, and each spec carries `spout_scaling.spec_kw`
+(the scaling) on top of the train_data fingerprint.
+
+**Per-file resolutions** (rebuild side = HEAD, main side = origin/main):
+
+| file | rebuild side | main side | kept |
+|---|---|---|---|
+| DECISIONS.md | camera-gate entry | 7 new 11-03 entries | both, in order |
+| locanmf_frozen_decoder.py | `decoder_spec(YE, GE)` + train_data | `scaling` + `spec_kw` | `decoder_spec(XE, kept, pre_i, *, YE, GE, ..., scaling)` with train_data AND spec_kw; main's XT training frame + pi_train; main's lint fixes |
+| cohort2_qc/quiet_task_events_followup.py | YE / GE kw | scaling comment | both |
+| grant_confusion.py + grant_kit.py | 5b / 5c through `_stored_epoch_decoder` | `grant_kit._frozen_frame` (bal_em frame, memoised on the bundle) for 5b / 5c / 5r / 5rm | main's frame everywhere; the store moved INSIDE it |
+| nolick_decoder.py | `_stored_nolick_reference` | FrozenFrame | FrozenFrame with `store=` `_stored_nolick_reference(fit=, scaling=)` (spec + scaling kw); LOSO from `ff.loso` in both scalings; `res["frozen_model"]` provenance kept |
+| precue_engagement_states.py | `_stored` position decoder and discriminator | FrozenFrame; state frames XEt / XUt | see below |
+| position_coding_directions.py | `models=` stored confusion decoder | FrozenFrame (needs GU) | see below |
+| poststroke_compare.py | `_g_store` section G references | `frozen_X`, FrozenFrame lick-only, `_lick_scored` state frames, balanced_fit -> (clf, y) | see below |
+| scripts/june_august_drift.py | stored month model | FrozenFrame + matched EM frame | see below |
+
+Details for the rows marked "see below":
+- **grant_confusion.py + grant_kit.py.** `_frozen_frame(bd, an, align)` asks `_stored_epoch_decoder(..., XT=, scaling=)`.
+  That spec gains the scaling and fits on XT; with WIDEFIELD_EPOCH_FROZEN=0 the same fits run in memory. The memo key
+  carries the scaling, store/opt-out, animal and window. The bundle records "animal" / "align".
+  - 5rm `matched_frozen` keeps its store; its spec gains the scaling, and main's rec/_stack gains `pool_tag`.
+  - `_class_select(..., cls=bd["cls"])` (the camera gate) is kept in every 5c site.
+- **precue_engagement_states.py.** Position decoder: FrozenFrame with `store=_stored(... "posdec-ff" ...)` (new key,
+  since the payload is now {"full","loso"}). Discriminator: the stored {"full","loso"} payload (trained on main's XEt / XUt),
+  scored with main's `state_scored`; `_stored` passes the scaling kw. States 5 / 6 keep the rebuild's camera-gate masks
+  (`nl_eng` / `nl_not`), not main's `not_eng_nl`.
+- **position_coding_directions.py.** `_class_confusions(..., GU=, store=)`; FrozenFrame over `_confusion_pipe`
+  (main's local pipe is the same estimator) with the store hook; `stored_confusion_decoder(fit=, scaling=)`. The pre
+  LOSO comes from `ff.loso` in both scalings.
+- **poststroke_compare.py.** `_g_store` and `frozen_X` both kept. The lick-only arm is main's FrozenFrame with
+  `store=_g_store("g_lickonly_decoder", "<keep>-ff")`. `g_lick_disc` / `g_lick_disc_folds` stay stored (their specs
+  carry `state_disc_scaling`; the folds key is `-v2`, since the payload is now (clf, y)), scored with main's
+  `_lick_scored`.
+- **scripts/june_august_drift.py.** Under bal_em the FrozenFrame model, in memory. The stored month model is the
+  session_z fit and serves only under session_z. LISTED: drift_payload is to be stored in the bal_em frame.
+
+**Tests adapted:**
+- test_frozen_default's source tests now check the merged structure (store inside the frame / hook).
+- test_frozen_default's coding equality test uses the store hook.
+- test_spout_bal_em's two pinned-id tests became contract checks: FREEZE_VERSION 2 ids differ from main's literals,
+  as already done for test_state_bal_em.
+
+**bal_em and the camera gate.** The EM centre is NOT computed on the gated scored subset. For every scored session it
+comes from ALL of that session's engaged (DAQ lick-arm, `pool_sessions` XE) rows under its scoring model; it is
+label-free and never uses no-lick rows. It is then applied to whichever rows the gate scores (camera working / stopped
+via `_class_select`). That is main's design ("the label-free EM centre of ALL its engaged rows, whatever the arm
+scores"). Under the camera gate the centre therefore includes DAQ-engaged rows that the camera calls after_end or
+unknown. FOR PRIYA / the coordinator: whether the centre should use only camera-working rows.
+
+**in_working ON HOLD (main docs/status/SPOUT_BALEM_PAGE_EDITS_2026-11-03.md section 6).** Answered by option (b):
+Aug-only pre, June gone, PS93_0813 in the lick class only. The rebuild already selects post-stroke rows by camera
+class in `_class_select`, and the pre panel / training set stay DAQ-engaged licking trials of the Aug pre sessions, so
+nothing extra is wired.
+
+**A5.** It lands with this branch (trial_classes `cue_classes_for` is the single class source). There is no
+`responded()` on main.

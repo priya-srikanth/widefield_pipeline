@@ -51,8 +51,9 @@ No laterality support for Priya's reduced-thalamocortical-drive hypothesis after
    2.3, 4.4). Chronic completion returns, but each contralesional lick moves the contralesional face less and contra
    spouts are reached with more of the ipsilesional lick pattern, re-timed later (5.2-5.4, 5.6). -> Cortical change must
    be judged against behaviour that differs even when it succeeds; hence the frozen frame.
-2. **Acute: losses are mostly the movement, plus a transient decoupling.** Frozen decoder loses far contra (.90 -> .32),
-   position ~11x more than state acutely (3.1, 3.2; bal_em state decoder, 11-03). The frozen encoder predicts the acute far-contra drop from the changed lick;
+2. **Acute: losses are mostly the movement, plus a transient decoupling.** Frozen decoder loses far contra (.90 -> .32;
+   ~.11 more under the 11-03 bal_em spout decoder, near spouts ~.05 less, 3.1), position ~11x more than state acutely
+   (3.1, 3.2; bal_em state decoder, 11-03; position side to re-render under bal_em). The frozen encoder predicts the acute far-contra drop from the changed lick;
    target part ~0, with FaceRhythm too (4.1). Frozen pixel maps: the acute fit loss is cortex-wide and movement-driven (page
    Fig 1l). Beyond the movement: the decoder weakens for every spout, even on-target licks (4.5); acute far-contra trials
    are each decoded CONFIDENTLY as some other spout, which one varying trial to trial and by animal (4.6b, 10-25 night);
@@ -1083,6 +1084,14 @@ be read with it, and the "rules out generic explanations" argument holds for 3 /
 1. **A frozen pre-stroke decoder loses the far-contralesional spout acutely, graded by eccentricity.** Far contra
    .896 -> .321 acute (-.575, Bonferroni [-.738, -.394]); 5 / 6 positions significant acutely; far contra and near
    middle still below pre chronically (-.171, -.163). **STANDS** (PRELIM §2 / H1).
+   **CORRECTED 11-03 (bal_em spout decoder, production; Priya "I would adopt B everywhere"; DECISIONS 2026-11-03):** the
+   old engaged-trial z-score under-stated the far-contra loss and over-stated the near ones. Cue/working change vs pre,
+   acute (boot_delta): far contra -.536 -> **-.644** (4/4 larger), far mid -.385 -> -.484, near positions -.19 / -.25 /
+   -.26 -> **-.13 / -.20 / -.20**, overall -.314 -> -.318; chronic far contra -.130 -> -.179. Precue: far contra -.254 ->
+   -.271 (the EM corrects only ~37 % there); lick: far contra -.465 -> -.483 (3 animals). The graded, far-contra-first
+   pattern **STANDS (stronger, more specific)**; the levels above are the pre-11-03 frame. ~30-40 % of the bias remains
+   when far contra is nearly absent (conservative). Exact re-rendered levels: page edits
+   docs/status/SPOUT_BALEM_PAGE_EDITS_2026-11-03.md.
 2. **CORRECTED 11-03: bal_em is the production state decoder (Priya approved).** It is trained on class-balanced pre
    sessions and scored with the label-free EM equal-weight centre (no test labels; DECISIONS 2026-11-03 "bal_em adopted").
    Position loses 50 / 19 / 12 % of its above-chance performance (.863 -> .428 / .696 / .761; acute / subacute / chronic).

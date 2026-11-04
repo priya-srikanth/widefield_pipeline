@@ -221,6 +221,26 @@ min-mass guard acts only at scoring time but is in the identity, so a guarded ru
 An unpublished interim fit (same models, no `scaling_params`) sits outside the store in
 `C:/Users/SabatiniLab/frozen_models_interim_unpublished_20261103/`; it scored nothing published.
 
+**2026-11-03: PRODUCTION spout-position decoders are now `scaling="session_bal_em"` at precue, cue and lick (Priya, "I would
+adopt B everywhere"; DECISIONS 2026-11-03 "Spout-position frozen decoder: bal_em adopted as PRODUCTION").** `scaling_params =
+{"centre_set": "engaged", "guard": None, "min_mass": None, "n_outer": 3, "train_centre": "true_class_means_equal_weight"}`;
+the payload adds `pi_train` (full + LOSO). Code: `wfield_local/spout_scaling.py` (env `WIDEFIELD_SPOUT_SCALING`;
+`session_z` = the pre-11-03 spec, no key, old ids load) on the shared EM primitives `wfield_local/label_shift.py`. Callers
+must score through `locanmf_frozen_decoder.frozen_scored_frame` (or `poststroke_compare.frozen_X`,
+`grant_kit._frozen_frame`): a bal_em model applied to the raw `pool_sessions` matrix is in the wrong frame. 31 new models
+(24 DAQ ROI + joint, PS9x x cue / precue / lick; 7 attempt_coding LP-pool ones), fitted and published from the analysis
+desktop, byte-verified; ids in the DECISIONS entry. Every new id's session_z twin is on the server with the same training
+set, so `SPEC-CHANGED` on the first fit means the scaling only. Freeze script (fits every producer's pool, writes nothing
+else): `labcams/decoder_mix_checks/spout_balem_production/freeze_models.py`; an LP run still needs its DAQ model frozen
+first (`attempt_lp`, run with `WIDEFIELD_ENL_WINDOW_S=1.0` for the LP ENL window).
+
+**2026-11-03 (later): bal_em extended to the in-memory copies of the spout decoder** (`spout_scaling.FrozenFrame`:
+`precue_engagement_states`, `nolick_decoder.analyse_animal`, `position_coding_directions._class_confusions`, section G's
+class-filtered lick-only arm, `scripts/june_august_drift.py`). None of them uses the store, so no spec id moved and nothing
+was published; they remain the rule-10 gap they were (refitted per run, deterministic within a box). The engagement-state
+discriminators keep the production frame (state-class bal_em is opt-in, `WIDEFIELD_STATE_DISC_SCALING`). DECISIONS
+2026-11-03 "bal_em extended to every cross-session SPOUT decoder".
+
 ## 7. EVERY PRE-STROKE DECODER IS FROZEN — the rule for this and future cohorts (Priya, 2026-10-15)
 
 *"Establish in the code for future cohorts that we will make a frozen pre-stroke decoder that is cached / stored
@@ -229,7 +249,7 @@ and reused."* Any decoder that scores post-stroke data against a pre-stroke refe
 
 | decoder | where | spec `kind` | since |
 |---|---|---|---|
-| position (cue / lick / precue; roi and joint bases) | `locanmf_position_decoder`, `pooled_frozen_*` | `decoder` / `encoder` | 2026-08/09 |
+| position (cue / lick / precue; roi and joint bases) | `locanmf_position_decoder`, `pooled_frozen_*` | `decoder` / `encoder` | 2026-08/09 (decoder **session_bal_em 11-03**) |
 | behavioural STATE (quiet / running / licking) | `locomotor_decoder.frozen_state_models` | `state` | **2026-10-15**  (session_z 11-02; **session_bal_em 11-03**) |
 | epoch acc / 5c position decoder (imaging page 2.x; `_collect_5c` mode `frozen`) | `grant_confusion._stored_epoch_decoder` | `epoch_decoder` | opt-in 11-02 (lp-final), **default 11-02** (`frozen-default`) |
 | docked REST position decoder (imaging page 12.1) | `rest_frozen_decoder.frozen_rest_payload` (+ `rest_frozen_decoder_nl.frozen_payload`, same spec for the page flags) | `rest_frozen` | **default 11-02** |
