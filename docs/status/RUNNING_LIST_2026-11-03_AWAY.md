@@ -37,6 +37,12 @@ log for the earlier part of the day is `RUNNING_LIST_2026-11-02_OVERNIGHT.md`.
    9. Lick class = contact + incomplete with LP timing.
    10, 11, 12: yes (attempted encoder gate; pinned epochs; jaw-only / no-response no-lick arms).
 
+   Q4 side cameras (34): only the 10-27 single-frame pilot exists; there is no production side-cam pose yet. Path:
+   O2 inference (1-2 days), a side-view jaw rule plus a blind review with Priya (~1 day), then a class rebuild and
+   re-render, so several days to a week. It would change only the unjudged close-spout no_response trials (some to
+   jaw_only, which could move stop runs). Recommendation (34 and me): don't block the rebuild; add side-cam judging
+   later as a class revision with a diff table. A census of trials at stake and of Q6 (counts + ~10 example clips) is
+   running: wf_attempt docs/status/rebuild_20261103/CONTACT_DAQ_MISMATCH_20261104.md.
    STILL OPEN: 3 (hit-rate period: camera working period?) and 8 (discriminator training classes; helper testing).
    Stays DAQ: pinned epoch boundaries, per-lick outcome, June / PS93_0813 /
    cohort 2. My suggested answers are in the chat reply of 11-04 and copied into the log below once Priya answers.
