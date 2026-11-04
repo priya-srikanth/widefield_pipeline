@@ -13,6 +13,22 @@ log for the earlier part of the day is `RUNNING_LIST_2026-11-02_OVERNIGHT.md`.
 
 ## Questions for Priya (newest first)
 
+6. **NEW (11-04): B and C re-check results (interim; the D / G runs are still going).**
+   - **B (state discriminators in the spout frame), under the new working definition: one marginal miss.** PS93's
+     cue held-out pre engaged reference is .869 -> .850 (-.019) against a between-session SD of .016. No animal is
+     worse by more than .03, every other pre reference is within noise, and the precue-state AUC is .584 -> .587.
+     The centre already uses the working rows. Post-stroke, the G4 movement is about half the 11-03 estimate: cue
+     acute engaged-like .195 -> .323 (was .502), fits_engaged .170 -> .322. Kept OFF by the strict rule. [I'd adopt:
+     -.019 is 1.2 SD in one cell and inside the .03 tolerance.]
+   - **C (projections in the spout frame, working-row centre).** Coding directions and pattern correlation stay within
+     noise under both centres. The ENGAGEMENT AXIS fails under both (1.6-9.7x the SD, cue and precue); the shift
+     comes from each scored session's own centre, not from the axis definition. Headlines with z -> working centre:
+     - far-contra CD cue acute -.051 -> -.130;
+     - precue .333 -> .087;
+     - precue engagement axis acute .906 -> 1.230.
+
+     [I'd choose: spout frame for CDs + patterns; the engagement axis stays in the z frame.]
+
 0. **NEW (night): interim deck swap now, or wait for 34's cohort-1 rebuild?** I HELD tonight's main-branch combined
    render; that was my call, and it is reversible. 34's rebuild uses new data: the swap mask and LocaNMF
    projection, plus today's rules (jaw-only out, August-only, bal_em). It will replace the same epoch families,
