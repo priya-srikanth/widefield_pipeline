@@ -821,6 +821,15 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
     denominators lose the jaw trials inside stop runs.
 - O2 bundle code committed (fb3b6304 cache key, a6a29dd7 split basis in the encoder, a7aec872 rebuild-aware o2_encoding; 14
   TAGs). Pre-warm done (107 / 107, 23 min). The bundle waits only on the stopRun6j attempts table.
+- O2 BUNDLE enc_rebuild_20261104 building since 09:27 (--jobs 6, 1.8 sessions / min). ETA inputs ~10:25, checked ~10:45.
+  Smoke on PS92_0806: v8 cortex R2 0.6152 vs old-mask cortex_stat 0.6160 (-0.001).
+- RENDER RUNNER handed back while HELD (nothing running). Done under stopRun6j: init (6 seeds), trial_attempts
+  (07:59-09:29), coverage tables (07:59-09:39; note = PS93_0813 0 %, PS92_0908 82.5 %).
+  Queue ready: scratchpad/queue2.sh (RESTnl DAQ + LP -> epoch -> grant -> section G -> joint -> nolick / cd / coding /
+  recovery / chronic / June drift / rest 12.1 + 12.1b -> attempt coding / maps -> restnl / LP final / drift maps ->
+  misdirected). To launch: remove HOLD_j_g2a / HOLD_j_g2b, `nohup bash queue2.sh &`. Then the encoder family
+  (ENCODER_RENDER_COMMANDS A, B, D-F), rebuild_figs, the drift1500 arm. The superseded old-rule caches / models are listed in
+  RENDER_LOG; none deleted.
 - Slide 94 caveat added by a8 (backup_before_ramp_caveat_1104.pptx; hidden states unchanged).
 - The 05:46 incident coverage copies differ from the rebuild ones only by the 12 June sessions (Aug-only pre); the partial-
   coverage rows are identical.
