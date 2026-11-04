@@ -593,6 +593,11 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   latency to the count detector (would shift goal S28); sidecars list configured not used fallback; profile --check ignores
   --block and unknown blocks pass silently; one memo key. Plus a dry count of working engaged imaging rows per session (the
   20-row minimum was checked on cues, not rows) before the render.
+- PRIYA (11-03 late): (1) Aug-only pre profile-wide -- "yes i guess so". Helper: PRE_FROM 0801 in the profile, unset for
+  june_august_drift + 12.1b, tags updated, DECISIONS line. (2) PS93_0813 in hit rate: "why can't we use?" -- answered: it can,
+  with a DAQ-defined working period (last DAQ lick, same stop rule on DAQ no-response) for the DAQ-only behaviour rates only;
+  cost = one session on a different gate definition. Helper building it + an agreement check (camera vs DAQ fallback on every
+  Aug pre session with video); wire it in only if they agree (~1-2 points) and Priya confirms.
 
 ### Findings
 - main moved while the rebuild branch was being fixed (34 commits not in rebuild/cohort1-20261103). Two matter for the rebuild:
