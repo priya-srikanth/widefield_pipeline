@@ -55,6 +55,16 @@ log for the earlier part of the day is `RUNNING_LIST_2026-11-02_OVERNIGHT.md`.
    channel (decoder_mix_checks/cue70_check_1104/, docs/status/CUE70_CHECK_2026-11-04.md). Priya's intent: if 70 ms
    stays, licks in 0-70 ms count as NEITHER post-cue NOR pre-cue (today they go into licks_precue). 34 is told to wait
    for the result.
+   Census (34, CONTACT_DAQ_MISMATCH_20261104.md, 74dc76cd; 107 sessions, 57,048 trials):
+   - Q6: 23 DAQ-no-lick trials the camera calls contact (0.23 %). All are contacts after the 3.5 s window, with no
+     table mismatches; 19 are at far spouts. There are 11 example clips.
+   - Q4: 1,121 unjudged close-mid no_response trials. 852 are in stop runs (unchanged by side cams) and 264 are
+     isolated lapses (3.1 % of close-mid working; acute 7.4 %). That is the most side cams could move.
+   - Q9: 0 contact trials lack an LP time. The real case is LP timing a LATER lick than the contacting one: 64 trials
+     > 50 ms late, 10 > 100 ms, mostly close spouts. Proposed: use the DAQ time when LP is missing or late by more
+     than a tolerance. Priya to choose 50 or 100 ms. [Suggest 50 ms: LP onset should PRECEDE contact by 20-40 ms, so a
+     lag > 50 ms means LP missed the lick.]
+
    STILL OPEN: 3 guard numbers; and 8 (discriminator training classes; helper testing).
    Stays DAQ: pinned epoch boundaries, per-lick outcome, June / PS93_0813 /
    cohort 2. My suggested answers are in the chat reply of 11-04 and copied into the log below once Priya answers.
