@@ -18,9 +18,18 @@ import pickle
 import tempfile
 from pathlib import Path
 
-DEFAULT_OUT = Path(os.environ.get("WF_REBUILD_FIGS_OUT") or (
-    Path(os.environ["WIDEFIELD_REBUILD_ROOT"]) / "rebuild_figs" if os.environ.get("WIDEFIELD_REBUILD_ROOT", "").strip()
-    else Path(tempfile.gettempdir()) / "wf_rebuild_figs"))
+def default_out() -> Path:
+    """$WF_REBUILD_FIGS_OUT, else <rebuild_root>/rebuild_figs/<run tag> under a rebuild root (coordinator 11-04: written
+    under the run tag, so arms / blocks never share a folder), else <system temp>/wf_rebuild_figs."""
+    if os.environ.get("WF_REBUILD_FIGS_OUT"):
+        return Path(os.environ["WF_REBUILD_FIGS_OUT"])
+    if os.environ.get("WIDEFIELD_REBUILD_ROOT", "").strip():
+        from wfield_local import run_mode
+        return run_mode.subdir(Path(os.environ["WIDEFIELD_REBUILD_ROOT"]) / "rebuild_figs")
+    return Path(tempfile.gettempdir()) / "wf_rebuild_figs"
+
+
+DEFAULT_OUT = default_out()
 
 
 # R3 (fourth review, 11-03): DEFAULT INPUTS FOLLOW THE RUN. Inputs made by a routed writer default to that writer's
