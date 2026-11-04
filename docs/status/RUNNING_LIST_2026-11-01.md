@@ -1230,3 +1230,8 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   - Implementing on rebuild/enl-window.
   - MIN_CLEAN_S is to be re-derived. If "clean" means lick-free, the LP gate already covers it.
   - Still open: ENL decisions 2-4 (within_spout_deviation; the s1_refit 2.0 s; the encoder's "enl" scoring window).
+- **11-04 ~16:55: DECISION (Priya): any ENL prediction uses a LICK-FREE ENL.**
+  - within_spout_deviation gets the lick gate under the run's lick source.
+  - The helper is also sweeping for any other ungated ENL predictor.
+  - Still open: the s1_refit 2.0 s pin, and the encoder's "enl" scoring window. The rule suggests the encoder window
+    should also follow (lick-free, 1.0 s under LP); asking to confirm.
