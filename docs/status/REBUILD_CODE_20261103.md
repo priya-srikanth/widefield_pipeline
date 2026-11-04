@@ -2007,3 +2007,27 @@ with no lick has no lick-aligned trace.
   - test_lesion_line_and_window: a hard-coded max_rt fallback; fixed in 148af7ec.
   - test_review_7ab::test_working_trials_stays_byte_identical_to_main: origin/main changed working_trials.py on 11-04
     (4a37cbc8), so the file differs from the rebuild base too. Not this branch.
+
+**Coordinator decisions, 11-04 evening.**
+- Memory: 48G accepted.
+- Folders: in a TAGGED (rebuild) run, LICKS_ALL=split is the PLAIN folder (`movement_first`, plus each TAG's subset
+  suffix), and the no-spontaneous-kernel run is `_nolicksall` (`licks_all_suffix`). collect routes every TAG by the run's
+  own LICKS_ALL: main -> movement_first, main_nolicksall -> movement_first_nolicksall, the subset TAGs -> their usual
+  names.
+  - Untagged (legacy) runs keep the old names, so adopted folders keep their meaning.
+  - Nothing is overwritten: the rebuild root has no combined_encoding outputs yet (imaging_encoding holds only qc/) and
+    o2/enc_rebuild_20261104/out is empty.
+  - The library default stays LICKS_ALL unset, so frozen_encoder and frame renders never inherit it. split_blocks refuses
+    it, and the ENCODER_RENDER_COMMANDS env blocks (ENV-noFR / frA / frozen) do not set it. Production split comes from
+    the bundle (`--licks-all split` default -> env.json).
+- ENL source: LP 1.0 s lick-free is the production default (`ENL_SOURCE_DEFAULT = "lp"`, and `bundle --enl-source lp`
+  writes it to env.json). daq and decoders stay as options.
+- Readers to fix at render time (captions / variables):
+  - scripts/combined_encoding_figures.py: WINDOWS / WIN_DESC "pre-cue 2 s (ENL)", and its own VARS / GROUP_OF without
+    licks_pre / licks_iti;
+  - scripts/encoding_key_figures.py:42;
+  - scripts/encoding_mixed.py:29;
+  - scripts/fr_encoding_summary.py:72;
+  - scripts/curbd_pilot.py:131-134 (static `ce.GROUP_OF`).
+- Related tests after these changes: 256 passed, 1 skipped (encoder, O2, profile, rebuild root, classes, decoder / ENL
+  suites).

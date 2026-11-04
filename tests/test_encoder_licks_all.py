@@ -161,6 +161,12 @@ def test_licks_all_modes_and_folder(monkeypatch):
     assert ce.out_dir(PathResolver(), "movement_first").name.endswith("_licksall-split")
     monkeypatch.setenv(ce.LICKS_ALL_ENV, "score")
     assert "_licksall" not in ce.out_dir(PathResolver(), "movement_first").name
+    # a TAGGED (rebuild) run: split = production = the plain folder, no spontaneous kernels = _nolicksall
+    from wfield_local import run_mode
+    monkeypatch.setattr(run_mode, "tag", lambda *a, **k: "hv-x")
+    for mode, suf in (("split", ""), ("", "_nolicksall"), ("score", "_nolicksall"), ("shared", "_licksall-shared")):
+        monkeypatch.setenv(ce.LICKS_ALL_ENV, mode)
+        assert ce.licks_all_suffix() == suf, mode
 
 
 def _o2():
@@ -204,9 +210,11 @@ def test_enl_source_override(monkeypatch):
     monkeypatch.delenv("WIDEFIELD_LICK_SOURCE", raising=False)
     monkeypatch.delenv("WIDEFIELD_ENL_WINDOW_S", raising=False)
     monkeypatch.delenv(ce.ENL_SOURCE_ENV, raising=False)
-    assert ce.enl_spec()["source"] == "daq" and ce.enl_spec()["length_s"] == 2.0          # the decoders' default
-    monkeypatch.setenv(ce.ENL_SOURCE_ENV, "lp")
-    assert ce.enl_spec()["source"] == "lp" and ce.enl_spec()["length_s"] == 1.0
+    assert ce.enl_spec()["source"] == "lp" and ce.enl_spec()["length_s"] == 1.0            # production default
+    monkeypatch.setenv(ce.ENL_SOURCE_ENV, "daq")
+    assert ce.enl_spec()["source"] == "daq" and ce.enl_spec()["length_s"] == 2.0
+    monkeypatch.setenv(ce.ENL_SOURCE_ENV, "decoders")
+    assert ce.enl_spec()["source"] == "daq"                                               # the decoders' spec (DAQ here)
     monkeypatch.setenv(ce.ENL_SOURCE_ENV, "video")
     with pytest.raises(ValueError):
         ce.enl_spec()

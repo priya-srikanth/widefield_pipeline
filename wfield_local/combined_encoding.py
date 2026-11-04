@@ -157,7 +157,7 @@ LICK_MODES = ("cam4", "combined", "lips")
 #:   score   SCORING ONLY (coordinator 11-04): the pre-cue / ITI licks and whole-window contacts are loaded (and bundled)
 #:           for the lick-free "enl" scoring window (`enl_lickfree`), with NO regressor added and the contact kernel's
 #:           contacts unchanged -- the model and every other output are those of an unset run. No folder suffix.
-#: Timing only (no angle). Outputs (shared / split) -> ..._licksall-<mode>/.
+#: Timing only (no angle). Folders: `licks_all_suffix` (rebuild runs: split = the plain folder, unset = _nolicksall).
 LICKS_ALL_ENV = "COMBINED_ENCODING_LICKS_ALL"
 LICKS_ALL_MODES = ("shared", "split", "score")
 BINS_ENV = "COMBINED_ENCODING_BINS"
@@ -1154,16 +1154,18 @@ def _diag_quad(U, C, chunk=50000):
 #: profile clears and the O2 bundle env does not set -> DAQ): "lp" = the LP / video licks, 1.0 s (lp_licks.LP_ENL_WINDOW_S
 #: or WIDEFIELD_ENL_WINDOW_S); "daq" = the DAQ contacts, decode.precue_post_s (2.0 s). Unset = the decoders' spec.
 ENL_SOURCE_ENV = "COMBINED_ENCODING_ENL_SOURCE"
+ENL_SOURCE_DEFAULT = "lp"
 
 
 def enl_spec() -> dict:
-    """`enl_window.enl_spec()` with ENL_SOURCE_ENV applied."""
+    """The enl window's spec: ENL_SOURCE_ENV, default "lp" (Priya 11-04: LP 1.0 s lick-free); "daq" = the DAQ contacts,
+    2.0 s; "decoders" = `enl_window.enl_spec()` (the decoders' WIDEFIELD_LICK_SOURCE)."""
     from wfield_local import config, enl_window, lp_licks
     spec = enl_window.enl_spec()
-    src = os.environ.get(ENL_SOURCE_ENV, "")
-    if src:
+    src = os.environ.get(ENL_SOURCE_ENV, "") or ENL_SOURCE_DEFAULT
+    if src != "decoders":
         if src not in ("lp", "daq"):
-            raise ValueError(f"{ENL_SOURCE_ENV}={src!r}; expected lp | daq")
+            raise ValueError(f"{ENL_SOURCE_ENV}={src!r}; expected lp | daq | decoders")
         w = os.environ.get(lp_licks.ENL_WINDOW_ENV, "").strip()
         length = (float(w) if w else lp_licks.LP_ENL_WINDOW_S) if src == "lp" else             float(config.defaults()["decode"]["precue_post_s"])
         spec = dict(spec, source=src, length_s=length, override=ENL_SOURCE_ENV)
@@ -2256,6 +2258,17 @@ def run_session(label: str, order: str = "movement_first", seed: int = 0, inputs
             **({"trials": trials_out} if trs is not None else {})}
 
 
+def licks_all_suffix() -> str:
+    """Folder part of LICKS_ALL. A TAGGED (rebuild) run, where split is PRODUCTION (Priya 11-04): split -> no suffix,
+    no spontaneous kernels (unset / score) -> "_nolicksall", shared -> "_licksall-shared". An untagged (legacy) run keeps
+    the pre-11-04 names (unset -> none, shared / split -> "_licksall-<mode>"), so the adopted folders keep their meaning."""
+    from wfield_local import run_mode
+    mode = os.environ.get(LICKS_ALL_ENV, "")
+    if run_mode.tag():
+        return "" if mode == "split" else ("_nolicksall" if mode in ("", "score") else f"_licksall-{mode}")
+    return f"_licksall-{mode}" if mode not in ("", "score") else ""
+
+
 def out_dir(rv, order: str) -> Path:
     from wfield_local import orofacial_outputs as oo
     cams = [c for c in (os.environ.get(VIDEO_ENV) or "").split(",") if c]
@@ -2285,9 +2298,7 @@ def out_dir(rv, order: str) -> Path:
                                                          + ("_bins" if os.environ.get(BINS_ENV) else "")
                                                          + (f"_bw{bins_width():g}" if os.environ.get(BINS_ENV)
                                                             and bins_width() != 1.0 else "")
-                                                         + (f"_licksall-{os.environ[LICKS_ALL_ENV]}"
-                                                            if os.environ.get(LICKS_ALL_ENV, "score") != "score"
-                                                            else "")
+                                                         + licks_all_suffix()
                                                          + os.environ.get(SUFFIX_ENV, ""))
 
 

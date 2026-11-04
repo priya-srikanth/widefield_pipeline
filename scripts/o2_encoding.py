@@ -260,6 +260,7 @@ def cmd_bundle(a) -> Path:
     rv = PathResolver()
     os.environ[ce.RUN_ENV] = a.run or RUN
     set_licks_all(a.licks_all)
+    os.environ[ce.ENL_SOURCE_ENV] = os.environ.get(ce.ENL_SOURCE_ENV) or a.enl_source   # recorded in env.json
     # CODE SNAPSHOT = HEAD of the worktree this runs from; refuse uncommitted changes to what is archived
     repo = Path(__file__).resolve().parents[1]
     dirty = _git(repo, "status", "--porcelain", "--", "wfield_local", "configs", "scripts/o2_encoding.py")
@@ -708,6 +709,8 @@ def main(argv=None) -> int:
     b.add_argument("--fr-share", action="store_true", help="with --fr: bundle the per-frame SHARE (the paper) instead "
                    "of absolute expression (a bundle holds one; make a second bundle for the other)")
     b.add_argument("--jobs", type=int, default=4)
+    b.add_argument("--enl-source", default="lp", choices=("lp", "daq", "decoders"),
+                   help="COMBINED_ENCODING_ENL_SOURCE (the enl window's licks; default lp = LP 1.0 s, Priya 11-04)")
     b.add_argument("--mem", default="48G", help="sbatch --mem per task (32G was below the 11-04 peaks)")
     b.add_argument("--licks-all", default="split", choices=("split", "shared", "score", "none"),
                    help="COMBINED_ENCODING_LICKS_ALL of the bundle (default split = production since 11-04)")
