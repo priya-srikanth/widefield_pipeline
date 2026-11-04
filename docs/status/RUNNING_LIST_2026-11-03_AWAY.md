@@ -64,6 +64,14 @@ log for the earlier part of the day is `RUNNING_LIST_2026-11-02_OVERNIGHT.md`.
      > 50 ms late, 10 > 100 ms, mostly close spouts. Proposed: use the DAQ time when LP is missing or late by more
      than a tolerance. Priya to choose 50 or 100 ms. [Suggest 50 ms: LP onset should PRECEDE contact by 20-40 ms, so a
      lag > 50 ms means LP missed the lick.]
+   - ANSWERED (Priya to 34 directly):
+     - Q6: a contact after max_rt does NOT count, because the spout is already moving. Camera classes use licks from
+       cue + 70 ms (by peak) to min(cue + max_rt, stop). About 23 trials change class (13 -> incomplete). It is
+       implemented on the rebuild with the 0-70 ms exclusion and a transition table; the O2 engaged set is re-derived
+       from the table, with no input rebuild.
+     - Q4: OK, no wait for the side cams.
+     - Q9: tolerance ~100 ms: use the DAQ contact time (timing_source = daq) if the first LP lick is missing or
+       > 100 ms after the first contact. 34 is checking why LP misses those licks.
 
    STILL OPEN: 3 guard numbers; and 8 (discriminator training classes; helper testing).
    Stays DAQ: pinned epoch boundaries, per-lick outcome, June / PS93_0813 /
