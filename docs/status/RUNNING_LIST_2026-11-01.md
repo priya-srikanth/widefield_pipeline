@@ -792,6 +792,14 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   - combined_encoding uses Allen areas ONLY for its region tables. The split basis is computed on O2 from the bundled
     imaging, so no re-bundle is needed; it goes into the bundle's code as primary, with plain as robustness rows.
   - The 10-24 bundle took ~2 h. ETA to a checked bundle ~2.5-3 h from 08:10 (~10:40-11:10), mostly share reads.
+- SPLIT BASIS, Priya's replies:
+  - (5) leave the LocaNMF-label analyses.
+  - (2) "should already have these": yes, quiet events define orofacial = ALM, tjM1, SSp-m, SSp-n (limb = SSp-ul, SSp-ll).
+    Adopted for every orofacial group; MOs-vs-MOp contrasts become ALM vs tjM1.
+  - (3) "why not px based": proposed pixel-based significance as primary, with the area table descriptive.
+  - (1) asked what the rim is: v8 = the thin LATERAL rim anterior of AP -0.5 (not the full rim) + the ALM front line.
+  - (4) asked where the cortex rows are.
+  Replies in chat; a8 told.
 - Slide 94 caveat added by a8 (backup_before_ramp_caveat_1104.pptx; hidden states unchanged).
 - The 05:46 incident coverage copies differ from the rebuild ones only by the 12 June sessions (Aug-only pre); the partial-
   coverage rows are identical.
