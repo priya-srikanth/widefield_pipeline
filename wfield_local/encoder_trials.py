@@ -19,7 +19,9 @@ and `sst_bins_<align>` / `nfr_bins_<align>`; in mode full: `frames` (parts, rows
 and its held-out prediction "cv" for the fitted rows followed by the scored-only rows, with `t_cue_row` / `t_lick_row` /
 `t_row_lo` / `t_row_hi` locating each trial (`combined_encoding.trial_rows`). The LICK alignment of this file is the first
 LP lick, else the first DAQ contact in cue + 70 ms .. stop (`t_timing_source` lp / daq / none, Priya 11-04 Q9); the
-session npz's peth_lick / sse_lick are LP-only (= timing_source lp).
+session npz's peth_lick / sse_lick are LP-only: align "lplick" (`t_lplick_row`, the LP onset on every trial with one)
+rebuilds them exactly from the frames. CLOSE spouts with the LP onset > `combined_encoding.LP_DAQ_TOL_S` after the first
+contact use the contact; FAR spouts keep the LP onset and flag `t_grooming_suspect`.
 """
 from __future__ import annotations
 
@@ -68,7 +70,8 @@ def _gather(z: dict, align: str):
 
 
 def class_peth(z: dict, mask, align: str = "cue", positions=None) -> tuple[np.ndarray, list, list]:
-    """(peth (parts, positions, areas, off), parts, positions): trial-averaged traces of every stored part over the
+    """``align``: "cue", "lick" (this file's lick timing) or "lplick" (the LP onset = the session npz's alignment).
+    (peth (parts, positions, areas, off), parts, positions): trial-averaged traces of every stored part over the
     trials in ``mask``, per position -- the session npz's `peth` / `peth_lick` restricted to those trials (parts = the
     npz's `peth_parts` + "cv", the held-out full prediction). Needs mode full."""
     if "frames" not in z:

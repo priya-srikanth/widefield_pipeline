@@ -1087,6 +1087,10 @@ def _diag_quad(U, C, chunk=50000):
 TRIALS_ENV = "COMBINED_ENCODING_TRIALS"
 TRIAL_MODES = ("off", "sse", "full", "full32")
 TRIAL_BIN_S = 0.5
+#: LICK TIMING of the per-trial lick alignment (Priya 11-04): an LP onset later than the trial's first DAQ contact by
+#: more than this is not the contacting lick -- at a CLOSE spout the alignment then uses the contact (timing_source daq);
+#: at a FAR spout the LP onset is kept and the trial flagged grooming_suspect
+LP_DAQ_TOL_S = 0.05
 #: the time-resolved models of the main (unsubset, movement_first, no FR) run
 MAIN_TR_MODELS = tuple(m for m in TR_MODELS if not m.startswith("fr:"))
 
@@ -1152,39 +1156,50 @@ class _TrialScorer:
         ct = np.sort(np.asarray([] if contact_s is None else contact_s, float))
         n = len(S)
         k = np.array([kE.get(int(t), -1) for t in S.trial_id], int)
-        cue_row, lick_row = np.full(n, -1), np.full(n, -1)
+        cue_row, lick_row, lplick_row = np.full(n, -1), np.full(n, -1), np.full(n, -1)
         lo, hi = np.zeros(n, int), np.zeros(n, int)
         lp_s, daq_s, first_s = np.full(n, np.nan), np.full(n, np.nan), np.full(n, np.nan)
-        src = np.full(n, "none", object)
+        src, groom = np.full(n, "none", object), np.zeros(n, bool)
+        try:
+            from wfield_local import config
+            max_rt = float(config.defaults()["decode"]["max_rt_s"])
+        except (KeyError, TypeError, ValueError, OSError):
+            max_rt = 3.5
+        close = np.char.startswith(S.pos.to_numpy().astype(str), "close")
         for j, (c_, sp_) in enumerate(zip(S.cue_s.to_numpy(float), S.stop_s.to_numpy(float))):
             sp_ = sp_ if np.isfinite(sp_) else c_ + 3.5
             i_ = np.searchsorted(lk_all, c_)
             if i_ < len(lk_all) and lk_all[i_] < sp_:
                 lp_s[j] = lk_all[i_]                 # the session npz's first lick (LP / camera lick set)
-            i_ = np.searchsorted(ct, c_ + tc.CONTACT_FROM_CUE_S)   # the cue_stop contact window
-            if i_ < len(ct) and ct[i_] < sp_:
-                daq_s[j] = ct[i_]                    # first DAQ spout contact, cue + 70 ms .. stop
-            # LICK ALIGNMENT here (Priya 11-04, Q9): the first LP lick, ELSE the first DAQ contact (timing_source daq,
-            # a sensitivity-check flag); the session npz's peth_lick / sse_lick stay LP-only
-            if np.isfinite(lp_s[j]):
-                first_s[j], src[j] = lp_s[j], "lp"
-            elif np.isfinite(daq_s[j]):
+            i_ = np.searchsorted(ct, c_ + tc.CONTACT_FROM_CUE_S)
+            if i_ < len(ct) and ct[i_] < min(c_ + max_rt, sp_):
+                daq_s[j] = ct[i_]                    # first DAQ spout contact, cue + 70 ms .. min(cue + max_rt, stop)
+            # LICK ALIGNMENT here (Priya 11-04): the first LP onset, except at a CLOSE spout when it is missing or more
+            # than LP_DAQ_TOL_S after the first DAQ contact (-> the contact, timing_source daq); at a FAR spout a late
+            # LP onset is kept and flagged grooming_suspect, a missing one falls back to the contact (daq). The session
+            # npz's peth_lick / sse_lick stay LP-only.
+            late = np.isfinite(lp_s[j]) and np.isfinite(daq_s[j]) and lp_s[j] - daq_s[j] > LP_DAQ_TOL_S
+            if np.isfinite(daq_s[j]) and (not np.isfinite(lp_s[j]) or (late and close[j])):
                 first_s[j], src[j] = daq_s[j], "daq"
+            elif np.isfinite(lp_s[j]):
+                first_s[j], src[j], groom[j] = lp_s[j], "lp", late
             if k[j] >= 0:                            # fitted: exactly the session npz's indices
                 cue_row[j], lo[j], hi[j] = cue_f[k[j]], 0, nfit
                 lick_row[j] = (first_f[k[j]] if src[j] == "lp" else
                                int(np.searchsorted(ftr, first_s[j])) if src[j] == "daq" else -1)
+                lplick_row[j] = first_f[k[j]]       # the session npz's lick alignment (LP onset, -1 = none)
             else:
                 cue_row[j] = nfit + np.searchsorted(ftx, c_)
                 lick_row[j] = nfit + np.searchsorted(ftx, first_s[j]) if np.isfinite(first_s[j]) else -1
+                lplick_row[j] = nfit + np.searchsorted(ftx, lp_s[j]) if np.isfinite(lp_s[j]) else -1
                 lo[j], hi[j] = nfit, nfit + nx
         self.table = {"trial_id": S.trial_id.to_numpy(int), "pos": S.pos.to_numpy().astype(str),
                       "engaged": S.engaged.to_numpy(bool), "fitted": k >= 0,
                       "fold": np.where(k >= 0, f_of_trial[np.clip(k, 0, None)], -1),
                       "cue_s": S.cue_s.to_numpy(float), "stop_s": S.stop_s.to_numpy(float),
-                      "first_lick_s": first_s, "timing_source": src.astype(str), "lp_first_lick_s": lp_s,
-                      "daq_first_contact_s": daq_s,
-                      "cue_row": cue_row, "lick_row": lick_row, "row_lo": lo, "row_hi": hi}
+                      "first_lick_s": first_s, "timing_source": src.astype(str), "grooming_suspect": groom,
+                      "lp_first_lick_s": lp_s, "daq_first_contact_s": daq_s,
+                      "cue_row": cue_row, "lick_row": lick_row, "lplick_row": lplick_row, "row_lo": lo, "row_hi": hi}
         self.gi = {"cue": trial_rows(cue_row, lo, hi, self.off), "lick": trial_rows(lick_row, lo, hi, self.off)}
         self.edges, self.b = trial_bins(self.off / fs)
         nb = len(self.edges) - 1

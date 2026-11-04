@@ -27,7 +27,8 @@ def _inputs(n_trials: int = 72, seed: int = 0) -> dict:
     ft = np.arange(0.0, cue[-1] + 10.0, 0.1)
     lick_tr = np.flatnonzero(np.arange(n_trials) % 3 != 2)
     lick = np.sort(cue[lick_tr] + 0.4 + rng.uniform(0, 0.3, len(lick_tr)))
-    contact = np.sort(np.r_[lick + 0.02, cue[np.arange(n_trials) % 6 == 2] + 0.5])   # contacts without a lick too
+    # contacts: one per lick; on trials without a lick (some); and EARLY ones (cue + 0.1 s, > 50 ms before the LP onset)
+    contact = np.sort(np.r_[lick + 0.02, cue[np.arange(n_trials) % 6 == 2] + 0.5, cue[np.arange(n_trials) % 6 == 0] + 0.1])
     an = {k: (ft, rng.normal(size=len(ft))) for k in ("tongue_x", "tongue_y", "tongue_prot", "tongue_speed", "jaw_x",
                                                      "jaw_y", "jaw_speed", "nose_x", "nose_y", "running")}
     B = ce.Behaviour(T, lick, lick + 0.05, np.array([pos[np.searchsorted(cue, x) - 1] for x in lick]),
@@ -122,12 +123,14 @@ def test_reader_rebuilds_session_outputs_from_engaged_classes(runs, tmp_path):
     pe, parts, positions = et.class_peth(z, fit, "cue")
     assert parts[:-1] == out["res"]["peth_parts"] and parts[-1] == "cv" and positions == out["res"]["pos_order"]
     np.testing.assert_array_equal(pe[:-1], out["peth"])
-    lp = fit & (t.timing_source == "lp").to_numpy()
-    pl, _, _ = et.class_peth(z, lp, "lick")
-    np.testing.assert_array_equal(pl[:-1], out["peth_lick"])                  # LP-timed trials = the npz's peth_lick
+    lp = fit & (t.lplick_row >= 0).to_numpy()
+    pl, _, _ = et.class_peth(z, lp, "lplick")
+    np.testing.assert_array_equal(pl[:-1], out["peth_lick"])                  # the LP onset = the npz's peth_lick
     b = z["bin_of_off"]
     nb = len(z["bin_edges_s"]) - 1
-    for align, key, m in (("cue", "sse", fit), ("lick", "sse_lick", lp)):
+    same = (t.lick_row == t.lplick_row).to_numpy()                            # binned lick SSE: this file's timing
+    assert (lp & ~same).any()
+    for align, key, m in (("cue", "sse", fit),):
         s1, s2 = et.class_sse(z, c1 & m, align), et.class_sse(z, c2 & m, align)
         want = np.stack([out[key][:, :, b == q].sum(2) for q in range(nb)], 1)        # (models, bins, areas)
         np.testing.assert_allclose(s1["sse"] + s2["sse"], want, rtol=1e-5)
@@ -138,6 +141,10 @@ def test_reader_rebuilds_session_outputs_from_engaged_classes(runs, tmp_path):
     np.testing.assert_allclose(f["sse"], out["sse"][mi], rtol=1e-5)
     np.testing.assert_allclose(f["sse_trial"], out["sse_trial"][mi], rtol=1e-5)
     np.testing.assert_allclose(f["sst_trial"], out["sst_trial"], rtol=1e-5)
+    fl = et.class_full_fine(z, lp, "lplick")                                    # lick-aligned, the npz's timing
+    np.testing.assert_allclose(fl["sse"], out["sse_lick"][mi], rtol=1e-5)
+    np.testing.assert_allclose(fl["sse_trial"], out["sse_trial_lick"][mi], rtol=1e-5)
+    np.testing.assert_allclose(fl["sst"], out["sst_lick"], rtol=1e-5)
 
 
 def test_lick_alignment_falls_back_to_daq_contact(runs, tmp_path):
@@ -146,8 +153,15 @@ def test_lick_alignment_falls_back_to_daq_contact(runs, tmp_path):
     src = t.timing_source.to_numpy()
     assert set(src) == {"lp", "daq", "none"}
     d = src == "daq"
-    assert np.isnan(t.lp_first_lick_s[d]).all() and (t.first_lick_s[d] == t.daq_first_contact_s[d]).all()
-    assert (t.daq_first_contact_s[d] >= t.cue_s[d] + 0.07).all()
+    assert (t.first_lick_s[d] == t.daq_first_contact_s[d]).all() and (t.daq_first_contact_s[d] >= t.cue_s[d] + 0.07).all()
+    close = t.pos.str.startswith("close").to_numpy()
+    late = (t.lp_first_lick_s - t.daq_first_contact_s > ce.LP_DAQ_TOL_S).to_numpy()
+    assert (src[close & late] == "daq").all() and (close & late).any()               # close + late LP -> the contact
+    assert (src[~close & late] == "lp").all() and t.grooming_suspect[~close & late].all() and (~close & late).any()
+    assert not t.grooming_suspect[~late].any()
+    nolp = np.isnan(t.lp_first_lick_s.to_numpy()) & np.isfinite(t.daq_first_contact_s.to_numpy())
+    assert (src[nolp] == "daq").all() and nolp.any()                                  # no LP onset -> the contact
+    assert ((src == "lp") == (t.first_lick_s == t.lp_first_lick_s)).all()
     assert (t.lick_row[src == "none"] == -1).all() and (t.lick_row[src != "none"] >= 0).all()
 
 
