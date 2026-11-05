@@ -43,7 +43,7 @@ def one(sd):
     res = mc / "wfield_local_results"
     s = dict(label=f"{animal}_{date[4:]}", mc=str(mc), h5=str(h5), regime="B", fmdir=None)
     cue = _lc(s["h5"])
-    lk = _ll(s["h5"], "lick_analog", 2.5, 1.0, (0.001, 0.020), 0.10)
+    lk = _ll(s["h5"], "lick_analog")              # THE DAQ lick detector (config.lick_detector; REBUILD_CODE 8.53)
     cf, lf, _ = _frames(s, cue, lk)
     cf, lf = np.asarray(cf), np.sort(np.asarray(lf)[np.asarray(lf) >= 0])
     C = np.asarray(np.load(res / VAR / "SVTcorr.npy"), np.float64)
