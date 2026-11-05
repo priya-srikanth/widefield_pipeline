@@ -1798,3 +1798,8 @@ bundle without `daqlk` and writes a provenance json.
   this test (it had found no scheduled step).
 - Merge helper started (Priya OK 11-05 ~10:55): worktree wf_merge_main, branch merge/rebuild-into-main-20261105 from
   origin/main + rebuild 31ec5c1a; full suite sharded; unpushed; report MERGE_REBUILD_INTO_MAIN_20261105.md.
+- ~11:40: **droppos MOVED** (96G resubmit done; all 107 checked, collect --move): all 16 bundle-b TAGs are now in the
+  `_daqlk` folder; nothing left to copy from O2 for this bundle.
+  - Leftover re-copies from the earlier whole-out/ rsync (drop, nodir, shufpos, trmodels, musall_shuf, fr_S, fr_D
+    partial 269/428) DELETED file by file after size + sha256 match: 2,409 files, 32.9 GB, 0 unmatched
+    (scratchpad/collect_verify/verify_delete3_result.json; RECOPY_DELETED.txt per TAG).
