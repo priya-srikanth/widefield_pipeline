@@ -1844,3 +1844,6 @@ bundle without `daqlk` and writes a provenance json.
   imaging lick profile. Fixed 411c8385 (takes the config.lick_detector default; that figure changes only on its next
   re-run). Section C commits 24d604cc / 19d3cf71 merged in (6abf515c). Targeted tests 144 passed. Re-push running
   (~2 h 20 m hook); a8 is still holding main pushes and has been told.
+- ~15:10: origin/main moved to e8407872 (e0's FR spout-in-mesh docs push carried a8's 8 held docs commits) while the
+  re-push was in its hook -> stopped my push (own PIDs only), merged origin/main cleanly (136807cf), re-pushed. Full
+  suite again (~2 h 20 m, main ~17:30). Asked a8 to have the shared-checkout windows hold main pushes until then.
