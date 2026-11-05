@@ -194,3 +194,11 @@ def test_profile_default_and_robustness_arm():
     a = render_profile.load("cohort1_rebuild_20261103", arm="frozenNoSpont")
     assert a["env"]["FROZEN_LICKS_ALL"] == "none"
     assert a["notes"]["expected_run_tag"] == p["notes"]["expected_run_tag"]   # kept apart by the FRAME tag
+
+
+def test_stats_design_guard(fs, monkeypatch):
+    m0 = _load(monkeypatch, None)
+    old = [{"run_mode": m0._run_tag()}]
+    new = [{"run_mode": fs._run_tag()}]
+    assert m0.stats_design_ok(old) and not m0.stats_design_ok(new)
+    assert fs.stats_design_ok(new) and not fs.stats_design_ok(old)

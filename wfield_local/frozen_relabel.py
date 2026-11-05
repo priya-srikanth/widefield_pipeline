@@ -176,7 +176,7 @@ def main(argv=None) -> int:
         summarise(out)
         return 0
     pre_stats = pickle.loads((src / "fit" / "pre_stats.pkl").read_bytes())
-    if any(("|licksall-" in str(s_.get("run_mode"))) != fe.SPONT for s_ in pre_stats):   # never mix the two designs
+    if not fe.stats_design_ok(pre_stats):               # never mix the two lick designs
         raise SystemExit(f"{src}: pre statistics of another lick design than {fe.design_name()} ({fe.LICKS_ALL_ENV})")
     fp = out / "joint_fits.pkl"
     if not fp.exists():

@@ -202,6 +202,12 @@ def tag_is_spont(tag: str) -> bool:
     return SPONT_PART in str(tag).split("_")
 
 
+def stats_design_ok(stats: list) -> bool:
+    """True when every saved pre-session statistic was built with this environment's lick design (the
+    ``|licksall-split`` part of its stored run tag iff FROZEN_LICKS_ALL=split)."""
+    return all(("|licksall-" in str(s.get("run_mode"))) == SPONT for s in stats)
+
+
 def check_tag(tag: str, what: str = "run") -> None:
     """REFUSE a frozen folder tag whose design does not match the environment: a ``spont`` segment iff
     FROZEN_LICKS_ALL=split (so the spontaneous-lick design never writes into, or reads, a v7g3_t3d folder and back)."""
