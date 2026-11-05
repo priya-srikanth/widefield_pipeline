@@ -1,4 +1,15 @@
-# Render queue for `_daqlk` (cohort-1 rebuild, merged main), 11-05: BUILT, NOT LAUNCHED
+# Render queue for `_daqlk` (cohort-1 rebuild, merged main), 11-05
+
+**UPDATE 11-05 evening (Priya's decisions).**
+- She accepted the order G > A, B > D > E > F, Z, and asked to RENDER the te and lsland frames.
+- 9aaa4cc6 is on main as a6edab62 (+ e53f1cd2, the fig10 title).
+- Lane G is RUNNING from `queue_daqlk.sh` (SECTIONS=G, started 16:38). That file is left untouched.
+- **Lane 2 launches from the NEW file `queue_daqlk2.sh`** in the same folder. It is identical except for a new
+  section **T** (below) and the default SECTIONS. Command:
+
+  `cd <scratchpad>/render_daqlk && SECTIONS="A B T D E F Z" nohup bash queue_daqlk2.sh > logs/laneENC.out 2>&1 &`
+
+  Both lanes share `logs/`, so lane 2's cross-lane dependencies on lane G's `.done` files work.
 
 **Code.** Worktree `C:/Users/SabatiniLab/Github/wf_render_daqlk`:
 - origin/main **136807cf** (the rebuild -> main merge). origin/main has since moved to 40fbe48b, a docs-only commit.
@@ -124,6 +135,51 @@ The frames are already rendered by lanes 1-4.
   - encoding_key_figures.
 - **Runtimes (est.):** session_vs_frozen and partial_refit are about 1-1.5 h each. The rest are 2-20 min each.
 
+### T: te + lsland + frlag frames and their readers (8 steps + gate; `queue_daqlk2.sh` only; about 16 h est.)
+- **Gate.** T waits until frozen lane 3 has finished. It checks for `frA_ls_basis` at 107 sessions plus its musall csv, or
+  for lane 3's chain log reporting EXIT / FAILED / lane done. It then proceeds either way: the T frames do not read
+  ls_basis, the gate is only for RAM and workers.
+- **te: NOT the spont design.** The merged `frozen_encoder` refuses `FROZEN_DESIGN=te` together with
+  `FROZEN_LICKS_ALL=split` ("te has its own pre-cue / ITI lick families: set FROZEN_LICKS_ALL=none"). So the te frames
+  and every reader of them run with `FROZEN_LICKS_ALL=none`. Their tag is `gate-attempted_v7g3_t3d_frA_te[_basis]`,
+  with no `spont` segment; `check_tag` enforces this and passes in the dry run. Pre-cue / ITI licks are inside the te
+  design (te_lick_parts), so this is not a mix with the no-spont robustness row.
+- **lsland variant list.** From backup `S1_cdd1e016/run_land_lag.sh` (10-25), the "trimmed variants":
+  `joint target_first exec_first no_target no_spout no_task no_movement no_lickspout no_exec_locked no_exec_within
+  no_lick no_fr`. It contains the two variants contest_lines reads (no_target, no_lickspout). `no_spont` is not in the
+  10-25 list and was not added.
+- **frlag frame (not in the request, ADDED).** `contest_lines.py` also reads `..._frA_frlag` (lagged FaceRhythm, its
+  second figure). It comes from the same backup script with the same variants. Without it, contest_lines would fail
+  after its first figure.
+
+| step | args | env (after the profile) | deps | output | runtime est. |
+|---|---|---|---|---|---|
+| t_frame_te | `-m wfield_local.frozen_encoder --all --jobs 3 --no-drop-spout --tag gate-attempted_v7g3_t3d_frA_te` | frA + FROZEN_DESIGN=te + FROZEN_LICKS_ALL=none (LICKSPOUT unset) | gate | `ENC/frozen_encoder_gate-attempted_v7g3_t3d_frA_te` | 3-4 h |
+| t_frame_te_basis | `... --jobs 2 --no-drop-spout --target basis --tag ..._frA_te_basis --variants joint target_first exec_first no_timing no_target no_execution no_contact no_other no_task no_movement task_only target_only execution_only other_only movement_only` | same + FROZEN_PIX_MUSALL=1 | t_frame_te | `..._frA_te_basis` | ~3 h |
+| t_svf_te | `session_vs_frozen.py --tag ..._frA_te --jobs 3 --variants joint no_target no_execution no_contact no_task no_movement` | te env | t_frame_te | in the frame | ~1.5 h |
+| t_partial_te | `partial_refit.py --tag ..._frA_te --jobs 3` (the doc's `--jobs 6`, capped) | te env | t_frame_te | in the frame | ~1.5 h |
+| t_te_readout | `te_readout.py --tag ..._frA_te` | te env | t_frame_te | `<frame>/figures/te_unique_lines.png` | min |
+| t_frame_lsland | `--all --jobs 3 --tag gate-attempted_v7g3_t3d_spont_frA_lsland --variants <trimmed list>` | frozen (frA + LICKSPOUT) + FROZEN_LICKLAND=1 | gate | `..._spont_frA_lsland` | ~3.5 h |
+| t_frame_frlag | `--all --jobs 3 --tag gate-attempted_v7g3_t3d_spont_frA_frlag --variants joint no_fr no_fr_dir no_frfacelead no_frcortexlead no_movement` | frA + FROZEN_FR_LAGS=-0.3,-0.2,-0.1,0.1,0.2,0.3 | gate | `..._spont_frA_frlag` | ~3 h |
+| t_contest_lines | `contest_lines.py` | frA | lsland, frlag, a_svf_ls, b_svf_frA | frozen_fr_compare figures | min |
+
+- **Dry run.** Ran under each step's exact env:
+  - `--help` exits 0 for all of them, and every flag exists.
+  - Every requested variant is in `frozen_encoder.VARIANTS`.
+  - `check_tag` accepts each tag, with design `v7g3_t3d` for te and `v7g3_t3d_spont` for lsland / frlag.
+
+  No frame was run.
+- **Order / workers.** In lane 2, T sits after B, as the coordinator preferred. Each frame step is serial with
+  `--jobs` <= 3, alongside lane G's 4: 7 workers.
+- **Cost of that order.** Lane 2 grows from about 25 h to about 41 h, and D / E start about 16 h later.
+- **Alternative (my suggestion).** Once lane G has ended (its CHAIN line "queue end (sections [G])", expected early
+  morning):
+  - lane 2 runs `SECTIONS="A B D E F Z"`;
+  - T runs as its own lane, `SECTIONS="T" nohup bash queue_daqlk2.sh > logs/laneT.out 2>&1 &`.
+
+  That gives 3 + 3 = 6 workers. MINFREE 10 GB still gates every step, and `t_contest_lines` waits for lane 2's two
+  self-fits. Don't run T as a third lane while lane G is still running: that would be 10 workers.
+
 ### D: attempt_coding / attempt_maps (10 steps; about 3-4 h est.)
 - **Steps:**
   - `attempt_coding --freeze` (WIDEFIELD_ENL_WINDOW_S=1.0, DAQ);
@@ -213,13 +269,8 @@ of B. Priya should choose the priority order (see Decisions).
 - **Next:** merge it to main with the next main push. Until then the queue runs on 9aaa4cc6.
 
 ## Not placed / looks wrong (needs a decision or code)
-1. **te frames were not rendered.** The spont lanes dropped `frA_te` / `frA_te_basis`. So these cannot run:
-   - `partial_refit --tag ..._frA_te`;
-   - `session_vs_frozen --tag ..._frA_te`;
-   - `te_readout.py` (default tag `gate-attempted_v7g3_t3d_frA_te`).
-
-   Render the te frames (FROZEN_DESIGN=te, LICKSPOUT unset; about 4-5 h) or drop these figures.
-2. **contest_lines.py** needs `..._frA_lsland` (FROZEN_LICKLAND), which was not rendered. Not placed.
+1. **te frames.** RESOLVED 11-05 evening: section T renders them with FROZEN_LICKS_ALL=none (the code refuses te + spont).
+2. **contest_lines.py.** RESOLVED 11-05 evening: section T renders lsland, and also frlag, which contest_lines needs.
 3. **fig_resid16 (`--bin 16` / `32`) and fig_resid_spout have no producer.** They read
    `residual_sig_<F>px.csv` / `resid<F>_*.npz`, but no script in the repo writes them, and frozen_residual_significance
    has no `--bin` flag. The binned-residual producer was presumably a scratchpad script and must be recreated before
@@ -261,7 +312,8 @@ of B. Priya should choose the priority order (see Decisions).
   2. A + B headline figures, then D (lane 2);
   3. E (ITI, about 6 h);
   4. F + Z.
-- **B. te and lsland frames.** Render them (about 4-5 h each frame) or retire te_readout, the te partial / svf and
-  contest_lines.
+- **B. te and lsland frames.** DECIDED (render): section T. Two points to confirm:
+  - te runs as design v7g3_t3d (no spont kernels; te has its own pre-cue / ITI lick families);
+  - frlag was added because contest_lines reads it.
 - **C. Binned residual figures.** Recreate the `residual_sig_<F>px` producer for Figs 7 / 7c / 7d, or drop those figures.
 - **D. Merge the decode fix.** 9aaa4cc6 should go to main.
