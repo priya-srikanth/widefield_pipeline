@@ -339,10 +339,11 @@ FYI, the 3-class camera variant (lick / jaw-only / none) is thin in PS92 and PS9
     appended after the merge.
   - Safe code fixes merged, plus archive_day fail-closed hash re-verify (e7edc659).
   - Lick detector (LICK_DETECTOR_COMPARE_2026-11-04): Priya chose the BEHAVIOUR profile everywhere; sent to 34.
-    - 34: lands as a POST-render code change. Three runs are already on the current profile: O2 enc_rebuild_20261104b,
-      frozen v7g3_t3d, trial_attempts.
-    - 34 recommends a sensitivity check on the lick-count / lick-free-window analyses, not a full re-render.
-    - QUESTION for Priya: re-run, or sensitivity check only?
+    - Priya (to 34): switch NOW, BEFORE the render.
+    - Code is on branch rebuild/daq-lick-detector: yaml accessor, min_ili fix, cache bumps, new run-tag token, pinned
+      onset counts.
+    - Frozen v7g3_t3d frames stopped. O2 bundle 20261104b trimmed to main + main_nolicksall (early look only).
+    - Next: trial_attempts is rebuilt, a new O2 bundle is built, then the frozen frames and G0-G8 run on the new tag.
   - Zero-contact check: clean (only PS93_0813 = known missing video).
   - Epoch PNGs: 23 deleted. Priya's rule: delete only where a replacement exists.
     - The ungated 23_quit_prodrome is gone (replaced by the registered gated_h90). quit_prodrome.py still writes the
