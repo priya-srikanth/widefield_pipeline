@@ -1466,3 +1466,12 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   - The file list is in RENDER_LOG.md.
   - No other copy of the 20261023 table exists in the rebuild root or the scratchpad. The local wfield_cache copy is e0's.
   - The B12 smoke numbers came from inputs the class helper built in scratch (cls/). They re-run from the new bundle.
+- **11-04 19:16: trial_attempts regenerated under ...stopA2jexrt3500c70 (code 9fb2d964).** It matches the cue70 census
+  exactly:
+  - 57,048 cues / 107 sessions;
+  - working 49,087; stopped 5,347 (stop_kind run 4,310 / tail 1,313); stopped_licking 276; after_end 0;
+  - timing_source = daq for 73 trials; grooming_suspect 6.
+  - Note: camera_coverage.csv was written at 18:52, before trial_attempts finished; checking whether it needs a rerun.
+- **~20:40: both helpers stopped at the spend limit and were resumed.**
+  - The merge helper finishes the g_group wiring and the final suite.
+  - The runner holds for the go on the bundle build.
