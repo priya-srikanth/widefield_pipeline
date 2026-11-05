@@ -1611,3 +1611,11 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   e0).
 - 01:00: a8 put the same conda module swap on main (981b4647; it pushes after its pre-push suite). e0 is told. No action
   needed here; the rebuild keeps 931cd777.
+- 01:10: **a8 merge notes for the eventual rebuild -> main merge** (main fc420c2e fixed 3 pre-existing main suite
+  failures):
+  - (a) kinematics_pooled_figs.py + lmm_curve_summaries.py: the sidecar_for lines were ported verbatim from the rebuild,
+    BUT keep main's pose3d_dir() (ae2bcd86) on those lines.
+  - (b) tests/test_pooled_bundle_memo.py: take the REBUILD side (`(an, align, _tck.gate_mode(),
+    _tck.run_selection_tag())`).
+  - (c) the shared clone's core.hooksPath is now the relative `.githooks` (repo config; it affects every worktree's
+    hooks, which is fine).
