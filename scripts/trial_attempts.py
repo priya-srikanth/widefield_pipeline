@@ -184,8 +184,12 @@ def main(argv=None) -> int:
     for it, err in fail:
         print(f"  FAILED {it}: {err}")
     D = pd.concat([r for _l, r in got], ignore_index=True)
-    D["animal"], D["epoch"] = D.label.str.split("_").str[0], D.label.map(epochs.epoch_of)
-    D["day"] = D.label.map(epochs.days_since_stroke)
+    # one config lookup per SESSION, not per trial row (~57k); mapped through a function, not a dict, so a None day stays
+    # None (a dict map would make the column float and change the CSV bytes)
+    ep = {lab: epochs.epoch_of(lab) for lab in D.label.unique()}
+    day = {lab: epochs.days_since_stroke(lab) for lab in ep}
+    D["animal"], D["epoch"] = D.label.str.split("_").str[0], D.label.map(ep.__getitem__)
+    D["day"] = D.label.map(day.__getitem__)
     D.to_csv(out / "trial_attempts.csv", index=False, float_format="%.1f")
     W = session_summary(D)
     W.insert(1, "animal", W.label.str.split("_").str[0])
