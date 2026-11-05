@@ -1771,3 +1771,6 @@ bundle without `daqlk` and writes a provenance json.
     .016, PS95 .019; PS94 flat) in BOTH arms, so the chronic rise is not a spont-lick artefact. Same in enl_fixed2s.
   - Full-model ENL R2 is +.002-.016 higher with the spont kernels (they explain real pre-cue activity).
   - No CIs yet. B12 claim list (B12_PRECUE_POSITION_CLAIMS_20261104.md) A-rows: direction unchanged by the kernels.
+- ~08:40: bins_w1 / bins_w05 / bins_w2 MOVED (collect --move, first use) into the _daqlk folder:
+  `movement_first_subset-nokin_exec-polar_licks-combined_bins[_bw0.5|_bw2]/sessions`, 428 files / 107 sessions each;
+  bundle `out/<TAG>/sessions` now empty + MOVED_TO.txt. daqlk acceptance printed for each.
