@@ -402,7 +402,8 @@ def _sessions_on_disk(labcams_root):
         if not re.fullmatch(r"\d{8}", d):
             continue
         for sd in sorted(glob.glob(os.path.join(datedir, "*"))):
-            m = re.match(r"(PS\d+)_" + d, os.path.basename(sd))
+            # allow an optional condition tag between animal and date, e.g. PS121_490_20261104_* (490 nm LED)
+            m = re.match(r"(PS\d+)_(?:[^_]+_)?" + d, os.path.basename(sd))
             mc = os.path.join(sd, "motion_corrected")
             if m and os.path.isdir(mc):
                 out.append({"label": f"{m.group(1)}_{d[4:]}", "mc": mc.replace("\\", "/")})
