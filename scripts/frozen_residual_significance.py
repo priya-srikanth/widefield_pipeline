@@ -23,6 +23,7 @@ per animal the bin test is the repo's "musall" method (sessions as the unit, Wel
 Rule 8: per animal first.
 
 Usage: python scripts/frozen_residual_significance.py --tag gate-attempted_v7g3_t3d_basis [--spout far_contra] [--per-animal]
+       [--bin 16]   (block size of the bin tests; default 8 px, other sizes write *_<bin>px outputs)
 Output: <E>/frozen_encoder_<tag>/figures/residual_significance_<variant>_<spout>_<align>.png + residual_significance.csv
 """
 from __future__ import annotations
@@ -79,11 +80,12 @@ def session_residual_maps(out: Path, variant: str, spout: str, align: str):
     return by, H, W
 
 
-def run_tests(pre_by, post_by, n_boot=2000, n_perm=500, methods=("nested", "cluster")):
+def run_tests(pre_by, post_by, n_boot=2000, n_perm=500, methods=("nested", "cluster"), factor=8):
     from wfield_local import beta_maps as bm
     out = {}
     for method in methods:
-        keep, lab = bm.significance_contour(pre_by, post_by, method=method, n_boot=n_boot, n_perm=n_perm)
+        keep, lab = bm.significance_contour(pre_by, post_by, method=method, n_boot=n_boot, n_perm=n_perm,
+                                            factor=factor)
         m_ = re.search(r"(\d+) of (\d+) bins", lab or "")
         out[method] = {"mask": keep, "label": lab,
                        "sig_bins": int(m_.group(1)) if m_ else (0 if method != "cluster" else None),
@@ -110,7 +112,10 @@ def main(argv=None) -> int:
     ap.add_argument("--n-perm", type=int, default=500)
     ap.add_argument("--per-animal", action="store_true", help="one test per animal (sessions as the resampled unit)")
     ap.add_argument("--drift", action="store_true", help="also test late vs early pre (off by default)")
+    ap.add_argument("--bin", type=int, default=8, help="block size in px for the nested / per-animal bin tests (default 8; "
+                    "Priya 11-05). Outputs of a non-default size carry _<bin>px; the cluster test is full resolution")
     a = ap.parse_args(argv)
+    bx = "" if a.bin == 8 else f"_{a.bin}px"           # default 8 px keeps the original file names
     from wfield_local import frozen_encoder as _fe   # the encoder's (tagged) run root, coordinator 11-04
     out = _fe.out_root() / f"frozen_encoder_{a.tag}"
     fd = out / "figures"
@@ -139,7 +144,8 @@ def main(argv=None) -> int:
                     if len(pb.get(an, [])) < 2 or len(qb[an]) < 2:
                         rows.append({"align": al, "comparison": name, "animal": an, "note": "< 2 sessions in a group"})
                         continue
-                    r = run_tests({an: pb[an]}, {an: qb[an]}, a.n_boot, a.n_perm, methods=("musall", "cluster"))
+                    r = run_tests({an: pb[an]}, {an: qb[an]}, a.n_boot, a.n_perm, methods=("musall", "cluster"),
+                                  factor=a.bin)
                     rows.append({"align": al, "comparison": name, "animal": an, "n_pre": len(pb[an]),
                                  "n_post": len(qb[an]), "musall_sig_bins": r["musall"]["sig_bins"],
                                  "musall_n_bins": r["musall"]["n_bins"], "cluster_px": r["cluster"]["px"],
@@ -151,7 +157,7 @@ def main(argv=None) -> int:
         for name, (pb, qb) in comps.items():
             print(f"[residual sig] {al} {name}: animals {sorted(qb)}, sessions {[len(qb[x]) for x in sorted(qb)]}",
                   flush=True)
-            r = run_tests(pb, qb, a.n_boot, a.n_perm)
+            r = run_tests(pb, qb, a.n_boot, a.n_perm, factor=a.bin)
             res[name] = (pb, qb, r)
             rows.append({"align": al, "comparison": name, "n_animals": len(qb),
                          "nested_sig_bins": r["nested"]["sig_bins"], "nested_n_bins": r["nested"]["n_bins"],
@@ -179,12 +185,12 @@ def main(argv=None) -> int:
                          fontsize=8)
             ax.set_xticks([]); ax.set_yticks([])
         fig.suptitle(f"Frozen-encoder RESIDUAL (data - full), {a.spout}, {al} window: epoch residual minus pre-stroke "
-                     f"residual,\npre-normalised, mean of animals. Contours: black = nested bootstrap (primary), purple "
+                     f"residual,\npre-normalised, mean of animals. Contours: black = nested bootstrap on {a.bin} px blocks (primary), purple "
                      f"dashed = cluster.\nReference = all pre sessions (LOSO). Image left = ipsilesional.", fontsize=8)
         fig.tight_layout(rect=(0, 0, 1, 0.86))
-        fig.savefig(fd / f"residual_significance_{a.variant}_{a.spout}_{al}.png", dpi=130)
+        fig.savefig(fd / f"residual_significance_{a.variant}_{a.spout}_{al}{bx}.png", dpi=130)
         plt.close(fig)
-    pd.DataFrame(rows).to_csv(out / f"residual_significance{'_per_animal' if a.per_animal else ''}.csv", index=False)
+    pd.DataFrame(rows).to_csv(out / f"residual_significance{'_per_animal' if a.per_animal else ''}{bx}.csv", index=False)
     print(f"-> {fd} (residual_significance_*.png), {out / 'residual_significance.csv'}")
     return 0
 

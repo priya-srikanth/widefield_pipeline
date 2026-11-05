@@ -1270,7 +1270,7 @@ def edge_enrichment(flagged, mask=None, rim_px=32):
 
 
 def significance_contour(pre_by_animal, post_by_animal, *, method=PRIMARY_TEST, n_boot=2000,
-                         n_perm=500, alpha=0.05, seed=0, mask=None, normalise=None):
+                         n_perm=500, alpha=0.05, seed=0, mask=None, normalise=None, factor=MUSALL_DOWNSAMPLE):
     """``(full-resolution boolean mask, one-line label)`` for a difference panel, or ``(None, "")``.
 
     ONE PLACE, so a figure cannot quietly disagree with another about what its drawn contour means.
@@ -1290,6 +1290,10 @@ def significance_contour(pre_by_animal, post_by_animal, *, method=PRIMARY_TEST, 
 
     ``normalise`` (default `NORMALISE_TESTS_BY_PRE`): both epochs divided by each animal's PRE-stroke constant
     (`pre_scale`) before testing, so the contour is computed on the scale the pooled picture is drawn on.
+
+    ``factor`` = the block size in px for "nested" / "musall" (default 8, `MUSALL_DOWNSAMPLE`); a larger block means fewer
+    bins and a smaller Bonferroni price (Priya 11-05: block-size option; 16 px was the old goal-page Figs 7). The cluster
+    test is full resolution and ignores it.
     """
     norm = NORMALISE_TESTS_BY_PRE if normalise is None else normalise
     if norm and method != "cluster":
@@ -1299,7 +1303,7 @@ def significance_contour(pre_by_animal, post_by_animal, *, method=PRIMARY_TEST, 
         sc = pre_scale(pre_by_animal)
         pre_by_animal, post_by_animal = scale_maps(pre_by_animal, sc), scale_maps(post_by_animal, sc)
     keep, lab = _significance_contour(pre_by_animal, post_by_animal, method=method, n_boot=n_boot, n_perm=n_perm,
-                                      alpha=alpha, seed=seed, mask=mask, normalise=bool(norm))
+                                      alpha=alpha, seed=seed, mask=mask, normalise=bool(norm), factor=factor)
     if norm and lab:
         lab = f"[pre-normalised] {lab}"
         last = getattr(significance_contour, "last", None)
@@ -1309,7 +1313,7 @@ def significance_contour(pre_by_animal, post_by_animal, *, method=PRIMARY_TEST, 
 
 
 def _significance_contour(pre_by_animal, post_by_animal, *, method, n_boot, n_perm, alpha, seed, mask,
-                          normalise=False):
+                          normalise=False, factor=MUSALL_DOWNSAMPLE):
     """`significance_contour` on maps already on their final scale (cluster: scaled per draw when ``normalise``)."""
     if method == "cluster":
         keep = cluster_permutation(pre_by_animal, post_by_animal, n_perm=n_perm, seed=seed,
@@ -1321,21 +1325,21 @@ def _significance_contour(pre_by_animal, post_by_animal, *, method, n_boot, n_pe
     if method == "musall":
         pre_flat = [m for v in pre_by_animal.values() for m in v]
         post_flat = [m for v in post_by_animal.values() for m in v]
-        got = musall_significance(post_flat, pre_flat, alpha=alpha, mask=mask)
+        got = musall_significance(post_flat, pre_flat, factor=factor, alpha=alpha, mask=mask)
         if got is None:
             return None, ""
         sig, _t, _mk, n_tested = got
-        return (upsample_mask(sig) if sig.any() else None,
+        return (upsample_mask(sig, factor=factor) if sig.any() else None,
                 f"Musall t, sessions as unit: {int(sig.sum())} of {n_tested} bins")
     if method != "nested":
         raise ValueError(f"unknown significance method {method!r}")
-    got = hierarchical_bootstrap_significance(pre_by_animal, post_by_animal, n_boot=n_boot,
+    got = hierarchical_bootstrap_significance(pre_by_animal, post_by_animal, n_boot=n_boot, factor=factor,
                                               alpha=alpha, seed=seed, mask=mask)
     if got is None:
         return None, ""
     sig, _lo, _hi, _mk, n_tested = got
     n = int(sig.sum())
-    full = upsample_mask(sig) if n else None
+    full = upsample_mask(sig, factor=factor) if n else None
     enr = edge_enrichment(full) if full is not None else 0.0
     base = (f"nested bootstrap (animals -> sessions), {n_boot:,} draws: "
             f"{n} of {n_tested} bins"
