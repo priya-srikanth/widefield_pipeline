@@ -1533,3 +1533,9 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
     - o2_lp_train_bundle.py :108;
     - runbooks/o2_pose_inference.md.
     Do it on rebuild and main; tell e0 / a8, since every O2 bundle is affected.
+- **11-04 ~23:45: the O2 test job 58602462 started correctly under conda 26.9.4-1** ("task 1 TAG=main ... on
+  compute-b-16-181", empty .err). Waiting for "full cvR2" and _trials.npz before the 15 arrays go.
+- **11-04 ~23:45: the frozen encoder frames start NOW on this box with v7g3_t3d (Priya asked).**
+  - This is the robustness design without spontaneous lick terms.
+  - New render runner, code c149decf, new tag. Output folders must carry the design name so the later primary
+    (frozen-licks) run never collides.
