@@ -3400,3 +3400,7 @@ collect into the `_daqlk` folder with the provenance json. With test_o2_encoding
   rebuild root the flag is required (refuses otherwise).
 - `--jobs` on `fr_direction` (default 6), `fr_pixel_significance` and `variance_maps` (default 8), which had their worker
   counts hard-coded (shared box). Defaults unchanged.
+- `encoding_mixed`: its runs are resolved by `_run(E, name)` = `E/<name>` if present (adopted runs), else
+  `E/<name>_exec-polar_licks-combined` (the rebuild's collected main and droppos runs). The rebuild's main run already
+  carries the extra windows (cue2lick / cuestop / firstlick), and there is no separate cam4 contest (`_subset-nokin`) or
+  `_win` run, so those measures (`cam4:*`) are absent and their figure panels are blank; the 3-D binned contest is read.
