@@ -6,12 +6,13 @@
 > change is listed as main or collapsible in docs/status/PAGE_EDITS_PENDING_2026-11-04.md (checked by e0 and 34).
 > NOTHING OF MINE IS RUNNING except the biological-gain helper (docs/status/GAIN_BIO_2026-11-04.md when it lands).
 >
-> DECK: 186 slides, 81 hidden. Latest hidden-state dump: hidden_after_sessz2_1104.csv (hidden_state_1103.py dump / diff;
+> DECK: 187 slides, 82 hidden. Latest hidden-state dump: hidden_after_gain_1104.csv (hidden_state_1103.py dump / diff;
 > diff before and after EVERY change; keep Priya's hidden states). 11-04 changes:
 > - slide 94 -> now 95, caveat line (ramp_caveat_1104.py);
 > - e3: hidden slide 30, the four-camera 3-D clip (re-rendered 12:51);
 > - a8: hidden slides 100-101, lick response session z-scored + its LMM (add_lick_sessz_backup_1104.py; 34's _sessz
->   renders, wf_attempt 07e03c76).
+>   renders, wf_attempt 07e03c76);
+> - a8: hidden slide 102, 'Backup: post-stroke gain is brain-wide' (GAIN_BIO session figure; add_gain_backup_1104.py).
 > Python: C:/Users/SabatiniLab/miniconda3/envs/locanmf/python.exe (NOT C:/Users/sabatini). Slide export: scratchpad
 > export_slides.ps1. PITFALL (e3): deleting a movie shape with python-pptx leaves a <p:video> timing node, and
 > PowerPoint then won't open the file.
