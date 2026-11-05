@@ -1785,3 +1785,8 @@ bundle without `daqlk` and writes a provenance json.
 - ~10:45: **droppos 14 tasks OUT_OF_MEMORY** (array 58635573, tasks 3,4,5,7,8,15,27,29-34,57 = PS92 0809-0814/0826/1006,
   PS93 0807-0814, PS94 0810; MaxRSS 42-50 GB vs --mem=48G, killed after 0:22-1:20). No code error. Resubmit those tasks
   with --mem=96G (command given to Priya); move droppos when 107.
+- ~10:50: **Re-copies DELETED** (Priya: "feel free to delete those that are duplicate"): main / main_nolicksall / bins_w1 /
+  bins_w05 / bins_w2 bundle sessions/ (2,140 files, 98.8 GB), each first matched file-by-file by size + sha256 to the
+  collected copy (scratchpad/collect_verify/verify2_result.json); RECOPY_DELETED.txt marker in each TAG folder.
+- Section C (O2-dependent encoder figures) handed to a helper on wf_rebuild 31ec5c1a (report ->
+  docs/status/rebuild_20261103/SECTION_C_RENDER_20261105.md); droppos panels wait on the 96G resubmit.
