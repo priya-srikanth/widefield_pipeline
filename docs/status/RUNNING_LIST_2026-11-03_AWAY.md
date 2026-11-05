@@ -338,6 +338,8 @@ FYI, the 3-class camera variant (lick / jaw-only / none) is thin in PS92 and PS9
     peri-lesional haemodynamic change. Corrected 470 rises as much as raw 470, so the correction doesn't create it.
   - NOT movement: the animals are stiller (face speed 0.5-0.8x), but the gain persists in speed-matched / still
     frames (+.40-.43, 4 / 4) and after face regression. ~80 % remains away from quiet events. No pupil data.
+  - Session-level figure (gain_bio_1104/figs/fig4_gain_sessions.png): now hidden deck slide 102 "Backup: post-stroke
+    gain is brain-wide" (deck 187 / 82 hidden; diff checked; PNG checked), and a collapsible page block (PAGE_EDITS B7).
   - So: more consistent with a real brain-wide gain (excitability / state) than with measurement. The acute
     "lick response larger" has the same size and non-specificity: real, but not lick- or orofacial-specific.
 
