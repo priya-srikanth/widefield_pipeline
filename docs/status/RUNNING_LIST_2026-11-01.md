@@ -1494,3 +1494,10 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   - So the acute raw lick-response rise is real but not lick-specific.
   - Plan: the raw main slide + the session-z hidden slide. Wording is Priya's choice.
   - Question 14 (frozen encoder spontaneous lick kernels) is pending with Priya via a8.
+- **11-04 ~20:55: DECISION (Priya via a8): the FROZEN encoder also gets the spontaneous lick terms.**
+  - It matches the combined encoder: licks / licks_pre / licks_iti, with pre and ITI uninstructed.
+  - New frozen ids; v7g3_t3d is never overwritten and stays as a labelled robustness row.
+  - The same 0-70 / LP timing / stop-quit rules apply.
+  - Implementing on rebuild/frozen-licks (new worktree).
+  - When O2 lands, report FIRST: the B12 combined-encoder pos_enl per animal + the frozen target columns before / after.
+    These cover page 2.1 (+ its deck slide), 2.10 / 2.12, 20.3-20.7 and 1.1.
