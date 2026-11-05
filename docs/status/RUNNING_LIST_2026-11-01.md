@@ -1759,3 +1759,15 @@ bundle without `daqlk` and writes a provenance json.
     her M: folder (memory move-own-derived-on-m).
   - O2 resubmit status (Priya, ~07:00): 216 tasks started, 0 errors; later arrays pending on fair-share (0.09, 400 jobs
     waiting in short), not a fault.
+- ~08:30: **B12 (EARLY, O2 bundle b, collected under _daqlk): pre-cue position credit, with vs without spontaneous
+  lick kernels.** Unique pos_enl = full - drop:pos_enl, cortex, LP 1.0 s lick-free ENL window, session mean per animal
+  (x1e-3 R2; sessions pre / acute / subacute / chronic = 31 / 16 / 17 / 43). Table: scratchpad/frozen_peek/b12_sessions.csv.
+  - with -> without spont: PS92 pre -4.5 / -4.9, chronic 43.6 / 41.2; PS93 pre 4.2 / 6.3, chronic 16.4 / 13.7;
+    PS94 pre 9.4 / 11.3, chronic 11.1 / 11.8; PS95 pre 3.3 / 1.6, chronic 18.6 / 16.7. Animal mean pre 3.1 / 3.6,
+    acute -0.3 / 1.3, subacute 5.3 / 5.0, chronic 22.5 / 20.9.
+  - Reading: the smoke-session drop (PS93_0814 .0072 -> .0029) does NOT generalise. The spont kernels move pre-cue
+    position credit by < 0.002 in every animal x epoch, in both directions (PS93 / PS94 down, PS95 up). Pre-cue unique
+    position credit is small pre (PS92 negative; PS94 ~.01), and RISES chronically in 3 / 4 animals (PS92 .044, PS93
+    .016, PS95 .019; PS94 flat) in BOTH arms, so the chronic rise is not a spont-lick artefact. Same in enl_fixed2s.
+  - Full-model ENL R2 is +.002-.016 higher with the spont kernels (they explain real pre-cue activity).
+  - No CIs yet. B12 claim list (B12_PRECUE_POSITION_CLAIMS_20261104.md) A-rows: direction unchanged by the kernels.
