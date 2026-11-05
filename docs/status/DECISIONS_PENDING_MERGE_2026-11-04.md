@@ -1,5 +1,14 @@
 ## 2026-11-04 code review decisions (Priya)
 
+**(e) One DAQ lick detector: the BEHAVIOUR profile everywhere (Priya 11-04, late).** That is `configs/defaults.yaml
+lick_detection` (2.5 / 0.5 V, 40 ms min ILI). Imaging's 2.5 / 1.0 V + 0.10 s refractory literal is retired. Evidence:
+docs/status/LICK_DETECTOR_COMPARE_2026-11-04.md, 16 sessions.
+- The offset threshold changes 0 onsets.
+- The refractory drops 0.58 % of licks, 94 % of them real camera licks at 10-11 Hz, and unevenly (PS95 1.4 %).
+- 0 hits and 0 imaging RTs change.
+
+Implementation is with sabatinilab-34 in the cohort-1 rebuild (sent 11-04).
+
 Source: `docs/status/CODE_REVIEW_2026-11-04.md`, "Decisions that need you".
 
 **(a) Epoch figures: LEVEL bars and CHANGE panels keep their different weighting, and the figures say so.** LEVEL bars

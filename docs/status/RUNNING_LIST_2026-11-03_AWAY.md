@@ -337,8 +337,12 @@ FYI, the 3-class camera variant (lick / jaw-only / none) is thin in PS92 and PS9
     ENL follows the lick source (already on the rebuild branch); (4) delete the orphan modules + unregistered epoch PNGs.
   - DECISIONS.md is on the rebuild list, so the entry waits in docs/status/DECISIONS_PENDING_MERGE_2026-11-04.md; it is
     appended after the merge.
-  - Still running: the lick-detector comparison (+ zero-DAQ-contact check, PNG deletion) and the safe code fixes on a
-    branch.
+  - Safe code fixes merged, plus archive_day fail-closed hash re-verify (e7edc659).
+  - Lick detector (LICK_DETECTOR_COMPARE_2026-11-04): Priya chose the BEHAVIOUR profile everywhere; sent to 34 for the
+    rebuild.
+  - Zero-contact check: clean (only PS93_0813 = known missing video).
+  - Epoch PNGs: 22 deleted. 3 kept, ask Priya: 15r RAWref precue (PRELIM_DATA cites it), 1d engagement (11-03 LMM
+    stars), ungated 23_quit_prodrome (quit_prodrome.py rewrites it).
 
 - **11-04: gain stats (Priya asked; GAIN_BIO §5 "Stats").**
   - The gain is significant vs pre acutely (+.29 log, p .011) and chronically (+.29, p .022). It does not decline
