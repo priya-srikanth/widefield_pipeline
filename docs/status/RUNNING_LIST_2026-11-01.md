@@ -1520,3 +1520,16 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   - The encoders fit on the interpolated frames (they are not dropped), which is harmless at this size. The O2 run
     stands.
   - The O2 1-task test job 58601937 is submitted (pending).
+- **11-04 ~23:30: the O2 test job 58601937 FAILED in 3 s. The conda module conda/miniforge3/24.11.3-0 no longer exists on
+  O2; the current one is 26.9.4-1.**
+  - Priya submitted the 15 arrays early; they will fail the same way. She is cancelling them
+    (scancel -n enc_enc_rebuild_20261104b).
+  - Fix: run_enc.sbatch patched on M: and given to Priya as a sed for scratch. She tests `conda activate lp` under the new
+    module first.
+  - TODO (code): update the hard-coded module everywhere. Sites:
+    - configs/defaults.yaml :947 / :1335;
+    - scripts/o2_encoding.py :336;
+    - o2_face_rhythm.py :763 / :780 / :1116;
+    - o2_lp_train_bundle.py :108;
+    - runbooks/o2_pose_inference.md.
+    Do it on rebuild and main; tell e0 / a8, since every O2 bundle is affected.
