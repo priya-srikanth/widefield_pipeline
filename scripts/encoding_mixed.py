@@ -97,8 +97,8 @@ def outcomes(E: Path, labels: set, deficit: str | None = None) -> pd.DataFrame:
     return mm.add_deficit(L, mm.deficit(run_mode.deficit_qc_dir(), deficit or mm.DEFICIT))
 
 
-FIG_PANELS = (("cue", "cam4:ceiling"), ("cue", "cam4:u_target"), ("cue", "position"),
-              ("lick", "distance"), ("lick", "cam4:u_target"), ("lick", "position"))
+FIG_PANELS = (("cue", "3d:ceiling"), ("cue", "3d:u_target"), ("cue", "position"),          # 3-D contest (Priya 11-05; the rebuild has no cam4 contest run)
+              ("lick", "distance"), ("lick", "3d:u_target"), ("lick", "position"))
 def figures(L: pd.DataFrame, T: pd.DataFrame, out: Path, area: str = "cortex", sfx: str = "") -> None:
     """Session values vs behavioural deficit and vs days, fitted fixed effects (mixed_models.plot_fits)."""
     from wfield_local import mixed_models as mm
