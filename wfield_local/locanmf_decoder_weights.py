@@ -270,7 +270,7 @@ def fig_top_components(label, out, topn=10):
 
 def _lick_trials(label):
     s = _sess(label); sig, _ = _build_signal(s, "locanmf"); T = sig.shape[1]
-    cue = _load_cue(s["h5"]); lk = _load_daq_events(s["h5"], "lick_analog", 2.5, 1.0, (0.001, 0.020), 0.10)
+    cue = _load_cue(s["h5"]); lk = _load_daq_events(s["h5"], "lick_analog")
     cf, lf, _ = _frames(s, cue, lk); codes = classify_cues_with_backup(s, cue)
     blk = np.zeros(len(codes), int); b = 0
     for i in range(1, len(codes)):
@@ -333,7 +333,7 @@ def _blocks(codes):
 def _engaged(s):
     """sig, T, first-lick frames, position codes, block ids for engaged (cue+lick) trials."""
     sig, _ = _build_signal(s, "locanmf"); T = sig.shape[1]
-    cue = _load_cue(s["h5"]); lk = _load_daq_events(s["h5"], "lick_analog", 2.5, 1.0, (0.001, 0.020), 0.10)
+    cue = _load_cue(s["h5"]); lk = _load_daq_events(s["h5"], "lick_analog")
     cf, lf, _ = _frames(s, cue, lk); codes = classify_cues_with_backup(s, cue)
     blk = _blocks(codes); ls = np.sort(lf); j = np.searchsorted(ls, cf, side="right")
     first = np.where(j < ls.size, ls[np.clip(j, 0, ls.size - 1)], -1); rt = first - cf
@@ -443,7 +443,7 @@ def fig_first40(out, date="0604", control="0603", minutes=40):
                           _bcv_acc(np.array(X40), np.array(y40), np.array(g40)))
             if d == date:
                 # engaged fraction early vs late (cue followed by lick within 2s, over all cues)
-                cue = _load_cue(s["h5"]); lk = _load_daq_events(s["h5"], "lick_analog", 2.5, 1.0, (0.001, 0.020), 0.10)
+                cue = _load_cue(s["h5"]); lk = _load_daq_events(s["h5"], "lick_analog")
                 cf2, lf2, _ = _frames(s, cue, lk); codes = classify_cues_with_backup(s, cue)
                 ls = np.sort(lf2); j = np.searchsorted(ls, cf2, side="right")
                 fst = np.where(j < ls.size, ls[np.clip(j, 0, ls.size - 1)], -1); rt = fst - cf2
@@ -480,7 +480,7 @@ def fig_v1_vs_v2_alignment(labels, out, tag):
     """ROI decoder (alignment-sensitive) v1 vs v2 Allen registration, identical trials (first-lick 2s)."""
     post2 = int(round(2 * FS)); v1a, v2a = [], []
     for lab in labels:
-        s = _sess(lab); cue = _load_cue(s["h5"]); lk = _load_daq_events(s["h5"], "lick_analog", 2.5, 1.0, (0.001, 0.020), 0.10)
+        s = _sess(lab); cue = _load_cue(s["h5"]); lk = _load_daq_events(s["h5"], "lick_analog")
         cf, lf, _ = _frames(s, cue, lk); codes = classify_cues_with_backup(s, cue)
         blk = _blocks(codes); ls = np.sort(lf); j = np.searchsorted(ls, cf, side="right")
         first = np.where(j < ls.size, ls[np.clip(j, 0, ls.size - 1)], -1); rt = first - cf

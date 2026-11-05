@@ -77,7 +77,7 @@ import numpy as np
 GATE_SOURCE_ENV = "WIDEFIELD_GATE_SOURCE"
 GATE_SOURCES = ("daq", "lp")
 #: Bump when the gate-response rule (or a hook) changes: enters `cache_tag`, the only key that sees the hooks.
-GATE_VERSION = 1
+GATE_VERSION = 2   # 2 (11-05, REBUILD_CODE 8.53): the DAQ contact train = THE behaviour DAQ lick detector
 #: Trailing marker on every hook line in a source-digested module (see CACHE KEYS above).
 HOOK_MARK = "# [gate-source hook]"
 
@@ -113,7 +113,7 @@ def _daq_contact_samples(h5) -> tuple[np.ndarray, float]:
     if key not in _DAQ_TRAIN:
         if len(_DAQ_TRAIN) > 32:
             _DAQ_TRAIN.clear()
-        lk = _load_daq_events(h5, "lick_analog", 2.5, 1.0, (0.001, 0.020), 0.10, allow_lp=False)
+        lk = _load_daq_events(h5, "lick_analog", allow_lp=False)
         _DAQ_TRAIN[key] = (np.sort(np.asarray(lk["lick_samples"], float)), float(lk["sample_rate_hz"]))
     return _DAQ_TRAIN[key]
 

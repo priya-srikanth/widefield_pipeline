@@ -45,7 +45,7 @@ from pathlib import Path
 
 import numpy as np
 
-from wfield_local import daq_io
+from wfield_local import config, daq_io
 import pandas as pd
 
 # pos_idx -> name, matching the task controller's own indexing (and spout_behavior.POSITIONS)
@@ -105,7 +105,7 @@ def decode(h5_path: Path, lick_params: dict | None = None) -> dict:
                            thresh_upper=lick_params["thresh_upper"],
                            thresh_lower=lick_params["thresh_lower"],
                            lockout_s=tuple(lick_params["lockout_falling_edge_s"]),
-                           min_ili_s=lick_params.get("min_ili_ms", 40) / 1000.0)
+                           min_ili_s=lick_params.get("min_ili_ms", config.LICK_MIN_ILI_MS_DEFAULT) / 1000.0)
         licks = np.asarray(det["lick_onsets"], dtype=float) / fs
 
     reward = (_rising((reward_v > 2.5).astype(np.int8)) / fs) if reward_v is not None else np.array([], float)

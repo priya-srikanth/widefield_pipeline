@@ -180,7 +180,8 @@ def test_check_table_causes_and_stop_lengths():
     cat = np.array(["undetected"] * 4 + ["engaged"], object)
     cls = np.array([C] * 4 + [C], object)
     cue_f = np.array([100, 200, 300, 400, 500])
-    ls = np.array([200, 297, 900])                   # a lick IN cue 2's frame; one 3 frames before cue 3
+    ls = np.array([200, 299, 900])                   # a lick IN cue 2's frame; one 1 frame (32 ms) before cue 3
+    assert cct.REFRACTORY_S == 0.040                 # the DAQ detector's 40 ms floor (REBUILD_CODE 8.53; was 0.10)
     contact_ms = np.array([4000.0, 500.0, 500.0, 500.0, 300.0])
     why = cct.disagreement_causes(cat, cls, cue_f, ls, 31.25, contact_ms, 3.5)
     assert why.tolist() == ["late_after_response_window", "cue_frame", "refractory_merge", "definition_mismatch", ""]

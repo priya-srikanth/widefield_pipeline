@@ -13,8 +13,9 @@ Read-only on the data; writes four CSVs into <run>/imaging_encoding/qc/.
      late_after_response_window   the contact falls after the categorisation's response window, before the stop
      cue_frame                    a detected lick sits IN the cue's imaging frame (`searchsorted(..., "right")`
                                   starts after it)
-     refractory_merge             a detected lick lies within the 0.1 s refractory before the cue (the contact
-                                  continues a pre-cue bout, so no new onset after the cue)
+     refractory_merge             a detected lick lies within the detector's minimum gap before the cue (the
+                                  contact continues a pre-cue onset, so no new onset after the cue). The gap is
+                                  `REFRACTORY_S`: 40 ms since the DAQ detector switch (REBUILD_CODE 8.53; 0.1 s before)
      definition_mismatch          none of the above: detect_licks (thresholds, min-ILI) vs the contact table
    None of these is treated as a sensor miss: "contact" IS the DAQ spout sensor.
 3. camera_stop_lengths.csv -- per animal x epoch: trials, trials with a stop > 3.6 s, their median stop (ms), the
@@ -31,7 +32,15 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-REFRACTORY_S = 0.10          # the categorisation's lick refractory (`_load_daq_events(..., 0.10)` in categorize)
+def _min_gap_s() -> float:
+    """The categorisation's minimum gap between kept DAQ onsets: max(refractory, 40 ms floor) of THE DAQ lick detector
+    (`config.lick_detector`, REBUILD_CODE 8.53; it was the old imaging 0.10 s refractory)."""
+    from wfield_local import config
+    d = config.lick_detector()
+    return max(d["refractory_s"], d["min_ili_s"])
+
+
+REFRACTORY_S = _min_gap_s()
 
 
 def coverage_path() -> Path:

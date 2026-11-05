@@ -45,7 +45,7 @@ from fr_musall import E  # noqa: E402
 
 OUT = E / "gate_lp_check"
 CACHE = Path(os.environ.get("WFIELD_INPUT_CACHE", "C:/Users/SabatiniLab/wfield_cache")) / "gate_lp_check"
-VERSION = 1
+VERSION = 2   # 2 (11-05, REBUILD_CODE 8.53): DAQ licks = the behaviour DAQ detector
 ANIMALS = ("PS92", "PS93", "PS94", "PS95")
 EPS = ("pre", "acute", "subacute", "chronic")
 CANON = {"close_L": "close_ipsi", "close_center": "close_mid", "close_R": "close_contra",
@@ -84,7 +84,7 @@ def one(label):
     ep = epochs.epoch_of(label)
     cue = _load_cue(s["h5"])
     sr = float(cue["sample_rate_hz"])
-    lk = _load_licks(s["h5"], "lick_analog", 2.5, 1.0, (0.001, 0.020), 0.10)
+    lk = _load_licks(s["h5"], "lick_analog")
     if lk.get("lick_source") not in (None, "daq"):
         raise RuntimeError("must read DAQ contact: unset WIDEFIELD_LICK_SOURCE")
     cs = np.asarray(cue["cue_samples"], np.int64)

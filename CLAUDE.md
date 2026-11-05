@@ -340,9 +340,12 @@ packaging; `README`; `runbooks/`; incremental per-session caching; `docs/archive
   (40 ms) is a mandatory min-inter-lick-interval applied in `detect_licks` as `max(min_ili, refractory)`.
   These mice lick 5-7 Hz (peak ~9-11 Hz); 40 ms (25 Hz) removes only 0-3 physiologically-impossible
   sub-40 ms doubles/session (a single contact split by a 1-sample voltage glitch — the true onset is kept;
-  QC: `behavior_summary/qc/`), and is a **no-op for imaging** (its 0.1 s bout-collapse refractory subsumes
-  the floor, so lick-aligned maps are unchanged). Wired into every lick consumer (behavior + imaging) via
-  config, so lick identification stays consistent across the pipeline.
+  QC: `behavior_summary/qc/`). **Since 11-05 imaging uses the SAME detector** (Priya 11-04/05, REBUILD_CODE 8.53):
+  `config.lick_detector()` = the yaml profile (2.5 / 0.5 V, 40 ms floor, NO refractory); the old imaging
+  `(2.5, 1.0, (0.001, 0.020), 0.10)` literal is gone from every call site (`_load_daq_events(h5, "lick_analog")`
+  takes the accessor's default). Its 0.10 s refractory had dropped 0.58 % of licks (PS95 1.4 %), mostly real 10-11 Hz
+  licks. Tagged runs carry the run-tag part `daqlk`; session_cache v14. Wired into every lick consumer (behavior +
+  imaging) via config, so lick identification stays consistent across the pipeline.
 
 - **Canonical DAQ behavior events — DONE** (`wfield_local/behavior_events.py`): one `.npz` per session
   (`behavior_summary/events/<animal>/<date>.npz`) of licks/reward/running-bouts/quiet-periods on the DAQ

@@ -43,7 +43,7 @@ def sample_to_frame(s, samples):
     convention so a caller that already drops negative frames needs no new rule.
     """
     cue = _load_cue_events(s["h5"])
-    lk = _load_daq_events(s["h5"], "lick_analog", 2.5, 1.0, (0.001, 0.020), 0.10)
+    lk = _load_daq_events(s["h5"], "lick_analog")
     _cf, _lf, csmp = _frames(s, cue, lk)
     samples = np.asarray(samples, np.int64)
     if csmp is not None:

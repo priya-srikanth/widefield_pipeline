@@ -43,7 +43,7 @@ def _process(s, args):
     regions = np.load(f"{config.locanmf_dir(mc)}/{s['label']}_locanmf_regions.npy")
     ncomp, T = C.shape
     cue = _load_cue_events(s["h5"])
-    lk = _load_daq_events(s["h5"], "lick_analog", 2.5, 1.0, (0.001, 0.020), 0.10)
+    lk = _load_daq_events(s["h5"], "lick_analog")
     fsd = cue["sample_rate_hz"]
     if s["regime"] == "B":
         fmdir = s["fmdir"] or mc

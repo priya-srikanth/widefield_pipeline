@@ -374,7 +374,7 @@ def main() -> int:
     ap.add_argument("--lick-thresh-upper-v", type=float, default=ld["thresh_upper"])
     ap.add_argument("--lick-thresh-lower-v", type=float, default=ld["thresh_lower"])
     ap.add_argument("--lockout-s", type=float, nargs=2, default=tuple(ld["lockout_falling_edge_s"]))
-    ap.add_argument("--refractory-s", type=float, default=0.10)
+    ap.add_argument("--refractory-s", type=float, default=config.lick_detector()["refractory_s"])   # REBUILD_CODE 8.53: no refractory (was 0.10)
     ap.add_argument("--lick-buffer", type=float, nargs=2, default=tuple(qd["lick_buffer_s"]))
     # reward
     ap.add_argument("--reward-channel", default=seg["reward"]["channel"])
@@ -420,7 +420,7 @@ def main() -> int:
     # licks (onsets) + reward
     lick = detect_licks(lick_v, fs, args.lick_thresh_upper_v, args.lick_thresh_lower_v,
                         tuple(args.lockout_s), args.refractory_s,
-                        min_ili_s=config.defaults()["lick_detection"]["min_ili_ms"] / 1000.0)
+                        min_ili_s=config.lick_min_ili_s())
     lick_onsets = np.asarray(lick["lick_onsets"], dtype=np.int64)
 
     # ONE DEFINITION, shared with `behavior_events` -- see `rest_mask`.

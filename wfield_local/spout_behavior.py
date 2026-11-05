@@ -661,7 +661,7 @@ def compare_daq_licks(h5_path: Path, params: dict) -> dict | None:
     except Exception:
         return None
     ld = config.defaults()["lick_detection"]
-    min_ili_s = ld.get("min_ili_ms", 40) / 1000.0
+    min_ili_s = config.lick_min_ili_s()
     try:
         with h5py.File(h5_path, "r") as f:
             fs = float(f.attrs["sample_rate_hz"])

@@ -96,7 +96,7 @@ def daq_lick_onsets(s: dict, fs: float) -> np.ndarray:
         else:
             lv = np.asarray(f["analog/samples"][:, i], np.float32)
     det = detect_licks(lv, fs, thresh_upper=lk["thresh_upper"], thresh_lower=lk["thresh_lower"],
-                       lockout_s=tuple(lk["lockout_falling_edge_s"]), min_ili_s=lk.get("min_ili_ms", 0) / 1000.0)
+                       lockout_s=tuple(lk["lockout_falling_edge_s"]), min_ili_s=lk.get("min_ili_ms", config.LICK_MIN_ILI_MS_DEFAULT) / 1000.0)
     return np.sort(np.asarray(det["lick_onsets"], np.int64))
 
 

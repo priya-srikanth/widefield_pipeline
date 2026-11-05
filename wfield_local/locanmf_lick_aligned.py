@@ -241,7 +241,7 @@ def main() -> int:
     p.add_argument("--lick-thresh-upper-v", type=float, default=ld["thresh_upper"])
     p.add_argument("--lick-thresh-lower-v", type=float, default=ld["thresh_lower"])
     p.add_argument("--lockout-s", type=float, nargs=2, default=tuple(ld["lockout_falling_edge_s"]))
-    p.add_argument("--refractory-s", type=float, default=0.10)
+    p.add_argument("--refractory-s", type=float, default=config.lick_detector()["refractory_s"])   # REBUILD_CODE 8.53: no refractory (was 0.10)
     args = p.parse_args()
     from wfield_local import config as _cfg
     if _cfg.locanmf_projection_on():   # review L2 (11-03): this reads the STORED per-session C by path; its untagged

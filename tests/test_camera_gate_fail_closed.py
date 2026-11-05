@@ -296,7 +296,7 @@ def test_figures_working_is_tag_checked(monkeypatch, tmp_path):
     assert writeguard.is_writable(tmp_path / "cue_lick" / "coding_direction_cue.png")
     monkeypatch.setenv("WIDEFIELD_TRIAL_GATE", "camera")
     assert not writeguard.is_writable(tmp_path / "cue_lick" / "coding_direction_cue.png")
-    assert writeguard.is_writable(tmp_path / "cue_lick" / "sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70" / "coding_direction_cue.png")
+    assert writeguard.is_writable(tmp_path / "cue_lick" / "sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk" / "coding_direction_cue.png")
 
 
 def test_cue_classes_all_nan_table_is_unknown():

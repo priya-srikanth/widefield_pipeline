@@ -60,7 +60,7 @@ def _fit_mask_for(s, n_frames):
     from wfield_local.plot_spout_trial_averages import _load_daq_events as _lc
 
     cue = _lc(s["h5"])
-    lk = _ll(s["h5"], "lick_analog", 2.5, 1.0, (0.001, 0.020), 0.10)
+    lk = _ll(s["h5"], "lick_analog")
     _c, _l, csmp = _fr(s, cue, lk)
     if csmp is None:
         return None, None, "no corrected-frame map"

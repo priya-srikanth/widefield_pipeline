@@ -17,6 +17,9 @@ and cache key is byte-identical to before (pinned by tests/test_run_mode.py). Pa
     pre         ``pre<MMDD>``           WIDEFIELD_PRE_FROM (`config.pre_from`)
     selection   ``sel-<source>-<win>``  a trial selection other than the untagged DAQ quit-tail rule
                                          (`trial_classes.run_selection_tag`)
+    lickdet     ``daqlk``               THE behaviour DAQ lick detector for imaging (REBUILD_CODE 8.53, 11-05): in every
+                                         run that has any other output part (never in the default run) -- output AND
+                                         cache
     refs        ``refs-<names>``        WIDEFIELD_MAP_REFS (`position_reference_maps.REFS_ENV`)
     inmem       ``inmem-<families>``    any ``WIDEFIELD_<FAMILY>_FROZEN`` opt-out (in-memory pre-stroke refit)
     lptrained   ``lpdaqtrained``        WIDEFIELD_LP_FROZEN=daq (the LP arm's DAQ-trained cross-check)
@@ -170,10 +173,22 @@ def csig_part() -> str:
     return f"csig-{trial_classes.class_source_signature()}" if trial_classes.camera_gate_on() else ""
 
 
-_ALL = (("hemo", hemo_part), ("lnmf", lnmf_part), ("drift", drift_part), ("pre", pre_part), ("selection", selection_part), ("emcentre", emcentre_part),
+def lickdet_part() -> str:
+    """``daqlk`` (`config.LICK_DETECTOR_TAG`) in every TAGGED run (REBUILD_CODE 8.53, Priya 11-04/05): imaging lick
+    trains come from THE behaviour DAQ detector (`config.lick_detector`; no 0.10 s refractory, 0.5 V offset) since
+    11-05, so no output, store or cache entry a tagged run wrote under the old imaging detector can be read as the new
+    one. The DEFAULT (untagged) run stays untagged -- every default path byte-identical (its per-session caches moved
+    with session_cache v14). Present iff any other output part is."""
+    from wfield_local import config
+    others = any(fn() for name, fn in _ALL if name != "lickdet" and name not in _CACHE_ONLY)
+    return config.LICK_DETECTOR_TAG if others else ""
+
+
+_ALL = (("hemo", hemo_part), ("lnmf", lnmf_part), ("drift", drift_part), ("pre", pre_part), ("selection", selection_part),
+        ("lickdet", lickdet_part), ("emcentre", emcentre_part),
         ("refs", refs_part), ("inmem", inmem_part), ("lptrained", lptrained_part), ("projall", projall_part),
         ("scoring", scoring_part), ("csig", csig_part))
-_CACHE = ("hemo", "lnmf", "drift", "selection", "emcentre", "projall", "csig")
+_CACHE = ("hemo", "lnmf", "drift", "selection", "lickdet", "emcentre", "projall", "csig")
 #: parts that enter cache keys only, never an output path / tag
 _CACHE_ONLY = ("csig",)
 
@@ -443,7 +458,7 @@ def require_default(what: str) -> None:
 #: path segments that are run tags (output-folder tags of a non-default run): the LP / ENL / gate-LP names and the
 #: run-mode parts' prefixes
 _TAG_PREFIXES = ("hv-", "lnmfproj", "sel-", "pre0", "LP_licks", "DAQ_ENL", "DAQ_gateLP", "drift", "emc-", "refs-",
-                 "inmem-", "projall", "lpdaqtrained", "sc-")
+                 "inmem-", "projall", "lpdaqtrained", "sc-", "daqlk")
 
 
 def input_run_tag(path) -> str:

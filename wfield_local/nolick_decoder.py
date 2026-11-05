@@ -189,7 +189,7 @@ def categorize(s, args, with_licks=False):
     cue_stop class is contact is a contact trial and is moved to `late_rewarded` (out of the no-lick arm).
     """
     cue = _load_cue_events(s["h5"])
-    lk = _load_daq_events(s["h5"], "lick_analog", 2.5, 1.0, (0.001, 0.020), 0.10)
+    lk = _load_daq_events(s["h5"], "lick_analog")
     # LP_licks: the SAME replacement `_trial_features` makes (one definition, `lp_licks.session_lp`), so categories and
     # features agree trial for trial. engaged = first LP attempt lick within max_rt; late_rewarded = the first LP lick
     # after max_rt but inside the response window; trials without an LP verdict are out of coverage.

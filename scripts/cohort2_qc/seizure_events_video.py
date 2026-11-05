@@ -59,7 +59,7 @@ def load(day):
         from wfield_local.plot_spout_trial_averages import _load_daq_events as _lc
         s = dict(label=f"PS122_{day}", mc=str(mc), h5=str(DAQ / h5), regime="B", fmdir=None)
         cue = _lc(s["h5"])
-        lk = _ll(s["h5"], "lick_analog", 2.5, 1.0, (0.001, 0.020), 0.10)
+        lk = _ll(s["h5"], "lick_analog")
         cues, licks, _ = _frames(s, cue, lk)
         fm = next(mc.glob("*cleanpairs_frame_map.npz"))
         summ = next(mc.glob("*cleanpairs_summary.json"), None)

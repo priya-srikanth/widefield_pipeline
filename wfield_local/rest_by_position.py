@@ -177,7 +177,7 @@ def _engaged_trials(session, cue_samples, codes, fs=5000.0):
                 lv = np.asarray(f["analog/samples"][:, i], np.float32)
         det = detect_licks(lv, fs, thresh_upper=lk["thresh_upper"], thresh_lower=lk["thresh_lower"],
                            lockout_s=tuple(lk["lockout_falling_edge_s"]),
-                           min_ili_s=lk.get("min_ili_ms", 0) / 1000.0)
+                           min_ili_s=lk.get("min_ili_ms", config.LICK_MIN_ILI_MS_DEFAULT) / 1000.0)
         lo = np.sort(np.asarray(det["lick_onsets"], np.int64))
         # THE SESSION'S REAL RESPONSE WINDOW, read per session from gui_config.json -- 3500 ms in
         # every session to date, and NOT the 2.0 s that was once a fallback.

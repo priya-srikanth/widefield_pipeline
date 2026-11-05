@@ -76,7 +76,7 @@ def _worker(item):
         return []
     try:
         cue = _load_cue_events(s["h5"])
-        lk = _load_daq_events(s["h5"], "lick_analog", 2.5, 1.0, (0.001, 0.020), 0.10)
+        lk = _load_daq_events(s["h5"], "lick_analog")
         # THE WINDOW'S LICK SOURCE (Priya 11-04): under LP the LP train `_trial_features` uses replaces DAQ contact,
         # and cues without an LP verdict are out of coverage -- the same replacement, one definition (`session_lp`)
         lp = None

@@ -186,7 +186,7 @@ def contacts(animal: str, date: str, rv=None) -> np.ndarray:
         return np.empty((0, 2))
     det = detect_licks(lick_v, fs, thresh_upper=p["thresh_upper"], thresh_lower=p["thresh_lower"],
                        lockout_s=tuple(p["lockout_falling_edge_s"]),
-                       min_ili_s=p.get("min_ili_ms", 40) / 1000.0)
+                       min_ili_s=p.get("min_ili_ms", config.LICK_MIN_ILI_MS_DEFAULT) / 1000.0)
     return pair_contacts(det["lick_onsets"] / fs, det["offsets"] / fs)
 
 

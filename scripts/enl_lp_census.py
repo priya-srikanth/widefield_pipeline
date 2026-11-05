@@ -39,7 +39,7 @@ def one(label):
         return []
     cue = _load_cue(s["h5"])
     sr = float(cue["sample_rate_hz"])
-    lk = _load_licks(s["h5"], "lick_analog", 2.5, 1.0, (0.001, 0.020), 0.10)
+    lk = _load_licks(s["h5"], "lick_analog")
     if lk.get("lick_source") != "daq":
         raise RuntimeError("census must read DAQ contact: unset WIDEFIELD_LICK_SOURCE")
     c_ms = np.round(np.asarray(cue["cue_samples"]) / sr * 1e3).astype(np.int64)
