@@ -12,7 +12,7 @@
 > - e3: hidden slide 30, the four-camera 3-D clip (re-rendered 12:51);
 > - a8: hidden slides 100-101, lick response session z-scored + its LMM (add_lick_sessz_backup_1104.py; 34's _sessz
 >   renders, wf_attempt 07e03c76);
-> - a8: hidden slide 102, 'Backup: post-stroke gain is brain-wide' (GAIN_BIO session figure; add_gain_backup_1104.py).
+> - a8: hidden slide 102, 'Backup: post-stroke gain is brain-wide' (GAIN_BIO session figure; add_gain_backup_1104.py). Stats added 11-04 late (update_gain_backup_stats_1104.py; 5 panels, LMM stars, panel E orofacial vs posterior; GAIN_BIO §5 "Stats"): orofacial stays above pre, chronic oro − post < 0 = posterior rises more.
 > Python: C:/Users/SabatiniLab/miniconda3/envs/locanmf/python.exe (NOT C:/Users/sabatini). Slide export: scratchpad
 > export_slides.ps1. PITFALL (e3): deleting a movie shape with python-pptx leaves a <p:video> timing node, and
 > PowerPoint then won't open the file.
