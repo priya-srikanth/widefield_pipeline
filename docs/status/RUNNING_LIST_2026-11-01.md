@@ -1567,3 +1567,25 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
 - **Frozen v7g3_t3d progress at 23:41:** noFR 12/107, frA 6/107; main frames ETA ~01:30.
   - Lane 3 (frAsplit / ls / te variants) is STOPPED for RAM and must be relaunched by hand. Command: Start-Process on scratchpad/frozen_v7g3/lane3_variants.sh.
   - Spont lanes are prepared in scratchpad/frozen_v7g3_spont/ and HELD for the per-class trials output (rebuild/frozen-trials, helper a51f).
+
+## 11-05 00:15: DECISION (Priya): switch imaging to the DAQ behaviour lick detector NOW, before the render
+- **Source:** a8's relay, plus Priya's direct "ok" to change once now. Measurements: widefield_pipeline LICK_DETECTOR_COMPARE_2026-11-04.md (a69fb9c3).
+  - 0.58 % of licks restored (PS95 1.4 %).
+  - 0 hit changes; 10 / 6,520 RTs change.
+- **Frozen:** v7g3_t3d lanes 1+2 STOPPED (STOP file plus exact PIDs) at 20/107 and 17/107. The partial folders are superseded (delete with a kept list later).
+- **O2:**
+  - Priya cancels every bundle-b array except main + main_nolicksall, which are kept as an EARLY look at B12 only.
+  - Bundle b is superseded; delete it (M: + scratch) when the new bundle is built.
+  - The 183 copied bins sessions are superseded too.
+- **Code:** a helper is on rebuild/daq-lick-detector (worktree wf_rebuild_lickdet, off 34425934):
+  - one yaml accessor, all imaging call sites routed through it;
+  - the min_ili fallback fixed to 40 ms;
+  - cache bumps and a new run-tag token;
+  - onset counts pinned before / after;
+  - a trial_attempts diff preview.
+- **Order once both helpers land:**
+  1. Merge frozen-trials + daq-lick-detector, then run the full suite sharded.
+  2. Rebuild trial_attempts under the new tag and diff it.
+  3. Build the new O2 bundle; delete bundle b.
+  4. Run the frozen spont + v7g3_t3d frames with the per-class output.
+  5. Then G0-G8.
