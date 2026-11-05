@@ -1908,3 +1908,9 @@ bundle without `daqlk` and writes a provenance json.
     outputs / computations identical until the replacement pass, fetch before every push, not touch wf_render_daqlk or
     render processes, no heavy runs on the box). Decks: analysis deck + PI deck updated in the replacement pass, after the
     render + verifiers, using a8's REPLACEMENT_PASS_MAP; coordinate PI-deck edits with the window that owns it.
+- ~18:58: **Priya: parallelise as much as possible** (CPU was ~22-65 %). Launcher stopped (exact PIDs 6024 / 30416 / 780);
+  lane T launched by hand (gate open, 107/107); NEW lanes D, E, F from queue_daqlk3.sh (= v2 + an atomic per-step claim,
+  mkdir logs/<step>.claim, so parallel v3 lanes never run a step twice). E / F have no cross-section deps; D waits on
+  a_relabel_trial for one step. Now 6 lanes (G, 2 = A B D E F Z, T, D, E, F); RAM self-limits (MINFREE 10 GB, FLOOR 6 GB
+  -> STOP). CPU 79 %, 34 GB free at launch. CAVEAT: lane 2 (v2, no claims) will skip D / E / F steps already .done but
+  could re-run one still in progress if it reaches D before lane D finishes (A + B first, ~12 h, so unlikely); watch.
