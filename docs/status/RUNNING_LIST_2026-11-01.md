@@ -1825,3 +1825,17 @@ bundle without `daqlk` and writes a provenance json.
   - PS95 licks: the spont-minus-nospont difference scales with licks (rho -.81 LP ITI), but it is only ~.09 of
     PS95's ~.30 chronic drop. R2 is lower on lick-heavy contact trials in every animal (r ~ -.4, 4/4). This is a
     within-contact confound to keep in mind. PS95 LP vs DAQ ITI lick rates disagree (0907: 72 vs 16 per min).
+- ~13:20: **Section C render DONE** (helper; report docs/status/rebuild_20261103/SECTION_C_RENDER_20261105.md, 9d31c5eb).
+  All scripts exit 0, 107 sessions / 4 animals each, nothing outside the rebuild root; droppos included. fig_pooled
+  NOT run (its section-B inputs are not rendered yet). Code fixes on rebuild/cohort1-20261103: 24d604cc (FR scripts
+  read the collected folder names via fr_groups.run_folder; combined_encoding_figures ignores the `_exec-...` suffix;
+  fr_direction_mechanism `--bundle`; `--jobs` flags), 19d3cf71 (encoding_mixed reads suffixed runs). These are AFTER
+  the merge base 31ec5c1a -> must be merged into main before the overnight render.
+  - DECISION for Priya: encoding_mixed `cam4:*` measures are blank (no separate `_subset-nokin` / `_win` runs in the
+    rebuild; main run holds `nokin:*` models + extra windows). Feed cam4 measures from main's nokin models, or drop?
+  - FLAG: fr_pixel_significance null calibration above 5% on some maps (full_fr cue 16 px .12, unique_position lick
+    32 px .10, several .08); variance_maps .00-.02.
+  - FLAG (conclusion text, Priya): fig10_softmax_width title "Chronic target lead holds across widths (PS94 ties at
+    2)"; in this render PS94 chronic lick width 2 has executed slightly above target.
+  - Convention fixes for the replacement pass: droppos / shufpos position_each_maps rows not in canonical spout
+    order; fig10 draws a top spine.
