@@ -32,10 +32,17 @@ def main():
         tb=s.shapes.add_textbox(Inches(0.3),Inches(0.1),SW-Inches(0.6),Inches(0.6)).text_frame
         tb.text=title; tb.paragraphs[0].runs[0].font.size=Pt(20); tb.paragraphs[0].runs[0].font.bold=True
         tb.paragraphs[0].runs[0].font.color.rgb=RGBColor(0xEE,0xEE,0xEE)
-        w,h=png_size(img); boxw=SW-Inches(0.6); boxh=SH-Inches(1.0)
-        sc=min(boxw/w,boxh/h); iw,ih=int(w*sc),int(h*sc)
-        s.shapes.add_picture(img,int((SW-iw)/2),Inches(0.8),iw,ih)
-        print(f"  added slide: {title}")
+        boxw=SW-Inches(0.6); boxh=SH-Inches(1.0)
+        if img.lower().endswith((".mp4",".mov",".avi")):
+            # embed the movie, 16:9 box; poster frame optional (default play icon)
+            iw=int(boxw); ih=int(iw*9/16)
+            if ih>boxh: ih=int(boxh); iw=int(ih*16/9)
+            s.shapes.add_movie(img,int((SW-iw)/2),Inches(0.8),iw,ih,mime_type="video/mp4")
+            print(f"  added VIDEO slide: {title}")
+        else:
+            w,h=png_size(img); sc=min(boxw/w,boxh/h); iw,ih=int(w*sc),int(h*sc)
+            s.shapes.add_picture(img,int((SW-iw)/2),Inches(0.8),iw,ih)
+            print(f"  added slide: {title}")
     prs.save(deck); print(f"saved {deck}")
 
 if __name__=="__main__": main()
