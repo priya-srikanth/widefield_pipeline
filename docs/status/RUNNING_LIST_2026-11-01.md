@@ -1856,3 +1856,11 @@ bundle without `daqlk` and writes a provenance json.
 - ~16:30: DELETED superseded old-tag frozen partials under `...stopA2jexrt3500c70/` (no `_daqlk`):
   frozen_encoder_gate-attempted_v7g3_t3d (978 files, 1.3 GB), _frA (1,242 files, 1.5 GB), _frAsplit (empty). File list
   kept in that folder: DELETED_SUPERSEDED_FROZEN_20261105.txt.
+- ~16:39: **Render queue LANE G LAUNCHED** (scratchpad/render_daqlk/queue_daqlk.sh, SECTIONS=G, worktree wf_render_daqlk @
+  9aaa4cc6 = 136807cf + local fix; plan doc RENDER_QUEUE_DAQLK_20261105.md, 880f7e3a). 227 steps total, ~36-40 h serial
+  (estimates). G = 31 steps, ~10-12 h. Lane 2 (`SECTIONS="A B D E F Z"`) to launch after frA_ls_basis (~midnight).
+  - Local fix 9aaa4cc6 (branch fix/misdirected-decode-bundle-dir-20261105, unpushed): misdirected_lick_decode resolves the
+    O2 bundle via o2_encoding.bundle_dir (it looked in the old DLC store under the rebuild root). Push needs Priya's OK.
+  - DECISIONS for Priya: (1) priority G > A,B > D > E > F,Z (won't all fit tonight); (2) te + frA_lsland frames never
+    rendered -> render (~4-5 h each) or retire te_readout / te partial-self-fit / contest_lines; (3) binned residual Figs
+    7/7c/7d have no producer -> recreate or drop; (4) push 9aaa4cc6 to main.
