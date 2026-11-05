@@ -1606,3 +1606,6 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   - daq-lick-detector.
 - Plan: merge both, run the suite in shards, rebuild trial_attempts under the new tag, build O2 bundle c (commands
   waiting for Priya in the morning), then the frozen frames (spont first) on this box overnight.
+- 00:55: conda module fix committed on rebuild/o2-conda-module (931cd777, worktree wf_rebuild_conda, off 34425934;
+  O2 tests 50 passed). To merge with the two helper branches. a8 told that main still has the old module (to pass on to
+  e0).
