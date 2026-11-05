@@ -870,3 +870,11 @@ FYI, the 3-class camera variant (lick / jaw-only / none) is thin in PS92 and PS9
 - 11-05 ~15:10: e0 FR spout-in-mesh control DONE (pushed: FACE_RHYTHM_FINDINGS 7, FINDINGS 13): face pre-cue spout
   decode not from the spout (pre 2 s .431 / .428 / .418 at no mask / 30 / 60 px; acute .349 / .348 / .343; epoch deltas
   unchanged to ~.01). Q for Priya: add to FR page section 6 (1 fig + 1 sentence) in the post-rebuild page pass?
+- 11-05 evening: Priya: fluoroscopy mice added; PI deck gains 2 VISIBLE slides after "VFSS day 1: other clips"
+  (section 7): 158 "Severe stroke: swallows stop or slow" (swallow_combined panel A example frames only) and 159
+  "Severe stroke nearly abolishes swallowing" (all_graphs, 8 panels; footnote moved to notes). Mild n = 4 vs severe
+  n = 5; numbers in the notes from Fluoroscopy/grant figures/severity_stats.csv + per-animal csvs. Deck 189 / 82 hidden
+  (other hidden states asserted unchanged). Scripts crop_fluoro_1105.py, add_fluoro_1105.py, fix_fluoro_times_1105.py;
+  backup backup_before_fluoro_1105.pptx. Q for Priya: slide 156 says no bolus reaches the pharynx in PS126 / PS127
+  on day 1, but the new counts give PS126 8 and PS127 3 day-1 swallows; reword 156? Also: how mild / severe is defined
+  (for the notes); day-2 severe stars rest on n = 2.
