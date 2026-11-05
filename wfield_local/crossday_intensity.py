@@ -11,6 +11,12 @@ No raw re-read. Writes ``crossday_raw_intensity.png`` to the output dir, which
 CAVEAT (also printed on the figure): LED power is manually titrated day to day, so a trend may
 reflect the LED setting, not photobleaching.
 
+COHORT-AWARE (Priya 2026-11-05: "cross-day ROI intensity for cohort 2 should be just cohort 2 animals, for both
+decks"). Only the ACTIVE cohort's animals are plotted (`config.animals()`), and a cohort with an `output_subdir`
+writes to ``<xday_qc>/<subdir>/`` (cohort2: ``xday/cohort2/``), so cohort1's ``xday/crossday_raw_intensity.png``
+stays where it was and no deck can pick up the other cohort's figure (`out_dir_for`). A session whose folder carries
+the ``_490_`` tag (PS121 / PS122 on 2026-11-04) is plotted in the functional panel with a star: same slot, other LED.
+
 CLI (defaults resolved from the PathResolver — ``labcams`` root, ``xday_qc`` output)::
 
     python -m wfield_local.crossday_intensity
@@ -29,6 +35,7 @@ import matplotlib.pyplot as plt  # noqa: E402
 from scipy.ndimage import binary_erosion  # noqa: E402
 
 EXCLUDE_ANIMALS = ("PS104",)      # separate cranial-window mouse; not analyzed with the cohort
+LED490: set = set()               # (animal, date) imaged with the 490 nm functional LED, filled by analyze()
 
 
 def _brain_medians(frames_average_path: Path) -> tuple[float, float]:
@@ -41,8 +48,23 @@ def _brain_medians(frames_average_path: Path) -> tuple[float, float]:
     return float(np.median(favg[0][brain])), float(np.median(favg[1][brain]))
 
 
-def analyze(labcams_root, exclude_animals=EXCLUDE_ANIMALS) -> list[tuple]:
-    """Rows ``[(animal, date, med415, med470)]`` over every session under ``labcams_root``."""
+def out_dir_for(xday_root) -> str:
+    """The active cohort's cross-day output dir: ``xday_root`` for cohort1, ``xday_root/<output_subdir>`` else."""
+    from wfield_local.paths import cohort_spec
+    sub = (cohort_spec().get("output_subdir") or "").strip("/")
+    return f"{str(xday_root).rstrip('/')}/{sub}" if sub else str(xday_root)
+
+
+def cohort_animals() -> list[str]:
+    """Animals of the active cohort (the deck and the figure must agree on who is in it)."""
+    from wfield_local import config
+    return list(config.animals())
+
+
+def analyze(labcams_root, exclude_animals=EXCLUDE_ANIMALS, animals=None) -> list[tuple]:
+    """Rows ``[(animal, date, med415, med470)]`` over every session under ``labcams_root``.
+
+    ``animals``: keep only these (default: every animal found, as before)."""
     root = Path(labcams_root)
     if not root.exists():
         return []
@@ -55,8 +77,12 @@ def analyze(labcams_root, exclude_animals=EXCLUDE_ANIMALS) -> list[tuple]:
             fa = sess_dir / "motion_corrected" / "wfield_local_results" / "frames_average.npy"
             if not (m and fa.exists()) or m.group(1) in exclude_animals:
                 continue
+            if animals is not None and m.group(1) not in animals:
+                continue
             med415, med470 = _brain_medians(fa)
             rows.append((m.group(1), date, med415, med470))
+            if re.match(r"PS\d+_490_", sess_dir.name):
+                LED490.add((m.group(1), date))
     return rows
 
 
@@ -69,10 +95,16 @@ def plot(rows, out_dir) -> Path:
     for ci, (nm, idx) in enumerate([("415", 2), ("470", 3)]):
         for a in animals:
             rr = sorted((r for r in rows if r[0] == a), key=lambda r: r[1])
-            ax[ci].plot([xpos[r[1]] for r in rr], [r[idx] for r in rr], "-o", label=a)
+            col = f"C{animals.index(a) % 10}"          # fixed per animal: the star lines must not shift the cycle
+            ax[ci].plot([xpos[r[1]] for r in rr], [r[idx] for r in rr], "-o", color=col, label=a)
+            star = [r for r in rr if (r[0], r[1]) in LED490]
+            if idx == 3 and star:
+                ax[ci].plot([xpos[r[1]] for r in star], [r[idx] for r in star], "*", ms=16, mfc="none",
+                            mec=col, mew=1.5, label=f"{a} 490 nm")
         ax[ci].set_xticks(range(len(alldates)))
         ax[ci].set_xticklabels([f"{d[4:6]}/{d[6:]}" for d in alldates])
-        ax[ci].set_title(f"{nm} nm raw brain-ROI median across days")
+        ax[ci].set_title(f"{nm} nm raw brain-ROI median across days" if nm == "415" or not LED490 else
+                         "functional raw brain-ROI median across days (470 nm; star = 490 nm)")
         ax[ci].set_xlabel("date (MM/DD)")
         ax[ci].set_ylabel("raw counts")
         ax[ci].legend()
@@ -89,9 +121,13 @@ def plot(rows, out_dir) -> Path:
     return fp
 
 
-def run(labcams_root, out_dir) -> Path | None:
-    """Compute + plot the cross-day intensity trend; returns the PNG path (None if no sessions)."""
-    rows = analyze(labcams_root)
+def run(labcams_root, out_dir, animals=None) -> Path | None:
+    """Compute + plot the cross-day intensity trend; returns the PNG path (None if no sessions).
+
+    ``animals`` defaults to the ACTIVE cohort's; ``out_dir`` is taken as the xday root and scoped by `out_dir_for`."""
+    animals = cohort_animals() if animals is None else animals
+    out_dir = out_dir_for(out_dir)
+    rows = analyze(labcams_root, animals=animals)
     if not rows:
         print(f"[crossday_intensity] no frames_average.npy found under {labcams_root}", flush=True)
         return None

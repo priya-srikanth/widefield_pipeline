@@ -378,15 +378,20 @@ def _crossday_qc_for_animal(animal, xday_root):
 
 
 def _crossday_intensity(xday_root, labcams_root):
-    """Global cross-day raw ROI intensity summary PNG (xday first, then labcams), or None."""
-    for root in (xday_root, labcams_root):
+    """Global cross-day raw ROI intensity summary PNG (xday first, then labcams), or None.
+
+    Cohort-scoped (2026-11-05): for a cohort with an output_subdir only ``<xday>/<subdir>/`` is searched, so the
+    cohort2 decks never show cohort1's figure (or the old all-animals one)."""
+    from wfield_local.crossday_intensity import out_dir_for
+    scoped = out_dir_for(xday_root)
+    for root in ((xday_root, labcams_root) if scoped == str(xday_root) else (scoped,)):
         hits = sorted(glob.glob(os.path.join(root, "crossday_raw_intensity*.png")))
         if hits:
             return hits[0].replace("\\", "/")
     return None
 
 
-def _intensity_stale(xint, labcams_root):
+def _intensity_stale(xint, labcams_root, animals=None):
     """Sessions whose ``frames_average.npy`` is NEWER than the cross-day intensity figure.
 
     That figure is a ROLLUP: ``preprocess`` builds it once at the end of an invocation, over every
@@ -415,6 +420,8 @@ def _intensity_stale(xint, labcams_root):
         if not re.fullmatch(r"\d{8}", date):
             continue
         m = re.match(r"(PS\d+)", sess)
+        if m and animals is not None and m.group(1) not in animals:
+            continue                  # another cohort's session is not missing from this cohort's figure
         try:
             if m and os.path.getmtime(p) > fig_mtime + 1:
                 stale.append((m.group(1), date))
@@ -589,7 +596,7 @@ def build_deck(out_path, sessions=None, resolver=None, machine=None,
     xint = _crossday_intensity(xday_root, labcams_root) if include_global_summary else None
     crossday_section = False
     if xint:
-        stale = _intensity_stale(xint, labcams_root)
+        stale = _intensity_stale(xint, labcams_root, animals=set(config.animals()))
         sub = "Cross-day raw ROI fluorescence intensity across sessions."
         cap = "Cross-day raw ROI fluorescence intensity (per animal)"
         if stale:

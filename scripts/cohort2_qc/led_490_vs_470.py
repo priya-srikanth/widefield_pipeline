@@ -32,6 +32,9 @@ def _traj(norm, chan):
         v = norm[chan]
         if isinstance(v, dict) and "t" in v: return np.array(v["t"],float), np.array(v["y"],float)
         arr = np.array(v, float)
+        # photobleach.analyze stores _norm[k] = (x.tolist(), y.tolist()) -> shape (2, N); only (N, 2) was read,
+        # so the trajectory panels came out blank (deck slide 30, 2026-11-05)
+        if arr.ndim==2 and arr.shape[0]==2 and arr.shape[1]!=2: return arr[0], arr[1]
         if arr.ndim==2 and arr.shape[1]==2: return arr[:,0], arr[:,1]
     except Exception: pass
     return None, None
