@@ -330,6 +330,16 @@ FYI, the 3-class camera variant (lick / jaw-only / none) is thin in PS92 and PS9
 
 ## Findings (newest first)
 
+- **11-04 late: code review + safe-now work (Priya: ok).**
+  - Review: docs/status/CODE_REVIEW_2026-11-04.md (54c2a2d5).
+  - Docs pass merged (START_HERE, CLAUDE.md env / rule 6 / paths, ARCHITECTURE, scripts/INDEX.md; 94c30a4d).
+  - Priya's decisions: (2) LABEL pooled-level vs animal-weighted-change in epoch figures (after the merge); (3) encoder
+    ENL follows the lick source (already on the rebuild branch); (4) delete the orphan modules + unregistered epoch PNGs.
+  - DECISIONS.md is on the rebuild list, so the entry waits in docs/status/DECISIONS_PENDING_MERGE_2026-11-04.md; it is
+    appended after the merge.
+  - Still running: the lick-detector comparison (+ zero-DAQ-contact check, PNG deletion) and the safe code fixes on a
+    branch.
+
 - **11-04: gain stats (Priya asked; GAIN_BIO §5 "Stats").**
   - The gain is significant vs pre acutely (+.29 log, p .011) and chronically (+.29, p .022). It does not decline
     from day 7 (p .73).
