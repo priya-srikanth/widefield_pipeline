@@ -1782,3 +1782,6 @@ bundle without `daqlk` and writes a provenance json.
   - Priya's re-run of the whole-`out/` rsync RE-COPIED main, main_nolicksall and bins_w1/w05/w2 (already collected /
     moved). Verifying those re-copies by size + sha256 against the collected copies, then deleting them (approved
     category: verified bundle copies). Copy-back from now: rsync only the new TAGs (or exclude the collected ones).
+- ~10:45: **droppos 14 tasks OUT_OF_MEMORY** (array 58635573, tasks 3,4,5,7,8,15,27,29-34,57 = PS92 0809-0814/0826/1006,
+  PS93 0807-0814, PS94 0810; MaxRSS 42-50 GB vs --mem=48G, killed after 0:22-1:20). No code error. Resubmit those tasks
+  with --mem=96G (command given to Priya); move droppos when 107.
