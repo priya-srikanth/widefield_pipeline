@@ -1711,3 +1711,9 @@ bundle without `daqlk` and writes a provenance json.
     (11344) to exit, then v7g3_t3d noFR (jobs 2) then frA (jobs 3), into frame tags without "spont" under the `_daqlk` root.
   - RAM 24 GB free with 3 lanes; watcher b438im6l1 covers all chain logs (FAILED / STOP / < 7 GB).
   - Scratch pickles from the bundle check deleted (scratchpad only, mine, derived; 1.9 GB -> logs + scripts kept).
+- 03:15: order step 2 ("rebuild trial_attempts under the new tag and diff") had only a 3-session check. trial_attempts is
+  keyed by SELECTION (qc/<selection>/), not run tag, so the frozen lanes and bundle b read the pre-switch table. Helper
+  started: full-cohort rebuild into scratch (never M:) + exact diff against the pre-switch table. If anything changes,
+  that goes to the top of QUESTIONS (it would touch every gate-attempted output).
+- Render queue G0-G8 for `_daqlk`: NOT launched tonight (order: frozen frames first; lanes hold the RAM until ~midday).
+  queue2.sh points at wf_rebuild_render (c149decf, old tag); the new queue must use a worktree at >= e05ece18.
