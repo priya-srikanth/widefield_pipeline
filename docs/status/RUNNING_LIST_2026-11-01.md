@@ -1732,3 +1732,20 @@ bundle without `daqlk` and writes a provenance json.
   - Lane 1 -> noFR_basis (target basis, jobs 2); lane 4 (robustness v7g3_t3d noFR, jobs 2) started 05:26.
   - Now 4 frozen processes, 9 workers (2+3+2+2): one over the 8-worker cap, RAM 30 GB free. Left running (frA_pos is
     a short --reuse-stats pass); noted, not repeated. New watcher (failure / < 7 GB / all lanes done).
+- ~07:20: **FINDINGS (early look, frozen spont frames, cortex, cue -3..+3 s, contact = attempts `hit`; PROVISIONAL, no CIs).**
+  Per-session table: scratchpad/frozen_peek/per_session_class.csv.
+  - Contact trials alone, animal-mean trial-to-trial R2 pre / acute / subacute / chronic: .506 / .415 / .440 / .340
+    (noFR); incomplete .589 / .402 / .530 / .532 (pre incomplete = 321 trials, PS94 no session with >= 10).
+  - Per session, the acute step on contact trials is clear in PS93 (.51-.65 pre -> .40 / .32 days 1-2), PS94 (.42-.65 ->
+    .33 / .33 days 1-2, back by day 4) and PS95 (.35-.45 -> .28 / .22 / .24 days 1-3). **PS92 has NO acute step**: its
+    contact R2 declines steadily from the first pre session (.62 day -11 -> .40 day -3 -> .45 acute -> .15 day 50); cvR2
+    likewise (.65 -> .54 pre, .52-.60 acute, .39-.45 days 39-50). So "drops in all four" was wrong: 3 / 4, and PS92 is a
+    slow trend that starts before the stroke.
+  - **PS95 chronic**: PS95_0907 (day 22, the known lick-heavy session) cvR2 -0.21; dropping the spontaneous-lick kernels
+    gives +0.16 (no_lick -0.03): the pre-stroke spont / lick kernels over-predict a lick-heavy session. Days 29-50 cvR2
+    .18-.35 with no_spont and no_lick ABOVE the joint model in most sessions (e.g. 0928 .221 vs no_spont .295), i.e. the
+    pre lick kernels over-predict late-chronic PS95 too. Even without them, late PS95 stays ~.2-.3 vs ~.5 pre.
+  - Class-fixed comparison only rules out the contact / incomplete MIX; changes WITHIN contact trials (latency, lick
+    count, movement) are not controlled.
+  - Next: same table on the robustness frame (no spont kernels, lane 4 running) for PS95; lick-count / ITI-lick per
+    session vs R2; pre-only time trend per animal (PS92) as a covariate.
