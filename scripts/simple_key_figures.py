@@ -20,6 +20,7 @@ MOp only, and no saved table has SSp-n for these encoder quantities -- the simpl
 Usage: python scripts/simple_key_figures.py [--only-v2] [--copy-to _goal_page]
 """
 from __future__ import annotations
+from wfield_local.frozen_encoder import design_tag as _design_tag  # frame tag of the FROZEN_LICKS_ALL design (8.51)
 
 import shutil
 import sys
@@ -37,7 +38,7 @@ FC = E / "frozen_fr_compare"
 FIG_FC = FC / "figures"
 LC = E / "iti_licks" / "lick_correction"
 FIG_LC = E / "iti_licks" / "figures"
-PR = E / "frozen_encoder_gate-attempted_v7g3_t3d_frA" / "partial_refit"
+PR = E / _design_tag("frozen_encoder_gate-attempted_v7g3_t3d_frA") / "partial_refit"
 KEY_AREAS = [("cortex", "cortex"), ("ALM_right", "ALM"), ("ALM_left", "ALM"), ("tjM1_right", "tjM1"),
              ("tjM1_left", "tjM1"), ("SSp-m_right", "SSp-m"), ("SSp-m_left", "SSp-m")]
 WLAB = {"cue": "cue window", "lick": "first-lick window"}

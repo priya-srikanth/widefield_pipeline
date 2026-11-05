@@ -14,6 +14,7 @@ Usage: python scripts/relabel_confusion.py [--tag v7g3_t3d] [--window lick]
 Output: <E>/frozen_relabel_<tag>/relabel_confusion_<window>.csv + figures/relabel_confusion_*.png
 """
 from __future__ import annotations
+from wfield_local.frozen_encoder import design_tag as _design_tag  # frame tag of the FROZEN_LICKS_ALL design (8.51)
 
 import argparse
 import sys
@@ -85,7 +86,7 @@ def main(argv=None) -> int:
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--tag", default="v7g3_t3d")
+    ap.add_argument("--tag", default=_design_tag("v7g3_t3d"))
     ap.add_argument("--window", default="lick", choices=("all", "cue", "lick"))
     ap.add_argument("--trial", action="store_true", help="per-TRIAL best label (needs a trial_sse run, e.g. --tag v7g3_t3d_trial)")
     a = ap.parse_args(argv)

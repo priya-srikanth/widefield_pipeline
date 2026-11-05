@@ -19,6 +19,7 @@ Usage: python scripts/residual_roi.py [--tag gate-attempted_v7g3_t3d]   (10b's f
 Output: <E>/specificity_control/<tag>/residual_roi.csv, figures/residual_roi_{raw,z}.png
 """
 from __future__ import annotations
+from wfield_local.frozen_encoder import design_tag as _design_tag  # frame tag of the FROZEN_LICKS_ALL design (8.51)
 
 import argparse
 import sys
@@ -90,7 +91,7 @@ def main(argv=None) -> int:
     from frozen_area_maps import area_image, outline, paint
     from iti_area_maps import _sig_halo
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--tag", default="gate-attempted_v7g3_t3d")
+    ap.add_argument("--tag", default=_design_tag("gate-attempted_v7g3_t3d"))
     ap.add_argument("--by-spout", action="store_true", help="per-spout version (Fig 10, 10c-10g counterparts)")
     a = ap.parse_args(argv)
     if a.by_spout:

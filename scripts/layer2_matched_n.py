@@ -1,4 +1,5 @@
 """Layer 2 combined fit with the chronic epoch cut to as many sessions as pre_late (session-count control, 10-24)."""
+from wfield_local.frozen_encoder import design_tag as _design_tag  # frame tag of the FROZEN_LICKS_ALL design (8.51)
 import json
 import pickle
 
@@ -12,9 +13,9 @@ from wfield_local import run_mode as _rmode  # noqa: E402
 
 # coordinator 11-04: routed -- the run's (tagged) encoding tree (frozen encoder + allsession runs, and the output)
 E = str(_rmode.encoding_out_root()) + "/"
-src = str(fe.out_root()) + "/frozen_encoder_gate-attempted_v7g3_t3d/"
+src = str(fe.out_root()) + _design_tag("/frozen_encoder_gate-attempted_v7g3_t3d/")
 pre_stats = pickle.loads(open(src + "fit/pre_stats.pkl", "rb").read())
-post_stats = pickle.loads(open(E + "allsession_encoder_v7g3_t3d_ref/fit/post_stats.pkl", "rb").read())
+post_stats = pickle.loads(open(E + _design_tag("allsession_encoder_v7g3_t3d_ref/fit/post_stats.pkl"), "rb").read())
 rows = []
 for an in sorted({s["animal"] for s in pre_stats}):
     S = [s for s in pre_stats + post_stats if s["animal"] == an]
@@ -52,6 +53,6 @@ for an in sorted({s["animal"] for s in pre_stats}):
             rows.append({"animal": an, "chronic_subset": which, "epoch": x["epoch"], "label": x["label"], "change_ref": g})
     print(an, "done", flush=True)
 T = pd.DataFrame(rows)
-T.to_csv(E + "allsession_encoder_v7g3_t3d_ref/matched_n_control.csv", index=False)
+T.to_csv(E + _design_tag("allsession_encoder_v7g3_t3d_ref/matched_n_control.csv"), index=False)
 pd.set_option("display.width", 200)
 print(T.groupby(["chronic_subset", "animal", "epoch"]).change_ref.agg(["mean", "count"]).unstack("epoch").round(1).to_string())

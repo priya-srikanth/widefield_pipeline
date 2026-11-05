@@ -38,6 +38,7 @@ Output: <E>/movement_null_plan/{figdata_<frame>.npz, maps_table_<frame>.csv, map
         figures/movement_null_maps_<frame>_<window>.png, figures/movement_null_area_dots_<frame>.png}
 """
 from __future__ import annotations
+from wfield_local.frozen_encoder import design_tag as _design_tag  # frame tag of the FROZEN_LICKS_ALL design (8.51)
 
 import argparse
 import json
@@ -53,7 +54,7 @@ import pandas as pd
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from fr_musall import AN, E  # noqa: E402
 
-FRAMES = {"FR-A": "frozen_encoder_gate-attempted_v7g3_t3d_frA", "noFR": "frozen_encoder_gate-attempted_v7g3_t3d"}
+FRAMES = {"FR-A": _design_tag("frozen_encoder_gate-attempted_v7g3_t3d_frA"), "noFR": _design_tag("frozen_encoder_gate-attempted_v7g3_t3d")}
 QS = [("target", "no_target", "TARGET unique (plan after all movement)"),
       ("spout", "no_spout", "SPOUT unique (target + executed spout part)")]
 WINDOWS = ("cue", "lick")

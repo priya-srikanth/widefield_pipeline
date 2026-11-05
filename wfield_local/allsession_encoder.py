@@ -154,6 +154,8 @@ def main(argv=None) -> int:
     # coordinator 11-04: the run's (tagged) encoding tree -- the frozen encoder runs it reads (fe.out_root) and the
     # allsession runs it writes (read by layer2_matched_n / layer2_random_splits)
     E = run_mode.encoding_out_root()
+    fe.check_tag(a.src, "--from")                       # the frozen design (v7g3_t3d | _spont) is in both tags
+    fe.check_tag(a.tag, "allsession")
     src = fe.out_root() / f"frozen_encoder_{a.src}"
     out = (Path(a.out_root) if a.out_root else E) / f"allsession_encoder_{a.tag}"
     assert_writable(out)

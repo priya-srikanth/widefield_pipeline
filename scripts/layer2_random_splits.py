@@ -12,6 +12,7 @@ Usage: python scripts/layer2_random_splits.py PS92 [--max-splits 70]   (resumes 
 Output: <E>/allsession_encoder_v7g3_t3d_ref/random_splits_<animal>.csv (one row per split x epoch)
 """
 from __future__ import annotations
+from wfield_local.frozen_encoder import design_tag as _design_tag  # frame tag of the FROZEN_LICKS_ALL design (8.51)
 
 import argparse
 import itertools
@@ -28,8 +29,8 @@ from wfield_local import run_mode as _rmode
 
 # coordinator 11-04: routed -- the run's (tagged) encoding tree (frozen encoder + allsession runs, and the output)
 E = _rmode.encoding_out_root()
-SRC = fe.out_root() / "frozen_encoder_gate-attempted_v7g3_t3d"
-L2 = E / "allsession_encoder_v7g3_t3d_ref"
+SRC = fe.out_root() / _design_tag("frozen_encoder_gate-attempted_v7g3_t3d")
+L2 = E / _design_tag("allsession_encoder_v7g3_t3d_ref")
 
 
 def main(argv=None) -> int:

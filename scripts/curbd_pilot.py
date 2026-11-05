@@ -128,10 +128,11 @@ def prep(label: str) -> Path:
     for k, bl in enumerate(blk):
         f_of_trial[bl] = k
     fold = f_of_trial[tr_of[ridx]]
-    raw = {v: ce._z(X, ridx)[ridx] for v, X in ce.raw_blocks(B, ft).items() if v in ce.GROUP_OF}
+    gof = ce.group_of()                                  # + licks_pre / licks_iti under LICKS_ALL=split (8.51)
+    raw = {v: ce._z(X, ridx)[ridx] for v, X in ce.raw_blocks(B, ft).items() if v in gof}
     alphas = json.loads((ENC / f"{label}.json").read_text())["alphas"]
-    X = np.hstack([raw[v] for v in ce.GROUP_OF]).astype(np.float64)
-    pen = np.concatenate([np.full(raw[v].shape[1], alphas[ce.GROUP_OF[v]]) for v in ce.GROUP_OF])
+    X = np.hstack([raw[v] for v in gof]).astype(np.float64)
+    pen = np.concatenate([np.full(raw[v].shape[1], alphas[gof[v]]) for v in gof])
     Q = np.linalg.qr(ce._slow_basis(ft[ridx], ce.DRIFT_MIN_PERIOD_S))[0]
     X -= Q @ (Q.T @ X)
     Ys = {}

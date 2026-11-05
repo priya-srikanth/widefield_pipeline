@@ -144,6 +144,79 @@ _FPEN_BASE = {"cue": "task", "arrival": "task", "pos_enl": "task", "pos_cue": "t
               "push": "uninstructed"}
 FPEN = {v: _FPEN_BASE[v.split(":")[0]] for v in FGROUP}
 
+#: SPONTANEOUS LICK KERNELS (Priya 11-04; design v7g3_t3d_spont, REBUILD_CODE 8.51). The v7g3_t3d design has post-cue lick
+#: kernels only (`licks.csv` starts at the cue), so pre-cue (ENL) lick activity in the all-frames maps could be credited
+#: to the target (pos_enl, whose ENL state spans strobe .. cue). FROZEN_LICKS_ALL=split builds the frozen design with the
+#: combined encoder's production lick routing (COMBINED_ENCODING_LICKS_ALL=split, set ONLY around its behaviour load /
+#: raw blocks here, never globally): `combined_encoding.split_licks` puts every lick in exactly ONE kernel --
+#:   lick_onset  (the encoder's cued `licks` lick part) = licks.csv (every post-cue row, the 0-70 ms licks INCLUDED: the
+#:               70 ms floor is for counting) + the pre-cue / ITI-table rows with a post-cue onset + cam1-only post-cue;
+#:   licks_pre   pre-cue (ENL) licks (licks_all, by `oo.encoder_context` = the ONSET label), + cam1-only pre-cue;
+#:   licks_iti   ITI licks, + cam1-only ITI (cam1 duplicates of a cam4 pre-cue / ITI lick dropped, CAM1_DUP_TOL_S);
+#:   contact     the DAQ contacts over the whole trial windows (strobe - 0.5 .. stop + 3 s; the encoder's split rule).
+#: Credit: lick_onset / contact as before (the encoder's instructed `licks`); licks_pre / licks_iti UNINSTRUCTED =
+#: the frozen group "other" (nose, running, push: the encoder's uninstructed set), so `no_other` = the encoder's
+#: drop:uninstructed; `no_spont` drops the two together (= drop:licks_pre+licks_iti), novar_licks_pre / _iti one each.
+#: Penalty group "lick" (the encoder's PEN_GROUP_OF). Not split into spout-locked / deviation parts (not spout-locked).
+#: Unset / "none" = the v7g3_t3d design, byte-identical. The design name enters the frame tag ("spont" segment,
+#: `design_tag` / `check_tag`) and the saved statistics' run tag, so the two designs never share a folder or a fit.
+LICKS_ALL_ENV = "FROZEN_LICKS_ALL"
+LICKS_ALL_MODES = ("none", "split")
+SPONT_VARS = ("licks_pre", "licks_iti")                  # = combined_encoding.SPLIT_LICK_VARS (checked in split_blocks)
+#: the encoder's credit group of SPONT_VARS -> the frozen group; penalty group as the encoder's PEN_GROUP_OF
+SPONT_GROUP = {"uninstructed": "other"}
+SPONT_PEN = "lick"
+DESIGN_BASE = "v7g3_t3d"
+SPONT_PART = "spont"
+
+
+def licks_all_mode() -> str:
+    v = os.environ.get(LICKS_ALL_ENV, "").strip().lower() or "none"
+    if v not in LICKS_ALL_MODES:
+        raise ValueError(f"{LICKS_ALL_ENV}={v!r}; expected one of {LICKS_ALL_MODES}")
+    return v
+
+
+LICKS_ALL = licks_all_mode()
+SPONT = LICKS_ALL == "split"
+if SPONT:
+    FGROUP.update({v: SPONT_GROUP["uninstructed"] for v in SPONT_VARS})
+    _FPEN_BASE.update({v: SPONT_PEN for v in SPONT_VARS})
+    FPEN.update({v: SPONT_PEN for v in SPONT_VARS})
+
+
+def design_name() -> str:
+    """The frozen design of this environment: v7g3_t3d (post-cue lick kernels only) or v7g3_t3d_spont."""
+    return f"{DESIGN_BASE}_{SPONT_PART}" if SPONT else DESIGN_BASE
+
+
+def design_tag(tag: str) -> str:
+    """A frame / Layer-2 / relabel tag of this design: under FROZEN_LICKS_ALL=split every ``v7g3_t3d`` not already followed
+    by ``_spont`` becomes ``v7g3_t3d_spont`` (gate-attempted_v7g3_t3d_frA -> gate-attempted_v7g3_t3d_spont_frA,
+    v7g3_t3d_ref -> v7g3_t3d_spont_ref); unchanged otherwise. The readers' default tags go through it."""
+    import re
+    return re.sub(rf"{DESIGN_BASE}(?!_{SPONT_PART})", f"{DESIGN_BASE}_{SPONT_PART}", tag) if SPONT else tag
+
+
+def tag_is_spont(tag: str) -> bool:
+    return SPONT_PART in str(tag).split("_")
+
+
+def stats_design_ok(stats: list) -> bool:
+    """True when every saved pre-session statistic was built with this environment's lick design (the
+    ``|licksall-split`` part of its stored run tag iff FROZEN_LICKS_ALL=split)."""
+    return all(("|licksall-" in str(s.get("run_mode"))) == SPONT for s in stats)
+
+
+def check_tag(tag: str, what: str = "run") -> None:
+    """REFUSE a frozen folder tag whose design does not match the environment: a ``spont`` segment iff
+    FROZEN_LICKS_ALL=split (so the spontaneous-lick design never writes into, or reads, a v7g3_t3d folder and back)."""
+    if tag_is_spont(tag) != SPONT:
+        raise SystemExit(f"frozen {what} tag {tag!r} is {'spont' if tag_is_spont(tag) else 'v7g3_t3d'} but "
+                         f"{LICKS_ALL_ENV}={LICKS_ALL} builds {design_name()}: "
+                         + ("put the 'spont' segment in the tag (design_tag)" if SPONT else
+                            f"set {LICKS_ALL_ENV}=split for a spont folder"))
+
 #: FACERHYTHM IN THE FROZEN MODEL (Priya 10-25, handoff 000t plan item 3: "should we be mixing frozen and refit encoder
 #: vs FR models" -> build the frozen pre-stroke encoder WITH FR). Opt-in: FROZEN_FR=1 plus the encoder's own FR envs
 #: (COMBINED_ENCODING_FR = factor set, e.g. master_pre_v1; COMBINED_ENCODING_FR_GROUPS = <grouping>:<mode>, see
@@ -423,8 +496,10 @@ def split_blocks(raw: dict) -> dict:
     `combined_encoding.raw_blocks`: licks = [lick-onset kernel, contact kernel] (equal widths, same lags); tongue =
     x, y, prot, speed; jaw = x, y, speed; nose = x, y; each analog variable len(CLAGS) columns."""
     ce = _ce()
-    if os.environ.get("COMBINED_ENCODING_LICKS") == "lips" or os.environ.get("COMBINED_ENCODING_LICKS_ALL"):
-        raise ValueError("frozen_encoder: lips / licks-all kernels change the licks block layout; not supported")
+    mode_all = os.environ.get(ce.LICKS_ALL_ENV, "")
+    if os.environ.get("COMBINED_ENCODING_LICKS") == "lips" or (mode_all and not (SPONT and mode_all == "split")):
+        raise ValueError("frozen_encoder: lips / licks-all kernels change the licks block layout; not supported "
+                         f"(the spontaneous-lick design is {LICKS_ALL_ENV}=split, never an inherited {ce.LICKS_ALL_ENV})")
     nl = len(ce.CLAGS)
     lk = raw["licks"]
     if lk.shape[1] % 2:
@@ -439,7 +514,78 @@ def split_blocks(raw: dict) -> dict:
                  ("nose_dir", 1)):
         if out[k].shape[1] != w * nl:
             raise ValueError(f"{k}: {out[k].shape[1]} columns, expected {w * nl}")
+    if SPONT:                                            # the encoder's own spontaneous-lick variables, unchanged
+        if set(ce.SPLIT_LICK_VARS) != set(SPONT_VARS) or any(SPONT_GROUP.get(g) != FGROUP[v] or ce.PEN_GROUP_OF[v] != FPEN[v]
+                                                             for v, g in ce.SPLIT_LICK_VARS.items()):
+            raise ValueError(f"combined_encoding.SPLIT_LICK_VARS {ce.SPLIT_LICK_VARS} no longer matches the frozen "
+                             f"spontaneous-lick design {SPONT_VARS} / {SPONT_GROUP} / {SPONT_PEN}")
+        missing = [v for v in SPONT_VARS if v not in raw]
+        if missing:
+            raise ValueError(f"{LICKS_ALL_ENV}=split: raw blocks without {missing} (build them with "
+                             "frozen_encoder.raw_blocks, which sets the encoder's split routing)")
+        for v in SPONT_VARS:
+            out[v] = raw[v]
     return out
+
+
+def _licks_all_env():
+    """Context: the combined encoder's LICKS_ALL=split routing for the frozen spontaneous-lick design (only around its
+    behaviour load / raw blocks); a no-op for v7g3_t3d. An INHERITED COMBINED_ENCODING_LICKS_ALL is refused either way
+    (a frame render must not pick up the O2 bundle's setting)."""
+    import contextlib
+    ce = _ce()
+    if os.environ.get(ce.LICKS_ALL_ENV):
+        raise ValueError(f"frozen_encoder: {ce.LICKS_ALL_ENV}={os.environ[ce.LICKS_ALL_ENV]!r} is set; the frozen design "
+                         f"takes {LICKS_ALL_ENV} (split | none) and sets the encoder's routing itself -- unset it")
+    if not SPONT:
+        return contextlib.nullcontext()
+    from wfield_local import run_mode
+    return run_mode.with_env(**{ce.LICKS_ALL_ENV: "split"})
+
+
+def load_behaviour(animal: str, date: str, rv):
+    """`combined_encoding.load_behaviour` under this design's lick routing (`_licks_all_env`)."""
+    with _licks_all_env():
+        return _ce().load_behaviour(animal, date, rv)
+
+
+def raw_blocks(B, ft, **kw) -> dict:
+    """`split_blocks(combined_encoding.raw_blocks(B, ft, **kw))` under this design's lick routing: THE frozen raw
+    variables (+ licks_pre / licks_iti under FROZEN_LICKS_ALL=split)."""
+    with _licks_all_env():
+        return split_blocks(_ce().raw_blocks(B, ft, **kw))
+
+
+def spont_counts(B) -> dict:
+    """{n_post, n_pre, n_iti, n_contacts}: the split design's lick counts (`combined_encoding.split_licks`; every lick in
+    exactly one kernel) and its whole-window contacts; {} for v7g3_t3d."""
+    if not SPONT:
+        return {}
+    post, pre, iti = _ce().split_licks(B)
+    cc = getattr(B, "context_contact_s", None)
+    return {"n_post": int(len(post)), "n_pre": int(len(pre)), "n_iti": int(len(iti)),
+            "n_contacts": int(len(B.contact_s if cc is None else cc))}
+
+
+def first_lick_s(B, E) -> tuple[np.ndarray, np.ndarray | None]:
+    """(each trial's first-lick time (NaN = none), timing source or None) for the template time axis and the lick
+    alignment. v7g3_t3d: the first camera lick (cam4 + cam1-only onsets) in cue .. stop (a missing stop = cue + 3.5 s),
+    as the combined encoder's session npz (peth_lick). The spontaneous-lick design: the combined encoder's per-trial
+    LICK TIMING (`combined_encoding.trial_first_lick`, Priya 11-04: at a close spout an LP onset missing or > 50 ms after
+    the first DAQ contact (cue + 70 ms .. min(cue + max_rt, stop)) -> the contact; far: LP kept)."""
+    ex0 = getattr(B, "extra_lick_on_s", None)
+    lk0 = np.sort(np.concatenate([np.asarray(B.lick_on_s, float), np.asarray([] if ex0 is None else ex0, float)]))
+    cue_t, stop_t = E.cue_s.to_numpy(float), E.stop_s.to_numpy(float)
+    if SPONT:
+        tm = _ce().trial_first_lick(cue_t, stop_t, E.pos.to_numpy(), lk0, B.contact_s)
+        return tm["first_s"], tm["src"].astype(str)
+    fl_t = np.full(len(E), np.nan)
+    for i, (c, stp) in enumerate(zip(cue_t, stop_t)):
+        stp = stp if np.isfinite(stp) else c + 3.5
+        j = np.searchsorted(lk0, c)
+        if j < len(lk0) and lk0[j] < stp:
+            fl_t[i] = lk0[j]
+    return fl_t, None
 
 
 #: spout-locked templates, in bins of TEMPLATE_BIN_S (one imaging frame at the cohort's 31.25 Hz). TWO-PART TIME AXIS
@@ -529,7 +675,7 @@ def session_design(label: str, templates: dict | None = None, template_only: boo
     animal, date = config.animal_of(label), config.date8(label.split("_")[-1])
     V, ft, Ub, _flat, parea, names, _shape, pstat = ce.load_imaging(label)
     try:
-        B = ce.load_behaviour(animal, date, rv)
+        B = load_behaviour(animal, date, rv)
     except FileNotFoundError as ex:
         # NO cam1 LICK EVENTS for this session (PS95 all, PS94_1005; cam1 unfinished): cam4 lick timing, as LP_licks
         # and the per-session encoder runs do; recorded as lick_set "cam4". Any other missing file is still an error.
@@ -537,7 +683,7 @@ def session_design(label: str, templates: dict | None = None, template_only: boo
             raise
         saved = os.environ.pop(ce.LICKS_ENV)
         try:
-            B = ce.load_behaviour(animal, date, rv)
+            B = load_behaviour(animal, date, rv)
         finally:
             os.environ[ce.LICKS_ENV] = saved
     T = B.trials
@@ -556,17 +702,10 @@ def session_design(label: str, templates: dict | None = None, template_only: boo
     ridx = np.flatnonzero(rows)
     ftr = ft[ridx]
     pos_of = fpos[ridx]
-    # template time axis: cue-locked until the trial's first post-cue lick (same rule as first_f below), then
-    # lick-locked (TEMPLATE_BIN_S comment)
-    ex0 = getattr(B, "extra_lick_on_s", None)
-    lk0 = np.sort(np.concatenate([np.asarray(B.lick_on_s, float), np.asarray([] if ex0 is None else ex0, float)]))
+    # template time axis: cue-locked until the trial's first post-cue lick (the same time as first_f below,
+    # `first_lick_s`), then lick-locked (TEMPLATE_BIN_S comment)
     cue_t = E.cue_s.to_numpy(float)
-    fl_t = np.full(len(E), np.nan)
-    for i, (c, stp) in enumerate(zip(cue_t, E.stop_s.to_numpy(float))):
-        stp = stp if np.isfinite(stp) else c + 3.5
-        j = np.searchsorted(lk0, c)
-        if j < len(lk0) and lk0[j] < stp:
-            fl_t[i] = lk0[j]
+    fl_t, fl_src = first_lick_s(B, E)
     tri = ftri[ridx]
     intrial = tri >= 0                                   # False only on TE ITI frames
     k_of = np.where(intrial, template_index(ftr - cue_t[np.maximum(tri, 0)], ftr - fl_t[np.maximum(tri, 0)]), -1)
@@ -580,10 +719,10 @@ def session_design(label: str, templates: dict | None = None, template_only: boo
                 "UbL": (Ub[pstat].astype(np.float64) @ (Ue * np.sqrt(np.clip(w, 0, None)))).astype(np.float32)}
     if relabel:
         lab_r = np.array([relabel.get(p_, p_) for p_ in T.pos.to_numpy()], dtype=object)
-        raw = split_blocks(ce.raw_blocks(B, ft, pos_perm={"pos_enl": lab_r, "pos_cue": lab_r}))
+        raw = raw_blocks(B, ft, pos_perm={"pos_enl": lab_r, "pos_cue": lab_r})
         pos_split = np.array([relabel.get(p_, p_) for p_ in pos_of], dtype=object)
     else:
-        raw = split_blocks(ce.raw_blocks(B, ft))
+        raw = raw_blocks(B, ft)
         pos_split = pos_of
     if FR_VARS:                                          # FaceRhythm columns (FROZEN_FR); split like pose if FR_SPLIT
         raw.update(_fr_columns(animal, date, rv, ft))
@@ -660,14 +799,10 @@ def session_design(label: str, templates: dict | None = None, template_only: boo
     Y -= Q @ (Q.T @ Y)
     Rd = Y @ Ra if Ra.shape[1] <= MAX_DENSE_TARGETS else None      # large target sets stay lazy (Y @ Ra on demand)
     ex_ = getattr(B, "extra_lick_on_s", None)
-    lk = np.sort(np.concatenate([np.asarray(B.lick_on_s, float), np.asarray([] if ex_ is None else ex_, float)]))
     cue_f = np.searchsorted(ftr, E.cue_s.to_numpy(float))
     first_f = np.full(len(E), -1)
-    for i, (c, stp) in enumerate(zip(E.cue_s.to_numpy(float), E.stop_s.to_numpy(float))):
-        stp = stp if np.isfinite(stp) else c + 3.5
-        j = np.searchsorted(lk, c)
-        if j < len(lk) and lk[j] < stp:
-            first_f[i] = int(np.searchsorted(ftr, lk[j]))
+    for i in np.flatnonzero(np.isfinite(fl_t)):          # each trial's first lick (`first_lick_s`, as the templates)
+        first_f[i] = int(np.searchsorted(ftr, fl_t[i]))
     win = {"all": np.ones(len(ridx), bool), "cue": np.zeros(len(ridx), bool), "lick": np.zeros(len(ridx), bool)}
     for c in E.cue_s.to_numpy(float):
         win["cue"] |= (ftr >= c) & (ftr < c + 1.0)
@@ -683,7 +818,7 @@ def session_design(label: str, templates: dict | None = None, template_only: boo
             "pos_counts": {str(p_): int((T.pos == p_).sum()) for p_ in pos_order},
             "Y": Y if Rd is None else None, "Ra": Ra if Rd is None else None,
             "spl_swap": spl_swap_deltas(Ms, templates, pos_of, k_of, pos_order, col_var, ftr) if spatial and not TE else None,
-            "lickland": lickland_info}
+            "lickland": lickland_info, "timing_source": fl_src, "spont": spont_counts(B)}
 
 
 def swap_template(M: np.ndarray, N: np.ndarray, qi: int) -> np.ndarray:
@@ -829,7 +964,8 @@ def _run_tag() -> str:
             + ("|tongue3d" if os.environ.get("COMBINED_ENCODING_TONGUE", "") == "3d" else "")    # TONGUE_ENV
             + (f"|fr={os.environ['COMBINED_ENCODING_FR']}:{os.environ['COMBINED_ENCODING_FR_GROUPS']}" if FR_VARS else "")
             + ("|frsplit" if FR_SPLIT else "") + ("|lickspout" if LICKSPOUT else "") + ("|lickland" if LICKLAND else "")
-            + (f"|frlags={','.join(f'{x:g}' for x in FR_LAGS)}" if FR_LAGS else ""))
+            + (f"|frlags={','.join(f'{x:g}' for x in FR_LAGS)}" if FR_LAGS else "")
+            + (f"|licksall-{LICKS_ALL}" if SPONT else ""))  # the spontaneous-lick design: never a v7g3_t3d fit's stats
 
 
 #: BACKWARD / POSTURAL TREADMILL MOVEMENT (Priya 10-23, after the side-camera clips: the negative speed at bout ends is
@@ -1053,6 +1189,8 @@ TE_LAND = (*LICKSPOUT_POS, "unknown")
 if TE:
     if LICKSPOUT or LICKLAND or FR_SPLIT or FR_LAGS:
         raise ValueError("FROZEN_DESIGN=te replaces FROZEN_LICKSPOUT / LICKLAND / FR_SPLIT / FR_LAGS: unset them")
+    if SPONT:                                            # te routes pre-cue / ITI licks itself (te_lick_parts)
+        raise ValueError(f"FROZEN_DESIGN=te has its own pre-cue / ITI lick families: set {LICKS_ALL_ENV}=none")
     FGROUP = {"cue": "timing", "arrival": "timing", "pos_enl": "target", "pos_cue": "target",
               **{f"lick_onset@tgt:{q}": "target" for q in LICKSPOUT_POS},
               **{f"lick_onset@land:{q}": "execution" for q in TE_LAND},
@@ -1083,11 +1221,14 @@ if FR_VARS and not TE:
 #: column of ONE base variable (its s and d parts / per-spout copies together), everything else joint.
 _VAR_BASES = sorted({v.split(":")[0].split("@")[0] for v in FGROUP})
 _VDROP = {f"novar_{b}": b for b in _VAR_BASES}
+#: FROZEN_LICKS_ALL=split: both spontaneous-lick variables dropped together (the encoder's drop:licks_pre+licks_iti);
+#: in the default variant set (the novar_* singles stay opt-in like every novar_)
+_SPONTDROP = {"no_spont": SPONT_VARS} if SPONT else {}
 _ORDERED = {"target_first": (("target",), _EXEC_SIDE),     # (A, B): residualise B on A
             "exec_first": (_EXEC_SIDE, ("target",)),
             "task_first": (SUPER["task"], SUPER["nontask"]),
             "movement_first": (SUPER["nontask"], SUPER["task"])}
-VARIANTS = ("joint", *_ORDERED, *_DROP, *_ONLY, *_VDROP, *_LAGDROP)
+VARIANTS = ("joint", *_ORDERED, *_DROP, *_SPONTDROP, *_ONLY, *_VDROP, *_LAGDROP)
 #: variants whose per-group PETH parts are saved (the others save data + full only: their parts are not a split)
 PART_VARIANTS = ("joint", *_ORDERED)
 
@@ -1160,9 +1301,9 @@ def _variant_transform(variant: str, col_var: np.ndarray, Gt: np.ndarray, pos: d
     if variant in _LAGDROP:                              # FROZEN_FR_LAGS: drop one lag side of every FR variable
         keep = ~np.char.endswith(np.asarray(col_var).astype(str), _LAGDROP[variant])
         return eye[:, keep], np.flatnonzero(keep)
-    if variant in _VDROP:
+    if variant in _VDROP or variant in _SPONTDROP:
         base_ = np.array([v.split(":")[0].split("@")[0] for v in col_var])
-        keep = base_ != _VDROP[variant]
+        keep = ~np.isin(base_, _SPONTDROP[variant]) if variant in _SPONTDROP else base_ != _VDROP[variant]
         return eye[:, keep], np.flatnonzero(keep)
     if variant in _ORDERED:
         A, Bg = _ORDERED[variant]
@@ -1383,6 +1524,9 @@ def predict_job(job):
                 comp[g] = contrib(m) if m.any() else np.zeros_like(Rd)
             pm = np.isin(fit["vcol"], list(ce.POS_VARS))
             comp["pos"] = contrib(pm) if pm.any() else np.zeros_like(Rd)
+            if SPONT:                                    # the spontaneous licks' share of "other" (no_spont's columns)
+                sm = np.isin(fit["vcol"], SPONT_VARS)
+                comp["spont"] = contrib(sm) if sm.any() else np.zeros_like(Rd)
             if qm.any():
                 comp["push"] = contrib(qm)
         peth = np.full((len(comp), len(pos_order), len(ix), len(off)), np.nan, np.float32)
@@ -1420,10 +1564,12 @@ def predict_job(job):
             offm = np.arange(int(round(a0 * d["fs"])), int(round(a1 * d["fs"])))
             for ci, R in enumerate(comp.values()):
                 tr_parts[ci, :, wi] = trial_means(R, fr_, offm)
+        extra_npz = ({"trial_timing_source": np.asarray(d["timing_source"], dtype=str)}
+                     if d.get("timing_source") is not None else {})      # spont design: lick timing source per trial
         np.savez_compressed(sess / f"{label}.npz", peth=peth, peth_lick=peth_lick, peth_off_s=off / d["fs"],
                             trial_parts=tr_parts, trial_id=d["trial_id"], trial_pos=np.asarray(d["pos"], dtype=str),
                             trial_windows=np.array(list(MUSALL_WINDOWS)), parts=np.array(list(comp)),
-                            areas=np.array(fit["areas"]))
+                            areas=np.array(fit["areas"]), **extra_npz)
         meta = {"label": label, "animal": d["animal"], "epoch": d["epoch"], "day": d["day"],
                 "order": f"frozen_pre:{variant}", "variant": variant, "frozen_from": frozen_from,
                 "pre_labels": fit["pre_labels"], "alphas": fit["alphas"], "loso_r2_pre": fit["loso_r2"],
@@ -1432,6 +1578,10 @@ def predict_job(job):
                 "peth_parts": list(comp), "areas": fit["areas"], "frozen_r2_cortex": r2, "r2_musall": musall,
                 "stats_version": STATS_VERSION, "grouping_version": GROUPING_VERSION, "run_tag": _run_tag(),
                 "push": ("free" if pfree is not None else "frozen") if qm.any() else None}
+        if SPONT:                                        # the spontaneous-lick design (v7g3_t3d json unchanged)
+            ts = np.asarray(d["timing_source"], dtype=str)
+            meta.update({"design": design_name(), "licks_all": LICKS_ALL, "spont_counts": d["spont"],
+                         "lick_timing_sources": {s_: int((ts == s_).sum()) for s_ in ("lp", "daq", "none")}})
         (sess / f"{label}.json").write_text(json.dumps(meta, indent=1, default=str), encoding="utf-8")
         summary[variant] = r2
         summary["frozen_from"] = frozen_from
@@ -1562,6 +1712,9 @@ def _predict_spatial(label: str, fits: dict, out_dir: str, d: dict, f0: dict) ->
             for g, gs in (*((g, (g,)) for g in FGROUPS), *PART_EXTRA):
                 mm = np.isin(gcol, gs)
                 parts[g] = Ce[:, mm] @ beta[mm] if mm.any() else np.zeros((Z.shape[1], len(ix)))
+            if SPONT:                                    # the spontaneous licks' share of "other" (no_spont's columns)
+                mm = np.isin(fit["vcol"], SPONT_VARS)
+                parts["spont"] = Ce[:, mm] @ beta[mm] if mm.any() else np.zeros((Z.shape[1], len(ix)))
         names = ["data", *parts]
         ev = {al: np.full((len(names), len(pos_order), len(ix)), np.nan, np.float32) for al in ("cue", "lick")}
         for pi, p in enumerate(pos_order):
@@ -1781,9 +1934,14 @@ def main(argv=None) -> int:
     if a.summarise_drop:
         summarise_drop(root / f"frozen_encoder_{a.tag}")
         return 0
+    check_tag(a.tag)                                     # the design (v7g3_t3d | v7g3_t3d_spont) is in the folder tag
+    for src_ in (a.fit_from, a.alphas_from):
+        if src_:
+            check_tag(Path(src_).name, "source")
     labels = sorted(a.labels or (_ce().sessions_available() if a.all else []))
     labels = [x for x in labels if x[-4:] >= "0801"]                       # August-only pre baseline (primary)
     out = root / f"frozen_encoder_{a.tag}"
+    print(f"[frozen] design {design_name()} ({LICKS_ALL_ENV}={LICKS_ALL})", flush=True)
     assert_writable(out)
     pre = [x for x in labels if epochs.epoch_of(x) == "pre"]
     print(f"[frozen] {len(labels)} sessions, {len(pre)} August pre -> {out}", flush=True)

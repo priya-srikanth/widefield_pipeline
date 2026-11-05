@@ -2942,3 +2942,197 @@ synthetic session through the live classes: run of 7 with one lick-touched trial
 
 **Test record (9fb2d964).** bcdg-related files: 213 passed. Full suite, 4 shards run one at a time (>= 38 GB free
 before each): 4,923 passed, 173 skipped, 0 failed (shards: 926 + 28 skipped; 785 + 5; 2,251; 961 + 140).
+
+### 8.51 FROZEN encoder: spontaneous lick kernels, design v7g3_t3d_spont (Priya 11-04; branch rebuild/frozen-licks off c149decf)
+
+CODE + TESTS ONLY: no renders, nothing written to M:. Worktree `wf_rebuild_frozenlicks`. Smoke outputs in the session
+scratchpad (`.../scratchpad/fl/`).
+
+**Why.** The frozen encoder's v7g3_t3d design has post-cue lick kernels only (licks.csv starts at the cue), and
+`split_blocks` refused LICKS_ALL. So in its all-frames maps, pre-cue (ENL) lick activity could be credited to the target
+(pos_enl, whose ENL state spans strobe .. cue).
+
+**Design v7g3_t3d_spont (`FROZEN_LICKS_ALL=split`).**
+- Reuses the combined encoder; none of its logic is copied. `frozen_encoder.load_behaviour` / `raw_blocks` call
+  `combined_encoding.load_behaviour` / `raw_blocks` with `COMBINED_ENCODING_LICKS_ALL=split` set ONLY around those calls
+  (`run_mode.with_env`). Routing = `split_licks` (8.43): every lick in exactly ONE kernel.
+  - `lick_onset` (the cued part of the encoder's `licks`) = licks.csv. That is every post-cue row, the 0-70 ms licks
+    included: the 70 ms floor is for counting. It also takes the pre-cue / ITI-table rows with a post-cue onset, and
+    cam1-only post-cue onsets.
+  - `licks_pre` = licks_all pre-cue by the ONSET label (`oo.encoder_context`), plus cam1-only pre-cue.
+  - `licks_iti` = licks_all ITI, plus cam1-only ITI. A cam1 onset within 50 ms of a cam4 pre-cue / ITI lick is dropped.
+  - `contact` = DAQ contacts over the whole trial windows.
+- Groups.
+  - `lick_onset` / `contact` keep v7g3_t3d's groups; this is the encoder's instructed `licks`.
+  - `licks_pre` / `licks_iti` are UNINSTRUCTED: the frozen group "other", the encoder's uninstructed set (nose,
+    running, push). So `no_other` = drop:uninstructed.
+  - Penalty group "lick" (= the encoder's PEN_GROUP_OF).
+  - `split_blocks` checks these against `ce.SPLIT_LICK_VARS` / `PEN_GROUP_OF` at run time.
+  - The new variables are not split into spout-locked / deviation parts.
+- New variants:
+  - `no_spont` drops both new variables (= drop:licks_pre+licks_iti). It is in the default variant set.
+  - `novar_licks_pre` / `novar_licks_iti` are opt-in, like every novar_.
+  - New PETH / evoked part "spont": a subset of "other", like spout / pos.
+- Lick timing (Priya 11-04 rule 4): the first lick of each trial (template time axis, `first_f`, the lick window, the
+  Musall lick window, trial_parts) = `combined_encoding.trial_first_lick`, factored out of `_TrialScorer`.
+  - The scorer now calls it; its outputs are identical, covered by test_encoder_trials.
+  - The rule: the first camera lick from the cue. At a close spout, an LP onset that is missing or more than 50 ms after
+    the first DAQ contact (cue + 70 ms .. min(cue + max_rt, stop)) is replaced by that contact; at a far spout the LP
+    onset is kept.
+  - npz gets `trial_timing_source`; the json gets design / licks_all / spont_counts / lick_timing_sources.
+- Ids, never shared with v7g3_t3d.
+  - The saved statistics' run tag gains `|licksall-split`, so `--reuse-stats` / `--fit-from`, allsession_encoder and
+    epoch_kernels refuse a v7g3_t3d fit.
+  - The FRAME tag must carry a "spont" segment iff the design is split (`check_tag`). This is enforced in
+    frozen_encoder (`--tag`, `--fit-from`, `--alphas-from`), frozen_relabel / allsession_encoder (`--from` and `--tag`),
+    and partial_refit / session_vs_frozen / epoch_kernels (`--tag`).
+  - frozen_relabel also refuses pre statistics of the other design.
+  - `design_tag("...v7g3_t3d...")` inserts "_spont" after v7g3_t3d under split: gate-attempted_v7g3_t3d_spont,
+    ..._spont_frA, ..._spont_basis, allsession_encoder_v7g3_t3d_spont_ref, frozen_relabel_v7g3_t3d_spont.
+  - Folder name: "_ls" was not used because it already means FROZEN_LICKSPOUT (`_frA_ls`).
+- Refused: FROZEN_DESIGN=te together with split (te routes the pre-cue / ITI licks itself; te runs need
+  FROZEN_LICKS_ALL=none). An inherited COMBINED_ENCODING_LICKS_ALL is refused in both designs.
+- Unset / "none" = v7g3_t3d, byte-identical (smoke below).
+
+**Profile.**
+- `cohort1_rebuild_20261103.yaml` env: `FROZEN_LICKS_ALL: split` (the rebuild default for frozen frames). It is not a
+  run-tag part: the designs are kept apart by the frame tag.
+- Arm `frozenNoSpont` (`FROZEN_LICKS_ALL: none`) = the labelled robustness row v7g3_t3d. Its own frame tag is
+  gate-attempted_v7g3_t3d[...] with no "spont"; its run tag equals the primary's.
+- ENCODER_RENDER_COMMANDS.md is NOT in this branch: it lives on analysis/attempt-coding (wf_attempt), not edited. Needed
+  there:
+  - frame tags `gate-attempted_v7g3_t3d` -> `gate-attempted_v7g3_t3d_spont` (+ the _frA / _basis / _ls / Layer 2 /
+    relabel tags);
+  - the te commands need `export FROZEN_LICKS_ALL=none`;
+  - a robustness block = the same commands under `--arm frozenNoSpont` with the old tags.
+
+**Frozen vs combined: trial / frame selection.**
+- Consistent:
+  - Trials = `T.engaged & finite cue` from the same `load_behaviour`. Under OROFACIAL_GATE=attempted, engaged = the run's
+    camera-class trial_attempts (stopA2jexrt3500c70 tag), so the stop / quit rules are the camera classes'.
+  - Frames = strobe - 0.5 .. stop + 1 s, as run_session.
+  - Same drift basis, same lick sets / routing; the 0-70 ms licks are kept in the post-cue kernel.
+- Differences, reported and not changed:
+  1. The frozen encoder fits AND scores only the engaged trials. The combined encoder also scores every other cue trial
+     (8.43 classes); there is no class-resolved frozen output.
+  2. Locally, engaged comes from the tag's attempts table (`lp_licks.attempts_path`). O2 bundles use the shipped
+     `COMBINED_ENCODING_ATTEMPTS` table. Same rule, but the copy can differ if the table is regenerated.
+  3. The v7g3_t3d design keeps the LP-only first lick (= the combined session npz's peth_lick). Only the spont design
+     applies the per-trial DAQ timing, so lick-window numbers of the two designs are not like-for-like (2 / 6 trials
+     moved on PS93_0814 / 0818).
+  4. Smoke PS93_0818: 478 fitted trials vs the combined encoder's 480 engaged (8.43). Not chased.
+  5. FAR spout with no LP onset: the encoder rule (daq fallback) is used; `lp_licks.first_lick_timing` leaves such a
+     trial untimed (the 8.47 open decision).
+  6. The tongue / jaw traces stay instructed over the whole trial (as the encoder, 8.43 caveat).
+
+**Readers.**
+- Updated (frame-tag defaults / literals now go through `design_tag`, so under the profile they read the spont frames):
+  contest_lines, early_predictors, epoch_kernels, exec_vs_neural_match, frozen_claims, frozen_fr_compare,
+  frozen_fr_musall(_v2), frozen_kernel_maps, frozen_peth_trial_maps, frozen_posinfo, frozen_residual_significance,
+  frozen_residual_trend, iti_licks, layer2_matched_n, layer2_random_splits, matched_residual, movement_null_plan_maps,
+  partial_refit, rebuild_figs/{fig_layer2, fig_pooled, fig_resid16, fig_resid_per_animal, fig_resid_spout, fig_rsplit},
+  relabel_confusion, remap_checks, remap_lmm, residual_roi, session_vs_frozen, simple_key_figures, specificity_control,
+  spout_unique_maps, state_spout_check.
+- Left alone: te_readout (te is never spont) and swapmask_compare_encoder (a historical adopted-run comparison).
+- Group / variable lists:
+  - frozen_pixel_unique_sig: + other / spont unique.
+  - frozen_r2_maps: + spont unique, optional, so v7g3_t3d runs still draw.
+  - frozen_pixel_musall: unique + no_other / no_spont; novar + licks_pre / licks_iti.
+  - frozen_musall_figures: UNIQUE + spont (NaN on v7g3_t3d).
+  - partial_refit `model_label` names the spont design.
+  - curbd_pilot uses `ce.group_of()`: under LICKS_ALL=split the static GROUP_OF silently dropped licks_pre / iti.
+- No reader crashed on the new variables. Every reader selects parts / columns by name, and FGROUP / FPEN come from the
+  env. A frame read under the other env fails loudly (KeyError or the tag / run-tag guard).
+- Meaning changes, not edited (captions to fix at render):
+  - "other" now includes the spontaneous licks: frozen_peth_trial_maps, movement_null_plan_maps, frozen_posinfo
+    (noposinfo).
+  - Under split, `lick_onset` / `novar_lick_onset` = post-cue (cued) licks only, and contact = whole-window DAQ contacts:
+    frozen_kernel_maps, epoch_kernels docstrings.
+  - lp_encoder_decompose gains a d_spont column (overlaps "other").
+- Fixed output folders shared by both arms (they overwrite each other if both are rendered in one run root):
+  `E/frozen_fr_compare` (frozen_claims, frozen_fr_compare, frozen_fr_musall*, frozen_posinfo), `E/contest_lines`,
+  `E/movement_null_plan`, `qc/frozen_group_leakage.csv`. They need a design suffix before rendering the robustness row.
+- Combined-encoder readers (8.43 list, unchanged here): combined_encoding_figures VARS / GROUP_OF copies,
+  lp_encoder_decompose docstring and its `drop_licks` folder (cued licks only under split), fr_musall /
+  fr_contra_orofacial / fr_trial_peth captions ("uninstructed" now includes the spontaneous licks), lick_template_test
+  (`R["licks"]` = cued).
+
+**Smoke (PS93: 7 August pre sessions fitted, PS93_0814 pre = LOSO, PS93_0818 acute = all-pre fit).**
+- Settings: rebuild profile + ENV-noFR (OROFACIAL_GATE=attempted, LICKS=combined, TONGUE=3d), `--jobs 2
+  --no-drop-spout`, output to scratch only.
+- Variants: joint, no_target / timing / lick / contact / other / task / movement; spont run also no_spont + novar_licks_pre / _iti.
+- Reading the table:
+  - Cortex R2, held out. unique = joint - no_<g>.
+  - Windows: all frames / cue (cue .. + 1 s) / lick (first lick - 0.1 .. + 1 s).
+  - target = pos_enl + pos_cue; task = timing + target.
+
+| PS93_0814 (pre) | v7g3_t3d all / cue / lick | v7g3_t3d_spont all / cue / lick |
+| --- | --- | --- |
+| full | 0.6486 / 0.5618 / 0.4591 | 0.6587 / 0.5711 / 0.4726 |
+| target (position) unique | 0.0071 / 0.0115 / 0.0192 | 0.0068 / 0.0126 / 0.0192 |
+| timing (cue) unique | 0.0014 / 0.0020 / 0.0033 | 0.0021 / 0.0018 / 0.0040 |
+| task unique | 0.0106 / 0.0215 / 0.0331 | 0.0107 / 0.0215 / 0.0333 |
+| lick (cued deviation) unique | 0.0715 / 0.0295 / 0.0189 | 0.0515 / 0.0110 / 0.0070 |
+| contact unique | 0.0017 / 0.0042 / 0.0063 | 0.0008 / 0.0010 / 0.0009 |
+| other (uninstructed) unique | 0.3169 / 0.3996 / 0.4711 | 0.3238 / 0.4292 / 0.5151 |
+| spont (licks_pre + licks_iti) unique | - | 0.0100 / 0.0238 / 0.0348 |
+| licks_pre / licks_iti unique (all) | - | 0.0097 / 0.0013 |
+
+| PS93_0818 (acute) | v7g3_t3d all / cue / lick | v7g3_t3d_spont all / cue / lick |
+| --- | --- | --- |
+| full | 0.4127 / 0.4184 / 0.2625 | 0.4335 / 0.4213 / 0.2577 |
+| target (position) unique | -0.0022 / 0.0058 / -0.0255 | -0.0050 / 0.0044 / -0.0304 |
+| timing (cue) unique | 0.0042 / 0.0032 / 0.0062 | 0.0042 / 0.0008 / 0.0084 |
+| task unique | 0.0011 / -0.0003 / -0.0188 | -0.0009 / -0.0058 / -0.0212 |
+| lick (cued deviation) unique | 0.0959 / 0.0950 / 0.1561 | 0.0441 / 0.0524 / 0.0905 |
+| contact unique | 0.0013 / 0.0002 / 0.0007 | 0.0022 / 0.0011 / 0.0045 |
+| other (uninstructed) unique | 0.1014 / 0.1440 / 0.2012 | 0.1216 / 0.1632 / 0.2361 |
+| spont (licks_pre + licks_iti) unique | - | 0.0138 / 0.0045 / 0.0050 |
+| licks_pre / licks_iti unique (all) | - | 0.0132 / 0.0018 |
+
+- Kernel counts (every lick in one kernel):
+
+  | session | post-cue | pre-cue | ITI | whole-window DAQ contacts | lick timing LP / DAQ |
+  | --- | --- | --- | --- | --- | --- |
+  | PS93_0814 | 6,032 | 3,508 | 879 | 6,936 | 507 / 2 |
+  | PS93_0818 | 3,814 | 3,192 | 937 | 5,381 | 472 / 6 |
+
+  Penalties are unchanged (task 1e5, lick 1e4, orofacial 1e3, uninstructed 100).
+- Readout:
+  - Full R2 rises 0.010 (pre) / 0.021 (acute) in all frames.
+  - The spontaneous licks' unique R2 is ~0.01 (all frames), almost all pre-cue.
+  - Position (target) unique barely moves, in all frames and the cue window: 0.0071 -> 0.0068 pre, -0.0022 -> -0.0050
+    acute. So little pre-cue lick variance had been credited to the target in these two sessions.
+  - What the spontaneous kernels take is mostly from the cued lick group's deviation part (lick unique 0.072 -> 0.052
+    pre, 0.096 -> 0.044 acute): pre-cue / ITI licks had been absorbed by the post-cue lick_onset / tongue terms.
+  - "other" grows because it now contains them.
+  - The lick-window rows are not like-for-like (the spont design moves 2 / 6 trials to the DAQ contact).
+- Runtime (template + stats + fit + predict 2), same box while the O2 bundle built:
+  - spont 14 m 13 s (split behaviour cache cold);
+  - v7g3_t3d new code 13 m 13 s; base code 12 m 57 s.
+- Peak RAM, root + workers summed:
+  - working set 7.2 GB, private 8.6 GB (spont); 9.3 / 10.9 GB (v7g3_t3d, new code);
+  - minimum free on the box 10.0 / 6.3 GB.
+- **v7g3_t3d reproduces exactly.** The same run on the base code (c149decf, detached scratch worktree) vs this branch
+  with FROZEN_LICKS_ALL=none: 46 / 46 files, 214 items compared (every npz array, json, fit npz, pre_stats / templates
+  pickles, csv), 0 differ.
+
+**Tests.**
+- New tests/test_frozen_spont_licks.py, 12 tests:
+  - v7g3_t3d unchanged;
+  - groups / penalties = the encoder's;
+  - raw blocks route every lick like the encoder;
+  - the v7g3_t3d raw blocks are byte-identical;
+  - an inherited COMBINED_ENCODING_LICKS_ALL is refused;
+  - no_spont / novar / no_other columns;
+  - design_tag / check_tag, and main refuses a mismatched tag;
+  - te + split refused;
+  - first-lick timing in both designs;
+  - profile default + arm;
+  - pre-statistics design guard.
+- Related files (frozen, encoder trials, licks_all, relabel, allsession, profile, cue70, LP-DAQ timing): 165 passed.
+- Full suite, 4 shards run one at a time on 910c408b (>= 33 GB free before each): 4,933 passed, 173 skipped, 1 failed.
+  - Shards: 1,959 + 4 skipped; 1,223 + 168; 890 + 1; 861 + 1 failed.
+  - The failure: test_rebuild_root's writer classifier read frozen_relabel's new `run_mode` check as "routed". Fixed
+    by moving the check into `frozen_encoder.stats_design_ok` (next commit).
+  - test_rebuild_root + test_frozen_relabel + test_frozen_spont_licks then: 34 passed.

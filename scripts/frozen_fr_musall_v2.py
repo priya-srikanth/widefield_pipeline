@@ -18,6 +18,7 @@ Usage: python scripts/frozen_fr_musall_v2.py
 Output: <E>/frozen_fr_compare/musall_sessions_v2.csv, musall_change_v2.csv, musall_v2_basis_check.csv
 """
 from __future__ import annotations
+from wfield_local.frozen_encoder import design_tag as _design_tag  # frame tag of the FROZEN_LICKS_ALL design (8.51)
 
 import sys
 from pathlib import Path
@@ -29,7 +30,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from fr_musall import E  # noqa: E402
 from frozen_fr_compare import boot, session_r2  # noqa: E402
 
-RUNS = {"noFR": "frozen_encoder_gate-attempted_v7g3_t3d", "FR-A": "frozen_encoder_gate-attempted_v7g3_t3d_frA"}
+RUNS = {"noFR": _design_tag("frozen_encoder_gate-attempted_v7g3_t3d"), "FR-A": _design_tag("frozen_encoder_gate-attempted_v7g3_t3d_frA")}
 Q = [("target", "no_target"), ("spout", "no_spout"), ("task", "no_task"), ("movement", "no_movement"),
      ("fr", "no_fr_all"), ("fr_dir", "no_fr_dir")]
 BILAT = ["SSp-m", "SSp-n", "MOp", "MOs", "SSs", "RSPd"]

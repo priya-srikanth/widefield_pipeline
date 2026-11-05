@@ -14,6 +14,7 @@ Usage: python scripts/spout_unique_maps.py [--tag gate-attempted_v7g3_t3d_basis]
 Output: <E>/frozen_encoder_<tag>/figures/spout_unique_maps.png, spout_unique_sig.csv
 """
 from __future__ import annotations
+from wfield_local.frozen_encoder import design_tag as _design_tag  # frame tag of the FROZEN_LICKS_ALL design (8.51)
 
 import argparse
 import json
@@ -41,7 +42,7 @@ def main(argv=None) -> int:
 
     from wfield_local import combined_encoding as ce
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--tag", default="gate-attempted_v7g3_t3d_basis")
+    ap.add_argument("--tag", default=_design_tag("gate-attempted_v7g3_t3d_basis"))
     ap.add_argument("--base", default="joint")
     a = ap.parse_args(argv)
     run = E / f"frozen_encoder_{a.tag}"

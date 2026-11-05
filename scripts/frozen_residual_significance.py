@@ -26,6 +26,7 @@ Usage: python scripts/frozen_residual_significance.py --tag gate-attempted_v7g3_
 Output: <E>/frozen_encoder_<tag>/figures/residual_significance_<variant>_<spout>_<align>.png + residual_significance.csv
 """
 from __future__ import annotations
+from wfield_local.frozen_encoder import design_tag as _design_tag  # frame tag of the FROZEN_LICKS_ALL design (8.51)
 
 import argparse
 import json
@@ -101,7 +102,7 @@ def main(argv=None) -> int:
     from wfield_local import beta_maps as bm
     from wfield_local.writeguard import assert_writable
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--tag", default="gate-attempted_v7g3_t3d_basis")
+    ap.add_argument("--tag", default=_design_tag("gate-attempted_v7g3_t3d_basis"))
     ap.add_argument("--variant", default="joint")
     ap.add_argument("--spout", default="far_contra", help="a spout, or 'all' = mean over the session's spouts")
     ap.add_argument("--aligns", nargs="+", default=["lick", "cue"])

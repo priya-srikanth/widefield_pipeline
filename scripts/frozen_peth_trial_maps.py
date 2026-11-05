@@ -13,6 +13,7 @@ Usage: python scripts/frozen_peth_trial_maps.py [--tag gate-attempted_v7g3_t3d_f
 Output: <E>/frozen_encoder_<tag>/figures/peth_trial_maps_<window>.png, peth_trial_area.csv
 """
 from __future__ import annotations
+from wfield_local.frozen_encoder import design_tag as _design_tag  # frame tag of the FROZEN_LICKS_ALL design (8.51)
 
 import argparse
 import json
@@ -57,7 +58,7 @@ def main(argv=None) -> int:
     import frozen_fr_compare as ffc
     from frozen_area_maps import area_image, outline, paint
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--tag", default="gate-attempted_v7g3_t3d_frA")
+    ap.add_argument("--tag", default=_design_tag("gate-attempted_v7g3_t3d_frA"))
     ap.add_argument("--alone", action="store_true",
                     help="Musall et al. 2019 layout: each group ALONE (single-group model R2) instead of unique R2")
     a = ap.parse_args(argv)

@@ -34,6 +34,12 @@ env:
   # (CENTRE_MIXSHIFT_2026-11-04); the rest-centred frame was tested and rejected (REST_CENTRE_2026-11-04).
   WIDEFIELD_SPOUT_SCORE_CENTRE: wt
   WIDEFIELD_PROJECTION_CENTRE: wt
+  # Priya 11-04 (REBUILD_CODE 8.51): the FROZEN encoder carries the combined encoder's spontaneous lick kernels
+  # (licks = cued, instructed; licks_pre / licks_iti = uninstructed, frozen group "other"; penalty "lick"; every lick in
+  # one kernel) = design v7g3_t3d_spont: frame tags carry a "spont" segment (frozen_encoder.design_tag / check_tag), so
+  # the frames land in frozen_encoder_gate-attempted_v7g3_t3d_spont[...]. Not a run-tag part (frozen frames only).
+  # Robustness row: arm frozenNoSpont (v7g3_t3d, post-cue lick kernels only, its own frame tag without "spont").
+  FROZEN_LICKS_ALL: split
 
 # THE REBUILD ROOT (coordinator 11-03, fourth review): EVERY derived output of this render -- cohort_out / grant_figures,
 # figures_working, analysis_figures, LP_analysis/<run>/imaging_encoding (encoder, ITI, attempt, qc), the frozen store
@@ -119,6 +125,15 @@ arms:
     blocks: ["section D / G frozen decoder", "5b / 5c epoch decoders", "attempt coding", "coding directions / axes",
              "pattern / template families"]
     expected_run_tag: hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_sc-ctrCto+pctrCto
+
+  # FROZEN encoder ROBUSTNESS row (Priya 11-04): v7g3_t3d = post-cue lick kernels only (no licks_pre / licks_iti). Its
+  # outputs are kept apart by the FRAME tag (frozen_encoder_gate-attempted_v7g3_t3d[...], no "spont" segment;
+  # frozen_encoder.check_tag refuses a mismatch), not by the run tag, which stays the primary's.
+  frozenNoSpont:
+    env:
+      FROZEN_LICKS_ALL: none
+    blocks: ["frozen encoder frames and their readers: robustness row without spontaneous lick kernels"]
+    expected_run_tag: hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70
 
 # the primary encoder / ITI slow-drift cutoff (Priya 11-03): combined_encoding.DRIFT_MIN_PERIOD_S = 600 s (env unset)
 notes:

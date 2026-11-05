@@ -12,6 +12,7 @@ Usage: python scripts/contest_lines.py
 Output: <E>/contest_lines/
 """
 from __future__ import annotations
+from wfield_local.frozen_encoder import design_tag as _design_tag  # frame tag of the FROZEN_LICKS_ALL design (8.51)
 
 import sys
 from pathlib import Path
@@ -75,9 +76,9 @@ def main() -> int:
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     OUT.mkdir(parents=True, exist_ok=True)
-    T = pd.concat([unique_table("gate-attempted_v7g3_t3d_frA_lsland", {"target | landing split": "target",
+    T = pd.concat([unique_table(_design_tag("gate-attempted_v7g3_t3d_frA_lsland"), {"target | landing split": "target",
                                                                       "lick kernels by LANDING": "lickspout"}),
-                   unique_table("gate-attempted_v7g3_t3d_frA_ls", {"target | target split": "target",
+                   unique_table(_design_tag("gate-attempted_v7g3_t3d_frA_ls"), {"target | target split": "target",
                                                                   "lick kernels by TARGET": "lickspout"})])
     figure(plt, T, [("target | landing split", "target (lick kernels split by landing)", "#b2182b"),
                     ("lick kernels by LANDING", "lick kernels split by 3-D landing", "#2166ac"),
@@ -87,14 +88,14 @@ def main() -> int:
            "LANDED (dark) or by the trial's TARGET spout (light).\nUnique R2 (joint minus the model without the group), change "
            "from pre within animal; line = mean of animals, band = 95% nested CI.", "unique R2, change from pre",
            OUT / "contest_landing_vs_target.png")
-    T = unique_table("gate-attempted_v7g3_t3d_frA_frlag", {"cortex leads": "frcortexlead", "face leads": "frfacelead"})
+    T = unique_table(_design_tag("gate-attempted_v7g3_t3d_frA_frlag"), {"cortex leads": "frcortexlead", "face leads": "frfacelead"})
     figure(plt, T, [("cortex leads", "cortex leads face (future-face FaceRhythm columns)", "#7b3294"),
                     ("face leads", "face leads cortex (past-face FaceRhythm columns)", "#008837")],
            "NEURAL: lagged FaceRhythm in the FROZEN model -- unique R2 of the lead (+0.1..0.3 s) vs lag (-0.1..-0.3 s) face "
            "columns, change from pre.\nPre-stroke 'face leads' dominates (calcium lag), so only the CHANGE is read.",
            "unique R2, change from pre", OUT / "contest_fr_lags.png")
-    T = pd.concat([remap_table("gate-attempted_v7g3_t3d_frA", {"target | no lick kernels": "target"}),
-                   remap_table("gate-attempted_v7g3_t3d_frA_ls", {"target | with lick kernels": "target",
+    T = pd.concat([remap_table(_design_tag("gate-attempted_v7g3_t3d_frA"), {"target | no lick kernels": "target"}),
+                   remap_table(_design_tag("gate-attempted_v7g3_t3d_frA_ls"), {"target | with lick kernels": "target",
                                                                   "lick kernels": "lickspout",
                                                                   "spout group (target + executed + lick kernels)": "spout"})])
     figure(plt, T, [("target | no lick kernels", "target, design without per-spout lick kernels", "#f4a582"),

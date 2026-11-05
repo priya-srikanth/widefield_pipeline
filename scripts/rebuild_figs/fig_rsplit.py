@@ -10,6 +10,7 @@ INPUT: <encoding>/allsession_encoder_<tag>/random_splits_<animal>.csv (`scripts/
     PYTHONPATH=<wf_rebuild> python scripts/rebuild_figs/fig_rsplit.py [--allsession-tag v7g3_t3d_ref] [--out DIR] [--plot-only]
 """
 from __future__ import annotations
+from wfield_local.frozen_encoder import design_tag as _design_tag  # frame tag of the FROZEN_LICKS_ALL design (8.51)
 
 import sys
 from pathlib import Path
@@ -85,7 +86,7 @@ def draw(fd: dict, out: Path) -> pd.DataFrame:
 
 def main(argv=None) -> int:
     ap = _common.parser(__doc__)
-    ap.add_argument("--allsession-tag", default="v7g3_t3d_ref", help="allsession_encoder_<tag> folder of this run")
+    ap.add_argument("--allsession-tag", default=_design_tag("v7g3_t3d_ref"), help="allsession_encoder_<tag> folder of this run")
     a = ap.parse_args(argv)
     a.out.mkdir(parents=True, exist_ok=True)
     fd = _common.load_figdata(a.out, NAME) if a.plot_only else compute(allsession_dir(a.allsession_tag))

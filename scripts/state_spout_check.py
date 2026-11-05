@@ -16,6 +16,7 @@ Usage: python scripts/state_spout_check.py
 Output: <E>/qc/state_spout_check.csv (+ printed tables)
 """
 from __future__ import annotations
+from wfield_local.frozen_encoder import design_tag as _design_tag  # frame tag of the FROZEN_LICKS_ALL design (8.51)
 
 import sys
 from pathlib import Path
@@ -84,7 +85,7 @@ def eta2(df: pd.DataFrame, col: str, pos: str = "pos") -> tuple[float, float]:
 def main() -> int:
     from wfield_local import analysis_kit as ak
     from wfield_local import epochs
-    labels = sorted(p.stem for p in (E / "frozen_encoder_gate-attempted_v7g3_t3d" / "joint" / "sessions").glob("*.json")
+    labels = sorted(p.stem for p in (E / _design_tag("frozen_encoder_gate-attempted_v7g3_t3d") / "joint" / "sessions").glob("*.json")
                     if p.stem[-4:] >= "0801" and epochs.epoch_of(p.stem) == "pre")
     res, fail = ak.fan_sessions(labels, trial_state, jobs=4, label="state")
     for it, err in fail:

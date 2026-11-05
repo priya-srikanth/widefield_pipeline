@@ -19,6 +19,7 @@ INPUTS (this run): <encoding>/movement_first_subset-nokin_exec-polar_licks-combi
     PYTHONPATH=<wf_rebuild> python scripts/rebuild_figs/fig_pooled.py [--out DIR] [--plot-only]
 """
 from __future__ import annotations
+from wfield_local.frozen_encoder import design_tag as _design_tag  # frame tag of the FROZEN_LICKS_ALL design (8.51)
 
 import sys
 from pathlib import Path
@@ -49,15 +50,15 @@ def compute() -> dict:
     from wfield_local import frozen_encoder as fe
     from wfield_local import run_mode
     E = run_mode.encoding_out_root()
-    L2 = allsession_dir("v7g3_t3d_ref")
+    L2 = allsession_dir(_design_tag("v7g3_t3d_ref"))
     return {
         "bins": {f: pd.read_csv(E / f"{BINS}{f}" / "tables" / "region_measures.csv") for f in ("", "_bw0.5", "_bw2")},
         "attempt_summary": {w: pd.read_csv(Path(ac.out_dir()) / f"summary_{w}.csv") for w in ("lick", "cue")},
-        "decompose": pd.read_csv(E / "qc" / "lp_encoder_decompose_frozen_encoder_gate-attempted_v7g3_t3d_joint_lick"
-                                 "_by_animal.csv"),
+        "decompose": pd.read_csv(E / "qc" / _design_tag("lp_encoder_decompose_frozen_encoder_gate-attempted_v7g3_t3d"
+                                                         "_joint_lick_by_animal.csv")),
         "layer2": pd.read_csv(L2 / "allsession_changes_by_session.csv", keep_default_na=False, na_values=[""]),
         "random_splits": {a: pd.read_csv(L2 / f"random_splits_{a}.csv") for a in AN},
-        "residual_trend": pd.read_csv(fe.out_root() / "frozen_encoder_gate-attempted_v7g3_t3d"
+        "residual_trend": pd.read_csv(fe.out_root() / _design_tag("frozen_encoder_gate-attempted_v7g3_t3d")
                                       / "residual_trend_sessions.csv"),
         "src": {"encoding": str(E), "allsession": str(L2)},
     }

@@ -33,7 +33,10 @@ QS = [("full", None, "full R2"), ("target", "no_target", "position unique (targe
       ("movement", "no_movement", "movement unique (all)"), ("fr", "no_fr_all", "FaceRhythm unique"),
       ("fr_dir", "no_fr_dir", "FaceRhythm direction unique"),
       ("posinfo", "no_posinfo", "movement WITH lick-position info (pose + FR)"),
-      ("noposinfo", "no_noposinfo", "movement WITHOUT lick-position info")]
+      ("noposinfo", "no_noposinfo", "movement WITHOUT lick-position info"),
+      # v7g3_t3d_spont (8.51): "other" = the uninstructed group incl. the spontaneous (pre-cue / ITI) licks
+      ("other", "no_other", "uninstructed unique (nose, running, push + spontaneous licks)"),
+      ("spont", "no_spont", "spontaneous (pre-cue + ITI) licks unique")]
 EPS = ["acute", "subacute", "chronic"]
 
 

@@ -21,6 +21,7 @@ Usage: python scripts/frozen_claims.py [--out DIR] [--pix-root DIR]
 Output: <E>/frozen_fr_compare/claims_*.csv, figures/frozen_claims_{contest,peth,trend}.png
 """
 from __future__ import annotations
+from wfield_local.frozen_encoder import design_tag as _design_tag  # frame tag of the FROZEN_LICKS_ALL design (8.51)
 
 import argparse
 import sys
@@ -32,7 +33,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from fr_musall import AN, E  # noqa: E402
 from frozen_fr_compare import WINDOWS, bars, boot, session_r2  # noqa: E402
 
-RUNS = {"noFR": "frozen_encoder_gate-attempted_v7g3_t3d", "FR-A": "frozen_encoder_gate-attempted_v7g3_t3d_frA"}
+RUNS = {"noFR": _design_tag("frozen_encoder_gate-attempted_v7g3_t3d"), "FR-A": _design_tag("frozen_encoder_gate-attempted_v7g3_t3d_frA")}
 KEY = ["label", "animal", "epoch", "window", "area"]
 #: split rows (encoder_split_rows) right after their parent's pair, as fr_direction: MOp -> tjM1, MOp_rest; MOs -> ALM, MOs_rest
 SPLIT = ["tjM1_right", "tjM1_left", "MOp_rest_right", "MOp_rest_left", "ALM_right", "ALM_left", "MOs_rest_right",
