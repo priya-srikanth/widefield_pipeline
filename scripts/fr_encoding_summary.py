@@ -20,11 +20,12 @@ import argparse
 import numpy as np
 import pandas as pd
 
+from wfield_local import fr_groups as _fg  # the collected FR run folder per mode
 from wfield_local import run_mode as _rmode  # the run's (tagged) encoding tree (coordinator 11-04)
 
 E = _rmode.encoding_out_root()          # the FR encoder runs live here (combined_encoding routing)
 MAIN = E / "movement_first_exec-polar_licks-combined" / "sessions"
-FR = {m: E / f"movement_first_fr-master_pre_v1_subset-fr_exec-polar_licks-combined_frg-{m}" / "sessions" for m in "ABSD"}
+FR = {m: _fg.run_folder(E, m) / "sessions" for m in "ABSD"}
 AN = ["PS92", "PS93", "PS94", "PS95"]
 EP = ["pre", "acute", "subacute", "chronic"]
 MK = {"PS92": "o", "PS93": "s", "PS94": "^", "PS95": "D"}

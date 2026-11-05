@@ -99,3 +99,26 @@ def group(sig: dict, grouping: str, mode: str, set_name: str | None = None) -> d
         elif G.get(part):                                # undefined / empty part (no centre in master_v1) left out
             out[f"fr_{part}"] = (t, np.sum([np.asarray(sig[idx[k]][1], float) for k in G[part]], axis=0))
     return out
+
+
+def run_folder(root, mode: str, set_name: str = "master_pre_v1", suffix: str = "_exec-polar_licks-combined",
+               tr: bool = False):
+    """The collected per-session encoder run WITH FaceRhythm for grouping MODE (O2 fr_A / B / S / D) under `root`.
+
+    `combined_encoding.out_dir` names it `movement_first_fr-<set>_frg-<mode>_subset-fr<suffix>` (the rebuild collect,
+    11-04); the 10-25 hand re-collection of the old bundle put the mode LAST (`..._subset-fr<suffix>_frg-<mode>`), and its
+    trial-to-trial models were a separate fr_A_tr run (`..._frg-A_subset-fr<suffix>_tr`). The current code writes the
+    trial-to-trial outputs into the fr_A run itself, so `tr=True` takes the fr_A folder when its sessions carry them.
+    Returns the first candidate that exists (the code's name when none does)."""
+    from pathlib import Path
+    root = Path(root)
+    new = root / f"movement_first_fr-{set_name}_frg-{mode}_subset-fr{suffix}"
+    legacy = root / (f"movement_first_fr-{set_name}_frg-{mode}_subset-fr{suffix}_tr" if tr
+                     else f"movement_first_fr-{set_name}_subset-fr{suffix}_frg-{mode}")
+    if tr and new.exists():
+        import json
+        js = sorted((new / "sessions").glob("PS*_*.json"))
+        if js and json.loads(js[0].read_text()).get("tr_models"):
+            return new
+        return legacy if legacy.exists() else new
+    return next((d for d in (new, legacy) if d.exists()), new)

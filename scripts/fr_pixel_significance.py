@@ -60,6 +60,7 @@ def main(argv=None) -> int:
     ap.add_argument("--mode", default="A")
     ap.add_argument("--windows", nargs="+", default=["lick", "cue"])
     ap.add_argument("--n-null", type=int, default=50)
+    ap.add_argument("--jobs", type=int, default=8, help="worker processes (shared box: keep <= 3)")
     ap.add_argument("--zscore", action="store_true",
                     help="PER-ANIMAL z: every map of an animal divided by its pre-session SD map (floored at its median "
                          "pixel SD) before the test (Priya 10-25); output pixel_significance_z/")
@@ -67,7 +68,7 @@ def main(argv=None) -> int:
     out = E / "fr_encoding_summary" / ("pixel_significance_z" if a.zscore else "pixel_significance")
     (out / "figures").mkdir(parents=True, exist_ok=True)
     meta = table(a.mode, a.windows)[["label", "animal", "epoch"]].drop_duplicates().sort_values("label")
-    got = Parallel(n_jobs=8)(delayed(_load)((lab, a.mode, a.windows)) for lab in meta.label)
+    got = Parallel(n_jobs=a.jobs)(delayed(_load)((lab, a.mode, a.windows)) for lab in meta.label)
     maps = dict(got)
     mask = block_mask()
     print(f"{len(maps)} sessions loaded; stat mask {mask.sum()} block px", flush=True)

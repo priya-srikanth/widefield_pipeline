@@ -24,9 +24,9 @@ import numpy as np
 import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from fr_musall import AN, E  # noqa: E402
+from fr_musall import AN, E, _fg  # noqa: E402
 
-D = E / "movement_first_fr-master_pre_v1_frg-A_subset-fr_exec-polar_licks-combined_tr" / "sessions"
+D = _fg.run_folder(E, "A", tr=True) / "sessions"   # fr_A carries the tr outputs (rebuild code)
 WIN = {"cue": ("", 0.0, 1.5), "lick": ("_lick", -0.1, 1.0)}
 G = ["task", "instructed", "uninstructed", "position"]
 Q = ["full_fr", "alone_fr", "unique_fr"] + [f"uniquefr_{g}" for g in G]

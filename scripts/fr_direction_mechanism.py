@@ -25,6 +25,7 @@ Output: <E>/fr_encoding_summary/direction_mechanism/ (sessions.csv, bootstrap.cs
 from __future__ import annotations
 
 import argparse
+import os
 import pickle
 import sys
 from pathlib import Path
@@ -135,6 +136,9 @@ def main(argv=None) -> int:
     from wfield_local import analysis_kit as ak
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--jobs", type=int, default=6)
+    ap.add_argument("--bundle", type=Path, default=None,
+                    help="O2 bundle inputs/ folder (default: enc_v36_full_20261024/inputs; REQUIRED under a rebuild root, "
+                         "whose encoder runs come from its own bundle)")
     ap.add_argument("--plot-only", action="store_true", help="redraw the summary figure from sessions.csv / bootstrap.csv")
     a = ap.parse_args(argv)
     out = E / "fr_encoding_summary" / "direction_mechanism"
@@ -142,7 +146,12 @@ def main(argv=None) -> int:
     if a.plot_only:
         summary_figure(pd.read_csv(out / "sessions.csv"), pd.read_csv(out / "bootstrap.csv"), out)
         return 0
-    got = Parallel(n_jobs=a.jobs)(delayed(session)(pk) for pk in sorted(BUNDLE.glob("PS*_*.pkl")))
+    if a.bundle is None and os.environ.get("WIDEFIELD_REBUILD_ROOT", "").strip():
+        raise SystemExit("under a rebuild root pass --bundle <this run's O2 bundle>/inputs (the default is the adopted "
+                         "enc_v36_full_20261024 bundle)")
+    bundle = a.bundle or BUNDLE
+    print(f"inputs: {bundle}", flush=True)
+    got = Parallel(n_jobs=a.jobs)(delayed(session)(pk) for pk in sorted(bundle.glob("PS*_*.pkl")))
     S = pd.DataFrame([g for g in got if g is not None])
     S.to_csv(out / "sessions.csv", index=False)
     print(f"{len(S)} sessions", flush=True)

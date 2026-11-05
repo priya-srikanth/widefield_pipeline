@@ -28,10 +28,10 @@ import numpy as np
 import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from fr_musall import AN, E  # noqa: E402
+from fr_musall import AN, E, _fg  # noqa: E402
 
 MODES = "ABSD"
-FRD = {m: E / f"movement_first_fr-master_pre_v1_subset-fr_exec-polar_licks-combined_frg-{m}" / "sessions" for m in MODES}
+FRD = {m: _fg.run_folder(E, m) / "sessions" for m in MODES}
 ALLEN = ["cortex", "SSp-m_right", "SSp-m_left", "MOp_right", "MOp_left", "MOs_right", "MOs_left", "SSp-n_right", "SSp-n_left"]
 #: split rows (encoder_split_rows) placed right after their parent's pair: MOp -> tjM1, MOp_rest; MOs -> ALM, MOs_rest
 SPLIT = ["tjM1_right", "tjM1_left", "MOp_rest_right", "MOp_rest_left", "ALM_right", "ALM_left", "MOs_rest_right",
@@ -52,7 +52,7 @@ def split_r2(lab: str, windows, Wb: np.ndarray) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
-def area_rows(windows) -> pd.DataFrame:
+def area_rows(windows, jobs: int = 6) -> pd.DataFrame:
     import encoder_split_rows as esr
     from joblib import Parallel, delayed
 
@@ -60,7 +60,7 @@ def area_rows(windows) -> pd.DataFrame:
     labs = [f.stem.replace("_regions", "") for f in sorted(FRD["A"].glob("*_regions.csv"))]
     labs = [x for x in labs if x[-4:] >= "0801" and all((FRD[m] / f"{x}_regions.csv").exists() for m in MODES)]
     Wb = esr.block_weights(np.load(FRD["A"] / f"{labs[0]}.npz")["flat"], SPLIT)      # one grid for every session
-    spl = dict(zip(labs, Parallel(n_jobs=6)(delayed(split_r2)(x, windows, Wb) for x in labs)))
+    spl = dict(zip(labs, Parallel(n_jobs=jobs)(delayed(split_r2)(x, windows, Wb) for x in labs)))
     rows = []
     for lab in labs:
         f = FRD["A"] / f"{lab}_regions.csv"
@@ -124,10 +124,11 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--windows", nargs="+", default=["cue", "lick"])       # cue before lick (Priya 10-25)
     ap.add_argument("--plot-only", action="store_true", help="redraw the area figures from areas.csv / bootstrap.csv")
+    ap.add_argument("--jobs", type=int, default=6, help="worker processes (shared box: keep <= 3)")
     a = ap.parse_args(argv)
     out = E / "fr_encoding_summary" / "direction"
     (out / "figures").mkdir(parents=True, exist_ok=True)
-    T = pd.read_csv(out / "areas.csv") if a.plot_only else area_rows(a.windows)
+    T = pd.read_csv(out / "areas.csv") if a.plot_only else area_rows(a.windows, a.jobs)
     if not a.plot_only:
         T.to_csv(out / "areas.csv", index=False)
     Q = ["gain_B", "gain_side", "gain_dist", "gain_both", "pos_B", "pos_side", "pos_dist", "pos_both"]
@@ -207,7 +208,7 @@ def main(argv=None) -> int:
 
     # figure 2: pixel maps
     meta = T[["label", "animal", "epoch"]].drop_duplicates().sort_values("label")
-    got = Parallel(n_jobs=6)(delayed(session_maps)(lab_, a.windows) for lab_ in meta.label)
+    got = Parallel(n_jobs=a.jobs)(delayed(session_maps)(lab_, a.windows) for lab_ in meta.label)
     acc = {}
     for (_, m_), g in zip(meta.iterrows(), got):
         for key, v in g.items():
