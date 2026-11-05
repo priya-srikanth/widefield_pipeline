@@ -18,18 +18,41 @@ pass the same offsets to the star x so a star sits over its epoch.
 """
 from __future__ import annotations
 
+import functools
+
 import numpy as np
 
-#: one marker per animal (colour = epoch, shape = animal; Priya 10-27). Same dict as `orofacial_cohort.ANIMAL_MARKER`;
-#: animals not listed (e.g. cohort2) cycle through `_SPARE`.
+#: one marker per animal (colour = epoch, shape = animal; Priya 10-27). The SOURCE is now each animal's `marker:` in
+#: its cohort's animals file (configs/animals.yaml, configs/cohort2/animals.yaml; added 2026-11-04). This dict is the
+#: cohort-1 copy kept for importers and as the fallback; it equals `orofacial_cohort.ANIMAL_MARKER`, and
+#: tests/test_cat_points.py pins it against the yaml so no published cohort-1 figure changes shape.
 ANIMAL_MARKER = {"PS92": "o", "PS93": "s", "PS94": "^", "PS95": "D"}
+#: Fallback for an animal with no `marker:` in any cohort file. A name hash, so it can COLLIDE: before the yaml key
+#: existed PS118 and PS121 both got ">" (sum of ord 317 and 311, both 5 mod 6; code review 2026-11-04). Give every
+#: new animal an explicit marker rather than relying on this.
 _SPARE = ("v", "P", "X", "h", "<", ">")
 SESSION_ALPHA = 0.45
 SESSION_MS = 3.6
 JITTER = 0.045
 
 
+@functools.lru_cache(maxsize=None)
+def configured_markers() -> dict:
+    """{animal: marker} from the `marker:` key of EVERY cohort's animals file, not only the active cohort's, so a
+    cohort-2 animal keeps its shape in a figure rendered while cohort1 is active (and vice versa)."""
+    from wfield_local import config
+    out: dict = {}
+    for spec in (config._load_file("cohorts.yaml").get("cohorts") or {}).values():
+        for animal, meta in (config._load_file(spec["animals_file"]).get("animals") or {}).items():
+            if (meta or {}).get("marker"):
+                out[str(animal)] = str(meta["marker"])
+    return out
+
+
 def animal_marker(animal: str) -> str:
+    m = configured_markers().get(str(animal))
+    if m:
+        return m
     if animal in ANIMAL_MARKER:
         return ANIMAL_MARKER[animal]
     return _SPARE[sum(map(ord, str(animal))) % len(_SPARE)]          # stable across runs (no hash seed)

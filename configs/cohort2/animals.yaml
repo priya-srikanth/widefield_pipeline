@@ -22,6 +22,7 @@
 animals:
   PS118:
     color: "tab:purple"
+    marker: ">"     # session-dot SHAPE (cat_points.animal_marker). Unique within the cohort and distinct from cohort1's.
     sex: M
     date_of_birth: 2026-08-03
     genotype: "Thy1-GCaMP6s GP4.3"
@@ -35,6 +36,7 @@ animals:
 
   PS120:
     color: "tab:brown"
+    marker: "<"
     sex: M
     date_of_birth: 2026-08-03
     genotype: "Thy1-GCaMP6s GP4.3"
@@ -48,6 +50,7 @@ animals:
 
   PS121:
     color: "tab:pink"
+    marker: "P"     # was ">" under the old name-hash rule -- the SAME shape as PS118 (code review 2026-11-04)
     sex: F
     date_of_birth: 2026-01-29
     genotype: "VGLUT1-IRES-Cre x LSL-RiboL1-jGCaMP8s"
@@ -61,6 +64,7 @@ animals:
 
   PS122:
     color: "tab:olive"
+    marker: "v"
     sex: F
     date_of_birth: 2026-01-29
     genotype: "VGLUT1-IRES-Cre x LSL-RiboL1-jGCaMP8s"
