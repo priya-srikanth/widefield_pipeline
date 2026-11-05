@@ -1839,3 +1839,8 @@ bundle without `daqlk` and writes a provenance json.
     2)"; in this render PS94 chronic lick width 2 has executed slightly above target.
   - Convention fixes for the replacement pass: droppos / shufpos position_each_maps rows not in canonical spout
     order; fig10 draws a top spine.
+- ~14:50: **Merge push REJECTED by pre-push** (full serial suite 2 h 21 m: 1 failed / 5,028 passed / 175 skipped):
+  test_no_imaging_literal_left, because main's new scripts/cohort2_qc/led_490_vs_470_dprime.py (138048a3) passed the retired
+  imaging lick profile. Fixed 411c8385 (takes the config.lick_detector default; that figure changes only on its next
+  re-run). Section C commits 24d604cc / 19d3cf71 merged in (6abf515c). Targeted tests 144 passed. Re-push running
+  (~2 h 20 m hook); a8 is still holding main pushes and has been told.
