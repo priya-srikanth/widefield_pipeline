@@ -1811,3 +1811,9 @@ bundle without `daqlk` and writes a provenance json.
   - DECISION for Priya: non-profile `nightly_figs` now uses June + August pre (main's PRE_FROM=0801 default dropped; the
     profile sets it per block). Proposed: restore the 0801 default only when no render profile is active.
   - Push waits on Priya.
+- ~13:45: Merge branch updated: decision 1 applied (3284cc25: August pre default only without a render profile, test
+  added); origin/main 138048a3 merged (1ba23601; preprocess_deck conflict kept both sides; 2 guard-test lists updated),
+  then a8's docs commits to a99a612a (clean). Targeted tests pass. Still UNPUSHED, waiting on Priya.
+- a8 relayed Priya's 11-05 answers (DECISIONS_PENDING_MERGE (f) 1-9). Mine to apply at the replacement pass: A14
+  per-class encoder figure on the MAIN encoding page; slide 95 numbers (tell a8 if they change); 3.67 PNG vs TFCE
+  caption. Decision 9 (ITI stats -> ak) = a8, post-merge.
