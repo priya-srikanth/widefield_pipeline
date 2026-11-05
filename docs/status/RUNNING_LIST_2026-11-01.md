@@ -1790,3 +1790,11 @@ bundle without `daqlk` and writes a provenance json.
   collected copy (scratchpad/collect_verify/verify2_result.json); RECOPY_DELETED.txt marker in each TAG folder.
 - Section C (O2-dependent encoder figures) handed to a helper on wf_rebuild 31ec5c1a (report ->
   docs/status/rebuild_20261103/SECTION_C_RENDER_20261105.md); droppos panels wait on the 96G resubmit.
+- ~11:05: **Contact-only frozen test on the NO-SPONT frame** (v7g3_t3d, done 09:42; same method as the spont table:
+  cortex, cue -3..+3 s, contact trials, session mean per animal; scratchpad/frozen_peek/per_session_class_nospont.csv).
+  Animal mean pre / acute / subacute / chronic: no-spont .492 / .413 / .433 / .347 vs spont .507 / .415 / .440 / .340.
+  Per animal within ~.01 except PS95 (pre .348 vs .387; chronic .133 vs .086). Same reading and caveats as the spont table
+  (PS92 = trend, PS95 late chronic partly kernel over-prediction, mix-only control, no CIs). Sent to a8, who asked for
+  this test (it had found no scheduled step).
+- Merge helper started (Priya OK 11-05 ~10:55): worktree wf_merge_main, branch merge/rebuild-into-main-20261105 from
+  origin/main + rebuild 31ec5c1a; full suite sharded; unpushed; report MERGE_REBUILD_INTO_MAIN_20261105.md.
