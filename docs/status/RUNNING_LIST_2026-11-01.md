@@ -1749,3 +1749,13 @@ bundle without `daqlk` and writes a provenance json.
     count, movement) are not controlled.
   - Next: same table on the robustness frame (no spont kernels, lane 4 running) for PS95; lick-count / ITI-lick per
     session vs R2; pre-only time trend per animal (PS92) as a covariate.
+- ~08:00: **O2 bundle b main + main_nolicksall COLLECTED** into the `_daqlk` encoding folder (collect accepted the bundle
+  without `daqlk`, provenance json written): `movement_first_exec-polar_licks-combined/sessions` and
+  `..._nolicksall/sessions`, 428 files / 107 sessions each, no JSON repairs.
+  - Verified all 856 files by name, size and sha256 against the bundle copies (scratchpad/collect_verify/verify_result.json).
+  - **DELETED (Priya approved 11-05) the bundle copies** `o2/enc_rebuild_20261104b/out/main/sessions` (428 files,
+    46.0 GB) and `out/main_nolicksall/sessions` (428 files, 27.3 GB); `run.json` kept + `COLLECTED_AND_DELETED.txt` marker.
+  - `collect --move` (8.55, 31ec5c1a) for every later TAG: no second copy. Priya OK'd moving our derived outputs within
+    her M: folder (memory move-own-derived-on-m).
+  - O2 resubmit status (Priya, ~07:00): 216 tasks started, 0 errors; later arrays pending on fair-share (0.09, 400 jobs
+    waiting in short), not a fault.
