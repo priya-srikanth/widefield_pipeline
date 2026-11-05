@@ -58,6 +58,14 @@ def engaged_by_cue(session, cue_samples, codes, response_window_s=None):
     n = len(np.asarray(cue_samples))
     if n == 0:
         return np.zeros(0, bool), "no cues"
+    from wfield_local import trial_classes as _tc
+    if _tc.camera_gate_on():
+        # CAMERA TRIAL GATE (rebuild 11-03): the session's camera WORKING PERIOD (`trial_classes.camera_engaged_period`,
+        # PROVISIONAL: every cue up to the last camera-working trial). Does NOT fail open: an error propagates.
+        from wfield_local.plot_spout_trial_averages import _load_daq_events
+        sr = float(_load_daq_events(session["h5"])["sample_rate_hz"])
+        eng = _tc.camera_engaged_period(session["label"], np.asarray(cue_samples, float) / sr)
+        return eng, f"{int((~eng).sum())}/{n} trials after the last camera-working trial ({_tc.run_selection()})"
     try:
         responded = _responded_per_cue(session, cue_samples, response_window_s)
     except Exception as ex:                                              # noqa: BLE001
@@ -65,6 +73,10 @@ def engaged_by_cue(session, cue_samples, codes, response_window_s=None):
     if responded is None or len(responded) != n:
         return np.ones(n, bool), "gate unavailable (no lick/response data) -- UNGATED"
     order = np.arange(n)
+    from wfield_local import gate_source as _gs  # [gate-source hook] WIDEFIELD_GATE_SOURCE (see that module)
+    if _gs.is_lp():  # [gate-source hook] DAQ contact | LP attempt within the session's response window
+        _w = response_window_s or _response_window_s(session)  # [gate-source hook]
+        responded = _gs.gate_responded(session["label"], order, responded, _w, cue_samples)  # [gate-source hook]
     pos = np.array([POSITION_NAMES.get(int(c), str(c)) for c in np.asarray(codes)[:n]])
     not_eng = engagement_gate(order, np.asarray(responded, bool), pos)
     eng = ~np.asarray(not_eng, bool)
@@ -113,6 +125,11 @@ def engaged_frame_mask(session, n_frames):
 
     n_frames = int(n_frames)
     keep = np.ones(n_frames, bool)
+    # CAMERA TRIAL GATE (rebuild 11-03): the boundary comes from `engaged_by_cue`'s camera branch (the cue after the
+    # session's last camera-working trial, PROVISIONAL), with the same frame mapping. Under camera this does NOT fail
+    # open: an error or a missing frame map propagates instead of returning an ungated session.
+    from wfield_local import trial_classes as _tc
+    camera = _tc.camera_gate_on()
     try:
         with h5py.File(session["h5"], "r") as f:
             dn = [x.decode() for x in f["digital/channel_names"][:]]
@@ -122,6 +139,10 @@ def engaged_frame_mask(session, n_frames):
         cs = np.asarray(cue["cue_samples"], np.int64)
         codes = np.asarray(classify_cues_with_backup(session, cue, verbose=False))
         eng, note = engaged_by_cue(session, cs, codes)
+        if camera and not eng.any():
+            # second pass 11-03: no camera working period at all (e.g. PS93_0813, no video) -> NO engaged frame, not
+            # the pre-first-cue frames the DAQ rule would keep
+            return np.zeros(n_frames, bool), "no camera working period -- no engaged frames"
         if "UNGATED" in note or bool(eng.all()):
             return keep, note if "UNGATED" in note else "no quit period"
         first_quit_sample = int(cs[int(np.flatnonzero(~eng)[0])])
@@ -132,6 +153,8 @@ def engaged_frame_mask(session, n_frames):
             summ = sorted(glob.glob(f"{session.get('fmdir') or session['mc']}"
                                     f"/*cleanpairs_summary.json"))
             if not fm or not summ:
+                if camera:
+                    raise RuntimeError(f"{session.get('label')}: no frame map (camera trial gate does not fail open)")
                 return keep, "no frame map -- UNGATED"
             with open(summ[0]) as fh:
                 off = int(json.load(fh)["chosen_exposure_offset"])
@@ -140,6 +163,8 @@ def engaged_frame_mask(session, n_frames):
         else:
             fs_samp = pco[np.arange(len(pco) // 2) * 2]
     except Exception as ex:                                              # noqa: BLE001
+        if camera:
+            raise
         return keep, f"gate unavailable ({type(ex).__name__} {str(ex)[:40]}) -- UNGATED"
 
     m = min(len(fs_samp), n_frames)

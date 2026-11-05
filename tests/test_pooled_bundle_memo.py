@@ -33,8 +33,8 @@ def test_the_key_separates_animal_and_alignment():
     """One key per (animal, align). Collapsing either would serve one animal's trials for another --
     the late-binding-closure bug this module already documents, in a different disguise."""
     src = inspect.getsource(g._pooled_bundle)
-    # 48f2cc6d (working excludes jaw-only) added the working-trial selection to the key; still one key per (animal, align)
-    assert "key = (an, align, _wt.selection())" in src, "the cache key is not (animal, alignment, working selection)"
+    # + the gate mode and selection (merge review N8, 11-03): a bundle of one gate never serves the other
+    assert "key = (an, align, _tck.gate_mode(), _tck.run_selection_tag())" in src, "the cache key is not (animal, alignment, gate)"
 
 
 def test_no_path_returns_without_storing():

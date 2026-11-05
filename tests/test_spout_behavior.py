@@ -379,7 +379,8 @@ def test_lick_microstructure_metrics(tmp_path):
                        [dict(tid=1, pos_idx=1, hit=True), dict(tid=2, pos_idx=1, hit=True)], ev)
     m = sb.lick_microstructure(d, sb.load_trials(d), config.defaults()["behavior"])
     per = m["per_position"].set_index("pos_name")
-    assert per.loc["close_L", "licks_per_trial"] == pytest.approx(3.0)   # (4 + 2) / 2 trials
+    # LICKS PER TRIAL = cue + 70 ms -> trial stop (Priya 11-03): the lick AT the cue is not counted -> (3 + 1) / 2
+    assert per.loc["close_L", "licks_per_trial"] == pytest.approx(2.0)
     assert per.loc["close_L", "anticipatory_licks"] == pytest.approx(1.0)  # (2 + 0) / 2
     assert per.loc["close_L", "lick_rate_hz"] == pytest.approx(10.0)     # median ILI 0.1 s
     assert m["session"]["n_licks"] == 6
@@ -427,8 +428,9 @@ def test_lick_microstructure_per_position_gated_to_engaged(tmp_path):
     # engaged and the gated mean lands between the ungated one and the clean 4.0. Asserting 4.0
     # would be asserting the old gate's semantics with the new gate's name on it.
     kept = n_good + tail - m["n_disengaged"]
-    assert u.loc["close_L", "licks_per_trial"] == pytest.approx(4 * n_good / (n_good + tail))
-    assert g.loc["close_L", "licks_per_trial"] == pytest.approx(4 * n_good / kept)
+    # 3 of each engaged trial's 4 licks count: the one AT the cue is before cue + 70 ms (Priya 11-03 window)
+    assert u.loc["close_L", "licks_per_trial"] == pytest.approx(3 * n_good / (n_good + tail))
+    assert g.loc["close_L", "licks_per_trial"] == pytest.approx(3 * n_good / kept)
     assert (g.loc["close_L", "licks_per_trial"]
             > u.loc["close_L", "licks_per_trial"])          # gating moves it the right way
     assert g.loc["close_L", "trials_engaged"] == kept

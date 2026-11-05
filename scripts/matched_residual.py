@@ -16,6 +16,7 @@ Usage: python scripts/matched_residual.py [--tag gate-attempted_v7g3_t3d_frA]
 Output: <E>/matched_residual/<tag>/{trials.csv, boot.csv, figures/matched_residual.png}
 """
 from __future__ import annotations
+from wfield_local.frozen_encoder import design_tag as _design_tag  # frame tag of the FROZEN_LICKS_ALL design (8.51)
 
 import argparse
 import json
@@ -27,6 +28,7 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from fr_musall import E  # noqa: E402
+from wfield_local import lp_licks as _lp_licks  # noqa: E402  (coordinator 11-04: the run's attempts table)
 
 KIN = Path("C:/Users/SabatiniLab/wfield_cache/pose3d_inputs/pose3d_kin_licks_snapshot_20261023.csv.gz")
 FEATS = ["side_ml", "out_ap", "down_dv", "reach_mm", "speed_peak", "t_peak_3d", "n_licks"]
@@ -61,7 +63,7 @@ def trial_behaviour() -> pd.DataFrame:
     K = pd.read_csv(KIN)
     K = K[K.lick_idx == 0].copy()
     K["label"] = K.animal + "_" + K.date.astype(str).str[-4:]
-    A = pd.read_csv(E / "qc" / "trial_attempts.csv", usecols=["label", "trial_id", "n_licks", "attempted"])
+    A = pd.read_csv(_lp_licks.attempts_path(), usecols=["label", "trial_id", "n_licks", "attempted"])
     return K[["label", "trial_id", *FEATS[:-1]]].merge(A, on=["label", "trial_id"], how="inner")
 
 
@@ -97,7 +99,7 @@ def main(argv=None) -> int:
 
     import frozen_fr_compare as ffc
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--tag", default="gate-attempted_v7g3_t3d_frA")
+    ap.add_argument("--tag", default=_design_tag("gate-attempted_v7g3_t3d_frA"))
     a = ap.parse_args(argv)
     run = E / f"frozen_encoder_{a.tag}"
     out = E / "matched_residual" / a.tag

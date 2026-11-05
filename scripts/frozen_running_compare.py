@@ -21,8 +21,10 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+from wfield_local import run_mode as _rmode
 
-E = Path(r"M:\MICROSCOPE\Priya\Widefield\LP_analysis\lp_r4_heatmap_20261013__clean_v36\imaging_encoding")
+#: the run's (tagged) encoding tree (coordinator 11-04): this script's qc table is written there
+E = _rmode.encoding_out_root()
 EPOCHS = ["pre", "acute", "subacute", "chronic"]
 #: running mode + first knot per tag (knot0 is applied at run time from FROZEN_RUN_KNOT0, not stored in templates)
 RUN = {"v6": ("linear", None), "v6spl": ("spline", None), "v6thr3": ("spline_thr", 3.0), "v6thr1": ("spline_thr", 1.0),
@@ -33,7 +35,8 @@ SPEEDS = np.array([-3.0, 0.5, 1.0, 1.5, 2.0, 3.0, 5.0, 8.0, 12.0])
 
 
 def folder(tag: str) -> Path:
-    return E / f"frozen_encoder_gate-attempted_{tag}"
+    import wfield_local.frozen_encoder as fe
+    return fe.out_root() / f"frozen_encoder_gate-attempted_{tag}"     # the encoder's (tagged) run root
 
 
 def session_r2(tag: str, variant: str) -> pd.DataFrame:
@@ -96,6 +99,7 @@ def decomposition(tag: str) -> pd.DataFrame:
 
 
 def main() -> None:
+    # coordinator 11-04: routed (outputs under the run tag), no longer refused in a tagged run
     ap = argparse.ArgumentParser()
     ap.add_argument("--tags", nargs="+", default=list(RUN))
     a = ap.parse_args()
@@ -144,6 +148,7 @@ def main() -> None:
         print(D.sort_values(["region", "animal", "tag"]).round(2).to_string(index=False))
 
     L = pd.concat(out, ignore_index=True)
+    (E / "qc").mkdir(parents=True, exist_ok=True)
     dst = E / "qc" / f"frozen_running_compare_{tags[0]}_to_{tags[-1]}.csv"
     L.to_csv(dst, index=False, float_format="%.5g")
     if len(C):

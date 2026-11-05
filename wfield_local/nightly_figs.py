@@ -76,10 +76,6 @@ RUN_START: float = time.time()
 EPOCH_DRIFT: list[str] = []
 
 
-#: The imaging pre-stroke baseline start for cohort 1 (Priya 11-03: August-only, `config.pre_from` semantics).
-IMAGING_PRE_FROM = "0801"
-
-
 def cli(*a):
     log("CLI " + " ".join(a))
     if subprocess.call([PY, "-u", "-m", *a], cwd=str(REPO)):
@@ -255,9 +251,11 @@ def _write_run_record(deck_out, date, tag):
 
 def _per_day_cmds(date, out, from_dates):
     """The two CLI groups one date needs: the per-alignment decoders, then its encoder."""
-    dp = config.defaults()["decode"]   # aligns + per-align windows (configs/defaults.yaml decode.*_post_s)
+    # aligns + per-align windows: decode.*_post_s, the pre-cue one from the lick source (`lp_licks.post_s_for`, 11-04)
+    from wfield_local import lp_licks
+    dp = config.defaults()["decode"]
     dec = [("wfield_local.locanmf_position_decoder", "--date", date, "--align", al,
-            "--post-s", str(dp[f"{al}_post_s"]), "--per-session", "--output", str(out))
+            "--post-s", str(lp_licks.post_s_for(al)), "--per-session", "--output", str(out))
            for al in dp["aligns"]]
     enc = ("wfield_local.locanmf_position_encoder", "--date", date,
            "--pool-dates", from_dates, "--output", str(out))
@@ -453,6 +451,10 @@ def _publish_json(out, rv, log=print) -> dict:
 
 
 def main():
+    from wfield_local import config as _cfg_m2
+    if _cfg_m2.locanmf_projection_on():   # review M2 (11-03): never refit into the adopted per-session folder
+        raise SystemExit("WIDEFIELD_LOCANMF_PROJECT=1: per-session LocaNMF is SERVED by projection; nightly_figs would fit "
+                         "the selected variant's SVTcorr into the adopted locanmf_* folder. Unset it to run nightly_figs.")
     # A subprocess inherits this, so every `cli(...)` step below is covered too. See
     # wfield_local/console.py: a cp1252 stdout turns a printed U+2212 into a lost figure.
     use_utf8_stdout()
@@ -509,14 +511,10 @@ def main():
     # COHORT: SESSIONS was loaded at import, so the cohort must be chosen BEFORE this process starts --
     # `nightly` exports WIDEFIELD_COHORT; a hand run on cohort2 needs `$env:WIDEFIELD_COHORT="cohort2"` first.
     log(f"cohort: {config.cohort()} ({', '.join(config.animals())})")
-    # AUGUST-ONLY PRE-STROKE BASELINE FOR THE WHOLE IMAGING RENDER (Priya 11-03; DECISIONS 2026-11-03): cohort 1's
-    # imaging pre bands and frozen training sets use the August pre sessions only, as imaging section 1, orofacial and
-    # the encoding rebuild do. `config.pre_from` semantics; epoch boundaries stay on the full pre set
-    # (`epoch_audit.full_cohort` suspends it). An explicit WIDEFIELD_PRE_FROM (or "" to disable) wins.
-    if config.cohort() == "cohort1":
-        os.environ.setdefault("WIDEFIELD_PRE_FROM", IMAGING_PRE_FROM)
-    log(f"pre-stroke baseline: from {config.pre_from() or 'all pre (June + August)'}")
-    out = args.output or _default_out()
+    from wfield_local import run_mode
+    # review N4 (11-03): a tagged nightly writes (and passes --output) <fw>/<tag>, the folder the readers use; the
+    # default run is unchanged
+    out = str(run_mode.routed_output(args.output or _default_out()))
     Path(out).mkdir(parents=True, exist_ok=True)
     log(f"figure working dir: {out}")
     registered = sorted({s["label"][-4:] for s in SESSIONS})
@@ -1033,6 +1031,8 @@ def main():
     # Bound OUTSIDE the try: the run record below needs it even when the deck step dies early,
     # and that is exactly the run whose failure list is worth having on disk.
     deck_out = Path(config.resolver().root("cohort_out")) / "spout_position_analysis_summary.pptx"
+    # T5 (third review): a TAGGED nightly builds its deck in its own tag folder, never over the default deck
+    deck_out = run_mode.routed_output(deck_out.parent, guard=False) / deck_out.name
     try:
         from wfield_local.locanmf_analysis_deck import (
             DeckFromFailedRun,

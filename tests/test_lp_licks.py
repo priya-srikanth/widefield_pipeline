@@ -82,17 +82,25 @@ def test_frozen_spec_unchanged_under_lp_and_miss_refuses(monkeypatch):
     from wfield_local import frozen_models as fm
     monkeypatch.setattr(fm, "_session_sig", lambda lab: "x")
     monkeypatch.delenv(lp_licks.LICK_SOURCE_ENV, raising=False)
-    daq = fm.make_spec("PS92", "position", align="lick", source="locanmf", train_labels=["PS92_0806"])
+    daq = fm.make_spec("PS92", "position", align="lick", source="locanmf", train_labels=["PS92_0806"], train_data=None)
     monkeypatch.setenv(lp_licks.LICK_SOURCE_ENV, "lp")
-    lp = fm.make_spec("PS92", "position", align="lick", source="locanmf", train_labels=["PS92_0806"])
-    assert fm.spec_id(lp) == fm.spec_id(daq)                         # LP reuses the DAQ-frozen model
+    # 11-03 (Priya): the LP arm's DEFAULT is the LP-TRAINED model; DAQ-trained is the opt-in cross-check (=daq)
+    monkeypatch.setenv(fm.LP_FROZEN_ENV, "daq")
+    lp = fm.make_spec("PS92", "position", align="lick", source="locanmf", train_labels=["PS92_0806"], train_data=None)
+    # the cross-check reuses the DAQ-frozen model: since FREEZE_VERSION 2 it is found by base_id (everything but the
+    # training-data fingerprint / selection, which the LP run cannot rebuild; `find_daq_trained`)
+    assert lp["train_fp"] == fm.DAQ_RUN_FP and fm.base_id(lp) == fm.base_id(daq)
     monkeypatch.setattr(fm, "find", lambda spec: (None, None))
     monkeypatch.setattr(fm, "warn_if_store_moved", lambda log: None)
-    with pytest.raises(RuntimeError, match="reuses DAQ-frozen"):
+    with pytest.raises(RuntimeError, match="loads DAQ-frozen"):
         fm.load_or_fit(lp, lambda: pytest.fail("must not fit"), log=lambda m: None)
-    monkeypatch.setenv(fm.LP_FROZEN_ENV, "lp")
-    sens = fm.make_spec("PS92", "position", align="lick", source="locanmf", train_labels=["PS92_0806"])
-    assert sens["lick_source"] == "lp" and fm.spec_id(sens) != fm.spec_id(daq)
+    for val in (None, "lp"):                                          # unset = default; "lp" = the old opt-in name
+        if val is None:
+            monkeypatch.delenv(fm.LP_FROZEN_ENV)
+        else:
+            monkeypatch.setenv(fm.LP_FROZEN_ENV, val)
+        sens = fm.make_spec("PS92", "position", align="lick", source="locanmf", train_labels=["PS92_0806"], train_data=None)
+        assert sens["lick_source"] == "lp" and fm.spec_id(sens) != fm.spec_id(daq)
 
 
 def test_lp_outputs_route_to_lp_licks_and_guard_refuses_daq_paths(monkeypatch):
@@ -135,11 +143,15 @@ def test_frozen_precue_spec_carries_the_enl_window(monkeypatch):
     monkeypatch.setattr(fm, "_session_sig", lambda lab: "x")
     for k in (lp_licks.LICK_SOURCE_ENV, lp_licks.ENL_WINDOW_ENV):
         monkeypatch.delenv(k, raising=False)
-    two = fm.make_spec("PS92", "position", align="precue", source="locanmf", train_labels=["PS92_0806"], post_s=2.0)
+    two = fm.make_spec("PS92", "position", align="precue", source="locanmf", train_labels=["PS92_0806"], post_s=2.0, train_data=None)
     monkeypatch.setenv(lp_licks.ENL_WINDOW_ENV, "1.0")
-    daq1 = fm.make_spec("PS92", "position", align="precue", source="locanmf", train_labels=["PS92_0806"], post_s=2.0)
+    daq1 = fm.make_spec("PS92", "position", align="precue", source="locanmf", train_labels=["PS92_0806"], post_s=2.0, train_data=None)
     monkeypatch.setenv(lp_licks.LICK_SOURCE_ENV, "lp")
     monkeypatch.delenv(lp_licks.ENL_WINDOW_ENV)
-    lp1 = fm.make_spec("PS92", "position", align="precue", source="locanmf", train_labels=["PS92_0806"], post_s=2.0)
-    assert two["post_s"] == 2.0 and daq1["post_s"] == 1.0
-    assert fm.spec_id(lp1) == fm.spec_id(daq1) != fm.spec_id(two)    # LP reuses the DAQ 1.0 s model
+    lp1 = fm.make_spec("PS92", "position", align="precue", source="locanmf", train_labels=["PS92_0806"], post_s=2.0, train_data=None)
+    assert two["post_s"] == 2.0 and daq1["post_s"] == 1.0 and lp1["post_s"] == 1.0
+    # 11-03 (Priya): the LP arm defaults to the LP-TRAINED 1.0 s model; the DAQ 1.0 s model is the =daq cross-check
+    assert lp1["lick_source"] == "lp" and fm.spec_id(lp1) not in (fm.spec_id(daq1), fm.spec_id(two))
+    monkeypatch.setenv(fm.LP_FROZEN_ENV, "daq")
+    lpd = fm.make_spec("PS92", "position", align="precue", source="locanmf", train_labels=["PS92_0806"], post_s=2.0, train_data=None)
+    assert fm.base_id(lpd) == fm.base_id(daq1) != fm.base_id(two)    # the cross-check reuses the DAQ 1.0 s model

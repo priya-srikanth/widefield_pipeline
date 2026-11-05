@@ -159,6 +159,11 @@ def _engaged_trials(session, cue_samples, codes, fs=5000.0):
     from wfield_local import config
 
     n = len(cue_samples)
+    from wfield_local import trial_classes as _tc
+    if _tc.camera_gate_on():
+        # CAMERA TRIAL GATE (rebuild 11-03): the camera working period (`trial_classes.camera_engaged_period`,
+        # PROVISIONAL) -- the same rule as `rest_engagement.engaged_by_cue`. Outside the try: it must not FAIL OPEN.
+        return _tc.camera_engaged_period(session["label"], np.asarray(cue_samples, float) / float(fs))
     try:
         lk = config.defaults()["lick_detection"]
         with h5py.File(session["h5"], "r") as f:
@@ -172,7 +177,7 @@ def _engaged_trials(session, cue_samples, codes, fs=5000.0):
                 lv = np.asarray(f["analog/samples"][:, i], np.float32)
         det = detect_licks(lv, fs, thresh_upper=lk["thresh_upper"], thresh_lower=lk["thresh_lower"],
                            lockout_s=tuple(lk["lockout_falling_edge_s"]),
-                           min_ili_s=lk.get("min_ili_ms", 0) / 1000.0)
+                           min_ili_s=lk.get("min_ili_ms", config.LICK_MIN_ILI_MS_DEFAULT) / 1000.0)
         lo = np.sort(np.asarray(det["lick_onsets"], np.int64))
         # THE SESSION'S REAL RESPONSE WINDOW, read per session from gui_config.json -- 3500 ms in
         # every session to date, and NOT the 2.0 s that was once a fallback.
@@ -180,6 +185,9 @@ def _engaged_trials(session, cue_samples, codes, fs=5000.0):
         w = int(float(rw) * fs)
         cs = np.asarray(cue_samples, np.int64)
         responded = np.array([bool(np.any((lo >= c) & (lo < c + w))) for c in cs], bool)
+        from wfield_local import gate_source as _gs  # [gate-source hook] WIDEFIELD_GATE_SOURCE (see that module)
+        _lab = session["label"]  # [gate-source hook]
+        responded = _gs.gate_responded(_lab, np.arange(n), responded, float(rw), cs, fs)  # [gate-source hook]
         pos = np.array([POSITION_NAMES.get(int(c), str(c)) for c in np.asarray(codes)])
         # POLARITY: `engagement_gate` returns True for NOT-ENGAGED -- `beta_maps._quit_mask` binds
         # it as `ne` and returns it as the QUIT mask. Inverting here gives ENGAGED. Getting this

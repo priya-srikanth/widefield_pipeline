@@ -55,6 +55,7 @@ from wfield_local.grant_kit import (  # noqa: F401
     _excludes_zero,
     _feed,
     _fig_root,
+    _mode_name,
     _fit_bottom,
     _fit_header,
     _footer,
@@ -263,7 +264,7 @@ def fig_encoder_gain_shape(out_dir, min_trials=10):
             if h:
                 fig.legend(h, lb, loc="lower center", ncol=3, fontsize=9.5, frameon=False,
                            bbox_to_anchor=(0.5, 0.012))
-            cls = _class_note(v)
+            cls = _class_note(v, pattern=True)
             # LAY THE PANELS OUT INTO WHAT THE HEADER ACTUALLY LEFT. Calling `tight_layout` FIRST
             # and then `_suptitle` -- which compresses every axes into [0, top] afterwards -- left
             # a tenth of the figure blank between the header and the first panel title, because
@@ -542,7 +543,7 @@ def fig_coding_retained(out_dir, meth="dom_orth"):
     figure -- an impaired position has no lick trials to average, and pretending otherwise is what
     produced the empty panels.
     """
-    src = _fig_root() / "coding_direction.json"
+    src = _fig_root() / _mode_name("coding_direction.json")
     if not src.exists():
         return None
     data = json.loads(src.read_text(encoding="utf-8"))
@@ -623,7 +624,7 @@ FROZEN_WINDOWS = (("ENL", "pre-cue", "ENL (pre-cue)", "all"),
                   ("cue", "post-cue", "post-cue", "all"),
                   ("lick", "post-lick", "post-lick  [lick-only arm]", "lickonly"))
 def fig_frozen_vs_within(out_dir):
-    sg = _fig_root() / "section_g.json"
+    sg = _fig_root() / _mode_name("section_g.json")
     if not sg.exists():
         return None
     G = json.loads(sg.read_text(encoding="utf-8"))

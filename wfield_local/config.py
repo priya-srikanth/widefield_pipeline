@@ -160,11 +160,38 @@ def locanmf_dir_name(variant: str | None = None) -> str:
 
     Override per call with ``variant``, or globally with ``WIDEFIELD_LOCANMF_VARIANT``, which is how
     an analysis can be pointed at a non-default decomposition without editing config.
+
+    THE HEMO SWITCH DRIVES IT (rebuild 2026-11-03, single hemo switch). Without an explicit override the
+    name FOLLOWS `hemo_variant()` -- the same switch as `svtcorr_path` and `combined_encoding.hemo_dir` -- so a
+    non-default hemo variant can never be served the adopted per-session decomposition under its own label (trap
+    T7: per-session C used to stay adopted whatever the variant). For the default variant the name is exactly
+    ``output_dir_name`` (pinned by a test); under another variant it is ``<prefix>_hemo_<variant>``, a directory
+    that exists only once LocaNMF (or the projection path, `locanmf_session`) has produced it -- a missing
+    directory fails loudly instead of silently mixing variants.
     """
     v = variant or os.environ.get("WIDEFIELD_LOCANMF_VARIANT")
     if v:
         return f"locanmf_affine8v1_hemo_{v}"
-    return str(defaults()["locanmf"]["output_dir_name"])
+    name = str(defaults()["locanmf"]["output_dir_name"])
+    if locanmf_projection_on():
+        # PROJECTION PATH (`locanmf_session`): footprints A / regions come from the STORED decomposition (this name);
+        # C is never read from it -- every C load goes through `locanmf_session.load_C`, which projects.
+        return name
+    prefix, sep, built = name.rpartition("_hemo_")
+    want = hemo_variant() or "zerophase"
+    if not sep or built == want:
+        return name
+    return f"{prefix}_hemo_{want}"
+
+
+#: Per-session LocaNMF PROJECTION PATH (rebuild 2026-11-03, item j; default OFF): "1" serves every session's C as the
+#: least-squares projection of the SELECTED hemo variant's SVTcorr onto the session's STORED footprints A
+#: (`locanmf_session`). Needed whichever per-session LocaNMF decision is taken (main path or the bridge comparison).
+LOCANMF_PROJECT_ENV = "WIDEFIELD_LOCANMF_PROJECT"
+
+
+def locanmf_projection_on() -> bool:
+    return os.environ.get(LOCANMF_PROJECT_ENV, "").strip().lower() in ("1", "true", "yes", "on")
 
 
 def locanmf_dir(mc, variant: str | None = None) -> str:
@@ -184,10 +211,62 @@ def hemo_variant(variant: str | None = None) -> str | None:
     zerophase product -- it is what the pipeline wrote. Override per call, or globally with
     ``WIDEFIELD_HEMO_VARIANT``.
     """
-    v = variant if variant is not None else os.environ.get("WIDEFIELD_HEMO_VARIANT")
+    # an EMPTY env var is UNSET (review L3, 11-03): it used to mean zerophase
+    v = variant if variant is not None else (os.environ.get("WIDEFIELD_HEMO_VARIANT", "").strip() or None)
     if v is None:
         v = (defaults().get("hemo") or {}).get("variant")
     return None if v in (None, "", "none", "zerophase") else str(v)
+
+
+#: The hemo variant whose outputs and caches carry NO mode tag: everything produced before the 2026-11-03 rebuild was
+#: built on it. Fixed on purpose -- NOT the current default -- so that flipping ``defaults.yaml hemo.variant`` to a new
+#: variant still tags every new output (``hemo_tag``) and can never overwrite or prune an untagged (adopted) one.
+UNTAGGED_HEMO_VARIANT = "meegkit_hpfit"
+
+
+def default_hemo_variant() -> str | None:
+    """``defaults.yaml hemo.variant`` (None = zerophase), ignoring the env override."""
+    return hemo_variant((defaults().get("hemo") or {}).get("variant") or "none")
+
+
+def hemo_dir_name(variant: str | None = None) -> str | None:
+    """``hemo_<variant>`` -- the directory under ``wfield_local_results`` the selected variant lives in -- or None for
+    the bare zerophase ``SVTcorr.npy``. THE ONE PLACE a script should build that name (never ``hemo_{ADOPTED}`` or a
+    literal ``hemo_meegkit_hpfit``)."""
+    v = hemo_variant(variant)
+    return None if v is None else f"hemo_{v}"
+
+
+def hemo_manifest_path(mc_or_results, variant: str | None = None) -> str:
+    """``.../wfield_local_results/hemo_<variant>/manifest.json`` for an ``mc`` dir or a ``wfield_local_results`` dir.
+    Raises for zerophase (the bare product has no manifest)."""
+    d = hemo_dir_name(variant)
+    if d is None:
+        raise ValueError("the zerophase (bare SVTcorr.npy) product has no hemo manifest")
+    base = str(mc_or_results).rstrip("/\\")
+    if not base.replace("\\", "/").endswith("wfield_local_results"):
+        base = f"{base}/wfield_local_results"
+    return f"{base}/{d}/manifest.json"
+
+
+def maps_dir_tag(variant: str | None = None) -> str:
+    """Suffix of the per-session ACTIVITY-MAP directories (``spout_trial_averages_<t>``, ``lick_aligned_<t>``,
+    ``running_activity_<t>``; `preprocess._maps_commands`): ``defaults.yaml preprocess.maps.tag`` (affine8v1), plus
+    ``_hv-<variant>`` under any hemo variant other than `UNTAGGED_HEMO_VARIANT` (rebuild 2026-11-03, trap T22 / item
+    k): those npz are baked from SVTcorr, so a rebuild under another variant writes BESIDE the adopted maps, never over
+    them. The registration dir ``allen_aligned_<tag>`` and the quiet masks are hemo-independent and keep the bare tag."""
+    base = str(defaults()["preprocess"]["maps"]["tag"])
+    t = hemo_tag(variant)
+    return f"{base}_{t}" if t else base
+
+
+def hemo_tag(variant: str | None = None) -> str:
+    """Mode tag of the selected hemo variant: "" for `UNTAGGED_HEMO_VARIANT`, else ``hv-<variant>`` (``hv-zerophase``
+    for the bare product). Enters output folders (`run_mode`), session-cache kinds and restnl cache names."""
+    v = hemo_variant(variant)
+    if v == UNTAGGED_HEMO_VARIANT:
+        return ""
+    return f"hv-{v or 'zerophase'}"
 
 
 def svtcorr_path(mc, variant: str | None = None) -> str:
@@ -420,6 +499,31 @@ def pre_from() -> str | None:
     return v or None
 
 
+def apply_pre_from(value: str | None) -> str | None:
+    """Set WIDEFIELD_PRE_FROM for THIS process (a render block's ``--pre-from``; rebuild 2026-11-03: the decoders'
+    August-only pre is chosen PER RENDER BLOCK, never as a config default). ``None`` leaves the environment as it is;
+    ``"all"`` / ``""`` clears it (June + August). Returns the effective value. Call before any pool is built (no phase
+    set is cached at import). Outputs of such a run are tagged ``pre<MMDD>`` by `run_mode`."""
+    if value is None:
+        return pre_from()
+    v = str(value).strip()
+    if v.lower() in ("", "all", "none"):
+        os.environ.pop("WIDEFIELD_PRE_FROM", None)
+        return None
+    if not re.fullmatch(r"\d{4}", v):
+        raise ValueError(f"--pre-from must be MMDD (e.g. 0801) or 'all', got {value!r}")
+    os.environ["WIDEFIELD_PRE_FROM"] = v
+    return v
+
+
+def require_full_pre(what: str) -> None:
+    """Raise when WIDEFIELD_PRE_FROM is set: for analyses that NEED the June pre sessions (the June vs August drift
+    decoder, 12.1b lick-free rest), kept as labelled June + August sensitivities (rebuild 2026-11-03)."""
+    if pre_from():
+        raise SystemExit(f"{what} needs the June pre sessions (June + August sensitivity, labelled as such): unset "
+                         "WIDEFIELD_PRE_FROM / drop --pre-from for this block")
+
+
 def session_phase(animal: str, date: str) -> str:
     """'pre' | 'post' | 'excluded' for one animal on one date (MMDD).
 
@@ -511,6 +615,42 @@ def defaults(session: str | None = None) -> dict:
         return base
     ov = (_load("session_overrides.yaml") or {}).get("overrides") or {}
     return _deep_merge(base, ov[session]) if ov.get(session) else base
+
+
+#: Fallback physiological lick floor (ms) when `defaults.yaml lick_detection` has no ``min_ili_ms``. ONE value for every
+#: reader (REBUILD_CODE 8.53, 11-05): `behavior_events` / `restnl_mask` / `rest_by_position` fell back to 0, `daq_trials` /
+#: `dlc_context_frames` / `spout_behavior` to 40; the yaml sets 40, so both ran at 40, but a missing key split them.
+LICK_MIN_ILI_MS_DEFAULT = 40.0
+
+#: The imaging run-tag token of the BEHAVIOUR DAQ lick detector (Priya 11-04/05, REBUILD_CODE 8.53): every tagged run
+#: built after the switch carries it (`run_mode.lickdet_part`), so no output of the old imaging detector (1.0 V offset,
+#: 0.10 s refractory) can be read as the new one.
+LICK_DETECTOR_TAG = "daqlk"
+
+
+def lick_min_ili_s() -> float:
+    """The physiological lick floor, s: `defaults.yaml lick_detection.min_ili_ms` (`LICK_MIN_ILI_MS_DEFAULT` if absent)."""
+    return float(defaults()["lick_detection"].get("min_ili_ms", LICK_MIN_ILI_MS_DEFAULT)) / 1000.0
+
+
+def lick_detector() -> dict:
+    """THE DAQ lick detector (Priya 11-04/05: imaging uses the BEHAVIOUR detector everywhere; REBUILD_CODE 8.53).
+
+    From `defaults.yaml lick_detection`: ``thresh_upper`` (onset, V), ``thresh_lower`` (offset, V), ``lockout_s`` (the
+    falling-edge lockout), ``refractory_s`` = 0.0 (no bout-collapse refractory -- the old imaging 0.10 s dropped real
+    10-11 Hz licks, LICK_DETECTOR_COMPARE_2026-11-04.md on main a69fb9c3) and ``min_ili_s`` (the 40 ms physiological floor;
+    `daq_io.lick_onsets` applies it itself). Same detector as `daq_trials.decode` / `behavior_events` / `dlc_frames`."""
+    ld = defaults()["lick_detection"]
+    return {"thresh_upper": float(ld["thresh_upper"]), "thresh_lower": float(ld["thresh_lower"]),
+            "lockout_s": tuple(float(v) for v in ld["lockout_falling_edge_s"]),
+            "refractory_s": 0.0, "min_ili_s": lick_min_ili_s()}
+
+
+def lick_detector_args() -> tuple:
+    """`lick_detector` as the positional ``(thresh_upper, thresh_lower, lockout_s, refractory_s)`` of
+    `daq_io.lick_onsets` / `plot_lick_aligned_averages._load_daq_events` (which apply ``min_ili_s`` themselves)."""
+    d = lick_detector()
+    return d["thresh_upper"], d["thresh_lower"], d["lockout_s"], d["refractory_s"]
 
 
 def paths() -> dict:

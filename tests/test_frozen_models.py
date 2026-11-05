@@ -15,7 +15,7 @@ from wfield_local import frozen_models as F
 
 def spec(**kw):
     base = dict(animal="PS99", kind="decoder", align="cue", source="locanmf",
-                train_labels=["PS99_0101", "PS99_0102"], basis_id="abc123", n_features=380)
+                train_labels=["PS99_0101", "PS99_0102"], basis_id="abc123", n_features=380, train_data=None)
     base.update(kw)
     return F.make_spec(base.pop("animal"), base.pop("kind"), **base)
 
@@ -180,7 +180,7 @@ def test_a_model_cannot_be_built_from_another_animals_sessions():
     label-asserts-a-property-nothing-verifies this module exists to end. Checked, not assumed."""
     with pytest.raises(ValueError, match="PS98"):
         F.make_spec("PS99", "decoder", align="cue", source="locanmf",
-                    train_labels=["PS99_0101", "PS98_0101"])
+                    train_labels=["PS99_0101", "PS98_0101"], train_data=None)
 
 
 # ---------------------------------------------------------------------------------------------
@@ -246,7 +246,8 @@ def test_scaling_field_only_changes_specs_that_pass_it():
     `scaling` must stay byte-identical (same id), and passing it must give a new id (the old, unscaled state models
     keep their store directory as the record)."""
     from wfield_local import frozen_models as fm
-    kw = dict(align="segments", source="joint_x", train_labels=[], basis_id="x", n_features=3, post_s=1.0)
+    kw = dict(align="segments", source="joint_x", train_labels=[], basis_id="x", n_features=3, post_s=1.0,
+              train_data=None)
     a = fm.make_spec("PS92", "state", **kw)
     b = fm.make_spec("PS92", "state", **kw, scaling=None)
     c = fm.make_spec("PS92", "state", **kw, scaling="session_z")

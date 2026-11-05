@@ -529,13 +529,16 @@ def _maps_commands(session: dict, params: dict, rv: PathResolver,
     mc = rv.resolve("labcams", f"{yyyymmdd}/{sess}/motion_corrected")
     res = f"{mc}/wfield_local_results"
     allen = f"{res}/allen_aligned_{tag}"
-    cue = f"{mc}/spout_trial_averages_{tag}"
-    lick = f"{mc}/lick_aligned_{tag}"
+    # SVTcorr-derived map dirs carry the hemo tag under a non-adopted variant (config.maps_dir_tag; rebuild 11-03):
+    # never overwrite the adopted maps in place. Default: exactly `<name>_<tag>` as before.
+    mtag = config.maps_dir_tag() if tag == str(config.defaults()["preprocess"]["maps"]["tag"]) else tag
+    cue = f"{mc}/spout_trial_averages_{mtag}"
+    lick = f"{mc}/lick_aligned_{mtag}"
     # THE VARIANT DIRECTORY, so a re-run under a changed definition lands beside the old masks
     # rather than over them (see `quiet_periods.quiet_frame_path`).
     from wfield_local.quiet_periods import quiet_dir as _quiet_dir
     quiet = _quiet_dir(mc, tag=tag)
-    running_act = f"{mc}/running_activity_{tag}"
+    running_act = f"{mc}/running_activity_{mtag}"
     events_npz = f"{rv.root('behavior_out')}/events/{animal}/{yyyymmdd}.npz"
 
     matches = sorted(glob.glob(f"{mc}/*cleanpairs_frame_map.npz"))

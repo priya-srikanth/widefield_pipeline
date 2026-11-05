@@ -35,7 +35,8 @@ CAMS = ("cam1", "cam2", "cam3", "cam4")
 
 
 def _out(rv, label=None) -> Path:
-    d = Path(rv.root("cohort_out")) / "null_potent"
+    from wfield_local import lp_licks              # run-mode routing (rebuild 11-03): identity for the default run
+    d = lp_licks.output_dir(Path(rv.root("cohort_out")) / "null_potent")
     if label:
         d = d / label
     d.mkdir(parents=True, exist_ok=True)
@@ -269,7 +270,8 @@ def stage_analyze(label, rv, n_perm=1000, n_rand=5, basis="locanmf", log=print) 
             for k in range(n_rand):
                 Qr, _ = np.linalg.qr(rng.standard_normal((len(idx), dd)))
                 signals[f"random{dd}_{k}"] = NP.reconstruct(Zg, Qr, c)
-        for win, align, post in [("ENL", "precue", dp["precue_post_s"]), ("postcue", "cue", dp["cue_post_s"])]:
+        from wfield_local import lp_licks      # THE ENL window of the lick source (Priya 11-04)
+        for win, align, post in [("ENL", "precue", lp_licks.enl_post_s()), ("postcue", "cue", dp["cue_post_s"])]:
             args = argparse.Namespace(align=align, baseline="none", fs=31.23, pre_s=1.0, post_s=post,
                                       max_rt=dp["max_rt_s"], source="locanmf", bins=None, cv="block")
             for nm, sig in signals.items():

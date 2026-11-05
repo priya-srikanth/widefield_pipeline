@@ -26,8 +26,10 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from softmax_neural_vs_lick import SP, lick_weights, path_weights  # noqa: E402
+from wfield_local.orofacial_outputs import encoding_root as _encoding_root  # noqa: E402 - rebuild root (11-03)
+from wfield_local.attempt_coding import trials_name as attempt_trials_name  # noqa: E402
 
-E = Path("M:/MICROSCOPE/Priya/Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding")
+E = _encoding_root()
 AN = ["PS92", "PS93", "PS94", "PS95"]
 EP = ["pre", "acute", "subacute", "chronic"]
 FAR = ["far_contra", "far_mid", "far_ipsi"]
@@ -65,11 +67,15 @@ def coupling(g: pd.DataFrame, x: str, y: str, rng, n_perm=1000):
 
 
 def main() -> int:
+    # coordinator 11-04: routed (outputs under the run tag), no longer refused in a tagged run
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
-    D = E / "attempt_coding_pp"
-    T = pd.concat([pd.read_csv(D / f"trials_lick_{an}.csv.gz") for an in AN])
+    from wfield_local import run_mode
+    # attempt_coding --out attempt_coding_pp is routed as an LP family; read and write there (coordinator 11-04)
+    D = run_mode.routed_output(E / "attempt_coding_pp", guard=False, lp_family=True)
+    (D / "figures").mkdir(parents=True, exist_ok=True)
+    T = pd.concat([pd.read_csv(D / attempt_trials_name("lick", an)) for an in AN])
     T = T[(T.method == "dom") & (T.spout == "far_contra") & T.cls.isin(["pre_hit", "hit", "incomplete"])]
     T = T[T.label.str[-4:] >= "0801"]          # AUGUST-ONLY pre baseline (primary, Priya 10-18); June was in landing only
     T["neural_d"] = T.pp_far_mid - T.pp_far_contra

@@ -21,6 +21,8 @@ from wfield_local import orofacial_clean as oc
 from wfield_local import spout_frame as SF
 from wfield_local import tongue_jaw_mismatch as tm
 from wfield_local import tongue_kinematics as tk
+from wfield_local.trial_classes import (CONTACT_FROM_CUE_S, EXCLUDED_CONTEXT, POSTCUE_START_MS,  # noqa: F401
+                                        PRECUE_END_AFTER_CUE_MS)
 
 SEP = 2200
 
@@ -33,7 +35,7 @@ def daq_contacts_ms(animal: str, date: str, bounds: pd.DataFrame, rv=None) -> di
     rv = rv or PathResolver()
     sid = sorted((Path(rv.root("behavior_out")) / "sessions" / animal / date).glob("*_trials.csv"))[-1].name[:-11]
     licks = dlc_frames.lick_onsets(animal, date, sid, rv)
-    return {t: (licks[(licks >= c + 0.07) & (licks <= s)] - c) * 1000.0
+    return {t: (licks[(licks >= c + CONTACT_FROM_CUE_S) & (licks <= s)] - c) * 1000.0
             for t, c, s in zip(bounds.trial_id, bounds.cue_s, bounds.stop_s)}
 
 
@@ -66,8 +68,14 @@ def run(pose_csv: Path, idx: pd.DataFrame, frame: SF.SpoutFrame | None, stop_aft
 #: clipped to the segment end by `trial_windows.end_at_stop`.
 _EPOCH_KEYS = ("trial_slice_win_ms", "lick12_detect_win_ms", "peak_velocity_detect_win_ms", "lick_count_detect_win_ms",
                "lick_count_apply_win_ms", "licking_dyn_apply_win_ms", "angle_apply_win_ms")
-#: The post-cue pass detects from cue + 70 ms (stroke_orofacial parity) to the DAQ trial stop; the pre-cue pass ends here.
-PRECUE_END_AFTER_CUE_MS = 70.0
+#: The post-cue pass detects from cue + 70 ms (stroke_orofacial parity; = trial_classes.CONTACT_FROM_CUE_S) to the DAQ
+#: trial stop, on the lick PEAK. Licks whose PEAK falls in cue .. cue + 70 ms are NEITHER pre-cue NOR post-cue (Priya
+#: 11-04, docs/status/CUE70_CHECK_2026-11-04.md): they go to their own table (`EXCLUDED_CONTEXT`). Judged by the PEAK,
+#: never the onset: camera onsets at 60-70 ms are real cue responses (tongue onset leads contact by ~20-40 ms), and an
+#: onset rule would cut ~1000 of them. The pre-cue table ends at the cue (PRECUE_END_AFTER_CUE_MS); the out-of-response
+#: pass that feeds it still DETECTS up to cue + 70 ms (POSTCUE_START_MS) so the detection, and every lick's features,
+#: stay what they were -- only the split moves. The constants (PRECUE_END_AFTER_CUE_MS = 0, POSTCUE_START_MS = 70,
+#: EXCLUDED_CONTEXT) live in `trial_classes`, imported above: one definition.
 #: Per-lick reach fields that assume the spout sits at the trial's position -- blanked outside strobe .. trial stop,
 #: where the spout is moving or retracted.
 _REACH_COLS = ("spout_angle_deg", "spout_dist_px", "delta_angle_deg", "tip_to_spout_px", "reach_frac")
@@ -79,8 +87,10 @@ def epoch_licks(clean: dict, idx: pd.DataFrame, frame: SF.SpoutFrame | None, df:
     """Licks in ONE segment per trial window, [start_ms, end_ms) from that trial's cue (arrays per ``trial_k``, NaN =
     skip) -- the SAME v7 detector + per-lick features as the post-cue pass, on the same cleaned trace, each segment
     re-anchored at its start and cut at its end (OURS, 2026-10-16). The post-cue pass keeps its stroke_orofacial
-    windows (cue + 70 ms .. DAQ trial stop); these passes cover the rest of each window (`precue_licks`,
-    `iti_licks`), so every lick peak lands in exactly one table.
+    windows (cue + 70 ms .. DAQ trial stop); these passes cover the rest of each window (`precue_and_excluded_licks`,
+    `iti_licks`), so every lick peak lands in exactly one table: post-cue (``licks.csv``), pre-cue
+    (``licks_precue.csv``, peak < cue), EXCLUDED (``licks_excluded_0_70.csv``, cue <= peak < cue + 70 ms; Priya 11-04:
+    neither pre- nor post-cue) or ITI (``licks_iti.csv``).
 
     ``lick_s`` (all DAQ lick-contact onsets, s) + ``cue_s`` ({trial_id: cue DAQ s}) -> per-lick ``contact``. Returns
     per-lick rows like licks.csv with ``t_ms`` from the CUE and ``t_from_anchor_ms`` from the segment start."""
@@ -118,16 +128,39 @@ def epoch_licks(clean: dict, idx: pd.DataFrame, frame: SF.SpoutFrame | None, df:
     return L[(L.t_ms >= a_of) & (L.t_ms < e_of)].reset_index(drop=True)
 
 
-def precue_licks(clean: dict, idx: pd.DataFrame, frame: SF.SpoutFrame | None, df: pd.DataFrame,
-                 lick_s: np.ndarray | None = None, cue_s: dict | None = None) -> pd.DataFrame:
-    """SPONTANEOUS licks with the spout in place before the cue: position strobe (the spout HAS arrived -- Priya,
-    2026-10-16) .. cue + 70 ms, where the post-cue pass starts (Priya: "detect spontaneous licks, at the very least
-    after spout arrival but before cue"). Strobe -> cue is median ~7 s, up to ~80 s (a lick resets the no-lick timer).
-    ``t_from_strobe_ms`` = time from spout arrival."""
+def split_precue_by_peak(L: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """(pre-cue, excluded) rows of a strobe .. cue + 70 ms lick table, split on the lick PEAK (``t_ms``, from the cue):
+    peak < `PRECUE_END_AFTER_CUE_MS` (the cue) = pre-cue; `PRECUE_END_AFTER_CUE_MS` <= peak < `POSTCUE_START_MS` =
+    excluded (Priya 11-04: neither pre- nor post-cue). Also reads a v36 ``licks_precue.csv`` written before 11-04, which
+    still holds the 0-70 ms peaks: every reader of that table applies this split, so old and re-rendered tables give the
+    same numbers. Peaks at or past cue + 70 ms (never in a pre-cue table) fall in neither part."""
+    if not len(L) or "t_ms" not in L:
+        return L, L.iloc[0:0]
+    t = pd.to_numeric(L.t_ms, errors="coerce").to_numpy(float)
+    pre = t < PRECUE_END_AFTER_CUE_MS
+    exc = (t >= PRECUE_END_AFTER_CUE_MS) & (t < POSTCUE_START_MS)
+    return L[pre].reset_index(drop=True), L[exc].reset_index(drop=True)
+
+
+def precue_and_excluded_licks(clean: dict, idx: pd.DataFrame, frame: SF.SpoutFrame | None, df: pd.DataFrame,
+                              lick_s: np.ndarray | None = None,
+                              cue_s: dict | None = None) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """(pre-cue, excluded) licks. ONE detection pass over position strobe (the spout HAS arrived -- Priya, 2026-10-16)
+    .. cue + 70 ms, where the post-cue pass starts (Priya: "detect spontaneous licks, at the very least after spout
+    arrival but before cue"), split on the lick PEAK (`split_precue_by_peak`): peak < cue = SPONTANEOUS pre-cue licks;
+    cue <= peak < cue + 70 ms = EXCLUDED (Priya 11-04: neither pre- nor post-cue; ``context`` = `EXCLUDED_CONTEXT`).
+    Strobe -> cue is median ~7 s, up to ~80 s (a lick resets the no-lick timer). ``t_from_strobe_ms`` = time from spout
+    arrival."""
     g = idx.groupby("trial_k", sort=True)
     L = epoch_licks(clean, idx, frame, df, g.strobe_ms.first().to_numpy(float),
-                    np.full(g.ngroups, PRECUE_END_AFTER_CUE_MS), lick_s, cue_s)
-    return L.rename(columns={"t_from_anchor_ms": "t_from_strobe_ms"})
+                    np.full(g.ngroups, POSTCUE_START_MS), lick_s, cue_s)
+    return split_precue_by_peak(L.rename(columns={"t_from_anchor_ms": "t_from_strobe_ms"}))
+
+
+def precue_licks(clean: dict, idx: pd.DataFrame, frame: SF.SpoutFrame | None, df: pd.DataFrame,
+                 lick_s: np.ndarray | None = None, cue_s: dict | None = None) -> pd.DataFrame:
+    """SPONTANEOUS pre-cue licks only: position strobe .. the CUE, by peak (`precue_and_excluded_licks`)."""
+    return precue_and_excluded_licks(clean, idx, frame, df, lick_s, cue_s)[0]
 
 
 def iti_licks(clean: dict, idx: pd.DataFrame, frame: SF.SpoutFrame | None, df: pd.DataFrame,

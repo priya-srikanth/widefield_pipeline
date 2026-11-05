@@ -14,6 +14,7 @@ Usage: python scripts/relabel_confusion.py [--tag v7g3_t3d] [--window lick]
 Output: <E>/frozen_relabel_<tag>/relabel_confusion_<window>.csv + figures/relabel_confusion_*.png
 """
 from __future__ import annotations
+from wfield_local.frozen_encoder import design_tag as _design_tag  # frame tag of the FROZEN_LICKS_ALL design (8.51)
 
 import argparse
 import sys
@@ -23,9 +24,10 @@ import numpy as np
 import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+from wfield_local.orofacial_outputs import encoding_root as _encoding_root  # noqa: E402 - rebuild root (11-03)
 from softmax_neural_vs_lick import boot_change  # noqa: E402  (same nested bootstrap as the decoder / lick matrices)
 
-E = Path("M:/MICROSCOPE/Priya/Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding")
+E = _encoding_root()
 SP = ["close_ipsi", "close_mid", "close_contra", "far_ipsi", "far_mid", "far_contra"]
 LAB = ["cI", "cM", "cC", "fI", "fM", "fC"]
 AN = ["PS92", "PS93", "PS94", "PS95"]
@@ -79,15 +81,17 @@ def session_mats(R: pd.DataFrame, prefix: str) -> dict:
 
 
 def main(argv=None) -> int:
+    # coordinator 11-04: routed (outputs under the run tag), no longer refused in a tagged run
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--tag", default="v7g3_t3d")
+    ap.add_argument("--tag", default=_design_tag("v7g3_t3d"))
     ap.add_argument("--window", default="lick", choices=("all", "cue", "lick"))
     ap.add_argument("--trial", action="store_true", help="per-TRIAL best label (needs a trial_sse run, e.g. --tag v7g3_t3d_trial)")
     a = ap.parse_args(argv)
-    D = E / f"frozen_relabel_{a.tag}"
+    from wfield_local import frozen_encoder as fe
+    D = fe.out_root() / f"frozen_relabel_{a.tag}"        # the (tagged) encoder relabel run, coordinator 11-04
     fd = D / "figures"
     fd.mkdir(exist_ok=True)
     unit = "trials" if a.trial else "sessions"

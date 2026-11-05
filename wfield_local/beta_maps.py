@@ -328,6 +328,8 @@ def _quit_mask(session, idx_e, idx_n, y, yn):
     pos = np.array([POSITION_NAMES.get(int(c), str(c)) for c in
                     np.concatenate([np.asarray(y), np.asarray(yn)])])
     o = np.argsort(order, kind="stable")
+    from wfield_local import gate_source  # [gate-source hook] WIDEFIELD_GATE_SOURCE (see that module)
+    responded[o] = gate_source.gate_responded(session["label"], order[o], responded[o])  # [gate-source hook]
     ne = engagement_gate(order[o], responded[o], pos[o])
     by_idx = {int(k): bool(b) for k, b in zip(order[o], ne)}
     return np.array([by_idx.get(int(k), False) for k in idx_n], bool)
@@ -355,7 +357,17 @@ def session_maps(session, align, *, post_s=2.0, balance=False, seed=0, variant="
         feat_region=np.arange(v.shape[0]), signal_key=f"svt:rank{v.shape[0]}",
         with_indices=True)
     X, y, g = np.asarray(X), np.asarray(y), np.asarray(g)
-    if variant == "working" and len(yn):
+    from wfield_local import trial_classes as _tc
+    if variant == "working" and _tc.camera_gate_on():
+        # CAMERA RULE (rebuild 11-03, trial_classes): working = camera classes contact | incomplete on
+        # BOTH arms; the session-cache kind carries the selection tag (run_mode), so this never meets a DAQ entry
+        ke, kn = _tc.camera_rows(session["label"], idx_e, idx_n, "working")
+        X, y, g = X[ke], y[ke], g[ke]
+        if len(yn) and kn.any():
+            X = np.vstack([X, np.asarray(Xn)[kn]])
+            y = np.concatenate([y, np.asarray(yn)[kn]])
+            g = np.concatenate([g, _runs_to_blocks(np.asarray(yn)[kn]) + (int(g.max()) + 1 if len(g) else 0)])
+    elif variant == "working" and len(yn):
         # THE `working` CLASS IS ENGAGED + MISS-WHILE-WORKING, and leaving the second half out is
         # the bug this call site had until 2026-09-12: `trial_features_cached` returns the engaged
         # trials FIRST and the no-lick trials separately, so taking only the first three returns
@@ -1580,9 +1592,18 @@ def _session_maps_code() -> str:
     """Source digest of what builds one session's decoder maps (`map_collect.cache_kind`)."""
     import sklearn
 
-    from wfield_local import joint_basis, map_collect, precue_engagement_states
+    from wfield_local import (behavior_position, docked_periods, joint_basis, lick_detection, locanmf_frozen_decoder,
+                              map_collect, precue_engagement_states)
+    # NARROWED (rebuild 11-03): precue_engagement_states enters through the functions the maps call, not whole
     return map_collect.code_digest(session_maps, _runs_to_blocks, _quit_mask, joint_basis._load_session,
-                                   precue_engagement_states) + f"-skl{sklearn.__version__}"
+                                   map_collect.closure(precue_engagement_states, "engagement_gate"),
+                                   # cache-key gaps closed (review second pass LOW, coordinator 11-03): the trial-feature args, lick detection,
+                                   # cue classification and docked-window helpers the builders call
+                                   map_collect.closure(locanmf_frozen_decoder, "_args"),
+                                   map_collect.closure(lick_detection, "detect_licks"),
+                                   map_collect.closure(behavior_position, "classify_cues_with_backup"),
+                                   map_collect.closure(docked_periods, "docked_mask_any"),
+                                   ) + f"-skl{sklearn.__version__}"
 
 
 def session_maps_cached(session, align, *, post_s=2.0, balance=False, variant="lick"):

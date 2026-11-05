@@ -96,7 +96,7 @@ def main(labels, cam="cam2"):
     from wfield_local.paths import PathResolver
     from wfield_local.writeguard import assert_writable
     rv = PathResolver()
-    dest = oo.root(rv) / oc.RUN / "imaging_encoding" / "qc" / "running_clips"
+    dest = oo.encoding_root(oc.RUN, rv) / "qc" / "running_clips"
     assert_writable(dest)
     dest.mkdir(parents=True, exist_ok=True)
     for lab in labels:

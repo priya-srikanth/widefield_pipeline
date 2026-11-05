@@ -16,6 +16,7 @@ Usage: python scripts/state_spout_check.py
 Output: <E>/qc/state_spout_check.csv (+ printed tables)
 """
 from __future__ import annotations
+from wfield_local.frozen_encoder import design_tag as _design_tag  # frame tag of the FROZEN_LICKS_ALL design (8.51)
 
 import sys
 from pathlib import Path
@@ -25,6 +26,7 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from fr_musall import E  # noqa: E402
+from wfield_local import lp_licks as _lp_licks  # noqa: E402  (coordinator 11-04: the run's attempts table)
 
 KIN = Path("C:/Users/SabatiniLab/wfield_cache/pose3d_inputs/pose3d_kin_licks_snapshot_20261023.csv.gz")
 RUN_ON, PUSH_ON = 1.5, 0.3
@@ -83,7 +85,7 @@ def eta2(df: pd.DataFrame, col: str, pos: str = "pos") -> tuple[float, float]:
 def main() -> int:
     from wfield_local import analysis_kit as ak
     from wfield_local import epochs
-    labels = sorted(p.stem for p in (E / "frozen_encoder_gate-attempted_v7g3_t3d" / "joint" / "sessions").glob("*.json")
+    labels = sorted(p.stem for p in (E / _design_tag("frozen_encoder_gate-attempted_v7g3_t3d") / "joint" / "sessions").glob("*.json")
                     if p.stem[-4:] >= "0801" and epochs.epoch_of(p.stem) == "pre")
     res, fail = ak.fan_sessions(labels, trial_state, jobs=4, label="state")
     for it, err in fail:
@@ -109,7 +111,7 @@ def main() -> int:
     K = K[(K.lick_idx == 0) & (K.epoch == "pre")]
     K["label"] = K.animal + "_" + K.date.astype(str).str[-4:]
     K = K[K.label.str[-4:] >= "0806"]
-    A = pd.read_csv(E / "qc" / "trial_attempts.csv")
+    A = pd.read_csv(_lp_licks.attempts_path())
     A = A[(A.epoch == "pre") & (A.label.str[-4:] >= "0806") & A.attempted.astype(bool)]
     trk = []
     for an in sorted(A.animal.unique()):

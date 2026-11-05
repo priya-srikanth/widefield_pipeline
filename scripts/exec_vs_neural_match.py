@@ -15,6 +15,7 @@ TARGET spout; rows need >= 3 trials per session (5 otherwise); outputs get the s
 Output: <E>/attempt_coding_pp/exec_vs_decoder_*.csv + figures/exec_vs_decoder_*.png
 """
 from __future__ import annotations
+from wfield_local.frozen_encoder import design_tag as _design_tag  # frame tag of the FROZEN_LICKS_ALL design (8.51)
 
 import sys
 from pathlib import Path
@@ -24,8 +25,10 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from softmax_neural_vs_lick import SP, boot_change, lick_weights, path_weights  # noqa: E402
+from wfield_local.orofacial_outputs import encoding_root as _encoding_root  # noqa: E402 - rebuild root (11-03)
+from wfield_local.attempt_coding import trials_name as attempt_trials_name  # noqa: E402
 
-E = Path("M:/MICROSCOPE/Priya/Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding")
+E = _encoding_root()                     # UNTAGGED base; routed below (coordinator 11-04)
 LAB = ["cI", "cM", "cC", "fI", "fM", "fC"]
 AN = ["PS92", "PS93", "PS94", "PS95"]
 EP = ["pre", "acute", "subacute", "chronic"]
@@ -46,12 +49,13 @@ def mats(J: pd.DataFrame, min_n: int = 5) -> dict:
     return out
 
 
-def encoder_trials(tag: str = "v7g3_t3d_trial") -> pd.DataFrame:
+def encoder_trials(tag: str = _design_tag("v7g3_t3d_trial")) -> pd.DataFrame:
     """Per trial, the frozen pre-stroke ENCODER's best-matching label (lowest lick-window SSE over the parcels among the
     six relabellings, `frozen_relabel` trial_sse) -> columns label, animal, epoch, trial_id, spout, dec."""
     import json
     rows = []
-    for js in sorted((E / f"frozen_relabel_{tag}" / "sessions").glob("*.json")):
+    from wfield_local import frozen_encoder as fe
+    for js in sorted((fe.out_root() / f"frozen_relabel_{tag}" / "sessions").glob("*.json")):   # the (tagged) encoder runs
         m = json.loads(js.read_text(encoding="utf-8"))
         for tid, v in (m.get("trial_sse") or {}).get("lick", {}).items():
             cost = {k: x for k, x in v.items() if k in SP}
@@ -62,6 +66,7 @@ def encoder_trials(tag: str = "v7g3_t3d_trial") -> pd.DataFrame:
 
 
 def main(argv=None) -> int:
+    # coordinator 11-04: routed (outputs under the run tag), no longer refused in a tagged run
     import argparse
 
     import matplotlib
@@ -73,9 +78,12 @@ def main(argv=None) -> int:
     args = ap.parse_args(argv)
     src, tgt = args.source, args.target
     suf = f"_{tgt}" if tgt else ""
-    D = E / "attempt_coding_pp"
+    from wfield_local import run_mode
+    # attempt_coding --out attempt_coding_pp is routed as an LP family (run_mode.subdir(lp_family=True)); read and write there
+    D = run_mode.subdir(E / "attempt_coding_pp", lp_family=True)
+    (D / "figures").mkdir(parents=True, exist_ok=True)
     if src == "decoder":
-        T = pd.concat([pd.read_csv(D / f"trials_lick_{an}.csv.gz") for an in AN])
+        T = pd.concat([pd.read_csv(D / attempt_trials_name("lick", an)) for an in AN])
         T = T[(T.method == "dom") & T.cls.isin(["pre_hit", "hit", "incomplete"])]
         T["dec"] = np.array(SP)[T[[f"pp_{p}" for p in SP]].to_numpy().argmax(1)]
     else:

@@ -16,12 +16,13 @@ Output: <E>/fr_encoding_summary/{fr_session_table.csv, fr_summary_by_animal.csv,
 from __future__ import annotations
 
 import argparse
-from pathlib import Path
 
 import numpy as np
 import pandas as pd
 
-E = Path("M:/MICROSCOPE/Priya/Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding")
+from wfield_local import run_mode as _rmode  # the run's (tagged) encoding tree (coordinator 11-04)
+
+E = _rmode.encoding_out_root()          # the FR encoder runs live here (combined_encoding routing)
 MAIN = E / "movement_first_exec-polar_licks-combined" / "sessions"
 FR = {m: E / f"movement_first_fr-master_pre_v1_subset-fr_exec-polar_licks-combined_frg-{m}" / "sessions" for m in "ABSD"}
 AN = ["PS92", "PS93", "PS94", "PS95"]
@@ -60,6 +61,7 @@ def session_table(areas, windows) -> pd.DataFrame:
 
 
 def main(argv=None) -> int:
+    # coordinator 11-04: routed (outputs under the run tag), no longer refused in a tagged run
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt

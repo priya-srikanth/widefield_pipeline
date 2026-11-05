@@ -1,0 +1,144 @@
+# THE cohort-1 rebuild render configuration (coordinator 11-03, Priya's decisions). ONE place for every switch the rebuild
+# render runs under. Load it with `python -m wfield_local.render_profile cohort1_rebuild_20261103 --shell powershell`
+# (prints the env lines) or `render_profile.apply("cohort1_rebuild_20261103")` in-process BEFORE importing analysis code
+# (hemo_variants.ADOPTED is resolved at import). tests/test_render_profile.py pins the run tag this profile produces.
+
+env:
+  # Priya 11-03: the final hemo variant -- swap-masked, 415 advanced 16 ms, T refitted. NO new shared drift step.
+  WIDEFIELD_HEMO_VARIANT: meegkit_hpfit_lag_refitT_swapmask
+  # Priya 11-03: LocaNMF = PROJECTION of the corrected data onto the stored per-session and joint footprints (no refit).
+  WIDEFIELD_LOCANMF_PROJECT: "1"
+  # camera trial gate (Priya 11-03): working = contact | incomplete (jaw_only its own class), ending at the session's last camera lick;
+  # stopped (Priya 11-04) = A2 "both sides": >= 6 consecutive no_response / jaw_only, unless the run has no reference-spout
+  # trial and the nearest reference-spout trial on each side is a contact; everything after the last camera lick = quit.
+  # Classes count licks (peak) / contacts / jaw in cue + 70 ms .. min(cue + max_rt, stop) (tag token rt3500c70).
+  # Robustness arms stopA0 (the 11-04 morning rule) / stopA3 (runs > 10, no guard) below.
+  WIDEFIELD_TRIAL_GATE: camera
+  WIDEFIELD_TRIAL_WINDOW: cue_stop
+  WIDEFIELD_TRIAL_END: lick
+  WIDEFIELD_TRIAL_STOPPED: both
+  # Priya 11-03 late, main's setting (48f2cc6d `working_trials`): in_working = contact | incomplete (jaw_only out);
+  # in_working_jaw = the jaw-inclusive robustness arm; the selection tag carries "-cls-contact-incomplete"
+  WIDEFIELD_WORKING_TRIALS: in_working
+  # LP arm: LP-TRAINED stored models (the default since 11-03; "lp" only names it -- the DAQ-trained cross-check is
+  # WIDEFIELD_LP_FROZEN=daq, NOT part of this profile)
+  WIDEFIELD_LP_FROZEN: lp
+  # Priya 11-03 late: AUGUST-ONLY PRE EVERYWHERE in the rebuild (one source, the env; epoch boundaries are derived from
+  # the full pre set regardless: epoch_audit.full_cohort suspends it). Exceptions in block_env: june_august_drift and
+  # 12.1b (rest_frozen_decoder_nl) keep their own June + August pre set.
+  WIDEFIELD_PRE_FROM: "0801"
+  # Priya 11-04 (FINAL): the frozen spout decoder's scored frame AND the CD / pattern projection frame are centred by Wt,
+  # the true-label balanced centre of the session's camera WORKING rows (contact + incomplete; no EM, no pre-stroke
+  # fill; >= 20 working rows per spout or it refuses). Robustness arms: n / cto. The engagement axis (G4) stays z on
+  # contact rows (WIDEFIELD_G4_CENTRE default). Caveat: ~-.024 drift under a high incomplete share
+  # (CENTRE_MIXSHIFT_2026-11-04); the rest-centred frame was tested and rejected (REST_CENTRE_2026-11-04).
+  WIDEFIELD_SPOUT_SCORE_CENTRE: wt
+  WIDEFIELD_PROJECTION_CENTRE: wt
+  # Priya 11-04 (REBUILD_CODE 8.51): the FROZEN encoder carries the combined encoder's spontaneous lick kernels
+  # (licks = cued, instructed; licks_pre / licks_iti = uninstructed, frozen group "other"; penalty "lick"; every lick in
+  # one kernel) = design v7g3_t3d_spont: frame tags carry a "spont" segment (frozen_encoder.design_tag / check_tag), so
+  # the frames land in frozen_encoder_gate-attempted_v7g3_t3d_spont[...]. Not a run-tag part (frozen frames only).
+  # Robustness row: arm frozenNoSpont (v7g3_t3d, post-cue lick kernels only, its own frame tag without "spont").
+  FROZEN_LICKS_ALL: split
+
+# THE REBUILD ROOT (coordinator 11-03, fourth review): EVERY derived output of this render -- cohort_out / grant_figures,
+# figures_working, analysis_figures, LP_analysis/<run>/imaging_encoding (encoder, ITI, attempt, qc), the frozen store
+# (<root>/frozen_models, fresh: FREEZE_VERSION 2 refuses the legacy store), the session cache (<root>/session_cache) and
+# the RESTnl caches beside it, the map npz -- goes into this one folder. Inputs stay where they are, read-only. While
+# it is set, writes outside it and reads of default derived products are REFUSED (wfield_local/rebuild_root.py).
+# Seed it once: python -m wfield_local.rebuild_root init --profile cohort1_rebuild_20261103
+rebuild_root: M:/MICROSCOPE/Priya/Widefield/rebuild_20261103
+# THE CODE THIS RENDER MUST RUN (coordinator 11-04): the rebuild worktree. The env's `pip install -e .` points at the MAIN
+# checkout, so a process imports the worktree's wfield_local only when the worktree is first on sys.path:
+#   PYTHONPATH=<code_root> for EVERY command (a `python scripts/x.py` puts scripts/ on sys.path, not the cwd), and
+#   `python -m ...` from <code_root> works too. `render_profile --check` prints wfield_local.__file__ and REFUSES otherwise.
+code_root: C:/Users/SabatiniLab/Github/wf_rebuild
+
+# (block_args --pre-from 0801 for epoch_grant_figures / grant_figures REMOVED 11-03 late: the profile env is the one source)
+
+# PER-BLOCK ENV (fifth review N5b): `--block <name>` (render_profile.apply(name, block=...)) adds the block's env. The LP
+# blocks set the LP lick source themselves; an LP_licks folder is refused without it (lp_licks.refuse_lp_folder).
+block_env:
+  lp_final_render: {WIDEFIELD_LICK_SOURCE: lp}
+  restnl_maps: {WIDEFIELD_LICK_SOURCE: lp}
+  epoch_accuracy: {WIDEFIELD_LICK_SOURCE: lp}
+  epoch_maps: {WIDEFIELD_LICK_SOURCE: lp}
+  analysis_deck_lp: {WIDEFIELD_LICK_SOURCE: lp}
+  june_august_drift: {WIDEFIELD_PRE_FROM: null}          # its own June-vs-August design
+  rest_frozen_decoder_nl: {WIDEFIELD_PRE_FROM: null}     # 12.1b: its own June + August pre set
+  # review 7B: Figs 7.2 / 7.4 / 7.6 compare June (early pre) with August (late pre) maps; the script sets its own arm's
+  # lick source / ENL window (--arm contact | lp | enl1s), so only the pre set is unset here
+  map_drift_prepre: {WIDEFIELD_PRE_FROM: null}
+  restnl_mask: {WIDEFIELD_PRE_FROM: null}                # review 7B N1: the CLI RESTnl baseline build
+
+# SENSITIVITY ARMS: `--arm <name>` (render_profile.apply(name, arm=...)) adds the arm's env on top; each arm's env enters
+# the output tag (run_mode parts), so its outputs and caches never meet the primary ones.
+arms:
+  # Priya 11-03: the encoder / ITI slow-drift cutoff stays 600 s PRIMARY (combined_encoding.DRIFT_MIN_PERIOD_S);
+  # 1500 s is a SENSITIVITY arm (the scheduler's six-position cycle period reaches ~22 min), rendered for the spout
+  # contra - ipsi encoder cells and the ITI pre-cue level readouts only
+  drift1500:
+    env:
+      COMBINED_ENCODING_DRIFT_MIN_PERIOD_S: "1500"
+    blocks: ["encoder spout contra - ipsi cells (frozen_encoder / combined_encoding)",
+             "ITI pre-cue level readouts (scripts/iti_licks.py family)"]
+    expected_run_tag: hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_drift1500s_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk
+  # stop-rule ROBUSTNESS arms (Priya 11-04): A0 = the 11-04 morning rule (runs >= 6, no guard, after-end not stopped);
+  # A3 = runs > 10 stopped from their first trial, no reference guard
+  stopA0:
+    env:
+      WIDEFIELD_TRIAL_STOPPED: run
+    blocks: ["stop-rule robustness: camera working / stopped classes"]
+    expected_run_tag: hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopRun6jrt3500c70_daqlk
+  stopA3:
+    env:
+      WIDEFIELD_TRIAL_STOPPED: long
+    blocks: ["stop-rule robustness: camera working / stopped classes"]
+    expected_run_tag: hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA3n11jexrt3500c70_daqlk
+  # stopped-time licks (Priya 11-04): primary = excise (lick-touched stopped trials -> stopped_licking); robustness =
+  # the strict break (break + re-form the runs) and the quit tail starting after the last lick EVENT (open with Priya)
+  stopStrict:
+    env:
+      WIDEFIELD_STOP_LICKS: strict
+    blocks: ["stop-rule robustness: camera working / stopped classes"]
+    expected_run_tag: hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jsbrt3500c70_daqlk
+  stopTailEvent:
+    env:
+      WIDEFIELD_STOP_TAIL: lick_event
+    blocks: ["stop-rule robustness: camera working / stopped classes"]
+    expected_run_tag: hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jextert3500c70_daqlk
+  # Priya 11-04 (final): the scored-frame / projection centre is Wt; N (pooled pre, no session centre) and Cto
+  # (contact rows + pre-stroke offset fill) are the ROBUSTNESS arms, each with its own run-tag part (run_mode
+  # `scoring_part`), so they never write into the primary folders. Blocks: everything that scores the frozen spout
+  # decoder or projects (sections D / G, 5b / 5c, attempt coding, coding directions / axes, pattern families).
+  centreN:
+    env:
+      WIDEFIELD_SPOUT_SCORE_CENTRE: n
+      WIDEFIELD_PROJECTION_CENTRE: n
+    blocks: ["section D / G frozen decoder", "5b / 5c epoch decoders", "attempt coding", "coding directions / axes",
+             "pattern / template families"]
+    expected_run_tag: hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk_sc-ctrN+pctrN
+  centreCto:
+    env:
+      WIDEFIELD_SPOUT_SCORE_CENTRE: cto
+      WIDEFIELD_PROJECTION_CENTRE: cto
+    blocks: ["section D / G frozen decoder", "5b / 5c epoch decoders", "attempt coding", "coding directions / axes",
+             "pattern / template families"]
+    expected_run_tag: hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk_sc-ctrCto+pctrCto
+
+  # FROZEN encoder ROBUSTNESS row (Priya 11-04): v7g3_t3d = post-cue lick kernels only (no licks_pre / licks_iti). Its
+  # outputs are kept apart by the FRAME tag (frozen_encoder_gate-attempted_v7g3_t3d[...], no "spont" segment;
+  # frozen_encoder.check_tag refuses a mismatch), not by the run tag, which stays the primary's.
+  frozenNoSpont:
+    env:
+      FROZEN_LICKS_ALL: none
+    blocks: ["frozen encoder frames and their readers: robustness row without spontaneous lick kernels"]
+    expected_run_tag: hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk
+
+# IMAGING LICKS = THE BEHAVIOUR DAQ DETECTOR (Priya 11-04/05, REBUILD_CODE 8.53): not an env switch -- the code default
+# (`config.lick_detector`: yaml lick_detection, 0.5 V offset, 40 ms floor, no 0.10 s refractory). Every tagged run carries
+# the run_mode part "daqlk" (after the selection part), so no output of the old imaging detector is read as the new one.
+# the primary encoder / ITI slow-drift cutoff (Priya 11-03): combined_encoding.DRIFT_MIN_PERIOD_S = 600 s (env unset)
+notes:
+  encoder_drift_cutoff_s: 600
+  expected_run_tag: hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk

@@ -55,13 +55,11 @@ def one(item) -> list[dict]:
 
 
 def main(argv=None) -> int:
+    # coordinator 11-04: routed (outputs under the run tag), no longer refused in a tagged run
     from wfield_local import analysis_kit as ak
     from wfield_local import combined_encoding as ce
     from wfield_local import config, epochs
     from wfield_local import frozen_encoder as fe
-    from wfield_local import orofacial_cohort as oc
-    from wfield_local import orofacial_outputs as oo
-    from wfield_local.paths import PathResolver
     from wfield_local.writeguard import assert_writable
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("labels", nargs="*")
@@ -87,7 +85,9 @@ def main(argv=None) -> int:
     for it, err in fail:
         print("FAILED", it[0], err)
     T = pd.DataFrame([r for _, rr in got for r in rr])
-    out = oo.root(PathResolver()) / oc.RUN / "imaging_encoding" / "qc"
+    from wfield_local import run_mode
+    out = run_mode.encoding_out_root() / "qc"            # the run's (tagged) encoding tree, coordinator 11-04
+    out.mkdir(parents=True, exist_ok=True)
     assert_writable(out)
     T.to_csv(out / "frozen_group_leakage.csv", index=False, float_format="%.4f")
     pd.set_option("display.width", 200)

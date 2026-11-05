@@ -19,6 +19,7 @@ Usage: python scripts/frozen_fr_compare.py
 Output: <E>/frozen_fr_compare/ (tables + figures)
 """
 from __future__ import annotations
+from wfield_local.frozen_encoder import design_tag as _design_tag  # frame tag of the FROZEN_LICKS_ALL design (8.51)
 
 import glob
 import json
@@ -31,9 +32,9 @@ import pandas as pd
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from fr_musall import AN, E  # noqa: E402
 
-RUNS = {"noFR": ("frozen_encoder_gate-attempted_v7g3_t3d", "joint"),
-        "FR-B": ("frozen_encoder_gate-attempted_v7g3_t3d_frA", "no_fr_dir"),
-        "FR-A": ("frozen_encoder_gate-attempted_v7g3_t3d_frA", "joint")}
+RUNS = {"noFR": (_design_tag("frozen_encoder_gate-attempted_v7g3_t3d"), "joint"),
+        "FR-B": (_design_tag("frozen_encoder_gate-attempted_v7g3_t3d_frA"), "no_fr_dir"),
+        "FR-A": (_design_tag("frozen_encoder_gate-attempted_v7g3_t3d_frA"), "joint")}
 FR_VARIANTS = ("joint", "no_fr", "no_fr_dir", "no_fr_all")
 AREAS = ["cortex", "SSp-m_right", "SSp-m_left", "MOp_right", "MOp_left"]
 ALAB = {"cortex": "cortex", "SSp-m_right": "SSp-m contra", "SSp-m_left": "SSp-m ipsi", "MOp_right": "MOp contra",
@@ -44,15 +45,15 @@ WINDOWS = ["cue", "lick"]                                 # cue before lick (Pri
 COL = {"noFR": "#999999", "FR-B": "#7570b3", "FR-A": "#e7298a"}
 
 
-def session_r2(folder: str, variant: str, measure: str = "frame") -> pd.DataFrame:
+def session_r2(folder: str, variant: str, measure: str = "frame", areas=None) -> pd.DataFrame:
     """Per session x window x area frozen R2; measure = frame (all frames of the window) | trial (single-trial window
-    means) | avg (trial-averaged = PETH), as `frozen_encoder.musall_r2`."""
+    means) | avg (trial-averaged = PETH), as `frozen_encoder.musall_r2`. ``areas`` default AREAS."""
     rows = []
     for f in sorted(glob.glob(str(E / folder / variant / "sessions" / "*.json"))):
         m = json.loads(Path(f).read_text())
         for w in WINDOWS:
             fr = m["r2_musall"][w][measure]
-            for a in AREAS:
+            for a in (AREAS if areas is None else areas):
                 if a in m["areas"]:
                     rows.append({"label": m["label"], "animal": m["animal"], "epoch": m["epoch"], "window": w, "area": a,
                                  "r2": fr[m["areas"].index(a)]})
@@ -257,7 +258,7 @@ def main() -> int:
 
     # 4. Layer 2
     l2 = []
-    for k, d in (("noFR", "allsession_encoder_v7g3_t3d_ref"), ("FR-A", "allsession_encoder_v7g3_t3d_frA")):
+    for k, d in (("noFR", _design_tag("allsession_encoder_v7g3_t3d_ref")), ("FR-A", _design_tag("allsession_encoder_v7g3_t3d_frA"))):
         t = pd.read_csv(E / d / "allsession_changes_by_session.csv")
         t = t[(t.fit == "combined") & t.area.isin(AREAS)].copy()
         for c in [c for c in t.columns if c.startswith("change")]:
@@ -276,7 +277,7 @@ def main() -> int:
 
     # 5. relabel
     rl = []
-    for k, d in (("noFR", "frozen_relabel_v7g3_t3d"), ("FR-A", "frozen_relabel_v7g3_t3d_frA")):
+    for k, d in (("noFR", _design_tag("frozen_relabel_v7g3_t3d")), ("FR-A", _design_tag("frozen_relabel_v7g3_t3d_frA"))):
         t = pd.read_csv(E / d / "relabel_by_animal.csv")
         rl.append(t[(t.spout == "far_contra") & (t.window == "lick") & t.area.isin(AREAS)].assign(frame=k))
     RL = pd.concat(rl)

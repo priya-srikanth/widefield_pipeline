@@ -282,7 +282,8 @@ def window_provenance(fig_names) -> str:
                   if ("_" + a + "_") in names or ("_" + a + ".") in names), None)
     if align is None:
         return ""
-    post = float(d.get(align + "_post_s", 2.0))
+    from wfield_local import lp_licks
+    post = lp_licks.post_s_for(align)        # the pre-cue window follows the lick source (Priya 11-04)
     nb = int((d.get("bins") or {}).get(align, 1) or 1)
     binning = (f"{nb} sub-bins of {post / nb:.2f} s (the decoder sees a time course, not one mean)"
                if nb > 1 else "1 bin (the window mean)")
@@ -470,6 +471,25 @@ def keep_previous(out_path) -> Path | None:
 
 
 
+def _tagged_k(root, rel, grant_root):
+    """Section K's registered path in THIS tagged run (review 7B N3), or None to keep the registered one: the LP /
+    DAQ-ENL1s epoch families live under the LP / ENL block's own tag (``grant_figures/<block tag>/epoch``), the LP
+    attempt maps under ``attempt_maps/<LP tag>/figures`` -- not the untagged pre-rebuild folders the registry names."""
+    from wfield_local import lp_licks, run_mode
+    m = re.match(r"grant_figures/(LP_licks|DAQ_ENL1s)/epoch/(.+)$", rel)
+    if root in ("labcams", "cohort_out") and m:
+        env = ({lp_licks.LICK_SOURCE_ENV: "lp"} if m.group(1) == "LP_licks"         # review 8B N2: the DAQ ENL arm
+               else {lp_licks.ENL_WINDOW_ENV: str(lp_licks.LP_ENL_WINDOW_S), lp_licks.LICK_SOURCE_ENV: None})
+        with run_mode.with_env(**env):
+            return Path(lp_licks.output_dir(Path(grant_root) / "epoch")) / m.group(2)
+    m = re.match(r".*/imaging_encoding/attempt_maps/figures/(.+)$", rel)
+    if root == "orofacial" and m:
+        from wfield_local import attempt_maps
+        with run_mode.with_env(**{lp_licks.LICK_SOURCE_ENV: "lp"}):
+            return Path(attempt_maps.out_dir()) / "figures" / m.group(1)
+    return None
+
+
 def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag=None, allow_missing=0,
                         allow_unresolved=0,
                         failed_steps=(), allow_failed_steps=False, run_start=None,
@@ -482,8 +502,24 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
     so a test can keep the build hermetic instead of silently reaching onto the MICROSCOPE share.
     """
     src = Path(src)
-    grant_dir = Path(grant_dir) if grant_dir is not None else (
-        Path(PathResolver().root("cohort_out")) / "grant_figures")
+    from wfield_local import lp_licks as _lpl
+    _lpl.refuse_lp_folder(out_path, "analysis deck")      # N5b: an LP deck block must set WIDEFIELD_LICK_SOURCE=lp
+    # R2 (fourth review, 11-03): a TAGGED run (hemo variant / projection / camera gate / PRE_FROM ...) builds its deck only
+    # from its OWN figures. Under the rebuild root every default below already resolves inside it; outside one, the
+    # defaults are the untagged pre-rebuild figures, so a tagged build without an explicit grant_dir REFUSES.
+    from wfield_local import rebuild_root, run_mode
+    if grant_dir is None and run_mode.tag() and not rebuild_root.active():
+        raise RuntimeError(f"analysis deck in run mode {run_mode.tag()!r} without a rebuild root: its default inputs are "
+                           "the untagged figures -- apply the render profile (rebuild_root) or pass grant_dir / --src")
+    # review 7B N3: the DEFAULT grant_dir of a TAGGED run is THIS run's tagged folder (`lp_licks.output_dir`:
+    # grant_figures/<tag>, whose epoch dir is grant_figures/<tag>/epoch -- where grant_figures / epoch_grant_figures
+    # write); the untagged grant_figures in the default run. ``_grant_root`` = the untagged grant_figures either way.
+    _grant_given = grant_dir is not None
+    _grant_root = (Path(grant_dir) if _grant_given else Path(PathResolver().root("cohort_out")) / "grant_figures")
+    grant_dir = _grant_root if _grant_given else Path(_lpl.output_dir(_grant_root))
+    #: a tagged build counts every registered grant / epoch figure it cannot find as MISSING (the completeness guard);
+    #: the default build keeps skipping absent ones as before
+    _strict = bool(run_mode.tag()) and not _grant_given
     # phase="all" IS LOAD-BEARING. curated_dates() defaults to phase="pre" (stroke-aware since
     # 2026-08-17), so the bare call returns 0606-0814 and SILENTLY DROPS EVERY POST-STROKE DATE.
     # The comment that used to sit here said a hand-run deck covers the same dates as the nightly.
@@ -1266,7 +1302,18 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
                         note(s, M_POSTSTROKE, specific=S_G3)
                         grid(s, _chunk, cols=2, top=1.95)
 
-        # --- G4. identity, with its control read first
+        # --- G4 PRIMARY (coordinator 11-04): the camera-class discriminator; the DAQ slides below are robustness
+        if (src / "section_g_g4_camclass.png").exists():
+            s = slide()
+            title(s, "G4. Post-stroke trials by CAMERA CLASS, read by a pre-stroke working-vs-no-response boundary",
+                  "Pre-stroke WORKING (contact + incomplete) vs NO-RESPONSE, position-balanced; each group's post "
+                  "rows scored separately (spout-balanced, cells < 10 rows left out), against the same group "
+                  "pre-stroke (dotted = pre working where the group is absent pre). Right: the DAQ "
+                  "lick-vs-no-lick discriminator, ROBUSTNESS.")
+            note(s, M_POSTSTROKE, specific=S_G4)
+            big(s, src / "section_g_g4_camclass.png", top=1.7, width=11.5)
+
+        # --- G4. identity, with its control read first (DAQ discriminator: ROBUSTNESS since 11-04)
         if (src / "poststroke_G4_identity.png").exists():
             s = slide()
             title(s, "G4. Do post-stroke NO-LICK trials look like pre-stroke LICKING trials?",
@@ -1981,6 +2028,10 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
     # A DIFFERENT ROOT: these are NOT in `src` (figures_working) but under `labcams`, because they
     # are a deliverable rather than an analysis intermediate.
     _grant = grant_dir
+    if _strict and not _grant.exists():
+        # review 8B N3: a tagged build whose tagged grant dir was never rendered counts EVERY registered figure MISSING
+        for _pat, _t, _b in GRANT_FIGURES:
+            _exists(_grant / _pat)
     if _grant.exists():
         divider("H. GRANT FIGURES — the summary set",
                 "Built by `python -m wfield_local.grant_figures` into <labcams>/grant_figures. "
@@ -2014,7 +2065,10 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
         # future deck. The compact PNGs are a deliverable for pasting into the grant document, not
         # deck slides, and nothing else in the repo reads them.
         for _pat, _title, _blurb in sorted(GRANT_FIGURES, key=_hkey):
-            for _gf in sorted(_grant.glob(_pat)) if "*" in _pat else [_grant / _pat]:
+            _hits = sorted(_grant.glob(_pat)) if "*" in _pat else [_grant / _pat]
+            if _strict and not any(h.exists() for h in _hits):
+                _exists(_grant / _pat)                      # review 7B N3: counted (and named) as MISSING
+            for _gf in _hits:
                 if not _gf.exists() or _gf.stem.endswith("_compact"):
                     continue
                 s = slide()
@@ -2054,6 +2108,9 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
     # magnitudes; the companion carries the effect SIZE and what the multiple-comparison correction
     # costs. A mark says only "not zero", which is the half of the result that travels worst.
     _epoch = _grant / "epoch"
+    if _strict and not _epoch.exists():
+        for _pat, _t, _b in EPOCH_FIGURES:                       # review 8B N3: as section H
+            _exists(_epoch / _pat)
     if _epoch.exists():
         # THE BOUNDARIES ARE NAMED ON THE DIVIDER because `chronic_from` is DERIVED each run
         # (2026-09-07). A deck that shows epoch-stratified panels without saying which epochs it
@@ -2076,7 +2133,14 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
         # completeness check cannot report: it reports figures it EXPECTS and is silent about ones
         # it was never told about.
         for _n, (_pat, _ttl, _legend) in enumerate(EPOCH_FIGURES, 1):
-            for _ef in (sorted(_epoch.glob(_pat)) if "*" in _pat else [_epoch / _pat]):
+            if _pat.startswith("../../chronic_stability/june_august_drift/"):
+                # its own block's folder (PRE_FROM unset), one definition with the script (review 7B B1)
+                _hits = [run_mode.june_august_drift_dir(_grant_root.parent) / Path(_pat).name]
+            else:
+                _hits = sorted(_epoch.glob(_pat)) if "*" in _pat else [_epoch / _pat]
+            if _strict and not any(h.exists() for h in _hits):
+                _exists(_hits[0] if len(_hits) == 1 else _epoch / _pat)    # review 7B N3: counted as MISSING
+            for _ef in _hits:
                 if not _ef.exists():
                     continue
                 _sl = slide()
@@ -2157,12 +2221,14 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
     # ROOTS FOLLOW `grant_dir`, like every other labcams input here: "labcams" is its parent, and the other
     # share roots are used only when `grant_dir` IS the share's (a test that points `grant_dir` at an empty
     # tmp dir must not have real figures placed from MICROSCOPE -- `test_builds_and_skips_missing`).
-    _lab = Path(_grant).parent
+    # R2: "on the share" = grant_dir is THIS run's cohort_out/grant_figures (inside the rebuild root under one), and the
+    # other roots resolve through `PathResolver.derived` (imaging_encoding inside the rebuild root too)
+    _lab = _grant_root.parent              # labcams / cohort_out: the untagged root (review 7B N3)
     try:
-        _on_share = _lab.resolve() == Path(PathResolver().root("labcams")).resolve()
+        _on_share = _lab.resolve() == Path(PathResolver().root("cohort_out")).resolve()
     except Exception:                                                  # noqa: BLE001
         _on_share = False
-    _roots = {"labcams": _lab}
+    _roots = {"labcams": _lab, "cohort_out": _lab}
     _k_found = []
     for _n, (_root, _rel, _ttl, _legend) in enumerate(LP_GATED_FIGURES, 1):
         if _root not in _roots:
@@ -2173,7 +2239,13 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
         _base = _roots[_root]
         if _base is None:
             continue
-        for _f in (sorted(_base.glob(_rel)) if "*" in _rel else [_base / _rel]):
+        _one = (_base / _rel) if _root in ("labcams", "cohort_out") else Path(PathResolver().derived(_root, _rel))
+        _tagged_one = _tagged_k(_root, _rel, _grant_root) if run_mode.tag() else None
+        if _tagged_one is not None:                       # review 7B N3: THIS run's tagged block output
+            if not _exists(_tagged_one):
+                continue
+            _one = _tagged_one
+        for _f in (sorted(_base.glob(_rel)) if "*" in _rel and _tagged_one is None else [_one]):
             if _f.exists():
                 _k_found.append((_n, _ttl, _legend, _f))
     if _k_found:
@@ -2236,6 +2308,10 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
         for line in unresolved[:20]:
             print(f"    {line}", flush=True)
     _refuse_unresolved_overwrite(out_path, unresolved, allow_unresolved)
+    # T5 (third review): a tagged run may never replace the default deck -- guard the SAVE itself (the writeguard
+    # refuses a default-path write in a tagged mode)
+    from wfield_local.writeguard import assert_writable
+    assert_writable(out_path)
     keep_previous(out_path)
     prs.save(str(out_path))
     manifest, stale = _write_manifest(out_path, placed_figures, run_start)
@@ -2262,7 +2338,9 @@ def main(argv=None) -> int:
     args = ap.parse_args(argv)
     rv = PathResolver(machine=args.machine)
     src = args.src or Path(rv.root("figures_working"))
-    out = args.out or (Path(rv.root("cohort_out")) / "spout_position_analysis_summary.pptx")
+    from wfield_local import run_mode
+    out = args.out or (run_mode.routed_output(Path(rv.root("cohort_out")), guard=False)
+                       / "spout_position_analysis_summary.pptx")       # T5: the tag folder in a tagged run
     summary = build_analysis_deck(src, out, allow_missing=args.allow_missing,
                                   run_start=args.run_start)
     print(f"[analysis_deck] wrote {summary['out']}  ({summary['slides']} slides, "

@@ -107,10 +107,24 @@ def drift_figure(store, align, variant, reference, out_dir, arm):
         return None, stats
     tag = prm.reference_tag(reference)
     name = f"epoch_15rdrift_{tag}ref_{align}_{variant}"
+    reftxt = f"{tag} reference"
+    extra = ""
+    if reference == "restnl":
+        # RESTnl (11-01): name the reference and the lick sources in the title, not just the filename token.
+        reftxt = "RESTnl reference (lick-free rest, flat; rest licks: DAQ contact + cam4 LP video)"
+        extra = (" RESTnl = restdock05 rest minus every DAQ contact lick and every cam4 LP video lick [0.5 s before, "
+                 "2.0 s after], engagement-gated, flat equal-weight mean of per-position medians (>= 50 frames, "
+                 ">= 4 of 6); one baseline map per session, subtracted from the cached raw maps. June sessions use "
+                 "their own RESTnl baselines. PS93_0813 (no cam4 licks) has no RESTnl column.")
+    gate = {"contact": "trial gate DAQ contact", "lp": "trial gate LP video licks",
+            "enl1s": "trial gate DAQ contact, ENL 1 s"}.get(arm, f"arm {arm}")
+    from wfield_local import gate_source
+    if gate_source.is_lp():                     # LP-inclusive engagement gate (lp-final, 11-02)
+        gate += "; engagement gate DAQ contact OR LP attempt"
     p = ef.map_grid(
         cells, out_dir, name=name,
-        title=f"Map DRIFT without a stroke (June -> August pre) beside the stroke changes -- {tag} reference, "
-              f"{align} / {variant}, arm {arm}",
+        title=f"Map DRIFT without a stroke (June -> August pre) beside the stroke changes -- {reftxt}, "
+              f"{align} / {variant}, {gate}",
         row_labels=rows, col_labels=COLS, panel_titles=titles, delta_cols=DCOLS, edges=bm.atlas_edges(),
         contours=contours, blank=bm.excluded_mask(), row_scaled=False, stat_rows=stats,
         cbar_label="position map, own-reference scale", delta_label="change vs reference\n(SAME scale as the maps)",
@@ -118,8 +132,15 @@ def drift_figure(store, align, variant, reference, out_dir, arm):
                   "LATE - EARLY is scaled by each animal's June maps, the stroke columns by its August maps; ratio "
                   "= amplitude relative to the reference epoch. Pooled within animal (animals in both epochs only). "
                   "Contours = nested animals -> sessions bootstrap. June -> August includes learning, so the drift "
-                  "column is an upper bound on drift alone; June ~3 sessions per animal vs August ~8."))
+                  "column is an upper bound on drift alone; June ~3 sessions per animal vs August ~8." + extra))
     return p, stats
+
+
+def plot_only(out_dir) -> None:
+    """Redraw the drift figures in ``out_dir`` from their bundles (same names; no data load)."""
+    from wfield_local import epoch_figures as ef
+    for b in sorted((out_dir / "data").glob("epoch_15rdrift_*_bundle.npz")):
+        print(f"-> {ef.replot_map(b, out_dir, name=b.stem.replace('_bundle', ''))}", flush=True)
 
 
 def main(argv=None) -> int:
@@ -128,16 +149,20 @@ def main(argv=None) -> int:
     ap.add_argument("--refs", nargs="+", default=["rest", "precue"])
     ap.add_argument("--aligns", nargs="+", default=None)
     ap.add_argument("--out", type=Path, default=None)
+    ap.add_argument("--plot-only", action="store_true", help="redraw the figures in the output folder from bundles")
     a = ap.parse_args(argv)
     if os.environ.get("WIDEFIELD_PRE_FROM"):
         raise SystemExit("unset WIDEFIELD_PRE_FROM: this figure needs the June pre sessions")
     for k in ("WIDEFIELD_LICK_SOURCE", "WIDEFIELD_ENL_WINDOW_S"):
         os.environ.pop(k, None)
     os.environ.update(ARMS[a.arm])
+    # DERIVED references (RESTnl, 11-01) are attached by maps_by_epoch only when named in WIDEFIELD_MAP_REFS.
+    from wfield_local import position_reference_maps as prm
+    der = [r for r in a.refs if r in prm.DERIVED_REFERENCES]
+    if der:
+        os.environ[prm.REFS_ENV] = " ".join(a.refs)
 
     import pandas as pd
-
-    from wfield_local import position_reference_maps as prm
     from wfield_local.paths import PathResolver
     from wfield_local.writeguard import assert_writable
     aligns = a.aligns or (["precue"] if a.arm == "enl1s" else ["precue", "cue", "lick"])
@@ -148,6 +173,9 @@ def main(argv=None) -> int:
     out_dir = out_dir / (tag or "contact") if tag is None or f"/{tag.lower()}/" not in out_dir.as_posix().lower() + "/" else out_dir
     assert_writable(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
+    if a.plot_only:
+        plot_only(out_dir)
+        return 0
     rows = []
     for align in aligns:
         variant = ALIGN_VARIANT[align]

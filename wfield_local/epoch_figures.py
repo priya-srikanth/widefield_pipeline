@@ -54,7 +54,15 @@ def _save_png_svg(fig, q, *, dpi=200):
     import pathlib
     q = pathlib.Path(q)
     from wfield_local import lp_licks
+    lp_licks.refuse_lp_folder(q, "epoch figure")          # N5b: epoch_accuracy / epoch_maps and every epoch family
     lp_licks.stamp(fig)                         # LP_licks renders say so on the figure itself
+    # WRAP the stamp to the canvas (11-02): one right-aligned line ran off the left edge of the ~6 in bar figures.
+    # Done here, not in lp_licks.stamp: that module's source keys the LP lick-times sidecars.
+    import textwrap
+    width = max(40, int(fig.get_size_inches()[0] * 72 / 3.3))         # ~3.3 pt per character at 6 pt
+    for t in fig.texts:
+        if t.get_color() == "#8a2be2" and len(t.get_text()) > width and "\n" not in t.get_text():
+            t.set_text("\n".join(textwrap.wrap(t.get_text(), width)))
     fig.savefig(q, dpi=dpi)
     try:
         fig.savefig(svg_path(q))
@@ -62,7 +70,8 @@ def _save_png_svg(fig, q, *, dpi=200):
         print(f"  [svg] {q.name}: failed ({type(ex).__name__})", flush=True)
 
 def write_values(values, q, *, points=None, marks=None):
-    """Write the numbers a bar figure PLOTS, beside it as ``<name>.csv``.
+    """Write the numbers a bar figure PLOTS, beside it as ``<name>.csv``. (An LP_licks folder needs the LP switch:
+    `lp_licks.refuse_lp_folder`.)
 
     **A figure whose values exist nowhere else drifts from every text that quotes it, and nothing can
     notice.** That is not hypothetical: `PRELIM_DATA_VLS_STROKE.md` carried chronic frozen-vs-refit
@@ -343,6 +352,15 @@ def save_map_bundle(q, cells, **kw):
         if A is not None:
             shape = list(np.asarray(A).shape)
             break
+    # PANEL TITLES ARE KEYED BY (row, col) TUPLES, which JSON cannot hold, so every bundle silently-but-loudly dropped
+    # them ("NOT serialisable: panel_titles") and a --plot-only redraw lost every panel's sessions / trials / r line
+    # (11-01). Stored as [row, col, title] triples; `replot_map` rebuilds the dict.
+    pt = kw.get("panel_titles")
+    if isinstance(pt, dict) and pt and not _jsonable(pt):
+        kw = dict(kw)
+        kw.pop("panel_titles")
+        kw["panel_titles_list"] = [[str(k[0]), str(k[1]), str(v)] if isinstance(k, tuple) and len(k) == 2
+                                   else [str(k), "", str(v)] for k, v in pt.items()]
     dropped = sorted(k for k, v in kw.items()
                      if k not in ("contours", "blank", "edges") and not _jsonable(v))
     if dropped:
@@ -422,6 +440,9 @@ def replot_map(bundle, out=None, *, relabel_rows=None, relabel_cols=None, **over
         from wfield_local.beta_maps import atlas_edges
         edges = atlas_edges()
     kw = dict(meta.get("kw") or {})
+    ptl = kw.pop("panel_titles_list", None)
+    if ptl:
+        kw["panel_titles"] = {((r, c) if c != "" else r): t for r, c, t in ptl}
     kw.update(contours=contours or None, blank=blank, edges=edges)
     kw.update(overrides)
     # RENAMING AN AXIS MUST RENAME THE CELL KEYS TOO, and this is why it is a parameter rather
@@ -1294,6 +1315,7 @@ def bar_row(values, out, *, name, title, ylabel, positions, points=None, chance=
     is spent so the figure is self-contained wherever it is placed.
     """
     import matplotlib.pyplot as plt
+    _figdata = {k: v for k, v in locals().items() if not k.startswith('_') and k != 'plt'}   # inputs, --plot-only
     from matplotlib.lines import Line2D
     from matplotlib.patches import Patch
 
@@ -1358,6 +1380,11 @@ def bar_row(values, out, *, name, title, ylabel, positions, points=None, chance=
         pad = 0.08 * (_hi - _lo or 1.0)
         ylim = (min(0.0, _lo - pad) if _lo >= 0 else _lo - pad, _hi + pad * 2.0)
 
+    # MERGE 2026-11-03 (rebuild): main's open-dot top band (epoch-coloured, alternating rows) is kept as
+    # the default; lp-final's top band (one row per post epoch, y ticks trimmed to the data) now covers
+    # the dot_style="animal" path that main still drew above the bar. Both follow Priya 10-30.
+    _post = [e for e in epochs_present if e != "pre"]
+    _marked = False
     if marks and open_dots:
         # TOP BAND (Priya 10-30, all figures): one row, each mark over its own epoch's bar.
         from wfield_local import sig_marks
@@ -1371,21 +1398,20 @@ def bar_row(values, out, *, name, title, ylabel, positions, points=None, chance=
                     sig_marks.star_top(ax, xs[i] + dx, mk, color=epoch_dot_color(e),
                                        row=j % 2, fontsize=FS_ANNOT + 0.5)
     elif marks:
-        # ABOVE THE TALLER OF (bar, its dots), so a mark never lands on the data it refers to.
+        # IN THE TOP BAND (Priya 10-30, every figure: "place significance stars at top of figure space ... so they
+        # don't overlap with figure points or horizontal 'pre' lines"; `sig_marks.star_top` + `reserve_headroom`).
+        # Was: just above the taller of (bar, its dots), where they sat among neighbouring dots. One row per post
+        # epoch (acute top), so adjacent bars' marks cannot collide horizontally.
+        from wfield_local import sig_marks
         for j, e in enumerate(epochs_present):
             dx = (j - (m - 1) / 2.0) * bw
             for i, q in enumerate(positions):
                 mk = (marks.get(e) or {}).get(q)
-                if not mk:
+                if not mk or values[e].get(q) is None:
                     continue
-                v, _lo, hi = _value_and_ci(values[e].get(q))
-                pts = [y for _a, y in ((points or {}).get(e, {}).get(q) or [])
-                       if y is not None and np.isfinite(y)]
-                top = max([z for z in (v, hi) if z is not None] + pts) if (v is not None) else None
-                if top is None:
-                    continue
-                ax.text(xs[i] + dx, top + 0.015 * (ylim[1] - ylim[0]), mk, ha="center",
-                        va="bottom", fontsize=FS_ANNOT, color="0.10", zorder=7)
+                sig_marks.star_top(ax, xs[i] + dx, mk, color="0.10",
+                                   row=_post.index(e) if e in _post else 0, fontsize=FS_ANNOT)
+                _marked = True
     if chance is not None:
         ax.axhline(chance, color="0.35", lw=0.8, ls="--", zorder=1)
     # A REFERENCE IS NOT A CHANCE LEVEL. A difference of two accuracies has a meaningful zero and
@@ -1413,6 +1439,12 @@ def bar_row(values, out, *, name, title, ylabel, positions, points=None, chance=
     if marks and open_dots:
         from wfield_local import sig_marks
         sig_marks.reserve_headroom(fig)     # the top band above the data is the marks' alone
+    elif _marked:
+        from wfield_local import sig_marks
+        sig_marks.reserve_headroom(fig)
+        # the reserved band is for marks only: no y ticks above the data range
+        ax.set_yticks([t for t in ax.get_yticks() if ylim[0] - 1e-9 <= t <= ylim[1] + 1e-9])
+        ax.spines["left"].set_bounds(ylim[0], ylim[1])
     ax.tick_params(axis="y", labelsize=FS_TICK - 1)
     ax.set_xlim(-0.6, k - 0.4)
     for s in ("top", "right"):
@@ -1460,6 +1492,7 @@ def bar_row(values, out, *, name, title, ylabel, positions, points=None, chance=
                positions=positions, tick_labels=tick_labels, groups=groups,
                title=title, subtitle=subtitle, ylabel=ylabel)
     write_values(values, q, points=points, marks=marks)
+    save_figdata(q, "bar_row", _figdata)
     plt.close(fig)
     return q
 
@@ -1732,6 +1765,7 @@ def contrast_panel(rows, out, *, name, title, ylabel, positions, tick_labels=Non
     compare two points to each other when the comparison that matters is each to no change.
     """
     import matplotlib.pyplot as plt
+    _figdata = {k: v for k, v in locals().items() if not k.startswith('_') and k != 'plt'}   # inputs, --plot-only
 
     epochs = [e for e in PANELS if rows.get(e)]
     if not epochs or not positions:
@@ -1824,6 +1858,7 @@ def contrast_panel(rows, out, *, name, title, ylabel, positions, tick_labels=Non
     write_contrast_values(rows, q)
     if points:
         write_session_values(points, q)
+    save_figdata(q, "contrast_panel", _figdata)
     plt.close(fig)
     return q
 
@@ -3163,3 +3198,29 @@ def replot_from_sidecars(png, out_png, *, base_png=None, workdir=None):
     shutil.copyfile(q, out_png)
     n = sum(len(lst or []) for per in (pts or {}).values() for lst in (per or {}).values())
     return out_png, kind, n, note
+
+
+def save_figdata(q, renderer: str, kwargs: dict):
+    """``data/<name>_figdata.pkl``: the renderer's INPUTS (values, points, marks, labels, title, ...), so a bar /
+    contrast figure redraws exactly with `replot_figdata` and no data load (--plot-only; 11-02). Warns, never raises."""
+    import pickle
+    p = sidecar(q, "_figdata.pkl")
+    try:
+        kw = dict(kwargs)
+        kw.pop("out", None)
+        with open(p, "wb") as fh:
+            pickle.dump({"renderer": renderer, "kwargs": kw}, fh)
+    except Exception as ex:                                            # noqa: BLE001
+        print(f"  [figdata] {p.name}: failed ({type(ex).__name__})", flush=True)
+    return p
+
+
+def replot_figdata(pkl, out=None, **overrides):
+    """Redraw one figure from its ``_figdata.pkl`` (same name, into ``out`` or the figure's folder)."""
+    import pickle
+    pkl = pathlib.Path(pkl)
+    d = pickle.loads(pkl.read_bytes())
+    kw = {**d["kwargs"], **overrides}
+    out = pathlib.Path(out) if out is not None else pkl.parent.parent
+    fn = {"bar_row": bar_row, "contrast_panel": contrast_panel}[d["renderer"]]
+    return fn(kw.pop("values") if d["renderer"] == "bar_row" else kw.pop("rows"), out, **kw)

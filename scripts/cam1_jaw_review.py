@@ -242,6 +242,8 @@ def video_round(rv, per: int, rng) -> tuple[list, list]:
 
 
 def main(argv=None) -> int:
+    from wfield_local import run_mode as _rm_guard
+    _rm_guard.require_default("cam1_jaw_review")   # unrouted share writer: refuses in a non-default run mode
     from wfield_local.paths import PathResolver
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--per", type=int, default=12, help="candidates per position x cam1 call (video: per band)")

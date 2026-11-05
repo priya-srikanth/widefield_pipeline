@@ -5,17 +5,17 @@ import numpy as np
 
 
 def main(labels):
+    # coordinator 11-04: routed (outputs under the run tag), no longer refused in a tagged run
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
     from wfield_local import combined_encoding as ce
     from wfield_local import config
-    from wfield_local import orofacial_cohort as oc
-    from wfield_local import orofacial_outputs as oo
     from wfield_local.paths import PathResolver
     rv = PathResolver()
-    out = oo.root(rv) / oc.RUN / "imaging_encoding" / "frozen_encoder_gate-attempted_v6thr1" / "figures"
+    from wfield_local import frozen_encoder as fe
+    out = fe.out_root() / "frozen_encoder_gate-attempted_v6thr1" / "figures"   # the encoder's tagged run (11-04)
     fig, axs = plt.subplots(len(labels) * 2, 2, figsize=(15, 3.1 * len(labels) * 2),
                             gridspec_kw={"width_ratios": [4, 1]}, squeeze=False)
     for i, lab in enumerate(labels):

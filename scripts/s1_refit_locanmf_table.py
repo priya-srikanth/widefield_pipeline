@@ -5,8 +5,9 @@ have locanmf based decoders"): the per-animal table of Figs 1.1 / 1.2 (family 5r
 
 TRIALS: WORKING trials pre AND post (Priya 11-03: licking trials + no-lick trials outside the terminal quit period,
 `grant_kit._class_select("working")`). Figs 1.1 / 1.2 score pre-stroke sessions on licking trials only (the 5c pre rule);
-Camera lick gate: WIDEFIELD_LICK_SOURCE=lp WIDEFIELD_ENL_WINDOW_S=2.0 (the bundle's trials, gate and quit then read
-video licks; licking trials = camera attempts). `--fig-rule` reproduces that (output s1_refit_locanmf_figrule.csv) so the table can be checked record for record.
+Camera lick gate: WIDEFIELD_LICK_SOURCE=lp (the bundle's trials, gate and quit then read video licks; licking trials =
+camera attempts). ENL (Priya 11-04): the shared LP lick-free 1.0 s window (`lp_licks.enl_post_s`), not pinned at 2 s;
+WIDEFIELD_ENL_WINDOW_S=2.0 = the labelled 2 s sensitivity arm (its own run tag / folder). `--fig-rule` reproduces that (output s1_refit_locanmf_figrule.csv) so the table can be checked record for record.
 
 Same records as `epoch_accuracy._frozen_vs_refit` (`grant_confusion._collect_5c(align, "working", "paired")`, column 1 =
 refit): per animal the shared pooled bundle (`_pooled_bundle`, cached), per session the SAME trial selection as the
@@ -68,7 +69,10 @@ def unit_job(unit) -> list[dict]:
     assert len(feats) == 1, f"{an} {align}: captured {len(feats)} feature objects"
     idx = feats[0].indices
     XE, YE, GE, XU, YU, GU = (bd[k] for k in ("XE", "YE", "GE", "XU", "YU", "GU"))
-    BE, BU, not_eng, e_pre = bd["BE"], bd["BU"], bd["not_eng"], bd["e_pre"]
+    # the quit-tail row is a LABELLED DAQ robustness row: under the camera trial gate bundle["not_eng"] is a
+    # RefusedMask and the real DAQ mask is bundle["not_eng_daq"] (rebuild 11-03); identical by default
+    BE, BU, e_pre = bd["BE"], bd["BU"], bd["e_pre"]
+    not_eng = bd["not_eng_daq"] if "not_eng_daq" in bd else bd["not_eng"]
     rows = []
     for i, lab in enumerate(bd["kept"]):
         se = (e_pre & (GE == i)) if i in bd["pre_i"] else (GE == i)
@@ -76,7 +80,7 @@ def unit_job(unit) -> list[dict]:
         arms = {}
         # QUIT-TAIL working (`_class_select`): robustness row; `--fig-rule` = licking trials at pre (Figs 1.1 / 1.2)
         arms["quittail"] = ((e_pre & (GE == i), np.zeros(len(GU), bool)) if i in bd["pre_i"] and fig_rule
-                            else GC._class_select("working", se, su, not_eng))
+                            else GC._class_select("working", se, su, not_eng, rule="daq"))
         ie, inl = idx.get(lab, (np.zeros(0, int), np.zeros(0, int)))
         sn = snap[snap.label == lab].set_index("cue_idx")
         if len(ie) == int(se.sum()) and len(inl) == int(su.sum()) and len(sn):
@@ -119,12 +123,12 @@ def main(argv=None) -> int:
     from wfield_local import orofacial_outputs as oo
     from wfield_local import writeguard
     from wfield_local.paths import PathResolver
-    out = oo.root(PathResolver()) / oc.RUN / "imaging_encoding" / "qc"
+    out = oo.encoding_root(oc.RUN, PathResolver()) / "qc"
     from wfield_local import lp_licks
     out = lp_licks.output_dir(out)       # camera-lick (LP) runs write under <parent>/<tag>/qc (writeguard rule)
     writeguard.assert_writable(out)
     out.mkdir(parents=True, exist_ok=True)
-    snap_path = str(os.environ.get("WFIELD_S1_CLASSES") or (oo.root(PathResolver()) / oc.RUN / "imaging_encoding" / "qc"
+    snap_path = str(os.environ.get("WFIELD_S1_CLASSES") or (oo.encoding_root(oc.RUN, PathResolver()) / "qc"
                                                             / "s1_trial_classes_cue_stop.csv.gz"))
     from wfield_local import analysis_kit as ak
     units = [(align, an, fig_rule, snap_path) for align in ALIGNS for an in GC.ANIMALS]

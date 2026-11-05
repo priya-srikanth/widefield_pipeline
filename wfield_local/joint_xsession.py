@@ -132,9 +132,8 @@ def run_animal(animal, labels, align="cue", post_s=2.0, verbose=True):
         print(f"[joint_xsession] {animal}: {ex}", flush=True)
         return None
     feat = joint_features(basis)
-    # THE DECODER'S builder keeps the cue indices (same features, the bundle's warm cache), so its frozen model can be
-    # trained on the pre-stroke camera working trials (Priya 11-03, `locanmf_frozen_decoder.pool_work`); the encoder
-    # keeps `joint_features`.
+    # THE DECODER'S builder keeps the cue indices (main 26fd5b44), so its frozen model can be trained on the pre-stroke
+    # camera working trials (`locanmf_frozen_decoder.pool_work`); the encoder keeps `joint_features`
     from wfield_local.precue_engagement_states import features_with_indices
     dec = pooled_frozen_loso(labels, source="locanmf", align=align, post_s=post_s,
                              verbose=verbose, features=features_with_indices(basis))
@@ -229,6 +228,8 @@ def main(argv=None) -> int:
                     help="date spec for the pooled sessions (default: the curated set)")
     args = ap.parse_args(argv)
 
+    from wfield_local import run_mode as _rm
+    args.output = _rm.routed_output(args.output)       # review N4: a tagged run writes under its tag, like the readers
     args.output.mkdir(parents=True, exist_ok=True)
     dates = (set(config.expand_dates(args.from_dates, width=4)) if args.from_dates
              else set(config.curated_dates()))
@@ -244,6 +245,7 @@ def main(argv=None) -> int:
     units = [(an, al) for al in args.align for an in animals]
     got, failures = parallel.fan_out(
         units, functools.partial(_joint_one, dates=dates), jobs=args.jobs, label="animal/align")
+    got = sorted(got, key=lambda kv: repr(kv[0]))  # completion order -> unit order (T10)
     if failures:
         rc = 1
         for (an, al), err in failures:
@@ -262,7 +264,8 @@ def main(argv=None) -> int:
             if r["encoder"]:
                 enc[an] = r["encoder"]
         if dec:
-            (args.output / f"joint_xsession_decoder_{align}.json").write_text(
+            from wfield_local import run_mode   # mode-tagged name (rebuild 11-03): read by grant 2 / 2b / 4
+            (args.output / run_mode.keyed_name(f"joint_xsession_decoder_{align}.json")).write_text(
                 json.dumps(dec, indent=2, default=float))
             n = len(write_session_confusions(dec, args.output, basis=BASIS))
             write_animal_confusion_grid(dec, args.output, basis=BASIS, align=align)

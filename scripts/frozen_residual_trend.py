@@ -19,6 +19,7 @@ Usage: python scripts/frozen_residual_trend.py [--tag gate-attempted_v7g3_t3d] [
 Output: <E>/frozen_encoder_<tag>/residual_trend.csv, residual_trend_sessions.csv, figures/residual_trend_<window>.png
 """
 from __future__ import annotations
+from wfield_local.frozen_encoder import design_tag as _design_tag  # frame tag of the FROZEN_LICKS_ALL design (8.51)
 
 import argparse
 import json
@@ -76,19 +77,18 @@ def trend_test(pre_d, pre_y, post_d, post_y):
 
 
 def main(argv=None) -> int:
+    # coordinator 11-04: routed (outputs under the run tag), no longer refused in a tagged run
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
-    from wfield_local import orofacial_cohort as oc
-    from wfield_local import orofacial_outputs as oo
-    from wfield_local.paths import PathResolver
     from wfield_local.writeguard import assert_writable
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--tag", default="gate-attempted_v7g3_t3d")
+    ap.add_argument("--tag", default=_design_tag("gate-attempted_v7g3_t3d"))
     ap.add_argument("--variant", default="joint")
     a = ap.parse_args(argv)
-    run = oo.root(PathResolver()) / oc.RUN / "imaging_encoding" / f"frozen_encoder_{a.tag}"
+    from wfield_local import frozen_encoder as _fe   # the encoder's (tagged) run root, coordinator 11-04
+    run = _fe.out_root() / f"frozen_encoder_{a.tag}"
     assert_writable(run)
     T = session_table(run, a.variant)
     sfx = "" if a.variant == "joint" else f"_{a.variant}"   # one file set per variant (no_fr_dir once overwrote joint)

@@ -1308,6 +1308,10 @@ def cmd_paramscore(name: str, src: str | None = None) -> pd.DataFrame:
 
 
 def main(argv=None) -> int:
+    # the guard belongs HERE, in the desktop CLI -- not inside the RUNNER text shipped to O2 as fr_runner.py, where
+    # wfield_local is not importable (fourth review LOW)
+    from wfield_local import run_mode as _rm_guard
+    _rm_guard.require_default("o2_face_rhythm")   # unrouted share writer: refuses in a non-default run mode
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="cmd", required=True)
     b = sub.add_parser("bundle")

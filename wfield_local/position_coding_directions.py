@@ -72,6 +72,7 @@ WHAT EACH WINDOW CAN ANSWER, AND WHAT IT CANNOT:
 from __future__ import annotations
 
 import argparse
+import contextlib
 import itertools
 import functools
 import json
@@ -83,7 +84,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
-from wfield_local import config, parallel, joint_locanmf
+from wfield_local import config, parallel, joint_locanmf, lp_licks
 from wfield_local.locanmf_frozen_decoder import pool_sessions
 from wfield_local.paths import PathResolver
 from wfield_local.plot_lick_aligned_averages import POSITION_NAMES
@@ -457,7 +458,7 @@ def _rt_engaged(feat, kept, XE):
     return rt
 
 
-def _class_confusions(XE, YE, GE, XU, YU, e_pre, pre_i, _mask, kept, rt_e=None, GU=None):
+def _class_confusions(XE, YE, GE, XU, YU, e_pre, pre_i, _mask, kept, rt_e=None, GU=None, store=None, cls_e=None):
     """Confusion of the frozen PRE-stroke decoder, one counts matrix per class.
 
     Rows are the TRUE position and columns the predicted one, both in DISPLAY_ORDER, as raw counts
@@ -470,17 +471,13 @@ def _class_confusions(XE, YE, GE, XU, YU, e_pre, pre_i, _mask, kept, rt_e=None, 
     0.89-0.99 against 0.45-0.66 held out, so a reader comparing a post value against an in-sample pre
     value would read a collapse that is mostly overfitting (recorded in
     `grant_figures.fig_confusion_pre_post_working`).
+
+    ``store`` = the frozen-store hook (`stored_confusion_decoder`, the default since 11-02 pass 2); None fits both in
+    memory (the same fits).
     """
     # This module imports only POSITION_NAMES, not the order -- take it from the one place that
     # defines it, so these matrices are in the SAME row order as every other confusion in the deck.
-    from sklearn.linear_model import LogisticRegression
-    from sklearn.pipeline import make_pipeline
-    from sklearn.preprocessing import StandardScaler
-
     from wfield_local.plot_lick_aligned_averages import DISPLAY_ORDER
-
-    def pipe():
-        return make_pipeline(StandardScaler(), LogisticRegression(max_iter=2000, C=0.5))
 
     def counts(y_true, y_pred):
         M = np.zeros((len(DISPLAY_ORDER), len(DISPLAY_ORDER)), float)
@@ -499,10 +496,14 @@ def _class_confusions(XE, YE, GE, XU, YU, e_pre, pre_i, _mask, kept, rt_e=None, 
     # class-balanced pre sessions, each scored session centred by the label-free EM centre of its engaged rows
     # under the scoring model. Needs the no-lick rows' sessions (``GU``); without them, and under
     # WIDEFIELD_SPOUT_SCALING=session_z, this is the pre-11-03 computation exactly.
+    # STORED (rebuild 11-02 pass 2, rule 10): ``store`` = `stored_confusion_decoder` through the FrozenFrame store hook
+    # (payload {"full", "loso": {pooled index: model}} on the FrozenFrame training frame); None = in memory.
     from wfield_local import spout_scaling as _ss
     _use = _ss.spout_scaling() is not None and GU is not None
-    ff = _ss.FrozenFrame(XE, YE, GE, sorted(pre_i), pipe, train_mask=e_pre, loso=_use,
-                         scaling=(_ss.SCALING_BAL_EM if _use else None))
+    ff = _ss.FrozenFrame(XE, YE, GE, sorted(pre_i), _confusion_pipe, train_mask=e_pre, loso=True,
+                         scaling=(_ss.SCALING_BAL_EM if _use else None), store=store,
+                         labels=dict(enumerate(kept)),
+                         cls_e=cls_e)     # the EM centre rows: camera WORKING rows under the camera gate (Priya 11-03)
     res["spout_scaling"] = _ss.SCALING_BAL_EM if _use else _ss.SCALING_SESSION_Z
 
     # PRE, leave-one-session-out
@@ -512,10 +513,7 @@ def _class_confusions(XE, YE, GE, XU, YU, e_pre, pre_i, _mask, kept, rt_e=None, 
         tr, te = e_pre & (GE != i), e_pre & (GE == i)
         if te.sum() < 5 or len(np.unique(YE[tr])) < 2:
             continue
-        if _use:
-            Cpre += counts(YE[te], ff.loso[i].predict(ff.apply(XE[te], i, "loso")))
-        else:
-            Cpre += counts(YE[te], pipe().fit(XE[tr], YE[tr]).predict(XE[te]))
+        Cpre += counts(YE[te], ff.loso[i].predict(ff.apply(XE[te], i, "loso")))
         got = True
     res["prestroke_lick"] = Cpre.tolist() if got else None
 
@@ -553,13 +551,175 @@ def _class_confusions(XE, YE, GE, XU, YU, e_pre, pre_i, _mask, kept, rt_e=None, 
     return res
 
 
-def _gate_all(feat, kept, XE, YE, GE, XU, YU, GU):
+# ------------------------------------------------------------------------------------------ STORED REFERENCES (11-02)
+#: STORED BY DEFAULT (11-02 pass 2; Priya: "yes cache all frozen decoders"; CLAUDE.md rule 10). `run_animal`'s two
+#: pre-stroke references come from `frozen_models.load_or_fit`:
+#:   kind `coding_decoder`     the per-class confusion decoder (StandardScaler + LR C=0.5, max_iter 2000): {"full",
+#:                             "loso": {pre label: model}}
+#:   kind `coding_directions`  the engagement axis and, per method, the per-position axes (+ poles, + the raw axis the
+#:                             engagement cosine is read from), their leave-one-session-out refits, the pairwise axes and
+#:                             their LOSO refits; spec align = "<align>-<methods joined by +>"
+#: OPT-OUT WIDEFIELD_CODING_FROZEN=0 (false / no / off) fits both in memory -- through the SAME `fit_*` functions, so
+#: the two paths differ only by the store round trip. Under WIDEFIELD_LICK_SOURCE=lp the store serves the LP-TRAINED
+#: references (default since 11-03, Priya), DAQ-trained (the animal's DAQ pre sessions) with WIDEFIELD_LP_FROZEN=daq. Not stored:
+#: `_diagnostics` (pre-only diagnostics: close-far axis, pre-stroke-only pairwise slopes, unit-norm poles).
+#: These feed coding_direction.json -> grant_figures 3a / 5b (`_from_json`) and `miss_vs_stopped`.
+CODING_FROZEN_ENV = "WIDEFIELD_CODING_FROZEN"
+
+
+def coding_frozen_on() -> bool:
+    from wfield_local import frozen_models
+    return frozen_models.family_on(CODING_FROZEN_ENV)
+
+
+def _confusion_pipe():
+    from sklearn.linear_model import LogisticRegression
+    from sklearn.pipeline import make_pipeline
+    from sklearn.preprocessing import StandardScaler
+    return make_pipeline(StandardScaler(), LogisticRegression(max_iter=2000, C=0.5))
+
+
+def fit_confusion_decoder(XE, YE, GE, e_pre, pre_i, kept):
+    """The confusion decoder's fits: all-pre model + one leave-one-session-out model per usable pre session."""
+    loso = {}
+    for i in sorted(pre_i):
+        tr, te = e_pre & (GE != i), e_pre & (GE == i)
+        if te.sum() < 5 or len(np.unique(YE[tr])) < 2:
+            continue
+        loso[kept[i]] = _confusion_pipe().fit(XE[tr], YE[tr])
+    return {"full": _confusion_pipe().fit(XE[e_pre], YE[e_pre]), "loso": loso}
+
+
+def fit_reference(XE, en, e_pre, GE, XU, u_pre, pre_i, kept, methods, use_nolick=True, e_rows=None):
+    """Every coding-direction quantity `run_animal` fits on pre-stroke trials, keyed by LABEL (not pooled index).
+
+    {"e_axis": vector | None, "methods": {meth: {"W": {D: (w, p0, p1)}, "w_raw": {D: w before orthogonalising},
+    "W_loso": {(D, label): (w, p0, p1)}, "PW": {"A|B": (w, pole_B, pole_A)}, "PW_loso": {("A|B", label): (w, r0, r1)}}}}.
+    Same constructions, same rows, same iteration order as the in-memory loop it replaced.
+
+    ``e_rows`` = ``(XE, XU)`` in the ENGAGEMENT-AXIS frame (Priya 11-04 final: z on contact rows,
+    `working_trials.eax_rows`) when the directions are fitted in the projection (Wt) frame; None = the same rows."""
+    EXa, EUa = e_rows if e_rows is not None else (XE, XU)
+    e_axis = (engagement_axis(EXa[e_pre], EUa[u_pre])
+              if (use_nolick and e_pre.sum() and u_pre.sum()) else None)
+    out = {"e_axis": e_axis, "methods": {}}
+    for meth in methods:
+        base_m, do_orth = (meth[:-5], True) if meth.endswith("_orth") else (meth, False)
+        if do_orth and e_axis is None:
+            continue
+        W, w_raws, W_loso, PW, PW_loso = {}, {}, {}, {}, {}
+        for D in BY_SEVERITY:
+            Xp, Xn = XE[e_pre & (en == D)], XE[e_pre & (en != D)]
+            if len(Xp) < 20 or len(Xn) < 20:
+                continue
+            w_raw = direction(Xp, Xn, base_m)
+            w = orthogonalise(w_raw, e_axis) if do_orth else w_raw
+            W[D] = (w, *poles(Xp, Xn, w))
+            w_raws[D] = w_raw
+            for i in pre_i:
+                tr = e_pre & (GE != i)
+                Ap, An = XE[tr & (en == D)], XE[tr & (en != D)]
+                if len(Ap) < 20 or len(An) < 20:
+                    continue
+                wi = direction(Ap, An, base_m)
+                if do_orth:
+                    wi = orthogonalise(wi, e_axis)
+                W_loso[(D, kept[i])] = (wi, *poles(Ap, An, wi))
+        for A in BY_SEVERITY:
+            for B in BY_SEVERITY:
+                if A == B:
+                    continue
+                XA, XB = XE[e_pre & (en == A)], XE[e_pre & (en == B)]
+                if len(XA) < 20 or len(XB) < 20:
+                    continue
+                wab = direction(XA, XB, base_m)
+                if do_orth and e_axis is not None:
+                    wab = orthogonalise(wab, e_axis)
+                PW[f"{A}|{B}"] = (wab, *poles(XA, XB, wab))
+                for i in pre_i:
+                    tr = e_pre & (GE != i)
+                    Ap, Bp = XE[tr & (en == A)], XE[tr & (en == B)]
+                    if len(Ap) < 20 or len(Bp) < 20:
+                        continue
+                    wi = direction(Ap, Bp, base_m)
+                    if do_orth:
+                        wi = orthogonalise(wi, e_axis)
+                    PW_loso[(f"{A}|{B}", kept[i])] = (wi, *poles(Ap, Bp, wi))
+        out["methods"][meth] = {"W": W, "w_raw": w_raws, "W_loso": W_loso, "PW": PW, "PW_loso": PW_loso}
+    return out
+
+
+def _coding_train(animal, kept, pre_i):
+    from wfield_local import frozen_models
+    if frozen_models.daq_trained_in_lp():
+        # DAQ-TRAINED references in the LP arm: the DAQ run's training set (every pre session of the animal), not the
+        # LP-kept list (a pre session without LP tables is in the DAQ fit but not in the LP pool).
+        return sorted(x for x in config.phase_labels("pre") if config.animal_of(x) == animal)
+    return sorted(kept[i] for i in pre_i)
+
+
+def stored_confusion_decoder(animal, align, post_s, basis_id, XE, YE, GE, e_pre, pre_i, kept, *, fit=None,
+                             scaling=None):
+    """The stored confusion decoder, or None (opted out, or too little pre data -- `_class_confusions` then returns
+    None itself without fitting)."""
+    from wfield_local import frozen_models
+    if not coding_frozen_on() or e_pre.sum() < 20 or len(np.unique(YE[e_pre])) < 2:
+        return None
+    spec = frozen_models.make_spec(animal, "coding_decoder", align=align, source="locanmf",
+                                   train_labels=_coding_train(animal, kept, pre_i), post_s=post_s,
+                                   basis_id=basis_id, n_features=int(XE.shape[1]),
+                                   train_data=(XE[e_pre], YE[e_pre], GE[e_pre]),
+                                   **__import__("wfield_local.spout_scaling", fromlist=["x"]).spec_kw(scaling))
+    payload, status = frozen_models.load_or_fit(
+        spec, fit or (lambda: fit_confusion_decoder(XE, YE, GE, e_pre, pre_i, kept)),
+        meta={"n_engaged_pre": int(e_pre.sum())})
+    print(f"  [coding_dirs] {animal} {align}: coding_decoder {frozen_models._slug(spec)} {status} "
+          f"(trained on {spec.get('lick_source', 'daq')} pre trials)", flush=True)
+    return payload
+
+
+def stored_reference(animal, align, post_s, basis_id, XE, en, e_pre, GE, XU, u_pre, pre_i, kept, methods,
+                     use_nolick=True, e_rows=None):
+    """`fit_reference` through the store (default) or in memory (WIDEFIELD_CODING_FROZEN=0)."""
+    from wfield_local import frozen_models
+
+    def _fit():
+        return fit_reference(XE, en, e_pre, GE, XU, u_pre, pre_i, kept, methods, use_nolick=use_nolick,
+                             e_rows=e_rows)
+
+    if not coding_frozen_on():
+        print(f"  [coding_dirs] {animal} {align}: {CODING_FROZEN_ENV}=0 -> directions + decoder fitted IN MEMORY",
+              flush=True)
+        return _fit()
+    spec = frozen_models.make_spec(animal, "coding_directions", align=f"{align}-{'+'.join(methods)}",
+                                   source="locanmf", train_labels=_coding_train(animal, kept, pre_i), post_s=post_s,
+                                   basis_id=basis_id, n_features=int(XE.shape[1]),
+                                   train_data=(XE[e_pre], np.asarray(en)[e_pre], GE[e_pre],
+                                               XU[u_pre] if use_nolick and len(XU) else None)
+                                   # the engagement-axis frame enters the identity when it is not the CD frame
+                                   + ((e_rows[0][e_pre], e_rows[1][u_pre] if len(e_rows[1]) else None)
+                                      if e_rows is not None else ()))
+    payload, status = frozen_models.load_or_fit(spec, _fit, meta={"n_engaged_pre": int(e_pre.sum()),
+                                                                   "methods": list(methods)})
+    print(f"  [coding_dirs] {animal} {align}: coding_directions {frozen_models._slug(spec)} {status}", flush=True)
+    return payload
+
+
+def _gate_all(feat, kept, XE, YE, GE, XU, YU, GU, rule=None):
     """(not_eng, frac_nolick, frac_eng), or None if the trial bookkeeping does not line up.
 
     ``frac_*`` is each trial's position WITHIN its session, 0 at the first trial and 1 at the last.
     It comes from the same indices the gate uses, so "where in the session" and "before or after the
     quit" can never disagree about a trial.
+
+    CAMERA TRIAL GATE (rebuild 11-03, fail closed): ``not_eng`` IS the DAQ quit-tail mask, so under
+    gate=camera it is a `trial_classes.RefusedMask` (any use raises) and the gate is not computed; the
+    ``frac_*`` bookkeeping is unchanged. Camera-wired callers take their classes from
+    `trial_classes.pool_row_classes`. ``rule="daq"`` builds the real DAQ mask anyway, for a LABELLED
+    DAQ robustness row (`grant_kit._pooled_bundle["not_eng_daq"]`).
     """
+    from wfield_local import trial_classes as _tc
+    refused = _tc.camera_gate_on() and rule != "daq"
     tables = _session_tables(feat, kept)
     if not tables:
         return None
@@ -569,16 +729,20 @@ def _gate_all(feat, kept, XE, YE, GE, XU, YU, GU):
         if t is None:
             continue
         ie, inl = feat.indices[kept[si]]
-        pos = _positions_for(tables, si, YE, GE, YU, GU, ie, inl)
-        ne = engagement_gate(t["order"], t["responded"], pos)
-        bne = {int(k): bool(v) for k, v in zip(t["order"], ne)}
         span = max(int(t["order"].max()), 1)
-        not_eng += [bne.get(int(k), False) for k in inl]
+        if not refused:
+            pos = _positions_for(tables, si, YE, GE, YU, GU, ie, inl)
+            with _tc.daq_quit_rule("labelled DAQ robustness row (rule='daq')") if rule == "daq" \
+                    else contextlib.nullcontext():
+                ne = engagement_gate(t["order"], t["responded"], pos)
+            bne = {int(k): bool(v) for k, v in zip(t["order"], ne)}
+            not_eng += [bne.get(int(k), False) for k in inl]
         frac_nl += [min(int(k) / span, 1.0) for k in inl]
         frac_e += [min(int(k) / span, 1.0) for k in ie]
-    not_eng = np.array(not_eng, bool)
-    if len(not_eng) != len(XU) or len(frac_e) != len(XE):
+    if len(frac_nl) != len(XU) or len(frac_e) != len(XE):
         return None
+    not_eng = (_tc.RefusedMask("position_coding_directions._gate_all not_eng") if refused
+               else np.array(not_eng, bool))
     return not_eng, np.array(frac_nl, float), np.array(frac_e, float)
 
 
@@ -610,10 +774,135 @@ def _cells(vals):
             "sd": sd, "low_n": n < MIN_TRIALS}
 
 
+#: G9 CLASSES (Priya 11-04, follow-on b, APPROVED with guards): the coding-direction classes by CAMERA CLASS through
+#: `working_trials.g_group` -- contact / incomplete / jaw_only / none / after_end ("quit"); early_run -> none; the
+#: close-mid unjudged default kept apart (``n_jaw_unjudged``) -- pre and post, engaged and no-lick rows together.
+#: "camera" (default under the camera gate): `_camera_class_block` adds ``camera_classes`` to every method's record.
+#: "daq": the DAQ classes alone (poststroke_lick / poststroke_miss_working / poststroke_stopped). THE DAQ CLASSES ARE
+#: ALWAYS WRITTEN (labelled robustness, ``g9_daq_classes``): every existing figure / consumer still reads them, and
+#: switches only after `g9_old_new` has been run and read (docs/status/REBUILD_CODE_20261103.md 8.43).
+#: Guards: (1) every score is PER SPOUT (no pooled class contrast); (2) a cell needs >= G9_MIN_N rows per animal x epoch
+#: x class x spout, thinner cells are KEPT and flagged ``thin`` (never averaged); (3) each post class is read against the
+#: SAME class pre-stroke where that cell is not thin, else against pre WORKING (contact + incomplete), labelled
+#: ``pre_reference_is``; (4) the rows are z-scored per session on its CONTACT rows (`G9_CENTRE`; no incomplete row in
+#: any centre) until the centre option is decided.
+G9_CLASSES_ENV = "WIDEFIELD_G9_CLASSES"
+G9_MIN_N = 10
+G9_CENTRE = "contact"
+
+
+def g9_classes() -> str:
+    import os
+    v = os.environ.get(G9_CLASSES_ENV, "camera").strip().lower()
+    if v in ("camera", "cam", "classes"):
+        return "camera"
+    if v in ("daq", "old"):
+        return "daq"
+    raise ValueError(f"{G9_CLASSES_ENV}={v!r}: expected camera or daq")
+
+
+def _g9_groups(feat, kept, GE, GU, YE, YU, align):
+    """``(grp_e, grp_u, jj_e, jj_u, have)`` (`working_trials.row_groups`) for the G9 camera classes, or None: the DAQ
+    gate, the lick window, ``WIDEFIELD_G9_CLASSES=daq``, or a builder without cue indices."""
+    from wfield_local import trial_classes as _tc
+    from wfield_local import working_trials as _wt
+    if g9_classes() != "camera" or align == "lick" or not _tc.camera_gate_on() or not getattr(feat, "indices", None):
+        return None
+    return _wt.row_groups(kept, feat.indices, GE, GU, YE=YE, YU=YU)
+
+
+def _g9_contact_frame(X, G, grp, sessions):
+    """Rows of each session z-scored on its CONTACT rows (guard 4); a session without contact rows is left as is."""
+    from wfield_local import label_shift
+    out = np.array(X, float)
+    for i in sessions:
+        m = G == i
+        c = m & (grp == "contact")
+        if c.sum() >= 2:
+            out[m] = (X[m] - X[c].mean(0)) / label_shift.session_sd(X[c])
+    return out
+
+
+def _camera_class_block(proj, W, XE, XU, GE, GU, en, un, pre_i, kept, groups, min_n=G9_MIN_N):
+    """The G9 camera-class record for ONE method: {"pooled": {phase: {group: {spout P: cell}}}, "pre_reference_is":
+    {group: {P: "same" | "working"}}, "contrast": {group: {P: post mean - matched pre mean}}, ...}. ``proj(cls, X, D,
+    sess)`` = the method's projection (held-out direction for a pre session); pre rows of a session are projected on
+    ITS held-out direction (the directions are fitted on pre lick rows). Rows are engaged and no-lick rows of the group
+    stacked, in the contact-row z frame (`_g9_contact_frame`)."""
+    from wfield_local import working_trials as _wt
+    ge, gu, je, ju, _have = groups
+    X = np.vstack([XE, XU])
+    G = np.concatenate([GE, GU])
+    g = np.concatenate([ge, gu])
+    jj = np.concatenate([je, ju])
+    names = np.concatenate([en, un])
+    X = _g9_contact_frame(X, G, g, range(len(kept)))
+    is_pre = np.isin(G, list(pre_i))
+    rec = {"classes": list(_wt.G_ALL), "labels": dict(_wt.G_LABELS), "min_n": int(min_n), "frame": "z-contact",
+           "thin_cells": "kept, flagged thin, never averaged", "pooled": {"pre": {}, "post": {}},
+           "pre_reference_is": {}, "contrast": {}}
+
+    def _cell(vals, n_unj):
+        v = np.asarray(vals, float)
+        n = int(v.size)
+        return {"n": n, "mean": float(v.mean()) if n else None, "sd": float(v.std(ddof=1)) if n > 1 else None,
+                "thin": n < min_n, "n_jaw_unjudged": int(n_unj)}
+
+    for phase, pm in (("pre", is_pre), ("post", ~is_pre)):
+        for grp in list(_wt.G_ALL) + ["working"]:
+            gm = np.isin(g, list(_wt.G_WORKING)) if grp == "working" else (g == grp)
+            per = {}
+            for P in BY_SEVERITY:
+                if P not in W:
+                    continue
+                m = pm & gm & (names == P)
+                if phase == "pre":
+                    vals = [proj("prestroke_lick", X[m & (G == i)], P, sess=i) for i in sorted(pre_i)]
+                    vals = np.concatenate([v for v in vals if len(v)]) if any(len(v) for v in vals) else []
+                else:
+                    vals = proj("post", X[m], P)
+                per[P] = _cell(vals, (~jj[m]).sum())
+            rec["pooled"][phase][grp] = per
+    for grp in _wt.G_ALL:
+        rec["pre_reference_is"][grp], rec["contrast"][grp] = {}, {}
+        for P, c in rec["pooled"]["post"][grp].items():
+            same = rec["pooled"]["pre"][grp].get(P) or {}
+            ref = same if same.get("n", 0) >= min_n else rec["pooled"]["pre"]["working"].get(P) or {}
+            rec["pre_reference_is"][grp][P] = "same" if same.get("n", 0) >= min_n else "working"
+            rec["contrast"][grp][P] = (c["mean"] - ref["mean"]
+                                       if not c["thin"] and ref.get("mean") is not None and ref.get("n", 0) >= min_n
+                                       else None)
+    return rec
+
+
+def g9_old_new(results):
+    """OLD (DAQ) -> NEW (camera) G9 report per animal (guard 5; run before any figure is switched): for each method,
+    the class counts and the pooled per-spout CD scores of the DAQ classes next to the camera classes. ``results`` =
+    {animal: run_animal record}. Returns a list of flat rows (animal, method, scheme, class, spout, n, mean, thin)."""
+    rows = []
+    for an, r in sorted((results or {}).items()):
+        if not r:
+            continue
+        for meth, res in (r.get("methods") or {}).items():
+            for cls, per in (res.get("pooled") or {}).items():
+                for P, c in per.items():
+                    rows.append({"animal": an, "method": meth, "scheme": "daq", "class": cls, "spout": P,
+                                 "n": c.get("n"), "mean": c.get("mean"), "thin": bool(c.get("low_n"))})
+            cam = res.get("camera_classes")
+            if not cam:
+                continue
+            for phase in ("pre", "post"):
+                for grp, per in cam["pooled"][phase].items():
+                    for P, c in per.items():
+                        rows.append({"animal": an, "method": meth, "scheme": "camera", "class": f"{phase}_{grp}",
+                                     "spout": P, "n": c["n"], "mean": c["mean"], "thin": c["thin"]})
+    return rows
+
+
 def run_animal(animal, align="precue", verbose=True, methods=CD_METHODS):
     """Per-position directions for one animal: time course, 6x6 cross matrix, and pairwise axes."""
     disp = dict(ALIGNS)[align]
-    post_s = float(config.defaults()["decode"].get(f"{align}_post_s", 2.0))
+    post_s = lp_licks.post_s_for(align)
     pre = [l for l in config.phase_labels("pre") if l.startswith(animal)]
     post = [l for l in config.phase_labels("post") if l.startswith(animal)]
     if not pre or not post:
@@ -648,15 +937,29 @@ def run_animal(animal, align="precue", verbose=True, methods=CD_METHODS):
         print(f"[coding_dirs] {animal} {disp}: trial bookkeeping mismatch -- skipped", flush=True)
         return None
     not_eng, frac_nl, frac_e = _g
-    # THE PROJECTION FRAME (Priya 11-03, item C; `spout_scaling.projection_arrays`): directions, poles, the engagement
-    # axis and every projection below use rows centred as the frozen spout decoder centres them (label-free); the
-    # frozen-decoder confusions keep the production rows (they build their own frame). Identity when off.
+    # NO-LICK CLASS MASKS: the DAQ quit-tail rule (default, unchanged) or, under the camera trial gate (rebuild 11-03,
+    # `trial_classes`), miss-while-working = camera class in GATES["working"], stopped = no_response ("unknown" = neither)
+    from wfield_local import trial_classes as _tc
+    if _tc.camera_gate_on():
+        _ce, _cu = _tc.pool_row_classes(feat, kept, len(YE), len(YU))
+        nl_working = _tc.in_sel(_cu, "miss_working")          # responded, no contact (review M6)
+        nl_stopped = np.isin(_cu, list(_tc.STOPPED_CLASSES))
+    else:
+        nl_working, nl_stopped = ~not_eng, not_eng
+    # THE PROJECTION FRAME (main 26fd5b44 / 4a37cbc8, Priya 11-03 item C, 11-04 re-check;
+    # `spout_scaling.projection_arrays`; identity when off -- the default)
     from wfield_local import spout_scaling as _ss
-    from wfield_local.locanmf_frozen_decoder import _pipe as _fpipe
-    XE0, XU0 = XE, XU
     from wfield_local import working_trials as _wt
+    from wfield_local.locanmf_frozen_decoder import _pipe as _fpipe
+    # directions, poles, the engagement axis and every projection below use the projected rows; the frozen-decoder
+    # confusions keep the production rows (they build their own frame)
+    XE0, XU0 = XE, XU
     XE, XU = _ss.projection_arrays(XE, YE, GE, XU, GU, pre_i, _fpipe,
-                                   work=_wt.projection_work(kept, feat, GE, GU, align), YU=YU)
+                                   work=_wt.projection_work(kept, feat, GE, GU, align), YU=YU,
+                                   cls_e=_wt.projection_cls_e(kept, feat, GE, GU, align), labels=kept)
+
+    # G9 CAMERA CLASSES (follow-on b): the row groups, from the PRODUCTION rows' cue indices (None = DAQ classes only)
+    g9_groups = _g9_groups(feat, kept, GE, GU, YE, YU, align)
 
     order = sorted(range(len(kept)), key=lambda i: kept[i].split("_")[1])
     # VARIANCE CAPTURED PER SESSION, stored so a declining per-session coding value can be tested
@@ -681,9 +984,9 @@ def run_animal(animal, align="precue", verbose=True, methods=CD_METHODS):
         elif cls == "prestroke_nolick":
             m = u_pre.copy()
         elif cls == "poststroke_miss_working":
-            m = ~u_pre & ~not_eng
+            m = ~u_pre & nl_working
         else:
-            m = ~u_pre & not_eng
+            m = ~u_pre & nl_stopped
         X, names, g = ((XE, en, GE) if cls in ("prestroke_lick", "poststroke_lick") else (XU, un, GU))
         if pos is not None:
             m = m & (names == pos)
@@ -700,15 +1003,19 @@ def run_animal(animal, align="precue", verbose=True, methods=CD_METHODS):
         elif cls == "prestroke_nolick":
             m, names = u_pre.copy(), un
         elif cls == "poststroke_miss_working":
-            m, names = ~u_pre & ~not_eng, un
+            m, names = ~u_pre & nl_working, un
         else:
-            m, names = ~u_pre & not_eng, un
+            m, names = ~u_pre & nl_stopped, un
         return m & (names == pos) if pos is not None else m
 
     classes = CLASSES_FULL
     out = {"animal": animal, "align": align, "window": disp, "basis_id": basis.basis_id,
            "ncomp": int(basis.ncomp), "n_features": int(XE.shape[1]), "sessions": sessions,
-           "methods": {}}
+           "methods": {},
+           # which G9 classes this record carries (follow-on b): the DAQ classes always (robustness, what every
+           # figure reads today), the camera classes in methods[*]["camera_classes"] when g9_classes is "camera"
+           "g9_classes": "camera+daq" if g9_groups is not None else "daq",
+           "g9_daq_classes": list(CONFUSION_CLASSES)}
     # BEHAVIOUR, from the same trial indices the features came from. Method-independent, so it is
     # computed once here rather than inside the per-method loop.
     try:
@@ -732,32 +1039,49 @@ def run_animal(animal, align="precue", verbose=True, methods=CD_METHODS):
     # coding_direction.json. A second definition elsewhere is how the frozen-decoder contamination
     # happened: two places computing "the same" population and drifting apart.
     try:
+        # STORED BY DEFAULT (11-02 pass 2): see CODING_FROZEN_ENV; bal_em frames since main 11-03
+        from wfield_local import spout_scaling as _ss
+        _scl = _ss.SCALING_BAL_EM if _ss.spout_scaling() is not None else None
+
+        def _store_conf(fit_all):
+            st = stored_confusion_decoder(animal, align, post_s, basis.basis_id, XE0, YE, GE, e_pre, pre_i, kept,
+                                          fit=fit_all, scaling=_scl)
+            return st if st is not None else fit_all()
+
         out["confusions"] = _class_confusions(XE0, YE, GE, XU0, YU, e_pre, pre_i, _mask, kept,
-                                              rt_e=_rt_engaged(feat, kept, XE0), GU=np.asarray(GU))
+                                              rt_e=_rt_engaged(feat, kept, XE0), GU=np.asarray(GU),
+                                              store=_store_conf,
+                                              cls_e=(_tc.pool_row_classes(feat, kept, len(YE), len(YU))[0]
+                                                     if _tc.camera_gate_on() else None))
     except Exception as ex:                                          # noqa: BLE001
+        _tc.reraise_under_camera(ex, f"coding_dirs {animal} per-class confusions")   # merge review N2
         print(f"  [coding_dirs] {animal}: per-class confusions unavailable ({ex})", flush=True)
 
+    # every pre-stroke direction (engagement axis, per-position, LOSO, pairwise), STORED BY DEFAULT (CODING_FROZEN_ENV)
+    # THE PER-READOUT SPLIT (Priya 11-04 final): CD directions / poles / pairwise axes in the projection (Wt) frame,
+    # the ENGAGEMENT AXIS in z on contact rows (`working_trials.eax_rows`, from the production rows)
+    _e_rows = _wt.eax_rows(kept, feat, XE0, XU0, GE, GU) if _ss.projection_frame_on() else None
+    ref = stored_reference(animal, align, post_s, basis.basis_id, XE, en, e_pre, GE, XU, u_pre, pre_i, kept,
+                           tuple(methods), use_nolick=use_nolick, e_rows=_e_rows)
     # the engagement axis, from pre-stroke lick vs pre-stroke no-lick
-    e_axis = (engagement_axis(XE[e_pre], XU[u_pre])
-              if (use_nolick and e_pre.sum() and u_pre.sum()) else None)
+    e_axis = ref["e_axis"]
 
     for meth in methods:
         base_m, do_orth = (meth[:-5], True) if meth.endswith("_orth") else (meth, False)
         if do_orth and e_axis is None:
             continue
+        mref = ref["methods"][meth]
         res = {"positions": {}, "cross_matrix": {}, "pairwise": {},
                "orthogonalised": do_orth, "base_method": base_m}
         W, W_loso = {}, {}
         for D in BY_SEVERITY:
-            Xp, Xn = XE[e_pre & (en == D)], XE[e_pre & (en != D)]
-            if len(Xp) < 20 or len(Xn) < 20:
+            if D not in mref["W"]:
                 continue
-            w_raw = direction(Xp, Xn, base_m)
+            w_raw = mref["w_raw"][D]
             # CONTAMINATION: how much engagement each position axis carries, before anything is
             # removed. This is the number that decides whether orthogonalising is warranted.
             cos_e = float(w_raw @ e_axis) if e_axis is not None else None
-            w = orthogonalise(w_raw, e_axis) if do_orth else w_raw
-            p0, p1 = poles(Xp, Xn, w)
+            w, p0, p1 = mref["W"][D]
             W[D] = (w, p0, p1)
             # RAW poles kept: a normalised value far outside [0, 1] is either a genuine offset or a
             # near-zero denominator, and only the raw spread distinguishes those two.
@@ -771,14 +1095,8 @@ def run_animal(animal, align="precue", verbose=True, methods=CD_METHODS):
             # class -- pre-stroke NO-LICK included, since training uses only the lick arm -- is
             # already out of sample and uses the full fit.
             for i in pre_i:
-                tr = e_pre & (GE != i)
-                Ap, An = XE[tr & (en == D)], XE[tr & (en != D)]
-                if len(Ap) < 20 or len(An) < 20:
-                    continue
-                wi = direction(Ap, An, base_m)
-                if do_orth:
-                    wi = orthogonalise(wi, e_axis)
-                W_loso[(D, i)] = (wi, *poles(Ap, An, wi))
+                if (D, kept[i]) in mref["W_loso"]:
+                    W_loso[(D, i)] = mref["W_loso"][(D, kept[i])]
 
         def proj(cls, X, D, sess=None, _W=W, _WL=W_loso):
             """Project with the RIGHT direction: held-out for pre-stroke lick, full fit otherwise."""
@@ -878,6 +1196,11 @@ def run_animal(animal, align="precue", verbose=True, methods=CD_METHODS):
             res.setdefault("pooled", {})[c] = pooled
             res.setdefault("within_session", {})[c] = within
 
+        # ---- 2c. G9 BY CAMERA CLASS (follow-on b, Priya 11-04): per spout, n floor, matched pre reference -----
+        if g9_groups is not None:
+            res["camera_classes"] = _camera_class_block(proj, W, XE, XU, GE, np.asarray(GU), en, un, pre_i, kept,
+                                                        g9_groups)
+
         # ---- 3. PAIRWISE axes: A vs B directly, no five-way mixture in the contrast -----------
         # Sharper for the remapping question: "not-P" above averages five positions, so a trial can
         # look unlike P without the axis saying WHICH other position it resembles.
@@ -892,12 +1215,9 @@ def run_animal(animal, align="precue", verbose=True, methods=CD_METHODS):
                 if A == B:
                     continue
                 XA, XB = XE[e_pre & (en == A)], XE[e_pre & (en == B)]
-                if len(XA) < 20 or len(XB) < 20:
+                if f"{A}|{B}" not in mref["PW"]:
                     continue
-                wab = direction(XA, XB, base_m)
-                if do_orth and e_axis is not None:
-                    wab = orthogonalise(wab, e_axis)
-                a0, a1 = poles(XA, XB, wab)
+                wab, a0, a1 = mref["PW"][f"{A}|{B}"]
                 res["pairwise_axes"][f"{A}|{B}"] = {
                     "spread": float(a1 - a0), "n_A": len(XA), "n_B": len(XB)}
                 PW[f"{A}|{B}"] = (wab, a0, a1)
@@ -908,21 +1228,15 @@ def run_animal(animal, align="precue", verbose=True, methods=CD_METHODS):
                 for B in BY_SEVERITY:
                     if A == B:
                         continue
-                    XA, XB = XE[e_pre & (en == A)], XE[e_pre & (en == B)]
-                    if len(XA) < 20 or len(XB) < 20:
+                    if f"{A}|{B}" not in mref["PW"]:
                         continue
                     if c == "prestroke_lick":
-                        # held out session by session, same reason as above
+                        # held out session by session, same reason as above (stored: CODING_FROZEN_ENV)
                         ch = []
                         for i in pre_i:
-                            tr = e_pre & (GE != i)
-                            Ap, Bp = XE[tr & (en == A)], XE[tr & (en == B)]
-                            if len(Ap) < 20 or len(Bp) < 20:
+                            if (f"{A}|{B}", kept[i]) not in mref["PW_loso"]:
                                 continue
-                            wi = direction(Ap, Bp, base_m)
-                            if do_orth:
-                                wi = orthogonalise(wi, e_axis)
-                            r0, r1 = poles(Ap, Bp, wi)
+                            wi, r0, r1 = mref["PW_loso"][(f"{A}|{B}", kept[i])]
                             m = e_pre & (GE == i) & (en == A)
                             if m.sum():
                                 ch.append(project(XE[m], wi, r0, r1))
@@ -1904,7 +2218,8 @@ def main(argv=None) -> int:
     # check and far too slow for a nightly step.
     ap.add_argument("--methods", nargs="+", default=["dom", "dom_orth"], choices=CD_METHODS)
     args = ap.parse_args(argv)
-    out = args.output or Path(PathResolver().root("figures_working"))
+    from wfield_local import run_mode  # tagged runs never overwrite default figures (review H2)
+    out = run_mode.routed_output(args.output or Path(PathResolver().root("figures_working")))
     out.mkdir(parents=True, exist_ok=True)
     animals = config.normalize_animals(args.animals) or [a for a in config.animals()]
     want = set(args.windows)
@@ -1960,9 +2275,10 @@ def main(argv=None) -> int:
         for meth in sorted({m for r in res.values() if r for m in r.get("methods", {})}):
             for fn in (figure_cos_slope, figure_pairwise_split):
                 _draw(fn, {a: r for a, r in res.items() if r}, out, align=align, meth=meth)
-    (out / "coding_direction.json").write_text(
-        json.dumps(everything, indent=1, default=float), encoding="utf-8")
-    print("wrote coding_direction.json", flush=True)
+    from wfield_local import run_mode   # mode-tagged name (rebuild 11-03, trap T21): read by grant 3a/5b, miss_vs_stopped
+    _cdj = run_mode.keyed_name("coding_direction.json")
+    (out / _cdj).write_text(json.dumps(everything, indent=1, default=float), encoding="utf-8")
+    print(f"wrote {_cdj}", flush=True)
     return 0
 
 

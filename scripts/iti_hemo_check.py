@@ -33,7 +33,9 @@ ALL THE ESTIMATORS ARE LINEAR, so per lick the baseline-subtracted response AUC 
   (f) F0 per Allen area: mean of `frames_average_atlas` (raw counts, both channels) over each area's stat-mask pixels,
       plus the whole-frame central-60 % mean of iti_f0_check; change vs pre per area.
   (g) global state: treadmill speed (DAQ, `behavior_events.session_speed`) in -1..+1 s around each lick and in the
-      baseline window; FaceRhythm |factor| in the same windows (the npz's bout_fr).
+      baseline window. (FaceRhythm is NOT read here -- an earlier line said "the npz's bout_fr", but no code used it, and
+      that field interpolates across the frozen encoder's blanked ITI anyway (10-28); the ITI face control is
+      iti_licks.controls, on the UNBLANKED read-out `iti_licks.fr_unblanked`.)
   (h) baseline / gap match: each post session's licks re-weighted so its no-lick GAP distribution (bins 2-3, 3-5, 5-10,
       10-20, >= 20 s) matches its animal's pooled pre distribution; response recomputed.
 
@@ -43,13 +45,14 @@ so "415 change" is read in units of the corrected pre response (415's own pre re
 ratio to it is meaningless).
 Usage: python scripts/iti_hemo_check.py [--labels ...] [--jobs 3]     (extract, cached, then summarise)
        python scripts/iti_hemo_check.py --summarise
-       python scripts/iti_hemo_check.py --plot-only     (re-render the figures from the saved csv + cache only)
+       python scripts/iti_hemo_check.py --plot-only     (re-render the figures from figdata/*.pkl only)
 Output: <iti_licks OUT>/hemo_check/*.csv, cache/<label>.npz ; figures <OUT>/figures/iti_hemo_check_*.png
 """
 from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -61,11 +64,28 @@ import iti_licks as il  # noqa: E402
 from fr_musall import AN  # noqa: E402
 
 HC = il.OUT / "hemo_check"
-CACHE = HC / "cache"
+# per-session caches hold ROI-mean PETHs, so they depend on the ALM / tjM1 ROI version (iti_licks.ROI_VERSION; 10-27):
+# v1 (40 / 40) stays in cache/, v2 (ALM 40 % / tjM1 50 %) goes to cache_roi2/
+_CACHE_BASE = "cache" if il.ROI_VERSION == "1" else f"cache_roi{il.ROI_VERSION}"
+# REFERENCE ROW (rebuild 11-03): "adopted" = the variant this run READS (the one hemo switch; ce.load_imaging). Set
+# ITI_HEMO_REF_VARIANT=<hemo dir suffix> (e.g. meegkit_hpfit, or the rebuild's new variant) to add a "ref" row read
+# from hemo_<ref>/SVTcorr.npy -- the side-by-side of old vs new correction. Its cache is keyed by the ref (and the ROI
+# version, as above).
+REF_VARIANT = os.environ.get("ITI_HEMO_REF_VARIANT", "").strip() or None
+CACHE = HC / (_CACHE_BASE if REF_VARIANT is None else f"{_CACHE_BASE}_ref-{REF_VARIANT}")
 CACHE_VERSION = 1
-VARIANTS = ("adopted", "orig", "raw470", "raw415")
-VLAB = {"adopted": "corrected ADOPTED (meegkit_hpfit)", "orig": "corrected ORIGINAL (zero-phase HP)",
+VARIANTS = ("adopted", "orig", "raw470", "raw415") + (("ref",) if REF_VARIANT else ())
+
+
+def _read_variant_label() -> str:
+    from wfield_local import config
+    return config.hemo_variant() or "zerophase"
+
+
+VLAB = {"adopted": f"corrected ADOPTED ({_read_variant_label()})", "orig": "corrected ORIGINAL (zero-phase HP)",
         "raw470": "UNCORRECTED 470 nm", "raw415": "415 nm (haemodynamic)"}
+if REF_VARIANT:
+    VLAB["ref"] = f"corrected REFERENCE ({REF_VARIANT})"
 MAP_VARIANTS = ("adopted", "raw415")
 EP = il.EP4
 POST = EP[1:]
@@ -96,7 +116,8 @@ def work(label: str) -> dict:
     from scipy import ndimage
 
     from wfield_local import combined_encoding as ce
-    from wfield_local.hemo_variants import ADOPTED, functional_channel
+    from wfield_local import config
+    from wfield_local.hemo_variants import functional_channel
     f = CACHE / f"{label}.npz"
     if f.exists() and int(np.load(f)["cache_version"]) == CACHE_VERSION:
         return {"label": label, "cached": True}
@@ -111,7 +132,7 @@ def work(label: str) -> dict:
         raise RuntimeError(f"{label}: ROI columns differ from the saved session npz")
     Ra = np.stack([Ub[M[c]].mean(0) for c in cols], 1).astype(np.float64)        # (K, n_roi)
     fc = functional_channel(label)
-    man = json.loads((res / f"hemo_{ADOPTED}" / "manifest.json").read_text())
+    man = json.loads(Path(config.hemo_manifest_path(res)).read_text())   # selected variant, call time (review L2)
     svt = np.load(res / "SVT.npy", mmap_mode="r")
     if abs(svt.shape[1] // 2 - n) > 2 and abs(svt.shape[1] // 2 - V.shape[0]) > 2:
         raise RuntimeError(f"{label}: raw SVT {svt.shape[1]} samples vs corrected {V.shape[0]} frames")
@@ -134,6 +155,8 @@ def work(label: str) -> dict:
             X = V[:n].astype(np.float64)
         elif v == "orig":
             X = np.load(res / "SVTcorr.npy", mmap_mode="r").T[:n].astype(np.float64)
+        elif v == "ref":
+            X = np.load(res / f"hemo_{REF_VARIANT}" / "SVTcorr.npy", mmap_mode="r").T[:n].astype(np.float64)
         else:
             slot = fc if v == "raw470" else (fc + 1) % 2
             X = np.asarray(svt[:, slot::2], np.float64).T[:n]
@@ -235,12 +258,24 @@ CI_TOP = 0.985            # first row (acute) top, axes fraction
 
 def _panel(ax, T: pd.DataFrame, val: str, colors: dict, ref: float | None = 1.0) -> None:
     """Epoch on x, one thin line per animal (animal mean over sessions), black = mean of animals, boot_delta CI text.
+    = `_panel_compute` (table + tests; picklable) + `_panel_draw`.
 
     The change-vs-pre numbers are a compact 3-row TABLE in a reserved band at the top of the axes (one row per post
     epoch, in the epoch colour, monospace so the columns line up) -- not centred over each epoch, where the three
     labels ran into each other in narrow panels. The y range is extended so no data reaches the band."""
-    x = np.arange(len(EP))
+    _panel_draw(ax, _panel_compute(T, val), colors, ref=ref)
+
+
+def _panel_compute(T: pd.DataFrame, val: str) -> dict:
     A = T.groupby(["animal", "epoch"])[val].mean().unstack("epoch").reindex(columns=EP)
+    rows = [(ep, _boot(T, val, ep)) for ep in POST]
+    rows = [(ep, float(iv.point), float(iv.lo), float(iv.hi), bool(iv.excludes_zero)) for ep, iv in rows if iv is not None]
+    return {"A": A, "rows": rows}
+
+
+def _panel_draw(ax, P: dict, colors: dict, ref: float | None = 1.0) -> None:
+    x = np.arange(len(EP))
+    A = P["A"]
     for _a, r in A.iterrows():
         ax.plot(x, r.to_numpy(float), color="0.6", lw=0.9, marker="o", ms=2.5)
     mu = A.mean(0).to_numpy(float)
@@ -249,13 +284,12 @@ def _panel(ax, T: pd.DataFrame, val: str, colors: dict, ref: float | None = 1.0)
         ax.scatter(x[i], mu[i], color=colors[ep], s=40, zorder=5, edgecolor="k", lw=0.6)
     if ref is not None:
         ax.axhline(ref, color="0.75", lw=0.7, ls="--")
-    rows = [(ep, _boot(T, val, ep)) for ep in POST]
-    rows = [(ep, iv) for ep, iv in rows if iv is not None]
-    for k, (ep, iv) in enumerate(rows):
+    rows = P["rows"]
+    for k, (ep, pt, lo_, hi_, ex) in enumerate(rows):
         ax.text(0.02, CI_TOP - CI_ROW * k,
-                f"{EP_SHORT[ep]:<7} Δ{iv.point:+.2f} [{iv.lo:+.2f},{iv.hi:+.2f}]" + (" *" if iv.excludes_zero else ""),
+                f"{EP_SHORT[ep]:<7} Δ{pt:+.2f} [{lo_:+.2f},{hi_:+.2f}]" + (" *" if ex else ""),
                 transform=ax.transAxes, ha="left", va="top", fontsize=5.6, family="monospace", color=colors[ep],
-                fontweight="bold" if iv.excludes_zero else "normal")
+                fontweight="bold" if ex else "normal")
     ax.set_xticks(x)
     ax.set_xticklabels([EP_SHORT[e] for e in EP], fontsize=7)
     ax.set_xlim(-0.25, len(EP) - 1 + 0.45)
@@ -489,9 +523,9 @@ def summarise(labels: list[str]) -> None:
 
 
 # ------------------------------------------------------------------------------------------------ figures
-# Pure plotting from the summary tables (+ the cached PETH / pixel maps), so `--plot-only` re-renders without touching
-# a bootstrap table or the extraction. The CI text is recomputed by `_boot` (seeded, same row order as the csv), i.e.
-# the same numbers as variant_resp_change.csv / pixelset_change.csv / gapmatch_change.csv / state_change.csv.
+# Each fig_* computes its figure data from the summary tables (+ the cached PETH / pixel maps; the CI text by `_boot`,
+# seeded, i.e. the same numbers as variant_resp_change.csv / pixelset_change.csv / gapmatch_change.csv / state_change.csv),
+# saves it to figdata/<figure stem>.pkl, then draws it with draw_*; `--plot-only` runs only the draw_* step.
 
 
 def _savefig(fig, name: str, dpi: int, tight_bbox: bool = False) -> None:
@@ -505,13 +539,37 @@ def _savefig(fig, name: str, dpi: int, tight_bbox: bool = False) -> None:
     print("wrote", il.OUT / "figures" / name)
 
 
+# Every figure = compute (tables -> figure data, incl. the boot_delta CI text) -> figdata/<figure stem>.pkl -> draw.
+# `--plot-only` runs only the draw step from the figdata files (FIG_STEMS).
+FIG_STEMS = ("lick_iti_hemo_check_variants", "lick_iti_hemo_check_peth", "lick_iti_hemo_check_edge_vessel",
+             "lick_iti_hemo_check_f0_areas", "lick_iti_hemo_check_state_gap")
+
+
+def _cache_draw(stem: str, F: dict | None, draw) -> None:
+    from figdata import save_fd
+    if F is None:
+        return
+    save_fd(stem, F)
+    draw(F)
+
+
 def fig_variants(S: pd.DataFrame, colors: dict) -> None:
+    F = {"panels": {(i, j): _panel_compute(S[(S.variant == v) & (S.roi == roi)], "resp_rel_adopted")
+                    for i, v in enumerate(VARIANTS) for j, roi in enumerate(SHOW_ROIS)},
+         "variants": list(VARIANTS), "rois": list(SHOW_ROIS)}
+    _cache_draw("lick_iti_hemo_check_variants", F, draw_variants)
+
+
+def draw_variants(F: dict) -> None:
     import matplotlib.pyplot as plt
-    fig, axs = plt.subplots(len(VARIANTS), len(SHOW_ROIS), figsize=(2.6 * len(SHOW_ROIS), 2.6 * len(VARIANTS)))
-    for i, v in enumerate(VARIANTS):
-        for j, roi in enumerate(SHOW_ROIS):
+
+    from wfield_local.orofacial_cohort import EPOCH_LINE as colors
+    V, RO = F["variants"], F["rois"]
+    fig, axs = plt.subplots(len(V), len(RO), figsize=(2.6 * len(RO), 2.6 * len(V)))
+    for i, v in enumerate(V):
+        for j, roi in enumerate(RO):
             ax = axs[i, j]
-            _panel(ax, S[(S.variant == v) & (S.roi == roi)], "resp_rel_adopted", colors)
+            _panel_draw(ax, F["panels"][(i, j)], colors)
             ax.axhline(0, color="0.85", lw=0.6)
             if i == 0:
                 ax.set_title(roi, fontsize=8)
@@ -540,16 +598,29 @@ def _peth_frame(C: dict) -> pd.DataFrame:
 
 
 def fig_peth(PE: pd.DataFrame, colors: dict) -> None:
-    import matplotlib.pyplot as plt
-    fig, axs = plt.subplots(1, len(VARIANTS), figsize=(4 * len(VARIANTS), 3.3), sharey=True)
-    for i, v in enumerate(VARIANTS):
-        ax = axs[i]
+    curves = {}
+    for v in VARIANTS:
+        cur = []
         for ep in EP:
             t = PE[(PE.variant == v) & (PE.epoch == ep)]
             if t.empty:
                 continue
             A = np.stack([np.mean(np.stack(g.peth.to_numpy()), 0) for _a, g in t.groupby("animal")])
-            ax.plot(il.LAGS_P, A.mean(0), color=colors[ep], lw=2, label=f"{ep} ({len(A)} animals)")
+            cur.append((ep, A.mean(0), len(A)))
+        curves[v] = cur
+    _cache_draw("lick_iti_hemo_check_peth", {"lags": il.LAGS_P, "variants": list(VARIANTS), "curves": curves}, draw_peth)
+
+
+def draw_peth(F: dict) -> None:
+    import matplotlib.pyplot as plt
+
+    from wfield_local.orofacial_cohort import EPOCH_LINE as colors
+    V = F["variants"]
+    fig, axs = plt.subplots(1, len(V), figsize=(4 * len(V), 3.3), sharey=True)
+    for i, v in enumerate(V):
+        ax = axs[i]
+        for ep, mu, n in F["curves"][v]:
+            ax.plot(F["lags"], mu, color=colors[ep], lw=2, label=f"{ep} ({n} animals)")
         ax.axvline(0, color="0.6", lw=0.6)
         ax.axhline(0, color="0.8", lw=0.6)
         ax.set_title(VLAB[v], fontsize=9)
@@ -579,10 +650,23 @@ def _pixel_maps(C: dict) -> dict:
     return maps
 
 
+EV_RATIOS = (("edge_over_interior", "edge / interior"), ("vessel_over_nonvessel", "vessel / non-vessel"),
+             ("var415_over_rest", "top-5% 415-variance / rest"))
+
+
 def fig_edge_vessel(maps: dict, stat_img: np.ndarray, W: pd.DataFrame, PX: pd.DataFrame, colors: dict) -> None:
+    F = {"maps": maps, "stat_img": stat_img, "lim": np.nanpercentile(np.abs(maps[("adopted", "pre")]), 99),
+         "ratios": [_panel_compute(W[W.variant == "adopted"].rename(columns={s_: "val"}), "val") for s_, _lab in EV_RATIOS],
+         "p415": _panel_compute(PX[(PX.variant == "raw415") & (PX.set == "interior")], "resp_rel")}
+    _cache_draw("lick_iti_hemo_check_edge_vessel", F, draw_edge_vessel)
+
+
+def draw_edge_vessel(F: dict) -> None:
     import matplotlib.pyplot as plt
+
+    from wfield_local.orofacial_cohort import EPOCH_LINE as colors
+    maps, stat_img, lim = F["maps"], F["stat_img"], F["lim"]
     fig, axs = plt.subplots(len(MAP_VARIANTS) + 1, 4, figsize=(15, 3.6 * (len(MAP_VARIANTS) + 1)))
-    lim = np.nanpercentile(np.abs(maps[("adopted", "pre")]), 99)
     for i, v in enumerate(MAP_VARIANTS):
         for j, ep in enumerate(EP):
             ax = axs[i, j]
@@ -595,13 +679,12 @@ def fig_edge_vessel(maps: dict, stat_img: np.ndarray, W: pd.DataFrame, PX: pd.Da
             ax.set_title(f"{VLAB[v]}\n{'pre mean' if ep == 'pre' else ep + ' - pre'}", fontsize=8)
             ax.axis("off")
     fig.colorbar(im, ax=axs[:len(MAP_VARIANTS), :], fraction=0.015).set_label("response AUC (dF/F x1e3 s)")
-    for j, (s_, lab) in enumerate((("edge_over_interior", "edge / interior"), ("vessel_over_nonvessel", "vessel / non-vessel"),
-                                   ("var415_over_rest", "top-5% 415-variance / rest"))):
+    for j, ((_s, lab), P) in enumerate(zip(EV_RATIOS, F["ratios"])):
         ax = axs[-1, j]
-        _panel(ax, W[W.variant == "adopted"].rename(columns={s_: "val"}), "val", colors, ref=None)
+        _panel_draw(ax, P, colors, ref=None)
         ax.set_title(f"ADOPTED: {lab} response ratio", fontsize=8)
     ax = axs[-1, 3]
-    _panel(ax, PX[(PX.variant == "raw415") & (PX.set == "interior")], "resp_rel", colors, ref=0.0)
+    _panel_draw(ax, F["p415"], colors, ref=0.0)
     ax.set_title("415 interior response / pre ADOPTED interior", fontsize=8)
     fig.subplots_adjust(wspace=0.32)
     _title(fig, "MOTION / EDGE / VESSEL check: ITI-lick response maps (AUC 0..0.5 s), mean of animals, one colour scale "
@@ -613,41 +696,63 @@ def fig_edge_vessel(maps: dict, stat_img: np.ndarray, W: pd.DataFrame, PX: pd.Da
 
 
 def fig_f0(FC: pd.DataFrame, label: str) -> None:
-    import matplotlib.pyplot as plt
     try:
-        from frozen_area_maps import area_image, outline, paint
+        from frozen_area_maps import area_image, outline
         img, nm = area_image(label)
-        ol = outline(img)
-        fig, axs = plt.subplots(2, 3, figsize=(13, 8))
+        pans = {}
         for i, ch_ in enumerate(("f0_470_rel", "f0_415_rel")):
             c_ = FC[FC.value == ch_]
             for j, ep in enumerate(POST):
-                ax = axs[i, j]
                 ce_ = c_[c_.epoch == ep].set_index("area")
-                im = ax.imshow(paint(img, nm, ce_.delta.to_dict()), cmap="RdBu_r", vmin=-0.3, vmax=0.3, interpolation="nearest")
-                ax.imshow(ol, cmap="Greys", vmin=0, vmax=1.2, alpha=0.45, interpolation="nearest")
                 w = ce_.loc["WHOLE_central60"] if "WHOLE_central60" in ce_.index else None
-                ax.set_title(f"F0 {ch_[3:6]} nm, {ep} - pre (fraction of pre)\n{int(ce_.sig.sum())} areas sig.; whole frame "
-                             f"{w.delta:+.2f}" if w is not None else "", fontsize=8)
-                ax.axis("off")
-            fig.colorbar(im, ax=axs[i, :], fraction=0.02).set_label("F0 / pre - 1")
-        _title(fig, "Raw fluorescence F0 (frames_average on the atlas grid, raw counts) per Allen area, change vs the "
-               "animal's pre mean (mean of animals, paired nested bootstrap). Image left = ipsilesional.", 170)
-        _savefig(fig, "lick_iti_hemo_check_f0_areas.png", 105, tight_bbox=True)
+                pans[(i, j)] = (ch_, ep, ce_.delta.to_dict(), int(ce_.sig.sum()), None if w is None else float(w.delta))
+        F = {"img": img, "nm": nm, "ol": outline(img), "panels": pans}
     except Exception as ex:                                # noqa: BLE001
         print(f"F0 area map figure skipped: {ex}")
+        return
+    _cache_draw("lick_iti_hemo_check_f0_areas", F, draw_f0)
+
+
+def draw_f0(F: dict) -> None:
+    import matplotlib.pyplot as plt
+    from frozen_area_maps import paint
+    img, nm, ol = F["img"], F["nm"], F["ol"]
+    fig, axs = plt.subplots(2, 3, figsize=(13, 8))
+    for i in range(2):
+        for j in range(len(POST)):
+            ch_, ep, delta, n_sig, wd = F["panels"][(i, j)]
+            ax = axs[i, j]
+            im = ax.imshow(paint(img, nm, delta), cmap="RdBu_r", vmin=-0.3, vmax=0.3, interpolation="nearest")
+            ax.imshow(ol, cmap="Greys", vmin=0, vmax=1.2, alpha=0.45, interpolation="nearest")
+            ax.set_title(f"F0 {ch_[3:6]} nm, {ep} - pre (fraction of pre)\n{n_sig} areas sig.; whole frame "
+                         f"{wd:+.2f}" if wd is not None else "", fontsize=8)
+            ax.axis("off")
+        fig.colorbar(im, ax=axs[i, :], fraction=0.02).set_label("F0 / pre - 1")
+    _title(fig, "Raw fluorescence F0 (frames_average on the atlas grid, raw counts) per Allen area, change vs the "
+           "animal's pre mean (mean of animals, paired nested bootstrap). Image left = ipsilesional.", 170)
+    _savefig(fig, "lick_iti_hemo_check_f0_areas.png", 105, tight_bbox=True)
 
 
 def fig_state_gap(G: pd.DataFrame, Hh: pd.DataFrame, colors: dict) -> None:
+    F = {"panels": [_panel_compute(G, "run_win"), _panel_compute(G, "gap_median"),
+                    _panel_compute(Hh[Hh.variant == "adopted"], "resp_key_rel"),
+                    _panel_compute(Hh[Hh.variant == "adopted"], "resp_key_gapmatched_rel")]}
+    _cache_draw("lick_iti_hemo_check_state_gap", F, draw_state_gap)
+
+
+def draw_state_gap(F: dict) -> None:
     import matplotlib.pyplot as plt
+
+    from wfield_local.orofacial_cohort import EPOCH_LINE as colors
     fig, axs = plt.subplots(1, 4, figsize=(15, 3.8))
-    _panel(axs[0], G, "run_win", colors, ref=None)
+    P = F["panels"]
+    _panel_draw(axs[0], P[0], colors, ref=None)
     axs[0].set_title("treadmill speed -1..+1 s (mm/s)", fontsize=8)
-    _panel(axs[1], G, "gap_median", colors, ref=None)
+    _panel_draw(axs[1], P[1], colors, ref=None)
     axs[1].set_title("median no-lick gap before the lick (s)", fontsize=8)
-    _panel(axs[2], Hh[Hh.variant == "adopted"], "resp_key_rel", colors)
+    _panel_draw(axs[2], P[2], colors)
     axs[2].set_title("ADOPTED key_mean response / pre (all licks)", fontsize=8)
-    _panel(axs[3], Hh[Hh.variant == "adopted"], "resp_key_gapmatched_rel", colors)
+    _panel_draw(axs[3], P[3], colors)
     axs[3].set_title("same, GAP-MATCHED to the animal's pre distribution", fontsize=8)
     _title(fig, "BEHAVIOUR + NEURAL: global state around ITI licks and the response after matching the no-lick gap "
            "(grey = animals, black = mean; text rows = change vs pre (Δ) with nested bootstrap 95% CI, * excludes 0).",
@@ -655,24 +760,17 @@ def fig_state_gap(G: pd.DataFrame, Hh: pd.DataFrame, colors: dict) -> None:
     _savefig(fig, "lick_iti_hemo_check_state_gap.png", 110)
 
 
-def plot_only(labels: list[str]) -> None:
-    """Re-render the five figures from the saved hemo_check/*.csv (+ the cached PETH / pixel maps). No extraction, no
-    table is rewritten."""
+def plot_only(labels: list[str] | None = None) -> None:
+    """Re-render the five figures from figdata/<figure stem>.pkl ONLY: no csv, no cache, no bootstrap, no table
+    rewritten. (labels is ignored; kept for the old call signature.)"""
     import matplotlib
     matplotlib.use("Agg")
-
-    from wfield_local.orofacial_cohort import EPOCH_LINE as colors
-    rd = {"label": str, "animal": str, "epoch": str}
-    R = pd.read_csv(HC / "variant_resp_sessions.csv", dtype=rd)
-    fig_variants(R[R.roi.isin(SHOW_ROIS)], colors)
-    C = {x: dict(np.load(CACHE / f"{x}.npz", allow_pickle=False)) for x in labels if (CACHE / f"{x}.npz").exists()}
-    fig_peth(_peth_frame(C), colors)
-    W = pd.read_csv(HC / "pixelset_ratios_sessions.csv", dtype=rd)
-    PX = pd.read_csv(HC / "pixelset_sessions.csv", dtype=rd)
-    fig_edge_vessel(_pixel_maps(C), next(iter(C.values()))["pstat_img"], W, PX, colors)
-    fig_f0(pd.read_csv(HC / "f0_area_change.csv"), next(iter(C)))
-    fig_state_gap(pd.read_csv(HC / "state_sessions.csv", dtype=rd), pd.read_csv(HC / "gapmatch_sessions.csv", dtype=rd),
-                  colors)
+    from figdata import fd_path, load_fd
+    for stem, draw in zip(FIG_STEMS, (draw_variants, draw_peth, draw_edge_vessel, draw_f0, draw_state_gap)):
+        if stem == "lick_iti_hemo_check_f0_areas" and not fd_path(stem).exists():
+            print(f"{stem}: no figdata (the F0 map figure was skipped on the last full run)")
+            continue
+        draw(load_fd(stem))
 
 
 def main(argv=None) -> int:
@@ -681,12 +779,12 @@ def main(argv=None) -> int:
     ap.add_argument("--jobs", type=int, default=3)
     ap.add_argument("--summarise", action="store_true")
     ap.add_argument("--plot-only", action="store_true",
-                    help="re-render the figures from the saved hemo_check/*.csv + cache; no extraction, no table rewrite")
+                    help="re-render the figures from figdata/<figure>.pkl only; no csv, no cache, no bootstrap, no table rewrite")
     a = ap.parse_args(argv)
     from wfield_local import analysis_kit as ak
     from wfield_local.writeguard import assert_writable
     assert_writable(HC)
-    labels = a.labels or sorted(p.stem for p in (il.OUT / "sessions").glob("*.npz"))
+    labels = a.labels or il.labels()
     if a.plot_only:
         assert_writable(il.OUT / "figures")
         plot_only(labels)

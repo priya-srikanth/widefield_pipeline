@@ -122,7 +122,14 @@ def session_control(session, align, *, post_s=2.0, variant="working"):
             session, args, signal=np.asarray(sig), feat_region=np.arange(sig.shape[0]),
             signal_key=key, with_indices=True)
         X, y = np.asarray(X), np.asarray(y)
-        if variant == "working" and len(yn):
+        from wfield_local import trial_classes as _tc
+        if variant == "working" and _tc.camera_gate_on():          # camera rule (rebuild 11-03)
+            ke, kn = _tc.camera_rows(session["label"], idx_e, idx_n, "working")
+            X, y = X[ke], y[ke]
+            if len(yn) and kn.any():
+                X = np.vstack([X, np.asarray(Xn)[kn]])
+                y = np.concatenate([y, np.asarray(yn)[kn]])
+        elif variant == "working" and len(yn):
             keep = ~_quit_mask(session, idx_e, idx_n, y, yn)
             if keep.any():
                 X = np.vstack([X, np.asarray(Xn)[keep]])
@@ -187,10 +194,12 @@ def by_epoch(align="cue", variant="working", post_s=2.0, animals=None):
             try:
                 got = session_control(s, align, post_s=post_s, variant=variant)
             except Exception as ex:                                    # noqa: BLE001
+                from wfield_local import trial_classes as _tc
+                _tc.reraise_under_camera(ex, f"hemo-control {s['label']}")   # review N9
                 print(f"  !! hemo-control {s['label']}: {type(ex).__name__} {str(ex)[:70]}",
                       flush=True)
                 continue
-            for q, r in got.items():
+            for q, r in got.items():  # noqa: B007
                 b = out.setdefault(e, {"r_iso": [], "r_vessel": [], "r_vessel_iso": [],
                                        "sessions": set()})
                 b["r_iso"].append(r["r_iso"])

@@ -72,6 +72,8 @@ def job(label: str) -> dict:
 
 
 def main(argv=None) -> int:
+    from wfield_local import run_mode as _rm_guard
+    _rm_guard.require_default("push_behaviour")   # unrouted share writer: refuses in a non-default run mode
     from wfield_local import analysis_kit as ak
     from wfield_local import combined_encoding as ce
     from wfield_local import orofacial_cohort as oc
@@ -85,7 +87,7 @@ def main(argv=None) -> int:
     labels = [x for x in sorted(ce.sessions_available()) if x in cur and x[-4:] >= "0806"]   # August-only pre
     got, fail = ak.fan_sessions(labels, job, jobs=a.jobs, label="push")
     S = pd.DataFrame([r for _, r in got]).sort_values("label")
-    dst = oo.root(PathResolver()) / oc.RUN / "imaging_encoding" / "qc" / "push_behaviour_sessions.csv"
+    dst = oo.encoding_root(oc.RUN, PathResolver()) / "qc" / "push_behaviour_sessions.csv"
     assert_writable(dst)
     S.to_csv(dst, index=False, float_format="%.5g")
     pd.set_option("display.width", 220)

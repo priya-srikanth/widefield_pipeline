@@ -51,7 +51,8 @@ def imaging(label: str):
     if s["regime"] != "B":
         raise SystemExit(f"{label}: regime {s['regime']} -- this test handles regime B (corrected frame map) only")
     d = config.locanmf_dir(s["mc"])
-    C = np.load(f"{d}/{label}_locanmf_C.npy").astype(np.float64)
+    from wfield_local import locanmf_session
+    C = locanmf_session.load_C(s).astype(np.float64)          # stored, or projected (WIDEFIELD_LOCANMF_PROJECT)
     A = np.load(f"{d}/{label}_locanmf_A.npy", mmap_mode="r")
     reg = np.load(f"{d}/{label}_locanmf_regions.npy")
     dff = (_footprint_scale(A, C.shape[0])[:, None] * C).T
@@ -271,7 +272,10 @@ def main(argv=None) -> int:
         vp = ME.variance_partition(d, Yk, folds, model.alphas, out_names=names, partitions=parts_here)
         vp["area"] = vp.output.str.split("#").str[0]
         from scripts.session_poses import session_dir
-        out = session_dir(rv, spec)[2]
+        from wfield_local import run_mode
+        _sd = session_dir(rv, spec)[2]          # per-session outputs: the rebuild's derived pose area (11-04)
+        out = run_mode.session_poses_out("movement_encoding_session", _sd.parent) / _sd.name
+        out.mkdir(parents=True, exist_ok=True)
         vp.to_csv(out / f"movement_encoding_vp{tag}.csv", index=False)
         s = vp.groupby(["area", "group"]).agg(r2_full=("r2_full", "median"), unique=("unique", "median"),
                                               alone=("r2_alone", "median")).reset_index()
@@ -307,7 +311,9 @@ def main(argv=None) -> int:
         fig.savefig(out / f"movement_encoding_kernels{tag}.png", dpi=110)
         plt.close(fig)
     S = pd.concat(summary, ignore_index=True)
-    out = Path(rv.root("microscope")) / "DeepLabCut" / "Widefield" / "session_poses" / f"movement_encoding_summary{tag}.csv"
+    from wfield_local import run_mode
+    out = run_mode.session_poses_out("movement_encoding_session", Path(rv.root("microscope")) / "DeepLabCut" / "Widefield"
+                                     / "session_poses") / f"movement_encoding_summary{tag}.csv"
     S.to_csv(out, index=False)
     print(f"\n-> {out}")
     return 0

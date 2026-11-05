@@ -336,11 +336,11 @@ def run_animal(animal, align="precue", gate="lick", n_draw=N_DRAW, seed=0, verbo
     already wrote.
     """
     from wfield_local import analysis_kit as ak
-    from wfield_local import config, epochs, joint_locanmf, session_cache
+    from wfield_local import epochs, joint_locanmf, lp_licks, session_cache
     from wfield_local.locanmf_frozen_decoder import _args
 
     basis = joint_locanmf.load(animal)
-    post_s = float(config.defaults()["decode"].get(f"{align}_post_s", 2.0))
+    post_s = lp_licks.post_s_for(align)
     args = _args(source="roi", align=align, post_s=post_s)
     win_n = int(round(args.post_s * args.fs))
     pre_n, post_frames = cdt.span_frames(align, args.fs)

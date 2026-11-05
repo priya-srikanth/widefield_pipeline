@@ -45,7 +45,7 @@ from pathlib import Path
 
 import numpy as np
 
-from wfield_local import daq_io
+from wfield_local import config, daq_io
 import pandas as pd
 
 # pos_idx -> name, matching the task controller's own indexing (and spout_behavior.POSITIONS)
@@ -83,13 +83,12 @@ def response_window_s(session_dir: Path, default: float) -> tuple[float, str]:
 
 def decode(h5_path: Path, lick_params: dict | None = None) -> dict:
     """Decode the DAQ digital/analog streams into event times (seconds on the DAQ clock)."""
-    import h5py
-
     with daq_io.open_daq(h5_path) as f:
         fs, _created = daq_io.session_attrs(f)
         dnames, bits = daq_io.digital_bits(f)
         lick_v = daq_io.analog_channel(f, "lick_analog", required=False)
         reward_v = daq_io.analog_channel(f, "reward_ttl", required=False)
+        end_v = daq_io.analog_channel(f, "trial_end", required=False)
 
     idx = {n: i for i, n in enumerate(dnames)}
     cue = daq_io.rising_edges(bits[:, idx["cue"]])
@@ -106,12 +105,49 @@ def decode(h5_path: Path, lick_params: dict | None = None) -> dict:
                            thresh_upper=lick_params["thresh_upper"],
                            thresh_lower=lick_params["thresh_lower"],
                            lockout_s=tuple(lick_params["lockout_falling_edge_s"]),
-                           min_ili_s=lick_params.get("min_ili_ms", 40) / 1000.0)
+                           min_ili_s=lick_params.get("min_ili_ms", config.LICK_MIN_ILI_MS_DEFAULT) / 1000.0)
         licks = np.asarray(det["lick_onsets"], dtype=float) / fs
 
     reward = (_rising((reward_v > 2.5).astype(np.int8)) / fs) if reward_v is not None else np.array([], float)
+    # the TRIAL STOP: the DAQ analog `trial_end` TTL (rising edge at 2.5 V; `trial_windows` module docstring)
+    trial_end = (_rising((end_v > 2.5).astype(np.int8)) / fs) if end_v is not None else np.array([], float)
     return {"fs": fs, "cue_s": cue / fs, "strobe_s": strobe / fs, "trial_start_s": tstart / fs,
-            "codes": codes, "lick_s": licks, "reward_s": reward, "h5": str(h5_path)}
+            "codes": codes, "lick_s": licks, "reward_s": reward, "trial_end_s": trial_end, "h5": str(h5_path)}
+
+
+#: licks / contacts count from cue + 70 ms (= trial_classes.CONTACT_FROM_CUE_S; the tongue cannot have responded earlier)
+CONTACT_FROM_CUE_S = 0.070
+
+
+def trial_stops(cue_s, lick_s, response_window: float, trial_end_s=None):
+    """``(stop_s, stop_source)`` per cue -- THE TRIAL STOP (Priya 11-03): the DAQ `trial_end` TTL, the first one after the
+    cue and before the next cue; without one, the TASK RULE: the first contact (from cue + 70 ms) within
+    ``response_window`` of the cue + ``response_window`` (after the first lick the animal has the window to keep
+    licking; DECISIONS e9a7dc31 on main), else cue + window. Capped at the next cue. Measured on 6 sessions (3,105
+    trials, log 8.11): hits stop - first contact median 3.528 s, misses stop - cue median 3.525 s."""
+    cue = np.asarray(cue_s, float)
+    lick = np.sort(np.asarray(lick_s, float))
+    nxt = np.append(cue[1:], np.inf)
+    stop = np.full(cue.size, np.nan)
+    src = np.array(["rule"] * cue.size, dtype=object)
+    te = np.sort(np.asarray(trial_end_s if trial_end_s is not None else [], float))
+    if te.size:
+        k = np.searchsorted(te, cue, side="right")
+        ok = (k < te.size) & (te[np.clip(k, 0, te.size - 1)] < nxt)
+        stop[ok] = te[k[ok]]
+        src[ok] = "daq_trial_end"
+    for i in np.flatnonzero(~np.isfinite(stop)):
+        j = np.searchsorted(lick, cue[i] + CONTACT_FROM_CUE_S, side="left")
+        first = lick[j] if j < lick.size and lick[j] <= cue[i] + response_window else None
+        stop[i] = min((first if first is not None else cue[i]) + response_window, nxt[i])
+    return stop, src
+
+
+def licks_to_stop(cue_s, stop_s, lick_s) -> np.ndarray:
+    """LICKS PER TRIAL (Priya 11-03): TOTAL licks from cue + 70 ms to the trial stop, per trial."""
+    lick = np.sort(np.asarray(lick_s, float))
+    return (np.searchsorted(lick, np.asarray(stop_s, float), side="right")
+            - np.searchsorted(lick, np.asarray(cue_s, float) + CONTACT_FROM_CUE_S, side="left")).astype(int)
 
 
 def positions_for_cues(dec: dict) -> np.ndarray:
@@ -173,6 +209,8 @@ def build_trials(dec: dict, response_window: float) -> pd.DataFrame:
     else:
         pre = cue
 
+    stop, stop_src = trial_stops(cue, licks, response_window, dec.get("trial_end_s"))
+    n_trial = licks_to_stop(cue, stop, licks)
     rows = []
     for k in range(n):
         c, nx = cue[k], nxt[k]
@@ -190,7 +228,9 @@ def build_trials(dec: dict, response_window: float) -> pd.DataFrame:
             "hit": int(w.size > 0),
             "miss": int(w.size == 0),
             "latency_s": float(w[0] - c) if w.size else np.nan,
-            "n_licks_post": int(w.size),
+            "n_licks_post": int(w.size),                 # licks in the RESPONSE window (hit / latency scoring)
+            "stop_s": float(stop[k]), "stop_source": stop_src[k],
+            "n_licks_trial": int(n_trial[k]),            # LICKS PER TRIAL: cue -> trial stop (Priya 11-03)
             "n_licks_pre": n_pre,
             "reward_delivered": int(rewarded),
         })

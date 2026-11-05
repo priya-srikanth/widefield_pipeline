@@ -34,6 +34,9 @@ import pandas as pd
 from wfield_local import trial_classes as TC  # noqa: E402  THE trial classification (11-03)
 
 CLASSES = ("hit", "incomplete", "jaw_only", "no_try", "unknown")
+#: the session-level camera classes of a camera-gated run (`trial_classes.classify_session`; coordinator 11-04): a
+#: trial in one of these is OUTSIDE the run's working period -- never in the attempt-rate denominator
+RUN_EXCLUDED = ("stopped", "stopped_licking", "early_run", "after_end", "unknown")
 ATTEMPT_CLASSES = ("hit", "incomplete")             # jaw_only = reacted (jaw), NOT an attempt (10-21 blind review)
 TA_NAMES = {"contact": "hit", "no_response": "no_try"}   # trial_classes names -> this table's historical names
 MEASURES = ("attempt_rate", "ttc_ms", "completion", "incomplete_share", "latency_attempt_ms", "latency_move_ms",
@@ -75,6 +78,35 @@ def session_trials(label: str) -> pd.DataFrame:
     T["attempted"] = T.cls.isin(ATTEMPT_CLASSES)
     T["canonical"] = True if keep is None else t.isin(keep)
     T["gate"] = gate
+    if TC.camera_gate_on():
+        # THE RUN'S CAMERA CLASSES (coordinator 11-04; PI slides 34 / 35, the mixed models' deficit): the session-level
+        # rules of `trial_classes.classify_session` on the trial train -- end at the last camera lick, sustained stop
+        # (>= 6 consecutive no_response / jaw_only, all of them stopped, Priya 11-04; the 5-min rule: a run starting
+        # < 300 s after the first cue is early_run), jaw_only its own class (not an attempt; an isolated one stays in
+        # the working period). The attempt-rate denominator ("canonical") is then the run's WORKING
+        # PERIOD: every trial not stopped / early_run / after_end / unknown (jaw_only and no_try inside it are kept as
+        # non-attempts, never dropped). cls_raw keeps the trial-level class.
+        raw = C.cls.fillna("unknown").to_numpy(object)
+        pos = C.position.to_numpy(object) if "position" in C else None
+        cue_s = C.cue_daq.to_numpy(float) if "cue_daq" in C else None
+        # STOPPED TIME HOLDS NO LICKS (Priya 11-04): the guarded rules get each trial's span lick counts (camera licks by
+        # peak + DAQ contacts, `trial_classes.session_span_licks`); excise -> lick-touched stopped trials are
+        # "stopped_licking", outside both the working period and stopped (RUN_EXCLUDED)
+        span = None
+        if (TC.stopped_rule() in TC.GUARDED_RULES and (TC.stop_lick_rule(), TC.stop_tail_start()) != ("none", "lick_trial")
+                and cue_s is not None):
+            strobe = C.strobe_ms.to_numpy(float) if "strobe_ms" in C else np.full(len(C), np.nan)
+            stop_ms = (C.stop_ms if "stop_ms" in C else T.stop_ms).to_numpy(float)
+            span = TC.session_span_licks(f"{a}_{d}", cue_s, cue_s + strobe / 1000.0, cue_s + stop_ms / 1000.0)
+        run, kind = TC.classify_session(raw, None, pos, rule=TC.stopped_rule(), min_run=TC.stop_run_min(),
+                                        end=TC.end_anchor(), cue_s=cue_s, min_start_s=TC.stop_min_start_s(),
+                                        span_licks=span, return_kind=True)
+        T["stop_kind"] = kind               # "run" / "tail" / "" (stopped_licking keeps its kind; bcdg g_group_final)
+        T["cls_raw"] = T["cls"]
+        T["cls"] = pd.Series(run, index=T.index).replace(TA_NAMES).to_numpy()
+        T["attempted"] = T.cls.isin(ATTEMPT_CLASSES)
+        T["canonical"] = ~T.cls.isin(RUN_EXCLUDED)
+        T["gate"] = "camera:" + TC.run_selection()
     return T
 
 
@@ -103,7 +135,10 @@ def session_summary(D: pd.DataFrame) -> pd.DataFrame:
                      "latency_contact_ms": att.contact.median(),
                      "latency_move_ms": np.fmin(att.combined.where(att.has_cam1, att.cam4), att.jaw_onset_ms).median(),
                      "angle_mean": att.angle_first.mean(), "angle_sd": att.angle_first.std(),
-                     **{f"frac_{c}": (can.cls == c).mean() if len(can) else np.nan for c in CLASSES}})
+                     **{f"frac_{c}": (can.cls == c).mean() if len(can) else np.nan for c in CLASSES},
+                     # camera-gated run: the share of ALL trials outside the working period, by reason
+                     **({f"frac_{c}": (g.cls == c).mean() for c in RUN_EXCLUDED if c != "unknown"}
+                        if "cls_raw" in g else {})})
     S = pd.DataFrame(rows)
     W = S.pivot_table(index="label", columns="pos", values=[c for c in S.columns if c not in ("label", "pos")])
     W.columns = [f"{m}_{p}" for m, p in W.columns]
@@ -127,15 +162,22 @@ def main(argv=None) -> int:
     from wfield_local import combined_encoding as ce
     from wfield_local import epochs
     from wfield_local import orofacial_cohort as oc
-    from wfield_local import orofacial_outputs as oo
     from wfield_local import writeguard
-    from wfield_local.paths import PathResolver
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--run", default=oc.RUN)
     ap.add_argument("--jobs", type=int, default=2)
     a = ap.parse_args(argv)
-    out = oo.root(PathResolver()) / a.run / "imaging_encoding" / "qc"
-    writeguard.assert_writable(out)
+    from wfield_local import run_mode
+    # coordinator 11-04 (REDO, routed): the default run writes the untagged qc as before; a tagged run writes ITS qc
+    # (<imaging_encoding>/<tag>/qc), under its camera classes -- where the mixed models' deficit and the PI slides read
+    if a.run != oc.RUN:
+        raise SystemExit("trial_attempts: --run other than the adopted run is not routed (attempts_dir is the adopted run's)")
+    out = run_mode.attempts_dir()
+    out.mkdir(parents=True, exist_ok=True)
+    if run_mode.tag():
+        for n in run_mode.ATTEMPTS_FILES:              # selection-keyed tables: registered data files (writeguard)
+            run_mode.register_data_store(out / n)
+    writeguard.assert_writable(out / "trial_attempts_sessions.csv")
     cur = set(ak.curated_labels())
     labels = [x for x in ce.sessions_available() if x in cur]
     got, fail = ak.fan_sessions(labels, session_trials, jobs=a.jobs)

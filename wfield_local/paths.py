@@ -183,10 +183,34 @@ class PathResolver:
         env override is the supported way to correct it -- so it has to work everywhere, not in the
         orchestrator alone.
         """
+        # REBUILD ROOT (coordinator 11-03, fourth review; wfield_local/rebuild_root.py): with WIDEFIELD_REBUILD_ROOT set,
+        # a WHOLE derived root (paths.yaml rebuild.derived_roots) resolves into the rebuild root -- for readers and
+        # writers alike, so a reader sees the rebuild's own output or nothing. It wins over a WIDEFIELD_<ROOT> override.
+        if os.environ.get("WIDEFIELD_REBUILD_ROOT", "").strip():
+            from wfield_local import rebuild_root
+            d = rebuild_root.derived_root(name)
+            if d is not None:
+                return self._scoped(d) if (name in COHORT_SCOPED_ROOTS or name == COHORT_OUT) else d
+        return self.input_root(name)
+
+    def input_root(self, name: str) -> str:
+        """The ORIGINAL mount of logical root ``name`` (never remapped into a rebuild root): for read-only inputs that
+        sit inside a derived root (paths.yaml rebuild.inputs_in_place, e.g. the joint bases) and for the fence."""
         if name == COHORT_OUT:
-            return self._scoped(self.root("labcams"))
+            return self._scoped(self.input_root("labcams"))
         base = self._root_unscoped(name)
         return self._scoped(base) if name in COHORT_SCOPED_ROOTS else base
+
+    def derived(self, name: str, rel: str) -> str:
+        """``root(name)/rel`` for a DERIVED product: inside a rebuild root when ``rel`` falls in one of input root
+        ``name``'s derived subtrees (paths.yaml rebuild.derived_subtrees, e.g. orofacial ``<run>/imaging_encoding``);
+        otherwise exactly :meth:`resolve`."""
+        if os.environ.get("WIDEFIELD_REBUILD_ROOT", "").strip():
+            from wfield_local import rebuild_root
+            d = rebuild_root.derived_subtree(name, rel)
+            if d is not None:
+                return d
+        return self.resolve(name, rel)
 
     @staticmethod
     def _scoped(base: str) -> str:

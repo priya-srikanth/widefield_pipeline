@@ -123,6 +123,23 @@ VARIANTS = {
                                  fit_band=(8.0, 13.5),
                                  note="CANDIDATE: lag-fixed 415, coefficient fitted on the cardiac band (8-13.5 Hz)"),
 }
+# CANDIDATES (2026-11-03, NOT adopted; drift-cutoff check, docs/status/DRIFT_CUTOFF_CHECK_20261103.md in wf_attempt).
+# The order-10 polynomial is REPLACED by a block-protected slow cosine fit (`wfield_local.drift_dct`): on the same
+# strobedetrend mask, each trace is regressed on DCT cosines with period >= the cutoff PLUS one indicator per position
+# block, and only the cosine part is subtracted, so block-level (position) means cannot be absorbed by the drift term.
+# Same lag fix and 0.1 Hz high-pass for the coefficient fit as meegkit_hpfit_lag. Named dctblk<cutoff min>_lag.
+# MEASURED the same day: per-BLOCK protection is ill-posed (see drift_dct docstring); `dctpos<c>_lag` protects the six
+# POSITION means instead (one indicator per position).
+for _c in (10, 15, 20, 30):
+    VARIANTS[f"dctblk{_c}_lag"] = dict(
+        drift="dctblk", dct_min_period_s=60.0 * _c, dct_protect="block", mask="strobedetrend", fit_drift="filtfilt",
+        iso_shift=True, note=f"CANDIDATE: meegkit_hpfit_lag with the polynomial replaced by block-protected DCT "
+                             f"cosines (period >= {_c} min)")
+    VARIANTS[f"dctpos{_c}_lag"] = dict(
+        drift="dctblk", dct_min_period_s=60.0 * _c, dct_protect="position", mask="strobedetrend",
+        fit_drift="filtfilt", iso_shift=True,
+        note=f"CANDIDATE: meegkit_hpfit_lag with the polynomial replaced by position-protected DCT cosines "
+             f"(period >= {_c} min)")
 
 
 def _advance_half_sample(x, pad=1024):
@@ -165,10 +182,32 @@ DETREND_WIN_S = 600.0
 # and why order is a much safer knob than a window length.
 MEEGKIT_ORDER = 10
 
-#: The ADOPTED drift-removal variant (docs/PREPROCESSING_DECISION.md). This is what gets BUILT for
-#: every session. Which variant analyses READ is a separate switch — `config.hemo_variant()` — because
-#: the two must be able to differ while a rebuild is partway through the session set.
-ADOPTED = "meegkit_hpfit"
+#: The drift-removal variant KEY the builders use by default (a `VARIANTS` key; what `preprocess` / `--variant` build
+#: when nothing else is named). A BUILD setting only: never use it to locate the data an analysis reads.
+BUILD_DEFAULT = "meegkit_hpfit"
+
+
+def adopted() -> str:
+    """The ``hemo_<suffix>`` suffix analyses READ, from the ONE hemo switch (`config.hemo_variant()`: ``defaults.yaml
+    hemo.variant``, overridden by ``WIDEFIELD_HEMO_VARIANT``). Raises for zerophase (no ``hemo_`` directory)."""
+    from wfield_local import config
+    v = config.hemo_variant()
+    if v is None:
+        raise ValueError("hemo variant is zerophase (bare SVTcorr.npy): there is no hemo_<variant> directory")
+    return v
+
+
+#: The ADOPTED drift-removal variant (docs/PREPROCESSING_DECISION.md) = the ``hemo_<ADOPTED>`` directory analyses read.
+#: SINCE THE 2026-11-03 REBUILD IT FOLLOWS THE ONE HEMO SWITCH (`config.hemo_variant()`, resolved at import: set
+#: ``WIDEFIELD_HEMO_VARIANT`` before the process starts), so ``hemo_{ADOPTED}``, `config.svtcorr_path`,
+#: `combined_encoding.hemo_dir` and `config.locanmf_dir_name` can never disagree (trap T4: a partial switch fitted
+#: "variant" models on adopted data). Default unchanged: "meegkit_hpfit". In-process code that may run after the env
+#: changes calls `adopted()`. Builders use `BUILD_DEFAULT` (a `VARIANTS` key, which a read suffix need not be).
+# NO FALLBACK (review L3, 11-03): if the config cannot be read the import FAILS, rather than silently reading
+# BUILD_DEFAULT while WIDEFIELD_HEMO_VARIANT / defaults.yaml say otherwise.
+from wfield_local import config as _config  # noqa: E402
+# zerophase -> "zerophase": `hemo_zerophase/` does not exist, so a `hemo_{ADOPTED}` read fails loudly
+ADOPTED = _config.hemo_variant() or "zerophase"
 
 #: Set True by remove_drift when it has to fall back to per-component meegkit detrending (see there).
 #: compute() resets it per session and records the outcome in the manifest for provenance.
@@ -179,7 +218,7 @@ def _butter(mode):
     return butter(2, HP / (FS / 2), btype="highpass")
 
 
-def remove_drift(X, variant, mask=None, win_s=DETREND_WIN_S, order=None):
+def remove_drift(X, variant, mask=None, win_s=DETREND_WIN_S, order=None, segs=None):
     """Apply the variant's drift removal to (K, T) traces. Returns the cleaned array.
 
     ``order`` defaults to MEEGKIT_ORDER read AT CALL TIME, not bound as a default argument -- a sweep
@@ -199,6 +238,12 @@ def remove_drift(X, variant, mask=None, win_s=DETREND_WIN_S, order=None):
     if d == "median":
         from wfield_local.filter_acausality_test import detrend_masked
         return detrend_masked(X, m, win_s)[0]
+    if d == "dctblk":
+        from wfield_local import drift_dct
+        if segs is None:
+            raise ValueError(f"variant {variant!r} needs the position-block segments")
+        return drift_dct.remove(X, m, FS, VARIANTS[variant]["dct_min_period_s"], segs,
+                                protect=VARIANTS[variant]["dct_protect"])
     if d == "meegkit":
         from meegkit.detrend import detrend
         # meegkit works on (n_samples, n_channels) and wants weights of the SAME shape; masked
@@ -313,13 +358,18 @@ def compute(session, variant, refit_t=True, win_s=DETREND_WIN_S, verbose=True, o
     mask, mask_frac = None, None
     if spec["mask"]:
         cue = _lc(session["h5"])
-        lk = _ll(session["h5"], "lick_analog", 2.5, 1.0, (0.001, 0.020), 0.10)
+        lk = _ll(session["h5"], "lick_analog")
         _c, _l, csmp = _fr(session, cue, lk)
         if csmp is None:
             raise ValueError(f"{session['label']}: regime A has no corrected-frame map; "
                              f"variant {variant!r} needs one to build its mask")
         mask, d = fit_mask(session, a.shape[1], csmp, cue, **MASK_SPEC[spec["mask"]])
         mask_frac = d["frac_final"]
+    segs = None
+    if spec["drift"] == "dctblk":
+        from wfield_local import drift_dct
+        from wfield_local.behavior_position import classify_cues_with_backup
+        segs = drift_dct.block_segments(cue, classify_cues_with_backup(session, cue), csmp, a.shape[1], FS)
 
     def _finish(x, y):
         """violet lowpass + zero-mean, exactly as wfield.hemodynamic_correction does."""
@@ -340,8 +390,8 @@ def compute(session, variant, refit_t=True, win_s=DETREND_WIN_S, verbose=True, o
             bh, ah = butter(2, HP / (FS / 2), btype="highpass")
         a_fit, b_fit = _finish(filtfilt(bh, ah, a, padlen=50), filtfilt(bh, ah, b, padlen=50))
 
-    a = remove_drift(a, variant, mask, win_s, order)
-    b = remove_drift(b, variant, mask, win_s, order)
+    a = remove_drift(a, variant, mask, win_s, order, segs)
+    b = remove_drift(b, variant, mask, win_s, order, segs)
     a, b = _finish(a, b)
 
     if refit_t:
@@ -382,7 +432,9 @@ def compute(session, variant, refit_t=True, win_s=DETREND_WIN_S, verbose=True, o
                              if spec["drift"] == "meegkit" else None,
             "fs": FS, "freq_highpass": HP, "freq_lowpass": LP, "functional_channel": func,
             "slow_band_s": slow_s, "iso_shift_16ms": bool(spec.get("iso_shift")),
-            "fit_band": spec.get("fit_band"), "bad_pairs_interpolated": n_bad if bad_pairs is not None else None,
+            "fit_band": spec.get("fit_band"), "dct_min_period_s": spec.get("dct_min_period_s"),
+            "dct_protect": spec.get("dct_protect"),
+            "n_position_blocks": (len(segs) if segs is not None else None), "bad_pairs_interpolated": n_bad if bad_pairs is not None else None,
             "meegkit_fallback": ("per_component" if _MEEGKIT_FELL_BACK else None),
             "note": spec["note"], "built_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}
     if verbose:
@@ -427,7 +479,7 @@ def main(argv=None) -> int:
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--list", action="store_true", help="show the variants and exit")
     ap.add_argument("--sessions", nargs="+", default=None)
-    ap.add_argument("--variant", default=ADOPTED, choices=sorted(VARIANTS))
+    ap.add_argument("--variant", default=BUILD_DEFAULT, choices=sorted(VARIANTS))
     # An UNREGISTERED session (a night not yet in sessions.yaml) still has to get its variant built,
     # or the nightly would depend on someone editing config before the pipeline could finish.
     ap.add_argument("--mc", help="ad-hoc session: motion_corrected dir (instead of a --sessions lookup)")

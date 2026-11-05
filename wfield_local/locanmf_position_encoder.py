@@ -159,7 +159,7 @@ def _quiet_baseline_local(s, sig, nbins=24):
 
 def _engaged_frames(s, post_s=2.0):
     """First-lick frame + position for engaged (cue+lick) trials, with the post window length (frames)."""
-    cue = _load_cue(s["h5"]); lk = _load_daq_events(s["h5"], "lick_analog", 2.5, 1.0, (0.001, 0.020), 0.10)
+    cue = _load_cue(s["h5"]); lk = _load_daq_events(s["h5"], "lick_analog")
     cf, lf, _ = _frames(s, cue, lk); codes = classify_cues_with_backup(s, cue)
     ls = np.sort(lf); j = np.searchsorted(ls, cf, side="right")
     first = np.where(j < ls.size, ls[np.clip(j, 0, ls.size - 1)], -1); rt = first - cf
@@ -181,7 +181,8 @@ def fig_predicted_maps(label, out):
     The baseline used is named in the figure TITLE, including when it degrades to the unweighted or
     session-mean fallback -- a map captioned "above rest" has to say which rest."""
     s = _sess(label); e = encode_spatial(label)
-    C = np.load(f"{config.locanmf_dir(s['mc'])}/{label}_locanmf_C.npy")       # RAW C (not footprint-scaled)
+    from wfield_local import locanmf_session
+    C = locanmf_session.load_C(s)       # RAW C (not footprint-scaled); stored, or projected (WIDEFIELD_LOCANMF_PROJECT)
     base, base_note = _restw_baseline(s, C)              # SETTLED position-weighted FLAT rest baseline
     if base is None:
         # NOT a silent substitution: the session mean is not a rest baseline, and the title says so.
@@ -253,7 +254,7 @@ def fig_temporal_encoder(label, out, pre_s=1.0, post_s=1.5):
     rn = np.array([names.get(int(reg[i]), "?") for i in range(sig.shape[0])])
     ssp = np.where(np.char.startswith(rn.astype(str), "SSp"))[0]
     mo = np.array([i for i in range(len(rn)) if rn[i].startswith(("MOp", "MOs"))])
-    cue = _load_cue(s["h5"]); lk = _load_daq_events(s["h5"], "lick_analog", 2.5, 1.0, (0.001, 0.020), 0.10)
+    cue = _load_cue(s["h5"]); lk = _load_daq_events(s["h5"], "lick_analog")
     cf, lf, _ = _frames(s, cue, lk); codes = classify_cues_with_backup(s, cue)
     ls = np.sort(lf); j = np.searchsorted(ls, cf, side="right"); first = np.where(j < ls.size, ls[np.clip(j, 0, ls.size - 1)], -1); rt = first - cf
     pre = int(pre_s * FS); post = int(post_s * FS); tax = np.arange(-pre, post) / FS
@@ -356,8 +357,9 @@ def fig_encoder_vs_svd(label, out):
     mask = np.load(f"{ad}/allen_brain_mask_native_grid.npy").astype(bool); H, Wd = mask.shape; mk = mask.reshape(-1)
     Uf = U.reshape(-1, U.shape[2])
     Ar = np.load(f"{config.locanmf_dir(mc)}/{label}_locanmf_A.npy"); Af = np.nan_to_num(Ar.reshape(-1, Ar.shape[2]))
-    C = np.load(f"{config.locanmf_dir(mc)}/{label}_locanmf_C.npy"); T = SVT.shape[1]
-    cue = _load_cue(s["h5"]); lk = _load_daq_events(s["h5"], "lick_analog", 2.5, 1.0, (0.001, 0.020), 0.10)
+    from wfield_local import locanmf_session
+    C = locanmf_session.load_C(s); T = SVT.shape[1]          # stored, or projected (WIDEFIELD_LOCANMF_PROJECT)
+    cue = _load_cue(s["h5"]); lk = _load_daq_events(s["h5"], "lick_analog")
     cf, lf, _ = _frames(s, cue, lk); codes = classify_cues_with_backup(s, cue)
     keep = [k for k in range(cf.size) if codes[k] >= 0 and int(cf[k]) - W >= 0 and int(cf[k]) + W <= T]
     cfk = np.array([int(cf[k]) for k in keep]); yk = np.array([int(codes[k]) for k in keep])

@@ -121,7 +121,7 @@ def session_traces(s):
     # LICKS ON THE SAME FRAME CLOCK, by the same searchsorted, with the pipeline's canonical
     # detector parameters (`nolick_decoder` calls it with exactly these).
     from wfield_local.plot_lick_aligned_averages import _load_daq_events
-    lk = _load_daq_events(s["h5"], "lick_analog", 2.5, 1.0, (0.001, 0.020), 0.10)
+    lk = _load_daq_events(s["h5"], "lick_analog")
     lick_frames = np.searchsorted(f_of, np.asarray(lk["lick_samples"]))
     t = (np.arange(-int(PRE_S * FS), int(POST_S * FS)) / FS)
     return t, pct470, pct415, cue_frames, lick_frames
@@ -303,7 +303,8 @@ def main(argv=None) -> int:
     from wfield_local import figure_layout as fl
     from wfield_local.paths import PathResolver
 
-    out_dir = a.out or (Path(PathResolver().root("cohort_out")) / "grant_figures" / "epoch")
+    from wfield_local import lp_licks              # run-mode routing (rebuild 11-03): identity for the default run
+    out_dir = a.out or lp_licks.output_dir(Path(PathResolver().root("cohort_out")) / "grant_figures" / "epoch")
     animals = a.animals or ["PS92", "PS93", "PS94", "PS95"]
     rows, curves, tvec = [], defaultdict(list), None
 

@@ -76,7 +76,8 @@ def _gather_cue(args, name2lab):
     comps = []
     for s in SESSIONS:
         mc = s["mc"]
-        C = np.load(f"{config.locanmf_dir(mc)}/{s['label']}_locanmf_C.npy").astype(np.float64)
+        from wfield_local import locanmf_session
+        C = locanmf_session.load_C(s).astype(np.float64)      # stored, or projected (WIDEFIELD_LOCANMF_PROJECT)
         reg = np.load(f"{config.locanmf_dir(mc)}/{s['label']}_locanmf_regions.npy")
         T = C.shape[1]; cue = _load_cue(s["h5"]); fsd = cue["sample_rate_hz"]
         if s["regime"] == "B":
@@ -92,9 +93,9 @@ def _gather_cue(args, name2lab):
 
         def ok(fr):
             a, b = fr - pre_n, fr + post_n
-            if a < 0 or b > T:
+            if a < 0 or b > T:  # noqa: B023
                 return False
-            return cs is None or (cs[b - 1] - cs[a]) / fsd <= (1.0 + args.cue_post_s + 1.0)
+            return cs is None or (cs[b - 1] - cs[a]) / fsd <= (1.0 + args.cue_post_s + 1.0)  # noqa: B023
 
         valid = (codes >= 0) & np.array([ok(int(f)) for f in cue_f])
         animal = s["label"].split("_")[0]

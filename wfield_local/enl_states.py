@@ -107,7 +107,7 @@ def align() -> str:
     return "precue"
 
 
-def states_for(order, responded, positions, first_lick, rt, max_rt):
+def states_for(order, responded, positions, first_lick, rt, max_rt, cam_cls=None):
     """Per-trial state, in the imaging universe. Returns an array of `STATES` entries.
 
     Two DIFFERENT gates, and conflating them is the easy mistake:
@@ -121,8 +121,22 @@ def states_for(order, responded, positions, first_lick, rt, max_rt):
     `behavior_clips.categorise` composes the same two for the clip labels; this is that composition
     on the imaging pipeline's trials rather than the behaviour table's.
     """
+    from wfield_local import trial_classes as _tc
     order = np.asarray(order)
     hit = np.array([is_engaged(fl, r, max_rt) for fl, r in zip(first_lick, rt)], bool)
+    if _tc.camera_gate_on():
+        # CAMERA TRIAL GATE (rebuild 11-03): ``cam_cls`` = the camera class per entry of ``order``
+        # (`trial_classes.cue_classes_for` over the session cue train). working = no lick in time and
+        # miss-while-working (incomplete; jaw_only is its own class, Priya 11-03 late); stopped = a SUSTAINED stop (STOPPED_CLASSES, Priya
+        # 11-03); anything else (isolated no_response, unknown, contact) is "" = in neither class.
+        if cam_cls is None:
+            raise _tc.DaqGateRefused("enl_states.states_for under the camera gate needs cam_cls (camera classes)")
+        c = np.asarray(cam_cls, dtype=object)
+        out = np.full(order.size, "", dtype=object)
+        out[~hit & _tc.in_sel(c, "miss_working")] = "working"
+        out[~hit & np.isin(c, list(_tc.STOPPED_CLASSES))] = "stopped"
+        out[hit] = "success"
+        return out
     not_eng = engagement_gate(order, np.asarray(responded, bool), np.asarray(positions))
     out = np.full(order.size, "stopped", dtype=object)
     out[~hit & ~not_eng] = "working"

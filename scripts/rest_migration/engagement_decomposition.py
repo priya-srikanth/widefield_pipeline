@@ -78,14 +78,17 @@ def session_trials(s, resp_s):
     from wfield_local import daq_io
     from wfield_local.behavior_position import classify_cues_with_backup
     from wfield_local.locanmf_cue_lick_analysis import _load_cue_events
-    from wfield_local.plot_lick_aligned_averages import _load_daq_events
     from wfield_local.rest_by_position import _session_daq
 
     cue = _load_cue_events(s["h5"])
     cs = np.asarray(cue["cue_samples"], float)
     codes = np.asarray(classify_cues_with_backup(s, cue, verbose=False))
-    lk = _load_daq_events(s["h5"], "lick_analog", 2.5, 1.0, (0.001, 0.020), 0.10)
-    licks = np.sort(np.asarray(lk["lick_samples"], float))
+    # LICK COUNTS (n_licks_trial, n_licks_pre, cum_licks) use THE behaviour detector (coordinator 11-03, rule 9;
+    # `analysis_kit.lick_count_samples`). The RESPONSE detection (hit / latency, which the engagement gate and the quit
+    # point are scored on) keeps the deck's discriminator (`analysis_kit.lick_samples`), unchanged.
+    from wfield_local import analysis_kit as _ak
+    licks = np.sort(np.asarray(_ak.lick_count_samples(s), float))
+    licks_resp = np.sort(np.asarray(_ak.lick_samples(s), float))
     with daq_io.open_daq(s["h5"]) as f:
         sr, _ = daq_io.session_attrs(f)
     _r, _cs2, _c, ts, _fs, _sy = _session_daq(s)
@@ -99,20 +102,39 @@ def session_trials(s, resp_s):
 
     nxt = np.append(cs[1:], np.inf)
     n = cs.size
+    # THE TRIAL STOP (Priya 11-03): the DAQ trial_end TTL, else the task rule (`daq_trials.trial_stops`); LICKS PER
+    # TRIAL = total licks from the cue to it (`n_licks_trial`), the window every licks-per-trial readout uses
+    from wfield_local import daq_trials
+    with daq_io.open_daq(s["h5"]) as f:
+        te = daq_io.analog_channel(f, "trial_end", required=False)
+    te_s = (daq_io.rising_edges((te > 2.5).astype(np.int8)) / sr) if te is not None else None
+    stop_s, _src = daq_trials.trial_stops(cs / sr, licks / sr, resp_s, te_s)
+    n_trial = daq_trials.licks_to_stop(cs / sr, stop_s, licks / sr)
     rows = []
     for k in range(n):
         if codes[k] < 0 or not np.isfinite(pre_open[k]) or pre_open[k] >= cs[k]:
             continue
         end = min(cs[k] + resp_s * sr, nxt[k])
-        post = licks[(licks >= cs[k]) & (licks <= end)]
+        post = licks_resp[(licks_resp >= cs[k]) & (licks_resp <= end)]
         npre = int(((licks >= pre_open[k]) & (licks < cs[k])).sum())
         rows.append(dict(pos=int(codes[k]), order=k, frac=k / max(n - 1, 1),
+                         n_licks_trial=int(n_trial[k]), stop_sample=float(stop_s[k] * sr),
                          hit=int(post.size > 0), n_licks_pre=npre,
                          anticipated=int(npre > 0),
                          # EFFORT AND TIME, SEPARATELY. See `licks_vs_time`.
                          cum_licks=float(np.searchsorted(licks, cs[k])),
                          elapsed_s=float(cs[k] - cs[0]) / sr,
                          latency_s=(float(post[0] - cs[k]) / sr if post.size else np.nan)))
+    # WIDEFIELD_GATE_SOURCE=lp (2026-11-01, `wfield_local/gate_source.py`): a SEPARATE `gate_hit` column = this row's
+    # hit OR a DAQ contact OR an LP attempt within `resp_s` -- what `quit_point.session_quit` scores the gate on. ADDED
+    # ONLY UNDER THE SWITCH, so the default rows are unchanged; `hit` itself (hit rates, sharpness) never moves.
+    from wfield_local import gate_source
+    if gate_source.is_lp() and rows:
+        order = np.array([r["order"] for r in rows])
+        gh = gate_source.gate_responded(s["label"], order, np.array([bool(r["hit"]) for r in rows]), resp_s,
+                                        cue["cue_samples"], cue["sample_rate_hz"])
+        for r, g in zip(rows, gh):
+            r["gate_hit"] = int(g)
     return rows
 
 

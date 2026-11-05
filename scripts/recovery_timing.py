@@ -16,24 +16,30 @@ its pre-stroke level (behaviour: pre far-contra hit rate; neural: 1 = pre hits b
 Caveat: acute sessions often have < 5 far-contra hits, so the neural series starts later than the behavioural one.
 
 Usage: python scripts/recovery_timing.py [--window lick]
+       python scripts/recovery_timing.py --aim [--plot-only]   (Fig 0.12 + far-contra AIM panel, 10-30 -> figures/
+       recovery_timing_pooled_day_<window>_aim.png, recovery_timing_pooled_day_<window>_aim.csv,
+       recovery_timing_aim_per_animal_<window>.csv, figdata/recovery_timing_pooled_day_<window>_aim.pkl)
 Output: <E>/attempt_coding/recovery_timing_*.csv, figures/recovery_timing.png
 """
 from __future__ import annotations
 
 import argparse
-from pathlib import Path
 
 import numpy as np
 import pandas as pd
+from wfield_local.orofacial_outputs import encoding_root as _encoding_root  # rebuild root (11-03)
 
-E = Path("M:/MICROSCOPE/Priya/Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding")
-A = E / "attempt_coding"
+E = _encoding_root()
+from wfield_local import attempt_coding as _ac  # noqa: E402
+from wfield_local import lp_licks as _lp_licks  # noqa: E402  (coordinator 11-04: the run's attempts table)
+
+A = _ac.out_dir()   # the writer's folder under the run mode (review N1 / N10)
 AN = ["PS92", "PS93", "PS94", "PS95"]
 ACOL = {"PS92": "#1b9e77", "PS93": "#d95f02", "PS94": "#7570b3", "PS95": "#e7298a"}
 
 
 def series(window: str) -> pd.DataFrame:
-    T = pd.read_csv(E / "qc" / "trial_attempts.csv", usecols=["label", "pos", "cls", "animal", "epoch", "day"])
+    T = pd.read_csv(_lp_licks.attempts_path(), usecols=["label", "pos", "cls", "animal", "epoch", "day"])
     T = T[(T.pos == "far_contra") & (T.label.str[-4:] >= "0801")]
     beh = T.assign(hit=T.cls.isin(["hit", "pre_hit"])).groupby(["animal", "epoch", "label", "day"]).hit.mean().reset_index()
     pre = beh[beh.epoch == "pre"].groupby("animal").hit.mean()
@@ -271,5 +277,143 @@ def pooled_figures(S: pd.DataFrame, window: str, plt) -> None:
     print("->", A / "figures" / f"recovery_timing_pooled_epoch_{window}.png")
 
 
+import iti_licks as _il  # noqa: E402
+AIM_CSV = _il.OUT / "aim_by_spout_sessions.csv"                  # il.OUT: the ITI family's mode-routed root (N10)      # scripts/lick_cued_aim_by_spout.py (THE aim definition)
+AIM_COL = "#2471a3"
+
+
+def aim_series() -> pd.DataFrame:
+    """Per session: far-contra FIRST post-cue lick 3-D aim offset, change vs the animal's own (August) pre mean, deg,
+    + = contralesional (iti_recovery_measure.aim_licks via lick_cued_aim_by_spout.session_spout; >= 5 first licks)."""
+    G = pd.read_csv(AIM_CSV)
+    G = G[(G.pos == "far_contra") & (G.label.str[-4:] >= "0801")]
+    return G[["animal", "label", "epoch", "day", "chg", "n"]].rename(columns={"chg": "aim"}).sort_values(["animal", "day"])
+
+
+def aim_compute(window: str) -> dict:
+    """Fig 0.12 + AIM (Priya 10-30: "can 0.12 include the far contra lick angle index?"). Panel 1 = the existing pooled
+    day-bin figure (hit rate / pre, code on hits / pre; same rng order, so it reproduces recovery_timing_pooled_day);
+    panel 2 = far-contra aim change vs own pre (deg) by the same day bins, per-animal + animal-weighted mean + 95% CI.
+    Also per animal: acute / subacute / chronic means, recovered fraction of the acute deficit
+    (x - acute) / (pre - acute) per measure, and exponential half-recovery days (aim scaled by the animal's |acute|)."""
+    S = pd.read_csv(A / f"recovery_timing_series_{window}.csv")
+    G = aim_series()
+    rng = np.random.default_rng(0)
+    rows = []
+    for lo, hi in DAY_BINS:                                    # == pooled_figures (a), same draw order
+        g = S[(S.day >= lo) & (S.day <= hi)]
+        x = float(np.mean([lo, hi])) if lo > 0 else -6.0
+        for m in ("beh", "neu"):
+            by = {an: g[g.animal == an][m].dropna().to_numpy() for an in AN}
+            pt, l_, h_ = _boot_mean_of_animals(by, rng)
+            rows.append({"bin": f"{lo}..{hi}", "x": x, "measure": m, "mean": pt, "lo": l_, "hi": h_,
+                         "n_animals": sum(len(v) > 0 for v in by.values()),
+                         **{an: (float(np.mean(v)) if len(v) else np.nan) for an, v in by.items()}})
+    rng2 = np.random.default_rng(1)
+    for lo, hi in DAY_BINS:
+        g = G[(G.day >= lo) & (G.day <= hi)]
+        x = float(np.mean([lo, hi])) if lo > 0 else -6.0
+        by = {an: g[g.animal == an].aim.dropna().to_numpy() for an in AN}
+        pt, l_, h_ = _boot_mean_of_animals(by, rng2)
+        rows.append({"bin": f"{lo}..{hi}", "x": x, "measure": "aim", "mean": pt, "lo": l_, "hi": h_,
+                     "n_animals": sum(len(v) > 0 for v in by.values()),
+                     **{an: (float(np.mean(v)) if len(v) else np.nan) for an, v in by.items()}})
+    D = pd.DataFrame(rows)
+    # per animal (rule 8): epoch means, recovered fraction of the acute deficit, half-recovery day
+    M = S.merge(G[["label", "aim"]], on="label", how="outer")
+    M["animal"] = M.label.str[:4]
+    M["epoch"] = M.epoch.fillna(M.label.map(G.set_index("label").epoch))
+    M["day"] = M.day.fillna(M.label.map(G.set_index("label").day))
+    pa = []
+    for an in AN:
+        g = M[M.animal == an]
+        e = g.groupby("epoch")[["beh", "neu", "aim"]].mean().reindex(EP4)
+        r = {"animal": an}
+        post = g[g.epoch != "pre"]
+        for m in ("beh", "neu", "aim"):
+            for ep in EP4:
+                r[f"{m}_{ep}"] = e.loc[ep, m]
+            pre_v = 0.0 if m == "aim" else 1.0                # pre reference (beh/neu normalised to pre; aim = change vs pre)
+            ac = e.loc["acute", m]
+            for ep in ("subacute", "chronic"):
+                r[f"{m}_recov_{ep}"] = (e.loc[ep, m] - ac) / (pre_v - ac) if np.isfinite(ac) and ac != pre_v else np.nan
+            y = post[m].to_numpy(float)
+            if m == "aim":
+                y = 1 + y / abs(ac) if np.isfinite(ac) and ac != 0 else y * np.nan   # 1 = pre, 0 = acute deficit
+            r[f"{m}_t_half"] = exp_fit(post.day.to_numpy(float), y)
+        pa.append(r)
+    PA = pd.DataFrame(pa)
+    return {"D": D, "PA": PA, "window": window}
+
+
+def aim_draw(F: dict) -> None:
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    from matplotlib.lines import Line2D
+    D, window = F["D"], F["window"]
+    MEAS = [("beh", "far-contra hit rate / pre", "0.25"), ("neu", "cortex: far-contra frozen code on hits / pre", "#c0392b")]
+    fig, (ax, bx) = plt.subplots(2, 1, figsize=(11.5, 7.6), sharex=True, gridspec_kw={"height_ratios": [1, 0.9]})
+    for a_ in (ax, bx):
+        a_.axvspan(-13, 0, color="0.93", lw=0)
+        for s_ in ("top", "right"):
+            a_.spines[s_].set_visible(False)
+    ax.axhline(1, color="0.5", ls="--", lw=0.8)
+    for m, _lab, col in MEAS:
+        t = D[D.measure == m].sort_values("x")
+        for an in AN:
+            ax.plot(t.x, t[an], color=col, lw=0.6, alpha=0.3)
+        ax.fill_between(t.x, t.lo, t.hi, color=col, alpha=0.15, lw=0)
+        ax.plot(t.x, t["mean"], "-o", color=col, lw=2, ms=4)
+    ax.set_ylabel("relative to the animal's\npre-stroke level")
+    ax.legend(handles=[Line2D([], [], color=c, lw=2, marker="o", label=lab) for _m, lab, c in MEAS]
+              + [Line2D([], [], color="0.5", lw=0.6, alpha=0.5, label="each animal (faint)")], fontsize=8.5,
+              frameon=False, loc="upper left", bbox_to_anchor=(1.01, 1.0))
+    ax.set_title("A  far-contra hit rate and frozen decoder code on hits (as Fig 0.12)", fontsize=10, loc="left")
+    bx.axhline(0, color="0.5", ls="--", lw=0.8)
+    t = D[D.measure == "aim"].sort_values("x")
+    for an in AN:
+        bx.plot(t.x, t[an], color=AIM_COL, lw=0.6, alpha=0.3)
+    bx.fill_between(t.x, t.lo, t.hi, color=AIM_COL, alpha=0.15, lw=0)
+    bx.plot(t.x, t["mean"], "-o", color=AIM_COL, lw=2, ms=4)
+    bx.set_ylabel("far-contra aim offset,\nchange vs own pre (deg)\n+ = contralesional")
+    bx.legend(handles=[Line2D([], [], color=AIM_COL, lw=2, marker="o", label="far-contra first-lick aim (3-D angle)"),
+                       Line2D([], [], color=AIM_COL, lw=0.6, alpha=0.5, label="each animal (faint)")], fontsize=8.5,
+              frameon=False, loc="upper left", bbox_to_anchor=(1.01, 1.0))
+    bx.set_title("B  far-contra aim: first post-cue lick, 3-D angle minus the animal's pre mean (- = shifted ipsilesional)",
+                 fontsize=10, loc="left")
+    bx.set_xlabel("days from stroke (binned; pre = all August pre sessions at x = -6)")
+    fig.suptitle(f"Recovery pooled across animals by day bin ({window} window; cortex = hits only): mean of animals, "
+                 "band = 95% CI (animals > sessions). n = 4, PROVISIONAL", fontsize=10.5)
+    fig.tight_layout(rect=(0, 0, 1, 0.96))
+    out = A / "figures" / f"recovery_timing_pooled_day_{window}_aim.png"
+    fig.savefig(out, dpi=120)
+    plt.close(fig)
+    print("->", out)
+
+
+def aim_main(window: str, plot_only: bool) -> int:
+    from figdata import load_fd, save_fd
+    stem, root = f"recovery_timing_pooled_day_{window}_aim", A / "figdata"
+    if not plot_only:
+        F = aim_compute(window)
+        pd.set_option("display.width", 250)
+        print("== per animal (rule 8): epoch means (beh, neu = / pre; aim = deg vs pre), recovered fraction of the acute "
+              "deficit, half-recovery day\n" + F["PA"].round(2).to_string(index=False))
+        F["D"].to_csv(A / f"recovery_timing_pooled_day_{window}_aim.csv", index=False)
+        F["PA"].to_csv(A / f"recovery_timing_aim_per_animal_{window}.csv", index=False)
+        ref = pd.read_csv(A / f"recovery_timing_pooled_day_{window}.csv")
+        mine = F["D"][F["D"].measure != "aim"].reset_index(drop=True)
+        print("== check vs recovery_timing_pooled_day (beh/neu): max |diff| =",
+              float(np.nanmax(np.abs(mine[["mean", "lo", "hi"]].to_numpy() - ref[["mean", "lo", "hi"]].to_numpy()))))
+        save_fd(stem, F, root)
+    aim_draw(load_fd(stem, root))
+    return 0
+
+
 if __name__ == "__main__":
+    import sys
+    if "--aim" in sys.argv:          # Fig 0.12 + aim panel: python scripts/recovery_timing.py --aim [--plot-only] [--window lick]
+        w = sys.argv[sys.argv.index("--window") + 1] if "--window" in sys.argv else "lick"
+        raise SystemExit(aim_main(w, "--plot-only" in sys.argv))
     raise SystemExit(main())

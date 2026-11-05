@@ -1,3 +1,4 @@
+# RETIRED 2026-10-27: one-off on the abandoned ROI v3 session files (hard-coded sessions_v3); kept for the record only.
 """Are ITI lick numbers a confound for the frozen-decoder result (page 3.8 / 3.9)? Counts per session by epoch; r vs n
 within epoch; frozen decoder (trained on all pre licks, pre LOSO) scored on test sets SUBSAMPLED to the same n in every
 session (200 draws, r averaged). Uses the complete v3 extraction (lags -0.5..0.5)."""

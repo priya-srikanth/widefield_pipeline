@@ -165,7 +165,9 @@ def main(argv=None) -> int:
     ap.add_argument("--labels", nargs="*", default=None)
     ap.add_argument("--summarise-only", action="store_true")
     a = ap.parse_args(argv)
-    E = oo.root(PathResolver()) / oc.RUN / "imaging_encoding"
+    E = oo.encoding_root(oc.RUN, PathResolver())
+    fe.check_tag(a.src, "--from")                       # the frozen design (v7g3_t3d | _spont) is in both tags
+    fe.check_tag(a.tag, "relabel")
     src = E / f"frozen_encoder_{a.src}"
     out = E / f"frozen_relabel_{a.tag}"
     assert_writable(out)
@@ -174,6 +176,8 @@ def main(argv=None) -> int:
         summarise(out)
         return 0
     pre_stats = pickle.loads((src / "fit" / "pre_stats.pkl").read_bytes())
+    if not fe.stats_design_ok(pre_stats):               # never mix the two lick designs
+        raise SystemExit(f"{src}: pre statistics of another lick design than {fe.design_name()} ({fe.LICKS_ALL_ENV})")
     fp = out / "joint_fits.pkl"
     if not fp.exists():
         fits = {}

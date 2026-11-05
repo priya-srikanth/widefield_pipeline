@@ -27,6 +27,7 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from fr_musall import E  # noqa: E402
+from wfield_local import lp_licks as _lp_licks  # noqa: E402  (coordinator 11-04: the run's attempts table)
 
 SP = ("close_ipsi", "close_mid", "close_contra", "far_ipsi", "far_mid", "far_contra")
 AB = dict(zip(SP, ("cI", "cM", "cC", "fI", "fM", "fC")))
@@ -40,7 +41,7 @@ def main(argv=None) -> int:
     ap.add_argument("--target", default="far_contra", choices=SP)
     a = ap.parse_args(argv)
     run = E / f"frozen_relabel_{a.tag}"
-    att = pd.read_csv(E / "qc" / "trial_attempts.csv", usecols=["label", "trial_id", "cls"])
+    att = pd.read_csv(_lp_licks.attempts_path(), usecols=["label", "trial_id", "cls"])
     rows = []
     for f in sorted(glob.glob(str(run / "sessions" / "*.json"))):
         m = json.loads(Path(f).read_text())

@@ -210,6 +210,7 @@ def frozen_state_models(animal: str, basis_id: str, got: dict, scaling="env", mi
     params = bal_em_params(min_mass) if scaling == SCALING_BAL_EM else None
     spec = fm.make_spec(animal, "state", align="segments", source=f"joint_{basis_id}", train_labels=list(pre),
                         basis_id=basis_id, n_features=n_feat, post_s=ls.SEGMENT_S, zscore=True,
+                        train_data={lab: v[:3] for lab, v in sorted(pre.items())},
                         scaling=scaling, scaling_params=params)
     tx = {lab: train_transform(v[0], v[1], scaling) for lab, v in pre.items()}
 

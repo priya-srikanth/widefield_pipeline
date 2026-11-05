@@ -13,6 +13,7 @@ kernel; spout shape enters through the templates) -> they come from the per-epoc
 Usage: python scripts/frozen_kernel_maps.py [--tag gate-attempted_v7g3_t3d_frA_basis]
 """
 from __future__ import annotations
+from wfield_local.frozen_encoder import design_tag as _design_tag  # frame tag of the FROZEN_LICKS_ALL design (8.51)
 
 import argparse
 import pickle
@@ -159,7 +160,7 @@ def main(argv=None) -> int:
 
     from frozen_area_maps import area_image, outline
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--tag", default="gate-attempted_v7g3_t3d_frA_basis")
+    ap.add_argument("--tag", default=_design_tag("gate-attempted_v7g3_t3d_frA_basis"))
     a = ap.parse_args(argv)
     run = E / f"frozen_encoder_{a.tag}"
     maps, shape = kernel_maps(run, PANELS + TARGET)

@@ -61,6 +61,8 @@ def session_job(item):
 
 
 def main(argv=None) -> int:
+    from wfield_local import run_mode as _rm_guard
+    _rm_guard.require_default("lick_trajectories_3d")   # unrouted share writer: refuses in a non-default run mode
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt

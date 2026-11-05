@@ -315,7 +315,8 @@ def main() -> int:
         print("!! PRECUE ALIGNMENT: dropping the `precue` FAMILY -- its baseline lies inside the "
               f"feature window. Families are {a.families}, and 'all families agree' below means "
               f"ALL {len(a.families)}, not three.")
-    out_dir = a.out or (Path(PathResolver().root("cohort_out")) / "grant_figures" / "epoch")
+    from wfield_local import lp_licks              # run-mode routing (rebuild 11-03): identity for the default run
+    out_dir = a.out or lp_licks.output_dir(Path(PathResolver().root("cohort_out")) / "grant_figures" / "epoch")
 
     stored = None
     if a.from_csv:

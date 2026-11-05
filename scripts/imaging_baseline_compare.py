@@ -18,11 +18,14 @@ import pandas as pd
 
 
 def main() -> None:
+    # coordinator 11-04: routed (outputs under the run tag), no longer refused in a tagged run
     from wfield_local.paths import PathResolver
-    lab = Path(PathResolver().root("labcams"))
+    from wfield_local import lp_licks
+    lab = Path(PathResolver().root("cohort_out"))        # the DERIVED root (review 8B: labcams is the input tree)
     ap = argparse.ArgumentParser()
-    ap.add_argument("--late", default=str(lab / "grant_figures" / "epoch_latepre"))
-    ap.add_argument("--default", default=str(lab / "grant_figures" / "epoch"))
+    # THIS run's folders (coordinator 11-04): grant_figures/<tag>/epoch_latepre and grant_figures/<tag>/epoch
+    ap.add_argument("--late", default=str(lp_licks.output_dir(lab / "grant_figures" / "epoch_latepre")))
+    ap.add_argument("--default", default=str(lp_licks.output_dir(lab / "grant_figures" / "epoch")))
     a = ap.parse_args()
     L, D = Path(a.late) / "data", Path(a.default) / "data"
     rows = []

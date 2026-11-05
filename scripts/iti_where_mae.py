@@ -8,7 +8,8 @@ decoded from actual: worse lick-to-lick tracking, a constant offset (3.21 / 3.22
 middle (present before the stroke; it grows when licks land further from the centre, so part of a post-stroke error
 increase can come from where licks land rather than from cortex). One dot per session (all animals pooled), raw mm
 and divided by the animal's pre mean; black = mean +- SEM over sessions; * = paired nested bootstrap excluding 0.
-Outputs <E>/iti_licks/where_mae_{sessions,tests}.csv, figures/lick_where_mae.png. Usage: python scripts/iti_where_mae.py
+Outputs <E>/iti_licks/where_mae_{sessions,tests}.csv, figures/lick_where_mae.png; figure data <E>/iti_licks/figdata/lick_where_mae.pkl.
+Usage: python scripts/iti_where_mae.py [--plot-only]   (--plot-only: redraw from the figdata pickle alone, no bootstrap)
 """
 from __future__ import annotations
 
@@ -20,6 +21,7 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import iti_licks as il  # noqa: E402
+from figdata import load_fd, plot_only, save_fd  # noqa: E402
 
 from wfield_local import analysis_kit as ak  # noqa: E402
 
@@ -92,7 +94,7 @@ def plot(S: pd.DataFrame, T: pd.DataFrame) -> None:
                                                                      kind.endswith("norm") else "(mm)"), fontsize=8)
             for s_ in ("top", "right"):
                 ax.spines[s_].set_visible(False)
-    fig.suptitle("NEURAL: FROZEN pre-stroke lick-position decoder, ERROR in mm (mean absolute error per session; Allen "
+    fig.suptitle("NEURAL: FROZEN pre-stroke lick-position decoder, ERROR in mm (mean absolute error per session; ALM / tjM1 split, Allen "
                  "areas, lags 0..0.2 s;\nsame licks and predictions as 3.15-3.22). One dot per session, all animals "
                  "pooled; black = mean +- SEM; * = paired nested bootstrap (animals > sessions) excludes 0.\nUnlike r "
                  "(3.15), error INCLUDES the decoder's pull toward the middle and any constant offset,\nso it rises "
@@ -103,7 +105,12 @@ def plot(S: pd.DataFrame, T: pd.DataFrame) -> None:
 
 
 def main() -> int:
-    S = sessions(pd.read_csv(il.OUT / "where_preds.csv"))
+    il.split_only("iti_where_mae")   # outputs not basis-tagged: split basis only (10-27 late)
+    if plot_only():                       # redraw from figdata only: no data, no bootstrap
+        F = load_fd("lick_where_mae")
+        plot(F["S"], F["T"])
+        return 0
+    S = sessions(pd.read_csv(il.pred_file("where_preds.csv")))
     S.to_csv(il.OUT / "where_mae_sessions.csv", index=False)
     pd.set_option("display.width", 220)
     print("== per animal (rule 8): MAE (mm) by epoch")
@@ -112,6 +119,7 @@ def main() -> int:
     T = tests(S)
     T.to_csv(il.OUT / "where_mae_tests.csv", index=False)
     print(T[T.measure.isin(["mae_lat", "mae_sag", "mae_2d", "rmse_lat"])].round(3).to_string(index=False))
+    save_fd("lick_where_mae", dict(S=S, T=T))
     plot(S, T)
     return 0
 

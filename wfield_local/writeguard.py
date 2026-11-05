@@ -70,6 +70,14 @@ def assert_writable(path: str | os.PathLike[str]) -> None:
     c = _normalize(path)
     if not c:
         return
+    # REBUILD ROOT (11-03, fourth review): during a rebuild-root run every data-tree write outside the root is refused
+    # (the same rule the process audit hook enforces on every open; wfield_local/rebuild_root.py)
+    if os.environ.get("WIDEFIELD_REBUILD_ROOT", "").strip():
+        from wfield_local import rebuild_root
+        why = rebuild_root.write_refusal(path)
+        if why:
+            raise WriteGuardError(f"refusing a rebuild-root run's write outside {rebuild_root.root()}:\n  path: {path}\n"
+                                  f"  {why}")
     owner = f"/{_OWNER}/"
     if _MICROSCOPE_MARK in c and f"{_MICROSCOPE_MARK}{_OWNER}/" not in c:
         raise WriteGuardError(
@@ -85,14 +93,84 @@ def assert_writable(path: str | os.PathLike[str]) -> None:
     # WIDEFIELD_ENL_WINDOW_S) writes ONLY under its tag directory (LP_licks, DAQ_ENL1s, ...). Most writers pick their own
     # share path; without this, such a run of any of them would overwrite the default outputs of the same name.
     # Renderers that know about it route themselves (`lp_licks.output_dir`).
-    if _MICROSCOPE_MARK in c or any(m in c for m in _STANDBY_MARKS):
-        from wfield_local import lp_licks
+    # REVIEW H2 (11-03): the LOCAL figures_working root the deck is built from is checked the same way, so a tagged run
+    # (hemo variant, camera gate, PRE_FROM ...) can never overwrite a default-named PNG / JSON there.
+    if _MICROSCOPE_MARK in c or any(m in c for m in _STANDBY_MARKS) or _under_figures_working(c):
+        from wfield_local import lp_licks, run_mode
         tag = lp_licks.output_tag()
+        # T1 / T2 (third review): an LP-family root routed by `run_mode.subdir(..., lp_family=True)` and a registered
+        # content-keyed data store are accepted at their routed location (the LP source is implicit in the former)
+        if tag is not None and (run_mode.lp_family_root_ok(c) or run_mode.data_store_ok(c) or in_keyed_store(c)):
+            return
         if tag is not None and f"/{tag.lower()}/" not in c:
             raise WriteGuardError(
                 f"refusing a {tag} run's write outside a {tag} directory:\n  path: {path}\n"
                 f"  under this lick source / ENL window every share output must sit under .../{tag}/... so it can "
                 "never replace the default (DAQ contact, 2 s ENL) version; route the writer with lp_licks.output_dir().")
+
+
+def in_keyed_store(c: str) -> bool:
+    """True if the normalised path ``c`` lies in a CONTENT-KEYED store a tagged run may write (render blocker 11-04: the
+    tag rule refused <root>/frozen_models). The stores are `_keyed_stores`; the RESTnl caches are the session cache's
+    ``<name>_restnl*`` siblings (one per gate source)."""
+    if any(c.startswith(s) for s in _keyed_stores()):
+        return True
+    try:
+        from wfield_local import session_cache
+        base = _normalize(session_cache.CACHE_DIR).rstrip("/")
+        return c.startswith(base + "_restnl")
+    except Exception:                                                  # noqa: BLE001
+        return False
+
+
+def _keyed_stores() -> list[str]:
+    """Normalised roots of the stores that are keyed by CONTENT, not by the run tag, so a tagged run may write them
+    (review N3, 11-03; render blocker 11-04): the frozen-model store(s) (spec ids carry hemo variant, selection, training
+    fingerprint; incl. a WIDEFIELD_FROZEN_MODEL_DIR store such as lp_final_render's frozen_models_lpfinal), the
+    per-session cache (kinds carry the run-mode cache tag; map_collect and the LP-licks result_cache live inside it),
+    every store the rebuild root declares (paths.yaml ``rebuild.stores``) and the encoder input cache
+    (WFIELD_INPUT_CACHE) when it lies inside the rebuild root."""
+    out = []
+    env = os.environ.get("WIDEFIELD_FROZEN_MODEL_DIR", "").strip()
+    if env:
+        out.append(_normalize(env))
+    try:
+        from wfield_local import rebuild_root
+        r = rebuild_root.root()
+        if r is not None:
+            for rel in (rebuild_root.spec().get("stores") or {}).values():
+                out.append(_normalize(r / rel))
+            ic = os.environ.get("WFIELD_INPUT_CACHE", "").strip()
+            if ic and _normalize(ic).startswith(_normalize(r)):
+                out.append(_normalize(ic))
+    except Exception:                                                  # noqa: BLE001 - no rebuild root
+        pass
+    try:
+        from wfield_local import frozen_models
+        out.append(_normalize(frozen_models.local_dir()))
+    except Exception:                                                  # noqa: BLE001 - no profile: nothing to exempt
+        pass
+    try:
+        from wfield_local import session_cache
+        out.append(_normalize(session_cache.CACHE_DIR))
+    except Exception:                                                  # noqa: BLE001
+        pass
+    return [x for x in out if x]
+
+
+def _under_figures_working(c: str) -> bool:
+    """True if the normalised path ``c`` lies under this machine's `figures_working` root (False if it is unknown) and
+    is NOT inside a content-keyed store (`_keyed_stores`, or any path segment starting "frozen_models")."""
+    try:
+        from wfield_local import config
+        fw = _normalize(config.resolver().root("figures_working"))
+    except Exception:                                                  # noqa: BLE001 - no profile root: nothing to check
+        return False
+    if not (fw and c.startswith(fw)):
+        return False
+    if any(seg.startswith("frozen_models") for seg in c[len(fw):].split("/")):
+        return False
+    return not any(c.startswith(s) for s in _keyed_stores())
 
 
 def is_writable(path: str | os.PathLike[str]) -> bool:

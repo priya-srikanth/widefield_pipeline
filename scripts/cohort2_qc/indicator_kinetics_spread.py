@@ -100,7 +100,7 @@ def events(s, n):
     from wfield_local.plot_lick_aligned_averages import _load_daq_events as _ll
     from wfield_local.plot_spout_trial_averages import _load_daq_events as _lc
     cue = _lc(s["h5"])
-    lk = _ll(s["h5"], "lick_analog", 2.5, 1.0, (0.001, 0.020), 0.10)
+    lk = _ll(s["h5"], "lick_analog")
     cf, lf, _ = _frames(s, cue, lk)
     cf = np.asarray(cf)
     lf = np.sort(np.asarray(lf)[np.asarray(lf) >= 0])

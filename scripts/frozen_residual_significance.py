@@ -26,6 +26,7 @@ Usage: python scripts/frozen_residual_significance.py --tag gate-attempted_v7g3_
 Output: <E>/frozen_encoder_<tag>/figures/residual_significance_<variant>_<spout>_<align>.png + residual_significance.csv
 """
 from __future__ import annotations
+from wfield_local.frozen_encoder import design_tag as _design_tag  # frame tag of the FROZEN_LICKS_ALL design (8.51)
 
 import argparse
 import json
@@ -92,18 +93,16 @@ def run_tests(pre_by, post_by, n_boot=2000, n_perm=500, methods=("nested", "clus
 
 
 def main(argv=None) -> int:
+    # coordinator 11-04: routed (outputs under the run tag), no longer refused in a tagged run
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     import pandas as pd
 
     from wfield_local import beta_maps as bm
-    from wfield_local import orofacial_cohort as oc
-    from wfield_local import orofacial_outputs as oo
-    from wfield_local.paths import PathResolver
     from wfield_local.writeguard import assert_writable
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--tag", default="gate-attempted_v7g3_t3d_basis")
+    ap.add_argument("--tag", default=_design_tag("gate-attempted_v7g3_t3d_basis"))
     ap.add_argument("--variant", default="joint")
     ap.add_argument("--spout", default="far_contra", help="a spout, or 'all' = mean over the session's spouts")
     ap.add_argument("--aligns", nargs="+", default=["lick", "cue"])
@@ -112,7 +111,8 @@ def main(argv=None) -> int:
     ap.add_argument("--per-animal", action="store_true", help="one test per animal (sessions as the resampled unit)")
     ap.add_argument("--drift", action="store_true", help="also test late vs early pre (off by default)")
     a = ap.parse_args(argv)
-    out = oo.root(PathResolver()) / oc.RUN / "imaging_encoding" / f"frozen_encoder_{a.tag}"
+    from wfield_local import frozen_encoder as _fe   # the encoder's (tagged) run root, coordinator 11-04
+    out = _fe.out_root() / f"frozen_encoder_{a.tag}"
     fd = out / "figures"
     assert_writable(fd)
     fd.mkdir(parents=True, exist_ok=True)

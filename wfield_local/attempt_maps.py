@@ -39,6 +39,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+from wfield_local import run_mode
 from wfield_local.attempt_coding import LESION_NAME, SPOUTS, POST_EPOCHS, _cue_classes
 
 CLASSES = ("pre_hit", "pre_incomplete", "hit", "incomplete", "incomplete_pooled", "noattempt", "reaction", "stopped")
@@ -60,22 +61,44 @@ def _down(m):
     return m[: h // DS * DS, : w // DS * DS].reshape(h // DS, DS, w // DS, DS).mean((1, 3)).astype(np.float32)
 
 
-def classes_for_rows(cls_e, cls_u, quit_u, pre):
-    """Class per engaged row and per no-lick row of ONE session (strings; "" = unused)."""
+def classes_for_rows(cls_e, cls_u, quit_u, pre, camera_u=None):
+    """Class per engaged row and per no-lick row of ONE session (strings; "" = unused).
+
+    CAMERA TRIAL GATE (rebuild 11-03): ``camera_u`` = the `trial_classes` class per no-lick row; then ``quit_u`` is not
+    read, stopped = STOPPED_CLASSES (a sustained stop, Priya 11-03; "noattempt" = an isolated lapse) and the working split = class in
+    GATES["working"] ("unknown" = neither), as `attempt_coding.classify`."""
     if pre:
         ce = np.select([cls_e == "hit", cls_e == "incomplete"], ["pre_hit", "pre_incomplete"], "").astype(object)
         return ce, np.full(len(cls_u), "", dtype=object)
     ce = np.where(np.isin(cls_e, ("hit", "incomplete")), cls_e, "").astype(object)
     cu = np.full(len(cls_u), "", dtype=object)
-    cu[quit_u & ~np.isin(cls_u, ("", "unknown"))] = "stopped"
-    cu[~quit_u & (cls_u == "no_try")] = "noattempt"
-    cu[~quit_u & (cls_u == "jaw_only")] = "reaction"
+    if camera_u is not None:
+        from wfield_local import trial_classes as _tc
+        cam = np.asarray(camera_u, dtype=object)
+        stop, work = np.isin(cam, list(_tc.STOPPED_CLASSES)), _tc.in_sel(cam, "miss_working")   # no contact (M6)
+    else:
+        stop, work = quit_u, ~quit_u
+    cu[stop & ~np.isin(cls_u, ("", "unknown"))] = "stopped"
+    cu[work & (cls_u == "no_try")] = "noattempt"
+    if camera_u is not None:     # decision 3 (Priya 11-03): noattempt = isolated lapse (camera no_response in period)
+        cu[(np.asarray(camera_u, dtype=object) == "no_response") & (cls_u == "no_try")] = "noattempt"
+        # jaw_only its own class (Priya 11-03 late): camera jaw_only inside the working period -> "reaction"
+        cu[(np.asarray(camera_u, dtype=object) == "jaw_only") & (cls_u == "jaw_only")] = "reaction"
+    else:
+        cu[work & (cls_u == "jaw_only")] = "reaction"
     return ce, cu
 
 
-def session_class_maps(label, align, post_s=None):
+#: REST VARIANTS of the map reference (11-01). `rest` = the time-local REST above (the page's 10-24 figures 8.1 / 8.2,
+#: default, unchanged). `restnl` = RESTnl (lick-free rest, flat; `restnl_mask`): features of the PLAIN SVT (the same
+#: cached `svt:rank<K>` key as 15r's raw load), minus the flat baseline b_nl in every bin -- exact, because the window
+#: features are linear bin means with no per-trial baseline; a session without a usable RESTnl baseline is skipped.
+REST_VARIANTS = ("rest", "restnl")
+
+
+def session_class_maps(label, align, post_s=None, rest_variant="rest"):
     """{(spout, class): (map at half resolution, n trials)} for one session and window."""
-    from wfield_local import config, joint_basis
+    from wfield_local import config, joint_basis, lp_licks
     from wfield_local.beta_maps import _quit_mask
     from wfield_local.locanmf_cue_lick_analysis import SESSIONS
     from wfield_local.locanmf_frozen_decoder import _args
@@ -84,24 +107,50 @@ def session_class_maps(label, align, post_s=None):
     from wfield_local.position_reference_maps import (MAP_SHAPE, REST_BASELINE_BINS,
                                                       session_rest_svt_timelocal)
     s = next(x for x in SESSIONS if x["label"] == label)
-    post_s = post_s or float(config.defaults()["decode"].get(f"{align}_post_s", 2.0))
+    post_s = post_s or lp_licks.post_s_for(align)
     u, v = joint_basis._load_session(s["mc"])
-    base = session_rest_svt_timelocal(s, v)
-    if base is None:
-        return {}
-    sig = np.asarray(v) - np.asarray(base)
     a = _args("locanmf", align, post_s, baseline="none")
-    X, y, _g, Xn, yn, _reg, idx_e, idx_n = trial_features_cached(
-        s, a, signal=sig, feat_region=np.arange(v.shape[0]),
-        signal_key=f"svt:rank{v.shape[0]}:restlocal{REST_BASELINE_BINS}", with_indices=True)
+    b_nl = None
+    if rest_variant == "restnl":
+        from wfield_local import restnl_mask
+        d = restnl_mask.baseline_or_build(label)      # built when missing (T4); None = excluded / rule wr only
+        if d is None:
+            print(f"  .. {label}: no usable RESTnl baseline (excluded or rule wr) -- skipped", flush=True)
+            return {}
+        b_nl = np.asarray(d["b_nl"], np.float64)
+        X, y, _g, Xn, yn, _reg, idx_e, idx_n = trial_features_cached(
+            s, a, signal=np.asarray(v), feat_region=np.arange(v.shape[0]),
+            signal_key=f"svt:rank{v.shape[0]}", with_indices=True)
+    else:
+        base = session_rest_svt_timelocal(s, v)
+        if base is None:
+            return {}
+        sig = np.asarray(v) - np.asarray(base)
+        # the time-local REST baseline is built on the ENGAGED rest frames (rest_engagement), so it moves with
+        # WIDEFIELD_GATE_SOURCE -- and `tf-*` kinds are exempt from the gate tag; key it here (unchanged by default)
+        from wfield_local import gate_source
+        gk = f":{gate_source.cache_tag()}" if gate_source.is_lp() else ""
+        X, y, _g, Xn, yn, _reg, idx_e, idx_n = trial_features_cached(
+            s, a, signal=sig, feat_region=np.arange(v.shape[0]),
+            signal_key=f"svt:rank{v.shape[0]}:restlocal{REST_BASELINE_BINS}{gk}", with_indices=True)
     X, y, Xn, yn = np.asarray(X), np.asarray(y), np.asarray(Xn), np.asarray(yn)
     K = u.shape[1]
+    if b_nl is not None:                      # flat baseline: the same (K,) vector off every bin of every trial
+        if X.shape[1] % K or (len(yn) and Xn.shape[1] % K):
+            raise ValueError(f"{label}: {X.shape[1]} features is not a multiple of {K}")
+        X = X - np.tile(b_nl, X.shape[1] // K)[None, :]
+        if len(yn):
+            Xn = Xn - np.tile(b_nl, Xn.shape[1] // K)[None, :]
     cls_cue, _tid = _cue_classes([label], a.max_rt)[label]
     pick = lambda idx: np.array([cls_cue[k] if k < len(cls_cue) else "" for k in idx], object).astype(str)
     cls_e, cls_u = pick(idx_e), pick(idx_n)
-    quit_u = (_quit_mask(s, idx_e, idx_n, y, yn) if len(yn) else np.zeros(0, bool))
     pre = config.session_phase(config.animal_of(label), label.split("_")[-1]) == "pre"
-    ce, cu = classes_for_rows(cls_e, cls_u, quit_u, pre)
+    from wfield_local import trial_classes as _tc
+    if _tc.camera_gate_on():                  # camera trial gate (rebuild 11-03): no DAQ quit mask is built
+        ce, cu = classes_for_rows(cls_e, cls_u, None, pre, camera_u=_tc.row_classes(label, idx_n))
+    else:
+        quit_u = (_quit_mask(s, idx_e, idx_n, y, yn) if len(yn) else np.zeros(0, bool))
+        ce, cu = classes_for_rows(cls_e, cls_u, quit_u, pre)
     if align == "lick":                       # no-lick rows have no lick to align to (see module docstring)
         cu[:] = ""
     rows = [(X, y, ce)] + ([(Xn, yn, cu)] if len(yn) else [])
@@ -122,15 +171,18 @@ def session_class_maps(label, align, post_s=None):
 
 
 def _job(args):
-    label, align = args
+    label, align = args[:2]
+    rv = args[2] if len(args) > 2 else "rest"
     try:
-        return label, session_class_maps(label, align)
+        return label, session_class_maps(label, align, rest_variant=rv)
     except Exception as ex:                                            # noqa: BLE001
+        from wfield_local import trial_classes as _tc
+        _tc.reraise_under_camera(ex, f"attempt_maps {label} {align}")   # review N9
         print(f"  !! {label} {align}: {type(ex).__name__} {str(ex)[:90]}", flush=True)
         return label, None
 
 
-def collect(animal, align, jobs=4):
+def collect(animal, align, jobs=4, rest_variant="rest"):
     """Aggregate one animal's sessions -> ({key: map}, counts DataFrame)."""
     from wfield_local import analysis_kit as ak, lp_licks
     if not lp_licks.is_lp():
@@ -139,12 +191,12 @@ def collect(animal, align, jobs=4):
     ep = dict(zip(A.label, A.epoch))
     labels = [l for l in ak.curated_labels([animal]) if ep.get(l) in ("pre",) + POST_EPOCHS]
     if jobs > 1:
-        pairs, fail = ak.fan_sessions([(l, align) for l in labels], _job, jobs=jobs)
+        pairs, fail = ak.fan_sessions([(l, align, rest_variant) for l in labels], _job, jobs=jobs)
         if fail:                                   # a short table looks like a legitimately short one: refuse
             raise RuntimeError(f"{animal} {align}: {len(fail)} session(s) failed in the pool: {fail}")
         res = [v for _item, v in pairs]
     else:
-        res = [_job((l, align)) for l in labels]
+        res = [_job((l, align, rest_variant)) for l in labels]
     bad = [l for l, d in res if d is None]
     if bad:
         raise RuntimeError(f"{animal} {align}: no maps for {bad}")
@@ -164,9 +216,13 @@ def collect(animal, align, jobs=4):
     return maps, pd.DataFrame(rows)
 
 
-def out_dir():
-    from wfield_local import lp_licks
-    return lp_licks._run_dir() / "imaging_encoding" / "attempt_maps"
+def out_dir(rest_variant="rest"):
+    """`attempt_maps/` (REST, 10-24) or `attempt_maps_restnl/` (RESTnl, August-only pre; 11-01) -- never the same."""
+    from wfield_local import lp_licks, run_mode
+    # run-mode routing (rebuild 11-03): a tagged run (camera gate, hemo variant ...) writes <dir>/<tag>/; default unchanged
+    return run_mode.subdir(lp_licks._enc_dir() / ("attempt_maps" if rest_variant == "rest"
+                                                                        else f"attempt_maps_{rest_variant}"),
+                           lp_family=True)                     # LP-only family (review N1)
 
 
 EPOCHS = ("pre",) + POST_EPOCHS
@@ -185,16 +241,37 @@ def _mask_edges():
     return m, e
 
 
+def product_name(stem: str, ext: str) -> str:
+    """R4 (fourth review): EVERY attempt_maps product -- maps npz, counts and hemisphere CSVs, figures -- carries the same
+    per-session cache key (`run_mode.keyed_name(cache=True)`: hemo / projection / selection / class-code csig), so a
+    class-code change can never pair new maps with old tables or figures. Unchanged names in a default run."""
+    return run_mode.keyed_name(f"{stem}{ext}", cache=True)
+
+
+def maps_path(od, align, an) -> Path:
+    return Path(od) / product_name(f"maps_{align}_{an}", ".npz")
+
+
+def hemispheres_path(od, align) -> Path:
+    """The hemisphere table of ``align`` in output folder ``od`` (read by rebuild_figs/fig_goal_summary)."""
+    return Path(od) / product_name(f"hemispheres_{align}", ".csv")
+
+
+def _stored_maps(od, align, animals) -> dict:
+    """{animal: loaded maps} -- RAISES when an expected keyed maps file is missing (R4: never a partial figure set)."""
+    miss = [an for an in animals if not maps_path(od, align, an).exists()]
+    if miss:
+        raise FileNotFoundError(f"[attempt_maps] {align}: no maps for {miss} in {od} under this run's key "
+                                f"({run_mode.cache_tag() or 'default'}); run attempt_maps without --figures first")
+    return {an: np.load(maps_path(od, align, an)) for an in animals}
+
+
 def hemisphere_table(od, align, animals):
     """Per animal x epoch x spout x class: mean map value in the image-LEFT (ipsilesional) and image-RIGHT
     (contralesional) halves inside the brain mask, and the same for the difference from that spout's pre-stroke hits."""
     m, _e = _mask_edges()
     rows = []
-    for an in animals:
-        f = od / f"maps_{align}_{an}.npz"
-        if not f.exists():
-            continue
-        Z = np.load(f)
+    for an, Z in _stored_maps(od, align, animals).items():
         for k in Z.files:
             e, P, c = k.split("|")
             M = Z[k]
@@ -213,7 +290,15 @@ def hemisphere_table(od, align, animals):
     return pd.DataFrame(rows)
 
 
-def figures(od, align, animals, spouts=("far_contra", "far_mid", "far_ipsi")):
+def _run_text() -> str:
+    """Lick source, gate and baseline of this run, for the title (lp-final 11-02: every title names all three)."""
+    from wfield_local import config, gate_source, lp_licks
+    return (f"licks: {'LP video (cam4 + cam1)' if lp_licks.is_lp() else 'DAQ contact'}; trial classes: LP video "
+            f"attempts; gate: {'DAQ contact OR LP attempt' if gate_source.is_lp() else 'as lick source'}; pre: "
+            f"{'August only' if config.pre_from() else 'June + August'}")
+
+
+def figures(od, align, animals, spouts=("far_contra", "far_mid", "far_ipsi"), rest_variant="rest"):
     """Per spout: one figure per animal-set, rows = animals (+ mean of animal means), columns = SHOW (epoch x class);
     one absolute version (shared symmetric scale per row) and one minus that animal's pre-stroke hits."""
     import matplotlib
@@ -222,7 +307,7 @@ def figures(od, align, animals, spouts=("far_contra", "far_mid", "far_ipsi")):
     m, edges = _mask_edges()
     fd = od / "figures"
     fd.mkdir(exist_ok=True)
-    Zs = {an: np.load(od / f"maps_{align}_{an}.npz") for an in animals if (od / f"maps_{align}_{an}.npz").exists()}
+    Zs = _stored_maps(od, align, animals)
     out = []
     for P in spouts:
         for diff in (False, True):
@@ -267,11 +352,21 @@ def figures(od, align, animals, spouts=("far_contra", "far_mid", "far_ipsi")):
                     cb.set_label("dF", fontsize=6)
                 else:
                     axes[i, -1].set_visible(False)
-            what = "minus pre-stroke hits" if diff else "rest-referenced dF"
-            fig.suptitle(f"{P}, {align} window: {what} (image left = ipsilesional; mean = mean of animal means, "
-                         f">= 2 animals; per-row symmetric 99th-pct scale)", fontsize=8)
-            fig.tight_layout(rect=(0, 0, 1, 0.95))
-            fn = fd / f"attempt_maps_{align}_{P}{'_minus_pre' if diff else ''}.png"
+            if rest_variant == "restnl":
+                what = ("RESTnl-referenced dF, minus pre-stroke hits" if diff else "RESTnl-referenced dF")
+                fig.suptitle(f"{P}, {align} window: {what}. RESTnl = lick-free rest, flat (rest licks excluded: DAQ "
+                             f"contact + cam4 LP video, [-0.5, +2.0] s); {_run_text()}"
+                             f"\n(image left = ipsilesional; mean = mean of animal means, >= 2 animals; per-row "
+                             f"symmetric 99th-pct scale)", fontsize=8)
+                fig.tight_layout(rect=(0, 0, 1, 0.93))
+            else:
+                what = ("REST-referenced dF (time-local rest), minus pre-stroke hits" if diff
+                        else "REST-referenced dF (time-local rest)")
+                fig.suptitle(f"{P}, {align} window: {what}; {_run_text()}\n(image left = ipsilesional; mean = mean "
+                             f"of animal means, >= 2 animals; per-row symmetric 99th-pct scale)", fontsize=8)
+                fig.tight_layout(rect=(0, 0, 1, 0.93))
+            sfx = "" if rest_variant == "rest" else f"_{rest_variant}"
+            fn = fd / product_name(f"attempt_maps_{align}_{P}{'_minus_pre' if diff else ''}{sfx}", ".png")
             fig.savefig(fn, dpi=130)
             plt.close(fig)
             out.append(fn)
@@ -284,26 +379,37 @@ def main(argv=None) -> int:
     ap.add_argument("--aligns", nargs="+", default=list(ALIGNS), choices=ALIGNS)
     ap.add_argument("--jobs", type=int, default=4)
     ap.add_argument("--out", type=Path, default=None)
-    ap.add_argument("--figures", action="store_true", help="figures + hemisphere table from the stored maps, then exit")
+    ap.add_argument("--figures", "--plot-only", action="store_true",
+                    help="figures + hemisphere table from the stored maps (the figure data), then exit")
+    ap.add_argument("--rest-variant", choices=REST_VARIANTS, default="rest",
+                    help="map reference: rest (time-local REST, default) or restnl (lick-free flat RESTnl; run with "
+                         "WIDEFIELD_PRE_FROM=0801 for the August-only pre; baselines from `restnl_mask`)")
     a = ap.parse_args(argv)
-    od = a.out or out_dir()
+    # an explicit --out (e.g. attempt_coding_pp) is routed like out_dir() (LP family; T1 / T6, third review)
+    od = run_mode.routed_output(a.out, guard=False, lp_family=True) if a.out else out_dir(a.rest_variant)
+    from wfield_local.writeguard import assert_writable
+    assert_writable(od / "_")   # review H3: a tagged run's share write must sit under its tag folder
     od.mkdir(parents=True, exist_ok=True)
     if a.figures:
         for align in a.aligns:
-            hemisphere_table(od, align, a.animals).to_csv(od / f"hemispheres_{align}.csv", index=False)
-            for fn in figures(od, align, a.animals):
+            hemisphere_table(od, align, a.animals).to_csv(hemispheres_path(od, align), index=False)
+            for fn in figures(od, align, a.animals, rest_variant=a.rest_variant):
                 print(f"[attempt_maps] wrote {fn.name}", flush=True)
         return 0
     for align in a.aligns:
         counts = []
         for an in a.animals:
-            f = od / f"maps_{align}_{an}.npz"
+            f = maps_path(od, align, an)
             if f.exists():
                 print(f"[attempt_maps] {an} {align}: exists, skipped", flush=True)
                 continue
-            maps, C = collect(an, align, a.jobs)
+            maps, C = collect(an, align, a.jobs, rest_variant=a.rest_variant)
+            if not maps:
+                # T4 (third review): an EMPTY maps file would be skipped as "exists" by every later run -- never write it
+                raise RuntimeError(f"[attempt_maps] {an} {align}: no session produced maps (rest_variant "
+                                   f"{a.rest_variant}); nothing written -- check the RESTnl baselines / inputs")
             np.savez_compressed(f, **maps)
-            C.to_csv(od / f"counts_{align}_{an}.csv", index=False)
+            C.to_csv(od / product_name(f"counts_{align}_{an}", ".csv"), index=False)
             counts.append(C)
             print(f"[attempt_maps] {an} {align}: {len(maps)} maps from {C.label.nunique() if len(C) else 0} sessions",
                   flush=True)

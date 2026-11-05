@@ -8,14 +8,17 @@ Per animal x lick set x axis (lateral, sagittal): fit r = a + b * log(1 + gap) o
 pre -> post pair, residual = r - drift prediction at its gap (extrapolated beyond the pre range for chronic gaps, which
 the log fit makes conservative-to-neutral; reported separately). Per post session: mean residual over its training
 sessions; change per epoch = nested bootstrap of those residuals (pre->pre residuals as the reference).
-Features = Allen areas, lags 0..0.2 s (as 3.15), z-scored within session (`zscore_check/session_sd.csv`).
+Features = Allen areas with the ALM / tjM1 split (every area decoder since 10-27 late; iti_where_decoder.area_basis),
+lags 0..0.2 s (as 3.15), z-scored within session (frame-level SDs; June: june_ref/ SD + split tables, iti_june_ref.py).
 --june (Priya 10-27): add the June 6-8 pre sessions (`iti_june_ref.py`, a separate folder; never in the August
 baseline) as a NO-STROKE LONG-GAP reference: pairs August pre <-> June (both directions; ~60 days, about the chronic
 gap). The drift curve is then fit on pre -> pre AND June pairs, so chronic gaps are interpolated, not extrapolated; the
 June residual against the August-only curve says whether that extrapolation was right. Caveat: June is earlier in
 training, so June <-> August drift includes learning (makes the test conservative).
 Output <E>/iti_licks/where_drift[_june]_{pairs,tests}.csv, figures/lick_where_drift[_june].png.
-Usage: python scripts/iti_where_drift.py [--june]
+Figure data <E>/iti_licks/figdata/lick_where_drift[_june].pkl; --plot-only redraws from it alone (no decoder fits,
+no bootstrap).
+Usage: python scripts/iti_where_drift.py [--june] [--plot-only]
 """
 from __future__ import annotations
 
@@ -29,6 +32,7 @@ import pandas as pd
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import iti_licks as il  # noqa: E402
 import iti_where_decoder as wd  # noqa: E402
+from figdata import load_fd, plot_only, save_fd  # noqa: E402
 
 from wfield_local import analysis_kit as ak  # noqa: E402
 
@@ -45,17 +49,15 @@ def _day(label: str) -> int:
 def pairs(june: bool = False) -> pd.DataFrame:
     from sklearn.linear_model import RidgeCV
     from sklearn.preprocessing import StandardScaler
-    from iti_decoder_contrib import feature_names
-    S = pd.read_csv(il.OUT / "zscore_check" / "session_sd.csv", index_col=0)
-    names = feature_names()
-    D = wd.load("areas")
+    # Allen areas in the basis (split by default, Priya 10-27 late) + frame SDs: the shared loader
+    D, names, S = wd.area_basis()
     if june:
         from iti_june_ref import JUNE
-        DJ = wd.load("areas", JUNE / "sessions")
+        DJ, _nj, SJ = wd.area_basis(JUNE / il.SESS_NAME)     # June: its own SD / split tables (june_ref/)
         for d in DJ.values():
             d["epoch"] = "june"
         D = {**D, **DJ}
-        S = pd.concat([S, pd.read_csv(JUNE / "session_sd.csv", index_col=0)])
+        S = pd.concat([S, SJ])
     rows = []
     for st in ("iti", "trial"):
         for a in AN:
@@ -86,8 +88,8 @@ def pairs(june: bool = False) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
-def main(argv=None) -> int:
-    june = "--june" in (argv if argv is not None else sys.argv[1:])
+def compute(june: bool) -> dict:
+    """Decoder pairs, drift fits, residual tests (CSVs + per-animal tables); returns the figure data."""
     sfx = "_june" if june else ""
     P = pairs(june)
     ref_eps = ["pre", "june"] if june else ["pre"]
@@ -129,13 +131,56 @@ def main(argv=None) -> int:
     T.to_csv(il.OUT / f"where_drift{sfx}_tests.csv", index=False)
     print("\n== r beyond elapsed-time drift, change vs pre (paired nested bootstrap)")
     print(T.round(3).to_string(index=False))
+    fits = {}
+    for st, ax_ in [("iti", "lat"), ("trial", "lat"), ("iti", "sag"), ("trial", "sag")]:
+        for a in AN:
+            pp = P[(P.set == st) & (P.axis == ax_) & (P.animal == a)]
+            if len(pp):
+                xx = np.linspace(0, pp.gap.max(), 100)
+                fits[(st, ax_, a)] = (xx, pp.slope.iloc[0] * np.log1p(xx) + (pp.pred - pp.slope * np.log1p(pp.gap)).iloc[0],
+                                      pp.max_pre_gap.iloc[0])
+    return dict(june=june, ref_eps=ref_eps, ses=ses, T=T, fits=fits)
+
+
+def plot(F: dict) -> None:
+    june, ref_eps, ses, T, fits = F["june"], F["ref_eps"], F["ses"], F["T"], F["fits"]
+    sfx = "_june" if june else ""
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
     from wfield_local.orofacial_cohort import EPOCH_LINE as colors
-    fig, axs = plt.subplots(4, 4, figsize=(16, 13), squeeze=False, sharex=True)
+    fig, axs = plt.subplots(4, 5, figsize=(20, 13), squeeze=False, sharex=True)
+    marks = dict(zip(AN, "osD^"))
     for i, (st, ax_) in enumerate([("iti", "lat"), ("trial", "lat"), ("iti", "sag"), ("trial", "sag")]):
+        # POOLED, PRE-NORMALISED (Priya 10-28): each animal's r / its mean pre (pre -> pre pair) r, drift fit scaled the
+        # same; black dashed = mean of the animals' scaled fits on a common gap axis
+        axp = axs[i, 4]
+        xg = np.linspace(0, ses.gap.max(), 200)
+        curves = []
+        for a in AN:
+            g = ses[(ses.set == st) & (ses.axis == ax_) & (ses.animal == a)]
+            pre_m = g[g.epoch == "pre"].r.mean()
+            if not np.isfinite(pre_m) or not len(g):
+                continue
+            for ep in [*ref_eps, *EP]:
+                h = g[g.epoch == ep]
+                axp.scatter(h.gap, h.r / pre_m, s=11, color=colors.get(ep, "#8e44ad"), marker=marks[a], alpha=0.7, lw=0)
+            if (st, ax_, a) in fits:
+                xx, yy, _mx = fits[(st, ax_, a)]
+                b_ = (yy[-1] - yy[0]) / np.log1p(xx[-1])            # the fit is c + b log(1 + gap)
+                curves.append((yy[0] + b_ * np.log1p(xg)) / pre_m)
+        if curves:
+            axp.plot(xg, np.mean(curves, axis=0), "k--", lw=1.4)
+        axp.axhline(1, color="0.8", lw=0.6)
+        tt = T.set_index(["set", "axis", "epoch"])
+        axp.set_title(f"POOLED {'ITI' if st == 'iti' else 'cued'} {'LATERAL' if ax_ == 'lat' else 'SAGITTAL'}, r / pre\n"
+                      "beyond drift vs pre: " + ", ".join(
+                          f"{e[:3]} {tt.loc[(st, ax_, e), 'point']:+.2f}" + ("*" if tt.loc[(st, ax_, e), 'lo'] > 0 or
+                                                                            tt.loc[(st, ax_, e), 'hi'] < 0 else "")
+                          for e in EP if (st, ax_, e) in tt.index), fontsize=8.5)
+        if i == 3:
+            axp.set_xlabel("days between training and test session", fontsize=8)
         for j, a in enumerate(AN):
             ax = axs[i, j]
             g = ses[(ses.set == st) & (ses.axis == ax_) & (ses.animal == a)]
@@ -144,12 +189,10 @@ def main(argv=None) -> int:
                 ax.scatter(h.gap, h.r, s=14, color=colors.get(ep, "#8e44ad"), label=ep + (" (no stroke)" if ep == "june"
                                                                                        else ""),
                            alpha=0.8, marker="D" if ep == "june" else "o")
-            pp = P[(P.set == st) & (P.axis == ax_) & (P.animal == a)]
-            if len(pp):
-                xx = np.linspace(0, pp.gap.max(), 100)
-                ax.plot(xx, pp.slope.iloc[0] * np.log1p(xx) + (pp.pred - pp.slope * np.log1p(pp.gap)).iloc[0], "k--",
-                        lw=1, label="drift fit (pre + June)" if june else "pre drift fit")
-                ax.axvline(pp.max_pre_gap.iloc[0], color="0.7", lw=0.6, ls=":")
+            if (st, ax_, a) in fits:
+                xx, yy, mx = fits[(st, ax_, a)]
+                ax.plot(xx, yy, "k--", lw=1, label="drift fit (pre + June)" if june else "pre drift fit")
+                ax.axvline(mx, color="0.7", lw=0.6, ls=":")
             ax.set_title(f"{a} {'ITI' if st == 'iti' else 'cued'} {'LATERAL' if ax_ == 'lat' else 'SAGITTAL'}",
                          fontsize=9)
             if j == 0:
@@ -157,11 +200,15 @@ def main(argv=None) -> int:
             if i == 3:
                 ax.set_xlabel("days between training and test session", fontsize=8)
     axs[0, 0].legend(fontsize=7, frameon=False)
+    from matplotlib.lines import Line2D
+    axs[0, 4].legend([Line2D([], [], ls="", marker=marks[a], color="0.4") for a in AN] +
+                     [Line2D([], [], color="k", ls="--")], [*AN, "mean scaled drift fit"], fontsize=7, frameon=False,
+                     loc="lower left")
     t = T.set_index(["set", "axis", "epoch"])
     jl = (" JUNE no-stroke reference added (diamonds: August pre <-> June pairs, ~60 d), fit on pre + June pairs, so "
           "chronic gaps are within the reference range.\n") if june else ""
     fig.suptitle(jl + "NEURAL: is the frozen decoder's post-stroke r loss more than elapsed-time DRIFT? Decoders trained on ONE "
-                 "pre session (z-scored Allen areas, lags 0..0.2 s), tested on every other session; dashed = log fit to "
+                 f"pre session (z-scored {il.basis_label()}, lags 0..0.2 s), tested on every other session; dashed = log fit to "
                  "pre -> pre pairs\n(dotted = largest pre gap; beyond it the fit is extrapolated). Change in r beyond "
                  "the drift curve vs pre, chronic: ITI lateral "
                  f"{t.loc[('iti', 'lat', 'chronic'), 'point']:+.3f} [{t.loc[('iti', 'lat', 'chronic'), 'lo']:+.3f}, "
@@ -171,6 +218,19 @@ def main(argv=None) -> int:
     fig.tight_layout(rect=(0, 0, 1, 0.92 if june else 0.94))
     fig.savefig(il.OUT / "figures" / f"lick_where_drift{sfx}.png", dpi=95)
     plt.close(fig)
+
+
+def main(argv=None) -> int:
+    il.split_only("iti_where_drift")   # outputs not basis-tagged: split basis only (10-27 late)
+    argv = argv if argv is not None else sys.argv[1:]
+    june = "--june" in argv
+    stem = f"lick_where_drift{'_june' if june else ''}"
+    if "--plot-only" in argv or plot_only():   # redraw from figdata only: no decoder fits, no bootstrap
+        plot(load_fd(stem))
+        return 0
+    F = compute(june)
+    save_fd(stem, F)
+    plot(F)
     return 0
 
 

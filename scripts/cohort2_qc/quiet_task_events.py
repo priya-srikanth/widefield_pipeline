@@ -16,10 +16,12 @@ quiet events that happen to fall in a pre-cue window.
 T13 -- does a pre-cue orofacial event on a trial predict (a) a failed far-contra attempt (video attempt classes,
 LP run imaging_encoding/qc/trial_attempts.csv: hit / incomplete / no_try / jaw_only; also all-spout hit vs miss) and
 (b) a weaker pre-cue position code (attempt_coding trials_precue_<animal>.csv.gz: per-trial p_true of the stored frozen
-pre-stroke decoder on the 2-s pre-cue ENL window)? Trial event flag = any event (orofacial ipsi OR contra, either
-polarity, > 4 x pre SD) in the trial's clean pre-cue window ("ev_pre"); for (b) also restricted to the 2 s before the cue
-= the decoder's window ("ev_enl"). Trials: engagement-gated (trial_attempts `canonical`), >= 1.0 s of clean pre-cue
-frames (>= 1.0 s inside the last 2 s for ev_enl). WITHIN-SESSION, SPOUT-MATCHED: strata = session x spout; effect =
+pre-stroke decoder on the pre-cue ENL window)? Trial event flag = any event (orofacial ipsi OR contra, either
+polarity, > 4 x pre SD) in the trial's clean pre-cue window ("ev_pre"); for (b) also restricted to the decoder's window
+("ev_enl"): since 11-04 the shared LICK-FREE ENL of the run's lick source (LP by default: 1.0 s, slid to the latest
+lick-free gap like the decoder's, trials with none out; was the fixed 2 s before the cue). Trials: engagement-gated
+(trial_attempts `canonical`), >= 1.0 s of clean pre-cue frames (>= MIN_CLEAN_ENL_S = half the window clean for
+ev_enl). Outputs keyed by source and window (task_events_<src>lf<W>s/; the DAQ 2 s run keeps task_events/). WITHIN-SESSION, SPOUT-MATCHED: strata = session x spout; effect =
 EXCESS = mean over event trials of (outcome - its stratum mean), i.e. event trials vs the other trials of the same
 spout in the same session; p = permutation of the event flags within strata (N_PERM). STRICT strata add the
 within-session trial-order quartile and a clean-time bin (events and misses both rise late in the session and with the
@@ -33,29 +35,51 @@ OUTPUT M:/MICROSCOPE/Priya/Widefield/labcams/cohort1_quiet_spikes/v2_quiet/task_
     python scripts/cohort2_qc/quiet_task_events.py [--jobs 3] [--summarise] [--only PS92_0811 ...]
 """
 import argparse
+import os
 import sys
 from pathlib import Path
 
-import numpy as np
+# THE RUN'S LICK SOURCE DEFAULTS TO LP (Priya 11-04), as in quiet_task_events_followup: the T13 p_true is attempt_coding's
+# (an LP-only family), so the ENL window and its lick-free gate follow LP unless a run says otherwise.
+os.environ.setdefault("WIDEFIELD_LICK_SOURCE", "lp")
+import numpy as np  # noqa: E402
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from quiet_area_spikes import EP, EVENTS, columns, session_traces  # noqa: E402
 from quiet_spikes_v2 import LICK_SOURCE, V2, busy_frames, detect, detrend  # noqa: E402
+from wfield_local.orofacial_outputs import encoding_root as _encoding_root  # noqa: E402 - rebuild root (11-03)
+from wfield_local.attempt_coding import trials_name as attempt_trials_name  # noqa: E402
+from wfield_local import lp_licks as _lp_licks  # noqa: E402  (coordinator 11-04: the run's attempts table)
 
-TE = V2 / "task_events"
+#: THE ENL window, s (Priya 11-04): the shared `lp_licks.enl_post_s()` of the run's lick source -- 1.0 s under LP, the
+#: frozen attempt_coding decoder's window -- LICK-FREE on that source (`lp_licks.gate_licks_s`) and SLID like the
+#: decoder's (`lp_licks.enl_window_starts_s` = `precue_window_start`; per trial `enl_w0` in the npz, NaN = no lick-free
+#: window -> out of the ENL rows). Until 11-04: a fixed, DAQ 2.0 s [cue - 2, cue).
+ENL_S = _lp_licks.enl_post_s()
+ENL_SRC = _lp_licks.lick_source()
+#: OUTPUTS ARE KEYED BY (source, window): the pre-11-04 DAQ 2.0 s outputs stay in task_events/ and are never mixed in.
+TE_SUFFIX = "" if (ENL_SRC, ENL_S) == ("daq", 2.0) else f"_{ENL_SRC}lf{ENL_S:g}s"
+TE = V2 / f"task_events{TE_SUFFIX}"
 K = 4.0
 TASK_BUF_S = 0.5
 COLS = ["orofacial_left", "orofacial_right", "orofacial", "limb_left", "limb_right"]
 TRIAL_COLS = ("orofacial_left", "orofacial_right")       # T13 event flag: either hemisphere
 WIN = {0: "precue", 1: "iti", 2: "quiet"}
 MIN_CLEAN_S = 1.0
-ENL_S = 2.0
 CLEAN_BINS = (0, 1.5, 2.0, 2.5, 99)
+#: "CLEAN" = frames of the detection mask: no DAQ contact lick (+ LP licks under QS_LICK_SOURCE=daq+lp) or running bout
+#: within TASK_BUF_S, no swapped pair within 0.5 s, finite -- NOT the lick-free test (that is the window's own gate).
+#: So the requirement inside the ENL window stays, SCALED with it: MIN_CLEAN_ENL_FRAC x ENL_S = 0.5 s of a 1.0 s window,
+#: the same fraction as the 1.0 s of 2.0 s used until 11-04 (PROPOSED 11-04; MIN_CLEAN_S stays for the whole pre-cue).
+MIN_CLEAN_ENL_FRAC = 0.5
+MIN_CLEAN_ENL_S = MIN_CLEAN_ENL_FRAC * ENL_S
+#: CLEAN_BINS for the ENL-window strata, scaled with the window (identical to CLEAN_BINS for the 2.0 s window).
+CLEAN_ENL_BINS = tuple(x * ENL_S / 2.0 for x in CLEAN_BINS)
 N_PERM = 2000
 ANIMALS = ("PS92", "PS93", "PS94", "PS95")
-LP = Path("M:/MICROSCOPE/Priya/Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding")
+LP = _encoding_root()
 LESION_NAME = {"close_L": "close_ipsi", "close_center": "close_mid", "close_R": "close_contra",
                "far_L": "far_ipsi", "far_center": "far_mid", "far_R": "far_contra"}
 HEMI = {"orofacial_left": "orofacial ipsilesional", "orofacial_right": "orofacial contralesional",
@@ -79,10 +103,40 @@ def near_frames(label, ft, buf):
     return m
 
 
+def _npz_enl_s(f) -> float:
+    """The ENL window a per-session npz was built with (files written before 11-04 carry none: 2.0 s)."""
+    with np.load(f) as z:
+        return float(z["enl_s"]) if "enl_s" in z.files else 2.0
+
+
+def enl_starts(label, cue, strobe):
+    """Per trial the start (DAQ s) of its lick-free ENL window, NaN = none: licks of the run's source
+    (`lp_licks.gate_licks_s` on the session's DAQ contact onsets; under LP the edited LP train, cues without an LP
+    verdict -> NaN; a session with no LP tables -> all NaN), searched like the decoders' window."""
+    animal, mmdd = label.split("_")
+    z = np.load(EVENTS / animal / f"2026{mmdd}.npz", allow_pickle=True)
+    daq = z["lick_onsets"] / float(z["fs"])
+    out = np.full(len(cue), np.nan)
+    ok = np.isfinite(cue)
+    try:
+        licks, has = _lp_licks.gate_licks_s(label, cue[ok], daq, float(_cfg_max_rt()))
+    except _lp_licks.LPUnavailable as ex:
+        print(f"  {label}: no LP licks ({ex}) -> no ENL rows", flush=True)
+        return out
+    w = _lp_licks.enl_window_starts_s(cue[ok], strobe[ok], licks, ENL_S)
+    out[np.flatnonzero(ok)] = np.where(has, w, np.nan)
+    return out
+
+
+def _cfg_max_rt():
+    from wfield_local import config
+    return config.defaults()["decode"]["max_rt_s"]
+
+
 def extract(label):
     """One session (spawn worker): events in pre-cue / ITI / quiet masks + per-trial clean-frame bookkeeping."""
     f = TE / "sessions" / f"{label}.npz"
-    if f.exists():
+    if f.exists() and _npz_enl_s(f) == ENL_S:
         return label
     from wfield_local import trial_windows as TW
     Xr, ft, fs, _rest, engaged, quit_s = session_traces(label, detrend=False)
@@ -126,9 +180,10 @@ def extract(label):
                     ev.append((ci, code, int(p), sign * float(v), int(tr), int(engaged[p]), int(quiet[p]), trel))
     # per trial: clean pre-cue frames (all / inside the last ENL_S / also v2-quiet), clean ITI frames
     npre = np.bincount(tri_pre[ok_pre], minlength=n)[:n]
+    w0 = enl_starts(label, cue, strobe)
     in_enl = np.zeros(T, bool)
-    for i in range(n):
-        in_enl[np.searchsorted(ft, cue[i] - ENL_S):np.searchsorted(ft, cue[i])] = True
+    for i in np.flatnonzero(np.isfinite(w0)):
+        in_enl[np.searchsorted(ft, w0[i]):np.searchsorted(ft, w0[i] + ENL_S)] = True
     npre_enl = np.bincount(tri_pre[ok_pre & in_enl], minlength=n)[:n]
     npre_q = np.bincount(tri_pre[ok_pre & quiet], minlength=n)[:n]
     npre_all = np.bincount(tri_pre[tri_pre >= 0], minlength=n)[:n]
@@ -139,7 +194,8 @@ def extract(label):
         f, ev=np.array(ev, float).reshape(-1, 8), fs=fs, cols=np.array(cols), quit_s=quit_s,
         n_quiet_eng=int((quiet & engaged).sum()), trial_id=tb.trial_id.to_numpy(int),
         pos_name=tb.pos_name.astype(str).to_numpy(), cue=cue, start=start, stop=stop, npre=npre, npre_enl=npre_enl,
-        npre_q=npre_q, npre_all=npre_all, niti=niti, eng_tr=eng_tr, total_min=T / fs / 60)
+        npre_q=npre_q, npre_all=npre_all, niti=niti, eng_tr=eng_tr, total_min=T / fs / 60, enl_s=float(ENL_S),
+        enl_src=ENL_SRC, enl_w0=w0)
     return label
 
 
@@ -153,10 +209,14 @@ def load_sessions():
         lab = f.stem
         if lab[:4] not in ANIMALS:
             continue
+        if _npz_enl_s(f) != ENL_S:
+            raise SystemExit(f"{f}: built with ENL window {_npz_enl_s(f)} s, this run uses {ENL_S} s -- re-extract")
         ep = epochs.epoch_of(lab)
         if ep is None or (ep == "pre" and lab[-4:] < "0806"):
             continue
         D[lab] = dict(np.load(f, allow_pickle=True), epoch=ep, day=epochs.days_since_stroke(lab))
+        if "enl_w0" not in D[lab]:                    # a pre-11-04 DAQ 2 s file: the fixed window ending at the cue
+            D[lab]["enl_w0"] = np.asarray(D[lab]["cue"], float) - ENL_S
     return D, sd
 
 
@@ -336,18 +396,22 @@ def trial_table(D, sd):
         n = len(d["trial_id"])
         tr = E[:, 4].astype(int)
         ev_pre = np.bincount(tr, minlength=n)[:n] > 0
-        enl = E[:, 7] >= -ENL_S
+        # an event inside the trial's OWN (slid, lick-free) ENL window; trials without one are not ENL rows
+        w0r = np.asarray(d["enl_w0"], float) - np.asarray(d["cue"], float)          # window start rel. to the cue
+        enl = (E[:, 7] >= w0r[tr]) & (E[:, 7] < w0r[tr] + ENL_S)
         ev_enl = np.bincount(tr[enl], minlength=n)[:n] > 0
+        enl_ok = np.isfinite(w0r)
         rows.append(pd.DataFrame(dict(label=lab, animal=an, epoch=d["epoch"], day=d["day"], trial_id=d["trial_id"],
                                       spout_daq=[LESION_NAME.get(p, p) for p in d["pos_name"]],
                                       clean_s=d["npre"] / fs, clean_enl_s=d["npre_enl"] / fs, eng_tr=d["eng_tr"],
-                                      ev_pre=ev_pre, ev_enl=ev_enl, n_ev=np.bincount(tr, minlength=n)[:n])))
+                                      ev_pre=ev_pre, ev_enl=ev_enl, enl_ok=enl_ok, n_ev=np.bincount(tr, minlength=n)[:n])))
     Tr = pd.concat(rows, ignore_index=True)
-    A = pd.read_csv(LP / "qc" / "trial_attempts.csv", usecols=["label", "trial_id", "pos", "cls", "canonical"])
+    A = pd.read_csv(_lp_licks.attempts_path(), usecols=["label", "trial_id", "pos", "cls", "canonical"])
     Tr = Tr.merge(A, on=["label", "trial_id"], how="left")
     P = []
     for an in ANIMALS:
-        f = LP / "attempt_coding" / f"trials_precue_{an}.csv.gz"
+        from wfield_local import attempt_coding as _ac
+        f = _ac.out_dir() / attempt_trials_name("precue", an)           # the writer's folder (review N1)
         if f.exists():
             x = pd.read_csv(f, usecols=["label", "trial_id", "spout", "cls", "p_true", "method"])
             P.append(x[x.method == "dom"].drop(columns="method").rename(columns={"spout": "spout_ac", "cls": "cls_ac"}))
@@ -418,8 +482,8 @@ def outcomes(Tr):
                                         .assign(y=lambda x: (x.cls == "no_try").astype(float)), "ev_pre", "clean_s")}
     al = a[a.cls.isin(["hit", "incomplete", "no_try", "jaw_only"])]
     O["allspout_miss"] = (al.assign(y=(al.cls != "hit").astype(float)), "ev_pre", "clean_s")
-    b = B[(B.clean_enl_s >= MIN_CLEAN_S) & B.p_true.notna() & (B.spout_ac == B.pos)]
-    b = b.assign(strict=b.stratum + "|" + b.tq + "|" + pd.cut(b.clean_enl_s, CLEAN_BINS, labels=False).astype(str))
+    b = B[B.enl_ok & (B.clean_enl_s >= MIN_CLEAN_ENL_S) & B.p_true.notna() & (B.spout_ac == B.pos)]
+    b = b.assign(strict=b.stratum + "|" + b.tq + "|" + pd.cut(b.clean_enl_s, CLEAN_ENL_BINS, labels=False).astype(str))
     O["p_true_enl_event"] = (b.assign(y=b.p_true), "ev_enl", "clean_enl_s")
     O["p_true_enl_event_hits"] = (b[b.cls_ac.isin(["hit", "pre_hit"])].assign(y=lambda x: x.p_true), "ev_enl",
                                   "clean_enl_s")

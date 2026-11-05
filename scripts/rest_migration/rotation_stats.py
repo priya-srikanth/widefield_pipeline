@@ -269,7 +269,8 @@ def main(argv=None) -> int:
     ap.add_argument("--alpha", type=float, default=0.05)
     ap.add_argument("--out", type=Path, default=None)
     a = ap.parse_args(argv)
-    out_dir = a.out or (Path(PathResolver().root("cohort_out")) / "grant_figures" / "epoch")
+    from wfield_local import lp_licks              # run-mode routing (rebuild 11-03): identity for the default run
+    out_dir = a.out or lp_licks.output_dir(Path(PathResolver().root("cohort_out")) / "grant_figures" / "epoch")
 
     draws = load_draws(out_dir, a.tag)
     if draws:

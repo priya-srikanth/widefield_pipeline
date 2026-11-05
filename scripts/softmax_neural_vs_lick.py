@@ -22,9 +22,11 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+from wfield_local.attempt_coding import trials_name as attempt_trials_name  # noqa: E402
+from wfield_local.orofacial_outputs import encoding_root as _encoding_root  # rebuild root (11-03)
 from wfield_local.pose3d import pose3d_dir
 
-E = Path("M:/MICROSCOPE/Priya/Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding")
+E = _encoding_root()
 I = Path("C:/Users/SabatiniLab/wfield_cache/pose3d_inputs")
 SP = ["close_ipsi", "close_mid", "close_contra", "far_ipsi", "far_mid", "far_contra"]
 LAB = ["cI", "cM", "cC", "fI", "fM", "fC"]
@@ -102,16 +104,19 @@ def boot_change(S: dict, ep: str, nb=4000, seed=0):
 
 
 def main(argv=None) -> int:
+    # coordinator 11-04: routed (outputs under the run tag), no longer refused in a tagged run
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--window", default="lick", choices=("lick", "cue"))
     a = ap.parse_args(argv)
-    D = E / "attempt_coding_pp"
+    from wfield_local import run_mode
+    # attempt_coding --out attempt_coding_pp is routed as an LP family (run_mode.subdir(lp_family=True)); read and write there
+    D = run_mode.subdir(E / "attempt_coding_pp", lp_family=True)
     fd = D / "figures"
     fd.mkdir(exist_ok=True)
-    T = pd.concat([pd.read_csv(D / f"trials_{a.window}_{an}.csv.gz") for an in AN])
+    T = pd.concat([pd.read_csv(D / attempt_trials_name(a.window, an)) for an in AN])
     T = T[(T.method == "dom") & T.cls.isin(["pre_hit", "hit", "incomplete"])]
     rows = []
     for w in (0.5, 1.0):

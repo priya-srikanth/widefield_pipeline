@@ -46,6 +46,43 @@ hemo:
   # `variant` above: the build must run on every night from now on, while reads stay on zerophase
   # until every curated session has the directory. Set to none/zerophase to disable the build.
   build_variant: meegkit_hpfit
+  # THE ONE HEMO SWITCH (rebuild 2026-11-03): `variant` (overridden by WIDEFIELD_HEMO_VARIANT) drives
+  # config.svtcorr_path, hemo_variants.ADOPTED, combined_encoding.hemo_dir / load_imaging and the
+  # per-session LocaNMF directory name (config.locanmf_dir_name). Outputs / caches of any variant other
+  # than meegkit_hpfit (config.UNTAGGED_HEMO_VARIANT) carry an "hv-<variant>" tag (wfield_local/run_mode.py).
+
+# PER-ANIMAL JOINT LocaNMF BASIS, PINNED (rebuild 2026-11-03, trap T13): joint_locanmf.load() serves THIS id
+# for a pinned animal, never "the newest basis on disk", so a basis built later (e.g. under another hemo
+# variant, or a refit test) can never be picked up silently. `hemo_variant` = the SVTcorr variant the basis
+# (and its stored per-session C) was fitted on: under any other variant every session is PROJECTED
+# (joint_locanmf.project_all). These are the 2026-08-15 bases (11 pre sessions each, meegkit_hpfit).
+# Animals without a pin (cohort2) keep the newest-basis behaviour.
+joint_basis:
+  pins:
+    PS92: {id: 76d884873920, hemo_variant: meegkit_hpfit}
+    PS93: {id: 0141bb830372, hemo_variant: meegkit_hpfit}
+    PS94: {id: a5e70d5ecd36, hemo_variant: meegkit_hpfit}
+    PS95: {id: a9170190179c, hemo_variant: meegkit_hpfit}
+
+# TRIAL SELECTION (rebuild 2026-11-03; wfield_local/trial_classes.py). `gate` = which rule selects the
+# "working" / "stopped" trial classes: `daq` = the DAQ quit-tail rule (engaged + unengaged outside the terminal
+# quit period; every output made before 11-03, untagged) | `camera` = trial_classes GATES (working = contact |
+# incomplete; jaw_only its own class, Priya 11-03 late). Overridden by WIDEFIELD_TRIAL_GATE / WIDEFIELD_TRIAL_WINDOW. The rebuild
+# renders flip it to camera; a camera run's outputs / caches / frozen specs carry trial_classes.selection_tag.
+# Measures OF engagement (quit point, engagement decline, attempt rate) never use this gate.
+trial_selection:
+  gate: daq
+  window: cue_stop
+  end: lick                    # camera working ends at the session LAST camera lick (Priya 11-03); contact / close / none = robustness
+  stopped: both                 # camera "stopped" (Priya 11-04): both = A2 (runs >= 6, reference-spout guard on both sides, quit after the last lick); run = A0; long = A3 (runs > 10); any = sensitivity
+  stop_licks: excise              # stopped-time licks (Priya 11-04): excise = lick-touched stopped trials -> stopped_licking (neither class); strict = break + re-form; none
+  stop_tail: lick_trial           # quit tail starts after the last camera-lick TRIAL (default) | lick_event (after the last lick event; open with Priya)
+  stop_min_start_s: 300         # a stopped run must START >= this long after the session's first cue (Priya 11-03); earlier = neither class
+  rest_start: first_lick        # camera rest working period starts at the first camera lick (OPEN for Priya); session = the first cue
+
+bal_em:
+  centre_rows: auto              # EM centre rows: auto = camera WORKING rows under the camera gate, DAQ-engaged under the DAQ gate (Priya 11-03); engaged = alternative
+  centre_fallback_contact: ["PS93_0813"]   # no camera-working rows (no video): centre from its DAQ contact rows (fifth review D-B3)
 
 locanmf:
   r2_thresh: 0.95

@@ -147,7 +147,7 @@ def compute_events(h5_path: Path, seg: dict | None = None, lick: dict | None = N
     # so both read 40 today; left as is until the two detectors are made named profiles.
     det = detect_licks(lick_v, fs, thresh_upper=lick["thresh_upper"], thresh_lower=lick["thresh_lower"],
                        lockout_s=tuple(lick["lockout_falling_edge_s"]),
-                       min_ili_s=lick.get("min_ili_ms", 0) / 1000.0)
+                       min_ili_s=lick.get("min_ili_ms", config.LICK_MIN_ILI_MS_DEFAULT) / 1000.0)
     lick_onsets = np.asarray(det["lick_onsets"], dtype=np.int64)
     reward_samples = np.asarray(_rising(reward_v, seg["reward"]["thresh_v"]), dtype=np.int64)
 

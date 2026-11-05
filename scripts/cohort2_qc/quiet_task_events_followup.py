@@ -61,8 +61,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from quiet_spikes_v2 import LICK_SOURCE, V2  # noqa: E402
 
-TE = V2 / "task_events"
-OUT = V2 / "task_events_followup"
+from quiet_task_events import TE, TE_SUFFIX  # noqa: E402 - keyed by ENL source + window (11-04)
+
+OUT = V2 / f"task_events_followup{TE_SUFFIX}"
 ANIMALS = ("PS92", "PS93", "PS94", "PS95")
 TRIAL_COLS = ("orofacial_left", "orofacial_right")
 K = 4.0
@@ -183,7 +184,7 @@ def frozen_models_for(animal):
     # THE PRODUCTION SCALING (bal_em since 2026-11-03, `spout_scaling`; WIDEFIELD_SPOUT_SCALING=session_z reproduces
     # the stored T13 run, whose models are the session_z ones). Under bal_em `score_session` centres each session's
     # rebuilt features by the label-free EM centre of its engaged trials under the scoring model.
-    spec = decoder_spec(XE, kept, pre_list, align="precue", source="locanmf", post_s=2.0,
+    spec = decoder_spec(XE, kept, pre_list, YE=YE, GE=GE, align="precue", source="locanmf", post_s=2.0,
                         basis_id=getattr(ft, "basis_id", None))
 
     def _never():
@@ -233,6 +234,11 @@ def score_session(lab, models, pre_set, raw, sd, rng):
     mdl = models["loso"].get(lab, models["full"]) if lab in pre_set else models["full"]
     if "pi_train" in models:                     # bal_em: the scoring centre (no labels), production SD
         from wfield_local import spout_scaling
+        if spout_scaling.centre_rows() == "working":
+            # fifth review N1: this script's centre is every engaged row (no camera classes here) -- refuse under the
+            # camera-working centre rather than silently use another centre set
+            raise spout_scaling.BalEmCentreRefused("quiet_task_events_followup: no camera-working centre mask available "
+                                                   "(bal_em.centre_rows = working); run with centre_rows = engaged")
         pt = models["pi_train"]
         pi = pt["loso"].get(lab, pt["full"]) if lab in pre_set else pt["full"]
         mu, sdv = spout_scaling.score_centre(mdl, z["X"], pi)

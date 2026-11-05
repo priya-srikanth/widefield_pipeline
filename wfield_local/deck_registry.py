@@ -2359,19 +2359,24 @@ _LP_GATE = (
     " docs/ENCODING_FINDINGS.md, frozen-decoder section. Baseline June + August pre (the decoder"
     " families' default). Read each panel per animal first: a claim needs >= 3 / 4 animals.")
 LP_GATED_FIGURES = (
+    # REBUILD-TODO(numbers): the WHAT IT SHOWS numbers below are PRE-REBUILD; rewrite from the rebuild outputs (review 8B N4)
     ("cohort_out", "grant_figures/LP_licks/epoch/epoch_acc_by_position_lick_lick.png",
      "Frozen pre-stroke decoder by position, LP lick gate, lick window",
      _LP_GATE + "\n\nWHAT IT SHOWS. Acute far-contra accuracy 0.32 [0.17, 0.51] under the LP gate (4 / 4"
      " animals, 16 sessions) against 0.50 under contact gating. Per animal, pre -> acute: PS92 0.92 ->"
      " 0.26, PS93 0.85 -> 0.16, PS94 0.90 -> 0.49, PS95 0.94 -> 0.35 (PS95 acute = ONE session)."),
+    # REBUILD-TODO(numbers): the WHAT IT SHOWS numbers below are PRE-REBUILD; rewrite from the rebuild outputs (review 8B N4)
     ("cohort_out", "grant_figures/LP_licks/epoch/epoch_accdelta_by_position_lick_lick.png",
      "Frozen decoder, LP lick gate: change from pre-stroke with intervals", None),
+    # REBUILD-TODO(numbers): the WHAT IT SHOWS numbers below are PRE-REBUILD; rewrite from the rebuild outputs (review 8B N4)
     ("cohort_out", "grant_figures/LP_licks/epoch/epoch_acc_by_position_cue_working.png",
      "Frozen decoder by position, LP gate, cue window",
      _LP_GATE + "\n\nWHAT IT SHOWS. In the cue window the gate does not matter: LP and contact agree within"
      " 0.05 at every position and epoch, so the section I cue-window panels stand as drawn."),
+    # REBUILD-TODO(numbers): the WHAT IT SHOWS numbers below are PRE-REBUILD; rewrite from the rebuild outputs (review 8B N4)
     ("cohort_out", "grant_figures/LP_licks/epoch/epoch_5c_frozen_confusion_lick_lick.png",
      "Frozen decoder confusion, LP lick gate, lick window", _LP_GATE),
+    # REBUILD-TODO(numbers): the WHAT IT SHOWS numbers below are PRE-REBUILD; rewrite from the rebuild outputs (review 8B N4)
     ("cohort_out", "grant_figures/DAQ_ENL1s/epoch/epoch_acc_by_position_precue_working.png",
      "Pre-cue (ENL) position information at a 1.0 s window",
      "1.0 s PRE-CUE WINDOW (lick-free by construction: it ends at the cue). With a 1.0 s window"
@@ -2379,17 +2384,20 @@ LP_GATED_FIGURES = (
      " licking.\n\nWHAT IT SHOWS. Acute far-contra 0.21 [0.12, 0.29], down in 4 / 4 animals (PS92 0.29 ->"
      " 0.15, PS93 0.33 -> 0.16, PS94 0.54 -> 0.30, PS95 0.40 -> 0.14). Pre-cue information is a"
      " readout, never a 'plan' (the spout arrives ~3 s before the cue). PROVISIONAL."),
+    # REBUILD-TODO(numbers): the WHAT IT SHOWS numbers below are PRE-REBUILD; rewrite from the rebuild outputs (review 8B N4)
     ("cohort_out", "grant_figures/LP_licks/epoch/epoch_15rpa_position_RESTref_by_animal_lick_lick.png",
      "Position maps, LP lick gate, rest reference, per animal",
      _LP_GATE + "\n\nWHAT IT SHOWS. Far-contra map amplitude around the lick, acute vs pre, per animal"
      " (ipsi | contra hemisphere; 10-21 render): PS92 -55 | -49 %, PS93 -48 | -48 %, PS94 -38 | -27 %,"
      " PS95 +2 | +36 % (one acute session). The drop is in 3 / 4 animals; compare the contact-gated"
      " section I maps, which select licks that reached the spout."),
+    # REBUILD-TODO(numbers): the WHAT IT SHOWS numbers below are PRE-REBUILD; rewrite from the rebuild outputs (review 8B N4)
     ("cohort_out", "grant_figures/LP_licks/epoch/epoch_15r_position_RESTref_lick_lick.png",
      "Position maps, LP lick gate, rest reference, pooled",
      _LP_GATE + "\n\nWHAT IT SHOWS (10-24 stats sidecars). Far-contra amplitude / pre, acute / subacute /"
      " chronic: lick window 0.67 (502 significant bins of 2,022) / 1.02 / 1.03; cue window 0.48"
      " (1,219 bins) / 0.96 / 1.01. Acute loss, back by subacute."),
+    # REBUILD-TODO(numbers): the WHAT IT SHOWS numbers below are PRE-REBUILD; rewrite from the rebuild outputs (review 8B N4)
     ("orofacial", "lp_r4_heatmap_20261013__clean_v36/imaging_encoding/attempt_maps/figures/attempt_maps_lick_far_contra.png",
      "What failed attempts look like on the cortex: far contra, lick window",
      "TRIAL-CLASS MAPS (`wfield_local.attempt_maps`, FIRST RUN 10-24, PROVISIONAL). Rest-referenced"
@@ -2402,10 +2410,12 @@ LP_GATED_FIGURES = (
      " 2 / 4 are lower (.30 | .27, .92 | .85, .42 | .44, 1.58 | 1.72): much of the drop is the missing"
      " touch / reward. Ipsilesional ALM proxy reduced more than contralesional in 4 / 4. No statistics"
      " yet; PS95 acute = one session; not separable from the failed movement itself."),
+    # REBUILD-TODO(numbers): the WHAT IT SHOWS numbers below are PRE-REBUILD; rewrite from the rebuild outputs (review 8B N4)
     ("orofacial", "lp_r4_heatmap_20261013__clean_v36/imaging_encoding/attempt_maps/figures/attempt_maps_lick_far_contra_minus_pre.png",
      "Failed attempts minus pre-stroke hits: far contra, lick window",
      "The preceding maps minus each animal's own pre-stroke hits. See the previous slide for the"
      " class definitions, ratios and caveats (FIRST RUN 10-24, PROVISIONAL)."),
+    # REBUILD-TODO(numbers): the WHAT IT SHOWS numbers below are PRE-REBUILD; rewrite from the rebuild outputs (review 8B N4)
     ("orofacial", "lp_r4_heatmap_20261013__clean_v36/imaging_encoding/attempt_maps/figures/attempt_maps_cue_far_contra.png",
      "Trial-class maps: far contra, cue window",
      "As the lick-window trial-class maps, aligned to the cue (FIRST RUN 10-24, PROVISIONAL)."),
@@ -2441,6 +2451,8 @@ EPOCH_FIGURES = EPOCH_FIGURES + (
 #: NO-STROKE DRIFT GROUP (10-24, `scripts/june_august_drift.py`; Priya: "add in a june vs august pre comparison
 #: group (for effects of drift over time)"), appended to section I after the CD leave-one-out set. The figure lives
 #: in <labcams>/chronic_stability/june_august_drift/, reached from grant_figures/epoch by a relative path.
+# REBUILD-TODO(numbers): the WHAT IT SHOWS numbers below are PRE-REBUILD (June+Aug, 10-24 run); rewrite from the
+# rebuild's june_august_drift outputs (review 8B N4)
 _DRIFT_GROUP = (
     "NO-STROKE COMPARISON GROUP. June pre plays 'pre' and August pre plays 'post' (~65 days, no lesion), next to the"
     " stroke twin built the same way (August pre -> acute / subacute / chronic, chronic ~40 days). TOP: crossnobis"

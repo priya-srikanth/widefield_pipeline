@@ -78,13 +78,18 @@ def test_session_z_spec_is_the_pre_1103_spec(fake_store, monkeypatch):
     """Under WIDEFIELD_SPOUT_SCALING=session_z the decoder spec has NO scaling keys and the same id as a spec built the
     way `decoder_spec` built it before 11-03; bal_em is a new id differing only in the scaling fields."""
     XE, YE, GE, *_r, kept, pre_i = _pool()
-    kw = dict(align="cue", source="roi", post_s=2.0)
+    kw = dict(align="cue", source="roi", post_s=2.0, YE=YE, GE=GE)
+    # COHORT-1 REBUILD (merge 11-03): FREEZE_VERSION 2 specs carry the training-data fingerprint, so the pinned HEAD
+    # literal (d19c950c2139) no longer applies on this branch; the contract -- session_z adds no key, bal_em differs
+    # only in the scaling fields -- is what is checked
+    m = np.isin(GE, sorted(pre_i))
     old = fm.make_spec("PSX", "decoder", align="cue", source="roi", train_labels=[kept[i] for i in pre_i],
-                       post_s=2.0, zscore=True, basis_id=None, n_features=int(XE.shape[1]))
+                       post_s=2.0, zscore=True, basis_id=None, n_features=int(XE.shape[1]),
+                       train_data=(XE[m], YE[m], GE[m]))
     monkeypatch.setenv(ss.SPOUT_SCALING_ENV, "session_z")
     z = fd.decoder_spec(XE, kept, pre_i, **kw)
     assert z == old and "scaling" not in z and "scaling_params" not in z
-    assert fm.spec_id(z) == fm.spec_id(old) == "d19c950c2139"           # pinned literal: the HEAD (pre-11-03) id
+    assert fm.spec_id(z) == fm.spec_id(old)
     monkeypatch.delenv(ss.SPOUT_SCALING_ENV)
     b = fd.decoder_spec(XE, kept, pre_i, **kw)                           # production default
     assert b["scaling"] == "session_bal_em"
@@ -103,9 +108,12 @@ def test_session_z_spec_is_the_pre_1103_spec(fake_store, monkeypatch):
 def test_other_spec_ids_are_untouched():
     """Every non-decoder spec is built without the spout scaling: the state ids pinned in test_state_bal_em, and an
     encoder spec, are unchanged by this module existing."""
-    kw = dict(align="segments", source="joint_x", train_labels=[], basis_id="x", n_features=3, post_s=1.0)
-    assert fm.spec_id(fm.make_spec("PS92", "state", **kw)) == "e14c78c2c8e8"
-    assert fm.spec_id(fm.make_spec("PS92", "state", **kw, scaling="session_z")) == "85aa81b36cb3"
+    # COHORT-1 REBUILD (merge 11-03): FREEZE_VERSION 2 ids differ from main's pinned literals (e14c78c2c8e8 /
+    # 85aa81b36cb3, see test_state_bal_em); the spout scaling still adds nothing to a non-decoder spec
+    kw = dict(align="segments", source="joint_x", train_labels=[], basis_id="x", n_features=3, post_s=1.0,
+              train_data=None)
+    a = fm.make_spec("PS92", "state", **kw)
+    assert "scaling" not in a and fm.spec_id(fm.make_spec("PS92", "state", **kw, scaling="session_z")) != fm.spec_id(a)
     assert ss.spec_kw(None) == {}
 
 

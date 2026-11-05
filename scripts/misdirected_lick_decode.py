@@ -273,6 +273,7 @@ def summarise(D: pd.DataFrame) -> pd.DataFrame:
 
 
 def main(argv=None) -> int:
+    # coordinator 11-04: routed (outputs under the run tag), no longer refused in a tagged run
     from wfield_local import analysis_kit as ak
     from wfield_local import epochs
     from wfield_local import o2_inference as oi
@@ -292,9 +293,15 @@ def main(argv=None) -> int:
     ap.add_argument("labels", nargs="*")
     a = ap.parse_args(argv)
     rv = PathResolver()
-    out = oo.root(rv) / a.run / "cohort" / "tables" / "misdirected_licks"
-    writeguard.assert_writable(out)
-    cnt = pd.read_csv(out / "counts.csv")
+    # coordinator 11-04: routed. A tagged run reads the counts misdirected_lick_counts produced for IT (they depend on
+    # the engagement gate) and writes beside them, under the run's tagged encoding tree
+    from wfield_local import run_mode
+    out = (run_mode.encoding_out_root(a.run) / "misdirected_licks" if run_mode.tag()
+           else oo.root(rv) / a.run / "cohort" / "tables" / "misdirected_licks")
+    src = out
+    out.mkdir(parents=True, exist_ok=True)
+    writeguard.assert_writable(out / "_")
+    cnt = pd.read_csv(src / "counts.csv")
     n_mis = cnt[cnt.pos == "far_contra"].groupby("label").ipsi_dev.sum()
     bdir = oi.bundle_dir(rv, a.name) / "inputs"
     if a.method == "templates":

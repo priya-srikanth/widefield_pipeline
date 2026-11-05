@@ -456,17 +456,38 @@ def daq_rate(s) -> float:
 
 
 def lick_samples(s):
-    """Lick onset samples for one session, with the discriminator settings the deck uses.
+    """Lick onset samples for one session: THE DAQ lick detector, `config.lick_detector` (the yaml ``lick_detection``
+    profile: 2.5 V onset, 0.5 V offset, the falling-edge lockout, the 40 ms physiological floor, NO refractory).
 
-    THE FIVE MAGIC NUMBERS ARE THE POINT. ``(2.5, 1.0, (0.001, 0.020), 0.10)`` appears verbatim in
-    thirty-seven places; they are a Schmitt trigger's high and low thresholds, an accepted pulse
-    width, and a refractory period. This repo has already had to collapse three copies of a lick
-    discriminator. Anyone tempted to tune them should change them HERE and re-run everything, not
-    locally in one analysis.
+    Priya 11-04/05 (REBUILD_CODE 8.53, LICK_DETECTOR_COMPARE_2026-11-04.md on main a69fb9c3): imaging uses the BEHAVIOUR
+    detector everywhere. Until then this was ``(2.5, 1.0, (0.001, 0.020), 0.10)``, verbatim in ~40 places; its 0.10 s
+    refractory dropped 0.58 % of licks (1.4 % in PS95), mostly real 10-11 Hz camera licks, and the 1.0 V offset moved
+    no onset. Every imaging call site now passes only ``(h5, "lick_analog")`` and gets this profile; change the profile
+    in `configs/defaults.yaml` (and bump the cache versions + run-tag token, `config.LICK_DETECTOR_TAG`), never at a
+    call site. Under WIDEFIELD_LICK_SOURCE=lp the train is the LP one (`_load_daq_events`).
     """
     from wfield_local.plot_lick_aligned_averages import _load_daq_events
 
-    return _load_daq_events(s["h5"], "lick_analog", 2.5, 1.0, (0.001, 0.020), 0.10)["lick_samples"]
+    return _load_daq_events(s["h5"], "lick_analog")["lick_samples"]
+
+
+def lick_count_samples(s):
+    """Lick onset samples for LICK COUNTS (licks per trial, licks per bout, ILIs, quit / engagement measures): THE
+    behaviour detector (coordinator 11-03, CLAUDE.md rule 9: one definition per quantity) -- `lick_detection.detect_licks`
+    with the yaml ``lick_detection`` params (0.5 V lower threshold, 40 ms physiological floor), the one the DAQ trial
+    table, the trial stops and the camera contacts use (`daq_trials.decode`). Since 11-05 (REBUILD_CODE 8.53) `lick_samples`
+    uses the same detector, so the two agree on the DAQ train; this one stays the DAQ train under an LP lick source."""
+    import pathlib
+
+    from wfield_local import config, daq_trials
+    key = str(s["h5"])
+    if key not in _COUNT_LICKS:
+        dec = daq_trials.decode(pathlib.Path(s["h5"]), config.defaults()["lick_detection"])
+        _COUNT_LICKS[key] = np.round(np.asarray(dec["lick_s"], float) * float(dec["fs"])).astype(np.int64)
+    return _COUNT_LICKS[key]
+
+
+_COUNT_LICKS: dict = {}
 
 
 class Behavior(NamedTuple):
@@ -537,7 +558,7 @@ def session_behavior(lab, *, gate=False, horizon_min=None, resp_s=RESP_S,
     # per-session cost; a session that cannot contribute should not pay for them.
     cs = np.asarray(_load_cue_events(s["h5"])["cue_samples"], np.int64)
     return Behavior(session=s, trials=tr, gated=tt, quit=q, cue_samples=cs,
-                    lick_samples=np.asarray(lick_samples(s), np.int64),
+                    lick_samples=np.asarray(lick_count_samples(s), np.int64),   # counts / ILIs: detector A
                     sample_rate=float(daq_rate(s)), near=near_codes())
 
 

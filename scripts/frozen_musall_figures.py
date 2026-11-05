@@ -41,7 +41,8 @@ ALONE = {"task": "task_only", "lick": "lick_only", "spout": "spout_only", "other
          "movement": "movement_only", "non-task": "no_task"}
 UNIQUE = {"task": "no_task", "lick": "no_lick", "spout": "no_spout", "other": "no_other", "contact": "no_contact",
           "movement": "no_movement", "target": "no_target", "exec_locked": "no_exec_locked",
-          "exec_within": "no_exec_within", "non-task": "task_only"}
+          "exec_within": "no_exec_within", "non-task": "task_only",
+          "spont": "no_spont"}          # v7g3_t3d_spont only (8.51; NaN for v7g3_t3d): pre-cue + ITI licks
 
 
 def quantities(A: pd.DataFrame) -> pd.DataFrame:
@@ -74,18 +75,17 @@ def _bars(ax, Q, cols, colors, labels=None):
 
 
 def main(argv=None) -> int:
+    # coordinator 11-04: routed (outputs under the run tag), no longer refused in a tagged run
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
-    from wfield_local import orofacial_cohort as oc
-    from wfield_local import orofacial_outputs as oo
-    from wfield_local.paths import PathResolver
     from wfield_local.writeguard import assert_writable
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--tag", default="gate-attempted")
     ap.add_argument("--areas", nargs="+", default=["cortex", "SSp-m_left", "MOs_left"])
     a = ap.parse_args(argv)
-    out = oo.root(PathResolver()) / oc.RUN / "imaging_encoding" / f"frozen_encoder_{a.tag}"
+    from wfield_local import frozen_encoder as _fe   # the encoder's (tagged) run root, coordinator 11-04
+    out = _fe.out_root() / f"frozen_encoder_{a.tag}"
     A = pd.read_csv(out / "frozen_musall_r2_by_animal.csv")
     Q = quantities(A)
     fd = out / "figures"

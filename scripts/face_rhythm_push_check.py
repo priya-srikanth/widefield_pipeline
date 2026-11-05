@@ -144,6 +144,8 @@ def load_cache(f: Path) -> pd.DataFrame:
 
 
 def main(argv=None) -> int:
+    from wfield_local import run_mode as _rm_guard
+    _rm_guard.require_default("face_rhythm_push_check")   # unrouted share writer: refuses in a non-default run mode
     import matplotlib
     matplotlib.use("Agg")
     from wfield_local import analysis_kit as ak

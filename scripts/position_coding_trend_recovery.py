@@ -40,10 +40,8 @@ MAIN_RUN = "movement_first_exec-polar_licks-combined"
 
 
 def _enc_root():
-    from wfield_local import orofacial_cohort as oc
-    from wfield_local import orofacial_outputs as oo
-    from wfield_local.paths import PathResolver
-    return oo.root(PathResolver()) / oc.RUN / "imaging_encoding"
+    from wfield_local import run_mode
+    return run_mode.encoding_out_root()          # the run's (tagged) encoding tree (coordinator 11-04)
 
 
 def neural(E: Path, nokin: str = NOKIN_RUN, main: str = MAIN_RUN) -> pd.DataFrame:
@@ -127,6 +125,7 @@ def half_recovery_day(D: pd.DataFrame, col: str) -> float:
 
 
 def main(argv=None) -> int:
+    # coordinator 11-04: routed (outputs under the run tag), no longer refused in a tagged run
     import argparse
 
     from wfield_local import epochs, writeguard
@@ -170,7 +169,7 @@ def main(argv=None) -> int:
           .to_string(index=False, float_format=lambda x: f"{x:.3f}"))
     out = E / "qc"
     writeguard.assert_writable(out)
-    out.mkdir(exist_ok=True)
+    out.mkdir(parents=True, exist_ok=True)
     D.to_csv(out / "position_coding_trend_recovery_sessions.csv", index=False, float_format="%.5g")
     T.to_csv(out / "position_coding_trend_recovery.csv", index=False, float_format="%.5g")
     H.to_csv(out / "position_coding_half_recovery.csv", index=False, float_format="%.5g")

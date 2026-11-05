@@ -11,6 +11,7 @@ Usage: python scripts/remap_checks.py [--tag gate-attempted_v7g3_t3d_frA]
 Output: <run>/session_vs_frozen/{remap_lmm_<deficit>.csv, figures/remap_lmm_<window>_<model>.png, figures/remap_per_animal_<window>.png}
 """
 from __future__ import annotations
+from wfield_local.frozen_encoder import design_tag as _design_tag  # frame tag of the FROZEN_LICKS_ALL design (8.51)
 
 import argparse
 import sys
@@ -70,7 +71,7 @@ def main(argv=None) -> int:
     from frozen_area_maps import area_image, outline, paint
     from wfield_local import mixed_models as mm
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--tag", default="gate-attempted_v7g3_t3d_frA")
+    ap.add_argument("--tag", default=_design_tag("gate-attempted_v7g3_t3d_frA"))
     ap.add_argument("--deficits", nargs="+", default=["ttc", "contact"])
     a = ap.parse_args(argv)
     run = E / f"frozen_encoder_{a.tag}"

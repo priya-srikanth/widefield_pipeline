@@ -112,8 +112,15 @@ def session_quit(s, rows, resp_s=None):     # resp_s unused: `rows` already carr
 
     order = np.array([r["order"] for r in rows])
     responded = np.array([bool(r["hit"]) for r in rows])
+    # WIDEFIELD_GATE_SOURCE=lp: `session_trials` adds `gate_hit` (hit | DAQ contact | LP attempt within resp_s) only
+    # under that switch; the gate is scored on it. Absent (the default) -> the line above, unchanged. hit_before /
+    # hit_after / step_sharpness below stay on `hit` (the option moves the quit, never a hit rate).
+    if rows and "gate_hit" in rows[0]:
+        responded = np.array([bool(r["gate_hit"]) for r in rows])
     pos = np.array([POSITION_NAMES.get(r["pos"], str(r["pos"])) for r in rows])
-    ne = np.asarray(engagement_gate(order, responded, pos), bool)
+    from wfield_local import trial_classes as _tc
+    with _tc.daq_quit_rule("quit_point: the S28 quit (a measure of engagement)"):
+        ne = np.asarray(engagement_gate(order, responded, pos), bool)
     dur = float(rows[-1]["elapsed_s"])
     er, el, en = _early_rate(rows)
 

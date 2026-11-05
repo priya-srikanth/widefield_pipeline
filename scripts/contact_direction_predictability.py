@@ -37,6 +37,8 @@ def cv_auc(X: np.ndarray, y: np.ndarray, groups: np.ndarray) -> float:
 
 
 def main() -> int:
+    from wfield_local import run_mode as _rm_guard
+    _rm_guard.require_default("contact_direction_predictability")   # unrouted share writer: refuses in a non-default run mode
     from wfield_local import orofacial_cohort as oc
     from wfield_local import orofacial_outputs as oo
     from wfield_local.paths import PathResolver
@@ -55,7 +57,7 @@ def main() -> int:
             row[f"auc_{name}"] = cv_auc(A[cols].to_numpy(float), A.y.to_numpy(), A.session.to_numpy())
         rows.append(row)
     T = pd.DataFrame(rows)
-    dst = oo.root(PathResolver()) / oc.RUN / "imaging_encoding" / "qc" / "contact_direction_predictability.csv"
+    dst = oo.encoding_root(oc.RUN, PathResolver()) / "qc" / "contact_direction_predictability.csv"
     assert_writable(dst)
     T.to_csv(dst, index=False, float_format="%.4g")
     pd.set_option("display.width", 200)

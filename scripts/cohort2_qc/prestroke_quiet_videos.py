@@ -44,7 +44,7 @@ def load(label):
     y = 100 * (um @ np.asarray(SVT[:, 1 - func::2], np.float64))
     n = min(len(x), len(y))
     cue = _lc(s["h5"])
-    lk = _ll(s["h5"], "lick_analog", 2.5, 1.0, (0.001, 0.020), 0.10)
+    lk = _ll(s["h5"], "lick_analog")
     cf, lf, csmp = _frames(s, cue, lk)
     csmp = np.asarray(csmp)
     animal, mmdd = label.split("_")
