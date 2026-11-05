@@ -330,6 +330,15 @@ FYI, the 3-class camera variant (lick / jaw-only / none) is thin in PS92 and PS9
 
 ## Findings (newest first)
 
+- **11-04: gain stats (Priya asked; GAIN_BIO §5 "Stats").**
+  - The gain is significant vs pre acutely (+.29 log, p .011) and chronically (+.29, p .022). It does not decline
+    from day 7 (p .73).
+  - **Orofacial gain does not go down below pre** (chronic +.18, p .012). Chronic orofacial − posterior < 0 (−.14,
+    p .038; 3 / 4 animals) because posterior rises more and orofacial eases from its acute peak.
+  - The same relative shift appears in 415, so it may be partly haemodynamic.
+  - Slide 102 now carries the 5-panel figure with stars plus a new panel E (orofacial vs posterior); the deck is still
+    187 / 82 hidden.
+
 - **11-04: the post-stroke gain looks BIOLOGICAL but brain-wide (docs/status/GAIN_BIO_2026-11-04.md, 93f5ef84; 107 / 107
   sessions).**
   - Rest SD acute +.35 [+.23, +.46], 4 / 4. UNIFORM: all 46 areas 1.2-1.5x; no ipsilesional or orofacial excess.
