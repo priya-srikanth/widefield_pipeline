@@ -867,3 +867,6 @@ FYI, the 3-class camera variant (lick / jaw-only / none) is thin in PS92 and PS9
   commits. Item D hand-script check (report only): no script outside the repo needs the new API. Hits = a8's applied
   11-03 one-off edit scripts (spout_balem_1103/edit_gk.py, edit_lfd2.py) and another session's scratch gk_main.py;
   in-repo old calls (grant_kit, spout_scaling) are replaced by the merge.
+- 11-05 ~15:10: e0 FR spout-in-mesh control DONE (pushed: FACE_RHYTHM_FINDINGS 7, FINDINGS 13): face pre-cue spout
+  decode not from the spout (pre 2 s .431 / .428 / .418 at no mask / 30 / 60 px; acute .349 / .348 / .343; epoch deltas
+  unchanged to ~.01). Q for Priya: add to FR page section 6 (1 fig + 1 sentence) in the post-rebuild page pass?
