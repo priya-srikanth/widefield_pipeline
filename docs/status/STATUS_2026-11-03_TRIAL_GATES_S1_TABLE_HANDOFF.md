@@ -42,9 +42,14 @@ new figure list. Then, in this order:
 
 **3. Spout.** Per-frame 3-D spout fixed in production code (bddf02e7: was a blend 1.04 mm behind the tip; production
 frames NOT re-run). Encoder targets = commanded positions (`wfield_cache/pose3d_inputs/pose3d_spout_positions_commanded_
-20261104.csv`, `scripts/pose3d_spout_commanded.py`; 34 adopted). ENL no-lick spout rule for the v36 2-D chain: FIX WITH
-THE NEXT 3-D RE-RUN (Priya; list in `docs/status/SPOUT_POSITION_AUDIT_2026-11-04.md`; memory
-`spout-enl-rule-next-3d-rerun`).
+20261104.csv`, `scripts/pose3d_spout_commanded.py`; 34 adopted). `scripts/prep_3d_inputs.py` now writes the same
+commanded table itself (`pose3d_spout_positions_commanded_<tag>.csv`, positions restricted to each session's frames;
+matches 34's table to 4.5e-5 mm; 34 told the new name), so a re-run cannot bring back the measured one. The old measured
+table is deleted (local + bundle copy; `docs/status/DELETED_LOCAL_2026-11-04.txt`), a8's notes closed. ENL no-lick spout
+rule for the v36 2-D chain (~17 scripts): FIX WITH THE NEXT 3-D RE-RUN (Priya; remaining list in
+`docs/status/SPOUT_POSITION_AUDIT_2026-11-04.md`; memory `spout-enl-rule-next-3d-rerun`).
+
+**5. Nothing runs now.** e0 waits on two triggers: 34's "render done" (item 1) and the student's Part B labels (item 2).
 
 **4. Published 11-04 (HMS account):** behaviour v2, kinematics v28, FaceRhythm v37 (e3's M: sources synced); imaging v51.
 
