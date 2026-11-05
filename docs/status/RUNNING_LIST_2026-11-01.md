@@ -1889,3 +1889,10 @@ bundle without `daqlk` and writes a provenance json.
   refused, correctly). Fix a76352f3 on wf_render_daqlk (branch fix/misdirected-decode-bundle-dir-20261105, unpushed):
   output via frozen_encoder.out_root() (where its readers already look); tests 99 passed. queue_daqlk2 EXPECT_SHA
   += a76352f3; lane 2 relaunched (log logs/laneENC3.out). Push of a76352f3 to main: ask Priya (batch with later fixes).
+- ~18:15: Priya: push OK (a76352f3 -> main as 5bd7faa2); mixed-model angle panels -> 3-D (2dc96a9e: FIG_PANELS
+  cam4:ceiling / cam4:u_target -> 3d:ceiling / 3d:u_target); both pushing to main. encoding_mixed re-running under the
+  profile from wf_merge_main (~90 min, log render_daqlk/logs/encoding_mixed_3d.log).
+  - Figs 7 / 7c / 7d: Priya OK to delete, replace with the "full resolution" equivalent. Clarified: the queued
+    frozen_residual_significance already tests on 8 px blocks (nested bootstrap, Bonferroni over bins) + a full-res
+    cluster test; Figs 7 used 16 / 32 px blocks (fewer bins, smaller Bonferroni penalty). Proposed: add a --bin option
+    and render 16 px as the replacement; waiting on her pick.
