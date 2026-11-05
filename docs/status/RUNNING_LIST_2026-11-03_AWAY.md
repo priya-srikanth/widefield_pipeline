@@ -344,8 +344,10 @@ FYI, the 3-class camera variant (lick / jaw-only / none) is thin in PS92 and PS9
     - 34 recommends a sensitivity check on the lick-count / lick-free-window analyses, not a full re-render.
     - QUESTION for Priya: re-run, or sensitivity check only?
   - Zero-contact check: clean (only PS93_0813 = known missing video).
-  - Epoch PNGs: 22 deleted. 3 kept, ask Priya: 15r RAWref precue (PRELIM_DATA cites it), 1d engagement (11-03 LMM
-    stars), ungated 23_quit_prodrome (quit_prodrome.py rewrites it).
+  - Epoch PNGs: 23 deleted. Priya's rule: delete only where a replacement exists.
+    - The ungated 23_quit_prodrome is gone (replaced by the registered gated_h90). quit_prodrome.py still writes the
+      ungated file with an empty tag, so it returns on a re-run.
+    - KEPT (no replacement): 15r RAWref precue (PRELIM_DATA cites it) and 1d engagement (11-03 LMM stars).
 
 - **11-04: gain stats (Priya asked; GAIN_BIO §5 "Stats").**
   - The gain is significant vs pre acutely (+.29 log, p .011) and chronically (+.29, p .022). It does not decline
