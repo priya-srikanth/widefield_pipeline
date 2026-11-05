@@ -2939,3 +2939,6 @@ working trials keep their class. Test: test_stop_rule_a2::test_section_g_groups_
 synthetic session through the live classes: run of 7 with one lick-touched trial, tail of 3 with one).
   test_bcdg_1104's `_fake_session` also fakes `stop_kind_for` (its fake `cue_classes_for` had no `window` argument, which
   the real `stop_kind_for` passes).
+
+**Test record (9fb2d964).** bcdg-related files: 213 passed. Full suite, 4 shards run one at a time (>= 38 GB free
+before each): 4,923 passed, 173 skipped, 0 failed (shards: 926 + 28 skipped; 785 + 5; 2,251; 961 + 140).
