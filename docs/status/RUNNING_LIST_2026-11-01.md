@@ -1864,3 +1864,10 @@ bundle without `daqlk` and writes a provenance json.
   - DECISIONS for Priya: (1) priority G > A,B > D > E > F,Z (won't all fit tonight); (2) te + frA_lsland frames never
     rendered -> render (~4-5 h each) or retire te_readout / te partial-self-fit / contest_lines; (3) binned residual Figs
     7/7c/7d have no producer -> recreate or drop; (4) push 9aaa4cc6 to main.
+- ~17:00: **Priya 11-05 answers:** (1) queue order OK; (2) RENDER te + lsland frames (helper adding them as section T
+  after B in lane 2, gated on frA_ls_basis); (3) Figs 7 / 7c / 7d: explained, waiting on keep/delete; (4) push OK ->
+  **origin/main = e53f1cd2** (a6edab62 = 9aaa4cc6 misdirected decode bundle_dir; e53f1cd2 = fig10 title reworded per this
+  render's numbers + no top spine, re-drawn under the rebuild root). fig10 chronic target - executed (x1e-3): positive in
+  4/4 at every width except PS94 lick width 2 (-1.4); executed rises with width in every animal.
+  - cam4 panels (encoding_mixed): explained to Priya; proposal = switch the 3 cam4 panels to the 3-D contest measures
+    (3d:ceiling / 3d:u_target, already computed); waiting.
