@@ -44,10 +44,37 @@ class BundleMismatch(RuntimeError):
     pass
 
 
+#: RUN-TAG PARTS THAT ARE NOT ENCODER INPUTS (REBUILD_CODE 8.54, coordinator 11-05): a `run_mode` part listed here names
+#: a setting that no `combined_encoding.session_inputs` pickle depends on, so a bundle recorded WITHOUT it is still the
+#: current run's bundle. Each entry needs a DEFINITIVE check that the inputs are byte-identical with and without it:
+#:   daqlk  imaging DAQ lick detector (8.53). Checked 11-05: bundle enc_rebuild_20261104b's inputs (c149decf, old imaging
+#:          detector) rebuilt under 90b7ddd5 for PS95_0917, PS94_0819, PS93_0814 are equal array by array (8.54: two files
+#:          byte-identical, PS93_0814 differs only in the pickle memo of numpy dtype objects); the
+#:          encoder's DAQ licks are `dlc_frames.lick_onsets` = `daq_trials.decode` with the yaml profile in both.
+#: Exact part names only (no prefix / fuzzy match); every other part must match exactly, and so must the selection and
+#: the area basis.
+NON_INPUT_TAG_PARTS = ("daqlk",)
+
+
+def tag_without_non_input_parts() -> str:
+    """This process's run tag with the `NON_INPUT_TAG_PARTS` removed (the tag an input-identical older bundle recorded)."""
+    from wfield_local import run_mode
+    return "_".join(p for p in run_mode.parts() if p not in NON_INPUT_TAG_PARTS)
+
+
 def verify(recorded: dict) -> dict:
-    """Recompute `identity()` and REFUSE (BundleMismatch) unless it equals the recorded one key by key."""
+    """Recompute `identity()` and REFUSE (BundleMismatch) unless it equals the recorded one key by key -- or differs ONLY
+    in the run tag, by exactly the current run's `NON_INPUT_TAG_PARTS` (recorded tag == the current tag without them).
+    The accepted case returns the CURRENT identity plus ``recorded_run_tag`` / ``accepted_parts`` (the outputs belong to
+    the current run's folders)."""
+    from wfield_local import run_mode
     now = identity()
     bad = {k: (recorded.get(k), now.get(k)) for k in now if recorded.get(k) != now.get(k)}
+    if set(bad) == {"run_tag"} and recorded.get("run_tag") == tag_without_non_input_parts():
+        extra = [p for p in run_mode.parts() if p in NON_INPUT_TAG_PARTS]
+        print(f"[o2_bundle] accepted: the recorded run tag differs from this run's only by non-input part(s) {extra} "
+              f"(o2_bundle.NON_INPUT_TAG_PARTS)", flush=True)
+        return {**now, "recorded_run_tag": recorded["run_tag"], "accepted_parts": extra}
     if bad:
         raise BundleMismatch("bundle settings do not reproduce the recorded run identity: "
                              + "; ".join(f"{k}: recorded {a!r} vs computed {b!r}" for k, (a, b) in bad.items()))
