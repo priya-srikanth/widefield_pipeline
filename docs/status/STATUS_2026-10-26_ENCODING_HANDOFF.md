@@ -39,6 +39,68 @@ for anything that loads imaging. E = `M:/MICROSCOPE/Priya/Widefield/LP_analysis/
 3. Then tell **sabatinilab-e3** (PI deck) the decoder figures are final: per figure the share PNG path, page Fig N.k,
    script + args, headline numbers, methods text (they asked 10-26 ~22:30; reply sent: not final yet).
 
+### 00-COMPACT-27 (11-05 ~00:40) -- READ FIRST; updates 26 (26 holds unless changed here)
+
+**DECISION (Priya 11-05 ~00:15): imaging switches to the DAQ BEHAVIOUR lick detector now, before the render.**
+- Measurements: widefield_pipeline docs/status/LICK_DETECTOR_COMPARE_2026-11-04.md (main a69fb9c3; relayed by a8).
+  - Change: from `_load_daq_events(h5,"lick_analog",2.5,1.0,(0.001,0.020),0.10)` to the yaml `lick_detection` profile
+    (2.5 / 0.5 V, 40 ms min ILI, no 0.10 s refractory).
+  - Effect: 0.58 % of licks restored (PS95 1.4 %); 0 hit changes; 10 / 6,520 RTs change.
+- Consequence: everything on tag `...stopA2jexrt3500c70` is SUPERSEDED once the new tag exists. The new tag gets a
+  detector token.
+
+**State at 00:40.**
+- **Code tip.** rebuild/cohort1-20261103 = **34425934**. It is c149decf plus the merge of rebuild/frozen-licks (910c408b +
+  efc4d517, log 8.51): frozen design **v7g3_t3d_spont** (`FROZEN_LICKS_ALL=split`, the profile default; robustness arm
+  `frozenNoSpont` = v7g3_t3d). With the switch off it is byte-identical to v7g3_t3d.
+  - The full suite on 34425934 is NOT done. I stopped it at 40 % because one pytest process reached 14 GB. Re-run in 4
+    shards, one at a time.
+- **Helper 1 (frozen-trials):** branch rebuild/frozen-trials in worktree wf_rebuild_frozenlicks, off 34425934.
+  - Adds frozen `<label>_trials.npz`: per-trial SSE / SST, cue- and lick-binned, in the encoder layout (one reader), with
+    cls (hit / incomplete), held-out flag, areas + frA frames.
+  - Must also score existing fits post hoc (so v7g3_t3d can get it without a refit). Log 8.52.
+  - Purpose: test whether the frozen post-stroke R2 drop survives within contact trials (class-composition confound).
+- **Helper 2 (daq-lick-detector):** branch rebuild/daq-lick-detector in worktree wf_rebuild_lickdet, off 34425934.
+  - One yaml accessor for all imaging lick call sites (~40); min_ili fallback fixed to 40 ms; cache / LP version bumps;
+    new run-tag token; onset counts pinned before / after (incl. PS95); trial_attempts diff preview. Log 8.53.
+- **Frozen v7g3_t3d render: STOPPED** at 00:15. STOP file in scratchpad/frozen_v7g3/; exact PIDs stopped.
+  - Partial folders (superseded, delete with a kept list later):
+    `frozen_encoder_gate-attempted_v7g3_t3d{,_frA,_frAsplit}` under the rebuild root `.../hv-...stopA2jexrt3500c70/`.
+  - Lane scripts for reuse: scratchpad/frozen_v7g3/ (lane1_noFR, lane2_frA, lane3_variants; lane_lib waits for 14 GB
+    free). Spont copies: scratchpad/frozen_v7g3_spont/ (te removed, no_spont added).
+  - Measured speed: ~0.4 sessions/min per lane with 2 lanes running, not 0.8. A 107-session frame takes ~4.5 h incl.
+    templates.
+- **O2 bundle b (enc_rebuild_20261104b):**
+  - Priya cancelled 13 arrays. Kept: 58602842 `main` and 58602843 `main_nolicksall`, as an EARLY look at B12 only.
+  - Copied so far: bins_w1 / w05 / w2 (183 sessions, all checked: run.json env right, fitted = attempted exactly, no NaN,
+    cortex R2 median ~.52). These are superseded.
+  - Expected by design, not bugs:
+    - 'unknown'-class cues (no imaging / camera, e.g. PS92_0908 68 cues past imaging end) have no trials.npz row;
+    - shuf:* models are NaN for scored-only trials (flagged not scorable).
+  - When main + main_nolicksall are copied back: collect with LICKS_ALL=split + ENL_SOURCE=lp exported. Report B12
+    early: drop:pos_enl split vs nolicksall, per animal x epoch, LP enl + fixed2s.
+  - Bundle b is then deleted (M: + scratch; kept list in RENDER_LOG) when the new bundle is built. Priya does not need
+    to re-stage until then.
+- **Stray process:** PID 30404 (11-03 encdrift chain) was stopped with Priya's OK. Its chain then started a drift900
+  re-run (PID 3384), which I stopped within ~1 min. No outputs were touched (checked).
+  - Lesson: check a process's parent chain loop before stopping it.
+
+**Next, in order.**
+1. Helpers land, then merge frozen-trials + daq-lick-detector into rebuild/cohort1-20261103 and run the full suite in
+   4 shards.
+2. Rebuild trial_attempts under the new tag and diff it against the stopA2jexrt3500c70 table (class / RT /
+   timing_source changes).
+3. Build O2 bundle c. First set the conda module to 26.9.4-1 in the code (scripts/o2_encoding.py:336 and the other
+   sites listed in 26); bundle b was only patched by hand. Run the local checks, then give Priya the stage + submit +
+   delete-b commands.
+4. Frozen frames, both designs with trials output, from one merged commit, in a new detached render worktree (not
+   wf_rebuild_render, which is at c149decf). Primary v7g3_t3d_spont first, then v7g3_t3d (robustness), then lane-3
+   variants. Keep >= 6 GB free.
+5. G0-G8 render queue for the new tag (queue2.sh is stale), the encoder family, and the open items from 26
+   (render / verifiers / replacement pass).
+6. a8 has been told the change goes in now; add one line to the per-slide old -> new list when it lands. DECISIONS
+   entry held in widefield_pipeline docs/status/DECISIONS_PENDING_MERGE_2026-11-04.md.
+
 ### 00-COMPACT-26 (11-05 ~00:10) -- READ FIRST; updates 25 (25 holds for code / data / queue)
 
 **O2 (per-session encoder, bundle enc_rebuild_20261104b).**
