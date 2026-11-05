@@ -1896,3 +1896,8 @@ bundle without `daqlk` and writes a provenance json.
     frozen_residual_significance already tests on 8 px blocks (nested bootstrap, Bonferroni over bins) + a full-res
     cluster test; Figs 7 used 16 / 32 px blocks (fewer bins, smaller Bonferroni penalty). Proposed: add a --bin option
     and render 16 px as the replacement; waiting on her pick.
+- ~18:20: **Priya: Figs 7 / 7c / 7d -> 8 px for now.** At the replacement pass: remove goal-page Figs 18.1, 18.4,
+  18.10-18.14 (fig7_residual_far_contra_16px, fig7c_residual_allspouts_{16,32}px, fig7d_residual_perspout_{cue,lick}_
+  {16,32}px) and deck slides that reuse them (10-26 deck slide 47, 11-02 deck slide 70); replace with the queued
+  frozen_residual_significance figures (8 px nested bootstrap + full-res cluster; per spout in canonical order + all).
+  fig_resid16 / fig_resid_spout are not run. No --bin option added.
