@@ -850,3 +850,14 @@ FYI, the 3-class camera variant (lick / jaw-only / none) is thin in PS92 and PS9
   (ANIMAL_COL kept as a lazy alias for lick_aim_deficit); scripts/session_lick_summary epoch shades now use the
   EPOCH_LINE hues (were the PS92/93/94 animal colours). e3's mixed-model redraws pick up the animals.yaml colours.
   Everything else in the review waits for the rebuild merge.
+- 11-05: Priya answered decisions 1-7 (DECISIONS_PENDING_MERGE (f)); relayed to 34 and e0. Still open: 8 (composite
+  deficit variable list, e0), 9 (ITI tables: shared ak.boot_p vs local +1/N; 22 / 4480 area rows gain a star, none
+  lost), slide 95 wording, per-class encoder figure placement (A14). Contact-only frozen test already run by 34
+  (drop in all four within contact trials, with caveats: PS92 is a pre-stroke time trend, PS95 chronic partly kernel
+  over-prediction; no CIs). e0 running the FR spout-in-mesh control; FR 500 permutations need an O2 submit by Priya.
+- 11-05: Priya: slide 95 reworded (title now "Lick response larger from subacute on, beyond global gain"; the 101-char
+  version wrapped across the divider; caption already names contralesional tjM1 / SSp-m; notes gain the z-scored
+  numbers; 187 / 82 hidden unchanged; scripts update_slide95_title_1105{,b}.py, backup _bak_before_s95_1105.pptx).
+  Per-class encoder figure (A14): MAIN for now (sent to 34). 34: B12 early look = spont lick kernels move pre-cue
+  position credit < .002 everywhere; chronic rise in 3 / 4 in both arms (not a spont artefact). Rebuild -> main merge
+  done on merge/rebuild-into-main-20261105 (2730033a), unpushed.

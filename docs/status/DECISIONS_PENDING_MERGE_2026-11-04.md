@@ -39,3 +39,26 @@ trial_floor_sweep, why_no_rest, worktrunc_result_impact
 Not on main: `scripts/lick_cued_aim_by_spout.py` (exists on `rebuild/cohort1-20261103`; leave as is),
 `scripts/trial_class_all_engaged.py` (deleted; folded into `scripts/jaw_only_incomplete_figs.py`'s all-engaged table,
 commit 0e657df2).
+
+## (f) Priya 11-05: decisions after the re-analysis sweep
+1. State discriminators (camera-class question 8): train working (contact + incomplete) vs no_response; STOPPED trials
+   are scored as their own class, never trained on (stopped runs sit at session end, so training on them mixes time in
+   session into the label). jaw_only and after_end stay scored-only.
+2. Hit-rate period (question 3): the CAMERA working period (first cue -> last camera lick, minus stopped runs) is
+   primary; the DAQ quit-tail rule is a labelled robustness row. Changes Fig 0.2 and the cohort_session_metrics readers.
+3. Unjudged close spouts (close_center / close_mid): the side cameras (cam2 / cam3) judge the jaw there once the
+   round-2 side model and whole-session side tracking exist; until then they stay a separate unjudged label.
+4. Imaging-box lick-aligned products (lick_aligned_affine8v1, locanmf_lick_aligned_affine8v1/*.npz; made with the old
+   0.10 s detector, no detector tag): kept as LABELLED LEGACY. They feed only the preprocessing deck's per-session
+   lick-aligned slides and retired LocaNMF lick pool / cards / contralateral modules; current analyses import only
+   locanmf_lick_aligned's frame-timing helpers, not its outputs. Regenerate a product only when a current page / deck
+   figure needs it.
+5. Cohort 2 follows the DAQ behaviour lick detector too (one detector everywhere).
+6. recovery_timing keeps its animal-weighted level bootstrap, as an explicit labelled option in analysis_kit (no change
+   to the 10-25 figures).
+7. Per-animal trend-line panels in orofacial_cohort.fig_epochs go to a collapsible section, not the main page.
+8. ITI pattern-stat scripts (iti_decoder_pattern_stats and the spout / area / session-map tables, 34's 98ca70ff): switch
+   the local bootstrap p (2*min + 1/N) to the shared ak.boot_p (max(2*min, 1/N)), with ak.holm / ak.bh. Post-merge.
+   Effect measured 11-05 (decoder_mix_checks/iti_star_shared_stats_1105/): stars only added, none lost; 22 / 4480 area
+   rows; outlines +0.1-3 pp (largest cued far_contra acute 6.7 -> 9.6 %); session change maps 3.67-3.69 change in
+   26 / 80 cells (up to +2.4 pp), captions rewritten after the re-render; maplevel 3.66 unchanged.
