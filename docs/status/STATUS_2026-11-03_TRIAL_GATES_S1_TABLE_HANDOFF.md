@@ -39,6 +39,9 @@ new figure list. Then, in this order:
     `pose_chain --source 4cam --side-bundle <b>` -> re-run `side_label_offsets.py` with Part B, check the tongue bias,
     whole-session precision test; June side sessions need intrinsics first. Not before that: 4cam is NOT for the
     current rebuild (told 34).
+  * O2 conda module changed 11-04: `conda/miniforge3/24.11.3-0` is retired (jobs fail in ~3 s); use
+    `conda/miniforge3/26.9.4-1` (a8 swapped every repo site, 981b4647). No side-camera O2 bundle had been built yet, so
+    nothing on O2 needs editing; build the cam2 / cam3 inference bundle from main after that commit.
 
 **3. Spout.** Per-frame 3-D spout fixed in production code (bddf02e7: was a blend 1.04 mm behind the tip; production
 frames NOT re-run). Encoder targets = commanded positions (`wfield_cache/pose3d_inputs/pose3d_spout_positions_commanded_
