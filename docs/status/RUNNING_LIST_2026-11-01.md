@@ -1885,3 +1885,7 @@ bundle without `daqlk` and writes a provenance json.
   name from `--folder`, and the queue passed an absolute path -> invalid file name). Fixed in queue_daqlk2.sh (4 decompose
   steps now pass the folder relative to the encoding root, which is also the name fig_pooled reads); lane 2 relaunched
   ~17:50 (resumes; log logs/laneENC2.out). Lane T still waits for lane G's end via the launcher.
+- ~18:00: lane 2 halted again at a_relabel_noFR: frozen_relabel wrote to the UNTAGGED encoding root (write guard
+  refused, correctly). Fix a76352f3 on wf_render_daqlk (branch fix/misdirected-decode-bundle-dir-20261105, unpushed):
+  output via frozen_encoder.out_root() (where its readers already look); tests 99 passed. queue_daqlk2 EXPECT_SHA
+  += a76352f3; lane 2 relaunched (log logs/laneENC3.out). Push of a76352f3 to main: ask Priya (batch with later fixes).
