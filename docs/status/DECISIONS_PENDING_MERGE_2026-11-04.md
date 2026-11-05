@@ -57,3 +57,8 @@ commit 0e657df2).
 6. recovery_timing keeps its animal-weighted level bootstrap, as an explicit labelled option in analysis_kit (no change
    to the 10-25 figures).
 7. Per-animal trend-line panels in orofacial_cohort.fig_epochs go to a collapsible section, not the main page.
+8. ITI pattern-stat scripts (iti_decoder_pattern_stats and the spout / area / session-map tables, 34's 98ca70ff): switch
+   the local bootstrap p (2*min + 1/N) to the shared ak.boot_p (max(2*min, 1/N)), with ak.holm / ak.bh. Post-merge.
+   Effect measured 11-05 (decoder_mix_checks/iti_star_shared_stats_1105/): stars only added, none lost; 22 / 4480 area
+   rows; outlines +0.1-3 pp (largest cued far_contra acute 6.7 -> 9.6 %); session change maps 3.67-3.69 change in
+   26 / 80 cells (up to +2.4 pp), captions rewritten after the re-render; maplevel 3.66 unchanged.
