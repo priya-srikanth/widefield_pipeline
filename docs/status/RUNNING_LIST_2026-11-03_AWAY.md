@@ -13,7 +13,9 @@ log for the earlier part of the day is `RUNNING_LIST_2026-11-02_OVERNIGHT.md`.
 
 ## Questions for Priya (newest first)
 
-14. **NEW (11-04): give the FROZEN encoder spontaneous (pre-cue / ITI) lick kernels too, as the combined encoder now
+14. **DECIDED (Priya 11-04): YES.** The frozen encoder gets its own pre-cue and ITI lick terms (new frozen ids; the
+    current version stays as a robustness row). Sent to 34; the B12 (B) claims move with it, reported first when O2
+    lands. Original question: give the FROZEN encoder spontaneous (pre-cue / ITI) lick kernels too, as the combined encoder now
     has (LICKS_ALL = split)?** Today it has none, so its target columns (page 2.1, 2.10 / 2.12, 20.3-20.7, 1.1) keep
     crediting pre-cue licking to position. [Suggest yes for consistency, with the current version as a robustness
     row; new frozen ids.]
