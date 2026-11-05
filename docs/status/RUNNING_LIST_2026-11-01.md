@@ -1560,3 +1560,10 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   - Its parent chain_enc.sh then started its next step, a drift900 re-run: PID 3384 plus its 4 pool workers. Stopped within about 1 minute; the chain has now ended (900 was its last cutoff).
   - Checked: no file under encoder_drift_cutoff_20261103/encoding/drift900 (4,691 files) and nothing in the encdrift caches was written after 23:00. The 11-03 drift outputs are intact.
   - The v7g3_t3d render lanes (24068, 35928) were untouched.
+- **23:50: full suite on 34425934 stopped (mine, PID 33764).**
+  - It was one pytest process and had grown to 14 GB, which put free RAM at 8.3 GB under the frozen lanes. After the stop: 20.6 GB free.
+  - It was 40 % through with no failures so far. NOT a full-suite record.
+  - Re-run in 4 shards, one at a time, when the frozen fit phases are done. Do the same before merging rebuild/frozen-trials.
+- **Frozen v7g3_t3d progress at 23:41:** noFR 12/107, frA 6/107; main frames ETA ~01:30.
+  - Lane 3 (frAsplit / ls / te variants) is STOPPED for RAM and must be relaunched by hand. Command: Start-Process on scratchpad/frozen_v7g3/lane3_variants.sh.
+  - Spont lanes are prepared in scratchpad/frozen_v7g3_spont/ and HELD for the per-class trials output (rebuild/frozen-trials, helper a51f).
