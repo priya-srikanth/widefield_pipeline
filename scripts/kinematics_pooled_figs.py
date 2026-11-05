@@ -529,7 +529,8 @@ def fig_phase(out: Path, contra: bool = False, plot_only: bool = False) -> pd.Da
     import matplotlib.pyplot as plt
     from wfield_local.sig_marks import reserve_headroom
     stem = "pose3d_phase_pooled_contra" if contra else "pose3d_phase_pooled"
-    fd = out / f"{stem}_figdata.csv"
+    from wfield_local import figure_layout as FL
+    fd = FL.sidecar_for(out, stem, "_figdata.csv", mkdir=not plot_only)   # data/ sidecar; the reader is this function
     R = pd.read_csv(fd) if plot_only else phase_data(contra)
     if not plot_only:
         R.to_csv(fd, index=False)

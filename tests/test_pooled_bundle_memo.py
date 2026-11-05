@@ -33,7 +33,8 @@ def test_the_key_separates_animal_and_alignment():
     """One key per (animal, align). Collapsing either would serve one animal's trials for another --
     the late-binding-closure bug this module already documents, in a different disguise."""
     src = inspect.getsource(g._pooled_bundle)
-    assert "key = (an, align)" in src, "the cache key is not (animal, alignment)"
+    # 48f2cc6d (working excludes jaw-only) added the working-trial selection to the key; still one key per (animal, align)
+    assert "key = (an, align, _wt.selection())" in src, "the cache key is not (animal, alignment, working selection)"
 
 
 def test_no_path_returns_without_storing():

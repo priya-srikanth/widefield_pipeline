@@ -93,7 +93,8 @@ def main(argv=None) -> int:
         two = "panel" in D
         if not two:
             D = D.assign(position=D.pos)
-        f = out / f"{stem}_long.csv"
+        from wfield_local import figure_layout as FL
+        f = FL.sidecar_for(out, stem, "_long.csv")          # the data/ sidecar (test_no_writer_bypasses_figure_layout)
         D[["position", "epoch", "animal", "value"] + (["panel"] if two else [])].to_csv(f, index=False)
         cells = ([f"{m}:{p}" for m in dict.fromkeys(D.position.str.split(":").str[0]) for p in POS] if two else POS)
         args = [str(f), "--out", str(out / f"{stem}_lmm.png"), "--title", title, "--ylabel", ylab,
