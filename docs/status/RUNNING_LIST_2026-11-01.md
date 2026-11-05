@@ -1505,3 +1505,13 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   (pose3d_spout_positions_commanded_<tag>.csv). It matches the adopted 20261104 file to 4.5e-5 mm.
   - The rebuild branch still has the old prep_3d_inputs (measured). Port the main change at the next main merge.
   - Any re-cut must point TARGET3D at the _commanded_ name.
+- **11-04 ~22:45: O2 bundle enc_rebuild_20261104b READY. Both checks PASSED. Commands handed to Priya.**
+  - 107 sessions, 30 GB, code c149decf, tag ...stopA2jexrt3500c70.
+  - env.json carries split, ENL lp, commanded TARGET3D, the camera gate, and the Wt centres.
+  - Checks:
+    - PS93_0814: max |diff| 5.3e-8, 1088 / 1088 rows;
+    - PS93_0818: max |diff| 3.8e-8, 1088 / 1088 rows;
+    - 0 share reads.
+  - Gap: the trials.npz comparison was not exercised (ONLY=drop:task returns no per-trial outputs). Covered in practice
+    by inspecting the 1-task test's main output.
+  - Note for collect: export COMBINED_ENCODING_LICKS_ALL=split + ENL_SOURCE=lp, like the check needed.
