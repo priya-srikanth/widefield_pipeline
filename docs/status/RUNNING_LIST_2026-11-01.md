@@ -1703,3 +1703,11 @@ bundle without `daqlk` and writes a provenance json.
   Morning O2 resubmit commands written at the top of this section. Bundle b stays (no deletion). The frozen spont lanes run
   from the detached 90b7ddd5 worktree; e05ece18 changes only o2_bundle / o2_encoding, so they are unaffected.
   Scratch pickles from the check (~950 MB, scratchpad/lickdet/) are mine and derived; deleting them later.
+- 03:06: frozen spont progress: noFR 28/107, frA 38/107 sessions scored (~1.5 h in; ETA noFR ~06:30, frA ~05:30).
+  - **Lane 3 (spont variants) LAUNCHED** (bash 31920; frAsplit python winpid 820; jobs 2, RAM gate 16 GB). Its NOVAR
+    list now includes novar_licks_pre / novar_licks_iti (the spont design's 2 new variables; all 50 variant names
+    checked against frozen_encoder.VARIANTS; 28 / 28 per-variable drops covered).
+  - **Lane 4 (robustness, arm frozenNoSpont = FROZEN_LICKS_ALL=none) QUEUED** (bash 10188): waits for spont noFR
+    (11344) to exit, then v7g3_t3d noFR (jobs 2) then frA (jobs 3), into frame tags without "spont" under the `_daqlk` root.
+  - RAM 24 GB free with 3 lanes; watcher b438im6l1 covers all chain logs (FAILED / STOP / < 7 GB).
+  - Scratch pickles from the bundle check deleted (scratchpad only, mine, derived; 1.9 GB -> logs + scripts kept).
