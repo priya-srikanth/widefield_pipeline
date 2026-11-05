@@ -1,9 +1,29 @@
-# scripts/ — kept one-off / recovery utilities
+# scripts/ — analyses, figure producers, checks and a few pipeline steps
 
-Not part of the nightly pipeline (that is `python -m wfield_local.preprocess` /
+**Full list: [`INDEX.md`](INDEX.md)** (generated 2026-11-04): every non-archive script, one line
+each from its docstring, grouped by folder and by kind (figure producer, pipeline step, analysis,
+diagnostic / check, superseded). This README covers only a handful of them.
+
+Most of these scripts are run by hand. They are not only one-off tools: many are the primary
+analysis behind a results-page figure. **Some are part of production, and the package imports
+them**, so do not archive or rename a script without checking who uses it (INDEX.md tags them
+"imported or run by wfield_local"). Verified on main, 2026-11-04:
+
+- `wfield_local/analysis_kit.session_behavior` imports `scripts/rest_migration/engagement_decomposition`
+  and `scripts/rest_migration/quit_point` (the quit and trial definitions).
+- `wfield_local/orofacial_cohort`, `orofacial_outputs` and `combined_encoding` import
+  `scripts/pose_kinematics_demo` (the canonical DAQ contacts).
+- `wfield_local/combined_encoding` also imports `scripts/movement_encoding_session` and
+  `scripts/session_poses`; `face_rhythm_readouts` imports `scripts/face_rhythm_mesh_qc`;
+  `pose3d_side` imports private names from `scripts/pose3d` and `scripts/apparatus_mouth`.
+- `wfield_local/nightly_figs` runs eleven `scripts/rest_migration/` modules as nightly steps.
+
+The code review of 2026-11-04 (`docs/status/CODE_REVIEW_2026-11-04.md`, Modularity item 1) plans to
+move these pieces into `wfield_local` and leave one-line shims here.
+
+The nightly entry points themselves are `python -m wfield_local.preprocess` /
 `preprocess_deck` on the imaging box and `nightly_figs` on the analysis box — see
-`wfield_local/README.md`). These are occasional-use tools kept because they may be
-needed again; they are not imported by the package.
+`wfield_local/README.md`.
 
 - `rebuild_lick_maps.py` — re-run ONLY the lick-dependent map steps of `preprocess` for a set of
   sessions (after a change to lick detection or the ITI lick gate), instead of the whole night.
