@@ -102,25 +102,37 @@ def test_selection_tags_and_names(monkeypatch):
 
 
 def test_class_select_switches_only_with_masks_and_in_working(monkeypatch):
+    # MERGE 11-05 (rebuild/cohort1-20261103 into main): the rebuild's `_class_select` reads the run's CAMERA classes
+    # (``cls`` = per-row class of the engaged / no-lick arms, `trial_classes.camera_select`) instead of main's
+    # ``work=`` masks; the same selections are pinned on that API. The DAQ rule (quit-tail) is ``rule="daq"``.
+    from wfield_local import trial_classes as tc
     se, su = np.array([1, 1, 0, 1], bool), np.array([1, 0, 1], bool)
     ne = np.array([0, 1, 0], bool)
-    work = (np.array([1, 0, 1, 1], bool), np.array([1, 1, 0], bool))
+    ce = np.array(["contact", "jaw_only", "incomplete", "incomplete"], dtype=object)
+    cu = np.array(["incomplete", "jaw_only", "no_response"], dtype=object)
+    monkeypatch.setenv(tc.GATE_ENV, "camera")
     monkeypatch.setenv(wt.WORKING_TRIALS_ENV, "in_working")
-    me, mu = grant_kit._class_select("working", se, su, ne, work=work)
+    me, mu = grant_kit._class_select("working", se, su, ne, cls=(ce, cu))
     assert me.tolist() == [True, False, False, True] and mu.tolist() == [True, False, False]
-    old = grant_kit._class_select("working", se, su, ne)
+    old = grant_kit._class_select("working", se, su, ne, rule="daq")
     assert old[0].tolist() == se.tolist() and old[1].tolist() == (su & ~ne).tolist()
-    monkeypatch.setenv(wt.WORKING_TRIALS_ENV, "in_working_jaw")
-    mj = grant_kit._class_select("working", se, su, ne, work=work)
-    assert mj[0].tolist() == me.tolist() and mj[1].tolist() == mu.tolist()
-    monkeypatch.setenv(wt.WORKING_TRIALS_ENV, "quit_tail")
-    q = grant_kit._class_select("working", se, su, ne, work=work)
-    assert q[0].tolist() == old[0].tolist() and q[1].tolist() == old[1].tolist()
-    lk = grant_kit._class_select("lick", se, su, ne, work=work)              # the lick gate is untouched
+    monkeypatch.setenv(wt.WORKING_TRIALS_ENV, "in_working_jaw")    # jaw_only back in
+    mj = grant_kit._class_select("working", se, su, ne, cls=(ce, cu))
+    assert mj[0].tolist() == [True, True, False, True] and mj[1].tolist() == [True, False, False]
+    lk = grant_kit._class_select("lick", se, su, ne, cls=(ce, cu))   # the lick gate is untouched
     assert lk[0].tolist() == se.tolist() and not lk[1].any()
+    with pytest.raises(RuntimeError):                                 # camera gate without classes: no fallback
+        grant_kit._class_select("working", se, su, ne)
 
 
 def test_working_trained_model_has_its_own_id_and_drops_sessions_without_classes(monkeypatch):
+    from wfield_local import trial_classes as tc
+    monkeypatch.setenv(tc.GATE_ENV, "camera")
+    monkeypatch.setenv(wt.WORKING_TRIALS_ENV, "in_working")
+    # this synthetic pool has < 20 working rows at some spouts, which the rebuild's default Wt centre refuses by design
+    # (as tests/test_bcdg_1104.py): the frame check runs on the label-free working centre
+    from wfield_local import spout_scaling as ss
+    monkeypatch.setenv(ss.SCORE_CENTRE_ENV, "working")
     seen = []
     monkeypatch.setattr(fm, "load_or_fit", lambda spec, fit, **k: (seen.append(spec), (fit(), "new"))[1])
     monkeypatch.setattr(fm, "_session_sig", lambda lab: "sig")
@@ -141,10 +153,14 @@ def test_working_trained_model_has_its_own_id_and_drops_sessions_without_classes
     m, _ = fd.frozen_decoder_models(XE, YE, GE, kept, [0, 1, 2, 3], align="cue", source="roi", log=lambda *a: None)
     mw, _ = fd.frozen_decoder_models(XE, YE, GE, kept, [0, 1, 2, 3], align="cue", source="roi", log=lambda *a: None,
                                      work=work)
-    assert seen[1]["scaling_params"]["trials"] == wt.tag() and "trials" not in seen[0]["scaling_params"]
+    # MERGE 11-05: the rebuild records the run's selection (`trial_classes.run_selection`, which carries main's
+    # ``-cls-contact-incomplete`` part under in_working) rather than `working_trials.tag()`
+    sel = tc.run_selection()
+    assert "cls-contact-incomplete" in sel
+    assert seen[1]["scaling_params"]["trials"] == sel and "trials" not in seen[0]["scaling_params"]
     assert fm.spec_id(seen[0]) != fm.spec_id(seen[1])
     assert seen[1]["train_labels"] == ["PSX_0806", "PSX_0807", "PSX_0808"]
-    assert set(mw["loso"]) == {"PSX_0806", "PSX_0807", "PSX_0808"} and mw["trials"] == wt.tag()
+    assert set(mw["loso"]) == {"PSX_0806", "PSX_0807", "PSX_0808"} and mw["trials"] == sel
     A, B = fd.frozen_scored_frame(mw, XE, GE, XU, GU, kept, [0, 1, 2], work=work)
     assert np.array_equal(A[GE == 3], XE[GE == 3])             # nothing to centre on: left as it was
     assert not np.array_equal(A[GE == 4], XE[GE == 4])

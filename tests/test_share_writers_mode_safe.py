@@ -26,14 +26,16 @@ BEHAVIOUR = {
     "face_rhythm_position_maps.py", "face_rhythm_prep.py", "face_rhythm_readouts.py", "face_rhythm_validate.py",
     "kinematics_pooled_figs.py", "lick_floor_qc.py", "lick_path_softmax.py",
     "lmm_curve_summaries.py",
-    "orofacial_cover_sensitivity.py", "orofacial_robustness_table.py", "pose3d.py", "pose3d_close_dir_sheet.py",
-    "pose3d_crosscheck.py", "pose3d_cue_traces.py", "pose3d_figures.py", "pose3d_jaw_crosscheck.py",
+    "orofacial_cover_sensitivity.py", "orofacial_robustness_table.py", "pose3d.py",
+    "pose3d_crosscheck.py", "pose3d_cue_traces.py", "pose3d_jaw_crosscheck.py",
     "pose3d_jaw_depth_model_check.py", "pose3d_kinematics.py", "pose3d_phase.py", "pose3d_spout_error.py",
-    "pose3d_summary_fig.py", "pose3d_vs_cam4.py", "pose_cue_traces.py", "pose_kinematics_demo.py",
+    "pose3d_vs_cam4.py", "pose_cue_traces.py", "pose_kinematics_demo.py",
     "tongue_nocontact_qc.py", "trial_class_raw_share_fig.py",
+    # main's side-camera / 4-camera 3-D scripts (pose only), classified at the 11-05 rebuild merge
+    "pose3d_side_check.py", "pose3d_side_loo.py", "pose3d_side_video.py", "side_clean_qc.py", "side_label_offsets.py",
 }
 INDIRECT = {
-    "coupling_vigour_sm.py", "decoder_retention_sessions.py", "iti_first_lick.py", "lick_correction.py",
+    "coupling_vigour_sm.py", "decoder_retention_sessions.py", "lick_correction.py",
     "lick_firstlick_extract.py", "lick_vigor_perspout.py", "precue_class_matched.py", "recovery_timing.py",
     "restw_strict_check.py", "session_pace_table.py",
 }
