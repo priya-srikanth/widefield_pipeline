@@ -29,7 +29,9 @@ import pandas as pd
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import iti_licks as il  # noqa: E402
 from figdata import CHANGE_CMAP, CMAP_NOTE, PRE_CMAP, fd_path, levels_name, load_fd, plot_only, save_fd, sym_lim  # noqa: E402
-from iti_decoder_pattern_stats import N_PERM, _bh, _boot, n_perm_arg  # noqa: E402
+from iti_decoder_pattern_stats import N_PERM, _boot, n_perm_arg  # noqa: E402
+
+from wfield_local import analysis_kit as ak  # noqa: E402
 
 AN = ["PS92", "PS93", "PS94", "PS95"]
 EP = ["pre", "acute", "subacute", "chronic"]
@@ -84,7 +86,7 @@ def family(SM: dict, groups: list, label: str, A: np.ndarray, keep: list, n_perm
                     fw = test_level((f"area|{label}|{gname}", ep, {a: lvl[a] for a in sorted(lvl)}, ix, n_perm, "max"))
                 B = _boot(lvl, rng, ref)
                 point = am.mean(0)
-                p = np.minimum(1.0, 2 * np.minimum((B <= 0).mean(0), (B >= 0).mean(0)) + 1 / len(B))
+                p = ak.boot_p_columns(B)                  # shared p (decision 9, Priya 11-05)
                 lo, hi = np.percentile(B, [2.5, 97.5], axis=0)
                 n_dir = (np.sign(am) == np.sign(point)[None, :]).sum(0)
                 for k, n in enumerate(keep):
@@ -95,7 +97,7 @@ def family(SM: dict, groups: list, label: str, A: np.ndarray, keep: list, n_perm
     T = pd.DataFrame(rows)
     T["sig_fdr"] = False                                  # OLD: bootstrap p, BH over areas x columns per group
     for _g, h in T.groupby(["group"]):
-        T.loc[h.index, "sig_fdr"] = _bh(h.p_boot.to_numpy())
+        T.loc[h.index, "sig_fdr"] = ak.bh(h.p_boot.to_numpy())
     T["sig_fdr_3of4"] = T.sig_fdr & (T.n_dir >= np.minimum(3, T.n))
     T["sig"] = T.p_fwer < 0.05                            # PRIMARY: FWER max-statistic over areas
     T["sig_3of4"] = T.sig & (T.n_dir >= np.minimum(3, T.n))

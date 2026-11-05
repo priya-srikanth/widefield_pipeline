@@ -119,3 +119,11 @@ The "3.66-3.69" numbers above come from an older page source (wf_rebuild _goal_p
   The ONLY live figure whose drawn contours use the bootstrap p, so decision 9 can grow its dashed outline slightly.
 - Figs 15.8 / 15.9 and 15.17-15.20 (session change amplitude, decoder / spout pattern stats): SOLID = FWER. Unchanged;
   the bootstrap BH-FDR survives only as the CSV column frac_sig_fdr.
+
+## Applied (a8, 11-05 evening, after the rebuild merge 136807cf)
+Decision 9 (a) is in code. `iti_decoder_pattern_stats.old_fdr` (also used by `iti_spout_pattern_stats`),
+`iti_pattern_area_stats` and `iti_session_pattern_tests.change_maps` now take `ak.boot_p_columns` and `ak.bh`, and the
+local `_bh` is gone. The maplevel `sig_bh` also uses `ak.bh`, but its p is a permutation p, so it does not change. Checks:
+ruff clean, all four scripts import, and `ak.bh` = the old `_bh` in 2,000 random p vectors, so the 1/N floor is the only
+change. The expected differences are the tables above. Nothing re-rendered yet: Fig 15.7's dashed outline and "sig %" change at
+the next render of `iti_session_pattern_tests`, and its caption is rewritten then (captions-replace rule).

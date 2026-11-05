@@ -33,8 +33,10 @@ import pandas as pd
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import iti_licks as il  # noqa: E402
 from figdata import CHANGE_CMAP, CMAP_NOTE, PRE_CMAP, grid_fns, imaging_grid, load_fd, plot_only, save_fd  # noqa: E402
-from iti_decoder_pattern_stats import AGREE_MIN, _bh, _boot, _maxstat  # noqa: E402
+from iti_decoder_pattern_stats import AGREE_MIN, _boot, _maxstat  # noqa: E402
 from iti_session_patterns import AN, OUT, POS  # noqa: E402
+
+from wfield_local import analysis_kit as ak  # noqa: E402
 
 EP = ["pre", "acute", "subacute", "chronic"]
 N_PERM = 5000
@@ -128,7 +130,7 @@ def maplevel(L: dict) -> pd.DataFrame:
             row["n_sig_animals"] = int(sum(p < 0.05 for p in ps.values()))
             rows.append(row)
     T = pd.DataFrame(rows)
-    T["sig_bh"] = _bh(T.p_cohort.to_numpy()) if len(T) else []
+    T["sig_bh"] = ak.bh(T.p_cohort.to_numpy()) if len(T) else []
     return T
 
 
@@ -162,8 +164,8 @@ def change_maps(L: dict, keys: list) -> dict:
                 am = np.vstack([lvl[a].mean(0) - (ref[a].mean(0) if ref else 0) for a in sorted(lvl)])
                 point = am.mean(0)
                 B = _boot(lvl, rng, ref)
-                p = np.minimum(1.0, 2 * np.minimum((B <= 0).mean(0), (B >= 0).mean(0)) + 1 / len(B))
-                sig = _bh(p)
+                p = ak.boot_p_columns(B)                  # shared p (decision 9, Priya 11-05)
+                sig = ak.bh(p)
                 agree = (np.sign(am) == np.sign(point)[None, :]).sum(0)
                 res[(k, ep, kind)] = dict(point=point, sig=sig & (agree >= min(AGREE_MIN, len(am))), n=len(am),
                                           frac=float((sig & (agree >= min(AGREE_MIN, len(am)))).mean()),

@@ -42,6 +42,8 @@ from figdata import (CHANGE_CMAP, CMAP_NOTE, PRE_CMAP, grid_fns, imaging_grid, l
                      plot_only, save_fd, sym_lim)
 import iti_where_decoder as wd  # noqa: E402
 
+from wfield_local import analysis_kit as ak  # noqa: E402
+
 AN, EP, AXES = dp.AN, dp.EP, dp.AXES
 N_BOOT = 1000
 N_PERM = 1000                                                # permutation draws of the FWER max-statistic
@@ -111,17 +113,6 @@ def _boot(per_animal: dict, rng, paired_ref: dict | None = None) -> np.ndarray:
     return np.asarray(draws)
 
 
-def _bh(p: np.ndarray, q: float = Q) -> np.ndarray:
-    n = len(p)
-    o = np.argsort(p)
-    thr = q * np.arange(1, n + 1) / n
-    ok = p[o] <= thr
-    sig = np.zeros(n, bool)
-    if ok.any():
-        sig[o[: np.max(np.nonzero(ok)[0]) + 1]] = True
-    return sig
-
-
 def _maxstat(B: np.ndarray, point: np.ndarray, alpha: float = 0.05) -> np.ndarray:
     """FWER (max-statistic) significance, as the decoder page's Haufe maps: standardise each bootstrap draw per pixel
     (centred on the bootstrap mean, / bootstrap SD), take the max |t| over pixels per draw, threshold = its (1 - alpha)
@@ -175,8 +166,8 @@ def old_fdr(per_animal: dict, rng, ref: dict | None) -> dict:
     am = np.vstack([per_animal[a].mean(0) - (ref[a].mean(0) if ref else 0) for a in sorted(per_animal)])
     point = am.mean(0)
     B = _boot(per_animal, rng, ref)
-    p = np.minimum(1.0, 2 * np.minimum((B <= 0).mean(0), (B >= 0).mean(0)) + 1 / N_BOOT)
-    return dict(am=am, point=point, sig_fdr=_bh(p), sig_maxboot=_maxstat(B, point))
+    p = ak.boot_p_columns(B)                                 # shared p (decision 9, Priya 11-05): floored at 1/N
+    return dict(am=am, point=point, sig_fdr=ak.bh(p, Q), sig_maxboot=_maxstat(B, point))
 
 
 def merge_fwer(res: dict, F: dict, sel: np.ndarray, alpha: float = 0.05) -> dict:
