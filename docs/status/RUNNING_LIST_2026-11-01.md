@@ -1847,3 +1847,6 @@ bundle without `daqlk` and writes a provenance json.
 - ~15:10: origin/main moved to e8407872 (e0's FR spout-in-mesh docs push carried a8's 8 held docs commits) while the
   re-push was in its hook -> stopped my push (own PIDs only), merged origin/main cleanly (136807cf), re-pushed. Full
   suite again (~2 h 20 m, main ~17:30). Asked a8 to have the shared-checkout windows hold main pushes until then.
+- ~16:18: **rebuild -> main MERGE PUSHED: origin/main = 136807cf** (e8407872..136807cf; pre-push full suite 5,030 passed /
+  175 skipped / 0 failed, 1 h 11 m). Includes rebuild through 19d3cf71 + fix 411c8385. a8 told; other windows released.
+  Next: overnight `_daqlk` render queue in a new detached worktree at 136807cf after the frozen lanes.
