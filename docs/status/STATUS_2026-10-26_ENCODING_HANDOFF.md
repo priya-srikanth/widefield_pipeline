@@ -39,6 +39,77 @@ for anything that loads imaging. E = `M:/MICROSCOPE/Priya/Widefield/LP_analysis/
 3. Then tell **sabatinilab-e3** (PI deck) the decoder figures are final: per figure the share PNG path, page Fig N.k,
    script + args, headline numbers, methods text (they asked 10-26 ~22:30; reply sent: not final yet).
 
+### 00-COMPACT-28 (11-05 ~13:00) -- READ FIRST; supersedes 27 for state (27 / 26 hold for rules and history)
+
+Day log with every step: docs/status/RUNNING_LIST_2026-11-01.md, sections "11-05 overnight" onward.
+
+**Code.**
+- rebuild/cohort1-20261103 = **31ec5c1a**. Not pushed by itself; it reaches origin through the merge below.
+  - 90b7ddd5: DAQ behaviour lick detector, run-tag part `daqlk` (log 8.53).
+  - e05ece18: O2 bundles recorded without `daqlk` are accepted (`o2_bundle.NON_INPUT_TAG_PARTS`, log 8.54).
+  - 31ec5c1a: `collect --move` (log 8.55).
+- **rebuild -> main MERGE.**
+  - Branch merge/rebuild-into-main-20261105, worktree C:/Users/SabatiniLab/Github/wf_merge_main.
+  - 2730033a: the merge of 31ec5c1a. Then test fixes, and 3284cc25 (non-profile nightly_figs defaults cohort 1 to
+    August-only pre; Priya OK).
+  - 1ba23601 and the next merge: origin/main through a99a612a merged in.
+  - Report: docs/status/MERGE_REBUILD_INTO_MAIN_20261105.md (on that branch).
+  - **Push to main started ~12:55 with Priya's direct OK.** Fast-forward. The pre-push hook runs the full suite
+    (~80 min shard). Check: `git -C wf_merge_main fetch origin; git log -1 origin/main`.
+  - When it lands, send a8 the SHA. a8 holds ALL main pushes until then; it then does decision 9 (ITI stats -> ak) and
+    its post-merge items.
+  - After the push, new rebuild work goes on main (or a branch off it), not on rebuild/cohort1-20261103.
+- The frozen lanes run from worktree wf_rebuild_render_spont @ 90b7ddd5. Don't touch it until they finish.
+
+**Data (all under the `_daqlk` run tag** `.../imaging_encoding/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/`**).**
+- **O2 bundle b (enc_rebuild_20261104b): ALL 16 TAGs collected.**
+  - Every TAG has 107 sessions.
+  - main and main_nolicksall were copied, sha256-verified, and the bundle copies deleted.
+  - The other 14 were moved with `collect --move`.
+  - droppos needed a 96G resubmit of 14 OOM tasks (48G limit).
+  - Re-copies from Priya's whole-out/ rsyncs were sha256-matched and deleted, with markers in each TAG folder.
+  - Nothing is left to copy from O2. Bundle b's run.json and markers are kept.
+  - Folder names: see RUNNING_LIST 11-05 ~10:20 / ~11:40.
+- **Frozen v7g3_t3d_spont (primary) frames done:** noFR, frA, *_basis, *_pixmusall, frAsplit_basis, and v7g3_t3d (the
+  no-spont robustness frame).
+- **Running at 12:05 (watcher bz3az9kf1):**
+  - frA_ls: 43/107 at 12:05. lane 3 then runs frA_ls_basis.
+  - frA_nospont: 33/107 at 12:05.
+  - ETA ~17:00 for both. Logs: scratchpad/frozen_v7g3_spont/logs/.
+
+**Results so far (EARLY, no page text changed; conclusions go to Priya first).**
+- Frozen contact-only R2 (trials.npz, cortex, cue): animal mean pre / acute / subacute / chronic = .507 / .415 / .440 /
+  .340 (spont) and .492 / .413 / .433 / .347 (no-spont).
+  - boot_delta excludes 0 in every epoch; epoch LMM (df 3) p .059 / .089 / .068, so no star (a8,
+    FROZEN_B12_CIS_2026-11-05.md in widefield_pipeline docs/status/reanalysis_20261105/).
+  - Caveats: PS92 is a steady trend from its first pre session; PS95 late chronic is partly kernel over-prediction;
+    the comparison controls the class mix only.
+- B12 unique pos_enl: the spont kernels change it by < .005 in every epoch (all CIs include 0).
+  - The chronic rise is +19 [+5, +41] x1e-3, LMM p .086, and is carried by PS92.
+- Recommendation given to Priya: spont kernels primary, no-spont as a robustness row (PS95 late chronic shown).
+
+**Helpers.**
+- Section C render (O2-dependent encoder figures; ENCODER_RENDER_COMMANDS.md section C) is RUNNING.
+  - Report goes to wf_attempt docs/status/rebuild_20261103/SECTION_C_RENDER_20261105.md.
+  - It was told droppos is now available.
+- a8 (another session): its 11-05 decision relays are recorded in widefield_pipeline DECISIONS_PENDING_MERGE (f) 1-9.
+  Mine for the replacement pass:
+  - A14: per-class encoder figure on the MAIN encoding page;
+  - slide 95 numbers (tell a8 if they change);
+  - A17: the lick-detector methods line.
+
+**Next, in order.**
+1. Push lands -> SHA to a8 -> RUNNING_LIST entry.
+2. Section C report: review it.
+3. After the frozen lanes: build the render queue for `_daqlk` on the MERGED code (queue2.sh is stale), in a new
+   detached worktree at the pushed main SHA. Run G0-G8, then the encoder family A/B/D/E/F
+   (rebuild_20261103/ENCODER_RENDER_COMMANDS.md). Overnight; keep >= 6 GB free and <= 8 workers.
+4. Verifiers, then the replacement pass (pages + decks), including A14 / A17 / slide 95.
+5. Small items:
+   - delete the superseded old-tag frozen partial folders (27: `frozen_encoder_gate-attempted_v7g3_t3d{,_frA,_frAsplit}`
+     under `...stopA2jexrt3500c70/`), with a kept list;
+   - give the cleanup window the trial_attempts per-row YAML caching (byte-identical check sha256 bef06b0a).
+
 ### 00-COMPACT-27 (11-05 ~00:40) -- READ FIRST; updates 26 (26 holds unless changed here)
 
 **DECISION (Priya 11-05 ~00:15): imaging switches to the DAQ BEHAVIOUR lick detector now, before the render.**
