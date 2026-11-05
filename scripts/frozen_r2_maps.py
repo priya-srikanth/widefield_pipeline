@@ -37,7 +37,10 @@ SHARE_MIN_FULL = 0.02
 #: (label, variant whose SSE minus joint's is the unique part)
 UNIQUE = (("lick", "no_lick"), ("spout", "no_spout"), ("target", "no_target"), ("exec_locked", "no_exec_locked"),
           ("exec_within", "no_exec_within"), ("contact", "no_contact"), ("other", "no_other"),
-          ("timing", "no_timing"), ("task", "no_task"), ("movement", "no_movement"), ("non-task+contact", "task_only"))
+          ("timing", "no_timing"), ("task", "no_task"), ("movement", "no_movement"), ("non-task+contact", "task_only"),
+          ("spont", "no_spont"))
+#: drawn only when the run has them (no_spont: the v7g3_t3d_spont design, FROZEN_LICKS_ALL=split; 8.51)
+OPTIONAL = {"no_spont"}
 
 
 def pixel_sse(sp: dict, M: np.ndarray, keep: np.ndarray) -> np.ndarray:
@@ -65,10 +68,12 @@ def main(argv=None) -> int:
     from wfield_local import frozen_encoder as _fe   # the encoder's (tagged) run root, coordinator 11-04
     out = _fe.out_root() / f"frozen_encoder_{a.tag}"
     variants = ["joint"] + sorted({v for _l, v in UNIQUE})
+    variants = [v for v in variants if v not in OPTIONAL or (out / v / "sessions").is_dir()]
     missing = [v for v in variants if not (out / v / "sessions").is_dir()]
     if missing:
         raise SystemExit(f"{out}: no sessions for variants {missing} (re-run the spatial target with the drop variants)")
     sess = sorted(js for js in (out / "joint" / "sessions").glob("*.json") if js.stem[-4:] >= "0801")
+    UNIQ = tuple((g, v) for g, v in UNIQUE if v in variants)      # noqa: N806 -- the optional ones this run has
     fd = out / "figures"
     assert_writable(fd)
     fd.mkdir(parents=True, exist_ok=True)
@@ -112,11 +117,11 @@ def main(argv=None) -> int:
     for (an, ep), c in acc.items():
         sst = np.where(c["sst"] > 0, c["sst"], np.nan)
         mm = {"full": 1.0 - c["joint"] / sst}
-        for lab, v in UNIQUE:
+        for lab, v in UNIQ:
             mm[lab] = (c[v] - c["joint"]) / sst
         maps[(an, ep)] = {k: paint(an, x) for k, x in mm.items()}
     animals = sorted({an for an, _ in maps})
-    cols = ["full"] + [lab for lab, _v in UNIQUE]
+    cols = ["full"] + [lab for lab, _v in UNIQ]
     np.savez_compressed(fd / "r2_maps.npz", **{f"{an}|{ep}|{k}": x for (an, ep), mm in maps.items()
                                               for k, x in mm.items()})
 

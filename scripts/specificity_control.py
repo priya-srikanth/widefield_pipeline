@@ -19,6 +19,7 @@ Output: <E>/specificity_control/<tag>/{sessions.csv, boot.csv, layer2_boot.csv, 
         figures/*.png}
 """
 from __future__ import annotations
+from wfield_local.frozen_encoder import design_tag as _design_tag  # frame tag of the FROZEN_LICKS_ALL design (8.51)
 
 import argparse
 import json
@@ -105,8 +106,8 @@ def main(argv=None) -> int:
     import frozen_fr_compare as ffc
     from frozen_area_maps import area_image, outline, paint
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--tag", default="gate-attempted_v7g3_t3d_frA")
-    ap.add_argument("--layer2", default="allsession_encoder_v7g3_t3d_frA")
+    ap.add_argument("--tag", default=_design_tag("gate-attempted_v7g3_t3d_frA"))
+    ap.add_argument("--layer2", default=_design_tag("allsession_encoder_v7g3_t3d_frA"))
     ap.add_argument("--reuse", action="store_true", help="reuse sessions.csv (figures / tables only)")
     ap.add_argument("--out", default=None, help="output folder (default <E>/specificity_control/<tag>)")
     a = ap.parse_args(argv)

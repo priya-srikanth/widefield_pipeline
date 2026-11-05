@@ -31,6 +31,7 @@ Usage: python scripts/iti_licks.py [--jobs 3] [--labels ...]   (extract + summar
 Output: <E>/iti_licks/ (sessions/<label>.npz, tables, figures)
 """
 from __future__ import annotations
+from wfield_local.frozen_encoder import design_tag as _design_tag  # frame tag of the FROZEN_LICKS_ALL design (8.51)
 
 import argparse
 import json
@@ -74,7 +75,7 @@ OUT_W = run_mode.subdir(Path(os.environ["WFIELD_ITI_OUT_W"])) if os.environ.get(
 #: the frozen-encoder run the ITI family reads (its session list, its spatial basis): RUN-MODE DERIVED (coordinator 11-03)
 #: through `frozen_encoder.out_root()` -- the encoder run of THIS mode (imaging_encoding/<tag>/ for a tagged run),
 #: never the old variant's folder. Default run: the same path as before.
-ENCODER_TAG = "gate-attempted_v7g3_t3d_frA"
+ENCODER_TAG = _design_tag("gate-attempted_v7g3_t3d_frA")
 
 
 def encoder_run(suffix: str = "") -> Path:

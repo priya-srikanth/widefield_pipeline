@@ -41,7 +41,8 @@ ALONE = {"task": "task_only", "lick": "lick_only", "spout": "spout_only", "other
          "movement": "movement_only", "non-task": "no_task"}
 UNIQUE = {"task": "no_task", "lick": "no_lick", "spout": "no_spout", "other": "no_other", "contact": "no_contact",
           "movement": "no_movement", "target": "no_target", "exec_locked": "no_exec_locked",
-          "exec_within": "no_exec_within", "non-task": "task_only"}
+          "exec_within": "no_exec_within", "non-task": "task_only",
+          "spont": "no_spont"}          # v7g3_t3d_spont only (8.51; NaN for v7g3_t3d): pre-cue + ITI licks
 
 
 def quantities(A: pd.DataFrame) -> pd.DataFrame:

@@ -19,6 +19,7 @@ Usage: python scripts/remap_lmm.py [--tag gate-attempted_v7g3_t3d_frA] [--layer2
 Output: <E>/remap_lmm/<tag>/remap_lmm_<deficit>.csv (+ summary)
 """
 from __future__ import annotations
+from wfield_local.frozen_encoder import design_tag as _design_tag  # frame tag of the FROZEN_LICKS_ALL design (8.51)
 
 import argparse
 import sys
@@ -63,8 +64,8 @@ def layer2_long(folder: str) -> pd.DataFrame:
 def main(argv=None) -> int:
     from wfield_local import mixed_models as mm
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--tag", default="gate-attempted_v7g3_t3d_frA")
-    ap.add_argument("--layer2", default="allsession_encoder_v7g3_t3d_frA")
+    ap.add_argument("--tag", default=_design_tag("gate-attempted_v7g3_t3d_frA"))
+    ap.add_argument("--layer2", default=_design_tag("allsession_encoder_v7g3_t3d_frA"))
     ap.add_argument("--deficits", nargs="+", default=["ttc", "contact"])
     a = ap.parse_args(argv)
     out = E / "remap_lmm" / a.tag

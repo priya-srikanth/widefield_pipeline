@@ -20,6 +20,7 @@ Usage: python scripts/session_vs_frozen.py --tag gate-attempted_v7g3_t3d_frA [--
 Output: <E>/frozen_encoder_<tag>/session_vs_frozen/{sessions/<label>.json, gap.csv, remap_boot.csv, figures/*.png}
 """
 from __future__ import annotations
+from wfield_local.frozen_encoder import design_tag as _design_tag  # frame tag of the FROZEN_LICKS_ALL design (8.51)
 
 import argparse
 import json
@@ -113,13 +114,14 @@ def self_r2(sdir: Path, measure: str = "frame", areas=None) -> pd.DataFrame:
 
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--tag", default="gate-attempted_v7g3_t3d_frA")
+    ap.add_argument("--tag", default=_design_tag("gate-attempted_v7g3_t3d_frA"))
     ap.add_argument("--variants", nargs="+", default=DEFAULT_VARIANTS)
     ap.add_argument("--jobs", type=int, default=2)
     ap.add_argument("--labels", nargs="*")
     ap.add_argument("--plot-only", action="store_true")
     ap.add_argument("--maps", action="store_true", help="Allen-area maps of the remapping (all areas; after the fits)")
     a = ap.parse_args(argv)
+    __import__("wfield_local.frozen_encoder", fromlist=["check_tag"]).check_tag(a.tag)   # refits: design = env (8.51)
     run = E / f"frozen_encoder_{a.tag}"
     out = run / "session_vs_frozen"
     sdir = out / "sessions"

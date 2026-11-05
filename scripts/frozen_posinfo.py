@@ -11,6 +11,7 @@ Usage: python scripts/frozen_posinfo.py --tag gate-attempted_v7g3_t3d_frA_pos   
 Output: <E>/frozen_fr_compare/posinfo_<tag>.csv, figures/frozen_posinfo_<tag>_{cue,lick}.png
 """
 from __future__ import annotations
+from wfield_local.frozen_encoder import design_tag as _design_tag  # frame tag of the FROZEN_LICKS_ALL design (8.51)
 
 import argparse
 import sys
@@ -36,7 +37,7 @@ def main(argv=None) -> int:
 
     import frozen_fr_compare as ffc
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--tag", default="gate-attempted_v7g3_t3d_frA_pos")
+    ap.add_argument("--tag", default=_design_tag("gate-attempted_v7g3_t3d_frA_pos"))
     a = ap.parse_args(argv)
     folder = f"frozen_encoder_{a.tag}"
     out = E / "frozen_fr_compare"

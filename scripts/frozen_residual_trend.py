@@ -19,6 +19,7 @@ Usage: python scripts/frozen_residual_trend.py [--tag gate-attempted_v7g3_t3d] [
 Output: <E>/frozen_encoder_<tag>/residual_trend.csv, residual_trend_sessions.csv, figures/residual_trend_<window>.png
 """
 from __future__ import annotations
+from wfield_local.frozen_encoder import design_tag as _design_tag  # frame tag of the FROZEN_LICKS_ALL design (8.51)
 
 import argparse
 import json
@@ -83,7 +84,7 @@ def main(argv=None) -> int:
 
     from wfield_local.writeguard import assert_writable
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--tag", default="gate-attempted_v7g3_t3d")
+    ap.add_argument("--tag", default=_design_tag("gate-attempted_v7g3_t3d"))
     ap.add_argument("--variant", default="joint")
     a = ap.parse_args(argv)
     from wfield_local import frozen_encoder as _fe   # the encoder's (tagged) run root, coordinator 11-04

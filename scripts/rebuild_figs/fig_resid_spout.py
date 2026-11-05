@@ -9,6 +9,7 @@ PROVENANCE: recreated 2026-11-04 (RECONCILIATION section 7) from scratchpad_scri
     PYTHONPATH=<wf_rebuild> python scripts/rebuild_figs/fig_resid_spout.py --spout far_contra [--bin 16] [--encoder-tag gate-attempted_v7g3_t3d_basis] [--out DIR] [--plot-only]
 """
 from __future__ import annotations
+from wfield_local.frozen_encoder import design_tag as _design_tag  # frame tag of the FROZEN_LICKS_ALL design (8.51)
 
 import sys
 from pathlib import Path
@@ -48,7 +49,7 @@ def main(argv=None) -> int:
     ap = _common.parser(__doc__)
     ap.add_argument("--spout", required=True, help="a spout name or 'all'")
     ap.add_argument("--bin", type=int, default=16, help="F: the significance bin size, px")
-    ap.add_argument("--encoder-tag", default="gate-attempted_v7g3_t3d_basis", help="frozen_encoder_<tag> run of this run")
+    ap.add_argument("--encoder-tag", default=_design_tag("gate-attempted_v7g3_t3d_basis"), help="frozen_encoder_<tag> run of this run")
     a = ap.parse_args(argv)
     a.out.mkdir(parents=True, exist_ok=True)
     name = f"resid_{a.spout}_{a.bin}"

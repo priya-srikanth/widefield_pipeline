@@ -16,6 +16,7 @@ Usage: python scripts/matched_residual.py [--tag gate-attempted_v7g3_t3d_frA]
 Output: <E>/matched_residual/<tag>/{trials.csv, boot.csv, figures/matched_residual.png}
 """
 from __future__ import annotations
+from wfield_local.frozen_encoder import design_tag as _design_tag  # frame tag of the FROZEN_LICKS_ALL design (8.51)
 
 import argparse
 import json
@@ -98,7 +99,7 @@ def main(argv=None) -> int:
 
     import frozen_fr_compare as ffc
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--tag", default="gate-attempted_v7g3_t3d_frA")
+    ap.add_argument("--tag", default=_design_tag("gate-attempted_v7g3_t3d_frA"))
     a = ap.parse_args(argv)
     run = E / f"frozen_encoder_{a.tag}"
     out = E / "matched_residual" / a.tag

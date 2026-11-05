@@ -32,6 +32,7 @@ Usage: python scripts/partial_refit.py --tag gate-attempted_v7g3_t3d_frA [--jobs
 Output: <run>/partial_refit/{fits.pkl, sessions/<label>.json, gain.csv, boot.csv, figures/partial_refit_<window>.png}
 """
 from __future__ import annotations
+from wfield_local.frozen_encoder import design_tag as _design_tag, tag_is_spont as _tag_is_spont  # frame tag of the FROZEN_LICKS_ALL design (8.51)
 
 import argparse
 import json
@@ -91,6 +92,8 @@ def model_label(run: Path) -> str:
     parts = ["frozen pre-stroke encoder (August pre, attempted trials, 3-D tongue)"]
     if "_frA" in tag:
         parts.append("+ FaceRhythm (mode A)")
+    if _tag_is_spont(tag):
+        parts.append("+ spontaneous lick kernels (pre-cue / ITI licks, uninstructed: in other; cued licks = post-cue)")
     if tag.endswith("_te"):
         design = ("NEW target-vs-execution design: target = spout identity + target-labelled lick kernels, execution = "
                   "3-D tongue / jaw + FaceRhythm + landing-labelled lick kernels; ITI frames included")
@@ -373,12 +376,13 @@ def table(sdir: Path, measure: str = "frame", areas=AREAS) -> pd.DataFrame:
 
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--tag", default="gate-attempted_v7g3_t3d_frA")
+    ap.add_argument("--tag", default=_design_tag("gate-attempted_v7g3_t3d_frA"))
     ap.add_argument("--jobs", type=int, default=2)
     ap.add_argument("--labels", nargs="*")
     ap.add_argument("--plot-only", action="store_true")
     ap.add_argument("--add", nargs="+", choices=NULLS, help="compute only these nulls for sessions already scored")
     a = ap.parse_args(argv)
+    __import__("wfield_local.frozen_encoder", fromlist=["check_tag"]).check_tag(a.tag)   # refits: design = env (8.51)
     run = E / f"frozen_encoder_{a.tag}"
     out = run / "partial_refit"
     sdir = out / "sessions"

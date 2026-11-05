@@ -15,6 +15,7 @@ TARGET spout; rows need >= 3 trials per session (5 otherwise); outputs get the s
 Output: <E>/attempt_coding_pp/exec_vs_decoder_*.csv + figures/exec_vs_decoder_*.png
 """
 from __future__ import annotations
+from wfield_local.frozen_encoder import design_tag as _design_tag  # frame tag of the FROZEN_LICKS_ALL design (8.51)
 
 import sys
 from pathlib import Path
@@ -48,7 +49,7 @@ def mats(J: pd.DataFrame, min_n: int = 5) -> dict:
     return out
 
 
-def encoder_trials(tag: str = "v7g3_t3d_trial") -> pd.DataFrame:
+def encoder_trials(tag: str = _design_tag("v7g3_t3d_trial")) -> pd.DataFrame:
     """Per trial, the frozen pre-stroke ENCODER's best-matching label (lowest lick-window SSE over the parcels among the
     six relabellings, `frozen_relabel` trial_sse) -> columns label, animal, epoch, trial_id, spout, dec."""
     import json

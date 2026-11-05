@@ -45,12 +45,15 @@ QS = {"alone": [("full", None), ("task", "task_only"), ("instructed (lick)", "li
                 ("FaceRhythm", "fr_only")],
       "unique": [("full", None), ("task", "no_task"), ("target", "no_target"), ("executed (spout-locked)", "no_exec_locked"),
                  ("executed (within-spout)", "no_exec_within"), ("lick spout", "no_lickspout"), ("spout", "no_spout"),
-                 ("movement", "no_movement"), ("FaceRhythm", "no_fr")],
+                 ("movement", "no_movement"), ("FaceRhythm", "no_fr"),
+                 # v7g3_t3d_spont (8.51): uninstructed incl. the spontaneous licks, and the spontaneous licks alone
+                 ("uninstructed (other)", "no_other"), ("spontaneous licks", "no_spont")],
       # Musall bottom row per VARIABLE (Priya 10-25); order: task, licking, pose, running, FaceRhythm
       # names = the frozen variable bases (`frozen_encoder._VAR_BASES`): target = pos_enl (pre-cue) + pos_cue (post-cue);
       # pose magnitude / direction separate; the FaceRhythm "other" factors (fr_other_<k>) are left out of the figure
       "novar": [("full", None)] + [(v, f"novar_{v}") for v in (
-          "cue", "arrival", "pos_enl", "pos_cue", "lick_onset", "contact", "exec_angle", "tongue_mag", "tongue_dir",
+          "cue", "arrival", "pos_enl", "pos_cue", "lick_onset", "licks_pre", "licks_iti", "contact", "exec_angle",
+          "tongue_mag", "tongue_dir",
           "jaw_mag", "jaw_dir", "nose_mag", "nose_dir", "running", "push",
           "fr_lick", "fr_right", "fr_left", "fr_close", "fr_far")]}
 MLAB = {"avg": "PETH", "trial": "trial-by-trial", "all": "all frames"}

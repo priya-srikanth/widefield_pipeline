@@ -18,6 +18,7 @@ Usage: python scripts/early_predictors.py
 Output: <E>/attempt_coding/early_predictors{,_table}.csv, figures/early_predictors.png
 """
 from __future__ import annotations
+from wfield_local.frozen_encoder import design_tag as _design_tag  # frame tag of the FROZEN_LICKS_ALL design (8.51)
 
 import itertools
 
@@ -47,7 +48,7 @@ def exact_spearman(x, y):
 
 def features() -> pd.DataFrame:
     from wfield_local import run_mode
-    sp0 = pd.read_csv(run_mode.subdir(E / "specificity_control") / "gate-attempted_v7g3_t3d_frA" / "sessions.csv")
+    sp0 = pd.read_csv(run_mode.subdir(E / "specificity_control") / _design_tag("gate-attempted_v7g3_t3d_frA") / "sessions.csv")
     sp0 = sp0[sp0.label.str[-4:] >= "0801"]
     sp, spa = sp0[sp0.area.isin(ORO)], sp0[sp0.area.isin(ALMTJ)]
     days = pd.read_csv(A / "recovery_timing_series_lick.csv")[["label", "day"]].drop_duplicates()
