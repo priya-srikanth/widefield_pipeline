@@ -1,5 +1,26 @@
 # HANDOFF 2026-09-21 — codebase quality: efficient, modular, readable, editable
 
+## State on 2026-11-04 (re-measured on `main`; read this before the 09-20 counts below)
+
+The newer, verified review of the code is
+[`CODE_REVIEW_2026-11-04.md`](CODE_REVIEW_2026-11-04.md): what can give a wrong number, what to consolidate, and the
+proposed order of work. Start there. The plan below is the 09-21 plan; most of section 2 is done.
+
+| | 09-20 (section 1) | 2026-11-04 | how measured |
+|---|---|---|---|
+| `build_analysis_deck()` | spans lines 1550→5440 (~3,900) of a 5,468-line file | **1,776 lines** (473→2248) of a 2,274-line `locanmf_analysis_deck.py` | line numbers of `def build_analysis_deck` and the next `def` |
+| grant / epoch renderer split | `epoch_grant_figures.py` 3,942 lines; grant renderer one file | **done.** Grant renderer = `grant_figures` (driver, 1,270 lines) + `grant_kit` (shared machinery) + six family modules. `epoch_grant_figures.py` is a 603-line driver; families live in `epoch_kit`, `epoch_accuracy`, `epoch_maps`, `epoch_matching`, `epoch_state`, `epoch_behaviour`. **Not split yet:** `epoch_figures.py`, 3,165 lines | `wc -l` |
+| files repeating the `phase_labels("pre")` filter | 62 modules | **48 files** (17 in `wfield_local/`, 31 in `scripts/`) | `grep -l 'phase_labels("pre")'`, archives excluded |
+| files calling `_load_daq_events(` directly | ~35 | **29 files** (22 in `wfield_local/`, 7 in `scripts/`). Three of them define their own copy: `plot_lick_aligned_averages`, `plot_frame_alignment_comparison`, `plot_spout_trial_averages` | `grep -l '_load_daq_events('`, archives excluded |
+| `scripts/rest_migration/` | 74 modules, 19,208 lines | **43 live modules, 15,303 lines**, plus 31 in `rest_migration/archive/` | `ls`, `wc -l` |
+| rest_migration per-session loops fanned out | 4 of 11 | **8 scripts use `ak.fan_sessions`**, including the four expensive loops (`rest_coupling`, `evoked_hrf_latency`, `channel_position_maps`, `quit_prodrome`). `channel_evoked_sign` and `rest_baseline_epoch_drift` still loop serially | `grep -l fan_sessions` |
+| epoch figures on disk but unregistered | 33 of 402 | not re-measured here (needs the share). The review found about 26 unregistered superseded epoch PNGs | — |
+
+New since 09-21 and not in this plan: the **library imports `scripts/`** (`analysis_kit` imports
+`scripts/rest_migration/engagement_decomposition` and `quit_point`; `orofacial_cohort`, `orofacial_outputs` and
+`combined_encoding` import `scripts/pose_kinematics_demo`). See the review, "Modularity" item 1, and
+[`../../scripts/README.md`](../../scripts/README.md).
+
 **The analysis threads are at a natural stopping point.** Read
 [`STATUS_2026-09-20.md`](STATUS_2026-09-20.md) for where the science landed and
 `DECISIONS.md` from **"WHERE THE TWO THREADS LANDED"** for the reasoning. **This document is about
