@@ -1727,3 +1727,8 @@ bundle without `daqlk` and writes a provenance json.
 - 04:38: **frozen spont frA main frame DONE** (107/107, exit 0) -> frozen_encoder_gate-attempted_v7g3_t3d_spont_frA under
   `_daqlk`. Lane 2 moved on to frA_pos (--reuse-stats, pos-info variants). noFR 78/107; lane 3 frAsplit 31/107; lane 4
   waiting. 26 GB free.
+- 05:25: **frozen spont noFR main frame DONE** (107/107, exit 0) -> frozen_encoder_gate-attempted_v7g3_t3d_spont. Both
+  headline spont frames (noFR, frA) are now complete under `_daqlk`, with per-class trials files.
+  - Lane 1 -> noFR_basis (target basis, jobs 2); lane 4 (robustness v7g3_t3d noFR, jobs 2) started 05:26.
+  - Now 4 frozen processes, 9 workers (2+3+2+2): one over the 8-worker cap, RAM 30 GB free. Left running (frA_pos is
+    a short --reuse-stats pass); noted, not repeated. New watcher (failure / < 7 GB / all lanes done).
