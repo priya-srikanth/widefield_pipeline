@@ -1485,3 +1485,12 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   - Small inconsistency: for a far-spout trial with no LP onset, the encoder falls back to DAQ, while lp_licks leaves it
     untimed. The census says 0 contact trials lack an LP time, so it is moot for now. Align at the next code pass.
   - Runner given the GO: bundle enc_rebuild_20261104b from c149decf, then the checks.
+- **11-04 ~20:45: FINDING (a8, GAIN_BIO_2026-11-04.md, 93f5ef84): the post-stroke gain looks biological but
+  brain-wide.**
+  - Rest SD acute +.35 in 4 of 4 animals, uniform over all 46 areas, with no orofacial or ipsilesional excess.
+  - It persists in movement-matched still frames and away from quiet events.
+  - Corrected 470 = raw 470, so the correction did not create it.
+  - 415 rises about half as much, with a peri-lesional haemodynamic map.
+  - So the acute raw lick-response rise is real but not lick-specific.
+  - Plan: the raw main slide + the session-z hidden slide. Wording is Priya's choice.
+  - Question 14 (frozen encoder spontaneous lick kernels) is pending with Priya via a8.
