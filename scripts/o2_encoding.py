@@ -182,7 +182,7 @@ def cmd_bundle(a) -> Path:
 # Options via sbatch --export=ALL,TAG=...,ORDER=...,ONLY=...,VIDEO=...,FR=...  (see COMMANDS.md). Login shell + conda activate
 # (a plain shell with `source activate` fell back to the system Python, 10-18).
 set -eo pipefail
-module load conda/miniforge3/24.11.3-0
+module load conda/miniforge3/26.9.4-1
 conda activate lp
 export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK MKL_NUM_THREADS=$SLURM_CPUS_PER_TASK OPENBLAS_NUM_THREADS=$SLURM_CPUS_PER_TASK
 echo "task $SLURM_ARRAY_TASK_ID TAG=$TAG ORDER=${{ORDER:-movement_first}} ONLY=${{ONLY:-}} VIDEO=${{VIDEO:-}} FR=${{FR:-}} on $(hostname)"

@@ -760,7 +760,7 @@ def cmd_bundle(name: str, user: str, sessions: list[tuple[str, str]] | None, seg
 # peak ~{E['ram']:.0f} GB. Resumable per segment: a task that hits the limit continues where it stopped when
 # resubmitted with the same --array index.
 set -eo pipefail
-module load conda/miniforge3/24.11.3-0
+module load conda/miniforge3/26.9.4-1
 conda activate fr
 export OMP_NUM_THREADS=4 MKL_NUM_THREADS=4 OPENBLAS_NUM_THREADS=4
 echo "task $SLURM_ARRAY_TASK_ID on $(hostname), $(python --version)"
@@ -777,7 +777,7 @@ up to 2x its outputs (work memmaps, removed once the npz are written).
 ## 0. Once: the env  (interactive job: srun --pty -p interactive -c 2 --mem 8G -t 1:00:00 bash)
 CPU-only torch (the default wheel pulls ~4 GB of CUDA libraries, and pip's cache filled /home on 10-21):
 ```bash
-module load conda/miniforge3/24.11.3-0
+module load conda/miniforge3/26.9.4-1
 conda create -y -n fr python=3.12 && conda activate fr
 export PIP_CACHE_DIR={s}/pip_cache TMPDIR={s}/tmp && mkdir -p $PIP_CACHE_DIR $TMPDIR
 pip install torch --index-url https://download.pytorch.org/whl/cpu
@@ -1113,7 +1113,7 @@ def cmd_paramtest(name: str, user: str, key: str, n_frames: int = 30000, only: l
           f"#SBATCH -t 0-02:00:00\n#SBATCH --array=1-{len(sets.split())}\n"
           f"#SBATCH -o {b}/logs/pt_%A_%a.out\n#SBATCH -e {b}/logs/pt_%A_%a.err\n"
           f"# Tracking-parameter test: task {task} ({key}), frames {start}-{start + n_frames} ({max(count)} trial cues)\n"
-          f"set -eo pipefail\nmodule load conda/miniforge3/24.11.3-0\nconda activate fr\n"
+          f"set -eo pipefail\nmodule load conda/miniforge3/26.9.4-1\nconda activate fr\n"
           f"SETS=({sets})\n"
           f"python {b}/fr_param_test.py {task} " + "${SETS[$SLURM_ARRAY_TASK_ID-1]}" + f" {start} {n_frames}\n")
     (d / "run_param_test.sbatch").write_text(sb, encoding="utf-8", newline="\n")

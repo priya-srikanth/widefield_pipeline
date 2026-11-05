@@ -152,7 +152,7 @@ def cmd_bundle(name: str, user: str, sessions: list[tuple[str, str]], cams: list
 # Login shell (-l) + `conda activate`, as the working LP / DLC O2 scripts (o2_inference.sbatch_text); a plain shell with
 # `source activate` exited within seconds on the first submit (10-18).
 set -eo pipefail
-module load conda/miniforge3/24.11.3-0
+module load conda/miniforge3/26.9.4-1
 conda activate lp
 echo "task $SLURM_ARRAY_TASK_ID on $(hostname), $(python --version)"
 python {b}/me_runner.py
