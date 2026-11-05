@@ -112,3 +112,8 @@ The 6 failures:
 
 No failure was pre-existing on either parent. Shard 1 is slow (about 80 min) because `test_frozen_default`'s section G
 stored-vs-in-memory tests read real data. The tests read from the shares but do not write to M: or N:.
+
+## Decision 1 resolved (Priya 11-05: "ok")
+`nightly_figs` restores main's August-only pre default for cohort 1 (`IMAGING_PRE_FROM = "0801"`, `setdefault`) ONLY when
+no render profile is active (`rebuild_root.active()` false). Under the profile, WIDEFIELD_PRE_FROM stays the profile's
+(including its per-block unsets). An explicit WIDEFIELD_PRE_FROM still wins. Test: tests/test_nightly_pre_from_default.py.
