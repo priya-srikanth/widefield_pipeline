@@ -269,8 +269,8 @@ def _verify(cfg, date, use_hash=False, hash_raw=False):
         elif d != s:
             mismatch.append((j, s, d))
         elif use_hash and not (_is_big(j) and not hash_raw):
-            if _sha256(j["src"]) != _sha256(j["dst"]):
-                mismatch.append((j, s, -2))          # size ok but bytes differ
+            if not safe_copy.same_bytes(j["src"], j["dst"]):
+                mismatch.append((j, s, -2))          # size ok but bytes differ (or a side is unreadable)
             else:
                 ok.append(j)
         else:
@@ -461,8 +461,9 @@ def cmd_clean(cfg, date, execute, use_hash=False, hash_raw=False):
             print(f"  SKIP at-delete (dest size changed): {j['src']}")
             continue
         if use_hash and not (_is_big(j) and not hash_raw):   # re-verify bytes at delete time
-            if _sha256(j["src"]) != _sha256(j["dst"]):
-                print(f"  SKIP at-delete (dest bytes differ): {j['src']}")
+            # an unreadable side must SKIP: two None digests compared equal here until 2026-11-04 (code review)
+            if not safe_copy.same_bytes(j["src"], j["dst"]):
+                print(f"  SKIP at-delete (dest bytes differ or unreadable): {j['src']}")
                 continue
         # HARD RULE: acquired data only goes when a server copy is confirmed. The size/byte
         # re-verification just above IS that confirmation, so pass the destination as the verified

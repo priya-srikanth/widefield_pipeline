@@ -59,6 +59,14 @@ def size(path) -> int:
         return -1
 
 
+def same_bytes(a, b) -> bool:
+    """True only when BOTH files hash and the digests match. An unreadable side is never a match: comparing
+    ``sha256(a) != sha256(b)`` lets two unreadable files (None, None) through as identical, which at a delete
+    site would remove an original whose copy was never measured (archive_day cmd_clean, fixed 2026-11-04)."""
+    ha = sha256(a)
+    return ha is not None and ha == sha256(b)
+
+
 def verified_copy(src, dst, *, readback: bool = False) -> tuple[str, str | None]:
     """Copy ``src`` -> ``dst`` and verify it. Returns ``(status, src_sha256)``.
 

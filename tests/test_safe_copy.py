@@ -139,3 +139,16 @@ def test_camera_nightly_copy_one(tmp_path, monkeypatch):
     # at/above HASH_READBACK_MAX the read-back is skipped (size-only)
     monkeypatch.setattr(camera_nightly, "HASH_READBACK_MAX", 1)
     assert camera_nightly._copy_one(str(src), dst, dry=False, verify=True) == "skip"
+
+
+def test_same_bytes_never_matches_an_unreadable_side(tmp_path):
+    a, _ = _src(tmp_path)
+    b = tmp_path / "b.h5"
+    b.write_bytes(a.read_bytes())
+    assert safe_copy.same_bytes(a, b)
+    b.write_bytes(b"x" * a.stat().st_size)
+    assert not safe_copy.same_bytes(a, b)
+    gone1, gone2 = tmp_path / "nope1", tmp_path / "nope2"
+    assert safe_copy.sha256(gone1) is None and safe_copy.sha256(gone2) is None
+    assert not safe_copy.same_bytes(gone1, gone2)          # None == None must NOT read as identical
+    assert not safe_copy.same_bytes(a, gone1)
