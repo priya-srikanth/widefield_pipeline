@@ -276,7 +276,6 @@ def main(argv=None) -> int:
     # coordinator 11-04: routed (outputs under the run tag), no longer refused in a tagged run
     from wfield_local import analysis_kit as ak
     from wfield_local import epochs
-    from wfield_local import o2_inference as oi
     from wfield_local import orofacial_cohort as oc
     from wfield_local import orofacial_outputs as oo
     from wfield_local import writeguard
@@ -303,7 +302,10 @@ def main(argv=None) -> int:
     writeguard.assert_writable(out / "_")
     cnt = pd.read_csv(src / "counts.csv")
     n_mis = cnt[cnt.pos == "far_contra"].groupby("label").ipsi_dev.sum()
-    bdir = oi.bundle_dir(rv, a.name) / "inputs"
+    # under a rebuild root the bundle lives in <root>/o2/<name> (o2_encoding.bundle_dir); oi.bundle_dir is the default
+    # DeepLabCut/Widefield/o2 store only, so a rebuild run would find no inputs and skip every session
+    import o2_encoding as oe
+    bdir = oe.bundle_dir(rv, a.name) / "inputs"
     if a.method == "templates":
         return main_templates(a, rv, out, bdir)
     labels = a.labels or [s["label"] for s in ak.curated_sessions() if n_mis.get(s["label"], 0) >= a.min_probe]
