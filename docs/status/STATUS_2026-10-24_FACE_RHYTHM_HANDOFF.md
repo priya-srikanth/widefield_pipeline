@@ -56,6 +56,17 @@ All under `M:/MICROSCOPE/Priya/DeepLabCut/Widefield/face_rhythm/cam4/readouts/ma
 
 ## 2. Next, in order
 
+00. **11-05 (window e0, at a8's request "run now whatever can be run").**
+   * DONE: FR SPOUT-IN-MESH CONTROL (`scripts/fr_spout_mesh_control.py`, ~3 h at 3 jobs; outputs readouts/master_pre_v1/
+     spout_mesh_control/; reduced projections cached in C:/Users/SabatiniLab/wfield_cache/fr_spout_mesh_control/). The
+     ENL face decode does NOT come from the spout (FACE_RHYTHM_FINDINGS 7, FINDINGS 13). Not yet on the FR page (one
+     figure + one sentence in section 6; the page is published from the HMS account).
+   * READY, PRIYA SUBMITS: >= 500 permutations -> `run_fitcohortnull500.sbatch` (share copy of the set dir; new conda
+     module, --n-perm 500, array skips the 600 done). Matters for the specificity claim (several of the other ten sit at
+     the p .0099 floor), not the lick pair. Then rsync own_epoch_cohort_null/ back + `face_rhythm_cohort_null.py`.
+   * BLOCKED: 13b -- on 34's cohort-1 rebuild (the decoder / template deficit tables and the working-gate behaviour
+     inputs change) and on Priya confirming the variable list (a8 asked her 11-05; d4 gone).
+
 0b. **10-25 afternoon -- UPDATE (newest; read first).**
    * Imaging (page owner 5b, v26+): map drift COMPLETE for contact / LP_licks / DAQ_ENL1s (FINDINGS 3.14); trend LMM
      re-run on d4's final-frame tables -> ceiling vs deficit is DEFINITION-DEPENDENT (contact z -3.9, ttc n.s.; FINDINGS
