@@ -102,12 +102,14 @@ def draw(fd: dict, OUT: str) -> None:
                 ax.plot(np.arange(3) + off, x.target, "-o", color="#6a3d9a", label="target" if (j == 0 and k == 0) else None)
                 ax.plot(np.arange(3) + off, x.executed, "-s", color="#e66101", label="executed" if (j == 0 and k == 0) else None)
             ax.axhline(0, color="k", lw=0.6)
+            ax.spines["top"].set_visible(False)              # no top frame line (Priya 11-03)
             ax.set_xticks([j * 4 + 1 for j in range(4)]); ax.set_xticklabels(EP, fontsize=8)
             if r == 0: ax.set_title(an)
             if k == 0: ax.set_ylabel(f"{win} window\nunique dR2 (R2 fraction)")
     axs[0, 0].legend(fontsize=8, frameon=False)
-    fig.suptitle("Softmax width sweep: within each epoch the three points are widths 0.5 / 1 / 2 (left to right). Chronic target "
-                 "lead holds across widths (PS94 ties at 2); the executed set gains as bins widen.", fontsize=9)
+    fig.suptitle("Softmax width sweep: within each epoch the three points are widths 0.5 / 1 / 2 (left to right).\nChronic target "
+                 "leads executed at every width in all four animals, except PS94 at width 2 in the lick window (executed slightly "
+                 "ahead); the executed set gains as bins widen.", fontsize=9)
     fig.tight_layout(rect=(0, 0, 1, 0.93))
     fig.savefig(OUT + "/fig10_softmax_width.png", dpi=130)
     print("ok")
