@@ -154,9 +154,6 @@ def main(argv=None) -> int:
     from wfield_local import analysis_kit as ak
     from wfield_local import combined_encoding as ce
     from wfield_local import frozen_encoder as fe
-    from wfield_local import orofacial_cohort as oc
-    from wfield_local import orofacial_outputs as oo
-    from wfield_local.paths import PathResolver
     from wfield_local.writeguard import assert_writable
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--from", dest="src", required=True)
@@ -165,7 +162,7 @@ def main(argv=None) -> int:
     ap.add_argument("--labels", nargs="*", default=None)
     ap.add_argument("--summarise-only", action="store_true")
     a = ap.parse_args(argv)
-    E = oo.encoding_root(oc.RUN, PathResolver())
+    E = fe.out_root()        # the (tagged) encoder root, where the frames live and the readers look (rebuild 11-05)
     fe.check_tag(a.src, "--from")                       # the frozen design (v7g3_t3d | _spont) is in both tags
     fe.check_tag(a.tag, "relabel")
     src = E / f"frozen_encoder_{a.src}"

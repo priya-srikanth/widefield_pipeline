@@ -289,7 +289,6 @@ RESOLVED = {
     "wfield_local/dlc_iti_frames.py",
     "wfield_local/dlc_sidecam.py",            # main's side-camera labelling frames (merged 11-05)
     "wfield_local/epochs.py",
-    "wfield_local/frozen_relabel.py",
     "wfield_local/histology_area.py",
     "wfield_local/histology_map/__main__.py",
     "wfield_local/joint_locanmf.py",
