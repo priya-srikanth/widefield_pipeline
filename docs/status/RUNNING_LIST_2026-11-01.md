@@ -1501,3 +1501,7 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   - Implementing on rebuild/frozen-licks (new worktree).
   - When O2 lands, report FIRST: the B12 combined-encoder pos_enl per animal + the frozen target columns before / after.
     These cover page 2.1 (+ its deck slide), 2.10 / 2.12, 20.3-20.7 and 1.1.
+- **11-04 ~21:00 (e0): main's scripts/prep_3d_inputs.py now writes the COMMANDED spout table**
+  (pose3d_spout_positions_commanded_<tag>.csv). It matches the adopted 20261104 file to 4.5e-5 mm.
+  - The rebuild branch still has the old prep_3d_inputs (measured). Port the main change at the next main merge.
+  - Any re-cut must point TARGET3D at the _commanded_ name.
