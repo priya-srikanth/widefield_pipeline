@@ -1,5 +1,8 @@
 # CLAUDE.md
 
+> **New here? Start with [`docs/START_HERE.md`](docs/START_HERE.md)**: findings first, one current handoff per arm,
+> where to change each analysis, and which computer uses which env and drive letters.
+
 > **NEW COHORT, 2026-10-29: cohort2 = PS118, PS120, PS121, PS122 (PS118/120 Thy1-GCaMP6s, PS121/122 RiboL1-jGCaMP8s).**
 > Analysed separately from PS92-95 (cohort1) and never pooled with them. Read
 > [`docs/NEW_COHORT_2026-10-29.md`](docs/NEW_COHORT_2026-10-29.md) before running anything: the nightly picks the cohort from
@@ -39,7 +42,9 @@ camera acquisition). See `README.md` for setup, `docs/archive/MIGRATION.md` for 
    colors/date-policy in `configs/animals.yaml`, params in `configs/defaults.yaml`, mounts in
    `configs/paths.yaml`. The hardcoded `SESSIONS`/`ANIMAL_COLOR`/`L`/`D` are RETIRED — do not re-add them.
    MMDD dates are QUOTED strings (`0606` unquoted parses as octal 390).
-4. **Rig commit procedure:** `export CONDA_PREFIX=C:/Users/sabatini/.conda/envs/locanmf`; `git add -A` →
+4. **Rig commit procedure:** point `CONDA_PREFIX` at this box's env (analysis desktop:
+   `export CONDA_PREFIX=C:/Users/SabatiniLab/miniconda3/envs/locanmf`; analysis / behaviour box:
+   `C:/Users/sabatini/.conda/envs/locanmf`; imaging box: `C:/ProgramData/anaconda3/envs/wfield`); `git add -A` →
    commit → `git fetch origin` → `git rebase origin/main` → `git push`. NEVER force-push; re-fetch/rebase if
    rejected. Both machines push `main`, so always fetch/rebase first.
 5. **Cross-day caching:** per-session results are memoized (`wfield_local/session_cache.py`). **Bump
@@ -49,12 +54,13 @@ camera acquisition). See `README.md` for setup, `docs/archive/MIGRATION.md` for 
    parallelization of jobs on the cpu"*.) `parallel.fan_out(items, worker, jobs=...)` spawns a
    process pool, `default_jobs()` picks the worker count (`cpu_count - 2`, capped at 8; this box has
    24 logical CPUs), and `pin_blas()` fixes BLAS threading so a figure does not depend on how many
-   cores drew it. Eight modules in `wfield_local/` use it.
-   **Prefer `analysis_kit.fan_sessions`, which is `fan_out` PLUS the sort** (rule 9). Four of the
-   eleven per-session loops in `scripts/rest_migration/` are converted; the other seven are still
-   serial, and on 2026-09-19 that cost about five hours: `rest_coupling` 96 sessions at ~53 s each,
-   `evoked_hrf_latency` 98, `channel_position_maps --late` 97, `quit_prodrome` 96 at ~22 s each —
-   every one a serial `for s in config.load_sessions()` over independent sessions.
+   cores drew it. About 25 modules in `wfield_local/` call it (2026-11-04).
+   **Prefer `analysis_kit.fan_sessions`, which is `fan_out` PLUS the sort** (rule 9). Eight scripts in
+   `scripts/rest_migration/` use it (2026-11-04), including the four expensive loops that were still
+   serial on 2026-09-19 and cost about five hours that day: `rest_coupling` 96 sessions at ~53 s each,
+   `evoked_hrf_latency` 98, `channel_position_maps --late` 97, `quit_prodrome` 96 at ~22 s each. A few
+   lighter loops there are still serial (`channel_evoked_sign`, `rest_baseline_epoch_drift`); fan out
+   any new per-session loop from the start.
    - **The unit is the CALLER'S judgement, not a mechanical one** (see the module docstring). For
      these scripts it is the SESSION; for `poststroke_section_g` it is the animal, because tags
      share a frozen-decoder spec.
@@ -238,7 +244,7 @@ their side as belonging to the OLD cohort; ours land under `Widefield/…` per `
 
 Target = that repo's mature config-driven layout. **DONE:** `configs/{animals,sessions,paths,defaults}.yaml`
 (animals now carries full cohort metadata: sex/DOB/genotype/stroke_laterality/reference_landmarks);
-config loader (`wfield_local/config.py` ≈ their `config_loader.py`+`animals.py`); `tests/` (22);
+config loader (`wfield_local/config.py` ≈ their `config_loader.py`+`animals.py`); `tests/` (242 test files, 2026-11-04);
 **PathResolver** (`wfield_local/paths.py`, machine-aware analysis=M: / imaging=N:/E:) + `sessions.yaml`
 migrated to root-relative resolving on both boxes (was roadmap #2); **config-driven preprocessing
 orchestrator** `wfield_local/preprocess.py` (was roadmap #4 — retires the per-date `_nightly_*`/`_mc_svd_*`/
@@ -573,13 +579,15 @@ sensory response from a held intention, which CLAUDE.md otherwise records as ins
 measured trial counts (pre-stroke PS92 has TEN stopped trials in total), the decision to pool
 positions pre-stroke, and four errors caught before they reached data — including two classes that
 are temporally disjoint by construction and a ratio that returned 100 for an arm at chance.
-`enl_states` / `enl_decode` are built and unit-tested; their session loops are not yet wired.
+`enl_decode` is built, unit-tested (`tests/test_enl_decode.py`) and fans its session loop out;
+`enl_states` has no test, and its CLI only raises "analysis driver not wired yet" (2026-11-04).
 
 **[`docs/status/STATUS_2026-09-21_ENGINEERING.md`](docs/status/STATUS_2026-09-21_ENGINEERING.md)** — **START
-HERE if you are working on the CODE rather than the science.** Priya's current focus: efficient,
-modular, readable, editable. Holds the measured inventory (9 duplicate bootstrap helpers, 70
-repeats of the session filter, 8 of 11 loops still serial, `build_analysis_deck` at ~3,900 lines
-in one function, 25 unregistered figures) and a dependency-ordered plan. **Refactors must carry
+HERE if you are working on the CODE rather than the science, together with the newer
+[`docs/status/CODE_REVIEW_2026-11-04.md`](docs/status/CODE_REVIEW_2026-11-04.md)** (verified findings, what to
+consolidate, and the proposed order of work; read it first). Priya's focus: efficient, modular, readable,
+editable. The 09-21 doc holds the 09-20 inventory and a dependency-ordered plan; its "State on 2026-11-04"
+table at the top has the re-measured counts (`build_analysis_deck` is now 1,776 lines, not ~3,900). **Refactors must carry
 the reasoning forward** — most long comments in this repo name a bug a simplification would
 reintroduce.
 
@@ -753,7 +761,9 @@ reaches the deck's results path — that was checked, not assumed.
 ## Reference
 - `configs/` — source of truth. `wfield_local/config.py` — loader. `wfield_local/nightly_figs.py` — orchestrator.
 - `runbooks/` — the per-machine nightly prompts (Priya's canonical prompts + notes).
-- Env: `C:/Users/sabatini/.conda/envs/locanmf/python.exe`; repo is `pip install -e .` (no PYTHONPATH).
+- Env: analysis desktop (this box) `C:/Users/SabatiniLab/miniconda3/envs/locanmf/python.exe`; analysis / behaviour
+  box `C:/Users/sabatini/.conda/envs/locanmf/python.exe`; imaging box `C:/ProgramData/anaconda3/envs/wfield`. Repo is
+  `pip install -e .` (no PYTHONPATH). Per-box table (drive letters, torch build): `docs/START_HERE.md` section 3.
 - Deck: the CURRENT analysis deck is `locanmf_analysis_deck.py` → auto-built by `nightly_figs` into
   `<labcams>/spout_position_analysis_summary.pptx`. Sections: **A–C within-day** (decode, encode,
   pre-cue lick-free control), grouped animal→type→date; **D cross-session/frozen**, grouped
@@ -762,7 +772,7 @@ reaches the deck's results path — that was checked, not assumed.
   (`config.curated_dates()` = registered minus `cross_session_exclude`) — the static
   `date_policy.cross_session` list was deleted 2026-08-13 because it lagged five nights and silently
   shrank hand-run decks;
-  analysis PNGs land in `…\labcamsnalysis_figures\` (RENAMED 2026-09-21 from
+  analysis PNGs land in `<labcams>/analysis_figures/` (`paths.yaml` root `cue_analysis_out`; RENAMED 2026-09-21 from
   `locanmf_lick_pooled\cue_analysis` -- the live mirror of every analysis figure had been sitting
   inside a directory named after an abandoned June 2026 pooling experiment). The superseded
   `locanmf_decoder_ppt.py` / `locanmf_xsession_deck.py` builders were DELETED on 2026-08-13 (707 lines,
