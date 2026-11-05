@@ -22,6 +22,9 @@ new figure list. Then, in this order:
      at the session's last camera lick; jaw-only / no-response own classes.
   c. Read the LIVE imaging page first (https://claude.ai/artifact/PvraHiF82BFXur1hnNUCeV, v51), apply, publish.
   The imaging page still needs sharing with the organization (Priya, Share menu).
+  d. Priya 11-05 (via a8), same pass: hit-rate period = the CAMERA working period primary, DAQ quit tail = robustness
+     row (changes behaviour-page Fig 0.2 when 34's render lands; A6 in PAGE_EDITS_PENDING); the per-animal trend-line
+     panels of `orofacial_cohort.fig_epochs` move to a collapsible section, off the main page.
 
 **2. Side cameras + four-camera 3-D (all in `docs/POSE_MODELS.md` Part E; memory `four-camera-3d-ready`).**
   * Side model round 1 = crop2 (single-frame LP; temporal-loss variant tried, not adopted). Round 2 = Part B only
@@ -39,6 +42,9 @@ new figure list. Then, in this order:
     `pose_chain --source 4cam --side-bundle <b>` -> re-run `side_label_offsets.py` with Part B, check the tongue bias,
     whole-session precision test; June side sessions need intrinsics first. Not before that: 4cam is NOT for the
     current rebuild (told 34).
+  * ADD to the 4-cam re-run (Priya 11-05 via a8): the UNJUDGED close spouts (close_center / close_mid, where cam1 /
+    cam4 cannot call the jaw direction) get their jaw judged from the side cameras (cam2 / cam3) once the round-2 side
+    model + whole-session side tracking exist.
   * O2 conda module changed 11-04: `conda/miniforge3/24.11.3-0` is retired (jobs fail in ~3 s); use
     `conda/miniforge3/26.9.4-1` (a8 swapped every repo site, 981b4647). No side-camera O2 bundle had been built yet, so
     nothing on O2 needs editing; build the cam2 / cam3 inference bundle from main after that commit.
