@@ -1724,3 +1724,6 @@ bundle without `daqlk` and writes a provenance json.
   - Engineering note (not fixed): scripts/trial_attempts.py re-reads the cohort YAML per row in epochs.epoch_of /
     days_since_stroke (~57k rows; ~35 min of single-core CPU after the workers finish). A per-label cache fixes it
     with identical output (measured: same hashes). Candidate small fix for the rebuild branch.
+- 04:38: **frozen spont frA main frame DONE** (107/107, exit 0) -> frozen_encoder_gate-attempted_v7g3_t3d_spont_frA under
+  `_daqlk`. Lane 2 moved on to frA_pos (--reuse-stats, pos-info variants). noFR 78/107; lane 3 frAsplit 31/107; lane 4
+  waiting. 26 GB free.
