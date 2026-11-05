@@ -1595,10 +1595,15 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
 - (none yet)
 
 ### DECISIONS taken overnight (reversible; why)
-- (none yet)
+- Frozen trials files are kept at float32 (encoder layout; ~28-32 MB per session). float16 would halve the size and
+  move the unique shares < 3e-5. Default variants = joint + the headline unique shares; more via FROZEN_TRIAL_VARIANTS.
 
 ### FINDINGS overnight
-- (none yet)
+- **Frozen per-class smoke (PS93 only; ONE session pair, PROVISIONAL).** Joint, cortex, held out, cue -3..+3 s:
+  - Contact trials ALONE fall pre -> acute: trial-to-trial R2 .539 -> .387 (v7g3_t3d); .543 -> .399 (spont).
+  - So the drop is not only class composition, in this pair.
+  - Acute incomplete vs contact: trial-to-trial similar (.369 vs .387), cvR2 lower (.367 vs .469).
+  - Pre has only 24 incomplete trials. The full frame decides.
 
 ### PROGRESS log
 - 00:45: handoff 00-COMPACT-27 (b7c24670). Helpers running:
@@ -1619,3 +1624,9 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
     _tck.run_selection_tag())`).
   - (c) the shared clone's core.hooksPath is now the relative `.githooks` (repo config; it affects every worktree's
     hooks, which is fine).
+- 02:20: frozen-trials landed (984116bd + 7f9cc707; full suite on 984116bd 4,942 passed / 0 failed).
+  - Merged into rebuild/cohort1-20261103 (6a9f62c4), plus the conda branch (0a1a85e8).
+  - `--trials-only` post hoc scoring works (bit-identical to a full run; ~25-35 min per 107-session frame with 4
+    workers). The old design can get its trials files without a refit.
+  - Gap: frA frame not exercised.
+  - Waiting on daq-lick-detector.
