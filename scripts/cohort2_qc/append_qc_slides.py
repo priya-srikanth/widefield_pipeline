@@ -34,11 +34,20 @@ def main():
         tb.paragraphs[0].runs[0].font.color.rgb=RGBColor(0xEE,0xEE,0xEE)
         boxw=SW-Inches(0.6); boxh=SH-Inches(1.0)
         if img.lower().endswith((".mp4",".mov",".avi")):
-            # embed the movie, 16:9 box; poster frame optional (default play icon)
-            iw=int(boxw); ih=int(iw*9/16)
-            if ih>boxh: ih=int(boxh); iw=int(ih*16/9)
-            s.shapes.add_movie(img,int((SW-iw)/2),Inches(0.8),iw,ih,mime_type="video/mp4")
-            print(f"  added VIDEO slide: {title}")
+            # Mac-compatible embed: real poster frame (else PowerPoint shows a speaker icon) + true
+            # aspect ratio + H.264 mp4 (checked separately). add_movie embeds the bytes, not a link.
+            import cv2, tempfile
+            cap=cv2.VideoCapture(img); n=int(cap.get(cv2.CAP_PROP_FRAME_COUNT) or 0)
+            vw=cap.get(cv2.CAP_PROP_FRAME_WIDTH) or 16; vh=cap.get(cv2.CAP_PROP_FRAME_HEIGHT) or 9
+            cap.set(cv2.CAP_PROP_POS_FRAMES, max(0,int(n*0.35))); ok,fr=cap.read(); cap.release()
+            poster=None
+            if ok:
+                poster=os.path.join(tempfile.gettempdir(), os.path.basename(img)+".poster.png")
+                cv2.imwrite(poster, fr)
+            ar=(vw/vh) if vh else 16/9; iw=int(boxw); ih=int(iw/ar)
+            if ih>boxh: ih=int(boxh); iw=int(ih*ar)
+            s.shapes.add_movie(img,int((SW-iw)/2),Inches(0.8),iw,ih,poster_frame_image=poster,mime_type="video/mp4")
+            print(f"  added VIDEO slide ({'poster' if poster else 'no-poster'}): {title}")
         else:
             w,h=png_size(img); sc=min(boxw/w,boxh/h); iw,ih=int(w*sc),int(h*sc)
             s.shapes.add_picture(img,int((SW-iw)/2),Inches(0.8),iw,ih)
