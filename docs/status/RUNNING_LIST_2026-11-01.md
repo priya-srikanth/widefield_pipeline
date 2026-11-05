@@ -1649,7 +1649,7 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
     _tck.run_selection_tag())`).
   - (c) the shared clone's core.hooksPath is now the relative `.githooks` (repo config; it affects every worktree's
     hooks, which is fine).
-- 02:20: frozen-trials landed (984116bd + 7f9cc707; full suite on 984116bd 4,942 passed / 0 failed).
+- ~01:15: frozen-trials landed (984116bd + 7f9cc707; full suite on 984116bd 4,942 passed / 0 failed).
   - Merged into rebuild/cohort1-20261103 (6a9f62c4), plus the conda branch (0a1a85e8).
   - `--trials-only` post hoc scoring works (bit-identical to a full run; ~25-35 min per 107-session frame with 4
     workers). The old design can get its trials files without a refit.
