@@ -1539,3 +1539,7 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   - This is the robustness design without spontaneous lick terms.
   - New render runner, code c149decf, new tag. Output folders must carry the design name so the later primary
     (frozen-licks) run never collides.
+- **11-04 ~23:55: Priya: start every job as soon as it is able, parallelized appropriately.**
+  - Frozen v7g3_t3d (robustness) frames: GO now.
+  - The new primary design v7g3_t3d_spont (frozen-licks branch, first commit 910c408b) launches as soon as it is merged.
+  - The O2 15 arrays go once test task 58602462 checks out.
