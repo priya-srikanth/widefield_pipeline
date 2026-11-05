@@ -1589,3 +1589,20 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   3. Build the new O2 bundle; delete bundle b.
   4. Run the frozen spont + v7g3_t3d frames with the per-class output.
   5. Then G0-G8.
+
+## 11-05 overnight (Priya asleep; proceed per "ok please proceed overnight")
+### QUESTIONS FOR PRIYA (newest first)
+- (none yet)
+
+### DECISIONS taken overnight (reversible; why)
+- (none yet)
+
+### FINDINGS overnight
+- (none yet)
+
+### PROGRESS log
+- 00:45: handoff 00-COMPACT-27 (b7c24670). Helpers running:
+  - frozen-trials (per-class frozen trials output);
+  - daq-lick-detector.
+- Plan: merge both, run the suite in shards, rebuild trial_attempts under the new tag, build O2 bundle c (commands
+  waiting for Priya in the morning), then the frozen frames (spont first) on this box overnight.
