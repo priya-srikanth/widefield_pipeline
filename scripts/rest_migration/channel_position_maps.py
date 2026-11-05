@@ -785,7 +785,7 @@ def run_session(s, out_dir, stats, figures=True):
 
     from wfield_local.framemap_event_maps import in_trial_mask, trial_end_samples
     from wfield_local.plot_lick_aligned_averages import _load_daq_events
-    lk = _load_daq_events(s["h5"], "lick_analog", 2.5, 1.0, (0.001, 0.020), 0.10)
+    lk = _load_daq_events(s["h5"], "lick_analog")
     lick_s = np.asarray(lk["lick_samples"])
     lick_f = np.searchsorted(f_of, lick_s)
     # A LICK INHERITS THE POSITION OF THE CUE IT FOLLOWS. Anything before the first cue has none.

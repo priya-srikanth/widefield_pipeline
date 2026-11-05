@@ -112,7 +112,7 @@ def main() -> int:
         A = np.load(f"{config.locanmf_dir(mc)}/{s['label']}_locanmf_A.npy", mmap_mode="r")
         ncomp, T = C.shape
         dff = _footprint_scale(A, ncomp)[:, None] * C       # (ncomp, T) footprint-mean dF/F
-        cue = _load_cue_events(s["h5"]); lk = _load_daq_events(s["h5"], "lick_analog", 2.5, 1.0, (0.001, 0.020), 0.10)
+        cue = _load_cue_events(s["h5"]); lk = _load_daq_events(s["h5"], "lick_analog")
         fsd = cue["sample_rate_hz"]; cue_f, lick_f, csmp = _frames(s, cue, lk)
         lick_avg = _trig_avg(dff, lick_f, pre_n, post_n, T, csmp, fsd, args.pre_s, args.post_s)
         cue_avg = _trig_avg(dff, cue_f, pre_n, post_n, T, csmp, fsd, args.pre_s, args.post_s)

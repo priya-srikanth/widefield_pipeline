@@ -1,4 +1,5 @@
-"""Re-verify at 3a772a26, item 1: disengagement_tests' RESPONSE measures (hit, latency, n_post, n_pre2) stay on the deck's
+"""(Since 11-05, REBUILD_CODE 8.53, both are the same behaviour DAQ detector; the pin below now checks they agree.)
+Re-verify at 3a772a26, item 1: disengagement_tests' RESPONSE measures (hit, latency, n_post, n_pre2) stay on the deck's
 discriminator (`analysis_kit.lick_samples`) -- equal to the pre-change values on a real session -- while the lick COUNTS
 (ILIs, bouts, licks / bout) use the behaviour detector (`analysis_kit.lick_count_samples`)."""
 from __future__ import annotations
@@ -38,5 +39,7 @@ def test_response_measures_match_the_pre_change_values(lab, monkeypatch):
     for k in ("hit", "n_post", "n_pre2"):
         assert [r[k] for r in new] == [r[k] for r in old], k
     np.testing.assert_array_equal([r["lat"] for r in new], [r["lat"] for r in old])
-    assert len(lk_a) != len(lk_b)                                   # the detectors really differ on this session
-    assert [r["lpb"] for r in new] != [r["lpb"] for r in old]        # ... and the counts moved with detector A
+    # REBUILD_CODE 8.53 (11-05): imaging's `lick_samples` IS the behaviour detector now, so the two trains are the same
+    # (before: 7910 imaging vs 8023 behaviour onsets here, the 0.10 s refractory) and the counts no longer depend on which one is read
+    np.testing.assert_allclose(lk_a, lk_b, atol=1.5 / b.sample_rate)
+    assert [r["lpb"] for r in new] == [r["lpb"] for r in old]

@@ -101,7 +101,7 @@ def test_profile_arms_name_the_robustness_rules():
     from wfield_local import render_profile as rp
     d = rp.load("cohort1_rebuild_20261103")
     assert d["env"]["WIDEFIELD_TRIAL_STOPPED"] == "both"
-    assert d["notes"]["expected_run_tag"].endswith("-stopA2jexrt3500c70")
+    assert d["notes"]["expected_run_tag"].endswith("-stopA2jexrt3500c70_daqlk")
     assert rp.load("cohort1_rebuild_20261103", arm="stopA0")["env"]["WIDEFIELD_TRIAL_STOPPED"] == "run"
     assert rp.load("cohort1_rebuild_20261103", arm="stopA3")["env"]["WIDEFIELD_TRIAL_STOPPED"] == "long"
 

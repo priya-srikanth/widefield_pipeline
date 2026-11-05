@@ -617,6 +617,42 @@ def defaults(session: str | None = None) -> dict:
     return _deep_merge(base, ov[session]) if ov.get(session) else base
 
 
+#: Fallback physiological lick floor (ms) when `defaults.yaml lick_detection` has no ``min_ili_ms``. ONE value for every
+#: reader (REBUILD_CODE 8.53, 11-05): `behavior_events` / `restnl_mask` / `rest_by_position` fell back to 0, `daq_trials` /
+#: `dlc_context_frames` / `spout_behavior` to 40; the yaml sets 40, so both ran at 40, but a missing key split them.
+LICK_MIN_ILI_MS_DEFAULT = 40.0
+
+#: The imaging run-tag token of the BEHAVIOUR DAQ lick detector (Priya 11-04/05, REBUILD_CODE 8.53): every tagged run
+#: built after the switch carries it (`run_mode.lickdet_part`), so no output of the old imaging detector (1.0 V offset,
+#: 0.10 s refractory) can be read as the new one.
+LICK_DETECTOR_TAG = "daqlk"
+
+
+def lick_min_ili_s() -> float:
+    """The physiological lick floor, s: `defaults.yaml lick_detection.min_ili_ms` (`LICK_MIN_ILI_MS_DEFAULT` if absent)."""
+    return float(defaults()["lick_detection"].get("min_ili_ms", LICK_MIN_ILI_MS_DEFAULT)) / 1000.0
+
+
+def lick_detector() -> dict:
+    """THE DAQ lick detector (Priya 11-04/05: imaging uses the BEHAVIOUR detector everywhere; REBUILD_CODE 8.53).
+
+    From `defaults.yaml lick_detection`: ``thresh_upper`` (onset, V), ``thresh_lower`` (offset, V), ``lockout_s`` (the
+    falling-edge lockout), ``refractory_s`` = 0.0 (no bout-collapse refractory -- the old imaging 0.10 s dropped real
+    10-11 Hz licks, LICK_DETECTOR_COMPARE_2026-11-04.md on main a69fb9c3) and ``min_ili_s`` (the 40 ms physiological floor;
+    `daq_io.lick_onsets` applies it itself). Same detector as `daq_trials.decode` / `behavior_events` / `dlc_frames`."""
+    ld = defaults()["lick_detection"]
+    return {"thresh_upper": float(ld["thresh_upper"]), "thresh_lower": float(ld["thresh_lower"]),
+            "lockout_s": tuple(float(v) for v in ld["lockout_falling_edge_s"]),
+            "refractory_s": 0.0, "min_ili_s": lick_min_ili_s()}
+
+
+def lick_detector_args() -> tuple:
+    """`lick_detector` as the positional ``(thresh_upper, thresh_lower, lockout_s, refractory_s)`` of
+    `daq_io.lick_onsets` / `plot_lick_aligned_averages._load_daq_events` (which apply ``min_ili_s`` themselves)."""
+    d = lick_detector()
+    return d["thresh_upper"], d["thresh_lower"], d["lockout_s"], d["refractory_s"]
+
+
 def paths() -> dict:
     return _load("paths.yaml")
 

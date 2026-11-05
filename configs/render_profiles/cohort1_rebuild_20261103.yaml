@@ -82,31 +82,31 @@ arms:
       COMBINED_ENCODING_DRIFT_MIN_PERIOD_S: "1500"
     blocks: ["encoder spout contra - ipsi cells (frozen_encoder / combined_encoding)",
              "ITI pre-cue level readouts (scripts/iti_licks.py family)"]
-    expected_run_tag: hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_drift1500s_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70
+    expected_run_tag: hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_drift1500s_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk
   # stop-rule ROBUSTNESS arms (Priya 11-04): A0 = the 11-04 morning rule (runs >= 6, no guard, after-end not stopped);
   # A3 = runs > 10 stopped from their first trial, no reference guard
   stopA0:
     env:
       WIDEFIELD_TRIAL_STOPPED: run
     blocks: ["stop-rule robustness: camera working / stopped classes"]
-    expected_run_tag: hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopRun6jrt3500c70
+    expected_run_tag: hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopRun6jrt3500c70_daqlk
   stopA3:
     env:
       WIDEFIELD_TRIAL_STOPPED: long
     blocks: ["stop-rule robustness: camera working / stopped classes"]
-    expected_run_tag: hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA3n11jexrt3500c70
+    expected_run_tag: hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA3n11jexrt3500c70_daqlk
   # stopped-time licks (Priya 11-04): primary = excise (lick-touched stopped trials -> stopped_licking); robustness =
   # the strict break (break + re-form the runs) and the quit tail starting after the last lick EVENT (open with Priya)
   stopStrict:
     env:
       WIDEFIELD_STOP_LICKS: strict
     blocks: ["stop-rule robustness: camera working / stopped classes"]
-    expected_run_tag: hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jsbrt3500c70
+    expected_run_tag: hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jsbrt3500c70_daqlk
   stopTailEvent:
     env:
       WIDEFIELD_STOP_TAIL: lick_event
     blocks: ["stop-rule robustness: camera working / stopped classes"]
-    expected_run_tag: hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jextert3500c70
+    expected_run_tag: hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jextert3500c70_daqlk
   # Priya 11-04 (final): the scored-frame / projection centre is Wt; N (pooled pre, no session centre) and Cto
   # (contact rows + pre-stroke offset fill) are the ROBUSTNESS arms, each with its own run-tag part (run_mode
   # `scoring_part`), so they never write into the primary folders. Blocks: everything that scores the frozen spout
@@ -117,14 +117,14 @@ arms:
       WIDEFIELD_PROJECTION_CENTRE: n
     blocks: ["section D / G frozen decoder", "5b / 5c epoch decoders", "attempt coding", "coding directions / axes",
              "pattern / template families"]
-    expected_run_tag: hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_sc-ctrN+pctrN
+    expected_run_tag: hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk_sc-ctrN+pctrN
   centreCto:
     env:
       WIDEFIELD_SPOUT_SCORE_CENTRE: cto
       WIDEFIELD_PROJECTION_CENTRE: cto
     blocks: ["section D / G frozen decoder", "5b / 5c epoch decoders", "attempt coding", "coding directions / axes",
              "pattern / template families"]
-    expected_run_tag: hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_sc-ctrCto+pctrCto
+    expected_run_tag: hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk_sc-ctrCto+pctrCto
 
   # FROZEN encoder ROBUSTNESS row (Priya 11-04): v7g3_t3d = post-cue lick kernels only (no licks_pre / licks_iti). Its
   # outputs are kept apart by the FRAME tag (frozen_encoder_gate-attempted_v7g3_t3d[...], no "spont" segment;
@@ -133,9 +133,12 @@ arms:
     env:
       FROZEN_LICKS_ALL: none
     blocks: ["frozen encoder frames and their readers: robustness row without spontaneous lick kernels"]
-    expected_run_tag: hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70
+    expected_run_tag: hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk
 
+# IMAGING LICKS = THE BEHAVIOUR DAQ DETECTOR (Priya 11-04/05, REBUILD_CODE 8.53): not an env switch -- the code default
+# (`config.lick_detector`: yaml lick_detection, 0.5 V offset, 40 ms floor, no 0.10 s refractory). Every tagged run carries
+# the run_mode part "daqlk" (after the selection part), so no output of the old imaging detector is read as the new one.
 # the primary encoder / ITI slow-drift cutoff (Priya 11-03): combined_encoding.DRIFT_MIN_PERIOD_S = 600 s (env unset)
 notes:
   encoder_drift_cutoff_s: 600
-  expected_run_tag: hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70
+  expected_run_tag: hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk

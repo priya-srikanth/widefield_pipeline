@@ -397,7 +397,7 @@ def _trial_features(s, args, signal=None, feat_region=None, with_precue_licks=Fa
         sig = np.asarray(signal)
         feat_reg = np.arange(sig.shape[0]) if feat_region is None else np.asarray(feat_region)
     nfeat, T = sig.shape
-    cue = _load_cue_events(s["h5"]); lk = _load_daq_events(s["h5"], "lick_analog", 2.5, 1.0, (0.001, 0.020), 0.10)
+    cue = _load_cue_events(s["h5"]); lk = _load_daq_events(s["h5"], "lick_analog")
     # LP_licks (WIDEFIELD_LICK_SOURCE=lp, 2026-10-21): the DAQ contact train is replaced by the video lick train, edited
     # so the first lick after each cue is the LP post-cue gate; trials without an LP verdict are marked out of coverage.
     lp = None

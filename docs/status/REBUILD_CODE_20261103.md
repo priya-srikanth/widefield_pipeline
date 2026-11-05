@@ -3237,3 +3237,106 @@ the session mean, as `sst`; trial R2 = trial-to-trial, spout x class means remov
 - Related (frozen trials / spont / encoder, encoder trials, licks_all, relabel, allsession, rebuild_root): 92 passed.
 - Full suite, 4 shards one at a time on 984116bd (>= 44 GB free before each): 4,942 passed, 173 skipped, 0 failed
   (1,978 + 5 skipped; 1,212 + 167; 890 + 1; 862).
+
+### 8.53 Imaging licks = THE behaviour DAQ lick detector (Priya 11-04/05; branch rebuild/daq-lick-detector off 34425934)
+
+CODE + TESTS ONLY: no renders, nothing written to M:. Worktree `wf_rebuild_lickdet`. Scratch outputs (onset counts,
+trial_attempts preview) in the session scratchpad (`.../scratchpad/lickdet/`).
+
+**Why.** LICK_DETECTOR_COMPARE_2026-11-04 (widefield_pipeline main a69fb9c3): the imaging profile
+`(2.5, 1.0, (0.001, 0.020), 0.10)` and the behaviour profile (yaml `lick_detection`: 2.5 / 0.5 V, 40 ms floor) differ
+ONLY by imaging's 0.10 s refractory (the 1.0 vs 0.5 V offset moves 0 onsets in 16 sessions). The refractory drops 0.58 %
+of licks, 94 % of them inside a camera lick (real 10-11 Hz licking), unevenly (PS95 1.4 %). 0 hits change; 0 RTs as
+imaging computes them (10 / 6,520 with a cue + 70 ms floor). Priya approved switching imaging before the render.
+
+**One accessor.** `config.lick_detector()` = the yaml profile as `{thresh_upper, thresh_lower, lockout_s,
+refractory_s = 0.0, min_ili_s}`; `config.lick_detector_args()` = the positional 4-tuple; `config.lick_min_ili_s()` =
+the floor. `plot_lick_aligned_averages._load_daq_events(h5, channel, thresh_upper=None, ..., refractory_s=None)`: every
+detector parameter defaults to the accessor, so a call site passes only `(h5, "lick_analog")`. `daq_io.lick_onsets`
+applies the floor (`config.lick_min_ili_s`). Its `lick_detection` record now also carries `min_ili_s`.
+
+**Call sites changed (47 literal calls in 39 files; each now `_load_daq_events(h5, "lick_analog")`, gate_source keeps
+`allow_lp=False`).**
+- wfield_local (18 files / 26 calls): analysis_kit.lick_samples, filter_acausality_test (2), fixed_scale_maps,
+  gate_source (`_daq_contact_samples`), hemo_variants, locanmf_crossanimal_dff, locanmf_cue_lick_analysis,
+  locanmf_decoder_weights (4), locanmf_dff_by_position, locanmf_encoding_model, locanmf_firstlick_aligned,
+  locanmf_position_decoder (`_trial_features`), locanmf_position_encoder (3), locomotor_features, nolick_decoder,
+  precue_lickfree (2), precue_window_sweep (2), rt_drift.
+- scripts (21 files / 21 calls): cohort2_qc/{cohort1_impact, compare_hemo_variants_1029, epileptiform_gallery,
+  epileptiform_videos, indicator_compare, indicator_kinetics_spread, native_maps_1029, prestroke_quiet_videos,
+  quiet_modes, running_sign_check, seizure_events_video, spout_compare_1029, spout_maps}, drift_check/drift_cutoff_check,
+  enl_lick_rates, enl_lp_census, gate_lp_check, rest_migration/{channel_position_maps, evoked_hrf_latency, nvc_evoked,
+  plot_session_residual}.
+- CLI defaults `--refractory-s 0.10` -> `config.lick_detector()["refractory_s"]` (0.0; thresholds / lockout were already
+  yaml): framemap_event_maps, locanmf_lick_aligned, plot_frame_alignment_comparison, plot_lick_aligned_averages,
+  quiet_periods, roi_activity.
+- Other hard-coded 0.10: rest_migration/relaxed_buffer_percentile (detect_licks refractory) -> the accessor;
+  camera_coverage_tables `REFRACTORY_S` (the "refractory_merge" cause) -> max(refractory, floor) = 40 ms (its test moved
+  the synthetic lick to 1 frame before the cue).
+- Left alone, deliberately: scripts/archive/lick_bout_decoder.py, scripts/rest_migration/archive/{stopped_tail_contamination,
+  worktrunc_result_impact}.py (archived; they reproduce archived results as they ran). `analysis_kit.lick_count_samples`
+  (already the behaviour detector via `daq_trials.decode`; it stays the DAQ train under an LP lick source). The
+  behaviour-side readers (behavior_events, daq_trials, dlc_frames, dlc_context_frames, contact_classes, spout_behavior,
+  restnl_mask, rest_by_position, restw_strict_check) already used the yaml profile.
+
+**min_ili fallback.** `config.LICK_MIN_ILI_MS_DEFAULT = 40` is the one fallback when the yaml has no `min_ili_ms`:
+behavior_events / restnl_mask / rest_by_position / restw_strict_check / position_survival fell back to 0, daq_trials /
+dlc_context_frames / spout_behavior to 40 (spout_behavior, quiet_periods, plot_frame_alignment_comparison now call
+`config.lick_min_ili_s()`). The yaml sets 40, so no output moves; a missing key no longer splits the paths.
+
+**Caches and run tag.**
+- `session_cache.CACHE_VERSION` 13 -> 14 (`_trial_features`: lick-free pre-cue windows, lick-aligned events; every
+  cached kind; map_collect's map kinds go through it).
+- `gate_source.GATE_VERSION` 1 -> 2 (DAQ contact train of the LP-inclusive gate).
+- `scripts/disengagement_tests.BEH_VERSION` 2 -> 3, `scripts/gate_lp_check.VERSION` 1 -> 2 (their own pickles).
+- Not bumped, checked: `lp_licks.LP_VERSION` (its DAQ contact fallback = `dlc_frames.lick_onsets` = `daq_trials.decode`
+  with the yaml profile, unchanged); the WFIELD_INPUT_CACHE encoder inputs (behaviour inputs use DAQ contacts from
+  dlc_frames; their key hashes daq_trials.py, whose edit re-keys them once anyway); `dlc_frames` lick cache (params
+  digest of the yaml, unchanged); behavior_events SCHEMA_VERSION, RESTnl / restw caches (yaml profile already);
+  trial_attempts / qc tables (keyed by the SELECTION tag, which does not change: they never read the imaging detector,
+  see the preview below); frozen stores (specs fingerprint the training data, which moves wherever the lick train
+  does).
+- RUN TAG: new `run_mode` part `lickdet` = `daqlk` (`config.LICK_DETECTOR_TAG`), placed right after the selection part,
+  in output tags AND cache parts, present iff any other output part is (the default untagged run stays byte-identical;
+  its per-session caches moved with v14). `_TAG_PREFIXES` gains "daqlk". New rebuild run tag:
+  `hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk`
+  (cache tag `hv-..._lnmfproj_sel-...-stopA2jexrt3500c70_daqlk_csig-<sha>`); every arm's `expected_run_tag` in
+  `cohort1_rebuild_20261103.yaml` gains `_daqlk` (before `_sc-...` in the centre arms). An O2 bundle recorded under the
+  old tag (enc_rebuild_20261104b) is refused by `o2_bundle.verify` under this code.
+
+**Onset counts, before (old imaging profile) / after (THE DAQ detector).** `tests/fixtures/lick_detector_onsets_20261105.csv`,
+17 sessions: the comparison's 16 (every animal x pre / acute / subacute / chronic; all 16 equal its
+task1_per_session.csv n_IMG / n_BEH exactly; per animal 30,683 / 30,785, 27,395 / 27,542, 24,080 / 24,139,
+19,658 / 19,940; total 101,816 / 102,406) + PS93_0908 (7,910 / 8,023). Largest: PS95_0917 +117 (6,997 -> 7,114),
+PS95_0811 +99 (2.1 %); PS94_0819 is the one session with an onset the old detector had and the new lacks (+7 / -1).
+
+**trial_attempts preview (scratch only; an audit hook refused any write on M: / N:).** PS95_0917, PS93_0908, PS94_0819
+(1,711 trials) rebuilt by `scripts/trial_attempts.session_trials` under the rebuild profile with this code, with the
+34425934 code, and compared with the current `o2/enc_rebuild_20261104b/tables/trial_attempts.csv`: 0 class changes
+(cls / cls_raw / attempted / canonical / stop_kind), 0 first_lick_ms (RT) changes, 0 timing_source changes, 0 contact /
+n_licks changes in either comparison. Expected: every DAQ contact in the attempts path comes from `dlc_frames.lick_onsets`
+(the behaviour detector already).
+
+**Tests.**
+- New tests/test_lick_detector_daq.py, 12 tests: the accessor = yaml; one 40 ms min_ili fallback and no reader with its
+  own; no imaging literal / 0.1 CLI refractory left outside archive/; `_load_daq_events` defaults keep two licks 95 ms
+  apart and a re-touch 50 ms later (old detector dropped both) and drop a 30 ms double; `analysis_kit.lick_samples`
+  passes only `(h5, "lick_analog")`; the cache bumps; `daqlk` in every tagged run, never the default, right after the
+  selection part; profile tags; the fixture = the comparison doc's per-animal table; real-session counts on PS95_0917
+  and PS94_0819.
+- Updated pins: test_licks_per_trial (lick_samples), test_disengagement_detectors (the two trains are now the same),
+  test_priya_decisions_1103 (refractory_merge at 40 ms), and the tag strings in test_rebuild_switches,
+  test_camera_gate_fail_closed, test_review_7ab, test_stop_rule_a2, test_o2_encoding_env.
+- Related files: 49 + 385 passed. Full suite on cd35e594, 4 shards one at a time (>= 31 GB free before each):
+  4,946 passed, 173 skipped, 0 failed (1,078 + 27 skipped; 772 + 5; 2,144 + 1; 952 + 140).
+
+**Open (for Priya / the coordinator).**
+1. The O2 encoder (combined_encoding / frozen_encoder) never reads the imaging detector (DAQ contacts come from
+   dlc_frames = the behaviour detector), so its outputs do not change, but the new run tag makes `o2_bundle.verify`
+   refuse enc_rebuild_20261104b and routes encoder outputs to the `_daqlk` folder. Re-run it, or exempt the encoder?
+2. Preprocessing-side lick-aligned products (imaging box: `plot_lick_aligned_averages` / `locanmf_lick_aligned` CLIs ->
+   `lick_aligned_affine8v1`, `locanmf_lick_aligned_affine8v1/*.npz`, read by locanmf_lick_pool / cards / event_master /
+   contralateral) carry no detector tag; existing files are the 0.10 s ones. Regenerate, or leave as legacy?
+3. The default (untagged) run has no `daqlk` part: its skip-if-exists outputs made under the old detector are not
+   separated (per-session caches are, by v14).
+4. cohort2_qc scripts were switched too ("everywhere"); confirm cohort 2 follows.

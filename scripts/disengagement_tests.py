@@ -49,7 +49,7 @@ from fr_musall import E  # noqa: E402
 OUT = E / "disengagement"
 SESS, FIG, TAB, FDIR = OUT / "sessions", OUT / "figures", OUT / "tables", OUT / "figdata"
 VERSION = 1
-BEH_VERSION = 2                          # 2: + n_pre2 (DAQ licks in the 2 s before the cue), 10-31
+BEH_VERSION = 3                          # 2: + n_pre2 (DAQ licks in the 2 s before the cue), 10-31; 3: lick_samples = the behaviour DAQ detector (11-05, 8.53)
 EPS = ("pre", "acute", "subacute", "chronic")
 ANIMALS = ("PS92", "PS93", "PS94", "PS95")
 REF = ("close_ipsi", "close_mid")

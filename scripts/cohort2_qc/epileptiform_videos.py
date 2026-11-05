@@ -46,7 +46,7 @@ def load(label, r):
     x = 100 * (um @ np.asarray(SVT[:, func::2], np.float64))
     y = 100 * (um @ np.asarray(SVT[:, 1 - func::2], np.float64))
     cue = _lc(s["h5"])
-    lk = _ll(s["h5"], "lick_analog", 2.5, 1.0, (0.001, 0.020), 0.10)
+    lk = _ll(s["h5"], "lick_analog")
     cf, lf, csmp = _frames(s, cue, lk)
     return dict(U=U, SVT=SVT, br=br, x470=x, x415=y, func=func, ev=strict_flat(r), licks=np.asarray(lf)[np.asarray(lf) >= 0],
                 cues=np.asarray(cf)[np.asarray(cf) >= 0], csmp=np.asarray(csmp), h5=s["h5"])

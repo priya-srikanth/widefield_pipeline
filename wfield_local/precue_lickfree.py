@@ -89,7 +89,7 @@ def trial_table(session, source="roi", pre_s=PRE_S):
     """(X, y, blocks, n_licks) for the pre-cue window. ``n_licks`` counts licks INSIDE that window."""
     sig, feat_reg = _build_signal(session, source)
     cue = _load_cue(session["h5"])
-    lk = _load_daq_events(session["h5"], "lick_analog", 2.5, 1.0, (0.001, 0.020), 0.10)
+    lk = _load_daq_events(session["h5"], "lick_analog")
     cue_f, lick_f, _ = _frames(session, cue, lk)
     codes = classify_cues_with_backup(session, cue, verbose=False)
     ls = np.sort(np.asarray(lick_f))
@@ -162,7 +162,7 @@ def rolling_lickfree(session, source="roi", win_s=ROLL_WIN_S, step_s=ROLL_STEP_S
     """
     sig, _ = _build_signal(session, source)
     cue = _load_cue(session["h5"])
-    lk = _load_daq_events(session["h5"], "lick_analog", 2.5, 1.0, (0.001, 0.020), 0.10)
+    lk = _load_daq_events(session["h5"], "lick_analog")
     cue_f, lick_f, _ = _frames(session, cue, lk)
     codes = classify_cues_with_backup(session, cue, verbose=False)
     ls = np.sort(np.asarray(lick_f))

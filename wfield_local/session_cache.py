@@ -23,7 +23,13 @@ import os
 import pickle
 from pathlib import Path
 
-CACHE_VERSION = 13  # bump when any cached function's computation changes
+CACHE_VERSION = 14  # bump when any cached function's computation changes
+# v14 (2026-11-05, REBUILD_CODE 8.53): IMAGING LICKS = THE BEHAVIOUR DAQ DETECTOR (Priya 11-04/05). Every imaging lick
+# train (`_load_daq_events(h5, "lick_analog")`, `analysis_kit.lick_samples`) lost the 0.10 s refractory and the 1.0 V
+# offset for the yaml `lick_detection` profile (0.5 V, 40 ms floor): 0.58 % more onsets (PS95 1.4 %), 0 hits and 0
+# no-floor RTs changed (LICK_DETECTOR_COMPARE_2026-11-04.md on main a69fb9c3). The detector lives in code + yaml, which
+# `session_signature` does not see, and `_trial_features` (lick-free pre-cue windows, lick-aligned events) feeds every
+# cached kind -- so no v13 entry may be served.
 # v13 (2026-09-26): BLOCK IDS now split an over-long run EVENLY instead of chunking from the left at
 # block_size_max. Left-chunking made a run of 9 into 8+1, and with `timing.block_size_min` of 4 a
 # one-trial block is not something the scheduler can produce -- 286 of 491 over-long runs (58.2%)

@@ -65,16 +65,17 @@ def test_gui_fallback_session_counts_to_the_sessions_own_window(tmp_path):
     assert per.loc["close_L", "licks_per_trial"] == pd.Series([3, 1]).mean()   # the 4.1 s lick counts (old: 2 + 1)
 
 
-def test_lick_counts_use_the_behaviour_detector_and_imaging_keeps_its_own():
+def test_lick_counts_and_imaging_use_the_behaviour_detector():
     """Coordinator 11-03 (rule 9): every lick COUNT uses detector A (`analysis_kit.lick_count_samples` =
-    `daq_trials.decode` with the yaml params); imaging alignment keeps `analysis_kit.lick_samples` (0.1 s refractory)."""
+    `daq_trials.decode` with the yaml params); since 11-05 (REBUILD_CODE 8.53) `analysis_kit.lick_samples` uses it too."""
     import inspect
 
     from wfield_local import analysis_kit as ak
     src = inspect.getsource(ak.lick_count_samples)
     assert "daq_trials.decode(" in src and 'config.defaults()["lick_detection"]' in src
     assert "lick_samples=np.asarray(lick_count_samples(s), np.int64)" in inspect.getsource(ak.session_behavior)
-    assert '"lick_analog", 2.5, 1.0, (0.001, 0.020), 0.10)' in inspect.getsource(ak.lick_samples)   # imaging: B
+    assert '_load_daq_events(s["h5"], "lick_analog")["lick_samples"]' in inspect.getsource(ak.lick_samples)   # imaging:
+    assert "0.10)" not in inspect.getsource(ak.lick_samples).split('"""')[-1]   # THE DAQ detector (8.53), no literal
     ed = (REPO / "scripts" / "rest_migration" / "engagement_decomposition.py").read_text(encoding="utf-8")
     assert "licks = np.sort(np.asarray(_ak.lick_count_samples(s), float))" in ed
     assert "post = licks_resp[" in ed                      # response detection unchanged

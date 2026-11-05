@@ -258,7 +258,7 @@ def _load_inputs(s):
     from wfield_local.plot_lick_aligned_averages import _load_daq_events as _ll
     C = np.load(config.svtcorr_path(s["mc"])).astype(np.float64)
     cue, codes = _events(s)
-    lk = _ll(s["h5"], "lick_analog", 2.5, 1.0, (0.001, 0.020), 0.10)
+    lk = _ll(s["h5"], "lick_analog")
     _c, _l, csmp = _fr(s, cue, lk)
     mask, _d = fit_mask(s, C.shape[1], csmp, cue, **MASK_SPEC["strobedetrend"])
     mask = mask[:C.shape[1]]

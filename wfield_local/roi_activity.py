@@ -114,7 +114,7 @@ def main() -> int:
     ap.add_argument("--lick-thresh-upper-v", type=float, default=ld["thresh_upper"])
     ap.add_argument("--lick-thresh-lower-v", type=float, default=ld["thresh_lower"])
     ap.add_argument("--lockout-s", type=float, nargs=2, default=tuple(ld["lockout_falling_edge_s"]))
-    ap.add_argument("--refractory-s", type=float, default=0.10)
+    ap.add_argument("--refractory-s", type=float, default=config.lick_detector()["refractory_s"])   # REBUILD_CODE 8.53: no refractory (was 0.10)
     args = ap.parse_args()
     args.output.mkdir(parents=True, exist_ok=True)
     ad = args.allen_dir

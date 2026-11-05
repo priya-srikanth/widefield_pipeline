@@ -358,7 +358,7 @@ def compute(session, variant, refit_t=True, win_s=DETREND_WIN_S, verbose=True, o
     mask, mask_frac = None, None
     if spec["mask"]:
         cue = _lc(session["h5"])
-        lk = _ll(session["h5"], "lick_analog", 2.5, 1.0, (0.001, 0.020), 0.10)
+        lk = _ll(session["h5"], "lick_analog")
         _c, _l, csmp = _fr(session, cue, lk)
         if csmp is None:
             raise ValueError(f"{session['label']}: regime A has no corrected-frame map; "

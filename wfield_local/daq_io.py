@@ -123,7 +123,7 @@ def lick_onsets(lick_volts, fs, thresh_upper, thresh_lower, lockout_s, refractor
 
     det = detect_licks(lick_volts, fs, thresh_upper=thresh_upper, thresh_lower=thresh_lower,
                        lockout_s=tuple(lockout_s), refractory_s=refractory_s,
-                       min_ili_s=config.defaults()["lick_detection"]["min_ili_ms"] / 1000.0)
+                       min_ili_s=config.lick_min_ili_s())
     return np.asarray(det["lick_onsets"], dtype=np.int64), det
 
 

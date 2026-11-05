@@ -259,7 +259,7 @@ def patterns(s, sig):
     from wfield_local.plot_spout_trial_averages import _load_daq_events as _lc
 
     cue = _lc(s["h5"])
-    lk = _ll(s["h5"], "lick_analog", 2.5, 1.0, (0.001, 0.020), 0.10)
+    lk = _ll(s["h5"], "lick_analog")
     cue_f, _l, _c = _fr(s, cue, lk)
     codes = classify_cues_with_backup(s, cue, verbose=False)
     n, T = int(round(2.0 * FS)), sig.shape[1]
@@ -316,7 +316,7 @@ def analyse_session(lab, modes, win_s=DETREND_WIN_S, refit_t=False):
     need = [m for m in modes if m in MASK_SPEC]
     if need:
         cue = _lc(s["h5"])
-        lk = _ll(s["h5"], "lick_analog", 2.5, 1.0, (0.001, 0.020), 0.10)
+        lk = _ll(s["h5"], "lick_analog")
         _cf, _lf, csmp = _fr(s, cue, lk)
         if csmp is None:      # regime A has no corrected-frame map -> cannot build a mask
             modes = [m for m in modes if m not in MASK_SPEC]

@@ -167,7 +167,7 @@ def test_june_dir_and_primary_dir(camera, tmp_path):
     assert "pre0801" in primary
     # the june block's own tag (PRE_FROM unset), for the script and the deck alike
     jd = run_mode.june_august_drift_dir(lab)
-    assert jd.name == "june_august_drift" and "pre0801" not in jd.parent.name and jd.parent.name.endswith("stopA2jexrt3500c70")
+    assert jd.name == "june_august_drift" and "pre0801" not in jd.parent.name and jd.parent.name.endswith("stopA2jexrt3500c70_daqlk")
     camera.delenv("WIDEFIELD_PRE_FROM")                                  # inside the block
     assert run_mode.june_august_drift_dir(lab) == jd
     # the primary run's epoch dir, read from inside the block

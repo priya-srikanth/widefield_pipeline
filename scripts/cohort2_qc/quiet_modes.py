@@ -42,7 +42,7 @@ def one(label):
     from wfield_local.plot_spout_trial_averages import _load_daq_events as _lc
     s = next(s for s in config.load_sessions(machine="analysis_desktop") if s["label"] == label)
     res, func = Path(s["mc"]) / "wfield_local_results", int(hv.functional_channel(s))
-    cf, lf, csmp = _frames(s, _lc(s["h5"]), _ll(s["h5"], "lick_analog", 2.5, 1.0, (0.001, 0.020), 0.10))
+    cf, lf, csmp = _frames(s, _lc(s["h5"]), _ll(s["h5"], "lick_analog"))
     cf, csmp = np.asarray(cf), np.asarray(csmp)
     lf = np.sort(np.asarray(lf)[np.asarray(lf) >= 0])
     animal, mmdd = label.split("_")

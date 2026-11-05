@@ -231,10 +231,10 @@ def test_every_mode_gets_a_part(monkeypatch):
     monkeypatch.setenv("WIDEFIELD_MAP_REFS", "restnl, rest")
     monkeypatch.setenv("WIDEFIELD_EPOCH_FROZEN", "0")
     monkeypatch.setenv("WIDEFIELD_NOLICK_FROZEN", "off")
-    assert run_mode.parts() == [f"hv-{VAR}", "lnmfproj", "pre0801", "sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70", "refs-restnl+rest",
+    assert run_mode.parts() == [f"hv-{VAR}", "lnmfproj", "pre0801", "sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70", "daqlk", "refs-restnl+rest",
                                 "inmem-epoch+nolick"]
     cp = run_mode.cache_parts()       # + the camera class-source signature, cache only (review H4)
-    assert cp[:3] == [f"hv-{VAR}", "lnmfproj", "sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70"] and len(cp) == 4 and cp[3].startswith("csig-")
+    assert cp[:4] == [f"hv-{VAR}", "lnmfproj", "sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70", "daqlk"] and len(cp) == 5 and cp[4].startswith("csig-")
     assert not any(x.startswith("csig-") for x in run_mode.parts())
     t = run_mode.tag()
     assert lp_licks.output_tag() == t
@@ -247,7 +247,7 @@ def test_lp_tag_combines(monkeypatch):
     monkeypatch.setenv("WIDEFIELD_LICK_SOURCE", "lp")
     monkeypatch.setenv("WIDEFIELD_PRE_FROM", "0801")
     monkeypatch.setenv("WIDEFIELD_LP_FROZEN", "daq")
-    assert lp_licks.output_tag() == "LP_licks_pre0801_lpdaqtrained"
+    assert lp_licks.output_tag() == "LP_licks_pre0801_daqlk_lpdaqtrained"   # daqlk: REBUILD_CODE 8.53
 
 
 def test_writeguard_refuses_untagged_share_write_in_variant_mode(monkeypatch):
@@ -255,7 +255,7 @@ def test_writeguard_refuses_untagged_share_write_in_variant_mode(monkeypatch):
     monkeypatch.setenv("WIDEFIELD_HEMO_VARIANT", VAR)
     with pytest.raises(writeguard.WriteGuardError):
         writeguard.assert_writable("M:/MICROSCOPE/Priya/Widefield/labcams/grant_figures/epoch/x.png")
-    writeguard.assert_writable(f"M:/MICROSCOPE/Priya/Widefield/labcams/grant_figures/hv-{VAR}/epoch/x.png")
+    writeguard.assert_writable(f"M:/MICROSCOPE/Priya/Widefield/labcams/grant_figures/hv-{VAR}_daqlk/epoch/x.png")
 
 
 def test_trial_gate_default_daq():
@@ -279,7 +279,7 @@ def test_session_cache_default_kind_unchanged_and_variant_never_prunes_it(monkey
     files = sorted(p.name for p in (tmp_path / "cache").glob("*.pkl"))
     assert len(files) == 1 and files[0].startswith("PS92_0806__tf-cue-abc__")
     monkeypatch.setenv("WIDEFIELD_HEMO_VARIANT", VAR)
-    assert sc.effective_kind("tf-cue-abc") == f"tf-cue-abc-hv-{VAR}"
+    assert sc.effective_kind("tf-cue-abc") == f"tf-cue-abc-hv-{VAR}_daqlk"
     assert sc.cached(s, "tf-cue-abc", lambda: 2, verbose=False) == 2
     monkeypatch.setenv("WIDEFIELD_TRIAL_GATE", "camera")
     assert sc.cached(s, "tf-cue-abc", lambda: 3, verbose=False) == 3
@@ -294,9 +294,9 @@ def test_restnl_stem(monkeypatch):
     from wfield_local import restnl_mask as rm
     assert rm._stem("PS92_0806") == "PS92_0806__restnl"
     monkeypatch.setenv("WIDEFIELD_HEMO_VARIANT", VAR)
-    assert rm._stem("PS92_0806") == f"PS92_0806__restnl-hv-{VAR}"
+    assert rm._stem("PS92_0806") == f"PS92_0806__restnl-hv-{VAR}_daqlk"
     # the prune glob of one mode never matches the other's files
-    assert not Path(f"PS92_0806__restnl-hv-{VAR}__k.npz").match("PS92_0806__restnl__*.npz")
+    assert not Path(f"PS92_0806__restnl-hv-{VAR}_daqlk__k.npz").match("PS92_0806__restnl__*.npz")
 
 
 # ------------------------------------------------------------------------------------------- (j) projection path
@@ -514,4 +514,4 @@ def test_fixed_name_jsons_are_mode_tagged(monkeypatch):
     from wfield_local.grant_kit import _mode_name
     assert _mode_name("section_g.json") == "section_g.json"
     monkeypatch.setenv("WIDEFIELD_PRE_FROM", "0801")
-    assert _mode_name("section_g.json") == "section_g__pre0801.json"
+    assert _mode_name("section_g.json") == "section_g__pre0801_daqlk.json"

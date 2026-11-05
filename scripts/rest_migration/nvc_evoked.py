@@ -121,7 +121,7 @@ def session_traces(s):
     # LICKS ON THE SAME FRAME CLOCK, by the same searchsorted, with the pipeline's canonical
     # detector parameters (`nolick_decoder` calls it with exactly these).
     from wfield_local.plot_lick_aligned_averages import _load_daq_events
-    lk = _load_daq_events(s["h5"], "lick_analog", 2.5, 1.0, (0.001, 0.020), 0.10)
+    lk = _load_daq_events(s["h5"], "lick_analog")
     lick_frames = np.searchsorted(f_of, np.asarray(lk["lick_samples"]))
     t = (np.arange(-int(PRE_S * FS), int(POST_S * FS)) / FS)
     return t, pct470, pct415, cue_frames, lick_frames

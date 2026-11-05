@@ -74,7 +74,7 @@ def main() -> int:
         A = np.load(f"{config.locanmf_dir(mc)}/{s['label']}_locanmf_A.npy", mmap_mode="r")
         ncomp, T = C.shape
         dff = _footprint_scale(A, ncomp)[:, None] * C
-        cue = _load_cue_events(s["h5"]); lk = _load_daq_events(s["h5"], "lick_analog", 2.5, 1.0, (0.001, 0.020), 0.10)
+        cue = _load_cue_events(s["h5"]); lk = _load_daq_events(s["h5"], "lick_analog")
         fsd = cue["sample_rate_hz"]; cue_f, lick_f, csmp = _frames(s, cue, lk)
         if args.event == "lick":
             ev_f = lick_f; codes = _classify_events(lk["lick_samples"], lk["strobe_samples"], lk["strobe_codes"])
