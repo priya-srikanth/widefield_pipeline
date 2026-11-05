@@ -524,7 +524,7 @@ def cmd_collect(a) -> int:
     rv = PathResolver()
     os.environ[ce.RUN_ENV] = a.run or RUN
     d = bundle_dir(rv, a.name)
-    _refuse_other_run(_bundle_meta(d))                                 # the bundle's run == the current profile's
+    ident = _refuse_other_run(_bundle_meta(d))                         # the bundle's run == the current profile's
     src = d / "out" / a.tag
     meta = json.loads((src / "run.json").read_text())
     for k, v in (meta.get("bundle_env") or {}).items():        # same input settings -> same folder name as a local run
@@ -551,6 +551,12 @@ def cmd_collect(a) -> int:
             if s[end:].strip():
                 (dst / f.name).write_text(json.dumps(obj, indent=1), encoding="utf-8")
                 print(f"  repaired {f.name}: dropped {len(s) - end} trailing byte(s)")
+    if ident.get("accepted_parts"):
+        # provenance (8.54): outputs of a bundle recorded under the tag without the non-input part(s), collected into
+        # THIS run's folder
+        (dst.parent / f"collected_{a.name}__{a.tag}.json").write_text(json.dumps(
+            {"bundle": str(d), "tag": a.tag, "recorded_run_tag": ident["recorded_run_tag"], "run_tag": ident["run_tag"],
+             "accepted_parts": ident["accepted_parts"]}, indent=1), encoding="utf-8")
     print(f"collected {n} files ({len(list((src / 'sessions').glob('*.json')))} sessions) -> {dst}")
     return 0
 

@@ -3340,3 +3340,37 @@ n_licks changes in either comparison. Expected: every DAQ contact in the attempt
 3. The default (untagged) run has no `daqlk` part: its skip-if-exists outputs made under the old detector are not
    separated (per-session caches are, by v14).
 4. cohort2_qc scripts were switched too ("everywhere"); confirm cohort 2 follows.
+
+### 8.54 O2 bundles recorded without `daqlk` are accepted (coordinator 11-05; branch rebuild/daqlk-bundle-accept off 90b7ddd5)
+
+CODE + TESTS ONLY: nothing written to M:. Scratch: `.../scratchpad/lickdet/` (enc_inputs/, a separate enc_cache/).
+
+**Definitive check (8.53 Q1).** Bundle enc_rebuild_20261104b (code c149decf, old imaging detector, run tag without
+`daqlk`) vs its inputs rebuilt under 90b7ddd5:
+- How: `scripts/o2_encoding._inputs_worker` (the bundle path), env = the bundle's env.json (@tables read from the bundle),
+  `o2_encoding.apply_profile("cohort1_rebuild_20261103")`, cams cam1,cam4, FR master_pre_v1, a SEPARATE scratch
+  WFIELD_INPUT_CACHE, WIDEFIELD_NO_CACHE=1, an audit hook refusing any write on M: / N:. The attempts table read is
+  the one the bundle recorded (sha256 bef06b0a..., unchanged). Identity computed: the 8.53 tag with `_daqlk`, the same
+  selection, area basis splitr8.
+- Result, array by array (every ndarray / DataFrame / Series / scalar of the input dict and the Behaviour object):
+  PS95_0917 342 leaves, PS94_0819 342, PS93_0814 444 (video): **0 differences**. PS95_0917 and PS94_0819 are
+  byte-identical files. PS93_0814 is 253 bytes shorter: the pickle memo of numpy dtype objects (the bundle pickled a
+  fresh `dtype('i8' / 'f8' / 'b1')` per array where the rebuild re-used one); every array buffer is the same, and the two
+  loaded objects re-pickle to identical bytes.
+
+**Acceptance.** `o2_bundle.NON_INPUT_TAG_PARTS = ("daqlk",)`: an explicit, documented list of run-tag parts that are not
+encoder inputs (each entry needs a check like the one above). `o2_bundle.verify` accepts a recorded identity whose
+selection and area basis match exactly and whose run tag equals the current tag with exactly those parts removed
+(`tag_without_non_input_parts`, by `run_mode.parts()` names, no prefix / fuzzy match; one way only: a daqlk-tagged
+bundle under a run without daqlk still refuses). It returns the CURRENT identity + `recorded_run_tag` /
+`accepted_parts` and prints the acceptance. `check` / `collect` (via `_refuse_other_run`) and a refreshed-code runner
+use the same rule. `collect` routes to `combined_encoding.out_dir` under the current profile, i.e. the `_daqlk` encoding
+folder, and writes `collected_<bundle>__<TAG>.json` (recorded / current tag, accepted parts) beside `sessions/`.
+On O2 nothing changes for a resubmit: the bundled c149decf runner computes the recorded tag itself.
+
+**Tests.** New tests/test_o2_bundle_non_input_parts.py (12): the list is exactly ("daqlk",); the current tag = bundle
+b's + `_daqlk`; exact identity unchanged; the daqlk-less bundle accepted (verify + `_refuse_other_run`); refused when
+another part is missing, the stop rule differs, `_daqlkx` / `_daql`, the selection or the area basis differs; one-way;
+collect into the `_daqlk` folder with the provenance json. With test_o2_encoding_env: 25 passed.
+- Full suite on 23726438 (= 90b7ddd5 + this), 4 shards one at a time (27-41 GB free before each; frozen lanes running):
+  4,965 passed, 173 skipped, 0 failed (935 + 28 skipped; 813 + 5; 2,247; 970 + 140).
