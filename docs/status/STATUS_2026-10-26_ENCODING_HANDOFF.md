@@ -62,10 +62,10 @@ Day log with every step: docs/status/RUNNING_LIST_2026-11-01.md, sections "11-05
 - The frozen lanes run from worktree wf_rebuild_render_spont @ 90b7ddd5. Don't touch it until they finish.
 
 **Data (all under the `_daqlk` run tag** `.../imaging_encoding/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/`**).**
-- **O2 bundle b (enc_rebuild_20261104b): ALL 16 TAGs collected.**
+- **O2 bundle b (enc_rebuild_20261104b): ALL 15 TAGs collected.**
   - Every TAG has 107 sessions.
   - main and main_nolicksall were copied, sha256-verified, and the bundle copies deleted.
-  - The other 14 were moved with `collect --move`.
+  - The other 13 were moved with `collect --move`.
   - droppos needed a 96G resubmit of 14 OOM tasks (48G limit).
   - Re-copies from Priya's whole-out/ rsyncs were sha256-matched and deleted, with markers in each TAG folder.
   - Nothing is left to copy from O2. Bundle b's run.json and markers are kept.
