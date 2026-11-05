@@ -87,9 +87,11 @@ def summarize(animal, date, epoch, model, T, J, M, pl=None) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
-EPOCH_COLORS = {"pre": "0.2", "acute": "tab:red", "subacute": "tab:orange", "chronic": "tab:blue"}
-_SHADES = {"pre": ["0.2", "0.45", "0.65"], "acute": ["#d62728", "#ff7f7f", "#8b0000"],
-           "subacute": ["#ff7f0e", "#ffbb78", "#a65300"], "chronic": ["#1f77b4", "#7fb8e6", "#0b3d66"]}
+# Epoch hues = orofacial_cohort.EPOCH_LINE (the page palette), with a lighter and a darker shade for further sessions.
+# They were tab:red / orange / blue, which are the animals.yaml colours of PS93 / PS94 / PS92 (code review 2026-11-04).
+EPOCH_COLORS = {"pre": "0.2", "acute": "#d01c8b", "subacute": "#b8860b", "chronic": "#01665e"}
+_SHADES = {"pre": ["0.2", "0.45", "0.65"], "acute": ["#d01c8b", "#f1b6da", "#8e0152"],
+           "subacute": ["#b8860b", "#e6c35c", "#7a5a07"], "chronic": ["#01665e", "#5ab4ac", "#003c30"]}
 _SESSION_COLOR: dict = {}
 
 

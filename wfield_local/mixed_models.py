@@ -215,7 +215,16 @@ def summary_table(T: pd.DataFrame, by: list[str]) -> pd.DataFrame:
             .join(T.drop_duplicates(idx).set_index(idx)[["re", "n"]]))
 
 
-ANIMAL_COL = {"PS92": "#1b9e77", "PS93": "#d95f02", "PS94": "#7570b3", "PS95": "#e7298a"}
+def __getattr__(name):
+    """`ANIMAL_COL` = the animals.yaml colours (config.animal_color), read when asked for rather than at import so the
+    cohort env var in force at plot time decides. It was a hard-coded Dark2 map, so one animal had different colours on
+    different page figures (code review 2026-11-04)."""
+    if name == "ANIMAL_COL":
+        from wfield_local import config
+        return config.animal_color()
+    raise AttributeError(name)
+
+
 #: x axis per model: behavioural deficit or days since stroke
 _X = {"behaviour": ("deficit", "behavioural deficit, relative to pre (0 = pre level; larger = worse; mixed_models.DEFICITS)"),
       "behaviour_post": ("deficit", "behavioural deficit, relative to pre (0 = pre level; larger = worse; mixed_models.DEFICITS)"),
@@ -295,6 +304,8 @@ def plot_fits(L: pd.DataFrame, T: pd.DataFrame, panels, model: str, path: Path, 
     xcol, xlab = _X[model]
     if xlabel and model.startswith("behaviour"):                  # the caller's deficit (e.g. an angle measure)
         xlab = xlabel
+    from wfield_local import config
+    acol = config.animal_color()
     nrows = int(np.ceil(len(panels) / ncols))
     fig, ax = plt.subplots(nrows, ncols, figsize=(4.8 * ncols, 4.3 * nrows), squeeze=False)
     for k, (name, sel) in enumerate(panels):
@@ -309,7 +320,7 @@ def plot_fits(L: pd.DataFrame, T: pd.DataFrame, panels, model: str, path: Path, 
         for an, g in G.groupby("animal"):
             for post, mk in ((0, "o"), (1, "^")):
                 h = g[g.post == post]
-                a_.scatter(h[xcol], h.y, s=14, marker=mk, color=ANIMAL_COL.get(an, "0.4"), alpha=0.8,
+                a_.scatter(h[xcol], h.y, s=14, marker=mk, color=acol.get(an, "0.4"), alpha=0.8,
                            label=f"{an} {'post' if post else 'pre'}" if k == 0 and len(h) else None)
         c = c.set_index("term")
         if model in ("time", "behaviour"):

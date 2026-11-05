@@ -54,7 +54,7 @@ log for the earlier part of the day is `RUNNING_LIST_2026-11-02_OVERNIGHT.md`.
       z-scored figures now (pre-rebuild); a8 inserts the hidden slide. The main slide is unchanged for now. F0
       confirmed: it ROSE post-stroke, so raw dF/F is not inflated by a lower F0.
 
-12. **RUNNING (Priya OK 11-04): injected-effect validation of the frames.** Held-out pre sessions with the acute mix
+12. **DONE (Priya OK 11-04; results in docs/status/INJECTED_EFFECT_2026-11-04.md §3-4, §7): injected-effect validation of the frames.** Held-out pre sessions with the acute mix
     plus known injected effects: far-contra-specific loss / global gain / uniform offset / offset + loss / rest change
     only. Every frame is scored against an oracle frame. Output decoder_mix_checks/injected_effect_1104/,
     docs/status/INJECTED_EFFECT_2026-11-04.md. Original question: The literature review
@@ -844,3 +844,9 @@ FYI, the 3-class camera variant (lick / jaw-only / none) is thin in PS92 and PS9
 - 11-03 late: the jaw-only checks reported (findings top, question 0). Endpoints were reproduced exactly first. Nothing
   in production was changed. The write-up is on main (its doc was swept into another window's commit b22686fc;
   attribution commit 96618fbd).
+- 11-05: code edits while the O2 run is in flight (Priya OK). Only files that no rebuild/* branch touches (10 branches,
+  647 files re-listed today). New tests tests/test_pose_windows.py and tests/test_docked_periods.py (12 tests; new files,
+  no number changes). Colours, appearance only: mixed_models.plot_fits now takes animal colours from animals.yaml
+  (ANIMAL_COL kept as a lazy alias for lick_aim_deficit); scripts/session_lick_summary epoch shades now use the
+  EPOCH_LINE hues (were the PS92/93/94 animal colours). e3's mixed-model redraws pick up the animals.yaml colours.
+  Everything else in the review waits for the rebuild merge.
