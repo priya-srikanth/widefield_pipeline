@@ -1609,3 +1609,5 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
 - 00:55: conda module fix committed on rebuild/o2-conda-module (931cd777, worktree wf_rebuild_conda, off 34425934;
   O2 tests 50 passed). To merge with the two helper branches. a8 told that main still has the old module (to pass on to
   e0).
+- 01:00: a8 put the same conda module swap on main (981b4647; it pushes after its pre-push suite). e0 is told. No action
+  needed here; the rebuild keeps 931cd777.
