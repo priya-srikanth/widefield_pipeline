@@ -1543,3 +1543,15 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   - Frozen v7g3_t3d (robustness) frames: GO now.
   - The new primary design v7g3_t3d_spont (frozen-licks branch, first commit 910c408b) launches as soon as it is merged.
   - The O2 15 arrays go once test task 58602462 checks out.
+
+## 11-04 23:20: O2 first outputs checked; frozen spont design merged
+- **O2 bundle b, first copy-back:** bins_w1 PS92_0806 + PS92_0812 complete and consistent.
+  - The run.json env matches the bundle: split licks, LP 1 s lick-free ENL, commanded TARGET3D, the stopA2jexrt3500c70 attempts table (same sha).
+  - Fitted trials = contact + incomplete, exactly (364 = 353 + 11; 224 = 221 + 3). The non-working cues are scored only.
+  - No NaNs. All 11 bin models are scorable. Cortex R2 all-frames .62 / .58.
+  - main / bins_w05 / bins_w2 have no sessions yet.
+- **Frozen v7g3_t3d_spont:** rebuild/frozen-licks (910c408b, efc4d517; log 8.51) is merged into rebuild/cohort1-20261103 at **34425934**.
+  - The full suite is running on the merge.
+  - The runner has been asked to launch spont lanes from a new worktree wf_rebuild_render_spont (frames only; v7g3_t3d lanes untouched).
+  - Smoke: full R2 +.010 / +.021. Spont unique comes mainly out of the cued-lick group; target unique barely moves.
+- **Stray process:** PID 30404 is a leftover frozen_encoder from the 11-03 encoder-drift chain (first drift1200 start, superseded by the 15:08 restart). It is idle with ~0 GB and is mine. It was left running; stop it only on Priya's OK.
