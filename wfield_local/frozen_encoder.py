@@ -818,7 +818,11 @@ def session_design(label: str, templates: dict | None = None, template_only: boo
             "pos_counts": {str(p_): int((T.pos == p_).sum()) for p_ in pos_order},
             "Y": Y if Rd is None else None, "Ra": Ra if Rd is None else None,
             "spl_swap": spl_swap_deltas(Ms, templates, pos_of, k_of, pos_order, col_var, ftr) if spatial and not TE else None,
-            "lickland": lickland_info, "timing_source": fl_src, "spont": spont_counts(B)}
+            "lickland": lickland_info, "timing_source": fl_src, "spont": spont_counts(B),
+            # per-trial outputs (`write_trials`): the trial table, the frame rows, the lick sets of the lick timing
+            "E": E, "ft": ft, "ridx": ridx,
+            "lk_all": np.sort(np.concatenate([np.asarray(B.lick_on_s, float), np.asarray([] if ex_ is None else ex_, float)])),
+            "contact_s": np.asarray(B.contact_s, float)}
 
 
 def swap_template(M: np.ndarray, N: np.ndarray, qi: int) -> np.ndarray:
@@ -1443,7 +1447,7 @@ def load_trial_parts(run_dir, variant: str = "joint", areas=None):
     per-trial output existed (no ``trial_parts`` in the npz) are skipped with a note."""
     import pandas as pd
     rows, old = [], []
-    for f in sorted((Path(run_dir) / variant / "sessions").glob("*.npz")):
+    for f in sorted(f_ for f_ in (Path(run_dir) / variant / "sessions").glob("*.npz") if not f_.stem.endswith("_trials")):
         z = np.load(f, allow_pickle=False)
         if "trial_parts" not in z.files:
             old.append(f.stem)
@@ -1460,10 +1464,129 @@ def load_trial_parts(run_dir, variant: str = "joint", areas=None):
     return pd.concat(rows, ignore_index=True) if rows else pd.DataFrame()
 
 
+#: PER-TRIAL OUTPUTS (Priya 11-05, REBUILD_CODE 8.52): `<out>/joint/sessions/<label>_trials.npz` in the combined
+#: encoder's per-trial layout (`combined_encoding._TrialScorer`, read by `wfield_local.encoder_trials`), so contact
+#: ("hit") and incomplete trials are scored apart (the post-stroke frozen R2 drop vs class composition). Rows = the scored
+#: (engaged = working) trials; every row is held out: pre sessions leave-one-session-out, post sessions the all-pre fit
+#: (`t_frozen_from` loso | all_pre). tr_models: "full" (= the joint model; the reader's name for it) + the unique-share
+#: variants (`trial_variants`); `tr_variants` = the frozen names. Lick alignment = `trial_first_lick` (as the encoder's
+#: file, both designs). cls / cls_raw / attempted / canonical joined from the run tag's trial_attempts table.
+#: The JOINT model's per-class trial-to-trial terms are stored binned (`trial_to_trial_bins`: trial means removed within
+#: each spout x class), so `encoder_trials.class_summary` gives the per-class trial-to-trial R2 without frame traces.
+#: FROZEN_TRIALS = off | sse (default, ~1.5 MB per variant per session) | full (+ frames = data and the joint held-out
+#: prediction "cv", float16: + ~50 MB per session, for other groupings / PETHs) | full32. Allen-area targets only.
+TRIALS_ENV = "FROZEN_TRIALS"
+TRIALS_MODES = ("off", "sse", "full", "full32")
+#: the unique-share variants the figures read (joint - <variant>); absent ones are skipped
+#: the per-trial file's DEFAULT variants: the joint model + the headline unique shares (joint - <variant>); ~2.5 MB per
+#: variant per session (float32 binned SSE, both alignments, ~60 areas, ~500 trials), so the default file is ~25-30 MB.
+#: FROZEN_TRIAL_VARIANTS = "all" (every unique-share variant of TRIAL_VARIANTS_ALL the run fitted) or a comma list.
+TRIAL_VARIANTS = ("joint", "no_timing", "no_target", "no_task", "no_lick", "no_contact", "no_other", "no_spont",
+                  "no_movement", "no_fr_all", "no_execution")
+TRIAL_VARIANTS_ALL = (*TRIAL_VARIANTS, "no_exec_locked", "no_exec_within", "no_spout", "task_only", "no_lickspout",
+                      "no_fr", "no_fr_dir", "no_fr_locked", "no_posinfo", "no_noposinfo")
+TRIAL_VARIANTS_ENV = "FROZEN_TRIAL_VARIANTS"
+
+
+def trial_variant_names() -> tuple:
+    v = os.environ.get(TRIAL_VARIANTS_ENV, "").strip()
+    if not v:
+        return TRIAL_VARIANTS
+    if v.lower() == "all":
+        return TRIAL_VARIANTS_ALL
+    return ("joint", *[x.strip() for x in v.split(",") if x.strip() and x.strip() != "joint"])
+
+
+def trials_mode() -> str:
+    v = os.environ.get(TRIALS_ENV, "").strip().lower() or "sse"
+    if v not in TRIALS_MODES:
+        raise ValueError(f"{TRIALS_ENV}={v!r}; expected one of {TRIALS_MODES}")
+    return v
+
+
+def trial_variants(fits: dict) -> list:
+    """The per-trial file's variants among ``fits`` (`trial_variant_names` order; [] without the joint model)."""
+    return [v for v in trial_variant_names() if v in fits] if "joint" in fits else []
+
+
+def _trial_scorer(d: dict, Rd: np.ndarray, off: np.ndarray, n_models: int):
+    """The combined encoder's per-trial scorer on this session's frozen rows (every trial fitted-row space, none
+    scored-only)."""
+    E = d["E"]
+    return _ce()._TrialScorer(E, E, None, d["ridx"], np.zeros(0, int), d["ft"], None, np.zeros(len(E), int),
+                              d["cue_f"], d["first_f"], d["lk_all"], off, d["fs"], Rd, np.zeros((0, Rd.shape[1])),
+                              n_models, trials_mode(), contact_s=d["contact_s"])
+
+
+def trial_to_trial_bins(scorer, pos: np.ndarray, cls: np.ndarray) -> dict:
+    """The JOINT model's trial-to-trial terms per trial and bin, with the trial means removed within each (spout, class)
+    group -- exactly `encoder_trials.class_full_fine` over a one-class mask, binned like `sse_bins` -- so the per-class
+    trial-to-trial R2 needs no frame traces (mode sse): `sse_trial_bins_<align>` / `sst_trial_bins_<align>` (trials,
+    bins, areas), float32; `trial_groups` = "pos+cls". Uses the scorer's data rows and its held-out "full" prediction."""
+    import warnings
+    ce = _ce()
+    nb = len(scorer.edges) - 1
+    out = {"trial_groups": np.array("pos+cls")}
+    grp = np.array([f"{p}|{c}" for p, c in zip(pos, cls)])
+    for a, (ii, ok) in scorer.gi.items():
+        D = np.where(ok[..., None], scorer.R[ii], np.nan)
+        P = np.where(ok[..., None], scorer.cv[ii].astype(np.float64), np.nan)
+        dd, dp = np.empty_like(D), np.empty_like(P)
+        for g in np.unique(grp):
+            m = grp == g
+            with np.errstate(invalid="ignore"), warnings.catch_warnings():
+                warnings.simplefilter("ignore", RuntimeWarning)
+                dd[m] = D[m] - np.nanmean(D[m], 0, keepdims=True)
+                dp[m] = P[m] - np.nanmean(P[m], 0, keepdims=True)
+        out[f"sse_trial_bins_{a}"] = ce._binsum((dd - dp) ** 2, scorer.b, nb).astype(np.float32)
+        out[f"sst_trial_bins_{a}"] = ce._binsum(dd ** 2, scorer.b, nb).astype(np.float32)
+    return out
+
+
+def write_trials(label: str, out_dir, d: dict, Rd: np.ndarray, f0: dict, scorer, tvars: list, frozen_from) -> dict:
+    """Finish ``scorer`` and write `<out_dir>/joint/sessions/<label>_trials.npz`; -> {path, MB}."""
+    import pandas as pd
+    from wfield_local import encoder_trials as et
+    names = ["full" if v == "joint" else v for v in tvars]
+    tid = np.asarray(scorer.table["trial_id"])
+    n = len(tid)
+    cls = {}
+    A = None
+    try:
+        from wfield_local import lp_licks
+        ap_ = Path(lp_licks.attempts_path())
+        A = pd.read_csv(ap_) if ap_.exists() else None
+    except Exception:                                    # no attempts table for this run: classes "missing"
+        A = None
+    if A is not None:
+        J = et.join_classes({"table": pd.DataFrame({"trial_id": tid})}, label, attempts=A)["table"]
+        for c in ("cls", "cls_raw"):
+            if c in J:
+                cls[f"t_{c}"] = J[c].fillna("missing").to_numpy().astype(str)
+        for c in ("attempted", "canonical"):
+            if c in J:
+                cls[f"t_{c}"] = J[c].fillna(False).to_numpy(bool)
+    if "t_cls" not in cls:
+        cls["t_cls"] = np.full(n, "missing")
+    tt = trial_to_trial_bins(scorer, np.asarray(scorer.table["pos"]), cls["t_cls"])
+    out = scorer.finish(["data"], lambda _c: (Rd.astype(np.float32), np.zeros((0, Rd.shape[1]), np.float32)),
+                        np.zeros(Rd.shape[1]), names, names)
+    out.update(cls)
+    out.update(tt)
+    out["t_frozen_from"] = np.full(n, str(frozen_from))
+    out["t_heldout"] = np.ones(n, bool)                  # pre: LOSO; post: the all-pre fit (never fitted on)
+    out.update({"tr_variants": np.array(tvars), "areas": np.array(f0["areas"]), "design": np.array(design_name()),
+                "run_tag": np.array(_run_tag()), "stats_version": np.int64(STATS_VERSION)})
+    p = Path(out_dir) / "joint" / "sessions" / f"{label}_trials.npz"
+    p.parent.mkdir(parents=True, exist_ok=True)
+    np.savez_compressed(p, **out)
+    return {"path": str(p), "MB": round(p.stat().st_size / 1e6, 2)}
+
+
 def predict_job(job):
     """Apply the animal's frozen models (one per variant) to one session; PETHs of data and each part, cue- and
     lick-aligned, written to <out>/<variant>/sessions/<label>.{npz,json}."""
-    label, fits, out_dir, tpath, spath = (*job, None)[:5]
+    label, fits, out_dir, tpath, spath, trials_only = (*job, None, False)[:6]
     ce = _ce()
     from wfield_local import config
     an = config.animal_of(label)
@@ -1495,6 +1618,8 @@ def predict_job(job):
                 r = Rd[m] - pred[m]
                 out[f"{w}|{q}"] = (((r - r.mean(0)) ** 2).sum(0)).tolist()
         return out
+    tvars = trial_variants(fits) if trials_mode() != "off" else []
+    scorer = _trial_scorer(d, Rd, off, len(tvars)) if tvars else None
     for variant, fit in fits.items():
         beta = fit["beta_loso"].get(label, fit["beta_all"])
         frozen_from = "loso" if label in fit["beta_loso"] else "all_pre"
@@ -1512,6 +1637,11 @@ def predict_job(job):
             if (m & qm).any():
                 x = x + (pfree if pfree is not None else Zv[:, m & qm] @ beta[m & qm])
             return x
+        if variant in tvars:                             # per-trial binned SSE (the joint model = "full")
+            scorer.model(tvars.index(variant), "full" if variant == "joint" else variant, full, None)
+        if trials_only:                                  # post hoc: nothing but the trials file
+            summary["frozen_from"] = frozen_from
+            continue
         if "|drop:" in variant or variant in DROP_BASES:
             drop_sse[variant] = _sse(full)
         if "|drop:" in variant:
@@ -1585,6 +1715,8 @@ def predict_job(job):
         (sess / f"{label}.json").write_text(json.dumps(meta, indent=1, default=str), encoding="utf-8")
         summary[variant] = r2
         summary["frozen_from"] = frozen_from
+    if scorer is not None:
+        summary["trials"] = write_trials(label, out_dir, d, Rd, f0, scorer, tvars, summary.get("frozen_from"))
     if drop_sse:
         dd = Path(out_dir) / "dropspout" / "sessions"
         dd.mkdir(parents=True, exist_ok=True)
@@ -1926,7 +2058,19 @@ def main(argv=None) -> int:
                     help="run folder whose per animal x variant ridge alphas (<variant>/sessions/*.json) are HELD")
     ap.add_argument("--predict", nargs="+", default=None, help="predict only these sessions (fits use every pre session)")
     ap.add_argument("--out-root", default=None, help="parent folder of frozen_encoder_<tag> (default: the share)")
+    # POST HOC PER-TRIAL FILES (8.52): an existing frame (e.g. v7g3_t3d, rendered before the trials file existed) gets
+    # `<label>_trials.npz` from its OWN saved statistics -- the same fits (deterministic from the saved Gram terms), no
+    # other file written or touched
+    ap.add_argument("--trials-only", action="store_true",
+                    help="write only joint/sessions/<label>_trials.npz from this run's saved fit/pre_stats.pkl")
     a = ap.parse_args(argv)
+    if a.trials_only:
+        if a.target != "areas" or a.fit_from or a.alphas_from:
+            raise SystemExit("--trials-only: Allen-area targets of this run's own saved statistics only")
+        if trials_mode() == "off":
+            raise SystemExit(f"--trials-only with {TRIALS_ENV}=off writes nothing")
+        a.reuse_stats, a.no_drop_spout = True, True
+        a.variants = [v for v in trial_variant_names() if v in a.variants or v == "joint"]
     if a.target != "areas":
         if a.variants == list(VARIANTS):
             a.variants = [*PART_VARIANTS, *_DROP, "task_only"]   # parts (maps) + drop variants (unique-R2 maps)
@@ -1960,6 +2104,9 @@ def main(argv=None) -> int:
                                  for s_ in saved):
         print(f"  saved statistics are not STATS_VERSION {STATS_VERSION} / running {_run_tag()}: recomputing", flush=True)
         saved = None
+    if a.trials_only and saved is None:
+        raise SystemExit(f"--trials-only: no usable saved statistics in {out / 'fit'} for this environment (STATS_VERSION "
+                         f"{STATS_VERSION}, running {_run_tag()}); nothing is recomputed")
     if a.fit_from and saved is None:
         raise SystemExit(f"--fit-from {a.fit_from}: no usable saved statistics for this environment (STATS_VERSION "
                          f"{STATS_VERSION}, running {_run_tag()}); refusing to recompute into another run's folder")
@@ -2024,15 +2171,22 @@ def main(argv=None) -> int:
         fits[an] = fa
         for v in a.variants:
             f = fa[v]
+            if a.trials_only:                            # the run's own fit files stay as they are
+                continue
             np.savez_compressed(out / "fit" / f"{an}_{v}.npz", scale=f["scale"], C=f["C"], vcol=f["vcol"],
                                 beta_all=f["beta_all"], col_var=f["col_var"], areas=np.array(f["areas"]))
             print(f"  {an} {v}: {len(labs)} pre sessions, LOSO R^2 (areas summed) {f['loso_r2']:.3f}, "
                   f"alphas {f['alphas']}", flush=True)
-    jobs = [(x, fits[config.animal_of(x)], str(out), str(tp), spath) for x in labels if config.animal_of(x) in fits
+    jobs = [(x, fits[config.animal_of(x)], str(out), str(tp), spath, a.trials_only) for x in labels
+            if config.animal_of(x) in fits
             and (not a.predict or x in a.predict)]
     res, fail = _fan(jobs, a.jobs)
     for it, err in fail:
         print(f"  !! predict {it[0]}: {err}", flush=True)
+    if a.trials_only:
+        for _it, r in sorted(res, key=lambda kv: kv[1]["label"]):
+            print(f"  {r['label']} [{r.get('frozen_from')}] trials -> {r.get('trials')}", flush=True)
+        return 0 if not fail else 1
     if not a.no_drop_spout and a.target == "areas":
         summarise_drop(out)
     summarise_musall(out, a.variants)

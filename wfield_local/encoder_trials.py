@@ -167,5 +167,10 @@ def class_summary(z: dict, label: str | None = None, by: str = "cls", area: int 
             f = class_full_fine(z, m, align)
             ow = np.isin(z["bin_of_off"], np.flatnonzero(bw))
             r["trial_R2"] = float(1 - f["sse_trial"][area, ow].sum() / f["sst_trial"][area, ow].sum())
+        elif f"sse_trial_bins_{align}" in z and by == "cls" and str(z.get("trial_groups")) == "pos+cls":
+            # the FROZEN encoder's file (8.52): the joint model's trial-to-trial terms, binned, with the trial means
+            # removed within each spout x class at write time (= class_full_fine over this class)
+            st, tt = z[f"sse_trial_bins_{align}"][m], z[f"sst_trial_bins_{align}"][m]
+            r["trial_R2"] = float(1 - st[:, bw, area].astype(np.float64).sum() / tt[:, bw, area].astype(np.float64).sum())
         rows.append(r)
     return pd.DataFrame(rows)
