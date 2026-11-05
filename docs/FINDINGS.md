@@ -1748,7 +1748,10 @@ each animal's own pre. Factor names, not numbers (numbers shift between fits).*
     CONTRA: far_R recall .42 -> .19 (chance) -> .41 chronic; other spouts change little. **PROVISIONAL**. Bearing on
     imaging 3.10: the cortical pre-cue position code (.33-.55) sits in the same range as the face's, so part of it may
     be face posture / movement; a movement-removed cortical ENL decode with FR as regressors is the test. Untested:
-    whether the FR mesh sees the spout itself (the video motion-energy check masked the spout; FR has no such check).
+    whether the FR mesh sees the spout itself -- TESTED 11-05, it does not: `scripts/fr_spout_mesh_control.py` removes
+    the mesh points within 30 / 60 px of every session's spout tips (15 / 63 of 1282; none within 56 px of a far tip)
+    before projection; the decode is unchanged (2 s pre .431 -> .428 / .418; session changes median 0 / -.006, all
+    within +-.04; acute far_R recall .19 at every radius; same epoch deltas).
 14. **The cortical pre-cue position code is NOT the face movement FR captures** (10-25; `scripts/enl_fr_removed_decode.py`,
     FACE_RHYTHM_FINDINGS 7b; answers 13's test). The video analysis's trials, features and in-fold removal
     (`enl_movement_multisession`; raw arm identical on all 107 shared sessions), with the 12 FR factors + running

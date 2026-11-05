@@ -620,9 +620,17 @@ dropping the last 0.5 s; the 1 s window's signal is mostly in its last 0.5 s, wh
 post-cue licks, so read 1 s with care. (2) This is in the range of the cortical pre-cue decode (.33-.55, imaging
 page section 1), so the imaging ENL position code cannot be assumed movement-free: a cortical ENL decode with the FR
 factors regressed out (or FR as a competing decoder on the same trials) is the test. (3) Acutely the face stops
-distinguishing far contra before the cue, like cortex. Open: whether the FR mesh responds to the spout itself (the
-video motion-energy check, `scripts/enl_video_spout_check.py`, masked the spout; FR has no such control); a
-per-trial cortex-vs-face comparison on matched trials.
+distinguishing far contra before the cue, like cortex. Open: a per-trial cortex-vs-face comparison on matched trials.
+
+SPOUT-IN-MESH CONTROL (11-05, `scripts/fr_spout_mesh_control.py` -> readouts/master_pre_v1/spout_mesh_control/): the
+mesh points within R px of ANY session's spout tip (master frame, all six positions: one mask for every trial and
+session, so the mask carries no position) are removed from the data rows and the spatial factors before re-projecting
+the ENL bins; FR's own per-row normaliser kept; same decoder / trials / arms. R = 30 px drops 15 / 1282 points, R = 60
+drops 63 (no point lies within 56 px of a far tip; the close tips sit at the ROI's lower edge). R = 0 reproduces proj/
+(max relative |dW| 3.5e-7) and this section's numbers. Result: the face decode does NOT come from the spout. 2 s pre
+.431 / .428 / .418 (R 0 / 30 / 60), acute .349 / .348 / .343, chronic .457 / .455 / .449; per-session change median
+0 (R 30) and -.006 (R 60), all within +-.04; acute far_R recall .19 at every radius; every epoch delta and its interval
+unchanged to ~.01 (2 s, end -0.5 s: pre .344 / .345 / .340).
 
 ## 7b. Cortical pre-cue position code with the FR factors regressed out (PROVISIONAL, four animals, 10-25)
 

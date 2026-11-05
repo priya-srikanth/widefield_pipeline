@@ -861,3 +861,9 @@ FYI, the 3-class camera variant (lick / jaw-only / none) is thin in PS92 and PS9
   Per-class encoder figure (A14): MAIN for now (sent to 34). 34: B12 early look = spont lick kernels move pre-cue
   position credit < .002 everywhere; chronic rise in 3 / 4 in both arms (not a spont artefact). Rebuild -> main merge
   done on merge/rebuild-into-main-20261105 (2730033a), unpushed.
+- 11-05 ~15:00: merge push 1 rejected by pre-push (1 failed / 5,028: test_no_imaging_literal_left, cohort2
+  led_490_vs_470_dprime.py passed the retired imaging lick profile; 34 fix 411c8385). 34 also merged the section C
+  commits (24d604cc, 19d3cf71) as 6abf515c; re-push started ~14:50, expected on main ~17:10. a8 still holding 7 local
+  commits. Item D hand-script check (report only): no script outside the repo needs the new API. Hits = a8's applied
+  11-03 one-off edit scripts (spout_balem_1103/edit_gk.py, edit_lfd2.py) and another session's scratch gk_main.py;
+  in-repo old calls (grant_kit, spout_scaling) are replaced by the merge.
