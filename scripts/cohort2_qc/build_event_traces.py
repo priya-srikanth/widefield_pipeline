@@ -14,7 +14,7 @@ from scipy.ndimage import binary_erosion
 from scipy.signal import find_peaks, butter, filtfilt
 import matplotlib; matplotlib.use("Agg"); import matplotlib.pyplot as plt
 
-FS=31.23; NROOT=Path("N:/MICROSCOPE/Priya/Widefield/labcams")
+FS=31.23; NROOT=next((p for p in (Path(f"{d}:/MICROSCOPE/Priya/Widefield/labcams") for d in "NM") if p.exists()), Path("N:/MICROSCOPE/Priya/Widefield/labcams"))  # N: on the imaging box, M: on the analysis desktop
 def rz(x): x=np.asarray(x,float); x=x-np.median(x); return x/(1.4826*np.median(np.abs(x))+1e-12)
 
 def main():

@@ -123,7 +123,12 @@ def analyze(label, dat, daq, out_dir):
            "dat_bytes": int(_st.st_size), "dat_mtime": float(_st.st_mtime),
            "dur_min": float(dur_min), "roi_px": int(P.sum()), "channels": {}}
     norm = {}
+    # The functional LED shares the led470_ttl line and the "470" record key; only the LEGEND names the LED
+    # actually fitted. A `_490_` session folder (PS121 / PS122 on 2026-11-04) was imaged at 490 nm.
+    func_nm = "490" if re.search(r"[\\/]PS\d+_490_", dat) else "470"
+    res["functional_led_nm"] = int(func_nm)
     for c, name in [(415, "415"), (470, "470")]:
+        disp = func_nm if name == "470" else name
         msk = lab == c
         if msk.sum() < 30: continue
         tt, vv = t[msk], roi[msk]
@@ -137,11 +142,11 @@ def analyze(label, dat, daq, out_dir):
                                       per_min=float(p[0] * 60), start=float(start), end=float(end))
         ax[0].plot(tt, vv, ".", ms=2, color=COL[name], alpha=0.15)
         ax[0].plot(ctr[good], bmed[good], "-o", ms=4, lw=2, color=COL[name],
-                   label=f"{name}  ({pct:+.1f}%)")
+                   label=f"{disp}  ({pct:+.1f}%)")
         nrm = bmed[good] / bmed[good][0]
         norm[name] = (ctr[good] - ctr[good][0], nrm)
-        ax[1].plot(ctr[good] - ctr[good][0], nrm, "-o", ms=4, lw=2, color=COL[name], label=name)
-        print(f"[{label}] {name}: median={np.median(vv):.0f} drift={pct:+.1f}% ({p[0]*60:+.1f}/min)")
+        ax[1].plot(ctr[good] - ctr[good][0], nrm, "-o", ms=4, lw=2, color=COL[name], label=disp)
+        print(f"[{label}] {disp}: median={np.median(vv):.0f} drift={pct:+.1f}% ({p[0]*60:+.1f}/min)")
     ax[0].set_xlabel("session time (s)"); ax[0].set_ylabel("brain-ROI mean"); ax[0].legend()
     ax[0].set_title(f"{label}  ROI intensity (binned median + fit)")
     ax[1].axhline(1.0, color="k", lw=0.6)

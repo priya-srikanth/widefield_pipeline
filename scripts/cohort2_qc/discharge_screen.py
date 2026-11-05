@@ -10,7 +10,7 @@ for sessions with calcium discharges). Reads N: SVTcorr/SVT/U/frames_average. Ru
   python scripts/cohort2_qc/discharge_screen.py [--animals PS121 PS122] [--out <dir>]
 """
 from __future__ import annotations
-import argparse, glob, csv
+import argparse, csv, os
 from pathlib import Path
 import numpy as np
 from scipy.ndimage import binary_erosion
@@ -18,7 +18,7 @@ from scipy.signal import find_peaks, butter, filtfilt
 import matplotlib; matplotlib.use("Agg"); import matplotlib.pyplot as plt
 
 FS = 31.23
-NROOT = Path("N:/MICROSCOPE/Priya/Widefield/labcams")
+NROOT = next((p for p in (Path(f"{d}:/MICROSCOPE/Priya/Widefield/labcams") for d in "NM") if p.exists()), Path("N:/MICROSCOPE/Priya/Widefield/labcams"))  # N: on the imaging box, M: on the analysis desktop
 
 def rz(x):
     x = np.asarray(x, float); x = x - np.median(x)
@@ -47,7 +47,7 @@ def screen_session(day, sess):
 def main(argv=None):
     ap = argparse.ArgumentParser()
     ap.add_argument("--animals", nargs="+", default=["PS121","PS122"])
-    ap.add_argument("--out", default="E:/labcams_data")
+    ap.add_argument("--out", default=os.environ.get("WORK", "E:/labcams_data"))
     a = ap.parse_args(argv)
     sessions = []
     for day in sorted(p.name for p in NROOT.glob("2026*") if p.is_dir()):
