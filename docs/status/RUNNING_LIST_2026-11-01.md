@@ -1555,3 +1555,8 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   - The runner has been asked to launch spont lanes from a new worktree wf_rebuild_render_spont (frames only; v7g3_t3d lanes untouched).
   - Smoke: full R2 +.010 / +.021. Spont unique comes mainly out of the cued-lick group; target unique barely moves.
 - **Stray process:** PID 30404 is a leftover frozen_encoder from the 11-03 encoder-drift chain (first drift1200 start, superseded by the 15:08 restart). It is idle with ~0 GB and is mine. It was left running; stop it only on Priya's OK.
+- **23:22, the stray process was stopped (Priya OK).**
+  - Stopped PID 30404 (exit logged as 127).
+  - Its parent chain_enc.sh then started its next step, a drift900 re-run: PID 3384 plus its 4 pool workers. Stopped within about 1 minute; the chain has now ended (900 was its last cutoff).
+  - Checked: no file under encoder_drift_cutoff_20261103/encoding/drift900 (4,691 files) and nothing in the encdrift caches was written after 23:00. The 11-03 drift outputs are intact.
+  - The v7g3_t3d render lanes (24068, 35928) were untouched.
