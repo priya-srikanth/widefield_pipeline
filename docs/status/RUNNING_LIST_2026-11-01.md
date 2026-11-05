@@ -1515,3 +1515,8 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   - Gap: the trials.npz comparison was not exercised (ONLY=drop:task returns no per-trial outputs). Covered in practice
     by inspecting the 1-task test's main output.
   - Note for collect: export COMBINED_ENCODING_LICKS_ALL=split + ENL_SOURCE=lp, like the check needed.
+- **11-04 ~23:10: swap-mask check. The interpolated swap frame pairs are a tiny share of each session.**
+  - Median 0.07 %, mean 0.10 %, max 0.37 % (PS92_0828); no session above 1 %.
+  - The encoders fit on the interpolated frames (they are not dropped), which is harmless at this size. The O2 run
+    stands.
+  - The O2 1-task test job 58601937 is submitted (pending).
