@@ -39,6 +39,43 @@ for anything that loads imaging. E = `M:/MICROSCOPE/Priya/Widefield/LP_analysis/
 3. Then tell **sabatinilab-e3** (PI deck) the decoder figures are final: per figure the share PNG path, page Fig N.k,
    script + args, headline numbers, methods text (they asked 10-26 ~22:30; reply sent: not final yet).
 
+### 00-COMPACT-26 (11-05 ~00:10) -- READ FIRST; updates 25 (25 holds for code / data / queue)
+
+**O2 (per-session encoder, bundle enc_rebuild_20261104b).**
+- The first test job, 58601937, FAILED in 3 s: O2 retired conda/miniforge3/24.11.3-0; the current module is 26.9.4-1.
+  - Fixed: run_enc.sbatch patched on M: and on scratch (Priya ran the sed). Priya cancelled the 15 early arrays.
+- Test job 58602462 is RUNNING (good start line, empty .err). Priya checks for "full cvR2" + _trials.npz, then submits
+  the 15 arrays.
+- Commands given to Priya (with A=ATTEMPTS=tables/trial_attempts.csv):
+  - progress: squeue / per-TAG json counts / sacct failures;
+  - OOM resubmit: --mem=64G, same --export;
+  - transfer-node rsync of out/.
+- When main + main_nolicksall are copied back, collect (export COMBINED_ENCODING_LICKS_ALL=split + ENL_SOURCE=lp), then
+  report B12 FIRST:
+  - drop:pos_enl split vs nolicksall per animal x epoch, LP enl + fixed2s, n, CIs;
+  - with it, the frozen target columns before / after.
+- TODO (code): replace the hard-coded conda module everywhere and tell e0 / a8. Sites:
+  - configs/defaults.yaml :947 / :1335;
+  - scripts/o2_encoding.py :336;
+  - o2_face_rhythm.py :763 / :780 / :1116;
+  - o2_lp_train_bundle.py :108;
+  - runbooks/o2_pose_inference.md.
+- Swap-mask check: the interpolated swap pairs are a median 0.07 % / max 0.37 % of frames, so they are kept in the fit
+  (not dropped). Harmless.
+
+**Frozen encoder on this box (Priya: start every job when able, parallelized).**
+- v7g3_t3d (robustness, no spontaneous lick terms): runner told GO at ~23:55.
+  - Code c149decf, new tag; output folders must carry the design name; RAM-sized parallelism, <= 6-8 workers.
+  - Progress is in RENDER_LOG.md.
+- v7g3_t3d_spont (PRIMARY: licks / licks_pre / licks_iti, pre + ITI uninstructed): branch rebuild/frozen-licks, worktree
+  wf_rebuild_frozenlicks, first commit 910c408b. Smokes + suite still to finish.
+  - Then: merge into rebuild/cohort1-20261103, run the suite, update the render worktree, launch its frames.
+  - Expected ~03:00-05:00.
+
+**Next after that.** Rebuild the render queue for the new tag (the old queue2.sh is stale): G0-G8, the encoder family,
+rebuild_figs, drift1500, plus the new figures (B11 panel, G4, slide-95 raw + z). Then the queued code items in 25, the
+two verifiers, and the replacement pass.
+
 ### 00-COMPACT-25 (11-04 ~22:50) -- READ FIRST; updates 24 (24/23 still hold for rules)
 Every decision and finding of 11-04 is in the running list (RUNNING_LIST_2026-11-01.md, block "11-03 EVENING", newest at
 the end). Read it in full before acting.
