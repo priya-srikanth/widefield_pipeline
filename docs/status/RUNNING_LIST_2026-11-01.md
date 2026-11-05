@@ -1901,3 +1901,10 @@ bundle without `daqlk` and writes a provenance json.
   {16,32}px) and deck slides that reuse them (10-26 deck slide 47, 11-02 deck slide 70); replace with the queued
   frozen_residual_significance figures (8 px nested bootstrap + full-res cluster; per spout in canonical order + all).
   fig_resid16 / fig_resid_spout are not run. No --bin option added.
+- ~18:45: Priya: add the block-size option -> 5993d70e (beta_maps.significance_contour factor= / frozen_residual_significance
+  --bin N; default 8 px unchanged, non-default writes *_<N>px). Tests 254 passed; pushing to main. Not rendered at 16 px
+  (8 px stays the replacement for Figs 7).
+  - Priya asked: start the cleanup window now? Answer: yes (render runs from its own pinned worktree; ask it to keep
+    outputs / computations identical until the replacement pass, fetch before every push, not touch wf_render_daqlk or
+    render processes, no heavy runs on the box). Decks: analysis deck + PI deck updated in the replacement pass, after the
+    render + verifiers, using a8's REPLACEMENT_PASS_MAP; coordinate PI-deck edits with the window that owns it.
