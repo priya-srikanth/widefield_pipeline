@@ -1803,3 +1803,11 @@ bundle without `daqlk` and writes a provenance json.
   - Leftover re-copies from the earlier whole-out/ rsync (drop, nodir, shufpos, trmodels, musall_shuf, fr_S, fr_D
     partial 269/428) DELETED file by file after size + sha256 match: 2,409 files, 32.9 GB, 0 unmatched
     (scratchpad/collect_verify/verify_delete3_result.json; RECOPY_DELETED.txt per TAG).
+- ~12:30: **rebuild -> main MERGE done (unpushed)**: branch merge/rebuild-into-main-20261105 (worktree wf_merge_main), merge
+  2730033a of rebuild 31ec5c1a into origin/main 6c00efbb, fixes fed41d8d / 51dae7cd, report ca6f6a06
+  (docs/status/MERGE_REBUILD_INTO_MAIN_20261105.md). 21 conflicts (14 modules = rebuild file, main already hand-ported;
+  main fixes kept in grant_similarity / s1_trial_class_snapshot / softmax_neural_vs_lick; a8 notes a / b applied).
+  Suite 5011 passed / 175 skipped / 6 failed pre-fix, all 6 explained + fixed (only those files re-run).
+  - DECISION for Priya: non-profile `nightly_figs` now uses June + August pre (main's PRE_FROM=0801 default dropped; the
+    profile sets it per block). Proposed: restore the 0801 default only when no render profile is active.
+  - Push waits on Priya.
