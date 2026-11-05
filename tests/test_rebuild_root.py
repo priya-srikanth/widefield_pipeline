@@ -287,6 +287,7 @@ RESOLVED = {
     "wfield_local/dlc_frames.py",
     "wfield_local/dlc_hard_frames.py",
     "wfield_local/dlc_iti_frames.py",
+    "wfield_local/dlc_sidecam.py",            # main's side-camera labelling frames (merged 11-05)
     "wfield_local/epochs.py",
     "wfield_local/frozen_relabel.py",
     "wfield_local/histology_area.py",
@@ -345,7 +346,6 @@ LITERAL = {
     "scripts/rebuild_figs/fig_state_ps94_diagnostic.py",
     "wfield_local/dlc_prelabel.py",
     "wfield_local/frozen_models.py",
-    "wfield_local/locanmf_event_master.py",
     "wfield_local/locanmf_lick_cards.py",
     "wfield_local/locanmf_lick_pool.py",
     "wfield_local/lp_multiview.py",
