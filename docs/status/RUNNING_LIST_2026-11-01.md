@@ -1817,3 +1817,11 @@ bundle without `daqlk` and writes a provenance json.
 - a8 relayed Priya's 11-05 answers (DECISIONS_PENDING_MERGE (f) 1-9). Mine to apply at the replacement pass: A14
   per-class encoder figure on the MAIN encoding page; slide 95 numbers (tell a8 if they change); 3.67 PNG vs TFCE
   caption. Decision 9 (ITI stats -> ak) = a8, post-merge.
+- a8 item B (widefield_pipeline docs/status/reanalysis_20261105/FROZEN_FOLLOWUP_2026-11-05.md; EARLY, to Priya):
+  - PS92 pre trend: pre slope -26e-3/day. Per-animal extrapolation is not usable (it predicts impossible R2).
+    Shared-slope and last-3-pre baselines still give drops, with CIs excluding 0 (-.10 / -.08 / -.21 and
+    -.09 / -.07 / -.17). PS92 vs its last 3 pre: acute ~0, chronic -.155, so the trend explains PS92's acute step,
+    not its chronic drop.
+  - PS95 licks: the spont-minus-nospont difference scales with licks (rho -.81 LP ITI), but it is only ~.09 of
+    PS95's ~.30 chronic drop. R2 is lower on lick-heavy contact trials in every animal (r ~ -.4, 4/4). This is a
+    within-contact confound to keep in mind. PS95 LP vs DAQ ITI lick rates disagree (0907: 72 vs 16 per min).
