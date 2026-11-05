@@ -117,3 +117,30 @@ def test_collect_routes_into_the_daqlk_folder_with_provenance(profile, tmp_path,
     prov = json.loads((dst / "collected_enc_rebuild_20261104b__main.json").read_text())
     assert prov["recorded_run_tag"] == OLD_TAG and prov["accepted_parts"] == ["daqlk"]
     assert prov["run_tag"] == OLD_TAG + "_daqlk"
+
+
+def test_collect_move_leaves_no_second_copy(profile, tmp_path, monkeypatch):
+    """collect --move (Priya 11-05): the outputs are moved into the run folder, the bundle's sessions/ is left empty
+    with a MOVED_TO.txt pointer, the provenance json records moved=True, and a JSON with a stray trailing byte is still
+    repaired after the move."""
+    from wfield_local import combined_encoding as ce
+    from wfield_local import writeguard
+    m = _mod()
+    d = tmp_path / "enc_rebuild_20261104b"
+    ses = d / "out" / "main" / "sessions"
+    ses.mkdir(parents=True)
+    (d / "bundle.json").write_text(json.dumps({"identity": _recorded()}))
+    (d / "out" / "main" / "run.json").write_text(json.dumps({"order": "movement_first", "bundle_env": {}}))
+    (ses / "PS95_0917.json").write_text(json.dumps({"ok": 1}) + "}")
+    (ses / "PS95_0917.npz").write_bytes(b"\x00\x01\x02")
+    monkeypatch.setattr(m, "bundle_dir", lambda rv, name: d)
+    monkeypatch.setattr(ce, "out_dir", lambda rv, order: tmp_path / "enc" / order)
+    monkeypatch.setattr(writeguard, "assert_writable", lambda p: None)
+    assert m.cmd_collect(argparse.Namespace(name="enc_rebuild_20261104b", tag="main", run=None, move=True)) == 0
+    dst = tmp_path / "enc" / "movement_first"
+    assert sorted(p.name for p in (dst / "sessions").iterdir()) == ["PS95_0917.json", "PS95_0917.npz"]
+    assert (dst / "sessions" / "PS95_0917.npz").read_bytes() == b"\x00\x01\x02"
+    assert json.loads((dst / "sessions" / "PS95_0917.json").read_text()) == {"ok": 1}
+    assert list(ses.iterdir()) == []
+    assert str(dst / "sessions") in (d / "out" / "main" / "MOVED_TO.txt").read_text()
+    assert json.loads((dst / "collected_enc_rebuild_20261104b__main.json").read_text())["moved"] is True

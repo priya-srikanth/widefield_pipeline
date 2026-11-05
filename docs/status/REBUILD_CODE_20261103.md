@@ -3374,3 +3374,13 @@ another part is missing, the stop rule differs, `_daqlkx` / `_daql`, the selecti
 collect into the `_daqlk` folder with the provenance json. With test_o2_encoding_env: 25 passed.
 - Full suite on 23726438 (= 90b7ddd5 + this), 4 shards one at a time (27-41 GB free before each; frozen lanes running):
   4,965 passed, 173 skipped, 0 failed (935 + 28 skipped; 813 + 5; 2,247; 970 + 140).
+
+### 8.55 `o2_encoding collect --move` (Priya 11-05: moving our derived outputs within her M: folder is ok)
+- `collect --move` moves `out/<TAG>/sessions/*` into the routed run folder (`os.replace`, a rename on the same share; a
+  cross-volume move falls back to copy + delete) instead of copying, so a ~40 GB run is not stored twice.
+- Everything else is unchanged: identity check first (`_refuse_other_run`, incl. the 8.54 `daqlk` acceptance), the JSON
+  trailing-byte repair (now on the moved file), the provenance json (+ `"moved": true`). The bundle's `out/<TAG>/` keeps
+  `run.json` and gets `MOVED_TO.txt` (destination + file count); its `sessions/` is left empty.
+- Default (no flag) still copies. Test: `test_collect_move_leaves_no_second_copy`; O2 tests 26 passed, ruff clean.
+- First use: the bundle-b runs after main / main_nolicksall (those two were copied; the bundle copies are deleted after a
+  full hash check, approved by Priya 11-05).

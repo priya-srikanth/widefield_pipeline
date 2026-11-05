@@ -539,9 +539,20 @@ def cmd_collect(a) -> int:
     dst = ce.out_dir(rv, meta["order"] or "movement_first") / "sessions"
     writeguard.assert_writable(dst)
     dst.mkdir(parents=True, exist_ok=True)
+    move = bool(getattr(a, "move", False))
+    if move:                                                   # Priya 11-05: moving the bundle's derived outputs is ok
+        writeguard.assert_writable(src / "sessions")
     n = 0
     for f in sorted((src / "sessions").iterdir()):
-        shutil.copy2(f, dst / f.name)
+        if move:
+            # a rename on the same share (no second copy of a ~40 GB run); a cross-volume move falls back to copy + delete
+            try:
+                os.replace(f, dst / f.name)
+            except OSError:
+                shutil.copy2(f, dst / f.name)
+                f.unlink()
+        else:
+            shutil.copy2(f, dst / f.name)
         n += 1
         if f.suffix == ".json":
             # two array tasks writing the same session at once (a resubmitted array overlapping an earlier one) left
@@ -556,8 +567,10 @@ def cmd_collect(a) -> int:
         # THIS run's folder
         (dst.parent / f"collected_{a.name}__{a.tag}.json").write_text(json.dumps(
             {"bundle": str(d), "tag": a.tag, "recorded_run_tag": ident["recorded_run_tag"], "run_tag": ident["run_tag"],
-             "accepted_parts": ident["accepted_parts"]}, indent=1), encoding="utf-8")
-    print(f"collected {n} files ({len(list((src / 'sessions').glob('*.json')))} sessions) -> {dst}")
+             "accepted_parts": ident["accepted_parts"], "moved": move}, indent=1), encoding="utf-8")
+    if move:                                                   # where the outputs went (the bundle's sessions/ is empty now)
+        (src / "MOVED_TO.txt").write_text(f"{dst}\n{n} files moved by collect --move\n", encoding="utf-8")
+    print(f"{'moved' if move else 'collected'} {n} files ({len(list(dst.glob('*.json')))} sessions in dst) -> {dst}")
     return 0
 
 
@@ -734,6 +747,8 @@ def main(argv=None) -> int:
     k.add_argument("--name", required=True)
     k.add_argument("--run", default=None)
     k.add_argument("--tag", required=True)
+    k.add_argument("--move", action="store_true",
+                   help="move the outputs into the run folder instead of copying (no second copy on the share)")
     r = sub.add_parser("refresh-code", help="replace only code/ (+ runner) of an existing bundle with HEAD's")
     r.add_argument("--name", default="")
     r.add_argument("--bundle", default="", help="the bundle directory itself (instead of --name)")
