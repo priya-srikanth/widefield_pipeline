@@ -1592,13 +1592,38 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
 
 ## 11-05 overnight (Priya asleep; proceed per "ok please proceed overnight")
 ### QUESTIONS FOR PRIYA (newest first)
-- (none yet)
+- **Q1 (O2, needs an answer before resubmitting).** The per-session encoder and the frozen encoder do NOT read the imaging
+  lick detector: they use cue / pco digital edges, LP licks and DAQ contacts, which already come from the behaviour
+  detector. trial_attempts also showed 0 changes on 3 sessions.
+  - So bundle b's outputs should be valid as they are. A helper is verifying this byte-for-byte on 3 sessions' input
+    pickles.
+  - Proposal if identical: accept bundle b under the new `_daqlk` tag (explicit "not an encoder input" token list) and
+    resubmit the 13 cancelled arrays from bundle b, with no re-stage. Otherwise build bundle c.
+  - Morning commands will follow whichever result.
+- **Q2.** Lick-aligned products in session folders (`lick_aligned_affine8v1` maps, `locanmf_lick_aligned_affine8v1/*.npz`;
+  readers locanmf_lick_pool / cards / event_master / contralateral, plus preprocess_deck) were made with the old 0.10 s
+  refractory and carry no detector tag.
+  - They sit in the imaging preprocessing folders (outside the Priya subtree, so they can't be regenerated in place).
+  - Regenerate under the rebuild root for any figure that is on the pages, or leave them as legacy (preprocessing deck
+    only)? Default overnight: leave them, and list which page figures read them.
+- **Q3.** The default untagged run does not carry `daqlk`. Its skip-if-exists outputs from the old detector are not
+  separated; only its per-session caches are, via CACHE_VERSION 14. The rebuild always runs tagged, so this matters
+  only outside the rebuild.
+- **Q4.** cohort2_qc scripts were switched too, reading "everywhere" literally. Kept switched unless you say
+  otherwise.
 
 ### DECISIONS taken overnight (reversible; why)
 - Frozen trials files are kept at float32 (encoder layout; ~28-32 MB per session). float16 would halve the size and
   move the unique shares < 3e-5. Default variants = joint + the headline unique shares; more via FROZEN_TRIAL_VARIANTS.
 
 ### FINDINGS overnight
+- **The lick-detector switch does NOT touch the encoders or the camera classes** (helper 8.53, checked in code).
+  - Encoder DAQ reads are digital edges only; licks are LP plus DAQ contacts (already the behaviour detector).
+    trial_attempts: 0 class / RT / timing changes on PS95_0917, PS93_0908, PS94_0819.
+  - Onsets (imaging profile old -> new), 16 sessions: 101,816 -> 102,406 (+0.58 %); PS95 +1.4 %, largest +2.1 %
+    (PS95_0811). Fixture tests/fixtures/lick_detector_onsets_20261105.csv.
+  - Consequence (my error): stopping the frozen v7g3_t3d lanes at 00:15 was unnecessary; ~1.5 h of frames were lost.
+    I recommended the stop before checking which consumers read the detector.
 - **Frozen per-class smoke (PS93 only; ONE session pair, PROVISIONAL).** Joint, cortex, held out, cue -3..+3 s:
   - Contact trials ALONE fall pre -> acute: trial-to-trial R2 .539 -> .387 (v7g3_t3d); .543 -> .399 (spont).
   - So the drop is not only class composition, in this pair.
@@ -1630,3 +1655,14 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
     workers). The old design can get its trials files without a refit.
   - Gap: frA frame not exercised.
   - Waiting on daq-lick-detector.
+- 01:30: daq-lick-detector landed (cd35e594 + 28eb6cb5; full suite on its branch 4,946 passed / 0 failed).
+  - Merged into rebuild/cohort1-20261103 at **90b7ddd5**. The only conflict was the REBUILD_CODE log (kept 8.52 + 8.53).
+  - New run tag `...stopA2jexrt3500c70_daqlk`; render_profile --check exit 0 on 90b7ddd5.
+- 01:32: **frozen v7g3_t3d_spont lanes 1 (noFR, jobs 2) + 2 (frA, jobs 3) LAUNCHED** from worktree wf_rebuild_render_spont
+  (detached 90b7ddd5).
+  - Python winpids 11344 / 25352; lane bash 28460 / 33132.
+  - Scripts in scratchpad/frozen_v7g3_spont/ (ENC updated to the _daqlk root). They write trials.npz by default.
+  - Next: the v7g3_t3d robustness lanes and the lane-3 variants once these finish fitting (RAM).
+- 01:35: helper asked to (1) byte-compare bundle-b input pickles against a rebuild under 90b7ddd5 (3 sessions), (2) if
+  identical, add a "not an encoder input" tag-token exemption so bundle b collects under _daqlk, (3) run the full
+  suite on the merge in shards.
