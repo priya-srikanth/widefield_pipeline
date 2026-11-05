@@ -4,7 +4,7 @@
 side inference). Until then the cohort-1 v36 / 3-D outputs stay as they are (the deviations below are <= 0.03 mm at the
 session level and unbiased per trial). The fix list for that run: `orofacial_outputs.py:184` -> `SF.ruler_medians`;
 `tongue_kinematics.trial_spout_reference` -> the session ENL medians (or a per-trial ENL median); the whole-window
-scripts (section below, item 3); `prep_3d_inputs.spout_table` -> the commanded table (`scripts/pose3d_spout_commanded.py`);
+scripts (section below, item 3); `prep_3d_inputs.spout_table` -> the commanded table (DONE 11-04, Priya "make it now": writes pose3d_spout_positions_commanded_<tag>.csv);
 re-run production `pose3d` with the per-frame spout fix (bddf02e7) and the four-camera pipeline (`pose3d_side`).
 
 **Rule (Priya 11-04):** each session's spout position (per spout position) = the median spout keypoint over in-trial
