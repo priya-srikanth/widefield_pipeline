@@ -1880,3 +1880,8 @@ bundle without `daqlk` and writes a provenance json.
   - Incident 16:50: a first launcher version matched an OLD lane-G end line (helper test run) and started lane T early;
     it was only waiting at its gate. Stopped (exact PIDs 38612 / 7704 + its 2 wrapper bashes), fixed, relaunched. Lane G
     unaffected.
+- 17:44: **frozen lane 3 DONE** (frA_ls_basis EXIT 0, much earlier than the midnight estimate); all frozen frames done.
+  Launcher started lane 2 at 17:45; its first step a_decomp_noFR_cue failed (lp_encoder_decompose builds its output
+  name from `--folder`, and the queue passed an absolute path -> invalid file name). Fixed in queue_daqlk2.sh (4 decompose
+  steps now pass the folder relative to the encoding root, which is also the name fig_pooled reads); lane 2 relaunched
+  ~17:50 (resumes; log logs/laneENC2.out). Lane T still waits for lane G's end via the launcher.
