@@ -39,6 +39,66 @@ for anything that loads imaging. E = `M:/MICROSCOPE/Priya/Widefield/LP_analysis/
 3. Then tell **sabatinilab-e3** (PI deck) the decoder figures are final: per figure the share PNG path, page Fig N.k,
    script + args, headline numbers, methods text (they asked 10-26 ~22:30; reply sent: not final yet).
 
+### 00-COMPACT-25 (11-04 ~22:50) -- READ FIRST; updates 24 (24/23 still hold for rules)
+Every decision and finding of 11-04 is in the running list (RUNNING_LIST_2026-11-01.md, block "11-03 EVENING", newest at
+the end). Read it in full before acting.
+
+**Code.** rebuild/cohort1-20261103, tip c149decf, NOT pushed. Full suite: 4,923 passed / 0 failed. It merges four
+branches (log sections 8.43-8.50):
+- encoder-classes:
+  - per-trial outputs <label>_trials.npz + wfield_local/encoder_trials.py;
+  - LICKS_ALL=split in production (licks instructed; licks_pre / licks_iti uninstructed), robustness TAG main_nolicksall;
+  - enl window = lick-free sliding, LP 1.0 s (old window = enl_fixed2s);
+  - ATTEMPTS re-derivation on O2; refresh-code; the --profile keeps-caller-vars fix; 48G.
+- cue70:
+  - cue + 70 ms by peak; response window to max_rt 3.5 s;
+  - stop rule A2 "both sides" (arms A0 / A3 / strict / tail-event);
+  - stopped_licking excise; stop_kind_for (run / tail);
+  - LP timing fallback: close spouts DAQ > 50 ms, far spouts grooming flag;
+  - tag ...stopA2jexrt3500c70.
+- enl-window: one ENL window (lp_licks.enl_post_s, enl_window.precue_window_start), sliding lick-free for every ENL
+  predictor; quiet events MIN_CLEAN_ENL = 0.5 x window.
+- bcdg-port:
+  - a8's B / C / D / G (D scored on working rows, G by camera class, G4 camera-class discriminator primary, G9 camera
+    classes with guards);
+  - centre Wt FINAL (decoder + projections; eax z on contact rows); projection frame ON;
+  - sc-* tag parts and arms centreN / centreCto; the contact-vs-incomplete panel.
+- The render worktree wf_rebuild_render is at c149decf.
+
+**Data.** trial_attempts under ...stopA2jexrt3500c70 (19:16): working 49,087, stopped 5,347, stopped_licking 276.
+
+**O2.** Bundle enc_rebuild_20261104b is READY: 107 sessions / 30 GB; checks passed (5e-8); commanded TARGET3D; split;
+ENL lp.
+- Priya was given the rsync + 1-task test + 15 sbatch lines (48G) at ~22:45. She is to confirm _trials.npz in the
+  test output.
+- The old bundle enc_rebuild_20261104 is DELETED (M: + O2; list in RENDER_LOG).
+- Collect needs COMBINED_ENCODING_LICKS_ALL=split + ENL_SOURCE=lp exported.
+- **When O2 lands, report FIRST:** B12 = drop:pos_enl split vs nolicksall per animal x epoch (LP enl + fixed2s, n,
+  CIs), plus the frozen target columns before / after. Claim list: rebuild_20261103/B12_PRECUE_POSITION_CLAIMS_20261104.md.
+
+**Running.** The frozen encoder is getting spontaneous lick terms on branch rebuild/frozen-licks (worktree
+wf_rebuild_frozenlicks): new design / ids, v7g3_t3d kept as robustness. Merge it before the frozen frames render.
+
+**Queued.**
+1. Lick / FR ENL families (lick_enl_*, prelaunch / revup pre-cue, fr_enl_decode) switch to the sliding window
+   (Priya); guard: start >= strobe + 0.3 s.
+2. Lick-direction frame check re-run on the rebuild lick sets (a8 / Priya; per animal first).
+3. G9 figure switch, ~2.5-3 days, after the render.
+4. Port main's prep_3d_inputs (commanded table) at the next main merge.
+5. Align far-spout no-LP timing between encoder and lp_licks (moot: 0 trials).
+6. The render itself: queue2.sh is OUTDATED (old tag). Rebuild the render queue on c149decf: G0-G8, the encoder family
+   (ENCODER_RENDER_COMMANDS: update env blocks for the frozen-licks design), scripts/rebuild_figs, drift1500, plus the
+   new figures (B11 panel, G4, slide-95 raw + z pair).
+7. Two verifiers, then the replacement pass. Page edits: widefield_pipeline PAGE_EDITS_PENDING_2026-11-04.md, plus my
+   additions A13-A16 / B12-B16 (sent to a8).
+
+**Open for Priya:** none pending from me.
+
+**Watch list:**
+- B12 (pre-cue position credit).
+- Slide 95: raw vs session-z, wording is Priya's. Hidden slides 100 / 101 are in the deck; the gain is brain-wide and
+  biological (GAIN_BIO).
+
 ### 00-COMPACT-24 (11-04 ~09:50) -- READ FIRST; updates 23 (23 still holds for the code rules / decisions)
 **Code tip:** rebuild/cohort1-20261103 at 571b3955 (log 8.41 / 8.42), NOT pushed.
 - c3cb3c0c: jaw_only counts toward the 6 in a stop run (tag ...stopRun6j). Full suite 4,735 / 0 failed.
