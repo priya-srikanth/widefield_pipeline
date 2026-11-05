@@ -108,3 +108,14 @@ with no NaN. All 56 published stars stand.
   23:20 PNGs star FWER instead, and they are not in the page figure list.
 - No deck reference to these tables was found.
 - Swapping in `ak.*` changes no star from yes to no. Every change adds a star, and all of them come from the 1/N term.
+
+## Addendum (a8, 11-05): which LIVE page figures this touches (encoding page version 1793703992-c30f)
+The "3.66-3.69" numbers above come from an older page source (wf_rebuild _goal_page, 11-03). On the live page:
+- Fig 15.3 (`lick_session_shape_d.png`, map-level permutation test): unchanged.
+- Figs 15.4 / 15.6 (`lick_cued_session_cluster_spout.png`, `lick_session_cluster_position.png`): SOLID = TFCE. The
+  captions say TFCE and the PNGs are the session_cluster (TFCE) renders, so the "TFCE caption" query is resolved: they
+  match, and boot_p does not enter.
+- Fig 15.7 (`lick_session_pattern_change_within_spout.png`): SOLID = max-statistic FWER, DASHED = BH-FDR and >= 3/4.
+  The ONLY live figure whose drawn contours use the bootstrap p, so decision 9 can grow its dashed outline slightly.
+- Figs 15.8 / 15.9 and 15.17-15.20 (session change amplitude, decoder / spout pattern stats): SOLID = FWER. Unchanged;
+  the bootstrap BH-FDR survives only as the CSV column frac_sig_fdr.
