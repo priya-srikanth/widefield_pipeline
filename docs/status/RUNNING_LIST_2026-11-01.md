@@ -1774,3 +1774,11 @@ bundle without `daqlk` and writes a provenance json.
 - ~08:40: bins_w1 / bins_w05 / bins_w2 MOVED (collect --move, first use) into the _daqlk folder:
   `movement_first_subset-nokin_exec-polar_licks-combined_bins[_bw0.5|_bw2]/sessions`, 428 files / 107 sessions each;
   bundle `out/<TAG>/sessions` now empty + MOVED_TO.txt. daqlk acceptance printed for each.
+- ~10:20: **9 more O2 bundle-b TAGs MOVED** (collect --move) into the `_daqlk` folder, each 107 sessions, daqlk acceptance
+  printed, no JSON repairs: drop, nodir, shufpos, trmodels (321 files each: no `_trials.npz` for subset runs), musall_shuf,
+  fr_A / fr_B / fr_S / fr_D (428 each). Before moving: every file checked complete (npz zip directory, JSON parse, CSV rows;
+  scratchpad/collect_verify/validate.py) and each destination previewed as a new empty folder (preview_dst.py).
+  - droppos: 93 / 107 so far, left in the bundle until complete.
+  - Priya's re-run of the whole-`out/` rsync RE-COPIED main, main_nolicksall and bins_w1/w05/w2 (already collected /
+    moved). Verifying those re-copies by size + sha256 against the collected copies, then deleting them (approved
+    category: verified bundle copies). Copy-back from now: rsync only the new TAGs (or exclude the collected ones).
