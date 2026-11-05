@@ -1871,3 +1871,12 @@ bundle without `daqlk` and writes a provenance json.
   4/4 at every width except PS94 lick width 2 (-1.4); executed rises with width in every animal.
   - cam4 panels (encoding_mixed): explained to Priya; proposal = switch the 3 cam4 panels to the 3-D contest measures
     (3d:ceiling / 3d:u_target, already computed); waiting.
+- ~17:00: **Section T (te + lsland + frlag frames and readers) added** by the queue helper in scratchpad/render_daqlk/
+  queue_daqlk2.sh (plan doc f8139475). te must run NON-spont (merged code refuses FROZEN_DESIGN=te with FROZEN_LICKS_ALL=
+  split: te has its own pre-cue / ITI lick families) -> tags `..._frA_te`, `..._frA_te_basis`. lsland uses the 10-25
+  trimmed variants (no no_spont); frlag added because contest_lines reads it. ~16 h (estimates).
+  - Launcher (scratchpad/render_daqlk/launcher.sh, log logs/launcher.out): lane 2 `A B D E F Z` when frozen lane 3 ends
+    (~midnight); lane T when lane G ends (~early morning). Max ~6-7 workers.
+  - Incident 16:50: a first launcher version matched an OLD lane-G end line (helper test run) and started lane T early;
+    it was only waiting at its gate. Stopped (exact PIDs 38612 / 7704 + its 2 wrapper bashes), fixed, relaunched. Lane G
+    unaffected.
