@@ -1717,3 +1717,10 @@ bundle without `daqlk` and writes a provenance json.
   that goes to the top of QUESTIONS (it would touch every gate-attempted output).
 - Render queue G0-G8 for `_daqlk`: NOT launched tonight (order: frozen frames first; lanes hold the RAM until ~midday).
   queue2.sh points at wf_rebuild_render (c149decf, old tag); the new queue must use a worktree at >= e05ece18.
+- ~03:50: **FINDING: trial_attempts is UNCHANGED by the detector switch, cohort-wide.** Rebuilt under 90b7ddd5 into
+  scratch (never M:): trial_attempts.csv / _gate.csv / _sessions.csv byte-identical to the pre-switch tables (sha256
+  bef06b0a / 0c3784aa / 1f4c6d89); 107 sessions, 57,048 trials, 0 changed cells. Order step 2 closed; every
+  gate-attempted output (frozen lanes, bundle b) stands. Record: scratchpad/attempts_daqlk/SUMMARY.md.
+  - Engineering note (not fixed): scripts/trial_attempts.py re-reads the cohort YAML per row in epochs.epoch_of /
+    days_since_stroke (~57k rows; ~35 min of single-core CPU after the workers finish). A per-label cache fixes it
+    with identical output (measured: same hashes). Candidate small fix for the rebuild branch.
