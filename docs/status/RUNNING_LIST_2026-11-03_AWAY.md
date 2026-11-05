@@ -338,8 +338,11 @@ FYI, the 3-class camera variant (lick / jaw-only / none) is thin in PS92 and PS9
   - DECISIONS.md is on the rebuild list, so the entry waits in docs/status/DECISIONS_PENDING_MERGE_2026-11-04.md; it is
     appended after the merge.
   - Safe code fixes merged, plus archive_day fail-closed hash re-verify (e7edc659).
-  - Lick detector (LICK_DETECTOR_COMPARE_2026-11-04): Priya chose the BEHAVIOUR profile everywhere; sent to 34 for the
-    rebuild.
+  - Lick detector (LICK_DETECTOR_COMPARE_2026-11-04): Priya chose the BEHAVIOUR profile everywhere; sent to 34.
+    - 34: lands as a POST-render code change. Three runs are already on the current profile: O2 enc_rebuild_20261104b,
+      frozen v7g3_t3d, trial_attempts.
+    - 34 recommends a sensitivity check on the lick-count / lick-free-window analyses, not a full re-render.
+    - QUESTION for Priya: re-run, or sensitivity check only?
   - Zero-contact check: clean (only PS93_0813 = known missing video).
   - Epoch PNGs: 22 deleted. 3 kept, ask Priya: 15r RAWref precue (PRELIM_DATA cites it), 1d engagement (11-03 LMM
     stars), ungated 23_quit_prodrome (quit_prodrome.py rewrites it).
