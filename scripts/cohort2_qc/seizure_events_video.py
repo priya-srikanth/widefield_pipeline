@@ -12,8 +12,18 @@ analyses use). Outputs in labcams/cohort2/_tmp_qc_figures_20261031/seizure/:
                                       overlaid with its mean; a frame strip of one event (-64 to +320 ms)
   PS122_1030_event_traces.png      -- the single 10-30 event (121.5 min), same layout, for comparison
 
+11-04 (Priya 11-05: "a video of 11/4 epileptiform events with behavior video, as for 10/29"; `--day 1104`).
+PS122 was imaged at 490 nm that day (PS121 too; PS118 stayed 470), so the functional channel is labelled 490:
+
+  PS122_1104_events_cam4.mp4       -- 75.2-78.2 min (5 discharges): 490 map | cam4 face | traces, real time
+  PS122_1104_event_slowmo.mp4      -- the largest discharge (65.4 min, +9.8%), -1 s to +2 s, 5x slowed
+  PS122_1104_event_traces.png      -- same layout as 10-29
+
+11-04 events are not in fast_events.json; `detect_events` finds them on the raw cortex mean (QC doc §0o strict
+criterion: amp >= 4% above a 2-s running median, half-width 40-300 ms, |415| < 0.15 x 490).
+
     conda activate locanmf
-    python scripts/cohort2_qc/seizure_events_video.py
+    python scripts/cohort2_qc/seizure_events_video.py [--cam-only] [--day 1104]
 """
 import json
 import sys
@@ -24,13 +34,34 @@ import numpy as np
 sys.path.insert(0, str(Path(__file__).parent))
 from brainmask import brain_mask  # noqa: E402
 
-LABCAMS = Path("M:/MICROSCOPE/Priya/Widefield/labcams")
+# MICROSCOPE is M: on the analysis desktop and N: on the imaging box (CLAUDE.md "Architecture").
+MICRO = next((Path(f"{d}:/MICROSCOPE/Priya") for d in "MN" if Path(f"{d}:/MICROSCOPE/Priya/Widefield").exists()),
+             Path("M:/MICROSCOPE/Priya"))
+LABCAMS = MICRO / "Widefield" / "labcams"
 QC = LABCAMS / "cohort2" / "_tmp_qc_figures_20261031"
 OUT = QC / "seizure"
-DAQ = Path("M:/MICROSCOPE/Priya/Widefield/DAQ_recorder_output")
+DAQ = MICRO / "Widefield" / "DAQ_recorder_output"
 FS = 31.23
 SESS = {"1029": ("20261029/PS122_20261029_192217", "20261029/PS122_20261029_192406.h5"),
-        "1030": ("20261030/PS122_20261030_163240", None)}
+        "1030": ("20261030/PS122_20261030_163240", None),
+        "1104": ("20261104/PS122_490_20261104_150738", "20261104/PS122_20261104_151154.h5")}
+CAMS = MICRO / "Behavior_Cameras" / "Widefield"
+
+
+def led_of(sdir):
+    """Functional LED (nm) from the session folder's condition tag: PS122_490_<date>_* = 490, else 470."""
+    return "490" if "_490_" in Path(sdir).name else "470"
+
+
+def detect_events(x, y):
+    """Fast functional-only peaks on the raw cortex mean (pairs). Used when fast_events.json lacks the session."""
+    from scipy.ndimage import median_filter
+    from scipy.signal import find_peaks, peak_widths
+    hx = x - median_filter(x, int(2 * FS) | 1)
+    hy = y - median_filter(y, int(2 * FS) | 1)
+    pk, _ = find_peaks(hx, prominence=3, distance=int(0.5 * FS))
+    hw = peak_widths(hx, pk, 0.5)[0] / FS * 1000
+    return pk[(hx[pk] >= 4) & (hw >= 40) & (hw <= 300) & (np.abs(hy[pk]) < 0.15 * hx[pk])]
 
 
 def load(day):
@@ -44,13 +75,16 @@ def load(day):
     um = U.reshape(-1, U.shape[-1])[br.reshape(-1)].mean(0)
     x470 = 100 * (um @ np.asarray(SVT[:, 1::2], np.float64))
     x415 = 100 * (um @ np.asarray(SVT[:, 0::2], np.float64))
-    ev = next(r for r in json.loads((QC / "fast_events.json").read_text()) if r["session"] == Path(sdir).name)
-    # fast_events.json stores times rounded to 0.01 min (+-0.3 s): re-find each PEAK to the pair
-    evf = []
-    for f in np.round(np.array(ev["t_min"]) * 60 * FS).astype(int):
-        lo = max(1, f - 15)
-        evf.append(lo + int(np.argmax(x470[lo:f + 16])))
-    evf = np.array(evf, int)
+    ev = next((r for r in json.loads((QC / "fast_events.json").read_text()) if r["session"] == Path(sdir).name), None)
+    if ev is None:
+        evf = detect_events(x470, x415)
+    else:
+        # fast_events.json stores times rounded to 0.01 min (+-0.3 s): re-find each PEAK to the pair
+        evf = []
+        for f in np.round(np.array(ev["t_min"]) * 60 * FS).astype(int):
+            lo = max(1, f - 15)
+            evf.append(lo + int(np.argmax(x470[lo:f + 16])))
+        evf = np.array(evf, int)
     licks = cues = csmp = np.array([], int)
     if h5 and (DAQ / h5).exists():
         from wfield_local.framemap_event_maps import _corrected_frame_samples
@@ -66,10 +100,10 @@ def load(day):
         off = int(json.loads(summ.read_text()).get("chosen_exposure_offset", 0)) if summ else 0
         csmp = _corrected_frame_samples(fm, np.asarray(cue["pco_samples"]), off)   # DAQ sample of every pair
     return dict(U=U, SVT=SVT, br=br, x470=x470, x415=x415, ev=evf, licks=np.asarray(licks), cues=np.asarray(cues),
-                csmp=np.asarray(csmp), h5=(DAQ / h5) if h5 else None)
+                csmp=np.asarray(csmp), h5=(DAQ / h5) if h5 else None, led=led_of(sdir))
 
 
-CAM4 = Path("M:/MICROSCOPE/Priya/Behavior_Cameras/Widefield/20261029/PS122/cam4_2026-10-29T19_27_54")
+CAM4 = CAMS / "20261029/PS122/cam4_2026-10-29T19_27_54"
 
 
 def render_cam(d, a, b, path, step=2, cam_px=300, lim=12.0, cam=CAM4, tpl=None, title="PS122 10-29"):
@@ -110,13 +144,14 @@ def render_cam(d, a, b, path, step=2, cam_px=300, lim=12.0, cam=CAM4, tpl=None, 
     cmap = matplotlib.colormaps["RdBu_r"].copy()
     cmap.set_bad("k")
     h1 = a1.imshow(b470 * 0, cmap=cmap, vmin=-lim, vmax=lim)
-    a1.set_title("470 dF/F (GCaMP), ±%g%%" % lim, fontsize=9)
+    led = d.get("led", "470")
+    a1.set_title("%s dF/F (GCaMP), ±%g%%" % (led, lim), fontsize=9)
     h2 = None
     a2.set_title("cam4 (face), DAQ-aligned", fontsize=9)
     for ax_ in (a1, a2):
         ax_.axis("off")
     t = np.arange(a, b) / FS
-    a3.plot(t / 60, d["x470"][a:b] - np.median(d["x470"][base]), color="tab:green", lw=0.8, label="470")
+    a3.plot(t / 60, d["x470"][a:b] - np.median(d["x470"][base]), color="tab:green", lw=0.8, label=led)
     a3.plot(t / 60, d["x415"][a:b] - np.median(d["x415"][base]), color="tab:purple", lw=0.8, label="415")
     for f in d["licks"][(d["licks"] >= a) & (d["licks"] < b)]:
         a3.axvline(f / FS / 60, ymin=0, ymax=0.06, color="k", lw=0.5)
@@ -188,13 +223,13 @@ def render(d, a, b, path, slow=1.0, lim=12.0, title=""):
     cmap.set_bad("k")
     h1 = a1.imshow(b470 * 0, cmap=cmap, vmin=-lim, vmax=lim)
     h2 = a2.imshow(b415 * 0, cmap=cmap, vmin=-lim, vmax=lim)
-    for ax_, nm in ((a1, "470 (GCaMP)"), (a2, "415 (isosbestic)")):
+    for ax_, nm in ((a1, f"{d.get('led', '470')} (GCaMP)"), (a2, "415 (isosbestic)")):
         ax_.set_title(nm, fontsize=10)
         ax_.axis("off")
     fig.colorbar(h2, ax=[a1, a2], fraction=0.025, label="dF/F %")
     y470 = d["x470"][a:b] - np.median(d["x470"][base])
     y415 = d["x415"][a:b] - np.median(d["x415"][base])
-    a3.plot(t / 60, y470, color="tab:green", lw=1, label="470 cortex mean")
+    a3.plot(t / 60, y470, color="tab:green", lw=1, label=f"{d.get('led', '470')} cortex mean")
     a3.plot(t / 60, y415, color="tab:purple", lw=1, label="415 cortex mean")
     for f in d["licks"][(d["licks"] >= a) & (d["licks"] < b)]:
         a3.axvline(f / FS / 60, ymin=0.0, ymax=0.06, color="k", lw=0.6)
@@ -232,8 +267,11 @@ def traces(d, day, path):
     gs = fig.add_gridspec(3, 6, height_ratios=[1, 1, 1.1])
     a0 = fig.add_subplot(gs[0, :])
     a, b = max(0, n - int(20 * 60 * FS)), n
+    if len(ev):                                       # 11-04's events start at 65 min: widen to show them all
+        a = max(0, min(a, int(ev.min()) - int(2 * 60 * FS)))
     tt = np.arange(a, b) / FS / 60
-    a0.plot(tt, x[a:b], color="tab:green", lw=0.5, label="470")
+    led = d.get("led", "470")
+    a0.plot(tt, x[a:b], color="tab:green", lw=0.5, label=led)
     a0.plot(tt, y[a:b] - 15, color="tab:purple", lw=0.5, label="415 (offset -15)")
     for f in ev:
         a0.axvline(f / FS / 60, color="r", lw=0.6, alpha=0.6)
@@ -241,7 +279,7 @@ def traces(d, day, path):
         a0.axvline(f / FS / 60, ymin=0.95, ymax=1, color="tab:orange", lw=0.8)
     for f in d["licks"][d["licks"] >= a]:
         a0.axvline(f / FS / 60, ymin=0, ymax=0.04, color="k", lw=0.4)
-    a0.set_title(f"PS122 {day[:2]}-{day[2:]}: last 20 min, cortex-mean raw dF/F (red = detected events, orange top ="
+    a0.set_title(f"PS122 {day[:2]}-{day[2:]}: {a / FS / 60:.0f}-{b / FS / 60:.0f} min, cortex-mean raw dF/F (red = detected events, orange top ="
                  f" cues, black bottom = licks; {len(d['licks'][d['licks'] >= a])} licks, "
                  f"{len(d['cues'][d['cues'] >= a])} cues in this window)", fontsize=10)
     a0.set_xlabel("session time (min)")
@@ -250,7 +288,7 @@ def traces(d, day, path):
     c = ev[len(ev) // 3] if len(ev) else n - 500
     w0, w1 = max(0, c - int(5 * FS)), min(n, c + int(25 * FS))
     tz = (np.arange(w0, w1) - c) / FS
-    a1.plot(tz, x[w0:w1], color="tab:green", lw=1, label="470")
+    a1.plot(tz, x[w0:w1], color="tab:green", lw=1, label=led)
     a1.plot(tz, y[w0:w1], color="tab:purple", lw=1, label="415")
     for f in ev[(ev >= w0) & (ev < w1)]:
         a1.axvline((f - c) / FS, color="r", lw=0.6, alpha=0.6)
@@ -266,7 +304,7 @@ def traces(d, day, path):
         a2.plot(lag / FS * 1000, x[f + lag] - x[f - 3:f].mean(), color="tab:green", lw=0.4, alpha=0.4)
     if len(ok):
         a2.plot(lag / FS * 1000, np.mean([x[f + lag] - x[f - 3:f].mean() for f in ok], 0), color="k", lw=2,
-                label="470 mean")
+                label=f"{led} mean")
         a2.plot(lag / FS * 1000, np.mean([y[f + lag] - y[f - 3:f].mean() for f in ok], 0), color="tab:purple", lw=2,
                 label="415 mean")
     a2.axvline(0, color="k", lw=0.5)
@@ -282,7 +320,7 @@ def traces(d, day, path):
             idx = [0, 2, 3, 4, 6, 12][k]
             ax_ = fig.add_subplot(gs[2, j])
             ax_.imshow(M[idx], cmap="RdBu_r", vmin=-lim, vmax=lim)
-            ax_.set_title(f"{(idx - 2) / FS * 1000:+.0f} ms (470, ±{lim:.0f}%)", fontsize=9)
+            ax_.set_title(f"{(idx - 2) / FS * 1000:+.0f} ms ({led}, ±{lim:.0f}%)", fontsize=9)
             ax_.axis("off")
     fig.tight_layout()
     fig.savefig(path, dpi=85)
@@ -294,6 +332,9 @@ def main():
     from wfield_local.writeguard import assert_writable
     assert_writable(OUT)
     OUT.mkdir(parents=True, exist_ok=True)
+    if "--day" in sys.argv and sys.argv[sys.argv.index("--day") + 1] == "1104":
+        main_1104()
+        return
     d = load("1029")
     traces(d, "1029", OUT / "PS122_1029_event_traces.png")
     if "--cam-only" in sys.argv:
@@ -307,6 +348,21 @@ def main():
            title="PS122 10-29 one event")
     d2 = load("1030")
     traces(d2, "1030", OUT / "PS122_1030_event_traces.png")
+
+
+def main_1104():
+    """PS122 11-04 (490 nm): traces, the densest discharge cluster with cam4, and the largest discharge slowed."""
+    d = load("1104")
+    print("11-04 discharges (min):", np.round(d["ev"] / FS / 60, 2).tolist(), flush=True)
+    traces(d, "1104", OUT / "PS122_1104_event_traces.png")
+    cam = next((CAMS / "20261104" / "PS122").glob("cam4_*.avi")).with_suffix("")
+    render_cam(d, int(75.2 * 60 * FS), int(78.2 * 60 * FS), OUT / "PS122_1104_events_cam4.mp4", cam=cam,
+               title="PS122 11-04 (RiboL1-8s, 490 nm)")
+    if "--cam-only" in sys.argv:
+        return
+    f = int(d["ev"][np.argmax(d["x470"][d["ev"]])])
+    render(d, f - int(FS), f + int(2 * FS), OUT / "PS122_1104_event_slowmo.mp4", slow=5,
+           title="PS122 11-04 largest discharge (490 nm)")
 
 
 if __name__ == "__main__":

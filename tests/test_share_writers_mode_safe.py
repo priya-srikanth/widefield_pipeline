@@ -33,6 +33,8 @@ BEHAVIOUR = {
     "tongue_nocontact_qc.py", "trial_class_raw_share_fig.py",
     # main's side-camera / 4-camera 3-D scripts (pose only), classified at the 11-05 rebuild merge
     "pose3d_side_check.py", "pose3d_side_loo.py", "pose3d_side_video.py", "side_clean_qc.py", "side_label_offsets.py",
+    # main's FaceRhythm spout-in-mesh control (video factors only, writes the FR readouts dir), 11-05 merge
+    "fr_spout_mesh_control.py",
 }
 INDIRECT = {
     "coupling_vigour_sm.py", "decoder_retention_sessions.py", "lick_correction.py",

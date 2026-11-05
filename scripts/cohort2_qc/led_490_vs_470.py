@@ -14,11 +14,12 @@ All reads from the MICROSCOPE push. Run in the `wfield` env.
 from __future__ import annotations
 from pathlib import Path
 import json
+import os
 import numpy as np
 from scipy.ndimage import binary_erosion
 import matplotlib; matplotlib.use("Agg"); import matplotlib.pyplot as plt
 
-FS=31.23; GAIN=0.46; NROOT=Path("N:/MICROSCOPE/Priya/Widefield/labcams")
+FS=31.23; GAIN=0.46; NROOT=next((p for p in (Path(f"{d}:/MICROSCOPE/Priya/Widefield/labcams") for d in "NM") if p.exists()), Path("N:/MICROSCOPE/Priya/Widefield/labcams"))  # N: on the imaging box, M: on the analysis desktop
 
 def _pb(day, animal, mmdd):
     p = NROOT/day/"photobleach"/f"photobleach_{animal}_{mmdd}.json"
@@ -31,6 +32,9 @@ def _traj(norm, chan):
         v = norm[chan]
         if isinstance(v, dict) and "t" in v: return np.array(v["t"],float), np.array(v["y"],float)
         arr = np.array(v, float)
+        # photobleach.analyze stores _norm[k] = (x.tolist(), y.tolist()) -> shape (2, N); only (N, 2) was read,
+        # so the trajectory panels came out blank (deck slide 30, 2026-11-05)
+        if arr.ndim==2 and arr.shape[0]==2 and arr.shape[1]!=2: return arr[0], arr[1]
         if arr.ndim==2 and arr.shape[1]==2: return arr[:,0], arr[:,1]
     except Exception: pass
     return None, None
@@ -40,7 +44,7 @@ def analyse(day, sess, animal, mmdd):
     C=np.load(res/"hemo_meegkit_hpfit"/"SVTcorr.npy").astype(float)
     U=np.load(res/"U.npy"); fa=np.load(res/"frames_average.npy")   # (2,H,W): slot1=func(brighter), slot0=415
     func_slot = 1 if fa[1].mean()>=fa[0].mean() else 0
-    ff, fi = fa[func_slot], fa[1-func_slot]
+    ff = fa[func_slot]
     dark=min(ff[:5,:5].mean(),ff[:5,-5:].mean(),ff[-5:,:5].mean(),ff[-5:,-5:].mean())
     brain=binary_erosion(ff>dark+0.3*(np.percentile(ff,99.5)-dark),iterations=3); bm=brain.reshape(-1)
     F0=float(ff[brain].mean()); shot=100.0/np.sqrt(max(F0-dark,1)*GAIN)
@@ -85,6 +89,6 @@ def main():
         axb.bar(range(len(snrs)),snrs,color=cols); axb.set_xticks(range(len(snrs))); axb.set_xticklabels(labs,fontsize=7)
         axb.set_ylabel("per-pixel SNR (dF/F / shot floor)"); axb.set_title(f"{an} SNR by session (490=red)",fontsize=10)
     fig.suptitle("490 nm (overdriven) vs 470 nm functional LED — SNR + within-session droop (PS121/PS122)",fontsize=12)
-    fig.savefig("E:/labcams_data/cohort2_490_vs_470.png",dpi=130,bbox_inches="tight"); print("\nwrote E:/labcams_data/cohort2_490_vs_470.png")
+    out=os.path.join(os.environ.get("WORK","E:/labcams_data"),"cohort2_490_vs_470.png"); fig.savefig(out,dpi=130,bbox_inches="tight"); print("\nwrote",out)
 
 if __name__=="__main__": main()

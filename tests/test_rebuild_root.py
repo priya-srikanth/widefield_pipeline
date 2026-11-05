@@ -330,7 +330,8 @@ LITERAL = {
     "scripts/cohort2_qc/session_qc.py",
     "scripts/cohort2_qc/slowband_behaviour.py",
     "scripts/cohort2_qc/spout_compare_1029.py",
-    "scripts/cohort2_qc/spout_maps.py",
+    # scripts/cohort2_qc/spout_maps.py left the scan at the 11-05 merge: main's version takes its share root from
+    # seizure_events_video.MICRO (no literal path in the file); the runtime fence still applies to its writes
     "scripts/cohort2_qc/swapmask_1029.py",
     "scripts/cohort2_qc/swapmask_cohort1.py",
     "scripts/cohort2_qc/swapmask_compare_quiet.py",

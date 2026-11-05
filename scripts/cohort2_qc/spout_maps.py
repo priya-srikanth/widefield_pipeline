@@ -20,6 +20,16 @@ the RiboL1 rows. Sessions without a DAQ .h5 on the share are listed and skipped.
 --uniform (Priya 10-31): ONE colour scale for every animal and session (99th percentile of |dF/F| pooled over all
 sessions' cue + lick spout maps), and one shared scale for the spout-specific RMS column. Written as
 cohort2_spout_maps_<dates>_uniform.png; RiboL1 rows then look faint by design.
+
+--per-session (Priya 11-05: "cohort2 preprocessing decks should also include the per-spout-position cue- and
+lick-aligned maps"): one figure PER SESSION, labcams/cohort2/spout_maps_native/spout_maps_<animal>_<MMDD>.png (+ .json),
+which `preprocess_deck` places as its `spout_native` slide type. Same maps and per-session scale as above. `all` as
+the date = every cohort2 date on the share. The functional LED is read from the folder tag (PS121_490_<date> = 490 nm).
+
+Discharge trials (added 11-05): any trial with a strict epileptiform discharge (seizure_events_video.detect_events, raw
+cortex mean) within -1.5..+3.5 s of its cue is dropped, in every session; PS122 11-04 has 13 such discharges.
+
+    python scripts/cohort2_qc/spout_maps.py all --per-session
 """
 import argparse
 import json
@@ -31,8 +41,12 @@ import numpy as np
 sys.path.insert(0, str(Path(__file__).parent))
 from brainmask import brain_mask  # noqa: E402
 
-LABCAMS = Path("M:/MICROSCOPE/Priya/Widefield/labcams")
-DAQ = Path("M:/MICROSCOPE/Priya/Widefield/DAQ_recorder_output")
+from seizure_events_video import MICRO, detect_events  # noqa: E402  (M: here, N: on the imaging box)
+
+LABCAMS = MICRO / "Widefield" / "labcams"
+DAQ = MICRO / "Widefield" / "DAQ_recorder_output"
+OUT_SESS = LABCAMS / "cohort2" / "spout_maps_native"
+DISCHARGE_WIN_S = (-1.5, 3.5)
 OUT = LABCAMS / "cohort2" / "_tmp_qc_figures_20261031"
 FS = 31.23
 VAR = "hemo_meegkit_hpfit"
@@ -49,7 +63,8 @@ def one(item):
     from wfield_local.locanmf_crossanimal_dff import _frames
     from wfield_local.plot_lick_aligned_averages import _load_daq_events as _ll
     from wfield_local.plot_spout_trial_averages import _load_daq_events as _lc
-    animal, date = sdir.name.split("_")[:2]
+    animal, date = sdir.name.split("_")[0], sdir.parent.name     # folder may carry a tag: PS121_490_<date>_*
+    led = "490" if f"{animal}_490_" in sdir.name else "470"
     mc = sdir / "motion_corrected"
     res = mc / "wfield_local_results"
     s = dict(label=f"{animal}_{date[4:]}", mc=str(mc), h5=str(h5), regime="B", fmdir=None)
@@ -68,6 +83,19 @@ def one(item):
     cut = EXCLUDE_AFTER_MIN.get((animal, date))
     if cut is not None:
         ok &= cf < int(cut * 60 * FS)
+    fa = np.load(res / "frames_average.npy")
+    br = brain_mask(fa, 1, res=res)
+    U = np.nan_to_num(np.load(res / "U.npy"))
+    Ub = U.reshape(-1, U.shape[-1])[br.reshape(-1)].astype(np.float64)
+    SVT = np.load(res / "SVT.npy", mmap_mode="r")
+    um = Ub.mean(0)
+    ev = detect_events(100 * (um @ np.asarray(SVT[:, 1::2], np.float64)),
+                       100 * (um @ np.asarray(SVT[:, 0::2], np.float64)))
+    near = np.zeros(len(cf), bool)
+    for e in ev:
+        near |= (e - cf >= DISCHARGE_WIN_S[0] * FS) & (e - cf <= DISCHARGE_WIN_S[1] * FS)
+    n_disch = int((ok & near).sum())
+    ok &= ~near
     C = np.asarray(C, np.float64)
     base = C[:, cf[ok, None] + np.arange(-31, 0)].mean(2)                       # K x trials
     cue_r = C[:, cf[ok, None] + np.arange(0, 31)].mean(2) - base
@@ -76,10 +104,6 @@ def one(item):
     if hl.any():
         lick_r[:, hl] = C[:, fl[ok][hl, None] + np.arange(0, 16)].mean(2) - base[:, hl]
     p = pos[ok]
-    fa = np.load(res / "frames_average.npy")
-    br = brain_mask(fa, 1, res=res)
-    U = np.nan_to_num(np.load(res / "U.npy"))
-    Ub = U.reshape(-1, U.shape[-1])[br.reshape(-1)].astype(np.float64)
     maps, ntr = {}, {}
     for kind, R in (("cue", cue_r), ("lick", lick_r)):
         mm = []
@@ -88,20 +112,79 @@ def one(item):
             ntr[(kind, q)] = int(sel.sum())
             mm.append(Ub @ R[:, sel].mean(1) if sel.any() else np.full(Ub.shape[0], np.nan))
         maps[kind] = 100 * np.array(mm)                                          # 6 x pix, dF/F %
-    return dict(label=s["label"], animal=animal, date=date, br=br, maps=maps, ntr=ntr,
-                n_trials=int(ok.sum()), n_hit=int(hl.sum()), shape=br.shape)
+    return dict(label=s["label"], animal=animal, date=date, br=br, maps=maps, ntr=ntr, led=led,
+                n_trials=int(ok.sum()), n_hit=int(hl.sum()), shape=br.shape, n_discharges=int(len(ev)),
+                n_discharge_trials=n_disch, cut_min=cut)
+
+
+def per_session_figure(r, out_dir):
+    """One session: cue row + first-lick row x (6 spouts, all-spout mean, spout-specific RMS), one scale."""
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    H, W = r["shape"]
+    ncol = len(ORDER) + 2
+    lim = float(np.nanpercentile(np.abs(np.concatenate([r["maps"]["cue"], r["maps"]["lick"]])), 99))
+    fig, ax = plt.subplots(2, ncol, figsize=(2.1 * ncol, 5.3))
+    summ = dict(session=r["label"], led_nm=int(r["led"]), n_trials=r["n_trials"], n_with_lick=r["n_hit"],
+                n_discharges=r["n_discharges"], n_discharge_trials_dropped=r["n_discharge_trials"],
+                cut_after_min=r["cut_min"], scale_pct=lim, kinds={})
+    for j, kind in enumerate(("cue", "lick")):
+        M = r["maps"][kind]
+        mu = np.nanmean(M, 0)
+        spec = np.sqrt(np.nanmean((M - mu) ** 2, 0))
+        for c, m in enumerate(list(M) + [mu, spec]):
+            z = np.full(H * W, np.nan)
+            z[r["br"].reshape(-1)] = m
+            a = ax[j, c]
+            if c < ncol - 1:
+                h = a.imshow(z.reshape(H, W), cmap="RdBu_r", vmin=-lim, vmax=lim)
+            else:
+                h2 = a.imshow(z.reshape(H, W), cmap="magma", vmin=0, vmax=lim / 2)
+            ttl = (f"{CODE[ORDER[c]]}  n={r['ntr'][(kind, ORDER[c])]}" if c < len(ORDER)
+                   else ("all spouts" if c == len(ORDER) else "spout-specific RMS"))
+            a.set_title(ttl, fontsize=8)
+            a.axis("off")
+        ax[j, 0].text(-0.08, 0.5, "cue 0-1 s" if kind == "cue" else "first lick 0-0.5 s", rotation=90,
+                      transform=ax[j, 0].transAxes, ha="right", va="center", fontsize=9)
+        summ["kinds"][kind] = dict(peak_all_spouts_pct=float(np.nanpercentile(np.abs(mu), 99)),
+                                   spout_specific_share=float(np.nansum((M - mu) ** 2) / np.nansum(M ** 2)))
+    fig.colorbar(h, ax=ax[:, :ncol - 1], orientation="horizontal", fraction=0.04, pad=0.03, shrink=0.35,
+                 label="dF/F %")
+    fig.colorbar(h2, ax=ax[:, ncol - 1], orientation="horizontal", fraction=0.04, pad=0.03, shrink=0.9,
+                 label="spout-specific RMS %")
+    drop = []
+    if r["n_discharge_trials"]:
+        drop.append(f"{r['n_discharge_trials']} trials near one of {r['n_discharges']} discharges dropped")
+    if r["cut_min"] is not None:
+        drop.append(f"trials after {r['cut_min']:g} min dropped")
+    fig.suptitle(f"{r['animal']} {r['date'][4:6]}-{r['date'][6:]}  ({GENO[r['animal']]}, {r['led']} nm)   per-spout "
+                 f"maps, native pixels, hemo_meegkit_hpfit; both minus pre-cue 1 s; ±{lim:.2f}%   "
+                 f"{r['n_trials']} trials, {r['n_hit']} with a lick" + ("   [" + "; ".join(drop) + "]" if drop else ""),
+                 fontsize=9)
+    stem = out_dir / f"spout_maps_{r['label']}"
+    fig.savefig(stem.with_suffix(".png"), dpi=90, bbox_inches="tight")
+    plt.close(fig)
+    stem.with_suffix(".json").write_text(json.dumps(summ, indent=1))
+    print("wrote", stem.with_suffix(".png"), flush=True)
 
 
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("dates", nargs="+")
     ap.add_argument("--uniform", action="store_true", help="one colour scale across all animals and sessions")
+    ap.add_argument("--per-session", action="store_true", help="one deck figure per session in spout_maps_native/")
     a = ap.parse_args()
+    if a.dates == ["all"]:
+        a.dates = sorted(d.name for d in LABCAMS.glob("2026*")
+                         if d.is_dir() and d.name >= "20261029" and any(d.glob("PS1[12]*")))
     from wfield_local.analysis_kit import fan_sessions  # fan_out + sort (rule 9)
     from wfield_local.writeguard import assert_writable
     items, missing = [], []
     for d in a.dates:
         for sd in sorted((LABCAMS / d).glob("PS*")):
+            if sd.name.split("_")[0] not in GENO:          # cohort2 animals only
+                continue
             h5 = sorted((DAQ / d).glob(f"{sd.name.split('_')[0]}_{d}_*.h5"))
             (items.append((str(sd), str(h5[0]))) if h5 else missing.append(sd.name))
     if missing:
@@ -110,6 +193,12 @@ def main():
     if fail:
         print("FAILED", fail)
     R = sorted((r for _, r in res), key=lambda r: (r["date"], r["animal"]))
+    if a.per_session:
+        assert_writable(OUT_SESS)
+        OUT_SESS.mkdir(parents=True, exist_ok=True)
+        for r in R:
+            per_session_figure(r, OUT_SESS)
+        return
     assert_writable(OUT)
     import matplotlib
     matplotlib.use("Agg")

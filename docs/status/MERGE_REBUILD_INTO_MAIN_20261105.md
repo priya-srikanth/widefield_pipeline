@@ -117,3 +117,11 @@ stored-vs-in-memory tests read real data. The tests read from the shares but do 
 `nightly_figs` restores main's August-only pre default for cohort 1 (`IMAGING_PRE_FROM = "0801"`, `setdefault`) ONLY when
 no render profile is active (`rebuild_root.active()` false). Under the profile, WIDEFIELD_PRE_FROM stays the profile's
 (including its per-block unsets). An explicit WIDEFIELD_PRE_FROM still wins. Test: tests/test_nightly_pre_from_default.py.
+
+## Second merge of origin/main (138048a3, 4 commits: cohort2 decks, FR spout-in-mesh control)
+- One conflict, wfield_local/preprocess_deck.py: kept both. main's `__SPOUTMAPS_NATIVE__` cohort-level branch runs first,
+  then the rebuild's `_tagged_map_dir(subdir)`. Bucket loop: main's `for animals, _n in buckets:` (the index was unused).
+- Guard tests: fr_spout_mesh_control.py classified behaviour-only (FR readouts dir); cohort2_qc/spout_maps.py dropped
+  from LITERAL (it now takes its share root from seizure_events_video.MICRO; the runtime fence still applies).
+- Re-run after the fix: test_preprocess_deck, test_crossday_intensity, test_share_writers_mode_safe, test_rebuild_root,
+  test_nightly_pre_from_default, test_entrypoint_after_defs, test_cli_help_is_console_safe: all pass.
