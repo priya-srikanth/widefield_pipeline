@@ -855,3 +855,9 @@ FYI, the 3-class camera variant (lick / jaw-only / none) is thin in PS92 and PS9
   lost), slide 95 wording, per-class encoder figure placement (A14). Contact-only frozen test already run by 34
   (drop in all four within contact trials, with caveats: PS92 is a pre-stroke time trend, PS95 chronic partly kernel
   over-prediction; no CIs). e0 running the FR spout-in-mesh control; FR 500 permutations need an O2 submit by Priya.
+- 11-05: Priya: slide 95 reworded (title now "Lick response larger from subacute on, beyond global gain"; the 101-char
+  version wrapped across the divider; caption already names contralesional tjM1 / SSp-m; notes gain the z-scored
+  numbers; 187 / 82 hidden unchanged; scripts update_slide95_title_1105{,b}.py, backup _bak_before_s95_1105.pptx).
+  Per-class encoder figure (A14): MAIN for now (sent to 34). 34: B12 early look = spont lick kernels move pre-cue
+  position credit < .002 everywhere; chronic rise in 3 / 4 in both arms (not a spont artefact). Rebuild -> main merge
+  done on merge/rebuild-into-main-20261105 (2730033a), unpushed.
