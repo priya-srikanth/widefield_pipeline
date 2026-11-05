@@ -33,7 +33,7 @@ log for the earlier part of the day is `RUNNING_LIST_2026-11-02_OVERNIGHT.md`.
       contralesional SSp-m / tjM1.
     - Options: re-caption the slide; show the z-scored version (main or hidden); or both. [Suggest a z-scored hidden
       companion, and reword the main claim to the subacute / chronic + ITI result.] It is 34's figure.
-    - RUNNING (Priya OK): biological vs measurement gain:
+    - DONE (see findings, GAIN_BIO_2026-11-04.md). Previously: biological vs measurement gain:
       - (1) a spatial map of the SD rise per area, rest and task, with the 415 isosbestic control, set against the F0
         and quiet-event change maps;
       - (2) the SD rise in movement / arousal-matched still rest periods, and away from quiet events.
@@ -327,6 +327,17 @@ FYI, the 3-class camera variant (lick / jaw-only / none) is thin in PS92 and PS9
 165 / 306 per animal. Held-out pre recall at cue: lick .67-.93; jaw-only .60-.63 (PS94 and PS95 only); none .20-.77.
 
 ## Findings (newest first)
+
+- **11-04: the post-stroke gain looks BIOLOGICAL but brain-wide (docs/status/GAIN_BIO_2026-11-04.md, 93f5ef84; 107 / 107
+  sessions).**
+  - Rest SD acute +.35 [+.23, +.46], 4 / 4. UNIFORM: all 46 areas 1.2-1.5x; no ipsilesional or orofacial excess.
+    Later, posterior / medial areas (RSP, VIS, ACAd) rise MORE than orofacial ones.
+  - 415 rises about half as much, with a DIFFERENT map (ipsi, lateral, vessel-like, tracking 415 F0): a separate
+    peri-lesional haemodynamic change. Corrected 470 rises as much as raw 470, so the correction doesn't create it.
+  - NOT movement: the animals are stiller (face speed 0.5-0.8x), but the gain persists in speed-matched / still
+    frames (+.40-.43, 4 / 4) and after face regression. ~80 % remains away from quiet events. No pupil data.
+  - So: more consistent with a real brain-wide gain (excitability / state) than with measurement. The acute
+    "lick response larger" has the same size and non-specificity: real, but not lick- or orofacial-specific.
 
 - **11-04: the post-stroke SD rise is mostly a GLOBAL GAIN** (SD_RISE_2026-11-04.md).
   - Acute: noise 1.21x and signal 1.14x (snr .95); rest rises as much as trials; quiet events don't explain it.
