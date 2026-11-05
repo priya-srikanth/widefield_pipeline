@@ -530,7 +530,8 @@ def main():
     out = str(run_mode.routed_output(args.output or _default_out()))
     Path(out).mkdir(parents=True, exist_ok=True)
     log(f"figure working dir: {out}")
-    registered = sorted({s["label"][-4:] for s in SESSIONS})
+    # sorted by FULL date (config.date8), never as MMDD strings: cohort2 runs across New Year ("0105" < "1029")
+    registered = sorted({s["label"][-4:] for s in SESSIONS}, key=config.date8)
     only = config.normalize_animals(args.only)   # None => all animals
     if only:
         os.environ["WIDEFIELD_ONLY_ANIMALS"] = ",".join(only)  # inherited by the subprocesses below
@@ -558,7 +559,7 @@ def main():
     backfill = [d for d in from_list if d not in per_day and _perday_figs_incomplete(out, d)]
     if backfill:
         log(f"backfilling per-day figs for curated dates missing them on disk: {backfill}")
-    per_day = sorted(set(per_day) | set(backfill))
+    per_day = sorted(set(per_day) | set(backfill), key=config.date8)
 
     # PREFLIGHT: DROP DATES WITH NO LocaNMF FIT AT ALL, and say which and why.
     #
@@ -622,7 +623,7 @@ def main():
             for lab in _avail(d):
                 by_animal.setdefault(lab.split("_")[0], []).append(lab)
         for a, labs in sorted(by_animal.items()):
-            log("wrote " + fig_rolling_cue_by_animal(a, sorted(labs, key=lambda x: x[-4:]), Path(out)).name)
+            log("wrote " + fig_rolling_cue_by_animal(a, sorted(labs, key=config.date8), Path(out)).name)
     except Exception as ex:
         log(f"  !! rolling_by_animal: {type(ex).__name__} {str(ex)[:70]}")
 

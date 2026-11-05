@@ -433,9 +433,12 @@ def curated_labels(animals=None, **kw):
 
 def curated_ids() -> set:
     """The curated cohort as ``{"PSxx_YYYYMMDD", ...}`` -- the id the pose / video outputs use (Priya 10-20: "we can stop
-    processing sessions that will not be part of analysis"; scripts default to it, ``--all`` overrides)."""
+    processing sessions that will not be part of analysis"; scripts default to it, ``--all`` overrides).
+
+    A SET, for membership tests: never iterate it into a pool without `sorted` (rule 9). The date is the label's part
+    after the underscore, not ``lab[5:]``, which cut cohort2's 5-character animals (``PS118_1105``) one digit late."""
     from wfield_local import config
-    return {f"{lab.split('_')[0]}_{config._to8(lab[5:])}" for lab in curated_labels()}
+    return {f"{lab.split('_')[0]}_{config.date8(lab)}" for lab in curated_labels()}
 
 
 # ---------------------------------------------------------------------------------------------

@@ -653,7 +653,7 @@ def preprocess_session(s: dict, params: dict, rv: PathResolver, dry_run: bool,
     thing to have to get right at midnight.
     """
     animal, mmdd, sess, dims = s["animal"], s["mmdd"], s["sess"], s["dims"]
-    yyyymmdd = s.get("yyyymmdd") or f"{config.cohort_year()}{mmdd}"   # from discovery (was hardcoded 2026)
+    yyyymmdd = s.get("yyyymmdd") or config.date8(mmdd)   # from discovery; date8 rolls the year at New Year (cohort2)
     mc = f"{s['sess_dir']}/motion_corrected"
     binp = f"{mc}/motioncorrect_{dims}_uint16.bin"
     results = f"{mc}/wfield_local_results"
