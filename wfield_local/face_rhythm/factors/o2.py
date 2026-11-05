@@ -24,7 +24,7 @@ def _sbatch(b: str, opts: str, cmd: str) -> str:
         i += step
     return ("#!/bin/bash -l\n#SBATCH -p short\n" + f"#SBATCH -o {b}/logs/%x_%A_%a.out\n#SBATCH -e {b}/logs/%x_%A_%a.err\n"
             + "".join(f"#SBATCH {x}\n" for x in lines)
-            + "set -eo pipefail\nmodule load conda/miniforge3/24.11.3-0\nconda activate fr\n"
+            + "set -eo pipefail\nmodule load conda/miniforge3/26.9.4-1\nconda activate fr\n"
             + f"export OMP_NUM_THREADS={thr} MKL_NUM_THREADS={thr} OPENBLAS_NUM_THREADS={thr}\n"
             + f"python {b}/fr_factors.py {cmd}\n")
 

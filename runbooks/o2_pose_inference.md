@@ -31,7 +31,7 @@ collect <- share (M:) <-------   /n/files  <---rsync---------------  /n/scratch/
 
 | item | value |
 |---|---|
-| conda module | `conda/miniforge3/24.11.3-0` (worked; HMS docs say non-`miniconda3` modules were hidden in 2024 — if `module load` fails, `module spider miniconda3` and update `o2_inference.conda_module`) |
+| conda module | `conda/miniforge3/26.9.4-1` (worked; HMS docs say non-`miniconda3` modules were hidden in 2024 — if `module load` fails, `module spider miniconda3` and update `o2_inference.conda_module`) |
 | env | `deeplabcut` (Priya's): DeepLabCut **3.0.0rc13**, torch 2.9.0+cu128, OpenCV 4.11 — runs our runner + prior (benchmark and 5000-frame test passed). Do NOT modify it; if it ever breaks, make a separate `dlc3` env (COMMANDS.md step 0). |
 | GPU seen | `gpu` partition, NVIDIA **L40S 46 GB**, driver CUDA 13.2 (>= the 12.8 torch needs) |
 | speed | `--bench 2000`: batch 1 98.1 fps, 4 89.2, 8 75.0, 16 70.9, 32 68.7, 64 67.2 → **batch 1** (CPU decode is the limit, not the GPU). Real runs: 66 fps on a 5000-frame test, **88 fps** sustained in the array job; a cam4 session is ~2.2 M frames (PS93 0814: 2 209 351) → **~7 h per session**. |
@@ -139,7 +139,7 @@ helps the job backfill sooner.
   release, resubmit only the failed ids (`sbatch --array=<ids>%12 --exclude=... --gres=gpu:1 -t 6:00:00 run_pose.sbatch`;
   the runner skips videos with a done.json). `o2_inference.exclude_nodes` now carries those nodes for every new bundle.
   Symptom to watch: many tasks `CG` / `FAILED` under a minute -> `sacct ... --format=JobID,NodeList,Elapsed`.
-  Root cause check: `module load conda/miniforge3/24.11.3-0; conda activate lp; python -c "import torch;
+  Root cause check: `module load conda/miniforge3/26.9.4-1; conda activate lp; python -c "import torch;
   print(torch.cuda.get_arch_list())"` -> `sm_75 ... sm_120`, no `sm_70`. Re-check after any rebuild of the env.
 * **Coverage check (run after any failure / resubmit, and at the end)** -- by OUTPUTS, not sacct states (a task can end
   FAILED, NODE_FAIL, TIMEOUT, CANCELLED ...):

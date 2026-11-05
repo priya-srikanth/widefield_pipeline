@@ -944,7 +944,7 @@ dlc:                          # DeepLabCut orofacial tracking on the WIDEFIELD r
                               # DeepLabCut/code/20251112_DLC_batch_video_analysis_O2.ipynb
     partition: gpu
     conda_env: deeplabcut
-    module: conda/miniforge3/24.11.3-0
+    module: conda/miniforge3/26.9.4-1
     throughput_fps: 86        # MEASURED, not assumed: the old cohort's ~925k-frame videos took
                               # ~3 h each at batchsize 1. At 250 fps a widefield session-camera is
                               # ~1.5M frames, so a WHOLE recording is ~4.8 h of GPU. Inference runs
@@ -1316,7 +1316,7 @@ orofacial_kinematics:          # PORTED 2026-10-01 from stroke_orofacial dlc_kin
 o2_inference:                  # WHOLE-SESSION cam4 pose inference on HMS O2 (wfield_local/o2_inference.py; runner
                                # wfield_local/o2_pose_runner.py). PORTED 2026-10-02 from stroke_orofacial
                                # dlc_inference_o2 (their: gpu, gpu:1, 10 CPUs, 30G, 9:30:00 per job looping over every
-                               # video, conda/miniforge3/24.11.3-0, env deeplabcut [TF]). Re-check partition limits
+                               # video, conda/miniforge3/26.9.4-1, env deeplabcut [TF]). Re-check partition limits
                                # (`sinfo`) and the module name on O2 before a big run.
   partition: gpu_quad            # 2026-10-15: Priya's account has gpuquad_qos (140 cards, no per-user cap listed); the `gpu`
                                 # partition's gpu_qos caps a user at cpu=34 / mem=420G (~5 jobs at 6 CPUs)
@@ -1332,7 +1332,7 @@ o2_inference:                  # WHOLE-SESSION cam4 pose inference on HMS O2 (wf
   # so a task there dies in ~30 s and the node takes the next one: 43 tasks of array 56464442 failed that way once
   # Gres was opened to any GPU type. RTX 8000 / A40 / A100 (incl. MIG) / L40S all work.
   exclude_nodes: "compute-g-16-[254-255],compute-g-17-[147-152]"
-  conda_module: "conda/miniforge3/24.11.3-0"
+  conda_module: "conda/miniforge3/26.9.4-1"
   conda_env: deeplabcut           # Priya's existing O2 env (2025-11 stroke_orofacial O2 runs; PyTorch DLC 3)
   deeplabcut_version: "3.0.1"   # = this desktop's; the runner's numbers are tested against it
   batch: 1                      # MEASURED 2026-10-05 on an O2 `gpu` L40S (46 GB), cam4 0814 PS93, 2000 frames:
