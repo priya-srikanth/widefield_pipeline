@@ -1475,3 +1475,13 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
 - **~20:40: both helpers stopped at the spend limit and were resumed.**
   - The merge helper finishes the g_group wiring and the final suite.
   - The runner holds for the go on the bundle build.
+- **11-04 ~20:50: all four branches merged into rebuild/cohort1-20261103 (tip c149decf). Full suite: 4,923 passed /
+  0 failed.**
+  - Merge commits: 3c4eb932 / 28939c46 / 2387cf20 / 9fb2d964.
+  - One ENL search (enl_window.precue_window_start) and one length (lp_licks.enl_post_s) for decoders, encoder and time
+    scripts, with a test.
+  - g_group: run -> stopped, tail -> after_end ("quit"), stopped_licking on its own.
+  - All 8 profile tags match. Primary: ...stopA2jexrt3500c70.
+  - Small inconsistency: for a far-spout trial with no LP onset, the encoder falls back to DAQ, while lp_licks leaves it
+    untimed. The census says 0 contact trials lack an LP time, so it is moot for now. Align at the next code pass.
+  - Runner given the GO: bundle enc_rebuild_20261104b from c149decf, then the checks.
