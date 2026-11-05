@@ -3136,3 +3136,104 @@ scratchpad (`.../scratchpad/fl/`).
   - The failure: test_rebuild_root's writer classifier read frozen_relabel's new `run_mode` check as "routed". Fixed
     by moving the check into `frozen_encoder.stats_design_ok` (next commit).
   - test_rebuild_root + test_frozen_relabel + test_frozen_spont_licks then: 34 passed.
+
+### 8.52 FROZEN encoder: per-trial, per-class outputs (Priya 11-05; branch rebuild/frozen-trials off 34425934)
+
+CODE + TESTS ONLY: no renders, nothing written to M:. Worktree `wf_rebuild_frozenlicks`. Smoke outputs in the session
+scratchpad (`.../scratchpad/fl/tr_new`, `tr_old`, `old_posthoc`).
+
+**Why.** The frozen headline: the pre-stroke model predicts post-stroke activity worse. Acute sessions hold more
+incomplete trials, so part of the drop could be class composition. This file gives trial-to-trial R2 by class within
+the working trials: contact (cls "hit") vs "incomplete".
+
+**The file.** Every session the frozen encoder scores (Allen-area targets: the areas and the frA frames; basis / grid
+runs write none) gets `<run>/joint/sessions/<label>_trials.npz`, next to the session npz.
+- Layout = the combined encoder's `<label>_trials.npz` (8.43). It is built by the combined encoder's own
+  `_TrialScorer` (`trial_rows`, `trial_bins`, `_binsum`, `trial_first_lick`), so `wfield_local/encoder_trials` reads it.
+  - `t_*` trial table: trial_id, pos, cue_s, stop_s, first_lick_s, timing_source, grooming_suspect, lp / daq times,
+    rows.
+  - `sse_bins_<cue|lick>` (models, trials, 0.5 s bins, areas), `sst_bins_*` / `nfr_bins_*`, `rd_mean` (the SST
+    reference), `bin_edges_s`, `off`.
+- Rows = the scored trials. That is the engaged = working trials (contact + incomplete under the camera gate).
+  - Every row is a held-out prediction: pre sessions leave-one-session-out, post sessions the all-pre fit.
+  - `t_frozen_from` = loso | all_pre; `t_heldout` = True.
+- Classes: `t_cls` / `t_cls_raw` / `t_attempted` / `t_canonical`, joined (`encoder_trials.join_classes`) from the run
+  tag's trial_attempts table (`lp_licks.attempts_path`). Trials without a row (or no table) = "missing".
+- Lick alignment = `trial_first_lick` in both designs, as the encoder's file. The session npz keeps its own alignment.
+- `tr_models`: "full" (= the joint model; the reader's name) + the unique-share variants. `tr_variants` = the frozen
+  names.
+  - Default (`TRIAL_VARIANTS`): joint, no_timing, no_target, no_task, no_lick, no_contact, no_other, no_movement, plus
+    no_spont (spont design) and no_fr_all / no_execution where fitted.
+  - `FROZEN_TRIAL_VARIANTS=all` adds no_exec_locked / no_exec_within / no_spout / task_only / no_lickspout / no_fr /
+    no_fr_dir / no_fr_locked / no_posinfo / no_noposinfo. A comma list picks variants.
+  - Unique share per class = joint - variant from the summed binned SSE.
+- PER-CLASS TRIAL-TO-TRIAL R2 WITHOUT FRAMES. `sse_trial_bins_<align>` / `sst_trial_bins_<align>` (trials, bins,
+  areas): the joint model's terms with the trial means removed within each spout x class (`trial_groups` "pos+cls";
+  `trial_to_trial_bins`).
+  - `encoder_trials.class_summary` uses them when the file has no frames. This is a thin branch; the frame path is
+    unchanged.
+  - Test: equal to the frame path (`class_full_fine`) for every class and both alignments.
+- `FROZEN_TRIALS` = off | sse (default) | full (+ frames: data and the joint held-out "cv", float16, about +45 MB per
+  session) | full32.
+- Size, default sse, float32, 59 areas:
+  - 8 variants (v7g3_t3d): 29.3 MB (PS93_0814, 509 trials) / 27.5 MB (PS93_0818, 478).
+  - 9 variants (spont): 31.9 / 30.0 MB.
+  - About 2.5 MB per variant plus 5 MB.
+  - The combined encoder's file is 16-27 MB. The default set is kept to the headline shares for that reason; float16
+    would halve it (checked: unique shares change by < 3e-5) but was not adopted, to keep the encoder's dtype.
+- `load_trial_parts` skips the `_trials` files. No other frozen reader globs `sessions/*.npz` (they read the json).
+
+**Post hoc (`--trials-only`).** An existing frame (e.g. v7g3_t3d, rendering now without the file) gets the files from its
+OWN `fit/pre_stats.pkl` + `templates.pkl`.
+- Fits = `fit_animal` from the saved Gram terms (deterministic: the same alphas and betas). Only the trial variants are
+  fitted.
+- Nothing else is written: no fit npz, no session npz / json, no drop-spout / Musall tables.
+- It refuses missing / mismatched saved statistics (it never recomputes), basis targets, `--fit-from` / `--alphas-from`,
+  and FROZEN_TRIALS=off.
+- Smoke: on a copy of the earlier v7g3_t3d smoke frame (made by the pre-8.52 code), the post hoc files are BIT-IDENTICAL
+  to the files of a full run on this code (2 files, 96 arrays). The frame's own 46 files stay unchanged.
+- Cost: 1 m 25 s for PS93 (8 trial variants, 2 sessions, `--jobs 2`), peak 6.1 GB working set (2 workers). About 40-60 s
+  per session per worker, dominated by `session_design` (imaging + behaviour loads from the input cache).
+- Estimate: a full frame (107 sessions) at 4 workers is about 25-35 min, ~3 GB per worker. The frA frame is similar plus
+  the FR load. Not run on a real frame.
+
+**Existing outputs byte-identical** (smoke PS93_0814 / 0818, 7 August pre sessions, as 8.51; this code vs the 8.51 smoke
+outputs, `_trials` files excluded):
+- v7g3_t3d: 46 / 46 files, 214 items, 0 differ.
+- v7g3_t3d_spont: 61 / 61 files, 314 items, 0 differ.
+- The only new file is `<label>_trials.npz`.
+- Runtime with the file: spont 10 m 46 s, v7g3_t3d 8 m 55 s (`--jobs 2`; caches warm). Peak 10.4 GB working set (spont,
+  2 workers).
+
+**Smoke class table** (joint model, cortex, held out, cue-aligned -3 .. +3 s; lick-aligned in brackets). cvR2 = against
+the session mean, as `sst`; trial R2 = trial-to-trial, spout x class means removed.
+
+| session | design | class | n | cvR2 | trial-to-trial R2 |
+| --- | --- | --- | --- | --- | --- |
+| PS93_0814 pre (LOSO) | v7g3_t3d | contact | 485 | 0.658 (0.653) | 0.539 (0.508) |
+| | | incomplete | 24 | 0.675 (0.686) | 0.714 (0.686) |
+| | v7g3_t3d_spont | contact | 485 | 0.661 (0.656) | 0.543 (0.513) |
+| | | incomplete | 24 | 0.699 (0.711) | 0.734 (0.711) |
+| PS93_0818 acute (all-pre) | v7g3_t3d | contact | 380 | 0.469 (0.474) | 0.387 (0.351) |
+| | | incomplete | 98 | 0.367 (0.422) | 0.369 (0.363) |
+| | v7g3_t3d_spont | contact | 380 | 0.480 (0.482) | 0.399 (0.360) |
+| | | incomplete | 98 | 0.358 (0.416) | 0.361 (0.359) |
+
+- Acute, one session: the contact trials alone already fall from ~0.54 to ~0.39 trial-to-trial (0.66 -> 0.47 cvR2).
+  Incomplete trials are not predicted worse than contact trials trial-to-trial (0.37 vs 0.39), but they are on cvR2
+  (0.37 vs 0.47).
+- Pre has only 24 incomplete trials.
+- One animal, one session pair: composition can only be judged on the full frame.
+
+**Tests.**
+- New tests/test_frozen_trials.py, 7 tests:
+  - layout and binned SSE = the encoder's definition;
+  - the reader's class_summary on a frozen file;
+  - sse mode has no frames but gives the per-class trial R2;
+  - the binned per-class trial R2 = the frame path;
+  - FROZEN_TRIALS env;
+  - --trials-only refuses without saved statistics and for basis targets;
+  - load_trial_parts skips trials files.
+- Related (frozen trials / spont / encoder, encoder trials, licks_all, relabel, allsession, rebuild_root): 92 passed.
+- Full suite, 4 shards one at a time on 984116bd (>= 44 GB free before each): 4,942 passed, 173 skipped, 0 failed
+  (1,978 + 5 skipped; 1,212 + 167; 890 + 1; 862).
