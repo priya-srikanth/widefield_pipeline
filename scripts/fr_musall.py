@@ -25,6 +25,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+from wfield_local import fr_groups as _fg  # noqa: E402  -- the collected FR run folder per mode
 from wfield_local import frozen_encoder as _fe  # noqa: E402
 
 # THE encoder root of THIS run mode (coordinator 11-03): `frozen_encoder.out_root()` = the old literal by default,
@@ -42,7 +43,7 @@ MK = {"PS92": "o", "PS93": "s", "PS94": "^", "PS95": "D"}
 
 def table(mode: str, windows) -> pd.DataFrame:
     from wfield_local import config, epochs
-    frd = E / f"movement_first_fr-master_pre_v1_subset-fr_exec-polar_licks-combined_frg-{mode}" / "sessions"
+    frd = _fg.run_folder(E, mode) / "sessions"
     rows = []
     for f in sorted(MAIN.glob("*_regions.csv")):
         lab = f.stem.replace("_regions", "")
@@ -75,7 +76,7 @@ PIX = [("full_fr", "full R2 (with FR)"), ("alone_fr", "FaceRhythm alone"), ("uni
 def session_pixels(lab: str, mode: str, windows) -> dict:
     """{(quantity, window): (H, W) block R2 (fraction, 0-1)} for one session from the stored 2 x 2-block SSE maps of the main
     (no-FR) and FR runs (same grid; R2 = 1 - SSE / SST per block, as combined_encoding_figures._grid_from)."""
-    frd = E / f"movement_first_fr-master_pre_v1_subset-fr_exec-polar_licks-combined_frg-{mode}" / "sessions"
+    frd = _fg.run_folder(E, mode) / "sessions"
     zm, zf = np.load(MAIN / f"{lab}.npz"), np.load(frd / f"{lab}.npz")
     assert np.array_equal(zm["flat"], zf["flat"])
     H, W = (int(x) for x in zm["shape"])

@@ -31,6 +31,18 @@ EXTRA = ("cue2lick", "cuestop", "firstlick")    # only in the O2 `_win` runs (dr
 
 
 
+#: the run-setting suffix `combined_encoding.out_dir` puts after the order / subset in the rebuild runs (O2 bundle
+#: settings EXEC=polar, LICKS=combined; REBUILD_CODE 8.56)
+RUN_SUFFIX = "_exec-polar_licks-combined"
+
+
+def _run(E: Path, name: str) -> Path:
+    """E/<name> when it exists (adopted runs), else E/<name><RUN_SUFFIX> (the rebuild's collected runs). The rebuild's main
+    run already holds the extra windows, and it has no separate cam4 contest / `_win` runs, so those suffixed names do
+    not exist and their measures are skipped by the callers' existence checks."""
+    return E / name if (E / name / "sessions").exists() else E / f"{name}{RUN_SUFFIX}"
+
+
 def _regions(folder: Path, labels: set) -> pd.DataFrame:
     fs = [f for f in glob.glob(str(folder / "sessions" / "*_regions.csv")) if Path(f).stem[:-8] in labels]
     R = pd.concat([pd.read_csv(f) for f in fs], ignore_index=True)
@@ -39,17 +51,17 @@ def _regions(folder: Path, labels: set) -> pd.DataFrame:
 
 def outcomes(E: Path, labels: set, deficit: str | None = None) -> pd.DataFrame:
     rows = []
-    R = _regions(E / "movement_first", labels)
+    R = _regions(_run(E, "movement_first"), labels)
     P = R.pivot_table(index=["label", "window", "area"], columns="model", values="r2")
     for name, m in (("position", "drop:position"), ("side", "shufside:position"), ("distance", "shufdist:position")):
         if m in P:
             rows.append(((P["full"] - P[m]) * 1e3).rename("y").reset_index().assign(measure=name))
-    if (E / "movement_first_subset-drop_win" / "sessions").exists():   # extra windows: position only (ONLY=drop:)
-        W = _regions(E / "movement_first_subset-drop_win", labels)
+    if (_run(E, "movement_first_subset-drop_win") / "sessions").exists():   # extra windows: position only (ONLY=drop:)
+        W = _regions(_run(E, "movement_first_subset-drop_win"), labels)
         W = W[W.window.isin(EXTRA)].pivot_table(index=["label", "window", "area"], columns="model", values="r2")
         if "drop:position" in W:
             rows.append(((W["full"] - W["drop:position"]) * 1e3).rename("y").reset_index().assign(measure="position"))
-    D = _regions(E / "movement_first_subset-droppos-", labels)
+    D = _regions(_run(E, "movement_first_subset-droppos-"), labels)
     Q = D.pivot_table(index=["label", "window", "area"], columns="model", values="r2")
     sp = {}
     for c in Q.columns:
@@ -68,9 +80,9 @@ def outcomes(E: Path, labels: set, deficit: str | None = None) -> pd.DataFrame:
     for tag, fold, wins in (("cam4", "movement_first_subset-nokin", WINDOWS),
                             ("cam4", "movement_first_subset-nokin_win", EXTRA),        # extra windows (O2 _win run)
                             ("3d", "movement_first_subset-nokin_exec-polar_licks-combined_bins", WINDOWS)):
-        if not (E / fold / "sessions").exists():
+        if not (_run(E, fold) / "sessions").exists():
             continue
-        N = _regions(E / fold, labels)
+        N = _regions(_run(E, fold), labels)
         N = N[N.window.isin(wins)].pivot_table(index=["label", "window", "area"], columns="model", values="r2")
         for name, (hi, lo) in (("ceiling", ("category", "none")), ("u_target", ("target+exec", "exec")),
                                ("u_exec", ("target+exec", "target")), ("u_exec_strict", ("category+exec", "category")),

@@ -1101,10 +1101,13 @@ def main(argv=None) -> int:
     writeguard.assert_writable(base)
     figs.mkdir(parents=True, exist_ok=True)
     tabs.mkdir(parents=True, exist_ok=True)
-    if a.order.endswith("_subset-trmodels") or a.order.startswith("musall"):
+    # the run-setting suffixes `combined_encoding.out_dir` appends AFTER the subset (`_exec-polar_licks-combined`, `_bins`,
+    # `_nolicksall`, ...; rebuild collect 11-04) do not change which figure suite a subset run gets
+    core = a.order.split("_exec-", 1)[0]
+    if core.endswith("_subset-trmodels") or a.order.startswith("musall"):
         return tr_main(a, figs, tabs)
     # per-spout maps from the FIXED one-vs-rest rerun (10-19); O2 `collect` names it `_subset-shufpos-` (ONLY=shufpos-)
-    kindp = next((k for k in ("shufpos", "droppos") if a.order.rstrip("-").endswith(f"_subset-{k}")), None)
+    kindp = next((k for k in ("shufpos", "droppos") if core.rstrip("-").endswith(f"_subset-{k}")), None)
     if kindp:
         _R, meta, sess = load(a.run, a.order, a.baseline, oc.LATE_PRE_FROM)
         title = (f"Combined encoding model, {a.order} ({kindp}) -- {a.run} -- baseline: "

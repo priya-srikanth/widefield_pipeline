@@ -58,10 +58,11 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--windows", nargs="+", default=["lick", "cue"])
     ap.add_argument("--n-null", type=int, default=50)
+    ap.add_argument("--jobs", type=int, default=8, help="worker processes (shared box: keep <= 3)")
     a = ap.parse_args(argv)
     out = E / "variance_maps"
     (out / "figures").mkdir(parents=True, exist_ok=True)
-    got = Parallel(n_jobs=8)(delayed(session_var)(jf, a.windows) for jf in sorted(MAIN.glob("PS*_*.json")))
+    got = Parallel(n_jobs=a.jobs)(delayed(session_var)(jf, a.windows) for jf in sorted(MAIN.glob("PS*_*.json")))
     S = [g for g in got if g is not None]
     meta = pd.DataFrame([{k: s[k] for k in ("label", "animal", "epoch")} for s in S])
     mask = block_mask()

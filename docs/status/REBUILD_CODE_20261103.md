@@ -3384,3 +3384,23 @@ collect into the `_daqlk` folder with the provenance json. With test_o2_encoding
 - Default (no flag) still copies. Test: `test_collect_move_leaves_no_second_copy`; O2 tests 26 passed, ruff clean.
 - First use: the bundle-b runs after main / main_nolicksall (those two were copied; the bundle copies are deleted after a
   full hash check, approved by Priya 11-05).
+
+### 8.56 Section C encoder figures read the rebuild's collected O2 runs
+- The FR figure scripts (`fr_musall`, `fr_contra_orofacial`, `fr_direction`, `fr_encoding_summary`, `fr_trial_peth`) had
+  the 10-25 hand-collected folder names hard-coded (`..._subset-fr_exec-polar_licks-combined_frg-<m>`, and a separate
+  `..._frg-A_..._tr` run). `combined_encoding.out_dir` (what `o2_encoding collect` writes) names them
+  `movement_first_fr-master_pre_v1_frg-<m>_subset-fr_exec-polar_licks-combined`, and the fr_A run itself carries the
+  trial-to-trial models. One helper, `fr_groups.run_folder(root, mode, tr=False)`: the code's name first, the old name as
+  the fallback (`tr=True` takes fr_A only when its sessions have `tr_models`). Test `test_run_folder_names`.
+- `combined_encoding_figures`: the subset-kind checks (`_subset-trmodels`, `_subset-shufpos` / `droppos`) now test the order
+  name with the run-setting suffix (`_exec-...`) cut off, so `--order movement_first_subset-trmodels_exec-polar_licks-
+  combined` gets the trial-to-trial suite and `..._subset-shufpos-_exec-...` the per-spout maps (were sent to the contest
+  suite).
+- `fr_direction_mechanism --bundle <inputs/>`: the bundle was hard-coded to the adopted `enc_v36_full_20261024`; under a
+  rebuild root the flag is required (refuses otherwise).
+- `--jobs` on `fr_direction` (default 6), `fr_pixel_significance` and `variance_maps` (default 8), which had their worker
+  counts hard-coded (shared box). Defaults unchanged.
+- `encoding_mixed`: its runs are resolved by `_run(E, name)` = `E/<name>` if present (adopted runs), else
+  `E/<name>_exec-polar_licks-combined` (the rebuild's collected main and droppos runs). The rebuild's main run already
+  carries the extra windows (cue2lick / cuestop / firstlick), and there is no separate cam4 contest (`_subset-nokin`) or
+  `_win` run, so those measures (`cam4:*`) are absent and their figure panels are blank; the 3-D binned contest is read.

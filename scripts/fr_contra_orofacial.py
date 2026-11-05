@@ -30,7 +30,7 @@ import numpy as np
 import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from fr_musall import AN, E, table  # noqa: E402
+from fr_musall import AN, E, _fg, table  # noqa: E402
 
 Q = ["alone_uninstructed", "uniquefr_uninstructed", "uniquefr_task", "uniquefr_position", "unique_task",
      "unique_position", "unique_fr", "full_fr"]
@@ -115,7 +115,7 @@ def sst_table(mode: str, labels, windows) -> pd.DataFrame:
     """Per session x area x window: SST and SSE of fr:full and of fr:drop:<g> summed over the area's blocks."""
     from frozen_area_maps import area_image
     img, names = area_image(labels[0])
-    frd = E / f"movement_first_fr-master_pre_v1_subset-fr_exec-polar_licks-combined_frg-{mode}" / "sessions"
+    frd = _fg.run_folder(E, mode) / "sessions"
     rows = []
     for lab in labels:
         z = np.load(frd / f"{lab}.npz")

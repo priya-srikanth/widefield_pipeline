@@ -56,3 +56,24 @@ def test_master_v1_side_and_distance_modes():
     assert set(fr_groups.group(sig, "master_v1", "D")) - set(fr_groups.group(sig, "master_v1", "B")) == {"fr_close", "fr_far"}
     np.testing.assert_allclose(a["fr_lick"][1], sum(sig[f"fr_{k}"][1] for k in G["lick"]))
     assert list(fr_groups.group(_sig(), "pilot_v1", "D"))[:1] == ["fr_lick"]          # pilot: no close / far parts
+
+
+def test_run_folder_names(tmp_path):
+    """The collected FR run folder: the code's name (mode before the subset) first, the 10-25 hand-collected name as the
+    fallback; tr=True takes the fr_A folder only when its sessions carry the trial-to-trial models."""
+    import json
+
+    from wfield_local import fr_groups as fg
+    new = tmp_path / "movement_first_fr-master_pre_v1_frg-A_subset-fr_exec-polar_licks-combined"
+    legacy = tmp_path / "movement_first_fr-master_pre_v1_subset-fr_exec-polar_licks-combined_frg-A"
+    legacy_tr = tmp_path / "movement_first_fr-master_pre_v1_frg-A_subset-fr_exec-polar_licks-combined_tr"
+    assert fg.run_folder(tmp_path, "A") == new                     # neither exists -> the code's name
+    (legacy / "sessions").mkdir(parents=True)
+    assert fg.run_folder(tmp_path, "A") == legacy
+    (new / "sessions").mkdir(parents=True)
+    assert fg.run_folder(tmp_path, "A") == new
+    (new / "sessions" / "PS92_0806.json").write_text(json.dumps({"tr_models": []}))
+    (legacy_tr / "sessions").mkdir(parents=True)
+    assert fg.run_folder(tmp_path, "A", tr=True) == legacy_tr      # no tr models in the new folder
+    (new / "sessions" / "PS92_0806.json").write_text(json.dumps({"tr_models": ["full", "fr:full"]}))
+    assert fg.run_folder(tmp_path, "A", tr=True) == new
