@@ -1850,3 +1850,9 @@ bundle without `daqlk` and writes a provenance json.
 - ~16:18: **rebuild -> main MERGE PUSHED: origin/main = 136807cf** (e8407872..136807cf; pre-push full suite 5,030 passed /
   175 skipped / 0 failed, 1 h 11 m). Includes rebuild through 19d3cf71 + fix 411c8385. a8 told; other windows released.
   Next: overnight `_daqlk` render queue in a new detached worktree at 136807cf after the frozen lanes.
+- ~16:30: frozen lanes: frA_ls EXIT 0 14:37, frA_nospont EXIT 0 14:23; frA_ls_basis running (19/107 at 16:18, ETA ~midnight).
+  Overnight render queue being BUILT (not launched) by a helper in a new detached worktree wf_render_daqlk @ 136807cf;
+  plan doc -> rebuild_20261103/RENDER_QUEUE_DAQLK_20261105.md. Steps needing frA_ls_basis go last, gated.
+- ~16:30: DELETED superseded old-tag frozen partials under `...stopA2jexrt3500c70/` (no `_daqlk`):
+  frozen_encoder_gate-attempted_v7g3_t3d (978 files, 1.3 GB), _frA (1,242 files, 1.5 GB), _frAsplit (empty). File list
+  kept in that folder: DELETED_SUPERSEDED_FROZEN_20261105.txt.
