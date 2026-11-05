@@ -1575,8 +1575,8 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
 - **Frozen:** v7g3_t3d lanes 1+2 STOPPED (STOP file plus exact PIDs) at 20/107 and 17/107. The partial folders are superseded (delete with a kept list later).
 - **O2:**
   - Priya cancels every bundle-b array except main + main_nolicksall, which are kept as an EARLY look at B12 only.
-  - Bundle b is superseded; delete it (M: + scratch) when the new bundle is built.
-  - The 183 copied bins sessions are superseded too.
+  - ~~Bundle b is superseded; delete it~~ REVISED 02:40: bundle b is VALID under `_daqlk` (its inputs are
+    byte-identical under the new code, see Q1 below). Keep it; the 183 copied bins sessions stay valid too.
 - **Code:** a helper is on rebuild/daq-lick-detector (worktree wf_rebuild_lickdet, off 34425934):
   - one yaml accessor, all imaging call sites routed through it;
   - the min_ili fallback fixed to 40 ms;
@@ -1591,8 +1591,40 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   5. Then G0-G8.
 
 ## 11-05 overnight (Priya asleep; proceed per "ok please proceed overnight")
+### MORNING: O2 commands (ready; run if you agree with Q1)
+Q1 is now VERIFIED (02:40): bundle b's encoder inputs are identical under the new detector code, so no re-stage and no
+bundle c. Resubmit the 13 cancelled arrays from bundle b. Sessions already done (bins_*, droppos partials) are
+skipped by the runner; only the rest run.
+
+Login node (ssh ps150@o2.hms.harvard.edu):
+```bash
+B=/n/scratch/users/p/ps150/o2/enc_rebuild_20261104b; A=tables/trial_attempts.csv
+sbatch --array=1-107%60 --export=ALL,TAG=bins_w1,ORDER=movement_first,ONLY=nokin:,VIDEO=,FR=,ATTEMPTS=$A,BINS=1 $B/run_enc.sbatch
+sbatch --array=1-107%60 --export=ALL,TAG=bins_w05,ORDER=movement_first,ONLY=nokin:,VIDEO=,FR=,ATTEMPTS=$A,BINS=1,BINS_WIDTH=0.5 $B/run_enc.sbatch
+sbatch --array=1-107%60 --export=ALL,TAG=bins_w2,ORDER=movement_first,ONLY=nokin:,VIDEO=,FR=,ATTEMPTS=$A,BINS=1,BINS_WIDTH=2 $B/run_enc.sbatch
+sbatch --array=1-107%60 --export=ALL,TAG=droppos,ORDER=movement_first,ONLY=droppos-,VIDEO=,FR=,ATTEMPTS=$A $B/run_enc.sbatch
+sbatch --array=1-107%60 --export=ALL,TAG=shufpos,ORDER=movement_first,ONLY=shufpos-,VIDEO=,FR=,ATTEMPTS=$A $B/run_enc.sbatch
+sbatch --array=1-107%60 --export=ALL,TAG=nodir,ORDER=movement_first,ONLY=nodir:,VIDEO=,FR=,ATTEMPTS=$A $B/run_enc.sbatch
+sbatch --array=1-107%60 --export=ALL,TAG=drop,ORDER=movement_first,ONLY=drop:,VIDEO=,FR=,ATTEMPTS=$A $B/run_enc.sbatch
+sbatch --array=1-107%60 --export=ALL,TAG=trmodels,ORDER=movement_first,ONLY=trmodels,VIDEO=,FR=,ATTEMPTS=$A $B/run_enc.sbatch
+sbatch --array=1-107%60 --export=ALL,TAG=musall_shuf,ORDER=musall,ONLY=shuf:,VIDEO=,FR=,ATTEMPTS=$A $B/run_enc.sbatch
+sbatch --array=1-107%60 --export=ALL,TAG=fr_A,ORDER=movement_first,ONLY=fr:,VIDEO=,ATTEMPTS=$A,FR=master_pre_v1,FR_GROUPS=master_v1:A $B/run_enc.sbatch
+sbatch --array=1-107%60 --export=ALL,TAG=fr_B,ORDER=movement_first,ONLY=fr:,VIDEO=,ATTEMPTS=$A,FR=master_pre_v1,FR_GROUPS=master_v1:B $B/run_enc.sbatch
+sbatch --array=1-107%60 --export=ALL,TAG=fr_S,ORDER=movement_first,ONLY=fr:,VIDEO=,ATTEMPTS=$A,FR=master_pre_v1,FR_GROUPS=master_v1:S $B/run_enc.sbatch
+sbatch --array=1-107%60 --export=ALL,TAG=fr_D,ORDER=movement_first,ONLY=fr:,VIDEO=,ATTEMPTS=$A,FR=master_pre_v1,FR_GROUPS=master_v1:D $B/run_enc.sbatch
+squeue -u ps150 | head
+```
+(Same lines as the bundle's COMMANDS.md, minus the duplicate empty `FR=` before `FR=master_pre_v1`.) Copy-back is
+unchanged (COMMANDS.md section 3). I collect on the desktop under `_daqlk`; collect now prints that it accepted the
+bundle without `daqlk` and writes a provenance json.
+
 ### QUESTIONS FOR PRIYA (newest first)
-- **Q1 (O2, needs an answer before resubmitting).** The per-session encoder and the frozen encoder do NOT read the imaging
+- **Q1: ANSWERED BY MEASUREMENT 02:40, needs only your OK to resubmit (commands above).** Helper rebuilt the input
+  pickles under 90b7ddd5 with bundle b's env for PS95_0917, PS94_0819, PS93_0814 (video): 342 / 342 / 444 leaves
+  compared, 0 differences (PS93_0814 file 253 bytes shorter = pickle dtype memo only; re-pickled objects identical).
+  Code: `o2_bundle.NON_INPUT_TAG_PARTS = ("daqlk",)`, exact part-name match, one way only; merged into
+  rebuild/cohort1-20261103 at **e05ece18** (log 8.54, 12 new tests). Full suite on it: 4,965 passed, 0 failed (4 shards).
+  Original question text: The per-session encoder and the frozen encoder do NOT read the imaging
   lick detector: they use cue / pco digital edges, LP licks and DAQ contacts, which already come from the behaviour
   detector. trial_attempts also showed 0 changes on 3 sessions.
   - So bundle b's outputs should be valid as they are. A helper is verifying this byte-for-byte on 3 sessions' input
@@ -1666,3 +1698,8 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
 - 01:35: helper asked to (1) byte-compare bundle-b input pickles against a rebuild under 90b7ddd5 (3 sessions), (2) if
   identical, add a "not an encoder input" tag-token exemption so bundle b collects under _daqlk, (3) run the full
   suite on the merge in shards.
+- 02:40: helper (bundle check) landed: Q1 verified (inputs identical), exemption + tests on rebuild/daqlk-bundle-accept
+  (23726438, 26469db7), full suite 4,965 passed / 0 failed. Merged into rebuild/cohort1-20261103 at **e05ece18**.
+  Morning O2 resubmit commands written at the top of this section. Bundle b stays (no deletion). The frozen spont lanes run
+  from the detached 90b7ddd5 worktree; e05ece18 changes only o2_bundle / o2_encoding, so they are unaffected.
+  Scratch pickles from the check (~950 MB, scratchpad/lickdet/) are mine and derived; deleting them later.
