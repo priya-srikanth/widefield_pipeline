@@ -26,6 +26,14 @@ changes: the classes are defined by what the jaw / tongue did, so their traces d
 what each class LOOKS like and whether it changes with epoch.
 Pre = August only (baseline rule); curated sessions; 3-D-gate failures left out (`pose3d.failed_sessions`).
 Outputs session_poses/cam1_licks/trial_classes/{sessions.csv, tests.csv, time_lmm.csv, traces.csv.gz, figures/}.
+
+``--trials <trial_attempts.csv>`` (Priya 11-05: kinematics 6.1-6.5 on the CAMERA WORKING PERIOD): the trials and their
+classes come from a camera-gated run's per-trial table instead of the behaviour gate -- rows with ``canonical`` True
+(the working period: cue to the session's last camera lick; stopped / stopped_licking (A16 excision) / unknown are
+outside it), class names mapped back (hit -> contact, no_try -> no_response). The denominator is then the working-period
+trials, so contact + incomplete + jaw_only + no_response sum to 1 (as the PI deck's trial-class shares figure).
+Production table (rebuild 11-04): rebuild_20261103/.../qc/sel-camera-cue_stop-endlick-cls-contact-incomplete-
+stopA2jexrt3500c70/trial_attempts.csv. Write to its own ``--out`` folder.
 """
 from __future__ import annotations
 
@@ -50,6 +58,14 @@ BIN_MS, WIN_MS, MIN_FRAMES, MIN_TR = 20.0, (-500.0, 3000.0), 5, 2
 MIN_AN = 2  # animals needed to draw a pooled trace line
 PRE_FROM = "20260801"
 NB = 2000
+DENOM_ENV = "WFIELD_TC_DENOM"   # the denominator named in titles; set by --trials (env: the figure workers are spawned)
+WORKING_DENOM = ("WORKING-PERIOD trials (camera classes: cue to the session's last camera lick; stopped trials excised; "
+                 "shares sum to 1)")
+
+
+def denom() -> str:
+    import os
+    return os.environ.get(DENOM_ENV, "ALL engaged trials")
 
 
 # THE trial classification lives in `wfield_local.trial_classes` (Priya 11-03: one definition for every analysis; read
@@ -82,16 +98,33 @@ def in_gate(cls: np.ndarray, gate: str) -> np.ndarray:
     return TC.in_gate(cls, gate)
 
 
+TA_POS = {"close_ipsi": "close_L", "close_mid": "close_center", "close_contra": "close_R", "far_ipsi": "far_L",
+          "far_mid": "far_center", "far_contra": "far_R"}       # trial_attempts names -> this script's (lesions left)
+TA_CLS = {"hit": "contact", "no_try": "no_response"}           # trial_attempts.TA_NAMES, inverted
+
+
+def working_trials(path: str, label: str) -> pd.DataFrame:
+    """One session's WORKING-PERIOD trials (``canonical`` True) of a camera-gated trial_attempts table ->
+    [trial_id, position, cls] in this script's names."""
+    T = pd.read_csv(path, usecols=["label", "trial_id", "pos", "cls", "canonical"])
+    T = T[(T.label == label) & T.canonical.astype(str).str.lower().eq("true")]
+    return pd.DataFrame({"trial_id": T.trial_id.to_numpy(), "position": T.pos.map(TA_POS).to_numpy(),
+                         "cls": T.cls.replace(TA_CLS).to_numpy()})
+
+
 def session_job(job) -> dict:
     """fan_sessions worker (module level): per-trial classes, counts per position, and per class x position traces."""
-    s, d3, v36, c1 = job
+    s, d3, v36, c1, trials = (*job, None) if len(job) == 4 else job
     from wfield_local import orofacial_cohort as oc
     animal, date = s.split("_")
     sd = Path(v36) / animal / date
-    keep, _ = oc.engagement_keep(animal, date, sd)
-    T = TC.session_trials(s, window=TC.DEFAULT_WINDOW, v36=v36, c1=c1)[["trial_id", "position", "cls"]]
-    if keep is not None:
-        T = T[T.trial_id.isin(keep)]
+    if trials:
+        T = working_trials(trials, f"{animal}_{date[4:]}")
+    else:
+        keep, _ = oc.engagement_keep(animal, date, sd)
+        T = TC.session_trials(s, window=TC.DEFAULT_WINDOW, v36=v36, c1=c1)[["trial_id", "position", "cls"]]
+        if keep is not None:
+            T = T[T.trial_id.isin(keep)]
     counts = [{"session": s, "animal": animal, "date": date, "position": p, "n_trials": len(g),
                **{f"share_{c}": float((g.cls == c).mean()) for c in CLASSES},
                **{f"n_{c}": int((g.cls == c).sum()) for c in CLASSES}} for p, g in T.groupby("position")]
@@ -167,8 +200,8 @@ def fig_epochs(S: pd.DataFrame, R: pd.DataFrame, path: Path) -> None:
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
+    from wfield_local import cat_points as cp
     from wfield_local import sig_marks
-    rng = np.random.default_rng(1)
     rows = ("jaw_only", "incomplete")
     fig, axs = plt.subplots(len(rows), len(POS), figsize=(17, 7.6), sharey="row", squeeze=False)
     for i, c in enumerate(rows):
@@ -179,8 +212,8 @@ def fig_epochs(S: pd.DataFrame, R: pd.DataFrame, path: Path) -> None:
             ax = axs[i, j]
             for k, ep in enumerate(EPS):
                 g = d[(d.position == p) & (d.epoch == ep)]
-                ax.scatter(k + rng.uniform(-0.18, 0.18, len(g)), g.chg, s=9, c=[AN_COL[a] for a in g.animal], alpha=0.55,
-                           lw=0)
+                # sessions: open markers, shape = animal, colour = epoch (cat_points convention)
+                cp.session_dots(ax, k, g.chg, g.animal, EP_COL[ep], jitter=0.16, seed=10 * i + k)
                 if ep == "pre":
                     ax.plot(k + 0.32, 0, "o", ms=7, color=EP_COL[ep])
                     continue
@@ -200,12 +233,14 @@ def fig_epochs(S: pd.DataFrame, R: pd.DataFrame, path: Path) -> None:
             for s_ in ("top", "right"):
                 ax.spines[s_].set_visible(False)
         axs[i, 0].set_ylabel(f"share of trials: {SHOW[c]}\nchange vs own August pre", fontsize=9)
-    hs = [plt.Line2D([], [], marker="o", ls="", color=AN_COL[a], label=a) for a in AN_COL]
-    fig.legend(handles=hs, loc="lower center", ncol=4, frameon=False, fontsize=9)
-    fig.suptitle("Jaw-without-lick and incomplete-lick trials per session, POOLED: share of ALL engaged trials, change "
-                 "vs each animal's own August pre; dots = sessions; marker = animal-weighted change, paired nested "
-                 "bootstrap 95% CI;\n* CI excludes 0, ** p < 0.05 / 18 (Bonferroni, 6 spouts x 3 epochs, per row); pre "
-                 "column = pre sessions vs their own mean (noise floor)", fontsize=9.5)
+    hs = cp.animal_handles(sorted(S.animal.unique())) + [
+        plt.Line2D([], [], marker="o", ls="", color=EP_COL[e], label=e) for e in EPS]
+    fig.legend(handles=hs, loc="lower center", ncol=8, frameon=False, fontsize=9)
+    fig.suptitle("Jaw-without-lick and incomplete-lick trials per session, POOLED: share of " + denom() + ",\nchange "
+                 "vs each animal's own August pre. Open markers = sessions (shape = animal, colour = epoch); filled "
+                 "marker = animal-weighted change, paired nested bootstrap 95% CI;\n* CI excludes 0, ** p < 0.05 / 18 "
+                 "(Bonferroni, 6 spouts x 3 epochs, per row); pre column = pre sessions vs their own mean (noise floor)",
+                 fontsize=9.5)
     sig_marks.reserve_headroom(fig)
     fig.tight_layout(rect=(0, 0.04, 1, 0.9))
     fig.savefig(path, dpi=100)
@@ -311,7 +346,7 @@ def fig_traces(Tr: pd.DataFrame, measure: str, ylab: str, path: Path) -> None:
     fig.legend(handles=hs, loc="lower center", ncol=4, frameon=False, fontsize=9)
     fig.suptitle(f"Cue-aligned {ylab} by trial class, POOLED: 20 ms bins, mean per session (>= {MIN_TR} trials of the "
                  "class at the spout), then per animal x epoch, then mean over animals (band = SEM over animals); pre = "
-                 "August;\ncorner = animals / sessions / trials per epoch (< 2 animals: not drawn); grey = before the cue. Rows: jaw moves without a "
+                 "August; trials = " + denom() + ";\ncorner = animals / sessions / trials per epoch (< 2 animals: not drawn); grey = before the cue. Rows: jaw moves without a "
                  "lick (cam1-corrected) | licked but never touched the spout | touched the spout", fontsize=9.5)
     fig.tight_layout(rect=(0, 0.04, 1, 0.92))
     fig.savefig(path, dpi=100)
@@ -328,14 +363,22 @@ def main(argv=None) -> int:
     ap.add_argument("--reuse", action="store_true", help="read sessions.csv / traces.csv.gz from the last run "
                     "instead of re-running the session loop (stats / figure changes only; tables are saved at 4 significant "
                     "digits, so a CI can move in the 3rd decimal)")
+    ap.add_argument("--trials", default=None, help="camera-gated trial_attempts.csv: working-period trials + classes "
+                    "(see the docstring); needs --out")
+    ap.add_argument("--out", default=None, help="output folder (default: the run's trial_classes folder)")
     a = ap.parse_args(argv)
+    if a.trials and not a.out:
+        ap.error("--trials needs --out (its own folder; the behaviour-gate outputs stay as they are)")
+    if a.trials:
+        import os
+        os.environ[DENOM_ENV] = WORKING_DENOM
     rv = PathResolver()
     c1 = Path(rv.root("dlc")) / "session_poses" / "cam1_licks"
     d3 = pose3d_dir(rv)
     v36 = Path(rv.root("orofacial")) / V36 / "sessions"
     from wfield_local import run_mode
     # the rebuild's derived pose area (coordinator 11-04): this figure uses the run's classes; inputs stay in place
-    out = run_mode.session_poses_out("jaw_only_incomplete_figs", c1 / "trial_classes")
+    out = Path(a.out) if a.out else run_mode.session_poses_out("jaw_only_incomplete_figs", c1 / "trial_classes")
     if a.reuse:
         S = pd.read_csv(out / "sessions.csv", dtype={"date": str})
         Tr = pd.read_csv(out / "traces.csv.gz", dtype={"date": str})
@@ -350,7 +393,10 @@ def _collect(a, ak, epochs, P3, c1: Path, d3: Path, v36: Path, out: Path) -> tup
     bad = P3.failed_sessions(d3)
     sess = sorted({f.name.replace("_events.csv", "") for f in c1.glob("PS*_events.csv")} - set(bad) & ak.curated_ids())
     sess = [s for s in sess if (v36 / s.split("_")[0] / s.split("_")[1] / "tongue_jaw_mismatch.csv").exists()]
-    res, fails = ak.fan_sessions([(s, str(d3), str(v36), str(c1)) for s in sess], session_job, jobs=a.jobs,
+    if a.trials:
+        have = set(pd.read_csv(a.trials, usecols=["label"]).label)
+        sess = [s for s in sess if f"{s.split('_')[0]}_{s.split('_')[1][4:]}" in have]
+    res, fails = ak.fan_sessions([(s, str(d3), str(v36), str(c1), a.trials) for s in sess], session_job, jobs=a.jobs,
                                  key=lambda j: j[0])
     for s, e in fails:
         print(f"{s}: FAILED {e}")
@@ -364,6 +410,8 @@ def _collect(a, ak, epochs, P3, c1: Path, d3: Path, v36: Path, out: Path) -> tup
     Tr = Tr[Tr.epoch.notna() & ((Tr.epoch != "pre") | (Tr.date >= PRE_FROM))].reset_index(drop=True)
     (out / "figures").mkdir(parents=True, exist_ok=True)
     S.to_csv(out / "sessions.csv", index=False, float_format="%.4g")
+    if a.trials:     # names the denominator for trial_class_raw_share_fig (Figs 6.1 / 6.2) read from this folder
+        (out / "denominator.txt").write_text(WORKING_DENOM + "\n", encoding="utf-8")
     Tr.to_csv(out / "traces.csv.gz", index=False, float_format="%.4g")
     return S, Tr
 

@@ -105,6 +105,8 @@ def main(argv=None) -> int:
     fig.legend(handles=hs, loc="lower center", ncol=8, frameon=False, fontsize=9)
     den = ("ALL engaged trials (one class per trial, shares sum to 1)" if a.all_engaged
            else "engaged trials on which the jaw moved (jaw_pass_qc)")
+    if a.all_engaged and (Path(a.all_engaged) / "denominator.txt").exists():   # a --trials run of jaw_only_incomplete_figs
+        den = (Path(a.all_engaged) / "denominator.txt").read_text(encoding="utf-8").strip()
     what = ("CHANGE vs each animal's own August pre mean in the fraction of trials per class" if a.change
             else "Fraction of trials per class")
     fig.suptitle(what + ", per session x spout, by epoch (pre = August); denominator = " + den +

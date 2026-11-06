@@ -25,6 +25,26 @@ new figure list. Then, in this order:
   d. Priya 11-05 (via a8), same pass: hit-rate period = the CAMERA working period primary, DAQ quit tail = robustness
      row (changes behaviour-page Fig 0.2 when 34's render lands; A6 in PAGE_EDITS_PENDING); the per-animal trend-line
      panels of `orofacial_cohort.fig_epochs` move to a collapsible section, off the main page.
+  e. FR page section 6 (Priya OK 11-05 via a8; "not sure what this is" -> say it plainly): add
+     `readouts/master_pre_v1/spout_mesh_control/spout_mesh_control.png` with: "Is the face signal just the spout? The
+     spout tip sits just below the lowest face points, so we removed every face point within 30 or 60 px of any spout
+     tip and decoded again: pre-cue spout decoding barely changes (2 s window .431 -> .428 / .418; acute far-contra
+     still at chance), so the face differs by spout because the animal's face does, not because the mesh sees the
+     spout." Read the live FR page first.
+  f. KINEMATICS 6.1-6.5 RE-GATED (Priya 11-05 via a8: camera working period + A16 stopped excision, pre = August):
+     `python -m scripts.jaw_only_incomplete_figs --trials <rebuild selection-keyed trial_attempts.csv> --out
+     session_poses/cam1_licks/trial_classes_working_1105` (canonical = working period; matches a8's deck shares
+     trial_class_shares_1105 to 5e-5, 642 / 642 session x spout rows) + `trial_class_raw_share_fig.py --all-engaged <out>
+     [--change]` -> figures/tc_share_all{,_change}.png; LMM toggle figures/tc_share_all_lmm.png (`lmm_change_fig`, cells
+     class|spout, Holm per class); 6.3 = trial_class_share_days.png, 6.4 / 6.5 = trial_class_{jaw,tongue}_traces.png.
+     Captions: "engaged trials" -> working-period trials; far contra acute contact .054, incomplete .623, jaw only .221,
+     no response .102 (was .05 / .60 / .23 / .12); subacute .741 / .191 / .045 / .023; chronic back to pre. Copy into
+     kin_page_src under the page's names in the page pass. 1.7 / 1.8: 34 renders (lick_aim_deficit in its lane E; both
+     scripts being checked for the gate / Aug pre first), 34 sends paths.
+  g. Imaging 15.1-15.7 (quiet-event copy) -> replace with a pointer to encoding section 23 (Priya 11-05, RECONCILIATION
+     D4), no re-render.
+  h. FR 500-permutation null SUBMITTED by Priya on O2 11-05 evening (~3 days): when own_epoch_cohort_null/ is copied
+     back, `python scripts/face_rhythm_cohort_null.py`, then FINDINGS 5.10 + the FR page.
 
 **2. Side cameras + four-camera 3-D (all in `docs/POSE_MODELS.md` Part E; memory `four-camera-3d-ready`).**
   * Side model round 1 = crop2 (single-frame LP; temporal-loss variant tried, not adopted). Round 2 = Part B only

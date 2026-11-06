@@ -55,7 +55,11 @@ No laterality support for Priya's reduced-thalamocortical-drive hypothesis after
    ~.11 more under the 11-03 bal_em spout decoder, near spouts ~.05 less, 3.1), position ~11x more than state acutely
    (3.1, 3.2; bal_em state decoder, 11-03; position side to re-render under bal_em). The frozen encoder predicts the acute far-contra drop from the changed lick;
    target part ~0, with FaceRhythm too (4.1). Frozen pixel maps: the acute fit loss is cortex-wide and movement-driven (page
-   Fig 1l). Beyond the movement: the decoder weakens for every spout, even on-target licks (4.5); acute far-contra trials
+   Fig 1l). On CONTACT TRIALS alone (11-05, `_daqlk`, wording Priya 11-05): the frozen pre-stroke encoder explains less
+   trial-to-trial variance after the stroke in every epoch (acute -.09, subacute -.07, chronic -.17 R2), lower in all
+   four animals acutely; the bootstrap interval excludes zero but the mixed model does not reach p < .05 (p .06-.09) --
+   a consistent TREND, not a significant result. Not only the contact / incomplete mix, but PS92's decline starts
+   before the stroke (docs/status/reanalysis_20261105/FROZEN_B12_CIS_2026-11-05.md, FROZEN_FOLLOWUP_2026-11-05.md). Beyond the movement: the decoder weakens for every spout, even on-target licks (4.5); acute far-contra trials
    are each decoded CONFIDENTLY as some other spout, which one varying trial to trial and by animal (4.6b, 10-25 night);
    trial-by-trial coupling of cortex to execution is ABSENT ON FAILED ATTEMPTS (4/4) -- the acute "r ~ 0" was mostly
    that 92 % of acute far-contra trials are failed attempts; the few acute hits look like pre-stroke hits (thin; 4.6).
@@ -1018,7 +1022,10 @@ v36, August-only baseline, both tests (session Mann-Whitney + BH-FDR and the ani
 
 1. **Acute global slowing plus a far-contralesional-graded deficit.** Inter-lick interval +14 to +26 ms at every
    position; far contra: contact -0.67, first lick +488 ms, first contact +898 ms. **STANDS**, 4 / 4 (PS95 acute = 1
-   session).
+   session). TIME COURSE (11-05 re-test on camera classes, August-only pre; Priya 11-05): the lick-interval deficit
+   **persists into subacute and recovers by chronic** (+18.8 ms acute, +8.0 ms subacute). The 09-20 "recovered by
+   subacute" (+12.5 ms acute) used the June + August baseline (docs/status/reanalysis_20261105/
+   ENGAGEMENT_CAMERA_2026-11-05.md).
 2. **Acute licks aim ipsilesionally**: +30 deg at far contra, +7 to +13 deg elsewhere. **STANDS** (cam4 4 / 4; 3-D 4 / 4,
    far_R midline error +25 / +9.5 / +36 / +33 deg).
 3. **The jaw stops steering toward the target acutely**: FAR_DIR -11.4 px. **STANDS** (cam4 4 / 4; 3-D 4 / 4, -0.18 to
