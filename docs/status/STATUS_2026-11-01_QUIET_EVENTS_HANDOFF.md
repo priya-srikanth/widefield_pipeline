@@ -1,6 +1,37 @@
 # Handoff 2026-11-01: quiet-period cortical events after the VLS stroke (cohort1, PS92-95) + literature context
 
-> **11-04 (evening) -- START HERE (PI-deck window sabatinilab-a8).** Live log, questions and findings:
+> **11-06 (morning) -- START HERE (PI-deck + code-cleanup window sabatinilab-a8).** Live log: 
+> docs/status/RUNNING_LIST_2026-11-05_OVERNIGHT.md (questions first). Efficiency: docs/status/EFFICIENCY_AUDIT_2026-11-06.md;
+> style debt: docs/status/STYLE_INVENTORY_2026-11-06.md.
+>
+> DECK (sole writer = a8): 192 slides, 106 hidden (Priya hid ~21 on 11-06 while editing; KEEP her hidden states and
+> formatting: every script opens the CURRENT saved deck, refuses if `~$PI_overview...` lock exists, backs up, asserts
+> hidden states unchanged, finds slides by picture name, not number). 11-06 edits (scripts in _source_PI_overview_2026-11-02/):
+> - update_s94_peth_trial_rows_1106.py: slide 94 six-row PETH/trial figure, bullet 3, notes + trial counts. TODO (Priya
+>   "yes"): RE-TILE it 3 rows x 12 (PETH left, trial-by-trial right) -- at six rows it fits only the middle third.
+> - reword_s121_iti_recovery_1106.py (ITI r only partly recovers); text_fixes_batch_1106.py: 91 (no-FR caveat), 139
+>   (Priya's bullet + per-area caveat), 127/128/129 (each row's own stars: 30 / 24 / 16 of 70), 143 + 153 ("slow < 4 Hz,
+>   largest at 2-3 Hz"), 147 notes (470 0.5-1 Hz +0.38), 153 'does cortex lead the lick' -> answered (FINDINGS 23-25).
+> - Priya edited slide 88 short answer and slide 139 bullet 1 herself; reword_s88_short_answer_1106.py was NOT run.
+> - Slide 11: wait for the 1.0 s ENL re-run (figure + numbers + text together; current = 2.0 s table).
+> - TODO: cohort 2 section, 490 vs 470 slides (docs/490_VS_470_EXCITATION.md; PS118 d' running on the imaging box; figures
+>   are on its E:/labcams_data -- need them on M: first).
+>
+> CODE (11-06): on main: response-window fallback 9ad4fbcc, hemo 470 slot f1fd9f9f, August-only cut 5fa8253c (cohort key
+> 0806; WIDEFIELD_PRE_FROM stays 0801 = folder names), CLAUDE.md rule 4 = MERGE not rebase 29845278, 34's
+> fix/log-deficit-primary (e5f53dbd). LOCAL in wf_cleanup2, push after the tests: bare-run warning d3b49856 (push was in
+> its pre-push suite), encoder cached features 1651b99c, slide-18 pre-session dots 17143af2 (merge c8b204dd; imaging_lmm
+> conflict resolved: pre rows drawn, not fitted), cache kind always carries daqlk 10dd0049 (all local cache entries
+> predate CACHE_VERSION 14, so nothing warm is orphaned). HELD: fail-loud DAQ contacts 5834f8de (until 34's render).
+> RUNNING helpers: fix 2 (frozen pool once + cached maps), check 1 posinfo regressor variance
+> (-> posinfo_checks_v7g3_t3d_spont_frAsplit/). Trial-count check DONE: not computable from saved files (needs a
+> predict-only re-run); counts in trialmatched_peth_checks_v7g3_t3d_spont_frA/ (README in a8 scratchpad: write to M: blocked).
+> AWAITING PRIYA IN 34's WINDOW: no_posinfo per-trial re-run (~4 h), one pixmusall re-run + self-fit ROI targets for
+> ALM / tjM1 on slides 94 and 139, trial-matched predict re-run (9-14 h at 1 worker).
+> RULES learned 11-06: merge, never rebase; pre-push runs only touched tests unless configs/ / hooks / conftest change
+> (don't edit .githooks for comments); box is RAM-bound (<= 2 workers, keep >= 6 GB free).
+>
+> **11-04 (evening) -- previous START HERE (PI-deck window sabatinilab-a8).** Live log, questions and findings:
 > docs/status/RUNNING_LIST_2026-11-03_AWAY.md (questions first, WATCH section, findings newest first). Decisions:
 > DECISIONS.md 11-04 entries ("Deck / pages wait for the rebuild ...", "centre = Wt"). Page work: every 11-03 / 11-04
 > change is listed as main or collapsible in docs/status/PAGE_EDITS_PENDING_2026-11-04.md (checked by e0 and 34).
