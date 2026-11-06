@@ -378,9 +378,16 @@ def plot_fits(L: pd.DataFrame, T: pd.DataFrame, panels, model: str, path: Path, 
             term, icpt = (("lday", "post_level_day1") if model == "time_post"
                           else ("deficit", "post_level_full_recovery"))
             a0, b = c.coef[icpt], c.coef[term]
-            xx = np.linspace(1, max(G.day.max(), 2), 80) if model == "time_post" else np.linspace(0, 1, 50)
-            a_.plot(xx, a0 + b * (np.log(xx) if model == "time_post" else xx), "k-", lw=1.5,
-                    label="fit" if k == 0 else None)
+            if model == "time_post":
+                xx = np.linspace(1, max(G.day.max(), 2), 80)
+                yy = a0 + b * np.log(xx)
+            elif logx:                                 # post-only fit on log(session / pre), drawn on the raw axis
+                xx = np.linspace(max(-0.9, min(0, G.deficit_x.min())), max(1, G.deficit_x.max()), 200)
+                yy = a0 + b * np.log1p(xx)
+            else:
+                xx = np.linspace(0, 1, 50)
+                yy = a0 + b * xx
+            a_.plot(xx, yy, "k-", lw=1.5, label="fit" if k == 0 else None)
             stat = f"{icpt} {a0:+.3g} (z {c.z[icpt]:.1f}), {term} {b:+.3g} (z {c.z[term]:.1f})"
         a_.set_title(f"{name}\n{stat}\nre {c.re.iloc[0]}", fontsize=6.5)
         a_.axhline(0, color="0.8", lw=0.5)
