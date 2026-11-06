@@ -54,10 +54,10 @@ until Priya answers the matching question.
   - 11-05: new slide 35 (trial shares sum to 1), old 35 hidden (now 36); 37-43 swapped to working-period figures;
     slide 40 re-swapped (open markers); slide 156 VFSS reword; fluoro slides added (now 160-161).
 - **Item 3 response-window fallback: ON MAIN** (9ad4fbcc; pre-push full suite passed 11-06).
-- **Hemo 470 slot** + this running list: branch `cleanup/hemo-slot-20261105` (wf_cleanup2), origin/main merged in
-  (no conflicts), push running its pre-push suite.
-- **Item 2 August-only cut**: committed 37bacf12 on `cleanup/august-pre-key-20261105` (wf_cleanup3), not pushed.
-  Merge after item 3 lands (touches ~126 files; 34 notified, its render is in its own pinned worktree).
+- **Hemo 470 slot** + this running list: ON MAIN (merge f1fd9f9f, 11-06). The pre-push hook now runs only the tests
+  touched by the push (53 passed in 32 s), so pushes no longer take ~2 h.
+- **Item 2 August-only cut** (37bacf12): main merged in with no conflicts, baseline + response-window tests pass on the
+  merged tree (9 passed); push running (touches ~126 files; 34's render is in its own pinned worktree, unaffected).
 - **Item 5 fail-loud DAQ contacts**: committed 5834f8de on `cleanup/daq-contacts-failloud-20261105` (wf_cleanup4),
   not pushed. Touches trial_classes / tongue_kinematics / dlc_frames / kinematics_chain / orofacial_outputs; a
   session without a DAQ now raises (or is class 'unknown' and not covered) instead of silent zero contacts. HOLD the
