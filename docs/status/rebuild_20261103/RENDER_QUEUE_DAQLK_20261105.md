@@ -215,6 +215,75 @@ The frames are already rendered by lanes 1-4.
 - `misdirected_lick_counts.py`.
 - `misdirected_lick_decode.py --name enc_rebuild_20261104b`. This needs the fix below.
 
+### X: imaging Fig 11.2 `d_enl_move` + the ENLv lick family (8 steps; `queue_daqlk5.sh` only, 11-05 late)
+- **File.** `queue_daqlk5.sh` = `queue_daqlk4.sh` (v3 atomic claim, v4 E order) + section X before Z. Files 1-4 are
+  untouched, because the running lanes read them.
+- **Launch:**
+
+  `cd <scratchpad>/render_daqlk && SECTIONS="X" nohup bash queue_daqlk5.sh > logs/laneX.out 2>&1 &`
+
+  This adds up to 3 workers (`--workers 3`, one process per camera) on top of the running lanes, and MINFREE 10 GB
+  gates each step.
+
+**Steps**
+
+| step | args | env | deps | output | runtime |
+|---|---|---|---|---|---|
+| x_enl_move | `-m scripts.enl_movement_multisession --workers 3` | base (DAQ arm, ENL window 2 s) | - | `<root>/labcams/<tag>/enl_movement_multisession/enl_movement_multisession.csv` + figure | several h est. (all regime-B sessions x 4 cameras of video motion; unmeasured) |
+| x_fig_enl_move | `rebuild_figs/fig_enl_move.py --csv <that CSV>` | base | x_enl_move | `<root>/rebuild_figs/<tag>/` | min |
+| x_covref | `lick_covariate_reference.py --jobs 3` | frozen | e_iti_main | ITI OUT_W | ~10 min est. |
+| x_enlv_extract (+ `--readers`) | `lick_enlv_extract.py --jobs 3` | frozen | **ENL_SLIDE_FIX**, e_iti_main | OUT_W/enlv_licks | ~30 min est. |
+| x_enlv_table, x_enlv_balance | `lick_enlv_balance_offset.py --table`, then with no args | frozen | **ENL_SLIDE_FIX**, then the previous step | `enlv_table.csv.gz`, enlv_* tables / figures | ~20 min est. |
+| x_enlv_curves | `lick_enlv_curves.py` | frozen | **ENL_SLIDE_FIX**, x_enlv_balance, x_covref, e_angle_reach, e_plain_order | `curves_gain_sessions.csv` etc. | ~10 min est. |
+
+**Checks for Fig 11.2 (all three pass)**
+- **(a) Routing.** With the profile active, the CSV resolves to `<root>/labcams/<tag>/enl_movement_multisession/`, via
+  `lp_licks.output_dir(cohort_out)`. The folder does not exist yet, so the script's "skip labels already in the CSV"
+  cannot reuse old rows. Nothing goes to the original labcams; the fence would refuse it anyway.
+- **(b) D1 projection.**
+  - Under the profile, `WIDEFIELD_LOCANMF_PROJECT=1` and `WIDEFIELD_LOCANMF_VARIANT` is unset.
+  - `config.locanmf_dir` then returns the stored name, which is used for the footprints A / regions only. Its docstring
+    says C is never read from it.
+  - The script reads C only through `movement_encoding_session.imaging` -> `locanmf_session.load_C`. With projection on,
+    that is the cached least-squares projection of the selected variant's SVTcorr (swapmask) onto the stored per-session
+    footprints. This is the D1 path; the run tag carries `lnmfproj`.
+
+  OK to run.
+- **(c) Workers.** `--workers 3`; the default is 4.
+- **Decision for Priya:** the ENL arm. The queue uses the DAQ arm (2 s window). The LP arm (1 s window) would be
+  `WIDEFIELD_LICK_SOURCE=lp`. I did not check which arm the 11.2 caption names.
+
+**ENLv family (HELD)**
+- Every ENLv step depends on the marker `ENL_SLIDE_FIX`. No step produces it, so lane X **waits at x_enlv_extract**
+  until someone creates `logs/ENL_SLIDE_FIX.done`. A STOP file halts the wait.
+- Create the marker only after the sliding-window fix (branch fix/decisions-f1-f2-enl-20261105) is merged AND the
+  worktree that lane X imports from contains it. A step imports whatever HEAD the worktree has when it starts.
+  `EXPECT_SHA` is checked at preflight only.
+- x_covref is not ENL-windowed, so it is not held. The extract -> table -> curves chain is rebuild_order_B consumer
+  step 5. `lick_enlv_curves` also reads e_angle_reach (where_angle_reach preds) and e_plain_order (lick_order preds)
+  from lane E.
+
+**Deck 102 does NOT come from lick_enlv_curves**
+- Deck 102 (`gain_bio_1104`, B7) is `fig4_gain_sessions.png`. It is drawn by **`fig_sessions.py`** in
+  `M:/MICROSCOPE/Priya/Widefield/labcams/decoder_mix_checks/gain_bio_1104/`. Its chain:
+  `gain_bio.py` (per session) -> `summarise_gain_bio.py` -> `gain_stats.py` (S_* tables) -> `fig_sessions.py`
+  (GAIN_BIO_2026-11-04.md §5 / §7).
+- That is the SD-rise / global-gain analysis, not the ENLv decoded-vs-landing "gain" in `curves_gain_sessions.csv`.
+- **NOT PLACED.** These scripts are share-only, not in the repo, and they write beside themselves in the original
+  labcams, which the fence refuses. `gain_bio.py` also:
+  - names `hemo_{ADOPTED}` (it resolves to the variant only if ADOPTED follows the env);
+  - hard-codes `REPO = .../widefield_pipeline`;
+  - reads the adopted `cohort1_quiet_spikes/v2_quiet` sessions.
+- To re-render deck 102 under `_daqlk`: copy the four scripts into the repo, parameterise the output root and the quiet
+  v2 input (which must itself be rebuilt under the root), then queue them.
+
+**Dry run (DRYRUN=1 SECTIONS=X + dryrun_check.py)**
+- `--help` exits 0 and every flag exists for enl_movement_multisession (`-m scripts.` works), fig_enl_move,
+  lick_covariate_reference and lick_enlv_extract.
+- For balance_offset (`--table`) and curves, which parse their own args, the flags are in the source.
+- Expected only: the cross-lane deps (e_*) and the marker are "not a step" in an X-only listing (all three e_* steps
+  exist in v5), and the enl_movement CSV does not exist yet. Nothing was run.
+
 ### Z: gated on frA_ls_basis, then fig_pooled (9 steps + gate)
 - **The gate** waits, polling every 15 min, until `ENC/frozen_encoder_F_frA_ls_basis/joint/sessions` has 107 json files
   AND the frame's `frozen_musall_r2.csv` exists.
