@@ -76,6 +76,16 @@ unclassified -> OUTSIDE_MAPS, map builders only import engagement_gate). Fixed o
 Priya said YES to cam4-style -> scratchpad push7.sh = the six + wf_p1106_cam4, sequential, merge-only (bg task bn32updgj;
 per-branch push logs scratchpad/push7.<wt>.log). Each push re-runs the full suite (~28 min) when configs/ is in the diff.
 
+**Update 16:57 (real clock; the ~16:10 / ~16:40 labels above were ~30-40 min early) -- ALL SEVEN 11-06 BRANCHES ON MAIN
+(ec0ff642): small 25832aad, frdrift 53cd46e5, gainbio ee140449, gates cd37f143, deffix 1bac0341, svg 6d44e774, cam4 ec0ff642.**
+Fixes needed on the way: 4 main-suite failures (9d740bf2: map-cache-key classification, frozen_encoder sorted fan_out, pin_blas
+test, hooksPath test) + K08 grant renderer exempted from the sidecar test (25832aad); merge conflicts resolved: DECISIONS.md
+(both entries), svg x gates (fig_goal_summary computed reading + save_png_svg; exec_vs_neural_match import), fr_pixel_significance
+drift-control -> save_png_svg, pose3d_phase _save -> no_top_spine + save_png_svg (test updated ec0ff642).
+**Second heavy slot LAUNCHED 15:48 (Priya yes):** lanes v8s2-{L0L1L8L10, L4L5L6L7L9, L2L3}; first step l_precue_restw 20 min,
+min available 27 GB beside b_roiexact_frA. **Queue v9k RUNNING since 16:55** on worktree wf_render_v9k @ ec0ff642 (lanes K, C).
+a8 told (SVG on main; redraw-67 plan stands). Final catch-up queue code = main ec0ff642 (or later if fixes land).
+
 **Update ~16:40 -- second heavy slot INVESTIGATED (Priya "look into it"), NOT launched, awaiting her go.** Box 63 GB / 24 cores,
 ~44 GB available with only x_enl_move heavy. ~55 heavy steps remain one at a time: ~12 BIG (partial_refit a_partial_ls /
 b_partial_frA [t_partial_te took 855 min], frozen_encoder t_frame_*/b_pix_union/b_roiexact/v_*, svf b_svf_frA_roi, epoch 1b,
