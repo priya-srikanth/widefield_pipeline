@@ -82,6 +82,10 @@ code versions; the provenance table records each step's code sha (log header).
 - a8 asks: provenance rows for current deck slides 31, 111, 153, 154 (cohort2 490 vs 470: labcams/cohort2/490_vs_470/
   cohort2_490_vs_470{_dprime,}.png, led_490_vs_470{_dprime,}.py), 164 -> add in the post-render merge.
 
+- a8 also asks (post-render merge): make producing_script explicit for ~50 deck rows without one (current slides 5, 7, 12,
+  14, 16, 19, 33, 38, 45-57, 97-136, 141, 142, 181-192; mostly LMM / stars slides) so it can tell which read the deficit table
+  (held) and which do not. a8 already flagged slides 8, 17, 20, 121, 122, 139 as waiting for the catch-up queue.
+
 **Final catch-up queue (to build once gates-captions is merged):** the 7 parked steps + d_exec_vs_encoder re-run (+ the
 A25 LP epoch arm if Priya says yes; + any figure redraws for SVG per the inventory).
 
