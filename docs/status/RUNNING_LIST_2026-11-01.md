@@ -1938,3 +1938,7 @@ bundle without `daqlk` and writes a provenance json.
   (q <.001); cue u_tgtbin slope -2.81 (q .047), cue u_exbin -1.37 (q .077). Per animal lick u_tgtbin pre / acute / sub /
   chronic: PS92 1.8 / 13.6 / 14.8 / 11.6; PS93 9.7 / -1.3 / 16.7 / 33.4; PS94 3.7 / 23.2 / 12.7 / 10.4; PS95 3.1 / 0.7 /
   3.1 / 12.9. Commits 5a6b7986 / 76066e01 unpushed.
+- ~20:40: **DECISION (Priya 11-05): mixed-model angle panels use the BINNED contest (3d:u_tgtbin), as the 10-24 primary.**
+  Pushing 5a6b7986 (ttc_log deficit) + 76066e01 (binned panels, --plot-only) to main. Replacement pass: the encoding
+  page's mixed-model text follows the binned result (lick: target above pre, not tracking deficit; landing tracks deficit;
+  cue: target tracks deficit weakly) -- wording to Priya before rewriting.
