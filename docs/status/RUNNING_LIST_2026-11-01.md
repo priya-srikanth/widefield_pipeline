@@ -2019,3 +2019,12 @@ bundle without `daqlk` and writes a provenance json.
   disengagement_tests; revup_behaviour; lane-X ENLv chain (create logs/ENL_SLIDE_FIX.done once merged).
   Questions for Priya: precue discriminator late window with few no_response trials; 1b epoch hit rate stays DAQ?;
   the camera attempts table on disk is the 11-04 pre-daqlk one?; iti_lick_rate / within_lick_correction ungated.
+- ~21:45: **ttc_log (log fold change of ttc) mixed models** refit from the saved long table (scratchpad mixed_log/
+  refit_log.py; qc/encoding_mixed*_ttc_log.*, figures *_ttc_log.png). The 20:30 full run had failed (KeyError): it
+  imported wfield_local from the shared widefield_pipeline checkout (older than 5a6b7986) because PYTHONPATH used Git-Bash
+  /c/ paths, which Windows Python ignores. RULE from now: PYTHONPATH="$(pwd -W);$(pwd -W)/scripts". The binned default
+  run is valid (library = main minus ttc_log). Cortex, behaviour model, slope vs log deficit (linear in brackets):
+  cue: ceiling -39.9 q<.001 (-11.3 q<.001), u_tgtbin -8.1 q .015 (-2.8 q .047), u_exbin -3.15 q .004 (-1.4 q .077),
+  position -29.3 q<.001 (-8.4 q<.001); lick: ceiling -25.4 q<.001 (-6.7 q .002), u_tgtbin -4.5 q .55 (-0.3 q .69),
+  u_exbin -6.77 q<.001 (-2.4 q<.001), position -20.4 q<.001 (-8.6 q .17), distance -16.6 q<.001 (-4.4 q<.001).
+  Figure x-label still says "relative to pre" -> fix to "log(ttc / pre ttc)" if adopted.
