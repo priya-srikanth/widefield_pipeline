@@ -37,7 +37,9 @@ until Priya answers the matching question.
   backup_before_notes_numbers_1105; hidden states unchanged, 191 slides / 84 hidden). New: contact .96 / .05 / .74 /
   .96; acute incomplete +.60 [.42, .75] **; per animal incomplete .80 / .71 / .63 / .36, jaw-only .09 / .10 / .21 /
   .49 (PS95 = one acute session, 109 trials); 0 unknown of 51,355 working-period trials (shares sum to 1). Slide 36
-  (the hidden old slide) keeps its old notes, as it shows the old figure.
+  (the hidden old slide) keeps its old notes, as it shows the old figure. Slide 38 (LMM) notes: title quote .95 ->
+  .96, flagged fits 23 -> 25 of 72 (6 not converged, 20 singular, 3 no SE; notes_s38_working_1105.py, backup
+  backup_before_notes_s38_1105).
 - **Baseline sweep, cohort2_qc / quiet scripts: 46 sites in 20 files, NO session moves** (all were ">= 0806"; on disk
   0 June and 0 0801-0805 sessions in every input folder). Lint + 153 tests pass. Side note: `quiet_modes.py:116`
   splits pre / post with `session[-4:] < "0816"` (a raw MMDD compare, not the baseline cut); could move to
