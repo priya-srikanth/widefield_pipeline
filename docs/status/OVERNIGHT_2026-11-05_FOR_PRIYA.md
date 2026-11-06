@@ -274,3 +274,12 @@ the night.
   ENL arm is the one to cite". Add the LP-arm epoch render (heavy, ~9 h like g5_epoch)?
   a8 asked (Priya "yes") for a REDRAW inventory (which page / deck figures can be redrawn from stored outputs for SVGs):
   helper writing docs/status/REDRAW_INVENTORY_2026-11-06.md.
+- ~16:10 **SVG branch done** (feat/svg-page-figures-20261106 4afce15c, unpushed; push hold): new
+  figure_layout.save_png_svg (PNG byte-identical, SVG in svg/ with editable text, SVG failure warns + keeps PNG);
+  225 page / PI-deck / analysis-deck-summary writers + the 4 existing save points switched; 245 + 149 tests pass. NOT
+  covered: per-day analysis_figures + per-session analysis-deck pages (~25 modules, no shared save point), preprocessing
+  decks (imaging box), 116 page images with no writer here (renamed copies, 2pRAM). **A26**: include those per-session /
+  preprocessing figures too (module-by-module), or page + deck summary figures only (rec)? Side effect: diagnostics in
+  the switched files also write SVGs (some disk / time).
+  Agreed with a8: a8 is the sole PI-deck writer (maps slides -> provenance rows, shows Priya gaps, writes notes); I own
+  the provenance table + Data: text. Held steps (A22 / A23) parked as RESERVED_HOLD (handoff 00-COMPACT-31).
