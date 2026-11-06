@@ -108,7 +108,16 @@ revup_behaviour (untagged iti_licks folder). Cut: lick_acad_midline_control.
 `*_split` maps land (b_peth_trial_maps_split / _alone_split after b_pix_union_frA); its item 5 (fail-loud DAQ contacts)
 holds until the render is done. a8 ran the posinfo variance check (posinfo_checks_v7g3_t3d_spont_frAsplit/).
 
-**Helpers this session (all finished):** speed-ups, ALM/tjM1 (+ exact ROI), v8 / v8b / v8c assembly, area-map audit.
+**Helpers this session (finished):** speed-ups, ALM/tjM1 (+ exact ROI), v8 / v8b / v8c assembly, area-map audit.
+
+**13:10 Priya answered 8-14** (overnight page): A10 memo now (A11/A12 after render); slide 102 = copy FR cache, 1 s
+quiet events, camera working period, 415 comparison like-for-like (corrected), rest masks rebuild (SCOPE first); FR
+captions fix + supplemental drift-control panel; no_spont on pixmusall twins / frAsplit_basis; bare-run WARNING; PS93
+relaxed late window (PS93 only); chronic-stability row = camera (no change). **Three helpers RUNNING** (no pushes; each
+reports code + tests + draft queue steps): worktrees wf_p1106_small (branch feat/priya1106-small: A10, A4 warning, A5 PS93),
+wf_p1106_gainbio (feat/priya1106-gainbio: merges port/gain-bio-20261105 + choices 2-4 + rest-mask scope + slide-102 queue
+steps), wf_p1106_frdrift (feat/priya1106-frdrift: Bonferroni->max-statistic captions, drift-control supplement, no_spont
+steps). Next: review, push to main with Priya's OK, queue their steps as a new small queue (v8f) with reservations.
 
 ### 00-COMPACT-29 (11-05 ~22:45) -- READ FIRST; supersedes 28 for state (28 / 27 hold for rules and history)
 
