@@ -86,7 +86,9 @@ def _epoch(D: pd.DataFrame) -> pd.DataFrame:
 def load_agreement() -> pd.DataFrame:
     A = pd.read_csv(P3 / "crosscheck" / "agreement.csv").rename(
         columns={"r | lateral: cam4 lr vs -ml": "lateral", "r | peak angle vs -ml": "angle"})
-    J = pd.read_csv(P3 / "crosscheck" / "jaw_agreement.csv").rename(columns={"r_opening": "jaw"})
+    from wfield_local import trial_classes as tc               # jaw agreement = pose3d_jaw_crosscheck's routed output (11-06)
+    J = pd.read_csv(tc.kin_out_dir(P3, "crosscheck", script="pose3d_jaw_crosscheck") / "jaw_agreement.csv").rename(
+        columns={"r_opening": "jaw"})
     S = A[["session", "epoch", "lateral", "angle"]].merge(J[["session", "jaw"]], on="session", how="outer")
     S["epoch"] = S.epoch.fillna(S.session.map(J.set_index("session").epoch))
     return _epoch(S).sort_values(["animal", "day"]).reset_index(drop=True)
