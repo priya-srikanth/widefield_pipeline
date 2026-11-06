@@ -39,6 +39,15 @@ trials are at far_L/far_center, i.e. spatial misses (Priya, 2026-08-20, confirme
 are excluded from its disengaged class, or its axis would be a mixture of "disengaged" and "missed a
 hard position".
 
+PS93'S LATE WINDOW IS WIDER UNDER THE CAMERA GATE (Priya 11-06, "relax the late window for PS93 only"). With the final
+quarter it has only 12 pre-stroke late no_response rows (after the SPATIAL_MISS exclusion), below the camera floor
+(MIN_TRAIN camera 15), so it got no discriminator. ``late_fraction`` reads a per-animal override from
+configs/defaults.yaml ``precue_engagement_states.camera_late_fraction``: PS93 = 0.67 (trials after 67% of the session),
+the smallest widening in 0.01 steps giving >= 15 of each class: no_response 12 -> 15, working 839 -> 1134 (precue) and
+866 -> 1164 (cue). The same window defines PS93's early / late split in the D1 / D2 drift controls. Every other animal,
+and the DAQ gate for every animal, keeps 0.75. The training rows change, so PS93's camera discriminator gets a new
+stored id; no other id moves.
+
 THE TRIAL UNIVERSE IS THE IMAGING PIPELINE'S OWN. The engaged/no-lick split, the positions and the
 trial ordering all come from ``_trial_features`` via ``with_indices``, never from the behaviour
 trial table. The two disagree in ways that would silently mis-label trials: different free-reward
@@ -72,7 +81,7 @@ from wfield_local.plot_lick_aligned_averages import POSITION_NAMES
 REFERENCE = ("close_L", "close_center")
 #: positions whose no-lick trials are spatial misses rather than disengagement, per animal.
 SPATIAL_MISS = {"PS93": ("far_L", "far_center")}
-LATE_FRACTION = 0.75      # "late window" = final quarter of a session
+LATE_FRACTION = 0.75      # "late window" = final quarter of a session (per-animal camera-gate override: `late_fraction`)
 WINDOW = 15               # trailing window, in REFERENCE trials
 MIN_RATE = 0.5            # reference response rate below this = collapsed
 CHANCE = 1.0 / 6.0
@@ -97,6 +106,17 @@ CAMERA_DISC_TAG = "cls-work-v-noresp-min15"
 #: 15 trials; pre-stroke no_response is scarce -- class tables PS92 16 / PS94 25 late). The floor is part of the camera
 #: model's identity (the "-min15" in `CAMERA_DISC_TAG`). The held-out session's own floor (D2) stays 20.
 MIN_TRAIN = {"daq": 20, "camera": 15}
+
+
+def late_fraction(animal, camera):
+    """The late-window fraction for ``animal``: `LATE_FRACTION` (final quarter), except a per-animal override under the
+    CAMERA gate from configs/defaults.yaml ``precue_engagement_states.camera_late_fraction`` (Priya 11-06: "relax the
+    late window for PS93 only"; PS93 = 0.67, the smallest widening giving its camera discriminator >= MIN_TRAIN camera
+    = 15 no_response rows -- 12 at 0.75). The DAQ gate never takes an override (its model and id are unchanged)."""
+    if not camera:
+        return LATE_FRACTION
+    over = ((config.defaults().get("precue_engagement_states") or {}).get("camera_late_fraction") or {})
+    return float(over.get(animal, LATE_FRACTION))
 
 
 def camera_train_sets(cls_e, cls_u, eng_window, nl_window, dis_window):
@@ -302,6 +322,7 @@ def run_animal(animal, align="precue", post_s=None, verbose=True):
     late_e = []                                        # aligned to XE rows
     from wfield_local import trial_classes as _tc
     camera = _tc.camera_gate_on()
+    frac = late_fraction(animal, camera)
     for si in range(len(kept)):
         t = tables.get(si)
         if t is None:
@@ -311,7 +332,7 @@ def run_animal(animal, align="precue", post_s=None, verbose=True):
         # under the camera gate the DAQ mask is not built at all (states 5 / 6 come from the camera classes below)
         ne = np.zeros(len(t["order"]), bool) if camera else engagement_gate(t["order"], t["responded"], pos)
         span = max(int(t["order"].max()), 1)
-        late = t["order"] > LATE_FRACTION * span
+        late = t["order"] > frac * span
         by_idx_ne = {int(k): bool(v) for k, v in zip(t["order"], ne)}
         by_idx_late = {int(k): bool(v) for k, v in zip(t["order"], late)}
         for k in idx_n:
@@ -395,7 +416,7 @@ def run_animal(animal, align="precue", post_s=None, verbose=True):
         # classes only).
         keep_eng, keep_pos_u, keep_dis = camera_train_sets(_ce, _cu, e_pre & late_e, u_pre & late_nl, keep_dis)
     disc = {"n_engaged_train": int(keep_eng.sum() + keep_pos_u.sum()), "n_disengaged_train": int(keep_dis.sum()),
-            "excluded_positions": list(miss)}
+            "excluded_positions": list(miss), "late_fraction": frac}
     if camera:
         disc.update(train_classes={"engaged": list(TRAIN_POS), "disengaged": list(TRAIN_NEG)},
                     scored_only=list(SCORED_ONLY), train_tag=CAMERA_DISC_TAG)
