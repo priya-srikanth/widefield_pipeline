@@ -1914,3 +1914,7 @@ bundle without `daqlk` and writes a provenance json.
   a_relabel_trial for one step. Now 6 lanes (G, 2 = A B D E F Z, T, D, E, F); RAM self-limits (MINFREE 10 GB, FLOOR 6 GB
   -> STOP). CPU 79 %, 34 GB free at launch. CAVEAT: lane 2 (v2, no claims) will skip D / E / F steps already .done but
   could re-run one still in progress if it reaches D before lane D finishes (A + B first, ~12 h, so unlikely); watch.
+- 19:50: encoding_mixed re-run with 3-D panels DONE (exit 0; 6 figures in <E>/figures/mixed_models). All 6 panels now
+  filled. Cortex, behaviour model: 3d:ceiling cue post:deficit -11.3 (q<.001), 3d:u_target cue -3.33 (q<.001), 3d:u_target
+  lick -1.99 (q .29, n.s.). Convention fix for the replacement pass: these panels still draw a top spine.
+  - Lane T: t_frame_te EXIT 0 19:42 (45 min vs 3-4 h estimate).
