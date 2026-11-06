@@ -76,7 +76,7 @@ unclassified -> OUTSIDE_MAPS, map builders only import engagement_gate). Fixed o
 Priya said YES to cam4-style -> scratchpad push7.sh = the six + wf_p1106_cam4, sequential, merge-only (bg task bn32updgj;
 per-branch push logs scratchpad/push7.<wt>.log). Each push re-runs the full suite (~28 min) when configs/ is in the diff.
 
-**Priya OK'd cam4-style push (15:3x).** ~~Waiting on Priya:** OK to push fix/priya1106-cam4-style when the helper reports (A27 changes cam4 numbers -> report
+**Priya OK'd cam4-style push (15:3x).** (was: waiting on Priya: OK to push fix/priya1106-cam4-style when the helper reports (A27 changes cam4 numbers -> report
 changed conclusions BEFORE any page text).
 
 ### 00-COMPACT-31 (11-06 ~14:30; times written as 16:00-16:20 below were estimates, real ~14:10-14:30) -- READ FIRST; supersedes 30 for state (30 holds for queue mechanics)
