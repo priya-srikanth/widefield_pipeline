@@ -196,3 +196,10 @@ the night.
   per-trial check -> sent to a8 for the PI deck; page Fig 2.11 caption in the replacement pass. (7) C: cache: DELETED 375
   superseded files (10-28..11-02, 58.3 GB; list in rebuild_20261103/DELETED_LOCAL_CACHE_20261106.txt); C: 113 GB free.
   F8 + exact slide-139 frozen side: steps held for queue v8c (helpers building); ALM + speed-up -> main push waits for RAM.
+- ~12:00: **F8 + exact slide-139 side running.** v8c (11:38, lanes P / S): e_plain_* as TRUE plain Allen
+  (WFIELD_AREA_BASIS=plain; outputs *_plain / _r8 names) + 2 split producers the mislabelled "plain" steps used to make
+  (e_split_where, e_split_loclin_all) + 9 readers re-depped + the notdock dock arm x_enlv_balance needs. v8d (12:00, code
+  wf_render_v8d d2d26e84 = v8 + 435160e2): b_roiexact_frA = exact ROI-target frozen run (area-run penalties + statistics
+  held; Allen bit-identical; vs basis route max |d| 0.004 R2, unique R2 <= 0.002), then slide 139 / Fig 4.8 maps with
+  --roi-frozen exact. Slide 94 stays on the basis-route union run; the deck should point at the *_split.png files.
+  Main: 5db29b07 (decisions + ALM + speed-ups) push waits for RAM; 435160e2 follows.
