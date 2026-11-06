@@ -43,7 +43,7 @@ python -m wfield_local.nightly <YYYYMMDD>         # DAQ upload -> preprocess -> 
 
    *(`--skip-preprocess` skips a–d — motion/SVD/xreg/push — and re-runs only the downstream steps e–h on a
    date whose processed outputs are already on `N:`.)*
-3. **`preprocess_deck`** — rebuild `cross-session_preprocessing_<animal>.pptx` in place (includes the
+3. **`preprocess_deck`** — rebuild `presentations/pipeline/preprocessing/cross-session_preprocessing_<animal>.pptx` in place (includes the
    quiet-vs-running slide before QC). *(skip: `--skip-deck`)*
 4. **`archive_day archive` + `verify`** — raw + `.bin` → `M:` standby, outputs → `N:`, size-verified.
    It **never deletes `E:`**. *(skip: `--skip-archive`)*
@@ -108,8 +108,7 @@ python -m wfield_local.nightly 20260808 --dry-run             # print every plan
   `E:\DAQ_recorder_output\PSxx_<DATE>_*.h5` (DAQ files sit loose, not per-session) — `upload-daq`/`archive`
   put them on `N:` under `…\Widefield\DAQ_recorder_output\<DATE>\` (canonical; one date level, never a
   nested `DAQ_recorder_output\`); other outputs → `N:` and
-  standby raw/`.bin` → `M:` (both under `…\Priya\…`); deck → `N:\…\labcams\cross-session_preprocessing_
-  <animal>.pptx`. Preprocess params live in `configs/defaults.yaml preprocess` (SVD k=100, functional ch 470,
+  standby raw/`.bin` → `M:` (both under `…\Priya\…`); deck → `N:\…\Widefield\presentations\pipeline\preprocessing  cross-session_preprocessing_<animal>.pptx` (labcams top level until 2026-11-06). Preprocess params live in `configs/defaults.yaml preprocess` (SVD k=100, functional ch 470,
   fs 31.23, hp 0.1, lp 14); the 6/6 reference + per-animal landmark version in `configs/animals.yaml`
   (PS92/PS93 v2, PS94/PS95 v1).
 - **Dead strobe bit / position recovery:** if cue/lick maps show <6 positions a DAQ strobe bit may be dead

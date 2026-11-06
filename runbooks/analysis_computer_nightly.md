@@ -94,7 +94,8 @@ figs stage then waits for the imaging box's LocaNMF push.
    D alongside the ROI version. Requires a joint basis built for the animal
    (`wfield_local.joint_locanmf`); a missing one is reported and skipped, **never silently refitted** —
    a refit over a grown session set is a different reference frame. Also gated by `--skip-frozen`.
-9. **Build the analysis deck** `spout_position_analysis_summary.pptx` at the `labcams` top level
+9. **Build the analysis deck** `spout_position_analysis_summary.pptx` in `Widefield/presentations/pipeline/analysis/`
+   (root `decks_out`; the `labcams` top level until 2026-11-06)
    (`locanmf_analysis_deck.py`; A–C within-day per animal→type→date, D cross-session per basis→
    alignment→animal, E–F cohort summaries). LocaNMF itself (r2 0.95 / loc 80 / maxrank 20) must already
    have run on the pushed inputs before this stage.

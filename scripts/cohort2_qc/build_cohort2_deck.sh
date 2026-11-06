@@ -13,7 +13,9 @@ PY="${PY:-C:/ProgramData/anaconda3/envs/wfield/python.exe}"
 export WORK="${WORK:-E:/labcams_data}"                # scratch for regenerated figures (read by the QC scripts)
 LAB="${LAB:-N:/MICROSCOPE/Priya/Widefield/labcams}"   # analysis desktop: LAB=M:/MICROSCOPE/Priya/Widefield/labcams
 RAW="${RAW:-E:/labcams_data}"                         # raw .dat (imaging box only; not archived to the share)
-RIBO="$LAB/cohort2/cross-session_preprocessing_PS121-PS122.pptx"
+# decks: paths.yaml root decks_out, cohort2 -> <decks_out>/cohort2/preprocessing (labcams/cohort2 until 2026-11-06)
+DECKS="${DECKS:-N:/MICROSCOPE/Priya/Widefield/presentations/pipeline/cohort2/preprocessing}"  # desktop: M:/...
+RIBO="$DECKS/cross-session_preprocessing_PS121-PS122.pptx"
 SZ="$LAB/cohort2/_tmp_qc_figures_20261031/seizure"    # pre-made cam4/slow-mo clips live here
 cd "$(dirname "$0")/../.."                             # repo root
 
@@ -44,7 +46,7 @@ fi
 "$PY" scripts/cohort2_qc/seizure_events_video.py --day 1104
 
 # 3. base preprocessing decks (writes _PS118-PS120 and _PS121-PS122 beside this output name)
-WIDEFIELD_COHORT=cohort2 "$PY" -m wfield_local.preprocess_deck --output "$LAB/cohort2/cross-session_preprocessing.pptx"
+WIDEFIELD_COHORT=cohort2 "$PY" -m wfield_local.preprocess_deck --output "$DECKS/cross-session_preprocessing.pptx"
 
 # 4. append QC summaries + discharge clips to the RiboL1 deck (append_qc_slides embeds mp4 with a poster)
 "$PY" scripts/cohort2_qc/append_qc_slides.py "$RIBO" \
@@ -58,4 +60,4 @@ WIDEFIELD_COHORT=cohort2 "$PY" -m wfield_local.preprocess_deck --output "$LAB/co
   "PS122 10-29 discharge - face/behavior video (cam4, H.264)::$SZ/PS122_1029_events_cam4.mp4" \
   "PS122 10-29 discharge - widefield dF/F map slow-motion::$SZ/PS122_1029_event_slowmo.mp4" \
   "PS122 10-30 - event traces (sub-threshold, vascular)::$SZ/PS122_1030_event_traces.png"
-echo "cohort2 decks rebuilt with discharge + 490 QC/clips -> $LAB/cohort2/"
+echo "cohort2 decks rebuilt with discharge + 490 QC/clips -> $DECKS/"

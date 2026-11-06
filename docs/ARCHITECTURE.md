@@ -310,8 +310,10 @@ labcams/
   analysis_figures/          the nightly mirror of every analysis figure  ·  json/
   channel_comparison/        415-vs-470 channel-identity diagnostics
   retired/                   superseded output, never deleted
-  frozen_models/ joint_bases/ xday/ deck_history/ snapshots/
-  spout_position_analysis_summary.pptx   + .manifest.json
+  frozen_models/ joint_bases/ xday/ snapshots/
+  spout_position_analysis_summary.manifest.json + .run.json   (the deck's sidecars)
+presentations/pipeline/      every auto-built .pptx (root decks_out; moved here from labcams 2026-11-06, Priya)
+  analysis/ preprocessing/ behavior/ orofacial/<run>/ history/ cohort2/<kind>/
 ```
 
 `retired/` is the convention for anything superseded: nothing on MICROSCOPE is deleted (ground

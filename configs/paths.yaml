@@ -117,15 +117,28 @@ logical_roots:
     description: "Analysis component-figure store on MICROSCOPE: nightly_figs._publish_figs mirrors the
       local cue_lick PNGs and SVGs here each run (durable + accessible, matching how preprocessing figs
       persist under labcams/<date>/), preserving the svg/ and data/ shape figure_layout defines. Routed
-      JSON lands in json/. The CURRENT deck is spout_position_analysis_summary.pptx at the labcams top
-      level. RENAMED 2026-09-21 from labcams/locanmf_lick_pooled/cue_analysis: this is the live mirror of
-      every analysis figure and it was sitting inside a directory named after an abandoned June 2026
+      JSON lands in json/. The CURRENT deck is <decks_out>/analysis/spout_position_analysis_summary.pptx
+      (at the labcams top level until 2026-11-06). RENAMED 2026-09-21 from labcams/locanmf_lick_pooled/
+      cue_analysis: this is the live mirror of every analysis figure and it was sitting inside a directory named after an abandoned June 2026
       pooling experiment, whose own output now sits in labcams/retired/locanmf_lick_pooled_202606."
     mounts:
       analysis: "M:/MICROSCOPE/Priya/Widefield/labcams/analysis_figures"
       mac:      "/Volumes/Priya/Widefield/labcams/analysis_figures"
       imaging:  "N:/MICROSCOPE/Priya/Widefield/labcams/analysis_figures"
       analysis_desktop: ["M:/MICROSCOPE/Priya/Widefield/labcams/analysis_figures", "N:/MICROSCOPE/Priya/Widefield/labcams/analysis_figures"]
+
+  decks_out:
+    description: "Every AUTO-BUILT .pptx deck (wfield_local.paths.deck_dir): <this>/<kind>/ for kind = analysis,
+      preprocessing, behavior, orofacial, history (the previous copies keep_previous makes); cohort-scoped
+      (cohort2 -> <this>/cohort2/<kind>/). MOVED 2026-11-06 (Priya) from labcams/ (analysis + preprocessing
+      decks, deck_history/), labcams/cohort2/, behavior_summary/, LP_analysis/<run>/cohort/deck/ and
+      Behavior_Cameras/Widefield/example_clips/. Only the .pptx files moved: the figures and JSON sidecars stay
+      in their data roots. presentations/ itself also holds Priya's hand-made decks -- never written here."
+    mounts:
+      analysis: "M:/MICROSCOPE/Priya/Widefield/presentations/pipeline"
+      mac:      "/Volumes/Priya/Widefield/presentations/pipeline"
+      imaging:  "N:/MICROSCOPE/Priya/Widefield/presentations/pipeline"
+      analysis_desktop: ["M:/MICROSCOPE/Priya/Widefield/presentations/pipeline", "N:/MICROSCOPE/Priya/Widefield/presentations/pipeline"]
 
   xday_qc:
     description: "Cross-day registration/QC dir on MICROSCOPE (NOT under a per-date folder)"
@@ -201,6 +214,7 @@ rebuild:
     figures_working: figures_working
     cue_analysis_out: analysis_figures
     cohort_out: labcams
+    decks_out: presentations
   # derived trees under an INPUT root: (root, glob of the first path segments) -> folder under the rebuild root, keeping
   # the relative path (orofacial "<run>/imaging_encoding/..." -> <rebuild>/LP_analysis/<run>/imaging_encoding/...)
   derived_subtrees:

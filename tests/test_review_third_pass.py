@@ -85,7 +85,8 @@ def test_t4_restnl_missing_baseline_is_built(monkeypatch, tmp_path):
 
 def test_t5_tagged_deck_is_never_the_default_deck(monkeypatch):
     from wfield_local import config, writeguard
-    fw = Path(config.resolver().root("cohort_out"))
+    from wfield_local.paths import deck_dir
+    fw = deck_dir("analysis", config.resolver())                 # decks_out since 2026-11-06 (was cohort_out)
     default = fw / "spout_position_analysis_summary.pptx"
     monkeypatch.setenv("WIDEFIELD_TRIAL_GATE", "camera")
     routed = run_mode.routed_output(fw, guard=False, make=False) / default.name

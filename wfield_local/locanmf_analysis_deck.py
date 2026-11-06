@@ -2,8 +2,8 @@
 
 A focused successor to the date-first summary deck and the 6/5-8 xsession deck: it includes ONLY the
 curated (filtered) sessions (``configs/animals.yaml date_policy.cross_session``) and only the analyses
-Priya wants, and it is written to the ``labcams`` TOP LEVEL (not two dirs deep) as
-``spout_position_analysis_summary.pptx``.
+Priya wants, and it is written to ``<decks_out>/analysis/spout_position_analysis_summary.pptx``
+(``presentations/pipeline/analysis``; the ``labcams`` top level until 2026-11-06, Priya).
 
 Sections (per animal, then type, then date):
   A  WITHIN-DAY decoding — post-cue 2 s (no-lick generalization) + pre-cue 2 s confusion + recall per
@@ -30,7 +30,7 @@ reference wins for every animal (within-animal swing up to 0.36) — the joint b
 reference-free version of that same idea. See DECISIONS.md. Missing PNGs are skipped, so the deck builds
 from whatever figures are present.
 
-    python -m wfield_local.locanmf_analysis_deck                 # src = figures_working, out = labcams
+    python -m wfield_local.locanmf_analysis_deck                 # src = figures_working, out = decks_out/analysis
     python -m wfield_local.locanmf_analysis_deck --src <dir> --out <path.pptx>
 
 WHERE THE DECK'S CODE LIVES (split 2026-09-21; it was 5,484 lines in this file alone):
@@ -212,8 +212,8 @@ def _refuse_failed_steps(out_path, failed_steps, allow_failed_steps=False):
         failed_steps)
 
 
-def _write_manifest(out_path, placed_figures, run_start=None):
-    """Record every figure the deck PLACED, with its mtime, beside the deck.
+def _write_manifest(out_path, placed_figures, run_start=None, sidecar_dir=None):
+    """Record every figure the deck PLACED, with its mtime, beside the deck (in ``sidecar_dir`` if given).
 
     Staleness is REPORTED, not enforced, and the measurement is why. Of 1311 PNGs in the figure tree
     on 2026-08-20 only 402 were touched by that night's run; the rest are one-off and cross-sectional
@@ -239,8 +239,9 @@ def _write_manifest(out_path, placed_figures, run_start=None):
              "age_days": round((time.time() - m) / 86400, 2),
              "refreshed_this_run": (run_start is not None and m >= run_start)}
             for n, m in sorted(seen.items())]
-    man = Path(out_path).with_suffix(".manifest.json")
+    man = (Path(sidecar_dir) / Path(out_path).name if sidecar_dir else Path(out_path)).with_suffix(".manifest.json")
     try:
+        man.parent.mkdir(parents=True, exist_ok=True)
         man.write_text(_json.dumps(
             {"deck": str(out_path), "n_placed": len(rows),
              "run_start": (time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(run_start))
@@ -437,7 +438,10 @@ def figure_caption(fig_names, years=None) -> str:
 
 
 def keep_previous(out_path) -> Path | None:
-    """Copy the deck that is about to be overwritten into ``deck_history/``, stamped with ITS mtime.
+    """Copy the deck that is about to be overwritten into the history folder, stamped with ITS mtime.
+
+    The folder is `paths.deck_history_dir`: ``<decks_out>/history/`` for a default deck (``labcams/deck_history``
+    until 2026-11-06), ``deck_history/`` beside the deck for an explicit ``--out`` elsewhere.
 
     Every rebuild writes the same filename, so until 2026-08-22 each one destroyed the last. That is
     fine while rebuilds only add -- and not fine the moment one is worse: a hand-run rebuild that day
@@ -448,12 +452,13 @@ def keep_previous(out_path) -> Path | None:
     backup must not stop the deck from being written.
     """
     from wfield_local import writeguard
+    from wfield_local.paths import deck_history_dir
 
     try:
         out_path = Path(out_path)
         if not out_path.exists():
             return None
-        hist = out_path.parent / "deck_history"
+        hist = deck_history_dir(out_path)
         stamp = time.strftime("%Y%m%d_%H%M", time.localtime(out_path.stat().st_mtime))
         dst = hist / f"{out_path.stem}__{stamp}{out_path.suffix}"
         if dst.exists():
@@ -493,8 +498,11 @@ def _tagged_k(root, rel, grant_root):
 def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag=None, allow_missing=0,
                         allow_unresolved=0,
                         failed_steps=(), allow_failed_steps=False, run_start=None,
-                        grant_dir=None) -> dict:
+                        grant_dir=None, sidecar_dir=None) -> dict:
     """Build the refined analysis deck at ``out_path`` from figures in ``src``. Returns a summary dict.
+
+    ``sidecar_dir`` is where the ``.manifest.json`` goes (default: beside the deck). The default deck lives in
+    ``<decks_out>/analysis`` and its sidecars stay in ``cohort_out`` (2026-11-06): only .pptx files are in decks_out.
 
     ``grant_dir`` is the ONE input that does not live under ``src`` -- the grant summary set is a
     deliverable under ``labcams``, not an analysis intermediate under ``figures_working``. It is an
@@ -2314,7 +2322,7 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
     assert_writable(out_path)
     keep_previous(out_path)
     prs.save(str(out_path))
-    manifest, stale = _write_manifest(out_path, placed_figures, run_start)
+    manifest, stale = _write_manifest(out_path, placed_figures, run_start, sidecar_dir=sidecar_dir)
     return {"out": str(out_path), "slides": len(prs.slides),
             "figures_present": placed["present"], "figures_missing": placed["missing"],
             "missing_figures": missing_figures, "tag": tag,
@@ -2328,7 +2336,7 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--src", type=Path, default=None, help="figure dir (default: figures_working root)")
     ap.add_argument("--out", type=Path, default=None,
-                    help="output pptx (default: <labcams>/spout_position_analysis_summary.pptx)")
+                    help="output pptx (default: <decks_out>/analysis/spout_position_analysis_summary.pptx)")
     ap.add_argument("--machine", default=None)
     ap.add_argument("--allow-missing", type=int, default=0, metavar="N",
                     help="publish even though N figures are missing (default 0: refuse)")
@@ -2339,10 +2347,13 @@ def main(argv=None) -> int:
     rv = PathResolver(machine=args.machine)
     src = args.src or Path(rv.root("figures_working"))
     from wfield_local import run_mode
-    out = args.out or (run_mode.routed_output(Path(rv.root("cohort_out")), guard=False)
+    from wfield_local.paths import deck_dir
+    out = args.out or (run_mode.routed_output(deck_dir("analysis", rv), guard=False)
                        / "spout_position_analysis_summary.pptx")       # T5: the tag folder in a tagged run
+    # the manifest stays in cohort_out (tag-routed the same way); an explicit --out keeps it beside the deck
+    side = None if args.out else run_mode.routed_output(Path(rv.root("cohort_out")), guard=False)
     summary = build_analysis_deck(src, out, allow_missing=args.allow_missing,
-                                  run_start=args.run_start)
+                                  run_start=args.run_start, sidecar_dir=side)
     print(f"[analysis_deck] wrote {summary['out']}  ({summary['slides']} slides, "
           f"{summary['figures_present']} figures placed, {summary['figures_missing']} missing)", flush=True)
     return 0

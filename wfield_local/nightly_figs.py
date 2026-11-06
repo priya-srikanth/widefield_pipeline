@@ -221,8 +221,9 @@ def _epoch_boundaries_used():
         return None
 
 
-def _write_run_record(deck_out, date, tag):
-    """Leave this run's failed-step list on disk, beside the deck.
+def _write_run_record(deck_out, date, tag, sidecar_dir=None):
+    """Leave this run's failed-step list on disk, beside the deck (in ``sidecar_dir`` if given: the nightly keeps it in
+    cohort_out, since only the .pptx files live in decks_out -- 2026-11-06).
 
     WHY. On 2026-08-21 the deck refused to publish and the reason existed ONLY in the terminal
     scrollback of the window that launched the run. Reconstructing it afterwards took a full rebuild
@@ -246,7 +247,7 @@ def _write_run_record(deck_out, date, tag):
            "epoch_boundaries": _epoch_boundaries_used(),
            "deck_published": not FAILURES}
     try:
-        p = Path(deck_out).with_suffix(".run.json")
+        p = (Path(sidecar_dir) / Path(deck_out).name if sidecar_dir else Path(deck_out)).with_suffix(".run.json")
         writeguard.assert_writable(p)
         p.write_text(_json.dumps(rec, indent=1), encoding="utf-8")
         log(f"   run record: {p}")
@@ -1041,12 +1042,15 @@ def main():
             except Exception as ex:                                    # noqa: BLE001
                 log(f"== sidecar staleness check failed: {type(ex).__name__} ==")
 
-    # build the refined ANALYSIS deck (animal -> type -> date, curated) at the labcams top level
+    # build the refined ANALYSIS deck (animal -> type -> date, curated) in <decks_out>/analysis (Priya 2026-11-06; it
+    # was the labcams top level). Its JSON sidecars (manifest, run record) stay in cohort_out.
     # Bound OUTSIDE the try: the run record below needs it even when the deck step dies early,
     # and that is exactly the run whose failure list is worth having on disk.
-    deck_out = Path(config.resolver().root("cohort_out")) / "spout_position_analysis_summary.pptx"
+    from wfield_local.paths import deck_dir
+    deck_out = deck_dir("analysis", config.resolver()) / "spout_position_analysis_summary.pptx"
     # T5 (third review): a TAGGED nightly builds its deck in its own tag folder, never over the default deck
     deck_out = run_mode.routed_output(deck_out.parent, guard=False) / deck_out.name
+    deck_side = run_mode.routed_output(Path(config.resolver().root("cohort_out")), guard=False)
     try:
         from wfield_local.locanmf_analysis_deck import (
             DeckFromFailedRun,
@@ -1058,7 +1062,7 @@ def main():
         # stale panels (its outputs are last run's), and RUN_START separates figures this run
         # refreshed from ones it did not touch. Neither is visible from the figure tree alone.
         d = build_analysis_deck(Path(out), deck_out, dates=from_list, tag=tag,
-                                failed_steps=sorted(set(FAILURES)), run_start=RUN_START)
+                                failed_steps=sorted(set(FAILURES)), run_start=RUN_START, sidecar_dir=deck_side)
         log(f"== analysis deck: {d['out']} ({d['slides']} slides, {d['figures_present']} figs, "
             f"{d['figures_missing']} missing) ==")
         _stale = d.get("stale_detail") or []
@@ -1125,7 +1129,7 @@ def main():
     log(f"== nightly figures complete: per-day {per_day}, cross-session tag {tag} ==")
     # The last per-day date, which is what this was when it was the loop variable left over
     # from `for date in per_day` -- named now that the loop is a phase.
-    _write_run_record(deck_out, per_day[-1] if per_day else None, tag)
+    _write_run_record(deck_out, per_day[-1] if per_day else None, tag, sidecar_dir=deck_side)
     # REPEATED AT THE END, because the audit runs ~20 h into the night and its lines are thousands
     # of log lines above this point. A drift notice nobody scrolls back far enough to see is the
     # same as no notice. Exit code is deliberately unaffected -- see `_epoch_audit`.
@@ -1134,8 +1138,8 @@ def main():
         for d in EPOCH_DRIFT:
             log(f"     {d}")
         log("   The epochs under this deck differ from the previous one; its pooled epoch panels "
-            "are not comparable. Boundaries used are recorded in epoch_boundaries.json beside the "
-            "deck, and WIDEFIELD_EPOCHS_PINNED=1 rebuilds under the stored EPOCH_SPEC.")
+            "are not comparable. Boundaries used are recorded in epoch_boundaries.json (cohort_out, "
+            "the labcams top level), and WIDEFIELD_EPOCHS_PINNED=1 rebuilds under the stored EPOCH_SPEC.")
     # A run whose figure steps all failed used to exit 0 and leave a deck with 0 figures and 287
     # missing -- indistinguishable from success to any caller or cron job. Report the truth.
     if FAILURES:

@@ -67,12 +67,20 @@ _SIGNATURE = (("imaging", "E:/labcams_data"), ("analysis_desktop", "C:/Users/Sab
 COHORT_ENV = "WIDEFIELD_COHORT"
 
 #: Logical roots whose contents are COHORT-LEVEL outputs: the active cohort's `output_subdir` is appended.
-COHORT_SCOPED_ROOTS = ("figures_working", "cue_analysis_out", "behavior_out", "orofacial")
+COHORT_SCOPED_ROOTS = ("figures_working", "cue_analysis_out", "behavior_out", "orofacial", "decks_out")
 
 #: Virtual root for cohort-level outputs that historically sat at the TOP of the labcams tree (the deck,
 #: epoch_boundaries.json, frozen_models/, joint_bases/, grant_figures/). = `labcams` for cohort1 (unchanged),
 #: `labcams/<output_subdir>` otherwise. `labcams` itself stays unscoped: it is also the SESSION data root.
 COHORT_OUT = "cohort_out"
+
+#: Logical root of the AUTO-BUILT .pptx decks (Priya 2026-11-06: "move the ppt outputs from analysis to the
+#: 'presentations' folder"): ``<Widefield>/presentations/pipeline/<kind>/``, cohort-scoped like every cohort-level
+#: output (cohort2 -> ``pipeline/cohort2/<kind>/``). Only the .pptx files live there: the figures, the deck's JSON
+#: sidecars (manifest, run record) and epoch_boundaries.json stay in their data roots.
+DECKS_OUT = "decks_out"
+#: Subfolders of DECKS_OUT; ``history`` holds the copies `locanmf_analysis_deck.keep_previous` makes.
+DECK_KINDS = ("analysis", "preprocessing", "behavior", "orofacial", "history")
 
 
 def cohorts() -> dict:
@@ -254,6 +262,27 @@ class PathResolver:
         if val is None:
             raise KeyError(f"Unknown staging path {name!r}")
         return str(val)
+
+
+def deck_dir(kind: str, rv: PathResolver | None = None) -> Path:
+    """The default folder of one kind of auto-built deck: ``<decks_out>/<kind>`` (see DECKS_OUT)."""
+    if kind not in DECK_KINDS:
+        raise ValueError(f"unknown deck kind {kind!r} (known: {', '.join(DECK_KINDS)})")
+    return Path((rv or PathResolver()).root(DECKS_OUT)) / kind
+
+
+def deck_history_dir(deck_path, rv: PathResolver | None = None) -> Path:
+    """Where the deck about to be replaced at ``deck_path`` is kept: ``<decks_out>/history/<sub>`` for a deck in
+    ``<decks_out>/<kind>/<sub>`` (``<sub>`` = a tagged run's tag folder, so tags stay apart), else a
+    ``deck_history/`` beside the deck (an explicit ``--out`` elsewhere)."""
+    parent = Path(deck_path).parent
+    try:
+        rel = parent.relative_to(Path((rv or PathResolver()).root(DECKS_OUT)))
+    except (ValueError, OSError, RuntimeError, KeyError):   # not under the root / root unavailable here
+        rel = None
+    if rel is None or not rel.parts or rel.parts[0] not in DECK_KINDS or rel.parts[0] == "history":
+        return parent / "deck_history"
+    return Path((rv or PathResolver()).root(DECKS_OUT)) / "history" / Path(*rel.parts[1:])
 
 
 def is_absolute(p: str) -> bool:

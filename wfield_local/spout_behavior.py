@@ -1938,7 +1938,8 @@ def run(date, rv, animals=None, cohort=False, from_spec=None, dry=False) -> int:
             epoch_dir = _refresh_epoch_behaviour(rv)
             try:
                 from wfield_local.behavior_deck import build_behavior_deck
-                d = build_behavior_deck(out_dir, out_dir / "behavior_summary_deck.pptx", animals=None,
+                from wfield_local.paths import deck_dir      # decks live in presentations/pipeline (2026-11-06)
+                d = build_behavior_deck(out_dir, deck_dir("behavior", rv) / "behavior_summary_deck.pptx", animals=None,
                                         epoch_dir=epoch_dir)
                 print(f"[spout_behavior] wrote behavior deck: {Path(d['out']).name} "
                       f"({d['slides']} slides, {d['figures_present']} figs, {d['figures_missing']} missing)",

@@ -22,7 +22,7 @@ lick microstructure — then the tiled cumulative-task-raster slides (8 sessions
 full-size slide per cross-session metric } -> a cross-animal divider + the cohort figure. One detailed
 figure per slide (like the analysis deck), so each day / metric stays readable.
 
-    python -m wfield_local.behavior_deck                    # build from behavior_out, land beside the figures
+    python -m wfield_local.behavior_deck                    # build from behavior_out -> <decks_out>/behavior
     python -m wfield_local.behavior_deck --out <path.pptx>  # override the output path
     python -m wfield_local.behavior_deck --only PS93 PS94   # subset of animals
 """
@@ -37,7 +37,7 @@ from pptx.dml.color import RGBColor
 from pptx.util import Inches, Pt
 
 from wfield_local import config
-from wfield_local.paths import PathResolver
+from wfield_local.paths import PathResolver, deck_dir
 
 NAVY = RGBColor(0x1F, 0x33, 0x55)
 GREY = RGBColor(0x55, 0x55, 0x55)
@@ -261,7 +261,8 @@ def build_behavior_deck(behavior_out, out_path, animals=None, epoch_dir=None) ->
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--out", type=Path, default=None,
-                    help="output .pptx (default: <behavior_out>/behavior_summary_deck.pptx)")
+                    help="output .pptx (default: <decks_out>/behavior/behavior_summary_deck.pptx; it was "
+                         "<behavior_out>/behavior_summary_deck.pptx until 2026-11-06)")
     ap.add_argument("--only", nargs="+", metavar="ANIMAL", help="restrict to these animals, or 'all'")
     ap.add_argument("--machine", default=None)
     ap.add_argument("--skip-epoch", action="store_true",
@@ -269,7 +270,7 @@ def main(argv=None) -> int:
     args = ap.parse_args(argv)
     rv = PathResolver(machine=args.machine)
     root = Path(rv.root("behavior_out"))
-    out = args.out or root / "behavior_summary_deck.pptx"
+    out = args.out or deck_dir("behavior", rv) / "behavior_summary_deck.pptx"
     d = build_behavior_deck(root, out, animals=config.normalize_animals(args.only),
                             epoch_dir=None if args.skip_epoch else epoch_fig_dir(rv))
     print(f"== behavior deck: {d['out']} ({d['slides']} slides, {d['figures_present']} figs, "
