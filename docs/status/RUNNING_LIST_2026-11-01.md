@@ -2035,3 +2035,8 @@ bundle without `daqlk` and writes a provenance json.
   overall coding measures + target in cue; executed equal. Per-animal post-session Spearman (y vs deficit): u_tgtbin cue
   -.73 / -.85 / -.13 / -.49; u_tgtbin lick +.19 / -.70 / +.20 / -.43 (mixed); u_exbin lick -.35 / +.05 / -.15 / -.48.
   Awaiting Priya: adopt log as primary deficit axis?
+- ~22:10: **Priya:** push the decisions branch OK (pushing; full pre-push suite); (2) 1b hit rate -> camera period YES;
+  (3) iti_lick_rate + within_lick_correction cut to the working period YES; (4) rebuild trial attempts under daqlk in
+  scratch + diff YES (helper, new branch fix/decisions-followup-20261105); (1) precue discriminator late window: "not sure
+  dropping it helps, let's say 15 min?" -> asked Priya: last 15 min of the session, or everything after the first 15 min.
+  Log vs linear deficit: not yet answered.
