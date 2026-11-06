@@ -82,3 +82,10 @@ the night.
   (parent + its 3 workers); it re-runs on its own (with te_readout, which ran without it) after svf_te ends. Test fixes
   for the push committed (7a7a60be; also cherry-picked to the follow-up branch); the decisions push is in its pre-push
   run (slow: CPU shared with the render). Render: 14 steps done at 01:10.
+- ~02:00: **decisions branch PUSHED** (`fix/decisions-f1-f2-enl-20261105`, incl. the test fix 7a7a60be). Log-deficit and
+  follow-up branch pushes held until RAM recovers (their pre-push suites are heavy).
+- ~01:52: the queue's low-RAM guard wrote STOP (available RAM 0-5 GB with ~6 render steps + a Jupyter `fr` kernel that is
+  not ours + attempt_coding). Lanes halt at their next step boundary; nothing killed. My attempt to stop t_partial_te
+  again was blocked by the auto-mode check (it selected worker PIDs by parent, against our own rule) -- not retried.
+  Will clear STOP and relaunch lanes ONE OR TWO AT A TIME once the running steps finish (the 6-lane overlap is what keeps
+  driving RAM to the floor). **Question A9: OK to run at most 3 lanes at once from here (slower but no RAM stops)?**
