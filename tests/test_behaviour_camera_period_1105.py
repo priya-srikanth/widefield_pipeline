@@ -10,6 +10,7 @@ Pins:
 """
 from __future__ import annotations
 
+import os
 import sys
 from pathlib import Path
 
@@ -19,6 +20,20 @@ import pytest
 from wfield_local import trial_classes as tc
 
 REPO = Path(__file__).resolve().parents[1]
+
+
+@pytest.fixture(autouse=True)
+def _forget_new_modules():
+    """Importing disengagement_tests sets WIDEFIELD_PRE_FROM=0801 before its config imports; modules first imported then
+    keep the August-only values for the rest of the session (broke test_rebuild_root / test_lp_gate_option when run
+    after this file). monkeypatch.delenv on an UNSET variable records nothing to undo, so that setdefault outlived the
+    test: restore the whole environment and drop every module this test imported so later tests import them fresh."""
+    before, env = set(sys.modules), dict(os.environ)
+    yield
+    os.environ.clear()
+    os.environ.update(env)
+    for k in set(sys.modules) - before:
+        sys.modules.pop(k, None)
 
 
 def _stub(monkeypatch, cls, kind):
