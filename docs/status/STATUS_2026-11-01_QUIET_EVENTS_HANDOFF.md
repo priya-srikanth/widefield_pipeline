@@ -14,8 +14,9 @@
 >   largest at 2-3 Hz"), 147 notes (470 0.5-1 Hz +0.38), 153 'does cortex lead the lick' -> answered (FINDINGS 23-25).
 > - Priya edited slide 88 short answer and slide 139 bullet 1 herself; reword_s88_short_answer_1106.py was NOT run.
 > - Slide 11: wait for the 1.0 s ENL re-run (figure + numbers + text together; current = 2.0 s table).
-> - TODO: cohort 2 section, 490 vs 470 slides (docs/490_VS_470_EXCITATION.md; PS118 d' running on the imaging box; figures
->   are on its E:/labcams_data -- need them on M: first).
+> - DONE 11-06 08:1x: cohort 2 section, add_c2_490_vs_470_1106.py -> visible slide 153 "490 nm helps RiboL1-8s, neutral
+>   for GCaMP6s" (d' figure) + hidden 154 (F0 / SNR / fade); figures labcams/cohort2/490_vs_470/ (imaging box 11-06
+>   07:59); deck now 194 slides, 107 hidden. The source d' figure's x date labels overlap (fix in led_490_vs_470_dprime.py).
 >
 > CODE (11-06): on main: response-window fallback 9ad4fbcc, hemo 470 slot f1fd9f9f, August-only cut 5fa8253c (cohort key
 > 0806; WIDEFIELD_PRE_FROM stays 0801 = folder names), CLAUDE.md rule 4 = MERGE not rebase 29845278, 34's
@@ -23,7 +24,11 @@
 > its pre-push suite), encoder cached features 1651b99c, slide-18 pre-session dots 17143af2 (merge c8b204dd; imaging_lmm
 > conflict resolved: pre rows drawn, not fitted), cache kind always carries daqlk 10dd0049 (all local cache entries
 > predate CACHE_VERSION 14, so nothing warm is orphaned). HELD: fail-loud DAQ contacts 5834f8de (until 34's render).
-> RUNNING helpers: fix 2 (frozen pool once + cached maps), check 1 posinfo regressor variance
+> Also LOCAL: frozen ROI pool built once for decoder + encoder 677b37b7 (merge c4c9dca3; ~1.9 h / nightly; fan-out
+> WIDEFIELD_FROZEN_JOBS stays OFF until a serial-vs-jobs=8 JSON diff, BLAS threads differ) + cached map builder in
+> chronic_stability / flatpool_vs_restw. The bare-run warning push hit 1 test failure in its pre-push run (identify
+> when it ends; NOT the warning itself -- no test turns warnings into errors). Merge tests for pre-dots etc: 173 passed.
+> RUNNING helper: check 1 posinfo regressor variance
 > (-> posinfo_checks_v7g3_t3d_spont_frAsplit/). Trial-count check DONE: not computable from saved files (needs a
 > predict-only re-run); counts in trialmatched_peth_checks_v7g3_t3d_spont_frA/ (README in a8 scratchpad: write to M: blocked).
 > AWAITING PRIYA IN 34's WINDOW: no_posinfo per-trial re-run (~4 h), one pixmusall re-run + self-fit ROI targets for
