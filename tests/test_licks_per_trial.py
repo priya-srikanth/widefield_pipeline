@@ -76,7 +76,7 @@ def test_lick_counts_and_imaging_use_the_behaviour_detector():
     assert "lick_samples=np.asarray(lick_count_samples(s), np.int64)" in inspect.getsource(ak.session_behavior)
     assert '_load_daq_events(s["h5"], "lick_analog")["lick_samples"]' in inspect.getsource(ak.lick_samples)   # imaging:
     assert "0.10)" not in inspect.getsource(ak.lick_samples).split('"""')[-1]   # THE DAQ detector (8.53), no literal
-    ed = (REPO / "scripts" / "rest_migration" / "engagement_decomposition.py").read_text(encoding="utf-8")
+    ed = (REPO / "wfield_local" / "engagement.py").read_text(encoding="utf-8")   # session_trials (moved 11-05)
     assert "licks = np.sort(np.asarray(_ak.lick_count_samples(s), float))" in ed
     assert "post = licks_resp[" in ed                      # response detection unchanged
 

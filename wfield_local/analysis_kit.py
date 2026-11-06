@@ -24,13 +24,9 @@ point estimate per cell. Folding them in would mean one function with two reduct
 is how a shared helper starts growing flags until the copies come back. They stay separate and
 say so here so the next reader does not think they were missed.
 
-ONE KNOWN WART, RECORDED RATHER THAN HIDDEN. `session_behavior` reaches UP into
-`scripts/rest_migration/` for `session_trials`, `session_quit` and `near_codes` -- a library
-importing from the scripts tree, which is backwards. It is done inside the function, so there is
-no import cycle and nothing breaks, and it is not NEW coupling: the two worker functions this
-replaces each imported those same three names across the tree already. Fixing it properly means
-moving those three definitions down into `wfield_local`, which touches the modules that own them
-and their callers, and that is a separate change with its own verification.
+`session_behavior` takes `session_trials`, `session_quit` and `near_codes` from `wfield_local.engagement`. Until
+2026-11-05 it reached UP into `scripts/rest_migration/` for them; they were moved down verbatim (code review 11-04),
+and the two scripts re-export the names.
 
 READ `DECISIONS.md` -- "FANNING THE ANALYSIS LOOPS OVER CORES, AND THE THREE THINGS IT CHANGED"
 (2026-09-20) -- before changing anything below about ORDER. Half of this module exists to make an
@@ -534,9 +530,8 @@ def session_behavior(lab, *, gate=False, horizon_min=None, resp_s=RESP_S,
     module fresh and never sees a global the parent assigned at runtime -- a gate set that way
     silently does nothing in every worker while working perfectly in a serial run.
     """
-    from scripts.rest_migration.engagement_decomposition import near_codes, session_trials
-    from scripts.rest_migration.quit_point import session_quit
     from wfield_local import config
+    from wfield_local.engagement import near_codes, session_quit, session_trials
     from wfield_local.locanmf_cue_lick_analysis import _load_cue_events
 
     s = next((x for x in config.load_sessions() if x["label"] == lab), None)

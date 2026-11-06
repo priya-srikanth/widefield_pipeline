@@ -29,8 +29,8 @@ WHERE IT IS WIRED (one helper, `gate_responded`, called at each place a gate's `
                                                position_reference_maps, hemo_map_control
   nolick_decoder.categorize (session engagement column) and poststroke_compare.poststroke_engagement
   rest_by_position._engaged_trials, rest_engagement.engaged_by_cue (the rest-baseline gates)
-  engagement_decomposition.session_trials   adds a `gate_hit` column ONLY under the switch, and
-  quit_point.session_quit                   uses it when present (-> analysis_kit.session_behavior, S28 quit tests)
+  engagement.session_trials   adds a `gate_hit` column ONLY under the switch, and
+  engagement.session_quit     uses it when present (-> analysis_kit.session_behavior, S28 quit tests)
 NOT wired (behaviour-pipeline / orofacial gates, judged on the behaviour trial table, not the imaging one):
   spout_behavior.reference_engagement / flag_engagement (behaviour figures, behavior_clips) and
   orofacial_cohort.engagement_keep (reads the behaviour table's `engaged` column; its own "attempted" gate options

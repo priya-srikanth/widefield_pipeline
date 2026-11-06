@@ -39,7 +39,7 @@ REGISTER = {
     "wfield_local/position_reference_maps.py": "wired",
     "wfield_local/spout_behavior.py": "exempt",               # behaviour reporting gate
     "scripts/disengagement_tests.py": "exempt",               # quit onset
-    "scripts/rest_migration/quit_point.py": "exempt",         # the S28 quit
+    "wfield_local/engagement.py": "exempt",                   # the S28 quit (session_quit; moved from quit_point 11-05)
     "scripts/gate_lp_check.py": "exempt",                     # diagnostic of the DAQ / LP gate rules
     "scripts/lp_gate_option_counts.py": "exempt",             # same
     "scripts/s1_refit_basis_table.py": "exempt",              # labelled quit-tail robustness row
@@ -54,6 +54,7 @@ REGISTER = {
     # caller must be classified here too, so an imaging selection cannot reach the DAQ rule through them unregistered
     "wfield_local/analysis_kit.py": "measure",               # session_behavior -> session_quit (the S28 quit)
     "wfield_local/behavior_clips.py": "measure",             # reference_engagement (behaviour clip labels)
+    "scripts/rest_migration/quit_point.py": "measure",       # session_row -> session_quit (the S28 quit)
 }
 CALL = re.compile(r"(?<![\w.])(?:engagement_gate|_gate_all|_quit_mask|reference_engagement|session_quit)\(")
 
