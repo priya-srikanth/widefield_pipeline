@@ -78,3 +78,7 @@ the night.
 - ~00:05: **C: disk**: 85 GB free (unchanged since 23:30). The render uses only `wfield_cache/input_cache_rebuild_20261104`
   (204 GB). The older default caches `wfield_cache/imaging` (64 GB) and `wfield_cache/behaviour` (39 GB) hold superseded
   hash versions from 10-28 .. 11-04; the 10-28 .. 11-02 ones (~58 GB) are safe to delete (reproducible). Waiting for OK (A7).
+- ~00:10: free RAM fell to 2 GB (three te / spont steps at once, ~34 GB). Stopped the t_partial_te step by exact PIDs
+  (parent + its 3 workers); it re-runs on its own (with te_readout, which ran without it) after svf_te ends. Test fixes
+  for the push committed (7a7a60be; also cherry-picked to the follow-up branch); the decisions push is in its pre-push
+  run (slow: CPU shared with the render). Render: 14 steps done at 01:10.
