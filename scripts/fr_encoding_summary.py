@@ -37,7 +37,7 @@ def session_table(areas, windows) -> pd.DataFrame:
     rows = []
     for f in sorted(MAIN.glob("*_regions.csv")):
         lab = f.stem.replace("_regions", "")
-        if lab[-4:] < "0801":
+        if config.early_pre(lab):
             continue
         m = pd.read_csv(f)
         m = m[m.area.isin(areas) & m.window.isin(windows)]

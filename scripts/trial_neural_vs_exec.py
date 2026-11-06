@@ -71,13 +71,14 @@ def main() -> int:
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
+    from wfield_local import config
     from wfield_local import run_mode
     # attempt_coding --out attempt_coding_pp is routed as an LP family; read and write there (coordinator 11-04)
     D = run_mode.routed_output(E / "attempt_coding_pp", guard=False, lp_family=True)
     (D / "figures").mkdir(parents=True, exist_ok=True)
     T = pd.concat([pd.read_csv(D / attempt_trials_name("lick", an)) for an in AN])
     T = T[(T.method == "dom") & (T.spout == "far_contra") & T.cls.isin(["pre_hit", "hit", "incomplete"])]
-    T = T[T.label.str[-4:] >= "0801"]          # AUGUST-ONLY pre baseline (primary, Priya 10-18); June was in landing only
+    T = T[~T.label.map(config.early_pre)]          # AUGUST-ONLY pre baseline (primary, Priya 10-18); June was in landing only
     T["neural_d"] = T.pp_far_mid - T.pp_far_contra
     rows, coup, sess_rows = [], [], []
     rng = np.random.default_rng(0)

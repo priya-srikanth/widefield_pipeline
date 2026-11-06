@@ -154,11 +154,13 @@ def session_summary(D: pd.DataFrame) -> pd.DataFrame:
 
 
 def _is_aug_pre(label: str) -> bool:
+    from wfield_local import config
     from wfield_local import epochs
-    return epochs.epoch_of(label) == "pre" and label[-4:] >= "0806"
+    return epochs.epoch_of(label) == "pre" and not config.early_pre(label)
 
 
 def main(argv=None) -> int:
+    from wfield_local import config
     from wfield_local import analysis_kit as ak
     from wfield_local import combined_encoding as ce
     from wfield_local import epochs
@@ -200,7 +202,7 @@ def main(argv=None) -> int:
     W.insert(2, "epoch", W.label.map(epochs.epoch_of))
     W.insert(3, "day", W.label.map(epochs.days_since_stroke))
     W.to_csv(out / "trial_attempts_sessions.csv", index=False, float_format="%.4g")
-    Aug = D[(D.epoch != "pre") | (D.label.str[-4:] >= "0806")]           # August-only pre baseline
+    Aug = D[(D.epoch != "pre") | (~D.label.map(config.early_pre))]           # August-only pre baseline
     G = Aug.groupby(["animal", "epoch", "pos"]).apply(
         lambda g: pd.Series({"n_trials": len(g), "canonical": g.canonical.sum(),
                              "attempted": g.attempted.sum(), "canonical_and_attempted": (g.canonical & g.attempted).sum(),

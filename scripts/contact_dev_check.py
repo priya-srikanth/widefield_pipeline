@@ -38,10 +38,11 @@ def one(label):
 
 
 def main():
+    from wfield_local import config
     from wfield_local import analysis_kit as ak
     from wfield_local import combined_encoding as ce
     from wfield_local import epochs
-    labels = [x for x in ce.sessions_available() if x in set(ak.curated_labels()) and x[-4:] >= "0806"]
+    labels = [x for x in ce.sessions_available() if x in set(ak.curated_labels()) and not config.early_pre(x)]
     got, fail = ak.fan_sessions(labels, one, jobs=int(sys.argv[1]) if len(sys.argv) > 1 else 5)
     for it, err in fail:
         print("FAILED", it, err)

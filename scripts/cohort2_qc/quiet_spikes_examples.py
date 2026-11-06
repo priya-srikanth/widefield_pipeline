@@ -20,6 +20,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from quiet_area_spikes import CAND_SD, DETREND_S, EVENTS, K_SD, MAX_HW_S, MIN_HW_FR, columns, session_traces  # noqa: E402
 from quiet_spikes_fr import FR_OUT, N_FOLD, face_regressors, lagged, ridge_oof  # noqa: E402
+from wfield_local import config  # noqa: E402
 
 PAIRS = {"PS92": ("0811", "0820", "0828"), "PS93": ("0811", "0820"), "PS94": ("0811", "0819"), "PS95": ("0811", "0818")}
 SHOW = ["orofacial_right", "limb_right"]
@@ -99,7 +100,7 @@ def main():
     cols = columns()
     thr = {}
     for an in PAIRS:
-        pre = [d for k, d in S.items() if k.startswith(an) and epochs.epoch_of(k) == "pre" and k[-4:] >= "0806"]
+        pre = [d for k, d in S.items() if k.startswith(an) and epochs.epoch_of(k) == "pre" and not config.early_pre(k)]
         for kind in ("raw", "res"):
             thr[an, kind] = K_SD * np.nanmedian([d[f"sd_{kind}"] for d in pre], 0)
     fig, ax = plt.subplots(len(labels), 1, figsize=(15, 2.3 * len(labels)), sharex=True)

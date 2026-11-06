@@ -43,6 +43,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from quiet_area_spikes import EP, EVENTS, columns, session_traces  # noqa: E402
 from quiet_lick_lfo import BAND, KIND_LAB, KINDS, bandpass, interp_bad, lick_events  # noqa: E402
 from quiet_spikes_v2 import V2, busy_frames  # noqa: E402
+from wfield_local import config  # noqa: E402
 
 SR = V2 / "state_response"                                  # follows QS_LICK_SOURCE
 COLS = ["orofacial", "orofacial_left", "orofacial_right", "cortex"]
@@ -124,7 +125,7 @@ def lick_table():
     for f in sorted((SR / "sessions").glob("*.npz")):
         lab = f.stem
         ep = epochs.epoch_of(lab)
-        if ep is None or (ep == "pre" and lab[-4:] < "0806"):
+        if ep is None or (ep == "pre" and config.early_pre(lab)):
             continue
         d = np.load(f)
         for kind in KINDS:
@@ -476,7 +477,7 @@ def main():
     if not a.summarise:
         from wfield_local.analysis_kit import curated_labels
         from wfield_local.analysis_kit import fan_sessions  # fan_out + sort (rule 9)
-        labels = a.only or [k for k in sorted(curated_labels()) if k[-4:] >= "0806" and k[:4] in ANIMALS]
+        labels = a.only or [k for k in sorted(curated_labels()) if not config.early_pre(k) and k[:4] in ANIMALS]
         res, fail = fan_sessions(labels, extract, jobs=a.jobs, label="session")
         print(f"{len(res)} done, {len(fail)} failed")
         for x in fail:

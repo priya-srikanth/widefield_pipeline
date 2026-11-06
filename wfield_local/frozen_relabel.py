@@ -151,6 +151,7 @@ def summarise(out: Path) -> None:
 
 
 def main(argv=None) -> int:
+    from wfield_local import config
     from wfield_local import analysis_kit as ak
     from wfield_local import combined_encoding as ce
     from wfield_local import frozen_encoder as fe
@@ -184,7 +185,7 @@ def main(argv=None) -> int:
             print(f"  {an}: joint pre fit, LOSO R2 {f['loso_r2']:.3f}", flush=True)
         fp.write_bytes(pickle.dumps(fits, protocol=pickle.HIGHEST_PROTOCOL))
     cur = set(ak.curated_labels())
-    labels = a.labels or [x for x in sorted(ce.sessions_available()) if x in cur and x[-4:] >= "0806"]
+    labels = a.labels or [x for x in sorted(ce.sessions_available()) if x in cur and not config.early_pre(x)]
     done = {js.stem for js in (out / "sessions").glob("*.json")}
     todo = [x for x in labels if x not in done]
     got, fail = ak.fan_sessions([(x, str(fp), str(src / "fit" / "templates.pkl")) for x in todo], relabel_job,

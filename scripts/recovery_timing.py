@@ -39,8 +39,9 @@ ACOL = {"PS92": "#1b9e77", "PS93": "#d95f02", "PS94": "#7570b3", "PS95": "#e7298
 
 
 def series(window: str) -> pd.DataFrame:
+    from wfield_local import config
     T = pd.read_csv(_lp_licks.attempts_path(), usecols=["label", "pos", "cls", "animal", "epoch", "day"])
-    T = T[(T.pos == "far_contra") & (T.label.str[-4:] >= "0801")]
+    T = T[(T.pos == "far_contra") & (~T.label.map(config.early_pre))]
     beh = T.assign(hit=T.cls.isin(["hit", "pre_hit"])).groupby(["animal", "epoch", "label", "day"]).hit.mean().reset_index()
     pre = beh[beh.epoch == "pre"].groupby("animal").hit.mean()
     beh["beh"] = beh.hit / beh.animal.map(pre)
@@ -285,8 +286,9 @@ AIM_COL = "#2471a3"
 def aim_series() -> pd.DataFrame:
     """Per session: far-contra FIRST post-cue lick 3-D aim offset, change vs the animal's own (August) pre mean, deg,
     + = contralesional (iti_recovery_measure.aim_licks via lick_cued_aim_by_spout.session_spout; >= 5 first licks)."""
+    from wfield_local import config
     G = pd.read_csv(AIM_CSV)
-    G = G[(G.pos == "far_contra") & (G.label.str[-4:] >= "0801")]
+    G = G[(G.pos == "far_contra") & (~G.label.map(config.early_pre))]
     return G[["animal", "label", "epoch", "day", "chg", "n"]].rename(columns={"chg": "aim"}).sort_values(["animal", "day"])
 
 

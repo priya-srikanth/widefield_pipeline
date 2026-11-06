@@ -95,7 +95,6 @@ LAGS_LICK = np.round(np.arange(-3.0, 0.5 + 1e-9, DT), 3)
 FR_Z, FR_K = 3.0, 3
 RAMP_MS = 300.0
 BOUT_GAP = 1.0
-FIRST_DATE = "0806"
 HAZ_BIN = 0.1
 SURV_T = np.round(np.arange(0, 12.0 + 1e-9, 0.05), 3)
 
@@ -307,11 +306,12 @@ def _jaw(session: str) -> pd.DataFrame:
 
 # ------------------------------------------------------------------------------------------------ assemble
 def session_labels() -> list[str]:
+    from wfield_local import config
     from wfield_local import analysis_kit as ak
     from wfield_local import epochs
     A = pd.read_csv(attempts_csv(), usecols=["label"]).label.unique()
     cur = set(ak.curated_labels())
-    return sorted(x for x in A if x in cur and x[-4:] >= FIRST_DATE and epochs.epoch_of(x) in EP4)
+    return sorted(x for x in A if x in cur and not config.early_pre(x) and epochs.epoch_of(x) in EP4)
 
 
 def assemble(labels: list[str]) -> tuple[pd.DataFrame, dict]:

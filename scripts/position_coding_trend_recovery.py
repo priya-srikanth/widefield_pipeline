@@ -109,7 +109,8 @@ def trend_test(D: pd.DataFrame, col: str, pre_mask) -> dict:
 
 
 def half_recovery_day(D: pd.DataFrame, col: str) -> float:
-    pre = D[(D.epoch == "pre") & (D.label.str[-4:] >= "0806")][col].dropna()
+    from wfield_local import config
+    pre = D[(D.epoch == "pre") & (~D.label.map(config.early_pre))][col].dropna()
     post = D[(D.day > 0) & D[col].notna()].sort_values("day")
     ac = post[post.epoch == "acute"][col]
     ch = post[post.epoch == "chronic"][col].tail(4)
@@ -128,6 +129,7 @@ def main(argv=None) -> int:
     # coordinator 11-04: routed (outputs under the run tag), no longer refused in a tagged run
     import argparse
 
+    from wfield_local import config
     from wfield_local import epochs, writeguard
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--nokin", default=NOKIN_RUN, help="encoder run with nokin:category / nokin:none (ceiling)")
@@ -144,7 +146,7 @@ def main(argv=None) -> int:
     pd.set_option("display.width", 220)
     rows = []
     for col in ("ceiling", "spread", "spread_enl"):
-        for base, pre_mask in (("August pre", (D.epoch == "pre") & (D.label.str[-4:] >= "0806")),
+        for base, pre_mask in (("August pre", (D.epoch == "pre") & (~D.label.map(config.early_pre))),
                                ("June+August pre", D.epoch == "pre")):
             for a, g in D.groupby("animal"):
                 r = trend_test(g, col, pre_mask.loc[g.index])

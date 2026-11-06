@@ -169,7 +169,7 @@ def main(argv=None) -> int:
     extra = _roi_targets() if a.roi_targets else None
     xnames = list(extra["names"]) if extra else []
     cur = set(ak.curated_labels())
-    post = [x for x in sorted(ce.sessions_available()) if x in cur and x[-4:] >= "0806" and epochs.epoch_of(x) != "pre"]
+    post = [x for x in sorted(ce.sessions_available()) if x in cur and not config.early_pre(x) and epochs.epoch_of(x) != "pre"]
     if a.animals:
         post = [x for x in post if config.animal_of(x) in a.animals]
         pre_stats = [s for s in pre_stats if s["animal"] in a.animals]

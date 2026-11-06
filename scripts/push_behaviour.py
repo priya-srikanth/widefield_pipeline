@@ -72,6 +72,7 @@ def job(label: str) -> dict:
 
 
 def main(argv=None) -> int:
+    from wfield_local import config
     from wfield_local import run_mode as _rm_guard
     _rm_guard.require_default("push_behaviour")   # unrouted share writer: refuses in a non-default run mode
     from wfield_local import analysis_kit as ak
@@ -84,7 +85,7 @@ def main(argv=None) -> int:
     ap.add_argument("--jobs", type=int, default=4)
     a = ap.parse_args(argv)
     cur = set(ak.curated_labels())
-    labels = [x for x in sorted(ce.sessions_available()) if x in cur and x[-4:] >= "0806"]   # August-only pre
+    labels = [x for x in sorted(ce.sessions_available()) if x in cur and not config.early_pre(x)]   # August-only pre
     got, fail = ak.fan_sessions(labels, job, jobs=a.jobs, label="push")
     S = pd.DataFrame([r for _, r in got]).sort_values("label")
     dst = oo.encoding_root(oc.RUN, PathResolver()) / "qc" / "push_behaviour_sessions.csv"

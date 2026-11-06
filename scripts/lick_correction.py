@@ -165,7 +165,8 @@ def run_extract(jobs: int) -> None:
 
 # ------------------------------------------------------------------------------------------------ behaviour
 def _is_aug_pre(label: str, epoch: str) -> bool:
-    return epoch == "pre" and label[-4:-2] == "08"
+    from wfield_local import config
+    return epoch == "pre" and not config.early_pre(label)
 
 
 def _exact(label: str) -> pd.DataFrame:
@@ -547,6 +548,7 @@ def neural_session(item) -> dict:
 
 
 def neural(sgn: float) -> dict:
+    from wfield_local import config
     from wfield_local import analysis_kit as ak
     TG = pd.read_csv(OUT / "corr_targets.csv")
     tgt = {(a, p): float(t) for a, p, t in zip(TG.animal, TG.pos, TG.tgt)}
@@ -559,7 +561,7 @@ def neural(sgn: float) -> dict:
     N = pd.DataFrame([{"label": k[0], "n_pairs": v["n_pairs"], "n_miss": v["n_miss"]} for k, v in res])
     N.to_csv(OUT / "corr_neural_counts.csv", index=False)
     # August-pre only as the pre epoch
-    aug = {lab for lab in labs if lab[-4:-2] == "08"}
+    aug = {lab for lab in labs if not config.early_pre(lab)}
     G = G[(G.epoch != "pre") | G.label.isin(aug)]
     D = D[(D.epoch != "pre") | D.label.isin(aug)]
     G.to_csv(OUT / "corr_gamma_sessions.csv", index=False)

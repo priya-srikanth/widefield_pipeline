@@ -23,6 +23,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))   # THIS checkout (
 from wfield_local import analysis_kit as ak  # noqa: E402
 from wfield_local import epochs  # noqa: E402
 from wfield_local import run_mode as _rmode  # noqa: E402
+from wfield_local import config  # noqa: E402
 
 # coordinator 11-04: routed (no longer refused in a tagged run): within_spout_deviation's (tagged) encoding tree is the
 # input, and the figure is written under it too
@@ -31,7 +32,7 @@ args = [x for x in sys.argv[1:] if x != "--z"]
 Z = "--z" in sys.argv
 folder = args[0] if args else "within_spout_deviation_lick_contact"
 src = f"{E}/qc/{folder}/sessions"
-labels = [x for x in ak.curated_labels() if x[-4:] >= "0806"]
+labels = [x for x in ak.curated_labels() if not config.early_pre(x)]
 zs = {}
 if Z:
     import pandas as pd

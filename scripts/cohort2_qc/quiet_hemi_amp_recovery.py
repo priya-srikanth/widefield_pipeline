@@ -24,6 +24,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from quiet_spikes_v2 import V2  # noqa: E402
+from wfield_local import config  # noqa: E402
 
 OUT = V2 / "hemi_amp_recovery"
 FRT = V2 / "fr_regressed_own" / "quiet_events_fr_sessions.csv"
@@ -37,7 +38,7 @@ LESION = {"PS92": 46.7, "PS93": 45.0, "PS94": 67.7, "PS95": 81.9}
 def t8():
     from wfield_local import mixed_models as mm
     S = pd.read_csv(FRT)
-    S = S[S.label.str[-4:] >= "0806"]
+    S = S[~S.label.map(config.early_pre)]
     L = []
     for g in ("orofacial", "limb"):
         for h, side in (("left", "ipsi"), ("right", "contra")):
@@ -72,7 +73,7 @@ def t11(write=True):
     rows, H = [], []
     for f in sorted((V2 / "sessions").glob("*.npz")):
         lab, ep = f.stem, epochs.epoch_of(f.stem)
-        if ep is None or lab[-4:] < "0806" or lab[:4] not in sd:
+        if ep is None or config.early_pre(lab) or lab[:4] not in sd:
             continue
         z = np.load(f)
         fs = float(z["fs"])
@@ -111,7 +112,7 @@ def t11(write=True):
 def t14():
     from recovery_timing import series
     S = pd.read_csv(FRT)
-    S = S[S.label.str[-4:] >= "0806"]
+    S = S[~S.label.map(config.early_pre)]
     S["rate"] = S["orofacial|res_both"]
     pre = S[S.epoch == "pre"].groupby("animal").rate.mean()
     S["rate_rel"] = S.rate / S.animal.map(pre)

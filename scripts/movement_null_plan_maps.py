@@ -91,11 +91,12 @@ def session_job(item):
 def compute(frame: str, jobs: int) -> Path:
     from fr_pixel_significance import FACTORS, block_mask, test
 
+    from wfield_local import config
     from wfield_local import analysis_kit as ak
     from wfield_local import combined_encoding as ce
     run = E / f"{FRAMES[frame]}_basis_pixmusall"
     fit_dir = E / f"{FRAMES[frame]}_basis" / "fit"
-    labels = sorted(js.stem for js in (run / "joint" / "sessions").glob("*.json") if js.stem[-4:] >= "0801")
+    labels = sorted(js.stem for js in (run / "joint" / "sessions").glob("*.json") if not config.early_pre(js.stem))
     variants = ("joint", *[v for _q, v, _l in QS])
     print(f"[{frame}] {len(labels)} sessions from {run}", flush=True)
     res, fail = ak.fan_sessions([(x, str(run), str(fit_dir), variants) for x in labels], session_job, jobs=jobs,

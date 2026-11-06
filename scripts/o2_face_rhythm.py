@@ -608,11 +608,12 @@ def default_sessions(ro: Path, include_june: bool = False) -> list[tuple[str, st
     """Curated sessions with v36 cam4 windows. JUNE IS LEFT OUT by default: the camera changed after June, so June's
     registration to the master face fell back to a similarity fit and `face_rhythm_warp_rois.py` writes no June ROIs
     (pose/3-D window, 10-21); the orofacial baseline is August-only anyway (CLAUDE.md, 10-18)."""
+    from wfield_local import config
     from wfield_local import analysis_kit as ak
     cur = ak.curated_ids()
     return [(p.parent.name, p.name) for p in sorted((ro / V36 / "sessions").glob("*/*"))
             if (p / "windows.npz").exists() and f"{p.parent.name}_{p.name}" in cur
-            and (include_june or p.name[4:6] != "06")]
+            and (include_june or not config.early_pre(p.name))]
 
 
 def rois_dir(rv, cam: str = CAM) -> Path:

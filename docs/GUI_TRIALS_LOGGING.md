@@ -87,7 +87,9 @@ and imaging now resolve identical positions by construction.
 
 The task ran **3500 ms** (`gui_config.json timing.response_window`); `configs/defaults.yaml`
 carried **2.0 s**, which was never the task's window. It is read per session because it is a task
-setting that can be retuned; `behavior.licking.response_window_s` is now only the fallback.
+setting that can be retuned. The one fallback, for a session whose gui_config has no window, is
+`behavior.response_window_fallback_s` (3.5 s), read inside `daq_trials.response_window_s`; the old 2.0 s
+`behavior.licking.response_window_s` was deleted on 2026-11-05.
 
 ### Validation
 

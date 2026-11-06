@@ -63,7 +63,8 @@ def _arg(name, default=None):
 
 
 def _is_pre_aug(label: str, ep: str) -> bool:
-    return ep == "pre" and label[-4:-2] == "08"
+    from wfield_local import config
+    return ep == "pre" and not config.early_pre(label)
 
 
 def labels() -> list[str]:

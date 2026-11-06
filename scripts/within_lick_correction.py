@@ -90,8 +90,9 @@ def _label(sid: str) -> str:
 
 
 def _is_aug_pre_sid(sid: str) -> bool:
+    from wfield_local import config
     from wfield_local import epochs
-    return epochs.epoch_of(_label(sid)) == "pre" and sid[-4:-2] == "08"
+    return epochs.epoch_of(_label(sid)) == "pre" and not config.early_pre(sid)
 
 
 def _track(t: np.ndarray, P: np.ndarray, src: np.ndarray):
@@ -281,8 +282,9 @@ def load_licks(sids: list[str], cols: list[str] | None = None) -> pd.DataFrame:
 
 def calibrate(L: pd.DataFrame) -> dict:
     """Threshold rule (prereg section 2), AUGUST-pre post-cue licks only."""
+    from wfield_local import config
     C = L[L.full_ok & (L.context == "post_cue") & L.sur_sm_sp.notna()]
-    assert set(C.epoch) == {"pre"} and all(s[-4:-2] == "08" for s in C.sid.unique()), "calibration must be Aug pre"
+    assert set(C.epoch) == {"pre"} and all(not config.early_pre(s) for s in C.sid.unique()), "calibration must be Aug pre"
     out = {"n_licks": int(len(C)), "sessions": sorted(C.sid.unique()), "grid": {}}
     for kind in ("sp", "ml"):
         tab = []
@@ -434,9 +436,10 @@ def cmd_run(jobs: int) -> None:
 # ================================================================================================ summarise
 def prepare(L: pd.DataFrame) -> pd.DataFrame:
     """Curated / epoch filter, sign, targets, errors, correction."""
+    from wfield_local import config
     from wfield_local import epochs
     L = L[L.epoch.isin(EPS) & L.animal.isin(AN)].copy()
-    L["aug_pre"] = (L.epoch == "pre") & (L.sid.str[-4:-2] == "08")
+    L["aug_pre"] = (L.epoch == "pre") & (~L.sid.map(config.early_pre))
     L = L[(L.epoch != "pre") | L.aug_pre].copy()
     P = L[L.aug_pre & (L.context == "post_cue")]
     sgn = float(np.sign(P[P.pos == "far_contra"].theta_E.mean()))
@@ -568,9 +571,10 @@ def primary_holm(S: pd.DataFrame) -> pd.DataFrame:
 
 
 def neural_summary() -> dict:
+    from wfield_local import config
     G = pd.read_csv(OUT / "neural_gamma_sessions.csv")
     Nn = pd.read_csv(OUT / "neural_resp_sessions.csv")
-    aug = lambda d: d[(d.epoch != "pre") | (d.label.str[-4:-2] == "08")]  # noqa: E731
+    aug = lambda d: d[(d.epoch != "pre") | (~d.label.map(config.early_pre))]  # noqa: E731
     G, Nn = aug(G), aug(Nn)
     GL = G.melt(id_vars=["label", "animal", "epoch", "tau", "feat", "win", "subset"],
                 value_vars=["gamma_csm", "gamma_corr"], var_name="term", value_name="v").dropna(subset=["v"])

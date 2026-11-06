@@ -61,6 +61,7 @@ def session_job(item):
 
 
 def main(argv=None) -> int:
+    from wfield_local import config
     from wfield_local import run_mode as _rm_guard
     _rm_guard.require_default("lick_trajectories_3d")   # unrouted share writer: refuses in a non-default run mode
     import matplotlib
@@ -74,7 +75,7 @@ def main(argv=None) -> int:
     K = pd.read_csv(I / "pose3d_kin_licks_snapshot_20261023.csv.gz",
                     usecols=["animal", "session", "epoch", "trial_id", "position", "t_peak_3d", "side_ml", "out_ap",
                              "down_dv", "date"])
-    K = K[(K.date.astype(str).str[4:6] != "06") & K.t_peak_3d.notna()].dropna(subset=["side_ml", "out_ap", "down_dv"])
+    K = K[~K.date.astype(str).map(config.early_pre) & K.t_peak_3d.notna()].dropna(subset=["side_ml", "out_ap", "down_dv"])
     K["target"] = K.position.map(MOUSE)
     C = pd.read_csv(I / "exec_bins_calib_20261023.csv")
     C = C[C.calib_for == "default"]

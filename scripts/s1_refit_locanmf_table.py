@@ -118,6 +118,7 @@ def main(argv=None) -> int:
     a_ = ap.parse_args(argv)
     fig_rule, jobs = a_.fig_rule, a_.jobs
     import os
+    from wfield_local import config
     from wfield_local import grant_confusion as GC
     from wfield_local import orofacial_cohort as oc
     from wfield_local import orofacial_outputs as oo
@@ -140,7 +141,7 @@ def main(argv=None) -> int:
     D = pd.DataFrame(rows)
     f = out / ("s1_refit_locanmf" + ("_figrule" if fig_rule else "") + a_.suffix + ".csv")   # the run tag is in the directory
     D.to_csv(f, index=False, float_format="%.4g")
-    D["aug"] = D.label.str[-4:] >= "0806"
+    D["aug"] = ~D.label.map(config.early_pre)
     pd.set_option("display.width", 220)
     for pre_set, m in (("pre = August only", D.aug | (D.epoch != "pre")), ("pre = June + August", D.epoch.notna())):
         t = D[m].groupby(["trials", "align", "animal", "epoch"]).acc.mean().unstack("epoch").reindex(columns=list(EPS))

@@ -38,10 +38,11 @@ POSMAP = {"close_L": "close_ipsi", "close_R": "close_contra", "close_C": "close_
 
 
 def trial_residuals(run: Path) -> pd.DataFrame:
+    from wfield_local import config
     rows = []
     for js in sorted((run / "joint" / "sessions").glob("*.json")):
         m = json.loads(js.read_text(encoding="utf-8"))
-        if m["label"][-4:] < "0801":
+        if config.early_pre(m["label"]):
             continue
         z = np.load(js.with_suffix(".npz"))
         if "trial_parts" not in z.files:

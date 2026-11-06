@@ -104,7 +104,8 @@ def _session(label: str) -> pd.DataFrame:
 
 
 def _is_pre(df: pd.DataFrame) -> pd.Series:
-    return (df.epoch == "pre") & (df.label.str[-4:-2] == "08")
+    from wfield_local import config
+    return (df.epoch == "pre") & (~df.label.map(config.early_pre))
 
 
 def licks() -> pd.DataFrame:

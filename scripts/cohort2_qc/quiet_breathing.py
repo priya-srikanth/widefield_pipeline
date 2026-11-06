@@ -4,7 +4,7 @@
 2-3 Hz is the resting respiration rate of a mouse, so brain motion / blood with each breath could put power there.
 FRAMES: exactly quiet_fluct's spectrum frames -- QUIET (quiet_spikes_v2.busy_frames: no DAQ contact lick / running bout
 within 1.5 s before or after, no swapped imaging pair within 0.5 s), ENGAGED (before the quit), finite cortex traces,
-AND finite face points (cam4 FaceRhythm own-session basis, QS_FR_BASIS=own). August sessions (pre = MMDD >= 0806).
+AND finite face points (cam4 FaceRhythm own-session basis, QS_FR_BASIS=own). August sessions (pre = not config.early_pre, cohort1 cut 0806).
 SEGMENTS: every quiet run >= 4 s cut into 4-s Hann segments with 50 % overlap, linear detrend per segment (= the Welch
 loop of quiet_fluct; each run contributes its segment count, i.e. the welch weighting); spectra / cross-spectra are
 averaged over ALL segments of the session, so the coherence is the segment-pooled magnitude-squared coherence
@@ -47,6 +47,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from quiet_area_spikes import EP, columns, session_traces  # noqa: E402
 from quiet_spikes_v2 import V2, busy_frames  # noqa: E402
+from wfield_local import config  # noqa: E402
 
 OUTB = V2 / "breathing"
 COLS = ["orofacial_left", "orofacial_right", "orofacial", "limb", "cortex"]
@@ -227,7 +228,7 @@ def td_table():
     Z = {}
     for f in sorted((OUTB / "sessions_td").glob("*.npz")):
         ep = epochs.epoch_of(f.stem)
-        if ep is None or f.stem[:4] not in ("PS92", "PS93", "PS94", "PS95") or (ep == "pre" and f.stem[-4:] < "0806"):
+        if ep is None or f.stem[:4] not in ("PS92", "PS93", "PS94", "PS95") or (ep == "pre" and config.early_pre(f.stem)):
             continue
         Z[f.stem] = (ep, dict(np.load(f)))
     sd = {}
@@ -282,7 +283,7 @@ def load():
     for f in sorted((OUTB / "sessions").glob("*.npz")):
         lab = f.stem
         ep = epochs.epoch_of(lab)
-        if ep is None or lab[:4] not in ("PS92", "PS93", "PS94", "PS95") or (ep == "pre" and lab[-4:] < "0806"):
+        if ep is None or lab[:4] not in ("PS92", "PS93", "PS94", "PS95") or (ep == "pre" and config.early_pre(lab)):
             continue
         z = dict(np.load(f))
         j, z["proxy_freq"], z["proxy_prom"] = choose_proxy(z["freqs"], z["Pyy"])   # recomputed: one rule for all
@@ -573,7 +574,7 @@ def main():
     if not a.summarise:
         from wfield_local.analysis_kit import fan_sessions  # fan_out + sort (rule 9)
         labels = a.only or sorted(f.stem for f in (V2 / "sessions").glob("*.npz")
-                                  if f.stem[:4] in ("PS92", "PS93", "PS94", "PS95") and f.stem[-4:] >= "0806")
+                                  if f.stem[:4] in ("PS92", "PS93", "PS94", "PS95") and not config.early_pre(f.stem))
         for worker in (extract, extract_td):           # pass 2 needs pass 1's proxy choice
             res, fail = fan_sessions(labels, worker, jobs=min(a.jobs, 5), label="session")
             print(f"{worker.__name__}: {len(res)} done, {len(fail)} failed")

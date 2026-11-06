@@ -27,6 +27,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from quiet_area_spikes import DETREND_S, columns, session_traces  # noqa: E402
 from quiet_spikes_v2 import V2, busy_frames  # noqa: E402
+from wfield_local import config  # noqa: E402
 
 OUTT = V2 / "stillness"
 FRV = V2 / "fr_regressed_own" / "sessions"
@@ -71,7 +72,7 @@ def summarise():
     D = {}
     for f in sorted((OUTT / "sessions").glob("*.npz")):
         ep = epochs.epoch_of(f.stem)
-        if ep is None or f.stem[-4:] < "0806":
+        if ep is None or config.early_pre(f.stem):
             continue
         D[f.stem] = dict(np.load(f), epoch=ep)
     pre_med = {}
@@ -202,7 +203,7 @@ def main():
         return
     if not a.summarise:
         from wfield_local.analysis_kit import fan_sessions  # fan_out + sort (rule 9)
-        labels = sorted(f.stem for f in FRV.glob("*.npz") if f.stem[-4:] >= "0806")
+        labels = sorted(f.stem for f in FRV.glob("*.npz") if not config.early_pre(f.stem))
         if a.reverse:
             fan_sessions(labels[::-1], extract, jobs=a.jobs, label="session")
             return

@@ -681,6 +681,7 @@ def cmd_match(a) -> int:
     import numpy as np
     import pandas as pd
 
+    from wfield_local import config
     from wfield_local import combined_encoding as ce
     from wfield_local import epochs
     from wfield_local import orofacial_cohort as oc
@@ -694,7 +695,7 @@ def cmd_match(a) -> int:
     n = {}
     for lab in labels:
         ep = epochs.epoch_of(lab)
-        if ep not in ("pre", "acute", "subacute", "chronic") or (ep == "pre" and lab[5:] < oc.LATE_PRE_FROM):
+        if ep not in ("pre", "acute", "subacute", "chronic") or (ep == "pre" and config.early_pre(lab)):
             continue
         sd = oo.session_dir(rv, run, lab.split("_")[0], "2026" + lab[5:])
         keep, _ = oc.engagement_keep(lab.split("_")[0], "2026" + lab[5:], sd)

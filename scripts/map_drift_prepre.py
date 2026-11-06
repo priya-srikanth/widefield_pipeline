@@ -9,7 +9,8 @@ reference scale (`beta_maps.within_animal_pooled`, intersection of animals only)
 `beta_maps.significance_contour` (nested animals -> sessions bootstrap, the deck's primary test). Nothing new is
 fitted.
 
-The pre sessions are split by date: EARLY = before 08-01 (June), LATE = 08-01 onward (August, the primary baseline).
+The pre sessions are split by date: EARLY = before the cohort's baseline cut (config.early_pre: June), LATE = from it
+(August, the primary baseline).
 Columns: early pre | late pre | LATE - EARLY (the drift; scaled by the EARLY maps) | acute - late pre | chronic - late
 pre (the stroke changes against the August baseline, scaled by the LATE maps). Each difference is on its reference
 epoch's own scale, so the drift and stroke columns are both "change relative to the reference amplitude". Caveats:
@@ -29,19 +30,19 @@ import argparse
 import os
 from pathlib import Path
 
-LATE_FROM = "0801"
 ARMS = {"contact": {}, "lp": {"WIDEFIELD_LICK_SOURCE": "lp"}, "enl1s": {"WIDEFIELD_ENL_WINDOW_S": "1.0"}}
 ALIGN_VARIANT = {"cue": "working", "precue": "working", "lick": "lick"}
 
 
 def split_pre(store, reference, q):
     """({animal: [early pre maps]}, {animal: [late pre maps]}) for one reference and position."""
+    from wfield_local import config
     early, late = {}, {}
     for an, by_e in store.items():
         for label, d in ((by_e.get("pre") or {}).get(q) or {}).items():
             if reference not in d:
                 continue
-            (late if label.split("_")[-1] >= LATE_FROM else early).setdefault(an, []).append(d[reference])
+            (early if config.early_pre(label) else late).setdefault(an, []).append(d[reference])
     return early, late
 
 

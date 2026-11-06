@@ -44,6 +44,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from quiet_area_spikes import DETREND_S, EP, EVENTS, MAX_HW_S, MIN_HW_FR, OUT, columns, mad, session_traces  # noqa: E402
+from wfield_local import config  # noqa: E402
 
 # LICK SOURCE for QUIET frames (Priya 11-01: "replace all contact-based with LP-lick based where appropriate"). "daq" = DAQ
 # spout-contact licks only (the original v2 definition); "daq+lp" = also LP video licks (cam4 + cam1-only, lp_licks.py), so
@@ -198,7 +199,7 @@ def load_all():
     D = {}
     for f in sorted((V2 / "sessions").glob("*.npz")):
         ep = epochs.epoch_of(f.stem)
-        if ep is None or (ep == "pre" and f.stem[-4:] < "0806"):
+        if ep is None or (ep == "pre" and config.early_pre(f.stem)):
             continue
         D[f.stem] = dict(np.load(f), epoch=ep, day=epochs.days_since_stroke(f.stem))
     sd = {}
@@ -434,7 +435,7 @@ def main():
     if not a.summarise:
         from wfield_local.analysis_kit import curated_labels
         from wfield_local.analysis_kit import fan_sessions  # fan_out + sort (rule 9)
-        labels = a.only or [k for k in sorted(curated_labels()) if k[-4:] >= "0806"]
+        labels = a.only or [k for k in sorted(curated_labels()) if not config.early_pre(k)]
         res, fail = fan_sessions(labels, extract, jobs=a.jobs, label="session")
         print(f"{len(res)} done, {len(fail)} failed")
         for x in fail:

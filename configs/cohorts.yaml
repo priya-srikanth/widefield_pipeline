@@ -25,6 +25,11 @@
 #   reference_date / reference_landmarks   the cohort's MASTER ALIGNMENT session (see cohort2); cohort1 has none
 #                   (its 6/6 references are in defaults.yaml + animals.yaml).
 #   animals         must match the keys of animals_file (checked by tests/test_cohorts.py).
+#   baseline_pre_from   MMDD: the cohort's AUGUST-ONLY pre-stroke baseline cut (Priya 2026-10-18 / 11-05: "curated august
+#                   sessions from config"). The ONE spelling of it: `config.baseline_pre_from()` / `config.early_pre(x)`
+#                   read it, and every "August-only" filter in the repo goes through them. null = no cut (every pre
+#                   session is baseline). It does NOT by itself change `config.pre_from()` (the WIDEFIELD_PRE_FROM run
+#                   mode, which also names the output folder); the nightly and the render profile set that from here.
 
 default: cohort1
 
@@ -35,6 +40,11 @@ cohorts:
     animals_file: animals.yaml
     sessions_file: sessions.yaml
     output_subdir: ""
+    baseline_pre_from: "0806"   # the first CURATED August session (Priya 11-05: "switch to 0806"): June pre
+                                #   (0606-0608) = still learning, and 0805 (wonky, date_policy-excluded) is never
+                                #   baseline, so an uncurated list cannot let it back in. The run-mode value
+                                #   WIDEFIELD_PRE_FROM stays "0801": it names output folders (_pre0801_) and selects
+                                #   the same pooled sets (tests/test_baseline_pre_from.py)
     first: 20260601
     last: 20261028        # imaging ended ~10-06; 10-08/10-09 were PILOT sessions (docs/PILOT_TEST_SESSIONS.md),
                           #   which are not registered and are filtered out of discovery by the animals list
@@ -45,6 +55,7 @@ cohorts:
     animals_file: cohort2/animals.yaml
     sessions_file: cohort2/sessions.yaml
     output_subdir: cohort2
+    baseline_pre_from: null     # not chosen yet (no stroke yet); set it before any pre-vs-post analysis
     first: 20261029
     last: null
     # MASTER ALIGNMENT SESSION (Priya 2026-10-29): the date whose session, for EVERY cohort2 animal, is that
