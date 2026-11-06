@@ -69,3 +69,12 @@ the night.
 - ~23:40: **PI deck fluoroscopy update DONE by a8** (192 slides / 85 hidden): slide 161 = the new 10-panel all_graphs,
   notes with density / amount + sitting / gap / transit stats; NEW hidden slide 162 "How bolus density is measured"
   (density_method). Backup backup_before_fluoro_density_1105.pptx; hidden states asserted unchanged. Wording question = A8.
+- ~23:55: **slide 161 reworded by a8** (A8): "The few swallows left carry about a third of the barium (smaller and less dense
+  bolus) and clear the esophagus slowly" (amount x0.34 day 1 / x0.28 day 2). Backup backup_before_fluoro_bullet_1105.pptx;
+  hidden states unchanged (192 / 85).
+- ~00:05: decisions push failures traced: `tests/test_behaviour_camera_period_1105.py` imports disengagement_tests, which
+  sets WIDEFIELD_PRE_FROM=0801 at import; modules first loaded then keep August-only values for later tests. Fix: the test
+  drops modules it imported (autouse fixture). Re-testing, then push.
+- ~00:05: **C: disk**: 85 GB free (unchanged since 23:30). The render uses only `wfield_cache/input_cache_rebuild_20261104`
+  (204 GB). The older default caches `wfield_cache/imaging` (64 GB) and `wfield_cache/behaviour` (39 GB) hold superseded
+  hash versions from 10-28 .. 11-04; the 10-28 .. 11-02 ones (~58 GB) are safe to delete (reproducible). Waiting for OK (A7).
