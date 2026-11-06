@@ -231,3 +231,9 @@ the night.
   sessions); task window = whole camera working period (default) or working rows only?; "1 s" quiet events read as
   QS_LICK_SOURCE=daq+lp under the _daqlk tag -- right? Incident: a helper's script left ~57k tiny "blat" temp files (cleaned
   in the worktree + user Temp; C:\WINDOWS\Temp could not be checked).
+- ~13:45 **Priya A16-A19**: (16) slide 102: update the text to describe the new numbers accurately (415 ~half of raw 470
+  acutely 0.54, chronic 0.48 n.s., subacute ~0.75) -> after the gain_bio render, with a8 (PI deck). (17) rest masks: NO
+  rebuild. (19) quiet events = DAQ contact + video licks excluded (QS_LICK_SOURCE=daq+lp): confirmed. (18) task window:
+  Priya asked what it changes -> explained (only the gain "task SD" panel; period keeps jaw-only / no-response cues inside
+  the working period, working rows keep contact + incomplete only); my rec = working rows primary (+ period as an
+  optional robustness run); waiting for her pick.
