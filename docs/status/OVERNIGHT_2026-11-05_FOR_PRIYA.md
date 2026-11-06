@@ -27,6 +27,14 @@ the night.
    not before the replacement pass; for now only a loud WARNING when a cohort-1 run pools June; then the full switch with
    tests. (nightly_figs already defaults to August without a profile.)
 
+5. **PS93 gets no pre-cue engagement discriminator even at the 15-trial floor** (only 12 late no-response trials before the
+   stroke; PS92 has 16, right at the floor). Accept PS93 as missing, or relax the late window for PS93 only?
+6. **chronic_stability's behaviour row** reads the 1b hit-rate table, which is now the camera working period. Keep it on
+   camera (consistent), or keep that row on DAQ?
+7. **Local disk cleanup:** the encoder input cache on C: grows 6-10 GB/h (85 GB free at 23:30); ~17 GB of 11-04 imaging
+   entries are superseded. OK to delete superseded LOCAL cache entries (derived, reproducible)? A disk watcher now
+   halts the render queue if C: < 20 GB free.
+
 ## B. Findings (early; nothing on pages changed)
 
 - Mixed models, binned contest, LOG deficit (now primary): cue window -- spout identity tracks recovery (-8.1, q .015)
@@ -45,3 +53,13 @@ the night.
   to replace slide 159 + notes with the density / amount numbers; density_method as a HIDDEN supporting slide after 159.
   The deck is a8's (PI-deck window, has the fluoro scripts / backups) -> coordinating with a8 so only one of us edits;
   will not edit while PowerPoint has it open.
+- ~23:30: **Decisions follow-up done** (branch fix/decisions-followup-20261105, wf_decisions2, unpushed): precue
+  discriminator floor 15 (PS92 / PS94 / PS95 get one; PS93 not -- A5); 1b hit rate on the camera working period (DAQ =
+  robustness figure; 1c stays DAQ so epoch boundaries stay pinned); iti_lick_rate + within_lick_correction cut to the working
+  period; **trial table rebuilt under the new lick detector: IDENTICAL** to the 11-04 table (0 class / hit changes over
+  57,048 trials) -> the O2 encoder runs need nothing.
+- ~23:30: **Local input cache: not worth it mid-render** (RENDER_IO_LOCAL_CACHE_20261105.md): most heavy steps already read
+  locally; the remaining network reads are ~1-2.5 h over 15+ h of queue (< 10 % gain); steps are CPU / RAM bound. Option
+  for later: point the per-session result cache at a local copy (no code change). Disk risk found -> watcher started (A7).
+- ~23:30: decisions push rejected twice by the same 14 pre-push tests (pass when run alone) -> likely test-order pollution
+  from the new tests importing scripts; diagnosing, will fix the tests (not bypass).

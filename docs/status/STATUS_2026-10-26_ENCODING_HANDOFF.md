@@ -112,6 +112,15 @@ density_method hidden after 159) is being done by a8 (deck owner, sole writer) -
 message on the overnight page. a8's bare-run pre-cut question is on Priya's overnight page (A4) with my rec. Render monitor
 = task re-armed every 30 min (last bmn0d58bm). Decisions push retry = task bzqykfs5k.
 
+**Added ~23:30:** decisions push REJECTED twice by the same 14 tests (test_camera_gate_fail_closed x2, encoder_licks_all,
+lick_detector_daq cache_versions, lp_gate_option x2, merge_review_b1, priya_decisions_1103 coverage_note, rebuild_root x5,
+spout_behavior curated_mmdds); they pass alone -> test-order pollution, suspect the new tests' imports of scripts modules
+(sys.modules caching under a no-profile env). Bisect running (task bkc510ddf: each new test file + rebuild_root +
+lp_gate_option). Fix the tests, re-push; never --no-verify. Follow-up branch fix/decisions-followup-20261105 (wf_decisions2:
+ee21ac5d floor 15, f069b949 1b camera / iti_lick_rate / within_lick_correction / trial_attempts --out) -> push after.
+Trial table under daqlk = identical. IO report: local cache < 10 % gain, don't switch mid-render; DISK watcher
+render_daqlk/diskwatch.sh (task b5mvbzfir) writes STOP if C: < 20 GB (cache grows 6-10 GB/h; 85 GB free 23:30).
+
 **Peers:** a8 (cleanup; told: no rebase, number-changing items held for Priya; bare-run pre default -> my rec in the
 overnight page A4); e0 (kinematics; waiting for my lick_aim_deficit / iti_lick_rate renders). Priya's pending answers are
 in the overnight page section A.
