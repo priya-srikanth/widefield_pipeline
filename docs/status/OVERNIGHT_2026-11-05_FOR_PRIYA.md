@@ -96,3 +96,12 @@ the night.
   a8 holds item 5 (fail-loud DAQ contacts) until the _daqlk render is done. Pre-push now runs only the touched tests.
 - ~03:45: render still under the low-RAM STOP: lanes G, E, SVF halted cleanly at step boundaries (g5_epoch, e_iti_key,
   b_svf_frA done); 4 steps still finishing. Will relaunch a few lanes at a time once they end.
+- ~06:30: **render shortcut (Priya OK)**: d_attempt_pp_lickcue / pp_precue ran the same command + env as d_attempt_lp (7.7 h),
+  only a different --out (attempt_coding_pp, read by the page scripts). attempt_coding reuses trials files already in its
+  folder, so the 12 trials_*.gz were copied (byte-checked) into attempt_coding_pp/<tag>; the pp steps now only redo
+  summary / contrasts (minutes). No other duplicate steps in the queue. STOP cleared 05:43; lanes 2, X, TE re-run, D running
+  (max ~3 heavy at once). Log-deficit branch PUSHED; follow-up branch push in its pre-push run.
+- ~06:30: **speed-ups for FUTURE runs (Priya OK)** on branch perf/attempt-perm-iti-lags-20261106 (wf_speedup), by a helper:
+  iti_licks --key frozen lag sweep (6.2 h, serial 656 readouts) -> fan over cores; attempt_coding per-session loading
+  (~35 min per animal x alignment, serial) -> fan_sessions. Exact-equality tests. Correction: the permutation tests are
+  NOT the cost (< 1 min); I said so earlier and was wrong.
