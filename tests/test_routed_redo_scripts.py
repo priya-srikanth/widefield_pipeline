@@ -53,7 +53,9 @@ def test_encoding_out_root_is_the_encoders_tagged_root(monkeypatch):
 
 def test_trial_attempts_is_routed_and_the_deficit_readers_follow():
     src = (REPO / "scripts" / "trial_attempts.py").read_text(encoding="utf-8")
-    assert "require_default(" not in src and "out = run_mode.attempts_dir()" in src
+    # `--out` (11-05) is a comparison build into another folder; without it the run's routed table, as before
+    assert "require_default(" not in src and "out = a.out or run_mode.attempts_dir()" in src
+    assert "if run_mode.tag() and a.out is None:" in src                       # a comparison build registers nothing
     for name in ("encoding_mixed", "within_spout_mixed"):
         assert "run_mode.deficit_qc_dir()" in (REPO / "scripts" / f"{name}.py").read_text(encoding="utf-8"), name
 

@@ -369,9 +369,10 @@ EPOCH_FIGURES = (
      "a hierarchical bootstrap resampling animals, then sessions within animal, then the"
      "scheduler's position blocks within session. *, the epoch-minus-pre interval excludes"
      "zero; **, it still excludes zero after Bonferroni correction across all twelve"
-     "comparisons. Trials are gated for engagement at the SPARED positions only, so a run"
-     "of misses at an impaired position counts as the deficit it is rather than being"
-     "discarded as disengagement."),
+     "comparisons. Trials are those of the CAMERA working period -- first cue to the"
+     "session's last camera lick, minus the stopped runs -- and a hit is a spout contact, so"
+     "a run of misses at an impaired position counts as the deficit it is rather than being"
+     "discarded as disengagement. Sessions without behaviour video are left out."),
     ("epoch_1bdelta_behaviour_by_position.png",
      "Behaviour, change from pre-stroke",
      "The contrasts of the preceding figure plotted as differences from the pre-stroke"
@@ -380,6 +381,14 @@ EPOCH_FIGURES = (
      "corrected interval necessarily contains the uncorrected one. Zero is drawn: the"
      "comparison that matters is each epoch against no change, not the epochs against each"
      "other."),
+    ("epoch_1b_behaviour_by_position_daq_quittail.png",
+     "Robustness: behaviour by position, DAQ quit-tail period",
+     "The same figure on the DAQ engagement gate (the terminal non-recovering collapse of the"
+     " reference-position response rate) instead of the camera working period, with a hit ="
+     " a DAQ lick in the response window."),
+    ("epoch_1bdelta_behaviour_by_position_daq_quittail.png",
+     "Robustness: behaviour change from pre-stroke, DAQ quit-tail period",
+     "The change-from-pre contrasts of the DAQ quit-tail robustness figure."),
     ("epoch_1f_engagement_by_epoch.png",
      "Was the animal still working? Engagement by epoch",
      "The DENOMINATOR behind every behavioural number in this section, plotted in its own"

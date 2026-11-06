@@ -207,3 +207,11 @@ Neural: the post-stroke lick-response increase is on clean licks; CSM licks lose
 Caveats: n = 4; 250 Hz gives a 7-8 frame protrusion, so CSMs are submovements of >= ~20 ms only; launch direction noise
 ~5-8 deg per lick; GCaMP6s overlap handled only by next-lick covariates and the first-lick sensitivity; imaging is
 lick-locked levels, not onsets. PROVISIONAL.
+
+## Deviation 2026-11-05 -- licks of the CAMERA working period only (Priya 11-05)
+Every post-cue / ITI lick of a session was scored, including licks after the animal stopped. Priya 11-05: behaviour-only
+analyses are cut to the camera working period (first cue -> the session's last camera lick, minus the stopped runs;
+`trial_classes.working_trial_ids`, by each lick's licks_all trial_id). `within_lick_correction.load_licks` now drops the
+other licks -- in the August-pre calibration (`csm_threshold.json`) as well as in the post-stroke cells -- and leaves out
+sessions without camera classes (listed). The per-lick extraction caches are unchanged. Nothing re-run yet; the Outcome
+above is the whole-session version.

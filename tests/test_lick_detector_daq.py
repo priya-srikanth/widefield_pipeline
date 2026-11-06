@@ -128,7 +128,7 @@ def test_cache_versions_bumped():
     assert session_cache.CACHE_VERSION >= 14
     assert gate_source.GATE_VERSION >= 2
     src = (REPO / "scripts" / "disengagement_tests.py").read_text(encoding="utf-8")
-    assert re.search(r"^BEH_VERSION = 3\b", src, re.M)
+    assert int(re.search(r"^BEH_VERSION = (\d+)\b", src, re.M).group(1)) >= 3      # 4: + quit_cam (11-05)
     assert re.search(r"^VERSION = 2\b", (REPO / "scripts" / "gate_lp_check.py").read_text(encoding="utf-8"), re.M)
 
 

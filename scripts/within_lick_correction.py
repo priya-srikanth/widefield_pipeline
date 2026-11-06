@@ -248,11 +248,35 @@ def session_licks(sid: str) -> dict:
     return {"sid": sid, "n": len(L), "s": round(time.time() - t0, 1)}
 
 
+#: THE CAMERA WORKING PERIOD (Priya 11-05, after (f) 2): licks of trials after the camera quit or inside a stopped run
+#: are dropped (`trial_classes.working_trial_ids`: first cue -> last camera lick, minus the stopped runs; an ITI lick
+#: belongs to the trial it follows, by its licks_all trial_id). A session without camera classes is left out and listed.
+#: Applied when the per-lick caches are READ, so the extraction caches stay valid. Until 11-05 every post-cue / ITI lick
+#: of the session was scored, including licks in stopped time.
+_NO_CAMERA: set = set()
+
+
+def working_mask(sid: str, trial_id) -> np.ndarray | None:
+    """Per lick (its trial_id): inside the camera working period; None for a session without camera classes."""
+    from wfield_local import trial_classes as tc
+    wk, has = tc.working_trial_ids(_label(sid))
+    if not has:
+        return None
+    return np.array([bool(wk.get(int(t), False)) for t in np.asarray(trial_id)], bool)
+
+
 def load_licks(sids: list[str], cols: list[str] | None = None) -> pd.DataFrame:
     out = []
     for s in sids:
         d = pd.read_pickle(LICKS / f"{s}.pkl")
+        m = working_mask(s, d["trial_id"].to_numpy())
+        if m is None:
+            _NO_CAMERA.add(s)
+            continue
+        d = d[m]
         out.append(d[[c for c in cols if c in d]] if cols else d)
+    if _NO_CAMERA:
+        print(f"  camera working period: no camera classes, left out: {sorted(_NO_CAMERA)}", flush=True)
     return pd.concat(out, ignore_index=True)
 
 

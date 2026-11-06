@@ -5,6 +5,11 @@ spout is retracted, except at the window edges); ITI time = sum over consecutive
 this trial's stop, clipped at 0 and at 60 s (long pauses excluded); rate = ITI licks / ITI minutes. Also the share of
 ITI licks that touch the spout (DAQ contact flag) and the no-contact rate. Per-trial counts (ITI licks per trial) as a
 second definition. Normalised to the animal's pre mean.
+CAMERA WORKING PERIOD (Priya 11-05, after (f) 2): only the ITIs of trials inside the camera working period count --
+first cue -> the session's last camera lick, minus the stopped runs (`trial_classes.camera_period_trials` on the trial
+cues; an ITI lick belongs to the trial it follows, `trial_classes.working_trial_ids` on its licks_all trial_id). So
+licking after the camera quit and inside stopped runs leaves both the numerator and the ITI time. A session without
+camera classes is left out and listed. Until 11-05 the whole session counted.
 Tests: change from pre per epoch (nested bootstrap, per-animal table first); within animal across POST sessions, the
 correlation with far-contra hit rate / pre (`recovery_timing.series`), raw and with log(day) removed (permutation of
 behaviour within animal, as `iti_recovery_marker.py`).
@@ -42,14 +47,22 @@ def session_row(label: str) -> dict:
     from wfield_local import orofacial_outputs as oo
     from wfield_local.paths import PathResolver
     an, date = config.animal_of(label), "2026" + label.split("_")[-1]
-    A = pd.read_csv(oo.session_dir(PathResolver(), oc.RUN, an, date) / "licks_all.csv", usecols=["context", "contact"])
+    from wfield_local import trial_classes as tc
+    A = pd.read_csv(oo.session_dir(PathResolver(), oc.RUN, an, date) / "licks_all.csv",
+                    usecols=["trial_id", "context", "contact"])
     T = il._behaviour(label).trials.sort_values("cue_s")
+    # the camera working period (11-05): trial i's ITI (its stop -> the next arrival) counts only when trial i is in it
+    work, _contact, has = tc.camera_period_trials(label, T.cue_s.to_numpy(float))
+    if not has:
+        return None                                   # no video: no camera working period (left out, listed)
     st = np.where(np.isfinite(T.strobe_s), T.strobe_s, T.cue_s - 3.0)
     sp = T.stop_s.to_numpy(float)
     gaps = st[1:] - sp[:-1]
-    gaps = gaps[np.isfinite(gaps)]
+    gaps = gaps[np.isfinite(gaps) & work[:-1]]
     iti_min = float(np.clip(gaps, 0, GAP_MAX).sum() / 60.0)
-    a = A[A.context == "iti"]
+    wk, _h = tc.working_trial_ids(label)
+    a = A[(A.context == "iti") & A.trial_id.map(lambda t: bool(wk.get(int(t), False)) if pd.notna(t) else False)]
+    T = T[work]
     c = a.contact.astype(str).str.lower().eq("true")
     return {"label": label, "animal": an, "epoch": epochs.epoch_of(label), "n_trials": len(T),
             "n_iti": len(a), "share_contact": float(c.mean()) if len(a) else np.nan, "iti_min": iti_min,
@@ -66,7 +79,11 @@ def _resid(y, d):
 def main() -> int:
     from wfield_local import analysis_kit as ak
     labels = il.labels()
-    R = pd.DataFrame([session_row(x) for x in labels])
+    rows = {x: session_row(x) for x in labels}
+    skipped = sorted(x for x, r in rows.items() if r is None)
+    if skipped:
+        print(f"== no camera classes (no camera working period), left out: {skipped}", flush=True)
+    R = pd.DataFrame([r for r in rows.values() if r is not None])
     VALS = ("rate", "rate_nocontact", "per_trial", "share_contact")
     for v in VALS:
         pre = R[R.epoch == "pre"].groupby("animal")[v].mean()

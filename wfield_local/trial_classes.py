@@ -1290,6 +1290,61 @@ def stop_kind_for(label: str, cue_s, window: str | None = None) -> np.ndarray:
     return _CUE_KIND[_cue_key(label, cue_s, window)]
 
 
+#: THE CAMERA WORKING PERIOD of a classified cue train (Priya 11-05 (f) 2: first cue -> last camera lick, minus the
+#: stopped runs): every trial NOT in one of these session-level classes (`cue_classes_for` / `classify_session`). The
+#: same set `scripts/trial_attempts.py` RUN_EXCLUDED uses for its `canonical` (attempt-rate / hit-rate denominator); a
+#: session without video is all "unknown", so it has no working period (exclude and list it, never a DAQ fallback).
+OUT_OF_WORKING_PERIOD = ("stopped", "stopped_licking", "early_run", "after_end", "unknown")
+
+
+def in_working_period(cls) -> np.ndarray:
+    """Boolean per trial: inside the camera working period (`OUT_OF_WORKING_PERIOD`)."""
+    return ~np.isin(np.asarray(cls, dtype=object), list(OUT_OF_WORKING_PERIOD))
+
+
+def camera_period_trials(label: str, cue_s) -> tuple[np.ndarray, np.ndarray, bool]:
+    """``(working, contact, has_classes)`` per cue of ``cue_s`` (DAQ s; any subset of the session's cues, matched to
+    the session's FULL classified train within CUE_MATCH_S): inside the camera working period, and camera class
+    contact (the hit-rate numerator, Priya 11-04 answer 2). A cue that matches no DAQ cue is outside the period."""
+    full = daq_cue_seconds(label)
+    cls = cue_classes_for(label, full)
+    has = bool(np.any(cls != "unknown"))
+    T = pd.DataFrame({"cue_daq": full, "cls": cls})
+    c = cue_classes(T, np.asarray(cue_s, float))
+    return in_working_period(c), c == "contact", has
+
+
+def working_trial_ids(label: str) -> tuple[dict, bool]:
+    """``({v36 trial_id: inside the camera working period}, has_classes)`` for tables keyed by the video trial id
+    (licks_all.csv, the pose3d tables): `camera_period_trials` on the session's own trial table (`session_trials`, cue
+    times on the DAQ clock). ``({}, False)`` without video outputs."""
+    T = session_trials(label)
+    if T is None or not len(T):
+        return {}, False
+    T = T.dropna(subset=["cue_daq"])
+    w, _c, has = camera_period_trials(label, T.cue_daq.to_numpy(float))
+    return dict(zip(T.trial_id.astype(int), w.astype(bool))), has
+
+
+def camera_quit(label: str, cue_s, window: str | None = None) -> dict:
+    """THE CAMERA QUIT of one session (A6, docs/status/reanalysis_20261105/ENGAGEMENT_CAMERA_2026-11-05.md; Priya 11-05:
+    behaviour-only figures follow the camera working period): the first cue of the quit TAIL (`stop_kind_for` "tail" =
+    the trials after the session's last camera lick), called a quit only when the tail holds >= `stop_run_min()` cues
+    (6, the stop-run rule) and starts >= `stop_min_start_s()` (300 s) after the first cue; otherwise the session is
+    RIGHT-CENSORED, as the DAQ S28 quit (`engagement.session_quit`). ``cue_s`` = the session's FULL DAQ cue train (s).
+    Returns {"quit_cue": index into cue_s or -1, "censored", "has_classes" (False: no video -> no camera quit at all;
+    report such a session as a DAQ-only row, never with a DAQ fallback), "n_tail"}."""
+    cs = np.asarray(cue_s, float)
+    cls = cue_classes_for(label, cs, window)
+    kind = stop_kind_for(label, cs, window)
+    has = bool(np.any(cls != "unknown"))
+    tail = np.flatnonzero(kind == "tail")
+    out = {"quit_cue": -1, "censored": True, "has_classes": has, "n_tail": int(tail.size)}
+    if has and tail.size >= stop_run_min() and cs[tail[0]] - cs[0] >= stop_min_start_s():
+        out.update(quit_cue=int(tail[0]), censored=False)
+    return out
+
+
 def _cue_key(label: str, cue_s, window: str | None) -> tuple:
     import hashlib
     window = window or gate_window()

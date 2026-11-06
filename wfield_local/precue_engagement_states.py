@@ -19,6 +19,14 @@ producing no movement, that is the "plan formed, execution failed" reading with 
 witness. If 5 and 6 score alike, the gate is not capturing anything the cortex shows, and that
 is a real and reportable outcome.
 
+UNDER THE CAMERA TRIAL GATE THE TWO TRAINING CLASSES ARE CAMERA CLASSES (Priya 11-05, DECISIONS_PENDING_MERGE_2026-11-04
+(f) 1): WORKING (contact + incomplete, from either DAQ arm) vs NO_RESPONSE. The DAQ no-lick side used to hold incomplete,
+jaw_only, no_response and the STOPPED runs together; stopped runs sit at session end, so training on them puts time in
+session into the label. Stopped, stopped_licking, jaw_only, after_end and unknown are now SCORED only, each as its own
+class (``discriminator["by_class"]``). The stored model's align carries `CAMERA_DISC_TAG`, so it is a new frozen id; the
+DAQ gate keeps the old lick-vs-no-lick training set and its id (the labelled DAQ row). The late window and SPATIAL_MISS
+below still apply to both classes.
+
 WHY THE TRAINING SET IS THE LATE WINDOW. Pre-stroke no-lick trials sit late in the session -- 79%,
 85% and 78% of them in the final quarter for PS92, PS94 and PS95 -- because pre-stroke that IS what
 a no-lick trial is (Priya, 2026-08-20). Taking both classes from the same late window therefore does
@@ -71,6 +79,66 @@ CHANCE = 1.0 / 6.0
 
 STATES = ("1_pre_lick", "2_pre_nolick", "4_post_lick", "5_post_nolick_engaged",
           "6_post_nolick_notengaged")
+
+#: THE DISCRIMINATOR'S TRAINING CLASSES UNDER THE CAMERA GATE (Priya 11-05, DECISIONS_PENDING_MERGE_2026-11-04 (f) 1,
+#: camera-class question 8): WORKING (contact + incomplete, either DAQ arm) vs NO_RESPONSE (no-lick arm). Fixed class
+#: names, not `trial_classes.in_sel` -- the in_working_jaw robustness selection would put jaw_only into the trained
+#: side, and the decision says jaw_only is scored-only. STOPPED is never trained on (stop runs sit at session end, so
+#: training on them mixes time in session into the label); it is scored as its own class, as are the others below.
+TRAIN_POS = ("contact", "incomplete")
+TRAIN_NEG = ("no_response",)
+SCORED_ONLY = ("jaw_only", "stopped", "stopped_licking", "after_end", "unknown")
+#: the class tag in the stored discriminator's align (`<align>-disc-<tag>`), so no camera-class model can ever be served
+#: for the DAQ lick-vs-no-lick one or vice versa -- also under `frozen_models.daq_trained_in_lp`, whose train_fp is a
+#: constant and therefore does not move with the training rows
+CAMERA_DISC_TAG = "cls-work-v-noresp-min15"
+#: MINIMUM TRAINING ROWS PER CLASS (all-pre fit and each leave-one-session-out refit): 20 for the DAQ lick-vs-no-lick
+#: model (unchanged, so is its id); 15 for the camera classes (Priya 11-05 ~22:10: "let's say 15", relayed as a minimum of
+#: 15 trials; pre-stroke no_response is scarce -- class tables PS92 16 / PS94 25 late). The floor is part of the camera
+#: model's identity (the "-min15" in `CAMERA_DISC_TAG`). The held-out session's own floor (D2) stays 20.
+MIN_TRAIN = {"daq": 20, "camera": 15}
+
+
+def camera_train_sets(cls_e, cls_u, eng_window, nl_window, dis_window):
+    """``(keep_eng, keep_pos_u, keep_dis)`` of the state discriminator under the camera gate (`TRAIN_POS` /
+    `TRAIN_NEG`). ``cls_e`` / ``cls_u`` = camera class per engaged / no-lick row (`trial_classes.pool_row_classes`);
+    ``eng_window`` / ``nl_window`` = the pre-stroke late-window rows of each arm; ``dis_window`` = the no-lick rows the
+    DAQ design allowed on the disengaged side (late window minus SPATIAL_MISS). Positives: engaged rows AND no-lick rows
+    of class contact | incomplete (the no-lick arm holds the incomplete licks); negatives: no-lick rows of class
+    no_response only. Rows of every other class (stopped, stopped_licking, jaw_only, after_end, unknown) are in none."""
+    ce = np.asarray(cls_e, dtype=object)
+    cu = np.asarray(cls_u, dtype=object)
+    keep_eng = np.asarray(eng_window, bool) & np.isin(ce, TRAIN_POS)
+    keep_pos_u = np.asarray(nl_window, bool) & np.isin(cu, TRAIN_POS)
+    keep_dis = np.asarray(dis_window, bool) & np.isin(cu, TRAIN_NEG)
+    return keep_eng, keep_pos_u, keep_dis
+
+
+def disc_train_rows(XE, XU, GE, GU, keep_eng, keep_pos_u, keep_dis, exclude=None):
+    """``(X, y, groups)`` of the state discriminator: engaged-side rows (``XE[keep_eng]`` then ``XU[keep_pos_u]``,
+    y = 0) stacked over the disengaged rows (``XU[keep_dis]``, y = 1), optionally without session ``exclude``. With
+    ``keep_pos_u`` all False (the DAQ gate) this is exactly the pre-11-05 stack, so the DAQ model's id is unchanged."""
+    e, pu, dn = np.asarray(keep_eng, bool), np.asarray(keep_pos_u, bool), np.asarray(keep_dis, bool)
+    if exclude is not None:
+        e, pu, dn = e & (GE != exclude), pu & (GU != exclude), dn & (GU != exclude)
+    X = np.vstack([XE[e], XU[pu], XU[dn]]) if pu.any() else np.vstack([XE[e], XU[dn]])
+    y = np.concatenate([np.zeros(int(e.sum() + pu.sum())), np.ones(int(dn.sum()))])
+    g = np.concatenate([GE[e], GU[pu], GU[dn]])
+    return X, y, g
+
+
+def class_scores(model, XEs, XUs, cls_e, cls_u, pre_e, pre_u, post_e, post_u):
+    """``{"pre": {class: {"n", "p_disengaged"}}, "post": {...}}``: the discriminator's mean P(disengaged) per camera
+    class, engaged and no-lick rows pooled, for the camera classes `TRAIN_POS` + `TRAIN_NEG` + `SCORED_ONLY`."""
+    ce, cu = np.asarray(cls_e, dtype=object), np.asarray(cls_u, dtype=object)
+    out = {}
+    for ph, me, mu in (("pre", pre_e, pre_u), ("post", post_e, post_u)):
+        out[ph] = {}
+        for c in TRAIN_POS + TRAIN_NEG + SCORED_ONLY:
+            X = np.vstack([XEs[np.asarray(me, bool) & (ce == c)], XUs[np.asarray(mu, bool) & (cu == c)]])
+            out[ph][c] = {"n": int(len(X)),
+                          "p_disengaged": float(np.mean(model.predict_proba(X)[:, 1])) if len(X) else None}
+    return out
 
 
 def _disc():
@@ -316,8 +384,21 @@ def run_animal(animal, align="precue", post_s=None, verbose=True):
     nl_names = np.array([POSITION_NAMES.get(int(p), str(p)) for p in YU])
     keep_dis = u_pre & late_nl & ~np.isin(nl_names, miss)
     keep_eng = e_pre & late_e
-    disc = {"n_engaged_train": int(keep_eng.sum()), "n_disengaged_train": int(keep_dis.sum()),
+    # no-lick-arm rows trained on the ENGAGED side: none under the DAQ gate (the arrays below are then byte-identical to
+    # the pre-11-05 training set, and so is its stored id); the camera WORKING rows of the no-lick arm under camera
+    keep_pos_u = np.zeros(len(XU), bool)
+    if camera:
+        # CAMERA CLASSES (Priya 11-05, DECISIONS_PENDING_MERGE (f) 1): WORKING (contact + incomplete) vs NO_RESPONSE.
+        # STOPPED trials are scored as their own class and never trained on -- stop runs sit at session end, so
+        # training on them puts time in session into the label; jaw_only / after_end / stopped_licking / unknown are
+        # scored-only too. The late window and the SPATIAL_MISS exclusion are kept as they were (the decision names the
+        # classes only).
+        keep_eng, keep_pos_u, keep_dis = camera_train_sets(_ce, _cu, e_pre & late_e, u_pre & late_nl, keep_dis)
+    disc = {"n_engaged_train": int(keep_eng.sum() + keep_pos_u.sum()), "n_disengaged_train": int(keep_dis.sum()),
             "excluded_positions": list(miss)}
+    if camera:
+        disc.update(train_classes={"engaged": list(TRAIN_POS), "disengaged": list(TRAIN_NEG)},
+                    scored_only=list(SCORED_ONLY), train_tag=CAMERA_DISC_TAG)
     # OPTIONAL STATE-CLASS bal_em (`spout_scaling.state_*`; WIDEFIELD_STATE_DISC_SCALING=state_bal_em, DEFAULT OFF since
     # it fails the discriminator's own pre-stroke check, 11-03): each pre session's rows centred on the equal-weight mean
     # of its two TRUE state-class means; a scored session centred, label-free, by the EM over its engaged + no-lick rows.
@@ -327,6 +408,7 @@ def run_animal(animal, align="precue", post_s=None, verbose=True):
     # (`_spout_frame_block`); else the state-class frame / the production z (unchanged).
     _spf, disc_scaling, e_pre_d, u_pre_d, pre_d, ff_s, keep_eng, keep_dis = _spout_frame_block(
         disc, ff, feat, kept, XE, YE, GE, XU, YU, GU, pre_i, align, e_pre, u_pre, keep_eng, keep_dis)
+    keep_pos_u = keep_pos_u & u_pre_d             # the pre sessions the frame block kept
     if _spf:
         XEt, XUt = np.array(XE, float), np.array(XU, float)
         for i in sorted(pre_d):
@@ -334,11 +416,13 @@ def run_animal(animal, align="precue", post_s=None, verbose=True):
             if np.any(GU == i):
                 XUt[GU == i] = ff_s.train_apply(XU[GU == i], i)
     else:
+        # (the opt-in state-class centre takes its engaged class from the engaged arm only; the no-lick-arm working rows
+        # of the camera classes are not in it -- identity under the production session_z, where this returns XE / XU)
         XEt, XUt = _ss.state_train_frame(XE, GE, XU, GU, keep_eng, keep_dis, sorted(pre_i))
-    if keep_dis.sum() >= 20 and keep_eng.sum() >= 20:
-        Xd = np.vstack([XEt[keep_eng], XUt[keep_dis]])
-        yd = np.concatenate([np.zeros(int(keep_eng.sum())), np.ones(int(keep_dis.sum()))])
-        gd = np.concatenate([GE[keep_eng], GU[keep_dis]])
+    floor = MIN_TRAIN["camera" if camera else "daq"]
+    disc["min_train_per_class"] = floor
+    if keep_dis.sum() >= floor and keep_eng.sum() + keep_pos_u.sum() >= floor:
+        Xd, yd, gd = disc_train_rows(XEt, XUt, GE, GU, keep_eng, keep_pos_u, keep_dis)
 
         def _fit_disc():
             # the all-pre discriminator AND the per-held-out-session refits of the D2 drift control (below), one
@@ -347,14 +431,15 @@ def run_animal(animal, align="precue", post_s=None, verbose=True):
             for si in sorted(pre_d):
                 hold = e_pre_d & (GE == si)
                 tr_e, tr_d = keep_eng & (GE != si), keep_dis & (GU != si)
-                if hold.sum() < 20 or tr_e.sum() < 20 or tr_d.sum() < 20:
+                tr_pu = keep_pos_u & (GU != si)
+                if hold.sum() < 20 or tr_e.sum() + tr_pu.sum() < floor or tr_d.sum() < floor:
                     continue
-                loso[kept[si]] = _disc().fit(            # keyed by LABEL (merge review B1), never pooled id
-                    np.vstack([XEt[tr_e], XUt[tr_d]]),
-                    np.concatenate([np.zeros(int(tr_e.sum())), np.ones(int(tr_d.sum()))]))
+                Xl, yl, _gl = disc_train_rows(XEt, XUt, GE, GU, keep_eng, keep_pos_u, keep_dis, exclude=si)
+                loso[kept[si]] = _disc().fit(Xl, yl)   # keyed by LABEL (merge review B1), never pooled id
             return {"full": _disc().fit(Xd, yd), "loso": loso}
 
-        dpay = _stored(animal, f"{align}-disc", basis, kept, pre_i, int(XE.shape[1]),
+        # the class tag in the stored id under the camera gate (`CAMERA_DISC_TAG`); "<align>-disc" = the DAQ model, as before
+        dpay = _stored(animal, f"{align}-disc" + (f"-{CAMERA_DISC_TAG}" if camera else ""), basis, kept, pre_i, int(XE.shape[1]),
                        (Xd, yd, gd, sorted(pre_i), XE[e_pre], GE[e_pre]), _fit_disc, post_s,
                        scaling=disc_scaling)
         model = dpay["full"]
@@ -381,6 +466,10 @@ def run_animal(animal, align="precue", post_s=None, verbose=True):
         for k in states:
             X = s_states[k]
             disc[k] = (float(np.mean(model.predict_proba(X)[:, 1])) if len(X) else None)
+        if camera:
+            # EVERY CAMERA CLASS SCORED ON ITS OWN ((f) 1: stopped is its own class), both DAQ arms, pre and post.
+            # Pre rows of the TRAINED classes are in-sample; read them as the training fit, not as a test.
+            disc["by_class"] = class_scores(model, XEs, XUs, _ce, _cu, e_pre_d, u_pre_d, ~e_pre, ~u_pre)
         # D2. THE STRONGER DRIFT CONTROL: PRE-STROKE LICK trials, early vs late.
         #
         # One state throughout, spanning the whole session, and thousands of trials instead of the
@@ -396,9 +485,10 @@ def run_animal(animal, align="precue", post_s=None, verbose=True):
         for si in sorted(pre_d):
             hold = e_pre_d & (GE == si)
             tr_e, tr_d = keep_eng & (GE != si), keep_dis & (GU != si)
-            if hold.sum() < 20 or tr_e.sum() < 20 or tr_d.sum() < 20:
+            tr_pu = keep_pos_u & (GU != si)
+            if hold.sum() < 20 or tr_e.sum() + tr_pu.sum() < floor or tr_d.sum() < floor:
                 continue
-            _yd = np.concatenate([np.zeros(int(tr_e.sum())), np.ones(int(tr_d.sum()))])
+            _yd = np.concatenate([np.zeros(int(tr_e.sum() + tr_pu.sum())), np.ones(int(tr_d.sum()))])
             m = dpay["loso"][kept[si]]                 # stored with the discriminator (same condition, same fit)
             # the held-out session in ITS OWN EM frame under this leave-one-out model (identity under session_z)
             if _spf:
@@ -547,9 +637,13 @@ def figure(results, out, align="precue"):
     axes[0].set_title(f"A. Position information in the {align} window, by state\n"
                       "dotted = chance (1/6)", fontsize=10)
     axes[1].axhline(0.5, color="k", ls=":", lw=1.2)
-    axes[1].set_ylabel("P(disengaged) under the PRE-STROKE lick/no-lick discriminator")
+    # the camera-class discriminator (Priya 11-05 (f) 1) names its classes; the DAQ one keeps its original label
+    cam = any((results[a].get("discriminator") or {}).get("train_classes") for a in animals)
+    axes[1].set_ylabel("P(disengaged) under the PRE-STROKE " + (
+        "working (contact + incomplete) vs no-response discriminator" if cam else "lick/no-lick discriminator"))
     axes[1].set_title("B. Where each state falls on the pre-stroke ENGAGEMENT axis\n"
-                      "trained late-window only, so it is not a clock", fontsize=10)
+                      "trained late-window only, so it is not a clock"
+                      + ("; stopped / jaw-only never trained on" if cam else ""), fontsize=10)
     for ax in axes:
         ax.set_xticks(x)
         ax.set_xticklabels([s.replace("_", "\n", 1) for s in STATES], fontsize=7.5)

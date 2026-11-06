@@ -62,3 +62,21 @@ commit 0e657df2).
    Effect measured 11-05 (decoder_mix_checks/iti_star_shared_stats_1105/): stars only added, none lost; 22 / 4480 area
    rows; outlines +0.1-3 pp (largest cued far_contra acute 6.7 -> 9.6 %); session change maps 3.67-3.69 change in
    26 / 80 cells (up to +2.4 pp), captions rewritten after the re-render; maplevel 3.66 unchanged.
+
+### (f) 1 / 2 and the 11-04 ENL slide: implemented 11-05 on branch fix/decisions-f1-f2-enl-20261105 (not merged)
+- (f) 1 (a49795b3): `precue_engagement_states` under the camera gate trains WORKING (contact + incomplete, both DAQ arms)
+  vs NO_RESPONSE; stopped / stopped_licking / jaw_only / after_end / unknown are scored per class only. New frozen id:
+  align `<align>-disc-cls-work-v-noresp`. Section G's G4 camera-class discriminator (11-04) already met the decision
+  (stopped / quit / stopped_licking are their own groups); pinned by a test, unchanged. OPEN: G4's negative class
+  "none" also holds "unknown" rows; the precue discriminator keeps its late-window + SPATIAL_MISS design.
+- (f) 2 (ae051fc0): Fig 0.2 = the camera working-period hit rate (run's trial_attempts_sessions.csv `frac_hit_<pos>`:
+  contact / working-period trials); the DAQ quit-tail hit rate is `behaviour_hits_by_spout_daq_quittail.png`
+  (ROBUSTNESS). The other cohort_session_metrics readers are left on DAQ: epoch_audit / epoch_behaviour timecourse
+  (epoch boundaries stay pinned, Q11), engagement_by_epoch (a measure OF engagement). OPEN: epoch family 1b
+  (`epoch_behaviour.fig_behaviour`) is the same quantity on DAQ engaged trials.
+- ENL slide (8f4399d2): `enl_window.sliding_lags` (the decoders' search + guard strobe + 0.3 s, inside the span) in
+  lick_enl_angle_decode ("slide" primary, "2s" robustness; new enl_angle / enl_spout ids `enl_w<W>_lfslide`),
+  lick_enl_target_test, lick_enl_offset_explore (prelaunch_aim_tracking's B7 reference follows), revup_neural (pre-cue
+  level), fr_enl_decode. Nothing re-run.
+- Behaviour-only figures on the camera period (802c3d54): `trial_classes.camera_quit` (A6) in disengagement_tests
+  (DAQ quit = `DISENGAGEMENT_QUIT=daq` robustness row); revup_behaviour reads the run's attempts table.

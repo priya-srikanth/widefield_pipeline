@@ -385,7 +385,8 @@ def _parallel_arms(args, want, out) -> int:
                 del running[arm]
         time.sleep(5)
     if "1b" in want:
-        _report("1b", fig_behaviour(out))
+        _report("1b", fig_behaviour(out))                       # camera working period (primary, 11-05)
+        _report("1b daq", fig_behaviour(out, period="daq"))     # the DAQ quit-tail robustness row
     if "1c" in want:
         _report("1c", fig_behaviour_timecourse(out))
     print(f"[epoch] all arms done in {(time.time() - t0) / 60:.0f} min (rc {rc})", flush=True)
@@ -448,7 +449,8 @@ def main(argv=None) -> int:
 
     if "1b" in want:
         try:
-            _report("1b", fig_behaviour(out))
+            _report("1b", fig_behaviour(out))                   # camera working period (primary, 11-05)
+            _report("1b daq", fig_behaviour(out, period="daq"))  # the DAQ quit-tail robustness row
         except Exception as ex:                                        # noqa: BLE001
             print(f"  !! 1b: {type(ex).__name__} {str(ex)[:160]}", flush=True)
     if "1c" in want:

@@ -18,7 +18,13 @@ STAGES (all outputs under <imaging_encoding>/disengagement/):
     python scripts/disengagement_tests.py plot                 figures from figdata only (also: --plot-only)
 
 DEFINITIONS (prereg section 2): trials = `engagement_decomposition.session_trials` through `analysis_kit.session_behavior`;
-QUIT = the existing detector unchanged (`quit_point.session_quit`, 2.0 s scoring); responded / hit for every covariate =
+QUIT = the CAMERA quit since 11-05 (Priya 11-05: behaviour-only figures move to the camera working period;
+`trial_classes.camera_quit`, A6 of docs/status/reanalysis_20261105/ENGAGEMENT_CAMERA_2026-11-05.md: the first trial after
+the session's last camera lick, a quit only when that tail is >= 6 trials and starts >= 300 s after the first cue, else
+censored); sessions without video (PS93_0813) have no camera quit and are left out (listed as DAQ-only rows).
+DISENGAGEMENT_QUIT=daq reruns the prereg's DAQ detector (`quit_point.session_quit`, 2.0 s scoring) as the labelled
+robustness row, into <imaging_encoding>/disengagement_daqquit/ (session caches shared). Pre = August only (unchanged).
+Until 11-05 the DAQ quit was the only quit. Responded / hit for every covariate =
 DAQ lick inside the session's own task window (gui_config timing.response_window, 3.5 s), cut at the next cue. Water: a
 drop is delivered at the cue on every trial (auto_after_delay, delay 0; held only after 6 misses) and docks at a wick, so
 COLLECTED water = DAQ reward_ttl deliveries on responded trials x the reward_ul in force (gui_config + config_changes
@@ -46,10 +52,17 @@ import pandas as pd  # noqa: E402
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from fr_musall import E  # noqa: E402
 
-OUT = E / "disengagement"
-SESS, FIG, TAB, FDIR = OUT / "sessions", OUT / "figures", OUT / "tables", OUT / "figdata"
+#: which quit the tests use (Priya 11-05): "camera" (primary, `trial_classes.camera_quit`) | "daq" (the prereg's S28
+#: detector, labelled robustness row, written beside the primary)
+QUIT_ENV = "DISENGAGEMENT_QUIT"
+QUIT = os.environ.get(QUIT_ENV, "camera").strip().lower()
+if QUIT not in ("camera", "daq"):
+    raise SystemExit(f"{QUIT_ENV}={QUIT!r}: expected camera or daq")
+OUT = E / ("disengagement" if QUIT == "camera" else "disengagement_daqquit")
+SESS = E / "disengagement" / "sessions"  # per-session caches carry BOTH quits: one extraction serves both rows
+FIG, TAB, FDIR = OUT / "figures", OUT / "tables", OUT / "figdata"
 VERSION = 1
-BEH_VERSION = 3                          # 2: + n_pre2 (DAQ licks in the 2 s before the cue), 10-31; 3: lick_samples = the behaviour DAQ detector (11-05, 8.53)
+BEH_VERSION = 4                          # 2: + n_pre2 (DAQ licks in the 2 s before the cue), 10-31; 3: lick_samples = the behaviour DAQ detector (11-05, 8.53); 4: + quit_cam (camera quit, 11-05)
 EPS = ("pre", "acute", "subacute", "chronic")
 ANIMALS = ("PS92", "PS93", "PS94", "PS95")
 REF = ("close_ipsi", "close_mid")
@@ -207,6 +220,7 @@ def beh_worker(lab: str) -> dict:
 
     T = _trial_rows(rows, cue, nxt, t0, rwin, deliv, lk, lk_resp)
     q = b.quit
+    quit_cam = camera_quit_rows(lab, cs, rows)
 
     # running: 1-s bins on the trial clock (t - first cue)
     try:
@@ -262,7 +276,7 @@ def beh_worker(lab: str) -> dict:
                     term.append(r["event_name"])
     out = dict(version=BEH_VERSION, label=lab, animal=lab[:4], epoch=epochs.epoch_of(lab), resp_window_s=rwin,
                trials=pd.DataFrame(T), quit_idx=int(q["quit_trial"]), censored=bool(q["censored"]),
-               quit_t=float(q["quit_elapsed_s"]), dur=float(q["session_dur_s"]),
+               quit_t=float(q["quit_elapsed_s"]), dur=float(q["session_dur_s"]), quit_cam=quit_cam,
                n_reward_daq=int(edges.size), n_reward_log=n_ev, vol_match=bool(vmatch), water_vol_sum=vsum,
                water_gui=gui_water, term="|".join(sorted(set(term))), run=run, fr=fr, t0=float(t0))
     SESS.mkdir(parents=True, exist_ok=True)
@@ -337,18 +351,54 @@ def extract(jobs: int) -> None:
             print("   FAIL", fl, flush=True)
 
 
+def camera_quit_rows(lab: str, cs, rows) -> dict:
+    """The camera quit (`trial_classes.camera_quit` on the session's full DAQ cue train ``cs``, s) in this script's
+    terms: {"quit_idx": index into ``rows`` (session_trials order) of the first trial at / after the quit cue, -1 when
+    censored; "quit_t": that trial's elapsed_s; "censored"; "has_classes"; "n_tail"}."""
+    from wfield_local import trial_classes as tc
+    c = tc.camera_quit(lab, cs)
+    order = np.array([r["order"] for r in rows], int)
+    out = {"quit_idx": -1, "quit_t": float("nan"), "censored": True, "has_classes": c["has_classes"],
+           "n_tail": c["n_tail"]}
+    if not c["censored"]:
+        k = int(np.flatnonzero(order >= c["quit_cue"])[0]) if np.any(order >= c["quit_cue"]) else len(rows)
+        if 0 < k < len(rows):
+            out.update(quit_idx=k, quit_t=float(rows[k]["elapsed_s"]), censored=False)
+    return out
+
+
+def apply_quit(s: dict, source: str = QUIT) -> dict | None:
+    """A session record with its quit fields (quit_idx / quit_t / censored) from ``source``: "daq" = the stored S28
+    fields unchanged; "camera" = `quit_cam`; None for a session without camera classes (no video: a DAQ-only row)."""
+    if source == "daq":
+        return s
+    c = s.get("quit_cam")
+    if c is None:
+        raise SystemExit(f"{s['label']}: cache predates the camera quit (BEH_VERSION {BEH_VERSION}): re-run extract")
+    if not c["has_classes"]:
+        return None
+    return {**s, "quit_idx": c["quit_idx"], "quit_t": c["quit_t"], "censored": c["censored"]}
+
+
 # =============================================================================================== analysis helpers
 def _load_all():
     from wfield_local import analysis_kit as ak
     B, I = {}, {}
+    daq_only = []
     for lab in ak.curated_labels(order="sorted"):
         p = SESS / f"beh_{lab}.pkl"
         if p.exists():
             with open(p, "rb") as fh:
-                B[lab] = pickle.load(fh)
+                rec = apply_quit(pickle.load(fh))
+            if rec is None:
+                daq_only.append(lab)
+                continue
+            B[lab] = rec
         q = SESS / f"img_{lab}.npz"
         if q.exists():
             I[lab] = dict(np.load(q))
+    if daq_only:
+        print(f"== quit = {QUIT}: no camera classes (no video) -> DAQ-only rows, left out here: {daq_only}", flush=True)
     return B, I
 
 

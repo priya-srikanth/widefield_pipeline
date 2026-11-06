@@ -1,4 +1,7 @@
-"""490 nm vs 470 nm for the RiboL1 mice (PS121, PS122): response amplitude, trial-to-trial SD and single-trial d'.
+"""490 nm vs 470 nm (PS118 GCaMP6s, PS121/PS122 RiboL1): response amplitude, trial-to-trial SD, and
+single-trial response SNR = mean / across-trial SD of the baseline-subtracted hotspot response. This is a
+standardized effect size (one-sample Cohen's d), NOT a signal-detection d' (no two-class discrimination,
+and the denominator is the response's own SD, not an independent noise estimate).
 
 Priya 11-05: "how is 490 vs 470 for the ribol1 mice" / "add 490 vs 470 figures to the deck". The imaging box's
 `led_490_vs_470.py` "SNR" is the per-pixel SD of the WHOLE corrected signal over the shot floor, so any variance
@@ -7,7 +10,7 @@ Priya 11-05: "how is 490 vs 470 for the ribol1 mice" / "add 490 vs 470 figures t
   per trial: cue 0-1 s and first lick 0-0.5 s (first DAQ lick within the 3.5-s response window), both minus the
   pre-cue 1 s, adopted hemo_meegkit_hpfit, native pixels, brain mask minus clipped pixels;
   hotspot = top 2% of brain pixels of the ODD-trial mean; scored on EVEN trials (no selection bias);
-  d' = mean / SD over even trials of the hotspot response.
+  single-trial response SNR = mean / SD over even trials of the hotspot response.
 Trials with a strict discharge within -1.5..+3.5 s of the cue are dropped (seizure_events_video.detect_events), and
 PS122 10-29 after 110 min (QC doc §0o). The functional LED comes from the folder tag (PS12x_490_<date> = 490 nm).
 
@@ -29,7 +32,7 @@ DAQ = MICRO / "Widefield" / "DAQ_recorder_output"
 FS = 31.23
 VAR = "hemo_meegkit_hpfit"
 EXCLUDE_AFTER_MIN = {("PS122", "20261029"): 110.0}
-ANIMALS = ("PS121", "PS122")
+ANIMALS = ("PS118", "PS121", "PS122")   # PS118 = Thy1-GCaMP6s (490 from 11-05); PS121/PS122 = RiboL1-jGCaMP8s (490 from 11-04)
 
 
 def one(sd):
@@ -75,7 +78,7 @@ def one(sd):
         hot = np.argsort(P[:, 0::2].mean(1))[-int(0.02 * len(U)):]
         tr = P[:, 1::2][hot].mean(0)
         out[kind] = dict(n=int(R.shape[1]), amp=float(tr.mean()), sd=float(tr.std(ddof=1)),
-                         d=float(tr.mean() / tr.std(ddof=1)))
+                         snr=float(tr.mean() / tr.std(ddof=1)))
     return out
 
 
@@ -83,39 +86,45 @@ def figure(R, path):
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
-    marker = {"PS121": "o", "PS122": "s"}
-    fig, ax = plt.subplots(2, 3, figsize=(13, 7.2))
-    cols = (("amp", "hotspot response (dF/F %)"), ("sd", "trial-to-trial SD (dF/F %)"), ("d", "single-trial d'"))
+    marker = {"PS118": "^", "PS121": "o", "PS122": "s"}
+    cols = (("amp", "hotspot response (ΔF/F %)"), ("sd", "trial-to-trial SD (ΔF/F %)"),
+            ("snr", "single-trial response SNR\n(mean / across-trial SD)"))
+    # cumulative x-positions: one slot per session, a gap between animals, so unequal group sizes never collide
+    xp = {}; centre = {}; x = 0.0
+    for an in ANIMALS:
+        rr = [r for r in R if r["animal"] == an]
+        x0 = x
+        for r in rr:
+            xp[(r["animal"], r["date"])] = x; x += 1.0
+        centre[an] = (x0 + x - 1.0) / 2.0
+        x += 1.5
+    fig, ax = plt.subplots(2, 3, figsize=(16, 7.8))
     for i, kind in enumerate(("cue", "lick")):
         for j, (key, lab) in enumerate(cols):
             a = ax[i, j]
-            for an_i, an in enumerate(ANIMALS):
-                rr = [r for r in R if r["animal"] == an]
-                for q, r in enumerate(rr):
-                    xpos = an_i * (len(rr) + 1) + q
+            for an in ANIMALS:
+                for r in (r for r in R if r["animal"] == an):
                     is490 = r["led"] == "490"
-                    a.plot(xpos, r[kind][key], marker[an], ms=9, mfc="none" if not is490 else "tab:red",
-                           mec="tab:red" if is490 else "0.35", mew=1.5)
+                    a.plot(xp[(r["animal"], r["date"])], r[kind][key], marker[an], ms=8,
+                           mfc="tab:red" if is490 else "none", mec="tab:red" if is490 else "0.35", mew=1.4)
                     if i == 1:
-                        a.text(xpos, -0.13, f"{r['date'][4:6]}-{r['date'][6:]}\n{r['led']}", ha="center", va="top",
-                               fontsize=7, color="tab:red" if is490 else "0.3",
-                               transform=a.get_xaxis_transform())
-                a.text(an_i * (len(rr) + 1) + (len(rr) - 1) / 2, 1.0, an, ha="center", va="bottom", fontsize=9,
-                       transform=a.get_xaxis_transform())
-            a.set_xticks([])
-            a.set_ylim(0, 1.15 * max(r[kind][key] for r in R))        # headroom: top markers were clipped
-            a.set_xlim(-0.7, len(R) + 0.7)
-            a.spines["top"].set_visible(False)
-            a.spines["right"].set_visible(False)
+                        a.text(xp[(r["animal"], r["date"])], -0.04, f"{r['date'][4:6]}-{r['date'][6:]} {r['led']}",
+                               ha="right", va="top", rotation=90, fontsize=6.5,
+                               color="tab:red" if is490 else "0.3", transform=a.get_xaxis_transform())
+                a.text(centre[an], 1.01, an, ha="center", va="bottom", fontsize=8.5, transform=a.get_xaxis_transform())
+            a.set_xticks([]); a.set_xlim(-0.8, x - 0.9)
+            a.set_ylim(0, 1.18 * max(r[kind][key] for r in R))
+            a.spines["top"].set_visible(False); a.spines["right"].set_visible(False)
             a.set_ylabel(lab, fontsize=9)
             if j == 0:
                 a.set_title(("cue 0-1 s" if kind == "cue" else "first lick 0-0.5 s") + "  (minus pre-cue 1 s)",
-                            fontsize=10, loc="left", pad=16)
-    fig.suptitle("RiboL1 (PS121 circles, PS122 squares): 490 nm (red, filled) vs 470 nm (grey, open), one marker per "
-                 "session.\nHotspot = top 2% pixels on odd trials, scored on even trials; discharge trials dropped. "
-                 "490 raises dF/F AND trial SD about equally: d' = each mouse's best 470 day.", fontsize=10)
-    fig.tight_layout(rect=(0, 0.03, 1, 0.93))
-    fig.savefig(path, dpi=130)
+                            fontsize=10, loc="left", pad=20)
+    fig.suptitle("Single-trial response SNR = mean / across-trial SD of the baseline-subtracted hotspot response "
+                 "(a standardized effect size, NOT a signal-detection d').\nPS118 GCaMP6s (triangles), RiboL1 PS121 "
+                 "(circles) / PS122 (squares): 490 nm (red filled) vs 470 nm (grey open), one marker per session. "
+                 "490 raises ΔF/F and trial SD about equally, so SNR ~ each mouse's best 470 day.", fontsize=9.5)
+    fig.tight_layout(rect=(0, 0.05, 1, 0.9))
+    fig.savefig(path, dpi=130, bbox_inches="tight")
     plt.close(fig)
     print("wrote", path, flush=True)
 
@@ -132,7 +141,7 @@ def main():
     work.mkdir(parents=True, exist_ok=True)
     (work / "cohort2_490_vs_470_dprime.json").write_text(json.dumps(R, indent=1))
     for r in R:
-        print(f"{r['session']:11s} {r['led']}  cue d' {r['cue']['d']:.2f}  lick d' {r['lick']['d']:.2f}")
+        print(f"{r['session']:11s} {r['led']}  cue respSNR {r['cue']['snr']:.2f}  lick respSNR {r['lick']['snr']:.2f}")
     figure(R, work / "cohort2_490_vs_470_dprime.png")
 
 

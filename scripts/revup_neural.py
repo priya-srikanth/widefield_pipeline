@@ -9,8 +9,13 @@ QUESTIONS
      LATE first licks (first lick after the trial stop = after the spout has left; Priya 10-29 addition) as their own
      group: do their lick-aligned responses look like normal post-cue first licks or like spontaneous ITI licks (bout
      starts after >= 2 s without a lick)?
- (5b) Does a trial's PRE-CUE level (-1..0 s before the cue, above the session's RESTW baseline; Fig 14.21,
+ (5b) Does a trial's PRE-CUE level (its LICK-FREE 1 s ENL window, above the session's RESTW baseline; Fig 14.21,
      lick_precue_restw.py) predict that trial's latency, within session x spout? And the session's level?
+     THE WINDOW SLIDES (Priya 11-04 ~20:00: the between-trial lick ENL family's pre-cue parts slide like the imaging
+     ENL decoders): -1..0 s when no lick (behaviour + licks_all onsets) falls in it, else the latest lick-free 1 s gap
+     after the strobe + 0.3 s (`enl_window.sliding_lags`, the decoders' `precue_window_start`), else the trial has no
+     pre-cue level. Until 11-05 the level was the fixed -1..0 s mean on every trial; the 'quiet' selection (no lick in
+     -2..0 s) is unchanged by the slide (its windows never move) and stays the fixed-window row.
 
 METHOD
   traces : the area construction of lick_precue_restw_traces / lick_cued_ramp.wide_session / iti_licks.extract (ROI v8
@@ -80,11 +85,12 @@ import pandas as pd
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import iti_licks as il  # noqa: E402
 import restnl  # noqa: E402
+from wfield_local import enl_window  # noqa: E402
 
 OUT = il.OUT_W / "revup"
 SESS = OUT / "sessions"
 FIGS = il.OUT_W / "figures"
-VERSION = 2
+VERSION = 3                     # 3 (11-05): + enl_lo, the trial's sliding lick-free ENL window start (lag, s)
 LAGS_C = np.round(np.arange(-3.0, 10.0001, 0.05), 3)     # cue-aligned, into the ITI
 LAGS_L = np.round(np.arange(-3.0, 2.0001, 0.05), 3)      # lick-aligned
 AREAS = ["ALM", "tjM1", "SSp-m", "SSp-n", "SSs", "RSPd", "VISp"]
@@ -208,6 +214,9 @@ def session_worker(label: str) -> dict:
         k = np.searchsorted(t_all, cue[i]) - 1
         quiet[i] = cue[i] - t_all[k] if k >= 0 else np.inf
         npre[i] = int(((t_all >= cue[i] - 2.0) & (t_all < cue[i])).sum())
+    # THE SLIDING LICK-FREE ENL WINDOW of the pre-cue level (11-04 ~20:00 decision; one search, `enl_window`)
+    enl_lo, _hi = enl_window.sliding_lags(cue, Eg.strobe_s.to_numpy(float), t_all, PRECUE_W, end_lag=0.0,
+                                          span_lo=float(LAGS_C[0]))
     # gap before a late first lick (a late lick right after other ITI licks is mid-bout, not a bout start)
     late_gap = np.full(n, np.nan)
     for i in np.flatnonzero(phase == "late"):
@@ -238,7 +247,7 @@ def session_worker(label: str) -> dict:
     f.parent.mkdir(parents=True, exist_ok=True)
     f16 = np.float16
     np.savez_compressed(f, version=VERSION, cols=np.array(COLS), pos=pos, cue=cue, stop=stop, nxt=nxt, fl=fl,
-                        phase=np.asarray(phase, str), quiet=quiet, npre=npre, late_gap=late_gap,
+                        phase=np.asarray(phase, str), quiet=quiet, npre=npre, late_gap=late_gap, enl_lo=enl_lo,
                         Xc=Xc.astype(f16), Xl=Xl.astype(f16), Xs=Xs.astype(f16), sp_t=sp,
                         restw_ok=bool(src["restw_ok"]), animal=str(d["animal"]), epoch=str(d["epoch"]),
                         maxdiff=maxdiff)
@@ -269,6 +278,10 @@ TEST_METRICS = ("L_level", "L_slope", "C_slope", "t_half")
 MIN_N = 3                                       # trials per session x class x group (late: 2)
 N_BOOT = 2000
 EP = il.EP4
+
+
+#: the pre-cue level's window length (s): the fixed -1..0 s until 11-05, now the length of the sliding lick-free window
+PRECUE_W = 1.0
 
 
 def _w(lags, a, b):
@@ -323,7 +336,9 @@ def trial_table(labels: list) -> pd.DataFrame:
         if z is None:
             continue
         Xc = z["Xc"]
-        lvl = np.nanmean(Xc[:, _w(LAGS_C, -1.0, 0.0)], 1)
+        # the trial's pre-cue level over its SLIDING lick-free ENL window (NaN = no lick-free window; 11-05)
+        lo = np.asarray(z["enl_lo"], float)
+        lvl = enl_window.window_mean(Xc, LAGS_C, lo, np.minimum(lo + PRECUE_W, 0.0))
         n = len(z["pos"])
         df = pd.DataFrame({"label": x, "animal": str(z["animal"]), "epoch": str(z["epoch"]), "trial": np.arange(n),
                            "pos": z["pos"].astype(str), "phase": z["phase"].astype(str), "lat": z["fl"] - z["cue"],
