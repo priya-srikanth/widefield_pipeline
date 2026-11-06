@@ -227,7 +227,7 @@ def _gui_shift_corrected(gui: pd.DataFrame, session_dir: Path, rv=None) -> pd.Da
         h5 = _daq_h5_for(rv, animal, date) if rv is not None else None
         if h5 is not None:
             dec = daq_trials.decode(h5, _cfg.defaults()["lick_detection"])
-            win, _ = daq_trials.response_window_s(session_dir, 3.5)
+            win, _ = daq_trials.response_window_s(session_dir)
             dq = daq_trials.build_trials(dec, win)
             good = sorted(set(int(x) for x in dq.pos_idx if x >= 0))
             rng = max(20, abs(len(gui) - len(dq)) + 10)
@@ -301,9 +301,7 @@ def _daq_trials_for(session_dir: Path, rv, params: dict | None) -> pd.DataFrame 
         return None
     params = params or config.defaults()["behavior"]
     try:
-        df, info = daq_trials.trials_from_h5(
-            h5, session_dir, config.defaults()["lick_detection"],
-            params["licking"]["response_window_s"])
+        df, info = daq_trials.trials_from_h5(h5, session_dir, config.defaults()["lick_detection"])
     except Exception as e:
         print(f"[spout_behavior] {session_dir.name}: DAQ trials unavailable "
               f"({type(e).__name__}: {e}) -> behavior log", flush=True)
@@ -501,8 +499,7 @@ def first_lick_latency_s(session_dir: Path, trials: pd.DataFrame, licks: dict | 
     if licks is None:
         return idx
     from wfield_local import daq_trials
-    max_s, _src = daq_trials.response_window_s(
-        session_dir, (params or {}).get("response_window_s", 2.0))
+    max_s, _src = daq_trials.response_window_s(session_dir)      # configured fallback (was the 2.0 s licking key)
     all_s, cue_t, cue_next = licks["all_s"], licks["cue_by_trial"], licks["cue_next_by_trial"]
     for i, row in trials.iterrows():
         tid = row["trial_id"]
@@ -555,7 +552,6 @@ def lick_microstructure(session_dir: Path, trials: pd.DataFrame, params: dict,
         return None
     lk = params["licking"]
     w0, w1 = lk["peri_cue_window_s"]
-    resp = lk["response_window_s"]
     all_s, cue_t, cue_next = licks["all_s"], licks["cue_by_trial"], licks["cue_next_by_trial"]
 
     reset_by_trial = licks["precue_reset_by_trial"]   # ENL-reset licks = impulsive/anticipatory pre-cue
@@ -567,7 +563,7 @@ def lick_microstructure(session_dir: Path, trials: pd.DataFrame, params: dict,
     from wfield_local import daq_trials
     # THE SESSION'S OWN response window (gui_config.json, 3.5 s; fifth review (a)): the GUI-fallback sessions
     # (08-05, 08-06, PS92 08-12) used the yaml default (2.0 s) here, so their trial stop came 1.5 s early
-    resp = daq_trials.response_window_s(session_dir, 3.5)[0]
+    resp = daq_trials.response_window_s(session_dir)[0]
     if "stop_s" in trials.columns and licks.get("source") == "DAQ" and "lick_s" in getattr(trials, "attrs", {}):
         stop_by_trial = pd.Series(trials["stop_s"].to_numpy(float), index=trials["trial_id"].to_numpy())
     else:
@@ -1168,7 +1164,9 @@ def plot_licking(session_dir: Path, sid: str, out_dir: Path, params: dict, trial
     micro["per_position"].to_csv(csv, index=False)
 
     fig, axes = plt.subplots(2, 4, figsize=(22, 9))
-    _peri_cue_raster(axes[0, 0], micro["raster"], lk["response_window_s"], lk["peri_cue_window_s"])
+    # the gold band = THIS session's response window (gui_config, 3.5 s; Priya 11-05), not the old 2.0 s yaml key
+    from wfield_local import daq_trials
+    _peri_cue_raster(axes[0, 0], micro["raster"], daq_trials.response_window_s(session_dir)[0], lk["peri_cue_window_s"])
     _peri_cue_psth(axes[0, 1], micro["raster"], lk["psth_bin_ms"], lk["peri_cue_window_s"])
     _ili_hist(axes[0, 2], micro["ili"], daq_cmp, lk["max_ili_ms"],
               config.defaults()["lick_detection"]["min_ili_ms"])
