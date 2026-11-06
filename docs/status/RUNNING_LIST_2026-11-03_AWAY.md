@@ -878,3 +878,13 @@ FYI, the 3-class camera variant (lick / jaw-only / none) is thin in PS92 and PS9
   backup backup_before_fluoro_1105.pptx. Q for Priya: slide 156 says no bolus reaches the pharynx in PS126 / PS127
   on day 1, but the new counts give PS126 8 and PS127 3 day-1 swallows; reword 156? Also: how mild / severe is defined
   (for the notes); day-2 severe stars rest on n = 2.
+- 11-05 evening, CODE CLEANUP (Priya: "work on code cleanup"; coordinated with 34): on main dfd13345 (cohort-2 date
+  one-liners), b1ed55e7 (wfield_local/engagement.py: session_trials / session_quit / near_codes moved verbatim from
+  scripts/rest_migration; ban test on `import scripts` in wfield_local with a KNOWN allowlist), d39ee11c (Priya's OK via
+  34: kinematics_chain / video_signals / pose_sessions moved verbatim; real-session identical). Pushing: one fallback
+  response window behavior.response_window_fallback_s 3.5 (item 3; Priya OK "as long as it won't affect the current
+  rendering run"; number-neutral: all 264 behaviour folders have their own window) + raster gold band = session
+  window (Priya "yes"; licking.response_window_s 2.0 deleted). RENDER NOTE: quiet_periods.response_window_s now reads
+  the fallback instead of decode.max_rt_s (same 3.5), so the NEXT render on main may recompute map_collect maps whose
+  cache key hashes that source -- same numbers, extra time (34 OK). Still KNOWN (e0's): orofacial_cohort,
+  pose3d_side, face_rhythm_readouts.
