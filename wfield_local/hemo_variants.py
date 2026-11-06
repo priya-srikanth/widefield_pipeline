@@ -319,13 +319,15 @@ def _interp_pairs(x, bad):
     return x
 
 
-def compute(session, variant, refit_t=True, win_s=DETREND_WIN_S, verbose=True, order=None, func=FUNC,
+def compute(session, variant, refit_t=True, win_s=DETREND_WIN_S, verbose=True, order=None, func=None,
             bad_pairs=None):
     """(SVTcorr, T, rcoeffs, meta) for one session under one variant. Reads only; writes nothing.
 
-    ``func`` is the functional (470) channel index; the isosbestic (415) is the other slot. Defaults
-    to the cohort FUNC=1, but must be 0 for a session whose labcams channels came out swapped (e.g.
-    PS92 8/28, saved mislabeled single-channel then rescued at exposure offset 1).
+    ``func`` is the functional (470) channel index; the isosbestic (415) is the other slot. ``None`` (the default
+    since 2026-11-05, code review 11-04 item 3) = THIS session's slot, `functional_channel(session)` -- 0 for PS92 8/28,
+    saved mislabeled single-channel then rescued at exposure offset 1. The default was the cohort FUNC=1, so five
+    diagnostics that call this without ``func`` swapped 415 and 470 for that session; production (`preprocess`) passes
+    the slot explicitly and was never affected.
 
     ``bad_pairs`` (bool per pair, optional): pairs whose frames are interpolated over in BOTH channels before the
     fit and the output -- frames that carry the other LED's image (scripts/cohort2_qc/swap_scan.py, 2026-10-30;
@@ -341,6 +343,8 @@ def compute(session, variant, refit_t=True, win_s=DETREND_WIN_S, verbose=True, o
                          f"refit_t=True is required")
     global _MEEGKIT_FELL_BACK
     _MEEGKIT_FELL_BACK = False
+    if func is None:
+        func = functional_channel(session)
     res = Path(session["mc"]) / "wfield_local_results"
     svt = np.load(res / "SVT.npy")
     a = svt[:, func::2].astype(np.float64)
@@ -449,7 +453,7 @@ def out_dir(session, variant, refit_t=True, tag: str = "") -> Path:
             / f"hemo_{variant}{'_refitT' if refit_t else ''}{tag}")
 
 
-def write(session, variant, refit_t=True, win_s=DETREND_WIN_S, verbose=True, func=FUNC, bad_pairs=None,
+def write(session, variant, refit_t=True, win_s=DETREND_WIN_S, verbose=True, func=None, bad_pairs=None,
           tag: str = "") -> Path:
     """Compute and persist to the labelled subdirectory. Refuses to touch the original files."""
     from wfield_local import writeguard
@@ -490,10 +494,10 @@ def main(argv=None) -> int:
                     help="reuse the saved T instead of refitting on the drift-removed traces "
                          "(correct for a controlled COMPARISON, wrong for a product)")
     ap.add_argument("--write", action="store_true", help="persist to the labelled subdirectory")
-    ap.add_argument("--functional-channel", type=int, default=FUNC,
+    ap.add_argument("--functional-channel", type=int, default=None,
                     help="functional (470) channel index; the isosbestic (415) is the other slot. "
-                         "Default %(default)s. Set 0 for a session whose labcams channels came out "
-                         "swapped (mislabeled single-channel then rescued at exposure offset 1).")
+                         "Default: each session's own slot (functional_channel: session_overrides / the "
+                         "preprocessing summary), e.g. 0 for PS92_0828. Pass a value only to override.")
     args = ap.parse_args(argv)
 
     if args.list:
