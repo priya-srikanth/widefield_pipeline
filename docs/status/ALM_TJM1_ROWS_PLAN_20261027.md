@@ -102,3 +102,53 @@ Stat mask kept (Priya 10-28). Code in this branch; run script `scratchpad/mu/run
   allsession_changes_by_session.csv identical (max |d| 0), kappa unchanged. `specificity_control.py` (`--out`, `--layer2`
   may be a path): "LAYER 2 by ROI" panel, `layer2_split_boot.csv`, split Layer 2 map panel; all existing CSVs identical.
 - Runtime estimate for run.sh: ~1-1.5 h wall (three parallel tracks of 4 workers, ~18 GB RAM peak).
+
+## Step 4 (11-06) -- ALM / tjM1 on deck slides 94 / 139 and every encoder area map (Priya 11-06)
+Branch `feat/alm-tjm1-slides-94-139-20261106`. Colouring = the existing split maps: `encoder_split_rows.split_image`
+(MOs / MOp drawn as ALM + MOs_rest / tjM1 + MOp_rest, rim trimmed), Allen colour scale, white-halo / black outline for
+significance, Bonferroni count = the Allen areas only (`encoder_split_rows.bonf_allen`, as residual_roi).
+- **Frozen side: `frozen_encoder_<frA tag>_basis_pixmusall_union`** (NEW folder; `encoder_split_rows.PIX_UNION`): the
+  FROZEN_PIX_MUSALL basis re-run with `--fit-from <tag>_basis --alphas-from <tag>` and the union of the variants the two
+  slides read: joint no_task no_spout no_movement no_fr no_fr_dir no_target no_spont no_other task_only lick_only
+  other_only spout_only movement_only. `no_lickspout` is NOT predictable here: it is a variant only under
+  FROZEN_LICKSPOUT=1 (the `_frA_ls` frame), so the frA area run has no `no_lickspout` either and session_vs_frozen
+  already drops it for `--tag ..._frA` (no lickspout column on slide 139 in either the Allen or the split maps).
+- **Slide 94** `frozen_peth_trial_maps.py --split [--alone]`: Allen outputs unchanged; adds `peth_trial_maps_<w>[_alone]
+  _split.png` + `peth_trial_area[_alone]_split.csv` (split ROIs: own bootstrap, Allen Bonferroni count).
+- **Slide 139** `session_vs_frozen.py --roi-targets`: the self-fit adds the 8 ROI-mean targets
+  (`encoder_split_rows.roi_targets` via `session_design(extra_targets=)`), penalties chosen on the Allen targets and HELD
+  for the ROI targets; output `session_vs_frozen_roi/` (the existing folder untouched). `--roi-targets --plot-only
+  --maps` paints the split maps (frozen ROI R2 from the union run). `session_design` now computes the Allen target
+  columns as the same product as a run without extra targets (bit-identical Allen targets).
+- `remap_checks.py --roi-targets`: check 2 (`remap_per_animal_<w>.png`) in `session_vs_frozen_roi/` with the split
+  painting (check 1 is unchanged by ROI rows and stays in `session_vs_frozen/`).
+- `reembedding_test.py` `reembed_areas.png`: the 45 split-basis areas are painted on their own territory
+  (`split_map` / `area_values_map`); the old map summed ALM + MOs_rest back into MOs although the title said otherwise.
+  Display only.
+- **Validation (11-06, scratch outputs only):** union dry run PS93_0807 (pre) + PS93_0925 (chronic), all 14 variants:
+  alphas = the area run's in every cell; basis-route vs area-run R2, MOs / MOp (4 rows) max |d| 0.0029 avg / 0.0010
+  frame / 0.0010 trial (median 0.0004 / 0.0002 / 0.0001), SSp-m <= 0.0032, cortex 0 exactly; the moments of the
+  variants shared with the 10-28 twin (joint, no_target, no_spout, no_movement) bit-identical. Self-fit PS93_0925, 10
+  variants: Allen R2 with --roi-targets == without (exact) and == the share's session_vs_frozen JSON (max |diff| 0,
+  alphas equal). Runtime per session (1 worker, loaded box): self-fit 6.5 min plain / 8.7 min with ROIs; union predict
+  ~4.5 min per session per worker for 14 variants.
+- Caveat (as Step 3): the frozen ROI R2 is the basis route (ROI mean of the basis-projected data), the self-fit ROI R2 is
+  the exact ROI mean; the self - frozen gap of a split ROI therefore carries the out-of-basis variance (constant per
+  session, mostly removed by epoch - pre).
+
+### Step 4b (11-06, Priya): EXACT split-ROI frozen side for slide 139 / remap_checks
+`frozen_encoder --roi-targets --fit-from <area run> --alphas-from <area run>` -> NEW folder
+`frozen_encoder_<tag>_roiexact` (`encoder_split_rows.ROI_EXACT`): the area run re-scored with the 8 ROI means as extra
+targets. Per animal x variant an Allen fit (the area run's saved pre statistics, penalties held = the area run's betas)
+and an ROI fit (same saved X'X / sxx, ROI X'Y / Y'Y from a fresh pass over the pre sessions, `fit/pre_stats_roi.pkl`,
+X'X checked), penalties held; predictions use the area run's operations on the Allen columns. Output = per variant x
+session JSON with r2_musall + frozen_r2_cortex for areas = Allen + ROI (no PETH / per-trial / drop-spout files).
+`session_vs_frozen --roi-targets --maps` and `remap_checks --roi-targets` read it (`--roi-frozen auto|exact|pixmusall`,
+auto = exact when present, else the pixmusall union run; `encoder_split_rows.roi_frozen_source`). Slide 94 stays on the
+pixmusall union route.
+- Dry run PS93_0807 + PS93_0925, 9 variants (scratch): ROI statistics X'X max rel. diff 0; Allen r2_musall and
+  frozen_r2_cortex of all 18 session x variant JSONs bit-identical to the area run. Exact vs basis route (864 ROI values):
+  max |d| 0.0042 avg / 0.0034 frame / 0.0026 trial (median 0.0006 / 0.0003 / 0.0003; mean ~0); unique R2 (joint -
+  no_g, frame) max |d| 0.0020 (no_movement), 0.0018 (no_other), <= 0.0006 the others.
+- Cost (loaded box, 2 workers): ROI statistics ~5 min per pre session per worker (31 sessions), predict ~3 min per
+  session per worker (107) -> ~4 h at 2 workers, ~2.7 h at 3.

@@ -52,6 +52,8 @@ def neural(E: Path, nokin: str = NOKIN_RUN, main: str = MAIN_RUN) -> pd.DataFram
         if {"nokin:category", "nokin:none"} <= set(R.index):
             rows.setdefault(Path(f).stem[:-8], {})["ceiling"] = float(R["nokin:category"] - R["nokin:none"])
     for f in glob.glob(str(E / main / "sessions" / "*.npz")):
+        if f.endswith("_trials.npz"):              # per-trial SSE files (frozen / combined encoders) carry no maps
+            continue
         z = np.load(f)
         mk = [str(k) for k in z["map_keys"]]
         for w, col in (("c0.5-1.5", "spread"), ("enl", "spread_enl")):
