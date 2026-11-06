@@ -237,3 +237,7 @@ the night.
   Priya asked what it changes -> explained (only the gain "task SD" panel; period keeps jaw-only / no-response cues inside
   the working period, working rows keep contact + incomplete only); my rec = working rows primary (+ period as an
   optional robustness run); waiting for her pick.
+- ~14:00 Priya (18): TASK window = WORKING ROWS (contact + incomplete). **queue v8g launched** (slide 102 chain on
+  wf_render_v8f 110c4efd): gb_frcache_copy -> gb_quiet_lp (daq+lp, heavy) -> gb_sessions (--task-rows working, heavy) ->
+  summarise / stats / fig4. Behaviour-event lick onsets that quiet_spikes_v2 reads are the behaviour detector's = the
+  current imaging detector since 11-05 (no regeneration needed). Slide 102 text to be updated with a8 after the render.
