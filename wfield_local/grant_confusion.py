@@ -741,6 +741,21 @@ def _stored_epoch_decoder(an, align, bd, tag="5c", XT=None, scaling=None, R=None
     return payload
 
 
+class PreRecords(list):
+    """The PRE entry of `_collect_5c` in ``refit`` / ``paired`` / ``paired_matched`` mode: the per-pre-session records
+    (a plain list to every existing reader) plus ``labels``, the session label each record scored, in the same order.
+
+    Added 2026-11-06 so the per-session recovery trajectory can place each pre session at its own (negative) day
+    (`recovery_trajectory.pre_series`). The records already were one per held-out pre session but carried no name, and
+    the loop that builds them SKIPS sessions (too few trials, no LOSO model), so the order alone cannot be mapped back
+    to a label from outside. A list subclass, not a new tuple member: every caller unpacks ``(pre, by_day)`` and
+    iterates ``pre`` as records, and none of that changes. ``frozen`` mode keeps its single concatenated record."""
+
+    def __init__(self, *a):
+        super().__init__(*a)
+        self.labels: list[str] = []
+
+
 def _collect_5c(align, variant="working", mode="frozen"):
     """`_collect_5c_cached` keyed ALSO by the run (re-verify item 4): the full output tag (hemo / projection / selection /
     LP / ENL ...) and the bal_em scaling + centre, so a process that switches mode never gets another run's records."""
@@ -930,7 +945,7 @@ def _collect_5c_cached(align, variant="working", mode="frozen", _run=None):
             # null contrast but the TRAINING-SET-SIZE effect measured on its own: ten sessions of
             # training data against one, with no lesion involved. Every post-stroke gap has to be
             # read against it, which is why pre is drawn rather than assumed to be zero.
-            pre_y, pre_p, pre_b, pre_recs = [], [], [], []
+            pre_y, pre_p, pre_b, pre_recs = [], [], [], PreRecords()
             for i in (fr["train_sessions"] if uw else sorted(pre_i)):
                 rtr = np.isin(RG, fr["train_sessions"]) & (RG != i)      # the training rows without session i
                 # THE TRAINING SET IS ALWAYS THE ENGAGED PRE-STROKE ANIMAL -- that is what "frozen"
@@ -980,6 +995,7 @@ def _collect_5c_cached(align, variant="working", mode="frozen", _run=None):
                 if r is None:
                     continue
                 pre_recs.append(r)
+                pre_recs.labels.append(kept[i])        # which held-out session this record scored (PreRecords)
                 pre_y.append(r[0]); pre_p.append(r[1]); pre_b.append(r[2])
             if mode == "frozen":
                 Cpre = ((np.concatenate(pre_y), np.concatenate(pre_p), np.concatenate(pre_b))

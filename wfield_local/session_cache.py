@@ -222,9 +222,13 @@ def effective_kind(kind: str) -> str:
     # RUN-MODE TAG (rebuild 2026-11-03, trap T12): the hemo variant (other than the untagged meegkit_hpfit), the
     # LocaNMF projection path and a non-default trial selection enter the KIND -- tf-* included, as agreed for the
     # selection tag -- so the prune below (by label x kind) can never delete another variant's / selection's entries,
-    # and a variant run can share this cache dir safely. Empty for the default run: every existing key is unchanged.
+    # and a variant run can share this cache dir safely.
+    # THE DETECTOR PART IS ALWAYS IN THE KIND (perf 2026-11-06, `run_mode.session_kind_tag`): since v14 the imaging
+    # lick detector is one and the same in every run, so the untagged run now keys ``<kind>-daqlk`` like a pre-only
+    # run (the two held identical content under split keys). Tagged runs' kinds are unchanged; output names are
+    # untouched (`run_mode.cache_tag` / `keyed_name` keep the old rule).
     from wfield_local import run_mode
-    _mt = run_mode.cache_tag()
+    _mt = run_mode.session_kind_tag()
     if _mt:
         kind = f"{kind}-{_mt}"
     return kind
