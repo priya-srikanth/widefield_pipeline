@@ -14,6 +14,11 @@ spout, the tongue doesn't just go to the tip of the spout"). They answer differe
   3. PEAK ENDPOINT vs the animal's OWN pre-stroke endpoint for that position (``habit_*``; the median August pre peak):
      error in the motor-control sense -- how far the lick ends from where it normally ends -- with no assumption about
      where on / under the spout the target is.
+LICK GATE (Priya 11-06, A20): only licks of CAMERA-WORKING-PERIOD trials (`trial_classes.gate_kin_licks`: first cue to
+the session's last camera lick, stopped runs (A2 + excise) out -- the definition of Fig 0.2 / 1b), for the errors, the
+own-pre endpoint and the traces alike; a session with NO camera classes (no video) has no working period and contributes
+NOTHING (as gain_bio). Before 11-06: every post-cue lick, no gate -- ``WFIELD_KIN_GATE=legacy`` (output
+``spout_error_legacygate``).
 Vectors: lateral + = outward of the spout (centre: + = mouse left), ap + = beyond (away from the mouth), dv + = above. Per session x
 position: median miss, the fraction of licks within 0.5 / 1.0 mm, split by DAQ contact (cam4 ``contact``) and by first
 lick of the trial vs later licks (``lick_idx`` 0). Distance-to-spout TRACE per lick: |tip - spout| from 20 ms before the
@@ -75,6 +80,23 @@ def add_peak_errors(rv, L: pd.DataFrame, pre_from: str) -> pd.DataFrame:
     return L
 
 
+def gated_licks(d3: Path) -> pd.DataFrame:
+    """The kinematics licks (`kinematics/licks.csv.gz`) through THE kinematics lick gate (`trial_classes.gate_kin_licks`),
+    index reset (`add_peak_errors` indexes positionally)."""
+    from wfield_local import trial_classes as tc
+    L = pd.read_csv(d3 / "kinematics" / "licks.csv.gz", dtype={"date": str})
+    return tc.gate_kin_licks(L).reset_index(drop=True)
+
+
+def data_line() -> str:
+    """The standard "Data:" provenance line (FIGURE_PROVENANCE_20261106 section 4) for these figures."""
+    from wfield_local import trial_classes as tc
+    return ("Data: Window: each cam4 lick (closest approach / 3-D peak; traces -20..200 ms from onset). Licks: cam4 LP "
+            "v36 lick events with a 3-D track; trials classed from DAQ spout contact + video licks (cam4 LP + cam1). "
+            f"Trials: {tc.KIN_TRIALS_TEXT[tc.kin_gate()]}. Pre: August pre-stroke sessions only (June excluded). "
+            "Sessions: curated, PS92-PS95, 3-D gate failures out. Signal: 3-D tongue tip vs the commanded spout.")
+
+
 def per_session(L: pd.DataFrame) -> pd.DataFrame:
     rows = []
     for (s, a, d, ep, p), g in L.groupby(["session", "animal", "date", "epoch", "position"], dropna=False):
@@ -94,6 +116,7 @@ def _session_traces(s: str) -> list[dict]:
 
     import scripts.pose3d_kinematics as K
     from wfield_local import result_cache
+    from wfield_local import trial_classes as tc
     from wfield_local.paths import PathResolver
     rv = PathResolver()
     animal, date = s.split("_")
@@ -104,6 +127,7 @@ def _session_traces(s: str) -> list[dict]:
         from scripts.apparatus_mouth import _rig
         from wfield_local import spout_world as SW
         g = K.session_result((f"{animal}:{date}", "cam4"))[0][["trial_id", "lick_idx", "position", "epoch"]]
+        g = tc.gate_kin_licks(g.assign(session=s))       # camera working period (A20); legacy: every post-cue lick
         S = pd.read_csv(fr, usecols=["trial_id", "t_ms", "tongue_ml", "tongue_ap", "tongue_dv"])
         S = S.drop_duplicates(["trial_id", "t_ms"]).set_index(["trial_id", "t_ms"])
         A = np.vstack([S.to_numpy(float), np.full((1, 3), np.nan)])          # row -1 -> NaN (= reindex of a miss)
@@ -130,7 +154,7 @@ def _session_traces(s: str) -> list[dict]:
                      "t_ms": t, "dist_med": v, "reach_med": rmed[k], "n": int(np.isfinite(M[:, k]).sum())}
                     for k, (t, v) in enumerate(zip(TRACE_MS, med))]
         return out
-    ver = result_cache.code_version(sys.modules[__name__], K)
+    ver = result_cache.code_version(sys.modules[__name__], K, extra=tc.kin_gate_signature())
     return result_cache.cached(d3 / "_cache" / "spout_error_traces", s, [fr, lk], ver, compute)
 
 
@@ -334,17 +358,19 @@ def main(argv=None) -> int:
     a = ap.parse_args(argv)
     rv = PathResolver()
     d3 = pose3d_dir(rv)
+    from wfield_local import trial_classes as tc
     if a.contra:                        # scatter_epoch reads only the closest-approach vector, no peak errors needed
-        L = pd.read_csv(d3 / "kinematics" / "licks.csv.gz", dtype={"date": str})
-        out = a.out or d3 / "spout_error"
+        L = gated_licks(d3)
+        out = a.out or d3 / tc.kin_out_name("spout_error")
         for animal in sorted(L.animal.unique()):
             f = out / f"scatter_epoch_{animal}_contra_cam.png"
             fig_scatter_epoch(L, animal, f, a.pre_from, contra=True)
             print("->", f)
         return 0
-    L = add_peak_errors(rv, pd.read_csv(d3 / "kinematics" / "licks.csv.gz", dtype={"date": str}), a.pre_from)
-    out = a.out or d3 / "spout_error"
+    L = add_peak_errors(rv, gated_licks(d3), a.pre_from)
+    out = a.out or d3 / tc.kin_out_name("spout_error")
     out.mkdir(exist_ok=True, parents=True)
+    (out / "data_line.txt").write_text(data_line() + chr(10), encoding="utf-8")
     P = per_session(L)
     P.to_csv(out / "per_session.csv", index=False)
     Tr = traces(rv, L, a.jobs)

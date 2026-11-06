@@ -5,9 +5,12 @@
 WHY: per-lick 3-D measures (`pose3d_kinematics`, `pose3d_phase`) only see licks; PS92's acute far_R licks are as long as
 pre in 3-D (5.10 vs 5.14 mm) while cam4's cohort reports "lower amplitude". The difference is the trials WITHOUT licks.
 This is the 3-D counterpart of cam4's `orofacial_cohort._cue_traces` (`cohort/tables/.../cue_aligned_traces.csv`): every
-ENGAGED trial (`orofacial_cohort.engagement_keep`, the behaviour pipeline's gate), frames pooled per 20 ms bin from the
+trial of the CAMERA WORKING PERIOD (Priya 11-06, A20: `trial_classes.working_period_ids` -- first cue to the session's
+last camera lick, stopped runs (A2 + excise) out; the definition of Fig 0.2 / 1b), frames pooled per 20 ms bin from the
 cue (-500 .. 3000 ms), mean per session x position, then mean +- SEM over sessions per epoch (pre = August, rule 8 /
-per animal).
+per animal). A session with NO camera classes (no video) has no working period and contributes NOTHING (as gain_bio).
+Trial set ``working`` (was ``engaged``). ``WFIELD_KIN_GATE=legacy`` = the pre-11-06 behaviour-pipeline engaged gate
+(`orofacial_cohort.engagement_keep`; set ``engaged``), written to ``<dir>_legacygate``.
 
 Measures (`t_ms` = template time from the cue, cam4's frame): ``dist`` = 3-D tongue distance from the mouth zero with
 frames that have no 3-D tongue point counted as IN THE MOUTH (0 mm; the amplitude a trial-average sees); ``dist_out`` =
@@ -50,34 +53,71 @@ MEAS = {"dist": "3-D tongue distance (mm), in-mouth = 0", "dist_out": "3-D tongu
 CONDITIONAL = ("dist_out", "mid", "elev")
 #: below this distance from the mouth zero the tongue's direction is undefined (cam4: ANGLE_MIN_PX 20 px ~ 0.6 mm)
 ANGLE_MIN_MM = 0.5
-SETS = ("engaged", "licked")
+SETS = ("working", "licked")       # "working" = every camera-working-period trial ("engaged" under WFIELD_KIN_GATE=legacy)
+
+
+def all_set() -> str:
+    """Name of the all-trials set under the current kinematics gate (`trial_classes.kin_gate`)."""
+    from wfield_local import trial_classes as tc
+    return "working" if tc.kin_gate() == "working" else "engaged"
+
+
+def out_dir(d3: Path, align: str) -> Path:
+    """Default output folder: ``<d3>/<cue_traces|lick_traces>``; ``_legacygate`` appended under the legacy gate."""
+    from wfield_local import trial_classes as tc
+    return d3 / tc.kin_out_name(ALIGN[align]["dir"])
+
+
+def data_line(align: str = "cue") -> str:
+    """The standard "Data:" provenance line (FIGURE_PROVENANCE_20261106 section 4) for these figures."""
+    from wfield_local import trial_classes as tc
+    w = ALIGN[align]["win"]
+    return (f"Data: Window: aligned to {'cue' if align == 'cue' else 'first post-cue cam4 lick'}, {w[0] / 1000:g}-"
+            f"{w[1] / 1000:g} s. Licks: trials classed from DAQ spout contact + video licks (cam4 LP + cam1); "
+            f"alignment uses the cam4 v36 lick train. Trials: {tc.KIN_TRIALS_TEXT[tc.kin_gate()]}. Pre: August "
+            "pre-stroke sessions only (June excluded). Sessions: curated, PS92-PS95, 3-D gate failures out. Signal: "
+            "3-D tongue / jaw.")
+
+
+def keep_ids(animal: str, date: str, sd: Path) -> set | None:
+    """Trial ids this session contributes (None = no gate, legacy only): the camera working period by default; the
+    behaviour pipeline's engaged gate under WFIELD_KIN_GATE=legacy."""
+    from wfield_local import trial_classes as tc
+    if tc.kin_gate() == "working":
+        return tc.working_period_ids(f"{animal}_{date}")
+    from wfield_local import orofacial_cohort as oc
+    return oc.engagement_keep(animal, date, sd)[0]
 
 
 def session_traces(job) -> list[dict]:
     """fan_sessions worker (module level): rows for one session, CACHED (`result_cache`, 10-21) on its 3-D frames, v36
-    licks.csv and behaviour trials table (the engagement gate), with the alignment and gate setting in the key."""
+    licks.csv and behaviour trials table (the legacy engagement gate), with the alignment and gate setting in the key
+    (`trial_classes.kin_gate_signature`: the camera selection + class-source signature under the default gate)."""
     import glob
     import sys
 
     from wfield_local import orofacial_cohort as oc
     from wfield_local import result_cache
+    from wfield_local import trial_classes as tc
     from wfield_local.paths import PathResolver
     s, d3, v36, align = job
     animal, date = s.split("_")
     beh = sorted(glob.glob(str(Path(PathResolver().root("behavior_out")) / "sessions" / animal / date
                                / f"{animal}_{date}_*_trials.csv")))
     inputs = [Path(d3) / f"{s}_frames.csv.gz", Path(v36) / animal / date / "licks.csv"] + [Path(b) for b in beh]
-    ver = result_cache.code_version(sys.modules[__name__], oc, extra=(align, oc.ENGAGEMENT_GATE, oc.ENGAGED_ONLY))
+    ver = result_cache.code_version(sys.modules[__name__], oc, extra=(align, oc.ENGAGEMENT_GATE, oc.ENGAGED_ONLY,
+                                                                      tc.kin_gate_signature()))
     return result_cache.cached(Path(d3) / "_cache" / f"cue_traces_{align}", s, inputs, ver,
                                lambda: _session_traces(job))
 
 
 def _session_traces(job) -> list[dict]:
     s, d3, v36, align = job
-    from wfield_local import orofacial_cohort as oc
     animal, date = s.split("_")
     sd = Path(v36) / animal / date
-    keep, _ = oc.engagement_keep(animal, date, sd)
+    keep = keep_ids(animal, date, sd)
+    if keep is not None and not keep:     # no camera classes (no video) / no kept trial: the session contributes nothing
+        return []
     S = pd.read_csv(Path(d3) / f"{s}_frames.csv.gz", usecols=["trial_id", "position", "t_ms", "tongue_ml", "tongue_ap",
                                                                "tongue_dv", "jaw_ml", "jaw_ap", "jaw_dv"])
     S = S.drop_duplicates(["trial_id", "t_ms"])
@@ -112,7 +152,7 @@ def _session_traces(job) -> list[dict]:
     lk = S.trial_id.isin(licked).to_numpy()
     rows = []
     for p in POS:
-        for st, sel in (("engaged", np.ones(len(S), bool)), ("licked", lk)):
+        for st, sel in ((all_set(), np.ones(len(S), bool)), ("licked", lk)):
             m = inwin & (pos == p) & sel
             ntr = int(S.trial_id[m].nunique())
             fl = float(np.median(first.reindex(np.unique(S.trial_id[m])).dropna())) if ntr else np.nan
@@ -147,7 +187,10 @@ def figure(T: pd.DataFrame, animal: str, m: str, path: Path, pre_from: str, alig
 
     from scripts.pose3d_phase import _wrap
     from scripts.pose3d_summary_fig import EP_COL
-    A = T[(T.animal == animal) & (T.set == "engaged")]
+    sset = "working" if (T.set == "working").any() else "engaged"       # the table's all-trials set (gate it ran under)
+    A = T[(T.animal == animal) & (T.set == sset)]
+    who = ("camera-working-period trials (first cue -> last camera lick, stopped runs out)" if sset == "working"
+           else "engaged trials (behaviour gate, legacy)")
     A = A[(A.epoch != "pre") | (A.date >= pre_from)]
     if contra:                    # + = CONTRALESIONAL (goal-page sign, Priya 10-30): plot level, the table is unchanged
         A = A.assign(v=np.where(A.measure.isin(SIGNED), -A.v, A.v))
@@ -178,6 +221,7 @@ def figure(T: pd.DataFrame, animal: str, m: str, path: Path, pre_from: str, alig
                 ax.plot(mu.index, mu, color=col, lw=1.1, alpha=0.65, label=lab)
                 ax.fill_between(mu.index, mu - se, mu + se, color=col, alpha=0.1, lw=0)
             ax.axvline(0, color="0.5", lw=0.6, ls=":")
+            ax.spines["top"].set_visible(False)          # Priya 11-03: no top frame line
             ax.tick_params(labelsize=7)
             if i == 0:
                 ax.set_title(p, fontsize=9)
@@ -188,10 +232,10 @@ def figure(T: pd.DataFrame, animal: str, m: str, path: Path, pre_from: str, alig
                 ax.set_xlabel(ALIGN[align]["x"], fontsize=7)
     axes[0, -1].legend(fontsize=6, frameon=False)
     if align == "cue":
-        head = (f"{animal}: cue-aligned {lab_of(m)} (3-D)\nALL engaged trials (behaviour gate), incl. trials without a "
+        head = (f"{animal}: cue-aligned {lab_of(m)} (3-D)\nALL {who}, incl. trials without a "
                 "lick; grey = before the cue (3-D windows start 500 ms before it)")
     else:
-        head = (f"{animal}: FIRST-LICK-aligned {lab_of(m)} (3-D)\nengaged trials with >= 1 post-cue cam4 lick; t = 0 at "
+        head = (f"{animal}: FIRST-LICK-aligned {lab_of(m)} (3-D)\n{who} with >= 1 post-cue cam4 lick; t = 0 at "
                 "the first lick's onset (cam4 v36); grey = before it; jaw rest = pre-CUE median; legend = median "
                 "first-lick time from the cue")
     title = (f"{head}; frames pooled per {BIN_MS:g} ms bin (>= {MIN_FRAMES} frames), mean per session, then mean +- "
@@ -221,7 +265,7 @@ def main(argv=None) -> int:
     rv = PathResolver()
     d3 = pose3d_dir(rv)
     if a.contra:
-        out = a.out or d3 / ALIGN[a.align]["dir"]
+        out = a.out or out_dir(d3, a.align)
         T = pd.read_csv(out / "traces.csv.gz", dtype={"date": str})
         for animal in sorted(T.animal.unique()):
             for m in SIGNED:
@@ -240,10 +284,11 @@ def main(argv=None) -> int:
         print(f"{s}: FAILED {e}")
     T = pd.DataFrame([r for _, rr in res for r in rr])
     T["epoch"] = [epochs.epoch_of(f"{x}_{d[4:]}") for x, d in zip(T.animal, T.date)]
-    out = a.out or d3 / ALIGN[a.align]["dir"]
+    out = a.out or out_dir(d3, a.align)
     RESP = ALIGN[a.align]["resp"]
     (out / "figures").mkdir(parents=True, exist_ok=True)
     T.to_csv(out / "traces.csv.gz", index=False, float_format="%.4g")
+    (out / "data_line.txt").write_text(data_line(a.align) + chr(10), encoding="utf-8")
     w = T[(T.t_ms >= RESP[0]) & (T.t_ms <= RESP[1])]
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", RuntimeWarning)

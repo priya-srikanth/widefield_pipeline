@@ -3,7 +3,10 @@
     python -m scripts.pose3d_vs_cam4 [--animals PS92]      # after scripts.pose3d_kinematics (cam4 lick events)
 
 Licks = cam4 production lick events with a 3-D point at their peak (`kinematics/licks.csv.gz` joined to the v36
-`licks.csv`). Feature sets, each at the lick's own peak:
+`licks.csv`), of CAMERA-WORKING-PERIOD trials only (Priya 11-06, A20: `trial_classes.gate_kin_licks` -- first cue to
+the session's last camera lick, stopped runs (A2 + excise) out; a session with NO camera classes (no video) contributes
+NOTHING, as gain_bio; ``WFIELD_KIN_GATE=legacy`` = every post-cue lick, the pre-11-06 rule, output vs_cam4_legacygate).
+Feature sets, each at the lick's own peak:
   cam4 2-D : lateral ``lr_px``, vertical ('out') ``ap_px`` (+ ``protrusion_px``, ``peak_angle_deg``)
   3-D      : ``side_ml``, ``out_ap``, ``down_dv`` at the 3-D peak (mm, mouth-zero frame)
 1. DECODING the target spout (6 classes, chance 1/6) from each lick's endpoint: multinomial logistic regression on
@@ -36,7 +39,8 @@ MATCHED = (("lateral", "lr_px", "side_ml"), ("protrusion / reach", "protrusion_p
 
 def load(rv, animals) -> pd.DataFrame:
     d3 = pose3d_dir(rv)
-    K = pd.read_csv(d3 / "kinematics" / "licks.csv.gz", dtype={"date": str})
+    from wfield_local import trial_classes as tc
+    K = tc.gate_kin_licks(pd.read_csv(d3 / "kinematics" / "licks.csv.gz", dtype={"date": str}))
     if animals:
         K = K[K.animal.isin(animals)]
     out = []
@@ -73,7 +77,8 @@ def main(argv=None) -> int:
     a = ap.parse_args(argv)
     rv = PathResolver()
     L = load(rv, a.animals)
-    out = pose3d_dir(rv) / "vs_cam4"
+    from wfield_local import trial_classes as tc
+    out = pose3d_dir(rv) / tc.kin_out_name("vs_cam4")
     out.mkdir(exist_ok=True)
     pd.set_option("display.width", 220)
     dec, eff = [], []

@@ -1326,6 +1326,104 @@ def working_trial_ids(label: str) -> tuple[dict, bool]:
     return dict(zip(T.trial_id.astype(int), w.astype(bool))), has
 
 
+# --------------------------------------------------------------------------------------------------------------------
+# KINEMATICS ON THE CAMERA WORKING PERIOD (Priya 11-06, A20). The kinematics figures (jaw_only_incomplete_figs, the cue
+# traces of `pose3d_cue_traces` and of cam4 `orofacial_cohort`, and the 3-D per-lick scripts pose3d_phase /
+# pose3d_spout_error / pose3d_summary_fig / pose3d_vs_cam4 / exec_bins_calibration) take their trials / licks from the
+# camera working period above -- one definition (rule 9), the same as Fig 0.2 / 1b. Before 11-06 they used the
+# behaviour pipeline's engaged gate (cue traces, jaw_only_incomplete_figs) or every post-cue lick with no gate (the 3-D
+# per-lick scripts): that is ``WFIELD_KIN_GATE=legacy``, kept as a robustness switch only. A session with NO camera
+# classes (no video) has no working period, so under the default it contributes NOTHING (as gain_bio): never a DAQ
+# fallback.
+KIN_GATE_ENV = "WFIELD_KIN_GATE"
+KIN_GATES = ("working", "legacy")
+#: the "Trials:" wording of the standard Data: block (FIGURE_PROVENANCE_20261106 section 4) for these figures
+KIN_TRIALS_TEXT = {"working": "camera working period (to the session's last camera lick; stopped runs, A2 + excise, out)",
+                   "legacy": "pre-11-06 gate (behaviour-pipeline engaged trials / every post-cue lick, no gate)"}
+
+
+def kin_gate() -> str:
+    """"working" (default, Priya 11-06) or "legacy" (``WFIELD_KIN_GATE``; each script's pre-11-06 gate)."""
+    import os
+    v = os.environ.get(KIN_GATE_ENV, "").strip().lower() or "working"
+    if v not in KIN_GATES:
+        raise ValueError(f"{KIN_GATE_ENV} = {v!r}; expected one of {KIN_GATES}")
+    return v
+
+
+def short_label(label: str) -> str:
+    """"PS92_20260818" or "PS92_0818" -> "PS92_0818" (the `config.load_sessions` label `daq_cue_seconds` needs)."""
+    animal, date = str(label).split("_")
+    return f"{animal}_{date[-4:]}"
+
+
+def working_period_trials(label: str) -> pd.DataFrame:
+    """One session's video trials INSIDE the camera working period -> [trial_id, position, cue_daq, cls], ``cls`` the
+    class after the session-level rules (`cue_classes_for`: contact / incomplete / jaw_only / no_response inside the
+    period). The same mapping as `working_trial_ids` (cue time matched to the FULL classified DAQ train). Empty for a
+    session without video outputs or camera classes: it has no working period and contributes nothing."""
+    cols = ["trial_id", "position", "cue_daq", "cls"]
+    lab = short_label(label)
+    T = session_trials(lab)
+    if T is None or not len(T):
+        return pd.DataFrame(columns=cols)
+    T = T.dropna(subset=["cue_daq"])
+    full = daq_cue_seconds(lab)
+    cls_full = cue_classes_for(lab, full)
+    if not np.any(cls_full != "unknown"):
+        return pd.DataFrame(columns=cols)
+    c = cue_classes(pd.DataFrame({"cue_daq": full, "cls": cls_full}), T.cue_daq.to_numpy(float))
+    keep = in_working_period(c)
+    out = T.loc[keep, [k for k in cols if k != "cls"]].copy()
+    out["trial_id"] = out.trial_id.astype(int)
+    out["cls"] = c[keep]
+    return out.reset_index(drop=True)
+
+
+def working_period_ids(label: str) -> set:
+    """v36 trial ids inside one session's camera working period (`working_period_trials`); empty = contributes
+    nothing."""
+    return set(working_period_trials(label).trial_id.astype(int))
+
+
+def keep_working_period(df: pd.DataFrame, session_col: str = "session", trial_col: str = "trial_id") -> pd.DataFrame:
+    """Rows of a per-trial / per-lick table (``session_col`` "PS92_20260818" or "PS92_0818", ``trial_col`` the v36
+    trial id) whose trial lies in the camera working period. Sessions without camera classes drop out entirely."""
+    if not len(df):
+        return df
+    keep = np.zeros(len(df), bool)
+    sess = df[session_col].astype(str).to_numpy()
+    tid = pd.to_numeric(df[trial_col], errors="coerce").to_numpy(float)
+    for s in sorted(set(sess)):
+        ids = working_period_ids(s)
+        m = sess == s
+        keep[m] = np.isin(tid[m], np.fromiter(ids, float, len(ids)))
+    return df[keep]
+
+
+def gate_kin_licks(df: pd.DataFrame, session_col: str = "session", trial_col: str = "trial_id") -> pd.DataFrame:
+    """THE lick gate of the 3-D per-lick kinematics scripts (pose3d_phase / pose3d_spout_error / pose3d_summary_fig /
+    pose3d_vs_cam4 / exec_bins_calibration; Priya 11-06, A20): licks of camera-working-period trials
+    (`keep_working_period`); under ``WFIELD_KIN_GATE=legacy`` every post-cue lick, no gate (their pre-11-06 rule)."""
+    return keep_working_period(df, session_col, trial_col) if kin_gate() == "working" else df
+
+
+def kin_out_name(name: str) -> str:
+    """Output folder name of a kinematics writer: ``name`` under the default gate, ``name + "_legacygate"`` under
+    ``WFIELD_KIN_GATE=legacy`` (a robustness run never overwrites the primary outputs)."""
+    return name + ("_legacygate" if kin_gate() == "legacy" else "")
+
+
+def kin_gate_signature() -> str:
+    """Cache-key part for a result gated by `kin_gate`: the gate, and under "working" the camera selection (window,
+    end anchor, stop rule, classes) + `class_source_signature`, so a changed rule or class input starts fresh."""
+    g = kin_gate()
+    if g == "legacy":
+        return g
+    return "|".join((g, selection_tag("camera", gate_window(), end=end_anchor(), stopped=_stop_rest_name(),
+                                      cls=sel_cls_part()), class_source_signature()))
+
+
 def camera_quit(label: str, cue_s, window: str | None = None) -> dict:
     """THE CAMERA QUIT of one session (A6, docs/status/reanalysis_20261105/ENGAGEMENT_CAMERA_2026-11-05.md; Priya 11-05:
     behaviour-only figures follow the camera working period): the first cue of the quit TAIL (`stop_kind_for` "tail" =

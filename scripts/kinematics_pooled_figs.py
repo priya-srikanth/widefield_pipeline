@@ -14,7 +14,7 @@ sessions bootstrap, 95 %). Dots = sessions, coloured by animal. A cell needs >= 
   pose3d_paths_pooled.png     3-D tongue / jaw paths through the lick (front / side / top views), cohort pre path +
                               mean over animals of each session's change from its animal's pre path (twin of the
                               per-animal `pose3d_phase` trajectories3d)
-  pose3d_cue_pooled.png       3-D cue-aligned traces (`pose3d_cue_traces`, engaged trials): midline angle and jaw
+  pose3d_cue_pooled.png       3-D cue-aligned traces (`pose3d_cue_traces`, camera-working-period trials since 11-06): midline angle and jaw
                               opening, each session's trace minus its animal's August pre trace; bold = mean over
                               animals, band = SEM over animals
 Numbers behind each figure are written beside it (*_pooled.csv).
@@ -204,7 +204,8 @@ def fig_cue(out: Path, contra: bool = False) -> pd.DataFrame:
     import matplotlib.pyplot as plt
     from wfield_local import config
     T = pd.read_csv(pose3d_dir() / "cue_traces" / "traces.csv.gz")
-    T = T[(T.set == "engaged") & T.measure.isin(["mid", "jaw_open"])]
+    sset = "working" if (T.set == "working").any() else "engaged"     # pose3d_cue_traces' all-trials set (11-06: working)
+    T = T[(T.set == sset) & T.measure.isin(["mid", "jaw_open"])]
     rows = []
     for (m, p), g in T.groupby(["measure", "position"]):
         aug = g[(g.epoch == "pre") & (~g.date.astype(str).map(config.early_pre))]
@@ -241,7 +242,8 @@ def fig_cue(out: Path, contra: bool = False) -> pd.DataFrame:
                 ax.set_xlabel("ms from cue", fontsize=7.5)
     axs[0, 0].legend(fontsize=7, frameon=False)
     fig.suptitle("3-D cue-aligned traces, POOLED: each session's trace minus its animal's August pre trace, mean over "
-                 "animals (band = SEM over animals; drawn where >= 3 animals); engaged trials"
+                 "animals (band = SEM over animals; drawn where >= 3 animals); "
+                 + ("camera-working-period trials" if sset == "working" else "engaged trials (legacy gate)")
                  + ("; midline angle signed + = CONTRALESIONAL (mouse right)" if contra else ""), fontsize=10)
     fig.tight_layout(rect=(0, 0, 1, 0.95))
     fig.savefig(out / ("pose3d_cue_pooled_contra.png" if contra else "pose3d_cue_pooled.png"), dpi=130)
