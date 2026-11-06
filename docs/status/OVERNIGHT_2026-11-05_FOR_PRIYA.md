@@ -21,6 +21,12 @@ the night.
 3. **Spont co-variation (optional)**: add `no_spont` to the pixmusall twins / frAsplit_basis frames (cheap)? A "spont alone"
    Musall row needs a small code change + two frame re-renders -- only if you want a claim about spontaneous licks.
 
+4. **(from a8, code cleanup) Bare hand runs and the pre-stroke cut.** Should a module run by hand with no profile and no
+   WIDEFIELD_PRE_FROM default to the August-only cut (instead of pooling June + August)? It changes run tags and needs
+   every June block (june_august_drift, restnl_mask, map_drift_prepre, reembedding) to pass an explicit "all". My rec:
+   not before the replacement pass; for now only a loud WARNING when a cohort-1 run pools June; then the full switch with
+   tests. (nightly_figs already defaults to August without a profile.)
+
 ## B. Findings (early; nothing on pages changed)
 
 - Mixed models, binned contest, LOG deficit (now primary): cue window -- spout identity tracks recovery (-8.1, q .015)
