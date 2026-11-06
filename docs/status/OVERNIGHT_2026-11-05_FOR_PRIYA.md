@@ -163,3 +163,12 @@ the night.
   so far: e_iti_area_maps (needs cued_wide), x_covref (dep fix), d_fig_goal_summary (needs an LP_licks combined-encoding
   table no step makes). A helper is drafting all missing steps (commands, env, deps, page figures) for queue v8.
   Stale claims from halted v7 lanes released (d_attempt_maps_plot re-running now; x_fig_enl_move after x_enl_move).
+- ~10:30 (from a8, PROVISIONAL): **posinfo check 1 (regressor variance) done** on the frAsplit frame. The acute rise in
+  "movement WITH lick-position info" unique R2 (contra MOs / MOp / SSp-m / SSp-n, cue window +0.022 [+0.005, +0.044],
+  +90 %, 4/4) is NOT explained by more regressor variance: WITH-regressor variance is flat or down (cue +3 %, lick -10 %;
+  only PS94 up); unique R2 per unit variance +107 %, 4/4. Lick window weaker (3/4); data variance in those areas +77 %.
+  Open: decorrelation (needs the no_posinfo per-trial re-run, LOW priority per Priya) vs stronger coupling.
+  **Conclusion change -> Priya before any text**: page / deck text calling the acute WITH gain "more variable licks"
+  would be wrong. Outputs: <E>/../posinfo_checks_v7g3_t3d_spont_frAsplit/.
+- ~10:30: v8 code (render/daqlk-v8-20261106 = decisions + ALM/tjM1 + speed-ups) passes 38/38 targeted tests; queue v8
+  being assembled (104 missing steps + decisions + ALM + 9 fixes). Decisions push to main waits for 20 GB RAM.
