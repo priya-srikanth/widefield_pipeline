@@ -6,66 +6,66 @@ until Priya answers the matching question.
 
 ## 1. Decisions / questions for Priya (answer these first)
 
-- **Q1. Bare hand runs: default to August-only?** Today `config.pre_from()` is None unless `WIDEFIELD_PRE_FROM` is set,
-  so `epoch_grant_figures --only <key>` run by hand pools June + August pre (different frozen spec_id and numbers from
-  the nightly). Making the cohort cut the default would (a) rename run-tag folders (`pre0801` would appear on runs that
-  had none) and (b) break the blocks that get June by UNSETTING the variable (june_august_drift, restnl_mask,
-  map_drift_prepre, reembedding). Held; to agree with the encoding window (34) first. Proposed: unset -> cohort cut,
-  explicit `""`/`all` -> June + August, and change those four blocks to pass `all`.
-  **Encoding window (34) view:** right intent, but not before the page-replacement pass. Middle ground for now: a
-  loud WARNING (no behaviour / tag change) when a cohort-1 module runs with WIDEFIELD_PRE_FROM unset and no profile
-  ("pooling June + August pre"); full switch after the pages are replaced, with a test pinning each June block. 34
-  has the same question on its list (wf_attempt docs/status/OVERNIGHT_2026-11-05_FOR_PRIYA.md). I agree with 34.
-- **Q2. Slide 41 wording (hidden, "Jaw opening by trial class").** Bullet says "acute far-contra contact licks open
-  less". On the working-period figure that holds for the first ~1.5 s (acute peak ~1.2 mm vs ~2.3 mm pre) but from
-  ~2 s the acute trace stays MORE open (~1.1 vs ~0.6 mm), and acute far-contra contact is 3 animals / 10 sessions /
-  61 trials. Proposed: "acute far-contra contact licks open less at first (peak ~1.2 vs ~2.3 mm) and stay partly open
-  late (3 animals, 61 trials)". Not changed.
-- **Q3. Push rule: rebase vs merge.** CLAUDE.md rule 4 says fetch -> rebase -> push; 34 says your standing rule for
-  the rebuild is never rebase / never force, merge instead. I rebased one local, never-pushed branch today (no force,
-  nothing on origin rewritten) and will MERGE from now on. Should CLAUDE.md rule 4 be updated to say merge?
-- (more added below as the night goes)
+- **Q4. Fluoro slide 161 bullet 2.** "The few swallows left carry about half the bolus" is bolus AREA only (x0.57).
+  With density (x0.60) the barium per swallow is about a THIRD (amount x0.34 day 1, x0.28 day 2). Proposed: "The
+  few swallows left carry about a third of the barium (smaller and less dense) and clear the esophagus slowly".
+  Not changed.
+- **Q5. CLAUDE.md rule 4 -> merge?** (follows Q3: Priya asked "which is safer". Answer given: merge, because several
+  windows push one main and a rebase rewrites commits another window may have seen; neither is risky without a
+  force-push.) Proposed edit: "fetch -> merge origin/main -> push". Waiting for OK before editing CLAUDE.md.
+- **Q1 follow-up.** Priya answered "yes"; read as yes to the 34 / a8 plan (warning now, default switch after the
+  page-replacement pass). The warning lives in modules 34 renders from, so it goes on a branch and merges after 34's
+  render. If "yes" meant switch the default now, say so (that renames folders and needs 34 to change four blocks).
+- ANSWERED 11-05 night: Q1 "yes" (above); Q2 slide 41 "reword for accuracy" (DONE, below); Q3 "which is safer" ->
+  merge (Q5).
 
 ## 2. Findings
 
+- **Fail-loud DAQ contacts (item 5): no current output took the silent-zero path.** All 133 v36 sessions: DAQ .h5
+  present, n_daq_contacts never all-zero / NaN / missing, 2,006-10,805 DAQ licks each; rebuild trial_attempts (107
+  sessions, 57,048 rows) has no session without contact trials. Lowest contact shares vs the animal-epoch median
+  (all with DAQ, so behavioural): PS94_0819 acute .29 (median .47), PS95_0820 subacute .47 (.61), PS93_0822
+  subacute .54 (.85), PS95_0910 chronic .60 (.88), PS94_0806 pre .67 (.91). No cache bump needed.
+- **Baseline sweep, all of it: no session moves.** ~180 sites (126 files). Every "0801" / month / LATE_PRE_FROM
+  site on an uncurated input was checked on disk: no 0801-0805 entries in any input (0805 exists only in the pose3d
+  frames glob, which already used 0806, and in orofacial session dirs without licks_all.csv). The month tests equal
+  the cut because pre sessions are June and August only. 191 + 153 + 24 tests pass, ruff clean.
 - **Deck notes carried the OLD engaged-trial numbers (fixed 11-05 night).** After the working-period swap, the
   bullets of slides 37-43 had the new numbers but the speaker notes of 37 / 39 / 40 still quoted the 11-03
   engaged-trial tables (far contra contact .95 / .05 / .74 / .98, incomplete +.57 [.40, .72], per animal .74 / .64 /
   .60 / .32, "1 unknown of 50,929 trials", dots "colour = animal"), and the method lines on 37 / 39-43 said "all
-  ENGAGED trials". Regenerated from e0's working-period tables (scripts in the deck source folder:
-  notes_working_period_1105.py, notes_numbers_working_1105.py; backups backup_before_notes_working_1105 /
-  backup_before_notes_numbers_1105; hidden states unchanged, 191 slides / 84 hidden). New: contact .96 / .05 / .74 /
+  ENGAGED trials". Regenerated from e0's working-period tables (notes_working_period_1105.py,
+  notes_numbers_working_1105.py, notes_s38_working_1105.py; backups beside them). New: contact .96 / .05 / .74 /
   .96; acute incomplete +.60 [.42, .75] **; per animal incomplete .80 / .71 / .63 / .36, jaw-only .09 / .10 / .21 /
-  .49 (PS95 = one acute session, 109 trials); 0 unknown of 51,355 working-period trials (shares sum to 1). Slide 36
-  (the hidden old slide) keeps its old notes, as it shows the old figure. Slide 38 (LMM) notes: title quote .95 ->
-  .96, flagged fits 23 -> 25 of 72 (6 not converged, 20 singular, 3 no SE; notes_s38_working_1105.py, backup
-  backup_before_notes_s38_1105).
-- **Baseline sweep, cohort2_qc / quiet scripts: 46 sites in 20 files, NO session moves** (all were ">= 0806"; on disk
-  0 June and 0 0801-0805 sessions in every input folder). Lint + 153 tests pass. Side note: `quiet_modes.py:116`
-  splits pre / post with `session[-4:] < "0816"` (a raw MMDD compare, not the baseline cut); could move to
-  `epochs.epoch_of` later.
+  .49 (PS95 = one acute session, 109 trials); 0 unknown of 51,355 working-period trials. Slide 38: flagged LMM fits
+  23 -> 25 of 72. Slide 36 (hidden old slide) keeps its old notes, as it shows the old figure.
+- Side note: `scripts/cohort2_qc/quiet_modes.py:116` splits pre / post with `session[-4:] < "0816"` (raw MMDD
+  compare of the stroke date, not the baseline cut); could move to `epochs.epoch_of` later.
 
 ## 3. Done / state
 
-- **Deck (11-05, all with backups, hidden states diffed before / after):** new slide 35 "Far contra: acute trials end
-  as incomplete licks" (single-classification trial shares: contact / incomplete / jaw only / no response, shares sum
-  to 1), old slide 35 hidden (now 36); slides 37-43 swapped to e0's working-period figures (numbers in bullets / notes
-  rewritten); slide 40 re-swapped to e0's fixed figure (open markers, unclipped title); slide 156 VFSS bullet reworded
-  (swallow counts in notes); fluoro slides 158-159 added earlier.
-- **Item 3 response-window fallback** (one key `behavior.response_window_fallback_s` 3.5; raster band = session's own
-  window): first push passed 5045 tests but was rejected (main moved during the 2 h 17 min run); rebased, pushing
-  again.
-- **Hemo 470 slot** (`hemo_variants` defaults to the session's slot): committed, pushes after item 3.
-- **Item 2 August-only cut** (branch `cleanup/august-pre-key-20261105`, worktree wf_cleanup3): cohorts.yaml
-  `baseline_pre_from: "0806"` (Priya 11-05 "switch to 0806"); `config.baseline_pre_from()` / `config.early_pre(x)`
-  (year-aware); orofacial `LATE_PRE_FROM` reads it; `WIDEFIELD_PRE_FROM` stays "0801" (names folders; test pins that
-  it selects the same pooled pre set). Script sweep running (two helpers); every site where 0805 data would now be
-  dropped will be listed in section 2 before merging.
-- **Item 5 fail-loud DAQ contacts** (worktree wf_cleanup4): helper running; includes a read-only check of current
-  trial tables for all-zero-contact sessions. Any cache-version bump held for Priya.
+- **Deck now 192 slides / 85 hidden.**
+  - 11-05 night: fluoro all_graphs swapped to the 22:50 ten-panel A-J figure (G density, H amount; E / I / J now
+    tested) on slide 161, notes rewritten (density x0.60 / x0.57, amount x0.34 / x0.28, q < .001; transit x2.13 /
+    x6.33, sitting x3.88 / x7.63, gap -9.3 / -18.4 pct points; new footnote); NEW hidden slide 162 "How bolus density
+    is measured" (density_method.png). update_fluoro_density_1105.py, backup backup_before_fluoro_density_1105.
+    Requested by Priya via 34; a8 did the edit (sole writer).
+  - 11-05 night: slide 41 reworded (Priya "reword for accuracy"): "acute far-contra contact licks open less at first
+    (peak ~1.2 vs ~2.3 mm pre) but stay more open from ~2 s (3 animals, 61 trials)". reword_slide41_1105.py.
+  - 11-05: new slide 35 (trial shares sum to 1), old 35 hidden (now 36); 37-43 swapped to working-period figures;
+    slide 40 re-swapped (open markers); slide 156 VFSS reword; fluoro slides added (now 160-161).
+- **Item 3 response-window fallback**: second push (after rebase) in its pre-push full suite; retries will MERGE.
+- **Hemo 470 slot** + this running list: branch `cleanup/hemo-slot-20261105` (wf_cleanup2), push after item 3.
+- **Item 2 August-only cut**: committed 37bacf12 on `cleanup/august-pre-key-20261105` (wf_cleanup3), not pushed.
+  Merge after item 3 lands (touches ~126 files; 34 notified, its render is in its own pinned worktree).
+- **Item 5 fail-loud DAQ contacts**: committed 5834f8de on `cleanup/daq-contacts-failloud-20261105` (wf_cleanup4),
+  not pushed. Touches trial_classes / tongue_kinematics / dlc_frames / kinematics_chain / orofacial_outputs; a
+  session without a DAQ now raises (or is class 'unknown' and not covered) instead of silent zero contacts. HOLD the
+  merge until 34's render finishes (review said "wait: yes" for trial classes).
+- O2 FR null: sbatch throttle is `%60` (16 CPU / 96 GB each); raise live with
+  `scontrol update JobId=<id> ArrayTaskThrottle=N`; check pending reasons with squeue %r.
 
-## 4. Still open (not started tonight)
+## 4. Still open
 
-- Slide 41 wording ("acute far-contra contact licks open less") vs the new jaw traces.
 - Aim-circularity note in the 13b plan (e0's area).
 - Slide-155 cohort-2 docs commit f3945b44 is local only in the shared checkout; needs its owner to push.
