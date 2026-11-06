@@ -201,4 +201,6 @@ def test_phase_figures_have_no_top_spine(tmp_path):
     assert not a2.spines["top"].get_visible() and a3.name == "3d" and (tmp_path / "x.png").exists()
     plt.close(fig)
     src = (REPO / "scripts" / "pose3d_phase.py").read_text(encoding="utf-8")
-    assert src.count("fig.savefig(") == 1 and src.count("    _save(fig, path)\n") == 4      # every figure via _save
+    # every figure via _save, which writes the PNG + its svg/ twin through save_png_svg
+    assert "fig.savefig(" not in src and src.count("save_png_svg(fig, path") == 1
+    assert src.count("    _save(fig, path)\n") == 4
