@@ -1998,3 +1998,11 @@ bundle without `daqlk` and writes a provenance json.
   re-read; (2) rest frames use stored restdock05 masks built with the old 0.10 s detector (not rebuilt under daqlk);
   (3) task window = all cues before quit vs camera working rows; (4) r470_hp / r415_hp from raw SVT, corr = swapmask;
   (5) quiet events DAQ v2_quiet vs LP 1 s v2_quiet_lp; (6) August pre consistent; (7) ROI v8 areas.
+- ~21:10: **fr_pixel_significance calibration investigated** (FR_PIXEL_CALIBRATION_20261105.md, 61cdf9f1). 0.12 = noise
+  over 28 correlated cells (6/50 CI .045-.243); 250 fresh splits/map: pooled 4.9 % (16 px), 4.6 % (32 px); only full_fr cue
+  16 px slightly high (8.3 % of 300). Calibration loop correct. The correction is MAX-STAT (beta_maps.CORRECTION), not
+  Bonferroni -> every "Bonferroni" docstring / caption is wrong (Figs 1.1, 2.1, 21.2 / 21.3, 21.12, 22.5 / 22.6, ...).
+  REAL issue: pre-stroke DRIFT (late vs early pre significant in 10/14 maps, 4/4 animals same sign). unique_position cue
+  chronic: all 232 sig bins share the pre-drift sign, 90 drift-significant alone -> continues a pre trend. DECISIONS for
+  Priya: captions "max-statistic per panel"; --n-null 250 + per-map seeds; a drift control (late-vs-early pre panel, or
+  epoch vs late pre) for the FR pixel maps (and probably the other map families).
