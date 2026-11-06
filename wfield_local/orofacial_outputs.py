@@ -151,7 +151,7 @@ def process_session(rv, bundle: str, animal: str, date: str, force: bool = False
     """O2 bundle outputs of one session -> its folder in the run: windows, cleaned traces, kinematics tables, QC."""
     import cv2
 
-    import scripts.pose_kinematics_demo as D
+    from wfield_local import kinematics_chain as D
     from wfield_local import camera_sync, o2_inference as oi
     from wfield_local import spout_frame as SF
     from wfield_local import trial_windows as TW

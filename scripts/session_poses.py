@@ -51,13 +51,11 @@ def out_dir(rv, animal, date, cam: str = "cam4") -> Path:
     return d
 
 
-def session_dir(rv, spec: str) -> tuple[str, str, Path]:
-    """``animal:date`` -> the trial-subset clip folder; ``animal:date:tag`` -> ``<animal>_<date>_<tag>`` (e.g. tag
-    ``full`` = every trial from a whole-video O2 run, `o2_inference collect`)."""
-    animal, date, *tag = spec.split(":")
-    from wfield_local import dlc_project
-    name = f"{animal}_{date}" + (f"_{tag[0]}" if tag else "")
-    return animal, date, dlc_project.project_dir(rv).parent / "session_poses" / name
+# MOVED 2026-11-05 to `wfield_local/pose_sessions.py` (verbatim; library code must not import scripts/, code review 11-04).
+# Re-exported here so existing imports keep working.
+from wfield_local.pose_sessions import session_dir  # noqa: E402,F401
+
+
 
 
 def read_index(d: Path) -> pd.DataFrame:

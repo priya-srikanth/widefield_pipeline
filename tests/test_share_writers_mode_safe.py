@@ -29,7 +29,7 @@ BEHAVIOUR = {
     "orofacial_cover_sensitivity.py", "orofacial_robustness_table.py", "pose3d.py",
     "pose3d_crosscheck.py", "pose3d_cue_traces.py", "pose3d_jaw_crosscheck.py",
     "pose3d_jaw_depth_model_check.py", "pose3d_kinematics.py", "pose3d_phase.py", "pose3d_spout_error.py",
-    "pose3d_vs_cam4.py", "pose_cue_traces.py", "pose_kinematics_demo.py",
+    "pose3d_vs_cam4.py", "pose_cue_traces.py",   # pose_kinematics_demo: share reads moved to kinematics_chain 11-05
     "tongue_nocontact_qc.py", "trial_class_raw_share_fig.py",
     # main's side-camera / 4-camera 3-D scripts (pose only), classified at the 11-05 rebuild merge
     "pose3d_side_check.py", "pose3d_side_loo.py", "pose3d_side_video.py", "side_clean_qc.py", "side_label_offsets.py",

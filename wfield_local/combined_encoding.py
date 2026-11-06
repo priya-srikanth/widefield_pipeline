@@ -549,7 +549,7 @@ def _load_behaviour(animal: str, date: str, rv) -> Behaviour:
     from wfield_local import trial_windows as TW
     from wfield_local.behavior_events import session_speed
     oc._repo_on_path()
-    import scripts.pose_kinematics_demo as D
+    from wfield_local import kinematics_chain as D
     lat = "L"
     sd = oo.session_dir(rv, _run(), animal, date)
     keep, gate = oc.engagement_keep(animal, date, sd)
@@ -1482,7 +1482,7 @@ def session_inputs(label: str, cams=None, fr: str | None = None) -> dict:
             except FileNotFoundError:
                 pass
     if cams:
-        from scripts.movement_encoding_session import video_signals
+        from wfield_local.video_signals import video_signals
         try:
             sig = video_signals(animal, date, rv, imaging[1], list(cams), k=VIDEO_K)
         except FileNotFoundError:
@@ -1724,7 +1724,7 @@ def run_session(label: str, order: str = "movement_first", seed: int = 0, inputs
         vi = inputs.get("video")
         sig = ({n_: None for n_ in vi["names"]} if vi and set(cams) <= set(vi["cams"]) else {})
     elif cams:
-        from scripts.movement_encoding_session import video_signals
+        from wfield_local.video_signals import video_signals
         try:
             sig = video_signals(animal, date, rv, ft, cams, k=VIDEO_K)
         except FileNotFoundError:
@@ -2408,7 +2408,7 @@ def main(argv=None) -> int:
     from wfield_local.paths import PathResolver
     labels = sessions_available() if a.all else a.labels
     if a.video:                                             # only sessions with every camera's motion energy
-        from scripts.session_poses import session_dir
+        from wfield_local.pose_sessions import session_dir
         from wfield_local import config as _cfg
         rv_ = PathResolver()
 

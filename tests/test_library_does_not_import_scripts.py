@@ -14,10 +14,8 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[1]
 
 KNOWN = {
-    "wfield_local/combined_encoding.py",     # pose_kinematics_demo, movement_encoding_session, session_poses
     "wfield_local/face_rhythm_readouts.py",  # face_rhythm_mesh_qc
-    "wfield_local/orofacial_cohort.py",      # pose_kinematics_demo (canonical DAQ contacts, split_precue_by_peak)
-    "wfield_local/orofacial_outputs.py",     # pose_kinematics_demo
+    "wfield_local/orofacial_cohort.py",      # pose_kinematics_demo (now re-exports wfield_local.kinematics_chain)
     "wfield_local/pose3d_side.py",           # apparatus_mouth._rig, pose3d.PROD / _cgroup
 }
 
@@ -44,3 +42,17 @@ def test_engagement_names_are_one_object_everywhere():
     assert ed.session_trials is eng.session_trials and ed.near_codes is eng.near_codes
     assert qp.session_quit is eng.session_quit and qp._sharpness is eng._sharpness
     assert qp._early_rate is eng._early_rate and qp.EARLY_S == eng.EARLY_S
+
+
+def test_encoding_dependencies_are_one_object_everywhere():
+    """Same for the 11-05 encoding move (Priya's OK via the encoding window): the scripts re-export the library copies."""
+    from scripts import movement_encoding_session as mes
+    from scripts import pose_kinematics_demo as pkd
+    from scripts import session_poses as sp
+    from wfield_local import kinematics_chain as kc
+    from wfield_local import pose_sessions, video_signals
+    for nm in ("SEP", "daq_contacts_ms", "daq_lick_onsets_s", "epoch_licks", "iti_licks", "precue_and_excluded_licks",
+               "run", "split_precue_by_peak", "_spout_arrays"):
+        assert getattr(pkd, nm) is getattr(kc, nm), nm
+    assert mes.video_signals is video_signals.video_signals
+    assert sp.session_dir is pose_sessions.session_dir
