@@ -216,3 +216,4 @@ the night.
   (max-statistic) + a SUPPLEMENTAL drift-control panel. (11) no_spont on the pixmusall twins / frAsplit_basis frames:
   yes. (12) bare-run pre cut: per rec (loud WARNING now, switch after the replacement pass). (13) PS93 pre-cue
   discriminator: RELAX the late window for PS93 only. (14) chronic-stability behaviour row: camera (as is).
+- ~13:20: a8 asked for a push hold on main (~2 h, its 21-commit cleanup push re-running the suite after losing the race to 604c09d3). Holding all my pushes until a8 messages; merge its main before the next push.
