@@ -123,3 +123,12 @@ the night.
   frozen_models._store_versions re-scans every manifest on each store write (10 s per write; likely most of e_iti_key's
   6.2 h). **Questions A10-A12**: memoise paths.cohorts()? index _store_versions (rule 10 code)? make fan_out restore
   the parent's BLAS threads everywhere (may move numbers at the 1e-4 level in other callers -> would need a check)?
+- ~09:30: **ALM / tjM1 map audit (Priya: "check that there are no other maps without ALM/tjM1")**. Area-level maps on a
+  page / deck, NOT or only partly split: (1) frozen_peth_trial_maps (Fig 3.1/3.2/3.7/3.8/3.10, slide 94) and
+  (2) session_vs_frozen --maps (Fig 4.3/4.4, slide 139) -- both in progress (Priya OK); (3) remap_checks per-animal maps
+  (Fig 4.8) -- same data as (2), added to the branch; (4) residual_roi --by-spout (Fig 18.6/18.9): split versions already
+  rendered as supplements "S1" -> page swap in the replacement pass; (5) specificity_control Layer 2 panel (Fig 2.6):
+  needs allsession_encoder --roi-targets (~20 min), added to the render. Off-page (share only, not split):
+  frozen_area_maps, fr_musall area maps, iti_area_maps non-split main, iti_hemo_check f0 areas (deliberately excluded
+  ALM/tjM1), reembedding_test reembed_areas (BUG: merges ALM back into MOs while its title says they are drawn inside --
+  fixing). All other area maps on the page already show ALM / tjM1. Pixel maps need no split.
