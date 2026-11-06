@@ -23724,12 +23724,5 @@ Priya 11-03 late: August-only pre everywhere in the rebuild, except june_august_
   August-only pre set anyway.
 
 
-## 2026-11-06 -- Bare cohort-1 hand runs WARN that they pool June + August pre (A4, Priya 11-06: "yes per rec")
-- `config.pre_from()` (the one place the pre set is resolved) prints ONE loud stderr WARNING per process when the
-  active cohort has a `baseline_pre_from` cut (cohort1), no render profile is active (WIDEFIELD_REBUILD_ROOT unset)
-  and WIDEFIELD_PRE_FROM was never set; it names the August-only default and how to set it. No default and no
-  selection changed. Silent for cohort2, under a profile, with an explicit WIDEFIELD_PRE_FROM (even empty),
-  `apply_pre_from(<value>)` / `--pre-from`, and `require_full_pre` blocks. Test: tests/test_pre_from_bare_warning.py.
-
 ## 2026-11-06 -- PS93 engagement discriminator: camera-gate late window widened to 0.67 for PS93 only (Priya 11-06: "relax the late window for PS93 only")
 - At the final quarter (0.75) PS93 had 12 pre late no_response rows, below MIN_TRAIN camera 15, so no discriminator. 0.67 is the smallest widening in 0.01 steps giving >= 15 per class: no_response 12 -> 15, working 839 -> 1134 (precue) / 866 -> 1164 (cue), cohort1_rebuild_20261103 profile. Override in configs/defaults.yaml `precue_engagement_states.camera_late_fraction`; every other animal and the DAQ gate keep 0.75 (tests/test_precue_late_window_ps93.py). PS93's camera discriminator gets a new stored id.
