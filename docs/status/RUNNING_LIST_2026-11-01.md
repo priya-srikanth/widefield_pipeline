@@ -1988,3 +1988,13 @@ bundle without `daqlk` and writes a provenance json.
   - Slide 102: helper porting gain_bio chain into the repo (branch port/gain-bio-20261105) + quiet-spikes rebuild plan.
   - e0 asked for env to re-render kinematics 1.7 / 1.8 (lick_aim_deficit, iti_lick_rate): told to wait (in my queue /
     being checked for camera gate + August pre).
+- ~20:45: lane E: e_iti_zscore_pre failed only in its where_decoder comparison (needs a later step); its SD tables were
+  written (20:13 / 20:17) -> marked done (logged), lane E relaunched from v6 (laneE4.out). Full e_zscore stays later.
+- ~20:50: **Slide 102 port done** (1b9eb446, branch port/gain-bio-20261105, worktree wf_gainbio; unpushed; tests 33 + 13
+  pass). scripts/gain_bio/{gb_common,gain_bio,summarise_gain_bio,gain_stats,fig_sessions}.py, routed to
+  <root>/labcams/<tag>/gain_bio; session list rule reproduces the old 107 / 31 pre exactly. Render order: quiet_spikes_v2
+  (nobody has it queued; ~1-1.5 h at 3 workers) -> gain_bio (~1 h with a warm FR cache) -> summarise -> stats -> fig.
+  DECISIONS for Priya: (1) copy the adopted FaceRhythm own_series cache (FR-only, 1.6 GB) into the root, else ~0.5-1 TB
+  re-read; (2) rest frames use stored restdock05 masks built with the old 0.10 s detector (not rebuilt under daqlk);
+  (3) task window = all cues before quit vs camera working rows; (4) r470_hp / r415_hp from raw SVT, corr = swapmask;
+  (5) quiet events DAQ v2_quiet vs LP 1 s v2_quiet_lp; (6) August pre consistent; (7) ROI v8 areas.
