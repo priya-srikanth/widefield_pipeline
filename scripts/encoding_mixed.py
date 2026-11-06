@@ -97,8 +97,11 @@ def outcomes(E: Path, labels: set, deficit: str | None = None) -> pd.DataFrame:
     return mm.add_deficit(L, mm.deficit(run_mode.deficit_qc_dir(), deficit or mm.DEFICIT))
 
 
-FIG_PANELS = (("cue", "3d:ceiling"), ("cue", "3d:u_target"), ("cue", "position"),          # 3-D contest (Priya 11-05; the rebuild has no cam4 contest run)
-              ("lick", "distance"), ("lick", "3d:u_target"), ("lick", "position"))
+# Angle panels = the 3-D contest (Priya 11-05; the rebuild has no cam4 contest run), unique target from the BINNED
+# contest (u_tgtbin: spout identity beyond soft landing bins) -- PRIMARY per DECISIONS 10-24 (matched capacity; polar's
+# u_target has the larger target set and is frame-dependent, a sensitivity row in the tables).
+FIG_PANELS = (("cue", "3d:ceiling"), ("cue", "3d:u_tgtbin"), ("cue", "position"),
+              ("lick", "distance"), ("lick", "3d:u_tgtbin"), ("lick", "position"))
 def figures(L: pd.DataFrame, T: pd.DataFrame, out: Path, area: str = "cortex", sfx: str = "") -> None:
     """Session values vs behavioural deficit and vs days, fitted fixed effects (mixed_models.plot_fits)."""
     from wfield_local import mixed_models as mm
@@ -117,6 +120,8 @@ def main(argv=None) -> int:
     ap.add_argument("--run", default=oc.RUN)
     ap.add_argument("--deficit", default=None, help="behavioural index (mixed_models.DEFICITS); default = primary, "
                     "others write *_<name> outputs")
+    ap.add_argument("--plot-only", action="store_true", help="redraw the figures from the saved long table + model "
+                    "table (qc/encoding_mixed_long*.csv.gz, qc/encoding_mixed*.csv) without reloading sessions")
     a = ap.parse_args(argv)
     from wfield_local import run_mode
     E = run_mode.encoding_out_root(a.run)                # the run's (tagged) encoding tree, coordinator 11-04
@@ -125,7 +130,14 @@ def main(argv=None) -> int:
     from wfield_local import mixed_models as mm
     dname = a.deficit or mm.DEFICIT
     sfx = "" if dname == mm.DEFICIT else f"_{dname}"
+    if a.plot_only:
+        L = pd.read_csv(E / "qc" / f"encoding_mixed_long{sfx}.csv.gz")
+        T = pd.read_csv(E / "qc" / f"encoding_mixed{sfx}.csv")
+        for area in ("cortex", "SSp-m_left", "SSp-m_right"):
+            figures(L, T, E / "figures" / "mixed_models", area, sfx)
+        return 0
     L = outcomes(E, labels, dname)
+    L.to_csv(E / "qc" / f"encoding_mixed_long{sfx}.csv.gz", index=False)     # for --plot-only (11-05)
     by = ["measure", "window", "area"]
     T = mm.lmm_table(L[L.area == "cortex"], by, print_animals=True)           # rule 8 table: cortex only (readable)
     T = pd.concat([T, mm.lmm_table(L[L.area != "cortex"], by, print_animals=False)], ignore_index=True)
