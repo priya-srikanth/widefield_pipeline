@@ -7,9 +7,12 @@ QUESTION. Known (FINDINGS, attempt-based deficit / time to contact): acutely the
 and the first contact ~+900 ms later. What is the delay made of -- (i) one slow continuous ramp (slowed initiation),
 (ii) repeated aborted attempts, or (iii) a quiet wait and then a normal lick -- and how much of it spills past the spout?
 
-METHOD (per trial, every trial of the curated sessions from 08-06; reporting set = the CANONICAL engaged trials =
-trial_attempts.csv `canonical` = the behaviour pipeline's reference gate `orofacial_cohort.engagement_keep`, the
-denominator the encoding analyses use; pre = the AUGUST pre-stroke sessions; epochs = `epochs.epoch_of`):
+METHOD (per trial, every trial of the curated sessions from 08-06; reporting set = the CANONICAL trials of THIS RUN'S
+trial-attempts table (`lp_licks.attempts_path()` = `run_mode.attempts_dir()`; coordinator 11-05, Priya: behaviour-only
+figures move to the camera working period): under the camera trial gate `canonical` = the camera WORKING PERIOD
+(every trial not stopped / stopped_licking / early_run / after_end / unknown, `scripts/trial_attempts.py`); in the
+untagged default run the behaviour pipeline's reference gate `orofacial_cohort.engagement_keep` as before (until 11-05
+this script always read that untagged table); pre = the AUGUST pre-stroke sessions; epochs = `epochs.epoch_of`):
   times      position strobe / cue / trial stop from `trial_windows.trial_bounds` (DAQ; stop = DAQ `trial_end` TTL)
   spout      SPOUT-LEAVE = the trial stop (the spout retracts at the trial-end TTL and starts moving 60-80 ms later,
              STATUS 10-21 jaw handoff); search BOUND = the NEXT trial's position strobe (the spout has arrived at the next
@@ -73,7 +76,13 @@ SESS = "behaviour_sessions"        # per-session cache (revup/sessions/ belongs 
 #                                    first, superseded run of this script = the onset-only lick rule, not read)
 LICK_MIN_S = 0.07                  # a post-cue lick needs its PEAK >= cue + 70 ms (the licks.csv / trial_windows rule)
 FIG = OUT_W / "figures"
-QC = RUN_ROOT / "qc"
+QC = RUN_ROOT / "qc"                 # jaw_onsets.csv (one table for every run)
+
+
+def attempts_csv():
+    """THIS run's per-trial attempts table (camera classes under the camera trial gate; `lp_licks.attempts_path`)."""
+    from wfield_local import lp_licks
+    return lp_licks.attempts_path()
 EP4 = ["pre", "acute", "subacute", "chronic"]
 PHASES = ["window", "late_spout", "after_left", "none"]
 CLASSES = ["wait", "ramp", "aborted", "unknown"]
@@ -300,13 +309,13 @@ def session_labels() -> list[str]:
     from wfield_local import config
     from wfield_local import analysis_kit as ak
     from wfield_local import epochs
-    A = pd.read_csv(QC / "trial_attempts.csv", usecols=["label"]).label.unique()
+    A = pd.read_csv(attempts_csv(), usecols=["label"]).label.unique()
     cur = set(ak.curated_labels())
     return sorted(x for x in A if x in cur and not config.early_pre(x) and epochs.epoch_of(x) in EP4)
 
 
 def assemble(labels: list[str]) -> tuple[pd.DataFrame, dict]:
-    TA = pd.read_csv(QC / "trial_attempts.csv", usecols=["label", "trial_id", "cls", "canonical", "attempted", "day"])
+    TA = pd.read_csv(attempts_csv(), usecols=["label", "trial_id", "cls", "canonical", "attempted", "day"])
     Ts, F = [], {"cue": [], "lick": [], "prep_cue": []}
     for x in labels:
         d = pickle.loads((REV / SESS / f"{x}.pkl").read_bytes())

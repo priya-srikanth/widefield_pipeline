@@ -825,3 +825,12 @@ min), 13 censored at the trial cap (task completed).
    * Reading: once censoring and the session-length policy are handled, post animals quit ~15 min / ~75 trials
      sooner in the early post period (4/4 each), and back near pre chronically. The capped P5 / P5t missed this
      because the 90-min / 300-trial caps sat below most quit times.
+
+**2026-11-05 -- the quit becomes the CAMERA quit (Priya 11-05, relayed by a8: behaviour-only figures move to the camera
+working period + August-only pre).** `scripts/disengagement_tests.py` now takes the quit from
+`trial_classes.camera_quit` (A6 of `docs/status/reanalysis_20261105/ENGAGEMENT_CAMERA_2026-11-05.md`: first trial after
+the session's last camera lick; a quit only when that tail is >= 6 trials and starts >= 300 s after the first cue, else
+censored). Sessions without video (PS93_0813) have no camera quit and leave the camera rows (printed as DAQ-only). The
+prereg's DAQ S28 detector stays as the labelled robustness row (`DISENGAGEMENT_QUIT=daq`, outputs under
+`disengagement_daqquit/`). Responded / hit covariates, water, licks and imaging are unchanged (DAQ). The camera quit
+comes a median +12 min after the DAQ quit (that doc, F1), so every P1-P4 number moves; nothing re-run yet.

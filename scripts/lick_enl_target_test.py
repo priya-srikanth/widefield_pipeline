@@ -46,19 +46,21 @@ PART C  GAIN-NORMALISED TRACKING of the frozen ridge angle read-out (lick_enl_an
         (far_contra) = ratio of animal-mean deltas; pooled over spouts = least-squares projection
         sum_s dA_s dD_s / sum_s dA_s^2 on sessions holding all six spouts. A ratio is flagged ill-conditioned when the
         CI of delta(actual) spans 0 or |delta(actual)| < 5 deg.
-WINDOWS / SUBSETS: W = 1.0 s ENL (primary) and 0.5 s (B, C), lick-free rule 2 s. SETTLED = the spout strobe (firmware
+WINDOWS / SUBSETS: W = 1.0 s ENL (primary) and 0.5 s (B, C), lick-free rule "slide" (Priya 11-04 ~20:00: the lick
+        ENL family SLIDES like the imaging ENL decoders; `lick_enl_angle_decode` "slide", new frozen ids
+        enl_w<W>_lfslide); `--lf 2s` reruns the pre-11-05 fixed window, no lick in the last 2 s. SETTLED = the spout strobe (firmware
         pulses it AFTER the move completes, daq_trials docstring; per trial from il._behaviour(label).trials.strobe_s, the
         last strobe before the cue) is >= 2 s before the ENL window opens: cue - strobe >= W + 2 s (W = 1.0 -> 3.0 s for
         A, B, C at W 1; 2.5 s at W 0.5). The trials are scored by the same frozen models (not refitted on the subset).
         The frozen decoder's pre-cue window may slide earlier when a lick sits in the last 1 s (precue_window_start), so
-        for A the subset is approximate.
+        for A the subset is approximate; so is it for B / C under "slide" (the subset is judged on the unslid window).
 DECODABILITY (D): per session accuracy (A, B) and ridge raw r (C) -> change vs pre (boot_delta).
 
 Outputs <OUT_W>/enl_target/: timing.csv.gz (label, trial_id, cue_s, strobe_s), ridge_trials.csv.gz, cls_trials.csv.gz,
 precue_trials.csv.gz, cls_tracking.csv, tracking.csv, tracking_pooled.csv, tracking_shrink.csv, gains.csv, offtarget.csv, classmatched_sessions.csv,
 classmatched.csv, confusion.csv, confusion_change.csv, lateral.csv, accuracy_sessions.csv, decodability_tests.csv;
 figures <OUT_W>/figures/lick_enl_target_{tracking,confusion,offtarget,classmatched_epochs,decodability}.png.
-Usage: python scripts/lick_enl_target_test.py [--jobs 8] [--plot-only | --classmatched-only]
+Usage: python scripts/lick_enl_target_test.py [--jobs 8] [--lf slide|2s] [--plot-only | --classmatched-only]
 --classmatched-only recomputes classmatched_sessions.csv / classmatched.csv from the saved precue_trials.csv.gz +
 cls_trials.csv.gz (frozen-model outputs; nothing refitted) and redraws; --plot-only redraws every figure.
 """
@@ -76,8 +78,11 @@ import lick_enl_angle_decode as ead  # noqa: E402
 from wfield_local.orofacial_outputs import encoding_root as _encoding_root  # noqa: E402 - rebuild root (11-03)
 from wfield_local.attempt_coding import trials_name as attempt_trials_name  # noqa: E402
 
-OUT = il.OUT_W / "enl_target"
-FIG = il.OUT_W / "figures"
+#: a non-primary lick-free rule (`--lf 2s`, the pre-11-05 fixed window) writes beside the primary, never over it
+_LF_ARG = sys.argv[sys.argv.index("--lf") + 1] if "--lf" in sys.argv[:-1] else None
+_LF_SFX = f"_lf{_LF_ARG}" if _LF_ARG and _LF_ARG != ead.LF_PRIMARY else ""
+OUT = il.OUT_W / f"enl_target{_LF_SFX}"
+FIG = il.OUT_W / f"figures{_LF_SFX}"
 E = _encoding_root()
 
 
@@ -91,7 +96,8 @@ SP = ["close_ipsi", "close_mid", "close_contra", "far_ipsi", "far_mid", "far_con
 LAB = ["cI", "cM", "cC", "fI", "fM", "fC"]
 LAT = {s: {"ipsi": -1.0, "mid": 0.0, "contra": 1.0}[s.split("_")[1]] for s in SP}
 AN, EP, POST = ead.AN, ead.EP, ead.EP[1:]
-VARIANTS = ((1.0, "2s"), (0.5, "2s"))
+#: (window, lick-free rule): "slide" since 11-05 (`ead.LF_PRIMARY`); `--lf 2s` = the pre-11-05 fixed-window run
+VARIANTS = ((1.0, ead.LF_PRIMARY), (0.5, ead.LF_PRIMARY))
 SETTLE_GAP = 2.0
 MIN_CELL = 3
 MIN_OFF = 5
@@ -194,7 +200,7 @@ def frozen_cls(a: str, W: float, lf: str, X, y, sess) -> dict:
 def model_trials(T: pd.DataFrame, names: list, W: float, lf: str) -> pd.DataFrame:
     """Per selected ENL trial: frozen ridge angle prediction (pred) and frozen spout-classifier probabilities."""
     S = ead.select(T, W, lf)
-    fc = [f"w{'10' if W == 1.0 else '05'}:{n}" for n in names]
+    fc = ead.fcols(W, lf, names)
     out = []
     for a in AN:
         A = S[S.animal == a].reset_index(drop=True)
@@ -925,7 +931,7 @@ def main() -> int:
     # ---- B + C: own classifier and ridge
     TRK, TRP, GN = [], [], []
     RT = {}
-    for W, lf in VARIANTS:
+    for W, lf in ((W_, _LF_ARG or lf_) for W_, lf_ in VARIANTS):
         R = attach(model_trials(T, names, W, lf), TM)
         RT[W] = R
         G = gains(R).assign(window_s=W, lickfree=lf)

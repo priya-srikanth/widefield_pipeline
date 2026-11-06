@@ -27,6 +27,7 @@ Usage: PYTHONPATH=. python scripts/trial_attempts.py [--jobs 2]
 from __future__ import annotations
 
 import argparse
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -36,7 +37,7 @@ from wfield_local import trial_classes as TC  # noqa: E402  THE trial classifica
 CLASSES = ("hit", "incomplete", "jaw_only", "no_try", "unknown")
 #: the session-level camera classes of a camera-gated run (`trial_classes.classify_session`; coordinator 11-04): a
 #: trial in one of these is OUTSIDE the run's working period -- never in the attempt-rate denominator
-RUN_EXCLUDED = ("stopped", "stopped_licking", "early_run", "after_end", "unknown")
+RUN_EXCLUDED = TC.OUT_OF_WORKING_PERIOD    # ONE definition of the camera working period (trial_classes, 11-05)
 ATTEMPT_CLASSES = ("hit", "incomplete")             # jaw_only = reacted (jaw), NOT an attempt (10-21 blind review)
 TA_NAMES = {"contact": "hit", "no_response": "no_try"}   # trial_classes names -> this table's historical names
 MEASURES = ("attempt_rate", "ttc_ms", "completion", "incomplete_share", "latency_attempt_ms", "latency_move_ms",
@@ -168,15 +169,18 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--run", default=oc.RUN)
     ap.add_argument("--jobs", type=int, default=2)
+    ap.add_argument("--out", type=Path, default=None,
+                    help="write the three tables HERE instead of run_mode.attempts_dir() (a comparison build; nothing "
+                         "registered, the run's table untouched)")
     a = ap.parse_args(argv)
     from wfield_local import run_mode
     # coordinator 11-04 (REDO, routed): the default run writes the untagged qc as before; a tagged run writes ITS qc
     # (<imaging_encoding>/<tag>/qc), under its camera classes -- where the mixed models' deficit and the PI slides read
     if a.run != oc.RUN:
         raise SystemExit("trial_attempts: --run other than the adopted run is not routed (attempts_dir is the adopted run's)")
-    out = run_mode.attempts_dir()
+    out = a.out or run_mode.attempts_dir()
     out.mkdir(parents=True, exist_ok=True)
-    if run_mode.tag():
+    if run_mode.tag() and a.out is None:
         for n in run_mode.ATTEMPTS_FILES:              # selection-keyed tables: registered data files (writeguard)
             run_mode.register_data_store(out / n)
     writeguard.assert_writable(out / "trial_attempts_sessions.csv")

@@ -1,8 +1,10 @@
 """Follow-ups of lick_enl_angle_decode.py (ENL area features -> angle of the first post-cue lick; Priya 10-29).
 
 TASK A (--history): is the WITHIN-SPOUT ENL signal real beyond trial history and face movement?
-  One common PRE trial set per animal (W = 1.0 s ENL window; lick-free rule "2s" primary, "W" variant) -- the trials of
-  lick_enl_angle_decode.select. Target = the first-lick angle deviation within session x spout. Every regressor is
+  One common PRE trial set per animal (W = 1.0 s ENL window; lick-free rule "slide" primary -- the imaging ENL decoders'
+  sliding lick-free window, Priya 11-04 ~20:00 -- and "2s" (the pre-11-05 fixed window, no lick in the last 2 s) as the
+  robustness row) -- the trials of lick_enl_angle_decode.select. The A2 face windows (-1.0..-0.1 / -2.0..-1.0 s) stay
+  FIXED on the FaceRhythm grid (covariates, not the ENL decoder's window). Target = the first-lick angle deviation within session x spout. Every regressor is
   residualised within session x spout too (the target has no between-cell variance), then ridge (StandardScaler +
   RidgeCV, as the decoder), leave-one-pre-session-out, held-out pooled over trials:
     hist   = trial-history regressors: previous trial's spout x current spout (one-hot), previous minus current lateral /
@@ -21,7 +23,8 @@ TASK A (--history): is the WITHIN-SPOUT ENL signal real beyond trial history and
   window -1.0..-0.1 s AND over -2.0..-1.0 s before the cue, added to hist (sessions with a FaceRhythm projection).
   A3: which areas (two-stage, no null): per left/right area pair, (drop) delta R2 of the full model minus the full model
   without the pair; (single) delta R2 of hist + that pair over hist.
-TASK B (--offset): the acute contralesional like-for-like ENL offset (frozen all-pre raw decoder, W 1.0, lf 2s).
+TASK B (--offset): the acute contralesional like-for-like ENL offset (frozen all-pre raw decoder, W 1.0, lf slide;
+  frozen ids enl_w1_lfslide[_restw|_smean], new 11-05).
   B0 per-trial offsets rebuilt (lfl.offset, method nw) from the FROZEN decoders (lick_enl_angle_decode.frozen_fits) and
      checked against enl_angle_decode_sessions.csv.
   B1 per session vs recovery (recmark_sessions.csv aim / iti_ang; lick_sspn_checks._track: per-animal r on post
@@ -66,7 +69,7 @@ COV = OUT / "enl_hist_cov.csv.gz"
 AN = ead.AN
 EP = ead.EP
 W = 1.0
-LF = "2s"
+LF = ead.LF_PRIMARY            # "slide" since 11-05 (was "2s")
 SEED = 0
 FR_LAGS = np.round(np.arange(-2.0, -0.0999, 0.04), 3)
 FR_NAMES = list(il.FR_KEEP)
@@ -259,11 +262,11 @@ def _nested(H, X, y, sess, cell, nshuf, rng) -> dict:
 
 def task_a(T: pd.DataFrame, names: list, nshuf: int) -> tuple[pd.DataFrame, pd.DataFrame]:
     from scipy import stats
-    fc = [f"w10:{n}" for n in names]
     frc = [f"{n}_{w}" for n in FR_NAMES for w in ("w1", "w2")]
     rows, arows = [], []
     rng = np.random.default_rng(SEED)
-    for lf in ("2s", "W"):
+    for lf in ead.LF_RULES:
+        fc = ead.fcols(W, lf, names)
         S = ead.select(T, W, lf)
         for a in AN:
             Pr = S[(S.animal == a) & (S.epoch == "pre")].reset_index(drop=True)
@@ -391,7 +394,7 @@ def session_table(R: pd.DataFrame) -> pd.DataFrame:
 
 def task_b(T: pd.DataFrame, names: list) -> dict:
     import lick_offset_contrib_map as ocm
-    fc = [f"w10:{n}" for n in names]
+    fc = ead.fcols(W, LF, names)
     rng = np.random.default_rng(SEED)
     S = ead.select(T, W, LF)
     R, fz = offsets(S, fc)
