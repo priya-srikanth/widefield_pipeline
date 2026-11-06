@@ -242,3 +242,16 @@ the night.
   summarise / stats / fig4. Behaviour-event lick onsets that quiet_spikes_v2 reads are the behaviour detector's = the
   current imaging detector since 11-05 (no regeneration needed). Slide 102 text to be updated with a8 after the render.
 - ~14:10 Priya: every figure caption / deck note must state window, LP vs DAQ licks, trial period + definition, trial types + definition, gate, baseline, etc. -> standing rule (memory); a helper is building docs/status/rebuild_20261103/FIGURE_PROVENANCE_20261106.{csv,md} (per figure: producing step, values from its logged env + code, drafted 'Data:' block, caption conflicts) for the replacement pass and a8's deck notes.
+- ~14:40 provenance table: 767 / 832 page / deck rows traced to a producing script; finishing (sub-helpers). Findings so
+  far that need a decision or a fix (A20-A23):
+  (A20) kinematics figures (jaw_only_incomplete_figs, cue traces, pose3d_cue_traces) still use the behaviour-pipeline
+  ENGAGED gate, not the camera working period; other 3-D scripts use every post-cue lick (no gate) -> switch to the camera
+  working period, or keep and state it?
+  (A21) recovery_timing's hit-rate denominator includes stopped and out-of-period trials (unlike Fig 0.2 / 1b) -> align?
+  (A22) fig_goal_summary fig1 / fig2 suptitles contain readings TYPED IN on 10-24 (won't follow the new data) -> replace
+  with computed text or remove.
+  (A23, bug) exec_vs_neural_match --source encoder defaults to relabel tag v7g3_t3d_trial but the render wrote
+  v7g3_t3d_spont_trial -> may read a stale run; fix the default / pass the tag.
+  Also: epoch_behaviour 1c stays DAQ-engaged on purpose (pins epoch boundaries, 11-05); the far-contra attempt figures
+  use LP-video trial classes with a DAQ-contact-trained frozen decoder (captions must say so); many live imaging-page
+  captions are pre-rebuild (DAQ contact, quit-tail, June+August 44 pre, Bonferroni) and all need rewriting.
