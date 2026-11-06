@@ -302,6 +302,7 @@ def plot_epoch(L: pd.DataFrame, T: pd.DataFrame, panels, path: Path, title: str 
         a_.set_title(f"{name}; re {c.re.iloc[0]}", fontsize=7, pad=22)
         a_.set_ylabel(ylabel, fontsize=7)
         a_.tick_params(labelsize=7)
+        a_.spines["top"].set_visible(False)           # no top frame line (Priya 11-03)
     for a_ in ax.flat[len(panels):]:
         a_.axis("off")
     fig.suptitle(f"{title} -- EPOCH mixed model (y ~ C(epoch), animal random effects): small = sessions, open = animal "
@@ -380,6 +381,7 @@ def plot_fits(L: pd.DataFrame, T: pd.DataFrame, panels, model: str, path: Path, 
         a_.set_xlabel(xlab.split(",")[0].split(" (")[0], fontsize=7)    # short per panel; full text once, below
         a_.set_ylabel(ylabel, fontsize=7)
         a_.tick_params(labelsize=7)
+        a_.spines["top"].set_visible(False)           # no top frame line (Priya 11-03)
     for a_ in ax.flat[len(panels):]:
         a_.axis("off")
     ax.flat[0].legend(fontsize=6, ncol=2)
