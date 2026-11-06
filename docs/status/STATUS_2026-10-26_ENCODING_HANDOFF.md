@@ -39,6 +39,32 @@ for anything that loads imaging. E = `M:/MICROSCOPE/Priya/Widefield/LP_analysis/
 3. Then tell **sabatinilab-e3** (PI deck) the decoder figures are final: per figure the share PNG path, page Fig N.k,
    script + args, headline numbers, methods text (they asked 10-26 ~22:30; reply sent: not final yet).
 
+### 00-COMPACT-32 (11-06 ~15:15) -- READ FIRST; supersedes 31 for state (31 / 30 hold for mechanics + tables)
+
+**Organisation check (Priya again 15:10: "not layering changes onto in-flight analyses").** State:
+1. **Running lanes are pinned** (table in 31): v7b a76352f3, v8/v8b/v8c/v8e 5db29b07, v8d d2d26e84, v8e2 6033cbbb,
+   v8f/v8g 110c4efd. Nothing merges into those worktrees while lanes run.
+2. **Parked (RESERVED_HOLD, 10 steps):** b_imaging_lmm, b_remap_lmm, b_remap_checks, e_mm, e_lmm_response, e_lmm_all
+   (deficit-path fix), d_fig_goal_summary + _f1/_f2/_f3 (computed titles). The three exec_vs steps were RELEASED (A23 not a bug).
+3. **Six branches going to main** (Priya "yes"; scratchpad push6.sh, sequential, merge origin/main first; at 15:02 the first,
+   priya1106-small, was in pre-push tests): small, frdrift, gainbio, gates-captions, deficit-qc-dir, svg. They do NOT touch
+   the running lanes (pinned). Gate-dependent outputs (kinematics / cam4) route to gate-named folders, so new and old cannot
+   mix on the share.
+4. **In flight, NOT yet anywhere:** fix/priya1106-cam4-style (helper; A27 whole cam4 cohort -> camera working period,
+   A28 read-only calibration comparison, A29 aim producer step, A30 style). Needs Priya's OK to push.
+5. **ONE final catch-up queue** (build after 3 + 4 land; code = that main): the 10 parked steps, kinematics section K,
+   cam4 cohort re-run + its figures, aim producer, recovery_timing / decoder_retention / fig_goal_summary (gates D lines),
+   A25 LP epoch arm (`--block epoch_maps`, same g5 family list; heavy 6-9 h). SVG code included.
+6. **Redraw-67 for SVGs (Priya via a8): DO IT SAFELY** -- main's drawing code differs from the render code for some
+   figures (computed titles, max-statistic captions, kinematics gate, gainbio). Redraw into SCRATCH first, compare each PNG's
+   sha256 with the share's; copy back ONLY byte-identical PNGs (+ their SVG). Any figure whose PNG differs is NOT copied
+   (its drawing changed) -> it is redrawn in the catch-up queue with matching data; list it for a8 with its deck slides.
+7. **Rule still in force:** new code -> branch; park affected not-started steps BEFORE they run; one catch-up queue on one
+   final code version; never edit a running queue file or render worktree.
+
+**Waiting on Priya:** OK to push fix/priya1106-cam4-style when the helper reports (A27 changes cam4 numbers -> report
+changed conclusions BEFORE any page text).
+
 ### 00-COMPACT-31 (11-06 ~14:30; times written as 16:00-16:20 below were estimates, real ~14:10-14:30) -- READ FIRST; supersedes 30 for state (30 holds for queue mechanics)
 
 **Priya 11-06 16:00: "make sure we're not layering changes onto in-flight analyses."** Rule from now on:
