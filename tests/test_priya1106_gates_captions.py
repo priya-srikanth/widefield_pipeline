@@ -133,6 +133,19 @@ def test_cue_traces_keep_ids_and_set(session, monkeypatch, tmp_path):
     assert ct.all_set() == "engaged" and ct.out_dir(tmp_path, "first_lick") == tmp_path / "lick_traces_legacygate"
 
 
+def test_kin_outputs_routed_under_a_rebuild_root(monkeypatch, tmp_path):
+    from wfield_local import lp_licks
+    d3 = tmp_path / "session_poses" / "pose3d"
+    assert tc.kin_out_dir(d3, "phase") == d3 / "phase" and tc.kin_cache_dir(d3, "phase") == d3 / "_cache" / "phase"
+    monkeypatch.setenv("WIDEFIELD_REBUILD_ROOT", str(tmp_path / "rb"))
+    monkeypatch.setenv("WIDEFIELD_TRIAL_GATE", "camera")
+    base = tmp_path / "rb" / "session_poses_derived" / lp_licks.output_tag()
+    assert tc.kin_out_dir(d3, "phase") == base / "pose3d_phase"            # never the session_poses input tree
+    assert tc.kin_cache_dir(d3, "phase") == base / "pose3d_cache" / "phase"
+    monkeypatch.setenv(tc.KIN_GATE_ENV, "legacy")
+    assert tc.kin_out_dir(d3, "figures", "pose3d_summary_fig") == base / "pose3d_summary_fig_legacygate"
+
+
 def test_kinematics_pooled_reads_either_set():
     src = (REPO / "scripts" / "kinematics_pooled_figs.py").read_text(encoding="utf-8")
     assert 'sset = "working" if (T.set == "working").any() else "engaged"' in src

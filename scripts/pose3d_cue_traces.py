@@ -63,9 +63,10 @@ def all_set() -> str:
 
 
 def out_dir(d3: Path, align: str) -> Path:
-    """Default output folder: ``<d3>/<cue_traces|lick_traces>``; ``_legacygate`` appended under the legacy gate."""
+    """Default output folder: ``<d3>/<cue_traces|lick_traces>`` (``_legacygate`` under the legacy gate); under a rebuild
+    root the routed pose area (`trial_classes.kin_out_dir`; the session_poses tree is an input tree)."""
     from wfield_local import trial_classes as tc
-    return d3 / tc.kin_out_name(ALIGN[align]["dir"])
+    return tc.kin_out_dir(d3, ALIGN[align]["dir"], f"pose3d_cue_traces_{align}")
 
 
 def data_line(align: str = "cue") -> str:
@@ -107,7 +108,7 @@ def session_traces(job) -> list[dict]:
     inputs = [Path(d3) / f"{s}_frames.csv.gz", Path(v36) / animal / date / "licks.csv"] + [Path(b) for b in beh]
     ver = result_cache.code_version(sys.modules[__name__], oc, extra=(align, oc.ENGAGEMENT_GATE, oc.ENGAGED_ONLY,
                                                                       tc.kin_gate_signature()))
-    return result_cache.cached(Path(d3) / "_cache" / f"cue_traces_{align}", s, inputs, ver,
+    return result_cache.cached(tc.kin_cache_dir(d3, f"cue_traces_{align}"), s, inputs, ver,
                                lambda: _session_traces(job))
 
 

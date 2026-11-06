@@ -78,7 +78,7 @@ def main(argv=None) -> int:
     rv = PathResolver()
     L = load(rv, a.animals)
     from wfield_local import trial_classes as tc
-    out = pose3d_dir(rv) / tc.kin_out_name("vs_cam4")
+    out = tc.kin_out_dir(pose3d_dir(rv), "vs_cam4")
     out.mkdir(exist_ok=True)
     pd.set_option("display.width", 220)
     dec, eff = [], []

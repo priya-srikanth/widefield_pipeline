@@ -155,7 +155,7 @@ def _session_traces(s: str) -> list[dict]:
                     for k, (t, v) in enumerate(zip(TRACE_MS, med))]
         return out
     ver = result_cache.code_version(sys.modules[__name__], K, extra=tc.kin_gate_signature())
-    return result_cache.cached(d3 / "_cache" / "spout_error_traces", s, [fr, lk], ver, compute)
+    return result_cache.cached(tc.kin_cache_dir(d3, "spout_error_traces"), s, [fr, lk], ver, compute)
 
 
 def traces(rv, L: pd.DataFrame, jobs: int = 3) -> pd.DataFrame:
@@ -361,14 +361,14 @@ def main(argv=None) -> int:
     from wfield_local import trial_classes as tc
     if a.contra:                        # scatter_epoch reads only the closest-approach vector, no peak errors needed
         L = gated_licks(d3)
-        out = a.out or d3 / tc.kin_out_name("spout_error")
+        out = a.out or tc.kin_out_dir(d3, "spout_error")
         for animal in sorted(L.animal.unique()):
             f = out / f"scatter_epoch_{animal}_contra_cam.png"
             fig_scatter_epoch(L, animal, f, a.pre_from, contra=True)
             print("->", f)
         return 0
     L = add_peak_errors(rv, gated_licks(d3), a.pre_from)
-    out = a.out or d3 / tc.kin_out_name("spout_error")
+    out = a.out or tc.kin_out_dir(d3, "spout_error")
     out.mkdir(exist_ok=True, parents=True)
     (out / "data_line.txt").write_text(data_line() + chr(10), encoding="utf-8")
     P = per_session(L)

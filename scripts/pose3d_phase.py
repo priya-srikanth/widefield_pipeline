@@ -138,7 +138,7 @@ def session_curves(job) -> list[dict]:
             out += [{**r, "animal": animal, "date": date, "epoch": row["epoch"], "lickset": lset}
                     for r in _session(S, s, gg)]
         return out
-    return result_cache.cached(d3 / "_cache" / "phase", s, [fr, lk], ver, compute)
+    return result_cache.cached(tc.kin_cache_dir(d3, "phase"), s, [fr, lk], ver, compute)
 
 
 def _epoch_curves(P: pd.DataFrame, animal: str, kind: str, m: str, pre_from: str) -> dict:
@@ -385,7 +385,7 @@ def main(argv=None) -> int:
     d3 = pose3d_dir(rv)
     from wfield_local import trial_classes as tc
     if a.contra:
-        out = a.out or d3 / tc.kin_out_name("phase")
+        out = a.out or tc.kin_out_dir(d3, "phase")
         PP = pd.read_csv(out / "curves.csv.gz", dtype={"date": str})
         xl = "normalised lick phase (0 = onset, 1 = offset)"
         for animal in sorted(PP.animal.unique()):
@@ -413,7 +413,7 @@ def main(argv=None) -> int:
     PP = pd.DataFrame([r for _, rr in res for r in rr])
     P = PP[PP.lickset == "all"]
     PF = PP[PP.lickset == "first"]
-    out = a.out or d3 / tc.kin_out_name("phase")
+    out = a.out or tc.kin_out_dir(d3, "phase")
     out.mkdir(exist_ok=True, parents=True)
     PP.to_csv(out / "curves.csv.gz", index=False, float_format="%.4g")
     (out / "data_line.txt").write_text(data_line() + chr(10), encoding="utf-8")

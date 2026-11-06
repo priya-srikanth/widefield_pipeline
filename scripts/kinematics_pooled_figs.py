@@ -200,10 +200,17 @@ def fig_3d(out: Path, rng, contra: bool = False) -> pd.DataFrame:
     return pd.concat(PP, ignore_index=True)
 
 
+def _tc():
+    """`wfield_local.trial_classes` (the kinematics gate's folder helpers, A20 11-06)."""
+    from wfield_local import trial_classes as tc
+    return tc
+
+
 def fig_cue(out: Path, contra: bool = False) -> pd.DataFrame:
     import matplotlib.pyplot as plt
     from wfield_local import config
-    T = pd.read_csv(pose3d_dir() / "cue_traces" / "traces.csv.gz")
+    from scripts.pose3d_cue_traces import out_dir as _cue_out     # routed + gate-named (A20, 11-06)
+    T = pd.read_csv(_cue_out(pose3d_dir(), "cue") / "traces.csv.gz")
     sset = "working" if (T.set == "working").any() else "engaged"     # pose3d_cue_traces' all-trials set (11-06: working)
     T = T[(T.set == sset) & T.measure.isin(["mid", "jaw_open"])]
     rows = []
@@ -293,7 +300,7 @@ def fig_paths3d(out: Path, shared: bool = False, contra: bool = False) -> pd.Dat
     pose3d_paths_pooled_shared.png."""
     import matplotlib.pyplot as plt
     from wfield_local import config
-    C = pd.read_csv(pose3d_dir() / "phase" / "curves.csv.gz")
+    C = pd.read_csv(_tc().kin_out_dir(pose3d_dir(), "phase") / "curves.csv.gz")    # routed + gate-named (A20)
     C = C[(C.kind == "norm") & (C.lickset == "all") & C.measure.isin(["side", "out", "down", "j_side", "j_out", "j_down"])
           & (C["cov"] >= 0.5)]
     aug = C[(C.epoch == "pre") & (~C.date.astype(str).map(config.early_pre))]
@@ -490,7 +497,7 @@ def phase_data(contra: bool = False) -> pd.DataFrame:
     from wfield_local import config
     from wfield_local.orofacial_cohort import CLUSTER_PERM
     from wfield_local.orofacial_stats import cluster_permutation
-    C = pd.read_csv(pose3d_dir() / "phase" / "curves.csv.gz")
+    C = pd.read_csv(_tc().kin_out_dir(pose3d_dir(), "phase") / "curves.csv.gz")    # routed + gate-named (A20)
     C = C[(C.kind == "norm") & (C.lickset == "all") & C.measure.isin(["mid", "dist"]) & (C["cov"] >= 0.5)
           & C.x.between(*PHASE_WIN)]
     C = C[(C.epoch != "pre") | (~C.date.astype(str).map(config.early_pre))]          # August pre only
@@ -630,7 +637,7 @@ def main(argv=None) -> int:
     ap.add_argument("--phase-only", action="store_true", help="only the 3-D lick-phase figures (+ = ipsi and + = contra)")
     ap.add_argument("--plot-only", action="store_true", help="with --phase-only: redraw from the *_figdata.csv")
     a = ap.parse_args(argv)
-    out = a.out or pose3d_dir() / "figures" / "pooled"
+    out = a.out or _tc().kin_out_dir(pose3d_dir(), "figures/pooled", "kinematics_pooled_figs")
     assert_writable(out)
     out.mkdir(parents=True, exist_ok=True)
     rng = np.random.default_rng(20261025)

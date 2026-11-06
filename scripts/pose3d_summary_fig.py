@@ -233,13 +233,13 @@ def main(argv=None) -> int:
     from wfield_local import trial_classes as tc
     rv = PathResolver()
     d3 = pose3d_dir(rv)
-    SE = pd.read_csv(d3 / tc.kin_out_name("spout_error") / "per_session.csv", dtype={"date": str})
+    SE = pd.read_csv(tc.kin_out_dir(d3, "spout_error") / "per_session.csv", dtype={"date": str})
     if tc.kin_gate() == "working":       # A20: the kinematics rows over camera-working-period licks / jaw trials
         K = gated_sessions(pd.read_csv(d3 / "kinematics" / "licks.csv.gz", dtype={"date": str}),
                            pd.read_csv(d3 / "kinematics" / "jaw_trials.csv.gz", dtype={"date": str}))
     else:
         K = pd.read_csv(d3 / "kinematics" / "sessions.csv", dtype={"date": str})
-    out = d3 / tc.kin_out_name("figures")
+    out = tc.kin_out_dir(d3, "figures", "pose3d_summary_fig")
     out.mkdir(exist_ok=True)
     for animal in sorted(set(K.animal)):
         if not a.contra_only:

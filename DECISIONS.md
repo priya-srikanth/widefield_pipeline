@@ -23741,3 +23741,8 @@ Priya 11-03 late: August-only pre everywhere in the rebuild, except june_august_
   (`relabel_tag` = `frozen_encoder.design_tag("v7g3_t3d_trial")`, checked against FROZEN_LICKS_ALL; an empty relabel
   folder is refused). The 11-06 render already read `v7g3_t3d_spont_trial` (log: FROZEN_LICKS_ALL=split, 48,897 trials),
   so provenance finding 13 did not change a figure.
+- A20 follow-up (same day): the 3-D kinematics writers (pose3d_cue_traces, pose3d_phase, pose3d_spout_error,
+  pose3d_summary_fig, pose3d_vs_cam4, kinematics_pooled_figs) write outputs and result caches through
+  `trial_classes.kin_out_dir` / `kin_cache_dir` = `run_mode.session_poses_out` (the jaw_only_incomplete_figs pattern
+  of 11-04): the old place without a rebuild root, `<root>/session_poses_derived/<tag>/...` under one (the
+  session_poses tree is an input tree the fence never writes). `pose3d_kinematics` is unchanged (its cache is reused).

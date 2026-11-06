@@ -1414,6 +1414,22 @@ def kin_out_name(name: str) -> str:
     return name + ("_legacygate" if kin_gate() == "legacy" else "")
 
 
+def kin_out_dir(d3, name: str, script: str | None = None) -> Path:
+    """Folder of a 3-D kinematics writer / reader of its outputs: `run_mode.session_poses_out` (under a rebuild root
+    ``<root>/session_poses_derived/<tag>/<script>``, since the session_poses tree is an INPUT tree the rebuild fence
+    never writes; else the old place ``<d3>/<name>``), the legacy-gate suffix on both (`kin_out_name`). ``script``
+    defaults to ``pose3d_<name>``."""
+    from wfield_local import run_mode
+    return run_mode.session_poses_out(kin_out_name(script or f"pose3d_{name}"), Path(d3) / kin_out_name(name))
+
+
+def kin_cache_dir(d3, kind: str) -> Path:
+    """`result_cache` folder of a 3-D kinematics writer: ``<d3>/_cache/<kind>`` by default, routed under a rebuild
+    root like `kin_out_dir` (the cache entries are keyed on `kin_gate_signature`, so one folder serves both gates)."""
+    from wfield_local import run_mode
+    return run_mode.session_poses_out("pose3d_cache", Path(d3) / "_cache") / kind
+
+
 def kin_gate_signature() -> str:
     """Cache-key part for a result gated by `kin_gate`: the gate, and under "working" the camera selection (window,
     end anchor, stop rule, classes) + `class_source_signature`, so a changed rule or class input starts fresh."""
