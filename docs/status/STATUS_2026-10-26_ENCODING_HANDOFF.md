@@ -76,6 +76,16 @@ unclassified -> OUTSIDE_MAPS, map builders only import engagement_gate). Fixed o
 Priya said YES to cam4-style -> scratchpad push7.sh = the six + wf_p1106_cam4, sequential, merge-only (bg task bn32updgj;
 per-branch push logs scratchpad/push7.<wt>.log). Each push re-runs the full suite (~28 min) when configs/ is in the diff.
 
+**Update ~18:25 -- v9k 3-D steps blocked by a stale, unrouted kinematics cache.** k_spout_error EXIT 1 (and k_phase failing the
+same way): pose3d_kinematics.session_result cached in session_poses/pose3d/_cache/kinematics_<mode> (built 10-26); pose3d.py
+changed 11-04 (bddf02e7, ae2bcd86) -> code_version miss -> recompute -> write to the unrouted folder refused by the rebuild
+fence. Fix on branch fix/kin-cache-routed-20261106 (worktree wf_kincache, 7df3fd21, from main ec0ff642): cache via
+trial_classes.kin_cache_dir (+ tests/test_kin_cache_routed.py; 22 pass). NOT pushed (a8 freeze + needs Priya OK). Parked on
+RESERVED_HOLD: k_phase_contra k_summary_fig k_vs_cam4 k_pose_validation k_pooled k_lmm_curves k_jaw_xcheck. After the push:
+v9k2 queue on the new main = k_spout_error, k_phase (+ those 7). The first run recomputes all 119 sessions' kinematics (cost
+unmeasured). Also unrouted: scripts/jaw_onsets.py cache (imaging_encoding/qc/_cache/jaw_onsets) -- hit today, would fail if stale.
+A27 cam4 result (k_cohort, 18:15): no headline change; 13 borderline cells; findings-number updates await Priya (overnight page).
+
 **PUSH FREEZE (a8 request ~17:30):** no pushes to widefield main until a8 reports feat/decks-to-presentations-20261106 landed (~2 h full suite). Message a8 first if a push is urgent.
 
 **Update 16:57 (real clock; the ~16:10 / ~16:40 labels above were ~30-40 min early) -- ALL SEVEN 11-06 BRANCHES ON MAIN
