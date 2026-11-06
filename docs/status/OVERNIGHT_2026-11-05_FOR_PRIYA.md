@@ -217,3 +217,17 @@ the night.
   yes. (12) bare-run pre cut: per rec (loud WARNING now, switch after the replacement pass). (13) PS93 pre-cue
   discriminator: RELAX the late window for PS93 only. (14) chronic-stability behaviour row: camera (as is).
 - ~13:20: a8 asked for a push hold on main (~2 h, its 21-commit cleanup push re-running the suite after losing the race to 604c09d3). Holding all my pushes until a8 messages; merge its main before the next push.
+- ~13:30: **answers 8-14 implemented + queued.** Branches (unpushed, push hold for a8): feat/priya1106-small (A10 cohorts
+  memo 78x / phase_labels 10x; A4 bare-run warning; A5 PS93 camera late fraction 0.67 = smallest giving 15 of each class,
+  from 5 of 8 pre sessions -> its LOSO drift control runs for 3 sessions only), feat/priya1106-frdrift (max-statistic
+  captions in FR + 4 other pixel families; drift-control supplement fr_pixel_significance --drift-control),
+  feat/priya1106-gainbio (slide 102 choices 2-4). Combined code wf_render_v8f 110c4efd (59 tests pass). **queue v8f**
+  launched 13:28 (captions re-render + drift control; no_spont: noFR twin in place, frAsplit_basis -> NEW folder
+  _frAsplit_basis_spont (in-place would risk overwriting the frame's stats), frA via the v8 union run; b_pix_* moved from
+  v7b for the corrected captions; PS93 precue re-run). Goal page still says Bonferroni in 3 captions -> replacement pass.
+  **Questions A16-A19 (slide 102)**: subacute 415/470 ratio now 0.75 (acute 0.54, chronic 0.48 n.s.; was 0.50/0.51/0.49
+  when 415 was compared with the unfiltered corrected signal) -> slide wording?; rest masks: rebuilt-with-current-detector
+  masks were BIT-IDENTICAL on 2 sessions and RESTnl is already current -> rec NO rebuild (or a ~2 h scratch check of all
+  sessions); task window = whole camera working period (default) or working rows only?; "1 s" quiet events read as
+  QS_LICK_SOURCE=daq+lp under the _daqlk tag -- right? Incident: a helper's script left ~57k tiny "blat" temp files (cleaned
+  in the worktree + user Temp; C:\WINDOWS\Temp could not be checked).
