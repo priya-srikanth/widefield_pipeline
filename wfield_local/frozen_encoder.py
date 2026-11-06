@@ -783,12 +783,13 @@ def session_design(label: str, templates: dict | None = None, template_only: boo
     col_var = np.concatenate([[v] * b.shape[1] for v, b in zip(vars_, blocks)])
     Q = np.linalg.qr(ce._slow_basis(ftr, ce.DRIFT_MIN_PERIOD_S))[0]
     X -= Q @ (Q.T @ X)
+    Rx = None                                            # extra targets' weights (kept apart from the Allen ones)
     if spatial is None:                                  # Allen-area targets (the v1-v4 default)
         areas = sorted({int(a) for a in np.unique(parea[pstat]) if a != 0})
         Ra = np.stack([Ub[(parea == a) & pstat].mean(0) for a in areas] + [Ub[pstat].mean(0)], 1)
         area_names = [names.get(a, str(a)) for a in areas] + ["cortex"]
         if extra_targets is not None:
-            Ra = np.column_stack([Ra, Ub[pstat].astype(np.float64).T @ np.asarray(extra_targets["P"], np.float64)])
+            Rx = Ub[pstat].astype(np.float64).T @ np.asarray(extra_targets["P"], np.float64)
             area_names += list(extra_targets["names"])
     elif extra_targets is not None:
         raise ValueError("extra_targets is implemented for Allen-area targets only")
@@ -797,7 +798,12 @@ def session_design(label: str, templates: dict | None = None, template_only: boo
         area_names = list(spatial["names"]) + ["cortex"]
     Y = V[ridx].astype(np.float64)
     Y -= Q @ (Q.T @ Y)
-    Rd = Y @ Ra if Ra.shape[1] <= MAX_DENSE_TARGETS else None      # large target sets stay lazy (Y @ Ra on demand)
+    # extra targets (11-06): the Allen columns are Y @ the SAME Allen weights as a run without extras (one product, so
+    # bit-identical: a wider product may round differently), the extra columns a second product beside them
+    Rd = (None if Ra.shape[1] + (0 if Rx is None else Rx.shape[1]) > MAX_DENSE_TARGETS   # large sets stay lazy
+          else Y @ Ra if Rx is None else np.column_stack([Y @ Ra, Y @ Rx]))
+    if Rx is not None:
+        Ra = np.column_stack([Ra, Rx])
     ex_ = getattr(B, "extra_lick_on_s", None)
     cue_f = np.searchsorted(ftr, E.cue_s.to_numpy(float))
     first_f = np.full(len(E), -1)
