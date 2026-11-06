@@ -217,7 +217,7 @@ def main(argv=None) -> int:
     ol = _outline(meta)
     cols = [("gain_B", "FR adds: directionless (B)"), ("gain_side", "FR adds: + side (S-B)"), ("gain_dist", "+ distance (D-B)"),
             ("gain_both", "+ side & distance (A-B)"), ("pos_B", "position unique | FR-B"), ("pos_both", "position: A - B")]
-    from fr_pixel_significance import FACTORS, block_mask, test
+    from fr_pixel_significance import FACTORS, block_mask, correction_label, test
     mask = block_mask()
     srows = []
     kinds = ("pre", "acute", "subacute", "chronic")
@@ -266,7 +266,8 @@ def main(argv=None) -> int:
                     ax.set_ylabel("pre level" if kind == "pre" else f"{kind} - pre", fontsize=9)
         fig.suptitle(f"NEURAL: FaceRhythm direction vs directionless, pixel maps (2x2-px blocks), {w} window; held-out R2 (fraction), "
                      "within animal then mean of 4.\nViridis = level (amount), RdBu = increment or change. Contours = significant bins "
-                     "(black 16 px, purple dashed 32 px; nested bootstrap, Bonferroni). Image left = ipsilesional.", fontsize=9)
+                     f"(black 16 px, purple dashed 32 px; nested bootstrap, {correction_label()}). Image left = ipsilesional.",
+                     fontsize=9)
         fig.subplots_adjust(left=0.03, right=0.995, top=0.9, bottom=0.02, wspace=0.08, hspace=0.18)
         fig.savefig(out / "figures" / f"fr_direction_maps_{w}.png", dpi=115)
         plt.close(fig)
