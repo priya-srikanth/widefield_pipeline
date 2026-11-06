@@ -155,3 +155,11 @@ the night.
   push (hook rule), and on this loaded box it hung / took hours. Pushing HEAD:main only runs the touched tests; my
   attempt at 08:58 was itself using 7 GB at 1-3 GB available, so I stopped it (its task; an orphan pytest finished on its
   own). Retrying when RAM allows. Not pushed yet.
+- ~09:45: **coverage gap in the render (my miss to raise)**: rebuild_order_B "extract -> consumer" steps 3-14 (~30
+  scripts feeding goal-page lick families: lick_cued_ramp + lateral_ratio / vigor / balance_imaging_control, the
+  precue_restw / restnl / revup / cue_to_lick chain, enl_angle / enlv, the balance family, decoder refits, lick_code,
+  session-level maps, interhemi, lick_correction -> prelick_* -> face_*, dock subsets, simple_key_figures) were never in
+  the queue -- noted in RENDER_QUEUE_DAQLK item 6 but not brought to Priya, and NOT in the weekend estimate. Symptoms
+  so far: e_iti_area_maps (needs cued_wide), x_covref (dep fix), d_fig_goal_summary (needs an LP_licks combined-encoding
+  table no step makes). A helper is drafting all missing steps (commands, env, deps, page figures) for queue v8.
+  Stale claims from halted v7 lanes released (d_attempt_maps_plot re-running now; x_fig_enl_move after x_enl_move).
