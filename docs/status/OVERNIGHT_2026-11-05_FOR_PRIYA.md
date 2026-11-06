@@ -306,3 +306,10 @@ the night.
   fix in the post-render merge (using the inventory's stem remap).
 - **14:30 TIME CORRECTION:** the '~14:40' ... '~17:00' labels on the entries above (and '16:00' / '16:20' in handoff 00-COMPACT-31) were my estimates and run 1-2.5 h AHEAD; the real time of this note is 14:30. The render CHAIN.log timestamps are authoritative.
 - 14:45 Priya OK'd pushing the six branches (priya1106-small [A4 duplicate reverted in favour of a8's warning on main c724c6b6], -frdrift, -gainbio, gates-captions, deficit-qc-dir, svg-page-figures); pushing one at a time (merge origin/main, push HEAD:main) via scratchpad push6.sh.
+- 14:55 **Priya A25-A31**: (25) YES run the LP arm of the imaging epoch figures (LP licks, ENL 1 s; primary for the
+  pre-cue / ENL figures, DAQ arm = robustness); (26) SVG = page + deck figures only; (27) cam4: switch the WHOLE
+  orofacial_cohort to the camera working period (report changed conclusions before page text); (28) keep the 10-23
+  calibration snapshot, compare a regenerated one read-only; (29) add lick_cued_aim_by_spout (aim producer); (30) fix the
+  kinematics style issues; (31) SVG code only in the FINAL catch-up queue (no restarts). Plan: helper for 27 / 28-compare
+  / 29 / 30 code; then ONE final code version (main + that) and ONE catch-up queue (held steps + kinematics K + cam4
+  cohort + aim + LP epoch arm), heavy steps under the shared lock.
