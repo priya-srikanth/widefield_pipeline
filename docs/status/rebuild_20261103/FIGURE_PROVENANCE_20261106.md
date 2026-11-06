@@ -7,8 +7,8 @@ they're defined, etc."
 The table is `FIGURE_PROVENANCE_20261106.csv`, beside this file. It has one row per item in the replacement-pass map:
 page figures, inline images, LMM toggles, deck slides and NEW items.
 
-**This is a first pass.** The code reading of script group A (frozen encoder / FR / O2 family) had not finished at
-hand-off. Its rows are UNKNOWN, with "script not characterised: <script>". See section 7.
+**Updated 11-06 ~15:45: all six script groups are merged** (group A findings at the end). Counts: 45 CONFIRMED, 635 INFERRED,
+152 UNKNOWN, 69 automatic caption conflicts; INFERRED rows turn CONFIRMED from the render logs when it finishes (section 7).
 
 ## 1. Method
 
