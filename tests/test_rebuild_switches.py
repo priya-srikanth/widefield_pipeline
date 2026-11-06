@@ -274,10 +274,11 @@ def test_session_cache_default_kind_unchanged_and_variant_never_prunes_it(monkey
     monkeypatch.setattr(sc, "CACHE_DIR", tmp_path / "cache")
     monkeypatch.delenv("WIDEFIELD_NO_CACHE", raising=False)
     s = _fake_session(tmp_path)
-    assert sc.effective_kind("tf-cue-abc") == "tf-cue-abc"
+    # 11-06: the default KIND carries the detector part (`run_mode.session_kind_tag`; same content as a pre-only run's)
+    assert sc.effective_kind("tf-cue-abc") == "tf-cue-abc-daqlk"
     sc.cached(s, "tf-cue-abc", lambda: 1, verbose=False)
     files = sorted(p.name for p in (tmp_path / "cache").glob("*.pkl"))
-    assert len(files) == 1 and files[0].startswith("PS92_0806__tf-cue-abc__")
+    assert len(files) == 1 and files[0].startswith("PS92_0806__tf-cue-abc-daqlk__")
     monkeypatch.setenv("WIDEFIELD_HEMO_VARIANT", VAR)
     assert sc.effective_kind("tf-cue-abc") == f"tf-cue-abc-hv-{VAR}_daqlk"
     assert sc.cached(s, "tf-cue-abc", lambda: 2, verbose=False) == 2
