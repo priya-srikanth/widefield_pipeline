@@ -283,3 +283,17 @@ the night.
   the switched files also write SVGs (some disk / time).
   Agreed with a8: a8 is the sole PI-deck writer (maps slides -> provenance rows, shows Priya gaps, writes notes); I own
   the provenance table + Data: text. Held steps (A22 / A23) parked as RESERVED_HOLD (handoff 00-COMPACT-31).
+- ~16:40 **A20-A23 done** (fix/priya1106-gates-captions 41f47e15 / a4fce58e / 0f78e679, unpushed; 15 new + 202 related
+  tests pass): kinematics + 3-D scripts on the camera working period (shared trial_classes helpers, WFIELD_KIN_GATE
+  legacy switch -> *_legacygate folders; outputs routed via run_mode.session_poses_out); recovery_timing reads the run's
+  frac_hit_far_contra (Fig 0.2 / 1b rate), refuses an ungated table; fig_goal_summary fig1-3 readings now COMPUTED
+  animal counts; A23 was NOT a bug (the 7b run read v7g3_t3d_spont_trial, 48,897 trials) -> code hardened only, the 3
+  parked exec_vs steps released back to v7b, no re-run needed. Kinematics steps are new render work (section K, ~6
+  heavy 3-D steps) -> catch-up queue. **Questions A27-A30**: (27) cam4 cue traces come from orofacial_cohort whose ONE gate
+  (OROFACIAL_GATE) covers every cam4 table -> switch the whole cam4 cohort to the camera working period, only the traces,
+  or leave? (28) exec_bins_calibration (an encoder INPUT) now gates licks -> regenerate the encoder's frozen calibration
+  snapshot (= a new encoder input, would change the te / lsland frames) or keep the 10-23 snapshot (rec keep)?
+  (29) recovery_timing --aim needs aim_by_spout_sessions.csv, which no step produces -> add lick_cued_aim_by_spout or drop
+  the aim variant? (30) style: pose3d_summary_fig keeps filled epoch dots (per-animal), pose3d_phase top spines -> fix in
+  the same pass? trial_attempts_sessions.csv for the tag EXISTS (qc/sel-camera-...stopA2jexrt3500c70, 11-04, 12
+  frac_stopped columns; identical under the DAQ detector).
