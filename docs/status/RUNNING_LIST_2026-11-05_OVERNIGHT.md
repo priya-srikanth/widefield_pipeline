@@ -6,10 +6,9 @@ until Priya answers the matching question.
 
 ## 1. Decisions / questions for Priya (answer these first)
 
-- **Q4. Fluoro slide 161 bullet 2.** "The few swallows left carry about half the bolus" is bolus AREA only (x0.57).
-  With density (x0.60) the barium per swallow is about a THIRD (amount x0.34 day 1, x0.28 day 2). Proposed: "The
-  few swallows left carry about a third of the barium (smaller and less dense) and clear the esophagus slowly".
-  Not changed.
+- **Q4 DONE (Priya "can change", relayed by 34).** Slide 161 bullet 2 now: "The few swallows left carry about a third
+  of the barium (smaller and less dense bolus) and clear the esophagus slowly" (was "about half the bolus" = area
+  only; amount x0.34 day 1). reword_fluoro_bullet_1105.py, backup backup_before_fluoro_bullet_1105.
 - **Q5. CLAUDE.md rule 4 -> merge?** (follows Q3: Priya asked "which is safer". Answer given: merge, because several
   windows push one main and a rebase rewrites commits another window may have seen; neither is risky without a
   force-push.) Proposed edit: "fetch -> merge origin/main -> push". Waiting for OK before editing CLAUDE.md.
