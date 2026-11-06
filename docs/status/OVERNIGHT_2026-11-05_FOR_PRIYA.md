@@ -187,3 +187,7 @@ the night.
   deps + 4 missing producers: iti_area_maps --split, --split --cued, frozen_residual_trend frA joint and no_fr_dir),
   launched 10:30 in 2 lanes. e_iti_hemo (failed after 49 min on an undeclared dep) re-runs via a waiter after
   e_iti_area_maps.
+- ~11:40 **Priya's answers**: (1) merge the ALM/tjM1 + speed-up branches to main: YES. (2) F8 e_plain_*: run as TRUE plain
+  Allen (WFIELD_LICK_DECODER=areas). (3) slide 94: the *_split maps REPLACE the Allen ones (replacement pass).
+  (4) slide 139 without a no_lickspout column: OK. (5) slide 139 split-ROI remap gap: do the EXACT frozen side (an area
+  run with ROI targets, penalties held, ~2-2.5 h) instead of the basis-route approximation.
