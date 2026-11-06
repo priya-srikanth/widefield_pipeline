@@ -76,6 +76,17 @@ unclassified -> OUTSIDE_MAPS, map builders only import engagement_gate). Fixed o
 Priya said YES to cam4-style -> scratchpad push7.sh = the six + wf_p1106_cam4, sequential, merge-only (bg task bn32updgj;
 per-branch push logs scratchpad/push7.<wt>.log). Each push re-runs the full suite (~28 min) when configs/ is in the diff.
 
+**Update ~16:10 -- EARLY video/pose catch-up = queue v9k (Priya "yes if it won't cause problems"; "plenty of CPU and memory").**
+scratchpad/render_daqlk/queue_daqlk9k.sh (v8g machinery: shared lock, RAM pause, HALT brake; claims fresh / RESERVED_v9k).
+22 steps: section K = A20 3-D kinematics (gates helper K lines: jaw_only figs, trial-class share, pose3d_cue_traces cue/lick,
+spout_error, phase (+contra), summary_fig, vs_cam4, pose_validation); section C = A27 cam4 cohort + jaw-lateral (+_allpre),
+robustness, cover_sens, deck, pooled_angle, jaw_xcheck, k_pooled, k_lmm_curves. pose3d_* NOT in HEAVY_RE (2 workers).
+EXCLUDED (read render outputs -> FINAL catch-up queue): k_imaging_lmm, aim producer / decoder_retention / recovery_timing,
+the 10 HOLD steps, A25 LP epoch arm. g7_fig_pose_validation (v7b, old code) -> RESERVED_HOLD (k_pose_validation replaces it).
+launch_v9k.sh (bg) waits for push7 ALL DONE, checks cam4 is on main, makes detached worktree wf_render_v9k at that SHA, sets
+EXPECT_SHA, starts lanes K and C. Old v7 lane E (queue_daqlk7, obeys legacy STOP) exited at 15:38 -- harmless: e_iti_area_maps is
+RESERVED_v8, v7b lane E is alive. t_partial_te DONE 15:35; heavy lock now waits only on x_enl_move.
+
 **Priya OK'd cam4-style push (15:3x).** (was: waiting on Priya: OK to push fix/priya1106-cam4-style when the helper reports (A27 changes cam4 numbers -> report
 changed conclusions BEFORE any page text).
 
