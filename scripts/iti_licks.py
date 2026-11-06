@@ -1181,11 +1181,52 @@ def roi_draw(F: dict) -> None:
 KEY_ROIS = ["ALM_right", "ALM_left", "tjM1_right", "tjM1_left", "SSp-m_right", "SSp-m_left", "cortex"]
 
 
-def frozen_decode_lags(D: dict, set_name: str) -> pd.DataFrame:
+class _LagUnit:
+    """One (set, animal, lag) of `frozen_decode_lags`: everything its two fits need, built in the parent.
+
+    Picklable (spawned workers get it by value) with a SHORT repr, because `parallel.fan_out` logs the item and the
+    payload holds every session's feature matrix at that lag. ``li`` (the lag index) is the sort key."""
+
+    def __init__(self, set_name, animal, li, lag, pre, X, Y, epoch):
+        self.set_name, self.animal, self.li, self.lag = set_name, animal, li, lag
+        self.pre, self.X, self.Y, self.epoch = pre, X, Y, epoch      # X / Y[target] / epoch: {label: ...}, in S order
+
+    def __repr__(self):
+        return f"{self.animal} {self.set_name} lag {self.lag:g}"
+
+
+def _frozen_lag_unit(u: _LagUnit) -> list[dict]:
+    """The rows of one `_LagUnit`, targets in ("direction", "relative") order (MODULE-LEVEL: the fan-out worker).
+
+    STORE SAFETY: each call's frozen-model spec is distinct (the tag carries set, target and lag; the align directory
+    is derived from it), so two workers never fit or write the same spec; `frozen_models._write` is atomic per file
+    besides (PID temp + os.replace) and `siblings` only reads directories of the SAME tag."""
+    from wfield_local import frozen_readouts
+    rows = []
+    for tg in ("direction", "relative"):
+        # STORED BY DEFAULT (11-02 pass 2, `frozen_readouts`, opt-out WIDEFIELD_ITI_FROZEN=0)
+        fits = frozen_readouts.pre_loso_ridge(u.animal, f"iti_licks.frozen_decode_lags-{u.set_name}-{tg}-lag{u.lag:g}",
+                                              u.pre, u.X, u.Y[tg], np.logspace(-1, 4, 11))
+        for x in u.X:
+            sc, m = fits[x if x in u.pre else None]
+            pr = m.predict(sc.transform(u.X[x]))
+            rows.append({"label": x, "animal": u.animal, "epoch": u.epoch[x], "set": u.set_name, "target": tg,
+                         "lag": float(u.lag), "r": float(np.corrcoef(pr, u.Y[tg][x])[0, 1]) if np.std(pr) > 0 else np.nan})
+    return rows
+
+
+def frozen_decode_lags(D: dict, set_name: str, jobs: int | None = 1) -> pd.DataFrame:
     """FROZEN decoder per LAG: ridge trained on each animal's August PRE licks of the set (ITI or in-trial post-cue) at
     that lag, pre sessions scored leave-one-session-out, post sessions with the full pre fit. Targets: lateral direction
-    and direction RELATIVE to the previous trial's spout (ITI) / the spout in place (in-trial)."""
-    from wfield_local import frozen_readouts
+    and direction RELATIVE to the previous trial's spout (ITI) / the spout in place (in-trial).
+
+    PARALLEL (11-06; was 6.2 h on one core): the unit is one (animal, lag) -- both targets of a lag share its feature
+    matrices, and every (set, target, lag) is its own frozen spec, so units never race on the store. Fanned out ONE
+    ANIMAL AT A TIME (41 units per pool), so the parent holds one animal's per-lag features at once, not the whole set.
+    Rows come back sorted by lag index and are concatenated in the serial loop's order (animal, lag, target, session):
+    the DataFrame is identical to the serial one (`tests/test_iti_attempt_parallel.py`). ``jobs`` <= 1 runs in-process,
+    exactly the old loop (no BLAS pinning)."""
+    from wfield_local import analysis_kit as ak
     kx, ky, kp = ("iti_X", "iti_side", "iti_pos") if set_name == "iti" else ("tr_X", "tr_side", "tr_pos")
     rows = []
     for a in AN:
@@ -1195,17 +1236,19 @@ def frozen_decode_lags(D: dict, set_name: str) -> pd.DataFrame:
             continue
         Y = {tg: {x: (S[x][ky] if tg == "direction" else _within(S[x][ky], S[x][kp])) for x in S}
              for tg in ("direction", "relative")}
-        for li, lag in enumerate(LAGS_D):
-            X = {x: area_features(S[x][kx][:, li, :].astype(float), S[x]["cols"], x) for x in S}
-            for tg in ("direction", "relative"):
-                # STORED BY DEFAULT (11-02 pass 2, `frozen_readouts`, opt-out WIDEFIELD_ITI_FROZEN=0)
-                fits = frozen_readouts.pre_loso_ridge(a, f"iti_licks.frozen_decode_lags-{set_name}-{tg}-lag{lag:g}", pre,
-                                                      X, Y[tg], np.logspace(-1, 4, 11))
-                for x in S:
-                    sc, m = fits[x if x in pre else None]
-                    pr = m.predict(sc.transform(X[x]))
-                    rows.append({"label": x, "animal": a, "epoch": str(S[x]["epoch"]), "set": set_name, "target": tg,
-                                 "lag": float(lag), "r": float(np.corrcoef(pr, Y[tg][x])[0, 1]) if np.std(pr) > 0 else np.nan})
+        epoch = {x: str(S[x]["epoch"]) for x in S}
+        units = [_LagUnit(set_name, a, li, lag, pre,
+                          {x: area_features(S[x][kx][:, li, :].astype(float), S[x]["cols"], x) for x in S}, Y, epoch)
+                 for li, lag in enumerate(LAGS_D)]
+        if jobs is not None and jobs <= 1:
+            got = [(u, _frozen_lag_unit(u)) for u in units]
+        else:
+            got, fail = ak.fan_sessions(units, _frozen_lag_unit, jobs=jobs, key=lambda u: u.li,
+                                        label=f"frozen lag ({set_name})")
+            if fail:
+                raise RuntimeError(f"frozen_decode_lags {set_name} {a}: {len(fail)} lag unit(s) failed: {fail[:3]}")
+        for _u, r in got:
+            rows += r
     return pd.DataFrame(rows)
 
 
@@ -1345,13 +1388,14 @@ KEY_SPEC = (("resp_auc", "response AUC 0..0.5 s (dF/F x1e3 * s)\nbaseline -1.0..
             ("build_auc_n", "build-up AUC / animal's pre response AUC"))
 
 
-def key_figures(D: dict, RR: pd.DataFrame) -> None:
+def key_figures(D: dict, RR: pd.DataFrame, jobs: int | None = 1) -> None:
     """KEY figures (3.7 / 3.8 family): compute every statistic, save one figdata file per figure, then draw
-    (`key_figures_plot` redraws them from the figdata alone)."""
+    (`key_figures_plot` redraws them from the figdata alone). ``jobs``: workers of the frozen per-lag fits
+    (`frozen_decode_lags`); the CLI passes --jobs."""
     from figdata import save_fd
     rng = np.random.default_rng(1)
     # ---- 3.7: frozen decoder time courses + session summaries
-    FL = pd.concat([frozen_decode_lags(D, "iti"), frozen_decode_lags(D, "trial")])
+    FL = pd.concat([frozen_decode_lags(D, "iti", jobs=jobs), frozen_decode_lags(D, "trial", jobs=jobs)])
     FL.to_csv(OUT / tagged("decode_frozen_lags_sessions.csv"), index=False)
     plot_frozen_timecourse(FL)
     W = FL[(FL.lag >= 0.0) & (FL.lag <= 0.2)].groupby(["label", "animal", "epoch", "set", "target"]).r.mean().reset_index()
@@ -2151,7 +2195,7 @@ def main(argv=None) -> int:
         return 0
     if a.key:
         D = {x: _load(x) for x in labels if (XOUT / SESS_NAME / f"{x}.npz").exists()}
-        key_figures(D, pd.read_csv(OUT / "ramp_sessions.csv"))
+        key_figures(D, pd.read_csv(OUT / "ramp_sessions.csv"), jobs=a.jobs)
         return 0
     if not a.summarise:
         roi_figure(labels[0])
