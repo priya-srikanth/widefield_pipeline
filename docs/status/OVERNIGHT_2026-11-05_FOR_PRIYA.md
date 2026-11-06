@@ -35,7 +35,7 @@ the night.
    entries are superseded. OK to delete superseded LOCAL cache entries (derived, reproducible)? A disk watcher now
    halts the render queue if C: < 20 GB free.
 
-8. **PI deck fluoroscopy wording** (a8): slide 161 bullet 2 says "about half the bolus"; with the new barium-amount
+8. ~~**PI deck fluoroscopy wording**~~ ANSWERED 23:45 "can change" -> sent to a8. (a8): slide 161 bullet 2 says "about half the bolus"; with the new barium-amount
    measure it is closer to "about a third of the barium" (severe day 1 amount ~0.35x pre). Reword?
 
 ## B. Findings (early; nothing on pages changed)
