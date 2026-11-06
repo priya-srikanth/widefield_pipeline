@@ -84,3 +84,19 @@ def test_summary_table_runs(model):
     T = mm.lmm_table(L, by=["window"], models=(model,), print_animals=False)
     S = mm.summary_table(T, ["window"])
     assert len(S) == 1 and "re" in S.columns
+
+
+def test_log_deficit_primary_keeps_raw_axis():
+    """Priya 11-05: the log deficit (log(session / pre) of ttc) is the PRIMARY behaviour axis; add_deficit keeps the raw
+    relative deficit for plotting, and the linear ttc stays available as the sensitivity row."""
+    import numpy as np
+    import pandas as pd
+    from wfield_local import mixed_models as mm
+    assert mm.DEFICIT == "ttc_log" and "ttc" in mm.DEFICITS
+    d = mm.Deficit({"PS92_0811": float(np.log1p(0.4)), "PS92_0819": float(np.log1p(3.0))})
+    d.transform = "log1p"
+    L = pd.DataFrame({"label": ["PS92_0806", "PS92_0811", "PS92_0819"], "post": [0, 1, 1]})
+    D = mm.add_deficit(L, d)
+    assert np.allclose(D.deficit_x, [0.0, 0.4, 3.0])
+    assert (D.deficit_tf == "log1p").all()
+    assert "deficit_x" not in mm.add_deficit(L, {"PS92_0811": 0.4}).columns     # a plain dict = linear, unchanged
