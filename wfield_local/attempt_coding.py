@@ -195,24 +195,95 @@ def perm_test(vals, cls, sess, a, b, n_perm=N_PERM, seed=0):
         int(sum((~i).sum() for _, i in groups))
 
 
-def _cue_classes(labels, max_rt):
-    """{label: (cls per DAQ cue, trial_id per DAQ cue)} from the LP matcher (same matching the features use)."""
+def _cue_class_one(lab, max_rt):
+    """(cls per DAQ cue, trial_id per DAQ cue) of one session, or None when it is not registered."""
     from wfield_local import lp_licks
     from wfield_local.locanmf_cue_lick_analysis import SESSIONS
     from wfield_local.plot_spout_trial_averages import _load_daq_events as _load_cue_events
+    s = next((x for x in SESSIONS if x["label"] == lab), None)
+    if s is None:
+        return None
+    cue = _load_cue_events(s["h5"])
+    lp = lp_licks.session_lp(lab, cue["cue_samples"], cue["sample_rate_hz"], max_rt)
+    return np.asarray(lp["cls"], object).astype(str), np.asarray(lp["trial_id"], int)
+
+
+def _cue_classes(labels, max_rt, prefetched=None):
+    """{label: (cls per DAQ cue, trial_id per DAQ cue)} from the LP matcher (same matching the features use).
+
+    ``prefetched``: {label: value of `_cue_class_one`} from `_prefetch_sessions` (parallel workers); a label missing
+    from it is computed here, in ``labels`` order, so the dict and any error are the serial loop's."""
     out = {}
     for lab in labels:
-        s = next((x for x in SESSIONS if x["label"] == lab), None)
-        if s is None:
-            continue
-        cue = _load_cue_events(s["h5"])
-        lp = lp_licks.session_lp(lab, cue["cue_samples"], cue["sample_rate_hz"], max_rt)
-        out[lab] = (np.asarray(lp["cls"], object).astype(str), np.asarray(lp["trial_id"], int))
+        got = prefetched[lab] if prefetched is not None and lab in prefetched else _cue_class_one(lab, max_rt)
+        if got is not None:
+            out[lab] = got
     return out
 
 
-def run_animal(animal, align="precue", verbose=True):
-    """Trial table for one animal and window (None if unavailable)."""
+#: per-worker-process memo of the feature builder (one basis load per worker, not per session)
+_WARM_FEAT: dict = {}
+
+
+def _prefetch_one(item):
+    """FAN-OUT WORKER (module-level: spawn pickles by name) for one session of `run_animal`.
+
+    1. WARMS the on-disk feature cache (`trial_features_cached` via `features_with_indices`, the exact call
+       `pool_sessions` makes for this session), so the serial `pool_sessions` that follows reads it instead of
+       projecting U / SVT session by session. The serial code path is unchanged: this only fills a cache.
+    2. Returns this session's `_cue_class_one` (the DAQ cue h5 read + LP class match).
+    Either step's failure is returned, not raised: the serial path then recomputes the session and reports / raises
+    exactly as it always has."""
+    animal, lab, align, post_s, nolick_ref, max_rt, blas = item
+    if blas:
+        # THE PARENT'S ARITHMETIC: spawned workers are pinned to parallel.BLAS_THREADS; the serial path projects at the
+        # parent's count, and the cached features must be what the parent would have computed
+        import threadpoolctl
+        threadpoolctl.threadpool_limits(limits=blas, user_api="blas")
+    from wfield_local.locanmf_frozen_decoder import _args
+    from wfield_local.locanmf_cue_lick_analysis import SESSIONS
+    out = {"warm": None, "cue": None, "cue_err": None}
+    try:
+        key = (animal, nolick_ref)
+        if key not in _WARM_FEAT:
+            from wfield_local import joint_locanmf
+            from wfield_local.precue_engagement_states import features_with_indices
+            _WARM_FEAT[key] = features_with_indices(joint_locanmf.load(animal, sessions=SESSIONS), nolick_ref=nolick_ref)
+        s = next((x for x in SESSIONS if x["label"] == lab), None)
+        if s is not None:
+            _WARM_FEAT[key](s, _args("locanmf", align, post_s))
+        out["warm"] = "ok"
+    except Exception as ex:                              # noqa: BLE001 - the serial pass recomputes and reports
+        out["warm"] = f"{type(ex).__name__}: {ex}"
+    try:
+        out["cue"] = _cue_class_one(lab, max_rt)
+    except Exception as ex:                              # noqa: BLE001
+        out["cue_err"] = f"{type(ex).__name__}: {ex}"
+    return out
+
+
+def _prefetch_sessions(animal, labels, align, post_s, nolick_ref, max_rt, jobs):
+    """{label: cue classes} for the sessions whose class load succeeded in a worker; warms the feature cache.
+
+    PARALLEL (11-06): unit = one SESSION (`analysis_kit.fan_sessions`, sorted by label). Profiled on PS92 precue
+    (4 sessions, scratch frozen store): cold feature build ~23 s / session and the cue-class load ~4.7 s / session
+    (mostly the DAQ h5 read off MICROSCOPE), both serial per session before this. Workers hold one basis plus one
+    session's U / SVT projection (~1-1.5 GB each on a cold cache)."""
+    from wfield_local import analysis_kit as ak
+    from wfield_local import parallel
+    # the parent is NOT left pinned: everything after this runs serially at the parent's own BLAS count, exactly as
+    # before (a pinned parent moved the attempt-axes projection and minted a new frozen model; `parent_blas_kept`)
+    with parallel.parent_blas_kept() as nb:
+        items = [(animal, lab, align, post_s, nolick_ref, max_rt, nb) for lab in labels]
+        got, _fail = ak.fan_sessions(items, _prefetch_one, jobs=jobs, key=lambda it: it[1], label="attempt session")
+    return {it[1]: r["cue"] for it, r in got if r["cue_err"] is None}
+
+
+def run_animal(animal, align="precue", verbose=True, jobs=1):
+    """Trial table for one animal and window (None if unavailable).
+
+    ``jobs`` > 1 (the CLI's --jobs): the per-session loads run first over that many workers (`_prefetch_sessions`:
+    feature-cache warm + cue classes); everything after is the unchanged serial code, so the table is identical."""
     from wfield_local import config, joint_locanmf, lp_licks
     from wfield_local.locanmf_frozen_decoder import pool_sessions, _args
     from wfield_local.plot_lick_aligned_averages import POSITION_NAMES
@@ -226,8 +297,11 @@ def run_animal(animal, align="precue", verbose=True):
     if not pre or not post:
         return None
     from wfield_local.locanmf_cue_lick_analysis import SESSIONS as _ALL
+    nolick_ref = "would_be_lick" if align == "lick" else "cue"
+    pre_cc = (_prefetch_sessions(animal, pre + post, align, post_s, nolick_ref, _args("locanmf", align, post_s).max_rt,
+                                 jobs) if jobs is not None and jobs > 1 else None)
     basis = joint_locanmf.load(animal, sessions=_ALL)
-    feat = features_with_indices(basis, nolick_ref=("would_be_lick" if align == "lick" else "cue"))
+    feat = features_with_indices(basis, nolick_ref=nolick_ref)
     pooled = pool_sessions(pre + post, source="locanmf", align=align, post_s=post_s, features=feat)
     if pooled is None:
         return None
@@ -239,7 +313,7 @@ def run_animal(animal, align="precue", verbose=True):
     not_eng, _fnl, _fe = g
 
     # attempts class + trial_id per feature row, through the trial (DAQ cue) indices the features kept
-    cc = _cue_classes(kept, _args("locanmf", align, post_s).max_rt)
+    cc = _cue_classes(kept, _args("locanmf", align, post_s).max_rt, prefetched=pre_cc)
     cls_e, cls_u, tid_e, tid_u = [], [], [], []
     for lab in kept:
         ie, inl = feat.indices[lab]
@@ -429,6 +503,8 @@ def main(argv=None) -> int:
     ap.add_argument("--aligns", nargs="+", default=list(ALIGNS), choices=ALIGNS)
     ap.add_argument("--out", type=Path, default=None)
     ap.add_argument("--freeze", action="store_true", help="DAQ mode: store the frozen decoders the LP run reads, then exit")
+    ap.add_argument("--jobs", type=int, default=3,
+                    help="workers for the per-session loads of run_animal (feature-cache warm + cue classes); 1 = serial")
     a = ap.parse_args(argv)
     if a.freeze:
         for an in a.animals:
@@ -446,7 +522,7 @@ def main(argv=None) -> int:
             f = od / trials_name(align, an)
             if f.exists():
                 parts.append(pd.read_csv(f)); continue
-            T = run_animal(an, align)
+            T = run_animal(an, align, jobs=a.jobs)
             if T is None:
                 print(f"[attempt_coding] {an} {align}: unavailable", flush=True); continue
             T.to_csv(f, index=False); parts.append(T)
