@@ -325,10 +325,13 @@ def plot_fits(L: pd.DataFrame, T: pd.DataFrame, panels, model: str, path: Path, 
     xcol, xlab = _X[model]
     if xlabel and model.startswith("behaviour"):                  # the caller's deficit (e.g. an angle measure)
         xlab = xlabel
-    from wfield_local import config
-    acol = config.animal_color()
+    # session dots: OPEN markers, shape = animal (cat_points.animal_marker, animals.yaml), colour = epoch
+    # (orofacial_cohort.EPOCH_LINE: pre black / acute pink / subacute yellow / chronic green) -- Priya 10-27 / 11-05
+    from wfield_local.cat_points import animal_marker
+    from wfield_local.orofacial_cohort import EPOCH_LINE
     nrows = int(np.ceil(len(panels) / ncols))
     fig, ax = plt.subplots(nrows, ncols, figsize=(4.8 * ncols, 4.3 * nrows), squeeze=False)
+    seen_an, seen_ep = set(), set()
     for k, (name, sel) in enumerate(panels):
         a_ = ax.flat[k]
         G, c = L, T[T.model == model]
@@ -341,11 +344,12 @@ def plot_fits(L: pd.DataFrame, T: pd.DataFrame, panels, model: str, path: Path, 
         # log-scale deficit (DEFICIT ttc_log): points on the ORIGINAL relative-deficit axis, fit drawn as its curve
         logx = (model.startswith("behaviour") and "deficit_tf" in G.columns and (G.deficit_tf == "log1p").any())
         px = "deficit_x" if logx else xcol
-        for an, g in G.groupby("animal"):
-            for post, mk in ((0, "o"), (1, "^")):
-                h = g[g.post == post]
-                a_.scatter(h[px], h.y, s=14, marker=mk, color=acol.get(an, "0.4"), alpha=0.8,
-                           label=f"{an} {'post' if post else 'pre'}" if k == 0 and len(h) else None)
+        epc = G["epoch"] if "epoch" in G.columns else np.where(G.post == 0, "pre", "post")
+        for (an, ep), h in G.assign(_ep=epc).groupby(["animal", "_ep"]):
+            a_.scatter(h[px], h.y, s=16, marker=animal_marker(an), facecolors="none",
+                       edgecolors=EPOCH_LINE.get(ep, "0.4"), linewidths=0.9, alpha=0.85)
+            seen_an.add(an)
+            seen_ep.add(ep)
         c = c.set_index("term")
         if model in ("time", "behaviour"):
             sl = SLOPES[model]
@@ -384,7 +388,14 @@ def plot_fits(L: pd.DataFrame, T: pd.DataFrame, panels, model: str, path: Path, 
         a_.spines["top"].set_visible(False)           # no top frame line (Priya 11-03)
     for a_ in ax.flat[len(panels):]:
         a_.axis("off")
-    ax.flat[0].legend(fontsize=6, ncol=2)
+    from matplotlib.lines import Line2D
+    hl, lb = ax.flat[0].get_legend_handles_labels()            # the fit lines
+    hl += [Line2D([], [], ls="none", marker=animal_marker(a), mfc="none", mec="0.35", mew=0.9, ms=5) for a in sorted(seen_an)]
+    lb += sorted(seen_an)
+    eps = [e for e in (*EPOCHS, "post") if e in seen_ep]
+    hl += [Line2D([], [], ls="none", marker="o", mfc="none", mec=EPOCH_LINE.get(e, "0.4"), mew=1.2, ms=5) for e in eps]
+    lb += eps
+    ax.flat[0].legend(hl, lb, fontsize=6, ncol=2)
     fig.suptitle(f"{title} -- mixed model, animal random effects ({model})", fontsize=9)
     if model.startswith("behaviour") and "deficit_tf" in L.columns and (L.deficit_tf == "log1p").any():
         xlab += "; fit on log(session / pre), drawn on this axis"
