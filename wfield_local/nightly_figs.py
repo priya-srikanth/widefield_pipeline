@@ -319,6 +319,25 @@ def _per_day_figs(per_day, out, from_dates, only):
     _cli_many([enc for _dec, enc in groups])                  # then every date's encoder
 
 
+def _frozen_units(aligns, from_list, only):
+    """``{align: [(animal, align, labels), ...]}``, animals sorted: the frozen ROI step's units."""
+    animals = []
+    for a in sorted({s["label"].split("_")[0] for s in SESSIONS if s["label"][-4:] in set(from_list)}):
+        if only and a not in set(only):
+            continue
+        # POOLED = pre + post, never the raw date list. `from_list` is a cohort-wide DATE
+        # list and cannot express "8/17 is post-stroke for PS94 and PS95 but excluded for
+        # PS92 and PS93", so it carried PS92_0817 and PS93_0817 -- a post-lesion attempt
+        # that is neither phase. `pooled_frozen_loso` calls everything not pre-stroke
+        # "post", so those two were being scored by the frozen decoder and REPORTED as
+        # post-stroke days. See config.pooled_labels.
+        labs = [x for x in config.pooled_labels(a) if x[-4:] in set(from_list)]
+        if len(labs) < 2:
+            continue
+        animals.append((a, labs))
+    return {al: [(a, al, labs) for a, labs in animals] for al in aligns}
+
+
 def _perday_figs_incomplete(out, d) -> bool:
     """True if date ``d`` has registered sessions but is MISSING the per-day cue-decode figure for any of
     them in ``out`` (Section A's anchor, ``locanmf_position_session_<label>_locanmf_cue_base-none_cv-block.png``).
@@ -644,8 +663,7 @@ def main():
             from wfield_local.locanmf_frozen_decoder import (
                 _encoder_fig,
                 _loso_fig,
-                pooled_frozen_encoder,
-                pooled_frozen_loso,
+                frozen_pairs,
                 write_animal_confusion_grid,
                 write_session_confusions,
             )
@@ -657,24 +675,22 @@ def main():
             # a by-hand run whose output nothing regenerated and nothing read, so it sat two days
             # stale on an 11-session pre-stroke-only pool while cue and precue moved on. An arm worth
             # having is an arm the nightly maintains; otherwise it silently becomes an orphan.
-            for al in ("cue", "precue", "lick"):
+            aligns = ("cue", "precue", "lick")
+            units = _frozen_units(aligns, from_list, only)
+            # ONE POOL PER (animal, alignment), shared by the decoder and the encoder
+            # (`locanmf_frozen_decoder.frozen_pair`): each used to rebuild the identical ROI pool, and
+            # ROI features are not disk-cached, so this step paid ~19 s a session twice over.
+            # WIDEFIELD_FROZEN_JOBS > 1 also fans the units over cores; serial (1) is the default
+            # because the workers' pinned BLAS can move an lbfgs fit -- see `frozen_pairs`.
+            jobs = int(os.environ.get("WIDEFIELD_FROZEN_JOBS", "1") or 1)
+            fanned = frozen_pairs([u for al in aligns for u in units[al]], jobs=jobs, log=log) if jobs > 1 else None
+            for al in aligns:
+                got = fanned if fanned is not None else frozen_pairs(units[al], jobs=1, log=log)
                 dec, enc = {}, {}
-                for a in sorted({s["label"].split("_")[0] for s in SESSIONS if s["label"][-4:] in set(from_list)}):
-                    if only and a not in set(only):
-                        continue
-                    # POOLED = pre + post, never the raw date list. `from_list` is a cohort-wide DATE
-                    # list and cannot express "8/17 is post-stroke for PS94 and PS95 but excluded for
-                    # PS92 and PS93", so it carried PS92_0817 and PS93_0817 -- a post-lesion attempt
-                    # that is neither phase. `pooled_frozen_loso` calls everything not pre-stroke
-                    # "post", so those two were being scored by the frozen decoder and REPORTED as
-                    # post-stroke days. See config.pooled_labels.
-                    labs = [x for x in config.pooled_labels(a) if x[-4:] in set(from_list)]
-                    if len(labs) < 2:
-                        continue
-                    r = pooled_frozen_loso(labs, source="roi", align=al, verbose=False)
+                for a, _al, _labs in units[al]:                          # sorted by animal, as before
+                    r, e = got[(a, al)]
                     if r:
                         dec[a] = r
-                    e = pooled_frozen_encoder(labs, source="roi", align=al, verbose=False)
                     if e:
                         enc[a] = e
                 if dec:
