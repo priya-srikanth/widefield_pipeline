@@ -236,25 +236,25 @@ down-sampled grid of the stat mask), LocaNMF components (`lnmfproj`), frozen enc
 
 | output | rows | CONFIRMED | INFERRED | UNKNOWN |
 |---|---|---|---|---|
-| PI deck 11-02 | 187 | 5 | 96 | 86 |
+| PI deck 11-02 | 187 | 8 | 108 | 71 |
 | behaviour page | 7 | 2 | 1 | 4 |
-| encoding (goal) page | 439 | 10 | 299 | 130 |
-| imaging page | 117 | 6 | 100 | 11 |
+| encoding (goal) page | 439 | 28 | 369 | 42 |
+| imaging page | 117 | 6 | 101 | 10 |
 | kinematics page | 82 | 1 | 56 | 25 |
-| **all** | 832 | 24 | 552 | 256 |
+| **all** | 832 | 45 | 635 | 152 |
 
-Rows with a mapped render step: 515. CONFIRMED rows: encoding Fig 7.3 [collapsible], encoding Fig 9.2, encoding Fig 9.3, encoding Fig 12.16 [collapsible], encoding Fig 12.22 [collapsible], encoding Fig 13.6, encoding inline image after Fig 12.22, encoding inline image after Fig 13.6, encoding inline image after Fig 13.6, encoding inline image after Fig 13.6, imaging Fig 0.2, imaging Fig 5.2, imaging Fig 8.1, imaging Fig 8.1b, imaging Fig 8.2, imaging Fig 8.2b, kinematics Fig 7.6, behaviour Fig 1.2, behaviour LMM toggle image, PI slide 4 (visible), PI slide 5 (hidden), PI slide 35 (visible), PI slide 184 (visible), PI slide 185 (hidden).
+Rows with a mapped render step: 515. CONFIRMED rows: encoding Fig 0.3, encoding Fig 0.4, encoding Fig 0.9, encoding Fig 0.10, encoding Fig 0.11, encoding Fig 1.1, encoding Fig 1.7 [collapsible], encoding Fig 1.8 [collapsible], encoding Fig 1.9 [collapsible], encoding Fig 1.10 [collapsible], encoding Fig 3.11 [collapsible], encoding Fig 3.12 [collapsible], encoding Fig 4.6, encoding Fig 7.3 [collapsible], encoding Fig 9.2, encoding Fig 9.3, encoding Fig 12.16 [collapsible], encoding Fig 12.22 [collapsible], encoding Fig 13.6, encoding Fig 17.1, encoding Fig 17.2, encoding Fig 17.3, encoding Fig 17.4, encoding Fig 17.5, encoding inline image after Fig 12.22, encoding inline image after Fig 13.6, encoding inline image after Fig 13.6, encoding inline image after Fig 13.6, imaging Fig 0.2, imaging Fig 5.2, imaging Fig 8.1, imaging Fig 8.1b, imaging Fig 8.2, imaging Fig 8.2b, kinematics Fig 7.6, behaviour Fig 1.2, behaviour LMM toggle image, PI slide 4 (visible), PI slide 5 (hidden), PI slide 35 (visible), PI slide 89 (visible), PI slide 92 (hidden), PI slide 137 (visible), PI slide 184 (visible), PI slide 185 (hidden).
 
-UNKNOWN reasons: script not characterised (172); no producing script named (map / deck note) (65); missing (19).
+UNKNOWN reasons: missing (70); no producing script named (map / deck note) (65); script not characterised (17).
 
 ## 6. Caption conflicts
 
 ### 6a. Automated checks (live captions vs the _daqlk provenance; detail per row in `caption_conflicts`)
 
+- **caption says Bonferroni; producer uses the max-statistic** (8): encoding Fig 3.9, encoding Fig 21.3, encoding Fig 21.12, imaging Fig 2.5, imaging Fig 2.7, imaging Fig 14.4, imaging Fig 14.5, imaging Fig 14.6
 - **caption says June + August pre; the _daqlk run is August-only (pre0801)** (48): imaging Fig 1.1, imaging Fig 1.2, imaging Fig 2.1, imaging Fig 2.2, imaging Fig 2.3, imaging Fig 2.4, imaging Fig 2.4b, imaging Fig 2.5, imaging Fig 2.6, imaging Fig 2.7, imaging Fig 2.8, imaging Fig 3.4, imaging Fig 4.2, imaging Fig 4.4, imaging Fig 6.1, imaging Fig 6.2, imaging Fig 6.3, imaging Fig 7.1, imaging Fig 7.1b, imaging Fig 7.3, imaging Fig 7.3b, imaging Fig 7.5, imaging Fig 7.5b, imaging Fig 7.7, imaging Fig 7.7b, imaging Fig 7.8b, imaging Fig 7.10, imaging Fig 7.10b, imaging Fig 7.12, imaging Fig 7.14, imaging Fig 7.16, imaging Fig 7.16b, imaging Fig 7.18, imaging Fig 7.18b, imaging Fig 7.19b, imaging Fig 7.21, imaging Fig 7.23, imaging Fig 10.1, imaging Fig 12.1, imaging Fig 14.1, imaging Fig 14.2, imaging Fig 14.3, imaging Fig 14.4, imaging Fig 14.5, imaging Fig 14.6, imaging Fig 14.7, imaging Fig 14.8, imaging Fig 14.9
 - **caption describes the DAQ quit-tail / engagement gate; the _daqlk run selects trials with the camera working period** (47): imaging Fig 2.1, imaging Fig 2.2, imaging Fig 2.3, imaging Fig 2.5, imaging Fig 2.6, imaging Fig 2.7, imaging Fig 2.8, imaging Fig 3.1, imaging Fig 4.1, imaging Fig 4.2, imaging Fig 6.1, imaging Fig 7.1, imaging Fig 7.1b, imaging Fig 7.2, imaging Fig 7.2b, imaging Fig 7.3, imaging Fig 7.3b, imaging Fig 7.4, imaging Fig 7.4b, imaging Fig 7.5, imaging Fig 7.5b, imaging Fig 7.6, imaging Fig 7.6b, imaging Fig 7.7, imaging Fig 7.7b, imaging Fig 7.8, imaging Fig 7.8b, imaging Fig 7.9, imaging Fig 7.9b, imaging Fig 7.10, imaging Fig 7.10b, imaging Fig 7.11, imaging Fig 7.11b, imaging Fig 7.12, imaging Fig 7.13, imaging Fig 7.14, imaging Fig 7.15, imaging Fig 10.1, imaging Fig 10.2, imaging Fig 13.1, imaging Fig 13.2, imaging Fig 14.1, imaging Fig 14.2, imaging Fig 14.4, imaging Fig 14.5, imaging Fig 14.7, imaging Fig 14.8
 - **caption defines working as licking + miss-while-working (DAQ rule); rebuild working = camera contact | incomplete** (46): imaging Fig 2.1, imaging Fig 2.2, imaging Fig 2.3, imaging Fig 2.5, imaging Fig 2.6, imaging Fig 2.7, imaging Fig 2.8, imaging Fig 3.1, imaging Fig 4.1, imaging Fig 4.2, imaging Fig 7.1, imaging Fig 7.1b, imaging Fig 7.2, imaging Fig 7.2b, imaging Fig 7.3, imaging Fig 7.3b, imaging Fig 7.4, imaging Fig 7.4b, imaging Fig 7.5, imaging Fig 7.5b, imaging Fig 7.6, imaging Fig 7.6b, imaging Fig 7.7, imaging Fig 7.7b, imaging Fig 7.8, imaging Fig 7.8b, imaging Fig 7.9, imaging Fig 7.9b, imaging Fig 7.10, imaging Fig 7.10b, imaging Fig 7.11, imaging Fig 7.11b, imaging Fig 7.12, imaging Fig 7.13, imaging Fig 7.14, imaging Fig 7.15, imaging Fig 10.1, imaging Fig 10.2, imaging Fig 13.1, imaging Fig 13.2, imaging Fig 14.1, imaging Fig 14.2, imaging Fig 14.4, imaging Fig 14.5, imaging Fig 14.7, imaging Fig 14.8
-- **caption says Bonferroni; producer uses the max-statistic** (5): imaging Fig 2.5, imaging Fig 2.7, imaging Fig 14.4, imaging Fig 14.5, imaging Fig 14.6
 
 
 These are expected: the live captions describe the renders made before the rebuild. The replacement pass must REWRITE
@@ -404,3 +404,38 @@ these captions, not annotate them.
    - The "[licks: ...]" tag vs the video-lick ITI chain (finding 1).
 
    Both need the group A rows and then a manual read.
+
+## Group A (frozen encoder / FR / O2 scripts) findings, 11-06 ~15:45
+
+1. fig_resid16 / fig_resid_spout captions say "nested bootstrap, Bonferroni"; the nested map test is the max-statistic
+   (beta_maps.CORRECTION = "maxstat"). Their inputs (residual_sig_<F>px.csv, resid<F>_*.npz) have no repo writer -> stale
+   (Figs 7 / 7c / 7d were replaced by the 8 px residual-significance figures, 11-05).
+2. Bonferroni is right ONLY for: the per-animal "musall" tests (fig_resid_per_animal, frozen_residual_significance
+   --per-animal, per-animal panels of frozen_pixel_unique_sig / spout_unique_maps); Allen-area tests (residual_roi,
+   session_vs_frozen maps, frozen_peth_trial_maps); fig_frozen_refit_pooled (x9), fig_softmax_stats (x36).
+3. Pooled pixel maps = max-statistic (16 / 32 px bins, family-wise per panel): frozen_pixel_unique_sig,
+   frozen_pixel_musall, spout_unique_maps, fr_pixel_significance, fr_pixel_maps_sig, variance_maps;
+   frozen_residual_significance = 8 px bins + cluster test.
+4. Bars / lines (frozen_fr_compare, frozen_fr_musall(_v2), frozen_claims, contest_lines, te_readout, partial_refit,
+   matched_residual, specificity_control, simple_key_figures): star = "CI excludes 0", NO multiple-comparison correction;
+   remap_lmm / remap_checks: BH-FDR on LMM terms.
+5. Pre: fig_frozen_refit_pooled docstring says June + August (11 / animal); g5_epoch ran PRE_FROM=0801 -> August-only.
+   The frozen-encoder family is August-only via config.early_pre (cohort-1 cut 0806) on top of PRE_FROM.
+6. Licks: frozen-encoder figures = LP video lick kernels (cam4 + cam1-only), DAQ contact = contact kernel, pre-cue / ITI
+   LP kernels (FROZEN_LICKS_ALL=split); lick alignment = LP first lick (DAQ contact fallback at close spouts); trials =
+   attempted (contact | incomplete) inside the camera working period. Decoder figures (fig_frozen_refit_pooled,
+   fig_s_per_animal, joint_xsession) = imaging DAQ detector + camera working classes; joint_xsession's ENCODER arm does
+   not use the camera rows.
+7. Windows: frozen Musall cue 0..1.5 s, lick -0.1..1.0 s; frozen_relabel / session_design cue 0..1.0 s; per-session
+   encoder (FR, variance_maps) cue 0..1.0 s, "lick" = within 0.2 s of an LP lick peak; evoked residuals lick 0..1 s vs
+   -0.3..-0.1 s, cue 0.5..1.5 s vs -0.5..0 s; allsession_encoder / Layer 2 = all frames.
+8. Inputs: fr_pixel_maps_sig needs fr_musall's pixel npz (fr_musall has no render step); FR / per-session / binned-contest
+   inputs come from run folders without the _gate-attempted suffix (trial gate UNKNOWN); fr_encoding_summary's "enl" may
+   be the old fixed 2 s pre-cue window if those runs predate 11-04. Not in the render (no step): fig_resid16,
+   fig_resid_spout, fig_softmax, fig_softmax_stats, fr_direction_mechanism, fr_encoding_summary, fr_musall,
+   fr_trial_peth, grant_encoder, imaging_page/s_per_animal.
+9. epoch_kernels' "early_pre" = first half of the AUGUST pre sessions (not June).
+10. fig_s_per_animal's suptitle says "engaged trials"; its inputs are working-trial families.
+11. CORRECTION to an earlier note: the far-contra / attempt-coding decoders in this render are LP-TRAINED (the LP step froze
+    its own models; manifest lick_source: lp, e.g. PS92 decoder_precue_..._4503e20e2ae1). Caption: "frozen pre-stroke
+    decoder trained on LP-classified pre trials".
