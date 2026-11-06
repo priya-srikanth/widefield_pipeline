@@ -105,3 +105,8 @@ the night.
   iti_licks --key frozen lag sweep (6.2 h, serial 656 readouts) -> fan over cores; attempt_coding per-session loading
   (~35 min per animal x alignment, serial) -> fan_sessions. Exact-equality tests. Correction: the permutation tests are
   NOT the cost (< 1 min); I said so earlier and was wrong.
+- ~06:40: **queue v7 = heavy-step lock (Priya OK)**: one pixel-encoder / refit / epoch-render step at a time (overnight 3-4
+  overlapped at ~10 GB per worker, paging peaked at 77 GB -> the 2-4x slow-down). Remaining heavy steps reserved for v7
+  lanes; RAM check now reads AVAILABLE memory. v7 lanes G, T, E, A/B-heavy launched; v6 lanes 2, X, D + the te re-run
+  continue (they skip reserved steps). d_attempt_pp_* finished in ~1 min each (shortcut). Found: t_frame_te_basis had
+  never re-run with the calibration (stale claim from the no-calibration run) -> re-queued under the lock.
