@@ -97,17 +97,16 @@ def response_window_s(session_dir=None):
     """The session's real response window (s), or the configured default.
 
     READ PER SESSION, because it is a task setting that can be retuned -- `daq_trials` already does
-    this and the two must not disagree. Every session to date ran 3500 ms.
+    this and the two must not disagree. Every session to date ran 3500 ms. The fallback is THE configured one
+    (`daq_trials.fallback_response_window_s`, 3.5 s; it was decode.max_rt_s here until 11-05, the same value).
     """
-    from wfield_local import config as _cfg
+    from wfield_local import daq_trials
 
-    default = float(_cfg.defaults()["decode"]["max_rt_s"])
+    default = daq_trials.fallback_response_window_s()
     if session_dir is None:
         return default, "default"
     try:
-        from wfield_local.daq_trials import response_window_s as _rw
-
-        return _rw(session_dir, default)
+        return daq_trials.response_window_s(session_dir)
     except Exception:                                                  # noqa: BLE001
         return default, "default"
 
