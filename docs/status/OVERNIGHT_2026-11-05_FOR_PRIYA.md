@@ -262,3 +262,15 @@ the night.
   select trials with the behaviour 'engaged' flag (DAQ quit-tail), not the camera working period -> same question as A20
   (gate for kinematics / lick-chain figures). Also June re-enters as a reference epoch in lick_code_subspace /
   lick_code_noisematch (A24: keep as a labelled reference or drop to August-only?).
+- ~15:30 **Priya A20-A23**: kinematics -> camera working period; 3-D scripts using every post-cue lick -> switch too;
+  A21 recovery_timing denominator -> align with 0.2 / 1b; A22 fig_goal_summary suptitle text -> computed from data;
+  A23 exec_vs_neural_match default tag -> fix. Helper on fix/priya1106-gates-captions (wf_p1106_gates).
+  Far-contra / attempt decoder question: CHECKED -- the LP attempt-coding step froze its OWN decoders (e.g. PS92
+  decoder_precue_..._4503e20e2ae1, manifest lick_source: lp), i.e. LP-TRAINED (11-03 default); the provenance helper's
+  "DAQ-trained" note was wrong (based on the old docstring). The separate DAQ freeze step (d_attempt_freeze) is legacy.
+  **NEW A25 (my miss)**: the imaging epoch figures (g5_epoch: acc, 5c, 5r, 10e, 12b, 13s, 14m, 15r ...) ran only the DAQ
+  arm (DAQ contact licks, ENL 2 s); the profile's LP blocks (epoch_accuracy / epoch_maps: LP licks, ENL 1 s) were never
+  run. RENDER_QUEUE_DAQLK listed "the ENL arm" as a decision for Priya but it was never asked. Earlier notes: "LP_licks
+  ENL arm is the one to cite". Add the LP-arm epoch render (heavy, ~9 h like g5_epoch)?
+  a8 asked (Priya "yes") for a REDRAW inventory (which page / deck figures can be redrawn from stored outputs for SVGs):
+  helper writing docs/status/REDRAW_INVENTORY_2026-11-06.md.
