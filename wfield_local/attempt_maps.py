@@ -32,6 +32,7 @@ OUTPUT <run>/imaging_encoding/attempt_maps/: maps_<align>_<animal>.npz (keys "<e
 epochs, per animal + cohort; and difference-from-pre-hit maps).
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import argparse
 from pathlib import Path
@@ -367,7 +368,7 @@ def figures(od, align, animals, spouts=("far_contra", "far_mid", "far_ipsi"), re
                 fig.tight_layout(rect=(0, 0, 1, 0.93))
             sfx = "" if rest_variant == "rest" else f"_{rest_variant}"
             fn = fd / product_name(f"attempt_maps_{align}_{P}{'_minus_pre' if diff else ''}{sfx}", ".png")
-            fig.savefig(fn, dpi=130)
+            save_png_svg(fig, fn, dpi=130)
             plt.close(fig)
             out.append(fn)
     return out

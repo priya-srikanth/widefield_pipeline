@@ -23,6 +23,7 @@ redraws the figure from that file alone (no decoding, no bootstrap).
 Usage: python scripts/iti_basis_decoder.py [--sources locanmf svdbasis] [--jobs 2] [--summarise] [--plot-only]
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import argparse
 import sys
@@ -216,7 +217,7 @@ def plot(D: dict) -> None:
                  "normalised to the animal's pre (lags 0-0.2 s); * = nested-bootstrap CI excludes 0.\n" + il.SIG_NOTE,
                  fontsize=9.5, wrap=True)
     fig.tight_layout(rect=(0, 0, 1, 0.9))
-    fig.savefig(il.OUT / "figures" / f"{FIG}.png", dpi=110)
+    save_png_svg(fig, il.OUT / "figures" / f"{FIG}.png", dpi=110)
     plt.close(fig)
 
 

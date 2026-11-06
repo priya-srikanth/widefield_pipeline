@@ -38,6 +38,7 @@ with a RESTnl level are used (raw columns too, so raw and RESTnl share trials). 
 '..._restnl', other outputs get the suffix _restnl; the raw-only trace figures are not redrawn (baseline-free).
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import sys
 import textwrap
@@ -398,7 +399,7 @@ def draw_class(stem: str) -> None:
     fig.legend(h, lab, fontsize=7.5, frameon=False, loc="outside lower center", ncol=len(h))
     fig.suptitle(textwrap.fill(_title(F, f"class = {CLS_TXT[F['klass']].upper()}, colour = epoch"), 150), fontsize=8.5)
     FIGS.mkdir(parents=True, exist_ok=True)
-    fig.savefig(FIGS / f"{_stem(stem)}.png", dpi=105, bbox_inches="tight")
+    save_png_svg(fig, FIGS / f"{_stem(stem)}.png", dpi=105, bbox_inches="tight")
     plt.close(fig)
 
 
@@ -466,7 +467,7 @@ def draw_compare(stem: str) -> None:
     fig.suptitle(textwrap.fill(_title(F, "colour = trial class: " + ", ".join(CLS_TXT[k] for k in F["classes"])), 230),
                  fontsize=9)
     FIGS.mkdir(parents=True, exist_ok=True)
-    fig.savefig(FIGS / f"{_stem(stem)}.png", dpi=100, bbox_inches="tight")
+    save_png_svg(fig, FIGS / f"{_stem(stem)}.png", dpi=100, bbox_inches="tight")
     plt.close(fig)
 
 
@@ -505,7 +506,7 @@ def draw_examples(stem: str) -> None:
                  f"(n stopped per epoch: {F['n']}). One colour scale (98th pct |value|). stopped = no lick in the "
                  f"response window, inside the terminal engagement collapse (enl_states)."), 170), fontsize=8.5)
     FIGS.mkdir(parents=True, exist_ok=True)
-    fig.savefig(FIGS / f"{_stem(stem)}.png", dpi=110, bbox_inches="tight")
+    save_png_svg(fig, FIGS / f"{_stem(stem)}.png", dpi=110, bbox_inches="tight")
     plt.close(fig)
 
 
@@ -829,7 +830,7 @@ def draw_levels(stem: str) -> None:
         "WORKING-period rest, so for stopped (quit-period) trials it is a cross-state reference. Animal sets differ "
         "between epochs for stopped (PS92 acute only; PS95 no acute): compare within animals. " + CLASS_DEF
         + ". PROVISIONAL n = 4."), 200), fontsize=8.5)
-    fig.savefig(FIGS / f"{_stem(stem)}.png", dpi=100, bbox_inches="tight")
+    save_png_svg(fig, FIGS / f"{_stem(stem)}.png", dpi=100, bbox_inches="tight")
     plt.close(fig)
     # movement
     fig, axs = plt.subplots(1, 4, figsize=(14, 3.2), squeeze=False)
@@ -852,7 +853,7 @@ def draw_levels(stem: str) -> None:
     fig.suptitle("BEHAVIOUR: pre-cue movement by trial class per animal (markers: PS92 o, PS93 s, PS94 ^, PS95 D); "
                  "qc/jaw_onsets.csv tread_pre_mm_s / jaw3d_rest_mm / nose3d_rest_mm (3-D: side spouts only)", fontsize=9)
     fig.tight_layout(rect=(0, 0, 1, 0.9))
-    fig.savefig(FIGS / f"{_stem(stem)}_movement.png", dpi=100, bbox_inches="tight")
+    save_png_svg(fig, FIGS / f"{_stem(stem)}_movement.png", dpi=100, bbox_inches="tight")
     plt.close(fig)
 
 

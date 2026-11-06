@@ -49,6 +49,7 @@ Usage: python scripts/coupling_vigour_sm.py [--jobs 4] [--labels ...] [--summari
   (run under the frozen env, rr2/frozenenv.sh, for the FaceRhythm factors)
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import argparse
 import os
@@ -527,7 +528,7 @@ def plot1() -> None:
                        "movement covariates added (3-D reach, peak speed, lick duration, protrusion, lick count +-0.5 / "
                        "+-1 s, FaceRhythm face factors; cued: + trial jaw amplitude, landing error), and with the same "
                        "covariates row-permuted (degrees-of-freedom control). PROVISIONAL n = 4"), fontsize=9.5)
-    fig.savefig(O1 / "figures" / "cv_coupling_vs_movement.png", dpi=120)
+    save_png_svg(fig, O1 / "figures" / "cv_coupling_vs_movement.png", dpi=120)
     plt.close(fig)
     # FIG 2: movement variability change vs pre per animal (within-spout SD) + movement R2 of the oro pool
     mets = [(f"wsd_{k}", k) for k in KIN_SHOW] + [("r2mov_oro", "R2 movement\n(oro pool)"),
@@ -561,7 +562,7 @@ def plot1() -> None:
     fig.suptitle(_wrap("Movement variability per session (SD of each covariate after removing the spout means), change vs "
                        "August pre as a fraction of the pre SD; right: share of orofacial-pool / other-area residual "
                        "window-mean variance explained by the movement covariates. PROVISIONAL n = 4"), fontsize=9.5)
-    fig.savefig(O1 / "figures" / "cv_movement_variability.png", dpi=120)
+    save_png_svg(fig, O1 / "figures" / "cv_movement_variability.png", dpi=120)
     plt.close(fig)
 
 
@@ -600,7 +601,7 @@ def plot2() -> None:
                        "pairs per group (S = SSp-n, SSp-m, SSs, SSp-ul; M = tjM1, ALM, MOp, MOs; c = contralesional, "
                        "i = ipsilesional), mean over animals of session means. Lick sets: movement-partialled residuals. "
                        "GCaMP6s: shape only, not neural lags. PROVISIONAL n = 4"), fontsize=9.5)
-    fig.savefig(O2 / "figures" / "sm_xcorr_curves.png", dpi=120)
+    save_png_svg(fig, O2 / "figures" / "sm_xcorr_curves.png", dpi=120)
     plt.close(fig)
     # FIG 2: change vs pre in asym and gc_dir per group (primary variant), plus pre level text
     grp = ["Sc->Mc", "Si->Mi", "Sc->Mi", "Si->Mc", "intra_minus_inter", "contra_minus_ipsi"]
@@ -634,7 +635,7 @@ def plot2() -> None:
                        "only): change vs August pre per pair group, per-animal dots + pooled paired bootstrap; grey = "
                        "contrasts (intra- minus interhemispheric; contralesional minus ipsilesional hemisphere). Text = "
                        "pooled pre level. PROVISIONAL n = 4"), fontsize=9.5)
-    fig.savefig(O2 / "figures" / "sm_direction_change.png", dpi=120)
+    save_png_svg(fig, O2 / "figures" / "sm_direction_change.png", dpi=120)
     plt.close(fig)
     # FIG 3: sensitivity -- intra / inter group means under each variant (old vs mov; raw vs gsr; tau 0 vs 0.6)
     vlist = [("mov", "raw", 0.6, "mov raw\ntau .6"), ("mov", "gsr", 0.6, "mov GSR\ntau .6"),
@@ -670,7 +671,7 @@ def plot2() -> None:
     fig.suptitle(_wrap("Sensitivity of the sensory -> motor direction change: movement-partialled vs published residual "
                        "model, global signal removed (leave-pair-out), raw (tau 0) vs deconvolved traces; pooled 95% CI "
                        "only. PROVISIONAL n = 4"), fontsize=9.5)
-    fig.savefig(O2 / "figures" / "sm_sensitivity.png", dpi=120)
+    save_png_svg(fig, O2 / "figures" / "sm_sensitivity.png", dpi=120)
     plt.close(fig)
 
 

@@ -10,6 +10,7 @@ lick_recovery_primary.BAL_DISPLAY (default: implied direction = -balance, Priya 
 shown; the CSV keeps the hemispheric sign). --plot-only redraws from balprim_offset_models.csv (no fit, CSV untouched).
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import sys
 from pathlib import Path
@@ -92,7 +93,7 @@ def main() -> int:
                  "fitted);\nmixed model offset ~ balance (within animal) + log(day), random intercept per animal; also with "
                  "only licks inside the pre angle range (no extrapolation). PROVISIONAL" + shown, fontsize=9)
     fig.tight_layout(rect=(0, 0, 1, 0.82 if shown else 0.88))
-    fig.savefig(il.OUT_W / "figures" / "lick_balance_offset_primary.png", dpi=95)
+    save_png_svg(fig, il.OUT_W / "figures" / "lick_balance_offset_primary.png", dpi=95)
     plt.close(fig)
     return 0
 

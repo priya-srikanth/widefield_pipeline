@@ -20,6 +20,7 @@ Per-animal tables printed first (rule 8). Outputs <OUT_W>/block_lattice_sessions
 block_shapley.csv; figures lick_block_compare.png, lick_block_ladder_shapley.png (figdata + --plot-only).
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import itertools
 import math
@@ -221,7 +222,7 @@ def plot(F: dict) -> None:
                  + " Bars = mean, "
                  "dots = animals, n/4 = animals > 0. PROVISIONAL", fontsize=10)
     fig.tight_layout(rect=(0, 0.06, 1, 0.92))
-    fig.savefig(il.OUT_W / "figures" / f"lick_block_compare{SFX}.png", dpi=95)
+    save_png_svg(fig, il.OUT_W / "figures" / f"lick_block_compare{SFX}.png", dpi=95)
     plt.close(fig)
     # 2) ladder + Shapley
     steps = [*BLOCKS.items(), ("all cortex", tuple(GN))]
@@ -282,7 +283,7 @@ def plot(F: dict) -> None:
                  "decoder; bars = mean, dots = animals). " + ("oro+SSs = ALM, tjM1, SSp-m, -n, SSs" if VARIANT else "oro = ALM, tjM1, SSp-m, -n") + "; bf+un = SSp-bfd, -un; MO-rest = "
                  "MOs-rest, MOp-rest; body = SSp-ul, -ll, -tr; other = ACAd, PL, RSP, VIS. PROVISIONAL", fontsize=10)
     fig.tight_layout(rect=(0, 0, 1, 0.92))
-    fig.savefig(il.OUT_W / "figures" / f"lick_block_ladder_shapley{SFX}.png", dpi=95)
+    save_png_svg(fig, il.OUT_W / "figures" / f"lick_block_ladder_shapley{SFX}.png", dpi=95)
     plt.close(fig)
 
 

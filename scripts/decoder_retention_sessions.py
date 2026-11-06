@@ -13,6 +13,7 @@ its trials of the cell (hollow diamonds), which are not part of the test.
 Usage: python scripts/decoder_retention_sessions.py
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 
 import numpy as np
@@ -97,7 +98,7 @@ def main() -> int:
     fig.suptitle(f"NEURAL: frozen pre-stroke decoder on far-contra trials, PER SESSION (>= {MIN_TRIALS} trials of the class); 1 = the "
                  "animal's pre-stroke hits, 0 = chance (dashed = 1)", fontsize=10)
     fig.tight_layout(rect=(0, 0.07, 1, 0.93))
-    fig.savefig(out / "decoder_retention_sessions.png", dpi=120)
+    save_png_svg(fig, out / "decoder_retention_sessions.png", dpi=120)
     plt.close(fig)
 
     # FIG 2: pooled per epoch, one dot per session; change vs pre-stroke hits
@@ -151,7 +152,7 @@ def main() -> int:
                  "change vs pre-stroke hits,\n95% nested CI (animals > sessions; bold = excludes 0); failed attempts have no pre-stroke "
                  "counterpart", fontsize=10)
     fig.tight_layout(rect=(0, 0.07, 1, 0.9))
-    fig.savefig(out / "decoder_retention_pooled.png", dpi=120)
+    save_png_svg(fig, out / "decoder_retention_pooled.png", dpi=120)
     plt.close(fig)
     print(f"-> {out}")
     return 0

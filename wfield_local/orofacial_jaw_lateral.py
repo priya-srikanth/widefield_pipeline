@@ -17,8 +17,14 @@ organised session folders (`orofacial_outputs`: LP r4, the run's cleaning versio
   Control (Priya 10-15: "jaw following a shorter reach?"): FAR_DIR recomputed on trials whose tongue reached the spout
   (reach >= 1), so an acute drop cannot come only from shorter licks.
 
-Outputs: <LP_analysis>/<run>/cohort/tables/jaw_lateral/ (trials.csv, sessions.csv, epoch_by_animal.csv, epoch_deltas.csv)
-and figures/jaw_lateral/ (timecourse.png, epochs.png, by_position.png). Per-animal table printed first (rule 8).
+TRIAL GATE (Priya 11-06, A27): the cam4 cohort's gate, `orofacial_cohort.cohort_keep` -- the CAMERA WORKING PERIOD by
+default (a session with no camera classes contributes nothing); ``WFIELD_KIN_GATE=legacy`` = the pre-11-06 behaviour
+engaged gate; ``--all-trials`` = ungated control.
+
+Outputs: `orofacial_cohort.cohort_dir` -- <LP_analysis>/<run>/cohort/tables/jaw_lateral<gate sfx>/ (trials.csv,
+sessions.csv, epoch_by_animal.csv, epoch_deltas.csv, data_line.txt) and figures/jaw_lateral<gate sfx>/ (timecourse.png,
+epochs.png, by_position.png); <gate sfx> = _working / _legacygate / _alltrials (+ _allpre). Per-animal table printed
+first (rule 8).
 """
 from __future__ import annotations
 
@@ -68,7 +74,7 @@ def session_trials(job) -> list[dict]:
     prot = (L[~L.peak_interp.astype(bool)].groupby("trial_id").protrusion_max_measured_px.max()
             if len(L) else pd.Series(dtype=float))
     from wfield_local import orofacial_cohort as oc
-    keep, _gate = oc.engagement_keep(animal, date, sd)
+    keep, _gate = oc.cohort_keep(animal, date, sd)           # the cohort's gate (A27: camera working period)
     out = []
     starts = np.flatnonzero(np.r_[True, tid[1:] != tid[:-1]])
     ends = np.r_[starts[1:], len(tid)]
@@ -294,7 +300,7 @@ def main(argv=None) -> int:
     ap_ = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap_.add_argument("--run", default=RUN)
     ap_.add_argument("--jobs", type=int, default=None)
-    ap_.add_argument("--all-trials", action="store_true", help="control: no engagement gate (*_alltrials folders)")
+    ap_.add_argument("--all-trials", action="store_true", help="control: no trial gate (*_alltrials folders)")
     ap_.add_argument("--baseline", choices=("all", "late"), default="late",
                      help="AUGUST-ONLY pre baseline is PRIMARY (Priya 2026-10-18); 'all' = June-including -> *_allpre")
     ap_.add_argument("--plot-only", action="store_true",
@@ -305,18 +311,20 @@ def main(argv=None) -> int:
     if a.all_trials:
         os.environ["OROFACIAL_ALL_TRIALS"] = "1"
     from wfield_local import orofacial_cohort as oc
+    os.environ["OROFACIAL_BASELINE"] = a.baseline      # oc.data_line / table_suffix follow this run's baseline
     oc._apply_config()
     rv = PathResolver()
-    base = oo.root(rv) / a.run / "cohort"
-    sfx = ("" if oc.ENGAGED_ONLY else "_alltrials") + ("_allpre" if a.baseline == "all" else "")
-    tables, figs = base / "tables" / f"jaw_lateral{sfx}", base / "figures" / f"jaw_lateral{sfx}"
+    base = oc.cohort_base(a.run, rv)                 # routed + gate-named folders (A27)
+    tables = oc.cohort_dir("tables", "jaw_lateral", run=a.run, baseline=a.baseline, rv=rv)
+    figs = oc.cohort_dir("figures", "jaw_lateral", run=a.run, baseline=a.baseline, rv=rv)
+    print(f"jaw lateral gate: {oc.cohort_gate()} -- {oc.trials_text()}; tables -> {tables}", flush=True)
     writeguard.assert_writable(base)
     if a.plot_only:
         S = pd.read_csv(tables / "sessions.csv", dtype={"date": str})
         D = pd.read_csv(tables / "epoch_deltas.csv")
         animals = ", ".join(f"{x} {int((S.animal == x).sum())}" for x in sorted(S.animal.unique()))
         fig_epochs(S, D, figs / f"epochs{a.suffix}.png",
-                   f"Jaw lateral readout (whole sessions) -- {a.run} -- sessions: {animals}")
+                   f"Jaw lateral readout (whole sessions) -- {a.run} -- Trials: {oc.trials_text()} -- sessions: {animals}")
         print(f"-> {figs / f'epochs{a.suffix}.png'}")
         return 0
     tables.mkdir(parents=True, exist_ok=True)
@@ -349,11 +357,12 @@ def main(argv=None) -> int:
     A.to_csv(tables / "epoch_by_animal.csv", index=False)
     D.to_csv(tables / "epoch_deltas.csv", index=False)
     animals = ", ".join(f"{x} {int((S.animal == x).sum())}" for x in sorted(S.animal.unique()))
-    t = f"Jaw lateral readout (whole sessions) -- {a.run} -- sessions: {animals}"
+    t = f"Jaw lateral readout (whole sessions) -- {a.run} -- Trials: {oc.trials_text()} -- sessions: {animals}"
+    (tables / "data_line.txt").write_text(oc.data_line() + chr(10), encoding="utf-8")
     fig_epochs(S, D, figs / "epochs.png", t)
     fig_timecourse(S, figs / "timecourse.png", t)
     fig_by_position(T, figs / "by_position.png", t)
-    (tables / "provenance.json").write_text(json.dumps({"run": a.run, "n_sessions": int(len(S)),
+    (tables / "provenance.json").write_text(json.dumps({"run": a.run, "n_sessions": int(len(S)), "gate": oc.cohort_gate(),
                                                         "code_commit": oo.code_commit()}, indent=1), encoding="utf-8")
     print(f"\ntables -> {tables}\nfigures -> {figs}")
     return 0

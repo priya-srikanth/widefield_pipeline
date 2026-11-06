@@ -14,6 +14,7 @@ painted on BOTH hemispheres (it is a pair property). Image left = ipsilesional.
 Outputs <OUT_W>/balmap_r2.csv; figures lick_balance_maps_{cued,iti}.png (figdata + --plot-only).
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import sys
 from pathlib import Path
@@ -138,7 +139,7 @@ def plot(F: dict) -> None:
                      "alone / unique cvR2 (leave-one-session-out, per animal x epoch; mean of animals).\nEach pair's value "
                      "is painted on both hemispheres; ALM / tjM1 separate; image left = ipsilesional. PROVISIONAL",
                      fontsize=10)
-        fig.savefig(il.OUT_W / "figures" / f"lick_balance_maps_{st.lower()}.png", dpi=95, bbox_inches="tight")
+        save_png_svg(fig, il.OUT_W / "figures" / f"lick_balance_maps_{st.lower()}.png", dpi=95, bbox_inches="tight")
         plt.close(fig)
 
 

@@ -23,6 +23,7 @@ pre).
     set WFIELD_INPUT_CACHE=C:/Users/SabatiniLab/wfield_cache
     python scripts/cohort2_qc/quiet_fluct.py [--jobs 6] [--summarise]
 """
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 import argparse
 import sys
 from pathlib import Path
@@ -188,7 +189,7 @@ def fig_spectrum(D):
     fig.suptitle("Quiet-period power spectrum (no lick / running within 1.5 s; engaged; Welch 4-s segments): "
                  "which frequencies grow after the stroke", fontsize=9)
     fig.tight_layout(rect=(0, 0, 1, 0.95))
-    fig.savefig(FL / "quiet_spectrum.png", dpi=110)
+    save_png_svg(fig, FL / "quiet_spectrum.png", dpi=110)
     import pandas as pd
     B = pd.DataFrame(rows)
     B.to_csv(FL / "quiet_spectrum_bands.csv", index=False)
@@ -303,7 +304,7 @@ def fig_maps(D):
                  "ratio = geometric mean over sessions vs the animal's pre; ipsilesional = image left; Allen area edges.\n"
                  "Black outline = change significant (bootstrap, max-statistic family-wise p < 0.05 over 8x8-px bins, "
                  "eroded mask): pooled = animals -> sessions; per animal = sessions.", fontsize=9, y=0.995)
-    fig.savefig(FL / "quiet_sd_maps.png", dpi=110, bbox_inches="tight")
+    save_png_svg(fig, FL / "quiet_sd_maps.png", dpi=110, bbox_inches="tight")
     pd.DataFrame(rows).to_csv(FL / "quiet_sd_maps_significance.csv", index=False)
     print(pd.DataFrame(rows).to_string())
 
@@ -342,7 +343,7 @@ def fig_eta(D):
     fig.suptitle("Event-triggered average traces (events > 4 x pre robust SD, quiet engaged); mean of animal means "
                  "(sessions with >= 3 events)", fontsize=9)
     fig.tight_layout(rect=(0, 0, 1, 0.96))
-    fig.savefig(FL / "quiet_eta_traces.png", dpi=110)
+    save_png_svg(fig, FL / "quiet_eta_traces.png", dpi=110)
     # maps: orofacial UP and limb UP -- pre, acute, and DELTA acute - pre (Priya 11-01) -- at MAP_LAGS_S
     import pandas as pd
     from wfield_local import beta_maps as bm
@@ -390,7 +391,7 @@ def fig_eta(D):
                  "significant (nested animals -> sessions bootstrap, max-statistic family-wise p < 0.05, 8x8-px bins, "
                  "eroded mask)", fontsize=9)
     fig.subplots_adjust(top=0.93)
-    fig.savefig(FL / "quiet_eta_maps.png", dpi=110, bbox_inches="tight")
+    save_png_svg(fig, FL / "quiet_eta_maps.png", dpi=110, bbox_inches="tight")
     pd.DataFrame(sig_rows).to_csv(FL / "quiet_eta_maps_significance.csv", index=False)
     print(pd.DataFrame(sig_rows).to_string())
 

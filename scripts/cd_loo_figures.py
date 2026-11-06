@@ -13,6 +13,7 @@ Reads <labcams>/grant_figures/epoch/data/{cd_window_projection_loo_sessions_long
 haemodynamic caveat (`cd_trajectories`): read amplitude and gross time course, not onset timing.
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import argparse
 from pathlib import Path
@@ -58,7 +59,7 @@ def fig_window(C: pd.DataFrame, align: str, path: Path) -> None:
     fig.suptitle(f"CD window mean, own direction ({meas}); August pre held out (grey band = pre range), "
                  "1 = pre-stroke lick signature", fontsize=9)
     fig.tight_layout(rect=(0, 0, 1, 0.97))
-    fig.savefig(path, dpi=110)
+    save_png_svg(fig, path, dpi=110)
     plt.close(fig)
 
 
@@ -105,7 +106,7 @@ def fig_traj(Z, C: pd.DataFrame, align: str, path: Path) -> None:
     fig.suptitle(f"CD trajectory on each position's own direction, {align}-aligned; mean +- SEM over sessions; pre = "
                  "August sessions held out of the fit; shaded = window-mean window", fontsize=9)
     fig.tight_layout(rect=(0, 0, 1, 0.97))
-    fig.savefig(path, dpi=110)
+    save_png_svg(fig, path, dpi=110)
     plt.close(fig)
 
 

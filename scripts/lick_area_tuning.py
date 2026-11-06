@@ -42,6 +42,7 @@ columns), areatune_validation.csv; figures figures/lick_area_tuning_{curves_cued
 pool}.png. --plot-only redraws from the CSVs; --reuse-licks reuses areatune_licks.csv.gz.
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import sys
 import textwrap
@@ -304,7 +305,7 @@ def plot_curves(M: pd.DataFrame, st: str) -> None:
                        "animals of animal means. Canonical spouts left to right = ipsilesional to contralesional. "
                        "PROVISIONAL", 170), fontsize=9.5)
     fig.tight_layout(rect=(0, 0.035, 1, 0.93))
-    fig.savefig(FIG / f"lick_area_tuning_curves_{st}.png", dpi=90)
+    save_png_svg(fig, FIG / f"lick_area_tuning_curves_{st}.png", dpi=90)
     plt.close(fig)
 
 
@@ -376,7 +377,7 @@ def plot_decomp(T: pd.DataFrame, simple: bool = False) -> None:
                        "paired nested bootstrap; open = animals; number = animals with the pooled sign. Hemisphere: c = "
                        "contralesional (image right), i = ipsilesional. PROVISIONAL", 200), fontsize=9.5)
     fig.tight_layout(rect=(0, 0.04 if simple else 0.03, 1, 0.92 if simple else 0.94))
-    fig.savefig(FIG / f"lick_area_tuning_decomp{'_simple' if simple else ''}.png", dpi=90)
+    save_png_svg(fig, FIG / f"lick_area_tuning_decomp{'_simple' if simple else ''}.png", dpi=90)
     plt.close(fig)
 
 
@@ -438,7 +439,7 @@ def plot_decomp_dots(T: pd.DataFrame) -> None:
                        "(paired nested bootstrap 95% CI); open = animals; 0 = pre. VISpm (grey) = non-orofacial control; "
                        "n = animals when < 4 (ratio terms undefined where the pre response < 3 dF/F x1e3). PROVISIONAL "
                        "(n = 4)", 170), fontsize=9.5)
-    fig.savefig(FIG / "lick_area_tuning_decomp_dots.png", dpi=100)
+    save_png_svg(fig, FIG / "lick_area_tuning_decomp_dots.png", dpi=100)
     plt.close(fig)
 
 
@@ -462,7 +463,7 @@ def plot_raw(T: pd.DataFrame) -> None:
                        "(shift), dF/F x1e3. Note: raw slope mixes target and landed angle. PROVISIONAL", 200),
                  fontsize=9.5)
     fig.tight_layout(rect=(0, 0.03, 1, 0.94))
-    fig.savefig(FIG / "lick_area_tuning_raw.png", dpi=90)
+    save_png_svg(fig, FIG / "lick_area_tuning_raw.png", dpi=90)
     plt.close(fig)
 
 

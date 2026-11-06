@@ -17,6 +17,7 @@ REBUILD: re-run attempt_coding.py under the new data (decision D7: training rule
 OUT: <out>/fig2b_attempt_decoder_epochs.png
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import sys
 from pathlib import Path
@@ -88,7 +89,7 @@ def draw(summ: dict, png: Path) -> None:
                  "per class (same colours)", fontsize=10)
     fig.tight_layout(rect=(0, 0, 1, 0.92))
     fig.subplots_adjust(hspace=0.75)
-    fig.savefig(png, dpi=140)
+    save_png_svg(fig, png, dpi=140)
     plt.close(fig)
 
 

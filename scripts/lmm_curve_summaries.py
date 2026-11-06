@@ -87,7 +87,7 @@ def main(argv=None) -> int:
     a = ap.parse_args(argv)
     out = Path(a.out)
     rv = PathResolver()
-    base = Path(rv.root("orofacial")) / oc.RUN / "cohort" / "tables" / "prepost"
+    base = oc.cohort_dir("tables", rv=rv)          # the cam4 cohort's gate-named tables (A27)
     jobs = {**cam4(base), **pose3d(pose3d_dir(rv) / "phase" / "curves.csv.gz")}
     for stem, (D, title, ylab) in jobs.items():
         D = D[D.epoch.isin(["pre", "acute", "subacute", "chronic"])]

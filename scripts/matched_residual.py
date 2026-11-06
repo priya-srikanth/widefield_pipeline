@@ -16,6 +16,7 @@ Usage: python scripts/matched_residual.py [--tag gate-attempted_v7g3_t3d_frA]
 Output: <E>/matched_residual/<tag>/{trials.csv, boot.csv, figures/matched_residual.png}
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 from wfield_local.frozen_encoder import design_tag as _design_tag  # frame tag of the FROZEN_LICKS_ALL design (8.51)
 
 import argparse
@@ -143,7 +144,7 @@ def main(argv=None) -> int:
                  "trials' leave-one-session-out 95th percentile. Bars = mean of animals; whisker 95 % nested CI; * excludes "
                  "0; dots = animals; grey band = pre split-half range. contra = right.", fontsize=9)
     fig.subplots_adjust(left=0.05, right=0.88, top=0.88, bottom=0.07, hspace=0.4)
-    fig.savefig(out / "figures" / "matched_residual.png", dpi=105)
+    save_png_svg(fig, out / "figures" / "matched_residual.png", dpi=105)
     plt.close(fig)
     print("->", out)
     return 0

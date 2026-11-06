@@ -28,6 +28,7 @@ PROVENANCE: recreated 2026-11-04 (RECONCILIATION section 7) from the share-only
     PYTHONPATH=<wf_rebuild> python scripts/rebuild_figs/fig_pose_validation_sessions.py [--out DIR] [--plot-only]
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import sys
 from datetime import date
@@ -92,9 +93,11 @@ def load_agreement() -> pd.DataFrame:
 
 
 def load_licks() -> pd.DataFrame:
-    """Same lick set as scripts/pose3d_vs_cam4.load (August pre only, to keep it small)."""
+    """Same lick set as scripts/pose3d_vs_cam4.load (August pre only, to keep it small): since 11-06 (A20) licks of
+    camera-working-period trials only (`trial_classes.gate_kin_licks`; WFIELD_KIN_GATE=legacy = every post-cue lick)."""
+    from wfield_local import trial_classes as tc
     K = pd.read_csv(P3 / "kinematics" / "licks.csv.gz", dtype={"date": str})
-    K = K[K.animal.isin(ANIMALS) & (K.epoch == "pre") & ~K.date.map(config.early_pre)]
+    K = tc.gate_kin_licks(K[K.animal.isin(ANIMALS) & (K.epoch == "pre") & ~K.date.map(config.early_pre)])
     out = []
     for s, g in K.groupby("session"):
         a, d = s.split("_")
@@ -131,7 +134,8 @@ def decode_sessions(L: pd.DataFrame) -> pd.DataFrame:
 
 
 def check(S: pd.DataFrame, Dec: pd.DataFrame) -> None:
-    ref = pd.read_csv(P3 / "vs_cam4" / "decoding.csv").set_index(["animal", "features"])["6 positions"]
+    from wfield_local import trial_classes as tc
+    ref = pd.read_csv(tc.kin_out_dir(P3, "vs_cam4") / "decoding.csv").set_index(["animal", "features"])["6 positions"]
     for i, a in enumerate(ANIMALS):
         for k in ("lateral", "angle", "jaw"):
             v = S.loc[S.animal == a, k].median()
@@ -220,7 +224,7 @@ def main(argv=None) -> int:
     fig.legend(handles=h, loc="upper center", ncol=len(h), frameon=False, fontsize=11, bbox_to_anchor=(0.5, 1.0),
                handletextpad=0.3, columnspacing=1.0, handlelength=1.5)
     fig.tight_layout(rect=(0, 0, 1, 0.9), w_pad=2.5)
-    fig.savefig(OUT / "pose_validation_sessions.png", dpi=200, facecolor="white")
+    save_png_svg(fig, OUT / "pose_validation_sessions.png", dpi=200, facecolor="white")
     print("sessions per animal (agreement lateral/angle, jaw; decoding):")
     print(S.groupby("animal")[["lateral", "angle", "jaw"]].count().to_string())
     print(S.groupby(["animal", "epoch"]).size().unstack().to_string())

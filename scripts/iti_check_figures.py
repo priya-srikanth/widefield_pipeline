@@ -13,6 +13,7 @@ that. `python scripts/iti_check_figures.py --plot-only` redraws all sixteen figu
 bootstrap).
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import sys
 from pathlib import Path
@@ -113,7 +114,7 @@ def grid_draw(F: dict) -> None:
     axs[0, 0].legend(fontsize=7, frameon=False)
     fig.suptitle(F["suptitle"], fontsize=9.5)
     _fit(fig)
-    fig.savefig(WOUT / "figures" / f"{F['name']}.png", dpi=100)
+    save_png_svg(fig, WOUT / "figures" / f"{F['name']}.png", dpi=100)
     plt.close(fig)
 
 
@@ -223,7 +224,7 @@ def course_draw(F: dict) -> None:
             ax.spines[s_].set_visible(False)
     fig.suptitle(F["suptitle"], fontsize=9.5)
     _fit(fig)
-    fig.savefig(WOUT / "figures" / f"{F['name']}.png", dpi=95)
+    save_png_svg(fig, WOUT / "figures" / f"{F['name']}.png", dpi=95)
     plt.close(fig)
 
 
@@ -409,7 +410,7 @@ def hist_draw(F: dict) -> None:
     fig.legend(handles=[Line2D([], [], color=EPOCH_LINE[e], lw=2, label=e) for e in EPS], loc="upper left", ncol=4,
                fontsize=9, frameon=False)
     _fit(fig)
-    fig.savefig(WOUT / "figures" / f"{F['name']}.png", dpi=95)
+    save_png_svg(fig, WOUT / "figures" / f"{F['name']}.png", dpi=95)
     plt.close(fig)
 
 

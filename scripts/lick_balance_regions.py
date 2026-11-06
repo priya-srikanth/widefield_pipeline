@@ -21,6 +21,7 @@ Per-animal correlations first (rule 8); MixedLM with sessions as observations is
 Outputs <OUT_W>/balreg_sessions.csv, balreg_models.csv, balreg_pre_slopes.csv; figure lick_balance_regions.png.
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import sys
 from pathlib import Path
@@ -218,7 +219,7 @@ def plot(F: dict) -> None:
                  "offset ~ balance (within + between animal) + log(day) + (1 | animal), sessions as observations "
                  "(anti-conservative). Symbols: PS92 o, PS93 s, PS94 ^, PS95 D. PROVISIONAL", fontsize=9.5)
     fig.tight_layout(rect=(0, 0, 1, 0.92))
-    fig.savefig(il.OUT_W / "figures" / "lick_balance_regions.png", dpi=100)
+    save_png_svg(fig, il.OUT_W / "figures" / "lick_balance_regions.png", dpi=100)
     plt.close(fig)
 
 

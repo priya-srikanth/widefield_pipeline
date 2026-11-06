@@ -4,13 +4,17 @@ without lick trials (and incomplete lick trials) per session across epochs").
 
     python -m scripts.jaw_only_incomplete_figs [--jobs 8]
 
-TRIAL CLASSES, per ENGAGED trial (`orofacial_cohort.engagement_keep`, the behaviour gate; EVERY engaged trial is the
-denominator, so the five shares sum to 1): contact / incomplete / jaw_only / no_response / unknown from THE trial
-classification, `wfield_local.trial_classes` (Priya 11-03: one definition for every analysis; cue -> trial stop window,
-DAQ spout contact, jaw cam4 OR cam1, close_center jaw unjudged). History: until 11-03 this script kept only
-``jaw_pass_qc`` trials (the jaw-MOVED call read as a QC gate), then classified all engaged trials with its own rule
-(cam4 jaw only, video-matched contact, no window); the shared definition replaced both (regression in DECISIONS
-2026-11-03: 99.35 % of engaged trials unchanged).
+TRIALS = THE CAMERA WORKING PERIOD (Priya 11-06, A20; `trial_classes.working_period_trials`, the one definition of
+Fig 0.2 / 1b): the session's trials from the first cue to its last camera lick, minus the stopped runs (rule A2, stopped
+trials touched by a lick excised); EVERY working-period trial is the denominator, so contact + incomplete + jaw_only +
+no_response sum to 1 (unknown / stopped / after-end trials are outside the period). Classes from THE trial
+classification, `wfield_local.trial_classes` (Priya 11-03: one definition for every analysis; response window cue + 70
+ms .. min(cue + 3.5 s, stop), DAQ spout contact, video licks, jaw cam4 OR cam1, close_center jaw unjudged). A session
+with NO camera classes (no video) has no working period and contributes NOTHING (as gain_bio); never a DAQ fallback.
+``WFIELD_KIN_GATE=legacy`` = the pre-11-06 behaviour gate (every ENGAGED trial, `orofacial_cohort.engagement_keep`,
+five shares incl. unknown), written to its own folder ``jaw_only_incomplete_figs_legacygate``. History: until 11-03
+this script kept only ``jaw_pass_qc`` trials, then classified all engaged trials with its own rule; the shared
+definition replaced both (DECISIONS 2026-11-03: 99.35 % of engaged trials unchanged).
 
 FIG A (frequency, POOLED): share of trials per class, per session x spout, minus the animal's August pre mean at that
 spout (change vs own pre); dots = sessions coloured by animal; marker = animal-weighted change with the paired nested
@@ -27,8 +31,8 @@ what each class LOOKS like and whether it changes with epoch.
 Pre = August only (baseline rule); curated sessions; 3-D-gate failures left out (`pose3d.failed_sessions`).
 Outputs session_poses/cam1_licks/trial_classes/{sessions.csv, tests.csv, time_lmm.csv, traces.csv.gz, figures/}.
 
-``--trials <trial_attempts.csv>`` (Priya 11-05: kinematics 6.1-6.5 on the CAMERA WORKING PERIOD): the trials and their
-classes come from a camera-gated run's per-trial table instead of the behaviour gate -- rows with ``canonical`` True
+``--trials <trial_attempts.csv>`` (Priya 11-05; kept for old command lines -- the default is the same period since
+11-06): the trials and their classes come from a camera-gated run's per-trial table -- rows with ``canonical`` True
 (the working period: cue to the session's last camera lick; stopped / stopped_licking (A16 excision) / unknown are
 outside it), class names mapped back (hit -> contact, no_try -> no_response). The denominator is then the working-period
 trials, so contact + incomplete + jaw_only + no_response sum to 1 (as the PI deck's trial-class shares figure).
@@ -36,6 +40,7 @@ Production table (rebuild 11-04): rebuild_20261103/.../qc/sel-camera-cue_stop-en
 stopA2jexrt3500c70/trial_attempts.csv. Write to its own ``--out`` folder.
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import argparse
 from pathlib import Path
@@ -63,8 +68,21 @@ WORKING_DENOM = ("WORKING-PERIOD trials (camera classes: cue to the session's la
 
 
 def denom() -> str:
+    """The denominator named in titles: ``--trials`` sets DENOM_ENV; else the kinematics gate (`trial_classes.kin_gate`)."""
     import os
-    return os.environ.get(DENOM_ENV, "ALL engaged trials")
+    if os.environ.get(DENOM_ENV):
+        return os.environ[DENOM_ENV]
+    from wfield_local import trial_classes as tc
+    return WORKING_DENOM if tc.kin_gate() == "working" else "ALL engaged trials (behaviour gate; legacy)"
+
+
+def data_line() -> str:
+    """The standard "Data:" provenance line (FIGURE_PROVENANCE_20261106 section 4) for these figures."""
+    from wfield_local import trial_classes as tc
+    return ("Data: Window: aligned to cue, -0.5-3.0 s. Licks: trials classed from DAQ spout contact + video licks "
+            f"(cam4 LP + cam1). Trials: {tc.KIN_TRIALS_TEXT[tc.kin_gate()]}; classes contact, incomplete, jaw_only, "
+            "no_response. Pre: August pre-stroke sessions only (June excluded). Sessions: curated, PS92-PS95, 3-D "
+            "gate failures out. Signal: 3-D jaw / tongue (cam4 + cam1).")
 
 
 # THE trial classification lives in `wfield_local.trial_classes` (Priya 11-03: one definition for every analysis; read
@@ -119,7 +137,9 @@ def session_job(job) -> dict:
     sd = Path(v36) / animal / date
     if trials:
         T = working_trials(trials, f"{animal}_{date[4:]}")
-    else:
+    elif TC.kin_gate() == "working":     # Priya 11-06 (A20): the camera working period; no classes -> no rows
+        T = TC.working_period_trials(s)[["trial_id", "position", "cls"]]
+    else:                                # WFIELD_KIN_GATE=legacy: the behaviour pipeline's engaged gate
         keep, _ = oc.engagement_keep(animal, date, sd)
         T = TC.session_trials(s, window=TC.DEFAULT_WINDOW, v36=v36, c1=c1)[["trial_id", "position", "cls"]]
         if keep is not None:
@@ -242,7 +262,7 @@ def fig_epochs(S: pd.DataFrame, R: pd.DataFrame, path: Path) -> None:
                  fontsize=9.5)
     sig_marks.reserve_headroom(fig)
     fig.tight_layout(rect=(0, 0.04, 1, 0.9))
-    fig.savefig(path, dpi=100)
+    save_png_svg(fig, path, dpi=100)
     plt.close(fig)
 
 
@@ -294,7 +314,7 @@ def fig_days(S: pd.DataFrame, path: Path) -> pd.DataFrame:
                  "step = day-1 change vs pre,\nrecovery = change per e-fold of days; q = BH over the 6 spouts per row",
                  fontsize=9.5)
     fig.tight_layout(rect=(0, 0.04, 1, 0.9))
-    fig.savefig(path, dpi=100)
+    save_png_svg(fig, path, dpi=100)
     plt.close(fig)
     return pd.concat(out, ignore_index=True)
 
@@ -348,7 +368,7 @@ def fig_traces(Tr: pd.DataFrame, measure: str, ylab: str, path: Path) -> None:
                  "August; trials = " + denom() + ";\ncorner = animals / sessions / trials per epoch (< 2 animals: not drawn); grey = before the cue. Rows: jaw moves without a "
                  "lick (cam1-corrected) | licked but never touched the spout | touched the spout", fontsize=9.5)
     fig.tight_layout(rect=(0, 0.04, 1, 0.92))
-    fig.savefig(path, dpi=100)
+    save_png_svg(fig, path, dpi=100)
     plt.close(fig)
 
 
@@ -377,7 +397,9 @@ def main(argv=None) -> int:
     v36 = Path(rv.root("orofacial")) / V36 / "sessions"
     from wfield_local import run_mode
     # the rebuild's derived pose area (coordinator 11-04): this figure uses the run's classes; inputs stay in place
-    out = Path(a.out) if a.out else run_mode.session_poses_out("jaw_only_incomplete_figs", c1 / "trial_classes")
+    # the pre-11-06 gate (WFIELD_KIN_GATE=legacy) never overwrites the default folder (`trial_classes.kin_out_name`)
+    sfx = "" if a.trials else TC.kin_out_name("")
+    out = Path(a.out) if a.out else run_mode.session_poses_out("jaw_only_incomplete_figs" + sfx, c1 / f"trial_classes{sfx}")
     if a.reuse:
         S = pd.read_csv(out / "sessions.csv", dtype={"date": str})
         Tr = pd.read_csv(out / "traces.csv.gz", dtype={"date": str})
@@ -410,8 +432,9 @@ def _collect(a, ak, epochs, P3, c1: Path, d3: Path, v36: Path, out: Path) -> tup
     Tr = Tr[Tr.epoch.notna() & ((Tr.epoch != "pre") | ~Tr.date.astype(str).map(config.early_pre))].reset_index(drop=True)
     (out / "figures").mkdir(parents=True, exist_ok=True)
     S.to_csv(out / "sessions.csv", index=False, float_format="%.4g")
-    if a.trials:     # names the denominator for trial_class_raw_share_fig (Figs 6.1 / 6.2) read from this folder
-        (out / "denominator.txt").write_text(WORKING_DENOM + "\n", encoding="utf-8")
+    # names the denominator (+ the Data: line) for trial_class_raw_share_fig (Figs 6.1 / 6.2) read from this folder
+    (out / "denominator.txt").write_text(denom() + "\n", encoding="utf-8")
+    (out / "data_line.txt").write_text(data_line() + "\n", encoding="utf-8")
     Tr.to_csv(out / "traces.csv.gz", index=False, float_format="%.4g")
     return S, Tr
 

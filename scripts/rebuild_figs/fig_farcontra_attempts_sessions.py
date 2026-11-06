@@ -29,6 +29,7 @@ PROVENANCE: recreated 2026-11-04 (RECONCILIATION section 7) from the share-only
     PYTHONPATH=<wf_rebuild> python scripts/rebuild_figs/fig_farcontra_attempts_sessions.py [--incomplete PATH] [--out DIR] [--plot-only]
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import sys
 from datetime import date
@@ -144,7 +145,7 @@ def main(argv=None) -> int:
     fig.legend(handles=h, loc="upper center", ncol=len(h), frameon=False, fontsize=11, bbox_to_anchor=(0.5, 1.0),
                handletextpad=0.3, columnspacing=1.1)
     fig.tight_layout(rect=(0, 0, 1, 0.88), w_pad=1.5)
-    fig.savefig(OUT / "farcontra_attempts_sessions.png", dpi=200)
+    save_png_svg(fig, OUT / "farcontra_attempts_sessions.png", dpi=200)
     pd.set_option("display.width", 200)
     print(S.groupby(["animal", "epoch"], observed=True).size().unstack("epoch").to_string())
     print(pd.DataFrame(summ).round(3).to_string())

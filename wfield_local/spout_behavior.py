@@ -39,6 +39,7 @@ CLI::
     python -m wfield_local.spout_behavior 20260806 --dry-run       # discover only, write nothing
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import argparse
 import re
@@ -1180,7 +1181,7 @@ def plot_licking(session_dir: Path, sid: str, out_dir: Path, params: dict, trial
                  f"bouts={s['n_bouts']} (mean {s['mean_bout_size']:.1f} licks/"
                  f"{s['mean_bout_dur_s']:.2f}s){gated}", fontsize=12)
     fig.tight_layout(rect=(0, 0, 1, 0.97))
-    fig.savefig(png, dpi=130)
+    save_png_svg(fig, png, dpi=130)
     plt.close(fig)
     print(f"[spout_behavior] wrote {png.name}", flush=True)
     return png, csv
@@ -1299,7 +1300,7 @@ def plot_cumulative_raster(sid: str, out_dir: Path, trials: pd.DataFrame):
                  f"{float(mk['t_min'].max()):.0f} min  ({src}-sourced trials, ALL trials — "
                  f"no engagement gate)", fontsize=12)
     fig.tight_layout(rect=(0, 0, 1, 0.94))
-    fig.savefig(png, dpi=130)
+    save_png_svg(fig, png, dpi=130)
     plt.close(fig)
     print(f"[spout_behavior] wrote {png.name}", flush=True)
     return png
@@ -1383,7 +1384,7 @@ def plot_animal_raster_grid(animal: str, session_dirs, out_dir: Path, params: di
                      fontsize=14)
         fig.tight_layout(rect=(0, 0, 1, 0.95))
         p = outdir / f"{animal}_raster_grid_p{pg + 1}.png"
-        fig.savefig(p, dpi=130)
+        save_png_svg(fig, p, dpi=130)
         plt.close(fig)
         written.append(p)
     print(f"[spout_behavior] wrote {len(written)} raster-grid page(s) for {animal} "
@@ -1462,7 +1463,7 @@ def plot_session(session_dir: Path, out_dir: Path, params: dict, dry: bool = Fal
                  f"hit-rate(engaged)={m['hit_rate_engaged']:.3f} (raw {m['hit_rate_all']:.3f})",
                  fontsize=12)
     fig.tight_layout(rect=(0, 0, 1, 0.97))
-    fig.savefig(png, dpi=130)
+    save_png_svg(fig, png, dpi=130)
     plt.close(fig)
     print(f"[spout_behavior] wrote {png.name}  ({m['n_disengaged']} disengaged trials excluded)",
           flush=True)
@@ -1691,7 +1692,7 @@ def cohort_summary(rv: PathResolver, dates, animals, out_dir: Path, dry: bool = 
     ax.legend(fontsize=8)
     fig.suptitle(f"spout behavior cohort — {len(df)} sessions, {len(anims)} animals", fontsize=13)
     fig.tight_layout(rect=(0, 0, 1, 0.95))
-    fig.savefig(png, dpi=130)
+    save_png_svg(fig, png, dpi=130)
     plt.close(fig)
     print(f"[spout_behavior] wrote {png.name} ({len(df)} sessions)", flush=True)
 
@@ -1817,7 +1818,7 @@ def plot_animal_summary(animal: str, adf: pd.DataFrame, out_dir: Path):
     fig.suptitle(f"{animal} — behavior across {len(adf)} sessions "
                  f"({_HUE_LEGEND})", fontsize=13)
     fig.tight_layout(rect=(0, 0, 1, 0.96))
-    fig.savefig(png, dpi=130)
+    save_png_svg(fig, png, dpi=130)
     plt.close(fig)
     print(f"[spout_behavior] wrote {png.relative_to(out_dir)}", flush=True)
     return png
@@ -1843,7 +1844,7 @@ def plot_animal_metric_series(animal: str, adf: pd.DataFrame, out_dir: Path):
         fig.suptitle(f"{animal} — {label} across {len(adf)} sessions  ({_HUE_LEGEND})", fontsize=13)
         fig.tight_layout(rect=(0, 0, 1, 0.95))
         p = outdir / f"{animal}_{METRIC_FILE[prefix]}_across_sessions.png"
-        fig.savefig(p, dpi=130)
+        save_png_svg(fig, p, dpi=130)
         plt.close(fig)
         written.append(p)
     # session-level panel as its own figure
@@ -1853,7 +1854,7 @@ def plot_animal_metric_series(animal: str, adf: pd.DataFrame, out_dir: Path):
     fig.suptitle(f"{animal} — session-level metrics across {len(adf)} sessions", fontsize=13)
     fig.tight_layout(rect=(0, 0, 1, 0.95))
     p = outdir / f"{animal}_session_across_sessions.png"
-    fig.savefig(p, dpi=130)
+    save_png_svg(fig, p, dpi=130)
     plt.close(fig)
     written.append(p)
     print(f"[spout_behavior] wrote {len(written)} per-metric figures for {animal}", flush=True)

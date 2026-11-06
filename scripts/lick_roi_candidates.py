@@ -11,6 +11,7 @@ ICMS AP +2.4 ML 2.0 (Komiyama 2010) as markers. Atlas: bregma at pixel (320, 270
 Output figures/lick_roi_candidates.png. Usage: python scripts/lick_roi_candidates.py
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import sys
 from pathlib import Path
@@ -120,7 +121,7 @@ def main() -> int:
                  "licks). Grey = Allen MOs / MOp. Circles = literature centres: black ALM AP +2.5 ML 1.5 (Guo 2014), green "
                  "tjM1 AP +1.8 ML 2.6 (Mayrhofer 2019),\nmagenta tongue/jaw ICMS AP +2.4 ML 2.0 (Komiyama 2010), blue wM2 / RFA AP +2.0 ML 1.0 (Esmaeili 2021), "
                  "lime tjM1 AP +2.0 ML 2.0 (Esmaeili 2021), yellow wM1 AP +1.0 ML 1.0, cyan CFA AP +0.5 ML 1.25; red + = bregma. Last panel: PRE cued lateral map. ipsi (lesion) = image LEFT. PROVISIONAL", fontsize=9)
-    fig.savefig(il.OUT / "figures" / "lick_roi_candidates.png", dpi=95)
+    save_png_svg(fig, il.OUT / "figures" / "lick_roi_candidates.png", dpi=95)
     return 0
 
 

@@ -13,6 +13,7 @@ Output figures/lick_iti_filter_compare.png (figdata figdata/lick_iti_filter_comp
 Usage: python scripts/lick_iti_filter_compare.py [--plot-only]
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import sys
 from pathlib import Path
@@ -78,7 +79,7 @@ def plot(F: dict) -> None:
     ax.set_title("NEURAL, SECONDARY: ITI like-for-like read-out on stricter ITI lick sets (decoder refit on each set; "
                  "Allen + ALM/tjM1 split basis).\nPoint = cohort change vs pre, 95% nested bootstrap CI; open markers = "
                  "animals; k/n = animals with the cohort sign. PROVISIONAL", fontsize=8.5)
-    fig.savefig(il.OUT / "figures" / f"{STEM}.png", dpi=110)
+    save_png_svg(fig, il.OUT / "figures" / f"{STEM}.png", dpi=110)
     plt.close(fig)
 
 

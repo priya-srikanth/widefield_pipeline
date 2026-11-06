@@ -48,6 +48,7 @@ OUTPUT M:/MICROSCOPE/Priya/Widefield/labcams/cohort1_quiet_spikes/<v2_quiet | v2
     set WFIELD_INPUT_CACHE=C:/Users/SabatiniLab/wfield_cache
     python scripts/cohort2_qc/quiet_task_events_followup.py [--jobs 4] [--summarise] [--only PS92_0811 ...]
 """
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 import argparse
 import os
 import sys
@@ -480,7 +481,7 @@ def figure(E, M, out=None):
                  + ("DAQ contact + LP video licks (QS_LICK_SOURCE=daq+lp)." if LICK_SOURCE == "daq+lp"
                     else "DAQ contact licks."), fontsize=8.5, wrap=True)
     fig.tight_layout(rect=(0, 0, 1, 0.88))
-    fig.savefig(OUT / "t13_followup_exclusion.png" if out is None else out, dpi=110)
+    save_png_svg(fig, OUT / "t13_followup_exclusion.png" if out is None else out, dpi=110)
     plt.close(fig)
     return plotted
 

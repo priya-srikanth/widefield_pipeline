@@ -22,6 +22,7 @@ whole-map test table, the similarity table, and per change figure the change_map
 Usage: python scripts/iti_session_pattern_tests.py [--plot-only]
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import pickle
 import sys
@@ -239,7 +240,7 @@ def plot_change(D: dict) -> None:
              "animal; * = BH over all maps x epochs). ipsi (lesion) = image LEFT. PROVISIONAL"]
     txt = "\n".join(textwrap.fill(q, 125) for q in paras)       # wrapped to the figure width (titles ran off the sides)
     fig.suptitle(txt, fontsize=8.5)
-    fig.savefig(il.OUT / "figures" / CHANGE_FIG[fam], dpi=95)
+    save_png_svg(fig, il.OUT / "figures" / CHANGE_FIG[fam], dpi=95)
     plt.close(fig)
 
 
@@ -271,7 +272,7 @@ def plot_similarity(D: dict) -> None:
     fig.suptitle("NEURAL: per-session map SHAPE vs the animal's pre map over days (pre sessions vs the mean of the OTHER "
                  "pre sessions = the noise floor, blue line). Grey band = pre. PROVISIONAL", fontsize=9)
     fig.tight_layout(rect=(0, 0, 1, 1 - 0.45 / fig.get_size_inches()[1]))
-    fig.savefig(il.OUT / "figures" / "lick_session_pattern_similarity.png", dpi=90)
+    save_png_svg(fig, il.OUT / "figures" / "lick_session_pattern_similarity.png", dpi=90)
     plt.close(fig)
 
 
@@ -297,7 +298,7 @@ def plot_maplevel(D: dict) -> None:
     ax.set_title("Whole-map SHAPE change vs pre: d = 1 - r(epoch map, pre map), unit-RMS session maps;\n* = session-"
                  "label permutation within animal, cohort p, BH q 0.05; k/n = animals with own p < 0.05", fontsize=8.5)
     fig.tight_layout()
-    fig.savefig(il.OUT / "figures" / "lick_session_pattern_maplevel.png", dpi=100)
+    save_png_svg(fig, il.OUT / "figures" / "lick_session_pattern_maplevel.png", dpi=100)
     plt.close(fig)
 
 

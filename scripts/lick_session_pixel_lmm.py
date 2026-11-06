@@ -52,6 +52,7 @@ Usage: [WFIELD_MAP_SCALE=frame] [WFIELD_AIM=all] python scripts/lick_session_pix
        [--jobs N (<= 8)] [--animals PS92,PS93] [--maps lat|spout|all] [--timing]
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import sys
 import textwrap
@@ -361,7 +362,7 @@ def plot(D: dict) -> None:
             cb.ax.tick_params(labelsize=6.5)
     fig.suptitle(_head(model, D["fam"], D["n_perm"], D["aim"]), fontsize=7.5)
     FIG.mkdir(parents=True, exist_ok=True)
-    fig.savefig(FIG / D["out"], dpi=95)
+    save_png_svg(fig, FIG / D["out"], dpi=95)
     plt.close(fig)
 
 

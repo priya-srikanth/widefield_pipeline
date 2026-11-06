@@ -9,6 +9,7 @@ Output figures/lick_iti_ramp_animals.png; figdata/lick_iti_ramp_animals.pkl (--p
 Usage: python scripts/lick_iti_ramp_animals.py [--plot-only]
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import sys
 from pathlib import Path
@@ -92,7 +93,7 @@ def plot(F: dict) -> None:
                  "animals, band = SEM over animals.\nRows: raw; / the animal's pre response AUC; difference from its own pre "
                  "curve / its pre peak. " + il.SIG_NOTE.replace("\n", " "), fontsize=9.5)
     fig.tight_layout(rect=(0, 0, 1, 0.92))
-    fig.savefig(il.OUT_W / "figures" / "lick_iti_ramp_animals.png", dpi=95)
+    save_png_svg(fig, il.OUT_W / "figures" / "lick_iti_ramp_animals.png", dpi=95)
     plt.close(fig)
 
 

@@ -48,7 +48,7 @@ import json
 import pathlib
 import random
 
-from wfield_local import config, epochs
+from wfield_local import epochs
 
 #: Bootstrap draws for the interval on total drift. Sessions are the resampling unit, matching the
 #: session-level inference used everywhere else in this repo.

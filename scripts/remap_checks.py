@@ -15,6 +15,7 @@ Usage: python scripts/remap_checks.py [--tag gate-attempted_v7g3_t3d_frA] [--roi
 Output: <run>/session_vs_frozen/{remap_lmm_<deficit>.csv, figures/remap_lmm_<window>_<model>.png, figures/remap_per_animal_<window>.png}
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 from wfield_local.frozen_encoder import design_tag as _design_tag  # frame tag of the FROZEN_LICKS_ALL design (8.51)
 
 import argparse
@@ -108,7 +109,8 @@ def check_time_course(U: pd.DataFrame, out: Path, deficits) -> None:
     L = Gr.assign(source="remap", measure=Gr.q + " | " + Gr.window + " | " + Gr.area, y=Gr.u)[["label", "source", "measure", "y"]]
     L = mm.add_time_covariates(L)
     for dname in deficits:
-        Ld = mm.add_deficit(L, mm.deficit(E / "qc", dname))
+        from wfield_local import run_mode as _rm
+        Ld = mm.add_deficit(L, mm.deficit(_rm.deficit_qc_dir(), dname))   # THIS run's trial_attempts table
         T = mm.lmm_table(Ld, ["source", "measure"], ("time", "behaviour"), fdr_by=("source",),
                          print_animals=(dname == deficits[0]))
         T.to_csv(out / f"remap_lmm_{dname}.csv", index=False, float_format="%.5g")
@@ -178,7 +180,7 @@ def per_animal_maps(U: pd.DataFrame, out: Path, tag: str, split=None) -> None:
                         f"of the self-fit, frozen = ROI R2 from {split[0].name})." if has_split else ""),
                      fontsize=8.5)
         fig.subplots_adjust(left=0.04, right=0.99, bottom=0.11, top=0.86 if has_split else 0.88, wspace=0.06, hspace=0.12)
-        fig.savefig(out / "figures" / f"remap_per_animal_{w}.png", dpi=110)
+        save_png_svg(fig, out / "figures" / f"remap_per_animal_{w}.png", dpi=110)
         plt.close(fig)
 
 

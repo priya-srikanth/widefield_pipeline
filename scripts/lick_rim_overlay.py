@@ -10,6 +10,7 @@ Output figures/lick_rim_overlay.png (figdata figdata/lick_rim_overlay.pkl; --plo
 Usage: WFIELD_ROI_VERSION=4 python scripts/lick_rim_overlay.py [--jobs 8] [--plot-only]
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import sys
 from pathlib import Path
@@ -102,7 +103,7 @@ def plot(F: dict) -> None:
                  f"of animals, sessions {F['n_sess']}).\nWhite dashed = 16-px rim excluded from ROI / area averages; CYAN = "
                  f"pixels ROI v{F['roi_version']} adds back (lateral edge only); white = ALM, green = tjM1, magenta = SSp-m, "
                  "orange = SSp-n. ipsi (lesion) = image LEFT. PROVISIONAL", fontsize=9)
-    fig.savefig(il.OUT / "figures" / f"{STEM}.png", dpi=95)
+    save_png_svg(fig, il.OUT / "figures" / f"{STEM}.png", dpi=95)
     plt.close(fig)
 
 

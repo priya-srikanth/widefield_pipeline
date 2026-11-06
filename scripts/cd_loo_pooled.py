@@ -21,6 +21,7 @@ acute = 1 session; haemodynamic caveat of `cd_trajectories` (read amplitude and 
     python -m scripts.cd_loo_pooled [--out DIR] [--plot-only]
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import argparse
 from pathlib import Path
@@ -110,7 +111,7 @@ def fig_window(D: pd.DataFrame, stats: list[dict], align: str, path: Path) -> No
                  "Faded open = sessions (shape = animal); under each epoch: change vs pre (paired animals -> sessions "
                  "bootstrap; * = 95 % interval excludes 0), animals below pre / animals", fontsize=8.5)
     fig.tight_layout(rect=(0, 0.06, 1, 0.93))
-    fig.savefig(path, dpi=150)
+    save_png_svg(fig, path, dpi=150)
     plt.close(fig)
 
 
@@ -156,7 +157,7 @@ def fig_traj(Z, D: pd.DataFrame, align: str, path: Path) -> None:
     fig.suptitle(f"CD leave-one-out trajectories, {align}-aligned -- POOLED within animal: each animal's session-mean "
                  "trace minus its pre window mean, then mean +- SEM over ANIMALS; shaded = window-mean window", fontsize=8.5)
     fig.tight_layout(rect=(0, 0, 1, 0.92))
-    fig.savefig(path, dpi=150)
+    save_png_svg(fig, path, dpi=150)
     plt.close(fig)
 
 

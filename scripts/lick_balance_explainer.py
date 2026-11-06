@@ -12,6 +12,7 @@ One animal (EXAMPLE_ANIMAL), cued FIRST post-cue licks, the primary definition (
 Output figure lick_balance_explainer.png (figdata + --plot-only).
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import sys
 from pathlib import Path
@@ -161,7 +162,7 @@ def plot(F: dict) -> None:
                     "contralesional balance reads like a more contralesional lick; same sign as lick angle, aim and the "
                     "decoder offset)" if rp.BAL_DISPLAY == "direction" else ""), fontsize=9.5)
     fig.tight_layout(rect=(0, 0, 1, 0.81 if rp.BAL_DISPLAY == "direction" else 0.84))
-    fig.savefig(il.OUT_W / "figures" / "lick_balance_explainer.png", dpi=95)
+    save_png_svg(fig, il.OUT_W / "figures" / "lick_balance_explainer.png", dpi=95)
     plt.close(fig)
 
 

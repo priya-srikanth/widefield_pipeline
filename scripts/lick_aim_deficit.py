@@ -15,6 +15,7 @@ Outputs <E>/iti_licks/aim_deficit_sessions.csv, figures/lick_cued_aim_deficit_co
 Usage: python scripts/lick_aim_deficit.py [--plot-only]
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import pickle
 import sys
@@ -101,7 +102,7 @@ def plot(S: pd.DataFrame, rel: dict) -> None:
                  "others x1) vs far contra only, FIRST post-cue lick vs all licks.\n" + txt + ". The mixed models' "
                  "behaviour deficit = pre - session of the FIRST-lick weighted aim. PROVISIONAL", fontsize=9.5)
     fig.tight_layout(rect=(0, 0, 1, 0.86))
-    fig.savefig(il.OUT / "figures" / "lick_cued_aim_deficit_compare.png", dpi=100)
+    save_png_svg(fig, il.OUT / "figures" / "lick_cued_aim_deficit_compare.png", dpi=100)
     plt.close(fig)
 
 

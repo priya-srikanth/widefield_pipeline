@@ -9,6 +9,7 @@ PROVENANCE: recreated 2026-11-04 (RECONCILIATION section 7) from scratchpad_scri
     PYTHONPATH=<wf_rebuild> python scripts/rebuild_figs/fig_resid_spout.py --spout far_contra [--bin 16] [--encoder-tag gate-attempted_v7g3_t3d_basis] [--out DIR] [--plot-only]
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 from wfield_local.frozen_encoder import design_tag as _design_tag  # frame tag of the FROZEN_LICKS_ALL design (8.51)
 
 import sys
@@ -41,7 +42,7 @@ def draw(fd: dict, OUT: Path, SPT: str) -> None:
     for i in range(2):
         fig.colorbar(axs[i, 0].images[0], ax=list(axs[i]), fraction=0.025, pad=0.02,
                      label="residual change\n(/ animal's pre-stroke scale)")
-    fig.savefig(OUT / f"fig7_residual_{SPT}_{F}px.png", dpi=125)
+    save_png_svg(fig, OUT / f"fig7_residual_{SPT}_{F}px.png", dpi=125)
     plt.close(fig)
 
 

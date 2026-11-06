@@ -14,7 +14,9 @@ import re
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
-W = re.compile(r"\.(to_csv|savefig|write_text|write_bytes|to_pickle|to_parquet)\(|np\.save(z|z_compressed)?\(|save_fd\(|pd\.to_pickle\(")
+#: `save_png_svg(` is `fig.savefig(` routed through `figure_layout` (PNG + SVG twin, 2026-11-06): still a writer.
+W = re.compile(r"\.(to_csv|savefig|write_text|write_bytes|to_pickle|to_parquet)\(|np\.save(z|z_compressed)?\(|save_fd\(|pd\.to_pickle\(|"
+               r"save_png_svg\(")
 SHARE = re.compile(r"M:/MICROSCOPE|oo\.root\(|PathResolver\(\)\.root\(|_run_dir\(\)|encoding_root\(|_enc_dir\(|"
                    r"root\(\"(cohort_out|orofacial|dlc|figures_working|behavior_out|labcams)")
 ROUTED = re.compile(r"run_mode|output_dir\(|routed_output|lp_licks\.output_tag|require_default|fe\.out_root\(\)")  # + encoder root
@@ -24,10 +26,11 @@ BEHAVIOUR = {
     "face_rhythm_bout_split.py", "face_rhythm_evr_epochs.py", "face_rhythm_factor_clips.py",
     "face_rhythm_lick_epochs.py", "face_rhythm_match.py", "face_rhythm_nontask_state.py", "face_rhythm_param_qc.py",
     "face_rhythm_position_maps.py", "face_rhythm_prep.py", "face_rhythm_readouts.py", "face_rhythm_validate.py",
-    "kinematics_pooled_figs.py", "lick_floor_qc.py", "lick_path_softmax.py",
+    "lick_floor_qc.py", "lick_path_softmax.py",
     "lmm_curve_summaries.py",
-    "orofacial_cover_sensitivity.py", "orofacial_robustness_table.py", "pose3d.py",
-    "pose3d_crosscheck.py", "pose3d_cue_traces.py", "pose3d_jaw_crosscheck.py",
+    # kinematics_pooled_figs / orofacial_cover_sensitivity / orofacial_robustness_table / pose3d_jaw_crosscheck: no
+    # longer here -- they read / write the cam4 cohort through orofacial_cohort.cohort_dir (routed, gate-named; A27 11-06)
+    "pose3d.py", "pose3d_crosscheck.py", "pose3d_cue_traces.py",
     "pose3d_jaw_depth_model_check.py", "pose3d_kinematics.py", "pose3d_phase.py", "pose3d_spout_error.py",
     "pose3d_vs_cam4.py", "pose_cue_traces.py",   # pose_kinematics_demo: share reads moved to kinematics_chain 11-05
     "tongue_nocontact_qc.py", "trial_class_raw_share_fig.py",

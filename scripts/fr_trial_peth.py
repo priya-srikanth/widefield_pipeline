@@ -15,6 +15,7 @@ Usage: python scripts/fr_trial_peth.py
 Output: <E>/fr_encoding_summary/trial_peth/ (sessions.csv, per_animal.csv, bootstrap.csv, figures/)
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import json
 import sys
@@ -128,7 +129,7 @@ def main() -> int:
                  "(trial-averaged) R2.\nunique = fr:full minus the model without the group; FR unique = fr:full minus full. "
                  "Bars = mean of animals, dots = animals.", fontsize=9)
     fig.subplots_adjust(left=0.06, right=0.99, top=0.88, bottom=0.14, hspace=0.6, wspace=0.08)
-    fig.savefig(out / "figures" / "fr_trial_peth_pre_levels.png", dpi=115)
+    save_png_svg(fig, out / "figures" / "fr_trial_peth_pre_levels.png", dpi=115)
     plt.close(fig)
 
     # figure 2: chronic - pre, trial vs PETH, cortex / contra SSp-m / ipsi SSp-m
@@ -157,7 +158,7 @@ def main() -> int:
     fig.suptitle("NEURAL: chronic minus pre, per-session encoder WITH FaceRhythm: trial-to-trial (orange) vs PETH (green) "
                  "unique R2.\nBars = mean of animals [95% nested bootstrap CI], dots = animals.", fontsize=9)
     fig.subplots_adjust(left=0.06, right=0.99, top=0.88, bottom=0.1, hspace=0.45, wspace=0.08)
-    fig.savefig(out / "figures" / "fr_trial_peth_chronic.png", dpi=115)
+    save_png_svg(fig, out / "figures" / "fr_trial_peth_chronic.png", dpi=115)
     plt.close(fig)
     print("->", out)
     return 0

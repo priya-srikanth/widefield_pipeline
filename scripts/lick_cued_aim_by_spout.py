@@ -21,6 +21,7 @@ Usage: python scripts/lick_cued_aim_by_spout.py
 Outputs: <E>/iti_licks/aim_by_spout_{sessions,tests,time_lmm}.csv, figures/lick_cued_aim_by_spout{,_days}.png
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import sys
 from pathlib import Path
@@ -129,7 +130,7 @@ def main() -> int:
                  "** after Bonferroni over 18 tests; pre column = pre sessions vs their own mean (noise floor)",
                  fontsize=9.5)
     fig.tight_layout(rect=(0, 0.06, 1, 0.88))
-    fig.savefig(il.OUT / "figures" / "lick_cued_aim_by_spout.png", dpi=100)
+    save_png_svg(fig, il.OUT / "figures" / "lick_cued_aim_by_spout.png", dpi=100)
 
     # ---- Fig B: per animal over days ----
     from wfield_local import mixed_models as mm
@@ -169,7 +170,7 @@ def main() -> int:
                  "page's Fig 16.9 model),\nstep = day-1 change vs pre, recovery = change per e-fold of days; q = BH over "
                  "the 7 panels", fontsize=9.5)
     fig.tight_layout(rect=(0, 0.06, 1, 0.88))
-    fig.savefig(il.OUT / "figures" / "lick_cued_aim_by_spout_days.png", dpi=100)
+    save_png_svg(fig, il.OUT / "figures" / "lick_cued_aim_by_spout_days.png", dpi=100)
     return 0
 
 

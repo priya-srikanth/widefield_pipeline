@@ -30,6 +30,7 @@ Usage: python scripts/session_vs_frozen.py --tag gate-attempted_v7g3_t3d_frA [--
 Output: <E>/frozen_encoder_<tag>/session_vs_frozen[_roi]/{sessions/<label>.json, gap.csv, remap_boot.csv, figures/*.png}
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 from wfield_local.frozen_encoder import design_tag as _design_tag  # frame tag of the FROZEN_LICKS_ALL design (8.51)
 
 import argparse
@@ -294,7 +295,7 @@ def area_maps(run: Path, out: Path, variants, split=None) -> None:
                         f"of the self-fit, frozen = ROI R2 from {split[0].name}); Allen Bonferroni count and colour scale."
                         if has_split else ""), fontsize=8.5)
         fig.subplots_adjust(left=0.04, right=0.99, bottom=0.08, top=0.83 if has_split else 0.86, wspace=0.06, hspace=0.3)
-        fig.savefig(out / "figures" / f"remap_area_maps_{w}.png", dpi=110)
+        save_png_svg(fig, out / "figures" / f"remap_area_maps_{w}.png", dpi=110)
         plt.close(fig)
     pd.set_option("display.width", 220)
     sig = B[B.p_bonf < .05]
@@ -356,7 +357,7 @@ def summarise(run: Path, out: Path, variants) -> None:
                      "before the stroke. Bars = mean of animals; whisker 95 % nested CI; * excludes 0; dots = animals; "
                      "grey band = pre split-half range.", fontsize=9)
         fig.subplots_adjust(left=0.05, right=0.88, top=0.84, bottom=0.12)
-        fig.savefig(out / "figures" / f"session_vs_frozen_{w}.png", dpi=105)
+        save_png_svg(fig, out / "figures" / f"session_vs_frozen_{w}.png", dpi=105)
         plt.close(fig)
     print("->", out)
 

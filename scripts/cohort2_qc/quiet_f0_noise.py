@@ -26,6 +26,7 @@ Per-animal tables first (CLAUDE.md rule 8); `mixed_models.lmm_table` epoch model
     python scripts/cohort2_qc/quiet_f0_noise.py [--jobs 4]
 Output: M:/MICROSCOPE/Priya/Widefield/labcams/cohort1_quiet_spikes/v2_quiet/f0_noise/
 """
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 import argparse
 import json
 import sys
@@ -367,7 +368,7 @@ def figure(C, K, N, H, Hc, fit, T, PSD, fr):
                  "row 3 = noise-floor diagnostics.\nSessions (shape = animal, colour = epoch), bar = mean of animals; "
                  "stars = LMM epoch vs August pre, FDR within measure", fontsize=10)
     fig.subplots_adjust(left=0.05, right=0.99, top=0.9, bottom=0.08)
-    fig.savefig(OUT / "quiet_f0_noise.png", dpi=105)
+    save_png_svg(fig, OUT / "quiet_f0_noise.png", dpi=105)
     print("wrote", OUT / "quiet_f0_noise.png")
 
 

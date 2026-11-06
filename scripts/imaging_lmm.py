@@ -58,7 +58,10 @@ def push_table(E: Path) -> pd.DataFrame:
 
 
 def behaviour_table(run_root: Path) -> pd.DataFrame:
-    S = pd.read_csv(run_root / "cohort" / "tables" / "prepost" / "session_metrics.csv")
+    """The cam4 cohort's session table of run ``run_root.name`` (`orofacial_cohort.cohort_dir`: the gate-named
+    prepost_<gate> folder, A27)."""
+    from wfield_local import orofacial_cohort as oc
+    S = pd.read_csv(oc.cohort_dir("tables", run=Path(run_root).name) / "session_metrics.csv")
     return _long(S, BEHAVIOUR_METRICS, "behaviour")
 
 
@@ -177,7 +180,8 @@ def main(argv=None) -> int:
     sfx = "" if dname == mm.DEFICIT else f"_{dname}"
     if set(a.sources.split(",")) != {"trend", "decoder", "behaviour", "epoch"}:   # a subset never overwrites the full set
         sfx += "_" + "-".join(a.sources.split(","))
-    deficit = mm.deficit(E / "qc", dname)
+    from wfield_local import run_mode as _rm
+    deficit = mm.deficit(_rm.deficit_qc_dir(), dname)   # THIS run's trial_attempts table (was <E>/qc: missing in a tagged run)
     src = a.sources.split(",")
     tabs, L, D, C = [], None, None, None
     prepost = [f(E if f in (trend_table, push_table) else run_root)

@@ -23,6 +23,7 @@ Figure: row 1 over days (per animal + POOLED), row 2 against the aim (per animal
 Usage: python scripts/iti_lick_rate.py [--plot-only]
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import sys
 from pathlib import Path
@@ -248,7 +249,7 @@ def plot(D: dict) -> None:
                  "session; black = mean +- SEM; * = nested-bootstrap change from pre. Pooled panels on a log scale.",
                  fontsize=9.5)
     fig.tight_layout(rect=(0, 0, 1, 0.95))
-    fig.savefig(il.OUT / "figures" / "lick_iti_rate.png", dpi=110)
+    save_png_svg(fig, il.OUT / "figures" / "lick_iti_rate.png", dpi=110)
     plt.close(fig)
 
 

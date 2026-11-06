@@ -22,6 +22,7 @@ Maps are reconstructed on the ATLAS grid (U_atlas @ window-mean SVT), so pixels 
 sessions and animals. The window is the same one the decoders use.
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import argparse
 import glob
@@ -243,7 +244,7 @@ def _plot_part(animal, cols, POS, lim, out_dir, align, post_s, part, n_parts):
     # part 1 keeps the historical filename so no existing deck reference dangles
     q = Path(out_dir) / (f"fixed_scale_maps_{animal}_{_tag}.png" if part == 1
                          else f"fixed_scale_maps_{animal}_{_tag}__p{part}.png")
-    fig.savefig(q, dpi=140)
+    save_png_svg(fig, q, dpi=140)
     plt.close(fig)
     return q
 

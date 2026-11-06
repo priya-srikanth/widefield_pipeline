@@ -12,6 +12,7 @@ Usage: python scripts/contest_lines.py
 Output: <E>/contest_lines/
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 from wfield_local.frozen_encoder import design_tag as _design_tag  # frame tag of the FROZEN_LICKS_ALL design (8.51)
 
 import sys
@@ -68,7 +69,7 @@ def figure(plt, T: pd.DataFrame, series, title: str, ylab: str, path) -> None:
     ffc.lines_legend(fig, series)
     fig.suptitle(title, fontsize=10)
     fig.subplots_adjust(left=0.08, right=0.99, top=0.85, bottom=0.16, wspace=0.08, hspace=0.25)
-    fig.savefig(path, dpi=110)
+    save_png_svg(fig, path, dpi=110)
     plt.close(fig)
     print("->", path)
 

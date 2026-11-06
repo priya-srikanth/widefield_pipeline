@@ -18,6 +18,7 @@ Figure data <E>/iti_licks/figdata/lick_cued_first_lick.pkl; --plot-only redraws 
 Usage: python scripts/iti_first_lick.py [--plot-only]
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import sys
 from pathlib import Path
@@ -175,7 +176,7 @@ def plot(T: pd.DataFrame) -> None:
                  "paired nested bootstrap CI, k/n animals. + = contralesional.\n"
                  f"Like-for-like FIRST - LATER, change vs pre (PROVISIONAL):\n{txt}", fontsize=8.5)
     fig.tight_layout(rect=(0, 0, 1, 0.82))
-    fig.savefig(il.OUT / "figures" / "lick_cued_first_lick.png", dpi=100)
+    save_png_svg(fig, il.OUT / "figures" / "lick_cued_first_lick.png", dpi=100)
     plt.close(fig)
 
 

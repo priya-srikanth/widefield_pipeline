@@ -84,6 +84,7 @@ still the column the claim rests on.
     python -m scripts.rest_migration.rest_baseline_epoch_drift [--animals PS92 ...] [--perm 2000]
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import argparse
 import csv
@@ -582,7 +583,7 @@ def _figure(rows, out_dir):
              "cos < 0 INFLATES it. The one significant cell (PS94 subacute, -0.91) is inflating.",
              ha="center", va="top", fontsize=8.2)
     out = out_dir / "epoch_15j_rest_baseline_epoch_drift.png"
-    fig.savefig(out, dpi=150, bbox_inches="tight")
+    save_png_svg(fig, out, dpi=150, bbox_inches="tight")
     plt.close(fig)
     return out
 

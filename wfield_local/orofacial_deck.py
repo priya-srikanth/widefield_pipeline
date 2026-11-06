@@ -265,7 +265,7 @@ def _provenance(run_dir: Path, S: pd.DataFrame, baseline: str) -> str:
     gate = ""
     if "engagement_gate" in S:
         g = S.engagement_gate.astype(str).str.split(" ").str[0].value_counts().to_dict()
-        gate = f"\n  engagement gate per session: {g}"
+        gate = f"\n  trial gate per session ({oc.trials_text()}): {g}"
     if {"n_trials_all", "n_trials_used"} <= set(S.columns):
         gate += (f"\n  trials kept by the gate: {int(S.n_trials_used.sum())} of {int(S.n_trials_all.sum())} "
                  f"({100 * S.n_trials_used.sum() / max(S.n_trials_all.sum(), 1):.1f} %)")
@@ -358,18 +358,21 @@ def main(argv=None) -> int:
                     help="AUGUST-ONLY pre baseline is PRIMARY (Priya 2026-10-18); 'all' = June-including sensitivity -> *_allpre")
     a = ap.parse_args(argv)
     sfx = "_allpre" if a.baseline == "all" else ""
+    oc._apply_config()                                   # the thresholds the cohort run used (configs/defaults.yaml)
+    oc.BASELINE = a.baseline                             # notes describe THIS deck's baseline
+    # the cohort's gate-named folders (A27): prepost / jaw_lateral carry the gate (prepost_working ...); w2 / heatmaps
+    # (other producers, not gated by `cohort_keep`) keep the baseline suffix only
+    gsfx = oc.table_suffix(baseline=a.baseline)
     rv = PathResolver()
-    base = oo.root(rv) / a.run / "cohort"
+    base = oc.cohort_base(a.run, rv)
     figs, tables = base / "figures", base / "tables"
     out = deck_dir("orofacial", rv) / a.run                # only the .pptx; figures + tables stay in LP_analysis
     writeguard.assert_writable(out)
     out.mkdir(parents=True, exist_ok=True)
-    S = pd.read_csv(tables / f"prepost{sfx}" / "session_metrics.csv")
-    oc._apply_config()                                   # the thresholds the cohort run used (configs/defaults.yaml)
-    oc.BASELINE = a.baseline                             # notes describe THIS deck's baseline
-    prov = _provenance(base.parent, S, a.baseline)
+    S = pd.read_csv(tables / f"prepost{gsfx}" / "session_metrics.csv")
+    prov = _provenance(oo.root(rv) / a.run, S, a.baseline)          # run.json of the LP run (an input)
     stats_txt = oc.stats_methods()
-    ST = pd.read_csv(tables / f"prepost{sfx}" / "stats" / "change_vs_pre_stats.csv")
+    ST = pd.read_csv(tables / f"prepost{gsfx}" / "stats" / "change_vs_pre_stats.csv")
 
     prs = Presentation()
     prs.slide_width, prs.slide_height = Inches(W_IN), Inches(H_IN)
@@ -381,7 +384,7 @@ def main(argv=None) -> int:
     _text(s, "Orofacial kinematics, pre vs post VLS stroke -- widefield cohort"
           + (" -- SENSITIVITY: June-including pre baseline" if sfx else ""), 0.6, 2.2, 12, 1.0, 32, bold=True)
     base_txt = ("PRE BASELINE = all curated pre incl. June 0606-0608 (SUPERSEDED as primary; scale-free measures only)"
-                if sfx else "PRE BASELINE = August-onward pre sessions only (PRIMARY); ENGAGED trials only")
+                if sfx else "PRE BASELINE = August-onward pre sessions only (PRIMARY)") + chr(10) + f"Trials: {oc.trials_text()}"
     _text(s, f"Pose model LP r4 (cleaning {oo.CLEANING_VERSION}) -- run {a.run}\n{base_txt}\nCurated sessions: {len(S)} ({cnt})\n"
              f"Built {time.strftime('%Y-%m-%d %H:%M')} by wfield_local.orofacial_deck -- PRELIMINARY until every animal's "
              "sessions are in", 0.6, 3.4, 12, 2.0, 16, color=(60, 60, 60))
@@ -392,8 +395,8 @@ def main(argv=None) -> int:
     methods = ("* Curated sessions (early June 6/1-6/5 and 8/5 excluded); PRE BASELINE = "
                + ("all curated pre sessions incl. June 0606-0608 (sensitivity only)" if sfx else
                   f"pre sessions from {oc.LATE_PRE_FROM} only (June 0606-0608 excluded: different camera geometry)")
-               + "; ENGAGED trials only (the behaviour pipeline's gate removes the sated tail; the ungated control in "
-               f"figures/prepost_alltrials is not in this deck); LP r4 pose, cleaning {oo.CLEANING_VERSION}; "
+               + f"; Trials: {oc.trials_text()} (the ungated control in figures/prepost_alltrials is not in this "
+               f"deck); LP r4 pose, cleaning {oo.CLEANING_VERSION}; "
                "LP-detected licks ('lick n' = the n-th detected post-cue lick, contact or not).\n"
                "* Post-cue licks = lick peak in cue + 70 ms .. DAQ trial stop; pre-cue = peak in position strobe (spout arrived) "
                ".. cue; peaks in cue .. cue + 70 ms count as neither (excluded); ITI = the rest of each trial window. Kinematics use measured (not interpolated / imputed) peaks.\n"
@@ -403,7 +406,7 @@ def main(argv=None) -> int:
                "* Statistics (session = unit; each session minus its animal's own pre mean): headline = Mann-Whitney U, post vs "
                "pre sessions, BH-FDR within each metric; robustness = animal-weighted bootstrap (* both, (*) MWU only, "
                "b bootstrap only); per-animal marks = that animal's sessions vs its own pre; trajectories = cluster "
-               "permutation, labels permuted within animal. Full text: tables/prepost/stats/STATS_METHODS.md.")
+               f"permutation, labels permuted within animal. Full text: tables/prepost{gsfx}/stats/STATS_METHODS.md.")
     _text(s, methods, 0.4, 0.8, 12.5, 6.4, 14)
     s.notes_slide.notes_text_frame.text = _notes(prov, "STATISTICS\n" + stats_txt)
     # key results
@@ -418,7 +421,7 @@ def main(argv=None) -> int:
                             "q (FDR)": [f"{q:.2g}" for q in k.q_fdr],
                             "bootstrap 95% CI": [f"[{lo:+.3g}, {hi:+.3g}]" for lo, hi in zip(k.boot_lo, k.boot_hi)]})
         _table_slide(prs, "Key results: strongest changes significant by both tests", tab,
-                     "All cells: tables/prepost/stats/RESULTS.md and change_vs_pre_stats.csv. PRELIMINARY (PS93 thin).",
+                     f"All cells: tables/prepost{gsfx}/stats/RESULTS.md and change_vs_pre_stats.csv. PRELIMINARY (PS93 thin).",
                      notes=_notes(prov, "STATISTICS\n" + stats_txt))
     # significance grids per epoch (stroke_orofacial's on-slide grids)
     mk = {"both": "*", "MWU only": "(*)", "bootstrap only": "b", "neither": ""}
@@ -439,8 +442,8 @@ def main(argv=None) -> int:
         s = _blank(prs)
         _text(s, sec, 0.6, 3.0, 12, 1.2, 28, bold=True)
         for rel, title, cap in items:
-            png = figs / (rel.replace("prepost/", f"prepost{sfx}/").replace("w2/", f"w2{sfx}/").replace("heatmaps/", f"heatmaps{sfx}/")
-                          .replace("jaw_lateral/", f"jaw_lateral{sfx}/"))
+            png = figs / (rel.replace("prepost/", f"prepost{gsfx}/").replace("w2/", f"w2{sfx}/").replace("heatmaps/", f"heatmaps{sfx}/")
+                          .replace("jaw_lateral/", f"jaw_lateral{gsfx}/"))
             if not png.exists():
                 missing.append(rel)
                 continue
@@ -449,7 +452,7 @@ def main(argv=None) -> int:
                           _notes(f"{title}\n{cap}".strip(), prov, "HOW THE DATA WERE GENERATED\n" + gen,
                                  "STATISTICS\n" + st, f"Figure file: {png}"))
     # the June-including deck says what it is in its NAME (Priya 10-18: not at risk of being read as the primary result)
-    path = out / f"orofacial_prepost{'_allpre_SENSITIVITY' if sfx else ''}_{time.strftime('%Y%m%d')}.pptx"
+    path = out / f"orofacial_prepost{oc.COHORT_GATE_SFX[oc.cohort_gate()]}{'_allpre_SENSITIVITY' if sfx else ''}_{time.strftime('%Y%m%d')}.pptx"
     prs.save(path)
     print(f"{len(prs.slides)} slides -> {path}")
     if missing:

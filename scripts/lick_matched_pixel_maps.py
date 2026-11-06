@@ -40,6 +40,7 @@ Usage: python scripts/lick_matched_pixel_maps.py [--cache DIR] [--jobs 4] | --pl
        (figdata lick_matched_pixel_maps_epochs.pkl; rebuilt from the local cache, needs the main figdata)
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import argparse
 import sys
@@ -421,7 +422,7 @@ def plot(D: dict) -> None:
                            "ipsilesional. Contour = calibrated nested-bootstrap max-stat test (supporting only; areas "
                            "are the a priori test). PROVISIONAL", 160), fontsize=9, y=0.995)
         fig.subplots_adjust(left=0.02, right=0.95, bottom=0.02, top=1 - 1.75 / fig_h)
-        fig.savefig(FIG / f"lick_matched_pixel_{st}.png", dpi=90)
+        save_png_svg(fig, FIG / f"lick_matched_pixel_{st}.png", dpi=90)
         plt.close(fig)
         # per animal (rule 8): mirrored map per animal x epoch, same scale
         fig, axs = plt.subplots(len(AN), 2 * len(POST), figsize=(3.0 * 2 * len(POST), 2.9 * len(AN)), squeeze=False)
@@ -443,7 +444,7 @@ def plot(D: dict) -> None:
                            f"{vmax:.1f} dF/F x1e3); image LEFT = ipsilesional; mirrored = contra pixel minus mirrored "
                            "ipsi pixel (+ = contralesional hemisphere gained more). PROVISIONAL", 150), fontsize=9)
         fig.tight_layout(rect=(0, 0, 1, 0.95))
-        fig.savefig(FIG / f"lick_matched_pixel_animals_{st}.png", dpi=80)
+        save_png_svg(fig, FIG / f"lick_matched_pixel_animals_{st}.png", dpi=80)
         plt.close(fig)
     # a priori area test figure
     T = D["area_tests"]
@@ -481,7 +482,7 @@ def plot(D: dict) -> None:
                        "matched spout + angle), change vs pre; filled = paired nested bootstrap 95% CI, open = animals. "
                        "Hemisphere: c = contralesional. PROVISIONAL", 170), fontsize=9.5)
     fig.tight_layout(rect=(0, 0.03, 1, 0.93))
-    fig.savefig(FIG / "lick_matched_pixel_areas.png", dpi=90)
+    save_png_svg(fig, FIG / "lick_matched_pixel_areas.png", dpi=90)
     plt.close(fig)
 
 
@@ -592,7 +593,7 @@ def plot_epochs(D: dict, E: dict) -> None:
                            "own spout + landed angle. Image LEFT = ipsilesional. PROVISIONAL", 175), fontsize=9.5,
                      y=0.995)
         fig.subplots_adjust(left=0.01, right=0.95, bottom=0.01, top=0.9)
-        fig.savefig(FIG / f"lick_matched_pixel_{st}_epochs.png", dpi=90)
+        save_png_svg(fig, FIG / f"lick_matched_pixel_{st}_epochs.png", dpi=90)
         plt.close(fig)
 
 

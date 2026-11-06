@@ -1,4 +1,5 @@
 """Goal-question summary figures (10-24): binned contest per animal, attempt-class decoder, trial-type amplitudes."""
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 import sys
 from pathlib import Path
 
@@ -45,7 +46,7 @@ fig.suptitle("Binned target vs executed contest (O2, final inputs, width 1), cor
              "beyond the other\nlines = epoch means, dots = sessions; chronic target > executed 4/4, acute lick 3/4, "
              "subacute mixed, pre no lead", fontsize=10)
 fig.tight_layout(rect=(0, 0, 1, 0.92))
-fig.savefig(OUT / "fig1_binned_contest.png", dpi=140); plt.close(fig)
+save_png_svg(fig, OUT / "fig1_binned_contest.png", dpi=140); plt.close(fig)
 
 # 2. attempt-class decoder (far contra)
 A = E / "attempt_coding"
@@ -84,7 +85,7 @@ fig.suptitle("Item 1: far-contra trials on the frozen pre-stroke decoder, by wha
              "pre-stroke reference)\nfailed attempts (orange) lose the far-contra code but are read as a FAR spout "
              "(distance kept, side lost); no pre-cue difference", fontsize=10)
 fig.tight_layout(rect=(0, 0, 1, 0.91))
-fig.savefig(OUT / "fig2_attempt_decoder.png", dpi=140); plt.close(fig)
+save_png_svg(fig, OUT / "fig2_attempt_decoder.png", dpi=140); plt.close(fig)
 
 # 3. trial-type amplitudes (lick window, far contra)
 h = pd.read_csv(E / "attempt_maps" / "hemispheres_lick.csv")
@@ -109,5 +110,5 @@ axes[0].legend(fontsize=8, frameon=False)
 fig.suptitle("Item 4: how big is the far-contra response on failed attempts?\nSmaller than hits in 3/4, but vs "
              "touch-matched pre-stroke misses only 2/4 (PS92's reference = 7 trials)", fontsize=10)
 fig.tight_layout(rect=(0, 0, 1, 0.88))
-fig.savefig(OUT / "fig3_attempt_amplitude.png", dpi=140); plt.close(fig)
+save_png_svg(fig, OUT / "fig3_attempt_amplitude.png", dpi=140); plt.close(fig)
 print("ok")

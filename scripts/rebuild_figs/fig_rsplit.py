@@ -10,6 +10,7 @@ INPUT: <encoding>/allsession_encoder_<tag>/random_splits_<animal>.csv (`scripts/
     PYTHONPATH=<wf_rebuild> python scripts/rebuild_figs/fig_rsplit.py [--allsession-tag v7g3_t3d_ref] [--out DIR] [--plot-only]
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 from wfield_local.frozen_encoder import design_tag as _design_tag  # frame tag of the FROZEN_LICKS_ALL design (8.51)
 
 import sys
@@ -79,7 +80,7 @@ def draw(fd: dict, out: Path) -> pd.DataFrame:
                  "splits.\nP = share of splits where the pseudo epoch gains at least as much as that epoch (0.00 = none of "
                  "20).", fontsize=9)
     fig.tight_layout(rect=(0, 0, 1, 0.92))
-    fig.savefig(out / "fig5b_layer2_random_splits.png", dpi=125)
+    save_png_svg(fig, out / "fig5b_layer2_random_splits.png", dpi=125)
     plt.close(fig)
     return pd.DataFrame(rows)
 

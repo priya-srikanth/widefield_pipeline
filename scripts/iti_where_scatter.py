@@ -21,6 +21,7 @@ Usage: python scripts/iti_where_scatter.py [--z] [--plot-only]   (--plot-only: r
 iti_zscore_check.py -> figures/*_z.png, tables in zscore_check/ with a _z suffix)
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import sys
 from pathlib import Path
@@ -242,7 +243,7 @@ def plot_delta(F: dict) -> None:
     fig.legend(handles=hd, loc="upper center", ncol=8, fontsize=8.5, frameon=False,
                bbox_to_anchor=(0.5, 0.945 if tag else 0.955))
     fig.tight_layout(rect=(0, 0, 1, 0.925 if tag else 0.935))
-    fig.savefig(WOUT / "figures" / f"lick_where_delta{tag}.png", dpi=95)
+    save_png_svg(fig, WOUT / "figures" / f"lick_where_delta{tag}.png", dpi=95)
     plt.close(fig)
 
 
@@ -320,7 +321,7 @@ def plot(F: dict) -> None:
     fig.legend(handles=hd, loc="upper center", ncol=6, fontsize=9, frameon=False,
                bbox_to_anchor=(0.5, 0.955 if tag else 0.962))
     fig.tight_layout(rect=(0, 0, 1, 0.918 if tag else 0.925))
-    fig.savefig(WOUT / "figures" / f"{_scatter_stem(st, tag)}.png", dpi=95)
+    save_png_svg(fig, WOUT / "figures" / f"{_scatter_stem(st, tag)}.png", dpi=95)
     plt.close(fig)
 WOUT = il.OUT_W if il.ITI_SUBSET else il.OUT     # subset runs (dock, ...) write to their own folder (10-29)
 

@@ -22,6 +22,7 @@ figdata/lick_refit_decoders.pkl (--plot-only redraws from it).
 Usage: python scripts/lick_refit_decoders.py [--plot-only]
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import sys
 from pathlib import Path
@@ -228,7 +229,7 @@ def plot(F: dict) -> None:
                  "refit: vs their pre; epoch refit: vs pre trained on the SAME number of licks, grey bars), 95 % paired "
                  "nested bootstrap, * = CI excludes 0, k/n animals lower. PROVISIONAL", fontsize=9)
     fig.tight_layout(rect=(0, 0, 1, 0.9))
-    fig.savefig(il.OUT / "figures" / f"{STEM}.png", dpi=100)
+    save_png_svg(fig, il.OUT / "figures" / f"{STEM}.png", dpi=100)
     plt.close(fig)
 
 

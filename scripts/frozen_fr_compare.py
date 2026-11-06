@@ -19,6 +19,7 @@ Usage: python scripts/frozen_fr_compare.py
 Output: <E>/frozen_fr_compare/ (tables + figures)
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 from wfield_local.frozen_encoder import design_tag as _design_tag  # frame tag of the FROZEN_LICKS_ALL design (8.51)
 
 import glob
@@ -208,7 +209,7 @@ def lines_figure(plt, w, B1, B2, B3, B4, lev, out):
                  "of animals' epoch - pre (row 4: - pre_late), band 95 % nested CI; title: pre R2 noFR / FR-B / FR-A.",
                  fontsize=10.5)
     fig.subplots_adjust(left=0.07, right=0.995, top=0.91, bottom=0.075, hspace=0.35, wspace=0.12)
-    fig.savefig(out / "figures" / f"frozen_fr_compare_lines_{w}.png", dpi=110)
+    save_png_svg(fig, out / "figures" / f"frozen_fr_compare_lines_{w}.png", dpi=110)
     plt.close(fig)
 
 
@@ -312,7 +313,7 @@ def main() -> int:
                      "mean of animals' epoch - pre (panel 4: - pre_late); whisker 95 % nested CI; * excludes 0; dots = animals.",
                      fontsize=10)
         fig.subplots_adjust(left=0.045, right=0.995, top=0.86, bottom=0.07, hspace=0.42, wspace=0.14)
-        fig.savefig(out / "figures" / f"frozen_fr_compare_{w}.png", dpi=110)
+        save_png_svg(fig, out / "figures" / f"frozen_fr_compare_{w}.png", dpi=110)
         plt.close(fig)
         lines_figure(plt, w, B1, B2, B3, B4, lev, out)
     print("->", out)

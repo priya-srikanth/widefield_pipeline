@@ -30,6 +30,7 @@ session mean over all licks (>= MIN); change vs pre per epoch, per animal and po
 Outputs <OUT_W>/balblind_{preds.csv.gz,sessions,tests,quality}.csv, <OUT_W>/figures/balblind_offset.png.
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import sys
 from pathlib import Path
@@ -221,7 +222,7 @@ def plot(T: pd.DataFrame, Q: pd.DataFrame, MAIN=MAIN, name="balblind_offset", ti
     fig.tight_layout()
     out = il.OUT_W / "figures" / f"{name}.png"
     out.parent.mkdir(exist_ok=True)
-    fig.savefig(out, dpi=150)
+    save_png_svg(fig, out, dpi=150)
     return out
 
 

@@ -16,6 +16,7 @@ height (interpolated), and the value at +0.5 s / peak.
     set WFIELD_INPUT_CACHE=C:/Users/SabatiniLab/wfield_cache
     python scripts/cohort2_qc/quiet_eta_fr.py [--jobs 5] [--summarise]
 """
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 import argparse
 import os
 import sys
@@ -199,7 +200,7 @@ def fig_maps(D):
                  "outline = significant (nested animals -> sessions bootstrap, max-statistic family-wise p < 0.05, "
                  "8x8-px bins, eroded mask)", fontsize=9)
     fig.subplots_adjust(top=0.93, right=0.9)
-    fig.savefig(OUTF / "quiet_eta_maps_fr.png", dpi=110, bbox_inches="tight")
+    save_png_svg(fig, OUTF / "quiet_eta_maps_fr.png", dpi=110, bbox_inches="tight")
     plt.close(fig)
     import pandas as pd
     pd.DataFrame(sig_rows).to_csv(OUTF / "quiet_eta_maps_fr_significance.csv", index=False)
@@ -256,7 +257,7 @@ def fig_decay(D, Tb, T):
     fig.suptitle("Do acute events decay faster? Movement-corrected (face-regressed) event-triggered residual traces; "
                  "stars = LMM epoch vs August pre, FDR", fontsize=9)
     fig.tight_layout(rect=(0, 0, 1, 0.95))
-    fig.savefig(OUTF / "quiet_eta_decay_fr.png", dpi=110)
+    save_png_svg(fig, OUTF / "quiet_eta_decay_fr.png", dpi=110)
     plt.close(fig)
 
 

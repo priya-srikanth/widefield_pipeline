@@ -25,10 +25,16 @@ are the fix; this module is only about where they live.
 ALWAYS GO THROUGH `sidecar()` AND `svg_path()`. A writer that builds its own path puts a file back
 in the flat directory, and nothing will report it -- the coverage tool counts PNGs, and a stray CSV
 is invisible to every check in this repo.
+
+SAVE A PAGE / DECK FIGURE WITH `save_png_svg(fig, png, **savefig_kw)` (2026-11-06): the PNG exactly as
+`fig.savefig` would write it, and the SVG twin in `svg/`. `tests/test_save_png_svg.py` lists the
+writers that must use it.
 """
 from __future__ import annotations
 
+import os
 import pathlib
+import warnings
 
 #: Subdirectory names, in one place so a future move is one edit.
 SVG_DIR = "svg"
@@ -42,6 +48,53 @@ def svg_path(png, *, mkdir: bool = True) -> pathlib.Path:
     if mkdir:
         d.mkdir(parents=True, exist_ok=True)
     return d / (png.stem + ".svg")
+
+
+#: savefig keywords that only mean something for a raster file. Dropped for the SVG twin: `dpi` is a
+#: no-op for vector output (same rule `grant_kit._save` used since 2026-08-29), and PNG `metadata` keys /
+#: `pil_kwargs` / an explicit `format="png"` would make the SVG call raise or write a PNG under .svg.
+_RASTER_ONLY_KW = ("dpi", "format", "metadata", "pil_kwargs")
+
+
+def save_png_svg(fig, fname, *args, **kwargs):
+    """``fig.savefig(fname, *args, **kwargs)`` EXACTLY as the caller wrote it, plus a vector twin at
+    ``svg_path(fname)`` when ``fname`` is a ``.png`` path (Priya, 2026-11-06: every page / deck figure
+    is also saved as SVG, going forward).
+
+    THE PNG IS UNCHANGED BY CONSTRUCTION. It is written first, by the same call with the same
+    arguments the writer used before it was routed here, so dpi / bbox / facecolor / transparent
+    all mean what they meant; `tests/test_save_png_svg.py` pins the bytes against a plain savefig.
+
+    THE SVG CAN NEVER COST THE PNG. Any failure (an artist that cannot vectorise, a full disk, an
+    unwritable `svg/` dir) warns and returns; a partial SVG is removed so a broken twin never sits
+    beside a good figure. Text stays text (``svg.fonttype = "none"``), the setting the histology /
+    orofacial writers already used, so labels are editable in Illustrator.
+
+    Anything that is not a ``.png`` path (a ``.pdf``, an ``.svg``, a ``BytesIO``) is saved and nothing
+    else happens. ``fig`` only needs a ``savefig`` method, so a seaborn grid works too; for
+    ``plt.savefig(...)`` pass ``plt.gcf()``. Returns what ``savefig`` returned.
+    """
+    out = fig.savefig(fname, *args, **kwargs)
+    if not isinstance(fname, (str, os.PathLike)):
+        return out
+    png = pathlib.Path(fname)
+    if png.suffix.lower() != ".png" or str(kwargs.get("format") or "png").lower() != "png":
+        return out
+    svg = None
+    try:
+        import matplotlib as mpl
+        svg = svg_path(png)
+        with mpl.rc_context({"svg.fonttype": "none"}):
+            fig.savefig(svg, **{k: v for k, v in kwargs.items() if k not in _RASTER_ONLY_KW})
+    except Exception as ex:                                            # noqa: BLE001
+        if svg is not None:
+            try:
+                svg.unlink(missing_ok=True)
+            except OSError:
+                pass
+        warnings.warn(f"[svg] {png.name}: SVG twin not written ({type(ex).__name__}: {ex}); PNG kept",
+                      RuntimeWarning, stacklevel=2)
+    return out
 
 
 def sidecar(png, suffix: str, *, mkdir: bool = True) -> pathlib.Path:

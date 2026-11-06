@@ -10,6 +10,10 @@ Per lick, from the 3-D frames (`session_poses/pose3d/<s>_frames.csv.gz`):
     d(dist)/dt (mm/s); components ``out`` (ap), ``down`` (-dv), ``side`` (ml, + = mouse LEFT = ipsi) and ``mid`` = the
     angle out of the midline plane (deg, + = ipsi; NaN in the mouth).
   * NORMALISED PHASE: each lick from its cam4 onset (u = 0) to offset (u = 1) on 41 points (cam4's U_NORM), same measures.
+LICK GATE (Priya 11-06, A20): only licks of CAMERA-WORKING-PERIOD trials (`trial_classes.gate_kin_licks`: first cue to
+the session's last camera lick, stopped runs (A2 + excise) out -- the definition of Fig 0.2 / 1b); a session with NO
+camera classes (no video) has no working period and contributes NOTHING (as gain_bio). Before 11-06: every post-cue
+lick, no gate -- ``WFIELD_KIN_GATE=legacy`` (output ``phase_legacygate``).
 Session means per position, then epoch mean +- SEM over sessions (August pre = baseline). Figures in
 `session_poses/pose3d/phase/`, per animal: ``traces_<a>.png`` (dist vs ms from peak), ``portrait_<a>.png`` (radial speed vs
 dist over one cycle, +-76 ms, dot = peak), ``phase_<a>.png`` (midline angle and dist vs normalised phase), and
@@ -17,6 +21,7 @@ dist over one cycle, +-76 ms, dot = peak), ``phase_<a>.png`` (midline angle and 
 out) planes, spouts marked).
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import argparse
 from pathlib import Path
@@ -112,6 +117,7 @@ def session_curves(job) -> list[dict]:
 
     import scripts.pose3d_kinematics as K
     from wfield_local import result_cache
+    from wfield_local import trial_classes as tc
     from wfield_local.paths import PathResolver
     s = job
     rv = PathResolver()
@@ -119,10 +125,11 @@ def session_curves(job) -> list[dict]:
     d3 = pose3d_dir(rv)
     V36 = Path(rv.root("orofacial")) / "lp_r4_heatmap_20261013__clean_v36" / "sessions"
     fr, lk = d3 / f"{s}_frames.csv.gz", V36 / animal / date / "licks.csv"
-    ver = result_cache.code_version(sys.modules[__name__], K)
+    ver = result_cache.code_version(sys.modules[__name__], K, extra=tc.kin_gate_signature())
 
     def compute():
         g, _J, row = K.session_result((f"{animal}:{date}", "cam4"))
+        g = tc.gate_kin_licks(g.assign(session=s))       # camera working period (A20); legacy: every post-cue lick
         C = pd.read_csv(lk, usecols=["trial_id", "lick_idx", "on_ms", "off_ms"])
         g = g.merge(C, on=["trial_id", "lick_idx"], how="left").dropna(subset=["on_ms", "off_ms", "t_peak_3d"])
         S = _frames(d3, s)
@@ -132,7 +139,7 @@ def session_curves(job) -> list[dict]:
             out += [{**r, "animal": animal, "date": date, "epoch": row["epoch"], "lickset": lset}
                     for r in _session(S, s, gg)]
         return out
-    return result_cache.cached(d3 / "_cache" / "phase", s, [fr, lk], ver, compute)
+    return result_cache.cached(tc.kin_cache_dir(d3, "phase"), s, [fr, lk], ver, compute)
 
 
 def _epoch_curves(P: pd.DataFrame, animal: str, kind: str, m: str, pre_from: str) -> dict:
@@ -156,9 +163,26 @@ def _plt():
     return plt
 
 
+def no_top_spine(fig) -> None:
+    """House rule (Priya 11-03; A30 11-06): no top frame line on ANY 2-D panel (stars live in that band). 3-D axes have
+    no spines of that kind and are left alone."""
+    for ax in fig.get_axes():
+        if getattr(ax, "name", "") != "3d" and "top" in ax.spines:
+            ax.spines["top"].set_visible(False)
+
+
+def _save(fig, path) -> None:
+    """Every figure of this script goes out through here: `no_top_spine`, then the PNG + its svg/ twin (`save_png_svg`)."""
+    no_top_spine(fig)
+    save_png_svg(fig, path, dpi=120)
+
+
 def _how(kind: str, lset: str = "all", mouth: str = "out") -> str:
     """Second title line: how the curve was made (Priya 10-20: as much method detail as the cam4 titles)."""
+    from wfield_local import trial_classes as tc
     lk = "FIRST post-cue lick of each trial" if lset == "first" else "all post-cue licks (cam4 v36 lick events)"
+    lk += ("; camera-working-period trials (first cue -> last camera lick, stopped runs out)" if tc.kin_gate() == "working"
+           else "; every trial (no gate, legacy)")
     t = (f"phase {U_SHOW[0]:g}-{U_SHOW[1]:g} of each lick, onset -> offset (cam4 on / off)" if kind == "norm"
          else "time from each lick's 3-D peak (farthest frame from the mouth zero)")
     m = {"zero": "frames with no 3-D tongue point counted as IN THE MOUTH (0)",
@@ -166,6 +190,15 @@ def _how(kind: str, lset: str = "all", mouth: str = "out") -> str:
          "na": ""}[mouth]
     return (f"{lk}; {t}\n{m}{'; ' if m else ''}3-D = both cameras or one camera + depth from neighbours (<= 24 ms); "
             "mean per session, then mean +- SEM over sessions; pre = August")
+
+
+def data_line() -> str:
+    """The standard "Data:" provenance line (FIGURE_PROVENANCE_20261106 section 4) for the 3-D per-lick figures."""
+    from wfield_local import trial_classes as tc
+    return ("Data: Window: each cam4 lick (peak-aligned +-152 ms / onset -> offset phase). Licks: cam4 LP v36 lick events "
+            "with >= 3 3-D frames; trials classed from DAQ spout contact + video licks (cam4 LP + cam1). Trials: "
+            f"{tc.KIN_TRIALS_TEXT[tc.kin_gate()]}. Pre: August pre-stroke sessions only (June excluded). Sessions: "
+            "curated, PS92-PS95, 3-D gate failures out. Signal: 3-D tongue / jaw.")
 
 
 def _wrap(text: str, width: int) -> str:
@@ -197,7 +230,7 @@ def fig_lines(P, animal, kind, m, ylab, xlab, path, title, pre_from, sign: float
     axes[0].legend(fontsize=6, frameon=False)
     fig.suptitle(t, fontsize=8.5)
     fig.tight_layout()                                                     # makes room for the suptitle itself
-    fig.savefig(path, dpi=120)
+    _save(fig, path)
     plt.close(fig)
 
 
@@ -223,7 +256,7 @@ def fig_portrait(P, animal, path, pre_from):
     fig.suptitle(f"{animal}: 3-D lick phase portrait (+-{PORTRAIT_MS:.0f} ms around the 3-D peak, dot = peak; in-mouth = 0 mm)",
                  fontsize=9)
     fig.tight_layout(rect=(0, 0, 1, 0.93))
-    fig.savefig(path, dpi=120)
+    _save(fig, path)
     plt.close(fig)
 
 
@@ -282,7 +315,7 @@ def fig_traj3d(P, animal, geo, path, pre_from, lset="all", contra: bool = False)
                  "as in the camera videos (ends labelled)" if contra else ""), 120)
     fig.suptitle(t, fontsize=8.5)
     fig.tight_layout(rect=(0, 0.05, 1, 1))                                # bottom strip: the legend
-    fig.savefig(path, dpi=120)
+    _save(fig, path)
     plt.close(fig)
 
 
@@ -345,7 +378,7 @@ def fig_trajectories(P, animal, geo, path, pre_from, lset="all"):
               f"drawn where >= half the licks have a 3-D point -- lowest share drawn {cm:.2f})\n" + _how("norm", lset), 150)
     fig.suptitle(t, fontsize=8.5)
     fig.tight_layout(rect=(0.02, 0, 1, 1))                                # left strip: the row labels
-    fig.savefig(path, dpi=120)
+    _save(fig, path)
     plt.close(fig)
 
 
@@ -365,8 +398,9 @@ def main(argv=None) -> int:
     from wfield_local import analysis_kit as ak
     rv = PathResolver()
     d3 = pose3d_dir(rv)
+    from wfield_local import trial_classes as tc
     if a.contra:
-        out = a.out or d3 / "phase"
+        out = a.out or tc.kin_out_dir(d3, "phase")
         PP = pd.read_csv(out / "curves.csv.gz", dtype={"date": str})
         xl = "normalised lick phase (0 = onset, 1 = offset)"
         for animal in sorted(PP.animal.unique()):
@@ -394,9 +428,10 @@ def main(argv=None) -> int:
     PP = pd.DataFrame([r for _, rr in res for r in rr])
     P = PP[PP.lickset == "all"]
     PF = PP[PP.lickset == "first"]
-    out = a.out or d3 / "phase"
+    out = a.out or tc.kin_out_dir(d3, "phase")
     out.mkdir(exist_ok=True, parents=True)
     PP.to_csv(out / "curves.csv.gz", index=False, float_format="%.4g")
+    (out / "data_line.txt").write_text(data_line() + chr(10), encoding="utf-8")
     for animal in sorted(P.animal.unique()):
         last = sorted(L[L.animal == animal].date.astype(str).unique())[-1]
         geo = _rig(rv, animal, last)["geometry"]

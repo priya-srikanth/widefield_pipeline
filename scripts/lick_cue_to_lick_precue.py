@@ -24,6 +24,7 @@ gate), 'restw' column = the LICK-FREE rest level (scripts/restnl.py), rel = raw 
 left out; every output name gets the suffix _restnl.
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import sys
 from pathlib import Path
@@ -186,7 +187,7 @@ def draw_traces(stem: str) -> None:
                  "over sessions, mean of animals, shade = SEM over animals. Grey = -1..0 s pre-cue window. "
                  f"n: {F['nlab']}. PROVISIONAL."), 11, 9), fontsize=9)
     reserve_headroom(fig)
-    fig.savefig(FIGS / f"{stem}{SFX}.png", dpi=110, bbox_inches="tight")
+    save_png_svg(fig, FIGS / f"{stem}{SFX}.png", dpi=110, bbox_inches="tight")
     plt.close(fig)
 
 
@@ -237,7 +238,7 @@ def draw_decomp(stem: str) -> None:
                  "bootstrap CI excludes 0 (analysis_kit.boot_delta), (*) = fewer than 3 animals share the sign. "
                  "PROVISIONAL, n = 4."), 2.2 * len(COMP), 8), fontsize=8)
     reserve_headroom(fig)
-    fig.savefig(FIGS / f"{stem}{SFX}.png", dpi=110, bbox_inches="tight")
+    save_png_svg(fig, FIGS / f"{stem}{SFX}.png", dpi=110, bbox_inches="tight")
     plt.close(fig)
 
 
@@ -305,7 +306,7 @@ def draw_decomp_simple(src: str = "lick_cue_to_lick_D_decomposition", out: str =
         "animals share the sign. PROVISIONAL, n = 4."), 8.4, 8.5), fontsize=8.5)
     FIGS.mkdir(parents=True, exist_ok=True)
     reserve_headroom(fig)
-    fig.savefig(FIGS / f"{out}{SFX}.png", dpi=120, bbox_inches="tight")
+    save_png_svg(fig, FIGS / f"{out}{SFX}.png", dpi=120, bbox_inches="tight")
     plt.close(fig)
 
 

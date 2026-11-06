@@ -10,6 +10,7 @@ anterolateral part carries clearly more than the rest, and the curve has no stro
 Output figures/lick_roi_check.png, roi_check.csv. Usage: python scripts/lick_roi_check.py
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import sys
 from pathlib import Path
@@ -101,7 +102,7 @@ def main() -> int:
     fig.suptitle("ALM (black) / tjM1 (green) ROIs = anterolateral 40 % of MOs / MOp (grey) over the PRE Haufe maps (mean of "
                  "animals, held-out epoch decoder).\nSign: orange = more active for contralesional (lateral) / longer "
                  "(sagittal) licks. ipsi (lesion) = image LEFT. PROVISIONAL", fontsize=9)
-    fig.savefig(il.OUT / "figures" / "lick_roi_check.png", dpi=100)
+    save_png_svg(fig, il.OUT / "figures" / "lick_roi_check.png", dpi=100)
     return 0
 
 

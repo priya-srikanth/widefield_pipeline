@@ -15,6 +15,7 @@ Usage: python scripts/relabel_fc_by_class.py --tag v7g3_t3d_trial_refgate [--win
 Output: <imaging_encoding>/frozen_relabel_<tag>/fc_by_class_<window>{,_by_animal}.csv
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import argparse
 import glob
@@ -110,7 +111,7 @@ def figure(M: pd.DataFrame, path: Path, a) -> None:
     cb.set_label(f"% SSE worse than the true label ({AB[a.target]})\nred = that label fits BETTER than the target; blue = target fits better", fontsize=8)
     fig.suptitle(f"Frozen encoder relabel, {a.target.replace('_', ' ')} trials by attempt class ({a.window} window, "
                  f"session-summed SSE, mean of animals; run {a.tag})", fontsize=10)
-    fig.savefig(path, dpi=130)
+    save_png_svg(fig, path, dpi=130)
     plt.close(fig)
 
 

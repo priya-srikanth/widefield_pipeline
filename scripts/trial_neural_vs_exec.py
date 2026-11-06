@@ -17,6 +17,7 @@ Usage: python scripts/trial_neural_vs_exec.py
 Output: <E>/attempt_coding_pp/trial_neural_vs_exec_*.csv + figures/trial_neural_vs_exec*.png
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import sys
 from pathlib import Path
@@ -146,7 +147,7 @@ def main() -> int:
                  "trajectory bin),\nbars = mean over animals of the frozen pre-stroke decoder's probability for far contra / far mid / far ipsi "
                  "(groups with >= 8 trials); pre = pre-stroke control", fontsize=10)
     fig.tight_layout(rect=(0, 0.06, 1, 0.9))
-    fig.savefig(D / "figures" / "trial_neural_vs_exec_by_landing.png", dpi=125)
+    save_png_svg(fig, D / "figures" / "trial_neural_vs_exec_by_landing.png", dpi=125)
     plt.close(fig)
 
     # figure 2: within-session coupling per animal x epoch. STATISTIC = CROSS-EPOCH (Priya 10-25: "shouldn't we have a
@@ -185,7 +186,7 @@ def main() -> int:
     fig.suptitle("Trial-by-trial coupling on far-contra target trials: the more a trial's licks look like far mid rather than far contra, "
                  "\nthe more its cortex is decoded as far mid rather than far contra? (both centred within session; line = mean of animals)", fontsize=10)
     fig.tight_layout(rect=(0, 0.08, 1, 0.88))
-    fig.savefig(D / "figures" / "trial_neural_vs_exec_coupling.png", dpi=125)
+    save_png_svg(fig, D / "figures" / "trial_neural_vs_exec_coupling.png", dpi=125)
     plt.close(fig)
 
     # figure 3: PER SESSION, r against days from stroke (Priya 10-25: "can we do this per session instead of per animal")
@@ -213,7 +214,7 @@ def main() -> int:
                  "where each lick went?\nr between the decoder's (P far mid - P far contra) and the lick's (far mid - far contra) "
                  "weight, centred within session", fontsize=10)
     fig.tight_layout(rect=(0, 0.08, 1, 0.9))
-    fig.savefig(D / "figures" / "trial_neural_vs_exec_coupling_sessions.png", dpi=125)
+    save_png_svg(fig, D / "figures" / "trial_neural_vs_exec_coupling_sessions.png", dpi=125)
     plt.close(fig)
 
     # figure 4: POOLED PER EPOCH, one dot per session (Priya 10-25). Line = mean of animals' session means; epoch - pre
@@ -273,7 +274,7 @@ def main() -> int:
         fig.suptitle(f"Trial-by-trial coupling pooled per epoch, one dot per session (far-contra target trials; August pre){ttl}. Numbers = "
                      "epoch minus pre,\nmean of animals with 95% nested CI (animals > sessions; * excludes 0)", fontsize=10)
         fig.tight_layout(rect=(0, 0.08, 1, 0.9))
-        fig.savefig(D / "figures" / f"trial_neural_vs_exec_coupling_{ver}.png", dpi=125)
+        save_png_svg(fig, D / "figures" / f"trial_neural_vs_exec_coupling_{ver}.png", dpi=125)
         plt.close(fig)
     print(f"-> {D / 'figures'}")
     return 0

@@ -14,7 +14,7 @@ sessions bootstrap, 95 %). Dots = sessions, coloured by animal. A cell needs >= 
   pose3d_paths_pooled.png     3-D tongue / jaw paths through the lick (front / side / top views), cohort pre path +
                               mean over animals of each session's change from its animal's pre path (twin of the
                               per-animal `pose3d_phase` trajectories3d)
-  pose3d_cue_pooled.png       3-D cue-aligned traces (`pose3d_cue_traces`, engaged trials): midline angle and jaw
+  pose3d_cue_pooled.png       3-D cue-aligned traces (`pose3d_cue_traces`, camera-working-period trials since 11-06): midline angle and jaw
                               opening, each session's trace minus its animal's August pre trace; bold = mean over
                               animals, band = SEM over animals
 Numbers behind each figure are written beside it (*_pooled.csv).
@@ -29,6 +29,7 @@ Side axes of the 3-D paths are mirrored (+ = mouse right); for the CENTRE spouts
     python -m scripts.kinematics_pooled_figs [--out DIR] [--contra]
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import argparse
 from pathlib import Path
@@ -129,7 +130,8 @@ def fig_angle(out: Path, rng, contra: bool = False, save: bool = True) -> pd.Dat
     import matplotlib.pyplot as plt
     from wfield_local import config
     from wfield_local.paths import PathResolver
-    Pm = pd.read_csv(Path(PathResolver().root("orofacial")) / V36 / "cohort" / "tables" / "prepost" / "position_metrics.csv")
+    from wfield_local import orofacial_cohort as oc        # the cohort's gate-named tables (A27; WFIELD_KIN_GATE)
+    Pm = pd.read_csv(oc.cohort_dir("tables", run=V36, rv=PathResolver()) / "position_metrics.csv")
     side = "ipsi"
     if contra:      # the table is + = image right = ipsi for a LEFT lesion; flip per animal from its lesion side
         lat = {a: str((v or {}).get("stroke_laterality", "L")) for a, v in config.animals().items()}
@@ -148,7 +150,7 @@ def fig_angle(out: Path, rng, contra: bool = False, save: bool = True) -> pd.Dat
     reserve_headroom(fig)
     fig.tight_layout(rect=(0, 0.07, 1, 0.94))
     if save:                                      # save=False: replay the draws only (--contra)
-        fig.savefig(out / ("angle_change_pooled_contra.png" if contra else "angle_change_pooled.png"), dpi=130)
+        save_png_svg(fig, out / ("angle_change_pooled_contra.png" if contra else "angle_change_pooled.png"), dpi=130)
     plt.close(fig)
     return P
 
@@ -195,16 +197,24 @@ def fig_3d(out: Path, rng, contra: bool = False) -> pd.DataFrame:
     _legend(fig)
     reserve_headroom(fig)
     fig.tight_layout(rect=(0, 0.03, 1, 0.97))
-    fig.savefig(out / ("pose3d_change_pooled_contra.png" if contra else "pose3d_change_pooled.png"), dpi=120)
+    save_png_svg(fig, out / ("pose3d_change_pooled_contra.png" if contra else "pose3d_change_pooled.png"), dpi=120)
     plt.close(fig)
     return pd.concat(PP, ignore_index=True)
+
+
+def _tc():
+    """`wfield_local.trial_classes` (the kinematics gate's folder helpers, A20 11-06)."""
+    from wfield_local import trial_classes as tc
+    return tc
 
 
 def fig_cue(out: Path, contra: bool = False) -> pd.DataFrame:
     import matplotlib.pyplot as plt
     from wfield_local import config
-    T = pd.read_csv(pose3d_dir() / "cue_traces" / "traces.csv.gz")
-    T = T[(T.set == "engaged") & T.measure.isin(["mid", "jaw_open"])]
+    from scripts.pose3d_cue_traces import out_dir as _cue_out     # routed + gate-named (A20, 11-06)
+    T = pd.read_csv(_cue_out(pose3d_dir(), "cue") / "traces.csv.gz")
+    sset = "working" if (T.set == "working").any() else "engaged"     # pose3d_cue_traces' all-trials set (11-06: working)
+    T = T[(T.set == sset) & T.measure.isin(["mid", "jaw_open"])]
     rows = []
     for (m, p), g in T.groupby(["measure", "position"]):
         aug = g[(g.epoch == "pre") & (~g.date.astype(str).map(config.early_pre))]
@@ -241,10 +251,11 @@ def fig_cue(out: Path, contra: bool = False) -> pd.DataFrame:
                 ax.set_xlabel("ms from cue", fontsize=7.5)
     axs[0, 0].legend(fontsize=7, frameon=False)
     fig.suptitle("3-D cue-aligned traces, POOLED: each session's trace minus its animal's August pre trace, mean over "
-                 "animals (band = SEM over animals; drawn where >= 3 animals); engaged trials"
+                 "animals (band = SEM over animals; drawn where >= 3 animals); "
+                 + ("camera-working-period trials" if sset == "working" else "engaged trials (legacy gate)")
                  + ("; midline angle signed + = CONTRALESIONAL (mouse right)" if contra else ""), fontsize=10)
     fig.tight_layout(rect=(0, 0, 1, 0.95))
-    fig.savefig(out / ("pose3d_cue_pooled_contra.png" if contra else "pose3d_cue_pooled.png"), dpi=130)
+    save_png_svg(fig, out / ("pose3d_cue_pooled_contra.png" if contra else "pose3d_cue_pooled.png"), dpi=130)
     plt.close(fig)
     return R
 
@@ -291,7 +302,7 @@ def fig_paths3d(out: Path, shared: bool = False, contra: bool = False) -> pd.Dat
     pose3d_paths_pooled_shared.png."""
     import matplotlib.pyplot as plt
     from wfield_local import config
-    C = pd.read_csv(pose3d_dir() / "phase" / "curves.csv.gz")
+    C = pd.read_csv(_tc().kin_out_dir(pose3d_dir(), "phase") / "curves.csv.gz")    # routed + gate-named (A20)
     C = C[(C.kind == "norm") & (C.lickset == "all") & C.measure.isin(["side", "out", "down", "j_side", "j_out", "j_down"])
           & (C["cov"] >= 0.5)]
     aug = C[(C.epoch == "pre") & (~C.date.astype(str).map(config.early_pre))]
@@ -381,7 +392,7 @@ def fig_paths3d(out: Path, shared: bool = False, contra: bool = False) -> pd.Dat
                     "LEFT as in the face videos (side axis inverted, ends labelled)" if contra else ""),
                  fontsize=9)
     fig.tight_layout(rect=(0, 0, 1, 0.93), w_pad=0.2 if shared else None, h_pad=2.2 if contra else None)
-    fig.savefig(out / (("pose3d_paths_pooled_shared" if shared else "pose3d_paths_pooled")
+    save_png_svg(fig, out / (("pose3d_paths_pooled_shared" if shared else "pose3d_paths_pooled")
                        + ("_contra_cam" if contra else "") + ".png"), dpi=130)   # 11-03: *_contra (mirrored) superseded
     plt.close(fig)
     return R
@@ -459,7 +470,7 @@ def fig_days(out: Path, contra: bool = False) -> pd.DataFrame:
                  + ("; midline error (and the centre spouts' lateral error) signed + = CONTRALESIONAL" if contra else ""),
                  fontsize=10)
     fig.tight_layout(rect=(0, 0.02, 1, 0.97))
-    fig.savefig(out / ("pose3d_days_pooled_contra.png" if contra else "pose3d_days_pooled.png"), dpi=120)
+    save_png_svg(fig, out / ("pose3d_days_pooled_contra.png" if contra else "pose3d_days_pooled.png"), dpi=120)
     plt.close(fig)
     return pd.DataFrame(rows)
 
@@ -488,7 +499,7 @@ def phase_data(contra: bool = False) -> pd.DataFrame:
     from wfield_local import config
     from wfield_local.orofacial_cohort import CLUSTER_PERM
     from wfield_local.orofacial_stats import cluster_permutation
-    C = pd.read_csv(pose3d_dir() / "phase" / "curves.csv.gz")
+    C = pd.read_csv(_tc().kin_out_dir(pose3d_dir(), "phase") / "curves.csv.gz")    # routed + gate-named (A20)
     C = C[(C.kind == "norm") & (C.lickset == "all") & C.measure.isin(["mid", "dist"]) & (C["cov"] >= 0.5)
           & C.x.between(*PHASE_WIN)]
     C = C[(C.epoch != "pre") | (~C.date.astype(str).map(config.early_pre))]          # August pre only
@@ -581,7 +592,7 @@ def fig_phase(out: Path, contra: bool = False, plot_only: bool = False) -> pd.Da
                  "\nbars = cluster permutation p < .05 vs August-pre sessions (labels permuted within animal; rows: "
                  "acute / subacute / chronic); phase 0.1-0.9, 1-bin display smoothing", fontsize=9)
     fig.tight_layout(rect=(0, 0, 1, 0.92))
-    fig.savefig(out / f"{stem}.png", dpi=130)
+    save_png_svg(fig, out / f"{stem}.png", dpi=130)
     plt.close(fig)
     return M
 
@@ -628,7 +639,7 @@ def main(argv=None) -> int:
     ap.add_argument("--phase-only", action="store_true", help="only the 3-D lick-phase figures (+ = ipsi and + = contra)")
     ap.add_argument("--plot-only", action="store_true", help="with --phase-only: redraw from the *_figdata.csv")
     a = ap.parse_args(argv)
-    out = a.out or pose3d_dir() / "figures" / "pooled"
+    out = a.out or _tc().kin_out_dir(pose3d_dir(), "figures/pooled", "kinematics_pooled_figs")
     assert_writable(out)
     out.mkdir(parents=True, exist_ok=True)
     rng = np.random.default_rng(20261025)

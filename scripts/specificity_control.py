@@ -19,6 +19,7 @@ Output: <E>/specificity_control/<tag>/{sessions.csv, boot.csv, layer2_boot.csv, 
         figures/*.png}
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 from wfield_local.frozen_encoder import design_tag as _design_tag  # frame tag of the FROZEN_LICKS_ALL design (8.51)
 
 import argparse
@@ -236,7 +237,7 @@ def main(argv=None) -> int:
                  "whisker 95 % nested CI; * excludes 0; dots = animals; grey band = pre split-half range. contra = right.",
                  fontsize=9.5)
     fig.subplots_adjust(left=0.07, right=0.86, top=1 - 1.0 / (11 + 3.6 * nx), bottom=0.05, hspace=0.45)
-    fig.savefig(out / "figures" / "specificity_groups.png", dpi=105)
+    save_png_svg(fig, out / "figures" / "specificity_groups.png", dpi=105)
     plt.close(fig)
 
     # FIGURE 2: area maps (chronic - pre)
@@ -281,7 +282,7 @@ def main(argv=None) -> int:
                  + ("\n'split' panels: MOs / MOp drawn as ALM + MOs_rest / tjM1 + MOp_rest (ROI v8), same scale as the panel "
                     "to their left." if (has_split or l2_split) else ""), fontsize=9)
     fig.subplots_adjust(left=0.01, right=0.99, top=0.8 if (has_split or l2_split) else 0.84, bottom=0.08, wspace=0.05)
-    fig.savefig(out / "figures" / "specificity_area_maps.png", dpi=110)
+    save_png_svg(fig, out / "figures" / "specificity_area_maps.png", dpi=110)
     plt.close(fig)
     print("->", out)
     return 0

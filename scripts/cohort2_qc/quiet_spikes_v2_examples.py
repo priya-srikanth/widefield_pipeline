@@ -10,6 +10,7 @@ the 60 s of the session's middle third with the most engaged quiet.
 
     python scripts/cohort2_qc/quiet_spikes_v2_examples.py
 """
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 import sys
 from pathlib import Path
 
@@ -145,7 +146,7 @@ def main():
                  "out, red = DAQ contact licks" + (", orange = LP video licks" if LICK_SOURCE == "daq+lp" else "") + ", green = running.", fontsize=8.5, wrap=True)
     fig.tight_layout(rect=(0, 0, 1, 0.96))
     out = V2 / "quiet_event_example_traces.png"
-    fig.savefig(out, dpi=110)
+    save_png_svg(fig, out, dpi=110)
     pd.DataFrame(rows).to_csv(V2 / "quiet_event_example_traces.csv", index=False)
     print("wrote", out)
 

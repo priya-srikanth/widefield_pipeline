@@ -20,6 +20,7 @@ Outputs <OUT_W>/itirec_offset_sessions.csv, itirec_feature_sessions.csv, itirec_
 lick_iti_recovery_search.png (figdata + --plot-only).
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import os
 import sys
@@ -295,7 +296,7 @@ def plot(F: dict) -> None:
                  "beyond time; C: a learned multivariate direction, tested on unseen animals. Image left = ipsilesional. "
                  "PROVISIONAL", fontsize=10)
     fig.tight_layout(rect=(0, 0.03, 1, 0.95))
-    fig.savefig(il.OUT_W / "figures" / f"{FIGN}.png", dpi=90)
+    save_png_svg(fig, il.OUT_W / "figures" / f"{FIGN}.png", dpi=90)
     plt.close(fig)
 
 

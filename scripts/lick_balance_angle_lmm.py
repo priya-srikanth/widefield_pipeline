@@ -22,6 +22,7 @@ Outputs <OUT_W>/balance_angle_points.csv, balance_angle_lmm.csv, balance_angle_a
 lick_balance_angle.png (figdata + --plot-only).
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import sys
 from pathlib import Path
@@ -198,7 +199,7 @@ def plot(F: dict) -> None:
                      "Titles: a/s/c = acute / subacute / chronic vs pre; BOLD = p < 0.05; 'shift at same angle' = epoch "
                      "minus pre at the pre-mean angle. PROVISIONAL", fontsize=9.5)
         fig.tight_layout(rect=(0, 0.04, 1, 0.92))
-        fig.savefig(il.OUT_W / "figures" / f"lick_balance_angle_{meas}.png", dpi=100)
+        save_png_svg(fig, il.OUT_W / "figures" / f"lick_balance_angle_{meas}.png", dpi=100)
         plt.close(fig)
 
 

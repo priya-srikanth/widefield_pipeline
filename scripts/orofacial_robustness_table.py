@@ -18,7 +18,6 @@ import pandas as pd
 def main() -> None:
     from wfield_local import config
     from wfield_local import orofacial_cohort as oc
-    from wfield_local import orofacial_outputs as oo
     from wfield_local import writeguard
     from wfield_local.orofacial_stats import session_change_tests
     from wfield_local.paths import PathResolver
@@ -26,12 +25,12 @@ def main() -> None:
     ap.add_argument("--run", default=oc.RUN)
     ap.add_argument("--n-boot", type=int, default=2000)
     a = ap.parse_args()
-    base = oo.root(PathResolver()) / a.run / "cohort"
-    # needs the June pre rows too (it builds both baselines itself): the all-pre table (prepost_allpre since the
-    # August-only baseline became primary, 10-18), falling back to prepost for runs made before the switch
-    src = base / "tables" / "prepost_allpre" / "position_metrics.csv"
-    P = pd.read_csv(src if src.exists() else base / "tables" / "prepost" / "position_metrics.csv", dtype={"date": str})
-    out = base / "tables" / "robustness"
+    rv = PathResolver()
+    # needs the June pre rows too (it builds both baselines itself): the all-pre table of the SAME gate
+    # (prepost_<gate>_allpre; A27: the cohort's folders carry the gate, so a gate's tables never mix with another's)
+    P = pd.read_csv(oc.cohort_dir("tables", run=a.run, baseline="all", rv=rv) / "position_metrics.csv",
+                    dtype={"date": str})
+    out = oc.cohort_dir("tables", "robustness", run=a.run, baseline="late", rv=rv)
     writeguard.assert_writable(out)
     out.mkdir(parents=True, exist_ok=True)
     ms = list(dict.fromkeys([*oc.COHORT_SCALARS, *(m for g in oc.POS_GROUPS.values() for m in g)]))

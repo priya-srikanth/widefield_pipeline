@@ -20,6 +20,7 @@ Env: FPA_OUT redirects outputs (smoke test); WIDEFIELD_FROZEN_MODEL_DIR redirect
 Ipsilesional = left hemisphere; in face video ipsi = image RIGHT.
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import os
 
@@ -806,7 +807,7 @@ def plot_all() -> None:
         for s_ in ("top", "right"):
             ax.spines[s_].set_visible(False)
     reserve_headroom(fig)
-    fig.savefig(FIGS / "fpa_primary.png", dpi=130, bbox_inches="tight")
+    save_png_svg(fig, FIGS / "fpa_primary.png", dpi=130, bbox_inches="tight")
     plt.close(fig)
     plot_secondary(fd)
 
@@ -893,7 +894,7 @@ def plot_secondary(fd) -> None:
             a_.spines[s_].set_visible(False)
     fig.suptitle("Face pre-launch aim: FaceRhythm decomposition, recovery, jaw timing (BEHAVIOUR; n = 4; PROVISIONAL)", fontsize=11)
     reserve_headroom(fig)
-    fig.savefig(FIGS / "fpa_secondary.png", dpi=130, bbox_inches="tight")
+    save_png_svg(fig, FIGS / "fpa_secondary.png", dpi=130, bbox_inches="tight")
     plt.close(fig)
 
 

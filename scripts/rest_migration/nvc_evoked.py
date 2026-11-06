@@ -54,6 +54,7 @@ are irrelevant to an event-triggered average on that baseline.
     python -m scripts.rest_migration.nvc_evoked [--animals PS92 ...] [--align cue|lick]
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import argparse
 import csv
@@ -494,7 +495,7 @@ def _figure(curves, t, out_dir):
              "spectrally neutral term (ratio ~1.0 against 470) also lands early.",
              ha="center", va="top", fontsize=8.2)
     out = out_dir / "epoch_16_nvc_evoked.png"
-    fig.savefig(out, dpi=150, bbox_inches="tight")
+    save_png_svg(fig, out, dpi=150, bbox_inches="tight")
     plt.close(fig)
     return out
 

@@ -16,6 +16,7 @@ Cells (animal x epoch x order) with < MIN_CELL licks are dropped.
 Outputs <OUT_W>/balance_order_licks.csv.gz, balance_order_sig.csv; figure lick_balance_order.png (figdata + --plot-only).
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import sys
 from pathlib import Path
@@ -151,7 +152,7 @@ def _plot_one(F, rows, fname, col, Line2D, plt) -> None:
                  "differs from pre (paired nested bootstrap animals > sessions, BH-FDR across the 10 orders); cells < 20 licks per animal dropped. PROVISIONAL",
                  fontsize=9.5)
     fig.tight_layout(rect=(0, 0.03, 1, 0.94))
-    fig.savefig(il.OUT_W / "figures" / fname, dpi=95)
+    save_png_svg(fig, il.OUT_W / "figures" / fname, dpi=95)
     plt.close(fig)
 
 

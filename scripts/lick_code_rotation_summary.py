@@ -16,6 +16,7 @@ Output <OUT_W>/figures/lick_code_rotation_summary.png (+ lick_code_noisematch/ro
 Usage: python scripts/lick_code_rotation_summary.py
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import pickle
 import sys
@@ -181,7 +182,7 @@ def main() -> int:
     fig.text(0.01, 0.003, W(note, 260), fontsize=6.6, color="0.3", va="bottom")
     fig.tight_layout(rect=(0, 0.13, 1, 0.94))
     FIG.mkdir(parents=True, exist_ok=True)
-    fig.savefig(FIG / "lick_code_rotation_summary.png", dpi=130)
+    save_png_svg(fig, FIG / "lick_code_rotation_summary.png", dpi=130)
     plt.close(fig)
     print("written", FIG / "lick_code_rotation_summary.png", flush=True)
     return 0

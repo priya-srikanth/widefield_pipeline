@@ -19,6 +19,7 @@ Outputs <E>/iti_licks/per_spout[_z]_{by_animal,tests}.csv, figures/lick_where_pe
 Usage: python scripts/iti_where_per_spout.py [--z] [--plot-only]
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import sys
 from pathlib import Path
@@ -130,7 +131,7 @@ def plot(T: pd.DataFrame, S: pd.DataFrame, tag: str) -> None:
                  "ITI licks by the previous trial's spout (fixed before the lick).\nLike-for-like offset = decoded minus "
                  f"the animal's pre licks that landed at the same place ({lfl.REF_LAB}).", fontsize=9.5)
     fig.tight_layout(rect=(0, 0, 1, 0.93))
-    fig.savefig(WOUT / "figures" / f"lick_where_per_spout{tag}.png", dpi=95)
+    save_png_svg(fig, WOUT / "figures" / f"lick_where_per_spout{tag}.png", dpi=95)
     plt.close(fig)
 WOUT = il.OUT_W if il.ITI_SUBSET else il.OUT     # subset runs (dock, ...) write to their own folder (10-29)
 
