@@ -35,8 +35,8 @@ QLAB = {"joint": "full", "no_target": "target", "no_spout": "spout", "no_task": 
 
 def remap_table(run: Path, out: Path | None = None, split=None) -> pd.DataFrame:
     """Per session x window x area x q: gain = self - frozen (full) or unique_self - unique_frozen (groups).
-    ``out`` = the self-fit folder (default <run>/session_vs_frozen); ``split`` = (pixmusall run, basis fit run) adds the
-    frozen ROI rows (`frozen_split_r2`) for a self-fit with ROI targets."""
+    ``out`` = the self-fit folder (default <run>/session_vs_frozen); ``split`` = (frozen ROI run, basis fit run or None =
+    exact; `encoder_split_rows.roi_frozen_source`) adds the frozen ROI rows (`frozen_split_r2`) for a self-fit with ROI targets."""
     out = out or run / "session_vs_frozen"
     variants = [v for v in DEFAULT_VARIANTS if (run / v / "sessions").is_dir()]
     S = self_r2(out / "sessions", areas="all")
@@ -76,6 +76,9 @@ def main(argv=None) -> int:
     ap.add_argument("--deficits", nargs="+", default=["ttc", "contact"])
     ap.add_argument("--roi-targets", action="store_true",
                     help="check 2 with ALM / tjM1: reads session_vs_frozen_roi + the pixmusall union frozen ROI rows")
+    ap.add_argument("--roi-frozen", default="auto", choices=("auto", "exact", "pixmusall"),
+                    help="frozen ROI R2: exact ROI-target run (<tag>_roiexact) or pixmusall; auto = exact when present")
+    ap.add_argument("--roi-run", default=None, help="exact ROI-target run folder (default <tag>_roiexact)")
     ap.add_argument("--pix-run", default=None, help="--roi-targets: pixmusall run (default <tag>_basis_pixmusall_union)")
     ap.add_argument("--fit-run", default=None, help="--roi-targets: basis fit run (default <tag>_basis)")
     ap.add_argument("--out", default=None, help="self-fit + output folder (default <run>/session_vs_frozen[_roi])")
@@ -86,10 +89,8 @@ def main(argv=None) -> int:
     split = None
     if a.roi_targets:
         import encoder_split_rows as esr
-        pix0, fit0 = esr.pix_union_paths(E, a.tag)
-        split = (Path(a.pix_run or pix0), Path(a.fit_run or fit0))
-        if not (split[0] / "joint" / "sessions").is_dir():
-            raise SystemExit(f"--roi-targets: no pixmusall run at {split[0]} (render the union re-run first)")
+        split = esr.roi_frozen_source(E, a.tag, a.roi_frozen, a.roi_run, a.pix_run, a.fit_run)
+        print(f"frozen split-ROI R2 from {split[0].name} ({'exact' if split[1] is None else 'pixmusall'})", flush=True)
     U = remap_table(run, out, split)
     pd.set_option("display.width", 230)
     if split is None:

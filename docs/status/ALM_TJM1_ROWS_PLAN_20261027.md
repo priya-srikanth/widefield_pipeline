@@ -135,3 +135,20 @@ significance, Bonferroni count = the Allen areas only (`encoder_split_rows.bonf_
 - Caveat (as Step 3): the frozen ROI R2 is the basis route (ROI mean of the basis-projected data), the self-fit ROI R2 is
   the exact ROI mean; the self - frozen gap of a split ROI therefore carries the out-of-basis variance (constant per
   session, mostly removed by epoch - pre).
+
+### Step 4b (11-06, Priya): EXACT split-ROI frozen side for slide 139 / remap_checks
+`frozen_encoder --roi-targets --fit-from <area run> --alphas-from <area run>` -> NEW folder
+`frozen_encoder_<tag>_roiexact` (`encoder_split_rows.ROI_EXACT`): the area run re-scored with the 8 ROI means as extra
+targets. Per animal x variant an Allen fit (the area run's saved pre statistics, penalties held = the area run's betas)
+and an ROI fit (same saved X'X / sxx, ROI X'Y / Y'Y from a fresh pass over the pre sessions, `fit/pre_stats_roi.pkl`,
+X'X checked), penalties held; predictions use the area run's operations on the Allen columns. Output = per variant x
+session JSON with r2_musall + frozen_r2_cortex for areas = Allen + ROI (no PETH / per-trial / drop-spout files).
+`session_vs_frozen --roi-targets --maps` and `remap_checks --roi-targets` read it (`--roi-frozen auto|exact|pixmusall`,
+auto = exact when present, else the pixmusall union run; `encoder_split_rows.roi_frozen_source`). Slide 94 stays on the
+pixmusall union route.
+- Dry run PS93_0807 + PS93_0925, 9 variants (scratch): ROI statistics X'X max rel. diff 0; Allen r2_musall and
+  frozen_r2_cortex of all 18 session x variant JSONs bit-identical to the area run. Exact vs basis route (864 ROI values):
+  max |d| 0.0042 avg / 0.0034 frame / 0.0026 trial (median 0.0006 / 0.0003 / 0.0003; mean ~0); unique R2 (joint -
+  no_g, frame) max |d| 0.0020 (no_movement), 0.0018 (no_other), <= 0.0006 the others.
+- Cost (loaded box, 2 workers): ROI statistics ~5 min per pre session per worker (31 sessions), predict ~3 min per
+  session per worker (107) -> ~4 h at 2 workers, ~2.7 h at 3.

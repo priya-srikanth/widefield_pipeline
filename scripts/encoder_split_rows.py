@@ -224,6 +224,28 @@ def musall_rows(pix_run, variant: str, measure: str = "frame", areas=tuple(SPLIT
 PIX_UNION = "_basis_pixmusall_union"
 
 
+#: the EXACT split-ROI frozen run (11-06, Priya: slide 139 / remap_checks need exact ROI R2): the area run re-scored with
+#: the 8 ROI means as extra targets, penalties held (`frozen_encoder --roi-targets`): `frozen_encoder_<tag><ROI_EXACT>`
+ROI_EXACT = "_roiexact"
+
+
+def roi_frozen_source(enc_root, tag: str, mode: str = "auto", roi_run=None, pix_run=None, fit_run=None) -> tuple:
+    """(run folder, basis fit run or None) of the frozen split-ROI R2 for the area run ``tag``: mode "exact" = the
+    --roi-targets run (fit None), "pixmusall" = the basis route (`pix_union_paths`), "auto" = exact when present, else
+    the pixmusall union run. SystemExit when the chosen run has no joint sessions."""
+    ex = Path(roi_run) if roi_run else Path(enc_root) / f"frozen_encoder_{tag}{ROI_EXACT}"
+    pix0, fit0 = pix_union_paths(enc_root, tag)
+    pix = (Path(pix_run or pix0), Path(fit_run or fit0))
+    ok = lambda r: (Path(r) / "joint" / "sessions").is_dir()   # noqa: E731
+    if mode == "exact" or (mode == "auto" and ok(ex)):
+        if not ok(ex):
+            raise SystemExit(f"no exact ROI-target frozen run at {ex} (frozen_encoder --roi-targets)")
+        return ex, None
+    if not ok(pix[0]):
+        raise SystemExit(f"no frozen split-ROI run: neither {ex} (exact) nor {pix[0]} (pixmusall union)")
+    return pix
+
+
 def pix_union_paths(enc_root, tag: str) -> tuple:
     """(pixmusall union run, basis run holding fit/spatial_<animal>.pkl) of the area run ``tag`` under ``enc_root``."""
     return Path(enc_root) / f"frozen_encoder_{tag}{PIX_UNION}", Path(enc_root) / f"frozen_encoder_{tag}_basis"

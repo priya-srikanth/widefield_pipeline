@@ -136,13 +136,16 @@ def frozen_r2(run: Path, variant: str, measure: str = "frame", areas=None) -> pd
     return pd.DataFrame(rows)
 
 
-def frozen_split_r2(pix: Path, fit_run: Path, variant: str, measure: str = "frame") -> pd.DataFrame:
-    """`frozen_r2` rows (label, window, area, variant, frozen) for the split ROIs: frozen Musall R2 of each ROI mean from
-    the FROZEN_PIX_MUSALL basis re-run ``pix`` (`encoder_split_rows.musall_rows`); empty when it lacks the variant."""
+def frozen_split_r2(pix: Path, fit_run, variant: str, measure: str = "frame") -> pd.DataFrame:
+    """`frozen_r2` rows (label, window, area, variant, frozen) for the split ROIs. ``fit_run`` None: ``pix`` is the EXACT
+    ROI-target frozen run (`frozen_encoder --roi-targets`, read like the area run); else the frozen Musall R2 of each ROI
+    mean from the FROZEN_PIX_MUSALL basis re-run ``pix`` (`encoder_split_rows.musall_rows`). Empty without the variant."""
     import encoder_split_rows as esr
     if not (Path(pix) / variant / "sessions").is_dir():
         print(f"  !! {Path(pix).name} has no {variant}: no frozen split rows for it", flush=True)
         return pd.DataFrame(columns=["label", "window", "area", "variant", "frozen"])
+    if fit_run is None:
+        return frozen_r2(Path(pix), variant, measure, areas=list(esr.SPLIT_AREAS))
     t = esr.musall_rows(pix, variant, measure, tuple(esr.SPLIT_AREAS), fit_run=fit_run)
     return t.rename(columns={"r2": "frozen"}).assign(variant=variant)[["label", "window", "area", "variant", "frozen"]]
 
@@ -171,6 +174,10 @@ def main(argv=None) -> int:
     ap.add_argument("--maps", action="store_true", help="Allen-area maps of the remapping (all areas; after the fits)")
     ap.add_argument("--roi-targets", action="store_true",
                     help="ALM / tjM1 / MOs_rest / MOp_rest ROI targets too (self-fit + maps), into session_vs_frozen_roi")
+    ap.add_argument("--roi-frozen", default="auto", choices=("auto", "exact", "pixmusall"),
+                    help="--roi-targets maps: frozen ROI R2 from the exact ROI-target run (<tag>_roiexact) or the "
+                         "pixmusall basis route; auto = exact when present")
+    ap.add_argument("--roi-run", default=None, help="exact ROI-target run folder (default <E>/frozen_encoder_<tag>_roiexact)")
     ap.add_argument("--pix-run", default=None, help="--roi-targets: frozen pixmusall run of the ROI rows (default "
                                                      "<E>/frozen_encoder_<tag>_basis_pixmusall_union)")
     ap.add_argument("--fit-run", default=None, help="--roi-targets: folder holding fit/spatial_<animal>.pkl (default "
@@ -203,10 +210,8 @@ def main(argv=None) -> int:
         split = None
         if a.roi_targets:
             import encoder_split_rows as esr
-            pix0, fit0 = esr.pix_union_paths(E, a.tag)
-            split = (Path(a.pix_run or pix0), Path(a.fit_run or fit0))
-            if not (split[0] / "joint" / "sessions").is_dir():
-                raise SystemExit(f"--maps --roi-targets: no pixmusall run at {split[0]} (render the union re-run first)")
+            split = esr.roi_frozen_source(E, a.tag, a.roi_frozen, a.roi_run, a.pix_run, a.fit_run)
+            print(f"frozen split-ROI R2 from {split[0].name} ({'exact' if split[1] is None else 'pixmusall'})", flush=True)
         area_maps(run, out, variants, split=split)
         return 0
     summarise(run, out, variants)
@@ -216,7 +221,7 @@ def main(argv=None) -> int:
 def area_maps(run: Path, out: Path, variants, split=None) -> None:
     """Allen-area maps of the remapping: per area, (self - frozen) epoch - pre within animal, mean of animals, for the
     full model and each group's unique R2; outline = significant after Bonferroni over areas (nested bootstrap).
-    ``split`` = (pixmusall run, basis fit run): MOs / MOp painted as ALM + MOs_rest / tjM1 + MOp_rest (self side = the
+    ``split`` = (frozen ROI run, basis fit run or None = exact; `frozen_split_r2`): MOs / MOp painted as ALM + MOs_rest / tjM1 + MOp_rest (self side = the
     ROI targets of the self-fit, frozen side = `frozen_split_r2`); Bonferroni count and colour scale = the Allen areas."""
     import matplotlib
     matplotlib.use("Agg")

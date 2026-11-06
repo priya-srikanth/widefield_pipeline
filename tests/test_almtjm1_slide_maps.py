@@ -4,6 +4,7 @@ the Allen-only Bonferroni count, and reembedding_test's map (split ROIs painted 
 Synthetic inputs only (no imaging); the real-data identity checks are in docs/status/ALM_TJM1_ROWS_PLAN_20261027.md."""
 from __future__ import annotations
 
+import json
 import os
 import sys
 from pathlib import Path
@@ -248,3 +249,90 @@ def test_reembedding_map_paints_split_rois_values_unchanged(atlas):
     assert not np.isin(0.9, M)                            # nothing summed back into MOs (0.7 + 0.2)
     i0, n0 = rt.split_map(img, nm, ["SSp-m_left", "MOs_left"])        # no split basis: plain atlas
     assert i0 is img and n0 is nm
+
+
+# ------------------------------------------------------------------------------------------------ exact ROI-target run
+def _area_design(fe, label, extra=None, seed=0):
+    """A synthetic Allen-area session design (+ ROI targets = fixed mixtures of the Allen targets when ``extra``)."""
+    d, _g = _fake_design(fe)
+    rng = np.random.default_rng(seed)
+    n = len(d["X"])
+    d["X"] = d["X"] + 0.1 * rng.normal(size=d["X"].shape)
+    A = d["Rd"] + 0.1 * rng.normal(size=d["Rd"].shape)
+    if extra is not None:
+        A = np.column_stack([A, A[:, :2] @ np.array([[0.7, 0.2], [0.3, 0.8]])])
+        d["area_names"] = d["area_names"] + list(extra["names"])
+    d.update({"Rd": A, "label": label, "animal": "PS92", "win": {"all": np.ones(n, bool), "cue": np.arange(n) % 20 < 10,
+                                                                  "lick": np.arange(n) % 20 >= 6},
+              "frame_pos": np.repeat(d["pos"], n // len(d["pos"])), "trial_id": np.arange(d["n_trials"]),
+              "lick_set": "combined", "timing_source": None})
+    return d
+
+
+def test_exact_roi_run_allen_bit_identical_to_area_run(scripts, monkeypatch, tmp_path):
+    import pickle
+
+    from wfield_local import frozen_encoder as fe
+    monkeypatch.setenv(fe.TRIALS_ENV, "off")
+    monkeypatch.delenv("FROZEN_PUSH", raising=False)
+    extra = {"names": ["ALM_left", "MOs_rest_left"], "P": None}
+    pre = ["PS92_0806", "PS92_0807", "PS92_0809"]
+    seeds = {lab: i for i, lab in enumerate([*pre, "PS92_0925"])}
+    monkeypatch.setattr(fe, "_templates_of", lambda *a, **k: {})
+    monkeypatch.setattr(fe, "session_design", lambda label, templates=None, spatial=None, extra_targets=None, **k:
+                        _area_design(fe, label, extra_targets, seeds[label]))
+
+    def stats(label, ex=None):
+        d = fe.session_design(label, None, extra_targets=ex)
+        X, Rd = d["X"], d["Rd"]
+        return {"label": label, "animal": "PS92", "epoch": "pre", "col_var": d["col_var"], "area_names": d["area_names"],
+                "n": len(X), "XtX": X.T @ X, "XtY": X.T @ Rd, "YtY": (Rd ** 2).sum(0), "sxx": (X ** 2).sum(0),
+                "pos_order": d["pos_order"], "pos_counts": d["pos_counts"]}
+    st = [stats(x) for x in pre]
+    area_fit = fe.fit_animal(st, variant="joint")                     # the AREA run: penalties searched
+    from wfield_local.allsession_encoder import _append_targets
+    pair = {}
+    for s in st:
+        r = _append_targets(s, stats(s["label"], extra), extra["names"])
+        pair[s["label"]] = (s, {**s, "area_names": extra["names"], "XtY": r["XtY"][:, -2:], "YtY": r["YtY"][-2:],
+                                "check_xtx": r["check_xtx"], "check_xty": r["check_xty"]})
+    sp = tmp_path / "pair.pkl"
+    sp.write_bytes(pickle.dumps(pair))
+    held = {str(k): float(v) for k, v in area_fit["alphas"].items()}
+    fits = fe.fit_roi_job(("PS92", str(sp), tuple(pre), ("joint",), {"joint": held}))
+    fa, fr = fits["joint"]
+    assert np.array_equal(fa["beta_all"], area_fit["beta_all"])     # held penalties -> the area run's betas exactly
+    for lab in ("PS92_0807", "PS92_0925"):                           # a pre (LOSO) and a post (all-pre) session
+        fe.predict_job((lab, {"joint": area_fit}, str(tmp_path / "area"), "t", None))
+        fe.predict_roi_job((lab, fits, str(tmp_path / "roi"), "t", extra))
+        m0 = json.loads((tmp_path / "area" / "joint" / "sessions" / f"{lab}.json").read_text())
+        m1 = json.loads((tmp_path / "roi" / "joint" / "sessions" / f"{lab}.json").read_text())
+        n = len(m0["areas"])
+        assert m1["areas"] == m0["areas"] + extra["names"] and m1["frozen_from"] == m0["frozen_from"]
+        assert m1["frozen_r2_cortex"] == m0["frozen_r2_cortex"]
+        for w, dd in m0["r2_musall"].items():
+            for k, vals in dd.items():
+                assert m1["r2_musall"][w][k][:n] == vals             # Allen R2 bit-identical to the area run
+                assert all(np.isfinite(m1["r2_musall"][w][k][n:]))
+
+
+def test_roi_frozen_source_and_exact_reader(scripts, tmp_path):
+    import encoder_split_rows as esr
+    import session_vs_frozen as svf
+    tag = "gate-attempted_v7g3_t3d_spont_frA"
+    with pytest.raises(SystemExit):
+        esr.roi_frozen_source(tmp_path, tag)
+    pix = tmp_path / f"frozen_encoder_{tag}{esr.PIX_UNION}"
+    (pix / "joint" / "sessions").mkdir(parents=True)
+    assert esr.roi_frozen_source(tmp_path, tag) == (pix, tmp_path / f"frozen_encoder_{tag}_basis")
+    ex = tmp_path / f"frozen_encoder_{tag}{esr.ROI_EXACT}"
+    (ex / "joint" / "sessions").mkdir(parents=True)
+    assert esr.roi_frozen_source(tmp_path, tag) == (ex, None)                  # auto prefers the exact run
+    assert esr.roi_frozen_source(tmp_path, tag, "pixmusall")[0] == pix
+    areas = ["SSp-m_left", "cortex", "ALM_left", "MOs_rest_left"]
+    (ex / "joint" / "sessions" / "PS92_0925.json").write_text(json.dumps(
+        {"label": "PS92_0925", "areas": areas,
+         "r2_musall": {"cue": {"frame": [0.1, 0.2, 0.3, 0.4], "trial": [0, 0, 0, 0], "avg": [0, 0, 0, 0]}}}))
+    t = svf.frozen_split_r2(ex, None, "joint")
+    assert dict(zip(t.area, t.frozen)) == {"ALM_left": 0.3, "MOs_rest_left": 0.4}
+    assert set(t.columns) == {"label", "window", "area", "variant", "frozen"}
