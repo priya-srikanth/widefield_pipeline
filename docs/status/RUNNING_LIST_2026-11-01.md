@@ -1962,3 +1962,14 @@ bundle without `daqlk` and writes a provenance json.
   within_lick_correction likely just re-run; iti_lick_rate / lick_aim_deficit / iti_lmm_figures / iti_recovery_measure
   to inspect. Fig 16.9 lmm_time_behaviour producer unknown (mine). Imaging 11.2 d_enl_move + deck 102 gain_bio: queue
   helper adding section X (gain gated on the ENL-slide fix; 11.2 only if it reads the D1 projection).
+- ~21:30: **Priya answers:** (1) 12.1b pre set = AUGUST only (code / queue already; fix the DECISIONS + profile wording at
+  the replacement pass); (2) te = target-vs-execution frozen design (explained; runs with LICKS_ALL=none by construction,
+  its execution group already holds pre-cue / ITI licks) -- recommended keep; (3) add no_spont to lsland + check what else
+  co-varies with spont -> audit helper re-tasked (SPONT_COVARIATION_AUDIT_20261105.md); (4) fr_pixel_significance null
+  calibration -> investigate (helper; FR_PIXEL_CALIBRATION_20261105.md); (5) local input cache for the NEXT render: yes
+  (after this one); (6) xyz2 re-run: not needed.
+  - Lane X launched (queue_daqlk5.sh: x_enl_move DAQ 2 s arm -> x_fig_enl_move (Fig 11.2; reads the D1 projection),
+    x_covref, held ENLv chain until logs/ENL_SLIDE_FIX.done).
+  - Deck 102 gain_bio_1104 is NOT lick_enlv_curves: it is decoder_mix_checks/gain_bio_1104 (gain_bio -> summarise ->
+    gain_stats -> fig_sessions), scripts outside the repo, adopted hemo + adopted quiet-spikes input; re-rendering needs
+    porting into the repo + rebuilding quiet spikes under the root. Ask Priya.
