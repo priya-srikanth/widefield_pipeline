@@ -517,9 +517,58 @@ def pre_from() -> str | None:
     August; lick kinematics changed as much as many stroke effects), so a June + August baseline can mix learning
     / drift into post-stroke changes. A new training set gets a new frozen-model spec_id (rule 10: the canonical
     models are untouched). `epoch_audit.full_cohort` SUSPENDS it: epoch boundaries are derived from the full pre
-    set and must never move. Always write the outputs of such a run to separate (``*_latepre``) directories."""
-    v = os.environ.get("WIDEFIELD_PRE_FROM", "").strip()
+    set and must never move. Always write the outputs of such a run to separate (``*_latepre``) directories.
+
+    THE ONE PLACE THE PRE SET IS RESOLVED, so it also carries the bare-run alarm (A4, Priya 11-06): a cohort-1 process
+    with no render profile and no WIDEFIELD_PRE_FROM gets ONE stderr WARNING (`_warn_pooled_pre`) that it is pooling
+    June + August. The returned value, and so every selection, is unchanged."""
+    global _PRE_FROM_CHOSEN
+    if _PRE_FROM_ENV in os.environ:
+        _PRE_FROM_CHOSEN = True
+    v = os.environ.get(_PRE_FROM_ENV, "").strip()
+    if not v and not _PRE_FROM_CHOSEN and not _PRE_FROM_WARNED:
+        _warn_pooled_pre()
     return v or None
+
+
+_PRE_FROM_ENV = "WIDEFIELD_PRE_FROM"
+#: True once this process has CHOSEN its pre set: WIDEFIELD_PRE_FROM present (even empty) at import or at any later
+#: `pre_from()` call, `apply_pre_from(<value>)`, or `require_full_pre` (an analysis that needs June by design). A
+#: temporary suspension later in the run (`epoch_audit.full_cohort`, `run_mode.with_env(WIDEFIELD_PRE_FROM=None)`)
+#: therefore never reads as a bare run.
+_PRE_FROM_CHOSEN = _PRE_FROM_ENV in os.environ
+_PRE_FROM_WARNED = False
+
+
+def _warn_pooled_pre() -> None:
+    """ONE loud stderr WARNING per process for a BARE hand run (A4, Priya 11-06 "yes per rec"): a cohort with an
+    August-only baseline cut (cohorts.yaml `baseline_pre_from`; cohort1 today), no render profile
+    (WIDEFIELD_REBUILD_ROOT unset) and no WIDEFIELD_PRE_FROM pools June + August pre sessions. Warns only; it changes
+    no default and no selection. Silent for cohort2 (no cut), under a profile, or with an explicit choice."""
+    global _PRE_FROM_WARNED
+    from wfield_local import rebuild_root
+    if rebuild_root.active():
+        return
+    try:
+        cut = baseline_pre_from()
+    except Exception:                    # an unknown WIDEFIELD_COHORT raises at its own call site, not here
+        return
+    if not cut:
+        return
+    _PRE_FROM_WARNED = True
+    import sys
+    bar = "!" * 100
+    lines = [bar,
+             f"WARNING [pre-stroke baseline]: {cohort()} run with NO render profile and NO WIDEFIELD_PRE_FROM, so the "
+             "pre-stroke pool is JUNE + AUGUST.",
+             f"  The primary baseline is AUGUST-ONLY (cohorts.yaml baseline_pre_from {cut}; run mode "
+             "WIDEFIELD_PRE_FROM=0801, as the nightly and render profile cohort1_rebuild_20261103 set it).",
+             "  For the primary: bash `export WIDEFIELD_PRE_FROM=0801` / PowerShell `$env:WIDEFIELD_PRE_FROM='0801'` "
+             "(or --pre-from 0801, or apply the render profile).",
+             "  To pool June + August deliberately and silence this: --pre-from all, or bash "
+             "`export WIDEFIELD_PRE_FROM=` (empty).",
+             bar]
+    print("\n".join(lines), file=sys.stderr, flush=True)
 
 
 def apply_pre_from(value: str | None) -> str | None:
@@ -527,8 +576,10 @@ def apply_pre_from(value: str | None) -> str | None:
     August-only pre is chosen PER RENDER BLOCK, never as a config default). ``None`` leaves the environment as it is;
     ``"all"`` / ``""`` clears it (June + August). Returns the effective value. Call before any pool is built (no phase
     set is cached at import). Outputs of such a run are tagged ``pre<MMDD>`` by `run_mode`."""
+    global _PRE_FROM_CHOSEN
     if value is None:
         return pre_from()
+    _PRE_FROM_CHOSEN = True
     v = str(value).strip()
     if v.lower() in ("", "all", "none"):
         os.environ.pop("WIDEFIELD_PRE_FROM", None)
@@ -541,7 +592,10 @@ def apply_pre_from(value: str | None) -> str | None:
 
 def require_full_pre(what: str) -> None:
     """Raise when WIDEFIELD_PRE_FROM is set: for analyses that NEED the June pre sessions (the June vs August drift
-    decoder, 12.1b lick-free rest), kept as labelled June + August sensitivities (rebuild 2026-11-03)."""
+    decoder, 12.1b lick-free rest), kept as labelled June + August sensitivities (rebuild 2026-11-03). Marks the pre
+    set as CHOSEN (June + August by design), so the bare-run warning of `pre_from` does not fire."""
+    global _PRE_FROM_CHOSEN
+    _PRE_FROM_CHOSEN = True
     if pre_from():
         raise SystemExit(f"{what} needs the June pre sessions (June + August sensitivity, labelled as such): unset "
                          "WIDEFIELD_PRE_FROM / drop --pre-from for this block")

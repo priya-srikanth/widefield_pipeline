@@ -23723,3 +23723,10 @@ Priya 11-03 late: August-only pre everywhere in the rebuild, except june_august_
   June pre sessions have no camera classes either (no June video for these classes), and they are outside the
   August-only pre set anyway.
 
+
+## 2026-11-06 -- Bare cohort-1 hand runs WARN that they pool June + August pre (A4, Priya 11-06: "yes per rec")
+- `config.pre_from()` (the one place the pre set is resolved) prints ONE loud stderr WARNING per process when the
+  active cohort has a `baseline_pre_from` cut (cohort1), no render profile is active (WIDEFIELD_REBUILD_ROOT unset)
+  and WIDEFIELD_PRE_FROM was never set; it names the August-only default and how to set it. No default and no
+  selection changed. Silent for cohort2, under a profile, with an explicit WIDEFIELD_PRE_FROM (even empty),
+  `apply_pre_from(<value>)` / `--pre-from`, and `require_full_pre` blocks. Test: tests/test_pre_from_bare_warning.py.
