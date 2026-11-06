@@ -41,4 +41,7 @@ the night.
   estimates (network-bound at ~92 MB/s). Revised forecast: ~weekend unless the local input cache helps (measuring).
 
 ## D. Overnight updates (newest last)
-
+- ~23:00: PI deck fluoroscopy update (your request): new all_graphs (10 panels, + G bolus density, H barium amount)
+  to replace slide 159 + notes with the density / amount numbers; density_method as a HIDDEN supporting slide after 159.
+  The deck is a8's (PI-deck window, has the fluoro scripts / backups) -> coordinating with a8 so only one of us edits;
+  will not edit while PowerPoint has it open.
