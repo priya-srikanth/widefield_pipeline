@@ -241,3 +241,4 @@ the night.
   wf_render_v8f 110c4efd): gb_frcache_copy -> gb_quiet_lp (daq+lp, heavy) -> gb_sessions (--task-rows working, heavy) ->
   summarise / stats / fig4. Behaviour-event lick onsets that quiet_spikes_v2 reads are the behaviour detector's = the
   current imaging detector since 11-05 (no regeneration needed). Slide 102 text to be updated with a8 after the render.
+- ~14:10 Priya: every figure caption / deck note must state window, LP vs DAQ licks, trial period + definition, trial types + definition, gate, baseline, etc. -> standing rule (memory); a helper is building docs/status/rebuild_20261103/FIGURE_PROVENANCE_20261106.{csv,md} (per figure: producing step, values from its logged env + code, drafted 'Data:' block, caption conflicts) for the replacement pass and a8's deck notes.
