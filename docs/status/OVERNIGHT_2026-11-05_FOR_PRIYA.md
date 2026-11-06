@@ -255,3 +255,10 @@ the night.
   Also: epoch_behaviour 1c stays DAQ-engaged on purpose (pins epoch boundaries, 11-05); the far-contra attempt figures
   use LP-video trial classes with a DAQ-contact-trained frozen decoder (captions must say so); many live imaging-page
   captions are pre-rebuild (DAQ contact, quit-tail, June+August 44 pre, Bonferroni) and all need rewriting.
+- ~15:00: provenance table FIRST PASS committed (9b218008; rebuild_20261103/FIGURE_PROVENANCE_20261106.{csv,md}: 832 rows,
+  Data: template, canonical definitions with code lines, findings; 493 rows UNKNOWN until 3 per-script parts + the
+  render finish). Checked finding 3: the ITI per-session extracts (shared XOUT ..._pre0801) were written IN this render
+  (11-05 ~20:11) -> not stale; lick times = behaviour onsets + video kinematics (current). But the first-lick PETH paths
+  select trials with the behaviour 'engaged' flag (DAQ quit-tail), not the camera working period -> same question as A20
+  (gate for kinematics / lick-chain figures). Also June re-enters as a reference epoch in lick_code_subspace /
+  lick_code_noisematch (A24: keep as a labelled reference or drop to August-only?).
