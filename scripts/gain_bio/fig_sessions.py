@@ -1,6 +1,7 @@
 """Session-level view of the post-stroke gain (GAIN_BIO 11-04; Priya: show sessions, not just 4 animals).
 Reads tables/ written by gain_bio.py / summarise_gain_bio.py; writes figs/fig4_gain_sessions.png.
-A: rest gain per session, corrected 470 vs 415. B: gain vs days from stroke. C: still and far from quiet events vs all
+A: rest gain per session, corrected 470 / raw 470 / 415, all with the same 0.1 Hz high-pass (like with like, Priya
+11-06 (4); was unfiltered corrected 470 beside high-passed 415). B: gain vs days from stroke. C: still and far from quiet events vs all
 rest frames. D: spatial uniformity (ipsi - contra; orofacial - posterior). E: orofacial and posterior gain apart.
 Stars (top band): epoch_change_lmm vs pre from gain_stats.py (tables/S_lmm_*.csv); * p < .05, ** Holm p < .05 within
 the panel's family (lmm_stars). B: day >= 7 per-animal slopes (tables/S_trend.csv).
@@ -11,7 +12,8 @@ PROVENANCE: ported 2026-11-05 from M:/MICROSCOPE/Priya/Widefield/labcams/decoder
   top spines already off; no spouts; no brain maps). Changes: tables / figs under <out> = gb_common.out_root()
   (--out; lp_licks.output_dir(<cohort_out>/gain_bio), run-tagged under the render profile) instead of the script's
   folder; the module body split into load() / draw(); --plot-only redraws from <out>/data/gain_fig4_figdata.pkl (the
-  rebuild_figs/_common contract).
+  rebuild_figs/_common contract). Priya 11-06 (4): panel A = gb_common.GAIN_SIGS (A_SIGS), so 415 sits beside the raw 470
+  with identical processing (and the corrected 470 with the same high-pass); the 415 / 470 ratio is printed in the panel.
 
     PYTHONPATH=<repo>;<repo>/scripts python scripts/gain_bio/fig_sessions.py [--out DIR] [--plot-only]
 """
@@ -41,16 +43,23 @@ COL = {"pre": "#000000", "acute": "#d4237a", "subacute": "#c08a00", "chronic": "
 STROKE = {"PS92": date(2026, 8, 17), "PS93": date(2026, 8, 17), "PS94": date(2026, 8, 16), "PS95": date(2026, 8, 16)}
 
 
+#: panel A columns: (signal, tick label), like with like (gb_common.GAIN_SIGS: the same 0.1 Hz high-pass on all three)
+A_SIGS = (("corr_hp", "corrected 470\n(calcium, HP)"), ("r470_hp", "raw 470\n(HP)"),
+          ("r415_hp", "415 nm\n(non-calcium, HP)"))
+assert tuple(k for k, _ in A_SIGS) == tuple(gb_common.GAIN_SIGS)
+
+
 def day_of(label):
     a, md = label.split("_")
     return (date(2026, int(md[:2]), int(md[2:])) - STROKE[a]).days
 
 
 def load(T: Path) -> dict:
-    """Everything draw() reads: the five gain_bio / gain_stats tables."""
+    """Everything draw() reads: the six gain_bio / gain_stats tables."""
     return {"U": pd.read_csv(T / "C1_uniformity_sessions.csv"), "M": pd.read_csv(T / "C2_matched_sessions.csv"),
             "SS": pd.read_csv(T / "S_sessions.csv"), "TR": pd.read_csv(T / "S_trend.csv"),
-            "LM": {k: pd.read_csv(T / f"S_lmm_{k}.csv") for k in ["A_gain", "D_space", "E_oro_post_parts"]}}
+            "LM": {k: pd.read_csv(T / f"S_lmm_{k}.csv") for k in ["A_gain", "D_space", "E_oro_post_parts"]},
+            "H": pd.read_csv(T / "S_415_vs_470.csv")}
 
 
 def draw(fd: dict, out_png: Path) -> Path:
@@ -65,11 +74,11 @@ def draw(fd: dict, out_png: Path) -> Path:
             if isinstance(st, str) and st:
                 sm.star_top(axh, x0 + off[ei], st, color=COL[e])
 
-    fig, ax = plt.subplots(1, 5, figsize=(23, 4.8), gridspec_kw={"width_ratios": [1.2, 1.6, 1.0, 1.2, 1.2]})
+    fig, ax = plt.subplots(1, 5, figsize=(25, 4.8), gridspec_kw={"width_ratios": [1.7, 1.6, 1.0, 1.2, 1.2]})
 
-    # A: corrected 470 vs 415, rest
+    # A: corrected 470 / raw 470 / 415, rest, all high-passed alike (Priya 11-06 (4))
     a = ax[0]
-    for ci, sig in enumerate(["corr", "r415_hp"]):
+    for ci, (sig, _lab) in enumerate(A_SIGS):
         off = cp.epoch_offsets(len(EP), 0.2)
         for ei, e in enumerate(EP):
             s = rest[(rest.sig == sig) & (rest.epoch == e)]
@@ -77,10 +86,15 @@ def draw(fd: dict, out_png: Path) -> Path:
             cp.session_dots(a, x, s.gain.values, s.animal.values, COL[e], jitter=0.05, seed=ci * 10 + ei)
             am = s.groupby("animal").gain.mean()
             cp.summary_point(a, x + 0.06, am.mean(), am.std(ddof=1) / np.sqrt(len(am)), color=COL[e])
-    stars(a, "A_gain", "corr", "lgain", 0)
-    stars(a, "A_gain", "r415_hp", "lgain", 1)
-    a.set_xticks([0, 1])
-    a.set_xticklabels(["corrected 470\n(calcium)", "415 nm\n(non-calcium)"])
+    for ci, (sig, _lab) in enumerate(A_SIGS):
+        stars(a, "A_gain", sig, "lgain", ci)
+    a.set_xticks(range(len(A_SIGS)))
+    a.set_xticklabels([lab for _, lab in A_SIGS])
+    h = fd.get("H")
+    if h is not None and len(h):
+        txt = ", ".join(f"{r.epoch} {r.ratio_415_470:.2f}" for r in h.itertuples() if np.isfinite(r.ratio_415_470))
+        a.text(0.02, 0.02, f"415 / raw 470 log-gain change: {txt}", transform=a.transAxes, fontsize=7.5,
+               color="0.3", va="bottom")
     a.axhline(1, color="0.6", lw=0.8, ls="--")
     a.set_ylabel("rest-frame SD / animal's pre\n(median over 46 areas)")
     a.set_title("A  Gain per session, rest frames", loc="left", fontsize=10)

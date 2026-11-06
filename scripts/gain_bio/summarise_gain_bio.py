@@ -8,7 +8,9 @@ CHECK 1 (spatial):
   spread      SD over areas of log SD ratio (uniform gain -> same spread as held-out pre)
   ipsi-contra mean over paired areas of log ratio (left = ipsi, image left) minus right
   oro-post    mean log ratio over orofacial (ALM, tjM1, SSp-m, SSp-n, both hemis) minus posterior (VIS*, RSP*)
-  415 / corr  r415_hp ratio beside corr_hp ratio (same high-pass, same frames)
+  415 / 470   r415_hp ratio beside r470_hp ratio: like with like (both halves of raw SVT, same 0.1 Hz high-pass, same
+              frames; Priya 11-06 (4)); corr_hp / r470_hp = the hemo-correction check (both high-passed). Until 11-06
+              this line set r415_hp against corr_hp, and the 11-04 '415 about half' text against unfiltered corr.
   r_F0        across areas within a session: r(log SD ratio, log F0 ratio) (470 F0 = frames_average_atlas); also
               across pixel bins of the maps
   r_events    across the 12 quiet-event areas (ALM, tjM1, SSp-m, SSp-n, SSp-ul, SSp-ll x L/R): r(log R5 SD ratio,
@@ -31,6 +33,8 @@ PROVENANCE: ported 2026-11-05 from M:/MICROSCOPE/Priya/Widefield/labcams/decoder
   lp_licks.output_dir(<cohort_out>/gain_bio), run-tagged under the render profile) instead of the script's folder; the quiet-event rates come from gb_common.quiet_dir() /
   quiet_events_sessions.csv (--quiet-dir; THIS run's quiet_spikes_v2 output) instead of the adopted v2_quiet; no repo
   path in code.
+  Priya 11-06 (4): every 415 comparison is like with like (`ratio_table`, gb_common.NONCA / CA_REF); the pixel-map figures
+  1 / 2 show raw 470 and 415 with the same high-pass (were corrected 470 unfiltered beside 415 high-passed).
 
     PYTHONPATH=<repo>;<repo>/scripts python scripts/gain_bio/summarise_gain_bio.py [--out DIR] [--quiet-dir DIR]
 """
@@ -55,6 +59,16 @@ SETS = ("ALL", "R5", "R5far", "TASK")
 ORO = ("ALM", "tjM1", "SSp-m", "SSp-n")
 EVA = ("ALM", "tjM1", "SSp-m", "SSp-n", "SSp-ul", "SSp-ll")
 SBINS = (0.0, 0.25, 0.5, 1.0, 2.0, np.inf)
+
+
+def ratio_table(W: pd.DataFrame) -> pd.DataFrame:
+    """Gain table (rows animal x epoch, one column per signal) -> + the like-with-like ratio columns (Priya 11-06 (4)):
+    "415/470" = NONCA / CA_REF (raw 415 vs raw 470, same high-pass) and "corr/470" = CORR_CHECK (corrected vs raw 470,
+    both high-passed). Nothing sets 415 against the corrected or the unfiltered signal."""
+    W = W.copy()
+    W["415/470"] = W[gb_common.NONCA] / W[gb_common.CA_REF]
+    W["corr/470"] = W[gb_common.CORR_CHECK[0]] / W[gb_common.CORR_CHECK[1]]
+    return W
 
 
 def QEV() -> Path:
@@ -407,8 +421,7 @@ def main(argv=None) -> int:
     G.to_csv(TAB / "C1_uniformity_animal_epoch.csv", index=False)
     for st in ("R5", "TASK", "R5far", "ALL"):
         W = G[G.set == st].pivot_table(index=["animal", "epoch"], columns="sig", values="gain", observed=True)
-        W = W[list(SIGS)]
-        W["415/corr_hp"] = W.r415_hp / W.corr_hp
+        W = ratio_table(W[list(SIGS)])
         print(f"\n== CHECK 1 [{st}] PER ANIMAL x EPOCH: SD ratio vs pre (median over areas; geometric mean over sessions)")
         print(W.round(3).to_string())
     for st in ("R5", "TASK"):
@@ -425,7 +438,7 @@ def main(argv=None) -> int:
     B = pd.DataFrame(B)
     B.to_csv(TAB / "C1_uniformity_pooled.csv", index=False)
     for st in ("R5", "TASK"):
-        for sg in ("corr", "corr_hp", "r415_hp"):
+        for sg in ("corr", "corr_hp", "r470_hp", "r415_hp"):
             print(f"\n== CHECK 1 POOLED [{st}, {sg}] boot_delta (post - pre; * CI excludes 0; k/n animals up)")
             print(fmt_boot(B[(B.set == st) & (B.sig == sg)]).to_string())
     # ---- area table (animal-epoch geometric means, plus animal mean)
@@ -436,10 +449,11 @@ def main(argv=None) -> int:
         mean=lambda x: float(np.exp(np.nanmean(np.log(x)))), n_up=lambda x: int((x > 1).sum()), n="count").reset_index()
     AM.to_csv(TAB / "C1_area_ratio_animal_mean.csv", index=False)
     for st in ("R5", "TASK"):
-        P = AM[(AM.set == st) & AM.sig.isin(["corr", "r415_hp"])].copy()
+        pair = [gb_common.CA_REF, gb_common.NONCA]                  # like with like (Priya 11-06 (4))
+        P = AM[(AM.set == st) & AM.sig.isin(pair)].copy()
         P["txt"] = [f"{m:.2f} ({u}/{n})" for m, u, n in zip(P["mean"], P.n_up, P.n)]
         P = P.pivot_table(index="area", columns=["sig", "epoch"], values="txt", aggfunc="first")
-        P = P.reindex(columns=pd.MultiIndex.from_product([["corr", "r415_hp"], list(POST)]))
+        P = P.reindex(columns=pd.MultiIndex.from_product([pair, list(POST)]))
         print(f"\n== CHECK 1 AREA TABLE [{st}]: animal-mean SD ratio (animals > 1 / n)")
         print(P.to_string())
     # ---- spatial correlations
@@ -459,10 +473,13 @@ def main(argv=None) -> int:
     BR.to_csv(TAB / "C1_spatial_corr_pooled.csv", index=False)
     print("\n== CHECK 1 SPATIAL CORRELATION pooled (post - held-out pre)\n" + fmt_boot(BR).to_string())
     # figures
-    fig_maps(S, M, "R5", [(("R5", "corr"), "corrected 470"), (("R5", "r415_hp"), "415 (0.1 Hz HP)")],
+    # like with like (Priya 11-06 (4)): raw 470 and 415, the two halves of raw SVT, the same 0.1 Hz high-pass
+    pair = [(gb_common.CA_REF, "raw 470 (0.1 Hz HP)"), (gb_common.NONCA, "415 (0.1 Hz HP)")]
+    fig_maps(S, M, "R5", [(("R5", k), t) for k, t in pair],
              "fig1_rest_gain_maps.png", "Fig 1. REST (restdock05, engaged): SD ratio post / pre per pixel")
-    fig_maps(S, M, "TASK", [(("TASK", "corr"), "corrected 470"), (("TASK", "r415_hp"), "415 (0.1 Hz HP)")],
-             "fig2_task_gain_maps.png", "Fig 2. TASK (cue..+2 s, engaged): SD ratio post / pre per pixel")
+    fig_maps(S, M, "TASK", [(("TASK", k), t) for k, t in pair],
+             "fig2_task_gain_maps.png", "Fig 2. TASK (cue..+2 s, camera working period, engaged): SD ratio post / pre "
+             "per pixel")
     fig_maps(S, M, "F0", [(("R5", "corr_hp"), "corr 470 HP (rest)"), (("F0", "470"), "F0 470 ratio")],
              "fig3_rest_hp_vs_f0_maps.png", "Fig 3. REST corr_hp SD ratio beside the F0 (470) ratio map")
     # ---- check 2
@@ -472,7 +489,7 @@ def main(argv=None) -> int:
     oc = [c for c in O.columns if c.startswith("frac_")] + ["face_rel", "run_p95", "R5_n"]
     print(O.groupby(["animal", "epoch"])[oc].mean().reindex(pd.MultiIndex.from_product([AN, EPS])).round(3)
           .to_string())
-    for sg in ("corr", "r415_hp"):
+    for sg in ("corr", gb_common.CA_REF, gb_common.NONCA):
         sub = T[(T.sig == sg) | (T.measure.isin(["fr_raw", "fr_resid"]) & (sg == "corr"))]
         W = sub.pivot_table(index=["animal", "epoch"], columns="measure", values="gain",
                             aggfunc=lambda x: float(np.exp(np.nanmean(np.log(x)))))
@@ -493,7 +510,7 @@ def main(argv=None) -> int:
                 B2.append(dict(measure=ms, sig=sg, **r))
     B2 = pd.DataFrame(B2)
     B2.to_csv(TAB / "C2_matched_pooled.csv", index=False)
-    for sg in ("corr", "corr_hp", "r415_hp"):
+    for sg in ("corr", "corr_hp", "r470_hp", "r415_hp"):
         sub = B2[(B2.sig == sg) & (B2.quantity == "gain")].copy()
         sub["quantity"] = sub.measure
         print(f"\n== CHECK 2 POOLED [{sg}] gain (median over areas) boot_delta\n" + fmt_boot(sub).to_string())

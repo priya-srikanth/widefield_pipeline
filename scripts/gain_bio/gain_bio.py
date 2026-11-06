@@ -16,6 +16,11 @@ PROVENANCE: ported 2026-11-05 from M:/MICROSCOPE/Priya/Widefield/labcams/decoder
   - a RebuildFenceError in the face / running loaders is raised, not turned into NaN movement columns.
   - main() refuses an empty / missing quiet-events folder (the original silently gave R5far = no frames: near_event_mask
     returns None when a session file or the pre SD is missing).
+  Priya 11-06 (VERSION 2; the 11-04 run = VERSION 1):
+  - quiet events = the LP version (gb_common.QUIET_SUBDIR v2_quiet_lp: quiet_spikes_v2 with QS_LICK_SOURCE=daq+lp);
+  - TASK = cue .. cue + 2 s of the camera WORKING PERIOD cues only (gb_common.task_cues, TASK_ROWS "period"; --task-rows);
+  - the 415 comparison is made like with like downstream (summarise / gain_stats / fig_sessions: gb_common.NONCA vs
+    CA_REF); this script's per-session numbers are unchanged by that.
   The 11-04 run read hemo_meegkit_hpfit (46 split-basis areas + cortex); a rerun reads whatever the env selects (the
   render profile: meegkit_hpfit_lag_refitT_swapmask; area_basis.ROI_VERSION; the camera trial gate's quit for the
   engaged frames).
@@ -34,9 +39,10 @@ eroded stat mask + ALM / tjM1 = anterolateral 40 % of MOs / MOp, + cortex); _lef
 FRAME SETS (frames within 3 of a swapped pair dropped from all):
   ALL     every frame
   R5      restdock05 quiet frame AND engaged (rest_centre_1104/rest_stats.py R5 rule)
-  R5far   R5 and > 2 s from any quiet event (v2 detector, orofacial_L/R + limb_L/R, both polarities, > 4 x the
-          animal's August-pre robust SD; the R5q rule with a 2 s window both sides and the limb columns added)
-  TASK    cue .. cue + 2 s of every cue before the quit (engaged frames)
+  R5far   R5 and > 2 s from any quiet event (v2 detector on LP quiet frames, orofacial_L/R + limb_L/R, both
+          polarities, > 4 x the animal's August-pre robust SD; the R5q rule with a 2 s window both sides and the limb
+          columns added)
+  TASK    cue .. cue + 2 s of every camera-working-period cue (gb_common.task_cues; engaged frames)
 PER SET: area SD per signal; pixel variance map per signal (diag(U C U'), C = component covariance over the set),
 binned 4 x 4 px onto the 540 x 640 atlas grid.
 MOVEMENT / AROUSAL (R5 frames): cam4 FaceRhythm point-PC face speed (quiet_spikes_fr.face_regressors, own basis; sum of
@@ -68,7 +74,7 @@ BIN = 4
 CHUNK = 62
 EV_K, EV_COLS, FAR_S = 4.0, ("orofacial_left", "orofacial_right", "limb_left", "limb_right"), 2.0
 TASK_S = 2.0
-VERSION = 1
+VERSION = 2                       # 2 = Priya 11-06: LP quiet events, camera-working-period TASK
 
 
 def OUTD() -> Path:
@@ -140,6 +146,18 @@ def smooth_nan(x, w):
     out = s / np.maximum(d, 1e-9)
     out[d < 0.5] = np.nan
     return out
+
+
+def task_mask(ft, cue_s, keep, w, n):
+    """``(mask, n_cue)``: frames [i, i + w) from the first frame at or after each KEPT cue (``cue_s`` s, ``keep``
+    bool per cue); a cue whose first frame i is not in 0 <= i < n - w is dropped whole, as in the 11-04 run."""
+    mask = np.zeros(n, bool)
+    n_cue = 0
+    for i in np.searchsorted(ft, np.asarray(cue_s, float)[np.asarray(keep, bool)]):
+        if 0 <= i < n - w:
+            mask[i:i + w] = True
+            n_cue += 1
+    return mask, n_cue
 
 
 def chunks(mask, flag):
@@ -217,19 +235,16 @@ def run(label):
     R5far = R5 & ~near if near is not None else np.zeros(n, bool)
     TASK = np.zeros(n, bool)
     bh = session_behavior(label)
-    n_cue = 0
+    n_cue, task_note = 0, "no behaviour"
     if bh is not None:
         cue_s = np.asarray(bh.cue_samples, float) / bh.sample_rate
-        i0 = np.searchsorted(ft, cue_s)
-        w = int(round(TASK_S * fs))
-        for i in i0:
-            if 0 <= i < n - w:
-                TASK[i:i + w] = True
-                n_cue += 1
+        keep, task_note = gb_common.task_cues(label, cue_s)
+        TASK, n_cue = task_mask(ft, cue_s, keep, int(round(TASK_S * fs)), n)
         TASK &= eng & ~bad
     SETM = {"ALL": ~bad, "R5": R5, "R5far": R5far, "TASK": TASK}
     out = dict(version=VERSION, label=label, areas=np.array(anames), npix=npix, fs=fs, T=n, fc=fc,
-               n_events=n_ev, n_cue=n_cue, gate_note=str(gate_note), sigs=np.array(SIGS), sets=np.array(SETS))
+               n_events=n_ev, n_cue=n_cue, gate_note=str(gate_note), sigs=np.array(SIGS), sets=np.array(SETS),
+               task_rows=gb_common.task_rows(), task_note=str(task_note), quiet_src=str(gb_common.quiet_dir()))
     # ---------------------------------------------------------------- per set: area SD + pixel variance maps
     Ubd = Ub.astype(np.float64)
     for st in SETS:
@@ -349,11 +364,14 @@ def main(argv=None) -> int:
     from wfield_local import analysis_kit as ak
     if not sorted(V2S().glob("*.npz")):
         raise SystemExit(f"no quiet-events v2 sessions in {V2S()}: run scripts/cohort2_qc/quiet_spikes_v2.py under the "
-                         "same env first, or pass --quiet-dir")
+                         f"same env with QS_LICK_SOURCE={gb_common.QUIET_LICK_SOURCE} first, or pass --quiet-dir")
+    if gb_common.quiet_dir().name != gb_common.QUIET_SUBDIR:
+        print(f"WARNING: quiet events from {gb_common.quiet_dir()}, not the LP version ({gb_common.QUIET_SUBDIR}; "
+              "Priya 11-06)", flush=True)
     out = gb_common.guard(gb_common.out_root())
     S = gb_common.session_table()
     S.to_csv(out / "sessions.csv", index=False)
-    print("out", out, "| quiet", gb_common.quiet_dir(), flush=True)
+    print("out", out, "| quiet", gb_common.quiet_dir(), "| task rows", gb_common.task_rows(), flush=True)
     labs = a.only or sorted(S.label)
     print(len(labs), "sessions", flush=True)
     got, fail = ak.fan_sessions(labs, run, jobs=min(a.jobs, 3), label="gain_bio")

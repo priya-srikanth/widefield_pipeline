@@ -13,6 +13,9 @@ PROVENANCE: ported 2026-11-05 from M:/MICROSCOPE/Priya/Widefield/labcams/decoder
   (GAIN_BIO_2026-11-04.md section 5 "Stats"). Computation unchanged. Changes: tables/ = <out>/tables with <out> =
   gb_common.out_root() (--out; lp_licks.output_dir(<cohort_out>/gain_bio), run-tagged under the render profile)
   instead of the script's folder; the module body moved into main(argv) so it imports without running.
+  Priya 11-06 (4), like with like: family A_gain = gb_common.GAIN_SIGS (corrected 470 HP, raw 470 HP, 415 HP; was
+  unfiltered corr + 415 HP); the "415 rises about half as much" number = `ratio_415` (the 415 epoch beta over the raw
+  470 epoch beta, same high-pass) -> tables/S_415_vs_470.csv; X_oro_post_robust adds raw 470 HP.
 
     PYTHONPATH=<repo>;<repo>/scripts python scripts/gain_bio/gain_stats.py [--out DIR]
 """
@@ -71,6 +74,21 @@ def lmm_family(S, sigs, qs):
     return R
 
 
+def ratio_415(R: pd.DataFrame) -> pd.DataFrame:
+    """Per epoch: the 415 epoch change (lgain beta, gb_common.NONCA) over the raw 470 one with the SAME processing
+    (gb_common.CA_REF) -- "how large is the 415 rise relative to the calcium rise", like with like (Priya 11-06 (4)).
+    R = an A_gain lmm_family table. Ratio of log changes; NaN when the 470 beta is 0 / missing."""
+    b = R[R.quantity == "lgain"].pivot_table(index="epoch", columns="sig", values="beta", aggfunc="first")
+    nan = np.full(len(b), np.nan)
+    out = pd.DataFrame({"epoch": list(b.index),
+                        "beta_415": b[gb_common.NONCA].to_numpy(float) if gb_common.NONCA in b else nan,
+                        "beta_470": b[gb_common.CA_REF].to_numpy(float) if gb_common.CA_REF in b else nan})
+    with np.errstate(divide="ignore", invalid="ignore"):
+        out["ratio_415_470"] = np.where(out.beta_470 != 0, out.beta_415 / out.beta_470, np.nan)
+    order = {e: i for i, e in enumerate(("pre", "acute", "subacute", "chronic"))}
+    return out.sort_values("epoch", key=lambda x: x.map(order)).reset_index(drop=True)
+
+
 def slopes(S, sg, q, from_day=7):
     z = S[(S.sig == sg) & (S.day >= from_day)]
     out = {}
@@ -100,21 +118,26 @@ def main(argv=None) -> int:
     print(P.reindex(["pre", "acute", "subacute", "chronic"], level=1).to_string())
 
     fams = {
-        "A_gain": lmm_family(S, ["corr", "r415_hp"], ["lgain"]),
+        "A_gain": lmm_family(S, list(gb_common.GAIN_SIGS), ["lgain"]),
         "D_space": lmm_family(S, ["corr"], ["ipsi_contra", "oro_post"]),
         "E_oro_post_parts": lmm_family(S, ["corr"], ["oro", "post"]),
-        "X_oro_post_robust": lmm_family(S, ["corr_hp", "r415_hp"], ["oro_post"]),
+        "X_oro_post_robust": lmm_family(S, ["corr_hp", "r470_hp", "r415_hp"], ["oro_post"]),
     }
     for k, R in fams.items():
         print(f"\n== {k}: epoch_change_lmm (beta = change vs pre; log units for lgain / oro / post); Holm within family")
         print(R[["sig", "quantity", "epoch", "beta", "lo", "hi", "p", "holm", "star", "n_animals", "converged",
                  "singular"]].round(4).to_string(index=False))
         R.to_csv(T / f"S_lmm_{k}.csv", index=False)
+    H = ratio_415(fams["A_gain"])
+    print(f"\n== 415 vs 470, like with like ({gb_common.NONCA} / {gb_common.CA_REF}, both raw, same 0.1 Hz high-pass): "
+          "epoch change in log gain and its ratio")
+    print(H.round(3).to_string(index=False))
+    H.to_csv(T / "S_415_vs_470.csv", index=False)
 
     print("\n== TIME TREND, day >= 7: each animal's slope per 10 days; one-sample t on 4 slopes (df 3)")
     TR = []
     for sg, q in [("corr", "lgain"), ("corr", "oro"), ("corr", "post"), ("corr", "oro_post"),
-                  ("corr_hp", "oro_post"), ("r415_hp", "oro_post"), ("r415_hp", "lgain")]:
+                  ("corr_hp", "oro_post"), ("r415_hp", "oro_post"), ("r470_hp", "lgain"), ("r415_hp", "lgain")]:
         per, m, p = slopes(S, sg, q)
         TR.append(dict(sig=sg, quantity=q, mean_slope_per10d=m, p=p, **{a: per[a] for a in sorted(per)}))
     TR = pd.DataFrame(TR)
