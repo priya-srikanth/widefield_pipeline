@@ -91,7 +91,7 @@ def test_profile_rebuild_root_resolves_and_fences(tmp_path):
 def test_rebuild_root_spec_and_inputs():
     from wfield_local import rebuild_root as rr
     s = rr.spec()
-    assert set(s["derived_roots"]) == {"figures_working", "cue_analysis_out", "cohort_out"}
+    assert set(s["derived_roots"]) == {"figures_working", "cue_analysis_out", "cohort_out", "decks_out"}
     assert s["derived_subtrees"]["orofacial"]["patterns"] == ["*/imaging_encoding"]
     assert "joint_bases" in s["inputs_in_place"]["cohort_out"]
     assert "epoch_boundaries.json" in s["seed_inputs"]["cohort_out"]

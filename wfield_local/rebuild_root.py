@@ -5,8 +5,8 @@ profile with ``rebuild_root`` makes it structural:
 
 * RESOLVE. With ``WIDEFIELD_REBUILD_ROOT`` set, `paths.PathResolver` maps every derived logical root into it
   (``configs/paths.yaml`` ``rebuild.derived_roots``: figures_working, cue_analysis_out, cohort_out = the labcams-level
-  outputs: grant_figures, frozen_models, the deck, ...) and the derived trees under an input root
-  (``rebuild.derived_subtrees``: ``<LP_analysis>/<run>/imaging_encoding``, through `PathResolver.derived` /
+  outputs: grant_figures, frozen_models, ...; decks_out = the .pptx decks, since 2026-11-06) and the derived trees
+  under an input root (``rebuild.derived_subtrees``: ``<LP_analysis>/<run>/imaging_encoding``, through `PathResolver.derived` /
   `orofacial_outputs.encoding_root`). The profile puts the frozen store and the session cache (and with it the RESTnl
   caches beside it) under the root too. Readers and writers use the SAME resolution, so a reader sees the rebuild's own
   output or nothing.

@@ -13,7 +13,9 @@ Images are scaled to FIT inside their layout box preserving aspect ratio (the pr
 deck overflowed the slide). PNG pixel dims are read straight from the IHDR header, so
 there is no Pillow/OpenCV dependency here.
 
-Run: ``python -m wfield_local.preprocess_deck --output <path.pptx>``.
+Run: ``python -m wfield_local.preprocess_deck --output <path.pptx>``. Default output:
+``<decks_out>/preprocessing/cross-session_preprocessing[_<animal>].pptx`` (``presentations/pipeline``, cohort-scoped;
+the ``labcams`` top level until 2026-11-06, Priya).
 """
 from __future__ import annotations
 
@@ -788,7 +790,7 @@ def build_decks(out_base, sessions=None, resolver=None, machine=None, max_sessio
 def _main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--output", default=None,
-                    help="Base .pptx path (default: labcams/cross-session_preprocessing.pptx). "
+                    help="Base .pptx path (default: <decks_out>/preprocessing/cross-session_preprocessing.pptx). "
                          "When split, files get an animal suffix (cross-session_preprocessing_<animal>.pptx).")
     ap.add_argument("--machine", default=None, help="Override machine (analysis|imaging).")
     ap.add_argument("--max-sessions", type=int, default=None,
@@ -796,10 +798,11 @@ def _main(argv=None):
                          "0 = single unified deck).")
     args = ap.parse_args(argv)
     rv = config.resolver(args.machine)
-    out = args.output or rv.resolve("labcams", "cross-session_preprocessing.pptx")
+    from wfield_local.paths import deck_dir
+    out = args.output or (deck_dir("preprocessing", rv) / "cross-session_preprocessing.pptx").as_posix()
     if not args.output:
-        # a tagged run (another hemo variant: the deck reads that variant's maps) goes to <labcams>/<tag>/..., never
-        # over the default deck (rebuild 11-03); identity for the default run
+        # a tagged run (another hemo variant: the deck reads that variant's maps) goes to
+        # <decks_out>/preprocessing/<tag>/..., never over the default deck (rebuild 11-03); identity for the default run
         from pathlib import Path as _P
 
         from wfield_local import lp_licks

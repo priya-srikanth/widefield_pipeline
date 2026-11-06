@@ -35,7 +35,8 @@ spout, 6 positions, 4 cameras); a VLS stroke comes later (`stroke_date` null unt
 * **Cohort-level outputs for cohort2 go in a `cohort2/` subfolder.** That covers `figures_working`
   (local), `labcams/analysis_figures`, `Behavior_logs/Widefield/behavior_summary`, `LP_analysis`, and the
   labcams top level (deck, `epoch_boundaries.json`, `frozen_models/`, `joint_bases/`, `grant_figures/`), so
-  `labcams/cohort2/spout_position_analysis_summary.pptx` etc. cohort1's files are never overwritten.
+  `labcams/cohort2/epoch_boundaries.json` etc. cohort1's files are never overwritten. Decks: `presentations/pipeline/
+  cohort2/<kind>/` (root `decks_out`, since 2026-11-06; they were in `labcams/cohort2/`).
   Per-session data stays where it always was (`labcams/<date>/<animal>_<date>_*`, DAQ, cameras, alignment
   templates, xday), because it is keyed by animal.
 * Discovery now accepts any `PSnnn` id (it only matched `PS9x` before, so PS118-122 would have been

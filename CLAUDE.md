@@ -769,7 +769,10 @@ reaches the deck's results path — that was checked, not assumed.
   box `C:/Users/sabatini/.conda/envs/locanmf/python.exe`; imaging box `C:/ProgramData/anaconda3/envs/wfield`. Repo is
   `pip install -e .` (no PYTHONPATH). Per-box table (drive letters, torch build): `docs/START_HERE.md` section 3.
 - Deck: the CURRENT analysis deck is `locanmf_analysis_deck.py` → auto-built by `nightly_figs` into
-  `<labcams>/spout_position_analysis_summary.pptx`. Sections: **A–C within-day** (decode, encode,
+  `<decks_out>/analysis/spout_position_analysis_summary.pptx`. **Every auto-built deck (analysis, preprocessing,
+  behaviour, example clips, orofacial, the `history/` copies) moved 2026-11-06 (Priya) to `Widefield/presentations/
+  pipeline/<kind>/`** (`paths.yaml` root `decks_out`, `paths.deck_dir`; cohort2 -> `pipeline/cohort2/<kind>/`); only the
+  .pptx moved -- figures, the deck manifest / run record and `epoch_boundaries.json` stay in `labcams`. Sections: **A–C within-day** (decode, encode,
   pre-cue lick-free control), grouped animal→type→date; **D cross-session/frozen**, grouped
   basis→alignment→animal and run in TWO bases (Allen-ROI and the shared joint-LocaNMF basis, see
   `joint_xsession.py`); **E–F** cohort summary + RSA. The curated date set is DERIVED

@@ -5,8 +5,8 @@ build_stats_figure_deck.py`: title, sections, one figure per slide with title + 
     python -m wfield_local.orofacial_deck [--run lp_r4_heatmap_20261013__clean_v36]      (needs python-pptx: locanmf env)
 
 Reads the figures `orofacial_cohort` and `orofacial_jaw_lateral` wrote and the stats table
-(`cohort/tables/prepost/stats/change_vs_pre_stats.csv`); writes `<LP_analysis>/<run>/cohort/deck/
-orofacial_prepost_<YYYYMMDD>.pptx`. Run it AFTER the two producers (the deck shows whatever is on disk). Missing
+(`cohort/tables/prepost/stats/change_vs_pre_stats.csv`); writes `<decks_out>/orofacial/<run>/
+orofacial_prepost_<YYYYMMDD>.pptx` (`presentations/pipeline`; `<LP_analysis>/<run>/cohort/deck/` until 2026-11-06, Priya). Run it AFTER the two producers (the deck shows whatever is on disk). Missing
 figures are skipped and listed at the end.
 """
 from __future__ import annotations
@@ -351,7 +351,7 @@ def main(argv=None) -> int:
     from wfield_local import writeguard
     from wfield_local import orofacial_cohort as oc
     from wfield_local.orofacial_cohort import LABEL, POS_ORDER, pos_disp
-    from wfield_local.paths import PathResolver
+    from wfield_local.paths import PathResolver, deck_dir
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--run", default=oc.RUN)
     ap.add_argument("--baseline", choices=("all", "late"), default="late",
@@ -366,7 +366,7 @@ def main(argv=None) -> int:
     rv = PathResolver()
     base = oc.cohort_base(a.run, rv)
     figs, tables = base / "figures", base / "tables"
-    out = base / "deck"
+    out = deck_dir("orofacial", rv) / a.run                # only the .pptx; figures + tables stay in LP_analysis
     writeguard.assert_writable(out)
     out.mkdir(parents=True, exist_ok=True)
     S = pd.read_csv(tables / f"prepost{gsfx}" / "session_metrics.csv")

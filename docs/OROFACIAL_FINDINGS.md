@@ -288,7 +288,7 @@ the same effect size but drop to one test, which is expected with 3 animals.
     `prepost_latepre/` (August-only);
   - `figures/w2/` and `w2_latepre/`;
   - `jaw_lateral/`.
-- **Decks:** `cohort/deck/orofacial_prepost_<date>.pptx` and `orofacial_prepost_latepre_<date>.pptx`.
+- **Decks:** `cohort/deck/orofacial_prepost_<date>.pptx` (since 2026-11-06 `presentations/pipeline/orofacial/<run>/`) and `orofacial_prepost_latepre_<date>.pptx`.
 - **Key figures:**
   - `cohort_metrics_minus_pre`;
   - `cohort_epochs_by_position_{accuracy,kinematics,engagement}`;

@@ -28,7 +28,8 @@ The §1–23 commands are the underlying steps; day-to-day they are orchestrated
   overlay (`xall`, §14), and photobleach QC. Replaces the retired per-date `_nightly_*`/`_mc_svd_*`/
   `_maps_*`/`_photobleach_*` drivers.
 - **Cross-session preprocessing deck:** `python -m wfield_local.preprocess_deck` — rebuilds the single
-  `labcams/cross-session_preprocessing_<animal>.pptx` in place (grouped animal → figure type → date; split
+  `<decks_out>/preprocessing/cross-session_preprocessing_<animal>.pptx` in place (`presentations/pipeline`; the
+  labcams top level until 2026-11-06) (grouped animal → figure type → date; split
   into per-animal files to bound size). Replaces the retired `PS92_94_95_affine8v1.pptx` builder.
 - **Analysis (behavior-GPU box):**
   `python -m wfield_local.nightly_figs <DATE> ... [--only PS9x ...] [--from <DATE spec>]` — orchestrates
@@ -637,8 +638,9 @@ LocaNMF + the decode/encode/RSA analysis run on the **behavior-GPU box** (`locan
 
 The preprocessing above stops at SVD + atlas. The **analysis** half runs GPU LocaNMF and the
 spout-position models on the behavior-GPU box (env `locanmf`). `nightly_figs` runs steps 17–22 for
-the per-day date(s) + the cross-session span and builds the refined analysis deck at the `labcams` top
-level (`spout_position_analysis_summary.pptx`, curated animal→type→date via `locanmf_analysis_deck.py`;
+the per-day date(s) + the cross-session span and builds the refined analysis deck in
+`presentations/pipeline/analysis/` (`spout_position_analysis_summary.pptx`, paths.yaml root `decks_out`, the `labcams`
+top level until 2026-11-06; curated animal→type→date via `locanmf_analysis_deck.py`;
 the old `spout_position_decoder_summary.pptx` / `spout_position_decoder_xsession_6on.pptx` builders are
 retired, kept as `LEGACY_*` and no longer updated); run any step standalone with
 the same `configs/` source of truth. In the commands below `<OUT>` is the figure/deck dir (default
