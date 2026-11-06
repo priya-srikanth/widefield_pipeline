@@ -91,14 +91,20 @@ DEFICITS = {"ttc": ("trial_attempts_sessions.csv", "ttc_ms_far_contra", False),
             "attempt": ("trial_attempts_sessions.csv", "attempt_rate_far_contra", True),
             "completion": ("trial_attempts_sessions.csv", "completion_far_contra", True),
             "latency": ("trial_attempts_sessions.csv", "latency_attempt_ms_far_contra", False),
-            "contact": ("position_coding_trend_recovery_sessions.csv", "contact_far_contra", True)}
+            "contact": ("position_coding_trend_recovery_sessions.csv", "contact_far_contra", True),
+            # LOG fold change of ttc (Priya 11-05: "inverse log better than linear"): log(session / pre) = log1p(ttc
+            # deficit). Sensitivity row; compresses the few high-deficit acute sessions that pull the linear fit.
+            "ttc_log": ("trial_attempts_sessions.csv", "ttc_ms_far_contra", False, "log1p")}
 DEFICIT = "ttc"
 
 
 def deficit(qc_dir: Path, name: str = DEFICIT) -> dict:
     """{label: deficit} for a `DEFICITS` entry, read from `<run>/imaging_encoding/qc`."""
-    csv, col, hib = DEFICITS[name]
-    return behaviour_deficit(Path(qc_dir) / csv, col, hib)
+    csv, col, hib, *tf = DEFICITS[name]
+    d = behaviour_deficit(Path(qc_dir) / csv, col, hib)
+    if tf and tf[0] == "log1p":                         # log(session / pre) for a larger-is-worse relative deficit
+        d = {k: (float(np.log1p(v)) if np.isfinite(v) and v > -1 else np.nan) for k, v in d.items()}
+    return d
 
 
 def add_deficit(L: pd.DataFrame, deficit: dict, label_col: str = "label") -> pd.DataFrame:
