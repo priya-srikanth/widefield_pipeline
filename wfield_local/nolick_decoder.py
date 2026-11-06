@@ -79,7 +79,9 @@ CATEGORIES = ("engaged", "late_rewarded", "undetected")
 # late_rewarded arm is empty by construction, and the late-vs-undetected distinction is a real result
 # worth keeping visible -- on PS93 8/12 the entire pre-cue survival sat in the LATE arm (balanced
 # 0.532, p=0.003) while undetected trials showed nothing (0.153, p=0.76).
-DEFAULT_RESPONSE_WINDOW_S = 3.5
+#
+# THE RESPONSE-WINDOW FALLBACK is no longer a constant here: it is `daq_trials.fallback_response_window_s()`
+# (behavior.response_window_fallback_s, 3.5 s), the one value every resolver uses (code review 11-04 item 6).
 
 # Known non-stroke reasons a position's "undetected" trials over-represent failed EXECUTION rather
 # than absent intent. Recorded so the DLC/facial-tracking pass has a target list.
@@ -109,7 +111,7 @@ def _args(source="locanmf", align="cue", post_s=2.0, bins=None):
                            post_s=post_s, fs=FS, max_rt=2.0, bins=bins)
 
 
-def response_window_for(s, default=DEFAULT_RESPONSE_WINDOW_S):
+def response_window_for(s, default=None):
     """This session's response window in seconds, from its own gui_config.json.
 
     Read per session rather than taken from defaults because it is a TASK setting that has been
@@ -128,11 +130,13 @@ def response_window_for(s, default=DEFAULT_RESPONSE_WINDOW_S):
 
     from wfield_local import daq_trials
 
+    if default is None:
+        default = daq_trials.fallback_response_window_s()      # the one configured fallback (was 3.5 here)
     animal = s["label"].split("_")[0]
     try:
         for cand in config.load_sessions():
             if cand["label"] == s["label"] and cand.get("behavior_trials"):
-                win, _src = daq_trials.response_window_s(Path(cand["behavior_trials"]).parent, default)
+                win, _src = daq_trials.response_window_s(Path(cand["behavior_trials"]).parent)
                 return float(win)
         m = _re.search(rf"{animal}_(\d{{8}})_", str(s.get("h5") or "")) or \
             _re.search(r"[/\\](\d{8})[/\\]", str(s.get("h5") or s.get("mc") or ""))
@@ -142,7 +146,7 @@ def response_window_for(s, default=DEFAULT_RESPONSE_WINDOW_S):
         root = config.resolver().root("behavior_logs")
         hits = sorted(_glob.glob(f"{root}/{animal}_{yyyymmdd}_*/gui_config.json"))
         if hits:
-            win, _src = daq_trials.response_window_s(Path(hits[0]).parent, default)
+            win, _src = daq_trials.response_window_s(Path(hits[0]).parent)
             return float(win)
         print(f"  [{s['label']}] no gui_config.json for {yyyymmdd} -> default {default}s", flush=True)
     except Exception as ex:                                            # noqa: BLE001
