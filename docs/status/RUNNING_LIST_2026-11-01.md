@@ -2040,3 +2040,13 @@ bundle without `daqlk` and writes a provenance json.
   scratch + diff YES (helper, new branch fix/decisions-followup-20261105); (1) precue discriminator late window: "not sure
   dropping it helps, let's say 15 min?" -> asked Priya: last 15 min of the session, or everything after the first 15 min.
   Log vs linear deficit: not yet answered.
+- ~22:30: **Priya: log deficit = PRIMARY behaviour axis.** b185ad70 + ef663dc7 on branch fix/log-deficit-primary-20261105
+  (wf_merge_main, off main d882558d; unpushed): DEFICIT = ttc_log; deficit() returns a Deficit carrying its transform;
+  add_deficit keeps deficit_x (raw) so plot_fits draws the original axis with the a + b*log1p(x) curve; linear ttc = *_ttc
+  sensitivity; no top spine in plot_fits / plot_epoch. Tests 86 + 9 pass. encoding_mixed outputs renamed (old default
+  linear -> *_ttc; *_ttc_log -> default) and redrawn (--plot-only). OTHER behaviour-model consumers (imaging_lmm, remap_lmm,
+  remap_checks, within_spout_mixed, iti_lmm_figures) pick up log at their next render; the pinned render worktree
+  (a76352f3) still uses linear -> re-run those steps after merging.
+  - Priya (1): precue discriminator = keep the late window, MINIMUM 15 trials (was 20) -> sent to the follow-up helper.
+  - 22:24 LOW RAM (4-5 GB): my decisions push's pre-push pytest (13 GB, targeted files) + lanes -> STOP file written
+    (nothing killed); lane T halted. Remove STOP + relaunch halted lanes once the push finishes.
