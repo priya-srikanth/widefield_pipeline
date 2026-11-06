@@ -69,7 +69,14 @@ page Figs 1.1-1.3 / 2.x source paths move to cohort/<tag>/prepost_working after 
 push6 at 15:23: branch 1 (small) in full-suite pre-push (configs/ changed). Render: all lanes wait on heavy lock held by v6
 t_partial_te (105/107) + x_enl_move (last chronic sessions).
 
-**Waiting on Priya:** OK to push fix/priya1106-cam4-style when the helper reports (A27 changes cam4 numbers -> report
+**Update ~15:45:** push6 FAILED at branch 1 (full suite 28 min: 4 failed / 5163 passed; nothing pushed). Three were already
+failing on main (frozen_encoder --roi-targets unsorted fan_out res; pin_blas test reading names moved to parallel._BLAS_VARS;
+hooks test rejecting this box's absolute core.hooksPath), one from A5 (test_map_cache_key: precue_engagement_states section
+unclassified -> OUTSIDE_MAPS, map builders only import engagement_gate). Fixed on the small branch 9d740bf2 (32 tests pass).
+Priya said YES to cam4-style -> scratchpad push7.sh = the six + wf_p1106_cam4, sequential, merge-only (bg task bn32updgj;
+per-branch push logs scratchpad/push7.<wt>.log). Each push re-runs the full suite (~28 min) when configs/ is in the diff.
+
+**Priya OK'd cam4-style push (15:3x).** ~~Waiting on Priya:** OK to push fix/priya1106-cam4-style when the helper reports (A27 changes cam4 numbers -> report
 changed conclusions BEFORE any page text).
 
 ### 00-COMPACT-31 (11-06 ~14:30; times written as 16:00-16:20 below were estimates, real ~14:10-14:30) -- READ FIRST; supersedes 30 for state (30 holds for queue mechanics)
