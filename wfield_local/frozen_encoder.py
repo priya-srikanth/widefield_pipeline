@@ -2261,6 +2261,7 @@ def _run_roi_targets(a, out: Path, got: list, by_an: dict, held: dict, labels: l
     from wfield_local import parallel
     res, fail = parallel.fan_out(jobs, predict_roi_job, jobs=a.jobs, label="frozen-roi",
                                  log=lambda m: print(m[:120], flush=True))
+    res = sorted(res, key=lambda kv: kv[0][0])          # completion order -> label order (CLAUDE.md rule 9)
     for it, err in sorted(fail, key=lambda kv: kv[0][0]):
         print(f"  !! predict {it[0]}: {err}", flush=True)
     summarise_musall(out, a.variants)
