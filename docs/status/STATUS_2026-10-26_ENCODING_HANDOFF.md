@@ -39,6 +39,55 @@ for anything that loads imaging. E = `M:/MICROSCOPE/Priya/Widefield/LP_analysis/
 3. Then tell **sabatinilab-e3** (PI deck) the decoder figures are final: per figure the share PNG path, page Fig N.k,
    script + args, headline numbers, methods text (they asked 10-26 ~22:30; reply sent: not final yet).
 
+### 00-COMPACT-31 (11-06 ~16:00) -- READ FIRST; supersedes 30 for state (30 holds for queue mechanics)
+
+**Priya 11-06 16:00: "make sure we're not layering changes onto in-flight analyses."** Rule from now on:
+1. **No more mid-render code changes into running queues.** Any new code goes on a branch; the not-started steps it
+   affects are parked with `RESERVED_HOLD` (no queue takes it) BEFORE they can run on old code; parked steps run ONCE, in a
+   single final catch-up queue, on one final code version.
+2. Each queue's code is pinned by its worktree; never merge / checkout in a render worktree while its lanes run.
+3. A step already DONE on code that has since been fixed is listed below for re-run in the catch-up queue (not silently
+   left).
+
+**Code versions in the render (same run tag _daqlk; outputs share folders):**
+
+| code (worktree @ sha) | queues | contents |
+|---|---|---|
+| wf_render_daqlk @ a76352f3 | v7b (+ v6 leftovers t_partial_te, x_enl_move) | 11-05 merged main, pinned |
+| wf_render_v8 @ 5db29b07 | v8, v8b, v8c, v8e | + decisions, ALM/tjM1 maps, speed-ups |
+| wf_render_v8d @ d2d26e84 | v8d | + exact ROI frozen run (435160e2) |
+| wf_trendfix @ 6033cbbb | v8e2 | 5db29b07 + trend-recovery *_trials.npz fix |
+| wf_render_v8f @ 110c4efd | v8f, v8g | main 604c09d3 + priya1106-small / -frdrift / -gainbio |
+
+Each change was additive for the steps that use it (tests pin Allen / old outputs unchanged), but a FIGURE FAMILY can mix
+code versions; the provenance table records each step's code sha (log header).
+
+**Branches NOT in the render (in flight):**
+- `fix/priya1106-gates-captions` (wf_p1106_gates, helper running): A20 kinematics + 3-D post-cue-lick scripts -> camera
+  working period; A21 recovery_timing denominator; A22 fig_goal_summary computed titles; A23 exec_vs_neural_match tag.
+  Render overlap: kinematics / 3-D / recovery_timing / epoch_behaviour scripts are in NO render queue (page owners render
+  them) -> no overlap. Overlap PARKED (RESERVED_HOLD, 16:00): b_exec_vs_decoder, b_exec_vs_far_contra, b_exec_vs_far_mid,
+  d_fig_goal_summary(_f1/_f2/_f3). RE-RUN after the fix: d_exec_vs_encoder (ran on the stale relabel tag).
+- `feat/svg-page-figures-20261106` (wf_svg, helper running): adds SVG beside every page-figure PNG; PNG byte-identical.
+  Not in the render; SVGs come from the redraw pass (REDRAW_INVENTORY_2026-11-06.md, helper running) after it is on main.
+- `feat/priya1106-small / -frdrift / -gainbio`: in the render (v8f / v8g) but NOT on main (push hold for a8).
+
+**Push hold on main (a8, since 13:20)** still on. When it lifts: merge origin/main into each branch, push one at a time
+(priya1106-small, -frdrift, -gainbio, gates-captions, svg) with Priya's OK per branch.
+
+**Final catch-up queue (to build once gates-captions is merged):** the 7 parked steps + d_exec_vs_encoder re-run (+ the
+A25 LP epoch arm if Priya says yes; + any figure redraws for SVG per the inventory).
+
+**Open for Priya:** A25 (LP arm of the imaging epoch figures, LP licks + ENL 1 s, ~9 h heavy; only the DAQ arm ran).
+
+**Provenance table (complete merge):** `wf_attempt docs/status/rebuild_20261103/FIGURE_PROVENANCE_20261106.{csv,md}`
+(297cedc9): 832 rows, 45 CONFIRMED / 635 INFERRED / 152 UNKNOWN, 69 caption conflicts, Data: template, canonical
+definitions, findings (incl. corrections stated without multiple-comparison correction; far-contra decoder LP-trained).
+Scratch tools: scratchpad `prov/` (parse_steps.py, merge.py, build_md.py) -- re-run after the render for CONFIRMED.
+
+**Helpers running at 16:00:** gates-captions (A20-A23), SVG writers, redraw inventory (for a8). Their reports arrive as
+agent messages; nothing pushes.
+
 ### 00-COMPACT-30 (11-06 ~13:00) -- READ FIRST; supersedes 29 for state (29 / 28 hold for rules and history)
 
 **Running list for Priya:** `docs/status/OVERNIGHT_2026-11-05_FOR_PRIYA.md` (sections A-D + timestamped updates through
