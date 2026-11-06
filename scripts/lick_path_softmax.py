@@ -94,13 +94,14 @@ def main(argv=None) -> int:
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
+    from wfield_local import config
     from wfield_local import analysis_kit as ak
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--jobs", type=int, default=10)
     a = ap.parse_args(argv)
     K = pd.read_csv(I / "pose3d_kin_licks_snapshot_20261023.csv.gz",
                     usecols=["animal", "session", "epoch", "trial_id", "position", "t_peak_3d", "date"])
-    K = K[(K.date.astype(str).str[4:6] != "06") & K.t_peak_3d.notna()].copy()       # August-on (encoding rule)
+    K = K[~K.date.astype(str).map(config.early_pre) & K.t_peak_3d.notna()].copy()       # August-on (encoding rule)
     K["target"] = K.position.map(MOUSE)
     K = K.dropna(subset=["target"]).reset_index(drop=True)
     out = pose3d_dir(root=_dlc()) / "trajectories"

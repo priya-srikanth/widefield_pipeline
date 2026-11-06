@@ -55,8 +55,19 @@ N_POS = 6
 
 _rising = daq_io.rising_edges          # one implementation, in daq_io
 
-def response_window_s(session_dir: Path, default: float) -> tuple[float, str]:
-    """The session's real response window (s) from ``gui_config.json``; ``default`` if absent.
+def fallback_response_window_s() -> float:
+    """THE fallback response window (s), `behavior.response_window_fallback_s`: the one value every resolver uses when a
+    session's gui_config has none (code review 11-04 item 6; behaviour had 2.0 s and imaging 3.5 s until 11-05)."""
+    from wfield_local import config
+    return float(config.defaults()["behavior"]["response_window_fallback_s"])
+
+
+def response_window_s(session_dir: Path, default: float | None = None) -> tuple[float, str]:
+    """The session's real response window (s) from ``gui_config.json``; the configured fallback if absent.
+
+    Production callers pass NO ``default`` (`tests/test_response_window_fallback.py` checks): the fallback is
+    `fallback_response_window_s`, so two consumers cannot score "responded" with different windows. ``default`` stays
+    for unit tests of the parser.
 
     Returns ``(seconds, source)``. The GUI stores it in MILLISECONDS under ``timing.response_window``
     (older/other layouts have used ``cue.response_window``; both are accepted), and writes its config
@@ -78,7 +89,7 @@ def response_window_s(session_dir: Path, default: float) -> tuple[float, str]:
                 return float(val) / 1000.0, f"{name}:{section}"
             except (TypeError, ValueError):
                 continue
-    return float(default), "default"
+    return float(fallback_response_window_s() if default is None else default), "default"
 
 
 def decode(h5_path: Path, lick_params: dict | None = None) -> dict:
@@ -248,12 +259,12 @@ def build_trials(dec: dict, response_window: float) -> pd.DataFrame:
     return df
 
 
-def trials_from_h5(h5_path: Path, session_dir: Path, lick_params: dict,
-                   default_window_s: float) -> tuple[pd.DataFrame | None, dict]:
-    """Full path: decode -> quality gate -> score. ``(trials|None, info)``; None => use the log."""
+def trials_from_h5(h5_path: Path, session_dir: Path, lick_params: dict) -> tuple[pd.DataFrame | None, dict]:
+    """Full path: decode -> quality gate -> score. ``(trials|None, info)``; None => use the log. The window is the
+    session's own (`response_window_s`, configured fallback); until 11-05 the caller passed 2.0 s as the fallback."""
     dec = decode(h5_path, lick_params)
     ok, reason = quality(dec)
-    win, win_src = response_window_s(session_dir, default_window_s)
+    win, win_src = response_window_s(session_dir)
     info = {"ok": ok, "reason": reason, "response_window_s": win, "window_source": win_src,
             "n_licks": int(dec["lick_s"].size), "h5": str(h5_path)}
     if not ok:

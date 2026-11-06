@@ -93,6 +93,7 @@ def _b(s: pd.Series) -> pd.Series:
 
 def labels() -> list[str]:
     """S25's imaging sessions (curated, PS92-95, licks_scored), pre restricted to AUGUST."""
+    from wfield_local import config
     from wfield_local import analysis_kit as ak
     from wfield_local import epochs
     S = pd.read_csv(S25 / "extract_summary.csv")
@@ -102,7 +103,7 @@ def labels() -> list[str]:
         if lab[:4] not in AN or lab not in cur:
             continue
         ep = epochs.epoch_of(lab)
-        if ep not in EPS or (ep == "pre" and lab[-4:-2] != "08"):
+        if ep not in EPS or (ep == "pre" and config.early_pre(lab)):
             continue
         out.append(lab)
     return out

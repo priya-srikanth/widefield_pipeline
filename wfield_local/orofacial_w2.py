@@ -157,7 +157,6 @@ def _w2_group(job):
 def compute(rv, run: str, jobs: int | None, n: int, draws: int, baseline: str = "all") -> pd.DataFrame:
     from wfield_local import analysis_kit as ak
     from wfield_local import config, epochs, parallel
-    from wfield_local import orofacial_cohort as oc
     from wfield_local import orofacial_outputs as oo
     cache = _cache_dir(run)
     items = []
@@ -166,7 +165,7 @@ def compute(rv, run: str, jobs: int | None, n: int, draws: int, baseline: str = 
         date = config.date8(s_["label"].split("_")[-1])
         sd = oo.session_dir(rv, run, a, date)
         ep = epochs.epoch_of(s_["label"])
-        if baseline == "late" and ep == "pre" and date[4:8] < oc.LATE_PRE_FROM:
+        if baseline == "late" and ep == "pre" and config.early_pre(date):
             continue                                   # late baseline: June pre sessions neither scored nor in the pool
         if (sd / "manifest.json").exists():
             items.append((sd, a, date, ep, epochs.days_since_stroke(s_["label"]), str(cache)))

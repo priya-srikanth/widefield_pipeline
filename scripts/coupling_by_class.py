@@ -45,9 +45,10 @@ N_BOOT = 2000
 
 
 def load() -> dict:
+    from wfield_local import config
     T = pd.concat([pd.read_csv(D / attempt_trials_name("lick", an)) for an in AN])
     T = T[(T.method == "dom") & (T.spout == "far_contra") & T.cls.isin(["pre_hit", "hit", "incomplete"])
-          & (T.label.str[-4:] >= "0801")]
+          & (~T.label.map(config.early_pre))]
     T["neural_d"] = T.pp_far_mid - T.pp_far_contra
     T["cls2"] = np.where(T.cls == "incomplete", "failed", "hit")
     out = {}

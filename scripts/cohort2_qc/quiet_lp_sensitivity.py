@@ -52,6 +52,7 @@ from quiet_area_spikes import DETREND_S, EP, EVENTS, columns, mad, session_trace
 from quiet_spikes_fr import face_regressors, lagged  # noqa: E402
 from quiet_spikes_v2 import BUF_S, V2, busy_frames, detrend  # noqa: E402
 from quiet_spikes_v2_fr import FRV2  # noqa: E402
+from wfield_local import config  # noqa: E402
 
 OUT = V2 / "lp_quiet"
 K = 4.0
@@ -159,14 +160,14 @@ def session_table():
     D = {}
     for f in sorted((OUT / "sessions").glob("*.npz")):
         ep = epochs.epoch_of(f.stem)
-        if ep is None or (ep == "pre" and f.stem[-4:] < "0806"):
+        if ep is None or (ep == "pre" and config.early_pre(f.stem)):
             continue
         D[f.stem] = (dict(np.load(f)), ep)
     v2 = {k: dict(np.load(V2 / "sessions" / f"{k}.npz")) for k in D}
     fr = {k: dict(np.load(FRV2 / "sessions" / f"{k}.npz")) for k in D}
     # thresholds exactly as the published tables: animal median over August-pre sessions (ALL pre sessions on file)
-    pre_v2 = [f for f in (V2 / "sessions").glob("*.npz") if epochs.epoch_of(f.stem) == "pre" and f.stem[-4:] >= "0806"]
-    pre_fr = [f for f in (FRV2 / "sessions").glob("*.npz") if epochs.epoch_of(f.stem) == "pre" and f.stem[-4:] >= "0806"]
+    pre_v2 = [f for f in (V2 / "sessions").glob("*.npz") if epochs.epoch_of(f.stem) == "pre" and not config.early_pre(f.stem)]
+    pre_fr = [f for f in (FRV2 / "sessions").glob("*.npz") if epochs.epoch_of(f.stem) == "pre" and not config.early_pre(f.stem)]
     sd_v2 = {an: np.nanmedian([np.load(f)["sd_q"] for f in pre_v2 if f.stem.startswith(an)], 0) for an in
              sorted({k[:4] for k in D})}
     sd_fr = {an: np.nanmedian([np.load(f)["sd_res"] for f in pre_fr if f.stem.startswith(an)], 0) for an in

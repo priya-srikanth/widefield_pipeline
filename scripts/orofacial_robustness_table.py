@@ -4,7 +4,7 @@
 
 Re-runs the cohort's tests (`orofacial_stats.session_change_tests`: session Mann-Whitney + BH-FDR, animal-weighted
 bootstrap) on the saved per-position table under four variants -- baseline all curated pre / August-only pre
-(`orofacial_cohort.LATE_PRE_FROM`), x with / without PS93 (pre-existing right orofacial deficit) -- and writes, per
+(`config.early_pre`), x with / without PS93 (pre-existing right orofacial deficit) -- and writes, per
 (metric, position, epoch), each variant's change and verdict plus `robust` = significant by BOTH tests in ALL FOUR.
 Output: <LP_analysis>/<run>/cohort/tables/robustness/robustness.csv (+ robust_cells.md).
 """
@@ -16,6 +16,7 @@ import pandas as pd
 
 
 def main() -> None:
+    from wfield_local import config
     from wfield_local import orofacial_cohort as oc
     from wfield_local import orofacial_outputs as oo
     from wfield_local import writeguard
@@ -34,7 +35,7 @@ def main() -> None:
     writeguard.assert_writable(out)
     out.mkdir(parents=True, exist_ok=True)
     ms = list(dict.fromkeys([*oc.COHORT_SCALARS, *(m for g in oc.POS_GROUPS.values() for m in g)]))
-    late = ~((P.epoch == "pre") & (P.date.str[4:8] < oc.LATE_PRE_FROM))
+    late = ~((P.epoch == "pre") & P.date.map(config.early_pre))
     variants = {"all": P, "late": P[late], "all_noPS93": P[P.animal != "PS93"],
                 "late_noPS93": P[late & (P.animal != "PS93")]}
     key = ["metric", "pos", "epoch"]

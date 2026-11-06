@@ -414,8 +414,9 @@ def cmd_run(jobs: int) -> None:
 
 
 def _aug(d: pd.DataFrame) -> pd.DataFrame:
+    from wfield_local import config
     d = d[d.epoch.isin(EPS) & d.animal.isin(AN)]
-    return d[(d.epoch != "pre") | (d.label.str[-4:-2] == "08")].copy()
+    return d[(d.epoch != "pre") | (~d.label.map(config.early_pre))].copy()
 
 
 def load_T() -> pd.DataFrame:

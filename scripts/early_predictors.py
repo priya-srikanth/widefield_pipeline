@@ -47,9 +47,10 @@ def exact_spearman(x, y):
 
 
 def features() -> pd.DataFrame:
+    from wfield_local import config
     from wfield_local import run_mode
     sp0 = pd.read_csv(run_mode.subdir(E / "specificity_control") / _design_tag("gate-attempted_v7g3_t3d_frA") / "sessions.csv")
-    sp0 = sp0[sp0.label.str[-4:] >= "0801"]
+    sp0 = sp0[~sp0.label.map(config.early_pre)]
     sp, spa = sp0[sp0.area.isin(ORO)], sp0[sp0.area.isin(ALMTJ)]
     days = pd.read_csv(A / "recovery_timing_series_lick.csv")[["label", "day"]].drop_duplicates()
     sp = sp.merge(days, on="label", how="left")
@@ -58,7 +59,7 @@ def features() -> pd.DataFrame:
     allc = pd.read_csv(run_mode.subdir(E / "attempt_coding_pp", lp_family=True) / "trial_neural_vs_exec_coupling.csv")
     half = pd.read_csv(A / "recovery_timing_halftimes_lick.csv").set_index("animal")
     T = pd.concat([pd.read_csv(A / attempt_trials_name("lick", an)) for an in AN])
-    T = T[(T.method == "dom") & (T.spout == "far_contra") & (T.label.str[-4:] >= "0801")]
+    T = T[(T.method == "dom") & (T.spout == "far_contra") & (~T.label.map(config.early_pre))]
     ref = T[T.cls == "pre_hit"].groupby("animal").p_true.mean()
     T["ret"] = (T.p_true - 1 / 6) / (T.animal.map(ref) - 1 / 6)
     rows = []

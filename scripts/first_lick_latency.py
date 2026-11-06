@@ -59,6 +59,7 @@ def session_latency(label: str) -> pd.DataFrame:
 
 
 def main(argv=None) -> int:
+    from wfield_local import config
     from wfield_local import run_mode as _rm_guard
     _rm_guard.require_default("first_lick_latency")   # unrouted share writer: refuses in a non-default run mode
     from wfield_local import analysis_kit as ak
@@ -75,7 +76,7 @@ def main(argv=None) -> int:
     out = oo.encoding_root(a.run, PathResolver()) / "qc"
     writeguard.assert_writable(out)
     cur = set(ak.curated_labels())
-    labels = [x for x in ce.sessions_available() if x in cur and x[-4:] >= "0806"]
+    labels = [x for x in ce.sessions_available() if x in cur and not config.early_pre(x)]
     got, fail = ak.fan_sessions(labels, session_latency, jobs=a.jobs)
     for it, err in fail:
         print(f"  FAILED {it}: {err}")

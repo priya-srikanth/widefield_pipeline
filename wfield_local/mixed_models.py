@@ -54,13 +54,14 @@ EPOCHS = ("pre", "acute", "subacute", "chronic")
 
 def add_time_covariates(L: pd.DataFrame, label_col: str = "label", august_pre: bool = True) -> pd.DataFrame:
     """+ animal, epoch, day, post, lday; drops sessions with no epoch (excluded / gap days) and, by default, June pre."""
+    from wfield_local import config
     from wfield_local import epochs
     L = L.copy()
     L["animal"] = L[label_col].str[:4]
     L["epoch"] = L[label_col].map(epochs.epoch_of)
     L = L[L.epoch.notna()]
     if august_pre:
-        L = L[(L.epoch != "pre") | (L[label_col].str[-4:] >= "0806")]
+        L = L[(L.epoch != "pre") | (~L[label_col].map(config.early_pre))]
     L["day"] = L[label_col].map(epochs.days_since_stroke).astype(float)
     L["post"] = (L.epoch != "pre").astype(float)
     L["lday"] = np.where(L.post == 1, np.log(L.day.clip(lower=1)), 0.0)
@@ -74,8 +75,9 @@ def behaviour_deficit(sessions_csv: Path, column: str = "contact_far_contra", hi
     larger is worse (a latency; scripts/trial_attempts.py) pass higher_is_better=False: (session - pre) / pre.
     relative=False: (pre - session) in the column's own units -- for measures whose pre level is ~0 (signed angle
     offsets, e.g. the weighted aim of scripts/iti_recovery_measure.py), where dividing by pre is meaningless."""
+    from wfield_local import config
     S = pd.read_csv(sessions_csv)
-    pre = S[(S.epoch == "pre") & (S.label.str[-4:] >= "0806")].groupby("animal")[column].mean()
+    pre = S[(S.epoch == "pre") & (~S.label.map(config.early_pre))].groupby("animal")[column].mean()
     d = S.animal.map(pre) - S[column]
     if relative:
         d = d / S.animal.map(pre)

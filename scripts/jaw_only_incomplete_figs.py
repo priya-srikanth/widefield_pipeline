@@ -56,7 +56,6 @@ EP_COL = {"pre": "0.35", "acute": "#d01c8b", "subacute": "#b8860b", "chronic": "
 AN_COL = {"PS92": "#1b9e77", "PS93": "#d95f02", "PS94": "#7570b3", "PS95": "#e7298a"}
 BIN_MS, WIN_MS, MIN_FRAMES, MIN_TR = 20.0, (-500.0, 3000.0), 5, 2
 MIN_AN = 2  # animals needed to draw a pooled trace line
-PRE_FROM = "20260801"
 NB = 2000
 DENOM_ENV = "WFIELD_TC_DENOM"   # the denominator named in titles; set by --trials (env: the figure workers are spawned)
 WORKING_DENOM = ("WORKING-PERIOD trials (camera classes: cue to the session's last camera lick; stopped trials excised; "
@@ -390,6 +389,7 @@ def main(argv=None) -> int:
 
 def _collect(a, ak, epochs, P3, c1: Path, d3: Path, v36: Path, out: Path) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Session loop (fanned over cores) -> per-session class shares S and binned traces Tr, written to out."""
+    from wfield_local import config
     bad = P3.failed_sessions(d3)
     sess = sorted({f.name.replace("_events.csv", "") for f in c1.glob("PS*_events.csv")} - set(bad) & ak.curated_ids())
     sess = [s for s in sess if (v36 / s.split("_")[0] / s.split("_")[1] / "tongue_jaw_mismatch.csv").exists()]
@@ -406,8 +406,8 @@ def _collect(a, ak, epochs, P3, c1: Path, d3: Path, v36: Path, out: Path) -> tup
     ep_of = {k: epochs.epoch_of(f"{k[0]}_{k[1][4:]}") for k in set(zip(S.animal, S.date)) | set(zip(Tr.animal, Tr.date))}
     for D in (S, Tr):
         D["epoch"] = [ep_of[k] for k in zip(D.animal, D.date)]
-    S = S[S.epoch.notna() & ((S.epoch != "pre") | (S.date >= PRE_FROM))].reset_index(drop=True)
-    Tr = Tr[Tr.epoch.notna() & ((Tr.epoch != "pre") | (Tr.date >= PRE_FROM))].reset_index(drop=True)
+    S = S[S.epoch.notna() & ((S.epoch != "pre") | ~S.date.astype(str).map(config.early_pre))].reset_index(drop=True)
+    Tr = Tr[Tr.epoch.notna() & ((Tr.epoch != "pre") | ~Tr.date.astype(str).map(config.early_pre))].reset_index(drop=True)
     (out / "figures").mkdir(parents=True, exist_ok=True)
     S.to_csv(out / "sessions.csv", index=False, float_format="%.4g")
     if a.trials:     # names the denominator for trial_class_raw_share_fig (Figs 6.1 / 6.2) read from this folder

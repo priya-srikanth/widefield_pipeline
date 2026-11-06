@@ -32,7 +32,7 @@ def full_masks() -> dict:
 def main():
     from wfield_local import config, epochs
     labs = [f.stem.replace("_regions", "") for f in sorted(fd.FRD["A"].glob("*_regions.csv"))]
-    labs = [x for x in labs if x[-4:] >= "0801" and all((fd.FRD[m] / f"{x}_regions.csv").exists() for m in fd.MODES)]
+    labs = [x for x in labs if not config.early_pre(x) and all((fd.FRD[m] / f"{x}_regions.csv").exists() for m in fd.MODES)]
     ids = np.load(fd.FRD["A"] / f"{labs[0]}.npz")["flat"]
     Wstat = esr.block_weights(ids, fd.SPLIT)
     m_stat = esr.masks()

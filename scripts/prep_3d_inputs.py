@@ -31,7 +31,6 @@ from wfield_local.pose3d import pose3d_dir
 
 POSE3D = pose3d_dir()
 ANIMALS = ("PS92", "PS93", "PS94", "PS95")
-PRE_FROM = "20260806"          # August-only pre baseline (curated)
 MIN_FRAC_3D, MIN_SPOUTS = 0.5, 6
 
 
@@ -39,9 +38,10 @@ def spout_table(dst: Path) -> pd.DataFrame:
     """The COMMANDED spout tip per session x position (`scripts.pose3d_spout_commanded.build`), restricted to the
     positions present in the session's 3-D frames (so ``spouts`` below still counts positions the session has)."""
     from scripts.pose3d_spout_commanded import build
+    from wfield_local import config
     out = []
     for f in sorted(p for an in ANIMALS for p in POSE3D.glob(f"{an}_2026*_frames.csv.gz")):
-        if f.name[5:13] < PRE_FROM:
+        if config.early_pre(f.name[5:13]):
             continue
         have = set(pd.read_csv(f, usecols=["position"]).position.astype(str))
         C = build([f.name[:13]])
@@ -53,6 +53,7 @@ def spout_table(dst: Path) -> pd.DataFrame:
 
 
 def main(argv=None) -> int:
+    from wfield_local import config
     from wfield_local import run_mode as _rm_guard
     _rm_guard.require_default("prep_3d_inputs")   # unrouted share writer: refuses in a non-default run mode
     argv = sys.argv[1:] if argv is None else argv
@@ -75,7 +76,7 @@ def main(argv=None) -> int:
     for sess in sorted(K.session.unique()):
         a, d = sess.split("_")
         lab = f"{a}_{d[4:]}"
-        if d < PRE_FROM or lab not in cur or lab not in avail:
+        if config.early_pre(d) or lab not in cur or lab not in avail:
             continue
         L = pd.read_csv(oo.session_dir(rv, oc.RUN, a, d) / "licks.csv")
         ok = ((~L.peak_interp.astype(bool)) & (L.protrusion_px >= ce.MIN_REACH_PX)

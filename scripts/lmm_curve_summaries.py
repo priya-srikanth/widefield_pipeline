@@ -49,11 +49,12 @@ def cam4(base: Path) -> dict:
 
 def pose3d(curves: Path) -> dict:
     import sys
+    from wfield_local import config
     sys.path.insert(0, str(Path(__file__).parent))
     import kinematics_pooled_figs as K
     C = pd.read_csv(curves)
     C = C[(C.kind == "norm") & (C.lickset == "all") & (C["cov"] >= 0.5)]
-    C = C[(C.epoch != "pre") | (C.date.astype(str).str[-4:] >= "0801")]
+    C = C[(C.epoch != "pre") | (~C.date.astype(str).map(config.early_pre))]
     lo, hi = (0.1, 0.9) if C.x.max() <= 1.0 + 1e-9 else (10, 90)          # phase stored as 0-1 or 0-100
     C = C[C.x.between(lo, hi)]
     g = ["animal", "session", "epoch", "position"]

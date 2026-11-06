@@ -47,6 +47,7 @@ def landing(E) -> dict:
 
 def main(argv=None) -> int:
     # coordinator 11-04: routed (outputs under the run tag), no longer refused in a tagged run
+    from wfield_local import config
     from wfield_local import analysis_kit as ak
     from wfield_local import epochs
     from wfield_local import grant_figures as gf
@@ -63,7 +64,7 @@ def main(argv=None) -> int:
     (E / "qc").mkdir(parents=True, exist_ok=True)
     out = E / "qc"
     writeguard.assert_writable(out)
-    labels = [x for x in ak.curated_labels() if x[-4:] >= "0806"]
+    labels = [x for x in ak.curated_labels() if not config.early_pre(x)]
     lab_of = {(x[:4], epochs.days_since_stroke(x)): x for x in labels}
     Lw = landing(E)
     dest, _days = gf._matrices_best_match_destination(align, variant)

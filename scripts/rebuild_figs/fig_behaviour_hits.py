@@ -65,7 +65,7 @@ def compute(src: Path):
     sd = {a: dt.datetime.strptime("2026" + config.stroke_date(a), "%Y%m%d") for a in AN}
     M["day"] = [(dt.datetime.strptime(d, "%Y%m%d") - sd[a]).days for a, d in zip(M.animal, M.date)]
     M["epoch"] = [epoch_of_day(a, int(d)) for a, d in zip(M.animal, M.day)]
-    M = M[M.epoch.notna() & ~((M.epoch == "pre") & (M.date.str[4:6] != "08"))]     # August-only pre
+    M = M[M.epoch.notna() & ~((M.epoch == "pre") & M.date.map(config.early_pre))]     # August-only pre
     rows = []
     for (a, e), g in M.groupby(["animal", "epoch"]):
         for p, c in POS.items():

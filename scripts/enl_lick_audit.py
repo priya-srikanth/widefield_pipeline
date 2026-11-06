@@ -21,7 +21,7 @@ DEFINITION (as in the code base, nothing new):
               error is given for the cell's own post-cue licks (cued) for a like-for-like comparison.
   CONTACT   licks_all.csv `contact` (DAQ contact matched to the cam4 lick).
   IMAGING   session in iti_licks.run_labels() (the frozen-encoder run = the ITI / cued_wide extraction set, August+).
-  EPOCHS    wfield_local.epochs.epoch_of; pre = August sessions only (day >= 0801); 0817 excluded by epoch_of.
+  EPOCHS    wfield_local.epochs.epoch_of; pre = August sessions only (config.early_pre); 0817 excluded by epoch_of.
 
 Outputs <il.OUT_W>/enl_licks/: enl_licks.csv.gz (one row per ENL lick), enl_trials.csv.gz (one row per trial),
 cued_cells.csv (post-cue reference per session x spout), enl_audit_animal.csv (animal x epoch x spout + "all" rows),
@@ -52,6 +52,7 @@ THIN = 20
 
 
 def _sessions() -> list[str]:
+    from wfield_local import config
     from wfield_local import epochs
     from wfield_local import orofacial_cohort as oc
     from wfield_local import orofacial_outputs as oo
@@ -62,7 +63,7 @@ def _sessions() -> list[str]:
         for d in sorted(p.name for p in (base / a).iterdir() if p.is_dir()):
             lab = f"{a}_{d[4:]}"
             ep = epochs.epoch_of(lab)
-            if ep in EP and not (ep == "pre" and d[4:6] < "08") and (base / a / d / "licks_all.csv").exists():
+            if ep in EP and not (ep == "pre" and config.early_pre(d)) and (base / a / d / "licks_all.csv").exists():
                 out.append(lab)
     return out
 

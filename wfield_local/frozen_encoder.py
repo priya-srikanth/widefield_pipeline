@@ -1938,11 +1938,12 @@ def summarise_drop(out: Path) -> None:
     """Frozen drop-one-spout table: per session, base, spout q, window, subset (all frames | q's own trials), area:
     dR2 = (SSE[base|drop:q] - SSE[base]) / SST; then animal x epoch means (rule 8: animals first).
     -> <out>/dropspout/frozen_dropspout{,_by_animal}.csv"""
+    from wfield_local import config
     import pandas as pd
     rows = []
     for js in sorted((Path(out) / "dropspout" / "sessions").glob("*.json")):
         m = json.loads(js.read_text(encoding="utf-8"))
-        if m["label"][-4:] < "0801":
+        if config.early_pre(m["label"]):
             continue
         for base in DROP_BASES:
             if base not in m["sse"]:
@@ -2083,7 +2084,7 @@ def main(argv=None) -> int:
         if src_:
             check_tag(Path(src_).name, "source")
     labels = sorted(a.labels or (_ce().sessions_available() if a.all else []))
-    labels = [x for x in labels if x[-4:] >= "0801"]                       # August-only pre baseline (primary)
+    labels = [x for x in labels if not config.early_pre(x)]                       # August-only pre baseline (primary)
     out = root / f"frozen_encoder_{a.tag}"
     print(f"[frozen] design {design_name()} ({LICKS_ALL_ENV}={LICKS_ALL})", flush=True)
     assert_writable(out)

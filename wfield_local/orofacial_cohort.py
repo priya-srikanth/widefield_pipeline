@@ -1540,7 +1540,7 @@ MIN_COVER_N = 3
 MIN_LICKS_SESSION_POS = 20
 ENGAGED_ONLY = True
 #: BASELINE (Priya 10-18, "both, side by side"): "all" = every curated pre session (June 0606-0608 + August); "late" =
-#: only pre sessions dated >= LATE_PRE_FROM (MMDD), i.e. August, the sessions immediately before the stroke. Measured
+#: only pre sessions dated >= LATE_PRE_FROM (MMDD, = `config.baseline_pre_from()`), i.e. August, the sessions immediately before the stroke. Measured
 #: 10-18: June -> August pre drift is as large as many stroke effects (close-spout contact +0.40-0.47, protrusion -14
 #: to -36 px, peak speed -550 to -1,140 px/s, all 4 animals) -- learning / framing, not stroke.
 BASELINE = "late"                     # AUGUST-ONLY pre baseline is PRIMARY (Priya 2026-10-18); 'all' = June-including sensitivity -> *_allpre
@@ -1551,7 +1551,9 @@ def baseline_filter(df: pd.DataFrame) -> pd.DataFrame:
     """Drop the early (June) pre sessions when BASELINE == 'late'; no-op otherwise."""
     if BASELINE != "late" or df is None or not len(df) or "epoch" not in df or "date" not in df:
         return df
-    return df[~((df.epoch == "pre") & (df.date.astype(str).str[4:8] < LATE_PRE_FROM))]
+    from wfield_local import config
+    early = df.date.astype(str).map(lambda d: config.date_key(d) < config.date_key(LATE_PRE_FROM))
+    return df[~((df.epoch == "pre") & early)]
 
 
 def _apply_config() -> None:
@@ -1571,7 +1573,11 @@ def _apply_config() -> None:
     MIN_PHASE_POINTS = int(c.get("min_phase_intervals_per_bin", MIN_PHASE_POINTS))
     WALK_MIN_LICKS = int(c.get("walk_min_licks", WALK_MIN_LICKS))
     global LATE_PRE_FROM, BASELINE
-    LATE_PRE_FROM = str(c.get("late_pre_from", LATE_PRE_FROM))
+    try:                                                        # the cohort's ONE baseline cut (cohorts.yaml)
+        from wfield_local import config
+        LATE_PRE_FROM = config.baseline_pre_from() or LATE_PRE_FROM
+    except Exception:                                           # tests / no config: keep the default above
+        pass
     # env var so spawned workers follow `--baseline` (options travel to workers; CLAUDE.md rule 6)
     BASELINE = os.environ.get("OROFACIAL_BASELINE", BASELINE)
     global U_SHOW
@@ -1969,7 +1975,7 @@ def main(argv=None) -> int:
     ap.add_argument("--all-trials", action="store_true",
                     help="control: no engagement gate; writes tables/prepost_alltrials, figures/prepost_alltrials")
     ap.add_argument("--baseline", choices=("all", "late"), default="late",
-                    help="pre-stroke baseline: all curated pre sessions, or only those >= late_pre_from (August); "
+                    help="pre-stroke baseline: all curated pre sessions, or only those >= the cohort's baseline_pre_from (August); "
                          "default 'late' (August-only, PRIMARY) writes the plain folders; 'all' (June-including "
                          "sensitivity) writes *_allpre")
     ap.add_argument("--replot-contra", action="store_true",

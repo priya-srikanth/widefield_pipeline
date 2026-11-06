@@ -293,7 +293,8 @@ def run(labels, jobs) -> None:
 
 # ------------------------------------------------------------------------------------------------ summaries
 def _aug(S: pd.DataFrame) -> pd.DataFrame:
-    return S[(S.epoch != "pre") | (S.label.str[-4:-2] == "08")].copy()
+    from wfield_local import config
+    return S[(S.epoch != "pre") | (~S.label.map(config.early_pre))].copy()
 
 
 def _tests(SS: pd.DataFrame, keys: list[str], metrics: list[str], rng) -> pd.DataFrame:
@@ -454,7 +455,7 @@ def summarise2() -> None:
     from wfield_local import config, epochs
     meta = pd.DataFrame({"label": labs, "animal": [config.animal_of(x) for x in labs],
                          "epoch": [epochs.epoch_of(x) for x in labs]})
-    keep = ((meta.epoch != "pre") | (meta.label.str[-4:-2] == "08")).to_numpy()
+    keep = ((meta.epoch != "pre") | (~meta.label.map(config.early_pre))).to_numpy()
     cm = _cat_masks(names)
     zz = np.arctanh(np.clip(M, -0.999, 0.999))
     rows = []

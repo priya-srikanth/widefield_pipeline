@@ -86,7 +86,7 @@ def pilot_sessions() -> list[tuple[str, str]]:
     D = pd.DataFrame(rows, columns=["animal", "date", "epoch"]).sort_values(["animal", "date"])
     pick = []
     for a, g in D.groupby("animal"):
-        pre = g[(g.epoch == "pre") & (g.date.str[4:] >= "0801")].date.tolist()
+        pre = g[(g.epoch == "pre") & ~g.date.map(config.early_pre)].date.tolist()
         acu = g[g.epoch == "acute"].date.tolist()
         chr_ = g[g.epoch == "chronic"].date.tolist()
         for d in dict.fromkeys(pre[:1] + pre[-1:] + acu[:2] + chr_[:1] + chr_[-1:]):

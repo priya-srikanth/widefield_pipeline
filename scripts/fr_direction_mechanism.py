@@ -78,7 +78,7 @@ def pcorr(x, y, z):
 def session(pk: Path) -> dict | None:
     from wfield_local import config, epochs
     lab = pk.stem
-    if lab[-4:] < "0801":
+    if config.early_pre(lab):
         return None
     d = pickle.loads(pk.read_bytes())
     fr = d.get("fr")

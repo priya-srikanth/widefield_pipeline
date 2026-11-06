@@ -52,6 +52,7 @@ from quiet_spikes_v2 import LICK_SOURCE, V2, busy_frames, detect, detrend  # noq
 from wfield_local.orofacial_outputs import encoding_root as _encoding_root  # noqa: E402 - rebuild root (11-03)
 from wfield_local.attempt_coding import trials_name as attempt_trials_name  # noqa: E402
 from wfield_local import lp_licks as _lp_licks  # noqa: E402  (coordinator 11-04: the run's attempts table)
+from wfield_local import config  # noqa: E402
 
 #: THE ENL window, s (Priya 11-04): the shared `lp_licks.enl_post_s()` of the run's lick source -- 1.0 s under LP, the
 #: frozen attempt_coding decoder's window -- LICK-FREE on that source (`lp_licks.gate_licks_s`) and SLID like the
@@ -212,7 +213,7 @@ def load_sessions():
         if _npz_enl_s(f) != ENL_S:
             raise SystemExit(f"{f}: built with ENL window {_npz_enl_s(f)} s, this run uses {ENL_S} s -- re-extract")
         ep = epochs.epoch_of(lab)
-        if ep is None or (ep == "pre" and lab[-4:] < "0806"):
+        if ep is None or (ep == "pre" and config.early_pre(lab)):
             continue
         D[lab] = dict(np.load(f, allow_pickle=True), epoch=ep, day=epochs.days_since_stroke(lab))
         if "enl_w0" not in D[lab]:                    # a pre-11-04 DAQ 2 s file: the fixed window ending at the cue
@@ -715,7 +716,7 @@ def main():
     if not a.summarise:
         from wfield_local.analysis_kit import curated_labels
         from wfield_local.analysis_kit import fan_sessions  # fan_out + sort (rule 9)
-        labels = a.only or [k for k in sorted(curated_labels()) if k[-4:] >= "0806" and k[:4] in ANIMALS]
+        labels = a.only or [k for k in sorted(curated_labels()) if not config.early_pre(k) and k[:4] in ANIMALS]
         res, fail = fan_sessions(labels, extract, jobs=min(a.jobs, 5), label="session")
         print(f"{len(res)} done, {len(fail)} failed")
         for x in fail:

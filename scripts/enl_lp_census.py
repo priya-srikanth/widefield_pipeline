@@ -66,6 +66,7 @@ def one(label):
 
 
 def main(argv=None) -> int:
+    from wfield_local import config
     from wfield_local import run_mode as _rm_guard
     _rm_guard.require_default("enl_lp_census")   # unrouted share writer: refuses in a non-default run mode
     from wfield_local import analysis_kit as ak
@@ -82,7 +83,7 @@ def main(argv=None) -> int:
         print("FAILED", it, err)
     T = pd.DataFrame([r for _, rr in got for r in rr])
     T["animal"] = T.label.str.split("_").str[0]
-    T["baseline"] = np.where(T.epoch != "pre", "post", np.where(T.label.str[-4:] >= "0801", "pre_aug", "pre_june"))
+    T["baseline"] = np.where(T.epoch != "pre", "post", np.where(~T.label.map(config.early_pre), "pre_aug", "pre_june"))
     out = oo.encoding_root(oc.RUN, PathResolver()) / "qc"
     assert_writable(out)
     T.to_csv(out / "enl_lp_census.csv", index=False)

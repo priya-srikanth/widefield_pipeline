@@ -22,7 +22,7 @@ MEASURES per session x event type x column (>= MIN_EV events):
   null: (a) and (b) for n-matched random onsets in the engaged session (median of N_NULL draws).
 QUIET 1-4 Hz power: `v2_quiet/fluct/sessions/<label>.npz` psd integrated over 1-4 Hz (Welch on engaged-quiet runs >=
 4 s), plus a check from this script's band-passed trace (variance over engaged quiet frames, quiet_spikes_v2 rule).
-Every measure is divided by the animal's AUGUST-pre median (pre = MMDD >= 0806).
+Every measure is divided by the animal's AUGUST-pre median (pre = not config.early_pre, cohort1 cut 0806).
 STATS: per-animal x epoch table first (rule 8), then `mixed_models.lmm_table` epoch + time models (log10 ratio for
 amplitudes / powers, raw ITPC / PPC), FDR within measure.
 RECOVERY LINK (within animal, post sessions): Pearson r of lick-locked ITPC (and the other measures) vs far-contra hit
@@ -45,6 +45,7 @@ from quiet_area_spikes import EP, EVENTS, columns, session_traces  # noqa: E402
 from quiet_fluct import FL, TRACE_COLS  # noqa: E402
 from quiet_spikes_v2 import LICK_SOURCE, V2, busy_frames  # noqa: E402
 from wfield_local import lp_licks as _lp_licks  # noqa: E402  (coordinator 11-04: the run's attempts table)
+from wfield_local import config  # noqa: E402
 
 LICK_LABEL = "LP video (+ unmatched DAQ contact) lick" if LICK_SOURCE == "daq+lp" else "DAQ lick"
 LL = V2 / "lick_lfo"                                        # follows QS_LICK_SOURCE
@@ -229,7 +230,7 @@ def session_table():
     for f in sorted((LL / "sessions").glob("*.npz")):
         lab = f.stem
         ep = epochs.epoch_of(lab)
-        if ep is None or (ep == "pre" and lab[-4:] < "0806"):
+        if ep is None or (ep == "pre" and config.early_pre(lab)):
             continue
         d = dict(np.load(f))
         for c in SHOW:
@@ -398,7 +399,7 @@ def fig_traces():
     lags = None
     for f in sorted((LL / "sessions").glob("*.npz")):
         ep = epochs.epoch_of(f.stem)
-        if ep is None or (ep == "pre" and f.stem[-4:] < "0806"):
+        if ep is None or (ep == "pre" and config.early_pre(f.stem)):
             continue
         d = np.load(f)
         lags = d["lags_s"] if lags is None else lags
@@ -583,7 +584,7 @@ def composition(jobs):
     labels = []
     for f in sorted((LL / "sessions").glob("*.npz")):
         ep = epochs.epoch_of(f.stem)
-        if ep is not None and not (ep == "pre" and f.stem[-4:] < "0806"):
+        if ep is not None and not (ep == "pre" and config.early_pre(f.stem)):
             labels.append(f.stem)
     res, fail = fan_sessions(labels, cued_trials, jobs=jobs, label="session")
     if fail:
@@ -776,7 +777,7 @@ def main():
     if not a.summarise:
         from wfield_local.analysis_kit import curated_labels
         from wfield_local.analysis_kit import fan_sessions  # fan_out + sort (rule 9)
-        labels = a.only or [k for k in sorted(curated_labels()) if k[-4:] >= "0806" and k[:4] in
+        labels = a.only or [k for k in sorted(curated_labels()) if not config.early_pre(k) and k[:4] in
                             ("PS92", "PS93", "PS94", "PS95")]
         res, fail = fan_sessions(labels, extract, jobs=a.jobs, label="session")
         print(f"{len(res)} done, {len(fail)} failed")

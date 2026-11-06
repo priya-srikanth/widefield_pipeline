@@ -71,6 +71,7 @@ def main(argv=None) -> int:
     import matplotlib.pyplot as plt
 
     from combined_encoding_figures import _outline
+    from wfield_local import config
     from wfield_local import combined_encoding as ce
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--tag", required=True)
@@ -79,7 +80,7 @@ def main(argv=None) -> int:
     a = ap.parse_args(argv)
     run = E / f"frozen_encoder_{a.tag}"
     qs = [q for q in QS if q[1] is None or (run / q[1] / "sessions").is_dir()]
-    sess = sorted(js for js in (run / "joint" / "sessions").glob("*.json") if js.stem[-4:] >= "0801")
+    sess = sorted(js for js in (run / "joint" / "sessions").glob("*.json") if not config.early_pre(js.stem))
     _V, _ft, _Ub, flat, _pa, _nm, shape, pstat = ce.load_imaging(sess[0].stem)
     H, W = (int(x) for x in shape)
     pix = flat[pstat]

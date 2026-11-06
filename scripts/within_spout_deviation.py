@@ -702,6 +702,7 @@ def figures_repo_sig(out: Path, maps: dict, method: str = "nested") -> None:
 
 def main(argv=None) -> int:
     # coordinator 11-04: routed (outputs under the run tag), no longer refused in a tagged run
+    from wfield_local import config
     from wfield_local import analysis_kit as ak
     from wfield_local import combined_encoding as ce
     from wfield_local import epochs
@@ -710,7 +711,7 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--run", default=oc.RUN)
     ap.add_argument("--jobs", type=int, default=2)
-    ap.add_argument("--from-date", default="0806", help="first MMDD (default: the August-only baseline)")
+    ap.add_argument("--from-date", default=config.baseline_pre_from(), help="first MMDD (default: the August-only baseline)")
     ap.add_argument("--figures-only", action="store_true")
     ap.add_argument("--window", choices=("post", "enl"), default="post",
                     help="post: the cue / lick window (--align); enl: the last 1 s before the cue vs pre-arrival")
