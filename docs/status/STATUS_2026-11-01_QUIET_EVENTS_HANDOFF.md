@@ -1,6 +1,37 @@
 # Handoff 2026-11-01: quiet-period cortical events after the VLS stroke (cohort1, PS92-95) + literature context
 
-> **11-06 (morning) -- START HERE (PI-deck + code-cleanup window sabatinilab-a8).** Live log: 
+> **11-06 (afternoon) -- START HERE (a8), supersedes the morning block's deck facts.**
+> - DECK RENAMED by Priya: `presentations/Overview_2026-11-06.pptx` (194 slides, 107 hidden; PI_overview_2026-11-02.pptx
+>   no longer exists). Scripts stay in `_source_PI_overview_2026-11-02/`; new ones set DECK to the new name and check the
+>   `~$Overview_2026-11-06.pptx` lock. Old scripts now fail on a missing file (safe).
+> - Applied 11-06 pm: drop_s94_bullet3_add_check1_1106.py (slide 94 bullet 3 dropped; check-1 result in notes);
+>   reword_s92_posinfo_gain_1106.py (slide 92 bullet 1 "tracks position-carrying movement more strongly (not explained
+>   by more variable movement; provisional)" + check-1 notes; Priya OK here); 490 vs 470 slides 153/154 (SNR rename,
+>   re-rendered fig).
+> - CHECK 1 (posinfo regressor variance, posinfo_checks_v7g3_t3d_spont_frAsplit/ under rebuild_20261103 imaging_encoding):
+>   regressor variance flat / falling acutely (PS94 +18 %), unique R2 cue +0.022 [+0.005, +0.044] 4/4, per unit variance
+>   +107 %; "more variable licks" ruled out; open = decorrelation vs coupling (no_posinfo per-trial re-run, 34's queue).
+>   Script wf_attempt/scripts/posinfo_variance_check.py (uncommitted). Trial-matched PETH needs a predict-only re-run.
+> - SLIDE 94 RE-TILE HELD: Priya decided (34's window) the ALM/tjM1 *_split maps REPLACE the Allen ones; re-tile (PETH
+>   left, trial right) the split figure when 34's render lands. Slide 139 = exact-ROI frozen side.
+> - DECK NOTES "Data:" PASS (Priya): fixed 7-line block at the TOP of every note (Window / Licks / Trial period / Trial
+>   types / Gate / Baseline / Correction), existing text below minus duplicated method sentences. Source = 34's
+>   wf_attempt docs/status/rebuild_20261103/FIGURE_PROVENANCE_20261106 (data_block7 + correction columns coming in its
+>   post-render CONFIRMED merge -- write only CONFIRMED rows). Draft map deck slide -> row (scratch, rebuild with
+>   notes_gap_table.py + rematch2.py logic): 172 picture slides; no row yet 31, 111, 153, 154, 164; check by hand 44, 162,
+>   163; HELD 108 + 187 (A23 exec_vs_neural_match) and LMM slides 8, 17, 20, 121, 122, 139 (deficit-table dir fix) + ~50
+>   stars slides pending 34's producing_script / held flag. Far-contra / attempt decoders are LP-TRAINED: notes must say so.
+> - DECKS -> presentations/pipeline/ (Priya: all auto-built decks; June alignment_comparison -> presentations/archive/
+>   20260601/): helper branch feat/decks-to-presentations-20261106 (worktree wf_decks_presentations), new paths.yaml root;
+>   MOVES NOT DONE -- do them from the helper's move table after its push lands.
+> - SVG: 34's helper adds svg_path() saves to page / deck writers (feat/svg-page-figures-20261106). Redraw inventory
+>   wf_attempt docs/status/REDRAW_INVENTORY_2026-11-06.md: 610 figs, 250 redraw-only (~67 have inputs today), full redraw
+>   ~16 h -> recommendation: no separate redraw; SVGs come with the pending _daqlk catch-up; ask Priya re the ~67.
+> - Cleanup push LANDED on main c724c6b6 (18+ commits). PITFALL: never edit a worktree while its pre-push pytest runs (3
+>   source-text tests failed that way); test_session_cache prune test now globs `<kind>*` (kind carries -daqlk).
+>   34 held its pushes for this and was released.
+>
+> **11-06 (morning) -- (PI-deck + code-cleanup window sabatinilab-a8).** Live log: 
 > docs/status/RUNNING_LIST_2026-11-05_OVERNIGHT.md (questions first). Efficiency: docs/status/EFFICIENCY_AUDIT_2026-11-06.md;
 > style debt: docs/status/STYLE_INVENTORY_2026-11-06.md.
 >
