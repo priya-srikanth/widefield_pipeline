@@ -1942,3 +1942,16 @@ bundle without `daqlk` and writes a provenance json.
   Pushing 5a6b7986 (ttc_log deficit) + 76066e01 (binned panels, --plot-only) to main. Replacement pass: the encoding
   page's mixed-model text follows the binned result (lick: target above pre, not tracking deficit; landing tracks deficit;
   cue: target tracks deficit weakly) -- wording to Priya before rewriting.
+- ~20:55: **DECISION AUDIT done** (DECISION_AUDIT_20261105.md, cc1aba94). Merge + today's commits clean. Found:
+  REVERTED (decided, never implemented, render uses old default): (1) state discriminators still train on DAQ engaged vs
+  all no-lick, incl. stopped / incomplete / jaw_only -- (f)1 Priya 11-05; affects g5_epoch 12s/12b/13s, g5_section_g,
+  g6_grant, g7 state figs; (2) lick ENL family + fr_enl_decode + prelaunch_aim pre-cue parts not sliding (11-04).
+  POSSIBLE: Fig 0.2 hit rate still DAQ gate ((f)2); robustness rows with no queue step (no-spont downstream, DAQ quit-tail
+  row, drift1500, enl_fixed2s); b_encoding_key_figures will fail (reads E/movement_first) + stale suptitle; 12.1b pre-set
+  wording. CONVENTION: sig_marks.sig_star puts stars on data (fix: call star_top), non-canonical spout order in 3 scripts,
+  top spines in mixed_models + several scripts.
+  - Helper implementing (f)1 / (f)2 / ENL slide on branch fix/decisions-f1-f2-enl-20261105 (worktree wf_decisions), no
+    push; then re-run the affected steps.
+- ~20:50: lane E halted at e_iti_main (20:10): iti_licks summarise needs zscore_check/session_sd(_split) tables whose
+  producers (iti_zscore_check, iti_area_split_sd) were queued after it / not at all. queue_daqlk4.sh adds them before
+  e_iti_main; lane E relaunched from v4 (log laneE2.out).
