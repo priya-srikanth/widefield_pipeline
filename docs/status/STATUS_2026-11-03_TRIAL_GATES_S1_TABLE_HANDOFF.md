@@ -25,6 +25,12 @@ new figure list. Then, in this order:
   d. Priya 11-05 (via a8), same pass: hit-rate period = the CAMERA working period primary, DAQ quit tail = robustness
      row (changes behaviour-page Fig 0.2 when 34's render lands; A6 in PAGE_EDITS_PENDING); the per-animal trend-line
      panels of `orofacial_cohort.fig_epochs` move to a collapsible section, off the main page.
+  e. FR page section 6 (Priya OK 11-05 via a8; "not sure what this is" -> say it plainly): add
+     `readouts/master_pre_v1/spout_mesh_control/spout_mesh_control.png` with: "Is the face signal just the spout? The
+     spout tip sits just below the lowest face points, so we removed every face point within 30 or 60 px of any spout
+     tip and decoded again: pre-cue spout decoding barely changes (2 s window .431 -> .428 / .418; acute far-contra
+     still at chance), so the face differs by spout because the animal's face does, not because the mesh sees the
+     spout." Read the live FR page first.
 
 **2. Side cameras + four-camera 3-D (all in `docs/POSE_MODELS.md` Part E; memory `four-camera-3d-ready`).**
   * Side model round 1 = crop2 (single-frame LP; temporal-loss variant tried, not adopted). Round 2 = Part B only
