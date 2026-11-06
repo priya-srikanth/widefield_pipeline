@@ -191,3 +191,8 @@ the night.
   Allen (WFIELD_LICK_DECODER=areas). (3) slide 94: the *_split maps REPLACE the Allen ones (replacement pass).
   (4) slide 139 without a no_lickspout column: OK. (5) slide 139 split-ROI remap gap: do the EXACT frozen side (an area
   run with ROI targets, penalties held, ~2-2.5 h) instead of the basis-route approximation.
+- ~11:50 **Priya's answers 6-7**: (6) slide 92 / Fig 2.11 wording ACCEPTED as recommended: "acutely, these cortical areas
+  track lick-position movement more strongly (not explained by more variable movement)", marked provisional until the
+  per-trial check -> sent to a8 for the PI deck; page Fig 2.11 caption in the replacement pass. (7) C: cache: DELETED 375
+  superseded files (10-28..11-02, 58.3 GB; list in rebuild_20261103/DELETED_LOCAL_CACHE_20261106.txt); C: 113 GB free.
+  F8 + exact slide-139 frozen side: steps held for queue v8c (helpers building); ALM + speed-up -> main push waits for RAM.
