@@ -76,6 +76,15 @@ unclassified -> OUTSIDE_MAPS, map builders only import engagement_gate). Fixed o
 Priya said YES to cam4-style -> scratchpad push7.sh = the six + wf_p1106_cam4, sequential, merge-only (bg task bn32updgj;
 per-branch push logs scratchpad/push7.<wt>.log). Each push re-runs the full suite (~28 min) when configs/ is in the diff.
 
+**Update ~16:40 -- second heavy slot INVESTIGATED (Priya "look into it"), NOT launched, awaiting her go.** Box 63 GB / 24 cores,
+~44 GB available with only x_enl_move heavy. ~55 heavy steps remain one at a time: ~12 BIG (partial_refit a_partial_ls /
+b_partial_frA [t_partial_te took 855 min], frozen_encoder t_frame_*/b_pix_union/b_roiexact/v_*, svf b_svf_frA_roi, epoch 1b,
+section_g, gain_bio/quiet_spikes) + ~40 MEDIUM (v8 L family + b_wsd_lick; no duration / RAM measured yet). Ready, not run:
+scratchpad/render_daqlk/queue_daqlk8_s2.sh = copy of queue_daqlk8.sh (running file untouched; same worktree / claims) with lock
+HEAVY2.lock admitted only at >= S2MIN (25) GB available, never claims BIG_RE steps, logs min available RAM per step. Launch =
+3 lanes: SECTIONS="L0 L1 L8 L10" / "L4 L5 L6 L7 L9" / "L2 L3" nohup bash queue_daqlk8_s2.sh > logs/queue_v8s2_<S>.out.
+Undo = TaskStop those lanes (their running step finishes; claims of waiting steps: release by hand).
+
 **Update ~16:10 -- EARLY video/pose catch-up = queue v9k (Priya "yes if it won't cause problems"; "plenty of CPU and memory").**
 scratchpad/render_daqlk/queue_daqlk9k.sh (v8g machinery: shared lock, RAM pause, HALT brake; claims fresh / RESERVED_v9k).
 22 steps: section K = A20 3-D kinematics (gates helper K lines: jaw_only figs, trial-class share, pose3d_cue_traces cue/lick,
