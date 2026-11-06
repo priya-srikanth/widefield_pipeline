@@ -95,6 +95,11 @@ pose3d_spout_error) + cam4 cohort re-run + aim producer + recovery_timing / deco
 wfield_local.epoch_grant_figures --parallel-arms 2 --only <g5_epoch family list>` (block_env = WIDEFIELD_LICK_SOURCE=lp; outputs
 route to LP_licks_<tag>; heavy ~6-9 h). SVG code included (A31: final queue only). A26: SVG scope = page + deck only.
 
+**Redraw-67 (Priya via a8, ~15:05):** after feat/svg-page-figures is on main (push6 order: small, frdrift, gainbio, gates,
+deficit-qc, svg), redraw ONLY the ~67 redraw-only figures with stored inputs today (REDRAW_INVENTORY_2026-11-06.csv) from a
+fresh worktree at that main, <= 2 workers, >= 6 GB free; record PNG sha256 before / after; send a8 the list redrawn /
+failed / PNGs that differ + their deck slides (a8 re-crops). No partials, no epoch_grant_figures.
+
 **Final catch-up queue (to build once gates-captions is merged):** the 7 parked steps + d_exec_vs_encoder re-run (+ the
 A25 LP epoch arm if Priya says yes; + any figure redraws for SVG per the inventory).
 
