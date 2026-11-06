@@ -61,7 +61,10 @@ until Priya answers the matching question.
 - **Item 5 fail-loud DAQ contacts**: committed 5834f8de on `cleanup/daq-contacts-failloud-20261105` (wf_cleanup4),
   not pushed. Touches trial_classes / tongue_kinematics / dlc_frames / kinematics_chain / orofacial_outputs; a
   session without a DAQ now raises (or is class 'unknown' and not covered) instead of silent zero contacts. HOLD the
-  merge until 34's render finishes (review said "wait: yes" for trial classes).
+  merge until 34's render finishes (review said "wait: yes" for trial classes). 34 (11-06): render is under a
+  low-RAM STOP, so it won't finish before the weekend.
+- 34's overnight page now records 5fa8253c as the cohort key (Priya's "yes switch to 0806"); bare-run selection is
+  unchanged, and its A4 (= Q1 here) is open and not started.
 - O2 FR null: sbatch throttle is `%60` (16 CPU / 96 GB each); raise live with
   `scontrol update JobId=<id> ArrayTaskThrottle=N`; check pending reasons with squeue %r.
 
