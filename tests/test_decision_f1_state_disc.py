@@ -112,3 +112,21 @@ def test_section_g_camera_discriminator_never_trains_on_stopped():
     drawn = np.where(ids >= 10_000, gU[np.clip(ids - 10_000, 0, n - 1)], gE[np.clip(ids, 0, n - 1)])
     assert set(drawn[y == 1]) <= {"contact", "incomplete"}
     assert set(drawn[y == 0]) == {"none"}
+
+
+def test_camera_floor_is_15_and_in_the_id(monkeypatch):
+    """Priya 11-05 ~22:10: a minimum of 15 trials per class for the camera-class discriminator (late window kept); the
+    DAQ row keeps 20 and its id. The floor is part of the camera model's identity."""
+    assert pes.MIN_TRAIN == {"daq": 20, "camera": 15}
+    assert pes.CAMERA_DISC_TAG.endswith("-min15")
+    seen = []
+    monkeypatch.setattr(fm, "load_or_fit", lambda spec, fit, **k: (seen.append(fm.spec_id(spec)) or ({}, "hit")))
+    b = SimpleNamespace(basis_id="76d884873920")
+    data = (np.arange(12.).reshape(4, 3), np.arange(4))
+    for al in ("precue-disc-cls-work-v-noresp", f"precue-disc-{pes.CAMERA_DISC_TAG}"):
+        pes._stored("PS92", al, b, ["PS92_0810"], {0}, 3, data, lambda: {}, 2.0)
+    assert seen[0] != seen[1]                                      # the 20-floor camera model is never served
+    src = inspect.getsource(pes.run_animal)
+    assert 'floor = MIN_TRAIN["camera" if camera else "daq"]' in src
+    assert src.count("tr_e.sum() + tr_pu.sum() < floor or tr_d.sum() < floor") == 2
+    assert "keep_dis.sum() >= floor and keep_eng.sum() + keep_pos_u.sum() >= floor" in src

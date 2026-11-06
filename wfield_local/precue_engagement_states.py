@@ -91,7 +91,12 @@ SCORED_ONLY = ("jaw_only", "stopped", "stopped_licking", "after_end", "unknown")
 #: the class tag in the stored discriminator's align (`<align>-disc-<tag>`), so no camera-class model can ever be served
 #: for the DAQ lick-vs-no-lick one or vice versa -- also under `frozen_models.daq_trained_in_lp`, whose train_fp is a
 #: constant and therefore does not move with the training rows
-CAMERA_DISC_TAG = "cls-work-v-noresp"
+CAMERA_DISC_TAG = "cls-work-v-noresp-min15"
+#: MINIMUM TRAINING ROWS PER CLASS (all-pre fit and each leave-one-session-out refit): 20 for the DAQ lick-vs-no-lick
+#: model (unchanged, so is its id); 15 for the camera classes (Priya 11-05 ~22:10: "let's say 15", relayed as a minimum of
+#: 15 trials; pre-stroke no_response is scarce -- class tables PS92 16 / PS94 25 late). The floor is part of the camera
+#: model's identity (the "-min15" in `CAMERA_DISC_TAG`). The held-out session's own floor (D2) stays 20.
+MIN_TRAIN = {"daq": 20, "camera": 15}
 
 
 def camera_train_sets(cls_e, cls_u, eng_window, nl_window, dis_window):
@@ -414,7 +419,9 @@ def run_animal(animal, align="precue", post_s=None, verbose=True):
         # (the opt-in state-class centre takes its engaged class from the engaged arm only; the no-lick-arm working rows
         # of the camera classes are not in it -- identity under the production session_z, where this returns XE / XU)
         XEt, XUt = _ss.state_train_frame(XE, GE, XU, GU, keep_eng, keep_dis, sorted(pre_i))
-    if keep_dis.sum() >= 20 and keep_eng.sum() + keep_pos_u.sum() >= 20:
+    floor = MIN_TRAIN["camera" if camera else "daq"]
+    disc["min_train_per_class"] = floor
+    if keep_dis.sum() >= floor and keep_eng.sum() + keep_pos_u.sum() >= floor:
         Xd, yd, gd = disc_train_rows(XEt, XUt, GE, GU, keep_eng, keep_pos_u, keep_dis)
 
         def _fit_disc():
@@ -425,7 +432,7 @@ def run_animal(animal, align="precue", post_s=None, verbose=True):
                 hold = e_pre_d & (GE == si)
                 tr_e, tr_d = keep_eng & (GE != si), keep_dis & (GU != si)
                 tr_pu = keep_pos_u & (GU != si)
-                if hold.sum() < 20 or tr_e.sum() + tr_pu.sum() < 20 or tr_d.sum() < 20:
+                if hold.sum() < 20 or tr_e.sum() + tr_pu.sum() < floor or tr_d.sum() < floor:
                     continue
                 Xl, yl, _gl = disc_train_rows(XEt, XUt, GE, GU, keep_eng, keep_pos_u, keep_dis, exclude=si)
                 loso[kept[si]] = _disc().fit(Xl, yl)   # keyed by LABEL (merge review B1), never pooled id
@@ -479,7 +486,7 @@ def run_animal(animal, align="precue", post_s=None, verbose=True):
             hold = e_pre_d & (GE == si)
             tr_e, tr_d = keep_eng & (GE != si), keep_dis & (GU != si)
             tr_pu = keep_pos_u & (GU != si)
-            if hold.sum() < 20 or tr_e.sum() + tr_pu.sum() < 20 or tr_d.sum() < 20:
+            if hold.sum() < 20 or tr_e.sum() + tr_pu.sum() < floor or tr_d.sum() < floor:
                 continue
             _yd = np.concatenate([np.zeros(int(tr_e.sum() + tr_pu.sum())), np.ones(int(tr_d.sum()))])
             m = dpay["loso"][kept[si]]                 # stored with the discriminator (same condition, same fit)
