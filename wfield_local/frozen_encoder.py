@@ -783,12 +783,13 @@ def session_design(label: str, templates: dict | None = None, template_only: boo
     col_var = np.concatenate([[v] * b.shape[1] for v, b in zip(vars_, blocks)])
     Q = np.linalg.qr(ce._slow_basis(ftr, ce.DRIFT_MIN_PERIOD_S))[0]
     X -= Q @ (Q.T @ X)
+    Rx = None                                            # extra targets' weights (kept apart from the Allen ones)
     if spatial is None:                                  # Allen-area targets (the v1-v4 default)
         areas = sorted({int(a) for a in np.unique(parea[pstat]) if a != 0})
         Ra = np.stack([Ub[(parea == a) & pstat].mean(0) for a in areas] + [Ub[pstat].mean(0)], 1)
         area_names = [names.get(a, str(a)) for a in areas] + ["cortex"]
         if extra_targets is not None:
-            Ra = np.column_stack([Ra, Ub[pstat].astype(np.float64).T @ np.asarray(extra_targets["P"], np.float64)])
+            Rx = Ub[pstat].astype(np.float64).T @ np.asarray(extra_targets["P"], np.float64)
             area_names += list(extra_targets["names"])
     elif extra_targets is not None:
         raise ValueError("extra_targets is implemented for Allen-area targets only")
@@ -797,7 +798,12 @@ def session_design(label: str, templates: dict | None = None, template_only: boo
         area_names = list(spatial["names"]) + ["cortex"]
     Y = V[ridx].astype(np.float64)
     Y -= Q @ (Q.T @ Y)
-    Rd = Y @ Ra if Ra.shape[1] <= MAX_DENSE_TARGETS else None      # large target sets stay lazy (Y @ Ra on demand)
+    # extra targets (11-06): the Allen columns are Y @ the SAME Allen weights as a run without extras (one product, so
+    # bit-identical: a wider product may round differently), the extra columns a second product beside them
+    Rd = (None if Ra.shape[1] + (0 if Rx is None else Rx.shape[1]) > MAX_DENSE_TARGETS   # large sets stay lazy
+          else Y @ Ra if Rx is None else np.column_stack([Y @ Ra, Y @ Rx]))
+    if Rx is not None:
+        Ra = np.column_stack([Ra, Rx])
     ex_ = getattr(B, "extra_lick_on_s", None)
     cue_f = np.searchsorted(ftr, E.cue_s.to_numpy(float))
     first_f = np.full(len(E), -1)
@@ -2064,7 +2070,15 @@ def main(argv=None) -> int:
     # other file written or touched
     ap.add_argument("--trials-only", action="store_true",
                     help="write only joint/sessions/<label>_trials.npz from this run's saved fit/pre_stats.pkl")
+    ap.add_argument("--roi-targets", action="store_true",
+                    help="EXACT ALM / tjM1 / MOs_rest / MOp_rest rows: the area run (--fit-from = --alphas-from) re-scored "
+                         "with the 8 ROI-mean targets added, penalties held; Musall R2 only (ROI_TARGETS comment)")
     a = ap.parse_args(argv)
+    if a.roi_targets:
+        if a.target != "areas" or not a.fit_from or not a.alphas_from or a.trials_only or _push_free():
+            raise SystemExit("--roi-targets: Allen-area targets with --fit-from and --alphas-from (the area run), "
+                             "frozen push, not --trials-only")
+        a.no_drop_spout = True
     if a.trials_only:
         if a.target != "areas" or a.fit_from or a.alphas_from:
             raise SystemExit("--trials-only: Allen-area targets of this run's own saved statistics only")
@@ -2162,6 +2176,8 @@ def main(argv=None) -> int:
                 if js is None:
                     raise SystemExit(f"--alphas-from {a.alphas_from}: no {v} session of {an}")
                 held[an][v] = json.loads(js.read_text(encoding="utf-8"))["alphas"]
+    if a.roi_targets:                                    # EXACT ALM / tjM1 rows (ROI_TARGETS comment): own path, no PETHs
+        return _run_roi_targets(a, out, got, by_an, held, labels, tp)
     fit_items = [(an, str(sp), tuple(sorted(by_an[an])), tuple(a.variants), not a.no_drop_spout, held[an])
                  for an in sorted(by_an)]
     fres, ffail = ak.fan_sessions(fit_items, fit_animal_job, jobs=min(a.jobs, len(fit_items)), label="fit")
@@ -2196,6 +2212,125 @@ def main(argv=None) -> int:
               + " | ".join(f"{v} " + " ".join(f"{x:.3f}" if x is not None else "-" for x in r[v].values())
                            for v in a.variants), flush=True)
     return 0 if not fail else 1
+
+
+#: ROI TARGETS, EXACT (Priya 11-06: the slide-139 / remap_checks split-ROI frozen side must be exact, not the basis-route
+#: approximation): `--roi-targets --fit-from <area run> --alphas-from <area run>` re-scores the area run with the 8
+#: ALM / tjM1 / MOs_rest / MOp_rest ROI means (`scripts/encoder_split_rows.roi_targets`, ROI v8 on the stat mask) as
+#: extra targets, into a NEW folder. Per animal x variant two ridge fits with the area run's penalties HELD:
+#:   Allen  the area run's saved pre statistics -> the area run's betas exactly (same Gram terms, same alphas);
+#:   ROI    the same saved X'X / sxx (so the same scale and column transform) + the ROI targets' X'Y / Y'Y from a fresh
+#:          statistics pass over the pre sessions (`fit/pre_stats_roi.pkl`; X'X / shared X'Y checked against the saved
+#:          ones, `allsession_encoder._append_targets`).
+#: Prediction (`predict_roi_job`) uses the Allen target columns of `session_design` (the same product as without extra
+#: targets) and the area run's operations, so every Allen number equals the area run's bit for bit; it writes only
+#: <variant>/sessions/<label>.json with r2_musall (+ frozen_r2_cortex) for areas = Allen + ROI -- no PETHs / per-trial /
+#: drop-spout files (read by session_vs_frozen / remap_checks --roi-targets).
+def _run_roi_targets(a, out: Path, got: list, by_an: dict, held: dict, labels: list, tp: Path) -> int:
+    import pickle
+
+    from wfield_local import analysis_kit as ak
+    from wfield_local import config
+    from wfield_local.allsession_encoder import _append_targets, _roi_targets
+    extra = _roi_targets()
+    names = list(extra["names"])
+    allen = {x: s_ for x, s_ in got if s_["animal"] in by_an}   # label -> the area run's saved pre statistics
+    spr = out / "fit" / "pre_stats_roi.pkl"
+    roi = pickle.loads(spr.read_bytes()) if spr.exists() else {}
+    todo = sorted(x for x in allen if x not in roi)
+    if todo:
+        fres, ffail = ak.fan_sessions([(x, str(tp), None, extra) for x in todo], stats_job, jobs=a.jobs, label="roistats")
+        if ffail:
+            raise RuntimeError(f"ROI statistics failed: {[(it[0], err) for it, err in ffail]}")
+        for it, s_ in fres:
+            r_ = _append_targets(allen[it[0]], s_, names)          # checks the design against the saved statistics
+            roi[it[0]] = {**allen[it[0]], "area_names": names, "XtY": r_["XtY"][:, -len(names):],
+                          "YtY": r_["YtY"][-len(names):], "check_xtx": r_["check_xtx"], "check_xty": r_["check_xty"]}
+        spr.write_bytes(pickle.dumps(roi, protocol=pickle.HIGHEST_PROTOCOL))
+    print(f"  ROI statistics: {len(roi)} pre sessions, max rel. X'X diff "
+          f"{max(s_['check_xtx'] for s_ in roi.values()):.1e}", flush=True)
+    sp = out / "fit" / "pre_stats_pair.pkl"            # what the fit workers read (Allen + ROI per pre session)
+    sp.write_bytes(pickle.dumps({x: (allen[x], roi[x]) for x in allen}, protocol=pickle.HIGHEST_PROTOCOL))
+    items = [(an, str(sp), tuple(sorted(by_an[an])), tuple(a.variants), held[an]) for an in sorted(by_an)]
+    fres, ffail = ak.fan_sessions(items, fit_roi_job, jobs=min(a.jobs, len(items)), label="fit")
+    if ffail:
+        raise RuntimeError(f"frozen ROI fits failed: {[(it[0], err) for it, err in ffail]}")
+    fits = {it[0]: fa for it, fa in fres}
+    jobs = [(x, fits[config.animal_of(x)], str(out), str(tp), extra) for x in labels
+            if config.animal_of(x) in fits and (not a.predict or x in a.predict)]
+    from wfield_local import parallel
+    res, fail = parallel.fan_out(jobs, predict_roi_job, jobs=a.jobs, label="frozen-roi",
+                                 log=lambda m: print(m[:120], flush=True))
+    for it, err in sorted(fail, key=lambda kv: kv[0][0]):
+        print(f"  !! predict {it[0]}: {err}", flush=True)
+    summarise_musall(out, a.variants)
+    print(f"  {len(res)} sessions -> {out}", flush=True)
+    return 0 if not fail else 1
+
+
+def fit_roi_job(item):
+    """One animal: per variant the Allen fit and the ROI fit, penalties held (ROI_TARGETS comment). Module-level for spawn."""
+    import pickle
+    an, sp, labs, variants, held = item
+    pair = pickle.loads(Path(sp).read_bytes())
+    st_a = sorted((pair[x][0] for x in labs), key=lambda s: s["label"])
+    st_r = sorted((pair[x][1] for x in labs), key=lambda s: s["label"])
+    out = {}
+    for v in variants:
+        fa = fit_animal(st_a, variant=v, alphas=held[v])
+        fr = fit_animal(st_r, variant=v, alphas=held[v])
+        if not (np.array_equal(fa["scale"], fr["scale"]) and np.array_equal(fa["C"], fr["C"])):
+            raise RuntimeError(f"{an} {v}: ROI fit design transform differs from the Allen fit")
+        out[v] = (fa, fr)
+    return out
+
+
+def predict_roi_job(job):
+    """One session of the exact ROI-target run: Musall R2 of the Allen targets (the area run's operations, bit-identical)
+    and of the ROI targets, per variant -> <out>/<variant>/sessions/<label>.json (ROI_TARGETS comment)."""
+    label, fits, out_dir, tpath, extra = job
+    from wfield_local import config
+    an = config.animal_of(label)
+    d = session_design(label, _templates_of(tpath, an), extra_targets=extra)
+    fa0, fr0 = next(iter(fits.values()))
+    if len(d["col_var"]) != len(fa0["col_var"]) or (d["col_var"] != fa0["col_var"]).any():
+        raise ValueError(f"{label}: column layout differs from the animal's pre fit")
+    RdA = d["Rd"][:, [d["area_names"].index(x) for x in fa0["areas"]]]      # as predict_job
+    RdR = d["Rd"][:, [d["area_names"].index(x) for x in fr0["areas"]]]
+    Z = d["X"] / fa0["scale"]
+    ci_ = fa0["areas"].index("cortex")
+    summary = {"label": label}
+    for variant, (fa, fr) in fits.items():
+        frozen_from = "loso" if label in fa["beta_loso"] else "all_pre"
+        Zv = Z @ fa["C"]
+        full = Zv @ fa["beta_loso"].get(label, fa["beta_all"])
+        full_r = Zv @ fr["beta_loso"].get(label, fr["beta_all"])
+        musall = {}
+        for al, (a0, a1) in MUSALL_WINDOWS.items():
+            fr_ = d["cue_f"] if al == "cue" else d["first_f"]
+            keep = fr_ >= 0
+            if keep.sum() < 2:
+                continue
+            offm = np.arange(int(round(a0 * d["fs"])), int(round(a1 * d["fs"])))
+            mr = musall_r2(_segments(RdA, fr_[keep], offm), _segments(full, fr_[keep], offm), d["pos"][keep])
+            mx = musall_r2(_segments(RdR, fr_[keep], offm), _segments(full_r, fr_[keep], offm), d["pos"][keep])
+            musall[al] = {k: [float(x) for x in v] + [float(x) for x in mx[k]] for k, v in mr.items()}
+        r2 = {}
+        for w, wm in d["win"].items():
+            y, yh = RdA[wm, ci_], full[wm, ci_]
+            r2[w] = float(1.0 - ((y - yh) ** 2).sum() / max(((y - y.mean()) ** 2).sum(), 1e-12)) if wm.any() else None
+        sess = Path(out_dir) / variant / "sessions"
+        sess.mkdir(parents=True, exist_ok=True)
+        meta = {"label": label, "animal": d["animal"], "epoch": d["epoch"], "day": d["day"],
+                "order": f"frozen_pre:{variant}", "variant": variant, "frozen_from": frozen_from,
+                "pre_labels": fa["pre_labels"], "alphas": fa["alphas"], "gate": os.environ.get("OROFACIAL_GATE", "reference"),
+                "lick_set": d["lick_set"], "n_trials": d["n_trials"], "areas": list(fa["areas"]) + list(fr["areas"]),
+                "roi_targets": list(fr["areas"]), "frozen_r2_cortex": r2, "r2_musall": musall,
+                "stats_version": STATS_VERSION, "grouping_version": GROUPING_VERSION, "run_tag": _run_tag()}
+        (sess / f"{label}.json").write_text(json.dumps(meta, indent=1, default=str), encoding="utf-8")
+        summary[variant] = r2
+        summary["frozen_from"] = frozen_from
+    return summary
 
 
 def fit_animal_job(item):

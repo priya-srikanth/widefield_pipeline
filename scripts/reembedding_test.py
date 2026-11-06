@@ -734,25 +734,29 @@ def draw_index(F: dict, path: Path) -> None:
     plt.close(fig)
 
 
+def split_map(img: np.ndarray, nm: list, names) -> tuple:
+    """The saved Allen area image with MOs / MOp drawn as ALM + MOs_rest / tjM1 + MOp_rest (`encoder_split_rows.
+    split_image`, as residual_roi / specificity_control) when the read-out areas are the split basis (Priya 11-06: ALM /
+    tjM1 on every area map); unchanged otherwise. Display only."""
+    if not any(str(n).startswith(("ALM_", "tjM1_")) for n in names):
+        return img, nm
+    import encoder_split_rows as esr
+    return esr.split_image(img, list(nm))
+
+
+def area_values_map(img: np.ndarray, nm: list, names, v) -> np.ndarray:
+    """Each read-out area's value painted on its own territory (the split ROIs on theirs; nothing summed back into
+    MOs / MOp -- until 11-06 ALM + MOs_rest were merged into MOs on the map while the title said they were drawn)."""
+    from frozen_area_maps import paint
+    return paint(img, nm, dict(zip(names, np.asarray(v, float))))
+
+
 def draw_areas(F: dict, path: Path) -> None:
     import matplotlib.pyplot as plt
     ar = F["areas"]
     names, M = ar["names"], ar["M"]
     fig = plt.figure(figsize=(13, 4.6))
     have_img = "img" in F
-
-    def to_area(v):
-        d = dict(zip(names, v))
-        out = {}
-        for h in ("left", "right"):
-            for n in set(n_.rsplit("_", 1)[0] for n_ in names):
-                if n in ("ALM", "MOs_rest"):
-                    out[f"MOs_{h}"] = d.get(f"ALM_{h}", 0) + d.get(f"MOs_rest_{h}", 0)
-                elif n in ("tjM1", "MOp_rest"):
-                    out[f"MOp_{h}"] = d.get(f"tjM1_{h}", 0) + d.get(f"MOp_rest_{h}", 0)
-                elif f"{n}_{h}" in d:
-                    out[f"{n}_{h}"] = d[f"{n}_{h}"]
-        return out
     panels = []
     if "pre" in M.index:
         panels.append(("pre: aligned read-out share\n(held-out pre sessions)", M.loc["pre", names].to_numpy(float), "lev"))
@@ -761,14 +765,14 @@ def draw_areas(F: dict, path: Path) -> None:
             panels.append((f"{ep} - pre (share)", M.loc[ep, names].to_numpy(float) - M.loc["pre", names].to_numpy(float),
                            "chg"))
     if have_img:
-        from frozen_area_maps import outline, paint
-        img, nm = F["img"], F["img_names"]
+        from frozen_area_maps import outline
+        img, nm = split_map(F["img"], F["img_names"], names)
         ol = outline(img)
         lv = max(np.nanmax(np.abs(p[1])) for p in panels if p[2] == "lev") if panels else 1
         cv = max([np.nanmax(np.abs(p[1])) for p in panels if p[2] == "chg"] or [1])
         for j, (ttl, v, kind) in enumerate(panels):
             ax = fig.add_subplot(1, len(panels) + 1, j + 1)
-            im = ax.imshow(paint(img, nm, to_area(v)), cmap="Oranges" if kind == "lev" else "RdBu_r",
+            im = ax.imshow(area_values_map(img, nm, names, v), cmap="Oranges" if kind == "lev" else "RdBu_r",
                            vmin=0 if kind == "lev" else -cv, vmax=lv if kind == "lev" else cv)
             ax.imshow(ol, cmap="gray_r", alpha=0.6, vmin=0, vmax=1)
             ax.set_title(ttl, fontsize=9)

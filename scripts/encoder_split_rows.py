@@ -217,6 +217,49 @@ def musall_rows(pix_run, variant: str, measure: str = "frame", areas=tuple(SPLIT
     return pd.DataFrame(rows, columns=["label", "animal", "epoch", "window", "area", "r2"])
 
 
+#: the FROZEN_PIX_MUSALL basis re-run with the UNION of the variants slides 94 (`frozen_peth_trial_maps.py`) and 139
+#: (`session_vs_frozen.py --maps`) need (11-06): `frozen_encoder_<area-run tag><PIX_UNION>`, fit (pre statistics,
+#: templates, basis) read from `frozen_encoder_<tag>_basis`, alphas held at the area run's. The 10-28 twin
+#: (`..._basis_pixmusall`, frozen_claims' variants) is a different folder and is never overwritten.
+PIX_UNION = "_basis_pixmusall_union"
+
+
+#: the EXACT split-ROI frozen run (11-06, Priya: slide 139 / remap_checks need exact ROI R2): the area run re-scored with
+#: the 8 ROI means as extra targets, penalties held (`frozen_encoder --roi-targets`): `frozen_encoder_<tag><ROI_EXACT>`
+ROI_EXACT = "_roiexact"
+
+
+def roi_frozen_source(enc_root, tag: str, mode: str = "auto", roi_run=None, pix_run=None, fit_run=None) -> tuple:
+    """(run folder, basis fit run or None) of the frozen split-ROI R2 for the area run ``tag``: mode "exact" = the
+    --roi-targets run (fit None), "pixmusall" = the basis route (`pix_union_paths`), "auto" = exact when present, else
+    the pixmusall union run. SystemExit when the chosen run has no joint sessions."""
+    ex = Path(roi_run) if roi_run else Path(enc_root) / f"frozen_encoder_{tag}{ROI_EXACT}"
+    pix0, fit0 = pix_union_paths(enc_root, tag)
+    pix = (Path(pix_run or pix0), Path(fit_run or fit0))
+    ok = lambda r: (Path(r) / "joint" / "sessions").is_dir()   # noqa: E731
+    if mode == "exact" or (mode == "auto" and ok(ex)):
+        if not ok(ex):
+            raise SystemExit(f"no exact ROI-target frozen run at {ex} (frozen_encoder --roi-targets)")
+        return ex, None
+    if not ok(pix[0]):
+        raise SystemExit(f"no frozen split-ROI run: neither {ex} (exact) nor {pix[0]} (pixmusall union)")
+    return pix
+
+
+def pix_union_paths(enc_root, tag: str) -> tuple:
+    """(pixmusall union run, basis run holding fit/spatial_<animal>.pkl) of the area run ``tag`` under ``enc_root``."""
+    return Path(enc_root) / f"frozen_encoder_{tag}{PIX_UNION}", Path(enc_root) / f"frozen_encoder_{tag}_basis"
+
+
+def bonf_allen(B, keys, ref=None) -> np.ndarray:
+    """p_bonf = min(p x number of ALLEN areas in the row's ``keys`` group, 1): the split ROIs re-partition MOs / MOp, so
+    they are tested with the Allen count and do not change it (as `residual_roi.py`). Rows of B: area, p, *keys; the
+    count comes from ``ref`` (default B: e.g. the Allen table when B holds the split rows only)."""
+    ref = B if ref is None else ref
+    n = ref[~ref.area.isin(SPLIT_AREAS)].groupby(list(keys)).area.nunique()
+    return np.minimum(B.p.to_numpy(float) * B.set_index(list(keys)).index.map(n).to_numpy(float), 1.0)
+
+
 def split_image(img: np.ndarray, nm: list) -> tuple:
     """`frozen_area_maps.area_image` output with MOs / MOp painted as their split ROIs (display only: every pixel of the
     Allen parent goes to the sub-ROI if it is in the full v8 ROI, else to the rest). Returns (img, names)."""
