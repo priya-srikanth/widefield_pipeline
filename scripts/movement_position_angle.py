@@ -177,7 +177,10 @@ def main(argv=None) -> int:
                            **{f"r2_onset_{m}": v for m, v in r2b.items()},
                            "angle_beyond_position": r2b["both"] - r2b["position"],
                            "angle_beyond_null_mean": nullB.mean(0)})
-        out = session_dir(rv, spec)[2]
+        from wfield_local import run_mode
+        _sd = session_dir(rv, spec)[2]          # per-session outputs: the rebuild's derived pose area (11-04)
+        out = run_mode.session_poses_out("movement_position_angle", _sd.parent) / _sd.name
+        out.mkdir(parents=True, exist_ok=True)
         df.to_csv(out / f"movement_position_angle{tag}.csv", index=False)
         rows.append((df, nullA, nullB))
         # per-area medians + permutation p (median over the area's components vs the null's medians)
@@ -228,7 +231,9 @@ def main(argv=None) -> int:
         plt.close(fig)
     S = pd.concat([r[0] for r in rows], ignore_index=True)
     summ = S.groupby(["session", "area"]).median(numeric_only=True).reset_index()
-    out = Path(rv.root("microscope")) / "DeepLabCut" / "Widefield" / "session_poses"
+    from wfield_local import run_mode
+    out = run_mode.session_poses_out("movement_position_angle",
+                                     Path(rv.root("microscope")) / "DeepLabCut" / "Widefield" / "session_poses")
     summ.to_csv(out / f"movement_position_angle_summary{tag}.csv", index=False)
     print(f"\n-> {out / f'movement_position_angle_summary{tag}.csv'}")
     return 0

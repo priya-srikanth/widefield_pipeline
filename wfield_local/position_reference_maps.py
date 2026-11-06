@@ -91,6 +91,40 @@ REFERENCES = ("mean", "rest", "restw", "precue", "raw")
 #: would delete it. The difference between the two is the measurement of it.
 REST_WEIGHTED = "restw"
 
+#: DERIVED references (2026-11-01): formed AFTER collection from the cached `raw` column, so they are NOT in
+#: `REFERENCES` -- that tuple is part of every `prm` cache key (`session_raw_maps_cached` spec `refs`), and adding to it
+#: would turn ~33 GB of warm map caches cold for no change in their contents.
+#:   restnl  RESTnl (lick-free rest, flat; `restnl_mask`): raw[q] - U @ b_nl, exact because the baseline is flat and
+#:           the window features are linear means (check doc RESTNL_MAP_SHORTCUT_CHECK_20261101). One baseline map per
+#:           session serves every alignment and lick gate.
+#: A derived reference is attached by `maps_by_epoch` ONLY when named in WIDEFIELD_MAP_REFS (its per-session baselines
+#: must have been built by `python -m wfield_local.restnl_mask`), so a default render is unchanged.
+DERIVED_REFERENCES = ("restnl",)
+REFS_ENV = "WIDEFIELD_MAP_REFS"
+
+
+def requested_references():
+    """References named in WIDEFIELD_MAP_REFS (comma / space separated), or None when unset (= the default set)."""
+    import os
+    v = os.environ.get(REFS_ENV, "").replace(",", " ").split()
+    if not v:
+        return None
+    bad = [r for r in v if r not in REFERENCES + DERIVED_REFERENCES]
+    if bad:
+        raise ValueError(f"{REFS_ENV}: unknown reference(s) {bad}; expected {REFERENCES + DERIVED_REFERENCES}")
+    return tuple(v)
+
+
+def derived_active():
+    """Derived references to attach in `maps_by_epoch` (those requested in WIDEFIELD_MAP_REFS)."""
+    req = requested_references() or ()
+    return tuple(r for r in DERIVED_REFERENCES if r in req)
+
+
+def render_references():
+    """The references the 15r / 15rpa families draw: WIDEFIELD_MAP_REFS when set, else REFERENCES (unchanged)."""
+    return requested_references() or REFERENCES
+
 #: How a reference is NAMED IN A FILENAME. `rest` resolves through the mask variant actually in
 #: use, so a figure built on the retired 8 s-post-reward definition is called `_REWARD8ref_` and one
 #: built on the new between-trials/not-running/not-licking definition is called `_RESTref_`.
@@ -104,6 +138,8 @@ def reference_tag(reference):
     """The filename token for a reference -- baseline-explicit for `rest`."""
     from wfield_local.quiet_periods import quiet_variant
 
+    if reference == "restnl":
+        return "RESTNL"          # `_RESTNLref_`: lick-free flat rest (restnl_mask)
     if reference not in ("rest", "restw"):
         return reference.upper()
     # THE WEIGHTING IS PART OF THE BASELINE'S IDENTITY, so it goes in the filename with it. A
@@ -223,6 +259,8 @@ def session_rest_svt_timelocal(session, svt, nbins=REST_BASELINE_BINS, frames=No
             return None
         return _timelocal_from_mask(V, qm, int(nbins))
     except Exception as ex:                                            # noqa: BLE001
+        from wfield_local import trial_classes as _tc
+        _tc.reraise_under_camera(ex, f"time-local rest {session['label']}")   # review N9
         print(f"  !! time-local rest {session['label']}: {type(ex).__name__} {str(ex)[:60]}",
               flush=True)
         return None
@@ -348,6 +386,15 @@ def _working_xy(session, align, post_s, variant, baseline, v, *, signal_key=None
         signal_key=signal_key or f"svt:rank{v.shape[0]}",
         with_indices=True)
     X, y = np.asarray(X), np.asarray(y)
+    from wfield_local import trial_classes as _tc
+    if variant in ("working", "miss_working", "stopped") and _tc.camera_gate_on():
+        # CAMERA RULE (rebuild 11-03, `trial_classes.camera_rows`); cache kinds carry the selection tag (run_mode)
+        ke, kn = _tc.camera_rows(session["label"], idx_e, idx_n, variant)
+        X, y = X[ke], y[ke]
+        if len(yn) and kn.any():
+            X = np.vstack([X, np.asarray(Xn)[kn]])
+            y = np.concatenate([y, np.asarray(yn)[kn]])
+        return X, y
     if variant == "working" and len(yn):
         # IDENTICAL to `beta_maps.session_maps`: `working` is engaged PLUS miss-while-working, and
         # the no-lick arm comes back separately. Dropping it here would silently make this a
@@ -560,13 +607,48 @@ def session_raw_maps(session, align, *, post_s=2.0, variant="working"):
             "restw_positions": restw_positions}
 
 
+#: WIDEFIELD_PRM_LEGACY_DATE8 (11-01, a shim reproducing the pre-10-29 digest) was DROPPED in the cohort-1 rebuild
+#: (2026-11-03, the one planned cache rebuild): the digest below is narrowed, so every prm cache is cold once anyway.
+
+
 def _raw_maps_code() -> str:
-    """Source digest of everything that builds one session's maps (`map_collect.cache_kind`)."""
-    from wfield_local import beta_maps, map_collect, precue_engagement_states, quiet_periods
-    from wfield_local import rest_by_position, rest_engagement
-    return map_collect.code_digest(session_raw_maps, _working_xy, session_rest_svt_timelocal, session_restw_svt,
-                                   session_quiet_svt, beta_maps._quit_mask, quiet_periods, rest_engagement,
-                                   rest_by_position, precue_engagement_states)
+    """Source digest of what builds one session's maps (`map_collect.cache_kind`).
+
+    NARROWED (rebuild 2026-11-03): the helper MODULES (quiet_periods, rest_engagement, rest_by_position,
+    precue_engagement_states) used to be hashed whole, so any edit anywhere in them -- a figure, a docstring of an
+    unrelated function -- cold-started ~33 GB of map caches. Now only the functions the map builders call, plus
+    everything they reference inside their own module (`map_collect.closure`), enter the digest."""
+    from wfield_local import map_collect
+    return map_collect.code_digest(*_raw_maps_parts())
+
+
+def _raw_maps_parts() -> list:
+    """What `_raw_maps_code` hashes, as a list (tests/test_map_cache_key.py reads THIS list for its sufficiency check)."""
+    from wfield_local import (analysis_kit, behavior_events, behavior_position, beta_maps, daq_io, docked_periods,
+                              lick_detection, locanmf_frozen_decoder, map_collect, precue_engagement_states,
+                              quiet_periods, rest_by_position, rest_engagement)
+    return [
+        session_raw_maps, _working_xy, session_rest_svt_timelocal, session_restw_svt, session_quiet_svt,
+        beta_maps._quit_mask,
+        # + response_window_s / rest_mask / trial_exclusion / widen_bool_sparse / quiet_dir, reached from
+        # rest_by_position / rest_engagement (review M4, 11-03)
+        map_collect.closure(quiet_periods, "quiet_variant", "quiet_frame_path", "quiet_baseline_svt",
+                            "response_window_s", "rest_mask", "trial_exclusion", "widen_bool_sparse", "quiet_dir"),
+        map_collect.closure(analysis_kit, "response_window_s"),
+        map_collect.closure(rest_engagement, "engaged_frame_mask"),
+        map_collect.closure(rest_by_position, "rest_frames_by_position", "restw_from_frames",
+                            "MIN_POSITIONS_FOR_WEIGHTED"),
+        map_collect.closure(precue_engagement_states, "engagement_gate"),
+        # second pass (11-03): the frame-edge and canonical-events helpers rest_engagement / rest_by_position call
+        map_collect.closure(daq_io, "rising_edges", "strobe_codes"),
+        map_collect.closure(behavior_events, "get_or_compute"),
+        # cache-key gaps closed (review second pass LOW, coordinator 11-03): the trial-feature args, lick detection,
+        # cue classification and docked-window helpers the builders call
+        map_collect.closure(locanmf_frozen_decoder, "_args"),
+        map_collect.closure(lick_detection, "detect_licks"),
+        map_collect.closure(behavior_position, "classify_cues_with_backup"),
+        map_collect.closure(docked_periods, "docked_mask_any"),
+    ]
 
 
 def session_raw_maps_cached(session, align, *, post_s=2.0, variant="working"):
@@ -628,6 +710,13 @@ def reference_maps(parts, reference):
         return dict(parts.get("raw_restw") or {})
     if reference == "precue":
         return dict(parts.get("raw_precue") or {})
+    if reference == "restnl":
+        # DERIVED (see DERIVED_REFERENCES): the session's flat lick-free baseline map, attached by `maps_by_epoch` as
+        # `restnl_base`, subtracted from the cached `raw` maps. Absent baseline -> no RESTnl column for the session.
+        base = parts.get("restnl_base")
+        if base is None:
+            return {}
+        return {q: (m - base).astype(np.float32) for q, m in (parts.get("raw") or {}).items()}
     if reference == "raw":
         # NO SUBTRAHEND AT ALL -- the position's own trial average, as the drift-removed signal
         # leaves it. THE POINT IS THE FAILURE MODE IT DOES NOT HAVE: every other reference here
@@ -649,7 +738,7 @@ def reference_maps(parts, reference):
         # evoked response survives relative to it. That is why `raw` is meaningful here and was
         # not under the retired `zerophase` product.
         return dict(parts.get("raw") or {})
-    raise ValueError(f"unknown reference {reference!r}; expected one of {REFERENCES}")
+    raise ValueError(f"unknown reference {reference!r}; expected one of {REFERENCES + DERIVED_REFERENCES}")
 
 
 @lru_cache(maxsize=8)
@@ -688,6 +777,21 @@ def maps_by_epoch(align, variant, post_s=2.0):
     by_label, fail = map_collect.collect(jobs, _raw_maps_job, label="ref-map")
     for it, err in fail:
         print(f"  !! ref-map {it[0]}: {err[:90]}", flush=True)
+    # DERIVED REFERENCES (WIDEFIELD_MAP_REFS), attached per label AFTER collection; the cached dicts are copied, never
+    # mutated. A session without a baseline loses only that column, and the list is printed (rule: say it out loud).
+    derived = derived_active()
+    refs = REFERENCES + derived
+    if "restnl" in derived:
+        from wfield_local import restnl_mask
+        bases, miss = restnl_mask.base_maps(sorted(by_label))
+        by_label = {k: (dict(v, restnl_base=bases[k]) if k in bases else v) for k, v in by_label.items()}
+        print(f"  .. ref-map: RESTnl baselines for {len(bases)}/{len(by_label)} sessions"
+              + (f"; NO RESTnl column for {miss}" if miss else ""), flush=True)
+        if by_label and not bases:
+            # T4 (third review): the RESTnl column was asked for and NO session has a baseline -- fail loudly, never
+            # render a figure without its RESTnl column
+            raise RuntimeError("ref-map: RESTnl reference requested but no session has a RESTnl baseline "
+                               "(build them: python -m wfield_local.restnl_mask)")
     for an in ANIMALS:
         per, ntr = {}, {}
         for s, e in plan.get(an, []):
@@ -709,9 +813,9 @@ def maps_by_epoch(align, variant, post_s=2.0):
                 n_norestw += 1
             if not parts["raw_precue"]:
                 n_noprecue += 1
-            byref = {r: reference_maps(parts, r) for r in REFERENCES}
+            byref = {r: reference_maps(parts, r) for r in refs}
             for q in raw:
-                got = {r: byref[r][q] for r in REFERENCES if q in byref[r]}
+                got = {r: byref[r][q] for r in refs if q in byref[r]}
                 if got:
                     per.setdefault(e, {}).setdefault(q, {})[s["label"]] = got
                     ntr.setdefault(e, {}).setdefault(q, {})[s["label"]] = used.get(q, 0)
@@ -719,7 +823,7 @@ def maps_by_epoch(align, variant, post_s=2.0):
             out[an], n_out[an] = per, ntr
             rel[an] = {e: {q: {r: bm.split_half_reliability(
                                     {k: d[r] for k, d in by_s.items() if r in d})
-                               for r in REFERENCES}
+                               for r in refs}
                            for q, by_s in by_q.items()}
                        for e, by_q in per.items()}
     # SAID OUT LOUD. A session with no quiet mask silently drops out of the quiet figure only, so

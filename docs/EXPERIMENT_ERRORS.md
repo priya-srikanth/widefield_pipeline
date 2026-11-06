@@ -6,6 +6,48 @@ Acquisition and rig problems that constrain what can be analysed, and what we de
 
 Newest first. Each entry: what happened → what it costs → what we do → what is still open.
 
+**COHORT 2 (PS118, PS120-122, from 2026-10-29) entries are marked `[cohort2]`.** Cohort set-up:
+`configs/cohorts.yaml`, [`NEW_COHORT_2026-10-29.md`](NEW_COHORT_2026-10-29.md).
+
+---
+
+## 2026-10-29 [cohort2] — PS118 / PS120 / PS121: smaller imaging ROI on day 1; PS122 onward use the larger fixed ROI
+
+**What happened.** On the first cohort-2 day, PS118, PS120 and PS121 were imaged with the SAME camera ROI as
+PS92-95. That ROI was a bit smaller than Priya wanted, so it was enlarged before PS122, and the larger ROI
+is held fixed from PS122 2026-10-29 onward for every animal (Priya, 2026-10-29).
+
+**What it costs.** Those three 10-29 sessions have a different frame size (the H x W in the raw `.dat` name,
+`pco_edge_run..._2_<H>_<W>_uint16.dat`) and field of view from every later session of the same animal.
+Per-session preprocessing reads the dims from the file name, so motion / SVD / maps run. Anything that
+assumes one frame size per animal does not: cross-day registration, cross-session pixel maps, joint bases.
+
+**What we do.** (1) Do NOT use a 10-29 session as the master alignment session (`reference_date` in
+`configs/cohorts.yaml`). (2) `cross_day_align` now PLACES a different-ROI frame at its offset at native scale
+instead of stretching it (2026-10-29; it keeps the old stretch only if that matches better), and records which
+reference pixels it covered (`roi_coverage_atlas.npy`). The same fix applies to cohort1's 06-01 to 06-03
+frames, which were stretched before; they are outside every pooled set. (3) Check the 10-29 registration QC
+(`xday/<animal>_1029`). If a session does not register cleanly, exclude it from POOLED sets with
+`exclude: ["1029"]` for that animal in `configs/cohort2/animals.yaml`.
+
+**Still open.** Write the two frame sizes here once the data are uploaded (`alignment_reference --sessions` lists them).
+
+## 2026-10-29 [cohort2] — bottom behaviour camera (cam1) nudged between PS118 / PS120 / PS121 and PS122
+
+**What happened.** The bottom (cam1, view from below) behaviour camera was adjusted slightly between the
+first three animals and PS122 on 2026-10-29 (Priya, 2026-10-29).
+
+**What it costs.** cam1 geometry differs between those sessions: pixel coordinates (pose, mouth / spout
+positions, crops) and any 3-D reconstruction that uses cam1 extrinsics are not comparable across the
+change without a recalibration. 2-D readouts within one session are unaffected.
+
+**What we do.** Treat cam1 for 10-29 PS118 / PS120 / PS121 as its own camera geometry. Do not apply a
+calibration taken after the change to those sessions. Priya is taking a new calibration (ChArUco) video soon.
+Record its date here, and decide then whether the three earlier sessions need their own calibration or are
+excluded from 3-D.
+
+**Still open.** Calibration video date; whether the change also moved the cam1 crop / mouth reference.
+
 ---
 
 ## 2026-09-17 — PS95: 12:40 session acquired under the wrong prefix `PS94` (relabeled; inert)
@@ -765,6 +807,32 @@ for those sessions cover the trials WITH video only.
 * **Not done.** Re-referencing to a body landmark (resting jaw or nose): both can change after the stroke (Priya 10-19).
   The spout "mouth zero" stays the reference.
 
+## 2026-10-29 — PS122 (cohort2): camera ROI 49 rows taller than the rest — `2_509_480` vs `2_460_480`
+
+* **What.** On cohort2's first session (2026-10-29), PS122 was recorded at a different camera ROI: the
+  labcams `.dat` is `pco_edge_..._2_509_480_uint16.dat` — **509 image rows** (width 480 unchanged) — while
+  PS118/PS120/PS121 that day, and all of cohort1, are **460** rows. 49 extra rows / a different sensor crop.
+  (Confirm whether this ROI was intentional; if so, keep it consistent for PS122 going forward.)
+* **How it was found.** `preprocess 20261029` discovery printed `PS122 ... dims=2_509_480`.
+* **Cost — and how to analyze it.**
+  * **Per-session processing is UNAFFECTED.** Motion correction, relabel, SVD, hemo, and native cue/lick
+    maps all read H×W from the `.dat` filename, so PS122 processes correctly at 509×480. Nothing assumes 460.
+  * **Cross-session / cross-animal SPATIAL work must go through Allen/CCF alignment**, which resamples each
+    session onto the fixed 540×640 atlas grid and so normalizes the size difference. **Do NOT** stack or
+    pixel-register PS122 with 460-row sessions in native space (the frames are different shapes and the brain
+    sits at different rows). This only matters once alignment is set up (deferred as of 2026-10-29).
+  * Reference landmarks for PS122 are picked in its own 509-row frame — the per-session affine handles it; no
+    special step needed for the atlas path.
+  * If native-space consistency is ever required (e.g. a within-animal cross-day native template for PS122),
+    either keep PS122's ROI fixed across days, or crop every PS122 frame to a fixed central 460-row band
+    (record which rows) — but the CCF-alignment route is preferred and avoids the issue entirely.
+* **Not a problem for:** this cohort's planned analyses, which are per-session SVD/hemo + atlas-aligned maps.
+* **Reconciled with the entries above (later 10-29).** Intentional (Priya): 509x480 is the new, larger ROI, fixed for
+  EVERY animal from PS122 10-29 on; the 460-row frames are PS118 / PS120 / PS121 on 10-29 only. Within-animal
+  cross-day registration places a different-ROI frame at its offset at native scale (`cross_day_align`,
+  `_register_different_roi`, with a coverage mask), so those three sessions can be registered to a 509-row
+  master alignment session; it no longer stretches them. The atlas route below still applies to everything after that.
+
 ## Conventions for this log
 
 * Add the entry when the incident is found, not when it is resolved — a known-but-unfixed problem that
@@ -773,3 +841,13 @@ for those sessions cover the trials WITH video only.
   figure is affected.
 * Record rejected workarounds and why, so they are not re-proposed.
 * Anything needing a human decision goes under "still open" with the specific question.
+
+## Pre-stroke session endings (Priya, 2026-10-31) -- affects every quit / time-to-quit / water-at-quit analysis
+
+- PS92-PS95 PRE-STROKE: sessions were often STOPPED BY HAND when the animal quit, so the quit tail is frequently cut
+  off -- a pre session with no detected quit may end AT the quit (session end ~ quit point, not censoring).
+- PS92 and PS93 were very licky (many ENL violations) and were usually stopped FOR TIME -> their pre session ends are
+  time-censored (lower bounds on time / water to quit).
+- POST-STROKE (PS92-PS95): sessions ran until 100 trials PER SPOUT or 120 min, whichever came first (Priya, 10-31) ->
+  a post session ending at the trial cap is a completed task (censored), not a quit.
+- Cohort 2 onward: animals are left to run until they quit.

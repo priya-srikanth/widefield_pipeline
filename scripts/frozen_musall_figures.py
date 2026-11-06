@@ -41,7 +41,8 @@ ALONE = {"task": "task_only", "lick": "lick_only", "spout": "spout_only", "other
          "movement": "movement_only", "non-task": "no_task"}
 UNIQUE = {"task": "no_task", "lick": "no_lick", "spout": "no_spout", "other": "no_other", "contact": "no_contact",
           "movement": "no_movement", "target": "no_target", "exec_locked": "no_exec_locked",
-          "exec_within": "no_exec_within", "non-task": "task_only"}
+          "exec_within": "no_exec_within", "non-task": "task_only",
+          "spont": "no_spont"}          # v7g3_t3d_spont only (8.51; NaN for v7g3_t3d): pre-cue + ITI licks
 
 
 def quantities(A: pd.DataFrame) -> pd.DataFrame:
@@ -74,18 +75,17 @@ def _bars(ax, Q, cols, colors, labels=None):
 
 
 def main(argv=None) -> int:
+    # coordinator 11-04: routed (outputs under the run tag), no longer refused in a tagged run
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
-    from wfield_local import orofacial_cohort as oc
-    from wfield_local import orofacial_outputs as oo
-    from wfield_local.paths import PathResolver
     from wfield_local.writeguard import assert_writable
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--tag", default="gate-attempted")
     ap.add_argument("--areas", nargs="+", default=["cortex", "SSp-m_left", "MOs_left"])
     a = ap.parse_args(argv)
-    out = oo.root(PathResolver()) / oc.RUN / "imaging_encoding" / f"frozen_encoder_{a.tag}"
+    from wfield_local import frozen_encoder as _fe   # the encoder's (tagged) run root, coordinator 11-04
+    out = _fe.out_root() / f"frozen_encoder_{a.tag}"
     A = pd.read_csv(out / "frozen_musall_r2_by_animal.csv")
     Q = quantities(A)
     fd = out / "figures"
@@ -120,6 +120,42 @@ def main(argv=None) -> int:
                          f"{UNIQUE_NOTE}\n{stamp}", fontsize=8)
             fig.tight_layout()
             fig.savefig(fd / f"musall_alone_vs_unique_{area}_{align}.png", dpi=130)
+            plt.close(fig)
+            # (1b) the same as EPOCH LINES (Priya 10-25: lines "much better" than many bars): column = group, x = epoch,
+            # solid = unique, dashed = alone, faint = animals
+            grp = (("task", "#3182bd"), ("lick", "#e6550d"), ("spout", "#31a354"), ("other", "#756bb1"),
+                   ("contact", "#636363"))
+            fig, axs = plt.subplots(len(MEASURES), len(grp), figsize=(2.9 * len(grp), 2.5 * len(MEASURES)),
+                                    squeeze=False, sharey="row")
+            x = np.arange(len(epochs))
+            for i, meas in enumerate(MEASURES):
+                T = S[S.measure == meas].groupby(["animal", "epoch"]).mean(numeric_only=True)
+                for j, (g, col) in enumerate(grp):
+                    ax = axs[i][j]
+                    for kind, ls in (("alone", "--"), ("unique", "-")):
+                        c = f"{kind}:{g}"
+                        if c not in T:
+                            continue
+                        P = T[c].unstack("epoch").reindex(columns=epochs)
+                        for _an, r in P.iterrows():
+                            ax.plot(x, r.values, color=col, lw=0.6, alpha=0.3, ls=ls)
+                        ax.plot(x, P.mean().values, color=col, lw=2.2, ls=ls, marker="o", ms=4,
+                                mfc=col if kind == "unique" else "w", label=kind)
+                    ax.axhline(0, color="0.6", lw=0.6)
+                    ax.set_xticks(x)
+                    ax.set_xticklabels([e[:3] if e != "pre" else "pre" for e in epochs], fontsize=7.5)
+                    for s_ in ("top", "right"):
+                        ax.spines[s_].set_visible(False)
+                    if i == 0:
+                        ax.set_title(g, fontsize=9, color=col)
+                    if j == 0:
+                        ax.set_ylabel(f"{MLABEL[meas]} R$^2$", fontsize=8)
+            axs[0][0].legend(fontsize=7, frameon=False)
+            fig.suptitle(f"Alone (dashed) vs unique (solid) across epochs, {area}, {align}-aligned -- Musall Fig. 4a as "
+                         f"lines; thick = mean of animals, faint = animals (levels, not changes)\n{UNIQUE_NOTE}\n{stamp}",
+                         fontsize=8)
+            fig.tight_layout()
+            fig.savefig(fd / f"musall_alone_vs_unique_lines_{area}_{align}.png", dpi=130)
             plt.close(fig)
             # (2) task-aligned vs task-independent, STACKED (Priya 10-22: "stacking makes more sense")
             grps = (("lick", "#e6550d"), ("spout", "#31a354"), ("movement", "#fd8d3c"), ("non-task", "#636363"))

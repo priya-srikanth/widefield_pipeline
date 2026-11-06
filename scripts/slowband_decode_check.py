@@ -46,7 +46,8 @@ def session_check(label: str) -> dict:
     s = next(x for x in F.SESSIONS if x["label"] == label)
     res = s["mc"] + "/wfield_local_results"
     ad = glob.glob(res + "/allen_aligned_affine8v1")[0]
-    c = np.load(res + f"/hemo_{hv.ADOPTED}/SVTcorr.npy").astype(np.float64)
+    from wfield_local import config
+    c = np.load(config.svtcorr_path(s["mc"])).astype(np.float64)   # the selected variant (one hemo switch, 11-03)
     s300 = _slow(c, hv.FS, 300.0)
     arms = {"adopted": c, "slow300": s300, "fast300": c - s300, "slow600": _slow(c, hv.FS, 600.0)}
     out = {"label": label}
@@ -60,6 +61,7 @@ def session_check(label: str) -> dict:
 
 
 def main(argv=None) -> int:
+    from wfield_local import config
     from wfield_local import analysis_kit as ak
     from wfield_local import orofacial_cohort as oc
     from wfield_local import orofacial_outputs as oo
@@ -75,13 +77,14 @@ def main(argv=None) -> int:
     a = ap.parse_args(argv)
     from wfield_local import epochs
     from wfield_local import filter_acausality_test as F
-    out = oo.root(PathResolver()) / a.run / "imaging_encoding" / "qc"
+    from wfield_local import lp_licks              # run-mode routing (rebuild 11-03): identity for the default run
+    out = lp_licks.output_dir(oo.encoding_root(a.run, PathResolver()) / "qc")
     writeguard.assert_writable(out)
     name = "slowband_decode_all.csv" if a.all else "slowband_decode.csv"
     # CURATED sessions only (Priya 10-20: "only sessions from our curated analysis list" -- no early June / 0805, no
     # stroke-day 0817); from 08-06 = the August-only baseline + post-stroke
     cur = set(ak.curated_labels())
-    labels = a.labels or ([s["label"] for s in F.SESSIONS if s["label"][-4:] >= "0806" and s["label"] in cur]
+    labels = a.labels or ([s["label"] for s in F.SESSIONS if not config.early_pre(s["label"]) and s["label"] in cur]
                           if a.all else list(DEFAULT))
     prev = pd.DataFrame()
     if a.all:                                          # reuse rows already computed (both files)
@@ -95,7 +98,7 @@ def main(argv=None) -> int:
     for it, err in fail:
         print(f"  FAILED {it}: {err}")
     D = pd.concat([prev, pd.DataFrame([r for _lab, r in got])], ignore_index=True).sort_values("label")
-    D["animal"] = D.label.str[:4]
+    D["animal"] = D.label.str.split("_").str[0]
     D["set"] = ["pre" if x[5:] <= "0814" else "post" for x in D.label]
     D["epoch"] = D.label.map(epochs.epoch_of)
     D.to_csv(Path(out) / name, index=False, float_format="%.4g")

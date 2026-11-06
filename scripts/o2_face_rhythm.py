@@ -608,11 +608,12 @@ def default_sessions(ro: Path, include_june: bool = False) -> list[tuple[str, st
     """Curated sessions with v36 cam4 windows. JUNE IS LEFT OUT by default: the camera changed after June, so June's
     registration to the master face fell back to a similarity fit and `face_rhythm_warp_rois.py` writes no June ROIs
     (pose/3-D window, 10-21); the orofacial baseline is August-only anyway (CLAUDE.md, 10-18)."""
+    from wfield_local import config
     from wfield_local import analysis_kit as ak
     cur = ak.curated_ids()
     return [(p.parent.name, p.name) for p in sorted((ro / V36 / "sessions").glob("*/*"))
             if (p / "windows.npz").exists() and f"{p.parent.name}_{p.name}" in cur
-            and (include_june or p.name[4:6] != "06")]
+            and (include_june or not config.early_pre(p.name))]
 
 
 def rois_dir(rv, cam: str = CAM) -> Path:
@@ -760,7 +761,7 @@ def cmd_bundle(name: str, user: str, sessions: list[tuple[str, str]] | None, seg
 # peak ~{E['ram']:.0f} GB. Resumable per segment: a task that hits the limit continues where it stopped when
 # resubmitted with the same --array index.
 set -eo pipefail
-module load conda/miniforge3/24.11.3-0
+module load conda/miniforge3/26.9.4-1
 conda activate fr
 export OMP_NUM_THREADS=4 MKL_NUM_THREADS=4 OPENBLAS_NUM_THREADS=4
 echo "task $SLURM_ARRAY_TASK_ID on $(hostname), $(python --version)"
@@ -777,7 +778,7 @@ up to 2x its outputs (work memmaps, removed once the npz are written).
 ## 0. Once: the env  (interactive job: srun --pty -p interactive -c 2 --mem 8G -t 1:00:00 bash)
 CPU-only torch (the default wheel pulls ~4 GB of CUDA libraries, and pip's cache filled /home on 10-21):
 ```bash
-module load conda/miniforge3/24.11.3-0
+module load conda/miniforge3/26.9.4-1
 conda create -y -n fr python=3.12 && conda activate fr
 export PIP_CACHE_DIR={s}/pip_cache TMPDIR={s}/tmp && mkdir -p $PIP_CACHE_DIR $TMPDIR
 pip install torch --index-url https://download.pytorch.org/whl/cpu
@@ -977,6 +978,45 @@ def qc_task(job) -> dict:
                                         **tracking_qc(out / f"{key}_points.npz", step)})
 
 
+def timing_task(job) -> dict:
+    """One task's TRUE bin times + local frame loss (`face_rhythm_timing`), cached in ``<bundle>/timing/<key>.npz``.
+    Module-level for `fan_sessions`."""
+    from types import SimpleNamespace
+    d, r = job
+    row = SimpleNamespace(**r)
+    from wfield_local import face_rhythm_timing as frt
+    from wfield_local.paths import PathResolver
+    t = frt.load(d, row.key) or frt.build(PathResolver(), Path(d), row)
+    linear = None
+    with np.load(Path(d) / "out" / f"{row.key}_session.npz") as z:
+        linear = z["t_daq_s"].astype(float)
+    return {"key": row.key, "animal": row.animal, "dropped_frac": float(t["dropped_frac"]),
+            "lossy_session_frac": float(frt.lossy(t["drop5"]).mean()),
+            "lossy_trial_bins_frac": float(frt.lossy(t["drop_trials"]).mean()),
+            "linear_stamp_err_max_s": float(np.nanmax(np.abs(linear - t["t5"])))}
+
+
+def cmd_timing(name: str, jobs: int = 3) -> None:
+    """True DAQ times of every task's session / points bins + local frame loss (10-23: the runner's linear stamps were
+    841 s off on PS92_0908). -> ``<bundle>/timing/<key>.npz`` (cached) + ``timing_summary.csv``."""
+    from wfield_local import analysis_kit as ak
+    from wfield_local import o2_inference as oi
+    from wfield_local.paths import PathResolver
+    d = oi.bundle_dir(PathResolver(), name)
+    T = pd.read_csv(d / "tasks.tsv", sep="\t", dtype=str)
+    T = T[[(d / "out" / f"{k}_summary.json").exists() for k in T.key]]
+    res, fails = ak.fan_sessions([(str(d), {c: getattr(r, c) for c in ("key", "animal", "date", "cam", "video")})
+                                  for r in T.itertuples()], timing_task, jobs=jobs, key=lambda j: j[1]["key"])
+    for j, e in fails:
+        print(f"  !! {j[1]['key']}: {e}")
+    S = pd.DataFrame([v for _, v in res])
+    S.to_csv(d / "timing_summary.csv", index=False, float_format="%.5g")
+    bad = S[(S.lossy_session_frac > 0) | (S.linear_stamp_err_max_s > 0.02)]
+    print(f"timing: {len(S)} tasks; dropped frames median {S.dropped_frac.median():.2%}, max {S.dropped_frac.max():.2%}")
+    print(bad.round(4).to_string(index=False) if len(bad) else "no lossy bins, linear stamps within 20 ms everywhere")
+    print(f"-> {d / 'timing'}, {d / 'timing_summary.csv'}")
+
+
 def cmd_qc(name: str, step: int = 25, jobs: int = 4) -> None:
     """Integrity + tracking QC for every task whose outputs are complete (summary + three npz; tasks still being
     copied are skipped), by animal x epoch (is post-stroke tracking as clean as pre?). Tasks in parallel
@@ -1074,7 +1114,7 @@ def cmd_paramtest(name: str, user: str, key: str, n_frames: int = 30000, only: l
           f"#SBATCH -t 0-02:00:00\n#SBATCH --array=1-{len(sets.split())}\n"
           f"#SBATCH -o {b}/logs/pt_%A_%a.out\n#SBATCH -e {b}/logs/pt_%A_%a.err\n"
           f"# Tracking-parameter test: task {task} ({key}), frames {start}-{start + n_frames} ({max(count)} trial cues)\n"
-          f"set -eo pipefail\nmodule load conda/miniforge3/24.11.3-0\nconda activate fr\n"
+          f"set -eo pipefail\nmodule load conda/miniforge3/26.9.4-1\nconda activate fr\n"
           f"SETS=({sets})\n"
           f"python {b}/fr_param_test.py {task} " + "${SETS[$SLURM_ARRAY_TASK_ID-1]}" + f" {start} {n_frames}\n")
     (d / "run_param_test.sbatch").write_text(sb, encoding="utf-8", newline="\n")
@@ -1269,6 +1309,10 @@ def cmd_paramscore(name: str, src: str | None = None) -> pd.DataFrame:
 
 
 def main(argv=None) -> int:
+    # the guard belongs HERE, in the desktop CLI -- not inside the RUNNER text shipped to O2 as fr_runner.py, where
+    # wfield_local is not importable (fourth review LOW)
+    from wfield_local import run_mode as _rm_guard
+    _rm_guard.require_default("o2_face_rhythm")   # unrouted share writer: refuses in a non-default run mode
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="cmd", required=True)
     b = sub.add_parser("bundle")
@@ -1292,6 +1336,9 @@ def main(argv=None) -> int:
     q.add_argument("--name", required=True)
     q.add_argument("--step", type=int, default=25, help="sample every N 25 Hz bins (25 = 1 Hz)")
     q.add_argument("--jobs", type=int, default=4, help="tasks in parallel (I/O-bound; shared box)")
+    tm = sub.add_parser("timing", help="true bin times + local frame loss per task (face_rhythm_timing; cached)")
+    tm.add_argument("--name", required=True)
+    tm.add_argument("--jobs", type=int, default=3)
     t = sub.add_parser("paramtest", help="write the tracking-parameter test into a bundle")
     t.add_argument("--name", required=True)
     t.add_argument("--user", required=True)
@@ -1312,6 +1359,8 @@ def main(argv=None) -> int:
         cmd_paramscore(a.name, a.src)
     elif a.cmd == "qc":
         cmd_qc(a.name, a.step, a.jobs)
+    elif a.cmd == "timing":
+        cmd_timing(a.name, a.jobs)
     else:
         cmd_collect(a.name)
     return 0

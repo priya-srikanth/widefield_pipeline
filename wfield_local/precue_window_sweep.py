@@ -77,7 +77,7 @@ def windows(s, sig, align="precue"):
                                   cue alignment in 4/4 animals for exactly that reason)
     """
     cue = _load_cue(s["h5"])
-    lk = _load_daq_events(s["h5"], "lick_analog", 2.5, 1.0, (0.001, 0.020), 0.10)
+    lk = _load_daq_events(s["h5"], "lick_analog")
     cue_f, lick_f, _ = _frames(s, cue, lk)
     codes = classify_cues_with_backup(s, cue, verbose=False)
     ls = np.sort(np.asarray(lick_f))
@@ -143,8 +143,8 @@ def main():
     modes = a.modes.split(",")
     dates = (set(config.expand_dates(a.from_dates, width=4)) if a.from_dates
              else set(config.curated_dates()))
-    only = config.normalize_animals(a.animals) or sorted({x["label"][:4] for x in SESSIONS})
-    labs = [x["label"] for x in SESSIONS if x["label"][:4] in set(only) and x["label"][-4:] in dates]
+    only = config.normalize_animals(a.animals) or sorted({x["label"].split("_")[0] for x in SESSIONS})
+    labs = [x["label"] for x in SESSIONS if x["label"].split("_")[0] in set(only) and x["label"][-4:] in dates]
 
     rows = {m: [] for m in modes}
     for lab in labs:
@@ -154,13 +154,13 @@ def main():
         if not ad:
             continue
         try:
-            svt = np.load(f"{res}/SVT.npy")
-            T = np.load(f"{res}/T.npy").astype(np.float64)
+            svt = np.load(f"{res}/SVT.npy")  # noqa: F841
+            T = np.load(f"{res}/T.npy").astype(np.float64)  # noqa: F841
         except Exception as ex:                                      # noqa: BLE001
             print(f"  !! {lab}: {type(ex).__name__} {str(ex)[:50]}", flush=True)
             continue
         cue = _load_cue(s["h5"])
-        lk = _load_daq_events(s["h5"], "lick_analog", 2.5, 1.0, (0.001, 0.020), 0.10)
+        lk = _load_daq_events(s["h5"], "lick_analog")
         _c, _l, csmp = _frames(s, cue, lk)
         for m in modes:
             try:

@@ -82,7 +82,9 @@ def main(argv=None) -> int:
     rv = PathResolver()
     pm, pt = MI.params(), LT.params({"baseline": a.baseline} if a.baseline else None)
     cued = LT.POS_ORDER if a.cued == ["all"] else a.cued
-    out_dir = Path(rv.root("microscope")) / "DeepLabCut" / "Widefield" / "session_poses"
+    from wfield_local import run_mode
+    out_dir = run_mode.session_poses_out(       # the rebuild's derived pose area (coordinator 11-04); old place by default
+        "lick_template_match", Path(rv.root("microscope")) / "DeepLabCut" / "Widefield" / "session_poses")
     sfx = f"_{a.tag}" if a.tag else ""
     per_lick, stats_rows = [], []
     for version in ("raw", "movement_removed"):

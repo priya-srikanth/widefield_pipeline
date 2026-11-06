@@ -87,6 +87,7 @@ from wfield_local.grant_confusion import (  # noqa: F401
     REFIT_UNAVAILABLE,
     _acc_ci,
     _collect_5c,
+    _collect_5c_cached,
     _counts,
     _draw_5c,
     _matched_frozen,
@@ -1217,8 +1218,13 @@ def main(argv=None) -> int:
                     help="render only this alignment")
     ap.add_argument("--variant", default=None, choices=("lick", "working"),
                     help="render only this trial class")
+    ap.add_argument("--pre-from", default=None, metavar="MMDD|all",
+                    help="pre-stroke baseline for THIS render block (rebuild 11-03); sets WIDEFIELD_PRE_FROM, "
+                         "outputs tagged pre<MMDD>")
     args = ap.parse_args(argv)
-    out = args.output or (Path(PathResolver().root("labcams")) / "grant_figures")
+    from wfield_local import config as _config
+    _config.apply_pre_from(args.pre_from)
+    out = args.output or (Path(PathResolver().root("cohort_out")) / "grant_figures")
     from wfield_local import lp_licks
     out = lp_licks.output_dir(out)            # LP_licks renders -> grant_figures/LP_licks/...
     print(f"lick source: {lp_licks.lick_source()} -> {out}", flush=True)

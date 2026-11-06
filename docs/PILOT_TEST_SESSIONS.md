@@ -43,7 +43,10 @@ functional channel, so it still contains hemodynamics.
   widefield signal.**
 - **No saturation** at any setting (even 1 A → 61% of range). The 415 channel is steady (~32k) across
   all three (good internal control).
-- **490 > 470** for ΔF/F (consistent with GCaMP8s's excitation peak near 490).
+- ~~**490 > 470** for ΔF/F (consistent with GCaMP8s's excitation peak near 490).~~ **Withdrawn 2026-10-30
+  (Priya): 490 was only better when driven above the LED's rating** — both 490 runs here (1 A, 700 mA) exceed
+  the M490L3's 350 mA, so there is no in-spec 490 comparison. These are uncorrected ΔF/F std, which LED drift
+  under overdrive and 490's different hemoglobin absorption can inflate. 470 stays the functional LED.
 - The 1 A-vs-700 mA ΔF/F gap is most likely a **duration artifact** (the 700 mA run was only 54 s), not
   a power effect — ΔF/F is power-normalized. **700 mA is a fine operating point** and avoids the 1 A
   overdrive (note: 490 LED is the M490L3, rated **350 mA**; see LED-current discussion — a sub-350 mA

@@ -72,3 +72,44 @@ Supporting (native-grid, LED-confounded) raw levels: raw functional F was ~2–3
 `frames_average_atlas.npy`, `allen_brain_mask_native_grid.npy`, and the cue
 `*_spout_positions_1s_pre_post_delta_maps.npz`) for the three sessions above. Raw `.dat`/`.bin`
 are on M: standby.
+
+---
+
+## Cohort2 (2026-11): 490 nm across GCaMP6s (PS118) and RiboL1-jGCaMP8s (PS121/PS122)
+
+Cohort2 switched the functional LED to **490 nm, driven ABOVE its rated current** — PS121/PS122 from
+2026-11-04, PS118 (first GCaMP6s 490) 2026-11-05 (folder tag `_490_`). Each animal is compared to its own
+prior **470** sessions; N=1 490 session per animal so far. Scripts: `scripts/cohort2_qc/led_490_vs_470.py`
+(brightness F0, per-pixel-SD/shot-floor SNR, within-session fade) and `led_490_vs_470_dprime.py`
+(**single-trial response SNR** = mean / across-trial SD of the baseline-subtracted task response — a
+standardized effect size, NOT a signal-detection d′). Both cover all three animals; figures are on
+N: `cohort2/490_vs_470/` and in the cohort2 RiboL1 deck.
+
+| animal (indicator) | metric | 470 range | 490 (one session) | read |
+|---|---|---|---|---|
+| **PS118 (GCaMP6s)** | F0 / SNR / ΔF/F | 22–25.5k / 2.7–3.3 / 2.8–3.1% | 22.8k / 3.1 / 3.12% | **no gain** (mid-range) |
+| | func fade | 0 to −3.6% | −8.0% | a bit more, but < its own 415 fade (−17%) |
+| | cue / lick resp-SNR | 1.13–2.01 / 1.88–2.86 | 1.39 / 2.37 | mid-range (below best 470 days) |
+| **PS121 (RiboL1-8s)** | SNR / ΔF/F | 0.6–0.9 / 0.64–0.80% | 1.0 / 0.92% | top of range (all variance) |
+| | cue / lick resp-SNR | 0.44–0.85 / 1.10–1.80 | 0.97 / 1.58 | cue just above best day; lick below best |
+| **PS122 (RiboL1-8s)** | SNR / ΔF/F | 0.9–1.1 / 0.84–0.95% | 1.3 / 1.18% | top of range (all variance) |
+| | cue / lick resp-SNR | 1.01–1.43 / 1.54–2.35 | 1.45 / 2.35 | cue = best day (+0.02); lick ties best |
+
+**Conclusion.**
+* **RiboL1-jGCaMP8s: 490 at least matches the best 470 day; a gain is not shown.** Whole-signal SNR and per-pixel
+  ΔF/F land at or just above the **top** of each animal's 470 range, but that metric counts all variance. On the
+  task response, single-trial **response SNR** is the best day on cue by a small margin (PS121 0.97 vs 0.85, PS122
+  1.45 vs 1.43), ties the best day on lick in PS122 (2.35 = 2.35) and is below it in PS121 (1.58 vs 1.80). Amplitude
+  and trial-to-trial SD rise about equally at 490. PS122's response SNR was rising across its 470 days (lick 1.54 ->
+  1.84 -> 2.35), and 490 was recorded last, so matching the previous day is what a trend alone would give.
+* **GCaMP6s (PS118): 490 ~neutral.** F0, SNR and ΔF/F are mid-range vs its 470 days — no improvement (470
+  already excites GCaMP6s efficiently), and single-trial response SNR is mid-range too (cue 1.39 / lick 2.37,
+  below its best 470 days 2.01 / 2.86).
+* **No excess overdrive LED droop in any animal.** The 490 functional channel's within-session fade is
+  **smaller than the same session's 415 fade** (PS118 −8% vs −17%; RiboL1 similar), and the 415 LED is
+  separate and unchanged — so it cannot be drooping from the 490 overdrive. PS118's 490 fade (−8%) is
+  modestly above its 470 days (≤−4%) but is mostly general session bleaching, not the LED dimming.
+* **Caveat:** N=1 490 session per animal; every 490 value falls **inside** the animal's 470 session-to-
+  session spread, and 490 was always the LAST session in the series, so day / practice and LED are confounded.
+  Read the cohort2 result as "490 is no worse than 470 for either indicator" — not as a gain for 8s. Deciding it
+  needs same-day interleaved 490/470 blocks (or alternating days) at in-spec current, as this doc's pilot section urged.

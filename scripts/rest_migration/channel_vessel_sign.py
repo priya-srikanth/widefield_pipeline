@@ -122,7 +122,8 @@ def main(argv=None) -> int:
     from wfield_local import config
     from wfield_local.paths import PathResolver
 
-    out_dir = a.out or (Path(PathResolver().root("labcams")) / "grant_figures" / "epoch")
+    from wfield_local import lp_licks              # run-mode routing (rebuild 11-03): identity for the default run
+    out_dir = a.out or lp_licks.output_dir(Path(PathResolver().root("cohort_out")) / "grant_figures" / "epoch")
     bar = "=" * 100
     got = {}
     for lab in a.sessions:
@@ -162,7 +163,7 @@ def main(argv=None) -> int:
     nlat = len(LATENCIES)
     fig, axes = plt.subplots(2 * len(got), nlat, figsize=(1.7 * nlat, 3.4 * len(got)),
                              squeeze=False)
-    for gi, (lab, (lat, mp, vess, par, brain, vness, ncue)) in enumerate(got.items()):
+    for gi, (lab, (lat, mp, vess, par, brain, vness, ncue)) in enumerate(got.items()):  # noqa: B007
         for ci, k in enumerate(("470", "415")):
             # ONE SHARED SCALE PER CHANNEL PER SESSION, computed INSIDE the brain mask -- the
             # registered edge of U_atlas holds extreme values and an all-pixel percentile

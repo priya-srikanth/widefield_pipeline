@@ -45,7 +45,7 @@ from sklearn.metrics import accuracy_score, confusion_matrix
 
 from wfield_local.locanmf_cue_lick_analysis import SESSIONS, ANIMAL_COLOR
 from wfield_local import config, session_cache
-from wfield_local.locanmf_position_decoder import _trial_features, trial_features_cached
+from wfield_local.locanmf_position_decoder import _trial_features, trial_features_cached  # noqa: F401
 from wfield_local.plot_lick_aligned_averages import POSITION_NAMES, DISPLAY_ORDER
 
 FS = 31.23
@@ -139,7 +139,7 @@ def _session_labels(dates=None, phase="pre"):
             continue
         if keep is not None and s["label"] not in keep:
             continue
-        by[s["label"][:4]].append(s["label"])
+        by[s["label"].split("_")[0]].append(s["label"])
     return by
 
 

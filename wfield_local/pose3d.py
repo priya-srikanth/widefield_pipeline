@@ -33,6 +33,33 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
+#: WHICH 3-D: "2cam" (cam1 + cam4, `session_3d`) or "4cam" (+ cam2 / cam3, `pose3d_side`; 2026-11-04). Each source has its own
+#: folder under <dlc>/session_poses, and every reader / writer of 3-D tables (frames, licks, kinematics*, phase, cue traces,
+#: spout error, figures, trajectories, ...) takes it from `pose3d_dir`, so the two never mix and nothing is overwritten.
+#: Chosen per call or by the env var (inherited by `scripts.pose_chain`'s child steps); default 2cam = today's outputs.
+SOURCES = {"2cam": "pose3d", "4cam": "pose3d_4cam",
+           "4cam_clips": "pose3d_4cam_clips"}   # 4cam on the side REVIEW CLIPS only (partial windows): tests, never production
+SOURCE_ENV = "WIDEFIELD_POSE3D_SOURCE"
+
+
+def pose3d_source(source: str | None = None) -> str:
+    import os
+    s = source or os.environ.get(SOURCE_ENV) or "2cam"
+    if s not in SOURCES:
+        raise ValueError(f"3-D source {s!r}: one of {sorted(SOURCES)} ({SOURCE_ENV})")
+    return s
+
+
+def pose3d_dir(rv=None, source: str | None = None, root=None):
+    """<dlc root>/session_poses/<pose3d | pose3d_4cam>: the 3-D tables of ``source`` (`pose3d_source`). ``root`` = the
+    dlc root as a path (callers that already hold it), else ``rv.root("dlc")``."""
+    from pathlib import Path
+    if root is None:
+        from wfield_local.paths import PathResolver
+        root = (rv or PathResolver()).root("dlc")
+    return Path(root) / "session_poses" / SOURCES[pose3d_source(source)]
+
+
 STATIC_LK = 0.9            # nose / spout: raw points, both cameras at least this confident
 CLEANED = ("tongue", "jaw")
 STATIC = ("nose", "spout")
@@ -167,6 +194,22 @@ def pnp_group(cg, med_by_cam: dict, geometry: dict, edge_offset: dict | None = E
     return g, err
 
 
+def edge_shifted(g, edge_offset: dict | None = EDGE_OFFSET_MM):
+    """Copy of ``g`` in which each camera projects X + its spout ``edge_offset`` (t' = t + R o): triangulating the SPOUT
+    keypoints with it returns the commanded point they imply, not a blend of cam1's inferior and cam4's superior edge."""
+    import copy
+
+    import cv2
+    gs = copy.deepcopy(g)
+    for cam in gs.cameras:
+        o = np.asarray((edge_offset or {}).get(cam.get_name(), (0.0, 0.0, 0.0)), float)
+        if o.any():
+            M = cam.get_extrinsics_mat()
+            cam.set_translation(M[:3, 3] + M[:3, :3] @ o)
+            cam.set_rotation(cv2.Rodrigues(M[:3, :3])[0].ravel())
+    return gs
+
+
 def _identity_world(g, med_by_cam: dict, geometry: dict, edge_offset: dict | None = EDGE_OFFSET_MM):
     """`spout_world.SpoutWorld` for a PnP group (scale 1, identity): residuals / distance check of the triangulated spouts.
 
@@ -175,21 +218,10 @@ def _identity_world(g, med_by_cam: dict, geometry: dict, edge_offset: dict | Non
     (projection of X + o == projection of X with t' = t + R o): the result is the commanded point the keypoints imply.
     Without the shift the triangulated 'spout' is a blend of the two edges and the check fails (10-19: every session read
     > 0.2 mm and was skipped downstream)."""
-    import copy
-
-    import cv2
-
     from wfield_local import spout_world as SW
     pos = [p for p in SW.POSITIONS if all(p in med_by_cam[c] for c in med_by_cam)]
     pts = np.stack([[np.asarray(med_by_cam[c.get_name()][p][:2], float) for p in pos] for c in g.cameras])
-    gs = copy.deepcopy(g)
-    for cam in gs.cameras:
-        o = np.asarray((edge_offset or {}).get(cam.get_name(), (0.0, 0.0, 0.0)), float)
-        if o.any():
-            M = cam.get_extrinsics_mat()
-            cam.set_translation(M[:3, 3] + M[:3, :3] @ o)
-            cam.set_rotation(cv2.Rodrigues(M[:3, :3])[0].ravel())
-    X = gs.triangulate(pts, undistort=True)
+    X = edge_shifted(g, edge_offset).triangulate(pts, undistort=True)
     med = dict(zip(pos, X))
     res = {p: float(np.linalg.norm(med[p] - SW.commanded_world(geometry, p))) for p in pos}
     return SW.SpoutWorld(1.0, np.eye(3), np.zeros(3), res, SW.distance_check(med, geometry), {}, {})
@@ -428,6 +460,10 @@ def session_3d(cg, rig: dict, ix1: pd.DataFrame, flat1: pd.DataFrame, ix4: pd.Da
         if "video" in ix:
             out[name] = ix.video.to_numpy()[ii]
     qc = {}
+    # SPOUT per frame with each camera's edge offset (11-04, Priya "yes we should correct"): the poses put cam1's keypoint
+    # one rod diameter below cam4's, so triangulating the two edges as ONE point gave a blend 1.04 mm behind the commanded
+    # tip in ap (PS93 0814, every position); the shifted group lands on the tip (0.00 mm). Body parts use ``cg`` as is.
+    cg_spout = edge_shifted(cg) if method == "pnp" else cg
     for part in CLEANED + STATIC:
         if part in CLEANED:
             a, _ = cleaned_xy(flat1, ix1, part, "cam1", mouth1)
@@ -435,7 +471,7 @@ def session_3d(cg, rig: dict, ix1: pd.DataFrame, flat1: pd.DataFrame, ix4: pd.Da
             a, b = a[i1], b[i4]
         else:
             a, b = _raw_xy(flat1, part, i1), _raw_xy(flat4, part, i4)
-        X, rep = triangulate(cg, a, b)
+        X, rep = triangulate(cg_spout if part == "spout" else cg, a, b)
         gap = (FILL_GAP_MS if fill_gap_ms is None else fill_gap_ms if isinstance(fill_gap_ms, dict)
                else {p_: fill_gap_ms for p_ in CLEANED}).get(part)
         if part in CLEANED and gap:

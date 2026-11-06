@@ -223,7 +223,7 @@ def fig_best_match(out_dir, min_trials=10):
             if im is None:
                 plt.close(fig)
                 continue
-            cls = _class_note(v)
+            cls = _class_note(v, pattern=True)
             _suptitle(fig,
                       f"Which PRE-STROKE position does each post-stroke position match BEST? -- "
                       f"{wname} window\n"
@@ -336,7 +336,7 @@ def fig_best_match_by_session(out_dir, min_trials=10):
             if not drew or im is None:
                 plt.close(fig)
                 continue
-            cls = _class_note(v)
+            cls = _class_note(v, pattern=True)
             top = _suptitle(fig,
                             f"Which pre-stroke position did each one match BEST, SESSION BY "
                             f"SESSION? -- {wname} window\n"

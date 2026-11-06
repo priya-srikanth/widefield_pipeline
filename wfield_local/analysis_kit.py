@@ -24,13 +24,9 @@ point estimate per cell. Folding them in would mean one function with two reduct
 is how a shared helper starts growing flags until the copies come back. They stay separate and
 say so here so the next reader does not think they were missed.
 
-ONE KNOWN WART, RECORDED RATHER THAN HIDDEN. `session_behavior` reaches UP into
-`scripts/rest_migration/` for `session_trials`, `session_quit` and `near_codes` -- a library
-importing from the scripts tree, which is backwards. It is done inside the function, so there is
-no import cycle and nothing breaks, and it is not NEW coupling: the two worker functions this
-replaces each imported those same three names across the tree already. Fixing it properly means
-moving those three definitions down into `wfield_local`, which touches the modules that own them
-and their callers, and that is a separate change with its own verification.
+`session_behavior` takes `session_trials`, `session_quit` and `near_codes` from `wfield_local.engagement`. Until
+2026-11-05 it reached UP into `scripts/rest_migration/` for them; they were moved down verbatim (code review 11-04),
+and the two scripts re-export the names.
 
 READ `DECISIONS.md` -- "FANNING THE ANALYSIS LOOPS OVER CORES, AND THE THREE THINGS IT CHANGED"
 (2026-09-20) -- before changing anything below about ORDER. Half of this module exists to make an
@@ -51,9 +47,20 @@ N_BOOT = 4000
 #: are 95%.
 PCTL = (2.5, 97.5)
 
-#: Response window for scoring a trial as a hit, in seconds. 2.0 in `session_trials` call sites
-#: throughout `rest_migration`.
-RESP_S = 2.0
+#: Response window for scoring a trial as a hit: NOT a constant. ``None`` = read THIS session's window from its
+#: behaviour log (`response_window_s`). Until 2026-11-03 this was 2.0 s, which was never the task's window (3.5 s in
+#: every session from June on; 3.0 s in May training) -- Priya 11-03: "2 s was not deliberate" (consolidation A1).
+RESP_S = None
+
+
+def response_window_s(s) -> float:
+    """THE response window of one session, in seconds, read from its own behaviour log (`gui_config.json`,
+    ``timing.response_window``, stored in ms) via `nolick_decoder.response_window_for` -> `daq_trials.response_window_s`.
+    ``s`` is a `config.load_sessions()` record. Every analysis that asks "did the animal respond to this cue" uses
+    this; nothing hard-codes a window (Priya 11-03, consolidation A1)."""
+    from wfield_local.nolick_decoder import response_window_for
+
+    return float(response_window_for(s))
 
 
 class Interval(NamedTuple):
@@ -128,8 +135,12 @@ def boot_ci(by_animal, rng, n_boot: int = N_BOOT):
                     float(np.percentile(o, PCTL[1])), len(animals))
 
 
-def boot_delta(post, pre, rng, n_boot: int = N_BOOT):
+def boot_delta(post, pre, rng, n_boot: int = N_BOOT, draws: bool = False):
     """Paired animals -> sessions bootstrap of ``post - pre``. ``Interval`` or None.
+
+    ``draws=True`` returns ``(Interval or None, the bootstrap draws)`` instead -- for a p-value / multiple-comparison
+    correction from the SAME draws (`boot_p`). It changes nothing about the draw itself: same rng sequence, same
+    interval.
 
     **THE ANIMALS ARE RESAMPLED ONCE AND THE SAME DRAW IS USED FOR BOTH ARMS**, which is what
     makes it paired: each animal is its own pre-stroke control, so between-animal variance -- the
@@ -150,24 +161,220 @@ def boot_delta(post, pre, rng, n_boot: int = N_BOOT):
     print the per-animal table BEFORE the bootstrap -- exists because that is not visible in the
     interval at all.**
     """
-    animals = sorted(set(post) & set(pre))
+    obs, o, animals = paired_animal_draws(post, pre, _mean_of, rng, n_boot)
+    if obs is None:
+        return (None, o) if draws else None
+    if len(o) < n_boot // 4:
+        return (None, o) if draws else None
+    iv = Interval(obs, float(np.percentile(o, PCTL[0])), float(np.percentile(o, PCTL[1])), len(animals))
+    return (iv, o) if draws else iv
+
+
+def _mean_of(values, _rng=None):
+    return float(np.mean(values))
+
+
+def paired_animal_draws(post, pre, reduce, rng, n_boot: int = N_BOOT, *, reduce_pre=None, combine=None):
+    """THE change-vs-pre draw, for every kind of per-session record: ``(point, draws, animals)``.
+
+    ``post`` / ``pre`` are ``{animal: [one record per session, ...]}``. A record can be a number (`boot_delta`), a
+    matrix (`matrix_bootstrap.delta_draws`), a ``(hits, n)`` pair (`epoch_behaviour`) or a session's trial blocks
+    (`epoch_figures.contrast_draws`); ``reduce(records, rng) -> value | None`` turns one animal's sessions into its
+    value for that arm (``rng`` is None for the real data, and a reducer with a level below the session -- trial
+    blocks -- resamples it with ``rng``). ``reduce_pre`` defaults to ``reduce``.
+
+    ONE RULE FOR EVERY CHANGE-VS-PRE (consolidation A3, Priya 11-03):
+      1. only animals with sessions in BOTH arms count -- an animal with no pre cannot supply a change;
+      2. each animal's change = its own post value minus its own pre value;
+      3. the change = the MEAN OVER ANIMALS (``combine``, default `np.mean`), so animals weigh equally and a
+         heavily-sampled animal cannot decide it;
+      4. the draws resample animals (one draw shared by both arms = paired), then sessions within each animal.
+    Every session is still used: more sessions make that animal's value -- and the interval -- tighter (Priya: "don't
+    waste multiple-session power"). The point is computed the same way on the real data, so it always describes the
+    same animals as the draws. An animal whose ``reduce`` returns None in a draw is left out of that draw only.
+    """
+    reduce_pre = reduce_pre or reduce
+    combine = combine or (lambda d: float(np.mean(d)))
+    animals = [a for a in sorted(set(post) & set(pre)) if len(post[a]) and len(pre[a])]
     if not animals:
-        return None
-    obs = float(np.mean([float(np.mean(post[a])) - float(np.mean(pre[a])) for a in animals]))
+        return None, np.array([]), []
+    obs_d = []
+    for a in animals:
+        va, vb = reduce(list(post[a]), None), reduce_pre(list(pre[a]), None)
+        if va is not None and vb is not None:
+            obs_d.append(np.asarray(va) - np.asarray(vb) if np.ndim(va) else va - vb)
+    if not obs_d:
+        return None, np.array([]), animals
     out = []
     for _ in range(n_boot):
         d = []
         for a in (animals[i] for i in rng.integers(0, len(animals), len(animals))):
             pa, qa = post[a], pre[a]
-            d.append(float(np.mean([pa[i] for i in rng.integers(0, len(pa), len(pa))]))
-                     - float(np.mean([qa[i] for i in rng.integers(0, len(qa), len(qa))])))
+            sa = [pa[i] for i in rng.integers(0, len(pa), len(pa))]
+            sb = [qa[i] for i in rng.integers(0, len(qa), len(qa))]
+            va, vb = reduce(sa, rng), reduce_pre(sb, rng)
+            if va is not None and vb is not None:
+                d.append(np.asarray(va) - np.asarray(vb) if np.ndim(va) else va - vb)
         if d:
-            out.append(float(np.mean(d)))
+            out.append(combine(d))
+    return combine(obs_d), np.asarray(out), animals
+
+
+def boot_delta_columns(post, pre, rng, n_boot: int = N_BOOT):
+    """`boot_delta` for MANY quantities measured on the same sessions at once (e.g. every point of a face map):
+    ``{animal: array (n_sessions, C)}`` -> ``(point (C,), lo (C,), hi (C,), draws (n_boot, C), n_animals)`` or None.
+
+    NOT a second bootstrap: the SAME draw as `boot_delta` -- same animal / session index sequence from ``rng``, applied
+    to every column at once, so column c reproduces `boot_delta` on column c (pinned in tests, to float rounding of the
+    mean: an axis-0 mean over a 2-D slice sums in a different order than `np.mean` of a list). One resample serves all
+    columns, which is what makes a per-point map affordable (1,282 points x 2,000 draws in a second)."""
+    animals = sorted(set(post) & set(pre))
+    if not animals:
+        return None
+    post = {a: np.asarray(post[a], float) for a in animals}
+    pre = {a: np.asarray(pre[a], float) for a in animals}
+    obs = np.mean([post[a].mean(0) - pre[a].mean(0) for a in animals], 0)
+    out = []
+    for _ in range(n_boot):
+        d = []
+        for a in (animals[i] for i in rng.integers(0, len(animals), len(animals))):
+            pa, qa = post[a], pre[a]
+            d.append(pa[rng.integers(0, len(pa), len(pa))].mean(0) - qa[rng.integers(0, len(qa), len(qa))].mean(0))
+        if d:
+            out.append(np.mean(d, 0))
     if len(out) < n_boot // 4:
         return None
     o = np.asarray(out)
-    return Interval(obs, float(np.percentile(o, PCTL[0])), float(np.percentile(o, PCTL[1])),
-                    len(animals))
+    return obs, np.percentile(o, PCTL[0], axis=0), np.percentile(o, PCTL[1], axis=0), o, len(animals)
+
+
+def bh(p, q: float = 0.05) -> np.ndarray:
+    """Benjamini-Hochberg: boolean "discovery at false-discovery rate ``q``" per p-value (NaN = not a discovery). For
+    MANY tests of one map (per-point face maps), where a family-wise correction (`holm`) would be needlessly strict."""
+    p = np.asarray(p, float)
+    ok = np.flatnonzero(np.isfinite(p))
+    out = np.zeros(len(p), bool)
+    if not len(ok):
+        return out
+    o = ok[np.argsort(p[ok])]
+    passed = np.flatnonzero(p[o] <= q * np.arange(1, len(o) + 1) / len(o))
+    if len(passed):
+        out[o[:passed[-1] + 1]] = True
+    return out
+
+
+def boot_p_columns(o) -> np.ndarray:
+    """`boot_p` per column of a (n_boot, C) draw array."""
+    o = np.asarray(o, float)
+    return np.minimum(1.0, np.maximum(2 * np.minimum((o <= 0).mean(0), (o >= 0).mean(0)), 1.0 / len(o)))
+
+
+def boot_p(o) -> float:
+    """Two-sided bootstrap p of a change from its `boot_delta(..., draws=True)` draws: twice the smaller share of draws
+    on either side of 0, floored at 1 / len(draws). CRUDE at n = 4 animals (the outer draw has 4^4 = 256 animal
+    combinations): use it to RANK and CORRECT tests (`holm`), not as an exact probability."""
+    o = np.asarray(o, float)
+    if not len(o):
+        return float("nan")
+    return float(min(1.0, max(2 * min(np.mean(o <= 0), np.mean(o >= 0)), 1.0 / len(o))))
+
+
+def holm(p) -> np.ndarray:
+    """Holm-Bonferroni adjusted p-values (family-wise error) for a family of tests; NaN stays NaN."""
+    p = np.asarray(p, float)
+    ok = np.isfinite(p)
+    out = np.full(len(p), np.nan)
+    q = p[ok]
+    o = np.argsort(q)
+    adj = np.minimum(1.0, np.maximum.accumulate((len(q) - np.arange(len(q))) * q[o]))
+    r = np.empty(len(q))
+    r[o] = adj
+    out[ok] = r
+    return out
+
+
+EPOCH_LMM_ORDER = ("acute", "subacute", "chronic")
+
+
+def epoch_change_lmm(df, *, value: str = "value", animal: str = "animal", epoch: str = "epoch", base: str = "pre",
+                     epochs=EPOCH_LMM_ORDER):
+    """THE change-vs-pre test for a figure's stars (Priya 2026-11-03): one cell's SESSION rows, every epoch in one
+    mixed model, ``value ~ C(epoch) + (1 | animal) + (1 | animal:epoch)``, with a SEPARATE animal-by-epoch variance per
+    post epoch (the between-animal spread differs by epoch -- Priya), REML (statsmodels MixedLM). Each epoch's change
+    is tested with t on df = (animals with sessions in both base and that epoch) - 1: with the spread free per epoch,
+    that epoch's spread is estimated from its own animals, so df cannot be larger (KR / containment df for this
+    design; Satterthwaite is undefined at the singular fits n = 4 produces, docs/status/A3_LMM_SLOPE_STARS_2026-11-03.md).
+
+    Returns a DataFrame, one row per post epoch present: epoch, beta (the change), se, df, lo, hi (95 % t interval),
+    p, n_animals, n_sessions, var_animal_epoch, converged, singular (that epoch's animal variance ~0). A row whose epoch
+    has fewer than 2 animals in both arms carries NaN statistics (no test). Stars: `lmm_stars` across the figure's
+    cells. Why not the animal bootstrap: at n = 4 with a real between-animal spread its 95 % interval excludes 0 in
+    10-19 % of null data (simulation, same doc); it stays on figures as a description of THESE animals."""
+    import warnings
+
+    import pandas as pd
+    import statsmodels.formula.api as smf
+    from scipy import stats
+
+    D = pd.DataFrame({"y": np.asarray(df[value], float), "a": np.asarray(df[animal]).astype(str),
+                      "e": np.asarray(df[epoch]).astype(str)})
+    D = D[np.isfinite(D.y)].reset_index(drop=True)
+    eps = [e for e in epochs if (D.e == e).any()]
+    rows = [dict(epoch=e, n_animals=len(set(D.a[D.e == base]) & set(D.a[D.e == e])),
+                 n_sessions=int((D.e == e).sum())) for e in eps]
+    D = D[D.e.isin([base, *eps])].reset_index(drop=True)
+    vc = {}
+    for e in eps:
+        D[f"a_{e}"] = np.where(D.e == e, D.a, "none")
+        vc[e] = f"0 + C(a_{e}, Treatment('none'))"
+    # OPTIMISER (a8 11-03 found many non-converged fits): try each in turn and keep the FIRST that converges; if none
+    # does, keep the fit with the highest REML log-likelihood (the best estimate available) and report converged=False.
+    fit = None
+    if (D.e == base).any() and eps and D.a.nunique() >= 2:
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            for method in ("lbfgs", "bfgs", "powell", "nm", "cg"):
+                try:
+                    f = smf.mixedlm(f"y ~ C(e, Treatment('{base}'))", D, groups=D.a, re_formula="1",
+                                    vc_formula=vc).fit(reml=True, method=method)
+                except Exception:  # noqa: BLE001 -- a failed optimiser falls through to the next one
+                    continue
+                if not np.isfinite(f.llf):
+                    continue
+                if fit is None or (f.converged and not fit.converged) or (
+                        f.converged == fit.converged and f.llf > fit.llf + 1e-6):
+                    fit = f
+                if fit.converged:
+                    break
+    vcs = dict(zip(fit.model.exog_vc.names, fit.vcomp)) if fit is not None else {}
+    for r in rows:
+        e, k = r["epoch"], f"C(e, Treatment('{base}'))[T.{r['epoch']}]"
+        if fit is None or r["n_animals"] < 2 or k not in fit.params:
+            r.update(beta=np.nan, se=np.nan, df=np.nan, lo=np.nan, hi=np.nan, p=np.nan, var_animal_epoch=np.nan,
+                     converged=False, singular=False)
+            continue
+        b, se, dfree = float(fit.params[k]), float(fit.bse[k]), r["n_animals"] - 1
+        va = float(vcs.get(e, np.nan))
+        if not (np.isfinite(se) and se > 0):     # degenerate cell (e.g. every session at a ceiling): no test
+            r.update(beta=b, se=np.nan, df=dfree, lo=np.nan, hi=np.nan, p=np.nan, var_animal_epoch=va,
+                     converged=bool(fit.converged), singular=True)
+            continue
+        tc = float(stats.t.ppf(0.975, dfree))
+        r.update(beta=b, se=se, df=dfree, lo=b - tc * se, hi=b + tc * se,
+                 p=float(2 * stats.t.sf(abs(b / se), dfree)), var_animal_epoch=va, converged=bool(fit.converged),
+                 singular=bool(va < 1e-4 * float(fit.scale)))
+    cols = ["epoch", "beta", "se", "df", "lo", "hi", "p", "n_animals", "n_sessions", "var_animal_epoch", "converged",
+            "singular"]
+    return pd.DataFrame(rows, columns=cols)
+
+
+def lmm_stars(p) -> np.ndarray:
+    """Stars for a FIGURE's family of `epoch_change_lmm` p-values (every cell x epoch on the figure): "*" uncorrected
+    p < .05, "**" Holm-adjusted p < .05 across the whole family (Priya 11-03: correct across all the figure's cells,
+    e.g. 18 for six spouts x three epochs; within-epoch correction would be unfair), "" otherwise; NaN p -> ""."""
+    p = np.asarray(p, float)
+    h = holm(p)
+    return np.where(np.isfinite(p) & (h < 0.05), "**", np.where(np.isfinite(p) & (p < 0.05), "*", ""))
 
 
 def boot_delta_pairs(pairs, rng, n_boot: int = N_BOOT):
@@ -222,9 +429,12 @@ def curated_labels(animals=None, **kw):
 
 def curated_ids() -> set:
     """The curated cohort as ``{"PSxx_YYYYMMDD", ...}`` -- the id the pose / video outputs use (Priya 10-20: "we can stop
-    processing sessions that will not be part of analysis"; scripts default to it, ``--all`` overrides)."""
+    processing sessions that will not be part of analysis"; scripts default to it, ``--all`` overrides).
+
+    A SET, for membership tests: never iterate it into a pool without `sorted` (rule 9). The date is the label's part
+    after the underscore, not ``lab[5:]``, which cut cohort2's 5-character animals (``PS118_1105``) one digit late."""
     from wfield_local import config
-    return {f"{lab[:4]}_{config._to8(lab[5:])}" for lab in curated_labels()}
+    return {f"{lab.split('_')[0]}_{config.date8(lab)}" for lab in curated_labels()}
 
 
 # ---------------------------------------------------------------------------------------------
@@ -245,17 +455,38 @@ def daq_rate(s) -> float:
 
 
 def lick_samples(s):
-    """Lick onset samples for one session, with the discriminator settings the deck uses.
+    """Lick onset samples for one session: THE DAQ lick detector, `config.lick_detector` (the yaml ``lick_detection``
+    profile: 2.5 V onset, 0.5 V offset, the falling-edge lockout, the 40 ms physiological floor, NO refractory).
 
-    THE FIVE MAGIC NUMBERS ARE THE POINT. ``(2.5, 1.0, (0.001, 0.020), 0.10)`` appears verbatim in
-    thirty-seven places; they are a Schmitt trigger's high and low thresholds, an accepted pulse
-    width, and a refractory period. This repo has already had to collapse three copies of a lick
-    discriminator. Anyone tempted to tune them should change them HERE and re-run everything, not
-    locally in one analysis.
+    Priya 11-04/05 (REBUILD_CODE 8.53, LICK_DETECTOR_COMPARE_2026-11-04.md on main a69fb9c3): imaging uses the BEHAVIOUR
+    detector everywhere. Until then this was ``(2.5, 1.0, (0.001, 0.020), 0.10)``, verbatim in ~40 places; its 0.10 s
+    refractory dropped 0.58 % of licks (1.4 % in PS95), mostly real 10-11 Hz camera licks, and the 1.0 V offset moved
+    no onset. Every imaging call site now passes only ``(h5, "lick_analog")`` and gets this profile; change the profile
+    in `configs/defaults.yaml` (and bump the cache versions + run-tag token, `config.LICK_DETECTOR_TAG`), never at a
+    call site. Under WIDEFIELD_LICK_SOURCE=lp the train is the LP one (`_load_daq_events`).
     """
     from wfield_local.plot_lick_aligned_averages import _load_daq_events
 
-    return _load_daq_events(s["h5"], "lick_analog", 2.5, 1.0, (0.001, 0.020), 0.10)["lick_samples"]
+    return _load_daq_events(s["h5"], "lick_analog")["lick_samples"]
+
+
+def lick_count_samples(s):
+    """Lick onset samples for LICK COUNTS (licks per trial, licks per bout, ILIs, quit / engagement measures): THE
+    behaviour detector (coordinator 11-03, CLAUDE.md rule 9: one definition per quantity) -- `lick_detection.detect_licks`
+    with the yaml ``lick_detection`` params (0.5 V lower threshold, 40 ms physiological floor), the one the DAQ trial
+    table, the trial stops and the camera contacts use (`daq_trials.decode`). Since 11-05 (REBUILD_CODE 8.53) `lick_samples`
+    uses the same detector, so the two agree on the DAQ train; this one stays the DAQ train under an LP lick source."""
+    import pathlib
+
+    from wfield_local import config, daq_trials
+    key = str(s["h5"])
+    if key not in _COUNT_LICKS:
+        dec = daq_trials.decode(pathlib.Path(s["h5"]), config.defaults()["lick_detection"])
+        _COUNT_LICKS[key] = np.round(np.asarray(dec["lick_s"], float) * float(dec["fs"])).astype(np.int64)
+    return _COUNT_LICKS[key]
+
+
+_COUNT_LICKS: dict = {}
 
 
 class Behavior(NamedTuple):
@@ -299,15 +530,14 @@ def session_behavior(lab, *, gate=False, horizon_min=None, resp_s=RESP_S,
     module fresh and never sees a global the parent assigned at runtime -- a gate set that way
     silently does nothing in every worker while working perfectly in a serial run.
     """
-    from scripts.rest_migration.engagement_decomposition import near_codes, session_trials
-    from scripts.rest_migration.quit_point import session_quit
     from wfield_local import config
+    from wfield_local.engagement import near_codes, session_quit, session_trials
     from wfield_local.locanmf_cue_lick_analysis import _load_cue_events
 
     s = next((x for x in config.load_sessions() if x["label"] == lab), None)
     if s is None:
         return None
-    tr = session_trials(s, resp_s)
+    tr = session_trials(s, resp_s if resp_s is not None else response_window_s(s))
     if len(tr) < min_trials:
         return None
     q = session_quit(s, tr)
@@ -326,7 +556,7 @@ def session_behavior(lab, *, gate=False, horizon_min=None, resp_s=RESP_S,
     # per-session cost; a session that cannot contribute should not pay for them.
     cs = np.asarray(_load_cue_events(s["h5"])["cue_samples"], np.int64)
     return Behavior(session=s, trials=tr, gated=tt, quit=q, cue_samples=cs,
-                    lick_samples=np.asarray(lick_samples(s), np.int64),
+                    lick_samples=np.asarray(lick_count_samples(s), np.int64),   # counts / ILIs: detector A
                     sample_rate=float(daq_rate(s)), near=near_codes())
 
 

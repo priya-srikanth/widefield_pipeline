@@ -106,7 +106,7 @@ def test_spec_id_does_not_depend_on_how_the_training_set_was_passed():
     from wfield_local import frozen_models as fm
 
     labs = ["PS92_0812", "PS92_0808", "PS92_0814"]
-    kw = dict(align="cue", source="roi")
+    kw = dict(align="cue", source="roi", train_data=None)
     a = fm.make_spec("PS92", "decoder", train_labels=labs, **kw)
     b = fm.make_spec("PS92", "decoder", train_labels=list(reversed(labs)), **kw)
     c = fm.make_spec("PS92", "decoder", train_labels=set(labs), **kw)

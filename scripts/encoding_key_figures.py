@@ -21,7 +21,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from wfield_local.orofacial_cohort import POS_ORDER as POS   # the pipeline's canonical order (Priya 10-20)
+from wfield_local.orofacial_cohort import POS_ORDER as POS  # the pipeline's canonical order (Priya 10-20)
 
 EPOCHS = ("pre", "acute", "subacute", "chronic")
 ANIMAL_COL = {"PS92": "#1b9e77", "PS93": "#d95f02", "PS94": "#7570b3", "PS95": "#e7298a"}
@@ -36,7 +36,8 @@ def _plt():
 
 def precue_licking(E: Path, figs: Path) -> None:
     plt = _plt()
-    P = pd.read_csv(E / "qc" / "precue_contacts.csv")
+    from wfield_local import run_mode
+    P = pd.read_csv(run_mode.behaviour_qc_dir() / "precue_contacts.csv")           # behaviour input (untagged, seeded)
     R = pd.concat([pd.read_csv(f) for f in glob.glob(str(E / "movement_first" / "sessions" / "*_regions.csv"))])
     R = R[(R.area == "cortex") & (R.window == "enl") & R.model.isin(["full", "drop:position"])]
     dp = R.pivot_table(index="label", columns="model", values="r2")
@@ -64,7 +65,8 @@ def precue_licking(E: Path, figs: Path) -> None:
 
 def lick_deficits(E: Path, figs: Path) -> None:
     plt = _plt()
-    S = pd.read_csv(E / "qc" / "first_lick_latency_late_licked_trials.csv")
+    from wfield_local import run_mode
+    S = pd.read_csv(run_mode.behaviour_qc_dir() / "first_lick_latency_late_licked_trials.csv")   # behaviour (seeded)
     cols = (("cam4_late", "first cam4 lick > 1.5 s after cue"), ("comb_late", "... with cam1 small licks added"),
             ("contact_none", "no spout contact at all"))
     sp = ("far_contra", "far_mid", "close_contra")
@@ -97,7 +99,7 @@ def landing_zones(E: Path, figs: Path) -> None:
         lab = js["label"]
         for t, w in sw.items():
             for z, v in w.items():
-                rows.append({"label": lab, "animal": lab[:4], "epoch": epochs.epoch_of(lab), "target": t, "zone": z,
+                rows.append({"label": lab, "animal": lab.split("_")[0], "epoch": epochs.epoch_of(lab), "target": t, "zone": z,
                              "w": v})
     if not rows:
         print("  landing_zones: no 3-D contest sessions with soft weights yet -- skipped")
@@ -128,13 +130,14 @@ def landing_zones(E: Path, figs: Path) -> None:
 
 
 def main(argv=None) -> int:
+    # coordinator 11-04: routed (outputs under the run tag), no longer refused in a tagged run
     from wfield_local import orofacial_cohort as oc
-    from wfield_local import orofacial_outputs as oo
-    from wfield_local.paths import PathResolver
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--run", default=oc.RUN)
     a = ap.parse_args(argv)
-    E = oo.root(PathResolver()) / a.run / "imaging_encoding"
+    from wfield_local import run_mode
+    E = run_mode.encoding_out_root(a.run)                # the run's (tagged) encoding tree, coordinator 11-04
+    (E / "qc").mkdir(parents=True, exist_ok=True)
     figs = E / "figures" / "behaviour"
     figs.mkdir(parents=True, exist_ok=True)
     for f in (precue_licking, lick_deficits, landing_zones):

@@ -96,6 +96,8 @@ import numpy as np
 from wfield_local.framemap_event_maps import frame_samples_from_map
 
 CHANCE = 1.0 / 6.0
+#: epoch colours of the epoch figures (`scripts.cd_loo_figures.EP_COL`)
+EP_COL = {"pre": "0.45", "acute": "#d01c8b", "subacute": "#b8860b", "chronic": "#01665e"}
 
 
 def _frame_samples(mc, fmdir, regime, pco):
@@ -135,6 +137,98 @@ def _fit_frozen(X, y):
     return m
 
 
+#: THE STORED PATH IS THE DEFAULT (11-02, Priya: "we should cache frozen decoders as we always do"; CLAUDE.md rule 10).
+#: Every PRE-STROKE model this script scores with -- the full model for post-stroke sessions and one leave-one-session-
+#: out model per pre-stroke session -- comes from `frozen_models.load_or_fit` (kind `rest_frozen`), never from an
+#: in-memory refit per render. OPT-OUT: WIDEFIELD_REST_FROZEN=0 (false / no / off) refits in memory exactly as before
+#: 11-02, for reproducing an old render. The size-MATCHED (`--match-train`) and within-session REFIT arms are per-session
+#: controls, not pre-stroke references, and stay in memory (as in `rest_frozen_decoder_nl`).
+REST_FROZEN_ENV = "WIDEFIELD_REST_FROZEN"
+REST_FROZEN_OFF = ("0", "false", "no", "off")
+
+
+def rest_frozen_on() -> bool:
+    """True unless WIDEFIELD_REST_FROZEN opts out (unset / empty / anything else = the stored default)."""
+    import os
+
+    return os.environ.get(REST_FROZEN_ENV, "").strip().lower() not in REST_FROZEN_OFF
+
+
+def rest_train_data(pool: dict, windows) -> dict:
+    """The training-data fingerprint input of a rest_frozen model (FREEZE_VERSION 2): ``pool`` = {pre label: (X, y,
+    dur, gap)} in SORTED label order, plus the matching windows. ONE builder for this script and
+    `rest_frozen_decoder_nl`, so a model either script freezes keeps one identity."""
+    return {"pool": {k: tuple(np.asarray(a) for a in pool[k]) for k in sorted(pool)},
+            "windows": tuple(None if v is None else float(v) for v in windows)}
+
+
+def rest_frozen_align(bins, match_duration, match_lickgap, pct, gate, min_periods, min_per_class, variant):
+    """The spec's ``align``: everything that changes WHICH pre-stroke rows train the model and is not already in the
+    spec. For the page run (4 bins, duration + lick-gap matched at 10 %, engagement gate, 40 / 5 minimums,
+    restdock05) this is EXACTLY `rest_frozen_decoder_nl`'s ``rest-rest-b4-dur10-gap10-gate``, so the two scripts share
+    one stored model per animal instead of freezing two references for the same data."""
+    s = (f"rest-rest-b{bins}-" + (f"dur{pct:g}" if match_duration else "durall") + "-"
+         + (f"gap{pct:g}" if match_lickgap else "gapall") + "-" + ("gate" if gate else "nogate"))
+    if (int(min_periods), int(min_per_class)) != (40, 5):
+        s += f"-min{int(min_periods)}x{int(min_per_class)}"
+    if variant != "restdock05":
+        s += f"-{variant}"
+    return s
+
+
+def frozen_rest_payload(an, basis_id, data, pre_labs, windows, *, bins, pct, gate, min_periods, min_per_class,
+                        variant):
+    """``(payload, status, spec)``: {"windows", "full", "loso": {pre label: model or None}} via `load_or_fit`.
+
+    ``data`` = {label: (epoch, X, y, g, dur, gap, lick_hz)} as `main` builds it; ``windows`` = (lo_s, hi_s, glo, ghi),
+    None where that matching is off. The fit is the in-memory path's, model for model: the same `_fit_frozen`, the
+    same rows (duration window, then lick-gap window, as `main` applies them) and the same `_usable` gate (a pool that
+    fails it stores None, and `main` skips that session before it asks for the model). Rows are pooled in SORTED
+    label order, as `rest_frozen_decoder_nl.frozen_payload` does, so a model either script freezes is the same model.
+    """
+    from wfield_local import frozen_models as fm
+
+    lo_s, hi_s, glo, ghi = windows
+    labs = sorted(pre_labs)
+    nfeat = int(data[labs[0]][1].shape[1])
+    align = rest_frozen_align(bins, lo_s is not None, glo is not None, pct, gate, min_periods, min_per_class,
+                              variant)
+    spec = fm.make_spec(an, "rest_frozen", align=align, source=f"joint_{basis_id}", train_labels=labs,
+                        basis_id=basis_id, n_features=nfeat, post_s=0.0, zscore=True, alpha=0.1,
+                        train_data=rest_train_data({k: (data[k][1], data[k][2], data[k][4], data[k][5]) for k in labs},
+                                                   windows))
+
+    def pool(keep):
+        X = np.concatenate([data[k][1] for k in keep])
+        y = np.concatenate([data[k][2] for k in keep])
+        if lo_s is not None:
+            dt = np.concatenate([data[k][4] for k in keep])
+            m = (dt >= lo_s) & (dt <= hi_s)
+            X, y = X[m], y[m]
+        else:
+            m = np.ones(len(y), bool)
+        if glo is not None:
+            gt = np.concatenate([data[k][5] for k in keep])[m]
+            m2 = (gt >= glo) & (gt <= ghi)
+            X, y = X[m2], y[m2]
+        return X, y
+
+    def fit():
+        res = {"windows": tuple(None if v is None else float(v) for v in windows), "full": None, "loso": {}}
+        X, y = pool(labs)
+        if _usable(y, min_periods, min_per_class)[0]:
+            res["full"] = _fit_frozen(X, y)
+        for k in labs:
+            Xk, yk = pool([x for x in labs if x != k])
+            res["loso"][k] = _fit_frozen(Xk, yk) if _usable(yk, min_periods, min_per_class)[0] else None
+        return res
+
+    payload, status = fm.load_or_fit(spec, fit, meta={
+        "mask": "rest", "variant": variant, "windows": [None if v is None else float(v) for v in windows],
+        "script": "scripts/rest_migration/rest_frozen_decoder.py"})
+    return payload, status, spec
+
+
 def _epoch_dir():
     """The shared `grant_figures/epoch` directory every other epoch figure writes to.
 
@@ -145,7 +239,8 @@ def _epoch_dir():
     correct on either box rather than correct on the one it was written on.
     """
     from wfield_local.paths import PathResolver
-    return Path(PathResolver().root("labcams")) / "grant_figures" / "epoch"
+    from wfield_local import lp_licks              # run-mode routing (rebuild 11-03): identity for the default run
+    return lp_licks.output_dir(Path(PathResolver().root("cohort_out")) / "grant_figures" / "epoch")
 
 
 def lick_gap_s(period_start_smp, period_stop_smp, lick_onsets_smp, fs):
@@ -303,12 +398,19 @@ def refit_predictions(X, y, g):
     return pred
 
 
-def _collect(session, basis, bins, verbose=True, gate=True):
+def _collect(session, basis, bins, verbose=True, gate=True, rest_mask=None, period_frames=False):
     """Rest-period features for ONE session in the animal's JOINT basis.
 
     Returns (X, y, order) or None. `order` is the time order of the periods, which the
     circular-shift null needs and which the collection already produces (the mask is scanned
     forward), so it is returned rather than re-derived.
+
+    ``rest_mask`` (default None = the page's restdock05 mask, unchanged): a callable
+    ``(session, rest, rate) -> (rest, extra_lick_samples)`` that REPLACES the rest sample mask
+    (RESTnl: `rest_frozen_decoder_nl.lickfree_rest`) and adds lick onsets the lick-gap measure
+    must also see. ``period_frames=True`` appends each period's frame count to the tuple. Both
+    are opt-in; with the defaults the function is the pre-11-02 one (pinned in
+    tests/test_rest_frozen_decoder_nl.py).
     """
     import h5py
 
@@ -361,6 +463,13 @@ def _collect(session, basis, bins, verbose=True, gate=True):
         return None, f"{lab}: {type(ex).__name__} {str(ex)[:60]}"
     if fs_samp is None:
         return None, f"{lab}: no frame map"
+    if rest_mask is not None:
+        try:
+            rest, _extra = rest_mask(session, rest, rate)
+        except Exception as ex:                                          # noqa: BLE001
+            return None, f"{lab}: rest_mask {type(ex).__name__} {str(ex)[:60]}"
+        if len(_extra):
+            licks = np.unique(np.concatenate([licks, np.asarray(_extra, np.int64)]))
 
     from wfield_local.block_ids import block_ids, block_size_max_for
 
@@ -370,7 +479,7 @@ def _collect(session, basis, bins, verbose=True, gate=True):
     dif = np.diff(pad)
     blk = block_ids(np.asarray(codes), block_size_max_for(session))
 
-    X, y, g, dur, p_aa, p_bb = [], [], [], [], [], []
+    X, y, g, dur, p_aa, p_bb, nfr = [], [], [], [], [], [], []
     for aa, bb in zip(np.flatnonzero(dif > 0), np.flatnonzero(dif < 0)):
         prev = np.searchsorted(cs, aa, "right") - 1
         nxt = np.searchsorted(ts, bb, "left")
@@ -401,13 +510,17 @@ def _collect(session, basis, bins, verbose=True, gate=True):
         dur.append(float(bb - aa) / rate)
         p_aa.append(int(aa))
         p_bb.append(int(bb))
+        nfr.append(int(fr.size))
     if not y:
         return None, f"{lab}: 0 usable rest periods"
     gap = lick_gap_s(np.asarray(p_aa), np.asarray(p_bb), licks, rate)
     # SESSION-LEVEL LICKINESS, so "PS92 is very licky" is a number rather than an impression.
     lick_hz = float(licks.size) / (float(rest.shape[0]) / rate) if rest.shape[0] else float("nan")
-    return (np.asarray(X, np.float32), np.asarray(y), np.asarray(g),
-            np.asarray(dur, float), gap, lick_hz), None
+    out = (np.asarray(X, np.float32), np.asarray(y), np.asarray(g),
+           np.asarray(dur, float), gap, lick_hz)
+    if period_frames:
+        out = out + (np.asarray(nfr, int),)
+    return out, None
 
 
 def training_pool(pre_labels, scored_label):
@@ -497,71 +610,93 @@ def _plot(rows, per_session, order, out, variant, stem, n_skipped):
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
-    from wfield_local import config as _cfg
-
-    colors = _cfg.animal_color()
     animals = sorted({r["animal"] for r in per_session})
     # TALLER THAN IT WAS, because the legends now sit BELOW the axes rather than inside them.
     # In-axes legends on these three panels collided with the data they described -- panel 3 draws
     # two horizontal reference lines across the full width, so there is no empty corner for a
     # legend to occupy and matplotlib's "best" placement lands it on top of a line every time.
-    fig, ax = plt.subplots(1, 3, figsize=(15.5, 5.6))
+    fig, ax = plt.subplots(1, 3, figsize=(15.5, 6.0))
     x = np.arange(len(order))
     LEG = {"fontsize": 10, "frameon": False, "loc": "upper center", "borderaxespad": 0.0}
 
-    # 1. balanced accuracy against the circular-shift null
-    ax[0].plot(x, [r["acc"] for r in rows], "o-", color="k", lw=2, label="frozen decoder")
-    ax[0].plot(x, [r["null"] for r in rows], "s--", color="0.55", lw=1.4,
-               label="circular-shift null")
+    # NO LINE JOINS EPOCHS (Priya 11-03, `wfield_local.cat_points`): every epoch summary is a filled marker in the epoch
+    # colour with the SESSION values behind it as faded open markers (shape = animal, colour = epoch).
+    from wfield_local import cat_points as cp
+
+    def _sess(e, key):
+        v = [s_ for s_ in per_session if s_["epoch"] == e]
+        return np.array([float(s_[key]) for s_ in v]), [s_["animal"] for s_ in v]
+
+    pre_frac = {an: np.mean([float(r["above_chance_frac"]) for r in per_session
+                             if r["animal"] == an and r["epoch"] == "pre"]) for an in animals}
+
+    # 1. balanced accuracy against the permuted null
     for i, r in enumerate(rows):
-        v = [s["acc"] for s in per_session if s["epoch"] == r["epoch"]]
-        ax[0].scatter([i] * len(v), v, s=14, color="0.7", zorder=1)
-    ax[0].axhline(CHANCE, color="r", ls=":", lw=1, label="chance (1/6)")
+        e = r["epoch"]
+        v, an_ = _sess(e, "acc")
+        cp.session_dots(ax[0], i, v, an_, EP_COL.get(e, "0.4"), jitter=0.12, seed=11 + i)
+        cp.summary_point(ax[0], i, float(r["acc"]), None, color=EP_COL.get(e, "k"), ms=8)
+        ax[0].plot(i + 0.3, float(r["null"]), "s", color="0.55", ms=6, mfc="none", mew=1.4, zorder=3)
+    ax[0].axhline(CHANCE, color="r", ls=":", lw=1)
     ax[0].set_ylabel("balanced accuracy", fontsize=11)
     ax[0].set_title("Frozen pre-stroke rest decoder", fontsize=12, fontweight="bold")
-    ax[0].legend(bbox_to_anchor=(0.5, -0.13), ncol=2, **LEG)
+    from matplotlib.lines import Line2D
+    h0 = [Line2D([], [], ls="none", marker="o", color="0.3", mec="w", ms=8, label="frozen decoder, pooled (epoch colour)"),
+          Line2D([], [], ls="none", marker="s", color="0.55", mfc="none", mew=1.4, ms=6, label="permuted null"),
+          Line2D([], [], color="r", ls=":", lw=1, label="chance (1/6)")]
+    ax[0].legend(handles=h0, bbox_to_anchor=(0.5, -0.13), ncol=2, **LEG)
 
-    # 2. per animal, retained fraction -- the panel that would have caught the withdrawn claim
-    for an in animals:
-        pf = [r["above_chance_frac"] for r in per_session
-              if r["animal"] == an and r["epoch"] == "pre"]
-        if not pf:
+    # 2. per animal, retained fraction -- the panel that would have caught the withdrawn claim. One value per animal x
+    # epoch (mean of its sessions / its own pre): open markers, shape = animal, colour = epoch, no line across epochs.
+    offs = cp.epoch_offsets(max(len(animals), 1), 0.12)
+    for k, an in enumerate(animals):
+        if not np.isfinite(pre_frac.get(an, np.nan)):
             continue
-        ys = []
-        for e in order:
-            v = [r["above_chance_frac"] for r in per_session
-                 if r["animal"] == an and r["epoch"] == e]
-            ys.append(np.mean(v) / np.mean(pf) if v else np.nan)
-        ax[1].plot(x, ys, "o-", color=colors.get(an, "0.4"), lw=1.8, label=an)
+        for i, e in enumerate(order):
+            v = [float(r["above_chance_frac"]) for r in per_session if r["animal"] == an and r["epoch"] == e]
+            if v:
+                ax[1].plot(i + offs[k], np.mean(v) / pre_frac[an], ls="none", marker=cp.animal_marker(an), ms=8,
+                           mfc="none", mec=EP_COL.get(e, "0.4"), mew=1.6, zorder=3)
     ax[1].axhline(1.0, color="0.6", ls=":", lw=1)
     ax[1].set_ylabel("above-chance fraction retained (vs own pre)", fontsize=11)
     ax[1].set_title("Per animal -- read this before any trajectory",
                     fontsize=12, fontweight="bold")
-    ax[1].legend(bbox_to_anchor=(0.5, -0.13), ncol=len(animals) or 1, **LEG)
+    h1 = [Line2D([], [], ls="none", marker=cp.animal_marker(an), mfc="none", mec="0.35", mew=1.4, ms=8,
+                 label=f"{an} (colour = epoch)") for an in animals]
+    ax[1].legend(handles=h1, bbox_to_anchor=(0.5, -0.13), ncol=2, **LEG)
 
-    # 3. the cohort retained fraction beside the TASK arm, the comparison the number is for
-    ax[2].plot(x, [r["retained"] for r in rows], "o-", color="k", lw=2, label="REST (this arm)")
+    # 3. the cohort retained fraction beside the TASK arm, the comparison the number is for. Session dots = each
+    # session's above-chance fraction over its own animal's pre mean (panel 2's normalisation).
+    for i, r in enumerate(rows):
+        e = r["epoch"]
+        v, an_ = _sess(e, "above_chance_frac")
+        v = np.array([x_ / pre_frac[a_] if pre_frac.get(a_) else np.nan for x_, a_ in zip(v, an_)])
+        cp.session_dots(ax[2], i, v, an_, EP_COL.get(e, "0.4"), jitter=0.12, seed=23 + i)
+        cp.summary_point(ax[2], i, float(r["retained"]), None, color=EP_COL.get(e, "k"), ms=8)
     ax[2].axhline(1.0, color="0.6", ls=":", lw=1)
     ax[2].set_ylabel("above-chance fraction retained", fontsize=11)
     ax[2].set_title("Rest vs the task and state arms", fontsize=12, fontweight="bold")
+    h2 = [Line2D([], [], ls="none", marker="o", color="0.3", mec="w", ms=8, label="REST (this arm), pooled")]
     # REFERENCE VALUES, NOT RE-MEASURED HERE -- they are BEHAVIOURAL_STATE_CONTROL.md's, quoted so
     # the rest number is read against something. Marked as quoted on the figure itself so nobody
     # takes them for output of this script.
     for nm, val, col in (("task position (quoted)", 0.496, "#b2182b"),
                          ("state (quoted)", 0.902, "#2166ac")):
-        ax[2].axhline(val, color=col, ls="--", lw=1.2, label=nm)
-    ax[2].legend(bbox_to_anchor=(0.5, -0.13), ncol=1, **LEG)
+        ax[2].axhline(val, color=col, ls="--", lw=1.2)
+        h2.append(Line2D([], [], color=col, ls="--", lw=1.2, label=nm))
+    ax[2].legend(handles=h2 + cp.animal_handles(animals), bbox_to_anchor=(0.5, -0.13), ncol=2, **LEG)
 
     for a_ in ax:
         a_.set_xticks(x)
         a_.set_xticklabels(order, fontsize=10)
+        a_.set_xlim(-0.5, len(order) - 0.5)
         a_.tick_params(axis="y", labelsize=10)
         a_.spines[["top", "right"]].set_visible(False)
     ns = ", ".join(f"{r['epoch']} {r['n_sessions']}" for r in rows)
     fig.suptitle(f"Position decoded from REST by a FROZEN pre-stroke model "
                  f"(variant {variant}) -- sessions: {ns}; {n_skipped} skipped", fontsize=11)
     # ROOM AT THE BOTTOM FOR THE LEGENDS, which are now outside the axes.
-    fig.tight_layout(rect=(0, 0.10, 1, 0.93))
+    fig.tight_layout(rect=(0, 0.04, 1, 0.93))
     p = out / f"{stem}.png"
     fig.savefig(p, dpi=150)
     plt.close(fig)
@@ -717,6 +852,7 @@ def main() -> int:
     cidx = {c: i for i, c in enumerate(CODES)}
     conf = {e: np.zeros((len(CODES), len(CODES)), np.int64) for e in epochs.EPOCHS}
     n_skipped = 0
+    frozen_log = []
 
     if a.from_csv:
         from wfield_local import analysis_kit as ak
@@ -823,6 +959,20 @@ def main() -> int:
             print(f"  lick-gap window from PRE: [{glo:.2f}, {ghi:.2f}] s "
                   f"({a.duration_pct}-{100 - a.duration_pct} pct of {len(pre_gap)} pre periods)")
 
+        # THE PRE-STROKE MODELS COME FROM THE FROZEN STORE (default since 11-02; `frozen_rest_payload`).
+        payload = None
+        if rest_frozen_on():
+            payload, fstatus, fspec = frozen_rest_payload(
+                an, str(basis.basis_id), data, pre_labs, (lo_s, hi_s, glo, ghi), bins=a.bins, pct=a.duration_pct,
+                gate=not a.no_engagement_gate, min_periods=a.min_periods, min_per_class=a.min_per_class,
+                variant=variant)
+            from wfield_local import frozen_models as _fm
+            frozen_log.append({"animal": an, "status": fstatus, "model": _fm._slug(fspec),
+                               "n_pre": len(pre_labs), "pre_labels": " ".join(sorted(pre_labs))})
+            print(f"  frozen pre-stroke models: {_fm._slug(fspec)} {fstatus}", flush=True)
+        else:
+            print(f"  {REST_FROZEN_ENV}=0: pre-stroke models fitted IN MEMORY (not stored)", flush=True)
+
         for lab, (ep, X, y, g, dur, gap, lick_hz) in data.items():
             train = training_pool(pre_labs, lab)
             Xt = np.concatenate([data[k][1] for k in train])
@@ -856,7 +1006,13 @@ def main() -> int:
             if m_test.sum() < a.min_periods:
                 skipped.append(f"{lab}: only {int(m_test.sum())} periods in trained classes")
                 continue
-            model = _fit_frozen(Xt, yt)
+            model = None
+            if payload is not None:
+                model = payload["loso"].get(lab) if ep == "pre" else payload["full"]
+                if model is None:
+                    print(f"  !! {lab}: no stored frozen model; fitted in memory", flush=True)
+            if model is None:
+                model = _fit_frozen(Xt, yt)
             pred = model.predict(X[m_test])
             acc, ncls = _balanced_accuracy(y[m_test], pred)
             chance = 1.0 / ncls
@@ -1083,6 +1239,14 @@ def main() -> int:
             w.writerows(per_session)
         print(f"\nwrote {cp}\nwrote {sp}")
         print(f"wrote {_save_meta(a.out, stem, n_skipped)}")
+        if frozen_log:
+            # WHICH STORED MODEL scored each animal (id + load_or_fit status), beside the tables it produced.
+            fz = fl.sidecar_for(a.out, stem, "_frozen.csv")
+            with open(fz, "w", newline="", encoding="utf-8") as fh:
+                w = _csv.DictWriter(fh, fieldnames=list(frozen_log[0]))
+                w.writeheader()
+                w.writerows(frozen_log)
+            print(f"wrote {fz}")
     fp = _plot(rows, per_session, order, a.out, variant, stem, n_skipped)
     print(f"wrote {fp}")
     cf = _confusion(conf, order, a.out, variant, stem, CODES)

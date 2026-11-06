@@ -1,0 +1,468 @@
+"""LICK ORDER and the lateral read-out, ITI and cued (Priya 10-27: "first-lick ITI, first-lick post-cue, subsequent bout
+licks ITI, subsequent post-cue -- or a correlation of lick order and offset?"). Extends `iti_first_lick.py` (cued only).
+
+Order index per lick:
+  cued  `lick_idx` of the 3-D lick table (0 = first post-cue lick of the trial; joined on the exact DAQ peak time)
+  ITI   index within its lick BOUT: all of the session's licks (licks_all.csv onsets, every context) split at gaps
+        >= BOUT_GAP (1 s, the extraction's bout rule); 0 = the bout's first lick. An ITI lick that continues a cued bout
+        past the response window therefore has index > 0 -- it is a subsequent lick, not a self-initiated launch.
+Decoder: the KEY-row lateral where-decoder per set (Allen areas WITH the ALM / tjM1 split by default -- 10-27 late,
+SOURCE below --, lags 0..0.2 s, features z-scored within session with the frame-level SDs, ridge, trained on that set's
+August pre licks, pre sessions leave-one-session-out). Per lick: landing = actual - the animal's pre mean at the spout
+(ITI: the previous trial's spout); decoded = decoded - the animal's pre mean decoded at the spout; LIKE-FOR-LIKE offset
+(lfl; replaces 'offset beyond the pull', Priya 10-27 late "yes replace beyond pull") = decoded - the animal's PRE licks
+of the set that landed at the SAME lateral place (`likeforlike.offset`; Gaussian / local-linear by WFIELD_LFL_REF), mm,
++ = read more contralesional.
+Two read-outs:
+  (1) four classes (ITI first / ITI later / cued first / cued later): session means, change vs pre (paired nested
+      bootstrap), and first - later per session.
+  (2) lick-order slope: per session, OLS slope of the value on min(order, ORDER_CAP), spout means removed (mm per lick);
+      change vs pre. Both for all spouts and far contra.
+Outputs <E>/iti_licks/lick_order_{sessions,tests}<SRC_TAG>.csv, figures/lick_order_iti_cued{,_slope}<SRC_TAG>.png;
+per-lick prediction cache lick_order_preds<KEY_TAG>[_r<v>].csv.gz (`preds_path`).
+NAMING (10-27 late): SRC_TAG = OUTPUT tag, "" for the canonical split basis (so page stems stay), "_plain" for plain
+Allen areas, the basis tag for the other bases, + "_<filter>"; KEY_TAG = the basis-specific tag of the earlier scheme
+("_areas_splitr8", "" for plain, ...), used for the prediction CACHE (unambiguous across bases: a plain cache can never be
+read as split) and by `lick_offset_contrib_map.py` as the basis key.
+Usage: python scripts/iti_lick_order.py [--plot-only]
+"""
+from __future__ import annotations
+
+import sys
+from pathlib import Path
+
+import numpy as np
+import pandas as pd
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import iti_first_lick as fl  # noqa: E402
+import iti_licks as il  # noqa: E402
+import iti_where_decoder as wd  # noqa: E402
+import likeforlike as lfl  # noqa: E402
+
+from wfield_local import analysis_kit as ak  # noqa: E402
+
+AN = ["PS92", "PS93", "PS94", "PS95"]
+EP = ["acute", "subacute", "chronic"]
+EPS = ["pre", *EP]
+POS = fl.POS
+ORDER_CAP = 9
+MIN = 8
+SETS = {"iti": "ITI", "trial": "cued"}
+# DECODER SOURCE (Priya 10-27: "let's use the SVD basis"; Allen / LocaNMF = basis-robustness checks): env WFIELD_LICK_DECODER = "areas" (Allen areas, z-scored by
+# zscore_check/session_sd.csv; the KEY row until 10-27) or "svd" (the animal's pre-stroke 200-component SVD basis,
+# iti_basis_decoder extraction; each component z-scored by its SD over that session's licks, ITI + cued together)
+import os  # noqa: E402
+
+# DEFAULT = "areas_split" (Priya 10-27 late: "use split bases, for consistency"); "areas" = plain Allen areas (robustness;
+# also the default under WFIELD_AREA_BASIS=plain)
+SOURCE = os.environ.get("WFIELD_LICK_DECODER", "areas_split" if il.AREA_BASIS == "split" else "areas")
+SRC_TAG = "" if SOURCE == "areas" else f"_{SOURCE}"
+# the split basis depends on the ALM / tjM1 ROI version (iti_licks.ROI_VERSION): v2+ outputs get "r<v>" so v1 caches are never
+# reused (lick_order_preds is cached by tag)
+if SOURCE == "areas_split" and il.ROI_VERSION != "1":
+    SRC_TAG += f"r{il.ROI_VERSION}"
+# frame-level-scaled basis runs get their own outputs ("_svdF", "_locanmfF") so the earlier lick-scaled caches are never
+# reused by mistake (WFIELD_BASIS_SCALE=lick keeps the old lick-window scaling)
+if SOURCE in ("svd", "locanmf") and os.environ.get("WFIELD_BASIS_SCALE", "frame") == "frame":
+    SRC_TAG += "F"
+# MASKED LocaNMF (Priya 10-27: the imaging-map mask excludes the olfactory bulbs + fibre glue; the joint LocaNMF basis was
+# fit before that mask and ~1/3 of its components sit mostly outside it): WFIELD_LOCANMF_MASK=1 drops every component
+# with > MASK_OUT_MAX of its |footprint| outside `beta_maps.brain_mask()` (outputs tagged "M")
+MASK_LOC = SOURCE == "locanmf" and os.environ.get("WFIELD_LOCANMF_MASK") == "1"
+MASK_OUT_MAX = 0.5
+if MASK_LOC:
+    SRC_TAG += "M"
+# ITI LICK FILTER (Priya 10-27: "first-lick ITI (and all ITI) licks require 2 s no licking, and are not close to trial
+# start or stop?" -- they did not: iti_lick_timing_audit.py). WFIELD_ITI_FILTER restricts the ITI set (training AND
+# scoring) using <E>/iti_licks/iti_timing_audit.csv: gap2 = no lick onset in the preceding 2 s; far1 = >= 1 s after the
+# response-window end and >= 1 s before the next spout arrival; gap2far1 = both. Outputs tagged "_<filter>".
+# SUBSET filters (iti_licks.ITI_SUBSET_FILTERS: dock, dock01, gap2dock, far1s; 10-29) are NOT applied here: the frozen
+# all-ITI decoder and its prediction cache are reused unchanged, rows are dropped downstream (iti_licks.iti_subset_keep)
+# and outputs go to <OUT>/itifilter_<filter>/ (iti_licks.OUT_W) -- so no tag here.
+ITI_FILTER = "" if il.ITI_SUBSET else os.environ.get("WFIELD_ITI_FILTER", "")
+# WRITE ROOT for tables / figures: il.OUT (unchanged) unless a SUBSET filter is active, then il.OUT_W (= the filter's own
+# folder, or WFIELD_ITI_OUT_W) -- 10-29 late: before this a subset run wrote untagged files into il.OUT (primary names)
+WOUT = il.OUT_W if il.ITI_SUBSET else il.OUT
+if ITI_FILTER:
+    SRC_TAG += f"_{ITI_FILTER}"
+# KEY_TAG = the basis-specific tag built above (cache name, basis key); SRC_TAG = the OUTPUT tag: the canonical split basis
+# writes untagged outputs, plain Allen areas "_plain" (10-27 late; module docstring "NAMING")
+KEY_TAG = SRC_TAG
+if SOURCE in ("areas_split", "areas"):
+    SRC_TAG = ("" if SOURCE == "areas_split" else "_plain") + (f"_{ITI_FILTER}" if ITI_FILTER else "")
+
+
+def iti_keep(label: str, t: np.ndarray) -> np.ndarray:
+    """Boolean per ITI lick (exact peak time t) for ITI_FILTER."""
+    if not ITI_FILTER:
+        return np.ones(len(t), bool)
+    global _AUDIT
+    if _AUDIT is None:
+        _AUDIT = pd.read_csv(il.OUT / "iti_timing_audit.csv").replace(np.inf, 1e9).set_index(["label", "t"])
+    A = _AUDIT.loc[label].reindex(np.asarray(t, float))
+    gap2 = (A.gap >= 2.0).to_numpy()
+    far1 = ((A.since_stop >= 1.0) & (A.to_strobe >= 1.0)).to_numpy()
+    return {"gap2": gap2, "far1": far1, "gap2far1": gap2 & far1}[ITI_FILTER]
+
+
+_AUDIT = None
+
+
+def locanmf_inmask(animal: str) -> np.ndarray:
+    """Boolean per joint-LocaNMF component: <= MASK_OUT_MAX of its |footprint| outside the glue / MOB brain mask."""
+    from wfield_local import beta_maps
+    from wfield_local import joint_locanmf as jl
+    b = jl.load(animal, warn_stale=False)
+    A = np.abs(np.nan_to_num(np.asarray(b.A, float))).reshape(-1, b.ncomp)
+    out = A[~beta_maps.brain_mask().ravel()].sum(0) / A.sum(0)
+    return out <= MASK_OUT_MAX
+
+
+DEC_LAB = {"areas_split": "Allen areas + ALM / tjM1 split", "areas": "Allen areas, plain",
+           "nonlinear": "NON-LINEAR RBF kernel ridge on Allen areas + ALM / tjM1 split (lick_nonlinear_preds)"}.get(SOURCE, SOURCE)
+CONTRIB_HOOK = None      # optional callable(set, animal, {label: (epoch, X scaled, act, order, pos)}, {held-out pre label | None: (scaler, ridge)})
+
+
+def preds_path() -> Path:
+    # the per-lick prediction CACHE keeps the basis-specific KEY_TAG (same names as before 10-27 late, so a plain cache can
+    # never be read as split); plain Allen areas: + ROI version from v8 on (a v1 / v2 cache must never be reused)
+    roi = f"_r{il.ROI_VERSION}" if SOURCE == "areas" and il.ROI_VERSION not in ("1", "2") else ""
+    return il.OUT / f"lick_order_preds{KEY_TAG}{roi}.csv.gz"
+
+
+VALS = ("landing", "decoded", "lfl")
+VLAB = {"landing": "landing vs pre at the spout (BEHAVIOUR)", "decoded": "decoded position vs pre at the spout (NEURAL)",
+        "lfl": "like-for-like offset, same place (NEURAL)"}
+VCOL = {"landing": "0.45", "decoded": "#2c7fb8", "lfl": "#7b3294"}
+
+
+def _bout_idx(label: str, t: np.ndarray) -> np.ndarray:
+    """Index of each lick (exact DAQ peak time t) within its bout of the session's licks (gap >= BOUT_GAP)."""
+    from wfield_local import config
+    from wfield_local import orofacial_cohort as oc
+    from wfield_local import orofacial_outputs as oo
+    from wfield_local.paths import PathResolver
+    an, date = config.animal_of(label), "2026" + label.split("_")[-1]
+    A = pd.read_csv(oo.session_dir(PathResolver(), oc.RUN, an, date) / "licks_all.csv", usecols=["daq_on_s", "daq_peak_s"])
+    A = A[np.isfinite(A.daq_on_s)].sort_values("daq_on_s").reset_index(drop=True)
+    on = A.daq_on_s.to_numpy(float)
+    start = np.r_[True, np.diff(on) >= il.BOUT_GAP]
+    bid = np.cumsum(start) - 1
+    first = np.flatnonzero(start)
+    idx = np.arange(len(on)) - first[bid]
+    m = pd.Series(idx, index=A.daq_peak_s.to_numpy(float))
+    m = m[~m.index.duplicated()]
+    return m.reindex(np.asarray(t, float)).to_numpy(float)
+
+
+def predictions() -> pd.DataFrame:
+    from wfield_local import frozen_readouts
+    from wfield_local import orofacial_cohort as oc
+    if SOURCE in ("areas", "areas_split"):          # Allen areas, plain or ALM / tjM1 split: the shared loader + frame SDs
+        D, names, SD = wd.area_basis(basis="split" if SOURCE == "areas_split" else "plain")
+    else:
+        D = wd.load({"svd": "svdbasis", "svdraw": "svdbasis", "locanmf": "locanmf"}[SOURCE])  # basis robustness (10-27)
+    # basis scaling: FRAME-level SD of each component (iti_basis_frame_sd.py; like the Allen session_sd) when available --
+    # the lick-window SD (fallback) is inflated by the larger post-stroke lick response (Priya 10-27)
+    sd_svd = {}
+    if SOURCE in ("svd", "locanmf") and SRC_TAG.rstrip("M").endswith("F"):
+        fsd = il.OUT / f"basis_{'svdbasis' if SOURCE == 'svd' else 'locanmf'}" / "frame_sd.csv"
+        if fsd.exists():
+            F = pd.read_csv(fsd, index_col=0)
+            # LocaNMF component counts differ by animal: the CSV is NaN-padded to the largest count
+            sd_svd = {x: F.loc[x].dropna().to_numpy(float) for x in D if x in F.index}
+            bad = [x for x, v in sd_svd.items() if len(v) != D[x]["iti"][0].shape[1]]
+            if bad:
+                raise ValueError(f"frame_sd length != features for {bad[:3]}")
+            print(f"  {SOURCE}: frame-level SD scaling ({len(sd_svd)} sessions)")
+        missing = [x for x in D if x not in sd_svd]
+        if missing:
+            print(f"  {SOURCE}: LICK-window SD scaling for {len(missing)} sessions (no frame_sd.csv entry)")
+        sd_svd.update({x: np.vstack([D[x]["iti"][0], D[x]["trial"][0]]).std(0) for x in missing})
+    rows = []
+    KEEP: dict = {}
+    for st in SETS:
+        for a in AN:
+            S = {}
+            for x, d in sorted(D.items()):
+                if d["animal"] != a:
+                    continue
+                X, C = d[st]
+                t = il._load(x)["iti_t" if st == "iti" else "tr_t"].astype(float)
+                idx = _bout_idx(x, t) if st == "iti" else fl._lick_idx(x, t)
+                pos = np.array([q if q in POS or "_" not in q else oc.pos_key(q, "L") for q in d[f"{st}_pos"].astype(str)])
+                ok = np.isfinite(C[:, 0]) & np.isfinite(idx) & np.isin(pos, POS)
+                if st == "iti":
+                    ok &= iti_keep(x, t)
+                if ok.sum() >= 20:
+                    # svdraw = SVD basis UNSCALED (check: lick-based z-scoring partly divides out the larger post-lick response)
+                    sd = (SD.loc[x, names].to_numpy(float) if SOURCE in ("areas", "areas_split") else np.ones(X.shape[1]) if SOURCE == "svdraw"
+                          else np.where(sd_svd[x] > 0, sd_svd[x], 1))
+                    Xs = X[ok] / sd[None, :]
+                    if MASK_LOC:
+                        Xs = Xs[:, KEEP.setdefault(a, locanmf_inmask(a))]
+                    S[x] = (d["epoch"], Xs, C[ok, 0], idx[ok], pos[ok])
+            pre = [x for x, v in S.items() if v[0] == "pre"]
+            if len(pre) < 3:
+                continue
+            # STORED BY DEFAULT (11-02 pass 2, `frozen_readouts`, opt-out WIDEFIELD_ITI_FROZEN=0)
+            fits = frozen_readouts.pre_loso_ridge(a, f"iti_lick_order-{SOURCE}{SRC_TAG}-{st}", pre,
+                                                  {q: S[q][1] for q in pre}, {q: S[q][2] for q in pre},
+                                                  np.logspace(-1, 5, 13))
+            if CONTRIB_HOOK is not None:                 # lick_offset_contrib_map.py: the scaled features + frozen fit
+                CONTRIB_HOOK(st, a, S, fits)
+            for x, (ep, X, y, idx, pos) in S.items():
+                sc, m = fits[x if x in pre else None]
+                rows.append(pd.DataFrame({"set": st, "animal": a, "label": x, "epoch": ep, "pos": pos, "order": idx,
+                                          "act": y, "dec": m.predict(sc.transform(X))}))
+    return pd.concat(rows, ignore_index=True)
+
+
+def per_lick(P: pd.DataFrame) -> pd.DataFrame:
+    """landing (vs the animal's pre mean at the spout), decoded (same) and the LIKE-FOR-LIKE offset lfl (decoded vs the
+    animal's pre licks of the set that landed at the same place; likeforlike.offset), per lick."""
+    out = []
+    for (_st, _a), g in P.groupby(["set", "animal"]):
+        g = g.copy()
+        pre = g[g.epoch == "pre"]
+        g["landing"] = g.act - g.pos.map(pre.groupby("pos").act.mean())
+        g["decoded"] = g.dec - g.pos.map(pre.groupby("pos").dec.mean())     # read-out vs the animal's pre at the spout
+        out.append(g)
+    P = pd.concat(out, ignore_index=True)
+    P["lfl"], P["lfl_outside"] = lfl.offset(P, "act", "dec", lfl.SIGMA_MM, "lateral (mm)")
+    P["cls"] = np.where(P.order == 0, "first", "later")
+    P["ord_c"] = np.minimum(P.order, ORDER_CAP)
+    return P
+
+
+def sessions(P: pd.DataFrame) -> pd.DataFrame:
+    rows = []
+    for scope, g0 in (("all spouts", P), ("far contra", P[P.pos == "far_contra"])):
+        for (st, a, lab, ep), h in g0.groupby(["set", "animal", "label", "epoch"]):
+            r = dict(scope=scope, set=st, animal=a, label=lab, epoch=ep)
+            for cls in ("first", "later"):
+                q = h[h.cls == cls]
+                for v in VALS:      # lfl is NaN where the Gaussian reference has no same-place pre licks
+                    r[f"{v}_{cls}"] = q[v].mean() if q[v].notna().sum() >= MIN else np.nan
+                r[f"n_{cls}"] = len(q)
+            for v in VALS:
+                r[f"{v}_diff"] = r[f"{v}_first"] - r[f"{v}_later"]
+                hv = h.dropna(subset=[v])
+                if len(hv) >= 2 * MIN and hv.ord_c.nunique() > 2:
+                    yv = hv[v] - hv.groupby("pos")[v].transform("mean")
+                    xv = hv.ord_c - hv.groupby("pos").ord_c.transform("mean")
+                    r[f"{v}_slope"] = float((xv * yv).sum() / (xv ** 2).sum()) if (xv ** 2).sum() > 0 else np.nan
+                else:
+                    r[f"{v}_slope"] = np.nan
+            rows.append(r)
+    return pd.DataFrame(rows)
+
+
+def tests(S: pd.DataFrame) -> pd.DataFrame:
+    out = []
+    cols = [f"{v}_{k}" for v in VALS for k in ("first", "later", "diff", "slope")]
+    for (scope, st), g in S.groupby(["scope", "set"]):
+        for col in cols:
+            prd = {a: h[col].dropna().to_numpy() for a, h in g[g.epoch == "pre"].groupby("animal")}
+            prd = {a: v for a, v in prd.items() if len(v)}
+            pm = g[g.epoch == "pre"].groupby("animal")[col].mean()
+            out.append(dict(scope=scope, set=st, measure=col, epoch="pre", level=g[g.epoch == "pre"][col].mean(),
+                            point=np.nan, lo=np.nan, hi=np.nan, n_dir=np.nan, n=len(pm.dropna())))
+            for ep in EP:
+                post = {a: h[col].dropna().to_numpy() for a, h in g[g.epoch == ep].groupby("animal") if a in prd}
+                post = {a: v for a, v in post.items() if len(v)}
+                if not post:
+                    continue
+                ci = ak.boot_delta(post, prd, np.random.default_rng(0))
+                am = (g[g.epoch == ep].groupby("animal")[col].mean() - pm).dropna()
+                out.append(dict(scope=scope, set=st, measure=col, epoch=ep, level=g[g.epoch == ep][col].mean(),
+                                point=ci.point, lo=ci.lo, hi=ci.hi, n_dir=int((am * np.sign(ci.point) > 0).sum()),
+                                n=len(am), **_lmm(g, col, ep)))
+    return pd.DataFrame(out)
+
+
+_LMM = {}
+
+
+def _lmm(g: pd.DataFrame, col: str, ep: str) -> dict:
+    """Epoch-model mixed fit (wfield_local.mixed_models, the shared definition: y ~ C(epoch), sessions as observations,
+    random-effects ladder per animal) for one session table x measure; cached per (table, measure)."""
+    from wfield_local import mixed_models as mx
+    key = (g.scope.iloc[0], g.set.iloc[0], col)          # one session table per scope x set
+    if key not in _LMM:
+        L = mx.add_time_covariates(g[["label", col]].rename(columns={col: "y"}).dropna())
+        T = mx.lmm_table(L.assign(grp=0), ["grp"], models=("epoch",), print_animals=False)
+        _LMM[key] = {} if T.empty else {t.split("T.")[-1].rstrip("]"): (c, p_) for t, c, p_ in zip(T.term, T.coef, T.p)}
+    c, p_ = _LMM[key].get(ep, (np.nan, np.nan))
+    return {"mixed_coef": c, "mixed_p": p_}
+
+
+def _star(r) -> str:
+    """* = bootstrap CI excludes 0; + dagger = mixed model p < 0.05 (Priya 10-27)."""
+    b = "*" if np.isfinite(r.lo) and (r.lo > 0 or r.hi < 0) else ""
+    return b + ("†" if np.isfinite(r.get("mixed_p", np.nan)) and r.mixed_p < 0.05 else "")
+
+
+def plot_classes(T: pd.DataFrame) -> None:
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    from matplotlib.lines import Line2D
+    CL = {("iti", "first"): "#1f6fb4", ("iti", "later"): "#9cc3e6", ("trial", "first"): "#c0392b",
+          ("trial", "later"): "#eba59d"}
+    fig, axs = plt.subplots(2, 3, figsize=(15, 7.8), squeeze=False)
+    for i, scope in enumerate(("all spouts", "far contra")):
+        for j, (val, lab) in enumerate((("landing", "landing (BEHAVIOUR)"), ("lfl", "like-for-like offset, same place (NEURAL)"),
+                                        ("lfl_diff", "first - later, like-for-like offset (NEURAL)"))):
+            ax = axs[i, j]
+            keys = [("iti", "diff"), ("trial", "diff")] if val.endswith("diff") else list(CL)
+            for k, (st, cls) in enumerate(keys):
+                m = val if val.endswith("diff") else f"{val}_{cls}"
+                t = T[(T.scope == scope) & (T.set == st) & (T.measure == m)].set_index("epoch").reindex(EP)
+                x = np.arange(1, 4) + (k - (len(keys) - 1) / 2) * 0.16
+                col = CL[(st, "first")] if cls == "diff" else CL[(st, cls)]
+                ax.errorbar(x, t.point, yerr=[t.point - t.lo, t.hi - t.point], fmt="o", color=col, capsize=2.5, ms=5)
+                for xx, (_e, r) in zip(x, t.iterrows()):
+                    if np.isfinite(r.point):
+                        ax.text(xx, r.hi, f"{r.point:+.2f}{_star(r)}\n{int(r.n_dir)}/{int(r.n)}", ha="center",
+                                va="bottom", fontsize=6, color=col, fontweight="bold" if "*" in _star(r) else "normal")
+            ax.axhline(0, color="0.7", lw=0.6, ls=":")
+            ax.set_xticks([1, 2, 3], EP)
+            ax.set_title(f"{scope}: {lab}\nchange vs pre (mm)", fontsize=9)
+            for s_ in ("top", "right"):
+                ax.spines[s_].set_visible(False)
+    h = [Line2D([], [], color=CL[k], marker="o", lw=0, label=f"{SETS[k[0]]} {k[1]} lick" + ("s" if k[1] == "later" else ""))
+         for k in CL]
+    fig.legend(handles=h, loc="lower center", ncol=4, fontsize=8.5, frameon=False)
+    fig.suptitle("FIRST vs LATER licks, ITI (first = bout start, gap >= 1 s) and cued (first = first post-cue lick): "
+                 "lateral, change vs pre,\nfrozen KEY-row decoder per set (z-scored " + DEC_LAB + f"; like-for-like = vs pre licks at the same place, {lfl.REF_LAB}); 95% paired nested "
+                 "bootstrap CI, * = CI excludes 0 (bold),\n\u2020 = mixed (LMM) p < 0.05 (second opinion, anti-conservative at n=4), k/n animals. + = contralesional. PROVISIONAL", fontsize=9.5)
+    _layout(fig, bottom=0.05)
+    fig.savefig(WOUT / "figures" / f"lick_order_iti_cued{SRC_TAG}.png", dpi=100)
+    plt.close(fig)
+
+
+def _layout(fig, bottom: float) -> None:
+    """tight_layout leaving room for the suptitle (0.2 in per line + 0.3 in) and a legend row at the bottom."""
+    t = fig._suptitle.get_text() if fig._suptitle is not None else ""
+    top = 1 - (0.2 * (t.count(chr(10)) + 1) + 0.3) / fig.get_size_inches()[1]
+    fig.tight_layout(rect=(0, bottom, 1, top))
+
+
+def plot_slope(P: pd.DataFrame, T: pd.DataFrame) -> None:
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    from matplotlib.lines import Line2D
+
+    from wfield_local.orofacial_cohort import EPOCH_LINE
+    col = {"pre": "k", **EPOCH_LINE}
+    fig, axs = plt.subplots(2, 5, figsize=(21, 8.6), squeeze=False)
+    sig_recs = []
+    for i, st in enumerate(SETS):
+        for j, val in enumerate(VALS):
+            ax = axs[i, j]
+            g = P[P.set == st]
+            # per animal x epoch x order mean, then mean +/- SEM over animals
+            A = g.groupby(["epoch", "animal", "ord_c"])[val].mean().reset_index()
+            for ep in EPS:
+                q = A[A.epoch == ep].groupby("ord_c")[val]
+                mu, se = q.mean(), q.sem()
+                ax.plot(mu.index, mu, "o-", color=col[ep], ms=3.5, lw=1.4)
+                ax.fill_between(mu.index, mu - se, mu + se, color=col[ep], alpha=0.15, lw=0)
+            if val in ("landing", "decoded"):
+                # per lick order, each epoch vs pre (Priya 10-28): the 14.1 per-bin test with order as the bin
+                L = (g.dropna(subset=[val]).groupby(["label", "animal", "epoch", "ord_c"])[val].mean().reset_index()
+                     .rename(columns={"ord_c": "lag"}))
+                S_ = il.sig_compute(L, value=val, tag={"set": st, "measure": val})
+                sig_recs.extend(S_["recs"])
+                il.sig_draw(ax, S_, col)
+                il._headroom([ax])
+            ax.axhline(0, color="0.7", lw=0.6, ls=":")
+            ax.set_xticks(range(ORDER_CAP + 1), [*map(str, range(ORDER_CAP)), f"{ORDER_CAP}+"])
+            ax.set_xlabel("lick order (0 = " + ("bout start)" if st == "iti" else "first post-cue lick)"), fontsize=8)
+            ax.set_ylabel(f"{val} (mm, + = contralesional)", fontsize=8)
+            ax.set_title(f"{SETS[st]}: {VLAB[val]}\nmean +/- SEM over animals", fontsize=8.5)
+        for j, scope in enumerate(("all spouts", "far contra")):
+            ax = axs[i, 3 + j]
+            for k, val in enumerate(VALS):
+                t = T[(T.scope == scope) & (T.set == st) & (T.measure == f"{val}_slope")].set_index("epoch").reindex(EP)
+                x = np.arange(1, 4) + (k - 1) * 0.22
+                c = VCOL[val]
+                ax.errorbar(x, t.point, yerr=[t.point - t.lo, t.hi - t.point], fmt="o", color=c, capsize=2.5)
+                for xx, (_e, r) in zip(x, t.iterrows()):
+                    if np.isfinite(r.point):
+                        ax.text(xx, r.hi, f"{r.point:+.3f}{_star(r)}\n{int(r.n_dir)}/{int(r.n)}", ha="center",
+                                va="bottom", fontsize=5.8, color=c, fontweight="bold" if "*" in _star(r) else "normal")
+            pre = T[(T.scope == scope) & (T.set == st) & (T.epoch == "pre")].set_index("measure")
+            ax.text(0.99, 0.01, "pre slopes (mm/lick): " + ", ".join(
+                f"{v} {pre.level.get(f'{v}_slope', np.nan):+.3f}" for v in VALS), transform=ax.transAxes, fontsize=6.5,
+                va="bottom", ha="right", color="0.3")
+            ax.axhline(0, color="0.7", lw=0.6, ls=":")
+            ax.set_xticks([1, 2, 3], EP)
+            ax.set_xlim(0.5, 3.5)
+            lo, hi = ax.get_ylim()
+            ax.set_ylim(lo - 0.12 * (hi - lo), hi + 0.12 * (hi - lo))     # room for the pre text and the labels
+            ax.set_ylabel("change in slope vs pre (mm per lick)", fontsize=8)
+            ax.set_title(f"{SETS[st]}, {scope}: lick-order SLOPE\n(spout means removed), change vs pre", fontsize=8.5)
+        for ax in axs[i]:
+            for s_ in ("top", "right"):
+                ax.spines[s_].set_visible(False)
+    # two legends, each under the columns it belongs to
+    fig.legend(handles=[Line2D([], [], color=col[e], lw=2, label=e) for e in EPS], loc="lower center",
+               bbox_to_anchor=(0.30, 0.0), ncol=4, fontsize=8.5, frameon=False, title="columns 1-3: epoch", title_fontsize=8)
+    fig.legend(handles=[Line2D([], [], color=VCOL[v], marker="o", lw=0, label=f"{v} slope") for v in VALS],
+               loc="lower center", bbox_to_anchor=(0.80, 0.0), ncol=3, fontsize=8.5, frameon=False,
+               title="columns 4-5: measure", title_fontsize=8)
+    fig.suptitle("LICK ORDER vs lateral landing and read-out, ITI (row 1, order within the lick bout) and cued (row 2, "
+                 f"order after the cue); frozen KEY-row decoder per set ({DEC_LAB}).\nSlope = per-session OLS of the value on "
+                 f"min(order, {ORDER_CAP}), spout means removed; 95% paired nested bootstrap CI of the change vs pre, "
+                 "* = CI excludes 0 (bold), † = mixed (LMM) p < 0.05 (second opinion, anti-conservative at n=4), k/n "
+                 "animals.\nColumns 1-2: bars above the curves = lick orders where that epoch differs from pre (paired nested "
+                 "bootstrap animals > sessions per order, BH-FDR q = 0.05 across the 10 orders), one row per epoch in its "
+                 "colour. PROVISIONAL", fontsize=9.5)
+    _layout(fig, bottom=0.08)
+    fig.savefig(WOUT / "figures" / f"lick_order_iti_cued_slope{SRC_TAG}.png", dpi=100)
+    R = pd.DataFrame(sig_recs)
+    R.to_csv(WOUT / f"lick_order_sig_bins{SRC_TAG}.csv", index=False)
+    print("== per-order tests (landing / decoded vs pre), significant orders:\n"
+          + R[R.sig_bh].groupby(["set", "measure", "epoch"]).lag.apply(lambda s: list(s.astype(int))).to_string())
+    plt.close(fig)
+
+
+def main() -> int:
+    f = preds_path()
+    if f.exists():
+        P = pd.read_csv(f)
+    else:
+        P = predictions()
+        P.to_csv(f, index=False)
+    if il.ITI_SUBSET:                                  # docked-spout etc. subset of the frozen predictions (cache order)
+        keep = il.iti_subset_keep(P)
+        print(f"ITI subset filter {il.ITI_SUBSET}: keeping {int(keep[(P.set == 'iti').to_numpy()].sum())} of "
+              f"{int((P.set == 'iti').sum())} ITI licks", flush=True)
+        P = P[keep].reset_index(drop=True)
+        (WOUT / "figures").mkdir(parents=True, exist_ok=True)
+    P = per_lick(P)
+    print("share first (order 0) by set x epoch:\n",
+          P.groupby(["set", "epoch"]).order.apply(lambda s: (s == 0).mean()).round(3).unstack().to_string())
+    S = sessions(P)
+    S.to_csv(WOUT / f"lick_order_sessions{SRC_TAG}.csv", index=False)
+    pd.set_option("display.width", 240)
+    print("== per animal (rule 8): like-for-like offset (same place), first / later / slope")
+    for scope in ("all spouts", "far contra"):
+        for m in ("lfl_first", "lfl_later", "lfl_slope"):
+            print(f"-- {scope} {m}")
+            print(S[S.scope == scope].pivot_table(index=["set", "animal"], columns="epoch", values=m)
+                  .reindex(columns=EPS).round(3).to_string())
+    T = tests(S)
+    T.to_csv(WOUT / f"lick_order_tests{SRC_TAG}.csv", index=False)
+    print(T[T.epoch != "pre"].round(3).to_string(index=False))
+    plot_classes(T)
+    plot_slope(P, T)
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

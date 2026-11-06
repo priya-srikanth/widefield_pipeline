@@ -1,4 +1,4 @@
-"""scripts/face_rhythm_factors.py on a synthetic bundle in the runner's file formats: planted non-negative factors are
+"""The factor stages (wfield_local/face_rhythm/factors/, launcher scripts/face_rhythm_factors.py) on a synthetic bundle in the runner's file formats: planted non-negative factors are
 recovered, the leave-one-animal-out / freeze / projection / own-fit / movement-power steps run, and refreezing is
 refused. Small sizes (seconds)."""
 import json
@@ -6,7 +6,7 @@ import json
 import numpy as np
 import pytest
 
-from scripts import face_rhythm_factors as f
+from wfield_local.face_rhythm import factors as f
 
 P, F, R = 30, 10, 3
 
@@ -55,6 +55,9 @@ def test_pipeline_end_to_end(tmp_path):
     fz = np.load(sd / f"rank{R:02d}.npz")
     assert len(fj["stability_per_factor_min"]) == R and min(fj["stability_per_factor_min"]) > 0.9
     assert fz["A_starts"].shape[0] == len(fj["rel_errs"]) and fz["B_starts"].shape[1:] == fz["B"].shape
+    f.cmd_splithalf(sd, R, inits=1)                                # disjoint halves recover the same planted factors
+    sh = json.loads((sd / "splithalf" / f"rank{R:02d}.json").read_text())
+    assert sh["similarity_halves"] > 0.9 and min(sh["similarity_half_to_full"]) > 0.9 and sum(sh["n_trials"]) == 12
     pl = json.loads((sd / "plan.json").read_text())                # leave one pre DAY out (the post-stroke noise floor)
     pl["loso_jobs"], pl["role"] = [[R, f"{a}_20260810"] for a in ("PS92", "PS93", "PS94")], "pilot"
     (sd / "plan.json").write_text(json.dumps(pl))
@@ -75,7 +78,11 @@ def test_pipeline_end_to_end(tmp_path):
     for i in range(1, len(plan["tasks"]) + 1):
         f.cmd_project(sd, i)
         f.cmd_fitsession(sd, i, inits=2)
-    assert str(np.load(sd / "proj" / "PS93_20260810_cam4.npz")["basis"]) == "loso"     # pre: its day left out
+    assert str(np.load(sd / "proj" / "PS93_20260810_cam4.npz")["basis"]) == "full_in_sample"   # ONE basis (10-23)
+    for i in range(1, len(plan["tasks"]) + 1):
+        f.cmd_project(sd, i, loso=True)                       # held-out pre projections, FR scoring only
+    assert str(np.load(sd / "proj_loso" / "PS93_20260810_cam4.npz")["basis"]) == "loso"
+    assert not (sd / "proj_loso" / "PS93_20260820_cam4.npz").exists()                   # post: not written there
     assert str(np.load(sd / "own" / "PS93_20260810_cam4.npz")["basis"]) == "loso"
     p = np.load(sd / "proj" / "PS93_20260820_cam4.npz")
     assert str(p["basis"]) == "full"                                                    # post: the full pre fit
@@ -99,8 +106,9 @@ def test_pre_task_without_its_left_out_basis_is_refused(tmp_path):
     (sd / "plan.json").write_text(json.dumps(pl))
     f.cmd_select(sd, R)
     pre = next(i for i, t in enumerate(plan["tasks"], 1) if t["epoch"] == "pre")
+    f.cmd_project(sd, pre)                                     # proj/: the full frozen basis, no refusal (10-23)
     with pytest.raises(SystemExit, match="loso array"):
-        f.cmd_project(sd, pre)
+        f.cmd_project(sd, pre, loso=True)                      # proj_loso/ needs the left-out-day basis
 
 
 def test_window_power_classes():
@@ -120,6 +128,9 @@ def test_draw_rows_balanced_and_seeded():
     b = f.draw_rows(trials, between, 10, 0.25, np.random.default_rng(0))
     assert a == b and len(a["trials"]["k"]) == 10
     assert len(a["between"]["k"]) == round(0.25 * 10 * 75)
+    c = f.draw_rows(trials, between, 20, 0.25, np.random.default_rng(0), ds=4)   # 2x trials at half the row rate
+    assert c["ds"] == 4 and len(c["trials"]["k"]) == 20
+    assert len(c["between"]["k"]) == round(0.25 * 20 * (151 // 4))             # same trial-row share
 
 
 
@@ -145,9 +156,10 @@ def test_streamed_points_and_one_pass_power_match_the_in_memory_path(tmp_path, m
     np.savez(pf, disp=disp, t_daq_s=t25)
     comps = rng.standard_normal((3, 2 * Pn)).astype(np.float32)
     cues, pos = np.array([20.0, 45.0, 70.0]), np.array(["a", "b", "a"])
-    monkeypatch.setattr(f, "POINTS_CHUNK", 1000)                          # several blocks
+    monkeypatch.setattr(f.project, "POINTS_CHUNK", 1000)                  # several blocks
+    monkeypatch.setattr(f.fit, "POINTS_CHUNK", 1000)
     st = f.points_stream(pf, comps, cues, pos)
-    Xp, _ = f._centred_disp(pf)
+    Xp, _ = f.fit._centred_disp(pf)
     ref = f.window_speed(Xp, t25, cues, pos)
     assert np.allclose(st["points_pc"], Xp @ comps.T, equal_nan=True, atol=1e-5)
     for k in ("speed_between", "speed_precue", "speed_response"):
@@ -157,8 +169,39 @@ def test_streamed_points_and_one_pass_power_match_the_in_memory_path(tmp_path, m
     t5 = np.arange(600) / 5.0
     lab, ps = f.window_labels(t5, cues, pos, f.EDGE_BINS)
     acc = f.ClassMeans(lab, 1 + 2 * len(ps), S.shape[1:])
-    X = f._scaled(S, 2.0, on_chunk=lambda c0, x: acc.add(c0, x.reshape(len(x), *S.shape[1:])))
+    X = f.cp._scaled(S, 2.0, on_chunk=lambda c0, x: acc.add(c0, x.reshape(len(x), *S.shape[1:])))
     f.project_rows(X, rng.random((2 * Pn, 2)), rng.random((4, 2)))
-    one, ref2 = f._power_dict(*acc.result(), ps), f.window_power(S, 2.0, t5, cues, pos)
+    one, ref2 = f.project._power_dict(*acc.result(), ps), f.window_power(S, 2.0, t5, cues, pos)
     for k in ("power_between", "power_precue", "power_response"):
         assert np.allclose(one[k], ref2[k], equal_nan=True, rtol=1e-6)
+
+
+def test_gather_rows_uses_the_plans_row_spacing(tmp_path):
+    """A pick's ``ds`` sets the fit-row spacing (plan --trial-ds); picks without it (older plans) use TRIAL_DS."""
+    k = "PS92_20260810_cam4"
+    sd = _bundle(tmp_path)[0]
+    X4, ix4 = f.gather_rows(sd, {"trials": {k: [0, 1]}, "between": {}, "ds": 4})
+    X2, _ = f.gather_rows(sd, {"trials": {k: [0, 1]}, "between": {}})
+    assert len(X4) == 2 * (151 // 4) and len(X2) == 2 * (151 // f.TRIAL_DS)
+    assert {r[3] for r in ix4} == set(range(151 // 4))
+
+
+def test_deployed_set_runs_its_own_copy_and_old_imports_resolve(tmp_path):
+    """O2 has no repo: `deploy_code` puts the launcher + package + sidecars in the set folder, and the launcher there
+    imports the COPY (a set runs exactly the code deployed into it); old `scripts.face_rhythm_factors` names resolve."""
+    import subprocess
+    import sys
+
+    from scripts import face_rhythm_factors as launcher
+    assert launcher.cmd_project is f.cmd_project and launcher.npz_memmap is f.npz_memmap
+    assert launcher.POINTS_CHUNK == f.config.POINTS_CHUNK and launcher._scaled is f.cp._scaled
+    sd, *_ = _bundle(tmp_path)
+    written = f.deploy_code(sd)
+    assert (sd / "fr_factors.py") in written and (sd / f.LIB / "cp.py").exists()
+    assert all((sd / f"{m}.py").exists() for m in f.SIDECAR_MODULES)
+    code = (f"import sys; sys.path.insert(0, r'{sd}'); import fr_factors; "
+            f"print(fr_factors._pkg.__file__); fr_factors._pkg.cli.main(['build', '--dir', r'{sd}'])")
+    r = subprocess.run([sys.executable, "-c", code], cwd=tmp_path, capture_output=True, text=True)
+    assert r.returncode == 0, r.stderr
+    assert str(sd / f.LIB) in r.stdout.splitlines()[0]
+    assert (sd / "fit_tensor.npy").exists() and (sd / "points_pca.npz").exists()

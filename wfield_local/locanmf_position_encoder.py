@@ -30,10 +30,10 @@ from sklearn.model_selection import GroupKFold
 from collections import defaultdict
 
 from wfield_local import config
-from wfield_local.locanmf_cue_lick_analysis import SESSIONS, ANIMAL_COLOR
+from wfield_local.locanmf_cue_lick_analysis import SESSIONS, ANIMAL_COLOR  # noqa: F401
 from wfield_local.locanmf_position_decoder import _trial_features, _build_signal
 from wfield_local.plot_lick_aligned_averages import POSITION_NAMES, DISPLAY_ORDER, _load_daq_events
-from wfield_local.plot_spout_trial_averages import _load_daq_events as _load_cue, _classify_cues
+from wfield_local.plot_spout_trial_averages import _load_daq_events as _load_cue, _classify_cues  # noqa: F401
 from wfield_local.behavior_position import classify_cues_with_backup
 from wfield_local.locanmf_crossanimal_dff import _frames
 
@@ -159,7 +159,7 @@ def _quiet_baseline_local(s, sig, nbins=24):
 
 def _engaged_frames(s, post_s=2.0):
     """First-lick frame + position for engaged (cue+lick) trials, with the post window length (frames)."""
-    cue = _load_cue(s["h5"]); lk = _load_daq_events(s["h5"], "lick_analog", 2.5, 1.0, (0.001, 0.020), 0.10)
+    cue = _load_cue(s["h5"]); lk = _load_daq_events(s["h5"], "lick_analog")
     cf, lf, _ = _frames(s, cue, lk); codes = classify_cues_with_backup(s, cue)
     ls = np.sort(lf); j = np.searchsorted(ls, cf, side="right")
     first = np.where(j < ls.size, ls[np.clip(j, 0, ls.size - 1)], -1); rt = first - cf
@@ -181,7 +181,8 @@ def fig_predicted_maps(label, out):
     The baseline used is named in the figure TITLE, including when it degrades to the unweighted or
     session-mean fallback -- a map captioned "above rest" has to say which rest."""
     s = _sess(label); e = encode_spatial(label)
-    C = np.load(f"{config.locanmf_dir(s['mc'])}/{label}_locanmf_C.npy")       # RAW C (not footprint-scaled)
+    from wfield_local import locanmf_session
+    C = locanmf_session.load_C(s)       # RAW C (not footprint-scaled); stored, or projected (WIDEFIELD_LOCANMF_PROJECT)
     base, base_note = _restw_baseline(s, C)              # SETTLED position-weighted FLAT rest baseline
     if base is None:
         # NOT a silent substitution: the session mean is not a rest baseline, and the title says so.
@@ -253,7 +254,7 @@ def fig_temporal_encoder(label, out, pre_s=1.0, post_s=1.5):
     rn = np.array([names.get(int(reg[i]), "?") for i in range(sig.shape[0])])
     ssp = np.where(np.char.startswith(rn.astype(str), "SSp"))[0]
     mo = np.array([i for i in range(len(rn)) if rn[i].startswith(("MOp", "MOs"))])
-    cue = _load_cue(s["h5"]); lk = _load_daq_events(s["h5"], "lick_analog", 2.5, 1.0, (0.001, 0.020), 0.10)
+    cue = _load_cue(s["h5"]); lk = _load_daq_events(s["h5"], "lick_analog")
     cf, lf, _ = _frames(s, cue, lk); codes = classify_cues_with_backup(s, cue)
     ls = np.sort(lf); j = np.searchsorted(ls, cf, side="right"); first = np.where(j < ls.size, ls[np.clip(j, 0, ls.size - 1)], -1); rt = first - cf
     pre = int(pre_s * FS); post = int(post_s * FS); tax = np.arange(-pre, post) / FS
@@ -283,7 +284,7 @@ def fig_ev_by_position(labels, out, tag):
     """Total (whole-cortex) held-out explained variance per spout position, per session: how much
     better the encoder predicts each position's trials than the grand mean (R^2 restricted to that
     position's held-out trials, summed over all components). High = that position is distinctly encoded."""
-    posn = [POSITION_NAMES[c] for c in DISPLAY_ORDER]; pos = np.array(DISPLAY_ORDER)
+    posn = [POSITION_NAMES[c] for c in DISPLAY_ORDER]; pos = np.array(DISPLAY_ORDER)  # noqa: F841
     fig, ax = plt.subplots(figsize=(11, 5.5)); x = np.arange(6); w = 0.8 / max(len(labels), 1)
     summary = {}
     for i, lab in enumerate(labels):
@@ -293,7 +294,7 @@ def fig_ev_by_position(labels, out, tag):
         # that created ev_per_position folded in fig_ev_by_position_animal and the EV matrix and
         # missed this one, which is exactly how a duplicate outlives the fix to its twin.
         ev = ev_per_position(lab)
-        ax.bar(x + (i - (len(labels) - 1) / 2) * w, ev, w, label=lab[:4])
+        ax.bar(x + (i - (len(labels) - 1) / 2) * w, ev, w, label=lab.split("_")[0])
         for k in range(6):                      # a position the animal never visited: say so
             if not np.isfinite(ev[k]):
                 ax.text(x[k] + (i - (len(labels) - 1) / 2) * w, 0, "n/a", rotation=90,
@@ -335,7 +336,7 @@ def fig_ev_ceiling_by_position(labels, out, tag):
             ceil.append(betw / max(tot, 1e-12)); cap.append(1 - ((X[m] - pred[m]) ** 2).sum() / max(tot, 1e-12))
         ceil = np.array(ceil); ratio = np.where(ceil > 0.05, np.array(cap) / ceil, np.nan)
         x = np.arange(6) + (i - (len(labels) - 1) / 2) * w
-        axes[0].bar(x, ceil, w, label=lab[:4]); axes[1].bar(x, ratio, w, label=lab[:4])
+        axes[0].bar(x, ceil, w, label=lab.split("_")[0]); axes[1].bar(x, ratio, w, label=lab.split("_")[0])
     for ax, t in [(axes[0], "noise ceiling (explainable var) per position"),
                   (axes[1], "captured / ceiling per position (1 = all explainable captured)")]:
         ax.set_xticks(range(6)); ax.set_xticklabels(posn, rotation=45, ha="right", fontsize=8)
@@ -356,8 +357,9 @@ def fig_encoder_vs_svd(label, out):
     mask = np.load(f"{ad}/allen_brain_mask_native_grid.npy").astype(bool); H, Wd = mask.shape; mk = mask.reshape(-1)
     Uf = U.reshape(-1, U.shape[2])
     Ar = np.load(f"{config.locanmf_dir(mc)}/{label}_locanmf_A.npy"); Af = np.nan_to_num(Ar.reshape(-1, Ar.shape[2]))
-    C = np.load(f"{config.locanmf_dir(mc)}/{label}_locanmf_C.npy"); T = SVT.shape[1]
-    cue = _load_cue(s["h5"]); lk = _load_daq_events(s["h5"], "lick_analog", 2.5, 1.0, (0.001, 0.020), 0.10)
+    from wfield_local import locanmf_session
+    C = locanmf_session.load_C(s); T = SVT.shape[1]          # stored, or projected (WIDEFIELD_LOCANMF_PROJECT)
+    cue = _load_cue(s["h5"]); lk = _load_daq_events(s["h5"], "lick_analog")
     cf, lf, _ = _frames(s, cue, lk); codes = classify_cues_with_backup(s, cue)
     keep = [k for k in range(cf.size) if codes[k] >= 0 and int(cf[k]) - W >= 0 and int(cf[k]) + W <= T]
     cfk = np.array([int(cf[k]) for k in keep]); yk = np.array([int(codes[k]) for k in keep])
@@ -535,7 +537,7 @@ def fig_region_feve_pooled(res, out, floor=0.02):
     explainable signal. Regions sorted by pooled explainable variance; SSp red / MO blue x-labels."""
     by = defaultdict(list)
     for lab in res:
-        by[lab[:4]].append(lab)
+        by[lab.split("_")[0]].append(lab)
     animals = sorted(by); regs = _feve_regions(res, floor)
     # REFUSE BEFORE PLOTTING, not after. The degenerate check used to sit below the
     # figure build, so an empty axis died inside imshow with "Invalid shape (0,) for
@@ -567,7 +569,7 @@ def fig_region_feve_sessions(res, out, floor=0.02):
     session-to-session stability of each region's ceiling-normalized encoding within an animal."""
     by = defaultdict(list)
     for lab in res:
-        by[lab[:4]].append(lab)
+        by[lab.split("_")[0]].append(lab)
     animals = sorted(by); regs = _feve_regions(res, floor)
     # REFUSE BEFORE PLOTTING, not after. The degenerate check used to sit below the
     # figure build, so an empty axis died inside imshow with "Invalid shape (0,) for
@@ -583,7 +585,7 @@ def fig_region_feve_sessions(res, out, floor=0.02):
     if _degenerate_feve(res, regs, out / "locanmf_encoder_feve_by_region_sessions.png"):
         return None
     labs = [l for a in animals for l in sorted(by[a], key=lambda x: x[-4:])]
-    rows = [f"{l[:4]} {l[-4:-2]}/{l[-2:]}" for l in labs]
+    rows = [f"{l.split('_')[0]} {l[-4:-2]}/{l[-2:]}" for l in labs]
     M = np.array([_feve_pct(res[l], regs, floor) for l in labs])
     fig, ax = plt.subplots(figsize=(max(12, 0.30 * len(regs)), 0.42 * len(labs) + 2.6))
     _feve_heatmap(ax, M, rows, regs, fig)
@@ -605,7 +607,7 @@ def fig_quiet_drift(labels, out, tag):
     for lab in labels:
         s = _sess(lab); sig, _ = _build_signal(s, "locanmf"); T = sig.shape[1]
         pooled = _quiet_baseline_local(s, sig).mean(0)
-        ax.plot(np.arange(T) / FS / 60, pooled, label=f"{lab[:4]} ({T / FS / 60:.0f}min)")
+        ax.plot(np.arange(T) / FS / 60, pooled, label=f"{lab.split('_')[0]} ({T / FS / 60:.0f}min)")
     ax.set_xlabel("session time (min)"); ax.set_ylabel("pooled quiet (rest) baseline (dF/F)")
     ax.axhline(0, color="k", lw=0.5); ax.legend(fontsize=8)
     ax.set_title(f"Time-local quiet baseline drift over session ({tag}) — small in dF/F; time-local tracks any residual")
@@ -719,7 +721,7 @@ def fig_ev_matrix(by_animal, out, name="locanmf_encoder_ev_matrix.png"):
 def fig_ev_by_position_animal(animal, labels, out):
     """Per-position held-out EV for ONE animal across its sessions — one graph, sessions distinguished by
     colour (grouped bars), labelled by date. The per-animal-across-sessions view of fig_ev_by_position."""
-    posn = [POSITION_NAMES[c] for c in DISPLAY_ORDER]; pos = np.array(DISPLAY_ORDER)
+    posn = [POSITION_NAMES[c] for c in DISPLAY_ORDER]; pos = np.array(DISPLAY_ORDER)  # noqa: F841
     fig, ax = plt.subplots(figsize=(11, 5.5)); x = np.arange(6); w = 0.8 / max(len(labels), 1)
     for i, lab in enumerate(labels):
         ev = ev_per_position(lab)          # one implementation, shared with fig_ev_matrix
@@ -802,7 +804,7 @@ def main() -> int:
     # per-animal EV-per-position across the pooled sessions (one graph/animal, sessions by colour)
     by_animal = {}
     for lab in all_labs:
-        by_animal.setdefault(lab[:4], []).append(lab)
+        by_animal.setdefault(lab.split("_")[0], []).append(lab)
     # THE EV MATRIX HAD NO CALLER. It was written, the deck renders it `if exists()`, and nothing
     # in the repo produced it -- so the slide was served by a PNG from 2026-08-19 and would have
     # gone on aging silently, because "figure missing" and "figure stale" look identical to a deck

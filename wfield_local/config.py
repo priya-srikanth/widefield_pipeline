@@ -13,11 +13,13 @@ from pathlib import Path
 
 import yaml
 
+from wfield_local import paths as _paths
 from wfield_local.paths import PathResolver
 
 CONFIG_DIR = Path(__file__).resolve().parents[1] / "configs"
 
-# The cohort is a single 2026 season, so MMDD <-> YYYYMMDD conversion just (un)prepends the year.
+# MMDD <-> YYYYMMDD conversion (un)prepends the ACTIVE cohort's year (the year of its first session; see
+# `cohort_year`). COHORT_YEAR is cohort1's, kept for callers that import it.
 COHORT_YEAR = "2026"
 
 # Per-field implicit root for a session entry's relative paths (see configs/sessions.yaml).
@@ -35,9 +37,103 @@ _ROOT_PREFIX = re.compile(r"^(?P<root>[a-z_]{3,}):(?P<rel>.+)$")
 
 
 @functools.lru_cache(maxsize=None)
-def _load(name):
-    with open(CONFIG_DIR / name, encoding="utf-8") as fh:
+def _load_file(relpath):
+    with open(CONFIG_DIR / relpath, encoding="utf-8") as fh:
         return yaml.safe_load(fh)
+
+
+#: The per-COHORT config files (configs/cohorts.yaml). `_load("animals.yaml")` / `_load("sessions.yaml")`
+#: return the ACTIVE cohort's file -- cohort1's are the original configs/animals.yaml + sessions.yaml.
+_COHORT_FILES = {"animals.yaml": "animals_file", "sessions.yaml": "sessions_file"}
+
+
+def _load(name):
+    """A configs/ YAML; animals.yaml and sessions.yaml resolve to the ACTIVE cohort's files."""
+    if name in _COHORT_FILES:
+        name = _paths.cohort_spec()[_COHORT_FILES[name]]
+    return _load_file(name)
+
+
+_load.cache_clear = _load_file.cache_clear   # callers (await_locanmf) re-read sessions.yaml after registering
+
+
+# --------------------------------------------------------------------------- cohorts (configs/cohorts.yaml)
+def cohort() -> str:
+    """The ACTIVE cohort's name (``WIDEFIELD_COHORT``, else cohorts.yaml `default` = cohort1).
+
+    Every animal / session / pooled set in this module is the active cohort's ONLY: cohort1 (PS92-95) and
+    cohort2 (PS118, PS120-122) are never pooled. To analyse another cohort set ``WIDEFIELD_COHORT``.
+    """
+    return _paths.active_cohort()
+
+
+def cohort_year() -> str:
+    """YYYY prepended to the active cohort's MMDD keys = the year of its first session."""
+    return str(_paths.cohort_spec()["first"])[:4]
+
+
+def cohort_span() -> tuple[str, str]:
+    """(first, last) YYYYMMDD of the ACTIVE cohort; an open-ended `last` (null) becomes '99999999'.
+
+    For scoping the FLAT shares (behavior logs, cameras) by full date: a session belongs to this
+    cohort iff ``first <= its YYYYMMDD <= last``. Compare YYYYMMDD here, never MMDD -- the shares hold
+    every cohort and two cohorts can share an MMDD in different years (see `date8`)."""
+    spec = _paths.cohort_spec()
+    return str(spec["first"]), str(spec.get("last") or "99999999")
+
+
+def date8(d) -> str:
+    """YYYYMMDD for a session date in the ACTIVE cohort: MMDD, a label (``PS118_0105``) or YYYYMMDD.
+
+    THE YEAR (2026-10-29). Session keys and labels are MMDD; the year is not stored in them. A cohort's sessions
+    run from its `first` date (cohorts.yaml) for less than a year, so an MMDD on or after `first`'s MMDD is in
+    `first`'s year and an earlier MMDD is in the NEXT year: cohort2 (first 20261029) maps 1105 -> 20261105 and
+    0105 -> 20270105. `load_sessions` checks every registered session against the YYYYMMDD in its own paths, so a
+    cohort that outgrows one year fails loudly instead of silently colliding. Compare and sort dates through this
+    (or `date_key`), never as MMDD strings: "0105" < "1029" is wrong for cohort2.
+    """
+    s = str(d).split("_")[-1]
+    if len(s) == 8 and s.isdigit():
+        return s
+    if not (len(s) == 4 and s.isdigit()):
+        raise ValueError(f"bad session date {d!r} (want MMDD, YYYYMMDD or a label)")
+    first = str(_paths.cohort_spec()["first"])
+    y = int(first[:4]) + (0 if s >= first[4:] else 1)
+    return f"{y}{s}"
+
+
+#: Sort / compare key for MMDD dates and labels in the active cohort (= `date8`).
+date_key = date8
+
+
+def cohort_of(animal: str) -> str | None:
+    """Which cohort an animal belongs to (cohorts.yaml), whichever cohort is active."""
+    return _paths.cohort_of_animal(animal)
+
+
+def use_cohort_for_dates(dates, explicit: str | None = None) -> str:
+    """Make the cohort that holds ``dates`` (YYYYMMDD) active, in-process AND for subprocesses.
+
+    For the NIGHTLY entry points: `nightly 20261029` must run as cohort2 with no flag. An explicit
+    ``WIDEFIELD_COHORT`` (or ``explicit``) wins, so a hand run on an older cohort still works. Refuses a date
+    list that spans two cohorts, and a date no cohort claims (register the cohort in cohorts.yaml first).
+    """
+    if explicit or os.environ.get(_paths.COHORT_ENV, "").strip():
+        name = explicit or os.environ[_paths.COHORT_ENV].strip()
+    else:
+        found = {d: _paths.cohort_for_date(d) for d in (str(x) for x in dates)}
+        names = set(found.values())
+        if None in names:
+            raise SystemExit(f"[cohort] no cohort in configs/cohorts.yaml covers "
+                             f"{sorted(d for d, n in found.items() if n is None)}; add it there first")
+        if len(names) > 1:
+            raise SystemExit(f"[cohort] these dates span cohorts {sorted(names)}: {found}. "
+                             f"Run each cohort separately, or set {_paths.COHORT_ENV}.")
+        name = names.pop() if names else _paths.active_cohort()
+    os.environ[_paths.COHORT_ENV] = name
+    _paths.active_cohort()                       # validates the name
+    print(f"[cohort] active cohort = {name} ({_paths.cohort_spec(name).get('description', '')})", flush=True)
+    return name
 
 
 @functools.lru_cache(maxsize=None)
@@ -64,11 +160,38 @@ def locanmf_dir_name(variant: str | None = None) -> str:
 
     Override per call with ``variant``, or globally with ``WIDEFIELD_LOCANMF_VARIANT``, which is how
     an analysis can be pointed at a non-default decomposition without editing config.
+
+    THE HEMO SWITCH DRIVES IT (rebuild 2026-11-03, single hemo switch). Without an explicit override the
+    name FOLLOWS `hemo_variant()` -- the same switch as `svtcorr_path` and `combined_encoding.hemo_dir` -- so a
+    non-default hemo variant can never be served the adopted per-session decomposition under its own label (trap
+    T7: per-session C used to stay adopted whatever the variant). For the default variant the name is exactly
+    ``output_dir_name`` (pinned by a test); under another variant it is ``<prefix>_hemo_<variant>``, a directory
+    that exists only once LocaNMF (or the projection path, `locanmf_session`) has produced it -- a missing
+    directory fails loudly instead of silently mixing variants.
     """
     v = variant or os.environ.get("WIDEFIELD_LOCANMF_VARIANT")
     if v:
         return f"locanmf_affine8v1_hemo_{v}"
-    return str(defaults()["locanmf"]["output_dir_name"])
+    name = str(defaults()["locanmf"]["output_dir_name"])
+    if locanmf_projection_on():
+        # PROJECTION PATH (`locanmf_session`): footprints A / regions come from the STORED decomposition (this name);
+        # C is never read from it -- every C load goes through `locanmf_session.load_C`, which projects.
+        return name
+    prefix, sep, built = name.rpartition("_hemo_")
+    want = hemo_variant() or "zerophase"
+    if not sep or built == want:
+        return name
+    return f"{prefix}_hemo_{want}"
+
+
+#: Per-session LocaNMF PROJECTION PATH (rebuild 2026-11-03, item j; default OFF): "1" serves every session's C as the
+#: least-squares projection of the SELECTED hemo variant's SVTcorr onto the session's STORED footprints A
+#: (`locanmf_session`). Needed whichever per-session LocaNMF decision is taken (main path or the bridge comparison).
+LOCANMF_PROJECT_ENV = "WIDEFIELD_LOCANMF_PROJECT"
+
+
+def locanmf_projection_on() -> bool:
+    return os.environ.get(LOCANMF_PROJECT_ENV, "").strip().lower() in ("1", "true", "yes", "on")
 
 
 def locanmf_dir(mc, variant: str | None = None) -> str:
@@ -88,10 +211,62 @@ def hemo_variant(variant: str | None = None) -> str | None:
     zerophase product -- it is what the pipeline wrote. Override per call, or globally with
     ``WIDEFIELD_HEMO_VARIANT``.
     """
-    v = variant if variant is not None else os.environ.get("WIDEFIELD_HEMO_VARIANT")
+    # an EMPTY env var is UNSET (review L3, 11-03): it used to mean zerophase
+    v = variant if variant is not None else (os.environ.get("WIDEFIELD_HEMO_VARIANT", "").strip() or None)
     if v is None:
         v = (defaults().get("hemo") or {}).get("variant")
     return None if v in (None, "", "none", "zerophase") else str(v)
+
+
+#: The hemo variant whose outputs and caches carry NO mode tag: everything produced before the 2026-11-03 rebuild was
+#: built on it. Fixed on purpose -- NOT the current default -- so that flipping ``defaults.yaml hemo.variant`` to a new
+#: variant still tags every new output (``hemo_tag``) and can never overwrite or prune an untagged (adopted) one.
+UNTAGGED_HEMO_VARIANT = "meegkit_hpfit"
+
+
+def default_hemo_variant() -> str | None:
+    """``defaults.yaml hemo.variant`` (None = zerophase), ignoring the env override."""
+    return hemo_variant((defaults().get("hemo") or {}).get("variant") or "none")
+
+
+def hemo_dir_name(variant: str | None = None) -> str | None:
+    """``hemo_<variant>`` -- the directory under ``wfield_local_results`` the selected variant lives in -- or None for
+    the bare zerophase ``SVTcorr.npy``. THE ONE PLACE a script should build that name (never ``hemo_{ADOPTED}`` or a
+    literal ``hemo_meegkit_hpfit``)."""
+    v = hemo_variant(variant)
+    return None if v is None else f"hemo_{v}"
+
+
+def hemo_manifest_path(mc_or_results, variant: str | None = None) -> str:
+    """``.../wfield_local_results/hemo_<variant>/manifest.json`` for an ``mc`` dir or a ``wfield_local_results`` dir.
+    Raises for zerophase (the bare product has no manifest)."""
+    d = hemo_dir_name(variant)
+    if d is None:
+        raise ValueError("the zerophase (bare SVTcorr.npy) product has no hemo manifest")
+    base = str(mc_or_results).rstrip("/\\")
+    if not base.replace("\\", "/").endswith("wfield_local_results"):
+        base = f"{base}/wfield_local_results"
+    return f"{base}/{d}/manifest.json"
+
+
+def maps_dir_tag(variant: str | None = None) -> str:
+    """Suffix of the per-session ACTIVITY-MAP directories (``spout_trial_averages_<t>``, ``lick_aligned_<t>``,
+    ``running_activity_<t>``; `preprocess._maps_commands`): ``defaults.yaml preprocess.maps.tag`` (affine8v1), plus
+    ``_hv-<variant>`` under any hemo variant other than `UNTAGGED_HEMO_VARIANT` (rebuild 2026-11-03, trap T22 / item
+    k): those npz are baked from SVTcorr, so a rebuild under another variant writes BESIDE the adopted maps, never over
+    them. The registration dir ``allen_aligned_<tag>`` and the quiet masks are hemo-independent and keep the bare tag."""
+    base = str(defaults()["preprocess"]["maps"]["tag"])
+    t = hemo_tag(variant)
+    return f"{base}_{t}" if t else base
+
+
+def hemo_tag(variant: str | None = None) -> str:
+    """Mode tag of the selected hemo variant: "" for `UNTAGGED_HEMO_VARIANT`, else ``hv-<variant>`` (``hv-zerophase``
+    for the bare product). Enters output folders (`run_mode`), session-cache kinds and restnl cache names."""
+    v = hemo_variant(variant)
+    if v == UNTAGGED_HEMO_VARIANT:
+        return ""
+    return f"hv-{v or 'zerophase'}"
 
 
 def svtcorr_path(mc, variant: str | None = None) -> str:
@@ -211,19 +386,20 @@ def curated_dates(machine: str | None = None, phase: str = "pre") -> list[str]:
     list and its accessor were deleted on 2026-08-13.
     """
     exclude = set(date_policy().get("cross_session_exclude", []))
-    registered = sorted({s["label"].split("_")[1] for s in load_sessions(machine)})
+    registered = sorted({s["label"].split("_")[1] for s in load_sessions(machine)}, key=date_key)
     dates = [d for d in registered if d not in exclude]
     pf = pre_from()
     cut = stroke_cutoff()
+    K = date_key                          # year-aware compare (cohort2 crosses New Year)
     if pf:                                    # opt-in late-baseline mode: drop the early pre dates everywhere
-        dates = [d for d in dates if d >= pf or (cut is not None and d > cut)]
+        dates = [d for d in dates if K(d) >= K(pf) or (cut is not None and K(d) > K(cut))]
     if cut is None:                       # whole cohort still pre-stroke: unchanged behaviour
         return dates
     if phase == "all":
         return dates
     if phase == "post":
-        return [d for d in dates if d > cut]
-    return [d for d in dates if d <= cut]
+        return [d for d in dates if K(d) > K(cut)]
+    return [d for d in dates if K(d) <= K(cut)]
 
 
 def stroke_date(animal: str) -> str | None:
@@ -290,7 +466,7 @@ def stroke_cutoff() -> str | None:
     `stroke_date(animal)` directly.
     """
     ds = [d for d in (stroke_date(a) for a in animals()) if d]
-    return min(ds) if ds else None
+    return min(ds, key=date_key) if ds else None
 
 
 def animal_excluded_dates(animal: str) -> set[str]:
@@ -309,6 +485,29 @@ def animal_excluded_dates(animal: str) -> set[str]:
     return {str(d)[4:] if len(str(d)) == 8 else str(d) for d in v}
 
 
+def baseline_pre_from() -> str | None:
+    """The ACTIVE cohort's August-only baseline cut, MMDD (cohorts.yaml `baseline_pre_from`; cohort1 = 0806), or None.
+
+    THE ONE SPELLING (code review 11-04 item 2, Priya 11-05). Before this the cut was written about 130 times in five
+    ways (`>= "0801"`, `>= "0806"`, month == "08", month != "06", three module constants) that agree only because
+    date_policy excludes 0805, and every one was an MMDD string compare, which breaks for a cohort that crosses New
+    Year. Read the cut here and test a session with `early_pre`. This is the cohort's DEFINITION of its baseline; the
+    run mode that applies it to the pooled sets is `pre_from()` (WIDEFIELD_PRE_FROM), which is unchanged."""
+    v = _paths.cohort_spec().get("baseline_pre_from")
+    return str(v) if v else None
+
+
+def early_pre(x) -> bool:
+    """True for a session (label ``PS92_0607``, MMDD or YYYYMMDD) dated BEFORE the cohort's baseline cut: a June
+    session in cohort1, i.e. one an August-only analysis drops. False when the cohort has no cut.
+
+    Date-only on purpose: the cut precedes every stroke, so a session before it is pre-stroke whatever its epoch, and
+    the old inline filters (``x[-4:] >= "0806"`` on mixed pre + post lists) were date-only too. It does NOT apply
+    date_policy; cohort1's cut (0806) is the first curated August day, so the excluded 0805 counts as early."""
+    cut = baseline_pre_from()
+    return bool(cut) and date_key(x) < date_key(cut)
+
+
 def pre_from() -> str | None:
     """MMDD from ``WIDEFIELD_PRE_FROM``: an OPT-IN late-baseline sensitivity mode (Priya 2026-10-18).
 
@@ -323,6 +522,31 @@ def pre_from() -> str | None:
     return v or None
 
 
+def apply_pre_from(value: str | None) -> str | None:
+    """Set WIDEFIELD_PRE_FROM for THIS process (a render block's ``--pre-from``; rebuild 2026-11-03: the decoders'
+    August-only pre is chosen PER RENDER BLOCK, never as a config default). ``None`` leaves the environment as it is;
+    ``"all"`` / ``""`` clears it (June + August). Returns the effective value. Call before any pool is built (no phase
+    set is cached at import). Outputs of such a run are tagged ``pre<MMDD>`` by `run_mode`."""
+    if value is None:
+        return pre_from()
+    v = str(value).strip()
+    if v.lower() in ("", "all", "none"):
+        os.environ.pop("WIDEFIELD_PRE_FROM", None)
+        return None
+    if not re.fullmatch(r"\d{4}", v):
+        raise ValueError(f"--pre-from must be MMDD (e.g. 0801) or 'all', got {value!r}")
+    os.environ["WIDEFIELD_PRE_FROM"] = v
+    return v
+
+
+def require_full_pre(what: str) -> None:
+    """Raise when WIDEFIELD_PRE_FROM is set: for analyses that NEED the June pre sessions (the June vs August drift
+    decoder, 12.1b lick-free rest), kept as labelled June + August sensitivities (rebuild 2026-11-03)."""
+    if pre_from():
+        raise SystemExit(f"{what} needs the June pre sessions (June + August sensitivity, labelled as such): unset "
+                         "WIDEFIELD_PRE_FROM / drop --pre-from for this block")
+
+
 def session_phase(animal: str, date: str) -> str:
     """'pre' | 'post' | 'excluded' for one animal on one date (MMDD).
 
@@ -334,9 +558,9 @@ def session_phase(animal: str, date: str) -> str:
     if date in animal_excluded_dates(animal):
         return "excluded"
     sd = stroke_date(animal)
-    ph = "pre" if sd is None or date <= sd else "post"
+    ph = "pre" if sd is None or date_key(date) <= date_key(sd) else "post"
     pf = pre_from()
-    if ph == "pre" and pf and date < pf:       # opt-in late-baseline mode (WIDEFIELD_PRE_FROM)
+    if ph == "pre" and pf and date_key(date) < date_key(pf):   # opt-in late-baseline mode (WIDEFIELD_PRE_FROM)
         return "excluded"
     return ph
 
@@ -416,6 +640,42 @@ def defaults(session: str | None = None) -> dict:
     return _deep_merge(base, ov[session]) if ov.get(session) else base
 
 
+#: Fallback physiological lick floor (ms) when `defaults.yaml lick_detection` has no ``min_ili_ms``. ONE value for every
+#: reader (REBUILD_CODE 8.53, 11-05): `behavior_events` / `restnl_mask` / `rest_by_position` fell back to 0, `daq_trials` /
+#: `dlc_context_frames` / `spout_behavior` to 40; the yaml sets 40, so both ran at 40, but a missing key split them.
+LICK_MIN_ILI_MS_DEFAULT = 40.0
+
+#: The imaging run-tag token of the BEHAVIOUR DAQ lick detector (Priya 11-04/05, REBUILD_CODE 8.53): every tagged run
+#: built after the switch carries it (`run_mode.lickdet_part`), so no output of the old imaging detector (1.0 V offset,
+#: 0.10 s refractory) can be read as the new one.
+LICK_DETECTOR_TAG = "daqlk"
+
+
+def lick_min_ili_s() -> float:
+    """The physiological lick floor, s: `defaults.yaml lick_detection.min_ili_ms` (`LICK_MIN_ILI_MS_DEFAULT` if absent)."""
+    return float(defaults()["lick_detection"].get("min_ili_ms", LICK_MIN_ILI_MS_DEFAULT)) / 1000.0
+
+
+def lick_detector() -> dict:
+    """THE DAQ lick detector (Priya 11-04/05: imaging uses the BEHAVIOUR detector everywhere; REBUILD_CODE 8.53).
+
+    From `defaults.yaml lick_detection`: ``thresh_upper`` (onset, V), ``thresh_lower`` (offset, V), ``lockout_s`` (the
+    falling-edge lockout), ``refractory_s`` = 0.0 (no bout-collapse refractory -- the old imaging 0.10 s dropped real
+    10-11 Hz licks, LICK_DETECTOR_COMPARE_2026-11-04.md on main a69fb9c3) and ``min_ili_s`` (the 40 ms physiological floor;
+    `daq_io.lick_onsets` applies it itself). Same detector as `daq_trials.decode` / `behavior_events` / `dlc_frames`."""
+    ld = defaults()["lick_detection"]
+    return {"thresh_upper": float(ld["thresh_upper"]), "thresh_lower": float(ld["thresh_lower"]),
+            "lockout_s": tuple(float(v) for v in ld["lockout_falling_edge_s"]),
+            "refractory_s": 0.0, "min_ili_s": lick_min_ili_s()}
+
+
+def lick_detector_args() -> tuple:
+    """`lick_detector` as the positional ``(thresh_upper, thresh_lower, lockout_s, refractory_s)`` of
+    `daq_io.lick_onsets` / `plot_lick_aligned_averages._load_daq_events` (which apply ``min_ili_s`` themselves)."""
+    d = lick_detector()
+    return d["thresh_upper"], d["thresh_lower"], d["lockout_s"], d["refractory_s"]
+
+
 def paths() -> dict:
     return _load("paths.yaml")
 
@@ -432,14 +692,14 @@ def _split_tokens(spec) -> list[str]:
     return out
 
 
-def _to8(d, year: str = COHORT_YEAR) -> str:
+def _to8(d, year: str | None = None) -> str:
     """Normalize a date token to YYYYMMDD (accepts MMDD by prepending the cohort year).
 
     Rejects tokens of the wrong length or with an out-of-range month/day, so typos like `2026`
     (meant as a year) fail loudly instead of silently becoming `20262026`."""
     s = str(d)
     if s.isdigit() and len(s) in (4, 8):
-        eight = s if len(s) == 8 else f"{year}{s}"
+        eight = s if len(s) == 8 else (f"{year}{s}" if year else date8(s))   # cohort year, incl. New Year rollover
         mm, dd = int(eight[4:6]), int(eight[6:8])
         if 1 <= mm <= 12 and 1 <= dd <= 31:
             return eight
@@ -536,18 +796,31 @@ def load_sessions(machine: str | None = None, animals=None, dates=None) -> list[
     for animal in raw:
         if aset and animal not in aset:
             continue
-        for date, e in raw[animal].items():
+        for date, e in (raw[animal] or {}).items():   # an animal with no sessions yet is a bare header
             date = str(date)
             if dset and date not in dset:
                 continue
+            _check_year(animal, date, e)
             entry = dict(label=f"{animal}_{date}",
                          mc=rp("mc", e["mc"]), h5=rp("h5", e["h5"]),
                          regime=e.get("regime"), fmdir=rp("fmdir", e.get("fmdir")))
             if e.get("behavior_trials"):
                 entry["behavior_trials"] = rp("behavior_trials", e["behavior_trials"])
             rows.append((date, animal, entry))
-    rows.sort(key=lambda r: (r[0], r[1]))   # (date, animal)
+    rows.sort(key=lambda r: (date_key(r[0]), r[1]))   # (date incl. year, animal)
     return [entry for _, _, entry in rows]
+
+
+def _check_year(animal: str, mmdd: str, entry: dict) -> None:
+    """The year `date8` infers must match the YYYYMMDD in the session's own paths (mc / h5 start with it)."""
+    want = date8(mmdd)
+    for field in ("mc", "h5"):
+        m = re.match(r"^(?:[a-z_]{3,}:)?(\d{8})/", str(entry.get(field) or ""))
+        if m and m.group(1) != want:
+            raise ValueError(
+                f"{animal} {mmdd}: its {field} path is dated {m.group(1)} but the cohort's date rule gives {want} "
+                f"(cohorts.yaml `first`). The cohort spans more than a year, or the entry is mis-dated -- MMDD keys "
+                f"cannot tell the two years apart; split the cohort or fix the entry.")
 
 
 # NB there is deliberately NO `cross_session_dates()` any more. It returned the hand-maintained

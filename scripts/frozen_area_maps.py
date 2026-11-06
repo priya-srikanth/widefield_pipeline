@@ -41,7 +41,8 @@ def session_rows(js: Path, align: str) -> list[dict]:
         ev = np.nanmean(peth[:, pi][:, :, w], -1) - np.nanmean(peth[:, pi][:, :, b], -1)   # (parts, areas)
         for ai, area in enumerate(m["areas"]):
             r = {"label": m["label"], "animal": m["animal"], "epoch": m["epoch"], "pos": pos, "area": area}
-            r.update({p: float(ev[ci, ai]) for ci, p in enumerate(parts)})
+            # the model part "pos" (position regressors) must not overwrite the spout label (as lp_encoder_decompose)
+            r.update({("pos_part" if p == "pos" else p): float(ev[ci, ai]) for ci, p in enumerate(parts)})
             if "data" in r and "full" in r:
                 r["residual"] = r["data"] - r["full"]
             rows.append(r)
@@ -84,22 +85,22 @@ def outline(img) -> np.ndarray:
 
 
 def main(argv=None) -> int:
+    # coordinator 11-04: routed (outputs under the run tag), no longer refused in a tagged run
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
-    from wfield_local import orofacial_cohort as oc
-    from wfield_local import orofacial_outputs as oo
-    from wfield_local.paths import PathResolver
+    from wfield_local import config
     from wfield_local.writeguard import assert_writable
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--tag", default="gate-attempted_v4")
     ap.add_argument("--variant", default="joint")
     ap.add_argument("--spout", default="far_contra")
     a = ap.parse_args(argv)
-    out = oo.root(PathResolver()) / oc.RUN / "imaging_encoding" / f"frozen_encoder_{a.tag}"
+    from wfield_local import frozen_encoder as _fe   # the encoder's (tagged) run root, coordinator 11-04
+    out = _fe.out_root() / f"frozen_encoder_{a.tag}"
     sess = sorted((out / a.variant / "sessions").glob("*.json"))
-    sess = [js for js in sess if js.stem[-4:] >= "0801"]
+    sess = [js for js in sess if not config.early_pre(js.stem)]
     fd = out / "figures"
     assert_writable(fd)
     fd.mkdir(parents=True, exist_ok=True)
@@ -112,6 +113,7 @@ def main(argv=None) -> int:
         allrows.append(T)
         T = T[T.pos == a.spout]
         parts = [p for p in SHOW if p in T.columns]
+        T = T.assign(**{p: T[p] * 1e3 for p in parts})          # dF/F x 1e3, as the decomposition tables
         A = T.groupby(["animal", "epoch", "area"])[parts].mean()
         animals = sorted(T.animal.unique())
         for ep in EPOCHS:

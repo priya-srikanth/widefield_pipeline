@@ -287,16 +287,21 @@ def figure(res, curves, out_png):
 
 
 def main(argv=None) -> int:
+    from wfield_local import lp_licks as _lpl
+    from wfield_local import run_mode as _rm
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--out", default=None, help="output directory (default <labcams>/chronic_stability)")
     ap.add_argument("--data", default=None, help="epoch figure data dir (default <labcams>/grant_figures/epoch/data)")
     a = ap.parse_args(argv)
     rv = PathResolver()
-    data_dir = Path(a.data) if a.data else Path(rv.root("labcams")) / "grant_figures" / "epoch" / "data"
-    out_dir = Path(a.out) if a.out else Path(rv.root("labcams")) / "chronic_stability"
+    # review 8B: a REDO row of the rebuild (MASTER_MANIFEST M05577), so a tagged run reads THIS run's epoch data
+    # (grant_figures/<tag>/epoch/data) and writes chronic_stability/<tag>/; the default run is unchanged
+    data_dir = Path(a.data) if a.data else \
+        Path(_lpl.output_dir(Path(rv.root("cohort_out")) / "grant_figures" / "epoch")) / "data"
+    out_dir = Path(a.out) if a.out else _rm.subdir(Path(rv.root("cohort_out")) / "chronic_stability")
     assert_writable(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
-    boundaries = json.load(open(Path(rv.root("labcams")) / "epoch_boundaries.json"))["boundaries"]
+    boundaries = json.load(open(Path(rv.root("cohort_out")) / "epoch_boundaries.json"))["boundaries"]
 
     labs = _labels()
     series, pre_vals, pre_src = build_series(data_dir, labs)

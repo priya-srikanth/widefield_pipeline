@@ -296,6 +296,31 @@ _REF_TEXT = {
               "definition every one of the 94 curated sessions clears six, so no session currently "
               "loses the column."),
     ),
+    # ADDED 2026-11-01 with the derived reference (`position_reference_maps.DERIVED_REFERENCES`) and its builder
+    # (`restnl_mask`) -- registry, builder and caption land together, per the note above.
+    "restnl": dict(
+        short="one vs RESTnl (lick-free rest, flat; rest licks DAQ contact + cam4 LP)",
+        title="Position maps referenced to RESTnl (lick-free rest, flat; rest licks excluded: DAQ contact + cam4 LP "
+              "video)",
+        cbar="activity minus RESTnl\n(lick-free rest, flat)",
+        note=("RESTnl = the PRIMARY rest reference since 11-01 (the goal page's RESTnl). REST FRAMES: the restdock05 "
+              "rest mask (docked, not running) minus EVERY DAQ spout-contact lick AND EVERY cam4 Lightning-Pose video "
+              "lick (licks_all.csv, contact or not) with a buffer of 0.5 s before / 2.0 s after each lick, the "
+              "min-rest floor re-applied, engagement-gated (rest between two engaged trials at the same position). "
+              "LEVEL: per position the median of each SVD component over that position's lick-free rest frames, then "
+              "the equal-weight mean over the positions with >= 50 frames (>= 4 of 6 required, rule wr) -- ONE FLAT "
+              "map per session, identical for all six positions, so it cannot couple them. Formed exactly as "
+              "raw[q] - U @ b_nl from the cached raw maps. FLAT, NOT TIME-LOCAL: over 119 sessions a 12-bin "
+              "time-local version changes the far-contra map by a median 2.8% (pre) / 5.2% (acute) of its RMS, with "
+              "no pre/acute difference, and lick-free bins are too thin to be time-local; CAVEAT: PS94 subacute / "
+              "chronic sessions drift upward within session and there flat vs time-local is a COMMON level offset of "
+              "20-40% of the map (median; position contrasts unaffected) -- read PS94 late-epoch amplitudes, and the "
+              "pooled chronic ratios they enter, with that caveat (RESTNL_MAP_SHORTCUT_CHECK_20261101, addendum). "
+              "Sessions without a cam4 lick table (PS93_0813) have no RESTnl "
+              "column. Differs from the page's old REST in two ways: the lick-free mask (old REST excluded only DAQ "
+              "contact licks, [0.5, 1.0] s) and the flat position-weighted estimator (old REST was time-local, "
+              "frame-weighted); old REST is kept as a supplement. Pre = AUGUST-ONLY pre-stroke sessions."),
+    ),
 }
 def _fig_15rpa_reference_by_animal(out_dir, align, variant, wname):
     """15rpa: the quiet- and mean-referenced position maps PER ANIMAL, at far-contralateral.
@@ -331,7 +356,8 @@ def _fig_15rpa_reference_by_animal(out_dir, align, variant, wname):
     DCOLS = [f"{e} - pre" for e in POST]
     edges, out = bm.atlas_edges(), []
 
-    for reference in prm.REFERENCES:
+    # `render_references()` = REFERENCES unless WIDEFIELD_MAP_REFS names a subset / a derived reference (RESTnl).
+    for reference in prm.render_references():
         # THE PRE-CUE REFERENCE IS DEGENERATE ON THE PRE-CUE ARM, and it is not merely redundant:
         # this arm's FEATURE window is [cue - 2 s, cue] while the pre-cue baseline is
         # [cue - 1 s, cue] -- the baseline is the SECOND HALF OF THE WINDOW ITSELF. Subtracting it
@@ -490,7 +516,8 @@ def _fig_15r_reference_maps(out_dir, align, variant, wname):
     DCOLS = [f"{e} - pre" for e in POST]
     edges, out = bm.atlas_edges(), []
 
-    for reference in prm.REFERENCES:
+    # `render_references()` = REFERENCES unless WIDEFIELD_MAP_REFS names a subset / a derived reference (RESTnl).
+    for reference in prm.render_references():
         # THE PRE-CUE REFERENCE IS DEGENERATE ON THE PRE-CUE ARM, and it is not merely redundant:
         # this arm's FEATURE window is [cue - 2 s, cue] while the pre-cue baseline is
         # [cue - 1 s, cue] -- the baseline is the SECOND HALF OF THE WINDOW ITSELF. Subtracting it
@@ -572,12 +599,14 @@ def _fig_15r_reference_maps(out_dir, align, variant, wname):
                 f"only thing that differs is what is subtracted, so a difference between them is "
                 f"the reference and nothing else. These are TRIAL AVERAGES -- no decoder, no "
                 f"folds, no Haufe transform. {txt['note']} "
-                "Colour scale is PER ROW, so a position is comparable across its own epochs and "
-                "rows are not comparable to each other; the difference columns share their row's "
+                # ONE COLOUR SCALE FOR ALL ROWS (row_scaled=False below; maps are on each animal's own
+                # pre-stroke scale). This sentence said "PER ROW" until 11-01 (imaging page prov_s7: stale).
+                "Colour scale is SHARED by all rows (row_scaled=False; each animal's maps are on its own "
+                "pre-stroke scale before pooling); the difference columns share it. "
                 # NO COLOUR WORD HERE -- `_stats_sentence` supplies it. This line used to add
                 # its own, so the caption read "GREEN GREEN contours" on every panel of this
                 # family, and naming the colour in two places is how they come to disagree.
-                "scale. THE THIN DARK OUTLINES ARE ALLEN CCF BOUNDARIES, not statistics. "
+                "THE THIN DARK OUTLINES ARE ALLEN CCF BOUNDARIES, not statistics. "
                 f"{_stats_sentence(_stats)} This is the same statistical object every bar "
                 "family in this deck uses. "
                 "r = split-half reliability of that epoch's mean map. "

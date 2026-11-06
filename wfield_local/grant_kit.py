@@ -273,7 +273,7 @@ def coverage_note(source_labels=None):
 
 def _sg_labels():
     """Post-stroke sessions actually present in `section_g.json` (figures 3b and 5)."""
-    f = _fig_root() / "section_g.json"
+    f = _fig_root() / _mode_name("section_g.json")
     if not f.exists():
         return []
     return [k for k in json.loads(f.read_text(encoding="utf-8"))
@@ -286,7 +286,7 @@ def _cd_labels():
     Read from the per-session store of whichever window/animal the file has, since every window
     carries the same session set.
     """
-    f = _fig_root() / "coding_direction.json"
+    f = _fig_root() / _mode_name("coding_direction.json")
     if not f.exists():
         return []
     d = json.loads(f.read_text(encoding="utf-8"))
@@ -608,13 +608,22 @@ def _footer(fig, source_labels=None):
              ha="center", va="bottom", fontsize=7, color="0.30")
 
 
+def _mode_name(name: str) -> str:
+    """A fixed-name JSON (section_g / coding_direction / joint_xsession_decoder_*) under THIS run's mode:
+    ``run_mode.keyed_name`` (unchanged for the default run; rebuild 11-03, trap T21 -- a JSON-fed figure used to draw
+    whatever mode last wrote the file)."""
+    from wfield_local import run_mode
+    return run_mode.keyed_name(name)
+
+
 def _fig_root():
     """Where the analysis figures/JSONs live, from the config -- NOT a literal.
 
     `E:/cue_lick` is the analysis box's path and would be wrong on the imaging box;
     tests/test_no_hardcoded_machine_paths.py fails the build for exactly this, and did.
     """
-    return Path(PathResolver().root("figures_working"))
+    from wfield_local import run_mode  # tagged runs never overwrite default figures (review H2)
+    return run_mode.subdir(Path(PathResolver().root("figures_working")))
 
 
 def _day(animal, mmdd):
@@ -676,7 +685,7 @@ def only() -> tuple:
 # ------------------------------------------------------------------ 1. behaviour
 def _position_metrics(animal, mmdd):
     """{position: (hit_rate, ci_lo, ci_hi, n_engaged)} from the behaviour per-session CSV."""
-    root = Path(PathResolver().root("behavior_out")) / "sessions" / animal / f"2026{mmdd}"
+    root = Path(PathResolver().root("behavior_out")) / "sessions" / animal / config.date8(mmdd)
     if not root.exists():
         return {}
     files = sorted(root.glob("*position_metrics.csv"))
@@ -756,7 +765,10 @@ def _pooled_bundle(an, align):
     reason it was extracted: two figures that claim to describe the same trials should not be able to
     disagree, and now they cannot even in principle -- they hold the same object.
     """
-    key = (an, align)
+    from wfield_local import trial_classes as _tck
+    # the gate mode and its selection are part of the key (merge review N8): a bundle built under one gate
+    # (camera row classes, RefusedMask not_eng) must never serve the other
+    key = (an, align, _tck.gate_mode(), _tck.run_selection_tag())
     if key in _BUNDLE_CACHE:
         return _BUNDLE_CACHE[key]
     from wfield_local import joint_locanmf
@@ -797,10 +809,203 @@ def _pooled_bundle(an, align):
               # adopt the bundle: they fit and score on the integer codes, not the names.
               "YE": YE, "YU": YU,
               "BE": BE_all, "BU": BU_all,
-              "not_eng": not_eng, "kept": kept, "pre_i": pre_i,
+              "not_eng": not_eng, "kept": kept, "pre_i": pre_i, "animal": an, "align": align,
+              "basis_id": getattr(basis, "basis_id", None),     # for the frozen epoch decoders (lp-final)
               "e_pre": np.isin(np.asarray(GE), list(pre_i))}
+    from wfield_local import trial_classes as _tc
+    if _tc.camera_gate_on():
+        # per-row camera classes for `_class_select`'s camera rule (rebuild 11-03); only under the switch, so the
+        # default bundle is unchanged. FAIL CLOSED: bundle["not_eng"] is then a `trial_classes.RefusedMask` (any use
+        # raises); the real DAQ quit-tail mask is kept as "not_eng_daq" for a LABELLED DAQ robustness row only
+        # (`_class_select(..., rule="daq")`, s1_refit_locanmf_table's quit-tail row).
+        bundle["cls"] = _tc.pool_row_classes(feat, kept, len(YE), len(YU))
+        g_daq = _gate_all(feat, kept, XE, YE, GE, XU, YU, GU, rule="daq")
+        bundle["not_eng_daq"] = g_daq[0] if g_daq else np.zeros(len(YU), bool)
     _BUNDLE_CACHE[key] = bundle
     return bundle
+def _working_masks(bd):
+    """``(work_e, work_u)``: the bundle's camera WORKING rows on the engaged AND no-lick arms (main 48f2cc6d
+    `working_trials.row_masks`; Priya 11-03 late: production contact | incomplete, whatever the DAQ lick), from the
+    rebuild's live classes (``bd["cls"]``, `trial_classes.in_sel`), or None: the lick window (no lick time without a
+    lick), the DAQ gate, or a non-camera working selection."""
+    from wfield_local import trial_classes as _tc
+    from wfield_local import working_trials as _wt
+    cls = bd.get("cls")
+    if cls is None or bd.get("align") == "lick" or not _tc.camera_gate_on() \
+            or not _wt.is_camera(_tc.working_selection()):
+        return None
+    we = _tc.in_sel(cls[0], "working")
+    wu = _tc.in_sel(cls[1], "working") if len(cls[1]) else np.zeros(len(bd["GU"]), bool)
+    return we, wu
+
+
+def _proj_arrays(bd):
+    """``(XE, XU)`` for the pattern / template families (main 26fd5b44 / 4a37cbc8, Priya 11-03 item C, 11-04 re-check):
+    the bundle's rows in a spout decoder's scoring frame when the projection frame is on
+    (`spout_scaling.projection_frame_on`), else the production rows. The centre rows (`spout_scaling.projection_centre`):
+    "engaged" = the engaged-trained frame (`_frozen_frame(bd)`, its centre rows by the rebuild's `centre_mask`),
+    "working" / "contact" = the working-trained frame centred on the working / contact rows."""
+    from wfield_local import spout_scaling
+    if not spout_scaling.projection_frame_on():
+        return bd["XE"], bd["XU"]
+    pc_ = spout_scaling.projection_centre()
+    # no working masks = the lick window / the DAQ gate / a non-camera selection: the engaged-row frame, as
+    # `spout_scaling.projection_arrays` (the lick-gate spout decoder's frame)
+    if pc_ == "engaged" or bd.get("align") == "lick" or _working_masks(bd) is None:
+        fr = _frozen_frame(bd, sel="engaged")
+    else:
+        fr = _frozen_frame(bd, sel="working", centre=pc_)
+    return fr["XEs"], fr["XUs"]
+
+
+def _uses_working(bd, sel):
+    """True when ``sel`` is "working" and the bundle has camera working rows (cue / precue, camera selection)."""
+    return sel == "working" and _working_masks(bd) is not None
+
+
+def _frozen_frame(bd, an=None, align=None, store=True, sel="engaged", centre=None):
+    """The pre-stroke SPOUT-POSITION decoder for one bundle, and the frames it is trained and scored in.
+
+    ``{"scaling", "sel", "XT", "full", "loso": {pre index: model}, "pi_full", "pi_loso", "XEs", "XUs", "R", "RT",
+    "train_sessions", "work"}``, memoised ON the bundle (per scaling, centre, store, selection), so every frozen-decoder
+    site that reads a bundle uses one fit and one frame.
+
+    ``sel`` = the TRAINING and CENTRE rows (main 48f2cc6d `_frozen_frame(bd, sel)`): "engaged" (the lick gate; the
+    lick window, the `lick` / `stopped` classes) or "working" (Priya 11-03 late / coordinator 11-04: the camera WORKING
+    trials, ENGAGED AND NO-LICK rows of class contact | incomplete, on both sides -- the pre-stroke training set, each
+    session's label-free EM centre and the pre panel). "working" falls back to "engaged" for the lick window and the
+    DAQ gate. ``R`` = (RX, RY, RG), the training / centre rows; ``RT`` = R in the training frame; ``train_sessions`` =
+    the pre sessions with R rows (PS93_0813, no video, has none under "working", so it is neither trained on nor
+    scored). ``centre`` (working frame only) = the SCORED frame's centre rows, "working" or "contact"; None = the run's
+    `spout_scaling.score_centre_rows` (coordinator 11-04). The models do not depend on it; the memo key does.
+
+    ``scaling`` is `spout_scaling.spout_scaling()`: ``session_bal_em`` in production since 2026-11-03 (Priya, "I would
+    adopt B everywhere"; DECISIONS 2026-11-03). Then ``XT`` = the bundle's engaged rows with each pre session
+    re-centred on the equal-weight mean of its TRUE class means (training labels), and ``XEs`` / ``XUs`` = every
+    session in its SCORING frame: label-free EM centre from its engaged rows with its scoring model (LOSO for a pre
+    session, ``full`` otherwise), applied to its no-lick rows too. Under ``WIDEFIELD_SPOUT_SCALING=session_z``,
+    ``XT = XEs = bd["XE"]`` and ``XUs = bd["XU"]`` (the same objects), so the pre-11-03 output is bit-identical.
+
+    The models are the ones `_collect_5c` has always fitted in memory (all pre engaged trials; leave-one-pre-session-
+    out), on the same rows in the same order. The bundle's own ``XE`` / ``XU`` stay the production frame: the
+    within-session refit, the similarity and coding-direction families read them and are not this decoder.
+    """
+    from wfield_local import spout_scaling
+    from wfield_local.locanmf_frozen_decoder import _pipe
+    sc = spout_scaling.spout_scaling()
+    from wfield_local import grant_confusion as _gc
+    an, align = an or bd.get("animal"), align or bd.get("align")
+    # a stored and an opt-out frame never mix; keyed by the (animal, window) the store is asked for
+    use = bool(store) and _gc.epoch_frozen_on()
+    work = _working_masks(bd) if sel == "working" else None
+    use_w = work is not None
+    from wfield_local import trial_classes as _tcs
+    selkey = _tcs.run_selection() if use_w else "engaged"
+    centre = (centre or spout_scaling.score_centre_rows()) if use_w else "engaged"
+    key = (f"_frozen_{sc}_{spout_scaling.centre_rows() if sc else 'z'}_{'store' if use else 'mem'}_{an}_{align}"
+           f"_{selkey}" + ("" if centre == "engaged" else f"_c{centre}"))
+    if key in bd:
+        return bd[key]
+    XE, YE, GE, XU, GU = bd["XE"], bd["YE"], bd["GE"], bd["XU"], bd["GU"]
+    YU = np.asarray(bd.get("YU", np.zeros(len(GU), int)))
+    if use_w:
+        we, wu = work
+        RX = np.vstack([XE[we]] + ([XU[wu]] if np.any(wu) else []))
+        RY = np.concatenate([YE[we], YU[wu].astype(YE.dtype)])
+        RG = np.concatenate([np.asarray(GE)[we], np.asarray(GU)[wu]])
+        pre_i = sorted(i for i in bd["pre_i"] if np.any(RG == i))
+    else:
+        RX, RY, RG = XE, YE, np.asarray(GE)
+        pre_i = sorted(bd["pre_i"])
+    e_pre = np.isin(RG, pre_i)
+    XT = spout_scaling.train_frame(XE, YE, GE, pre_i) if sc else XE
+    RT = (spout_scaling.train_frame(RX, RY, RG, pre_i) if sc else RX) if use_w else XT
+    # MERGE (rebuild x main, 11-03): the models come from the FROZEN STORE (kind `epoch_decoder`, rule 10; spec carries
+    # the scaling and the training-data fingerprint) when the bundle knows its animal / alignment and the store is on
+    # (`grant_confusion.epoch_frozen_on`); otherwise, and with WIDEFIELD_EPOCH_FROZEN=0, the same fits in memory.
+    stored = None
+    if use and an and align:
+        from wfield_local import grant_confusion
+        stored = grant_confusion._stored_epoch_decoder(an, align, bd, tag="frame", XT=RT, scaling=sc,
+                                                       R=(RX, RY, RG, pre_i) if use_w else None)
+    if stored is not None:
+        full = stored["full"]
+        loso = {i: stored["loso"][bd["kept"][i]] for i in pre_i if bd["kept"][i] in stored["loso"]}
+    else:
+        full = _pipe().fit(RT[e_pre], RY[e_pre])
+        loso = {}
+        for i in pre_i:
+            tr = e_pre & (RG != i)
+            if len(np.unique(RY[tr])) >= 2:
+                loso[i] = _pipe().fit(RT[tr], RY[tr])
+    pi_loso = {i: spout_scaling.class_prior(RY[e_pre & (RG != i)]) for i in loso}
+    pi_full = spout_scaling.class_prior(RY[e_pre])
+    if sc and use_w:
+        # THE WORKING CENTRE (coordinator 11-04, main 48f2cc6d): each session's label-free EM centre from ITS working
+        # rows, engaged AND no-lick, under its scoring model (LOSO for a pre session); a session with none (no video)
+        # is not scored by this model and stays in the production frame; a pre session without a LOSO model is not
+        # scored either
+        XEs, XUs = np.array(XE, float), np.array(XU, float)
+        GEa, GUa = np.asarray(GE), np.asarray(GU)
+        # THE SCORED-FRAME CENTRE KIND (Priya 11-04, FINAL; `spout_scaling.kind_centre_fn`): wt (default) |
+        # working | contact | cto | n, from the session's working rows; the models do not depend on it
+        _cls = bd.get("cls")
+        RC = (np.concatenate([np.asarray(_cls[0], dtype=object)[work[0]], np.asarray(_cls[1], dtype=object)[work[1]]])
+              if _cls is not None else None)
+        centre_of = spout_scaling.kind_centre_fn(
+            centre, RX, RY, RG, RC, label_of=lambda i: bd["kept"][i],
+            model_of=lambda i: ((loso.get(i), pi_loso.get(i)) if i in bd["pre_i"] else (full, pi_full)),
+            train_of=lambda i: [s for s in pre_i if s != i], stats=spout_scaling.pool_stats_of(XE))
+        for i in range(len(bd["kept"])):
+            if i in bd["pre_i"] and i not in loso:
+                if not np.any(RG == i):
+                    spout_scaling.note_working_excluded(bd["kept"][i], "_frozen_frame")
+                continue
+            got = centre_of(i)
+            if got is None:
+                if i in bd["pre_i"] or not spout_scaling.is_post_session(bd["kept"][i]):   # by phase (review 8A B1)
+                    spout_scaling.note_working_excluded(bd["kept"][i], "_frozen_frame")
+                    continue
+                raise spout_scaling.BalEmCentreRefused(            # review 7A NB4: never scored uncentred
+                    f"working frame: post session {bd['kept'][i]} has 0 camera working rows -- cannot centre it")
+            mu, sdv = got
+            XEs[GEa == i] = (np.asarray(XE)[GEa == i] - mu) / sdv
+            if len(GUa) and np.any(GUa == i):
+                XUs[GUa == i] = (np.asarray(XU)[GUa == i] - mu) / sdv
+    elif sc:
+        # the centre rows: the camera WORKING engaged rows under the camera gate (Priya 11-03), else every engaged row
+        XEs, XUs = spout_scaling.scored_frame(
+            XE, GE, XU, GU, range(len(bd["kept"])),
+            model_of=lambda i: loso.get(i) if i in bd["pre_i"] else full,
+            prior_of=lambda i: pi_loso.get(i) if i in bd["pre_i"] else pi_full,
+            centre_mask=_bundle_centre_mask(bd), session_names=bd["kept"])
+    else:
+        XEs, XUs = XE, XU
+    fr = {"scaling": sc or spout_scaling.SCALING_SESSION_Z, "sel": "working" if use_w else "engaged",
+          "XT": XT, "full": full, "loso": loso, "pi_full": pi_full, "pi_loso": pi_loso, "XEs": XEs, "XUs": XUs,
+          "R": (RX, RY, RG), "RT": RT, "train_sessions": pre_i, "work": work, "centre": centre}
+    bd[key] = fr
+    return fr
+def _bundle_centre_mask(bd):
+    """`spout_scaling.centre_mask` for a pooled bundle: its camera classes per engaged row (``bd["cls"][0]``, present
+    under the camera gate)."""
+    from wfield_local import spout_scaling
+    cls = bd.get("cls")
+    return spout_scaling.centre_mask(cls[0] if cls is not None else None)
+
+
+def _frozen_score_rows(bd, model, pi, i, Xe_rows, Xu_rows=None, centre_rows=None):
+    """Session ``i``'s rows in the scoring frame of an AD HOC frozen-style model (the size-matched frozen arm):
+    centre from ALL of the session's engaged rows (production-z), label-free, applied to the given rows. Identity under
+    session_z."""
+    from wfield_local import spout_scaling
+    if not spout_scaling.spout_scaling():
+        return Xe_rows, Xu_rows
+    # ``centre_rows``: the session's working rows (engaged + no-lick) when the scored frame is the working one
+    C = (spout_scaling._centre_rows_of(bd["XE"], bd["GE"] == i, _bundle_centre_mask(bd), bd["kept"][i])
+         if centre_rows is None else centre_rows)
+    mu, sd = spout_scaling.score_centre(model, C, pi)
+    return ((Xe_rows - mu) / sd, None if Xu_rows is None else (Xu_rows - mu) / sd)
 def _runs_to_blocks(sess, pos):
     """Block ids from runs of the same (session, position), for trials that carry none of their own.
 
@@ -815,7 +1020,7 @@ def _runs_to_blocks(sess, pos):
     changed[1:] = (sess[1:] != sess[:-1]) | (pos[1:] != pos[:-1])
     # negative ids so they can never collide with the real BE ids, which are non-negative
     return -(np.cumsum(changed).astype(np.int64) + 1)
-def _class_select(variant, sess_e, sess_u, not_eng):
+def _class_select(variant, sess_e, sess_u, not_eng, cls=None, rule=None):
     """Which ENGAGED and which UNENGAGED rows belong to a trial class, as two boolean masks.
 
     THE THREE COPIES OF THIS RULE DISAGREED THE MOMENT A THIRD CLASS EXISTED. `lick`, `working` and
@@ -831,10 +1036,24 @@ def _class_select(variant, sess_e, sess_u, not_eng):
 
     `stopped` and `working` partition the unengaged trials and `stopped` takes none of the engaged
     ones, so the three classes are not nested: a trial is in `working` or in `stopped`, never both.
+
+    CAMERA RULE (rebuild 2026-11-03; `trial_classes` "run's trial gate"): with ``trial_selection.gate`` /
+    WIDEFIELD_TRIAL_GATE = camera (or ``rule="camera"``), working / stopped come from the shared camera classes
+    (`trial_classes.camera_select`): ``cls`` = (class per engaged row, class per unengaged row) over the WHOLE pool,
+    the bundle's ``"cls"`` (`_pooled_bundle`). No silent DAQ fallback: a camera run without classes raises.
+    ``rule="daq"`` forces the quit-tail rule (the robustness row). Default (daq run, rule None): unchanged.
     """
     import numpy as _np
+    from wfield_local import trial_classes as _tc
+    if (rule or _tc.gate_mode()) == "camera":
+        if cls is None:
+            raise RuntimeError("camera trial gate: no per-row camera classes were passed to _class_select (bundle "
+                               "'cls'); refusing to fall back to the DAQ quit-tail rule")
+        return _tc.camera_select(variant, cls[0], cls[1], sess_e, sess_u)
     e_none = _np.zeros(len(sess_e), bool)
     u_none = _np.zeros(len(sess_u), bool)
+    if variant not in ("lick", "working", "stopped"):        # second pass 11-03: never fall through to "lick"
+        raise ValueError(f"_class_select: unknown trial class {variant!r} (lick / working / stopped)")
     if variant == "stopped":
         return e_none, (sess_u & not_eng) if len(sess_u) else u_none
     if variant == "working":
@@ -864,7 +1083,17 @@ def _class_select(variant, sess_e, sess_u, not_eng):
 #: version with the pre-stroke stopped column as an explicit "quitting alone" control. So do not
 #: read these generic class arms as the stopped-trial ANALYSIS -- they are the engaged-trial
 #: families with the class switch flipped, and 12/12b are the purpose-built ones.
-def _class_note(variant):
+def _class_note(variant, pattern=False):
+    """How a trial class reads in a caption, for the ACTIVE selection (review 7A NB2). ``pattern`` = a `_collect_7`
+    pattern family, whose PRE-STROKE reference is LICK trials for every class (main's 11-03 design, pending Priya)."""
+    if variant == "working":
+        from wfield_local import trial_classes as _tc
+        from wfield_local import working_trials as _wt
+        if _tc.camera_gate_on() and _wt.is_camera(_tc.working_selection()):
+            jaw = _tc.working_selection() == _wt.IN_WORKING_JAW
+            txt = ("camera WORKING trials: contact + incomplete" + (" + jaw_only" if jaw else "") +
+                   ", cue to the session's last camera lick" + ("" if jaw else "; jaw_only excluded"))
+            return txt + ("; PRE-STROKE REFERENCE IS LICK TRIALS" if pattern else "")
     return {"lick": "LICK trials only",
             "working": "LICK + miss-while-working (quit period removed)",
             "stopped": ("THE TERMINAL QUIT PERIOD ONLY -- no licking trials; PRE-STROKE REFERENCE "
@@ -888,20 +1117,30 @@ def _session_trials(bd, i, q, variant, field="X"):
     # far only ever been used to THROW those trials away.
     me, mu = _class_select(variant, (bd["GE"] == i) & (bd["en"] == q),
                            (bd["GU"] == i) & (bd["un"] == q) if len(bd["un"])
-                           else np.zeros(0, bool), bd["not_eng"])
+                           else np.zeros(0, bool), bd["not_eng"], cls=bd.get("cls"))
     if field == "blk":
         parts = [bd["BE"][me]] + ([bd["BU"][mu]] if mu.any() else [])
         keep = [z for z in parts if len(z)]
         return np.concatenate(keep) if keep else np.zeros(0, np.int64)
-    parts = [bd["XE"][me]] + ([bd["XU"][mu]] if mu.any() else [])
+    _XE, _XU = _proj_arrays(bd)          # the projection frame (item C); production rows when off
+    parts = [_XE[me]] + ([_XU[mu]] if mu.any() else [])
     keep = [z for z in parts if len(z)]
     return np.vstack(keep) if keep else np.zeros((0, bd["XE"].shape[1]))
 #: Figures 7, 7b, 8 and 8b all need the SAME per-animal trial collection, and loading it means
 #: reading every session's LocaNMF fit. Six entries covers every (window, class) this module builds,
 #: so a full render loads each one once instead of four times. The features are LocaNMF components,
 #: not pixels, so the whole cache is ~100 MB.
-@lru_cache(maxsize=12)
 def _collect_7(align, variant, min_trials, field="X"):
+    """`_collect_7_cached` keyed ALSO by the run's trial selection (the 5c cache pitfall, review 7A): the camera gate /
+    working selection change the post-stroke `working` trials."""
+    from wfield_local import trial_classes as _tc
+    from wfield_local import working_trials as _wt
+    run = (_tc.run_selection(), _wt.selection() if _tc.camera_gate_on() else "")
+    return _collect_7_cached(align, variant, min_trials, field, run)
+
+
+@lru_cache(maxsize=12)
+def _collect_7_cached(align, variant, min_trials, field="X", _run=None):
     """(per-animal) pre-stroke reference/other halves + per-day post trials, kept AS TRIALS.
 
     CACHED, so callers must treat the result as read-only -- mutating it would corrupt every later
@@ -921,6 +1160,8 @@ def _collect_7(align, variant, min_trials, field="X"):
         try:
             bd = _pooled_bundle(an, align)
         except Exception as ex:                                          # noqa: BLE001
+            from wfield_local import trial_classes as _tcr
+            _tcr.reraise_under_camera(ex, f"7 {an} {align}/{variant}")    # review 7A NB6: never thin silently
             print(f"  !! 7 {an} {align}: {type(ex).__name__} {str(ex)[:90]}", flush=True)
             continue
         pre_by_sess, by_day = {}, {}
@@ -929,7 +1170,9 @@ def _collect_7(align, variant, min_trials, field="X"):
             if i in bd["pre_i"]:
                 # PRE-STROKE trials are the LICKING set in every class: the pre-stroke animal is
                 # not missing, so "working" would add nothing and would silently make the reference
-                # a different kind of trial from itself.
+                # a different kind of trial from itself. KEPT under the camera working selection too: main's
+                # 11-03 design ("pattern families' post side uses the working trials, their pre reference stays
+                # lick trials"), pending Priya (review 7A NB1); the captions say so (`_class_note(pattern=True)`).
                 pat = {q: _session_trials(bd, i, q, "lick", field) for q in CONF_LABELS
                        if len(_session_trials(bd, i, q, "lick")) >= min_trials}
                 if pat:
@@ -1429,3 +1672,6 @@ N_BOOT_RDM = 200
 #: 0.82 / 0.95 / 0.97 (day 3) -- indistinguishable, and half the run time. The width is dominated by
 #: the post-stroke session's own trial noise, not by the ceiling.
 N_LOO_DRAW = 4
+
+
+_collect_7.cache_clear = lambda: _collect_7_cached.cache_clear()       # callers that clear the 7 cache

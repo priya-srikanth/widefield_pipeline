@@ -26,6 +26,8 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+from wfield_local import run_mode as _rmode  # the run's (tagged) encoding tree (coordinator 11-04)
+
 VARS = ("cue", "arrival", "pos_enl", "pos_cue", "licks", "exec_angle", "tongue", "jaw", "nose", "running")
 GROUPS = ("task", "instructed", "uninstructed")
 GROUP_OF = {"cue": "task", "arrival": "task", "pos_enl": "task", "pos_cue": "task", "licks": "instructed",
@@ -96,17 +98,16 @@ def _save(fig, path: Path) -> None:
     _plt().close(fig)
 
 
-def load(run: str, order: str, baseline: str, late_from: str):
+def load(run: str, order: str, baseline: str):
     """Region table (long), per-session map dicts, PETH / SSE arrays and session metadata."""
-    from wfield_local import orofacial_outputs as oo
-    from wfield_local.paths import PathResolver
-    d = oo.root(PathResolver()) / run / "imaging_encoding" / order / "sessions"
+    from wfield_local import config
+    d = _rmode.encoding_out_root(run) / order / "sessions"
     metas, R, sess = [], [], {}
     for jf in sorted(d.glob("PS*_*.json")):
         m = json.loads(jf.read_text(encoding="utf-8"))
         if m["epoch"] not in EPOCHS:
             continue
-        if baseline == "late" and m["epoch"] == "pre" and m["date"][4:8] < late_from:
+        if baseline == "late" and m["epoch"] == "pre" and config.early_pre(m["date"]):
             continue
         lab = m["label"]
         r = pd.read_csv(d / f"{lab}_regions.csv")
@@ -942,8 +943,7 @@ def tr_window_table(meta, sess, kind: str, trial: bool, t0: float = 0.0, t1: flo
 def tr_main(a, figs: Path, tabs: Path) -> int:
     """Subset runs with the time-resolved model set: `<order>_subset-trmodels` (trial-to-trial + all-variance drop
     dR2) and `musall_subset-shuf` (Musall-order shuffle dR2)."""
-    from wfield_local import orofacial_cohort as oc
-    _R, meta, sess = load(a.run, a.order, a.baseline, oc.LATE_PRE_FROM)
+    _R, meta, sess = load(a.run, a.order, a.baseline)
     title = (f"Combined encoding model, {a.order} -- {a.run} -- baseline: "
              f"{'LATE (August) pre only' if a.baseline == 'late' else 'all curated pre'} -- sessions: "
              f"{meta.groupby('animal').label.nunique().to_dict()}")
@@ -1028,9 +1028,8 @@ def tr_contest(meta, sess, tabs: Path, t0: float = 0.0, t1: float = 1.5,
 
 def contest_main(a, base: Path, figs: Path, tabs: Path) -> int:
     """Subset run (`--order <order>_subset-nokin` etc.): the spatial contest readout only."""
-    from wfield_local import orofacial_cohort as oc
     from wfield_local.orofacial_stats import session_change_tests
-    R, meta, sess = load(a.run, a.order, a.baseline, oc.LATE_PRE_FROM)
+    R, meta, sess = load(a.run, a.order, a.baseline)
     Wd = region_wide(R)
     Wd.to_csv(tabs / "region_measures.csv", index=False, float_format="%.5g")
     bases = [b for b in ("nokin", "nodir") if any(c.startswith(f"{b}:") for c in Wd.columns)]
@@ -1083,11 +1082,10 @@ def contest_main(a, base: Path, figs: Path, tabs: Path) -> int:
 
 
 def main(argv=None) -> int:
+    # coordinator 11-04: routed (outputs under the run tag), no longer refused in a tagged run
     from wfield_local import orofacial_cohort as oc
-    from wfield_local import orofacial_outputs as oo
     from wfield_local import writeguard
     from wfield_local.orofacial_stats import session_change_tests
-    from wfield_local.paths import PathResolver
     oc._repo_on_path()
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--run", default=oc.RUN)
@@ -1096,18 +1094,21 @@ def main(argv=None) -> int:
     ap.add_argument("--signed-only", action="store_true",
                     help="only the signed per-spout maps (resp / respdev) of a full run (Priya 10-19)")
     a = ap.parse_args(argv)
-    base = oo.root(PathResolver()) / a.run / "imaging_encoding" / a.order
+    base = _rmode.encoding_out_root(a.run) / a.order
     sfx = "_allpre" if a.baseline == "all" else ""
     figs, tabs = base / f"figures{sfx}", base / f"tables{sfx}"
     writeguard.assert_writable(base)
     figs.mkdir(parents=True, exist_ok=True)
     tabs.mkdir(parents=True, exist_ok=True)
-    if a.order.endswith("_subset-trmodels") or a.order.startswith("musall"):
+    # the run-setting suffixes `combined_encoding.out_dir` appends AFTER the subset (`_exec-polar_licks-combined`, `_bins`,
+    # `_nolicksall`, ...; rebuild collect 11-04) do not change which figure suite a subset run gets
+    core = a.order.split("_exec-", 1)[0]
+    if core.endswith("_subset-trmodels") or a.order.startswith("musall"):
         return tr_main(a, figs, tabs)
     # per-spout maps from the FIXED one-vs-rest rerun (10-19); O2 `collect` names it `_subset-shufpos-` (ONLY=shufpos-)
-    kindp = next((k for k in ("shufpos", "droppos") if a.order.rstrip("-").endswith(f"_subset-{k}")), None)
+    kindp = next((k for k in ("shufpos", "droppos") if core.rstrip("-").endswith(f"_subset-{k}")), None)
     if kindp:
-        _R, meta, sess = load(a.run, a.order, a.baseline, oc.LATE_PRE_FROM)
+        _R, meta, sess = load(a.run, a.order, a.baseline)
         title = (f"Combined encoding model, {a.order} ({kindp}) -- {a.run} -- baseline: "
                  f"{'LATE (August) pre only' if a.baseline == 'late' else 'all curated pre'} -- sessions: "
                  f"{meta.groupby('animal').label.nunique().to_dict()}")
@@ -1118,7 +1119,7 @@ def main(argv=None) -> int:
         print(f"figures -> {figs}")
         return 0
     if a.signed_only:                                       # signed per-spout maps from the main run's resp / respdev
-        _R, meta, sess = load(a.run, a.order, a.baseline, oc.LATE_PRE_FROM)
+        _R, meta, sess = load(a.run, a.order, a.baseline)
         title = (f"Combined encoding model ({a.order}) -- {a.run} -- baseline: "
                  f"{'LATE (August) pre only' if a.baseline == 'late' else 'all curated pre'} -- sessions: "
                  f"{meta.groupby('animal').label.nunique().to_dict()}")
@@ -1135,7 +1136,7 @@ def main(argv=None) -> int:
         return 0
     if "_subset-" in a.order:
         return contest_main(a, base, figs, tabs)
-    R, meta, sess = load(a.run, a.order, a.baseline, oc.LATE_PRE_FROM)
+    R, meta, sess = load(a.run, a.order, a.baseline)
     Wd = region_wide(R)
     Wd.to_csv(tabs / "region_measures.csv", index=False, float_format="%.5g")
     title = (f"Combined task + movement encoding model ({a.order}) -- {a.run} -- baseline: "

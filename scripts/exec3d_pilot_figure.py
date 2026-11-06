@@ -32,7 +32,7 @@ def _lick_table(E: Path) -> pd.DataFrame:
                 for a_, g in sub.groupby("area"):
                     r = g.set_index("model").r2
                     if set(NEED) <= set(r.index):
-                        rows.append({"mode": m, "label": lab, "animal": lab[:4], "epoch": epochs.epoch_of(lab),
+                        rows.append({"mode": m, "label": lab, "animal": lab.split("_")[0], "epoch": epochs.epoch_of(lab),
                                      "area": area, "sub": a_, "u_target": r["nokin:target+exec"] - r["nokin:exec"],
                                      "u_exec": r["nokin:target+exec"] - r["nokin:target"]})
     D = pd.DataFrame(rows)
@@ -51,15 +51,14 @@ def _trial_table(E: Path) -> pd.DataFrame:
 
 
 def main() -> int:
+    # coordinator 11-04: routed (outputs under the run tag), no longer refused in a tagged run
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
-    from wfield_local import orofacial_cohort as oc
-    from wfield_local import orofacial_outputs as oo
     from wfield_local import writeguard
-    from wfield_local.paths import PathResolver
-    E = oo.root(PathResolver()) / oc.RUN / "imaging_encoding"
+    from wfield_local import run_mode
+    E = run_mode.encoding_out_root()                     # the encoder runs' (tagged) tree, coordinator 11-04
     L, T = _lick_table(E), _trial_table(E)
     panels = [("lick window, all variance", L), ("cue 0-1.5 s, TRIAL-TO-TRIAL variance", T)]
     fig, axs = plt.subplots(2 * len(panels), len(AREAS), figsize=(4.6 * len(AREAS), 3.1 * 2 * len(panels) + 1.2),

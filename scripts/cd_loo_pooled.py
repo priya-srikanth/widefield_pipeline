@@ -1,0 +1,203 @@
+"""POOLED, within-animal normalised versions of the CD leave-one-out figures (`scripts/cd_loo_figures.py`; imaging page
+Figs 9c-e). Priya 10-25: "can we have a within-animal normalized pooled version of 9c-e".
+
+Same inputs as `cd_loo_figures` (<labcams>/grant_figures/epoch/data/cd_window_projection_loo_sessions_long.csv and
+cd_loo_traces.npz): each position's projection on its OWN coding direction, pole-normalised per animal (0 = pre-stroke
+not-P, 1 = pre-stroke lick at P), August pre sessions scored leave-one-out. Here each animal's held-out pre mean for that
+position and alignment (window mean) is SUBTRACTED, so pre = 0 for every animal and the pooled figure is an average of
+animals, not of sessions. Subtracted, not divided: the pole scale is already shared across animals, and a held-out pre
+near 0 (PS93 close_center pre-cue) made the first, ratio version blow up (acute -89x).
+
+  cd_loo_pooled_window_<align>.png  per position: session values (faded open markers, shape = animal, colour =
+                                    epoch), mean of animals +- SEM (epoch colour), no lines across epochs; under each post epoch the change vs pre by `analysis_kit.boot_delta`
+                                    (paired animals -> sessions, animal-weighted, 95 % interval; * = excludes 0) and
+                                    k / n animals below pre
+  cd_loo_pooled_traj_<align>.png    per position and epoch: each animal's session-mean trace - its pre window mean, then
+                                    mean +- SEM over ANIMALS (n animals in the legend)
+  cd_loo_pooled_stats.csv           every plotted change
+Caveats: pre = August only (~10-day span; the June -> August drift of these projections is not measured here); PS95
+acute = 1 session; haemodynamic caveat of `cd_trajectories` (read amplitude and gross time course, not onset timing).
+
+    python -m scripts.cd_loo_pooled [--out DIR] [--plot-only]
+"""
+from __future__ import annotations
+
+import argparse
+from pathlib import Path
+
+import numpy as np
+import pandas as pd
+
+from scripts.cd_loo_figures import ALIGN_LABEL, EP_COL, POS
+
+EPOCHS = ("pre", "acute", "subacute", "chronic")
+
+
+def normalised(C: pd.DataFrame) -> pd.DataFrame:
+    """Add ``y`` = value - that animal's held-out pre mean (same align, position), in pole units."""
+    pre = C[C.epoch == "pre"].groupby(["align", "animal", "position"]).value.mean().rename("pre_mean")
+    D = C.join(pre, on=["align", "animal", "position"])
+    return D.assign(y=D.value - D.pre_mean)
+
+
+def changes(D: pd.DataFrame, align: str, rng) -> list[dict]:
+    from wfield_local import analysis_kit as ak
+    rows = []
+    for p in POS:
+        g = D[(D["align"] == align) & (D.position == p)]
+        pre = {a: gg.y.to_numpy() for a, gg in g[g.epoch == "pre"].groupby("animal")}
+        for e in EPOCHS[1:]:
+            post = {a: gg.y.to_numpy() for a, gg in g[g.epoch == e].groupby("animal")}
+            iv = ak.boot_delta(post, pre, rng)
+            an = sorted(set(pre) & set(post))
+            below = sum(np.mean(post[a]) < np.mean(pre[a]) for a in an)
+            pt, lo, hi = ((iv.point, iv.lo, iv.hi) if iv is not None else (np.nan, np.nan, np.nan))
+            rows.append(dict(align=align, position=p, epoch=e, change=pt, lo=lo, hi=hi,
+                             mark="*" if iv is not None and (lo > 0 or hi < 0) else "", n_animals=len(an),
+                             below_pre=below, per_animal=";".join(f"{a}:{np.mean(post[a]):.3f}" for a in an)))
+    return rows
+
+
+def _r2(x: float) -> str:
+    """+-0.00 text, half away from zero on the DECIMAL value, so a change stored as -0.145 (%.4g) prints -0.15 as the
+    in-memory value did, not the binary float's -0.14."""
+    from decimal import ROUND_HALF_UP, Decimal
+    if not np.isfinite(x):
+        return "nan"
+    return f"{Decimal(str(x)).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP):+.2f}"
+
+
+def fig_window(D: pd.DataFrame, stats: list[dict], align: str, path: Path) -> None:
+    """Per position: each SESSION's value (faded open markers, shape = animal, colour = epoch) and the mean of animals
+    +- SEM over animals (filled, epoch colour). No line joins epochs (Priya 11-03, `wfield_local.cat_points`). Under each
+    post epoch: change vs pre (`boot_delta`; * = 95 % interval excludes 0, also starred in the top band) and k / n
+    animals below pre."""
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    from wfield_local import cat_points as cp
+    from wfield_local import sig_marks
+    fig, axes = plt.subplots(1, len(POS), figsize=(2.9 * len(POS), 3.6), sharey=True)
+    for ax, p in zip(axes, POS):
+        g = D[(D["align"] == align) & (D.position == p)]
+        M = g.groupby(["animal", "epoch"]).y.mean().unstack().reindex(columns=list(EPOCHS))
+        for i, e in enumerate(EPOCHS):
+            ge = g[g.epoch == e]
+            cp.session_dots(ax, i, ge.y.to_numpy(), ge.animal.to_numpy(), EP_COL[e], jitter=0.12, seed=100 * i + 7)
+        mu, se = M.mean(), M.std(ddof=1) / np.sqrt(M.notna().sum().clip(lower=1))
+        for i, e in enumerate(EPOCHS):
+            cp.summary_point(ax, i, mu[e], se[e], color=EP_COL[e], ms=6.5)
+        ax.axhline(0, color="0.6", ls="--", lw=0.8, zorder=0)
+        ax.set_xticks(range(4))
+        labs = ["pre"]
+        for i, e in enumerate(EPOCHS[1:], start=1):
+            s = next(x for x in stats if x["position"] == p and x["epoch"] == e)
+            labs.append(f"{e}\n{_r2(s['change'])}{s['mark']}\n{s['below_pre']}/{s['n_animals']} below")
+            if s["mark"]:
+                sig_marks.star_top(ax, i, s["mark"], color=EP_COL[e])
+        ax.set_xticklabels(labs, fontsize=6.5)
+        ax.set_xlim(-0.5, 3.5)
+        ax.set_title(p + (" (contra)" if p.endswith("_R") else ""), fontsize=9)
+        ax.spines[["top", "right"]].set_visible(False)
+    sig_marks.reserve_headroom(fig)
+    axes[0].set_ylabel("CD projection - own held-out pre\n(pole units; pre = 0)", fontsize=8)
+    from matplotlib.lines import Line2D
+    h = [Line2D([], [], ls="none", marker="o", color=EP_COL[e], mec="w", ms=6, label=f"{e}: mean of animals +- SEM")
+         for e in EPOCHS] + cp.animal_handles(sorted(D.animal.unique()))
+    fig.legend(handles=h, fontsize=6.5, frameon=False, loc="lower center", ncol=len(h))
+    fig.suptitle(f"CD leave-one-out window means, {align}-aligned -- POOLED within animal (each animal minus its own pre). "
+                 "Faded open = sessions (shape = animal); under each epoch: change vs pre (paired animals -> sessions "
+                 "bootstrap; * = 95 % interval excludes 0), animals below pre / animals", fontsize=8.5)
+    fig.tight_layout(rect=(0, 0.06, 1, 0.93))
+    fig.savefig(path, dpi=150)
+    plt.close(fig)
+
+
+def fig_traj(Z, D: pd.DataFrame, align: str, path: Path) -> None:
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    from scripts.epoch_sessions_long import CD_WINDOWS
+    if f"trace_{align}" not in Z:
+        return
+    t, X = Z[f"t_{align}"], Z[f"trace_{align}"].astype(float)
+    lab, ep, pos = Z[f"label_{align}"].astype(str), Z[f"epoch_{align}"].astype(str), Z[f"position_{align}"].astype(str)
+    an = np.array([x[:4] for x in lab])
+    pre_mean = D[(D["align"] == align) & (D.epoch == "pre")].groupby(["animal", "position"]).value.mean()
+    _, lo, hi = CD_WINDOWS[align]
+    fig, axes = plt.subplots(1, len(POS), figsize=(2.9 * len(POS), 3.2), sharey=True, sharex=True)
+    for ax, p in zip(axes, POS):
+        ax.axvspan(lo, hi, color="0.93", zorder=0)
+        for e in EPOCHS:
+            per = []
+            for a in sorted(set(an)):
+                m = (an == a) & (pos == p) & (ep == e)
+                if m.sum() < 1 or (a, p) not in pre_mean.index:
+                    continue
+                with np.errstate(all="ignore"):
+                    per.append(np.nanmean(X[m], 0) - pre_mean[(a, p)])
+            if len(per) < 2:
+                continue
+            P = np.vstack(per)
+            mu = np.nanmean(P, 0)
+            se = np.nanstd(P, 0, ddof=1) / np.sqrt(len(per))
+            ax.plot(t, mu, color=EP_COL[e], lw=1.6 if e == "pre" else 1.2, label=f"{e} ({len(per)} an)")
+            ax.fill_between(t, mu - se, mu + se, color=EP_COL[e], alpha=0.18, lw=0)
+        ax.axhline(0, color="0.6", ls="--", lw=0.7)
+        ax.axvline(0, color="k", lw=0.5)
+        ax.set_title(p + (" (contra)" if p.endswith("_R") else ""), fontsize=9)
+        ax.set_xlabel(ALIGN_LABEL.get(align, "s"), fontsize=7)
+        ax.tick_params(labelsize=6)
+        ax.spines[["top", "right"]].set_visible(False)
+    axes[0].set_ylabel("CD projection - own held-out pre\n(pole units; pre window = 0)", fontsize=8)
+    axes[-1].legend(fontsize=6, frameon=False, loc="upper left")
+    fig.suptitle(f"CD leave-one-out trajectories, {align}-aligned -- POOLED within animal: each animal's session-mean "
+                 "trace minus its pre window mean, then mean +- SEM over ANIMALS; shaded = window-mean window", fontsize=8.5)
+    fig.tight_layout(rect=(0, 0, 1, 0.92))
+    fig.savefig(path, dpi=150)
+    plt.close(fig)
+
+
+def main(argv=None) -> int:
+    from wfield_local import cd_trajectories as cdt
+    from wfield_local import figure_layout as FL
+    from wfield_local.writeguard import assert_writable
+    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--out", type=Path, default=None)
+    ap.add_argument("--plot-only", action="store_true",
+                    help="redraw the window figures from the STORED cd_loo_pooled_stats.csv (no bootstrap, no traces) "
+                         "to cd_loo_pooled_window_<align>_nolines.png")
+    a = ap.parse_args(argv)
+    fig_dir = Path(cdt.default_out())
+    C = pd.read_csv(FL.sidecar_for(fig_dir, "cd_window_projection_loo", "_sessions_long.csv", mkdir=False))
+    Z = np.load(FL.sidecar_for(fig_dir, "cd_loo_traces", ".npz", mkdir=False))
+    out = a.out or fig_dir / "cd_loo"
+    assert_writable(out)
+    out.mkdir(parents=True, exist_ok=True)
+    D = normalised(C)
+    if a.plot_only:
+        S = pd.read_csv(out / "cd_loo_pooled_stats.csv", keep_default_na=False, na_values=[""])
+        S["mark"] = S["mark"].fillna("").astype(str)
+        for align in ("precue", "cue", "lick"):
+            st = S[S["align"] == align].to_dict("records")
+            fig_window(D, st, align, out / f"cd_loo_pooled_window_{align}_nolines.png")
+            print("->", out / f"cd_loo_pooled_window_{align}_nolines.png")
+        return 0
+    rng = np.random.default_rng(0)
+    stats = []
+    for align in ("precue", "cue", "lick"):
+        s = changes(D, align, rng)
+        stats += s
+        fig_window(D, s, align, out / f"cd_loo_pooled_window_{align}.png")
+        fig_traj(Z, D, align, out / f"cd_loo_pooled_traj_{align}.png")
+        print("->", out / f"cd_loo_pooled_window_{align}.png", "+ traj")
+    S = pd.DataFrame(stats)
+    S.to_csv(out / "cd_loo_pooled_stats.csv", index=False, float_format="%.4g")
+    print(S[S.position == "far_R"].to_string(index=False))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

@@ -32,23 +32,28 @@ import pandas as pd
 
 POS6 = ("close_contra", "close_mid", "close_ipsi", "far_contra", "far_mid", "far_ipsi")
 RESP_WIN = 3.5
+#: source encoder runs (10-25: the O2 final-frame runs -- 3-D polar exec, combined licks, rebuilt attempts gate, 107
+#: August+ sessions, so the "June+August pre" baseline equals August here; the 10-19 cam4 runs `movement_first_subset-nokin`
+#: / `movement_first` were STALE, OUTPUT_AUDIT 2a)
+NOKIN_RUN = "movement_first_subset-nokin_exec-polar_licks-combined_bins"
+MAIN_RUN = "movement_first_exec-polar_licks-combined"
 
 
 def _enc_root():
-    from wfield_local import orofacial_cohort as oc
-    from wfield_local import orofacial_outputs as oo
-    from wfield_local.paths import PathResolver
-    return oo.root(PathResolver()) / oc.RUN / "imaging_encoding"
+    from wfield_local import run_mode
+    return run_mode.encoding_out_root()          # the run's (tagged) encoding tree (coordinator 11-04)
 
 
-def neural(E: Path) -> pd.DataFrame:
+def neural(E: Path, nokin: str = NOKIN_RUN, main: str = MAIN_RUN) -> pd.DataFrame:
     rows = {}
-    for f in glob.glob(str(E / "movement_first_subset-nokin" / "sessions" / "*_regions.csv")):
+    for f in glob.glob(str(E / nokin / "sessions" / "*_regions.csv")):
         R = pd.read_csv(f)
         R = R[(R.area == "cortex") & (R.window == "lick")].set_index("model").r2
         if {"nokin:category", "nokin:none"} <= set(R.index):
             rows.setdefault(Path(f).stem[:-8], {})["ceiling"] = float(R["nokin:category"] - R["nokin:none"])
-    for f in glob.glob(str(E / "movement_first" / "sessions" / "*.npz")):
+    for f in glob.glob(str(E / main / "sessions" / "*.npz")):
+        if f.endswith("_trials.npz"):              # per-trial SSE files (frozen / combined encoders) carry no maps
+            continue
         z = np.load(f)
         mk = [str(k) for k in z["map_keys"]]
         for w, col in (("c0.5-1.5", "spread"), ("enl", "spread_enl")):
@@ -106,7 +111,8 @@ def trend_test(D: pd.DataFrame, col: str, pre_mask) -> dict:
 
 
 def half_recovery_day(D: pd.DataFrame, col: str) -> float:
-    pre = D[(D.epoch == "pre") & (D.label.str[-4:] >= "0806")][col].dropna()
+    from wfield_local import config
+    pre = D[(D.epoch == "pre") & (~D.label.map(config.early_pre))][col].dropna()
     post = D[(D.day > 0) & D[col].notna()].sort_values("day")
     ac = post[post.epoch == "acute"][col]
     ch = post[post.epoch == "chronic"][col].tail(4)
@@ -121,11 +127,20 @@ def half_recovery_day(D: pd.DataFrame, col: str) -> float:
     return float(post.loc[hit[0], "day"]) if len(hit) else np.nan
 
 
-def main() -> int:
+def main(argv=None) -> int:
+    # coordinator 11-04: routed (outputs under the run tag), no longer refused in a tagged run
+    import argparse
+
+    from wfield_local import config
     from wfield_local import epochs, writeguard
+    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--nokin", default=NOKIN_RUN, help="encoder run with nokin:category / nokin:none (ceiling)")
+    ap.add_argument("--main", default=MAIN_RUN, help="main encoder run with respdev maps (spread)")
+    a = ap.parse_args(argv)
     E = _enc_root()
-    N = neural(E)
-    N["animal"] = N.label.str[:4]
+    N = neural(E, a.nokin, a.main)
+    N["src_nokin"], N["src_main"] = a.nokin, a.main
+    N["animal"] = N.label.str.split("_").str[0]
     N["epoch"] = N.label.map(epochs.epoch_of)
     N["day"] = N.label.map(epochs.days_since_stroke)
     B = behaviour(N.label)
@@ -133,7 +148,7 @@ def main() -> int:
     pd.set_option("display.width", 220)
     rows = []
     for col in ("ceiling", "spread", "spread_enl"):
-        for base, pre_mask in (("August pre", (D.epoch == "pre") & (D.label.str[-4:] >= "0806")),
+        for base, pre_mask in (("August pre", (D.epoch == "pre") & (~D.label.map(config.early_pre))),
                                ("June+August pre", D.epoch == "pre")):
             for a, g in D.groupby("animal"):
                 r = trend_test(g, col, pre_mask.loc[g.index])
@@ -158,7 +173,7 @@ def main() -> int:
           .to_string(index=False, float_format=lambda x: f"{x:.3f}"))
     out = E / "qc"
     writeguard.assert_writable(out)
-    out.mkdir(exist_ok=True)
+    out.mkdir(parents=True, exist_ok=True)
     D.to_csv(out / "position_coding_trend_recovery_sessions.csv", index=False, float_format="%.5g")
     T.to_csv(out / "position_coding_trend_recovery.csv", index=False, float_format="%.5g")
     H.to_csv(out / "position_coding_half_recovery.csv", index=False, float_format="%.5g")

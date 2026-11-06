@@ -1,5 +1,11 @@
 # widefield_pipeline
 
+> **NEW COHORT, 2026-10-29: cohort2 = PS118, PS120, PS121, PS122 (PS118/120 Thy1-GCaMP6s, PS121/122 RiboL1-jGCaMP8s).**
+> Analysed separately from PS92-95 (cohort1) and never pooled with them. Read
+> [`docs/NEW_COHORT_2026-10-29.md`](docs/NEW_COHORT_2026-10-29.md) before running anything: the nightly picks the cohort from
+> the date, hand runs need `WIDEFIELD_COHORT=cohort2`, and cross-registration waits for a reference session.
+
+
 Widefield calcium-imaging **preprocessing + LocaNMF spout-position decode/encode analysis** for the
 Sabatini-lab VLS-stroke study (mice PS92/PS93/PS94/PS95). Carved out of `Widefield_DAQ_recorder`
 (which keeps the live DAQ-recorder GUI + camera acquisition) on 2026-08-08.
@@ -13,6 +19,10 @@ The pipeline is split across two computers by lifecycle + hardware:
 | Acquisition | **imaging computer** | DAQ recorder GUI + cameras (`Widefield_DAQ_recorder` repo) | — |
 | **Preprocessing** | **imaging computer** | motion correction → SVD/wfield → Allen alignment → cue/lick maps → upload to MICROSCOPE | [`runbooks/imaging_computer_nightly.md`](runbooks/imaging_computer_nightly.md) |
 | **Analysis** | **this / behavior GPU box** | LocaNMF → decode/encode → cross-mouse/RSA → deck → push | [`runbooks/analysis_computer_nightly.md`](runbooks/analysis_computer_nightly.md) |
+
+A third Windows box, the **analysis desktop** (`C:/Users/SabatiniLab`, profile `analysis_desktop`), also runs the
+analysis and the video work; its env, drive letters (M: = MICROSCOPE, N: = standby, can move on reboot) and torch
+build (cu128) are in [`docs/START_HERE.md`](docs/START_HERE.md) section 3.
 
 The two stages talk only through **files on MICROSCOPE** (the imaging computer writes
 `motion_corrected/`, `wfield_local_results/`, `SVTcorr.npy`, `U_atlas.npy`; the analysis box consumes
@@ -30,7 +40,8 @@ configs/               single source of truth (mirrors stroke_orofacial_pipeline
   defaults.yaml        analysis params (LocaNMF r2/loc/maxrank, decode windows/CV, sync, lick detection)
 runbooks/              the per-machine nightly runbooks (source of truth: imaging_computer_nightly / analysis_computer_nightly)
 docs (*.md at root)    DECISIONS (analysis decisions + findings), STROBE_BIT1_RECOVERY, CLAUDE; docs/archive/ = retired one-offs
-_*.py / _*.json        legacy per-session drivers + state (to be folded into the config-driven flow — see "Roadmap")
+scripts/               hand-run analyses, figure producers and checks (list: scripts/INDEX.md)
+tests/                 pytest suite (242 test files)
 ```
 
 ## Setup on a new machine
@@ -129,7 +140,9 @@ that fits both (the `requirements.txt` pin set is the *analysis-box* reference, 
 Per-session results (decode recall/EV, RDMs, crossnobis, hemisphere) are memoized to disk by
 `wfield_local/session_cache.py`, so the cross-day figures only compute new/changed sessions (a cache hit is
 ~340x faster) and don't recompute the same session across cross-mouse/within-animal/RSA within one run.
-- Cache dir: `WIDEFIELD_SESSION_CACHE` (default `C:\Users\sabatini\source\.widefield_session_cache`), outside the repo.
+- Cache dir: `WIDEFIELD_SESSION_CACHE`; by default `.widefield_session_cache` next to the box's `figures_working`
+  folder (`C:\Users\sabatini\source\.widefield_session_cache` on the analysis box,
+  `C:\Users\SabatiniLab\.widefield_session_cache` on the analysis desktop), outside the repo.
 - Auto-invalidates when a session's LocaNMF `C.npy` / h5 / `behavior_trials` changes (e.g. a LocaNMF re-run).
 - Force a full recompute with `WIDEFIELD_NO_CACHE=1`; clearing = delete the cache dir. **Bump `CACHE_VERSION`
   in `session_cache.py` whenever you change a cached function's logic** (mtimes don't see code changes).
@@ -142,12 +155,15 @@ Per-session results (decode recall/EV, RDMs, crossnobis, hemisphere) are memoize
 
 ## Key docs
 
+- **[`docs/START_HERE.md`](docs/START_HERE.md)** — the one entry point: findings first, one current handoff per
+  arm, where to change each analysis, and which computer uses which env and drive letters.
+- **[`docs/FINDINGS.md`](docs/FINDINGS.md)** — the current science conclusions, one status-tagged line per claim.
 - **[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)** — what the code is, in layers, with a diagram:
-  162 modules, 109 of them runnable, grouped by pipeline stage. Read this before the module list
-  below. It also names the three seams that keep causing bugs here.
+  255 top-level modules (150 runnable) plus the `face_rhythm/` and `histology_map/` subpackages. It also names the
+  seams that keep causing bugs here. [`scripts/INDEX.md`](scripts/INDEX.md) lists every script.
 - **[`runbooks/first_full_analysis.md`](runbooks/first_full_analysis.md)** — a first run from raw
   sessions to the deck, for someone who has not done it before. The other runbooks assume you have.
-- **[`docs/status/`](docs/status)** — sixteen dated handoffs, with an index of what each settled.
+- **[`docs/status/`](docs/status)** — about 80 dated status and handoff docs, with an index.
 
 - [`runbooks/analysis_computer_nightly.md`](runbooks/analysis_computer_nightly.md) — analysis-box nightly runbook (source of truth)
 - [`runbooks/imaging_computer_nightly.md`](runbooks/imaging_computer_nightly.md) — imaging-computer preprocessing runbook (source of truth)
@@ -158,13 +174,19 @@ Per-session results (decode recall/EV, RDMs, crossnobis, hemisphere) are memoize
 
 ## Roadmap
 
-1. **Config consumption** — refactor `wfield_local` to read `configs/*.yaml` (replace the hardcoded
-   `SESSIONS` in `locanmf_cue_lick_analysis.py` with a loader), add `tests/` for the config loader +
-   animals, mirroring `stroke_orofacial_pipeline`.
-2. ~~Incremental cross-day analysis (efficiency)~~ — **DONE** (`wfield_local/session_cache.py`): the
+1. **Config consumption** — **DONE.** `wfield_local/config.py` reads `configs/*.yaml`; the session registry
+   comes from `configs/sessions.yaml` (`config.load_sessions()`), and `tests/test_config.py` covers the loader.
+   Some parameters are still literals in code; the 2026-11-04 code review lists them.
+2. **Incremental cross-day analysis (efficiency)** — **DONE** (`wfield_local/session_cache.py`): the
    per-session compute in cross-mouse / within-animal / RSA / crossnobis / hemisphere is memoized to disk,
    keyed by the LocaNMF `C.npy` + h5 + `behavior_trials` mtimes + params + `CACHE_VERSION`. Only new/changed
    sessions recompute (~340x on a cache hit); also dedupes within a single run. See "Caching" above.
-3. **Post-stroke analysis** — intention readout (frozen decoder) + representational similarity
-   (crossnobis / encoder residuals); prerequisites in [`DECISIONS.md`](DECISIONS.md).
-4. Fold the legacy `_*_run.py` drivers into the config-driven orchestrator; then `scripts/` cleanup.
+3. **Post-stroke analysis** — **DONE and running**: the frozen pre-stroke decoder
+   (`locanmf_frozen_decoder`, `frozen_models`) and representational similarity (crossnobis). Results are in
+   [`docs/FINDINGS.md`](docs/FINDINGS.md).
+4. **Legacy drivers** — **DONE**: no root `_*_run.py` drivers remain (folded into `preprocess` / `nightly`).
+   `scripts/` cleanup is under way: finished probes are in `scripts/archive/`, and
+   [`scripts/INDEX.md`](scripts/INDEX.md) lists the rest.
+
+The open engineering work, in order, is in
+[`docs/status/CODE_REVIEW_2026-11-04.md`](docs/status/CODE_REVIEW_2026-11-04.md) ("Proposed order of work").

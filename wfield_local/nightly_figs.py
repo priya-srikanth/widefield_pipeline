@@ -76,6 +76,11 @@ RUN_START: float = time.time()
 EPOCH_DRIFT: list[str] = []
 
 
+#: The imaging pre-stroke baseline start for cohort 1 in a plain (non-profile) run (Priya 11-03: August-only,
+#: `config.pre_from` semantics). A render profile sets WIDEFIELD_PRE_FROM itself.
+IMAGING_PRE_FROM = "0801"
+
+
 def cli(*a):
     log("CLI " + " ".join(a))
     if subprocess.call([PY, "-u", "-m", *a], cwd=str(REPO)):
@@ -251,9 +256,11 @@ def _write_run_record(deck_out, date, tag):
 
 def _per_day_cmds(date, out, from_dates):
     """The two CLI groups one date needs: the per-alignment decoders, then its encoder."""
-    dp = config.defaults()["decode"]   # aligns + per-align windows (configs/defaults.yaml decode.*_post_s)
+    # aligns + per-align windows: decode.*_post_s, the pre-cue one from the lick source (`lp_licks.post_s_for`, 11-04)
+    from wfield_local import lp_licks
+    dp = config.defaults()["decode"]
     dec = [("wfield_local.locanmf_position_decoder", "--date", date, "--align", al,
-            "--post-s", str(dp[f"{al}_post_s"]), "--per-session", "--output", str(out))
+            "--post-s", str(lp_licks.post_s_for(al)), "--per-session", "--output", str(out))
            for al in dp["aligns"]]
     enc = ("wfield_local.locanmf_position_encoder", "--date", date,
            "--pool-dates", from_dates, "--output", str(out))
@@ -267,7 +274,7 @@ def _per_day_inproc(date, out, only):
                                                       fig_rolling_laterality, fig_top_components)
     labs = _avail(date)
     if only:   # _avail reads the import-time SESSIONS, so filter the in-process figs explicitly
-        labs = [l for l in labs if l[:4] in set(only)]
+        labs = [l for l in labs if l.split("_")[0] in set(only)]
     log(f"{date} sessions: {labs}")
     for desc, fn in (("rolling_cue", lambda: fig_rolling_cue(labs, Path(out), date)),
                      ("temporal_dynamics", lambda: fig_temporal_dynamics(labs, Path(out))),
@@ -449,6 +456,10 @@ def _publish_json(out, rv, log=print) -> dict:
 
 
 def main():
+    from wfield_local import config as _cfg_m2
+    if _cfg_m2.locanmf_projection_on():   # review M2 (11-03): never refit into the adopted per-session folder
+        raise SystemExit("WIDEFIELD_LOCANMF_PROJECT=1: per-session LocaNMF is SERVED by projection; nightly_figs would fit "
+                         "the selected variant's SVTcorr into the adopted locanmf_* folder. Unset it to run nightly_figs.")
     # A subprocess inherits this, so every `cli(...)` step below is covered too. See
     # wfield_local/console.py: a cp1252 stdout turns a printed U+2212 into a lost figure.
     use_utf8_stdout()
@@ -502,10 +513,25 @@ def main():
                          "encode/cross-mouse/RSA subprocesses via WIDEFIELD_ONLY_ANIMALS + the in-process figs")
     args = ap.parse_args()
 
-    out = args.output or _default_out()
+    # COHORT: SESSIONS was loaded at import, so the cohort must be chosen BEFORE this process starts --
+    # `nightly` exports WIDEFIELD_COHORT; a hand run on cohort2 needs `$env:WIDEFIELD_COHORT="cohort2"` first.
+    log(f"cohort: {config.cohort()} ({', '.join(config.animals())})")
+    # AUGUST-ONLY PRE-STROKE BASELINE for a plain (non-profile) cohort-1 run (Priya 11-03; DECISIONS 2026-11-03; kept
+    # at the rebuild -> main merge, Priya 11-05). Under a render profile (WIDEFIELD_REBUILD_ROOT set) the profile owns
+    # WIDEFIELD_PRE_FROM, including the blocks that deliberately unset it (june_august_drift, 12.1b, map_drift_prepre,
+    # restnl_mask), so it is NOT defaulted here. An explicit WIDEFIELD_PRE_FROM (or "" to disable) wins.
+    from wfield_local import rebuild_root
+    if config.cohort() == "cohort1" and not rebuild_root.active():
+        os.environ.setdefault("WIDEFIELD_PRE_FROM", IMAGING_PRE_FROM)
+    log(f"pre-stroke baseline: from {config.pre_from() or 'all pre (June + August)'}")
+    from wfield_local import run_mode
+    # review N4 (11-03): a tagged nightly writes (and passes --output) <fw>/<tag>, the folder the readers use; the
+    # default run is unchanged
+    out = str(run_mode.routed_output(args.output or _default_out()))
     Path(out).mkdir(parents=True, exist_ok=True)
     log(f"figure working dir: {out}")
-    registered = sorted({s["label"][-4:] for s in SESSIONS})
+    # sorted by FULL date (config.date8), never as MMDD strings: cohort2 runs across New Year ("0105" < "1029")
+    registered = sorted({s["label"][-4:] for s in SESSIONS}, key=config.date8)
     only = config.normalize_animals(args.only)   # None => all animals
     if only:
         os.environ["WIDEFIELD_ONLY_ANIMALS"] = ",".join(only)  # inherited by the subprocesses below
@@ -533,7 +559,7 @@ def main():
     backfill = [d for d in from_list if d not in per_day and _perday_figs_incomplete(out, d)]
     if backfill:
         log(f"backfilling per-day figs for curated dates missing them on disk: {backfill}")
-    per_day = sorted(set(per_day) | set(backfill))
+    per_day = sorted(set(per_day) | set(backfill), key=config.date8)
 
     # PREFLIGHT: DROP DATES WITH NO LocaNMF FIT AT ALL, and say which and why.
     #
@@ -595,9 +621,9 @@ def main():
         by_animal = {}
         for d in from_list:
             for lab in _avail(d):
-                by_animal.setdefault(lab[:4], []).append(lab)
+                by_animal.setdefault(lab.split("_")[0], []).append(lab)
         for a, labs in sorted(by_animal.items()):
-            log("wrote " + fig_rolling_cue_by_animal(a, sorted(labs, key=lambda x: x[-4:]), Path(out)).name)
+            log("wrote " + fig_rolling_cue_by_animal(a, sorted(labs, key=config.date8), Path(out)).name)
     except Exception as ex:
         log(f"  !! rolling_by_animal: {type(ex).__name__} {str(ex)[:70]}")
 
@@ -625,7 +651,7 @@ def main():
             # having is an arm the nightly maintains; otherwise it silently becomes an orphan.
             for al in ("cue", "precue", "lick"):
                 dec, enc = {}, {}
-                for a in sorted({s["label"][:4] for s in SESSIONS if s["label"][-4:] in set(from_list)}):
+                for a in sorted({s["label"].split("_")[0] for s in SESSIONS if s["label"][-4:] in set(from_list)}):
                     if only and a not in set(only):
                         continue
                     # POOLED = pre + post, never the raw date list. `from_list` is a cohort-wide DATE
@@ -1007,7 +1033,7 @@ def main():
             try:
                 from wfield_local.epoch_figures import stale_sidecars
                 _stale_csv = stale_sidecars(
-                    Path(config.resolver().root("labcams")) / "grant_figures" / "epoch")
+                    Path(config.resolver().root("cohort_out")) / "grant_figures" / "epoch")
                 if _stale_csv:
                     log(f"== {len(_stale_csv)} value CSVs are OLDER than their figure -- another "
                         f"machine rendered from a stale checkout; re-render to refresh: "
@@ -1018,7 +1044,9 @@ def main():
     # build the refined ANALYSIS deck (animal -> type -> date, curated) at the labcams top level
     # Bound OUTSIDE the try: the run record below needs it even when the deck step dies early,
     # and that is exactly the run whose failure list is worth having on disk.
-    deck_out = Path(config.resolver().root("labcams")) / "spout_position_analysis_summary.pptx"
+    deck_out = Path(config.resolver().root("cohort_out")) / "spout_position_analysis_summary.pptx"
+    # T5 (third review): a TAGGED nightly builds its deck in its own tag folder, never over the default deck
+    deck_out = run_mode.routed_output(deck_out.parent, guard=False) / deck_out.name
     try:
         from wfield_local.locanmf_analysis_deck import (
             DeckFromFailedRun,

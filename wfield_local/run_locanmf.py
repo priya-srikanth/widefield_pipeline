@@ -8,7 +8,7 @@ and comparable ACROSS sessions and animals -- the right basis for cross-animal /
 functional-subnetwork analysis.
 
 It consumes exactly what our alignment step already produces, so no re-preprocessing:
-  --allen-dir   <...\allen_aligned_*>   with  U_atlas.npy,
+  --allen-dir   <...\\allen_aligned_*>   with  U_atlas.npy,
                 allen_area_atlas_native_grid.npy, allen_brain_mask_native_grid.npy
   --svt         SVTcorr.npy             (defaults to <allen-dir>\\..\\..\\SVTcorr.npy)
 
@@ -45,9 +45,15 @@ LocaNMF needs the `locanmf` package (PyTorch + a compiled C++/CUDA extension) an
 
 Run (after data is on N:\\MICROSCOPE\\Priya\\Widefield\\labcams\\...):
   python -m wfield_local.run_locanmf \
-    --allen-dir "N:\\...\\motion_corrected\\wfield_local_results\allen_aligned_affine8v1" \
+    --allen-dir "N:\\...\\motion_corrected\\wfield_local_results\\allen_aligned_affine8v1" \
     --label PS94_0603 --output "N:\\...\\motion_corrected\\locanmf_affine8v1" \
-    --maxrank 20 --loc-thresh 70 --r2-thresh 0.99 --device auto
+    --device auto
+
+--maxrank / --loc-thresh / --r2-thresh default to configs/defaults.yaml ``locanmf`` (the same
+values batch_locanmf and the nightly use). Until 2026-11-04 they were literals here (loc 70,
+r2 0.99, while the yaml said 80 / 0.95), so re-running one session by hand from the README
+silently fitted a different decomposition from every other session. Pass them explicitly only
+for a deliberate sweep (sweep_locanmf does).
 """
 
 from __future__ import annotations
@@ -62,10 +68,13 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
+from wfield_local import config
 from wfield_local.montage_by_energy import save_energy_montage
 
 
-def main() -> int:
+def build_parser() -> argparse.ArgumentParser:
+    # r2/loc/maxrank single source of truth (configs/defaults.yaml), as in batch_locanmf.main
+    lp = config.defaults()["locanmf"]
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--allen-dir", type=Path, required=True,
                     help="allen_aligned_* folder (U_atlas.npy, allen_area_atlas_native_grid.npy, allen_brain_mask_native_grid.npy)")
@@ -76,15 +85,19 @@ def main() -> int:
                     help="locanmf = atlas-seeded localized components (reproducible, region-anchored); "
                          "snmf = whole-brain seed (global correlation-network components); both = run each")
     ap.add_argument("--minrank", type=int, default=1)
-    ap.add_argument("--maxrank", type=int, default=20, help="LocaNMF max components per region (~10-20)")
+    ap.add_argument("--maxrank", type=int, default=lp["maxrank"], help="LocaNMF max components per region (~10-20)")
     ap.add_argument("--snmf-maxrank", type=int, default=200, help="sNMF total components (whole-brain seed)")
     ap.add_argument("--snmf-loc-thresh", type=float, default=1.0, help="sNMF localization (~1 = global)")
     ap.add_argument("--min-pixels", type=int, default=100)
-    ap.add_argument("--loc-thresh", type=float, default=70.0, help="%% of component area kept inside the atlas region")
-    ap.add_argument("--r2-thresh", type=float, default=0.99, help="fraction of variance to capture")
+    ap.add_argument("--loc-thresh", type=float, default=float(lp["loc_thresh"]), help="%% of component area kept inside the atlas region")
+    ap.add_argument("--r2-thresh", type=float, default=float(lp["r2_thresh"]), help="fraction of variance to capture")
     ap.add_argument("--nonnegative-temporal", action="store_true")
     ap.add_argument("--device", default="auto", choices=("auto", "cuda", "cpu"))
-    args = ap.parse_args()
+    return ap
+
+
+def main() -> int:
+    args = build_parser().parse_args()
 
     args.output.mkdir(parents=True, exist_ok=True)
     ad = args.allen_dir

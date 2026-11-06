@@ -360,7 +360,7 @@ def widefield_sessions() -> list[tuple[str, str]]:
         # first, small lesion that did not take) -> not analysed, so not tracked (Priya 2026-10-15)
         if config.session_phase(animal, mmdd) == "excluded":
             continue
-        out.add((animal, "2026" + mmdd))
+        out.add((animal, config.date8(mmdd)))
     return sorted(out)
 
 

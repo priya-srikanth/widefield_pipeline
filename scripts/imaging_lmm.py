@@ -47,6 +47,15 @@ def trend_table(E: Path) -> pd.DataFrame:
     return _long(S, ("ceiling", "spread", "spread_enl"), "trend")
 
 
+PUSH_METRICS = ("push_frac", "push_rate_min", "push_amp", "run_frac", "cue_push_frac", "cue_dip",
+                "cue_push_frac_far_contra", "cue_dip_far_contra")
+
+
+def push_table(E: Path) -> pd.DataFrame:
+    """Backward / postural treadmill pushes per session (scripts/push_behaviour.py; Priya 10-23)."""
+    return _long(pd.read_csv(E / "qc" / "push_behaviour_sessions.csv"), PUSH_METRICS, "push")
+
+
 def behaviour_table(run_root: Path) -> pd.DataFrame:
     S = pd.read_csv(run_root / "cohort" / "tables" / "prepost" / "session_metrics.csv")
     return _long(S, BEHAVIOUR_METRICS, "behaviour")
@@ -58,7 +67,8 @@ def decoder_table() -> pd.DataFrame:
     from wfield_local import epochs
     from wfield_local import figure_layout as fl
     from wfield_local.paths import PathResolver
-    d = Path(PathResolver().root("labcams")) / "grant_figures" / "epoch"
+    from wfield_local import lp_licks              # run-mode routing (rebuild 11-03): identity for the default run
+    d = lp_licks.output_dir(Path(PathResolver().root("cohort_out")) / "grant_figures" / "epoch")
     lab_of = {(x[:4], epochs.days_since_stroke(x)): x for x in ak.curated_labels(order="sorted")}
     out = []
     for tag in ("unmatched", "matched"):
@@ -75,7 +85,8 @@ def epoch_tables() -> tuple[pd.DataFrame, pd.DataFrame]:
     """(families with LOO pre rows, CD rows) in the long format, from the `*_sessions_long.csv` files."""
     from wfield_local import orofacial_cohort as oc
     from wfield_local.paths import PathResolver
-    d = Path(PathResolver().root("labcams")) / "grant_figures" / "epoch" / "data"
+    from wfield_local import lp_licks              # run-mode routing (rebuild 11-03): identity for the default run
+    d = lp_licks.output_dir(Path(PathResolver().root("cohort_out")) / "grant_figures" / "epoch") / "data"
     fs = sorted(d.glob("*_sessions_long.csv"))
     if not fs:
         return pd.DataFrame(), pd.DataFrame()
@@ -126,7 +137,8 @@ def figures(L: pd.DataFrame, T: pd.DataFrame, figs: Path, sfx: str = "") -> None
              ("epoch:10b", [f"best match is own position | cue / working | {p}" for p in ("fC", "fM", "fI")],
               ("time", "behaviour"), "epoch family 10b: far positions best-match own"),
              ("epoch:11c", [f"{m} | {a}" for a in ("cue / working", "lick / lick") for m in ("ceiling", "frozen (matched)")],
-              ("time", "behaviour"), "epoch family 11c: encoder ceiling vs frozen (matched)")]
+              ("time", "behaviour"), "epoch family 11c: encoder ceiling vs frozen (matched)"),
+             ("push", PUSH_METRICS, ("time", "behaviour"), "backward / postural treadmill pushes (push_behaviour.py)")]
     for src, meas, models, title in sets:
         for model in models:
             if not ((T.source == src) & (T.model == model)).any():
@@ -146,14 +158,16 @@ def main(argv=None) -> int:
     ap.add_argument("--deficit", default=None, help="behavioural index (mixed_models.DEFICITS); non-default -> *_<name>")
     a = ap.parse_args(argv)
     run_root = oo.root(PathResolver()) / a.run
-    E = run_root / "imaging_encoding"
+    E = oo.encoding_root(a.run)
     dname = a.deficit or mm.DEFICIT
     sfx = "" if dname == mm.DEFICIT else f"_{dname}"
+    if set(a.sources.split(",")) != {"trend", "decoder", "behaviour", "epoch"}:   # a subset never overwrites the full set
+        sfx += "_" + "-".join(a.sources.split(","))
     deficit = mm.deficit(E / "qc", dname)
     src = a.sources.split(",")
     tabs, L, D, C = [], None, None, None
-    prepost = [f(E if f is trend_table else run_root) for name, f in (("trend", trend_table),
-                                                                      ("behaviour", behaviour_table)) if name in src]
+    prepost = [f(E if f in (trend_table, push_table) else run_root)
+               for name, f in (("trend", trend_table), ("behaviour", behaviour_table), ("push", push_table)) if name in src]
     if prepost:
         L = mm.add_time_covariates(pd.concat(prepost, ignore_index=True))
         L = mm.add_deficit(L, deficit)
@@ -168,13 +182,13 @@ def main(argv=None) -> int:
             L = Le if L is None else pd.concat([L, Le], ignore_index=True)
         if not C.empty:                                     # CD: pre rows in-sample -> post-only models
             C = mm.add_time_covariates(C)
-            C = C[C.post == 1].assign(deficit=lambda x: x.label.map(deficit))
+            C = mm.add_deficit(C[C.post == 1], deficit)          # post-only; log deficit -> deficit_x / deficit_tf for the plot axis
             tabs.append(post_only_table(C))
     if "decoder" in src:
         D = decoder_table()
         if not D.empty:
             D = mm.add_time_covariates(D)
-            D = D[D.post == 1].assign(deficit=lambda x: x.label.map(deficit))
+            D = mm.add_deficit(D[D.post == 1], deficit)          # post-only; log deficit -> deficit_x / deficit_tf for the plot axis
             print("  decoder (post-stroke only), per-animal epoch means\n"
                   + mm.animal_epoch_table(D, ["source", "measure"]).round(4).to_string())
             tabs.append(post_only_table(D))

@@ -1,9 +1,91 @@
+> **SUPERSEDED for current state by [`STATUS_2026-10-24_FACE_RHYTHM_HANDOFF.md`](STATUS_2026-10-24_FACE_RHYTHM_HANDOFF.md)** (rank 12, names, own/ rsync, next steps). Kept for the 10-22 / 10-23 history.
+
 # FaceRhythm — handoff (2026-10-22, ~09:30; UPDATES ~13:15 and ~12:10 first)
 
 **Findings so far: [`docs/FACE_RHYTHM_FINDINGS.md`](../FACE_RHYTHM_FINDINGS.md)** (living, status-tagged). Decisions:
 DECISIONS.md 2026-10-22 "FaceRhythm: pilot factor set, pre-stroke scored held-out, naming per fit, figures + methods".
 
-## UPDATE 10-22 ~14:00 (read first)
+## UPDATE 10-23 (read first)
+
+* **AR-HMM (Hillary, github.com/htong1/Priya_ARHMM2026, private; clone in scratch `ext/`) assessed 10-23**: frozen
+  pre-stroke sticky AR-HMM (jax-moseq, K 24, 12.5 Hz) on FR consensus + DLC tongue / jaw + treadmill, PS46-50.
+  DECIDED (Priya 10-23): LOW PRIORITY, not ported for imaging. FR factors already give continuous regressors for
+  specific behaviours (whisk f7, nose / sniff f2 / f3 / f8, prep jaw f6, bout initiation f1, lick factors by side), and
+  the encoder already separates failed vs successful licks (LP lick-onset kernel for every lick + DAQ contact kernel
+  for hits + executed angle / reach modulation; trial hit / incomplete classes in `trial_attempts`). What an AR-HMM
+  would add is narrow: discrete onsets / bouts (testable with onset kernels on thresholded factors), state
+  combinations (interaction terms), and a global per-session recovery score (frozen-model log-lik; the FR EVR gap,
+  FINDINGS 6, already covers the vocabulary half). Revisit only for that score or a state interaction linear
+  regressors miss. Its headline ("licks and misses") cross-checked behaviourally: FINDINGS 5c. Open, for the encoding
+  window if wanted: split the lick-onset kernel by outcome (hit / miss) to test a PRE-lick (preparation) difference.
+
+* **~07:00 10-24: rank-12 master BACK + NAMED.** proj/ 108 (12 cols, spec f4f84d67773df9bc), split half .911 (lick
+  pair .96 / .99; f6 .36, f10 .76), labels.json written (FINDINGS 4a), grouping `fr_groups.master_v1`, report re-rendered
+  with names, clips for 4 animals, validation. d4 TOLD (proj/ + labels + grouping). Pending on O2: project_loso +
+  fitsession -> rsync -> readouts (EVR gap, reconstruction) on all four animals, redo FINDINGS 5 / 5b / 6.
+* **~00:45 10-24: RANK 12 CHOSEN** (Priya; DECISIONS 10-24, FINDINGS 2): left / right lick pair, robust in 6 / 8
+  starts. Share: rank-10 outputs renamed `proj_r10/ proj_loso_r10/ own_r10/ report_r10/ master_r10.npz`, clips +
+  validation `master_pre_v1_r10`. O2 commands given to Priya (same renames on scratch, plan loso_jobs -> 12, then select 12
+  -> project; split half; loso -> project_loso -> fitsession). NEXT: Priya rsyncs after project -> check proj 108 -> report
+  / clips / validation at 12 -> draft labels -> Priya names -> labels.json + master grouping -> tell d4.
+* **~21:45 10-23: RANK OPEN AGAIN -- rank 10 has no dedicated LEFT-lick factor** (FINDINGS 2; sample balance checked
+  and fine; archived rank-12 sweep has a clean L/R pair). Priya submitted `sbatch --array=11,12 run_fit.sbatch` on O2
+  (fit-only + leave-one-animal-out, ~2.5-3.5 h). Then: rsync back, L/R index per factor (script in this session:
+  mean 0-2 s C by position on fit rows) + stability; if 11 / 12 keeps the left factor -> Priya picks -> move
+  `proj/` -> `proj_r10/` (project skips existing files) -> `select --rank R` -> project / loso / project_loso /
+  fitsession (sbatch individually, not run_chain.sh, which rebuilds) -> tell d4 (still waiting for labels anyway).
+  Rank-10 clips + validation rendering locally meanwhile.
+* **~21:05 10-23: master_pre_v1 FIT + `proj/` BACK ON THE SHARE** (Priya rsync): fit 131 min on O2, EVR .792 (err
+  .4564), 8 starts on two solutions (5 at .4564, 3 at .4571; per-factor min across starts .66-.72 for f4 / f5 / f10 =
+  the factors that differ in the .4571 solution, median >= .99 for all), stability .998; leave-one-animal-out held-out
+  err .468-.504 vs in-fit .452-.464, factor similarity .957-.984; split half .990 (per factor min .969). `proj/`
+  108 / 108 (`basis` full_in_sample 32 / full 76; only gaps PS92_0812 v1 73% lossy + no speed, PS92_0908 5% lossy).
+  d4 TOLD (waits for labels.json + a master grouping; box full). Loso 60 / 62 files copied mid-run; project_loso +
+  fitsession still to come -> rsync again. NOW: master report (`--absolute` and share, `--match` the pilot) ->
+  clips + validation -> Priya names.
+* **O2 chain SUBMITTED 10-23 ~19:00** (`run_chain.sh 10`): build DONE (27448 rows, 6862 per animal, 10.1 GB);
+  fit 57382949_10 running; select 57382951, split half 57382950, project 57382952 (-> encoder), loso 57382953,
+  project_loso 57382954, fitsession 57382955 pending on dependencies. Bring back: transfer node `rsync -ah --exclude
+  fit_tensor.npy $B/factors/master_pre_v1/ $S/factors/master_pre_v1/` (after project, then after fitsession). Then: tell
+  d4 `proj/` is ready (full frozen basis, `basis` = full / full_in_sample); report + clips + validation; Priya names.
+* Previous state (10-23 ~18:30): master_pre_v1 RE-PLANNED with equal days (DECISIONS 10-23 evening #1-3), rank 10
+  only, and set up for O2: Priya runs `factors/master_pre_v1/COMMANDS.md` (transfer rsync -> `run_chain.sh 10`). Local
+  driver stopped. Encoder gets `proj/` (full frozen basis, all 108) as soon as the project array finishes.
+* Previous state (10-23 17:10): master sweep DONE (8 / 10 / 12), **rank 10 chosen** (DECISIONS 10-23 evening); local
+  driver running `run_master_local.py rank 10` (log `scratchpad/master_local.log`): refit + LOAO -> splithalf -> loso 31
+  days -> select -> project 108 -> fitsession -> report. Resumable (skips finished outputs). Then: report + clips +
+  validation on the master; Priya names the factors; redo FINDINGS 5 / 5b / 6 on four animals.
+* Earlier state: master_pre_v1 PLANNED (counts in PIPELINE 'Time windows and the fit
+  sample'; still = canonical REST, run = canonical running bouts, equal pre-cue rows per animal) and SWEEP RUNNING. Plan was (`--trials-per-animal 120 --trial-ds 5
+  --between-frac 0.556 --run-share 0.5 --arrival --inits 8 --ranks 8 10 12`; it reads treadmill speed for all 108
+  sessions, cached) -> check the drawn counts per animal (printed; ~3600 trial + ~1500 pre-cue + ~2000 run / still rows)
+  -> `run_master_local.py sweep` (build + ranks 8 / 10 / 12) -> Priya picks the rank -> `run_master_local.py rank R`
+  (fit with leave-one-animal-out -> `splithalf` -> loso -> select -> project 108 -> fitsession).
+  DONE 10-23: pilot PS92_0908 + PS92_0812_v1 re-projected + fitsession with true times (old files in
+  `proj|own/_superseded_linear_timing/`; plan.json session_rows of the two redrawn, old plan in
+  `logs/plan_before_timing_fix_20261023.json`); d4 told (reruns PS92_0908 in run A). Pilot readouts / validation /
+  lick_epochs NOT yet re-rendered with them (small effect: 2 of 51 tasks). Decisions: DECISIONS 10-23 #1-7.
+
+* **~later 10-23: master_pre_v1 RE-PLANNED** (sweep stopped before any fit): windows + balance in PIPELINE "Time windows
+  and the fit sample" (DECISIONS 10-23 #4-6): true bin times (`o2_face_rhythm.py timing`, run for all 108: only
+  PS92_0908 lossy / mis-stamped; PS92_0812 v1 partly outside its DAQ segment), pre-cue rows (spout arrival U cue -4..-2
+  s), between rows half run / half still, 20 trials per position per animal. Then restart `run_master_local.py sweep`.
+* Pilot: PS92_0908 + PS92_0812_v1 to re-project with true times (`scratchpad/fix_pilot_timing.py`; old files ->
+  `_superseded_linear_timing/`); then tell d4 (it reruns PS92_0908 in run A).
+
+* **cam4 array COMPLETE**: 108 / 108 on the share, qc 108 / 108 clean (`o2_face_rhythm.py qc`), `collect` done
+  (`face_rhythm/cam4/o2_fr_cam4_20261021_index.csv`).
+* **master_pre_v1 RUNNING LOCALLY** (Priya: "local, trimmed"): plan = 4 animals x 120 trials (20 per position, fit rows
+  every 160 ms, `--trial-ds 4`) + 1110 between bins, 8 starts, ranks 8 / 10 / 12, loso jobs for 31 pre days.
+  Driver `factors/master_pre_v1/logs/run_master_local.py` (scratch copy runs; log `master_local.log` in the scratchpad):
+  `sweep` = build + fit-only ranks + report -> STOP for Priya's rank -> `rank R` = refit R with leave-one-animal-out,
+  loso at R, select, project 108, fitsession. Waits for >= 20 GB free RAM before heavy stages (Priya: may ask other
+  windows for RAM). Old 10-21 O2 plan kept as `logs/plan_20261021_o2_design.json`.
+* **Multi-view factor sets prepped** (DECISIONS 10-23 #3; PIPELINE "Other cameras" step 7): `plan --views cam1=... `;
+  waits on cam1 / cam2 / cam3 runs (Priya's landmark clicks -> register -> ROIs -> O2).
+* Pilot labels written 10-22 (FINDINGS 4); encoding (d4) uses grouping `pilot_v1` (fr_groups, pilot set only).
+
+## UPDATE 10-22 ~14:00
 
 * **Rank sweep complete**: 14 EVR 0.827 / stability 0.89; 16 0.835 / 0.92 (report re-rendered). No elbow; rank 12 the
   most reproducible. Rank 12 vs 10 (FINDINGS 2): lick factors unchanged; the extra two split SLOW movement (f8 by

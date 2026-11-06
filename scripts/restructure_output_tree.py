@@ -99,7 +99,7 @@ class Plan:
             by_dest.setdefault(dst.parent, []).append((src, dst))
         for parent, items in sorted(by_dest.items(), key=lambda kv: str(kv[0])):
             print(f"\n  {parent}   <- {len(items)} item(s)")
-            for src, dst in items[:4]:
+            for src, _dst in items[:4]:
                 print(f"      {src.name}")
             if len(items) > 4:
                 print(f"      ... and {len(items) - 4} more")
@@ -141,6 +141,8 @@ reason in its name, and the four that predate this consolidation kept their own 
 
 
 def main(argv=None) -> int:
+    from wfield_local import run_mode as _rm_guard
+    _rm_guard.require_default("restructure_output_tree")   # unrouted share writer: refuses in a non-default run mode
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--apply", action="store_true", help="actually move (default: plan only)")

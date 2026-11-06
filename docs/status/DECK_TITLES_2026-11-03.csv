@@ -1,0 +1,127 @@
+slide,old,new
+4,"Behaviour: hit rate recovers, but aim does not fully","Hit rate recovers, aim does not"
+5,First-lick aim: ipsilesional acutely at every spout,First-lick aim: ipsilesional at every spout
+6,"Pooled over animals: aim recovers with log-time, stops short","Aim LMM: log-time recovery, stops short"
+7,Per spout over days: every spout recovers except close ipsi,Aim per spout over days: close ipsi stuck
+9,"Spout position is decodable from cortex, before and after the cue",Refit decoder: spout decodable pre- and post-cue
+10,"A decoder frozen before the stroke fails acutely, worst at far contra",Frozen decoder: far contra .90 → .32 acutely
+11,"Frozen vs refit: frozen recovers partly, refit fully",Frozen vs refit: only refit recovers fully
+12,Pooled over spouts: the refit - frozen gap grows through recovery,Refit − frozen gap grows with recovery
+13,"Acutely, position fails far more than behavioural state","Frozen decoders: position fails, state holds"
+14,PS94's states stay separable; frozen decoder loses running,PS94 state: running class lost
+15,June → August drift alone moves the code about as much,June → August drift: as large as chronic
+16,"Cortex: far-contra cue response collapses, then returns","Cue maps: far contra .47 acutely, returns"
+17,"Lick window: far contra drops acutely, near ipsi rises","Lick maps: far contra drops, near ipsi rises"
+18,"Before the cue: noisy maps, no far-contra drop",Pre-cue maps: no far-contra drop
+19,Yet a frozen pre-cue decoder loses far contra in 4 / 4,Frozen pre-cue decoder: far contra lost 4 / 4
+21,Pose estimation: labelled frames and models,DLC / LP: labelled frames and models
+22,3-D tongue and jaw from two cameras,3-D tongue and jaw: cam1 + cam4
+23,Validation: the 2-D front camera agrees with 3-D; 3-D sees more,cam4 agrees with 3-D; 3-D sees more
+24,"Acute: slower licking everywhere, failure at far contra","cam4: slower everywhere, far contra fails"
+25,Per spout: far-contra contact collapses acutely,Per spout: far-contra contact collapses
+26,"Far-contra trials: animals try and fail, the jaw reacts without licking",Far contra: animals try and fail
+27,"Acutely, far-spout trials end in incomplete or jaw-only moves",Far spouts: incomplete and jaw-only trials
+28,Jaw opening by trial class: failed trials barely open the jaw,Jaw opening by trial class
+29,Failed trials barely show the tongue; acute contact licks less,Tongue-out by trial class
+30,Over days: incomplete and jaw-only trials fall back to pre,Trial classes over days: back to pre
+31,Every engaged trial classified: far contra contact .95 → .05 acutely,Far contra: contact .95 → .05 acutely
+32,Change vs pre in every trial class (all engaged trials),Trial classes: change vs pre
+33,Jaw steering toward the far target is lost acutely,Jaw steering (FAR_DIR) lost acutely
+34,"Acute licks aim toward the ipsilesional side, most at far contra","cam4 lick angle: ipsilesional, most far contra"
+35,The shift spans the whole lick,cam4: shift spans the whole lick
+36,In 3-D the far-contra lick swings ipsilesional and ends short,"3-D far-contra path: ipsilesional, short"
+37,"3-D: far-contra licks miss, reach less, jaw opens less","3-D: far-contra licks miss, reach less"
+38,3-D per spout: acute far-contra licks miss and reach less,3-D per spout: acute far contra misses
+39,"The launch, not in-flight correction, carries the deficit",Launch angle carries the deficit
+40,Pre-stroke check: corrective submovements as in Bollu 2021,"Pre-stroke CSMs, as in Bollu 2021"
+41,Paths are shifted ipsilesionally from the first frame,3-D paths ipsilesional from the first frame
+42,Correction licks do not explain the larger lick response,CSM licks do not explain the larger response
+43,"Recovery is compensation: hits return, normal licks do not","Compensation: hits return, normal licks do not"
+44,Normality recovers as fast as hit rate but stops short,"Normality recovers fast, stops short"
+45,Where far-contra licks land: on the far-mid and far-ipsi spouts,Far-contra licks land at far mid / far ipsi
+46,Landing change per animal: the far-contra shift is in every animal,Landing change: far-contra shift in 4 / 4
+47,"Landing confusion, pooled: far-contra licks go to far mid and far ipsi",Landing confusion: far contra → far mid / ipsi
+48,"Trajectory confusion: wrong from launch, not corrected late",Trajectory confusion: wrong from launch
+49,Mis-landing licks follow the other spout's path from the first tracked point,Mis-landing licks follow the other spout's path
+51,"One ""master"" face, registered to every session","FaceRhythm master face, registered per session"
+52,Rank 12: the smallest model that splits left and right licking,FaceRhythm rank 12: left / right lick split
+53,The 12 frozen factors,The 12 frozen FaceRhythm factors
+54,Three fit approaches,FaceRhythm: three fit approaches
+55,The frozen factors still describe the post-stroke face,Frozen factors still fit post-stroke
+56,Contra lick movement drops; the ipsilesional pattern substitutes,lick_right drops; lick_left substitutes
+57,"Per contralesional lick, the face moves less at every epoch",Per contra lick: face moves less
+58,The face becomes less contralesional when licking contra spouts,Face asymmetry falls at contra spouts
+59,The lick factors change shape: where on the face they load,Lick factors change loading shape
+60,Method: pairing each session's factors with the master by spatial similarity,Method: matching session factors to master
+61,…and how fast: lick_right loses its 7 Hz peak,lick_right loses its 7 Hz peak
+62,lick_right changes shape far beyond pre-stroke drift,lick_right shape change beyond drift
+64,Approach: a frozen pre-stroke encoder,Frozen pre-stroke encoder
+65,Acute: the far-contra cortical drop is predicted by the movement,Frozen encoder: acute drop = movement
+66,"Acutely the frozen encoder fits worse, mostly via movement",Frozen encoder fit: acute loss via movement
+67,Movement with vs without lick-position information,Movement with vs without position info
+68,"Frozen frame: target coding falls, executed movement rises","Frozen encoder: target falls, executed rises"
+69,Trial averages change; moment-to-moment coupling holds,PETH fit falls; single-trial coupling holds
+70,Residual: cortex responds more than pre-stroke mapping predicts,Encoder residual: cortex responds more
+71,After the stroke each lick drives a larger orofacial response,Lick response larger after stroke
+72,"Per spout: larger at every spout, except far contra acutely","Lick response per spout: up, except far contra"
+73,"Cortex follows the executed lick on hits, not failed attempts","Decoder–lick coupling: hits yes, failures no"
+74,"Acutely, where the lick lands no longer predicts the decoded spout",Landing no longer predicts decoded spout
+75,"When a lick misses: cortex still looks like the target, except at the far spouts",Missed licks: cortex reads the target
+76,"Encoder relabel: far contra loses its own pattern, but so do other spouts",Encoder relabel: general loss
+77,"The code is still there, but the pre-stroke read-out no longer fits",Refit decodes; frozen read-out ~75 %
+78,ITI and first cued licks are read contralesional of where they land,ITI and first cued licks read contralesional
+79,Most of the ITI offset is a left / right difference,ITI offset: mostly a left / right difference
+80,Decoded vs landed position: ITI licks read shifted in every epoch,Decoded vs landed: ITI shifted every epoch
+81,The first cued lick lands ipsilesional but is read toward the target,"First cued lick: lands ipsi, read toward target"
+82,"Against the same target, the cued offset goes; the ITI offset stays","Same target: cued offset goes, ITI stays"
+83,"Over days: the ITI offset persists, cued licks recover","Read-out LMM: ITI persists, cued recovers"
+84,"By epoch: the same read-out measures, epoch mixed model",Read-out epoch model
+85,Lick by lick the tongue corrects; the cortical read-out stays put,"Lick order: tongue corrects, read-out stays"
+86,Far-spout licks lose their normal hemispheric bias,Hemispheric balance: far spouts lose bias
+87,Balance places an unseen animal on its recovery curve,Balance places an unseen animal on recovery
+88,How the hemispheric balance is calculated (PS94 example),Hemispheric balance method (PS94)
+89,Recovery: the far-contra code returns only partly,Far-contra code on hits: partial return
+90,"Per animal: behaviour comes back fully, the cortical code on hits does not","Per animal: behaviour full, code on hits not"
+91,"Behaviour returns to ~100 %, the code on hits to ~70 %","Hit rate ~100 %, code on hits ~70 %"
+92,"By day: hit rate completes, aim and code stop short",By day: aim and code stop short
+93,Per animal: encoder spout coding vs behaviour over recovery,"Encoder spout coding vs behaviour, per animal"
+94,Remapping: what a session-specific mapping gains changes with time,Remapping gain shifts with time
+95,"Chronic: what persists, and is it orofacial-specific?","Chronic: what persists, orofacial-specific?"
+97,"Acutely, a local 2–3 Hz orofacial event is ~7x more common in quiet",Quiet orofacial events: ~7x acutely
+98,"Example: the same animal in quiet periods, pre-stroke vs acute",Quiet example: PS92 pre vs acute
+99,In the traces: frequent orofacial events while the acute animal is still,Quiet traces: frequent acute events
+100,It holds at matched stillness and is absent at 415 nm (blood),Holds at matched stillness; absent at 415 nm
+101,A pre-cue event goes with a weaker position code; the cause is unexplained,"Pre-cue event: weaker code, cause unknown"
+103,PS120 shows no GCaMP signal on either day: a blood-flow null,PS120: no GCaMP signal (null)
+104,"RiboL1-8s: 10–20x less signal than 6s at matched kinetics, no benefit",RiboL1-8s: 10–20x less signal than 6s
+105,"8s maps are more spread and partly vessel-patterned, like the null","8s maps: spread, vessel-patterned"
+108,PS122: epileptiform-like cortex-wide events late in a session,PS122: epileptiform-like cortex-wide events
+109,Pre-stroke VFSS: regular barium swallows in every mouse,VFSS pre-stroke: regular swallows
+110,Post-stroke VFSS: barium stays in the mouth,VFSS day 1: barium stays in the mouth
+111,Post-stroke VFSS: the other day-1 (11-02) clips,VFSS day 1: other clips
+112,"H2B-mCherry fills the nucleus, NES-mCherry the soma",2pRAM: H2B vs NES-mCherry labelling
+113,NES-mCherry (PS110): positive vs negative example cells,NES-mCherry review sheet (PS110)
+114,H2B-mCherry (PS104): positive vs negative example cells,H2B-mCherry review sheet (PS104)
+115,The mCherry call labels about 15-19% of imaged cells,2pRAM mCherry call: 15-19 % of cells
+116,Each of the six spouts has its own coding direction,2pRAM: six spout coding directions
+117,"Spout position is decodable before the cue, best at lick","2pRAM decoding: pre-cue .72, lick .95"
+118,About 1 in 10 cells is lick-direction selective,2pRAM: ~10 % lick-direction selective
+119,Lick-direction cells are scattered across the field,2pRAM: lick-direction cells intermixed
+120,mCherry+ and mCherry- cells are about equally selective,2pRAM: mCh+ and mCh− equally selective
+121,ROICaT re-finds 64-86% of day-2 cells on day 1,ROICaT: 64-86 % of cells re-found
+122,The same mesoscope resolves single GCaMP axons,axon-GCaMP8s on 2pRAM
+124,Backup: pre-cue position maps (1 s video-lick-free),Backup: pre-cue maps (LP)
+125,"Backup: cue-window position maps, all six spouts","Backup: cue-window maps, six spouts"
+126,"Backup: lick-window position maps, all six spouts","Backup: lick-window maps, six spouts"
+127,"Backup: over the whole trial, in-mouth excluded","Backup: cue-aligned, in-mouth excluded"
+128,"Backup: over the whole trial, in-mouth included","Backup: cue-aligned, in-mouth included"
+129,"Backup: target vs executed, softmax landing confusion per animal",Backup: landing confusion per animal
+130,"Backup: raw landing matrices per animal, incl. pre",Backup: raw landing matrices
+131,"Backup: raw trajectory matrices per animal, incl. pre",Backup: raw trajectory matrices
+132,"Backup: raw executed-bin vs decoder matrices per animal, incl. pre",Backup: raw executed vs decoder matrices
+133,"Backup: raw encoder relabel matrices per animal, incl. pre",Backup: raw relabel matrices
+134,"Backup: lick-order curves, ITI bouts and cued licks",Backup: lick-order curves
+135,"Backup: lick-order slopes, landing vs decoded vs offset, per epoch",Backup: lick-order slopes
+136,"Backup: like-for-like offset per spout (ITI by previous spout, cued by target)",Backup: like-for-like offset per spout
+137,"Backup: movement-corrected event maps, orofacial events pre vs acute","Backup: quiet event maps, pre vs acute"
+138,"Backup: contra / ipsi balance per spout, cued, cue-aligned and ITI",Backup: hemispheric balance per spout

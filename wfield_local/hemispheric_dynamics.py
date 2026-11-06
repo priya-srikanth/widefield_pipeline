@@ -88,7 +88,7 @@ def session_dynamics(s, source="roi"):
         return None
 
     sd = sig.std(axis=1)
-    out = {"label": s["label"], "animal": s["label"][:4], "date": s["label"].split("_")[-1],
+    out = {"label": s["label"], "animal": s["label"].split("_")[0], "date": s["label"].split("_")[-1],
            "source": source, "n_frames": int(sig.shape[1]),
            "sd_left": float(np.median(sd[left])), "sd_right": float(np.median(sd[right])),
            "n_left": int(left.sum()), "n_right": int(right.sum())}
@@ -140,7 +140,7 @@ def session_dynamics(s, source="roi"):
 def collect(animals=None, source="roi"):
     sessions = config.load_sessions()
     if animals:
-        sessions = [x for x in sessions if x["label"][:4] in set(animals)]
+        sessions = [x for x in sessions if x["label"].split("_")[0] in set(animals)]
     rows = []
     for s in sessions:
         try:
@@ -251,7 +251,8 @@ def main(argv=None) -> int:
     ap.add_argument("--source", default="roi", choices=["roi", "locanmf", "joint"])
     ap.add_argument("--output", type=Path, default=None)
     args = ap.parse_args(argv)
-    out = args.output or Path(PathResolver().root("figures_working"))
+    from wfield_local import run_mode  # tagged runs never overwrite default figures (review H2)
+    out = run_mode.routed_output(args.output or Path(PathResolver().root("figures_working")))
     rows = collect(args.animals, args.source)
     if not rows:
         print("[hemispheric_dynamics] no usable sessions")

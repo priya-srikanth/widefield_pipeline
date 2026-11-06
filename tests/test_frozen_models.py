@@ -7,7 +7,6 @@ contamination of 2026-08-26 was possible -- a model refitted every run has no id
 interrogate, so "what were you trained on?" had no answer on disk. These tests pin the identity.
 """
 import json
-import types
 
 import pytest
 
@@ -16,7 +15,7 @@ from wfield_local import frozen_models as F
 
 def spec(**kw):
     base = dict(animal="PS99", kind="decoder", align="cue", source="locanmf",
-                train_labels=["PS99_0101", "PS99_0102"], basis_id="abc123", n_features=380)
+                train_labels=["PS99_0101", "PS99_0102"], basis_id="abc123", n_features=380, train_data=None)
     base.update(kw)
     return F.make_spec(base.pop("animal"), base.pop("kind"), **base)
 
@@ -181,7 +180,7 @@ def test_a_model_cannot_be_built_from_another_animals_sessions():
     label-asserts-a-property-nothing-verifies this module exists to end. Checked, not assumed."""
     with pytest.raises(ValueError, match="PS98"):
         F.make_spec("PS99", "decoder", align="cue", source="locanmf",
-                    train_labels=["PS99_0101", "PS98_0101"])
+                    train_labels=["PS99_0101", "PS98_0101"], train_data=None)
 
 
 # ---------------------------------------------------------------------------------------------
@@ -240,3 +239,40 @@ def test_server_dir_returning_none_is_tolerated(tmp_path, monkeypatch):
     assert F.find(spec()) == (None, None)
     assert F.siblings(spec()) == []
     assert F.load_or_fit(spec(), lambda: {"full": "M"}, log=lambda *a: None)[1] == F.STATUS_NEW
+
+
+def test_scaling_field_only_changes_specs_that_pass_it():
+    """2026-11-02: the state decoder's fix adds scaling="session_z" to its spec; every spec that does not pass
+    `scaling` must stay byte-identical (same id), and passing it must give a new id (the old, unscaled state models
+    keep their store directory as the record)."""
+    from wfield_local import frozen_models as fm
+    kw = dict(align="segments", source="joint_x", train_labels=[], basis_id="x", n_features=3, post_s=1.0,
+              train_data=None)
+    a = fm.make_spec("PS92", "state", **kw)
+    b = fm.make_spec("PS92", "state", **kw, scaling=None)
+    c = fm.make_spec("PS92", "state", **kw, scaling="session_z")
+    assert "scaling" not in a and fm.spec_id(a) == fm.spec_id(b)
+    assert c["scaling"] == "session_z" and fm.spec_id(c) != fm.spec_id(a)
+
+
+def test_state_session_zscore():
+    import numpy as np
+    from wfield_local import locomotor_decoder as ld
+    X = np.array([[1.0, 5.0], [3.0, 5.0], [5.0, 5.0]])
+    Z = ld.session_zscore(X)
+    assert np.allclose(Z[:, 0].mean(), 0) and np.allclose(Z[:, 0].std(), 1)
+    assert np.allclose(Z[:, 1], 0)                   # zero-SD feature: centred, not divided by 0
+
+
+def test_state_13n_running_line_is_measured_not_literal():
+    """2026-11-02: the 13n caption carried "RUNNING alone 0.98 -> 0.95, losing 3%" as a literal through the state
+    z-score fix. It is now built from the measured retained values and running-class recall."""
+    from wfield_local import epoch_state as es
+    cvals = {"pre": {"position (6-way)": 0.80, "state (3-way)": 0.96},
+             "acute": {"position (6-way)": 0.40, "state (3-way)": 0.90}}
+    line = es._acute_line(cvals, {"pre": 0.98, "acute": 0.92})
+    assert "position 0.80 -> 0.40 acutely, losing 50%" in line
+    assert "state 0.96 -> 0.90 acutely, losing 6%" in line
+    assert "RUNNING-class recall 0.98 -> 0.92, losing 6%" in line
+    assert "0.95" not in line
+    assert es._acute_line({}, {}) == "retained values: see the bars"

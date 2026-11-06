@@ -107,7 +107,50 @@ VARIANTS = {
     "meegkit_2band": dict(drift="meegkit", mask="strobedetrend", fit_drift="filtfilt", slow_band_s=300.0,
                           note="CANDIDATE: meegkit_hpfit + its own 415->470 coefficient for the slow band "
                                "(>= 300 s cosine projection; removes the early-session bleaching residual)"),
+    # CANDIDATES (2026-10-30, NOT adopted; docs/COHORT2_QC_2026-10-29.md §0f-0g). The 415 frame of every pair is
+    # exposed 16 ms (one camera frame) BEFORE its 470 partner, and every variant above regresses them as if
+    # simultaneous: the measured 415->470 phase is exactly a 16 ms delay (+58 deg at the ~10 Hz heartbeat), so the
+    # fast-band fit is attenuated by cos(360 f 0.016). `iso_shift` advances 415 by half a pair-sample (an exact,
+    # amplitude-preserving Fourier fractional delay) so it is sampled at the 470 time. `fit_band` replaces the 0.1 Hz
+    # high-pass used for the coefficient fit with a band-pass: 1-8 Hz, or the cardiac band, where the 415<->470
+    # coupling is hemodynamic only (no neural signal can bias the coefficient).
+    "meegkit_hpfit_lag": dict(drift="meegkit", mask="strobedetrend", fit_drift="filtfilt", iso_shift=True,
+                              note="CANDIDATE: meegkit_hpfit with 415 advanced 16 ms to the 470 frame time"),
+    "meegkit_lag_fit1to8": dict(drift="meegkit", mask="strobedetrend", fit_drift="filtfilt", iso_shift=True,
+                                fit_band=(1.0, 8.0),
+                                note="CANDIDATE: lag-fixed 415, coefficient fitted on 1-8 Hz"),
+    "meegkit_lag_fitheart": dict(drift="meegkit", mask="strobedetrend", fit_drift="filtfilt", iso_shift=True,
+                                 fit_band=(8.0, 13.5),
+                                 note="CANDIDATE: lag-fixed 415, coefficient fitted on the cardiac band (8-13.5 Hz)"),
 }
+# CANDIDATES (2026-11-03, NOT adopted; drift-cutoff check, docs/status/DRIFT_CUTOFF_CHECK_20261103.md in wf_attempt).
+# The order-10 polynomial is REPLACED by a block-protected slow cosine fit (`wfield_local.drift_dct`): on the same
+# strobedetrend mask, each trace is regressed on DCT cosines with period >= the cutoff PLUS one indicator per position
+# block, and only the cosine part is subtracted, so block-level (position) means cannot be absorbed by the drift term.
+# Same lag fix and 0.1 Hz high-pass for the coefficient fit as meegkit_hpfit_lag. Named dctblk<cutoff min>_lag.
+# MEASURED the same day: per-BLOCK protection is ill-posed (see drift_dct docstring); `dctpos<c>_lag` protects the six
+# POSITION means instead (one indicator per position).
+for _c in (10, 15, 20, 30):
+    VARIANTS[f"dctblk{_c}_lag"] = dict(
+        drift="dctblk", dct_min_period_s=60.0 * _c, dct_protect="block", mask="strobedetrend", fit_drift="filtfilt",
+        iso_shift=True, note=f"CANDIDATE: meegkit_hpfit_lag with the polynomial replaced by block-protected DCT "
+                             f"cosines (period >= {_c} min)")
+    VARIANTS[f"dctpos{_c}_lag"] = dict(
+        drift="dctblk", dct_min_period_s=60.0 * _c, dct_protect="position", mask="strobedetrend",
+        fit_drift="filtfilt", iso_shift=True,
+        note=f"CANDIDATE: meegkit_hpfit_lag with the polynomial replaced by position-protected DCT cosines "
+             f"(period >= {_c} min)")
+
+
+def _advance_half_sample(x, pad=1024):
+    """Rows of ``x`` (components x time) advanced by HALF a sample: an exact band-limited fractional delay
+    (multiply each frequency by exp(+i*pi*k/n)), so amplitudes are untouched -- unlike a 2-tap average, which halves
+    the 10 Hz heartbeat. Reflect-padded to keep the circular FFT from wrapping the session ends into each other."""
+    n = x.shape[1]
+    xp = np.pad(x, ((0, 0), (pad, pad)), mode="reflect", reflect_type="odd")    # slope-continuous ends
+    k = np.fft.rfftfreq(xp.shape[1])
+    y = np.fft.irfft(np.fft.rfft(xp, axis=1) * np.exp(1j * np.pi * k)[None, :], n=xp.shape[1], axis=1)
+    return y[:, pad:pad + n]
 
 
 def _slow_projection(x, fs, min_period_s):
@@ -139,10 +182,32 @@ DETREND_WIN_S = 600.0
 # and why order is a much safer knob than a window length.
 MEEGKIT_ORDER = 10
 
-#: The ADOPTED drift-removal variant (docs/PREPROCESSING_DECISION.md). This is what gets BUILT for
-#: every session. Which variant analyses READ is a separate switch — `config.hemo_variant()` — because
-#: the two must be able to differ while a rebuild is partway through the session set.
-ADOPTED = "meegkit_hpfit"
+#: The drift-removal variant KEY the builders use by default (a `VARIANTS` key; what `preprocess` / `--variant` build
+#: when nothing else is named). A BUILD setting only: never use it to locate the data an analysis reads.
+BUILD_DEFAULT = "meegkit_hpfit"
+
+
+def adopted() -> str:
+    """The ``hemo_<suffix>`` suffix analyses READ, from the ONE hemo switch (`config.hemo_variant()`: ``defaults.yaml
+    hemo.variant``, overridden by ``WIDEFIELD_HEMO_VARIANT``). Raises for zerophase (no ``hemo_`` directory)."""
+    from wfield_local import config
+    v = config.hemo_variant()
+    if v is None:
+        raise ValueError("hemo variant is zerophase (bare SVTcorr.npy): there is no hemo_<variant> directory")
+    return v
+
+
+#: The ADOPTED drift-removal variant (docs/PREPROCESSING_DECISION.md) = the ``hemo_<ADOPTED>`` directory analyses read.
+#: SINCE THE 2026-11-03 REBUILD IT FOLLOWS THE ONE HEMO SWITCH (`config.hemo_variant()`, resolved at import: set
+#: ``WIDEFIELD_HEMO_VARIANT`` before the process starts), so ``hemo_{ADOPTED}``, `config.svtcorr_path`,
+#: `combined_encoding.hemo_dir` and `config.locanmf_dir_name` can never disagree (trap T4: a partial switch fitted
+#: "variant" models on adopted data). Default unchanged: "meegkit_hpfit". In-process code that may run after the env
+#: changes calls `adopted()`. Builders use `BUILD_DEFAULT` (a `VARIANTS` key, which a read suffix need not be).
+# NO FALLBACK (review L3, 11-03): if the config cannot be read the import FAILS, rather than silently reading
+# BUILD_DEFAULT while WIDEFIELD_HEMO_VARIANT / defaults.yaml say otherwise.
+from wfield_local import config as _config  # noqa: E402
+# zerophase -> "zerophase": `hemo_zerophase/` does not exist, so a `hemo_{ADOPTED}` read fails loudly
+ADOPTED = _config.hemo_variant() or "zerophase"
 
 #: Set True by remove_drift when it has to fall back to per-component meegkit detrending (see there).
 #: compute() resets it per session and records the outcome in the manifest for provenance.
@@ -153,7 +218,7 @@ def _butter(mode):
     return butter(2, HP / (FS / 2), btype="highpass")
 
 
-def remove_drift(X, variant, mask=None, win_s=DETREND_WIN_S, order=None):
+def remove_drift(X, variant, mask=None, win_s=DETREND_WIN_S, order=None, segs=None):
     """Apply the variant's drift removal to (K, T) traces. Returns the cleaned array.
 
     ``order`` defaults to MEEGKIT_ORDER read AT CALL TIME, not bound as a default argument -- a sweep
@@ -173,6 +238,12 @@ def remove_drift(X, variant, mask=None, win_s=DETREND_WIN_S, order=None):
     if d == "median":
         from wfield_local.filter_acausality_test import detrend_masked
         return detrend_masked(X, m, win_s)[0]
+    if d == "dctblk":
+        from wfield_local import drift_dct
+        if segs is None:
+            raise ValueError(f"variant {variant!r} needs the position-block segments")
+        return drift_dct.remove(X, m, FS, VARIANTS[variant]["dct_min_period_s"], segs,
+                                protect=VARIANTS[variant]["dct_protect"])
     if d == "meegkit":
         from meegkit.detrend import detrend
         # meegkit works on (n_samples, n_channels) and wants weights of the SAME shape; masked
@@ -236,35 +307,73 @@ def refit_T(U, a, b, chunk=20000):
     return np.linalg.pinv(UtU) @ UtUrc, rc
 
 
-def compute(session, variant, refit_t=True, win_s=DETREND_WIN_S, verbose=True, order=None, func=FUNC):
+def _interp_pairs(x, bad):
+    """(K, T) traces with the ``bad`` pair columns replaced by linear interpolation from their good neighbours."""
+    bad = np.asarray(bad, bool)[:x.shape[1]]
+    if not bad.any():
+        return x
+    i = np.arange(x.shape[1])
+    x = x.copy()
+    for k in range(x.shape[0]):
+        x[k, bad] = np.interp(i[bad], i[~bad], x[k, ~bad])
+    return x
+
+
+def compute(session, variant, refit_t=True, win_s=DETREND_WIN_S, verbose=True, order=None, func=None,
+            bad_pairs=None):
     """(SVTcorr, T, rcoeffs, meta) for one session under one variant. Reads only; writes nothing.
 
-    ``func`` is the functional (470) channel index; the isosbestic (415) is the other slot. Defaults
-    to the cohort FUNC=1, but must be 0 for a session whose labcams channels came out swapped (e.g.
-    PS92 8/28, saved mislabeled single-channel then rescued at exposure offset 1)."""
+    ``func`` is the functional (470) channel index; the isosbestic (415) is the other slot. ``None`` (the default
+    since 2026-11-05, code review 11-04 item 3) = THIS session's slot, `functional_channel(session)` -- 0 for PS92 8/28,
+    saved mislabeled single-channel then rescued at exposure offset 1. The default was the cohort FUNC=1, so five
+    diagnostics that call this without ``func`` swapped 415 and 470 for that session; production (`preprocess`) passes
+    the slot explicitly and was never affected.
+
+    ``bad_pairs`` (bool per pair, optional): pairs whose frames are interpolated over in BOTH channels before the
+    fit and the output -- frames that carry the other LED's image (scripts/cohort2_qc/swap_scan.py, 2026-10-30;
+    one such frame per ~10^4 dominated the RiboL1 coefficient fit). Requires ``refit_t=True``: the saved T was
+    fitted with them in."""
     from wfield_local.filter_acausality_test import MASK_SPEC, fit_mask
     from wfield_local.locanmf_crossanimal_dff import _frames as _fr
     from wfield_local.plot_lick_aligned_averages import _load_daq_events as _ll
     from wfield_local.plot_spout_trial_averages import _load_daq_events as _lc
 
+    if (VARIANTS[variant].get("iso_shift") or VARIANTS[variant].get("fit_band")) and not refit_t:
+        raise ValueError(f"variant {variant!r} changes the fit (lag shift / fit band), so the saved T does not apply -- "
+                         f"refit_t=True is required")
     global _MEEGKIT_FELL_BACK
     _MEEGKIT_FELL_BACK = False
+    if func is None:
+        func = functional_channel(session)
     res = Path(session["mc"]) / "wfield_local_results"
     svt = np.load(res / "SVT.npy")
     a = svt[:, func::2].astype(np.float64)
     b = svt[:, (func + 1) % 2::2].astype(np.float64)
+    n_bad = 0
+    if bad_pairs is not None:
+        if not refit_t:
+            raise ValueError("bad_pairs needs refit_t=True (the saved T was fitted on the unmasked traces)")
+        n_bad = int(np.asarray(bad_pairs, bool)[:a.shape[1]].sum())
+        a, b = _interp_pairs(a, bad_pairs), _interp_pairs(b, bad_pairs)
+    if VARIANTS[variant].get("iso_shift"):
+        b = _advance_half_sample(b)        # 415 sampled at the 470 frame time (16 ms later)
 
     spec = VARIANTS[variant]
     mask, mask_frac = None, None
     if spec["mask"]:
         cue = _lc(session["h5"])
-        lk = _ll(session["h5"], "lick_analog", 2.5, 1.0, (0.001, 0.020), 0.10)
+        lk = _ll(session["h5"], "lick_analog")
         _c, _l, csmp = _fr(session, cue, lk)
         if csmp is None:
             raise ValueError(f"{session['label']}: regime A has no corrected-frame map; "
                              f"variant {variant!r} needs one to build its mask")
         mask, d = fit_mask(session, a.shape[1], csmp, cue, **MASK_SPEC[spec["mask"]])
         mask_frac = d["frac_final"]
+    segs = None
+    if spec["drift"] == "dctblk":
+        from wfield_local import drift_dct
+        from wfield_local.behavior_position import classify_cues_with_backup
+        segs = drift_dct.block_segments(cue, classify_cues_with_backup(session, cue), csmp, a.shape[1], FS)
 
     def _finish(x, y):
         """violet lowpass + zero-mean, exactly as wfield.hemodynamic_correction does."""
@@ -278,11 +387,15 @@ def compute(session, variant, refit_t=True, win_s=DETREND_WIN_S, verbose=True, o
     if fit_drift:
         # Separate traces for the COEFFICIENT FIT. `remove_drift` keys off the variant, so build these
         # with the high-pass directly rather than inventing a pseudo-variant.
-        bh, ah = butter(2, HP / (FS / 2), btype="highpass")
+        if spec.get("fit_band"):
+            lo, hi = spec["fit_band"]
+            bh, ah = butter(2, [lo / (FS / 2), hi / (FS / 2)], btype="band")
+        else:
+            bh, ah = butter(2, HP / (FS / 2), btype="highpass")
         a_fit, b_fit = _finish(filtfilt(bh, ah, a, padlen=50), filtfilt(bh, ah, b, padlen=50))
 
-    a = remove_drift(a, variant, mask, win_s, order)
-    b = remove_drift(b, variant, mask, win_s, order)
+    a = remove_drift(a, variant, mask, win_s, order, segs)
+    b = remove_drift(b, variant, mask, win_s, order, segs)
     a, b = _finish(a, b)
 
     if refit_t:
@@ -322,7 +435,10 @@ def compute(session, variant, refit_t=True, win_s=DETREND_WIN_S, verbose=True, o
             "meegkit_order": (MEEGKIT_ORDER if order is None else int(order))
                              if spec["drift"] == "meegkit" else None,
             "fs": FS, "freq_highpass": HP, "freq_lowpass": LP, "functional_channel": func,
-            "slow_band_s": slow_s,
+            "slow_band_s": slow_s, "iso_shift_16ms": bool(spec.get("iso_shift")),
+            "fit_band": spec.get("fit_band"), "dct_min_period_s": spec.get("dct_min_period_s"),
+            "dct_protect": spec.get("dct_protect"),
+            "n_position_blocks": (len(segs) if segs is not None else None), "bad_pairs_interpolated": n_bad if bad_pairs is not None else None,
             "meegkit_fallback": ("per_component" if _MEEGKIT_FELL_BACK else None),
             "note": spec["note"], "built_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}
     if verbose:
@@ -331,19 +447,22 @@ def compute(session, variant, refit_t=True, win_s=DETREND_WIN_S, verbose=True, o
     return c, T, rc, meta
 
 
-def out_dir(session, variant, refit_t=True) -> Path:
-    """`hemo_<variant>[_refitT]` beside the originals. NEVER a bare SVTcorr.npy."""
+def out_dir(session, variant, refit_t=True, tag: str = "") -> Path:
+    """`hemo_<variant>[_refitT][<tag>]` beside the originals. NEVER a bare SVTcorr.npy."""
     return (Path(session["mc"]) / "wfield_local_results"
-            / f"hemo_{variant}{'_refitT' if refit_t else ''}")
+            / f"hemo_{variant}{'_refitT' if refit_t else ''}{tag}")
 
 
-def write(session, variant, refit_t=True, win_s=DETREND_WIN_S, verbose=True, func=FUNC) -> Path:
+def write(session, variant, refit_t=True, win_s=DETREND_WIN_S, verbose=True, func=None, bad_pairs=None,
+          tag: str = "") -> Path:
     """Compute and persist to the labelled subdirectory. Refuses to touch the original files."""
     from wfield_local import writeguard
 
-    d = out_dir(session, variant, refit_t)
+    if bad_pairs is not None and not tag:
+        raise ValueError("a bad_pairs build needs its own tag (e.g. '_swapmask'), never the plain variant dir")
+    d = out_dir(session, variant, refit_t, tag)
     writeguard.assert_writable(d)
-    c, T, rc, meta = compute(session, variant, refit_t, win_s, verbose, func=func)
+    c, T, rc, meta = compute(session, variant, refit_t, win_s, verbose, func=func, bad_pairs=bad_pairs)
     tmp = d.with_name(d.name + f".{os.getpid()}.tmp")
     tmp.mkdir(parents=True, exist_ok=True)
     np.save(tmp / "SVTcorr.npy", c)
@@ -364,7 +483,7 @@ def main(argv=None) -> int:
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--list", action="store_true", help="show the variants and exit")
     ap.add_argument("--sessions", nargs="+", default=None)
-    ap.add_argument("--variant", default=ADOPTED, choices=sorted(VARIANTS))
+    ap.add_argument("--variant", default=BUILD_DEFAULT, choices=sorted(VARIANTS))
     # An UNREGISTERED session (a night not yet in sessions.yaml) still has to get its variant built,
     # or the nightly would depend on someone editing config before the pipeline could finish.
     ap.add_argument("--mc", help="ad-hoc session: motion_corrected dir (instead of a --sessions lookup)")
@@ -375,10 +494,10 @@ def main(argv=None) -> int:
                     help="reuse the saved T instead of refitting on the drift-removed traces "
                          "(correct for a controlled COMPARISON, wrong for a product)")
     ap.add_argument("--write", action="store_true", help="persist to the labelled subdirectory")
-    ap.add_argument("--functional-channel", type=int, default=FUNC,
+    ap.add_argument("--functional-channel", type=int, default=None,
                     help="functional (470) channel index; the isosbestic (415) is the other slot. "
-                         "Default %(default)s. Set 0 for a session whose labcams channels came out "
-                         "swapped (mislabeled single-channel then rescued at exposure offset 1).")
+                         "Default: each session's own slot (functional_channel: session_overrides / the "
+                         "preprocessing summary), e.g. 0 for PS92_0828. Pass a value only to override.")
     args = ap.parse_args(argv)
 
     if args.list:

@@ -157,7 +157,8 @@ def main(argv=None) -> int:
         out = Path(args.out)
     else:
         from wfield_local.paths import PathResolver
-        out = Path(PathResolver().root("figures_working")) / "enl_stopped_sparsity.png"
+        from wfield_local import run_mode  # tagged runs never overwrite default figures (review H2)
+        out = run_mode.routed_output(Path(PathResolver().root("figures_working"))) / "enl_stopped_sparsity.png"
     p = figure(df, out, floor=args.floor, imaging=img)
     print(f"[enl_sparsity] -> {p}", flush=True)
     return 0

@@ -24,8 +24,8 @@ BASELINE: run with WIDEFIELD_PRE_FROM=0801 (August pre from 0806; 0805 is exclud
 reference and therefore EVERY value (post too) differ from the deck's all-pre files; the long files say so
 (``baseline``).
 CD (`cd_trajectories` dumps, `scripts/cd_cross_animal_figure.collect` settings: orth, contrast reference, gate lick):
-per session x position the mean projection on its OWN direction (diagonal cell) in fixed windows -- pre-cue [-2, 0) s
-(precue dump), cue [0, 1) s (cue dump), lick [0, 1) s (lick dump). CAVEAT: the dumps were fitted on ALL pre sessions
+per session x position the mean projection on its OWN direction (diagonal cell) in fixed windows -- pre-cue [-W, 0) s,
+W = the dump's own fitted ENL window (`win_s`: 2 s DAQ, 1 s LP -- `lp_licks.enl_post_s`, Priya 11-04) (precue dump), cue [0, 1) s (cue dump), lick [0, 1) s (lick dump). CAVEAT: the dumps were fitted on ALL pre sessions
 (June included; their cohort guard refuses an August-only load) and pre values are IN-SAMPLE (the directions were fitted
 on them), flagged ``pre_in_sample``. Only August pre + curated post rows are emitted.
 
@@ -47,7 +47,9 @@ ARMS = {"ENL": ("precue", "working"), "cue": ("cue", "working"), "lick": ("lick"
         "cuelick": ("cue", "lick"), "ENLlick": ("precue", "lick")}
 FAMILIES = ("11", "8g", "10", "11c", "cd")
 MIN_TRIALS = 10
-CD_WINDOWS = {"precue": ("pre-cue [-2,0) s", -2.0, 0.0), "cue": ("cue [0,1) s", 0.0, 1.0),
+#: precue: lo = None = minus the dump's own ENL window (`res["win_s"]`, the window its directions were fitted on, which
+#: follows the lick source since 11-04); a dump without one (pre-11-04) was fitted on 2.0 s.
+CD_WINDOWS = {"precue": ("pre-cue [-W,0) s", None, 0.0), "cue": ("cue [0,1) s", 0.0, 1.0),
               "lick": ("lick [0,1) s", 0.0, 1.0)}
 
 
@@ -179,13 +181,15 @@ def fam_cd(_arm=None):
             print(f"   CD {align}: {p}")
         for _a, res in got.items():
             t = np.arange(-res["pre_n"], res["post_n"]) / float(res["fs"])
-            m = (t >= lo) & (t < hi)
+            w = float(res.get("win_s", 2.0))
+            m = (t >= (-w if lo is None else lo)) & (t < hi)
+            name = meas.replace("-W", f"-{w:g}")             # "pre-cue [-2,0) s" on a DAQ dump, as before
             for (lab, ep, cd_p, tr_p), d in (res.get("session_traces") or {}).items():
                 if cd_p != tr_p:
                     continue
                 v = float(np.nanmean(np.asarray(d["mean"], float)[m]))
                 out.append(("cd", lab, POSITION_NAMES.get(cd_p, str(cd_p)) if isinstance(POSITION_NAMES, dict)
-                            else str(cd_p), f"CD projection, {meas}", v, int(d.get("n", 0)), ep == "pre",
+                            else str(cd_p), f"CD projection, {name}", v, int(d.get("n", 0)), ep == "pre",
                             align))
     return out
 
@@ -196,7 +200,7 @@ def _frame(rows, arm, align, variant, baseline):
     D.insert(1, "arm", arm)
     D.insert(2, "align", align)
     D.insert(3, "variant", variant)
-    D.insert(5, "animal", D.label.str[:4])
+    D.insert(5, "animal", D.label.str.split("_").str[0])
     D.insert(6, "epoch", [epochs.epoch_of(x) for x in D.label])
     D.insert(7, "day", [epochs.days_since_stroke(x) for x in D.label])
     D["baseline"] = baseline
@@ -262,10 +266,10 @@ def main(argv=None) -> int:
         from wfield_local import epochs
         C["pre_loo"] = False
         C["pre_in_sample"] = C.label.map(lambda x: epochs.epoch_of(x) == "pre")
-        C = C[C.label.isin(cur) & ~((C.pre_in_sample) & (C.label.str[5:9] < "0806"))].copy()
+        C = C[C.label.isin(cur) & ~((C.pre_in_sample) & C.label.map(config.early_pre))].copy()
         C.insert(1, "arm", C["align"])          # NOT C.align: that is DataFrame.align (a method)
         C.insert(3, "variant", "gate lick, orth, contrast")
-        C.insert(5, "animal", C.label.str[:4])
+        C.insert(5, "animal", C.label.str.split("_").str[0])
         C.insert(6, "epoch", [epochs.epoch_of(x) for x in C.label])
         C.insert(7, "day", [epochs.days_since_stroke(x) for x in C.label])
         C["baseline"] = "directions fitted on ALL pre (June + August); pre rows in-sample; August pre rows only"

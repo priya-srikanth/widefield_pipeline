@@ -13,25 +13,30 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-sys.path.insert(0, "C:/Users/SabatiniLab/Github/widefield_pipeline")
+sys.path.insert(0, str(__import__("pathlib").Path(__file__).resolve().parents[1]))   # THIS checkout, never main
 from wfield_local import epochs  # noqa: E402
+from wfield_local import run_mode as _rmode  # noqa: E402
 
-E = "M:/MICROSCOPE/Priya/Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding"
-Q = f"{E}/qc"
+# coordinator 11-04: routed -- figures under the run's (tagged) encoding tree; the attempts tables are THIS run's
+E = str(_rmode.encoding_out_root())
+Q = f"{E}/qc"                          # this run's qc (lick templates, best-match destination)
+QA = str(_rmode.attempts_dir())         # this run's attempts tables
 S = sys.argv[1]
 AN = ["PS92", "PS93", "PS94", "PS95"]
 EP = ["pre", "acute", "subacute", "chronic"]
 COL = {"hit": "#2b8a3e", "incomplete": "#f08c00", "jaw_only": "#868e96", "no_try": "#c92a2a", "unknown": "#dee2e6"}
 import os  # noqa: E402
 
+from wfield_local import lp_licks as _lp_licks  # noqa: E402  (coordinator 11-04: the run's attempts table)
+
 for d in ("behaviour", "target_vs_execution"):
     os.makedirs(f"{E}/figures/{d}", exist_ok=True)
 
 # 1. attempt classes + time to contact
-A = pd.read_csv(f"{Q}/trial_attempts.csv")
+A = pd.read_csv(_lp_licks.attempts_path())      # THIS run's attempts table (coordinator 11-04)
 A["epoch"] = A.label.map(epochs.epoch_of)
-W = pd.read_csv(f"{Q}/trial_attempts_sessions.csv")
-W["animal"], W["epoch"] = W.label.str[:4], W.label.map(epochs.epoch_of)
+W = pd.read_csv(f"{QA}/trial_attempts_sessions.csv")
+W["animal"], W["epoch"] = W.label.str.split("_").str[0], W.label.map(epochs.epoch_of)
 fig, ax = plt.subplots(3, 4, figsize=(14, 9), sharey="row")
 for r, pos in enumerate(("far_contra", "far_mid")):
     for c, an in enumerate(AN):

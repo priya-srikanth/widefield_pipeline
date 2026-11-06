@@ -42,11 +42,24 @@ _decode_analog_channel = daq_io.analog_channel
 def _load_daq_events(
     h5_path: Path,
     lick_channel: str,
-    thresh_upper: float,
-    thresh_lower: float,
-    lockout_s: tuple[float, float],
-    refractory_s: float,
+    thresh_upper: float | None = None,
+    thresh_lower: float | None = None,
+    lockout_s: tuple[float, float] | None = None,
+    refractory_s: float | None = None,
+    allow_lp: bool = True,
 ) -> dict:
+    """The detector parameters default to THE DAQ lick detector, `config.lick_detector` (Priya 11-04/05, REBUILD_CODE
+    8.53: imaging uses the BEHAVIOUR detector -- 2.5 / 0.5 V, no refractory, the 40 ms floor), so a call site passes
+    only ``(h5, "lick_analog")``. Any parameter given explicitly overrides its default (a CLI's flags).
+
+    ``allow_lp=False`` always returns the DAQ CONTACT train, whatever WIDEFIELD_LICK_SOURCE says. Used by the
+    LP-inclusive engagement gate (`lp_licks.gate_responded`), which ORs DAQ contact with LP attempts and so needs the
+    contact train even inside an LP_licks render. Default True = unchanged behaviour."""
+    det = config.lick_detector()
+    thresh_upper = det["thresh_upper"] if thresh_upper is None else thresh_upper
+    thresh_lower = det["thresh_lower"] if thresh_lower is None else thresh_lower
+    lockout_s = det["lockout_s"] if lockout_s is None else lockout_s
+    refractory_s = det["refractory_s"] if refractory_s is None else refractory_s
     with daq_io.open_daq(h5_path) as f:
         sr, created_at = daq_io.session_attrs(f)
         lick = daq_io.analog_channel(f, lick_channel)
@@ -59,7 +72,7 @@ def _load_daq_events(
     pco = daq_io.rising_edges(bits[:, idx["pco_exposure"]])
     codes_at_strobe = daq_io.strobe_codes(bits, names, strobe)
     lp_drop = None
-    if lick_channel == "lick_analog":
+    if lick_channel == "lick_analog" and allow_lp:
         # LP_licks (WIDEFIELD_LICK_SOURCE=lp, 2026-10-21): THE shared DAQ lick loader, so every imaging consumer --
         # including the ~25 that call this directly rather than through `_trial_features` -- gets the video lick
         # train under the LP source, never a silent DAQ one. `lp_licks.session_lp` is the one definition.
@@ -89,6 +102,7 @@ def _load_daq_events(
             "thresh_lower": float(thresh_lower),
             "lockout_s": [float(v) for v in lockout_s],
             "refractory_s": float(refractory_s),
+            "min_ili_s": float(np.asarray(lick_detection["min_ili_s"])),
         },
     }
 
@@ -223,7 +237,7 @@ def main() -> int:
     parser.add_argument("--lick-thresh-upper-v", type=float, default=ld["thresh_upper"])
     parser.add_argument("--lick-thresh-lower-v", type=float, default=ld["thresh_lower"])
     parser.add_argument("--lockout-s", type=float, nargs=2, default=tuple(ld["lockout_falling_edge_s"]))
-    parser.add_argument("--refractory-s", type=float, default=0.10)
+    parser.add_argument("--refractory-s", type=float, default=config.lick_detector()["refractory_s"])   # REBUILD_CODE 8.53: no refractory (was 0.10)
     parser.add_argument("--post-s", type=float, default=0.150)
     parser.add_argument("--fs", type=float, default=31.23)
     parser.add_argument(

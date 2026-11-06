@@ -136,10 +136,18 @@ def compute_events(h5_path: Path, seg: dict | None = None, lick: dict | None = N
     n = int(lick_v.size)
     sync_samples = np.flatnonzero(np.diff(sync_col.astype(np.int8), prepend=0) == 1).astype(np.int64)
 
-    # licks (config criteria incl. the min_ili physiological floor) — identical to imaging's call
+    # licks: the BEHAVIOUR detector, configs/defaults.yaml `lick_detection` (thresh_upper 2.5 V, thresh_lower 0.5 V,
+    # the falling-edge lockout, and the min_ili_ms 40 ms physiological floor).
+    # This is NOT the same call as imaging's, whatever this line used to claim ("identical to imaging's call", false;
+    # code review 2026-11-04). Imaging (`analysis_kit` and ~39 copies of the literal) calls
+    # `_load_daq_events(h5, "lick_analog", 2.5, 1.0, (0.001, 0.020), 0.10)`: a 1.0 V lower threshold and a 0.10 s
+    # refractory. The lower threshold sets where a lick ENDS and the lockout is timed from that end, so the two
+    # paths can keep slightly different lick-onset sets (open question: DLC_IN_WIDEFIELD_ANALYSES.md §6 Q1).
+    # The min_ili fallback here is 0 when the yaml key is missing; `daq_trials` falls back to 40. The key is present,
+    # so both read 40 today; left as is until the two detectors are made named profiles.
     det = detect_licks(lick_v, fs, thresh_upper=lick["thresh_upper"], thresh_lower=lick["thresh_lower"],
                        lockout_s=tuple(lick["lockout_falling_edge_s"]),
-                       min_ili_s=lick.get("min_ili_ms", 0) / 1000.0)
+                       min_ili_s=lick.get("min_ili_ms", config.LICK_MIN_ILI_MS_DEFAULT) / 1000.0)
     lick_onsets = np.asarray(det["lick_onsets"], dtype=np.int64)
     reward_samples = np.asarray(_rising(reward_v, seg["reward"]["thresh_v"]), dtype=np.int64)
 
@@ -335,6 +343,8 @@ def main(argv=None) -> int:
     ap.add_argument("--machine", default=None)
     args = ap.parse_args(argv)
     from wfield_local.paths import PathResolver
+    if args.date and str(args.date).isdigit() and len(str(args.date)) == 8:
+        config.use_cohort_for_dates([args.date])           # this night's cohort (configs/cohorts.yaml)
     return run(args.date, PathResolver(machine=args.machine),
                animals=config.normalize_animals(args.only), force=args.force)
 

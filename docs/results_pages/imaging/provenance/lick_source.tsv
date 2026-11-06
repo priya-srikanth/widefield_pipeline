@@ -1,0 +1,84 @@
+fid	number	source	tag	evidence
+b_timecourse	0.1	DAQ	licks: DAQ spout contact	epoch_behaviour.py on cohort_session_metrics (DAQ hits); caption states DAQ
+d_refit_precue	1.1	DAQ	licks: DAQ spout contact	epoch_5r_refit_by_position_precue_working.png in grant_figures/epoch/, rendered 10-07 (before LP_licks, 10-21)
+d_refit_cue	1.2	DAQ	licks: DAQ spout contact	epoch_5r_refit_by_position_cue_working.png in grant_figures/epoch/, rendered 10-07
+d_slowband	1.3	DAQ	licks: DAQ spout contact	slowband_decode_check.py -> filter_acausality_test.decode -> _trial_features (default DAQ); run 10-19, before LP_licks
+d_within_precue	2.1	DAQ	licks: DAQ spout contact	source grant_figures/epoch/ (default render = DAQ; LP renders go to grant_figures/LP_licks/); caption states DAQ
+d_enl1s	2.2	DAQ	licks: DAQ spout contact	source grant_figures/DAQ_ENL1s/ (DAQ, 1 s window); caption states DAQ
+d_acc_cue	2.3	DAQ	licks: DAQ spout contact	source grant_figures/epoch/ (default render = DAQ; LP renders go to grant_figures/LP_licks/)
+d_lp_lick	2.4	mixed	licks: mixed - LP video trials / window; frozen decoder trained on DAQ-contact trials	source grant_figures/LP_licks/epoch/; frozen_models.py: LP_licks reuses DAQ-frozen models
+d_state	3.1	DAQ	licks: DAQ spout contact	source grant_figures/epoch/ (default render = DAQ; LP renders go to grant_figures/LP_licks/); locomotor_decoder uses behavior_events lick_onsets (DAQ lick_analog)
+d_state_delta	3.2	DAQ	licks: DAQ spout contact	source grant_figures/epoch/ (default render = DAQ; LP renders go to grant_figures/LP_licks/)
+s_per_animal	3.3	DAQ	licks: DAQ spout contact	per_animal_fig.py from grant_figures/epoch sidecars epoch_11amp / 11c / 13 (DAQ)
+d_recovery	4.1	DAQ	licks: DAQ spout contact	source grant_figures/epoch/ (default render = DAQ; LP renders go to grant_figures/LP_licks/)
+d_refitgap	4.2	DAQ	licks: DAQ spout contact	source grant_figures/epoch/ (default render = DAQ; LP renders go to grant_figures/LP_licks/)
+j_drift	4.3	DAQ	licks: DAQ spout contact	june_august_drift.py on grant_kit._collect_7 (default DAQ, writeguard-checked untagged folder); PS93_0813 present (it has no LP table)
+fig2_attempt_decoder	5.1	mixed	licks: mixed - LP video attempt classes / windows; frozen decoder trained on DAQ-contact trials	attempt_coding.py refuses to run unless WIDEFIELD_LICK_SOURCE=lp; uses DAQ-frozen decoder
+fig2b_attempt_decoder_epochs	5.2	mixed	licks: mixed - LP video attempt classes / windows; frozen decoder trained on DAQ-contact trials	attempt_coding.py (LP only); DAQ-frozen decoder
+e_amp	6.1	DAQ	licks: DAQ spout contact	source grant_figures/epoch/ (default render = DAQ; LP renders go to grant_figures/LP_licks/)
+e_ceiling	6.2	DAQ	licks: DAQ spout contact	source grant_figures/epoch/ (default render = DAQ; LP renders go to grant_figures/LP_licks/)
+e_captured	6.3	DAQ	licks: DAQ spout contact	source grant_figures/epoch/ (default render = DAQ; LP renders go to grant_figures/LP_licks/)
+map_REST_precue_contact	7.1	DAQ	licks: DAQ spout contact	source grant_figures/epoch/, DAQ_ENL1s/ or map_drift_prepre/contact|DAQ_ENL1s/ (default render = DAQ); caption Gate line states DAQ
+drift_REST_precue_contact	7.2	DAQ	licks: DAQ spout contact	source grant_figures/epoch/, DAQ_ENL1s/ or map_drift_prepre/contact|DAQ_ENL1s/ (default render = DAQ); caption Gate line states DAQ
+map_REST_precue_LP	7.3	mixed	licks: mixed - LP video gate; REST baseline DAQ contact	source grant_figures/LP_licks/ or map_drift_prepre/LP_licks/; REST baseline = position_reference_maps.session_rest_svt_timelocal on quiet_periods masks (detect_licks on lick_analog)
+drift_REST_precue_LP	7.4	mixed	licks: mixed - LP video gate; REST baseline DAQ contact	source grant_figures/LP_licks/ or map_drift_prepre/LP_licks/; REST baseline = position_reference_maps.session_rest_svt_timelocal on quiet_periods masks (detect_licks on lick_analog)
+map_REST_enl1s_contact	7.5	DAQ	licks: DAQ spout contact	source grant_figures/epoch/, DAQ_ENL1s/ or map_drift_prepre/contact|DAQ_ENL1s/ (default render = DAQ); caption Gate line states DAQ
+drift_REST_enl1s_contact	7.6	DAQ	licks: DAQ spout contact	source grant_figures/epoch/, DAQ_ENL1s/ or map_drift_prepre/contact|DAQ_ENL1s/ (default render = DAQ); caption Gate line states DAQ
+map_REST_cue_contact	7.7	DAQ	licks: DAQ spout contact	source grant_figures/epoch/, DAQ_ENL1s/ or map_drift_prepre/contact|DAQ_ENL1s/ (default render = DAQ); caption Gate line states DAQ
+map_REST_cue_contact_by_animal	7.8	DAQ	licks: DAQ spout contact	source grant_figures/epoch/, DAQ_ENL1s/ or map_drift_prepre/contact|DAQ_ENL1s/ (default render = DAQ); caption Gate line states DAQ
+drift_REST_cue_contact	7.9	DAQ	licks: DAQ spout contact	source grant_figures/epoch/, DAQ_ENL1s/ or map_drift_prepre/contact|DAQ_ENL1s/ (default render = DAQ); caption Gate line states DAQ
+map_REST_cue_LP	7.10	mixed	licks: mixed - LP video gate; REST baseline DAQ contact	source grant_figures/LP_licks/ or map_drift_prepre/LP_licks/; REST baseline = position_reference_maps.session_rest_svt_timelocal on quiet_periods masks (detect_licks on lick_analog)
+drift_REST_cue_LP	7.11	mixed	licks: mixed - LP video gate; REST baseline DAQ contact	source grant_figures/LP_licks/ or map_drift_prepre/LP_licks/; REST baseline = position_reference_maps.session_rest_svt_timelocal on quiet_periods masks (detect_licks on lick_analog)
+map_PRECUE_cue_contact	7.12	DAQ	licks: DAQ spout contact	source grant_figures/epoch/, DAQ_ENL1s/ or map_drift_prepre/contact|DAQ_ENL1s/ (default render = DAQ); caption Gate line states DAQ
+drift_PRECUE_cue_contact	7.13	DAQ	licks: DAQ spout contact	source grant_figures/epoch/, DAQ_ENL1s/ or map_drift_prepre/contact|DAQ_ENL1s/ (default render = DAQ); caption Gate line states DAQ
+map_PRECUE_cue_LP	7.14	LP	licks: LP video (cam4 + cam1)	source grant_figures/LP_licks/ or map_drift_prepre/LP_licks/; PRECUE reference uses no licks; caption Gate line states LP
+drift_PRECUE_cue_LP	7.15	LP	licks: LP video (cam4 + cam1)	source grant_figures/LP_licks/ or map_drift_prepre/LP_licks/; PRECUE reference uses no licks; caption Gate line states LP
+map_REST_lick_contact	7.16	DAQ	licks: DAQ spout contact	source grant_figures/epoch/, DAQ_ENL1s/ or map_drift_prepre/contact|DAQ_ENL1s/ (default render = DAQ); caption Gate line states DAQ
+drift_REST_lick_contact	7.17	DAQ	licks: DAQ spout contact	source grant_figures/epoch/, DAQ_ENL1s/ or map_drift_prepre/contact|DAQ_ENL1s/ (default render = DAQ); caption Gate line states DAQ
+map_REST_lick_LP	7.18	mixed	licks: mixed - LP video gate; REST baseline DAQ contact	source grant_figures/LP_licks/ or map_drift_prepre/LP_licks/; REST baseline = position_reference_maps.session_rest_svt_timelocal on quiet_periods masks (detect_licks on lick_analog)
+map_REST_lick_LP_by_animal	7.19	mixed	licks: mixed - LP video gate; REST baseline DAQ contact	source grant_figures/LP_licks/ or map_drift_prepre/LP_licks/; REST baseline = position_reference_maps.session_rest_svt_timelocal on quiet_periods masks (detect_licks on lick_analog)
+drift_REST_lick_LP	7.20	mixed	licks: mixed - LP video gate; REST baseline DAQ contact	source grant_figures/LP_licks/ or map_drift_prepre/LP_licks/; REST baseline = position_reference_maps.session_rest_svt_timelocal on quiet_periods masks (detect_licks on lick_analog)
+map_PRECUE_lick_contact	7.21	DAQ	licks: DAQ spout contact	source grant_figures/epoch/, DAQ_ENL1s/ or map_drift_prepre/contact|DAQ_ENL1s/ (default render = DAQ); caption Gate line states DAQ
+drift_PRECUE_lick_contact	7.22	DAQ	licks: DAQ spout contact	source grant_figures/epoch/, DAQ_ENL1s/ or map_drift_prepre/contact|DAQ_ENL1s/ (default render = DAQ); caption Gate line states DAQ
+map_PRECUE_lick_LP	7.23	LP	licks: LP video (cam4 + cam1)	source grant_figures/LP_licks/ or map_drift_prepre/LP_licks/; PRECUE reference uses no licks; caption Gate line states LP
+drift_PRECUE_lick_LP	7.24	LP	licks: LP video (cam4 + cam1)	source grant_figures/LP_licks/ or map_drift_prepre/LP_licks/; PRECUE reference uses no licks; caption Gate line states LP
+a_maps	8.1	mixed	licks: mixed - LP video gate; REST baseline DAQ contact	attempt_maps.py refuses to run unless WIDEFIELD_LICK_SOURCE=lp; rest baseline = session_rest_svt_timelocal (DAQ quiet masks)
+a_maps_minus	8.2	mixed	licks: mixed - LP video gate; REST baseline DAQ contact	attempt_maps.py (LP only)
+c_cim	9.1	DAQ	licks: DAQ spout contact	cd_trajectories (nolick_decoder.categorize, default DAQ), source grant_figures/epoch/
+c_migration	9.2	DAQ	licks: DAQ spout contact	cd_migration.py on cd_trajectories dumps (default DAQ), source grant_figures/epoch/
+c_window_precue	9.3	DAQ	licks: DAQ spout contact	cd_loo_sessions.py -> grant_figures/epoch/data (default DAQ)
+c_window_cue	9.4	DAQ	licks: DAQ spout contact	cd_loo_sessions.py -> grant_figures/epoch/data (default DAQ)
+c_traj_cue	9.5	DAQ	licks: DAQ spout contact	cd_loo_sessions.py -> grant_figures/epoch/data (default DAQ)
+cp_window_precue	9.6	DAQ	licks: DAQ spout contact	cd_loo_pooled.py on grant_figures/epoch/data/cd_window_projection_loo_sessions_long.csv
+cp_window_cue	9.7	DAQ	licks: DAQ spout contact	cd_loo_pooled.py on grant_figures/epoch/data (DAQ)
+cp_window_lick	9.8	DAQ	licks: DAQ spout contact	cd_loo_pooled.py on grant_figures/epoch/data (DAQ)
+cp_traj_precue	9.9	DAQ	licks: DAQ spout contact	cd_loo_pooled.py on grant_figures/epoch/data (DAQ)
+cp_traj_cue	9.10	DAQ	licks: DAQ spout contact	cd_loo_pooled.py on grant_figures/epoch/data (DAQ)
+cp_traj_lick	9.11	DAQ	licks: DAQ spout contact	cd_loo_pooled.py on grant_figures/epoch/data (DAQ)
+r_crossnobis	10.1	DAQ	licks: DAQ spout contact	source grant_figures/epoch/ (default render = DAQ; LP renders go to grant_figures/LP_licks/)
+d_drift	10.2	DAQ	licks: DAQ spout contact	chronic_drift_vs_reorg.py on grant_kit._collect_7 (default DAQ); CSV has 11 pre sessions for PS93 (an LP run drops PS93_0813)
+d_enl_states	11.1	DAQ	licks: DAQ spout contact	enl_decode.py via _trial_features; PNG dated 09-24, before LP_licks
+d_enl_move	11.2	DAQ	licks: DAQ spout contact; video = movement regressors only	enl_movement_multisession.py: dlc_frames.lick_onsets = DAQ lick onsets (daq_trials.decode)
+d_rest15f	12.1	DAQ	licks: DAQ spout contact	rest_frozen_decoder.py, _load_cue_events (DAQ); grant_figures/epoch/, rendered 10-07
+m_dec_time	13.1	DAQ	licks: DAQ spout contact	imaging_lmm.py on grant_figures/epoch/data/recovery_trajectory_matched_cue_working.csv (DAQ)
+m_dec_beh	13.2	mixed	licks: mixed - DAQ decoders; deficit = DAQ contact time on LP-video attempts	mixed_models.DEFICITS['ttc'] = trial_attempts_sessions.csv ttc_ms_far_contra (DAQ contact on LP attempts)
+m_tmpl_time	13.3	DAQ	licks: DAQ spout contact	imaging_lmm.py on grant_figures/epoch/data/*_sessions_long.csv (DAQ)
+m_trend_time	13.4	LP	licks: LP video (encoder runs, cam4 + cam1)	position_coding_trend_recovery.py: runs *_licks-combined (combined_encoding LICKS_ENV)
+m_trend_beh	13.5	mixed	licks: mixed - LP-video encoder measures; deficit = DAQ contact time on LP attempts	encoder runs *_licks-combined; deficit ttc from trial_attempts
+m_trend_beh_contact	13.6	mixed	licks: mixed - LP-video encoder measures; deficit = DAQ-contact share of LP licks	position_coding_trend_recovery.behaviour: licks.csv (cam4 LP) contact column
+haufe_precue	14.1	DAQ	licks: DAQ spout contact	source grant_figures/epoch/ render 10-21 (default DAQ)
+haufe_cue	14.2	DAQ	licks: DAQ spout contact	source grant_figures/epoch/ render 10-21 (default DAQ)
+haufe_lick	14.3	DAQ	licks: DAQ spout contact	source grant_figures/epoch/ render 10-21 (default DAQ); caption states DAQ
+haufez_precue	14.4	DAQ	licks: DAQ spout contact	source grant_figures/epoch/ render 10-21 (default DAQ)
+haufez_cue	14.5	DAQ	licks: DAQ spout contact	source grant_figures/epoch/ render 10-21 (default DAQ)
+haufez_lick	14.6	DAQ	licks: DAQ spout contact	source grant_figures/epoch/ render 10-21 (default DAQ); caption states DAQ
+haufepa_precue	14.7	DAQ	licks: DAQ spout contact	source grant_figures/epoch/ render 10-21 (default DAQ)
+haufepa_cue	14.8	DAQ	licks: DAQ spout contact	source grant_figures/epoch/ render 10-21 (default DAQ)
+haufepa_lick	14.9	DAQ	licks: DAQ spout contact	source grant_figures/epoch/ render 10-21 (default DAQ); caption states DAQ
+q_fr	15.1	DAQ	licks: DAQ spout contact; face video = regressors only	quiet frames from behavior_events lick_onsets (DAQ lick_analog), quit point from session_behavior; caption states DAQ
+q_examples	15.2	DAQ	licks: DAQ spout contact	quiet frames from behavior_events lick_onsets (DAQ lick_analog), quit point from session_behavior; caption states DAQ ticks
+q_fr_detail	15.3	DAQ	licks: DAQ spout contact; face video = regressors only	quiet frames from behavior_events lick_onsets (DAQ lick_analog), quit point from session_behavior
+q_threshold	15.4	DAQ	licks: DAQ spout contact	quiet_spikes_v2.py busy_frames: quiet frames from behavior_events lick_onsets (DAQ lick_analog), quit point from session_behavior
+q_spectrum	15.5	DAQ	licks: DAQ spout contact	quiet_fluct.py imports quiet_spikes_v2.busy_frames: quiet frames from behavior_events lick_onsets (DAQ lick_analog), quit point from session_behavior
+q_sdmaps	15.6	DAQ	licks: DAQ spout contact	quiet_fluct.py (busy_frames): quiet frames from behavior_events lick_onsets (DAQ lick_analog), quit point from session_behavior
+q_eta_maps	15.7	DAQ	licks: DAQ spout contact	quiet_fluct.py (busy_frames): quiet frames from behavior_events lick_onsets (DAQ lick_analog), quit point from session_behavior

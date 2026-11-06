@@ -45,3 +45,35 @@ def test_wrong_set_and_bad_env_refused(monkeypatch):
         fr_groups.spec()
     monkeypatch.setenv(fr_groups.ENV, "pilot_v1:B")
     assert fr_groups.spec() == ("pilot_v1", "B")
+
+
+def test_master_v1_side_and_distance_modes():
+    sig = _sig(k=12)
+    G = fr_groups.GROUPINGS["master_v1"]
+    a = fr_groups.group(sig, "master_v1", "A", set_name="master_pre_v1")
+    assert list(a) == ["fr_lick", "fr_left", "fr_right", "fr_close", "fr_far"] + [f"fr_other_{k}" for k in G["other"]]
+    assert set(fr_groups.group(sig, "master_v1", "S")) - set(fr_groups.group(sig, "master_v1", "B")) == {"fr_left", "fr_right"}
+    assert set(fr_groups.group(sig, "master_v1", "D")) - set(fr_groups.group(sig, "master_v1", "B")) == {"fr_close", "fr_far"}
+    np.testing.assert_allclose(a["fr_lick"][1], sum(sig[f"fr_{k}"][1] for k in G["lick"]))
+    assert list(fr_groups.group(_sig(), "pilot_v1", "D"))[:1] == ["fr_lick"]          # pilot: no close / far parts
+
+
+def test_run_folder_names(tmp_path):
+    """The collected FR run folder: the code's name (mode before the subset) first, the 10-25 hand-collected name as the
+    fallback; tr=True takes the fr_A folder only when its sessions carry the trial-to-trial models."""
+    import json
+
+    from wfield_local import fr_groups as fg
+    new = tmp_path / "movement_first_fr-master_pre_v1_frg-A_subset-fr_exec-polar_licks-combined"
+    legacy = tmp_path / "movement_first_fr-master_pre_v1_subset-fr_exec-polar_licks-combined_frg-A"
+    legacy_tr = tmp_path / "movement_first_fr-master_pre_v1_frg-A_subset-fr_exec-polar_licks-combined_tr"
+    assert fg.run_folder(tmp_path, "A") == new                     # neither exists -> the code's name
+    (legacy / "sessions").mkdir(parents=True)
+    assert fg.run_folder(tmp_path, "A") == legacy
+    (new / "sessions").mkdir(parents=True)
+    assert fg.run_folder(tmp_path, "A") == new
+    (new / "sessions" / "PS92_0806.json").write_text(json.dumps({"tr_models": []}))
+    (legacy_tr / "sessions").mkdir(parents=True)
+    assert fg.run_folder(tmp_path, "A", tr=True) == legacy_tr      # no tr models in the new folder
+    (new / "sessions" / "PS92_0806.json").write_text(json.dumps({"tr_models": ["full", "fr:full"]}))
+    assert fg.run_folder(tmp_path, "A", tr=True) == new

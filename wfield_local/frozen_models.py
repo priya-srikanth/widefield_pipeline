@@ -54,11 +54,39 @@ from wfield_local import config
 #: Bump when the MEANING of a frozen model changes -- when the fitting logic is altered such that an
 #: old artifact, though built from the same sessions, no longer answers the same question. Mtimes
 #: cannot see a code change; this is the lesson `session_cache.CACHE_VERSION` records.
-FREEZE_VERSION = 1
+FREEZE_VERSION = 2          # 2 = training-data fingerprint + selection + hemo variant in every spec (2026-11-03)
 #: LP_licks only: "lp" freezes LP-TRAINED sensitivity models under their own spec (see `load_or_fit`).
 LP_FROZEN_ENV = "WIDEFIELD_LP_FROZEN"
 
 STATUS_NEW, STATUS_HIT, STATUS_SPEC_CHANGED = "frozen-new", "frozen-hit", "SPEC-CHANGED"
+
+#: Values of a per-family opt-out env var (WIDEFIELD_<FAMILY>_FROZEN) that turn the stored default OFF (11-02 pass 2).
+OPT_OUT_VALUES = ("0", "false", "no", "off")
+
+
+def family_on(env_name) -> bool:
+    """True unless the family's opt-out env var is 0 / false / no / off: the stored model is the DEFAULT (rule 10).
+
+    One definition for every family converted on 11-02 (`docs/status/FROZEN_ALL_20261102.md` pass 2); the opt-out
+    exists only to reproduce an old in-memory render."""
+    return os.environ.get(env_name, "").strip().lower() not in OPT_OUT_VALUES
+
+
+def daq_trained_in_lp() -> bool:
+    """True under WIDEFIELD_LICK_SOURCE=lp ONLY with WIDEFIELD_LP_FROZEN=daq (the opt-in cross-check): the LP arm then
+    LOADS the DAQ-trained model (fitted by a DAQ run on the DAQ arm's pre set) and refuses to fit one (`load_or_fit`).
+
+    PRIYA 11-03: the LP arm's DEFAULT is the LP-TRAINED model (trained on the LP arm's own pre trials; spec carries
+    lick_source=lp). Until 11-03 (FROZEN_DEFAULT / FROZEN_ALL 11-02) the default was DAQ-trained and "lp" opted in;
+    "lp" is still accepted and now simply names the default."""
+    from wfield_local import lp_licks
+    return lp_licks.is_lp() and os.environ.get(LP_FROZEN_ENV, "").strip().lower() == "daq"
+
+
+def lp_trained() -> bool:
+    """True under WIDEFIELD_LICK_SOURCE=lp unless WIDEFIELD_LP_FROZEN=daq: the spec carries lick_source=lp."""
+    from wfield_local import lp_licks
+    return lp_licks.is_lp() and not daq_trained_in_lp()
 
 
 def _stat_sig(path) -> str:
@@ -84,9 +112,77 @@ def _session_sig(label) -> str:
     return f"{_stat_sig(u_atlas)}|{_stat_sig(config.svtcorr_path(s['mc']))}"
 
 
+_MISSING = object()
+
+
+def data_fingerprint(obj) -> str:
+    """sha1[:16] of training data: arrays by dtype / shape / bytes, sequences in order, dicts by sorted key, scalars by
+    repr. Deterministic across processes (never hashes object ids)."""
+    import numpy as np
+    h = hashlib.sha1()
+
+    def walk(o):
+        if isinstance(o, np.ndarray) or (hasattr(o, "__array__") and not isinstance(o, (str, bytes))):
+            a = np.ascontiguousarray(np.asarray(o))
+            if a.dtype == object:
+                h.update(f"O|{a.shape}|".encode())
+                for x in a.ravel():
+                    walk(x)
+                return
+            h.update(f"A|{a.dtype.str}|{a.shape}|".encode())
+            h.update(a.tobytes())
+        elif isinstance(o, dict):
+            h.update(f"D{len(o)}|".encode())
+            for k in sorted(o, key=repr):
+                h.update(f"k{k!r}|".encode())
+                walk(o[k])
+        elif isinstance(o, (list, tuple)):
+            h.update(f"L{len(o)}|".encode())
+            for x in o:
+                walk(x)
+        else:
+            h.update(f"S{o!r}|".encode())
+
+    walk(obj)
+    return h.hexdigest()[:16]
+
+
+#: Fields `daq_trained_in_lp` ignores when it looks up the DAQ-trained model: the LP run cannot rebuild the DAQ run's
+#: training arrays, so it matches the DAQ model on everything else (`find_daq_trained`). SELECTION IS MATCHED (review
+#: M7, 11-03): a camera-gate (or gate-LP) cross-check must never load a DAQ model frozen under another selection.
+_DAQ_LOOKUP_IGNORES = ("train_fp",)
+DAQ_RUN_FP = "from-daq-run"
+
+
 def make_spec(animal, kind, *, align, source, train_labels, post_s=2.0, zscore=True,
-              basis_id=None, alpha=None, n_features=None):
-    """The full identity of one frozen model, as a plain dict (JSON-serialisable, order-stable)."""
+              basis_id=None, alpha=None, n_features=None, scaling=None, scaling_params=None, train_data=_MISSING,
+              selection=None, lp_only=False):
+    """The full identity of one frozen model, as a plain dict (JSON-serialisable, order-stable).
+
+    ``scaling`` (2026-11-02) names HOW the features were scaled when ``zscore`` alone does not say it. Added because
+    the state decoder's spec recorded ``zscore=True`` while its features were never z-scored per session
+    (`locomotor_decoder.by_animal_day`): the fix (scaling="session_z") must not load the old, unscaled models filed
+    under the same identity. ADDED ONLY WHEN GIVEN, so every existing spec -- and its id -- is byte-identical.
+    ``scaling_params`` (2026-11-03) records the scaling's own settings (bal_em: passes and the min-mass guard, which
+    is recorded even when OFF). Also added only when given.
+
+    TRAINING-DATA FINGERPRINT (FREEZE_VERSION 2, cohort-1 rebuild 2026-11-03, Priya: yes). ``train_data`` is REQUIRED:
+    the actual training arrays (X / y / groups, in training order, or a data signature the caller already computes)
+    -> ``train_fp`` = `data_fingerprint`. Also always carried: ``selection`` (default
+    `trial_classes.run_selection()`, the run's trial-selection tag) and ``hemo_variant`` (`config.hemo_variant()`).
+    Why: the spec hashed labels + SVTcorr mtime:size only, so a changed trial set under unchanged labels (PS92 section
+    G, 11-02 21:23) and a partial hemo switch (trap T4) both served models trained on other data. This changes EVERY id
+    by design: the rebuild fits into a NEW store (`_write` refuses the legacy one). Under `daq_trained_in_lp` the LP
+    run cannot rebuild the DAQ run's arrays, so ``train_fp`` = DAQ_RUN_FP and `load_or_fit` finds the DAQ-trained model
+    by everything else (`find_daq_trained`).
+
+    ``lp_only=True`` (review H1, 11-03): a kind that is LP-only BY NATURE (video-defined training rows: attempt_axes,
+    iti_readout). The spec always carries lick_source=lp and ALWAYS fingerprints the real rows, even under
+    WIDEFIELD_LP_FROZEN=daq -- there is no DAQ-trained model to look up, and the constant DAQ_RUN_FP would let a later
+    run HIT a model fitted on other rows."""
+    if train_data is _MISSING:
+        raise TypeError(f"make_spec({kind!r}): train_data is required (training-data fingerprint, FREEZE_VERSION "
+                        f"{FREEZE_VERSION}; docs/FROZEN_MODELS.md)")
     labs = sorted(train_labels)
     # ONE ANIMAL PER MODEL, checked rather than assumed. Every caller pools per animal, but the animal
     # is the first field of the identity and a pooled-across-animals training set would produce a model
@@ -99,8 +195,12 @@ def make_spec(animal, kind, *, align, source, train_labels, post_s=2.0, zscore=T
     # ENL WINDOW (WIDEFIELD_ENL_WINDOW_S, 2026-10-21): a pre-cue model's window IS its post_s, and the features it is
     # applied to are built with the overridden window (`lp_licks.apply_enl_window`) -- so the spec must carry it, or a
     # 1.0 s run would load the 2.0 s model. The matched DAQ 1.0 s run freezes these; LP_licks reuses them.
+    # 11-02 pass 2: ALSO an align that STARTS WITH "precue-" (the pass-2 kinds put variant fields after the window name:
+    # nolick "precue-rt2-f..", coding "precue-dom+dom_orth", section G "precue-keep..", attempt "precue-dom"). Without
+    # it a WIDEFIELD_ENL_WINDOW_S=1.0 run HIT the 2.0 s model (found by the nolick ENL 1.0 render: precue cells differed
+    # stored vs in memory). Ids without the override (the default DAQ 2.0 s runs) are unchanged.
     from wfield_local import lp_licks
-    if align == "precue" and lp_licks.enl_window_s() is not None:
+    if (align == "precue" or str(align).startswith("precue-")) and lp_licks.enl_window_s() is not None:
         post_s = lp_licks.enl_window_s()
     spec = {
         "freeze_version": FREEZE_VERSION,
@@ -116,12 +216,38 @@ def make_spec(animal, kind, *, align, source, train_labels, post_s=2.0, zscore=T
         "train_labels": labs,
         "train_sigs": {lab: _session_sig(lab) for lab in labs},
     }
-    # LP-TRAINED sensitivity models only (see `load_or_fit`): ADDED ONLY THEN, so every DAQ spec -- and its id, which
-    # names the stored directory -- is byte-identical to before.
-    from wfield_local import lp_licks
-    if lp_licks.is_lp() and os.environ.get(LP_FROZEN_ENV, "").strip().lower() == "lp":
+    if scaling is not None:
+        spec["scaling"] = str(scaling)
+    if scaling_params is not None:
+        spec["scaling_params"] = {str(k): (None if v is None else float(v) if isinstance(v, float) else v)
+                                  for k, v in sorted(dict(scaling_params).items())}
+    # LP-TRAINED models (the LP arm's DEFAULT since 11-03, Priya; see `daq_trained_in_lp`): lick_source is ADDED ONLY
+    # THEN, so every DAQ spec -- and its id, which names the stored directory -- is byte-identical to before, and the
+    # LP-trained ids are the same ids the 11-02 WIDEFIELD_LP_FROZEN=lp runs froze.
+    if lp_trained() or lp_only:
         spec["lick_source"] = "lp"
+    from wfield_local import trial_classes
+    spec["hemo_variant"] = config.hemo_variant() or "zerophase"
+    spec["selection"] = str(selection) if selection is not None else trial_classes.run_selection()
+    spec["train_fp"] = DAQ_RUN_FP if (daq_trained_in_lp() and not lp_only) else data_fingerprint(train_data)
     return spec
+
+
+def _daq_lookup_selection(sel):
+    """The selection as the DAQ-trained lookup compares it (review N2, 11-03): the camera-vs-DAQ rule and its options are
+    matched (M7), but NOT the gate-LP suffix -- the DAQ run that froze the model never runs the LP-inclusive gate, so an
+    LP run with WIDEFIELD_GATE_SOURCE=lp must still find the model frozen under ``sel-daq-quittail``."""
+    s = str(sel) if sel is not None else sel
+    return s[: -len("-gateLP")] if isinstance(s, str) and s.endswith("-gateLP") else s
+
+
+def base_id(spec) -> str:
+    """spec_id without the fields a DAQ-trained lookup from the LP arm cannot know (`_DAQ_LOOKUP_IGNORES`), with the
+    selection normalised by `_daq_lookup_selection`."""
+    d = {k: v for k, v in spec.items() if k not in _DAQ_LOOKUP_IGNORES}
+    if "selection" in d:
+        d["selection"] = _daq_lookup_selection(d["selection"])
+    return spec_id(d)
 
 
 def spec_id(spec) -> str:
@@ -144,6 +270,9 @@ def local_dir() -> Path:
     env = os.environ.get("WIDEFIELD_FROZEN_MODEL_DIR")
     if env:
         return Path(env)
+    from wfield_local import rebuild_root
+    if rebuild_root.active():                            # a rebuild's store lives in its rebuild root, never beside
+        return rebuild_root.root() / (rebuild_root.spec().get("stores") or {}).get("frozen_models", "frozen_models")
     # SIBLING OF THE JOINT BASES, deliberately, rather than a second literal fallback of its own.
     # Both are machine-local derived artifacts rooted at the working-figure parent, and deriving this
     # one from that one means there is a single place where "where does derived data live on this
@@ -161,7 +290,7 @@ def server_dir():
     publishing is a separate, byte-verified act.
     """
     try:
-        return Path(config.resolver().root("labcams")) / "frozen_models"
+        return Path(config.resolver().root("cohort_out")) / "frozen_models"
     except Exception:                                    # noqa: BLE001
         return None
 
@@ -260,14 +389,51 @@ def find(spec):
     return None, None
 
 
+def find_daq_trained(spec):
+    """``(dir, origin)`` of THE DAQ-trained model the LP arm's cross-check loads (``train_fp`` = DAQ_RUN_FP): the stored
+    model whose spec equals ``spec`` on every field except `_DAQ_LOOKUP_IGNORES`. Raises if more than one distinct
+    training fingerprint matches (ambiguous: two DAQ runs froze different training sets under the same identity)."""
+    want = base_id(spec)
+    prefix = _slug(spec).rsplit("_", 1)[0] + "_"
+    hits = {}
+    for root, origin in _roots():
+        if root is None:
+            continue
+        d = Path(root) / spec["animal"]
+        if not d.exists():
+            continue
+        for p in sorted(d.glob(f"{prefix}*")):
+            if ".SUPERSEDED_" in p.name or not (p / "manifest.json").exists():
+                continue
+            try:
+                ms = json.loads((p / "manifest.json").read_text()).get("spec") or {}
+            except Exception:                            # noqa: BLE001
+                continue
+            if ms.get("train_fp") in (None, DAQ_RUN_FP) or base_id(ms) != want:
+                continue
+            hits.setdefault(ms["train_fp"], (p, origin))
+    if len(hits) > 1:
+        raise RuntimeError(f"[frozen] {spec['animal']} {spec['kind']}/{spec['align']}: {len(hits)} DAQ-trained models "
+                           f"match the LP cross-check (training fingerprints {sorted(hits)}); point at one by id")
+    return next(iter(hits.values())) if hits else (None, None)
+
+
 def siblings(spec):
-    """Every stored model for the same (animal, kind, align, source), newest last.
+    """Every stored model for the same (animal, kind, align, source, post_s, lick_source), newest last.
 
     What makes a SPEC CHANGE visible. Without this, a changed pre-stroke set is indistinguishable
     from a first run -- both simply find nothing -- and the reference would move with no one
     noticing, which is the failure this module exists to prevent.
+
+    WINDOW AND LICK SOURCE ARE PART OF THE GROUP (11-02). The directory prefix carries only kind / align / source, so a
+    1.0 s ENL model and the 2.0 s one, or the LP-trained model and the DAQ-trained one, used to be each other's
+    "siblings": the first fit of either reported SPEC-CHANGED ("11 sessions -> 11", nothing added or removed) although
+    they are different references by design, and `refreeze` would have retired the other one. They are now compared on
+    the manifest's `post_s` / `lick_source` as well (a DAQ spec has no `lick_source`; a manifest without `post_s` stays
+    a sibling). Warning / supersede scope only: no spec, spec_id or stored model changes.
     """
     prefix = _slug(spec).rsplit("_", 1)[0] + "_"
+    want_post, want_src = spec.get("post_s"), spec.get("lick_source")
     out = []
     seen = set()
     for root, origin in _roots():
@@ -283,6 +449,10 @@ def siblings(spec):
                 m = json.loads((p / "manifest.json").read_text())
             except Exception:                            # noqa: BLE001
                 continue                                 # a half-copied model is not a candidate
+            ms = m.get("spec", {}) or {}
+            if ms.get("lick_source") != want_src or ("post_s" in ms and want_post is not None
+                                                     and float(ms["post_s"]) != float(want_post)):
+                continue                                 # another window / lick source: a different reference
             seen.add(p.name)
             out.append({"dir": p, "origin": origin, "frozen_utc": m.get("frozen_utc", ""),
                         "spec": m.get("spec", {}), "meta": m.get("meta", {})})
@@ -322,6 +492,8 @@ def load_or_fit(spec, fit, *, meta=None, refreeze=None, log=print):
     by name. Passing ``refreeze='<reason>'`` retires the existing model deliberately.
     """
     d, origin = find(spec)
+    if d is None and spec.get("train_fp") == DAQ_RUN_FP:
+        d, origin = find_daq_trained(spec)
     if d is None:
         # A MISS MAY MEAN THE STORE MOVED RATHER THAN "NEW SPEC". See `warn_if_store_moved`.
         warn_if_store_moved(log)
@@ -337,12 +509,13 @@ def load_or_fit(spec, fit, *, meta=None, refreeze=None, log=print):
     # LP_licks REUSES THE DAQ-FROZEN MODELS (Priya 10-21: no new frozen set; pre-stroke LP and DAQ trials agree except
     # PS93 far_ipsi / far_mid). Under WIDEFIELD_LICK_SOURCE=lp a MISS must therefore never fit: the fit would see
     # LP-gated pre-stroke features and file them under a DAQ spec. Only an explicit LP-trained spec (the PS93
-    # sensitivity, WIDEFIELD_LP_FROZEN=lp -> make_spec adds lick_source) may be fitted here.
+    # sensitivity, WIDEFIELD_LP_FROZEN=lp -> make_spec adds lick_source) may be fitted here. SINCE 11-03 the LP-trained
+    # spec is the LP arm's DEFAULT; this refusal now guards only the DAQ-trained cross-check (WIDEFIELD_LP_FROZEN=daq).
     from wfield_local import lp_licks
     if lp_licks.is_lp() and spec.get("lick_source") != "lp":
-        raise RuntimeError(f"[frozen] LP_licks reuses DAQ-frozen models, but none is stored for {_slug(spec)} "
-                           f"({spec['animal']}); run the DAQ path first, or set {LP_FROZEN_ENV}=lp for an "
-                           "LP-trained sensitivity model")
+        raise RuntimeError(f"[frozen] the LP arm's DAQ-trained cross-check ({LP_FROZEN_ENV}=daq) loads DAQ-frozen models, "
+                           f"but none is stored for {_slug(spec)} ({spec['animal']}); run the DAQ path first, or unset "
+                           f"{LP_FROZEN_ENV} for the LP-trained default")
     prior = [s for s in siblings(spec) if s["dir"].name != _slug(spec)]
     if refreeze:
         for s in prior:
@@ -372,6 +545,36 @@ def _read(d: Path):
     return joblib.load(Path(d) / "model.joblib")
 
 
+class LegacyStoreError(SystemExit):
+    """A SystemExit on purpose: many collectors wrap each animal in ``except Exception`` and print, which would turn a
+    refused write into a silently missing animal. This stops the run instead."""
+
+
+def _store_versions(root: Path, animal: str) -> set:
+    out = set()
+    d = Path(root) / animal
+    if not d.exists():
+        return out
+    for p in d.glob("*/manifest.json"):
+        try:
+            out.add(int((json.loads(p.read_text()).get("spec") or {}).get("freeze_version", 1)))
+        except Exception:                                # noqa: BLE001
+            continue
+    return out
+
+
+def _refuse_legacy_store(spec) -> None:
+    """A fingerprinted (FREEZE_VERSION >= 2) model is never written into a store that holds older-version models
+    (the pre-rebuild store, e.g. C:/Users/SabatiniLab/frozen_models): the rebuild freezes into a FRESH store named
+    with WIDEFIELD_FROZEN_MODEL_DIR (rebuild order G3), so the two generations can never be confused or superseded
+    into each other. Raises; the existing models are untouched."""
+    old = {v for v in _store_versions(local_dir(), spec["animal"]) if v < int(spec.get("freeze_version", 1))}
+    if old:
+        raise LegacyStoreError(f"[frozen] refusing to freeze a v{spec.get('freeze_version')} (fingerprinted) model into "
+                           f"{local_dir()}, which holds v{sorted(old)} models for {spec['animal']}: set "
+                           "WIDEFIELD_FROZEN_MODEL_DIR to a fresh store (docs/FROZEN_MODELS.md section 8)")
+
+
 def _write(spec, payload, meta, log=print):
     import joblib
 
@@ -379,6 +582,7 @@ def _write(spec, payload, meta, log=print):
 
     d = local_dir() / spec["animal"] / _slug(spec)
     writeguard.assert_writable(d.parent)
+    _refuse_legacy_store(spec)
     d.mkdir(parents=True, exist_ok=True)
     # CONCURRENCY, since 2026-08-28: stages now fan out over animals and sessions, and two workers
     # that both miss the same spec will both fit and both land here. `session_cache` solved this

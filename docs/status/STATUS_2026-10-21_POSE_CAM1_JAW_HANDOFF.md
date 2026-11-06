@@ -7,7 +7,76 @@ MICROSCOPE. Write only inside `MICROSCOPE/Priya/...`; never delete original data
 WSL LP predict with the 96-frame DALI chunk (use 16). Commit only my own files, staged by name (shared clone with the
 ENCODING window, which owns `scripts/trial_attempts.py`, `wfield_local/mixed_models.py`, `scripts/imaging_lmm.py`).
 
-## 000. LATE-MORNING UPDATE (10-21 ~10:35) -- read first, then §00
+## 0000. 10-23 UPDATE -- read first
+
+* **10-25 FINDINGS CONSOLIDATION (Priya: one science-conclusions doc). OPEN, resume here:**
+  * Agreed by all three windows: ONE file, **`docs/FINDINGS.md`**. The FaceRhythm window (e3) drafts and pushes the
+    skeleton; it was not on origin at 10-25 ~00:30.
+  * Tags: STANDS / PROVISIONAL / CORRECTED / WITHDRAWN / NOT ESTABLISHED. Each claim 2-4 lines: numbers, animals
+    agreeing, link, detail-doc pointer. Family docs stay as the evidence record (no deletions) and get a header line
+    pointing to FINDINGS.md.
+  * Sections:
+    1. behaviour + orofacial kinematics -- **mine**;
+    2. pose / 3-D / cam1 -- **mine**;
+    3. imaging decode / state / anatomy -- d4 extracts, **I review / correct**;
+    4. encoding + goal question -- d4 (cites my 3-D landing / trajectories);
+    5. FaceRhythm -- e3;
+    6. histology;
+    7. open questions / withdrawn.
+  * My 10 headline claims for sections 1-2 were sent to e3 (they match the OROFACIAL_FINDINGS status table and the
+    POSE_MODELS Part D box).
+  * The section 3 corrections and the June -> Aug drift group were sent to d4 (stale state numbers in
+    BEHAVIOURAL_STATE_CONTROL; WHERE_THE_CODE_MOVES QUIET / MEAN superseded by 15r REST / RESTW).
+  * TODO when FINDINGS.md lands (fetch + rebase first):
+    1. edit sections 1-2 directly;
+    2. review section 3;
+    3. add the header pointer in OROFACIAL_FINDINGS.md and POSE_MODELS.md Part D;
+    4. fix any reviewer contradictions e3 sends for my docs.
+* **Kinematics page** https://claude.ai/artifact/DKcKRJKbhBoratxxRc6qZv (10-25; FINDINGS 1-2 with figures, per animal; source
+  scratchpad/kin_page/, built from _style/_body/_script.html). CLAUDE.md stale START HERE markers removed (Priya OK).
+* **Imaging page v3** (https://claude.ai/artifact/PvraHiF82BFXur1hnNUCeV) adds a figure viewer: click a figure, then
+  wheel / pinch to zoom and drag to pan. Source: `scratchpad/imaging_page/imaging_results.html`, which is not in the
+  repo; republish edits from it in this session, or from another session by `url`.
+
+* **10-24 IMAGING RESULTS PAGE + DECKS (this window):**
+  * Page https://claude.ai/artifact/PvraHiF82BFXur1hnNUCeV ("Cortical Spout Coding After Stroke"). Scope: imaging results
+    whose behaviour input is only DAQ contact, the engagement gate or the LP attempt gate -- no full encoding models, no
+    kinematics. Sources: `scratchpad/imaging_page/`.
+  * Decks rebuilt 20:35 on the share FROM THE SHARE's figure tree:
+    `--src M:/MICROSCOPE/Priya/Widefield/labcams/analysis_figures`. This box's figures_working (`C:/Users/SabatiniLab/cue_lick`)
+    is stale: 857 figures missing. Then `deck_split`. Previous deck kept as `__20261018_0810`.
+  * New slides: section K = LP-gated imaging (`deck_registry.LP_GATED_FIGURES`); I112-117 = CD leave-one-out; I118 = the
+    no-stroke drift group.
+  * **June -> August no-stroke drift group** (`scripts/june_august_drift.py`, `labcams/chronic_stability/june_august_drift/`):
+    * frozen-decoder deficit / refit gain, June -> Aug (~65 d, no stroke) vs Aug -> chronic (~40 d): PS92 .13/.09 vs .03/.11,
+      PS93 .28/.16 vs .09/.21, PS94 .17/.18 vs .18/.20, PS95 .18/.18 vs .11/.11 -> chronic NOT beyond drift (3/4).
+    * crossnobis from template, Aug-vs-June vs chronic-vs-Aug: .63/1.01, .95/1.16, .43/.43, .59/.81 -> chronic beyond
+      drift (3/4, not PS94).
+    * June -> Aug includes learning. FIRST RUN.
+
+* **EVENING: cam1 production COMPLETE** -- 127 / 127 curated videos; tasks 119 / 127 landed 17:15, chain run 17:20-18:28
+  (every step exit 0; kinematics recomputed cold after 28de81c). PS95 acute in 3-D: far_R midline +32.7 deg, miss +2.09
+  mm, FAR_DIR -0.31 mm; findings rows 2 / 3 / 4 / 8d now 4 / 4. Encoding window told. NEXT: 3-D jaw + nose onset columns
+  for jaw_onsets.csv (Priya 10-23), validated on the 24 reviewed trials (`session_poses/attempt_review/key.csv`).
+
+* **cam1 / 3-D coverage:** 125 / 127 curated cam1 videos through `pose_chain` (runs 10-21 .. 10-23; every step exit 0).
+  Missing: O2 tasks **119 = PS95_20260817 (PS95's ONLY acute)** and **127 = PS95_20260831**, which failed 10-23 07:24 on
+  compute-gc-17-242 ("no GPU visible") and were resubmitted with `--exclude=compute-gc-17-242` on gpu_requeue. When they
+  land: rsync, `python -m scripts.pose_chain`, then MESSAGE THE ENCODING WINDOW (it re-runs every lick-direction result)
+  and re-check `docs/OROFACIAL_FINDINGS.md` rows 2, 3, 4, 8c, 8d.
+* **pose_chain** (`scripts/pose_chain.py`): default `--jobs 6` (use 4 when the encoding window is running); collect is
+  parallel (856bcfc); new step `cohort_checks` = first_lick_latency + pose3d_crosscheck + pose3d_vs_cam4 (84834ea), before
+  jaw_onsets (still the last write). Fixed cost ~15-20 min per run + ~1.5-2 min per new session: batch copy-backs.
+* **`pose3d_kinematics --licks all`** (28de81c, Priya-approved via the encoding window): every cam4 lick of the windows
+  (licks_all.csv) in 3-D -> `pose3d/kinematics_all/licks.csv.gz` (880,532 licks, 117 sessions); `context` pre_cue /
+  post_cue / iti, `lick_uid` key, target columns blank for ITI; in the chain's kinematics step. cam4-mode output verified
+  identical.
+* **Findings pass done 10-23:** `docs/OROFACIAL_FINDINGS.md` (status table, coverage, CORRECTED: criterion, chronic jaw
+  FAR_DIR = 2 / 4 animals, v36 paths; new section 8 with four-animal 3-D / cam1) and `docs/POSE_MODELS.md` Part D status box.
+* O2 partitions: gpu_quad estimate still later than gpu_requeue on 10-23 (fairshare); gpu_requeue preempts (a video
+  restarts). Exclude compute-gc-17-242.
+
+## 000. LATE-MORNING UPDATE (10-21 ~10:35) -- read §0000 first, then this, then §00
 
 **DONE 10:54:** the watched `jaw_onsets.csv` was rewritten (62,771 rows; every existing column verified identical to the morning file; 9 appended columns, 26 total) -> the encoding window's watcher re-runs. Previously RUNNING: background `jaw_onsets` full rebuild (started 10:15, ~40 min) with the APPENDED columns
 below -> writes `$TMP/jaw_onsets_v2.csv`, checks every EXISTING column against the morning snapshot
@@ -212,6 +281,10 @@ rsync -ah --partial --exclude 'tmp*' $B/out/ /n/files/Neurobio/MICROSCOPE/Priya/
 `sbatch -p gpu_requeue --gres=gpu:1 --array=112-137%12 $B/run_pose.sbatch` = **array 57249401** (estimate ~10-23 06:30;
 preemptible -> a preempted video restarts). `-p gpu` multi-partition gives "Invalid qos"; `-p gpu` alone estimated
 10-24. 100 / 137 videos done on 10-22 (98 curated sessions through pose_chain). Suggested `ArrayTaskThrottle=6` on FR.
+**10-23:** 124 / 137 done (all curated except 112 running, 119 + 127). 119 (PS95_0817) and 127 (PS95_0831) FAILED in
+seconds on **compute-gc-17-242** (L40S x4, MIXED): "no GPU visible to torch" -> resubmit with
+`--exclude=compute-gc-17-242` (EXCLUDE THIS NODE in future cam1 / LP submissions). gpu_requeue preempts (112 lost 28 min
+at 34 % once); A100 there ran 3.6 it/s (~84 min / video). gpu_quad test-only 10-23 still later (10-25) than gpu_requeue.
 **pose_chain now defaults to --jobs 6 and collects in parallel** (856bcfc; 10-session batch was ~66 min, collect 19 min serial).
 Array 56830841: pending tasks ask `gres/gpu:1`, wait on Priority (fairshare). 10 non-curated tasks cancelled.
 `gpu_requeue` accepts 10 h jobs but its estimated start was ~1 day out. Local cam1 LP run (reverse order from task 137

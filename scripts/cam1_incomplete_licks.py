@@ -18,6 +18,7 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+from wfield_local.pose3d import pose3d_dir
 
 V36 = "lp_r4_heatmap_20261013__clean_v36"
 POS = ("close_L", "close_center", "close_R", "far_L", "far_center", "far_R")
@@ -26,6 +27,10 @@ MEAS = {"licks_cam4": "cam4 licks / trial", "nocontact_cam4": "cam4 no-contact l
         "incomplete": "incomplete licks / trial\n(cam4 no-contact + cam1-only no-contact)",
         "incomplete_frac": "incomplete share of all licks", "jaw_only_cam4": "jaw-without-lick share (cam4)",
         "jaw_only_corr": "jaw-without-lick share\n(cam1-corrected)"}
+
+
+def _flag(x: pd.Series) -> pd.Series:
+    return x.astype("boolean").fillna(False).astype(bool)
 
 
 def session_rows(rv, s: str, E: pd.DataFrame) -> list[dict]:
@@ -37,8 +42,10 @@ def session_rows(rv, s: str, E: pd.DataFrame) -> list[dict]:
     L = pd.read_csv(sd / "licks.csv") if (sd / "licks.csv").exists() else pd.DataFrame(columns=["trial_id", "contact"])
     M = pd.read_csv(sd / "tongue_jaw_mismatch.csv") if (sd / "tongue_jaw_mismatch.csv").exists() else None
     g = E[E.session == s]
+    from wfield_local import trial_classes as TC
+    _tc = TC.session_trials(s)
+    cls = _tc.set_index("trial_id").cls if _tc is not None else None
     c1 = g[g.cam1_only]
-    seen = set(g.loc[g.jaw_only_trial, "trial_id"])
     out = []
     for p, tp in T.groupby("position"):
         ids = set(tp.trial_id)
@@ -52,12 +59,16 @@ def session_rows(rv, s: str, E: pd.DataFrame) -> list[dict]:
         r["incomplete"] = r["nocontact_cam4"] + r["cam1_only_nocontact"]
         tot = r["licks_cam4"] + r["cam1_only"]
         r["incomplete_frac"] = r["incomplete"] / tot if tot > 0 else np.nan
+        # JAW WITHOUT A LICK, as a share of ALL trials at this position (consolidation A2, 11-03; until then the share of
+        # ``jaw_pass_qc`` trials = jaw-moved trials, the jaw-moved call read as a QC gate):
+        #   jaw_only_cam4  cam4's own no-lick-with-jaw-move flag (no cam1)            -- the cam4-only view
+        #   jaw_only_corr  the "jaw_only" class of THE trial classification (`trial_classes`: cam1 licks / tongue
+        #                  removed, jaw cam4 OR cam1, cue -> stop) -- the number to quote
         if M is not None:
-            q = M[M.trial_id.isin(ids) & M.jaw_pass_qc.astype(bool)]
-            cand = q.candidate_no_lick_with_jaw_move.astype(bool)
-            r["jaw_qc_trials"] = len(q)
-            r["jaw_only_cam4"] = float(cand.mean()) if len(q) else np.nan
-            r["jaw_only_corr"] = float((cand & ~q.trial_id.isin(seen)).mean()) if len(q) else np.nan
+            q = M[M.trial_id.isin(ids)]
+            r["jaw_qc_trials"] = int(len(q))          # kept for readers; = trials with a cam4 jaw row
+            r["jaw_only_cam4"] = float(_flag(q.candidate_no_lick_with_jaw_move).sum()) / n
+            r["jaw_only_corr"] = float((tp.trial_id.map(cls) == "jaw_only").mean()) if cls is not None else np.nan
         out.append(r)
     return out
 
@@ -109,7 +120,7 @@ def main(argv=None) -> int:
         E[c] = E[c].astype("boolean").fillna(False).astype(bool)
     E["cam1_only"] = ~E.cam4_matched & ~E.in_3d & ~E.droplet
     E["jaw_only_trial"] &= ~E.droplet
-    bad = P3.failed_sessions(Path(rv.root("dlc")) / "session_poses" / "pose3d")
+    bad = P3.failed_sessions(pose3d_dir(rv))
     rows = []
     from wfield_local import analysis_kit as ak
     for s in sorted((set(E.session) - set(bad)) & ak.curated_ids()):            # curated cohort only (Priya 10-20)

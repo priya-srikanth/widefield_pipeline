@@ -66,7 +66,7 @@ def main(argv=None) -> int:
     import pandas as pd
     from wfield_local import face_rhythm_outputs as fro
     from wfield_local.paths import PathResolver
-    from face_rhythm_factors import npz_memmap
+    from wfield_local.face_rhythm.factors import npz_memmap
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--fdir", type=Path, required=True)
     ap.add_argument("--key", default=None, help="task key (default: the first projected pre-stroke task)")

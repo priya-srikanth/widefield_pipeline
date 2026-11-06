@@ -1,4 +1,24 @@
+> **CORRECTION 2026-11-03 (bal_em ADOPTED, production):** the frozen state decoder is now `session_bal_em`. It is trained on
+> class-balanced pre sessions and scores each session with a label-free EM centre (equal-weight soft class means,
+> production SD, 3 passes); no test labels are used. PS94 running recall is .99 -> .97 / .96 / .92 (was .98 -> .84 / .54 /
+> .49), and state retained is .972 -> .927 / .950 / .922. State therefore loses 4.6 / 2.3 / 5.1 % against position's
+> 50 / 19 / 12 % (~11x / 8x / 2.3x). The residual state loss is small in every animal (PS94 chronic balanced accuracy .90;
+> PS92 acute .91, its quiet recall .80). The min-mass fallback was tested and kept OFF. The session_z numbers in the
+> headers below are superseded. DECISIONS 2026-11-03 "bal_em adopted as the production state decoder".
+
+> **CORRECTION 2026-11-03:** under the z-scored (production) decoder PS94's loss is its RUNNING class (recall .98 ->
+> .84 / .54 / .49; read as quiet / licking), not licking (licking holds .90-1.0; the licking reading was the pre-fix
+> decoder's). Running alone (running-class recall) is now .98 -> .92 / .83 / .89, not flat. A class-balanced session
+> centring restores PS94 running to .91-.97 (diagnostic; decision open). DECISIONS 2026-11-03 (overnight).
+
+> **CORRECTION 2026-11-02:** the state decoder's per-session z-score was specified but never applied (fixed;
+> spec scaling="session_z"). It explains only part of PS94's state loss (chronic .64 -> .78); a within-session refit
+> stays .97-.99, so the states remain separable and the definitions hold -- PS94's LICKING pattern changed (licking read
+> as quiet .49 chronic). State is therefore not a clean non-orofacial control in PS94. DECISIONS 2026-11-02 (late).
+
 # The behavioural-state control — does *everything* degrade after the lesion, or only the target?
+
+> **Current conclusions (10-25): [FINDINGS.md](FINDINGS.md) section 3, claim 2.** The state-decoder numbers below are STALE; current sidecar `epoch_13n_state_vs_position_cue.csv`: position .863 -> .428 / .696 / .761, state .976 -> .872 / .820 / .838 (the claim is the ratio).
 
 Built 2026-09-11. Priya: *"I'm more looking for evidence that not **all** decoding/encoding degrades
 post stroke, with running as an example."*

@@ -102,12 +102,14 @@ def test_class_note_names_every_class_it_is_given():
 
 
 @pytest.mark.parametrize("variant", ["lick", "working", "stopped"])
-def test_session_trials_returns_the_same_rows_for_X_and_for_blk(variant):
+def test_session_trials_returns_the_same_rows_for_X_and_for_blk(variant, monkeypatch):
     """The block vector must line up row-for-row with the data or the bootstrap resamples nonsense.
 
     `_session_trials` computes the mask ONCE for both `field` values, which is the property that
     makes that true; this pins it against a future edit that recomputes the mask per field.
     """
+    # these minimal bundles test the mask bookkeeping, not the projection frame (ON by default since 11-04)
+    monkeypatch.setenv("WIDEFIELD_PROJECTION_FRAME", "session_z")
     n_e, n_u, n_feat = 6, 8, 3
     bd = {
         "XE": np.arange(n_e * n_feat, dtype=float).reshape(n_e, n_feat),
@@ -138,11 +140,14 @@ def test_pre_panel_is_licking_only_for_lick_and_working():
     """
     import inspect
 
-    src = inspect.getsource(G._collect_5c)
+    src = inspect.getsource(G._collect_5c_cached)
     pre = src[src.index("PRE: leave-one-session-out"):]
     pre = pre[:pre.index("by_day = {}")]
-    assert 'if variant == "stopped":' in pre, (
-        "the pre branch must special-case `stopped`; routing every variant through "
-        "`_class_select` here re-adds miss-while-working trials to the pre panel")
+    # 11-03 late / main 48f2cc6d: under the CAMERA working selection the pre panel of `working` is the held-out pre
+    # session's camera working trials (engaged + no-lick) -- deliberately, ``uw``. Under the DAQ gate the rule pinned
+    # here still holds: only `stopped` takes rows.
+    assert 'if variant == "stopped" or uw:' in pre, (
+        "the pre branch must special-case `stopped` (and only the camera working selection besides); routing every "
+        "variant through `_class_select` here re-adds miss-while-working trials to the pre panel")
     assert "mu_te = np.zeros(len(GU), bool)" in pre, (
         "lick/working must contribute NO unengaged rows to the pre panel")

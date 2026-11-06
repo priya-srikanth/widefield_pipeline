@@ -21,6 +21,7 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+from wfield_local.pose3d import pose3d_dir
 
 V36 = "lp_r4_heatmap_20261013__clean_v36"
 POS = ("close_L", "close_center", "close_R", "far_L", "far_center", "far_R")
@@ -34,7 +35,7 @@ MATCHED = (("lateral", "lr_px", "side_ml"), ("protrusion / reach", "protrusion_p
 
 
 def load(rv, animals) -> pd.DataFrame:
-    d3 = Path(rv.root("dlc")) / "session_poses" / "pose3d"
+    d3 = pose3d_dir(rv)
     K = pd.read_csv(d3 / "kinematics" / "licks.csv.gz", dtype={"date": str})
     if animals:
         K = K[K.animal.isin(animals)]
@@ -72,7 +73,7 @@ def main(argv=None) -> int:
     a = ap.parse_args(argv)
     rv = PathResolver()
     L = load(rv, a.animals)
-    out = Path(rv.root("dlc")) / "session_poses" / "pose3d" / "vs_cam4"
+    out = pose3d_dir(rv) / "vs_cam4"
     out.mkdir(exist_ok=True)
     pd.set_option("display.width", 220)
     dec, eff = [], []

@@ -149,7 +149,7 @@ def session_licks(rv, run: str, lab: str, bdir, dev: float) -> pd.DataFrame | No
     for _, t in B.trials[B.trials.engaged].iterrows():
         eng |= (ft >= t.strobe_s) & (ft <= t.stop_s)
     X = (X - X[eng].mean(0)) / X[eng].std(0)
-    L = lick_table(rv, run, lab[:4], "2026" + lab[5:], B)
+    L = lick_table(rv, run, lab.split("_")[0], "2026" + lab[5:], B)
     FF = lick_features(X, ft, L.on_s.to_numpy())
     F, Fq, Fe = FF["evoked"], FF["pre"], FF["early"]
     tgt = B.target_angle or {}
@@ -273,9 +273,10 @@ def summarise(D: pd.DataFrame) -> pd.DataFrame:
 
 
 def main(argv=None) -> int:
+    # coordinator 11-04: routed (outputs under the run tag), no longer refused in a tagged run
+    from wfield_local import config
     from wfield_local import analysis_kit as ak
     from wfield_local import epochs
-    from wfield_local import o2_inference as oi
     from wfield_local import orofacial_cohort as oc
     from wfield_local import orofacial_outputs as oo
     from wfield_local import writeguard
@@ -292,18 +293,27 @@ def main(argv=None) -> int:
     ap.add_argument("labels", nargs="*")
     a = ap.parse_args(argv)
     rv = PathResolver()
-    out = oo.root(rv) / a.run / "cohort" / "tables" / "misdirected_licks"
-    writeguard.assert_writable(out)
-    cnt = pd.read_csv(out / "counts.csv")
+    # coordinator 11-04: routed. A tagged run reads the counts misdirected_lick_counts produced for IT (they depend on
+    # the engagement gate) and writes beside them, under the run's tagged encoding tree
+    from wfield_local import run_mode
+    out = (run_mode.encoding_out_root(a.run) / "misdirected_licks" if run_mode.tag()
+           else oo.root(rv) / a.run / "cohort" / "tables" / "misdirected_licks")
+    src = out
+    out.mkdir(parents=True, exist_ok=True)
+    writeguard.assert_writable(out / "_")
+    cnt = pd.read_csv(src / "counts.csv")
     n_mis = cnt[cnt.pos == "far_contra"].groupby("label").ipsi_dev.sum()
-    bdir = oi.bundle_dir(rv, a.name) / "inputs"
+    # under a rebuild root the bundle lives in <root>/o2/<name> (o2_encoding.bundle_dir); oi.bundle_dir is the default
+    # DeepLabCut/Widefield/o2 store only, so a rebuild run would find no inputs and skip every session
+    import o2_encoding as oe
+    bdir = oe.bundle_dir(rv, a.name) / "inputs"
     if a.method == "templates":
         return main_templates(a, rv, out, bdir)
     labels = a.labels or [s["label"] for s in ak.curated_sessions() if n_mis.get(s["label"], 0) >= a.min_probe]
     parts = []
     for lab in labels:
         ep = epochs.epoch_of(lab)
-        if ep not in EPOCHS or (ep == "pre" and lab[5:] < oc.LATE_PRE_FROM):
+        if ep not in EPOCHS or (ep == "pre" and config.early_pre(lab)):
             continue
         pk = bdir / f"{lab}.pkl"
         if not pk.exists():
@@ -316,13 +326,13 @@ def main(argv=None) -> int:
         for _, t in B.trials[B.trials.engaged].iterrows():
             eng_frames |= (ft >= t.strobe_s) & (ft <= t.stop_s)
         X = (X - X[eng_frames].mean(0)) / X[eng_frames].std(0)
-        L = lick_table(rv, a.run, lab[:4], "2026" + lab[5:], B)
+        L = lick_table(rv, a.run, lab.split("_")[0], "2026" + lab[5:], B)
         F = lick_features(X, ft, L.on_s.to_numpy())
         D = decode_session(L, F, B.target_angle or {}, a.dev)
         if D.empty:
             print(f"{lab}: too few licks -- skipped", flush=True)
             continue
-        D = D.assign(label=lab, animal=lab[:4], epoch=ep)
+        D = D.assign(label=lab, animal=lab.split("_")[0], epoch=ep)
         parts.append(D)
         m = D[(D.kind == "misdirected") & (D.feat == "evoked")]
         print(f"{lab} {ep}: misdirected {len(m)}, P(far_contra) {m.p_far_contra.mean():.2f}", flush=True)
@@ -341,16 +351,16 @@ def main(argv=None) -> int:
 
 
 def main_templates(a, rv, out, bdir) -> int:
+    from wfield_local import config
     from wfield_local import analysis_kit as ak
     from wfield_local import epochs
-    from wfield_local import orofacial_cohort as oc
     cache = out / "lick_patterns"
     cache.mkdir(parents=True, exist_ok=True)
     Ls, meta = {}, {}
     for s in ak.curated_sessions():
         lab = s["label"]
         ep = epochs.epoch_of(lab)
-        if ep not in EPOCHS or (ep == "pre" and lab[5:] < oc.LATE_PRE_FROM) or (a.labels and lab not in a.labels):
+        if ep not in EPOCHS or (ep == "pre" and config.early_pre(lab)) or (a.labels and lab not in a.labels):
             continue
         cf = cache / f"{lab}_dev{a.dev:g}_v3.pkl"
         if cf.exists():
@@ -361,7 +371,7 @@ def main_templates(a, rv, out, bdir) -> int:
                 print(f"{lab}: no bundle inputs -- skipped", flush=True)
                 continue
             L.to_pickle(cf)
-        Ls[lab], meta[lab] = L, {"animal": lab[:4], "epoch": ep}
+        Ls[lab], meta[lab] = L, {"animal": lab.split("_")[0], "epoch": ep}
         print(f"{lab} {ep}: contacted {int((L.kind == 'contacted').sum())}, misdirected "
               f"{int((L.kind == 'misdirected').sum())}", flush=True)
     # window 'evoked' = lick-evoked (post - pre, primary); 'pre' = the 100 ms BEFORE onset (trial context control)

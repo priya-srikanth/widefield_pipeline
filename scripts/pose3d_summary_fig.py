@@ -23,6 +23,7 @@ import argparse
 from pathlib import Path
 
 import pandas as pd
+from wfield_local.pose3d import pose3d_dir
 
 POS = ("close_L", "close_center", "close_R", "far_L", "far_center", "far_R")
 EP_COL = {"pre": "0.35", "acute": "#d01c8b", "subacute": "#b8860b", "chronic": "#01665e"}
@@ -63,12 +64,35 @@ def _days(animal: str, date: str) -> int:
     return int((pd.Timestamp(str(date)) - sd).days)
 
 
-def figure(animal: str, SE: pd.DataFrame, K: pd.DataFrame, out: Path, pre_from: str) -> None:
+#: ``contra`` (Priya 10-30, goal-page sign): lesion-signed rows negated at plot level; the outward-signed lateral rows
+#: are + = mouse LEFT at the CENTRE spouts, so they are negated there only
+CONTRA_K = ("midline_err_ipsi", "jaw_far_bias_mm", "jaw_close_bias_mm")
+CONTRA_SE_CENTRE = ("lat_med", "habit_lat_med")
+
+
+def _to_contra(SE: pd.DataFrame, K: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
+    K = K.copy()
+    for c in K.columns:
+        if c in CONTRA_K or c.split("|")[0] in CONTRA_K:
+            K[c] = -K[c]
+    SE = SE.copy()
+    cen = SE.position.astype(str).str.contains("center")
+    for c in CONTRA_SE_CENTRE:
+        if c in SE:
+            SE.loc[cen, c] = -SE.loc[cen, c]
+    return SE, K
+
+
+def figure(animal: str, SE: pd.DataFrame, K: pd.DataFrame, out: Path, pre_from: str, contra: bool = False) -> None:
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
+    if contra:
+        SE, K = _to_contra(SE, K)
     se = SE[(SE.animal == animal) & (SE.subset == "all")]
     k = K[K.animal == animal]
+    rel = (lambda s: s.replace("+ ipsi", "+ contra").replace("+ outward)", "+ outward;\ncentre + = contra)")  # noqa: E731
+           if contra else s)
 
     def _has(src, col):
         if src == "se":
@@ -107,7 +131,7 @@ def figure(animal: str, SE: pd.DataFrame, K: pd.DataFrame, out: Path, pre_from: 
             ax.tick_params(labelsize=6)
             if not any(axes[r, j].get_visible() and axes[r, j].has_data() for r in range(i)):
                 ax.set_title(p, fontsize=8)
-            ax.set_ylabel(label, fontsize=7) if j == 0 else None
+            ax.set_ylabel(rel(label), fontsize=7) if j == 0 else None
             if i == len(rows) - 1:
                 ax.set_xlabel("days from stroke", fontsize=7)
     # jaw steering strip: FAR_DIR (cam4's readout) + CLOSE_DIR (close side spouts, 3-D only, 10-20) and the side biases
@@ -134,13 +158,14 @@ def figure(animal: str, SE: pd.DataFrame, K: pd.DataFrame, out: Path, pre_from: 
         ax.axvline(0.5, color="k", lw=0.5, ls=":")
         ax.axhline(0, color="0.6", lw=0.5)
         _xaxis(ax)
-        ax.set_ylabel(lab, fontsize=7)
+        ax.set_ylabel(rel(lab), fontsize=7)
         ax.set_xlabel("days from stroke", fontsize=7)
         ax.tick_params(labelsize=6)
         if j == 0:
             ax.legend(fontsize=6, loc="best")
-    fig.suptitle(f"{animal}: 3-D tongue / jaw per session (cam1 + cam4; grey = August pre range, dashed = its median)",
-                 fontsize=10)
+    fig.suptitle(f"{animal}: 3-D tongue / jaw per session (cam1 + cam4; grey = August pre range, dashed = its median)"
+                 + ("\nSIGN: lesion-signed rows + = CONTRALESIONAL (mouse right), flipped at plot level; centre-spout "
+                    "lateral errors negated (outward rows otherwise unchanged)" if contra else ""), fontsize=10)
     fig.tight_layout(rect=(0, 0, 1, 0.985))
     fig.savefig(out, dpi=110)
     plt.close(fig)
@@ -150,17 +175,26 @@ def main(argv=None) -> int:
     from wfield_local.paths import PathResolver
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--pre-from", default="20260801")
+    ap.add_argument("--contra", action="store_true",
+                    help="(default since 11-03, kept for old command lines) also draw summary_<animal>_contra.png")
+    ap.add_argument("--no-contra", action="store_true", help="skip summary_<animal>_contra.png (+ = contralesional)")
+    ap.add_argument("--contra-only", action="store_true", help="only the _contra figures")
     a = ap.parse_args(argv)
     rv = PathResolver()
-    d3 = Path(rv.root("dlc")) / "session_poses" / "pose3d"
+    d3 = pose3d_dir(rv)
     SE = pd.read_csv(d3 / "spout_error" / "per_session.csv", dtype={"date": str})
     K = pd.read_csv(d3 / "kinematics" / "sessions.csv", dtype={"date": str})
     out = d3 / "figures"
     out.mkdir(exist_ok=True)
     for animal in sorted(set(K.animal)):
-        f = out / f"summary_{animal}.png"
-        figure(animal, SE, K, f, a.pre_from)
-        print(f"-> {f}")
+        if not a.contra_only:
+            f = out / f"summary_{animal}.png"
+            figure(animal, SE, K, f, a.pre_from)
+            print(f"-> {f}")
+        if not a.no_contra or a.contra_only:            # Priya 11-03: + = contralesional is the DEFAULT output
+            f = out / f"summary_{animal}_contra.png"
+            figure(animal, SE, K, f, a.pre_from, contra=True)
+            print(f"-> {f}")
     return 0
 
 

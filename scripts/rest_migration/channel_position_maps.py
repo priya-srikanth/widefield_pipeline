@@ -135,7 +135,7 @@ def _signals(res: Path, allen: Path):
             ("470 nm (hemo-corrected)", np.asarray(corr))], ev
 
 
-def _quit_trials(s, cue_s, codes, lick_s, resp_s=2.0):
+def _quit_trials(s, cue_s, codes, lick_s, resp_s=None):
     """Bool per cue: True = inside the TERMINAL QUIT PERIOD, i.e. not engaged.
 
     Wraps `precue_engagement_states.engagement_gate`, the gate `beta_maps._quit_mask` uses, so this
@@ -154,7 +154,8 @@ def _quit_trials(s, cue_s, codes, lick_s, resp_s=2.0):
     try:
         lk = np.asarray(lick_s, float)
         lo = np.searchsorted(lk, cue_s, side="left")
-        hi = np.searchsorted(lk, cue_s + resp_s * ak.daq_rate(s), side="right")
+        rw = resp_s if resp_s is not None else ak.response_window_s(s)     # session's own window (A1)
+        hi = np.searchsorted(lk, cue_s + rw * ak.daq_rate(s), side="right")
         responded = (hi - lo) > 0
         order = np.arange(n)
         pos = np.array([POSITION_NAMES.get(int(c), str(c)) for c in np.asarray(codes)])
@@ -784,7 +785,7 @@ def run_session(s, out_dir, stats, figures=True):
 
     from wfield_local.framemap_event_maps import in_trial_mask, trial_end_samples
     from wfield_local.plot_lick_aligned_averages import _load_daq_events
-    lk = _load_daq_events(s["h5"], "lick_analog", 2.5, 1.0, (0.001, 0.020), 0.10)
+    lk = _load_daq_events(s["h5"], "lick_analog")
     lick_s = np.asarray(lk["lick_samples"])
     lick_f = np.searchsorted(f_of, lick_s)
     # A LICK INHERITS THE POSITION OF THE CUE IT FOLLOWS. Anything before the first cue has none.
@@ -912,6 +913,8 @@ def session_maps(item):
 
 
 def main(argv=None) -> int:
+    from wfield_local import trial_classes as _tc_m5
+    _tc_m5.require_gate("daq", "channel_position_maps (quit-period exclusion)")   # not wired to the camera classes (review M5)
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--sessions", nargs="+", default=None,
@@ -974,12 +977,13 @@ def main(argv=None) -> int:
     # NOTHING ON THE SHARE IS MOVED OR DELETED (ground rule 0/1). The existing copies under
     # `channel_comparison` stay as the historical record; new runs simply also write the pooled
     # pair where the deck can see it.
-    out_dir = a.out or (Path(PathResolver().root("labcams")) / "channel_comparison")
+    from wfield_local import lp_licks              # run-mode routing (rebuild 11-03): identity for the default run
+    out_dir = a.out or lp_licks.output_dir(Path(PathResolver().root("cohort_out")) / "channel_comparison")
     out_dir.mkdir(parents=True, exist_ok=True)
     # `--out` ALONE STILL SENDS BOTH TO ONE PLACE, so every existing hermetic invocation -- tests,
     # a scratch run -- behaves exactly as before. Only the DEFAULT changed.
-    epoch_dir = a.epoch_out or a.out or (Path(PathResolver().root("labcams"))
-                                         / "grant_figures" / "epoch")
+    epoch_dir = a.epoch_out or a.out or lp_licks.output_dir(Path(PathResolver().root("cohort_out"))
+                                                            / "grant_figures" / "epoch")
     epoch_dir.mkdir(parents=True, exist_ok=True)
     sessions = {x["label"]: x for x in config.load_sessions()}
     if a.sessions:

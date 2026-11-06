@@ -65,6 +65,8 @@ def sidecar_for(out_dir, stem: str, suffix: str, *, mkdir: bool = True) -> pathl
     """
     d = pathlib.Path(out_dir) / DATA_DIR
     if mkdir:
+        from wfield_local import lp_licks
+        lp_licks.refuse_lp_folder(d, "figure sidecar")    # N5b: an LP_licks folder needs WIDEFIELD_LICK_SOURCE=lp
         d.mkdir(parents=True, exist_ok=True)
     return d / (stem + suffix)
 

@@ -106,6 +106,8 @@ def session(job) -> pd.DataFrame:
 
 
 def main(argv=None) -> int:
+    from wfield_local import run_mode as _rm_guard
+    _rm_guard.require_default("nose_onsets")   # unrouted share writer: refuses in a non-default run mode
     from wfield_local import analysis_kit as ak
     from wfield_local.paths import PathResolver
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)

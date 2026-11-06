@@ -1,5 +1,7 @@
 # Where does the displaced spout-position code move? — the anatomical question
 
+> **Current conclusions (10-25): [FINDINGS.md](FINDINGS.md) section 3.** The 09-12 QUIET / MEAN amplitude tables below are superseded by the 15r REST / RESTW (engagement-gated) families.
+
 Started 2026-09-12. Priya: *"I want to start trying to answer **where** the displaced spout position
 codes move post-stroke."*
 

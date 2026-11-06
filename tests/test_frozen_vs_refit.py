@@ -252,7 +252,7 @@ def test_share_floor_is_a_third_of_uniform_for_six_positions():
 def test_matched_mode_is_a_valid_collector_mode():
     import inspect
 
-    src = inspect.getsource(G._collect_5c)
+    src = inspect.getsource(G._collect_5c_cached)
     assert "paired_matched" in src
     with pytest.raises(ValueError, match="paired_matched"):
         G._collect_5c("cue", "working", "nope")
@@ -296,5 +296,5 @@ def test_the_matched_seed_varies_by_session():
     """One seed per animal would score every session with very nearly the same matched model."""
     import inspect
 
-    src = inspect.getsource(G._collect_5c)
+    src = inspect.getsource(G._collect_5c_cached)
     assert "1000003 * len(y)" in src, "the matched draw is no longer session-specific"

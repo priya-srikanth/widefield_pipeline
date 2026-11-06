@@ -70,26 +70,20 @@ def large_movement(ts: np.ndarray, D: np.ndarray, cues: np.ndarray, pct: float =
     return out
 
 
+# session helpers: ONE definition in `wfield_local.face_rhythm.common` (kept under these names for existing callers)
 def _label(animal: str, date: str) -> str:
-    return f"{animal}_{str(date)[4:]}"
+    from wfield_local.face_rhythm import common
+    return common.label(animal, date)
 
 
 def _tasks(fdir: Path, sub: str) -> pd.DataFrame:
-    rows = []
-    for f in sorted((fdir / sub).glob("*.npz")) if (fdir / sub).exists() else []:
-        if f.name.endswith(".part.npz"):
-            continue
-        with np.load(f) as z:
-            rows.append({"key": f.stem, "file": f, "animal": str(z["animal"]), "date": str(z["date"]),
-                         "epoch": str(z["epoch"])})
-    T = pd.DataFrame(rows, columns=["key", "file", "animal", "date", "epoch"])
-    T["label"] = [_label(a, d) for a, d in zip(T.animal, T.date)]
-    return T
+    from wfield_local.face_rhythm import common
+    return common.sessions(fdir, sub)
 
 
 def _day(label: str):
-    from wfield_local import epochs
-    return epochs.days_since_stroke(label)
+    from wfield_local.face_rhythm import common
+    return common.day(label)
 
 
 def amplitudes(fdir: Path, names: list[str], absolute: bool = False) -> tuple[pd.DataFrame, pd.DataFrame]:
@@ -147,10 +141,13 @@ def amplitudes(fdir: Path, names: list[str], absolute: bool = False) -> tuple[pd
 
 
 def reconstruction(fdir: Path) -> pd.DataFrame:
-    """Per session: median relative reconstruction error of trial-window and whole-session bins (frozen basis)."""
+    """Per session: median relative reconstruction error of trial-window and whole-session bins (frozen basis). A
+    PRE session is scored on its HELD-OUT basis (``proj_loso/``, 10-23) when that exists -- error on the full basis is
+    in-sample for pre; sets made before 10-23 already hold held-out pre projections in ``proj/``."""
     acc = {}
     for t in _tasks(fdir, "proj").itertuples():
-        z = np.load(t.file)
+        f_lo = fdir / "proj_loso" / Path(t.file).name
+        z = np.load(f_lo if t.epoch == "pre" and f_lo.exists() else t.file)
         a = acc.setdefault(t.label, ([], []))
         a[0].append(z["trials_err"].ravel())
         a[1].append(z["session_err"].ravel())
@@ -158,11 +155,28 @@ def reconstruction(fdir: Path) -> pd.DataFrame:
                           "recon_err_session": float(np.nanmedian(np.concatenate(v[1])))} for k, v in acc.items()])
 
 
+def own_sub(fdir: Path) -> str:
+    """The per-session own-fit folder to read: ``own8`` (8 starts, 10-24 rerun) once it is COMPLETE (as many files as
+    ``own``), else ``own`` (3 starts). More starts = the session's best solution more often found: a tighter pre range
+    for the factor angles and an unbiased EVR gap (a missed optimum makes own EVR, hence the gap, too low)."""
+    n = lambda d: len(list((fdir / d).glob("*.npz"))) if (fdir / d).exists() else 0  # noqa: E731
+    return "own8" if n("own8") and n("own8") >= n("own") else "own"
+
+
+def loso_floor(fdir: Path) -> pd.DataFrame:
+    """Leave-one-pre-day-out EVR per pre day (``loso/rank<R>_<day>.json`` at the master's rank): held-out EVR = the
+    pre-stroke level a session's frozen EVR is read against (FINDINGS 3)."""
+    import json
+    R = int(np.load(fdir / "master.npz")["rank"])
+    rows = [json.loads(f.read_text()) for f in sorted((fdir / "loso").glob(f"rank{R:02d}_*.json"))]
+    return pd.DataFrame(rows)[["animal", "day", "evr_held_out", "evr_in_fit"]] if rows else pd.DataFrame()
+
+
 def evr_gap(fdir: Path, names: list[str]) -> pd.DataFrame:
     """Per session (mean over its videos): EVR own / frozen / gap, and matched cosine of own to frozen factors
     (mean + per component)."""
     rows = []
-    for t in _tasks(fdir, "own").itertuples():
+    for t in _tasks(fdir, own_sub(fdir)).itertuples():
         z = np.load(t.file)
         r = {"label": t.label, "evr_own": float(z["evr_own"]), "evr_frozen": float(z["evr_frozen"]),
              "cos_spatial_mean": float(np.mean(z["cos_spatial"])),
@@ -218,8 +232,8 @@ def movement(fdir: Path, home: np.ndarray, freqs: np.ndarray, midline_x: float |
     S = pd.DataFrame(rows)
     epoch_of = {lab: _epoch(lab) for lab in labels}
     maps = {"midline_x": mid, "ipsi_mask": ipsi, "band": band, "measure": measure}
-    for a in sorted({lab[:4] for lab in labels}):
-        idx = {ep: [i for i, lab in enumerate(labels) if lab[:4] == a and epoch_of[lab] == ep]
+    for a in sorted({lab.split("_")[0] for lab in labels}):
+        idx = {ep: [i for i, lab in enumerate(labels) if lab.split("_")[0] == a and epoch_of[lab] == ep]
                for ep in ("pre", "acute", "subacute", "chronic")}
         if not idx["pre"]:
             continue
@@ -246,7 +260,7 @@ def session_table(fdir: Path, names: list[str], home: np.ndarray, freqs: np.ndar
     for p in parts[1:]:
         if len(p):
             S = S.merge(p, on="label", how="outer")
-    S.insert(1, "animal", S.label.str[:4])
+    S.insert(1, "animal", S.label.str.split("_").str[0])
     S.insert(2, "epoch", [_epoch(x) for x in S.label])
     S.insert(3, "day", [_day(x) for x in S.label])
     return S.sort_values(["animal", "label"]).reset_index(drop=True)
@@ -256,6 +270,50 @@ def epoch_stats(S: pd.DataFrame, metrics: list[str], seed: int = 0) -> tuple[pd.
     """Per-animal epoch means and paired change vs pre, through the cohort's one definition."""
     from wfield_local import orofacial_cohort as oc
     return oc.epoch_tables(S[S.epoch.isin(oc.EPOCH_ORDER)], seed=seed, metrics=metrics)
+
+
+def lick_split(names: list[str]) -> tuple[list[str], list[str]]:
+    """(lick-locked components, the rest) by NAME: "lick" in the name, lick INITIATION ("prelick") excluded -- the
+    master's labels.json (FINDINGS 4a); matches fr_groups.master_v1's lick part for master_pre_v1."""
+    lick = [n for n in names if "lick" in n and "prelick" not in n]
+    return lick, [n for n in names if n not in lick]
+
+
+def task_nontask(S: pd.DataFrame, names: list[str]) -> pd.DataFrame:
+    """The manuscript's "relative preservation of NON-TASK orofacial movements" (2pRAM cohort, Fig 4): per session,
+    TASK = summed absolute expression of the lick components in the RESPONSE window; NON-TASK = summed absolute
+    expression of the other components BETWEEN trials (median bins, large movement excluded). -> per animal x epoch,
+    each as the ratio to the animal's pre-stroke mean (rule 8: per animal; one mean per session)."""
+    lick, other = lick_split(names)
+    T = S[["label", "animal", "epoch"]].copy()
+    T["task"] = S[[f"abs_{n}_response" for n in lick]].sum(1, min_count=len(lick))
+    T["nontask"] = S[[f"abs_{n}_between" for n in other]].sum(1, min_count=len(other))
+    A = T.groupby(["animal", "epoch"])[["task", "nontask"]].mean().reset_index()
+    pre = A[A.epoch == "pre"].set_index("animal")[["task", "nontask"]]
+    for c in ("task", "nontask"):
+        A[f"{c}_vs_pre"] = A[c] / A.animal.map(pre[c])
+    return A
+
+
+def severity_table(S: pd.DataFrame, names: list[str]) -> pd.DataFrame:
+    """One row per animal: lesion burden (histology, caudoputamen ipsi / contra % area; LOWER = more tissue lost) and
+    its FaceRhythm deficit -- lick (task) and non-task expression vs pre, acute and chronic; chronic minus pre
+    reconstruction error, EVR gap and morphing where present. DESCRIPTIVE: n = 4 animals, no test (rule 8)."""
+    from wfield_local import histology_area as ha
+    H = ha.per_animal(ha.load())
+    A = task_nontask(S, names).set_index(["animal", "epoch"])
+    rows = []
+    for an in sorted(S.animal.unique()):
+        r = {"animal": an, "burden_ipsi_contra_pct": H["mean"].get(an, np.nan), "burden_sem": H["sem"].get(an, np.nan)}
+        for ep in ("acute", "chronic"):
+            for c in ("task", "nontask"):
+                r[f"{c}_vs_pre_{ep}"] = A[f"{c}_vs_pre"].get((an, ep), np.nan)
+        g = S[S.animal == an].groupby("epoch").mean(numeric_only=True)
+        for c in ("recon_err_trials", "evr_gap", "cos_spatial_mean", "cos_spectral_mean"):
+            if c in g and "pre" in g.index and "chronic" in g.index:
+                r[f"{c}_chronic_minus_pre"] = g.loc["chronic", c] - g.loc["pre", c]
+        rows.append(r)
+    return pd.DataFrame(rows)
 
 
 # ------------------------------------------------------------------------------------------- naming the components

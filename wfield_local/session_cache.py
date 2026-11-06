@@ -23,7 +23,13 @@ import os
 import pickle
 from pathlib import Path
 
-CACHE_VERSION = 13  # bump when any cached function's computation changes
+CACHE_VERSION = 14  # bump when any cached function's computation changes
+# v14 (2026-11-05, REBUILD_CODE 8.53): IMAGING LICKS = THE BEHAVIOUR DAQ DETECTOR (Priya 11-04/05). Every imaging lick
+# train (`_load_daq_events(h5, "lick_analog")`, `analysis_kit.lick_samples`) lost the 0.10 s refractory and the 1.0 V
+# offset for the yaml `lick_detection` profile (0.5 V, 40 ms floor): 0.58 % more onsets (PS95 1.4 %), 0 hits and 0
+# no-floor RTs changed (LICK_DETECTOR_COMPARE_2026-11-04.md on main a69fb9c3). The detector lives in code + yaml, which
+# `session_signature` does not see, and `_trial_features` (lick-free pre-cue windows, lick-aligned events) feeds every
+# cached kind -- so no v13 entry may be served.
 # v13 (2026-09-26): BLOCK IDS now split an over-long run EVENLY instead of chunking from the left at
 # block_size_max. Left-chunking made a run of 9 into 8+1, and with `timing.block_size_min` of 4 a
 # one-trial block is not something the scheduler can produce -- 286 of 491 over-long runs (58.2%)
@@ -108,6 +114,9 @@ def _default_cache_dir() -> Path:
     env = os.environ.get("WIDEFIELD_SESSION_CACHE")
     if env:
         return Path(env)
+    from wfield_local import rebuild_root
+    if rebuild_root.active():                     # a rebuild's cache lives in its rebuild root (wfield_local/rebuild_root)
+        return rebuild_root.root() / (rebuild_root.spec().get("stores") or {}).get("session_cache", "session_cache")
     try:
         from wfield_local import config
         return Path(config.resolver().root("figures_working")).parent / ".widefield_session_cache"
@@ -179,13 +188,7 @@ def cached(session, kind, compute, params=None, verbose=True):
     `compute` is a zero-arg callable producing a picklable result."""
     if _disabled():
         return compute()
-    # LP_licks (WIDEFIELD_LICK_SOURCE=lp, 2026-10-21): EVERY kind is tagged, here, once -- features, categories, CD arms,
-    # RSA, cross-mouse -- so an LP result can never be served for a DAQ one or evict it (the prune below is by kind).
-    # The tag carries the attempts table's identity, so a rewrite of trial_attempts.csv starts fresh LP entries.
-    # Results that do not depend on licks are recomputed once under the tag; that costs time, never correctness.
-    from wfield_local import lp_licks
-    if lp_licks.is_lp():
-        kind = f"{kind}-{lp_licks.cache_tag()}"
+    kind = effective_kind(kind)
     lab = session["label"]
     sig = session_signature(session, params)
     fp = CACHE_DIR / f"{lab}__{kind}__{sig}.pkl"
@@ -195,7 +198,39 @@ def cached(session, kind, compute, params=None, verbose=True):
                 return pickle.load(fh)
         except Exception:
             pass  # corrupt/partial -> recompute below
-    res = compute()
+    return _store(fp, lab, kind, compute(), verbose)
+
+
+def effective_kind(kind: str) -> str:
+    """The kind as it lands in the file name under the current run's switches (LP source, LP gate, run mode). Readers
+    that glob the cache directly (e.g. `joint_locanmf.BasisSource.variance_captured`) must use this too."""
+    # LP_licks (WIDEFIELD_LICK_SOURCE=lp, 2026-10-21): EVERY kind is tagged, here, once -- features, categories, CD arms,
+    # RSA, cross-mouse -- so an LP result can never be served for a DAQ one or evict it (the prune below is by kind).
+    # The tag carries the attempts table's identity, so a rewrite of trial_attempts.csv starts fresh LP entries.
+    # Results that do not depend on licks are recomputed once under the tag; that costs time, never correctness.
+    from wfield_local import lp_licks
+    if lp_licks.is_lp():
+        kind = f"{kind}-{lp_licks.cache_tag()}"
+    # LP-INCLUSIVE GATE (WIDEFIELD_GATE_SOURCE=lp, 2026-11-01; `gate_source` docstring): same pattern, its own tag,
+    # added ONLY when the switch is on, so every existing DAQ / LP_licks key is unchanged. ONE exemption: trial features
+    # (`tf-*`, `locanmf_position_decoder.feature_cache_kind`) are built before any gate is applied (`_trial_features`
+    # never calls engagement_gate; the gate is applied downstream on its indices), so they stay shared and warm.
+    # Every other kind is tagged -- a gate-free kind is recomputed once under the tag: time, never correctness.
+    from wfield_local import gate_source
+    if gate_source.is_lp() and not kind.startswith("tf-"):
+        kind = f"{kind}-{gate_source.cache_tag()}"
+    # RUN-MODE TAG (rebuild 2026-11-03, trap T12): the hemo variant (other than the untagged meegkit_hpfit), the
+    # LocaNMF projection path and a non-default trial selection enter the KIND -- tf-* included, as agreed for the
+    # selection tag -- so the prune below (by label x kind) can never delete another variant's / selection's entries,
+    # and a variant run can share this cache dir safely. Empty for the default run: every existing key is unchanged.
+    from wfield_local import run_mode
+    _mt = run_mode.cache_tag()
+    if _mt:
+        kind = f"{kind}-{_mt}"
+    return kind
+
+
+def _store(fp, lab, kind, res, verbose=True):
     CACHE_DIR.mkdir(parents=True, exist_ok=True)
     tmp = fp.with_suffix(f".{os.getpid()}.tmp")
     with open(tmp, "wb") as fh:

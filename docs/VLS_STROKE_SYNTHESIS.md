@@ -1,5 +1,7 @@
 # What VLS stroke does to the cortical representation of lick target — synthesis
 
+> **SUPERSEDED for current conclusions (10-25) by [FINDINGS.md](FINDINGS.md) section 3.** Kept as the 09-13 record. Known stale here: the ungated RESTref maps and pre-audit rest numbers, the state-decoder values, the chronic encoder value (0.943), "PS94 has no chronic sessions", "fully recovers".
+
 **2026-09-13.** Every claim below names the figure that supports it. Figure files live in
 `<labcams>/grant_figures/epoch/` (the `epoch_*` families, deck section I) and
 `<labcams>/grant_figures/` (the `grant_*` families, deck section H); each has a `.csv` value sidecar

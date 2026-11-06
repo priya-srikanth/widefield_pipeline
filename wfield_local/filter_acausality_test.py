@@ -113,7 +113,7 @@ def fit_mask(s, n_frames, csmp, cue, pre_s=TRIAL_PRE_S, post_s=TRIAL_POST_S,
     from wfield_local import behavior_events, config
 
     animal, mmdd = s["label"].split("_")
-    ev = behavior_events.get_or_compute(config.resolver(), animal, f"2026{mmdd}")
+    ev = behavior_events.get_or_compute(config.resolver(), animal, config.date8(mmdd))
     mask = np.ones(n_frames, bool)
 
     # 1. drop every trial window: strobe - pre_s  ->  cue + post_s
@@ -259,7 +259,7 @@ def patterns(s, sig):
     from wfield_local.plot_spout_trial_averages import _load_daq_events as _lc
 
     cue = _lc(s["h5"])
-    lk = _ll(s["h5"], "lick_analog", 2.5, 1.0, (0.001, 0.020), 0.10)
+    lk = _ll(s["h5"], "lick_analog")
     cue_f, _l, _c = _fr(s, cue, lk)
     codes = classify_cues_with_backup(s, cue, verbose=False)
     n, T = int(round(2.0 * FS)), sig.shape[1]
@@ -316,7 +316,7 @@ def analyse_session(lab, modes, win_s=DETREND_WIN_S, refit_t=False):
     need = [m for m in modes if m in MASK_SPEC]
     if need:
         cue = _lc(s["h5"])
-        lk = _ll(s["h5"], "lick_analog", 2.5, 1.0, (0.001, 0.020), 0.10)
+        lk = _ll(s["h5"], "lick_analog")
         _cf, _lf, csmp = _fr(s, cue, lk)
         if csmp is None:      # regime A has no corrected-frame map -> cannot build a mask
             modes = [m for m in modes if m not in MASK_SPEC]
@@ -389,7 +389,7 @@ def _summary(rows, modes):
 
     # per animal, because the cohort is NOT uniform and an average would hide that
     print("\n=== per animal, pre-cue (chance 0.167) ===")
-    animals = sorted({r["label"][:4] for r in rows})
+    animals = sorted({r["label"].split("_")[0] for r in rows})
     print("{:6s} {:>4s}".format("", "n") + "".join("{:>13s}".format(m) for m in modes))
     for a in animals:
         rr = [r for r in rows if r["label"].startswith(a)]
@@ -431,9 +431,9 @@ def main(argv=None) -> int:
     else:
         dates = (set(config.expand_dates(args.from_dates, width=4)) if args.from_dates
                  else set(config.curated_dates()))
-        only = config.normalize_animals(args.animals) or sorted({x["label"][:4] for x in SESSIONS})
+        only = config.normalize_animals(args.animals) or sorted({x["label"].split("_")[0] for x in SESSIONS})
         labs = [x["label"] for x in SESSIONS
-                if x["label"][:4] in set(only) and x["label"][-4:] in dates]
+                if x["label"].split("_")[0] in set(only) and x["label"][-4:] in dates]
     print("[filter_test] {} sessions x {} modes: {}".format(len(labs), len(modes), modes), flush=True)
 
     # FANNED OUT OVER CORES (CLAUDE.md ground rule 6). This is the most I/O-heavy per-session loop

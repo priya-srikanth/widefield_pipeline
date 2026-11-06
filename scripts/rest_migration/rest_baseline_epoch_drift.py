@@ -341,8 +341,9 @@ def main() -> int:
         from pathlib import Path
 
         from wfield_local.paths import PathResolver
-        p = Path(a.out or (Path(PathResolver().root("labcams")) / "grant_figures" / "epoch"
-                           / "epoch_15j_rest_baseline_epoch_drift.csv"))
+        from wfield_local import lp_licks
+        p = Path(a.out or (Path(lp_licks.output_dir(Path(PathResolver().root("cohort_out")) / "grant_figures" / "epoch"))
+                           / "epoch_15j_rest_baseline_epoch_drift.csv"))      # THIS run's epoch dir (11-04)
         if not p.exists():
             print(f"!! no table at {p} -- run once WITHOUT --replot first.")
             return 1
@@ -416,8 +417,10 @@ def main() -> int:
     from pathlib import Path
 
     from wfield_local.paths import PathResolver
-    out = a.out or (Path(PathResolver().root("labcams")) / "grant_figures" / "epoch"
-                    / "epoch_15j_rest_baseline_epoch_drift.csv")
+    from wfield_local import lp_licks
+    out = a.out or (Path(lp_licks.output_dir(Path(PathResolver().root("cohort_out")) / "grant_figures" / "epoch"))
+                    / "epoch_15j_rest_baseline_epoch_drift.csv")              # THIS run's epoch dir (11-04)
+    Path(out).parent.mkdir(parents=True, exist_ok=True)
     with open(out, "w", newline="", encoding="utf-8") as fh:
         w = csv.DictWriter(fh, fieldnames=list(rows[0]))
         w.writeheader()

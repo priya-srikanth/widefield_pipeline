@@ -1,0 +1,86 @@
+# COHORT 2 per-animal metadata (PS118, PS120, PS121, PS122) -- started imaging 2026-10-29.
+# Same schema as configs/animals.yaml (cohort1, PS92-95); read that file's header for what each field means.
+# NOT pooled with cohort1: see configs/cohorts.yaml. docs/NEW_COHORT_2026-10-29.md = what to do per machine.
+#
+# MIXED GENOTYPES IN ONE COHORT (Priya 2026-10-29): two Thy1-GCaMP6s, two VGLUT1-IRES-Cre x LSL-RiboL1-jGCaMP8s
+# (soma-localised jGCaMP8s; first tested on PS121, docs/PILOT_TEST_SESSIONS.md). Both imaged at 470 nm (+ 415).
+# `genotype` is the label to group or split by; any pooled result must be checked per genotype, since the two
+# indicators differ in kinetics and spatial spread. Thy1-GCaMP6s GP4.3: PS118, PS120 (DOB 2026-08-03);
+# VGLUT1-IRES-Cre x LSL-RiboL1-jGCaMP8s: PS121, PS122 (DOB 2026-01-29) (Priya 2026-10-29).
+# Sex: PS118, PS120 male; PS121, PS122 female.
+#
+# STILL TO FILL IN (each null is a fact nobody has entered, not a default):
+#   reference_date      OVERRIDE of the cohort's master alignment session (configs/cohorts.yaml cohort2
+#   reference_landmarks reference_date / reference_landmarks) for this animal only; null = use the cohort's.
+#                       Until a reference is set AND its landmarks are clicked, preprocessing SKIPS
+#                       cross-registration (motion / SVD / push still run) and says what is missing; then re-run
+#                       `python -m wfield_local.preprocess <dates>` (motion and SVD are skipped as done).
+#                       `python -m wfield_local.alignment_reference` shows the state per animal.
+#   stroke_date         YYYYMMDD of the VLS lesion, once induced. null = every session is pre-stroke.
+#   epochs              seed boundaries, filled after the lesion (see animals.yaml cohort1 header).
+
+animals:
+  PS118:
+    color: "tab:purple"
+    marker: ">"     # session-dot SHAPE (cat_points.animal_marker). Unique within the cohort and distinct from cohort1's.
+    sex: M
+    date_of_birth: 2026-08-03
+    genotype: "Thy1-GCaMP6s GP4.3"
+    indicator_nm: 470
+    characteristics: {}
+    stroke_date: null
+    stroke_laterality: "L"          # planned (same as cohort1); confirm
+    reference_date: null          # null = the cohort's master alignment session
+    reference_landmarks: null
+    exclude: []
+
+  PS120:
+    color: "tab:brown"
+    marker: "<"
+    sex: M
+    date_of_birth: 2026-08-03
+    genotype: "Thy1-GCaMP6s GP4.3"
+    indicator_nm: 470
+    characteristics: {}
+    stroke_date: null
+    stroke_laterality: "L"
+    reference_date: null          # null = the cohort's master alignment session
+    reference_landmarks: null
+    exclude: []
+
+  PS121:
+    color: "tab:pink"
+    marker: "P"     # was ">" under the old name-hash rule -- the SAME shape as PS118 (code review 2026-11-04)
+    sex: F
+    date_of_birth: 2026-01-29
+    genotype: "VGLUT1-IRES-Cre x LSL-RiboL1-jGCaMP8s"
+    indicator_nm: 470
+    characteristics: {}
+    stroke_date: null
+    stroke_laterality: "L"
+    reference_date: null          # null = the cohort's master alignment session
+    reference_landmarks: null
+    exclude: []
+
+  PS122:
+    color: "tab:olive"
+    marker: "v"
+    sex: F
+    date_of_birth: 2026-01-29
+    genotype: "VGLUT1-IRES-Cre x LSL-RiboL1-jGCaMP8s"
+    indicator_nm: 470
+    # camera_roi_height: 2026-10-29 session recorded at 509 image rows (dims 2_509_480) vs the
+    # cohort's usual 460 (2_460_480). Per-session processing is unaffected (dims read from the .dat
+    # name); cross-session SPATIAL work must go through Allen/CCF alignment, not native pixel stacking.
+    # See docs/EXPERIMENT_ERRORS.md (2026-10-29 PS122 ROI). Confirm/keep the ROI consistent going forward.
+    characteristics: {camera_roi_height_2026_10_29: 509}
+    stroke_date: null
+    stroke_laterality: "L"
+    reference_date: null          # null = the cohort's master alignment session
+    reference_landmarks: null
+    exclude: []
+
+date_policy:
+  # Cohort1's early-June / 8-5 exclusions do NOT carry over (they were dates of THAT cohort's sessions).
+  # Add this cohort's own noisy / training days here as they are identified.
+  cross_session_exclude: []

@@ -22,17 +22,18 @@ ACOL = {"PS92": "#1b9e77", "PS93": "#d95f02", "PS94": "#7570b3", "PS95": "#e7298
 
 
 def main() -> int:
+    # coordinator 11-04: routed (outputs under the run tag), no longer refused in a tagged run
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
-    from wfield_local import orofacial_cohort as oc
-    from wfield_local import orofacial_outputs as oo
     from wfield_local import writeguard
-    from wfield_local.paths import PathResolver
-    q = oo.root(PathResolver()) / oc.RUN / "imaging_encoding" / "qc"
+    from wfield_local import run_mode
+    q = run_mode.encoding_out_root() / "qc"       # slowband_decode_check's (tagged) output; this figure goes there too
+    q.mkdir(parents=True, exist_ok=True)
     D = pd.read_csv(q / "slowband_decode.csv")
-    B = pd.read_csv(q / "position_block_summary.csv")[["label", "median"]]
+    # position_block_durations: a run-independent behaviour table (untagged, seeded)
+    B = pd.read_csv(run_mode.behaviour_qc_dir() / "position_block_summary.csv")[["label", "median"]]
     D = D.merge(B, on="label", how="left")
     P = D[D["set"] == "pre"]
     fig, axs = plt.subplots(2, 2, figsize=(12.5, 9.2))

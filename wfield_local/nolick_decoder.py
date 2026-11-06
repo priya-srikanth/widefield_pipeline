@@ -79,7 +79,9 @@ CATEGORIES = ("engaged", "late_rewarded", "undetected")
 # late_rewarded arm is empty by construction, and the late-vs-undetected distinction is a real result
 # worth keeping visible -- on PS93 8/12 the entire pre-cue survival sat in the LATE arm (balanced
 # 0.532, p=0.003) while undetected trials showed nothing (0.153, p=0.76).
-DEFAULT_RESPONSE_WINDOW_S = 3.5
+#
+# THE RESPONSE-WINDOW FALLBACK is no longer a constant here: it is `daq_trials.fallback_response_window_s()`
+# (behavior.response_window_fallback_s, 3.5 s), the one value every resolver uses (code review 11-04 item 6).
 
 # Known non-stroke reasons a position's "undetected" trials over-represent failed EXECUTION rather
 # than absent intent. Recorded so the DLC/facial-tracking pass has a target list.
@@ -109,7 +111,7 @@ def _args(source="locanmf", align="cue", post_s=2.0, bins=None):
                            post_s=post_s, fs=FS, max_rt=2.0, bins=bins)
 
 
-def response_window_for(s, default=DEFAULT_RESPONSE_WINDOW_S):
+def response_window_for(s, default=None):
     """This session's response window in seconds, from its own gui_config.json.
 
     Read per session rather than taken from defaults because it is a TASK setting that has been
@@ -128,11 +130,13 @@ def response_window_for(s, default=DEFAULT_RESPONSE_WINDOW_S):
 
     from wfield_local import daq_trials
 
-    animal = s["label"][:4]
+    if default is None:
+        default = daq_trials.fallback_response_window_s()      # the one configured fallback (was 3.5 here)
+    animal = s["label"].split("_")[0]
     try:
         for cand in config.load_sessions():
             if cand["label"] == s["label"] and cand.get("behavior_trials"):
-                win, _src = daq_trials.response_window_s(Path(cand["behavior_trials"]).parent, default)
+                win, _src = daq_trials.response_window_s(Path(cand["behavior_trials"]).parent)
                 return float(win)
         m = _re.search(rf"{animal}_(\d{{8}})_", str(s.get("h5") or "")) or \
             _re.search(r"[/\\](\d{8})[/\\]", str(s.get("h5") or s.get("mc") or ""))
@@ -142,7 +146,7 @@ def response_window_for(s, default=DEFAULT_RESPONSE_WINDOW_S):
         root = config.resolver().root("behavior_logs")
         hits = sorted(_glob.glob(f"{root}/{animal}_{yyyymmdd}_*/gui_config.json"))
         if hits:
-            win, _src = daq_trials.response_window_s(Path(hits[0]).parent, default)
+            win, _src = daq_trials.response_window_s(Path(hits[0]).parent)
             return float(win)
         print(f"  [{s['label']}] no gui_config.json for {yyyymmdd} -> default {default}s", flush=True)
     except Exception as ex:                                            # noqa: BLE001
@@ -184,10 +188,12 @@ def categorize(s, args, with_licks=False):
 
     There is deliberately NO arm past the response window. A lick at 4 s arrives while the spout is
     already moving, so it belongs to no trial cleanly; such cues count as `undetected`, which is what
-    the task scores them as.
+    the task scores them as. EXCEPTION, CAMERA GATE ONLY (Priya FINAL 11-03): the lick definition is then
+    trial_classes' cue_stop window (cue -> trial stop, the contact table), so an "undetected" cue whose
+    cue_stop class is contact is a contact trial and is moved to `late_rewarded` (out of the no-lick arm).
     """
     cue = _load_cue_events(s["h5"])
-    lk = _load_daq_events(s["h5"], "lick_analog", 2.5, 1.0, (0.001, 0.020), 0.10)
+    lk = _load_daq_events(s["h5"], "lick_analog")
     # LP_licks: the SAME replacement `_trial_features` makes (one definition, `lp_licks.session_lp`), so categories and
     # features agree trial for trial. engaged = first LP attempt lick within max_rt; late_rewarded = the first LP lick
     # after max_rt but inside the response window; trials without an LP verdict are out of coverage.
@@ -254,18 +260,40 @@ def categorize(s, args, with_licks=False):
     from wfield_local.locanmf_cue_lick_analysis import POSITION_NAMES
     from wfield_local.precue_engagement_states import engagement_gate
     responded = np.array([c == "engaged" or c == "late_rewarded" for c in cat], bool)
+    from wfield_local import gate_source  # [gate-source hook] WIDEFIELD_GATE_SOURCE (see that module)
+    responded = gate_source.gate_responded(s["label"], np.arange(len(codes)), responded)  # [gate-source hook]
     #: Reference positions in CODE space, from the same names the rest of the pipeline gates on.
     #: Derived here rather than imported from `poststroke_compare` (which imports this module).
     ref_codes = tuple(c for c, nm in POSITION_NAMES.items()
                       if nm in ("close_L", "close_center"))
-    try:
-        _not_eng = engagement_gate(np.arange(len(codes)), responded, np.asarray(codes),
-                                   reference=ref_codes)
-        sess_eng = ~np.asarray(_not_eng, bool)
-    except Exception as ex:                                            # noqa: BLE001
-        print(f"  [{s_label(s)}] engagement gate failed ({type(ex).__name__}) -> all engaged",
-              flush=True)
-        sess_eng = np.ones(cue_f.size, bool)
+    from wfield_local import trial_classes as _tc
+    if _tc.camera_gate_on():
+        # CAMERA TRIAL GATE (rebuild 11-03, `trial_classes`): sess_eng = the cue's camera class is in GATES["working"].
+        # Its consumers read `undetected & ~sess_eng` as STOPPED, so an undetected cue that is neither working nor
+        # stopped ("unknown": no video, unmatched cue) leaves the categorisation (cat = ""): it is in neither arm, as
+        # `camera_select`. No fail-open here: a class-table error propagates.
+        # ONE LICK DEFINITION (Priya FINAL 11-03): the camera classes over the cue_stop window (cue -> trial stop;
+        # contacts from cue + 70 ms, the contact table) -- the same window and table as trial_classes, so the two
+        # cannot disagree. A cue the DAQ detector called "undetected" but whose cue_stop class is "contact" (a contact
+        # after the response window, or a detector / contact-table mismatch) is a CONTACT trial: it leaves the no-lick
+        # arm (-> late_rewarded, excluded from the decoder like every late hit). Checked by
+        # scripts/camera_coverage_tables.py (the disagreement table).
+        ccls = _tc.cue_classes_for(s["label"], np.asarray(cue["cue_samples"], float) / float(lk["sample_rate_hz"]),
+                                   window="cue_stop")
+        cat = np.where((cat == "undetected") & (ccls == "contact"), "late_rewarded", cat).astype(object)
+        sess_eng = _tc.in_sel(ccls, "miss_working")   # read on UNDETECTED cues only: no contact class (review M6)
+        _CAM_WORKING[s["label"]] = _tc.in_sel(ccls, "working")   # per cue: the bal_em centre rows (Priya 11-03)
+        neither = ~sess_eng & ~np.isin(ccls, list(_tc.STOPPED_CLASSES))
+        cat = np.where((cat == "undetected") & neither, "", cat).astype(object)
+    else:
+        try:
+            _not_eng = engagement_gate(np.arange(len(codes)), responded, np.asarray(codes),
+                                       reference=ref_codes)
+            sess_eng = ~np.asarray(_not_eng, bool)
+        except Exception as ex:                                            # noqa: BLE001
+            print(f"  [{s_label(s)}] engagement gate failed ({type(ex).__name__}) -> all engaged",
+                  flush=True)
+            sess_eng = np.ones(cue_f.size, bool)
     base = (codes, cat, blk, rt_s, cue_f, np.asarray(sess_eng, bool))
     if not with_licks:
         return base
@@ -286,6 +314,22 @@ def categorize(s, args, with_licks=False):
 #: `locanmf_position_decoder._FEATURE_ARGS` plus `response_window_s`, which `categorize` takes from
 #: args when present and only otherwise derives from the session.
 _SF_ARGS = ("align", "post_s", "pre_s", "fs", "max_rt", "baseline", "source", "response_window_s")
+
+
+#: per session label, the camera WORKING flag per cue from the last `categorize` (camera gate only): the rows the
+#: bal_em EM centre is fitted on (`spout_scaling.centre_mask`, Priya 11-03 "camera gate everywhere")
+_CAM_WORKING: dict = {}
+
+
+def _cam_working_of(d):
+    """The per-row camera WORKING flags of one category; an entry cached before they existed RAISES under the camera
+    gate (never a silent all-True)."""
+    if "cam_working" in d:
+        return np.asarray(d["cam_working"], bool)
+    from wfield_local import trial_classes as _tc
+    if _tc.camera_gate_on():
+        raise RuntimeError("nolick session features without camera working flags (a stale cache entry): rebuild them")
+    return np.ones(np.asarray(d["y"]).size, bool)
 
 
 def session_features_cache_kind(args, *, signal_key, lead_s) -> str:
@@ -317,6 +361,10 @@ def session_features_cache_kind(args, *, signal_key, lead_s) -> str:
     spec["lickfree"] = bool(config.defaults()["decode"].get("precue_lickfree", True))
     spec["lead_s"] = float(lead_s)
     spec["signal_key"] = signal_key
+    from wfield_local import trial_classes as _tc
+    if _tc.camera_gate_on():          # the no-lick selection (cue_stop window) -- only under camera: default key unchanged
+        spec["selection"] = _tc.nolick_selection()
+        spec["cam_working"] = 1       # entries carry per-row camera working flags (bal_em centre rows, 11-03)
     digest = hashlib.sha1(repr(sorted(spec.items(), key=repr)).encode()).hexdigest()[:12]
     return f"sf-{spec['align']}-{digest}"
 
@@ -412,8 +460,9 @@ def session_features(s, args, signal=None, feat_region=None, lead_s=None):
     lickfree = bool(config.defaults()["decode"].get("precue_lickfree", True)) and args.align == "precue"
     n_dropped_dirty = 0
 
-    out = {c: {"X": [], "y": [], "g": [], "rt": [], "sess_eng": [], "lead_lick": [], "shifted": []}
+    out = {c: {"X": [], "y": [], "g": [], "rt": [], "sess_eng": [], "lead_lick": [], "shifted": [], "cam_working": []}
            for c in CATEGORIES}
+    _cw = _CAM_WORKING.get(s["label"])
     for k in range(cue_f.size):
         if not cat[k]:
             continue
@@ -433,6 +482,7 @@ def session_features(s, args, signal=None, feat_region=None, lead_s=None):
         d["g"].append(int(blk[k]))
         d["rt"].append(float(rt_s[k]))
         d["sess_eng"].append(bool(sess_eng[k]))
+        d["cam_working"].append(bool(_cw[k]) if _cw is not None else True)
         # PRIYA'S CONTAMINATION CONTROL (2026-09-24). The gate above protects the window; nothing
         # protects the interval BEFORE it, which sits just after the spout strobe where licking is
         # not suppressed the same way -- and widefield hemodynamics are slow enough for a lick there
@@ -452,6 +502,7 @@ def session_features(s, args, signal=None, feat_region=None, lead_s=None):
         d["X"] = np.array(d["X"]); d["y"] = np.array(d["y"], int)
         d["g"] = np.array(d["g"], int); d["rt"] = np.array(d["rt"], float)
         d["sess_eng"] = np.array(d["sess_eng"], bool)
+        d["cam_working"] = np.array(d["cam_working"], bool)
         d["lead_lick"] = np.array(d["lead_lick"], bool)
         d["shifted"] = np.array(d["shifted"], bool)
     return out, feat_reg
@@ -500,7 +551,7 @@ def analyse_session(s, align="cue", source="locanmf", post_s=2.0, n_perm=na.N_PE
                 res[nm] = na.evaluate_arm(E["y"][m], pred_e[m], n_perm=n_perm)
         res["engaged_rt_median_s"] = med
 
-    an = s["label"][:4]
+    an = s["label"].split("_")[0]
     if an in ATTEMPT_CONFOUNDED:
         res["attempt_confounded"] = ATTEMPT_CONFOUNDED[an]
     if verbose:
@@ -516,10 +567,89 @@ def _joint_signal(basis, s):
     footprints. Never refitted -- a refit over a grown session set is a different reference frame,
     and post-stroke that would make the comparison meaningless.
     """
-    if s["label"] in basis.labels:
+    from wfield_local import joint_locanmf
+    # under another hemo variant than the basis's, in-fit sessions are projected too (rebuild 11-03: this site used to
+    # serve the stored adopted C to in-fit pre sessions while projecting the rest -- two variants in one decoder)
+    if s["label"] in basis.labels and not joint_locanmf.project_all(basis):
         return basis.signal(s["label"]), basis.regions, 1.0
     sig, diag = basis.project(s, with_diagnostics=True)
     return sig, basis.regions, float(diag["variance_captured"])
+
+
+#: STORED BY DEFAULT (11-02 pass 2; Priya: "yes cache all frozen decoders"; CLAUDE.md rule 10). `analyse_animal`'s
+#: pre-stroke reference (all-pre model + one leave-one-session-out model per pre session) goes through
+#: `frozen_models.load_or_fit`, kind `nolick_reference`. OPT-OUT WIDEFIELD_NOLICK_FROZEN=0 (false / no / off) fits both
+#: in memory exactly as before. Under WIDEFIELD_LICK_SOURCE=lp the store serves the LP-TRAINED model (the default since
+#: 11-03, Priya), or with WIDEFIELD_LP_FROZEN=daq the DAQ-trained cross-check (training set = the animal's pre sessions
+#: in the date list; fitted only by a DAQ run).
+NOLICK_FROZEN_ENV = "WIDEFIELD_NOLICK_FROZEN"
+
+
+def nolick_frozen_on() -> bool:
+    from wfield_local import frozen_models
+    return frozen_models.family_on(NOLICK_FROZEN_ENV)
+
+
+def nolick_spec(animal, align, max_rt, basis, train_labels, common, n_features, train_data, **scaling_kw):
+    """Identity of one stored no-lick reference. align carries the engaged cut (2.0 s / respwin) and a digest of the
+    pooled feature columns (for ROI the column set is the intersection over every pooled session); source is the
+    feature basis (roi / joint + basis id)."""
+    from wfield_local import frozen_models
+    cut = "respwin" if max_rt is None else f"{float(max_rt):g}"
+    fdig = hashlib.sha1(repr(list(common)).encode()).hexdigest()[:8]
+    return frozen_models.make_spec(
+        animal, "nolick_reference", align=f"{align}-rt{cut}-f{fdig}",
+        source="joint" if basis is not None else "roi", train_labels=train_labels, post_s=2.0,
+        basis_id=None if basis is None else basis.basis_id, n_features=n_features, train_data=train_data,
+        selection=_nolick_sel(), **scaling_kw)
+
+
+def _nolick_sel():
+    from wfield_local import trial_classes as _tc
+    return _tc.nolick_selection()             # cue_stop under the camera gate (Priya FINAL 11-03); else run_selection
+
+
+def _loso_predict(loso, X, S, dtype):
+    """Leave-one-session-out predictions from stored per-session models (what `cross_val_predict` with
+    LeaveOneGroupOut computes: each session's rows scored by the model fitted on every other pre session)."""
+    out = np.empty(len(X), dtype=dtype)
+    for lab in sorted(set(S.tolist())):
+        m = S == lab
+        out[m] = loso[lab].predict(X[m])
+    return out
+
+
+def _stored_nolick_reference(animal, align, max_rt, basis, XE, YE, SE, m_pre, labs_pre, labs, common, *, fit=None,
+                             scaling=None):
+    """{"full", "loso", "_provenance"} from the frozen store, or None when opted out (then the caller fits in memory).
+    ``fit`` (merge with main 11-03) = the `spout_scaling.FrozenFrame` fitter (models on its training frame, LOSO keyed
+    by pooled session id); ``scaling`` enters the spec (`spout_scaling.spec_kw`)."""
+    if not nolick_frozen_on():
+        print(f"  [nolick] {animal} {align}: {NOLICK_FROZEN_ENV}=0 -> pre-stroke reference fitted IN MEMORY",
+              flush=True)
+        return None
+    from wfield_local import frozen_models
+    train = sorted(labs_pre)
+    if frozen_models.daq_trained_in_lp():
+        # DAQ-TRAINED model in the LP arm: the DAQ run's training set (the animal's pre sessions in the date list), not
+        # the LP-kept one -- a pre session without LP tables drops out of the LP pool but is in the DAQ fit.
+        train = sorted(s["label"] for s in labs
+                       if config.session_phase(config.animal_of(s["label"]), s["label"].split("_")[-1]) == "pre")
+    Xp, Yp, Sp = XE[m_pre], YE[m_pre], SE[m_pre]
+    from wfield_local import spout_scaling
+    spec = nolick_spec(animal, align, max_rt, basis, train, common, int(XE.shape[1]),
+                       train_data=(Xp, Yp, Sp, tuple(sorted(set(np.asarray(SE).tolist())))),   # + the pooled label set (N1)
+                       **spout_scaling.spec_kw(scaling))
+
+    def _fit():
+        return {"full": _pipe().fit(Xp, Yp),
+                "loso": {lab: _pipe().fit(Xp[Sp != lab], Yp[Sp != lab]) for lab in sorted(set(Sp.tolist()))}}
+
+    payload, status = frozen_models.load_or_fit(spec, fit or _fit, meta={"n_engaged_pre": int(m_pre.sum())})
+    slug = frozen_models._slug(spec)
+    print(f"  [nolick] {animal} {align}: nolick_reference {slug} {status} "
+          f"(trained on {spec.get('lick_source', 'daq')} pre trials)", flush=True)
+    return {**payload, "_provenance": f"{slug} {status}"}
 
 
 def analyse_animal(animal, dates=None, align="cue", source="roi", post_s=2.0,
@@ -547,7 +677,7 @@ def analyse_animal(animal, dates=None, align="cue", source="roi", post_s=2.0,
             f"source={source!r} is fitted per session. Use source='roi', or pass a joint basis "
             f"(joint_locanmf.load) whose footprints are frozen and days projected onto them.")
     dates = set(dates or config.curated_dates())
-    labs = [s for s in SESSIONS if s["label"][:4] == animal and s["label"][-4:] in dates]
+    labs = [s for s in SESSIONS if s["label"].split("_")[0] == animal and s["label"][-4:] in dates]
     args = _args(source=source, align=align, post_s=post_s)
     # max_rt is the ENGAGED cut and is deliberately variable: 2.0 s is the decoder's convention,
     # `None` means "use this session's own response window", which is what the task calls a response.
@@ -574,7 +704,8 @@ def analyse_animal(animal, dates=None, align="cue", source="roi", post_s=2.0,
         sd[sd == 0] = 1.0
         per_sess.append({"label": s["label"], "reg": list(np.asarray(feat_reg)),
                          "cats": {c: ((F[c]["X"] - mu) / sd if F[c]["y"].size else None,
-                                      F[c]["y"], F[c]["sess_eng"], F[c]["g"])
+                                      F[c]["y"], F[c]["sess_eng"], F[c]["g"],
+                                      _cam_working_of(F[c]))
                                   for c in CATEGORIES}})
         if verbose:
             print(f"  {s['label']}: " + " ".join(f"{c}={F[c]['y'].size}" for c in CATEGORIES),
@@ -583,7 +714,7 @@ def analyse_animal(animal, dates=None, align="cue", source="roi", post_s=2.0,
     # Sessions can differ in which atlas areas survive registration, so restrict every session to
     # the areas ALL of them have, in one shared order -- otherwise column j is still not the same
     # area everywhere and the per-session z-scoring above would not save it.
-    acc = {c: {"X": [], "y": [], "sess": [], "eng": [], "blk": []} for c in CATEGORIES}
+    acc = {c: {"X": [], "y": [], "sess": [], "eng": [], "blk": [], "cw": []} for c in CATEGORIES}
     if per_sess:
         # MATCH ON (label, occurrence), NOT ON LABEL. Region labels REPEAT -- the joint basis maps
         # several components to one Allen area (PS93: 87 components, 64 distinct labels), and
@@ -608,9 +739,10 @@ def analyse_animal(animal, dates=None, align="cue", source="roi", post_s=2.0,
             pos = {k: i for i, k in enumerate(kk)}
             idx = [pos[k] for k in common]
             for c in CATEGORIES:
-                X, y, eg, bk = p["cats"][c]
+                X, y, eg, bk, cw = p["cats"][c]
                 if X is None or not y.size:
                     continue
+                acc[c]["cw"].append(cw)
                 acc[c]["X"].append(X[:, idx])
                 acc[c]["y"].append(y)
                 acc[c]["eng"].append(eg)
@@ -658,29 +790,71 @@ def analyse_animal(animal, dates=None, align="cue", source="roi", post_s=2.0,
     res["post_labels"] = sorted(set(SE.tolist()) - labs_pre)
 
     from sklearn.model_selection import LeaveOneGroupOut
+
+    # bal_em SINCE 2026-11-03 (`spout_scaling.FrozenFrame`; DECISIONS "bal_em extended to every cross-session
+    # decoder"): the pre-stroke model is trained on class-balanced pre sessions and every scored session is
+    # centred by the label-free EM centre of ITS engaged trials (production SD), applied to its no-lick arms too.
+    # Under WIDEFIELD_SPOUT_SCALING=session_z every line below is the pre-11-03 computation exactly.
+    # STORED BY DEFAULT (rebuild, rule 10; kind `nolick_reference`): the all-pre model and one leave-one-session-out
+    # model per pre session, fitted on the frame above, come from `frozen_models` through the FrozenFrame store hook;
+    # opt-out WIDEFIELD_NOLICK_FROZEN=0 fits them in memory.
+    from wfield_local import spout_scaling as _ss
+    _sid = {lab: k for k, lab in enumerate(sorted(set(SE.tolist())))}
+    GEi = np.array([_sid[lab] for lab in SE], int)
+    _prov = {"frozen_model": "in-memory"}
+
+    def _store(fit_all):
+        st = _stored_nolick_reference(animal, align, max_rt, basis, XE, YE, SE, m_pre, labs_pre, labs, common,
+                                      fit=fit_all, scaling=_ss.spout_scaling())
+        if st is None:
+            return fit_all()
+        _prov["frozen_model"] = st["_provenance"]
+        return st
+
+    _cw = _cat("engaged", "cw").astype(bool)
+    from wfield_local import trial_classes as _tcm
+    ff = _ss.FrozenFrame(XE, YE, GEi, [_sid[lab] for lab in labs_pre], _pipe, loso=True, store=_store,
+                         labels={k: lab for lab, k in _sid.items()},
+                         cls_e=(np.where(_cw, "contact", "unknown") if _tcm.camera_gate_on() else None))
+
+    def _sc(X, sess):
+        """Rows in the frozen (full) model's scoring frame, by the session each row came from."""
+        if not ff.scaling or not len(X):
+            return X
+        return ff.apply_rows(X, np.array([_sid[lab] for lab in sess], int))
+
     # The ENGAGED arm is the pre-stroke reference band, so it is leave-one-session-out among PRE.
     # Mixing post-stroke sessions into it answers a different question.
-    pred_e = cross_val_predict(_pipe(), XE[m_pre], YE[m_pre], cv=LeaveOneGroupOut(), groups=SE[m_pre])
+    if ff.loso:
+        _pf = np.empty_like(YE)
+        for i in ff.loso:
+            rows = GEi == i
+            _pf[rows] = ff.loso[i].predict(ff.apply(XE[rows], i, "loso"))
+        pred_e = _pf[m_pre]
+    else:
+        pred_e = cross_val_predict(_pipe(), XE[m_pre], YE[m_pre], cv=LeaveOneGroupOut(), groups=SE[m_pre])
     res["engaged"] = na.evaluate_arm(YE[m_pre], pred_e, n_perm=n_perm)
     res["engaged"]["loso_accuracy"] = float(accuracy_score(YE[m_pre], pred_e))
     # The MATCHING TARGET is the pre-stroke engaged position profile, for the same reason: it is what
     # the other arms are being made comparable to.
     eng_frac = {POSITION_NAMES[c]: float((YE[m_pre] == c).mean()) for c in DISPLAY_ORDER}
 
-    clf = _pipe().fit(XE[m_pre], YE[m_pre])
+    clf = ff.full
+    res["frozen_model"] = _prov["frozen_model"]
     for c in ("late_rewarded", "undetected"):
         Y = _cat(c, "y").astype(int)
         if not Y.size:
             res[c] = {"n": 0}
             continue
-        res[c] = na.evaluate_arm(Y, clf.predict(_cat(c, "X")), target_frac=eng_frac, n_perm=n_perm)
+        res[c] = na.evaluate_arm(Y, clf.predict(_sc(_cat(c, "X"), _cat(c, "sess"))), target_frac=eng_frac,
+                                 n_perm=n_perm)
 
     # SPLIT THE UNDETECTED ARM BY ENGAGEMENT STATE. A miss inside a working stretch is a candidate
     # "tried and fell short"; a miss in the satiation tail is "stopped working". Pre-stroke they are
     # pooled in every previous version of this analysis, which blends the two mechanisms the module
     # exists to separate -- and post-stroke the blend will differ again, so the comparison would be
     # between two different mixtures rather than between two conditions.
-    Yu_all, Xu_all = _cat("undetected", "y"), _cat("undetected", "X")
+    Yu_all, Xu_all = _cat("undetected", "y"), _sc(_cat("undetected", "X"), _cat("undetected", "sess"))
     Eu = _cat("undetected", "eng")
     if Yu_all.size and Eu.size == Yu_all.size:
         # NAMED FOR WHAT THE GATE MEASURES. This arm was called "undetected_sated" until 2026-08-18;
@@ -698,7 +872,8 @@ def analyse_animal(animal, dates=None, align="cue", source="roi", post_s=2.0,
 
     Yp = np.concatenate([_cat("late_rewarded", "y"), _cat("undetected", "y")]).astype(int)
     if Yp.size:
-        Xp = np.concatenate([x for x in (_cat("late_rewarded", "X"), _cat("undetected", "X")) if x.size])
+        Xp = np.concatenate([x for x in (_sc(_cat("late_rewarded", "X"), _cat("late_rewarded", "sess")),
+                                         _sc(_cat("undetected", "X"), _cat("undetected", "sess"))) if x.size])
         res["nolick_pooled"] = na.evaluate_arm(Yp, clf.predict(Xp), target_frac=eng_frac,
                                                n_perm=n_perm)
         res["compare"] = na.compare_arms(res["engaged"], res["nolick_pooled"])
@@ -723,14 +898,14 @@ def analyse_animal(animal, dates=None, align="cue", source="roi", post_s=2.0,
     pred_pooled = np.empty_like(YE)
     pred_pooled[m_pre] = pred_e
     if (~m_pre).any():
-        pred_pooled[~m_pre] = clf.predict(XE[~m_pre])
+        pred_pooled[~m_pre] = clf.predict(_sc(XE[~m_pre], SE[~m_pre]))
 
     sess_labels = sorted(set(SE.tolist()))
     per = {}
     idx_e = {lab: np.flatnonzero(SE == lab) for lab in sess_labels}
     cat_sess = {c: _cat(c, "sess") for c in CATEGORIES}
     cat_y = {c: _cat(c, "y") for c in CATEGORIES}
-    cat_X = {c: _cat(c, "X") for c in CATEGORIES}
+    cat_X = {c: _sc(_cat(c, "X"), cat_sess[c]) for c in CATEGORIES}
     for lab in sess_labels:
         d = {}
         ie = idx_e[lab]

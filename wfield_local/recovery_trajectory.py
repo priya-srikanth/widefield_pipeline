@@ -517,8 +517,11 @@ def run(align="cue", variant="working", out_dir=None, from_csv=None) -> dict:
     reader given one family cannot tell which side of the bracket they are on."""
     from wfield_local.paths import PathResolver
 
-    out_dir = Path(out_dir) if out_dir else (
-        Path(PathResolver().root("labcams")) / "grant_figures" / "epoch")
+    # review 8B B1b: the default is THIS run's epoch dir (`lp_licks.output_dir`: grant_figures/<tag>/epoch in a tagged
+    # run), like every other epoch writer -- june_august_drift reads the primary run's matched CSV from there
+    from wfield_local import lp_licks
+    out_dir = Path(out_dir) if out_dir else Path(lp_licks.output_dir(
+        Path(PathResolver().root("cohort_out")) / "grant_figures" / "epoch"))
     made, summaries = [], {}
     for matched in (False, True):
         tag = "matched" if matched else "unmatched"

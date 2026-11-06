@@ -93,7 +93,7 @@ def _with_peaks(rv, T: pd.DataFrame) -> pd.DataFrame:
     ro, rd = Path(rv.root("orofacial")), Path(rv.root("dlc"))
     rows = []
     for lab, g in T.groupby("label"):
-        s = f"{lab[:4]}_2026{lab[5:]}"
+        s = f"{lab.split('_')[0]}_2026{lab[5:]}"
         ix4, P4 = _cam4(ro, s)
         c1 = _cam1(rd, s)
         for tid in g.trial_id:
@@ -185,7 +185,7 @@ def build(rv, P: pd.DataFrame, rng):
     ro, rd = Path(rv.root("orofacial")), Path(rv.root("dlc"))
     cands, keys = [], []
     for lab, g in P.groupby("label"):
-        s = f"{lab[:4]}_2026{lab[5:]}"
+        s = f"{lab.split('_')[0]}_2026{lab[5:]}"
         a, d = s.split("_")
         ix4, P4 = _cam4(ro, s)
         c1 = _cam1(rd, s)
@@ -299,6 +299,8 @@ def build(rv, P: pd.DataFrame, rng):
 
 
 def main(argv=None) -> int:
+    from wfield_local import run_mode as _rm_guard
+    _rm_guard.require_default("attempt_review")   # unrouted share writer: refuses in a non-default run mode
     from wfield_local.paths import PathResolver
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--per", type=int, default=6)

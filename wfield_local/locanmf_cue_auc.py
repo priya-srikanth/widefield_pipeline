@@ -29,7 +29,7 @@ from wfield_local.locanmf_cue_lick_analysis import SESSIONS
 from wfield_local.plot_spout_trial_averages import _load_daq_events as _load_cue_events, _classify_cues
 from wfield_local.plot_lick_aligned_averages import POSITION_NAMES, DISPLAY_ORDER
 from wfield_local.plot_lick_aligned_averages import _event_frame_indices_from_pco
-from wfield_local.locanmf_lick_aligned import _corrected_frame_samples, _nearest_corrected_frame, _quiet_zscore
+from wfield_local.locanmf_lick_aligned import _corrected_frame_samples, _nearest_corrected_frame, _quiet_zscore  # noqa: F401
 
 ORO = {3: "MOp", 4: "MOs", 5: "SSp-n", 6: "SSp-m"}
 ANIMAL_COLOR = {"PS92": "tab:blue", "PS94": "tab:orange", "PS95": "tab:green"}
@@ -37,7 +37,8 @@ ANIMAL_COLOR = {"PS92": "tab:blue", "PS94": "tab:orange", "PS95": "tab:green"}
 
 def _process(s, args):
     mc = s["mc"]
-    C = np.load(f"{config.locanmf_dir(mc)}/{s['label']}_locanmf_C.npy").astype(np.float64)
+    from wfield_local import locanmf_session
+    C = locanmf_session.load_C(s).astype(np.float64)          # stored, or projected (WIDEFIELD_LOCANMF_PROJECT)
     regions = np.load(f"{config.locanmf_dir(mc)}/{s['label']}_locanmf_regions.npy")
     ncomp, T = C.shape
     cue = _load_cue_events(s["h5"])
@@ -53,7 +54,7 @@ def _process(s, args):
         cue_f = _event_frame_indices_from_pco(cue["cue_samples"], cue["pco_samples"]) // 2
     codes = _classify_cues(cue["cue_samples"], cue["strobe_samples"], cue["strobe_codes"])
 
-    pre_n = int(round(args.pre_s * args.fs)); post_n = int(round(args.post_s * args.fs)); win = pre_n + post_n
+    pre_n = int(round(args.pre_s * args.fs)); post_n = int(round(args.post_s * args.fs)); win = pre_n + post_n  # noqa: F841
     tax = np.arange(-pre_n, post_n) / args.fs
     aucm = (tax >= 0) & (tax <= args.auc_s)
 

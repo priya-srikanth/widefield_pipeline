@@ -239,7 +239,7 @@ def behaviour_session_dir(label):
 
     try:
         animal, mmdd = str(label).split("_")[:2]
-        cands = discover_sessions(config.resolver(), f"2026{mmdd}", [animal])
+        cands = discover_sessions(config.resolver(), config.date8(mmdd), [animal])
     except Exception:                                                  # noqa: BLE001
         return None
     return cands[0] if cands else None

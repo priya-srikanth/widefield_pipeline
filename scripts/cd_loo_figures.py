@@ -21,7 +21,7 @@ import numpy as np
 import pandas as pd
 
 POS = ("close_L", "close_center", "close_R", "far_L", "far_center", "far_R")
-EP_COL = {"pre": "0.45", "acute": "#d01c8b", "subacute": "#b8860b", "chronic": "#01665e"}
+EP_COL = {"pre": "k", "acute": "#d01c8b", "subacute": "#b8860b", "chronic": "#01665e"}
 ALIGN_LABEL = {"precue": "pre-cue (s from cue)", "cue": "s from cue", "lick": "s from first lick"}
 
 

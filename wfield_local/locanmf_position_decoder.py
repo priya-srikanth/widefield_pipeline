@@ -40,6 +40,7 @@ from sklearn.metrics import confusion_matrix, accuracy_score
 
 from wfield_local import config
 from wfield_local import lp_licks
+from wfield_local.enl_window import lickfree_window, precue_window_start  # noqa: F401 (moved 11-04)
 from wfield_local import nolick_analysis as na
 from wfield_local import session_cache
 from wfield_local.locanmf_cue_lick_analysis import SESSIONS
@@ -55,7 +56,8 @@ def _build_signal(s, source):
     """Return (signal [nfeat,T], feat_region_labels [nfeat])."""
     mc = s["mc"]
     if source == "locanmf":
-        C = np.load(f"{config.locanmf_dir(mc)}/{s['label']}_locanmf_C.npy").astype(np.float64)
+        from wfield_local import locanmf_session
+        C = locanmf_session.load_C(s).astype(np.float64)      # stored, or projected (WIDEFIELD_LOCANMF_PROJECT)
         reg = np.load(f"{config.locanmf_dir(mc)}/{s['label']}_locanmf_regions.npy")
         A = np.load(f"{config.locanmf_dir(mc)}/{s['label']}_locanmf_A.npy", mmap_mode="r")
         return _footprint_scale(A, C.shape[0])[:, None] * C, reg
@@ -129,61 +131,6 @@ def is_engaged(first_lick, rt, max_rt):
     "engaged". Units are whatever the caller uses consistently (the decoder passes frames).
     """
     return bool(first_lick > 0 and 0 < rt <= max_rt)
-
-
-def lickfree_window(cue_f, strobe_f, licks, win_n):
-    """Latest ``win_n``-frame window before the cue containing NO licks, or None.
-
-    Moved here from `precue_lickfree` on 2026-08-17 when Priya decided the HEADLINE pre-cue number
-    should be lick-free: the rule now governs the production decoder, so it belongs beside it rather
-    than in the module that used to be its only consumer.
-
-    A FIXED window ending at the cue throws a trial away for a single lick anywhere in it -- including
-    one 200 ms before the cue, when 2 s of clean data sits just earlier in the same enforced no-lick
-    period. Instead: take the lick-free GAPS in [strobe, cue] and use the last ``win_n`` frames of the
-    LATEST gap long enough to hold the window. Closest to the cue is preferred, being most informative
-    about the upcoming action.
-
-    BOUNDED AT THE STROBE, deliberately. Before the spout arrives this trial's position does not exist,
-    and because the task avoids recent repeats, prior-trial activity carries real information about the
-    upcoming position -- a window straying earlier would smuggle that in and look like a pre-cue code.
-    """
-    lo = int(np.ceil(strobe_f)) if np.isfinite(strobe_f) else None
-    hi = int(cue_f)
-    if lo is None or hi - lo < win_n:
-        return None
-    inside = np.sort(licks[(licks >= lo) & (licks < hi)])
-    edges = np.concatenate(([lo], inside, [hi]))
-    for i in range(len(edges) - 2, -1, -1):
-        gap_start = int(edges[i]) + (1 if i > 0 else 0)      # a lick occupies its own frame
-        gap_end = int(edges[i + 1])
-        if gap_end - gap_start >= win_n:
-            return gap_end - win_n
-    return None
-
-
-def precue_window_start(c0, strobe_f, licks_sorted, win_n, lickfree=True):
-    """Start frame of this trial's PRE-CUE window, or None meaning DROP the trial.
-
-    THE HEADLINE PRE-CUE NUMBER IS LICK-FREE (Priya, 2026-08-17). Previously only the Section C
-    control restricted; the headline used every engaged trial and relied on the ENL to keep the
-    window quiet, which it does 90.8-99.5% of the time -- but "almost always" is per SESSION, and
-    PS93 8/9 falls to 76%, in the animal whose licking is already atypical. A readout whose whole
-    claim is motor-independence should not rest on a task contingency holding on average.
-
-    Trials with a clean fixed window keep it, so the common case stays exactly cue-aligned. Trials
-    with a lick in it slide to the latest clean gap. Trials with no clean window ANYWHERE are
-    DROPPED rather than kept-and-flagged -- for a headline number, "mostly clean" is the thing being
-    retired.
-    """
-    fixed = int(c0) - win_n
-    if not lickfree:
-        return fixed if fixed >= 0 else None
-    if fixed < 0:
-        return None
-    if not np.any((licks_sorted >= fixed) & (licks_sorted < fixed + win_n)):
-        return fixed                                          # already clean; keep it cue-aligned
-    return lickfree_window(c0, strobe_f, licks_sorted, win_n)
 
 
 def strobe_frames(cue, cue_f, fs):
@@ -450,7 +397,7 @@ def _trial_features(s, args, signal=None, feat_region=None, with_precue_licks=Fa
         sig = np.asarray(signal)
         feat_reg = np.arange(sig.shape[0]) if feat_region is None else np.asarray(feat_region)
     nfeat, T = sig.shape
-    cue = _load_cue_events(s["h5"]); lk = _load_daq_events(s["h5"], "lick_analog", 2.5, 1.0, (0.001, 0.020), 0.10)
+    cue = _load_cue_events(s["h5"]); lk = _load_daq_events(s["h5"], "lick_analog")
     # LP_licks (WIDEFIELD_LICK_SOURCE=lp, 2026-10-21): the DAQ contact train is replaced by the video lick train, edited
     # so the first lick after each cue is the LP post-cue gate; trials without an LP verdict are marked out of coverage.
     lp = None
@@ -682,7 +629,7 @@ def main() -> int:
                          "(locanmf_position_session_{label}_{tag}.png) for the animal-first deck")
     args = ap.parse_args()
     args.output.mkdir(parents=True, exist_ok=True)
-    sess = sorted([s for s in SESSIONS if s["label"].endswith(args.date)], key=lambda s: s["label"][:4])
+    sess = sorted([s for s in SESSIONS if s["label"].endswith(args.date)], key=lambda s: s["label"].split("_")[0])
     print(f"source={args.source} align={args.align} baseline={args.baseline} cv={args.cv}  "
           f"sessions={[s['label'] for s in sess]}  chance={dp['chance']}", flush=True)
 

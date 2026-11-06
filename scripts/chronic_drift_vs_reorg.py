@@ -232,8 +232,14 @@ def main(argv=None):
     if a.out:
         out_dir = Path(a.out)
     else:
+        from wfield_local import run_mode
         from wfield_local.paths import PathResolver
-        out_dir = Path(PathResolver().root("labcams")) / "chronic_stability"
+        # run-mode routing (rebuild 11-03; review 8B follow-up): chronic_stability/<tag>/ like chronic_stability.py and
+        # june_august_drift (a REDO row, MASTER_MANIFEST M00086); identity for the default run. It reads no epoch data
+        # file: its inputs are the pooled bundles (`grant_kit._collect_7`), routed by the run itself
+        out_dir = run_mode.subdir(Path(PathResolver().root("cohort_out")) / "chronic_stability")
+    from wfield_local.writeguard import assert_writable
+    assert_writable(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", RuntimeWarning)

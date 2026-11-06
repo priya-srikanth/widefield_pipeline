@@ -151,8 +151,8 @@ def main(argv=None) -> int:
 
     dates = (set(config.expand_dates(a.from_dates, width=4)) if a.from_dates
              else set(config.curated_dates()))
-    only = config.normalize_animals(a.animals) or sorted({x["label"][:4] for x in SESSIONS})
-    labs = [x["label"] for x in SESSIONS if x["label"][:4] in set(only) and x["label"][-4:] in dates]
+    only = config.normalize_animals(a.animals) or sorted({x["label"].split("_")[0] for x in SESSIONS})
+    labs = [x["label"] for x in SESSIONS if x["label"].split("_")[0] in set(only) and x["label"][-4:] in dates]
     print(f"[significance] {len(labs)} sessions, {a.n_perm} block-label permutations each, "
           f"variant={a.variant} align={a.align} chance={CHANCE:.3f}", flush=True)
 
@@ -180,7 +180,7 @@ def main(argv=None) -> int:
         return 1
 
     print(f"\n=== {len(rows)} sessions, {a.variant} {a.align} (chance {CHANCE:.3f}) ===")
-    for an in sorted({r["label"][:4] for r in rows}):
+    for an in sorted({r["label"].split("_")[0] for r in rows}):
         rr = [r for r in rows if r["label"].startswith(an)]
         acc = np.array([r["accuracy"] for r in rr])
         lo = np.array([r["ci_lo"] for r in rr], float)

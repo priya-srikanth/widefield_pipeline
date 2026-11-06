@@ -70,7 +70,7 @@ def session_rt(s):
     fs = float(config.defaults()["decode"].get("fs", 30.0))
     max_rt = float(config.defaults()["decode"].get("max_rt_s", 3.5))
     cue = _load_cue_events(s["h5"])
-    lk = _load_daq_events(s["h5"], "lick_analog", 2.5, 1.0, (0.001, 0.020), 0.10)
+    lk = _load_daq_events(s["h5"], "lick_analog")
     cue_f, lick_f, _ = _frames(s, cue, lk)
     if not len(cue_f):
         return None
@@ -157,7 +157,8 @@ def main(argv=None) -> int:
     ap.add_argument("--animals", nargs="+", default=None)
     ap.add_argument("--output", type=Path, default=None)
     args = ap.parse_args(argv)
-    out = args.output or Path(PathResolver().root("figures_working"))
+    from wfield_local import run_mode  # tagged runs never overwrite default figures (review H2)
+    out = run_mode.routed_output(args.output or Path(PathResolver().root("figures_working")))
     out.mkdir(parents=True, exist_ok=True)
     data = {}
     for an in (config.normalize_animals(args.animals) or list(config.animals())):

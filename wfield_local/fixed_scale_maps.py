@@ -25,7 +25,7 @@ from __future__ import annotations
 
 import argparse
 import glob
-import json
+import json  # noqa: F401
 from pathlib import Path
 
 import matplotlib
@@ -67,7 +67,7 @@ def _position_maps_uncached(s, align="cue", post_s=2.0):
     U = np.load(f"{ad[0]}/U_atlas.npy")                      # (H, W, k)
     SVT = np.load(config.svtcorr_path(s["mc"]))              # (k, T)
     cue = _load_cue_events(s["h5"])
-    lk = _load_daq_events(s["h5"], "lick_analog", 2.5, 1.0, (0.001, 0.020), 0.10)
+    lk = _load_daq_events(s["h5"], "lick_analog")
     cue_f, lick_f, _csmp = _frames(s, cue, lk)
     codes = np.asarray(classify_cues_with_backup(s, cue))
     if align == "cue":
@@ -113,7 +113,7 @@ def animal_maps(animal, align="cue", max_post=None, post_s=2.0):
     pre_dates = set(config.curated_dates())
     pre_maps, post = {}, {}
     for s in config.load_sessions():
-        if s["label"][:4] != animal:
+        if s["label"].split("_")[0] != animal:
             continue
         date = s["label"].split("_")[-1]
         phase = config.session_phase(animal, date)
@@ -261,7 +261,8 @@ def main(argv=None) -> int:
                          "reported, never silent.")
     ap.add_argument("--output", type=Path, default=None)
     args = ap.parse_args(argv)
-    out = args.output or Path(PathResolver().root("figures_working"))
+    from wfield_local import run_mode  # tagged runs never overwrite default figures (review H2)
+    out = run_mode.routed_output(args.output or Path(PathResolver().root("figures_working")))
     animals = args.animals or sorted({l.split("_")[0] for l in config.phase_labels("post")})
     for align in args.align:
         for a in animals:

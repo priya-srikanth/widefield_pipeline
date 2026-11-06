@@ -3,16 +3,9 @@ behavioural deficit (Priya 10-20: "fraction of trials with lick as well as incom
 far contra"; "call a trial engaged if there is any evidence of attempted lick ... analyze no-try trials in the
 canonical 'engaged' period separately"; "will we include latency?"). Plan: docs/DLC_IN_WIDEFIELD_ANALYSES.md 3B.
 
-Per trial, cue .. trial stop (`trial_windows.trial_bounds`; latencies from `scripts/first_lick_latency.session_latency`):
-  hit         a DAQ spout contact
-  incomplete  an LP lick (cam4 `licks.csv`, or a cam1-only event -- droplets out) and no contact
-  jaw_only    no lick, jaw moved AFTER the cue on EITHER camera (`qc/jaw_onsets.csv`, scripts/jaw_onsets.py: the v36
-              "jaw moved" rule on cam4 and on template-timed cam1, cam1 floor 15 px; a jaw already deflected at the cue
-              counts only through its re-onset `jaw_reonset_ms`, else unknown);
-              NEITHER camera used at close_center (cam4 chin hidden; cam1 failed the 10-21 blind review there), so
-              close_center no-lick trials are unknown
-  no_try      no lick, jaw judged and still
-  unknown     no lick, no usable jaw
+Per trial, cue .. trial stop: the class comes from THE trial classification, `wfield_local.trial_classes`
+(Priya 11-03, one definition for every analysis -- read its docstring for the rules). This table keeps its historical
+names for its readers: hit = contact (DAQ spout contact), incomplete, jaw_only, no_try = no_response, unknown.
 attempted = hit | incomplete. jaw_only is a REACTION, not an attempt (Priya's 10-21 blind review, 24 post-stroke
 trials, cam1 + cam4 to the trial stop: 0 / 24 judged attempts; all 11 jaw_only trials were jaw responses without opening
 (6), other movement (4, 2 walking) or still (1); 4 / 6 no_try trials just under the floor also showed a jaw response --
@@ -34,33 +27,23 @@ Usage: PYTHONPATH=. python scripts/trial_attempts.py [--jobs 2]
 from __future__ import annotations
 
 import argparse
-import functools
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
 
+from wfield_local import trial_classes as TC  # noqa: E402  THE trial classification (11-03)
+
 CLASSES = ("hit", "incomplete", "jaw_only", "no_try", "unknown")
+#: the session-level camera classes of a camera-gated run (`trial_classes.classify_session`; coordinator 11-04): a
+#: trial in one of these is OUTSIDE the run's working period -- never in the attempt-rate denominator
+RUN_EXCLUDED = TC.OUT_OF_WORKING_PERIOD    # ONE definition of the camera working period (trial_classes, 11-05)
 ATTEMPT_CLASSES = ("hit", "incomplete")             # jaw_only = reacted (jaw), NOT an attempt (10-21 blind review)
-JAW_UNRELIABLE = ("close_mid",)                     # canonical pos keys (close_center); cam4 occludes the jaw
-JAW_ONSETS = "jaw_onsets.csv"                       # <run>/imaging_encoding/qc, scripts/jaw_onsets.py
+TA_NAMES = {"contact": "hit", "no_response": "no_try"}   # trial_classes names -> this table's historical names
 MEASURES = ("attempt_rate", "ttc_ms", "completion", "incomplete_share", "latency_attempt_ms", "latency_move_ms",
             "latency_contact_ms",
             "lateral_bias", "lateral_scatter")
 RESP_MS = 3500.0                                    # the task's response window (gui_config timing.response_window)
-
-
-@functools.lru_cache(maxsize=1)
-def _jaw_table(path: str) -> pd.DataFrame:
-    """`<v36>/imaging_encoding/qc/jaw_onsets.csv` (scripts/jaw_onsets.py, other window 10-21): per trial cam4_moved /
-    cam1_moved (1 / 0 / NaN), jaw_onset_ms (earliest camera that saw a movement, DAQ ms from the cue), onset_at_cue."""
-    want = ["session", "trial_id", "cam4_moved", "cam1_moved", "jaw_onset_ms", "onset_at_cue", "jaw_reonset_ms"]
-    J = pd.read_csv(path, low_memory=False, usecols=lambda c: c in want)
-    if "jaw_reonset_ms" not in J:
-        J["jaw_reonset_ms"] = np.nan
-    J["label"] = J.session.str[:5] + J.session.str[-4:]
-    J["onset_at_cue"] = J.onset_at_cue.astype(str).str.lower().eq("true")
-    return J.set_index(["label", "trial_id"])
 
 
 def session_trials(label: str) -> pd.DataFrame:
@@ -69,53 +52,62 @@ def session_trials(label: str) -> pd.DataFrame:
     from wfield_local.paths import PathResolver
     from scripts.first_lick_latency import session_latency
     rv = PathResolver()
-    a, d = label[:4], "2026" + label[5:]
+    a, d = label.split("_")[0], "2026" + label[5:]
     sd = oo.session_dir(rv, oc.RUN, a, d)
     T = session_latency(label)
     stop = dict(zip(T.trial_id, T.stop_ms))
-    L = pd.read_csv(sd / "licks.csv", usecols=["trial_id", "on_ms", "contact", "peak_angle_deg"])
+    L = pd.read_csv(sd / "licks.csv", usecols=["trial_id", "on_ms", "peak_angle_deg"])
     L = L[(L.on_ms >= 0) & (L.on_ms <= L.trial_id.map(stop))]
     ang1 = L.sort_values("on_ms").groupby("trial_id").peak_angle_deg.first()   # first cam4 lick, + = toward ipsi
-    n4 = L.groupby("trial_id").size()
-    nc4 = (~L.contact.astype(bool)).groupby(L.trial_id).sum()
-    f = Path(rv.root("dlc")) / "session_poses" / "cam1_licks" / f"{a}_{d}_events.csv"
-    n1 = nc1 = pd.Series(dtype=float)
-    if f.exists():
-        E = pd.read_csv(f, usecols=["trial_id", "on_ms", "cam4_matched", "in_3d", "contact", "droplet"])
-        for c in ("cam4_matched", "in_3d", "contact", "droplet"):
-            E[c] = E[c].astype("boolean").fillna(False).astype(bool)
-        E = E[~E.cam4_matched & ~E.in_3d & ~E.droplet & (E.on_ms >= 0) & (E.on_ms <= E.trial_id.map(stop))]
-        n1, nc1 = E.groupby("trial_id").size(), (~E.contact).groupby(E.trial_id).sum()
-    jf = sd.parents[2] / "imaging_encoding" / "qc" / JAW_ONSETS
-    J = _jaw_table(str(jf)).loc[label] if jf.exists() and label in _jaw_table(str(jf)).index.get_level_values(0)         else pd.DataFrame(columns=["cam4_moved", "cam1_moved", "jaw_onset_ms", "onset_at_cue"])
     # canonical = the REFERENCE gate, explicitly: never the OROFACIAL_GATE env setting (other window 10-21)
     keep, gate = oc.engagement_keep(a, d, sd, gate="reference")
     t = T.trial_id
-    T["n_licks"] = t.map(n4).fillna(0) + t.map(n1).fillna(0)
-    T["n_nocontact"] = t.map(nc4).fillna(0) + t.map(nc1).fillna(0)
     T["angle_first"] = t.map(ang1)
-    # jaw from EITHER camera (Priya 10-20): moved if either says moved; judged if either can judge. cam4 is not used at
-    # close_center (chin hidden); cam1 (template-timed) is masked there too after the 10-21 blind review.
-    T["jaw_cam4"] = pd.to_numeric(t.map(J.cam4_moved), errors="coerce").where(~T.pos.isin(JAW_UNRELIABLE))
-    # cam1 NOT used at close_center either (blind review 10-21, Priya: 58 % agreement on acute no-lick trials) -> the
-    # close_center jaw is unknown from both cameras
-    T["jaw_cam1"] = pd.to_numeric(t.map(J.cam1_moved), errors="coerce").where(~T.pos.isin(JAW_UNRELIABLE))
-    T["jaw_at_cue"] = t.map(J.onset_at_cue).fillna(False).astype(bool)
-    # jaw deflected at the cue: the RE-ONSET (first new movement after the deflection settled, same rule; other window
-    # 10-21) is the after-cue movement; NaN re-onset = never settled or no new move -> cannot judge (unknown)
-    reon = pd.to_numeric(t.map(J.jaw_reonset_ms), errors="coerce")
-    on = pd.to_numeric(t.map(J.jaw_onset_ms), errors="coerce")
-    T["jaw_reonset"] = T.jaw_at_cue & reon.notna()
-    T["jaw_onset_ms"] = on.where(~T.jaw_at_cue, reon).where(~T.pos.isin(JAW_UNRELIABLE))
-    # a jaw ALREADY deflected at the cue (no lick) cannot be judged either way -- the animal may still have reacted
-    # (Priya 10-21) -- so it is `unknown`, never no_try and never jaw_only
-    ok = (T.jaw_cam4.notna() | T.jaw_cam1.notna()) & (~T.jaw_at_cue | T.jaw_reonset)
-    mv = ((T.jaw_cam4 == 1) | (T.jaw_cam1 == 1)) & (~T.jaw_at_cue | T.jaw_reonset)
-    T["cls"] = np.select([T.contact.notna(), T.n_licks > 0, ok & mv, ok], ["hit", "incomplete", "jaw_only", "no_try"],
-                         "unknown")
+    # CLASSES, lick counts and jaw calls come from THE trial classification (wfield_local.trial_classes, Priya 11-03:
+    # one definition for every analysis; cue -> stop window, DAQ contact, jaw cam4 OR cam1, close_center unjudged,
+    # at-cue jaw only through its re-onset). Only the names differ here, kept for this table's ~20 readers:
+    # contact -> "hit", no_response -> "no_try". Regression 11-03: 62,746 / 62,771 trials identical to the old in-script
+    # rule; the 25 others are trials where cam1 saw a tongue, now "incomplete".
+    C = TC.session_trials(f"{a}_{d}", window="cue_stop").set_index("trial_id").reindex(t.to_numpy())
+    T["n_licks"] = C.n_licks.fillna(0).to_numpy()
+    T["n_nocontact"] = C.n_nocontact.fillna(0).to_numpy()
+    T["jaw_cam4"], T["jaw_cam1"] = C.jaw_cam4.to_numpy(float), C.jaw_cam1.to_numpy(float)
+    T["jaw_at_cue"] = C.jaw_at_cue.fillna(False).astype(bool).to_numpy()
+    T["jaw_onset_ms"] = C.jaw_onset_ms.to_numpy(float)
+    T["jaw_reonset"] = T.jaw_at_cue & T.jaw_onset_ms.notna()
+    T["cls"] = C.cls.fillna("unknown").replace(TA_NAMES).to_numpy()
     T["attempted"] = T.cls.isin(ATTEMPT_CLASSES)
     T["canonical"] = True if keep is None else t.isin(keep)
     T["gate"] = gate
+    if TC.camera_gate_on():
+        # THE RUN'S CAMERA CLASSES (coordinator 11-04; PI slides 34 / 35, the mixed models' deficit): the session-level
+        # rules of `trial_classes.classify_session` on the trial train -- end at the last camera lick, sustained stop
+        # (>= 6 consecutive no_response / jaw_only, all of them stopped, Priya 11-04; the 5-min rule: a run starting
+        # < 300 s after the first cue is early_run), jaw_only its own class (not an attempt; an isolated one stays in
+        # the working period). The attempt-rate denominator ("canonical") is then the run's WORKING
+        # PERIOD: every trial not stopped / early_run / after_end / unknown (jaw_only and no_try inside it are kept as
+        # non-attempts, never dropped). cls_raw keeps the trial-level class.
+        raw = C.cls.fillna("unknown").to_numpy(object)
+        pos = C.position.to_numpy(object) if "position" in C else None
+        cue_s = C.cue_daq.to_numpy(float) if "cue_daq" in C else None
+        # STOPPED TIME HOLDS NO LICKS (Priya 11-04): the guarded rules get each trial's span lick counts (camera licks by
+        # peak + DAQ contacts, `trial_classes.session_span_licks`); excise -> lick-touched stopped trials are
+        # "stopped_licking", outside both the working period and stopped (RUN_EXCLUDED)
+        span = None
+        if (TC.stopped_rule() in TC.GUARDED_RULES and (TC.stop_lick_rule(), TC.stop_tail_start()) != ("none", "lick_trial")
+                and cue_s is not None):
+            strobe = C.strobe_ms.to_numpy(float) if "strobe_ms" in C else np.full(len(C), np.nan)
+            stop_ms = (C.stop_ms if "stop_ms" in C else T.stop_ms).to_numpy(float)
+            span = TC.session_span_licks(f"{a}_{d}", cue_s, cue_s + strobe / 1000.0, cue_s + stop_ms / 1000.0)
+        run, kind = TC.classify_session(raw, None, pos, rule=TC.stopped_rule(), min_run=TC.stop_run_min(),
+                                        end=TC.end_anchor(), cue_s=cue_s, min_start_s=TC.stop_min_start_s(),
+                                        span_licks=span, return_kind=True)
+        T["stop_kind"] = kind               # "run" / "tail" / "" (stopped_licking keeps its kind; bcdg g_group_final)
+        T["cls_raw"] = T["cls"]
+        T["cls"] = pd.Series(run, index=T.index).replace(TA_NAMES).to_numpy()
+        T["attempted"] = T.cls.isin(ATTEMPT_CLASSES)
+        T["canonical"] = ~T.cls.isin(RUN_EXCLUDED)
+        T["gate"] = "camera:" + TC.run_selection()
     return T
 
 
@@ -144,12 +136,15 @@ def session_summary(D: pd.DataFrame) -> pd.DataFrame:
                      "latency_contact_ms": att.contact.median(),
                      "latency_move_ms": np.fmin(att.combined.where(att.has_cam1, att.cam4), att.jaw_onset_ms).median(),
                      "angle_mean": att.angle_first.mean(), "angle_sd": att.angle_first.std(),
-                     **{f"frac_{c}": (can.cls == c).mean() if len(can) else np.nan for c in CLASSES}})
+                     **{f"frac_{c}": (can.cls == c).mean() if len(can) else np.nan for c in CLASSES},
+                     # camera-gated run: the share of ALL trials outside the working period, by reason
+                     **({f"frac_{c}": (g.cls == c).mean() for c in RUN_EXCLUDED if c != "unknown"}
+                        if "cls_raw" in g else {})})
     S = pd.DataFrame(rows)
     W = S.pivot_table(index="label", columns="pos", values=[c for c in S.columns if c not in ("label", "pos")])
     W.columns = [f"{m}_{p}" for m, p in W.columns]
     W = W.reset_index()
-    an, pre = W.label.str[:4], W.label.map(_is_aug_pre)
+    an, pre = W.label.str.split("_").str[0], W.label.map(_is_aug_pre)
     for p in sorted({c[len("angle_mean_"):] for c in W.columns if c.startswith("angle_mean_")}):
         for col, out, f in ((f"angle_mean_{p}", f"lateral_bias_{p}", lambda x, r: x - r),
                             (f"angle_sd_{p}", f"lateral_scatter_{p}", lambda x, r: x / r)):
@@ -159,39 +154,55 @@ def session_summary(D: pd.DataFrame) -> pd.DataFrame:
 
 
 def _is_aug_pre(label: str) -> bool:
+    from wfield_local import config
     from wfield_local import epochs
-    return epochs.epoch_of(label) == "pre" and label[-4:] >= "0806"
+    return epochs.epoch_of(label) == "pre" and not config.early_pre(label)
 
 
 def main(argv=None) -> int:
+    from wfield_local import config
     from wfield_local import analysis_kit as ak
     from wfield_local import combined_encoding as ce
     from wfield_local import epochs
     from wfield_local import orofacial_cohort as oc
-    from wfield_local import orofacial_outputs as oo
     from wfield_local import writeguard
-    from wfield_local.paths import PathResolver
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--run", default=oc.RUN)
     ap.add_argument("--jobs", type=int, default=2)
+    ap.add_argument("--out", type=Path, default=None,
+                    help="write the three tables HERE instead of run_mode.attempts_dir() (a comparison build; nothing "
+                         "registered, the run's table untouched)")
     a = ap.parse_args(argv)
-    out = oo.root(PathResolver()) / a.run / "imaging_encoding" / "qc"
-    writeguard.assert_writable(out)
+    from wfield_local import run_mode
+    # coordinator 11-04 (REDO, routed): the default run writes the untagged qc as before; a tagged run writes ITS qc
+    # (<imaging_encoding>/<tag>/qc), under its camera classes -- where the mixed models' deficit and the PI slides read
+    if a.run != oc.RUN:
+        raise SystemExit("trial_attempts: --run other than the adopted run is not routed (attempts_dir is the adopted run's)")
+    out = a.out or run_mode.attempts_dir()
+    out.mkdir(parents=True, exist_ok=True)
+    if run_mode.tag() and a.out is None:
+        for n in run_mode.ATTEMPTS_FILES:              # selection-keyed tables: registered data files (writeguard)
+            run_mode.register_data_store(out / n)
+    writeguard.assert_writable(out / "trial_attempts_sessions.csv")
     cur = set(ak.curated_labels())
     labels = [x for x in ce.sessions_available() if x in cur]
     got, fail = ak.fan_sessions(labels, session_trials, jobs=a.jobs)
     for it, err in fail:
         print(f"  FAILED {it}: {err}")
     D = pd.concat([r for _l, r in got], ignore_index=True)
-    D["animal"], D["epoch"] = D.label.str[:4], D.label.map(epochs.epoch_of)
-    D["day"] = D.label.map(epochs.days_since_stroke)
+    # one config lookup per SESSION, not per trial row (~57k); mapped through a function, not a dict, so a None day stays
+    # None (a dict map would make the column float and change the CSV bytes)
+    ep = {lab: epochs.epoch_of(lab) for lab in D.label.unique()}
+    day = {lab: epochs.days_since_stroke(lab) for lab in ep}
+    D["animal"], D["epoch"] = D.label.str.split("_").str[0], D.label.map(ep.__getitem__)
+    D["day"] = D.label.map(day.__getitem__)
     D.to_csv(out / "trial_attempts.csv", index=False, float_format="%.1f")
     W = session_summary(D)
-    W.insert(1, "animal", W.label.str[:4])
+    W.insert(1, "animal", W.label.str.split("_").str[0])
     W.insert(2, "epoch", W.label.map(epochs.epoch_of))
     W.insert(3, "day", W.label.map(epochs.days_since_stroke))
     W.to_csv(out / "trial_attempts_sessions.csv", index=False, float_format="%.4g")
-    Aug = D[(D.epoch != "pre") | (D.label.str[-4:] >= "0806")]           # August-only pre baseline
+    Aug = D[(D.epoch != "pre") | (~D.label.map(config.early_pre))]           # August-only pre baseline
     G = Aug.groupby(["animal", "epoch", "pos"]).apply(
         lambda g: pd.Series({"n_trials": len(g), "canonical": g.canonical.sum(),
                              "attempted": g.attempted.sum(), "canonical_and_attempted": (g.canonical & g.attempted).sum(),
@@ -206,7 +217,7 @@ def main(argv=None) -> int:
         P = WA.melt(id_vars="label")
         P = P[P.variable.str.startswith(m + "_")]
         P["pos"] = P.variable.str[len(m) + 1:]
-        P["animal"], P["epoch"] = P.label.str[:4], P.label.map(epochs.epoch_of)
+        P["animal"], P["epoch"] = P.label.str.split("_").str[0], P.label.map(epochs.epoch_of)
         t = P.pivot_table(index=["animal", "epoch"], columns="pos", values="value")
         t = t.reindex(columns=[p for p in oc.POS_ORDER if p in t.columns])
         t = t.iloc[sorted(range(len(t)), key=lambda i: (t.index[i][0], order.get(t.index[i][1], 9)))]

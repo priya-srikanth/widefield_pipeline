@@ -64,62 +64,16 @@ import numpy as np
 #: `boot_delta` (animal-weighted, for CHANGES), and the difference has retracted a result.
 from wfield_local import analysis_kit as ak
 
-DEFAULT_RESP_S = 2.0
+DEFAULT_RESP_S = None    # None = each session's own response window (`analysis_kit.response_window_s`); was 2.0 until 11-03 (A1)
 
 
-def session_trials(s, resp_s):
-    """Per-trial rows for ONE session: position, hit, latency, anticipatory licks, trial order.
-
-    Built here rather than via `daq_trials.build_trials` for one reason: positions come from
-    `classify_cues_with_backup`, the REPAIRED classifier. The raw strobe collapses 6 positions onto
-    4 on the August sessions with a dead `spout_bit1`, and those are pre-stroke days -- scoring a
-    position-specific question on merged labels would answer a different question.
-    """
-    from wfield_local import daq_io
-    from wfield_local.behavior_position import classify_cues_with_backup
-    from wfield_local.locanmf_cue_lick_analysis import _load_cue_events
-    from wfield_local.plot_lick_aligned_averages import _load_daq_events
-    from wfield_local.rest_by_position import _session_daq
-
-    cue = _load_cue_events(s["h5"])
-    cs = np.asarray(cue["cue_samples"], float)
-    codes = np.asarray(classify_cues_with_backup(s, cue, verbose=False))
-    lk = _load_daq_events(s["h5"], "lick_analog", 2.5, 1.0, (0.001, 0.020), 0.10)
-    licks = np.sort(np.asarray(lk["lick_samples"], float))
-    with daq_io.open_daq(s["h5"]) as f:
-        sr, _ = daq_io.session_attrs(f)
-    _r, _cs2, _c, ts, _fs, _sy = _session_daq(s)
-    ts = np.sort(np.asarray(ts, float))
-
-    # THE ENL WINDOW OPENS AT THE LAST trial_start AT OR BEFORE THE CUE. Falling back to the cue
-    # itself when there is none gives an EMPTY pre window, which scores as "no anticipation" -- so
-    # those trials are dropped rather than counted as unmotivated.
-    j = np.searchsorted(ts, cs, side="right") - 1
-    pre_open = np.where(j >= 0, ts[np.clip(j, 0, None)], np.nan)
-
-    nxt = np.append(cs[1:], np.inf)
-    n = cs.size
-    rows = []
-    for k in range(n):
-        if codes[k] < 0 or not np.isfinite(pre_open[k]) or pre_open[k] >= cs[k]:
-            continue
-        end = min(cs[k] + resp_s * sr, nxt[k])
-        post = licks[(licks >= cs[k]) & (licks <= end)]
-        npre = int(((licks >= pre_open[k]) & (licks < cs[k])).sum())
-        rows.append(dict(pos=int(codes[k]), order=k, frac=k / max(n - 1, 1),
-                         hit=int(post.size > 0), n_licks_pre=npre,
-                         anticipated=int(npre > 0),
-                         # EFFORT AND TIME, SEPARATELY. See `licks_vs_time`.
-                         cum_licks=float(np.searchsorted(licks, cs[k])),
-                         elapsed_s=float(cs[k] - cs[0]) / sr,
-                         latency_s=(float(post[0] - cs[k]) / sr if post.size else np.nan)))
-    return rows
+# MOVED 2026-11-05 to `wfield_local/engagement.py` (verbatim; library code must not import scripts/). Re-exported here so
+# existing imports keep working.
+from wfield_local.engagement import near_codes, session_trials  # noqa: E402,F401
 
 
-def near_codes():
-    """Position codes for the NEAR spouts -- derived from the names, not written down as {0,1,2}."""
-    from wfield_local.plot_lick_aligned_averages import POSITION_NAMES
-    return {c for c, nm in POSITION_NAMES.items() if nm.startswith("close")}
+
+
 
 
 def licks_vs_time(rows, only=None):
@@ -200,7 +154,7 @@ def session_rows(item):
         return [], None
     ep = epochs.epoch_of(lab)
     try:
-        rows = session_trials(s, resp_s)
+        rows = session_trials(s, resp_s if resp_s is not None else ak.response_window_s(s))
     except Exception as ex:                                          # noqa: BLE001
         return [], f"  !! {lab}: {type(ex).__name__} {str(ex)[:70]}"
     if len(rows) < 30:
@@ -257,7 +211,8 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--animals", nargs="+", default=None)
-    ap.add_argument("--resp-s", type=float, default=DEFAULT_RESP_S)
+    ap.add_argument("--resp-s", type=float, default=DEFAULT_RESP_S,
+                    help="override the response window (s); default = each session's own, from its behaviour log")
     ap.add_argument("--jobs", type=int, default=None,
                     help="sessions in parallel (default cores-2 capped at 8; 1 for serial)")
     ap.add_argument("--from-csv", action="store_true",
@@ -274,7 +229,7 @@ def main(argv=None) -> int:
     from wfield_local.paths import PathResolver
     from wfield_local.plot_lick_aligned_averages import DISPLAY_ORDER, POSITION_NAMES
 
-    out_dir = a.out or (Path(PathResolver().root("labcams")) / "grant_figures" / "epoch")
+    out_dir = a.out or (Path(PathResolver().root("cohort_out")) / "grant_figures" / "epoch")
     animals = a.animals
     raw = [POSITION_NAMES[c] for c in DISPLAY_ORDER]
     lab_of = dict(zip(DISPLAY_ORDER,

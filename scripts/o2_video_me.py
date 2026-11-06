@@ -66,12 +66,10 @@ def _frame_times(label: str) -> np.ndarray:
     import glob
 
     from wfield_local import config
-    from wfield_local.hemo_variants import ADOPTED
     from wfield_local.locanmf_lick_aligned import _corrected_frame_samples
     from wfield_local.plot_spout_trial_averages import _load_daq_events
     s = next(x for x in config.load_sessions() if x["label"] == label)
-    res = Path(s["mc"]) / "wfield_local_results"
-    nV = np.load(res / f"hemo_{ADOPTED}" / "SVTcorr.npy", mmap_mode="r").shape[1]
+    nV = np.load(config.svtcorr_path(s["mc"]), mmap_mode="r").shape[1]   # the one hemo switch, at call time (review L2)
     cue = _load_daq_events(s["h5"])
     fmdir = s["fmdir"] or s["mc"]
     fm = glob.glob(f"{fmdir}/*cleanpairs_frame_map.npz")[0]
@@ -88,7 +86,7 @@ def pilot_sessions() -> list[tuple[str, str]]:
     D = pd.DataFrame(rows, columns=["animal", "date", "epoch"]).sort_values(["animal", "date"])
     pick = []
     for a, g in D.groupby("animal"):
-        pre = g[(g.epoch == "pre") & (g.date.str[4:] >= "0801")].date.tolist()
+        pre = g[(g.epoch == "pre") & ~g.date.map(config.early_pre)].date.tolist()
         acu = g[g.epoch == "acute"].date.tolist()
         chr_ = g[g.epoch == "chronic"].date.tolist()
         for d in dict.fromkeys(pre[:1] + pre[-1:] + acu[:2] + chr_[:1] + chr_[-1:]):
@@ -152,7 +150,7 @@ def cmd_bundle(name: str, user: str, sessions: list[tuple[str, str]], cams: list
 # Login shell (-l) + `conda activate`, as the working LP / DLC O2 scripts (o2_inference.sbatch_text); a plain shell with
 # `source activate` exited within seconds on the first submit (10-18).
 set -eo pipefail
-module load conda/miniforge3/24.11.3-0
+module load conda/miniforge3/26.9.4-1
 conda activate lp
 echo "task $SLURM_ARRAY_TASK_ID on $(hostname), $(python --version)"
 python {b}/me_runner.py

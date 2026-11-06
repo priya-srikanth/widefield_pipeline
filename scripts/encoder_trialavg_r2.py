@@ -58,14 +58,15 @@ def session_rows(js: Path) -> list[dict]:
 
 
 def main(argv=None) -> int:
-    from wfield_local import orofacial_cohort as oc
-    from wfield_local import orofacial_outputs as oo
-    from wfield_local.paths import PathResolver
+    # coordinator 11-04: routed (outputs under the run tag), no longer refused in a tagged run
+    from wfield_local import config
     from wfield_local.writeguard import assert_writable
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--folder", action="append", required=True)
     a = ap.parse_args(argv)
-    E = oo.root(PathResolver()) / oc.RUN / "imaging_encoding"
+    from wfield_local import run_mode
+    E = run_mode.encoding_out_root()                     # the run's (tagged) encoding tree, coordinator 11-04
+    (E / "qc").mkdir(parents=True, exist_ok=True)
     qc = E / "qc"
     assert_writable(qc)
     pd.set_option("display.width", 220)
@@ -75,7 +76,7 @@ def main(argv=None) -> int:
         if T.empty:
             print(f"{folder}: no PETHs")
             continue
-        T = T[T.label.str[-4:] >= "0801"]                    # August-only pre baseline (primary)
+        T = T[~T.label.map(config.early_pre)]                    # August-only pre baseline (primary)
         slug = folder.replace("/", "_").replace("\\", "_")
         T.to_csv(qc / f"trialavg_r2_{slug}.csv", index=False, float_format="%.4f")
         S = (T[T.area == "cortex"].groupby(["align", "part", "animal", "epoch"]).r2_avg.mean()

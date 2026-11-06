@@ -73,130 +73,17 @@ from wfield_local import analysis_kit as ak
 HALF_WIN = 60          # trials either side of the quit point for the aligned average
 
 
-EARLY_S = 600.0          # s; the fixed early window the independent lick rate is measured over
+# MOVED 2026-11-05 to `wfield_local/engagement.py` (verbatim; library code must not import scripts/). Re-exported here so
+# existing imports keep working.
+from wfield_local.engagement import EARLY_S, _early_rate, _sharpness, session_quit  # noqa: E402,F401
 
 
-def _early_rate(rows, early_s=EARLY_S):
-    """``(licks/min over the first `early_s`, licks/trial over those trials, n_trials)``.
-
-    **THE POINT OF THIS COLUMN IS THAT IT IS NOT DERIVED FROM THE QUIT POINT**, which makes it the
-    only non-circular predictor available for the fatigue question.
-
-    `quit_cum_licks / quit_elapsed_s` looks like a lick rate and must never be used as one: it is
-    `L / T`, so regressing it on `T` is guaranteed negative and on `L` guaranteed positive, for
-    arithmetic rather than biological reasons. A FIXED early window is independent of when the quit
-    occurs, so the two competing predictions become testable and OPPOSITE:
-
-        MOTOR FATIGUE, quit at a fixed LICK COUNT  ->  quit TIME  ~ 1/rate, log-log slope -1
-                                                       quit LICKS ~ const,  log-log slope  0
-        TIME-DRIVEN, quit at a fixed TIME          ->  quit TIME  ~ const,  log-log slope  0
-                                                       quit LICKS ~ rate,   log-log slope +1
-    """
-    early = [r for r in rows if float(r["elapsed_s"]) <= early_s]
-    if len(early) < 5:
-        return float("nan"), float("nan"), len(early)
-    span = max(float(early[-1]["elapsed_s"]), 1.0) / 60.0
-    licks = float(early[-1]["cum_licks"]) - float(early[0]["cum_licks"])
-    return licks / span, licks / max(len(early) - 1, 1), len(early)
 
 
-def session_quit(s, rows, resp_s=2.0):
-    """``dict`` describing this session's terminal disengagement, or ``None`` if it never quits.
-
-    Returns what had ACCUMULATED at the quit trial -- time, licks, rewards -- because those are the
-    candidate threshold variables, and which of them is conserved across epochs is the question.
-    """
-    from wfield_local import daq_io
-    from wfield_local.locanmf_cue_lick_analysis import POSITION_NAMES
-    from wfield_local.precue_engagement_states import engagement_gate
-
-    order = np.array([r["order"] for r in rows])
-    responded = np.array([bool(r["hit"]) for r in rows])
-    pos = np.array([POSITION_NAMES.get(r["pos"], str(r["pos"])) for r in rows])
-    ne = np.asarray(engagement_gate(order, responded, pos), bool)
-    dur = float(rows[-1]["elapsed_s"])
-    er, el, en = _early_rate(rows)
-
-    # RIGHT-CENSORED, NOT ABSENT (Priya, 2026-09-19: *"count the full session time if there is no
-    # disengaged tail"*). **THE QUIT-DETECTION RATE IS CONFOUNDED BY SESSION-TERMINATION POLICY**:
-    # pre-stroke Priya ran "up to 2 hrs or until they stopped licking", so a pre-stroke session
-    # often ENDED AT THE QUIT and leaves no tail for a gate that requires a sustained non-recovering
-    # run. Post-stroke was a strict 120 min / 100 trials per position, so the tail is always there.
-    #
-    # THE POLICY CHANGE IS VISIBLE IN THE DURATIONS: pre spans 74-167 min (IQR 89-143) against
-    # acute's 100-126 (IQR 104-121). Comparing DETECTION RATES across that is comparing how long
-    # the experimenter kept recording, and the 0.34-pre against 0.75-acute this module first
-    # reported is mostly that.
-    #
-    # SO THE OUTCOME IS TIME ENGAGED, WITH CENSORING. No detected quit -> time engaged is the WHOLE
-    # SESSION and the observation is RIGHT-CENSORED: **IF THE ANIMAL NEVER QUIT, it would have gone
-    # on longer, so the recorded value is a LOWER BOUND on true engagement.**
-    #
-    # THIS COMMENT FIRST SAID UPPER BOUND, WHICH WAS BACKWARDS (Priya: *"isn't the pre-time engaged
-    # a LOWER bound... if the animal never quit"*). Right-censoring means the event has not happened
-    # yet, so the observation bounds the truth from BELOW. The upper-bound reasoning applied only to
-    # the OTHER subpopulation -- sessions the animal DID quit, stopped so promptly that no tail
-    # survives for the gate, where the recorded duration is approximately the true quit time.
-    # Pre-stroke "no detected quit" is a MIXTURE of the two, and both are <= the truth.
-    #
-    # THE CONSERVATISM SURVIVES BY THE OPPOSITE ARGUMENT, and it is what licenses any claim here:
-    # pre is ~66% censored (29/44) against acute's ~25% (4/16), so measured pre UNDERSTATES true pre
-    # engagement more than measured acute understates acute. A measured pre > acute therefore
-    # UNDERSTATES the true gap. A post-stroke SHORTFALL is trustworthy; a post-stroke EXCESS could be
-    # differential censoring alone and means nothing.
-    if not ne.any():
-        return dict(quit_trial=-1, n_trials=len(rows), quit_frac=float("nan"),
-                    quit_elapsed_s=float("nan"), quit_cum_licks=float("nan"),
-                    quit_cum_rewards=float("nan"), hit_before=float("nan"),
-                    hit_after=float("nan"), step_sharpness=float("nan"),
-                    session_dur_s=dur, time_engaged_s=dur, censored=True,
-                    frac_engaged=1.0, early_lpm=er, early_lpt=el, early_n=en)
-    # THE QUIT POINT IS THE FIRST TRIAL OF THE TERMINAL RUN. `engagement_gate` already requires
-    # non-recovery, so scanning back from the end to the first False is the start of that run.
-    k = len(ne)
-    while k > 0 and ne[k - 1]:
-        k -= 1
-    if k == 0 or k >= len(rows):          # quit at trial 0 is a failed session, not a quit
-        return None
-
-    # rewards, for the satiety branch -- the only one of the three that needs a channel we do not
-    # otherwise read here
-    n_rew = None
-    try:
-        with daq_io.open_daq(s["h5"]) as f:
-            sr, _ = daq_io.session_attrs(f)
-            rv = daq_io.analog_channel(f, "reward_ttl", required=False)
-        if rv is not None:
-            edges = daq_io.rising_edges((np.asarray(rv) > 2.5).astype(np.int8))
-            n_rew = int((np.asarray(edges, float) / sr <= rows[k]["elapsed_s"]).sum())
-    except Exception:                                                # noqa: BLE001
-        pass
-
-    return dict(quit_trial=int(k), n_trials=len(rows),
-                quit_frac=float(k / max(len(rows) - 1, 1)),
-                quit_elapsed_s=float(rows[k]["elapsed_s"]),
-                quit_cum_licks=float(rows[k]["cum_licks"]),
-                quit_cum_rewards=(float(n_rew) if n_rew is not None else float("nan")),
-                hit_before=float(np.mean([r["hit"] for r in rows[:k]])),
-                hit_after=float(np.mean([r["hit"] for r in rows[k:]])),
-                # STEP SHARPNESS: how much of the total drop happens in the 20 trials around the
-                # quit. Near 1 = a genuine step. Near the fraction of trials spanned = a ramp.
-                step_sharpness=_sharpness(rows, k),
-                early_lpm=er, early_lpt=el, early_n=en,
-                session_dur_s=dur, time_engaged_s=float(rows[k]["elapsed_s"]),
-                censored=False, frac_engaged=float(rows[k]["elapsed_s"] / dur) if dur else 1.0)
 
 
-def _sharpness(rows, k, w=10):
-    h = np.array([r["hit"] for r in rows], float)
-    pre, post = h[:k], h[k:]
-    if pre.size < w or post.size < w:
-        return float("nan")
-    total = pre.mean() - post.mean()
-    if abs(total) < 1e-9:
-        return float("nan")
-    local = h[max(0, k - w):k].mean() - h[k:k + w].mean()
-    return float(local / total)
+
+
 
 
 def session_row(item):
@@ -227,7 +114,7 @@ def session_row(item):
         return None
     ep = epochs.epoch_of(lab)
     try:
-        tr = session_trials(s, 2.0)
+        tr = session_trials(s, ak.response_window_s(s))     # the session's own window (A1; was 2.0 s)
     except Exception as ex:                                          # noqa: BLE001
         return {"label": lab, "epoch": ep, "seen": False, "q": None, "aligned": [],
                 "msg": f"  !! {lab}: {type(ex).__name__} {str(ex)[:70]}"}
@@ -287,7 +174,7 @@ def main(argv=None) -> int:
 
     from wfield_local.paths import PathResolver
 
-    out_dir = a.out or (Path(PathResolver().root("labcams")) / "grant_figures" / "epoch")
+    out_dir = a.out or (Path(PathResolver().root("cohort_out")) / "grant_figures" / "epoch")
     if a.horizon_min is not None:
         print(f"COMMON HORIZON {a.horizon_min:.0f} min: sessions shorter than this are DROPPED "
               f"and the rest are TRUNCATED, so every session contributes equal observation time.")

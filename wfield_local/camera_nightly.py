@@ -35,34 +35,18 @@ under MICROSCOPE/Priya (writeguard-checked). Mirrors the imaging box's ``preproc
 from __future__ import annotations
 
 import argparse
-import hashlib
 import os
 import re
 from pathlib import Path
 
 from wfield_local import (behavior_clip_deck, behavior_clips, behavior_events, camera_sync,
-                          config, dropframe_qc, spout_behavior, writeguard)
+                          config, dropframe_qc, safe_copy, spout_behavior, writeguard)
 from wfield_local.paths import PathResolver
 
-BUF = 1 << 20
 # Files at/above this size skip the byte read-back (size + hash-on-copy only), so a slow
 # MICROSCOPE link can't stall the nightly on one giant file; smaller files are fully verified.
 HASH_READBACK_MAX = 20 * (1 << 30)      # 20 GB
 ANIMAL_RE = re.compile(r"PS\d+")
-
-
-def _sha256(p: str) -> str | None:
-    h = hashlib.sha256()
-    try:
-        with open(p, "rb", buffering=0) as f:
-            while True:
-                b = f.read(1 << 24)
-                if not b:
-                    break
-                h.update(b)
-    except OSError:
-        return None
-    return h.hexdigest()
 
 
 def _copy_one(src: str, dst: str, dry: bool, verify: bool = False) -> str:
@@ -70,31 +54,16 @@ def _copy_one(src: str, dst: str, dry: bool, verify: bool = False) -> str:
 
     Size-verified by default. ``verify`` upgrades to byte-level (SHA-256): the source hash is
     computed during the copy (free) and the destination is read back and compared, for files
-    below ``HASH_READBACK_MAX`` (larger files stay size-only so the slow link can't stall)."""
+    below ``HASH_READBACK_MAX`` (larger files stay size-only so the slow link can't stall).
+
+    The copy + verify is `safe_copy.verified_copy` (shared with archive_day since 2026-11-04). One
+    behaviour change from the copy that lived here: an already-present same-size file whose source AND
+    destination could not be hashed used to pass (``None != None`` is False) and is now FAIL."""
     if dry:
         return "dry"
-    ssz = os.path.getsize(src)
-    small = ssz < HASH_READBACK_MAX
-    if os.path.exists(dst) and os.path.getsize(dst) == ssz:
-        if verify and small and _sha256(src) != _sha256(dst):
-            return "FAIL"
-        return "skip"
-    os.makedirs(os.path.dirname(dst), exist_ok=True)
-    tmp = dst + ".part"
-    h = hashlib.sha256()
-    with open(src, "rb", buffering=0) as fi, open(tmp, "wb", buffering=0) as fo:
-        while True:
-            b = fi.read(BUF)
-            if not b:
-                break
-            fo.write(b)
-            h.update(b)
-    os.replace(tmp, dst)
-    if os.path.getsize(dst) != ssz:
-        return "FAIL"
-    if verify and small and _sha256(dst) != h.hexdigest():   # read-back byte verify
-        return "FAIL"
-    return "ok"
+    small = os.path.getsize(src) < HASH_READBACK_MAX
+    st, _src_hash = safe_copy.verified_copy(src, dst, readback=verify and small)
+    return st
 
 
 def _copy_tree(src_dir: Path, dst_dir: Path, dry: bool, res: dict, fails: list, verify: bool = False) -> None:
@@ -246,6 +215,8 @@ def main(argv=None) -> int:
                          f"(files >= {HASH_READBACK_MAX >> 30} GB stay size-only)")
     ap.add_argument("--machine", default=None, help="override machine (default: auto-detect)")
     args = ap.parse_args(argv)
+    if str(args.date).isdigit() and len(str(args.date)) == 8:
+        config.use_cohort_for_dates([args.date])           # this night's cohort (configs/cohorts.yaml)
     return run(args.date, PathResolver(machine=args.machine), animals=config.normalize_animals(args.only),
                do_copy=not args.skip_copy, do_dropframe=not args.skip_dropframe,
                do_align=not args.skip_align, do_events=not args.skip_events,

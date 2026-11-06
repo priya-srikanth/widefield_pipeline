@@ -199,7 +199,7 @@ def _scalar_figure(out_dir, *, name, title, ylabel, keys, values, points, tick_l
                           title=delta_title or f"Change from pre-stroke -- {title}",
                           subtitle=sub, ylabel=delta_ylabel or f"{ylabel} - pre",
                           positions=keys, tick_labels=tick_labels, groups=groups,
-                          n_comparisons=n_comp)
+                          n_comparisons=n_comp, points=ef.session_deltas(points))
     return made
 #: Stated on every already-reduced family, because it is the one thing that separates them from
 #: the confusion figures: those pool by SUMMING raw counts (every trial once), these by AVERAGING

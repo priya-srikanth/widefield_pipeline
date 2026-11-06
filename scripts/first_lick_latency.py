@@ -27,7 +27,7 @@ def session_latency(label: str) -> pd.DataFrame:
     oc._repo_on_path()
     import scripts.pose_kinematics_demo as D
     rv = PathResolver()
-    a, d = label[:4], "2026" + label[5:]
+    a, d = label.split("_")[0], "2026" + label[5:]
     b = TW.trial_bounds(a, d, rv)
     pos = dict(zip(b.trial_id.astype(int), [oc.pos_key(p, "L") for p in b.pos_name]))
     stop = dict(zip(b.trial_id.astype(int), (b.stop_s - b.cue_s).to_numpy(float) * 1000))
@@ -48,10 +48,20 @@ def session_latency(label: str) -> pd.DataFrame:
         rows.append({"label": label, "trial_id": t, "pos": pos[t], "stop_ms": stop[t], "cam4": c4,
                      "combined": np.nanmin([c4, c1]) if cam1 is not None else np.nan,
                      "contact": min(ct) if ct else np.nan, "has_cam1": cam1 is not None})
-    return pd.DataFrame(rows)
+    out = pd.DataFrame(rows)
+    # the lick time lick-aligned frames use (Priya 11-04): LP, or the DAQ contact at a close spout when LP missed / was
+    # late by > lp_licks.LP_DAQ_TOL_MS; far-spout late LP = grooming_suspect (count / drop as a sensitivity)
+    from wfield_local import lp_licks
+    tm = lp_licks.first_lick_timing(out.pos, out.combined.fillna(out.cam4), out.contact, out.stop_ms)
+    for c in tm.columns:
+        out[c] = tm[c].to_numpy()
+    return out
 
 
 def main(argv=None) -> int:
+    from wfield_local import config
+    from wfield_local import run_mode as _rm_guard
+    _rm_guard.require_default("first_lick_latency")   # unrouted share writer: refuses in a non-default run mode
     from wfield_local import analysis_kit as ak
     from wfield_local import combined_encoding as ce
     from wfield_local import epochs
@@ -63,15 +73,15 @@ def main(argv=None) -> int:
     ap.add_argument("--run", default=oc.RUN)
     ap.add_argument("--jobs", type=int, default=2)
     a = ap.parse_args(argv)
-    out = oo.root(PathResolver()) / a.run / "imaging_encoding" / "qc"
+    out = oo.encoding_root(a.run, PathResolver()) / "qc"
     writeguard.assert_writable(out)
     cur = set(ak.curated_labels())
-    labels = [x for x in ce.sessions_available() if x in cur and x[-4:] >= "0806"]
+    labels = [x for x in ce.sessions_available() if x in cur and not config.early_pre(x)]
     got, fail = ak.fan_sessions(labels, session_latency, jobs=a.jobs)
     for it, err in fail:
         print(f"  FAILED {it}: {err}")
     D = pd.concat([r for _l, r in got], ignore_index=True)
-    D["animal"], D["epoch"] = D.label.str[:4], D.label.map(epochs.epoch_of)
+    D["animal"], D["epoch"] = D.label.str.split("_").str[0], D.label.map(epochs.epoch_of)
     D.to_csv(out / "first_lick_latency.csv", index=False, float_format="%.1f")
     rows = []
     for (an, ep, p), g in D.groupby(["animal", "epoch", "pos"]):

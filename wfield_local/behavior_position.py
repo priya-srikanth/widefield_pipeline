@@ -51,7 +51,7 @@ def beh_root():
 
 
 def _behavior_dir(session):
-    lab = session["label"]; mouse = lab[:4]
+    lab = session["label"]; mouse = lab.split("_")[0]
     m = re.search(r"/labcams/(\d{8})/", session["mc"].replace("\\", "/"))
     if not m:
         return None

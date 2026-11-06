@@ -1,6 +1,6 @@
 # FaceRhythm pipeline (cam4; cam1 / cam2 / cam3 prepped) — stages, files, run order
 
-The reference for HOW the FaceRhythm (FR) analysis works and how to run it. WHY each choice was made:
+**New here? Start with [`FACE_RHYTHM_GUIDE.md`](FACE_RHYTHM_GUIDE.md)** (concepts, the analysis catalogue `python -m wfield_local.face_rhythm list`, adding an analysis). The reference for HOW the FaceRhythm (FR) analysis works and how to run it. WHY each choice was made:
 [`FACE_RHYTHM_PLAN.md`](FACE_RHYTHM_PLAN.md) + `DECISIONS.md` (2026-10-21 evening entries). Current status / running jobs:
 the newest `docs/status/STATUS_*_FACE_RHYTHM_*` handoff. Paper: Hakim et al., bioRxiv 10.1101/2025.09.10.675423 v4.
 
@@ -50,6 +50,18 @@ Same chain per camera, root `<dlc>/face_rhythm/<cam>/`, one O2 bundle per camera
    camera's keys; encoding takes another camera's set as `--fr fr_<cam>_<date>/<set>` (folder tag `<cam>-<set>`).
    NOT done yet: readouts' midline / regions are cam4's (side views have no midline: compare cam2 vs cam3 instead);
    combining several cameras' sets in one encoding model.
+7. **Multi-view factor set** (10-23, Priya chose this over a colleague's 2 x 2 mosaic video): ONE factor set over
+   several cameras' points, `plan --bundle fr_cam4_<date> --set <set> --views cam1=fr_cam1_<d> cam2=fr_cam2_<d>
+   cam3=fr_cam3_<d>` (the bundles side by side under `o2/`; `FR_OUT_<CAM>` overrides an out dir), then the usual
+   build / fit / loso / select / project / fitsession / report. Code: `wfield_local/face_rhythm_multiview.py` (a lazy
+   `ViewStack` stands in for the spectrogram memmap, `face_rhythm_factors.spec_of`). Rows: trial rows match by index
+   (same cam4 DAQ grid; cue times checked to 20 ms), session 5 Hz bins by nearest DAQ time (<= 0.1 s, else NaN ->
+   dropped). Balance: per animal, each view divided by RMS x sqrt(its elements / mean) -> equal energy per view
+   (`view_scales.json`, in master.npz). Absolute expression: D = mean of the views' own FR normalisers (provisional).
+   master.npz gains `view_cams`, `view_P`; the gallery draws the reference view and lists each factor's weight share
+   per view. Why not a mosaic: independent camera clocks + frame drops (a mosaic needs every video resampled to one
+   clock), ~3.7x cam4's pixels per run, and ONE FR normaliser across all views. Tasks lacking any view are left out
+   (listed by `plan`). Needs the other cameras' O2 runs first (steps 2-5). Tests: `tests/test_face_rhythm_multiview.py`.
 
 ## Files
 
@@ -69,6 +81,58 @@ Same chain per camera, root `<dlc>/face_rhythm/<cam>/`, one O2 bundle per camera
   + `points_t_daq_s` (dense position on the frozen PCA).
 * **own/<key>.npz**: the session's own rank-R fit (`A_own`, `B_own` in the master's component order), `evr_own`,
   `evr_frozen` (same rows), `cos_spatial` / `cos_spectral` (matched cosine per component).
+
+## Time windows and the fit sample (master_pre_v1, decided 10-23 with Priya)
+
+All times are DAQ seconds; every bin carries its TRUE time from the camera's per-frame timestamps
+(`face_rhythm_timing`, `o2_face_rhythm.py timing` -> `<bundle>/timing/<key>.npz`), never the runner's linear
+frame -> DAQ stamps (841 s off on PS92_0908). LOSSY bins (> 2 % of frames missing within +-2 s) and bins outside the
+camera's DAQ segment are excluded everywhere (NaN in projections; never drawn for a fit).
+
+**Windows around each ENGAGED trial** (the cohort tables' gate; disengaged trials are not on the grid):
+
+| window | span | resolution | source | used for |
+|---|---|---|---|---|
+| TRIAL grid | cue -2 .. +4 s | 25 Hz (151 bins) | `<key>_trials.npz` (computed on O2) | trial rows of the fit (every 5th-bin block -> 200 ms rows); projections; readouts (pre-cue -2..0, response 0..4) |
+| PRE-CUE rows | [position strobe -1, strobe +2] UNION [cue -4, cue -2), cut at cue -2 s | 5 Hz | session spectrogram | fit rows drawn WITH their trial: spout arrival (the strobe; its lead to the cue varies, 2.4 s to > 10 s) + anticipation / ENL licks; each bin once, never inside the 25 Hz grid |
+| BUSY (no between rows) | from min(strobe -1, cue -4, cue -3) to cue +6 s | -- | -- | keeps trial tails, arrival and anticipation out of the between pool |
+| BETWEEN | everything else (2 s trimmed at each recording end) | 5 Hz | session spectrogram | between rows of the fit, labelled from the CANONICAL per-session events on the server (`behavior_events`, `behavior_summary/events/<animal>/<date>.npz`; no DAQ read): RUN = inside a running bout (> 3 mm/s, gaps < 0.3 s merged, >= 2 s), STILL = inside a REST period (the lab's quiet definition: spout docked between trials, not running, not near licks / rewards), other = not drawn |
+
+Projections cover WHOLE sessions (25 Hz in trial windows, 5 Hz everywhere else); only the FIT uses a sample.
+
+**Per animal** (pre-stroke, August baseline sessions: PS92 9, PS93 7, PS94 8, PS95 8):
+* 120 fit trials = **20 per spout position** x 6, drawn at random from the animal's pooled pre sessions (no per-session
+  quota; trials with a lossy grid bin excluded) -> 120 x 30 = 3600 trial rows (200 ms; `--trial-ds 5`).
+* their pre-cue rows, then subsampled to the SAME count per animal (the smallest animal's): the raw count follows each
+  animal's strobe -> cue lead (drawn 10-23: PS92 2425, PS93 2055, PS94 1567, PS95 1246 -> 1246 each).
+* between rows = 0.556 x the trial rows (~2000), **half RUN, half STILL (REST)** (`--run-share 0.5`; if one pool is
+  short the other fills; "other" bins are not used).
+* `plan` prints each animal's drawn counts; the plan stores them (`fit.<animal>.n_between`).
+* Drawn 10-23 (master_pre_v1): per animal 120 trials (3600 rows) + 1246 pre-cue + 2002 between rows = ~6850; run /
+  still 1001 / 1001 except PS92 794 / 1208 (it runs little between trials; rest fills). 27.4 k rows, 10.1 GB.
+
+**Across animals**: the SAME sample size and composition per animal (trials, positions, run / still), so no animal
+dominates by having more sessions; then each animal is divided by ONE scalar (RMS of its own fit rows, `scales.json`)
+so faces of different size / tracked area carry equal energy (a per-point scale would amplify still points). The same
+scalar is applied to all that animal's sessions, pre and post, so post-stroke amplitude changes stay visible.
+
+**Scoring rows** (`session_rows`, for `fitsession` / `loso`): per session, 60 engaged trials (10 per position or all it
+has) + between rows in the same proportion and run / still split; seeded per session.
+
+**Row spacing vs time resolution** (Priya 10-23: "280 ms is too long with respect to the timing of a lick"): a fit
+row is the MEAN of `trial_ds` consecutive 25 Hz bins (not a subsample). FR's VQT (params.json: Q 4 -> 20 geometric
+over 1-60 Hz, Gaussian windows sigma = Q / (4 f)) already smooths each frequency over: 1 Hz sigma 1.0 s; 5 Hz 0.38 s;
+7 Hz 0.31 s (FWHM 0.72 s, ~5 lick cycles); 10 Hz 0.25 s; 30 Hz 0.13 s. A 200 ms boxcar (sigma 58 ms) widens the
+lick-band smoothing by ~2 % (30 Hz: ~10 %); individual licks are never resolved by the spectrogram -- it measures
+rhythmic power over ~0.7 s. Rows stay at 200 ms (`--trial-ds 5`); not coarser. Lick-level timing comes from LP licks
+against the 25 Hz projections, not from the fit rows.
+**Is the sample enough?** `face_rhythm_factors.py splithalf --rank R`: two disjoint halves of the fit trials (10 per
+position per animal each) fitted separately and compared (per factor); run by the local driver after the rank choice.
+
+Plan: `face_rhythm_factors.py plan --bundle fr_cam4_20261021 --set master_pre_v1 --trials-per-animal 120 --trial-ds 5
+--between-frac 0.556 --run-share 0.5 --arrival --inits 8 --ranks 8 10 12` (local run, Priya: "local, trimmed").
+The PILOT (`pilot_pre_PS92_PS93`, 10-22) predates this: 30 trials / animal at 80 ms rows, 25 % uniform between bins,
+no pre-cue rows, linear stamps (its two affected tasks re-projected with true times, 10-23).
 
 ## Conventions
 
@@ -147,5 +211,5 @@ the first real session (log-transform if a few outliers dominate after z-scoring
 ## Tests
 
 `tests/test_face_rhythm_factors.py` (synthetic bundle: planted factors recovered, freeze guard, project / fitsession /
-movement power), `tests/test_face_rhythm_readouts.py` (windows, contra / ipsi sign, split-session join),
+movement power; a deployed set runs its own code copy and the old `scripts.face_rhythm_factors` names resolve), `tests/test_face_rhythm_readouts.py` (windows, contra / ipsi sign, split-session join),
 `tests/test_face_rhythm_outputs.py` (loader), `tests/test_face_rhythm_tracking_qc.py` (fold counting, interior vs rim), `tests/test_combined_encoding_options.py` (`_fr-<set>` folders).

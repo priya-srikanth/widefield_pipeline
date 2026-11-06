@@ -37,7 +37,7 @@ def add_z(D: pd.DataFrame) -> pd.DataFrame:
     if "resp_sd" not in D or "lat_sd" not in D:
         return D
     from wfield_local import epochs
-    an = D.label.str[:4]
+    an = D.label.str.split("_").str[0]
     pre = D.label.map(epochs.epoch_of) == "pre"
     keys = ["spouts", "area", "variant"]
     ref = D[pre].assign(_an=an[pre]).groupby(["_an", *keys])[["lat_sd", "resp_sd"]].median()
@@ -123,7 +123,7 @@ def pixel_z_factors(D: pd.DataFrame) -> dict:
     var = D.variant if "variant" in D else pd.Series("mean", index=D.index)
     P = D[(sp == "all") & (var == "mean") & (D.area == "cortex") & (D.label.map(epochs.epoch_of) == "pre")]
     out = {}
-    for an, g in P.groupby(P.label.str[:4]):
+    for an, g in P.groupby(P.label.str.split("_").str[0]):
         r = float(g.lat_sd.median() / g.resp_sd.median())
         if np.isfinite(r) and r > 0:
             out[an] = r
@@ -147,12 +147,12 @@ def pixel_maps(folder: Path, labels: list, figs: Path, zf: dict | None = None) -
                 continue
             z = np.load(f)
             keys = list(z["keys"])
-            if kind not in keys or (zf is not None and lab[:4] not in zf):
+            if kind not in keys or (zf is not None and lab.split("_")[0] not in zf):
                 continue
-            Y.append(z["maps"][keys.index(kind)] * (zf[lab[:4]] if zf else 10 * 1e3))
+            Y.append(z["maps"][keys.index(kind)] * (zf[lab.split("_")[0]] if zf else 10 * 1e3))
             flat, sh = z["flat"], tuple(z["shape"])
             d = epochs.days_since_stroke(lab)
-            meta.append((lab[:4], float(d > 0), np.log(max(d, 1)) if d > 0 else 0.0, epochs.epoch_of(lab)))
+            meta.append((lab.split("_")[0], float(d > 0), np.log(max(d, 1)) if d > 0 else 0.0, epochs.epoch_of(lab)))
         if not Y:
             continue
         Y = np.stack(Y)
@@ -194,22 +194,22 @@ def pixel_maps(folder: Path, labels: list, figs: Path, zf: dict | None = None) -
 
 
 def main(argv=None) -> int:
+    # coordinator 11-04: routed (outputs under the run tag), no longer refused in a tagged run
     from wfield_local import orofacial_cohort as oc
-    from wfield_local import orofacial_outputs as oo
-    from wfield_local.paths import PathResolver
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--run", default=oc.RUN)
     ap.add_argument("--folder", default="within_spout_deviation_lick")
     ap.add_argument("--deficit", default=None, help="behavioural index (mixed_models.DEFICITS); non-default -> *_<name>")
     a = ap.parse_args(argv)
-    folder = oo.root(PathResolver()) / a.run / "imaging_encoding" / "qc" / a.folder
+    from wfield_local import run_mode
+    folder = run_mode.encoding_out_root(a.run) / "qc" / a.folder   # within_spout_deviation's (tagged) output
     D = pd.read_csv(folder / "within_spout_deviation.csv")
     L = outcomes(D)
     if (folder / "dirmid.csv").exists():                     # direction / toward-midline coefficients
         L = pd.concat([L, outcomes_dirmid(pd.read_csv(folder / "dirmid.csv"))], ignore_index=True)
     from wfield_local import mixed_models as mm
     print(mm.animal_epoch_table(L[L.measure.str.startswith(FOCUS)], ["kind", "measure"]).round(3).to_string())  # rule 8
-    T = area_table(L, folder.parent, a.deficit)
+    T = area_table(L, run_mode.deficit_qc_dir(), a.deficit)   # the deficit: THIS run's trial_attempts_sessions.csv
     sfx = "" if (a.deficit or mm.DEFICIT) == mm.DEFICIT else f"_{a.deficit}"
     T.to_csv(folder / f"mixed_model{sfx}.csv", index=False, float_format="%.5g")
     pd.set_option("display.width", 230)

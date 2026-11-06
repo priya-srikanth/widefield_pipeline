@@ -70,7 +70,7 @@ def session_design(label: str) -> dict:
         raise RuntimeError(f"{label}: executed bins frame {frame!r} (needs the calibrated 3-D environment)")
     shared = np.hstack([R["cue"], R["arrival"], R["licks"]])
     blocks = {"tgt": R["lick_bin_tgt"], "exec": R["lick_bin_exec"]}
-    return {"label": label, "animal": label[:4], "epoch": epochs.epoch_of(label), "Y": Y[rows], "areas": anames,
+    return {"label": label, "animal": label.split("_")[0], "epoch": epochs.epoch_of(label), "Y": Y[rows], "areas": anames,
             "shared": shared[rows], "cat": np.hstack([R["pos_enl"], R["pos_cue"]])[rows], "tgt": blocks["tgt"][rows], "exec": blocks["exec"][rows],
             "lickwin": (d <= 0.2)[rows], "agree": float(np.mean(tl[tl != ""] == el[tl != ""]))}
 
@@ -144,7 +144,7 @@ def pass1_one(label: str) -> str:
 def template_for(label: str, pre: list):
     """The animal's mean pre-stroke template, without `label` itself; areas aligned by atlas name."""
     d = Path(os.environ[OUT_ENV]) / "sessions"
-    srcs = [k for k in pre if k[:4] == label[:4] and k != label and (d / f"{k}_tmpl.npz").exists()]
+    srcs = [k for k in pre if k[:4] == label.split('_')[0] and k != label and (d / f"{k}_tmpl.npz").exists()]
     if not srcs:
         return None, None
     Z = {k: np.load(d / f"{k}_tmpl.npz") for k in srcs}
@@ -163,13 +163,12 @@ def pass2_one(item) -> list:
 
 
 def main(argv=None) -> int:
+    # coordinator 11-04: routed (outputs under the run tag), no longer refused in a tagged run
     from wfield_local import analysis_kit as ak
     from wfield_local import combined_encoding as ce
     from wfield_local import epochs
     from wfield_local import orofacial_cohort as oc
-    from wfield_local import orofacial_outputs as oo
     from wfield_local import writeguard
-    from wfield_local.paths import PathResolver
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--run", default=oc.RUN)
     ap.add_argument("--jobs", type=int, default=1)
@@ -184,7 +183,8 @@ def main(argv=None) -> int:
     cur = set(ak.curated_labels())
     if any(x not in cur for x in labels):
         raise SystemExit(f"not curated: {[x for x in labels if x not in cur]}")
-    out = oo.root(PathResolver()) / a.run / "imaging_encoding" / "qc" / (f"lick_templates_{mode}" + (f"_{a.tag}" if a.tag else ""))
+    from wfield_local import run_mode
+    out = run_mode.encoding_out_root(a.run) / "qc" / (f"lick_templates_{mode}" + (f"_{a.tag}" if a.tag else ""))   # 11-04
     writeguard.assert_writable(out.parent)
     (out / "sessions").mkdir(parents=True, exist_ok=True)
     os.environ[OUT_ENV] = str(out)

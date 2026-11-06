@@ -50,6 +50,7 @@
 animals:
   PS92:
     color: "tab:blue"
+    marker: "o"     # session-dot SHAPE (cat_points.animal_marker; colour = epoch there). Unique within the cohort.
     sex: F
     date_of_birth: 2026-01-14
     genotype: "Thy1-GCaMP6s GP4.3"
@@ -83,6 +84,7 @@ animals:
 
   PS93:
     color: "tab:red"
+    marker: "s"
     sex: F
     date_of_birth: 2026-01-14
     genotype: "Thy1-GCaMP6s GP4.3"
@@ -121,6 +123,7 @@ animals:
 
   PS94:
     color: "tab:orange"
+    marker: "^"
     sex: F
     date_of_birth: 2025-12-24
     genotype: "Thy1-GCaMP6s GP4.3"
@@ -153,6 +156,7 @@ animals:
 
   PS95:
     color: "tab:green"
+    marker: "D"
     sex: M
     date_of_birth: 2025-12-24
     genotype: "Thy1-GCaMP6s GP4.3"

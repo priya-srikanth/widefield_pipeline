@@ -46,23 +46,25 @@ def landing(E) -> dict:
 
 
 def main(argv=None) -> int:
+    # coordinator 11-04: routed (outputs under the run tag), no longer refused in a tagged run
+    from wfield_local import config
     from wfield_local import analysis_kit as ak
     from wfield_local import epochs
     from wfield_local import grant_figures as gf
     from wfield_local import grant_kit as gk
     from wfield_local import orofacial_cohort as oc
-    from wfield_local import orofacial_outputs as oo
     from wfield_local import writeguard
-    from wfield_local.paths import PathResolver
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--run", default=oc.RUN)
     ap.add_argument("--arm", default="cue/working", help="align/variant of the 10b matrices (cue/working, lick/lick)")
     a = ap.parse_args(argv)
     align, variant = a.arm.split("/")
-    E = oo.root(PathResolver()) / a.run / "imaging_encoding"
+    from wfield_local import run_mode
+    E = run_mode.encoding_out_root(a.run)                # the encoder runs' (tagged) tree, coordinator 11-04
+    (E / "qc").mkdir(parents=True, exist_ok=True)
     out = E / "qc"
     writeguard.assert_writable(out)
-    labels = [x for x in ak.curated_labels() if x[-4:] >= "0806"]
+    labels = [x for x in ak.curated_labels() if not config.early_pre(x)]
     lab_of = {(x[:4], epochs.days_since_stroke(x)): x for x in labels}
     Lw = landing(E)
     dest, _days = gf._matrices_best_match_destination(align, variant)

@@ -46,8 +46,27 @@ import os
 from pathlib import Path
 
 import numpy as np
+from wfield_local.pose3d import pose3d_dir
 
-STATS_VERSION = 4   # 2: FGROUP split (contact / direction / movement); 3: protrusion -> direction; 4: lick / spout split
+STATS_VERSION = 7   # 2: FGROUP split (contact / direction / movement); 3: protrusion -> direction; 4: lick / spout split;
+#                     5: running capped at the pre p99 of ALL frames (superseded); 6: p99 of RUNNING frames (RUN_CAP_Q);
+#                     7: default running = forward-only hinges from RUN_KNOT0_DEFAULT mm/s (spline_thr), no push term
+
+#: RUNNING CAP (Priya 10-22 evening: "yes add running cap"). A frozen model only interpolates within the pre-stroke
+#: range: PS94 ran far harder after the stroke (running SD 5.6-6.3 vs 1.4-2.9 pre; p99 20-23 vs 7-12), the linear
+#: running kernel extrapolated and drove chronic frozen R2 to -0.4 .. -0.6. Every running column is clipped to
+#: +/- the animal's pooled pre-session RUN_CAP_Q percentile of |speed| over its RUNNING frames (trial frames, lag-0
+#: column, |speed| > the pipeline's running threshold `segmentation.running.thresh_speed_mm_s`, 3 mm/s) before
+#: centring. NOT the percentile of all frames (STATS_VERSION 5): PS95 runs on 1 % of pre frames, so its all-frame p99
+#: (2.8 mm/s) sat at the edge of standing still, the cap removed 63 % of its pre running SD, the per-mm/s kernel
+#: tripled and post-stroke cue / lick-window R2 fell to -0.65 (chronic). The cap = the speeds the animal REACHED when
+#: it ran, independent of how often it ran (PS92 / 93 / 94 / 95: 14.8 / 17.3 / 13.2 / 16.8 mm/s).
+RUN_CAP_Q = 99.0
+
+
+def _run_thresh() -> float:
+    from wfield_local import config
+    return float(config.defaults()["segmentation"]["running"]["thresh_speed_mm_s"])
 
 
 def _ce():
@@ -85,10 +104,10 @@ def _ce():
 #:   target       pos_enl, pos_cue (the six position blocks: the spout itself)
 #:   exec_locked  spout-locked part s of every lick-related column (executed, but fully predictable from the spout)
 #:   exec_within  deviation d of the DIRECTION traces + the per-lick executed angle (already within-spout): where the
-#:                tongue / jaw / nose go relative to that spout's usual path
+#:                tongue / jaw go relative to that spout's usual path (nose moved to "other", grouping v2)
 #:   lick         deviation d of lick onsets, tongue speed, jaw opening / speed: vigour and timing that is not
 #:                about which spout (leakage-checked: should decode the spout ~ chance in pre sessions)
-#:   other        nose y, running
+#:   other        nose x / y (both parts, grouping v2), running, push
 #:   contact      the spout-contact kernel
 #: Super-groups: task = timing + target; spout = target + exec_locked + exec_within; movement = lick + exec_locked +
 #: exec_within + other. target vs exec_locked are perfectly confounded by design (both follow the spout); only
@@ -96,21 +115,380 @@ def _ce():
 SPLIT_VARS = ("lick_onset", "tongue_mag", "jaw_mag", "tongue_dir", "jaw_dir", "nose_dir")
 _LICK_BASE = ("lick_onset", "tongue_mag", "jaw_mag")
 TEMPLATE_S = (-4.0, 8.0)                                 # cue-relative span of the spout-locked templates (s)
+#: NOSE IS "OTHER" (Priya 10-23: "why is nose direction in the lick group? did we show it's lick locked?" -> no: only
+#: 4 / 21 / 29 / 13 % of nose x's pre-stroke variance (PS92-95) is in its spout-locked template, vs 44-61 % for lick
+#: onsets; "nose_dir" = nose lateral POSITION, "nose_mag" = nose vertical position, both mouth-relative). Both parts of
+#: nose x go to "other" with nose y and running (uninstructed). Grouping only: same columns / statistics / joint fit.
+_NOSE_OTHER = {"nose_dir:spl", "nose_dir:dev"}
 FGROUP = {"cue": "timing", "arrival": "timing", "pos_enl": "target", "pos_cue": "target",
           **{f"{v}:spl": "exec_locked" for v in SPLIT_VARS},
           **{f"{v}:dev": ("lick" if v in _LICK_BASE else "exec_within") for v in SPLIT_VARS},
-          "exec_angle": "exec_within", "nose_mag": "other", "running": "other", "contact": "contact"}
+          **{k: "other" for k in _NOSE_OTHER},
+          "exec_angle": "exec_within", "nose_mag": "other", "running": "other", "push": "other", "contact": "contact"}
+#: grouping revision, saved with outputs (1 = up to 10-23 evening, nose x in exec_locked / exec_within; 2 = nose in other;
+#: 3 = contact its own category, out of "nontask" -> task_first / movement_first order task vs movement only)
+GROUPING_VERSION = 3
 FGROUPS = ("timing", "target", "exec_locked", "exec_within", "lick", "other", "contact")
+#: CONTACT IS ITS OWN CATEGORY (grouping v3, Priya 10-23 "ok split out contact"): touch feedback from the animal's own
+#: lick is neither an experimenter-controlled task event nor a movement, so it is no longer inside "nontask" -- the
+#: task-first / movement-first bracket now orders task vs MOVEMENT with contact split jointly (in neither); the old
+#: "non-task" (movement + contact) is still joint - task_only.
 SUPER = {"task": ("timing", "target"), "spout": ("target", "exec_locked", "exec_within"),
          "movement": ("lick", "exec_locked", "exec_within", "other"),
-         "nontask": ("lick", "exec_locked", "exec_within", "other", "contact")}
+         "nontask": ("lick", "exec_locked", "exec_within", "other")}
 #: penalty groups as the encoder's PEN_GROUP_OF (task / lick / orofacial / uninstructed); s and d of a variable share
 #: its penalty group
 _FPEN_BASE = {"cue": "task", "arrival": "task", "pos_enl": "task", "pos_cue": "task",
               "lick_onset": "lick", "contact": "lick", "exec_angle": "lick",
               "tongue_mag": "orofacial", "tongue_dir": "orofacial", "jaw_mag": "orofacial", "jaw_dir": "orofacial",
-              "nose_mag": "uninstructed", "nose_dir": "uninstructed", "running": "uninstructed"}
+              "nose_mag": "uninstructed", "nose_dir": "uninstructed", "running": "uninstructed",
+              "push": "uninstructed"}
 FPEN = {v: _FPEN_BASE[v.split(":")[0]] for v in FGROUP}
+
+#: SPONTANEOUS LICK KERNELS (Priya 11-04; design v7g3_t3d_spont, REBUILD_CODE 8.51). The v7g3_t3d design has post-cue lick
+#: kernels only (`licks.csv` starts at the cue), so pre-cue (ENL) lick activity in the all-frames maps could be credited
+#: to the target (pos_enl, whose ENL state spans strobe .. cue). FROZEN_LICKS_ALL=split builds the frozen design with the
+#: combined encoder's production lick routing (COMBINED_ENCODING_LICKS_ALL=split, set ONLY around its behaviour load /
+#: raw blocks here, never globally): `combined_encoding.split_licks` puts every lick in exactly ONE kernel --
+#:   lick_onset  (the encoder's cued `licks` lick part) = licks.csv (every post-cue row, the 0-70 ms licks INCLUDED: the
+#:               70 ms floor is for counting) + the pre-cue / ITI-table rows with a post-cue onset + cam1-only post-cue;
+#:   licks_pre   pre-cue (ENL) licks (licks_all, by `oo.encoder_context` = the ONSET label), + cam1-only pre-cue;
+#:   licks_iti   ITI licks, + cam1-only ITI (cam1 duplicates of a cam4 pre-cue / ITI lick dropped, CAM1_DUP_TOL_S);
+#:   contact     the DAQ contacts over the whole trial windows (strobe - 0.5 .. stop + 3 s; the encoder's split rule).
+#: Credit: lick_onset / contact as before (the encoder's instructed `licks`); licks_pre / licks_iti UNINSTRUCTED =
+#: the frozen group "other" (nose, running, push: the encoder's uninstructed set), so `no_other` = the encoder's
+#: drop:uninstructed; `no_spont` drops the two together (= drop:licks_pre+licks_iti), novar_licks_pre / _iti one each.
+#: Penalty group "lick" (the encoder's PEN_GROUP_OF). Not split into spout-locked / deviation parts (not spout-locked).
+#: Unset / "none" = the v7g3_t3d design, byte-identical. The design name enters the frame tag ("spont" segment,
+#: `design_tag` / `check_tag`) and the saved statistics' run tag, so the two designs never share a folder or a fit.
+LICKS_ALL_ENV = "FROZEN_LICKS_ALL"
+LICKS_ALL_MODES = ("none", "split")
+SPONT_VARS = ("licks_pre", "licks_iti")                  # = combined_encoding.SPLIT_LICK_VARS (checked in split_blocks)
+#: the encoder's credit group of SPONT_VARS -> the frozen group; penalty group as the encoder's PEN_GROUP_OF
+SPONT_GROUP = {"uninstructed": "other"}
+SPONT_PEN = "lick"
+DESIGN_BASE = "v7g3_t3d"
+SPONT_PART = "spont"
+
+
+def licks_all_mode() -> str:
+    v = os.environ.get(LICKS_ALL_ENV, "").strip().lower() or "none"
+    if v not in LICKS_ALL_MODES:
+        raise ValueError(f"{LICKS_ALL_ENV}={v!r}; expected one of {LICKS_ALL_MODES}")
+    return v
+
+
+LICKS_ALL = licks_all_mode()
+SPONT = LICKS_ALL == "split"
+if SPONT:
+    FGROUP.update({v: SPONT_GROUP["uninstructed"] for v in SPONT_VARS})
+    _FPEN_BASE.update({v: SPONT_PEN for v in SPONT_VARS})
+    FPEN.update({v: SPONT_PEN for v in SPONT_VARS})
+
+
+def design_name() -> str:
+    """The frozen design of this environment: v7g3_t3d (post-cue lick kernels only) or v7g3_t3d_spont."""
+    return f"{DESIGN_BASE}_{SPONT_PART}" if SPONT else DESIGN_BASE
+
+
+def design_tag(tag: str) -> str:
+    """A frame / Layer-2 / relabel tag of this design: under FROZEN_LICKS_ALL=split every ``v7g3_t3d`` not already followed
+    by ``_spont`` becomes ``v7g3_t3d_spont`` (gate-attempted_v7g3_t3d_frA -> gate-attempted_v7g3_t3d_spont_frA,
+    v7g3_t3d_ref -> v7g3_t3d_spont_ref); unchanged otherwise. The readers' default tags go through it."""
+    import re
+    return re.sub(rf"{DESIGN_BASE}(?!_{SPONT_PART})", f"{DESIGN_BASE}_{SPONT_PART}", tag) if SPONT else tag
+
+
+def tag_is_spont(tag: str) -> bool:
+    return SPONT_PART in str(tag).split("_")
+
+
+def stats_design_ok(stats: list) -> bool:
+    """True when every saved pre-session statistic was built with this environment's lick design (the
+    ``|licksall-split`` part of its stored run tag iff FROZEN_LICKS_ALL=split)."""
+    return all(("|licksall-" in str(s.get("run_mode"))) == SPONT for s in stats)
+
+
+def check_tag(tag: str, what: str = "run") -> None:
+    """REFUSE a frozen folder tag whose design does not match the environment: a ``spont`` segment iff
+    FROZEN_LICKS_ALL=split (so the spontaneous-lick design never writes into, or reads, a v7g3_t3d folder and back)."""
+    if tag_is_spont(tag) != SPONT:
+        raise SystemExit(f"frozen {what} tag {tag!r} is {'spont' if tag_is_spont(tag) else 'v7g3_t3d'} but "
+                         f"{LICKS_ALL_ENV}={LICKS_ALL} builds {design_name()}: "
+                         + ("put the 'spont' segment in the tag (design_tag)" if SPONT else
+                            f"set {LICKS_ALL_ENV}=split for a spont folder"))
+
+#: FACERHYTHM IN THE FROZEN MODEL (Priya 10-25, handoff 000t plan item 3: "should we be mixing frozen and refit encoder
+#: vs FR models" -> build the frozen pre-stroke encoder WITH FR). Opt-in: FROZEN_FR=1 plus the encoder's own FR envs
+#: (COMBINED_ENCODING_FR = factor set, e.g. master_pre_v1; COMBINED_ENCODING_FR_GROUPS = <grouping>:<mode>, see
+#: fr_groups). One lag-0 column per grouped FR trace (as the per-session encoder enters FR), raw absolute expression,
+#: scaled by the animal's pooled pre SD like every other column (so a smaller post-stroke face movement keeps a smaller
+#: regressor). Groups: "fr" = lick sum + other factors (directionless); "fr_dir" = left / right / close / far (mode A
+#: only: lick DIRECTION through FR). Both are MOVEMENT (super-groups movement / nontask), so movement_first credits
+#: shared task / FR variance to movement; own penalty group "fr" (searched like the others). no_fr / no_fr_dir = their
+#: unique R2 in the FROZEN frame (the model-based decoupling test). Frames where FR is blanked enter at the session mean.
+FROZEN_FR_ENV = "FROZEN_FR"
+_FR_DIR_PARTS = ("left", "centre", "right", "close", "far")
+
+
+def _fr_vars() -> dict:
+    if os.environ.get(FROZEN_FR_ENV, "") not in ("1", "true", "yes"):
+        return {}
+    from wfield_local import fr_groups
+    gs = fr_groups.spec()
+    if not gs or not os.environ.get("COMBINED_ENCODING_FR"):
+        raise ValueError(f"{FROZEN_FR_ENV}=1 needs COMBINED_ENCODING_FR (set) and {fr_groups.ENV} (<grouping>:<mode>)")
+    G = fr_groups.GROUPINGS[gs[0]]
+    out = {}
+    for part in fr_groups.MODES[gs[1]]:
+        if part == "other":
+            out.update({f"fr_other_{k}": "fr" for k in G["other"]})
+        elif G.get(part):
+            out[f"fr_{part}"] = "fr_dir" if part in _FR_DIR_PARTS else "fr"
+    return out
+
+
+FR_VARS = _fr_vars()
+#: FR SPOUT-LOCKED SPLIT (Priya 10-25: "can we group by lick position information vs no lick position information across
+#: FR and kinematics?"). FROZEN_FR_SPLIT=1 splits every FR column like the pose columns (SPLIT_VARS): s = the animal's
+#: pre-stroke spout-locked template, d = the deviation. Without it the FR lick sum counts as "directionless" although
+#: its spout-locked amplitude differs by spout. Groups then: fr_locked (all FR s parts, position information), fr_dir
+#: (side / distance d parts), fr (lick sum + other d parts, no position information).
+FR_SPLIT = bool(FR_VARS) and os.environ.get("FROZEN_FR_SPLIT", "") in ("1", "true", "yes")
+if FR_VARS:
+    if FR_SPLIT:
+        _frmap = {**{f"{v}:spl": "fr_locked" for v in FR_VARS}, **{f"{v}:dev": g for v, g in FR_VARS.items()}}
+        SPLIT_VARS = (*SPLIT_VARS, *FR_VARS)
+    else:
+        _frmap = dict(FR_VARS)
+    _frg = tuple(g for g in ("fr_locked", "fr", "fr_dir") if g in _frmap.values())
+    FGROUP.update(_frmap)
+    FGROUPS = (*FGROUPS, *_frg)
+    SUPER["movement"] = (*SUPER["movement"], *_frg)
+    SUPER["nontask"] = (*SUPER["nontask"], *_frg)
+    if len(_frg) > 1:
+        SUPER["fr_all"] = _frg
+    FPEN.update({v: "fr" for v in _frmap})
+    #: LICK-POSITION INFORMATION across pose AND FR (Priya 10-25): posinfo = everything that carries where the lick goes
+    #: (pose spout-locked parts + pose direction deviations / executed angle + FR spout-locked parts + FR side / distance);
+    #: noposinfo = movement without it (pose lick timing / speed / opening deviations, nose, running + FR lick sum / other
+    #: deviations). Contact and the task groups are in neither. Without FROZEN_FR_SPLIT the FR lick sum sits in noposinfo
+    #: with its spout-locked part (approximate).
+    SUPER["posinfo"] = ("exec_locked", "exec_within", *(g for g in ("fr_locked", "fr_dir") if g in _frg))
+    SUPER["noposinfo"] = ("lick", "other", *(g for g in ("fr",) if g in _frg))
+
+
+#: PER-SPOUT LICK KERNELS (Priya 10-25: "should we have done spout-position lick kernels for our current models" -> "i.e.
+#: the frozen model"). FROZEN_LICKSPOUT=1 replaces the lick-onset spout-locked + deviation columns (s + d = the recorded
+#: lick-onset lag columns) by SIX copies of the recorded columns, each masked to one spout's trial frames (spout = the
+#: TARGET spout of the trial; relabel runs use the relabelled spout like the templates). Group "lickspout": executed,
+#: spout-specific, lick-locked -> in the spout / movement / posinfo super-groups and on the EXECUTED side of the ordered
+#: target / executed bracket. Penalty group "lick". The other pose variables keep their s / d split.
+LICKSPOUT = os.environ.get("FROZEN_LICKSPOUT", "") in ("1", "true", "yes")
+LICKSPOUT_POS = ("close_ipsi", "close_mid", "close_contra", "far_ipsi", "far_mid", "far_contra")   # canonical order
+if LICKSPOUT:
+    for _k in ("lick_onset:spl", "lick_onset:dev"):
+        FGROUP.pop(_k, None)
+    FGROUP.update({f"lick_onset@{q}": "lickspout" for q in LICKSPOUT_POS})
+    FGROUPS = (*FGROUPS, "lickspout")
+    for _g in ("spout", "movement", "nontask", "posinfo"):
+        if _g in SUPER:
+            SUPER[_g] = (*SUPER[_g], "lickspout")
+    FPEN.update({f"lick_onset@{q}": "lick" for q in LICKSPOUT_POS})
+_EXEC_SIDE = ("exec_locked", "exec_within", *(("lickspout",) if LICKSPOUT else ()))
+#: LANDING-SPLIT LICK KERNELS (Priya 10-25: "let's try the 3d landing ... lick kernels"): with FROZEN_LICKSPOUT, the six
+#: copies of the lick-onset kernel are assigned by where each lick LANDED, not by the trial's target spout: each lick's
+#: soft weight over the six spouts' pre-stroke landing centres (3-D peak, within-spout SD units, w ~ exp(-d^2 / 2), width
+#: 1; the encoder's executed-bin rule, `exec_bins_calib`). Licks WITHOUT landing information (no 3-D peak; cam1-only
+#: licks, often small / incomplete) go to a SEVENTH copy lick_onset@unknown -- not to the target, which would credit
+#: untracked (mostly failed-attempt) licks to the target spout. The seven copies sum to the recorded lick-onset columns.
+LICKLAND = os.environ.get("FROZEN_LICKLAND", "") in ("1", "true", "yes", "landing")
+#: calibration table (default: the input cache's pose3d_inputs snapshot, where the 3-D tables of these runs live)
+LICKLAND_CALIB = os.environ.get("FROZEN_LICKLAND_CALIB") or (
+    os.environ.get("WFIELD_INPUT_CACHE", ".").rstrip("/\\") + "/pose3d_inputs/exec_bins_calib_20261023.csv")
+if LICKLAND and not LICKSPOUT:
+    raise ValueError("FROZEN_LICKLAND needs FROZEN_LICKSPOUT=1")
+if LICKLAND:                                             # licks with no landing information: their own copy
+    FGROUP["lick_onset@unknown"] = "lickspout"
+    FPEN["lick_onset@unknown"] = "lick"
+#: LAGGED FACERHYTHM (Priya 10-25: "sure let's try lagged kernel"): FROZEN_FR_LAGS = comma-separated lags in s (e.g.
+#: "-0.3,-0.2,-0.1,0.1,0.2,0.3"); each FR variable keeps its lag-0 column and gains <v>:facelead (lags > 0: the face
+#: value from BEFORE the frame -- face precedes cortex) and <v>:cortexlead (lags < 0: the face value from AFTER the frame
+#: -- cortex precedes the face). Same group / penalty as the variable. Variants no_frfacelead / no_frcortexlead drop one
+#: side: unique(cortexlead) = future face beyond present + past = cortex leading. Slow calcium biases absolute timing
+#: toward cortex lagging (constant across epochs: read the pre -> post CHANGE). Not with FROZEN_FR_SPLIT.
+FR_LAGS = tuple(float(x) for x in os.environ.get("FROZEN_FR_LAGS", "").split(",") if x.strip())
+if FR_LAGS:
+    if not FR_VARS or FR_SPLIT:
+        raise ValueError("FROZEN_FR_LAGS needs FROZEN_FR (FaceRhythm) and not FROZEN_FR_SPLIT")
+    for _v, _g in list(FR_VARS.items()):
+        for _side in ("facelead", "cortexlead"):
+            FGROUP[f"{_v}:{_side}"] = _g
+            FPEN[f"{_v}:{_side}"] = "fr"
+_LAGDROP = {"no_frfacelead": ":facelead", "no_frcortexlead": ":cortexlead"} if FR_LAGS else {}
+
+
+def lick_landing_weights(B, animal: str, date: str, rv, width: float = 1.0) -> np.ndarray:
+    """(n_licks, 6) soft landing weights over LICKSPOUT_POS for each lick of ``B.lick_on_s`` (rows NaN = no 3-D peak).
+    Re-joins the session's lick table (same rows / order as `combined_encoding._load_behaviour`) to the 3-D lick table on
+    (trial_id, lick_idx)."""
+    import pandas as pd
+
+    ce = _ce()
+    from wfield_local import orofacial_outputs as oo
+    L = pd.read_csv(oo.session_dir(rv, ce._run(), animal, date) / "licks.csv")
+    L = L[L.trial_id.isin(set(B.trials.trial_id))]
+    if len(L) != len(B.lick_on_s):
+        raise ValueError(f"{animal}_{date}: lick table has {len(L)} rows, behaviour {len(B.lick_on_s)} licks")
+    path = os.environ.get(ce.EXEC3D_TABLE_ENV)
+    if not path:
+        path = pose3d_dir() / "kinematics" / "licks.csv.gz"
+    K = pd.read_csv(path, usecols=["session", "trial_id", "lick_idx", "side_ml", "out_ap", "down_dv"])
+    K = K[K.session == f"{animal}_{date}"].drop_duplicates(["trial_id", "lick_idx"])
+    X = L[["trial_id", "lick_idx"]].merge(K, on=["trial_id", "lick_idx"], how="left")[
+        ["side_ml", "out_ap", "down_dv"]].to_numpy(float)
+    C = pd.read_csv(LICKLAND_CALIB)
+    C = C[(C.calib_for == "default") & (C.animal == animal)].set_index("position").reindex(list(LICKSPOUT_POS))
+    G = C[["ml", "ap", "down"]].to_numpy(float)
+    sc = C[["sd_ml", "sd_ap", "sd_down"]].iloc[0].to_numpy(float)
+    d = (((X / sc)[:, None, :] - (G / sc)[None]) ** 2).sum(2)
+    with np.errstate(invalid="ignore"):
+        e = np.exp(-0.5 * (d - np.nanmin(d, 1, keepdims=True)) / width ** 2)
+        return e / e.sum(1, keepdims=True)
+
+
+def _landing_weights_xyz(X: np.ndarray, animal: str, width: float = 1.0) -> np.ndarray:
+    """(n, 6) soft landing weights over LICKSPOUT_POS from mouth-relative 3-D lick coordinates (side_ml, out_ap, down_dv),
+    the calibration of `lick_landing_weights`; rows NaN where X has no 3-D point."""
+    import pandas as pd
+    C = pd.read_csv(LICKLAND_CALIB)
+    C = C[(C.calib_for == "default") & (C.animal == animal)].set_index("position").reindex(list(LICKSPOUT_POS))
+    G = C[["ml", "ap", "down"]].to_numpy(float)
+    sc = C[["sd_ml", "sd_ap", "sd_down"]].iloc[0].to_numpy(float)
+    d = (((np.asarray(X, float) / sc)[:, None, :] - (G / sc)[None]) ** 2).sum(2)
+    with np.errstate(invalid="ignore"):
+        e = np.exp(-0.5 * (d - np.nanmin(d, 1, keepdims=True)) / width ** 2)
+        return e / e.sum(1, keepdims=True)
+
+
+_KIN_ALL = {}
+
+
+def _kin_all(rv):
+    """The whole-session 3-D lick table (pose3d/kinematics_all/licks.csv.gz), read once per process."""
+    import pandas as pd
+    path = pose3d_dir(rv) / "kinematics_all" / "licks.csv.gz"
+    if path not in _KIN_ALL:
+        _KIN_ALL[path] = pd.read_csv(path, usecols=["session", "lick_uid", "context", "side_ml", "out_ap", "down_dv"])
+    return _KIN_ALL[path]
+
+
+def _off_target(W: np.ndarray, tg: np.ndarray) -> float:
+    """Share of landed licks WITH a target whose most likely landing spout is not the target (ITI licks excluded)."""
+    m = np.isfinite(W).all(1) & np.isin(tg, LICKSPOUT_POS)
+    if not m.any():
+        return float("nan")
+    return float(np.mean(W[m].argmax(1) != np.array([LICKSPOUT_POS.index(t_) for t_ in tg[m]])))
+
+
+def te_lick_parts(parts: dict, B, T, animal: str, date: str, rv, ft: np.ndarray, ridx: np.ndarray,
+                  tpos_perm=None, land_roll: float | None = None) -> dict:
+    """FROZEN_DESIGN=te lick families into ``parts``: lick_onset@tgt:<q> (lick-locked kernels of every in-trial lick
+    labelled by its trial's TARGET spout) and lick_onset@land:<q> / @land:unknown (every lick, ITI included, by its 3-D
+    LANDING: soft weights, amplitude-weighted kernels + mean weight x plain kernel as FROZEN_LICKLAND, since
+    `_event_cols` centres an amplitude). Licks: post-cue = the behaviour licks (B.lick_on_s / B.lick_pos), cam1-only
+    in-trial licks (B.extra_lick_on_s, no 3-D), pre-cue and ITI licks from the session's licks_all.csv (exact DAQ onsets;
+    3-D via lick_uid into kinematics_all).
+    NULLS (`partial_refit.py`, TE): ``tpos_perm`` = permuted trial spouts (one per row of T, the same array the caller
+    passes to raw_blocks as pos_perm) -> every target label comes from it (post-cue licks too, through their trial);
+    ``land_roll`` = circular shift of the landing weights over the landed licks in time order, as a fraction (0..1) of
+    their number (bout structure kept, alignment with the data broken)."""
+    import pandas as pd
+    ce = _ce()
+    from wfield_local import orofacial_outputs as oo
+    lags = ce.LAGS["lick"]
+    # post-cue licks: target = their trial's spout, landing from the snapshot join (same rows as B.lick_on_s)
+    on_post = np.asarray(B.lick_on_s, float)
+    tg_post = np.asarray(B.lick_pos).astype(str)
+    W_post = lick_landing_weights(B, animal, date, rv)
+    # trials' spans (strobe - 0.5 .. stop + 3 s) -> target of any in-trial onset
+    st = np.asarray(np.where(np.isfinite(T.strobe_s), T.strobe_s, T.cue_s - 3.0), float) - 0.5
+    en = T.stop_s.to_numpy(float) + 3.0
+    tpos = (T.pos if tpos_perm is None else pd.Series(np.asarray(tpos_perm))).astype(str).to_numpy()
+
+    def target_of(t):
+        out = np.full(len(t), "", dtype=object)
+        for a_, e_, p_ in zip(st, en, tpos):
+            out[(t >= a_) & (t <= e_) & (out == "")] = p_
+        return out
+    if tpos_perm is not None:                            # permuted labels reach the post-cue licks through their trial
+        tg_post = target_of(on_post).astype(str)
+    ex = getattr(B, "extra_lick_on_s", None)
+    on_x = np.asarray([] if ex is None else ex, float)
+    tg_x = target_of(on_x)
+    A = pd.read_csv(oo.session_dir(rv, ce._run(), animal, date) / "licks_all.csv",
+                    usecols=lambda c: c in ("context", "onset_context", "daq_on_s"))
+    A["context"] = oo.encoder_context(A)          # the onset label: unchanged by the 11-04 peak rule (encoder lists)
+    A["lick_uid"] = np.arange(len(A))
+    K = _kin_all(rv)
+    K = K[K.session == f"{animal}_{date}"].drop_duplicates("lick_uid").set_index("lick_uid")
+    extra_rows = A[A.context.isin(["pre_cue", "iti"])].dropna(subset=["daq_on_s"])
+    on_c = extra_rows.daq_on_s.to_numpy(float)
+    ctx_c = extra_rows.context.to_numpy()
+    tg_c = np.where(ctx_c == "pre_cue", target_of(on_c), "")         # ITI licks: no target
+    Xc = K.reindex(extra_rows.lick_uid)[["side_ml", "out_ap", "down_dv"]].to_numpy(float)
+    W_c = _landing_weights_xyz(Xc, animal)
+    on_all = np.concatenate([on_post, on_x, on_c])
+    tg_all = np.concatenate([tg_post, tg_x, tg_c]).astype(str)
+    W_all = np.vstack([W_post, np.full((len(on_x), len(LICKSPOUT_POS)), np.nan), W_c])
+    keep = np.isfinite(on_all)
+    on_all, tg_all, W_all = on_all[keep], tg_all[keep], W_all[keep]
+    if land_roll:                                        # landing null: weights shifted along the landed licks
+        li = np.flatnonzero(np.isfinite(W_all).all(1))
+        li = li[np.argsort(on_all[li], kind="stable")]
+        W_all[li] = W_all[np.roll(li, int(round(land_roll * len(li))))]
+    for q in LICKSPOUT_POS:                              # TARGET-labelled lick kernels
+        m = tg_all == q
+        parts[f"lick_onset@tgt:{q}"] = _centred(ce._event_cols(on_all[m], ft, lags)[ridx].astype(np.float64))
+    land = np.isfinite(W_all).all(1)                     # LANDING-labelled lick kernels
+    on_l, W_l = on_all[land], W_all[land]
+    plain = ce._event_cols(on_l, ft, lags)[ridx].astype(np.float64)
+    inr = (on_l >= ft[0]) & (on_l <= ft[-1])
+    for k_, q in enumerate(LICKSPOUT_POS):
+        parts[f"lick_onset@land:{q}"] = _centred(ce._event_cols(on_l, ft, lags, amp=W_l[:, k_])[ridx].astype(np.float64)
+                                                 + (W_l[inr, k_].mean() if inr.any() else 0.0) * plain)
+    parts["lick_onset@land:unknown"] = _centred(ce._event_cols(on_all[~land], ft, lags)[ridx].astype(np.float64))
+    # CONTACT = EVERY DAQ-detected lick of the session (Priya 10-26: "there are sometimes spout contacts just outside trial
+    # times, while the spout is approaching or leaving -- ensure contact includes all DAQ detected licks"), not only the
+    # in-trial contacts of the behaviour table
+    from wfield_local import dlc_frames
+    from wfield_local.paths import PathResolver
+    sid = sorted((Path(PathResolver().root("behavior_out")) / "sessions" / animal / date).glob("*_trials.csv"))[-1].name[:-11]
+    daq = np.sort(np.asarray(dlc_frames.lick_onsets(animal, date, sid, rv), float))
+    parts["contact"] = _centred(ce._event_cols(daq, ft, lags)[ridx].astype(np.float64))
+    return {"n_licks": int(len(on_all)), "n_iti": int((ctx_c == "iti").sum()), "n_pre_cue": int((ctx_c == "pre_cue").sum()),
+            "n_cam1_only": int(len(on_x)), "n_daq_contacts": int(len(daq)), "share_landed": float(land.mean()) if len(land) else float("nan"),
+            "share_off_target": _off_target(W_all, tg_all)}
+
+
+def _fr_columns(animal: str, date: str, rv, ft: np.ndarray) -> dict:
+    """{FR variable: (n_frames, 1) raw column on every imaging frame} in FR_VARS order (NaN = blanked)."""
+    ce = _ce()
+    from wfield_local import face_rhythm_outputs as fro
+    fr_set = os.environ["COMBINED_ENCODING_FR"]
+    sig = fro.fr_signals(animal, date, rv, ft, fdir=fro.factor_dir(rv, set_name=fr_set), absolute=ce._fr_absolute())
+    missing = [v for v in FR_VARS if v not in sig]
+    if missing:
+        raise ValueError(f"FaceRhythm {fr_set}: grouped traces {missing} missing (got {list(sig)})")
+    out = {v: np.asarray(sig[v][1], float)[:, None] for v in FR_VARS}
+    if FR_LAGS:                                          # FROZEN_FR_LAGS: face leading / cortex leading copies
+        from wfield_local import movement_encoding as ME
+        fs = ME.frame_fs(ft)
+        for v in FR_VARS:
+            x = out[v][:, 0]
+            for side, lags in (("facelead", [lg for lg in FR_LAGS if lg > 0]), ("cortexlead", [lg for lg in FR_LAGS if lg < 0])):
+                out[f"{v}:{side}"] = np.column_stack([ME._shift(x, int(round(lg * fs))) for lg in lags])
+    return out
 
 
 def split_blocks(raw: dict) -> dict:
@@ -118,8 +496,10 @@ def split_blocks(raw: dict) -> dict:
     `combined_encoding.raw_blocks`: licks = [lick-onset kernel, contact kernel] (equal widths, same lags); tongue =
     x, y, prot, speed; jaw = x, y, speed; nose = x, y; each analog variable len(CLAGS) columns."""
     ce = _ce()
-    if os.environ.get("COMBINED_ENCODING_LICKS") == "lips" or os.environ.get("COMBINED_ENCODING_LICKS_ALL"):
-        raise ValueError("frozen_encoder: lips / licks-all kernels change the licks block layout; not supported")
+    mode_all = os.environ.get(ce.LICKS_ALL_ENV, "")
+    if os.environ.get("COMBINED_ENCODING_LICKS") == "lips" or (mode_all and not (SPONT and mode_all == "split")):
+        raise ValueError("frozen_encoder: lips / licks-all kernels change the licks block layout; not supported "
+                         f"(the spontaneous-lick design is {LICKS_ALL_ENV}=split, never an inherited {ce.LICKS_ALL_ENV})")
     nl = len(ce.CLAGS)
     lk = raw["licks"]
     if lk.shape[1] % 2:
@@ -134,7 +514,78 @@ def split_blocks(raw: dict) -> dict:
                  ("nose_dir", 1)):
         if out[k].shape[1] != w * nl:
             raise ValueError(f"{k}: {out[k].shape[1]} columns, expected {w * nl}")
+    if SPONT:                                            # the encoder's own spontaneous-lick variables, unchanged
+        if set(ce.SPLIT_LICK_VARS) != set(SPONT_VARS) or any(SPONT_GROUP.get(g) != FGROUP[v] or ce.PEN_GROUP_OF[v] != FPEN[v]
+                                                             for v, g in ce.SPLIT_LICK_VARS.items()):
+            raise ValueError(f"combined_encoding.SPLIT_LICK_VARS {ce.SPLIT_LICK_VARS} no longer matches the frozen "
+                             f"spontaneous-lick design {SPONT_VARS} / {SPONT_GROUP} / {SPONT_PEN}")
+        missing = [v for v in SPONT_VARS if v not in raw]
+        if missing:
+            raise ValueError(f"{LICKS_ALL_ENV}=split: raw blocks without {missing} (build them with "
+                             "frozen_encoder.raw_blocks, which sets the encoder's split routing)")
+        for v in SPONT_VARS:
+            out[v] = raw[v]
     return out
+
+
+def _licks_all_env():
+    """Context: the combined encoder's LICKS_ALL=split routing for the frozen spontaneous-lick design (only around its
+    behaviour load / raw blocks); a no-op for v7g3_t3d. An INHERITED COMBINED_ENCODING_LICKS_ALL is refused either way
+    (a frame render must not pick up the O2 bundle's setting)."""
+    import contextlib
+    ce = _ce()
+    if os.environ.get(ce.LICKS_ALL_ENV):
+        raise ValueError(f"frozen_encoder: {ce.LICKS_ALL_ENV}={os.environ[ce.LICKS_ALL_ENV]!r} is set; the frozen design "
+                         f"takes {LICKS_ALL_ENV} (split | none) and sets the encoder's routing itself -- unset it")
+    if not SPONT:
+        return contextlib.nullcontext()
+    from wfield_local import run_mode
+    return run_mode.with_env(**{ce.LICKS_ALL_ENV: "split"})
+
+
+def load_behaviour(animal: str, date: str, rv):
+    """`combined_encoding.load_behaviour` under this design's lick routing (`_licks_all_env`)."""
+    with _licks_all_env():
+        return _ce().load_behaviour(animal, date, rv)
+
+
+def raw_blocks(B, ft, **kw) -> dict:
+    """`split_blocks(combined_encoding.raw_blocks(B, ft, **kw))` under this design's lick routing: THE frozen raw
+    variables (+ licks_pre / licks_iti under FROZEN_LICKS_ALL=split)."""
+    with _licks_all_env():
+        return split_blocks(_ce().raw_blocks(B, ft, **kw))
+
+
+def spont_counts(B) -> dict:
+    """{n_post, n_pre, n_iti, n_contacts}: the split design's lick counts (`combined_encoding.split_licks`; every lick in
+    exactly one kernel) and its whole-window contacts; {} for v7g3_t3d."""
+    if not SPONT:
+        return {}
+    post, pre, iti = _ce().split_licks(B)
+    cc = getattr(B, "context_contact_s", None)
+    return {"n_post": int(len(post)), "n_pre": int(len(pre)), "n_iti": int(len(iti)),
+            "n_contacts": int(len(B.contact_s if cc is None else cc))}
+
+
+def first_lick_s(B, E) -> tuple[np.ndarray, np.ndarray | None]:
+    """(each trial's first-lick time (NaN = none), timing source or None) for the template time axis and the lick
+    alignment. v7g3_t3d: the first camera lick (cam4 + cam1-only onsets) in cue .. stop (a missing stop = cue + 3.5 s),
+    as the combined encoder's session npz (peth_lick). The spontaneous-lick design: the combined encoder's per-trial
+    LICK TIMING (`combined_encoding.trial_first_lick`, Priya 11-04: at a close spout an LP onset missing or > 50 ms after
+    the first DAQ contact (cue + 70 ms .. min(cue + max_rt, stop)) -> the contact; far: LP kept)."""
+    ex0 = getattr(B, "extra_lick_on_s", None)
+    lk0 = np.sort(np.concatenate([np.asarray(B.lick_on_s, float), np.asarray([] if ex0 is None else ex0, float)]))
+    cue_t, stop_t = E.cue_s.to_numpy(float), E.stop_s.to_numpy(float)
+    if SPONT:
+        tm = _ce().trial_first_lick(cue_t, stop_t, E.pos.to_numpy(), lk0, B.contact_s)
+        return tm["first_s"], tm["src"].astype(str)
+    fl_t = np.full(len(E), np.nan)
+    for i, (c, stp) in enumerate(zip(cue_t, stop_t)):
+        stp = stp if np.isfinite(stp) else c + 3.5
+        j = np.searchsorted(lk0, c)
+        if j < len(lk0) and lk0[j] < stp:
+            fl_t[i] = lk0[j]
+    return fl_t, None
 
 
 #: spout-locked templates, in bins of TEMPLATE_BIN_S (one imaging frame at the cohort's 31.25 Hz). TWO-PART TIME AXIS
@@ -205,18 +656,26 @@ def _centred(x: np.ndarray) -> np.ndarray:
     return np.where(np.isfinite(x), x, 0.0)
 
 
-def session_design(label: str, templates: dict | None = None, template_only: bool = False) -> dict:
+def session_design(label: str, templates: dict | None = None, template_only: bool = False, spatial: dict | None = None,
+                   basis_only: bool = False, relabel: dict | None = None, extra_targets: dict | None = None) -> dict:
     """Raw (drift-removed, session-centred) design X, area targets Rd, column variables, trial alignment frames.
     ``templates`` = the animal's spout-locked templates (`build_templates`), required for the STATS_VERSION 4 layout;
-    ``template_only`` = return only this session's template sums (behaviour pass, no imaging targets)."""
+    ``template_only`` = return only this session's template sums (behaviour pass, no imaging targets);
+    ``spatial`` = {"P": (stat pixels x R) projection, "names"} for basis / grid targets instead of Allen areas (Rd stays
+    None above MAX_DENSE_TARGETS: Y and Ra are returned and consumers project on demand); ``basis_only`` = return this
+    session's variance-weighted spatial components (the shared-basis pass); ``relabel`` = {spout q: spout j}: q's
+    trials get spout j's TARGET columns and j's spout-locked templates (the executed traces stay as recorded: s + d = x),
+    for the relabel test (`frozen_relabel`); ``frame_pos`` keeps the TRUE spout of every frame. ``extra_targets`` =
+    {"names", "P": (stat pixels x m) weights} appended AFTER the Allen areas + cortex (Allen-area targets only; the
+    ALM / tjM1 ROI means of `scripts/encoder_split_rows.roi_targets`, 10-28) -- the existing targets are unchanged."""
     ce = _ce()
     from wfield_local import config, epochs
     from wfield_local.paths import PathResolver
     rv = PathResolver()
-    animal, date = config.animal_of(label), "2026" + label.split("_")[-1]
+    animal, date = config.animal_of(label), config.date8(label.split("_")[-1])
     V, ft, Ub, _flat, parea, names, _shape, pstat = ce.load_imaging(label)
     try:
-        B = ce.load_behaviour(animal, date, rv)
+        B = load_behaviour(animal, date, rv)
     except FileNotFoundError as ex:
         # NO cam1 LICK EVENTS for this session (PS95 all, PS94_1005; cam1 unfinished): cam4 lick timing, as LP_licks
         # and the per-session encoder runs do; recorded as lick_set "cam4". Any other missing file is still an error.
@@ -224,7 +683,7 @@ def session_design(label: str, templates: dict | None = None, template_only: boo
             raise
         saved = os.environ.pop(ce.LICKS_ENV)
         try:
-            B = ce.load_behaviour(animal, date, rv)
+            B = load_behaviour(animal, date, rv)
         finally:
             os.environ[ce.LICKS_ENV] = saved
     T = B.trials
@@ -238,36 +697,83 @@ def session_design(label: str, templates: dict | None = None, template_only: boo
         rows |= m_
         fpos[m_] = p_
         ftri[m_] = i
+    if TE:                                               # FROZEN_DESIGN=te: the ITI frames too (TE_BLOCK comment)
+        rows |= (ft >= np.nanmin(st) - 0.5) & (ft <= np.nanmax(E.stop_s.to_numpy(float)) + 3.0)
     ridx = np.flatnonzero(rows)
     ftr = ft[ridx]
     pos_of = fpos[ridx]
-    # template time axis: cue-locked until the trial's first post-cue lick (same rule as first_f below), then
-    # lick-locked (TEMPLATE_BIN_S comment)
-    ex0 = getattr(B, "extra_lick_on_s", None)
-    lk0 = np.sort(np.concatenate([np.asarray(B.lick_on_s, float), np.asarray([] if ex0 is None else ex0, float)]))
+    # template time axis: cue-locked until the trial's first post-cue lick (the same time as first_f below,
+    # `first_lick_s`), then lick-locked (TEMPLATE_BIN_S comment)
     cue_t = E.cue_s.to_numpy(float)
-    fl_t = np.full(len(E), np.nan)
-    for i, (c, stp) in enumerate(zip(cue_t, E.stop_s.to_numpy(float))):
-        stp = stp if np.isfinite(stp) else c + 3.5
-        j = np.searchsorted(lk0, c)
-        if j < len(lk0) and lk0[j] < stp:
-            fl_t[i] = lk0[j]
+    fl_t, fl_src = first_lick_s(B, E)
     tri = ftri[ridx]
-    k_of = template_index(ftr - cue_t[tri], ftr - fl_t[tri])
+    intrial = tri >= 0                                   # False only on TE ITI frames
+    k_of = np.where(intrial, template_index(ftr - cue_t[np.maximum(tri, 0)], ftr - fl_t[np.maximum(tri, 0)]), -1)
     pos_order = sorted(T.pos.unique())
-    raw = split_blocks(ce.raw_blocks(B, ft))
+    if basis_only:                                       # spatial-basis pass: this session's weighted spatial components
+        Q = np.linalg.qr(ce._slow_basis(ftr, ce.DRIFT_MIN_PERIOD_S))[0]
+        Y = V[ridx].astype(np.float64)
+        Y -= Q @ (Q.T @ Y)
+        w, Ue = np.linalg.eigh(Y.T @ Y)                  # Y'Y = Ue diag(w) Ue'  ->  pixel covariance = (Ub Ue sqrt w)(...)'
+        return {"label": label, "animal": animal, "n": len(Y),
+                "UbL": (Ub[pstat].astype(np.float64) @ (Ue * np.sqrt(np.clip(w, 0, None)))).astype(np.float32)}
+    if relabel:
+        lab_r = np.array([relabel.get(p_, p_) for p_ in T.pos.to_numpy()], dtype=object)
+        raw = raw_blocks(B, ft, pos_perm={"pos_enl": lab_r, "pos_cue": lab_r})
+        pos_split = np.array([relabel.get(p_, p_) for p_ in pos_of], dtype=object)
+    else:
+        raw = raw_blocks(B, ft)
+        pos_split = pos_of
+    if FR_VARS:                                          # FaceRhythm columns (FROZEN_FR); split like pose if FR_SPLIT
+        raw.update(_fr_columns(animal, date, rv, ft))
     xc = {v: _centred(raw[v][ridx].astype(np.float64)) for v in SPLIT_VARS}
     if template_only:
+        run0 = np.abs(raw["running"][ridx, 0].astype(np.float64))         # lag-0 |speed| on trial frames (RUN_CAP_Q)
         return {"label": label, "animal": animal, "pos_order": pos_order,
-                "sums": {v: template_sums(xc[v], pos_of, k_of, pos_order) for v in SPLIT_VARS}}
+                "sums": {v: template_sums(xc[v][intrial], pos_of[intrial], k_of[intrial], pos_order) for v in SPLIT_VARS},
+                "run_abs": run0[intrial & np.isfinite(run0)].astype(np.float32),
+                "push_abs": _push_abs(raw["running"][ridx[intrial], 0])}
     if templates is None:
         raise ValueError(f"{label}: the STATS_VERSION {STATS_VERSION} layout needs the animal's spout-locked templates")
+    raw["push"] = push_columns(raw["running"], templates.get("push_cap"))     # from the SIGNED speed, before
+    raw["running"] = running_basis(raw["running"], templates.get("running_cap"),
+                                   _knots(templates.get("running_knots")), _run_mode())
     parts = {}
-    for v in SPLIT_VARS:
+    Ms = {}
+    for v in (() if TE else SPLIT_VARS):                # TE: no spout-template / deviation split
         M = np.stack([templates["mean"][v][templates["pos_order"].index(p)] if p in templates["pos_order"]
                       else np.zeros(templates["mean"][v].shape[1:]) for p in pos_order])
-        parts[f"{v}:spl"], parts[f"{v}:dev"] = spout_split(xc[v], pos_of, k_of, pos_order, M)
-    vars_ = list(FGROUP)
+        Ms[v] = M
+        parts[f"{v}:spl"], parts[f"{v}:dev"] = spout_split(xc[v], pos_split, k_of, pos_order, M)
+    lickland_info = None
+    if TE:
+        lickland_info = te_lick_parts(parts, B, T, animal, date, rv, ft, ridx)
+    if LICKSPOUT:                                        # one masked copy of the recorded lick-onset columns per spout
+        x_ = parts["lick_onset:spl"] + parts["lick_onset:dev"]
+        if LICKLAND:                                     # FROZEN_LICKLAND: copies by each lick's 3-D landing
+            W = lick_landing_weights(B, animal, date, rv)
+            tg = np.array([LICKSPOUT_POS.index(p_) if p_ in LICKSPOUT_POS else -1 for p_ in np.asarray(B.lick_pos)])
+            miss = ~np.isfinite(W).all(1)
+            W[miss] = 0.0                                # no 3-D peak: nothing on the six spouts -> @unknown (resid)
+            # `movement_encoding.build_design` mean-centres an amplitude modulator, so a weighted kernel = centred-amp kernel
+            # + mean weight x the plain kernel (weights sum to 1 per lick -> the six copies sum to the plain kernel)
+            on_ = np.asarray(B.lick_on_s, float)
+            inr = (on_ >= ft[0]) & (on_ <= ft[-1])
+            plain = ce._event_cols(on_, ft, ce.LAGS["lick"])[ridx].astype(np.float64)
+            cols = [_centred(ce._event_cols(on_, ft, ce.LAGS["lick"], amp=W[:, k_])[ridx].astype(np.float64)
+                             + (W[inr, k_].mean() if inr.any() else 0.0) * plain) for k_ in range(len(LICKSPOUT_POS))]
+            resid = x_ - np.sum(cols, 0)                 # cam1-only licks + licks without a 3-D peak
+            for k_, q_ in enumerate(LICKSPOUT_POS):
+                parts[f"lick_onset@{q_}"] = cols[k_]
+            parts["lick_onset@unknown"] = resid
+            lickland_info = {"n_licks": int(len(W)), "share_3d": float(1 - miss.mean()) if len(W) else float("nan"),
+                             "n_cam1_only": int(0 if B.extra_lick_on_s is None else len(B.extra_lick_on_s)),
+                             "share_off_target": float(np.mean(W[~miss].argmax(1) != tg[~miss])) if (~miss).any() else 0.0,
+                             "resid_share": float(np.linalg.norm(resid) / max(np.linalg.norm(x_), 1e-12))}
+        else:
+            for q_ in LICKSPOUT_POS:
+                parts[f"lick_onset@{q_}"] = x_ * (np.asarray(pos_split) == q_)[:, None]
+    vars_ = [v for v in FGROUP if v != "push" or _push_on()]
     blocks = [parts[v] if v in parts else raw[v][ridx].astype(np.float64) for v in vars_]
     X = np.hstack(blocks)
     # unknown frames (NaN pose) contribute nothing: the session's column mean, which the centring below removes
@@ -277,21 +783,32 @@ def session_design(label: str, templates: dict | None = None, template_only: boo
     col_var = np.concatenate([[v] * b.shape[1] for v, b in zip(vars_, blocks)])
     Q = np.linalg.qr(ce._slow_basis(ftr, ce.DRIFT_MIN_PERIOD_S))[0]
     X -= Q @ (Q.T @ X)
-    areas = sorted({int(a) for a in np.unique(parea[pstat]) if a != 0})
-    Ra = np.stack([Ub[(parea == a) & pstat].mean(0) for a in areas] + [Ub[pstat].mean(0)], 1)
+    Rx = None                                            # extra targets' weights (kept apart from the Allen ones)
+    if spatial is None:                                  # Allen-area targets (the v1-v4 default)
+        areas = sorted({int(a) for a in np.unique(parea[pstat]) if a != 0})
+        Ra = np.stack([Ub[(parea == a) & pstat].mean(0) for a in areas] + [Ub[pstat].mean(0)], 1)
+        area_names = [names.get(a, str(a)) for a in areas] + ["cortex"]
+        if extra_targets is not None:
+            Rx = Ub[pstat].astype(np.float64).T @ np.asarray(extra_targets["P"], np.float64)
+            area_names += list(extra_targets["names"])
+    elif extra_targets is not None:
+        raise ValueError("extra_targets is implemented for Allen-area targets only")
+    else:                                               # SPATIAL targets: projection P (stat pixels x R) + cortex mean
+        Ra = np.column_stack([np.asarray((spatial["P"].T @ Ub[pstat].astype(np.float64))).T, Ub[pstat].mean(0)])
+        area_names = list(spatial["names"]) + ["cortex"]
     Y = V[ridx].astype(np.float64)
     Y -= Q @ (Q.T @ Y)
-    Rd = Y @ Ra
-    area_names = [names.get(a, str(a)) for a in areas] + ["cortex"]
+    # extra targets (11-06): the Allen columns are Y @ the SAME Allen weights as a run without extras (one product, so
+    # bit-identical: a wider product may round differently), the extra columns a second product beside them
+    Rd = (None if Ra.shape[1] + (0 if Rx is None else Rx.shape[1]) > MAX_DENSE_TARGETS   # large sets stay lazy
+          else Y @ Ra if Rx is None else np.column_stack([Y @ Ra, Y @ Rx]))
+    if Rx is not None:
+        Ra = np.column_stack([Ra, Rx])
     ex_ = getattr(B, "extra_lick_on_s", None)
-    lk = np.sort(np.concatenate([np.asarray(B.lick_on_s, float), np.asarray([] if ex_ is None else ex_, float)]))
     cue_f = np.searchsorted(ftr, E.cue_s.to_numpy(float))
     first_f = np.full(len(E), -1)
-    for i, (c, stp) in enumerate(zip(E.cue_s.to_numpy(float), E.stop_s.to_numpy(float))):
-        stp = stp if np.isfinite(stp) else c + 3.5
-        j = np.searchsorted(lk, c)
-        if j < len(lk) and lk[j] < stp:
-            first_f[i] = int(np.searchsorted(ftr, lk[j]))
+    for i in np.flatnonzero(np.isfinite(fl_t)):          # each trial's first lick (`first_lick_s`, as the templates)
+        first_f[i] = int(np.searchsorted(ftr, fl_t[i]))
     win = {"all": np.ones(len(ridx), bool), "cue": np.zeros(len(ridx), bool), "lick": np.zeros(len(ridx), bool)}
     for c in E.cue_s.to_numpy(float):
         win["cue"] |= (ftr >= c) & (ftr < c + 1.0)
@@ -301,9 +818,59 @@ def session_design(label: str, templates: dict | None = None, template_only: boo
     return {"label": label, "animal": animal, "epoch": epochs.epoch_of(label), "day": epochs.days_since_stroke(label),
             "X": X, "Rd": Rd, "area_names": area_names, "col_var": col_var, "pos": E.pos.to_numpy(),
             "cue_f": cue_f, "first_f": first_f, "fs": float(1.0 / np.median(np.diff(ft))), "win": win,
+            "trial_id": E.trial_id.to_numpy(int),
             "lick_set": "combined" if ex_ is not None and len(ex_) else "cam4", "n_trials": len(E),
-            "frame_pos": pos_of, "pos_order": pos_order,
-            "pos_counts": {str(p_): int((T.pos == p_).sum()) for p_ in pos_order}}
+            "frame_pos": pos_of, "frame_trial": tri, "pos_order": pos_order,
+            "pos_counts": {str(p_): int((T.pos == p_).sum()) for p_ in pos_order},
+            "Y": Y if Rd is None else None, "Ra": Ra if Rd is None else None,
+            "spl_swap": spl_swap_deltas(Ms, templates, pos_of, k_of, pos_order, col_var, ftr) if spatial and not TE else None,
+            "lickland": lickland_info, "timing_source": fl_src, "spont": spont_counts(B),
+            # per-trial outputs (`write_trials`): the trial table, the frame rows, the lick sets of the lick timing
+            "E": E, "ft": ft, "ridx": ridx,
+            "lk_all": np.sort(np.concatenate([np.asarray(B.lick_on_s, float), np.asarray([] if ex_ is None else ex_, float)])),
+            "contact_s": np.asarray(B.contact_s, float)}
+
+
+def swap_template(M: np.ndarray, N: np.ndarray, qi: int) -> np.ndarray:
+    """M with spout qi's template replaced by the OTHER spouts' pooled template (frame-count weighted per bin, so
+    the bins where only some spouts have data use those): 'spout q's locked movement as the typical other spout'."""
+    w = np.asarray(N, float).copy()
+    w[qi] = 0.0
+    den = w.sum(0)
+    pooled = np.einsum("pk,pkc->kc", w, M) / np.where(den > 0, den, 1.0)[:, None]
+    out = M.copy()
+    out[qi] = np.where((den > 0)[:, None], pooled, 0.0)
+    return out
+
+
+def spl_swap_deltas(Ms: dict, templates: dict, pos_of, k_of, pos_order: list, col_var, ftr) -> dict:
+    """{spout q: (frame index of q's frames, delta (n_q, p))}: the change of the design X on q's frames when q's
+    spout-locked templates are swapped for the other spouts' pooled ones (`swap_template`), deviation columns
+    unchanged, after the same slow-drift projection as X. With the frozen drop-one-spout fit (target q folded into
+    the others) this removes the WHOLE spout-specific response of q (Priya 10-23: target and the spout-locked lick are
+    the same variable on on-target licks)."""
+    if "count" not in templates:
+        return {}
+    ce = _ce()
+    Q = np.linalg.qr(ce._slow_basis(ftr, ce.DRIFT_MIN_PERIOD_S))[0]
+    tpos = templates["pos_order"]
+    Nall = np.asarray(templates["count"], float)
+    N = np.stack([Nall[tpos.index(p)] if p in tpos else np.zeros(Nall.shape[1:]) for p in pos_order])
+    out = {}
+    for qi, q in enumerate(pos_order):
+        rows = np.flatnonzero(pos_of == q)
+        if len(rows) < 10:
+            continue
+        D = np.zeros((len(rows), len(col_var)))
+        for v in SPLIT_VARS:
+            Msw = swap_template(Ms[v], N, qi)
+            s0, _ = spout_split(np.zeros((len(rows), Ms[v].shape[2])), pos_of[rows], k_of[rows], pos_order, Ms[v])
+            s1, _ = spout_split(np.zeros((len(rows), Ms[v].shape[2])), pos_of[rows], k_of[rows], pos_order, Msw)
+            if (col_var == f"{v}:spl").any():           # absent for lick_onset under FROZEN_LICKSPOUT
+                D[:, col_var == f"{v}:spl"] = s1 - s0
+        D -= Q[rows] @ (Q[rows].T @ D)                    # the slow-drift projection, restricted to q's rows
+        out[q] = (rows, D)
+    return out
 
 
 def template_job(label: str) -> dict:
@@ -311,7 +878,7 @@ def template_job(label: str) -> dict:
     return session_design(label, template_only=True)
 
 
-def build_templates(parts: list[dict]) -> dict:
+def build_templates(parts: list[dict], run_thresh: float | None = None) -> dict:
     """{animal: {"pos_order", "mean": {var: (spouts, K, c)}, "n_sessions", "labels"}} pooled over the animal's pre
     sessions (sums / counts added, so every pre trial weighs the same)."""
     by: dict = {}
@@ -332,9 +899,240 @@ def build_templates(parts: list[dict]) -> dict:
                 S[ix] += s_
                 N[ix] += n_
             mean[v] = template_means(S, N)
+            count = N                                       # same frame counts for every split variable
+        ra = [t["run_abs"] for t in ts if t.get("run_abs") is not None and len(t["run_abs"])]
+        ra = np.concatenate(ra) if ra else np.zeros(0)
+        if len(ra):
+            ra = ra[ra > (run_thresh if run_thresh is not None else _run_thresh())]   # running frames, pooled
+        cap = float(np.percentile(ra, RUN_CAP_Q)) if len(ra) else None
+        pa = [t["push_abs"] for t in ts if t.get("push_abs") is not None and len(t["push_abs"])]
+        push_cap = float(np.percentile(np.concatenate(pa), RUN_CAP_Q)) if pa else None
+        rt = run_thresh if run_thresh is not None else (_run_thresh() if len(ra) else None)
+        knots = [float(rt)] + [float(np.percentile(ra, q)) for q in RUN_KNOT_Q] if len(ra) else []
         out[an] = {"pos_order": order, "mean": mean, "n_sessions": len(ts), "labels": [t["label"] for t in ts],
-                   "bin_s": TEMPLATE_BIN_S, "span_s": TEMPLATE_S, "min_n": TEMPLATE_MIN_N}
+                   "bin_s": TEMPLATE_BIN_S, "span_s": TEMPLATE_S, "min_n": TEMPLATE_MIN_N,
+                   "running_cap": cap, "running_cap_q": RUN_CAP_Q, "running_knots": knots,
+                   "count": count, "push_cap": push_cap}
     return out
+
+
+def cap_running(x: np.ndarray, cap: float | None) -> np.ndarray:
+    """Running columns clipped to +/- cap (sign kept; NaN stays NaN); cap None = unchanged (RUN_CAP_Q comment)."""
+    if cap is None:
+        return x
+    return np.clip(x, -cap, cap)
+
+
+#: SUBLINEAR RUNNING TEST (Priya 10-23: "yes test sublinear running"). With the linear kernel PS94's post-stroke fit
+#: was better under a LOWER cap (9.4 mm/s: chronic R2 0.53) than a higher one (13.2: 0.30), as if cortex saturated
+#: with speed. `FROZEN_RUNNING=spline` replaces the linear running term with a PIECEWISE-LINEAR curve in speed: the
+#: capped speed s plus hinges max(0, s - k) at knots k = the running threshold and the RUN_KNOT_Q percentiles of the
+#: animal's pre RUNNING frames (all below the cap). Every function is flat above the cap, so the frozen model still
+#: never extrapolates; the fitted curve's shape (`running_curve`) is the readout. Default "linear" = v6.
+RUN_KNOT_Q = (25.0, 50.0, 75.0)
+#: RESULT of "spline" (10-23, `_v6spl`): the fitted curve jumps between 0 and ~3-5 mm/s and is flat / slightly falling
+#: above in all four animals; held-out pre R2 +0.03 .. +0.10 and PS94 post fixed (chronic 0.30 -> 0.60), but the cue /
+#: lick windows of later post-stroke epochs got WORSE in PS92 / PS93 / PS95 (by ~0.1-0.15): the steep part sits BELOW
+#: the pipeline's 3 mm/s running threshold (fidgets, treadmill creep). "spline_thr" (Priya: "launch the threshold
+#: variant") = no running response below the threshold: hinges max(0, s - k) at k = the threshold and the RUN_KNOT_Q
+#: percentiles of the pre running frames only (no linear s term), still flat above the cap.
+#: v7 DEFAULT (10-23, six models side by side, `scripts/frozen_running_compare.py` -> qc/frozen_running_compare_v6_to_
+#: v7fwd15push.csv): spline_thr from 1.5 mm/s. Forward-only beats signed linear in every animal x epoch x window (PS95
+#: chronic cue-window R2 .00 -> .15, PS94 chronic all frames .30 -> .62); onset 1 vs 1.5 mm/s within .02 everywhere and
+#: the 1-1.5 band takes no variance from the lick group (Priya chose 1.5: below it the treadmill moves with cue / lick
+#: jolts); the acute far-contra decomposition is unchanged in all six models. Reproduce older runs with
+#: FROZEN_RUNNING=linear (v6), =spline / =spline_thr with FROZEN_RUN_KNOT0=3 (`_v6spl`, `_v6thr3`), =1 (`_v6thr1`).
+RUN_MODE_DEFAULT = "spline_thr"
+RUN_KNOT0_DEFAULT = 1.5
+
+
+def _run_mode() -> str:
+    m = os.environ.get("FROZEN_RUNNING", RUN_MODE_DEFAULT)
+    if m not in ("linear", "spline", "spline_thr"):
+        raise ValueError(f"FROZEN_RUNNING={m!r}: expected linear | spline | spline_thr")
+    return m
+
+
+def _knots(knots: list | None) -> list | None:
+    """The template knots with the first (= the response onset for spline_thr) overridden by FROZEN_RUN_KNOT0 (mm/s),
+    if set: Priya 10-23 "is 3 mm too high a threshold for this" -- 3 mm/s is the behaviour segmentation's SUSTAINED-
+    running threshold, the rest floor is ~0.1-0.5 mm/s (pre trial-frame p90), and the spline's response was mostly
+    reached by 2 mm/s. Higher knots stay the pre running-frame percentiles. Default RUN_KNOT0_DEFAULT (v7)."""
+    k0 = _knot0()
+    if not knots:
+        return knots
+    return sorted({k0, *[k for k in knots[1:] if k > k0]})
+
+
+def _knot0() -> float:
+    return float(os.environ.get("FROZEN_RUN_KNOT0") or RUN_KNOT0_DEFAULT)
+
+
+def _run_tag() -> str:
+    """Running-model tag stored with the saved statistics (never reused across modes / knot overrides / push)."""
+    return ((_run_mode() + f"|k0={_knot0():g}" + ("|push" if _push_on() else "")) + ("|te" if TE else "")
+            + ("|tongue3d" if os.environ.get("COMBINED_ENCODING_TONGUE", "") == "3d" else "")    # TONGUE_ENV
+            + (f"|fr={os.environ['COMBINED_ENCODING_FR']}:{os.environ['COMBINED_ENCODING_FR_GROUPS']}" if FR_VARS else "")
+            + ("|frsplit" if FR_SPLIT else "") + ("|lickspout" if LICKSPOUT else "") + ("|lickland" if LICKLAND else "")
+            + (f"|frlags={','.join(f'{x:g}' for x in FR_LAGS)}" if FR_LAGS else "")
+            + (f"|licksall-{LICKS_ALL}" if SPONT else ""))  # the spontaneous-lick design: never a v7g3_t3d fit's stats
+
+
+#: BACKWARD / POSTURAL TREADMILL MOVEMENT (Priya 10-23, after the side-camera clips: the negative speed at bout ends is
+#: the animal pushing a paw forward, and the post-cue dip is upper-limb extension / a posture change -- real movements,
+#: "should we really throw these out or might they be helpful?"). The threshold running models already ignore
+#: backward speed (forward hinges only) and the signed linear v6 treated it as NEGATIVE running, although cortex is
+#: HIGHER during pushes. `FROZEN_PUSH=1` adds its own variable "push" (group other, penalty uninstructed): backward
+#: speed beyond PUSH_FLOOR, capped at the animal's pooled pre-stroke RUN_CAP_Q percentile of backward speed.
+PUSH_FLOOR = 0.3
+
+
+def _push_on() -> bool:
+    return bool(os.environ.get("FROZEN_PUSH"))
+
+
+#: FREE PUSH (Priya 10-23: "if push changes, wouldn't it be useful to include it somehow then?"). A FROZEN push kernel
+#: fails post-stroke (v7 test: chronic cue-window R2 PS95 .15 -> -.80): pushes are rare pre-stroke (0.6-3.9 % of trial
+#: frames) and 2-5x more frequent after, so the pre kernel rests on few events that coincide with bout ends / cue
+#: posture / licks. Leaving push out leaves its activity unexplained (residual, "data - model"). `FROZEN_PUSH=free`:
+#: push stays in the pre fit (the frozen groups are estimated with push accounted for), but on EVERY session (pre and
+#: post) the push columns' betas are re-fitted to that session's residual (data - frozen non-push prediction), ridge
+#: with the frozen push-group alpha, cross-validated over PUSH_FREE_FOLDS contiguous blocks (no in-sample gain). Areas
+#: only; the frozen parts are then read with push accounted for per session.
+PUSH_FREE_FOLDS = 5
+
+
+def _push_free() -> bool:
+    return os.environ.get("FROZEN_PUSH", "").strip().lower() == "free"
+
+
+def free_push(Zv: np.ndarray, R: np.ndarray, beta: np.ndarray, qm: np.ndarray, alpha: float,
+              folds: int = PUSH_FREE_FOLDS) -> tuple[np.ndarray, np.ndarray]:
+    """(frozen non-push prediction, cross-validated per-session push prediction) on the variant design Zv."""
+    base = Zv[:, ~qm] @ beta[~qm]
+    out = np.zeros_like(base)
+    if not qm.any():
+        return base, out
+    r, Zp = R - base, Zv[:, qm]
+    edges = np.linspace(0, len(Zp), folds + 1).astype(int)
+    for a, b in zip(edges[:-1], edges[1:]):
+        tr = np.ones(len(Zp), bool)
+        tr[a:b] = False
+        coef = np.linalg.solve(Zp[tr].T @ Zp[tr] + alpha * np.eye(qm.sum()), Zp[tr].T @ r[tr])
+        out[a:b] = Zp[a:b] @ coef
+    return base, out
+
+
+def _push_abs(x0: np.ndarray) -> np.ndarray:
+    """Backward speed magnitudes (lag-0 column, beyond PUSH_FLOOR) for the pooled cap."""
+    b = -np.asarray(x0, np.float64)
+    b = b[np.isfinite(b) & (b > PUSH_FLOOR)]
+    return b.astype(np.float32)
+
+
+def push_columns(x: np.ndarray, cap: float | None) -> np.ndarray:
+    """Signed lagged running columns -> backward-movement columns: max(0, -x - PUSH_FLOOR), capped (NaN kept)."""
+    b = np.maximum(-np.asarray(x, np.float64) - PUSH_FLOOR, 0.0)
+    b = np.where(np.isfinite(x), b, np.nan)
+    return b if cap is None else np.minimum(b, max(cap - PUSH_FLOOR, 0.0))
+
+
+def _run_blocks(s: np.ndarray, knots: list, mode: str) -> list:
+    """The running basis blocks of capped speed s: spline = [s, hinge k...], spline_thr = [hinge k...] (k[0] = the
+    running threshold, so nothing below it)."""
+    hinges = [np.maximum(s - k, 0.0) for k in knots]
+    return hinges if mode == "spline_thr" else [s, *hinges]
+
+
+def running_basis(x: np.ndarray, cap: float | None, knots: list | None, mode: str) -> np.ndarray:
+    """(T, L) lagged running columns -> blocks of L lag columns each (the transform commutes with the lag shift):
+    "spline" [s | hinge k1 | hinge k2 ...], "spline_thr" [hinge k1 | ...]; "linear" = capped columns unchanged."""
+    s = cap_running(x, cap)
+    if mode == "linear" or not knots:
+        return s
+    return np.hstack(_run_blocks(s, knots, mode))
+
+
+def running_curve(beta: np.ndarray, knots: list, speeds: np.ndarray, cap: float | None,
+                  mode: str = "spline") -> np.ndarray:
+    """Fitted response vs speed from the running betas IN RAW UNITS (blocks as `running_basis`), summed over lags."""
+    s = cap_running(np.asarray(speeds, float), cap)
+    blocks = _run_blocks(s, knots, mode)
+    b = np.asarray(beta, float).reshape(len(blocks), -1).sum(1)
+    return sum(bi * blk for bi, blk in zip(b, blocks))
+
+
+#: SPATIAL TARGETS (Priya 10-22: "is predicting allen areas really what we want? not a downsampled map?" -> the
+#: literature route, Musall et al. 2019, fits in SVD space and reconstructs pixel maps; every session has its OWN SVD
+#: basis, so a frozen model needs a basis common to the animal's sessions; Priya: "ok proceed"):
+#:   basis  per animal, the top components of its pooled PRE-session data on the shared Allen-aligned stat mask (every
+#:          session's U_atlas lives on the same 540 x 640 grid, 129,770 stat pixels): each pre session contributes
+#:          Ub Ue sqrt(w) (its spatial components weighted by its trial-frame variance, drift removed), the stack's
+#:          leading left singular vectors up to BASIS_VAR of the variance (<= BASIS_KMAX) are the targets; a session's
+#:          targets are its data projected on them; maps = basis x (anything in target space)
+#:   grid   GRID_BLOCK x GRID_BLOCK pixel block means on the stat mask (blocks with >= GRID_MIN_PIX pixels): the
+#:          transparent check on the basis
+#: Both add the cortex mean as a last target (scores / Musall readouts are reported on it).
+BASIS_VAR = 0.9999                 # in practice K = BASIS_KMAX: 95 % needed only ~6 components (global patterns);
+#                                     the spatial detail lives in the low-variance tail (4 PS92 sessions: 99.9 % = 91, 200 = 99.975 %)
+BASIS_KMAX = 200
+GRID_BLOCK = 8
+GRID_MIN_PIX = 16
+
+
+def basis_job(label: str) -> dict:
+    return session_design(label, basis_only=True)
+
+
+def build_basis(parts: list[dict]) -> dict:
+    """{animal: spatial dict} from the pre sessions' weighted components (basis_job)."""
+    by: dict = {}
+    for t in sorted(parts, key=lambda t: t["label"]):
+        by.setdefault(t["animal"], []).append(t)
+    out = {}
+    for an, ts in by.items():
+        B = np.hstack([t["UbL"] for t in ts])                       # (stat pixels, 100 x sessions), float32
+        G = (B.T.astype(np.float64) @ B.astype(np.float64))
+        w, Qe = np.linalg.eigh(G)
+        o = np.argsort(w)[::-1]
+        w, Qe = np.clip(w[o], 0, None), Qe[:, o]
+        cum = np.cumsum(w) / w.sum()
+        K = int(min(BASIS_KMAX, np.searchsorted(cum, BASIS_VAR) + 1))
+        W = ((B.astype(np.float64) @ Qe[:, :K]) / np.sqrt(w[:K])).astype(np.float32)   # orthonormal columns
+        out[an] = {"kind": "basis", "P": W, "names": [f"b{j:03d}" for j in range(K)], "evr": cum[:K],
+                   "labels": [t["label"] for t in ts]}
+    return out
+
+
+def grid_spatial(label: str) -> dict:
+    """Block-mean projection on the stat mask (same for every session: the Allen-aligned grid is shared)."""
+    from scipy import sparse
+    ce = _ce()
+    _V, _ft, _Ub, flat, _parea, _names, shape, pstat = ce.load_imaging(label)
+    H, Wd = (int(x) for x in shape)
+    pix = flat[pstat]
+    r, c = pix // Wd, pix % Wd
+    nbc = -(-Wd // GRID_BLOCK)
+    blk = (r // GRID_BLOCK) * nbc + c // GRID_BLOCK
+    ub, inv, cnt = np.unique(blk, return_inverse=True, return_counts=True)
+    keep = cnt >= GRID_MIN_PIX
+    col = np.cumsum(keep) - 1
+    m = keep[inv]
+    P = sparse.csr_matrix((1.0 / cnt[inv][m], (np.flatnonzero(m), col[inv][m])), shape=(len(pix), int(keep.sum())))
+    return {"kind": "grid", "P": P, "names": [f"g{b}" for b in ub[keep]], "block": GRID_BLOCK, "blocks": ub[keep],
+            "shape": (H, Wd)}
+
+
+#: targets above this count are never materialised as (frames x targets) arrays (a 2,022-bin grid would be ~2.7 GB per
+#: session in float64): statistics and PETHs are projected from Y (frames x SVD components) instead
+MAX_DENSE_TARGETS = 300
+
+
+def _spatial_of(spath: str | None, animal: str) -> dict | None:
+    if not spath:
+        return None
+    import pickle
+    return pickle.loads((Path(spath) / f"spatial_{animal}.pkl").read_bytes())
 
 
 def _templates_of(tpath: str, animal: str) -> dict:
@@ -344,13 +1142,19 @@ def _templates_of(tpath: str, animal: str) -> dict:
 
 def stats_job(item):
     """Sufficient statistics of one session (column layout + per-area Gram terms), for the per-animal fit.
-    item = (label, path of fit/templates.pkl)."""
+    item = (label, path of fit/templates.pkl[, spatial fit dir[, extra_targets]])."""
     from wfield_local import config
-    label, tpath = item
-    d = session_design(label, _templates_of(tpath, config.animal_of(label)))
+    label, tpath, spath, extra = (*item, None, None)[:4]
+    an = config.animal_of(label)
+    d = session_design(label, _templates_of(tpath, an), spatial=_spatial_of(spath, an), extra_targets=extra)
     X, Rd = d["X"], d["Rd"]
+    if Rd is None:                                       # lazy targets: X'Y Ra and diag(Ra' Y'Y Ra)
+        XtY = (X.T @ d["Y"]) @ d["Ra"]
+        YtY = np.einsum("kr,kl,lr->r", d["Ra"], d["Y"].T @ d["Y"], d["Ra"])
+    else:
+        XtY, YtY = X.T @ Rd, (Rd ** 2).sum(0)
     return {"label": label, "animal": d["animal"], "epoch": d["epoch"], "col_var": d["col_var"],
-            "area_names": d["area_names"], "n": len(X), "XtX": X.T @ X, "XtY": X.T @ Rd, "YtY": (Rd ** 2).sum(0),
+            "area_names": d["area_names"], "n": len(X), "XtX": X.T @ X, "XtY": XtY, "YtY": YtY,
             "sxx": (X ** 2).sum(0), "pos_order": d["pos_order"], "pos_counts": d["pos_counts"]}
 
 
@@ -375,15 +1179,66 @@ def _subset(s: dict, keep: list[str]) -> tuple:
 #:   movement_first   task residualised on all non-task: shared -> non-task. The pair brackets Musall's task vs movement
 #: Musall: alone = <g>_only / no_task (non-task); unique / task-independent = joint - no_<g> (non-task: joint - task_only);
 #: task-aligned = alone - task-independent.
+#: TARGET vs EXECUTION DESIGN (DECISIONS 2026-10-26; Priya: "we want a flexible meaningful lick kernel -- target kernel vs
+#: execution kernel"). FROZEN_DESIGN=te replaces the spout-template / deviation split (whose spout-locked templates made
+#: the "executed" side partly target information) by two symmetric groups:
+#:   target     spout identity, no kinematics: arrival / cue-locked per-spout kernels (pos_enl, pos_cue) + lick-locked
+#:              kernels labelled by the trial's TARGET spout (lick_onset@tgt:<q>; post-cue, pre-cue and cam1-only licks of
+#:              a trial -- never ITI licks, which have no target)
+#:   execution  the movement as it happened: unsplit 3-D tongue / jaw traces, the executed lick angle, every FaceRhythm
+#:              factor, and lick-locked kernels labelled by where each lick LANDED in 3-D (lick_onset@land:<q>, soft
+#:              landing weights as FROZEN_LICKLAND; licks without a 3-D point -> lick_onset@land:unknown), ITI licks included
+#:   contact    its own group (sensory feedback); timing (cue / arrival) and other (nose, running, push) are nuisance.
+#: FRAMES: every frame from the first engaged trial's start to the last engaged trial's stop + 3 s, ITI included (target
+#: columns are zero outside trials); ITI licks are execution WITHOUT a target, which separates the two groups even in
+#: pre-stroke data. Both lick families sum to the same total lick response over the trial licks, so that shared average is
+#: credited to neither side (intended). No templates are used (the template pass still runs; running / push caps).
+DESIGN = os.environ.get("FROZEN_DESIGN", "")
+TE = DESIGN == "te"
+TE_LAND = (*LICKSPOUT_POS, "unknown")
+if TE:
+    if LICKSPOUT or LICKLAND or FR_SPLIT or FR_LAGS:
+        raise ValueError("FROZEN_DESIGN=te replaces FROZEN_LICKSPOUT / LICKLAND / FR_SPLIT / FR_LAGS: unset them")
+    if SPONT:                                            # te routes pre-cue / ITI licks itself (te_lick_parts)
+        raise ValueError(f"FROZEN_DESIGN=te has its own pre-cue / ITI lick families: set {LICKS_ALL_ENV}=none")
+    FGROUP = {"cue": "timing", "arrival": "timing", "pos_enl": "target", "pos_cue": "target",
+              **{f"lick_onset@tgt:{q}": "target" for q in LICKSPOUT_POS},
+              **{f"lick_onset@land:{q}": "execution" for q in TE_LAND},
+              **{v: "execution" for v in ("tongue_mag", "tongue_dir", "jaw_mag", "jaw_dir", "exec_angle")},
+              **{v: "execution" for v in FR_VARS},
+              "contact": "contact", "nose_dir": "other", "nose_mag": "other", "running": "other", "push": "other"}
+    FGROUPS = ("timing", "target", "execution", "contact", "other")
+    SUPER = {"task": ("timing", "target"), "movement": ("execution", "other"), "nontask": ("execution", "other")}
+    FPEN = {v: ("lick" if v.startswith("lick_onset@") or v in ("exec_angle", "contact")
+                else "fr" if v in FR_VARS else _FPEN_BASE[v]) for v in FGROUP}
+    _EXEC_SIDE = ("execution",)
+#: extra PETH parts saved for PART_VARIANTS beyond the groups themselves
+PART_EXTRA = (() if TE else (("spout", SUPER["spout"]), ("lick_all", ("lick", "exec_locked"))))
 _GROUPSETS = {**{g: (g,) for g in FGROUPS}, **SUPER}
 _DROP = {f"no_{g}": gs for g, gs in _GROUPSETS.items() if g != "nontask"}
-_ONLY = {"task_only": SUPER["task"], "lick_only": ("lick",), "spout_only": SUPER["spout"], "other_only": ("other",),
-         "movement_only": SUPER["movement"]}
-_ORDERED = {"target_first": (("target",), ("exec_locked", "exec_within")),     # (A, B): residualise B on A
-            "exec_first": (("exec_locked", "exec_within"), ("target",)),
+#: SHARED-VARIANCE CHECK (Priya 10-23, PS93's unique contact ~0 although it misses most): drop contact AND within-spout
+#: direction together; unique(contact + exec_within) >> unique(contact) + unique(exec_within) = variance they share
+if not TE:
+    _DROP["no_contact_exec_within"] = ("contact", "exec_within")
+_ONLY = ({"task_only": SUPER["task"], "target_only": ("target",), "execution_only": ("execution",),
+          "other_only": ("other",), "movement_only": SUPER["movement"]} if TE else
+         {"task_only": SUPER["task"], "lick_only": ("lick",), "spout_only": SUPER["spout"], "other_only": ("other",),
+          "movement_only": SUPER["movement"]})
+_ONLY.update({f"{g}_only": SUPER[g] for g in ("posinfo", "noposinfo") if g in SUPER})   # FR runs (FR_VARS block)
+if FR_VARS and not TE:
+    _ONLY["fr_only"] = tuple(g for g in FGROUPS if g.startswith("fr"))       # FaceRhythm alone (Musall top row)
+#: PER-VARIABLE DROPS (Priya 10-25, Musall et al. 2019 bottom row = single-variable unique dR2): novar_<base> drops every
+#: column of ONE base variable (its s and d parts / per-spout copies together), everything else joint.
+_VAR_BASES = sorted({v.split(":")[0].split("@")[0] for v in FGROUP})
+_VDROP = {f"novar_{b}": b for b in _VAR_BASES}
+#: FROZEN_LICKS_ALL=split: both spontaneous-lick variables dropped together (the encoder's drop:licks_pre+licks_iti);
+#: in the default variant set (the novar_* singles stay opt-in like every novar_)
+_SPONTDROP = {"no_spont": SPONT_VARS} if SPONT else {}
+_ORDERED = {"target_first": (("target",), _EXEC_SIDE),     # (A, B): residualise B on A
+            "exec_first": (_EXEC_SIDE, ("target",)),
             "task_first": (SUPER["task"], SUPER["nontask"]),
             "movement_first": (SUPER["nontask"], SUPER["task"])}
-VARIANTS = ("joint", *_ORDERED, *_DROP, *_ONLY)
+VARIANTS = ("joint", *_ORDERED, *_DROP, *_SPONTDROP, *_ONLY, *_VDROP, *_LAGDROP)
 #: variants whose per-group PETH parts are saved (the others save data + full only: their parts are not a split)
 PART_VARIANTS = ("joint", *_ORDERED)
 
@@ -453,6 +1308,13 @@ def _variant_transform(variant: str, col_var: np.ndarray, Gt: np.ndarray, pos: d
     if variant in _DROP or variant in _ONLY:
         keep = ~np.isin(grp, _DROP[variant]) if variant in _DROP else np.isin(grp, _ONLY[variant])
         return eye[:, keep], np.flatnonzero(keep)
+    if variant in _LAGDROP:                              # FROZEN_FR_LAGS: drop one lag side of every FR variable
+        keep = ~np.char.endswith(np.asarray(col_var).astype(str), _LAGDROP[variant])
+        return eye[:, keep], np.flatnonzero(keep)
+    if variant in _VDROP or variant in _SPONTDROP:
+        base_ = np.array([v.split(":")[0].split("@")[0] for v in col_var])
+        keep = ~np.isin(base_, _SPONTDROP[variant]) if variant in _SPONTDROP else base_ != _VDROP[variant]
+        return eye[:, keep], np.flatnonzero(keep)
     if variant in _ORDERED:
         A, Bg = _ORDERED[variant]
         a, b = np.isin(grp, A), np.isin(grp, Bg)
@@ -464,10 +1326,11 @@ def _variant_transform(variant: str, col_var: np.ndarray, Gt: np.ndarray, pos: d
     raise ValueError(variant)
 
 
-def fit_animal(stats: list[dict], alpha_grid=None, pen_of=None, variant: str = "joint") -> dict:
+def fit_animal(stats: list[dict], alpha_grid=None, pen_of=None, variant: str = "joint", alphas: dict | None = None) -> dict:
     """Ridge on the animal's pre sessions (scaled by pooled pre SD), penalties by leave-one-session-out R^2.
     Returns scale, C (variant column transform), col_var of the variant columns, areas, alphas, beta_all (p', R) and
-    beta_loso {label: (p', R)}."""
+    beta_loso {label: (p', R)}. ``alphas`` = {penalty group: alpha} HELD (no search; e.g. another run's fit, so a
+    basis-target twin uses the area run's penalties -- the search sums over targets, so it can pick others)."""
     ce = _ce()
     alpha_grid = alpha_grid or ce.ALPHA_GRID
     pen_of = pen_of or FPEN
@@ -510,8 +1373,11 @@ def fit_animal(stats: list[dict], alpha_grid=None, pen_of=None, variant: str = "
             err += (yy[k] - 2 * (beta * b[k]).sum(0) + np.einsum("pr,pq,qr->r", beta, G[k], beta)).sum()
             tot += yy[k].sum()
         return 1.0 - err / tot
-    alphas = {g: 100.0 for g in groups}
-    if len(stats) >= 2:
+    held = alphas is not None
+    if held and set(alphas) != set(groups):
+        raise ValueError(f"held alphas {sorted(alphas)} != penalty groups {groups}")
+    alphas = {g: float(alphas[g]) for g in groups} if held else {g: 100.0 for g in groups}
+    if len(stats) >= 2 and not held:
         for _ in range(2):
             for g in groups:
                 alphas[g] = max(alpha_grid, key=lambda a: loso_r2({**alphas, g: a}))
@@ -569,14 +1435,173 @@ def _segments(R: np.ndarray, frames: np.ndarray, off: np.ndarray) -> np.ndarray:
     return np.where(ok[..., None], R[np.clip(idx, 0, len(R) - 1)], np.nan)
 
 
+def trial_means(R: np.ndarray, frames: np.ndarray, off: np.ndarray) -> np.ndarray:
+    """(trials, areas) mean of R over each trial's window ``frames + off``; NaN for a trial without an anchor (frame < 0)
+    or a window entirely outside the record."""
+    out = np.full((len(frames), R.shape[1]), np.nan)
+    ok = frames >= 0
+    if ok.any():
+        seg = _segments(R, frames[ok], off)
+        with np.errstate(invalid="ignore"):
+            out[ok] = np.nanmean(seg, 1)
+    return out
+
+
+def load_trial_parts(run_dir, variant: str = "joint", areas=None):
+    """Long table of the saved per-trial parts of one frozen run: label, trial_id, pos, window, area, part, value.
+    Join on (label, trial_id) with `trial_attempts.csv` for any trial-level split. Sessions predicted before the
+    per-trial output existed (no ``trial_parts`` in the npz) are skipped with a note."""
+    import pandas as pd
+    rows, old = [], []
+    for f in sorted(f_ for f_ in (Path(run_dir) / variant / "sessions").glob("*.npz") if not f_.stem.endswith("_trials")):
+        z = np.load(f, allow_pickle=False)
+        if "trial_parts" not in z.files:
+            old.append(f.stem)
+            continue
+        T, ar = z["trial_parts"], list(z["areas"])
+        keep = [i for i, a in enumerate(ar) if areas is None or a in areas]
+        for ci, part in enumerate(z["parts"]):
+            for wi, w in enumerate(z["trial_windows"]):
+                for ai in keep:
+                    rows.append(pd.DataFrame({"label": f.stem, "trial_id": z["trial_id"], "pos": z["trial_pos"],
+                                              "window": w, "area": ar[ai], "part": part, "value": T[ci, :, wi, ai]}))
+    if old:
+        print(f"[frozen] {len(old)} session(s) have no per-trial parts (predicted before 10-24): {old[:5]} ...", flush=True)
+    return pd.concat(rows, ignore_index=True) if rows else pd.DataFrame()
+
+
+#: PER-TRIAL OUTPUTS (Priya 11-05, REBUILD_CODE 8.52): `<out>/joint/sessions/<label>_trials.npz` in the combined
+#: encoder's per-trial layout (`combined_encoding._TrialScorer`, read by `wfield_local.encoder_trials`), so contact
+#: ("hit") and incomplete trials are scored apart (the post-stroke frozen R2 drop vs class composition). Rows = the scored
+#: (engaged = working) trials; every row is held out: pre sessions leave-one-session-out, post sessions the all-pre fit
+#: (`t_frozen_from` loso | all_pre). tr_models: "full" (= the joint model; the reader's name for it) + the unique-share
+#: variants (`trial_variants`); `tr_variants` = the frozen names. Lick alignment = `trial_first_lick` (as the encoder's
+#: file, both designs). cls / cls_raw / attempted / canonical joined from the run tag's trial_attempts table.
+#: The JOINT model's per-class trial-to-trial terms are stored binned (`trial_to_trial_bins`: trial means removed within
+#: each spout x class), so `encoder_trials.class_summary` gives the per-class trial-to-trial R2 without frame traces.
+#: FROZEN_TRIALS = off | sse (default, ~1.5 MB per variant per session) | full (+ frames = data and the joint held-out
+#: prediction "cv", float16: + ~50 MB per session, for other groupings / PETHs) | full32. Allen-area targets only.
+TRIALS_ENV = "FROZEN_TRIALS"
+TRIALS_MODES = ("off", "sse", "full", "full32")
+#: the unique-share variants the figures read (joint - <variant>); absent ones are skipped
+#: the per-trial file's DEFAULT variants: the joint model + the headline unique shares (joint - <variant>); ~2.5 MB per
+#: variant per session (float32 binned SSE, both alignments, ~60 areas, ~500 trials), so the default file is ~25-30 MB.
+#: FROZEN_TRIAL_VARIANTS = "all" (every unique-share variant of TRIAL_VARIANTS_ALL the run fitted) or a comma list.
+TRIAL_VARIANTS = ("joint", "no_timing", "no_target", "no_task", "no_lick", "no_contact", "no_other", "no_spont",
+                  "no_movement", "no_fr_all", "no_execution")
+TRIAL_VARIANTS_ALL = (*TRIAL_VARIANTS, "no_exec_locked", "no_exec_within", "no_spout", "task_only", "no_lickspout",
+                      "no_fr", "no_fr_dir", "no_fr_locked", "no_posinfo", "no_noposinfo")
+TRIAL_VARIANTS_ENV = "FROZEN_TRIAL_VARIANTS"
+
+
+def trial_variant_names() -> tuple:
+    v = os.environ.get(TRIAL_VARIANTS_ENV, "").strip()
+    if not v:
+        return TRIAL_VARIANTS
+    if v.lower() == "all":
+        return TRIAL_VARIANTS_ALL
+    return ("joint", *[x.strip() for x in v.split(",") if x.strip() and x.strip() != "joint"])
+
+
+def trials_mode() -> str:
+    v = os.environ.get(TRIALS_ENV, "").strip().lower() or "sse"
+    if v not in TRIALS_MODES:
+        raise ValueError(f"{TRIALS_ENV}={v!r}; expected one of {TRIALS_MODES}")
+    return v
+
+
+def trial_variants(fits: dict) -> list:
+    """The per-trial file's variants among ``fits`` (`trial_variant_names` order; [] without the joint model)."""
+    return [v for v in trial_variant_names() if v in fits] if "joint" in fits else []
+
+
+def _trial_scorer(d: dict, Rd: np.ndarray, off: np.ndarray, n_models: int):
+    """The combined encoder's per-trial scorer on this session's frozen rows (every trial fitted-row space, none
+    scored-only)."""
+    E = d["E"]
+    return _ce()._TrialScorer(E, E, None, d["ridx"], np.zeros(0, int), d["ft"], None, np.zeros(len(E), int),
+                              d["cue_f"], d["first_f"], d["lk_all"], off, d["fs"], Rd, np.zeros((0, Rd.shape[1])),
+                              n_models, trials_mode(), contact_s=d["contact_s"])
+
+
+def trial_to_trial_bins(scorer, pos: np.ndarray, cls: np.ndarray) -> dict:
+    """The JOINT model's trial-to-trial terms per trial and bin, with the trial means removed within each (spout, class)
+    group -- exactly `encoder_trials.class_full_fine` over a one-class mask, binned like `sse_bins` -- so the per-class
+    trial-to-trial R2 needs no frame traces (mode sse): `sse_trial_bins_<align>` / `sst_trial_bins_<align>` (trials,
+    bins, areas), float32; `trial_groups` = "pos+cls". Uses the scorer's data rows and its held-out "full" prediction."""
+    import warnings
+    ce = _ce()
+    nb = len(scorer.edges) - 1
+    out = {"trial_groups": np.array("pos+cls")}
+    grp = np.array([f"{p}|{c}" for p, c in zip(pos, cls)])
+    for a, (ii, ok) in scorer.gi.items():
+        D = np.where(ok[..., None], scorer.R[ii], np.nan)
+        P = np.where(ok[..., None], scorer.cv[ii].astype(np.float64), np.nan)
+        dd, dp = np.empty_like(D), np.empty_like(P)
+        for g in np.unique(grp):
+            m = grp == g
+            with np.errstate(invalid="ignore"), warnings.catch_warnings():
+                warnings.simplefilter("ignore", RuntimeWarning)
+                dd[m] = D[m] - np.nanmean(D[m], 0, keepdims=True)
+                dp[m] = P[m] - np.nanmean(P[m], 0, keepdims=True)
+        out[f"sse_trial_bins_{a}"] = ce._binsum((dd - dp) ** 2, scorer.b, nb).astype(np.float32)
+        out[f"sst_trial_bins_{a}"] = ce._binsum(dd ** 2, scorer.b, nb).astype(np.float32)
+    return out
+
+
+def write_trials(label: str, out_dir, d: dict, Rd: np.ndarray, f0: dict, scorer, tvars: list, frozen_from) -> dict:
+    """Finish ``scorer`` and write `<out_dir>/joint/sessions/<label>_trials.npz`; -> {path, MB}."""
+    import pandas as pd
+    from wfield_local import encoder_trials as et
+    names = ["full" if v == "joint" else v for v in tvars]
+    tid = np.asarray(scorer.table["trial_id"])
+    n = len(tid)
+    cls = {}
+    A = None
+    try:
+        from wfield_local import lp_licks
+        ap_ = Path(lp_licks.attempts_path())
+        A = pd.read_csv(ap_) if ap_.exists() else None
+    except Exception:                                    # no attempts table for this run: classes "missing"
+        A = None
+    if A is not None:
+        J = et.join_classes({"table": pd.DataFrame({"trial_id": tid})}, label, attempts=A)["table"]
+        for c in ("cls", "cls_raw"):
+            if c in J:
+                cls[f"t_{c}"] = J[c].fillna("missing").to_numpy().astype(str)
+        for c in ("attempted", "canonical"):
+            if c in J:
+                cls[f"t_{c}"] = J[c].fillna(False).to_numpy(bool)
+    if "t_cls" not in cls:
+        cls["t_cls"] = np.full(n, "missing")
+    tt = trial_to_trial_bins(scorer, np.asarray(scorer.table["pos"]), cls["t_cls"])
+    out = scorer.finish(["data"], lambda _c: (Rd.astype(np.float32), np.zeros((0, Rd.shape[1]), np.float32)),
+                        np.zeros(Rd.shape[1]), names, names)
+    out.update(cls)
+    out.update(tt)
+    out["t_frozen_from"] = np.full(n, str(frozen_from))
+    out["t_heldout"] = np.ones(n, bool)                  # pre: LOSO; post: the all-pre fit (never fitted on)
+    out.update({"tr_variants": np.array(tvars), "areas": np.array(f0["areas"]), "design": np.array(design_name()),
+                "run_tag": np.array(_run_tag()), "stats_version": np.int64(STATS_VERSION)})
+    p = Path(out_dir) / "joint" / "sessions" / f"{label}_trials.npz"
+    p.parent.mkdir(parents=True, exist_ok=True)
+    np.savez_compressed(p, **out)
+    return {"path": str(p), "MB": round(p.stat().st_size / 1e6, 2)}
+
+
 def predict_job(job):
     """Apply the animal's frozen models (one per variant) to one session; PETHs of data and each part, cue- and
     lick-aligned, written to <out>/<variant>/sessions/<label>.{npz,json}."""
-    label, fits, out_dir, tpath = job
+    label, fits, out_dir, tpath, spath, trials_only = (*job, None, False)[:6]
     ce = _ce()
     from wfield_local import config
-    d = session_design(label, _templates_of(tpath, config.animal_of(label)))
+    an = config.animal_of(label)
+    d = session_design(label, _templates_of(tpath, an), spatial=_spatial_of(spath, an))
     f0 = next(iter(fits.values()))
+    if spath:
+        if _push_free():
+            raise ValueError("FROZEN_PUSH=free is implemented for Allen-area targets only")
+        return _predict_spatial(label, fits, out_dir, d, f0)
     if len(d["col_var"]) != len(f0["col_var"]) or (d["col_var"] != f0["col_var"]).any():
         raise ValueError(f"{label}: column layout differs from the animal's pre fit")
     ix = [d["area_names"].index(a) for a in f0["areas"]]
@@ -599,22 +1624,47 @@ def predict_job(job):
                 r = Rd[m] - pred[m]
                 out[f"{w}|{q}"] = (((r - r.mean(0)) ** 2).sum(0)).tolist()
         return out
+    tvars = trial_variants(fits) if trials_mode() != "off" else []
+    scorer = _trial_scorer(d, Rd, off, len(tvars)) if tvars else None
     for variant, fit in fits.items():
         beta = fit["beta_loso"].get(label, fit["beta_all"])
         frozen_from = "loso" if label in fit["beta_loso"] else "all_pre"
-        Ce = fit["C"]                                     # effective weights on the scaled design: Z @ (C @ beta)
+        Zv = Z @ fit["C"]                                 # the variant's design (effective weights: Z @ (C @ beta))
+        qm = np.asarray(fit["vcol"]) == "push"
+        pfree = None
+        if _push_free() and qm.any():                     # per-session cross-validated push (FREE PUSH above)
+            base, pfree = free_push(Zv, Rd, beta, qm, fit["alphas"][FPEN["push"]])
+            full = base + pfree
+        else:
+            full = Zv @ beta
+
+        def contrib(m, Zv=Zv, beta=beta, qm=qm, pfree=pfree):
+            x = Zv[:, m & ~qm] @ beta[m & ~qm]
+            if (m & qm).any():
+                x = x + (pfree if pfree is not None else Zv[:, m & qm] @ beta[m & qm])
+            return x
+        if variant in tvars:                             # per-trial binned SSE (the joint model = "full")
+            scorer.model(tvars.index(variant), "full" if variant == "joint" else variant, full, None)
+        if trials_only:                                  # post hoc: nothing but the trials file
+            summary["frozen_from"] = frozen_from
+            continue
         if "|drop:" in variant or variant in DROP_BASES:
-            drop_sse[variant] = _sse(Z @ (Ce @ beta))
+            drop_sse[variant] = _sse(full)
         if "|drop:" in variant:
             continue
         gcol = np.array([FGROUP[v] for v in fit["vcol"]])
-        comp = {"data": Rd, "full": Z @ (Ce @ beta)}
+        comp = {"data": Rd, "full": full}
         if variant in PART_VARIANTS:                      # a reduced model's parts are not a split of anything
-            for g, gs in (*((g, (g,)) for g in FGROUPS), ("spout", SUPER["spout"]), ("lick_all", ("lick", "exec_locked"))):
+            for g, gs in (*((g, (g,)) for g in FGROUPS), *PART_EXTRA):
                 m = np.isin(gcol, gs)
-                comp[g] = Z @ (Ce[:, m] @ beta[m]) if m.any() else np.zeros_like(Rd)
+                comp[g] = contrib(m) if m.any() else np.zeros_like(Rd)
             pm = np.isin(fit["vcol"], list(ce.POS_VARS))
-            comp["pos"] = Z @ (Ce[:, pm] @ beta[pm]) if pm.any() else np.zeros_like(Rd)
+            comp["pos"] = contrib(pm) if pm.any() else np.zeros_like(Rd)
+            if SPONT:                                    # the spontaneous licks' share of "other" (no_spont's columns)
+                sm = np.isin(fit["vcol"], SPONT_VARS)
+                comp["spont"] = contrib(sm) if sm.any() else np.zeros_like(Rd)
+            if qm.any():
+                comp["push"] = contrib(qm)
         peth = np.full((len(comp), len(pos_order), len(ix), len(off)), np.nan, np.float32)
         peth_lick = np.full_like(peth, np.nan)
         n_lick = {}
@@ -641,17 +1691,38 @@ def predict_job(job):
             r2[w] = float(1.0 - ((y - yh) ** 2).sum() / max(((y - y.mean()) ** 2).sum(), 1e-12)) if wm.any() else None
         sess = Path(out_dir) / variant / "sessions"
         sess.mkdir(parents=True, exist_ok=True)
-        np.savez_compressed(sess / f"{label}.npz", peth=peth, peth_lick=peth_lick, peth_off_s=off / d["fs"])
+        # PER-TRIAL PARTS (Priya 10-24: "save outputs so we can re-plot or re-analyse without re-doing calculations"):
+        # every part (data, full, each FGROUP part ...) averaged over each trial's Musall window, so trial-level
+        # questions (attempt class, landing, touch) are a re-read joined on trial_id, not a refit.
+        tr_parts = np.full((len(comp), len(d["pos"]), len(MUSALL_WINDOWS), len(ix)), np.nan, np.float32)
+        for wi, (al, (a0, a1)) in enumerate(MUSALL_WINDOWS.items()):
+            fr_ = d["cue_f"] if al == "cue" else d["first_f"]
+            offm = np.arange(int(round(a0 * d["fs"])), int(round(a1 * d["fs"])))
+            for ci, R in enumerate(comp.values()):
+                tr_parts[ci, :, wi] = trial_means(R, fr_, offm)
+        extra_npz = ({"trial_timing_source": np.asarray(d["timing_source"], dtype=str)}
+                     if d.get("timing_source") is not None else {})      # spont design: lick timing source per trial
+        np.savez_compressed(sess / f"{label}.npz", peth=peth, peth_lick=peth_lick, peth_off_s=off / d["fs"],
+                            trial_parts=tr_parts, trial_id=d["trial_id"], trial_pos=np.asarray(d["pos"], dtype=str),
+                            trial_windows=np.array(list(MUSALL_WINDOWS)), parts=np.array(list(comp)),
+                            areas=np.array(fit["areas"]), **extra_npz)
         meta = {"label": label, "animal": d["animal"], "epoch": d["epoch"], "day": d["day"],
                 "order": f"frozen_pre:{variant}", "variant": variant, "frozen_from": frozen_from,
                 "pre_labels": fit["pre_labels"], "alphas": fit["alphas"], "loso_r2_pre": fit["loso_r2"],
                 "gate": os.environ.get("OROFACIAL_GATE", "reference"), "lick_set": d["lick_set"],
                 "n_trials": d["n_trials"], "n_lick_aligned_by_pos": n_lick, "pos_order": pos_order,
                 "peth_parts": list(comp), "areas": fit["areas"], "frozen_r2_cortex": r2, "r2_musall": musall,
-                "stats_version": STATS_VERSION}
+                "stats_version": STATS_VERSION, "grouping_version": GROUPING_VERSION, "run_tag": _run_tag(),
+                "push": ("free" if pfree is not None else "frozen") if qm.any() else None}
+        if SPONT:                                        # the spontaneous-lick design (v7g3_t3d json unchanged)
+            ts = np.asarray(d["timing_source"], dtype=str)
+            meta.update({"design": design_name(), "licks_all": LICKS_ALL, "spont_counts": d["spont"],
+                         "lick_timing_sources": {s_: int((ts == s_).sum()) for s_ in ("lp", "daq", "none")}})
         (sess / f"{label}.json").write_text(json.dumps(meta, indent=1, default=str), encoding="utf-8")
         summary[variant] = r2
         summary["frozen_from"] = frozen_from
+    if scorer is not None:
+        summary["trials"] = write_trials(label, out_dir, d, Rd, f0, scorer, tvars, summary.get("frozen_from"))
     if drop_sse:
         dd = Path(out_dir) / "dropspout" / "sessions"
         dd.mkdir(parents=True, exist_ok=True)
@@ -662,15 +1733,223 @@ def predict_job(job):
     return summary
 
 
+#: evoked-response windows for the spatial outputs (as scripts/lp_encoder_decompose.py): (response, baseline), s
+EVOKED_WINDOWS = {"lick": ((0.0, 1.0), (-0.3, -0.1)), "cue": ((0.5, 1.5), (-0.5, 0.0))}
+
+
+#: PIXEL PETH vs TRIAL-BY-TRIAL (Priya 10-25: Musall et al. 2019 PETH / trial-by-trial prediction maps at pixel level).
+#: FROZEN_PIX_MUSALL=1: for the spatial-target runs, save per MUSALL window the target-space second moments that
+#: `musall_r2` needs, so a pixel's R2 = 1 - diag(W E W') / diag(W S W') (W = the animal's basis):
+#:   avg    per-spout trial-averaged traces, each centred on its own mean over spouts x time (data and prediction apart)
+#:   trial  single trials minus their spout's mean (data and prediction apart)
+#:   frame  every frame of every trial, centred on the mean over trials x time (data and prediction apart) -- `musall_r2`
+#:          "frame"; added 10-28 (ALM / tjM1 rows of the frozen claims figures, docs/status/ALM_TJM1_ROWS_PLAN_20261027.md)
+#: keys mus_<window>_<avg|trial|frame>_<E|S>; only trials whose window lies inside the record (`musall_r2` keeps a
+#: partly-outside trial's inside frames: a small difference, measured in the plan doc). Variants: joint, the alone
+#: (<g>_only) and the group drops (no_<g>) -- the per-variable drops keep all-frames moments only.
+PIX_MUSALL = os.environ.get("FROZEN_PIX_MUSALL", "") in ("1", "true", "yes")
+
+
+def _pix_musall_variant(variant: str) -> bool:
+    # novar_* (single-variable drops, Musall bottom row) included 10-26: "novar_" does not start with "no_", so the
+    # 10-25 basis run saved no moments for them and the per-variable pixel maps could not be built
+    return (variant == "joint" or variant.endswith("_only") or variant.startswith("novar_")
+            or (variant.startswith("no_") and "|" not in variant))
+
+
+def musall_moments(d: dict, Z: np.ndarray, Wf: np.ndarray, R: np.ndarray, fs: float) -> dict:
+    P = Z @ Wf                                           # frames x targets prediction
+    out = {}
+    for al, (a0, a1) in MUSALL_WINDOWS.items():
+        fr_ = d["cue_f"] if al == "cue" else d["first_f"]
+        offm = np.arange(int(round(a0 * fs)), int(round(a1 * fs)))
+        idx = fr_[:, None] + offm[None, :]
+        ok = (fr_ >= 0) & (idx.min(1) >= 0) & (idx.max(1) < len(R))
+        if ok.sum() < 2:
+            continue
+        idx, pos = idx[ok], np.asarray(d["pos"])[ok]
+        D, Q = R[idx], P[idx]                            # (trials, t, targets)
+        Df, Qf = D - D.mean((0, 1)), Q - Q.mean((0, 1))  # frame: every frame, data and prediction centred apart
+        Dt, Qt = D.copy(), Q.copy()
+        Dm, Qm = [], []
+        for q in np.unique(pos):
+            m = pos == q
+            dm, qm = D[m].mean(0), Q[m].mean(0)
+            Dt[m] -= dm
+            Qt[m] -= qm
+            Dm.append(dm)
+            Qm.append(qm)
+        Dm, Qm = np.stack(Dm), np.stack(Qm)
+        Dm -= Dm.mean((0, 1))
+        Qm -= Qm.mean((0, 1))
+        for kind, (a_, b_) in (("avg", (Dm, Qm)), ("trial", (Dt, Qt)), ("frame", (Df, Qf))):
+            A = a_.reshape(-1, a_.shape[-1])
+            Bm = (a_ - b_).reshape(-1, a_.shape[-1])
+            out[f"mus_{al}_{kind}_E"] = (Bm.T @ Bm).astype(np.float32)
+            out[f"mus_{al}_{kind}_S"] = (A.T @ A).astype(np.float32)
+    return out
+
+
+def residual_moment(Sxx: np.ndarray, Sxy: np.ndarray, Syy: np.ndarray, Wf: np.ndarray) -> np.ndarray:
+    """(Y - Z Wf)'(Y - Z Wf) from Z'Z, Z'Y, Y'Y: the residual second moment in target space (R x R)."""
+    SW = Sxy.T @ Wf
+    return Syy - SW - SW.T + Wf.T @ Sxx @ Wf
+
+
+def _predict_spatial(label: str, fits: dict, out_dir: str, d: dict, f0: dict) -> dict:
+    """Spatial targets (basis / grid): per variant, the EVOKED response (response window minus baseline, cue- and
+    lick-aligned) of the data and of each group's part, per spout x target, from PETHs computed in the small spaces --
+    part PETH = PETH(Z) @ weights, data PETH = PETH(Y) @ Ra -- so no (frames x targets) array is built. R^2 and the
+    Musall readouts on the cortex-mean target. No drop-spout (area runs have it)."""
+    ce = _ce()
+    if len(d["col_var"]) != len(f0["col_var"]) or (d["col_var"] != f0["col_var"]).any():
+        raise ValueError(f"{label}: column layout differs from the animal's pre fit (FROZEN_* / FR environment?)")
+    ix = [d["area_names"].index(a) for a in f0["areas"]]
+    lazy = d["Rd"] is None
+    Ra = d["Ra"][:, ix] if lazy else None
+    Rd = None if lazy else d["Rd"][:, ix]
+    ci_ = f0["areas"].index("cortex")
+    y_c = (d["Y"] @ Ra[:, ci_]) if lazy else Rd[:, ci_]
+    Z = d["X"] / f0["scale"]
+    fs = d["fs"]
+    off = np.arange(int(ce.PETH_S[0] * fs), int(ce.PETH_S[1] * fs) + 1)
+    offs = off / fs
+    pos_order = sorted(set(d["pos"]))
+    wins = {al: ((offs >= r0) & (offs < r1), (offs >= b0) & (offs <= b1))
+            for al, ((r0, r1), (b0, b1)) in EVOKED_WINDOWS.items()}
+
+    def evk(P):                                           # (..., off) -> (...,) response minus baseline
+        return {al: np.nanmean(P[..., w], -1) - np.nanmean(P[..., b], -1) for al, (w, b) in wins.items()}
+    # PETHs of the regressors and of the data, per spout and alignment, in the small spaces
+    PZ, PD, n_al = {}, {}, {}
+    for p in pos_order:
+        m = d["pos"] == p
+        for al in ("cue", "lick"):
+            fr_ = d["cue_f"][m] if al == "cue" else d["first_f"][m & (d["first_f"] >= 0)]
+            n_al[(p, al)] = int(len(fr_))
+            if not len(fr_):
+                continue
+            PZ[(p, al)] = _peth(Z, fr_, off)                                  # (p, off)
+            PD[(p, al)] = (Ra.T @ _peth(d["Y"], fr_, off)) if lazy else _peth(Rd, fr_, off)   # (R, off)
+    # PIXEL R2 (Priya 10-23: unique R2 maps at pixel / SVD level): all-frames second moments in TARGET space, so a
+    # pixel's SSE / SST is diag(W E W') without a frames x pixels array (`scripts/frozen_r2_maps.py`)
+    Sxx = Z.T @ Z
+    Rfull = ((d["Y"] @ Ra) if lazy else Rd) if PIX_MUSALL else None      # frames x targets, for the PETH / trial moments
+    Sxy = (Z.T @ d["Y"]) @ Ra if lazy else Z.T @ Rd
+    Syy = (Ra.T @ (d["Y"].T @ d["Y"]) @ Ra) if lazy else Rd.T @ Rd
+    summary = {"label": label}
+    for variant, fit in fits.items():
+        if "|drop:" in variant:
+            continue
+        beta = fit["beta_loso"].get(label, fit["beta_all"])
+        frozen_from = "loso" if label in fit["beta_loso"] else "all_pre"
+        Ce = fit["C"]
+        gcol = np.array([FGROUP[v] for v in fit["vcol"]])
+        parts = {"full": Ce @ beta}
+        if variant in PART_VARIANTS:
+            for g, gs in (*((g, (g,)) for g in FGROUPS), *PART_EXTRA):
+                mm = np.isin(gcol, gs)
+                parts[g] = Ce[:, mm] @ beta[mm] if mm.any() else np.zeros((Z.shape[1], len(ix)))
+            if SPONT:                                    # the spontaneous licks' share of "other" (no_spont's columns)
+                mm = np.isin(fit["vcol"], SPONT_VARS)
+                parts["spont"] = Ce[:, mm] @ beta[mm] if mm.any() else np.zeros((Z.shape[1], len(ix)))
+        names = ["data", *parts]
+        ev = {al: np.full((len(names), len(pos_order), len(ix)), np.nan, np.float32) for al in ("cue", "lick")}
+        for pi, p in enumerate(pos_order):
+            for al in ("cue", "lick"):
+                if (p, al) not in PZ:
+                    continue
+                e_d = evk(PD[(p, al)])[al]
+                ev[al][0, pi] = e_d
+                for k, Wm in enumerate(parts.values(), start=1):
+                    ev[al][k, pi] = evk(Wm.T @ PZ[(p, al)])[al]
+        pred_c = Z @ parts["full"][:, ci_]
+        r2 = {}
+        for w, wm in d["win"].items():
+            yy, yh = y_c[wm], pred_c[wm]
+            r2[w] = float(1.0 - ((yy - yh) ** 2).sum() / max(((yy - yy.mean()) ** 2).sum(), 1e-12)) if wm.any() else None
+        musall = {}
+        for al, (a0, a1) in MUSALL_WINDOWS.items():
+            fr_ = d["cue_f"] if al == "cue" else d["first_f"]
+            keep = fr_ >= 0
+            if keep.sum() < 2:
+                continue
+            offm = np.arange(int(round(a0 * fs)), int(round(a1 * fs)))
+            mr = musall_r2(_segments(y_c[:, None], fr_[keep], offm), _segments(pred_c[:, None], fr_[keep], offm),
+                           d["pos"][keep])
+            musall[al] = {k: [float(x) for x in v] for k, v in mr.items()}
+        sess = Path(out_dir) / variant / "sessions"
+        sess.mkdir(parents=True, exist_ok=True)
+        E = residual_moment(Sxx, Sxy, Syy, parts["full"])
+        extra = musall_moments(d, Z, parts["full"], Rfull, fs) if (PIX_MUSALL and Rfull is not None
+                                                                   and _pix_musall_variant(variant)) else {}
+        np.savez_compressed(sess / f"{label}.npz", evoked_cue=ev["cue"], evoked_lick=ev["lick"],
+                            resid_mom=E.astype(np.float32), data_mom=Syy.astype(np.float32), n_frames=len(Z), **extra)
+        meta = {"label": label, "animal": d["animal"], "epoch": d["epoch"], "day": d["day"],
+                "order": f"frozen_pre:{variant}", "variant": variant, "frozen_from": frozen_from,
+                "pre_labels": fit["pre_labels"], "alphas": fit["alphas"], "loso_r2_pre": fit["loso_r2"],
+                "gate": os.environ.get("OROFACIAL_GATE", "reference"), "lick_set": d["lick_set"],
+                "n_trials": d["n_trials"], "n_aligned": {f"{p}|{al}": n for (p, al), n in n_al.items()},
+                "pos_order": pos_order, "evoked_parts": names, "targets": f0["areas"], "evoked_windows": EVOKED_WINDOWS,
+                "frozen_r2_cortex": r2, "r2_musall": musall, "areas": ["cortex"], "stats_version": STATS_VERSION}
+        (sess / f"{label}.json").write_text(json.dumps(meta, indent=1, default=str), encoding="utf-8")
+        summary[variant] = r2
+        summary["frozen_from"] = frozen_from
+    # PER-POSITION unique R2 maps (Priya 10-23 "and what about per-position unique r2"): for each frozen drop-one-spout
+    # fit base|drop:q, the residual second moments of base and drop on spout q's OWN trial frames and on all frames
+    # (dR2 = (SSE[drop] - SSE[base]) / SST, as `summarise_drop`; maps in scripts/frozen_r2_maps.py)
+    drops = [v for v in fits if "|drop:" in v]
+    if drops:
+        fp = d["frame_pos"]
+        mom = {"all": (Sxx, Sxy, Syy)}
+        for q in sorted({v.partition("|drop:")[2] for v in drops}):
+            m_ = fp == q
+            if m_.sum() < 10:
+                continue
+            Zq = Z[m_]
+            Yq = (d["Y"][m_] @ Ra) if lazy else Rd[m_]
+            mom[q] = (Zq.T @ Zq, Zq.T @ Yq, Yq.T @ Yq)
+        pix = {f"data|{k}": v[2].astype(np.float32) for k, v in mom.items()}
+        for v in drops:
+            base, _, q = v.partition("|drop:")
+            for sub in ("all", q):
+                if sub not in mom:
+                    continue
+                for tag, fv in (("base", fits[base]), ("drop", fits[v])):
+                    key = f"{base}|{q}|{sub}|{tag}"
+                    if key in pix:
+                        continue
+                    b_ = fv["beta_loso"].get(label, fv["beta_all"])
+                    pix[key] = residual_moment(*mom[sub], fv["C"] @ b_).astype(np.float32)
+            # WHOLE-SPOUT: the drop fit AND q's spout-locked templates swapped for the other spouts' (own trials)
+            sw = (d.get("spl_swap") or {}).get(q)
+            if sw is not None and q in mom:
+                rows, D = sw
+                fv = fits[v]
+                Zq = Z[rows] + D / fv["scale"]
+                Yq = (d["Y"][rows] @ Ra) if lazy else Rd[rows]
+                b_ = fv["beta_loso"].get(label, fv["beta_all"])
+                pix[f"{base}|{q}|{q}|whole"] = residual_moment(Zq.T @ Zq, Zq.T @ Yq, Yq.T @ Yq,
+                                                               fv["C"] @ b_).astype(np.float32)
+        dd = Path(out_dir) / "dropspout" / "sessions"
+        dd.mkdir(parents=True, exist_ok=True)
+        np.savez_compressed(dd / f"{label}_pix.npz", **pix)
+        (dd / f"{label}_pix.json").write_text(json.dumps({"label": label, "animal": d["animal"], "epoch": d["epoch"],
+                                                          "targets": f0["areas"], "n_frames": {k: int((fp == k).sum())
+                                                          for k in mom if k != "all"}}, indent=1), encoding="utf-8")
+    return summary
+
+
 def summarise_drop(out: Path) -> None:
     """Frozen drop-one-spout table: per session, base, spout q, window, subset (all frames | q's own trials), area:
     dR2 = (SSE[base|drop:q] - SSE[base]) / SST; then animal x epoch means (rule 8: animals first).
     -> <out>/dropspout/frozen_dropspout{,_by_animal}.csv"""
+    from wfield_local import config
     import pandas as pd
     rows = []
     for js in sorted((Path(out) / "dropspout" / "sessions").glob("*.json")):
         m = json.loads(js.read_text(encoding="utf-8"))
-        if m["label"][-4:] < "0801":
+        if config.early_pre(m["label"]):
             continue
         for base in DROP_BASES:
             if base not in m["sse"]:
@@ -738,40 +2017,114 @@ def summarise_musall(out: Path, variants) -> None:
     print(f"\n-> {Path(out) / 'frozen_musall_r2_by_animal.csv'}")
 
 
-def main(argv=None) -> int:
-    from wfield_local import analysis_kit as ak
-    from wfield_local import config, epochs
+def base_root() -> Path:
+    """The UNROUTED `imaging_encoding` root (`<orofacial root>/<RUN>/imaging_encoding`): the base a caller applies its
+    OWN run-mode routing to (`run_mode.subdir`), so it is never tagged twice. Encoder runs: use `out_root()`."""
     from wfield_local import orofacial_cohort as oc
     from wfield_local import orofacial_outputs as oo
     from wfield_local.paths import PathResolver
+    return oo.encoding_root(oc.RUN, PathResolver())
+
+
+def out_root() -> Path:
+    """Parent of every `frozen_encoder_<tag>/` run folder. FROZEN_OUT_ROOT (2026-11-02, cohort-1 swap-mask re-run): a run
+    on another hemo variant (WIDEFIELD_HEMO_VARIANT) goes under its OWN root, never beside / over the adopted runs.
+    Unset = `<orofacial root>/<RUN>/imaging_encoding`, unchanged."""
+    if os.environ.get("FROZEN_OUT_ROOT"):
+        return Path(os.environ["FROZEN_OUT_ROOT"])
+    from wfield_local import orofacial_cohort as oc
+    from wfield_local import orofacial_outputs as oo
+    from wfield_local import lp_licks
+    from wfield_local.paths import PathResolver
+    # run-mode routing (rebuild 11-03): a tagged run goes under imaging_encoding/<tag>/; identity for the default run
+    return lp_licks.output_dir(oo.encoding_root(oc.RUN, PathResolver()) / "_").parent
+
+
+def main(argv=None) -> int:
+    from wfield_local import analysis_kit as ak
+    from wfield_local import config, epochs
     from wfield_local.writeguard import assert_writable
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("labels", nargs="*")
     ap.add_argument("--all", action="store_true")
     ap.add_argument("--jobs", type=int, default=6)
     ap.add_argument("--tag", default="gate-attempted")
-    ap.add_argument("--variants", nargs="+", default=list(VARIANTS), choices=VARIANTS)
+    ap.add_argument("--variants", nargs="+", default=[v for v in VARIANTS if v not in _VDROP and v not in _LAGDROP],
+                    choices=VARIANTS)   # novar_* / lag drops opt-in
     ap.add_argument("--no-drop-spout", action="store_true", help="skip the frozen drop-one-spout variants")
     ap.add_argument("--reuse-stats", action="store_true", help="reuse fit/pre_stats.pkl (skip the pre statistics pass)")
     ap.add_argument("--summarise-drop", action="store_true", help="only rebuild the drop-spout table from saved files")
+    ap.add_argument("--target", default="areas", choices=("areas", "basis", "grid"),
+                    help="Allen areas (default) | per-animal shared SVD basis | 8 x 8 pixel grid (SPATIAL TARGETS)")
+    # RE-SCORING AN EXISTING FRAME INTO A NEW FOLDER (10-28, ALM / tjM1 rows of the frozen claims: the basis runs re-run
+    # with FROZEN_PIX_MUSALL=1, written next to the originals without touching them)
+    ap.add_argument("--fit-from", default=None,
+                    help="existing run folder whose fit/{pre_stats,templates,spatial_*}.pkl define the frame (read only; "
+                         "its saved statistics must match this environment -- nothing is recomputed)")
+    ap.add_argument("--alphas-from", default=None,
+                    help="run folder whose per animal x variant ridge alphas (<variant>/sessions/*.json) are HELD")
+    ap.add_argument("--predict", nargs="+", default=None, help="predict only these sessions (fits use every pre session)")
+    ap.add_argument("--out-root", default=None, help="parent folder of frozen_encoder_<tag> (default: the share)")
+    # POST HOC PER-TRIAL FILES (8.52): an existing frame (e.g. v7g3_t3d, rendered before the trials file existed) gets
+    # `<label>_trials.npz` from its OWN saved statistics -- the same fits (deterministic from the saved Gram terms), no
+    # other file written or touched
+    ap.add_argument("--trials-only", action="store_true",
+                    help="write only joint/sessions/<label>_trials.npz from this run's saved fit/pre_stats.pkl")
+    ap.add_argument("--roi-targets", action="store_true",
+                    help="EXACT ALM / tjM1 / MOs_rest / MOp_rest rows: the area run (--fit-from = --alphas-from) re-scored "
+                         "with the 8 ROI-mean targets added, penalties held; Musall R2 only (ROI_TARGETS comment)")
     a = ap.parse_args(argv)
+    if a.roi_targets:
+        if a.target != "areas" or not a.fit_from or not a.alphas_from or a.trials_only or _push_free():
+            raise SystemExit("--roi-targets: Allen-area targets with --fit-from and --alphas-from (the area run), "
+                             "frozen push, not --trials-only")
+        a.no_drop_spout = True
+    if a.trials_only:
+        if a.target != "areas" or a.fit_from or a.alphas_from:
+            raise SystemExit("--trials-only: Allen-area targets of this run's own saved statistics only")
+        if trials_mode() == "off":
+            raise SystemExit(f"--trials-only with {TRIALS_ENV}=off writes nothing")
+        a.reuse_stats, a.no_drop_spout = True, True
+        a.variants = [v for v in trial_variant_names() if v in a.variants or v == "joint"]
+    if a.target != "areas":
+        if a.variants == list(VARIANTS):
+            a.variants = [*PART_VARIANTS, *_DROP, "task_only"]   # parts (maps) + drop variants (unique-R2 maps)
+    root = Path(a.out_root) if a.out_root else out_root()   # --out-root (attempt-coding) wins; else the run-mode-routed default
     if a.summarise_drop:
-        summarise_drop(oo.root(PathResolver()) / oc.RUN / "imaging_encoding" / f"frozen_encoder_{a.tag}")
+        summarise_drop(root / f"frozen_encoder_{a.tag}")
         return 0
+    check_tag(a.tag)                                     # the design (v7g3_t3d | v7g3_t3d_spont) is in the folder tag
+    for src_ in (a.fit_from, a.alphas_from):
+        if src_:
+            check_tag(Path(src_).name, "source")
     labels = sorted(a.labels or (_ce().sessions_available() if a.all else []))
-    labels = [x for x in labels if x[-4:] >= "0801"]                       # August-only pre baseline (primary)
-    out = oo.root(PathResolver()) / oc.RUN / "imaging_encoding" / f"frozen_encoder_{a.tag}"
+    labels = [x for x in labels if not config.early_pre(x)]                       # August-only pre baseline (primary)
+    out = root / f"frozen_encoder_{a.tag}"
+    print(f"[frozen] design {design_name()} ({LICKS_ALL_ENV}={LICKS_ALL})", flush=True)
     assert_writable(out)
     pre = [x for x in labels if epochs.epoch_of(x) == "pre"]
     print(f"[frozen] {len(labels)} sessions, {len(pre)} August pre -> {out}", flush=True)
     import pickle
-    sp = out / "fit" / "pre_stats.pkl"
-    tp = out / "fit" / "templates.pkl"
+    src_fit = Path(a.fit_from) / "fit" if a.fit_from else out / "fit"            # read-only when --fit-from
+    if a.fit_from and Path(a.fit_from).resolve() == out.resolve():
+        raise SystemExit("--fit-from must be another run folder")
+    sp = src_fit / "pre_stats.pkl"
+    tp = src_fit / "templates.pkl"
     (out / "fit").mkdir(parents=True, exist_ok=True)
-    saved = pickle.loads(sp.read_bytes()) if (a.reuse_stats and sp.exists() and tp.exists()) else None
-    if saved is not None and any(s_.get("stats_version") != STATS_VERSION for s_ in saved):
-        print(f"  saved statistics are not STATS_VERSION {STATS_VERSION}: recomputing", flush=True)
+    spath = str(src_fit) if a.target != "areas" else None
+    spat_ok = a.target == "areas" or all((src_fit / f"spatial_{config.animal_of(x)}.pkl").exists() for x in pre)
+    saved = pickle.loads(sp.read_bytes()) if ((a.reuse_stats or a.fit_from) and sp.exists() and tp.exists()
+                                               and spat_ok) else None
+    if saved is not None and any(s_.get("stats_version") != STATS_VERSION or s_.get("run_mode", "linear") != _run_tag()
+                                 for s_ in saved):
+        print(f"  saved statistics are not STATS_VERSION {STATS_VERSION} / running {_run_tag()}: recomputing", flush=True)
         saved = None
+    if a.trials_only and saved is None:
+        raise SystemExit(f"--trials-only: no usable saved statistics in {out / 'fit'} for this environment (STATS_VERSION "
+                         f"{STATS_VERSION}, running {_run_tag()}); nothing is recomputed")
+    if a.fit_from and saved is None:
+        raise SystemExit(f"--fit-from {a.fit_from}: no usable saved statistics for this environment (STATS_VERSION "
+                         f"{STATS_VERSION}, running {_run_tag()}); refusing to recompute into another run's folder")
     if saved is not None:                                # a re-scoring run: the pre statistics are already saved
         got = [(s_["label"], s_) for s_ in saved if s_["label"] in pre and s_.get("pos_order")]
         print(f"  reusing {len(got)} pre-session statistics from {sp}", flush=True)
@@ -782,10 +2135,23 @@ def main(argv=None) -> int:
             raise RuntimeError(f"template pass failed: {tfail}")
         tp.write_bytes(pickle.dumps(build_templates([t for _l, t in tparts]), protocol=pickle.HIGHEST_PROTOCOL))
         print(f"  spout-locked templates -> {tp}", flush=True)
-        got, fail = ak.fan_sessions([(x, str(tp)) for x in pre], stats_job, jobs=a.jobs)
+        if a.target == "basis":                          # pass 2: the per-animal shared spatial basis
+            bparts, bfail = ak.fan_sessions(pre, basis_job, jobs=a.jobs, label="basis")
+            if bfail:
+                raise RuntimeError(f"basis pass failed: {bfail}")
+            for an_, sd_ in build_basis([b for _l, b in bparts]).items():
+                (out / "fit" / f"spatial_{an_}.pkl").write_bytes(pickle.dumps(sd_, protocol=pickle.HIGHEST_PROTOCOL))
+                print(f"  {an_} shared basis: K = {len(sd_['names'])} components, {sd_['evr'][-1]:.3f} of pre variance",
+                      flush=True)
+        elif a.target == "grid":
+            g_ = grid_spatial(pre[0])
+            for an_ in sorted({config.animal_of(x) for x in labels}):
+                (out / "fit" / f"spatial_{an_}.pkl").write_bytes(pickle.dumps(g_, protocol=pickle.HIGHEST_PROTOCOL))
+            print(f"  grid: {len(g_['names'])} blocks of {GRID_BLOCK} x {GRID_BLOCK} px", flush=True)
+        got, fail = ak.fan_sessions([(x, str(tp), spath) for x in pre], stats_job, jobs=a.jobs)
         got = [(it[0], s_) for it, s_ in got]
         for s_ in (s_ for _l, s_ in got):
-            s_["stats_version"] = STATS_VERSION
+            s_["stats_version"], s_["run_mode"] = STATS_VERSION, _run_tag()
         for it, err in fail:
             print(f"  !! stats {it}: {err}", flush=True)
         (out / "fit").mkdir(parents=True, exist_ok=True)
@@ -799,24 +2165,46 @@ def main(argv=None) -> int:
     # one fit job per ANIMAL (variants + drop-spout fits are independent across animals; serial in the main process
     # they took ~1.5 min / animal for the variants alone while the workers sat idle). Items stay small: the worker
     # reads the statistics from the pickle written above.
-    fit_items = [(an, str(sp), tuple(sorted(by_an[an])), tuple(a.variants), not a.no_drop_spout) for an in sorted(by_an)]
+    if a.predict:                                        # --predict: only the animals of those sessions need fits
+        by_an = {an: v for an, v in by_an.items() if an in {config.animal_of(x) for x in a.predict}}
+    held = {an: None for an in by_an}
+    if a.alphas_from:                                    # --alphas-from: that run's alphas per animal x variant
+        for an in by_an:
+            held[an] = {}
+            for v in a.variants:
+                js = next(iter(sorted((Path(a.alphas_from) / v / "sessions").glob(f"{an}_*.json"))), None)
+                if js is None:
+                    raise SystemExit(f"--alphas-from {a.alphas_from}: no {v} session of {an}")
+                held[an][v] = json.loads(js.read_text(encoding="utf-8"))["alphas"]
+    if a.roi_targets:                                    # EXACT ALM / tjM1 rows (ROI_TARGETS comment): own path, no PETHs
+        return _run_roi_targets(a, out, got, by_an, held, labels, tp)
+    fit_items = [(an, str(sp), tuple(sorted(by_an[an])), tuple(a.variants), not a.no_drop_spout, held[an])
+                 for an in sorted(by_an)]
     fres, ffail = ak.fan_sessions(fit_items, fit_animal_job, jobs=min(a.jobs, len(fit_items)), label="fit")
     if ffail:
         raise RuntimeError(f"frozen fits failed: {[(it[0], err) for it, err in ffail]}")
     fits: dict = {}
-    for (an, _sp, labs, _v, _d), fa in fres:
+    for (an, _sp, labs, _v, _d, _h), fa in fres:
         fits[an] = fa
         for v in a.variants:
             f = fa[v]
+            if a.trials_only:                            # the run's own fit files stay as they are
+                continue
             np.savez_compressed(out / "fit" / f"{an}_{v}.npz", scale=f["scale"], C=f["C"], vcol=f["vcol"],
                                 beta_all=f["beta_all"], col_var=f["col_var"], areas=np.array(f["areas"]))
             print(f"  {an} {v}: {len(labs)} pre sessions, LOSO R^2 (areas summed) {f['loso_r2']:.3f}, "
                   f"alphas {f['alphas']}", flush=True)
-    jobs = [(x, fits[config.animal_of(x)], str(out), str(tp)) for x in labels if config.animal_of(x) in fits]
+    jobs = [(x, fits[config.animal_of(x)], str(out), str(tp), spath, a.trials_only) for x in labels
+            if config.animal_of(x) in fits
+            and (not a.predict or x in a.predict)]
     res, fail = _fan(jobs, a.jobs)
     for it, err in fail:
         print(f"  !! predict {it[0]}: {err}", flush=True)
-    if not a.no_drop_spout:
+    if a.trials_only:
+        for _it, r in sorted(res, key=lambda kv: kv[1]["label"]):
+            print(f"  {r['label']} [{r.get('frozen_from')}] trials -> {r.get('trials')}", flush=True)
+        return 0 if not fail else 1
+    if not a.no_drop_spout and a.target == "areas":
         summarise_drop(out)
     summarise_musall(out, a.variants)
     for _it, r in sorted(res, key=lambda kv: kv[1]["label"]):
@@ -826,13 +2214,132 @@ def main(argv=None) -> int:
     return 0 if not fail else 1
 
 
+#: ROI TARGETS, EXACT (Priya 11-06: the slide-139 / remap_checks split-ROI frozen side must be exact, not the basis-route
+#: approximation): `--roi-targets --fit-from <area run> --alphas-from <area run>` re-scores the area run with the 8
+#: ALM / tjM1 / MOs_rest / MOp_rest ROI means (`scripts/encoder_split_rows.roi_targets`, ROI v8 on the stat mask) as
+#: extra targets, into a NEW folder. Per animal x variant two ridge fits with the area run's penalties HELD:
+#:   Allen  the area run's saved pre statistics -> the area run's betas exactly (same Gram terms, same alphas);
+#:   ROI    the same saved X'X / sxx (so the same scale and column transform) + the ROI targets' X'Y / Y'Y from a fresh
+#:          statistics pass over the pre sessions (`fit/pre_stats_roi.pkl`; X'X / shared X'Y checked against the saved
+#:          ones, `allsession_encoder._append_targets`).
+#: Prediction (`predict_roi_job`) uses the Allen target columns of `session_design` (the same product as without extra
+#: targets) and the area run's operations, so every Allen number equals the area run's bit for bit; it writes only
+#: <variant>/sessions/<label>.json with r2_musall (+ frozen_r2_cortex) for areas = Allen + ROI -- no PETHs / per-trial /
+#: drop-spout files (read by session_vs_frozen / remap_checks --roi-targets).
+def _run_roi_targets(a, out: Path, got: list, by_an: dict, held: dict, labels: list, tp: Path) -> int:
+    import pickle
+
+    from wfield_local import analysis_kit as ak
+    from wfield_local import config
+    from wfield_local.allsession_encoder import _append_targets, _roi_targets
+    extra = _roi_targets()
+    names = list(extra["names"])
+    allen = {x: s_ for x, s_ in got if s_["animal"] in by_an}   # label -> the area run's saved pre statistics
+    spr = out / "fit" / "pre_stats_roi.pkl"
+    roi = pickle.loads(spr.read_bytes()) if spr.exists() else {}
+    todo = sorted(x for x in allen if x not in roi)
+    if todo:
+        fres, ffail = ak.fan_sessions([(x, str(tp), None, extra) for x in todo], stats_job, jobs=a.jobs, label="roistats")
+        if ffail:
+            raise RuntimeError(f"ROI statistics failed: {[(it[0], err) for it, err in ffail]}")
+        for it, s_ in fres:
+            r_ = _append_targets(allen[it[0]], s_, names)          # checks the design against the saved statistics
+            roi[it[0]] = {**allen[it[0]], "area_names": names, "XtY": r_["XtY"][:, -len(names):],
+                          "YtY": r_["YtY"][-len(names):], "check_xtx": r_["check_xtx"], "check_xty": r_["check_xty"]}
+        spr.write_bytes(pickle.dumps(roi, protocol=pickle.HIGHEST_PROTOCOL))
+    print(f"  ROI statistics: {len(roi)} pre sessions, max rel. X'X diff "
+          f"{max(s_['check_xtx'] for s_ in roi.values()):.1e}", flush=True)
+    sp = out / "fit" / "pre_stats_pair.pkl"            # what the fit workers read (Allen + ROI per pre session)
+    sp.write_bytes(pickle.dumps({x: (allen[x], roi[x]) for x in allen}, protocol=pickle.HIGHEST_PROTOCOL))
+    items = [(an, str(sp), tuple(sorted(by_an[an])), tuple(a.variants), held[an]) for an in sorted(by_an)]
+    fres, ffail = ak.fan_sessions(items, fit_roi_job, jobs=min(a.jobs, len(items)), label="fit")
+    if ffail:
+        raise RuntimeError(f"frozen ROI fits failed: {[(it[0], err) for it, err in ffail]}")
+    fits = {it[0]: fa for it, fa in fres}
+    jobs = [(x, fits[config.animal_of(x)], str(out), str(tp), extra) for x in labels
+            if config.animal_of(x) in fits and (not a.predict or x in a.predict)]
+    from wfield_local import parallel
+    res, fail = parallel.fan_out(jobs, predict_roi_job, jobs=a.jobs, label="frozen-roi",
+                                 log=lambda m: print(m[:120], flush=True))
+    for it, err in sorted(fail, key=lambda kv: kv[0][0]):
+        print(f"  !! predict {it[0]}: {err}", flush=True)
+    summarise_musall(out, a.variants)
+    print(f"  {len(res)} sessions -> {out}", flush=True)
+    return 0 if not fail else 1
+
+
+def fit_roi_job(item):
+    """One animal: per variant the Allen fit and the ROI fit, penalties held (ROI_TARGETS comment). Module-level for spawn."""
+    import pickle
+    an, sp, labs, variants, held = item
+    pair = pickle.loads(Path(sp).read_bytes())
+    st_a = sorted((pair[x][0] for x in labs), key=lambda s: s["label"])
+    st_r = sorted((pair[x][1] for x in labs), key=lambda s: s["label"])
+    out = {}
+    for v in variants:
+        fa = fit_animal(st_a, variant=v, alphas=held[v])
+        fr = fit_animal(st_r, variant=v, alphas=held[v])
+        if not (np.array_equal(fa["scale"], fr["scale"]) and np.array_equal(fa["C"], fr["C"])):
+            raise RuntimeError(f"{an} {v}: ROI fit design transform differs from the Allen fit")
+        out[v] = (fa, fr)
+    return out
+
+
+def predict_roi_job(job):
+    """One session of the exact ROI-target run: Musall R2 of the Allen targets (the area run's operations, bit-identical)
+    and of the ROI targets, per variant -> <out>/<variant>/sessions/<label>.json (ROI_TARGETS comment)."""
+    label, fits, out_dir, tpath, extra = job
+    from wfield_local import config
+    an = config.animal_of(label)
+    d = session_design(label, _templates_of(tpath, an), extra_targets=extra)
+    fa0, fr0 = next(iter(fits.values()))
+    if len(d["col_var"]) != len(fa0["col_var"]) or (d["col_var"] != fa0["col_var"]).any():
+        raise ValueError(f"{label}: column layout differs from the animal's pre fit")
+    RdA = d["Rd"][:, [d["area_names"].index(x) for x in fa0["areas"]]]      # as predict_job
+    RdR = d["Rd"][:, [d["area_names"].index(x) for x in fr0["areas"]]]
+    Z = d["X"] / fa0["scale"]
+    ci_ = fa0["areas"].index("cortex")
+    summary = {"label": label}
+    for variant, (fa, fr) in fits.items():
+        frozen_from = "loso" if label in fa["beta_loso"] else "all_pre"
+        Zv = Z @ fa["C"]
+        full = Zv @ fa["beta_loso"].get(label, fa["beta_all"])
+        full_r = Zv @ fr["beta_loso"].get(label, fr["beta_all"])
+        musall = {}
+        for al, (a0, a1) in MUSALL_WINDOWS.items():
+            fr_ = d["cue_f"] if al == "cue" else d["first_f"]
+            keep = fr_ >= 0
+            if keep.sum() < 2:
+                continue
+            offm = np.arange(int(round(a0 * d["fs"])), int(round(a1 * d["fs"])))
+            mr = musall_r2(_segments(RdA, fr_[keep], offm), _segments(full, fr_[keep], offm), d["pos"][keep])
+            mx = musall_r2(_segments(RdR, fr_[keep], offm), _segments(full_r, fr_[keep], offm), d["pos"][keep])
+            musall[al] = {k: [float(x) for x in v] + [float(x) for x in mx[k]] for k, v in mr.items()}
+        r2 = {}
+        for w, wm in d["win"].items():
+            y, yh = RdA[wm, ci_], full[wm, ci_]
+            r2[w] = float(1.0 - ((y - yh) ** 2).sum() / max(((y - y.mean()) ** 2).sum(), 1e-12)) if wm.any() else None
+        sess = Path(out_dir) / variant / "sessions"
+        sess.mkdir(parents=True, exist_ok=True)
+        meta = {"label": label, "animal": d["animal"], "epoch": d["epoch"], "day": d["day"],
+                "order": f"frozen_pre:{variant}", "variant": variant, "frozen_from": frozen_from,
+                "pre_labels": fa["pre_labels"], "alphas": fa["alphas"], "gate": os.environ.get("OROFACIAL_GATE", "reference"),
+                "lick_set": d["lick_set"], "n_trials": d["n_trials"], "areas": list(fa["areas"]) + list(fr["areas"]),
+                "roi_targets": list(fr["areas"]), "frozen_r2_cortex": r2, "r2_musall": musall,
+                "stats_version": STATS_VERSION, "grouping_version": GROUPING_VERSION, "run_tag": _run_tag()}
+        (sess / f"{label}.json").write_text(json.dumps(meta, indent=1, default=str), encoding="utf-8")
+        summary[variant] = r2
+        summary["frozen_from"] = frozen_from
+    return summary
+
+
 def fit_animal_job(item):
     """All of one animal's frozen fits (each variant, then the drop-one-spout fits under DROP_BASES), from the saved
     pre statistics. Module-level for spawn."""
     import pickle
-    an, sp, labs, variants, drop = item
+    an, sp, labs, variants, drop, held = (*item, None)[:6]          # held = {variant: alphas} (--alphas-from) or None
     st = sorted((s for s in pickle.loads(Path(sp).read_bytes()) if s["label"] in set(labs)), key=lambda s: s["label"])
-    fits = {v: fit_animal(st, variant=v) for v in variants}
+    fits = {v: fit_animal(st, variant=v, alphas=(held or {}).get(v)) for v in variants}
     if drop:                                             # frozen drop-one-spout, each ordering (DROP_BASES)
         for base in DROP_BASES:
             if base in fits:

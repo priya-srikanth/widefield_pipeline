@@ -20,7 +20,7 @@ from __future__ import annotations
 import argparse
 import glob
 import json
-from collections import defaultdict
+from collections import defaultdict  # noqa: F401
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -215,7 +215,7 @@ def _spearman(a, b):
 
 def _collect(dates):
     labs = sorted([s["label"] for s in SESSIONS if dates is None or s["label"][-4:] in dates],
-                  key=lambda l: (l[:4], l[-4:]))
+                  key=lambda l: (l.split("_")[0], l[-4:]))
     rdms, rels = {}, {}
     for l in labs:
         try:
@@ -233,8 +233,8 @@ def fig_rsa_sessions(out, dates=None, tag=""):
     for i in range(n):
         for j in range(n):
             S[i, j] = _spearman(vecs[labs[i]], vecs[labs[j]])
-    animals = sorted({l[:4] for l in labs})
-    aof = [l[:4] for l in labs]
+    animals = sorted({l.split("_")[0] for l in labs})
+    aof = [l.split("_")[0] for l in labs]
     # within- vs across-animal second-order RSA, and split-half noise ceiling per animal
     wa, ac, nc = {}, {}, {}
     for a in animals:
@@ -246,7 +246,7 @@ def fig_rsa_sessions(out, dates=None, tag=""):
         ac[a] = np.nanmean(apairs) if apairs else np.nan
         nc[a] = np.nanmean([rels[labs[k]] for k in idx])
     # animal-level RDM (mean of session RDMs) and animal x animal RSA
-    ardm = {a: np.nanmean([rdms[l] for l in labs if l[:4] == a], axis=0) for a in animals}
+    ardm = {a: np.nanmean([rdms[l] for l in labs if l.split("_")[0] == a], axis=0) for a in animals}
     A = np.full((len(animals), len(animals)), np.nan)
     for i, ai in enumerate(animals):
         for j, aj in enumerate(animals):
@@ -256,8 +256,8 @@ def fig_rsa_sessions(out, dates=None, tag=""):
     # (1) session x session RSA matrix
     ax = fig.add_subplot(1, 3, 1)
     im = ax.imshow(S, cmap="viridis", vmin=np.nanpercentile(S, 5), vmax=1, aspect="auto")
-    ax.set_xticks(range(n)); ax.set_xticklabels([f"{l[:4]} {l[-4:-2]}/{l[-2:]}" for l in labs], rotation=90, fontsize=6)
-    ax.set_yticks(range(n)); ax.set_yticklabels([f"{l[:4]} {l[-4:-2]}/{l[-2:]}" for l in labs], fontsize=6)
+    ax.set_xticks(range(n)); ax.set_xticklabels([f"{l.split('_')[0]} {l[-4:-2]}/{l[-2:]}" for l in labs], rotation=90, fontsize=6)
+    ax.set_yticks(range(n)); ax.set_yticklabels([f"{l.split('_')[0]} {l[-4:-2]}/{l[-2:]}" for l in labs], fontsize=6)
     b = 0
     for a in animals[:-1]:
         b += sum(1 for x in aof if x == a)
@@ -315,8 +315,8 @@ def fig_rsa_sessions(out, dates=None, tag=""):
 
 def fig_rsa_rdms(out, dates=None, tag=""):
     labs, rdms, _ = _collect(dates)
-    animals = sorted({l[:4] for l in labs})
-    ardm = {a: np.nanmean([rdms[l] for l in labs if l[:4] == a], axis=0) for a in animals}
+    animals = sorted({l.split("_")[0] for l in labs})
+    ardm = {a: np.nanmean([rdms[l] for l in labs if l.split("_")[0] == a], axis=0) for a in animals}
     grand = np.nanmean([rdms[l] for l in labs], axis=0)
     mats = [(a, ardm[a]) for a in animals] + [("GRAND", grand)]
     vmax = np.nanpercentile([m for _, M in mats for m in _triu(M)], 98)
@@ -369,7 +369,7 @@ def _session_hemi_compute(s):
 
 def _collect_hemi(dates):
     labs = sorted([s["label"] for s in SESSIONS if dates is None or s["label"][-4:] in dates],
-                  key=lambda l: (l[:4], l[-4:]))
+                  key=lambda l: (l.split("_")[0], l[-4:]))
     H = {}
     for l in labs:
         try:
@@ -386,10 +386,10 @@ def fig_rsa_hemisphere(out, dates=None, tag=""):
     WITHIN the right hemisphere separately (is PS93's LEFT hemisphere -- contralateral to its right
     orofacial deficit -- an outlier where its right is not?)."""
     labs, H = _collect_hemi(dates)
-    animals = sorted({l[:4] for l in labs})
+    animals = sorted({l.split("_")[0] for l in labs})
 
     def amean(a, key):
-        vals = [H[l][key] for l in labs if l[:4] == a and H[l].get(key) is not None and np.ndim(H[l][key]) == 2]
+        vals = [H[l][key] for l in labs if l.split("_")[0] == a and H[l].get(key) is not None and np.ndim(H[l][key]) == 2]
         return np.nanmean(vals, axis=0) if vals else np.full((6, 6), np.nan)
     rdmL = {a: amean(a, "L") for a in animals}; rdmR = {a: amean(a, "R") for a in animals}
 
@@ -416,7 +416,7 @@ def fig_rsa_hemisphere(out, dates=None, tag=""):
 
     # ---- figure 2: summary ----
     def sess_vals(a, key):
-        return [H[l][key] for l in labs if l[:4] == a and np.isfinite(H[l].get(key, np.nan))]
+        return [H[l][key] for l in labs if l.split("_")[0] == a and np.isfinite(H[l].get(key, np.nan))]
     fig = plt.figure(figsize=(16, 8)); x = np.arange(len(animals)); w = 0.38
     # (A) within-session L-vs-R RDM agreement
     ax = fig.add_subplot(2, 2, 1)
@@ -464,8 +464,8 @@ def fig_rsa_hemisphere(out, dates=None, tag=""):
     for a in animals:
         print(f"  {a}: L-vs-R={np.nanmean(sess_vals(a,'LR')):.2f} (adj {np.nanmean(sess_vals(a,'LRnorm')):.2f})  "
               f"relL={np.nanmean(sess_vals(a,'relL')):.2f} relR={np.nanmean(sess_vals(a,'relR')):.2f}  "
-              f"nL/nR~{int(np.mean([H[l]['nL'] for l in labs if l[:4]==a]))}/"
-              f"{int(np.mean([H[l]['nR'] for l in labs if l[:4]==a]))}", flush=True)
+              f"nL/nR~{int(np.mean([H[l]['nL'] for l in labs if l.split('_')[0]==a]))}/"
+              f"{int(np.mean([H[l]['nR'] for l in labs if l.split('_')[0]==a]))}", flush=True)
     return p1, p2
 
 
@@ -473,7 +473,7 @@ def fig_rsa_crossnobis(out, dates=None, tag=""):
     """Crossnobis (noise-unbiased) RDM version of fig_rsa_sessions: tests whether the apparent cross-day
     'drift' in the 1-corr RDM is real geometry change vs estimation-noise inflation. Same 3 panels."""
     labs = sorted([s["label"] for s in SESSIONS if dates is None or s["label"][-4:] in dates],
-                  key=lambda l: (l[:4], l[-4:]))
+                  key=lambda l: (l.split("_")[0], l[-4:]))
     rdms, rels = {}, {}
     for l in labs:
         try:
@@ -485,14 +485,14 @@ def fig_rsa_crossnobis(out, dates=None, tag=""):
     for i in range(n):
         for j in range(n):
             S[i, j] = _spearman(vecs[labs[i]], vecs[labs[j]])
-    animals = sorted({l[:4] for l in labs}); aof = [l[:4] for l in labs]
+    animals = sorted({l.split("_")[0] for l in labs}); aof = [l.split("_")[0] for l in labs]
     wa, ac, nc = {}, {}, {}
     for a in animals:
         idx = [k for k in range(n) if aof[k] == a]; oth = [k for k in range(n) if aof[k] != a]
         wp = [S[i, j] for ii, i in enumerate(idx) for j in idx[ii + 1:]]; ap2 = [S[i, j] for i in idx for j in oth]
         wa[a] = np.nanmean(wp) if wp else np.nan; ac[a] = np.nanmean(ap2) if ap2 else np.nan
-        nc[a] = np.nanmean([rels[l] for l in labs if l[:4] == a])
-    ardm = {a: np.nanmean([rdms[l] for l in labs if l[:4] == a], axis=0) for a in animals}
+        nc[a] = np.nanmean([rels[l] for l in labs if l.split("_")[0] == a])
+    ardm = {a: np.nanmean([rdms[l] for l in labs if l.split("_")[0] == a], axis=0) for a in animals}
     A = np.full((len(animals), len(animals)), np.nan)
     for i, ai in enumerate(animals):
         for j, aj in enumerate(animals):
@@ -500,8 +500,8 @@ def fig_rsa_crossnobis(out, dates=None, tag=""):
     fig = plt.figure(figsize=(18, 6))
     ax = fig.add_subplot(1, 3, 1)
     im = ax.imshow(S, cmap="viridis", vmin=np.nanpercentile(S, 5), vmax=1)
-    ax.set_xticks(range(n)); ax.set_xticklabels([f"{l[:4]} {l[-4:-2]}/{l[-2:]}" for l in labs], rotation=90, fontsize=6)
-    ax.set_yticks(range(n)); ax.set_yticklabels([f"{l[:4]} {l[-4:-2]}/{l[-2:]}" for l in labs], fontsize=6)
+    ax.set_xticks(range(n)); ax.set_xticklabels([f"{l.split('_')[0]} {l[-4:-2]}/{l[-2:]}" for l in labs], rotation=90, fontsize=6)
+    ax.set_yticks(range(n)); ax.set_yticklabels([f"{l.split('_')[0]} {l[-4:-2]}/{l[-2:]}" for l in labs], fontsize=6)
     ax.set_title("Session x session RSA (CROSSNOBIS RDMs; blocks=animal)", fontsize=10); fig.colorbar(im, ax=ax, shrink=0.7)
     ax = fig.add_subplot(1, 3, 2); x = np.arange(len(animals)); w = 0.35
     ax.bar(x - w / 2, [wa[a] for a in animals], w, label="within-animal", color="#2980b9")

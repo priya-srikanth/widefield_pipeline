@@ -49,7 +49,15 @@ ALIGN_ENV = "WITHIN_SPOUT_ALIGN"     # set by --align (the session workers read 
 LICK_WIN_S = (0.0, 1.0)
 SIDES = ("contra", "mid", "ipsi")
 WINDOW_ENV = "WITHIN_SPOUT_WINDOW"   # "enl" = pre-cue response window (set by --window)
-ENL_S = (-1.0, 0.0)                  # relative to the cue
+#: PRE-CUE (ENL) response window (Priya 11-04: "any ENL prediction must use a LICK-FREE ENL"): THE shared window
+#: `lp_licks.enl_post_s()` of the RUN'S lick source (1.0 s LP, 2.0 s DAQ), LICK-FREE on licks of that source
+#: (`lp_licks.gate_licks_s`) and SLID like the ENL decoders' (`lp_licks.enl_window_starts_s` = their
+#: `precue_window_start`): the window ending at the cue if clean, else the latest lick-free gap after the strobe, the
+#: trial dropped only when none exists. Until 11-04 it was a fixed, UNGATED [cue - 1 s, cue). ENL_S = the nominal
+#: (unslid) window relative to the cue; the output folder carries the window (`_enllf<W>s`).
+from wfield_local import lp_licks as _lp_licks  # noqa: E402
+ENL_W = _lp_licks.enl_post_s()
+ENL_S = (-ENL_W, 0.0)
 PRE_ARRIVAL_S = (-0.5, 0.0)          # relative to the spout arrival (strobe)
 KIND_TITLE = {"within_mean": "WITHIN-spout lateral slope; red = more activity for licks toward the mouse's LEFT",
               "between_mean": "ACROSS-spout lateral slope; red = more activity for licks toward the mouse's LEFT",
@@ -247,6 +255,21 @@ def split_half(T: pd.DataFrame) -> tuple[float, float, int]:
     return r, (2 * r / (1 + r) if r > -1 else np.nan), len(G)
 
 
+def enl_window_starts(label: str, E: pd.DataFrame, rv) -> np.ndarray:
+    """Per row of ``E`` the start of its lick-free ENL window (NaN = no lick-free window: drop), on licks of the RUN'S
+    source: DAQ contact (`dlc_frames.lick_onsets`) or, under LP, the edited LP train (`lp_licks.gate_licks_s`; no LP
+    verdict -> NaN). The search is the decoders' (`lp_licks.enl_window_starts_s`)."""
+    from wfield_local import config, dlc_frames
+    animal, mmdd = label.split("_")
+    date = "2026" + mmdd
+    sid = sorted((Path(rv.root("behavior_out")) / "sessions" / animal / date).glob("*_trials.csv"))[-1].name[:-11]
+    cue = E.cue_s.to_numpy(float)
+    licks, has = _lp_licks.gate_licks_s(label, cue, dlc_frames.lick_onsets(animal, date, sid, rv),
+                                        float(config.defaults()["decode"]["max_rt_s"]))
+    w0 = _lp_licks.enl_window_starts_s(cue, E.strobe_s.to_numpy(float), licks, ENL_W)
+    return np.where(has, w0, np.nan)
+
+
 def session_check(label: str) -> dict:
     from wfield_local import combined_encoding as ce
     from wfield_local import config
@@ -257,6 +280,8 @@ def session_check(label: str) -> dict:
     Q = np.linalg.qr(ce._slow_basis(ft, ce.DRIFT_MIN_PERIOD_S))[0].astype(np.float32)
     V = V - Q @ (Q.T @ V)                                      # the encoding fit's drift filter
     E = B.trials[B.trials.engaged & np.isfinite(B.trials.cue_s)].reset_index(drop=True)
+    if os.environ.get(WINDOW_ENV) == "enl":
+        E["enl_w0"] = enl_window_starts(label, E, PathResolver())
     align = os.environ.get(ALIGN_ENV, "cue")
     T = trial_table(B, E, mode, align)
     cmd = commanded(B, mode)
@@ -297,7 +322,10 @@ def _fit_session(label, mode, align, V, ft, Ub, flat, parea, names, shape, pstat
         # 0.5 s before the spout arrived -- does the pre-cue state predict where (within the spout) the tongue will go?
         strobe = E.strobe_s.to_numpy(float)[T.k.to_numpy()]
         strobe = np.where(np.isfinite(strobe), strobe, cue - 3.0)
-        Rk = _mean(cue, *ENL_S) - _mean(strobe, *PRE_ARRIVAL_S)
+        w0 = E.enl_w0.to_numpy(float)[T.k.to_numpy()]          # the lick-free (slid) window start, NaN = none
+        keep = np.isfinite(w0)
+        T, cue, w0, strobe = T[keep].reset_index(drop=True), cue[keep], w0[keep], strobe[keep]
+        Rk = _mean(w0, 0.0, ENL_W) - _mean(strobe, *PRE_ARRIVAL_S)
     else:
         Rk = _mean(t0, *(WIN_S if align == "cue" else LICK_WIN_S)) - _mean(cue, *BASE_S)   # (trials, K)
     ok = np.isfinite(Rk).all(1)                                # windows past the end of the recording
@@ -477,7 +505,7 @@ def figures(out: Path, D: pd.DataFrame, Tt: pd.DataFrame, maps: dict) -> None:
             per_an = {}
             for lab, v in maps.items():
                 if v["epoch"] == ep and kind in v["maps"]:
-                    per_an.setdefault(lab[:4], []).append(v)
+                    per_an.setdefault(lab.split("_")[0], []).append(v)
             if not per_an:
                 continue
             imgs = []
@@ -569,14 +597,14 @@ def figures_stats(out: Path, maps: dict, q: float = 0.05) -> None:
     figs = out.parents[1] / "figures" / "within_spout" / out.name      # results, not qc (Priya 10-21)
     figs.mkdir(parents=True, exist_ok=True)
     sh = next(iter(maps.values()))["shape"]
-    animals = sorted({lab[:4] for lab in maps})
+    animals = sorted({lab.split("_")[0] for lab in maps})
     rows = []
     for kind in ("within_mean", "between_mean", "dir_mean", "mid_mean"):
         fig, ax = plt.subplots(len(animals), len(EPOCHS), figsize=(2.6 * len(EPOCHS), 2.5 * len(animals)), squeeze=False)
         for i, an in enumerate(animals):
             S, flat = {}, None
             for lab, v in maps.items():
-                if lab[:4] == an and kind in v["maps"]:
+                if lab.split("_")[0] == an and kind in v["maps"]:
                     S.setdefault(v["epoch"], []).append(v["maps"][kind])
                     flat = v["flat"]
             S = {e: np.stack(x) * 10 for e, x in S.items()}        # dF per 10 deg
@@ -628,7 +656,7 @@ def figures_repo_sig(out: Path, maps: dict, method: str = "nested") -> None:
             if kind in v["maps"] and tuple(v["shape"]) == sh:
                 img = np.full(sh[0] * sh[1], np.nan, np.float32)
                 img[v["flat"]] = v["maps"][kind] * 10 * 1e3          # x1e-3 dF per 10 deg
-                by.setdefault(v["epoch"], {}).setdefault(lab[:4], []).append(np.nan_to_num(img.reshape(sh)))
+                by.setdefault(v["epoch"], {}).setdefault(lab.split("_")[0], []).append(np.nan_to_num(img.reshape(sh)))
         eps = [e for e in EPOCHS if e in by]
         if "pre" not in eps:
             continue
@@ -673,17 +701,17 @@ def figures_repo_sig(out: Path, maps: dict, method: str = "nested") -> None:
 
 
 def main(argv=None) -> int:
+    # coordinator 11-04: routed (outputs under the run tag), no longer refused in a tagged run
+    from wfield_local import config
     from wfield_local import analysis_kit as ak
     from wfield_local import combined_encoding as ce
     from wfield_local import epochs
     from wfield_local import orofacial_cohort as oc
-    from wfield_local import orofacial_outputs as oo
     from wfield_local import writeguard
-    from wfield_local.paths import PathResolver
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--run", default=oc.RUN)
     ap.add_argument("--jobs", type=int, default=2)
-    ap.add_argument("--from-date", default="0806", help="first MMDD (default: the August-only baseline)")
+    ap.add_argument("--from-date", default=config.baseline_pre_from(), help="first MMDD (default: the August-only baseline)")
     ap.add_argument("--figures-only", action="store_true")
     ap.add_argument("--window", choices=("post", "enl"), default="post",
                     help="post: the cue / lick window (--align); enl: the last 1 s before the cue vs pre-arrival")
@@ -709,8 +737,9 @@ def main(argv=None) -> int:
     os.environ[TRIALS_ENV] = "hits" if a.hits_only else "all"
     mode = os.environ.get(ce.EXEC_ENV, "")
     stem = ("within_spout_deviation" + (f"_{mode}" if mode else "") + ("_lick" if a.align == "lick" else "")
-            + ("_enl" if a.window == "enl" else ""))
-    qc = oo.root(PathResolver()) / a.run / "imaging_encoding" / "qc"
+            + (f"_enllf{ENL_W:g}s" if a.window == "enl" else ""))
+    from wfield_local import run_mode
+    qc = run_mode.encoding_out_root(a.run) / "qc"          # the run's (tagged) encoding tree, coordinator 11-04
     outs = ({v: qc / (stem + VARIANT_SUFFIX[v]) for v in variants} if variants else
             {None: qc / (stem + ("_contact" if a.contact else "") + ("_hits" if a.hits_only else ""))})
     writeguard.assert_writable(qc)
@@ -756,7 +785,7 @@ def finish(out, labels) -> int:
     D = pd.concat([pd.read_csv(out / "sessions" / f"{x}.csv") for x in have], ignore_index=True)
     Tt = pd.concat([pd.read_csv(out / "sessions" / f"{x}_terc.csv") for x in have], ignore_index=True)
     for X in (D, Tt):
-        X["animal"] = X.label.str[:4]
+        X["animal"] = X.label.str.split("_").str[0]
         X["epoch"] = X.label.map(epochs.epoch_of)
     D.to_csv(out / "within_spout_deviation.csv", index=False, float_format="%.6g")
     Tt.to_csv(out / "terciles.csv", index=False, float_format="%.6g")
@@ -770,7 +799,7 @@ def finish(out, labels) -> int:
     dmf = [f for f in dmf if f.exists() and f.stat().st_size > 5]
     if dmf:
         DM = pd.concat([pd.read_csv(f) for f in dmf], ignore_index=True)
-        DM["animal"], DM["epoch"] = DM.label.str[:4], DM.label.map(epochs.epoch_of)
+        DM["animal"], DM["epoch"] = DM.label.str.split("_").str[0], DM.label.map(epochs.epoch_of)
         DM.to_csv(out / "dirmid.csv", index=False, float_format="%.6g")
         report_dirmid(DM, D)
     figures(out, D[D.spouts == "all"] if "spouts" in D else D, Tt, maps)

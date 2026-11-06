@@ -39,7 +39,7 @@ def one(label):
         return []
     cue = _load_cue(s["h5"])
     sr = float(cue["sample_rate_hz"])
-    lk = _load_licks(s["h5"], "lick_analog", 2.5, 1.0, (0.001, 0.020), 0.10)
+    lk = _load_licks(s["h5"], "lick_analog")
     if lk.get("lick_source") != "daq":
         raise RuntimeError("census must read DAQ contact: unset WIDEFIELD_LICK_SOURCE")
     c_ms = np.round(np.asarray(cue["cue_samples"]) / sr * 1e3).astype(np.int64)
@@ -66,6 +66,9 @@ def one(label):
 
 
 def main(argv=None) -> int:
+    from wfield_local import config
+    from wfield_local import run_mode as _rm_guard
+    _rm_guard.require_default("enl_lp_census")   # unrouted share writer: refuses in a non-default run mode
     from wfield_local import analysis_kit as ak
     from wfield_local import orofacial_cohort as oc
     from wfield_local import orofacial_outputs as oo
@@ -79,9 +82,9 @@ def main(argv=None) -> int:
     for it, err in fail:
         print("FAILED", it, err)
     T = pd.DataFrame([r for _, rr in got for r in rr])
-    T["animal"] = T.label.str[:4]
-    T["baseline"] = np.where(T.epoch != "pre", "post", np.where(T.label.str[-4:] >= "0801", "pre_aug", "pre_june"))
-    out = oo.root(PathResolver()) / oc.RUN / "imaging_encoding" / "qc"
+    T["animal"] = T.label.str.split("_").str[0]
+    T["baseline"] = np.where(T.epoch != "pre", "post", np.where(~T.label.map(config.early_pre), "pre_aug", "pre_june"))
+    out = oo.encoding_root(oc.RUN, PathResolver()) / "qc"
     assert_writable(out)
     T.to_csv(out / "enl_lp_census.csv", index=False)
     cols = [c for c in T.columns if c.startswith(("daq_", "lp_"))]

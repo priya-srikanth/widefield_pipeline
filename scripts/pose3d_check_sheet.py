@@ -22,6 +22,7 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+from wfield_local.pose3d import pose3d_dir
 
 TILE, CROP = 300, (260, 220)
 
@@ -41,7 +42,7 @@ def _session(rv, s: str):
     m1, m4 = SF.ruler_medians(f1, ix1), SF.ruler_medians(f4, ix4)
     cg, _ = P3.pnp_group(_cgroup(rv).subset_cameras_names(["cam1", "cam4"]), {"cam1": m1, "cam4": m4},
                          _rig(rv, a, d)["geometry"])
-    S = pd.read_csv(Path(rv.root("dlc")) / "session_poses" / "pose3d" / f"{s}_frames.csv.gz")
+    S = pd.read_csv(pose3d_dir(rv, "2cam") / f"{s}_frames.csv.gz")
     return {"cg": cg, "S": S, "cams": {"cam1": (ix1, f1), "cam4": (ix4, f4)}, "a": a, "d": d}
 
 
@@ -141,7 +142,7 @@ def _grid(tiles: list, ncol: int, title: str, path: Path) -> None:
 
 
 def section_a(rv, out: Path, per: int, rng) -> None:
-    d3 = Path(rv.root("dlc")) / "session_poses" / "pose3d"
+    d3 = pose3d_dir(rv, "2cam")
     K = pd.read_csv(d3 / "kinematics" / "licks.csv.gz", dtype={"date": str})
     g = K[(K.animal == "PS92") & (K.position == "far_center") & (K.epoch == "chronic")].copy()
     g["on_line"] = (np.abs(g.dv_err_mm + g.ap_err_mm + 1.6) < 0.15) & (g.ap_err_mm < -0.3)
@@ -164,7 +165,7 @@ def section_a(rv, out: Path, per: int, rng) -> None:
 
 def section_b(rv, out: Path, per: int, rng) -> None:
     from wfield_local import epochs
-    d3 = Path(rv.root("dlc")) / "session_poses" / "pose3d"
+    d3 = pose3d_dir(rv, "2cam")
     cands = [f.name.replace("_frames.csv.gz", "") for f in sorted(d3.glob("PS92_*_frames.csv.gz"))]
     acute = [s for s in cands if epochs.epoch_of(f"PS92_{s.split('_')[1][4:]}") == "acute"]
     tiles = []
@@ -208,7 +209,7 @@ def main(argv=None) -> int:
     ap.add_argument("--only", default=None, help="sections to draw, e.g. C (default ABC)")
     a = ap.parse_args(argv)
     rv = PathResolver()
-    out = Path(rv.root("dlc")) / "session_poses" / "pose3d" / "check_sheet"
+    out = pose3d_dir(rv, "2cam") / "check_sheet"
     out.mkdir(exist_ok=True)
     rng = np.random.default_rng(a.seed)
     ap_only = a.only or "ABC"

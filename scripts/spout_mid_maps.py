@@ -11,6 +11,7 @@ within-spout lateral SD) / (its PRE-stroke median within-spout cortex response S
 within_spout_mixed.add_z (pre-stroke SD of activity per pre-stroke SD of deviation) -- plus a POOLED row (animals
 weighted equally)."""
 import sys
+from pathlib import Path
 
 import matplotlib
 
@@ -18,16 +19,20 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
-sys.path.insert(0, "C:/Users/SabatiniLab/Github/widefield_pipeline")
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))   # THIS checkout (it used to pin the MAIN checkout)
 from wfield_local import analysis_kit as ak  # noqa: E402
 from wfield_local import epochs  # noqa: E402
+from wfield_local import run_mode as _rmode  # noqa: E402
+from wfield_local import config  # noqa: E402
 
-E = "M:/MICROSCOPE/Priya/Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding"
+# coordinator 11-04: routed (no longer refused in a tagged run): within_spout_deviation's (tagged) encoding tree is the
+# input, and the figure is written under it too
+E = str(_rmode.encoding_out_root())
 args = [x for x in sys.argv[1:] if x != "--z"]
 Z = "--z" in sys.argv
 folder = args[0] if args else "within_spout_deviation_lick_contact"
 src = f"{E}/qc/{folder}/sessions"
-labels = [x for x in ak.curated_labels() if x[-4:] >= "0806"]
+labels = [x for x in ak.curated_labels() if not config.early_pre(x)]
 zs = {}
 if Z:
     import pandas as pd
@@ -48,9 +53,9 @@ for lab in labels:
         k = f"spout_{pos}"
         if k in m:
             img = np.full(shape[0] * shape[1], np.nan, np.float32)
-            img[z["flat"]] = (m[k] * sg * zs[(lab[:4], pos)] if Z     # z: pre-SD activity per pre-SD deviation
+            img[z["flat"]] = (m[k] * sg * zs[(lab.split("_")[0], pos)] if Z     # z: pre-SD activity per pre-SD deviation
                               else m[k] * sg * 10 * 1e3)                # x1e-3 dF per 10 deg toward the mouse's left
-            acc.setdefault((lab[:4], pos, epochs.epoch_of(lab)), []).append(img.reshape(shape))
+            acc.setdefault((lab.split("_")[0], pos, epochs.epoch_of(lab)), []).append(img.reshape(shape))
 mean = {k: np.nanmean(v, 0) for k, v in acc.items()}
 animals = sorted({k[0] for k in mean})
 if Z:                                                           # POOLED, animals weighted equally

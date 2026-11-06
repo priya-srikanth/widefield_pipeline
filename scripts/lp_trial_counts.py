@@ -46,6 +46,9 @@ def one(label):
 
 
 def main(argv=None) -> int:
+    from wfield_local import config
+    from wfield_local import run_mode as _rm_guard
+    _rm_guard.require_default("lp_trial_counts")   # unrouted share writer: refuses in a non-default run mode
     from wfield_local import analysis_kit as ak
     from wfield_local import orofacial_cohort as oc
     from wfield_local import orofacial_outputs as oo
@@ -55,15 +58,15 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--jobs", type=int, default=6)
     a = ap.parse_args(argv)
-    labels = sorted(x for x in ak.curated_labels() if x[-4:] >= "0801")          # August pre + post
+    labels = sorted(x for x in ak.curated_labels() if not config.early_pre(x))          # August pre + post
     got, fail = ak.fan_sessions(labels, one, jobs=a.jobs)
     for it, err in fail:
         print("FAILED", it, err)
     T = pd.DataFrame([r for _, rr in got for r in rr])
-    T["animal"] = T.label.str[:4]
+    T["animal"] = T.label.str.split("_").str[0]
     for s in ("daq", "lp"):
         T[f"eng_{s}"] = T[f"cat_{s}"] == "engaged"
-    out = oo.root(PathResolver()) / oc.RUN / "imaging_encoding" / "qc"
+    out = oo.encoding_root(oc.RUN, PathResolver()) / "qc"
     assert_writable(out)
     T.to_csv(out / "lp_trial_counts.csv", index=False, float_format="%.4g")
     per_sess = T.groupby(["animal", "epoch", "pos", "label"])[["eng_daq", "eng_lp"]].sum().reset_index()

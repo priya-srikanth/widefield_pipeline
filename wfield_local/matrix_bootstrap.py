@@ -105,29 +105,29 @@ def delta_draws(grouped, epoch, base="pre", *, rng, n_boot=N_BOOT):
     Only animals present in BOTH epochs contribute, matching `scalar_contrast_draws`: an animal
     with no pre-stroke panel cannot supply a change, and letting it into one side of the difference
     would compare different cohorts.
+
+    ANIMAL-WEIGHTED since 2026-11-03 (consolidation A3, `analysis_kit.paired_animal_draws`): per cell, each animal's
+    mean post matrix minus its mean pre matrix, then the NaN-aware mean over animals -- for the point and the draws.
+    Until then both arms were flat means over every session's matrix, so a many-session animal outweighed the others.
     """
+    from wfield_local import analysis_kit as ak
+
     a_by, b_by = grouped.get(epoch) or {}, grouped.get(base) or {}
     animals = sorted(set(a_by) & set(b_by))
     if not animals:
         return None
-    pa = _stack_mean([M for an in animals for M in a_by[an]])
-    pb = _stack_mean([M for an in animals for M in b_by[an]])
-    if pa is None or pb is None or pa.shape != pb.shape:
+    if len({np.shape(M) for an in animals for M in list(a_by[an]) + list(b_by[an])}) != 1:
         return None
-    out = []
-    for _ in range(n_boot):
-        pick = [animals[i] for i in rng.integers(0, len(animals), len(animals))]
-        ca, cb = [], []
-        for an in pick:
-            sa, sb = a_by[an], b_by[an]
-            ca += [sa[i] for i in rng.integers(0, len(sa), len(sa))]
-            cb += [sb[i] for i in rng.integers(0, len(sb), len(sb))]
-        A, B = _stack_mean(ca), _stack_mean(cb)
-        if A is not None and B is not None and A.shape == B.shape:
-            out.append(A - B)
-    if len(out) < n_boot // 4:
+
+    def over_animals(d):
+        with np.errstate(invalid="ignore"):
+            return np.nanmean(np.stack(d), axis=0)
+
+    point, out, _an = ak.paired_animal_draws(a_by, b_by, lambda ms, _rng: _stack_mean(ms), rng, n_boot,
+                                             combine=over_animals)
+    if point is None or len(out) < n_boot // 4:
         return None
-    return pa - pb, np.stack(out)
+    return point, np.asarray(out)
 
 
 def cell_ci(draws, alpha=0.05):

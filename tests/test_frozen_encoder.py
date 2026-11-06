@@ -1,5 +1,7 @@
 """frozen_encoder.fit_animal: the Gram-matrix ridge (pooled-pre scaling, per-group penalties, leave-one-session-out)
 must equal a direct ridge on the stacked, scaled pre sessions."""
+from pathlib import Path
+
 import numpy as np
 
 from wfield_local import frozen_encoder as fe
@@ -98,7 +100,8 @@ def test_split_blocks_layout():
     raw["jaw"] = np.repeat(np.arange(3.0), nl)[None, :].repeat(T, 0)       # x, y, speed
     raw["nose"] = np.repeat(np.arange(2.0), nl)[None, :].repeat(T, 0)      # x, y
     out = fe.split_blocks(raw)
-    assert set(out) == {v.split(":")[0] for v in fe.FGROUP}                 # base variables (split later into s / d)
+    # base variables (split later into s / d); "push" is derived later from the signed running columns
+    assert set(out) == {v.split(":")[0] for v in fe.FGROUP} - {"push"}
     assert (out["lick_onset"] == 0).all() and (out["contact"] == 1).all()
     assert set(out["tongue_dir"][0]) == {0.0, 1.0, 2.0} and set(out["tongue_mag"][0]) == {3.0}   # prot is spatial
     assert set(out["jaw_dir"][0]) == {0.0} and set(out["jaw_mag"][0]) == {1.0, 2.0}
@@ -203,6 +206,26 @@ def test_build_templates_pools_sessions_by_trial_count():
     t = fe.build_templates([part("A_1", 1.0, 30), part("A_2", 4.0, 10)])["A"]
     assert abs(t["mean"]["jaw_mag"][0, 5, 0] - (30 * 1.0 + 10 * 4.0) / 40) < 1e-12
     assert t["n_sessions"] == 2
+    assert t["running_cap"] is None                     # no running samples -> no cap (old parts stay valid)
+
+
+def test_running_cap_pooled_over_pre_frames_and_clips_both_signs():
+    """Cap = RUN_CAP_Q percentile of |speed| over the RUNNING pre frames (above the threshold) pooled across sessions;
+    stationary frames do not pull it down. Clipping keeps sign, leaves values inside the cap and NaN untouched."""
+    k0, K = fe._template_bins()
+    def part(label, run):
+        S, Nn = np.zeros((1, K, 1)), np.zeros((1, K))
+        return {"label": label, "animal": "A", "pos_order": ["a"], "sums": {v: (S, Nn) for v in fe.SPLIT_VARS},
+                "run_abs": np.asarray(run, np.float32)}
+    r1, r2 = np.r_[np.zeros(100000), np.arange(1000.0)], 5000.0 + np.arange(100.0)    # mostly stationary
+    t = fe.build_templates([part("A_1", r1), part("A_2", r2)], run_thresh=3.0)["A"]
+    mov = np.concatenate([r1, r2])
+    assert abs(t["running_cap"] - np.percentile(mov[mov > 3.0], fe.RUN_CAP_Q)) < 1e-2
+    assert t["running_cap"] > 1000                      # the all-frame p99 would be ~0 here
+    x = np.array([[-50.0, 3.0], [np.nan, 50.0], [9.9, -2.0]])
+    y = fe.cap_running(x, 10.0)
+    assert np.array_equal(y[[0, 1, 2], [0, 1, 0]], [-10.0, 10.0, 9.9]) and y[2, 1] == -2.0 and np.isnan(y[1, 0])
+    assert fe.cap_running(x, None) is x
 
 
 def test_ordered_projection_ignores_null_direction():
@@ -240,3 +263,190 @@ def test_template_index_switches_from_cue_to_lick_locked():
     assert k[2] == k0 + kc + 2                                               # lick-locked, 64 ms after the lick
     assert k[3] == k0 - 1 and k[4] == k0 - 1                                 # outside both spans
     assert (k[[0, 1, 2]] - k0 < K).all()
+
+
+def test_build_basis_orthonormal_and_captures_variance():
+    """The shared basis: orthonormal columns spanning the pooled sessions' dominant spatial patterns, K chosen by
+    BASIS_VAR; a session's own patterns are captured."""
+    rng = np.random.default_rng(13)
+    npix, k = 500, 10
+    common = np.linalg.qr(rng.normal(size=(npix, 3)))[0]
+    parts = []
+    for s in range(3):
+        Ub = np.hstack([common, 0.05 * rng.normal(size=(npix, k - 3))])
+        w = np.r_[100.0, 50.0, 20.0, np.full(k - 3, 0.1)]
+        parts.append({"label": f"A_{s}", "animal": "A", "n": 1000, "UbL": (Ub * np.sqrt(w)).astype(np.float32)})
+    out = fe.build_basis(parts)["A"]
+    W = out["P"].astype(float)
+    np.testing.assert_allclose(W.T @ W, np.eye(W.shape[1]), atol=1e-4)
+    assert out["evr"][-1] >= fe.BASIS_VAR and W.shape[1] <= fe.BASIS_KMAX
+    resid = common - W @ (W.T @ common)                    # the shared patterns lie in the basis
+    assert np.linalg.norm(resid) / np.linalg.norm(common) < 0.05
+
+
+def test_running_spline_basis_continuous_flat_above_cap_and_curve_matches():
+    """Spline running basis: blocks of lag columns, identical to the capped column below the first knot, flat above the
+    cap; `running_curve` = the basis times the betas (summed over lags); linear mode = the capped columns."""
+    x = np.column_stack([np.linspace(-2, 30, 200)] * 2)                  # two "lag" columns
+    knots, cap = [3.0, 6.0, 9.0], 15.0
+    B = fe.running_basis(x, cap, knots, "spline")
+    assert B.shape == (200, 2 * 4)
+    assert np.array_equal(B[:, :2], np.clip(x, -cap, cap))
+    hi = x[:, 0] >= cap
+    assert np.allclose(B[hi], B[hi][0])                                   # flat beyond the cap
+    assert np.array_equal(fe.running_basis(x, cap, knots, "linear"), np.clip(x, -cap, cap))
+    beta = np.array([1.0, 0.5, -0.4, 0.0, -0.3, -0.2, 0.1, 0.0])          # blocks [s | k1 | k2 | k3] x 2 lags
+    s = x[:, 0]
+    y = fe.running_curve(beta, knots, s, cap)
+    assert np.allclose(y, B @ beta)
+
+
+def test_pixel_sse_from_target_moments_matches_direct_residuals():
+    """Pixel R2 statistics: diag(W E W') with E from the Gram terms (`residual_moment`) = the per-pixel SSE of the
+    residual reconstructed in the basis; grid kind = each block's own diagonal; cortex-mean target dropped."""
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("frm", Path(__file__).resolve().parents[1] / "scripts" / "frozen_r2_maps.py")
+    frm = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(frm)
+    rng = np.random.default_rng(3)
+    T, p, K, npx = 400, 6, 5, 30
+    Z = rng.standard_normal((T, p))
+    Yt = np.column_stack([rng.standard_normal((T, K)), rng.standard_normal(T)])      # K basis targets + cortex
+    Wf = rng.standard_normal((p, K + 1))
+    E = fe.residual_moment(Z.T @ Z, Z.T @ Yt, Yt.T @ Yt, Wf)
+    Rz = Yt - Z @ Wf
+    assert np.allclose(E, Rz.T @ Rz)
+    Wb = np.linalg.qr(rng.standard_normal((npx, K)))[0]
+    keep = np.r_[np.ones(K, bool), False]
+    sse = frm.pixel_sse({"kind": "basis", "P": Wb}, E, keep)
+    assert np.allclose(sse, ((Rz[:, :K] @ Wb.T) ** 2).sum(0))
+    assert np.allclose(frm.pixel_sse({"kind": "grid", "P": None}, E, keep), (Rz[:, :K] ** 2).sum(0))
+
+
+def test_running_threshold_spline_zero_below_threshold():
+    """spline_thr: no response below the first knot (the running threshold), hinge blocks only, flat above the cap;
+    running_curve matches basis @ beta."""
+    x = np.column_stack([np.linspace(-2, 30, 300)] * 2)
+    knots, cap = [3.0, 6.0, 9.0], 15.0
+    B = fe.running_basis(x, cap, knots, "spline_thr")
+    assert B.shape == (300, 2 * 3)
+    assert np.all(B[x[:, 0] <= 3.0] == 0)
+    hi = x[:, 0] >= cap
+    assert np.allclose(B[hi], B[hi][0])
+    beta = np.array([1.0, 0.5, -0.4, 0.0, -0.3, -0.2])
+    assert np.allclose(fe.running_curve(beta, knots, x[:, 0], cap, mode="spline_thr"), B @ beta)
+
+
+def test_knot0_override(monkeypatch):
+    """FROZEN_RUN_KNOT0 replaces the first knot (and drops higher knots below it); unset = the v7 default 1.5 mm/s."""
+    monkeypatch.delenv("FROZEN_RUN_KNOT0", raising=False)
+    assert fe._knots([3.0, 4.7, 6.5, 8.7]) == [1.5, 4.7, 6.5, 8.7]
+    monkeypatch.setenv("FROZEN_RUN_KNOT0", "3")
+    assert fe._knots([3.0, 4.7, 6.5, 8.7]) == [3.0, 4.7, 6.5, 8.7]
+    monkeypatch.setenv("FROZEN_RUN_KNOT0", "1")
+    assert fe._knots([3.0, 4.7, 6.5, 8.7]) == [1.0, 4.7, 6.5, 8.7]
+    monkeypatch.setenv("FROZEN_RUN_KNOT0", "5")
+    assert fe._knots([3.0, 4.7, 6.5, 8.7]) == [5.0, 6.5, 8.7]
+
+
+def test_swap_template_pools_other_spouts_by_count():
+    """swap_template: spout q's template = the other spouts' templates weighted by their frame counts per bin; bins
+    where no other spout has data -> 0; the other spouts unchanged."""
+    M = np.zeros((3, 4, 1))
+    M[0, :, 0], M[1, :, 0], M[2, :, 0] = 1.0, 2.0, 5.0
+    N = np.array([[10, 10, 10, 10], [30, 0, 30, 0], [10, 10, 0, 0]], float)
+    S = fe.swap_template(M, N, 0)
+    assert np.allclose(S[0, :, 0], [(30 * 2 + 10 * 5) / 40, 5.0, 2.0, 0.0])
+    assert np.array_equal(S[1:], M[1:])
+
+
+def test_push_columns_backward_only_floor_and_cap():
+    """push: only backward speed beyond PUSH_FLOOR counts, forward speed -> 0, capped, NaN kept."""
+    x = np.array([[-5.0], [-0.2], [0.0], [3.0], [np.nan], [-1.3]])
+    y = fe.push_columns(x, cap=2.3)
+    assert np.allclose(y[[0, 1, 2, 3, 5], 0], [2.0, 0.0, 0.0, 0.0, 1.0]) and np.isnan(y[4, 0])
+    assert np.allclose(fe._push_abs(x[:, 0]), [5.0, 1.3])
+
+
+def test_v7_running_defaults(monkeypatch):
+    """STATS_VERSION 7: forward-only running from 1.5 mm/s, no push term, unless overridden; the run tag records all
+    three so saved statistics are never reused across running models."""
+    for v in ("FROZEN_RUNNING", "FROZEN_RUN_KNOT0", "FROZEN_PUSH"):
+        monkeypatch.delenv(v, raising=False)
+    assert fe.STATS_VERSION == 7
+    assert fe._run_mode() == "spline_thr" and not fe._push_on()
+    assert fe._run_tag() == "spline_thr|k0=1.5"
+    monkeypatch.setenv("FROZEN_RUNNING", "linear")
+    monkeypatch.setenv("FROZEN_PUSH", "1")
+    assert fe._run_tag() == "linear|k0=1.5|push"
+
+
+def test_free_push_is_cross_validated_ridge_on_the_frozen_residual(monkeypatch):
+    """FROZEN_PUSH=free: base = frozen non-push prediction; push part = per-fold ridge of the residual on the push
+    columns, each block predicted from the other blocks only; no push columns -> zeros."""
+    rng = np.random.default_rng(3)
+    n, p, r = 200, 6, 3
+    Zv = rng.normal(size=(n, p))
+    qm = np.array([False, False, False, False, True, True])
+    beta = rng.normal(size=(p, r))
+    R = Zv @ beta + rng.normal(size=(n, r))
+    base, pf = fe.free_push(Zv, R, beta, qm, alpha=2.0, folds=4)
+    assert np.allclose(base, Zv[:, ~qm] @ beta[~qm])
+    res, Zp = R - base, Zv[:, qm]
+    for a, b in ((0, 50), (50, 100), (100, 150), (150, 200)):
+        tr = np.r_[0:a, b:n]
+        coef = np.linalg.solve(Zp[tr].T @ Zp[tr] + 2.0 * np.eye(2), Zp[tr].T @ res[tr])
+        assert np.allclose(pf[a:b], Zp[a:b] @ coef)
+    b0, p0 = fe.free_push(Zv, R, beta, np.zeros(p, bool), alpha=2.0)
+    assert np.allclose(b0, Zv @ beta) and not p0.any()
+    monkeypatch.setenv("FROZEN_PUSH", "free")
+    assert fe._push_on() and fe._push_free()
+    monkeypatch.setenv("FROZEN_PUSH", "1")
+    assert fe._push_on() and not fe._push_free()
+
+
+def test_nose_is_other():
+    """Grouping v2 (Priya 10-23): both parts of nose x and nose y are uninstructed "other", not lick direction."""
+    assert fe.FGROUP["nose_dir:spl"] == fe.FGROUP["nose_dir:dev"] == fe.FGROUP["nose_mag"] == "other"
+    assert fe.FGROUP["tongue_dir:dev"] == "exec_within" and fe.FGROUP["tongue_dir:spl"] == "exec_locked"
+    assert fe.GROUPING_VERSION >= 2
+
+
+def test_contact_own_category():
+    """Grouping v3: contact is in neither task nor movement / nontask; the shared-variance drop variant exists."""
+    assert "contact" not in fe.SUPER["nontask"] and "contact" not in fe.SUPER["task"]
+    assert "contact" not in fe.SUPER["movement"]
+    assert fe._DROP["no_contact_exec_within"] == ("contact", "exec_within")
+    assert "no_contact_exec_within" in fe.VARIANTS and fe.GROUPING_VERSION == 3
+
+
+def test_tongue_3d_traces_fill_rules():
+    """3-D tongue on cam4 pose rows: triangulated -> mm; in the mouth (cam4 0, no 3-D) -> 0; out but untriangulated -> NaN."""
+    import numpy as np
+    import pandas as pd
+    from wfield_local import combined_encoding as ce
+    ix = pd.DataFrame({"trial_id": [1, 1, 1], "t_ms": [0.0, 4.0, 8.0]})
+    F = pd.DataFrame({"trial_id": [1], "t_ms": [4.0], "tongue_ml": [1.0], "tongue_ap": [2.0], "tongue_dv": [-2.0]})
+    x, y, prot = ce.tongue_3d_traces(ix, np.array([0.0, 5.0, 7.0]), F)
+    assert x[0] == 0 and y[0] == 0 and prot[0] == 0
+    assert x[1] == 1.0 and y[1] == 2.0 and np.isclose(prot[1], 3.0)
+    assert np.isnan(x[2]) and np.isnan(prot[2])
+
+
+def test_run_tag_marks_tongue3d(monkeypatch):
+    monkeypatch.setenv("COMBINED_ENCODING_TONGUE", "3d")
+    assert fe._run_tag().endswith("|tongue3d")
+    monkeypatch.delenv("COMBINED_ENCODING_TONGUE")
+    assert "tongue3d" not in fe._run_tag()
+
+
+def test_trial_means_windows_and_missing_anchor():
+    """Per-trial part means: window mean per trial and area; NaN for a trial with no anchor or no frames in range."""
+    import numpy as np
+    from wfield_local.frozen_encoder import trial_means
+    R = np.arange(20, dtype=float)[:, None] * np.array([[1.0, 10.0]])      # frames x 2 areas
+    out = trial_means(R, np.array([2, -1, 18, 30]), np.arange(0, 3))
+    assert np.allclose(out[0], [3.0, 30.0])                                  # frames 2, 3, 4
+    assert np.isnan(out[1]).all()                                            # no anchor (no lick)
+    assert np.allclose(out[2], [18.5, 185.0])                                # frames 18, 19 (20 is outside)
+    assert np.isnan(out[3]).all()                                            # window entirely outside

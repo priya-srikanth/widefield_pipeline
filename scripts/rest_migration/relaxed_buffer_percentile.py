@@ -96,8 +96,8 @@ def _rest_mask_with_buffer(s, lick_buffer):
         calibrate_treadmill(tread_v, tr["offset_v"], tr["volt_sec_per_rot"], tr["mm_per_rot"]),
         fs, tr["smoothing_sigma_s"])
     lk = detect_licks(lick_v, fs, ld["thresh_upper"], ld["thresh_lower"],
-                      tuple(ld["lockout_falling_edge_s"]), 0.10,
-                      min_ili_s=ld["min_ili_ms"] / 1000.0)
+                      tuple(ld["lockout_falling_edge_s"]), config.lick_detector()["refractory_s"],   # 8.53 (was 0.10)
+                      min_ili_s=config.lick_min_ili_s())
     # THE REPAIRED CLASSIFIER, exactly as `rest_by_position._gather` uses it. Raw `_classify_cues`
     # reports what the hardware said, and a dead `spout_bit1` (Aug 2026) reads that bit low, so the
     # 3-bit code COLLAPSES 6 positions onto 4 (2->0, 3->1, 6->4, 7->5). Production was fixed for this

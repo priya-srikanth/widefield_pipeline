@@ -80,7 +80,11 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--windows", nargs="+", type=float, default=WINDOWS)
-    ap.add_argument("--variant", default="meegkit_hpfit")
+    ap.add_argument("--variant", default=hv.BUILD_DEFAULT,
+                    help="drift-removal variant RECOMPUTED per session (a hemo_variants.VARIANTS key)")
+    ap.add_argument("--read-selected", action="store_true",
+                    help="instead of recomputing, read the stored SVTcorr of the selected hemo variant "
+                         "(defaults.yaml hemo.variant / WIDEFIELD_HEMO_VARIANT; rebuild 11-03)")
     ap.add_argument("--align", default="cue", choices=("cue", "lick", "precue"),
                     help="LICK alignment follows the response wherever it lands, so it handles "
                          "variable latency by construction -- the right instrument if the concern is "
@@ -92,8 +96,8 @@ def main(argv=None) -> int:
 
     dates = (set(config.expand_dates(a.from_dates, width=4)) if a.from_dates
              else set(config.curated_dates()))
-    only = config.normalize_animals(a.animals) or sorted({x["label"][:4] for x in SESSIONS})
-    labs = [x["label"] for x in SESSIONS if x["label"][:4] in set(only) and x["label"][-4:] in dates]
+    only = config.normalize_animals(a.animals) or sorted({x["label"].split("_")[0] for x in SESSIONS})
+    labs = [x["label"] for x in SESSIONS if x["label"].split("_")[0] in set(only) and x["label"][-4:] in dates]
     names = [POSITION_NAMES[c] for c in DISPLAY_ORDER]
     print(f"[window-test] {len(labs)} sessions x {len(a.windows)} windows, align={a.align}, "
           f"variant={a.variant}", flush=True)
@@ -104,7 +108,12 @@ def main(argv=None) -> int:
         if not glob.glob(f"{s['mc']}/wfield_local_results/allen_aligned_affine8v1"):
             continue
         try:
-            svtc, _T, _rc, _m = hv.compute(s, a.variant, refit_t=False, verbose=False)
+            if a.read_selected:
+                # the BUILT SVTcorr of the selected variant (the one hemo switch), e.g. the rebuild's variant, which
+                # `hv.compute` cannot rebuild from a VARIANTS key alone (swap mask, lag shift)
+                svtc = np.load(config.svtcorr_path(s["mc"]))
+            else:
+                svtc, _T, _rc, _m = hv.compute(s, a.variant, refit_t=False, verbose=False)
         except Exception as ex:                                      # noqa: BLE001
             print(f"  !! {lab}: {type(ex).__name__} {str(ex)[:60]}", flush=True)
             continue
@@ -125,13 +134,13 @@ def main(argv=None) -> int:
 
     print(f"\n=== overall accuracy by animal (chance {1/6:.3f}) ===")
     print(f"{'animal':8s}" + "".join(f"{w:>9.1f}s" for w in a.windows))
-    for an in sorted({l[:4] for l in rows}):
+    for an in sorted({l.split("_")[0] for l in rows}):
         rr = [v for l, v in rows.items() if l.startswith(an)]
         print(f"{an:8s}" + "".join(
             f"{np.nanmean([x[w]['acc'] for x in rr if w in x]):>10.3f}" for w in a.windows))
 
     print("\n=== PER-POSITION recall — does a longer window rescue the LATE positions? ===")
-    for an in sorted({l[:4] for l in rows}):
+    for an in sorted({l.split("_")[0] for l in rows}):
         rr = [v for l, v in rows.items() if l.startswith(an)]
         print(f"  {an}")
         print(f"    {'position':12s}" + "".join(f"{w:>9.1f}s" for w in a.windows) + "     delta")

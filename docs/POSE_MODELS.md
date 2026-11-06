@@ -437,6 +437,27 @@ two): PS94 0814 / 0821 / 0908 (no PS94 cam1 labels on those dates). Metrics, in 
 
 # Part D -- 3-D output and cam1 clean traces (Priya 2026-10-18: 3-D IS an analysis output)
 
+> **Cross-arm summary: [FINDINGS.md](FINDINGS.md) section 2** (10-25).
+>
+> **STATUS 2026-10-23 -- read before quoting D9-D12.** D9-D12 were written 10-18 .. 10-20 on PS92 (production) and PS93
+> (clips, then production); their numbers are ONE- or TWO-ANIMAL results. Since 10-23 3-D and cam1 licks cover all four
+> animals (3-D sessions PS92 35 / PS93 31 / PS94 30 / PS95 28; cam1 LP 125 / 127 curated videos; missing PS95_20260817 =
+> PS95's only ACUTE session, and PS95_20260831). The four-animal results, with status tags, are in
+> `docs/OROFACIAL_FINDINGS.md` (status table + section 8). In short:
+>
+> | D-section claim | status on four animals |
+> |---|---|
+> | D11 cam4 lateral / angle / 'out' = DOWN axis vs 3-D | STANDS (r 0.94-0.97 lateral, 0.99 out vs -dv in all four) |
+> | D10-D12 acute far_R deficit (miss up, aim medial / ipsi) | STANDS in 3 / 3 animals with acute 3-D; PS95 acute pending |
+> | D11 jaw FAR_DIR collapse acutely | STANDS (3 / 3); chronic persistence only PS92 / PS93 -> NOT ESTABLISHED |
+> | D11 "acute licks reach less DOWN, more FORWARD" | PROVISIONAL (reach drops at BOTH far spouts in PS93 / PS94) |
+> | late 10-19 (1) 3-D > cam4 for target decoding | STANDS (4 / 4: 0.67-0.86 vs 0.42-0.78, 6 positions) |
+> | 10-20 CLOSE_DIR (jaw away from close side spout) | NOT ESTABLISHED (PS94 / PS95 flat or opposite) |
+> | D9 / 10-19 cam1 lick detector, droplet flag | STANDS as a method (reviewed on PS92 / PS93 only) |
+>
+> Whole-session 3-D licks (pre-cue / post-cue / ITI): `pose3d_kinematics --licks all` -> `session_poses/pose3d/
+> kinematics_all/` (10-23). Production chain for new sessions: `python -m scripts.pose_chain`.
+
 ## D1. The 3-D route (order)
 
 1. **Single-view models chosen per camera** (Parts C / B, in progress).
@@ -992,3 +1013,144 @@ far_R trial-averaged distance falls ~85 % (time with the tongue out), tongue-out
 left-side incomplete licks are pre-stroke behaviour (DAQ contact far_L 0.39), not a cam1 side flip. `apparatus_mouth`
 uses the per-session PnP pose (cam1 cleaning origin = PnP mouth + constant 30-32 px, the rod edge). Details:
 `docs/status/STATUS_2026-10-20_POSE3D_TIMING_HANDOFF.md` §4a.
+
+**2026-11-01 local cleanup (Priya: cam4 / cam1 models settled).** Local copies under `C:/Users/SabatiniLab/lp_stage/` and
+`lp_clips/` are deleted (list: `docs/status/DELETED_LOCAL_LP_2026-11-01.txt`). Production models stay on M:
+(`o2/lp_r4_prod_20261015`, `o2/lp_train_20261016`, `o2/lp_cam1_ctx_prod_20261019`, `o2/lp_train_cam1_r2_20261018`,
+`lightning-pose/cam4-2026-10-13`). The two checkpoints with no other copy (LP r4 ctx-sup Windows, LP r3 Windows copy) are
+in `lightning-pose/_archived_local_models_20261101/`. Paths above that point at `lp_stage/` no longer exist locally.
+# Part E -- Side cameras (cam2 + cam3), one shared model (2026-10-27)
+
+Plan: DECISIONS 2026-10-13 night (cam3 flipped left-right, one moment per camera, every 5th in both). Transform and
+crop: `wfield_local/lp_sidecam.py` (DECISIONS 2026-10-27 evening; June side videos are 800 x 600, August+ 600 x 450).
+
+| id | type | labels | settings | why | where |
+|---|---|---|---|---|---|
+| LP side pilot (SUPERSEDED by crop2) | LP `heatmap`, ResNet-50 | SIDECAM Part A: 228 frames (143 listed + 85 complete extras), 8 sessions, all animals / epochs | LP r4 recipe, 384 x 384 face crop at native resolution, batch 4, 300 epochs, Windows-native, **supervised only** (no temporal loss) | check the pilot before Parts B / C; pre-labels for B / C | `C:/Users/SabatiniLab/lp_stage/lp_side_pilot_20261027/models/side_pilot_heatmap_20261027` |
+
+Results: held-out frames (frame split, optimistic) median px nose 1.3 / jaw 2.5 / tongue 2.1 / spout 1.2; on the 188 Part B
++ C targets of 13 UNSEEN sessions, confident nose 99 % / jaw 89 % / tongue 52 % / spout 88 %; QC sheets in
+`DeepLabCut/Widefield/inference_check_20261027_side_pilot/`. Not yet judged by Priya. Next model: O2, temporal loss on
+cropped / flipped side clips, after Parts B / C.
+
+| **LP side crop2** | LP `heatmap`, ResNet-50 | same 228 frames | per-frame-size crop -> 256 px (August native, June 317 -> 256 at August scale), otherwise as the pilot | Priya: prioritise the August crop | `C:/Users/SabatiniLab/lp_stage/lp_side_crop2_20261027/models/side_crop2_heatmap_20261027` |
+
+crop2 vs pilot (DECISIONS 2026-10-27 late evening): same accuracy (held-out within ~1 px; unseen agreement ~2 px), adopted.
+Labelled review clips (single-frame model: judge labels / crop, not smoothness): `inference_check_20261027_side_pilot/clips/`.
+Priya 11-04 on the clips: "pretty darn good"; cam2 (sometimes cam3) less confident when the mouth is closed before cue /
+reward -> worth extra closed-mouth frames in Parts B / C.
+
+| **LP side temporal** *(trained 11-04; NOT adopted)* | LP `heatmap`, ResNet-50 + unlabelled-video TEMPORAL loss | same 228 Part A frames | crop2 recipe (256 px, batch 4, seed 42 split, 300 epochs, patience 20); WSL (DALI), `lp_capped.py` 0.75 + 6.8 GB guard; DALI train sequence 8, predict 16; **epsilon [nose 5, jaw 8, tongue 20, spout 5] model px** | Priya: temporal loss with per-part jump thresholds and plenty of unlabelled frames; its predictions then pre-label Parts B / C for the student | WSL `/root/lp/side-2026-11-04/models/side_temporal_20261104`; script `lp_stage/lp_train_side_temporal_wsl.sh` |
+
+Epsilon from measured genuine motion (model px per 4-ms frame, crop2 single-frame predictions, both frames confident, cutoffs
+tongue 0.4 / others 0.6). Cue windows of the four review sessions (~4 x 10^4 steps per part, 7.6k tongue): p99 / p99.9 nose
+0.9 / 1.5, jaw 5.2 / 7.7, tongue 18.4 / 24.2, spout 3.0 / 6.9 (cam2 = cam3; June PS95 a little faster). Whole 30-s windows
+incl. the inter-trial interval (6 unlabelled clips): nose max 2.3, jaw p99.9 5.4, tongue p99 16.6; the SPOUT's between-trial
+move is slow per frame (36-103 px over 450-550 ms; steps during moves p99 2.7, p99.9 5.1, max 9.8), while isolated 16-px
+spout jumps outside moves are errors. Rule as cam4 / cam1 (eps ~ p99 for the tongue, above p99.9 for the rest), but no 10 px
+floor: the side face is small (256 px native crop), so 10 would leave jaw / nose / spout unconstrained.
+Unlabelled set: `scripts/lp_unlabelled_clips.py --project side-2026-11-04 --cam cam2 cam3 [--all-sessions --windows 3]` ->
+`DeepLabCut/Widefield/lightning-pose/side-2026-11-04/videos/`: 126 clips (21 labelled sessions x 3 non-overlapping 30-s
+cue-anchored windows x 2 cameras; ~945k frames, 0.57 GB), cut in MODEL space by an ffmpeg chain equal to
+`lp_sidecam.transform_image` (checked: no pixel shift or frame offset; residual = h264 on noisy IR, as cam4's clips).
+**Result (11-04): no gain over crop2.** Held-out median px (same seed-42 split, 22 val / 24 test frames), test crop2 vs
+temporal: nose 0.9 / 1.1, jaw 2.0 / 2.8, tongue 1.3 / 2.7, spout 1.1 / 1.4 (val 1.1 / 1.6, 2.7 / 3.5, 1.9 / 3.3, 1.6 / 1.5).
+Four review sessions: confident fractions unchanged (jaw 0.89 / 0.86, pre-cue closed-mouth jaw 0.83 / 0.83, tongue 0.20 /
+0.20, spout 0.96 / 0.94); jitter unchanged (p99 step jaw 5.0 / 4.9, spout 3.0 / 2.9; steps > epsilon <= 0.6 % already in
+crop2). The single-frame model had little jitter to remove, and the loss cost some label accuracy (tongue most). crop2 stays
+the pre-labelling model for Parts B / C; revisit the temporal loss on the larger label set. Clips:
+`inference_check_20261027_side_pilot/clips/<a>_<d>/labeled_temporal.mp4` beside `labeled_crop2_singleframe.mp4`.
+
+**Round 2 set-up (11-04, Priya).** (1) JAW SEQUENCES (`dlc_sidecam jawseq`): in the 13 Part B / C sessions, one trial per
+side camera whose jaw was closed at the cue and then opened (`jaw_onsets.csv`), 33 consecutive frames (+-64 ms around the
+opening onset), 4 targets (-48 / -16 / +16 / +48 ms), rest context: 26 runs, 104 targets, 858 PNGs; `assign` keeps every
+existing cam2 / cam3 assignment unchanged (checked: 602 / 602 rows identical) and lists the jaw targets in their own
+camera. (2) PRE-LABELS (`lp_sidecam prelabel`, dlc env): crop2 predicted all 292 listed targets of the 26 unlabelled
+folders (188 Part B / C + 104 jaw), confident points (tongue 0.4, others 0.6) mapped back to the raw frame and seeded as
+CollectedData_Priya (nose 292, jaw 255, tongue 112, spout 265 frames); mapping checked by overlay (June cam3 + August cam2).
+`SIDECAM_GUIDE.html` explains both; a pre-labelled frame counts as to-do on the page until its points are changed.
+**Round 2 = Part B only (11-04, Priya: "let's just make this all Part B, hopefully this is our last round").** Old Part C's
+126 ROUTINE cue-locked targets are DEFERRED (`side_assignment.csv` column `deferred`; rule `dlc_sidecam.PILOT_STEMS`:
+routine targets are listed only in the 16 Part A folders) -- Part A already covers every animal / epoch with 144 of them and
+crop2 handles them best; kept on disk as a held-out set, or back in if round 2 is weak on new sessions. Part B = 13 sessions,
+166 targets: 62 cam4 round-4 hard moments + 104 jaw-sequence targets. Seeds rewritten to the listed frames only
+(`prelabel --replace-unchecked`: all 26 folders verified unedited first), so no unchecked machine point sits on an unlisted
+frame: nose 166, jaw 145, tongue 52, spout 154.
+
+**Side cameras in 3-D: offset check (11-04, Priya: "will we need to adjust for any offset between cam 2 vs cam 3 vs cam 4
+nose / spout / jaw").** `wfield_local/pose3d_side.py` + `scripts/pose3d_side_check.py` (dlc env): every camera posed per
+session by `pose3d.pnp_group` (09-11 intrinsics: the ChArUco solve calibrated all four cameras); side points = crop2 on the
+four review sessions mapped to raw (`lp_sidecam.to_raw`); reference = production cam1 + cam4 `session_3d`, paired on
+(trial_id, t_ms). Output `session_poses/pose3d_side/{pnp,offsets,side_stereo}.csv`.
+* Side PnP: spout reprojection 0.4-0.9 px (cam2 / cam3, August), 1.1 px June; cam1 / cam4 poses identical to production.
+* Side keypoint vs the cam1 + cam4 3-D point (perpendicular to the side ray, mm; PS93 0814 / 0821 / 0908 / PS95 0606, side
+  spout keypoint at the commanded tip). cam2 and cam3 mirror each other in ml, as they must:
+  NOSE dv +0.29 to +1.18 (median ~+0.75; side nose HIGHER) -- a labelling-definition difference (profile snout tip vs the
+  front / bottom nose point), session-variable; JAW ap -0.41 to +0.07 (median ~-0.2), dv within 0.12; TONGUE ap +0.12 to
+  +0.30, dv within 0.1, ml +-0.1 mirrored (each side camera sees the near side of the tip); SPOUT ap +0.74 to +0.90 every
+  session / camera (stereo +0.94 to +1.07).
+* cam2 + cam3 alone (side stereo) reproject at 0.3-0.5 (spout), 0.4-1.1 (jaw), ~1 (tongue), 1-3 px (nose) and reproduce the
+  same vectors -- the side pair is self-consistent.
+* Reading: the SPOUT difference is the reference's, not the side's: cam1 (inferior edge) + cam4 (superior edge) per-frame
+  spout triangulation is a blend of two physical points; moving the side keypoint by +0.9 mm ap would shift every side body
+  point by the same amount and break the jaw / tongue agreement. Putting it one rod radius lower instead (-0.62 dv) moves
+  jaw / tongue 0.6 mm low and only helps the nose. So: side spout keypoint = the commanded tip (no edge offset); jaw and
+  tongue fuse across all four cameras without correction (<= 0.4 mm, about the label noise); NOSE does not fuse -- keep
+  the side nose as its own keypoint (or subtract ~0.75 mm dv, but it varies 0.3-1.2 by session).
+* June side (800 x 600, 1.24x face) posed acceptably with the August intrinsics (1.1 px) and gave the same offsets; to be
+  confirmed on more June sessions before trusting June side 3-D.
+* **Correction 11-04 (Priya: "I thought we were using cam4 spout as truth and building in the cam1 offset").** Against
+  the commanded tip (= cam4's keypoint), per position, PS93 0814: `session_3d`'s per-frame spout -1.04 mm ap (it
+  triangulates cam1's inferior + cam4's superior edge as one point; identical at all six positions), cam1 + cam4 with
+  cam1's edge offset 0.00, cam2 0.01, cam3 -0.02 mm. So the side spout keypoints ARE the commanded tip -- no side spout
+  offset; the 0.8 mm above was the reference's blend. (Production `pose3d.session_3d` spout_* columns carry this -1.04 mm
+  ap blend; lick aim uses the commanded targets and is unaffected. Fix = triangulate the spout with cam1's pose shifted,
+  pending Priya.)
+* **Four-camera fusion (`pose3d_side.fuse`, `scripts/pose3d_side_video.py`).** Spout: cam1 edge offset (cam4 = truth);
+  nose: `SIDE_NOSE_OFFSET_MM` (cam2 dv +0.68, cam3 +0.90 mm); jaw / tongue as measured. Frames with a 3-D point,
+  cam1 + cam4 -> any 2 of 4 (review trials, PS93 0814 / 0821): nose 68 / 55 % -> 100 / 100 %; jaw 74 / 83 % -> 100 /
+  99.9 %; tongue 13 / 9 % -> 17 / 17 %; spout 99 / 98 % -> 100 %. Median reprojection px (cam1, cam4, cam2, cam3): nose
+  1.6-3.2, 7.0-7.4, 1.7-3.1, 0.5-2.4 (cam4's nose is the outlier once the side nose is moved onto the average); jaw 5-10
+  (cam1), 3-4, 1.4-2.4, 1.9-2.3; tongue 7-7.7, 5.5-6, ~2, ~2 (cam1 / cam4 tip definitions differ from the side views').
+  Clips: `session_poses/pose3d_side/video_4cam_<a>_<d>.mp4` (four raw views + fused reprojection, 3-D from cam2 and
+  oblique); per frame `fused_<a>_<d>.csv.gz`.
+* **Full four-camera pipeline (11-04, `pose3d_side.fuse_session`; `scripts/pose3d --four-cam`).** Side cleaning (cam4
+  thresholds x side px / mm, 0.36-0.39; tongue gap 24 ms; no jaw x-flip rule), robust fusion (worst view dropped beyond
+  `REJECT_MM`), water-drop rule, one-view fill, 3-D QC; per-session side NOSE and TONGUE offsets onto cam1 + cam4.
+  Removed by side cleaning (after the jaw y-ceiling raise below): jaw 0.1-0.5 %, tongue <= 0.7 % of confident points
+  (`side_clean_qc_stats.csv`; QC clips `side_clean_qc_*.mp4`; APPROVED by Priya 11-04: "looks great"). Side jaw Y CEILING x 1.4
+  (`SIDE_Y_CEILING_FACTOR`, ~62-66 px): v3.4 measures the jaw from ONE session-wide rest, and the plainly scaled ceiling
+  (~45-47 px) wiped 192-193 real wide-open frames per side camera on PS93 0908 (y - session rest p99 51-53, max 57-60;
+  cam2 and cam3 lost the same trials) and 1.5-2 % on 0814 -- as cam1 (125 -> 160 px).
+  Lick check (PS93 0814 / 0821 / 0908, review trials): without the tongue offset the 4-cam tip sat +0.12 mm ap of the
+  2-cam tip on every shared frame (ml / dv 0.00) and the "closer to the spout" miss was that shift (at 112 DAQ contacts
+  tip-to-commanded-tip 4-cam vs 2-cam paired -0.01 mm); with it 0.00 in all axes, contact 1.27 vs 1.26 mm. LATERAL (the
+  key readout): |tip ml - spout ml| at contact 0.614 vs 0.615 mm (= the rod radius 0.62: both put a touching tip on
+  the rod surface), per-frame ml |d| p50 0.04 / p90 0.12 mm; the lateral ANGLE moves p50 0.9 / p90 3.5 deg through its
+  depth denominator (hypot(ap, dv)), not ml.
+* **Student-label check (11-04, `scripts/side_label_offsets.py`, 5 August Part A sessions, 151 moments labelled in a side
+  camera + cam1 + cam4).** Her side label vs her cam1 + cam4 3-D point: NOSE dv +0.72 (cam2) / +0.85 (cam3), positive in
+  all 5 sessions -- the model's side-nose offset (+0.68 / +0.90) is a real view-definition difference, so the side-nose
+  correction stands; TONGUE ap +0.15 / -0.02, sessions both signs, leave-one-camera-out <= 0.06 mm in every camera -- her
+  tongue tip is the same 3-D point in all four views, so the model's +0.1-0.2 mm forward shift is the SIDE MODEL's bias
+  (corrected per session; re-check on the round-2 model); JAW <= 0.17; SPOUT <= 0.02 mm in all four cameras (validates the
+  ENL posing + cam1 edge offset with human labels). Nose leave-one-out: cam4 dv -0.65, cam1 -0.27, side +0.43 / +0.76
+  (each view labels its own silhouette tip). Small n for the tongue (14-28 moments per camera); Part B adds ~62.
+* **Adoption across the 3-D analyses (11-04): ONE source switch.** `pose3d.pose3d_dir(rv, source)` / env
+  `WIDEFIELD_POSE3D_SOURCE` = `2cam` (session_poses/pose3d, default = today's outputs) | `4cam` (pose3d_4cam) |
+  `4cam_clips` (review-clip tests only). Every reader / writer of 3-D tables now takes its folder from it (30 files:
+  kinematics, phase, cue traces, spout error, summary / pooled figures, cam1 lick events, jaw onsets, ITI / stray licks,
+  trajectories / path softmax, crosschecks, combined_encoding / frozen_encoder / prep_3d_inputs; the two cam1+cam4-only QC
+  sheets pinned to 2cam), so derived products of the two sources never mix. `pose_chain --source 4cam --side-bundle <b>`
+  runs the whole chain on four cameras (children inherit the env; `scripts.pose3d` reads the bundle from
+  `WIDEFIELD_POSE3D_SIDE_BUNDLE`). Compatibility: four-camera frames keep cam4's t_ms / trial_id / stop_ms (joins on the
+  v36 cam4 lick windows hold); one-camera fills keep src codes 2 = cam1, 3 = cam4 (+ 6 cam2, 7 cam3); the four-camera
+  summary carries the session gates' fields (`fit_resid_mm_max`, `tongue_rep1_med_px`, from its cam1+cam4 step) so
+  `failed_sessions` drops the same sessions. NOT yet source-tagged: the encoder snapshot / calibration files
+  (`wfield_cache/pose3d_inputs/*_20261023`, the 34 rebuild's inputs) -- cut a new tag from the 4cam tables when adopting.
+  End-to-end test (PS93 0814 / 0821 / 0908, `4cam_clips`, unmodified `pose3d_kinematics`): 145 / 145 cam4 licks get a 3-D
+  peak (2cam 140); paired with 2cam (140): lateral angle (midline) +0.08 deg (|d| p50 0.73, p90 2.5), frontal +0.07,
+  steepness (sagittal) -0.43 deg (|d| p50 1.8, p90 4.8; depends on ap, which the side views change most), reach +0.004 mm,
+  protrusion (out_ap) -0.04 mm, lat_err +0.02 mm, miss -0.07 mm, peak speed -5.5 mm/s. Precision gain not shown on these
+  licks (contact-lick SD within session x position, 13 cells: midline 5.9 vs 5.7 deg, sagittal 3.7 vs 4.6) -- to test on
+  the whole-session run.

@@ -385,7 +385,8 @@ def _parallel_arms(args, want, out) -> int:
                 del running[arm]
         time.sleep(5)
     if "1b" in want:
-        _report("1b", fig_behaviour(out))
+        _report("1b", fig_behaviour(out))                       # camera working period (primary, 11-05)
+        _report("1b daq", fig_behaviour(out, period="daq"))     # the DAQ quit-tail robustness row
     if "1c" in want:
         _report("1c", fig_behaviour_timecourse(out))
     print(f"[epoch] all arms done in {(time.time() - t0) / 60:.0f} min (rc {rc})", flush=True)
@@ -425,8 +426,14 @@ def main(argv=None) -> int:
     ap.add_argument("--only", nargs="+", default=None, action="extend",
                     choices=("1b", "1c", "acc", "5c", "5cr", "5r", "5rm", "5ro", "5rmo", "10e", "10cs", "12s", "12b",
                              "13s", "14m", "15e", "15r", "mat", "scal"))
+    ap.add_argument("--pre-from", default=None, metavar="MMDD|all",
+                    help="pre-stroke baseline for THIS render block (rebuild 11-03: August-only = 0801 for the "
+                         "decoders, per block, never a config default); sets WIDEFIELD_PRE_FROM, outputs tagged "
+                         "pre<MMDD>")
     args = ap.parse_args(argv)
-    out = args.output or (Path(PathResolver().root("labcams")) / "grant_figures" / "epoch")
+    from wfield_local import config as _config
+    _config.apply_pre_from(args.pre_from)
+    out = args.output or (Path(PathResolver().root("cohort_out")) / "grant_figures" / "epoch")
     from wfield_local import lp_licks
     out = lp_licks.output_dir(out)            # LP_licks renders -> grant_figures/LP_licks/...
     print(f"lick source: {lp_licks.lick_source()} -> {out}", flush=True)
@@ -442,7 +449,8 @@ def main(argv=None) -> int:
 
     if "1b" in want:
         try:
-            _report("1b", fig_behaviour(out))
+            _report("1b", fig_behaviour(out))                   # camera working period (primary, 11-05)
+            _report("1b daq", fig_behaviour(out, period="daq"))  # the DAQ quit-tail robustness row
         except Exception as ex:                                        # noqa: BLE001
             print(f"  !! 1b: {type(ex).__name__} {str(ex)[:160]}", flush=True)
     if "1c" in want:

@@ -89,7 +89,7 @@ def main() -> int:
                 fs = float(f.attrs["sample_rate_hz"])
                 an = [x.decode() for x in f["analog/channel_names"][:]]
 
-                def _ana(nm):
+                def _ana(nm, an=an, f=f):            # bind this iteration's file (ruff B023)
                     i = an.index(nm)
                     if "samples_int16" in f["analog"]:
                         sc = float(f["analog/int16_scale_volts_per_count"][i])
@@ -107,7 +107,7 @@ def main() -> int:
             det = detect_licks(lick_v, fs, thresh_upper=lk["thresh_upper"],
                                thresh_lower=lk["thresh_lower"],
                                lockout_s=tuple(lk["lockout_falling_edge_s"]),
-                               min_ili_s=lk.get("min_ili_ms", 0) / 1000.0)
+                               min_ili_s=lk.get("min_ili_ms", config.LICK_MIN_ILI_MS_DEFAULT) / 1000.0)
             lo = np.asarray(det["lick_onsets"], np.int64)
             cue_e = daq_io.rising_edges((packed >> dn.index("cue")) & 1)
             ts_e = daq_io.rising_edges((packed >> dn.index("trial_start")) & 1)

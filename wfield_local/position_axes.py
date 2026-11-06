@@ -53,7 +53,7 @@ from pathlib import Path
 
 import numpy as np
 
-from wfield_local import config, joint_locanmf
+from wfield_local import config, joint_locanmf, lp_licks
 from wfield_local.locanmf_cue_lick_analysis import POSITION_NAMES, SESSIONS
 from wfield_local.locanmf_frozen_decoder import pool_sessions
 from wfield_local.paths import PathResolver
@@ -240,7 +240,7 @@ def run_animal(animal, align="precue", seed=0, pool_n=1):
         return None
     basis = joint_locanmf.load(animal, sessions=SESSIONS)
     feat = features_with_indices(basis, nolick_ref="cue")
-    post_s = float(config.defaults()["decode"].get(f"{align}_post_s", 2.0))
+    post_s = lp_licks.post_s_for(align)
     pooled = pool_sessions(pre + post, source="locanmf", align=align, post_s=post_s, features=feat)
     if pooled is None:
         return None
@@ -250,13 +250,36 @@ def run_animal(animal, align="precue", seed=0, pool_n=1):
         return None
     not_eng, _a, _b = g
     pre_i = {i for i, l in enumerate(kept) if l in set(pre)}
+    # THE PROJECTION FRAME (main 26fd5b44 / 4a37cbc8, Priya 11-03 item C, 11-04 re-check;
+    # `spout_scaling.projection_arrays`; identity when off -- the default)
+    from wfield_local import spout_scaling as _ss
+    from wfield_local import working_trials as _wt
+    from wfield_local.locanmf_frozen_decoder import _pipe as _fpipe
+    XE_prod, XU_prod = XE, XU
+    XE, XU = _ss.projection_arrays(XE, YE, GE, XU, GU, pre_i, _fpipe,
+                                   work=_wt.projection_work(kept, feat, GE, GU, align), YU=YU,
+                                   cls_e=_wt.projection_cls_e(kept, feat, GE, GU, align), labels=kept)
     e_pre = np.isin(GE, list(pre_i))
     GU = np.asarray(GU)
     u_pre = np.isin(GU, list(pre_i)) if len(GU) else np.zeros(0, bool)
     en = np.array([POSITION_NAMES.get(int(v), str(v)) for v in YE])
     un = np.array([POSITION_NAMES.get(int(v), str(v)) for v in YU]) if len(YU) else np.zeros(0, str)
-    e_ax = engagement_axis(XE[e_pre], XU[u_pre]) if len(u_pre) and u_pre.sum() >= 10 else None
-    miss = (~u_pre) & ~not_eng
+    # the ENGAGEMENT AXIS in z on contact rows (Priya 11-04 final), from the production rows; the pairwise axes in the
+    # projection (Wt) frame
+    _EX, _EU = _wt.eax_rows(kept, feat, XE_prod, XU_prod, GE, GU) if _ss.projection_frame_on() else (XE, XU)
+    e_ax = engagement_axis(_EX[e_pre], _EU[u_pre]) if len(u_pre) and u_pre.sum() >= 10 else None
+    # NO-LICK CLASS MASKS: the DAQ quit-tail rule (default, unchanged) or, under the camera trial gate (rebuild 11-03,
+    # `trial_classes`; `not_eng` is then a RefusedMask), working = camera class in GATES["working"], stopped =
+    # STOPPED_CLASSES (a sustained stop, Priya 11-03); isolated no_response and "unknown" rows are neither
+    from wfield_local import trial_classes as _tc
+    if _tc.camera_gate_on():
+        _ce, _cu = _tc.pool_row_classes(feat, kept, len(YE), len(YU))
+        nl_working, nl_stopped = _tc.in_sel(_cu, "working"), np.isin(_cu, list(_tc.STOPPED_CLASSES))
+        nl_miss = _tc.in_sel(_cu, "miss_working")             # responded, no contact (review M6)
+    else:
+        nl_working, nl_stopped = ~not_eng, not_eng
+        nl_miss = nl_working
+    miss = (~u_pre) & nl_miss
     # STOPPED IS THE CONTROL FOR THE MISS RESULT (Priya, 2026-08-23). A changed axis on
     # miss-while-working trials is consistent with a failed PLAN -- and equally with a STATE change
     # that happens to be commoner on failed trials. Those separate here: changed in miss but intact
@@ -264,7 +287,7 @@ def run_animal(animal, align="precue", seed=0, pool_n=1):
     # It matters because misses concentrate LATE in a session, exactly where the close-vs-far state
     # drift lives. Stopped is terminal by construction, so its counts are small and end-skewed --
     # a null there needs its reliability read before it is called "intact".
-    stopped = (~u_pre) & not_eng
+    stopped = (~u_pre) & nl_stopped
 
     def all_at(pos, pre_phase, include_stopped=True, blk=None):
         """Every trial at a position REGARDLESS OF OUTCOME, lick and no-lick together.
@@ -291,7 +314,7 @@ def run_animal(animal, align="precue", seed=0, pool_n=1):
             # therefore carrying the close-vs-far state drift that contaminates exactly this kind of
             # comparison. Excluded from BOTH phases, because the pre-stroke equivalent is the sated
             # tail, "a fundamentally different animal state" (Priya, 2026-08-23).
-            mu = mu & ~not_eng
+            mu = mu & nl_working
         parts = [XE[me]] + ([XU[mu]] if len(un) and mu.any() else [])
         return np.vstack(parts) if parts else XE[me]
     post_idx = sorted((i for i in range(len(kept)) if i not in pre_i),
@@ -426,7 +449,8 @@ def main(argv=None) -> int:
                          "projection is a real intervention, not a cleanup.")
     ap.add_argument("--output", type=Path, default=None)
     args = ap.parse_args(argv)
-    out = args.output or Path(PathResolver().root("figures_working"))
+    from wfield_local import run_mode  # tagged runs never overwrite default figures (review H2)
+    out = run_mode.routed_output(args.output or Path(PathResolver().root("figures_working")))
     out.mkdir(parents=True, exist_ok=True)
     res = {}
     for an in (config.normalize_animals(args.animals) or list(config.animals())):

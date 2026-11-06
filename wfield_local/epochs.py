@@ -312,7 +312,7 @@ def boundaries_path() -> Path | None:
     if override:
         return Path(override)
     try:
-        return Path(config.resolver().root("labcams")) / BOUNDARIES_FILE
+        return Path(config.resolver().root("cohort_out")) / BOUNDARIES_FILE
     except Exception:                                             # noqa: BLE001
         return None                # no resolver on this box -> stored spec, not a crash
 
@@ -414,8 +414,8 @@ def spec_for(animal: str) -> dict | None:
 
 
 def _date(mmdd: str) -> dt.date:
-    """MMDD in the study year. The cohort is a single 2026 season; `config` stores MMDD throughout."""
-    return dt.date(2026, int(mmdd[:2]), int(mmdd[2:]))
+    """MMDD as a date in the active cohort's year (`config.date8`: rolls over at New Year for cohort2)."""
+    return dt.datetime.strptime(config.date8(mmdd), "%Y%m%d").date()
 
 
 def days_since_stroke(label: str) -> int | None:

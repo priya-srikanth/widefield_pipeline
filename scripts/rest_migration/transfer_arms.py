@@ -64,7 +64,9 @@ def collect_task(an, align, variant):
     bd = _pooled_bundle(an, align)
     XE, YE, GE, BE = bd["XE"], np.asarray(bd["YE"]), np.asarray(bd["GE"]), np.asarray(bd["BE"])
     XU, YU, GU, BU = bd["XU"], np.asarray(bd["YU"]), np.asarray(bd["GU"]), np.asarray(bd["BU"])
-    not_eng, kept = np.asarray(bd["not_eng"]), bd["kept"]
+    # under the camera trial gate not_eng is a RefusedMask that `_class_select` never reads (it takes cls); never
+    # np.asarray it there (rebuild 11-03, fail closed)
+    not_eng, kept = (bd["not_eng"] if bd.get("cls") is not None else np.asarray(bd["not_eng"])), bd["kept"]
 
     out = {}
     for i, lab in enumerate(kept):
@@ -72,7 +74,7 @@ def collect_task(an, align, variant):
         if ep is None:
             continue
         me, mu = _class_select(variant, GE == i, (GU == i) if len(YU) else np.zeros(0, bool),
-                               not_eng)
+                               not_eng, cls=bd.get("cls"))
         Xs = [XE[me]] + ([XU[mu]] if len(YU) and mu.any() else [])
         ys = [YE[me]] + ([YU[mu]] if len(YU) and mu.any() else [])
         bs = [BE[me]] + ([BU[mu]] if len(YU) and mu.any() else [])
@@ -148,7 +150,8 @@ def main() -> int:
     ap.add_argument("--tag", default="")
     ap.add_argument("--out", type=Path, default=None)
     a = ap.parse_args()
-    out_dir = a.out or (Path(PathResolver().root("labcams")) / "grant_figures" / "epoch")
+    from wfield_local import lp_licks              # run-mode routing (rebuild 11-03): identity for the default run
+    out_dir = a.out or lp_licks.output_dir(Path(PathResolver().root("cohort_out")) / "grant_figures" / "epoch")
 
     want = set(config.phase_labels("pre") + config.phase_labels("post"))
     animals = a.animals or sorted({s["label"].split("_")[0] for s in SESSIONS if s["label"] in want})

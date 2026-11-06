@@ -72,6 +72,26 @@ def _counts(d, session):
         for c, p in zip(DISPLAY_ORDER, pos):
             out["pre"][arm][p] = float((np.isin(G, list(d["pre_i"])) & (Y == c)).sum()) / npre
             out["post"][arm][p] = int((np.isin(G, [session]) & (Y == c)).sum())
+    # THE CAMERA GROUPS (main 4a37cbc8, Priya 11-04, item G; `poststroke_compare._camera_groups`): per group and
+    # position, the pre per-session mean over the pre sessions WITH camera classes, and this session's count; absent
+    # under the DAQ grouping, and an empty post block for a session without camera classes
+    from wfield_local import poststroke_compare as pc
+    cg = pc._camera_groups(d)
+    if cg is not None:
+        from wfield_local import working_trials as wt
+        pre_c = [i for i in d["pre_i"] if i in cg["have"]]
+        bc = {"pre": {}, "post": {}, "post_has_camera_classes": session in cg["have"],
+              "n_jaw_unjudged_post": int(np.sum(~cg["jj_e"][d["GE"] == session])
+                                         + np.sum(~cg["jj_u"][d["GU"] == session]))}
+        for g in wt.G_ALL:
+            bc["pre"][g], bc["post"][g] = {}, {}
+            for c, p in zip(DISPLAY_ORDER, pos):
+                npre = (np.sum(np.isin(d["GE"], pre_c) & (d["YE"] == c) & (cg["grp_e"] == g))
+                        + np.sum(np.isin(d["GU"], pre_c) & (d["YU"] == c) & (cg["grp_u"] == g)))
+                bc["pre"][g][p] = float(npre) / max(len(pre_c), 1)
+                bc["post"][g][p] = int(np.sum((d["GE"] == session) & (d["YE"] == c) & (cg["grp_e"] == g))
+                                       + np.sum((d["GU"] == session) & (d["YU"] == c) & (cg["grp_u"] == g)))
+        out["by_class"] = bc
     return out
 
 
@@ -151,6 +171,25 @@ def _nolick_readouts(d_by_align, session, keep):
             out[key] = pc.fits_engaged_distribution(dd, keep)
         except Exception as ex:                                           # noqa: BLE001
             print(f"      {key} failed ({str(ex)[:60]})", flush=True)
+    # G4 CAMERA-CLASS DISCRIMINATOR (Priya 11-04, follow-on a): the PRIMARY G4 readout under the camera grouping
+    # (`poststroke_compare.g4_camclass`: working vs none, position-balanced, jaw_only / quit scored separately, z frame
+    # on contact rows by default); the DAQ readouts above stay as the labelled robustness arm (WIDEFIELD_G4_DISC=daq
+    # makes them primary again)
+    out["g4_primary"] = pc.g4_disc()
+    for align in ("precue", "cue"):
+        d = d_by_align.get(align)
+        if d is None or pc.g4_disc() != "camera":
+            continue
+        dd = dict(d)
+        dd["post_i"] = {session}
+        try:
+            got = pc.g4_camclass(dd, keep)
+            if got is not None:
+                out[f"g4_camclass_{align}"] = got
+        except Exception as ex:                                           # noqa: BLE001
+            from wfield_local import trial_classes as _tcx
+            _tcx.reraise_under_camera(ex, f"g4_camclass[{align}]")
+            print(f"      g4_camclass[{align}] failed ({str(ex)[:60]})", flush=True)
     for align in ("precue", "cue"):
         d = d_by_align.get(align)
         if d is None:
@@ -282,6 +321,7 @@ def collect(animals=None, include_excluded=True, jobs=None):
     warm_units = [(an, align, include_excluded)
                   for an in post_animals(animals) for align, _ in CONDITIONS]
     warmed, wfail = parallel.fan_out(warm_units, _warm_one, jobs=jobs, label="pool")
+    warmed = sorted(warmed, key=lambda kv: repr(kv[0]))  # completion order -> unit order (T10)
     if wfail:
         raise RuntimeError(f"section G phase 1 failed for {[u for u, _ in wfail]}: {wfail[0][1]}")
 
@@ -321,10 +361,27 @@ def main(argv=None) -> int:
                     help="animals to process in parallel (default: cores-2 capped at 8, and at "
                          "the cohort size; pass 1 for the serial path)")
     args = ap.parse_args(argv)
-    out = args.output or Path(PathResolver().root("figures_working"))
+    from wfield_local import run_mode  # tagged runs never overwrite default figures (review H2)
+    out = run_mode.routed_output(args.output or Path(PathResolver().root("figures_working")))
     rec = collect(args.animals, include_excluded=not args.skip_excluded, jobs=args.jobs)
-    p = Path(out) / "section_g.json"
+    from wfield_local import run_mode   # mode-tagged name (rebuild 11-03, trap T21): read by grant 3b / 5
+    p = Path(out) / run_mode.keyed_name("section_g.json")
     json.dump(rec, open(p, "w"), indent=1, default=float)
+    # review 7A: the design sidecar (scored = engaged / all trials, model = working-trained under the camera gate)
+    from wfield_local import trial_classes as _tcg
+    if _tcg.camera_gate_on():
+        from wfield_local import poststroke_compare as _pcg
+        from wfield_local import spout_scaling as _ssg
+        json.dump({"scored_rows": ("camera WORKING rows (contact + incomplete) for the pre panel / pre band and the "
+                                   "engaged-only post arm, all trials for the all-trials arm; by_class panels per "
+                                   "camera group (Priya 11-04, main 4a37cbc8)"
+                                   if _pcg.section_g_groups() == "camera" else
+                                   "engaged / all trials (DAQ grouping, WIDEFIELD_SECTION_G_GROUPS=daq)"),
+                   "groups": _pcg.section_g_groups(), "scored_centre": _ssg.score_centre_tag(),
+                   "state_disc_frame": _pcg._state_frame_tag(),
+                   "model_trials": _tcg.run_selection(), "design": _tcg.design_note(),
+                   "working_excluded_sessions": _tcg.working_excluded_sessions()},
+                  open(Path(out) / run_mode.keyed_name("section_g_design.json"), "w"), indent=1)
     n_post = sum(1 for r in rec.values() if r["phase_tag"] == "post")
     print(f"\nwrote {p}  ({len(rec)} sessions: {n_post} post, {len(rec) - n_post} excluded)")
     return 0

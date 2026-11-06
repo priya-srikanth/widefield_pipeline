@@ -66,7 +66,7 @@ def test_png_size_rejects_non_png(tmp_path):
     p.write_bytes(b"not a png")
     try:
         pd._png_size(str(p))
-        assert False, "expected ValueError"
+        raise AssertionError("expected ValueError")
     except ValueError:
         pass
 
@@ -306,8 +306,6 @@ def _session_with_map_summary(tmp_path, label, svtcorr):
 def test_map_variant_is_read_from_the_summary_provenance(tmp_path):
     """A map PNG is a file on disk: flipping hemo.variant does NOT re-render it. Between 8/13 and 8/14
     every pre-8/13 date still showed the zero-phase shadow while the decoders had already moved."""
-    import json
-
     a = _session_with_map_summary(tmp_path, "PS94_0813",
                                   "N:/x/wfield_local_results/hemo_meegkit_hpfit/SVTcorr.npy")
     b = _session_with_map_summary(tmp_path, "PS94_0812", "N:/x/wfield_local_results/SVTcorr.npy")
@@ -457,3 +455,26 @@ def test_a_sharp_shrink_warns_but_never_raises(tmp_path, capsys):
 
     _warn_if_shrunk(p, before_bytes=1100)          # a mild shrink is normal and stays quiet
     assert "shrank" not in capsys.readouterr().out
+
+
+def test_led_nm_reads_the_490_folder_tag_only():
+    """2026-11-04: PS121 / PS122 were imaged at 490 nm (folder PS12x_490_<date>), PS118 stayed 470."""
+    lab = "M:/MICROSCOPE/Priya/Widefield/labcams/20261104"
+    assert pd.led_nm({"mc": f"{lab}/PS121_490_20261104_122657/motion_corrected"}) == "490"
+    assert pd.led_nm({"mc": f"{lab}/PS122_490_20261104_150738/motion_corrected/"}) == "490"
+    assert pd.led_nm({"mc": f"{lab}/PS118_20261104_095017/motion_corrected"}) == "470"
+    assert pd.with_led("Photobleaching — 415/470 ROI-median trend", "490") == "Photobleaching — 415/490 ROI-median trend"
+    assert pd.with_led("415/470", "470") == "415/470"
+    assert pd.with_led(None, "490") is None
+
+
+def test_spout_native_maps_found_in_the_cohort_folder(tmp_path):
+    """Native per-spout maps live in labcams/<cohort>/spout_maps_native/, not inside motion_corrected."""
+    d = tmp_path / "cohort2" / "spout_maps_native"
+    d.mkdir(parents=True)
+    _make_png(d / "spout_maps_PS121_1104.png")
+    s = {"label": "PS121_1104", "mc": str(tmp_path / "20261104" / "PS121_490_20261104_122657" / "motion_corrected")}
+    got = pd._discover_figure(s, "spout_native", "__SPOUTMAPS_NATIVE__", "spout_maps_native", str(tmp_path))
+    assert got and got.endswith("cohort2/spout_maps_native/spout_maps_PS121_1104.png")
+    s2 = dict(s, label="PS122_1104")
+    assert pd._discover_figure(s2, "spout_native", "__SPOUTMAPS_NATIVE__", "spout_maps_native", str(tmp_path)) is None

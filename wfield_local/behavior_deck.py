@@ -63,7 +63,7 @@ EPOCH_FIGS = [
 
 def epoch_fig_dir(rv=None):
     """Where `epoch_grant_figures` writes. ONE definition of the path, shared by both writers."""
-    return Path((rv or PathResolver()).root("labcams")) / "grant_figures" / "epoch"
+    return Path((rv or PathResolver()).root("cohort_out")) / "grant_figures" / "epoch"
 
 
 # split-out cross-session per-animal figures, one full-size slide each (file stem, title, subtitle).
@@ -72,7 +72,7 @@ ACROSS_METRICS = [
     ("hit", "hit rate per position across sessions",
      "bold + marker = engaged-gated, thin = all trials.  firebrick dashed = lesion"),
     ("latency", "first-lick latency per position across sessions", "firebrick dashed = lesion"),
-    ("licks_per_trial", "licks / trial per position across sessions", "firebrick dashed = lesion"),
+    ("licks_per_trial", "licks / trial (cue + 70 ms to stop) per position across sessions", "firebrick dashed = lesion"),
     ("lick_rate", "within-trial lick rate per position across sessions", "firebrick dashed = lesion"),
     ("anticipatory", "anticipatory licks per position across sessions", "firebrick dashed = lesion"),
     ("session", "session-level metrics across sessions",
@@ -117,9 +117,12 @@ RASTER_NOTE = (
     "the run of red at the end — is what this figure is for. " + _M_TRIALS)
 
 
-def _mmdd(date8: str) -> str:
-    """'20260818' -> '08/18' (a bare date-dir name falls through unchanged)."""
-    return f"{date8[4:6]}/{date8[6:8]}" if len(date8) == 8 and date8.isdigit() else date8
+def _fmt_date(date8: str) -> str:
+    """'20260818' -> '2026-08-18' (a bare date-dir name falls through unchanged).
+
+    The year is kept, not dropped to MM/DD: cohort2 crosses the new year, so a yearless label is
+    ambiguous between e.g. 2026-10-29 and 2027-10-29."""
+    return f"{date8[0:4]}-{date8[4:6]}-{date8[6:8]}" if len(date8) == 8 and date8.isdigit() else date8
 
 
 def _session_dates(root: Path, animal: str) -> list[str]:
@@ -222,10 +225,10 @@ def build_behavior_deck(behavior_out, out_path, animals=None, epoch_dir=None) ->
     # ---------------- per animal: analysis across days, then the across-sessions summary ----------------
     for a in animals:
         dates = _session_dates(root, a)
-        divider(a, f"{len(dates)} session(s): {_mmdd(dates[0])}–{_mmdd(dates[-1])}" if dates else "no sessions")
+        divider(a, f"{len(dates)} session(s): {_fmt_date(dates[0])}–{_fmt_date(dates[-1])}" if dates else "no sessions")
         for kind, label, sub, note in SESSION_FIGS:
             for d in dates:
-                fig_slide(_fig(root, a, d, kind), f"{a} — {label} — {_mmdd(d)}", sub, note)
+                fig_slide(_fig(root, a, d, kind), f"{a} — {label} — {_fmt_date(d)}", sub, note)
         # cumulative task rasters, tiled 8 sessions/slide on one axis normalised to the longest session
         for gp in sorted((root / "cohort" / "by_animal").glob(f"{a}_raster_grid_p*.png")):
             fig_slide(gp, f"{a} — cumulative task rasters (8 sessions/slide)",

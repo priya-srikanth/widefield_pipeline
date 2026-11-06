@@ -227,7 +227,7 @@ def _gui_shift_corrected(gui: pd.DataFrame, session_dir: Path, rv=None) -> pd.Da
         h5 = _daq_h5_for(rv, animal, date) if rv is not None else None
         if h5 is not None:
             dec = daq_trials.decode(h5, _cfg.defaults()["lick_detection"])
-            win, _ = daq_trials.response_window_s(session_dir, 3.5)
+            win, _ = daq_trials.response_window_s(session_dir)
             dq = daq_trials.build_trials(dec, win)
             good = sorted(set(int(x) for x in dq.pos_idx if x >= 0))
             rng = max(20, abs(len(gui) - len(dq)) + 10)
@@ -301,9 +301,7 @@ def _daq_trials_for(session_dir: Path, rv, params: dict | None) -> pd.DataFrame 
         return None
     params = params or config.defaults()["behavior"]
     try:
-        df, info = daq_trials.trials_from_h5(
-            h5, session_dir, config.defaults()["lick_detection"],
-            params["licking"]["response_window_s"])
+        df, info = daq_trials.trials_from_h5(h5, session_dir, config.defaults()["lick_detection"])
     except Exception as e:
         print(f"[spout_behavior] {session_dir.name}: DAQ trials unavailable "
               f"({type(e).__name__}: {e}) -> behavior log", flush=True)
@@ -501,8 +499,7 @@ def first_lick_latency_s(session_dir: Path, trials: pd.DataFrame, licks: dict | 
     if licks is None:
         return idx
     from wfield_local import daq_trials
-    max_s, _src = daq_trials.response_window_s(
-        session_dir, (params or {}).get("response_window_s", 2.0))
+    max_s, _src = daq_trials.response_window_s(session_dir)      # configured fallback (was the 2.0 s licking key)
     all_s, cue_t, cue_next = licks["all_s"], licks["cue_by_trial"], licks["cue_next_by_trial"]
     for i, row in trials.iterrows():
         tid = row["trial_id"]
@@ -539,7 +536,7 @@ def lick_microstructure(session_dir: Path, trials: pd.DataFrame, params: dict,
                         engaged_ids=None) -> dict | None:
     """Lick-rate / ILI / bout / peri-cue microstructure from the DAQ-primary licks. ``None`` if no events.
 
-    Per-position (engaged trials): mean post-cue licks/trial, mean anticipatory (pre-cue) licks/trial,
+    Per-position (engaged trials): mean licks/trial (cue + 70 ms to the trial stop), mean anticipatory (pre-cue) licks/trial,
     median within-trial lick rate (Hz, from median post-cue ILI). Session-level: overall lick rate,
     ILI median, bout count/size/duration/within-bout-ILI. Plus peri-cue delays for the raster/PSTH.
     Per-trial licks are windowed from the sorted train around each cue (post capped at the next cue).
@@ -555,11 +552,24 @@ def lick_microstructure(session_dir: Path, trials: pd.DataFrame, params: dict,
         return None
     lk = params["licking"]
     w0, w1 = lk["peri_cue_window_s"]
-    resp = lk["response_window_s"]
     all_s, cue_t, cue_next = licks["all_s"], licks["cue_by_trial"], licks["cue_next_by_trial"]
 
     reset_by_trial = licks["precue_reset_by_trial"]   # ENL-reset licks = impulsive/anticipatory pre-cue
     eng_ids = None if engaged_ids is None else set(np.asarray(list(engaged_ids)).tolist())
+    # LICKS PER TRIAL = TOTAL licks from the cue to the TRIAL STOP (Priya 11-03; the spout is present until then): the
+    # DAQ trial table's measured stop (`daq_trials.trial_stops`: the trial_end TTL), else the task rule (first lick in
+    # the response window + the window, or cue + window). LICK RATE comes from the inter-lick intervals of those licks
+    # (1 / median ILI), never a count / duration.
+    from wfield_local import daq_trials
+    # THE SESSION'S OWN response window (gui_config.json, 3.5 s; fifth review (a)): the GUI-fallback sessions
+    # (08-05, 08-06, PS92 08-12) used the yaml default (2.0 s) here, so their trial stop came 1.5 s early
+    resp = daq_trials.response_window_s(session_dir)[0]
+    if "stop_s" in trials.columns and licks.get("source") == "DAQ" and "lick_s" in getattr(trials, "attrs", {}):
+        stop_by_trial = pd.Series(trials["stop_s"].to_numpy(float), index=trials["trial_id"].to_numpy())
+    else:
+        cs = cue_t.dropna().sort_values()
+        st, _src = daq_trials.trial_stops(cs.to_numpy(float), all_s, resp)
+        stop_by_trial = pd.Series(st, index=cs.index)
     per_trial = []          # (pos_idx, n_post, n_pre, rate_hz, engaged)
     raster = []             # (delays_within_window, pos_idx, trial_order)
     for order, (_i, row) in enumerate(trials.iterrows()):
@@ -570,7 +580,9 @@ def lick_microstructure(session_dir: Path, trials: pd.DataFrame, params: dict,
         nxt = cue_next.get(tid, np.inf)
         d = all_s[(all_s >= c + w0) & (all_s <= min(c + w1, nxt))] - c    # peri-cue window (capped at next cue)
         raster.append((d, pos, order))
-        post = all_s[(all_s >= c) & (all_s <= min(c + resp, nxt))] - c    # post-cue licks -> this trial
+        stop = stop_by_trial.get(tid, np.nan)
+        stop = min(stop if np.isfinite(stop) else c + resp, nxt)
+        post = all_s[(all_s >= c + daq_trials.CONTACT_FROM_CUE_S) & (all_s <= stop)] - c   # cue + 70 ms -> stop
         # anticipatory = licks during the enforced no-lick period that reset the cue timer (pre_cue_reset)
         n_pre = int(reset_by_trial.get(tid, 0))
         rate = (1.0 / np.median(np.diff(post))) if post.size >= 2 else np.nan
@@ -585,7 +597,7 @@ def lick_microstructure(session_dir: Path, trials: pd.DataFrame, params: dict,
         rows.append({
             "pos_idx": idx, "pos_name": POS_BY_IDX[idx]["name"],
             "trials_engaged": len(sub),
-            "licks_per_trial": float(sub["n_post"].mean()) if len(sub) else np.nan,
+            "licks_per_trial": float(sub["n_post"].mean()) if len(sub) else np.nan,     # cue -> trial stop
             "anticipatory_licks": float(sub["n_pre"].mean()) if len(sub) else np.nan,
             "lick_rate_hz": float(np.nanmedian(sub["rate_hz"])) if len(sub) else np.nan,
         })
@@ -645,7 +657,7 @@ def compare_daq_licks(h5_path: Path, params: dict) -> dict | None:
     except Exception:
         return None
     ld = config.defaults()["lick_detection"]
-    min_ili_s = ld.get("min_ili_ms", 40) / 1000.0
+    min_ili_s = config.lick_min_ili_s()
     try:
         with h5py.File(h5_path, "r") as f:
             fs = float(f.attrs["sample_rate_hz"])
@@ -700,7 +712,11 @@ def reference_engagement(responded, positions, *, tail_min_misses=6, reference=N
         return np.zeros(0, bool), {"n_disengaged": 0, "tail_start": None, "n_tail": 0,
                                    "gate": "reference_engagement"}
     ref_names = tuple(reference or REFERENCE)
-    collapse = engagement_gate(np.arange(n), resp, pos)
+    from wfield_local import trial_classes as _tc
+    # a MEASURE / reporting gate of the behaviour figures, not an imaging trial selection: the DAQ rule stays under the
+    # camera trial gate (rebuild 11-03; measures of engagement are not gated)
+    with _tc.daq_quit_rule("spout_behavior.flag_engagement: behaviour reporting gate (measure of engagement)"):
+        collapse = engagement_gate(np.arange(n), resp, pos)
 
     # the terminal tail, counted in REFERENCE trials but marked over the whole session: once the
     # animal has stopped, the interleaved far trials are not evidence about anything either
@@ -1108,8 +1124,8 @@ def _micro_pos_bars(ax, micro_pos, col, title, ylabel, color):
 # the by-position lick panels shared by the per-session behavior + licking figures, in the same
 # order (and with the same labels) as the across-session per-animal figure's metric families
 LICK_POS_PANELS = [
-    ("licks_per_trial", "licks / trial (post-cue)", "licks"),
-    ("lick_rate_hz", "within-trial lick rate", "Hz"),
+    ("licks_per_trial", "licks / trial (cue + 70 ms to stop)", "licks"),
+    ("lick_rate_hz", "within-trial lick rate (1 / median ILI)", "Hz"),
     ("anticipatory_licks", "anticipatory licks / trial", "licks"),
 ]
 
@@ -1148,7 +1164,9 @@ def plot_licking(session_dir: Path, sid: str, out_dir: Path, params: dict, trial
     micro["per_position"].to_csv(csv, index=False)
 
     fig, axes = plt.subplots(2, 4, figsize=(22, 9))
-    _peri_cue_raster(axes[0, 0], micro["raster"], lk["response_window_s"], lk["peri_cue_window_s"])
+    # the gold band = THIS session's response window (gui_config, 3.5 s; Priya 11-05), not the old 2.0 s yaml key
+    from wfield_local import daq_trials
+    _peri_cue_raster(axes[0, 0], micro["raster"], daq_trials.response_window_s(session_dir)[0], lk["peri_cue_window_s"])
     _peri_cue_psth(axes[0, 1], micro["raster"], lk["psth_bin_ms"], lk["peri_cue_window_s"])
     _ili_hist(axes[0, 2], micro["ili"], daq_cmp, lk["max_ili_ms"],
               config.defaults()["lick_detection"]["min_ili_ms"])
@@ -1500,7 +1518,7 @@ def discover_sessions(rv: PathResolver, date: str | None, animals=None) -> list[
 POS_METRICS = [
     ("hit", "acc", "hit_rate", "hit rate (engaged)"),
     ("lat", "acc", "median_latency_s", "first-lick latency (s)"),
-    ("lpt", "lick", "licks_per_trial", "licks / trial"),
+    ("lpt", "lick", "licks_per_trial", "licks / trial (cue + 70 ms to stop)"),
     ("rate", "lick", "lick_rate_hz", "within-trial lick rate (Hz)"),
     ("ant", "lick", "anticipatory_licks", "anticipatory licks / trial"),
 ]
@@ -1558,15 +1576,29 @@ def _curated_mmdds(available) -> list[str]:
     dates with no registered imaging session, and those should still be plotted."""
     cs = set(config.curated_dates())
     exclude = set(config.date_policy().get("cross_session_exclude", []))
+    if not cs:
+        # No imaging-registered session in this cohort yet (a behavior-only cohort before the LocaNMF
+        # stage has registered anything in sessions.yaml -- cohort2's state on its first nights): there
+        # is no curated anchor to key the 'onward' window on, so the curated set is every available
+        # date (already cohort-scoped by `_curated_dates`) minus the excluded ones.
+        return sorted(d for d in available if d not in exclude)
     aug_start = min((d for d in cs if d >= "0800"), default="9999")
     return sorted(d for d in available if (d in cs or d >= aug_start) and d not in exclude)
 
 
 def _curated_dates(rv: PathResolver) -> list[str]:
-    """``_curated_mmdds`` over the dates actually present in the behavior-log root on MICROSCOPE."""
-    avail = {mo.group(1)[4:] for p in discover_sessions(rv, None, None)
-             if (mo := re.match(r"PS\d+_(\d{8})", p.name))}
-    return _curated_mmdds(avail)
+    """Curated behavior dates (full YYYYMMDD) for the ACTIVE cohort, present in the behavior-log root.
+
+    Returns YYYYMMDD, not MMDD: the behavior-log root is FLAT (every cohort), and cohort2 crosses the
+    new year, so the year must be carried -- "0105" vs "1029" cannot be compared as MMDD (see
+    `config.date8`). Available sessions are first scoped to this cohort by full date
+    (`config.cohort_span`), then the MMDD curation policy (`_curated_mmdds`) decides which days to keep;
+    the full dated names that pass come back."""
+    first8, last8 = config.cohort_span()
+    avail8 = sorted({mo.group(1) for p in discover_sessions(rv, None, None)
+                     if (mo := re.match(r"PS\d+_(\d{8})", p.name)) and first8 <= mo.group(1) <= last8})
+    keep = set(_curated_mmdds({d[4:] for d in avail8}))
+    return [d for d in avail8 if d[4:] in keep]
 
 
 def cohort_summary(rv: PathResolver, dates, animals, out_dir: Path, dry: bool = False):
@@ -1574,8 +1606,10 @@ def cohort_summary(rv: PathResolver, dates, animals, out_dir: Path, dry: bool = 
     sessions = []
     for p in discover_sessions(rv, None, animals):
         mo = re.match(r"PS\d+_(\d{8})", p.name)
-        mmdd = mo.group(1)[4:] if mo else None
-        if dates is None or (mmdd in dates):
+        d8 = mo.group(1) if mo else None
+        # `dates` may be full YYYYMMDD (the curated set, year carried) or MMDD (an explicit --from
+        # range); accept either so both callers resolve the same sessions.
+        if dates is None or (d8 is not None and (d8 in dates or d8[4:] in dates)):
             sessions.append(p)
     params = config.defaults()["behavior"]
     rows = [r for r in (session_row(s, params, rv=rv) for s in sessions) if r]
@@ -1926,6 +1960,8 @@ def main(argv=None) -> int:
     args = ap.parse_args(argv)
     if not args.date and not args.cohort:
         ap.error("give a YYYYMMDD date, --cohort, or both")
+    if args.date and str(args.date).isdigit() and len(str(args.date)) == 8:
+        config.use_cohort_for_dates([args.date])           # this night's cohort (configs/cohorts.yaml)
     return run(args.date, PathResolver(machine=args.machine),
                animals=config.normalize_animals(args.only),
                cohort=args.cohort, from_spec=args.from_spec or ("curated" if args.cohort else None),
