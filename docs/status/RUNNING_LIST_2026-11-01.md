@@ -1930,3 +1930,11 @@ bundle without `daqlk` and writes a provenance json.
     21.4; PS94 7.2 / 8.4 / 16.5 / 22.3; PS95 15.4 / 25.5 / 10.6 / 24.2 -> acute dip in 2/4 only; chronic up in 4/4.
   - Not like-for-like: cam4 numbers are the 10-21 pipeline. Proposed check: cam4 contest (nokin subset) under _daqlk on
     O2 so only the angle source differs. ttc_log deficit sensitivity running (5a6b7986, unpushed).
+- ~20:30: **Correction (Priya: "didn't we do xyz2 vs polar?"):** yes -- ENCODING_FINDINGS (10-24): polar's target set has
+  more capacity than xyz2's (angle^2 expresses midline-vs-side), so polar flatters target; DECISIONS 10-24 made the BINNED
+  contest PRIMARY (u_tgtbin vs u_exbin). The mixed-model panels used polar u_target -> switched to 3d:u_tgtbin (76066e01;
+  + --plot-only from qc/encoding_mixed_long*.csv.gz). Re-running default + ttc_log in parallel. Binned, cortex, behaviour
+  model (current table): lick u_tgtbin post +10.7 (q .003), slope vs deficit -0.28 (q .69); lick u_exbin slope -2.42
+  (q <.001); cue u_tgtbin slope -2.81 (q .047), cue u_exbin -1.37 (q .077). Per animal lick u_tgtbin pre / acute / sub /
+  chronic: PS92 1.8 / 13.6 / 14.8 / 11.6; PS93 9.7 / -1.3 / 16.7 / 33.4; PS94 3.7 / 23.2 / 12.7 / 10.4; PS95 3.1 / 0.7 /
+  3.1 / 12.9. Commits 5a6b7986 / 76066e01 unpushed.
