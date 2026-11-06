@@ -48,6 +48,10 @@ def test_precue_pass_detects_to_70_and_splits(monkeypatch):
     def fake_epoch(clean, idx, frame, df, a, e, lick_s, cue_s):
         seen["end"] = np.asarray(e, float)
         return pd.DataFrame({"trial_id": [7, 7], "t_ms": [-300.0, 30.0], "t_from_anchor_ms": [700.0, 1030.0]})
+    # the chain lives in wfield_local.kinematics_chain since 11-05 (the script re-exports it); `precue_licks` stays in the
+    # script and reads the script's name, so patch both
+    from wfield_local import kinematics_chain
+    monkeypatch.setattr(kinematics_chain, "epoch_licks", fake_epoch)
     monkeypatch.setattr(D, "epoch_licks", fake_epoch)
     idx = pd.DataFrame({"trial_k": [0, 0], "strobe_ms": [-1000.0, -1000.0]})
     P, X = D.precue_and_excluded_licks(None, idx, None, None)
