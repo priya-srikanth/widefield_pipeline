@@ -172,3 +172,10 @@ the night.
   would be wrong. Outputs: <E>/../posinfo_checks_v7g3_t3d_spont_frAsplit/.
 - ~10:30: v8 code (render/daqlk-v8-20261106 = decisions + ALM/tjM1 + speed-ups) passes 38/38 targeted tests; queue v8
   being assembled (104 missing steps + decisions + ALM + 9 fixes). Decisions push to main waits for 20 GB RAM.
+- ~10:10: **queue v8 LAUNCHED** (4 lanes, code wf_render_v8 5db29b07 = decisions + ALM/tjM1 + speed-ups, preflight OK).
+  151 steps: the rebuild_order_B goal-page lick families (L0-L10), the approved decisions steps, ALM/tjM1 (section M),
+  fixed versions of 9 broken v7b steps, 13 re-runs moved from v7b so they run once on the new code; mixed models use
+  --deficits ttc_log ttc contact. 8 dependencies v7b never declared were added. Held: fr_enl_decode + revup_behaviour
+  (write outside the rebuild root / untagged -> routing fix first), lick_acad_midline_control (cut), F8 e_plain_* (Priya).
+  x_enlv_extract released from the old v7b lane via a brief skip marker (no process killed) and moved to v8.
+  v7b lanes G T A/B F/Z E continue the rest; one heavy step at a time across both queues (shared lock).
