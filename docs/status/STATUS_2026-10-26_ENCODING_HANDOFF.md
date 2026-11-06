@@ -76,6 +76,15 @@ unclassified -> OUTSIDE_MAPS, map builders only import engagement_gate). Fixed o
 Priya said YES to cam4-style -> scratchpad push7.sh = the six + wf_p1106_cam4, sequential, merge-only (bg task bn32updgj;
 per-branch push logs scratchpad/push7.<wt>.log). Each push re-runs the full suite (~28 min) when configs/ is in the diff.
 
+**Update ~19:10:** v9k2 k_jaw_xcheck EXIT 1 = RebuildFenceError (pose3d_jaw_crosscheck wrote session_poses/pose3d/crosscheck
+directly; its cam4 side is the gate-named A27 jaw table, so the output is gate-dependent). Fix on branch
+fix/jaw-xcheck-routed-20261106 (wf_kincache, 18875631, on top of 8d6da32d): writer + fig_pose_validation reader via
+kin_out_dir(..., "crosscheck", script="pose3d_jaw_crosscheck"); 310 tests pass. NOT pushed (needs Priya OK). k_pose_validation
+-> RESERVED_HOLD (would read the old jaw_agreement). Checked: the 11-04 pose3d edits (bddf02e7 pnp / session_3d, ae2bcd86 source
+switch) do NOT touch lick_events / kinematics, and every *_frames.csv.gz is dated 10-20..10-23, so the recomputed kinematics
+cache equals the 10-23 snapshot tables (no mixed provenance). Every other v9k2 script already writes via kin_out_dir / --out.
+After the push: re-run k_jaw_xcheck + k_pose_validation (small queue on the new main).
+
 **Update 18:55 -- Priya "ok": kinematics cache fix on main 8d6da32d; queue v9k2 RUNNING** (scratchpad/render_daqlk/queue_daqlk9k2.sh,
 worktree wf_render_v9k2 @ 8d6da32d, lanes K + C): k_spout_error + k_phase (v9k markers/logs moved to *_v9k_fence) and the 7
 ex-HOLD steps (RESERVED_v9k2). Priya's "ok" also read as YES to updating OROFACIAL_FINDINGS with the A27 working-period numbers
