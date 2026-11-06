@@ -39,6 +39,77 @@ for anything that loads imaging. E = `M:/MICROSCOPE/Priya/Widefield/LP_analysis/
 3. Then tell **sabatinilab-e3** (PI deck) the decoder figures are final: per figure the share PNG path, page Fig N.k,
    script + args, headline numbers, methods text (they asked 10-26 ~22:30; reply sent: not final yet).
 
+### 00-COMPACT-30 (11-06 ~13:00) -- READ FIRST; supersedes 29 for state (29 / 28 hold for rules and history)
+
+**Running list for Priya:** `docs/status/OVERNIGHT_2026-11-05_FOR_PRIYA.md` (sections A-D + timestamped updates through
+11-06 ~12:50). Keep appending there; commit each time.
+
+**Render `_daqlk` = SEVEN queue files, one shared logs/ dir, all in the scratchpad `render_daqlk/`:**
+- Scratchpad = `C:\Users\SABATI~1\AppData\Local\Temp\claude\C--Users-SabatiniLab\f082ee0c-b33c-49a8-a537-dcee3bb7c84c\scratchpad\render_daqlk`.
+  `logs/CHAIN.log` = the event log; `<step>.done / .failed / .skipped / .claim/`.
+- **Claims / reservations**: `logs/<step>.claim/RESERVED_<q>` says which queue may run a step; a lane takes it with
+  `mkdir <claim>/<q>`. Swap a not-started step to another queue SAFELY: `mkdir <claim>/<old>` (mutex) -> touch
+  RESERVED_<new> -> rm RESERVED_<old> -> rmdir <old> (use `rm -- "${c:?}/${r:?}"`; the safety hook blocks bare `rm $c/$r`).
+  Never edit a queue file a lane is reading (bash reads scripts incrementally) -> make a new file / queue.
+- Shared heavy lock `HEAVY.lock` (one pixel-encoder / refit / epoch-render step at a time across ALL queues) +
+  `HEAVY_EXTERNAL.txt` (t_partial_te 23728, x_enl_move 36140: still-running v6 steps, ~until Fri late evening).
+- v7b+ lanes PAUSE (wait for available RAM >= 10 GB before each step), never halt on low RAM; the legacy STOP file is
+  ignored; manual brake = `HALT`. A low-RAM line in CHAIN is only a log.
+
+| queue | code (worktree @ sha) | what | lanes |
+|---|---|---|---|
+| v7b | wf_render_daqlk @ a76352f3 (pinned) | the original 196-step plan minus what moved | G T AB FZ E (X, D ended) |
+| v8 | wf_render_v8 @ 5db29b07 | rebuild_order_B steps 3-14 (L0-L10), decisions steps, ALM sect. M, F1-F9 fixes, 13 moved re-runs | GBMD, L0L1EL8L10, XL2L3, L4L5L6L7L9 |
+| v8b | wf_render_v8 @ 5db29b07 | 18 dep-fixed steps (V7B_DEP_AUDIT.md) + 4 producers (iti_area_maps --split/--split --cued, frozen_residual_trend frA x2) | N, R |
+| v8c | wf_render_v8 @ 5db29b07 | F8: e_plain_* TRUE plain Allen (WFIELD_AREA_BASIS=plain) + e_split_where / e_split_loclin_all + notdock dock arm | P, S |
+| v8d | wf_render_v8d @ d2d26e84 | exact ROI frozen run b_roiexact_frA (heavy) -> b_svf_frA_roi_maps, b_remap_checks_roi (--roi-frozen exact) | M |
+| v8e | wf_render_v8 @ 5db29b07 | mixed-model steps + z_frozen_claims waiting on m_trend_recovery | T8 |
+| v8e2 | wf_trendfix @ 6033cbbb | m_trend_recovery (position_coding_trend_recovery; *_trials.npz glob fix) + z_frozen_claims + b_imaging_lmm | T9 |
+
+- Notes for the queues: `V8_NOTES.md`, `V7B_DEP_AUDIT.md`, `v8_missing_steps_draft.sh` (all in the scratchpad).
+  `RENDER_QUEUE_DAQLK_20261105.md` (wf_attempt docs) is the v1-v6 plan.
+- **State at 12:55:** 65 steps done. Failures that remain: a_decomp_noFR_cue and a_relabel_noFR (old, superseded) and
+  e_iti_hemo (undeclared dep; a waiter task re-runs e_iti_hemo + e_iti_hemo_sum after e_iti_area_maps.done).
+  Reserved and not started: 110 v7, 18 v8, 15 v8b, 3 v8c, 2 v8d, 5 v8e, 2 v8e2. Available RAM 22 GB; C: 110 GB free.
+- **Critical path:** t_partial_te (heavy; ~39/107 at 07:30, many h left) -> then one at a time: g5_section_g,
+  t_frame_te_basis, a_partial_ls, b_partial_frA, t_frame_frlag, b_pix_union_frA, b_svf_frA_roi, b_roiexact_frA, the
+  v8 heavy L steps. Forecast: render done ~Sun night / Mon; then the replacement pass (pages, analysis deck, PI deck).
+- **Watch for:** steps failing on inputs nobody produces / undeclared deps (pattern today: fix by holding the step,
+  adding the producer in a new small queue). Re-arm the CHAIN monitor every 30 min (filter: EXIT [1-9], queue end,
+  heavy lock taken, SKIPPED, ABORT, HALT; available RAM < 3 GB for 3 checks).
+
+**Main (all pushed with Priya's direct OK here):** 5db29b07 (decisions f1/f2/ENL + follow-up, ALM/tjM1 maps, speed-ups),
+05dcab8d (exact ROI run 435160e2), 604c09d3 (trend-recovery fix). Log-deficit branch on main since 08:30 (e5f53dbd).
+Branches done: fix/decisions-*, fix/log-deficit-primary-20261105, feat/alm-tjm1-slides-94-139-20261106,
+perf/attempt-perm-iti-lags-20261106, fix/trend-recovery-trials-npz. Render worktrees above: do NOT check out / merge
+in them while lanes run (I merged main into wf_trendfix once by mistake and reset it to 6033cbbb within a minute).
+
+**Priya's decisions 11-06 (recorded on the overnight page):**
+1. merge ALM + speed-up -> done. 2. F8 e_plain_* true plain Allen -> v8c. 3. slide 94 = *_split maps REPLACE Allen
+   (deck must point at `peth_trial_maps_<w>[_alone]_split.png`). 4. slide 139 without no_lickspout: OK. 5. slide 139 exact
+   frozen ROI side -> v8d. 6. slide 92 wording -> a8 applied ("tracks position-carrying movement more strongly (not
+   explained by more variable movement; provisional)"); page Fig 2.11 caption in the replacement pass.
+   7. C: cache deleted (58 GB; list rebuild_20261103/DELETED_LOCAL_CACHE_20261106.txt).
+- Earlier today: lock + pause queues OK; render shortcut (attempt_coding_pp reuses trials files) OK; future-run
+  speed-ups OK; ALM/tjM1 on slides 94 + 139 + every area map (audit: Fig 4.8 and reembed added; 18.6 / 18.9 split panels
+  to swap in on the page; specificity Layer 2 ROI via a_allsession_frA_roi); posinfo unique-R2 per-trial re-run = LOW
+  priority, after the render + deck / page update.
+
+**Still open for Priya** (explained in plain words in the chat 11-06 ~11:30): 8 speed-up follow-ups A10 (memoise
+paths.cohorts, rec yes now), A11 (index frozen-model store, after render), A12 (fan_out restores parent BLAS threads,
+after render); 9 slide 102 five choices (A1); 10 FR pixel drift panel + "Bonferroni" captions (A2); 11 optional no_spont
+(A3); 12 bare-run default (A4, warning only for now); 13 PS93 no discriminator (A5); 14 chronic-stability row camera vs
+DAQ (A6).
+
+**Held for routing fixes (not queued):** fr_enl_decode (writes <dlc>/face_rhythm, outside the rebuild root),
+revup_behaviour (untagged iti_licks folder). Cut: lick_acad_midline_control.
+
+**a8 (PI deck window):** deck = `presentations/Overview_2026-11-06.pptx`. Waiting on me: slide 94 re-tile when the
+`*_split` maps land (b_peth_trial_maps_split / _alone_split after b_pix_union_frA); its item 5 (fail-loud DAQ contacts)
+holds until the render is done. a8 ran the posinfo variance check (posinfo_checks_v7g3_t3d_spont_frAsplit/).
+
+**Helpers this session (all finished):** speed-ups, ALM/tjM1 (+ exact ROI), v8 / v8b / v8c assembly, area-map audit.
+
 ### 00-COMPACT-29 (11-05 ~22:45) -- READ FIRST; supersedes 28 for state (28 / 27 hold for rules and history)
 
 Priya is ASLEEP: work overnight on everything possible. Her page = `docs/status/OVERNIGHT_2026-11-05_FOR_PRIYA.md`
