@@ -1164,7 +1164,9 @@ def plot_licking(session_dir: Path, sid: str, out_dir: Path, params: dict, trial
     micro["per_position"].to_csv(csv, index=False)
 
     fig, axes = plt.subplots(2, 4, figsize=(22, 9))
-    _peri_cue_raster(axes[0, 0], micro["raster"], lk["response_window_s"], lk["peri_cue_window_s"])
+    # the gold band = THIS session's response window (gui_config, 3.5 s; Priya 11-05), not the old 2.0 s yaml key
+    from wfield_local import daq_trials
+    _peri_cue_raster(axes[0, 0], micro["raster"], daq_trials.response_window_s(session_dir)[0], lk["peri_cue_window_s"])
     _peri_cue_psth(axes[0, 1], micro["raster"], lk["psth_bin_ms"], lk["peri_cue_window_s"])
     _ili_hist(axes[0, 2], micro["ili"], daq_cmp, lk["max_ili_ms"],
               config.defaults()["lick_detection"]["min_ili_ms"])
