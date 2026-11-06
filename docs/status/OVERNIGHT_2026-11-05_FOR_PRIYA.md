@@ -132,3 +132,17 @@ the night.
   frozen_area_maps, fr_musall area maps, iti_area_maps non-split main, iti_hemo_check f0 areas (deliberately excluded
   ALM/tjM1), reembedding_test reembed_areas (BUG: merges ALM back into MOs while its title says they are drawn inside --
   fixing). All other area maps on the page already show ALM / tjM1. Pixel maps need no split.
+- ~10:00: **ALM / tjM1 code done** (branch feat/alm-tjm1-slides-94-139-20261106, 78ca7859 + a902aedd, unpushed): slide 94
+  (frozen_peth_trial_maps --split -> *_split companions), slide 139 (session_vs_frozen --roi-targets -> NEW folder
+  session_vs_frozen_roi, --maps paints the split), Fig 4.8 remap_checks per-animal (split), reembedding map (now paints
+  ALM / tjM1 as its title says). Same painter as the other split maps (encoder_split_rows.split_image). Allen outputs
+  bit-identical; basis-route MOs / MOp within 0.003 R2 of the area run. Render steps: one pixmusall "union" re-run
+  (~2.5-3 h) + svf ROI self-fit (~2.5-3 h), both heavy. Specificity Layer 2 ROI run (a_allsession_frA_roi) already
+  in the queue. **Questions A13-A15**: (13) slide 94: show the *_split figures INSTEAD of the Allen ones (rec) or beside?
+  (14) no_lickspout has no column on slide 139 in the frA frame (only in the _frA_ls frame) -- as before; OK?
+  (15) split-ROI remap gap mixes basis-route frozen R2 with an exact-ROI self-fit (out-of-basis variance, mostly
+  cancels in epoch - pre); an exact frozen side = an ROI-target area run (~2-2.5 h) -- needed?
+  NOTE: the helper's duplicate dry run briefly took available RAM to ~4 GB around 08:00 -> likely contributed to the
+  08:01 STOP.
+- ~10:00: follow-up branch push FAILED: its pre-push suite hung at ~58 % for ~3 h (no failure; pytest idle). Stopped my
+  own pytest (exact PID), re-running the suite verbosely to find the hanging test.
