@@ -58,6 +58,7 @@ def main(argv=None) -> int:
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
+    from wfield_local import config
     from wfield_local import combined_encoding as ce
     from wfield_local.writeguard import assert_writable
     sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -72,7 +73,7 @@ def main(argv=None) -> int:
     missing = [v for v in variants if not (out / v / "sessions").is_dir()]
     if missing:
         raise SystemExit(f"{out}: no sessions for variants {missing} (re-run the spatial target with the drop variants)")
-    sess = sorted(js for js in (out / "joint" / "sessions").glob("*.json") if js.stem[-4:] >= "0801")
+    sess = sorted(js for js in (out / "joint" / "sessions").glob("*.json") if not config.early_pre(js.stem))
     UNIQ = tuple((g, v) for g, v in UNIQUE if v in variants)      # noqa: N806 -- the optional ones this run has
     fd = out / "figures"
     assert_writable(fd)
@@ -221,7 +222,7 @@ def main(argv=None) -> int:
     # epoch (Priya 10-23 "and what about per-position unique r2")
     dd = out / "dropspout" / "sessions"
     pj = sorted(dd.glob("*_pix.json")) if dd.is_dir() else []
-    pj = [p for p in pj if p.stem.split("_pix")[0][-4:] >= "0801"]
+    pj = [p for p in pj if not config.early_pre(p.stem.split("_pix")[0])]
     if pj:
         pacc: dict = {}
         for p in pj:

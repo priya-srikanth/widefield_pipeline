@@ -58,7 +58,7 @@ def area_rows(windows, jobs: int = 6) -> pd.DataFrame:
 
     from wfield_local import config, epochs
     labs = [f.stem.replace("_regions", "") for f in sorted(FRD["A"].glob("*_regions.csv"))]
-    labs = [x for x in labs if x[-4:] >= "0801" and all((FRD[m] / f"{x}_regions.csv").exists() for m in MODES)]
+    labs = [x for x in labs if not config.early_pre(x) and all((FRD[m] / f"{x}_regions.csv").exists() for m in MODES)]
     Wb = esr.block_weights(np.load(FRD["A"] / f"{labs[0]}.npz")["flat"], SPLIT)      # one grid for every session
     spl = dict(zip(labs, Parallel(n_jobs=jobs)(delayed(split_r2)(x, windows, Wb) for x in labs)))
     rows = []

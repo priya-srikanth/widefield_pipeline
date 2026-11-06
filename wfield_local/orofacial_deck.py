@@ -257,7 +257,7 @@ def _provenance(run_dir: Path, S: pd.DataFrame, baseline: str) -> str:
     cam = config.defaults().get("orofacial_camera", {})
     S = S.assign(date=S.date.astype(str))
     pre = S[S.epoch == "pre"]
-    late = pre.date.str[4:8] >= oc.LATE_PRE_FROM
+    late = ~pre.date.map(config.early_pre)
     used = pre[late] if baseline == "late" else pre
     base_dates = "; ".join(f"{a}: " + ", ".join(sorted(g.date.str[4:8])) for a, g in used.groupby("animal"))
     cnt = S.groupby(["animal", "epoch"]).size().unstack("epoch").reindex(columns=list(oc.EPOCH_ORDER)).fillna(0)
@@ -391,7 +391,7 @@ def main(argv=None) -> int:
     _text(s, "Data and statistics", 0.3, 0.1, 12.5, 0.6, 22, bold=True)
     methods = ("* Curated sessions (early June 6/1-6/5 and 8/5 excluded); PRE BASELINE = "
                + ("all curated pre sessions incl. June 0606-0608 (sensitivity only)" if sfx else
-                  "pre sessions from 0801 only (June 0606-0608 excluded: different camera geometry)")
+                  f"pre sessions from {oc.LATE_PRE_FROM} only (June 0606-0608 excluded: different camera geometry)")
                + "; ENGAGED trials only (the behaviour pipeline's gate removes the sated tail; the ungated control in "
                f"figures/prepost_alltrials is not in this deck); LP r4 pose, cleaning {oo.CLEANING_VERSION}; "
                "LP-detected licks ('lick n' = the n-th detected post-cue lick, contact or not).\n"

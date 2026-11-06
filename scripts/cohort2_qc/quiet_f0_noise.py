@@ -39,6 +39,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from quiet_area_spikes import GROUPS as AREA_GROUPS  # noqa: E402
 from quiet_fluct import FL, TRACE_COLS  # noqa: E402
+from wfield_local import config  # noqa: E402
 
 V2Q = FL.parent
 OUT = V2Q / "f0_noise"
@@ -53,7 +54,7 @@ def labels():
     out = []
     for f in sorted((FL / "sessions").glob("*.npz")):
         ep = epochs.epoch_of(f.stem)
-        if ep is None or (ep == "pre" and f.stem[-4:] < "0806") or f.stem[:4] not in ("PS92", "PS93", "PS94", "PS95"):
+        if ep is None or (ep == "pre" and config.early_pre(f.stem)) or f.stem[:4] not in ("PS92", "PS93", "PS94", "PS95"):
             continue
         out.append(f.stem)
     return out

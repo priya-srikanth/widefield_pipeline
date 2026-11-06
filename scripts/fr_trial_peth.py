@@ -40,7 +40,7 @@ def session_rows(jf: Path) -> list[dict]:
     from wfield_local import config, epochs
     m = json.loads(jf.read_text())
     lab = m["label"]
-    if lab[-4:] < "0801":
+    if config.early_pre(lab):
         return []
     z = np.load(jf.with_suffix(".npz"))
     off = z["peth_off_s"]

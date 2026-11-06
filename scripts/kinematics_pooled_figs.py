@@ -65,7 +65,8 @@ def _sg(contra: bool, m: str, pos: str | None = None) -> float:
 
 
 def _is_aug_pre(df: pd.DataFrame) -> pd.Series:
-    return (df.epoch == "pre") & (df.date.astype(str).str[-4:] >= "0801")
+    from wfield_local import config
+    return (df.epoch == "pre") & (~df.date.astype(str).map(config.early_pre))
 
 
 def pooled_change(df: pd.DataFrame, col: str, group: str, groups, rng) -> pd.DataFrame:
@@ -201,11 +202,12 @@ def fig_3d(out: Path, rng, contra: bool = False) -> pd.DataFrame:
 
 def fig_cue(out: Path, contra: bool = False) -> pd.DataFrame:
     import matplotlib.pyplot as plt
+    from wfield_local import config
     T = pd.read_csv(pose3d_dir() / "cue_traces" / "traces.csv.gz")
     T = T[(T.set == "engaged") & T.measure.isin(["mid", "jaw_open"])]
     rows = []
     for (m, p), g in T.groupby(["measure", "position"]):
-        aug = g[(g.epoch == "pre") & (g.date.astype(str).str[-4:] >= "0801")]
+        aug = g[(g.epoch == "pre") & (~g.date.astype(str).map(config.early_pre))]
         base = aug.groupby(["animal", "t_ms"]).v.mean()
         for e in EPOCHS:
             q = g[g.epoch == e]
@@ -288,10 +290,11 @@ def fig_paths3d(out: Path, shared: bool = False, contra: bool = False) -> pd.Dat
     spouts (same limits, equal aspect), so the mouth sits in the same place in every panel of a row ->
     pose3d_paths_pooled_shared.png."""
     import matplotlib.pyplot as plt
+    from wfield_local import config
     C = pd.read_csv(pose3d_dir() / "phase" / "curves.csv.gz")
     C = C[(C.kind == "norm") & (C.lickset == "all") & C.measure.isin(["side", "out", "down", "j_side", "j_out", "j_down"])
           & (C["cov"] >= 0.5)]
-    aug = C[(C.epoch == "pre") & (C.date.astype(str).str[-4:] >= "0801")]
+    aug = C[(C.epoch == "pre") & (~C.date.astype(str).map(config.early_pre))]
     base = aug.groupby(["animal", "position", "measure", "x"]).v.mean()
     rows = []
     for (p, m), g in C.groupby(["position", "measure"]):
@@ -482,12 +485,13 @@ def phase_data(contra: bool = False) -> pd.DataFrame:
     signed + = contra when ``contra``. Test per (spout, measure, epoch) = the cam4 phase figures' test
     (`orofacial_cohort.fig_cohort_delta`): `cluster_permutation` of the epoch's session changes against the August-pre
     sessions' changes, labels permuted within animal, p < .05; on the bins every tested session covers."""
+    from wfield_local import config
     from wfield_local.orofacial_cohort import CLUSTER_PERM
     from wfield_local.orofacial_stats import cluster_permutation
     C = pd.read_csv(pose3d_dir() / "phase" / "curves.csv.gz")
     C = C[(C.kind == "norm") & (C.lickset == "all") & C.measure.isin(["mid", "dist"]) & (C["cov"] >= 0.5)
           & C.x.between(*PHASE_WIN)]
-    C = C[(C.epoch != "pre") | (C.date.astype(str).str[-4:] >= "0801")]          # August pre only
+    C = C[(C.epoch != "pre") | (~C.date.astype(str).map(config.early_pre))]          # August pre only
     rows = []
     for (p, m), g in C.groupby(["position", "measure"]):
         pv = g.pivot_table(index=["animal", "session", "epoch"], columns="x", values="v") * _sg(contra, m)

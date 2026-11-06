@@ -83,10 +83,11 @@ def eta2(df: pd.DataFrame, col: str, pos: str = "pos") -> tuple[float, float]:
 
 
 def main() -> int:
+    from wfield_local import config
     from wfield_local import analysis_kit as ak
     from wfield_local import epochs
     labels = sorted(p.stem for p in (E / _design_tag("frozen_encoder_gate-attempted_v7g3_t3d") / "joint" / "sessions").glob("*.json")
-                    if p.stem[-4:] >= "0801" and epochs.epoch_of(p.stem) == "pre")
+                    if not config.early_pre(p.stem) and epochs.epoch_of(p.stem) == "pre")
     res, fail = ak.fan_sessions(labels, trial_state, jobs=4, label="state")
     for it, err in fail:
         print("  !!", it, err)
@@ -110,9 +111,9 @@ def main() -> int:
     K = pd.read_csv(KIN)
     K = K[(K.lick_idx == 0) & (K.epoch == "pre")]
     K["label"] = K.animal + "_" + K.date.astype(str).str[-4:]
-    K = K[K.label.str[-4:] >= "0806"]
+    K = K[~K.label.map(config.early_pre)]
     A = pd.read_csv(_lp_licks.attempts_path())
-    A = A[(A.epoch == "pre") & (A.label.str[-4:] >= "0806") & A.attempted.astype(bool)]
+    A = A[(A.epoch == "pre") & (~A.label.map(config.early_pre)) & A.attempted.astype(bool)]
     trk = []
     for an in sorted(A.animal.unique()):
         a_ = A[A.animal == an]

@@ -68,8 +68,9 @@ def keys(measure: str, window: str) -> tuple[str, str]:
 
 def collect(run: Path, qs, measures, window):
     """per session: SSE / SST pixel vectors per (q, measure); also animal x epoch sums."""
+    from wfield_local import config
     from wfield_local import combined_encoding as ce
-    sess = sorted(js for js in (run / "joint" / "sessions").glob("*.json") if js.stem[-4:] >= "0801")
+    sess = sorted(js for js in (run / "joint" / "sessions").glob("*.json") if not config.early_pre(js.stem))
     _V, _ft, _Ub, flat, _pa, _nm, shape, pstat = ce.load_imaging(sess[0].stem)
     spatial, meta, sse, sst = {}, [], {}, {}
     for js in sess:

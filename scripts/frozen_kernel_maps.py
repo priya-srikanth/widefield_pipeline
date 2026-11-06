@@ -80,7 +80,7 @@ def vessel_mask(shape) -> np.ndarray:
         z = np.load(cache)
         if tuple(z["mask"].shape) == tuple(shape):
             return z["mask"]
-    sess = [s for s in config.load_sessions() if epochs.epoch_of(s["label"]) == "pre" and s["label"][-4:] >= "0806"]
+    sess = [s for s in config.load_sessions() if epochs.epoch_of(s["label"]) == "pre" and not config.early_pre(s["label"])]
     out = np.zeros(shape, bool)
     for an in AN:
         ts = [t for t in (vessel_template(s) for s in sess if s["label"].startswith(an)) if t is not None]

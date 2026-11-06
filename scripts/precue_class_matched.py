@@ -54,11 +54,12 @@ def main() -> int:
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
+    from wfield_local import config
     from wfield_local import analysis_kit as ak
     res, ses = [], []
     for w, _wl in WIN:
         T = pd.concat([pd.read_csv(A / attempt_trials_name(w, an)) for an in AN])
-        T = T[(T.method == "dom") & (T.spout == "far_contra") & (T.label.str[-4:] >= "0801")].copy()
+        T = T[(T.method == "dom") & (T.spout == "far_contra") & (~T.label.map(config.early_pre))].copy()
         ref = T[T.cls == "pre_hit"].groupby("animal").p_true.mean()
         T["ret"] = (T.p_true - 1 / 6) / (T.animal.map(ref) - 1 / 6)
         P = session_pairs(T[T.epoch.isin(POST)]).assign(window=w)

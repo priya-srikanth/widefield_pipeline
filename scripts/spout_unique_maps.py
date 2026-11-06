@@ -40,6 +40,7 @@ def main(argv=None) -> int:
     import matplotlib
     matplotlib.use("Agg")
 
+    from wfield_local import config
     from wfield_local import combined_encoding as ce
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--tag", default=_design_tag("gate-attempted_v7g3_t3d_basis"))
@@ -47,7 +48,7 @@ def main(argv=None) -> int:
     a = ap.parse_args(argv)
     run = E / f"frozen_encoder_{a.tag}"
     dd = run / "dropspout" / "sessions"
-    pj = sorted(p for p in dd.glob("*_pix.json") if p.stem.split("_pix")[0][-4:] >= "0801")
+    pj = sorted(p for p in dd.glob("*_pix.json") if not config.early_pre(p.stem.split("_pix")[0]))
     lab0 = pj[0].stem.split("_pix")[0]
     _V, _ft, _Ub, flat, _pa, _nm, shape, pstat = ce.load_imaging(lab0)
     H, W = (int(x) for x in shape)

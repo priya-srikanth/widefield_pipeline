@@ -44,11 +44,12 @@ def per_animal(D: pd.DataFrame, col: str) -> pd.DataFrame:
 
 
 def main() -> int:
+    from wfield_local import config
     A = pd.read_csv(R / PRIMARY / "qc" / f"s1_refit_basis{SUFFIX}.csv")
     L = pd.read_csv(R / PRIMARY / "qc" / f"s1_refit_locanmf{SUFFIX}.csv")
     S2 = pd.read_csv(R / SENSITIVITY / "qc" / f"s1_refit_basis{SENS_SUFFIX}.csv")
     Q = pd.read_csv(R / "qc/s1_refit_basis.csv")
-    L = L[(L.label.str[-4:] >= "0806") | (L.epoch != "pre")]                    # August-only pre, as the Allen rows
+    L = L[(~L.label.map(config.early_pre)) | (L.epoch != "pre")]                    # August-only pre, as the Allen rows
     meta = json.loads((R / "qc/s1_trial_classes_cue_stop.json").read_text())
     Lw = {(t, al): per_animal(L[(L["trials"] == t) & (L["align"] == al)], "acc") for t in L.trials.unique()
           for al in ("precue", "cue")}

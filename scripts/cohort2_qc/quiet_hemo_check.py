@@ -16,7 +16,7 @@ hemo manifest -- exactly the loader logic of scripts/iti_hemo_check.py. Both hal
 logic) project all three. No extra drift removal: every measure works on 2-s-median-detrended traces or 4-s linearly
 detrended Welch segments.
 FRAMES: QUIET ENGAGED (quiet_spikes_v2.busy_frames: no DAQ lick / running bout within 1.5 s, no swapped pair within
-0.5 s; engaged = before the quit), identical for all channels. August sessions; pre = August pre (>= 0806).
+0.5 s; engaged = before the quit), identical for all channels. August sessions; pre = August pre (not config.early_pre, cohort1 cut 0806).
 MEASURES per session x channel x ROI (orofacial_left / _right / orofacial / limb_left / _right / limb / cortex):
   (a) sd     robust SD (1.4826 x MAD) of the 2-s-median-detrended trace over quiet engaged frames
   (b) p14 / p0510  quiet band power 1-4 Hz / 0.5-1 Hz ((dF/F %)^2), Welch 4-s Hann segments, linear detrend, on quiet
@@ -48,6 +48,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from quiet_area_spikes import EP, GROUPS, columns, mad, session_traces  # noqa: E402
 from quiet_spikes_v2 import BASE_S, V2, busy_frames, detect, detrend  # noqa: E402
+from wfield_local import config  # noqa: E402
 
 HO = V2 / "hemo415"
 CACHE_VERSION = 1
@@ -88,7 +89,7 @@ def _animal_pre_sd_v2():
     from wfield_local import epochs
     out = {}
     for f in sorted((V2 / "sessions").glob("*.npz")):
-        if epochs.epoch_of(f.stem) == "pre" and f.stem[-4:] >= "0806":
+        if epochs.epoch_of(f.stem) == "pre" and not config.early_pre(f.stem):
             out.setdefault(f.stem[:4], []).append(np.load(f)["sd_q"])
     return {a: np.nanmedian(v, 0) for a, v in out.items()}
 
@@ -211,7 +212,7 @@ def load():
         if f.stem.endswith(".tmp"):
             continue
         ep = epochs.epoch_of(f.stem)
-        if ep is None or (ep == "pre" and f.stem[-4:] < "0806") or not f.stem.startswith(("PS92", "PS93", "PS94", "PS95")):
+        if ep is None or (ep == "pre" and config.early_pre(f.stem)) or not f.stem.startswith(("PS92", "PS93", "PS94", "PS95")):
             continue
         D[f.stem] = dict(np.load(f), epoch=ep, day=epochs.days_since_stroke(f.stem))
     return D

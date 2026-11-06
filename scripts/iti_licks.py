@@ -625,8 +625,9 @@ def area_sd(sess_dir: Path | str | None = None, basis: str | None = None) -> pd.
 
 def run_labels() -> list[str]:
     """August+ session labels of the frozen encoder run = the sessions every ITI extraction covers."""
+    from wfield_local import config
     run = encoder_run() / "joint" / "sessions"
-    return [x for x in sorted(p.stem for p in run.glob("*.json")) if x[-4:] >= "0801"]
+    return [x for x in sorted(p.stem for p in run.glob("*.json")) if not config.early_pre(x)]
 
 
 def labels(pattern: str = "*", sess_dir: Path | None = None, complete: bool = True) -> list[str]:
@@ -2080,6 +2081,7 @@ def binned_plot() -> None:
 
 
 def main(argv=None) -> int:
+    from wfield_local import config
     from wfield_local import analysis_kit as ak
     from wfield_local.writeguard import assert_writable
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -2123,7 +2125,7 @@ def main(argv=None) -> int:
         (XOUT / SESS_NAME).mkdir(parents=True, exist_ok=True)
     run = encoder_run() / "joint" / "sessions"
     labels = sorted(a.labels or (p.stem for p in run.glob("*.json")))
-    labels = [x for x in labels if x[-4:] >= "0801"]
+    labels = [x for x in labels if not config.early_pre(x)]
     if a.rois_only:
         roi_figure(labels[0])
         return 0

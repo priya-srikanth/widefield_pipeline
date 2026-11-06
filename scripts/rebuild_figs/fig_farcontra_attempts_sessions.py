@@ -94,7 +94,7 @@ def load(att: Path, inc: Path) -> pd.DataFrame:
         if len(bad):
             print(f"  WARNING epoch mismatch vs {c}:\n{bad[['label', 'day', 'epoch', c]]}")
     S = S[S.epoch.isin(EPOCHS)]
-    S = S[(S.epoch != "pre") | (S.label.str[-4:] >= "0806")]          # August-only pre baseline
+    S = S[(S.epoch != "pre") | (~S.label.map(config.early_pre))]          # August-only pre baseline
     S = S.drop(columns=["epoch_src_att", "epoch_src_inc"])
     S["epoch"] = pd.Categorical(S.epoch, EPOCHS, ordered=True)
     return S.sort_values(["animal", "day"]).reset_index(drop=True)

@@ -6,11 +6,12 @@ import numpy as np
 
 
 def main():
+    from wfield_local import config
     from wfield_local import analysis_kit as ak
     from wfield_local import combined_encoding as ce
     from wfield_local import epochs
     from wfield_local import frozen_encoder as fe
-    labels = [x for x in sorted(ce.sessions_available()) if x[-4:] >= "0806" and x in set(ak.curated_labels())]
+    labels = [x for x in sorted(ce.sessions_available()) if not config.early_pre(x) and x in set(ak.curated_labels())]
     got, fail = ak.fan_sessions(labels, fe.template_job, jobs=int(sys.argv[1]), label="push")
     by = {}
     for lab, t in got:

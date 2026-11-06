@@ -37,10 +37,11 @@ MEASURES = [("avg", "PETH"), ("trial", "trial-by-trial")]
 
 
 def table(run: Path, variant: str) -> pd.DataFrame:
+    from wfield_local import config
     rows = []
     for js in sorted((run / variant / "sessions").glob("*.json")):
         m = json.loads(js.read_text(encoding="utf-8"))
-        if m["label"][-4:] < "0801":
+        if config.early_pre(m["label"]):
             continue
         for w, d in m["r2_musall"].items():
             for meas, _ in MEASURES:

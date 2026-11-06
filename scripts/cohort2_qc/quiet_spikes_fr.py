@@ -46,6 +46,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))       # scripts/ (i
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))       # repo root
 from quiet_area_spikes import (CAND_SD, DETREND_S, EP, K_SD, MAX_HW_S, MIN_HW_FR, OUT,  # noqa: E402
                                columns, mad, session_traces)
+from wfield_local import config  # noqa: E402
 
 #: QS_FR_BASIS=frozen (default): the frozen master set's projections + its frozen point PCA, as above.
 #: QS_FR_BASIS=own (Priya 11-01: "we have the FR factors per-session - can we regress on those too?"): each session's OWN
@@ -294,7 +295,7 @@ def session_table():
     from wfield_local import epochs
     D = {f.stem: dict(np.load(f)) for f in sorted((FR_OUT / "sessions").glob("*.npz"))}
     cols = columns()
-    pre = {k: d for k, d in D.items() if epochs.epoch_of(k) == "pre" and k[-4:] >= "0806"}
+    pre = {k: d for k, d in D.items() if epochs.epoch_of(k) == "pre" and not config.early_pre(k)}
     thr = {}
     for an in sorted({k[:4] for k in D}):
         for kind in ("raw", "res"):
@@ -302,7 +303,7 @@ def session_table():
     rows = []
     for k, d in D.items():
         ep = epochs.epoch_of(k)
-        if ep is None or (ep == "pre" and k[-4:] < "0806"):
+        if ep is None or (ep == "pre" and config.early_pre(k)):
             continue
         an, fs, eng = k[:4], float(d["fs"]), d["engaged_frame"].astype(bool)
         mins = int(d["n_rest_eng"]) / fs / 60
@@ -430,7 +431,7 @@ def main():
     if not a.summarise:
         from wfield_local.analysis_kit import curated_labels
         from wfield_local.analysis_kit import fan_sessions  # fan_out + sort (rule 9)
-        labels = a.only or [k for k in sorted(curated_labels()) if k[-4:] >= "0806"]
+        labels = a.only or [k for k in sorted(curated_labels()) if not config.early_pre(k)]
         res, fail = fan_sessions(labels, extract, jobs=a.jobs, label="session")
         print(f"{len(res)} done, {len(fail)} failed")
         for x in fail:

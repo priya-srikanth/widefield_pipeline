@@ -64,6 +64,7 @@ def session_job(job) -> list[dict]:
 
 
 def main(argv=None) -> int:
+    from wfield_local import config
     from wfield_local import run_mode as _rm_guard
     _rm_guard.require_default("s1_trial_class_snapshot")   # unrouted share writer: refuses in a non-default run mode
     from wfield_local import analysis_kit as ak
@@ -79,7 +80,7 @@ def main(argv=None) -> int:
     out = oo.encoding_root(oc.RUN, PathResolver()) / "qc"
     writeguard.assert_writable(out)
     cur = set(ak.curated_labels())
-    labels = [s["label"] for s in F.SESSIONS if s["label"][-4:] >= "0806" and s["label"] in cur]
+    labels = [s["label"] for s in F.SESSIONS if not config.early_pre(s["label"]) and s["label"] in cur]
     got, fail = ak.fan_sessions([(lab, a.window) for lab in labels], session_job, jobs=a.jobs, key=lambda j: j[0])
     for it, err in fail:
         print(f"  FAILED {it}: {err}")

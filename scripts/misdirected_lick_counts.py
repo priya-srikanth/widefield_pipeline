@@ -22,6 +22,7 @@ import pandas as pd
 
 def main(argv=None) -> int:
     # coordinator 11-04: routed (outputs under the run tag), no longer refused in a tagged run
+    from wfield_local import config
     from wfield_local import analysis_kit as ak
     from wfield_local import combined_encoding as ce
     from wfield_local import epochs
@@ -50,7 +51,7 @@ def main(argv=None) -> int:
         lab = s["label"]
         animal, date = lab.split("_")[0], "2026" + lab[5:]
         ep = epochs.epoch_of(lab)
-        if ep not in ("pre", "acute", "subacute", "chronic") or (ep == "pre" and lab[5:] < oc.LATE_PRE_FROM):
+        if ep not in ("pre", "acute", "subacute", "chronic") or (ep == "pre" and config.early_pre(lab)):
             continue
         sd = oo.session_dir(rv, a.run, animal, date)
         if not (sd / "licks.csv").exists():

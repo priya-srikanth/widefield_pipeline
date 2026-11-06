@@ -61,6 +61,7 @@ def session_check(label: str) -> dict:
 
 
 def main(argv=None) -> int:
+    from wfield_local import config
     from wfield_local import analysis_kit as ak
     from wfield_local import orofacial_cohort as oc
     from wfield_local import orofacial_outputs as oo
@@ -83,7 +84,7 @@ def main(argv=None) -> int:
     # CURATED sessions only (Priya 10-20: "only sessions from our curated analysis list" -- no early June / 0805, no
     # stroke-day 0817); from 08-06 = the August-only baseline + post-stroke
     cur = set(ak.curated_labels())
-    labels = a.labels or ([s["label"] for s in F.SESSIONS if s["label"][-4:] >= "0806" and s["label"] in cur]
+    labels = a.labels or ([s["label"] for s in F.SESSIONS if not config.early_pre(s["label"]) and s["label"] in cur]
                           if a.all else list(DEFAULT))
     prev = pd.DataFrame()
     if a.all:                                          # reuse rows already computed (both files)

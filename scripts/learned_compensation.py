@@ -122,6 +122,7 @@ LS_COLS = ["sid", "label", "animal", "epoch", "day", "lick_uid", "trial_id", "li
 
 
 def cmd_run(jobs: int) -> None:
+    from wfield_local import config
     from wfield_local import analysis_kit as ak
     from wfield_local import writeguard
     writeguard.assert_writable(OUT)
@@ -130,7 +131,7 @@ def cmd_run(jobs: int) -> None:
     t0 = time.time()
     LS = pd.read_csv(E / "within_lick_correction" / "licks_scored.csv.gz", usecols=LS_COLS, low_memory=False)
     LS = LS[LS.animal.isin(AN) & LS.epoch.isin(EPS)]
-    LS = LS[(LS.epoch != "pre") | (LS.label.str[-4:-2] == "08")].copy()      # August-only pre (already so; asserted)
+    LS = LS[(LS.epoch != "pre") | (~LS.label.map(config.early_pre))].copy()      # August-only pre (already so; asserted)
     LS["onset_ok"] = _b(LS.onset_ok)
     sids = sorted(LS.sid.unique())
     print(f"{len(sids)} sessions, {len(LS)} licks (load {time.time() - t0:.0f} s)", flush=True)
@@ -419,6 +420,7 @@ def t2_contrast(C: pd.DataFrame, key: str = "phase", a: str = "retract", b: str 
 
 # ================================================================================================ summarise
 def cmd_summarise() -> None:
+    from wfield_local import config
     from wfield_local import analysis_kit as ak
     from wfield_local import writeguard
     writeguard.assert_writable(OUT)
@@ -435,7 +437,7 @@ def cmd_summarise() -> None:
     I = pd.read_csv(OUT / "iti_licks.csv.gz", low_memory=False)
     I["prev_canonical"] = _b(I.prev_canonical)
     assert not set(T.animal.dropna()) - set(AN) and not set(I.animal) - set(AN), "cohort2 leaked in"
-    assert (T[T.epoch == "pre"].label.str[-4:-2] == "08").all(), "June pre leaked in"
+    assert (~T[T.epoch == "pre"].label.map(config.early_pre)).all(), "June pre leaked in"
     fd = {}
     # ------------------------------------------------------------------------------------------------ T1
     S = t1_sessions(T)

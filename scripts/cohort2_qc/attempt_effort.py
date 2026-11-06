@@ -27,6 +27,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from quiet_area_spikes import EVENTS, columns, session_traces  # noqa: E402
 from quiet_spikes_v2 import V2  # noqa: E402
 from wfield_local import lp_licks as _lp_licks  # noqa: E402  (coordinator 11-04: the run's attempts table)
+from wfield_local import config  # noqa: E402
 
 OUTE = V2.parent / "attempt_effort"
 TA = _lp_licks.attempts_path()      # THIS run's attempts table (coordinator 11-04)
@@ -85,7 +86,7 @@ def summarise():
     import pandas as pd
     pd.set_option("display.width", 220)
     S = pd.concat([pd.read_csv(f) for f in sorted((OUTE / "sessions").glob("*.csv"))], ignore_index=True)
-    S = S[S.label.str[-4:] >= "0806"]
+    S = S[~S.label.map(config.early_pre)]
     S["run_delta"] = S.run_win - S.run_base
     S.to_csv(OUTE / "attempt_effort_trials.csv", index=False)
     for sub, G in (("ALL spouts", S), ("FAR CONTRA", S[S.pos == "far_contra"])):
@@ -219,7 +220,7 @@ def main():
     if not a.summarise:
         import pandas as pd
         from wfield_local.analysis_kit import fan_sessions  # fan_out + sort (rule 9)
-        labels = sorted(x for x in pd.read_csv(TA, usecols=["label"]).label.unique() if x[-4:] >= "0806")
+        labels = sorted(x for x in pd.read_csv(TA, usecols=["label"]).label.unique() if not config.early_pre(x))
         if a.reverse:
             fan_sessions(labels[::-1], extract, jobs=a.jobs, label="session")
             return

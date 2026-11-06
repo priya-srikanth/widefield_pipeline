@@ -183,14 +183,13 @@ def _session_worker(job):
 def collect(rv, run: str, jobs: int | None, baseline: str, cache: Path) -> list:
     from wfield_local import analysis_kit as ak
     from wfield_local import config, epochs
-    from wfield_local import orofacial_cohort as oc
     from wfield_local import orofacial_outputs as oo
     items = []
     for s_ in ak.curated_sessions(order="sorted"):
         a = config.animal_of(s_["label"])
         date = config.date8(s_["label"].split("_")[-1])
         ep = epochs.epoch_of(s_["label"])
-        if baseline == "late" and ep == "pre" and date[4:8] < oc.LATE_PRE_FROM:
+        if baseline == "late" and ep == "pre" and config.early_pre(date):
             continue
         sd = oo.session_dir(rv, run, a, date)
         if (sd / "manifest.json").exists():

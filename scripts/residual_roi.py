@@ -40,11 +40,12 @@ RESP = {"cue": ((0.5, 1.5), (-0.5, 0.0)), "lick": ((0.0, 1.0), (-0.3, -0.1))}
 def spout_table(run: Path) -> pd.DataFrame:
     """Per session x window x spout x area residual (x1e3) + pre-SD z per animal x window x spout x area (Fig 10 / 10c-g
     counterparts). Same evoked windows as specificity_control.session_rows, spouts kept separate."""
+    from wfield_local import config
     import json
     rows = []
     for js in sorted((run / "joint" / "sessions").glob("*.json")):
         m = json.loads(js.read_text(encoding="utf-8"))
-        if m["label"][-4:] < "0801":
+        if config.early_pre(m["label"]):
             continue
         z = np.load(js.with_suffix(".npz"))
         off, parts = z["peth_off_s"], m["peth_parts"]

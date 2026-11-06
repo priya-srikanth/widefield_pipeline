@@ -34,11 +34,12 @@ WINDOWS = {"lick": ((0.0, 1.0), (-0.3, -0.1)), "cue": ((0.5, 1.5), (-0.5, 0.0))}
 
 
 def session_table(run: Path, variant: str) -> pd.DataFrame:
+    from wfield_local import config
     from wfield_local import epochs
     rows = []
     for js in sorted((run / variant / "sessions").glob("*.json")):
         m = json.loads(js.read_text(encoding="utf-8"))
-        if m["label"][-4:] < "0801":
+        if config.early_pre(m["label"]):
             continue
         z = np.load(js.with_suffix(".npz"))
         off = z["peth_off_s"]

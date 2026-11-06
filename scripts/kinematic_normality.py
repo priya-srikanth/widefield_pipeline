@@ -96,6 +96,7 @@ def _w(path: Path) -> Path:
 
 # ============================================================================================ data
 def sessions() -> pd.DataFrame:
+    from wfield_local import config
     from wfield_local import analysis_kit as ak
     from wfield_local import epochs
     rows = []
@@ -104,7 +105,7 @@ def sessions() -> pd.DataFrame:
         if an not in AN:                                   # never cohort 2
             continue
         ep = epochs.epoch_of(lab)
-        if ep is None or (ep == "pre" and lab[-4:] < "0801"):     # August-only pre
+        if ep is None or (ep == "pre" and config.early_pre(lab)):     # August-only pre
             continue
         rows.append({"label": lab, "animal": an, "epoch": ep, "day": epochs.days_since_stroke(lab)})
     return pd.DataFrame(rows)

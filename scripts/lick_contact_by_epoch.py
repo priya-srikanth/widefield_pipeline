@@ -16,6 +16,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 from wfield_local.paths import PathResolver
 from wfield_local import orofacial_outputs as oo, orofacial_cohort as oc, epochs
 from wfield_local import run_mode as _rm_guard  # noqa: E402
+from wfield_local import config  # noqa: E402
 _rm_guard.require_default("lick_contact_by_epoch")   # unrouted share writer: refuses in a non-default run mode
 rv = PathResolver()
 q = oo.encoding_root(oc.RUN, rv) / "qc"
@@ -30,7 +31,7 @@ base = pathlib.Path(rv.root("orofacial")) / oc.RUN / "sessions"
 for a in ("PS92", "PS93", "PS94", "PS95"):
     for d in sorted(p.name for p in (base / a).iterdir() if p.is_dir()):
         ep = epochs.epoch_of(f"{a}_{d[4:]}")
-        if ep not in EP or (ep == "pre" and d[4:6] != "08"):
+        if ep not in EP or (ep == "pre" and config.early_pre(d)):
             continue
         f = base / a / d / "licks_all.csv"
         if not f.exists():

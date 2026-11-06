@@ -43,10 +43,11 @@ EP4 = ["pre", "acute", "subacute", "chronic"]
 
 
 def session_rows(run: Path, variant: str = "joint") -> pd.DataFrame:
+    from wfield_local import config
     rows = []
     for js in sorted((run / variant / "sessions").glob("*.json")):
         m = json.loads(js.read_text(encoding="utf-8"))
-        if m["label"][-4:] < "0801":                     # August-only pre (June excluded from encoder analyses)
+        if config.early_pre(m["label"]):                     # August-only pre (June excluded from encoder analyses)
             continue
         z = np.load(js.with_suffix(".npz"))
         off, parts = z["peth_off_s"], m["peth_parts"]

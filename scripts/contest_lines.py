@@ -29,8 +29,9 @@ OUT = E / "contest_lines"
 
 def unique_table(tag: str, qs: dict) -> pd.DataFrame:
     """Per session x window x area unique R2 of each group: {series label: group}."""
+    from wfield_local import config
     D = pd.read_csv(E / f"frozen_encoder_{tag}" / "frozen_musall_r2.csv")
-    D = D[(D.measure == "frame") & (D.label.str[-4:] >= "0801") & D.area.isin(AREAS)]
+    D = D[(D.measure == "frame") & (~D.label.map(config.early_pre)) & D.area.isin(AREAS)]
     W = D.pivot_table(index=["label", "animal", "epoch", "align", "area"], columns="variant", values="r2").reset_index()
     rows = []
     for lab, g in qs.items():
@@ -40,8 +41,9 @@ def unique_table(tag: str, qs: dict) -> pd.DataFrame:
 
 def remap_table(tag: str, qs: dict) -> pd.DataFrame:
     """Per session remapping index (self-fit unique - frozen unique) of each group, from session_vs_frozen/gap.csv."""
+    from wfield_local import config
     G = pd.read_csv(E / f"frozen_encoder_{tag}" / "session_vs_frozen" / "gap.csv")
-    G = G[G.area.isin(AREAS) & (G.label.str[-4:] >= "0801")]
+    G = G[G.area.isin(AREAS) & (~G.label.map(config.early_pre))]
     W = G.pivot_table(index=["label", "animal", "epoch", "window", "area"], columns="variant", values=["self", "frozen"])
     rows = []
     for lab, g in qs.items():

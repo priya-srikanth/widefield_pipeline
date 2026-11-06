@@ -35,7 +35,7 @@ def session_var(jf: Path, windows) -> dict | None:
     from wfield_local import config, epochs
     m = json.loads(jf.read_text())
     lab = m["label"]
-    if lab[-4:] < "0801":
+    if config.early_pre(lab):
         return None
     z = np.load(jf.with_suffix(".npz"))
     k = {str(x): i for i, x in enumerate(z["map_keys"])}
