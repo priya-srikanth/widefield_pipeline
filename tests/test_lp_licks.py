@@ -75,7 +75,9 @@ def test_session_cache_tags_kinds_only_under_lp(monkeypatch, tmp_path):
     monkeypatch.delenv(lp_licks.LICK_SOURCE_ENV)
     assert sc.cached(s, "tf-lick-abc", lambda: "recomputed") == "daq"  # DAQ entry not evicted
     names = sorted(p.name for p in tmp_path.glob("*.pkl"))
-    assert names == ["PS00_0101__tf-lick-abc-" + lp_licks.cache_tag() + "__sig.pkl", "PS00_0101__tf-lick-abc__sig.pkl"]
+    # every kind ends in the detector part (`run_mode.session_kind_tag`, 11-06: one detector since session_cache v14)
+    assert names == sorted(["PS00_0101__tf-lick-abc-" + lp_licks.cache_tag() + "-daqlk__sig.pkl",
+                            "PS00_0101__tf-lick-abc-daqlk__sig.pkl"])
 
 
 def test_frozen_spec_unchanged_under_lp_and_miss_refuses(monkeypatch):
