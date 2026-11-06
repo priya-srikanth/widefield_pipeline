@@ -86,7 +86,7 @@ v9k2 queue on the new main = k_spout_error, k_phase (+ those 7). The first run r
 unmeasured). Also unrouted: scripts/jaw_onsets.py cache (imaging_encoding/qc/_cache/jaw_onsets) -- hit today, would fail if stale.
 A27 cam4 result (k_cohort, 18:15): no headline change; 13 borderline cells; findings-number updates await Priya (overnight page).
 
-**PUSH FREEZE (a8 request ~17:30):** no pushes to widefield main until a8 reports feat/decks-to-presentations-20261106 landed (~2 h full suite). Message a8 first if a push is urgent.
+**PUSH FREEZE LIFTED ~18:40 (a8: decks branch landed, main = 3e543de5; decks now under presentations/pipeline/<kind>, PathResolver.deck_dir). Was:** no pushes to widefield main until a8 reports feat/decks-to-presentations-20261106 landed (~2 h full suite). Message a8 first if a push is urgent.
 
 **Update 16:57 (real clock; the ~16:10 / ~16:40 labels above were ~30-40 min early) -- ALL SEVEN 11-06 BRANCHES ON MAIN
 (ec0ff642): small 25832aad, frdrift 53cd46e5, gainbio ee140449, gates cd37f143, deffix 1bac0341, svg 6d44e774, cam4 ec0ff642.**
