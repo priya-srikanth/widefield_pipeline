@@ -1,6 +1,73 @@
 # Handoff 2026-11-01: quiet-period cortical events after the VLS stroke (cohort1, PS92-95) + literature context
 
-> **11-04 (evening) -- START HERE (PI-deck window sabatinilab-a8).** Live log, questions and findings:
+> **11-06 (afternoon) -- START HERE (a8), supersedes the morning block's deck facts.**
+> - DECK RENAMED by Priya: `presentations/Overview_2026-11-06.pptx` (194 slides, 107 hidden; PI_overview_2026-11-02.pptx
+>   no longer exists). Scripts stay in `_source_PI_overview_2026-11-02/`; new ones set DECK to the new name and check the
+>   `~$Overview_2026-11-06.pptx` lock. Old scripts now fail on a missing file (safe).
+> - Applied 11-06 pm: drop_s94_bullet3_add_check1_1106.py (slide 94 bullet 3 dropped; check-1 result in notes);
+>   reword_s92_posinfo_gain_1106.py (slide 92 bullet 1 "tracks position-carrying movement more strongly (not explained
+>   by more variable movement; provisional)" + check-1 notes; Priya OK here); 490 vs 470 slides 153/154 (SNR rename,
+>   re-rendered fig).
+> - CHECK 1 (posinfo regressor variance, posinfo_checks_v7g3_t3d_spont_frAsplit/ under rebuild_20261103 imaging_encoding):
+>   regressor variance flat / falling acutely (PS94 +18 %), unique R2 cue +0.022 [+0.005, +0.044] 4/4, per unit variance
+>   +107 %; "more variable licks" ruled out; open = decorrelation vs coupling (no_posinfo per-trial re-run, 34's queue).
+>   Script wf_attempt/scripts/posinfo_variance_check.py (uncommitted). Trial-matched PETH needs a predict-only re-run.
+> - SLIDE 94 RE-TILE HELD: Priya decided (34's window) the ALM/tjM1 *_split maps REPLACE the Allen ones; re-tile (PETH
+>   left, trial right) the split figure when 34's render lands. Slide 139 = exact-ROI frozen side.
+> - DECK NOTES "Data:" PASS (Priya): fixed 7-line block at the TOP of every note (Window / Licks / Trial period / Trial
+>   types / Gate / Baseline / Correction), existing text below minus duplicated method sentences. Source = 34's
+>   wf_attempt docs/status/rebuild_20261103/FIGURE_PROVENANCE_20261106 (data_block7 + correction columns coming in its
+>   post-render CONFIRMED merge -- write only CONFIRMED rows). Draft map deck slide -> row (scratch, rebuild with
+>   notes_gap_table.py + rematch2.py logic): 172 picture slides; no row yet 31, 111, 153, 154, 164; check by hand 44, 162,
+>   163; HELD 108 + 187 (A23 exec_vs_neural_match) and LMM slides 8, 17, 20, 121, 122, 139 (deficit-table dir fix) + ~50
+>   stars slides pending 34's producing_script / held flag. Far-contra / attempt decoders are LP-TRAINED: notes must say so.
+> - DECKS -> presentations/pipeline/ (Priya: all auto-built decks; June alignment_comparison -> presentations/archive/
+>   20260601/): helper branch feat/decks-to-presentations-20261106 (worktree wf_decks_presentations), new paths.yaml root;
+>   MOVES NOT DONE -- do them from the helper's move table after its push lands.
+> - SVG: 34's helper adds svg_path() saves to page / deck writers (feat/svg-page-figures-20261106). Redraw inventory
+>   wf_attempt docs/status/REDRAW_INVENTORY_2026-11-06.md: 610 figs, 250 redraw-only (~67 have inputs today), full redraw
+>   ~16 h -> recommendation: no separate redraw; SVGs come with the pending _daqlk catch-up; ask Priya re the ~67.
+> - Cleanup push LANDED on main c724c6b6 (18+ commits). PITFALL: never edit a worktree while its pre-push pytest runs (3
+>   source-text tests failed that way); test_session_cache prune test now globs `<kind>*` (kind carries -daqlk).
+>   34 held its pushes for this and was released.
+>
+> **11-06 (morning) -- (PI-deck + code-cleanup window sabatinilab-a8).** Live log: 
+> docs/status/RUNNING_LIST_2026-11-05_OVERNIGHT.md (questions first). Efficiency: docs/status/EFFICIENCY_AUDIT_2026-11-06.md;
+> style debt: docs/status/STYLE_INVENTORY_2026-11-06.md.
+>
+> DECK (sole writer = a8): 192 slides, 106 hidden (Priya hid ~21 on 11-06 while editing; KEEP her hidden states and
+> formatting: every script opens the CURRENT saved deck, refuses if `~$PI_overview...` lock exists, backs up, asserts
+> hidden states unchanged, finds slides by picture name, not number). 11-06 edits (scripts in _source_PI_overview_2026-11-02/):
+> - update_s94_peth_trial_rows_1106.py: slide 94 six-row PETH/trial figure, bullet 3, notes + trial counts. TODO (Priya
+>   "yes"): RE-TILE it 3 rows x 12 (PETH left, trial-by-trial right) -- at six rows it fits only the middle third.
+> - reword_s121_iti_recovery_1106.py (ITI r only partly recovers); text_fixes_batch_1106.py: 91 (no-FR caveat), 139
+>   (Priya's bullet + per-area caveat), 127/128/129 (each row's own stars: 30 / 24 / 16 of 70), 143 + 153 ("slow < 4 Hz,
+>   largest at 2-3 Hz"), 147 notes (470 0.5-1 Hz +0.38), 153 'does cortex lead the lick' -> answered (FINDINGS 23-25).
+> - Priya edited slide 88 short answer and slide 139 bullet 1 herself; reword_s88_short_answer_1106.py was NOT run.
+> - Slide 11: wait for the 1.0 s ENL re-run (figure + numbers + text together; current = 2.0 s table).
+> - DONE 11-06 08:1x: cohort 2 section, add_c2_490_vs_470_1106.py -> visible slide 153 "490 nm helps RiboL1-8s, neutral
+>   for GCaMP6s" (d' figure) + hidden 154 (F0 / SNR / fade); figures labcams/cohort2/490_vs_470/ (imaging box 11-06
+>   07:59); deck now 194 slides, 107 hidden. The source d' figure's x date labels overlap (fix in led_490_vs_470_dprime.py).
+>
+> CODE (11-06): on main: response-window fallback 9ad4fbcc, hemo 470 slot f1fd9f9f, August-only cut 5fa8253c (cohort key
+> 0806; WIDEFIELD_PRE_FROM stays 0801 = folder names), CLAUDE.md rule 4 = MERGE not rebase 29845278, 34's
+> fix/log-deficit-primary (e5f53dbd). LOCAL in wf_cleanup2, push after the tests: bare-run warning d3b49856 (push was in
+> its pre-push suite), encoder cached features 1651b99c, slide-18 pre-session dots 17143af2 (merge c8b204dd; imaging_lmm
+> conflict resolved: pre rows drawn, not fitted), cache kind always carries daqlk 10dd0049 (all local cache entries
+> predate CACHE_VERSION 14, so nothing warm is orphaned). HELD: fail-loud DAQ contacts 5834f8de (until 34's render).
+> Also LOCAL: frozen ROI pool built once for decoder + encoder 677b37b7 (merge c4c9dca3; ~1.9 h / nightly; fan-out
+> WIDEFIELD_FROZEN_JOBS stays OFF until a serial-vs-jobs=8 JSON diff, BLAS threads differ) + cached map builder in
+> chronic_stability / flatpool_vs_restw. The bare-run warning push hit 1 test failure in its pre-push run (identify
+> when it ends; NOT the warning itself -- no test turns warnings into errors). Merge tests for pre-dots etc: 173 passed.
+> RUNNING helper: check 1 posinfo regressor variance
+> (-> posinfo_checks_v7g3_t3d_spont_frAsplit/). Trial-count check DONE: not computable from saved files (needs a
+> predict-only re-run); counts in trialmatched_peth_checks_v7g3_t3d_spont_frA/ (README in a8 scratchpad: write to M: blocked).
+> AWAITING PRIYA IN 34's WINDOW: no_posinfo per-trial re-run (~4 h), one pixmusall re-run + self-fit ROI targets for
+> ALM / tjM1 on slides 94 and 139, trial-matched predict re-run (9-14 h at 1 worker).
+> RULES learned 11-06: merge, never rebase; pre-push runs only touched tests unless configs/ / hooks / conftest change
+> (don't edit .githooks for comments); box is RAM-bound (<= 2 workers, keep >= 6 GB free).
+>
+> **11-04 (evening) -- previous START HERE (PI-deck window sabatinilab-a8).** Live log, questions and findings:
 > docs/status/RUNNING_LIST_2026-11-03_AWAY.md (questions first, WATCH section, findings newest first). Decisions:
 > DECISIONS.md 11-04 entries ("Deck / pages wait for the rebuild ...", "centre = Wt"). Page work: every 11-03 / 11-04
 > change is listed as main or collapsible in docs/status/PAGE_EDITS_PENDING_2026-11-04.md (checked by e0 and 34).

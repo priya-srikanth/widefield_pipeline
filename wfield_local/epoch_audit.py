@@ -115,9 +115,11 @@ def full_cohort():
     announced it as behaviour having moved. A one-animal render had re-staged the whole cohort.
     Epoch boundaries are a property of the COHORT'S behaviour; no caller's subset can change them.
     """
+    from wfield_local import config
     saved = {k: os.environ.pop(k) for k in SUBSET_ENV if k in os.environ}
     try:
-        yield
+        with config.full_pre_ok():   # the full pre set is deliberate here: no bare-run warning
+            yield
     finally:
         os.environ.update(saved)
 

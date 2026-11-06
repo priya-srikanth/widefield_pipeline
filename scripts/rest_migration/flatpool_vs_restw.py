@@ -78,7 +78,8 @@ def main() -> int:
         if e is None:
             continue
         try:
-            parts = prm.session_raw_maps(s, a.align, post_s=a.post_s, variant="working")
+            # memoised (`session_raw_maps_cached`): the identical call, keyed on the same align / post_s / variant
+            parts = prm.session_raw_maps_cached(s, a.align, post_s=a.post_s, variant="working")
         except Exception as ex:                                        # noqa: BLE001
             print(f"  !! {lab}: {type(ex).__name__} {str(ex)[:60]}", flush=True)
             n_skip += 1

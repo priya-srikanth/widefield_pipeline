@@ -87,3 +87,13 @@ The forward work the baseline pipeline is building toward:
 Running/quiet speed, min durations, and lick/reward/treadmill buffers are stroke-pipeline defaults; tune per
 rig/task and validate against DLC/FaceRhythm movement once available (see `DECISIONS.md` "Quiet-period
 baseline"). Grooming detection stays OFF (single-spout long-touch is unreliable).
+
+## Gap vs time-since-lesion (K08 Aim 1 ranking model)
+Does the frozen-to-refit gap just track time? If it does, detrending it against each animal's
+own trajectory throws away the signal (over-adjustment), and the ranking LMM is estimated from
+noise. Provisional answer on the REST arm: no, adj R2 <= 0.21 per animal and negative in three
+of four, so detrending is nearly free. Full method, numbers and caveats in
+**`docs/GAP_VS_TIME_VARIANCE.md`**; rerun on the task arm with
+`python scripts/gap_time_variance.py --align cue --variant working --unmatched` (needs the
+conda env + LocaNMF caches, so run it on the imaging computer). Still TODO: the per-LocaNMF-node
+version, which is the number the grant's clause actually rests on.
