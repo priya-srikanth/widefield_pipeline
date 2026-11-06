@@ -75,3 +75,69 @@ def precue_window_start(c0, strobe_f, licks_sorted, win_n, lickfree=True):
     if not np.any((licks_sorted >= fixed) & (licks_sorted < fixed + win_n)):
         return fixed                                          # already clean; keep it cue-aligned
     return lickfree_window(c0, strobe_f, licks_sorted, win_n)
+
+
+# ------------------------------------------------------------------------------------------ trace families (11-05)
+#: THE SPOUT-ARRIVAL SETTLE (Priya 11-04 ~20:00, the slide decision's guard): a slid window must START at least this long
+#: after the trial's position strobe -- the encoder's ENL-state settle -- so the spout-arrival transient stays out
+SETTLE_S = 0.3
+
+
+def sliding_lags(cue_s, strobe_s, lick_s, win_s: float, *, end_lag: float = 0.0, span_lo: float = -np.inf,
+                 settle_s: float = SETTLE_S):
+    """``(lo, hi)``: per trial the lag window (s from the cue) of its LICK-FREE ENL window, NaN = drop the trial -- for
+    the families that average cue-ALIGNED TRACES on a lag grid (Priya 11-04 ~20:00: the between-trial lick ENL family
+    and fr_enl_decode also SLIDE, like the imaging ENL decoders).
+
+    THE SEARCH IS THE DECODERS' (`precue_window_start` through `lp_licks.enl_window_starts_s`, rule 9): the window
+    [cue - win_s, cue) when it holds no lick of ``lick_s``, else the latest lick-free gap in [strobe, cue) long enough for
+    it, else drop. Then the guard of the decision: a window starting before ``strobe + settle_s`` or before the family's
+    extracted span (``span_lo``, e.g. -2.0 s for traces that start at cue - 2 s) is DROPPED, never clipped. A trial
+    without a strobe keeps only an unslid (clean, cue-ending) window. ``hi`` = ``lo + win_s`` capped at ``end_lag``
+    (the families that stop their window before the cue, e.g. -0.10 s so interpolation never reaches a post-cue frame,
+    keep that end on the unslid window; a slid window already ends at the lick that moved it)."""
+    from wfield_local import lp_licks
+    cue = np.asarray(cue_s, float)
+    strobe = np.asarray(strobe_s, float)
+    w0 = lp_licks.enl_window_starts_s(cue, strobe, lick_s, float(win_s))
+    lo = w0 - cue
+    # the unslid window, snapped to exactly -win_s (the search runs on a 1 ms grid, so w0 - cue is off by < 0.5 ms)
+    fixed = np.isfinite(lo) & (np.abs(lo + float(win_s)) < 1e-3)
+    lo = np.where(fixed, -float(win_s), lo)
+    ok = np.isfinite(lo) & (lo >= span_lo - 1e-9)
+    ok &= np.where(np.isfinite(strobe), w0 >= strobe + settle_s - 1e-9, fixed)
+    lo = np.where(ok, lo, np.nan)
+    hi = np.where(ok, np.minimum(lo + float(win_s), end_lag), np.nan)
+    return lo, hi
+
+
+def window_mean(X, lags, lo, hi):
+    """``X`` (trials x lags x columns) averaged over each trial's own lag window [lo, hi] (inclusive, as the families'
+    fixed masks); NaN rows for dropped trials (lo NaN)."""
+    X = np.asarray(X, float)
+    lags = np.asarray(lags, float)
+    out = np.full((X.shape[0],) + X.shape[2:], np.nan)
+    for i, (a, b) in enumerate(zip(np.asarray(lo, float), np.asarray(hi, float))):
+        if not (np.isfinite(a) and np.isfinite(b)):
+            continue
+        m = (lags >= a - 1e-9) & (lags <= b + 1e-9)
+        if m.any():
+            out[i] = np.nanmean(X[i, m], 0)
+    return out
+
+
+def strobe_for_cues(label: str, cue_s) -> np.ndarray:
+    """Per DAQ cue time (s) of ``label``, its trial's position strobe time (DAQ s), NaN where no trial matches: from the
+    v36 per-session windows.npz (`trial_classes._trial_times`), matched by cue time within `trial_classes.CUE_MATCH_S`
+    exactly as the camera classes are (`trial_classes.cue_classes`). For families whose stored trial files carry no
+    strobe."""
+    from pathlib import Path
+
+    from wfield_local import config
+    from wfield_local import trial_classes as tc
+    v36, _c1 = tc._paths(None, None)
+    sd = Path(v36) / config.animal_of(label) / ("2026" + label.split("_")[-1])
+    T = tc._trial_times(sd)
+    T = T.assign(cls=(T.cue_daq + T.strobe_ms / 1000.0).astype(object))
+    got = tc.cue_classes(T, np.asarray(cue_s, float))
+    return np.array([float(v) if v != "unknown" else np.nan for v in got], float)

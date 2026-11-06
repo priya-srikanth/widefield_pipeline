@@ -8,10 +8,15 @@ Per engaged trial with a first post-cue lick (the trial rows of the ITI session 
             KEY-row decoders' z-scoring; no trial-dependent centring, so the frozen decoder transfers unchanged).
             Window = lags [-W, -0.10] s from the cue (W = 1.0 primary, 0.5 variant); it stops 0.10 s before the cue so
             interpolation never reaches a post-cue frame.
-  lick-free the repo's ENL rule keeps a FIXED window ending at the cue when it holds no lick (`locanmf_position_decoder.
-            precue_window_start`; the slide-to-an-earlier-gap fallback is not used here -- the cue-aligned traces start
-            at -2 s and a slid window would mix in the spout-arrival transient). Trials with ANY behaviour lick onset in
-            [cue - L, cue) are dropped; L = W (variant "W") or 2.0 s ("2s", primary when enough trials remain).
+  lick-free SLIDING (Priya 11-04 ~20:00, "the between-trial lick ENL family and fr_enl_decode also SLIDE, for
+            consistency"; PRIMARY, lickfree "slide"): the imaging ENL decoders' own search (`enl_window.sliding_lags` ->
+            `precue_window_start`): the window [-W, -0.10] when no licks_all onset falls in [cue - W, cue), else the
+            latest lick-free W-s gap after the strobe, else the trial is dropped; a slid window must start >= strobe +
+            0.3 s (`enl_window.SETTLE_S`, the spout-arrival transient) and inside the traces (>= -2 s), else dropped.
+            Features "s10:" / "s05:", window start per trial "slo10" / "slo05". ROBUSTNESS "2s": the old fixed window
+            [-W, -0.10] on trials with no lick onset in [cue - 2 s, cue) ("w10:" / "w05:"). The fixed-drop variant "W"
+            (no lick in [cue - W, cue)) is retired by the slide decision; `select` still reads it for old tables.
+            Until 11-05 "2s" was primary and the window never slid (the 11-04 ~19:00 "keep them fixed" note).
   target    angle = degrees(arcsin(side_ml / reach_mm)) of the FIRST post-cue lick, from <OUT_W>/firstlick_full/
             <label>.npz (3-D kinematics of every bout-first post-cue lick), matched by DAQ time: the kinematic lick whose
             peak lies in [onset - 0.02, onset + MATCH_S] of the behaviour first-lick onset. + = toward + side_ml.
@@ -55,6 +60,17 @@ TRIALS = OUT / "enl_angle_decode_trials.csv.gz"
 WINDOWS = (1.0, 0.5)
 W_END = -0.10
 LF_LONG = 2.0
+#: the lick-free rules run (Priya 11-04 ~20:00 / 11-05): "slide" PRIMARY (the decoders' sliding lick-free window),
+#: "2s" robustness (fixed window, no lick in the last 2 s)
+LF_RULES = ("slide", "2s")
+LF_PRIMARY = "slide"
+
+
+def fcols(W: float, lf: str, names) -> list:
+    """The feature columns of window W under lick-free rule lf: "s10:" / "s05:" for the slid window, else the fixed
+    window's "w10:" / "w05:"."""
+    return [f"{'s' if lf == 'slide' else 'w'}{'10' if W == 1.0 else '05'}:{n}" for n in names]
+
 MATCH_S = 0.25
 ALPHAS = np.logspace(-1, 5, 13)
 AN = ["PS92", "PS93", "PS94", "PS95"]
@@ -108,13 +124,19 @@ def session_trials(label: str) -> dict:
     names = il.area_names(cols)
     sd = il.area_sd().loc[label, names].to_numpy(float)
     C = z["cue"].astype(float)
-    F = {}
+    F, FS, LO = {}, {}, {}
+    from wfield_local import enl_window
+    strobe = enl_window.strobe_for_cues(label, cue)
     for W in WINDOWS:
         m = (lags >= -W - 1e-9) & (lags <= W_END + 1e-9)
         F[W] = il.area_features(np.nanmean(C[:, m, :], 1), cols, label) / sd
+        # THE SLIDING LICK-FREE WINDOW (11-04 ~20:00 decision), on the same licks_all onsets as the fixed-drop rule
+        LO[W], hi = enl_window.sliding_lags(cue, strobe, bo, W, end_lag=W_END, span_lo=float(lags.min()))
+        FS[W] = il.area_features(enl_window.window_mean(C, lags, LO[W], hi), cols, label) / sd
     return {"label": label, "animal": config.animal_of(label), "epoch": epochs.epoch_of(label), "cue": cue, "fl": fl,
             "pos": z["pos"].astype(str), "kpos": kpos, "n_between": n_between, "nl05": nl[0.5], "nl1": nl[1.0], "nl2": nl[LF_LONG],
-            "side_ml": side, "reach_mm": reach, "kin_lag": lag, "F10": F[1.0], "F05": F[0.5], "names": names}
+            "side_ml": side, "reach_mm": reach, "kin_lag": lag, "F10": F[1.0], "F05": F[0.5], "names": names,
+            "S10": FS[1.0], "S05": FS[0.5], "slo10": LO[1.0], "slo05": LO[0.5], "strobe": strobe}
 
 
 def extract(jobs: int) -> pd.DataFrame:
@@ -130,10 +152,12 @@ def extract(jobs: int) -> pd.DataFrame:
         if v["names"] != names:
             raise RuntimeError(f"{v['label']}: feature names differ")
         T = pd.DataFrame({c: v[c] for c in ("cue", "fl", "pos", "kpos", "n_between", "nl05", "nl1", "nl2", "side_ml", "reach_mm",
-                                            "kin_lag")})
+                                            "kin_lag", "strobe", "slo10", "slo05")})
         T.insert(0, "label", v["label"]); T.insert(1, "animal", v["animal"]); T.insert(2, "epoch", v["epoch"])
         T = pd.concat([T, pd.DataFrame(v["F10"], columns=[f"w10:{n}" for n in names]),
-                       pd.DataFrame(v["F05"], columns=[f"w05:{n}" for n in names])], axis=1)
+                       pd.DataFrame(v["F05"], columns=[f"w05:{n}" for n in names]),
+                       pd.DataFrame(v["S10"], columns=[f"s10:{n}" for n in names]),
+                       pd.DataFrame(v["S05"], columns=[f"s05:{n}" for n in names])], axis=1)
         rows.append(T)
     T = pd.concat(rows, ignore_index=True)
     T.to_csv(TRIALS, index=False, float_format="%.6g")
@@ -238,14 +262,22 @@ def _perm_within(y, g, rng):
 
 
 def select(T: pd.DataFrame, W: float, lf: str) -> pd.DataFrame:
-    L = {"W": {1.0: "nl1", 0.5: "nl05"}[W], "2s": "nl2"}[lf]
-    m = np.isfinite(T.angle) & (T[L] == 0) & (T.n_between == 0) & T.epoch.isin(EP)
+    """The trials of window W under lick-free rule lf: "slide" = the trial has a sliding lick-free window (`slo10` /
+    `slo05` finite); "2s" / "W" = no licks_all onset in the last 2 s / W s (the fixed window)."""
+    if lf == "slide":
+        c = f"slo{'10' if W == 1.0 else '05'}"
+        if c not in T:
+            raise SystemExit(f"{TRIALS} predates the sliding ENL window (no {c}): re-run with --extract")
+        free = np.isfinite(T[c].to_numpy(float))
+    else:
+        free = T[{"W": {1.0: "nl1", 0.5: "nl05"}[W], "2s": "nl2"}[lf]] == 0
+    m = np.isfinite(T.angle) & free & (T.n_between == 0) & T.epoch.isin(EP)
     return T[m].reset_index(drop=True)
 
 
 def run_variant(T: pd.DataFrame, W: float, lf: str, nshuf: int, names: list) -> tuple:
     S = select(T, W, lf)
-    fc = [f"w{'10' if W == 1.0 else '05'}:{n}" for n in names]
+    fc = fcols(W, lf, names)
     pre_rows, sess_rows, trial_rows, coef_rows = [], [], [], []
     rng = np.random.default_rng(SEED)
     for a in AN:
@@ -376,7 +408,9 @@ def figure(PRE: pd.DataFrame, SS: pd.DataFrame, TS: pd.DataFrame, W: float, lf: 
         a_.set_ylim(lo_, hi_ + 0.18 * (hi_ - lo_))
     h_, l_ = ax[0].get_legend_handles_labels()
     fig.legend(h_, l_, loc="lower center", ncol=len(l_), fontsize=9, frameon=False)
-    fig.suptitle(f"ENL ({-W:g}..{W_END:g} s before cue; no lick in the {('last ' + format(W, 'g')) if lf == 'W' else 'last 2'} s) "
+    rule = {"slide": f"sliding lick-free {W:g} s window (ends <= {W_END:g} s)", "W": f"no lick in the last {W:g} s",
+            "2s": "no lick in the last 2 s"}[lf]
+    fig.suptitle(f"ENL ({-W:g}..{W_END:g} s before cue; {rule}) "
                  "-> angle of the first post-cue lick. Ridge on Allen areas (ALM/tjM1 split), per animal; post = frozen "
                  "all-pre decoder. PROVISIONAL", fontsize=10)
     fig.tight_layout(rect=(0, 0.06, 1, 1))
@@ -405,12 +439,12 @@ def controls(T: pd.DataFrame, names: list, nshuf: int) -> pd.DataFrame:
     Each with an nshuf within-cell permutation null."""
     rows = []
     rng = np.random.default_rng(SEED + 1)
-    fc = [f"w10:{n}" for n in names]
     T = T.sort_values(["label", "cue"]).reset_index(drop=True)
     T["cell0"] = T.label + "|" + T.pos
     prev_ok = (T.label == T.label.shift()) & (T.cue - T.cue.shift() <= 30)
     T["prev_pos"] = np.where(prev_ok, T.pos.shift().astype(str), "none")
-    for lf in ("W", "2s"):
+    for lf in LF_RULES:
+        fc = fcols(1.0, lf, names)
         # previous-trial angle deviation from ALL matched trials (not only lick-free ones)
         ok = np.isfinite(T.angle)
         aw = np.full(len(T), np.nan)
@@ -468,7 +502,7 @@ def main() -> int:
     T, names = prepare(T)
     if "--plot-only" in sys.argv:
         PRE, SS, TS = (pd.read_csv(OUT / f"enl_angle_decode_{k}.csv") for k in ("pre", "sessions", "tests"))
-        figure(PRE, SS, TS, 1.0, "2s")
+        figure(PRE, SS, TS, 1.0, LF_PRIMARY)
         return 0
     if "--controls" in sys.argv:
         print(controls(T, names, nshuf).round(3).to_string(index=False))
@@ -481,14 +515,16 @@ def main() -> int:
         k = k & (g.n_between == 0)
         cnt.append({"animal": a, "epoch": ep, "n_trials": len(g), "matched_kin": int(k.sum()),
                     "lf_0.5": int((k & (g.nl05 == 0)).sum()), "lf_1.0": int((k & (g.nl1 == 0)).sum()),
-                    "lf_2.0": int((k & (g.nl2 == 0)).sum())})
+                    "lf_2.0": int((k & (g.nl2 == 0)).sum()),
+                    **{f"slide_{W:g}": int((k & np.isfinite(g[f"slo{'10' if W == 1.0 else '05'}"])).sum())
+                       for W in WINDOWS if f"slo{'10' if W == 1.0 else '05'}" in g}})
     C = pd.DataFrame(cnt)
     print("== trial counts (matched = first post-cue lick with 3-D kinematics; lf_L = + no lick onset in the last L s)")
     print(C.to_string(index=False))
     C.to_csv(OUT / "enl_angle_decode_counts.csv", index=False)
     PRE, SS, CF = [], [], []
     for W in WINDOWS:
-        for lf in ("W", "2s"):
+        for lf in LF_RULES:
             p, s, c = run_variant(T, W, lf, nshuf, names)
             PRE.append(p); SS.append(s); CF.append(c)
             print(f"\n== PRE W={W} lickfree={lf}\n" + p.round(3).to_string(index=False), flush=True)
@@ -501,7 +537,7 @@ def main() -> int:
     CF.to_csv(OUT / "enl_angle_decode_coefs.csv", index=False)
     print("\n== per animal x epoch (frozen decoder; pre = LOSO)\n" + E.round(3).to_string(index=False))
     print("\n== change vs pre (paired nested bootstrap)\n" + TS.round(3).to_string(index=False))
-    figure(PRE, SS, TS, 1.0, "2s")
+    figure(PRE, SS, TS, 1.0, LF_PRIMARY)
     return 0
 
 
