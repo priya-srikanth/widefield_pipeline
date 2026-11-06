@@ -1290,6 +1290,25 @@ def stop_kind_for(label: str, cue_s, window: str | None = None) -> np.ndarray:
     return _CUE_KIND[_cue_key(label, cue_s, window)]
 
 
+def camera_quit(label: str, cue_s, window: str | None = None) -> dict:
+    """THE CAMERA QUIT of one session (A6, docs/status/reanalysis_20261105/ENGAGEMENT_CAMERA_2026-11-05.md; Priya 11-05:
+    behaviour-only figures follow the camera working period): the first cue of the quit TAIL (`stop_kind_for` "tail" =
+    the trials after the session's last camera lick), called a quit only when the tail holds >= `stop_run_min()` cues
+    (6, the stop-run rule) and starts >= `stop_min_start_s()` (300 s) after the first cue; otherwise the session is
+    RIGHT-CENSORED, as the DAQ S28 quit (`engagement.session_quit`). ``cue_s`` = the session's FULL DAQ cue train (s).
+    Returns {"quit_cue": index into cue_s or -1, "censored", "has_classes" (False: no video -> no camera quit at all;
+    report such a session as a DAQ-only row, never with a DAQ fallback), "n_tail"}."""
+    cs = np.asarray(cue_s, float)
+    cls = cue_classes_for(label, cs, window)
+    kind = stop_kind_for(label, cs, window)
+    has = bool(np.any(cls != "unknown"))
+    tail = np.flatnonzero(kind == "tail")
+    out = {"quit_cue": -1, "censored": True, "has_classes": has, "n_tail": int(tail.size)}
+    if has and tail.size >= stop_run_min() and cs[tail[0]] - cs[0] >= stop_min_start_s():
+        out.update(quit_cue=int(tail[0]), censored=False)
+    return out
+
+
 def _cue_key(label: str, cue_s, window: str | None) -> tuple:
     import hashlib
     window = window or gate_window()
