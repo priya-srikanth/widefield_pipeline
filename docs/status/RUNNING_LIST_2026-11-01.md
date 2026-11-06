@@ -2028,3 +2028,10 @@ bundle without `daqlk` and writes a provenance json.
   position -29.3 q<.001 (-8.4 q<.001); lick: ceiling -25.4 q<.001 (-6.7 q .002), u_tgtbin -4.5 q .55 (-0.3 q .69),
   u_exbin -6.77 q<.001 (-2.4 q<.001), position -20.4 q<.001 (-8.6 q .17), distance -16.6 q<.001 (-4.4 q<.001).
   Figure x-label still says "relative to pre" -> fix to "log(ttc / pre ttc)" if adopted.
+- ~22:05: **Linear vs log deficit** (scratchpad mixed_log/compare_lin_log.py; qc/encoding_mixed_lin_vs_log.csv;
+  figures/mixed_models/encoding_mixed_lin_vs_log_cortex.png, original axis with both curves). ML fits, same RE.
+  dAIC(log - lin): ceiling cue -19.8 / lick -9.8; u_tgtbin cue -10.6 / lick -2.1; position cue -12.1 / lick -8.8;
+  distance cue -19.3 / lick -15.9; u_exbin cue +0.2 / lick +0.7; far-close / contra-ipsi ~0. Log fits better for the
+  overall coding measures + target in cue; executed equal. Per-animal post-session Spearman (y vs deficit): u_tgtbin cue
+  -.73 / -.85 / -.13 / -.49; u_tgtbin lick +.19 / -.70 / +.20 / -.43 (mixed); u_exbin lick -.35 / +.05 / -.15 / -.48.
+  Awaiting Priya: adopt log as primary deficit axis?
