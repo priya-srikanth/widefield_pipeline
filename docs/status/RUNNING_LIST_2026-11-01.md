@@ -2006,3 +2006,16 @@ bundle without `daqlk` and writes a provenance json.
   chronic: all 232 sig bins share the pre-drift sign, 90 drift-significant alone -> continues a pre trend. DECISIONS for
   Priya: captions "max-statistic per panel"; --n-null 250 + per-map seeds; a drift control (late-vs-early pre panel, or
   epoch vs late pre) for the FR pixel maps (and probably the other map families).
+- ~21:20: **Decisions branch done** (fix/decisions-f1-f2-enl-20261105, wf_decisions, base a8f1651d; unpushed):
+  a49795b3 (f)1 precue_engagement_states camera classes (work vs no_response, stopped etc scored only; new frozen align
+  `-disc-cls-work-v-noresp`; G4 already compliant, pinned; audit over-reached: 12s/12b/13s are the 3-way state decoder,
+  no re-render); ae051fc0 + 7e192257 (f)2 Fig 0.2 on the camera period, DAQ quit-tail as robustness figure; 8f4399d2
+  ENL slide (wfield_local/enl_window.py; lick_enl_angle_decode / target_test / offset_explore / revup_neural /
+  fr_enl_decode slide primary, 2 s robustness; new frozen ids enl_w1_lfslide / enl_w0.5_lfslide); 802c3d54
+  disengagement_tests camera quit (A6), revup_behaviour reads the run's attempts table; 92702a33 status note. Tests pass
+  (test_frozen_default partial: 33 + subset 5, none failed).
+  New queue steps needed: precue_engagement_states (precue + cue), fig_behaviour_hits, lick_enl_angle_decode --extract ->
+  offset_explore --history --offset -> target_test -> re-run e_pat_summarise; revup_neural; fr_enl_decode;
+  disengagement_tests; revup_behaviour; lane-X ENLv chain (create logs/ENL_SLIDE_FIX.done once merged).
+  Questions for Priya: precue discriminator late window with few no_response trials; 1b epoch hit rate stays DAQ?;
+  the camera attempts table on disk is the 11-04 pre-daqlk one?; iti_lick_rate / within_lick_correction ungated.
