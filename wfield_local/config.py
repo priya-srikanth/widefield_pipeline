@@ -6,9 +6,11 @@ Reads `configs/*.yaml` (mirrors stroke_orofacial_pipeline). `load_sessions()` pr
 """
 from __future__ import annotations
 
+import contextlib
 import functools
 import os
 import re
+import warnings
 from pathlib import Path
 
 import yaml
@@ -522,6 +524,43 @@ def pre_from() -> str | None:
     return v or None
 
 
+#: True once this process has CHOSEN the June + August pre set (``apply_pre_from("all")``, `require_full_pre`,
+#: `full_pre_ok`), so `_warn_bare_pre` stays quiet for runs that include June on purpose.
+_FULL_PRE_CHOSEN = False
+_BARE_PRE_WARNED = False
+
+
+@contextlib.contextmanager
+def full_pre_ok():
+    """Body deliberately uses every pre session (e.g. `epoch_audit.full_cohort`): no bare-run warning inside it."""
+    global _FULL_PRE_CHOSEN
+    old, _FULL_PRE_CHOSEN = _FULL_PRE_CHOSEN, True
+    try:
+        yield
+    finally:
+        _FULL_PRE_CHOSEN = old
+
+
+def _warn_bare_pre(date: str) -> None:
+    """Warn ONCE per process when a BARE run (no WIDEFIELD_PRE_FROM, no render profile, no explicit "all") pools an
+    early (June) pre session although the cohort has an August-only cut (Priya 11-06, Q1: warn now; the default
+    switches to the cut after the page-replacement pass, because that renames output folders). Changes no number."""
+    global _BARE_PRE_WARNED
+    if _BARE_PRE_WARNED or _FULL_PRE_CHOSEN or "WIDEFIELD_PRE_FROM" in os.environ:
+        return
+    if os.environ.get("WIDEFIELD_REBUILD_ROOT", "").strip():   # a render profile owns the pre set, unsets included
+        return
+    if not early_pre(date):
+        return
+    _BARE_PRE_WARNED = True
+    # Suggest the PRIMARY run value, not the cut itself: it names the existing `_pre0801_` folders, and a new value
+    # would re-render into new ones (same sessions, test_baseline_pre_from pins that).
+    from wfield_local import run_mode
+    warnings.warn(f"bare run: pooling pre sessions before the cohort's August-only cut ({baseline_pre_from()}, e.g. "
+                  f"{date}); set WIDEFIELD_PRE_FROM / --pre-from {run_mode.PRIMARY_PRE_FROM} for the primary baseline "
+                  "(reuses its outputs), or --pre-from all to include June on purpose", stacklevel=3)
+
+
 def apply_pre_from(value: str | None) -> str | None:
     """Set WIDEFIELD_PRE_FROM for THIS process (a render block's ``--pre-from``; rebuild 2026-11-03: the decoders'
     August-only pre is chosen PER RENDER BLOCK, never as a config default). ``None`` leaves the environment as it is;
@@ -529,8 +568,10 @@ def apply_pre_from(value: str | None) -> str | None:
     set is cached at import). Outputs of such a run are tagged ``pre<MMDD>`` by `run_mode`."""
     if value is None:
         return pre_from()
+    global _FULL_PRE_CHOSEN
     v = str(value).strip()
     if v.lower() in ("", "all", "none"):
+        _FULL_PRE_CHOSEN = True
         os.environ.pop("WIDEFIELD_PRE_FROM", None)
         return None
     if not re.fullmatch(r"\d{4}", v):
@@ -542,9 +583,11 @@ def apply_pre_from(value: str | None) -> str | None:
 def require_full_pre(what: str) -> None:
     """Raise when WIDEFIELD_PRE_FROM is set: for analyses that NEED the June pre sessions (the June vs August drift
     decoder, 12.1b lick-free rest), kept as labelled June + August sensitivities (rebuild 2026-11-03)."""
+    global _FULL_PRE_CHOSEN
     if pre_from():
         raise SystemExit(f"{what} needs the June pre sessions (June + August sensitivity, labelled as such): unset "
                          "WIDEFIELD_PRE_FROM / drop --pre-from for this block")
+    _FULL_PRE_CHOSEN = True
 
 
 def session_phase(animal: str, date: str) -> str:
@@ -562,6 +605,8 @@ def session_phase(animal: str, date: str) -> str:
     pf = pre_from()
     if ph == "pre" and pf and date_key(date) < date_key(pf):   # opt-in late-baseline mode (WIDEFIELD_PRE_FROM)
         return "excluded"
+    if ph == "pre":
+        _warn_bare_pre(date)
     return ph
 
 

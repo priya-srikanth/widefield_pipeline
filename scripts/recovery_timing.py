@@ -1,7 +1,11 @@
 """RECOVERY TIMING, HITS ONLY (Priya 10-25: "how strong is the evidence that cortex recovers at / after behaviour" -> run
 the hits-only test; and "can we predict animals' recovery from cortical activity?").
 
-Per post-stroke SESSION: behaviour = far-contra hit rate (hits / far-contra trials, `qc/trial_attempts.csv`); neural =
+Per post-stroke SESSION: behaviour = far-contra hit rate, THE Fig 0.2 / 1b rate (Priya 11-06, A21): column
+``frac_hit_far_contra`` of the run's trial_attempts_sessions.csv (`trial_attempts.session_summary`: camera class contact
+/ far-contra trials inside the CAMERA WORKING PERIOD -- denominator contact + incomplete + jaw_only + no_response; stopped,
+stopped-licking, early-run, after-end and unknown trials excluded); a table built without the camera gate is refused.
+Before 11-06 the denominator was every far-contra trial_attempts row (no period). Neural =
 frozen-decoder far-contra retention on HITS only (`attempt_coding/decoder_retention_sessions.csv`, sessions with >= 5
 far-contra hits; removes the composition dependence -- failed attempts carry no code). Both normalised within animal to
 its pre-stroke level (behaviour: pre far-contra hit rate; neural: 1 = pre hits by construction).
@@ -38,11 +42,29 @@ AN = ["PS92", "PS93", "PS94", "PS95"]
 ACOL = {"PS92": "#1b9e77", "PS93": "#d95f02", "PS94": "#7570b3", "PS95": "#e7298a"}
 
 
+#: THE camera working-period hit rate of `trial_attempts.session_summary` (as fig_behaviour_hits.CAMERA_COL)
+HIT_COL = "frac_hit_far_contra"
+DATA_HIT = ("far-contra hit rate = contact / camera-working-period trials (first cue -> last camera lick, stopped runs "
+            "A2 + excise out; as Fig 0.2 / 1b)")
+
+
+def far_contra_hit(W: pd.DataFrame) -> pd.DataFrame:
+    """[label, hit] from the run's trial_attempts_sessions.csv ``W`` (`trial_attempts.session_summary`): ``HIT_COL``, the
+    camera working-period hit rate. Never re-derived here (A21). REFUSES a table built without the camera trial gate
+    (no ``frac_stopped_*`` columns), like fig_behaviour_hits.camera_metrics; sessions without far-contra trials drop."""
+    if not any(c.startswith("frac_stopped_") for c in W.columns):
+        raise SystemExit("trial_attempts_sessions.csv is not camera-gated (no frac_stopped_* columns) -- build it with "
+                         "scripts/trial_attempts.py under WIDEFIELD_TRIAL_GATE=camera (the render profile)")
+    return W[["label", HIT_COL]].rename(columns={HIT_COL: "hit"}).dropna(subset=["hit"])
+
+
 def series(window: str) -> pd.DataFrame:
     from wfield_local import config
-    T = pd.read_csv(_lp_licks.attempts_path(), usecols=["label", "pos", "cls", "animal", "epoch", "day"])
-    T = T[(T.pos == "far_contra") & (~T.label.map(config.early_pre))]
-    beh = T.assign(hit=T.cls.isin(["hit", "pre_hit"])).groupby(["animal", "epoch", "label", "day"]).hit.mean().reset_index()
+    f = _lp_licks.attempts_path()
+    T = pd.read_csv(f, usecols=["label", "animal", "epoch", "day"]).drop_duplicates("label")
+    T = T[~T.label.map(config.early_pre)]
+    H = far_contra_hit(pd.read_csv(f.with_name("trial_attempts_sessions.csv")))
+    beh = T.merge(H, on="label", how="inner")[["animal", "epoch", "label", "day", "hit"]]
     pre = beh[beh.epoch == "pre"].groupby("animal").hit.mean()
     beh["beh"] = beh.hit / beh.animal.map(pre)
     N = pd.read_csv(A / "decoder_retention_sessions.csv")
@@ -154,7 +176,7 @@ def main(argv=None) -> int:
             ax.set_ylabel("relative to the animal's pre-stroke level")
             ax.legend(fontsize=7, frameon=False, loc="lower right")
     fig.suptitle(f"Recovery timing, HITS ONLY ({a.window} window): behaviour vs the cortical far-contra code on successful trials; "
-                 "half-recovery day from exponential fits, 95% CI by resampling sessions", fontsize=10)
+                 f"{DATA_HIT}; half-recovery day from exponential fits, 95% CI by resampling sessions", fontsize=10)
     fig.tight_layout(rect=(0, 0, 1, 0.9))
     fig.savefig(A / "figures" / f"recovery_timing_{a.window}.png", dpi=120)
     plt.close(fig)
@@ -222,7 +244,7 @@ def pooled_figures(S: pd.DataFrame, window: str, plt) -> None:
               + [Line2D([], [], color="0.5", lw=0.6, alpha=0.5, label="each animal")], fontsize=8.5, frameon=False,
               loc="lower right")
     ax.set_title(f"Recovery, pooled across animals ({window} window, hits only for cortex): mean of animals, band = 95% CI "
-                 "(animals > sessions)", fontsize=10)
+                 "(animals > sessions)\n" + DATA_HIT, fontsize=10)
     fig.tight_layout()
     fig.savefig(A / "figures" / f"recovery_timing_pooled_day_{window}.png", dpi=120)
     plt.close(fig)
@@ -270,7 +292,8 @@ def pooled_figures(S: pd.DataFrame, window: str, plt) -> None:
                + [Line2D([], [], color="k", lw=2.2, label="mean of animals")], loc="lower center", ncol=5, fontsize=8.5,
                frameon=False)
     fig.suptitle(f"Recovery by epoch, one dot per session, normalised within animal ({window} window; cortex = hits only). "
-                 "Numbers = change vs pre, 95% nested CI (bold = excludes 0); acute cortex: sessions with >= 5 hits only",
+                 "Numbers = change vs pre, 95% nested CI (bold = excludes 0); acute cortex: sessions with >= 5 hits only\n"
+                 + DATA_HIT,
                  fontsize=10)
     fig.tight_layout(rect=(0, 0.07, 1, 0.92))
     fig.savefig(A / "figures" / f"recovery_timing_pooled_epoch_{window}.png", dpi=120)
@@ -386,7 +409,7 @@ def aim_draw(F: dict) -> None:
                  fontsize=10, loc="left")
     bx.set_xlabel("days from stroke (binned; pre = all August pre sessions at x = -6)")
     fig.suptitle(f"Recovery pooled across animals by day bin ({window} window; cortex = hits only): mean of animals, "
-                 "band = 95% CI (animals > sessions). n = 4, PROVISIONAL", fontsize=10.5)
+                 "band = 95% CI (animals > sessions). n = 4, PROVISIONAL\n" + DATA_HIT, fontsize=10.5)
     fig.tight_layout(rect=(0, 0, 1, 0.96))
     out = A / "figures" / f"recovery_timing_pooled_day_{window}_aim.png"
     fig.savefig(out, dpi=120)

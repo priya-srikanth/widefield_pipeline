@@ -12,10 +12,14 @@ split by whether the licks went to the TARGET (on-target) or elsewhere (off-targ
 Usage: python scripts/exec_vs_neural_match.py [--source decoder|encoder] [--target far_contra]
 --target (Priya 10-25: "executed vs decoded just for far contra and far mid trials, separately"): only trials of that
 TARGET spout; rows need >= 3 trials per session (5 otherwise); outputs get the suffix _<target>.
+--source encoder reads the frozen relabel run ``frozen_relabel_<tag>``; the tag is DERIVED at call time from the design
+of the environment (`relabel_tag`: `frozen_encoder.design_tag("v7g3_t3d_trial")`, so FROZEN_LICKS_ALL=split ->
+v7g3_t3d_spont_trial, what the render's a_relabel_trial writes), never a stale literal (Priya 11-06, A23); a tag whose
+design does not match the environment, or a relabel folder with no sessions, is REFUSED (a silent 0-trial read was
+possible before). ``--relabel-tag`` overrides (still checked).
 Output: <E>/attempt_coding_pp/exec_vs_decoder_*.csv + figures/exec_vs_decoder_*.png
 """
 from __future__ import annotations
-from wfield_local.frozen_encoder import design_tag as _design_tag  # frame tag of the FROZEN_LICKS_ALL design (8.51)
 
 import sys
 from pathlib import Path
@@ -49,13 +53,34 @@ def mats(J: pd.DataFrame, min_n: int = 5) -> dict:
     return out
 
 
-def encoder_trials(tag: str = _design_tag("v7g3_t3d_trial")) -> pd.DataFrame:
+#: the trial-level relabel run's base tag; the design part (``_spont`` under FROZEN_LICKS_ALL=split) comes from
+#: `frozen_encoder.design_tag` at CALL time (`relabel_tag`), as every frozen reader's default
+RELABEL_BASE = "v7g3_t3d_trial"
+
+
+def relabel_tag(tag: str | None = None) -> str:
+    """The relabel tag to read: ``tag`` or `frozen_encoder.design_tag(RELABEL_BASE)`, evaluated now (not at import);
+    REFUSED (`frozen_encoder.check_tag`) when its design does not match FROZEN_LICKS_ALL."""
+    from wfield_local import frozen_encoder as fe
+    t = tag or fe.design_tag(RELABEL_BASE)
+    fe.check_tag(t, "relabel")
+    return t
+
+
+def encoder_trials(tag: str | None = None) -> pd.DataFrame:
     """Per trial, the frozen pre-stroke ENCODER's best-matching label (lowest lick-window SSE over the parcels among the
-    six relabellings, `frozen_relabel` trial_sse) -> columns label, animal, epoch, trial_id, spout, dec."""
+    six relabellings, `frozen_relabel` trial_sse) -> columns label, animal, epoch, trial_id, spout, dec. ``tag``
+    defaults to `relabel_tag()`; a relabel folder with no session files is refused."""
     import json
     rows = []
     from wfield_local import frozen_encoder as fe
-    for js in sorted((fe.out_root() / f"frozen_relabel_{tag}" / "sessions").glob("*.json")):   # the (tagged) encoder runs
+    tag = relabel_tag(tag)
+    files = sorted((fe.out_root() / f"frozen_relabel_{tag}" / "sessions").glob("*.json"))
+    if not files:
+        raise SystemExit(f"no relabel sessions in {fe.out_root() / f'frozen_relabel_{tag}'} -- run "
+                         f"`python -m wfield_local.frozen_relabel --tag {tag}` first (or pass --relabel-tag)")
+    print(f"encoder relabel run: frozen_relabel_{tag} ({len(files)} sessions)", flush=True)
+    for js in files:   # the (tagged) encoder runs
         m = json.loads(js.read_text(encoding="utf-8"))
         for tid, v in (m.get("trial_sse") or {}).get("lick", {}).items():
             cost = {k: x for k, x in v.items() if k in SP}
@@ -75,6 +100,8 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--source", default="decoder", choices=("decoder", "encoder"))
     ap.add_argument("--target", default=None, choices=SP)
+    ap.add_argument("--relabel-tag", default=None, help="--source encoder: the frozen_relabel run tag (default: "
+                    "design_tag('v7g3_t3d_trial') of this environment)")
     args = ap.parse_args(argv)
     src, tgt = args.source, args.target
     suf = f"_{tgt}" if tgt else ""
@@ -87,7 +114,7 @@ def main(argv=None) -> int:
         T = T[(T.method == "dom") & T.cls.isin(["pre_hit", "hit", "incomplete"])]
         T["dec"] = np.array(SP)[T[[f"pp_{p}" for p in SP]].to_numpy().argmax(1)]
     else:
-        T = encoder_trials()
+        T = encoder_trials(args.relabel_tag)
         print(f"encoder: {len(T)} trials with all six relabellings", flush=True)
     rows, agree, bys = [], [], []
     for kind, W, pre in (("landing", lick_weights(1.0), "lw_"), ("trajectory", path_weights(1.0), "tw_")):

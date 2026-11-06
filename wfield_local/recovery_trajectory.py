@@ -145,21 +145,68 @@ def series(align: str = "cue", variant: str = "working", matched: bool = False) 
             sp = _session_pair(got[1][day])
             if sp is None:
                 continue
-            fz, rf, n = sp
-            rows.append({
-                "animal": an, "day": int(day),
-                "matched": int(bool(matched)),
-                "epoch": ef.epoch_of_day(an, int(day)) or "",
-                "n_trials": n,
-                "frozen": fz, "refit": rf, "gap": rf - fz,
-                "pre_frozen": pre_f, "pre_refit": pre_r, "pre_gap": pre_r - pre_f,
-                "F_deficit": pre_f - fz,
-                "G_reorg": (rf - fz) - (pre_r - pre_f),
-                # F - G, algebraically. Carried explicitly because it is the interpretable half:
-                # what NO decoder recovers. See `figure_by_animal`'s unity line.
-                "refit_deficit": pre_r - rf,
-            })
+            rows.append(_pair_row(an, int(day), ef.epoch_of_day(an, int(day)) or "", sp, pre_f, pre_r, matched))
     return rows
+
+
+def _pair_row(an, day, epoch, sp, pre_f, pre_r, matched) -> dict:
+    """One session's row from its `_session_pair` and the animal's `_pre_pair` (the formulas of `series`; shared by
+    `pre_series`, so a pre-stroke session is scored on exactly the post-stroke footing)."""
+    fz, rf, n = sp
+    return {
+        "animal": an, "day": int(day),
+        "matched": int(bool(matched)),
+        "epoch": epoch,
+        "n_trials": n,
+        "frozen": fz, "refit": rf, "gap": rf - fz,
+        "pre_frozen": pre_f, "pre_refit": pre_r, "pre_gap": pre_r - pre_f,
+        "F_deficit": pre_f - fz,
+        "G_reorg": (rf - fz) - (pre_r - pre_f),
+        # F - G, algebraically. Carried explicitly because it is the interpretable half:
+        # what NO decoder recovers. See `figure_by_animal`'s unity line.
+        "refit_deficit": pre_r - rf,
+    }
+
+
+def pre_series(align: str = "cue", variant: str = "working", matched: bool = False) -> list[dict]:
+    """One row per (animal, PRE-STROKE session), same columns and formulas as `series` plus ``label``; ``day`` is the
+    session's own (non-positive) day from `epochs.days_since_stroke`.
+
+    WHY A SEPARATE FUNCTION AND FILE: `series` leaves pre sessions out ON PURPOSE (its docstring: pre is the origin of
+    the F-vs-G scatter, not a point on it), and its CSV is read as post-only by `scripts/imaging_lmm.py`'s post-only
+    models. These rows are for DRAWING the pre sessions beside a per-session time axis (imaging Fig 13.1 / PI deck slide
+    18, Priya 11-06) and never enter a fit. The baseline is the same `_pre_pair` pooled pre mean, so the pre rows'
+    F_deficit / G_reorg scatter around 0 by construction -- a dispersion, like `pre_points`.
+
+    HELD OUT (verified 11-06): each pre record's FROZEN column is the leave-one-session-out model of THAT session
+    (`grant_confusion._collect_5c_cached`: ``rec(..., fr["loso"][i], ...)``; `grant_kit._frozen_frame` /
+    `grant_confusion._stored_epoch_decoder` fit ``loso[i]`` on ``e_pre & (G != i)``), and the refit column is the
+    within-session block-CV refit, as for every post session. Records whose session is unknown (a `_collect_5c` built
+    before `grant_confusion.PreRecords` carried labels) are skipped rather than guessed."""
+    from wfield_local import epochs
+    from wfield_local import grant_figures as G
+
+    per_animal, _days = G._collect_5c(align, variant,
+                                      "paired_matched" if matched else "paired")
+    rows = []
+    for an, got in sorted(per_animal.items()):
+        if not got:
+            continue
+        pre_f, pre_r = _pre_pair(got[0])
+        if pre_f is None:
+            continue
+        entry = got[0] if isinstance(got[0], list) else [got[0]]
+        labels = list(getattr(got[0], "labels", None) or [])
+        if len(labels) != len(entry):
+            print(f"  !! [recovery_trajectory] {an}: pre records carry no session labels -- pre rows skipped", flush=True)
+            continue
+        for lab, rec in zip(labels, entry):
+            sp = _session_pair(rec)
+            day = epochs.days_since_stroke(lab)
+            if sp is None or day is None:
+                continue
+            rows.append({"label": lab, **_pair_row(an, int(day), "pre", sp, pre_f, pre_r, matched)})
+    return sorted(rows, key=lambda r: (r["animal"], r["day"]))
 
 
 def pre_points(align: str = "cue", variant: str = "working", matched: bool = False) -> dict:
@@ -312,12 +359,19 @@ def load_csv(path) -> list[dict]:
     return rows
 
 
-def write_csv(rows, dest: Path) -> Path:
+#: columns of the per-session series CSV (post rows); the pre-session sidecar prepends ``label``
+COLS = ["animal", "matched", "day", "epoch", "n_trials", "frozen", "refit", "gap",
+        "pre_frozen", "pre_refit", "pre_gap", "F_deficit", "G_reorg", "refit_deficit"]
+#: suffix of the PRE-SESSION sidecar (`pre_series`). NOT "_pre.csv": that name is already the (F, G) pre cloud of
+#: `write_pre_csv`, which `--from-csv` redraws from
+PRE_SESSIONS_SUFFIX = "_presessions.csv"
+
+
+def write_csv(rows, dest: Path, cols=None) -> Path:
     """Every plotted value, because a figure whose numbers exist nowhere drifts from its own text."""
     assert_writable(dest.parent)
     dest.parent.mkdir(parents=True, exist_ok=True)
-    cols = ["animal", "matched", "day", "epoch", "n_trials", "frozen", "refit", "gap",
-            "pre_frozen", "pre_refit", "pre_gap", "F_deficit", "G_reorg", "refit_deficit"]
+    cols = list(cols or COLS)
     with open(dest, "w", newline="", encoding="utf-8") as fh:
         w = csv.DictWriter(fh, fieldnames=cols)
         w.writeheader()
@@ -543,6 +597,12 @@ def run(align="cue", variant="working", out_dir=None, from_csv=None) -> dict:
         made += figure(rows, summary, out_dir, align, variant, tag=tag)
         made += figure_by_animal(rows, summary, out_dir, align, variant, pre=pre, tag=tag)
         csvp = write_csv(rows, fl.sidecar_for(out_dir, stem, ".csv"))
+        if not from_csv:
+            # the pre sessions as rows of their own, in a SEPARATE file: the series CSV above stays post-only (it is
+            # read as such by scripts/imaging_lmm.py's post-only fits); these are drawn there, never fitted
+            pre_rows = pre_series(align, variant, matched=matched)
+            if pre_rows:
+                write_csv(pre_rows, fl.sidecar_for(out_dir, stem, PRE_SESSIONS_SUFFIX), cols=["label", *COLS])
 
         print(f"\n[recovery_trajectory] {align}/{variant} {tag.upper()}: "
               f"{len(rows)} sessions", flush=True)

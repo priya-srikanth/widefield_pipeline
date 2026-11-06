@@ -20,6 +20,24 @@ until Priya answers the matching question.
 - ANSWERED 11-05 night: Q1 "yes" (above); Q2 slide 41 "reword for accuracy" (DONE, below); Q3 "which is safer" ->
   merge (Q5).
 
+- **Slide 11 pre-cue wording (Priya 11-06: "can wait on the re-run").** The bullet "Pre-cue = position information
+  before any lick" is inaccurate. The window is a lick-free (camera + spout) window between spout arrival and the cue
+  (`precue_window_start`). The figure / numbers are the 2.0 s table (LP_licks_ENL2s); the primary 1.0 s table (Priya
+  11-04) is still to be made in the post-rebuild pass. Change the text, figure and numbers together to 1 s after that
+  re-run. Post-cue window = cue to +2.0 s (`decode.cue_post_s`).
+- **34's fix/log-deficit-primary-20261105 -> main: Priya OK (11-06, in a8's window).** 34 asks for the OK in its
+  own window before pushing; a8's slide-18 pre-dots branch builds on it.
+
+- **Encoder checks requested by Priya 11-06 (a8 helpers, read-only on 34's _daqlk frames, own output folders):**
+  (1) WITH-lick-position regressor variance pre vs post, and unique R2 vs that variance -> `posinfo_checks_v7g3_t3d_spont_frAsplit/`;
+  (2) trial-count-matched PETH / trial-by-trial R2 (slide 94) -> `trialmatched_peth_checks_v7g3_t3d_spont_frA/` (feasibility
+  from saved per-trial files first). Not runnable from saved files, needs 34's heavy queue + Priya's OK in 34's window:
+  the no_posinfo per-trial re-run (decorrelation check, ~4 h) and the pixmusall re-run for ALM / tjM1 on slide 94 (~1-1.5 h).
+- **Deck items waiting for the deck to close (Priya editing; she edited slide 88 herself):** slide 91 (no-FR map; bullet 2
+  "spout-locked rises laterally" contradicted by the FR version on slide 92 -> hide 91 or reword); slide 92 add FR /
+  spout bullet; slide 94 show the trial-by-trial change rows + reword bullet 3; slide 18 pre-session dots (helper).
+  Each waits for Priya's pick.
+
 ## 2. Findings
 
 - **Fail-loud DAQ contacts (item 5): no current output took the silent-zero path.** All 133 v36 sessions: DAQ .h5

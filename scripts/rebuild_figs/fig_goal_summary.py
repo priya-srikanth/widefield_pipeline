@@ -11,11 +11,15 @@
 
 PROVENANCE: recreated 2026-11-03 (cohort-1 rebuild, step 3) from the session-scratchpad script
   fig_goal_summary.py (session cdd1e016, 10-25 06:32; copy in wf_attempt scripts/recovered_20261103/). Computation,
-  layout, suptitles (including their hard-coded readings) and dpi unchanged. Changes: argparse (--out / --plot-only /
-  --enc-dir / --only) instead of sys.argv[1], figdata pickle (<out>/data/goal_summary_figdata.pkl: the filtered
-  rows each figure draws), figures can be drawn one at a time (--only fig2).
-  NOTE (as found, not changed): the suptitles carry readings typed on 10-24 ("chronic target > executed 4/4", "failed
-  attempts (orange) lose the far-contra code ..."); they are text, not computed, and will not follow new data.
+  layout and dpi unchanged. Changes: argparse (--out / --plot-only / --enc-dir / --only) instead of sys.argv[1],
+  figdata pickle (<out>/data/goal_summary_figdata.pkl: the filtered rows each figure draws), figures can be drawn one at
+  a time (--only fig2).
+  SUPTITLE READINGS ARE COMPUTED (Priya 11-06, A22): the 10-24 suptitles carried readings typed in by hand ("chronic
+  target > executed 4/4, acute lick 3/4, subacute mixed, pre no lead"; "failed attempts (orange) lose the far-contra
+  code but are read as a FAR spout ...; no pre-cue difference"; fig3 "smaller than hits in 3/4 ... only 2/4"). They are
+  now COUNTS of animals computed from exactly the numbers the panels draw (`fig1_reading` / `fig2_reading` /
+  `fig3_reading`); the interpretive words ("mixed", "distance kept, side lost") are dropped -- a count cannot carry
+  them honestly. The figure states what the data show; the page caption interprets.
 
 INPUTS, under --enc-dir (default = the original's hard-coded
   M:/MICROSCOPE/Priya/Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding):
@@ -95,6 +99,77 @@ def load_fig3(E: Path) -> pd.DataFrame:
     return h[h.spout == "far_contra"].set_index(["animal", "epoch", "cls"])[["ipsi", "contra"]]
 
 
+# ---------------------------------------------------------------- readings (A22: computed from what the panels draw)
+FAR = ["far_ipsi", "far_mid", "far_contra"]
+MIN_N = 5          # the panels' own floor (bars drawn for classes with >= 5 trials)
+
+
+def fig1_reading(c: pd.DataFrame) -> str:
+    """Per epoch and window: animals whose epoch-mean target-bin unique dR2 exceeds the executed-bin one (the two lines
+    each panel draws), out of the animals with both."""
+    parts = []
+    for e in EP:
+        cnt = []
+        for w in ("cue", "lick"):
+            n = k = 0
+            for an in AN:
+                a = c[(c.animal == an) & (c.epoch == e)]
+                t, x = a[f"nokin:u:tgtbin|{w}"].mean(), a[f"nokin:u:exbin|{w}"].mean()
+                if np.isfinite(t) and np.isfinite(x):
+                    n, k = n + 1, k + int(t > x)
+            cnt.append(f"{w} {k}/{n}")
+        parts.append(f"{e} " + ", ".join(cnt))
+    return "target > executed (epoch means; animals): " + "; ".join(parts)
+
+
+def fig2_reading(fd: dict) -> str:
+    """Per window: animals whose acute INCOMPLETE (failed-attempt) P(true spout) is below their pre-stroke-hit one (top
+    row, both classes >= MIN_N trials), and animals whose incomplete trials are decoded as a far spout more than half
+    the time (bottom row; half = chance for 3 of 6 spouts)."""
+    lo, far = [], []
+    for w in WINDOWS:
+        s = fd["summary"][w]
+        n = k = 0
+        for an in AN:
+            r = {cl: s[(s.animal == an) & (s.cls == cl)] for cl in ("incomplete", "pre_hit")}
+            if all(len(v) and v.n.iloc[0] >= MIN_N for v in r.values()):
+                n, k = n + 1, k + int(r["incomplete"].p_true.iloc[0] < r["pre_hit"].p_true.iloc[0])
+        lo.append(f"{w} {k}/{n}")
+        n = k = 0
+        for an in AN:
+            t = fd["trials"].get((w, an))
+            if t is None:
+                continue
+            x = t[t.cls == "incomplete"]
+            if len(x) >= MIN_N:
+                n, k = n + 1, k + int(x.pred.isin(FAR).mean() > 0.5)
+        far.append(f"{w} {k}/{n}")
+    return ("failed attempts (incomplete, orange): P(true) below pre-stroke hits in " + ", ".join(lo)
+            + ";\nfailed attempts decoded as a far spout on > 1/2 of trials in " + ", ".join(far) + " (animals)")
+
+
+def _fig3_ratio(h: pd.DataFrame, an: str, cl: str, ref: str) -> float:
+    """The bar `draw_fig3` draws: acute ``cl`` amplitude / pre ``ref`` amplitude, mean of both hemispheres."""
+    try:
+        r, rf = h.loc[(an, "acute", cl)], h.loc[(an, "pre", ref)]
+    except KeyError:
+        return np.nan
+    return float(np.mean([r.ipsi / rf.ipsi, r.contra / rf.contra]))
+
+
+def fig3_reading(h: pd.DataFrame) -> str:
+    """Per panel (reference): animals whose acute failed-attempt amplitude ratio is below their acute-hit ratio."""
+    parts = []
+    for ref, lab in (("pre_hit", "vs pre-stroke hits"), ("pre_incomplete", "vs pre-stroke misses")):
+        n = k = 0
+        for an in AN:
+            f, t = _fig3_ratio(h, an, "incomplete", ref), _fig3_ratio(h, an, "hit", ref)
+            if np.isfinite(f) and np.isfinite(t):
+                n, k = n + 1, k + int(f < t)
+        parts.append(f"{lab} {k}/{n}")
+    return "failed attempts smaller than hits (animals): " + ", ".join(parts)
+
+
 # ---------------------------------------------------------------- figures
 def draw_fig1(c: pd.DataFrame, png: Path) -> None:
     fig, axes = plt.subplots(2, 4, figsize=(13, 6), sharex=True)
@@ -112,6 +187,7 @@ def draw_fig1(c: pd.DataFrame, png: Path) -> None:
                     lo, hi = min(lo, np.nanmin(v) if len(v) else lo), max(hi, np.nanmax(v) if len(v) else hi)
                 ax.plot(np.arange(4) + dx, m, "-o", color=colr, label=lab, lw=2, ms=6)
             ax.axhline(0, color="0.6", lw=0.8)
+            ax.spines["top"].set_visible(False)          # Priya 11-03: no top frame line
             n = [int((a.epoch == e).sum()) for e in EP]
             ax.set_title(f"{an}  (n {'/'.join(map(str, n))})" if r == 0 else "", fontsize=10)
             ax.set_xticks(range(4))
@@ -122,8 +198,7 @@ def draw_fig1(c: pd.DataFrame, png: Path) -> None:
             axes[r, k].set_ylim(max(lo, -45), min(hi, 80))
     axes[0, 0].legend(fontsize=8, frameon=False)
     fig.suptitle("Binned target vs executed contest (O2, final inputs, width 1), cortex: unique contribution of each "
-                 "set beyond the other\nlines = epoch means, dots = sessions; chronic target > executed 4/4, acute "
-                 "lick 3/4, subacute mixed, pre no lead", fontsize=10)
+                 "set beyond the other\nlines = epoch means, dots = sessions; " + fig1_reading(c), fontsize=10)
     fig.tight_layout(rect=(0, 0, 1, 0.92))
     fig.savefig(png, dpi=140)
     plt.close(fig)
@@ -158,13 +233,14 @@ def draw_fig2(fd: dict, png: Path) -> None:
         ax.set_xticks([k * 7 + 2.5 for k in range(4)])
         ax.set_xticklabels(AN)
         ax.set_ylim(0, 1)
+        for b in axes[:, j]:
+            b.spines["top"].set_visible(False)
         if j == 0:
             ax.set_ylabel("share decoded as ANY far spout")
     axes[0, 0].legend(fontsize=7, frameon=False, ncol=2)
     fig.suptitle("Item 1: far-contra trials on the frozen pre-stroke decoder, by what the animal did (acute; pre_hit = "
-                 "pre-stroke reference)\nfailed attempts (orange) lose the far-contra code but are read as a FAR spout "
-                 "(distance kept, side lost); no pre-cue difference", fontsize=10)
-    fig.tight_layout(rect=(0, 0, 1, 0.91))
+                 "pre-stroke reference)\n" + fig2_reading(fd), fontsize=10)
+    fig.tight_layout(rect=(0, 0, 1, 0.88))           # three title lines (the computed reading, A22)
     fig.savefig(png, dpi=140)
     plt.close(fig)
 
@@ -187,10 +263,10 @@ def draw_fig3(h: pd.DataFrame, png: Path) -> None:
         ax.set_xticks([k * 3 + 0.5 for k in range(4)])
         ax.set_xticklabels(AN)
         ax.set_title(title, fontsize=10)
+        ax.spines["top"].set_visible(False)
     axes[0].set_ylabel("lick-window amplitude ratio\n(mean of both hemispheres)")
     axes[0].legend(fontsize=8, frameon=False)
-    fig.suptitle("Item 4: how big is the far-contra response on failed attempts?\nSmaller than hits in 3/4, but vs "
-                 "touch-matched pre-stroke misses only 2/4 (PS92's reference = 7 trials)", fontsize=10)
+    fig.suptitle("Item 4: how big is the far-contra response on failed attempts?\n" + fig3_reading(h), fontsize=10)
     fig.tight_layout(rect=(0, 0, 1, 0.88))
     fig.savefig(png, dpi=140)
     plt.close(fig)

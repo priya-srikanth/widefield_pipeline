@@ -27,6 +27,7 @@ that downstream ``np.load`` / ``h5py`` callers already accept on Windows.
 """
 from __future__ import annotations
 
+import copy
 import os
 from pathlib import Path
 
@@ -75,15 +76,38 @@ COHORT_SCOPED_ROOTS = ("figures_working", "cue_analysis_out", "behavior_out", "o
 COHORT_OUT = "cohort_out"
 
 
+#: Parsed cohorts.yaml, keyed on (path, st_mtime_ns, st_size). MEMOISED 2026-11-06 (Priya, A10): `date8`,
+#: `session_phase` and `_load` reach `cohort_spec` -> `cohorts()` thousands of times per animal, and re-parsing the
+#: YAML each time was ~2/3 of attempt_coding's warm runtime. Keyed on the file's stat so an edited cohorts.yaml is
+#: re-read in the same process. The parsed content does NOT depend on the environment (WIDEFIELD_COHORT is applied
+#: by `active_cohort` on top of it, per call, exactly as before). Internal readers use the shared parse
+#: (`_cohorts_shared`, never mutated); the public `cohorts()` / `cohort_spec()` hand out deep copies, so a caller
+#: that mutates its result cannot change the next caller's.
+_COHORTS_MEMO: dict = {}
+
+
+def _cohorts_shared() -> dict:
+    """The memoised parse of configs/cohorts.yaml. READ-ONLY: do not mutate (use `cohorts()` for a private copy)."""
+    path = CONFIG_DIR / "cohorts.yaml"
+    st = os.stat(path)
+    key = (str(path), st.st_mtime_ns, st.st_size)
+    hit = _COHORTS_MEMO.get(key)
+    if hit is None:
+        with open(path, encoding="utf-8") as fh:
+            hit = yaml.safe_load(fh)
+        _COHORTS_MEMO.clear()                 # one live entry: the file's current version
+        _COHORTS_MEMO[key] = hit
+    return hit
+
+
 def cohorts() -> dict:
-    """configs/cohorts.yaml as a dict (`default`, `cohorts`)."""
-    with open(CONFIG_DIR / "cohorts.yaml", encoding="utf-8") as fh:
-        return yaml.safe_load(fh)
+    """configs/cohorts.yaml as a dict (`default`, `cohorts`). A fresh deep copy of the memoised parse."""
+    return copy.deepcopy(_cohorts_shared())
 
 
 def active_cohort() -> str:
     """Name of the active cohort: ``WIDEFIELD_COHORT``, else cohorts.yaml `default` (cohort1)."""
-    cfg = cohorts()
+    cfg = _cohorts_shared()
     name = os.environ.get(COHORT_ENV, "").strip() or cfg["default"]
     if name not in cfg["cohorts"]:
         raise ValueError(f"{COHORT_ENV}={name!r} is not a cohort in configs/cohorts.yaml "
@@ -94,13 +118,13 @@ def active_cohort() -> str:
 def cohort_spec(name: str | None = None) -> dict:
     """One cohort's block from cohorts.yaml (the active one by default), with `name` added."""
     name = name or active_cohort()
-    return dict(cohorts()["cohorts"][name], name=name)
+    return dict(copy.deepcopy(_cohorts_shared()["cohorts"][name]), name=name)
 
 
 def cohort_for_date(yyyymmdd: str) -> str | None:
     """The cohort whose [first, last] acquisition range holds ``yyyymmdd`` (None if no cohort does)."""
     d = int(str(yyyymmdd))
-    hits = [n for n, c in cohorts()["cohorts"].items()
+    hits = [n for n, c in _cohorts_shared()["cohorts"].items()
             if int(c["first"]) <= d and (c.get("last") is None or d <= int(c["last"]))]
     if len(hits) > 1:
         raise ValueError(f"{yyyymmdd} is in more than one cohort's date range: {hits} (configs/cohorts.yaml)")
@@ -109,7 +133,7 @@ def cohort_for_date(yyyymmdd: str) -> str | None:
 
 def cohort_of_animal(animal: str) -> str | None:
     """The cohort an animal belongs to, from cohorts.yaml `animals` lists (None if in none)."""
-    for n, c in cohorts()["cohorts"].items():
+    for n, c in _cohorts_shared()["cohorts"].items():
         if animal in (c.get("animals") or []):
             return n
     return None
