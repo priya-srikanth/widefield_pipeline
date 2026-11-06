@@ -90,6 +90,7 @@ def main(argv=None) -> int:
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
+    from wfield_local import config
     from wfield_local.writeguard import assert_writable
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--tag", default="gate-attempted_v4")
@@ -99,7 +100,7 @@ def main(argv=None) -> int:
     from wfield_local import frozen_encoder as _fe   # the encoder's (tagged) run root, coordinator 11-04
     out = _fe.out_root() / f"frozen_encoder_{a.tag}"
     sess = sorted((out / a.variant / "sessions").glob("*.json"))
-    sess = [js for js in sess if js.stem[-4:] >= "0801"]
+    sess = [js for js in sess if not config.early_pre(js.stem)]
     fd = out / "figures"
     assert_writable(fd)
     fd.mkdir(parents=True, exist_ok=True)

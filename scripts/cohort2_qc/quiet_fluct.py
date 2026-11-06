@@ -34,6 +34,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from quiet_area_spikes import EP, columns, session_traces  # noqa: E402
 from quiet_spikes_v2 import V2, busy_frames, detrend  # noqa: E402
+from wfield_local import config  # noqa: E402
 
 FL = V2 / "fluct"                                           # follows QS_LICK_SOURCE (quiet_spikes_v2.V2)
 K_EVT = 4.0
@@ -48,7 +49,7 @@ def animal_sd():
     from wfield_local import epochs
     out = {}
     for f in sorted((V2 / "sessions").glob("*.npz")):
-        if epochs.epoch_of(f.stem) == "pre" and f.stem[-4:] >= "0806":
+        if epochs.epoch_of(f.stem) == "pre" and not config.early_pre(f.stem):
             out.setdefault(f.stem[:4], []).append(np.load(f)["sd_q"])
     return {a: np.nanmedian(v, 0) for a, v in out.items()}
 
@@ -124,7 +125,7 @@ def load():
     D = {}
     for f in sorted((FL / "sessions").glob("*.npz")):
         ep = epochs.epoch_of(f.stem)
-        if ep is None or (ep == "pre" and f.stem[-4:] < "0806"):
+        if ep is None or (ep == "pre" and config.early_pre(f.stem)):
             continue
         D[f.stem] = dict(np.load(f), epoch=ep)
     return D
@@ -422,7 +423,7 @@ def main():
     if not a.summarise:
         from wfield_local.analysis_kit import curated_labels
         from wfield_local.analysis_kit import fan_sessions  # fan_out + sort (rule 9)
-        labels = a.only or [k for k in sorted(curated_labels()) if k[-4:] >= "0806"]
+        labels = a.only or [k for k in sorted(curated_labels()) if not config.early_pre(k)]
         res, fail = fan_sessions(labels, extract, jobs=a.jobs, label="session")
         print(f"{len(res)} done, {len(fail)} failed")
         for x in fail:

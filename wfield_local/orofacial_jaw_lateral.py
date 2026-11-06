@@ -328,7 +328,7 @@ def main(argv=None) -> int:
         date = config.date8(s["label"].split("_")[-1])
         sd = oo.session_dir(rv, a.run, an, date)
         ep = epochs.epoch_of(s["label"])
-        if a.baseline == "late" and ep == "pre" and date[4:8] < oc.LATE_PRE_FROM:
+        if a.baseline == "late" and ep == "pre" and config.early_pre(date):
             continue                                   # August-only baseline: June pre sessions out
         if (sd / "manifest.json").exists():
             items.append((sd, an, date, ep, epochs.days_since_stroke(s["label"]), lat[an]))

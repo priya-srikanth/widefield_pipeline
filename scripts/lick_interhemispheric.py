@@ -378,8 +378,9 @@ def _r(z):
 
 
 def summarise(S: pd.DataFrame) -> None:
+    from wfield_local import config
     from wfield_local import analysis_kit as ak
-    S = S[(S.epoch != "pre") | (S.label.str[-4:-2] == "08")].copy()
+    S = S[(S.epoch != "pre") | (~S.label.map(config.early_pre))].copy()
     # lick-specific: lick minus rest on the same session (w1, same pair / tau)
     K = ["label", "win", "pair", "tau"]
     R = S[S.set == "rest"].set_index(K)[METRICS]

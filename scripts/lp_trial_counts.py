@@ -46,6 +46,7 @@ def one(label):
 
 
 def main(argv=None) -> int:
+    from wfield_local import config
     from wfield_local import run_mode as _rm_guard
     _rm_guard.require_default("lp_trial_counts")   # unrouted share writer: refuses in a non-default run mode
     from wfield_local import analysis_kit as ak
@@ -57,7 +58,7 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--jobs", type=int, default=6)
     a = ap.parse_args(argv)
-    labels = sorted(x for x in ak.curated_labels() if x[-4:] >= "0801")          # August pre + post
+    labels = sorted(x for x in ak.curated_labels() if not config.early_pre(x))          # August pre + post
     got, fail = ak.fan_sessions(labels, one, jobs=a.jobs)
     for it, err in fail:
         print("FAILED", it, err)

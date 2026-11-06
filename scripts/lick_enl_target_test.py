@@ -5,7 +5,7 @@ F12 CAVEAT (CLAUDE.md): the spout arrives ~3 s before the cue, so pre-cue positi
 spout response from a held intention. "Target" below = the spout that is physically there; whatever carries it.
 
 SIGNS: + angle = toward + side_ml = CONTRALESIONAL (lick_enl_angle_decode.prepare); lateral axis ipsi -1 / mid 0 /
-contra +1. Spout order everywhere = orofacial_cohort.POS_ORDER. pre = the August pre sessions (label day >= 0801).
+contra +1. Spout order everywhere = orofacial_cohort.POS_ORDER. pre = the August pre sessions (not config.early_pre).
 
 PART A  FROZEN PRE-STROKE POSITION DECODER (the repo's one reference, rule 10), pre-cue window. Per-trial outputs REUSED,
         not refitted: <E>/attempt_coding_pp/trials_precue_<animal>.csv.gz (attempt_coding.run_animal, align precue = the
@@ -140,6 +140,7 @@ def precue_trials(TM: pd.DataFrame) -> dict:
         PW["exec_traj"] = np.array(SP)[PW[[f"tw_{p}" for p in SP]].to_numpy().argmax(1)]
         PW = PW[["label", "trial_id", "exec_traj"]]
     out = {}
+    from wfield_local import config
     from wfield_local import run_mode
     PP = run_mode.subdir(E / "attempt_coding_pp", lp_family=True)       # mode-routed, as attempt_coding.out_dir (N1)
     pq = PP if all((PP / attempt_trials_name("precue", an)).exists() for an in AN) \
@@ -147,7 +148,7 @@ def precue_trials(TM: pd.DataFrame) -> dict:
     print(f"== precue frozen-decoder trials from {pq}", flush=True)
     for w, d in (("precue", pq), ("cue", PP), ("lick", PP)):
         T = pd.concat([pd.read_csv(d / attempt_trials_name(w, an)) for an in AN], ignore_index=True)
-        T = T[(T.method == "dom") & T.cls.isin(["pre_hit", "hit", "incomplete"]) & (T.label.str[-4:] >= "0801")]
+        T = T[(T.method == "dom") & T.cls.isin(["pre_hit", "hit", "incomplete"]) & (~T.label.map(config.early_pre))]
         if "pp_far_contra" in T:
             T["dec"] = np.array(SP)[T[[f"pp_{p}" for p in SP]].to_numpy().argmax(1)]
         else:
@@ -887,6 +888,7 @@ def figures() -> None:
 
 # ------------------------------------------------------------------------------------------------------------ MAIN
 def main() -> int:
+    from wfield_local import config
     from wfield_local import writeguard
     pd.set_option("display.width", 250)
     pd.set_option("display.max_columns", 40)
@@ -905,7 +907,7 @@ def main() -> int:
     T, names = ead.prepare(pd.read_csv(ead.TRIALS))
     from wfield_local import attempt_coding as _ac
     PQ = {an: pd.read_csv(_ac.out_dir() / attempt_trials_name("precue", an), usecols=["label"]) for an in AN}   # review N1
-    labs = sorted(set(T.label) | {x for v in PQ.values() for x in v.label.unique() if x[-4:] >= "0801"})
+    labs = sorted(set(T.label) | {x for v in PQ.values() for x in v.label.unique() if not config.early_pre(x)})
     TM = timing(labs, jobs)
     # ---- A: frozen position decoder
     PT = precue_trials(TM)

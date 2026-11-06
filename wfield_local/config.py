@@ -485,6 +485,29 @@ def animal_excluded_dates(animal: str) -> set[str]:
     return {str(d)[4:] if len(str(d)) == 8 else str(d) for d in v}
 
 
+def baseline_pre_from() -> str | None:
+    """The ACTIVE cohort's August-only baseline cut, MMDD (cohorts.yaml `baseline_pre_from`; cohort1 = 0806), or None.
+
+    THE ONE SPELLING (code review 11-04 item 2, Priya 11-05). Before this the cut was written about 130 times in five
+    ways (`>= "0801"`, `>= "0806"`, month == "08", month != "06", three module constants) that agree only because
+    date_policy excludes 0805, and every one was an MMDD string compare, which breaks for a cohort that crosses New
+    Year. Read the cut here and test a session with `early_pre`. This is the cohort's DEFINITION of its baseline; the
+    run mode that applies it to the pooled sets is `pre_from()` (WIDEFIELD_PRE_FROM), which is unchanged."""
+    v = _paths.cohort_spec().get("baseline_pre_from")
+    return str(v) if v else None
+
+
+def early_pre(x) -> bool:
+    """True for a session (label ``PS92_0607``, MMDD or YYYYMMDD) dated BEFORE the cohort's baseline cut: a June
+    session in cohort1, i.e. one an August-only analysis drops. False when the cohort has no cut.
+
+    Date-only on purpose: the cut precedes every stroke, so a session before it is pre-stroke whatever its epoch, and
+    the old inline filters (``x[-4:] >= "0806"`` on mixed pre + post lists) were date-only too. It does NOT apply
+    date_policy; cohort1's cut (0806) is the first curated August day, so the excluded 0805 counts as early."""
+    cut = baseline_pre_from()
+    return bool(cut) and date_key(x) < date_key(cut)
+
+
 def pre_from() -> str | None:
     """MMDD from ``WIDEFIELD_PRE_FROM``: an OPT-IN late-baseline sensitivity mode (Priya 2026-10-18).
 

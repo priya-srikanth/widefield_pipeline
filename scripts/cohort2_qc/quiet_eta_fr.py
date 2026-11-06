@@ -30,6 +30,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from quiet_area_spikes import DETREND_S, columns, session_traces  # noqa: E402
 from quiet_spikes_fr import N_FOLD, face_regressors, lagged, ridge_oof  # noqa: E402
 from quiet_spikes_v2 import V2, busy_frames, detrend  # noqa: E402
+from wfield_local import config  # noqa: E402
 
 OUTF = V2 / "eta_fr"
 FRV = V2 / "fr_regressed_own" / "sessions"
@@ -44,7 +45,7 @@ EP = ["pre", "acute", "subacute", "chronic"]
 def pre_res_sd(animal):
     from wfield_local import epochs
     v = [np.load(f)["sd_res"] for f in sorted(FRV.glob(f"{animal}_*.npz"))
-         if epochs.epoch_of(f.stem) == "pre" and f.stem[-4:] >= "0806"]
+         if epochs.epoch_of(f.stem) == "pre" and not config.early_pre(f.stem)]
     return np.nanmedian(v, 0)
 
 
@@ -102,7 +103,7 @@ def load():
     D = {}
     for f in sorted((OUTF / "sessions").glob("*.npz")):
         ep = epochs.epoch_of(f.stem)
-        if ep is None or f.stem[-4:] < "0806":
+        if ep is None or config.early_pre(f.stem):
             continue
         D[f.stem] = dict(np.load(f), epoch=ep)
     return D
@@ -291,7 +292,7 @@ def main():
     a = ap.parse_args()
     if not a.summarise:
         from wfield_local.analysis_kit import fan_sessions  # fan_out + sort (rule 9)
-        labels = a.only or sorted(f.stem for f in FRV.glob("*.npz") if f.stem[-4:] >= "0806")
+        labels = a.only or sorted(f.stem for f in FRV.glob("*.npz") if not config.early_pre(f.stem))
         res, fail = fan_sessions(labels, extract, jobs=a.jobs, label="session")
         print(f"{len(res)} done, {len(fail)} failed")
         for x in fail:

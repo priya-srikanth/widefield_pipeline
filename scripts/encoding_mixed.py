@@ -114,6 +114,7 @@ def figures(L: pd.DataFrame, T: pd.DataFrame, out: Path, area: str = "cortex", s
 
 def main(argv=None) -> int:
     # coordinator 11-04: routed (outputs under the run tag), no longer refused in a tagged run
+    from wfield_local import config
     from wfield_local import analysis_kit as ak
     from wfield_local import orofacial_cohort as oc
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -126,7 +127,7 @@ def main(argv=None) -> int:
     from wfield_local import run_mode
     E = run_mode.encoding_out_root(a.run)                # the run's (tagged) encoding tree, coordinator 11-04
     (E / "qc").mkdir(parents=True, exist_ok=True)
-    labels = {x for x in ak.curated_labels() if x[-4:] >= "0806"}
+    labels = {x for x in ak.curated_labels() if not config.early_pre(x)}
     from wfield_local import mixed_models as mm
     dname = a.deficit or mm.DEFICIT
     sfx = "" if dname == mm.DEFICIT else f"_{dname}"

@@ -274,6 +274,7 @@ def summarise(D: pd.DataFrame) -> pd.DataFrame:
 
 def main(argv=None) -> int:
     # coordinator 11-04: routed (outputs under the run tag), no longer refused in a tagged run
+    from wfield_local import config
     from wfield_local import analysis_kit as ak
     from wfield_local import epochs
     from wfield_local import orofacial_cohort as oc
@@ -312,7 +313,7 @@ def main(argv=None) -> int:
     parts = []
     for lab in labels:
         ep = epochs.epoch_of(lab)
-        if ep not in EPOCHS or (ep == "pre" and lab[5:] < oc.LATE_PRE_FROM):
+        if ep not in EPOCHS or (ep == "pre" and config.early_pre(lab)):
             continue
         pk = bdir / f"{lab}.pkl"
         if not pk.exists():
@@ -350,16 +351,16 @@ def main(argv=None) -> int:
 
 
 def main_templates(a, rv, out, bdir) -> int:
+    from wfield_local import config
     from wfield_local import analysis_kit as ak
     from wfield_local import epochs
-    from wfield_local import orofacial_cohort as oc
     cache = out / "lick_patterns"
     cache.mkdir(parents=True, exist_ok=True)
     Ls, meta = {}, {}
     for s in ak.curated_sessions():
         lab = s["label"]
         ep = epochs.epoch_of(lab)
-        if ep not in EPOCHS or (ep == "pre" and lab[5:] < oc.LATE_PRE_FROM) or (a.labels and lab not in a.labels):
+        if ep not in EPOCHS or (ep == "pre" and config.early_pre(lab)) or (a.labels and lab not in a.labels):
             continue
         cf = cache / f"{lab}_dev{a.dev:g}_v3.pkl"
         if cf.exists():

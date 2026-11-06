@@ -266,7 +266,7 @@ def main(argv=None) -> int:
         from wfield_local import epochs
         C["pre_loo"] = False
         C["pre_in_sample"] = C.label.map(lambda x: epochs.epoch_of(x) == "pre")
-        C = C[C.label.isin(cur) & ~((C.pre_in_sample) & (C.label.str[5:9] < "0806"))].copy()
+        C = C[C.label.isin(cur) & ~((C.pre_in_sample) & C.label.map(config.early_pre))].copy()
         C.insert(1, "arm", C["align"])          # NOT C.align: that is DataFrame.align (a method)
         C.insert(3, "variant", "gate lick, orth, contrast")
         C.insert(5, "animal", C.label.str.split("_").str[0])

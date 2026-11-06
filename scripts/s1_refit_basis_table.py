@@ -183,6 +183,7 @@ def session_job(label: str) -> dict:
 
 
 def main(argv=None) -> int:
+    from wfield_local import config
     from wfield_local import analysis_kit as ak
     from wfield_local import epochs
     from wfield_local import filter_acausality_test as F
@@ -200,7 +201,7 @@ def main(argv=None) -> int:
     writeguard.assert_writable(out)
     Path(out).mkdir(parents=True, exist_ok=True)
     cur = set(ak.curated_labels())
-    labels = a.labels or [s["label"] for s in F.SESSIONS if s["label"][-4:] >= "0806" and s["label"] in cur]
+    labels = a.labels or [s["label"] for s in F.SESSIONS if not config.early_pre(s["label"]) and s["label"] in cur]
     got, fail = ak.fan_sessions(labels, session_job, jobs=a.jobs)
     for it, err in fail:
         print(f"  FAILED {it}: {err}")

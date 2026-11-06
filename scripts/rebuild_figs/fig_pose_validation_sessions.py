@@ -57,7 +57,6 @@ MARK = {"PS92": "o", "PS93": "s", "PS94": "^", "PS95": "D"}
 EPOCHS = ("pre", "acute", "subacute", "chronic")
 POS = ("close_L", "close_center", "close_R", "far_L", "far_center", "far_R")
 FEATS = {"cam4": ["lr_px", "ap_px"], "3-D": ["side_ml", "out_ap", "down_dv"]}   # = pose3d_vs_cam4 "cam4 2-D", "3-D"
-PRE_FROM = "20260801"
 CHANCE = 1 / 6
 AGREE = (("lateral", "Lateral\nposition"), ("angle", "Peak angle\nvs 3-D lateral"), ("jaw", "Jaw opening\nper trial"))
 TABLE = {"lateral": (.97, .94, .97, .97), "angle": (.87, .69, .87, .86), "jaw": (.64, .57, .67, .83),
@@ -95,7 +94,7 @@ def load_agreement() -> pd.DataFrame:
 def load_licks() -> pd.DataFrame:
     """Same lick set as scripts/pose3d_vs_cam4.load (August pre only, to keep it small)."""
     K = pd.read_csv(P3 / "kinematics" / "licks.csv.gz", dtype={"date": str})
-    K = K[K.animal.isin(ANIMALS) & (K.epoch == "pre") & (K.date >= PRE_FROM)]
+    K = K[K.animal.isin(ANIMALS) & (K.epoch == "pre") & ~K.date.map(config.early_pre)]
     out = []
     for s, g in K.groupby("session"):
         a, d = s.split("_")

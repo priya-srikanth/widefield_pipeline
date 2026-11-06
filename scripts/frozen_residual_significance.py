@@ -43,9 +43,10 @@ EPOCHS = ("acute", "subacute", "chronic")
 
 def session_residual_maps(out: Path, variant: str, spout: str, align: str):
     """{animal: [(label, epoch, day, (H, W) residual map, NaN off the stat mask)]}, H, W."""
+    from wfield_local import config
     from wfield_local import combined_encoding as ce
     from wfield_local import epochs
-    sess = sorted(js for js in (out / variant / "sessions").glob("*.json") if js.stem[-4:] >= "0801")
+    sess = sorted(js for js in (out / variant / "sessions").glob("*.json") if not config.early_pre(js.stem))
     _V, _ft, _Ub, flat, _parea, _names, shape, pstat = ce.load_imaging(sess[0].stem)
     H, W = (int(x) for x in shape)
     pix = flat[pstat]

@@ -62,6 +62,7 @@ def _day(animal: str, mmdd: str) -> int:
 
 
 def load(src: Path, pre_col: str, post_col: str) -> pd.DataFrame:
+    from wfield_local import config
     from wfield_local.analysis_kit import curated_labels
     from wfield_local.epoch_figures import epoch_of_day
     D = pd.read_csv(src)
@@ -75,7 +76,7 @@ def load(src: Path, pre_col: str, post_col: str) -> pd.DataFrame:
         print(f"  WARNING epoch mismatch vs source:\n{bad[['label', 'day', 'epoch_fig', 'epoch']]}")
     D["epoch"] = D.epoch_fig
     D = D[D.epoch.isin(EPOCHS)]
-    D = D[(D.epoch != "pre") | (D.date >= "0806")]                       # August-only pre baseline
+    D = D[(D.epoch != "pre") | ~D.date.map(config.early_pre)]                       # August-only pre baseline
     empty = D[D[pre_col].isna() & D[post_col].isna()]
     if len(empty):
         print("  curated sessions with NO decode in the source (dropped):", ", ".join(empty.label))

@@ -67,14 +67,14 @@ def main(argv=None) -> int:
     a = ap.parse_args(argv)
     labels = a.labels
     if not labels:
-        pre = sorted(x for x in ce.sessions_available() if x[-4:] >= "0801" and epochs.epoch_of(x) == "pre")
+        pre = sorted(x for x in ce.sessions_available() if not config.early_pre(x) and epochs.epoch_of(x) == "pre")
         labels = []
         for an in sorted({config.animal_of(x) for x in pre}):
             mine = [x for x in pre if config.animal_of(x) == an]
             labels += [mine[0], mine[len(mine) // 2]] if len(mine) > 1 else mine
     # SPOUT-LOCKED TEMPLATES LEAVING THE TESTED SESSION OUT: with its own trials in the template, the lick deviation
     # would sit at chance in that session by construction; held out, it is a real test (as post sessions are scored)
-    tpre = sorted(x for x in ce.sessions_available() if x[-4:] >= "0801" and epochs.epoch_of(x) == "pre"
+    tpre = sorted(x for x in ce.sessions_available() if not config.early_pre(x) and epochs.epoch_of(x) == "pre"
                   and config.animal_of(x) in {config.animal_of(y) for y in labels})
     tparts, tfail = ak.fan_sessions(tpre, fe.template_job, jobs=a.jobs, label="template")
     if tfail:

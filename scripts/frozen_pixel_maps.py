@@ -37,6 +37,7 @@ def main(argv=None) -> int:
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
+    from wfield_local import config
     from wfield_local import combined_encoding as ce
     from wfield_local.writeguard import assert_writable
     sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -48,7 +49,7 @@ def main(argv=None) -> int:
     a = ap.parse_args(argv)
     from wfield_local import frozen_encoder as _fe   # the encoder's (tagged) run root, coordinator 11-04
     out = _fe.out_root() / f"frozen_encoder_{a.tag}"
-    sess = sorted(js for js in (out / a.variant / "sessions").glob("*.json") if js.stem[-4:] >= "0801")
+    sess = sorted(js for js in (out / a.variant / "sessions").glob("*.json") if not config.early_pre(js.stem))
     fd = out / "figures"
     assert_writable(fd)
     fd.mkdir(parents=True, exist_ok=True)

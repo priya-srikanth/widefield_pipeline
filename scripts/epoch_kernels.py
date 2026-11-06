@@ -325,7 +325,7 @@ def main(argv=None) -> int:
                            "frame's environment (frA + FROZEN_LICKSPOUT=1)")
     pre = {s["label"] for s in pre_stats}
     labels = sorted(a.labels or (p.stem for p in (run / "joint" / "sessions").glob("*.json")))
-    labels = [x for x in labels if x[-4:] >= "0801"]
+    labels = [x for x in labels if not config.early_pre(x)]
     by_an: dict = {}
     for x in labels:
         by_an.setdefault(config.animal_of(x), []).append(x)

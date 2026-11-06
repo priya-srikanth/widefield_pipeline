@@ -48,7 +48,7 @@ def table(mode: str, windows) -> pd.DataFrame:
     for f in sorted(MAIN.glob("*_regions.csv")):
         lab = f.stem.replace("_regions", "")
         g = frd / f.name
-        if lab[-4:] < "0801" or not g.exists():
+        if config.early_pre(lab) or not g.exists():
             continue
         m = pd.read_csv(f)
         r = pd.read_csv(g)
