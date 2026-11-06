@@ -200,8 +200,8 @@ def fig_epochs(S: pd.DataFrame, R: pd.DataFrame, path: Path) -> None:
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
+    from wfield_local import cat_points as cp
     from wfield_local import sig_marks
-    rng = np.random.default_rng(1)
     rows = ("jaw_only", "incomplete")
     fig, axs = plt.subplots(len(rows), len(POS), figsize=(17, 7.6), sharey="row", squeeze=False)
     for i, c in enumerate(rows):
@@ -212,8 +212,8 @@ def fig_epochs(S: pd.DataFrame, R: pd.DataFrame, path: Path) -> None:
             ax = axs[i, j]
             for k, ep in enumerate(EPS):
                 g = d[(d.position == p) & (d.epoch == ep)]
-                ax.scatter(k + rng.uniform(-0.18, 0.18, len(g)), g.chg, s=9, c=[AN_COL[a] for a in g.animal], alpha=0.55,
-                           lw=0)
+                # sessions: open markers, shape = animal, colour = epoch (cat_points convention)
+                cp.session_dots(ax, k, g.chg, g.animal, EP_COL[ep], jitter=0.16, seed=10 * i + k)
                 if ep == "pre":
                     ax.plot(k + 0.32, 0, "o", ms=7, color=EP_COL[ep])
                     continue
@@ -233,12 +233,14 @@ def fig_epochs(S: pd.DataFrame, R: pd.DataFrame, path: Path) -> None:
             for s_ in ("top", "right"):
                 ax.spines[s_].set_visible(False)
         axs[i, 0].set_ylabel(f"share of trials: {SHOW[c]}\nchange vs own August pre", fontsize=9)
-    hs = [plt.Line2D([], [], marker="o", ls="", color=AN_COL[a], label=a) for a in AN_COL]
-    fig.legend(handles=hs, loc="lower center", ncol=4, frameon=False, fontsize=9)
-    fig.suptitle("Jaw-without-lick and incomplete-lick trials per session, POOLED: share of " + denom() + ", change "
-                 "vs each animal's own August pre; dots = sessions; marker = animal-weighted change, paired nested "
-                 "bootstrap 95% CI;\n* CI excludes 0, ** p < 0.05 / 18 (Bonferroni, 6 spouts x 3 epochs, per row); pre "
-                 "column = pre sessions vs their own mean (noise floor)", fontsize=9.5)
+    hs = cp.animal_handles(sorted(S.animal.unique())) + [
+        plt.Line2D([], [], marker="o", ls="", color=EP_COL[e], label=e) for e in EPS]
+    fig.legend(handles=hs, loc="lower center", ncol=8, frameon=False, fontsize=9)
+    fig.suptitle("Jaw-without-lick and incomplete-lick trials per session, POOLED: share of " + denom() + ",\nchange "
+                 "vs each animal's own August pre. Open markers = sessions (shape = animal, colour = epoch); filled "
+                 "marker = animal-weighted change, paired nested bootstrap 95% CI;\n* CI excludes 0, ** p < 0.05 / 18 "
+                 "(Bonferroni, 6 spouts x 3 epochs, per row); pre column = pre sessions vs their own mean (noise floor)",
+                 fontsize=9.5)
     sig_marks.reserve_headroom(fig)
     fig.tight_layout(rect=(0, 0.04, 1, 0.9))
     fig.savefig(path, dpi=100)
