@@ -60,7 +60,7 @@ Folders: top level, `cohort2_qc/`, `imaging_page/`, `rest_migration/`.
 | [`fr_enl_decode.py`](fr_enl_decode.py) | Can spout position be decoded from FACE movement (FaceRhythm factors) in the lick-free pre-cue (ENL) window? |  |
 | [`fr_musall.py`](fr_musall.py) | Musall-style variance figures and area maps for the encoder WITH FaceRhythm (Priya 10-25: "add the musall-style plots and maps for the fr-including runs"). |  |
 | [`fr_pixel_maps_sig.py`](fr_pixel_maps_sig.py) | Musall-style FaceRhythm PIXEL maps WITH their significance on the same panels (Priya 10-25: "what happened with stats on the FR neural maps eg 16g" -- the tests were drawn only in the separate signifi ... |  |
-| [`fr_pixel_significance.py`](fr_pixel_significance.py) | SIGNIFICANCE of the Musall-style pixel maps with FaceRhythm (Priya 10-25: "can we test significance on these maps?"). |  |
+| [`fr_pixel_significance.py`](fr_pixel_significance.py) | SIGNIFICANCE of the Musall-style pixel maps with FaceRhythm (Priya 10-25: "can we test significance on these maps?"). `--drift-control` = SUPPLEMENTAL late-pre vs early-pre per map (Priya 11-06; reads the epoch tests, no refit). |  |
 | [`fr_trial_peth.py`](fr_trial_peth.py) | Trial-to-trial vs PETH variance WITH FaceRhythm (Priya 10-25: "what about PETH vs trial-by-trial variance?"). |  |
 | [`frozen_area_maps.py`](frozen_area_maps.py) | AREA MAPS of the frozen-encoder decomposition (Priya 10-22: "are there maps that go along with this most recent analysis?" -> "go ahead with the area map and then pixel maps"). |  |
 | [`frozen_claims.py`](frozen_claims.py) | POST-STROKE CHANGE CLAIMS REDONE IN THE FROZEN FRAME (Priya 10-25: "redo all post-stroke change claims with the frozen model"). |  |

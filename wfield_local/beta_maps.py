@@ -1276,7 +1276,8 @@ def significance_contour(pre_by_animal, post_by_animal, *, method=PRIMARY_TEST, 
     ONE PLACE, so a figure cannot quietly disagree with another about what its drawn contour means.
     Three methods are reachable and they answer the same question with different trade-offs:
 
-        "nested"   animals -> sessions bootstrap on the 8x downsampled grid, Bonferroni over bins.
+        "nested"   animals -> sessions bootstrap on the 8x downsampled grid, family-wise over bins by `CORRECTION`
+                   (default "maxstat": the max-statistic; Bonferroni only if CORRECTION is changed).
                    THE DEFAULT, and the same object the bar families use. Sessions sharpen each
                    animal's estimate without being counted as independent animals.
         "cluster"  full-resolution cluster mass against a within-animal relabelling null. Animal is

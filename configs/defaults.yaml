@@ -80,6 +80,14 @@ trial_selection:
   stop_min_start_s: 300         # a stopped run must START >= this long after the session's first cue (Priya 11-03); earlier = neither class
   rest_start: first_lick        # camera rest working period starts at the first camera lick (OPEN for Priya); session = the first cue
 
+precue_engagement_states:       # wfield_local/precue_engagement_states.py (the pre-stroke engagement discriminator)
+  # PER-ANIMAL LATE WINDOW under the CAMERA gate (Priya 11-06: "relax the late window for PS93 only"). Default for every
+  # animal (and the DAQ gate always) = the code's LATE_FRACTION 0.75 (final quarter). PS93 has 12 late pre no_response
+  # rows at 0.75, below MIN_TRAIN camera 15; 0.67 is the smallest widening (0.01 steps) giving >= 15 of each class
+  # (no_response 15; working 1134 precue / 1164 cue). Measured 11-06 on the cohort1_rebuild_20261103 profile.
+  camera_late_fraction:
+    PS93: 0.67
+
 bal_em:
   centre_rows: auto              # EM centre rows: auto = camera WORKING rows under the camera gate, DAQ-engaged under the DAQ gate (Priya 11-03); engaged = alternative
   centre_fallback_contact: ["PS93_0813"]   # no camera-working rows (no video): centre from its DAQ contact rows (fifth review D-B3)
