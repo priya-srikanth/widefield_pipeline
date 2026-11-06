@@ -297,3 +297,10 @@ the night.
   the aim variant? (30) style: pose3d_summary_fig keeps filled epoch dots (per-animal), pose3d_phase top spines -> fix in
   the same pass? trial_attempts_sessions.csv for the tag EXISTS (qc/sel-camera-...stopA2jexrt3500c70, 11-04, 12
   frac_stopped columns; identical under the DAQ detector).
+- ~17:00 **redraw inventory done** (0d2505f3: docs/status/REDRAW_INVENTORY_2026-11-06.{md,csv}; sent to a8): 610 goal-page +
+  deck figures: 250 redraw-only, 340 partial (bootstraps / LMMs), 3 need a re-run, 17 manual; only ~67 redraw-only have
+  inputs today (most wait for pending render steps); ~16 h to redraw everything. **A31**: the SVG code (PNG
+  byte-identical) could go into the code of the remaining / catch-up queues so pending figures get SVGs for free (~300),
+  instead of a separate 16 h redraw later -- OK to include it (it changes no numbers), or keep the render code frozen and
+  redraw after? Provenance table: ~60 lick / recovery / disengagement figures misfiled under lick_balance_subsets ->
+  fix in the post-render merge (using the inventory's stem remap).
