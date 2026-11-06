@@ -272,6 +272,7 @@ def test_run_emits_BOTH_families_under_distinct_names(monkeypatch, tmp_path):
 
     monkeypatch.setattr(rt, "series", fake_series)
     monkeypatch.setattr(rt, "pre_points", lambda *a, **k: {"PS92": [(0.0, 0.0), (0.01, 0.01)]})
+    monkeypatch.setattr(rt, "pre_series", lambda *a, **k: [])    # the pre-session sidecar reads _collect_5c too
     monkeypatch.setattr(rt, "figure", lambda *a, **k: [])
     monkeypatch.setattr(rt, "figure_by_animal", lambda *a, **k: [])
     out = rt.run(out_dir=tmp_path)
