@@ -337,7 +337,8 @@ LITERAL = {
     "scripts/drift_check/drift_cutoff_check.py",
     "scripts/imaging_page/s_per_animal.py",
     "scripts/locanmf_refit_test/refit_vs_projection.py",
-    "scripts/rebuild_figs/fig_behaviour_hits.py",
+    # scripts/rebuild_figs/fig_behaviour_hits.py left the scan 11-05 ((f) 2): it reads the run's camera attempts table
+    # through run_mode.attempts_dir(); its writes go through _common.default_out (run-tagged under a rebuild root)
     "scripts/rebuild_figs/fig_enl_move.py",
     "scripts/rebuild_figs/fig_frozen_refit_pooled.py",
     "scripts/rebuild_figs/fig_goal_epochs.py",
