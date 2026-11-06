@@ -8,7 +8,7 @@ only -- no model involved. Per animal x epoch: mean over sessions.
   POOLED              epoch - pre within animal, mean of the 4 animals (raw dF/F^2 units)
   PER-ANIMAL NORMED   log2(epoch / pre) within animal, mean of animals (each animal's own scale; 1 = doubling)
 Significance (normalised version): `beta_maps.hierarchical_bootstrap_significance` on per-session log2 variance (animals
--> sessions, Bonferroni over bins), 16 and 32 full-res px (8 / 16 block px), stat mask = eroded brain mask; calibration:
+-> sessions, max-statistic over bins = family-wise per panel, `beta_maps.CORRECTION`), 16 and 32 full-res px (8 / 16 block px), stat mask = eroded brain mask; calibration:
 random pre half-splits (share of splits with >= 1 false bin). Image left = ipsilesional.
 
 Usage: python scripts/variance_maps.py [--windows lick cue] [--n-null 50]
@@ -26,7 +26,7 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from fr_musall import AN, E, MAIN  # noqa: E402
-from fr_pixel_significance import FACTORS, block_mask, test  # noqa: E402
+from fr_pixel_significance import FACTORS, block_mask, correction_label, test  # noqa: E402
 
 EPS = ["acute", "subacute", "chronic"]
 
@@ -146,7 +146,7 @@ def main(argv=None) -> int:
         fig.suptitle(f"NEURAL (data only): TOTAL VARIANCE of the widefield signal per 2x2-px block, {w} window "
                      "(SST / frames, per session; within animal, then mean of 4 animals).\nMiddle: epoch - pre, raw. "
                      "Right: log2(epoch / pre) per animal (1 = doubling);\ncontours = significant bins (black 16 px, purple "
-                     f"dashed 32 px; nested bootstrap on log2 variance, Bonferroni). Null: >= 1 false bin in {nr.get(16, np.nan):.0%} "
+                     f"dashed 32 px; nested bootstrap on log2 variance, {correction_label()}). Null: >= 1 false bin in {nr.get(16, np.nan):.0%} "
                      f"(16 px) / {nr.get(32, np.nan):.0%} (32 px) of pre half-splits. Image left = ipsilesional.", fontsize=8.5)
         fig.subplots_adjust(left=0.02, right=0.97, top=0.87, bottom=0.02, wspace=0.12, hspace=0.25)
         fig.savefig(out / "figures" / f"variance_maps_{w}.png", dpi=115)

@@ -27,7 +27,7 @@ the basis-projected pixel. Pre sessions are held out (leave-one-pre-session-out)
 Frames: FR-A (`..._frA`, FaceRhythm in the model) = PRIMARY (directional face included); noFR = sensitivity.
 Display: per animal x epoch SSE and SST summed over sessions before the ratio, then the mean of animals (as
 frozen_pixel_musall). Test (epoch - pre): per-session maps, nested bootstrap animals -> sessions on 16-px bins,
-Bonferroni (`fr_pixel_significance.test`). Image LEFT = ipsilesional.
+max-statistic over bins, family-wise per panel (`fr_pixel_significance.test`). Image LEFT = ipsilesional.
 
 AREA DOTS: per-session unique R2 from `frozen_fr_compare/musall_sessions_v2.csv` (scripts/frozen_fr_musall_v2.py: Allen
 areas from the area run, ALM / tjM1 from the basis twin); levels = animal means (dots) + mean of animals; changes from
@@ -186,7 +186,7 @@ def compute(frame: str, jobs: int) -> Path:
 def plot_maps(plt, frame: str) -> list:
     import matplotlib
     from combined_encoding_figures import _outline
-    from fr_pixel_significance import FACTORS
+    from fr_pixel_significance import FACTORS, correction_label
     z = np.load(OUT / f"figdata_{frame}.npz", allow_pickle=True)   # own file; older saves held object labels
     Sg = pd.read_csv(OUT / f"maps_sig_{frame}.csv")
     ol = _outline(pd.DataFrame({"label": list(z["labels"])}))
@@ -243,7 +243,7 @@ def plot_maps(plt, frame: str) -> list:
                f"{', FaceRhythm' if frame == 'FR-A' else ''}). {frl}; "
                f"{'cue window 0-1.5 s' if w == 'cue' else 'first-lick window -0.1-1.0 s'}, every frame. Left 4: level "
                f"per epoch (mean of animals; pre held out). Right 3: epoch - pre; outlines = significant 16-px bins "
-               f"(nested bootstrap animals > sessions, Bonferroni), +/- = bins up / down. Image left = ipsilesional. "
+               f"(nested bootstrap animals > sessions, {correction_label()}), +/- = bins up / down. Image left = ipsilesional. "
                f"No lick-history regressor exists in this model. PROVISIONAL, n = 4.")
         fig.suptitle("\n".join(textwrap.wrap(ttl, 175)), fontsize=8.5)
         fig.subplots_adjust(left=0.06, right=0.995, top=1 - 1.25 / (2.75 * len(QS) + 1.6), bottom=0.09,

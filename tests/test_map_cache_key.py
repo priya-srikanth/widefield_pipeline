@@ -25,6 +25,10 @@ BUILDER_MODULES = ("beta_maps", "position_reference_maps", "locanmf_position_dec
                    "locanmf_cue_lick_analysis", "plot_lick_aligned_averages", "locanmf_lick_aligned", "nolick_decoder")
 #: sections read by those modules whose effect reaches the cache KIND by another route (run_mode / effective_kind)
 VIA_KIND = {"trial_selection"}
+#: sections a builder MODULE reads only in code no map builder reaches (classified by hand, as the test asks):
+#: precue_engagement_states.late_fraction (Priya 11-06, PS93 camera late window) feeds the state discriminator's
+#: training rows in run_animal; the map builders import only `engagement_gate` from that module, which never reads it
+OUTSIDE_MAPS = {"precue_engagement_states"}
 #: config.py helpers the builders call -> the key path each reads
 CONFIG_HELPER_KEYS = {"preprocess.maps.tag", "hemo.variant"}
 
@@ -93,7 +97,7 @@ def test_builder_modules_read_only_covered_sections():
             code = ln.split("#", 1)[0]
             if "defaults()" in code and not pat.search(code) and "def defaults" not in code:
                 pytest.fail(f"{m}: unrecognised defaults() access, classify it by hand: {ln.strip()}")
-    unexpected = {s: ms for s, ms in read.items() if s not in covered | VIA_KIND}
+    unexpected = {s: ms for s, ms in read.items() if s not in covered | VIA_KIND | OUTSIDE_MAPS}
     assert not unexpected, unexpected
 
 

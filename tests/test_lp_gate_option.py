@@ -134,14 +134,15 @@ def test_session_cache_kind_untouched_by_default(gate_off, monkeypatch, tmp_path
     monkeypatch.setattr(session_cache, "_disabled", lambda: False)
     session_cache.cached({"label": "X_0000"}, "bm-cue-working-abc", lambda: seen.append(1) or 1, verbose=False)
     names = sorted(p.name for p in tmp_path.glob("*.pkl"))
-    assert names == ["X_0000__bm-cue-working-abc__sig.pkl"]
+    # every kind ends in the detector part (`run_mode.session_kind_tag`, 11-06); the gate tag is what this pins
+    assert names == ["X_0000__bm-cue-working-abc-daqlk__sig.pkl"]
     monkeypatch.setenv(gate_source.GATE_SOURCE_ENV, "lp")
     monkeypatch.setattr(gate_source, "cache_tag", lambda rv=None: "glpTEST")
     session_cache.cached({"label": "X_0000"}, "bm-cue-working-abc", lambda: 2, verbose=False)
     session_cache.cached({"label": "X_0000"}, "tf-cue-0123", lambda: 3, verbose=False)
     names = sorted(p.name for p in tmp_path.glob("*.pkl"))
-    assert "X_0000__bm-cue-working-abc-glpTEST__sig.pkl" in names       # gate consumers: own key under the switch
-    assert "X_0000__tf-cue-0123__sig.pkl" in names                      # trial features: shared, never tagged
+    assert "X_0000__bm-cue-working-abc-glpTEST-daqlk__sig.pkl" in names  # gate consumers: own key under the switch
+    assert "X_0000__tf-cue-0123-daqlk__sig.pkl" in names                 # trial features: shared, never gate-tagged
 
 
 DIGESTED = ("wfield_local/beta_maps.py", "wfield_local/precue_engagement_states.py", "wfield_local/rest_engagement.py",
