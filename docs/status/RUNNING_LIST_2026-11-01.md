@@ -2055,3 +2055,8 @@ bundle without `daqlk` and writes a provenance json.
   open markers, legend = fits + animal shapes + epoch colours (plot_epoch already did). Every plot_fits caller follows
   (encoding_mixed redrawn; imaging_lmm, iti_lmm_figures, remap_lmm, remap_checks at their re-run on the merged code).
   - STOP cleared 22:45 (19 GB free; cause = my pre-push tests); lane T relaunched (laneT3.out). Other lanes never halted.
+- ~22:50: decisions push REJECTED by pre-push (targeted tests: 14 failed / 574 passed; visible: test_rebuild_root
+  require_default_covers_lp_gate_lp_and_enl[env1/2], r3_rebuild_figs_defaults_follow_the_run, test_spout_behavior
+  curated_mmdds_includes_future_onward_dates). Both files pass alone (87 passed) -> likely environment / concurrency.
+  Re-pushing with the full hook log (scratchpad/push_decisions_2.log). Progress note: 11 / ~227 steps done at 22:34;
+  per-step times 2-4x estimates (network-bound); forecast now ~weekend. IO / local-cache measurement helper started.
