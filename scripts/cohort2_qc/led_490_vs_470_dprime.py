@@ -29,7 +29,7 @@ DAQ = MICRO / "Widefield" / "DAQ_recorder_output"
 FS = 31.23
 VAR = "hemo_meegkit_hpfit"
 EXCLUDE_AFTER_MIN = {("PS122", "20261029"): 110.0}
-ANIMALS = ("PS121", "PS122")
+ANIMALS = ("PS118", "PS121", "PS122")   # PS118 = Thy1-GCaMP6s (490 from 11-05); PS121/PS122 = RiboL1-jGCaMP8s (490 from 11-04)
 
 
 def one(sd):
@@ -83,7 +83,7 @@ def figure(R, path):
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
-    marker = {"PS121": "o", "PS122": "s"}
+    marker = {"PS118": "^", "PS121": "o", "PS122": "s"}
     fig, ax = plt.subplots(2, 3, figsize=(13, 7.2))
     cols = (("amp", "hotspot response (dF/F %)"), ("sd", "trial-to-trial SD (dF/F %)"), ("d", "single-trial d'"))
     for i, kind in enumerate(("cue", "lick")):
@@ -111,9 +111,10 @@ def figure(R, path):
             if j == 0:
                 a.set_title(("cue 0-1 s" if kind == "cue" else "first lick 0-0.5 s") + "  (minus pre-cue 1 s)",
                             fontsize=10, loc="left", pad=16)
-    fig.suptitle("RiboL1 (PS121 circles, PS122 squares): 490 nm (red, filled) vs 470 nm (grey, open), one marker per "
-                 "session.\nHotspot = top 2% pixels on odd trials, scored on even trials; discharge trials dropped. "
-                 "490 raises dF/F AND trial SD about equally: d' = each mouse's best 470 day.", fontsize=10)
+    fig.suptitle("PS118 GCaMP6s (triangles), RiboL1 PS121 (circles) / PS122 (squares): 490 nm (red, filled) vs 470 nm "
+                 "(grey, open), one marker per session.\nHotspot = top 2% pixels on odd trials, scored on even trials; "
+                 "discharge trials dropped. 490 raises dF/F and trial SD about equally: d' ~ each mouse's best 470 day.",
+                 fontsize=9.5)
     fig.tight_layout(rect=(0, 0.03, 1, 0.93))
     fig.savefig(path, dpi=130)
     plt.close(fig)
