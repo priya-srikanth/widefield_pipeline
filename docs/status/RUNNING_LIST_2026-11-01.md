@@ -1973,3 +1973,18 @@ bundle without `daqlk` and writes a provenance json.
   - Deck 102 gain_bio_1104 is NOT lick_enlv_curves: it is decoder_mix_checks/gain_bio_1104 (gain_bio -> summarise ->
     gain_stats -> fig_sessions), scripts outside the repo, adopted hemo + adopted quiet-spikes input; re-rendering needs
     porting into the repo + rebuilding quiet spikes under the root. Ask Priya.
+- ~20:30: **Priya: Fig 11.2 = unified 1 s (LP) version; slide 102 = rebuild.**
+  - Lane X (DAQ 2 s x_enl_move, started 20:21) STOPPED (exact PIDs); queue_daqlk6.sh runs x_enl_move / x_fig_enl_move with
+    WIDEFIELD_LICK_SOURCE=lp (enl_post_s 1.0; output <root>/labcams/LP_licks_<tag>/enl_movement_multisession/). Relaunched.
+  - te frame + readers had "succeeded" on 0 sessions: frozen_encoder's FROZEN_LICKLAND_CALIB defaults to
+    <input cache>/pose3d_inputs/exec_bins_calib_20261023.csv, missing there. Copied it in (sha256 732b0d12 = the O2
+    bundle's tables/ copy); te outputs moved aside (*__nocalib_failed_20261105); te steps re-running (laneTE.out).
+  - Spont co-variation audit (SPONT_COVARIATION_AUDIT_20261105.md, 1529b6bd): add no_spont (+ no_other) to lsland, no_spont
+    to frlag, --variants ... no_spont no_other to a_svf_ls / b_svf_frA. Lane T was running lsland from v2 without it ->
+    STOPPED (exact PIDs), partial folder moved aside (*__stopped_nospont_20261105), lane T relaunched from v6; svf_ls /
+    svf_frA running now from v6 (ONLY) ahead of lane 2 (v2), which will skip them once .done. Optional (Priya): no_spont in
+    pixmusall twins / frAsplit_basis; a spont_only variant needs code. Captions to rewrite at the replacement pass
+    (uninstructed / lick labels; movement unique includes spontaneous licks).
+  - Slide 102: helper porting gain_bio chain into the repo (branch port/gain-bio-20261105) + quiet-spikes rebuild plan.
+  - e0 asked for env to re-render kinematics 1.7 / 1.8 (lick_aim_deficit, iti_lick_rate): told to wait (in my queue /
+    being checked for camera gate + August pre).
