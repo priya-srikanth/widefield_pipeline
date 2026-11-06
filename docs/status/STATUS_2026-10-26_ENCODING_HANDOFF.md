@@ -107,6 +107,11 @@ imports the shared widefield_pipeline checkout; pre-push hook tests can use 13 G
 queue "EXIT 0" can hide per-session failures (te: "!! stats" on every session) -> check outputs, not just exit codes;
 `--help` dry runs miss runtime path bugs (relabel routing, decompose absolute --folder, ITI table order).
 
+**Added ~23:05:** PI deck fluoroscopy update (Priya's request: new all_graphs A-J with G bolus density / H barium amount,
+density_method hidden after 159) is being done by a8 (deck owner, sole writer) -- don't touch the deck; log a8's done
+message on the overnight page. a8's bare-run pre-cut question is on Priya's overnight page (A4) with my rec. Render monitor
+= task re-armed every 30 min (last bmn0d58bm). Decisions push retry = task bzqykfs5k.
+
 **Peers:** a8 (cleanup; told: no rebase, number-changing items held for Priya; bare-run pre default -> my rec in the
 overnight page A4); e0 (kinematics; waiting for my lick_aim_deficit / iti_lick_rate renders). Priya's pending answers are
 in the overnight page section A.
