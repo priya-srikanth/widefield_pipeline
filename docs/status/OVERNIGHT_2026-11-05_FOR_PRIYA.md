@@ -90,8 +90,9 @@ the night.
   Will clear STOP and relaunch lanes ONE OR TWO AT A TIME once the running steps finish (the 6-lane overlap is what keeps
   driving RAM to the floor). **Question A9: OK to run at most 3 lanes at once from here (slower but no RAM stops)?**
 - ~03:45 (from a8): on main now: response-window fallback (9ad4fbcc), hemo 470 slot (f1fd9f9f), and the **August-only
-  baseline cut for bare runs (5fa8253c, cohort key 0806)** -- that is A4 above; asked a8 whether you OK'd it (my page had
-  it open). WIDEFIELD_PRE_FROM stays 0801 (same pre sessions as 0806, pinned by a test), so render folder names don't change.
+  cohort key (5fa8253c, cohort1 = 0806, your "yes switch to 0806" in a8's window; existing cut sites now read it)**.
+  This is NOT A4: what a bare run selects is unchanged and no warning was added -- A4 stays open, not started.
+  WIDEFIELD_PRE_FROM stays 0801 (same pre sessions as 0806, pinned by a test), so render folder names don't change.
   a8 holds item 5 (fail-loud DAQ contacts) until the _daqlk render is done. Pre-push now runs only the touched tests.
 - ~03:45: render still under the low-RAM STOP: lanes G, E, SVF halted cleanly at step boundaries (g5_epoch, e_iti_key,
   b_svf_frA done); 4 steps still finishing. Will relaunch a few lanes at a time once they end.
