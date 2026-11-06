@@ -85,6 +85,10 @@ A25 LP epoch arm if Priya says yes; + any figure redraws for SVG per the invento
 definitions, findings (incl. corrections stated without multiple-comparison correction; far-contra decoder LP-trained).
 Scratch tools: scratchpad `prov/` (parse_steps.py, merge.py, build_md.py) -- re-run after the render for CONFIRMED.
 
+**Deck-note format (Priya via a8, 16:20):** fixed 7-line Data: block at the TOP of each PI-deck note (Window / Licks / Trial period
+/ Trial types / Gate / Baseline / Correction). a8 writes notes only from CONFIRMED rows. TODO in the post-render merge (prov/merge.py):
+add a `correction` column and a `data_block7` column (the 7 lines), then message a8. A23 deck = old slides 107 + 180 (page Fig 6.9).
+
 **Helpers running at 16:00:** gates-captions (A20-A23), SVG writers, redraw inventory (for a8). Their reports arrive as
 agent messages; nothing pushes.
 
