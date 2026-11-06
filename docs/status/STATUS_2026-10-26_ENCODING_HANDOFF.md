@@ -39,7 +39,7 @@ for anything that loads imaging. E = `M:/MICROSCOPE/Priya/Widefield/LP_analysis/
 3. Then tell **sabatinilab-e3** (PI deck) the decoder figures are final: per figure the share PNG path, page Fig N.k,
    script + args, headline numbers, methods text (they asked 10-26 ~22:30; reply sent: not final yet).
 
-### 00-COMPACT-31 (11-06 ~16:00) -- READ FIRST; supersedes 30 for state (30 holds for queue mechanics)
+### 00-COMPACT-31 (11-06 ~14:30; times written as 16:00-16:20 below were estimates, real ~14:10-14:30) -- READ FIRST; supersedes 30 for state (30 holds for queue mechanics)
 
 **Priya 11-06 16:00: "make sure we're not layering changes onto in-flight analyses."** Rule from now on:
 1. **No more mid-render code changes into running queues.** Any new code goes on a branch; the not-started steps it

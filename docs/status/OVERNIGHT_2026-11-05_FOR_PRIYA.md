@@ -304,3 +304,4 @@ the night.
   instead of a separate 16 h redraw later -- OK to include it (it changes no numbers), or keep the render code frozen and
   redraw after? Provenance table: ~60 lick / recovery / disengagement figures misfiled under lick_balance_subsets ->
   fix in the post-render merge (using the inventory's stem remap).
+- **14:30 TIME CORRECTION:** the '~14:40' ... '~17:00' labels on the entries above (and '16:00' / '16:20' in handoff 00-COMPACT-31) were my estimates and run 1-2.5 h AHEAD; the real time of this note is 14:30. The render CHAIN.log timestamps are authoritative.
