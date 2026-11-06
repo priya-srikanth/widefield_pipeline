@@ -19,6 +19,7 @@ Usage: python scripts/residual_roi.py [--tag gate-attempted_v7g3_t3d]   (10b's f
 Output: <E>/specificity_control/<tag>/residual_roi.csv, figures/residual_roi_{raw,z}.png
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 from wfield_local.frozen_encoder import design_tag as _design_tag  # frame tag of the FROZEN_LICKS_ALL design (8.51)
 
 import argparse
@@ -159,7 +160,7 @@ def main(argv=None) -> int:
                         "Allen areas." if split else ""), fontsize=9)
         fig.subplots_adjust(left=0.02, right=0.88, bottom=0.03, top=1 - 1.3 / (3.5 * len(rows_) + 0.8), wspace=0.05,
                             hspace=0.3)
-        fig.savefig(out / "figures" / f"residual_roi_{'raw' if q == 'residual' else 'z'}.png", dpi=115)
+        save_png_svg(fig, out / "figures" / f"residual_roi_{'raw' if q == 'residual' else 'z'}.png", dpi=115)
         plt.close(fig)
     print("->", out)
     return 0
@@ -239,7 +240,7 @@ def by_spout(tag: str) -> int:
                                 "areas; scale of the Allen figure." if kind == "split" else ""), fontsize=8.5)
                 fig.subplots_adjust(left=0.01, right=0.9, bottom=0.02, top=0.86 if kind == "allen" else 0.84, wspace=0.04,
                                     hspace=0.3)  # bar at 0.915
-                fig.savefig(out / "figures" / f"residual_roi_by_spout_{w}_{'raw' if q == 'residual' else 'z'}{sfx}.png",
+                save_png_svg(fig, out / "figures" / f"residual_roi_by_spout_{w}_{'raw' if q == 'residual' else 'z'}{sfx}.png",
                             dpi=110)
                 plt.close(fig)
     print("->", out)

@@ -33,6 +33,7 @@ figures/lick_behaviour_decoder.png, figdata/lick_behaviour_decoder.pkl (--plot-o
 Usage: python scripts/lick_behaviour_decoder.py [--plot-only] [--animals PS94 ...] [--jobs 8]   (frozen env required)
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import argparse
 import os
@@ -246,7 +247,7 @@ def plot(F: dict) -> None:
     fig.subplots_adjust(top=1 - (0.17 * 5 + 0.25 + 0.55) / fig.get_size_inches()[1])   # suptitle + 3-line panel titles
     out = il.OUT_W / "figures" / f"{STEM}.png"
     out.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out, dpi=100)
+    save_png_svg(fig, out, dpi=100)
     plt.close(fig)
 
 

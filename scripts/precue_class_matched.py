@@ -15,6 +15,7 @@ Usage: python scripts/precue_class_matched.py
 Output: <E>/attempt_coding/precue_class_matched{,_sessions}.csv, figures/precue_class_matched.png
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 
 import numpy as np
@@ -115,7 +116,7 @@ def main() -> int:
                  f"trial order (sessions with >= {MIN_EACH} of each);\ndots = sessions; bar = paired animals > sessions bootstrap mean, "
                  "whisker 95% CI (bold = excludes 0). Pre-cue = before the cue (ENL), not movement-removed", fontsize=9.5)
     fig.tight_layout(rect=(0, 0, 1, 0.88))
-    fig.savefig(A / "figures" / "precue_class_matched.png", dpi=125)
+    save_png_svg(fig, A / "figures" / "precue_class_matched.png", dpi=125)
     plt.close(fig)
     print("->", A / "figures" / "precue_class_matched.png")
     return 0

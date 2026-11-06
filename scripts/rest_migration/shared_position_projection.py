@@ -212,8 +212,7 @@ def _plot(rows, out, variant_name, aligns):
     fig.tight_layout(rect=(0, 0.01, 1, 0.93))
     p = out / f"epoch_15s_shared_position_{variant_name}.png"
     from wfield_local import figure_layout as fl
-    fig.savefig(p, dpi=150)
-    fig.savefig(fl.svg_path(p))
+    fl.save_png_svg(fig, p, dpi=150)      # PNG + svg/ twin (text kept as text, 2026-11-06)
     plt.close(fig)
     return p
 

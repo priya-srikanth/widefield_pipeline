@@ -25,6 +25,7 @@ session x position x trial set: mean over cue + 70 .. 1500 ms), by_epoch.csv (pe
 mean; change vs August pre), figures/cue_<measure>_<animal>.png.
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import argparse
 import warnings
@@ -199,7 +200,7 @@ def figure(T: pd.DataFrame, animal: str, m: str, path: Path, pre_from: str, alig
              + ("; SIGN: + = CONTRALESIONAL (mouse right), flipped at plot level" if contra and m in SIGNED else ""))
     fig.suptitle(_wrap(title, 150), fontsize=8)
     fig.tight_layout()
-    fig.savefig(path, dpi=110)
+    save_png_svg(fig, path, dpi=110)
     plt.close(fig)
 
 

@@ -18,6 +18,7 @@ figures/lick_matched_angle_reach.png; figdata/lick_matched_angle_reach.pkl (--pl
 Usage: python scripts/lick_matched_angle_reach.py [--plot-only]
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import sys
 from pathlib import Path
@@ -126,7 +127,7 @@ def plot(F: dict) -> None:
                  " (held-out pre error). Dots = sessions, lines = animals, change vs pre = 95 % paired nested bootstrap, "
                  "k/n animals. PROVISIONAL", fontsize=9)
     fig.tight_layout(rect=(0, 0, 1, 0.88))
-    fig.savefig(il.OUT / "figures" / f"{STEM}.png", dpi=100)
+    save_png_svg(fig, il.OUT / "figures" / f"{STEM}.png", dpi=100)
     plt.close(fig)
 
 

@@ -23,6 +23,7 @@ ipsi (lesioned LEFT hemisphere) = image LEFT; displayed at half resolution.
 Usage: python scripts/frozen_r2_maps.py --tag gate-attempted_v6basis
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import argparse
 import json
@@ -159,7 +160,7 @@ def main(argv=None) -> int:
         sub = ("colour scale PER PANEL (99th percentile, printed bottom-left)" if per_panel
                else "colour scale per column (99th percentile, in each title)")
         fig.suptitle(f"{title}\n{sub}. ipsi (lesion) = image LEFT. PROVISIONAL", fontsize=8)
-        fig.savefig(path, dpi=120, bbox_inches="tight")
+        save_png_svg(fig, path, dpi=120, bbox_inches="tight")
         plt.close(fig)
     kind = next(iter(spatial.values()))["kind"]
     share = {}                                             # unique / full (full kept as is)
@@ -214,7 +215,7 @@ def main(argv=None) -> int:
         fig.suptitle(f"Frozen encoder ({kind} targets, base {base}): PER-POSITION unique R2 of the {part} -- "
                      f"on that spout's own trials, {when}; {scl}. ipsi (lesion) = image LEFT. PROVISIONAL", fontsize=8)
         tag = "target" if what == "drop" else "whole"
-        fig.savefig(fd / f"r2_maps_position_{base}_{tag}_{ep}{'_minus_pre' if diff else ''}"
+        save_png_svg(fig, fd / f"r2_maps_position_{base}_{tag}_{ep}{'_minus_pre' if diff else ''}"
                          f"{'_peranimal' if per_panel else ''}.png", dpi=120, bbox_inches="tight")
         plt.close(fig)
     # PER-POSITION unique R2 (frozen drop-one-spout): spout q's own target-position response folded into the others'

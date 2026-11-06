@@ -29,6 +29,7 @@ REBUILD: re-run attempt_coding.py (decision D7: training rule of the LP-gated st
 OUT: <out>/fig1_binned_contest.png, fig2_attempt_decoder.png, fig3_attempt_amplitude.png
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import sys
 from pathlib import Path
@@ -125,7 +126,7 @@ def draw_fig1(c: pd.DataFrame, png: Path) -> None:
                  "set beyond the other\nlines = epoch means, dots = sessions; chronic target > executed 4/4, acute "
                  "lick 3/4, subacute mixed, pre no lead", fontsize=10)
     fig.tight_layout(rect=(0, 0, 1, 0.92))
-    fig.savefig(png, dpi=140)
+    save_png_svg(fig, png, dpi=140)
     plt.close(fig)
 
 
@@ -165,7 +166,7 @@ def draw_fig2(fd: dict, png: Path) -> None:
                  "pre-stroke reference)\nfailed attempts (orange) lose the far-contra code but are read as a FAR spout "
                  "(distance kept, side lost); no pre-cue difference", fontsize=10)
     fig.tight_layout(rect=(0, 0, 1, 0.91))
-    fig.savefig(png, dpi=140)
+    save_png_svg(fig, png, dpi=140)
     plt.close(fig)
 
 
@@ -192,7 +193,7 @@ def draw_fig3(h: pd.DataFrame, png: Path) -> None:
     fig.suptitle("Item 4: how big is the far-contra response on failed attempts?\nSmaller than hits in 3/4, but vs "
                  "touch-matched pre-stroke misses only 2/4 (PS92's reference = 7 trials)", fontsize=10)
     fig.tight_layout(rect=(0, 0, 1, 0.88))
-    fig.savefig(png, dpi=140)
+    save_png_svg(fig, png, dpi=140)
     plt.close(fig)
 
 

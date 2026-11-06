@@ -10,6 +10,7 @@ INPUT: <run>/residual_sig_<F>px.csv, <run>/resid<F>_<spout|all>_<window>_<epoch>
     PYTHONPATH=<wf_rebuild> python scripts/rebuild_figs/fig_resid16.py [--bin 16] [--encoder-tag gate-attempted_v7g3_t3d_basis] [--out DIR] [--plot-only]
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 from wfield_local.frozen_encoder import design_tag as _design_tag  # frame tag of the FROZEN_LICKS_ALL design (8.51)
 
 import sys
@@ -78,7 +79,7 @@ def draw(fd: dict, OUT: Path) -> None:
     for i in range(2):
         fig.colorbar(axs[i, 0].images[0], ax=list(axs[i]), fraction=0.025, pad=0.02,
                      label="residual change\n(/ animal's pre-stroke scale)")
-    fig.savefig(OUT / f"fig7c_residual_allspouts_{F}px.png", dpi=125)
+    save_png_svg(fig, OUT / f"fig7c_residual_allspouts_{F}px.png", dpi=125)
     plt.close(fig)
     # per spout
     for al in ("lick", "cue"):
@@ -93,7 +94,7 @@ def draw(fd: dict, OUT: Path) -> None:
         fig.subplots_adjust(left=0.01, right=0.92, bottom=0.01, top=0.9, wspace=0.05, hspace=0.35)
         fig.colorbar(axs[0, 0].images[0], ax=list(axs.ravel()), fraction=0.015, pad=0.01,
                      label="residual change\n(/ animal's pre-stroke scale)")
-        fig.savefig(OUT / f"fig7d_residual_perspout_{al}_{F}px.png", dpi=110)
+        save_png_svg(fig, OUT / f"fig7d_residual_perspout_{al}_{F}px.png", dpi=110)
         plt.close(fig)
 
 

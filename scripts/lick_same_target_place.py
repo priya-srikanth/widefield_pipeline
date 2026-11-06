@@ -24,6 +24,7 @@ figdata/lick_sametarget_place.pkl (--plot-only redraws from it).
 Usage: python scripts/lick_same_target_place.py [--plot-only] [--animals PS94 ...]
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import argparse
 import sys
@@ -172,7 +173,7 @@ def draw(D: dict) -> None:
     lo._layout(fig, bottom=0.02)
     out = il.OUT_W / "figures" / f"{STEM}.png"
     out.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out, dpi=100)
+    save_png_svg(fig, out, dpi=100)
     plt.close(fig)
 
 

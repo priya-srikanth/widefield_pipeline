@@ -10,6 +10,7 @@ Consolidates the former ~/source one-off scripts (decoder_weights_fig, decoder_r
 window_sweep_fig, baseline_variability_fig).
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import argparse
 import glob
@@ -123,7 +124,7 @@ def fig_weights_by_region(labels, out, tag=""):
     fig.tight_layout()
     p = out / f"locanmf_decoder_weights_by_region{('_' + tag) if tag else ''}.png"
     blank_unused(axes, len(labels), _rows, _cols)
-    fig.savefig(p, dpi=130); plt.close(fig)
+    save_png_svg(fig, p, dpi=130); plt.close(fig)
     return p
 
 
@@ -167,7 +168,7 @@ def fig_region_groups(labels, out):
     ax.set_ylim(0, 1); ax.set_ylabel("share of positive decoder weight")
     ax.set_title(f"Predictive-weight share by region group (mean of {len(labels)})"); ax.legend(fontsize=8, ncol=2)
     fig.suptitle("SSp dominates; MOp/MOs contribute (above chance) but secondary, strongest for FAR positions", fontsize=12)
-    fig.tight_layout(); p = out / "locanmf_decoder_region_groups.png"; fig.savefig(p, dpi=130); plt.close(fig)
+    fig.tight_layout(); p = out / "locanmf_decoder_region_groups.png"; save_png_svg(fig, p, dpi=130); plt.close(fig)
     return p
 
 
@@ -184,7 +185,7 @@ def fig_window_sweep(labels, out, wins=(0.5, 1.0, 2.0, 3.5, 5.0)):
     ax.set_xlabel("post-cue window length (s)"); ax.set_ylabel("decoding accuracy (block-CV)")
     ax.set_xticks(wins); ax.set_ylim(0.15, 0.9); ax.legend(fontsize=9, ncol=2)
     ax.set_title("Decoding vs window: ~2s optimum (lick-bout); longer dilutes (ITI ~7s, not cross-trial bleed)", fontsize=10.5)
-    fig.tight_layout(); p = out / "locanmf_decoder_window_sweep.png"; fig.savefig(p, dpi=130); plt.close(fig)
+    fig.tight_layout(); p = out / "locanmf_decoder_window_sweep.png"; save_png_svg(fig, p, dpi=130); plt.close(fig)
     return p
 
 
@@ -215,7 +216,7 @@ def fig_baseline_variability(out):
     axes[0].set_ylabel("decoding accuracy")
     fig.suptitle("Pre-stroke baseline variability (3 days/animal). Within-animal swing is large; a post-stroke "
                  "effect must clear this spread.", fontsize=11)
-    fig.tight_layout(); p = out / "locanmf_decoder_baseline_variability.png"; fig.savefig(p, dpi=130); plt.close(fig)
+    fig.tight_layout(); p = out / "locanmf_decoder_baseline_variability.png"; save_png_svg(fig, p, dpi=130); plt.close(fig)
     return p, by_animal
 
 
@@ -264,7 +265,7 @@ def fig_top_components(label, out, topn=10):
                              ha="center", va="center", fontsize=12, transform=axes.ravel()[0].transAxes)
     fig.suptitle(f"{label}: significant + fragment-deduped components by univariate block-CV accuracy "
                  f"({len(top)} shown, sig-thr={sigthr:.2f}; footprints Allen-overlaid, '->pos'=position most predicted)", fontsize=11)
-    fig.tight_layout(); p = out / f"locanmf_top_components_{label}.png"; fig.savefig(p, dpi=120); plt.close(fig)
+    fig.tight_layout(); p = out / f"locanmf_top_components_{label}.png"; save_png_svg(fig, p, dpi=120); plt.close(fig)
     return p
 
 
@@ -317,7 +318,7 @@ def fig_temporal_dynamics(labels, out):
     dtag = sorted({l[-4:] for l in labels})[0]
     dlab = "/".join(sorted({l[-4:-2] + "/" + l[-2:] for l in labels}))
     fig.suptitle(f"Rolling temporal dynamics of spout-position coding (first-lick aligned, {dlab}; one line per animal)", fontsize=12)
-    fig.tight_layout(); p = out / f"locanmf_decoder_temporal_dynamics_{dtag}.png"; fig.savefig(p, dpi=130); plt.close(fig)
+    fig.tight_layout(); p = out / f"locanmf_decoder_temporal_dynamics_{dtag}.png"; save_png_svg(fig, p, dpi=130); plt.close(fig)
     return p
 
 
@@ -364,7 +365,7 @@ def fig_rolling_cue(labels, out, tag):
     ax.set_xlabel("time from cue (s)"); ax.set_ylabel("decoding accuracy (0.5s window, block-CV)")
     ax.set_ylim(max(0.0, min([1 / 6] + allv) - 0.05), min(1.0, max([1 / 6] + allv) + 0.05))
     ax.legend(fontsize=9, loc="upper left"); ax.set_title(f"{tag} cue-aligned rolling decoder: pre-cue (ENL) -> post-cue", fontsize=11)
-    fig.tight_layout(); p = out / f"locanmf_decoder_rolling_cue_{tag}.png"; fig.savefig(p, dpi=130); plt.close(fig)
+    fig.tight_layout(); p = out / f"locanmf_decoder_rolling_cue_{tag}.png"; save_png_svg(fig, p, dpi=130); plt.close(fig)
     return p
 
 
@@ -390,7 +391,7 @@ def fig_rolling_cue_by_animal(animal, labels, out):
     ax.set_ylim(max(0.0, min([1 / 6] + allv) - 0.05), min(1.0, max([1 / 6] + allv) + 0.05))
     ax.legend(fontsize=9, loc="upper left", title="session")
     ax.set_title(f"{animal} cue-aligned rolling decoder across sessions (pre-cue ENL -> post-cue)", fontsize=11)
-    fig.tight_layout(); p = out / f"locanmf_decoder_rolling_by_animal_{animal}.png"; fig.savefig(p, dpi=130); plt.close(fig)
+    fig.tight_layout(); p = out / f"locanmf_decoder_rolling_by_animal_{animal}.png"; save_png_svg(fig, p, dpi=130); plt.close(fig)
     return p
 
 
@@ -414,7 +415,7 @@ def fig_rolling_laterality(labels, out, tag):
     ax.set_xlabel("time from cue (s)"); ax.set_ylabel("decoding accuracy (0.5s window, block-CV)")
     ax.set_ylim(max(0.0, min([1 / 6] + allv) - 0.05), min(1.0, max([1 / 3] + allv) + 0.05))
     ax.legend(fontsize=8, loc="upper left", ncol=2); ax.set_title(f"{tag} rolling: LATERALITY (3-way, solid) vs 6-way (dashed)", fontsize=11)
-    fig.tight_layout(); p = out / f"locanmf_decoder_rolling_laterality_{tag}.png"; fig.savefig(p, dpi=130); plt.close(fig)
+    fig.tight_layout(); p = out / f"locanmf_decoder_rolling_laterality_{tag}.png"; save_png_svg(fig, p, dpi=130); plt.close(fig)
     return p
 
 
@@ -463,7 +464,7 @@ def fig_first40(out, date="0604", control="0603", minutes=40):
     ax.set_xticks(x); ax.set_xticklabels(AN); ax.set_ylim(0, 1); ax.set_ylabel("engaged fraction"); ax.legend(fontsize=9)
     ax.set_title(f"{date} engagement collapses late in the session")
     fig.suptitle(f"{date} low decoding is partly late-session disengagement (only partly recovered)", fontsize=12)
-    fig.tight_layout(); p = out / f"locanmf_decoder_first40min_{date}.png"; fig.savefig(p, dpi=130); plt.close(fig)
+    fig.tight_layout(); p = out / f"locanmf_decoder_first40min_{date}.png"; save_png_svg(fig, p, dpi=130); plt.close(fig)
     return p
 
 
@@ -501,7 +502,7 @@ def fig_v1_vs_v2_alignment(labels, out, tag):
     ax.axhline(1 / 6, color="k", ls="--", lw=0.8); ax.set_xticks(x); ax.set_xticklabels([l.split("_")[0] for l in labels])
     ax.set_ylim(0, 0.8); ax.set_ylabel("decoding accuracy (block-CV)"); ax.legend(fontsize=9)
     ax.set_title(f"{tag} ROI decoder: v1 vs v2 Allen alignment (first-lick 2s, identical trials)")
-    fig.tight_layout(); p = out / f"locanmf_decoder_v1_vs_v2_alignment_{tag}.png"; fig.savefig(p, dpi=130); plt.close(fig)
+    fig.tight_layout(); p = out / f"locanmf_decoder_v1_vs_v2_alignment_{tag}.png"; save_png_svg(fig, p, dpi=130); plt.close(fig)
     return p
 
 

@@ -1,3 +1,4 @@
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 import matplotlib; matplotlib.use("Agg")
 import matplotlib.pyplot as plt, pandas as pd
 from pathlib import Path
@@ -17,5 +18,5 @@ for ax, (f, title, yl, _) in zip(axs, panels):
 axs[0].legend(frameon=False, fontsize=8)
 fig.suptitle("Per animal, session means (cue window, engaged trials; pre = leave-one-session-out). "
              "PS95 acute = 1 session.", fontsize=10)
-fig.tight_layout(rect=(0, 0, 1, 0.93)); fig.savefig(S / "per_animal_template_state.png", dpi=170)
+fig.tight_layout(rect=(0, 0, 1, 0.93)); save_png_svg(fig, S / "per_animal_template_state.png", dpi=170)
 print("ok")

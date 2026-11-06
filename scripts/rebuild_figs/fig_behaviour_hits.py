@@ -33,6 +33,7 @@ OUT: <out>/behaviour_hits_by_spout.png + .csv (camera working period, PRIMARY) a
      with n sessions. The same session filter (curated, August-only pre) and epochs for both.
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import datetime as dt
 import sys
@@ -151,7 +152,7 @@ def draw(fd: dict, png: Path, name: str = NAME) -> None:
     ax.legend(h1 + h2, l1 + AN, ncol=8, fontsize=10,
               frameon=False, loc="lower center", bbox_to_anchor=(0.5, 1.0), handletextpad=0.3, columnspacing=1.0)
     fig.tight_layout()
-    fig.savefig(png, dpi=200)
+    save_png_svg(fig, png, dpi=200)
     plt.close(fig)
 
 

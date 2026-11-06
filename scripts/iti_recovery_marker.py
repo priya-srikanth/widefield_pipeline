@@ -22,6 +22,7 @@ every axis that has been run.
 Usage: [WFIELD_MARKER_BEH=hit] python scripts/iti_recovery_marker.py [--plot-only]
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import os
 import sys
@@ -184,7 +185,7 @@ def plot(F: dict) -> None:
                  f"{t_.loc[('trial', 'spread+day'), 'p_perm']:.3f}). p = within-animal permutation of behaviour.",
                  fontsize=9.5, wrap=True)
     fig.tight_layout(rect=(0, 0, 1, 0.88))
-    fig.savefig(il.OUT / "figures" / f"lick_recovery_marker{'' if beh == 'fc_aim' else '_' + beh}.png", dpi=110)
+    save_png_svg(fig, il.OUT / "figures" / f"lick_recovery_marker{'' if beh == 'fc_aim' else '_' + beh}.png", dpi=110)
     plt.close(fig)
 
 

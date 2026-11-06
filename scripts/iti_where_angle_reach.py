@@ -20,6 +20,7 @@ Figure data <E>/iti_licks/figdata/lick_where_angle_reach.pkl (every panel's dots
 Usage: python scripts/iti_where_angle_reach.py [--plot-only]
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import sys
 from pathlib import Path
@@ -145,7 +146,7 @@ def plot(F: dict) -> None:
                  "Thin lines = animals, black = mean, grey dots = sessions, diamonds = change vs pre with 95% paired "
                  "nested bootstrap CI (* = excludes 0). PROVISIONAL", fontsize=9)
     fig.tight_layout(rect=(0, 0, 1, 1 - 0.8 / fig.get_size_inches()[1]))
-    fig.savefig(il.OUT / "figures" / "lick_where_angle_reach.png", dpi=100)
+    save_png_svg(fig, il.OUT / "figures" / "lick_where_angle_reach.png", dpi=100)
     plt.close(fig)
 
 

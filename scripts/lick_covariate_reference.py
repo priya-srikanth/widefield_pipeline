@@ -45,6 +45,7 @@ figures/lick_covref_offset<SRC_TAG>.png; figdata/lick_covref_offset<SRC_TAG>.pkl
 Usage: python scripts/lick_covariate_reference.py [--plot-only] [--animals PS94 ...] [--jobs 8]
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import argparse
 import os
@@ -389,7 +390,7 @@ def draw(D: dict) -> None:
     lo._layout(fig, bottom=0.02)
     out = il.OUT_W / "figures" / f"{STEM}.png"
     out.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out, dpi=100)
+    save_png_svg(fig, out, dpi=100)
     plt.close(fig)
 
 

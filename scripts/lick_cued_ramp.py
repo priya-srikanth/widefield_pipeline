@@ -31,6 +31,7 @@ sig_bins_perspout.csv, perspout_auc_tests.csv (per-spout AUC 0..0.5 s / pre at t
 Usage: python scripts/lick_cued_ramp.py --extract [--jobs N]; python scripts/lick_cued_ramp.py [--plot-only]
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import sys
 from pathlib import Path
@@ -488,7 +489,7 @@ def _draw_spout_windows(F: dict, key: str, what: str, path: Path) -> None:
                  "PRE AUC at the same spout, change vs pre, mean of animals with 95% paired nested bootstrap CI.\nRows: "
                  "0..0.5 s, 0..1.0 s, and the late part 0.5..1.0 s alone. _right = contralesional. PROVISIONAL", fontsize=9.5)
     fig.tight_layout(rect=(0, 0.04, 1, 0.93))
-    fig.savefig(path, dpi=100)
+    save_png_svg(fig, path, dpi=100)
     plt.close(fig)
 
 
@@ -560,7 +561,7 @@ def _draw_sessions(F: dict, xlab: str, title: str, path: Path, nlab: str) -> Non
     fig.suptitle(title + "\nRow 3 = DIFFERENCE from each animal's own pre curve, in units of that pre curve's peak (0..1.5 s); "
                  "0 = no change. " + il.SIG_NOTE.replace("\n", " "), fontsize=9.5)
     fig.tight_layout(rect=(0, 0, 1, 0.9))
-    fig.savefig(path, dpi=105)
+    save_png_svg(fig, path, dpi=105)
     plt.close(fig)
 
 
@@ -601,7 +602,7 @@ def _draw_spout(F: dict, key: str, xlab: str, title: str, path: Path, nlab: str)
     fig.suptitle(title + "\n" + il.SIG_NOTE.replace("\n", " ") + " Tested per spout against the animal's pre curve at "
                  "that spout.", fontsize=9.5)
     fig.tight_layout(rect=(0, 0.06, 1, 0.92))
-    fig.savefig(path, dpi=100)
+    save_png_svg(fig, path, dpi=100)
     plt.close(fig)
 
 
@@ -637,7 +638,7 @@ def _draw_ratio(F: dict, path: Path) -> None:
                  "Flat = the whole response scaled by one factor; a slope or bump = the SHAPE changed. Rows: first cued "
                  "lick, cue-aligned, ITI bout start. Descriptive.", fontsize=9.5)
     fig.tight_layout(rect=(0, 0, 1, 0.92))
-    fig.savefig(path, dpi=100)
+    save_png_svg(fig, path, dpi=100)
     plt.close(fig)
 
 
@@ -666,7 +667,7 @@ def _draw_windows(F: dict, k: str, path: Path) -> None:
                  "mean of the same measure;\none dot per session, "
                  "black = mean +- SEM, * = nested-bootstrap change from pre (95% CI excludes 0).", fontsize=9.5)
     fig.tight_layout(rect=(0.01, 0, 0.99, 0.94))
-    fig.savefig(path, dpi=100)
+    save_png_svg(fig, path, dpi=100)
     plt.close(fig)
 
 
@@ -729,7 +730,7 @@ def plot(F: dict) -> None:
                  "Baselines (10-28): lick response -1.0..-0.5 s, pre-lick window -1.5..-1.0 s before the lick, cue -1.0..-0.5 s before the cue. "
                  "* = change from pre with 95% nested-bootstrap CI (animals > sessions) excluding 0.", fontsize=9.5)
     fig.tight_layout(rect=(0.01, 0, 0.99, 0.94))
-    fig.savefig(out / "lick_cued_ramp_summary.png", dpi=110)
+    save_png_svg(fig, out / "lick_cued_ramp_summary.png", dpi=110)
     plt.close(fig)
     if "summary_iti" in F:      # ITI AUC summary on the wide traces (14.10 with the 0..1.0 s response window)
         fig, axs = plt.subplots(len(SPEC_ITI), len(ROIS), figsize=(21, 12.5))
@@ -748,7 +749,7 @@ def plot(F: dict) -> None:
                      "-1.5..-1.0 s), / the animal's pre 0..0.5 s response AUC (as before). * = change from pre with 95% "
                      "nested-bootstrap CI (animals > sessions) excluding 0.", fontsize=9.5)
         fig.tight_layout(rect=(0.01, 0, 0.99, 0.93))
-        fig.savefig(out / "lick_iti_ramp_summary_wide.png", dpi=110)
+        save_png_svg(fig, out / "lick_iti_ramp_summary_wide.png", dpi=110)
         plt.close(fig)
 
 
@@ -833,7 +834,7 @@ def draw_baseline_sens(F: dict) -> None:
                  "ITI licks (iti_iso: no lick 0.05..0.75 s after; later licks can still fall in 0.75..1.5 s), first cued "
                  "licks.", fontsize=9.5)
     fig.tight_layout(rect=(0, 0, 1, 0.94))
-    fig.savefig(il.OUT_W / "figures" / "lick_ramp_baseline_sens.png", dpi=95)
+    save_png_svg(fig, il.OUT_W / "figures" / "lick_ramp_baseline_sens.png", dpi=95)
     plt.close(fig)
 
 

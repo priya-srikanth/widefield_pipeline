@@ -13,6 +13,7 @@ sessions as observations (anti-conservative at 4 animals; per-animal correlation
 Outputs <OUT_W>/balrec_sessions.csv, balrec_models.csv; figure lick_balance_recovery.png (figdata + --plot-only).
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import sys
 from pathlib import Path
@@ -119,7 +120,7 @@ def plot(F: dict) -> None:
                  "aim change ~ this session's balance + current aim). Within-animal slope bold when p < 0.05. PROVISIONAL",
                  fontsize=9.5)
     fig.tight_layout(rect=(0, 0.05, 1, 0.91))
-    fig.savefig(il.OUT_W / "figures" / "lick_balance_recovery.png", dpi=100)
+    save_png_svg(fig, il.OUT_W / "figures" / "lick_balance_recovery.png", dpi=100)
     plt.close(fig)
 
 

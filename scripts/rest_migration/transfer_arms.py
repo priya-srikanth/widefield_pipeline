@@ -375,8 +375,7 @@ def _figure(summary, out_dir, tag=""):
              "(mean slope -0.009 / 30 d).",
              ha="center", va="top", fontsize=10)
     out = out_dir / f"epoch_15g_transfer_by_window{tag}.png"
-    fig.savefig(out, dpi=150, bbox_inches="tight")
-    fig.savefig(fl.svg_path(out), bbox_inches="tight")
+    fl.save_png_svg(fig, out, dpi=150, bbox_inches="tight")      # PNG + svg/ twin (text kept as text, 2026-11-06)
     plt.close(fig)
     return out
 

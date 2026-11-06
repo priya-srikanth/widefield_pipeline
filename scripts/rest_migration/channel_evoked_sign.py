@@ -38,6 +38,7 @@ The late plateau may be partly trial-structure rather than physiology.
     python -m scripts.rest_migration.channel_evoked_sign [--animals PS92 ...] [--per-animal 3]
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import argparse
 from pathlib import Path
@@ -182,7 +183,7 @@ def main(argv=None) -> int:
                  "across cues, 3 pre-stroke sessions pooled per animal.", fontsize=9.0)
     fig.tight_layout(rect=(0, 0, 1, 0.87))
     q = out_dir / "epoch_20_channel_evoked_sign.png"
-    fig.savefig(q, dpi=180)
+    save_png_svg(fig, q, dpi=180)
     print(f"\nwrote {q}")
 
     bar = "=" * 92

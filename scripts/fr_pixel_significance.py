@@ -12,6 +12,7 @@ Usage: python scripts/fr_pixel_significance.py [--mode A] [--windows lick cue] [
 Output: <E>/fr_encoding_summary/pixel_significance/ (sig_bins.csv, null.csv, sig_<q>_<w>_<F>px.npz, figures/)
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import argparse
 import sys
@@ -181,7 +182,7 @@ def main(argv=None) -> int:
                      f"{nr.get(16, np.nan):.0%} (16 px) / {nr.get(32, np.nan):.0%} (32 px) of splits. Image left = ipsilesional.",
                      fontsize=8.5)
         fig.subplots_adjust(left=0.03, right=0.995, top=0.86, bottom=0.04, wspace=0.06, hspace=0.3)
-        fig.savefig(out / "figures" / f"fr_pixel_significance_{w}_mode{a.mode}.png", dpi=115)
+        save_png_svg(fig, out / "figures" / f"fr_pixel_significance_{w}_mode{a.mode}.png", dpi=115)
         plt.close(fig)
     print("->", out)
     return 0

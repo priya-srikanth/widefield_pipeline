@@ -15,6 +15,7 @@ Usage: python scripts/variance_maps.py [--windows lick cue] [--n-null 50]
 Output: <E>/variance_maps/ (figures/variance_maps_<window>.png, sig.csv, null.csv, per_animal.npz)
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import argparse
 import json
@@ -149,7 +150,7 @@ def main(argv=None) -> int:
                      f"dashed 32 px; nested bootstrap on log2 variance, Bonferroni). Null: >= 1 false bin in {nr.get(16, np.nan):.0%} "
                      f"(16 px) / {nr.get(32, np.nan):.0%} (32 px) of pre half-splits. Image left = ipsilesional.", fontsize=8.5)
         fig.subplots_adjust(left=0.02, right=0.97, top=0.87, bottom=0.02, wspace=0.12, hspace=0.25)
-        fig.savefig(out / "figures" / f"variance_maps_{w}.png", dpi=115)
+        save_png_svg(fig, out / "figures" / f"variance_maps_{w}.png", dpi=115)
         plt.close(fig)
         print(w, [(r["epoch"], r["px"], r["up"], r["down"]) for r in rows if r["window"] == w], flush=True)
     pd.DataFrame(rows).to_csv(out / "sig.csv", index=False)

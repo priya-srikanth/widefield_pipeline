@@ -21,6 +21,7 @@ Figure data (figdata.py convention): <E>/iti_licks/figdata/lick_cued_misdirected
 Usage: python scripts/cued_misdirected_licks.py [--plot-only]
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import sys
 from pathlib import Path
@@ -172,7 +173,7 @@ def plot(D: dict) -> None:
                  "lateral decoder vs left-target licks with the same landing, same session. Lesion LEFT; far R = "
                  "contralesional. PROVISIONAL", fontsize=9.5)
     fig.tight_layout(rect=(0, 0, 1, 0.86))
-    fig.savefig(il.OUT / "figures" / f"{FIG}.png", dpi=100)
+    save_png_svg(fig, il.OUT / "figures" / f"{FIG}.png", dpi=100)
     plt.close(fig)
 
 

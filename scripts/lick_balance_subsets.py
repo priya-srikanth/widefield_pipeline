@@ -18,6 +18,7 @@ within-animal shuffled sessions (N_NULL).
 Outputs <OUT_W>/balsub_sessions.csv, balsub_loao.csv, balsub_nested.csv; figure lick_balance_subsets.png.
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import itertools
 import os
@@ -402,7 +403,7 @@ def plot(L: pd.DataFrame, N: pd.DataFrame) -> None:
                  "definition) CHOSEN on 3 animals and tested on the 4th, bar = null 95% from repeating the selection on "
                  "shuffled sessions. PROVISIONAL", fontsize=10)
     fig.tight_layout(rect=(0, 0, 1, 0.92))
-    fig.savefig(il.OUT_W / "figures" / f"lick_balance_subsets{SFX}.png", dpi=90)
+    save_png_svg(fig, il.OUT_W / "figures" / f"lick_balance_subsets{SFX}.png", dpi=90)
     plt.close(fig)
 
 

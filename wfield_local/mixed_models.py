@@ -36,6 +36,7 @@ fixed-intercept OLS can be drawn as a descriptive companion only); serial correl
 (not a second implementation). Callers: scripts/encoding_mixed.py, scripts/within_spout_mixed.py, scripts/imaging_lmm.py.
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import warnings
 from pathlib import Path
@@ -312,7 +313,7 @@ def plot_epoch(L: pd.DataFrame, T: pd.DataFrame, panels, path: Path, title: str 
                  "BH-FDR q < 0.05", fontsize=9)
     fig.tight_layout(rect=(0, 0, 1, 1 - 0.5 / fig.get_size_inches()[1]))
     Path(path).parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(path, dpi=130)
+    save_png_svg(fig, path, dpi=130)
     plt.close(fig)
 
 
@@ -414,5 +415,5 @@ def plot_fits(L: pd.DataFrame, T: pd.DataFrame, panels, model: str, path: Path, 
     h = fig.get_figheight()
     fig.tight_layout(rect=(0, 0.25 / h, 1, 1 - 0.45 / h))
     Path(path).parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(path, dpi=150)
+    save_png_svg(fig, path, dpi=150)
     plt.close(fig)

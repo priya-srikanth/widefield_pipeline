@@ -25,6 +25,7 @@ Figure data <E>/iti_licks/figdata/lick_cued_recovery_measure<AIM_TAG>.pkl; --plo
 Usage: [WFIELD_AIM=all] python scripts/iti_recovery_measure.py [--plot-only]
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import os
 import sys
@@ -194,7 +195,7 @@ def plot(S: pd.DataFrame, aim: str = AIM) -> None:
                  "spout,\nweighted far contra 3 : far mid 2 : others 1 (left), and far contra signed (right). One dot per "
                  "session; pre sessions (left of the dashed line) = the noise floor. PROVISIONAL", fontsize=9.5)
     fig.tight_layout(rect=(0, 0, 1, 0.88))
-    fig.savefig(il.OUT / "figures" / f"lick_cued_recovery_measure{'' if aim == 'first' else '_aimall'}.png", dpi=100)
+    save_png_svg(fig, il.OUT / "figures" / f"lick_cued_recovery_measure{'' if aim == 'first' else '_aimall'}.png", dpi=100)
     plt.close(fig)
 
 

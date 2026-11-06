@@ -55,6 +55,7 @@ The pooled pair used to land in `channel_comparison` too, which is why they had 
 slide: no deck reads that directory. `--out` alone still sends both to one place.
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import argparse
 from pathlib import Path
@@ -311,7 +312,7 @@ def position_epoch_figure(stats, out_dir, arm):
     wrapped = "\n".join("\n".join(textwrap.wrap(p, 155)) for p in cap.split("\n"))
     fig.text(0.5, 0.962, wrapped, ha="center", va="top", fontsize=8.6)
     out = out_dir / f"channel_position_epoch_{arm}.png"
-    fig.savefig(out, dpi=150, bbox_inches="tight")
+    save_png_svg(fig, out, dpi=150, bbox_inches="tight")
     plt.close(fig)
     return out
 
@@ -751,7 +752,7 @@ def session_figure(s, out_dir, arm, ev_frames_by_code, order, labels, sig, edges
                  f"415 vs RAW 470 vs CORRECTED 470\n"
                  + "\n".join(textwrap.wrap(note, 130)), fontsize=12)
     out = out_dir / f"{s['label']}_{arm}_415_vs_470_vs_corr_by_position.png"
-    fig.savefig(out, dpi=150)
+    save_png_svg(fig, out, dpi=150)
     plt.close(fig)
     return out
 

@@ -25,6 +25,7 @@ criterion: amp >= 4% above a 2-s running median, half-width 40-300 ms, |415| < 0
     conda activate locanmf
     python scripts/cohort2_qc/seizure_events_video.py [--cam-only] [--day 1104]
 """
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 import json
 import sys
 from pathlib import Path
@@ -323,7 +324,7 @@ def traces(d, day, path):
             ax_.set_title(f"{(idx - 2) / FS * 1000:+.0f} ms ({led}, ±{lim:.0f}%)", fontsize=9)
             ax_.axis("off")
     fig.tight_layout()
-    fig.savefig(path, dpi=85)
+    save_png_svg(fig, path, dpi=85)
     plt.close(fig)
     print("wrote", path, flush=True)
 

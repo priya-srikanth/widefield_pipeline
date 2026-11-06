@@ -12,6 +12,7 @@ illustrate key and important points or findings"). Reads tables other scripts al
 Output: <run>/imaging_encoding/figures/behaviour/. Usage: PYTHONPATH=. python scripts/encoding_key_figures.py
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import argparse
 import glob
@@ -59,7 +60,7 @@ def precue_licking(E: Path, figs: Path) -> None:
     fig.suptitle("The pre-cue window is NOT lick-free: our lick tables start at the cue; the raw DAQ contact channel "
                  "shows licks before it (PS95 the exception)", fontsize=9)
     fig.tight_layout()
-    fig.savefig(figs / "precue_licking.png", dpi=150)
+    save_png_svg(fig, figs / "precue_licking.png", dpi=150)
     plt.close(fig)
 
 
@@ -85,7 +86,7 @@ def lick_deficits(E: Path, figs: Path) -> None:
     fig.suptitle("Two acute deficits: PS92 / PS93 slow to START far-contra licking; PS94 / PS95 start promptly but "
                  "almost never reach the spout (cam1 not yet for PS94 / PS95)", fontsize=9)
     fig.tight_layout()
-    fig.savefig(figs / "lick_deficits.png", dpi=150)
+    save_png_svg(fig, figs / "lick_deficits.png", dpi=150)
     plt.close(fig)
 
 
@@ -125,7 +126,7 @@ def landing_zones(E: Path, figs: Path) -> None:
     fig.suptitle("Where licks land (3-D): mean soft weight on each pre-stroke landing zone (columns)\n"
                  "per aimed spout (rows); diagonal = lands in its own zone", fontsize=9)
     fig.tight_layout()
-    fig.savefig(figs / "landing_zones.png", dpi=150)
+    save_png_svg(fig, figs / "landing_zones.png", dpi=150)
     plt.close(fig)
 
 

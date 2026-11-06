@@ -26,6 +26,7 @@ Usage: python scripts/lick_matched_readout.py [--ref place|spout|pooled|gauss|lo
        (default place; see REF)
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import sys
 from pathlib import Path
@@ -317,7 +318,7 @@ def plot(A: pd.DataFrame, S: pd.DataFrame, T: pd.DataFrame, BT: pd.DataFrame | N
                  fontsize=9.5)
     fig.tight_layout(rect=(0, 0, 1, 0.85))
     if "curves" in FIGS:
-        fig.savefig(il.OUT_W / "figures" / f"lick_matched{TAG}_curves.png", dpi=100)
+        save_png_svg(fig, il.OUT_W / "figures" / f"lick_matched{TAG}_curves.png", dpi=100)
     plt.close(fig)
     # 2. pooled read-out: all spouts, first / later, far contra first / later
     panels = [("all spouts", "all", "all spouts, all licks"), ("all spouts", "first", "all spouts, FIRST lick"),
@@ -350,7 +351,7 @@ def plot(A: pd.DataFrame, S: pd.DataFrame, T: pd.DataFrame, BT: pd.DataFrame | N
                  "PROVISIONAL", fontsize=9.5)
     fig.tight_layout(rect=(0, 0, 1, 0.9))
     if "readout" in FIGS:
-        fig.savefig(il.OUT_W / "figures" / f"lick_matched{TAG}_readout.png", dpi=100)
+        save_png_svg(fig, il.OUT_W / "figures" / f"lick_matched{TAG}_readout.png", dpi=100)
     plt.close(fig)
     # 3. per spout
     # Priya 10-27 (cued first-lick row); ITI FIRST-lick row added 10-28 (overnight queue 5d): ITI order 0 = the start of
@@ -383,7 +384,7 @@ def plot(A: pd.DataFrame, S: pd.DataFrame, T: pd.DataFrame, BT: pd.DataFrame | N
                  fontsize=9.5)
     fig.tight_layout(rect=(0, 0, 1, 0.9))
     if "perspout" in FIGS:
-        fig.savefig(il.OUT_W / "figures" / f"lick_matched{TAG}_perspout.png", dpi=100)
+        save_png_svg(fig, il.OUT_W / "figures" / f"lick_matched{TAG}_perspout.png", dpi=100)
     plt.close(fig)
 
 
@@ -451,7 +452,7 @@ def plot_animal(S: pd.DataFrame, T: pd.DataFrame) -> None:
                  "bar = +/- 1 SD of the animal's PRE sessions (noise level);\nright column / bottom right = POOLED: mean of animals, 95% paired "
                  "nested bootstrap CI, * = excludes 0, k/n animals. PROVISIONAL", fontsize=9.5)
     lo._layout(fig, bottom=0.01)
-    fig.savefig(il.OUT_W / "figures" / f"lick_matched{TAG}_animal_change.png", dpi=100)
+    save_png_svg(fig, il.OUT_W / "figures" / f"lick_matched{TAG}_animal_change.png", dpi=100)
     plt.close(fig)
 
 

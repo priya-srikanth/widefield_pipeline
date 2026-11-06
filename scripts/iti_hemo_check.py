@@ -49,6 +49,7 @@ Usage: python scripts/iti_hemo_check.py [--labels ...] [--jobs 3]     (extract, 
 Output: <iti_licks OUT>/hemo_check/*.csv, cache/<label>.npz ; figures <OUT>/figures/iti_hemo_check_*.png
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import argparse
 import json
@@ -531,10 +532,10 @@ def summarise(labels: list[str]) -> None:
 def _savefig(fig, name: str, dpi: int, tight_bbox: bool = False) -> None:
     import matplotlib.pyplot as plt
     if tight_bbox:
-        fig.savefig(il.OUT / "figures" / name, dpi=dpi, bbox_inches="tight")
+        save_png_svg(fig, il.OUT / "figures" / name, dpi=dpi, bbox_inches="tight")
     else:
         _fit(fig)
-        fig.savefig(il.OUT / "figures" / name, dpi=dpi)
+        save_png_svg(fig, il.OUT / "figures" / name, dpi=dpi)
     plt.close(fig)
     print("wrote", il.OUT / "figures" / name)
 

@@ -14,6 +14,7 @@ Usage: python scripts/fr_encoding_summary.py [--areas cortex SSp-m_left ...]
 Output: <E>/fr_encoding_summary/{fr_session_table.csv, fr_summary_by_animal.csv, figures/*.png}
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import argparse
 
@@ -153,7 +154,7 @@ def main(argv=None) -> int:
                      "animals, markers = animals (o PS92, s PS93, ^ PS94, D PS95).\nMode A = FR lick amount + side + distance + other; B = "
                      "directionless (lick amount + other); S = + side; D = + distance.", fontsize=9)
         fig.tight_layout(rect=(0, 0, 1, 0.93))
-        fig.savefig(out / "figures" / f"fr_summary_{area}.png", dpi=115)
+        save_png_svg(fig, out / "figures" / f"fr_summary_{area}.png", dpi=115)
         plt.close(fig)
     (out / "pooled_changes.txt").write_text("\n".join(lines))
     print("\n".join(lines))

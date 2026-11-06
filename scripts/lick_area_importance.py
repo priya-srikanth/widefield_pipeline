@@ -14,6 +14,7 @@ Outputs <OUT_W>/area_importance_{sessions,summary}.csv, figures/lick_area_import
 Usage: python scripts/lick_area_importance.py [--plot-only]
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import sys
 from pathlib import Path
@@ -144,7 +145,7 @@ def plot(F: dict) -> None:
                  "orofacial motor / sensory.\nMean of animals. Weights are not importance: correlated areas share ridge "
                  "weight, dropping an area measures what it adds uniquely. PROVISIONAL", fontsize=10)
     fig.tight_layout(rect=(0, 0, 1, 0.93))
-    fig.savefig(il.OUT_W / "figures" / "lick_area_importance.png", dpi=95)
+    save_png_svg(fig, il.OUT_W / "figures" / "lick_area_importance.png", dpi=95)
     plt.close(fig)
 
 

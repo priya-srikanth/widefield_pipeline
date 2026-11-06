@@ -35,6 +35,7 @@ every output file name gets the suffix _restnl.
 Usage: python scripts/lick_precue_restw.py [--jobs N] [--plot-only] [--rest-variant restnl]
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import sys
 from pathlib import Path
@@ -246,7 +247,7 @@ def draw(stem: str) -> None:
                  "separate from the rest of MOs / MOp (ROI v8); black outline on a white halo = nested-bootstrap CI "
                  "excludes 0. Image left = ipsilesional." + (" Trials = CURRENT engaged gate." if sfx else "")),
                  fontsize=10, wrap=True)
-    fig.savefig(il.OUT_W / "figures" / f"{stem}.png", dpi=110, bbox_inches="tight")
+    save_png_svg(fig, il.OUT_W / "figures" / f"{stem}.png", dpi=110, bbox_inches="tight")
     plt.close(fig)
     nr = len(F["levels"])
     fig, axs = plt.subplots(nr, 4, figsize=(18, 4.5 * nr), squeeze=False)
@@ -261,7 +262,7 @@ def draw(stem: str) -> None:
     fig.suptitle(rl(f"NEURAL, NO DECODER: {F['what']} -- per-epoch PRE-CUE LEVEL per area (mean over animals of each "
                  f"animal's session mean; not the change from pre); {note}; one colour scale per row. Image left = "
                  "ipsilesional. Descriptive." + (" Trials = CURRENT engaged gate." if sfx else "")), fontsize=10, wrap=True)
-    fig.savefig(il.OUT_W / "figures" / f"{base}_levels{sfx}.png", dpi=100, bbox_inches="tight")
+    save_png_svg(fig, il.OUT_W / "figures" / f"{base}_levels{sfx}.png", dpi=100, bbox_inches="tight")
     plt.close(fig)
 
 

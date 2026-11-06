@@ -23,6 +23,7 @@ Usage: python scripts/frozen_pixel_musall.py --tag gate-attempted_v7g3_t3d_frA_l
 Output: <E>/frozen_encoder_<tag>/figures/pixel_musall_<layout>_<window>.png + pixel_musall_<layout>_<window>{,_sig}.csv
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import argparse
 import json
@@ -258,7 +259,7 @@ def main(argv=None) -> int:
     fig.subplots_adjust(left=0.05, right=0.995, top=1 - 1.0 / (2.6 * len(rws) + 1.3), bottom=0.05,
                         wspace=0.05, hspace=0.3)
     p = out / f"{stem}.png"
-    fig.savefig(p, dpi=105)
+    save_png_svg(fig, p, dpi=105)
     plt.close(fig)
     print("->", p)
     return 0

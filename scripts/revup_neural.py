@@ -75,6 +75,7 @@ C_pre, pre-cue level between sessions -> the session-level r) move. Every output
 _restnl (restnl.SFX); figure text is relabelled (restnl.relabel).
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import sys
 from pathlib import Path
@@ -711,7 +712,7 @@ def draw_traces(CV: dict, cls: str, h: str, hl: str, tau: float, groups: list, s
                     " GCaMP6s: lags spikes ~0.1-0.2 s and decays ~0.5-1 s -- compare slopes / shapes, not onsets.")))
     fig.tight_layout(rect=(0, bot, 1, top))
     stem = f"revup_neural_traces_{scheme}_{cls}_{h}" + (f"_deconv{tau}" if tau else "")
-    fig.savefig(FIGS / f"{stem}{SFX}.png", dpi=100, bbox_inches="tight")
+    save_png_svg(fig, FIGS / f"{stem}{SFX}.png", dpi=100, bbox_inches="tight")
     plt.close(fig)
 
 
@@ -759,7 +760,7 @@ def draw_metrics(D: pd.DataFrame, TS: pd.DataFrame) -> None:
             [plt.Line2D([], [], color="0.3", lw=1.5, marker="_", ms=8, label="boot_ci (animals > sessions)")]
         bot = _fig_legend(fig, hd, fontsize=10)
         fig.tight_layout(rect=(0, bot, 1, top), h_pad=1.5)
-        fig.savefig(FIGS / f"revup_neural_{CT[ct][1]}{'_deconv' + str(tau) if tau else ''}{SFX}.png", dpi=100,
+        save_png_svg(fig, FIGS / f"revup_neural_{CT[ct][1]}{'_deconv' + str(tau) if tau else ''}{SFX}.png", dpi=100,
                     bbox_inches="tight")
         plt.close(fig)
     _draw_metrics_simple(D, TS)
@@ -803,7 +804,7 @@ def _draw_metrics_simple(D: pd.DataFrame, TS: pd.DataFrame) -> None:
                     "threshold; L_slope / C_slope < 0 = slower ramp in slow trials; t_half < 0 = earlier 50 % crossing "
                     "(slow ramp), ~0 = same shape shifted. Full set: revup_neural_slowonly_contrasts.png.")
     fig.tight_layout(rect=(0, bot, 1, top))
-    fig.savefig(FIGS / f"revup_neural_slowonly_contrasts_simple{SFX}.png", dpi=100, bbox_inches="tight")
+    save_png_svg(fig, FIGS / f"revup_neural_slowonly_contrasts_simple{SFX}.png", dpi=100, bbox_inches="tight")
     plt.close(fig)
 
 
@@ -858,7 +859,7 @@ def draw_late(CV: dict, LC: pd.DataFrame) -> None:
                  "late licks enter the late curve; mean of animal means (row label: n animals in_window / late / spont). Bottom: per-session shape "
                  "correlation over key areas x hemispheres (-1.5..+1 s, colour = epoch, marker = animal)."))
     fig.tight_layout(rect=(0, 0, 1, top))
-    fig.savefig(FIGS / f"revup_neural_late_vs_normal_vs_spont{SFX}.png", dpi=100, bbox_inches="tight")
+    save_png_svg(fig, FIGS / f"revup_neural_late_vs_normal_vs_spont{SFX}.png", dpi=100, bbox_inches="tight")
     plt.close(fig)
 
 
@@ -891,7 +892,7 @@ def draw_precue(R: pd.DataFrame) -> None:
     bot = _fig_legend(fig, _ep_an_handles(sorted(R.animal.dropna().unique())) +
                       [plt.Line2D([], [], color="0.3", lw=1.5, label="bar = mean of animals")], fontsize=10)
     fig.tight_layout(rect=(0, bot, 1, top))
-    fig.savefig(FIGS / f"revup_neural_precue_vs_latency{SFX}.png", dpi=100, bbox_inches="tight")
+    save_png_svg(fig, FIGS / f"revup_neural_precue_vs_latency{SFX}.png", dpi=100, bbox_inches="tight")
     plt.close(fig)
 
 

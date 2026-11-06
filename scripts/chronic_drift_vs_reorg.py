@@ -25,6 +25,7 @@ cue/working to match the deck's crossnobis readout (epoch_8diag_matrices_crossno
     python chronic_drift_vs_reorg.py [--out DIR] [--n-split N] [--n-boot N]
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import argparse
 import warnings
@@ -219,7 +220,7 @@ def figure(df, curves, out_png):
     fig.suptitle("Within-window representational change rate: pre-stroke drift floor vs within-chronic "
                  "(crossnobis per day-gap, cue/working)", fontsize=11)
     fig.tight_layout(rect=(0, 0, 1, 0.9))
-    fig.savefig(out_png, dpi=150)
+    save_png_svg(fig, out_png, dpi=150)
     plt.close(fig)
 
 

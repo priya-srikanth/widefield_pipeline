@@ -47,7 +47,7 @@ import numpy as np
 from matplotlib.figure import Figure
 
 from wfield_local import config
-from wfield_local.figure_layout import svg_path as _svg_path
+from wfield_local import figure_layout as _figure_layout
 from wfield_local.paths import PathResolver
 
 ANIMALS = ("PS92", "PS93", "PS94", "PS95")
@@ -572,23 +572,16 @@ def _save(fig, path, **kw):
         print(f"  [layout] {Path(path).name}: check failed ({type(ex).__name__})", flush=True)
     for na, nb, _area in bad[:6]:
         print(f"  [layout] {Path(path).name}: {na} x {nb}", flush=True)
-    # UNBOUND CALL, for the same reason `_suptitle` uses `Figure.suptitle`: the sweep that routed
-    # every `fig.savefig(` in this module through `_save` rewrote this line too, and a helper that
-    # calls itself surfaces as a RecursionError on the first figure of a two-hour render. Second
-    # time this exact trap has been sprung by a mechanical sweep over a file containing its own
-    # definition -- hence the explicit form rather than a comment asking the next person to be
-    # careful.
-    Figure.savefig(fig, path, **kw)
-    # Also emit a vector SVG beside the PNG (Priya, 2026-08-29). The deck places the PNGs, so those
-    # stay; the SVGs are for editing / print. UNBOUND call for the same self-reference reason as above,
-    # and it WARNS rather than raises so an un-vectorisable figure never loses the PNG or its neighbours.
-    _p = Path(path)
-    if _p.suffix.lower() == ".png":
-        try:
-            Figure.savefig(fig, _svg_path(_p),
-                           **{k: v for k, v in kw.items() if k != "dpi"})   # dpi is a no-op for vector
-        except Exception as ex:                                            # noqa: BLE001
-            print(f"  [svg] {_p.name}: failed ({type(ex).__name__})", flush=True)
+    # NOT `fig.savefig(`, for the same reason `_suptitle` uses `Figure.suptitle`: the sweep that routed
+    # every `fig.savefig(` in this module through `_save` once rewrote this line too, and a helper that
+    # calls itself surfaces as a RecursionError on the first figure of a two-hour render (sprung twice
+    # by mechanical sweeps over a file containing its own definition). This line used the unbound
+    # `Figure.savefig(fig, ...)` for that; since 2026-11-06 it is the module-qualified shared helper,
+    # which no `.savefig(` sweep matches either.
+    # The PNG plus a vector SVG beside it (Priya, 2026-08-29): same PNG call as before, the SVG without
+    # dpi in `svg/`, text kept as text (svg.fonttype none), and an SVG failure WARNS so an
+    # un-vectorisable figure never loses the PNG or its neighbours.
+    _figure_layout.save_png_svg(fig, path, **kw)
     return path
 
 

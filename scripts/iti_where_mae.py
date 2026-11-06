@@ -12,6 +12,7 @@ Outputs <E>/iti_licks/where_mae_{sessions,tests}.csv, figures/lick_where_mae.png
 Usage: python scripts/iti_where_mae.py [--plot-only]   (--plot-only: redraw from the figdata pickle alone, no bootstrap)
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import sys
 from pathlib import Path
@@ -100,7 +101,7 @@ def plot(S: pd.DataFrame, T: pd.DataFrame) -> None:
                  "(3.15), error INCLUDES the decoder's pull toward the middle and any constant offset,\nso it rises "
                  "when licks land further from the centre even with unchanged cortex.", fontsize=9.5)
     fig.tight_layout(rect=(0, 0, 1, 0.91))
-    fig.savefig(il.OUT / "figures" / "lick_where_mae.png", dpi=95)
+    save_png_svg(fig, il.OUT / "figures" / "lick_where_mae.png", dpi=95)
     plt.close(fig)
 
 

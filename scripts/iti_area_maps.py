@@ -19,6 +19,7 @@ Usage: python scripts/iti_area_maps.py [--compare] [--plot-only]
        python scripts/iti_area_maps.py --split [--cued] [--spout far_contra] [--plot-only]   (ALM / tjM1 separate; one previous spout)
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import sys
 from pathlib import Path
@@ -243,7 +244,7 @@ def draw_maps(stem: str) -> None:
     fig.suptitle(f"NEURAL, NO DECODER: {what} -- change from pre per area in raw dF/F AUC (x1e3 s), with ALM / tjM1 separate "
                  "from the rest of MOs / MOp (ROI v8); black outline on a white halo = nested-bootstrap CI excludes 0. Image left = "
                  "ipsilesional.", fontsize=10, wrap=True)
-    fig.savefig(WOUT / "figures" / f"{stem}.png", dpi=110, bbox_inches="tight")
+    save_png_svg(fig, WOUT / "figures" / f"{stem}.png", dpi=110, bbox_inches="tight")
     plt.close(fig)
 
 
@@ -287,7 +288,7 @@ def draw_levels(stem: str) -> None:
     fig.suptitle(f"NEURAL, NO DECODER: {what} -- per-epoch LEVEL per area (mean over animals of each animal's session mean; "
                  "not the change from pre), raw dF/F AUC (x1e3 s); one colour scale per row. Image left = ipsilesional. "
                  "Descriptive.", fontsize=10, wrap=True)
-    fig.savefig(WOUT / "figures" / f"{stem}_levels.png", dpi=100, bbox_inches="tight")
+    save_png_svg(fig, WOUT / "figures" / f"{stem}_levels.png", dpi=100, bbox_inches="tight")
     plt.close(fig)
 
 
@@ -416,7 +417,7 @@ def draw_all(only: tuple = ("maps", "peth", "groups", "compare")) -> None:
         fig.suptitle("NEURAL, NO DECODER: self-initiated (ITI) licks across the whole cortex -- change from pre per Allen area in raw dF/F "
                      "AUC (x1e3 s); black outline on a white halo = nested-bootstrap CI excludes 0. Image left = "
                      "ipsilesional.", fontsize=10, wrap=True)
-        fig.savefig(WOUT / "figures" / "lick_iti_area_maps.png", dpi=110, bbox_inches="tight")
+        save_png_svg(fig, WOUT / "figures" / "lick_iti_area_maps.png", dpi=110, bbox_inches="tight")
         plt.close(fig)
     if "peth" in only:
         F = load_fd("lick_iti_area_peth")
@@ -441,7 +442,7 @@ def draw_all(only: tuple = ("maps", "peth", "groups", "compare")) -> None:
         fig.suptitle("NEURAL, NO DECODER: dF/F around self-initiated licks in NON-orofacial areas (per-session mean PETH, all animals "
                      "pooled; band = SEM over sessions; lick onset at 0).", fontsize=9.5)
         fig.tight_layout(rect=(0, 0, 1, 0.93))
-        fig.savefig(WOUT / "figures" / "lick_iti_area_peth.png", dpi=110)
+        save_png_svg(fig, WOUT / "figures" / "lick_iti_area_peth.png", dpi=110)
         plt.close(fig)
     if "groups" in only:
         F = load_fd("lick_iti_area_groups")
@@ -455,7 +456,7 @@ def draw_all(only: tuple = ("maps", "peth", "groups", "compare")) -> None:
                      "the animal's pre group-mean response AUC; one dot per session; * = nested-bootstrap change from pre; right = "
                      "orofacial minus visual + RSP in the same session).", fontsize=9.5, wrap=True)
         fig.tight_layout(rect=(0, 0, 1, 0.92))
-        fig.savefig(WOUT / "figures" / "lick_iti_area_groups.png", dpi=110)
+        save_png_svg(fig, WOUT / "figures" / "lick_iti_area_groups.png", dpi=110)
         plt.close(fig)
     if "compare" in only:
         compare_draw(load_fd("lick_iti_area_compare"))
@@ -548,7 +549,7 @@ def compare_draw(F: dict) -> None:
                  wrap=True)
     il._headroom([axs[0, 0], axs[1, 0]])                 # y shared per row: raise each row once
     fig.tight_layout(rect=(0, 0, 1, 0.87))
-    fig.savefig(WOUT / "figures" / "lick_iti_area_compare.png", dpi=110)
+    save_png_svg(fig, WOUT / "figures" / "lick_iti_area_compare.png", dpi=110)
     plt.close(fig)
 
 

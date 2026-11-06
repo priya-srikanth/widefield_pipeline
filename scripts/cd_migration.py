@@ -53,6 +53,7 @@ it says the identity of the trajectory at j is better matched by the wrong posit
     python -m scripts.cd_migration --align precue
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import argparse
 from pathlib import Path
@@ -525,7 +526,7 @@ def figure(got, out, align, window=WINDOW):
         fontsize=8)
     out = Path(out)
     out.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out, dpi=160)
+    save_png_svg(fig, out, dpi=160)
     plt.close(fig)
     return out
 

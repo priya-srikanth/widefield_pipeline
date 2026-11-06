@@ -24,6 +24,7 @@ Epoch = `epoch_figures.epoch_of_day` on days from `config.stroke_date` (cross-ch
 OUT: <out>/decoding_refit_sessions.png / .csv
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import sys
 from datetime import date
@@ -135,7 +136,7 @@ def draw(S: pd.DataFrame, png: Path) -> None:
     fig.legend(handles=h, loc="upper center", ncol=len(h), frameon=False, fontsize=11, bbox_to_anchor=(0.5, 1.0),
                handletextpad=0.3, columnspacing=1.2, handlelength=1.6)
     fig.tight_layout(rect=(0, 0, 1, 0.9), w_pad=2.0)
-    fig.savefig(png, dpi=200, facecolor="white")
+    save_png_svg(fig, png, dpi=200, facecolor="white")
     plt.close(fig)
 
 

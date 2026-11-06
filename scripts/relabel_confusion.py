@@ -14,6 +14,7 @@ Usage: python scripts/relabel_confusion.py [--tag v7g3_t3d] [--window lick]
 Output: <E>/frozen_relabel_<tag>/relabel_confusion_<window>.csv + figures/relabel_confusion_*.png
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 from wfield_local.frozen_encoder import design_tag as _design_tag  # frame tag of the FROZEN_LICKS_ALL design (8.51)
 
 import argparse
@@ -126,7 +127,7 @@ def main(argv=None) -> int:
                  f"Rows = true spout, columns = best-fitting label in the relabel test (executed licks fixed); share of {unit}; rows sum to 1.",
                  fontsize=9)
     fig.tight_layout(rect=(0, 0, 1, 0.95))
-    fig.savefig(fd / f"relabel_confusion_matrices_{sfx}.png", dpi=120)
+    save_png_svg(fig, fd / f"relabel_confusion_matrices_{sfx}.png", dpi=120)
     plt.close(fig)
     # epoch minus pre, pooled
     rows = []
@@ -151,7 +152,7 @@ def main(argv=None) -> int:
     fig.suptitle(f"NEURAL (encoding model, relabel test): share of {unit} best fit by each label, {a.window} window, epoch minus pre within animal, mean of 4.\n"
                  "Boxed = nested bootstrap excludes 0 (Bonferroni over 36); second line = animals with the same sign.", fontsize=9)
     fig.tight_layout(rect=(0, 0, 1, 0.9))
-    fig.savefig(fd / f"relabel_confusion_change_{sfx}.png", dpi=130)
+    save_png_svg(fig, fd / f"relabel_confusion_change_{sfx}.png", dpi=130)
     plt.close(fig)
     T = pd.DataFrame(rows)
     T.to_csv(D / f"relabel_confusion_{sfx}.csv", index=False)

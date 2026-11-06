@@ -23,6 +23,7 @@ counted (``n_dorsal_runs``) but not licks: on frames they are a pale bump at the
 Writes ``session_poses/cam1_lick_aim<tag>.csv`` (one row per lick), ``..._summary.csv`` and ``....png``.
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import argparse
 import glob
@@ -206,7 +207,7 @@ def figure(L: pd.DataFrame, spouts: dict, out: Path, title: str) -> None:
         bx.set_ylabel("lateral px at peak (+ mouse left)" if "center" in p else "lateral error px (+ outward of spout)")
     fig.suptitle(title, fontsize=12)
     fig.tight_layout()
-    fig.savefig(out, dpi=90)
+    save_png_svg(fig, out, dpi=90)
 
 
 def main(argv=None) -> int:

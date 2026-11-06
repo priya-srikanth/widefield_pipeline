@@ -28,6 +28,7 @@ Outputs: <iti_licks>/restw_check/ (sessions/<label>.npz, *.csv, figures/, figdat
 Usage: python scripts/restw_strict_check.py [--jobs 4] [--labels A B ...] [--plot-only]
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import sys
 from pathlib import Path
@@ -536,7 +537,7 @@ def draw() -> None:
                      "session mean; squares = cohort level with 95% CI; '*' = change vs pre CI excludes 0 (boot_delta). "
                      "n = 4 mice, PROVISIONAL.", fontsize=9)
         fig.tight_layout(rect=(0, 0, 1, 0.94))
-        fig.savefig(FIGS / f"restw_check_diff_{v}.png", dpi=130)
+        save_png_svg(fig, FIGS / f"restw_check_diff_{v}.png", dpi=130)
         plt.close(fig)
     # Fig 2: before / after for the three results
     specs = [("R1 pre-cue level, all spouts (Fig 14.20)", P1, "area", None, "delta"),
@@ -571,7 +572,7 @@ def draw() -> None:
                  "value + restw - variant). Point + 95% CI (boot_delta, nested animals > sessions). n = 4, PROVISIONAL.",
                  fontsize=9)
     fig.tight_layout(rect=(0, 0, 1, 0.94))
-    fig.savefig(FIGS / "restw_check_results_moved.png", dpi=130)
+    save_png_svg(fig, FIGS / "restw_check_results_moved.png", dpi=130)
     plt.close(fig)
     print("== figures in", FIGS)
 

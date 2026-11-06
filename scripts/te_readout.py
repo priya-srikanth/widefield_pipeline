@@ -11,6 +11,7 @@ Figure: <run>/figures/te_unique_lines.png (epoch lines, one row per window, colu
 Usage: python scripts/te_readout.py [--tag gate-attempted_v7g3_t3d_frA_te] [--measure frame]
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import argparse
 import sys
@@ -86,7 +87,7 @@ def main(argv=None) -> int:
                  "labelled lick kernels; contact = every DAQ lick.", fontsize=9.5)
     fig.subplots_adjust(left=0.09, right=0.99, top=0.8, bottom=0.15, wspace=0.08, hspace=0.25)
     (run / "figures").mkdir(exist_ok=True)
-    fig.savefig(run / "figures" / f"te_unique_lines_{a.measure}.png", dpi=110)
+    save_png_svg(fig, run / "figures" / f"te_unique_lines_{a.measure}.png", dpi=110)
     plt.close(fig)
     print("->", run / "figures" / f"te_unique_lines_{a.measure}.png")
     return 0

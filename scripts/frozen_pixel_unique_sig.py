@@ -12,6 +12,7 @@ Usage: python scripts/frozen_pixel_unique_sig.py --tag gate-attempted_v7g3_t3d_f
 Output: <E>/frozen_encoder_<tag>/figures/unique_sig{_z}.png + unique_sig{_z}.csv
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import argparse
 import json
@@ -218,7 +219,7 @@ def main(argv=None) -> int:
     fig.subplots_adjust(left=0.03, right=0.995, top=0.86, bottom=0.03, wspace=0.08, hspace=0.14)
     p = run / "figures" / f"unique_sig{sfx}.png"
     p.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(p, dpi=105)
+    save_png_svg(fig, p, dpi=105)
     plt.close(fig)
     print("->", p)
     # secondary: animals per bin (16 px), up - down, per quantity x epoch
@@ -263,7 +264,7 @@ def main(argv=None) -> int:
     fig.suptitle(textwrap.fill(f"NEURAL: FROZEN-frame pixel maps, PER-ANIMAL view (secondary; the nested bootstrap is primary), "
                                f"run {a.tag}, 16 px bins: how many of the 4 animals change significantly in each direction, "
                                "each tested on its own sessions; black outline = bins where >= 3 animals agree; grey = Allen areas. Image left = ipsilesional.", int(21 * len(qs))), fontsize=9)
-    fig.savefig(run / "figures" / "unique_sig_per_animal.png", dpi=105)
+    save_png_svg(fig, run / "figures" / "unique_sig_per_animal.png", dpi=105)
     plt.close(fig)
     pd.DataFrame(crow).to_csv(run / "unique_sig_per_animal.csv", index=False)
     return 0

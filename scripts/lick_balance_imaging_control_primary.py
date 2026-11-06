@@ -28,6 +28,7 @@ balimg_primary_link.csv; figure figures/balimg_primary_control.png.
 Usage: python scripts/lick_balance_imaging_control_primary.py [--jobs 6] [--summarise]
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import argparse
 import json
@@ -456,7 +457,7 @@ def figure(S: pd.DataFrame, C: pd.DataFrame, W: pd.DataFrame, L: pd.DataFrame) -
                  "the same estimator; boot_delta animals > sessions", fontsize=11)
     fig.tight_layout(rect=(0, 0.03, 1, 0.95))
     out = il.OUT_W / "figures" / "balimg_primary_control.png"
-    fig.savefig(out, dpi=110)
+    save_png_svg(fig, out, dpi=110)
     plt.close(fig)
     print(f"== wrote {out}")
 

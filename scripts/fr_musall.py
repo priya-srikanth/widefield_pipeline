@@ -17,6 +17,7 @@ Usage: python scripts/fr_musall.py [--mode A] [--windows lick cue]
 Output: <E>/fr_encoding_summary/figures/fr_musall_*.png, fr_area_maps_*.png, fr_musall_by_animal.csv
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import argparse
 import sys
@@ -151,7 +152,7 @@ def pixel_maps(mode: str, windows, T: pd.DataFrame, out: Path) -> None:
                      "full minus the model without the group; | FR = FaceRhythm in the model. Image left = ipsilesional.",
                      fontsize=9)
         fig.subplots_adjust(left=0.03, right=0.995, top=0.88, bottom=0.03, wspace=0.08, hspace=0.12)
-        fig.savefig(out / "figures" / f"fr_pixel_maps_{w}_mode{mode}.png", dpi=110)
+        save_png_svg(fig, out / "figures" / f"fr_pixel_maps_{w}_mode{mode}.png", dpi=110)
         plt.close(fig)
         print("->", out / "figures" / f"fr_pixel_maps_{w}_mode{mode}.png", flush=True)
 
@@ -210,7 +211,7 @@ def main(argv=None) -> int:
                      "open = alone, per animal (position has no alone model).\nBottom: each group's unique R2 without vs with FaceRhythm (what FR takes).",
                      fontsize=9)
         fig.tight_layout(rect=(0, 0, 1, 0.9))
-        fig.savefig(out / "figures" / f"fr_musall_{a.area}_{w}_mode{a.mode}.png", dpi=120)
+        save_png_svg(fig, out / "figures" / f"fr_musall_{a.area}_{w}_mode{a.mode}.png", dpi=120)
         plt.close(fig)
 
     # area maps
@@ -253,7 +254,7 @@ def main(argv=None) -> int:
                      "(each area painted with its value).\nRow 1: pre-stroke level; rows 2-3: epoch minus pre within animal, then mean. "
                      "Image left = ipsilesional.", fontsize=9)
         fig.tight_layout(rect=(0, 0, 1, 0.92))
-        fig.savefig(out / "figures" / f"fr_area_maps_{w}_mode{a.mode}.png", dpi=115)
+        save_png_svg(fig, out / "figures" / f"fr_area_maps_{w}_mode{a.mode}.png", dpi=115)
         plt.close(fig)
     pixel_maps(a.mode, a.windows, T, out)
     show = A[(A.area == a.area)].groupby(["window", "epoch"])[["alone_fr", "unique_fr", "unique_position", "uniquefr_position",

@@ -45,6 +45,7 @@ Own-pre-cue quantities (mean_own, AUC_own, lev_own, slope_end, B) do not depend 
 they move only through the trial set (current gate) and the sessions without a RESTnl level (left out).
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import sys
 from pathlib import Path
@@ -543,7 +544,7 @@ def draw_dotgrid(stem: str) -> None:
     fig.suptitle(_wrap(_rl(F["title"]), fw, 9), fontsize=9)
     FIGS.mkdir(parents=True, exist_ok=True)
     reserve_headroom(fig)
-    fig.savefig(FIGS / f"{stem}{SFX}.png", dpi=110, bbox_inches="tight")
+    save_png_svg(fig, FIGS / f"{stem}{SFX}.png", dpi=110, bbox_inches="tight")
     plt.close(fig)
 
 
@@ -668,7 +669,7 @@ def draw_B_pre(stem: str) -> None:
                      f" DECONVOLVED trace s = y + {F['tau']} dy/dt." if F["tau"] else " Raw GCaMP6s dF/F (slow, lagged)."),
                  fw, 8), fontsize=8)
     reserve_headroom(fig)
-    fig.savefig(FIGS / f"{stem}{SFX}.png", dpi=110, bbox_inches="tight")
+    save_png_svg(fig, FIGS / f"{stem}{SFX}.png", dpi=110, bbox_inches="tight")
     plt.close(fig)
 
 
@@ -712,7 +713,7 @@ def draw_B_exp(stem: str) -> None:
                  f"Pre-stroke latencies span only ~0.1-0.4 s, so exponents are noisy." + (
                      f" DECONVOLVED (tau {F['tau']} s)." if F["tau"] else " Raw GCaMP6s dF/F."), fw, 8), fontsize=8)
     reserve_headroom(fig)
-    fig.savefig(FIGS / f"{stem}{SFX}.png", dpi=110, bbox_inches="tight")
+    save_png_svg(fig, FIGS / f"{stem}{SFX}.png", dpi=110, bbox_inches="tight")
     plt.close(fig)
 
 
@@ -755,7 +756,7 @@ def draw_B_onpre(stem: str) -> None:
                  "post-stroke epochs, far-contra trials. Baselines: own pre-cue level (-0.5..0 s) or session RESTW (row "
                  "label). Pre latencies rarely exceed ~0.5 s, so slow-trial comparisons extrapolate the pre relation "
                  "(c2l_B_onpre_summary.csv).", fw, 8), fontsize=8)
-    fig.savefig(FIGS / f"{stem}{SFX}.png", dpi=100, bbox_inches="tight")
+    save_png_svg(fig, FIGS / f"{stem}{SFX}.png", dpi=100, bbox_inches="tight")
     plt.close(fig)
 
 
@@ -855,7 +856,7 @@ def draw_threshold_simple(src: str = "lick_cue_to_lick_B_farcontra_on_pre",
         13.5, 9), fontsize=9)
     FIGS.mkdir(parents=True, exist_ok=True)
     reserve_headroom(fig)
-    fig.savefig(FIGS / f"{out}{SFX}.png", dpi=120, bbox_inches="tight")
+    save_png_svg(fig, FIGS / f"{out}{SFX}.png", dpi=120, bbox_inches="tight")
     plt.close(fig)
 
 
@@ -909,7 +910,7 @@ def draw_A_simple(src: str = "lick_cue_to_lick_A_level_contra", out: str = "lick
         "PROVISIONAL, n = 4 mice."), 12, 9), fontsize=9)
     FIGS.mkdir(parents=True, exist_ok=True)
     reserve_headroom(fig)
-    fig.savefig(FIGS / f"{out}{SFX}.png", dpi=120, bbox_inches="tight")
+    save_png_svg(fig, FIGS / f"{out}{SFX}.png", dpi=120, bbox_inches="tight")
     plt.close(fig)
 
 

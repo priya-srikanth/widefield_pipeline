@@ -27,6 +27,7 @@ THREE THINGS THIS FIGURE HAS TO BE HONEST ABOUT, and each is visible on it rathe
     python -m scripts.cd_cross_animal_figure --dir <epoch figure dir> --layout perposition cross
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import argparse
 from pathlib import Path
@@ -356,7 +357,7 @@ def figure_perposition(got, out, align="precue"):
     fig.suptitle(_suptitle(got, align, " — ONE PANEL PER POSITION"), fontsize=8.5)
     out = Path(out)
     out.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out, dpi=150)
+    save_png_svg(fig, out, dpi=150)
     plt.close(fig)
     return out
 
@@ -415,7 +416,7 @@ def figure_cross(got, out, align="precue"):
                  fontsize=8.5)
     out = Path(out)
     out.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out, dpi=150)
+    save_png_svg(fig, out, dpi=150)
     plt.close(fig)
     return out
 

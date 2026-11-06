@@ -23,6 +23,7 @@ Usage: python scripts/fr_direction_mechanism.py [--jobs 6]
 Output: <E>/fr_encoding_summary/direction_mechanism/ (sessions.csv, bootstrap.csv, figures/fr_direction_mechanism.png)
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import argparse
 import os
@@ -200,7 +201,7 @@ def main(argv=None) -> int:
                  "correlations (spout means removed); cortex partial correlations control lick amount. Table + bootstrap: "
                  "direction_mechanism/bootstrap.csv", fontsize=9)
     fig.subplots_adjust(left=0.04, right=0.99, top=0.82, bottom=0.08, wspace=0.25)
-    fig.savefig(out / "figures" / "fr_direction_mechanism.png", dpi=115)
+    save_png_svg(fig, out / "figures" / "fr_direction_mechanism.png", dpi=115)
     plt.close(fig)
     summary_figure(S, B, out)
     print("->", out)
@@ -252,7 +253,7 @@ def summary_figure(S: pd.DataFrame, B: pd.DataFrame, out: Path) -> None:
                  "nested bootstrap (animals > sessions); whisker 95 % CI; * CI excludes 0 (red = decrease, blue = increase); "
                  "dots = per-animal change. Lesion left: right SSp-m = contralesional.", fontsize=9.5)
     fig.subplots_adjust(left=0.05, right=0.99, top=0.88, bottom=0.06, wspace=0.32, hspace=0.38)
-    fig.savefig(out / "figures" / "fr_direction_mechanism_summary.png", dpi=120)
+    save_png_svg(fig, out / "figures" / "fr_direction_mechanism_summary.png", dpi=120)
     plt.close(fig)
 
 

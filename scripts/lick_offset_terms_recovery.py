@@ -14,6 +14,7 @@ within-animal blocked, LOSO). Per-animal tables first (rule 8).
 Outputs <OUT_W>/offterm_sessions.csv, offterm_cv.csv, offterm_models.csv; figure lick_offset_terms_recovery.png.
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import sys
 from pathlib import Path
@@ -136,7 +137,7 @@ def plot(S, X, AN) -> None:
                  "Top: components by epoch; bottom: each component's leave-one-animal-out cvR² of the recovery axis "
                  "(red = hemispheric difference parts). PROVISIONAL", fontsize=10)
     fig.tight_layout(rect=(0, 0, 1, 0.92))
-    fig.savefig(il.OUT_W / "figures" / "lick_offset_terms_recovery.png", dpi=95)
+    save_png_svg(fig, il.OUT_W / "figures" / "lick_offset_terms_recovery.png", dpi=95)
     plt.close(fig)
 
 

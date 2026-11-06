@@ -19,6 +19,7 @@ Usage: python scripts/fr_direction.py [--windows lick cue] [--plot-only]
 Output: <E>/fr_encoding_summary/direction/ (areas.csv, bootstrap.csv, figures/)
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import argparse
 import sys
@@ -200,7 +201,7 @@ def main(argv=None) -> int:
                      "of the position code.\nGrey band = ALM / tjM1 / MOs_rest / MOp_rest (ROI v8 on the encoder stat mask: ALM + "
                      "MOs_rest = MOs, tjM1 + MOp_rest = MOp).", fontsize=9)
         fig.subplots_adjust(left=0.04, right=0.995, top=0.91, bottom=0.05, hspace=0.6, wspace=0.1)
-        fig.savefig(out / "figures" / f"fr_direction_areas_{w}.png", dpi=115)
+        save_png_svg(fig, out / "figures" / f"fr_direction_areas_{w}.png", dpi=115)
         plt.close(fig)
 
     if a.plot_only:
@@ -268,7 +269,7 @@ def main(argv=None) -> int:
                      "within animal then mean of 4.\nViridis = level (amount), RdBu = increment or change. Contours = significant bins "
                      "(black 16 px, purple dashed 32 px; nested bootstrap, Bonferroni). Image left = ipsilesional.", fontsize=9)
         fig.subplots_adjust(left=0.03, right=0.995, top=0.9, bottom=0.02, wspace=0.08, hspace=0.18)
-        fig.savefig(out / "figures" / f"fr_direction_maps_{w}.png", dpi=115)
+        save_png_svg(fig, out / "figures" / f"fr_direction_maps_{w}.png", dpi=115)
         plt.close(fig)
     pd.DataFrame(srows).to_csv(out / "pixel_sig.csv", index=False)
     print(pd.DataFrame(srows).pivot_table(index=["window", "q"], columns=["epoch", "px"], values="sig").to_string())

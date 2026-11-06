@@ -11,6 +11,7 @@ direction = -balance, Priya 10-29; the CSV keeps the hemispheric sign). --plot-o
 (no bootstrap, CSV untouched).
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import sys
 from pathlib import Path
@@ -121,7 +122,7 @@ def _plot(O: pd.DataFrame, R: pd.DataFrame) -> None:
                  "0.1-0.5 s after each lick, referenced to pre licks at the same angle AND order). PROVISIONAL" + shown,
                  fontsize=10)
     fig.tight_layout(rect=(0, 0, 1, 0.91))
-    fig.savefig(il.OUT_W / "figures" / "lick_balance_order_primary.png", dpi=95)
+    save_png_svg(fig, il.OUT_W / "figures" / "lick_balance_order_primary.png", dpi=95)
     plt.close(fig)
 
 

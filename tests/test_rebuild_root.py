@@ -268,7 +268,7 @@ def test_o2_runner_text_carries_no_wfield_local_guard():
 #             derived products), so it fails loudly -- route it before it joins a render.
 # A new writer fails this test until it is classified (C, fourth review).
 W = re.compile(r"\.(to_csv|savefig|write_text|write_bytes|to_pickle|to_parquet)\(|np\.save(z|z_compressed)?\(|save_fd\(|"
-               r"pd\.to_pickle\(")
+               r"pd\.to_pickle\(|save_png_svg\(")   # save_png_svg = savefig + SVG twin (2026-11-06)
 SHARE = re.compile(r"M:/MICROSCOPE|oo\.root\(|PathResolver\(\)\.root\(|_run_dir\(\)|encoding_root\(|_enc_dir\(|"
                    r"root\(\"(cohort_out|orofacial|dlc|figures_working|behavior_out|labcams)")
 LIT = re.compile(r"[MN]:[/\\\\]+MICROSCOPE|C:/Users/Sabatini")

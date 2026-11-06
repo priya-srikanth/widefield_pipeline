@@ -17,6 +17,7 @@ dist over one cycle, +-76 ms, dot = peak), ``phase_<a>.png`` (midline angle and 
 out) planes, spouts marked).
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import argparse
 from pathlib import Path
@@ -197,7 +198,7 @@ def fig_lines(P, animal, kind, m, ylab, xlab, path, title, pre_from, sign: float
     axes[0].legend(fontsize=6, frameon=False)
     fig.suptitle(t, fontsize=8.5)
     fig.tight_layout()                                                     # makes room for the suptitle itself
-    fig.savefig(path, dpi=120)
+    save_png_svg(fig, path, dpi=120)
     plt.close(fig)
 
 
@@ -223,7 +224,7 @@ def fig_portrait(P, animal, path, pre_from):
     fig.suptitle(f"{animal}: 3-D lick phase portrait (+-{PORTRAIT_MS:.0f} ms around the 3-D peak, dot = peak; in-mouth = 0 mm)",
                  fontsize=9)
     fig.tight_layout(rect=(0, 0, 1, 0.93))
-    fig.savefig(path, dpi=120)
+    save_png_svg(fig, path, dpi=120)
     plt.close(fig)
 
 
@@ -282,7 +283,7 @@ def fig_traj3d(P, animal, geo, path, pre_from, lset="all", contra: bool = False)
                  "as in the camera videos (ends labelled)" if contra else ""), 120)
     fig.suptitle(t, fontsize=8.5)
     fig.tight_layout(rect=(0, 0.05, 1, 1))                                # bottom strip: the legend
-    fig.savefig(path, dpi=120)
+    save_png_svg(fig, path, dpi=120)
     plt.close(fig)
 
 
@@ -345,7 +346,7 @@ def fig_trajectories(P, animal, geo, path, pre_from, lset="all"):
               f"drawn where >= half the licks have a 3-D point -- lowest share drawn {cm:.2f})\n" + _how("norm", lset), 150)
     fig.suptitle(t, fontsize=8.5)
     fig.tight_layout(rect=(0.02, 0, 1, 1))                                # left strip: the row labels
-    fig.savefig(path, dpi=120)
+    save_png_svg(fig, path, dpi=120)
     plt.close(fig)
 
 

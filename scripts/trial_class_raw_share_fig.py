@@ -12,6 +12,7 @@ over 18), drawn in the top band.
     python scripts/trial_class_raw_share_fig.py [--out <png>]
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import argparse
 import sys
@@ -116,7 +117,7 @@ def main(argv=None) -> int:
     reserve_headroom(fig)
     fig.tight_layout(rect=(0, 0.03, 1, 0.93))
     out = Path(a.out)
-    fig.savefig(out, dpi=100)
+    save_png_svg(fig, out, dpi=100)
     pd.DataFrame(rows_out).to_csv(out.with_suffix(".csv"), index=False, float_format="%.4g")
     print(out)
     return 0

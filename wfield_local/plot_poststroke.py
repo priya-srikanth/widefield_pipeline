@@ -6,6 +6,7 @@ number after it is uninterpretable without that. Putting decoding first is exact
 produced a "PS94 neural deficit" headline which was mostly trial composition.
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import textwrap
 from pathlib import Path
@@ -89,7 +90,7 @@ def _fig_behaviour_one(counts, ans, out, name, suptitle, part):
     fig.suptitle(head, fontsize=10, wrap=True)
     fig.tight_layout(rect=(0, 0, 1, 0.94))
     p = Path(out) / name
-    fig.savefig(p, dpi=150)
+    save_png_svg(fig, p, dpi=150)
     plt.close(fig)
     return p
 
@@ -144,7 +145,7 @@ def fig_matched(matched, out, chance=0.25, name="poststroke_G2_matched.png", sup
     fig.tight_layout(rect=(0, 0, 1, 0.90))
     p = Path(out) / name
     _blank_unused(axes, len(ans), _rows, _cols)
-    fig.savefig(p, dpi=150)
+    save_png_svg(fig, p, dpi=150)
     plt.close(fig)
     return p
 
@@ -225,7 +226,7 @@ def fig_identity(ident, out):
     fig.subplots_adjust(bottom=0.22)
     fig.tight_layout(rect=(0, 0.06, 1, 0.86))
     p = Path(out) / "poststroke_G4_identity.png"
-    fig.savefig(p, dpi=150)
+    save_png_svg(fig, p, dpi=150)
     plt.close(fig)
     return p
 
@@ -323,7 +324,7 @@ def fig_similarity(sim, out, name="poststroke_G5_similarity.png", suptitle=None)
                  fontsize=9, wrap=True)
     fig.tight_layout(rect=(0, 0, 1, 0.90))
     p = Path(out) / name
-    fig.savefig(p, dpi=150)
+    save_png_svg(fig, p, dpi=150)
     plt.close(fig)
     return p
 
@@ -357,7 +358,7 @@ def fig_confusion(conf, out):
                  "which a scalar accuracy discards.", fontsize=10, wrap=True)
     fig.tight_layout(rect=(0, 0, 1, 0.96))
     p = Path(out) / "poststroke_G3_confusion.png"
-    fig.savefig(p, dpi=150)
+    save_png_svg(fig, p, dpi=150)
     plt.close(fig)
     return p
 
@@ -440,7 +441,7 @@ def fig_per_position(pp, out, name="poststroke_G2b_per_position.png"):
                  fontsize=9.5, wrap=True)
     fig.tight_layout(rect=(0, 0, 1, 0.93))
     q = Path(out) / name
-    fig.savefig(q, dpi=150)
+    save_png_svg(fig, q, dpi=150)
     plt.close(fig)
     return q
 
@@ -505,7 +506,7 @@ def fig_nolick_readout(rd, out):
     fig.tight_layout(rect=(0, 0, 1, 0.90))
     q = Path(out) / "poststroke_G6_nolick_readout.png"
     _blank_unused(axes, len(ans), _rows, _cols)
-    fig.savefig(q, dpi=150)
+    save_png_svg(fig, q, dpi=150)
     plt.close(fig)
     return q
 
@@ -628,7 +629,7 @@ def fig_confusion_alltrials(conf, out, align="cue", name=None, arm_name="ALL tri
         fig.tight_layout(rect=(0, 0, 1, 0.88))
         stem = (name or f"poststroke_G3b_confusion_alltrials_{align}.png")[:-4]
         q = Path(out) / f"{stem}_{an}.png"
-        fig.savefig(q, dpi=150)
+        save_png_svg(fig, q, dpi=150)
         plt.close(fig)
         made.append(q)
     return made
@@ -711,7 +712,7 @@ def fig_fits_engaged(fits, out, align="precue", name=None):
     fig.tight_layout(rect=(0, 0, 1, 0.86))
     q = Path(out) / (name or f"poststroke_G4b_fits_engaged_{align}.png")
     _blank_unused(axes, len(ans), _rows, _cols)
-    fig.savefig(q, dpi=150)
+    save_png_svg(fig, q, dpi=150)
     plt.close(fig)
     return q
 
@@ -810,7 +811,7 @@ def fig_grid(rec, out, arm="all", name=None):
         "within-animal before/after control.", fontsize=8.5, wrap=True)
     fig.tight_layout(rect=(0, 0, 1, 0.83))
     p = Path(out) / (name or f"poststroke_grid_{arm}.png")
-    fig.savefig(p, dpi=150)
+    save_png_svg(fig, p, dpi=150)
     plt.close(fig)
     return p
 

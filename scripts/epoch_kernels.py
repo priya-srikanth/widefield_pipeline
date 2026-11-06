@@ -33,6 +33,7 @@ Usage: python scripts/epoch_kernels.py [--tag ...] [--jobs 3] [--stats-only] [--
 Output: <E>/frozen_encoder_<tag>/epoch_kernels/
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 from wfield_local.frozen_encoder import design_tag as _design_tag  # frame tag of the FROZEN_LICKS_ALL design (8.51)
 
 import argparse
@@ -250,7 +251,7 @@ def figures(run: Path, out: Path, R: pd.DataFrame, labels_by_an: dict) -> None:
                  "(no stroke); dashed = the group's own split-half reliability. Thick = mean of animals, faint = animals.",
                  fontsize=9.5, wrap=True)
     fig.tight_layout(rect=(0, 0, 1, 0.94))
-    fig.savefig(out / "epoch_kernels_r.png", dpi=110)
+    save_png_svg(fig, out / "epoch_kernels_r.png", dpi=110)
     plt.close(fig)
     # (2) maps: rows = groups, cols = spouts, at SHOW_LAG; mean of animals
     kern = pickle.loads((out / "kernels.pkl").read_bytes())
@@ -297,7 +298,7 @@ def figures(run: Path, out: Path, R: pd.DataFrame, labels_by_an: dict) -> None:
         cb.set_label("beta x1e3 (dF/F per unit)", fontsize=8)
         fig.suptitle(f"NEURAL: {kname} kernel at {lags[li]:+.1f} s, per-epoch pooled fits (matched sessions), mean of "
                      "animals; one colour scale. Image left = ipsilesional.", fontsize=9.5)
-        fig.savefig(out / f"epoch_kernel_maps_{kname}.png", dpi=110)
+        save_png_svg(fig, out / f"epoch_kernel_maps_{kname}.png", dpi=110)
         plt.close(fig)
     print("->", out)
 

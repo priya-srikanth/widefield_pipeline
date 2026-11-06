@@ -23,6 +23,7 @@ stars in the top band (sig_marks.star_top + reserve_headroom).
 OUT: <out>/frozen_refit_pooled.png / .csv (3 sections: sessions, levels, change vs pre)
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import sys
 from pathlib import Path
@@ -138,7 +139,7 @@ def plot(w, st, lv, png):
     h.append(eb)
     fig.legend(handles=h, loc="upper center", ncol=5, frameon=False, fontsize=11, bbox_to_anchor=(0.5, 1.0))
     fig.tight_layout(rect=(0, 0, 1, 0.91), w_pad=2.0)
-    fig.savefig(png, dpi=200)
+    save_png_svg(fig, png, dpi=200)
     plt.close(fig)
 
 

@@ -75,6 +75,7 @@ Usage: [WFIELD_MAP_SCALE=frame] python scripts/lick_session_level_maps.py [--plo
        [--jobs N]
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import os
 import pickle
@@ -514,7 +515,7 @@ def plot_levels(D: dict) -> None:
             cb.set_label("LEVEL / pre RMS", fontsize=7)
             cb.ax.tick_params(labelsize=6.5)
     fig.suptitle(_head(fam, False, n_perm), fontsize=8)
-    fig.savefig(FIG / LEVEL_FIG[fam], dpi=95)
+    save_png_svg(fig, FIG / LEVEL_FIG[fam], dpi=95)
     plt.close(fig)
 
 
@@ -566,7 +567,7 @@ def plot_change(D: dict) -> None:
             cb.set_label("CHANGE / pre RMS", fontsize=7)
             cb.ax.tick_params(labelsize=6.5)
     fig.suptitle(_head(fam, True, n_perm), fontsize=8)
-    fig.savefig(FIG / CHANGE_FIG[fam], dpi=95)
+    save_png_svg(fig, FIG / CHANGE_FIG[fam], dpi=95)
     plt.close(fig)
 
 

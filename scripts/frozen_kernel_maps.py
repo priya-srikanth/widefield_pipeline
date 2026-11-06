@@ -13,6 +13,7 @@ kernel; spout shape enters through the templates) -> they come from the per-epoc
 Usage: python scripts/frozen_kernel_maps.py [--tag gate-attempted_v7g3_t3d_frA_basis]
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 from wfield_local.frozen_encoder import design_tag as _design_tag  # frame tag of the FROZEN_LICKS_ALL design (8.51)
 
 import argparse
@@ -149,7 +150,7 @@ def draw(maps, titles, path, suptitle, ol, mask, ncol=4, shared_rows=False, mask
     import textwrap
     fig.suptitle(textwrap.fill(suptitle, 40 * ncol), fontsize=9)
     fig.subplots_adjust(left=0.01, right=0.96, top=0.88, bottom=0.02, wspace=0.12, hspace=0.25)
-    fig.savefig(path, dpi=110)
+    save_png_svg(fig, path, dpi=110)
     plt.close(fig)
     print("->", path)
 

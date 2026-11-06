@@ -32,6 +32,7 @@ Usage: python scripts/partial_refit.py --tag gate-attempted_v7g3_t3d_frA [--jobs
 Output: <run>/partial_refit/{fits.pkl, sessions/<label>.json, gain.csv, boot.csv, figures/partial_refit_<window>.png}
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 from wfield_local.frozen_encoder import design_tag as _design_tag, tag_is_spont as _tag_is_spont  # frame tag of the FROZEN_LICKS_ALL design (8.51)
 
 import argparse
@@ -480,7 +481,7 @@ def summarise(run: Path, out: Path) -> None:
                      "(within animal). Bars = mean of animals; whisker 95 % nested CI; * excludes 0; dots = animals.",
                      fontsize=9)
         fig.subplots_adjust(left=0.05, right=0.83, top=0.86, bottom=0.07, hspace=0.35)
-        fig.savefig(out / "figures" / f"partial_refit_bars_{w}.png", dpi=105)            # supplementary (all sets)
+        save_png_svg(fig, out / "figures" / f"partial_refit_bars_{w}.png", dpi=105)            # supplementary (all sets)
         plt.close(fig)
     # MAIN: epoch lines of the contrasts that carry the claim (Priya 10-25: bars too many to read)
     ser = [(q, lab, cols[q]) for q, lab in (("target - null", "target (vs its null)"),
@@ -511,7 +512,7 @@ def summarise(run: Path, out: Path) -> None:
                  "(within animal; line = mean of animals, band = 95% nested CI animals > sessions). "
                  "All refit sets: partial_refit_bars_<window>.png.", fontsize=9.5)
     fig.subplots_adjust(left=0.09, right=0.99, top=0.76, bottom=0.15, wspace=0.08, hspace=0.25)
-    fig.savefig(out / "figures" / "partial_refit_lines.png", dpi=110)
+    save_png_svg(fig, out / "figures" / "partial_refit_lines.png", dpi=110)
     plt.close(fig)
     print("->", out)
 

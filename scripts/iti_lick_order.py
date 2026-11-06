@@ -27,6 +27,7 @@ read as split) and by `lick_offset_contrib_map.py` as the basis key.
 Usage: python scripts/iti_lick_order.py [--plot-only]
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import sys
 from pathlib import Path
@@ -339,7 +340,7 @@ def plot_classes(T: pd.DataFrame) -> None:
                  "lateral, change vs pre,\nfrozen KEY-row decoder per set (z-scored " + DEC_LAB + f"; like-for-like = vs pre licks at the same place, {lfl.REF_LAB}); 95% paired nested "
                  "bootstrap CI, * = CI excludes 0 (bold),\n\u2020 = mixed (LMM) p < 0.05 (second opinion, anti-conservative at n=4), k/n animals. + = contralesional. PROVISIONAL", fontsize=9.5)
     _layout(fig, bottom=0.05)
-    fig.savefig(WOUT / "figures" / f"lick_order_iti_cued{SRC_TAG}.png", dpi=100)
+    save_png_svg(fig, WOUT / "figures" / f"lick_order_iti_cued{SRC_TAG}.png", dpi=100)
     plt.close(fig)
 
 
@@ -423,7 +424,7 @@ def plot_slope(P: pd.DataFrame, T: pd.DataFrame) -> None:
                  "bootstrap animals > sessions per order, BH-FDR q = 0.05 across the 10 orders), one row per epoch in its "
                  "colour. PROVISIONAL", fontsize=9.5)
     _layout(fig, bottom=0.08)
-    fig.savefig(WOUT / "figures" / f"lick_order_iti_cued_slope{SRC_TAG}.png", dpi=100)
+    save_png_svg(fig, WOUT / "figures" / f"lick_order_iti_cued_slope{SRC_TAG}.png", dpi=100)
     R = pd.DataFrame(sig_recs)
     R.to_csv(WOUT / f"lick_order_sig_bins{SRC_TAG}.csv", index=False)
     print("== per-order tests (landing / decoded vs pre), significant orders:\n"

@@ -31,6 +31,7 @@ Usage: python scripts/iti_licks.py [--jobs 3] [--labels ...]   (extract + summar
 Output: <E>/iti_licks/ (sessions/<label>.npz, tables, figures)
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 from wfield_local.frozen_encoder import design_tag as _design_tag  # frame tag of the FROZEN_LICKS_ALL design (8.51)
 
 import argparse
@@ -826,7 +827,7 @@ def ramp_draw(plt, F: dict, colors: dict, path) -> None:
                  f"{ROI_FRAC['tjM1']:.0%} of MOp; _right = contralesional.\n" + SIG_NOTE +
                  " Tests on session PETHs (/ animal's pre amplitude).", fontsize=9.5, wrap=True)
     fig.tight_layout(rect=(0, 0, 1, 0.9))
-    fig.savefig(path, dpi=110)
+    save_png_svg(fig, path, dpi=110)
     plt.close(fig)
 
 
@@ -984,7 +985,7 @@ def direction_draw(F: dict) -> None:
                  "sessions +- SEM.\n" + SIG_NOTE + "\nRight: " + FROZEN_TAG + ", applied unchanged to every session (pre "
                  "scored leave-one-session-out).", fontsize=9.5, wrap=True)
     fig.tight_layout(rect=(0, 0, 1, 0.88))
-    fig.savefig(OUT / "figures" / tagged("lick_direction_decoding.png"), dpi=110)
+    save_png_svg(fig, OUT / "figures" / tagged("lick_direction_decoding.png"), dpi=110)
     plt.close(fig)
 
 
@@ -1170,7 +1171,7 @@ def roi_draw(F: dict) -> None:
                  f"{F['roi_frac']:.0%} of MOp\nimage left = ipsilesional", fontsize=9)
     ax.axis("off")
     (OUT / "figures").mkdir(parents=True, exist_ok=True)
-    fig.savefig(OUT / "figures" / "lick_iti_rois.png", dpi=120, bbox_inches="tight")
+    save_png_svg(fig, OUT / "figures" / "lick_iti_rois.png", dpi=120, bbox_inches="tight")
     plt.close(fig)
 
 
@@ -1390,7 +1391,7 @@ def frozen_tc_draw(F: dict) -> None:
                  "sessions leave-one-session-out), applied unchanged to every session. Line = mean over sessions (all animals "
                  "pooled), band = SEM.\n" + SIG_NOTE, fontsize=9.5, wrap=True)
     fig.tight_layout(rect=(0, 0, 1, 0.91))
-    fig.savefig(OUT / "figures" / tagged("lick_frozen_timecourse.png"), dpi=110)
+    save_png_svg(fig, OUT / "figures" / tagged("lick_frozen_timecourse.png"), dpi=110)
     plt.close(fig)
 
 
@@ -1539,7 +1540,7 @@ def key_figures_plot(only: tuple = KEY_STEMS) -> None:
                      "within animal to its own pre mean. * = change from pre with "
                      "95% nested-bootstrap CI (animals > sessions) excluding 0.", fontsize=9.5, wrap=True)
         fig.tight_layout(rect=(0.01, 0, 0.99, 0.9))
-        fig.savefig(OUT / "figures" / tagged("lick_frozen_summary.png"), dpi=110)
+        save_png_svg(fig, OUT / "figures" / tagged("lick_frozen_summary.png"), dpi=110)
         plt.close(fig)
     if "lick_iti_ramp_sessions" in only:
         F = load_fd("lick_iti_ramp_sessions")
@@ -1572,7 +1573,7 @@ def key_figures_plot(only: tuple = KEY_STEMS) -> None:
                      "each session divided by its animal's PRE amplitude at the lick (within-animal normalised).\n" + SIG_NOTE,
                      fontsize=9.5, wrap=True)
         fig.tight_layout(rect=(0, 0, 1, 0.9))
-        fig.savefig(OUT / "figures" / "lick_iti_ramp_sessions.png", dpi=110)
+        save_png_svg(fig, OUT / "figures" / "lick_iti_ramp_sessions.png", dpi=110)
         plt.close(fig)
     if "lick_iti_ramp_summary" in only:
         F = load_fd("lick_iti_ramp_summary")
@@ -1593,7 +1594,7 @@ def key_figures_plot(only: tuple = KEY_STEMS) -> None:
                      "-1.0..-0.5 s, build-up -1.5..-1.0 s before the lick. * = change from pre with 95% "
                      "nested-bootstrap CI (animals > sessions) excluding 0.", fontsize=9.5, wrap=True)
         fig.tight_layout(rect=(0.01, 0, 0.99, 0.93))
-        fig.savefig(OUT / "figures" / "lick_iti_ramp_summary.png", dpi=110)
+        save_png_svg(fig, OUT / "figures" / "lick_iti_ramp_summary.png", dpi=110)
         plt.close(fig)
 
 
@@ -1948,7 +1949,7 @@ def controls_plot(only: tuple = tuple(CTRL_FIGS)) -> None:
         fig.suptitle(title, fontsize=9.5, wrap=True)
         fig.tight_layout(rect=rect)
         (OUT_W / "figures").mkdir(parents=True, exist_ok=True)
-        fig.savefig(OUT_W / "figures" / f"{stem}.png", dpi=110)
+        save_png_svg(fig, OUT_W / "figures" / f"{stem}.png", dpi=110)
         plt.close(fig)
 
 
@@ -2109,7 +2110,7 @@ def binned_plot() -> None:
                  "on PRE r only). Left: pre-stroke leave-one-session-out r; right: chronic r normalised to each animal's pre.",
                  fontsize=9.5, wrap=True)
     fig.tight_layout(rect=(0, 0, 1, 0.93))
-    fig.savefig(OUT / "figures" / tagged("lick_binned_sweep.png"), dpi=110)
+    save_png_svg(fig, OUT / "figures" / tagged("lick_binned_sweep.png"), dpi=110)
     plt.close(fig)
     F = load_fd(tagged("lick_binned_summary"))
     fig, axs = plt.subplots(2, 6, figsize=(22, 8))
@@ -2132,7 +2133,7 @@ def binned_plot() -> None:
                  "actual lateral tongue-tip position.\n(One number per session; dots = sessions, all animals pooled; black = mean +- SEM). * = nested-bootstrap change "
                  "from pre (animals > sessions) excluding 0.", fontsize=9.5, wrap=True)
     fig.tight_layout(rect=(0.01, 0, 0.99, 0.91))
-    fig.savefig(OUT / "figures" / tagged("lick_binned_summary.png"), dpi=110)
+    save_png_svg(fig, OUT / "figures" / tagged("lick_binned_summary.png"), dpi=110)
     plt.close(fig)
 
 

@@ -41,6 +41,7 @@ references (`frozen_fits` -> frozen_models.load_or_fit, kind `enl_angle`); the p
 score nothing post-stroke). Follow-ups (nested history test, offset exploration): scripts/lick_enl_offset_explore.py.
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import functools
 import sys
@@ -416,7 +417,7 @@ def figure(PRE: pd.DataFrame, SS: pd.DataFrame, TS: pd.DataFrame, W: float, lf: 
     fig.tight_layout(rect=(0, 0.06, 1, 1))
     out = OUT / "figures" / "lick_enl_angle_decode.png"
     out.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out, dpi=110)
+    save_png_svg(fig, out, dpi=110)
     print(f"== figure {out}")
 
 

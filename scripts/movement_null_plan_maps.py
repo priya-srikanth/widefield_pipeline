@@ -38,6 +38,7 @@ Output: <E>/movement_null_plan/{figdata_<frame>.npz, maps_table_<frame>.csv, map
         figures/movement_null_maps_<frame>_<window>.png, figures/movement_null_area_dots_<frame>.png}
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 from wfield_local.frozen_encoder import design_tag as _design_tag  # frame tag of the FROZEN_LICKS_ALL design (8.51)
 
 import argparse
@@ -250,7 +251,7 @@ def plot_maps(plt, frame: str) -> list:
                             wspace=0.04, hspace=0.32)
         p = OUT / "figures" / f"movement_null_maps_{frame}_{w}.png"
         p.parent.mkdir(parents=True, exist_ok=True)
-        fig.savefig(p, dpi=110)
+        save_png_svg(fig, p, dpi=110)
         plt.close(fig)
         out.append(p)
     return out
@@ -327,7 +328,7 @@ def plot_area_dots(plt, frame: str, L: pd.DataFrame) -> Path:
     fig.subplots_adjust(left=0.05, right=0.995, top=1 - 1.15 / (2.9 * len(rows) + 1.4), bottom=0.05, wspace=0.12,
                         hspace=0.62)
     p = OUT / "figures" / f"movement_null_area_dots_{frame}.png"
-    fig.savefig(p, dpi=110)
+    save_png_svg(fig, p, dpi=110)
     plt.close(fig)
     return p
 

@@ -83,6 +83,7 @@ Writes `rest_frozen_decoder_<variant>.{csv,png}` plus a per-session csv, so no n
 only in stdout.
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import argparse
 import glob
@@ -698,7 +699,7 @@ def _plot(rows, per_session, order, out, variant, stem, n_skipped):
     # ROOM AT THE BOTTOM FOR THE LEGENDS, which are now outside the axes.
     fig.tight_layout(rect=(0, 0.04, 1, 0.93))
     p = out / f"{stem}.png"
-    fig.savefig(p, dpi=150)
+    save_png_svg(fig, p, dpi=150)
     plt.close(fig)
     return p
 

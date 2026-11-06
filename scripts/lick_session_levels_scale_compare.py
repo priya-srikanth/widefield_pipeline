@@ -25,6 +25,7 @@ figure data figdata/lick_session_levels_scale_compare.pkl (tables; the maps come
 Usage: python scripts/lick_session_levels_scale_compare.py [--plot-only]   (after both lick_session_level_maps runs)
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import sys
 import textwrap
@@ -181,7 +182,7 @@ def plot_maps(F: dict, R: dict, name: str, fam: str) -> None:
             "the sign).", f"SIGN: {lv.SIGN['lat' if fam == 'lat' else 'sp']}. ipsi (lesion) = image LEFT. SUPPLEMENTARY, "
             "PROVISIONAL"]
     fig.suptitle("\n".join(textwrap.fill(q, 150) for q in head), fontsize=8)
-    fig.savefig(FIG / f"{STEM}_{name}.png", dpi=90)
+    save_png_svg(fig, FIG / f"{STEM}_{name}.png", dpi=90)
     plt.close(fig)
 
 
@@ -236,7 +237,7 @@ def plot_global(F: dict) -> None:
                  "z-scored SVD features (each component / its session frame-wise SD). One dot = animal x map x epoch; "
                  "below the diagonal = the cortex-wide part shrinks when z-scored. SUPPLEMENTARY, PROVISIONAL", fontsize=8.5)
     fig.tight_layout(rect=(0, 0, 1, 0.9))
-    fig.savefig(FIG / f"{STEM}_global.png", dpi=95)
+    save_png_svg(fig, FIG / f"{STEM}_global.png", dpi=95)
     plt.close(fig)
 
 

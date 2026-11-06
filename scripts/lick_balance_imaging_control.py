@@ -29,6 +29,7 @@ balimg_measures.csv, balimg_change.csv, balimg_track.csv, balimg_models.csv, fig
 Usage: python scripts/lick_balance_imaging_control.py [--jobs 6] [--summarise]
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import argparse
 import json
@@ -386,7 +387,7 @@ def figure(D: pd.DataFrame, C: pd.DataFrame) -> None:
                  fontsize=11)
     fig.tight_layout(rect=(0, 0, 1, 0.95))
     out = il.OUT_W / "figures" / "balimg_control.png"
-    fig.savefig(out, dpi=130)
+    save_png_svg(fig, out, dpi=130)
     print(f"== wrote {out}")
 
 

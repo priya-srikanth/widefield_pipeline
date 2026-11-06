@@ -18,6 +18,7 @@ line = its median. Rows, in the order agreed 10-19 (distance offsets primary, on
 plus a final panel row-strip: jaw FAR_DIR (mm; + = toward the target side) per session.
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import argparse
 from pathlib import Path
@@ -167,7 +168,7 @@ def figure(animal: str, SE: pd.DataFrame, K: pd.DataFrame, out: Path, pre_from: 
                  + ("\nSIGN: lesion-signed rows + = CONTRALESIONAL (mouse right), flipped at plot level; centre-spout "
                     "lateral errors negated (outward rows otherwise unchanged)" if contra else ""), fontsize=10)
     fig.tight_layout(rect=(0, 0, 1, 0.985))
-    fig.savefig(out, dpi=110)
+    save_png_svg(fig, out, dpi=110)
     plt.close(fig)
 
 

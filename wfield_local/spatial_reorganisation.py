@@ -32,6 +32,7 @@ WHY THE R-L INDEX CANNOT ANSWER EITHER. It is one number per position and it is 
 shift and a bilateral convergence both move it toward zero. These two tests separate the cases.
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import argparse
 import glob
@@ -476,7 +477,7 @@ def _plot_chunk(cols, POS, out_dir, align, part, n_parts):
     name = (f"spatial_reorganisation_{align}.png" if part == 1
             else f"spatial_reorganisation_{align}__p{part}.png")
     p = Path(out_dir) / name
-    fig.savefig(p, dpi=150)
+    save_png_svg(fig, p, dpi=150)
     plt.close(fig)
     # a stale part from a run when the cohort was larger would silently show old sessions
     if n_parts > 1 and part == n_parts:

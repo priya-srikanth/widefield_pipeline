@@ -12,6 +12,7 @@ figdata/lick_position_per_spout.pkl (--plot-only redraws from it).
 Usage: python scripts/lick_position_per_spout.py [--plot-only]
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import sys
 from pathlib import Path
@@ -91,7 +92,7 @@ def plot(F: dict) -> None:
                  "ALM / tjM1 split, lags 0..0.2 s; pre leave-one-session-out). Decoded values are on the decoder's (shrunken) "
                  "scale: compare with the grey pre line. PROVISIONAL", fontsize=9.5)
     fig.tight_layout(rect=(0, 0, 1, 0.92))
-    fig.savefig(il.OUT_W / "figures" / "lick_position_per_spout.png", dpi=100)
+    save_png_svg(fig, il.OUT_W / "figures" / "lick_position_per_spout.png", dpi=100)
     plt.close(fig)
 
 
@@ -132,7 +133,7 @@ def plot_by_epoch(F: dict) -> None:
     fig.suptitle("Lateral lick position PER SPOUT, epochs side by side: DECODED (left; frozen pre-stroke KEY-row decoder, its "
                  "shrunken scale) and ACTUAL landing (right); mean +/- SEM over animals. PROVISIONAL", fontsize=10)
     fig.tight_layout(rect=(0, 0, 1, 0.95))
-    fig.savefig(il.OUT_W / "figures" / "lick_position_per_spout_byepoch.png", dpi=100)
+    save_png_svg(fig, il.OUT_W / "figures" / "lick_position_per_spout_byepoch.png", dpi=100)
     plt.close(fig)
 
 

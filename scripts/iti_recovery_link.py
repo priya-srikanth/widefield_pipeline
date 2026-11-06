@@ -27,6 +27,7 @@ Usage: [WFIELD_AIM=all] python scripts/iti_recovery_link.py [--src DIR] [--beh h
        (DIR default <E>/iti_licks; output written there)
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import argparse
 import sys
@@ -259,7 +260,7 @@ def plot_session_scatter(D: dict) -> None:
                  "removed is in the per-animal recovery-link figure (this pooled r mixes animals and includes the time "
                  "trend). PROVISIONAL", fontsize=9.5)
     fig.tight_layout(rect=(0, 0, 1, 0.86))
-    fig.savefig(src / "figures" / f"lick_recovery_link_sessions_{tag}.png", dpi=100)
+    save_png_svg(fig, src / "figures" / f"lick_recovery_link_sessions_{tag}.png", dpi=100)
     plt.close(fig)
 
 
@@ -355,7 +356,7 @@ def plot_pooled(D: dict) -> None:
                  "cued licks. Behaviour is the same in both rows ("
                  + ("cued licks" if tag.startswith("aim") else "cued far-contra licks") + ").", fontsize=9.5)
     fig.tight_layout(rect=(0, 0, 1, 0.92))
-    fig.savefig(src / "figures" / f"lick_recovery_link_pooled_{tag}.png", dpi=100)
+    save_png_svg(fig, src / "figures" / f"lick_recovery_link_pooled_{tag}.png", dpi=100)
     plt.close(fig)
 
 
@@ -406,7 +407,7 @@ def plot_course(D: dict) -> None:
                  f"({rr.loc[('trial', 'detrended'), 'mean_r']:+.2f}, p {rr.loc[('trial', 'detrended'), 'p_perm']:.4f}); "
                  "p = within-animal permutation of behaviour.", fontsize=9.5)
     fig.tight_layout(rect=(0, 0, 1, 0.89))
-    fig.savefig(src / "figures" / f"lick_recovery_link_{tag}.png", dpi=100)
+    save_png_svg(fig, src / "figures" / f"lick_recovery_link_{tag}.png", dpi=100)
     plt.close(fig)
 
 

@@ -65,6 +65,7 @@ Usage: python scripts/lick_enl_target_test.py [--jobs 8] [--lf slide|2s] [--plot
 cls_trials.csv.gz (frozen-model outputs; nothing refitted) and redraws; --plot-only redraws every figure.
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import sys
 from pathlib import Path
@@ -716,7 +717,7 @@ def _fig_classmatched_epochs(CM: pd.DataFrame, col: dict, mk: dict) -> None:
                  f"({'/'.join(AN)}) under each rule. Shaded pre = the pre-stroke LEVEL; few pre deviated trials.", fontsize=10)
     _wrap_titles(fig, sup_width=170)
     fig.tight_layout(rect=(0, 0.035, 1, 1))
-    fig.savefig(FIG / "lick_enl_target_classmatched_epochs.png", dpi=110)
+    save_png_svg(fig, FIG / "lick_enl_target_classmatched_epochs.png", dpi=110)
     plt.close(fig)
 
 
@@ -766,7 +767,7 @@ def figures() -> None:
                  "spans 0); clipped to [-3, 4]", fontsize=10)
     _wrap_titles(fig)
     fig.tight_layout(rect=(0, 0.04, 1, 1))
-    fig.savefig(FIG / "lick_enl_target_tracking.png", dpi=110)
+    save_png_svg(fig, FIG / "lick_enl_target_tracking.png", dpi=110)
     plt.close(fig)
     # 2 confusion pre vs acute (mean of animals) + change
     CF, CC = pd.read_csv(OUT / "confusion.csv"), pd.read_csv(OUT / "confusion_change.csv")
@@ -805,7 +806,7 @@ def figures() -> None:
                  "canonical order close ipsi..far contra (ipsi = ipsilesional). Chance 1/6", fontsize=10)
     _wrap_titles(fig)
     fig.tight_layout(rect=(0, 0, 1, 0.95), h_pad=2.5)
-    fig.savefig(FIG / "lick_enl_target_confusion.png", dpi=110)
+    save_png_svg(fig, FIG / "lick_enl_target_confusion.png", dpi=110)
     plt.close(fig)
     # 3 off-target far contra: decoded as target vs executed, by window; class-matched
     OT = pd.read_csv(OUT / "offtarget.csv")
@@ -858,7 +859,7 @@ def figures() -> None:
                             fontsize=8)
     _wrap_titles(fig)
     fig.tight_layout()
-    fig.savefig(FIG / "lick_enl_target_offtarget.png", dpi=110)
+    save_png_svg(fig, FIG / "lick_enl_target_offtarget.png", dpi=110)
     plt.close(fig)
     _fig_classmatched_epochs(CM, col, mk)
     # 4 decodability
@@ -887,7 +888,7 @@ def figures() -> None:
                loc="lower center", ncol=len(h_), frameon=False)
     _wrap_titles(fig)
     fig.tight_layout(rect=(0, 0.06, 1, 1))
-    fig.savefig(FIG / "lick_enl_target_decodability.png", dpi=110)
+    save_png_svg(fig, FIG / "lick_enl_target_decodability.png", dpi=110)
     plt.close(fig)
     print(f"== figures in {FIG}")
 

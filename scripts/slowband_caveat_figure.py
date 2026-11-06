@@ -11,6 +11,7 @@ Output: qc/slowband_caveat.png. The caveat in one line: the headline pre-cue cod
 includes a slow block-level component, largest in the animals with the longest position blocks (PS92, PS93).
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import numpy as np
 import pandas as pd
@@ -87,7 +88,7 @@ def main() -> int:
     fig.tight_layout(rect=(0, 0, 1, 0.93))
     out = q / "slowband_caveat.png"
     writeguard.assert_writable(q)
-    fig.savefig(out, dpi=130)
+    save_png_svg(fig, out, dpi=130)
     print(P.groupby("animal")[["adopted_pre", "fast300_pre", "slow300_pre", "slow600_pre", "adopted_post",
                                "fast300_post", "slow300_post"]].mean().round(3).to_string())
     print(f"-> {out}")

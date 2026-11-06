@@ -40,6 +40,7 @@ should not be made to carry both claims.
     python -m scripts.rest_migration.lick_bout_structure [--gate] [--horizon-min 90]
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import argparse
 import csv
@@ -495,7 +496,7 @@ def main(argv=None) -> int:
         fig.suptitle(title, fontsize=10)
         fig.tight_layout(rect=(0, 0, 1, 0.91))
         pf = out_dir / fname
-        fig.savefig(pf, dpi=170)
+        save_png_svg(fig, pf, dpi=170)
         plt.close(fig)
         print(f"  wrote {pf}")
 
