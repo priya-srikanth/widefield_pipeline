@@ -20,6 +20,14 @@ until Priya answers the matching question.
 - ANSWERED 11-05 night: Q1 "yes" (above); Q2 slide 41 "reword for accuracy" (DONE, below); Q3 "which is safer" ->
   merge (Q5).
 
+- **Slide 11 pre-cue wording (Priya 11-06: "can wait on the re-run").** The bullet "Pre-cue = position information
+  before any lick" is inaccurate. The window is a lick-free (camera + spout) window between spout arrival and the cue
+  (`precue_window_start`). The figure / numbers are the 2.0 s table (LP_licks_ENL2s); the primary 1.0 s table (Priya
+  11-04) is still to be made in the post-rebuild pass. Change the text, figure and numbers together to 1 s after that
+  re-run. Post-cue window = cue to +2.0 s (`decode.cue_post_s`).
+- **34's fix/log-deficit-primary-20261105 -> main: Priya OK (11-06, in a8's window).** 34 asks for the OK in its
+  own window before pushing; a8's slide-18 pre-dots branch builds on it.
+
 ## 2. Findings
 
 - **Fail-loud DAQ contacts (item 5): no current output took the silent-zero path.** All 133 v36 sessions: DAQ .h5
