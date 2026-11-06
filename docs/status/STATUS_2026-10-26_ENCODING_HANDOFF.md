@@ -39,6 +39,78 @@ for anything that loads imaging. E = `M:/MICROSCOPE/Priya/Widefield/LP_analysis/
 3. Then tell **sabatinilab-e3** (PI deck) the decoder figures are final: per figure the share PNG path, page Fig N.k,
    script + args, headline numbers, methods text (they asked 10-26 ~22:30; reply sent: not final yet).
 
+### 00-COMPACT-29 (11-05 ~22:45) -- READ FIRST; supersedes 28 for state (28 / 27 hold for rules and history)
+
+Priya is ASLEEP: work overnight on everything possible. Her page = `docs/status/OVERNIGHT_2026-11-05_FOR_PRIYA.md`
+(decisions / questions first, findings, status, then "D. Overnight updates" -- append there + commit each time).
+Detailed log = RUNNING_LIST_2026-11-01.md (11-05 entries, newest at the end).
+
+**Code on main.** origin/main has the merge (136807cf, 16:18) + my fixes 5bd7faa2 (frozen_relabel routed),
+2dc96a9e / 76066e01 (encoding_mixed 3-D BINNED panels u_tgtbin, --plot-only + saved long table), 5a6b7986 (ttc_log),
+5993d70e (--bin block size), e53f1cd2 (fig10 title), a6edab62 (misdirected bundle_dir), 411c8385; a8's cleanup
+(d39ee11c library moves, item 3 response window pushing).
+**Unpushed branches (mine):**
+- `fix/decisions-f1-f2-enl-20261105` (worktree wf_decisions, tip 9fd25043 incl. origin/main merge): (f)1 precue
+  engagement discriminator camera classes, (f)2 Fig 0.2 camera period, ENL slide (wfield_local/enl_window.py), behaviour
+  camera period (disengagement camera quit, revup attempts path). Priya OK to push. First push REJECTED by pre-push
+  (14 failed / 574; test_rebuild_root require_default... / r3_rebuild_figs..., test_spout_behavior curated_mmdds...; both
+  files pass alone, 87). RETRY running (task bzqykfs5k; full log scratchpad/push_decisions_2.log). If it fails again:
+  read the log, fix, don't bypass.
+- `fix/log-deficit-primary-20261105` (worktree wf_merge_main, off main d882558d): b185ad70 log deficit PRIMARY (DEFICIT =
+  ttc_log, Deficit carries transform, plot_fits draws original axis + curve), ef663dc7 no top spine, 905f3ca0 plot_fits open
+  markers shape = animal / colour = epoch (Priya 11-05). Priya approved both changes -> push after the decisions push lands
+  (merge origin/main first).
+- `port/gain-bio-20261105` (worktree wf_gainbio, 1b9eb446): slide 102 chain ported (scripts/gain_bio/). NOT to render
+  until Priya answers the 5 choices (overnight page A1).
+- `fix/decisions-followup-20261105` (worktree wf_decisions2; HELPER running): 1b hit rate -> camera period; iti_lick_rate +
+  within_lick_correction cut to the working period; trial_attempts rebuilt under daqlk into scratchpad/attempts_daqlk + diff
+  vs the 11-04 table; precue discriminator floor 20 -> 15 trials (late window kept). Review its report; push only with
+  approval-covered items (all four were approved by Priya 11-05).
+
+**Render `_daqlk`** (scratchpad `render_daqlk/`; worktree wf_render_daqlk @ a76352f3 = 136807cf + 2 fixes; EXPECT_SHA
+accepts 136807cf 9aaa4cc6 a76352f3). Queue versions -- NEVER edit a queue file a running lane reads (bash reads as it
+goes); make a new version: v2 = lane 2 (A B D E F Z, no claims); v3 = claims (mkdir logs/<step>.claim); v4 = E ITI order;
+v5 = section X; v6 = + no_spont lsland/frlag, svf no_spont/no_other, Fig 11.2 = LP 1 s (WIDEFIELD_LICK_SOURCE=lp). Lanes
+now: G (queue_daqlk.sh, g5_epoch since 17:03), 2 (v2, a_relabel_noFR 90/107 at 22:34), T (v6, relaunched 22:30, waits on
+the te re-run lane = v5 ONLY te steps, t_frame_te 68/107), D (v3), E (v6, e_iti_key), X (v6, x_enl_move LP), SVF (v6 ONLY
+a_svf_ls / b_svf_frA, 47/107). Only 11 / ~227 steps done at 22:34; per-step times 2-4x estimates (network-bound ~92 MB/s).
+- Low-RAM STOP: the queue writes `render_daqlk/STOP` when free < 6 GB twice (nothing killed); lanes halt at the next step
+  boundary. Clear it (move to logs/) only when RAM is back, then relaunch halted lanes (log it in CHAIN.log).
+- Monitor: re-arm the CHAIN.log poll monitor every 30 min (EXIT [1-9] / HALTED / SKIPPED / queue end / STOP / LOW + free
+  RAM < 6 GB).
+- Held: lane-X ENLv chain waits for `logs/ENL_SLIDE_FIX.done` -- create it only when the decisions branch is merged AND in
+  the code lane X imports (worktree HEAD at step start).
+- After the decisions + log-deficit branches land: bring them into the render code (new worktree / commit + EXPECT_SHA in a
+  NEW queue version) and add steps: precue_engagement_states (--align precue, cue), fig_behaviour_hits, lick_enl_angle_decode
+  --extract -> lick_enl_offset_explore --history --offset -> lick_enl_target_test -> re-run e_pat_summarise, revup_neural,
+  fr_enl_decode, disengagement_tests, revup_behaviour; re-run the behaviour-model LMM steps (imaging_lmm, remap_lmm,
+  remap_checks, within_spout_mixed, iti_lmm_figures) for log deficit + new markers; then ENL_SLIDE_FIX.done.
+- Fixed tonight (logged): te frame needed exec_bins_calib in the input cache (copied, sha 732b0d12 = bundle); lsland run
+  without no_spont stopped + moved aside; iti order (split_sd -> zscore_pre -> main; zscore_pre marked done after its SD
+  tables, full e_zscore later).
+
+**Helpers running:** decisions follow-up (above); render IO / local-cache measurement (report ->
+rebuild_20261103/RENDER_IO_LOCAL_CACHE_20261105.md): decide start-now vs after only if safe + clearly worthwhile
+(Priya approved the local cache for the next render; mid-render needs a new worktree / queue version), else put it on her
+list.
+
+**Results tonight (EARLY, no page text changed):** encoding_mixed binned + LOG deficit (primary): cue -- spout identity
+tracks recovery (-8.1 q .015), landing -3.15 q .004; lick -- landing -6.8 q < .001, spout identity n.s. (-4.5 q .55) but
+above pre (+10.5 q .042). Log beats linear (dAIC -8..-20; qc/encoding_mixed_lin_vs_log.csv). FR pixel calibration fine
+(4.6-4.9 %); pre-stroke DRIFT is real (FR_PIXEL_CALIBRATION_20261105.md) -> Priya's call. Decision audit
+(DECISION_AUDIT_20261105.md) + spont co-variation audit (SPONT_COVARIATION_AUDIT_20261105.md): conventions to fix at the
+replacement pass (sig_marks.sig_star stars on data -> star_top; spout order in 3 scripts; "Bonferroni" -> max-statistic
+captions; stale uninstructed / lick labels; fig10 done).
+
+**Pitfalls learned today:** PYTHONPATH in Git Bash must use `$(pwd -W)` (Windows paths) -- `/c/...` is ignored and Python
+imports the shared widefield_pipeline checkout; pre-push hook tests can use 13 GB (watch RAM; the render STOP fires);
+queue "EXIT 0" can hide per-session failures (te: "!! stats" on every session) -> check outputs, not just exit codes;
+`--help` dry runs miss runtime path bugs (relabel routing, decompose absolute --folder, ITI table order).
+
+**Peers:** a8 (cleanup; told: no rebase, number-changing items held for Priya; bare-run pre default -> my rec in the
+overnight page A4); e0 (kinematics; waiting for my lick_aim_deficit / iti_lick_rate renders). Priya's pending answers are
+in the overnight page section A.
+
 ### 00-COMPACT-28 (11-05 ~13:00) -- READ FIRST; supersedes 27 for state (27 / 26 hold for rules and history)
 
 Day log with every step: docs/status/RUNNING_LIST_2026-11-01.md, sections "11-05 overnight" onward.
