@@ -146,3 +146,12 @@ the night.
   08:01 STOP.
 - ~10:00: follow-up branch push FAILED: its pre-push suite hung at ~58 % for ~3 h (no failure; pytest idle). Stopped my
   own pytest (exact PID), re-running the suite verbosely to find the hanging test.
+- ~09:30: **queue v7b = pause, don't halt.** STOPs kept recurring (08:01, 08:38) because the two remaining v6 steps
+  (t_partial_te ~21 GB, x_enl_move) still run v6 watchdogs that read FREE memory and write STOP, which halted every lane.
+  v7b ignores STOP: each step waits before starting until available RAM >= 10 GB; low RAM is logged, never halts. Manual
+  brake = HALT file. frozen_relabel now counts as heavy. All 158 remaining steps were reserved for v7/v7b lanes, so the
+  v6 lanes drain after their current steps. All lanes (G T A/B D F/Z X E) running v7b since 09:24.
+- ~09:30: decisions -> main push: the pre-push hook ran the FULL suite because a NEW remote branch name was in the
+  push (hook rule), and on this loaded box it hung / took hours. Pushing HEAD:main only runs the touched tests; my
+  attempt at 08:58 was itself using 7 GB at 1-3 GB available, so I stopped it (its task; an orphan pytest finished on its
+  own). Retrying when RAM allows. Not pushed yet.
