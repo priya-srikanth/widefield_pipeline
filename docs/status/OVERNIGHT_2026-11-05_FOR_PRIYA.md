@@ -313,3 +313,15 @@ the night.
   kinematics style issues; (31) SVG code only in the FINAL catch-up queue (no restarts). Plan: helper for 27 / 28-compare
   / 29 / 30 code; then ONE final code version (main + that) and ONE catch-up queue (held steps + kinematics K + cam4
   cohort + aim + LP epoch arm), heavy steps under the shared lock.
+
+**11-06 ~15:35 -- A27-A30 code done (branch fix/priya1106-cam4-style, 2196c27f + merge of main e34349d7; NOT pushed).**
+- A28: regenerating the exec-bin calibration on the camera working period gives the SAME table as the 10-23 snapshot
+  (31 pre sessions, 119,090 licks; bin centres / SDs max |diff| 0.000 mm; 2 licks flip bins = 4-decimal rounding). Reason:
+  every pre trial with a 3-D lick is already inside the working period. Snapshot stays; no decision needed.
+- A27: cam4 cohort + jaw-lateral now take trials from the camera working period (legacy gate still available). Outputs go to
+  gate-named folders (prepost_working / prepost_legacygate / prepost_alltrials); old `prepost` is never overwritten.
+  No numbers yet -- they come from the catch-up queue re-run. Changed conclusions will be reported BEFORE page text.
+- A29: aim producer + decoder-retention + recovery_timing --aim step lines drafted (same run tag needed; noted).
+- A30: pose3d_summary dots = open markers, shape = animal, colour = epoch; pose3d_phase hides the top spine on all 2-D panels.
+- Catch-up queue order: b_imaging_lmm and l_disengage* must depend on k_cohort (they read the new folder).
+- **Decision needed: OK to push fix/priya1106-cam4-style to main** (after the six-branch push finishes)?
