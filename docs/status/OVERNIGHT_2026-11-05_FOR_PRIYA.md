@@ -110,3 +110,16 @@ the night.
   lanes; RAM check now reads AVAILABLE memory. v7 lanes G, T, E, A/B-heavy launched; v6 lanes 2, X, D + the te re-run
   continue (they skip reserved steps). d_attempt_pp_* finished in ~1 min each (shortcut). Found: t_frame_te_basis had
   never re-run with the calibration (stale claim from the no-calibration run) -> re-queued under the lock.
+- ~08:30: **log-deficit branch ON MAIN** (e5f53dbd, Priya OK here; incl. ecac4e23: imaging_lmm decoder / CD post-only
+  panels now get the log deficit's raw axis + curve, found by a8). Decisions branches next (after the follow-up push).
+  Priya: ALM / tjM1 on slide 94 = YES, coloured in like the other split maps; unique R2 for regressors (no_posinfo
+  per-trial re-run) = LOW priority, after the render + deck / page update.
+- ~08:30: **speed-up branch done** (perf/attempt-perm-iti-lags-20261106, unpushed): b9ebb0c5 iti_licks lag sweep fanned
+  per (animal, lag); 4495e60e attempt_coding per-session prefetch + new parallel.parent_blas_kept(). Exact equality on
+  real data (PS92) + 10 new tests; 588 related tests pass. FOUND: `fan_out` pins the CALLING process to 2 BLAS threads
+  and never restores it, so serial code after a fan-out runs at 2 threads; in attempt_coding that moved a projection by
+  ~1e-4, changed the frozen-model input hash (SPEC-CHANGED -> a new frozen model minted). Measured cost centres (not
+  changed): paths.cohorts() re-parses the YAML ~9,000x per animal (~2/3 of attempt_coding's warm time);
+  frozen_models._store_versions re-scans every manifest on each store write (10 s per write; likely most of e_iti_key's
+  6.2 h). **Questions A10-A12**: memoise paths.cohorts()? index _store_versions (rule 10 code)? make fan_out restore
+  the parent's BLAS threads everywhere (may move numbers at the 1e-4 level in other callers -> would need a check)?
