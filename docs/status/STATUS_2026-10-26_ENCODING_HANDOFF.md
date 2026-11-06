@@ -86,6 +86,15 @@ code versions; the provenance table records each step's code sha (log header).
   14, 16, 19, 33, 38, 45-57, 97-136, 141, 142, 181-192; mostly LMM / stars slides) so it can tell which read the deficit table
   (held) and which do not. a8 already flagged slides 8, 17, 20, 121, 122, 139 as waiting for the catch-up queue.
 
+**14:55 Priya A25-A31 + catch-up queue contents (build after push6 + the cam4/style helper):** code = origin/main (after the six
+branches land) + fix/priya1106-cam4-style (helper running: A27 whole cam4 orofacial_cohort -> camera working period,
+A28 read-only calibration comparison, A29 lick_cued_aim_by_spout step, A30 style). Steps: the RESERVED_HOLD set (6 LMM +
+d_fig_goal_summary f1/f2/f3) + kinematics section K (gates helper's lines; HEAVY_RE += pose3d_cue_traces|pose3d_phase|
+pose3d_spout_error) + cam4 cohort re-run + aim producer + recovery_timing / decoder_retention (gates helper's D lines)
++ **A25 LP epoch arm**: `step g5_epoch_lp cont g2b_restnl_mask_lp "--block epoch_maps" "base" "$PY" -m
+wfield_local.epoch_grant_figures --parallel-arms 2 --only <g5_epoch family list>` (block_env = WIDEFIELD_LICK_SOURCE=lp; outputs
+route to LP_licks_<tag>; heavy ~6-9 h). SVG code included (A31: final queue only). A26: SVG scope = page + deck only.
+
 **Final catch-up queue (to build once gates-captions is merged):** the 7 parked steps + d_exec_vs_encoder re-run (+ the
 A25 LP epoch arm if Priya says yes; + any figure redraws for SVG per the inventory).
 
