@@ -2050,3 +2050,8 @@ bundle without `daqlk` and writes a provenance json.
   - Priya (1): precue discriminator = keep the late window, MINIMUM 15 trials (was 20) -> sent to the follow-up helper.
   - 22:24 LOW RAM (4-5 GB): my decisions push's pre-push pytest (13 GB, targeted files) + lanes -> STOP file written
     (nothing killed); lane T halted. Remove STOP + relaunch halted lanes once the push finishes.
+- ~22:45: **Priya: LMM figures -> shape = animal, colour = epoch (black / pink / yellow / green).** 905f3ca0 on
+  fix/log-deficit-primary-20261105: mixed_models.plot_fits uses cat_points.animal_marker + orofacial_cohort.EPOCH_LINE,
+  open markers, legend = fits + animal shapes + epoch colours (plot_epoch already did). Every plot_fits caller follows
+  (encoding_mixed redrawn; imaging_lmm, iti_lmm_figures, remap_lmm, remap_checks at their re-run on the merged code).
+  - STOP cleared 22:45 (19 GB free; cause = my pre-push tests); lane T relaunched (laneT3.out). Other lanes never halted.
