@@ -62,6 +62,13 @@ for anything that loads imaging. E = `M:/MICROSCOPE/Priya/Widefield/LP_analysis/
 7. **Rule still in force:** new code -> branch; park affected not-started steps BEFORE they run; one catch-up queue on one
    final code version; never edit a running queue file or render worktree.
 
+**Update ~15:35:** cam4-style helper DONE: branch fix/priya1106-cam4-style 2196c27f + main merged e34349d7 (wf_p1106_cam4),
+tests pass, not pushed. A28 calibration identical (no decision). Step-line draft (K cohort + A29 aim):
+scratchpad/a27_a29_cam4_steps_draft.sh -- in the catch-up queue give b_imaging_lmm + l_disengage* a dep on k_cohort; kinematics
+page Figs 1.1-1.3 / 2.x source paths move to cohort/<tag>/prepost_working after the re-run. Asked Priya for push OK.
+push6 at 15:23: branch 1 (small) in full-suite pre-push (configs/ changed). Render: all lanes wait on heavy lock held by v6
+t_partial_te (105/107) + x_enl_move (last chronic sessions).
+
 **Waiting on Priya:** OK to push fix/priya1106-cam4-style when the helper reports (A27 changes cam4 numbers -> report
 changed conclusions BEFORE any page text).
 
