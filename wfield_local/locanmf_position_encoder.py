@@ -31,7 +31,7 @@ from collections import defaultdict
 
 from wfield_local import config
 from wfield_local.locanmf_cue_lick_analysis import SESSIONS, ANIMAL_COLOR  # noqa: F401
-from wfield_local.locanmf_position_decoder import _trial_features, _build_signal
+from wfield_local.locanmf_position_decoder import _trial_features, _build_signal, trial_features_cached  # noqa: F401
 from wfield_local.plot_lick_aligned_averages import POSITION_NAMES, DISPLAY_ORDER, _load_daq_events
 from wfield_local.plot_spout_trial_averages import _load_daq_events as _load_cue, _classify_cues  # noqa: F401
 from wfield_local.behavior_position import classify_cues_with_backup
@@ -59,6 +59,33 @@ def _args(post_s=2.0, baseline="none", bins=1):
                            post_s=post_s, fs=FS, max_rt=float(config.defaults()["decode"]["max_rt_s"]), bins=bins)
 
 
+#: In-process tier over `trial_features_cached`, keyed on (label, args). See `_features`.
+_FEAT: dict = {}
+
+
+def _features(s, args):
+    """`_trial_features(s, args)` for the encoder: memoised in-process, and on disk underneath.
+
+    TWO TIERS, as in `joint_xsession.joint_features`. ``trial_features_cached`` is the ON-DISK tier
+    (session_cache kind ``tf-<align>-<digest>``, shared with every other caller that asks for the
+    same spec), so a session whose features were built on an earlier night is a pickle load, not a
+    ~17 s rebuild. The dict is the IN-PROCESS tier: one encoder process asks for each pooled
+    session's features four times (`_region_feve`, the EV matrix, and the two per-animal figures)
+    and each per-date session's twice (`encode_spatial` from `main` and again from
+    `fig_predicted_maps`), all with identical args. Until 2026-11-06 every one of those was a plain
+    `_trial_features` rebuild -- ~4 x 122 pooled sessions x ~17 s in EVERY date's encoder.
+
+    Same args, same tuple: the encoder's args are ``source="locanmf"`` with no injected signal, the
+    case the cache keys fully (`trial_features_cached` computes rather than caches anything it
+    cannot key, so its refusals stay correct here). The returned arrays are SHARED between callers
+    -- no caller in this module mutates X / y / g in place; keep it that way, or copy.
+    """
+    key = (s["label"], repr(sorted(vars(args).items())))
+    if key not in _FEAT:
+        _FEAT[key] = trial_features_cached(s, args)
+    return _FEAT[key]
+
+
 def _names(s):
     return {int(k): v for k, v in json.load(open(glob.glob(
         f"{s['mc']}/wfield_local_results/allen_aligned_affine8v1/allen_area_names.json")[0]))}
@@ -67,7 +94,7 @@ def _names(s):
 def encode_spatial(label):
     """Ridge encoder position->activity; returns CV R^2 per component, per-position predicted activity (B)."""
     s = _sess(label)
-    X, y, g, _, _, reg = _trial_features(s, _args(2.0))
+    X, y, g, _, _, reg = _features(s, _args(2.0))
     pos = np.array(DISPLAY_ORDER); P = np.stack([(y == p).astype(float) for p in pos], 1)
     pred = np.zeros_like(X); ng = min(5, int(np.unique(g).size))
     for tr, te in GroupKFold(ng).split(X, y, g):
@@ -317,7 +344,7 @@ def fig_ev_ceiling_by_position(labels, out, tag):
     fig, axes = plt.subplots(1, 2, figsize=(15, 5.5)); w = 0.8 / max(len(labels), 1)
     for i, lab in enumerate(labels):
         s = _sess(lab)
-        X, y, g, _, _, _ = _trial_features(s, _args(2.0))
+        X, y, g, _, _, _ = _features(s, _args(2.0))
         P = np.stack([(y == p).astype(float) for p in pos], 1)
         pred = np.zeros_like(X); ng = min(5, int(np.unique(g).size))
         for tr, te in GroupKFold(ng).split(X, y, g):
@@ -393,7 +420,7 @@ def _region_feve(label):
     Region FEVE = Σ_comp captured / Σ_comp explainable  (1.0 = encoder captures ALL explainable variance).
     Returns region -> dict(expl, cap, tot, n)."""
     s = _sess(label); names = _names(s)
-    X, y, g, _, _, reg = _trial_features(s, _args(2.0))
+    X, y, g, _, _, reg = _features(s, _args(2.0))
     pos = np.array(DISPLAY_ORDER); P = np.stack([(y == p).astype(float) for p in pos], 1)
     pred = np.zeros_like(X); ng = min(5, int(np.unique(g).size))
     for tr, te in GroupKFold(ng).split(X, y, g):
@@ -623,7 +650,7 @@ def ev_per_position(label):
     with GroupKFold over blocks -- the same CV the decoders use, so the two are comparable.
     """
     pos = np.array(DISPLAY_ORDER)
-    X, y, g, _, _, _ = _trial_features(_sess(label), _args(2.0))
+    X, y, g, _, _, _ = _features(_sess(label), _args(2.0))
     P = np.stack([(y == p).astype(float) for p in pos], 1)
     pred = np.zeros_like(X)
     ng = min(5, int(np.unique(g).size))
@@ -739,7 +766,7 @@ def fig_ev_ceiling_by_position_animal(animal, labels, out):
     posn = [POSITION_NAMES[c] for c in DISPLAY_ORDER]; pos = np.array(DISPLAY_ORDER)
     fig, axes = plt.subplots(1, 2, figsize=(15, 5.5)); w = 0.8 / max(len(labels), 1)
     for i, lab in enumerate(labels):
-        X, y, g, _, _, _ = _trial_features(_sess(lab), _args(2.0))
+        X, y, g, _, _, _ = _features(_sess(lab), _args(2.0))
         P = np.stack([(y == p).astype(float) for p in pos], 1)
         pred = np.zeros_like(X); ng = min(5, int(np.unique(g).size))
         for tr, te in GroupKFold(ng).split(X, y, g):
@@ -769,6 +796,11 @@ def main() -> int:
     ap.add_argument("--date", default="0605")
     ap.add_argument("--pool-dates", default="", help="comma MMDD subset for the pooled FEVE figures "
                     "(default empty = ALL sessions; e.g. 0605,0606,0607,0608 for the 6/5-onward deck)")
+    ap.add_argument("--skip-pooled", action="store_true",
+                    help="draw only this date's per-date figures, not the cross-date pooled ones (FEVE "
+                         "pooled/sessions, EV matrix, per-animal EV). nightly_figs passes it to every "
+                         "date's encoder but the last: the pooled set depends on --pool-dates and "
+                         "--output only, never on --date, so N concurrent dates drew it N times.")
     args = ap.parse_args()
     args.output.mkdir(parents=True, exist_ok=True)
     for s in [x for x in SESSIONS if x["label"].endswith(args.date)]:
@@ -786,6 +818,12 @@ def main() -> int:
             print("wrote", f(labs, args.output, args.date).name, flush=True)
         except Exception as ex:
             print(f"{f.__name__}: FAILED {type(ex).__name__}: {str(ex)[:80]}", flush=True)
+    if args.skip_pooled:
+        # Everything below reads only --pool-dates, --output and the session cache -- never --date --
+        # so on a backfill night every date's encoder drew the SAME pooled figures, concurrently, into
+        # the same files. One date (the last, `nightly_figs._per_day_figs`) now draws them.
+        print("pooled figures: skipped (--skip-pooled; another date's encoder draws them)", flush=True)
+        return 0
     # FEVE by region — pooled-per-animal and per-session. Default ALL sessions; --pool-dates restricts
     # (the 6/5-onward deck pools only 6/5-6/8, which share each animal's consistent 6/6-referenced alignment).
     pool = set(args.pool_dates.split(",")) if args.pool_dates else None

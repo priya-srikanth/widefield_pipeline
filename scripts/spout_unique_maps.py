@@ -5,7 +5,7 @@ target and execution maps"). From the frozen pixel (shared-SVD basis) run's drop
   executed unique of q  (SSE[base|drop:q whole] - SSE[base|drop:q]) / SST_q   the further loss when q's spout-locked
                         movement templates are ALSO swapped for the other spouts' (the executed movement's spout part)
 Rows: target pre level, acute / chronic minus pre; executed the same. Columns: spouts in the canonical order. Change maps:
-within animal, mean of 4; contours = significant 16 px bins (nested bootstrap animals -> sessions, Bonferroni; the same
+within animal, mean of 4; contours = significant 16 px bins (nested bootstrap animals -> sessions, max-statistic over bins, family-wise per panel; the same
 test as `frozen_pixel_unique_sig.py`), white halo under black. Target and the executed spout-locked part follow the spout
 together, so the split is credited by the joint ridge (the target-first / executed-first orderings bracket it).
 Image left = ipsilesional; half resolution.
@@ -29,7 +29,7 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from fr_musall import E  # noqa: E402
-from fr_pixel_significance import FACTORS, block_mask, test  # noqa: E402
+from fr_pixel_significance import FACTORS, block_mask, correction_label, test  # noqa: E402
 from frozen_r2_maps import pixel_sse  # noqa: E402
 
 POS_ORDER = ["close_ipsi", "close_mid", "close_contra", "far_ipsi", "far_mid", "far_contra"]   # canonical
@@ -219,7 +219,7 @@ def figures(run, a, meta, maps, mask) -> None:
     print(S.to_string(index=False), flush=True)
     title(fig, f"NEURAL: PER-SPOUT UNIQUE R2 CHANGES, TARGET vs EXECUTED, frozen pixel run {a.tag}: epoch - pre within animal, "
                "animal-normalised mean (x each animal's pre scale). Contours = significant 16 px bins on the RAW maps (nested "
-               "bootstrap animals > sessions, Bonferroni); corner = bins up / down. Canonical spout order. Image left = ipsilesional.")
+               f"bootstrap animals > sessions, {correction_label()}); corner = bins up / down. Canonical spout order. Image left = ipsilesional.")
     fig.subplots_adjust(left=0.05, right=0.97, top=0.9, bottom=0.02, wspace=0.06, hspace=0.12)
     save_png_svg(fig, run / "figures" / "spout_unique_maps.png", dpi=105)
     plt.close(fig)

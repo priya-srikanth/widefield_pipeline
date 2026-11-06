@@ -183,7 +183,8 @@ def main() -> int:
         # corrective licks hide); THE definition + the WFIELD_AIM switch live in iti_recovery_measure (rule 9)
         dfc = rm.aim_deficit()
     else:
-        dfc = mx.deficit(il.OUT.parent / "qc")
+        from wfield_local import run_mode as _rm
+        dfc = mx.deficit(_rm.deficit_qc_dir())   # THIS run's trial_attempts table (was iti_licks/../qc)
     for g in a.groups:
         run_group(g, dfc)
     return 0

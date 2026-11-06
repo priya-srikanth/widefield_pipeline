@@ -235,7 +235,7 @@ def _ceiling(X, y):
 
 
 def pooled_frozen_encoder(labels, source="roi", align="cue", post_s=2.0, alpha=1.0, verbose=True,
-                          features=None):
+                          features=None, pooled=None):
     """FROZEN cross-day ENCODER: position -> expected cortical activity, applied to an unseen day.
 
     The mirror of :func:`pooled_frozen_loso`. Ridge from a one-hot position design to ROI activity,
@@ -250,8 +250,13 @@ def pooled_frozen_encoder(labels, source="roi", align="cue", post_s=2.0, alpha=1
         position-only model could achieve there, so a low EV on a low-ceiling day is not a failure,
       * ``feve``     ev / ceiling, the ceiling-normalised score that is comparable across days,
       * ``within``   the same-day encoder (block CV) for reference.
+
+    ``pooled`` is an already-built :func:`pool_sessions` result for exactly these arguments (see
+    :func:`frozen_pool`); given, the pool is not rebuilt. ``labels`` / ``post_s`` / ``features``
+    must be the ones it was built with -- they still feed the frozen spec.
     """
-    pooled = pool_sessions(labels, source=source, align=align, post_s=post_s, features=features)
+    if pooled is None:
+        pooled = pool_sessions(labels, source=source, align=align, post_s=post_s, features=features)
     if pooled is None:
         return None
     XE, YE, GE, BE, _XU, _YU, kept, common, _GU = pooled
@@ -604,8 +609,113 @@ def _scored_rows(work, YE, GE, XEs, XUs, BE_rows):
     return Y, G, X, B, np.concatenate([np.zeros(int(we.sum()), bool), np.ones(int(wu.sum()), bool)])
 
 
+def loso_features(features=None, source="roi", align="cue"):
+    """The feature builder :func:`pooled_frozen_loso` pools with: ``features`` itself unless it is None."""
+    # the ROI builder that also keeps cue indices, so the pool can be mapped onto the camera working trials (main
+    # 48f2cc6d, `working_trials.roi_features_with_indices`); same features
+    from wfield_local import trial_classes as _tcw
+    from wfield_local import working_trials as _wt
+    if (features is None and source == "roi" and align != "lick" and _tcw.camera_gate_on()
+            and _wt.is_camera(_tcw.working_selection())):
+        features = _wt.roi_features_with_indices()
+    return features
+
+
+def frozen_pool(labels, source="roi", align="cue", post_s=2.0, zscore=True, features=None):
+    """``(pooled, features)``: ONE pool that both frozen consumers can score, built once.
+
+    `pooled_frozen_loso` and `pooled_frozen_encoder` each called :func:`pool_sessions` with the same
+    labels / source / align / post_s / zscore, and ROI features are not disk-cached
+    (`trial_features_cached` computes non-LocaNMF sources every time, deliberately: their signature
+    would not see a re-made `U_atlas`), so the nightly built every animal's ROI pool TWICE per
+    alignment at ~19 s a session. The pool here is built with the DECODER's feature builder
+    (:func:`loso_features`). Under the camera gate that is `working_trials.roi_features_with_indices`,
+    which returns the default builder's first six outputs unchanged and only also records each
+    session's cue indices on ``features.indices`` (`_trial_features` appends them after the base
+    tuple) -- the decoder needs them for `pool_work`, the encoder never reads them. So the arrays are
+    the ones the encoder built for itself, and ``basis_id``, the only other use of ``features`` in
+    either frozen spec, is None either way: no spec id moves.
+
+    Pass BOTH back -- ``pooled_frozen_loso(labels, ..., features=features, pooled=pooled)`` -- because
+    the decoder's working-trial mapping reads the indices off the builder that made the pool.
+    """
+    features = loso_features(features, source, align)
+    return pool_sessions(labels, source=source, align=align, post_s=post_s, zscore=zscore,
+                         features=features), features
+
+
+def frozen_pair(labels, *, align, source="roi", post_s=2.0, verbose=False):
+    """``(decoder_result, encoder_result)`` for one animal and alignment, on ONE shared pool.
+
+    THE ENCODER RUNS FIRST, deliberately. Neither consumer writes into the pool (the decoder's scored
+    frame is a copy, the encoder only slices), but scoring the encoder first means its inputs are the
+    freshly built arrays whatever the decoder does afterwards. Each consumer sees exactly the arrays it
+    would have built for itself (`frozen_pool`); `tests/test_frozen_pool_once.py` pins that.
+    """
+    pooled, features = frozen_pool(labels, source=source, align=align, post_s=post_s)
+    if pooled is None:
+        return None, None
+    enc = pooled_frozen_encoder(labels, source=source, align=align, post_s=post_s, verbose=verbose,
+                                features=features, pooled=pooled)
+    dec = pooled_frozen_loso(labels, source=source, align=align, post_s=post_s, verbose=verbose,
+                             features=features, pooled=pooled)
+    return dec, enc
+
+
+def _frozen_pair_unit(item):
+    """One ``(animal, align, labels)`` unit of :func:`frozen_pairs`. Module level, so spawn can pickle it by name."""
+    _an, align, labels = item
+    return frozen_pair(list(labels), align=align)
+
+
+_BLAS_VARS = ("OMP_NUM_THREADS", "MKL_NUM_THREADS", "OPENBLAS_NUM_THREADS", "NUMEXPR_NUM_THREADS",
+              "VECLIB_MAXIMUM_THREADS")
+
+
+def frozen_pairs(units, *, jobs=1, log=print):
+    """``{(animal, align): (dec, enc)}`` over ``units`` = ``[(animal, align, labels), ...]``.
+
+    ``jobs=1`` (the default) runs in THIS process in the given order: the serial nightly, unchanged.
+    ``jobs > 1`` fans the units out with `analysis_kit.fan_sessions` (spawned module-level worker,
+    results sorted, at most 8 workers at ~1.4 GB each). Every unit is a distinct (animal, align)
+    frozen spec, so no two workers can fit and write the same stored model.
+
+    WHY FANNING IS NOT THE DEFAULT. Workers run BLAS pinned at `parallel.BLAS_THREADS`, while the
+    nightly process runs at the import default (every core), and this repo has measured an lbfgs fit
+    moving with the thread count (`scripts/rebuild_figs/fig_state_ps94_diagnostic.py`, 11-03). The
+    frozen models themselves are loaded, not refitted, but the within-session ceiling is a fresh
+    LogisticRegression per session. Diff a serial run's JSON against a fanned one before turning it
+    on. The parent's BLAS limits and thread variables are restored afterwards, so `fan_out`'s
+    in-process `pin_blas` cannot silently re-pin the rest of the nightly.
+    """
+    units = [(a, al, tuple(labs)) for a, al, labs in units]
+    if jobs is None or int(jobs) <= 1 or len(units) <= 1:
+        return {(a, al): _frozen_pair_unit((a, al, labs)) for a, al, labs in units}
+    from wfield_local import analysis_kit
+    saved = {v: os.environ.get(v) for v in _BLAS_VARS}
+    try:
+        import threadpoolctl
+        keep = threadpoolctl.threadpool_limits(limits=None)      # records the current limits; restored below
+    except ImportError:                                           # pragma: no cover
+        keep = None
+    try:
+        res, fail = analysis_kit.fan_sessions(units, _frozen_pair_unit, jobs=min(int(jobs), 8),
+                                              label="frozen unit", log=log)
+    finally:
+        if keep is not None:
+            keep.restore_original_limits()
+        for v, val in saved.items():
+            if val is None:
+                os.environ.pop(v, None)
+            else:
+                os.environ[v] = val
+    if fail:
+        raise RuntimeError(f"frozen decoder/encoder failed for {[u[:2] for u, _ in fail]}: {fail[0][1]}")
+    return {(a, al): r for (a, al, _labs), r in res}
+
+
 def pooled_frozen_loso(labels, source="roi", align="cue", post_s=2.0, zscore=True, verbose=True,
-                       features=None):
+                       features=None, pooled=None):
     """Leave-one-SESSION-out frozen decoder over an animal's pooled sessions (ROI features).
 
     LocaNMF components are session-specific (different count AND identity per session), so they
@@ -622,16 +732,21 @@ def pooled_frozen_loso(labels, source="roi", align="cue", post_s=2.0, zscore=Tru
       * ``within_session``  -- per-session block-CV (GroupKFold by position block), the honest
         same-day ceiling. LOSO minus this is the true cost of freezing across days.
       * ``ood`` -- the out-of-distribution control (see :func:`ood_control`).
+
+    ``pooled`` is an already-built pool for exactly these arguments; pass it WITH the ``features``
+    builder that made it (:func:`frozen_pool` returns both), because the working-trial mapping reads
+    the cue indices off that builder. A pool passed without it under the camera gate is refused: a
+    fresh builder would carry no indices and the model would silently become the engaged-trained one.
     """
-    # the ROI builder that also keeps cue indices, so the pool can be mapped onto the camera working trials (main
-    # 48f2cc6d, `working_trials.roi_features_with_indices`); same features
-    from wfield_local import trial_classes as _tcw
-    from wfield_local import working_trials as _wt
-    if (features is None and source == "roi" and align != "lick" and _tcw.camera_gate_on()
-            and _wt.is_camera(_tcw.working_selection())):
-        features = _wt.roi_features_with_indices()
-    pooled = pool_sessions(labels, source=source, align=align, post_s=post_s, zscore=zscore,
-                           features=features)
+    if pooled is not None:
+        if features is None and loso_features(None, source, align) is not None:
+            raise ValueError("pooled_frozen_loso(pooled=...) needs the `features` builder the pool was made "
+                             "with (frozen_pool returns both)")
+    else:
+        # the camera-gate ROI builder that also keeps cue indices (`loso_features`; main 48f2cc6d); same features
+        features = loso_features(features, source, align)
+        pooled = pool_sessions(labels, source=source, align=align, post_s=post_s, zscore=zscore,
+                               features=features)
     if pooled is None:
         return None
     XE, YE, GE, BE, XU, YU, kept, common, GU = pooled

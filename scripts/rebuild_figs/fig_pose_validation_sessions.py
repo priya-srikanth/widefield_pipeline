@@ -93,9 +93,11 @@ def load_agreement() -> pd.DataFrame:
 
 
 def load_licks() -> pd.DataFrame:
-    """Same lick set as scripts/pose3d_vs_cam4.load (August pre only, to keep it small)."""
+    """Same lick set as scripts/pose3d_vs_cam4.load (August pre only, to keep it small): since 11-06 (A20) licks of
+    camera-working-period trials only (`trial_classes.gate_kin_licks`; WFIELD_KIN_GATE=legacy = every post-cue lick)."""
+    from wfield_local import trial_classes as tc
     K = pd.read_csv(P3 / "kinematics" / "licks.csv.gz", dtype={"date": str})
-    K = K[K.animal.isin(ANIMALS) & (K.epoch == "pre") & ~K.date.map(config.early_pre)]
+    K = tc.gate_kin_licks(K[K.animal.isin(ANIMALS) & (K.epoch == "pre") & ~K.date.map(config.early_pre)])
     out = []
     for s, g in K.groupby("session"):
         a, d = s.split("_")
@@ -132,7 +134,8 @@ def decode_sessions(L: pd.DataFrame) -> pd.DataFrame:
 
 
 def check(S: pd.DataFrame, Dec: pd.DataFrame) -> None:
-    ref = pd.read_csv(P3 / "vs_cam4" / "decoding.csv").set_index(["animal", "features"])["6 positions"]
+    from wfield_local import trial_classes as tc
+    ref = pd.read_csv(tc.kin_out_dir(P3, "vs_cam4") / "decoding.csv").set_index(["animal", "features"])["6 positions"]
     for i, a in enumerate(ANIMALS):
         for k in ("lateral", "angle", "jaw"):
             v = S.loc[S.animal == a, k].median()

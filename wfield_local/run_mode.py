@@ -19,7 +19,8 @@ and cache key is byte-identical to before (pinned by tests/test_run_mode.py). Pa
                                          (`trial_classes.run_selection_tag`)
     lickdet     ``daqlk``               THE behaviour DAQ lick detector for imaging (REBUILD_CODE 8.53, 11-05): in every
                                          run that has any other output part (never in the default run) -- output AND
-                                         cache
+                                         cache; the SESSION-CACHE KIND carries it in EVERY run, default included
+                                         (`session_kind_tag`, 11-06: one detector since session_cache v14)
     refs        ``refs-<names>``        WIDEFIELD_MAP_REFS (`position_reference_maps.REFS_ENV`)
     inmem       ``inmem-<families>``    any ``WIDEFIELD_<FAMILY>_FROZEN`` opt-out (in-memory pre-stroke refit)
     lptrained   ``lpdaqtrained``        WIDEFIELD_LP_FROZEN=daq (the LP arm's DAQ-trained cross-check)
@@ -218,8 +219,35 @@ def cache_parts() -> list[str]:
 
 
 def cache_tag() -> str:
-    """Suffix for per-session cache KINDS / file keys ("" by default): hemo variant, LocaNMF projection, selection."""
+    """Suffix for per-session cache file keys ("" by default): hemo variant, LocaNMF projection, selection. ALSO the
+    key of fixed-name PRODUCT files (`keyed_name(cache=True)`: attempt_maps figures / npz, attempt_coding trial tables)
+    and of `subdir(cache=True)` / restnl / rest_frozen_decoder_nl, so it keeps `lickdet_part`'s rule (no ``daqlk`` in
+    the default run) and every default name stays byte-identical. The session-cache KIND uses `session_kind_tag`."""
     return "_".join(cache_parts())
+
+
+def session_kind_tag() -> str:
+    """Suffix of the SESSION-CACHE KIND (`session_cache.effective_kind`): the `cache_parts` with the detector part
+    (`config.LICK_DETECTOR_TAG`, ``daqlk``) ALWAYS present (perf 2026-11-06).
+
+    WHY. `lickdet_part` is on only when another OUTPUT part is set -- right for output names (the default run stays
+    untagged), wrong for a cache key: the pooling-only ``pre`` part switched it on, so an untagged run keyed
+    ``tf-cue-x`` and a pre-only (WIDEFIELD_PRE_FROM) run ``tf-cue-x-daqlk`` for IDENTICAL content -- since
+    session_cache v14 `config.lick_detector()` is the one detector whatever the tag (v14 invalidated every
+    old-detector entry). The split cache redid the work. Always carrying the part makes the untagged run reuse the
+    ``-daqlk`` entries; dropping it instead would have orphaned them. Identical to `cache_tag` whenever any output
+    part is set (lickdet already returns the same string there), so no tagged run's key moves; the untagged (and
+    LP-only / gate-LP-only) kinds gain ``-daqlk`` and their old untagged entries simply stop being read (never
+    deleted: the prune in `session_cache._store` globs ``<label>__<kind>__*``, which cannot match the old kind)."""
+    from wfield_local import config
+    out = []
+    for name, fn in _ALL:
+        if name not in _CACHE:
+            continue
+        p = config.LICK_DETECTOR_TAG if name == "lickdet" else fn()
+        if p:
+            out.append(p)
+    return "_".join(out)
 
 
 def describe() -> str:

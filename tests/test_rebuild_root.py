@@ -354,6 +354,17 @@ LITERAL = {
 }
 
 
+#   ROUTED    registered by name: share writers in a subfolder whose output root goes through lp_licks.output_dir /
+#             run_mode, so `_scan` skips them; listed so an edit that drops the routing fails here (11-05: the GAIN_BIO
+#             chain, deck slide 102, ported from labcams/decoder_mix_checks/gain_bio_1104 to scripts/gain_bio/)
+ROUTED_WRITERS = {
+    "scripts/gain_bio/fig_sessions.py",
+    "scripts/gain_bio/gain_bio.py",
+    "scripts/gain_bio/gain_stats.py",
+    "scripts/gain_bio/summarise_gain_bio.py",
+}
+
+
 def _scan():
     out = {}
     for p in sorted(list((REPO / "scripts").rglob("*.py")) + list((REPO / "wfield_local").rglob("*.py"))):
@@ -372,6 +383,17 @@ def test_subfolder_and_package_writers_are_classified():
     lit = {k for k, v in got.items() if v == "LITERAL"}
     assert res == RESOLVED and lit == LITERAL, {"new_resolved": sorted(res - RESOLVED), "new_literal": sorted(lit - LITERAL),
                                                 "stale": sorted((RESOLVED | LITERAL) - set(got))}
+
+
+def test_routed_subfolder_writers_stay_routed():
+    """The ROUTED_WRITERS write (W) and name the routing (ROUTED), and the unrouted-writer scan does not list them.
+    gb_common.out_root() = lp_licks.output_dir(<cohort_out>/gain_bio) is what actually routes them (tested in
+    tests/test_gain_bio_port.py under a rebuild root)."""
+    for rel in sorted(ROUTED_WRITERS):
+        t = (REPO / rel).read_text(encoding="utf-8")
+        assert W.search(t) and ROUTED.search(t), rel
+    assert not ROUTED_WRITERS & set(_scan())
+    assert "lp_licks.output_dir(" in (REPO / "scripts" / "gain_bio" / "gb_common.py").read_text(encoding="utf-8")
 
 
 SEED_UNDER_FENCE = r"""

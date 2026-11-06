@@ -86,5 +86,5 @@ def test_prune_superseded_signature(tmp_path, monkeypatch):
     sc.cached(s, "k", lambda: 1)
     _cfile(s).write_bytes(b"x" * 77)  # new signature
     sc.cached(s, "k", lambda: 2)
-    files = list((tmp_path / "cache").glob(f"{s['label']}__k__*.pkl"))
+    files = list((tmp_path / "cache").glob(f"{s['label']}__k*__*.pkl"))  # kind carries the detector tag (k-daqlk)
     assert len(files) == 1  # old signature pruned, only the current one remains

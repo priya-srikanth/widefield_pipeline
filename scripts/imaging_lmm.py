@@ -8,7 +8,8 @@ WHICH ANALYSES, AND WHY THESE (survey 10-20, DECISIONS):
   decoder    grant_figures/epoch/data/recovery_trajectory_{unmatched,matched}_cue_working.csv
              (wfield_local/recovery_trajectory.py): frozen / refit decoder recall, gap, F_deficit, G_reorg -- POST rows
              only, already expressed against the animal's pre -> post-only models y ~ lday and y ~ deficit
-             (random intercept + slope per animal when estimable)
+             (random intercept + slope per animal when estimable). The pre sessions (`*_presessions.csv`, held-out
+             frozen = LOSO) are drawn on the time_post figures as pre-coloured dots at their negative days; not fitted
   behaviour  cohort/tables/prepost/session_metrics.csv (wfield_local/orofacial_cohort.py): response rate, contact,
              latency, pre-cue licking, ipsi bias ... -> time model only (the deficit is itself behaviour)
   epoch      grant_figures/epoch/data/*_sessions_long.csv (scripts/epoch_sessions_long.py, other window 10-21): the epoch
@@ -61,23 +62,36 @@ def behaviour_table(run_root: Path) -> pd.DataFrame:
     return _long(S, BEHAVIOUR_METRICS, "behaviour")
 
 
-def decoder_table() -> pd.DataFrame:
-    """Post-stroke rows of the recovery trajectory, with the session label recovered from (animal, day)."""
+def decoder_table(d: Path | None = None) -> pd.DataFrame:
+    """Post-stroke rows of the recovery trajectory, with the session label recovered from (animal, day), PLUS the
+    pre-stroke sessions from the separate pre sidecar (`recovery_trajectory.pre_series`, `PRE_SESSIONS_SUFFIX`) when it
+    exists. The pre rows are for DRAWING only: `main` fits the post-only models on ``post == 1`` and hands the pre rows
+    to the figures as dots at their negative days (Priya 11-06, imaging Fig 13.1). Their frozen accuracy is the
+    leave-one-session-out decoder of that session (held out; see `pre_series`). ``d`` = the epoch dir (default: this
+    run's `grant_figures/epoch`)."""
     from wfield_local import analysis_kit as ak
     from wfield_local import epochs
     from wfield_local import figure_layout as fl
-    from wfield_local.paths import PathResolver
-    from wfield_local import lp_licks              # run-mode routing (rebuild 11-03): identity for the default run
-    d = lp_licks.output_dir(Path(PathResolver().root("cohort_out")) / "grant_figures" / "epoch")
-    lab_of = {(x[:4], epochs.days_since_stroke(x)): x for x in ak.curated_labels(order="sorted")}
+    from wfield_local.recovery_trajectory import PRE_SESSIONS_SUFFIX
+    if d is None:
+        from wfield_local.paths import PathResolver
+        from wfield_local import lp_licks          # run-mode routing (rebuild 11-03): identity for the default run
+        d = lp_licks.output_dir(Path(PathResolver().root("cohort_out")) / "grant_figures" / "epoch")
+    curated = ak.curated_labels(order="sorted")
+    lab_of = {(x[:4], epochs.days_since_stroke(x)): x for x in curated}
     out = []
     for tag in ("unmatched", "matched"):
-        p = fl.sidecar_for(d, f"recovery_trajectory_{tag}_cue_working", ".csv", mkdir=False)
+        stem = f"recovery_trajectory_{tag}_cue_working"
+        p = fl.sidecar_for(d, stem, ".csv", mkdir=False)
         if not p.exists():
             continue
         R = pd.read_csv(p)
         R["label"] = [lab_of.get((a, int(dd))) for a, dd in zip(R.animal, R.day)]
         out.append(_long(R.dropna(subset=["label"]), DECODER_METRICS, f"decoder_{tag}"))
+        pp = fl.sidecar_for(d, stem, PRE_SESSIONS_SUFFIX, mkdir=False)
+        if pp.exists():                             # the pre rows carry their label; curated sessions only, as above
+            P = pd.read_csv(pp)
+            out.append(_long(P[P.label.isin(set(curated))], DECODER_METRICS, f"decoder_{tag}"))
     return pd.concat(out, ignore_index=True) if out else pd.DataFrame()
 
 
@@ -163,7 +177,8 @@ def main(argv=None) -> int:
     sfx = "" if dname == mm.DEFICIT else f"_{dname}"
     if set(a.sources.split(",")) != {"trend", "decoder", "behaviour", "epoch"}:   # a subset never overwrites the full set
         sfx += "_" + "-".join(a.sources.split(","))
-    deficit = mm.deficit(E / "qc", dname)
+    from wfield_local import run_mode as _rm
+    deficit = mm.deficit(_rm.deficit_qc_dir(), dname)   # THIS run's trial_attempts table (was <E>/qc: missing in a tagged run)
     src = a.sources.split(",")
     tabs, L, D, C = [], None, None, None
     prepost = [f(E if f in (trend_table, push_table) else run_root)
@@ -184,10 +199,14 @@ def main(argv=None) -> int:
             C = mm.add_time_covariates(C)
             C = mm.add_deficit(C[C.post == 1], deficit)          # post-only; log deficit -> deficit_x / deficit_tf for the plot axis
             tabs.append(post_only_table(C))
+    Dpre = None
     if "decoder" in src:
         D = decoder_table()
         if not D.empty:
             D = mm.add_time_covariates(D)
+            # PRE rows (the pre sidecar) are DRAWN, never fitted: the decoder models stay post-only (y ~ lday,
+            # y ~ deficit). deficit NaN keeps them off the behaviour_post panels (no post-stroke deficit to place them)
+            Dpre = D[D.post == 0].assign(deficit=np.nan)
             D = mm.add_deficit(D[D.post == 1], deficit)          # post-only; log deficit -> deficit_x / deficit_tf for the plot axis
             print("  decoder (post-stroke only), per-animal epoch means\n"
                   + mm.animal_epoch_table(D, ["source", "measure"]).round(4).to_string())
@@ -200,7 +219,7 @@ def main(argv=None) -> int:
         S = T[T.model == model]
         print(f"\n=== {model}\n" + S.pivot_table(index=["source", "measure"], columns="term",
                                                 values=["coef", "z", "q"]).round(3).to_string())
-    figures(pd.concat([x for x in (L, D, C) if x is not None and not x.empty], ignore_index=True), T,
+    figures(pd.concat([x for x in (L, D, Dpre, C) if x is not None and not x.empty], ignore_index=True), T,
             E / "figures" / "mixed_models", sfx)
     print(f"\n-> {E / 'qc' / 'imaging_lmm.csv'}, {E / 'figures' / 'mixed_models'}/imaging_lmm_*.png")
     return 0

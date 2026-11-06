@@ -23723,3 +23723,29 @@ Priya 11-03 late: August-only pre everywhere in the rebuild, except june_august_
   June pre sessions have no camera classes either (no June video for these classes), and they are outside the
   August-only pre set anyway.
 
+
+## 2026-11-06 -- PS93 engagement discriminator: camera-gate late window widened to 0.67 for PS93 only (Priya 11-06: "relax the late window for PS93 only")
+- At the final quarter (0.75) PS93 had 12 pre late no_response rows, below MIN_TRAIN camera 15, so no discriminator. 0.67 is the smallest widening in 0.01 steps giving >= 15 per class: no_response 12 -> 15, working 839 -> 1134 (precue) / 866 -> 1164 (cue), cohort1_rebuild_20261103 profile. Override in configs/defaults.yaml `precue_engagement_states.camera_late_fraction`; every other animal and the DAQ gate keep 0.75 (tests/test_precue_late_window_ps93.py). PS93's camera discriminator gets a new stored id.
+
+## 2026-11-06 -- Kinematics on the camera working period; recovery hit rate = Fig 0.2; computed goal-summary readings; relabel tag derived (Priya 11-06, A20-A23)
+
+- A20 (Priya 11-06): kinematics trials / licks = the CAMERA WORKING PERIOD (`trial_classes.working_period_trials` /
+  `gate_kin_licks`; first cue -> last camera lick, stopped runs A2 + excise out; one definition with Fig 0.2 / 1b) in
+  `jaw_only_incomplete_figs`, `pose3d_cue_traces` (set `working`, was `engaged`), and the 3-D per-lick scripts
+  `pose3d_phase` / `pose3d_spout_error` / `pose3d_summary_fig` / `pose3d_vs_cam4` / `exec_bins_calibration` (were every
+  post-cue lick). No camera classes (no video) -> the session contributes nothing (as gain_bio). `WFIELD_KIN_GATE=legacy`
+  = the old gates, outputs in `*_legacygate` folders. The cam4 cue traces of `orofacial_cohort` are NOT switched (one
+  gate for every cam4 table there; open question for Priya).
+- A21 (Priya 11-06): `recovery_timing` behaviour = `frac_hit_far_contra` of the run's trial_attempts_sessions.csv
+  (`trial_attempts.session_summary`; contact / working-period trials), the Fig 0.2 / 1b rate; a non-camera table is refused.
+- A22 (Priya 11-06): `fig_goal_summary` fig1 / fig2 (and fig3) suptitle readings are animal counts computed from the
+  numbers the panels draw (`fig1_reading` / `fig2_reading` / `fig3_reading`); the 10-24 typed words are gone.
+- A23 (Priya 11-06): `exec_vs_neural_match --source encoder` derives its relabel tag at call time
+  (`relabel_tag` = `frozen_encoder.design_tag("v7g3_t3d_trial")`, checked against FROZEN_LICKS_ALL; an empty relabel
+  folder is refused). The 11-06 render already read `v7g3_t3d_spont_trial` (log: FROZEN_LICKS_ALL=split, 48,897 trials),
+  so provenance finding 13 did not change a figure.
+- A20 follow-up (same day): the 3-D kinematics writers (pose3d_cue_traces, pose3d_phase, pose3d_spout_error,
+  pose3d_summary_fig, pose3d_vs_cam4, kinematics_pooled_figs) write outputs and result caches through
+  `trial_classes.kin_out_dir` / `kin_cache_dir` = `run_mode.session_poses_out` (the jaw_only_incomplete_figs pattern
+  of 11-04): the old place without a rebuild root, `<root>/session_poses_derived/<tag>/...` under one (the
+  session_poses tree is an input tree the fence never writes). `pose3d_kinematics` is unchanged (its cache is reused).

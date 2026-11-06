@@ -13,7 +13,7 @@ Per session and pixel: SSE = diag(W E W'), SST = diag(W S W') (W = the animal's 
   unique  dR2 of g                  = (SSE[no_g] - SSE[joint]) / SST
 (pre held out leave-one-session-out, post with the frozen all-pre betas). Display: per animal x epoch SSE and SST SUMMED
 over sessions before the ratio, then the mean over animals (rule 8). Test: per-session maps, epoch minus pre, nested
-bootstrap animals -> sessions (`fr_pixel_significance.test`, 16 px bins, Bonferroni). R2 is a fraction per pixel, but
+bootstrap animals -> sessions (`fr_pixel_significance.test`, 16 px bins, max-statistic over bins, family-wise per panel). R2 is a fraction per pixel, but
 PS94's target terms are ~10x the others' (ENCODING_FINDINGS 8.13): the per-animal table is printed first.
 
 Rows: pre level per measure, then epoch minus pre per measure. Image left = ipsilesional.
@@ -37,7 +37,7 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from fr_musall import E  # noqa: E402
-from fr_pixel_significance import FACTORS, block_mask, test  # noqa: E402
+from fr_pixel_significance import FACTORS, block_mask, correction_label, test  # noqa: E402
 from frozen_r2_maps import pixel_sse  # noqa: E402
 
 #: (label, variant); None = the joint model itself (full R2)
@@ -253,7 +253,7 @@ def main(argv=None) -> int:
             "novar": "single-VARIABLE UNIQUE dR2 (Musall bottom row)"}[a.layout]
     ttl = (f"NEURAL: frozen-frame PIXEL maps, {what}, {'all frames' if win == 'allframes' else win + ' window (' + ', '.join(MLAB[m] for m in meas) + ')'}, run {a.tag}. "
            f"Pre level = held-out; epoch - pre = frozen all-pre betas; mean of animals (SSE, SST summed over each animal's "
-           f"sessions). Outlines: significant 16-px bins (nested bootstrap animals > sessions, Bonferroni); +/- = bins up / "
+           f"sessions). Outlines: significant 16-px bins (nested bootstrap animals > sessions, {correction_label()}); +/- = bins up / "
            f"down. Grey = Allen areas. Image left = ipsilesional.")
     fig.suptitle("\n".join(textwrap.wrap(ttl, int(24 * len(qs)))), fontsize=9)
     fig.subplots_adjust(left=0.05, right=0.995, top=1 - 1.0 / (2.6 * len(rws) + 1.3), bottom=0.05,

@@ -123,7 +123,9 @@ def _session_map_amplitudes(label):
     from wfield_local.locanmf_cue_lick_analysis import SESSIONS
     s = next(x for x in SESSIONS if x["label"] == label)
     mask = np.asarray(bm.stat_mask()).astype(bool)
-    parts = prm.session_raw_maps(s, "cue", variant="working")
+    # the memoised map (`session_raw_maps_cached`, 2026-10-21): the same call -- post_s 2.0, variant working --
+    # served from the session cache once 15r or an earlier run has built it (~13 s a session cold)
+    parts = prm.session_raw_maps_cached(s, "cue", variant="working")
     return {q: float(np.nanmean(np.asarray(m, float)[mask]))
             for q, m in prm.reference_maps(parts, "precue").items()}
 

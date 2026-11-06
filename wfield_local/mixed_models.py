@@ -319,9 +319,14 @@ def plot_epoch(L: pd.DataFrame, T: pd.DataFrame, panels, path: Path, title: str 
 
 def plot_fits(L: pd.DataFrame, T: pd.DataFrame, panels, model: str, path: Path, title: str = "",
               ylabel: str = "y", ncols: int = 3, xlabel: str | None = None) -> None:
-    """Session values (o pre, ^ post, coloured by animal) vs deficit or days, with the fitted fixed effects.
-    `panels` = [(panel title, {column: value} selecting rows of L and of T)]; `model` = a T.model value (time,
-    behaviour, time_post, behaviour_post). One figure -> `path`."""
+    """Session values vs deficit or days, with the fitted fixed effects. Sessions = OPEN markers, shape = animal,
+    colour = epoch (house style). `panels` = [(panel title, {column: value} selecting rows of L and of T)]; `model` = a
+    T.model value (time, behaviour, time_post, behaviour_post). One figure -> `path`.
+
+    POST-ONLY MODELS (time_post / behaviour_post) draw whatever rows of L the caller passes: pre-stroke rows there are
+    DOTS ONLY (pre colour, at their negative days), not part of the fit -- the fit is T's, made on the post rows
+    (scripts/imaging_lmm.py: the decoder pre sessions, Priya 11-06). No pre-level line is drawn for them: those models
+    have no pre term."""
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
@@ -409,6 +414,8 @@ def plot_fits(L: pd.DataFrame, T: pd.DataFrame, panels, model: str, path: Path, 
     fig.suptitle(f"{title} -- mixed model, animal random effects ({model})", fontsize=9)
     if model.startswith("behaviour") and "deficit_tf" in L.columns and (L.deficit_tf == "log1p").any():
         xlab += "; fit on log(session / pre), drawn on this axis"
+    if model.endswith("_post") and "pre" in seen_ep:   # pre dots beside a post-only fit: say they are not in it
+        xlab += "; pre-stroke sessions drawn at their negative days, not in the post-only fit"
     fig.supxlabel(f"x: {xlab}", fontsize=7)        # the long label once, so neighbouring panels' labels cannot collide
     # fixed headroom in INCHES for the suptitle / supxlabel: tight_layout alone ignores them, and on a tall figure
     # (8 rows, lmm_*_lickclass) the suptitle landed on the first row's panel titles (10-27)

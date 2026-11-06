@@ -4,7 +4,11 @@ Per animal x spout: where that animal's 3-D tongue peak lands PRE-STROKE (median
 pre sessions), plus the pooled within-spout SD per axis (the distance scale). One 'default' set per animal (all pre
 sessions) and, for each pre session, a leave-that-session-out set (calib_for = <session>), so a pre session is never
 binned with its own licks. Licks = the encoding model's usable licks (cam4 peak not interpolated, reach >= MIN_REACH_PX,
-finite angle) with a 3-D peak.
+finite angle) with a 3-D peak, of CAMERA-WORKING-PERIOD trials only (Priya 11-06, A20: `trial_classes.gate_kin_licks` --
+first cue to the session's last camera lick, stopped runs (A2 + excise) out; a pre session with NO camera classes (no
+video) contributes NOTHING, as gain_bio; ``WFIELD_KIN_GATE=legacy`` = every post-cue lick, the pre-11-06 rule). The
+frozen encoder's snapshot table (exec_bins_calib_20261023.csv) is NOT rewritten by this change: a new table is a new
+encoder input and needs its own decision.
 
 Why (10-20): the tongue peak lands ~2 mm deeper than the spout table's position and laterally compressed (~0.4x close,
 ~0.6x far), so raw nearest-spout geometry put most close-spout licks in far bins (PS92 pre agreement 0.46).
@@ -27,6 +31,7 @@ def pre_licks(kin: str) -> pd.DataFrame:
     from wfield_local import orofacial_outputs as oo
     from wfield_local.paths import PathResolver
     rv = PathResolver()
+    from wfield_local import trial_classes as tc
     K = pd.read_csv(kin, usecols=["session", "trial_id", "lick_idx", "side_ml", "out_ap", "down_dv"])
     cur = set(ak.curated_labels())
     out = []
@@ -38,7 +43,8 @@ def pre_licks(kin: str) -> pd.DataFrame:
         L = pd.read_csv(oo.session_dir(rv, oc.RUN, a, d) / "licks.csv")
         ok = ((~L.peak_interp.astype(bool)) & (L.protrusion_px >= ce.MIN_REACH_PX) & np.isfinite(L.peak_angle_deg))
         L = L[ok][["trial_id", "lick_idx", "position"]]
-        J = L.merge(K[K.session == sess].drop_duplicates(["trial_id", "lick_idx"]), on=["trial_id", "lick_idx"]).dropna()
+        Ks = tc.gate_kin_licks(K[K.session == sess])     # camera working period (A20), per pre session only
+        J = L.merge(Ks.drop_duplicates(["trial_id", "lick_idx"]), on=["trial_id", "lick_idx"]).dropna()
         J["position"] = [oc.pos_key(p, "L") for p in J.position]
         J["animal"], J["session"] = a, sess
         out.append(J.rename(columns={"side_ml": "ml", "out_ap": "ap", "down_dv": "down"}))
