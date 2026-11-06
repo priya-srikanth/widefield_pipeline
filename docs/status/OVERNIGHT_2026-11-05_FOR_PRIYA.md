@@ -305,3 +305,4 @@ the night.
   redraw after? Provenance table: ~60 lick / recovery / disengagement figures misfiled under lick_balance_subsets ->
   fix in the post-render merge (using the inventory's stem remap).
 - **14:30 TIME CORRECTION:** the '~14:40' ... '~17:00' labels on the entries above (and '16:00' / '16:20' in handoff 00-COMPACT-31) were my estimates and run 1-2.5 h AHEAD; the real time of this note is 14:30. The render CHAIN.log timestamps are authoritative.
+- 14:45 Priya OK'd pushing the six branches (priya1106-small [A4 duplicate reverted in favour of a8's warning on main c724c6b6], -frdrift, -gainbio, gates-captions, deficit-qc-dir, svg-page-figures); pushing one at a time (merge origin/main, push HEAD:main) via scratchpad push6.sh.
