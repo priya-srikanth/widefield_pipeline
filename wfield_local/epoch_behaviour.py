@@ -10,6 +10,13 @@ from `epoch_grant_figures` -- that direction would be a cycle.
 Entry points, dispatched by `epoch_grant_figures.main`:
   - `fig_behaviour`
   - `fig_behaviour_timecourse`
+
+HIT-RATE PERIOD OF 1b (Priya 11-05, after DECISIONS_PENDING_MERGE_2026-11-04 (f) 2): PRIMARY = the CAMERA working
+period, like Fig 0.2 -- per trial of the behaviour trial table, inside `trial_classes.in_working_period` (first cue ->
+the last camera lick, minus the stopped runs) and hit = camera class contact (Priya 11-04 answer 2); a session without
+camera classes is left out and listed. `epoch_1b_behaviour_by_position*` are the camera figures; the DAQ quit-tail /
+engaged-gated version is the labelled robustness row `epoch_1b_behaviour_by_position_daq_quittail*`. The 1c time course
+stays on the DAQ series: it is the series the epoch boundaries were drawn from, and they stay pinned (Q11).
 """
 from __future__ import annotations
 
@@ -193,7 +200,61 @@ def fig_behaviour_timecourse(out_dir):
         # not a rate and forcing 0-1 would flatten it against the axis.
         extra_rows=[(lick_day, "licks / trial (cue + 70 ms to stop; engaged)", None)] if lick_day else None,
         boundaries=bounds)
-def _behaviour_records():
+#: 1b's two periods: (name suffix, title note)
+PERIODS = {"camera": ("", "camera working period (first cue -> last camera lick, minus stopped runs); hit = contact"),
+           "daq": ("_daq_quittail", "ROBUSTNESS: DAQ quit-tail rule (engaged trials); primary = camera working period")}
+
+
+def _trials_table(an, mmdd):
+    """The behaviour pipeline's per-trial table of one session (the newest ``*_trials.csv``), or None."""
+    import pandas as pd
+
+    from wfield_local.paths import PathResolver
+    d = Path(PathResolver().root("behavior_out")) / "sessions" / an / config.date8(mmdd)
+    files = sorted(d.glob("*_trials.csv")) if d.exists() else []
+    if not files:
+        return None
+    try:
+        return pd.read_csv(files[-1])
+    except Exception:                                                  # noqa: BLE001
+        return None
+
+
+def _camera_trials(an, mmdd):
+    """The behaviour trial table with the CAMERA working period: ``working`` (`trial_classes.camera_period_trials`,
+    matched by DAQ cue time) and ``hit`` replaced by camera class contact. None without the table or without camera
+    classes (no video: such a session leaves the camera rows; `_NO_CAMERA` lists it)."""
+    from wfield_local import trial_classes as tc
+    t = _trials_table(an, mmdd)
+    if t is None or "cue_s" not in t:
+        return None
+    lab = f"{an}_{mmdd}"
+    try:
+        work, contact, has = tc.camera_period_trials(lab, t["cue_s"].to_numpy(float))
+    except Exception as ex:                                            # noqa: BLE001
+        tc.reraise_under_camera(ex, f"epoch 1b camera classes {lab}")
+        has = False
+    if not has:
+        _NO_CAMERA.add(lab)
+        return None
+    t = t.copy()
+    t["working"], t["hit"] = work, contact
+    return t
+
+
+_NO_CAMERA: set = set()
+
+
+def _camera_position_metrics(an, mmdd):
+    """``{position: (hit_rate, nan, nan, n_working)}``: `_position_metrics`' shape on the camera working period."""
+    t = _camera_trials(an, mmdd)
+    if t is None or "pos_name" not in t:
+        return {}
+    w = t[t["working"].astype(bool)]
+    return {p: (float(g["hit"].mean()), float("nan"), float("nan"), int(len(g))) for p, g in w.groupby("pos_name")}
+
+
+def _behaviour_records(period="daq"):
     """``{animal: ([pre records], {day: record})}`` from the persisted per-trial tables.
 
     A behaviour session is encoded as the SAME ``(y_true, y_pred, blocks)`` record the decoding
@@ -219,17 +280,24 @@ def _behaviour_records():
     for an in config.animals():
         pre, by_day = [], {}
         for mmdd, day in _sessions(an):
-            d = root / an / config.date8(mmdd)
-            files = sorted(d.glob("*_trials.csv")) if d.exists() else []
-            if not files:
-                continue
-            try:
-                t = pd.read_csv(files[-1])
-            except Exception:                                          # noqa: BLE001
-                continue
-            if not {"pos_idx", "hit", "block", "engaged"} <= set(t.columns):
-                continue
-            t = t[t["engaged"].astype(bool) & (t["block"] >= 0)]
+            if period == "camera":
+                # the camera working period (11-05): `working` replaces the DAQ `engaged` gate, hit = camera contact
+                t = _camera_trials(an, mmdd)
+                if t is None or not {"pos_idx", "block"} <= set(t.columns):
+                    continue
+                t = t[t["working"].astype(bool) & (t["block"] >= 0)]
+            else:
+                d = root / an / config.date8(mmdd)
+                files = sorted(d.glob("*_trials.csv")) if d.exists() else []
+                if not files:
+                    continue
+                try:
+                    t = pd.read_csv(files[-1])
+                except Exception:                                      # noqa: BLE001
+                    continue
+                if not {"pos_idx", "hit", "block", "engaged"} <= set(t.columns):
+                    continue
+                t = t[t["engaged"].astype(bool) & (t["block"] >= 0)]
             if t.empty:
                 continue
             y = t["pos_idx"].to_numpy(int)
@@ -294,10 +362,14 @@ def _behaviour_contrast(per_session, epoch, position, *, rng, n_boot):
     return float(point), np.asarray(diffs, float)
 
 
-def fig_behaviour(out_dir):
-    """1b pooled: hit rate per spout position, per epoch, weighted by session."""
-    from wfield_local.grant_figures import CONF_LABELS, _position_metrics, _sessions
+def fig_behaviour(out_dir, period="camera"):
+    """1b pooled: hit rate per spout position, per epoch, weighted by session. ``period`` "camera" (primary, 11-05) or
+    "daq" (the labelled robustness row; the pre-11-05 figure, renamed `_daq_quittail`)."""
+    from wfield_local.grant_figures import CONF_LABELS, _sessions
+    from wfield_local.grant_figures import _position_metrics as _daq_metrics
 
+    _position_metrics = _camera_position_metrics if period == "camera" else _daq_metrics
+    sfx, note = PERIODS[period]
     by = ef.behaviour_by_epoch(_position_metrics, lambda an: _sessions(an), positions=CONF_LABELS)
     if not any(by.values()):
         return None
@@ -339,7 +411,7 @@ def fig_behaviour(out_dir):
     # animals -> sessions -> blocks resampling the imaging panels use. Absent them, fall back to
     # the session-level contrast rather than fail -- the tables only exist for sessions processed
     # since 2026-08-28, and a half-backfilled tree must still produce a figure.
-    blocks_recs = _behaviour_records()
+    blocks_recs = _behaviour_records(period)
     p_idx = _position_codes()
     # the bar intervals, from the same resampling as the marks, wherever the trial tables exist
     if blocks_recs:
@@ -404,9 +476,11 @@ def fig_behaviour(out_dir):
             counts, n_boot=N_BOOT,
             notes=[f"bootstrap: animals -> sessions -> ({served}); a session-level arm means "
                    "that epoch's per-trial tables are not on disk yet"])
-    made = ef.bar_row(values, out_dir, name="epoch_1b_behaviour_by_position",
+    if period == "camera" and _NO_CAMERA:
+        print(f"  1b camera: no camera classes (left out, DAQ-only): {sorted(_NO_CAMERA)}", flush=True)
+    made = ef.bar_row(values, out_dir, name=f"epoch_1b_behaviour_by_position{sfx}",
                       title="Behaviour: hit rate by spout position, pooled across animals "
-                            "(one dot per session)",
+                            f"(one dot per session) -- {note}",
                       # TOTALS in the legend, the PER-EPOCH breakdown in the subtitle. The legend
                       # answers "how many dots of this colour are on the figure at all"; the
                       # subtitle answers "how many are in the panel I am reading", which is the
@@ -419,8 +493,8 @@ def fig_behaviour(out_dir):
                       ylim=(0.0, 1.10))
     if any(rows.values()):
         ef.contrast_panel(
-            rows, out_dir, name="epoch_1bdelta_behaviour_by_position",
-            title="Change from pre-stroke in hit rate by spout position",
+            rows, out_dir, name=f"epoch_1bdelta_behaviour_by_position{sfx}",
+            title=f"Change from pre-stroke in hit rate by spout position -- {note}",
             subtitle=sub, ylabel="hit rate - pre", positions=_short_labels(),
             tick_labels=_minor(), groups=_groups(), n_comparisons=n_comp, points=ef.session_deltas(points))
     return made
