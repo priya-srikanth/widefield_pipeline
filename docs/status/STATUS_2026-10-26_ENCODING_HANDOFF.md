@@ -119,6 +119,18 @@ wf_p1106_gainbio (feat/priya1106-gainbio: merges port/gain-bio-20261105 + choice
 steps), wf_p1106_frdrift (feat/priya1106-frdrift: Bonferroni->max-statistic captions, drift-control supplement, no_spont
 steps). Next: review, push to main with Priya's OK, queue their steps as a new small queue (v8f) with reservations.
 
+**13:20 PUSH HOLD on main for a8** (~2 h, until a8 messages): its 21-commit cleanup push (merged to 604c09d3, 1933 passed)
+lost the race and is re-running the full suite; a8 helper also testing feat/decks-to-presentations-20261106 (decks ->
+presentations/pipeline/). Do NOT push to main until a8 says go; then merge origin/main into each branch before pushing.
+
+**Background tasks of this session (re-arm / check after compaction):**
+- render CHAIN monitor (30-min Monitor; re-arm on expiry; filter in the bullet above);
+- waiter re-running e_iti_hemo + e_iti_hemo_sum after e_iti_area_maps.done (v7b, from wf_render_daqlk);
+- disk watcher (diskwatch.sh, writes STOP if C: < 20 GB -- note v7b+ lanes IGNORE STOP; only v6 leftovers obey it);
+- three helpers (wf_p1106_small / _gainbio / _frdrift) -- their reports arrive as agent messages.
+- Lanes: v7b G T AB FZ E; v8 GBMD, L0L1EL8L10, XL2L3, L4L5L6L7L9; v8b N R; v8c P S; v8d M; v8e T8; v8e2 T9; v6 leftovers
+  t_partial_te (TE2) and x_enl_move (X) until they finish.
+
 ### 00-COMPACT-29 (11-05 ~22:45) -- READ FIRST; supersedes 28 for state (28 / 27 hold for rules and history)
 
 Priya is ASLEEP: work overnight on everything possible. Her page = `docs/status/OVERNIGHT_2026-11-05_FOR_PRIYA.md`
