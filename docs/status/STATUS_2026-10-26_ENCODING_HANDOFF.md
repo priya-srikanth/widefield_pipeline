@@ -76,6 +76,11 @@ unclassified -> OUTSIDE_MAPS, map builders only import engagement_gate). Fixed o
 Priya said YES to cam4-style -> scratchpad push7.sh = the six + wf_p1106_cam4, sequential, merge-only (bg task bn32updgj;
 per-branch push logs scratchpad/push7.<wt>.log). Each push re-runs the full suite (~28 min) when configs/ is in the diff.
 
+**Update 18:55 -- Priya "ok": kinematics cache fix on main 8d6da32d; queue v9k2 RUNNING** (scratchpad/render_daqlk/queue_daqlk9k2.sh,
+worktree wf_render_v9k2 @ 8d6da32d, lanes K + C): k_spout_error + k_phase (v9k markers/logs moved to *_v9k_fence) and the 7
+ex-HOLD steps (RESERVED_v9k2). Priya's "ok" also read as YES to updating OROFACIAL_FINDINGS with the A27 working-period numbers
+in the replacement pass (responded-trials row relabel + far-spout range, far-contra first contact +978 ms, pre-cue -0.41 Hz).
+
 **Update ~18:25 -- v9k 3-D steps blocked by a stale, unrouted kinematics cache.** k_spout_error EXIT 1 (and k_phase failing the
 same way): pose3d_kinematics.session_result cached in session_poses/pose3d/_cache/kinematics_<mode> (built 10-26); pose3d.py
 changed 11-04 (bddf02e7, ae2bcd86) -> code_version miss -> recompute -> write to the unrouted folder refused by the rebuild
