@@ -56,8 +56,8 @@ until Priya answers the matching question.
 - **Item 3 response-window fallback: ON MAIN** (9ad4fbcc; pre-push full suite passed 11-06).
 - **Hemo 470 slot** + this running list: ON MAIN (merge f1fd9f9f, 11-06). The pre-push hook now runs only the tests
   touched by the push (53 passed in 32 s), so pushes no longer take ~2 h.
-- **Item 2 August-only cut** (37bacf12): main merged in with no conflicts, baseline + response-window tests pass on the
-  merged tree (9 passed); push running (touches ~126 files; 34's render is in its own pinned worktree, unaffected).
+- **Item 2 August-only cut: ON MAIN** (37bacf12, merge 5fa8253c, 11-06). Pre-push ran the full suite because the push
+  touched ~126 files: 5053 passed, 179 skipped, 2 h 42 min. 34's render is in its own pinned worktree, unaffected.
 - **Item 5 fail-loud DAQ contacts**: committed 5834f8de on `cleanup/daq-contacts-failloud-20261105` (wf_cleanup4),
   not pushed. Touches trial_classes / tongue_kinematics / dlc_frames / kinematics_chain / orofacial_outputs; a
   session without a DAQ now raises (or is class 'unknown' and not covered) instead of silent zero contacts. HOLD the
