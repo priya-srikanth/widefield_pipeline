@@ -203,3 +203,8 @@ the night.
   held; Allen bit-identical; vs basis route max |d| 0.004 R2, unique R2 <= 0.002), then slide 139 / Fig 4.8 maps with
   --roi-frozen exact. Slide 94 stays on the basis-route union run; the deck should point at the *_split.png files.
   Main: 5db29b07 (decisions + ALM + speed-ups) push waits for RAM; 435160e2 follows.
+- ~12:50: main = 5db29b07 (decisions + ALM/tjM1 + speed-ups; 693 touched tests passed); 435160e2 (exact ROI run) next.
+  a8: slide 92 reworded ("Acute: contralesional frontal / lateral cortex tracks position-carrying movement more strongly
+  (not explained by more variable movement; provisional)", notes cite posinfo_checks). PI deck renamed by Priya to
+  presentations/Overview_2026-11-06.pptx. Slide 94 re-tile waits for the *_split render (b_peth_trial_maps*_split, after
+  b_pix_union_frA) -- tell a8 when it lands.
