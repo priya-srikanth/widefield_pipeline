@@ -94,25 +94,39 @@ DEFICITS = {"ttc": ("trial_attempts_sessions.csv", "ttc_ms_far_contra", False),
             "completion": ("trial_attempts_sessions.csv", "completion_far_contra", True),
             "latency": ("trial_attempts_sessions.csv", "latency_attempt_ms_far_contra", False),
             "contact": ("position_coding_trend_recovery_sessions.csv", "contact_far_contra", True),
-            # LOG fold change of ttc (Priya 11-05: "inverse log better than linear"): log(session / pre) = log1p(ttc
-            # deficit). Sensitivity row; compresses the few high-deficit acute sessions that pull the linear fit.
+            # LOG fold change of ttc (Priya 11-05: "inverse log better than linear"; PRIMARY since 11-05 "yes to log
+            # deficit primary axis"): log(session / pre) = log1p(ttc deficit). ML fits with the same random effects:
+            # dAIC(log - linear) -8 to -20 for every overall coding measure and cue-window target, ~0 where there is no
+            # relation (qc/encoding_mixed_lin_vs_log.csv). The linear `ttc` is the sensitivity row.
             "ttc_log": ("trial_attempts_sessions.csv", "ttc_ms_far_contra", False, "log1p")}
-DEFICIT = "ttc"
+DEFICIT = "ttc_log"
+
+
+class Deficit(dict):
+    """{label: model-scale deficit} + `transform` ("log1p" or None), so `add_deficit` can keep the raw relative deficit
+    for plotting (figures draw the ORIGINAL deficit axis with the fitted curve, Priya 11-05)."""
+    transform: str | None = None
 
 
 def deficit(qc_dir: Path, name: str = DEFICIT) -> dict:
     """{label: deficit} for a `DEFICITS` entry, read from `<run>/imaging_encoding/qc`."""
     csv, col, hib, *tf = DEFICITS[name]
-    d = behaviour_deficit(Path(qc_dir) / csv, col, hib)
+    d = Deficit(behaviour_deficit(Path(qc_dir) / csv, col, hib))
     if tf and tf[0] == "log1p":                         # log(session / pre) for a larger-is-worse relative deficit
-        d = {k: (float(np.log1p(v)) if np.isfinite(v) and v > -1 else np.nan) for k, v in d.items()}
+        d = Deficit({k: (float(np.log1p(v)) if np.isfinite(v) and v > -1 else np.nan) for k, v in d.items()})
+        d.transform = "log1p"
     return d
 
 
 def add_deficit(L: pd.DataFrame, deficit: dict, label_col: str = "label") -> pd.DataFrame:
-    """+ deficit (0 for pre sessions; NaN where the session has no behavioural value)."""
+    """+ deficit (0 for pre sessions; NaN where the session has no behavioural value). A log-scale `Deficit` also adds
+    `deficit_x` (the raw relative deficit, for the plot axis) and `deficit_tf`."""
     L = L.copy()
     L["deficit"] = np.where(L.post == 0, 0.0, L[label_col].map(deficit))
+    tf = getattr(deficit, "transform", None)
+    if tf == "log1p":
+        L["deficit_x"] = np.expm1(L["deficit"])
+        L["deficit_tf"] = tf
     return L
 
 
@@ -290,6 +304,7 @@ def plot_epoch(L: pd.DataFrame, T: pd.DataFrame, panels, path: Path, title: str 
         a_.set_title(f"{name}; re {c.re.iloc[0]}", fontsize=7, pad=22)
         a_.set_ylabel(ylabel, fontsize=7)
         a_.tick_params(labelsize=7)
+        a_.spines["top"].set_visible(False)           # no top frame line (Priya 11-03)
     for a_ in ax.flat[len(panels):]:
         a_.axis("off")
     fig.suptitle(f"{title} -- EPOCH mixed model (y ~ C(epoch), animal random effects): small = sessions, open = animal "
@@ -312,10 +327,13 @@ def plot_fits(L: pd.DataFrame, T: pd.DataFrame, panels, model: str, path: Path, 
     xcol, xlab = _X[model]
     if xlabel and model.startswith("behaviour"):                  # the caller's deficit (e.g. an angle measure)
         xlab = xlabel
-    from wfield_local import config
-    acol = config.animal_color()
+    # session dots: OPEN markers, shape = animal (cat_points.animal_marker, animals.yaml), colour = epoch
+    # (orofacial_cohort.EPOCH_LINE: pre black / acute pink / subacute yellow / chronic green) -- Priya 10-27 / 11-05
+    from wfield_local.cat_points import animal_marker
+    from wfield_local.orofacial_cohort import EPOCH_LINE
     nrows = int(np.ceil(len(panels) / ncols))
     fig, ax = plt.subplots(nrows, ncols, figsize=(4.8 * ncols, 4.3 * nrows), squeeze=False)
+    seen_an, seen_ep = set(), set()
     for k, (name, sel) in enumerate(panels):
         a_ = ax.flat[k]
         G, c = L, T[T.model == model]
@@ -325,19 +343,29 @@ def plot_fits(L: pd.DataFrame, T: pd.DataFrame, panels, model: str, path: Path, 
         if G.empty or c.empty:
             a_.axis("off")
             continue
-        for an, g in G.groupby("animal"):
-            for post, mk in ((0, "o"), (1, "^")):
-                h = g[g.post == post]
-                a_.scatter(h[xcol], h.y, s=14, marker=mk, color=acol.get(an, "0.4"), alpha=0.8,
-                           label=f"{an} {'post' if post else 'pre'}" if k == 0 and len(h) else None)
+        # log-scale deficit (DEFICIT ttc_log): points on the ORIGINAL relative-deficit axis, fit drawn as its curve
+        logx = (model.startswith("behaviour") and "deficit_tf" in G.columns and (G.deficit_tf == "log1p").any())
+        px = "deficit_x" if logx else xcol
+        epc = G["epoch"] if "epoch" in G.columns else np.where(G.post == 0, "pre", "post")
+        for (an, ep), h in G.assign(_ep=epc).groupby(["animal", "_ep"]):
+            a_.scatter(h[px], h.y, s=16, marker=animal_marker(an), facecolors="none",
+                       edgecolors=EPOCH_LINE.get(ep, "0.4"), linewidths=0.9, alpha=0.85)
+            seen_an.add(an)
+            seen_ep.add(ep)
         c = c.set_index("term")
         if model in ("time", "behaviour"):
             sl = SLOPES[model]
             pre, step, b = c.coef["pre_level"], c.coef["post"], c.coef.get(sl, np.nan)
-            xx = (np.linspace(min(0, G.deficit.min()), max(1, G.deficit.max()), 50) if model == "behaviour"
-                  else np.linspace(1, max(G.day.max(), 2), 80))
-            a_.plot(xx, pre + step + b * (xx if model == "behaviour" else np.log(xx)), "k-", lw=1.5,
-                    label="fit: post" if k == 0 else None)
+            if model == "behaviour" and logx:
+                xx = np.linspace(max(-0.9, min(0, G.deficit_x.min())), max(1, G.deficit_x.max()), 200)
+                yy = pre + step + b * np.log1p(xx)
+            elif model == "behaviour":
+                xx = np.linspace(min(0, G.deficit.min()), max(1, G.deficit.max()), 50)
+                yy = pre + step + b * xx
+            else:
+                xx = np.linspace(1, max(G.day.max(), 2), 80)
+                yy = pre + step + b * np.log(xx)
+            a_.plot(xx, yy, "k-", lw=1.5, label="fit: post" if k == 0 else None)
             a_.axhline(pre, color="k", ls=":", lw=1, label="fit: pre level" if k == 0 else None)
             # * = FDR q < 0.05 (lmm_table's BH within model x term), so the panel says which terms are significant
             def _term(t, label, v, c=c):
@@ -350,19 +378,36 @@ def plot_fits(L: pd.DataFrame, T: pd.DataFrame, panels, model: str, path: Path, 
             term, icpt = (("lday", "post_level_day1") if model == "time_post"
                           else ("deficit", "post_level_full_recovery"))
             a0, b = c.coef[icpt], c.coef[term]
-            xx = np.linspace(1, max(G.day.max(), 2), 80) if model == "time_post" else np.linspace(0, 1, 50)
-            a_.plot(xx, a0 + b * (np.log(xx) if model == "time_post" else xx), "k-", lw=1.5,
-                    label="fit" if k == 0 else None)
+            if model == "time_post":
+                xx = np.linspace(1, max(G.day.max(), 2), 80)
+                yy = a0 + b * np.log(xx)
+            elif logx:                                 # post-only fit on log(session / pre), drawn on the raw axis
+                xx = np.linspace(max(-0.9, min(0, G.deficit_x.min())), max(1, G.deficit_x.max()), 200)
+                yy = a0 + b * np.log1p(xx)
+            else:
+                xx = np.linspace(0, 1, 50)
+                yy = a0 + b * xx
+            a_.plot(xx, yy, "k-", lw=1.5, label="fit" if k == 0 else None)
             stat = f"{icpt} {a0:+.3g} (z {c.z[icpt]:.1f}), {term} {b:+.3g} (z {c.z[term]:.1f})"
         a_.set_title(f"{name}\n{stat}\nre {c.re.iloc[0]}", fontsize=6.5)
         a_.axhline(0, color="0.8", lw=0.5)
         a_.set_xlabel(xlab.split(",")[0].split(" (")[0], fontsize=7)    # short per panel; full text once, below
         a_.set_ylabel(ylabel, fontsize=7)
         a_.tick_params(labelsize=7)
+        a_.spines["top"].set_visible(False)           # no top frame line (Priya 11-03)
     for a_ in ax.flat[len(panels):]:
         a_.axis("off")
-    ax.flat[0].legend(fontsize=6, ncol=2)
+    from matplotlib.lines import Line2D
+    hl, lb = ax.flat[0].get_legend_handles_labels()            # the fit lines
+    hl += [Line2D([], [], ls="none", marker=animal_marker(a), mfc="none", mec="0.35", mew=0.9, ms=5) for a in sorted(seen_an)]
+    lb += sorted(seen_an)
+    eps = [e for e in (*EPOCHS, "post") if e in seen_ep]
+    hl += [Line2D([], [], ls="none", marker="o", mfc="none", mec=EPOCH_LINE.get(e, "0.4"), mew=1.2, ms=5) for e in eps]
+    lb += eps
+    ax.flat[0].legend(hl, lb, fontsize=6, ncol=2)
     fig.suptitle(f"{title} -- mixed model, animal random effects ({model})", fontsize=9)
+    if model.startswith("behaviour") and "deficit_tf" in L.columns and (L.deficit_tf == "log1p").any():
+        xlab += "; fit on log(session / pre), drawn on this axis"
     fig.supxlabel(f"x: {xlab}", fontsize=7)        # the long label once, so neighbouring panels' labels cannot collide
     # fixed headroom in INCHES for the suptitle / supxlabel: tight_layout alone ignores them, and on a tall figure
     # (8 rows, lmm_*_lickclass) the suptitle landed on the first row's panel titles (10-27)

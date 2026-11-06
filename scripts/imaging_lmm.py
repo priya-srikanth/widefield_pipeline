@@ -182,13 +182,13 @@ def main(argv=None) -> int:
             L = Le if L is None else pd.concat([L, Le], ignore_index=True)
         if not C.empty:                                     # CD: pre rows in-sample -> post-only models
             C = mm.add_time_covariates(C)
-            C = C[C.post == 1].assign(deficit=lambda x: x.label.map(deficit))
+            C = mm.add_deficit(C[C.post == 1], deficit)          # post-only; log deficit -> deficit_x / deficit_tf for the plot axis
             tabs.append(post_only_table(C))
     if "decoder" in src:
         D = decoder_table()
         if not D.empty:
             D = mm.add_time_covariates(D)
-            D = D[D.post == 1].assign(deficit=lambda x: x.label.map(deficit))
+            D = mm.add_deficit(D[D.post == 1], deficit)          # post-only; log deficit -> deficit_x / deficit_tf for the plot axis
             print("  decoder (post-stroke only), per-animal epoch means\n"
                   + mm.animal_epoch_table(D, ["source", "measure"]).round(4).to_string())
             tabs.append(post_only_table(D))

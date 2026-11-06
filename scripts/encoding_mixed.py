@@ -10,7 +10,7 @@ Outcomes per session x area x window (dR2 x1e3, cortex + both hemispheres of the
   contra-ipsi    mean(contra spouts) - mean(ipsi spouts)
 
 Models (wfield_local/mixed_models.py -- the shared definition): `time` y ~ post + post:lday and `behaviour`
-y ~ post + post:deficit (mixed_models.DEFICITS; default ttc), random intercept + step + slope per animal with the module's
+y ~ post + post:deficit (mixed_models.DEFICITS; default ttc_log = log(session / pre) of ttc, Priya 11-05; ttc = linear sensitivity), random intercept + step + slope per animal with the module's
 fallback ladder; FDR (orofacial_stats.bh_fdr) within model x term x window; per-animal epoch means printed first.
 Extra windows (cue2lick = cue .. first lick, cuestop = cue .. trial stop, firstlick = first post-cue lick -0.1 .. +1 s)
 come from the O2 `_win` runs: position from movement_first_subset-drop_win, cam4 contest from ..._nokin_win.
@@ -133,6 +133,9 @@ def main(argv=None) -> int:
     sfx = "" if dname == mm.DEFICIT else f"_{dname}"
     if a.plot_only:
         L = pd.read_csv(E / "qc" / f"encoding_mixed_long{sfx}.csv.gz")
+        from wfield_local import run_mode as _rm      # deficit columns re-derived (cheap): raw axis + transform
+        L = mm.add_deficit(L.drop(columns=[c for c in ("deficit", "deficit_x", "deficit_tf") if c in L]),
+                           mm.deficit(_rm.deficit_qc_dir(), dname))
         T = pd.read_csv(E / "qc" / f"encoding_mixed{sfx}.csv")
         for area in ("cortex", "SSp-m_left", "SSp-m_right"):
             figures(L, T, E / "figures" / "mixed_models", area, sfx)
