@@ -21,9 +21,13 @@
 >   notes_gap_table.py + rematch2.py logic): 172 picture slides; no row yet 31, 111, 153, 154, 164; check by hand 44, 162,
 >   163; HELD 108 + 187 (A23 exec_vs_neural_match) and LMM slides 8, 17, 20, 121, 122, 139 (deficit-table dir fix) + ~50
 >   stars slides pending 34's producing_script / held flag. Far-contra / attempt decoders are LP-TRAINED: notes must say so.
-> - DECKS -> presentations/pipeline/ (Priya: all auto-built decks; June alignment_comparison -> presentations/archive/
->   20260601/): helper branch feat/decks-to-presentations-20261106 (worktree wf_decks_presentations), new paths.yaml root;
->   MOVES NOT DONE -- do them from the helper's move table after its push lands.
+> - DECKS -> presentations/pipeline/{analysis,preprocessing,behavior,orofacial/<run>,history,cohort2/<kind>} DONE: code on
+>   main 3e543de5 (paths.yaml root decks_out, PathResolver.deck_dir); 118 existing decks (43 GB) MOVED 11-06 evening by
+>   presentations/pipeline/move_decks_20261106.py (rename, no overwrite; log MOVED_2026-11-06.tsv); June
+>   alignment_comparison -> presentations/archive/20260601/. Not moved: manifests / .run.json / epoch_boundaries / figures
+>   (stay in labcams), rebuild-root decks (routed outputs). The IMAGING BOX writes the cohort2 preprocessing decks
+>   (build_cohort2_deck.sh) -- until it pulls main it writes the old labcams/cohort2 place; move any such deck after.
+>   No <animal>_example_clips.pptx existed. Superseded v35 orofacial decks moved (deletable under the derived rule).
 > - SVG: 34's helper adds svg_path() saves to page / deck writers (feat/svg-page-figures-20261106). Redraw inventory
 >   wf_attempt docs/status/REDRAW_INVENTORY_2026-11-06.md: 610 figs, 250 redraw-only (~67 have inputs today), full redraw
 >   ~16 h -> recommendation: no separate redraw; SVGs come with the pending _daqlk catch-up; ask Priya re the ~67.
