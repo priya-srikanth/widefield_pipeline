@@ -28,6 +28,16 @@ until Priya answers the matching question.
 - **34's fix/log-deficit-primary-20261105 -> main: Priya OK (11-06, in a8's window).** 34 asks for the OK in its
   own window before pushing; a8's slide-18 pre-dots branch builds on it.
 
+- **Encoder checks requested by Priya 11-06 (a8 helpers, read-only on 34's _daqlk frames, own output folders):**
+  (1) WITH-lick-position regressor variance pre vs post, and unique R2 vs that variance -> `posinfo_checks_v7g3_t3d_spont_frAsplit/`;
+  (2) trial-count-matched PETH / trial-by-trial R2 (slide 94) -> `trialmatched_peth_checks_v7g3_t3d_spont_frA/` (feasibility
+  from saved per-trial files first). Not runnable from saved files, needs 34's heavy queue + Priya's OK in 34's window:
+  the no_posinfo per-trial re-run (decorrelation check, ~4 h) and the pixmusall re-run for ALM / tjM1 on slide 94 (~1-1.5 h).
+- **Deck items waiting for the deck to close (Priya editing; she edited slide 88 herself):** slide 91 (no-FR map; bullet 2
+  "spout-locked rises laterally" contradicted by the FR version on slide 92 -> hide 91 or reword); slide 92 add FR /
+  spout bullet; slide 94 show the trial-by-trial change rows + reword bullet 3; slide 18 pre-session dots (helper).
+  Each waits for Priya's pick.
+
 ## 2. Findings
 
 - **Fail-loud DAQ contacts (item 5): no current output took the silent-zero path.** All 133 v36 sessions: DAQ .h5
