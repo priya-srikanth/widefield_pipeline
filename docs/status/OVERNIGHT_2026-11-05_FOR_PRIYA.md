@@ -208,3 +208,11 @@ the night.
   (not explained by more variable movement; provisional)", notes cite posinfo_checks). PI deck renamed by Priya to
   presentations/Overview_2026-11-06.pptx. Slide 94 re-tile waits for the *_split render (b_peth_trial_maps*_split, after
   b_pix_union_frA) -- tell a8 when it lands.
+- ~13:10 **Priya's answers 8-14**: (8) speed-ups per recs: A10 memoise paths.cohorts NOW; A11 / A12 after the render.
+  (9) slide 102 gain_bio: copy the FR cache YES; quiet events = unified 1 s; task window = camera working period;
+  "415 is about half the gain": "this should be corrected no?" -> compare on the corrected signal consistently (no mixing
+  corrected with raw 470 / 415); rest masks: REBUILD with the current lick detector ("I guess" -> scope first: which
+  analyses use them, what this render already rebuilt). (10) FR pixel maps: FIX the "Bonferroni" captions
+  (max-statistic) + a SUPPLEMENTAL drift-control panel. (11) no_spont on the pixmusall twins / frAsplit_basis frames:
+  yes. (12) bare-run pre cut: per rec (loud WARNING now, switch after the replacement pass). (13) PS93 pre-cue
+  discriminator: RELAX the late window for PS93 only. (14) chronic-stability behaviour row: camera (as is).
