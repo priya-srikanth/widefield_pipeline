@@ -179,3 +179,11 @@ the night.
   (write outside the rebuild root / untagged -> routing fix first), lick_acad_midline_control (cut), F8 e_plain_* (Priya).
   x_enlv_extract released from the old v7b lane via a brief skip marker (no process killed) and moved to v8.
   v7b lanes G T A/B F/Z E continue the rest; one heavy step at a time across both queues (shared lock).
+- ~10:30: **dependency audit of the remaining v7b steps + v8** (V7B_DEP_AUDIT.md in the render scratchpad): 5 v7b steps
+  would have failed on inputs made later or by no step (e_recov_meas, e_recov_marker, e_dock_sspn0, b_fr_compare,
+  z_fig_pooled), e_checkfigs would be skipped, and 3 v8 steps had missing deps that would have halted v8 lanes
+  (l_recov_markers needs iti_area_maps --split / --split --cued, which no step ran; l_iti_dock_audit needs x_covref;
+  l_enl_angle needs cued_wide). None had started. All 18 were reserved for **queue v8b** (22 steps: the 18 with correct
+  deps + 4 missing producers: iti_area_maps --split, --split --cued, frozen_residual_trend frA joint and no_fr_dir),
+  launched 10:30 in 2 lanes. e_iti_hemo (failed after 49 min on an undeclared dep) re-runs via a waiter after
+  e_iti_area_maps.
