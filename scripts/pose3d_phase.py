@@ -162,6 +162,20 @@ def _plt():
     return plt
 
 
+def no_top_spine(fig) -> None:
+    """House rule (Priya 11-03; A30 11-06): no top frame line on ANY 2-D panel (stars live in that band). 3-D axes have
+    no spines of that kind and are left alone."""
+    for ax in fig.get_axes():
+        if getattr(ax, "name", "") != "3d" and "top" in ax.spines:
+            ax.spines["top"].set_visible(False)
+
+
+def _save(fig, path) -> None:
+    """Every figure of this script goes out through here: `no_top_spine`, then the PNG."""
+    no_top_spine(fig)
+    fig.savefig(path, dpi=120)
+
+
 def _how(kind: str, lset: str = "all", mouth: str = "out") -> str:
     """Second title line: how the curve was made (Priya 10-20: as much method detail as the cam4 titles)."""
     from wfield_local import trial_classes as tc
@@ -215,7 +229,7 @@ def fig_lines(P, animal, kind, m, ylab, xlab, path, title, pre_from, sign: float
     axes[0].legend(fontsize=6, frameon=False)
     fig.suptitle(t, fontsize=8.5)
     fig.tight_layout()                                                     # makes room for the suptitle itself
-    fig.savefig(path, dpi=120)
+    _save(fig, path)
     plt.close(fig)
 
 
@@ -241,7 +255,7 @@ def fig_portrait(P, animal, path, pre_from):
     fig.suptitle(f"{animal}: 3-D lick phase portrait (+-{PORTRAIT_MS:.0f} ms around the 3-D peak, dot = peak; in-mouth = 0 mm)",
                  fontsize=9)
     fig.tight_layout(rect=(0, 0, 1, 0.93))
-    fig.savefig(path, dpi=120)
+    _save(fig, path)
     plt.close(fig)
 
 
@@ -300,7 +314,7 @@ def fig_traj3d(P, animal, geo, path, pre_from, lset="all", contra: bool = False)
                  "as in the camera videos (ends labelled)" if contra else ""), 120)
     fig.suptitle(t, fontsize=8.5)
     fig.tight_layout(rect=(0, 0.05, 1, 1))                                # bottom strip: the legend
-    fig.savefig(path, dpi=120)
+    _save(fig, path)
     plt.close(fig)
 
 
@@ -363,7 +377,7 @@ def fig_trajectories(P, animal, geo, path, pre_from, lset="all"):
               f"drawn where >= half the licks have a 3-D point -- lowest share drawn {cm:.2f})\n" + _how("norm", lset), 150)
     fig.suptitle(t, fontsize=8.5)
     fig.tight_layout(rect=(0.02, 0, 1, 1))                                # left strip: the row labels
-    fig.savefig(path, dpi=120)
+    _save(fig, path)
     plt.close(fig)
 
 

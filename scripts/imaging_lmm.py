@@ -57,7 +57,10 @@ def push_table(E: Path) -> pd.DataFrame:
 
 
 def behaviour_table(run_root: Path) -> pd.DataFrame:
-    S = pd.read_csv(run_root / "cohort" / "tables" / "prepost" / "session_metrics.csv")
+    """The cam4 cohort's session table of run ``run_root.name`` (`orofacial_cohort.cohort_dir`: the gate-named
+    prepost_<gate> folder, A27)."""
+    from wfield_local import orofacial_cohort as oc
+    S = pd.read_csv(oc.cohort_dir("tables", run=Path(run_root).name) / "session_metrics.csv")
     return _long(S, BEHAVIOUR_METRICS, "behaviour")
 
 

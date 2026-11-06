@@ -129,7 +129,8 @@ def fig_angle(out: Path, rng, contra: bool = False, save: bool = True) -> pd.Dat
     import matplotlib.pyplot as plt
     from wfield_local import config
     from wfield_local.paths import PathResolver
-    Pm = pd.read_csv(Path(PathResolver().root("orofacial")) / V36 / "cohort" / "tables" / "prepost" / "position_metrics.csv")
+    from wfield_local import orofacial_cohort as oc        # the cohort's gate-named tables (A27; WFIELD_KIN_GATE)
+    Pm = pd.read_csv(oc.cohort_dir("tables", run=V36, rv=PathResolver()) / "position_metrics.csv")
     side = "ipsi"
     if contra:      # the table is + = image right = ipsi for a LEFT lesion; flip per animal from its lesion side
         lat = {a: str((v or {}).get("stroke_laterality", "L")) for a, v in config.animals().items()}

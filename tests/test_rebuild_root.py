@@ -294,9 +294,8 @@ RESOLVED = {
     "wfield_local/joint_locanmf.py",
     "wfield_local/locanmf_contralateral.py",
     "wfield_local/orofacial_clean.py",
-    "wfield_local/orofacial_cohort.py",
+    # (wfield_local/orofacial_cohort.py, orofacial_jaw_lateral.py: ROUTED since A27 11-06, cohort_base -> run_mode.subdir)
     "wfield_local/orofacial_heatmaps.py",
-    "wfield_local/orofacial_jaw_lateral.py",
     "wfield_local/orofacial_outputs.py",
     "wfield_local/orofacial_w2.py",
     "wfield_local/paint_exclusion.py",

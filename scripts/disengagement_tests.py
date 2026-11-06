@@ -962,7 +962,8 @@ def analyse():
     FD["sec"] = SEC
 
     # ---------------------------------------------------------------- descriptive: licks per responded trial
-    pm = pd.read_csv(E.parent / "cohort" / "tables" / "prepost" / "position_metrics.csv", dtype={"date": str})
+    from wfield_local import orofacial_cohort as oc_     # the cam4 cohort's gate-named tables (A27)
+    pm = pd.read_csv(oc_.cohort_dir("tables") / "position_metrics.csv", dtype={"date": str})
     pm["label"] = pm.animal + "_" + pm.date.str[4:]
     keep = set(B)
     pm = pm[pm.label.isin(keep)].copy()

@@ -23746,3 +23746,31 @@ Priya 11-03 late: August-only pre everywhere in the rebuild, except june_august_
   `trial_classes.kin_out_dir` / `kin_cache_dir` = `run_mode.session_poses_out` (the jaw_only_incomplete_figs pattern
   of 11-04): the old place without a rebuild root, `<root>/session_poses_derived/<tag>/...` under one (the
   session_poses tree is an input tree the fence never writes). `pose3d_kinematics` is unchanged (its cache is reused).
+
+## 2026-11-06 -- cam4 orofacial cohort on the camera working period; calibration snapshot kept; session-dot style (Priya 11-06, A27-A30)
+
+- A27 (Priya 11-06): the WHOLE cam4 orofacial cohort runs on the CAMERA WORKING PERIOD -- `orofacial_cohort.cohort_keep`
+  = `trial_classes.working_period_ids` (one definition with Fig 0.2 / 1b and the 3-D kinematics) in
+  `orofacial_cohort.session_metrics` (every table + the cue traces) and `orofacial_jaw_lateral`. A session with no camera
+  classes contributes nothing. `WFIELD_KIN_GATE=legacy` (the 3-D kinematics' switch) = the pre-11-06 behaviour engaged
+  gate (`engagement_keep`, itself unchanged: the encoders and trial_attempts.py still read it). Folders carry the gate
+  (`orofacial_cohort.cohort_dir` / `table_suffix`): `tables|figures/prepost_working`, `prepost_legacygate`,
+  `prepost_alltrials` (+ `_allpre`; jaw_lateral the same). The plain `prepost` / `jaw_lateral` folders on the share are
+  the pre-11-06 tables and are never written again. The cohort tree is routed (`cohort_base`: under a rebuild root
+  `<root>/LP_analysis/<run>/cohort/<run tag>`). Every reader goes through `cohort_dir` (kinematics_pooled_figs,
+  imaging_lmm, lmm_curve_summaries, disengagement_tests, orofacial_cover_sensitivity, orofacial_robustness_table,
+  pose3d_jaw_crosscheck, orofacial_deck). Titles carry the "Trials:" text (`trial_classes.KIN_TRIALS_TEXT`);
+  data_line.txt beside the tables / figures. Conclusions may move: OROFACIAL_FINDINGS is NOT rewritten until the
+  re-run is read.
+- A28 (Priya 11-06): the frozen 10-23 calibration snapshot (`exec_bins_calib_20261023.csv`, FROZEN_LICKLAND_CALIB)
+  STAYS the encoder input. `scripts/exec_bins_calib_compare.py` (read-only; writes only to a scratch --out) regenerates
+  it under the legacy and the working-period gate from the same 3-D lick snapshot and reports centre / SD shifts and the
+  share of pre licks whose hard bin changes. RUN 11-06 (31 pre sessions, 119,090 licks, 210 rows = 24 default + 186
+  leave-one-out): working vs snapshot max |delta| 0.000 mm on every centre (ml / ap / down) and SD, median 0.000, n
+  identical; 2 / 119,090 licks (PS94) change hard bin = rounding of the snapshot's 4-decimal values (the legacy
+  regeneration shows the same 2). Reason: every lick-bearing pre trial already lies inside the working period (it ends at
+  the last camera lick; stopped runs are no-lick trials), e.g. PS95_0812 keeps 559 / 720 trials but all 3,525 3-D licks.
+  So the frozen snapshot IS the working-period calibration; no decision needed.
+- A30 (Priya 11-06): `pose3d_summary_fig` session dots = OPEN markers, shape = animal (`cat_points.animal_marker`),
+  colour = epoch (`orofacial_cohort.EPOCH_LINE`; June pre grey) via `session_dots`; `pose3d_phase` hides the top spine
+  on every 2-D panel (`no_top_spine` in its one save path).

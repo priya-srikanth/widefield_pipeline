@@ -11,7 +11,6 @@ Output `session_poses/pose3d/crosscheck/jaw_{per_trial.csv.gz, agreement.csv}`.
 """
 from __future__ import annotations
 
-from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -32,8 +31,8 @@ def main(argv=None) -> int:
     rv = PathResolver()
     d3 = pose3d_dir(rv)
     J3 = pd.read_csv(d3 / "kinematics" / "jaw_trials.csv.gz", dtype={"date": str})
-    J4 = pd.read_csv(Path(rv.root("orofacial")) / V36 / "cohort" / "tables" / "jaw_lateral" / "trials.csv",
-                     dtype={"date": str})
+    from wfield_local import orofacial_cohort as oc        # the cohort's gate-named jaw table (A27)
+    J4 = pd.read_csv(oc.cohort_dir("tables", "jaw_lateral", run=V36, rv=rv) / "trials.csv", dtype={"date": str})
     J4 = J4[J4.animal.isin(J3.animal.unique())]
     # trial ids: try as-is and +1 (0- vs 1-based); keep the shift that matches positions best per session
     out = []

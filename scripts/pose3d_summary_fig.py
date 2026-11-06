@@ -4,7 +4,7 @@
 
 One figure per animal, `session_poses/pose3d/figures/summary_<animal>.png`: x = days from the stroke (config stroke_date; the
 lesion followed that day's session, so day 1 = the first post session), one dot per session (median over its licks / trials),
-coloured by epoch; columns = the six positions; grey band = the animal's AUGUST pre range (min-max over sessions), dashed
+an OPEN marker, shape = animal, colour = epoch (black / pink / yellow / green; June pre grey; A30); columns = the six positions; grey band = the animal's AUGUST pre range (min-max over sessions), dashed
 line = its median. Rows, in the order agreed 10-19 (distance offsets primary, one angle secondary):
   1. closest approach to the target spout (mm)                    -- spout error 1, origin-free
   2. lateral error at closest approach (mm; + = outward, centre + = mouse left)
@@ -34,7 +34,20 @@ import pandas as pd
 from wfield_local.pose3d import pose3d_dir
 
 POS = ("close_L", "close_center", "close_R", "far_L", "far_center", "far_R")
-EP_COL = {"pre": "0.35", "acute": "#d01c8b", "subacute": "#b8860b", "chronic": "#01665e"}
+#: epoch colours = THE session-dot palette (orofacial_cohort.EPOCH_LINE: pre black / acute pink / subacute yellow /
+#: chronic green; Priya 11-06 A30, as mixed_models.plot_fits)
+from wfield_local.orofacial_cohort import EPOCH_LINE as EP_COL  # noqa: E402
+JUNE_EDGE = "0.6"        # June pre sessions (reference only): grey open markers, same shape
+
+
+def session_dots(ax, day, v, animal: str, epoch: str, june: bool = False):
+    """THE session dots (Priya 11-06, A30; results-page convention): OPEN markers, shape = animal
+    (`cat_points.animal_marker`, animals.yaml), colour = epoch (`EP_COL` = orofacial_cohort.EPOCH_LINE); June pre
+    (reference only) in grey."""
+    from wfield_local.cat_points import animal_marker
+    return ax.scatter(day, v, s=20, marker=animal_marker(animal), facecolors="none",
+                      edgecolors=JUNE_EDGE if june else EP_COL.get(epoch, "0.4"), linewidths=0.9, zorder=3,
+                      label="pre (June, reference only)" if june else epoch)
 ROWS = (("se", "miss_med", "closest approach to spout (mm)"),
         ("se", "lat_med", "lateral error at closest\n(mm; + outward)"),
         ("se", "habit_lat_med", "endpoint vs own pre:\nlateral (mm; + outward)"),
@@ -169,10 +182,9 @@ def figure(animal: str, SE: pd.DataFrame, K: pd.DataFrame, out: Path, pre_from: 
                 ax.axhline(pre.v.median(), color="0.4", ls="--", lw=0.8, zorder=1)
             for ep, g in d.groupby("epoch"):
                 gj, ga = g[g.june], g[~g.june]
-                ax.scatter(ga.day, ga.v, s=18, color=EP_COL.get(ep, "C0"), zorder=3, label=ep)
+                session_dots(ax, ga.day, ga.v, animal, ep)
                 if len(gj):
-                    ax.scatter(gj.day, gj.v, s=18, facecolor="none", edgecolor=EP_COL.get(ep, "C0"), zorder=3,
-                               label="pre (June, reference only)")
+                    session_dots(ax, gj.day, gj.v, animal, ep, june=True)
             ax.axvline(0.5, color="k", lw=0.5, ls=":")
             _xaxis(ax)
             ax.tick_params(labelsize=6)
@@ -198,10 +210,9 @@ def figure(animal: str, SE: pd.DataFrame, K: pd.DataFrame, out: Path, pre_from: 
             ax.axhspan(pre[col].min(), pre[col].max(), color="0.85", zorder=0)
         for ep, g in d.groupby("epoch"):
             gj, ga = g[g.june], g[~g.june]
-            ax.scatter(ga.day, ga[col], s=18, color=EP_COL.get(ep, "C0"), zorder=3, label=ep)
+            session_dots(ax, ga.day, ga[col], animal, ep)
             if len(gj):
-                ax.scatter(gj.day, gj[col], s=18, facecolor="none", edgecolor=EP_COL.get(ep, "C0"), zorder=3,
-                           label="pre (June, reference only)")
+                session_dots(ax, gj.day, gj[col], animal, ep, june=True)
         ax.axvline(0.5, color="k", lw=0.5, ls=":")
         ax.axhline(0, color="0.6", lw=0.5)
         _xaxis(ax)

@@ -24,10 +24,11 @@ BEHAVIOUR = {
     "face_rhythm_bout_split.py", "face_rhythm_evr_epochs.py", "face_rhythm_factor_clips.py",
     "face_rhythm_lick_epochs.py", "face_rhythm_match.py", "face_rhythm_nontask_state.py", "face_rhythm_param_qc.py",
     "face_rhythm_position_maps.py", "face_rhythm_prep.py", "face_rhythm_readouts.py", "face_rhythm_validate.py",
-    "kinematics_pooled_figs.py", "lick_floor_qc.py", "lick_path_softmax.py",
+    "lick_floor_qc.py", "lick_path_softmax.py",
     "lmm_curve_summaries.py",
-    "orofacial_cover_sensitivity.py", "orofacial_robustness_table.py", "pose3d.py",
-    "pose3d_crosscheck.py", "pose3d_cue_traces.py", "pose3d_jaw_crosscheck.py",
+    # kinematics_pooled_figs / orofacial_cover_sensitivity / orofacial_robustness_table / pose3d_jaw_crosscheck: no
+    # longer here -- they read / write the cam4 cohort through orofacial_cohort.cohort_dir (routed, gate-named; A27 11-06)
+    "pose3d.py", "pose3d_crosscheck.py", "pose3d_cue_traces.py",
     "pose3d_jaw_depth_model_check.py", "pose3d_kinematics.py", "pose3d_phase.py", "pose3d_spout_error.py",
     "pose3d_vs_cam4.py", "pose_cue_traces.py",   # pose_kinematics_demo: share reads moved to kinematics_chain 11-05
     "tongue_nocontact_qc.py", "trial_class_raw_share_fig.py",

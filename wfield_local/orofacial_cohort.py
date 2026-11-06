@@ -16,6 +16,14 @@ June 6/1-6/5 and 8/5 excluded) that has a processed session folder, reduces each
                                                 accuracy), by_position, angle_tuning, lick_phase, phase_portrait,
                                                 mismatch (.png)
 
+FOLDERS CARRY THE TRIAL GATE (Priya 11-06, A27; `cohort_dir`): ``prepost`` above is written ``prepost_working`` (the
+default gate = the CAMERA WORKING PERIOD, `trial_classes.working_period_ids`; sessions without camera classes drop out),
+``prepost_legacygate`` (``WFIELD_KIN_GATE=legacy``: the pre-11-06 behaviour engaged gate, `engagement_keep`) or
+``prepost_alltrials`` (``--all-trials``), + ``_allpre`` for the June-including baseline. The plain ``prepost`` folders on
+the share are the pre-11-06 legacy-gate tables and are never written again. Under a rebuild root / tagged run the
+cohort tree is routed (`cohort_base`). data_line.txt (the standard Data: line, `data_line`) sits beside the tables and
+figures; every title carries the "Trials:" text.
+
 Re-run as sessions arrive; every number is recomputed from the session folders (nothing cached here).
 
 POSITIONS are named and ordered by the lesion: close ipsi / close mid / close contra, far ipsi / far mid / far contra
@@ -486,10 +494,11 @@ def session_metrics(job):
     from scripts.pose_kinematics_demo import split_precue_by_peak
     P, X = split_precue_by_peak(P)
     dur, rows = _windows(sd)
-    # ENGAGEMENT GATE (Priya 10-17): every table below, the per-trial window durations (rate denominators) and the
-    # cue-aligned frames keep ENGAGED trials only; `--all-trials` is the control
+    # TRIAL GATE (Priya 10-17; camera working period since 11-06, A27 -- `cohort_keep`): every table below, the
+    # per-trial window durations (rate denominators) and the cue-aligned frames keep the gated trials only;
+    # `--all-trials` is the control
     n_tr_all = len(T)
-    keep, gate = engagement_keep(animal, date, sd)
+    keep, gate = cohort_keep(animal, date, sd)
     if keep is not None:
         L, P, Q, T, M, X = (d[d.trial_id.astype(int).isin(keep)] if len(d) and "trial_id" in d else d
                             for d in (L, P, Q, T, M, X))
@@ -1735,6 +1744,93 @@ def engaged_trial_ids(animal: str, date: str) -> set | None:
     return set(t.loc[t["engaged"].astype(bool), "trial_id"].astype(int))
 
 
+# --------------------------------------------------------------------------------------------------------------------
+# THE COHORT'S TRIAL GATE (Priya 11-06, A27): the whole cam4 cohort (every table under `cohort_dir`, the cue traces,
+# `orofacial_jaw_lateral`) runs on the CAMERA WORKING PERIOD -- `trial_classes.working_period_ids`, one definition with
+# Fig 0.2 / 1b and the 3-D kinematics (rule 9). A session with NO camera classes (no video) has no working period and
+# contributes nothing (never a DAQ fallback). Before 11-06 the gate was the behaviour pipeline's engaged gate
+# (`engagement_keep`, OROFACIAL_GATE); that is ``WFIELD_KIN_GATE=legacy`` (the same switch as the 3-D kinematics),
+# kept as a robustness run only. The table / figure folders carry the gate name (`table_suffix`): ``prepost_working``
+# vs ``prepost_legacygate`` -- the plain ``prepost`` folders on the share hold the pre-11-06 (legacy-gate) tables and
+# are never written again, so old and new tables cannot mix. `engagement_keep` itself is unchanged (the encoders and
+# trial_attempts.py read it).
+COHORT_GATE_SFX = {"working": "_working", "legacy": "_legacygate", "alltrials": "_alltrials"}
+
+
+def cohort_gate() -> str:
+    """"working" (default, Priya 11-06), "legacy" (``WFIELD_KIN_GATE=legacy``: the pre-11-06 behaviour gate) or
+    "alltrials" (``--all-trials`` / OROFACIAL_ALL_TRIALS: the ungated control, whatever the gate)."""
+    from wfield_local import trial_classes as tc
+    return tc.kin_gate() if ENGAGED_ONLY else "alltrials"
+
+
+def cohort_keep(animal: str, date: str, sd: Path) -> tuple[set | None, str]:
+    """(kept orofacial trial_ids or None = ungated, gate label) for one session folder under `cohort_gate`: the camera
+    working period (`trial_classes.working_period_ids`; an EMPTY set when the session has no camera classes, so it
+    drops out), the legacy behaviour gate (`engagement_keep`, unchanged), or None (all trials)."""
+    g = cohort_gate()
+    if g == "alltrials":
+        return None, "off (all trials)"
+    if g == "legacy":
+        return engagement_keep(animal, date, sd)
+    from wfield_local import trial_classes as tc
+    ids = tc.working_period_ids(f"{animal}_{date}")
+    return ids, ("working (camera working period)" if ids else "none (no camera working period: no camera classes)")
+
+
+def table_suffix(gate: str | None = None, baseline: str | None = None) -> str:
+    """Folder suffix of this run's tables / figures: the gate (`COHORT_GATE_SFX`) + ``_allpre`` for the June-including
+    baseline. E.g. ``_working`` (-> prepost_working), ``_legacygate_allpre``, ``_alltrials``."""
+    g = gate or cohort_gate()
+    b = baseline or BASELINE
+    return COHORT_GATE_SFX[g] + ("_allpre" if b == "all" else "")
+
+
+def cohort_base(run: str = RUN, rv=None) -> Path:
+    """``<LP_analysis>/<run>/cohort`` -- routed: under a rebuild root ``<rebuild>/LP_analysis/<run>/cohort`` (the share
+    tree is an input there), and in a tagged run the run tag as a subfolder (`run_mode.subdir`), so a camera-selection
+    run's working period never lands in another run's folder. The default run: exactly the old place."""
+    from wfield_local import orofacial_outputs as oo
+    from wfield_local import rebuild_root, run_mode
+    from wfield_local.paths import PathResolver
+    r = rebuild_root.root()
+    b = (Path(r) / "LP_analysis" / run / "cohort") if r is not None else oo.root(rv or PathResolver()) / run / "cohort"
+    return run_mode.subdir(b)
+
+
+COHORT_KINDS = ("tables", "figures", "qc", "deck")
+
+
+def cohort_dir(kind: str, name: str = "prepost", run: str = RUN, gate: str | None = None,
+               baseline: str | None = None, rv=None) -> Path:
+    """THE folder of one cohort product: ``cohort_base / kind / (name + table_suffix)``; ``kind`` in `COHORT_KINDS`,
+    ``name`` = "prepost" / "jaw_lateral" / "robustness" / ... Writers and readers both call this, so they meet and one
+    gate's tables are never read as another's."""
+    if kind not in COHORT_KINDS:
+        raise ValueError(f"kind must be one of {COHORT_KINDS}, not {kind!r}")
+    return cohort_base(run, rv) / kind / f"{name}{table_suffix(gate, baseline)}"
+
+
+def trials_text(gate: str | None = None) -> str:
+    """The "Trials:" wording of the standard Data: block: `trial_classes.KIN_TRIALS_TEXT` (working / legacy) or the
+    ungated control."""
+    from wfield_local import trial_classes as tc
+    g = gate or cohort_gate()
+    return "ALL trials (no gate -- control)" if g == "alltrials" else tc.KIN_TRIALS_TEXT[g]
+
+
+def data_line(gate: str | None = None) -> str:
+    """The standard "Data:" provenance line (FIGURE_PROVENANCE_20261106 section 4) of the cam4 cohort tables / figures
+    (data_line.txt beside them; the "Trials:" part also goes into every figure title)."""
+    g = gate or cohort_gate()
+    pre = ("all curated pre sessions (June + August)" if BASELINE == "all"
+           else f"August pre-stroke sessions only (>= {LATE_PRE_FROM}; June excluded)")
+    return ("Data: Window: post-cue = cue + 70 ms .. DAQ trial stop (pre-cue = strobe .. cue; ITI). Licks: cam4 LP v36 "
+            "lick events; trials classed from DAQ spout contact + video licks (cam4 LP + cam1). "
+            f"Trials: {trials_text(g)}. Pre: {pre}. Sessions: curated, PS92-PS95, with a cam4 v36 session folder"
+            + (" and camera classes" if g == "working" else "") + ". Signal: cam4 2-D tongue / jaw (px).")
+
+
 _apply_config()
 
 
@@ -1973,7 +2069,9 @@ def main(argv=None) -> int:
     ap.add_argument("--run", default=RUN)
     ap.add_argument("--jobs", type=int, default=None)
     ap.add_argument("--all-trials", action="store_true",
-                    help="control: no engagement gate; writes tables/prepost_alltrials, figures/prepost_alltrials")
+                    help="control: no trial gate; writes tables/prepost_alltrials, figures/prepost_alltrials. The gate "
+                         "otherwise = the camera working period (default; prepost_working) or, with "
+                         "WFIELD_KIN_GATE=legacy, the pre-11-06 behaviour engaged gate (prepost_legacygate)")
     ap.add_argument("--baseline", choices=("all", "late"), default="late",
                     help="pre-stroke baseline: all curated pre sessions, or only those >= the cohort's baseline_pre_from (August); "
                          "default 'late' (August-only, PRIMARY) writes the plain folders; 'all' (June-including "
@@ -1993,11 +2091,13 @@ def main(argv=None) -> int:
         os.environ["OROFACIAL_ALL_TRIALS"] = "1"
         ENGAGED_ONLY = False
     rv = PathResolver()
-    base = oo.root(rv) / a.run / "cohort"
-    sfx = ("" if ENGAGED_ONLY else "_alltrials") + ("_allpre" if BASELINE == "all" else "")
+    # routed + gate-named folders (A27): cohort_base / {tables,figures} / prepost<table_suffix>
+    base = cohort_base(a.run, rv)
+    sfx = table_suffix()
     if a.replot_contra:
         return replot_contra(a.run, sfx)
-    tables, figs = base / "tables" / f"prepost{sfx}", base / "figures" / f"prepost{sfx}"
+    tables, figs = cohort_dir("tables", run=a.run, rv=rv), cohort_dir("figures", run=a.run, rv=rv)
+    print(f"cohort gate: {cohort_gate()} -- {trials_text()}; tables -> {tables}", flush=True)
     writeguard.assert_writable(base)
     tables.mkdir(parents=True, exist_ok=True)
     figs.mkdir(parents=True, exist_ok=True)
@@ -2035,13 +2135,15 @@ def main(argv=None) -> int:
     if any(v != "L" for v in lat.values()):
         print("WARNING: an animal has a non-left lesion -- lick-aligned angle / lateral traces are in image coordinates "
               "(+ = image right = L) and their '+ = ipsi' labels are wrong for it; sign-flip them before using")
-    gate_txt = (("ENGAGED trials only (behaviour pipeline's reference-position gate)" if ENGAGED_ONLY else
-                 "ALL trials (no engagement gate -- control)")
+    gate_txt = (f"Trials: {trials_text()}"
                 + (f" -- baseline: LATE pre only (>= {LATE_PRE_FROM})" if BASELINE == "late" else
                    " -- baseline: all curated pre"))
+    (tables / "data_line.txt").write_text(data_line() + chr(10), encoding="utf-8")
+    (figs / "data_line.txt").write_text(data_line() + chr(10), encoding="utf-8")
     if ENGAGED_ONLY and "engagement_gate" in S:
-        print(f"engagement gate: {int(S.n_trials_used.sum())} of {int(S.n_trials_all.sum())} trials kept")
-        for _, r_ in S[S.engagement_gate != "reference"].iterrows():
+        print(f"trial gate ({cohort_gate()}): {int(S.n_trials_used.sum())} of {int(S.n_trials_all.sum())} trials kept")
+        usual = "working (camera working period)" if cohort_gate() == "working" else "reference"
+        for _, r_ in S[S.engagement_gate != usual].iterrows():
             print(f"  {r_.label}: {r_.engagement_gate}")
     t = f"Orofacial kinematics, pre vs post stroke -- {a.run} -- {gate_txt} -- sessions: {animals}"
     fig_epochs(A, D, figs / "epochs.png", t)
@@ -2151,6 +2253,7 @@ def main(argv=None) -> int:
     for wgt, suf in (("session", ""), ("animal", "_animalw")):
         _cohort_figs(CTw, PHa, PHN, Pm, base, figs, t, wgt, suf, PH=PH, stats=ST)
     (tables / "provenance.json").write_text(json.dumps({"run": a.run, "n_sessions": int(len(S)),
+                                                        "gate": cohort_gate(), "data_line": data_line(),
                                                         "code_commit": oo.code_commit(),
                                                         "sessions": S.label.tolist()}, indent=1), encoding="utf-8")
     print(f"\ntables -> {tables}\nfigures -> {figs}")
@@ -2541,10 +2644,9 @@ def replot_contra(run: str = RUN, sfx: str = "") -> int:
     accuracy`; tests replayed by `contra_stats`). Called by `main` after every cohort run (the default since 11-03)."""
     global _RELABEL, _CAMERA
     from wfield_local import config
-    from wfield_local import orofacial_outputs as oo
     from wfield_local import writeguard
     from wfield_local.paths import PathResolver
-    base = oo.root(PathResolver()) / run / "cohort"
+    base = cohort_base(run, PathResolver())
     tables, figs = base / "tables" / f"prepost{sfx}", base / "figures" / f"prepost{sfx}"
     writeguard.assert_writable(figs)
     lat = {a: str((v or {}).get("stroke_laterality", "L")) for a, v in config.animals().items()}
@@ -2554,13 +2656,12 @@ def replot_contra(run: str = RUN, sfx: str = "") -> int:
     Pm_ipsi = Pm
     Pm, PH, LS, CT = to_contra(Pm, lat), to_contra(PH, lat), to_contra(LS, lat), to_contra(CT, lat, long_var="var")
     STc = contra_stats(Pm_ipsi, Pm, tables)
-    jaw_csv = base / "tables" / (("jaw_lateral" if "alltrials" not in sfx else "jaw_lateral_alltrials")
-                                 + ("_allpre" if "allpre" in sfx else "")) / "sessions.csv"
+    jaw_csv = base / "tables" / f"jaw_lateral{sfx}" / "sessions.csv"         # the same gate + baseline (A27)
     jaw = baseline_filter(pd.read_csv(jaw_csv, dtype={"date": str})) if jaw_csv.exists() else None
     PHa = PH[PH.set == "postcue"]
     CTw = CT.pivot_table(index=["animal", "date", "epoch", "pos", "t_ms"], columns="var", values="value").reset_index()
-    gate = (("ENGAGED trials only (behaviour pipeline's reference-position gate)" if "alltrials" not in sfx else
-             "ALL trials (no engagement gate -- control)")
+    g_ = next((g for g, x in COHORT_GATE_SFX.items() if sfx.startswith(x)), None)
+    gate = ((f"Trials: {trials_text(g_)}" if g_ else f"tables prepost{sfx}")
             + (" -- baseline: all curated pre" if "allpre" in sfx else f" -- baseline: LATE pre only (>= {LATE_PRE_FROM})"))
     animals = ", ".join(f"{x} {int((S.animal == x).sum())}" for x in sorted(S.animal.unique()))
     t = f"Orofacial kinematics, pre vs post stroke -- {run} -- {gate} -- sessions: {animals}"
@@ -2698,8 +2799,7 @@ def cohort_stats(Pm: pd.DataFrame, base: Path, tables: Path) -> pd.DataFrame:
     plain-language RESULTS.md of the significant cells."""
     ms_ = list(dict.fromkeys([*COHORT_SCALARS, *(m for g in POS_GROUPS.values() for m in g)]))
     ST = session_change_tests(Pm, ms_)          # every metric drawn in a cohort figure gets its own test
-    jaw_csv = base / "tables" / (("jaw_lateral" if ENGAGED_ONLY else "jaw_lateral_alltrials")
-                                 + ("_allpre" if BASELINE == "all" else "")) / "sessions.csv"
+    jaw_csv = base / "tables" / f"jaw_lateral{table_suffix()}" / "sessions.csv"     # same gate + baseline (A27)
     if jaw_csv.exists():
         J = baseline_filter(pd.read_csv(jaw_csv, dtype={"date": str})).assign(pos="far_pair")
         ST = pd.concat([ST, session_change_tests(J, ["lr_wide_far_dir", "angle_far_dir"])], ignore_index=True)
@@ -2812,8 +2912,7 @@ def _cohort_figs(CTw, PHa, PHN, Pm, base: Path, figs: Path, t: str, wgt: str, su
             fig_cohort_delta_paths(PHa, figs / "cohort_jaw_trajectory_xy_delta.png", t, part="jaw")
             fig_cohort_delta_paths(PHa, figs / "cohort_jaw_phase_portrait_delta.png", t, portrait=True, part="jaw")
             fig_animal_paths(PHa, Pm, figs / "cohort_jaw_trajectory_xy_by_animal.png", t, part="jaw")
-    jaw_csv = base / "tables" / (("jaw_lateral" if ENGAGED_ONLY else "jaw_lateral_alltrials")
-                                 + ("_allpre" if BASELINE == "all" else "")) / "sessions.csv"
+    jaw_csv = base / "tables" / f"jaw_lateral{table_suffix()}" / "sessions.csv"     # same gate + baseline (A27)
     jaw = baseline_filter(pd.read_csv(jaw_csv, dtype={"date": str})) if jaw_csv.exists() else None
     fig_cohort_scalars(Pm, figs / f"cohort_metrics_minus_pre{suf}.png",
                        t + "\nCOHORT, change vs pre: per-position lick metrics", jaw, wgt,
