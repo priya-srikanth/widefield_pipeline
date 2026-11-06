@@ -20,6 +20,7 @@ Usage: python scripts/iti_where_decoder.py [--plot-only | --z]   (--plot-only re
 lick_where_decoder_z.png + zscore_check/where_decoder_tests_z.csv from the z-scored run of iti_zscore_check.py)
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import sys
 from pathlib import Path
@@ -340,7 +341,7 @@ def plot(R: pd.DataFrame, T: pd.DataFrame, tag: str = "") -> None:
                      "Sagittal = sqrt(forward^2 + down^2); angle = atan2(lateral, sagittal).", fontsize=11)
         fig.tight_layout(rect=(0, 0, 1, 0.88))
         fig.subplots_adjust(top=0.82 if tag else 0.84)      # tight_layout left a large gap under the 5-line suptitle
-        fig.savefig((il.OUT_W if il.ITI_SUBSET else il.OUT) / "figures" / il.tagged(f"lick_where_decoder{tag}.png" if src == "areas"
+        save_png_svg(fig, (il.OUT_W if il.ITI_SUBSET else il.OUT) / "figures" / il.tagged(f"lick_where_decoder{tag}.png" if src == "areas"
                                                    else f"lick_where_decoder_{src}{tag}.png"), dpi=105)
         plt.close(fig)
     if tag:
@@ -358,7 +359,7 @@ def plot(R: pd.DataFrame, T: pd.DataFrame, tag: str = "") -> None:
                  "licks).\nDots = sessions, r / animal's pre; black = mean +- SEM; * = nested-bootstrap change from pre "
                  "excluding 0. Other targets per basis: where_decoder_tests.csv.", fontsize=11)
     fig.tight_layout(rect=(0, 0, 1, 0.9))
-    fig.savefig(il.OUT / "figures" / il.tagged("lick_where_decoder_bases.png"), dpi=105)
+    save_png_svg(fig, il.OUT / "figures" / il.tagged("lick_where_decoder_bases.png"), dpi=105)
     plt.close(fig)
 
 

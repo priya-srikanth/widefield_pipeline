@@ -40,6 +40,7 @@ Production table (rebuild 11-04): rebuild_20261103/.../qc/sel-camera-cue_stop-en
 stopA2jexrt3500c70/trial_attempts.csv. Write to its own ``--out`` folder.
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import argparse
 from pathlib import Path
@@ -261,7 +262,7 @@ def fig_epochs(S: pd.DataFrame, R: pd.DataFrame, path: Path) -> None:
                  fontsize=9.5)
     sig_marks.reserve_headroom(fig)
     fig.tight_layout(rect=(0, 0.04, 1, 0.9))
-    fig.savefig(path, dpi=100)
+    save_png_svg(fig, path, dpi=100)
     plt.close(fig)
 
 
@@ -313,7 +314,7 @@ def fig_days(S: pd.DataFrame, path: Path) -> pd.DataFrame:
                  "step = day-1 change vs pre,\nrecovery = change per e-fold of days; q = BH over the 6 spouts per row",
                  fontsize=9.5)
     fig.tight_layout(rect=(0, 0.04, 1, 0.9))
-    fig.savefig(path, dpi=100)
+    save_png_svg(fig, path, dpi=100)
     plt.close(fig)
     return pd.concat(out, ignore_index=True)
 
@@ -367,7 +368,7 @@ def fig_traces(Tr: pd.DataFrame, measure: str, ylab: str, path: Path) -> None:
                  "August; trials = " + denom() + ";\ncorner = animals / sessions / trials per epoch (< 2 animals: not drawn); grey = before the cue. Rows: jaw moves without a "
                  "lick (cam1-corrected) | licked but never touched the spout | touched the spout", fontsize=9.5)
     fig.tight_layout(rect=(0, 0.04, 1, 0.92))
-    fig.savefig(path, dpi=100)
+    save_png_svg(fig, path, dpi=100)
     plt.close(fig)
 
 

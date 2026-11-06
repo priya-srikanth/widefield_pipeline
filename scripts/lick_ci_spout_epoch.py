@@ -30,6 +30,7 @@ spout: level and change vs pre), ci_spout_epoch_tests.csv (pooled change + 95% C
 figures/lick_ci_spout_epoch.png and figures/lick_ci_spout_epoch_farcontra.png. --plot-only redraws from the CSVs.
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import sys
 import textwrap
@@ -196,7 +197,7 @@ def plot() -> None:
              "ITI: spout = previous trial's.")
     fig.suptitle(textwrap.fill(title, 150), fontsize=9.5)
     fig.tight_layout(rect=(0, 0.03, 1, 0.94))
-    fig.savefig(OUT / "figures" / "lick_ci_spout_epoch.png", dpi=100)
+    save_png_svg(fig, OUT / "figures" / "lick_ci_spout_epoch.png", dpi=100)
     plt.close(fig)
 
     fig, axs = plt.subplots(3, 2, figsize=(11, 10.5), sharex=True)
@@ -231,7 +232,7 @@ def plot() -> None:
              "(each animal's pre mean at the same spout). Thin lines = animals; thick = pooled paired nested bootstrap.")
     fig.suptitle(textwrap.fill(title, 120), fontsize=9.5)
     fig.tight_layout(rect=(0, 0.03, 1, 0.94))
-    fig.savefig(OUT / "figures" / "lick_ci_spout_epoch_farcontra.png", dpi=100)
+    save_png_svg(fig, OUT / "figures" / "lick_ci_spout_epoch_farcontra.png", dpi=100)
     plt.close(fig)
 
 

@@ -41,6 +41,7 @@ curves_farcontra_sessions.csv / curves_farcontra_tests.csv (resid by post-cue li
 Usage: python scripts/lick_enlv_curves.py [--plot-only [--all-only]]
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import sys
 import time
@@ -444,7 +445,7 @@ def fig_curves(D: dict, ax_name: str) -> None:
                  "animals; rows acute / subacute / chronic). Top row = ITI reader for ITI and ENLv licks (cued panel: cued "
                  "reader, as Fig 12.2); bottom = ENLv reader. n = 4 mice, PROVISIONAL", fontsize=9)
     fig.tight_layout(rect=(0, 0, 1, 0.9))
-    fig.savefig(FIG / f"{STEM}{'' if ax_name == 'lat' else '_angle'}.png", dpi=100)
+    save_png_svg(fig, FIG / f"{STEM}{'' if ax_name == 'lat' else '_angle'}.png", dpi=100)
     plt.close(fig)
 
 
@@ -535,7 +536,7 @@ def fig_gain(D: dict) -> None:
                  "nested bootstrap, * = excludes 0, k/n animals.\nResidual columns: if gain + offset describe the change, "
                  "the solid line is flat at 0 across the range (both ends). n = 4 mice, PROVISIONAL", fontsize=9.5)
     fig.tight_layout(rect=(0, 0, 1, 0.955))
-    fig.savefig(FIG / f"{STEM}_gain.png", dpi=100)
+    save_png_svg(fig, FIG / f"{STEM}_gain.png", dpi=100)
     plt.close(fig)
 
 
@@ -642,7 +643,7 @@ def fig_all(D: dict) -> None:
                  "arrival, windows ending before the cue. Bottom: per session OLS of decoded on landing over the range "
                  "SHARED by pre and that epoch (2.5-97.5 % of each), slope = gain, value at the range centre = offset. "
                  "n = 4 mice, PROVISIONAL", fontsize=9.5, y=0.995)
-    fig.savefig(FIG / "lick_like_for_like_all.png", dpi=100)
+    save_png_svg(fig, FIG / "lick_like_for_like_all.png", dpi=100)
     plt.close(fig)
 
 

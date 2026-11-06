@@ -47,6 +47,7 @@ Outputs (<OUT_W>): interhemi_sessions.csv.gz, interhemi_animal.csv, interhemi_te
 Usage: python scripts/lick_interhemispheric.py [--jobs 4] [--extract-rest] [--summarise] [--plot-only]
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import argparse
 import pickle
@@ -526,7 +527,7 @@ def plot_all() -> None:
                        "removed per session; Fisher z); change vs August pre, paired nested bootstrap 95% CI, * excludes 0; "
                        "bottom row = the same 1-s window on lick sets and on docked quiet rest (one pseudo-event per rest "
                        "period)", 160), fontsize=9)
-    fig.savefig(FIGS / "lick_interhemi_noisecorr.png", dpi=130)
+    save_png_svg(fig, FIGS / "lick_interhemi_noisecorr.png", dpi=130)
     plt.close(fig)
     # 2 lead measures (lick sets + rest + lick-rest), raw and deconvolved
     for tau in TAUS:
@@ -539,7 +540,7 @@ def plot_all() -> None:
                    frameon=False, title="change vs pre (* = CI excludes 0)", title_fontsize=9)
         fig.suptitle(_wrap(f"Within-event coupling and lead, tau = {tau} s ({'raw' if not tau else 'deconvolved s = x + tau dx/dt'}); "
                            "change vs August pre; GCaMP6s: lags < 0.1-0.2 s are not neural timing", 160), fontsize=9)
-        fig.savefig(FIGS / f"lick_interhemi_lead_tau{tau:.1f}.png", dpi=130)
+        save_png_svg(fig, FIGS / f"lick_interhemi_lead_tau{tau:.1f}.png", dpi=130)
         plt.close(fig)
     # 3 lick-specific (lick - rest)
     fig, axs = plt.subplots(3, 4, figsize=(15, 10.5), layout="constrained")
@@ -551,7 +552,7 @@ def plot_all() -> None:
                title="change vs pre (* = CI excludes 0)", title_fontsize=9)
     fig.suptitle(_wrap("LICK-SPECIFIC change: per session (lick metric - docked-rest metric, both on the same 1-s window "
                        "code), change vs pre", 150), fontsize=9)
-    fig.savefig(FIGS / "lick_interhemi_lickspecific.png", dpi=130)
+    save_png_svg(fig, FIGS / "lick_interhemi_lickspecific.png", dpi=130)
     plt.close(fig)
     # 4 per-animal trajectories for the orofacial pool
     ms = [("nc_post", 0.0, None), ("nc_win", 0.0, "w1"), ("cc0", 0.0, "w1"), ("asym", 0.0, None), ("asym", 0.6, None),
@@ -581,7 +582,7 @@ def plot_all() -> None:
                    frameon=False)
     fig.suptitle(_wrap("Orofacial pool (ALM+tjM1+SSp-m+SSp-n+SSs) contra vs ipsi: per-animal epoch means (session means; "
                        "noise corr in Fisher z)", 150), fontsize=9)
-    fig.savefig(FIGS / "lick_interhemi_oro_animals.png", dpi=120)
+    save_png_svg(fig, FIGS / "lick_interhemi_oro_animals.png", dpi=120)
     plt.close(fig)
     # 5 cross-correlation curves (oro, pooled over sessions per epoch, animal-weighted)
     f = FIGD / "lick_interhemi_xcorr.pkl"
@@ -608,7 +609,7 @@ def plot_all() -> None:
                    frameon=False)
         fig.suptitle(_wrap("Orofacial pool: within-event cross-correlation of residual traces corr(c(t), i(t+L)), "
                            "mean over animals of session means", 150), fontsize=9)
-        fig.savefig(FIGS / "lick_interhemi_xcorr.png", dpi=130)
+        save_png_svg(fig, FIGS / "lick_interhemi_xcorr.png", dpi=130)
         plt.close(fig)
     # 6 recovery
     Rc = D["Rc"]
@@ -634,7 +635,7 @@ def plot_all() -> None:
     fig.suptitle(_wrap("Orofacial pool coupling metrics vs recovery, within animal (post sessions, log(day) partialled): "
                        "aim = far-contra cued aim (deg, - = ipsilesional); share = cued matched-error within-spout balance",
                        150), fontsize=9)
-    fig.savefig(FIGS / "lick_interhemi_recovery.png", dpi=130)
+    save_png_svg(fig, FIGS / "lick_interhemi_recovery.png", dpi=130)
     plt.close(fig)
     _recovery_simple(plt, qs)
 
@@ -665,7 +666,7 @@ def _recovery_simple(plt, qs: dict) -> None:
                        "(post sessions, log(day) partialled). Cell = pooled within-animal r; * = permutation p < 0.05 "
                        "(uncorrected); k/n = animals with the same sign. aim = far-contra cued aim; share = cued "
                        "matched-error within-spout balance. Blank = metric not defined for that set.", 130), fontsize=9)
-    fig.savefig(FIGS / "lick_interhemi_recovery_simple.png", dpi=130)
+    save_png_svg(fig, FIGS / "lick_interhemi_recovery_simple.png", dpi=130)
     plt.close(fig)
 
 
@@ -754,7 +755,7 @@ def plot_simple() -> None:
                        "state-wide increase, not a lick- or orofacial-specific one. Orofacial pre level z = "
                        f"{pre:.2f} (r = {np.tanh(pre):.2f}). Grey band = control areas. Right: the orofacial coupling "
                        "does not track behavioural recovery. PROVISIONAL (n = 4)", 200), fontsize=9.5)
-    fig.savefig(FIGS / "lick_interhemi_simple.png", dpi=120)
+    save_png_svg(fig, FIGS / "lick_interhemi_simple.png", dpi=120)
     plt.close(fig)
 
 

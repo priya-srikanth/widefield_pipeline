@@ -7,6 +7,7 @@ Figure data: figdata/lick_cued_spout_animal_panels.pkl (per animal x spout x epo
 --plot-only redraws from it alone.
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import pickle
 import sys
@@ -68,7 +69,7 @@ def plot(D: dict) -> None:
                  "pixel "
                  "correlation with the animal's own pre map. ipsi (lesion) = image LEFT. PROVISIONAL", fontsize=9)
     fig.tight_layout(rect=(0, 0, 1, 1 - 0.55 / fig.get_size_inches()[1]))
-    fig.savefig(il.OUT / "figures" / FIG, dpi=90)
+    save_png_svg(fig, il.OUT / "figures" / FIG, dpi=90)
     plt.close(fig)
 
 

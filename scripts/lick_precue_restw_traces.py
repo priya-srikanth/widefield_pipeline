@@ -24,6 +24,7 @@ cache precue_restnl_traces/, every output file name with the suffix _restnl.
 Usage: python scripts/lick_precue_restw_traces.py [--jobs N] [--plot-only] [--rest-variant restnl]
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import sys
 from pathlib import Path
@@ -278,7 +279,7 @@ def draw(stem: str) -> None:
                  f"median first-lick latency per epoch. Rows = areas (ALM / tjM1 split from MOs / MOp, ROI v8; last four "
                  f"= references; VISp has a contralesional ROI only). n: {ns}.", 150), fontsize=9)
     (il.OUT_W / "figures").mkdir(parents=True, exist_ok=True)
-    fig.savefig(il.OUT_W / "figures" / f"{stem}.png", dpi=110, bbox_inches="tight")
+    save_png_svg(fig, il.OUT_W / "figures" / f"{stem}.png", dpi=110, bbox_inches="tight")
     plt.close(fig)
 
 

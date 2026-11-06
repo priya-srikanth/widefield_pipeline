@@ -50,6 +50,7 @@ figures/lick_enl_offset_explore.png.
 Usage: python scripts/lick_enl_offset_explore.py [--history] [--offset] [--nshuf 200] [--jobs 8] [--plot-only]
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import os
 import sys
@@ -644,7 +645,7 @@ def figure_a(R: pd.DataFrame, A: pd.DataFrame) -> None:
     fig.legend(list(hd.values()), list(hd.keys()), loc="lower center", ncol=len(hd), fontsize=9, frameon=False)
     fig.tight_layout(rect=(0, 0.06, 1, 1))
     FIG.mkdir(parents=True, exist_ok=True)
-    fig.savefig(FIG / "lick_enl_history_test.png", dpi=100)
+    save_png_svg(fig, FIG / "lick_enl_history_test.png", dpi=100)
     plt.close(fig)
 
 
@@ -773,7 +774,7 @@ def figure_b(SS, V, trk, L, SP, PP, G7=None) -> None:
                loc="lower center", ncol=len(hd), fontsize=9, frameon=False)
     fig.tight_layout(rect=(0, 0.035, 1, 1), h_pad=3.0)
     FIG.mkdir(parents=True, exist_ok=True)
-    fig.savefig(FIG / "lick_enl_offset_explore.png", dpi=100)
+    save_png_svg(fig, FIG / "lick_enl_offset_explore.png", dpi=100)
     plt.close(fig)
 
 

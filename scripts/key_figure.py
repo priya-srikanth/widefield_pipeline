@@ -18,6 +18,7 @@ Outputs <E>/iti_licks/figures/key_figure.png; figdata/key_figure.pkl (--plot-onl
 Usage: python scripts/key_figure.py [--plot-only]
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import sys
 from pathlib import Path
@@ -154,7 +155,7 @@ def plot(F: dict) -> None:
                  "land,\neven against pre licks of the same previous-trial target. Decoders: z-scored Allen areas with the ALM / tjM1 split, lags 0..0.2 s; "
                  "pre = August pre sessions (leave-one-session-out). PROVISIONAL", fontsize=10)
     fig.tight_layout(rect=(0, 0, 1, 0.86))
-    fig.savefig(il.OUT_W / "figures" / "key_figure.png", dpi=105)
+    save_png_svg(fig, il.OUT_W / "figures" / "key_figure.png", dpi=105)
     plt.close(fig)
 
 

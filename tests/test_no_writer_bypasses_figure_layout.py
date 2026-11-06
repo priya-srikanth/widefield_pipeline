@@ -42,7 +42,10 @@ SKIP_PARTS = {"archive"}
 #:   is no figure anywhere for them to be a sidecar of.
 EXEMPT_SITES = {"wfield_local/dlc_calibration.py": "writes into the calibration recording dir",
                 "wfield_local/o2_lp_runner.py": "writes pose predictions (<video stem>_<scorer>.csv/.npz, _done.json) "
-                                                "into an O2 run's out/ dir, not a figure dir"}
+                                                "into an O2 run's out/ dir, not a figure dir",
+                "scripts/grant_figures_k08_2026.py": "standalone K08 grant panel renderer (75549325, grant only, not "
+                                                     "pipeline): its .svg is the vector deliverable beside the .png, "
+                                                     "not a data sidecar any reader looks up"}
 
 #: Lines that legitimately name the flat path.
 def _exempt(line: str) -> bool:

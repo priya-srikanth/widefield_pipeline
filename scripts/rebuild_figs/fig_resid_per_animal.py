@@ -9,6 +9,7 @@ PROVENANCE: recreated 2026-11-04 (RECONCILIATION section 7) from scratchpad_scri
     PYTHONPATH=<wf_rebuild> python scripts/rebuild_figs/fig_resid_per_animal.py [--encoder-tag gate-attempted_v7g3_t3d_basis] [--out DIR] [--plot-only]
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 from wfield_local.frozen_encoder import design_tag as _design_tag  # frame tag of the FROZEN_LICKS_ALL design (8.51)
 
 import sys
@@ -88,7 +89,7 @@ def draw(fd: dict, OUT: Path) -> None:
         fig.suptitle(f"Frozen-encoder RESIDUAL change per animal (epoch - all LOSO pre), far contra, {al} window, each animal "
                      f"normalised by its own pre-stroke scale, shared colour scale.\nContour = within-animal test, sessions as "
                      f"unit (UNCALIBRATED: see random-split null). Image left = ipsilesional.", fontsize=8)
-        fig.savefig(OUT / f"fig8_residual_per_animal_{al}.png", dpi=120, bbox_inches="tight")
+        save_png_svg(fig, OUT / f"fig8_residual_per_animal_{al}.png", dpi=120, bbox_inches="tight")
         plt.close(fig)
 
 

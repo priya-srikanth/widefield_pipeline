@@ -15,6 +15,7 @@ hemispheres. Image left = ipsilesional.
 Outputs <OUT_W>/area_unique_{sessions,summary}.csv; figures lick_area_unique_maps_{iti,cued}.png (figdata + --plot-only).
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import sys
 from pathlib import Path
@@ -170,7 +171,7 @@ def plot(F: dict) -> None:
                      "decoder without that area (offset: how much of the offset needs it). Each area's value on both "
                      "hemispheres; ALM / tjM1 split; image left = ipsilesional. Mean of animals. PROVISIONAL", fontsize=10)
         fig.tight_layout(rect=(0, 0, 1, 0.92))
-        fig.savefig(il.OUT_W / "figures" / f"lick_area_unique_maps_{'iti' if st == 'iti' else 'cued'}.png", dpi=95)
+        save_png_svg(fig, il.OUT_W / "figures" / f"lick_area_unique_maps_{'iti' if st == 'iti' else 'cued'}.png", dpi=95)
         plt.close(fig)
 
 

@@ -20,6 +20,7 @@ Figure data <E>/iti_licks/figdata/lick_cued_overcorrection[_angle].pkl; --plot-o
 Usage: python scripts/iti_overcorrection.py [--angle] [--plot-only]
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import sys
 from pathlib import Path
@@ -128,7 +129,7 @@ def plot(S: pd.DataFrame, T: pd.DataFrame, angle: bool = False) -> None:
                  "\nGrey = animals, black = mean of animals, diamond = pre + change with 95% paired nested bootstrap CI "
                  "(* = excludes 0, bold), k/n = animals changing that way. PROVISIONAL", fontsize=9)
     fig.tight_layout(rect=(0, 0, 1, 1 - 0.75 / fig.get_size_inches()[1]))
-    fig.savefig(il.OUT / "figures" / f"lick_cued_overcorrection{'_angle' if angle else ''}.png", dpi=100)
+    save_png_svg(fig, il.OUT / "figures" / f"lick_cued_overcorrection{'_angle' if angle else ''}.png", dpi=100)
     plt.close(fig)
 
 

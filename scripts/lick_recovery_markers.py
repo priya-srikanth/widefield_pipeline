@@ -32,6 +32,7 @@ recmark_cv_animals.csv; figures lick_recovery_markers_cv.png, lick_recovery_mark
 lick_recovery_markers_areas.png (figdata + --plot-only).
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import sys
 from pathlib import Path
@@ -436,7 +437,7 @@ def plot(F: dict) -> None:
                  "response (0-1 s, / animal's pre - 1). OLS aim ~ measure; pooled R². Shuffle = measure permuted "
                  "across each animal's sessions (2000x). PROVISIONAL", fontsize=10)
     fig.tight_layout(rect=(0, 0, 1, 0.92))
-    fig.savefig(fig_dir / "lick_recovery_markers_cv.png", dpi=95)
+    save_png_svg(fig, fig_dir / "lick_recovery_markers_cv.png", dpi=95)
     plt.close(fig)
     # 2) scatter: size vs aim and balance vs aim, with the pre cloud
     fig, axs = plt.subplots(4, 3, figsize=(18, 20.5))
@@ -476,7 +477,7 @@ def plot(F: dict) -> None:
                  "leave-one-pre-session-out: the noise floor; not in the fits). Mixed models on post-stroke sessions, random "
                  "intercept per animal, log(day). PROVISIONAL", fontsize=10)
     fig.tight_layout(rect=(0, 0.05, 1, 0.94))
-    fig.savefig(fig_dir / "lick_recovery_markers_size.png", dpi=95)
+    save_png_svg(fig, fig_dir / "lick_recovery_markers_size.png", dpi=95)
     plt.close(fig)
     # 3) per area: concurrent slope p and LOAO cvR2 for contra / ipsi / size / balance
     fig, axs = plt.subplots(1, 4, figsize=(30, 5.5))
@@ -505,7 +506,7 @@ def plot(F: dict) -> None:
     fig.suptitle("Per area: does each side, both sides together (size) or the difference (balance) estimate recovery in an "
                  "unseen animal? Decoder-window measures at the same lick angle & order. PROVISIONAL", fontsize=10)
     fig.tight_layout(rect=(0, 0, 1, 0.92))
-    fig.savefig(fig_dir / "lick_recovery_markers_areas.png", dpi=95)
+    save_png_svg(fig, fig_dir / "lick_recovery_markers_areas.png", dpi=95)
     plt.close(fig)
     # 4) ITI's own recovery axes (ITI lick sets): LOAO per measure + balance vs axis scatter with the pre cloud
     if "y" not in F["CV"] or not F["CV"].y.isin(YAX).any():
@@ -558,7 +559,7 @@ def plot(F: dict) -> None:
                  "Same measures and cross-validation as the cued figure; grey = pre sessions (not fitted). PROVISIONAL",
                  fontsize=10)
     fig.tight_layout(rect=(0, 0, 1, 0.93))
-    fig.savefig(fig_dir / "lick_recovery_markers_iti_axis.png", dpi=95)
+    save_png_svg(fig, fig_dir / "lick_recovery_markers_iti_axis.png", dpi=95)
     plt.close(fig)
 
 

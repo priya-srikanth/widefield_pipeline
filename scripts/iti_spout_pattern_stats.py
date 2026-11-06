@@ -18,6 +18,7 @@ Figure data: figdata/lick_{cued,iti}_spout_pattern_stats.pkl (test results, stat
 redraws from it alone (no tests). The CSV records the method (column `method`).
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import pickle
 import sys
@@ -202,7 +203,7 @@ def plot(D: dict, levels: bool = False) -> None:
              + "sim = r(session-mean epoch map, pre map), mean of animals. ipsi (lesion) = image LEFT. PROVISIONAL"]
     fig.suptitle("\n".join(textwrap.fill(q, 120) for q in paras), fontsize=9)
     out = fig_name(st)
-    fig.savefig(il.OUT / "figures" / (levels_name(out) if levels else out), dpi=95, bbox_inches="tight")
+    save_png_svg(fig, il.OUT / "figures" / (levels_name(out) if levels else out), dpi=95, bbox_inches="tight")
     plt.close(fig)
 
 

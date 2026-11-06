@@ -29,6 +29,7 @@ Side axes of the 3-D paths are mirrored (+ = mouse right); for the CENTRE spouts
     python -m scripts.kinematics_pooled_figs [--out DIR] [--contra]
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import argparse
 from pathlib import Path
@@ -149,7 +150,7 @@ def fig_angle(out: Path, rng, contra: bool = False, save: bool = True) -> pd.Dat
     reserve_headroom(fig)
     fig.tight_layout(rect=(0, 0.07, 1, 0.94))
     if save:                                      # save=False: replay the draws only (--contra)
-        fig.savefig(out / ("angle_change_pooled_contra.png" if contra else "angle_change_pooled.png"), dpi=130)
+        save_png_svg(fig, out / ("angle_change_pooled_contra.png" if contra else "angle_change_pooled.png"), dpi=130)
     plt.close(fig)
     return P
 
@@ -196,7 +197,7 @@ def fig_3d(out: Path, rng, contra: bool = False) -> pd.DataFrame:
     _legend(fig)
     reserve_headroom(fig)
     fig.tight_layout(rect=(0, 0.03, 1, 0.97))
-    fig.savefig(out / ("pose3d_change_pooled_contra.png" if contra else "pose3d_change_pooled.png"), dpi=120)
+    save_png_svg(fig, out / ("pose3d_change_pooled_contra.png" if contra else "pose3d_change_pooled.png"), dpi=120)
     plt.close(fig)
     return pd.concat(PP, ignore_index=True)
 
@@ -254,7 +255,7 @@ def fig_cue(out: Path, contra: bool = False) -> pd.DataFrame:
                  + ("camera-working-period trials" if sset == "working" else "engaged trials (legacy gate)")
                  + ("; midline angle signed + = CONTRALESIONAL (mouse right)" if contra else ""), fontsize=10)
     fig.tight_layout(rect=(0, 0, 1, 0.95))
-    fig.savefig(out / ("pose3d_cue_pooled_contra.png" if contra else "pose3d_cue_pooled.png"), dpi=130)
+    save_png_svg(fig, out / ("pose3d_cue_pooled_contra.png" if contra else "pose3d_cue_pooled.png"), dpi=130)
     plt.close(fig)
     return R
 
@@ -391,7 +392,7 @@ def fig_paths3d(out: Path, shared: bool = False, contra: bool = False) -> pd.Dat
                     "LEFT as in the face videos (side axis inverted, ends labelled)" if contra else ""),
                  fontsize=9)
     fig.tight_layout(rect=(0, 0, 1, 0.93), w_pad=0.2 if shared else None, h_pad=2.2 if contra else None)
-    fig.savefig(out / (("pose3d_paths_pooled_shared" if shared else "pose3d_paths_pooled")
+    save_png_svg(fig, out / (("pose3d_paths_pooled_shared" if shared else "pose3d_paths_pooled")
                        + ("_contra_cam" if contra else "") + ".png"), dpi=130)   # 11-03: *_contra (mirrored) superseded
     plt.close(fig)
     return R
@@ -469,7 +470,7 @@ def fig_days(out: Path, contra: bool = False) -> pd.DataFrame:
                  + ("; midline error (and the centre spouts' lateral error) signed + = CONTRALESIONAL" if contra else ""),
                  fontsize=10)
     fig.tight_layout(rect=(0, 0.02, 1, 0.97))
-    fig.savefig(out / ("pose3d_days_pooled_contra.png" if contra else "pose3d_days_pooled.png"), dpi=120)
+    save_png_svg(fig, out / ("pose3d_days_pooled_contra.png" if contra else "pose3d_days_pooled.png"), dpi=120)
     plt.close(fig)
     return pd.DataFrame(rows)
 
@@ -591,7 +592,7 @@ def fig_phase(out: Path, contra: bool = False, plot_only: bool = False) -> pd.Da
                  "\nbars = cluster permutation p < .05 vs August-pre sessions (labels permuted within animal; rows: "
                  "acute / subacute / chronic); phase 0.1-0.9, 1-bin display smoothing", fontsize=9)
     fig.tight_layout(rect=(0, 0, 1, 0.92))
-    fig.savefig(out / f"{stem}.png", dpi=130)
+    save_png_svg(fig, out / f"{stem}.png", dpi=130)
     plt.close(fig)
     return M
 

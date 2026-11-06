@@ -76,6 +76,7 @@ terminates the session.
     python -m scripts.rest_migration.quit_prodrome [--animals PS92 ...]
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import argparse
 import csv
@@ -691,7 +692,7 @@ def main(argv=None) -> int:
                   "ONLY. Y axes shared within each row.", fontsize=10)
     fig2.tight_layout(rect=(0, 0, 1, 0.91))
     p2 = out_dir / f"epoch_24_session_quintiles{tag}.png"
-    fig2.savefig(p2, dpi=170)
+    save_png_svg(fig2, p2, dpi=170)
     print(f"\n  wrote {p2}")
 
     # ---- WITHIN-ANIMAL DELTA FROM PRE (Priya, 2026-09-20) --------------------------------------
@@ -856,7 +857,7 @@ def main(argv=None) -> int:
                   "animal's own baseline decline? (own y scale)", fontsize=10)
     fig3.tight_layout(rect=(0, 0, 1, 0.90))
     p3 = out_dir / f"epoch_25_quintiles_delta_from_pre{tag}.png"
-    fig3.savefig(p3, dpi=170)
+    save_png_svg(fig3, p3, dpi=170)
     print(f"\n  wrote {p3}")
 
     # ---- FIGURE --------------------------------------------------------------------------------
@@ -966,7 +967,7 @@ def main(argv=None) -> int:
                  fontsize=10)
     fig.tight_layout(rect=(0, 0, 1, 0.92))
     p = out_dir / f"epoch_23_quit_prodrome{tag}.png"
-    fig.savefig(p, dpi=170)
+    save_png_svg(fig, p, dpi=170)
     print(f"  wrote {p}")
     return 0
 

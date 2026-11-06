@@ -48,6 +48,7 @@ baltarget_compare.csv; figure figures/lick_balance_target_model.png. --plot-only
 --reuse-licks reuses baltarget_licks.csv.gz instead of rebuilding the per-lick table.
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import sys
 from pathlib import Path
@@ -578,7 +579,7 @@ def plot() -> None:
     fig.legend(hd, lb, loc="lower center", ncol=len(lb), fontsize=9, frameon=False)
     fig.tight_layout(rect=(0, 0.035, 1, 0.95))
     (OUT / "figures").mkdir(exist_ok=True)
-    fig.savefig(OUT / "figures" / "lick_balance_target_model.png", dpi=85)
+    save_png_svg(fig, OUT / "figures" / "lick_balance_target_model.png", dpi=85)
     plt.close(fig)
 
 

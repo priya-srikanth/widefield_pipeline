@@ -21,6 +21,7 @@ dist over one cycle, +-76 ms, dot = peak), ``phase_<a>.png`` (midline angle and 
 out) planes, spouts marked).
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import argparse
 from pathlib import Path
@@ -171,9 +172,9 @@ def no_top_spine(fig) -> None:
 
 
 def _save(fig, path) -> None:
-    """Every figure of this script goes out through here: `no_top_spine`, then the PNG."""
+    """Every figure of this script goes out through here: `no_top_spine`, then the PNG + its svg/ twin (`save_png_svg`)."""
     no_top_spine(fig)
-    fig.savefig(path, dpi=120)
+    save_png_svg(fig, path, dpi=120)
 
 
 def _how(kind: str, lset: str = "all", mouth: str = "out") -> str:

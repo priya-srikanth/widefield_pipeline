@@ -32,6 +32,7 @@ was averaged.
     python -m scripts.engagement_by_epoch [--out DIR]
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import argparse
 import collections
@@ -149,7 +150,7 @@ def timecourse(out_dir):
                  "bars", fontsize=12)
     fig.tight_layout(rect=(0, 0, 1, 0.93))
     q = Path(out_dir) / "epoch_1g_engagement_timecourse.png"
-    fig.savefig(q, dpi=150)
+    save_png_svg(fig, q, dpi=150)
     plt.close(fig)
     return q
 

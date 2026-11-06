@@ -9,6 +9,7 @@ PROVENANCE: recreated 2026-11-04 (RECONCILIATION section 7) from scratchpad_scri
     PYTHONPATH=<wf_rebuild> python scripts/rebuild_figs/fig_softmax_stats.py [--out DIR] [--plot-only]
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import json
 import sys
@@ -94,7 +95,7 @@ def draw(fd: dict, OUT: str) -> None:
                  "(animals -> sessions, 4000 draws) excludes 0 after Bonferroni over 36 cells;\nsecond line = animals with the same "
                  "sign as the mean. Softmax width 1.", fontsize=9)
     fig.tight_layout(rect=(0, 0, 1, 0.88))
-    fig.savefig(OUT + "/fig9c_softmax_landing_stats.png", dpi=130)
+    save_png_svg(fig, OUT + "/fig9c_softmax_landing_stats.png", dpi=130)
     print(T[T.significant & T.target.eq("far_contra")].round(2).to_string(index=False))
     print("significant cells per epoch:", T.groupby("epoch").significant.sum().to_dict())
 

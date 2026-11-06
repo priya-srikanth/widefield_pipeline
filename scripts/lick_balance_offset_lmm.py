@@ -18,6 +18,7 @@ activity -> more ipsilesional read-out), so if the balance drives the offset the
 Outputs <OUT_W>/baloff_sessions.csv, baloff_models.csv; figure lick_balance_offset.png (figdata + --plot-only).
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import sys
 from pathlib import Path
@@ -125,7 +126,7 @@ def plot(F: dict) -> None:
                  "anti-conservative);\nwithin-animal slope bold when p < 0.05. Expected sign if the balance drives the "
                  "offset: NEGATIVE (more contralesional activity -> more ipsilesional read-out). PROVISIONAL", fontsize=9.5)
     fig.tight_layout(rect=(0, 0.05, 1, 0.92))
-    fig.savefig(il.OUT_W / "figures" / "lick_balance_offset.png", dpi=100)
+    save_png_svg(fig, il.OUT_W / "figures" / "lick_balance_offset.png", dpi=100)
     plt.close(fig)
 
 

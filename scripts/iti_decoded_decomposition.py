@@ -20,6 +20,7 @@ decomposition_{sessions,tests}.csv, figures/lick_decoded_decomposition.png.
 Usage: python scripts/iti_decoded_decomposition.py
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import sys
 from pathlib import Path
@@ -168,7 +169,7 @@ def plot(S: pd.DataFrame, T: pd.DataFrame) -> None:
                  "landing change the read-out follows.\n95% paired nested bootstrap of the change vs pre, * = CI excludes "
                  "0 (bold), k/n animals. Frozen KEY-row decoder per set. PROVISIONAL", fontsize=9.5)
     fig.tight_layout(rect=(0, 0.05, 1, 0.87))
-    fig.savefig(WOUT / "figures" / f"lick_decoded_decomposition{lo.SRC_TAG}.png", dpi=100)
+    save_png_svg(fig, WOUT / "figures" / f"lick_decoded_decomposition{lo.SRC_TAG}.png", dpi=100)
     plt.close(fig)
 
 

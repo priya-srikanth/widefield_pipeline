@@ -60,6 +60,7 @@ Usage: python scripts/revup_behaviour.py [--jobs 6] [--labels ...]
        python scripts/revup_behaviour.py --plot-only        (redraw from the saved CSVs / npz)
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import argparse
 import pickle
@@ -575,7 +576,7 @@ def plots() -> None:
                  "\ncensored at the next trial's position strobe). Dotted = end of the 3.5-s response window (the spout"
                  " leaves ~0.2 s later). Canonical engaged trials. BEHAVIOUR", fontsize=9)
     fig.tight_layout(rect=(0, bot, 1, top))
-    fig.savefig(FIG / "revup_survival.png", dpi=120)
+    save_png_svg(fig, FIG / "revup_survival.png", dpi=120)
     plt.close(fig)
     # Fig 2: phase shares per animal x epoch, per spout
     # 2 x 3 grid (was 1 x 6 at 3 in per panel: 16 bars per panel, unreadable tick labels)
@@ -611,7 +612,7 @@ def plots() -> None:
                  "there\n / after the spout left (ITI, before the next strobe) / never. Per animal x epoch. BEHAVIOUR",
                  fontsize=10)
     fig.tight_layout(rect=(0, bot, 1, top))
-    fig.savefig(FIG / "revup_phase_shares.png", dpi=120)
+    save_png_svg(fig, FIG / "revup_phase_shares.png", dpi=120)
     plt.close(fig)
     # Fig 2 SIMPLE: only the three NON-window phases (the window share is 1 minus their sum), per spout x epoch:
     # bar = mean of the animals' cell shares (display only), markers = the animals. Same revup_cells.csv numbers.
@@ -643,7 +644,7 @@ def plots() -> None:
                  "(the rest fall in the window; 'after the window, spout still there' is <= 1.1 % in every cell and not drawn). Bar = mean "
                  "of animals, markers = animals. BEHAVIOUR", fontsize=10)
     fig.tight_layout(rect=(0, bot, 1, top))
-    fig.savefig(FIG / "revup_phase_shares_simple.png", dpi=120)
+    save_png_svg(fig, FIG / "revup_phase_shares_simple.png", dpi=120)
     plt.close(fig)
     # Fig 3: decomposition of latency (wait + revup) and rev-up classes, far_contra vs others
     C = T[T.canonical.astype(str).str.lower().eq("true") & np.isfinite(T.lat_ms)].copy()
@@ -707,7 +708,7 @@ def plots() -> None:
                  "z>3) and first movement -> first lick.\nBottom: late trials classed wait / ramp (>= 300 ms "
                  "movement before the lick) / aborted (>= 2 cam1-only openings). n above bars. BEHAVIOUR", fontsize=8)
     fig.tight_layout(rect=(0, bot, 1, top), h_pad=2.0)
-    fig.savefig(FIG / "revup_decomposition.png", dpi=120)
+    save_png_svg(fig, FIG / "revup_decomposition.png", dpi=120)
     plt.close(fig)
     # Fig 4: FR vigour lick-aligned + cue-aligned, far_contra, per animal, pre vs post epochs, late trials of each
     Z = np.load(REV / "revup_fr.npz")
@@ -742,7 +743,7 @@ def plots() -> None:
                  "top cue-aligned (licked trials), bottom aligned to the first lick of slow trials -- a ramp would rise "
                  "well before 0. BEHAVIOUR", fontsize=8)
     fig.tight_layout(rect=(0, 0, 1, top), h_pad=1.0)
-    fig.savefig(FIG / "revup_fr_vigour.png", dpi=120)
+    save_png_svg(fig, FIG / "revup_fr_vigour.png", dpi=120)
     plt.close(fig)
     # Fig 5: recovery tracking
     W = pd.read_csv(REV / "revup_track_sessions.csv")
@@ -764,7 +765,7 @@ def plots() -> None:
     top = _sup(fig, "Fig R5. Does the far-contra delay track recovery?\npost-stroke sessions; aim = far-contra first-cued-lick"
                  " aim vs pre. Within-animal tests in revup_track.csv. BEHAVIOUR", fontsize=8)
     fig.tight_layout(rect=(0, bot, 1, top))
-    fig.savefig(FIG / "revup_recovery.png", dpi=120)
+    save_png_svg(fig, FIG / "revup_recovery.png", dpi=120)
     plt.close(fig)
 
 

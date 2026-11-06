@@ -18,6 +18,7 @@ orofacial cortex (ALM, tjM1, SSp-m, SSp-n) at 0 and +0.2 s.
     set WFIELD_INPUT_CACHE=C:/Users/SabatiniLab/wfield_cache
     python scripts/cohort2_qc/quiet_eta_split.py [--jobs 5] [--summarise]
 """
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 import argparse
 import sys
 from pathlib import Path
@@ -252,7 +253,7 @@ def fig_maps(D, kind, st_post, hset, mv, out_name, title):
     fig.suptitle(title + "\nmean of animal means; DELTA outline = nested bootstrap, max-stat p < 0.05, 8x8-px bins",
                  fontsize=9)
     fig.subplots_adjust(top=0.88)
-    fig.savefig(OUTS / out_name, dpi=110, bbox_inches="tight")
+    save_png_svg(fig, OUTS / out_name, dpi=110, bbox_inches="tight")
     plt.close(fig)
     return sig
 

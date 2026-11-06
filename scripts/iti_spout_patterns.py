@@ -13,6 +13,7 @@ similarity per spout x column + the imaging grid); `--plot-only` redraws from th
 Usage: python scripts/iti_spout_patterns.py [--plot-only]
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import pickle
 import sys
@@ -137,7 +138,7 @@ def plot(D: dict) -> None:
                  "0..0.2 s from the lick peak), / the animal's pre RMS, mean of animals; sim = noise-corrected similarity to "
                  "pre (mean of animals).\nEpoch LEVEL maps in purple-orange; the chronic - pre CHANGE map in red-blue "
                  "(same +-2.5 scale). ipsi (lesion) = image LEFT. Unscaled features. PROVISIONAL", fontsize=9)
-    fig.savefig(il.OUT / "figures" / f"{FIG}.png", dpi=100, bbox_inches="tight")
+    save_png_svg(fig, il.OUT / "figures" / f"{FIG}.png", dpi=100, bbox_inches="tight")
     plt.close(fig)
 
 

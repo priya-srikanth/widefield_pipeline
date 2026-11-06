@@ -12,6 +12,7 @@ TIMING only (one family, the window free): raw difference, baseline-subtracted d
 Lick sets / targets as the sweep. Reads <OUT_W>/balvar_sessions.csv; writes balnest.csv, figure lick_balance_nested.png.
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import sys
 from pathlib import Path
@@ -117,7 +118,7 @@ def main() -> int:
                  "TESTED on the 4th (4 folds, pooled cvR²); bar = null 95% from repeating the whole selection on "
                  "within-animal shuffled sessions. PROVISIONAL", fontsize=10)
     fig.tight_layout(rect=(0, 0, 1, 0.9))
-    fig.savefig(il.OUT_W / "figures" / "lick_balance_nested.png", dpi=95)
+    save_png_svg(fig, il.OUT_W / "figures" / "lick_balance_nested.png", dpi=95)
     plt.close(fig)
     return 0
 

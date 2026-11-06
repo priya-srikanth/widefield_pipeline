@@ -1,3 +1,4 @@
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 import sys
 from pathlib import Path
 import matplotlib
@@ -41,5 +42,5 @@ fig.legend(h, l, loc="upper center", ncol=6, fontsize=9, frameon=False, bbox_to_
 fig.suptitle("Item 1 across epochs: far-contra trials on the frozen pre-stroke decoder by trial type "
              "(classes with >= 5 trials; chance dotted, pre-stroke hits solid)\nnumbers under each axis = trials per class (same colours)", fontsize=10)
 fig.tight_layout(rect=(0, 0, 1, 0.92)); fig.subplots_adjust(hspace=0.75)
-fig.savefig(OUT / "fig2b_attempt_decoder_epochs.png", dpi=140)
+save_png_svg(fig, OUT / "fig2b_attempt_decoder_epochs.png", dpi=140)
 print("ok")

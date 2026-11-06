@@ -30,6 +30,7 @@ absence -- the same rule `enl_decode.underpowered` and `enl_sparsity_figure` fol
     python -m scripts.enl_decode_figure --json <enl_decode out.json> --out <png>
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import argparse
 import json
@@ -216,7 +217,7 @@ def figure(results, out):
         fontsize=10.5)
     out = Path(out)
     out.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out, dpi=160)
+    save_png_svg(fig, out, dpi=160)
     plt.close(fig)
     return out
 

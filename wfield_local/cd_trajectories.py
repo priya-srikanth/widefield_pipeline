@@ -90,6 +90,7 @@ CLI::
     python -m wfield_local.cd_trajectories --align precue cue --out <dir>
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import argparse
 from pathlib import Path
@@ -1757,7 +1758,7 @@ def figure_epochs(res, out):
     fig.suptitle(_suptitle(res, " — EPOCHS OVERLAID"), fontsize=8.5)
     out = Path(out)
     out.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out, dpi=150)
+    save_png_svg(fig, out, dpi=150)
     plt.close(fig)
     return out
 
@@ -1829,7 +1830,7 @@ def figure_cross(res, out):
                  fontsize=8.5)
     out = Path(out)
     out.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out, dpi=150)
+    save_png_svg(fig, out, dpi=150)
     plt.close(fig)
     return out
 

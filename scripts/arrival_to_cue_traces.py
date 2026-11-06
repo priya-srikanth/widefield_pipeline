@@ -32,6 +32,7 @@ gate): every stored trace (trace - RESTW) is shifted by + RESTW - RESTnl per ses
 rest level of scripts/restnl.py; sessions without a RESTnl level are left out; every output name gets the suffix _restnl.
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import sys
 import warnings
@@ -466,7 +467,7 @@ def draw_pooled(stem: str) -> None:
         9, h, lb)
     outer.update(top=top - 0.45 / fig.get_size_inches()[1])   # room for the bold block headers above row 0
     FIGS.mkdir(parents=True, exist_ok=True)
-    fig.savefig(FIGS / f"{stem}{SFX}.png", dpi=110, bbox_inches="tight")
+    save_png_svg(fig, FIGS / f"{stem}{SFX}.png", dpi=110, bbox_inches="tight")
     plt.close(fig)
 
 
@@ -518,7 +519,7 @@ def draw_spout(stem: str) -> None:
         f"'n a/b/c/d' = trials per epoch (pre, acute, subacute, chronic; '(k an)' = only k animals).", 9, h, lb)
     outer.update(top=top - 0.4 / fig.get_size_inches()[1])
     FIGS.mkdir(parents=True, exist_ok=True)
-    fig.savefig(FIGS / f"{stem}{SFX}.png", dpi=100, bbox_inches="tight")
+    save_png_svg(fig, FIGS / f"{stem}{SFX}.png", dpi=100, bbox_inches="tight")
     plt.close(fig)
 
 
@@ -572,7 +573,7 @@ def draw_heat(stem: str) -> None:
     h, lb = axs[0, 0].get_legend_handles_labels()   # one figure legend under the panels (was over PS92 pre data)
     fig.legend(h, lb, fontsize=8, markerscale=4, frameon=False, ncol=3, loc="lower center", bbox_to_anchor=(0.5, 0.0))
     FIGS.mkdir(parents=True, exist_ok=True)
-    fig.savefig(FIGS / f"{stem}{SFX}.png", dpi=110, bbox_inches="tight")
+    save_png_svg(fig, FIGS / f"{stem}{SFX}.png", dpi=110, bbox_inches="tight")
     plt.close(fig)
 
 

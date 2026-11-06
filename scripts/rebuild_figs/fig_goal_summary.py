@@ -33,6 +33,7 @@ REBUILD: re-run attempt_coding.py (decision D7: training rule of the LP-gated st
 OUT: <out>/fig1_binned_contest.png, fig2_attempt_decoder.png, fig3_attempt_amplitude.png
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import sys
 from pathlib import Path
@@ -200,7 +201,7 @@ def draw_fig1(c: pd.DataFrame, png: Path) -> None:
     fig.suptitle("Binned target vs executed contest (O2, final inputs, width 1), cortex: unique contribution of each "
                  "set beyond the other\nlines = epoch means, dots = sessions; " + fig1_reading(c), fontsize=10)
     fig.tight_layout(rect=(0, 0, 1, 0.92))
-    fig.savefig(png, dpi=140)
+    save_png_svg(fig, png, dpi=140)
     plt.close(fig)
 
 
@@ -241,7 +242,7 @@ def draw_fig2(fd: dict, png: Path) -> None:
     fig.suptitle("Item 1: far-contra trials on the frozen pre-stroke decoder, by what the animal did (acute; pre_hit = "
                  "pre-stroke reference)\n" + fig2_reading(fd), fontsize=10)
     fig.tight_layout(rect=(0, 0, 1, 0.88))           # three title lines (the computed reading, A22)
-    fig.savefig(png, dpi=140)
+    save_png_svg(fig, png, dpi=140)
     plt.close(fig)
 
 
@@ -268,7 +269,7 @@ def draw_fig3(h: pd.DataFrame, png: Path) -> None:
     axes[0].legend(fontsize=8, frameon=False)
     fig.suptitle("Item 4: how big is the far-contra response on failed attempts?\n" + fig3_reading(h), fontsize=10)
     fig.tight_layout(rect=(0, 0, 1, 0.88))
-    fig.savefig(png, dpi=140)
+    save_png_svg(fig, png, dpi=140)
     plt.close(fig)
 
 

@@ -21,6 +21,7 @@ Usage: python scripts/frozen_claims.py [--out DIR] [--pix-root DIR]
 Output: <E>/frozen_fr_compare/claims_*.csv, figures/frozen_claims_{contest,peth,trend}.png
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 from wfield_local.frozen_encoder import design_tag as _design_tag  # frame tag of the FROZEN_LICKS_ALL design (8.51)
 
 import argparse
@@ -165,7 +166,7 @@ def main(argv=None) -> int:
                             "re-run (FROZEN_PIX_MUSALL, area-run alphas), placed after their parent." if set(SPLIT) & set(ar_)
                             else ""), fontsize=9.5)
             fig.subplots_adjust(left=0.05, right=0.995, top=1 - 1.45 / (2.7 * len(rows_) + 1.3), bottom=0.05, hspace=0.75)
-            fig.savefig(out / "figures" / f"frozen_claims_{name}_{w}.png", dpi=105)
+            save_png_svg(fig, out / "figures" / f"frozen_claims_{name}_{w}.png", dpi=105)
             plt.close(fig)
     # trend figure: per animal spout unique over days (cortex, lick), both frames + far-contra contact
     fig, axs = plt.subplots(1, 4, figsize=(18, 4.2), sharey=True)
@@ -190,7 +191,7 @@ def main(argv=None) -> int:
     fig.suptitle("NEURAL + LICK: recovery course in the FROZEN frame -- spout unique R2 (target + executed spout part) per session vs "
                  "far-contra contact (green).", fontsize=10)
     fig.subplots_adjust(left=0.05, right=0.96, top=0.85, bottom=0.14, wspace=0.12)
-    fig.savefig(out / "figures" / "frozen_claims_trend.png", dpi=105)
+    save_png_svg(fig, out / "figures" / "frozen_claims_trend.png", dpi=105)
     plt.close(fig)
     print("->", out)
     return 0

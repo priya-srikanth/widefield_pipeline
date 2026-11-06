@@ -33,6 +33,7 @@ bootstrap CI in the epoch colour, stars (LMM epoch vs pre, FDR) in the top band.
     set WFIELD_INPUT_CACHE=C:/Users/SabatiniLab/wfield_cache
     python scripts/cohort2_qc/quiet_spikes_v2.py [--jobs 6] [--summarise] [--k 5]
 """
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 import argparse
 import os
 import sys
@@ -300,7 +301,7 @@ def threshold_figure(R, I, A, ks):
                  "recovery of injected GCaMP6s-shaped events (engaged quiet frames, August sessions). Grey line = the k "
                  f"used ({ks['orofacial']:g}; {KNOTE[0]}).", fontsize=8, wrap=True)
     fig.tight_layout(rect=(0, 0, 1, 0.95))
-    fig.savefig(V2 / "threshold_choice.png", dpi=110)
+    save_png_svg(fig, V2 / "threshold_choice.png", dpi=110)
 
 
 def rates(D, sd, ks):
@@ -379,7 +380,7 @@ def pooled_figure(S, T, ks):
                  "(shape = animal, colour = epoch); filled = pooled mean, nested animal -> session bootstrap 95% CI; "
                  "stars = LMM epoch vs pre, FDR.", fontsize=8, wrap=True)
     fig.tight_layout(rect=(0, 0, 1, 0.93))
-    fig.savefig(V2 / "quiet_events_pooled_epochs.png", dpi=110)
+    save_png_svg(fig, V2 / "quiet_events_pooled_epochs.png", dpi=110)
 
 
 def summarise(k_user=None):

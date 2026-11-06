@@ -18,6 +18,7 @@ coupling_cls_pooled.png (4i3), coupling_cls_pooled_norm.png (4i4).
 Usage: python scripts/coupling_by_class.py
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import sys
 from pathlib import Path
@@ -216,7 +217,7 @@ def main() -> int:
                  "pooled). Numbers = change vs PRE-STROKE HITS,\n95% nested CI (animals > sessions; bold = excludes 0). Pre-stroke "
                  "trials are hits only: failed attempts have no class-matched pre reference", fontsize=9.5)
     fig.tight_layout(rect=(0, 0.07, 1, 0.9))
-    fig.savefig(out / "coupling_cls_animals.png", dpi=125)
+    save_png_svg(fig, out / "coupling_cls_animals.png", dpi=125)
     plt.close(fig)
 
     # FIG B (4i2): per session vs day, by class
@@ -242,7 +243,7 @@ def main() -> int:
     fig.suptitle(f"Trial-by-trial coupling PER SESSION, by trial class (sessions with >= {MIN_SESS} trials of the class; acute "
                  "sessions have ~4 hits each, so acute hits appear only pooled, Fig A / C)", fontsize=9.5)
     fig.tight_layout(rect=(0, 0.07, 1, 0.92))
-    fig.savefig(out / "coupling_cls_sessions.png", dpi=125)
+    save_png_svg(fig, out / "coupling_cls_sessions.png", dpi=125)
     plt.close(fig)
 
     # FIG C (4i3) and D (4i4): pooled per epoch, one dot per session; D normalised to the animal's pre-hit r
@@ -298,7 +299,7 @@ def main() -> int:
                      "pre-stroke hits,\nsession values, 95% nested CI (animals > sessions; bold = excludes 0). Acute hits: too few per "
                      "session to show (see Fig A for their pooled r)", fontsize=9.5)
         fig.tight_layout(rect=(0, 0.07, 1, 0.9))
-        fig.savefig(out / fname, dpi=125)
+        save_png_svg(fig, out / fname, dpi=125)
         plt.close(fig)
     _ = sig_star
     print(f"-> {out}")

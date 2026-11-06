@@ -13,6 +13,7 @@ Usage: python scripts/frozen_spout_maps.py --tag gate-attempted_v6basis [--varia
 Output: <E>/frozen_encoder_<tag>/figures/pre_spout_{maps,contrast}_<variant>_<align>_<animal|mean>.png
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import argparse
 import json
@@ -102,7 +103,7 @@ def main(argv=None) -> int:
         fig.suptitle(f"{an}: PRE-STROKE evoked ({a.align}-aligned) per spout{what}, by model part ({a.variant}, basis "
                      f"targets); dF/F x 1e3, scale +/-{lim:.0f}. ipsi (lesion) = image LEFT; contra spouts = mouse's "
                      "right", fontsize=8)
-        fig.savefig(fd / f"pre_spout_{kind}_{a.variant}_{a.align}_{an}.png", dpi=110, bbox_inches="tight")
+        save_png_svg(fig, fd / f"pre_spout_{kind}_{a.variant}_{a.align}_{an}.png", dpi=110, bbox_inches="tight")
         plt.close(fig)
     print(f"-> {fd} (pre_spout_{kind}_*)")
     return 0

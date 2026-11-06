@@ -19,6 +19,7 @@ figures/lick_enlv_target.png (figdata/lick_enlv_target.pkl; --plot-only).
 Usage: python scripts/lick_enlv_target_code.py [--plot-only]
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import sys
 import textwrap
@@ -228,7 +229,7 @@ def plot(F: dict) -> None:
     fig.legend(handles=hl, loc="upper center", ncol=len(hl), fontsize=8.5, frameon=False, columnspacing=1.2)
     fig.tight_layout(rect=(0, 0, 1, 0.94))
     bo._header(fig, 2)
-    fig.savefig(bo.FIG / "lick_enlv_target.png", dpi=90)
+    save_png_svg(fig, bo.FIG / "lick_enlv_target.png", dpi=90)
     plt.close(fig)
 
 

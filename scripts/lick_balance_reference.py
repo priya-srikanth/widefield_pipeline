@@ -16,6 +16,7 @@ explained says the offset IS a change of the hemispheric balance at a fixed land
 Outputs <OUT_W>/balref_{betas,sessions,tests,explained}.csv; figure lick_balance_reference.png (figdata + --plot-only).
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import sys
 from pathlib import Path
@@ -151,7 +152,7 @@ def plot(F: dict) -> None:
                  "balance terms reconstruct part of it by construction; informative = one uniform balance number vs the "
                  "four pairs, and which pair. PROVISIONAL", fontsize=9.5)
     fig.tight_layout(rect=(0, 0, 1, 0.92))
-    fig.savefig(il.OUT_W / "figures" / "lick_balance_reference.png", dpi=100)
+    save_png_svg(fig, il.OUT_W / "figures" / "lick_balance_reference.png", dpi=100)
     plt.close(fig)
 
 

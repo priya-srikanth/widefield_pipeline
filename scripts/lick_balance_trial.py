@@ -15,6 +15,7 @@ angle-referenced, so a mechanical coupling to the lick's own angle would show th
 Outputs <OUT_W>/baltrial_licks.csv.gz, baltrial_r.csv; figure lick_balance_trial.png.
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import sys
 from pathlib import Path
@@ -143,7 +144,7 @@ def plot(F: dict) -> None:
                  "relatively weaker) aim more ipsilesionally? Bars = mean of animals, symbols = animals; pre (grey) = the "
                  "control for any mechanical coupling to the lick's own angle. PROVISIONAL", fontsize=9.5)
     fig.tight_layout(rect=(0, 0, 1, 0.9))
-    fig.savefig(il.OUT_W / "figures" / "lick_balance_trial.png", dpi=95)
+    save_png_svg(fig, il.OUT_W / "figures" / "lick_balance_trial.png", dpi=95)
     plt.close(fig)
 
 

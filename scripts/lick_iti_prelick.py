@@ -91,6 +91,7 @@ New outputs (L = 0.1): iti_prelick_w01_{licks.csv.gz, sessions, decode_r, tests,
 Usage: python scripts/lick_iti_prelick.py [--plot-only] [--window-limit 0.1|0.15|none] [--jobs 4]
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import sys
 from pathlib import Path
@@ -877,7 +878,7 @@ def plot() -> None:
     fig.legend(list(hd_ep) + list(hd_dec), list(lb_ep) + [f"row 3 panel 1: {s}" for s in lb_dec],
                loc="lower center", ncol=len(lb_ep) + len(lb_dec), fontsize=9, frameon=False)
     FIG.mkdir(exist_ok=True)
-    fig.savefig(FIG / FIGNAME, dpi=90)
+    save_png_svg(fig, FIG / FIGNAME, dpi=90)
     plt.close(fig)
     print(f"figure -> {FIG / FIGNAME}")
 

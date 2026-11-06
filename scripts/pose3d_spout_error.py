@@ -29,6 +29,7 @@ session (colour), medians as large markers, the spout at (0, 0); ``traces_<anima
 Tables: per_session.csv; by_animal.csv (post minus the animal's August pre median -- rule 8, printed first).
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import argparse
 from pathlib import Path
@@ -205,7 +206,7 @@ def fig_scatter(L: pd.DataFrame, animal: str, path: Path, pre_from: str) -> None
                 ax.legend(fontsize=6, loc="lower left")
     fig.suptitle(f"{animal}: closest approach of the tongue tip to the target spout (spout = open circle at 0, 0)", fontsize=10)
     fig.tight_layout()
-    fig.savefig(path, dpi=120)
+    save_png_svg(fig, path, dpi=120)
     plt.close(fig)
 
 
@@ -282,7 +283,7 @@ def fig_scatter_epoch(L: pd.DataFrame, animal: str, path: Path, pre_from: str, c
                              "orientation (contra on the image LEFT as cam4 sees it; lateral axis inverted)" if contra else ""),
                  fontsize=9)
     fig.tight_layout()
-    fig.savefig(path, dpi=120)
+    save_png_svg(fig, path, dpi=120)
     plt.close(fig)
 
 
@@ -316,7 +317,7 @@ def fig_traces_epoch(Tr: pd.DataFrame, animal: str, path: Path, pre_from: str, c
     fig.suptitle(f"{animal}: {what} through the lick, by epoch (faded = one session's median "
                  "over its licks; bold = epoch mean of the sessions; pre = August)", fontsize=9)
     fig.tight_layout()
-    fig.savefig(path, dpi=120)
+    save_png_svg(fig, path, dpi=120)
     plt.close(fig)
 
 
@@ -341,7 +342,7 @@ def fig_traces(Tr: pd.DataFrame, animal: str, path: Path, pre_from: str) -> None
     axes[0].legend(fontsize=6)
     fig.suptitle(f"{animal}: distance from the target spout through the lick", fontsize=10)
     fig.tight_layout()
-    fig.savefig(path, dpi=120)
+    save_png_svg(fig, path, dpi=120)
     plt.close(fig)
 
 

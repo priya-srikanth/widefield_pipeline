@@ -23,6 +23,7 @@ not a threshold.
     python -m scripts.rest_migration.reference_family_figure [--align cue]
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import argparse
 import csv
@@ -434,7 +435,7 @@ def _figure(rows, out_dir, align="cue", tag=""):
                 "Cue-aligned, so every trial contributes whether or not the animal responded."),
              ha="center", va="top", fontsize=8.5)
     out = Path(out_dir) / f"epoch_15k_reference_families_{align}{tag}.png"
-    fig.savefig(out, dpi=150, bbox_inches="tight")
+    save_png_svg(fig, out, dpi=150, bbox_inches="tight")
     plt.close(fig)
     return out
 
@@ -585,7 +586,7 @@ def _ccf_figure(rows, out_dir, align="cue", tag="", family="restw", n_families=N
              "IPSILESIONAL, and it is also the hemisphere representing the impaired right side.",
              ha="center", va="top", fontsize=8.5)
     out = Path(out_dir) / f"epoch_15k_agreed_ccf_{align}{tag}.png"
-    fig.savefig(out, dpi=150, bbox_inches="tight")
+    save_png_svg(fig, out, dpi=150, bbox_inches="tight")
     plt.close(fig)
     return out
 

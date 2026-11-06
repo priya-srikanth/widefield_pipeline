@@ -21,6 +21,7 @@ STATISTICS: per-animal table first, `mixed_models.lmm_table` epoch + time models
     set WFIELD_INPUT_CACHE=C:/Users/SabatiniLab/wfield_cache
     python scripts/cohort2_qc/quiet_spikes_v2_fr.py [--jobs 6] [--summarise]
 """
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 import argparse
 import os
 import sys
@@ -191,7 +192,7 @@ def figure(S, T, rows, out, title):
     sig_marks.reserve_headroom(fig)
     fig.suptitle(title, fontsize=8.5, wrap=True)
     fig.tight_layout(rect=(0, 0, 1, 0.92 if len(rows) < 3 else 0.95))
-    fig.savefig(FRV2 / out, dpi=110)
+    save_png_svg(fig, FRV2 / out, dpi=110)
     print("wrote", FRV2 / out)
 
 

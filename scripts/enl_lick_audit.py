@@ -30,6 +30,7 @@ figures/enl_lick_audit.png (+ figdata/enl_lick_audit.pkl).
 Usage: python scripts/enl_lick_audit.py [--jobs 4] [--plot-only]
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import glob
 import pickle
@@ -286,7 +287,7 @@ def figure(S, Pp):
     fig.tight_layout(rect=(0, 0.05, 1, 1))
     f = OUT / "figures" / "enl_lick_audit.png"
     f.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(f, dpi=130)
+    save_png_svg(fig, f, dpi=130)
     plt.close(fig)
     print("wrote", f)
 

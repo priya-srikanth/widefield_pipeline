@@ -9,6 +9,7 @@ PROVENANCE: recreated 2026-11-04 (RECONCILIATION section 7) from scratchpad_scri
     PYTHONPATH=<wf_rebuild> python scripts/rebuild_figs/fig_softmax.py [--out DIR] [--plot-only]
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import json
 import sys
@@ -80,7 +81,7 @@ def draw(fd: dict, OUT: str) -> None:
                  "Acute far-contra (fC row) licks land as far-mid / far-ipsi; c = close, f = far; I / M / C = ipsi / mid / contra.",
                  fontsize=9)
     fig.tight_layout(rect=(0, 0, 1, 0.95))
-    fig.savefig(OUT + "/fig9_softmax_landing.png", dpi=130); plt.close(fig)
+    save_png_svg(fig, OUT + "/fig9_softmax_landing.png", dpi=130); plt.close(fig)
 
     # width sweep
     rows = []
@@ -111,7 +112,7 @@ def draw(fd: dict, OUT: str) -> None:
                  "leads executed at every width in all four animals, except PS94 at width 2 in the lick window (executed slightly "
                  "ahead); the executed set gains as bins widen.", fontsize=9)
     fig.tight_layout(rect=(0, 0, 1, 0.93))
-    fig.savefig(OUT + "/fig10_softmax_width.png", dpi=130)
+    save_png_svg(fig, OUT + "/fig10_softmax_width.png", dpi=130)
     print("ok")
 
     # epoch minus pre, within animal, then the cross-animal mean (Priya 10-24)
@@ -143,7 +144,7 @@ def draw(fd: dict, OUT: str) -> None:
                  "then the mean of animals (bottom row).\nBlue on the diagonal = fewer licks landing like their own target; "
                  "red off-diagonal = landing like another spout. Softmax width 1.", fontsize=9)
     fig.tight_layout(rect=(0, 0, 1, 0.95))
-    fig.savefig(OUT + "/fig9b_softmax_landing_change.png", dpi=130); plt.close(fig)
+    save_png_svg(fig, OUT + "/fig9b_softmax_landing_change.png", dpi=130); plt.close(fig)
     print("ok 9b")
 
 def main(argv=None) -> int:

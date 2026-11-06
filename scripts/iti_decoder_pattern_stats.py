@@ -27,6 +27,7 @@ figures/lick_decoder_pattern_stats_{lat,sag}.png, and the figure data figdata/li
 python scripts/iti_decoder_pattern_stats.py [--plot-only] [--perm N]   (--plot-only redraws from figdata: no tests)
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import pickle
 import sys
@@ -307,7 +308,7 @@ def plot(D: dict, levels: bool = False) -> None:
              "ipsi (lesion) = image LEFT. Unscaled features. PROVISIONAL"]
     fig.suptitle("\n".join(textwrap.fill(q, 150) for q in paras), fontsize=9)
     out = f"lick_decoder_pattern_stats_{ax_}.png"
-    fig.savefig(il.OUT / "figures" / (levels_name(out) if levels else out), dpi=105, bbox_inches="tight")
+    save_png_svg(fig, il.OUT / "figures" / (levels_name(out) if levels else out), dpi=105, bbox_inches="tight")
     plt.close(fig)
 
 

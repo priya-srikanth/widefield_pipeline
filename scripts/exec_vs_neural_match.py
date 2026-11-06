@@ -20,6 +20,7 @@ possible before). ``--relabel-tag`` overrides (still checked).
 Output: <E>/attempt_coding_pp/exec_vs_decoder_*.csv + figures/exec_vs_decoder_*.png
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import sys
 from pathlib import Path
@@ -173,7 +174,7 @@ def main(argv=None) -> int:
                      "Row 5: epoch minus pre within animal, mean of 4, nested bootstrap (boxed = Bonferroni over 36; second line = animals same sign).",
                      fontsize=9)
         fig.tight_layout(rect=(0, 0, 1, 0.95))
-        fig.savefig(D / "figures" / f"exec_vs_{src}_{kind}{suf}.png", dpi=115)
+        save_png_svg(fig, D / "figures" / f"exec_vs_{src}_{kind}{suf}.png", dpi=115)
         plt.close(fig)
     R = pd.DataFrame(rows); A = pd.DataFrame(agree)
     R.to_csv(D / f"exec_vs_{src}_change{suf}.csv", index=False); A.to_csv(D / f"exec_vs_{src}_agreement{suf}.csv", index=False)
@@ -203,7 +204,7 @@ def main(argv=None) -> int:
     fig.suptitle(f"When the licks miss the target, does the cortex look like where they went or like the target? ({NAME[src]}; "
                  "markers = animals with >= 10 off-target trials; chance dotted)", fontsize=9)
     fig.tight_layout(rect=(0, 0, 1, 0.9))
-    fig.savefig(D / "figures" / f"exec_vs_{src}_offtarget{suf}.png", dpi=125)
+    save_png_svg(fig, D / "figures" / f"exec_vs_{src}_offtarget{suf}.png", dpi=125)
     # off-target trials by TARGET spout: stacked target / executed / neither (mean of animals with >= 10 such trials)
     Bs = pd.DataFrame(bys)
     Bs.to_csv(D / f"exec_vs_{src}_offtarget_by_spout{suf}.csv", index=False)
@@ -236,7 +237,7 @@ def main(argv=None) -> int:
                      "the licks went, or as another spout.\nBars = mean over animals with >= 10 off-target trials at that target "
                      "(animal count and trials above each bar)", fontsize=9)
         fig.tight_layout(rect=(0, 0.07, 1, 0.9))
-        fig.savefig(D / "figures" / f"exec_vs_{src}_offtarget_by_spout_{kind}{suf}.png", dpi=120)
+        save_png_svg(fig, D / "figures" / f"exec_vs_{src}_offtarget_by_spout_{kind}{suf}.png", dpi=120)
         plt.close(fig)
     print(Bs[Bs.exec == "landing"].groupby(["target", "epoch"])[["target_part", "executed_part"]].mean().round(2).to_string())
     print(f"-> {D / 'figures'}")

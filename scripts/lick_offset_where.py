@@ -26,6 +26,7 @@ lick_decoder_weight_1sd.png; figdata lick_offset_where (--plot-only).
 Usage: python scripts/lick_offset_where.py [--plot-only]
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import sys
 from pathlib import Path
@@ -233,7 +234,7 @@ def plot(F: dict) -> None:
                      "\nSums to the offset (+ 'outside areas'). Mean of animals; ipsi (lesion) = image LEFT. Not unique "
                      "across bases: read where they agree. PROVISIONAL", fontsize=9)
         fig.tight_layout(rect=(0, 0, 1, 0.95))
-        fig.savefig(lom.FIG / f"lick_{'iti' if st == 'iti' else 'cued'}_offset_where_maps.png", dpi=90)
+        save_png_svg(fig, lom.FIG / f"lick_{'iti' if st == 'iti' else 'cued'}_offset_where_maps.png", dpi=90)
         plt.close(fig)
 
     # 2) bars by area family x side, per set x epoch: bases side by side, animal SEM
@@ -262,7 +263,7 @@ def plot(F: dict) -> None:
     fig.suptitle("NEURAL: offset carried per area FAMILY and side (ipsi = lesioned), four decoder bases on pixel dF/F. "
                  "Mean of animals +- SEM across animals. PROVISIONAL", fontsize=10)
     fig.tight_layout(rect=(0, 0, 1, 0.96))
-    fig.savefig(lom.FIG / "lick_offset_where_bars.png", dpi=90)
+    save_png_svg(fig, lom.FIG / "lick_offset_where_bars.png", dpi=90)
     plt.close(fig)
 
     # 3) EFFECTIVE WEIGHT per area for a +1 SD uniform change of its mean (rows = set, cols = basis), one scale per row
@@ -285,7 +286,7 @@ def plot(F: dict) -> None:
                  "In the Allen basis = the area coefficient. Mean of animals; ipsi (lesion) = image LEFT; i / c = ipsi / "
                  "contra. Weights are not importance (see the drop-area test). PROVISIONAL", fontsize=9)
     fig.tight_layout(rect=(0, 0, 1, 0.92))
-    fig.savefig(lom.FIG / "lick_decoder_weight_1sd.png", dpi=90)
+    save_png_svg(fig, lom.FIG / "lick_decoder_weight_1sd.png", dpi=90)
     plt.close(fig)
 
 

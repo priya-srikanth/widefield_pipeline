@@ -37,6 +37,7 @@ brain centred at 319 +/- 136 -- tight on the midline, which is the superior sagi
     python -m scripts.rest_migration.channel_vessel_sign [--sessions PS93_0607 ...]
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import argparse
 from pathlib import Path
@@ -184,7 +185,7 @@ def main(argv=None) -> int:
                  "SIGN at the vessels says which way blood moves 415.", fontsize=9.5)
     fig.tight_layout(rect=(0, 0, 1, 0.93))
     q = out_dir / "epoch_21_channel_vessel_sign.png"
-    fig.savefig(q, dpi=170)
+    save_png_svg(fig, q, dpi=170)
     print(f"\nwrote {q}")
     print("\n  r(415, 470) HIGH and r(415, vessel) LOW -> calcium bleed-through.")
     print("  r(415, vessel) HIGH and POSITIVE vessel values -> blood INCREASES 415, and the")

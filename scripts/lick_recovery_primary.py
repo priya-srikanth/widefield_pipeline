@@ -17,6 +17,7 @@ Outputs <OUT_W>/recprim_sessions.csv, recprim_models.csv, recprim_cv.csv; figure
 (figdata + --plot-only).
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import os
 import sys
@@ -206,7 +207,7 @@ def plot(F: dict) -> None:
                  f"quiet).{shown}\nTop: one point per session, grey = pre (not fitted), mixed models with log(day) (bold "
                  "p < 0.05). Bottom: cross-validated R² vs days since stroke. PROVISIONAL", fontsize=10)
     fig.tight_layout(rect=(0, 0.04, 1, 0.91 if shown else 0.93))
-    fig.savefig(il.OUT_W / "figures" / f"lick_recovery_primary{SFX}.png", dpi=95)
+    save_png_svg(fig, il.OUT_W / "figures" / f"lick_recovery_primary{SFX}.png", dpi=95)
     plt.close(fig)
 
 

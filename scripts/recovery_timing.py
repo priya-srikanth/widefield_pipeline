@@ -26,6 +26,7 @@ Usage: python scripts/recovery_timing.py [--window lick]
 Output: <E>/attempt_coding/recovery_timing_*.csv, figures/recovery_timing.png
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import argparse
 
@@ -178,7 +179,7 @@ def main(argv=None) -> int:
     fig.suptitle(f"Recovery timing, HITS ONLY ({a.window} window): behaviour vs the cortical far-contra code on successful trials; "
                  f"{DATA_HIT}; half-recovery day from exponential fits, 95% CI by resampling sessions", fontsize=10)
     fig.tight_layout(rect=(0, 0, 1, 0.9))
-    fig.savefig(A / "figures" / f"recovery_timing_{a.window}.png", dpi=120)
+    save_png_svg(fig, A / "figures" / f"recovery_timing_{a.window}.png", dpi=120)
     plt.close(fig)
     print("->", A / "figures" / f"recovery_timing_{a.window}.png")
     pooled_figures(S, a.window, plt)
@@ -246,7 +247,7 @@ def pooled_figures(S: pd.DataFrame, window: str, plt) -> None:
     ax.set_title(f"Recovery, pooled across animals ({window} window, hits only for cortex): mean of animals, band = 95% CI "
                  "(animals > sessions)\n" + DATA_HIT, fontsize=10)
     fig.tight_layout()
-    fig.savefig(A / "figures" / f"recovery_timing_pooled_day_{window}.png", dpi=120)
+    save_png_svg(fig, A / "figures" / f"recovery_timing_pooled_day_{window}.png", dpi=120)
     plt.close(fig)
 
     # (b) by epoch, one dot per session; change vs pre (boot_delta); the gap panel
@@ -296,7 +297,7 @@ def pooled_figures(S: pd.DataFrame, window: str, plt) -> None:
                  + DATA_HIT,
                  fontsize=10)
     fig.tight_layout(rect=(0, 0.07, 1, 0.92))
-    fig.savefig(A / "figures" / f"recovery_timing_pooled_epoch_{window}.png", dpi=120)
+    save_png_svg(fig, A / "figures" / f"recovery_timing_pooled_epoch_{window}.png", dpi=120)
     plt.close(fig)
     print("->", A / "figures" / f"recovery_timing_pooled_epoch_{window}.png")
 
@@ -412,7 +413,7 @@ def aim_draw(F: dict) -> None:
                  "band = 95% CI (animals > sessions). n = 4, PROVISIONAL\n" + DATA_HIT, fontsize=10.5)
     fig.tight_layout(rect=(0, 0, 1, 0.96))
     out = A / "figures" / f"recovery_timing_pooled_day_{window}_aim.png"
-    fig.savefig(out, dpi=120)
+    save_png_svg(fig, out, dpi=120)
     plt.close(fig)
     print("->", out)
 

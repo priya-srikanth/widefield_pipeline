@@ -31,6 +31,7 @@ MATCHED-POWER CHECK: response by pre-lick power quintile (animal's pooled pre+po
     set WFIELD_INPUT_CACHE=C:/Users/SabatiniLab/wfield_cache
     python scripts/cohort2_qc/quiet_state_response.py [--jobs 4] [--summarise] [--only PS92_0811 ...]
 """
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 import argparse
 import sys
 from pathlib import Path
@@ -327,7 +328,7 @@ def fig_slopes(S, T):
                        "pre (epoch model); FDR q within measure. Causal power = forward-only filter, no post-lick leak.",
                        190), fontsize=9)
     fig.tight_layout(rect=(0, 0, 0.94, 0.955), h_pad=1.6, w_pad=1.2)
-    fig.savefig(SR / "state_response_slopes.png", dpi=110)
+    save_png_svg(fig, SR / "state_response_slopes.png", dpi=110)
     plt.close(fig)
     print("wrote", SR / "state_response_slopes.png")
 
@@ -380,7 +381,7 @@ def fig_prediction(Pd):
                        "pre slope only. Per-animal ratios are unstable where the observed change is ~0 (PS95 ITI), so titles give "
                        "the ratio of sums over animals.", 190), fontsize=9)
     fig.tight_layout(rect=(0, 0, 0.88, 0.94), h_pad=1.5)
-    fig.savefig(SR / "state_response_prediction.png", dpi=110)
+    save_png_svg(fig, SR / "state_response_prediction.png", dpi=110)
     plt.close(fig)
     print("wrote", SR / "state_response_prediction.png")
 
@@ -421,7 +422,7 @@ def fig_matched(L, S):
                        "Quintile bins of the animal's licks pooled over epochs; each epoch's licks in each bin (bins with "
                        ">= 5 licks). Colour = epoch; legend = licks per epoch.", 190), fontsize=9)
     fig.tight_layout(rect=(0, 0, 1, 0.94), h_pad=3)
-    fig.savefig(SR / "state_response_matched_power.png", dpi=110)
+    save_png_svg(fig, SR / "state_response_matched_power.png", dpi=110)
     plt.close(fig)
     print("wrote", SR / "state_response_matched_power.png")
 

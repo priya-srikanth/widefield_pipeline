@@ -53,6 +53,7 @@ Outputs <OUT_W>/lick_correction/ (sessions/<label>.npz, CSVs), figures <OUT_W>/f
 figdata <OUT_W>/figdata/lick_correction_*.pkl.
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import sys
 import time
@@ -718,7 +719,7 @@ def plot(FB: dict, FN: dict) -> None:
     fig.legend(h1 + h2, ["rows 1-2: " + x.split(": ", 1)[1].replace(" (mean of animals)", "") + " (mean of animals; colour = epoch)"
                          for x in l1] + [f"rows 3-4: {x}" for x in l2], loc="outside lower center", ncol=4, fontsize=8,
                frameon=False)
-    fig.savefig(FIGS / "lick_correction_behaviour.png", dpi=110)
+    save_png_svg(fig, FIGS / "lick_correction_behaviour.png", dpi=110)
     plt.close(fig)
     # ---------- figure 1b: COMPACT curves (Priya 10-29): pre vs chronic only, all spouts + far contra
     fig, axs = plt.subplots(1, 4, figsize=(17, 5.4), layout="constrained")
@@ -735,7 +736,7 @@ def plot(FB: dict, FN: dict) -> None:
                        "target give; slope 0 = the next lick repeats lick k. Solid = lick k contacted the spout (HIT), "
                        "dashed = MISS; thick = mean of animals (bins with >= 3 animals), thin grey = animals. Acute / "
                        "subacute panels: lick_correction_behaviour.png. PROVISIONAL (n = 4).", 190), fontsize=9.5)
-    fig.savefig(FIGS / "lick_correction_behaviour_compact.png", dpi=110)
+    save_png_svg(fig, FIGS / "lick_correction_behaviour_compact.png", dpi=110)
     plt.close(fig)
     # ---------- figure 2: per spout x epoch
     fig, axs = plt.subplots(2, 2, figsize=(14, 11), layout="constrained")
@@ -765,7 +766,7 @@ def plot(FB: dict, FN: dict) -> None:
         plt.colorbar(im, ax=ax, fraction=0.05)
     fig.suptitle(_wrap("Fig 2. Correction by SPOUT x EPOCH (all lick orders; pooled session level; d = change vs pre, "
                        "* CI excludes 0, (n+) animals with a positive change)", 120), fontsize=10)
-    fig.savefig(FIGS / "lick_correction_spouts.png", dpi=110)
+    save_png_svg(fig, FIGS / "lick_correction_spouts.png", dpi=110)
     plt.close(fig)
     # ---------- figure 3: error signal
     BG = FN["BG"].rename(columns={})
@@ -803,7 +804,7 @@ def plot(FB: dict, FN: dict) -> None:
                        "lick k and k+1 (plus reach, k+1 contact, ILI, order, spout, pre-lick level; per-session OLS "
                        "coefficient). Pool = ALM + tjM1 + SSp-m + SSp-n + SSs per hemisphere. Bars = pooled session "
                        "level with 95% nested bootstrap CI; * = differs from pre.", 170), fontsize=9)
-    fig.savefig(FIGS / "lick_correction_error_signal.png", dpi=110)
+    save_png_svg(fig, FIGS / "lick_correction_error_signal.png", dpi=110)
     plt.close(fig)
     # ---------- figure 4: prediction
     BD, DL = FN["BD"], FN["DL"]
@@ -824,7 +825,7 @@ def plot(FB: dict, FN: dict) -> None:
                        "change residualised on lick k's angle / reach / spout; dcvR2 = gain over the behavioural "
                        "baseline. Windows after lick k already contain lick k+1's command (calcium lag), so HIT pairs "
                        "measure next-command information; MISS - HIT is the error-specific part.", 170), fontsize=9)
-    fig.savefig(FIGS / "lick_correction_prediction.png", dpi=110)
+    save_png_svg(fig, FIGS / "lick_correction_prediction.png", dpi=110)
     plt.close(fig)
     print("figures written", flush=True)
 

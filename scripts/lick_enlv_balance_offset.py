@@ -42,6 +42,7 @@ Usage: python scripts/lick_enlv_balance_offset.py --table      (per-lick table: 
        python scripts/lick_enlv_balance_offset.py --plot-only  (redraw every figure from figdata)
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import sys
 import textwrap
@@ -614,7 +615,7 @@ def fig_arrival(F: dict) -> None:
     fig.legend(handles=hl, loc="upper center", bbox_to_anchor=(0.5, 0.935), ncol=len(hl), fontsize=9, frameon=False)
     fig.tight_layout(rect=(0, 0, 1, 0.92))
     _header(fig, 1)
-    fig.savefig(FIG / "lick_enlv_arrival.png", dpi=90)
+    save_png_svg(fig, FIG / "lick_enlv_arrival.png", dpi=90)
     plt.close(fig)
 
 
@@ -665,7 +666,7 @@ def fig_compare(C: pd.DataFrame, keep: tuple | None = None, name: str = "lick_en
         "balance -- see enlv_tests for bout starts. PROVISIONAL", 220), fontsize=9, y=0.995)
     fig.tight_layout(rect=(0, 0, 1, 0.86))
     _header(fig, 2)
-    fig.savefig(FIG / name, dpi=90)
+    save_png_svg(fig, FIG / name, dpi=90)
     plt.close(fig)
 
 
@@ -701,7 +702,7 @@ def fig_perspout(TS: pd.DataFrame, AS: pd.DataFrame) -> None:
                  "= animals; '<3' = fewer than 3 animals share the sign. PROVISIONAL", fontsize=9, y=0.995)
     fig.tight_layout(rect=(0, 0, 1, 0.91))
     _header(fig, 2)
-    fig.savefig(FIG / "lick_enlv_perspout.png", dpi=90)
+    save_png_svg(fig, FIG / "lick_enlv_perspout.png", dpi=90)
     plt.close(fig)
 
 
@@ -750,7 +751,7 @@ def fig_sweep(T: pd.DataFrame, vs: list | None = None, mm: list | None = None,
     fig.suptitle(textwrap.fill(sup, 150 if mm else 250), fontsize=9, y=1 - 0.08 / H)
     fig.tight_layout(rect=(0, 0, 1, 1 - (1.15 if mm else 0.9) / H))
     _header(fig, 2)
-    fig.savefig(FIG / name, dpi=90)
+    save_png_svg(fig, FIG / name, dpi=90)
     plt.close(fig)
 
 
@@ -787,7 +788,7 @@ def fig_firstlater(T: pd.DataFrame, vs: list | None = None, name: str = "lick_en
     fig.suptitle(sup, fontsize=9, y=0.995)
     fig.tight_layout(rect=(0, 0, 1, 0.9))
     _header(fig, 2)
-    fig.savefig(FIG / name, dpi=90)
+    save_png_svg(fig, FIG / name, dpi=90)
     plt.close(fig)
 
 

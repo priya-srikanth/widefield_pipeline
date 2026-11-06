@@ -31,6 +31,7 @@ load); --reuse-maps rebuilds the figure data from session_cluster/maps.pkl witho
 Usage: python scripts/iti_session_cluster_tests.py [--plot-only | --reuse-maps] [--perm N]
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import pickle
 import sys
@@ -342,7 +343,7 @@ def plot_maps(D: dict) -> None:
         f"contributes; null = session labels permuted within animal ({n_perm} x), max |TFCE| over cortex. DASHED = also >= 3 "
         "animals share the sign. ipsi (lesion) = image LEFT. PROVISIONAL"])
     fig.suptitle(txt, fontsize=8.5)
-    fig.savefig(il.OUT / "figures" / FIG_NAME[fam], dpi=95)
+    save_png_svg(fig, il.OUT / "figures" / FIG_NAME[fam], dpi=95)
     plt.close(fig)
 
 
@@ -390,7 +391,7 @@ def plot_shape_d(D: dict) -> None:
                  "over all maps x epochs (bold); k/n = animals with their own p < 0.05. Canonical spout order. PROVISIONAL",
                  fontsize=9.5)
     fig.tight_layout(rect=(0, 0, 1, 0.9))
-    fig.savefig(il.OUT / "figures" / "lick_session_shape_d.png", dpi=100)
+    save_png_svg(fig, il.OUT / "figures" / "lick_session_shape_d.png", dpi=100)
     plt.close(fig)
 
 
@@ -429,7 +430,7 @@ def plot_shape_days(D: dict) -> None:
                      "per-spout one-vs-rest maps (canonical order);\npre sessions = vs the mean of the OTHER pre sessions; "
                      "dotted = the animal's pre mean (its noise floor). PROVISIONAL", fontsize=9.5)
         fig.tight_layout(rect=(0, 0, 1, 0.9))
-        fig.savefig(il.OUT / "figures" / f"lick_{st}_session_shape_days.png", dpi=100)
+        save_png_svg(fig, il.OUT / "figures" / f"lick_{st}_session_shape_days.png", dpi=100)
         plt.close(fig)
 
 

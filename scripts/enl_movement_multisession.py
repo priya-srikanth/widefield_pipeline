@@ -32,6 +32,7 @@ inside each CV fold on the TRAINING trials only:
 Output: <labcams>/enl_movement_multisession/enl_movement_multisession.csv (one row per session x arm) + a figure.
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import argparse
 from pathlib import Path
@@ -317,7 +318,7 @@ def main(argv=None) -> int:
     fig.suptitle("ENL (2 s pre-cue, lick-free) position decoding: raw, minus running+video (residual), "
                  "movement-null subspace", fontsize=9)
     fig.tight_layout()
-    fig.savefig(out / "enl_movement_multisession.png", dpi=110)
+    save_png_svg(fig, out / "enl_movement_multisession.png", dpi=110)
     print("->", csv)
     return 0
 

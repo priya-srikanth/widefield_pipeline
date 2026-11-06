@@ -12,6 +12,7 @@ Two transfer paths for the cross-day problem (LocaNMF components are session-spe
     python -m wfield_local.locanmf_frozen_decoder --transfer --output "<dir>"   # cross-day ROI demo
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import argparse
 import glob
@@ -1097,7 +1098,7 @@ def write_session_confusions(results, out, basis="roi"):
             # xlabel need it, and a rect of (0,0,...) clips the xlabel entirely.
             fig.tight_layout(rect=(0, 0.02, 1, 0.93))
             p = Path(out) / f"locanmf_frozen_session_{lab}_{basis}_{r['align']}.png"
-            fig.savefig(p, dpi=130); plt.close(fig)
+            save_png_svg(fig, p, dpi=130); plt.close(fig)
             written.append(p)
     return written
 
@@ -1154,7 +1155,7 @@ def _encoder_fig(results, out, align="cue", basis="roi"):
     # precue run silently overwrote the cue figures (and the deck then showed precue under a
     # cue-labelled slide).
     p = out / f"locanmf_frozen_encoder_loso_{basis}_{align}.png"
-    fig.savefig(p, dpi=140); plt.close(fig)
+    save_png_svg(fig, p, dpi=140); plt.close(fig)
     return p
 
 
@@ -1240,7 +1241,7 @@ def _loso_fig(results, out, align="cue", basis="roi"):
                     "confidence alone is not evidence — see the no-lick arm (D2)", fontsize=10.5)
     fig.tight_layout()
     p = out / f"locanmf_frozen_decoder_loso_{basis}_{align}.png"
-    fig.savefig(p, dpi=140); plt.close(fig)
+    save_png_svg(fig, p, dpi=140); plt.close(fig)
     return p
 
 
@@ -1289,7 +1290,7 @@ def _transfer_matrix_fig(out):
         fig.colorbar(im, ax=ax, shrink=0.7)
     fig.suptitle("Frozen ROI decoder cross-day transfer (diagonal = within-day block-CV; off-diagonal = train->test). "
                  "The off-diagonal drop is the baseline cost of freezing a decoder across days.", fontsize=10.5)
-    fig.tight_layout(); p = out / "locanmf_frozen_decoder_crossday_roi.png"; fig.savefig(p, dpi=130); plt.close(fig)
+    fig.tight_layout(); p = out / "locanmf_frozen_decoder_crossday_roi.png"; save_png_svg(fig, p, dpi=130); plt.close(fig)
     return p
 
 
@@ -1472,7 +1473,7 @@ def write_animal_confusion_grid(results, out, basis="roi", align="cue"):
         cb.set_label("P(predicted | true)", fontsize=8)
         cb.ax.tick_params(labelsize=7)
         p = Path(out) / f"locanmf_frozen_grid_{an}_{basis}_{align}.png"
-        fig.savefig(p, dpi=170)
+        save_png_svg(fig, p, dpi=170)
         plt.close(fig)
         written.append(p)
     return written

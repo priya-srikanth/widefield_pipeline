@@ -64,6 +64,7 @@ Usage: python scripts/lick_code_subspace.py [--jobs 4] [--reload]      (compute 
        python scripts/lick_code_subspace.py --plot-only                (redraw from figdata)
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import argparse
 import hashlib
@@ -852,7 +853,7 @@ def figures():
                    "slope per mm of lateral lick position (session fixed effects); gain = post slope along the pre axis.",
                    150), fontsize=10)
     fig.tight_layout(rect=(0, 0.04, 1, 0.94))
-    fig.savefig(FIG / f"lick_code_subspace_axes{SFX}.png", dpi=130)
+    save_png_svg(fig, FIG / f"lick_code_subspace_axes{SFX}.png", dpi=130)
     plt.close(fig)
 
     # ---- transfer figure
@@ -882,7 +883,7 @@ def figures():
                    "over animals, markers = animals; matched licks. Re-map = low transfer both ways with intact within; "
                    "offset / gain = high r with shifted intercept / slope.", 150), fontsize=10)
     fig.tight_layout(rect=(0, 0.035, 1, 0.94))
-    fig.savefig(FIG / f"lick_code_subspace_transfer{SFX}.png", dpi=130)
+    save_png_svg(fig, FIG / f"lick_code_subspace_transfer{SFX}.png", dpi=130)
     plt.close(fig)
 
     # ---- drift figure
@@ -913,7 +914,7 @@ def figures():
                    "elapsed days. Red = the animal's pre-stroke drift line; dotted = longest pre-pre gap (beyond it the "
                    "line is extrapolated).", 150), fontsize=10)
     fig.tight_layout(rect=(0, 0.035, 1, 0.94))
-    fig.savefig(FIG / f"lick_code_subspace_drift{SFX}.png", dpi=130)
+    save_png_svg(fig, FIG / f"lick_code_subspace_drift{SFX}.png", dpi=130)
     plt.close(fig)
 
     # ---- areas figure: excess term per area x hemisphere
@@ -939,7 +940,7 @@ def figures():
         fig.colorbar(im, ax=ax, fraction=0.02)
     fig.suptitle(W("Where does the encoding-axis change live? Mean over animals, matched licks.", 150), fontsize=10)
     fig.tight_layout(rect=(0, 0, 1, 0.96))
-    fig.savefig(FIG / f"lick_code_subspace_areas{SFX}.png", dpi=130)
+    save_png_svg(fig, FIG / f"lick_code_subspace_areas{SFX}.png", dpi=130)
     plt.close(fig)
     _ = S_
     print("figures written", flush=True)

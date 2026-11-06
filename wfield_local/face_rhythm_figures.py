@@ -10,6 +10,7 @@ legends with each other or figures, and ensure methods are documented").
                  `orofacial_outputs.README`). Titles stay SHORT; how the numbers were made goes in the methods text.
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import contextlib
 import re
@@ -42,7 +43,7 @@ def save(fig, path: Path, methods: str, title: str | None = None, dpi: int = 110
     import matplotlib.pyplot as plt
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(path, dpi=dpi)
+    save_png_svg(fig, path, dpi=dpi)
     plt.close(fig)
     readme = path.parent / "README.md"
     head = f"## {path.name}"

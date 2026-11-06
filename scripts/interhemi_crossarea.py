@@ -47,6 +47,7 @@ Outputs: <OUT_W>/interhemi_followup/ (ihf_*), <OUT_W>/cross_area/ (xa_*), each w
 Usage: python scripts/interhemi_crossarea.py [--jobs 4] [--labels ...] [--summarise] [--plot-only]
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import argparse
 import pickle
@@ -595,7 +596,7 @@ def plot1() -> None:
     fig.suptitle(_wrap("Interhemispheric noise correlation (homotopic contra vs ipsi, residual after spout + angle mean, "
                        "window mean -0.5..+0.5 s) BEFORE and AFTER removing the global signal (partial correlation given "
                        "the mean of all other areas). Grey = control pairs. PROVISIONAL n = 4"), fontsize=9.5)
-    fig.savefig(O1 / "figures" / "ihf_noisecorr_gsr.png", dpi=120)
+    save_png_svg(fig, O1 / "figures" / "ihf_noisecorr_gsr.png", dpi=120)
     plt.close(fig)
     # FIGURE B: lead metrics under the four variants (oro, tau 0.6; w2 for lick sets, w1 rest)
     fig, axs = plt.subplots(2, 4, figsize=(17, 8), sharey="row", layout="constrained")
@@ -615,7 +616,7 @@ def plot1() -> None:
     fig.suptitle(_wrap("Orofacial pool, deconvolved (tau 0.6 s): does the contralesional tilt / Granger shift survive "
                        "partialling out the per-event hemispheric balance and / or the global signal? PROVISIONAL n = 4"),
                  fontsize=9.5)
-    fig.savefig(O1 / "figures" / "ihf_lead_controls.png", dpi=120)
+    save_png_svg(fig, O1 / "figures" / "ihf_lead_controls.png", dpi=120)
     plt.close(fig)
 
 
@@ -657,7 +658,7 @@ def plot2() -> None:
                        "= low-dimensional synchrony (first-PC variance fraction, mean R2 on the global mean) for the slow "
                        f"(noise) and fast (within-window) units. Rest pre level all-pairs z = {pre:.2f}. PROVISIONAL n = 4"),
                  fontsize=9.5)
-    fig.savefig(O2 / "figures" / "xa_summary.png", dpi=120)
+    save_png_svg(fig, O2 / "figures" / "xa_summary.png", dpi=120)
     plt.close(fig)
     # FIGURES 2/3: change matrices (slow), raw and GS
     names = CM["names"]
@@ -700,7 +701,7 @@ def plot2() -> None:
                            "IPSILESIONAL (left hemisphere) block top / left, contralesional bottom / right, frontal -> "
                            "posterior within each; pooled = mean of per-animal changes; faded = fewer than 3 of 4 animals "
                            "share the pooled sign. PROVISIONAL n = 4", 170), fontsize=9.5)
-        fig.savefig(O2 / "figures" / f"xa_change_matrices_{var}.png", dpi=110)
+        save_png_svg(fig, O2 / "figures" / f"xa_change_matrices_{var}.png", dpi=110)
         plt.close(fig)
     # FIGURE 4 (supplement): recovery tests heatmap
     q = Rc.copy()
@@ -726,7 +727,7 @@ def plot2() -> None:
     fig.suptitle(_wrap(f"Does cross-area coupling track recovery within animals? {n_sig} of {n_all} tests p < 0.05 "
                        f"(uncorrected; ~{0.05 * n_all:.0f} expected by chance). * = p < 0.05; k/4 = animals with the pooled sign."),
                  fontsize=9.5)
-    fig.savefig(O2 / "figures" / "xa_recovery.png", dpi=120)
+    save_png_svg(fig, O2 / "figures" / "xa_recovery.png", dpi=120)
     plt.close(fig)
 
 

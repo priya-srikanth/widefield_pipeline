@@ -26,6 +26,7 @@ Per animal, every number written (rule 8). Curated June sessions only (06-06..06
     python -m scripts.june_august_drift [--out DIR] [--n-split 20]
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import argparse
 from pathlib import Path
@@ -333,7 +334,7 @@ def figure(D: pd.DataFrame, R: pd.DataFrame, out_png: Path) -> None:
     fig.suptitle("No-stroke drift group (green): June pre -> August pre. Top: crossnobis distance from a template by gap. "
                  "Bottom: frozen (size-matched) vs refit; '<- X' = decoder frozen on X", fontsize=10)
     fig.tight_layout()
-    fig.savefig(out_png, dpi=130)
+    save_png_svg(fig, out_png, dpi=130)
 
 
 def primary_chronic_csv(lab: Path) -> Path:

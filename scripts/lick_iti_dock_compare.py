@@ -28,6 +28,7 @@ Steps (each with WFIELD_ITI_FILTER=<filter> in the environment):
 Usage: [WFIELD_ITI_FILTER=dock] python scripts/lick_iti_dock_compare.py [--prep | --sspn | --plot-only]
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import shutil
 import sys
@@ -297,7 +298,7 @@ def plot(F: dict) -> None:
                  "k/n = animals with the cohort sign; n = ITI licks (a: all; b-e: first after >= 2 s quiet). "
                  "+ = contralesional. PROVISIONAL", fontsize=9)
     fig.tight_layout(rect=(0, 0.04, 1, 0.94))
-    fig.savefig(il.OUT_W / "figures" / f"{STEM}.png", dpi=100)
+    save_png_svg(fig, il.OUT_W / "figures" / f"{STEM}.png", dpi=100)
     plt.close(fig)
 
 

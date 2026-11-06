@@ -22,6 +22,7 @@ straight opening into an apparent sideways shift), reported two ways:
                independent of how wide each animal opens.
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import argparse
 from pathlib import Path
@@ -282,7 +283,7 @@ def cmd_deviation(sessions, rule: str, open_px: float, out: Path) -> None:
                  f"95% bootstrap CI)\nblack = FAR_BIAS (mean of far_L, far_R: the chin is unobstructed there) -- close / centre "
                  f"spouts cover the chin and bias the jaw point away from the spout", fontsize=10)
     fig.tight_layout()
-    fig.savefig(out / f"jaw_lateral_{rule}.png", dpi=130)
+    save_png_svg(fig, out / f"jaw_lateral_{rule}.png", dpi=130)
     print(f"-> {out / f'jaw_lateral_{rule}.png'}")
 
 

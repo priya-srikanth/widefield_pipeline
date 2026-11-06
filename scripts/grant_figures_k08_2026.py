@@ -23,7 +23,6 @@ Usage, on the imaging computer where the data lives:
 from __future__ import annotations
 import argparse, csv, pathlib, sys
 
-import numpy as np
 import matplotlib as mpl
 mpl.use("Agg")
 import matplotlib.pyplot as plt

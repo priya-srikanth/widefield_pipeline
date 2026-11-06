@@ -5,13 +5,14 @@ From a spatial-target frozen run (`frozen_encoder --target basis`; residual / da
 basis): per SESSION and pixel, R2 = 1 - SSE[joint] / SST and unique R2 of g = (SSE[no_g] - SSE[joint]) / SST (all frames;
 pre held out leave-one-session-out, post with the frozen all-pre betas), painted on the 2 x 2-px block grid. Epoch - pre:
 mean of animals' (epoch mean - pre mean); test = `fr_pixel_significance.test` (nested bootstrap animals -> sessions,
-Bonferroni over 16 / 32 px bins) with a null of random pre half-splits. --zscore: every map of an animal divided by its
+max-statistic over bins, family-wise per panel, 16 / 32 px bins) with a null of random pre half-splits. --zscore: every map of an animal divided by its
 pre-session SD map (floored at its median pixel SD) before the test (per-animal z). Image left = ipsilesional.
 
 Usage: python scripts/frozen_pixel_unique_sig.py --tag gate-attempted_v7g3_t3d_frA_basis [--zscore] [--n-null 20]
 Output: <E>/frozen_encoder_<tag>/figures/unique_sig{_z}.png + unique_sig{_z}.csv
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import argparse
 import json
@@ -25,7 +26,7 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from fr_musall import E  # noqa: E402
-from fr_pixel_significance import FACTORS, block_mask, test  # noqa: E402
+from fr_pixel_significance import FACTORS, block_mask, correction_label, test  # noqa: E402
 from frozen_r2_maps import pixel_sse  # noqa: E402
 
 QS = [("full", None, "full R2"), ("target", "no_target", "position unique (target)"),
@@ -212,13 +213,13 @@ def main(argv=None) -> int:
     unit = "PER-ANIMAL z test (each animal / its pre-session SD map); maps shown in R2" if a.zscore else "raw R2 test"
     ttl = (f"NEURAL: FROZEN-frame pixel maps WITH significance, run {a.tag} (all frames; held-out R2, fraction). Row 1 pre "
            f"level; rows 2-4 epoch minus pre (one scale per column). Contours: significant bins, black 16 px, purple dashed 32 px "
-           f"(nested bootstrap animals > sessions, Bonferroni; {unit}); null: >= 1 false bin in {nr.get(16, np.nan):.0%} / "
+           f"(nested bootstrap animals > sessions, {correction_label()}; {unit}); null: >= 1 false bin in {nr.get(16, np.nan):.0%} / "
            f"{nr.get(32, np.nan):.0%} of random pre half-splits. Image left = ipsilesional.")
     fig.suptitle("\n".join(textwrap.wrap(ttl, int(21 * len(qs)))), fontsize=9)       # wrapped to the figure width
     fig.subplots_adjust(left=0.03, right=0.995, top=0.86, bottom=0.03, wspace=0.08, hspace=0.14)
     p = run / "figures" / f"unique_sig{sfx}.png"
     p.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(p, dpi=105)
+    save_png_svg(fig, p, dpi=105)
     plt.close(fig)
     print("->", p)
     # secondary: animals per bin (16 px), up - down, per quantity x epoch
@@ -263,7 +264,7 @@ def main(argv=None) -> int:
     fig.suptitle(textwrap.fill(f"NEURAL: FROZEN-frame pixel maps, PER-ANIMAL view (secondary; the nested bootstrap is primary), "
                                f"run {a.tag}, 16 px bins: how many of the 4 animals change significantly in each direction, "
                                "each tested on its own sessions; black outline = bins where >= 3 animals agree; grey = Allen areas. Image left = ipsilesional.", int(21 * len(qs))), fontsize=9)
-    fig.savefig(run / "figures" / "unique_sig_per_animal.png", dpi=105)
+    save_png_svg(fig, run / "figures" / "unique_sig_per_animal.png", dpi=105)
     plt.close(fig)
     pd.DataFrame(crow).to_csv(run / "unique_sig_per_animal.csv", index=False)
     return 0

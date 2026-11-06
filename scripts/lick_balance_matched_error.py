@@ -20,6 +20,7 @@ Outputs <OUT_W>/balmatch_sessions.csv, balmatch_tests.csv, balmatch_retained.csv
 Usage: python scripts/lick_balance_matched_error.py [--plot-only]
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import sys
 from pathlib import Path
@@ -174,7 +175,7 @@ def plot() -> None:
                  "the pre range for their spout: no extrapolation). Balance + = contralesional hemisphere larger "
                  "(hemispheric sign); offset + = read contralesional. PROVISIONAL", fontsize=10)
     fig.tight_layout(rect=(0, 0, 1, 0.94))
-    fig.savefig(OUT / "figures" / "lick_balance_matched_error.png", dpi=90)
+    save_png_svg(fig, OUT / "figures" / "lick_balance_matched_error.png", dpi=90)
     plt.close(fig)
 
 

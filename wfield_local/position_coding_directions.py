@@ -70,6 +70,7 @@ WHAT EACH WINDOW CAN ANSWER, AND WHAT IT CANNOT:
         window by any projection.
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import argparse
 import contextlib
@@ -1366,7 +1367,7 @@ def figure_animal(res, out, align="precue", meth="dom"):
         fontsize=10)
     fig.tight_layout(rect=(0, 0.07, 1, 0.90))
     q = Path(out) / f"coding_direction_{disp}_{meth}_{res['animal']}.png"
-    fig.savefig(q, dpi=150)
+    save_png_svg(fig, q, dpi=150)
     plt.close(fig)
     return q
 
@@ -1469,7 +1470,7 @@ def figure_cross(res, out, align="precue", meth="dom"):
         f"see the pairwise figure.", fontsize=9.5)
     fig.tight_layout(rect=(0, 0.04, 1, 0.85))
     q = Path(out) / f"coding_cross_{disp}_{meth}_{res['animal']}.png"
-    fig.savefig(q, dpi=150)
+    save_png_svg(fig, q, dpi=150)
     plt.close(fig)
     return q
 
@@ -1551,7 +1552,7 @@ def figure_pairwise(res, out, align="precue", meth="dom"):
         fontsize=9)
     fig.tight_layout(rect=(0, 0.07, 1, 0.90))
     q = Path(out) / f"coding_pairwise_{disp}_{meth}_{res['animal']}.png"
-    fig.savefig(q, dpi=150)
+    save_png_svg(fig, q, dpi=150)
     plt.close(fig)
     return q
 
@@ -1632,7 +1633,7 @@ def figure_pairwise_sessions(res, out, align="precue", meth="dom", cls="poststro
         f"pair, i.e. the denominator: a small one amplifies.", fontsize=9)
     fig.tight_layout(rect=(0, 0.08, 1, 0.86))
     q = Path(out) / f"coding_pairsess_{disp}_{meth}_{cls}_{res['animal']}.png"
-    fig.savefig(q, dpi=150)
+    save_png_svg(fig, q, dpi=150)
     plt.close(fig)
     return q
 
@@ -1715,7 +1716,7 @@ def figure_cross_sessions(res, out, align="precue", meth="dom", cls="poststroke_
         f"position's pattern. Read across sessions: a settled deficit looks the same each day, a "
         f"moving one does not.", fontsize=10)
     q = Path(out) / f"coding_crosssess_{disp}_{meth}_{cls}_{res['animal']}.png"
-    fig.savefig(q, dpi=150)
+    save_png_svg(fig, q, dpi=150)
     plt.close(fig)
     return q
 
@@ -1759,7 +1760,7 @@ def figure_pooled(res, out, align="precue", meth="dom"):
                  f"pooling hides whether a class was steady or swinging.", fontsize=10)
     fig.tight_layout(rect=(0, 0, 1, 0.88))
     q = Path(out) / f"coding_pooled_{disp}_{meth}_{res['animal']}.png"
-    fig.savefig(q, dpi=150)
+    save_png_svg(fig, q, dpi=150)
     plt.close(fig)
     return q
 
@@ -1887,7 +1888,7 @@ def figure_rt_split(res, out, align="precue", meth="dom"):
         cb.set_label("P(predicted | true)", fontsize=7.5)
         cb.ax.tick_params(labelsize=6.5)
     q = Path(out) / f"coding_rtsplit_{disp}_{res['animal']}.png"
-    fig.savefig(q, dpi=150)
+    save_png_svg(fig, q, dpi=150)
     plt.close(fig)
     return q
 
@@ -1952,7 +1953,7 @@ def figure_within_session(res, out, align="precue", meth="dom"):
                  fontsize=10)
     fig.tight_layout(rect=(0, 0.07, 1, 0.89))
     q = Path(out) / f"coding_within_{disp}_{meth}_{res['animal']}.png"
-    fig.savefig(q, dpi=150)
+    save_png_svg(fig, q, dpi=150)
     plt.close(fig)
     return q
 
@@ -2008,7 +2009,7 @@ def figure_engagement(res, out, align="precue", meth="dom"):
                  fontsize=10)
     fig.tight_layout(rect=(0, 0, 1, 0.86))
     q = Path(out) / f"coding_engagement_{disp}_{res['animal']}.png"
-    fig.savefig(q, dpi=150)
+    save_png_svg(fig, q, dpi=150)
     plt.close(fig)
     return q
 
@@ -2059,7 +2060,7 @@ def figure_norm_unit(res, out, align="precue", meth="dom"):
                  f"is directional \u2014 real position structure.", fontsize=10)
     fig.tight_layout(rect=(0, 0, 1, 0.85))
     q = Path(out) / f"coding_normunit_{disp}_{meth}_{res['animal']}.png"
-    fig.savefig(q, dpi=150)
+    save_png_svg(fig, q, dpi=150)
     plt.close(fig)
     return q
 
@@ -2107,7 +2108,7 @@ def figure_cos_slope(everything, out, align="precue", meth="dom"):
                  f"(n={len(pts)}, r={r:+.3f})", fontsize=10)
     fig.tight_layout()
     q = Path(out) / f"coding_cosslope_{disp}_{meth}.png"
-    fig.savefig(q, dpi=150)
+    save_png_svg(fig, q, dpi=150)
     plt.close(fig)
     return q
 
@@ -2174,7 +2175,7 @@ def figure_pairwise_split(everything, out, align="precue", meth="dom"):
                  fontsize=9.5)
     fig.tight_layout(rect=(0, 0, 1, 0.9))
     q = Path(out) / f"coding_pairsplit_{disp}_{meth}.png"
-    fig.savefig(q, dpi=150)
+    save_png_svg(fig, q, dpi=150)
     plt.close(fig)
     return q
 

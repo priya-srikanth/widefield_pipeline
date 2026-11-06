@@ -21,6 +21,7 @@ no bootstrap).
 Usage: python scripts/iti_where_drift.py [--june] [--plot-only]
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import sys
 from datetime import date
@@ -216,7 +217,7 @@ def plot(F: dict) -> None:
                  f" [{t.loc[('trial', 'lat', 'chronic'), 'lo']:+.3f}, {t.loc[('trial', 'lat', 'chronic'), 'hi']:+.3f}]. "
                  "PROVISIONAL", fontsize=9.5)
     fig.tight_layout(rect=(0, 0, 1, 0.92 if june else 0.94))
-    fig.savefig(il.OUT / "figures" / f"lick_where_drift{sfx}.png", dpi=95)
+    save_png_svg(fig, il.OUT / "figures" / f"lick_where_drift{sfx}.png", dpi=95)
     plt.close(fig)
 
 

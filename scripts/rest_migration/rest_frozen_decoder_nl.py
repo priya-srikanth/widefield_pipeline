@@ -39,6 +39,7 @@ STAGES (each writes what the next reads, so figures redraw without data):
     python scripts/rest_migration/rest_frozen_decoder_nl.py --mask restnl --pre aug [--plot-only]
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import argparse
 import csv
@@ -602,7 +603,7 @@ def plot_main(per_session, crow, mask, pre, out, stem):
                  f"200 block permutations; sessions {ns}", fontsize=10.5)
     fig.tight_layout(rect=(0, 0.02, 1, 0.91))
     p = out / f"{stem}.png"
-    fig.savefig(p, dpi=150)
+    save_png_svg(fig, p, dpi=150)
     plt.close(fig)
     return p
 
@@ -664,7 +665,7 @@ def plot_compare(out, runs):
                  "lick-gap-matched", fontsize=10.5)
     fig.tight_layout(rect=(0, 0.08, 1, 0.9))
     p = out / "rest_frozen_compare_per_animal.png"
-    fig.savefig(p, dpi=150)
+    save_png_svg(fig, p, dpi=150)
     plt.close(fig)
     return p
 

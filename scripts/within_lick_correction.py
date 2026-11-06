@@ -27,6 +27,7 @@ Usage (bash env per the repo; outputs only under <v36>/imaging_encoding/within_l
   python scripts/within_lick_correction.py plot   (or any subcommand with --plot-only)   figures from figdata only
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import json
 import sys
@@ -1081,7 +1082,7 @@ def cmd_plot() -> None:
         figs["wlc_fig6_neural"] = fig_neural
     for name, fn in figs.items():
         fig = fn(D)
-        fig.savefig(FIGS / f"{name}.png", dpi=110)
+        save_png_svg(fig, FIGS / f"{name}.png", dpi=110)
         plt.close(fig)
         print(f"-> {FIGS / name}.png", flush=True)
 

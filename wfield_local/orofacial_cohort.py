@@ -784,12 +784,10 @@ def _tidy(fig) -> None:
 
 def save_png_svg(fig, path: Path, dpi: int = 130) -> None:
     """PNG at `path` + an editable SVG copy in `<dir>/svg/<stem>.svg` (Priya 10-17: grant / paper figures)."""
-    path = Path(path)
-    fig.savefig(path, dpi=dpi)
-    (path.parent / "svg").mkdir(exist_ok=True)
-    import matplotlib as mpl
-    with mpl.rc_context({"svg.fonttype": "none"}):              # text stays text in Illustrator
-        fig.savefig(path.parent / "svg" / (path.stem + ".svg"))
+    # One shared helper since 2026-11-06 (`figure_layout.save_png_svg`): same PNG, same `svg/<stem>.svg`,
+    # text stays text in Illustrator, and an SVG failure now warns instead of raising after the PNG.
+    from wfield_local import figure_layout
+    figure_layout.save_png_svg(fig, Path(path), dpi=dpi)
 
 
 def _save(plt, fig, path: Path) -> None:

@@ -40,7 +40,7 @@ import pathlib
 import numpy as np
 
 from wfield_local import config, epochs
-from wfield_local.figure_layout import find_sidecar, sidecar, svg_path
+from wfield_local.figure_layout import find_sidecar, save_png_svg, sidecar
 from wfield_local.figure_meta import write_meta
 
 #: Panel order, left to right. `epochs.EPOCHS` is the single definition; restated for readability.
@@ -63,11 +63,8 @@ def _save_png_svg(fig, q, *, dpi=200):
     for t in fig.texts:
         if t.get_color() == "#8a2be2" and len(t.get_text()) > width and "\n" not in t.get_text():
             t.set_text("\n".join(textwrap.wrap(t.get_text(), width)))
-    fig.savefig(q, dpi=dpi)
-    try:
-        fig.savefig(svg_path(q))
-    except Exception as ex:                                            # noqa: BLE001
-        print(f"  [svg] {q.name}: failed ({type(ex).__name__})", flush=True)
+    # PNG as before + SVG twin through the shared helper (2026-11-06: text kept as text, a failed SVG warns).
+    save_png_svg(fig, q, dpi=dpi)
 
 def write_values(values, q, *, points=None, marks=None):
     """Write the numbers a bar figure PLOTS, beside it as ``<name>.csv``. (An LP_licks folder needs the LP switch:

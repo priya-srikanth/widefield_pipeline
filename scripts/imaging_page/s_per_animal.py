@@ -17,6 +17,7 @@ so the redraw cannot silently show different numbers from the page's earlier ver
     python -m scripts.imaging_page.s_per_animal [--src DIR] [--out PNG]
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import argparse
 from pathlib import Path
@@ -94,7 +95,7 @@ def figure(tabs: dict[str, pd.DataFrame], out: Path) -> Path:
                  fontsize=10)
     fig.tight_layout(rect=(0, 0.11, 1, 0.92))
     out.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out, dpi=170)
+    save_png_svg(fig, out, dpi=170)
     plt.close(fig)
     return out
 

@@ -43,6 +43,7 @@ OUTPUTS (<OUT_W>/revup/): jaw_sessions/<label>.npz (per-session cache), revup_ce
 Usage: python scripts/revup_followup.py [--jobs 8]      |     python scripts/revup_followup.py --plot-only
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import argparse
 import pickle
@@ -490,7 +491,7 @@ def plots() -> None:
                            "means. cam4 cleaned jaw: ME = |dy/dt| / session rest ME; FaceRhythm fr_prep_jaw z. "
                            "BEHAVIOUR", fontsize=9)
         fig.tight_layout(rect=(0, 0, 1, top))
-        fig.savefig(FIG / f"revup_jaw_traces_{tag}.png", dpi=110)
+        save_png_svg(fig, FIG / f"revup_jaw_traces_{tag}.png", dpi=110)
         plt.close(fig)
     # metrics: per-animal dots + pooled CI per epoch, far_contra vs others
     show = [("gt1-0.5to1", "jaw_wait_me"), ("gt1-0.5to1", "jaw_wait_active"), ("Q4", "jaw_rev"),
@@ -523,7 +524,7 @@ def plots() -> None:
                        "Q4 jaw_rev = slowest-quartile wait ME minus that trial's pre-cue ME (>0 = revving, <=0 = quiet "
                        "wait); Q4-Q1 = slowest minus fastest quartile, lick-aligned. BEHAVIOUR", fontsize=9)
     fig.tight_layout(rect=(0, bot, 1, top))
-    fig.savefig(FIG / "revup_jaw_metrics.png", dpi=110)
+    save_png_svg(fig, FIG / "revup_jaw_metrics.png", dpi=110)
     plt.close(fig)
     # (A) late licks vs chance, per gate
     L = pickle.loads((FD / "revup_late_engaged.pkl").read_bytes())["late"]
@@ -569,7 +570,7 @@ def plots() -> None:
                       + (" 'neural' = revup_neural's trial set (= the attempted gate)." if len(gates) > 1 else "")
                       + " BEHAVIOUR", fontsize=9)
         fig.tight_layout(rect=(0, bot, 1, top), h_pad=1.5)
-        fig.savefig(FIG / f"{stem}.png", dpi=110)
+        save_png_svg(fig, FIG / f"{stem}.png", dpi=110)
         plt.close(fig)
 
 

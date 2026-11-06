@@ -19,6 +19,7 @@ Usage: python scripts/frozen_peth_trial_maps.py [--tag gate-attempted_v7g3_t3d_f
 Output: <E>/frozen_encoder_<tag>/figures/peth_trial_maps_<window>[_alone][_split].png, peth_trial_area[_alone][_split].csv
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 from wfield_local.frozen_encoder import design_tag as _design_tag  # frame tag of the FROZEN_LICKS_ALL design (8.51)
 
 import argparse
@@ -207,7 +208,7 @@ def main(argv=None) -> int:
             fig.suptitle(textwrap.fill(title, width=int(42 * len(qs))), fontsize=8.5)   # wrapped to the figure width
             fig.subplots_adjust(left=0.05, right=0.97, bottom=0.02, top=0.9 if kind == "allen" else 0.88, wspace=0.06,
                                 hspace=0.3)
-            fig.savefig(out / "figures" / f"peth_trial_maps_{w}{sfx}{'_split' if kind == 'split' else ''}.png", dpi=105)
+            save_png_svg(fig, out / "figures" / f"peth_trial_maps_{w}{sfx}{'_split' if kind == 'split' else ''}.png", dpi=105)
             plt.close(fig)
     print("->", out / "figures")
     return 0

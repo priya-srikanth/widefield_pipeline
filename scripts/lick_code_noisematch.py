@@ -61,6 +61,7 @@ Usage: python scripts/lick_code_noisematch.py [--jobs 4]      (compute + figures
        python scripts/lick_code_noisematch.py --plot-only
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import argparse
 import pickle
@@ -595,7 +596,7 @@ def figures():
                    "axis cosine BELOW green; a noisier but unrotated code predicts real ~ green. Bars = mean over "
                    "animals, lines join each animal's null and real.", 170), fontsize=10)
     fig.tight_layout(rect=(0, 0.035, 1, 0.94))
-    fig.savefig(FIG / f"lick_code_noisematch{SFX}.png", dpi=120)
+    save_png_svg(fig, FIG / f"lick_code_noisematch{SFX}.png", dpi=120)
     plt.close(fig)
 
     # ---- power figure
@@ -655,7 +656,7 @@ def figures():
                    "June / post transfer expressed as the injected rotation giving the same mean r.", 170),
                  fontsize=10)
     fig.tight_layout(rect=(0, 0.035, 1, 0.94))
-    fig.savefig(FIG / f"lick_code_power{SFX}.png", dpi=120)
+    save_png_svg(fig, FIG / f"lick_code_power{SFX}.png", dpi=120)
     plt.close(fig)
     print("figures written", flush=True)
 

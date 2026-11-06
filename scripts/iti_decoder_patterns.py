@@ -23,6 +23,7 @@ from those files alone (no decoder fit).
 Usage: python scripts/iti_decoder_patterns.py [--plot-only]
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import pickle
 import sys
@@ -192,7 +193,7 @@ def plot_axis(D: dict) -> None:
                  "pattern RMS, mean of animals.\nEpoch LEVEL maps in purple-orange (orange = more activity for licks "
                  "further +); the chronic - pre CHANGE map in red-blue; one scale per row. ipsi (lesion) = image LEFT. "
                  "Unscaled features. PROVISIONAL", fontsize=9)
-    fig.savefig(il.OUT / "figures" / f"lick_decoder_patterns_{ax_}.png", dpi=110, bbox_inches="tight")
+    save_png_svg(fig, il.OUT / "figures" / f"lick_decoder_patterns_{ax_}.png", dpi=110, bbox_inches="tight")
     plt.close(fig)
 
 
@@ -222,7 +223,7 @@ def plot_animals(D: dict) -> None:
                     ax.set_ylabel(f"{a}\n{'ITI' if st == 'iti' else 'cued'}", fontsize=8)
     fig.suptitle("Per animal: Haufe pattern of the LATERAL lick-position decoder, refit per epoch (pre-stroke SVD basis), "
                  "/ pre RMS; sim = noise-corrected similarity to pre. ipsi = image LEFT. PROVISIONAL", fontsize=9)
-    fig.savefig(il.OUT / "figures" / f"{fig_stems()['animals']}.png", dpi=100, bbox_inches="tight")
+    save_png_svg(fig, il.OUT / "figures" / f"{fig_stems()['animals']}.png", dpi=100, bbox_inches="tight")
     plt.close(fig)
 
 

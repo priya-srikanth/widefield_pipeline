@@ -44,6 +44,7 @@ across epochs, no significance marks (single-animal descriptive panels).
 OUT: <out>/state_ps94_diagnostic.png / .csv + state_ps94_diagnostic_confusions.csv
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import inspect
 import pickle
@@ -289,7 +290,7 @@ def draw(D: pd.DataFrame, hist: list, C: pd.DataFrame, png: Path) -> None:
     fig.text(0.5, 0.955, "Open markers = sessions; filled marker +- bar = mean over sessions +- SEM. Q / R / L = "
              "quiet / running / licking.", ha="center", fontsize=9.5, color="0.3")
     fig.subplots_adjust(left=0.06, right=0.99, top=0.9, bottom=0.07)
-    fig.savefig(png, dpi=180, facecolor="white")
+    save_png_svg(fig, png, dpi=180, facecolor="white")
     plt.close(fig)
 
 

@@ -20,6 +20,7 @@ MOp only, and no saved table has SSp-n for these encoder quantities -- the simpl
 Usage: python scripts/simple_key_figures.py [--only-v2] [--copy-to _goal_page]
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 from wfield_local.frozen_encoder import design_tag as _design_tag  # frame tag of the FROZEN_LICKS_ALL design (8.51)
 
 import shutil
@@ -138,7 +139,7 @@ def fig_musall(plt, w: str, claim: str) -> Path:
                "(musall_change.csv). Source: scripts/frozen_fr_musall.py.")
     fig.subplots_adjust(left=0.07, right=0.99, top=0.76, bottom=0.2, wspace=0.18)
     p = FIG_FC / f"frozen_musall_{w}_simple.png"
-    fig.savefig(p, dpi=130)
+    save_png_svg(fig, p, dpi=130)
     plt.close(fig)
     return p
 
@@ -190,7 +191,7 @@ def fig_musall_v2(plt, w: str, claim: str) -> Path:
                "Source: scripts/frozen_fr_musall_v2.py -> musall_change_v2.csv.")
     fig.subplots_adjust(left=0.05, right=0.995, top=0.86, bottom=0.12, wspace=0.05, hspace=0.55)
     p = FIG_FC / f"frozen_musall_{w}_simple_v2.png"
-    fig.savefig(p, dpi=130)
+    save_png_svg(fig, p, dpi=130)
     plt.close(fig)
     return p
 
@@ -215,7 +216,7 @@ def _grid(plt, B: pd.DataFrame, rows: list, w: str, claim: str, foot: str, name:
     fig.subplots_adjust(left=0.07, right=0.99, top=1 - 1.35 / (3.3 * len(rows) + 1.3), bottom=0.55 / (3.3 * len(rows) + 1.3) + 0.04,
                         wspace=0.06, hspace=0.5)
     p = FIG_FC / f"{name}_{w}_simple.png"
-    fig.savefig(p, dpi=130)
+    save_png_svg(fig, p, dpi=130)
     plt.close(fig)
     return p
 
@@ -289,7 +290,7 @@ def fig_lick_dots(plt) -> Path:
                "shown, the five non-far-contra spouts are the script's pooled group. Source: scripts/lick_correction.py.")
     fig.subplots_adjust(left=0.07, right=0.97, top=0.82, bottom=0.2, wspace=0.28)
     p = FIG_LC / "lick_correction_spouts_dots.png"
-    fig.savefig(p, dpi=130)
+    save_png_svg(fig, p, dpi=130)
     plt.close(fig)
     return p
 

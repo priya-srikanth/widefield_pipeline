@@ -36,6 +36,7 @@ overshoots.
 RUN AS:  python -m scripts.rest_migration.rotation_maps [--arms ENL cue lick rest]
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import argparse
 import csv
@@ -1164,7 +1165,7 @@ def _gain_rotation_figure(rows, out_dir, tag=""):
              "from configs/animals.yaml.",
              ha="center", va="top", fontsize=10)
     out = out_dir / f"epoch_15h_gain_vs_rotation{tag}.png"
-    fig.savefig(out, dpi=150, bbox_inches="tight")
+    save_png_svg(fig, out, dpi=150, bbox_inches="tight")
     plt.close(fig)
     return out.name
 
@@ -1414,7 +1415,7 @@ def _figure(maps, rows, out_dir, tag="", outlines=None):
                  "cosine of -0.29. Judge rotation by the BARS, not by brightness.",
                  ha="center", va="top", fontsize=10)
         out = out_dir / f"epoch_15h_rotation_maps_{arm}{tag}.png"
-        fig.savefig(out, dpi=150, bbox_inches="tight")
+        save_png_svg(fig, out, dpi=150, bbox_inches="tight")
         plt.close(fig)
         made.append(out.name)
     return ", ".join(made)

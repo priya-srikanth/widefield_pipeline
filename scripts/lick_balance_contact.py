@@ -23,6 +23,7 @@ Outputs <OUT_W>/balcontact_licks.csv.gz, balcontact_sessions.csv, balcontact_ani
 balcontact_models.csv, balcontact_cv.csv, balcontact_downsample.csv; figure figures/lick_balance_contact.png.
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import sys
 from pathlib import Path
@@ -327,7 +328,7 @@ def plot(D, S, E, AR, M) -> None:
     fig.suptitle("Is the PRIMARY balance touch reafference? Cued first post-cue licks split by DAQ spout CONTACT vs MISS "
                  "(balance: ALM+tjM1+SSp-m+SSp-n+SSs, 0.1-0.5 s, angle-matched gain ratio). PROVISIONAL", fontsize=10)
     fig.tight_layout(rect=(0, 0, 1, 0.95))
-    fig.savefig(il.OUT_W / "figures" / "lick_balance_contact.png", dpi=90)
+    save_png_svg(fig, il.OUT_W / "figures" / "lick_balance_contact.png", dpi=90)
     plt.close(fig)
 
 

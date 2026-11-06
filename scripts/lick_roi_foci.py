@@ -9,6 +9,7 @@ fraction inside ALM / tjM1 / rest of MOs / rest of MOp. Figure: every map with t
 Usage: python scripts/lick_roi_foci.py
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import sys
 from pathlib import Path
@@ -110,7 +111,7 @@ def main() -> int:
                  "map FOCI (top 3 % |map| per hemisphere and sign).\nGrey = Allen areas. Orange = more active for "
                  "contralesional (lateral) / longer (sagittal) licks / that spout. ipsi (lesion) = image LEFT. PROVISIONAL",
                  fontsize=10)
-    fig.savefig(il.OUT / "figures" / "lick_roi_foci.png", dpi=95)
+    save_png_svg(fig, il.OUT / "figures" / "lick_roi_foci.png", dpi=95)
     return 0
 
 

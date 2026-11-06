@@ -21,6 +21,7 @@ pre, FDR within measure. Cohort1 only.
     python scripts/cohort2_qc/quiet_sync_4to8.py
 Output: <V2>/sync_4to8/  (sessions.csv, contrasts_sessions.csv, lmm.csv, fraction_surviving.csv, quiet_sync_4to8.png)
 """
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 import sys
 from pathlib import Path
 
@@ -155,7 +156,7 @@ def figure(K, T, F):
                  f"4-8 Hz {fo.get('I_4_8', np.nan):.0%}, 4-7 Hz {fo.get('I_4_7', np.nan):.0%}, "
                  f"4-8 floor-subtracted {fo.get('I_4_8fl', np.nan):.0%}", fontsize=9.5)
     fig.tight_layout(rect=(0, 0, 1, 0.9), h_pad=2.0, w_pad=1.5)
-    fig.savefig(OUT / "quiet_sync_4to8.png", dpi=110)
+    save_png_svg(fig, OUT / "quiet_sync_4to8.png", dpi=110)
     plt.close(fig)
     print("wrote", OUT / "quiet_sync_4to8.png")
 

@@ -44,6 +44,7 @@ Usage: WFIELD_LICK_DECODER=<areas|svd|locanmf> [WFIELD_LOCANMF_MASK=1] python sc
        python scripts/lick_offset_contrib_map.py [--coord angle reach] --plot-only
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import pickle
 import sys
@@ -445,7 +446,7 @@ def plot_polar(F: dict) -> None:
                  "uniform cortex-wide change x the summed weight; pattern = the rest; read-out = the like-for-like "
                  "change (offset + held-out pre-reference term). Mean of animals; ipsi (lesion) = image LEFT. "
                  "SUPPLEMENTARY, PROVISIONAL", fontsize=9)
-    fig.savefig(FIG / f"lick_offset_contrib_{coord}.png", dpi=90, bbox_inches="tight")
+    save_png_svg(fig, FIG / f"lick_offset_contrib_{coord}.png", dpi=90, bbox_inches="tight")
     plt.close(fig)
 
 
@@ -493,7 +494,7 @@ def plot_vs_lateral(F: dict) -> None:
                  "pixel-wise r to the ANGLE map\n(mean [per animal]); right = per-area terms (beta x dh), each dot one "
                  "area. + = contralesional in both. SUPPLEMENTARY, PROVISIONAL", fontsize=9)
     fig.tight_layout(rect=(0, 0, 1, 0.93))
-    fig.savefig(FIG / "lick_offset_contrib_angle_vs_lateral.png", dpi=90)
+    save_png_svg(fig, FIG / "lick_offset_contrib_angle_vs_lateral.png", dpi=90)
     plt.close(fig)
 
 
@@ -577,7 +578,7 @@ def plot():
                      "(sum of its pixel weights).\nThe offset totals agree across bases; the weights share the broad lateral "
                      "structure but differ in detail (ridge weights are not unique). PROVISIONAL", fontsize=9)
         fig.tight_layout(rect=(0, 0, 1, 0.93))
-        fig.savefig(FIG / f"lick_{'iti' if st == 'iti' else 'cued'}_offset_contrib_map.png", dpi=90)
+        save_png_svg(fig, FIG / f"lick_{'iti' if st == 'iti' else 'cued'}_offset_contrib_map.png", dpi=90)
         plt.close(fig)
         # SUPPLEMENT: the per-pixel weights (the former 4th column)
         fig, axs = plt.subplots(1, len(wpix), figsize=(4.2 * len(wpix), 4.2), squeeze=False)
@@ -592,7 +593,7 @@ def plot():
                      "looks pale because its weight is spread over many pixels -- see the per-area weights in the main figure)",
                      fontsize=9)
         fig.tight_layout(rect=(0, 0, 1, 0.88))
-        fig.savefig(FIG / f"lick_{'iti' if st == 'iti' else 'cued'}_offset_contrib_pixelweight.png", dpi=90)
+        save_png_svg(fig, FIG / f"lick_{'iti' if st == 'iti' else 'cued'}_offset_contrib_pixelweight.png", dpi=90)
         plt.close(fig)
 
 

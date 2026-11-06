@@ -18,6 +18,7 @@ Steps
                C (per-session regression), planted-signal control; offsets per variant; boot_delta_columns before/after
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import os
 import sys
@@ -581,6 +582,6 @@ def plot() -> None:
                  "n = 4, PROVISIONAL)", fontsize=10, y=1.06)
     reserve_headroom(fig)
     (fpa.FIGS).mkdir(parents=True, exist_ok=True)
-    fig.savefig(fpa.FIGS / "fpa_offset.png", dpi=130, bbox_inches="tight")
+    save_png_svg(fig, fpa.FIGS / "fpa_offset.png", dpi=130, bbox_inches="tight")
     plt.close(fig)
     _ = PA

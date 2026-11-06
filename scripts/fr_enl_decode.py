@@ -34,6 +34,7 @@ animals -> sessions), per-animal table printed first (CLAUDE.md rule 8).
 Output: <dlc>/face_rhythm/cam4/readouts/master_pre_v1/enl_decode/ (fr_enl_decode_sessions.csv, _epochs.csv, figure).
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import argparse
 from pathlib import Path
@@ -194,7 +195,7 @@ def figure(S: pd.DataFrame, path: Path) -> None:
     fig.suptitle("PRE-CUE (ENL, lick-free) window -- spout position from face movement (FaceRhythm master_pre_v1, "
                  "12 factors, 0.5 s bins).\nOpen markers = sessions (shape = animal, colour = epoch), ticks = animal "
                  "means, squares = mean of animals +- SEM, dotted = chance (1 / positions decoded)", fontsize=8.5)
-    fig.savefig(path, dpi=160)
+    save_png_svg(fig, path, dpi=160)
     plt.close(fig)
 
 

@@ -8,7 +8,7 @@ TOO, and it drifts (FINDINGS 3.4: late pre - early pre +5..+12 x1e3 in SSp-m, 3/
 
     post_by_animal = that epoch's per-session residual maps;  pre_by_animal = the pre sessions' residual maps
     tests = the repo's map tests (`beta_maps.significance_contour`): "nested" (animals -> sessions bootstrap on the 8 x 8
-            grid, Bonferroni over bins, pre-normalised -- PRIMARY) and "cluster" (cluster mass, within-animal
+            grid, max-statistic over bins = family-wise per panel, pre-normalised -- PRIMARY) and "cluster" (cluster mass, within-animal
             relabelling, animal = unit)
     REFERENCE = ALL the pre sessions, each scored leave-one-session-out (Priya 10-24: "i don't want to use early vs late
             pre - just all loso pre"). The late-vs-early-pre calibration is optional (--drift), off by default.

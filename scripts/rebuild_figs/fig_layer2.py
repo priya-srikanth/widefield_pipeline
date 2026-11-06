@@ -11,6 +11,7 @@ INPUT: <encoding>/allsession_encoder_<tag>/allsession_changes_by_session.csv + m
     PYTHONPATH=<wf_rebuild> python scripts/rebuild_figs/fig_layer2.py [--allsession-tag v7g3_t3d_ref] [--out DIR] [--plot-only]
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 from wfield_local.frozen_encoder import design_tag as _design_tag  # frame tag of the FROZEN_LICKS_ALL design (8.51)
 
 import sys
@@ -84,7 +85,7 @@ def draw(fd: dict, out: Path) -> None:
                  "early pre-stroke kernels in one fit\nbars = epoch means, dots = sessions; triangles = chronic refit with "
                  "only its first / last 4 sessions (matched to the null's 4)", fontsize=10)
     fig.tight_layout(rect=(0, 0, 1, 0.91))
-    fig.savefig(out / "fig5_layer2_change.png", dpi=140)
+    save_png_svg(fig, out / "fig5_layer2_change.png", dpi=140)
     plt.close(fig)
 
     # per-group unique change, cortex
@@ -107,7 +108,7 @@ def draw(fd: dict, out: Path) -> None:
     fig.suptitle("Layer 2 per kernel group: no single group (lick = motor timing, contact = touch, target, direction ...) "
                  "changes more chronically than the drift null", fontsize=10)
     fig.tight_layout(rect=(0, 0, 1, 0.9))
-    fig.savefig(out / "fig6_layer2_groups.png", dpi=140)
+    save_png_svg(fig, out / "fig6_layer2_groups.png", dpi=140)
     plt.close(fig)
 
 

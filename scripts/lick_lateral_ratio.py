@@ -19,6 +19,7 @@ Outputs <OUT_W>/lateral_ratio_sessions.csv, lateral_ratio_tests.csv, lateral_rat
 lick_lateral_ratio_traces_<set>.png, lick_lateral_ratio_auc.png (figdata + --plot-only).
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import sys
 from pathlib import Path
@@ -248,7 +249,7 @@ def plot(F: dict) -> None:
                      "(solid = all animals, dotted = 2-3 animals), band = SEM over animals. Descriptive; tests on the AUC ratio in lick_lateral_ratio_auc.png. "
                      "PROVISIONAL", fontsize=9.5)
         fig.tight_layout(rect=(0, 0.04, 1, 0.93))
-        fig.savefig(out / f"lick_lateral_ratio_traces_{st}.png", dpi=95)
+        save_png_svg(fig, out / f"lick_lateral_ratio_traces_{st}.png", dpi=95)
         plt.close(fig)
     # AUC summary: rows = sets, columns = pairs; x = spouts, one marker per epoch
     for w0, w1 in WINDOWS:
@@ -287,7 +288,7 @@ def plot(F: dict) -> None:
                      "intercept per animal, ML, likelihood ratio): (1) spout effect in PRE sessions; (2) spout x epoch "
                      "interaction; epoch main effect. PROVISIONAL", fontsize=9.5)
         fig.tight_layout(rect=(0, 0.04, 1, 0.93))
-        fig.savefig(out / ("lick_lateral_ratio_auc.png" if (w0, w1) == WINDOWS[0] else f"lick_lateral_ratio_auc_{w0:g}-{w1:g}.png"), dpi=100)
+        save_png_svg(fig, out / ("lick_lateral_ratio_auc.png" if (w0, w1) == WINDOWS[0] else f"lick_lateral_ratio_auc_{w0:g}-{w1:g}.png"), dpi=100)
         plt.close(fig)
 
 
@@ -334,7 +335,7 @@ def plot_sides(F: dict) -> None:
                      f"ipsi curve is >= {RATIO_MIN:.0%} of its peak; mean over the animals defined (solid = all, dotted = 2-3), "
                      "band = SEM over animals. Descriptive. PROVISIONAL", fontsize=9.5)
         fig.tight_layout(rect=(0, 0.04, 1, 0.93))
-        fig.savefig(out / f"lick_lateral_ratio_side_traces_{st}.png", dpi=100)
+        save_png_svg(fig, out / f"lick_lateral_ratio_side_traces_{st}.png", dpi=100)
         plt.close(fig)
     for w0, w1 in WINDOWS:
         v = f"logr_{w0:g}-{w1:g}"
@@ -368,7 +369,7 @@ def plot_sides(F: dict) -> None:
                      "bootstrap CI excludes 0.\nTitles: mixed models with sessions as observations (anti-conservative at "
                      "n = 4 animals): side effect in PRE sessions; side x epoch interaction. PROVISIONAL", fontsize=9.5)
         fig.tight_layout(rect=(0, 0.04, 1, 0.92))
-        fig.savefig(out / ("lick_lateral_ratio_side_auc.png" if (w0, w1) == WINDOWS[0]
+        save_png_svg(fig, out / ("lick_lateral_ratio_side_auc.png" if (w0, w1) == WINDOWS[0]
                            else f"lick_lateral_ratio_side_auc_{w0:g}-{w1:g}.png"), dpi=100)
         plt.close(fig)
 
@@ -436,7 +437,7 @@ def plot_rings(F: dict) -> None:
                      "nested bootstrap CI.\nTitles: mixed model on per-spout rows, y ~ spout + epoch * far vs y ~ spout + "
                      "epoch (sessions as observations; anti-conservative). PROVISIONAL", fontsize=9.5)
         fig.tight_layout(rect=(0, 0.05, 1, 0.92))
-        fig.savefig(il.OUT_W / "figures" / ("lick_lateral_ratio_rings.png" if (w0, w1) == WINDOWS[0]
+        save_png_svg(fig, il.OUT_W / "figures" / ("lick_lateral_ratio_rings.png" if (w0, w1) == WINDOWS[0]
                                             else f"lick_lateral_ratio_rings_{w0:g}-{w1:g}.png"), dpi=100)
         plt.close(fig)
 
@@ -478,7 +479,7 @@ def plot_pooled(F: dict) -> None:
                  f"curve), shown only where the ipsi curve is >= {RATIO_MIN:.0%} of its 0..1.5 s peak; mean over the animals defined (solid = all, dotted = 2-3), band "
                  "= SEM over animals. Descriptive. PROVISIONAL", fontsize=9.5)
     fig.tight_layout(rect=(0, 0.04, 1, 0.93))
-    fig.savefig(out / "lick_lateral_ratio_pooled_traces.png", dpi=100)
+    save_png_svg(fig, out / "lick_lateral_ratio_pooled_traces.png", dpi=100)
     plt.close(fig)
     fig, axs = plt.subplots(len(WINDOWS), len(SETS), figsize=(17, 9), squeeze=False)
     for r, (w0, w1) in enumerate(WINDOWS):
@@ -509,7 +510,7 @@ def plot_pooled(F: dict) -> None:
                  "mean +- SEM over animals; * = change vs pre, 95% paired nested bootstrap CI (animals > sessions) excludes 0."
                  "\nColumns: first cued lick, cue, ITI bout start (>= 2 s without licking). PROVISIONAL", fontsize=9.5)
     fig.tight_layout(rect=(0, 0.05, 1, 0.92))
-    fig.savefig(out / "lick_lateral_ratio_pooled_auc.png", dpi=100)
+    save_png_svg(fig, out / "lick_lateral_ratio_pooled_auc.png", dpi=100)
     plt.close(fig)
 
 
