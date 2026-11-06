@@ -75,6 +75,13 @@ code versions; the provenance table records each step's code sha (log header).
 **Push hold on main (a8, since 13:20)** still on. When it lifts: merge origin/main into each branch, push one at a time
 (priya1106-small, -frdrift, -gainbio, gates-captions, svg) with Priya's OK per branch.
 
+- `fix/deficit-qc-dir-20261106` (wf_deffix, fa391f25, 14:20): imaging_lmm / remap_lmm / remap_checks / iti_lmm_figures read the
+  deficit table from <E>/qc (missing in a tagged run) -> run_mode.deficit_qc_dir(); static test. b_imaging_lmm FAILED on it
+  (13:28). PARKED (RESERVED_HOLD): b_imaging_lmm, b_remap_lmm, b_remap_checks, e_mm, e_lmm_response, e_lmm_all.
+  (b_within_spout_mixed + encoding_mixed already use deficit_qc_dir.)
+- a8 asks: provenance rows for current deck slides 31, 111, 153, 154 (cohort2 490 vs 470: labcams/cohort2/490_vs_470/
+  cohort2_490_vs_470{_dprime,}.png, led_490_vs_470{_dprime,}.py), 164 -> add in the post-render merge.
+
 **Final catch-up queue (to build once gates-captions is merged):** the 7 parked steps + d_exec_vs_encoder re-run (+ the
 A25 LP epoch arm if Priya says yes; + any figure redraws for SVG per the inventory).
 
