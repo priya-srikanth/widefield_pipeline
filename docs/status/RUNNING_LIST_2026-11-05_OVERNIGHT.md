@@ -12,11 +12,36 @@ until Priya answers the matching question.
   had none) and (b) break the blocks that get June by UNSETTING the variable (june_august_drift, restnl_mask,
   map_drift_prepre, reembedding). Held; to agree with the encoding window (34) first. Proposed: unset -> cohort cut,
   explicit `""`/`all` -> June + August, and change those four blocks to pass `all`.
+  **Encoding window (34) view:** right intent, but not before the page-replacement pass. Middle ground for now: a
+  loud WARNING (no behaviour / tag change) when a cohort-1 module runs with WIDEFIELD_PRE_FROM unset and no profile
+  ("pooling June + August pre"); full switch after the pages are replaced, with a test pinning each June block. 34
+  has the same question on its list (wf_attempt docs/status/OVERNIGHT_2026-11-05_FOR_PRIYA.md). I agree with 34.
+- **Q2. Slide 41 wording (hidden, "Jaw opening by trial class").** Bullet says "acute far-contra contact licks open
+  less". On the working-period figure that holds for the first ~1.5 s (acute peak ~1.2 mm vs ~2.3 mm pre) but from
+  ~2 s the acute trace stays MORE open (~1.1 vs ~0.6 mm), and acute far-contra contact is 3 animals / 10 sessions /
+  61 trials. Proposed: "acute far-contra contact licks open less at first (peak ~1.2 vs ~2.3 mm) and stay partly open
+  late (3 animals, 61 trials)". Not changed.
+- **Q3. Push rule: rebase vs merge.** CLAUDE.md rule 4 says fetch -> rebase -> push; 34 says your standing rule for
+  the rebuild is never rebase / never force, merge instead. I rebased one local, never-pushed branch today (no force,
+  nothing on origin rewritten) and will MERGE from now on. Should CLAUDE.md rule 4 be updated to say merge?
 - (more added below as the night goes)
 
 ## 2. Findings
 
-- (none yet)
+- **Deck notes carried the OLD engaged-trial numbers (fixed 11-05 night).** After the working-period swap, the
+  bullets of slides 37-43 had the new numbers but the speaker notes of 37 / 39 / 40 still quoted the 11-03
+  engaged-trial tables (far contra contact .95 / .05 / .74 / .98, incomplete +.57 [.40, .72], per animal .74 / .64 /
+  .60 / .32, "1 unknown of 50,929 trials", dots "colour = animal"), and the method lines on 37 / 39-43 said "all
+  ENGAGED trials". Regenerated from e0's working-period tables (scripts in the deck source folder:
+  notes_working_period_1105.py, notes_numbers_working_1105.py; backups backup_before_notes_working_1105 /
+  backup_before_notes_numbers_1105; hidden states unchanged, 191 slides / 84 hidden). New: contact .96 / .05 / .74 /
+  .96; acute incomplete +.60 [.42, .75] **; per animal incomplete .80 / .71 / .63 / .36, jaw-only .09 / .10 / .21 /
+  .49 (PS95 = one acute session, 109 trials); 0 unknown of 51,355 working-period trials (shares sum to 1). Slide 36
+  (the hidden old slide) keeps its old notes, as it shows the old figure.
+- **Baseline sweep, cohort2_qc / quiet scripts: 46 sites in 20 files, NO session moves** (all were ">= 0806"; on disk
+  0 June and 0 0801-0805 sessions in every input folder). Lint + 153 tests pass. Side note: `quiet_modes.py:116`
+  splits pre / post with `session[-4:] < "0816"` (a raw MMDD compare, not the baseline cut); could move to
+  `epochs.epoch_of` later.
 
 ## 3. Done / state
 
