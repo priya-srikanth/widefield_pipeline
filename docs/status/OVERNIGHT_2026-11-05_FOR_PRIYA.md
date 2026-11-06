@@ -35,6 +35,9 @@ the night.
    entries are superseded. OK to delete superseded LOCAL cache entries (derived, reproducible)? A disk watcher now
    halts the render queue if C: < 20 GB free.
 
+8. **PI deck fluoroscopy wording** (a8): slide 161 bullet 2 says "about half the bolus"; with the new barium-amount
+   measure it is closer to "about a third of the barium" (severe day 1 amount ~0.35x pre). Reword?
+
 ## B. Findings (early; nothing on pages changed)
 
 - Mixed models, binned contest, LOG deficit (now primary): cue window -- spout identity tracks recovery (-8.1, q .015)
@@ -63,3 +66,6 @@ the night.
   for later: point the per-session result cache at a local copy (no code change). Disk risk found -> watcher started (A7).
 - ~23:30: decisions push rejected twice by the same 14 pre-push tests (pass when run alone) -> likely test-order pollution
   from the new tests importing scripts; diagnosing, will fix the tests (not bypass).
+- ~23:40: **PI deck fluoroscopy update DONE by a8** (192 slides / 85 hidden): slide 161 = the new 10-panel all_graphs,
+  notes with density / amount + sitting / gap / transit stats; NEW hidden slide 162 "How bolus density is measured"
+  (density_method). Backup backup_before_fluoro_density_1105.pptx; hidden states asserted unchanged. Wording question = A8.
