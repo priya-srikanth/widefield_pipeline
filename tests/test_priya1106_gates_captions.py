@@ -188,6 +188,8 @@ def test_three_d_scripts_route_through_the_one_gate():
     for name in ("pose3d_phase", "pose3d_spout_error", "pose3d_vs_cam4", "exec_bins_calibration"):
         src = (REPO / "scripts" / f"{name}.py").read_text(encoding="utf-8")
         assert "tc.gate_kin_licks(" in src, name
+    pv = (REPO / "scripts" / "rebuild_figs" / "fig_pose_validation_sessions.py").read_text(encoding="utf-8")
+    assert "tc.gate_kin_licks(" in pv and 'tc.kin_out_dir(P3, "vs_cam4")' in pv      # same lick set as pose3d_vs_cam4
     for name in ("pose3d_phase", "pose3d_spout_error"):                 # cached results keyed on the gate
         src = (REPO / "scripts" / f"{name}.py").read_text(encoding="utf-8")
         assert "extra=tc.kin_gate_signature()" in src, name
