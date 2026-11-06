@@ -325,3 +325,18 @@ the night.
 - A30: pose3d_summary dots = open markers, shape = animal, colour = epoch; pose3d_phase hides the top spine on all 2-D panels.
 - Catch-up queue order: b_imaging_lmm and l_disengage* must depend on k_cohort (they read the new folder).
 - **Decision needed: OK to push fix/priya1106-cam4-style to main** (after the six-branch push finishes)?
+
+**11-06 ~18:15 -- A27 result: cam4 cohort on the camera working period (queue v9k k_cohort, main ec0ff642) vs the old
+engaged-gate tables (LP_analysis/.../cohort/tables/prepost, 11-03).** 294 cells (18 metrics x 6 positions + far pair x 3
+epochs), same sessions (31 pre; 16 acute / 17 subacute / 43 chronic), contra table identical in pattern.
+- **No sign flips in any significant cell. Every headline cell keeps its status:** far-contra acute contact -0.76, reach,
+  protrusion -22 px (median), lick duration +19 ms, first lick +542 ms, isolated licks -0.42, jaw-without-lick (acute
+  far spouts, "both"), FAR_DIR angle / L-R (all three epochs, same status), far-ipsi + far-mid chronic lick duration.
+- 13 cells change significance status, all near q = 0.05: resp_rate far_ipsi chronic both -> neither (the small chronic
+  "above pre" at far ipsi was the quit tail; now +0.0001), resp_rate far_ipsi subacute MWU -> both, close_ipsi/close_contra
+  subacute resp_rate -> sig, lick_dur close_ipsi acute both -> neither (q .039 -> .063), contact/nocontact close_ipsi chronic
+  MWU -> neither, jaw_no_lick far_contra chronic boot-only -> neither, latency_contact far_contra subacute -> MWU only, and
+  two bootstrap-only gains (jaw_no_lick close subacute, precue_rate close_mid acute).
+- **Numbers in OROFACIAL_FINDINGS that would change (text waits for Priya):** "responded trials (engaged)" row ->
+  "(camera working period)", far spouts mean -0.19 to -0.26 (was -0.21 to -0.28; far_mid median -0.11, was -0.21);
+  far-contra first spout contact mean +978 ms (was +898); far-contra pre-cue licking -0.41 Hz median (was -0.46).
