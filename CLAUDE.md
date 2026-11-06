@@ -45,8 +45,9 @@ camera acquisition). See `README.md` for setup, `docs/archive/MIGRATION.md` for 
 4. **Rig commit procedure:** point `CONDA_PREFIX` at this box's env (analysis desktop:
    `export CONDA_PREFIX=C:/Users/SabatiniLab/miniconda3/envs/locanmf`; analysis / behaviour box:
    `C:/Users/sabatini/.conda/envs/locanmf`; imaging box: `C:/ProgramData/anaconda3/envs/wfield`); `git add -A` →
-   commit → `git fetch origin` → `git rebase origin/main` → `git push`. NEVER force-push; re-fetch/rebase if
-   rejected. Both machines push `main`, so always fetch/rebase first.
+   commit → `git fetch origin` → `git merge origin/main` → `git push`. NEVER force-push; re-fetch/merge if
+   rejected. Both machines and several windows push `main`, so always fetch/merge first. MERGE, not rebase
+   (Priya, 2026-11-06): a rebase rewrites commits another window may already have seen or built on.
 5. **Cross-day caching:** per-session results are memoized (`wfield_local/session_cache.py`). **Bump
    `CACHE_VERSION` whenever you change a cached function's logic** (mtimes don't see code changes).
 6. **FAN A PER-SESSION LOOP OVER CORES. `wfield_local/parallel.py` ALREADY EXISTS — USE IT.**
