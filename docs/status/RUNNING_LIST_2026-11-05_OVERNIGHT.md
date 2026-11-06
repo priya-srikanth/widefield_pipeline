@@ -53,8 +53,9 @@ until Priya answers the matching question.
     (peak ~1.2 vs ~2.3 mm pre) but stay more open from ~2 s (3 animals, 61 trials)". reword_slide41_1105.py.
   - 11-05: new slide 35 (trial shares sum to 1), old 35 hidden (now 36); 37-43 swapped to working-period figures;
     slide 40 re-swapped (open markers); slide 156 VFSS reword; fluoro slides added (now 160-161).
-- **Item 3 response-window fallback**: second push (after rebase) in its pre-push full suite; retries will MERGE.
-- **Hemo 470 slot** + this running list: branch `cleanup/hemo-slot-20261105` (wf_cleanup2), push after item 3.
+- **Item 3 response-window fallback: ON MAIN** (9ad4fbcc; pre-push full suite passed 11-06).
+- **Hemo 470 slot** + this running list: branch `cleanup/hemo-slot-20261105` (wf_cleanup2), origin/main merged in
+  (no conflicts), push running its pre-push suite.
 - **Item 2 August-only cut**: committed 37bacf12 on `cleanup/august-pre-key-20261105` (wf_cleanup3), not pushed.
   Merge after item 3 lands (touches ~126 files; 34 notified, its render is in its own pinned worktree).
 - **Item 5 fail-loud DAQ contacts**: committed 5834f8de on `cleanup/daq-contacts-failloud-20261105` (wf_cleanup4),
