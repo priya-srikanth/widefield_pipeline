@@ -1955,3 +1955,10 @@ bundle without `daqlk` and writes a provenance json.
 - ~20:50: lane E halted at e_iti_main (20:10): iti_licks summarise needs zscore_check/session_sd(_split) tables whose
   producers (iti_zscore_check, iti_area_split_sd) were queued after it / not at all. queue_daqlk4.sh adds them before
   e_iti_main; lane E relaunched from v4 (log laneE2.out).
+- ~21:15: a8 relayed Priya's replacement-map check answers: (a) behaviour-only figures -> camera working period + August
+  pre, re-rendered (encoding 10.6, 16.6, 16.9, 16.10, 30 inline panels of 14.18 / 14.21; deck 8, 57-64); (b) imaging
+  15.1-15.7 -> pointer to encoding section 23 (e0); (c) deck 144 kept. a8 inventory: disengagement_tests (DAQ quit) and
+  revup_behaviour (fixed qc path) need code -> added to the decisions helper's branch; learned_compensation /
+  within_lick_correction likely just re-run; iti_lick_rate / lick_aim_deficit / iti_lmm_figures / iti_recovery_measure
+  to inspect. Fig 16.9 lmm_time_behaviour producer unknown (mine). Imaging 11.2 d_enl_move + deck 102 gain_bio: queue
+  helper adding section X (gain gated on the ENL-slide fix; 11.2 only if it reads the D1 projection).
