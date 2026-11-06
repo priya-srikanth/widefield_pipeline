@@ -1918,3 +1918,15 @@ bundle without `daqlk` and writes a provenance json.
   filled. Cortex, behaviour model: 3d:ceiling cue post:deficit -11.3 (q<.001), 3d:u_target cue -3.33 (q<.001), 3d:u_target
   lick -1.99 (q .29, n.s.). Convention fix for the replacement pass: these panels still draw a top spine.
   - Lane T: t_frame_te EXIT 0 19:42 (45 min vs 3-4 h estimate).
+- ~20:15: **Lick-window target vs deficit: cam4 significant before, 3-D n.s. now (Priya worried).** EARLY, no page text
+  changed. Cortex, behaviour model, lick window:
+  - pre level of unique target: cam4 22.8 (10-21) vs 3-D 11.9 (now) / 15.7 (10-21, 47 sessions); unique EXECUTED: cam4 3.8
+    vs 3-D 7.7 / 6.2 -> with 3-D the executed term ~doubles and the target term shrinks = what a noisier executed regressor
+    leaking into "target" predicts (cf. ENCODING_FINDINGS: pre-stroke target advantage suspended after the
+    coordinate-matched 3-D contest).
+  - post:deficit: cam4 u_target -3.21 (q .001); 3-D u_target -5.23 (q .059, 47 sess, 10-21) -> -1.99 (q .29, 107, now);
+    3-D u_exec -1.32 (q .011, now).
+  - per animal (3-D u_target lick, pre / acute / sub / chronic): PS92 7.1 / 4.6 / 18.4 / 22.6; PS93 18.3 / 9.5 / 9.8 /
+    21.4; PS94 7.2 / 8.4 / 16.5 / 22.3; PS95 15.4 / 25.5 / 10.6 / 24.2 -> acute dip in 2/4 only; chronic up in 4/4.
+  - Not like-for-like: cam4 numbers are the 10-21 pipeline. Proposed check: cam4 contest (nokin subset) under _daqlk on
+    O2 so only the angle source differs. ttc_log deficit sensitivity running (5a6b7986, unpushed).
