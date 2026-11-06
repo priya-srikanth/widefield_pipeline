@@ -9,7 +9,9 @@ until Priya answers the matching question.
 - **Q4 DONE (Priya "can change", relayed by 34).** Slide 161 bullet 2 now: "The few swallows left carry about a third
   of the barium (smaller and less dense bolus) and clear the esophagus slowly" (was "about half the bolus" = area
   only; amount x0.34 day 1). reword_fluoro_bullet_1105.py, backup backup_before_fluoro_bullet_1105.
-- **Q5. CLAUDE.md rule 4 -> merge?** (follows Q3: Priya asked "which is safer". Answer given: merge, because several
+- **Q5 DONE (Priya "ok", 11-06).** CLAUDE.md rule 4 now says fetch -> merge -> push. The pre-push hook's header comment
+  still says "rebase"; that is left for the next real hook change, since any `.githooks/` edit triggers the full
+  suite (~2 h 40 min). Was: **Q5. CLAUDE.md rule 4 -> merge?** (follows Q3: Priya asked "which is safer". Answer given: merge, because several
   windows push one main and a rebase rewrites commits another window may have seen; neither is risky without a
   force-push.) Proposed edit: "fetch -> merge origin/main -> push". Waiting for OK before editing CLAUDE.md.
 - **Q1 follow-up.** Priya answered "yes"; read as yes to the 34 / a8 plan (warning now, default switch after the
