@@ -1190,6 +1190,7 @@ class _LagUnit:
     def __init__(self, set_name, animal, li, lag, pre, X, Y, epoch):
         self.set_name, self.animal, self.li, self.lag = set_name, animal, li, lag
         self.pre, self.X, self.Y, self.epoch = pre, X, Y, epoch      # X / Y[target] / epoch: {label: ...}, in S order
+        self.blas = None                    # the parent's BLAS thread count, set by a fan-out (see `_frozen_lag_unit`)
 
     def __repr__(self):
         return f"{self.animal} {self.set_name} lag {self.lag:g}"
@@ -1202,6 +1203,11 @@ def _frozen_lag_unit(u: _LagUnit) -> list[dict]:
     is derived from it), so two workers never fit or write the same spec; `frozen_models._write` is atomic per file
     besides (PID temp + os.replace) and `siblings` only reads directories of the SAME tag."""
     from wfield_local import frozen_readouts
+    if u.blas:
+        # THE PARENT'S ARITHMETIC: a spawned worker is pinned to parallel.BLAS_THREADS, the serial loop ran at the
+        # parent's count; a fit (store miss) or a predict at another count can differ in the last bits
+        import threadpoolctl
+        threadpoolctl.threadpool_limits(limits=u.blas, user_api="blas")
     rows = []
     for tg in ("direction", "relative"):
         # STORED BY DEFAULT (11-02 pass 2, `frozen_readouts`, opt-out WIDEFIELD_ITI_FROZEN=0)
@@ -1227,6 +1233,7 @@ def frozen_decode_lags(D: dict, set_name: str, jobs: int | None = 1) -> pd.DataF
     the DataFrame is identical to the serial one (`tests/test_iti_attempt_parallel.py`). ``jobs`` <= 1 runs in-process,
     exactly the old loop (no BLAS pinning)."""
     from wfield_local import analysis_kit as ak
+    from wfield_local import parallel
     kx, ky, kp = ("iti_X", "iti_side", "iti_pos") if set_name == "iti" else ("tr_X", "tr_side", "tr_pos")
     rows = []
     for a in AN:
@@ -1243,8 +1250,13 @@ def frozen_decode_lags(D: dict, set_name: str, jobs: int | None = 1) -> pd.DataF
         if jobs is not None and jobs <= 1:
             got = [(u, _frozen_lag_unit(u)) for u in units]
         else:
-            got, fail = ak.fan_sessions(units, _frozen_lag_unit, jobs=jobs, key=lambda u: u.li,
-                                        label=f"frozen lag ({set_name})")
+            # the parent is NOT left pinned (the rest of key_figures runs at its own BLAS count, as before), and the
+            # workers compute at that count too (`parallel.parent_blas_kept`)
+            with parallel.parent_blas_kept() as nb:
+                for u in units:
+                    u.blas = nb
+                got, fail = ak.fan_sessions(units, _frozen_lag_unit, jobs=jobs, key=lambda u: u.li,
+                                            label=f"frozen lag ({set_name})")
             if fail:
                 raise RuntimeError(f"frozen_decode_lags {set_name} {a}: {len(fail)} lag unit(s) failed: {fail[:3]}")
         for _u, r in got:

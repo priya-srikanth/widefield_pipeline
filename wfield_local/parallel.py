@@ -13,6 +13,7 @@ an animal's two tags share a frozen-decoder spec and `load_or_fit` writes it.
 from __future__ import annotations
 
 import concurrent.futures as cf
+import contextlib
 import os
 
 #: Pinned so a figure does not depend on how many cores drew it. See
@@ -31,6 +32,10 @@ def default_jobs(cap: int = 8) -> int:
     return max(1, min(cap, (os.cpu_count() or 4) - 2))
 
 
+_BLAS_VARS = ("OMP_NUM_THREADS", "MKL_NUM_THREADS", "OPENBLAS_NUM_THREADS", "NUMEXPR_NUM_THREADS",
+              "VECLIB_MAXIMUM_THREADS")
+
+
 def pin_blas(threads: int = BLAS_THREADS):
     """Fix BLAS threading for THIS process; returns a handle to restore, or None.
 
@@ -40,8 +45,7 @@ def pin_blas(threads: int = BLAS_THREADS):
     each worker imports numpy afresh. In-process needs a runtime control, so `threadpoolctl`
     re-threads the already-loaded library; the variables are still set, for the workers.
     """
-    for var in ("OMP_NUM_THREADS", "MKL_NUM_THREADS", "OPENBLAS_NUM_THREADS",
-                "NUMEXPR_NUM_THREADS", "VECLIB_MAXIMUM_THREADS"):
+    for var in _BLAS_VARS:
         os.environ[var] = str(threads)
     try:
         import threadpoolctl
@@ -90,3 +94,44 @@ def fan_out(items, worker, *, jobs=None, label="unit", log=print):
                 failures.append((it, f"{type(ex).__name__}: {ex}"))
                 log(f"  !! [{i}/{len(items)}] {label} {it} FAILED: {type(ex).__name__}: {ex}")
     return results, failures
+
+
+def blas_threads():
+    """This process's current BLAS thread count (the largest over the loaded BLAS libraries), or None."""
+    try:
+        import threadpoolctl
+    except ImportError:                                  # pragma: no cover
+        return None
+    n = [i["num_threads"] for i in threadpoolctl.threadpool_info() if i.get("user_api") == "blas"]
+    return max(n) if n else None
+
+
+@contextlib.contextmanager
+def parent_blas_kept():
+    """Fan out WITHOUT leaving the parent pinned. Yields the parent's BLAS thread count from before the fan-out.
+
+    WHY (2026-11-06, attempt_coding / iti_licks): `fan_out` pins the CALLING process to `BLAS_THREADS`, which is right
+    for a stage that is parallel from the start, but a serial loop converted later keeps doing BLAS work in the parent
+    AFTER the fan-out, and that work then runs at a different thread count than the serial version did. Measured on
+    PS92 precue (3 + 3 sessions, cold caches): the attempt-axes projection moved, its data fingerprint changed, a NEW
+    frozen model was minted (SPEC-CHANGED) and p_true moved by up to 1.4e-4. This restores the parent's limits and
+    the thread variables on exit; a worker that must reproduce the parent's arithmetic sets the yielded count itself
+    (`threadpoolctl.threadpool_limits(limits=n, user_api="blas")`)."""
+    env = {v: os.environ.get(v) for v in _BLAS_VARS}
+    try:
+        import threadpoolctl
+        saved = {lc.filepath: lc.num_threads for lc in threadpoolctl.ThreadpoolController().lib_controllers}
+    except ImportError:                                  # pragma: no cover
+        threadpoolctl, saved = None, {}
+    try:
+        yield blas_threads()
+    finally:
+        for v, val in env.items():
+            if val is None:
+                os.environ.pop(v, None)
+            else:
+                os.environ[v] = val
+        if threadpoolctl is not None:                    # every library back to ITS own count (BLAS and OpenMP)
+            for lc in threadpoolctl.ThreadpoolController().lib_controllers:
+                if lc.filepath in saved and lc.num_threads != saved[lc.filepath]:
+                    lc.set_num_threads(saved[lc.filepath])
