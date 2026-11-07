@@ -424,35 +424,117 @@ def main(argv=None) -> int:
     M.to_csv(A / f"recovery_timing_lagged_{a.window}.csv", index=False)
     S.to_csv(A / f"recovery_timing_series_{a.window}.csv", index=False)
 
-    fig, axs = plt.subplots(1, 4, figsize=(17, 4.9), sharey=True)
-    for k, an in enumerate(AN):
-        ax = axs[k]
-        g = S[S.animal == an]
-        ax.axvspan(g.day.min() - 1, 0, color="0.93", lw=0)
-        ax.axhline(1, color="0.5", ls="--", lw=0.8)
-        ax.plot(g.day, g.beh, "-o", color="0.25", ms=3.5, lw=1, label="behaviour: far-contra hit rate / pre")
-        ax.plot(g.day, g.neu, "-s", color=ACOL[an], ms=4, lw=1.2, label="cortex: far-contra code on hits / pre")
-        r = H[H.animal == an].iloc[0]
-        ax.set_title(f"{an}: half-recovery relative to pre\n" + half_lines(r, "\n") + "\n"
-                     + diff_line(r, "aim") + "\n" + diff_line(r, "beh"), fontsize=7.5)
-        ax.set_xlabel("days from stroke")
-        for s_ in ("top", "right"):
-            ax.spines[s_].set_visible(False)
-        if k == 0:
-            ax.set_ylabel("relative to the animal's pre-stroke level")
-            ax.legend(fontsize=7, frameon=False, loc="lower right")
-    fig.suptitle(f"Recovery timing, HITS ONLY ({a.window} window): behaviour vs the cortical far-contra code on successful "
-                 f"trials\n{DATA_HIT}\nHalf-recovery RELATIVE TO PRE = day the exponential fit gets half-way from the "
-                 "acute level back to pre (aim = primary behaviour, not drawn; hit rate secondary); % = completeness "
-                 "(recovered fraction of the acute deficit by chronic)\n'unresolved' = fit flag not ok; code on hits needs "
-                 f">= {ak.MIN_HITS} hits per animal x epoch (acute sets the scale); 95% CI by resampling sessions",
-                 fontsize=9)
-    fig.tight_layout(rect=(0, 0, 1, 0.8))
-    save_png_svg(fig, A / "figures" / f"recovery_timing_{a.window}.png", dpi=120)
-    plt.close(fig)
-    print("->", A / "figures" / f"recovery_timing_{a.window}.png")
+    per_animal_figure(Sm, H, a.window, plt)
     pooled_figures(S, a.window, plt)
     return 0
+
+
+# ---------------------------------------------------------------------------------------- figure conventions (11-07)
+# Priya 11-07: per-animal SESSION points = OPEN markers, shape = animal, COLOUR = EPOCH (the repo's maps:
+# cat_points.animal_marker, epoch_figures.epoch_dot_color -- as section_g_retained); pooled day-bin means = filled
+# markers coloured by the bin's epoch, CI band per epoch; lines only WITHIN an epoch, never across an epoch boundary;
+# measures in separate panels; top spine hidden (sig_marks.reserve_headroom).
+MEAS_LABEL = {"aim": "far-contra first-lick aim,\nchange vs own pre (deg)\n+ = contralesional",
+              "beh": "far-contra hit rate / pre", "neu": "cortex: far-contra frozen\ncode on hits / pre",
+              "gap": "gap: cortex - behaviour"}
+MEAS_REF = {"aim": 0.0, "beh": 1.0, "neu": 1.0, "gap": 0.0}
+
+
+def _ecol(ep):
+    from wfield_local import epoch_figures as ef
+    return ef.epoch_dot_color(ep)
+
+
+def _bin_epoch(epochs) -> str:
+    """The epoch of a day bin = the most common epoch of its sessions (bins never straddle pre / post)."""
+    e = pd.Series(list(epochs)).dropna()
+    return str(e.mode().iloc[0]) if len(e) else ""
+
+
+def _epoch_runs(T: pd.DataFrame):
+    """Contiguous same-epoch runs of rows (already in x / day order): lines are drawn within a run only."""
+    if not len(T):
+        return
+    k = (T.epoch != T.epoch.shift()).cumsum()
+    for _, run in T.groupby(k, sort=False):
+        yield run.epoch.iloc[0], run
+
+
+def _session_points(ax, P: pd.DataFrame, col: str, lines: bool = False) -> None:
+    """Open markers per session (shape = animal, colour = epoch); optional thin per-animal lines within an epoch."""
+    from wfield_local import cat_points as cp
+    P = P[np.isfinite(P[col].to_numpy(float))].sort_values(["animal", "day"])
+    for an, g in P.groupby("animal"):
+        for ep, run in _epoch_runs(g):
+            if lines and len(run) > 1:
+                ax.plot(run.day, run[col], color=_ecol(ep), lw=0.7, alpha=0.5, zorder=2)
+            ax.scatter(run.day, run[col], marker=cp.animal_marker(an), facecolors="none", edgecolors=[_ecol(ep)],
+                       s=18 if not lines else 22, lw=0.9, alpha=0.6 if not lines else 0.9, zorder=3)
+
+
+def _bin_means(ax, T: pd.DataFrame) -> None:
+    """Pooled day-bin means: filled markers + CI band coloured by the bin's epoch, joined only within an epoch."""
+    T = T.sort_values("x")
+    for ep, run in _epoch_runs(T):
+        c = _ecol(ep)
+        if len(run) > 1:
+            ax.fill_between(run.x, run.lo, run.hi, color=c, alpha=0.16, lw=0, zorder=1)
+            ax.plot(run.x, run["mean"], color=c, lw=2, zorder=4)
+        else:
+            ax.vlines(run.x, run.lo, run.hi, color=c, lw=2, alpha=0.5, zorder=4)
+        ax.scatter(run.x, run["mean"], color=c, s=34, edgecolor="k", lw=0.4, zorder=5)
+
+
+def _conv_legend(fig, animals, epochs, extra=(), **kw) -> None:
+    from matplotlib.lines import Line2D
+
+    from wfield_local import epoch_figures as ef
+    eh = [Line2D([], [], ls="none", marker="o", mfc="none", mec=_ecol(e), mew=1.1, ms=6, label=e) for e in epochs]
+    fig.legend(handles=ef._shape_handles(animals) + eh + list(extra), frameon=False, **kw)
+
+
+def _tidy_axes(fig) -> None:
+    from wfield_local import sig_marks
+    for ax in fig.get_axes():
+        ax.spines["right"].set_visible(False)
+    sig_marks.reserve_headroom(fig)          # hides the top spine on every panel (no stars here)
+
+
+def per_animal_figure(Sm: pd.DataFrame, H: pd.DataFrame, window: str, plt) -> None:
+    """Per animal (columns) x measure (rows: aim PRIMARY, hit rate, code on hits): session points (open, shape =
+    animal, colour = epoch, lines within an epoch only) + the per-series half-recovery-to-pre / completeness / flag."""
+    rows = [m for m, _l, _p in SERIES if m in Sm]
+    fig, axs = plt.subplots(len(rows), 4, figsize=(17, 2.9 * len(rows) + 1.6), sharex=True, sharey="row", squeeze=False)
+    for k, an in enumerate(AN):
+        g = Sm[Sm.animal == an]
+        r = H[H.animal == an].iloc[0]
+        for i, m in enumerate(rows):
+            ax = axs[i, k]
+            ax.axvspan(g.day.min() - 1, 0, color="0.95", lw=0, zorder=0)
+            ax.axhline(MEAS_REF[m], color="0.5", ls="--", lw=0.8)
+            _session_points(ax, g.assign(**{m: g[m]}), m, lines=True)
+            t = f"{an} {('aim', 'hit rate', 'cortex')[['aim', 'beh', 'neu'].index(m)]}: " + fmt_half(
+                {q: r[f"{m}_{q}"] for q in ("half_to_pre", "complete", "flag")})
+            if m == "neu":
+                t += "\n" + diff_line(r, "aim") + "; " + diff_line(r, "beh")
+            ax.set_title(t, fontsize=7.5)
+            if k == 0:
+                ax.set_ylabel(MEAS_LABEL[m], fontsize=8.5)
+            if i == len(rows) - 1:
+                ax.set_xlabel("days from stroke")
+    _tidy_axes(fig)
+    _conv_legend(fig, AN, [e for e in EP4 if (Sm.epoch == e).any()], loc="lower center", ncol=8, fontsize=8.5)
+    fig.suptitle(f"Recovery timing per animal ({window} window): aim (PRIMARY behaviour), far-contra hit rate (secondary), "
+                 "frozen far-contra code on HITS\n" + DATA_HIT + "\nTitles: half-recovery RELATIVE TO PRE = day the "
+                 "exponential fit gets half-way from the acute level back to pre;\n% = completeness (recovered fraction "
+                 "of the acute deficit by chronic); 'unresolved' = fit flag not ok; code on hits needs >= "
+                 f"{ak.MIN_HITS} hits per animal x epoch (acute sets the scale); 95% CI by resampling sessions",
+                 fontsize=9)
+    fig.tight_layout(rect=(0, 0.04, 1, 0.9))
+    out = A / "figures" / f"recovery_timing_{window}.png"
+    save_png_svg(fig, out, dpi=120)
+    plt.close(fig)
+    print("->", out)
 
 
 #: day bins for pooling across animals (sessions fall on nearly the same days; narrow early, wider late)
@@ -503,28 +585,24 @@ def pooled_figures(S: pd.DataFrame, window: str, plt) -> None:
             pt, l_, h_ = _boot_mean_of_animals(by, rng)
             rows.append({"bin": f"{lo}..{hi}", "x": x, "measure": m, "mean": pt, "lo": l_, "hi": h_,
                          "n_animals": sum(len(v) > 0 for v in by.values()),
-                         **{an: (float(np.mean(v)) if len(v) else np.nan) for an, v in by.items()}})
+                         **{an: (float(np.mean(v)) if len(v) else np.nan) for an, v in by.items()},
+                         "epoch": _bin_epoch(g[g[m].notna()].epoch)})
     Dd = pd.DataFrame(rows)
     Dd.to_csv(A / f"recovery_timing_pooled_day_{window}.csv", index=False)
-    fig, ax = plt.subplots(1, 1, figsize=(10, 4.4))
-    ax.axvspan(-13, 0, color="0.93", lw=0)
-    ax.axhline(1, color="0.5", ls="--", lw=0.8)
-    for m, lab, col in MEAS:
-        t = Dd[Dd.measure == m].sort_values("x")
-        for an in AN:
-            ax.plot(t.x, t[an], color=col, lw=0.6, alpha=0.3)
-        ax.fill_between(t.x, t.lo, t.hi, color=col, alpha=0.15, lw=0)
-        ax.plot(t.x, t["mean"], "-o", color=col, lw=2, ms=4, label=lab)
-    ax.set_xlabel("days from stroke (binned; pre = all August pre sessions at x = -6)")
-    ax.set_ylabel("relative to the animal's pre-stroke level")
-    for s_ in ("top", "right"):
-        ax.spines[s_].set_visible(False)
-    ax.legend(handles=[Line2D([], [], color=c, lw=2, marker="o", label=lab) for _m, lab, c in MEAS]
-              + [Line2D([], [], color="0.5", lw=0.6, alpha=0.5, label="each animal")], fontsize=8.5, frameon=False,
-              loc="lower right")
-    ax.set_title(f"Recovery, pooled across animals ({window} window, hits only for cortex): mean of animals, band = 95% CI "
-                 "(animals > sessions)\n" + DATA_HIT, fontsize=10)
-    fig.tight_layout()
+    fig, axs = plt.subplots(2, 1, figsize=(10, 7.0), sharex=True)
+    for ax, (m, lab, _col) in zip(axs, MEAS):
+        ax.axvspan(-13, 0, color="0.95", lw=0, zorder=0)
+        ax.axhline(1, color="0.5", ls="--", lw=0.8)
+        _session_points(ax, S, m)
+        _bin_means(ax, Dd[Dd.measure == m])
+        ax.set_ylabel(lab + "\n/ animal's pre level", fontsize=9)
+    axs[-1].set_xlabel("days from stroke (binned; pre = all August pre sessions at x = -6)")
+    _tidy_axes(fig)
+    _conv_legend(fig, AN, [e for e in EP4 if (S.epoch == e).any()], loc="lower center", ncol=8, fontsize=8.5)
+    fig.suptitle(f"Recovery, pooled across animals ({window} window, hits only for cortex): open = sessions (shape = "
+                 "animal, colour = epoch);\nfilled = mean of animals per day bin, band = 95% CI (animals > sessions)\n"
+                 + DATA_HIT, fontsize=9.5)
+    fig.tight_layout(rect=(0, 0.05, 1, 0.91))
     save_png_svg(fig, A / "figures" / f"recovery_timing_pooled_day_{window}.png", dpi=120)
     plt.close(fig)
 
@@ -533,7 +611,7 @@ def pooled_figures(S: pd.DataFrame, window: str, plt) -> None:
     MK = {"PS92": "o", "PS93": "s", "PS94": "^", "PS95": "D"}
     fig, axs = plt.subplots(1, 3, figsize=(15, 4.6))
     tst = []
-    for k, (m, lab, col) in enumerate(PAN):
+    for k, (m, lab, _col) in enumerate(PAN):
         ax = axs[k]
         ax.axhline(1 if m != "gap" else 0, color="0.5", ls="--", lw=0.8)
         ref = {an: _hit_gated(S[(S.animal == an) & (S.epoch == "pre")], m) for an in AN}
@@ -549,7 +627,8 @@ def pooled_figures(S: pd.DataFrame, window: str, plt) -> None:
             for j, an in enumerate(AN):
                 if an in by:
                     xs = i + (j - 1.5) * 0.07 + np.random.default_rng(10 * i + j).uniform(-0.02, 0.02, len(by[an]))
-                    ax.scatter(xs, by[an], marker=MK[an], s=20, color=col, alpha=0.75, edgecolor="k", lw=0.3, zorder=4)
+                    ax.scatter(xs, by[an], marker=MK[an], s=22, facecolors="none", edgecolors=[_ecol(ep)], lw=0.9,
+                               alpha=0.8, zorder=4)
             if by:
                 ax.plot([i - 0.3, i + 0.3], [np.mean([v.mean() for v in by.values()])] * 2, color="k", lw=2.2, zorder=5)
             com = [an for an in by if an in ref]
@@ -571,9 +650,9 @@ def pooled_figures(S: pd.DataFrame, window: str, plt) -> None:
     Tt = pd.DataFrame(tst)
     Tt.to_csv(A / f"recovery_timing_pooled_epoch_{window}.csv", index=False)
     print("== pooled by epoch: change vs pre (nested bootstrap animals > sessions)\n" + Tt.round(3).to_string(index=False))
-    fig.legend(handles=[Line2D([], [], marker=MK[an], ls="", mfc="0.6", mec="k", label=an) for an in AN]
-               + [Line2D([], [], color="k", lw=2.2, label="mean of animals")], loc="lower center", ncol=5, fontsize=8.5,
-               frameon=False)
+    _tidy_axes(fig)
+    _conv_legend(fig, AN, EP4, [Line2D([], [], color="k", lw=2.2, label="mean of animals")], loc="lower center",
+                 ncol=9, fontsize=8.5)
     fig.suptitle(f"Recovery by epoch, one dot per session, normalised within animal ({window} window; cortex = hits only). "
                  "Numbers = change vs pre, 95% nested CI (bold = excludes 0)\ncortex: sessions with >= 5 hits, and an "
                  f"animal x epoch needs >= {ak.MIN_HITS} hits summed (else {ak.HIT_GATE_NA})\n"
@@ -619,7 +698,8 @@ def aim_compute(window: str) -> dict:
             pt, l_, h_ = _boot_mean_of_animals(by, rng)
             rows.append({"bin": f"{lo}..{hi}", "x": x, "measure": m, "mean": pt, "lo": l_, "hi": h_,
                          "n_animals": sum(len(v) > 0 for v in by.values()),
-                         **{an: (float(np.mean(v)) if len(v) else np.nan) for an, v in by.items()}})
+                         **{an: (float(np.mean(v)) if len(v) else np.nan) for an, v in by.items()},
+                         "epoch": _bin_epoch(g[g[m].notna()].epoch)})
     rng2 = np.random.default_rng(1)
     for lo, hi in DAY_BINS:
         g = G[(G.day >= lo) & (G.day <= hi)]
@@ -628,7 +708,8 @@ def aim_compute(window: str) -> dict:
         pt, l_, h_ = _boot_mean_of_animals(by, rng2)
         rows.append({"bin": f"{lo}..{hi}", "x": x, "measure": "aim", "mean": pt, "lo": l_, "hi": h_,
                      "n_animals": sum(len(v) > 0 for v in by.values()),
-                     **{an: (float(np.mean(v)) if len(v) else np.nan) for an, v in by.items()}})
+                     **{an: (float(np.mean(v)) if len(v) else np.nan) for an, v in by.items()},
+                     "epoch": _bin_epoch(g[g.aim.notna()].epoch)})
     D = pd.DataFrame(rows)
     # per animal (rule 8): epoch means, recovered fraction of the acute deficit, half-recovery day
     M = S.merge(G[["label", "aim"]], on="label", how="outer")
@@ -636,58 +717,50 @@ def aim_compute(window: str) -> dict:
     M["epoch"] = M.epoch.fillna(M.label.map(G.set_index("label").epoch))
     M["day"] = M.day.fillna(M.label.map(G.set_index("label").day))
     PA = per_animal_recovery(M)           # aim (primary), hit rate, code on hits: completeness, half-to-pre, flags
-    return {"D": D, "PA": PA, "window": window}
+    P = M[["animal", "epoch", "day", "beh", "neu", "aim"]].copy()       # session points for the figure (plot-only)
+    return {"D": D, "PA": PA, "P": P, "window": window}
 
 
 def aim_draw(F: dict) -> None:
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
-    from matplotlib.lines import Line2D
     D, window = F["D"], F["window"]
-    MEAS = [("beh", "far-contra hit rate / pre", "0.25"), ("neu", "cortex: far-contra frozen code on hits / pre", "#c0392b")]
+    P = F.get("P")
     # aim = PRIMARY behavioural recovery measure (Priya 11-07: "we should use aim rather than hit recovery") -> panel A;
-    # hit rate (secondary) + code on hits -> panel B
-    fig, (bx, ax) = plt.subplots(2, 1, figsize=(11.5, 8.4), sharex=True, gridspec_kw={"height_ratios": [0.9, 1]})
-    for a_ in (ax, bx):
-        a_.axvspan(-13, 0, color="0.93", lw=0)
-        for s_ in ("top", "right"):
-            a_.spines[s_].set_visible(False)
-    ax.axhline(1, color="0.5", ls="--", lw=0.8)
-    for m, _lab, col in MEAS:
-        t = D[D.measure == m].sort_values("x")
-        for an in AN:
-            ax.plot(t.x, t[an], color=col, lw=0.6, alpha=0.3)
-        ax.fill_between(t.x, t.lo, t.hi, color=col, alpha=0.15, lw=0)
-        ax.plot(t.x, t["mean"], "-o", color=col, lw=2, ms=4)
-    ax.set_ylabel("relative to the animal's\npre-stroke level")
-    ax.legend(handles=[Line2D([], [], color=c, lw=2, marker="o", label=lab) for _m, lab, c in MEAS]
-              + [Line2D([], [], color="0.5", lw=0.6, alpha=0.5, label="each animal (faint)")], fontsize=8.5,
-              frameon=False, loc="upper left", bbox_to_anchor=(1.01, 1.0))
-    ax.set_title("B  far-contra hit rate (secondary behaviour measure) and frozen decoder code on hits", fontsize=10,
-                 loc="left")
-    ax.set_xlabel("days from stroke (binned; pre = all August pre sessions at x = -6)")
-    bx.axhline(0, color="0.5", ls="--", lw=0.8)
-    t = D[D.measure == "aim"].sort_values("x")
-    for an in AN:
-        bx.plot(t.x, t[an], color=AIM_COL, lw=0.6, alpha=0.3)
-    bx.fill_between(t.x, t.lo, t.hi, color=AIM_COL, alpha=0.15, lw=0)
-    bx.plot(t.x, t["mean"], "-o", color=AIM_COL, lw=2, ms=4)
-    bx.set_ylabel("far-contra aim offset,\nchange vs own pre (deg)\n+ = contralesional")
-    bx.legend(handles=[Line2D([], [], color=AIM_COL, lw=2, marker="o", label="far-contra first-lick aim (3-D angle)"),
-                       Line2D([], [], color=AIM_COL, lw=0.6, alpha=0.5, label="each animal (faint)")], fontsize=8.5,
-              frameon=False, loc="upper left", bbox_to_anchor=(1.01, 1.0))
-    bx.set_title("A  PRIMARY: far-contra aim, first post-cue lick, 3-D angle minus the animal's pre mean "
-                 "(- = shifted ipsilesional)", fontsize=10, loc="left")
+    # hit rate (secondary) -> B; code on hits -> C. Conventions as per_animal_figure (11-07).
+    PAN = [("aim", "A  PRIMARY: far-contra aim, first post-cue lick, 3-D angle minus the animal's pre mean "
+                   "(- = shifted ipsilesional)"),
+           ("beh", "B  far-contra hit rate (secondary behaviour measure)"),
+           ("neu", "C  frozen decoder far-contra code on hits")]
+    fig, axs = plt.subplots(3, 1, figsize=(11.5, 10.5), sharex=True)
+    for ax, (m, ttl) in zip(axs, PAN):
+        ax.axvspan(-13, 0, color="0.95", lw=0, zorder=0)
+        ax.axhline(MEAS_REF[m], color="0.5", ls="--", lw=0.8)
+        if P is not None and "epoch" in D:
+            _session_points(ax, P, m)
+            _bin_means(ax, D[D.measure == m])
+        else:                                        # figdata from before 11-07: no session points / bin epochs
+            t = D[D.measure == m].sort_values("x")
+            ax.fill_between(t.x, t.lo, t.hi, color="0.6", alpha=0.15, lw=0)
+            ax.plot(t.x, t["mean"], "-o", color="0.3", lw=2, ms=4)
+        ax.set_ylabel(MEAS_LABEL[m], fontsize=9)
+        ax.set_title(ttl, fontsize=10, loc="left")
+    axs[-1].set_xlabel("days from stroke (binned; pre = all August pre sessions at x = -6)")
+    _tidy_axes(fig)
+    if P is not None:
+        _conv_legend(fig, AN, [e for e in EP4 if (P.epoch == e).any()], loc="lower center", ncol=8, fontsize=8,
+                     bbox_to_anchor=(0.5, 0.115))
     PA = F.get("PA")
     if PA is not None and "aim_flag" in PA:     # per-animal completeness + half-recovery relative to pre (fit, flagged)
         txt = ["Per animal: half-recovery RELATIVE TO PRE (fitted day half-way from acute back to pre);",
                "% = completeness (recovered fraction of the acute deficit by chronic); 'unresolved' = fit flag not ok"]
         txt += [f"{r.animal}: {half_lines(r)}" for _, r in PA.iterrows()]
         fig.text(0.01, 0.005, "\n".join(txt), fontsize=7.2, va="bottom", ha="left", family="monospace")
-    fig.suptitle(f"Recovery pooled across animals by day bin ({window} window; cortex = hits only): mean of animals, "
-                 "band = 95% CI (animals > sessions). n = 4, PROVISIONAL\n" + DATA_HIT, fontsize=10.5)
-    fig.tight_layout(rect=(0, 0.14, 1, 0.96))
+    fig.suptitle(f"Recovery pooled across animals by day bin ({window} window; cortex = hits only): open = sessions "
+                 "(shape = animal, colour = epoch),\nfilled = mean of animals, band = 95% CI (animals > sessions). "
+                 "n = 4, PROVISIONAL\n" + DATA_HIT, fontsize=9.5)
+    fig.tight_layout(rect=(0, 0.145, 1, 0.94))
     out = A / "figures" / f"recovery_timing_pooled_day_{window}_aim.png"
     save_png_svg(fig, out, dpi=120)
     plt.close(fig)
