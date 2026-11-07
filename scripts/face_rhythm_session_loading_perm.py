@@ -14,7 +14,7 @@ CLUSTER MASS (|t| > 2, mesh neighbours, sign-separate) is the family-wise map te
 one (`face_rhythm.stats.map_permutation`). Single-session fits are noisy (pre own-vs-master angles 10-50 deg, FINDINGS
 6c); the shuffle puts that noise into the null.
 
-    python scripts/face_rhythm_session_loading_perm.py [--set master_pre_v1] [--match-rule v2] [--perm 2000]
+    python scripts/face_rhythm_session_loading_perm.py [--set master_pre_v1] [--match-rule v2] [--perm 10000]
 -> ``<readouts>/<set>/session_loading_<rule>/``: session_loading_lick.png (lick_right, lick_left),
 session_loading_other.png (the other lick / orofacial units), data/session_loading_clusters.csv,
 data/session_loading_counts.csv (sessions recovered per animal x epoch x unit).
@@ -148,7 +148,7 @@ def main(argv=None) -> int:
     ap.add_argument("--set", default=fro.SET)
     ap.add_argument("--fdir", type=Path, default=None)
     ap.add_argument("--match-rule", choices=sorted(es.MATCH_RULES), default="v2")
-    ap.add_argument("--perm", type=int, default=2000)
+    ap.add_argument("--perm", type=int, default=10000)
     ap.add_argument("--drift-control", action="store_true",
                     help="the same test on early vs late PRE sessions only (pre-stroke drift floor)")
     a = ap.parse_args(argv)

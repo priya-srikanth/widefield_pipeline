@@ -1,5 +1,18 @@
 # Handoff 2026-11-01: quiet-period cortical events after the VLS stroke (cohort1, PS92-95) + literature context
 
+> **11-07 (night) -- START HERE (a8).** Supersedes the deck / page facts of the 11-07 evening block below.
+> - DECK `Overview_2026-11-06.pptx` = **201 slides**. NEW after slide 82 (aligned speed maps): 83 lick rate per spout
+>   (fig:cohort_lick_rate_by_position), 84 rhythm-band maps (fig:band_maps_lick_rhythm + fig:band_maps_lick_ongoing_7Hz),
+>   85 HIDDEN band-map drift control. Slide 82 + hidden drift slide (now 94) refreshed at 10,000 shuffles, slide 82 bullet
+>   reworded (Priya OK). Slide numbers from 83 on are +3 vs the evening block (so +7 vs 34's provenance table from 82 on);
+>   the slide-94 re-tile waiting on 34 is now slide 101. Scripts: `update_fr_slides_1107c.py` (backup_before_fr_1107c),
+>   `fix_fr_1107d.py` (layout of slide 83; backup_before_fr_1107d).
+> - FR PAGE v41: all map figures at 10,000 shuffles; 3.10a / 3.10b drift text reworded; NEW section 7b (lick rate +
+>   rhythm-band maps + gradient table) and a "Lick rhythm" status row; registry `fr_page_src/fr_page/fig_ids.csv` = 92 figs.
+> - FINDINGS 0 + 5.10, FACE_RHYTHM_FINDINGS 6f, DECISIONS 2026-11-07 (night bullets) written. FR handoff "11-07 NIGHT".
+> - Later: page v42 + slide 84 reworded as a frequency shift (spectral centre 6.77 -> 6.56 Hz acute); script
+>   `reword_band_slide_1107e.py` (backup_before_band_reword_1107e).
+
 > **11-07 (evening, before compaction) -- START HERE (a8).** Supersedes the deck facts of every block below.
 > - DECK = `presentations/Overview_2026-11-06.pptx`, now **198 slides** (was 194). A stale lock `~$Overview_2026-11-06.pptx`
 >   (from 11-06 14:20) was removed after checking that PowerPoint did not hold the file (Priya: "deck is not open").

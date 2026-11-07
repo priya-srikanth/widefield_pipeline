@@ -173,3 +173,25 @@ All under `M:/MICROSCOPE/Priya/DeepLabCut/Widefield/face_rhythm/cam4/readouts/ma
      ILI +15-25 ms at EVERY spout acutely (*), back by subacute except close spouts; fast-lick share falls acutely only
      at far contra (-.44) / far mid (-.13) -- partly fewer licks (far contra 3.1 licks / trial vs 8.7 pre; an isolated
      lick has no neighbour), so ILI is the rhythm measure. Not yet on page / deck (caption to Priya first).
+     11-07 NIGHT (2): ALL MAP TESTS NOW 10,000 SHUFFLES (Priya), like the scalars: position, aligned, session_loading
+     (default now 10000) and the new band maps re-run with drift controls; 2000-shuffle cluster tables kept in the session
+     scratchpad for the comparison. Changes vs 2000: position maps none (17 cells, pts +-6); aligned: lick close_L
+     subacute up (258 pts) and close_center chronic down (131) NEW; CUE DRIFT CONTROL 3 -> 2 clusters (far_center 374 pts
+     gone; both left at far_R, where the post-stroke change is a decrease) -> page 3.10a / 3.10b text + slide 82 bullet
+     need rewording (Priya approves); session loading: lick pair unchanged; lick_slow_late acute more (172) gone, whisk_run
+     acute more (112) new (exploratory). RHYTHM-BAND MAPS (`scripts/face_rhythm_band_maps.py`, readouts/<set>/band_maps/):
+     acute decrease at every spout in every lick band, graded by rhythm -- face mean log2 7Hz -.30, fast_close -.20, lick
+     rhythm -.16, far_nose -.12, slow_late -.09, slow_jaw / prelick_nose ~0 -- fits the ILI slowing; later epochs +.06 to
+     +.13 at close spouts; drift control has 13 small clusters (mean drift +.03; far_L up, close_R down) so later-epoch
+     band increases need that caveat. The band gradient is not yet a test (proposed: per-session 7Hz-minus-rhythm contrast,
+     within-animal shuffles). Not on page / deck yet.
+     11-07 NIGHT (3): GRADIENT TEST DONE (`face_rhythm_band_maps.py --gradient`): 7 Hz band minus lick rhythm -.13 log2
+     acute (Holm .002), -.04 subacute (.03); slower lick bands fall less; drift none -> FINDINGS 0 / 5.10, FACE_RHYTHM 6f.
+     PAGE v41 + DECK (201 slides; 83 lick rate, 84 band maps, 85 hidden band drift) updated with Priya's OK, incl. the
+     10k rewording of 3.10a / 3.10b / slide 82. Open: rescore the pooled null when the O2 sub / chronic files land
+     (descriptive); the deck-wide notes "Data:" pass (waits on 34).
+     11-07 NIGHT (4): REWORDED as a FREQUENCY SHIFT (Priya: what does "the 7 Hz band falls more" mean -- the
+     lick_ongoing_7Hz profile is the upper lick spectrum, 6.5-15 Hz). New readout `face_rhythm_band_maps.py --centre`:
+     face movement spectrum centre 6.77 -> 6.56 Hz acute (4 / 4, Holm .0003), back subacute; licks 6.45 -> 5.71 Hz.
+     Page v42 (7b heading / text / status row / 7b.3 title), slide 84 title + bullets + notes
+     (`reword_band_slide_1107e.py`), FINDINGS 0 / 5.10, FACE_RHYTHM 6f, DECISIONS updated.
