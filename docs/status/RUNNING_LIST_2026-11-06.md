@@ -55,6 +55,14 @@ the encoding handoff (STATUS_2026-10-26_ENCODING_HANDOFF.md, top blocks); the A1
    no_response vs stopped = the clean engaged-vs-disengaged contrast. -> Priya YES: ON MAIN 7388c713; queue v9y (A7 lock rules)
    runs l_stopped_restw -> l_stopped_restnl (waits for a heavy slot).
 
+- **A9 (11-07 ~11:30, ANSWERED: yes)** Section G lick-only arm: express post-stroke relative to pre, n-corrected per session ->
+  RETAINED ABOVE-CHANCE FRACTION (post - 1/n) / (pre_matched - 1/n) (Priya chose the plan: ratio primary, chance-normalised
+  difference secondary). Branch figures/retained-above-chance 4353fbd2 (wf_retained; section_g_retained.py, renders with
+  section_g_figures; not pushed). Keep a CONTACT-ONLY (successful licks) supplemental section G pass (Priya: "not discard"):
+  branch analysis/contact-only-selection (wf_contactonly, WIDEFIELD_WORKING_TRIALS=in_working_contact), queued LAST.
+  Old 10-07 DAQ json = preview only (older basis + DAQ-quit cut). Drawing fixes for G2c / H3b / G2b (one chance line /
+  union band across sessions of different n) proposed, not yet approved.
+
 ## B. Notable findings / result changes (nothing on pages or decks changed yet)
 
 1. **A27 cam4 cohort on the camera working period: no headline change.** 294 cells, same sessions; 0 sign flips in a significant
@@ -80,6 +88,12 @@ the encoding handoff (STATUS_2026-10-26_ENCODING_HANDOFF.md, top blocks); the A1
    rows move <= 0.03 mm; phase <= 0.06, none of 1,188 sig bars differ; cue traces <= 0.23 deg; FAR_DIR <= 0.003 mm; cam4 angle
    Fig 3.6 -29.1 -> -29.2). All conclusion / star changes are in section 6 (see A1, A2). Report:
    rebuild_20261103/KIN3D_WORKING_PERIOD_COMPARE_20261106.md.
+
+- **B (11-07) far-contra is mostly INCOMPLETE licks post-stroke.** Old DAQ-gated section G dropped far_R (far contra) in
+  PS92 0818-0822 / PS93 0818-0821 (n=5; contact 0-12 < MIN_POST 20) and PS94 0817-0820 / PS95 0817 were 4-way; camera classes
+  show 33-68 incomplete far-contra trials per session, so the camera gate should make these 6-way (confirm from the new
+  section_g.json). Preview (OLD gate) retained fraction, post-cue median acute: LICK-ONLY .63-.90 vs ALL .46-.80; chronic
+  ~1.0-1.2 both arms. Not for pages until the new run lands.
 
 ## C. What is running / next (summary; detail in the handoff)
 
