@@ -334,8 +334,9 @@ def plot_pooled(D: dict) -> None:
             ax.axhline(_bref(tag) if val == "beh" else 0, color="0.7", lw=0.7, ls=":")
             ax.set_xticks(range(4), eps)
             ax.set_ylabel(lab, fontsize=8.5)
-            ax.set_title(f"{'ITI' if st == 'iti' else 'cued'} licks: {'behaviour' if val == 'beh' else 'decoder'}",
-                         fontsize=9.5)
+            # behavior is the CUED first-lick aim in both rows; only the decoder panel changes set (Priya 11-07)
+            ax.set_title("behavior: cued first-lick aim" if val == "beh"
+                         else f"decoder: {'ITI' if st == 'iti' else 'cued'} licks", fontsize=9.5)
             for s_ in ("top", "right"):
                 ax.spines[s_].set_visible(False)
         ax = axs[i, 2]
@@ -355,8 +356,8 @@ def plot_pooled(D: dict) -> None:
         ax.axvline(_bref(tag), color="0.7", lw=0.7, ls=":")
         ax.set_xlabel(blab, fontsize=8.5)
         ax.set_ylabel("lateral offset (mm, change vs pre)", fontsize=8.5)
-        ax.set_title("per animal, epoch means (open) and their mean +- SEM (filled):\naim vs decoder offset",
-                     fontsize=9.5)
+        ax.set_title(f"{'ITI' if st == 'iti' else 'cued'}-lick decoder offset vs cued first-lick aim\n"
+                     "per animal epoch means (open), mean +- SEM (filled)", fontsize=9.5)
         for s_ in ("top", "right"):
             ax.spines[s_].set_visible(False)
     fig.suptitle(("Z-SCORED FEATURES. " if z else "") + f"POOLED per epoch (pre included): {_bname(tag)} and the "
