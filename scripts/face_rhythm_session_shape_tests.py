@@ -294,92 +294,116 @@ def direction(D: pd.DataFrame, n_perm: int, rng) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
-def figures(Rs, Rl, Dd, D, out, set_name, names):
+#: display order (Priya 11-07): the lick pair, then the other licking units, then the rest
+ORDER = ("lick_right", "lick_left", "lick_ongoing_7Hz", "lick_fast_close", "lick_slow_late", "lick_far_nose",
+         "prelick_nose", "nose_steps", "slow_jaw", "whisk_run")
+YLAB = {"asym": "loading asymmetry\n(contra - ipsi), delta", "angle_spatial": "spatial angle to own\npre mean, delta (deg)",
+        "angle_spectral": "spectral angle to own\npre mean, delta (deg)", "side_spec": "side specificity, delta",
+        "loss": "recovered (0 / 1),\ndelta vs own pre rate"}
+
+
+def session_values(T: pd.DataFrame, names: list[str]) -> pd.DataFrame:
+    """One row per POST session x unit x measure: the session's value minus its animal's own pre mean (angles: the
+    angle to the animal's pre-mean vector minus the animal's mean leave-one-out pre angle). Loss: recovered (0 / 1)
+    minus the animal's pre recovery rate (all sessions)."""
+    rows = []
+    for nm in names:
+        for an, g in T[T.unit == nm].groupby("animal"):
+            pre_all = g[g.epoch == "pre"]
+            post_all = g[g.epoch != "pre"]
+            rate = pre_all.recovered.mean()
+            for r in post_all.itertuples():
+                rows.append(dict(unit=nm, animal=an, epoch=r.epoch, measure="loss", value=float(r.recovered) - rate))
+            pre, post = pre_all[pre_all.recovered], post_all[post_all.recovered]
+            if pre.empty or post.empty:
+                continue
+            for m in ("asym", "side_spec"):
+                if m == "side_spec" and nm not in OWN_SIDE:
+                    continue
+                base = pre[m].mean()
+                for r in post.itertuples():
+                    rows.append(dict(unit=nm, animal=an, epoch=r.epoch, measure=m, value=getattr(r, m) - base))
+            for m, col in (("angle_spatial", "vec"), ("angle_spectral", "spec")):
+                P = np.vstack(pre[col].to_numpy())
+                tot = P.sum(0)
+                loo = np.nanmean([es.deg(float(P[i] @ unit(tot - P[i]))) for i in range(len(P))]) if len(P) > 1 else np.nan
+                pm = unit(tot)
+                for r in post.itertuples():
+                    rows.append(dict(unit=nm, animal=an, epoch=r.epoch, measure=m,
+                                     value=float(es.deg(float(getattr(r, col) @ pm))) - loo))
+    return pd.DataFrame(rows)
+
+
+def _row(ax, V: pd.DataFrame, R: pd.DataFrame, units: list[str], pcol: str) -> None:
+    """Per unit x epoch: faded open session markers (shape = animal, colour = epoch) + mean +- SEM over sessions; stars
+    (Holm, animal-weighted within-animal shuffle test) in the top band."""
+    from wfield_local import cat_points as cp
+    from wfield_local import sig_marks
+    ecol = frc.epoch_colors()
+    eps = list(frc.POST_EPOCHS)
+    off = cp.epoch_offsets(len(eps))
+    for u_i, u in enumerate(units):
+        for k, ep in enumerate(eps):
+            v = V[(V.unit == u) & (V.epoch == ep)]
+            x = u_i + off[k]
+            cp.session_dots(ax, x, v.value.to_numpy(float), v.animal, ecol[ep], jitter=0.07, seed=11 * u_i + k)
+            if len(v):
+                se = v.value.std(ddof=1) / np.sqrt(len(v)) if len(v) > 1 else None
+                cp.summary_point(ax, x, v.value.mean(), se, ecol[ep], ms=5)
+            r = R[(R.unit == u) & (R.epoch == ep)]
+            if len(r) and np.isfinite(r[pcol].iloc[0]) and r[pcol].iloc[0] < .05:
+                sig_marks.star_top(ax, x, "**" if r[pcol].iloc[0] < .01 else "*", color=ecol[ep])
+    ax.axhline(0, color="0.6", lw=0.8, zorder=0)
+    ax.set_xticks(range(len(units)), units, rotation=25, ha="right", fontsize=8)
+    ax.set_xlim(-0.6, len(units) - 0.4)
+    ax.spines[["top", "right"]].set_visible(False)
+
+
+def figures(Rs, Rl, V, out, set_name, names):
+    import matplotlib.pyplot as plt
 
     from wfield_local import cat_points as cp
     from wfield_local import face_rhythm_figures as frf
     from wfield_local import sig_marks
     ecol = frc.epoch_colors()
-    eps = list(frc.POST_EPOCHS)
-    star = lambda p: "**" if p < .01 else ("*" if p < .05 else "")  # noqa: E731
+    units = [u for u in ORDER if u in names] + [u for u in names if u not in ORDER]
     with frf.style():
-        fig, axs = frf.subplots(len(SCALARS), 1, figsize=(12.5, 2.7 * len(SCALARS)), squeeze=False)
+        fig = plt.figure(figsize=(13.5, 2.9 * len(SCALARS)))
+        gs = fig.add_gridspec(len(SCALARS), len(units), hspace=0.75)
         for i, m in enumerate(SCALARS):
-            ax = axs[i, 0]
-            d = Rs[Rs.measure == m]
-            us = [u for u in names if u in set(d.unit)]
-            off = cp.epoch_offsets(len(eps))
-            for k, ep in enumerate(eps):
-                e = d[d.epoch == ep].set_index("unit").reindex(us)
-                x = np.arange(len(us)) + off[k]
-                ax.scatter(x, e.delta, s=28, color=ecol[ep], label=ep if i == 0 else None, zorder=3)
-                for xx, (_u, r) in zip(x, e.iterrows()):
-                    if np.isfinite(r.p_holm) and r.p_holm < .05:
-                        sig_marks.star_top(ax, xx, star(r.p_holm), color=ecol[ep])
-            ax.axhline(0, color="0.6", lw=0.8)
-            ax.set_xticks(range(len(us)), us, rotation=25, ha="right", fontsize=8)
-            ax.set_ylabel({"asym": "asymmetry, delta", "angle_spatial": "spatial angle\nvs own pre, delta (deg)",
-                           "angle_spectral": "spectral angle\nvs own pre, delta (deg)",
-                           "side_spec": "side specificity, delta"}[m], fontsize=8)
-            ax.spines["top"].set_visible(False)
+            us = [u for u in units if u in set(Rs[Rs.measure == m].unit)]
+            ax = fig.add_subplot(gs[i, :len(us)])                 # side_spec (2 units) gets a 2-unit-wide panel
+            _row(ax, V[V.measure == m], Rs[Rs.measure == m], us, "p_holm")
+            ax.set_ylabel(YLAB[m], fontsize=8)
+            if i == 0:
+                hs = [plt.Line2D([], [], color=ecol[e], marker="o", ls="none", label=e) for e in frc.POST_EPOCHS]
+                ax.legend(handles=hs + cp.animal_handles(sorted(V.animal.unique())), fontsize=7, frameon=False,
+                          loc="upper left", bbox_to_anchor=(1.0, 1.0))
         sig_marks.reserve_headroom(fig)
-        frf.legend_outside(axs[0, 0])
-        fig.suptitle(f"{set_name}: per-session shape readouts, delta vs each animal's own pre (mean of animals)")
+        fig.suptitle(f"{set_name}: per-session shape readouts, delta vs each animal's own pre", y=0.995)
         frf.save(fig, out / "session_scalars.png", """
-Per-session FaceRhythm fits matched to the master (rule v2); per session the readout minus the animal's own pre mean,
-mean over animals (equal weight). Angles: to the animal's pre-mean vector (pre sessions leave-one-out), so 0 = as
-different as one pre session is from the others. Stars in the top band: Holm < .05 (* ) / < .01 (**) over the lick pair
-or over the other units, per epoch x measure, against within-animal session-label shuffles. Recovered sessions only.""")
+Per-session FaceRhythm fits (own8) matched to the master (rule v2), recovered sessions only. Each open marker = one post
+session (shape = animal, colour = epoch): its readout minus its animal's own pre mean (angles: the angle to the animal's
+pre-mean vector minus the animal's mean leave-one-out pre angle, so 0 = as different as one pre session is from the
+other pre sessions). Filled = mean +- SEM over sessions. Stars in the top band = the animal-weighted test (mean over
+animals of epoch - pre; within-animal session-label shuffles): * Holm < .05, ** < .01, Holm over the lick pair or over the
+other units per epoch x measure. ASYMMETRY = (contra - ipsi) / sum of the loading. SIDE SPECIFICITY (lateral lick pair
+only) = mean r of the session's loading map with its animal's own pre spout-specific movement maps at the factor's own
+side (close + far) minus the opposite side; a drop = the factor looks less like movement at its own side's spouts.""")
 
-        fig, ax = frf.subplots(1, 1, figsize=(12.5, 3.6))
-        us = list(names)
-        off = cp.epoch_offsets(len(eps))
-        for k, ep in enumerate(eps):
-            e = Rl[Rl.epoch == ep].set_index("unit").reindex(us)
-            x = np.arange(len(us)) + off[k]
-            ax.scatter(x, e.delta_recovery, s=28, color=ecol[ep], label=ep, zorder=3)
-            for xx, (_u, r) in zip(x, e.iterrows()):
-                if np.isfinite(r.p_holm) and r.p_holm < .05:
-                    sig_marks.star_top(ax, xx, star(r.p_holm), color=ecol[ep])
-        ax.axhline(0, color="0.6", lw=0.8)
-        ax.set_xticks(range(len(us)), us, rotation=25, ha="right", fontsize=8)
-        ax.set_ylabel("share of sessions recovering\nthe unit, delta vs own pre", fontsize=8)
-        ax.spines["top"].set_visible(False)
-        frf.legend_outside(ax)
-        fig.suptitle(f"{set_name}: factor loss per session (delta vs each animal's own pre recovery rate)")
+        fig, ax = frf.subplots(1, 1, figsize=(13.5, 3.8))
+        _row(ax, V[V.measure == "loss"], Rl, units, "p_holm")
+        ax.set_ylabel(YLAB["loss"], fontsize=8)
+        hs = [plt.Line2D([], [], color=ecol[e], marker="o", ls="none", label=e) for e in frc.POST_EPOCHS]
+        ax.legend(handles=hs + cp.animal_handles(sorted(V.animal.unique())), fontsize=7, frameon=False,
+                  loc="upper left", bbox_to_anchor=(1.0, 1.0))
+        sig_marks.reserve_headroom(fig)
+        fig.suptitle(f"{set_name}: factor loss per session, delta vs each animal's own pre recovery rate")
         frf.save(fig, out / "session_loss.png", """
-Share of an animal's sessions whose own fit recovers the unit (spatial cos >= .7 and spectral cos >= .5 after v2
-matching), epoch minus pre, mean of animals. Stars: Holm < .05 over the units of an epoch, one-sided (fewer recovered),
-against within-animal session-label shuffles.""")
-
-        fig, axs = frf.subplots(1, 3, figsize=(12.5, 3.6), squeeze=False, sharey=True)
-        for c_i, col in enumerate(("frac_left", "frac_centre", "frac_right")):
-            ax = axs[0, c_i]
-            for k, ep in enumerate(eps):
-                dd = []
-                for an, g in D.groupby("animal"):
-                    base = g[g.epoch == "pre"][col].mean()
-                    gg = g[g.epoch == ep]
-                    dd.append((gg[col].to_numpy(float) - base, [an] * len(gg)))
-                vals = np.concatenate([v for v, _ in dd]) if dd else np.array([])
-                ans = sum((a for _, a in dd), [])
-                cp.session_dots(ax, k, vals, np.array(ans), ecol[ep], jitter=0.12, seed=k)
-                r = Dd[(Dd.epoch == ep) & (Dd.share == col)].iloc[0]
-                cp.summary_point(ax, k, r.delta, None, ecol[ep], ms=6)
-                if r.p < .05:
-                    sig_marks.star_top(ax, k, star(r.p), color=ecol[ep])
-            ax.axhline(0, color="0.6", lw=0.8)
-            ax.set_xticks(range(len(eps)), eps)
-            ax.set_title(col.replace("frac_", "") + " licks (executed direction)", fontsize=9)
-            ax.spines["top"].set_visible(False)
-        axs[0, 0].set_ylabel("share of licks, delta vs own pre")
-        axs[0, 0].legend(handles=cp.animal_handles(sorted(D.animal.unique())), fontsize=7, frameon=False)
-        fig.suptitle(f"{set_name}: where the tongue goes, per session, delta vs each animal's own pre")
-        frf.save(fig, out / "lick_direction.png", """
-Share of response-window licks by EXECUTED direction (left = ipsilesional, right = contralesional; FaceRhythm lick
-classes, `face_rhythm_lick_epochs.py` data/sessions.csv), per session minus the animal's own pre mean. Open markers =
-sessions (shape = animal, colour = epoch); filled = mean of animals. Stars: within-animal session-label shuffle, * p <
-.05, ** p < .01 (uncorrected; three shares x three epochs).""")
+Each open marker = one post session: recovered (1) or not (0) -- its own fit's best match to the unit reaches spatial cos
+>= .7 and spectral cos >= .5 after v2 matching -- minus its animal's pre recovery rate (so markers sit at two levels per
+animal). Filled = mean +- SEM over sessions. Stars = animal-weighted test (mean over animals of the recovery-rate change;
+within-animal session shuffles), one-sided (fewer recovered), Holm over the units of an epoch.""")
 
 
 def main(argv=None) -> int:
@@ -392,6 +416,8 @@ def main(argv=None) -> int:
     ap.add_argument("--fdir", type=Path, default=None)
     ap.add_argument("--match-rule", choices=sorted(es.MATCH_RULES), default="v2")
     ap.add_argument("--perm", type=int, default=2000)
+    ap.add_argument("--plot-only", action="store_true",
+                    help="redraw the scalar / loss figures from data/session_scalars.csv + session_loss.csv (no tests)")
     a = ap.parse_args(argv)
     es.RULE = a.match_rule
     fdir = a.fdir or frc.default_set_dir(set_name=a.set)
@@ -403,6 +429,11 @@ def main(argv=None) -> int:
     pd.set_option("display.width", 230)
     pd.set_option("display.max_rows", 300)
     T, names, home = load_sessions(fdir)
+    if a.plot_only:
+        figures(pd.read_csv(side("session_scalars")), pd.read_csv(side("session_loss")), session_values(T, names), out,
+                fdir.name, names)
+        print("->", out)
+        return 0
     D = pd.read_csv(frc.readouts_dir(a.set).parent.parent / "validation" / a.set / "lick_epochs" / "data" / "sessions.csv")
     D["date"] = D.date.astype(str)
     tot = D[["n_left", "n_centre", "n_right"]].sum(1)
@@ -449,7 +480,7 @@ def main(argv=None) -> int:
     Dd = direction(D, a.perm, rng)
     Dd.to_csv(side("lick_direction"), index=False, float_format="%.4g")
     print("\nLICK DIRECTION shares, delta vs own pre:\n" + Dd.round(3).to_string(index=False))
-    figures(Rs, Rl, Dd, D, out, fdir.name, names)
+    figures(Rs, Rl, session_values(T, names), out, fdir.name, names)
     print("->", out)
     return 0
 
