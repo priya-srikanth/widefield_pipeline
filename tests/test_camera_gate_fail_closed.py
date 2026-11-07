@@ -45,7 +45,7 @@ REGISTER = {
     "scripts/s1_refit_basis_table.py": "exempt",              # labelled quit-tail robustness row
     "wfield_local/enl_states.py": "wired",                    # states_for(cam_cls=...) under camera (11-03)
     "scripts/enl_state_counts.py": "refuses",
-    "scripts/stopped_trial_traces.py": "refuses",
+    "scripts/stopped_trial_traces.py": "wired",               # camera branch in _states (Priya 11-07 option a)
     "scripts/rest_migration/channel_position_maps.py": "refuses",
     "scripts/rest_migration/archive/restw_reliability.py": "refuses",
     "scripts/engagement_axis_balance.py": "refuses",          # _gate_all mask (RefusedMask)

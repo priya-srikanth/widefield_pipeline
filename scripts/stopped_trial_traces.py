@@ -14,6 +14,20 @@ TRIAL CLASSES (one definition per quantity -- the `enl_states` / `scripts/enl_st
   working_nojaw  miss_working and cls == no_try (reference)
   Priya's 10-21 blind review judged 0 / 24 jaw_only trials attempts (jaw responses without opening / other movement /
   walking), so jaw_nolick is "a jaw reaction or an LP-only lick", NOT an attempt.
+CAMERA TRIAL GATE (Priya 11-07, option a; ``WIDEFIELD_TRIAL_GATE=camera``): the same three states from the camera
+classes, through the wired `enl_states.states_for(cam_cls=...)` (camera class per DAQ cue =
+`trial_classes.cue_classes_for` over the session's FULL DAQ cue train; DECISIONS 2026-11-03 / 11-03 late / 11-06):
+  success        DAQ lick within max_rt (unchanged: the lick class stays the DAQ contact set in both gates)
+  miss_working   no DAQ lick and camera class in the run's miss-while-working set (`trial_classes.in_sel(cls,
+                 "miss_working")`; production in_working = incomplete: a camera lick, no contact), inside the camera
+                 working period (first .. last camera lick)
+  stopped        no DAQ lick and camera class STOPPED (the camera stopped-run rule, A2 + excise by default:
+                 `classify_session`; mid-session stop runs AND the quit tail after the last camera lick)
+  other          everything else (isolated jaw_only / no_response lapses -- jaw_only is its own class --,
+                 stopped_licking, early_run, after_end, unknown / no video): in NEITHER working nor stopped
+Outputs are routed by the run's selection tag (`run_mode`, il.OUT), so camera and DAQ outputs never share a folder;
+session files carry ``gate`` and a file of the other gate is recomputed. Under camera, mid-session stop runs exist, so
+the "working always precedes stopped" confound below holds only for the quit tail.
 CONFOUND: the engagement gate marks ONE terminal run, so miss_working always precedes stopped in a session; any
 stopped vs working (and stopped_nojaw vs jaw_nolick_working) difference is partly a LATE-SESSION difference. The median
 within-session position (fraction of the session's cues) of every class is reported per animal x epoch.
@@ -124,6 +138,56 @@ N_AN = 4
 CLASS_DEF = ("classes (enl_states): hit = DAQ lick <= 3.5 s; miss_working = no lick in the response window, before the "
              "terminal engagement collapse (engagement_gate); stopped = no lick, inside it; jaw split from "
              "qc/trial_attempts.csv cls (jaw_nolick = incomplete | jaw_only; no jaw = no_try; close_center = unknown)")
+#: no-lick states (`class_masks` jaw split): "other" (camera gate only) = in neither working nor stopped, still no lick
+NOLICK_STATES = ("working", "stopped", "other")
+
+
+def _gate() -> str:
+    """The run's trial gate ("daq" | "camera"), `trial_classes.gate_mode` (env-resolved, so spawned workers agree)."""
+    from wfield_local import trial_classes as tc
+    return tc.gate_mode()
+
+
+def class_def() -> str:
+    """CLASS_DEF for the run's gate (captions; figure-provenance rule: the caption states the gate)."""
+    if _gate() != "camera":
+        return CLASS_DEF
+    from wfield_local import trial_classes as tc
+    return (f"classes (camera trial gate, {tc.run_selection()}): hit = DAQ lick <= 3.5 s; miss_working = no DAQ lick "
+            f"and camera class {' | '.join(sorted(tc.sel_classes('miss_working')))} (camera lick, no contact) in the "
+            f"camera working period (first .. last camera lick); stopped = no DAQ lick, camera stopped run "
+            f"({tc.stopped_rule_name()}: >= {tc.stop_run_min()} no_response / jaw_only, mid-session runs + the quit "
+            "tail after the last camera lick, lick-touched trials excised); isolated jaw_only / no_response in neither; "
+            "jaw split from trial_attempts cls (jaw_nolick = incomplete | jaw_only; no jaw = no_try)")
+
+
+def confound_text() -> str:
+    if _gate() != "camera":
+        return "miss_working always precedes stopped within a session."
+    return "the camera quit tail follows every miss_working trial of its session; mid-session stop runs do not."
+
+
+def _stopped_txt() -> str:
+    if _gate() != "camera":
+        return "stopped = no lick in the response window, inside the terminal engagement collapse (enl_states)."
+    return "stopped = no DAQ lick, camera stopped run (trial_classes; mid-session stop runs + quit tail)."
+
+
+def _nolick(state) -> np.ndarray:
+    return np.isin(np.asarray(state, dtype=object), NOLICK_STATES)
+
+
+def camera_states(hit, cam_cls) -> np.ndarray:
+    """Per-trial state under the camera gate: `enl_states.states_for`'s camera branch (THE wired definition), with its
+    "" (in neither class) named "other". ``hit`` = DAQ lick within max_rt; ``cam_cls`` = camera class per trial."""
+    from wfield_local.enl_states import states_for
+    hit = np.asarray(hit, bool)
+    n = hit.size
+    st = states_for(np.arange(n), hit, np.full(n, ""), hit.astype(float), np.where(hit, 1.0, -1.0), 2.0,
+                    cam_cls=np.asarray(cam_cls, dtype=object))
+    st = np.asarray(st, dtype=object)
+    st[st == ""] = "other"
+    return st.astype(str)
 
 
 # ------------------------------------------------------------------------------------------------ per session
@@ -146,6 +210,13 @@ def _states(label: str) -> pd.DataFrame:
     pos = np.array([POSITION_NAMES.get(int(t["pos"]), str(t["pos"])) for t in tr])
     max_rt = float(config.defaults()["decode"].get("max_rt_s", 2.0))
     success = hit & np.isfinite(lat) & (lat <= max_rt)
+    if _gate() == "camera":
+        # CAMERA GATE (Priya 11-07 option a): classes over the session's FULL DAQ cue train (the stop rule counts runs
+        # along it), then the wired enl_states camera states. No engagement_gate call (it refuses under camera).
+        from wfield_local import trial_classes as tc
+        cam = np.asarray(tc.cue_classes_for(label, cs / sr), dtype=object)[order]
+        return pd.DataFrame({"order": order, "frac": order / max(cs.size - 1, 1), "cue_daq": cs[order] / sr,
+                             "state": camera_states(success, cam), "camcls": cam.astype(str)})
     not_eng = engagement_gate(order, hit, pos)
     state = np.where(success, "success", np.where(not_eng, "stopped", "working"))
     return pd.DataFrame({"order": order, "frac": order / max(cs.size - 1, 1), "cue_daq": cs[order] / sr,
@@ -158,7 +229,7 @@ def session_worker(item) -> dict:
     f = SESS / f"{label}.npz"
     if f.exists():
         z = np.load(f, allow_pickle=False)
-        if int(z["version"]) == VERSION:
+        if int(z["version"]) == VERSION and (str(z["gate"]) if "gate" in z.files else "daq") == _gate():
             return {"label": label, "cached": True}
     from wfield_local import combined_encoding as ce
     S = _states(label)
@@ -182,7 +253,7 @@ def session_worker(item) -> dict:
     S["cls"] = S.trial_id.map(Am.cls).fillna("missing").astype(str)
     S["jaw_onset_ms"] = pd.to_numeric(S.trial_id.map(Am.jaw_onset_ms), errors="coerce")
     pos_agree = float((S.trial_id.map(Am.pos).astype(str) == S.pos).mean()) if len(Am) else np.nan
-    nolick = S.state != "success"
+    nolick = pd.Series(_nolick(S.state), index=S.index)
     jaw = S.cls.isin(["incomplete", "jaw_only"])
     M = {"success": S.state == "success", "working": S.state == "working", "stopped": S.state == "stopped",
          "jaw_nolick": nolick & jaw, "jaw_nolick_working": (S.state == "working") & jaw,
@@ -245,6 +316,8 @@ def session_worker(item) -> dict:
             out[f"{c}__{al}__n"] = nl
     stp = M["stopped"].to_numpy(bool)
     SESS.mkdir(parents=True, exist_ok=True)
+    if _gate() == "camera":   # the gate + camera class per trial (a DAQ-gate file is written exactly as before)
+        out = {**out, "gate": "camera", "t_camcls": S.camcls.to_numpy().astype(str)}
     np.savez_compressed(
         f, version=VERSION, cols=np.array(pc), restw=restw, restw_ok=restw_ok, animal=animal, epoch=epoch,
         n_unmatched=n_unmatched, pos_agree=pos_agree,
@@ -272,7 +345,7 @@ def trial_table(labels: list) -> pd.DataFrame:
 def class_masks(D: pd.DataFrame) -> dict:
     jaw = D.cls.isin(["incomplete", "jaw_only"])
     return {"success": D.state == "success", "working": D.state == "working", "stopped": D.state == "stopped",
-            "jaw_nolick": (D.state != "success") & jaw, "jaw_nolick_working": (D.state == "working") & jaw,
+            "jaw_nolick": pd.Series(_nolick(D.state), index=D.index) & jaw, "jaw_nolick_working": (D.state == "working") & jaw,
             "jaw_nolick_stopped": (D.state == "stopped") & jaw, "stopped_nojaw": (D.state == "stopped") & (D.cls == "no_try"),
             "working_nojaw": (D.state == "working") & (D.cls == "no_try")}
 
@@ -295,12 +368,23 @@ def counts(D: pd.DataFrame) -> dict:
     fr = {c: D[m.to_numpy()].groupby(["animal", "epoch"]).frac.median() for c, m in M.items()}
     out["frac"] = pd.DataFrame(fr).reindex(out["all"].index).round(2)
     # jaw-no-lick sub-types and canonical (reference-gate) split
-    nl = D[D.state != "success"]
+    nl = D[_nolick(D.state)]
     out["nolick_cls"] = pd.crosstab([nl.animal, nl.epoch, nl.state], nl.cls)
     jl = nl[nl.cls.isin(["incomplete", "jaw_only"])]
     out["jaw_canonical"] = pd.crosstab([jl.animal, jl.epoch], [jl.state, jl.canonical.map({True: "canon", False: "noncanon"})])
     out["jaw_pos"] = pd.crosstab([jl.animal, jl.epoch], jl.pos)
     return out
+
+
+def state_counts(D: pd.DataFrame) -> pd.DataFrame:
+    """Rule 8: per animal x epoch trial counts of every state (all sessions, restw_ok or not), plus -- under the camera
+    gate -- the camera class of the "other" trials, so the working / stopped sets are visible before any figure."""
+    T = pd.crosstab([D.animal, D.epoch], D.state)
+    if "camcls" in D:
+        o = D[D.state == "other"]
+        if len(o):
+            T = T.join(pd.crosstab([o.animal, o.epoch], o.camcls).add_prefix("other:"), how="left")
+    return T.fillna(0).astype(int)
 
 
 # ------------------------------------------------------------------------------------------------ aggregation
@@ -407,10 +491,10 @@ def _title(F, what):
     base = ("baseline = minus the session's RESTW level (as the pre-cue maps)" if F["base"] == "restw"
             else "RAW dF/F x1e3 (drift-removed, no per-trial or rest baseline)")
     spout = "all spouts pooled" if F["set"] == "all" else f"{F['set']} spout only"
-    return _rl(F, f"NEURAL: {F['align']}-aligned area traces, {what}; {spout}; {base}. {CLASS_DEF}. Per animal x epoch "
+    return _rl(F, f"NEURAL: {F['align']}-aligned area traces, {what}; {spout}; {base}. {class_def()}. Per animal x epoch "
             f"trial-weighted mean over sessions (>= {F['min_n']} trials), mean over animals, shade = SEM over animals; "
             f"solid = all 4 animals, dotted = fewer. Pre = August only. PROVISIONAL n = 4. Late-session confound: "
-            f"miss_working always precedes stopped within a session.")
+            f"{confound_text()}")
 
 
 def draw_compare(stem: str) -> None:
@@ -503,8 +587,7 @@ def draw_examples(stem: str) -> None:
         fig.colorbar(im, ax=axs, shrink=0.5, label=_rl(F, "dF/F x1e3 above restw"))
     fig.suptitle(textwrap.fill(_rl(F, f"NEURAL: single STOPPED trials, {F['animal']} -- areas x time, cue-aligned, baseline = minus the "
                  f"session's RESTW level; trials evenly spaced through that animal x epoch's stopped trials "
-                 f"(n stopped per epoch: {F['n']}). One colour scale (98th pct |value|). stopped = no lick in the "
-                 f"response window, inside the terminal engagement collapse (enl_states)."), 170), fontsize=8.5)
+                 f"(n stopped per epoch: {F['n']}). One colour scale (98th pct |value|). {_stopped_txt()}"), 170), fontsize=8.5)
     FIGS.mkdir(parents=True, exist_ok=True)
     save_png_svg(fig, FIGS / f"{_stem(stem)}.png", dpi=110, bbox_inches="tight")
     plt.close(fig)
@@ -544,7 +627,9 @@ def compute(labels: list) -> None:
     D.to_csv(OUTD / _o("trial_classes.csv.gz"), index=False)
     C = counts(D)
     pd.set_option("display.width", 200)
-    print("== rule 8: per animal x epoch TRIAL COUNTS, all spouts (restw_ok sessions)\n" + C["all"].to_string())
+    print(f"== trial gate: {_gate()}" + (f" ({_tc_sel()})" if _gate() == "camera" else " (DAQ quit-tail rule)"))
+    print("== rule 8: per animal x epoch STATE COUNTS, all sessions\n" + state_counts(D).to_string())
+    print("\n== rule 8: per animal x epoch TRIAL COUNTS, all spouts (restw_ok sessions)\n" + C["all"].to_string())
     print("\n== far_contra only\n" + C["far_contra"].to_string())
     print("\n== sessions containing >= 1 stopped trial\n" + C["sessions_with_stopped"].to_string())
     print("\n== median within-session position (fraction of the session's cues) per class: late-session confound\n"
@@ -828,7 +913,7 @@ def draw_levels(stem: str) -> None:
         "all spouts pooled, trial-weighted over sessions. Rows: hit / miss_working / stopped x (contralesional, above "
         "restw) / (contra minus ipsi, above restw) / (contralesional, RAW dF/F x1e3). RESTW is the engagement-gated "
         "WORKING-period rest, so for stopped (quit-period) trials it is a cross-state reference. Animal sets differ "
-        "between epochs for stopped (PS92 acute only; PS95 no acute): compare within animals. " + CLASS_DEF
+        "between epochs for stopped (PS92 acute only; PS95 no acute): compare within animals. " + class_def()
         + ". PROVISIONAL n = 4."), 200), fontsize=8.5)
     save_png_svg(fig, FIGS / f"{_stem(stem)}.png", dpi=100, bbox_inches="tight")
     plt.close(fig)
@@ -857,9 +942,13 @@ def draw_levels(stem: str) -> None:
     plt.close(fig)
 
 
+def _tc_sel() -> str:
+    from wfield_local import trial_classes as tc
+    return tc.run_selection()
+
+
 def main() -> int:
-    from wfield_local import trial_classes as _tc_m5
-    _tc_m5.require_gate("daq", "stopped_trial_traces (working / stopped states)")   # not wired to the camera classes (review M5)
+    # wired to the camera trial gate 11-07 (Priya option a): `_states` takes the camera classes under gate=camera
     from wfield_local import analysis_kit as ak
     if plot_only():
         for kind, stem in stems():
