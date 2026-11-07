@@ -122,6 +122,18 @@ All under `M:/MICROSCOPE/Priya/DeepLabCut/Widefield/face_rhythm/cam4/readouts/ma
      in main analyses, show "without PS93" (= LOAO-PS93, retitle) as sensitivity; open: PS93 per-session check. Maps now
      drawn like the speed maps (all points coloured, red / blue rings). Rhythm-band movement maps per lick factor:
      proposed, not started. Lick-rate (ILI) figure: requested, not started.
+     11-07 late (Priya "go ahead with all"): CORRECTION -- FR "pre" was August-only all along (aligned_maps cache = the
+     same 31 pre sessions); position-map vs aligned-map differences = window (0..4 s RMS vs 0..2 s mean speed from point
+     PCs), not baseline. DONE: shared `face_rhythm.stats.session_shuffle_test` / `drift_split` / `chain_adjacency`;
+     `--perm` + `--drift-control` on position_maps, aligned_maps (cue / lick / bout -> aligned_maps_<al>[_driftpre]_perm.png)
+     and session_loading_perm; spectral null clusters along frequency; "LOAO-x" shown as "without x"; consistency maps
+     captioned descriptive. DRIFT: position maps none; aligned cue 3 UP clusters (far_center 374, far_R 315 + 280 pts),
+     lick 1 UP (close_center 254) -> acute DOWN effects safe, chronic UP clusters need the drift caveat; session loading:
+     lick_right none, lick_left 145 pts MORE ipsi-central (opposite sign / place to its acute change), also
+     lick_ongoing_7Hz, nose_steps, lick_far_nose. SPECTRAL: clusters find fewer than max-stat (lick_right acute max-stat 5
+     bins, clusters 0): spectral changes are narrow peak shifts -> keep max-stat for spectra (recommend). PS93 per
+     session: acute 08-18 / 08-20 go WITH PS92 / 94 / 95 (r +.52 / +.34), 08-19 / 08-21 AGAINST (r -.43 / -.57) ->
+     PS93 inconsistent acutely, not reversed (session_loading_v2/ps93_acute_sessions_lick_right.png).
      When all lands: run the scorer normally (overwrites the page outputs), update FINDINGS 5.10 + FR page 7m-7o.
    * BLOCKED: 13b -- on 34's cohort-1 rebuild (the decoder / template deficit tables and the working-gate behaviour
      inputs change) and on Priya confirming the variable list (a8 asked her 11-05; d4 gone).

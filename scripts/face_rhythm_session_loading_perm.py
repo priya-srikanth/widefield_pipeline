@@ -62,49 +62,55 @@ def session_maps(fdir: Path) -> tuple[dict, pd.DataFrame, list[str], np.ndarray]
     return {k: np.array(v) for k, v in maps.items()}, C, names, M["home"]
 
 
-def test(maps: dict, units: list[str], home: np.ndarray, n_perm: int, seed: int = 0) -> tuple[dict, pd.DataFrame]:
+def test(maps: dict, units: list[str], home: np.ndarray, n_perm: int, seed: int = 0,
+         drift: bool = False) -> tuple[dict, pd.DataFrame]:
+    """``drift``: early vs late PRE sessions per animal instead (`face_rhythm.stats.drift_split`), epoch "late_pre"."""
     from wfield_local.face_rhythm import stats as frs
     adj = frs.mesh_adjacency(home)
     rng = np.random.default_rng(seed)
     res, rows = {}, []
     animals = sorted({k[1] for k in maps})
     for nm in units:
-        for ep in frc.POST_EPOCHS:
-            per = [(np.vstack([maps[(nm, an, "pre")], maps[(nm, an, ep)]]), len(maps[(nm, an, "pre")]))
-                   for an in animals if (nm, an, "pre") in maps and (nm, an, ep) in maps]
-            if len(per) < 2:
+        for ep in (["late_pre"] if drift else frc.POST_EPOCHS):
+            if drift:
+                per = [frs.drift_split(maps[(nm, an, "pre")]) for an in animals
+                       if (nm, an, "pre") in maps and len(maps[(nm, an, "pre")]) >= 2]
+            else:
+                per = [(np.vstack([maps[(nm, an, "pre")], maps[(nm, an, ep)]]), len(maps[(nm, an, "pre")]))
+                       for an in animals if (nm, an, "pre") in maps and (nm, an, ep) in maps]
+            r = frs.session_shuffle_test(per, adj, n_perm, rng)
+            if r is None:
                 continue
-            stat = lambda idx, per=per: np.mean([X[i[n:]].mean(0) - X[i[:n]].mean(0)  # noqa: E731
-                                                 for (X, n), i in zip(per, idx)], 0)
-            obs = stat([np.arange(len(X)) for X, _ in per])
-            null = np.array([stat([rng.permutation(len(X)) for X, _ in per]) for _ in range(n_perm)])
-            r = frs.map_permutation(obs, null, adj)
-            r.update(mean=obs, n_animals=len(per), n_sessions=sum(len(X) - n for X, n in per),
-                     n_pre=sum(n for _, n in per))
+            r["n_pre"] = r["n_ref"]
             res[(nm, ep)] = r
             for c, (m, pc) in enumerate(zip(r["mass"], r["p_cluster"])):
                 sel = r["label"] == c
                 rows.append({"unit": nm, "epoch": ep, "cluster": c, "n_points": int(sel.sum()),
-                             "sign": "more" if obs[sel].mean() > 0 else "less", "mass": m, "p_cluster": pc,
-                             "n_animals": len(per), "n_perm": n_perm})
+                             "sign": "more" if r["mean"][sel].mean() > 0 else "less", "mass": m, "p_cluster": pc,
+                             "n_animals": r["n_animals"], "n_perm": n_perm})
     return res, pd.DataFrame(rows)
 
 
-def figure(res: dict, units: list[str], home: np.ndarray, out: Path, fn: str, set_name: str) -> None:
+def figure(res: dict, units: list[str], home: np.ndarray, out: Path, fn: str, set_name: str,
+           eps: tuple = frc.POST_EPOCHS) -> None:
     from wfield_local import face_rhythm_figures as frf
     from wfield_local import face_rhythm_readouts as frr
-    units = [u for u in units if any((u, ep) in res for ep in frc.POST_EPOCHS)]
+    eps = list(eps)
+    units = [u for u in units if any((u, ep) in res for ep in eps)]
     if not units:
         return
-    eps = list(frc.POST_EPOCHS)
     lim = float(np.nanpercentile(np.abs(np.concatenate([res[k]["mean"] for k in res if k[0] in units])), 98))
     mid = float(frr.MASTER_MIDLINE_X)
     with frf.style():
-        fig, axs = frf.subplots(len(units), 3, figsize=(10.5, 3.1 * len(units)), squeeze=False)
+        one = len(eps) == 1                       # drift control: one panel per unit, laid out as a grid
+        nr, nc = ((len(units) + 4) // 5, min(5, len(units))) if one else (len(units), len(eps))
+        fig, axs = frf.subplots(nr, nc, figsize=(3.5 * nc, 3.1 * nr), squeeze=False)
+        for ax in axs.ravel():
+            ax.axis("off")
         sc = None
         for r_i, nm in enumerate(units):
             for c_i, ep in enumerate(eps):
-                ax = axs[r_i, c_i]
+                ax = axs.ravel()[r_i] if one else axs[r_i, c_i]
                 ax.axis("off")
                 r = res.get((nm, ep))
                 if r is None:
@@ -143,6 +149,8 @@ def main(argv=None) -> int:
     ap.add_argument("--fdir", type=Path, default=None)
     ap.add_argument("--match-rule", choices=sorted(es.MATCH_RULES), default="v2")
     ap.add_argument("--perm", type=int, default=2000)
+    ap.add_argument("--drift-control", action="store_true",
+                    help="the same test on early vs late PRE sessions only (pre-stroke drift floor)")
     a = ap.parse_args(argv)
     es.RULE = a.match_rule
     fdir = a.fdir or frc.default_set_dir(set_name=a.set)
@@ -155,6 +163,16 @@ def main(argv=None) -> int:
     print("sessions recovered / total, per unit x epoch (summed over animals):")
     print(C.groupby(["unit", "epoch"])[["recovered", "sessions"]].sum()
           .apply(lambda r: f"{r.recovered}/{r.sessions}", axis=1).unstack().reindex(units).to_string())
+    if a.drift_control:
+        res, T = test(maps, units, home, a.perm, drift=True)
+        T.to_csv(figure_layout.sidecar_for(out, "session_loading_clusters_driftpre", ".csv"), index=False,
+                 float_format="%.4g")
+        print("\nDRIFT CONTROL (late pre - early pre), clusters p < .05:")
+        print(T[T.p_cluster < .05].to_string(index=False) if len(T) else "none")
+        figure(res, units, home, out, "session_loading_driftpre.png", fdir.name + " DRIFT CONTROL (late - early pre)",
+               eps=("late_pre",))
+        print("->", out)
+        return 0
     res, T = test(maps, units, home, a.perm)
     T.to_csv(figure_layout.sidecar_for(out, "session_loading_clusters", ".csv"), index=False, float_format="%.4g")
     print("\nclusters p < .05:")

@@ -104,6 +104,11 @@ def members(tag: str, animals) -> list[str]:
     return [tag]
 
 
+def tag_label(tag: str) -> str:
+    """Display name of a fit tag: LOAO-<an> reads as "without <an>" (Priya 11-07: "LOAO-PS93" was read as PS93's fit)."""
+    return f"without {tag[len('LOAO-'):]}" if tag.startswith("LOAO-") else tag
+
+
 def tag_style(tag: str, acol: dict) -> dict:
     """Line style per fit tag (Priya 10-25: show the all-sessions-pooled fit, not one line per animal): COHORT = thick
     black (the pooled fit); LOAO-<an> = thin, in the LEFT-OUT animal's colour, labelled "without <an>"; an animal =
@@ -309,7 +314,7 @@ def loading_figures(D: dict, names: list[str], out: Path, set_name: str) -> None
                     ax.axvline(342.0, color="k", lw=0.4)
                     ax.invert_yaxis()
                     ax.set_aspect("equal")
-                    ax.set_title(f"{an}: {c}", fontsize=8)
+                    ax.set_title(f"{tag_label(an)}: {c}", fontsize=8)
             if sc is not None:
                 fig.colorbar(sc, ax=axs, shrink=0.3, extend="both", label="loading fraction, epoch - pre halves (one scale)")
             fig.suptitle(f"{set_name}: where did {names[k]}'s loading move? (pooled per-epoch fits; image left = "
@@ -318,7 +323,10 @@ def loading_figures(D: dict, names: list[str], out: Path, set_name: str) -> None
 {names[k]}'s spatial loading magnitude |(x, y)| per mesh point as a fraction of its total (shape only), each epoch's
 pooled fit minus the mean of the two pre-half fits; red = more of the factor's loading there after the stroke, blue
 = less. First column: preA - preB, what two fits of the same pre-stroke behaviour differ by (the noise to read the
-others against). One colour scale for all panels. cam4: image LEFT = contralesional; vertical line = face midline.""")
+others against). One colour scale for all panels. cam4: image LEFT = contralesional; vertical line = face midline. "without <animal>" =
+the pooled fit redone without that animal (leave-one-animal-out). DESCRIPTIVE: one fit per row x epoch, no test; the
+tested versions are the permutation null maps (cohort_null_maps.png) and the per-session test
+(session_loading_<rule>/).""")
 
         fig, axs = frf.subplots(len(ks), len(animals), figsize=(3.4 * len(animals), 2.9 * len(ks)), squeeze=False)
         for r_i, k in enumerate(ks):
@@ -331,7 +339,7 @@ others against). One colour scale for all panels. cam4: image LEFT = contralesio
                 ax.set_yticks(range(len(rows)), rows, fontsize=8)
                 for (yy, xx), v in np.ndenumerate(C):
                     ax.text(xx, yy, f"{v:.2f}", ha="center", va="center", fontsize=6)
-                ax.set_title(f"{an}: {names[k]}", fontsize=9)
+                ax.set_title(f"{tag_label(an)}: {names[k]}", fontsize=9)
         fig.colorbar(im, ax=axs, shrink=0.5, label="r(loading, spout template)")
         fig.suptitle(f"{set_name}: which spout's pre-stroke movement does each lick factor look like?")
         frf.save(fig, out / "epoch_shape_templates.png", """
@@ -422,7 +430,9 @@ the {len(animals)} animals (orange = more of the factor's loading there after th
 column: the pooled noise itself (preA - preB on the same scale). One fit per animal x epoch, so the animal count is the
 test -- no session bootstrap. Chance of a ring: the epoch-vs-pre-halves difference has ~0.87x the noise SD of
 preA - preB, so one animal passes 2 SD in one direction with p ~ .01 and >= 3 of 4 with p ~ 5e-6 per point (~0 of
-1,282 expected). PS93 (pre-existing right orofacial deficit) went the other way in the per-animal figure.""")
+1,282 expected). PS93 (pre-existing right orofacial deficit) went the other way in the per-animal figure. A
+CONSISTENCY map, not a family-wise test: the tested versions are the permutation null maps (cohort_null_maps.png) and
+the per-session test (session_loading_<rule>/).""")
     return pd.DataFrame(rows)
 
 

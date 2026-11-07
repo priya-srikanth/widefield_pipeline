@@ -178,8 +178,9 @@ def compute(fdir: Path, names: list[str]):
                 t, p_fwe, p_unc = maxstat(obs[kind][k], N)
                 pts[(kind, names[k], ep)] = {"obs": obs[kind][k], "t": t, "p_fwe": p_fwe, "p_unc": p_unc,
                                              "sig": p_fwe < 0.05, "n_perm": len(N)}
-                if kind == "load":         # Priya 11-07: cluster mass = the map test (mesh neighbours, |t| > 2)
-                    r = frs.map_permutation(obs[kind][k], N, adj)
+                if kind in ("load", "spec"):   # Priya 11-07: cluster mass = the map test (|t| > 2; mesh neighbours /
+                    r = frs.map_permutation(obs[kind][k], N,   # adjacent frequency bins)
+                                            adj if kind == "load" else frs.chain_adjacency(len(obs[kind][k])))
                     pts[(kind, names[k], ep)].update(sig_cluster=r["sig_cluster"], p_cluster=r["p_cluster"],
                                                      cluster=r["label"], cluster_mass=r["mass"])
     return pd.DataFrame(rows), {"points": pts, "home": home, "freqs": M["freqs"]}
@@ -274,8 +275,10 @@ def spectral_figure(P: dict, out: Path, set_name: str) -> None:
                 if ("spec", nm, ep) not in pts:
                     continue
                 d = pts[("spec", nm, ep)]
-                ax.plot(fr, d["t"], color=ecol[ep], lw=1.3, label=ep)
-                ax.scatter(fr[d["sig"]], d["t"][d["sig"]], s=22, color=ecol[ep], edgecolor="k", lw=0.5, zorder=4)
+                sg = d.get("sig_cluster", d["sig"])
+                ncl = int((np.asarray(d.get("p_cluster", [])) < .05).sum())
+                ax.plot(fr, d["t"], color=ecol[ep], lw=1.3, label=f"{ep} ({ncl} band{'s' if ncl != 1 else ''})")
+                ax.scatter(fr[sg], d["t"][sg], s=22, color=ecol[ep], edgecolor="k", lw=0.5, zorder=4)
             ax.axhline(0, color="k", lw=0.5)
             ax.set_xscale("log")
             ax.set_xlabel("frequency (Hz)")
@@ -285,8 +288,9 @@ def spectral_figure(P: dict, out: Path, set_name: str) -> None:
         fig.suptitle(f"{set_name}: all-animals-pooled fit, spectral change vs the label-shuffle null")
         frf.save(fig, out / "cohort_null_spectral.png", """
 Spectral loading (fraction of total) of the all-animals-pooled fit's lick factor, COHORT_<epoch> - COHORT_pre, divided
-per frequency by its SD over the permutation null; filled dots = family-wise p < .05 by the max |t| over the 36
-frequencies.""")
+per frequency by its SD over the permutation null; filled dots = frequencies in BANDS with family-wise p < .05 (cluster
+mass along frequency: adjacent bins with |t| > 2 of one sign, against the largest null band; Priya 11-07). Legend: the
+number of significant bands per epoch.""")
 
 
 def main(argv=None) -> int:

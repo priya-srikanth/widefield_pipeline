@@ -155,3 +155,37 @@ def map_permutation(obs: np.ndarray, null: np.ndarray, adj: list[np.ndarray], th
             sig_cl |= lab == c
     return {"t": t, "p_point": p_point, "sig_point": p_point < 0.05, "label": lab, "mass": np.array(mass),
             "p_cluster": p_cl, "sig_cluster": sig_cl, "n_perm": n, "thr": thr}
+
+
+def session_shuffle_test(per: list[tuple[np.ndarray, int]], adj: list[np.ndarray], n_perm: int, rng,
+                         thr: float = 2.0) -> dict | None:
+    """Epoch vs reference over sessions, family-wise over the face. ``per`` = one (X, n_ref) per animal: X (sessions, P)
+    with that animal's n_ref REFERENCE sessions first (pre, or early pre for the drift control). Statistic = mean over
+    animals of (mean of the other sessions - mean of the reference sessions); null = the same with each animal's session
+    labels shuffled within the animal (counts kept). -> `map_permutation` result + "mean", "n_animals", "n_sessions",
+    "n_ref"; None with < 2 animals."""
+    per = [(np.asarray(X, float), int(n)) for X, n in per if 0 < n < len(X)]
+    if len(per) < 2:
+        return None
+
+    def stat(idx):
+        return np.mean([np.nanmean(X[i[n:]], 0) - np.nanmean(X[i[:n]], 0) for (X, n), i in zip(per, idx)], 0)
+
+    obs = stat([np.arange(len(X)) for X, _ in per])
+    null = np.array([stat([rng.permutation(len(X)) for X, _ in per]) for _ in range(n_perm)])
+    r = map_permutation(obs, null, adj, thr)
+    r.update(mean=obs, n_animals=len(per), n_sessions=sum(len(X) - n for X, n in per), n_ref=sum(n for _, n in per))
+    return r
+
+
+def drift_split(X_pre_in_date_order: np.ndarray) -> tuple[np.ndarray, int]:
+    """DRIFT CONTROL (as `fr_pixel_significance.py --drift-control`): one animal's pre sessions in date order -> (X, n_ref)
+    with the EARLY half (first n // 2) as the reference and the LATE half as the 'epoch': the chronological member of
+    the pre half-splits. A post-stroke cluster that the pre drift also shows is not a stroke effect."""
+    X = np.asarray(X_pre_in_date_order, float)
+    return X, len(X) // 2
+
+
+def chain_adjacency(n: int) -> list[np.ndarray]:
+    """Neighbours along a 1-D axis (frequency bins) for `map_permutation`."""
+    return [np.array([j for j in (i - 1, i + 1) if 0 <= j < n], int) for i in range(n)]
