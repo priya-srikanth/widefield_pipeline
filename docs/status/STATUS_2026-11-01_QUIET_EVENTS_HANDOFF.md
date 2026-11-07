@@ -24,7 +24,9 @@
 >     supplement (Priya);
 >   - "Where things stand" updated (pooled = descriptive second view);
 >   - working copy in the session scratchpad `fr_page/index.html`; from a new session read the URL first.
->   TODO: add the 15 new figure ids to the repo registry `fig_ids.csv`.
+>   Registry DONE 11-07: `Widefield/fr_page_src/fr_page/fig_ids.csv` = all 88 page figures (15 new; old copy
+>   fig_ids_before_v40_20261107.csv); `scripts/page_stable_ids.py` now keeps an id already on the page (images
+>   renamed *_rules would otherwise get new ids) and handles letter-suffixed numbers (3.10a, 7a.1).
 > - FR science state + next steps: FR handoff item 00 "11-07 LATE" + DECISIONS 2026-11-07; FINDINGS 5.10 / 0 and
 >   FACE_RHYTHM_FINDINGS 6e written.
 > - PUSHES HELD for 34 (its config-touching push runs the full suite); push this commit after 34 says it landed.

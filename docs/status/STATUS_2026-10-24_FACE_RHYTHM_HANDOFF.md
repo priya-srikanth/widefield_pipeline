@@ -162,7 +162,7 @@ All under `M:/MICROSCOPE/Priya/DeepLabCut/Widefield/face_rhythm/cam4/readouts/ma
      figure. O2 sub / chronic null kept running (Priya) -> rescore pooled view when files land (descriptive only).
      11-07 EVENING: PAGE v40 + DECK (198 slides) UPDATED -- details and slide map in the a8 handoff top block
      (STATUS_2026-11-01_QUIET_EVENTS_HANDOFF). Page: cue- and lick-aligned perm maps are the main cue / lick speed maps
-     (same speed measure), 0-4 s response maps = supplement (Priya). Open: fig_ids.csv (15 new ids), rhythm-band movement
+     (same speed measure), 0-4 s response maps = supplement (Priya). Open: rhythm-band movement
      maps per lick factor, lick-rate (ILI) figure, make v2 + per-session the code defaults and re-render remaining FR
      figures (pooled-fit figures with session dots / pre column), rescore the pooled null when the O2 sub / chronic
      files land.
