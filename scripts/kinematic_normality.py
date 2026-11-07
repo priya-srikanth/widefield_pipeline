@@ -276,14 +276,16 @@ def session_table(T: pd.DataFrame, S: pd.DataFrame) -> pd.DataFrame:
     from wfield_local import attempt_coding as _ac
     Rt = pd.read_csv(_ac.out_dir() / "decoder_retention_sessions.csv")   # the writer's folder (review N1)
     Rt = Rt[(Rt.window == "lick") & (Rt.cls2 == "hit")]
-    D = D.merge(Rt[["label", "ret"]].rename(columns={"ret": "ret_hit"}), on="label", how="left")
+    D = D.merge(Rt[["label", "ret", "n"]].rename(columns={"ret": "ret_hit", "n": "ret_hit_n"}), on="label", how="left")
     A = pd.read_csv(E / "iti_licks" / "area_auc_sessions_split_cued.csv")
     D = D.merge(A[A.area == "tjM1_right"][["label", "resp"]].rename(columns={"resp": "tjm1"}), on="label", how="left")
     return D.sort_values(["animal", "day"]).reset_index(drop=True)
 
 
 def normalise(D: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """f = (x - acute) / (pre - acute) per animal x series; flags."""
+    """f = (x - acute) / (pre - acute) per animal x series; flags. Code on hits (ret_hit): NaN for an animal whose acute
+    sessions sum to < analysis_kit.MIN_HITS hits (Priya 11-07)."""
+    from wfield_local import analysis_kit as ak
     N = D[["label", "animal", "epoch", "day"]].copy()
     ref = []
     for key, _l in ALL_SERIES:
@@ -293,6 +295,11 @@ def normalise(D: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
             pre = g[g.epoch == "pre"][key].dropna()
             ac = g[g.epoch == "acute"][key].dropna()
             ac_src = "acute epoch"
+            if key == "ret_hit" and not ak.hits_ok(g.loc[ac.index, "ret_hit_n"].to_numpy(float)):
+                # code on hits: the acute reference needs >= MIN_HITS summed hits (Priya 11-07), no earliest-post fallback
+                ref.append({"animal": an, "series": key, "pre": np.nan, "acute": np.nan, "pre_sd": np.nan,
+                            "acute_src": ak.HIT_GATE_NA, "deficit": False})
+                continue
             if not len(ac):
                 post = g[(g.epoch != "pre")].dropna(subset=[key])
                 ac = post[key].iloc[:1]

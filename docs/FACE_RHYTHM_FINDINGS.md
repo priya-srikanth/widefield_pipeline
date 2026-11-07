@@ -584,17 +584,27 @@ pooled-fit significance claims of FINDINGS 5.10 as the main test (those stay as 
 
 ## 6f. Lick rhythm: video lick interval and rhythm-band face movement (11-07 night)
 
+Spectral centre per animal (3-15 Hz, Hz; rule 8): PS92 6.81 / 6.56 / 6.74 / 6.79, PS93 6.74 / 6.56 / 6.78 / 7.00,
+PS94 6.58 / 6.49 / 6.69 / 6.65, PS95 6.93 / 6.61 / 6.76 / 6.94 (pre / acute / subacute / chronic); lick frequency
+from the interval, same order: PS92 6.45 / 5.72 / 6.01 / 6.13, PS93 6.05 / 5.62 / 5.86 / 6.29, PS94 6.29 / 5.80 /
+6.39 / 6.27, PS95 7.03 / 5.70 / 6.64 / 7.06. Tables: band_maps/data/spectral_centre*.csv.
+
 RHYTHM-BAND MOVEMENT + LICK RATE (11-07 night, Priya; FACE_RHYTHM_FINDINGS 6f). Video licks (LP v36): the within-bout
 inter-lick interval lengthens 15-25 ms at EVERY spout acutely (session MWU + bootstrap agree), back by subacute except
 close mid / contra (`scripts/orofacial_lick_rate_figure.py`). Face movement per mesh point in each lick unit's rhythm
 (stored per-point spectra weighted by the unit's master frequency profile, cue 0..+4 s, no refit;
 `scripts/face_rhythm_band_maps.py`) falls acutely at every spout in every lick band (face mean log2 -.09 to -.30, Holm
-.002) and the loss is GRADED by rhythm: per session vs own pre, the 7 Hz band falls MORE than the lick rhythm itself
-(-.13 log2, Holm p .002; subacute -.04, Holm .03), the slower lick bands less (slow_late +.07, far_nose +.05 relative);
-fast_close not different (-.04, n.s.). Chronically every lick band is above pre (+.06 to +.13). Drift control passes no
+.002) and the movement spectrum SHIFTS TO LOWER FREQUENCIES: its power-weighted centre (3-15 Hz, all face points, log
+frequency) drops 6.77 -> 6.56 Hz acutely (-.21 Hz, 4 / 4 animals, Holm p .0003; 4-12 Hz -.12 Hz, p .0003), back by
+subacute (chronic +.08 Hz in 3-15 Hz only); the licks themselves slow 6.45 -> 5.71 Hz (1000 / ILI), the face spectrum
+less because it also holds non-lick movement and harmonics (`face_rhythm_band_maps.py --centre`). Band by band, the
+upper lick band (lick_ongoing_7Hz profile, 6.5-15 Hz) falls MORE than the main lick rhythm (4-9 Hz; -.13 log2, Holm p
+.002; subacute -.04, Holm .03), the slower lick bands less (slow_late +.07, far_nose +.05 relative); fast_close not
+different (-.04, n.s.). That is what a downward shift of the licking peak (or less sharp licks) produces -- not
+evidence for the loss of a separate fast movement. Chronically every lick band is above pre (+.06 to +.13). Drift control passes no
 band or contrast (10,000 within-animal shuffles; Holm over 7 x 3 bands, 6 x 3 contrasts). Limits: bands separate units by
 rhythm only (lick_right / lick_left share theirs, read by spout); profiles are broad and overlap. **STANDS** (acute lick
-slowing and graded band loss).
+slowing and the downward shift of face movement frequency).
 
 Gradient test (`face_rhythm_band_maps.py --gradient` -> band_maps/data/band_gradient.csv), face-wide mean log2 per
 session, delta vs own pre, acute / subacute / chronic; ** Holm < .01, * < .05:
