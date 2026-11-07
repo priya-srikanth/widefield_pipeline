@@ -108,6 +108,32 @@ All under `M:/MICROSCOPE/Priya/DeepLabCut/Widefield/face_rhythm/cam4/readouts/ma
      11-07 later: ACUTE NULL COMPLETE (500 pairs; subacute 111, chronic 100). v2 rescored (epoch_shape_cohort_v2/):
      acute Holm < .05 = lick_right (all 4 measures), prelick_nose + whisk_run + lick_slow_late spatial angle, whisk_run
      spectral; LOST lick_fast_close (p .002, Holm .004), lick_ongoing_7Hz (p .014, Holm .014). Waiting on sub / chronic.
+     11-07 eve (Priya): v2 recovery spatial threshold .8 -> .7 (PS95 acute lick_right = same column as pre, spectral .94,
+     spatial .78: changed, not lost; .5 / .7 identical on real fits; no null cell < .7). MAP STATS (Priya OK): cluster
+     mass = the map test, max-statistic = point level, within-animal session-label shuffles (face_rhythm.stats
+     map_permutation). Speed maps `face_rhythm_position_maps.py --perm 2000` (August-only pre, refreshed today): acute
+     LESS movement cluster at every spout (far_R -.62, 926 pts), sub / chronic MORE at close + centre. Pooled-fit null
+     maps with clusters: lick_right acute 2 clusters (604 pts; max-stat 2 pts), lick_left acute none. NEW per-session
+     weighting test `face_rhythm_session_loading_perm.py` (own8 fits, v2) -> session_loading_v2/: lick_right acute loses
+     upper / central weight (645 pts), gains ipsi lower cheek + jaw; lick_left roughly mirrored; max-stat 263 / 413 pts.
+     CAVEAT: session shuffle = fixed effects + pre drift -> OPEN: early-vs-late pre drift control for the speed and
+     session-loading tests; re-run aligned_maps (cue / lick / bout, still 10-24 baseline) with --perm. PS93: own acute fit
+     runs OPPOSITE to PS92 / 94 / 95 (pre-existing right facial deficit, 10-24 flag; Priya 11-07 confirms) -> keep PS93
+     in main analyses, show "without PS93" (= LOAO-PS93, retitle) as sensitivity; open: PS93 per-session check. Maps now
+     drawn like the speed maps (all points coloured, red / blue rings). Rhythm-band movement maps per lick factor:
+     proposed, not started. Lick-rate (ILI) figure: requested, not started.
+     11-07 late (Priya "go ahead with all"): CORRECTION -- FR "pre" was August-only all along (aligned_maps cache = the
+     same 31 pre sessions); position-map vs aligned-map differences = window (0..4 s RMS vs 0..2 s mean speed from point
+     PCs), not baseline. DONE: shared `face_rhythm.stats.session_shuffle_test` / `drift_split` / `chain_adjacency`;
+     `--perm` + `--drift-control` on position_maps, aligned_maps (cue / lick / bout -> aligned_maps_<al>[_driftpre]_perm.png)
+     and session_loading_perm; spectral null clusters along frequency; "LOAO-x" shown as "without x"; consistency maps
+     captioned descriptive. DRIFT: position maps none; aligned cue 3 UP clusters (far_center 374, far_R 315 + 280 pts),
+     lick 1 UP (close_center 254) -> acute DOWN effects safe, chronic UP clusters need the drift caveat; session loading:
+     lick_right none, lick_left 145 pts MORE ipsi-central (opposite sign / place to its acute change), also
+     lick_ongoing_7Hz, nose_steps, lick_far_nose. SPECTRAL: clusters find fewer than max-stat (lick_right acute max-stat 5
+     bins, clusters 0): spectral changes are narrow peak shifts -> keep max-stat for spectra (recommend). PS93 per
+     session: acute 08-18 / 08-20 go WITH PS92 / 94 / 95 (r +.52 / +.34), 08-19 / 08-21 AGAINST (r -.43 / -.57) ->
+     PS93 inconsistent acutely, not reversed (session_loading_v2/ps93_acute_sessions_lick_right.png).
      When all lands: run the scorer normally (overwrites the page outputs), update FINDINGS 5.10 + FR page 7m-7o.
    * BLOCKED: 13b -- on 34's cohort-1 rebuild (the decoder / template deficit tables and the working-gate behaviour
      inputs change) and on Priya confirming the variable list (a8 asked her 11-05; d4 gone).

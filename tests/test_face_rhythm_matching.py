@@ -64,3 +64,39 @@ def test_merge_reference_sums_members():
     assert nm == ["a", "bd", "c"] and A2.shape[1] == 3 and B2.shape[1] == 3
     u = A / np.linalg.norm(A, axis=0)
     np.testing.assert_allclose(A2[:, 1], u[:, 1] + u[:, 3])
+
+
+def test_cluster_mass_finds_a_patch_and_not_noise():
+    from wfield_local.face_rhythm import stats as frs
+    xx, yy = np.meshgrid(np.arange(20.0), np.arange(20.0))
+    home = np.column_stack([xx.ravel(), yy.ravel()])
+    adj = frs.mesh_adjacency(home)
+    assert len(adj[210]) == 8
+    rng = np.random.default_rng(5)
+    null = rng.normal(size=(300, len(home)))
+    obs = rng.normal(size=len(home))
+    patch = (np.abs(home[:, 0] - 10) <= 2) & (np.abs(home[:, 1] - 10) <= 2)
+    obs[patch] += 3.0
+    r = frs.map_permutation(obs, null, adj)
+    assert r["sig_cluster"][patch].mean() > 0.8 and r["sig_cluster"][~patch].mean() < 0.02
+    r0 = frs.map_permutation(rng.normal(size=len(home)), null, adj)
+    assert r0["sig_cluster"].sum() < 30
+
+
+def test_session_shuffle_and_drift_split():
+    from wfield_local.face_rhythm import stats as frs
+    xx, yy = np.meshgrid(np.arange(15.0), np.arange(15.0))
+    home = np.column_stack([xx.ravel(), yy.ravel()])
+    adj = frs.mesh_adjacency(home)
+    rng = np.random.default_rng(2)
+    patch = (np.abs(home[:, 0] - 7) <= 2) & (np.abs(home[:, 1] - 7) <= 2)
+    per = []
+    for _ in range(4):
+        pre, post = rng.normal(size=(8, len(home))), rng.normal(size=(5, len(home)))
+        post[:, patch] += 1.5
+        per.append((np.vstack([pre, post]), 8))
+    r = frs.session_shuffle_test(per, adj, 300, rng)
+    assert r["sig_cluster"][patch].mean() > 0.8 and r["n_sessions"] == 20 and r["n_ref"] == 32
+    X, n = frs.drift_split(np.arange(14.0).reshape(7, 2))
+    assert n == 3 and len(X) == 7
+    assert [list(a) for a in frs.chain_adjacency(3)] == [[1], [0, 2], [1]]

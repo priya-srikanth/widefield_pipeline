@@ -139,6 +139,9 @@ def main(argv=None) -> int:
                     help="redraw from data/aligned_maps_cache.pkl (statistics + maps), no bootstrap")
     ap.add_argument("--halves-only", action="store_true", help="draw only the halves_<align>.png figures")
     ap.add_argument("--out", type=Path, default=None)
+    ap.add_argument("--perm", type=int, default=0,
+                    help="also the within-animal session permutation test, cluster mass (Priya 11-07): N shuffles")
+    ap.add_argument("--drift-control", action="store_true", help="with --perm: early vs late PRE sessions only")
     a = ap.parse_args(argv)
     rv = PathResolver()
     root = Path(rv.root("dlc")) / "face_rhythm" / "cam4" / "readouts" / a.set
@@ -284,7 +287,7 @@ def main(argv=None) -> int:
                         sc = ax.scatter(home[:, 0], home[:, 1], c=m, s=4, cmap="RdBu_r", vmin=-1, vmax=1)
                         if a.unit == "point":
                             sg = marks.get((al, p, ep), np.zeros(len(home), bool))
-                            ax.scatter(home[sg, 0], home[sg, 1], s=7, facecolors="none", edgecolors="k", linewidths=0.35)
+                            frf.sign_rings(ax, home, sg, m)
                         else:
                             outline(ax, marks.get((al, p, ep), []), grid, color="k", lw=1.0)
                         ax.axvline(mid, color="k", lw=0.4)
@@ -356,8 +359,86 @@ paired animals -> sessions bootstrap of the change vs pre (* = 95 % interval exc
 Holm over the 6 positions of this alignment x epoch, bootstrap p from the same draws). Bottom numbers: animals whose
 contralesional half changes more negatively (C<I). Negative = the contralesional half lost more movement. Statistics
 and per-animal values: data/halves_stats.csv.""")
+    if a.perm:
+        perm_figures(a, maps, counts, label, animal, epoch, aligns, positions, windows, home, mid, out)
     print("->", out)
     return 0
+
+
+def perm_figures(a, maps, counts, label, animal, epoch, aligns, positions, windows, home, mid, out) -> None:
+    """Priya 11-07: the permutation version of every aligned map -- per alignment x position x epoch, each animal's
+    session log2 maps (pre first), `face_rhythm.stats.session_shuffle_test` (within-animal shuffles, cluster mass |t| > 2,
+    max-statistic); ``--drift-control``: early vs late pre (`face_rhythm.stats.drift_split`) instead of the epochs."""
+    from wfield_local import face_rhythm_figures as frf
+    from wfield_local import figure_layout
+    adj = frs.mesh_adjacency(home)
+    rng = np.random.default_rng(0)
+    eps = ["late_pre"] if a.drift_control else list(EPOCHS[1:])
+    tag = "_driftpre" if a.drift_control else ""
+    rows = []
+    for ai, al in enumerate(aligns):
+        R = {}
+        for pi, pos in enumerate(positions):
+            lg, an_s, ep_s = session_log2(maps, counts, label, animal, epoch, ai, pi)   # labels sorted = date order
+            for ep in eps:
+                per = []
+                for an in np.unique(an_s):
+                    pre = lg[(an_s == an) & (ep_s == "pre")]
+                    if a.drift_control:
+                        if len(pre) >= 2:
+                            per.append(frs.drift_split(pre))
+                    else:
+                        post = lg[(an_s == an) & (ep_s == ep)]
+                        if len(pre) and len(post):
+                            per.append((np.vstack([pre, post]), len(pre)))
+                r = frs.session_shuffle_test(per, adj, a.perm, rng)
+                if r is None:
+                    continue
+                R[(pos, ep)] = r
+                for c, (m, pc) in enumerate(zip(r["mass"], r["p_cluster"])):
+                    sel = r["label"] == c
+                    rows.append({"align": al, "position": pos, "epoch": ep, "cluster": c, "n_points": int(sel.sum()),
+                                 "sign": "up" if r["mean"][sel].mean() > 0 else "down", "mass": m, "p_cluster": pc,
+                                 "mean_log2": float(r["mean"][sel].mean()), "n_animals": r["n_animals"],
+                                 "n_perm": a.perm})
+        win = windows[ai]
+        with frf.style():
+            fig, axs = frf.subplots(len(positions), len(eps), figsize=(3.5 * len(eps) + 0.5, 3.1 * len(positions)),
+                                    squeeze=False)
+            sc = None
+            for r_i, pos in enumerate(frc.POSITIONS_DISPLAY):
+                for c_i, ep in enumerate(eps):
+                    ax = axs[r_i, c_i]
+                    ax.axis("off")
+                    r = R.get((pos, ep))
+                    if r is None:
+                        continue
+                    sc = ax.scatter(home[:, 0], home[:, 1], c=r["mean"], s=4, cmap="RdBu_r", vmin=-1, vmax=1)
+                    frf.sign_rings(ax, home, r["sig_cluster"], r["mean"])
+                    ax.axvline(mid, color="k", lw=0.4)
+                    ax.invert_yaxis()
+                    ax.set_aspect("equal")
+                    k = int((r["p_cluster"] < .05).sum())
+                    ax.set_title(f"{pos} -- {ep.replace('_', ' ')}\n{k} cluster{'s' if k != 1 else ''} p < .05 "
+                                 f"({int(r['sig_cluster'].sum())} pts); max-stat {int(r['sig_point'].sum())}", fontsize=7)
+            if sc is not None:
+                fig.colorbar(sc, ax=axs, shrink=0.3, label="log2 change, mean of animals")
+            what = "late vs early PRE (drift control)" if a.drift_control else "epoch vs pre"
+            fig.suptitle(f"{a.set}: face movement, {al}-aligned ({win[0]:+g}..{win[1]:+g} s), {what}; rings = "
+                         f"permutation cluster p < .05 ({a.perm} within-animal shuffles)", fontsize=10)
+            frf.save(fig, out / f"aligned_maps_{al}{tag}_perm.png", f"""
+Per mesh point (image LEFT = CONTRALESIONAL on cam4; vertical line = face midline): mean speed in the {al.upper()}-aligned
+window ({win[0]:+g}..{win[1]:+g} s), per spout position, log2 vs the animal's pre mean, session by session; map = mean
+over animals of ({'late-pre minus early-pre' if a.drift_control else 'epoch minus pre'}) session means. RINGS (red = up,
+blue = down) = points in clusters with family-wise p < .05: within-animal session-label shuffles, points studentised by
+the null SD, clusters of mesh neighbours with |t| > 2 of one sign, cluster mass against the largest null cluster
+(`face_rhythm.stats.session_shuffle_test`); title also gives the point-level max-statistic count.""")
+    C = pd.DataFrame(rows)
+    C.to_csv(figure_layout.sidecar_for(out, f"aligned_maps{tag}_perm_clusters", ".csv"), index=False,
+             float_format="%.4g")
+    print(f"PERMUTATION{' DRIFT CONTROL' if a.drift_control else ''}: clusters p < .05")
+    print(C[C.p_cluster < .05].groupby(["align", "epoch", "sign"]).n_points.agg(["count", "sum"]).to_string()
+          if len(C) else "none")
 
 
 if __name__ == "__main__":

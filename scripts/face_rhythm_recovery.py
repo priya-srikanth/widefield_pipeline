@@ -113,7 +113,7 @@ def figure(T: pd.DataFrame, names: list[str], out: Path, set_name: str) -> None:
         frf.save(fig, out / "recovery.png", f"""
 Which reference units (master factors; twin units merged under the {es.RULE} matching rule) the pooled all-animals
 COHORT fit of each post epoch does NOT recover while the pre fit does. Colour and number = spectral cosine between the
-unit and the factor picked for it (place match with a frequency tie-break); LOST = picked factor below spatial cos .8 or
+unit and the factor picked for it (place match with a frequency tie-break); LOST = picked factor below spatial cos .7 or
 spectral cos .5 in that epoch's fit but not in the pre fit; * = Holm < .05 over the lost units of that epoch, against the
 permutation null (sessions shuffled between pre and that epoch within animal; p = share of permutations that lose the
 unit post while keeping it pre). Second line: in how many of the 4 per-animal fits the epoch loses the unit.""")

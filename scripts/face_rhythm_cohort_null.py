@@ -125,9 +125,11 @@ def maxstat(obs: np.ndarray, null: np.ndarray) -> tuple[np.ndarray, np.ndarray, 
 
 def compute(fdir: Path, names: list[str]):
     from wfield_local import analysis_kit as ak
+    from wfield_local.face_rhythm import stats as frs
     from wfield_local import face_rhythm_readouts as frr
     M, A_ref, B_ref, _names = es.reference(fdir)
     home, mid = M["home"], float(frr.MASTER_MIDLINE_X)
+    adj = frs.mesh_adjacency(home)
     proj = frc.sessions(fdir, "proj")
     pre_keys = proj[proj.epoch == "pre"]
     speed = {r.key: _speed(r.file) for r in pre_keys.itertuples()}           # every session that can be a pseudo-pre
@@ -176,6 +178,11 @@ def compute(fdir: Path, names: list[str]):
                 t, p_fwe, p_unc = maxstat(obs[kind][k], N)
                 pts[(kind, names[k], ep)] = {"obs": obs[kind][k], "t": t, "p_fwe": p_fwe, "p_unc": p_unc,
                                              "sig": p_fwe < 0.05, "n_perm": len(N)}
+                if kind in ("load", "spec"):   # Priya 11-07: cluster mass = the map test (|t| > 2; mesh neighbours /
+                    r = frs.map_permutation(obs[kind][k], N,   # adjacent frequency bins)
+                                            adj if kind == "load" else frs.chain_adjacency(len(obs[kind][k])))
+                    pts[(kind, names[k], ep)].update(sig_cluster=r["sig_cluster"], p_cluster=r["p_cluster"],
+                                                     cluster=r["label"], cluster_mass=r["mass"])
     return pd.DataFrame(rows), {"points": pts, "home": home, "freqs": M["freqs"]}
 
 
@@ -230,27 +237,30 @@ def map_figure(P: dict, out: Path, set_name: str) -> None:
                     ax.axis("off")
                     continue
                 d = pts[("load", nm, ep)]
-                s = d["sig"]
-                ax.scatter(home[~s, 0], home[~s, 1], c=d["t"][~s], s=3, cmap="RdBu_r", vmin=-lim, vmax=lim, alpha=0.35,
-                           lw=0)
-                sc = ax.scatter(home[s, 0], home[s, 1], c=d["t"][s], s=11, cmap="RdBu_r", vmin=-lim, vmax=lim,
-                                edgecolors="k", linewidths=0.25)
+                s = d.get("sig_cluster", d["sig"])
+                # Priya 11-07: drawn like the speed maps -- every point coloured, rings (red up / blue down) = points
+                # in permutation clusters with p < .05 (max-statistic count in the title)
+                sc = ax.scatter(home[:, 0], home[:, 1], c=d["t"], s=4, cmap="RdBu_r", vmin=-lim, vmax=lim, lw=0)
+                frf.sign_rings(ax, home, s, d["t"])
                 ax.axvline(342.0, color="k", lw=0.4)
                 ax.invert_yaxis()
                 ax.set_aspect("equal")
                 ax.axis("off")
-                ax.set_title(f"{nm}: {ep}\n{int(s.sum())} pts FWE .05 (+{int((s & (d['obs'] > 0)).sum())} / "
-                             f"-{int((s & (d['obs'] < 0)).sum())}); {d['n_perm']} perms", fontsize=8)
+                ncl = int((np.asarray(d.get("p_cluster", [])) < .05).sum())
+                ax.set_title(f"{nm}: {ep}\n{ncl} cluster{'s' if ncl != 1 else ''} p < .05: {int(s.sum())} pts "
+                             f"(+{int((s & (d['obs'] > 0)).sum())} / -{int((s & (d['obs'] < 0)).sum())}); "
+                             f"max-stat {int(d['sig'].sum())} pts; {d['n_perm']} perms", fontsize=8)
         if sc is not None:
             fig.colorbar(sc, ax=axs.ravel().tolist(), shrink=0.5, extend="both", label="t (change / null SD)")
         fig.suptitle(f"{set_name}: all-animals-pooled fit, per-point loading change vs the label-shuffle null "
-                     "(max-statistic); image left = contralesional")
+                     "(cluster mass); image left = contralesional")
         frf.save(fig, out / "cohort_null_maps.png", """
 Loading fraction per mesh point of the all-animals-pooled fit's lick factor, COHORT_<epoch> - COHORT_pre. Colour = t: each
-point's change divided by its SD over the permutation null (within-animal label shuffle, both fits redone), and its family-wise p is
-the share of permutations whose MAX |t| over all points reaches it: ringed = FWE p < .05 (large, opaque, black edge).
-Red = more loading after the stroke; one colour scale (t) for all panels, so low-loading points that change
-reliably are visible.""")
+point's change divided by its SD over the permutation null (within-animal label shuffle, both fits redone). RINGS = points
+in CLUSTERS with family-wise p < .05: neighbouring mesh points with |t| > 2 of one sign form a cluster, its mass = the
+sum of |t|, and its p = the share of permutations whose LARGEST cluster mass reaches it (Priya 11-07: the map test;
+red ring = more loading, blue = less). Title also gives the point-level MAX-STATISTIC count (a point's |t| against the
+largest |t| over the face per permutation). One colour scale (t) for all panels.""")
 
 
 def spectral_figure(P: dict, out: Path, set_name: str) -> None:
@@ -265,8 +275,10 @@ def spectral_figure(P: dict, out: Path, set_name: str) -> None:
                 if ("spec", nm, ep) not in pts:
                     continue
                 d = pts[("spec", nm, ep)]
-                ax.plot(fr, d["t"], color=ecol[ep], lw=1.3, label=ep)
-                ax.scatter(fr[d["sig"]], d["t"][d["sig"]], s=22, color=ecol[ep], edgecolor="k", lw=0.5, zorder=4)
+                sg = d.get("sig_cluster", d["sig"])
+                ncl = int((np.asarray(d.get("p_cluster", [])) < .05).sum())
+                ax.plot(fr, d["t"], color=ecol[ep], lw=1.3, label=f"{ep} ({ncl} band{'s' if ncl != 1 else ''})")
+                ax.scatter(fr[sg], d["t"][sg], s=22, color=ecol[ep], edgecolor="k", lw=0.5, zorder=4)
             ax.axhline(0, color="k", lw=0.5)
             ax.set_xscale("log")
             ax.set_xlabel("frequency (Hz)")
@@ -276,8 +288,9 @@ def spectral_figure(P: dict, out: Path, set_name: str) -> None:
         fig.suptitle(f"{set_name}: all-animals-pooled fit, spectral change vs the label-shuffle null")
         frf.save(fig, out / "cohort_null_spectral.png", """
 Spectral loading (fraction of total) of the all-animals-pooled fit's lick factor, COHORT_<epoch> - COHORT_pre, divided
-per frequency by its SD over the permutation null; filled dots = family-wise p < .05 by the max |t| over the 36
-frequencies.""")
+per frequency by its SD over the permutation null; filled dots = frequencies in BANDS with family-wise p < .05 (cluster
+mass along frequency: adjacent bins with |t| > 2 of one sign, against the largest null band; Priya 11-07). Legend: the
+number of significant bands per epoch.""")
 
 
 def main(argv=None) -> int:
@@ -313,7 +326,9 @@ def main(argv=None) -> int:
                   + d.pivot_table(index="factor", columns="epoch", values="cell", aggfunc="first").reindex(names).to_string())
     for (kind, nm, ep), d in sorted(P["points"].items()):
         if nm in FACTORS:
-            print(f"{kind} {nm} {ep}: {int(d['sig'].sum())} / {len(d['sig'])} FWE .05, "
+            cl = (f", clusters p < .05: {int((np.asarray(d['p_cluster']) < .05).sum())} "
+                  f"({int(d['sig_cluster'].sum())} pts)") if "p_cluster" in d else ""
+            print(f"{kind} {nm} {ep}: {int(d['sig'].sum())} / {len(d['sig'])} FWE .05 (max-stat){cl}, "
                   f"{int((d['p_unc'] < .05).sum())} uncorrected (n = {d['n_perm']})")
     if len(T):
         scalar_figure(T, out, fdir.name, names)
