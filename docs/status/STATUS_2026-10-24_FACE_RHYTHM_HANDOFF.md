@@ -80,6 +80,13 @@ All under `M:/MICROSCOPE/Priya/DeepLabCut/Widefield/face_rhythm/cam4/readouts/ma
      lick pair identical; sniff_prelick drops out (p .48); lick_ongoing_7Hz + lick_fast_close spatial angle hold;
      asym for lick_ongoing_7Hz / lick_slow_late and whisk_run spatial angle lose Holm. Method choice = Priya's
      (10-25 decision was spatial best-match); asked her 11-07.
+     11-07 Priya: compare best vs Hungarian (spatial score) -> cohort_null_hungarian.csv: lick_right identical; Hungarian
+     re-creates the 10-25 lick_left problem (acute lick_left .86 -> .79, results flip) and forces poor twin matches
+     (nose_prelick_slow .51-.61) -> Hungarian rejected again. Priya then proposed: spatial score, frequency only to break
+     near-ties. Tested (tie margin .02 / .05 / .10; .05 scored -> cohort_null_tiebreak05.csv): 10 matches change across
+     the 4 cohort fits; figure match_changes_tiebreak05.png (maps + spectra per change). 8 / 10 clearly better (spectrum
+     ~ master, spatial within .01-.05); acute lick_fast_close + acute / subacute prep_jaw: neither pick matches the
+     master spectrum (factor likely not recovered there). lick_right unchanged. Awaiting Priya's read of the figure.
      When all lands: run the scorer normally (overwrites the page outputs), update FINDINGS 5.10 + FR page 7m-7o.
    * BLOCKED: 13b -- on 34's cohort-1 rebuild (the decoder / template deficit tables and the working-gate behaviour
      inputs change) and on Priya confirming the variable list (a8 asked her 11-05; d4 gone).
