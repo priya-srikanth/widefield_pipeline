@@ -13,7 +13,7 @@ local is running. Open: item 4 (O2 cam1 copy-backs for PS94 / PS95) and §7.**
 **Status 10-20 20:45 (overnight, autonomous): nothing of mine running.** Jaw anchor OFF and the jaw-only re-run DONE
 (20:30): 3-D production (curated; PS93 0814 / 0821 / 0908 / 0911 now from PRODUCTION cam1, not clips -- tell the
 encoding window), kinematics both lick sets, summary fig, jaw crosscheck (FAR_DIR r 0.95, 47 sessions), phase, cue /
-first-lick traces. No src 4 / 5 jaw frames remain; centre-spout jaw coverage (cue + 70 ms on) median close_center 0.86,
+first-lick traces. No src 4 / 5 jaw frames remain; center-spout jaw coverage (cue + 70 ms on) median close_center 0.86,
 far_center 0.81 (some PS92 sessions 0.53-0.63). PS92 jaw readouts unchanged to 3 decimals; PS93 (more production
 sessions): FAR_DIR 0.19 -> 0.02 -> 0.05, CLOSE_DIR -0.05 -> -0.12 -> -0.22 (pre / acute / chronic).
 **Morning to-do:** (1) O2 cam1 array 56830841: 65 curated pending (Priority); copy back + `o2_inference collect`, then the
@@ -47,7 +47,7 @@ the chronic licks-per-trial rise needs a non-stroke control (none in this cohort
   `pose3d.failed_sessions` (spout fit > 0.2 mm, median tongue reprojection > 6 px). `pose3d production <subset>` now MERGES
   into `summary_production.csv` (no longer overwrites).
 * **Jaw rest-depth anchor** (`pose3d.anchor_single_view`, `ANCHOR_PARTS = ("jaw",)`, src 4 cam1 / 5 cam4): long one-camera
-  jaw stretches (centre spouts: rod end-on in cam1's view; close_center also hides the chin in cam4) placed on the seen
+  jaw stretches (center spouts: rod end-on in cam1's view; close_center also hides the chin in cam4) placed on the seen
   camera's ray at the trial's resting-jaw camera depth. Check: `scripts/pose3d_jaw_anchor_check.py`.
 * **cam1 2-D lick detector** (`wfield_local/cam1_licks.py`, `scripts/cam1_licks.py run|review [--round 1|2|3]`): events =
   runs of cleaned cam1 tongue frames; `size_class` lips / out; flags cam4_matched, in_3d, contact, jaw_only_trial;
@@ -75,15 +75,15 @@ the chronic licks-per-trial rise needs a non-stroke control (none in this cohort
 | v36 re-run for ALL sessions (not just the 9) | one consistent time base for v36, 3-D and cam1 (Priya: "re run v36 please"); within the response window the change is < 1 frame |
 | 3-D cameras paired on true time, output `t_ms` = cam4's | dropped frames had paired wrong partners (PS92 0908 tongue reprojection 8.5 px); the "June outliers" PS92 0606 / PS93 0605-0606 were drops too |
 | session gates: spout fit, tongue reprojection > 6 px | catch timing / pose failures automatically (normal 2.7-4.0 px); now only PS92 0605 fails |
-| no depth prior for one-camera TONGUE points | held-out 0.6-1.7 mm on licks < 1 mm (neighbour fill 0.13-0.23) |
+| no depth prior for one-camera TONGUE points | held-out 0.6-1.7 mm on licks < 1 mm (neighbor fill 0.13-0.23) |
 | jaw rest-depth anchor for long one-camera JAW stretches | held-out ml error 0.03-0.05 mm, per-trial lr_wide r 0.95-0.99, FAR_DIR within 0.02 mm; ap from cam4 alone 0.15-0.39 mm off -> don't use anchored frames for the opening's backward part |
 | incomplete licks from cam1 2-D, not 3-D | counting needs no depth |
 | droplet flag on cam1-only events: spread < 3 px, range < 12 px, median out > -35 px | Priya's review: every false cam1-only event was a water droplet; 16 / 17 caught, 0 / 70 real lost; PS93 round 3: 24 / 24 cam1-only real |
 | recent misses (`miss_prev3`) kept as a covariate, not a gate | droplets follow uncollected water (pre 3 % of trials after a hit -> 15 % after 3 misses); the shape rule already works |
 | `lips` class means "at the lips" only for cam1-ONLY events | cam4-matched "lips" events were all full sideways licks |
-| lick phase: onset -> offset per lick, shown 0.1-0.9; peak-to-peak secondary | as cam4's per-lick normalised time; keeps isolated (acute far contra) licks |
+| lick phase: onset -> offset per lick, shown 0.1-0.9; peak-to-peak secondary | as cam4's per-lick normalized time; keeps isolated (acute far contra) licks |
 | trajectory "≥ half the licks have a point" kept, lowest share printed in the title | within 0.1-0.9 coverage is 0.88-1.0 almost everywhere (lowest ~0.64 at close_L / close_center ends) |
-| cam4 chronic jaw lateral confirmed | far_L / far_R per-trial r with 3-D 0.80 chronic vs 0.90 pre; low all-position r came from close / centre spouts cam4's readout already excludes |
+| cam4 chronic jaw lateral confirmed | far_L / far_R per-trial r with 3-D 0.80 chronic vs 0.90 pre; low all-position r came from close / center spouts cam4's readout already excludes |
 
 ## 3. Running / pending at hand-off (10-20 ~11:25)
 
@@ -94,8 +94,8 @@ the chronic licks-per-trial rise needs a non-stroke control (none in this cohort
 | O2 cam1 production array **56830841** | Priya | scratch `o2/lp_cam1_ctx_prod_20261019/out/` | §5 |
 
 v36 itself is DONE (133 of 136 cam4 sessions; 137 cam4 videos because PS92 0812 is a split day). Not processed, none in the
-curated cohort: PS93 0805 (the behaviour log is a failed start -- GUI v46 logging race, 0 trials; see
-`Behavior_logs/Widefield/PS93_20260805_202013/..._reconstruction.md`), PS94 0601 and PS95 0601 (behaviour fine, NO cam4
+curated cohort: PS93 0805 (the behavior log is a failed start -- GUI v46 logging race, 0 trials; see
+`Behavior_logs/Widefield/PS93_20260805_202013/..._reconstruction.md`), PS94 0601 and PS95 0601 (behavior fine, NO cam4
 alignment template for those recordings).
 
 **Curated cohort only (Priya 10-20: "we can stop processing sessions that will not be part of analysis").** `pose3d
@@ -113,7 +113,7 @@ simply ignored downstream.
 * **Per-animal acute far-contra protrusion** (to-do 3, v36 `position_metrics`, August pre): -12 / -27 / -30 / -65 px
   (PS92-95), but far ipsi also -9 to -19 in all four; contra-minus-ipsi -4 / -8 / -16 / -46. PS95 = ONE acute session (96
   licks); PS94's first two acute days have 24 / 63 licks. Don't quote "-30 to -48 px"; contact loss (-0.37 to -0.83) holds.
-* **Jaw anchor coverage** (6 sessions, cue + 70 ms on): centre spouts 0.84 -> 1.00 (anchored 13-16 % of frames); side
+* **Jaw anchor coverage** (6 sessions, cue + 70 ms on): center spouts 0.84 -> 1.00 (anchored 13-16 % of frames); side
   spouts already ~1.00. FAR_DIR cam4 vs 3-D r = 0.96 over 45 sessions.
 * **Jaw per epoch** (median of sessions, mm, + = ipsi / toward target): FAR_DIR PS92 0.27 -> 0.01 -> 0.12 (pre / acute /
   chronic), PS93 0.22 -> -0.01 -> 0.04. **CLOSE_DIR PS92 -0.13 -> -0.22 -> -0.25, PS93 -0.03 -> -0.14 -> -0.20 (same
@@ -125,10 +125,10 @@ simply ignored downstream.
   pre -> 0.73 acute -> 0.33 chronic (PS92 0.17 -> 0.86 -> 0.35: replicates). PS93 far_L incomplete ~0.6 in EVERY epoch and
   at-the-lips events sit on the LEFT spouts in PS93 (right in PS92). CHECKED 10-20, NOT a side flip: PS93's August-pre
   licks aim to the mouse's RIGHT and barely reach far_L in every independent measure -- DAQ contact far_L 0.39 / far_center
-  0.52 / far_R 0.69 (others 0.77-0.94); cam4 peak angle centre -13 / -12 deg (others +4 to +10), far_L +1 (others
-  +17-18); 3-D sideways at far_L 0.20 mm (PS92 1.47), far_center 0.74 mm to the right; cam1 tongue offset at the centre
-  spouts -15 / -21 px (PS92 -1 / -3) with L > centre > R ordering intact. PS93's left-side incomplete licks are its
-  pre-stroke behaviour (the "right orofacial deficit"); use within-animal changes only.
+  0.52 / far_R 0.69 (others 0.77-0.94); cam4 peak angle center -13 / -12 deg (others +4 to +10), far_L +1 (others
+  +17-18); 3-D sideways at far_L 0.20 mm (PS92 1.47), far_center 0.74 mm to the right; cam1 tongue offset at the center
+  spouts -15 / -21 px (PS92 -1 / -3) with L > center > R ordering intact. PS93's left-side incomplete licks are its
+  pre-stroke behavior (the "right orofacial deficit"); use within-animal changes only.
   Jaw-without-lick acute 0.14-0.32 in both, ~0 chronic; cam1 correction small.
 * **Cue-aligned 3-D traces** (to-do 1b, `scripts/pose3d_cue_traces.py` -> `pose3d/cue_traces/`; engaged trials incl.
   no-lick trials, in-mouth = 0, mean over cue + 70 .. 1500 ms). far_R acute, pre -> acute: trial-averaged distance PS92
@@ -225,11 +225,11 @@ simply ignored downstream.
   with the session's PnP cameras + each camera's 2-D point):
   A. far_center diagonal CONFIRMED as contact geometry: the tongue wraps the rod's SIDE; the tracked tip lands at a
      different height along the shaft each lick, so closest approach traces the rod's slope. 3-D and 2-D agree.
-  (Priya's review 10-20.) A: one point (trial 25, cam4 2-D none = cam1 + neighbour depth) projects onto the spout end,
+  (Priya's review 10-20.) A: one point (trial 25, cam4 2-D none = cam1 + neighbor depth) projects onto the spout end,
      not the tongue tip -- either the tip is hidden behind the rod in cam4 or the fill depth is off. TO-DO: share of
      far_center closest-approach frames that are one-camera before reading the diagonal.
      RESOLVED (10-20 night): closest-approach frame source, far_center, PS92: on-diagonal licks are ~45-55 % cam1 +
-     neighbour depth (cam4 lost the tip) vs 2 % cam4 + neighbours; off-diagonal the reverse. cam1's line of sight is
+     neighbor depth (cam4 lost the tip) vs 2 % cam4 + neighbors; off-diagonal the reverse. cam1's line of sight is
      ~45 deg in the side view, like the diagonal -- BUT with both-camera frames ONLY the diagonal persists (on-line share
      chronic 0.46, pre 0.40 vs 0.45 / 0.32 with all frames). So it is real rod-contact geometry; cam4 loses the tip
      because the rod blocks it during side contact (hence the cam1 fills, and trial 25). Present pre too -- not chronic.
@@ -240,7 +240,7 @@ simply ignored downstream.
      the anchor keeps the resting camera depth, and an opening jaw moves down + back, partly along cam1's ~45 deg line of
      sight -> placed too close to cam1 -> too high in cam4 = opening UNDERESTIMATED (held-out cam1-only dv 0.07-0.15 mm
      vs cam4 0.02-0.04). Proposed fix: per-session depth model from the 2-D jaw position (fit on both-camera frames),
-     held-out tested. Affects centre-spout jaw opening only (FAR_DIR / CLOSE_DIR = side spouts).
+     held-out tested. Affects center-spout jaw opening only (FAR_DIR / CLOSE_DIR = side spouts).
      **TESTED** (`scripts/pose3d_jaw_depth_model_check.py`, dlc env; 4 sessions, ~1.1 M held-out side-spout frames):
      depth model = OLS per session x seen camera, depth change from rest ~ the seen camera's 2-D jaw displacement from
      the trial's resting 2-D jaw (dx, dy, squares, product) + tongue out (either camera) + the seen camera's 2-D tongue
@@ -253,7 +253,7 @@ simply ignored downstream.
      **SUPERSEDED -- ANCHOR TURNED OFF (10-20 evening, Priya: "should we just give up on filling in occluded jaw like
      this?" -- yes).** Sheet C with both placements: the depth model is still too high on OPEN close_center jaws seen by
      cam1 only (3 / 4 such tiles) -- both cameras almost never see an open jaw there, so the model extrapolates.
-     `pose3d.ANCHOR_PARTS = ()`; one-camera jaw beyond the 200 ms fill stays NaN (centre spouts ~84 % coverage, the
+     `pose3d.ANCHOR_PARTS = ()`; one-camera jaw beyond the 200 ms fill stays NaN (center spouts ~84 % coverage, the
      missing frames mostly OPEN close_center jaws -> close_center jaw OPENING biased low: leave it out of opening
      comparisons, as cam4 does). FAR_DIR / CLOSE_DIR unaffected (side spouts, ~0 % anchored). Re-run (task bjj6xs7sf,
      3 workers, serial kinematics -- the other window was using ~25 GB): 3-D production (curated) -> kinematics cam4 ->
@@ -270,7 +270,7 @@ simply ignored downstream.
   monotonic in reach (licks overshoot) and is tongue-out-only. `OROFACIAL_FINDINGS.md` far-contra protrusion row now
   carries the per-animal caveat.
 * **O2 cam1 array 56830841 (10-20 evening)**: 61 / 137 done (PS92 all, PS93 25). Pending tasks already ask
-  `gres/gpu:1` (any type); they wait on Priority (fairshare). Cancelled the 10 non-curated tasks
+  `gres/gpu:1` (any type); they wait on Priority (fairshare). Canceled the 10 non-curated tasks
   (`56830841_[68-71,75,103-106,110]` = PS94 / PS95 0601-0605 + 0805) -> 65 curated pending. `gpu_requeue` accepts 10 h
   jobs (`--test-only` OK; the multi-partition `scontrol update` on the queued array is what failed), but its estimated
   start was ~27 h out, so not resubmitted. O2 wall per video: median 3.5 h, p90 6.4, max 7.5. LOCAL cam1 LP run
@@ -282,7 +282,7 @@ simply ignored downstream.
 ## 4. Results (PS92 = June + August pre, acute .. chronic d+50; PS93 = June / August pre production + 3 clip sessions)
 
 * **2-D vs 3-D**: target spout from the lick endpoint (LOSO, August pre), 6 positions: PS92 0.53 cam4 vs 0.80 3-D, PS93
-  0.42 vs 0.68; centre close vs far PS92 0.59 vs 0.87. cam4 lateral is faithful (r 0.95-0.97); cam4 "protrusion" = the
+  0.42 vs 0.68; center close vs far PS92 0.59 vs 0.87. cam4 lateral is faithful (r 0.95-0.97); cam4 "protrusion" = the
   DOWN axis. Extra 3-D coverage changes no lick-level effect (cam4 vs combined lick sets: z within ~1) -- it matters for
   COUNTS (no-contact +12 %, cam1-only events, jaw-only correction).
 * **far_R acute (PS92)**: licks as long as pre in 3-D (5.10 vs 5.14 mm) but aimed elsewhere: down -5 % (cam4 protrusion
@@ -359,7 +359,7 @@ The box has 24 cores / 63 GB; ~30 % used by others at 11:20. 8 pose3d workers + 
    `docs/OROFACIAL_FINDINGS.md` far-contra protrusion row (-30 / -26 px) with this caveat (encoding window owns that file?
    ask Priya).
 4. Cohort tables for 3-D / cam1 when PS93-95 production lands (per-animal first, `analysis_kit.boot_delta`, August pre).
-5. Labelling (if needed): paw-in-face frames as hard negatives.
+5. Labeling (if needed): paw-in-face frames as hard negatives.
 6. Open: `scripts/apparatus_mouth.py` still uses the 09-11 extrinsics.
 
 ## 8. Pitfalls

@@ -31,7 +31,7 @@ unit), data/halves_stats.csv. ``--plot-only`` redraws from the cached statistics
 ``--halves-only`` draws only the halves figures. Halves figures follow Priya's 11-03 rules (`wfield_local.cat_points`):
 spouts in the canonical order (close ipsi / mid / contra, far ipsi / mid / contra; lesions left so L = ipsi), epochs are
 categories with no lines between them, summary = mean +- SEM over animals, faded OPEN markers = the SESSIONS (shape =
-animal, colour = epoch), * / ** in the top band.
+animal, color = epoch), * / ** in the top band.
 """
 from __future__ import annotations
 
@@ -309,7 +309,7 @@ def main(argv=None) -> int:
     {al.upper()}-aligned window ({win[0]:+g}..{win[1]:+g} s; cue = engaged-trial cue; lick = every LP lick in engaged trials,
     per lick; bout = the first lick of each bout), per spout position (rows; R = contralesional spouts), as log2(session /
     the animal's pre-stroke mean), averaged within the epoch per animal, then over the four animals. {marks_text}
-    The colour gives the sign. Panel titles: whole-face mean log2 change (animals lower than pre) and the
+    The color gives the sign. Panel titles: whole-face mean log2 change (animals lower than pre) and the
     CONTRA - IPSI half difference of the change with its bootstrap (* = interval excludes 0; ** = also Holm over the 6
     positions). Data: data/{a.unit}_stats.csv, data/halves_stats.csv.""")
 
@@ -354,7 +354,7 @@ Per session: mean log2 change vs the animal's pre of the CONTRALESIONAL half of 
 half ({al}-aligned window). Spouts in the canonical order (close ipsi / mid / contra, then far ipsi / mid / contra; all
 lesions LEFT, so L = ipsi, R = contra); each spout is its own category with the post-stroke epochs side by side and NO
 lines between categories (Priya 11-03). Filled marker = mean +- SEM across the four animals' epoch means (epoch
-colours); faded OPEN markers = the individual SESSIONS (shape = animal, colour = epoch). Top band, one row per epoch:
+colors); faded OPEN markers = the individual SESSIONS (shape = animal, color = epoch). Top band, one row per epoch:
 paired animals -> sessions bootstrap of the change vs pre (* = 95 % interval excludes 0; ** = also significant after
 Holm over the 6 positions of this alignment x epoch, bootstrap p from the same draws). Bottom numbers: animals whose
 contralesional half changes more negatively (C<I). Negative = the contralesional half lost more movement. Statistics
@@ -431,7 +431,7 @@ Per mesh point (image LEFT = CONTRALESIONAL on cam4; vertical line = face midlin
 window ({win[0]:+g}..{win[1]:+g} s), per spout position, log2 vs the animal's pre mean, session by session; map = mean
 over animals of ({'late-pre minus early-pre' if a.drift_control else 'epoch minus pre'}) session means. RINGS (red = up,
 blue = down) = points in clusters with family-wise p < .05: within-animal session-label shuffles, points studentised by
-the null SD, clusters of mesh neighbours with |t| > 2 of one sign, cluster mass against the largest null cluster
+the null SD, clusters of mesh neighbors with |t| > 2 of one sign, cluster mass against the largest null cluster
 (`face_rhythm.stats.session_shuffle_test`); title also gives the point-level max-statistic count.""")
     C = pd.DataFrame(rows)
     C.to_csv(figure_layout.sidecar_for(out, f"aligned_maps{tag}_perm_clusters", ".csv"), index=False,

@@ -31,7 +31,7 @@ NOT the rule:
    `angle_gain_far`, per-position spout angle / distance, encoder `cam4_angle_reach` target geometry.
 3. ~17 scripts with the same whole-window pattern (QC / review / demo mostly; analyses: jaw_lateral,
    movement_encoding_session, session_lick_summary, cam1_lick_aim `from_medians_lr`), `whisker_motion` (per-trial
-   whole-window median, no likelihood filter), `orofacial_heatmaps` `spout_ref` (cue .. stop histogram centre).
+   whole-window median, no likelihood filter), `orofacial_heatmaps` `spout_ref` (cue .. stop histogram center).
 4. `scripts/prep_3d_inputs.py` `spout_table` still writes the all-frames 3-D spout table if re-run (the encoder no longer
    reads it: switch it to the commanded table).
 

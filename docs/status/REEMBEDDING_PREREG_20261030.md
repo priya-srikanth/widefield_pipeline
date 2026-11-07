@@ -21,12 +21,12 @@ remapping. Script: `scripts/reembedding_test.py`. Outputs only under
   rule).
 - **Features**: the 45 split-basis Allen-area features (`iti_licks.area_features`: both hemispheres, ALM / tjM1 +
   MOs_rest / MOp_rest), each divided by its session frame SD (`iti_licks.area_sd`); NO per-trial baseline (decoder
-  convention). Centred per session by the mean over the calibration-fold samples (section 3).
+  convention). Centered per session by the mean over the calibration-fold samples (section 3).
 - **Target (PRIMARY)**: spout position, 6 classes, canonical order close_ipsi, close_mid, close_contra, far_ipsi,
   far_mid, far_contra. Metric = balanced accuracy over the spouts present (>= 3 licks) in the scored half; reported as
   above chance (minus 1 / n spouts present). **Secondary target**: executed lateral landing `side_ml` (continuous; ridge,
   alpha 10 fixed; Pearson r).
-- **Behaviour matching (PRIMARY)**: a post lick is kept only if its side_ml AND its reach lie inside the animal's PRE
+- **Behavior matching (PRIMARY)**: a post lick is kept only if its side_ml AND its reach lie inside the animal's PRE
   2.5-97.5 percentile for that spout (the `lick_balance_matched_error` / `lick_code_subspace.add_match` rule, extended
   to reach). Pre licks: all with kinematics. Licks without kinematics drop from the matched set. **Sensitivity**: all
   licks, no matching.
@@ -38,7 +38,7 @@ remapping. Script: `scripts/reembedding_test.py`. Outputs only under
 - **Decoder input**: the 10 latents averaged in 4 lick-aligned bins: [-0.2, 0), [0, 0.15), [0.15, 0.3), [0.3, 0.5] s
   (40 features) -> StandardScaler + multinomial logistic regression, C = 0.1 fixed (no tuning). **Secondary family
   "cue"**: same latents (same PCA), 3 cue-aligned bins 0-0.5, 0.5-1.0, 1.0-1.5 s.
-- **Pre-stroke reference, per animal (FROZEN, rule 10)**: PCA on the pooled pre sessions (each centred on its own mean),
+- **Pre-stroke reference, per animal (FROZEN, rule 10)**: PCA on the pooled pre sessions (each centered on its own mean),
   the decoders trained on all pre licks, and the reference latent trajectories (below), plus one leave-one-session-out
   sibling per pre session -- one payload via `frozen_models.load_or_fit` (kind `reembed`, align `first_lick`, source
   `areas_split_r8_k10`, train labels = the animal's August pre sessions). Never refit per render.
@@ -49,7 +49,7 @@ Trials are split into 2 folds by interleaved contiguous blocks of 10 trials (tim
 half, the other half is the CALIBRATION half; every session-specific fit uses calibration trials only; the session value
 = mean of the 2 folds. Pre sessions are scored against their leave-one-session-out reference (pre->pre).
 
-- **(i) FROZEN**: calibration-centred features projected on the PRE PCs, frozen pre decoder.
+- **(i) FROZEN**: calibration-centered features projected on the PRE PCs, frozen pre decoder.
 - **(ii) ALIGNED** (unsupervised, label-free): the session's OWN 10 PCs (calibration half), then a linear map of its
   latents onto the pre latents fitted by **CCA (Gallego 2020)** on time-locked TRIAL-AVERAGED latent trajectories POOLED
   OVER SPOUTS (no target labels): the lick-aligned -0.5..+0.75 s average and the cue-aligned -0.5..+2.0 s average of the
@@ -76,7 +76,7 @@ Per session: (i), (ii), (iii); **A = (ii) - (i)** (gap closed by alignment), **R
   closed by alignment. The per-animal indices must fall on the same side in >= 3 / 4 animals. If dG is not a change: "no
   extra frozen->refit gap to explain" (the index is not interpreted).
 - **Spatial readout**: the aligned decoder's effective AREA weights (own PCs x alignment map x decoder weights; RMS over
-  classes and bins, normalised to shares summing to 1) per session; pre = the held-out pre session's own aligned readout.
+  classes and bins, normalized to shares summing to 1) per session; pre = the held-out pre session's own aligned readout.
   Group shares: contralesional (right) vs ipsilesional (left); orofacial (ALM, tjM1, SSp-m, SSp-n, SSs) vs other;
   boot_delta per epoch. Map: ipsilesional = image LEFT.
 
@@ -101,7 +101,7 @@ Per session: (i), (ii), (iii); **A = (ii) - (i)** (gap closed by alignment), **R
   negative or small pre->pre; the CHANGE vs pre->pre is the readout, never the raw gap.
 - CCA on 77 smooth time samples: the trajectory average pooled over spouts constrains mostly the condition-independent
   dimensions; whether it also pins the spout dimensions is exactly what G1 measures.
-- Matching uses the spout label to define the pre range (behaviour selection, identical for all three decoders); the
+- Matching uses the spout label to define the pre range (behavior selection, identical for all three decoders); the
   alignment itself never sees labels.
 - n = 4 animals; June includes learning; chronic lag (> 60 d for some sessions) exceeds June's.
 

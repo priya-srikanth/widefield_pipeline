@@ -14,8 +14,8 @@ pulled from those sidecars, not from prose — a caption on this deck was found 
 ## The paragraph
 
 **A ventrolateral striatal lesion selectively degrades the cortical representation of lick TARGET
-while leaving the cortical representation of behavioural STATE substantially intact, and the loss is
-anatomically specific, graded by target eccentricity, and largely reversible.** Behaviourally, the
+while leaving the cortical representation of behavioral STATE substantially intact, and the loss is
+anatomically specific, graded by target eccentricity, and largely reversible.** Behaviorally, the
 lesion produces a position-graded deficit that recovers over ~2 weeks
 (`epoch_1c_behaviour_timecourse.png`, `epoch_2_behaviour_by_position.png`,
 `epoch_3_behaviour_delta.png`). A decoder frozen on pre-stroke cortex loses **half** of its
@@ -23,12 +23,12 @@ above-chance spout-position accuracy acutely — 0.863 → **0.428** as a fracti
 above-chance performance — and recovers to 0.698 subacutely and 0.789 chronically
 (`epoch_13n_state_vs_position_cue.csv`; the full per-epoch decoding families are `epoch_4*` and
 `epoch_5r*`). **The same undamaged cortex, the same window, the same LocaNMF basis, the same frozen
-estimator, with only the LABEL changed, loses one fifth as much**: a three-way behavioural-state
+estimator, with only the LABEL changed, loses one fifth as much**: a three-way behavioral-state
 decoder (rest / running / licking) retains 0.902 of its pre-stroke above-chance performance acutely
 against position's 0.496, and running alone loses 3%
 (`epoch_13_state_decoder_cue.png`, `epoch_13pos_state_decoder_by_class_cue.png`,
 `epoch_13n_state_vs_position_cue.png`). Because the lesion is striatal and no cortex is damaged,
-this rules out the generic explanations at once — window clouding, haemodynamic drift, arousal,
+this rules out the generic explanations at once — window clouding, hemodynamic drift, arousal,
 basis drift — since every one of them would degrade the state readout too. An encoder says the same
 thing in components rather than in accuracy: the fitted amplitude factor *a* goes **0.943 pre →
 0.361 acute → 0.677 subacute → 0.943 chronic** (`epoch_11amp_encoder_amplitude_cue_working.csv`),
@@ -38,7 +38,7 @@ amplitude relative to each position's own pre-stroke value is **1.40 / 1.15 / 1.
 NEAR positions and **0.94 / 0.64 / 0.44** for the three FAR ones, with **far-contralateral the only
 position whose change is both large and spatially specific — 1,211 of 2,022 tested bins**
 (`epoch_15r_position_RESTref_cue_working.png` + `_stats.csv`). Far-contralateral and far-middle,
-the two positions the behaviour implicates, are the two the maps implicate. All four animals make
+the two positions the behavior implicates, are the two the maps implicate. All four animals make
 the acute far-contralateral change in the same spatial shape, against a null that re-pairs animals
 ACROSS positions and so preserves anatomy, warp and mask while destroying only position-specific
 agreement (`docs/WHERE_THE_CODE_MOVES.md`; a mandatory null here, because pre-stroke maps already
@@ -50,7 +50,7 @@ correlate between animals at r ≈ 0.88).
 
 | claim | figure | sidecar / number |
 |---|---|---|
-| position-graded behavioural deficit, recovering | `epoch_1c_behaviour_timecourse.png`, `epoch_2_*`, `epoch_3_*` | deck I1–I3 |
+| position-graded behavioral deficit, recovering | `epoch_1c_behaviour_timecourse.png`, `epoch_2_*`, `epoch_3_*` | deck I1–I3 |
 | frozen position decoding collapses acutely, recovers | `epoch_13n_state_vs_position_cue.png`; `epoch_4*`, `epoch_5r*` | 0.863 → 0.428 → 0.698 → 0.789 |
 | state decoding is largely preserved | `epoch_13_state_decoder_cue.png` | 0.982 → 0.918 → 0.886 → 0.952 |
 | …but DOES fall, at every epoch | `epoch_13delta_state_decoder_cue.csv` | −0.063 / −0.095 / −0.029, all excluding zero after Bonferroni |
@@ -72,7 +72,7 @@ correlate between animals at r ≈ 0.88).
 2. **THE AMPLITUDE GRADIENT IS A DESCRIPTION, NOT A RESULT.** Nothing has tested the near-vs-far
    contrast itself. Its precondition is now clear — block order is shuffled between sessions, so
    pooled drift cannot manufacture it (`scripts/rest_migration/block_order.py`: every position's
-   mean normalised trial index 0.50 ± 0.006, mean pairwise Spearman +0.011 over 4,186 pairs) — but
+   mean normalized trial index 0.50 ± 0.006, mean pairwise Spearman +0.011 over 4,186 pairs) — but
    the test is per-animal amplitude ratios with the nested bootstrap on near-minus-far, unrun.
 3. **REST MAY ITSELF CARRY POSITION INFORMATION.** An earlier control was read as ruling this out; it
    does not (see `scripts/rest_migration/rest_position_permutation.py` for why the magnitude-ratio
@@ -81,7 +81,7 @@ correlate between animals at r ≈ 0.88).
    rest subtrahend is not position-neutral and leaves a contaminant in every rest-referenced map.
    **This is the most important open item in this document.**
 4. **THE MEAN REFERENCE COUPLES THE POSITIONS** and its near-position "increases" are partly that
-   artefact — Near Middle reads 2.56 acute under MEAN
+   artifact — Near Middle reads 2.56 acute under MEAN
    (`epoch_15r_position_MEANref_cue_working_stats.csv`) against 1.15 under REST. Read figure 14 and
    any MEAN-referenced panel as *which positions FALL*, never *which positions change*.
 5. **THE CHRONIC COLUMN OF THE CROSS-POSITION NULL IS UNINTERPRETABLE** under every reference —

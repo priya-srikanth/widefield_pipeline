@@ -1,7 +1,7 @@
 # widefield_pipeline
 
 > **NEW COHORT, 2026-10-29: cohort2 = PS118, PS120, PS121, PS122 (PS118/120 Thy1-GCaMP6s, PS121/122 RiboL1-jGCaMP8s).**
-> Analysed separately from PS92-95 (cohort1) and never pooled with them. Read
+> Analyzed separately from PS92-95 (cohort1) and never pooled with them. Read
 > [`docs/NEW_COHORT_2026-10-29.md`](docs/NEW_COHORT_2026-10-29.md) before running anything: the nightly picks the cohort from
 > the date, hand runs need `WIDEFIELD_COHORT=cohort2`, and cross-registration waits for a reference session.
 
@@ -124,7 +124,7 @@ DeepLabCut 3.0.1 stack. That is precisely the "must not force-upgrade a working 
 section exists for. The two frameworks also disagree about who owns the training loop, so sharing an
 env buys nothing.
 
-**They share data, not code.** Lightning Pose reads a CONVERTED copy of the DLC labelling project;
+**They share data, not code.** Lightning Pose reads a CONVERTED copy of the DLC labeling project;
 the DLC project on the share stays the single source of truth for labels, exactly as
 `dlc_train.stage()` treats its own training copy. Nothing in `wfield_local` imports
 `lightning_pose` at module scope, so the `dlc` and `locanmf` envs keep working without it.

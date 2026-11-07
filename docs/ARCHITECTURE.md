@@ -110,7 +110,7 @@ the most trouble, and both are explained below.
 | [`config`](../wfield_local/config.py) | the session registry, curated date sets, animal lists, `defaults.yaml`. **103 modules import it.** Anything that hardcodes a session list instead of asking `config` is a bug waiting to go stale. |
 | [`paths`](../wfield_local/paths.py) | every root, per machine. There are four machines (`analysis`, `imaging`, `mac`, `analysis_desktop`) and they mount the same shares at different letters. Hardcoding a path is how the same bug appeared in `BEH_ROOT`, `DEFAULT_OUT` and the session cache. |
 | [`writeguard`](../wfield_local/writeguard.py) | refuses writes outside Priya's subtree on MICROSCOPE. Ground rules 0/1. |
-| [`epochs`](../wfield_local/epochs.py) | pre / acute / subacute / chronic, per animal, counted from that animal's own lesion date. `chronic_from` is DERIVED from behaviour each run and published to `epoch_boundaries.json`. |
+| [`epochs`](../wfield_local/epochs.py) | pre / acute / subacute / chronic, per animal, counted from that animal's own lesion date. `chronic_from` is DERIVED from behavior each run and published to `epoch_boundaries.json`. |
 | [`parallel`](../wfield_local/parallel.py) | `fan_out` over processes. Ground rule 6: per-session loops fan out. Two traps it exists to prevent — collect in sorted order, and options travel in the ITEM, because spawn does not inherit globals. |
 | [`analysis_kit`](../wfield_local/analysis_kit.py) | the shared bootstrap and session-selection helpers. `boot_ci` is flat-pool for LEVELS, `boot_delta` is animal-weighted for CHANGES, and confusing the two is what retracted a published number. |
 
@@ -239,7 +239,7 @@ Numbers are the test. The suite does not cover the analysis scripts, and it is n
 | figure renderers | render before and after, byte-compare the PNGs. Use `--output` to a scratch directory, never the share. |
 | pure functions | pin them: check a frozen copy of the pre-extraction source into a test and assert EXACT equality of the draws. Milliseconds instead of hours, and stronger. |
 | module constants | hash every one before and after and compare exactly. Covers constants no particular run reaches. |
-| where artefacts LAND | [`scripts/check_figure_layout.py`](../scripts/check_figure_layout.py) — scans the output tree for sidecars sitting flat beside a figure. Empirical, because a source scan cannot see a file a third-party script dropped there. `--fix` repairs, move-only. |
+| where artifacts LAND | [`scripts/check_figure_layout.py`](../scripts/check_figure_layout.py) — scans the output tree for sidecars sitting flat beside a figure. Empirical, because a source scan cannot see a file a third-party script dropped there. `--fix` repairs, move-only. |
 
 Two rules learned the hard way, both of which have already caught real bugs:
 
@@ -254,7 +254,7 @@ Two rules learned the hard way, both of which have already caught real bugs:
 
 ## Modules added since 09-22 (not in the diagram)
 
-The layer diagram above predates these. One line each, from the module's docstring. The behaviour and video work
+The layer diagram above predates these. One line each, from the module's docstring. The behavior and video work
 (orofacial, pose, FaceRhythm) mostly runs in the `dlc` env on the analysis desktop; see README "Per-machine
 environments".
 
@@ -262,7 +262,7 @@ environments".
 
 | module | what it is |
 |---|---|
-| [`trial_classes`](../wfield_local/trial_classes.py) | THE trial classification: one behavioural class per trial (contact, incomplete lick, jaw only, no response, ...), first match wins, inside a chosen window. `GATES` names the class sets |
+| [`trial_classes`](../wfield_local/trial_classes.py) | THE trial classification: one behavioral class per trial (contact, incomplete lick, jaw only, no response, ...), first match wins, inside a chosen window. `GATES` names the class sets |
 | [`working_trials`](../wfield_local/working_trials.py) | maps the working-trial selection onto the decoders' pooled feature rows. Production = contact + incomplete camera licks, cut at the session's last camera lick (`WIDEFIELD_WORKING_TRIALS`). Note its `IN_WORKING` excludes jaw-only, while `trial_classes.GATES["working"]` includes it |
 | [`lp_licks`](../wfield_local/lp_licks.py) | video (Lightning Pose) licks as the imaging pipeline's lick source, instead of DAQ spout contact (`WIDEFIELD_LICK_SOURCE=lp`) |
 
@@ -276,11 +276,11 @@ environments".
 
 | module | what it is |
 |---|---|
-| [`pose3d`](../wfield_local/pose3d.py) | per-frame 3-D pose from cam1 (bottom) + cam4 (front): triangulated tongue / jaw / nose / spout in mouth-centred mm, and one row per 3-D lick |
+| [`pose3d`](../wfield_local/pose3d.py) | per-frame 3-D pose from cam1 (bottom) + cam4 (front): triangulated tongue / jaw / nose / spout in mouth-centered mm, and one row per 3-D lick |
 | [`pose3d_side`](../wfield_local/pose3d_side.py) | adds the side cameras (cam2 + cam3): per-session camera pose from the spouts, N-camera triangulation, and the cross-camera offset check |
 | [`orofacial_clean`](../wfield_local/orofacial_clean.py) | clean tongue / jaw traces from DLC or Lightning Pose output: drop outliers and low-confidence frames, fill short gaps, subtract a baseline, cut cue-aligned trials |
 | [`orofacial_outputs`](../wfield_local/orofacial_outputs.py) | the pose analysis outputs on the share: run-versioned, session-first, one index |
-| [`orofacial_cohort`](../wfield_local/orofacial_cohort.py) | pre- vs post-stroke orofacial kinematics across the cohort, from the organised pose outputs. A hub: many scripts import it (often as `oc`) |
+| [`orofacial_cohort`](../wfield_local/orofacial_cohort.py) | pre- vs post-stroke orofacial kinematics across the cohort, from the organized pose outputs. A hub: many scripts import it (often as `oc`) |
 | [`orofacial_stats`](../wfield_local/orofacial_stats.py) | statistics for the orofacial cohort figures (session-level tests, after stroke_orofacial's hierarchy) |
 | [`orofacial_heatmaps`](../wfield_local/orofacial_heatmaps.py) | trial-aligned spatial occupancy heatmaps of the cam4 keypoints, pre vs post stroke |
 | [`orofacial_jaw_lateral`](../wfield_local/orofacial_jaw_lateral.py) | jaw lateral readout on whole sessions with the production pose model |

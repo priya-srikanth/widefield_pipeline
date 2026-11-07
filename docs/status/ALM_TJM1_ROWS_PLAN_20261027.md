@@ -49,7 +49,7 @@ sessions (one per animal): r = 1.000; residual max |difference| 0.15 x1e3 dF/F (
 ## Step 2 -- implemented (branch commits; run script `scratchpad/run_alm_rows.sh`)
 - `encoder_split_rows.py`: masks (one definition: `iti_licks.roi_masks` on the stat mask), block weights / block R2,
   basis weights / evoked, `residual_rows`, `split_image` (maps with MOs / MOp drawn as their split ROIs).
-- `fr_direction.py`: 8 split rows beside MOp / MOs (layout 4 x 2 panels, split rows on a grey band). Old rows of
+- `fr_direction.py`: 8 split rows beside MOp / MOs (layout 4 x 2 panels, split rows on a gray band). Old rows of
   `areas.csv` / `bootstrap.csv` identical to the share's (max |diff| 0).
 - `specificity_control.py`: split rows in `sessions.csv` / `area_boot.csv`, new `split_boot.csv`, 4th panel in
   `specificity_groups.png` (MOp, tjM1, MOp_rest, MOs, ALM, MOs_rest, cue vs lick), split panels in
@@ -82,7 +82,7 @@ Stat mask kept (Priya 10-28). Code in this branch; run script `scratchpad/mu/run
   basis, read only; refuses if the saved run tag differs from the environment), `--alphas-from` (hold another run's alphas
   per animal x variant), `--predict` (subset), `--out-root`; `_predict_spatial` now checks the column layout. Re-runs:
   `frozen_encoder_<frame>_basis_pixmusall` (NEW folders). ROI R2 = 1 - w'Ew / w'Sw: `encoder_split_rows.musall_rows`.
-  `frozen_claims.py`: MOs (area run) + the 8 split rows after their parents on a grey band, per-animal tables, the trend
+  `frozen_claims.py`: MOs (area run) + the 8 split rows after their parents on a gray band, per-animal tables, the trend
   CSVs get the motor rows (figure 0.11 stays cortex).
 - **Why the alphas are held:** the basis runs' alpha search (summed over basis targets) picked different alphas from the
   area runs in MORE cells than noted above, noFR too: FR-A joint PS92 / PS94, no_exec_within PS92 / PS94, no_target PS92,
@@ -104,8 +104,8 @@ Stat mask kept (Priya 10-28). Code in this branch; run script `scratchpad/mu/run
 - Runtime estimate for run.sh: ~1-1.5 h wall (three parallel tracks of 4 workers, ~18 GB RAM peak).
 
 ## Step 4 (11-06) -- ALM / tjM1 on deck slides 94 / 139 and every encoder area map (Priya 11-06)
-Branch `feat/alm-tjm1-slides-94-139-20261106`. Colouring = the existing split maps: `encoder_split_rows.split_image`
-(MOs / MOp drawn as ALM + MOs_rest / tjM1 + MOp_rest, rim trimmed), Allen colour scale, white-halo / black outline for
+Branch `feat/alm-tjm1-slides-94-139-20261106`. Coloring = the existing split maps: `encoder_split_rows.split_image`
+(MOs / MOp drawn as ALM + MOs_rest / tjM1 + MOp_rest, rim trimmed), Allen color scale, white-halo / black outline for
 significance, Bonferroni count = the Allen areas only (`encoder_split_rows.bonf_allen`, as residual_roi).
 - **Frozen side: `frozen_encoder_<frA tag>_basis_pixmusall_union`** (NEW folder; `encoder_split_rows.PIX_UNION`): the
   FROZEN_PIX_MUSALL basis re-run with `--fit-from <tag>_basis --alphas-from <tag>` and the union of the variants the two

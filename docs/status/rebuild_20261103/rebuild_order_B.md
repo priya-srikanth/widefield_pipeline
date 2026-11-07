@@ -27,7 +27,7 @@ Merge them all into one rebuild branch. Then fix these:
 5. **Aug-only pre for the decoders.** Either set WIDEFIELD_PRE_FROM=0801 for every decoder render, or make it the default.
    - restnl_mask build REFUSES PRE_FROM, so run it in its own step without the env var.
    - epoch_audit.full_cohort suspends PRE_FROM on purpose.
-   - drift_decoder and 12.1b need June. Keep them as labelled exceptions.
+   - drift_decoder and 12.1b need June. Keep them as labeled exceptions.
 
 ## 1. Variant data
 `hemo_meegkit_hpfit_lag_refitT_swapmask` is DONE for all 120 curated cohort-1 sessions (log C:/Users/SabatiniLab/swapmask_rerun_logs/build_summary.jsonl). Do NOT rebuild it. Every frozen spec_id and session-cache signature hashes the SVTcorr mtime:size, so a rebuild would orphan every downstream key.
@@ -120,7 +120,7 @@ Added 530 CSV rows (548 in total):
 - 8 family / nightly rows merged from the family-key report.
 
 How the classifications were made:
-- frozen-default: grep of imaging entry points, with propagation through local imports. 37 behaviour-only false positives (they import iti_licks / combined_encoding only for helpers) were checked by hand and moved to indirect / behaviour.
+- frozen-default: grep of imaging entry points, with propagation through local imports. 37 behavior-only false positives (they import iti_licks / combined_encoding only for helpers) were checked by hand and moved to indirect / behavior.
 - wf_attempt-only: per-file read by a helper sweep.
 
 ### Counts
@@ -159,8 +159,8 @@ How the classifications were made:
 ### Adopted-only diagnostics, and what they feed
 | Script | Feeds | Verdict |
 |---|---|---|
-| slowband_decode_check (direct `hemo_{hv.ADOPTED}`) | slowband_caveat_figure -> imaging page Fig 1b (d_slowband) and goal page fig1b | REDO; parameterise the variant |
-| iti_hemo_check (adopted vs orig vs 415) | normalises ITI responses used by iti_mixed_models -> ITI section 14 figures | REDO with the "adopted" arm = swapmask |
+| slowband_decode_check (direct `hemo_{hv.ADOPTED}`) | slowband_caveat_figure -> imaging page Fig 1b (d_slowband) and goal page fig1b | REDO; parameterize the variant |
+| iti_hemo_check (adopted vs orig vs 415) | normalizes ITI responses used by iti_mixed_models -> ITI section 14 figures | REDO with the "adopted" arm = swapmask |
 | quiet_hemo_check (T10) | quoted in quiet-events section 15 / encoding section 23 text | REDO |
 | s1_refit_basis_table (wf_attempt; direct `hemo_{ADOPTED}` + `ce._load_imaging`, no drift removal) | imaging page section 1 refit decoder | REDO |
 | lick_balance_imaging_control(+_primary), lick_acad_midline_control | Fig 14.19 | REDO |
@@ -192,7 +192,7 @@ The helper's counts are 193 REDO / 30 UNSURE / 166 NO; my CSV has 209 / 11 / 169
 |---|---|---|
 | hemo / channel diagnostics: rest_migration channel_*, rest_coupling, nvc_evoked, evoked_hrf_latency, plot_session_residual | UNSURE | REDO |
 | cohort-1 QC: epileptiform_*, prestroke_quiet_videos | UNSURE | NO |
-| frozen_group_leakage, qc_running_survey, qc_running_push_survey | NO | REDO (template_job loads imaging but uses only behaviour) |
+| frozen_group_leakage, qc_running_survey, qc_running_push_survey | NO | REDO (template_job loads imaging but uses only behavior) |
 | video_motion_session | NO | REDO (LocaNMF C used only for frame times) |
 
 The helper's verdict should win for these. If the CSV disagrees, read the code.

@@ -1,11 +1,11 @@
-"""FaceRhythm analysis catalogue: what each analysis answers, how long it takes, where its figures land.
+"""FaceRhythm analysis catalog: what each analysis answers, how long it takes, where its figures land.
 
     python -m wfield_local.face_rhythm list                 # every analysis, grouped by stage
     python -m wfield_local.face_rhythm show peak            # one entry in full (+ the script's own --help)
     python -m wfield_local.face_rhythm run peak --split side [--plot-only]   # run it (arguments pass through)
 
 Environments: the `fr` conda env does not install the repo, so set ``PYTHONPATH=<repo>`` (this module adds the repo to
-the script's path when it runs one); `push` needs the `locanmf` env (behaviour loaders). Outputs land under
+the script's path when it runs one); `push` needs the `locanmf` env (behavior loaders). Outputs land under
 ``<dlc>/face_rhythm/cam4/readouts/<set>/`` unless an entry says otherwise. Guide: docs/FACE_RHYTHM_GUIDE.md.
 """
 from __future__ import annotations

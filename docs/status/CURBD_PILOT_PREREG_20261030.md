@@ -17,7 +17,7 @@ The gate (all on the primary variant; the one-unit variant is reported, not gate
 3. **Halves.** r(first half, second half) >= 0.7 median over the 3 pre sessions, and no session < 0.5.
 4. **Sessions.** Median pairwise r across the 3 pre sessions >= 0.7.
 5. **Pair-specific structure.** The same half-split r after removing source and target main effects
-   (double-centred off-diagonal matrix) >= 0.5 median. Needed because a matrix of mean |current| can
+   (double-centered off-diagonal matrix) >= 0.5 median. Needed because a matrix of mean |current| can
    correlate across fits simply because some regions are louder sources / targets; a sensory -> motor
    PAIR comparison needs the pair-specific part to be stable.
 

@@ -1,4 +1,4 @@
-# A3 star rule: random-slope LMM on the 21 behaviour stars (2026-11-03)
+# A3 star rule: random-slope LMM on the 21 behavior stars (2026-11-03)
 
 Priya's rule (via sabatinilab-a8, 11-03): each post epoch is fitted against pre in its own model. The rows are
 sessions: each animal's pre sessions plus its sessions in that epoch. The model is `y ~ post + (1 + post | animal)`,
@@ -15,7 +15,7 @@ Files:
 ## How it was fitted
 
 R is not installed on this box, so lmerTest and pbkrtest are unavailable. The REML likelihood is written out directly:
-- G is Cholesky-parameterised.
+- G is Cholesky-parameterized.
 - The fit is L-BFGS-B from 5 starts, with the Cholesky diagonal bounded at ≥ 0.
 - The point estimates and SEs match statsmodels MixedLM wherever it converged without a singular fit (acute fM:
   −0.4948 / 0.1520 here, −0.4948 / 0.1521 in statsmodels).
@@ -177,7 +177,7 @@ not affected for null maps; post-stroke map contrasts inherit the same n = 4 lim
 ## Priya's choice so far (11-03) and the imaging comparison
 
 Decided so far:
-- **The bootstrap stays, labelled for what it is:** a description of these 4 animals.
+- **The bootstrap stays, labeled for what it is:** a description of these 4 animals.
 - **LMM versions of the key figures:** a mixed model with a separate between-animal spread per epoch; the mean is a
   filled round dot.
 

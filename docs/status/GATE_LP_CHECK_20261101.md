@@ -121,7 +121,7 @@ Session means for 2 s / 1 s windows, all spouts:
   * The 2 s DAQ-lick-free window holds an LP lick on 17-25 % of trials pooled (far contra 28-38 %, PS93 pre 42 %). It is
     as high or higher pre-stroke as post, and no epoch delta excludes 0.
   * So the DAQ arm's "lick-free" means contact-free, not tongue-free, in every epoch. That is a level confound of the
-    headline pre-cue number, not a stroke-specific artefact.
+    headline pre-cue number, not a stroke-specific artifact.
   * The existing LP_licks family (ENL window lick-free by LP, 1.0 s; `lp_licks.LP_ENL_WINDOW_S`, chosen 10-21 from
     `enl_lp_census`) already addresses this. Any claim that the pre-cue code is "not lick-driven" should cite that arm,
     not the DAQ arm. No new LP gate is needed for the decoders, provided the LP_licks ENL arm is the one quoted.
@@ -131,7 +131,7 @@ Session means for 2 s / 1 s windows, all spouts:
 
 ## Limits / not computed
 
-* The trial universe is the full behavioural list, not the imaging-kept subset (coverage and lick-free drops). Class
+* The trial universe is the full behavioral list, not the imaging-kept subset (coverage and lick-free drops). Class
   fractions in the imaging pipeline may differ slightly.
 * LP false-positive rate is unknown: cam4 `licks_all` counts every context, and the pre-cue train is cam4 only. Part of
   Q4's pre-stroke level may be tongue / jaw events that are not licks. The LP-only column bounds the contact-adjacent

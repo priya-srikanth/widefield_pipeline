@@ -116,14 +116,14 @@ their own worktrees (wf_frozendef, wf_swapmask), so main edits don't mix version
 | B5 | `rest_engagement._response_window_s`: wrong key + ms-vs-s; only right by accident (falls back to 3.5 s) | Delete it; call `daq_trials.response_window_s`. |
 | B6 | 5 hand-written BH implementations; ad-hoc Bonferroni m | One `stats.bh()` / `bonferroni(m=…)` in analysis_kit. |
 | B7 | ~17 ad-hoc mixed models (log-day on post-only) | Route through `mixed_models.lmm_table`. |
-| B8 | Spout order / sign flips / epoch + animal colours re-typed; e.g. `locanmf_decoder_weights:175` draws PS94 in PS93's red | `orofacial_cohort.POS_ORDER`, one `to_contra(x, animal)`, one palette module. |
+| B8 | Spout order / sign flips / epoch + animal colors re-typed; e.g. `locanmf_decoder_weights:175` draws PS94 in PS93's red | `orofacial_cohort.POS_ORDER`, one `to_contra(x, animal)`, one palette module. |
 | B9 | Hard-coded drive paths (e.g. `publish_cache.py:33` writes to `N:`) | `PathResolver` only. |
 
 ## Tier C — clarity for non-coders
 
 - **C1.** ARCHITECTURE.md gets a table "**Where each quantity is defined**": epochs, engagement, responded, response
   window, licks (DAQ / cam4 / cam1), trial classes and gates, spout order and sign, baseline and bootstrap,
-  corrections, time model, paths, colours, significance stars. One row each: function, module, one-line meaning.
+  corrections, time model, paths, colors, significance stars. One row each: function, module, one-line meaning.
 - **C2.** Rename `docs/WHERE_THE_CODE_MOVES.md`. It is about cortex, not code.
 - **C3.** A usage line at the top of every script ("python -m scripts.x — what it makes, what it reads"); a
   plain-language docstring on each shared function (what it measures, units, what it excludes).
@@ -131,7 +131,7 @@ their own worktrees (wf_frozendef, wf_swapmask), so main edits don't mix version
 
 ## Order of work (after approval)
 
-1. **A1–A5 decisions with Priya.** A1 and A2 first: they touch published behaviour numbers.
+1. **A1–A5 decisions with Priya.** A1 and A2 first: they touch published behavior numbers.
 2. **B3, B5, B6, B4, B8, B9:** small, bit-identical where the definitions agree.
 3. **B2, then B1:** coordinate with the encoder window.
 4. **C1–C4:** the map grows as each concept gets its single home.

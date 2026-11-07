@@ -4,17 +4,17 @@ maps for the lick left and lick right (and other licking) factors?").
 `proj/` stores, per session and spout position, every mesh point's movement POWER per frequency in the response window
 (``power_response``, (6 positions, x / y, P, 36 freqs), cue 0..+4 s of engaged trials, bin counts ``power_n_bins``).
 Weighting that by a reference unit's frequency profile (master spectral loading, v2 units with the merged twins,
-normalised to sum 1) gives each point's movement IN THAT UNIT'S RHYTHM -- no refit, no time courses needed. Mapped per
+normalized to sum 1) gives each point's movement IN THAT UNIT'S RHYTHM -- no refit, no time courses needed. Mapped per
 spout x epoch as each session's log2 band power minus the mean of its animal's own pre sessions, mean over animals.
 
 LIMITS, stated on every figure: (1) a band map separates units by RHYTHM only -- lick_right and lick_left share theirs
 (spectral cos .98), so they are ONE map ("lick rhythm"), read by spout (right-spout movement = lick_right's, left-spout =
 lick_left's); where a footprint MOVED is the per-session loading map (`face_rhythm_session_loading_perm.py`). (2) The
-profiles are broad and overlap (e.g. the 7 Hz and fast-close units both span ~6.5-15 Hz), so neighbouring bands are
+profiles are broad and overlap (e.g. the 7 Hz and fast-close units both span ~6.5-15 Hz), so neighboring bands are
 correlated. (3) Window = cue 0..+4 s, the only window with stored spectra (the 0..2 s speed maps have no spectra).
 
 STATISTICS = the speed maps' (`face_rhythm_position_maps.py --perm`): within-animal session-label shuffles (no refit),
-points studentised by the null SD, CLUSTER MASS (|t| > 2, mesh neighbours, sign-separate) = the map test, max-statistic
+points studentised by the null SD, CLUSTER MASS (|t| > 2, mesh neighbors, sign-separate) = the map test, max-statistic
 = the point test (`face_rhythm.stats.session_shuffle_test`); ``--drift-control`` = the same on early vs late pre.
 
     python scripts/face_rhythm_band_maps.py [--set master_pre_v1] [--perm 10000] [--drift-control] [--plot-only]
@@ -157,7 +157,7 @@ CENTRE_BAND = (3.0, 15.0)    # Hz: the licking range (lick-unit profiles' middle
 
 def centre_test(fdir: Path, n_perm: int, band=CENTRE_BAND, seed: int = 0) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Does face movement shift to LOWER FREQUENCIES? Per session: the face-wide movement spectrum (power summed over
-    points and x / y, response window, spouts pooled bin-weighted) and its power-weighted centre over ``band`` on a log2
+    points and x / y, response window, spouts pooled bin-weighted) and its power-weighted center over ``band`` on a log2
     frequency scale (the 36 bins are log-spaced), reported in Hz. Delta vs own pre, within-animal session-label shuffles,
     Holm over the 3 epochs; drift control (late vs early pre). -> (per-session table, test table)."""
     import face_rhythm_session_shape_tests as sst
@@ -224,7 +224,7 @@ def main(argv=None) -> int:
                     help="only the rhythm-gradient test (each band minus the lick rhythm, per session) -> "
                          "data/band_gradient.csv")
     ap.add_argument("--centre", action="store_true",
-                    help="only the spectral-centre test (face movement spectrum's power-weighted centre, 3-15 Hz) -> "
+                    help="only the spectral-center test (face movement spectrum's power-weighted center, 3-15 Hz) -> "
                          "data/spectral_centre*.csv")
     a = ap.parse_args(argv)
     rv = PathResolver()
@@ -242,7 +242,7 @@ def main(argv=None) -> int:
             S.to_csv(figure_layout.sidecar_for(out, f"spectral_centre_sessions{sfx}", ".csv"), index=False,
                      float_format="%.4g")
             T.to_csv(figure_layout.sidecar_for(out, f"spectral_centre{sfx}", ".csv"), index=False, float_format="%.4g")
-            print(f"\nband {band}: per animal x epoch mean centre (Hz) -- rule 8, read first")
+            print(f"\nband {band}: per animal x epoch mean center (Hz) -- rule 8, read first")
             print(S.pivot_table(index="animal", columns="epoch", values="centre_hz")
                   .reindex(columns=list(EPOCHS)).round(2).to_string())
             print(T.round(4).to_string(index=False))
@@ -287,7 +287,7 @@ def main(argv=None) -> int:
     limits = ("""
 LIMITS: a band map separates units by RHYTHM only; lick_right and lick_left share theirs (spectral cos .98), so they are
 one map ('lick_rhythm'), read by spout: right-spout rows = lick_right's movement, left-spout rows = lick_left's. Where a
-footprint MOVED is the per-session loading map. Unit profiles are broad and overlap, so neighbouring bands are
+footprint MOVED is the per-session loading map. Unit profiles are broad and overlap, so neighboring bands are
 correlated. Window cue 0..+4 s (the only window with stored spectra).""")
     for u in UNITS:
         b = U[U.unit == u].iloc[0]
@@ -320,7 +320,7 @@ Per mesh point on the master face (image LEFT = CONTRALESIONAL on cam4; vertical
 the {u} rhythm ({b.members}: master frequency profile, v2 units, as weights over the 36 stored frequencies) in the cue
 0..+4 s window of engaged trials at ONE spout (rows; L = ipsilesional, R = contralesional). Each session's log2 band
 power minus the mean of its animal's pre sessions, mean over the animal's epoch sessions, then over animals; clipped at
-+-1 (2x). Rings: cluster-mass permutation p < .05 (|t| > 2, mesh neighbours, sign-separate; red = up, blue = down; null
++-1 (2x). Rings: cluster-mass permutation p < .05 (|t| > 2, mesh neighbors, sign-separate; red = up, blue = down; null
 = within-animal session-label shuffles). data/band_maps_perm.csv lists every cluster.{limits}""")
     if RD:
         with frf.style():

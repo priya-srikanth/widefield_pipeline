@@ -19,8 +19,8 @@ Everything (scripts, trial-level predictions, tables, logs):
 ## Design
 
 - **Same decoder as production.** Joint-basis rows from `pool_sessions` (production z), the A4 snapshot classes
-  (`working_trials.row_masks` / `row_classes`), bal_em training frame (each training session centred on the equal-weight
-  mean of its true class means, SD over its training rows), label-free EM scoring centre (`spout_scaling.score_centre`),
+  (`working_trials.row_masks` / `row_classes`), bal_em training frame (each training session centered on the equal-weight
+  mean of its true class means, SD over its training rows), label-free EM scoring center (`spout_scaling.score_centre`),
   `_pipe()`, LOSO over pre sessions. This is `grant_kit._frozen_frame`, the decoder behind the PS95 .975 -> .642 number.
   The ROI basis (the section-G pooled decoder's features, production ROI pool = August pre + post) gives the same answers
   (`summarise_roi_log.txt`), so it is listed only where it differs.
@@ -29,7 +29,7 @@ Everything (scripts, trial-level predictions, tables, logs):
   with a lick-free 2 s pre-cue window (`precue_lickfree_check_s`), same pool and classes. Precue is BEFORE the cue, so a
   class difference there is state / anticipation before the movement, not the movement.
 - **Reproduced first.** From one pool (June + August pre) the old cell (DAQ-lick engaged rows, all pre; post scored =
-  engaged + no-lick outside the quit tail; centre on engaged rows) and the new cell (in_working, August, both sides)
+  engaged + no-lick outside the quit tail; center on engaged rows) and the new cell (in_working, August, both sides)
   match the previous helper's production numbers (`spout_balem_production/checkA/A_{old,new}_{cue,precue}.csv`) in
   every session of every animal, both windows: n identical, max |accuracy difference| 1.1e-16
   (`verify_endpoints_log.txt`). PS95 close ipsi acute: .975 old, .642 new, as in `summarise_A_log.txt`.
@@ -68,7 +68,7 @@ jaw - contact cue -.54 [-.71, -.32], precue -.25 [-.37, -.12]. The positive cue 
 animals (PS93 jaw .52 on 25 trials); in PS94 and PS95 jaw and none are within .04 of each other. ROI: same pattern
 (PS94 cue .245 vs .181, PS95 .240 vs .266).
 
-Confusion direction: jaw-only errors go to neighbouring spouts at .52-.58 against .44-.47 if errors were uniform, the
+Confusion direction: jaw-only errors go to neighboring spouts at .52-.58 against .44-.47 if errors were uniform, the
 same as no-response errors (.51-.55) and well below contact errors (.88-.89 in PS94 / PS95). Jaw-only predictions are
 spread over the whole 6x6 (`summarise_log.txt` §1).
 
@@ -113,17 +113,17 @@ and alternative orders in `summarise_log.txt` §3):
 
 | step | PS92 acute | PS93 acute | PS94 acute | PS95 acute | animal mean acute / subacute / chronic |
 |---|---|---|---|---|---|
-| OLD (DAQ-lick train, all pre; old scored; centre engaged) | .849 | .582 | .750 | **.975** | .789 / .866 / .953 |
+| OLD (DAQ-lick train, all pre; old scored; center engaged) | .849 | .582 | .750 | **.975** | .789 / .866 / .953 |
 | + August-only | .833 | .598 | .729 | .975 | .784 / .818 / .915 |
-| + train contact+incomplete (centre c+i rows) | .800 | .549 | .597 | .833 | .695 / .804 / .919 |
-| + train jaw_only too (centre in_working rows) | .773 | .584 | .600 | .642 | .650 / .812 / .926 |
+| + train contact+incomplete (center c+i rows) | .800 | .549 | .597 | .833 | .695 / .804 / .919 |
+| + train jaw_only too (center in_working rows) | .773 | .584 | .600 | .642 | .650 / .812 / .926 |
 | + score contact+incomplete only | .799 | .667 | .617 | .639 | .680 / .829 / .930 |
 | NEW (+ score jaw_only) | .734 | .570 | .578 | **.642** | .631 / .777 / .916 |
-| jaw as its own class: train c+i, score c+i, centre c+i | .829 | .629 | .619 | .832 | .727 / .824 / .924 |
+| jaw as its own class: train c+i, score c+i, center c+i | .829 | .629 | .619 | .832 | .727 / .824 / .924 |
 
-**Model vs centre (§3b).** The PS95 acute drop is NOT jaw-only trials being scored at close ipsi (there is 1 such trial;
+**Model vs center (§3b).** The PS95 acute drop is NOT jaw-only trials being scored at close ipsi (there is 1 such trial;
 non-jaw close-ipsi trials alone read .639). It comes from what the frozen model is and which of the session's rows
-its label-free EM centre is computed from. PS95 acute cue cI, model (rows) x centre rows (columns):
+its label-free EM center is computed from. PS95 acute cue cI, model (rows) x center rows (columns):
 
 | model | engaged (old) | contact+incomplete | in_working (new) |
 |---|---|---|---|
@@ -132,13 +132,13 @@ its label-free EM centre is computed from. PS95 acute cue cI, model (rows) x cen
 | contact+incomplete, August | – | .833 | .675 |
 | in_working, August (new) | – | .723 | .642 |
 
-- **Centre rows, all four animals:** centring the acute session on in_working rows (which add its jaw-only trials —
-  PS95 acute has 107, all at far mid / far contra) lowers acute cI against centring on contact+incomplete, for every
+- **Center rows, all four animals:** centering the acute session on in_working rows (which add its jaw-only trials —
+  PS95 acute has 107, all at far mid / far contra) lowers acute cI against centering on contact+incomplete, for every
   model: A model PS92 .829 -> .735, PS93 .629 -> .557, PS94 .619 -> .559, PS95 .832 -> .675.
-- **Model, PS95 only:** at the c+i centre, B (with jaw) vs A (without) is .723 vs .833 in PS95, within .02 elsewhere.
+- **Model, PS95 only:** at the c+i center, B (with jaw) vs A (without) is .723 vs .833 in PS95, within .02 elsewhere.
   It is invisible on the pre-stroke reference (Test 2) and shows up only on an out-of-distribution acute session.
 - **Baseline:** June+August vs August-only matters only for the DAQ-lick model (June has no camera classes): at the c+i
-  centre PS95 .933 vs .832; under the old engaged centre, none.
+  center PS95 .933 vs .832; under the old engaged center, none.
 - Far contra acute (animal mean): old .219, new .191, "c+i both sides" .187; close mid acute .635 / .762 / .738.
   Overall acute .539 / .516 / .592; pre panel .882 / .841 / .856.
 - Precue: the same direction, smaller: acute cI old .559, new .526, c+i both sides .567; PS95 acute cI .500 / .500 / .513.
@@ -150,21 +150,21 @@ its label-free EM centre is computed from. PS95 acute cue cI, model (rows) x cen
 - **Reading: jaw_only ~ none, i.e. non-attempts, in the two animals that can answer it (PS94, PS95), at cue and
   precue, on both bases.** Lick-trained readout of jaw-only trials is .21 / .29 (cue) against none .20 / .25 and
   contact .93 / .94; the within-class decoders find at most a trace (.20-.28, at or just above the permutation null,
-  vs .67-.79 for count-matched licks at cue); errors are not toward neighbours. This matches Priya's 10-21 blind
+  vs .67-.79 for count-matched licks at cue); errors are not toward neighbors. This matches Priya's 10-21 blind
   review (0 / 24 jaw-only trials were attempted licks). PS92 / PS93 cannot answer it (18 / 25 trials).
 - At precue every non-lick class (jaw, none, incomplete) sits at .25-.39 against .50-.70 for contact trials. Before the
   cue the trials the animal will lick on already carry more spout signal: a state / anticipation difference, not the
   movement, and it is shared by jaw-only and no-response trials alike.
 - **Option 1, keep jaw_only in working (current production):** training reference unchanged (Test 2), but each
-  post-stroke session's EM centre includes its jaw-only rows, which are non-attempt-like and concentrated at the
+  post-stroke session's EM center includes its jaw-only rows, which are non-attempt-like and concentrated at the
   impaired far spouts acutely; that moves every spout's reading. Acute cI animal mean .631 (PS95 .642); pre panel .841
   (jaw-only trials score ~.25 there).
-- **Option 2, jaw_only as its own class like no_response (train c+i, score c+i, centre c+i):** acute cI .727 (PS95
+- **Option 2, jaw_only as its own class like no_response (train c+i, score c+i, center c+i):** acute cI .727 (PS95
   .832), far contra acute .187, overall acute .592, pre panel .856. It is NOT the old number: .975 -> .832 in PS95 is the
-  move from the DAQ-lick set (centre on engaged rows) to the camera classes and August-only, independent of jaw-only.
+  move from the DAQ-lick set (center on engaged rows) to the camera classes and August-only, independent of jaw-only.
   The jaw-only trials would then be reported separately, as no_response is.
 - An in-between option (train c+i, score in_working) is listed in the table above ("train c+i, score inw": acute cI .672);
-  it keeps jaw-only in the scored set and its centre, so it inherits Option 1's centring effect.
+  it keeps jaw-only in the scored set and its center, so it inherits Option 1's centering effect.
 
 ## Limits
 

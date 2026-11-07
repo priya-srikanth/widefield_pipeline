@@ -41,7 +41,7 @@ All under `M:/MICROSCOPE/Priya/DeepLabCut/Widefield/face_rhythm/cam4/readouts/ma
 | contralesional deficit per lick? | lick_right per right lick .57-.79 of pre chronically, 4 / 4 | `validation/master_pre_v1/lick_epochs/` (`face_rhythm_lick_epochs.py`) |
 | peak factor amplitude over recovery (manuscript FR panel) | contra-spout lick_right chronic -.30 [-.40, -.21] 4/4; contra-spout lick_left +1.08 [.35, 1.87] 4/4 (ratio scale); per position: far_R loses most contralesional, close_R gains most ipsilesional | `peak/peak_by_day*.png`, `peak_cohort_by_{day,epoch}*.png`, `peak_side_headline.png`, `peak_position_headline.png` -- LOG2 scale since 10-24 pm (`face_rhythm_peak.py --split none/side/position`) |
 | KEY: contralesional licks made with an ipsilesional face movement | factors (above) + raw point movement, lick-aligned, far_R asym pre +.22-.27 -> chronic below pre 4/4 | `asym_aligned/asym_aligned_traces.png` (cue / lick / bout-onset columns), `asym_aligned_by_animal.png` (`face_rhythm_asym_aligned.py`) |
-| does the pre vocabulary fit post? (EVR, normalised) | frozen / own ratio vs own pre: acute -.035 [-.045, -.025] 4/4, chronic -.008 (3/4, borderline) | `evr_own_vs_frozen.png` (bottom row pre = 1, +-1 SEM), `evr_epochs.png` (`face_rhythm_evr_epochs.py`) |
+| does the pre vocabulary fit post? (EVR, normalized) | frozen / own ratio vs own pre: acute -.035 [-.045, -.025] 4/4, chronic -.008 (3/4, borderline) | `evr_own_vs_frozen.png` (bottom row pre = 1, +-1 SEM), `evr_epochs.png` (`face_rhythm_evr_epochs.py`) |
 | why does own EVR drop too? | less movement vs fixed tracking noise + less stereotyped movement (partial: r with between-trial speed .48-.66 in PS94 / PS95 only); the ratio divides it out | -- |
 | factor angles / morphing | NOT consistent across animals (Priya: "no clear consistent changes") -> secondary; lead with amplitudes | `matching/match_by_day.png`, `match_example.png` (`face_rhythm_match.py`) |
 | asymmetry two ways (points vs own-fit loadings) | agree acutely; loadings: lick_right moves off the contralesional face | `matching/asymmetry_two_ways.png` |
@@ -112,7 +112,7 @@ All under `M:/MICROSCOPE/Priya/DeepLabCut/Widefield/face_rhythm/cam4/readouts/ma
      spatial .78: changed, not lost; .5 / .7 identical on real fits; no null cell < .7). MAP STATS (Priya OK): cluster
      mass = the map test, max-statistic = point level, within-animal session-label shuffles (face_rhythm.stats
      map_permutation). Speed maps `face_rhythm_position_maps.py --perm 2000` (August-only pre, refreshed today): acute
-     LESS movement cluster at every spout (far_R -.62, 926 pts), sub / chronic MORE at close + centre. Pooled-fit null
+     LESS movement cluster at every spout (far_R -.62, 926 pts), sub / chronic MORE at close + center. Pooled-fit null
      maps with clusters: lick_right acute 2 clusters (604 pts; max-stat 2 pts), lick_left acute none. NEW per-session
      weighting test `face_rhythm_session_loading_perm.py` (own8 fits, v2) -> session_loading_v2/: lick_right acute loses
      upper / central weight (645 pts), gains ipsi lower cheek + jaw; lick_left roughly mirrored; max-stat 263 / 413 pts.
@@ -120,7 +120,7 @@ All under `M:/MICROSCOPE/Priya/DeepLabCut/Widefield/face_rhythm/cam4/readouts/ma
      session-loading tests; re-run aligned_maps (cue / lick / bout, still 10-24 baseline) with --perm. PS93: own acute fit
      runs OPPOSITE to PS92 / 94 / 95 (pre-existing right facial deficit, 10-24 flag; Priya 11-07 confirms) -> keep PS93
      in main analyses, show "without PS93" (= LOAO-PS93, retitle) as sensitivity; open: PS93 per-session check. Maps now
-     drawn like the speed maps (all points coloured, red / blue rings). Rhythm-band movement maps per lick factor:
+     drawn like the speed maps (all points colored, red / blue rings). Rhythm-band movement maps per lick factor:
      proposed, not started. Lick-rate (ILI) figure: requested, not started.
      11-07 late (Priya "go ahead with all"): CORRECTION -- FR "pre" was August-only all along (aligned_maps cache = the
      same 31 pre sessions); position-map vs aligned-map differences = window (0..4 s RMS vs 0..2 s mean speed from point
@@ -151,7 +151,7 @@ All under `M:/MICROSCOPE/Priya/DeepLabCut/Widefield/face_rhythm/cam4/readouts/ma
      sessions slightly in-sample; proj_loso exists) -- flag only.
      11-07 LATE -- FINAL STATE. 10,000-shuffle per-session tests done, Holm within family ACROSS all epochs x
      measures (Priya); FINDINGS 5.10 (PER-SESSION paragraph), FINDINGS 0 "Where things stand, face movement",
-     FACE_RHYTHM_FINDINGS 6e written. Figures: session_shape_v2/session_scalars.png (normalised, leave-one-out pre
+     FACE_RHYTHM_FINDINGS 6e written. Figures: session_shape_v2/session_scalars.png (normalized, leave-one-out pre
      column) + session_scalars_raw.png (Priya: both, separate) + session_loss.png; headline map = scaled
      (session_maps_scaled_lick.png); `face_rhythm_session_shape_tests.py --plot-only` redraws. FR PAGE: a helper agent
      was updating it (new per-session section before section 7, speed-map permutation figures, "Where things stand");
@@ -172,7 +172,7 @@ All under `M:/MICROSCOPE/Priya/DeepLabCut/Widefield/face_rhythm/cam4/readouts/ma
      engagement figure from its saved tables -> LP_analysis/.../cohort/figures/prepost/cohort_lick_rate_by_position.png.
      ILI +15-25 ms at EVERY spout acutely (*), back by subacute except close spouts; fast-lick share falls acutely only
      at far contra (-.44) / far mid (-.13) -- partly fewer licks (far contra 3.1 licks / trial vs 8.7 pre; an isolated
-     lick has no neighbour), so ILI is the rhythm measure. Not yet on page / deck (caption to Priya first).
+     lick has no neighbor), so ILI is the rhythm measure. Not yet on page / deck (caption to Priya first).
      11-07 NIGHT (2): ALL MAP TESTS NOW 10,000 SHUFFLES (Priya), like the scalars: position, aligned, session_loading
      (default now 10000) and the new band maps re-run with drift controls; 2000-shuffle cluster tables kept in the session
      scratchpad for the comparison. Changes vs 2000: position maps none (17 cells, pts +-6); aligned: lick close_L
@@ -192,6 +192,6 @@ All under `M:/MICROSCOPE/Priya/DeepLabCut/Widefield/face_rhythm/cam4/readouts/ma
      (descriptive); the deck-wide notes "Data:" pass (waits on 34).
      11-07 NIGHT (4): REWORDED as a FREQUENCY SHIFT (Priya: what does "the 7 Hz band falls more" mean -- the
      lick_ongoing_7Hz profile is the upper lick spectrum, 6.5-15 Hz). New readout `face_rhythm_band_maps.py --centre`:
-     face movement spectrum centre 6.77 -> 6.56 Hz acute (4 / 4, Holm .0003), back subacute; licks 6.45 -> 5.71 Hz.
+     face movement spectrum center 6.77 -> 6.56 Hz acute (4 / 4, Holm .0003), back subacute; licks 6.45 -> 5.71 Hz.
      Page v42 (7b heading / text / status row / 7b.3 title), slide 84 title + bullets + notes
      (`reword_band_slide_1107e.py`), FINDINGS 0 / 5.10, FACE_RHYTHM 6f, DECISIONS updated.

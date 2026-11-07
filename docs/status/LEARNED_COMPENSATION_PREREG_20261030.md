@@ -1,10 +1,10 @@
-# Learned, context-specific compensation (behaviour only): design written BEFORE any post-stroke number (2026-10-30)
+# Learned, context-specific compensation (behavior only): design written BEFORE any post-stroke number (2026-10-30)
 
 Working idea (Priya 10-30; RECOVERY_MECHANISMS_LIT_20261030.md section 1a, "learned, context-specific compensation" and
 "Why do cued licks recover but ITI licks do not?"): recovery at far contra is a RE-AIMED FEED-FORWARD LAUNCH (FINDINGS 4
 item 21: launch error -25.7 deg acute -> -3.2 n.s. chronic, no within-lick correction), learned for CUED licks, while the
 deficit persists in self-initiated ITI licks (so far a CORTICAL readout: ITI decoder offset, docked-spout set). Three
-behaviour-only tests, no imaging.
+behavior-only tests, no imaging.
 Code: `scripts/learned_compensation.py` (`run` / `summarise` / `plot`, `--plot-only`). Outputs only under
 `M:/MICROSCOPE/Priya/Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/learned_compensation/`.
 Looked at before this was written: column names / file structure, the session list with epochs and days, the spout block
@@ -72,7 +72,7 @@ to `iti_dock_audit.csv`). No post-stroke outcome number.
   post + (1 | animal) + (1 | pair)` on the early third of d+1 and the late third of d (secondary; the paired O above is
   primary).
 
-## T2. Carry-over / generalisation of the re-aimed launch into the ITI -- PRIMARY
+## T2. Carry-over / generalization of the re-aimed launch into the ITI -- PRIMARY
 * ITI licks (as section 0) with a launch score; readout theta_L (launch; endpoint theta_E secondary).
 * Reference = the animal's August-pre ITI licks with the same PREVIOUS spout and the same PHASE: mean theta_L
   (for a pre session, LEAVE-THAT-SESSION-OUT so pre has an honest level). dITI = theta_L - reference (deg; - =
@@ -107,8 +107,8 @@ to `iti_dock_audit.csv`). No post-stroke outcome number.
 * Cued comparator per session: cued FIRST-lick endpoint error e_E averaged over the same spouts (cued mean) and at far
   contra. **GAP = D_off - cued mean** (same session; - = the ITI aim is more ipsilesional than the cued aim relative to
   each one's pre pattern = a capacity-vs-performance gap).
-* Predictions: BEHAVIOURAL gap (performance < capacity): chronic D_off < 0 AND GAP < 0 (changes), cued ~ 0. ONLY A
-  CORTICAL readout: chronic D_off and GAP not changes (behavioural ITI aim back to pre while the cortical ITI offset
+* Predictions: BEHAVIORAL gap (performance < capacity): chronic D_off < 0 AND GAP < 0 (changes), cued ~ 0. ONLY A
+  CORTICAL readout: chronic D_off and GAP not changes (behavioral ITI aim back to pre while the cortical ITI offset
   persists). Direction-specific compression (bias grows with how contralesional the last spout was): g < pre, D_fc < D_off.
 * Stats: per-animal table first; boot_delta per epoch vs pre; change criterion; Holm over (D_off, GAP) x 3 epochs.
   Secondary: per-previous-spout D in canonical order; mixed model (post sessions, lick level) `theta_E - r_p ~ phi_prev
@@ -129,7 +129,7 @@ to `iti_dock_audit.csv`). No post-stroke outcome number.
 * Tracking: launch noise ~5-8 deg per lick (within_lick_correction); n per cell reported.
 
 ## Figures (Priya's defaults)
-Session-level points = OPEN markers, SHAPE = animal (`orofacial_cohort.ANIMAL_MARKER`), COLOUR = epoch (`EPOCH_LINE`);
+Session-level points = OPEN markers, SHAPE = animal (`orofacial_cohort.ANIMAL_MARKER`), COLOR = epoch (`EPOCH_LINE`);
 pooled = filled / thick with 95 % CI; day-course plots one panel per animal; canonical spout order; stars only in a
 reserved top band; legends outside data; no many-thin-bar figures; + = contralesional. figdata pickle for every figure;
 `--plot-only` redraws from figdata.
@@ -182,7 +182,7 @@ Reading: a general early-ITI advantage (licks right after any trial sit closer t
 all spouts) and, after far-contra trials, ITI licks that follow the cued deficit acutely / subacutely. Chronically the
 docked licks after far contra stay ipsilesional (-10.8, carried by PS94 -24.9 and PS95 -12.1; PS92 -1.0, PS93 -5.4).
 
-### T3 ITI aim relative to the previous spout -- a BEHAVIOURAL ITI bias exists, but NO gap beyond the cued licks
+### T3 ITI aim relative to the previous spout -- a BEHAVIORAL ITI bias exists, but NO gap beyond the cued licks
 Per animal (session means pre / acute / subacute / chronic): D_off PS92 -0.1 / -12.8 / -7.0 / -0.6, PS93 +0.3 / -9.6 /
 -1.4 / -1.7, PS94 -0.2 / -18.8 / -10.5 / -11.0, PS95 +11.0 (ONE pre session) / none / -1.2 / -5.8; GAP PS92 -0.5 / -1.0 /
 +1.8 / +1.3, PS93 -6.9 / -6.1 / -2.0 / -2.9, PS94 -0.4 / +2.2 / +0.6 / -0.1, PS95 +8.4 / none / +3.8 / -0.2.
@@ -195,15 +195,15 @@ D_fc chronic -8.3 (4/4); post hoc at far contra GAP_fc = D_fc - cued far-contra 
 pre ~0.23): slight compression; mixed model D ~ phi_prev -0.055 [-0.060, -0.050] deg/deg (larger ipsilesional bias after
 more contralesional spouts). All-ITI theta_E: D_off chronic -4.1 (4/4) and GAP +2.2 [+0.7, +3.9] (4/4: all-phase ITI
 licks are LESS deviated than cued first licks). Docked theta_L: same as theta_E.
-Reading: behaviourally, docked ITI licks keep an ipsilesional bias that scales with where the last spout was, and it is
+Reading: behaviorally, docked ITI licks keep an ipsilesional bias that scales with where the last spout was, and it is
 the same size as the cued FIRST-lick landing error at the same spouts, session by session. So no capacity-vs-performance
-gap is visible behaviourally: the cued "recovery" is mostly in later licks / launch averages, not in a cued first-lick
+gap is visible behaviorally: the cued "recovery" is mostly in later licks / launch averages, not in a cued first-lick
 aim that exceeds the ITI aim.
 
-### Verdict on "learned, context-specific compensation" (behaviour)
+### Verdict on "learned, context-specific compensation" (behavior)
 Not supported by these three tests. T1: no online learning signature; gains are between sessions (recovery or offline
 consolidation). T2: no carry-over of a far-contra re-aim into the ITI; C2 is negative subacutely. T3: the ITI bias is
-behavioural (not only cortical) but matches the cued first-lick bias, so the behavioural data do not show cued licks
+behavioral (not only cortical) but matches the cued first-lick bias, so the behavioral data do not show cued licks
 escaping a deficit that ITI licks keep. The cortical ITI-vs-cued dissociation (FINDINGS 0b) is therefore not mirrored by
 a cued-vs-ITI dissociation in first-lick aim. PROVISIONAL (n = 4).
 

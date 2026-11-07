@@ -2,7 +2,7 @@
 
 **START HERE.** Continues `STATUS_2026-10-02_SESSIONS_REACH_O2_HANDOFF.md` (session-level orofacial kinematics, lick
 phase, direction shift, O2 bundle — still the reference for those) and `STATUS_2026-09-30_LP_OCCLUSION_ROUND4_HANDOFF.md`
-(tracking models / labelling). Reasoning: `DECISIONS.md` entries 2026-10-02 (late) and 2026-10-05 (with addenda).
+(tracking models / labeling). Reasoning: `DECISIONS.md` entries 2026-10-02 (late) and 2026-10-05 (with addenda).
 Design for everything imaging-side: `docs/DLC_IN_WIDEFIELD_ANALYSES.md`. Analysis desktop; **M: = MICROSCOPE, N: =
 standby — paths from `PathResolver`**.
 
@@ -12,7 +12,7 @@ standby — paths from `PathResolver`**.
 
 Nothing is running.
 
-1. **Blocked on the next DLC / LP iteration** (labelling round 4: Priya's 131 cam4 frames, 0 done as of 10-02; cam1:
+1. **Blocked on the next DLC / LP iteration** (labeling round 4: Priya's 131 cam4 frames, 0 done as of 10-02; cam1:
    student, 272 / 376 targets, ~4 folders left; 421 matched cam1 frames staged in
    `DeepLabCut/Widefield/_frame_staging_unassigned/` for the next cam1 batch). Then retrain DLC + LP
    (`lp_labels clean` for the LP export). **O2 is on hold until then (Priya)** — the bundle mechanism is ready
@@ -88,7 +88,7 @@ direction; direction-shift figure (`lick_direction_shift_PS93.png`); per-lick de
 5. **Pose windows cover 11-13 % of a session** — fit only on `mask` frames (`select_rows` after building the design on
    the full timeline, so lagged columns are right at window edges).
 6. **Fast bouts:** a −0.2 .. 0 s pre-onset window sits inside the previous lick.
-7. **Imaging and behaviour code detect DAQ licks differently** — state the definition at every DAQ ↔ DLC join.
+7. **Imaging and behavior code detect DAQ licks differently** — state the definition at every DAQ ↔ DLC join.
 8. **Shell heredocs** with nested quotes / backslash-n broke edits several times — write edit scripts to a file, or use
    the Edit tool; `sed` turns `\n` into real newlines.
 9. Pushes take ~2.5-3 min (pre-push hook runs the full ~3000-test suite) — not a failure.

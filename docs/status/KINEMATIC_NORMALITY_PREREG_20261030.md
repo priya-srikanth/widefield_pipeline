@@ -69,7 +69,7 @@ The first eight features are used at every spout. Feature 9 is used only at the 
 | 2 | sagittal angle (deg) | `sagittal` = atan2(out, down), the forward tilt | none |
 | 3 | protrusion | `reach_mm`, \|tip - E\| at the 3-D peak | none |
 | 4 | peak tongue speed | `speed_peak` (mm/s) | log |
-| 5 | landing lateral error | `lat_err_mm` at closest approach (+ = outward; centre spout + = mouse left) | none |
+| 5 | landing lateral error | `lat_err_mm` at closest approach (+ = outward; center spout + = mouse left) | none |
 | 6 | closest approach to the spout | `miss_mm` | log(x + 0.05) |
 | 7 | latency to first lick | `trial_attempts.cam4`, ms from the cue | log |
 | 8 | jaw onset lead | first-lick latency minus `jaw_onset_ms` (+ = jaw before tongue). Not at close_mid. | none |
@@ -138,7 +138,7 @@ Every series is per animal, and every value is per session.
 
 None of the cortical readouts is refitted here.
 
-## 6. Normalised scale and time constants
+## 6. Normalized scale and time constants
 
 FRACTION OF ACUTE DEFICIT RECOVERED, per animal and series:
 
@@ -188,7 +188,7 @@ For each cortical series C and each animal, on post sessions with all needed val
 
 ## 9. Figures
 
-- Fig 1: per animal (4 panels), day course on the common normalised scale (fraction of acute deficit; pre = 1,
+- Fig 1: per animal (4 panels), day course on the common normalized scale (fraction of acute deficit; pre = 1,
   acute = 0). Hit rate, normality, far-contra normality and C1-C4, with the fitted exponentials. Legends sit outside
   the data area.
 - Fig 2: normality by epoch. One dot per session, animal markers, and the animal-weighted mean. boot_delta stars go
@@ -323,7 +323,7 @@ Summary:
    readout.
 3. C4 is not fitted in PS92 or PS93:
    - PS92 is flagged no-acute-deficit (36.2 vs 35.6).
-   - In PS93 the response keeps rising, so the normalised values fall below -2, outside the fit bounds, and the fits
+   - In PS93 the response keeps rising, so the normalized values fall below -2, outside the fit bounds, and the fits
      failed.
    The lick response GROWS after the stroke (FINDINGS 0b), so the fraction-of-deficit scale suits it poorly.
 4. The norm_fc acute reference = the earliest post session in PS92 (day 7) and PS95 (day 2): no acute session had >= 5

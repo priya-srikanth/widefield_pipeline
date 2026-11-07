@@ -40,7 +40,7 @@ section. Everything here is PROVISIONAL until you have looked at it.
 8. **3.14 now has per-lag significance bars**: ITI lateral below pre at every lag in all three bases and epochs.
 
 9. **F0 check** (FINDINGS 4d): raw baseline fluorescence did not fall after the stroke (+11 % acute, +4 % chronic n.s.),
-   so the larger ITI post-lick dF/F response (3.23-3.25) is not a baseline artefact; in dF units it is slightly larger.
+   so the larger ITI post-lick dF/F response (3.23-3.25) is not a baseline artifact; in dF units it is slightly larger.
    415 nm lick-aligned response still not done.
 
 10. **Three-axis version (low priority, done)**: lateral / forward / down in one z-scored run reproduces everything --
@@ -59,7 +59,7 @@ section. Everything here is PROVISIONAL until you have looked at it.
 2. Should figures 3.15-3.22 be redrawn on z-scored features too (KEY row already uses them)? ~15 min chain.
 3. Drift check: the August-only pre span is 8 days, so chronic gaps (~39 days) are extrapolated. June pre sessions
    would give 2-month pre -> pre gaps -- OK to use them for THIS drift reference only (August-only stays the baseline)?
-4. 415 nm lick-aligned response (handoff to-do): CLAUDE.md says the haemodynamic arm is CLOSED ("do not spend analysis
+4. 415 nm lick-aligned response (handoff to-do): CLAUDE.md says the hemodynamic arm is CLOSED ("do not spend analysis
    effort there"), so I did not run it. Do you still want it as a control for the larger post-lick response?
 5. sabatinilab-e3 (PI deck) asked to be told when the decoder and activity-map figures are final: not told yet.
 
@@ -78,9 +78,9 @@ section. Everything here is PROVISIONAL until you have looked at it.
 
 ### Decisions recorded (DECISIONS.md 2026-10-27)
 - Decoder r and decoder offsets: LATERAL primary; angle (+ polar elevation / reach, + x/y/z) supplementary.
-- Behaviour (recovery-link aim, landing, recovery ranking): ANGLE, as change vs pre (deg), not a ratio.
+- Behavior (recovery-link aim, landing, recovery ranking): ANGLE, as change vs pre (deg), not a ratio.
 - No lick-extension filter (all tracked licks; the 3-D lick table has no lip licks).
-- Pixel maps: max-statistic (FWER) solid contour + BH-FDR & >= 3/4 dashed (FWER vs FDR discussed: FDR = localisation,
+- Pixel maps: max-statistic (FWER) solid contour + BH-FDR & >= 3/4 dashed (FWER vs FDR discussed: FDR = localization,
   map-level permutation = whole-map test, max-stat = per-pixel claims / decoder-page comparability).
 - 3.15-3.22: redraw on z-scored features (running; headline changes will be flagged here).
 - Recovery measure: cued angle offset from own pre landing per spout, weighted far contra 3 : far mid 2 : others 1,
@@ -98,7 +98,7 @@ section. Everything here is PROVISIONAL until you have looked at it.
 - Polar decoder (iti_where_angle_reach.png): angle offset ITI +4.6 / +2.8 / +3.1 deg (4/4 every epoch), cued +2.7 ->
   resolved; elevation read steeper-down acutely only (+2.4 ITI, +1.3 cued, 4/4); cued reach read further acutely
   (+0.16) then shorter (-0.16 subacute and chronic, 4/4). The x/y/z "forward" discrepancy appears as reach, not elevation.
-- Angle vs lateral recovery link (z-scored): angle -0.48 (4/4) vs lateral -0.40 (4/4) -> angle kept for behaviour.
+- Angle vs lateral recovery link (z-scored): angle -0.48 (4/4) vs lateral -0.40 (4/4) -> angle kept for behavior.
 - Why angle r is noisier: angle is measured from the apparatus (spout-projected) mouth origin -> error ~ offset/extension
   on short licks; atan2 amplifies lateral noise. Single-view frame share 18-36 %, flat across epochs and lick length.
 
@@ -124,7 +124,7 @@ section. Everything here is PROVISIONAL until you have looked at it.
 - CONFOUND CHECKS on the larger lick response (iti_hemo_check.py; FINDINGS 4d0c): LATER increase survives everything
   (zero-phase filter, uncorrected 470, F0 per area, vessel pixels, pre-lick gap matching); 415 nm grows only ACUTELY
   (+0.17 of the pre response vs +0.76 corrected; mostly PS95 / PS94) and the acute increase is somewhat edge-rim weighted
-  -> up to ~1/5 of the ACUTE increase may be haemodynamic / motion. PS94 runs during ~50 % of its subacute / chronic
+  -> up to ~1/5 of the ACUTE increase may be hemodynamic / motion. PS94 runs during ~50 % of its subacute / chronic
   licks (9 % pre). Figures: iti_hemo_check_{variants,peth,edge_vessel,f0_areas,state_gap}.png.
 
 - MIXED-EFFECTS MODELS (value ~ epoch + (1 | animal), sessions as observations; iti_mixed_models.py,
@@ -197,7 +197,7 @@ section. Everything here is PROVISIONAL until you have looked at it.
 - PAGE v129 REORDERED (Key / Supporting / Supplementary, stable #f-<id> links); other windows (e3, 5b) told.
 
 ### Running / queued
-- Nothing running. Open: behaviour-only decoder (low priority); June SVD-basis features if the June map reference is
+- Nothing running. Open: behavior-only decoder (low priority); June SVD-basis features if the June map reference is
   wanted; small fix: whole-map change-figure suptitle is clipped at the sides (fix on the next rerun).
 
 ### Questions for Priya (accumulating)

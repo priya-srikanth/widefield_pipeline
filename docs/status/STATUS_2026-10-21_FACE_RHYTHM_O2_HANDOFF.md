@@ -23,7 +23,7 @@ peaked at **54 GB** MaxRSS of 72 (the logs' "peak ~62-65 GB" is a pessimistic su
 tasks >= 10 (the 16-char column truncates them). **First post-stroke QC (~22:35, `o2_face_rhythm.py qc`, 8 tasks on
 the share incl. PS92 chronic 0911 / 0915 / 0918):** interior folds in 0.03-0.07 % of sampled bins (pre 0-0.09 %), rim
 folds LOWER post (26 % vs 57-81 %), violations 0, median displacement 1.15-1.26 px (pre 1.27-1.48) -> post-stroke tracking
-as clean as pre; acute / other animals not yet in. Tasks 21-23 resumed segments from the cancelled 8 x 2 array.
+as clean as pre; acute / other animals not yet in. Tasks 21-23 resumed segments from the canceled 8 x 2 array.
 Check / resubmit: "PRODUCTION RUNNING" below. Status commands: `sstat` needs the RAW job id
 (`sacct -j 57168778 -X -n -s RUNNING -o JobIDRaw` -> `sstat -j <raw>.batch`); finished: `sacct ... | grep batch`.
 **Faster defaults for FUTURE runs are committed** (8 workers x 4 threads, 5-min segments, 12 GB / worker + 24,
@@ -37,17 +37,17 @@ cam2 PS94_20260810, cam3 PS94_20260809; click images `register_inputs/click_<s>.
 landmarks (`notebooks/face_rhythm_click_landmarks.ipynb`) -> full registration + `qc_ncc.csv` / overlays -> Priya draws
 the ROI on the master (ROI notebook, `CAM`) -> `warp_rois to-sessions --cam` -> one-session O2 pilot -> array. Side views
 also show the forepaws (a grooming route later, still deferred). Order suggested: cam2 + cam3 (eyes, whisker pads per
-side, ipsi vs contra face), cam1 last (overlaps LP; centre-spout rod).
+side, ipsi vs contra face), cam1 last (overlaps LP; center-spout rod).
 
 **2. Downstream code -- ready, tested on synthetic data AND dry-run on real outputs (PS92_0806 / 0812):**
 `face_rhythm_factors.py` (plan done for `master_pre_v1`, regenerated after every change; build / fit / select /
 project / fitsession / report), `face_rhythm_readouts.py` (+ `wfield_local/face_rhythm_readouts.py`), loader
 `wfield_local/face_rhythm_outputs.py`, encoding `--fr` / `--fr-points`, `o2_face_rhythm.py qc`, factor clips
 `face_rhythm_factor_clips.py`. ~17 FR tests. Things learned from REAL data tonight (all in the code + pipeline doc):
-* **FR normalises every frame** by the whole-face mean power (VQT normalization_factor 0.95) -> factor weights are
-  SHARES. **Absolute expression = weights x D** (per-bin normaliser recovered EXACTLY from the saved float16 spectrogram,
+* **FR normalizes every frame** by the whole-face mean power (VQT normalization_factor 0.95) -> factor weights are
+  SHARES. **Absolute expression = weights x D** (per-bin normalizer recovered EXACTLY from the saved float16 spectrogram,
   0.01 % median error; `trials_D` / `session_D`; readout `abs_*` next to `amp_*`; loader `absolute=True`). Lead with
-  absolute; the share version produced two artefacts in the preview (a "pre-cue" peak, dips during licking).
+  absolute; the share version produced two artifacts in the preview (a "pre-cue" peak, dips during licking).
 * Per-point movement: absolute SPEED from the 25 Hz points (default) and the spectral SHARE.
 * Tracking QC: folds are ~all in ~10 RIM triangles (headplate / mask edge); INTERIOR folds 0.03 % of frames.
 * **Grooming**: the session-wide top of several factors (0, 4, 5) is grooming (Priya's clip calls). The `large_movement`
@@ -61,11 +61,11 @@ project / fitsession / report), `face_rhythm_readouts.py` (+ `wfield_local/face_
 
 **3. Rank-10 PREVIEW (scratch, PS92 only, 3 pre sessions; not the master set)** -- EVR 0.83 (uncentred), starts agree
 0.97, leave-one-session-out 0.82-0.84. Components (absolute gallery `preview_r10/report/factor_gallery_abs.png`):
-#0 left lick (image-right lower face, 5.8 Hz; also centre trials -- PS92's centre licks lean LEFT, +7-11 deg, measured
-from LP), #4 right lick (image-left, 6.5 Hz; far_R > close_R > centre > left ~0), #9 early fast lick (7.3 Hz, both
+#0 left lick (image-right lower face, 5.8 Hz; also center trials -- PS92's center licks lean LEFT, +7-11 deg, measured
+from LP), #4 right lick (image-left, 6.5 Hz; far_R > close_R > center > left ~0), #9 early fast lick (7.3 Hz, both
 sides, ~0.7 s), #2 pad lick (5.8 Hz), #7 late slow lick (5.1 Hz, 2-3 s) -- licking splits by RHYTHM: LP lick rate
 7.1 -> 6.6 -> 6.25 -> 6.1 Hz over the trial (so post-stroke slowing would shift expression between components; read
-early vs late windows + LP lick rate, not "lick factor down"); #5 cue-evoked 2.3 Hz nose / centre face; #8 broad
+early vs late windows + LP lick rate, not "lick factor down"); #5 cue-evoked 2.3 Hz nose / center face; #8 broad
 10-17 Hz on pads + above the pads (NOT the rim), coupled to #5 (r 0.5) -> probably fast whisking (check: f8 clip,
 whisker-pad motion energy); #3 1 Hz whole face, peak 0.7 s after cue; #1, #6 slow lower edge / nose tip; whisking at
 ~8 Hz did not separate at rank 10 in one animal. Clips: `preview_r10/clips/PS92_20260806_cam4_f<k>_trial.mp4`
@@ -73,8 +73,8 @@ whisker-pad motion energy); #3 1 Hz whole face, peak 0.7 s after cue; #1, #6 slo
 (include grooming). Scratch root: C:/Users/SABATI~1/AppData/Local/Temp/claude/C--Users-SabatiniLab/
 c1a9581a-546a-45cc-b071-de0ab459161e/scratchpad/ (preview_r10/, dryrun_set/, master_face.png).
 
-**Provisional PREVIEW names** (Priya 10-21; `preview_r10/labels.json`): 0 lick_left_late, 1 lick_probe (lower central probing / exploratory licks, Priya), 2 lick_center (centre-ish licking; top clip events all close_L, whose licks are only +5-8 deg, Priya),
-3 lick_onset_nose (nose orienting down at lick initiation, Priya), 4 lick_right, 5 nose_cue, 6 nose_up_prep (preparatory upward nose movement before an apparent attempt -- a lick or jaw movement only; Priya; cf. jaw_only attempts in trial_attempts.py), 7 lick_slow_center (slower centre-ish licks, 5.1 Hz, late in the trial; Priya), 8 whisk (whisking, confirmed from clips by Priya; broad 10-17 Hz on the pads, coupled to nose_cue), 9 lick_left_early (early fast left licks, 7.3 Hz, ~0.7 s; Priya). All 10 named from the trial-window clips. The master
+**Provisional PREVIEW names** (Priya 10-21; `preview_r10/labels.json`): 0 lick_left_late, 1 lick_probe (lower central probing / exploratory licks, Priya), 2 lick_center (center-ish licking; top clip events all close_L, whose licks are only +5-8 deg, Priya),
+3 lick_onset_nose (nose orienting down at lick initiation, Priya), 4 lick_right, 5 nose_cue, 6 nose_up_prep (preparatory upward nose movement before an apparent attempt -- a lick or jaw movement only; Priya; cf. jaw_only attempts in trial_attempts.py), 7 lick_slow_center (slower center-ish licks, 5.1 Hz, late in the trial; Priya), 8 whisk (whisking, confirmed from clips by Priya; broad 10-17 Hz on the pads, coupled to nose_cue), 9 lick_left_early (early fast left licks, 7.3 Hz, ~0.7 s; Priya). All 10 named from the trial-window clips. The master
 (0 renamed lick_left_late: the later, slower left licks, Priya.) The master
 set gets its own names after its gallery + clips (components may merge / split with four animals).
 
@@ -95,7 +95,7 @@ angle, not spout) to confirm their identity -- expression around each lick peak 
   gain 0.57; midlk12i3: no gain over 2 iterations. Decomposition unchanged (71 %; L/R 6.5 Hz lick components +0.57 /
   -0.63). Plain clips `param_test/clips/*_plain_paper-mids12-midlk12-midlk12i3-midlk12lr-oldrun.mp4`.
 * Variance explained vs the 2pRAM cohort's run (`FaceRhythm/fr_run_20250520_latent_bundle`, PS48 0301 / 0309, same
-  centred measure, 2-min slices): fresh rank-10 fit 73-84 % (ours 71 %); its whole-session factors on those slices
+  centered measure, 2-min slices): fresh rank-10 fit 73-84 % (ours 71 %); its whole-session factors on those slices
   66-76 %. Uncentred (1 - SSE/SS) theirs 81-90 %. bioRxiv blocked fetches (429): the paper's own number not checked.
 * Done: PARAMS["tracking"] = midlk12 (asserted equal to the tested set); master `rois/PS95_20260812/ROIs.h5` re-seeded
   at 12 px (old file moved aside), `face_rhythm_warp_rois.py to-sessions` -> 106 sessions, all 108 tasks 1282 points;
@@ -106,7 +106,7 @@ angle, not spout) to confirm their identity -- expression around each lick peak 
 
 ## TL;DR — where it stood before the parameter choice
 
-* **Parameters: recommend `mids12`** (mesh rigidity 0.03 / 24 neighbours, relaxation 0.005, paper's LK 40 px / 3 levels /
+* **Parameters: recommend `mids12`** (mesh rigidity 0.03 / 24 neighbors, relaxation 0.005, paper's LK 40 px / 3 levels /
   (3,3,0.03), threshold 300, **point spacing 12 px**). Priya has not decided yet: **round 3 is queued on O2** (array
   57142222_[1-3]: `midlk12`, `midlk12lr`, `midlk12i3` = mids12's mesh with oldrun's optical flow 50 px / 5 levels;
   relaxation 0.005 / 0.0025; LK criteria (3,2,0.0003) / (3,3,0.03)). Score it, then decide.
@@ -167,7 +167,7 @@ Decision rule agreed: no / few folds, jaw R2 and nose gain near the best, jitter
 \*shared a node; ~25 fps alone, ~31 with the integer formatting. fps = O2, 2 CPUs, before the formatting speed-up.
 
 Read-out: frdefault folds (Priya saw it buckle) -> out. Paper is intact but too stiff for small / local motion (Priya:
-nose rows stay rectangular; rest gain 0.90) though its stiffness *helps* large fast licks (neighbours outvote bad LK on
+nose rows stay rectangular; rest gain 0.90) though its stiffness *helps* large fast licks (neighbors outvote bad LK on
 the low-texture nose). Oldrun's fidelity comes from its **optical flow** (50 px, 5 levels), not its mesh (oldmesh folds
 and is worst in licks) -> round 3 = mids12 mesh + oldrun LK. 12 px costs nothing (mids12 = mid on every measure).
 **Factors are the same for every set** (rank-10 NN-CP, 66-71 % variance): 4 Hz nose (sniff), 1-2 Hz slow nose/face,
@@ -201,7 +201,7 @@ Task index of a session: `awk -F'\t' '$1=="<key>" {print NR-1}' tasks.tsv` (PS95
 * **O2 speed**: paper at 2287 points = 17.5 fps per worker -> 2.5 h per 10-min segment, ~7 h per session (> 6 h limit).
   CPUs saturated (TotalCPU ~2x elapsed). Desktop profile per frame: LK 54 %, FR's torch formatting 20 %, CLAHE 20 %.
 * **Slurm MaxRSS counts the video file cache** (param tests: 8.4 GB "MaxRSS" vs 2.5 GB Python peak).
-* **Clip colouring by |displacement from home| misleads**: loose meshes sit offset (saturated colour) while a tight one
+* **Clip coloring by |displacement from home| misleads**: loose meshes sit offset (saturated color) while a tight one
   flickers near 0 -> looks like jitter / motion. At rest all sets have the same 2-20 Hz movement (~0.6 px). Use
   `--color plain` to judge motion by position.
 * **cam4 encoder keyframe line**: FMP4 (FFmpeg MPEG-4, GOP 12, ~13 Mbit/s); keyframe = video frame index % 12 == 0.
@@ -218,7 +218,7 @@ Task index of a session: `awk -F'\t' '$1=="<key>" {print NR-1}' tasks.tsv` (PS95
 * **FR's ROI GUI** (Plotly freehand) fails in VS Code and can't click vertices -> the notebook uses matplotlib
   `PolygonSelector` in JupyterLab: click vertices, drag to edit, 60 px border for off-image vertices, `EDIT = True`
   reopens a saved ROI; points = face AND mask; save moves the old file aside.
-* **The 08/06 sessions' trial ids** differ from the behaviour tables (dead `spout_bit1` -> GUI log, 1-based):
+* **The 08/06 sessions' trial ids** differ from the behavior tables (dead `spout_bit1` -> GUI log, 1-based):
   `engagement_keep` matches by order. **Split sessions** (`ix_video`): one task per video.
 * **Committing shared files**: a whole-file `git add CLAUDE.md` swept another window's hunk into 6aff451 -- diff first.
 * A JupyterLab server for the notebook may still be running (port 8899, fr env).
@@ -241,7 +241,7 @@ fps / worker, 137.5 min / segment), but at the end of round 1 the job sat at the
 time limit. Task 6 (PS92_0812 v1, 4 segments -> 4 workers x 4 threads) completed in 1.3 h at **34 fps / worker**,
 MaxRSS 31.9 GB: 4 x 4 gives about the same throughput as 8 x 2 (136 vs 152 fps) at half the memory, and is faster for
 <= 12 segments. Fixed (70d4c3b): ProcessPoolExecutor (a dead worker -> finished segments recorded, exit "segment(s) lost
-... resubmit to resume"), workers 4 x 4 threads, sbatch memory floor 72 GB. Both old jobs cancelled; the new array resumes
+... resubmit to resume"), workers 4 x 4 threads, sbatch memory floor 72 GB. Both old jobs canceled; the new array resumes
 the pilot's saved segment 1; task 6 = done already.
 Expect ~3.8 h per task (9-12 segments), ~5.1 h (13-16), ~18-20 h for the array. Check:
 `sacct -j 57168778 -X --format=JobID%16,State,Elapsed,MaxRSS | grep -v COMPLETED`, `grep -l "segment(s) lost" logs/57168778_*.out`;
@@ -273,7 +273,7 @@ the encoding-model `fr` family (spec for the encoding window).
 * `combined_encoding.py`: FR family = VIDEO's placement (FR_ENV `COMBINED_ENCODING_FR` / `--fr <set>`): fr:full (orth,
   added last), fr:alone, fr:raw:full, fr:drop:<task|instructed|uninstructed|position>; with `--video` too:
   frvideo:raw:full, frvideo:alone -> FR beyond ME = frvideo:raw:full - video:raw:full; ME beyond FR = frvideo:raw:full -
-  fr:raw:full. Own penalty group "fr". Folder `<order>[_video-..]_fr-<set>/`. The target model Priya named (task + behaviour
+  fr:raw:full. Own penalty group "fr". Folder `<order>[_video-..]_fr-<set>/`. The target model Priya named (task + behavior
   events + LP + treadmill + FR, no ME) = fr:raw:full.
 * `o2_encoding.py`: `bundle --fr <set>` (needs a NEW bundle name: existing inputs are not rebuilt), sbatch export FR=,
   COMMANDS.md adds the run `fr_<set>` (VIDEO=cam1,cam4 + FR together). `check` takes --fr: run it on one session first --

@@ -11,11 +11,11 @@
 - MERGED UNITS: sniff_prelick + nose_prelick_slow = prelick_nose; run_onset_jaw + prep_jaw = slow_jaw (master spatial cos
   .99, unstable even in null fits). The fast jaw factors stay separate (merging the whole jaw cluster would hide their
   acute loss).
-- MAP STATISTICS (Priya "ok for the stats as you propose"): CLUSTER MASS is the map test (mesh neighbours, |t| > 2,
+- MAP STATISTICS (Priya "ok for the stats as you propose"): CLUSTER MASS is the map test (mesh neighbors, |t| > 2,
   sign-separate), the MAX-STATISTIC the point-level one; shuffles WITHIN animal; every session-shuffle test gets an
   early-vs-late PRE DRIFT CONTROL (`face_rhythm.stats.session_shuffle_test`, `drift_split`). Spectra: keep the
   max-statistic (changes are narrow peak shifts; clusters along frequency find fewer). Maps drawn like the speed maps:
-  every point coloured, rings red = up / blue = down; marked points never in the pale middle of the scale.
+  every point colored, rings red = up / blue = down; marked points never in the pale middle of the scale.
 - PER-SESSION TESTS ARE THE MAIN SHAPE TESTS (Priya "ok"): every session's own fit (own8) matched to the master; maps,
   scalars (asymmetry, spatial / spectral angle to the animal's pre mean, side specificity) and factor loss as delta vs
   each animal's own pre; within-animal session shuffles, no refit (`scripts/face_rhythm_session_loading_perm.py`,
@@ -46,7 +46,7 @@
   band minus lick rhythm (face-wide mean log2), within-animal shuffles, Holm over 6 bands x 3 epochs.
 - (night) WORDING (Priya asked what "the 7 Hz band falls more" means): the 'lick_ongoing_7Hz' profile is the UPPER
   part of the lick spectrum (6.5-15 Hz), so the result is reported as a downward FREQUENCY SHIFT of face movement,
-  not as the loss of a separate fast movement; quantified directly by the spectrum's power-weighted centre
+  not as the loss of a separate fast movement; quantified directly by the spectrum's power-weighted center
   (3-15 Hz main, 4-12 Hz sensitivity; log-frequency mean because the bins are log-spaced).
 
 ## 2026-10-28 (late night) -- balance definition for recovery markers (Priya)
@@ -73,7 +73,7 @@
   -ll, -tr.
 - Recovery-marker cross-validation is now a committed script (scripts/lick_recovery_markers.py; reproduces the earlier
   ad-hoc 14.16 numbers exactly): LOAO (with within-animal shuffle null), leave-one-EPOCH-out, LOSO animal unknown / known.
-  Pre sessions scored leave-one-pre-session-out for the grey reference cloud (14.16, 14.17). Fair pre-fit weights =
+  Pre sessions scored leave-one-pre-session-out for the gray reference cloud (14.16, 14.17). Fair pre-fit weights =
   fit on the OTHER animals' pre licks (z-scored balances).
 - Residual-ROI maps: per-area outlines + fading; atlas areas with no value (FRP, AUDd / AUDpo right, VISp left) blanked
   in the display (they were the 'edge fragments').
@@ -82,7 +82,7 @@
 
 ## 2026-10-28 -- Key figure and cued wording (Priya)
 - KEY FIGURE replaced (Priya: "yes to your A and B; and use the newer behavior recovery metric"): Key figure 1 =
-  scripts/key_figure.py (A behaviour = far-contra FIRST-lick aim; B/C frozen vs epoch-refit lateral decoders, + the old
+  scripts/key_figure.py (A behavior = far-contra FIRST-lick aim; B/C frozen vs epoch-refit lateral decoders, + the old
   far-contra code on hits; D ITI like-for-like offset, any-spout and same-target). Key figure 2 = Fig 13.2 (lick order;
   Priya "another key figure"). The old key figure stays as Fig 0.6.
 - CUED "read ahead of the failing movement" RETIRED (Priya "ok to reword"): the cued like-for-like offset is target

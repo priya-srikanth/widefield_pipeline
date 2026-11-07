@@ -18,7 +18,7 @@ Terms used once: a **literal** is a value typed directly into code instead of re
 
 ### 1. Two lick detectors, and the config claims to be the only one
 - **Where:** `configs/defaults.yaml:158-162` says `lick_detection` is "shared by behavior + imaging (single source)" with `thresh_lower: 0.5`. `wfield_local/analysis_kit.py:469` hard-codes `_load_daq_events(h5, "lick_analog", 2.5, 1.0, (0.001, 0.020), 0.10)`, i.e. a 1.0 V lower threshold plus a 100 ms refractory. I found that exact literal in **39 files** across `wfield_local/` and `scripts/` (the 09-21 doc said ~35). `lick_detection.detect_licks` also defaults to `thresh_lower=1.0` (`lick_detection.py:52`). The config readers use different fallbacks for `min_ili_ms`: `behavior_events.py:142` uses 0, `daq_trials.py:109` uses 40. The `behavior_events` comment at :139 says its call is "identical to imaging's", which is false. `DECISIONS.md:62` states 2.5/1.0 as the pipeline rule, which contradicts the yaml.
-- **Why it matters:** the lower threshold sets where each lick ends, and the lockout is timed from that end. So the two paths can keep slightly different lick-onset sets. Imaging hits, RTs and lick-aligned trials can therefore differ from the behaviour `*_trials.csv` at the margins. `DLC_IN_WIDEFIELD_ANALYSES.md` §1 already records this, and §6 Q1 is open.
+- **Why it matters:** the lower threshold sets where each lick ends, and the lockout is timed from that end. So the two paths can keep slightly different lick-onset sets. Imaging hits, RTs and lick-aligned trials can therefore differ from the behavior `*_trials.csv` at the margins. `DLC_IN_WIDEFIELD_ANALYSES.md` §1 already records this, and §6 Q1 is open.
 - **Fix:** first you decide whether imaging keeps its own detector (§6 Q1). Then put both detectors in `defaults.yaml` as named profiles (`behaviour`, `imaging`), each with one sentence on why it exists. Route all 39 call sites through one accessor, and include the profile in cache keys. Pin per-session onset counts before and after.
 - **Effort:** medium (1–2 days plus the measurement). **Wait for rebuild: yes.** The lick source is rebuild territory, and the rebuild adds `lick_count_samples`. Fixing the false `behavior_events` comment is free and can go now.
 
@@ -44,7 +44,7 @@ Terms used once: a **literal** is a value typed directly into code instead of re
 - **Where:** `run_locanmf.py:83-84` sets `--loc-thresh 70.0` and `--r2-thresh 0.99`, and the usage example at `:48-50` says the same. `defaults.yaml` says `r2_thresh 0.95` and `loc_thresh 80`. `batch_locanmf.py:69-74` reads the config correctly, so the nightly is fine. `wfield_local/README.md` §17 documents a direct `run_locanmf` command with no thresholds.
 - **Why it matters:** re-running one session by hand from the README fits a different decomposition from every other session, with no warning.
 - **Fix:** make the argparse defaults read `config.defaults()['locanmf']`, fix the example, and add a test that both CLIs' defaults equal the yaml.
-- **Effort:** small. **Wait: no.** Nightly behaviour is unchanged. First check that the rebuild's LocaNMF-projection work does not edit this file.
+- **Effort:** small. **Wait: no.** Nightly behavior is unchanged. First check that the rebuild's LocaNMF-projection work does not edit this file.
 
 ### 5. A missing or undecodable DAQ file silently gives zero spout contacts
 - **Where:**
@@ -56,14 +56,14 @@ Terms used once: a **literal** is a value typed directly into code instead of re
 - **Fix:** return None or NaN on a missing DAQ, write NaN `n_daq_contacts`, and map NaN to the `unknown` class. Add a test. Also run a one-off check of v36 `trials.csv` for sessions whose contacts are all zero.
 - **Effort:** small. **Wait: yes** (trial classes). The one-off check of existing outputs is read-only and can be done now.
 
-### 6. The response-window fallback is 2.0 s in behaviour and 3.5 s in imaging
+### 6. The response-window fallback is 2.0 s in behavior and 3.5 s in imaging
 - **Where:**
   - `spout_behavior.py:304-306` passes `behavior.licking.response_window_s` (2.0), and `:504-505` uses a literal 2.0.
   - `nolick_decoder.py:82` uses `DEFAULT_RESPONSE_WINDOW_S = 3.5`, and `quiet_periods` uses `decode.max_rt_s` (3.5).
   - `defaults.yaml:190-194` says the task "has run 3500 ms, never 2.0 s".
   - Literal 3.5 s or 4.0 s windows appear in `scripts/trial_attempts.py:42` (which feeds `mixed_models.behaviour_deficit`), `lick_contact_by_epoch.py:37` (4000 ms) and two cohort2_qc scripts.
   - `tests/test_response_window.py` covers only one consumer.
-- **Why it matters:** this is latent while every session has a `gui_config.json`. A session without one (crashed, cohort 2) would be scored 2.0 s for behaviour and 3.5 s for imaging under the same word, "responded". `lick_contact_by_epoch` already uses a different window today.
+- **Why it matters:** this is latent while every session has a `gui_config.json`. A session without one (crashed, cohort 2) would be scored 2.0 s for behavior and 3.5 s for imaging under the same word, "responded". `lick_contact_by_epoch` already uses a different window today.
 - **Fix:** one fallback key, read inside `daq_trials.response_window_s` so callers cannot pass their own. Rename the 2.0 s key to `count_window_s`. Extend the test so every resolver gives the same answer when there is no gui_config. Check `git blame` on the 4000 ms before changing it.
 - **Effort:** small. **Wait: yes** for `nolick_decoder`. `spout_behavior` and `daq_trials` are not on the rebuild list.
 
@@ -94,7 +94,7 @@ Terms used once: a **literal** is a value typed directly into code instead of re
 
 **Downgraded or dropped from high, and why:**
 - *Epoch bars (pooled level) vs delta panel (animal-weighted change)*, `epoch_figures.py:2838-2898`. Verified, but it is the deliberate rule-9 convention, so it is a decision rather than a defect. Moved to medium: either state it in subtitles and legends, or make levels animal-weighted, which moves every bar. Your call.
-- *Position estimator copied about 12 times.* Verified: `max_iter` is 2000, 3000 or 4000 (`locanmf_frozen_decoder.py:71`, `position_coding_directions.py:483`, `beta_maps.py:288`), and `make_spec` (`frozen_models.py:87`) records no C or max_iter. These differ only in optimiser stopping, so predictions are unlikely to move. The real risk is that someone edits `_pipe`'s C and the stored frozen models are served unchanged. Moved to medium.
+- *Position estimator copied about 12 times.* Verified: `max_iter` is 2000, 3000 or 4000 (`locanmf_frozen_decoder.py:71`, `position_coding_directions.py:483`, `beta_maps.py:288`), and `make_spec` (`frozen_models.py:87`) records no C or max_iter. These differ only in optimizer stopping, so predictions are unlikely to move. The real risk is that someone edits `_pipe`'s C and the stored frozen models are served unchanged. Moved to medium.
 - *Library imports `scripts/`* (`analysis_kit.py:513-514` and others). Verified, but it is coupling, not a wrong number. Moved to Modularity, top item.
 - *"working / engaged / stopped" mean several trial sets.* Verified (`trial_classes.py:261-264` vs `working_trials.py:45`). Pinned tests keep them consistent today, so it is a naming trap: medium.
 - Nothing was dropped outright. Every high finding I opened matched the code.
@@ -123,7 +123,7 @@ Terms used once: a **literal** is a value typed directly into code instead of re
 | Spout code map / order / ipsi naming | 7 code maps, about 5 orders, 12 L→ipsi dicts | Orders differ by purpose; `face_rhythm/common` "canonical" is not | `spouts.py` from `stroke_laterality` | Delete dead `matched_residual.POSMAP` (wrong keys) |
 | "Orofacial cortex" area set | 5 memberships (4-area id dict ×9, ALM/tjM1 sets, 6- and 9-area sets, 2-area) | **No** | `configs/roi_groups.yaml` | Name the group in figure titles; no data moves |
 | Animal marker | `cat_points`, `orofacial_cohort`, 10–11 scripts | Yes for cohort 1; **PS118 = PS121 = '>'** (verified: 317 % 6 = 311 % 6 = 5) | `animals.yaml marker:` | Safe now |
-| Animal / epoch colours | `config.animal_color` vs 6 locanmf dicts + Dark2 in `mixed_models` + about 15 epoch palettes | No (Dark2 vs tab; `session_lick_summary` epochs use animal colours) | `style.py` | Safe now |
+| Animal / epoch colors | `config.animal_color` vs 6 locanmf dicts + Dark2 in `mixed_models` + about 15 epoch palettes | No (Dark2 vs tab; `session_lick_summary` epochs use animal colors) | `style.py` | Safe now |
 | Star headroom | `orofacial_cohort._mark_rows/_tidy` vs `sig_marks` | Same arithmetic, different de-duplication | `sig_marks` | Safe now |
 | PNG+SVG save | 3 helpers | No (only orofacial keeps editable SVG text) | `figure_layout.save` | Safe now |
 | Wilson CI | 2 | No (NaN vs 0 at n=0; wrong docstring) | `analysis_kit.wilson` | Safe now |
@@ -139,12 +139,12 @@ Terms used once: a **literal** is a value typed directly into code instead of re
 2. **There is no obvious answer to "where is the decoder?"** The estimator is a private `_pipe`. The features are private functions in `locanmf_position_decoder`. Position names and the lick loader are in a *plotting* module (`plot_lick_aligned_averages`, 53 importers). The session registry is `SESSIONS` (48 importers), which is loaded **when the module is imported**. Because of that, it freezes whatever animal or cohort env vars were set at that moment, and `epoch_audit.full_cohort()` cannot undo it. Fix: a re-export facade, `decoding.py`, with a docstring walking through "features → estimator → CV → frozen model → scoring". Replace the import-time `SESSIONS` with calls at the point of use. Medium. Wait.
 3. **Very long functions and modules.** `build_analysis_deck` is 1,776 lines in one function (`locanmf_analysis_deck.py:473`). It was 3,892 on 09-21 and has grown back by about 100. `nightly_figs.main` is about 680 lines of inline stages. `combined_encoding.run_session` is 621 lines. `epoch_figures.py` is 3,165 lines covering sidecar I/O, epoch assignment, statistics, layout and rendering, and its docstring is stale ("three panels", "NOTHING HERE RECOMPUTES"). `beta_maps` holds the repo-wide pixel-map significance library. Fix: one function per deck section with a context object, verified with `scripts/deck_fingerprint.py`. A declarative step table for the nightly that keeps each incident comment as a `why=` string. Split modules with re-exports. Large. Wait.
 4. **Analysis lives in figure modules.** Epoch renderers call 15 private `grant_figures._collect_*` names. `_collect_5c` scores decoders. `conftest.patch_grant` exists because this coupling hung the test suite for 16 minutes. Fix: a public `pooled_collectors.py` with documented return shapes. Large. Wait.
-5. **Behaviour switches with no registry.** About 58 env vars change what a lick, gate, baseline or encoder design means, and none are in yaml. Two examples of the cost:
+5. **Behavior switches with no registry.** About 58 env vars change what a lick, gate, baseline or encoder design means, and none are in yaml. Two examples of the cost:
    - `combined_encoding.out_dir` leaves out `COMBINED_ENCODING_TONGUE`, so 3-D-tongue and cam4-tongue runs write the same folder. `frozen_encoder` does include it.
    - `working_trials.row_masks` silently swaps a quit_tail selection for the production working set (`:241-242`). `OROFACIAL_GATE` is read at import.
 
    Fix: `switches.py` with `active_switches()` stamped into figures and cache keys, and make `row_masks` raise instead of swapping. Short term, add the missing switches to `out_dir`. Medium. Wait.
-6. **Gate names collide.** `trial_classes.in_working` (`:261`) includes jaw_only, while production `working_trials.IN_WORKING` excludes it. The behaviour timeline's "WORKING" is a third set, and the imaging gate a fourth. Rename (`reacted`, `camera_working`, `reference_collapse`, ...) and add a gate table to ARCHITECTURE. Medium. Wait.
+6. **Gate names collide.** `trial_classes.in_working` (`:261`) includes jaw_only, while production `working_trials.IN_WORKING` excludes it. The behavior timeline's "WORKING" is a third set, and the imaging gate a fourth. Rename (`reacted`, `camera_working`, `reference_collapse`, ...) and add a gate table to ARCHITECTURE. Medium. Wait.
 7. **Caches miss config changes.** `session_signature` hashes no yaml, and four past version bumps were needed for exactly this. The frozen-model spec does not record the trial rule (max_rt, precue_lickfree, lick profile) or the estimator settings. Fix: a digest of the config blocks the cached code reads; add new spec fields only when they differ from today's values, so current ids stay the same. Medium. Wait. Read `FROZEN_MODELS.md` first.
 8. **Two large hub modules and an ambiguous alias.** `spout_behavior` (1,954 lines) and `orofacial_cohort` (2,805 lines, 124 importers). The alias `oc` means `orofacial_cohort` in 77 files and `orofacial_clean` in 27.
 9. **Cohort-2 traps not yet triggered** (verified where marked):
@@ -176,7 +176,7 @@ Terms used once: a **literal** is a value typed directly into code instead of re
   - The CLAUDE.md figure path is garbled ("labcamsnalysis_figures").
   - 17 script paths cited in DECISIONS have moved to `archive/` or are gone.
   - The deck title slide says "Curated pre-stroke sessions" and "chance = 0.17" for an all-phase deck.
-  - The behaviour-deck caption still names `flag_engagement`.
+  - The behavior-deck caption still names `flag_engagement`.
   - `paths.py:50-54` describes the machine-detection order wrongly.
 
 ---
@@ -204,7 +204,7 @@ Terms used once: a **literal** is a value typed directly into code instead of re
 2. Read-only check of v36 `trials.csv` for sessions with all-zero `n_daq_contacts` (1 h).
 3. Script statistics: replace the boot_p/Holm/BH copies with `ak.*`, archive the `a3_lmm_*` side-runs, diff the iti star tables (0.5 day). Decide `recovery_timing`'s weighting.
 4. `safe_copy.py` for `archive_day` and `camera_nightly` (0.5 day).
-5. Plotting style module: markers in `animals.yaml` (fixes PS118 = PS121), animal and epoch colours, one star-headroom path, one save helper with editable SVG text, tests for `cat_points` and `sig_marks` (1 day).
+5. Plotting style module: markers in `animals.yaml` (fixes PS118 = PS121), animal and epoch colors, one star-headroom path, one save helper with editable SVG text, tests for `cat_points` and `sig_marks` (1 day).
 6. Tests: drop `importorskip` on in-repo modules, add `pythonpath`/`testpaths` and `slow`/`live_data` markers to pyproject, add `pose_windows`/`docked_periods` tests, and change `test_no_hardcoded_machine_paths` to recurse (`rglob`) (1 day).
 7. Docs: START_HERE, per-box env table, fix the CLAUDE.md env/rule-6/enl_states lines, refresh the 09-21 inventory, `scripts/INDEX.md`, README roadmap, DECISIONS paths, the `behavior_events` comment (1 day). Rewrite captions rather than annotating them.
 8. Dead code: `orofacial_cohort.engaged_trial_ids` (an unguarded reader), `flag_engagement` (keep the ban test), `matched_residual.POSMAP`, the `enl_states` stub CLI, and, once you confirm, the orphan `locanmf_cue_auc/firstlick_aligned/event_master` and `locanmf_decoder_ablation/qc/xsession_generalization` (0.5 day).

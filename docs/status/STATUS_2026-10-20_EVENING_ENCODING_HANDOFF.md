@@ -11,7 +11,7 @@ The pose / 3-D / cam1 work is the OTHER window: `STATUS_2026-10-20_POSE3D_TIMING
 
 ## OVERNIGHT 10-20 -> 10-21 (read first; details DECISIONS 2026-10-20 late + ENCODING_FINDINGS 2.4b)
 
-- **Behavioural index changed.** `scripts/trial_attempts.py`: per-trial hit / incomplete / jaw_only / no_try / unknown
+- **Behavioral index changed.** `scripts/trial_attempts.py`: per-trial hit / incomplete / jaw_only / no_try / unknown
   (jaw from cam4 OR cam1; v36 `jaw_pass_qc` IS "jaw moved"); engaged = attempted; canonical gate only as attempt-rate
   denominator. `mixed_models.DEFICITS`, primary `ttc` (time to first far-contra contact, attempted trials, no contact
   = 3.5 s); `--deficit <name>` in encoding_mixed / imaging_lmm / within_spout_mixed (non-default -> `*_<name>`). Old
@@ -27,7 +27,7 @@ The pose / 3-D / cam1 work is the OTHER window: `STATUS_2026-10-20_POSE3D_TIMING
   SSp-m within-spout component ~0 pre (t 1.04, n 31; lick window t -6.5); mixed model null in every area / model (all
   |z| < 1.7). Pre-cue activity does not carry the coming lick's within-spout deviation.
 - **Epoch families + CD on the LMM** (`imaging_lmm.py` source `epoch`; DECISIONS 2026-10-21 night): frozen encoder EV
-  and best-match accuracy still below pre at full behavioural recovery (z -4.1); far-contra own-position identity back
+  and best-match accuracy still below pre at full behavioral recovery (z -4.1); far-contra own-position identity back
   (z -0.7). Figures `figures/mixed_models/imaging_lmm_epoch-*`. Stray empty `qc/figures/imaging_lmm_epoch` can be deleted.
 - **Lick-template test RERUN DONE** (47 sessions, 20261021 tables; ENCODING_FINDINGS 2.4b): target > executed post-stroke, PS93 chronic in every session; executed adds nothing beyond spout category.
   within-spout check (running). Log `S/lick_templates_20261021.log`.
@@ -74,7 +74,7 @@ The pose / 3-D / cam1 work is the OTHER window: `STATUS_2026-10-20_POSE3D_TIMING
 | Repo map tests (beta_maps `significance_contour` nested bootstrap = primary, cluster permutation = second line; `vs_zero_contour`): between-spout crossed map vs 0 = 28 % of brain pre; NO post-vs-pre change in within or between maps at n = 4 | STANDS |
 | Cue alignment drops delayed trials: acute far-contra first lick (cam4 keypoint onset) median 1.2 / 1.0 s in PS92 / PS93, 35-38 % of trials after 1.5 s | STANDS -> lick-align |
 | Slow band (morning): rescales pre-cue decode .03-.09 in every epoch; PS93's acute pre-cue drop = slow band | DONE |
-| 3-D landing geometry: tongue peak lands ~2 mm deeper than the spout table and laterally compressed (~0.4x close, ~0.6x far) -> raw nearest-spout bins fail (PS92 pre agreement 0.46); per-animal PRE-stroke calibrated landing zones fix it (pre 0.70-0.77, acute 0.50-0.56 with contra licks landing in the ipsi-neighbouring zone, PS92 chronic 0.84) | STANDS (descriptive) |
+| 3-D landing geometry: tongue peak lands ~2 mm deeper than the spout table and laterally compressed (~0.4x close, ~0.6x far) -> raw nearest-spout bins fail (PS92 pre agreement 0.46); per-animal PRE-stroke calibrated landing zones fix it (pre 0.70-0.77, acute 0.50-0.56 with contra licks landing in the ipsi-neighboring zone, PS92 chronic 0.84) | STANDS (descriptive) |
 
 ## 2. Decisions this afternoon (all in DECISIONS)
 
@@ -87,7 +87,7 @@ The pose / 3-D / cam1 work is the OTHER window: `STATUS_2026-10-20_POSE3D_TIMING
   / reliability = upper bound).
 - **Binned contest uses SOFT executed bins on pre-stroke-calibrated 3-D landing zones** (`COMBINED_ENCODING_BINS=1` +
   `COMBINED_ENCODING_BINS_CALIB=<table>`; `scripts/exec_bins_calibration.py`, leave-one-session-out for pre sessions).
-  Hard nearest-zone confusion kept only as a behavioural readout (`res["bins"]`).
+  Hard nearest-zone confusion kept only as a behavioral readout (`res["bins"]`).
 - **3-D contest = polar (coordinate-matched angles) + soft bins + COMBINED cam4 + cam1-only lick timing**
   (`COMBINED_ENCODING_LICKS=combined`), nokin model set, all PS92 + PS93 sessions with full 3-D.
 - **Pre-stroke lick TEMPLATE test** (`scripts/lick_template_test.py`, Priya "yes"): per-spout lick kernels learned
@@ -144,7 +144,7 @@ The pose / 3-D / cam1 work is the OTHER window: `STATUS_2026-10-20_POSE3D_TIMING
 ## 3c. LATE-NIGHT STATE (10-20 ~22:15) -- read this first; details in DECISIONS 2026-10-20 (night / late night)
 
 **New shared code**
-- `wfield_local/mixed_models.py` = the ONE session-level LMM (time `post + post:lday`, behaviour `post + post:deficit`,
+- `wfield_local/mixed_models.py` = the ONE session-level LMM (time `post + post:lday`, behavior `post + post:deficit`,
   epoch `C(epoch)`; random intercept + step + slope ladder; fixed-intercept fallback; ALL SEs finite; bh_fdr; rule-8 table
   first; August pre; None epochs dropped). Tests `tests/test_mixed_models.py`. Callers: `scripts/encoding_mixed.py`,
   `scripts/within_spout_mixed.py`, `scripts/imaging_lmm.py` (trend / decoder trajectory / orofacial session metrics).
@@ -152,12 +152,12 @@ The pose / 3-D / cam1 work is the OTHER window: `STATUS_2026-10-20_POSE3D_TIMING
 - `scripts/encoding_key_figures.py`: precue_licking, lick_deficits, landing_zones (canonical POS_ORDER).
 - Figures via the shared `mixed_models.plot_fits`: `figures/mixed_models/encoding_mixed_{behaviour,time}_<area>.png` and
   `figures/mixed_models/imaging_lmm_{trend,behaviour,decoder_unmatched,decoder_matched}_<model>.png` (decoder: F_deficit tracks
-  the behavioural deficit, ~0 at full recovery; G_reorg flat ~ +0.10 at every behavioural level).
+  the behavioral deficit, ~0 at full recovery; G_reorg flat ~ +0.10 at every behavioral level).
 - combined_encoding: extra scoring windows (`cue2lick`, `cuestop`, `firstlick`), lick-aligned trial-to-trial SSE
   (`sse_trial_lick`), `COMBINED_ENCODING_LICKS_ALL=shared|split` (whole-session licks; folder `_licksall-<mode>`).
 
-**Key results tonight** -- coding tracks behavioural recovery and overshoots pre (lick distance z -5.2 / +4.5); frozen
-decoder recovers with behaviour, reorganisation persists; chronic bilateral anterolateral-frontal ECCENTRICITY change
+**Key results tonight** -- coding tracks behavioral recovery and overshoots pre (lick distance z -5.2 / +4.5); frozen
+decoder recovers with behavior, reorganisation persists; chronic bilateral anterolateral-frontal ECCENTRICITY change
 (only post-stroke map change surviving the animal-level test); 3-D confirms the crossed executed component (~0.2 of the
 across-spout slope); acute deficits: PS92 / PS93 slow start vs PS94 / PS95 prompt-but-miss; pre-cue window contact-free
 by design but holds no-contact licks (5-44 % of trials) and GCaMP spillover from contacts just before it.
@@ -169,16 +169,16 @@ by design but holds no-contact licks (5-44 % of trials) and GCaMP spillover from
 | O2 `win_nokin` / `win_drop` (extra windows + lick-aligned trial-to-trial); partial results collected (71 / 59 of 119); 100 / 90 back on the share at 22:19 | O2 -> Priya rsyncs | re-collect when complete: `COMBINED_ENCODING_SUFFIX=_win python scripts/o2_encoding.py collect --name enc_v36_20261019 --tag win_nokin` (and win_drop); readouts `--order movement_first_subset-nokin_win` (tr_contest firstlick), `encoding_mixed.py` (firstlick / cue2lick / cuestop) |
 | lick-template test, first pass (42 sessions, 20261020 tables) | box, `S\lick_templates_full.log` | rerun `--tag 20261021` on all 47 with the 20261021 tables (env in §6) |
 | queued enl within-spout check (starts after the template test) | box, `S\within_spout_enl.log` | read `qc/within_spout_deviation_lick_enl/` |
-| 3-D within-spout --redo with harmonised sign | box, `S\within_spout_3d.log` | `qc/within_spout_deviation_polar_lick/` + `within_spout_mixed.py --folder within_spout_deviation_polar_lick` |
+| 3-D within-spout --redo with harmonized sign | box, `S\within_spout_3d.log` | `qc/within_spout_deviation_polar_lick/` + `within_spout_mixed.py --folder within_spout_deviation_polar_lick` |
 
 **To do (priority)**
 1. Whole-session-lick refits: `COMBINED_ENCODING_LICKS_ALL=shared` and `=split` with `ONLY=drop:` (pre-cue position with
-   pre-cue licks modelled) and `ONLY=nokin:` -- O2 needs a re-bundle WITH the env set (inputs carry the context licks).
+   pre-cue licks modeled) and `ONLY=nokin:` -- O2 needs a re-bundle WITH the env set (inputs carry the context licks).
    Then spontaneous-vs-cued = split vs shared; early vs late ENL split for the spillover check.
 2. Epoch scalar families -> LMM: collectors must emit per-session pre (leave-one-out) values with label / day
    (grant_encoder._enc_tables, grant_geometry._rdm_rows, _matrices_pattern) -- other windows' code; coordinate.
 3. CD trajectories -> per-session window means -> `mixed_models`.
-4. Pixel-map version of the behaviour-indexed model (descriptive OLS + beta_maps tests on the coefficient).
+4. Pixel-map version of the behavior-indexed model (descriptive OLS + beta_maps tests on the coefficient).
 5. Per-animal within-spout curves; eccentricity summary figure; template-test summary figure.
 
 **Mixed-model rerun under the stricter rule (22:15)**: headline estimates hold (lick distance vs deficit z -5.2 /
@@ -205,7 +205,7 @@ epoch starts on different days per animal -- never compare epoch means across an
 5. Within-spout check in 3-D: `COMBINED_ENCODING_EXEC=polar` + tables (+ CALIB) -> `within_spout_deviation.py --align
    lick` (folder `within_spout_deviation_polar_lick`).
 6. First-lick latency cam4 vs cam4 + cam1 vs DAQ contact (cam1 events now final for PS92 / PS93).
-7. 3-D JAW: ON HOLD (Priya 10-20: 3-D jaw is unreliable at the close-centre spout -- cam4 occlusion). When revived:
+7. 3-D JAW: ON HOLD (Priya 10-20: 3-D jaw is unreliable at the close-center spout -- cam4 occlusion). When revived:
    3-D jaw / tongue traces in the main + kin models, a per-lick 3-D jaw-lateral executed term, jaw deviation in the
    within-spout check.
 8. LocaNMF cross-check of the within-spout slopes. Later: pre-cue -> lick-window carry-over decode; tongue traces to
@@ -216,10 +216,10 @@ epoch starts on different days per animal -- never compare epoch means across an
 - **Windows Python cannot open `/c/...` paths**: env vars / arguments passed to python must be `C:/...` (git-bash `$S`
   paths only for bash itself).
 - **Heredocs mangle `\n` in Python strings** (happened again): edit Python with the Edit tool.
-- **`_event_cols(amp=...)` CENTRES the modulator** (movement_encoding): amplitude-modulated blocks are already
+- **`_event_cols(amp=...)` CENTERS the modulator** (movement_encoding): amplitude-modulated blocks are already
   deviation-coded -- do not subtract the mean-weighted shared kernel again.
 - **Cue-aligned windows silently drop delayed trials** post-stroke (no lick in the window) -> lick-align.
-- **Cohort-mean maps hide animal-specific components** (bilateral: PS94 opposite sign); per-pixel FDR favours broad
+- **Cohort-mean maps hide animal-specific components** (bilateral: PS94 opposite sign); per-pixel FDR favors broad
   shifts and misses focal effects -> per-animal maps + beta_maps tests + area-level mixed model.
 - **3-D spout table position != tongue landing point** (rod's lower edge; lateral compression) -> calibrate landing
   zones per animal from pre-stroke licks; never nearest raw spout.

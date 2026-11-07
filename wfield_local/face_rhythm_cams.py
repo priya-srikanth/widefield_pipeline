@@ -6,7 +6,7 @@ ONE place for what differs between the views; every FR script takes ``--cam`` an
               CHOSEN ON cam4's LP (tongue absent, -1.5 .. -0.5 s from the cue): for another camera their DAQ times go
               through that camera's own alignment template (`camera_sync.frame_daq_seconds`) to its frame indices, so
               no pose model is needed on that view. ``rest_exclude`` drops trials whose spout rod sits in front of the
-              face in this view (cam1: the centre spouts).
+              face in this view (cam1: the center spouts).
   register    `scripts/face_rhythm_register.py --cam <cam>`: LP landmarks exist for cam4 only (``lp_landmarks``);
               the other views start the template -> master step from CLICKED landmarks (``click_landmarks``, on the
               animal templates + master, ``register_inputs/landmarks.json``) and the session -> template step from an

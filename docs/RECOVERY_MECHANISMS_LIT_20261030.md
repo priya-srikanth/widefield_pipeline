@@ -13,18 +13,18 @@ Companion: `docs/CROSS_AREA_METHODS_LIT_20261030.md` (cross-area methods; all fa
 | Literature | Prediction for us | Our result | Reading |
 |---|---|---|---|
 | VLS dSPNs drive contraversive licks via lateral SC (Lee, Wang & Sabatini 2020 Nat Neurosci); the two lateral SCs compete, iSPNs bias ipsiversive (Lee & Sabatini 2021 Nature) | losing left VLS -> right SC dominant -> licks biased ipsilesionally, worse the further contralesional the target | acute ipsilesional aim from launch, graded to far contra (FINDINGS 1-2) | **as predicted**: the deficit is a subcortical directional-drive loss |
-| VLS D1 / D2 set lick bout structure and contact (Chen 2021 Cell Rep); striatal dopamine loss lowers tongue force / rhythm (Skitek 1999); BG scale vigour (Yttri & Dudman 2016) | vigour / rhythm changes, not only aim | acute ILI +12.5 ms, global slowing (FINDINGS 1; STATUS 09-20) | consistent |
+| VLS D1 / D2 set lick bout structure and contact (Chen 2021 Cell Rep); striatal dopamine loss lowers tongue force / rhythm (Skitek 1999); BG scale vigor (Yttri & Dudman 2016) | vigor / rhythm changes, not only aim | acute ILI +12.5 ms, global slowing (FINDINGS 1; STATUS 09-20) | consistent |
 | Learned skill kinematics live in the BG, cortex is needed to learn, not execute (Kawai 2015; Dhawale 2021) | recovery of the old kinematics needs BG; a new solution may need cortex | success returns, kinematics do not (compensation, FINDINGS 0 item 4b) | **compensation, as predicted when the BG store is damaged** |
 | ALM is needed for online corrections of missed licks (Bollu 2021 Nature); ALM / tjM1 signal a missed target (Xu 2022 Nature); touch-guided re-aiming needs lateral SC, not cortex (Ito 2025 Nature) | if recovery runs on corrections, cortical lick responses grow with correction demand; or corrections may be collicular | lick-evoked responses LARGER bilaterally; far-contra code carried by later, corrective licks (FINDINGS 0b, 4d0b) | **open, and testable now (2.1)** |
 | Unilateral ALM silencing is rescued by the other hemisphere (Li 2016 Nature); balance-recovery / vicariation models (Di Pino 2014 [partial]); contralesional excitation blocks repair (Bice 2022 eLife); 2025 preprint: contralesional activity = compensatory use, not recovery [unverified authors] | hemispheric balance shifts; may be compensation rather than mechanism | orofacial balance tracks how far each animal recovers (FINDINGS 0b) | **needs the kinematics control (2.4)** before it is a mechanism |
 | Subcortical stroke in humans: bilateral over-activation that falls with recovery and is larger in worse patients (Ward 2003 Brain); diaschisis (Carrera & Tononi 2014 Brain) | larger responses early, shrinking with recovery; changes in cortex that projects to the lesion | residual excess largest day 1, shrinks with recovery, tracks the deficit (mostly PS94) (FINDINGS 0 item 3) | consistent; the corticostriatal-input map (2.5) is the subcortical-specific test |
 | Remapping is mostly potentiation of existing circuits, not new territory (Makin & Krakauer 2023 eLife); remapped areas can be causally necessary (Castro-Alamancos & Borrell 1995) | the "remapped" code is re-weighting inside old territory | code partly remapped, not restored; position package shifts contralesionally (FINDINGS 0 items 3-4) | **re-embedding vs new pattern not yet tested (2.3)** |
-| Capsular (subcortical) stroke: slower recovery, no lasting ipsilesional cortical reorganisation (2025 preprint [unverified authors]); cortex + striatum become more reliable / aligned with recovery (Guo 2021 Cell Rep) | little cortical reorganisation; recovery may be elsewhere | LASTING chronic cortical change: spout code remapped (self-fit better; partial refit specific in contralesional SSp-m, 4/4), cued within-spout balance above pre toward the contralesional hemisphere (4/4), orofacial-specific cue-window residual and pre-cue rise persist; part of the cortex-wide change may be drift; cortex does not lead behavioural recovery (FINDINGS 0, 0b, 3-4) | **CONTRAST, not agreement (Priya 10-30)**: a striatal lesion leaves cortical output intact, unlike a capsular one, and our lasting change is largely contralesional / bilateral, whereas the preprint reports no lasting IPSILESIONAL reorganisation |
+| Capsular (subcortical) stroke: slower recovery, no lasting ipsilesional cortical reorganisation (2025 preprint [unverified authors]); cortex + striatum become more reliable / aligned with recovery (Guo 2021 Cell Rep) | little cortical reorganisation; recovery may be elsewhere | LASTING chronic cortical change: spout code remapped (self-fit better; partial refit specific in contralesional SSp-m, 4/4), cued within-spout balance above pre toward the contralesional hemisphere (4/4), orofacial-specific cue-window residual and pre-cue rise persist; part of the cortex-wide change may be drift; cortex does not lead behavioral recovery (FINDINGS 0, 0b, 3-4) | **CONTRAST, not agreement (Priya 10-30)**: a striatal lesion leaves cortical output intact, unlike a capsular one, and our lasting change is largely contralesional / bilateral, whereas the preprint reports no lasting IPSILESIONAL reorganisation |
 
 **Working model to test.** Losing left VLS removes the subcortical drive and the stored kinematics for contralesional
 licks. Success returns within ~2 weeks through a COMPENSATORY strategy: a biased launch fixed by later licks and
 corrections, with a changed jaw / tongue pattern. Dorsal cortex follows this strategy: larger bilateral lick responses,
-a shifted balance, a re-weighted spout code, and these changes LAST into the chronic phase. Whether cortex is NEEDED for the recovered behaviour, or only reports it, is
+a shifted balance, a re-weighted spout code, and these changes LAST into the chronic phase. Whether cortex is NEEDED for the recovered behavior, or only reports it, is
 not decidable from imaging. That needs a perturbation (section 3).
 
 ## 1a. Outcome of analyses 2.1-2.3 (10-30 night; FINDINGS 4.19-4.21; page 14.18 S21-S23)
@@ -42,14 +42,14 @@ not decidable from imaging. That needs a perturbation (section 3).
 
 **Priya 10-30: the ITI persistence adds to the compensation argument.** The deficit is still present, and the animal
 learns to overcome it for cued licks. Combined with 2.1, the cued compensation is a re-aimed feed-forward LAUNCH that is
-context-specific (cued, goal-directed) and does not generalise to self-initiated licks. That is the signature of a
+context-specific (cued, goal-directed) and does not generalize to self-initiated licks. That is the signature of a
 learned adaptation, not restored capacity. Caveats: (a) the ITI persistence is so far a CORTICAL readout (decoder offset,
-lateral r). ITI licks have no target, so S21 did not score their launch error; behavioural ITI aim vs the pre ITI licks at
+lateral r). ITI licks have no target, so S21 did not score their launch error; behavioral ITI aim vs the pre ITI licks at
 the same docked spout position still needs to be shown. (b) Within animal the ITI offset does partly fade as cued aim
 recovers (r -0.53, 4/4), so the persistence is partial, not total.
-**OUTCOME 10-30 (FINDINGS 4.22): NOT supported.** No within-session learning or overnight loss (gains come between sessions: spontaneous-recovery pattern); ITI licks after far-contra trials carry no re-aimed launch; the ITI bias is behavioural but matches the cued landing error (no capacity-vs-performance gap). The ITI cortical persistence therefore does not show a deficit that cued licks overcome. Tests of "learned, context-specific compensation": (1) within-session improvement of far-contra launch aim with partial
-overnight loss in the subacute window (learning signature, vs day-step biological recovery); (2) generalisation: ITI licks
-soon after a cued far-contra trial vs late in the ITI (carry-over of the re-aimed command); (3) behavioural ITI aim at
+**OUTCOME 10-30 (FINDINGS 4.22): NOT supported.** No within-session learning or overnight loss (gains come between sessions: spontaneous-recovery pattern); ITI licks after far-contra trials carry no re-aimed launch; the ITI bias is behavioral but matches the cued landing error (no capacity-vs-performance gap). The ITI cortical persistence therefore does not show a deficit that cued licks overcome. Tests of "learned, context-specific compensation": (1) within-session improvement of far-contra launch aim with partial
+overnight loss in the subacute window (learning signature, vs day-step biological recovery); (2) generalization: ITI licks
+soon after a cued far-contra trial vs late in the ITI (carry-over of the re-aimed command); (3) behavioral ITI aim at
 the docked position (capacity vs performance gap); (4) the pre-lick build-up, cued vs ITI (the command the re-aim would
 live in).
 
@@ -65,7 +65,7 @@ deficient direction is rightward, driven by the LEFT VLS -> left SNr -> LEFT lat
 | A. Crossed IT corticostriatal -> spared LEFT VLS | re-drives the lesioned striatum's remnant (18-55 % of CP area lost) -> left SNr -> left lSC | right-cortex activity gains trial-wise prediction of rightward launch angle; effect depends on spared VLS (not testable at n = 4) | IT neurons project bilaterally; the remnant may be too small |
 | B. Ipsilateral corticostriatal -> RIGHT VLS iSPNs | iSPNs suppress the right lSC and release the left lSC through collicular competition (Lee & Sabatini 2021) -> rightward | same as A for cortex; would need indirect-pathway recruitment (not visible to us) | plausible; right dSPNs would push the other way, so the net effect is uncertain |
 | C. Right ALM PT -> right lateral SC | topographic ALM -> SC (Thomas 2023) | as written it drives LEFTWARD licks and strengthens the right SC against the left | **disfavoured** unless it targets SC GABAergic cells |
-| D. Right PT -> brainstem (IRt / tongue-jaw premotor, which is bilaterally organised; Stanek 2014) | an ipsilateral corticobulbar "detour" around the damaged BG-SC loop (cf. 2025 preprint: contralesional -> brainstem projections support recovery [authors unverified]) | right-cortex activity on rightward licks becomes coupled to the kinematics (launch angle, jaw lateral steering, tongue-jaw lag), BEFORE launch | **most consistent** with "cortex-wide excess tracks the deficit" and with compensation; testable now on the cortical side |
+| D. Right PT -> brainstem (IRt / tongue-jaw premotor, which is bilaterally organized; Stanek 2014) | an ipsilateral corticobulbar "detour" around the damaged BG-SC loop (cf. 2025 preprint: contralesional -> brainstem projections support recovery [authors unverified]) | right-cortex activity on rightward licks becomes coupled to the kinematics (launch angle, jaw lateral steering, tongue-jaw lag), BEFORE launch | **most consistent** with "cortex-wide excess tracks the deficit" and with compensation; testable now on the cortical side |
 | E. (left cortex, for contrast) left ALM PT -> left lSC / brainstem, bypassing the left striatum | direct contraversive drive | the IPSILESIONAL hemisphere gains weight; the balance should shift ipsilesionally | the chronic within-spout balance shifts the OTHER way (contralesional), so this route is not the main signature |
 | Null: reafference / state | ipsilesional landings touch a different part of the tongue / mouth, plus arousal | the asymmetry is contact- / landing-locked, strongest in SSp | partly excluded: as large on misses, FaceRhythm partialled out; but the cued balance is largely the landing error (10-29), and the imbalance is strongest in SSp-n |
 
@@ -103,13 +103,13 @@ C / D.
 
 1. **Is recovery carried by corrections? (Bollu 2021 / Xu 2022)** 3-D tongue at 250 fps resolves corrective
    submovements (Bollu used 1 kHz, Xu 400 Hz; check the effective 3-D rate first).
-   - Behaviour: per lick, launch angle vs contact angle (correction = contact minus launch); corrective-submovement
+   - Behavior: per lick, launch angle vs contact angle (correction = contact minus launch); corrective-submovement
      count (acceleration peaks); hypometria; whether the first lick misses and a later one corrects. Per spout and epoch.
      Prediction under compensation: launch bias persists while the correction share of hits rises, especially far contra.
    - Neural: per-lick lick-evoked amplitude in ALM / tjM1 / SSp-m on correction licks vs non-correction licks, with
      kinematics matched. Does the larger post-stroke lick response belong to correction licks? Does a missed first lick
      evoke a cortical miss / error response (Xu 2022) that grows post-stroke?
-   - This is the most direct link between the behavioural compensation and the cortical changes we have.
+   - This is the most direct link between the behavioral compensation and the cortical changes we have.
 2. **Formal restitution vs compensation score (SRRR; Levin 2009).** Per trial, distance of the kinematics from the
    animal's pre-stroke distribution at that spout (launch angle, jaw lateral steering gain, protrusion, speed,
    tongue-jaw lag, landing): Mahalanobis or a pre-vs-post classifier probability. Plot against hit rate per day; fit time
@@ -125,9 +125,9 @@ C / D.
    - Pixel version: overlap / centroid shift of the spout-informative territory, pre vs chronic. Inside old territory =
      re-weighting, not vicariation.
    - Pitfall: alignment can map anything onto anything. Fix k in advance and cross-validate. Safaie 2023: different
-     behaviour alone breaks alignment, so match kinematics first.
+     behavior alone breaks alignment, so match kinematics first.
 4. **Is the hemispheric balance a mechanism or a compensation marker?** Refit the balance after regressing per-lick
-   3-D kinematics + FaceRhythm factors (the 2025 preprint's critique). Partly done: the balance survives vigour and
+   3-D kinematics + FaceRhythm factors (the 2025 preprint's critique). Partly done: the balance survives vigor and
    landing regression for some readouts; finish it on the recovery-tracking readout.
    - If the kinematics absorb the balance-recovery link, report the balance as a cortical signature of the compensatory
      movement.
@@ -176,14 +176,14 @@ in-trial no-contact licks recover, ITI no-contact licks do not (so contact is no
 5. **Measurement.** The ITI reference has no target component, so the cued marker can recover by the target term while
    the ITI one cannot. Partly checked: the target-aware analysis keeps a genuine ITI shift.
 Discriminating tests: (a) ITI licks just before the expected cue (anticipatory, goal-like) vs early-ITI licks: 1 and 2
-predict anticipatory licks behave like cued; (b) ITI lick aim behaviourally (landing vs the pre distribution at the
-docked spout) -- is there a behavioural capacity-vs-performance gap or only a cortical one; (c) the pre-lick ramp
+predict anticipatory licks behave like cued; (b) ITI lick aim behaviorally (landing vs the pre distribution at the
+docked spout) -- is there a behavioral capacity-vs-performance gap or only a cortical one; (c) the pre-lick ramp
 (MOs / ALM) as the initiation signature, cued vs ITI, by epoch; (d) correction frequency cued vs ITI (2.1);
 (e) within-session: do ITI licks right after a rewarded far-contra trial look more "cued-like" (carry-over of the
 compensated mode)?
 
 **Stop / do not do:** phase, coherence, MVAR, LFADS-style dynamics (indicator kinetics); proportional-recovery or
-baseline-vs-change correlations (Hope 2019 coupling artefact); any across-animal predictor claim (n = 4, rank order
+baseline-vs-change correlations (Hope 2019 coupling artifact); any across-animal predictor claim (n = 4, rank order
 only); naive cross-lagged session analyses (Hamaker 2015; Harris "nonsense correlations": use detrended residuals and
 pseudosession nulls; our existing hits-only test found no lead either way).
 
@@ -208,7 +208,7 @@ Cohort 1 cannot answer these by imaging alone; cohort 2 can if decided before th
     (far-contra) licks. That is a new, opposite-direction effect absent pre-stroke (difference-in-differences:
     direction x epoch).
   - Activation (Priya): on its own, right-cortex activation should push licks ipsilesionally (more deviation). If
-    instead it improves far-contra aim post-stroke, or speeds recovery, that is uniquely post-stroke and favours the
+    instead it improves far-contra aim post-stroke, or speeds recovery, that is uniquely post-stroke and favors the
     takeover routes. Literature tension: in cortical stroke, chronic contralesional homotopic excitation SUPPRESSED
     repair and recovery (Bice 2022 eLife), so a benefit here would be a subcortical-stroke-specific result.
   - Within-animal designs suit n = 4. (a) Acute probe trials, perturbation on / off interleaved, pre vs post, scored on

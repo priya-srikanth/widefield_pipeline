@@ -28,11 +28,11 @@ prelaunch_aim_tracking/` (`writeguard.assert_writable`).
   `analysis_kit.boot_delta*`;
 * the joint-basis manifests;
 * the frozen-store listing;
-* BEHAVIOUR-only counts and launch-angle SDs (section 0).
+* BEHAVIOR-only counts and launch-angle SDs (section 0).
 
 **No imaging value, decoded value or tracking number of this analysis has been computed.**
 
-## 0. Feasibility (behaviour only; imaging sessions of S25 = 107 curated sessions, 31 August pre)
+## 0. Feasibility (behavior only; imaging sessions of S25 = 107 curated sessions, 31 August pre)
 * **CUED (S25's first-lick set, cached in `prelick_hemisphere_tuning/sessions/<label>.npz`):** pre licks per animal
   PS92 1750 / PS93 2751 / PS94 3178 / PS95 3611 (7-8 sessions each).
   * theta_L SD total 12.4-18.2 deg; within session x spout 10.0-15.3 deg.
@@ -73,7 +73,7 @@ Sessions:
 **CUED arm = S25's PRIMARY set, read from its cache** (no re-selection): cued FIRST post-cue licks of engaged trials, with
 * onset_ok;
 * finite theta_L, reach, peak speed and RT;
-* **no other lick onset (licks_all, any context, + behaviour licks) in the 1.0 s before tongue onset**.
+* **no other lick onset (licks_all, any context, + behavior licks) in the 1.0 s before tongue onset**.
 
 Per lick the cache holds `first_t` (tongue onset, DAQ), `first_pos`, `first_theta_L`, `first_trial_id`, `first_rt`,
 reach and speed.
@@ -82,7 +82,7 @@ reach and speed.
 * `phase == docked` (spout parked; `iti_dock_audit`);
 * onset_ok and finite theta_L;
 * previous trial's spout one of the six canonical spouts;
-* **no lick onset in the 1.0 s before** (S25's rule: licks_all ∪ behaviour lick onsets, 50 ms same-lick tolerance; the
+* **no lick onset in the 1.0 s before** (S25's rule: licks_all ∪ behavior lick onsets, 50 ms same-lick tolerance; the
   table's own `gap >= 1` must also hold), i.e. bout-first;
 * no cue / strobe in [t - 2.0, t + 0.75] s (S25 / iti_licks `CUE_EXCL`);
 * imaging frames covering the window.
@@ -135,7 +135,7 @@ the sustained pre-cue position code, so the primary decodes the CHANGE since BAS
     V_bin @ U_blk^T (dF/F x 1e3, no per-pixel scaling, as S25b).
   * **PCA on the flattened (bins x blocks) features, fitted on the TRAINING sessions only**, inside every outer fold.
     Label-free, so it is reused across permutations.
-  * **K = 20 primary, 10 and 40 sensitivity**; PC scores standardised on the training sessions.
+  * **K = 20 primary, 10 and 40 sensitivity**; PC scores standardized on the training sessions.
 * **(c) LocaNMF (shared joint basis)**: the newest per-animal joint basis (ids in section 0).
   * Components = `Basis._operator` (pinv(A) U_joint) applied to U_joint[mask]^T U_atlas V.
   * It is computed in V-space from `load_imaging`'s V / U, so frames match `ft` by construction. This is `Basis.project`
@@ -146,11 +146,11 @@ the sustained pre-cue position code, so the primary decodes the CHANGE since BAS
   * `variance_captured` reported per session.
 
 ## 3. Decoder (fixed) -- per animal x arm x feature set x window
-* Target y = theta_L (deg; TOTAL angle, across spouts). No within-spout centring of y or of the features: the target IS
-  part of what is to be decoded. Features are not session-centred either; ENL did not centre, so the frozen decoder
+* Target y = theta_L (deg; TOTAL angle, across spouts). No within-spout centering of y or of the features: the target IS
+  part of what is to be decoded. Features are not session-centered either; ENL did not center, so the frozen decoder
   transfers unchanged.
 * Pipeline: [PCA, set (b)] -> StandardScaler (training) -> ridge. **Alpha from 10^{-1..5} (13 values, ENL `ALPHAS`)
-  chosen by inner leave-one-SESSION-out CV** on the training sessions (maximise pooled held-out r), then refit on all
+  chosen by inner leave-one-SESSION-out CV** on the training sessions (maximize pooled held-out r), then refit on all
   training sessions. A trial-level GCV would leak within-session structure. Edge-of-grid alphas are counted and reported.
 * **Pre scores = leave-one-session-out (LOSO)** over the animal's August pre sessions. Pre predictions are held out.
 * **FROZEN** (rule 10): the all-pre decoder AND its LOSO siblings go in one payload through
@@ -174,31 +174,31 @@ the sustained pre-cue position code, so the primary decodes the CHANGE since BAS
   * p = (1 + #{null >= obs}) / 201.
   * **An arm x feature set passes if p < 0.05 in >= 3 / 4 animals.**
   * Also: per-session r (mean over pre sessions) and null 95th pct.
-* **Within-spout partial r** (pre, expected ~0 from S25 / S25b): corr of held-out prediction and theta_L, both centred
+* **Within-spout partial r** (pre, expected ~0 from S25 / S25b): corr of held-out prediction and theta_L, both centered
   within session x target cell; 200-permutation null within cell. This is the term that would make tracking possible
   lick by lick; reported, not gated.
 * **Calibration (compression) slopes**, pre LOSO predictions:
-  * **b_sp (PRIMARY normaliser)** = OLS slope of the session x target-cell MEAN decoded on the cell MEAN theta_L
+  * **b_sp (PRIMARY normalizer)** = OLS slope of the session x target-cell MEAN decoded on the cell MEAN theta_L
     ("how far the decoded angle moves per degree of angle across targets pre-stroke");
-  * b_all = lick-level slope (secondary normaliser);
+  * b_all = lick-level slope (secondary normalizer);
   * plus the decoded / actual SD ratio.
   * b_sp is chosen as primary because a target-reading decoder is attenuated at the lick level by the within-spout
-    noise it cannot see, so normalising by b_all would inflate any tracking by roughly 1 / (between-share) ~ 3x.
+    noise it cannot see, so normalizing by b_all would inflate any tracking by roughly 1 / (between-share) ~ 3x.
   * b_sp <= 0 or its pre CI including 0 -> that animal x arm has no calibration, and its index is "not estimable".
 * **POSITIVE CONTROL (POST window)**: same gate. If POST fails the gate, the method cannot read angle even after
   contact, and a PRE result in that arm says nothing (reported in those words).
-* Arm fails the gate -> its post-stroke numbers are DESCRIPTIVE, labelled "gate failed".
+* Arm fails the gate -> its post-stroke numbers are DESCRIPTIVE, labeled "gate failed".
 
 ## 5. Primary post-stroke readout: the TRACKING INDEX at the same target
-This reuses the ENL B7 decomposition (`lick_enl_offset_explore.task_b`), with gain normalisation added. Per lick, with
+This reuses the ENL B7 decomposition (`lick_enl_offset_explore.task_b`), with gain normalization added. Per lick, with
 the reference = the animal's pre means at the lick's TARGET cell (spout; ITI: previous spout):
 * pre LOSO predictions;
 * the pre mean over the animal's pre sessions with equal session weight;
 * for a PRE lick, its own session left out (LOSO reference).
 
 Definitions:
-* `d_dec` = decoded - pre mean decoded at that target; **normalised `d_dec* = d_dec / b_sp`** (in angle units);
-* `d_exe` = theta_L - pre mean theta_L at that target (the behavioural aim change; ENL's `ang_shift`).
+* `d_dec` = decoded - pre mean decoded at that target; **normalized `d_dec* = d_dec / b_sp`** (in angle units);
+* `d_exe` = theta_L - pre mean theta_L at that target (the behavioral aim change; ENL's `ang_shift`).
 
 Session value = mean over its licks (as B7). Then, per animal x epoch (rule 8: the PER-ANIMAL TABLE FIRST, with n
 sessions / n licks, d_dec*, d_exe, per-animal index):
@@ -213,7 +213,7 @@ Reading the index:
 Tests:
 * **H0 (TI = 0) is tested on the numerator**: `boot_p` of the Δ d_dec* draws (TI = 0 iff Δ d_dec* = 0; no ratio
   instability).
-* H1 (full tracking): `boot_p` of Δ(d_dec* - d_exe) (TI = 1 iff it is 0). This is the gain-normalised like-for-like
+* H1 (full tracking): `boot_p` of Δ(d_dec* - d_exe) (TI = 1 iff it is 0). This is the gain-normalized like-for-like
   offset.
 
 **Estimability**: TI is reported as a number only where Δ d_exe's CI excludes 0 and |Δ d_exe| >= 3 deg. Otherwise it is
@@ -223,7 +223,7 @@ printed.
 **PRIMARY cells: arm (CUED, ITI) x post epoch (acute, subacute, chronic), Allen, PRE window = 6 tests; Holm over the 6**
 (numerator p). A tracking result = numerator CI excludes 0 AND >= 3 / 4 animals with the same sign AND Holm p < 0.05.
 Also printed:
-* the raw (un-normalised) Δ decoded and Δ executed, i.e. ENL's two B7 rows;
+* the raw (un-normalized) Δ decoded and Δ executed, i.e. ENL's two B7 rows;
 * `likeforlike.offset` (method nw, sigma by held-out pre error) with its exact split offset = target-matched change +
   execution term.
 The pre-cue ENL rows (-0.19 / -12.9, from `enl_offx_variants.csv`, not recomputed) are drawn beside the CUED arm as the
@@ -258,10 +258,10 @@ reference. NOTE: ENL's angle is the 3-D first-lick angle (arcsin side_ml / reach
   Δ decoded vs Δ executed at the same target, per animal x epoch + TI.
 * **Dose / offset control (key secondary)**: per animal x epoch, the session x target-cell Δ d_dec* regressed on Δ d_exe
   across the six targets WITH an intercept. A uniform decoded shift unrelated to aim (baseline / F0 / state change)
-  loads on the intercept; tracking loads on the slope. Per-animal slopes + pooled. This is the cell-level analogue of
+  loads on the intercept; tracking loads on the slope. Per-animal slopes + pooled. This is the cell-level analog of
   ENL figure B7-8.
   * Also the through-origin cell-level slope as a TI sensitivity.
-  * Also TI normalised by b_all.
+  * Also TI normalized by b_all.
 * **Per-hemisphere decoders** (Allen, left = ipsilesional = image left; right = contralesional): gate + TI.
 * **CUED-trained decoder applied to ITI licks** (frozen cued all-pre decoder, ITI reference from its ITI pre
   predictions): TI.
@@ -277,7 +277,7 @@ reference. NOTE: ENL's angle is the 3-D first-lick angle (arcsin side_ml / reach
     signal; the means cannot separate them because both are shifted).
 * **Face movement**: FaceRhythm master factors (`iti_licks.fr_unblanked`; 25 Hz in trials, ~5 Hz in the ITI, a caveat),
   averaged over the PRE window, on sessions with a projection:
-  1. a face-only decoder (same pipeline) and its TI = the behavioural reference;
+  1. a face-only decoder (same pipeline) and its TI = the behavioral reference;
   2. the neural decoder with features residualised on the face factors (regression fitted on pre training sessions,
      frozen with the decoder) -> TI.
 * **RT (CUED)**: post-stroke RTs shift the cue response within the tongue-referenced bins. TI within pre-defined RT
@@ -304,12 +304,12 @@ reference. NOTE: ENL's angle is the 3-D first-lick angle (arcsin side_ml / reach
   per-cell seeds from animal / arm / set / window).
 * Bootstraps via `analysis_kit` (`boot_delta`, `boot_delta_columns`, `boot_p`, `holm`, `boot_ci` for levels).
 * **Figures** (Priya's defaults):
-  * sessions = OPEN markers, shape = animal (PS92 o, PS93 s, PS94 ^, PS95 D), colour = epoch
+  * sessions = OPEN markers, shape = animal (PS92 o, PS93 s, PS94 ^, PS95 D), color = epoch
     (`orofacial_cohort.EPOCH_LINE`);
-  * pooled = FILLED epoch-colour marker with 95 % CI;
+  * pooled = FILLED epoch-color marker with 95 % CI;
   * no figure numbers in titles / images (panel letters only); no lines between epochs;
   * stars in the top band (`within_lick_correction.star_top` / `reserve_headroom`);
-  * nothing overlapping data or neighbouring panels.
+  * nothing overlapping data or neighboring panels.
 * **Primary figure**:
   * **A** pre gate per animal x arm x feature set (r vs null 95th pct);
   * **B** calibration (pre decoded vs actual, cell means, b_sp);
@@ -367,7 +367,7 @@ Data:
   held the decoder / encoder / enl / lick / prelaunch(_svd) / reembed / state kinds; it was printed before fitting.
   373 were frozen-new; 39 were frozen-hit (the PS95 re-run after a crash). No SPEC-CHANGED and no data-hash mismatch.
   The smoke test (PS92, 20 permutations) used a scratchpad store.
-* Run time: extract 7.9 min (4 workers), fit ~19 min (4 animals in parallel) + 10 min PS95 re-run, summarise ~3 min.
+* Run time: extract 7.9 min (4 workers), fit ~19 min (4 animals in parallel) + 10 min PS95 re-run, summarize ~3 min.
 
 #### Gate (August pre; pooled LOSO r vs 200 within-session permutations): CUED Allen PASSED 3/4; ITI FAILED; positive control PASSED (cued)
 | arm / features (PRE -0.50..-0.05 s) | r PS92 / PS93 / PS94 / PS95 | p | pass |
@@ -415,13 +415,13 @@ ITI is calibrated only for PS93 and PS94: acute TI -0.77 / +0.97; chronic +0.26 
 | ITI chronic | -11.3 [-32.0, 6.6] | -15.1 [-21.9, -8.2] | 0.75 [-0.62, 1.86] | .25, 1.0 | .60 |
 
 * **No primary cell shows tracking** (Holm p = 1.0 everywhere; per-animal signs are mixed, 2-3/4).
-* Raw (un-normalised) decoded change, cued acute: +0.41 deg [-1.06, 1.98], against -12.5 deg executed. This is the
+* Raw (un-normalized) decoded change, cued acute: +0.41 deg [-1.06, 1.98], against -12.5 deg executed. This is the
   same picture as pre-cue ENL (-0.19 vs -12.9).
 * Like-for-like offset: cued acute +0.81 [-0.60, 2.49]; ITI ns.
 * Full tracking (TI = 1) is rejected for CUED acute (p .02) and ITI subacute (p .001).
 * **Formally (prereg 7) the result is INCONCLUSIVE.**
   * The "downstream" reading needs an upper bound < 0.5 in both arms. Cued acute reaches 0.81, and the ITI gate failed.
-  * Because b_sp is tiny (0.025-0.14), the normalised index is extremely noisy: a ±1-deg raw decoded change maps to
+  * Because b_sp is tiny (0.025-0.14), the normalized index is extremely noisy: a ±1-deg raw decoded change maps to
     ±7-40 deg-equivalent.
 
 #### Positive control (POST +0.05..+0.30 s): PASSED in the cued arm
@@ -529,4 +529,4 @@ ITI is calibrated only for PS93 and PS94: acute TI -0.77 / +0.97; chronic +0.26 
 9. **Output names**: per-lick predictions are in `fit/<animal>_preds_<arm>.csv.gz` (not `lick_table.csv.gz` /
    `licks_pred.csv.gz`). Session and tracking tables are `per_animal.csv`, `primary_holm.csv` and `secondary_*.csv`
    (no separate `sessions.csv` / `tracking.csv`).
-10. **Dose control**: the b_all-normalised TI sensitivity was not computed. b_all is reported in `calibration.csv`.
+10. **Dose control**: the b_all-normalized TI sensitivity was not computed. b_all is reported in `calibration.csv`.

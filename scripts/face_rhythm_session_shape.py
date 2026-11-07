@@ -156,8 +156,8 @@ def column_change(T: pd.DataFrame, L: dict, seed: int = 0, factors=FACTORS) -> p
 
 def sig_strip(ax, freqs: np.ndarray, rows: list) -> None:
     """Priya 10-25: significance as BARS near the top of a frequency panel -- one thin row per epoch, in that epoch's
-    colour, filled over each significant frequency bin (bin edges = geometric midpoints between frequencies). ``rows``
-    [(colour, bool mask over freqs)], top row first; drawn in axes-fraction y, so it needs headroom above the data."""
+    color, filled over each significant frequency bin (bin edges = geometric midpoints between frequencies). ``rows``
+    [(color, bool mask over freqs)], top row first; drawn in axes-fraction y, so it needs headroom above the data."""
     f = np.asarray(freqs, float)
     mid = np.sqrt(f[1:] * f[:-1])
     lo, hi = np.r_[f[0] ** 2 / mid[0], mid], np.r_[mid, f[-1] ** 2 / mid[-1]]
@@ -239,7 +239,7 @@ changed its rhythm.""")
 def map_figure(Mp: pd.DataFrame, scale: str, home: np.ndarray, out: Path, set_name: str) -> None:
     """Per-point loading change maps (rows = lick factors, columns = post epochs). Priya 10-25: direction must be
     readable at significant points and panels comparable -> diverging RdBu_r (red = more loading after the stroke), ONE
-    colour scale for all six panels (98th percentile of |change| over all of them), FDR-significant points drawn full
+    color scale for all six panels (98th percentile of |change| over all of them), FDR-significant points drawn full
     size and opaque with a thin black edge, the rest small and faded. ``scale`` "raw" (loading fraction) or "z" (each
     animal's change / its own pre-session SD)."""
     from wfield_local import face_rhythm_figures as frf
@@ -276,7 +276,7 @@ def map_figure(Mp: pd.DataFrame, scale: str, home: np.ndarray, out: Path, set_na
 Loading fraction per mesh point of each session's matched lick factor; change vs pre = mean over animals of (post
 sessions - pre sessions), paired animals -> sessions bootstrap per point (`boot_delta_columns`); ringed = Benjamini-
 Hochberg discovery at FDR .05 over the 1,282 points (large, opaque, black edge; the rest small and faded). Red = more
-loading after the stroke, blue = less; one colour scale for all panels. _z: every session of an
+loading after the stroke, blue = less; one color scale for all panels. _z: every session of an
 animal divided per point by the SD of that animal's pre sessions (floored at 1/4 of its median SD) before the same
 test -- each animal's change in units of its own pre-session noise, as the per-epoch-fit loading map (epoch_shape_loading_pooled.png).""")
 
@@ -320,7 +320,7 @@ def figures(T: pd.DataFrame, S: pd.DataFrame, out: Path, set_name: str) -> None:
                 ax.set_title(f"{nm}: {'side-specificity (own-side r - other-side r)' if col == 'side_spec' else 'loading asymmetry (contra - ipsi) / sum'}",
                              fontsize=9)
         hs = [Line2D([], [], ls="none", marker="s", color="0.2", mec="w", ms=6,
-                     label="pooled (pre mean + change,\n95 % CI; colour = epoch)"),
+                     label="pooled (pre mean + change,\n95 % CI; color = epoch)"),
               *cp.animal_handles(sorted(T.animal.unique()))]
         axs[0, 1].legend(handles=hs, loc="upper left", bbox_to_anchor=(1.01, 1.0), borderaxespad=0.0, frameon=False,
                          fontsize=8)
@@ -328,7 +328,7 @@ def figures(T: pd.DataFrame, S: pd.DataFrame, out: Path, set_name: str) -> None:
         fig.suptitle(f"{set_name}: lick-factor shape PER SESSION (own fit per session, best spatial match)")
         frf.save(fig, out / "session_shape_summary.png", """
 Each open marker = one session's own rank-12 fit (lick factor = its best spatial match to the master; cos < .5
-dropped); shape = animal, colour = epoch, each animal at its own small offset. No line joins epochs (Priya 11-03).
+dropped); shape = animal, color = epoch, each animal at its own small offset. No line joins epochs (Priya 11-03).
 Filled squares (right of each epoch) = pooled change vs pre placed on the pre mean (the pre square and the dotted line =
 mean of animal pre means), 95 % interval from the paired animals -> sessions bootstrap; top band: * interval excludes
 0, ** Holm-adjusted p < .05 over the factor's family (3 measures x 3 epochs); k/4 = animals whose own mean change has
@@ -343,7 +343,7 @@ OTHER_GROUPS = {"lick": ("lick_ongoing_7Hz", "lick_fast_close", "lick_slow_late"
 def other_factors_figure(Mz: pd.DataFrame, Sz: pd.DataFrame, T: pd.DataFrame, factors, home: np.ndarray,
                          freqs: np.ndarray, lim: float, ylim: float, out: Path, tag: str, set_name: str) -> None:
     """Fig 7 / 7b for factors other than the lateral lick pair (Priya 10-25): per row one factor; columns = the per-point
-    loading change in own pre-session SD units at each post epoch (same style and ONE colour scale ``lim`` shared by both
+    loading change in own pre-session SD units at each post epoch (same style and ONE color scale ``lim`` shared by both
     group figures), then the per-frequency change (same units, one y scale ``ylim``)."""
     from wfield_local import face_rhythm_figures as frf
     ecol = frc.epoch_colors()
@@ -401,7 +401,7 @@ Same tests as the headline lick-factor figures (session_shape_loading_map_z, ses
 factors: each session's own fit, factor = its best SPATIAL match to the master (sessions where that cosine < .5 are
 dropped; 'k/n sess.' = sessions kept); per point / per frequency, each animal's sessions divided by the SD of its own pre
 sessions (floored at 1/4 of its median SD), change vs pre = mean of animals, paired animals -> sessions bootstrap,
-Benjamini-Hochberg FDR .05 over the 1,282 points / 36 frequencies (large outlined points / filled markers). One colour
+Benjamini-Hochberg FDR .05 over the 1,282 points / 36 frequencies (large outlined points / filled markers). One color
 scale and one y scale across both 'other factor' figures. Red = more after the stroke.""")
 
 

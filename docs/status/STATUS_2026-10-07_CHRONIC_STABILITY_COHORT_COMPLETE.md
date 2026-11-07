@@ -1,11 +1,11 @@
 # STATUS — 2026-10-07: Chronic neural stability → cohort imaging COMPLETE (PS92/PS93/PS94/PS95)
 
 **DECISION (Priya, 2026-10-07): imaging with this cohort is complete.** Last sessions are day ~50
-post-stroke (PS92/PS93 on 2026-10-06, PS94/PS95 on 2026-10-05). The evidence below — behaviour and
+post-stroke (PS92/PS93 on 2026-10-06, PS94/PS95 on 2026-10-05). The evidence below — behavior and
 every neural performance/decode readout plateaued, and the one unsettled signal (crossnobis
 distance-from-pre) shown to be representational *drift* rather than ongoing reorganization —
 supports ending acquisition. Histology/sac timing is the PI's call; this record documents the
-neural + behaviour evidence only. Continues `STATUS_2026-09-28_CHRONIC_STABILITY.md`.
+neural + behavior evidence only. Continues `STATUS_2026-09-28_CHRONIC_STABILITY.md`.
 
 Analysis box (M: = MICROSCOPE). Reasoning + durable pointer: `DECISIONS.md` 2026-10-07 entry (F18).
 
@@ -46,11 +46,11 @@ pooled `n_chronic` in `chronic_stability.csv`.
 ## Evidence 1 — `chronic_stability` (day-50 refreshed, this nightly)
 
 Rule (`epochs._plateau_index`): *flat* = chronic tail not still rising (one-sided drift ≤ K_DRIFT·pre-SD);
-*settled* = residual ≤ K_RES·pre-SD. Pooled-pre readouts (behaviour, encoder, best-match, crossnobis,
+*settled* = residual ≤ K_RES·pre-SD. Pooled-pre readouts (behavior, encoder, best-match, crossnobis,
 map amplitude) can't fail "settled" by construction → read *flat*; per-session readouts (decoders,
 reorg-G) read *flat + settled*.
 
-- **Flat in all 4:** behaviour far-contra hit, encoder ceiling/frozen/gain, best-match accuracy,
+- **Flat in all 4:** behavior far-contra hit, encoder ceiling/frozen/gain, best-match accuracy,
   decoder frozen, decoder refit.
 - **Still rising (flat = False):** `crossnobis mean(6 pos)` PS92/PS93/PS95; `crossnobis far-contra`
   PS92/PS95; `reorganisation G` PS92; `map amplitude far-contra` PS95; `map amplitude near-ipsi`

@@ -10,7 +10,7 @@ magnitude per mesh point as a FRACTION of its total (shape only, as `face_rhythm
 Per unit x post epoch: per animal, the mean of its epoch sessions' maps minus the mean of its pre sessions' maps; the map
 = the mean over animals with both. Null = the same with each animal's pre and epoch session labels shuffled WITHIN the
 animal (counts kept), ``--perm`` times -- no refit, the session fits are fixed. Points are studentised by the null SD;
-CLUSTER MASS (|t| > 2, mesh neighbours, sign-separate) is the family-wise map test, the MAX-STATISTIC the point-level
+CLUSTER MASS (|t| > 2, mesh neighbors, sign-separate) is the family-wise map test, the MAX-STATISTIC the point-level
 one (`face_rhythm.stats.map_permutation`). Single-session fits are noisy (pre own-vs-master angles 10-50 deg, FINDINGS
 6c); the shuffle puts that noise into the null.
 
@@ -135,7 +135,7 @@ FaceRhythm fits (own8, 8 starts): per animal mean of epoch sessions minus mean o
 animals. Each session's fit is matched to the master with matching rule {es.RULE} (spatial score + spectral tie-break;
 recovered at spatial cos >= .7 and spectral cos >= .5; sessions that do not recover the unit are left out). Red = more
 weight at that point after the stroke, blue = less. RINGS = points in clusters with family-wise p < .05 against a
-within-animal session-label permutation null (cluster mass over mesh neighbours with |t| > 2; red ring = more, blue =
+within-animal session-label permutation null (cluster mass over mesh neighbors with |t| > 2; red ring = more, blue =
 less); title also gives the point-level max-statistic count and the sessions used.""")
 
 

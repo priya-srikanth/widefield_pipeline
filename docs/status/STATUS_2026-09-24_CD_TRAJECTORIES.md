@@ -58,13 +58,13 @@ similar across positions"* — **that similarity is the signal; the drama was th
 The anchor check is what caught two of them and it now prints on every figure: **pre-stroke success
 must average 1.00 over the fitting window**, because that is what the poles define.
 
-1. **Components were not standardised.** `pcd.direction(method="dom")` is `mean(Xp) − mean(Xn)`
-   normalised as a WHOLE VECTOR. Measured on PS95's 95-component basis: per-component sd spans
+1. **Components were not standardized.** `pcd.direction(method="dom")` is `mean(Xp) − mean(Xn)`
+   normalized as a WHOLE VECTOR. Measured on PS95's 95-component basis: per-component sd spans
    **107×** and the **top five components hold 82% of variance**, so the direction was set by about
    five components on amplitude alone. A 2p CD is built on dF/F of comparable scale — Priya: *"this
    should be similar to using a single-cell population for CD"*. Now z-scored in a **frozen
    pre-stroke frame** (per session would erase real between-session differences; per epoch would
-   normalise away the post-stroke change being measured).
+   normalize away the post-stroke change being measured).
 
 2. **The smoothing window was erasing the shape.** A 2 s boxcar turns a step into a 2 s ramp, so
    every lick-aligned panel rose from 0 and was still climbing at +2 s — the boxcar's impulse
@@ -104,7 +104,7 @@ d′ = (p1 − p0) / pooled per-trial sd, which is what a coding direction is fo
 better and is REFUSED: PS92 keeps only 458 of 3911 trials at 3 s (the spout arrives ~3 s before the
 cue, so the lick-free gate has no slack), and a 3 s window swallows the spout-arrival transient.
 
-### Display smoothing: 0.2 s centred (Priya: *"should we try narrower than 0.4s centered?"*)
+### Display smoothing: 0.2 s centered (Priya: *"should we try narrower than 0.4s centered?"*)
 
 Peak amplitude @ latency vs NO smoothing, PS95 lick-aligned:
 
@@ -117,7 +117,7 @@ Peak amplitude @ latency vs NO smoothing, PS95 lick-aligned:
 
 The cost is NOT uniform: slow close-position peaks (+1.4 to +2.0 s) lose <1% even at 0.4 s, while
 the FAST far-position transients (+0.32 to +0.51 s) lose 4–8%. Below 0.2 s there is no return —
-0.10 and 0.00 sit within 1% everywhere, which is the 1–2 s haemodynamic kernel.
+0.10 and 0.00 sit within 1% everywhere, which is the 1–2 s hemodynamic kernel.
 
 ### Span: −3 s to +4 s. ### Aggregation: MEAN, band = 95% CI OF THE MEAN, not trial spread.
 
@@ -177,7 +177,7 @@ For a lesion study that is a blind spot on the most likely effect.
 
 `cim_scale` now reports the magnitude beside it (Frobenius norm of the grand-mean deviation, as a
 ratio to pre). **MEASURED ACROSS ALL FOUR ANIMALS AND ALL THREE ALIGNMENTS** (2026-09-24 evening;
-the PS95-only figure that used to stand here was 1.00 / 1.51 / 1.35 / 1.32 and it generalises):
+the PS95-only figure that used to stand here was 1.00 / 1.51 / 1.35 / 1.32 and it generalizes):
 
 | magnitude / pre | acute | subacute | chronic | overlap range |
 |---|---|---|---|---|
@@ -190,7 +190,7 @@ the PS95-only figure that used to stand here was 1.00 / 1.51 / 1.35 / 1.32 and i
 to chronic, PS92 peaks subacute, PS95 acute — so only the SIGN is claimed, and that is unanimous
 (rule 8: present in all four individually).
 
-**CUE IS NOT AN INDEPENDENT REPLICATION OF PRE-CUE.** `session_arms` centres BOTH on the cue
+**CUE IS NOT AN INDEPENDENT REPLICATION OF PRE-CUE.** `session_arms` centers BOTH on the cue
 (`at = c0`); the align token only chooses which window the DIRECTION is fitted on, and these two
 quantities come from the grand mean alone. So the two agree by construction and differ only in the
 trial set (pre-cue drops trials with no lick-free window; PS93 shows the difference is real but
@@ -415,7 +415,7 @@ NOT yet committed.
    directory on the server when appropriate"*) at
    `N:/MICROSCOPE/Priya/Widefield/labcams/analysis_figures/cd_trajectories`: 26 current PNGs plus the
    geometry figure, dumps in `results/`, and the **62 superseded pre-fix figures MOVED to `retired/`
-   rather than deleted** (rule 1 — never delete on MICROSCOPE; `retired/` is already a recognised
+   rather than deleted** (rule 1 — never delete on MICROSCOPE; `retired/` is already a recognized
    layout dir). `cd_trajectories.default_out()` now resolves `cue_analysis_out` and
    `cd_overlap_null` shares it, so there is ONE answer to where this arm writes.
    `check_figure_layout` reports 0 strays. Two things that constrain the location and are easy to
@@ -507,8 +507,8 @@ move, the same anchor again, and arithmetic on 2^4. **Not one was caught by look
    CELLS MOVED FROM EXCLUDING ZERO TO SPANNING IT; the four-animal interval had been too narrow.
 5. **Wired into the nightly** (`--skip-cd`) in dependency order, and three new families registered in
    the deck with their own caveats.
-6. **Colours reconciled** to `epoch_figures.EPOCH_GREY` and `spout_behavior.position_style`; line
-   weights and alphas centralised.
+6. **Colors reconciled** to `epoch_figures.EPOCH_GREY` and `spout_behavior.position_style`; line
+   weights and alphas centralized.
 
 ### THE RETRACTION, because it is the most important thing on this page
 

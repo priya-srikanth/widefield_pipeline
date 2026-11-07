@@ -16,7 +16,7 @@ Musall-order shuffle, and a three-round misdirected-lick analysis.
 (PS94 chronic is the exception), and the COORDINATE-MATCHED 3-D contest on PS92 (`_exec-xyz2`) removes most of the
 pre-stroke target advantage (cortex u_target 8.0 vs u_exec 11.7; cam4 on the same licks 31.7 vs 10.8; MOs leans
 executed) -> the PRE bullet below is SUSPENDED until the 3-D contest runs on all four animals (cam1 O2 production). The
-chronic position-coding gain is beyond the pre-stroke trend (June+August slope ~0) and LAGS behavioural recovery by ~1
+chronic position-coding gain is beyond the pre-stroke trend (June+August slope ~0) and LAGS behavioral recovery by ~1
 week (`qc/position_coding_*`). Per-spout: fixed one-vs-rest maps (119/119), share maps, signed maps; DROP-p model ready
 for O2 (TAG droppos, not yet run).
 
@@ -30,7 +30,7 @@ for O2 (TAG droppos, not yet run).
 - CHRONIC: in PS92 / PS93 position coding genuinely strengthens (6-category ceiling x2-3, survives lick-matching) with the
   balance back toward target (target .51 / .43 of the ceiling vs executed .15 / .12); the extra signal is more
   categorical than a smooth angle / distance code. PS94: no real chronic gain once lick-matched, stays executed-weighted
-  -- the animal with the least behavioural recovery. PS95 chronic (matched): ceiling .041 -> .071 (REAL), balance toward
+  -- the animal with the least behavioral recovery. PS95 chronic (matched): ceiling .041 -> .071 (REAL), balance toward
   target (.31 / .05 of the ceiling), most of the gain shared (categorical) -> chronic strengthening in 3/4.
 - "Target" = where the spout is (context / touch / posture / plan); it does NOT isolate intention. The misdirected-lick
   test (aimed at intention) found no per-lick plan signature once confounds were matched.
@@ -42,7 +42,7 @@ for O2 (TAG droppos, not yet run).
 | O2 bundle `enc_v36_20261019` | bundle == share (4.6e-7); O2 == desktop (1e-5, CSV rounding); ~10 min / session | adopted; full reruns on O2 |
 | fair contest `nokin:*` (no kinematics) | target > executed pre 4/4; executed up subacute (+0.012) / chronic (+0.010), 4/4, both tests; target up chronic (+0.013) | `movement_first_subset-nokin/` |
 | relative shares (unique / 6-category ceiling) | acute / subacute shift toward executed (3/4, 4/4); chronic back toward target in 3/4; PS94 stays executed-weighted | `tables/relative_shares.csv` |
-| lick-matched nokin (`_matched`) | chronic ceiling + target rise REAL in PS92 / PS93; PS94's was more data; executed rise survives in all | DONE 107/107 (O2 array 56867176 cancelled: local finished first); PS95 chronic ceiling rise also real (3/4) |
+| lick-matched nokin (`_matched`) | chronic ceiling + target rise REAL in PS92 / PS93; PS94's was more data; executed rise survives in all | DONE 107/107 (O2 array 56867176 canceled: local finished first); PS95 chronic ceiling rise also real (3/4) |
 | target / executed divergence | 60-87 % independent; pre-stroke angle COMPRESSION at lateral spouts (geometry); acute far-contra ipsi shift, recovers chronically | DECISIONS afternoon |
 | executed-angle (within-position) rise in the shuffle maps | NOT robust: drop ~0 everywhere; spread not increased; came from shuffle in 2/4 animals | `qc/exec_angle_spread.csv` |
 | unique (drop) position maps | ~= label-permutation maps; acute drop, chronic rise contralesional | `position_dR2drop_maps_by_epoch.png` |
@@ -62,8 +62,8 @@ for O2 (TAG droppos, not yet run).
 
 | job | where / log | then |
 |---|---|---|
-| DONE: lick-matched nokin 107/107 (local finished first; O2 56867176 last task cancelled) | box, `matched_local.log`; out `movement_first_subset-nokin_matched/` | rerun `combined_encoding_figures.py --order movement_first_subset-nokin_matched` at 107/107; compare with unmatched (`tables/relative_shares.csv` in both); DECISIONS line incl. PS95 chronic |
-| O2 `nokin_matched` array (56867176, `-p short,medium`), trickling (fair-share ~0.07) | O2; Priya rsyncs `out/` back | `o2_encoding.py collect --name enc_v36_20261019 --tag nokin_matched` (identical to local; overwrites) -- can be cancelled once local hits 107 |
+| DONE: lick-matched nokin 107/107 (local finished first; O2 56867176 last task canceled) | box, `matched_local.log`; out `movement_first_subset-nokin_matched/` | rerun `combined_encoding_figures.py --order movement_first_subset-nokin_matched` at 107/107; compare with unmatched (`tables/relative_shares.csv` in both); DECISIONS line incl. PS95 chronic |
+| O2 `nokin_matched` array (56867176, `-p short,medium`), trickling (fair-share ~0.07) | O2; Priya rsyncs `out/` back | `o2_encoding.py collect --name enc_v36_20261019 --tag nokin_matched` (identical to local; overwrites) -- can be canceled once local hits 107 |
 | FIXED per-spout rerun MOVED TO O2 (~20:20: TAG shufpos, `-p short --mem=32G --time=2:00:00`; the local run was stopped: its workers peaked ~20 GB each, the box ran out of RAM and paged, 0 sessions in 1.5 h) | O2; Priya rsyncs `out/` back, then `o2_encoding.py collect --name enc_v36_20261019 --tag shufpos` -> `movement_first_subset-shufpos/` | `combined_encoding_figures.py --order movement_first_subset-shufpos` -> `figures/position_each_maps_{enl,cue,lick}.png` (readout hook committed 50fcb84); rough ETA ~3 h |
 | overnight trial-to-trial nokin (`run_nokin_tr.ps1`), waits for the matched run, then runs ALONGSIDE the per-spout rerun (RAM ok: 4 + 4 workers) | box, `nokin_tr_queue.log` / `nokin_tr.log`; out `movement_first_subset-nokin_tr/` (SUFFIX `_tr`) | `combined_encoding_figures.py --order movement_first_subset-nokin_tr` -> `tables/tr_contest_0-1.5s.csv` = full executed set (angle, angle^2, reach) on TRIAL-TO-TRIAL vs all variance; ~4-5 h |
 | chained per-spout launcher (`run_shufpos.ps1`, waits for nokin_tr) | box, `shufpos_queue.log` | redundant now: `--skip-done` will find every session done and exit |
@@ -113,7 +113,7 @@ Stop commands (Priya, PowerShell; Claude cannot stop processes): nokin runs = py
   workers exhausted 64 GB + page file on 10-19. Keep <= ~8 encoding workers on the box in total; check `\Memory\Pages/sec`.
 - **Overlapping arrays write a session twice** (a session in two concurrent submits) -> trailing junk in the JSON;
   `collect` repairs it. Do not resubmit the full range while an earlier array still runs.
-- **Scheduler-cancelled tasks** (CANCELLED+ after 2 s, no log): find with `sacct ... | grep -v COMPLETED`, resubmit
+- **Scheduler-canceled tasks** (CANCELED+ after 2 s, no log): find with `sacct ... | grep -v COMPLETED`, resubmit
   those task ids.
 - **Bundle build is network-bound** (1 GbE share link saturated), not CPU-bound; the model runs read their inputs once
   per session, so they barely compete with it.

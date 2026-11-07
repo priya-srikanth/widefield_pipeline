@@ -51,9 +51,9 @@ Expected `[frozen] !! ... SPEC-CHANGED` lines in the imaging log are correct. Th
   - All modules run in the dlc env, except the deck (locanmf env, python-pptx).
   - Each takes `--baseline late` and `--all-trials` (the jaw module takes `--all-trials` only).
 - **Engagement gate (10-17):**
-  - Every orofacial analysis uses ENGAGED trials only, via the behaviour pipeline's reference-position gate.
+  - Every orofacial analysis uses ENGAGED trials only, via the behavior pipeline's reference-position gate.
   - The ungated control goes to `*_alltrials`.
-  - Behaviour-table trial ids are matched to ours **directly** when the positions agree; otherwise **by DAQ cue
+  - Behavior-table trial ids are matched to ours **directly** when the positions agree; otherwise **by DAQ cue
     time**; otherwise **by trial order per recording segment**, using the shared aligner
     `behavior_position.best_trial_offset`.
 - **Two baselines (10-18):**
@@ -68,7 +68,7 @@ Expected `[frozen] !! ... SPEC-CHANGED` lines in the imaging log are correct. Th
   - Lick figures are {lick-peak time, per-lick onset→offset phase} × {first, all} × {tongue out, in-mouth
     included}.
   - Each comes as a change-vs-pre version and a RAW version; the raw versions have the spout-angle line.
-  - Phase is shown and tested at 0.1-0.9 only (edge artefacts).
+  - Phase is shown and tested at 0.1-0.9 only (edge artifacts).
   - Also: cue-aligned figures (Family 8.2), raw and delta.
   - Cohort by-position epochs and day-bin timecourses.
   - Within-animal x-y paths and phase portraits, with significance markers for the x / y / both coordinates.
@@ -84,7 +84,7 @@ Expected `[frozen] !! ... SPEC-CHANGED` lines in the imaging log are correct. Th
 - Wasserstein-2 between each session's keypoint cloud and the animal's pooled pre cloud.
   - Exact optimal transport via scipy `linear_sum_assignment`; 800 points × 3 seeded draws.
   - Pre sessions are scored leave-one-out, which gives the noise floor.
-- Keypoints, ALL in the mouth frame (Priya 10-18): tongue (out frames), jaw, nose (behaviour: head / snout posture),
+- Keypoints, ALL in the mouth frame (Priya 10-18): tongue (out frames), jaw, nose (behavior: head / snout posture),
   spout (the noise / drift control: fixed apparatus).
 - **Results:**
   - Tongue: +61 px at far contra acute; chronic +6-11 px under both baselines.
@@ -93,11 +93,11 @@ Expected `[frozen] !! ... SPEC-CHANGED` lines in the imaging log are correct. Th
   - Raw image framing drifts 25-60 px over months; image-pixel rows were dropped.
 - Outputs: `cohort/{tables,figures}/w2{,_latepre}/`.
 
-### C. Behaviour-pipeline fix: pre-v47 GUI-log position shift (10-17)
+### C. Behavior-pipeline fix: pre-v47 GUI-log position shift (10-17)
 
 - `spout_behavior._gui_shift_corrected` measures the shift per session against the DAQ. With no DAQ, logs dated
   before 08-10 (first v47 session) get the documented shift.
-- 70 sessions were corrected (May, 06-01, 08-05, 08-06), and every behaviour, grant 1 / 1b and epoch 1b / 1c output
+- 70 sessions were corrected (May, 06-01, 08-05, 08-06), and every behavior, grant 1 / 1b and epoch 1b / 1c output
   was re-run.
 - The imaging position repair was already immune; verified that both aligners agree to ≥ 99.8 %.
 - Recorded in DECISIONS and `docs/GUI_TRIALS_LOGGING.md`.
@@ -182,7 +182,7 @@ Expected `[frozen] !! ... SPEC-CHANGED` lines in the imaging log are correct. Th
   - For us, one option is a keypoint-only version on LP pose (tongue / jaw / nose, engaged windows). FaceRhythm
     for cam4 is a pending to-do; without it the model sees no whisking / face.
   - Possible uses:
-    1. a behavioural segmentation of licking modes and non-lick behaviours across recovery;
+    1. a behavioral segmentation of licking modes and non-lick behaviors across recovery;
     2. syllable indicators as an uninstructed (or instructed) regressor group in the encoding model;
     3. syllable-triggered maps.
   - Risk: syllables built from tongue / jaw pose are collinear with the instructed variables.
@@ -229,8 +229,8 @@ PYTHONPATH=. python -m scripts.model_lick_compare PS93:<d> --model "NAME=<csv>" 
   that `fan_out` results are sorted.
 - **Window-restricted R² needs a free window offset** (combined_encoding). Otherwise "alone" R² goes very negative
   and ΔR² can exceed the full R².
-- **W2 must be in the mouth frame.** Image pixels measure camera framing drift (25-60 px), not behaviour. The spout is
-  the control; the nose is behaviour.
+- **W2 must be in the mouth frame.** Image pixels measure camera framing drift (25-60 px), not behavior. The spout is
+  the control; the nose is behavior.
 - **Do not reuse Python's `hash()` for seeds** (it changes with PYTHONHASHSEED); use `zlib.crc32`.
 - **The ViT backbone needs `transformers==5.17.0`** with Lightning Pose 2.4.2 (README, O2 runbook).
 - **Heredocs with nested quotes broke repeatedly.** Write edit scripts with the Write tool, then run them.

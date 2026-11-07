@@ -11,7 +11,7 @@ Only data looked at before this was written: four AUGUST-PRE sessions for feasib
 
 ## 0. Feasibility (pre-stroke only; PS92_20260807, PS94_20260807, `scratchpad feas.py / feas2.py`)
 * Per-frame 3-D tongue: `<dlc>/session_poses/pose3d/<animal>_<date>_frames.csv.gz` (`tongue_ml/ap/dv` mm, origin = the
-  spout mouth zero; `tongue_src` 1 = both cameras, 2 / 3 = one camera + neighbour depth). Frame interval exactly 4 ms
+  spout mouth zero; `tongue_src` 1 = both cameras, 2 / 3 = one camera + neighbor depth). Frame interval exactly 4 ms
   (250 Hz; the true effective rate, frames pair exactly on the 4 ms grid). Lick windows = v36 `licks_all.csv`
   (on_ms .. off_ms; row index = `lick_uid` of `kinematics_all/licks.csv.gz`).
 * Frames per lick window (post-cue, PS92 0807, 4777 licks): median 21 (p10 10, p90 26); 3-D frames median 20; longest
@@ -193,13 +193,13 @@ Restitution-like for the launch (P1 not a change chronically, except PS94 -11 de
 toward-target correction lower acutely; the in-lick re-aiming of missed later licks is lost acutely and only partly
 back); FEWER CSMs (P3 down, most in PS94; 3x surrogate noise, robust to threshold, not a tracking change). The endpoint
 follows the launch: a lick that starts off target ends off target. With lick_correction, recovery at far contra is
-carried by between-lick / later-lick behaviour and the launch itself returning, not by within-protrusion corrections.
+carried by between-lick / later-lick behavior and the launch itself returning, not by within-protrusion corrections.
 Neural: the post-stroke lick-response increase is on clean licks; CSM licks lose their extra response.
 
 ### Deviations
 1. Noise SD per SESSION instead of per animal (prereg edited before any run; the calibration used only August pre).
 2. Peak speed falls acutely (-54 mm/s); with an absolute prominence threshold slower licks have smaller peaks, so the
-   ACUTE CSM decrease is partly vigour. Chronic speed is back (+11 n.s.) while CSMs stay down, so the chronic decrease
+   ACUTE CSM decrease is partly vigor. Chronic speed is back (+11 n.s.) while CSMs stay down, so the chronic decrease
    is not.
 3. Per-cell minimum 10 licks: "first hit" far contra acute has PS93 only (cells with < 3 animals are not changes).
 4. The recovery link for e_L / e_E is near-circular (aim = far-contra first-lick angle); reported, not interpreted.
@@ -209,7 +209,7 @@ Caveats: n = 4; 250 Hz gives a 7-8 frame protrusion, so CSMs are submovements of
 lick-locked levels, not onsets. PROVISIONAL.
 
 ## Deviation 2026-11-05 -- licks of the CAMERA working period only (Priya 11-05)
-Every post-cue / ITI lick of a session was scored, including licks after the animal stopped. Priya 11-05: behaviour-only
+Every post-cue / ITI lick of a session was scored, including licks after the animal stopped. Priya 11-05: behavior-only
 analyses are cut to the camera working period (first cue -> the session's last camera lick, minus the stopped runs;
 `trial_classes.working_trial_ids`, by each lick's licks_all trial_id). `within_lick_correction.load_licks` now drops the
 other licks -- in the August-pre calibration (`csm_threshold.json`) as well as in the post-stroke cells -- and leaves out

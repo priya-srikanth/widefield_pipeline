@@ -1,11 +1,11 @@
-"""FaceRhythm factor IDENTITY checks against independent behaviour (Priya 10-22: "compare these to lick timing and treadmill
+"""FaceRhythm factor IDENTITY checks against independent behavior (Priya 10-22: "compare these to lick timing and treadmill
 traces to see if we can refine" the clip-based names). Computation only; figures + CLI: scripts/face_rhythm_validate.py.
 
-Per projected session (``proj/<key>.npz`` of a factor set; ABSOLUTE expression = weights x FR normaliser D):
+Per projected session (``proj/<key>.npz`` of a factor set; ABSOLUTE expression = weights x FR normalizer D):
 
 ``lick_table``       every LP-detected lick of the session (v36 ``licks_all.csv``: DAQ onset ``daq_on_s``, executed
                      angle ``peak_angle_deg``, + = the animal's LEFT) with its direction class (left > +ANGLE_DEG,
-                     right < -ANGLE_DEG, centre between), the trial's spout ``position``, its NUMBER within its bout
+                     right < -ANGLE_DEG, center between), the trial's spout ``position``, its NUMBER within its bout
                      (``n_in_bout``, 1 = first; v36 ``bout_idx``), time from the cue of the engaged trial it falls in,
                      and the instantaneous lick FREQUENCY (1 / interval to the next lick of the same trial, if
                      < MAX_ILI_S).

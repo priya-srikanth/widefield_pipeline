@@ -17,8 +17,8 @@ Interim measures until this lands: whisker-pad ROI motion energy (`wfield_local/
 | step | what | paper production values | repo defaults |
 |---|---|---|---|
 | ROIs | one face outline, filled with a point grid (500-3000 points) + a background mask | ~930-1985 points | `point_spacing` 9 px |
-| tracking | Lucas-Kanade per frame -> violation freezing -> mesh correction -> relaxation to home | lambda_mesh 0.1, lambda_relax 0.01, threshold 300 px, winSize ~40, maxLevel 3, 24 neighbours | 0.025, 0.0015, 150 px, [20,20], 2, 8 |
-| spectral | VQT of each point's x and y displacement, magnitude, per-frame power normalisation (gamma 0.95), 1/f^0.5 | Q ~4 -> ~20, output ~15 Hz | Fs 120 (!), 1-60 Hz, 36 bins, Q 4 -> 10, downsample 20 |
+| tracking | Lucas-Kanade per frame -> violation freezing -> mesh correction -> relaxation to home | lambda_mesh 0.1, lambda_relax 0.01, threshold 300 px, winSize ~40, maxLevel 3, 24 neighbors | 0.025, 0.0015, 150 px, [20,20], 2, 8 |
+| spectral | VQT of each point's x and y displacement, magnitude, per-frame power normalization (gamma 0.95), 1/f^0.5 | Q ~4 -> ~20, output ~15 Hz | Fs 120 (!), 1-60 Hz, 36 bins, Q 4 -> 10, downsample 20 |
 | decomposition | non-negative CP (HALS), (2P points) x frequency x time | rank 10-12; ONE PER SESSION, cross-animal by Hungarian matching of spatial + spectral factors | rank 12, "separate" per session |
 | multi-session | mean frame per session registered to a template (RoMa / ECC + DeepFlow non-rigid), template points warped onto each session | ROICaT rigid alignment | `demo_set_rois_multisession.ipynb` |
 
@@ -48,7 +48,7 @@ factors, multi-camera rigs.
    QUANTITATIVE: warp each session's median LP keypoints (nose, jaw, spout tip at rest) through the field and report the
    error against the master's (px), plus a GIF of warped faces.
 4. **Master ROIs** (Priya, once per camera, FR GUI on the master face): the face outline + background mask. Exclude the
-   rod's path (cam4: below the lower lip; cam1: the rod crosses the face at centre spouts -> either a narrower ROI or
+   rod's path (cam4: below the lower lip; cam1: the rod crosses the face at center spouts -> either a narrower ROI or
    post-hoc masking of points within LP spout x +- r per frame).
 5. **O2 bundle** (`scripts/o2_face_rhythm.py bundle / collect`, the `o2_video_me` pattern): per session x camera task =
    warped ROIs.h5 + video path -> FR tracking + VQT -> trial-window spectrograms on the DAQ clock (alignment templates,
@@ -115,7 +115,7 @@ spectral factors are then FROZEN (a reference like the frozen pre-stroke decoder
 spec-hashed, never refitted once post-stroke work uses it); every session, pre and post, gets temporal factors by NNLS.
 Checks: leave-one-animal-out (fit on 3, reconstruction + Hungarian match on the 4th); per-session rank-10 fits (the
 paper's path) matched to the master. Per-session RECONSTRUCTION RESIDUAL against the master is itself a readout:
-post-stroke movement not in the pre-stroke repertoire (the face analogue of the lick-template "neither" share).
+post-stroke movement not in the pre-stroke repertoire (the face analog of the lick-template "neither" share).
 
 **A. Decomposition (step 6) -> `scripts/face_rhythm_decompose.py` (new).** One joint non-negative CP, (2 x 1282) x 36 x
 time, fitted on a balanced subsample of `trials` windows (August pre + every epoch, all four animals, positions balanced);
@@ -156,7 +156,7 @@ windows from 25 Hz vs 5 Hz-resampled spectrograms. If 5 Hz loses EVR: 12.5 Hz `s
 The session-wide strongest moments of several factors are GROOMING (Priya's clip calls). No reliable grooming
 label from FR / LP features (movement size, LP licks, regional speed), no pose model tracks paws. DEFERRED (Priya: paw
 motion not worth it now). Route if needed later: paw-region motion energy on cam4 (paws rest on the bar below the
-mouth) AND large face movement, validated on labelled clips. Meanwhile: engaged-trial windows for clips / trial
+mouth) AND large face movement, validated on labeled clips. Meanwhile: engaged-trial windows for clips / trial
 readouts, medians for between-trial amplitudes, `large_movement` reported separately (pipeline doc).
 
 ## Decisions for Priya

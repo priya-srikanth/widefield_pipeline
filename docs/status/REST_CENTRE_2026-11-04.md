@@ -16,7 +16,7 @@ The concern was that rest itself changes after the stroke:
 - rest is a larger share of post-stroke sessions;
 - the quiet baseline drifts.
 
-A rest centre would absorb all of that.
+A rest center would absorb all of that.
 
 ## 2. Design
 
@@ -31,14 +31,14 @@ Every arm uses:
 | tag | frame per session (training pre AND scored) | model |
 |---|---|---|
 | W | production bal_em of the working rows | stored (frozen-hit) |
-| Wt | true-label balanced centre of the working rows (the provisional default) | stored |
-| N | pooled pre, no session centre | stored |
+| Wt | true-label balanced center of the working rows (the provisional default) | stored |
+| N | pooled pre, no session center | stored |
 | Wt_fit | Wt, with production's training frame refitted in memory | refit check |
-| **R5** | centre = frame mean, scale = SD of the 0.5 s box mean, over the session's restdock05 rest frames, engagement-gated | refit |
+| **R5** | center = frame mean, scale = SD of the 0.5 s box mean, over the session's restdock05 rest frames, engagement-gated | refit |
 | **RW** | restw: per-position MEDIAN over same-position rest periods, equal weight; scale = sqrt(mean per-position variance) | refit |
 | **R5q** | R5 minus frames within −0.5 to +1.0 s of a quiet-period orofacial event | refit |
-| R5c | R5 rest centre + working-row SD (decomposition) | refit |
-| R5s | Wt centre + R5 rest SD (decomposition) | refit |
+| R5c | R5 rest center + working-row SD (decomposition) | refit |
+| R5s | Wt center + R5 rest SD (decomposition) | refit |
 
 ### Rest sets
 
@@ -153,19 +153,19 @@ All spouts, classes and epochs are in `tables/A1_<align>_<readout>.csv`.
 - **The rest frames cost pre accuracy.** The loss is mostly in PS92 (−.049 overall) and PS95 (−.042); PS93 is −.023
   and PS94 −.004.
 - So a rest frame fails the "must not cost pre accuracy" criterion on cue.
-- The cost comes from the rest CENTRE (R5c −.021), not the rest scale (R5s −.002).
+- The cost comes from the rest CENTER (R5c −.021), not the rest scale (R5s −.002).
 
 ### 5d. Does the rest state move after the stroke? (check 2)
 
-**What the bias is.** For each session, the shift of its rest centre from the pre mean is projected onto the arm's full
+**What the bias is.** For each session, the shift of its rest center from the pre mean is projected onto the arm's full
 model (leave-one-out mean for a pre session). The shift is in training-frame units (pre-mean rest SD), and the weights
-are `coef / scaler.scale`. The result is the class-centred score bias b_k = −w_k·Δc, in log-odds; it is 0 at pre by
+are `coef / scaler.scale`. The result is the class-centered score bias b_k = −w_k·Δc, in log-odds; it is 0 at pre by
 construction.
 
 **Two references for the shift:**
 
-- **raw** = the rest centre in dF/F. dF/F is relative to the session's mean frame.
-- **vsWt** = the rest centre minus the session's own true-label working centre. This is the bias the rest frame adds
+- **raw** = the rest center in dF/F. dF/F is relative to the session's mean frame.
+- **vsWt** = the rest center minus the session's own true-label working center. This is the bias the rest frame adds
   RELATIVE to Wt.
 
 **Far-contra bias, cue** (session means; median W margin, top 1 − top 2, for scale):
@@ -203,7 +203,7 @@ Without the event frames (R5q) the ratios are almost the same (PS92-95 acute 1.2
 
 **Reading the rest-state check:**
 
-- **The rest centre moves after the stroke, and in the same direction in every animal.**
+- **The rest center moves after the stroke, and in the same direction in every animal.**
   - Its shift projects to a NEGATIVE far-contra score bias in 4 / 4 animals acutely (raw).
   - The shift is a large fraction of the score margin: PS94 −.99 against a margin of 1.70, PS95 −1.23 against 1.94.
   - It does not return in chronic.
@@ -223,7 +223,7 @@ Without the event frames (R5q) the ratios are almost the same (PS92-95 acute 1.2
 
 ### 5e. Which half of the rest frame does the damage (decomposition, cue far contra, frame − Wt)
 
-| epoch | Wt | R5 | R5c (rest centre, trial SD) | R5s (trial centre, rest SD) |
+| epoch | Wt | R5 | R5c (rest center, trial SD) | R5s (trial center, rest SD) |
 |---|---|---|---|---|
 | pre | .864 | .844 (−.020) | .852 (−.012) | .861 (−.004) |
 | acute | .230 | .151 (−.079 [−.185, +.019]) | .191 (−.038 [−.096, .000]) | .312 (+.083 [+.038, +.126]) |
@@ -232,11 +232,11 @@ Without the event frames (R5q) the ratios are almost the same (PS92-95 acute 1.2
 
 Overall, chronic: R5c −.162, R5s .000. Precue: every decomposition arm stays within ±.04 of Wt.
 
-- **The rest CENTRE is what collapses the post-stroke scores.** The rest-to-task offset is not stable across days.
+- **The rest CENTER is what collapses the post-stroke scores.** The rest-to-task offset is not stable across days.
 - **The rest SCALE inflates acute far contra** (+.083 [+.038, +.126]). Rest SD rises more than trial SD acutely, which
-  shrinks the session's features toward the centre.
+  shrinks the session's features toward the center.
 
-### 5f. Why the centre matters for a FROZEN decoder
+### 5f. Why the center matters for a FROZEN decoder
 
 - **Frozen decoder.** A per-session offset c changes class score k by −w_k·c/sd. Predictions change unless w_k·c is
   equal across classes. A scale change multiplies every w_k·x, so it moves the margins against the intercepts (the
@@ -244,7 +244,7 @@ Overall, chronic: R5c −.162, R5s .000. Precue: every decomposition arm stays w
 - **Per-session refit.** A decoder refitted within each session absorbs a common offset in its intercepts and its
   scaler. It cannot be biased this way.
 
-Measured per scored row, cue (class-centred decision scores; same stored model for W vs Wt; R5 = refit model in its own
+Measured per scored row, cue (class-centered decision scores; same stored model for W vs Wt; R5 = refit model in its own
 frame):
 
 | animal | epoch | median W margin | W vs Wt: median max shift | flips | W vs Wt: mean far-contra shift | W vs R5: median max shift | flips |
@@ -273,17 +273,17 @@ Full table: `tables/A5_score_shifts.csv`.
 - **Far contra acute (pooled).** R5 .151, RW .135 and R5q .176 against Wt .230. The intervals span 0, because two
   animals agree and PS94 / PS95 fall.
 - **Subacute and chronic.** The rest arms collapse: chronic far contra ~.29 against .72; overall ~.61 against .80. They
-  fall below N, the no-centre frame. They also cost held-out pre accuracy (−.03 overall).
-- So the trial-based acute far-contra loss (~.18-.23) is not an artefact that a mix-free rest frame removes. The rest
+  fall below N, the no-center frame. They also cost held-out pre accuracy (−.03 overall).
+- So the trial-based acute far-contra loss (~.18-.23) is not an artifact that a mix-free rest frame removes. The rest
   frames make far contra lower, not higher.
 
 **The rest arm is the one absorbing a stroke effect (check 2).**
 
-- The rest centre shifts post-stroke so that far contra loses log-odds in 4 / 4 animals.
+- The rest center shifts post-stroke so that far contra loses log-odds in 4 / 4 animals.
 - Quiet events carry 25-100% of that acutely and ~0 later. Most of it is a broader change in the rest state.
 - The rest SD rises 1.2-1.5x in every animal.
 - Decomposed:
-  - the rest CENTRE is not stable relative to task activity across days, and that loses far-contra and overall accuracy
+  - the rest CENTER is not stable relative to task activity across days, and that loses far-contra and overall accuracy
     through chronic;
   - the rest SCALE inflates acute far contra (+.08).
 - Neither half is mix-free in the sense that matters. Both track the post-stroke change in the rest state, which is the
@@ -293,7 +293,7 @@ Full table: `tables/A5_score_shifts.csv`.
 pre-cue window sits closer to the rest state, so referencing it to rest is roughly neutral there. Overall precue acute
 is slightly lower (−.02).
 
-**Wt is still the frame these results favour.** It agrees with the mix-stable contact centre Cto where the mix is normal
+**Wt is still the frame these results favor.** It agrees with the mix-stable contact center Cto where the mix is normal
 (CENTRE_MIXSHIFT §5), it costs no pre accuracy, and its acute far contra (.230) lies between W (.184) and N (.259).
 
 No production recommendation is made here; Priya decides.
@@ -306,11 +306,11 @@ No production recommendation is made here; Priya decides.
   Frame-level SD ratios agree with the box ones to within .08, except PS92 subacute (2.81 vs 3.15).
 - **The raw-reference bias is relative to the session's mean frame.** dF/F is computed against that frame, which moves
   when rest is a larger share of the session. The vsWt reference is free of that, but it includes any change in the
-  task centre. Both point the same way.
+  task center. Both point the same way.
 - **Events are the raw v2 detector at k = 4**, chosen to separate pre from acute. Face-regressed events were not used.
   The drop window (−0.5 to +1.0 s) is a choice; it removes 35% of acute rest frames.
-- **RW uses per-position MEDIANS for its centre and means for its scale.** RW ≈ R5 throughout.
-- **The decomposition arms (R5c / R5s) are diagnostic only.** R5s uses the scored session's labels in its centre, as Wt
+- **RW uses per-position MEDIANS for its center and means for its scale.** RW ≈ R5 throughout.
+- **The decomposition arms (R5c / R5s) are diagnostic only.** R5s uses the scored session's labels in its center, as Wt
   does.
 - **The rest SD rise is not separated from day-to-day amplitude drift.** The trial-row SD also rises (1.08-1.41
   chronic). The rest-over-trial excess is the stroke-linked part only if the two share the same drift.

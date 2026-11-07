@@ -16,7 +16,7 @@ Needs ``<set>/master.npz`` + ``proj/`` (and ``own/`` for the EVR gap / morphing)
   amplitudes_by_epoch.png  per component: response / between amplitude per animal across epochs
   recovery_by_day.png      reconstruction error, EVR gap, spatial / spectral morphing vs days since stroke
   movement_maps_<measure>_<window>.png   log2(epoch / pre) per point on the master face, per animal + animal mean
-                           (speed = absolute movement; share = normalised spectral distribution)
+                           (speed = absolute movement; share = normalized spectral distribution)
   asymmetry_by_epoch.png   (contra - ipsi) / (contra + ipsi) per window, speed and share (cam4 ipsi = image right)
   task_vs_nontask.png      lick components (response) vs the others (between trials) / pre, per animal x epoch
   task_vs_nontask_pooled.png  the same, log2 vs each animal's own pre, pooled: mean +- SEM of animals, boot_delta vs
@@ -26,7 +26,7 @@ Needs ``<set>/master.npz`` + ``proj/`` (and ``own/`` for the EVR gap / morphing)
                            stored data/session_table.csv, task_nontask.csv and task_vs_nontask_pooled.csv (no
                            recomputation, no CSV written).
 Categorical x (epochs) follows Priya's 11-03 rules (`wfield_local.cat_points`): no lines between epochs; summary = mean
-+- SEM over animals; faded OPEN markers = the SESSIONS behind it (shape = animal, colour = epoch); * in the top band.
++- SEM over animals; faded OPEN markers = the SESSIONS behind it (shape = animal, color = epoch); * in the top band.
   severity.png             per animal: FaceRhythm deficit vs histological lesion burden (descriptive, n = 4)
 """
 from __future__ import annotations
@@ -54,7 +54,7 @@ def _epoch_lines(ax, S, col, title):
 def task_nontask_pooled(S, names, out: Path, set_name: str, n_boot: int | None = None, R=None):
     """Cross-animal version of task_vs_nontask.png (Priya 10-25): per session, TASK (lick components, response window)
     and NON-TASK (other components, between trials) as log2 vs the animal's own pre sessions (`stats.log2_vs_pre`, the
-    within-animal normalisation; pre averages 0), and their difference task - non-task (log2 task / non-task ratio vs
+    within-animal normalization; pre averages 0), and their difference task - non-task (log2 task / non-task ratio vs
     pre: > 0 = task held up better, < 0 = non-task preserved relative to task). Per epoch: per-animal means (PRINTED
     first, rule 8), mean +- SEM over animals, `stats.epoch_change` (`boot_delta`, paired animals -> sessions) vs pre.
     -> task_vs_nontask_pooled.png + data/task_vs_nontask_pooled.csv; returns the stats table. ``R`` given (the
@@ -126,13 +126,13 @@ def task_nontask_pooled(S, names, out: Path, set_name: str, n_boot: int | None =
         sig_marks.reserve_headroom(fig)
         fig.suptitle(f"{set_name}: task vs non-task, pooled across animals")
         frf.save(fig, out / "task_vs_nontask_pooled.png", f"""
-Cross-animal version of task_vs_nontask.png, normalised WITHIN each animal (Priya 10-25). Per session: TASK = summed
+Cross-animal version of task_vs_nontask.png, normalized WITHIN each animal (Priya 10-25). Per session: TASK = summed
 absolute expression of the lick components ({', '.join(lick)}) in the response window; NON-TASK = summed absolute
 expression of the other components ({', '.join(other)}) between trials; each as log2 minus the mean log2 of the same
 animal's pre sessions (`face_rhythm.stats.log2_vs_pre`; pre averages 0). Right: TASK - NON-TASK (log2 of the task /
 non-task ratio vs pre; < 0 = non-task preserved relative to task). Each epoch is its own category (Priya 11-03: no
-lines between epochs): filled marker = mean +- SEM over the animals' epoch means (epoch colours); faded OPEN markers =
-the individual SESSIONS (shape = animal, colour = epoch). Tick labels: `stats.epoch_change` (`analysis_kit.boot_delta`,
+lines between epochs): filled marker = mean +- SEM over the animals' epoch means (epoch colors); faded OPEN markers =
+the individual SESSIONS (shape = animal, color = epoch). Tick labels: `stats.epoch_change` (`analysis_kit.boot_delta`,
 paired animals -> sessions, animals weighted equally) change vs pre; * in the top band = 95 % interval excludes 0; k/n =
 animals below pre. Per-animal table first (rule 8): data/task_vs_nontask_pooled.csv.""")
     return R
@@ -141,7 +141,7 @@ animals below pre. Per-animal table first (rule 8): data/task_vs_nontask_pooled.
 def plot_evr_own_vs_frozen(S, fdir: Path, out: Path, common: str) -> None:
     """evr_own_vs_frozen.png: per animal (columns) EVR own vs frozen over days, epoch means, and the frozen / own ratio;
     a fifth column (middle row) pools the animals: per epoch, mean +- SEM over the animals' epoch means (own = circle,
-    frozen = square) with the sessions behind them as faded open markers (shape = animal, colour = epoch)."""
+    frozen = square) with the sessions behind them as faded open markers (shape = animal, color = epoch)."""
     from wfield_local import cat_points as cp
     from wfield_local import config
     from wfield_local import face_rhythm_figures as frf
@@ -225,12 +225,12 @@ def plot_evr_own_vs_frozen(S, fdir: Path, out: Path, common: str) -> None:
 The 2pRAM-cohort manuscript's variance-explained panel on one frozen basis across animals. Per session: uncentred EVR
 (1 - ||X - X^||^2 / ||X||^2, the TCA definition) of the session's OWN rank-R non-negative CP fit (black; `fitsession`,
 best of its random starts, folder `{frr.own_sub(fdir)}`) and of the FROZEN pre-stroke master's spatial + spectral factors with
-only the temporal weights refit (red), on the same rows. Top: per session over days since stroke; grey band = the
+only the temporal weights refit (red), on the same rows. Top: per session over days since stroke; gray band = the
 leave-one-pre-day-out held-out EVR range of that animal's pre days (`loso/`): where a pre-stroke day scored on a fit
 without it lands. Middle: epoch means (bars) and sessions (dots); last column = all animals: mean +- SEM over the
 animals' epoch means (own = black circle, frozen = red square), the sessions behind them as faded open markers (shape =
-animal, colour = epoch), no lines between epochs. Bottom: the RATIO frozen / own per session, divided by the
-animal's mean pre-stroke ratio (pre = 1; grey = +-1 SEM of its pre sessions): own EVR itself dips acutely (less movement against a fixed tracking-noise floor, less
+animal, color = epoch), no lines between epochs. Bottom: the RATIO frozen / own per session, divided by the
+animal's mean pre-stroke ratio (pre = 1; gray = +-1 SEM of its pre sessions): own EVR itself dips acutely (less movement against a fixed tracking-noise floor, less
 stereotyped movement), the ratio divides that out. Own >= frozen by construction; the GAP (own - frozen) / the ratio is
 what the pre-stroke repertoire fails to describe. Pre sessions' frozen EVR is on their held-out basis.""")
 
@@ -239,7 +239,7 @@ what the pre-stroke repertoire fails to describe. Pre sessions' frozen EVR is on
 def plot_task_vs_nontask(S, TN, names, out: Path, set_name: str, common: str) -> None:
     """task_vs_nontask.png: TASK / NON-TASK expression vs the animal's pre per epoch (categories, no lines): mean +- SEM
     over the animals' epoch ratios (TN = data/task_nontask.csv) and each session / its animal's pre mean (faded open
-    markers, shape = animal, colour = epoch)."""
+    markers, shape = animal, color = epoch)."""
     from wfield_local import cat_points as cp
     from wfield_local import face_rhythm_figures as frf
     from wfield_local import face_rhythm_readouts as frr
@@ -277,8 +277,8 @@ animals. TASK = summed ABSOLUTE expression (weight x D) of the lick components (
 window; NON-TASK = summed absolute expression of the other components ({', '.join(other)}) BETWEEN trials (median of
 the 5 Hz bins outside cue -3..+6 s, large movement excluded). Per animal: epoch mean of the session values / the
 animal's pre-stroke mean (data/task_nontask.csv). Each epoch is its own category (Priya 11-03: no lines between
-epochs): filled marker = mean +- SEM over the animals' ratios (epoch colours); faded OPEN markers = each SESSION / its
-animal's pre mean (shape = animal, colour = epoch). Lick INITIATION components ("prelick") count as non-lick here, as
+epochs): filled marker = mean +- SEM over the animals' ratios (epoch colors); faded OPEN markers = each SESSION / its
+animal's pre mean (shape = animal, color = epoch). Lick INITIATION components ("prelick") count as non-lick here, as
 in fr_groups. No test on this figure: the pooled log2 version with statistics is task_vs_nontask_pooled.png.""")
 
 
@@ -304,7 +304,7 @@ def main(argv=None) -> int:
     ap.add_argument("--bundle", default=fro.BUNDLE)
     ap.add_argument("--band", default="all", choices=tuple(frr.BANDS), help="frequency band of the SHARE measure")
     ap.add_argument("--measure", default="speed", choices=("speed", "share"),
-                    help="movement maps: absolute speed of the points, or the normalised spectral share")
+                    help="movement maps: absolute speed of the points, or the normalized spectral share")
     ap.add_argument("--midline-x", type=float, default=None, help="image x of the face midline (default: "
                                                                    "frr.MASTER_MIDLINE_X, the master's LP nose)")
     ap.add_argument("--out", type=Path, default=None)
@@ -368,7 +368,7 @@ def main(argv=None) -> int:
 Per component (rows) and window (columns): PRE-CUE ({frr.WINDOWS['precue'][0]:g}..{frr.WINDOWS['precue'][1]:g} s), RESPONSE
 ({frr.WINDOWS['response'][0]:g}..+{frr.WINDOWS['response'][1]:g} s; engaged trials, `frr.WINDOWS`) and
 BETWEEN trials (outside cue -3..+6 s, large movement excluded, MEDIAN of the 5 Hz bins: grooming tops several
-factors). Left three: ABSOLUTE expression (weight x FR normaliser D; a.u. on the animal's scale); right three: the
+factors). Left three: ABSOLUTE expression (weight x FR normalizer D; a.u. on the animal's scale); right three: the
 SHARE of the frame (weight only). Pre-stroke sessions are projected on their left-out-day basis where it exists.""")
 
     # recovery by day
@@ -431,8 +431,8 @@ session's own factors and the frozen ones (morphing; 1 = unchanged).""")
 Per mesh point on the master face (image right = IPSILESIONAL on cam4; vertical line = the face midline, x =
 {maps['midline_x']:.0f}, the master's LP nose): log2(epoch mean / pre-stroke mean) of the point's movement in the
 {w.upper()} window. Measure `{a.measure}`: speed = RMS of |d displacement / dt| of the 25 Hz tracked points (ABSOLUTE
-movement); share = the point's share of the normalised spectrogram ({a.band} band). Rows: animals, then the mean of the
-animal maps. Red = more movement than pre, blue = less; colour clipped at +-1 (2x).""")
+movement); share = the point's share of the normalized spectrogram ({a.band} band). Rows: animals, then the mean of the
+animal maps. Red = more movement than pre, blue = less; color clipped at +-1 (2x).""")
     with frf.style():
         fig, axs = frf.subplots(2, 3, figsize=(14, 7.5))
         for i, m in enumerate(("speed", "share")):
@@ -446,7 +446,7 @@ animal maps. Red = more movement than pre, blue = less; colour clipped at +-1 (2
 {common}
 (contra - ipsi) / (contra + ipsi) of the movement summed over the mesh points on each side of the face midline (x =
 {maps['midline_x']:.0f}; cam4 ipsilesional = image RIGHT, all lesions left), per window (between / pre-cue / response),
-for absolute SPEED (top) and the normalised spectral SHARE (bottom). 0 = symmetric; > 0 = more contralesional movement.""")
+for absolute SPEED (top) and the normalized spectral SHARE (bottom). 0 = symmetric; > 0 = more contralesional movement.""")
     # non-task preservation + severity (the 2pRAM-cohort manuscript's Fig 4 framing; Priya 10-24)
     TN = frr.task_nontask(S, names)
     TN.to_csv(figure_layout.sidecar_for(out, "task_nontask", ".csv"), index=False, float_format="%.5g")

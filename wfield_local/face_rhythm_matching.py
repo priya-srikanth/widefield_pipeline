@@ -8,7 +8,7 @@ HUNGARIAN assignment on a similarity between every pair of factors, built from t
 fits SHARE -- spatial (points) and spectral (frequencies); the temporal mode is never shared across sessions.
 
 Choices made explicit here (each changes the answer):
-  * ``on``: what the assignment maximises -- "product" (spatial x spectral cosine, the default and the fit's own rule:
+  * ``on``: what the assignment maximizes -- "product" (spatial x spectral cosine, the default and the fit's own rule:
     a pair must agree in BOTH where and how fast), "spatial", "spectral", or "sum". Report spatial and spectral cosines
     separately whatever the assignment used: "same place, new rhythm" and "same rhythm, new place" are the readouts.
   * ``spatial``: "vector" = the (x, y) displacement loadings, cosine over 2P (direction-sensitive: a lateral and a
@@ -21,7 +21,7 @@ Choices made explicit here (each changes the answer):
     with the same ``assign`` rule as the readout), and
     the PRE-STROKE FLOOR = the matched cosines between pre-stroke sessions of the same animal (`pairwise`).
 
-All inputs are non-negative, so there is no sign ambiguity; columns are unit-normalised before any cosine.
+All inputs are non-negative, so there is no sign ambiguity; columns are unit-normalized before any cosine.
 """
 from __future__ import annotations
 

@@ -28,7 +28,7 @@ Compared the 490 session against the two most recent **470** PS94 sessions (same
   used per-session *native*-grid masks of different sizes, 57k vs 67k px — a confound; moving to
   the common CCF ROI did not change any conclusion.)
 - **Whole-session ΔF/F range:** per-pixel temporal std of the corrected functional signal,
-  `sqrt(diag(U_atlas · cov(SVTcorr) · U_atlasᵀ))`, summarised over the ROI (median, 95th pct).
+  `sqrt(diag(U_atlas · cov(SVTcorr) · U_atlasᵀ))`, summarized over the ROI (median, 95th pct).
 - **Evoked signal / noise / SNR:** cue-evoked trial-averaged delta maps (`spout_positions_1s_pre_post`),
   **100 trials/position for all three sessions** (so the averaged-map noise floor ∝ 1/√N is matched).
   Signal = 99.5th-pct ΔF/F over ROI; noise = 1.4826·MAD over ROI (responses are spatially sparse);
