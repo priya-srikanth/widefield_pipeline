@@ -21,6 +21,10 @@ the encoding handoff (STATUS_2026-10-26_ENCODING_HANDOFF.md, top blocks); the A1
    (or a gated read in the pooled script), on a branch, then re-run k_pooled. Expected impact ~0 (all other 3-D tables moved <=
    0.06), but unverified. OK to do?
 
+4. (~23:35) **e_drift_june (June-INCLUDED ITI where-decoder drift, a superseded sensitivity) fails**: every June session's
+   area load raises "Object arrays cannot be loaded" (likely no camera classes in June -> empty / object per-session files).
+   Proposal: leave it failed for now (August-only is primary), look at it after the render. OK?
+
 ## B. Notable findings / result changes (nothing on pages or decks changed yet)
 
 1. **A27 cam4 cohort on the camera working period: no headline change.** 294 cells, same sessions; 0 sign flips in a significant
@@ -68,3 +72,12 @@ the encoding handoff (STATUS_2026-10-26_ENCODING_HANDOFF.md, top blocks); the A1
   denominator, e_rlink_{angle_z,lat_z,hit}_r). Not yet compared with the page (recovery timing / goal Fig 0.x): first look --
   lick-window neural retention still below pre chronically (-0.29 [-0.43, -0.13], 4/4 animals, 43 sessions); behaviour-minus-
   neural "gap" acute +0.30 [+0.03, +0.56] (only 3 animals, 6 sessions), subacute ~0, chronic -0.29. Compare in the replacement pass.
+- 23:05 e_angle_reach DONE (lick-angle chain unblocked; l_enl_angle waits for the main slot). 23:00 g5_restnl_maps_contact DONE
+  (restnl_maps uses ~17 GB in one process -- treat as heavy in future queues).
+- 23:28 g5_restnl_maps_lp FAILED: PS93_0813 (no video) has no LP lick tables -> LPUnavailable is fatal under the camera-gate
+  map collector. Same path in lp_final_render maps, map_drift --arm lp and the A25 LP epoch arm. g5_lpfinal_maps parked (HOLD);
+  g5_map_drift_lp skips on its dep. Helper writing a narrow fix on branch fix/lp-novideo-skip-20261106 (skip only sessions with
+  no LP licks AND no camera working period; every other failure stays fatal). Push needs Priya's OK.
+- 23:29 e_roi_check FAILED: its input (Fig 3.33 decoder-pattern stats figure data) comes from scripts/iti_decoder_pattern_stats.py,
+  which was in NO queue (missing producer). Queue v9u on main 4ecf72ed: e_pat_stats_maps -> e_roi_check_r / foci_r / cand_r /
+  rim_overlay_r (started 23:30).
