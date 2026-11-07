@@ -76,6 +76,17 @@ unclassified -> OUTSIDE_MAPS, map builders only import engagement_gate). Fixed o
 Priya said YES to cam4-style -> scratchpad push7.sh = the six + wf_p1106_cam4, sequential, merge-only (bg task bn32updgj;
 per-branch push logs scratchpad/push7.<wt>.log). Each push re-runs the full suite (~28 min) when configs/ is in the diff.
 
+**Update ~19:40 -- CAMERA-GATE REST BUG (conclusion-level; Priya told, nothing on pages changed).** v8g gb_stats EXIT 1
+(assert oro - post == oro_post) because 8 / 107 sessions have NaN R5 gain: rest_engagement.engaged_frame_mask put the quit
+boundary at the FIRST non-engaged cue; under the camera gate the working period is a span (first .. last camera lick), so a
+session whose first cue is not a camera lick got quit = cue 0 -> only its pre-first-cue frames (~190-800) were "engaged rest".
+Sessions: PS92_0813 (pre), PS92_0822, PS93_0818, PS94_0817, PS94_0820, PS95_0818 (acute), PS93_0822, PS93_0824 (subacute).
+engaged_by_cue / rest_by_position / restw NOT affected. Also reaches: position_reference_maps time-local rest (_RESTref_),
+cd_trajectories rest baseline, restnl_mask measure, gain_bio R5. Fix: branch fix/camera-rest-start-20261106 (worktree
+wf_reststart, ba5b63bf, from main 8d6da32d): frame_gate_bounds -> quit after LAST engaged cue, camera start at the span's
+first cue; unaffected sessions identical (PS92_0812 verified; PS92_0813 now 287,423 / 288,213 engaged). 99 tests pass. NOT
+pushed. Impact audit helper running -> scratchpad/engaged_mask_impact.md (affected steps by status). gb_fig skipped.
+
 **Update ~19:10:** v9k2 k_jaw_xcheck EXIT 1 = RebuildFenceError (pose3d_jaw_crosscheck wrote session_poses/pose3d/crosscheck
 directly; its cam4 side is the gate-named A27 jaw table, so the output is gate-dependent). Fix on branch
 fix/jaw-xcheck-routed-20261106 (wf_kincache, 18875631, on top of 8d6da32d): writer + fig_pose_validation reader via
