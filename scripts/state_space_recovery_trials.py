@@ -159,13 +159,38 @@ def vdist(a, b):
     return float(np.sqrt(max(d2, 0.0)))
 
 
-def run(seed=0):
+LANDING = Path("M:/MICROSCOPE/Priya/Widefield/state_space_recovery/landing/first_lick_landing.csv")
+
+
+def relabel(lab, Y, pos, mode, L):
+    """Condition labels (Priya 11-07, like-for-like executed landings; `state_space_landing.py`):
+    target = the target spout (default); on_target = target spout, only trials whose 3-D first lick landed in the
+    target's own pre-stroke bin; landing = the landing bin, whatever the target (the executed movement)."""
+    if mode == "target":
+        return Y, pos
+    g = L.get(lab)
+    land = np.full(len(pos), None, object)
+    if g is not None:
+        land[g.row.to_numpy()] = g.land.to_numpy()
+    keep = np.array([x is not None and x == x for x in land])
+    if mode == "on_target":
+        keep &= land == pos
+        return Y[keep], pos[keep]
+    return Y[keep], land[keep].astype(str)
+
+
+def run(seed=0, mode="target"):
     rng = np.random.default_rng(seed)
     data = {}
     cols = None
+    L = {}
+    if mode != "target":
+        D = pd.read_csv(LANDING)
+        L = {lab: g for lab, g in D[D.land.notna()].groupby("label")}
     for f in sorted(glob.glob(S.ITI + "/PS9*.npz")):
         Y, pos, cols, ep, an = S.load(f)
         lab = Path(f).stem
+        Y, pos = relabel(lab, Y, pos, mode, L)
         data.setdefault(an, []).append((lab, ep, epochs.days_since_stroke(lab), Y, pos))
     left = np.array([c.endswith("_left") for c in cols])
     rows, pairs = [], []
@@ -313,10 +338,11 @@ def figure(df, out):
 def main():
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--out", default=str(OUT))
+    ap.add_argument("--condition", default="target", choices=["target", "on_target", "landing"])
     a = ap.parse_args()
-    out = Path(a.out)
+    out = Path(a.out) if a.condition == "target" else Path(a.out).with_name(f"trials_{a.condition}")
     out.mkdir(parents=True, exist_ok=True)
-    df, pairs = run()
+    df, pairs = run(mode=a.condition)
     df.to_csv(out / "state_space_trials_sessions.csv", index=False)
     pairs.to_csv(out / "state_space_trials_pairs.csv", index=False)
     drift(pairs).to_csv(out / "state_space_trials_drift.csv", index=False)
