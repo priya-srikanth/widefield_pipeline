@@ -403,6 +403,10 @@ def sel_classes(which: str = "working") -> frozenset:
     if which not in SEL_GATES:
         raise ValueError(f"in_sel: {which!r} is not one of {SEL_GATES}")
     sel = working_selection()
+    if which == "miss_working" and sel == wt.IN_WORKING_CONTACT:
+        # the contact-only SUPPLEMENT (Priya 11-07) narrows the decoders' working rows only; its no-lick "miss while
+        # working" (responded, no contact) stays production's set -- working minus contact would be empty
+        return wt.working_classes(wt.IN_WORKING) - {"contact"}
     w = wt.working_classes(sel if wt.is_camera(sel) else wt.IN_WORKING)
     return w if which == "working" else w - {"contact"}
 
@@ -413,10 +417,11 @@ def in_sel(cls, which: str = "working") -> np.ndarray:
 
 
 def sel_cls_part() -> str | None:
-    """main's spec-tag class part: "contact-incomplete" under in_working (production), None under in_working_jaw
-    (the afternoon tag, unchanged)."""
+    """main's spec-tag class part: "contact-incomplete" under in_working (production), "contact" under the
+    in_working_contact supplement (Priya 11-07), None under in_working_jaw (the afternoon tag, unchanged) and
+    quit_tail."""
     from wfield_local import working_trials as wt
-    return "contact-incomplete" if working_selection() == wt.IN_WORKING else None
+    return wt.CLS_PART.get(working_selection())
 
 
 def before_session_end(cls, order, *, session=None, position=None, anchor: str = DEFAULT_END) -> np.ndarray:

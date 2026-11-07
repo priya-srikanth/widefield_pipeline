@@ -308,7 +308,8 @@ def fig_confusion_pre_post_working(out_dir):
     # CAMERA WORKING (Priya 11-03 late, review 7A B1): under the camera gate with a camera selection the panels are the
     # working-trained frozen decoder's pre panel (held-out pre WORKING trials) and the post-stroke working trials
     _cam5 = _tc5.camera_gate_on() and _wt5.is_camera(_tc5.working_selection())
-    _wc = ("c+i+jaw" if _cam5 and _tc5.working_selection() == _wt5.IN_WORKING_JAW else "c+i")   # review 8A NB-b
+    _wc = ("c+i+jaw" if _cam5 and _tc5.working_selection() == _wt5.IN_WORKING_JAW else
+           "contact" if _cam5 and _tc5.working_selection() == _wt5.IN_WORKING_CONTACT else "c+i")   # review 8A NB-b
     PANELS = (((("pre", f"PRE-stroke\nWORKING trials ({_wc})"),
                ("post_all", "POST-stroke\nALL trials"),
                ("post_working", f"POST-stroke\nWORKING trials ({_wc})"))) if _cam5 else

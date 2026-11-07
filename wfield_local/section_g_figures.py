@@ -233,7 +233,7 @@ def _render_readouts(sub, out, prefix, *, named_only=False):
     return made
 
 
-def render(rec, out):
+def render(rec, out, *, json_path=None, suffix="", note=""):
     made = []
     post = _sessions(rec, "post")
     excluded = _sessions(rec, "excluded")
@@ -267,6 +267,12 @@ def render(rec, out):
         for arm, _ in ARMS:
             made.append(pp.fig_grid(both, out, arm=arm,
                                     name=f"section_g_grid_withcontrol_{arm}.png"))
+
+    # RETAINED ABOVE-CHANCE FRACTION (Priya 11-07): within-session accuracy as (post - c) / (pre - c)
+    # against the animal's pre band on the SAME positions, so LICK-ONLY sessions scored 4-, 5- and
+    # 6-way share one scale. Both families in one figure; excluded sessions are drawn grey.
+    from wfield_local import section_g_retained
+    made += section_g_retained.render(rec, out, suffix=suffix, json_path=json_path, note=note)
     return [m for m in made if m]
 
 
@@ -275,21 +281,39 @@ def main(argv=None) -> int:
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--src", type=Path, default=None)
     ap.add_argument("--output", type=Path, default=None)
+    ap.add_argument("--json", type=Path, default=None,
+                    help="read this section_g.json instead of the run's own (e.g. a contact-only "
+                         "supplement run); needs --output")
+    ap.add_argument("--suffix", default="",
+                    help="appended to the retained-fraction figure / CSV stem (e.g. _contactonly)")
+    ap.add_argument("--note", default="",
+                    help="short label for the retained figure's title / printed table (e.g. 'old gate')")
+    ap.add_argument("--only", choices=("retained",), default=None,
+                    help="render only this figure (retained = the n-corrected retained fraction)")
     args = ap.parse_args(argv)
+    if args.only == "retained":
+        from wfield_local import section_g_retained
+        if args.json is None or args.output is None:
+            ap.error("--only retained needs --json and --output")
+        rec = json.loads(args.json.read_text(encoding="utf-8"))
+        for q in section_g_retained.render(rec, args.output, suffix=args.suffix,
+                                           json_path=args.json, note=args.note):
+            print(f"  wrote {Path(q).name}", flush=True)
+        return 0
     from wfield_local import run_mode  # tagged runs never overwrite default figures (review H2)
     src = run_mode.routed_output(args.src or Path(PathResolver().root("figures_working")), make=False, guard=False)
     out = args.output or src
     for q in copy_behaviour_figures(out):
         print(f"  copied {Path(q).name}", flush=True)
     from wfield_local import run_mode   # the JSON of THIS run's mode (rebuild 11-03)
-    p = Path(src) / run_mode.keyed_name("section_g.json")
+    p = args.json or Path(src) / run_mode.keyed_name("section_g.json")
     if not p.exists():
         print(f"  SKIP: {p} not computed yet "
               f"(run `python -m wfield_local.poststroke_section_g`)", flush=True)
         return 0
     rec = json.loads(Path(p).read_text(encoding="utf-8"))
     print(f"\n=== {len(rec)} sessions", flush=True)
-    for q in render(rec, out):
+    for q in render(rec, out, json_path=p, suffix=args.suffix, note=args.note):
         print(f"  wrote {Path(q).name}", flush=True)
     return 0
 
