@@ -1282,7 +1282,7 @@ coupling (direction not determined), not more face variability.
   pending Priya). Chronic cued far-contra lateral -0.24 [-0.35, -0.12] (0/4) stands. MAE sagittal: ITI +0.15 subacute
   only. Pull center = mean of ALL the animal's pre licks (one decoder, spout unknown), not each spout's mean; pre
   landings cluster medial of the spouts; acute far-contra sagittal extension is LOWER than pre (4/4).
-  Frozen r change vs pre (REBUILD 11-07, r normalised to pre, areas; replaces "the r loss is lateral", Priya 11-07): cued
+  Frozen r change vs pre (REBUILD 11-07, r normalized to pre, areas; replaces "the r loss is lateral", Priya 11-07): cued
   licks lose BOTH axes acutely -- lateral -20 / -10 % (4/4), -8 % chronic (n.s., 3/4); sagittal -25 / -21 / -8 % (4/4);
   the subacute / chronic sagittal loss is carried by short licks that miss the spout within successful trials (contact
   licks only: -24 % acute 4/4, -14 % n.s., +7 % n.s.). ITI: lateral -23 / -22 / -24 % (4/4); sagittal -13 % n.s., then

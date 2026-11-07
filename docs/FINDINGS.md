@@ -375,7 +375,7 @@ No laterality support for Priya's reduced-thalamocortical-drive hypothesis after
    subacute on. Chronic cued far-contra read ipsilesional also on the sagittal run (-0.24 [-0.35, -0.12], 0/4).
    Note: the pull shrinks every prediction toward the mean of ALL the animal's pre licks (one decoder; it never sees
    the spout), not toward the mouth or each spout's mean; pre-stroke landings cluster MEDIAL of the spouts.
-   Frozen r change vs pre, normalised to pre (REBUILD 11-07, camera working period / new imaging basis, areas; replaces the
+   Frozen r change vs pre, normalized to pre (REBUILD 11-07, camera working period / new imaging basis, areas; replaces the
    10-26 "the r loss is LATERAL" line, Priya 11-07): BOTH AXES are lost on cued licks acutely -- lateral -20 / -10 % (4/4),
    -8 % chronic (n.s., 3/4); sagittal -25 / -21 / -8 % (4/4 each). The subacute / chronic sagittal loss sits in short licks
    that MISS the spout within successful trials: on spout-contact licks only, sagittal -24 % acute (4/4), -14 % subacute
