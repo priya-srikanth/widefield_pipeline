@@ -59,3 +59,8 @@ the encoding handoff (STATUS_2026-10-26_ENCODING_HANDOFF.md, top blocks); the A1
   (v7b lane E moving toward e_angle_reach); l_cued_ramp_extract DONE (-> l_enl_angle, waits main slot); 21:58 slot-2 lane for the
   8 ready + unclaimed medium steps (b_wsd_lick -> within-spout mixed models, l_revup_restnl, l_restnl_rescue, l_arrival_restnl,
   l_stopped_restw, l_disengage, l_interhemi_rest, l_lc_extract).
+- 22:15 e_where_z DONE (unblocks v8c-S lane, e_overcorr_angle, e_rlink_*, and the aim producer input). 22:33 e_rlink_angle_z
+  FAILED: decoder_retention_sessions.csv has no producer in any render queue (undeclared dep; A21 / A29 retention step).
+  e_rlink_hit parked (HOLD); e_rlink_lat_z was already taken by lane E (fails fast, harmless). 22:35 queue v9t on main 4ecf72ed:
+  d_decoder_retention_g1106 -> d_recovery_timing_g1106 (--window lick, A21 denominator) + e_rlink_{angle_z,lat_z,hit}_r.
+  The aim producer still waits on e_first_lick (not run yet) -> stays in the final catch-up.
