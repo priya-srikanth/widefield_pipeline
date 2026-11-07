@@ -799,15 +799,27 @@ def _save(plt, fig, path: Path) -> None:
     plt.close(fig)
 
 
+def _cv_handles(animals):
+    """Legend for the epoch-colour convention (A13): animal shapes + epoch colours."""
+    from wfield_local import cat_points as cp
+    return cp.legend_handles(sorted(animals), EPOCH_ORDER, sessions_label="{a}", epoch_label="{e}")
+
+
 def fig_epochs(A: pd.DataFrame, D: pd.DataFrame, path: Path, title: str) -> None:
-    col, _ = _palettes()
+    """Per metric, x = epoch: each animal's epoch mean (+- SEM over its sessions) as an OPEN marker, shape = animal,
+    colour = epoch, NO line across epochs; filled dot = mean +- SEM over animals in the epoch colour (A13, Priya 11-07)."""
+    from wfield_local import cat_points as cp
     plt, fig, axs = _grid(len(METRICS), 5, 3.5, 2.8)
     xi = {e: i for i, e in enumerate(EPOCH_ORDER)}
     for ax, m in zip(axs.flat, METRICS):
         for k, (a, g) in enumerate(A.groupby("animal")):
             g = g[g.epoch.isin(xi)].assign(x=lambda d: d.epoch.map(xi)).sort_values("x")
-            ax.errorbar(g.x + (k - 1.5) * 0.06, g[m], yerr=g[f"{m}_sem"], fmt="o-", color=col.get(a, "k"), ms=4,
-                        lw=1.2, capsize=2, elinewidth=0.8, label=a)
+            for _, r in g.iterrows():
+                ax.errorbar(r.x + (k - 1.5) * 0.07 - 0.12, r[m], yerr=r[f"{m}_sem"], fmt=cp.animal_marker(a), ms=4,
+                            mfc="none", mec=cp.epoch_color(r.epoch), ecolor=cp.epoch_color(r.epoch), mew=0.9,
+                            capsize=1.5, elinewidth=0.6, alpha=0.8, zorder=3)
+        for e in EPOCH_ORDER:
+            cp.epoch_mean_sem(ax, xi[e] + 0.2, A[A.epoch == e][m].to_numpy(float), e, ms=5.5)
         lab = []
         for e in EPOCH_ORDER[1:]:
             r = D[(D.metric == m) & (D.epoch == e)]
@@ -818,29 +830,32 @@ def fig_epochs(A: pd.DataFrame, D: pd.DataFrame, path: Path, title: str) -> None
         ax.set_title(LABEL[m] + ("\n" + "; ".join(lab) if lab else "\n"), fontsize=7.5)
         ax.set_ylabel(LABEL[m], fontsize=6.5)
         ax.tick_params(labelsize=7)
-    axs.flat[0].legend(fontsize=7, frameon=False)
-    fig.suptitle(title + "\nlicks: ALL POST-CUE licks (cue + 70 ms .. trial stop; measured peaks for kinematics) unless "
-                 "the metric names pre-cue / ITI; per-animal epoch mean +- SEM over sessions; title: paired change vs pre "
-                 "(animal-weighted "
-                 "bootstrap, * = 95% CI excludes 0; only epochs with >= 2 animals)", fontsize=9)
+    axs.flat[0].legend(handles=_cv_handles(A.animal.unique()), fontsize=7, frameon=False)
+    note = ("licks: ALL POST-CUE licks (cue + 70 ms .. trial stop; measured peaks for kinematics) unless "
+            "the metric names pre-cue / ITI; open = per-animal epoch mean +- SEM over sessions (shape = animal, "
+            "colour = epoch), filled = mean +- SEM over animals, no lines across epochs; title: paired change vs pre "
+            "(animal-weighted bootstrap, * = 95% CI excludes 0; only epochs with >= 2 animals)")
+    fig.suptitle(title + "\n" + "\n".join(textwrap.wrap(note, 150)), fontsize=9)
     _save(plt, fig, path)
 
 
 def fig_timecourse(S: pd.DataFrame, path: Path, title: str) -> None:
-    col, _ = _palettes()
+    """One point per session over days (A13, Priya 11-07): open marker, shape = animal, colour = epoch, no line;
+    filled = epoch mean +- SEM over animals (`cat_points.day_dots`)."""
+    from wfield_local import cat_points as cp
     plt, fig, axs = _grid(len(METRICS), 5, 3.5, 2.6)
     for ax, m in zip(axs.flat, METRICS):
-        for a, g in S.sort_values("day").groupby("animal"):
-            ax.plot(g.day, g[m], "o-", ms=2.5, lw=0.9, color=col.get(a, "k"), label=a)
+        cp.day_dots(ax, S.day, S[m], S.animal, S.epoch, ms=3.2, summary_ms=5)
         ax.axvline(0.5, color="0.4", ls="--", lw=0.8, zorder=0)
         ax.set_title(LABEL[m], fontsize=8)
         ax.set_ylabel(LABEL[m], fontsize=6.5)
         ax.tick_params(labelsize=7)
-    axs.flat[0].legend(fontsize=7, frameon=False)
+    axs.flat[0].legend(handles=_cv_handles(S.animal.unique()), fontsize=7, frameon=False)
     for ax in axs[-1]:
         ax.set_xlabel("days since stroke", fontsize=8)
-    fig.suptitle(title + "\nlicks: ALL POST-CUE licks unless the metric names pre-cue / ITI; one point per session; "
-                 "dashed = lesion", fontsize=9)
+    note = ("licks: ALL POST-CUE licks unless the metric names pre-cue / ITI; one open point per session "
+            "(shape = animal, colour = epoch), filled = epoch mean +- SEM over animals; dashed = lesion")
+    fig.suptitle(title + "\n" + "\n".join(textwrap.wrap(note, 150)), fontsize=9)
     _save(plt, fig, path)
 
 
@@ -1015,8 +1030,9 @@ def _phase_fig(PH: pd.DataFrame, lat: dict, path: Path, title: str, portrait: bo
 
 
 def fig_epochs_by_position(Pm: pd.DataFrame, lat: dict, metrics: tuple, path: Path, title: str) -> None:
-    """Rows = metric, columns = the six positions; x = epoch; one line per animal, mean +- SEM over sessions."""
-    col, _ = _palettes()
+    """Rows = metric, columns = the six positions; x = epoch; per animal its epoch mean +- SEM over sessions as an OPEN
+    marker (shape = animal, colour = epoch), NO line across epochs; filled = mean +- SEM over animals (A13, 11-07)."""
+    from wfield_local import cat_points as cp
     plt = _plt()
     fig, axs = plt.subplots(len(metrics), len(POS_ORDER), figsize=(2.5 * len(POS_ORDER), 2.2 * len(metrics)),
                             squeeze=False, sharey="row")
@@ -1025,19 +1041,24 @@ def fig_epochs_by_position(Pm: pd.DataFrame, lat: dict, metrics: tuple, path: Pa
     for j, p in enumerate(POS_ORDER):
         for i, m in enumerate(metrics):
             ax = axs[i][j]
+            am = {}
             for k, (a, g) in enumerate(Pm[Pm.pos == p].groupby("animal")):
                 mu = g.groupby("epoch")[m].mean().reindex(EPOCH_ORDER)
                 se = g.groupby("epoch")[m].agg(_sem).reindex(EPOCH_ORDER)
-                x = np.arange(len(EPOCH_ORDER)) + (k - 1.5) * 0.07
-                ok = mu.notna().to_numpy()
-                ax.errorbar(x[ok], mu[ok], yerr=se[ok], fmt="o-", color=col.get(a, "k"), ms=3.5, lw=1.1, capsize=2,
-                            elinewidth=0.7, label=a)
+                am[a] = mu
+                for e_i, e in enumerate(EPOCH_ORDER):
+                    if np.isfinite(mu[e]):
+                        ax.errorbar(e_i + (k - 1.5) * 0.07 - 0.12, mu[e], yerr=se[e] if np.isfinite(se[e]) else None,
+                                    fmt=cp.animal_marker(a), ms=3.5, mfc="none", mec=cp.epoch_color(e),
+                                    ecolor=cp.epoch_color(e), mew=0.9, capsize=1.5, elinewidth=0.6, zorder=3)
                 _mark_rows(ax, 4)
                 sig = W[(W.metric == m) & (W.pos == p) & (W.animal == a) & W.sig]
-                for e in sig.epoch:                      # * in the animal's colour above its significant epochs
-                    xe = EPOCH_ORDER.index(e) + (k - 1.5) * 0.07
-                    ax.text(xe, 0.985 - 0.065 * k, "*", color=col.get(a, "k"), ha="center", va="top", fontsize=10,
-                            fontweight="bold", transform=ax.get_xaxis_transform())
+                for e in sig.epoch:                      # the ANIMAL'S marker (row k = its row) in the epoch colour
+                    xe = EPOCH_ORDER.index(e) + (k - 1.5) * 0.07 - 0.12
+                    ax.plot([xe], [0.985 - 0.065 * k - 0.025], ls="none", marker=cp.animal_marker(a), ms=4.5,
+                            color=cp.epoch_color(e), transform=ax.get_xaxis_transform(), clip_on=False, zorder=6)
+            for e_i, e in enumerate(EPOCH_ORDER):
+                cp.epoch_mean_sem(ax, e_i + 0.2, [am[a][e] for a in am], e, ms=4.5)
             if m == "peak_angle_deg":
                 ax.axhline(Pm[Pm.pos == p].spout_angle_deg.mean(), color="0.55", ls="--", lw=1.0, zorder=0)
             ax.set_xticks(range(len(EPOCH_ORDER)), [e[:3] for e in EPOCH_ORDER], fontsize=6.5)
@@ -1046,26 +1067,29 @@ def fig_epochs_by_position(Pm: pd.DataFrame, lat: dict, metrics: tuple, path: Pa
                 ax.set_title(pos_disp(p), fontsize=9, color=_pos_color(p, "L"))
             if j == 0:
                 ax.set_ylabel(LABEL[m], fontsize=7)
-    axs[0][0].legend(fontsize=6, frameon=False)
-    note = ("by spout position: per-animal epoch mean +- SEM over sessions; licks: ALL POST-CUE licks (cue + 70 ms .. "
-            "trial stop), measured peaks for kinematics; dashed = spout angle. * (animal colour, one row per animal) = "
-            "that animal's sessions in the epoch differ from ITS OWN pre-stroke sessions: two-sided Mann-Whitney on "
+    axs[0][0].legend(handles=_cv_handles(Pm.animal.unique()), fontsize=6, frameon=False)
+    note = ("by spout position: open = per-animal epoch mean +- SEM over sessions (shape = animal, colour = epoch), filled = "
+            "mean +- SEM over animals, no lines across epochs; licks: ALL POST-CUE licks (cue + 70 ms .. "
+            "trial stop), measured peaks for kinematics; dashed = spout angle. Top-band filled marker (the animal's shape, "
+            "epoch colour, one row per animal) = that animal's sessions in the epoch differ from ITS OWN pre-stroke "
+            "sessions: two-sided Mann-Whitney on "
             "sessions, BH-FDR within each metric (all animals x positions x epochs), q < 0.05")
     fig.suptitle(title + "\n" + "\n".join(textwrap.wrap(note, 150)), fontsize=9)
     _save(plt, fig, path)
 
 
 def fig_timecourse_by_position(Pm: pd.DataFrame, metrics: tuple, path: Path, title: str) -> None:
-    """Rows = metric, columns = the six positions; x = days since stroke; one line per animal (one point per session)."""
-    col, _ = _palettes()
+    """Rows = metric, columns = the six positions; x = days since stroke; one OPEN point per session (shape = animal,
+    colour = epoch), no line; filled = epoch mean +- SEM over animals (A13, Priya 11-07)."""
+    from wfield_local import cat_points as cp
     plt = _plt()
     fig, axs = plt.subplots(len(metrics), len(POS_ORDER), figsize=(2.6 * len(POS_ORDER), 2.1 * len(metrics)),
                             squeeze=False, sharey="row", sharex=True)
     for j, p in enumerate(POS_ORDER):
         for i, m in enumerate(metrics):
             ax = axs[i][j]
-            for a, g in Pm[Pm.pos == p].sort_values("day").groupby("animal"):
-                ax.plot(g.day, g[m], "o-", ms=2.2, lw=0.8, color=col.get(a, "k"), label=a)
+            g = Pm[Pm.pos == p]
+            cp.day_dots(ax, g.day, g[m], g.animal, g.epoch, ms=2.8, summary_ms=4.5)
             ax.axvline(0.5, color="0.6", ls="--", lw=0.7, zorder=0)
             ax.tick_params(labelsize=6.5)
             if i == 0:
@@ -1074,9 +1098,10 @@ def fig_timecourse_by_position(Pm: pd.DataFrame, metrics: tuple, path: Path, tit
                 ax.set_ylabel(LABEL[m], fontsize=7)
     for ax in axs[-1]:
         ax.set_xlabel("days since stroke", fontsize=7)
-    axs[0][0].legend(fontsize=6, frameon=False)
-    fig.suptitle(title + "\nby spout position; licks: ALL POST-CUE licks (measured peaks for kinematics); one point per "
-                 "session; dashed = lesion", fontsize=9)
+    axs[0][0].legend(handles=_cv_handles(Pm.animal.unique()), fontsize=6, frameon=False)
+    fig.suptitle(title + "\nby spout position; licks: ALL POST-CUE licks (measured peaks for kinematics); one open point per "
+                 "session (shape = animal, colour = epoch), filled = epoch mean +- SEM over animals; dashed = lesion",
+                 fontsize=9)
     _save(plt, fig, path)
 
 
@@ -1158,47 +1183,35 @@ DAY_BINS = ((1, 3), (4, 7), (8, 14), (15, 28), (29, 60))
 
 
 def fig_cohort_timecourse_by_position(Pm: pd.DataFrame, metrics: tuple, path: Path, title: str) -> None:
-    """COHORT version of `fig_timecourse_by_position` (Priya 10-17): within-animal change vs pre, mean +- SEM over
-    sessions per day bin (pre-stroke sessions = one bin), faint = each animal's bin means."""
-    col, _ = _palettes()
+    """COHORT version of `fig_timecourse_by_position` (Priya 10-17): within-animal change vs pre per session.
+    EPOCH-COLOUR CONVENTION (A13, Priya 11-07; before: black day-bin means joined by a line, faint animal-coloured bin
+    lines): one OPEN point per session at its day (shape = animal, colour = epoch), no line; filled = epoch mean +- SEM
+    over animals. `DAY_BINS` is no longer drawn here (kept for its other readers)."""
+    from wfield_local import cat_points as cp
     plt = _plt()
     fig, axs = plt.subplots(len(metrics), len(POS_ORDER), figsize=(2.6 * len(POS_ORDER), 2.1 * len(metrics)),
                             squeeze=False, sharey="row", sharex=True)
-    xs = [-6.0] + [float(np.mean(b)) for b in DAY_BINS]
-    labs = ["pre"] + [f"{a}-{b}" for a, b in DAY_BINS]
     for i, m in enumerate(metrics):
         if m not in Pm:
             continue
         d = _within_change(Pm, m)
-        d["bin"] = np.nan
-        d.loc[d.epoch == "pre", "bin"] = 0
-        for k, (a, b) in enumerate(DAY_BINS, start=1):
-            d.loc[(d.epoch != "pre") & d.day.between(a, b), "bin"] = k
-        d = d.dropna(subset=["bin"])
         for j, p in enumerate(POS_ORDER):
             ax = axs[i][j]
             g = d[d.pos == p]
             ax.axhline(0, color="0.8", lw=0.8, zorder=0)
             ax.axvline(0.0, color="0.6", ls="--", lw=0.7, zorder=0)
-            for a, ga in g.groupby("animal"):
-                am = ga.groupby("bin").chg.mean().reindex(range(len(xs)))
-                ax.plot(xs, am.to_numpy(float), "o-", ms=2.2, lw=0.7, color=col.get(a, "k"), alpha=0.4, zorder=1,
-                        label=a if (i == 0 and j == 0) else None)
-            mu = g.groupby("bin").chg.mean().reindex(range(len(xs)))
-            se = g.groupby("bin").chg.agg(_sem).reindex(range(len(xs)))
-            ax.errorbar(xs, mu.to_numpy(float), yerr=se.to_numpy(float), fmt="o-", ms=4, color="k", lw=1.4,
-                        capsize=2.5, elinewidth=0.9, zorder=3)
-            ax.set_xticks(xs, labs, fontsize=6, rotation=45)
+            cp.day_dots(ax, g.day, g.chg, g.animal, g.epoch, ms=2.8, summary_ms=4.5)
             if i == 0:
                 ax.set_title(pos_disp(p), fontsize=9, color=_pos_color(p, "L"))
             if j == 0:
                 ax.set_ylabel(f"{LABEL[m]}, change vs pre", fontsize=7)
     for ax in axs[-1]:
-        ax.set_xlabel("days since stroke (bins)", fontsize=7)
-    axs[0][0].legend(fontsize=6, frameon=False)
-    note = ("COHORT timecourse by spout position: each session's change from its animal's OWN pre-stroke mean; black = "
-            "mean +- SEM over SESSIONS per day bin (all pre-stroke sessions = 'pre'), faint = each animal's bin mean; "
-            "licks: ALL POST-CUE licks; dashed = lesion. Significance by epoch: see cohort_epochs_by_position_*")
+        ax.set_xlabel("days since stroke", fontsize=7)
+    axs[0][0].legend(handles=_cv_handles(Pm.animal.unique()), fontsize=6, frameon=False)
+    note = ("COHORT timecourse by spout position: each session's change from its animal's OWN pre-stroke mean, one open "
+            "point per session (shape = animal, colour = epoch), no lines; filled = epoch mean +- SEM over ANIMALS (each "
+            "animal's sessions averaged first); licks: ALL POST-CUE licks; dashed = lesion. Significance by epoch: see "
+            "cohort_epochs_by_position_*")
     fig.suptitle(title + "\n" + "\n".join(textwrap.wrap(note, 150)), fontsize=9)
     _save(plt, fig, path)
 
