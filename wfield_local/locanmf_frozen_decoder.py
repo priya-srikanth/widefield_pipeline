@@ -1172,7 +1172,9 @@ def _loso_fig(results, out, align="cue", basis="roi"):
     for an in animals:
         r = results[an]
         start = off
-        for lab in r["labels"]:
+        # ONLY sessions with a LOSO score: under the camera gate a session with no camera working trials (no behaviour
+        # video, PS93_0813) drops out of the frozen training / held-out set but stays in r["labels"] (11-07 KeyError)
+        for lab in [x for x in r["labels"] if x in r["per_session"]]:
             w = r["within_session"].get(lab, np.nan)
             ax[0].plot([off - 0.16, off + 0.16], [w, r["per_session"][lab]], "-", color="0.75", lw=1, zorder=1)
             ax[0].scatter(off - 0.16, w, s=34, color="tab:blue", zorder=3)
