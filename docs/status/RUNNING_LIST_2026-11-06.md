@@ -91,8 +91,8 @@ the encoding handoff (STATUS_2026-10-26_ENCODING_HANDOFF.md, top blocks); the A1
 
 - **B (11-07) far-contra is mostly INCOMPLETE licks post-stroke.** Old DAQ-gated section G dropped far_R (far contra) in
   PS92 0818-0822 / PS93 0818-0821 (n=5; contact 0-12 < MIN_POST 20) and PS94 0817-0820 / PS95 0817 were 4-way; camera classes
-  show 33-68 incomplete far-contra trials per session, so the camera gate should make these 6-way (confirm from the new
-  section_g.json). Preview (OLD gate) retained fraction, post-cue median acute: LICK-ONLY .63-.90 vs ALL .46-.80; chronic
+  show 33-68 incomplete far-contra trials per session. CORRECTION 11-07 ~11:15: the camera-gate run did NOT make these 6-way --
+  preserved_positions still counted DAQ-lick rows (14 units 5-way, 5 four-way); fixed eeb36d48 (Priya: never gate on successful licks). Preview (OLD gate) retained fraction, post-cue median acute: LICK-ONLY .63-.90 vs ALL .46-.80; chronic
   ~1.0-1.2 both arms. Not for pages until the new run lands.
 
 ## C. What is running / next (summary; detail in the handoff)
