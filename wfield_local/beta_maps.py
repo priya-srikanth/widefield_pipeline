@@ -1628,8 +1628,13 @@ def session_maps_cached(session, align, *, post_s=2.0, balance=False, variant="l
 
 def _session_maps_job(job):
     """Module-level worker for `map_collect.collect`: ``(label, session, align, post_s, balance, variant)``."""
+    from wfield_local import lp_licks, map_collect
     _lab, s, align, post_s, balance, variant = job
-    return session_maps_cached(s, align, post_s=post_s, balance=balance, variant=variant)
+    try:
+        return session_maps_cached(s, align, post_s=post_s, balance=balance, variant=variant)
+    except lp_licks.LPUnavailable as ex:
+        # LP arm, session never filmed (PS93_0813): ({}, {}) = "no position reached N trials", as the contact arm
+        return map_collect.skip_lp_unavailable_no_video(s["label"], ex, ({}, {}))
 
 
 @lru_cache(maxsize=8)

@@ -64,6 +64,38 @@ All under `M:/MICROSCOPE/Priya/DeepLabCut/Widefield/face_rhythm/cam4/readouts/ma
    * READY, PRIYA SUBMITS: >= 500 permutations -> `run_fitcohortnull500.sbatch` (share copy of the set dir; new conda
      module, --n-perm 500, array skips the 600 done). Matters for the specificity claim (several of the other ten sit at
      the p .0099 floor), not the lick pair. Then rsync own_epoch_cohort_null/ back + `face_rhythm_cohort_null.py`.
+     11-07 (a8) SUBMITTED + RUNNING; INTERIM SCORE on the first copy-back (acute 482 pairs; subacute / chronic still the
+     original 100): readouts/master_pre_v1/epoch_shape_cohort/interim_500perm_20261107/ (page outputs one level up,
+     n = 100, untouched; scored by importing compute(), no code change). Lick pair unchanged (lick_right angle_spatial /
+     angle_spectral / asym / side_spec p .002-.004, Holm < .01; lick_left n.s.). SPECIFICITY WEAKENS ACUTELY: off the
+     floor, of the other ten, Holm < .05 for angle_spatial sniff_prelick, nose_prelick_slow, lick_ongoing_7Hz,
+     lick_fast_close, whisk_run; angle_spectral lick_fast_close; asym lick_ongoing_7Hz, lick_fast_close, lick_slow_late.
+     NOTE sniff_prelick == nose_prelick_slow and run_onset_jaw == prep_jaw give identical spatial readouts (two master
+     factors matched to one fit column) -- also in the n = 100 run; check before quoting them as separate factors.
+     CHECKED 11-07 (Priya asked): master spatial twins -- sniff_prelick / nose_prelick_slow and run_onset_jaw / prep_jaw
+     spatial cos .99 (differ only in spectrum), and a jaw cluster (lick_ongoing_7Hz, run_onset_jaw, lick_fast_close,
+     prep_jaw, lick_slow_late) at spatial cos .91-.99. Spatial-only best matching (MATCH_ON spatial, ASSIGN best) cannot
+     separate them: sniff / nose share a column in 98 % of null fits, the jaw pair 47 %, lick_right / lick_left 0 %.
+     Re-score with MATCH_ON product (interim folder, cohort_null_productmatch.csv; figure master_factor_twins.png):
+     lick pair identical; sniff_prelick drops out (p .48); lick_ongoing_7Hz + lick_fast_close spatial angle hold;
+     asym for lick_ongoing_7Hz / lick_slow_late and whisk_run spatial angle lose Holm. Method choice = Priya's
+     (10-25 decision was spatial best-match); asked her 11-07.
+     11-07 Priya: compare best vs Hungarian (spatial score) -> cohort_null_hungarian.csv: lick_right identical; Hungarian
+     re-creates the 10-25 lick_left problem (acute lick_left .86 -> .79, results flip) and forces poor twin matches
+     (nose_prelick_slow .51-.61) -> Hungarian rejected again. Priya then proposed: spatial score, frequency only to break
+     near-ties. Tested (tie margin .02 / .05 / .10; .05 scored -> cohort_null_tiebreak05.csv): 10 matches change across
+     the 4 cohort fits; figure match_changes_tiebreak05.png (maps + spectra per change). 8 / 10 clearly better (spectrum
+     ~ master, spatial within .01-.05); acute lick_fast_close + acute / subacute prep_jaw: neither pick matches the
+     master spectrum (factor likely not recovered there). lick_right unchanged. Awaiting Priya's read of the figure.
+     RECOVERY (Priya 11-07: mark poor fits, the factors that DISAPPEAR are interesting; combine similar footprints?):
+     match_quality_tiebreak05.csv. Null fits (should hold every factor): spatial 1st pct .84, freq 5th pct .46 overall,
+     but per factor run_onset_jaw .26, prep_jaw .33, sniff_prelick .46 (unstable even pre; the real COHORT_pre already
+     loses run_onset_jaw, freq .25). Rule tried: recovered = spatial >= .8 and freq >= .5. ACUTE loses lick_ongoing_7Hz
+     (freq .50, borderline) and lick_fast_close (.46): lost in 0-1 % of null fits -> a real acute loss of the fast-lick
+     jaw rhythm, back by subacute. prep_jaw subacute loss = in 21-34 % of null fits -> not a stroke effect. Proposal to
+     Priya: merge only the unstable twins (sniff_prelick + nose_prelick_slow = prelick nose; run_onset_jaw + prep_jaw =
+     slow jaw); keep the stable fast jaw factors separate (merging the whole jaw cluster would hide the acute loss).
+     When all lands: run the scorer normally (overwrites the page outputs), update FINDINGS 5.10 + FR page 7m-7o.
    * BLOCKED: 13b -- on 34's cohort-1 rebuild (the decoder / template deficit tables and the working-gate behaviour
      inputs change) and on Priya confirming the variable list (a8 asked her 11-05; d4 gone).
 
