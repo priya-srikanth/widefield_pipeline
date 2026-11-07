@@ -190,3 +190,8 @@ All under `M:/MICROSCOPE/Priya/DeepLabCut/Widefield/face_rhythm/cam4/readouts/ma
      PAGE v41 + DECK (201 slides; 83 lick rate, 84 band maps, 85 hidden band drift) updated with Priya's OK, incl. the
      10k rewording of 3.10a / 3.10b / slide 82. Open: rescore the pooled null when the O2 sub / chronic files land
      (descriptive); the deck-wide notes "Data:" pass (waits on 34).
+     11-07 NIGHT (4): REWORDED as a FREQUENCY SHIFT (Priya: what does "the 7 Hz band falls more" mean -- the
+     lick_ongoing_7Hz profile is the upper lick spectrum, 6.5-15 Hz). New readout `face_rhythm_band_maps.py --centre`:
+     face movement spectrum centre 6.77 -> 6.56 Hz acute (4 / 4, Holm .0003), back subacute; licks 6.45 -> 5.71 Hz.
+     Page v42 (7b heading / text / status row / 7b.3 title), slide 84 title + bullets + notes
+     (`reword_band_slide_1107e.py`), FINDINGS 0 / 5.10, FACE_RHYTHM 6f, DECISIONS updated.

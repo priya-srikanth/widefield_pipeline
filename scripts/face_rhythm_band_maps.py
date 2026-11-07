@@ -152,6 +152,60 @@ def gradient_test(V: dict, n_perm: int, seed: int = 0) -> pd.DataFrame:
     return T
 
 
+CENTRE_BAND = (3.0, 15.0)    # Hz: the licking range (lick-unit profiles' middle halves span 4.1-14.7 Hz)
+
+
+def centre_test(fdir: Path, n_perm: int, band=CENTRE_BAND, seed: int = 0) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Does face movement shift to LOWER FREQUENCIES? Per session: the face-wide movement spectrum (power summed over
+    points and x / y, response window, spouts pooled bin-weighted) and its power-weighted centre over ``band`` on a log2
+    frequency scale (the 36 bins are log-spaced), reported in Hz. Delta vs own pre, within-animal session-label shuffles,
+    Holm over the 3 epochs; drift control (late vs early pre). -> (per-session table, test table)."""
+    import face_rhythm_session_shape_tests as sst
+    from statsmodels.stats.multitest import multipletests
+    fr = np.load(fdir / "master.npz")["freqs"]
+    k = (fr >= band[0]) & (fr <= band[1])
+    lf = np.log2(fr[k])
+    acc = {}
+    for t in frc.sessions(fdir, "proj").itertuples():
+        with np.load(t.file) as z:
+            if "power_response" not in z.files:
+                continue
+            pw = z["power_response"].sum((1, 2))                  # (6, F): x + y, all points
+            nb = z["power_n_bins"][2::2]
+        ok = (nb > 0) & np.isfinite(pw).all(1)
+        key = (t.animal, t.label, t.epoch)
+        s0, n0 = acc.get(key, (0.0, 0))
+        acc[key] = (s0 + (pw[ok] * nb[ok, None]).sum(0), n0 + nb[ok].sum())
+    rows = []
+    for (an, lab, ep), (s, n) in sorted(acc.items()):
+        spec = s[k] / n
+        rows.append({"animal": an, "label": lab, "epoch": ep, "centre_hz": float(2 ** ((spec * lf).sum() / spec.sum()))})
+    S = pd.DataFrame(rows)
+    S["log2_centre"] = np.log2(S.centre_hz)
+    rng = np.random.default_rng(seed)
+    out = []
+    for ep in (*EPOCHS[1:], "late_pre"):
+        groups = []
+        for an in sorted(S.animal.unique()):
+            m = S.animal == an
+            if ep == "late_pre":
+                x = S.log2_centre[m & (S.epoch == "pre")].to_numpy()
+                if len(x) >= 2:
+                    groups.append((x, np.arange(len(x)) < len(x) // 2))
+            else:
+                kk = m & S.epoch.isin(["pre", ep])
+                groups.append((S.log2_centre[kk].to_numpy(), (S.epoch[kk] == "pre").to_numpy()))
+        obs, pv, na = sst.shuffle_test(groups, "value", n_perm, rng, "two-sided")
+        pre_hz = float(S[S.epoch == "pre"].groupby("animal").centre_hz.mean().mean())
+        out.append({"epoch": ep, "delta_log2": obs, "pre_centre_hz": pre_hz, "delta_hz": pre_hz * (2 ** obs - 1),
+                    "p": pv, "n_animals": na, "n_perm": n_perm, "band_hz": f"{band[0]:g}-{band[1]:g}"})
+    T = pd.DataFrame(out)
+    k3 = T.epoch != "late_pre"
+    T["p_holm"] = np.nan
+    T.loc[k3, "p_holm"] = multipletests(T.loc[k3, "p"], method="holm")[1]
+    return S, T
+
+
 def main(argv=None) -> int:
     import matplotlib
     matplotlib.use("Agg")
@@ -169,6 +223,9 @@ def main(argv=None) -> int:
     ap.add_argument("--gradient", action="store_true",
                     help="only the rhythm-gradient test (each band minus the lick rhythm, per session) -> "
                          "data/band_gradient.csv")
+    ap.add_argument("--centre", action="store_true",
+                    help="only the spectral-centre test (face movement spectrum's power-weighted centre, 3-15 Hz) -> "
+                         "data/spectral_centre*.csv")
     a = ap.parse_args(argv)
     rv = PathResolver()
     fdir = fro.factor_dir(rv, a.bundle, a.set)
@@ -177,6 +234,19 @@ def main(argv=None) -> int:
     out.mkdir(parents=True, exist_ok=True)
     M = np.load(fdir / "master.npz")
     home, mid = M["home"], float(frr.MASTER_MIDLINE_X)
+    if a.centre:
+        pd.set_option("display.width", 200)
+        for band in (CENTRE_BAND, (4.0, 12.0)):                   # main range + a narrower sensitivity range
+            S, T = centre_test(fdir, a.perm, band)
+            sfx = "" if band == CENTRE_BAND else f"_{band[0]:g}_{band[1]:g}"
+            S.to_csv(figure_layout.sidecar_for(out, f"spectral_centre_sessions{sfx}", ".csv"), index=False,
+                     float_format="%.4g")
+            T.to_csv(figure_layout.sidecar_for(out, f"spectral_centre{sfx}", ".csv"), index=False, float_format="%.4g")
+            print(f"\nband {band}: per animal x epoch mean centre (Hz) -- rule 8, read first")
+            print(S.pivot_table(index="animal", columns="epoch", values="centre_hz")
+                  .reindex(columns=list(EPOCHS)).round(2).to_string())
+            print(T.round(4).to_string(index=False))
+        return 0
     if a.gradient:
         W, U = unit_weights(fdir)
         G = gradient_test(session_band(fdir, W), a.perm)

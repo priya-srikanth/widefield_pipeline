@@ -44,6 +44,10 @@
   profile (v2 units) = movement in that unit's rhythm, no refit; lick_right + lick_left share one band, read by
   spout. Cue 0..+4 s only (no spectra stored for the 0..2 s window). The rhythm GRADIENT is tested per session as
   band minus lick rhythm (face-wide mean log2), within-animal shuffles, Holm over 6 bands x 3 epochs.
+- (night) WORDING (Priya asked what "the 7 Hz band falls more" means): the 'lick_ongoing_7Hz' profile is the UPPER
+  part of the lick spectrum (6.5-15 Hz), so the result is reported as a downward FREQUENCY SHIFT of face movement,
+  not as the loss of a separate fast movement; quantified directly by the spectrum's power-weighted centre
+  (3-15 Hz main, 4-12 Hz sensitivity; log-frequency mean because the bins are log-spaced).
 
 ## 2026-10-28 (late night) -- balance definition for recovery markers (Priya)
 - PRIMARY marker FIXED (Priya "proceed with the model including SSs"; "what's the harm in 0-0.5"): gain ratio 0.1..0.5 s

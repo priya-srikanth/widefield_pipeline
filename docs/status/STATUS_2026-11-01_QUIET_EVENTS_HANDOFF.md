@@ -10,6 +10,8 @@
 > - FR PAGE v41: all map figures at 10,000 shuffles; 3.10a / 3.10b drift text reworded; NEW section 7b (lick rate +
 >   rhythm-band maps + gradient table) and a "Lick rhythm" status row; registry `fr_page_src/fr_page/fig_ids.csv` = 92 figs.
 > - FINDINGS 0 + 5.10, FACE_RHYTHM_FINDINGS 6f, DECISIONS 2026-11-07 (night bullets) written. FR handoff "11-07 NIGHT".
+> - Later: page v42 + slide 84 reworded as a frequency shift (spectral centre 6.77 -> 6.56 Hz acute); script
+>   `reword_band_slide_1107e.py` (backup_before_band_reword_1107e).
 
 > **11-07 (evening, before compaction) -- START HERE (a8).** Supersedes the deck facts of every block below.
 > - DECK = `presentations/Overview_2026-11-06.pptx`, now **198 slides** (was 194). A stale lock `~$Overview_2026-11-06.pptx`
