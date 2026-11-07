@@ -63,7 +63,13 @@ the encoding handoff (STATUS_2026-10-26_ENCODING_HANDOFF.md, top blocks); the A1
   Old 10-07 DAQ json = preview only (older basis + DAQ-quit cut). Drawing fixes for G2c / H3b / G2b (one chance line /
   union band across sessions of different n) proposed, not yet approved.
 
-- **A10 (11-07 ~13:20; Priya ~14:00: RUN the contact/incomplete split + rewrite the Fig 10.2 text; she suspects short licks drive it)** ITI where-decoder (Fig 10.2 KEY "loss mainly LATERAL; cued sagittal not lost") no longer holds:
+- **A10 (11-07 ~13:20; Priya ~14:00: RUN the contact/incomplete split + rewrite the Fig 10.2 text; she suspects short licks drive it)**
+  CHECK DONE ~14:50: the gate never filters the cued set (sessions_roi8fr, all post-cue camera licks); incomplete TRIALS are
+  0.2-7% and not shorter -> not the cause. Short NO-CONTACT licks inside successful trials (8-26%, 2.8-3.4 vs 4.1-4.5 mm) carry
+  the subacute/chronic sagittal loss: contact licks only -24% (4/4) / -14% n.s. / +7% n.s. Page->rebuild change = imaging /
+  pre-set changes (not tested which). Wording proposed to Priya ~15:00 (awaiting OK). Priya OK: QUEUE the attribution test
+  (decoder on old vs new inputs one change at a time: hemo / swapmask / lnmfproj / pre0801) AFTER the render.
+  Files scratchpad/a10_sagittal/. ITI where-decoder (Fig 10.2 KEY "loss mainly LATERAL; cued sagittal not lost") no longer holds:
   cued sagittal r_norm -25/-21/-8% (CI excl 0, 4/4 each) vs page -21 n.s./-8 n.s./+2; ITI sagittal chronic -24% ~ lateral.
   Proposed first: split cued sagittal by contact vs incomplete (incomplete licks now in the cued set). Also: queue the missing
   Fig 16.4 aim recovery-link step (--beh aim never queued). Report scratchpad/compare_iti_20261107.md.
