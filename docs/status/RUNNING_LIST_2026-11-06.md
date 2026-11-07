@@ -52,7 +52,8 @@ the encoding handoff (STATUS_2026-10-26_ENCODING_HANDOFF.md, top blocks); the A1
    0555f6f5 (on e79afbf9), 381 tests pass; DAQ path unchanged; per-animal x epoch counts print first; groups < 5 trials / animal
    (3 per spout) are named, not drawn. Dry run: PS92_0810 pre 402 / 2 / 0 / 0 / 0; PS92_0819 acute 305 / 69 / 25 / 27 / 120
    (+5 excluded). Reading: the 4 groups = cortical activity graded by orofacial output (movement differs by construction);
-   no_response vs stopped = the clean engaged-vs-disengaged contrast. OK to push + run l_stopped_restw / l_stopped_restnl?
+   no_response vs stopped = the clean engaged-vs-disengaged contrast. -> Priya YES: ON MAIN 7388c713; queue v9y (A7 lock rules)
+   runs l_stopped_restw -> l_stopped_restnl (waits for a heavy slot).
 
 ## B. Notable findings / result changes (nothing on pages or decks changed yet)
 
