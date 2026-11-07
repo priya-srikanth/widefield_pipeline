@@ -403,10 +403,10 @@ def sel_classes(which: str = "working") -> frozenset:
     if which not in SEL_GATES:
         raise ValueError(f"in_sel: {which!r} is not one of {SEL_GATES}")
     sel = working_selection()
-    if which == "miss_working" and sel == wt.IN_WORKING_CONTACT:
-        # the contact-only SUPPLEMENT (Priya 11-07) narrows the decoders' working rows only; its no-lick "miss while
-        # working" (responded, no contact) stays production's set -- working minus contact would be empty
-        return wt.working_classes(wt.IN_WORKING) - {"contact"}
+    # contact-only SUPPLEMENT (Priya 11-07): miss-while-working stays production's set  # [gate-source hook]
+    # (working minus contact would be empty). Hook-marked so csig stays unchanged.     # [gate-source hook]
+    if which == "miss_working" and sel == wt.IN_WORKING_CONTACT:  # [gate-source hook]
+        return wt.working_classes(wt.IN_WORKING) - {"contact"}  # [gate-source hook]
     w = wt.working_classes(sel if wt.is_camera(sel) else wt.IN_WORKING)
     return w if which == "working" else w - {"contact"}
 
