@@ -137,6 +137,11 @@ def score(X, T, areas, k_main=KS[-1]):
     g, b = _fit_gain_offset(Xf, Tf, per_area=True)
     row.update({f"gain_{a}": float(v) for a, v in zip(areas, g)})
     row["gain_global"] = float(_fit_gain_offset(Xf, Tf, per_area=False)[0][0])
+    # the regression slope above = r x (sd_X / sd_T): split it, so a decorrelated but LARGER response is not read
+    # as a gain loss
+    row["amp_ratio"] = float(np.linalg.norm(Xc) / np.linalg.norm(Tc))
+    row["r_template"] = float((Xc * Tc).sum() / (np.linalg.norm(Xc) * np.linalg.norm(Tc)))
+    row["level_shift"] = float(np.mean(Xf.mean(0) - Tf.mean(0)))
     # condition-independent (shared) vs position-specific parts
     Xs, Ts = np.nanmean(X[ok], 0), np.nanmean(T[ok], 0)
     Xp, Tp = X[ok] - Xs, T[ok] - Ts

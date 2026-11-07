@@ -84,6 +84,36 @@ and adds what is missing:
    - divergence time: pre-cue vs cue vs lick.
 6. **Basis cross-check.** Repeat 1-4 in the joint LocaNMF basis. A claim stands only if it holds in both bases.
 
+## The path question (Priya 11-07): HOW the acute / subacute brain finds the new solution
+
+Scaling vs rotation vs local search vs other, read from the sequence of sessions, per animal, against days:
+
+- **P1. Decompose each session's change from pre** into four parts, then ask which part dominates in each epoch and
+  whether the mix changes from acute to subacute:
+  1. amplitude along the pre pattern;
+  2. per-area gain profile;
+  3. residual rotation within the pre space;
+  4. variance outside the pre space.
+- **P2. Session-to-session geometry.** Distance matrix between all sessions of an animal, on the amplitude-normalized
+  pattern AND on raw amplitude; embed against days. The hypotheses predict different paths:
+  - scaling: a monotone 1-D path;
+  - rotation: a steady turn in one plane;
+  - local search / exploration: a meandering subacute path, with long path length relative to net displacement and
+    large day-to-day jumps, then settling.
+  - Does chronic return to the pre cluster, or settle somewhere new, compared with the pre-to-pre spread?
+- **P3. Variability as the search signature.** Day-to-day distance between consecutive sessions, and trial-to-trial
+  spread (trial-count matched). Expected under exploration: both up in the subacute window, then contracting
+  (Athalye 2017, Kim 2023).
+- **P4. Lead / lag against behavior.** Does the neural path move before, with, or after daily far-contra hit rate and
+  aim? Neural settling before behavior suggests the network finds the solution first; settling after suggests the
+  network follows behavior.
+
+Limits:
+- Sparse days: acute has 4-6 sessions per animal and PS95 has 1; subacute has 2-7.
+- Behavior changes on the same days, so the movement confound applies to every step. Run per-spout and on close
+  spouts, where behavior is near normal, as the control.
+- No-stroke imaging drift sets the floor: the pre-to-pre spread over the August span.
+
 ## Scope decisions (Priya 11-07)
 
 - **Intention vs execution is already answered; do NOT redo it (item 5, third bullet).**
@@ -118,6 +148,20 @@ The ladder:
 - Rotation (L4) adds nothing over L3 in any animal; the free map (L5) overfits.
 - Global gain is below 1 acutely (cue .65-.88, 4 / 4) and above 1 chronically in PS92 / PS93 (1.3).
 - The shared-trajectory norm grows (chronic 1.2-1.8 x).
+
+**CORRECTION (Priya 11-07: "activity is increased across all regions, how does gain go down?").** `gain_global` is a
+regression slope = r x (amplitude ratio), NOT amplitude. Split, cue-aligned, per animal:
+
+| | amplitude vs pre template | r with the pre pattern |
+|---|---|---|
+| pre (floor) | 1.06-1.09 | .90-.93 |
+| acute | 1.04-1.49 | .58-.81 |
+| subacute / chronic | 1.20-1.77 | .71-.91 |
+
+So activity is as large or LARGER acutely; it is less like the pre pattern; the slope fell because r fell. Constant
+per-area offsets (`level_shift`) are ~0, so the "shift" rung is negligible. The earlier claim "orientation shifts
+acutely" is not established: the overlap drop shares the template-vs-single-session bias, and per-area gains alone
+can reorient a PC subspace.
 
 Tentative reading: within-manifold, gain + shift, no rotation beyond what gain explains. This matches the earlier lick-code
 and CD-trajectory results.
