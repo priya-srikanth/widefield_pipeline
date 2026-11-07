@@ -343,7 +343,8 @@ def summarise(run: Path, out: Path, variants) -> None:
         return
     print(B[B.area.isin(["cortex", "SSp-m_right", "SSp-m_left"])].round(4).to_string(index=False))
     qs = ["full", *[v.replace("no_", "") for v in variants if v != "joint"]]
-    cols = dict(zip(qs, ["#333333", "#e41a1c", "#ff7f00", "#7570b3", "#1b9e77", "#e7298a", "#a6761d", "#666666"]))
+    from wfield_local import cat_points as cp                    # the shared model palette (Priya 11-07)
+    cols = {q: cp.model_color(i) for i, q in enumerate(qs)}
     ffc.COL.update(cols)
     (out / "figures").mkdir(exist_ok=True)
     for w in ffc.WINDOWS:

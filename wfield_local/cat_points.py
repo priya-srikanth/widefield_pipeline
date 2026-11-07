@@ -117,6 +117,20 @@ def animal_handles(animals, color="0.35"):
 # FILLED dot in the epoch colour with +- SEM across ANIMALS (`epoch_mean_sem`; Priya 11-07: "can the mean +- SEM be a
 # dot and bars in the epoch color, as in other figures"). `day_dots` applies all of it to a days-from-stroke axis.
 
+#: ONE palette for MODEL / series identity on the model-comparison figures (frozen_fr_compare.epoch_lines / bars and
+#: their callers; Priya 11-07: a model keeps its coloured line across epochs, but its colour must not reuse a colour that
+#: means something else). Paul Tol's muted set minus the members near an EPOCH colour (EPOCH_LINE: black / #d01c8b /
+#: #b8860b / #01665e), an ANIMAL colour (animals.yaml: tab:blue / red / orange / green, cohort2 tab:purple / brown / pink
+#: / olive) or a trial-CLASS colour (#2c3e50 / #c0392b, Dark2): every entry is >= 25 CIELAB dE from all of them
+#: (tests/test_cat_points_epoch_convention.py). Index order = the order a caller assigns them; past 7, cycle + hatch.
+MODEL_COLORS = ("#332288", "#88CCEE", "#882255", "#DDCC77", "#CC6677", "#AAAAAA", "#FFAABB")
+
+
+def model_color(k: int) -> str:
+    """The k-th model colour (cycles)."""
+    return MODEL_COLORS[int(k) % len(MODEL_COLORS)]
+
+
 #: order the epoch summaries / legend entries are drawn in
 EPOCH_ORDER = ("pre", "acute", "subacute", "chronic")
 #: colour of a session in NO epoch (the acute -> subacute gap, an animal without an epoch spec): neutral, never a
@@ -210,6 +224,13 @@ def epoch_handles(epochs=EPOCH_ORDER, label: str = "{e}: mean +- SEM over animal
     from matplotlib.lines import Line2D
     return [Line2D([], [], ls="none", marker="o", color=epoch_color(e), mec="w", ms=6.5, label=label.format(e=e))
             for e in epochs]
+
+
+def epoch_colour_handles(epochs=EPOCH_ORDER, label: str = "{e}"):
+    """Legend handles saying "point colour = epoch" (small open circle per epoch)."""
+    from matplotlib.lines import Line2D
+    return [Line2D([], [], ls="none", marker="o", mfc="none", mec=epoch_color(e), mew=1.1, ms=SESSION_MS + 1,
+                   label=label.format(e=e)) for e in epochs]
 
 
 def legend_handles(animals, epochs=EPOCH_ORDER, *, sessions_label: str = "{a} sessions",
