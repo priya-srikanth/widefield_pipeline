@@ -284,7 +284,7 @@ def main(argv=None) -> int:
                         sc = ax.scatter(home[:, 0], home[:, 1], c=m, s=4, cmap="RdBu_r", vmin=-1, vmax=1)
                         if a.unit == "point":
                             sg = marks.get((al, p, ep), np.zeros(len(home), bool))
-                            ax.scatter(home[sg, 0], home[sg, 1], s=7, facecolors="none", edgecolors="k", linewidths=0.35)
+                            frf.sign_rings(ax, home, sg, m)
                         else:
                             outline(ax, marks.get((al, p, ep), []), grid, color="k", lw=1.0)
                         ax.axvline(mid, color="k", lw=0.4)

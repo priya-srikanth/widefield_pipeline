@@ -54,13 +54,15 @@ MATCH_ON = "spatial"
 OWN = "own_epoch"
 # Matching rule (`--match-rule`). v1 = the settings above. v2 (Priya 11-07, after the 500-permutation null showed
 # duplicated readouts): spatial score with a SPECTRAL TIE-BREAK among columns within `face_rhythm_matching.TIE` of the
-# best spatial cosine; a factor is RECOVERED only if its pick has spatial cos >= .8 AND spectral cos >= .5 (null fits,
-# which hold every factor: spatial 1st percentile .84, spectral 5th percentile .46); the two footprint twins that no rule
+# best spatial cosine; a factor is RECOVERED only if its pick has spatial cos >= .7 AND spectral cos >= .5 (spectral:
+# null fits, which hold every factor, 5th percentile .46; spatial .8 first, lowered to .7 by Priya 11-07 because it
+# dropped PS95 acute lick_right -- same column as pre, spectral .94, spatial .78: a CHANGED factor, not a lost one; no
+# null-fit cell with spectral >= .5 sits below .7, and .5 / .7 pick the same real cells); the two footprint twins that no rule
 # can separate and that are unstable even in null fits are MERGED into one unit each (master spatial cos .99).
 # Unrecovered cells leave the shape readouts; which factors are lost is its own readout (`face_rhythm_recovery.py`).
 MERGE = {"prelick_nose": ("sniff_prelick", "nose_prelick_slow"), "slow_jaw": ("run_onset_jaw", "prep_jaw")}
 MATCH_RULES = {"v1": dict(assign=ASSIGN, min_spatial=MIN_COS, min_spectral=None, merge={}),
-               "v2": dict(assign="tiebreak", min_spatial=0.8, min_spectral=0.5, merge=MERGE)}
+               "v2": dict(assign="tiebreak", min_spatial=0.7, min_spectral=0.5, merge=MERGE)}
 RULE = "v1"
 
 
@@ -392,12 +394,10 @@ def pooled_loading_figure(D: dict, names: list[str], out: Path, set_name: str) -
                 sgn = np.sign(m)
                 agree = ((np.sign(P) == sgn) & B).sum(0)
                 ring = agree >= 3 if c != "preA - preB" else np.zeros(len(m), bool)
-                fade = ~ring if c != "preA - preB" else np.zeros(len(m), bool)
-                show = ~fade
-                frf.face_background(ax, home, fade)
-                sc = ax.scatter(home[show, 0], home[show, 1], c=m[show], s=16 if c != "preA - preB" else 4,
-                                cmap=frf.sig_cmap() if c != "preA - preB" else "RdBu_r", vmin=-lim, vmax=lim,
-                                edgecolors="k" if c != "preA - preB" else "none", linewidths=0.4)
+                # Priya 11-07: drawn like the speed maps -- every point coloured, rings (red up / blue down) mark the
+                # points >= 3 animals agree on
+                sc = ax.scatter(home[:, 0], home[:, 1], c=m, s=4, cmap="RdBu_r", vmin=-lim, vmax=lim, lw=0)
+                frf.sign_rings(ax, home, ring, m)
                 ax.axvline(342.0, color="k", lw=0.4)
                 ax.invert_yaxis()
                 ax.set_aspect("equal")

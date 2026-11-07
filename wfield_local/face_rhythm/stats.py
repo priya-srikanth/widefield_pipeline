@@ -88,3 +88,70 @@ def tick_label(epoch: str, row: dict | pd.Series | None, fmt: str = "+.2f", inte
         return epoch[:5]
     s = f"{epoch[:5]}\n{row['delta']:{fmt}}{mark(row)}"
     return s + (f"\n[{row['ci_lo']:{fmt}}, {row['ci_hi']:{fmt}}]" if interval else "")
+
+
+# ---- permutation tests over the face mesh (Priya 11-07: cluster mass as the main map test, max-statistic for points) ----
+
+def mesh_adjacency(home: np.ndarray, factor: float = 1.6) -> list[np.ndarray]:
+    """Neighbours of each mesh point: points within ``factor`` x the median nearest-neighbour distance (the mesh is a
+    near-regular grid, so this is the 8-neighbourhood)."""
+    from scipy.spatial import cKDTree
+    home = np.asarray(home, float)
+    tree = cKDTree(home)
+    d, _ = tree.query(home, k=2)
+    r = factor * float(np.median(d[:, 1]))
+    return [np.array([j for j in nb if j != i], int) for i, nb in enumerate(tree.query_ball_point(home, r))]
+
+
+def clusters(t: np.ndarray, adj: list[np.ndarray], thr: float) -> tuple[np.ndarray, list[float]]:
+    """Connected clusters of points with t > thr and, separately, t < -thr. -> (label per point, -1 = none; mass per
+    cluster = sum of |t| over its points)."""
+    t = np.asarray(t, float)
+    lab = np.full(len(t), -1, int)
+    mass = []
+    for sign in (1, -1):
+        sup = np.isfinite(t) & (sign * t > thr)
+        for s in np.flatnonzero(sup):
+            if lab[s] >= 0:
+                continue
+            c = len(mass)
+            stack, lab[s], m = [s], c, 0.0
+            while stack:
+                i = stack.pop()
+                m += abs(t[i])
+                for j in adj[i]:
+                    if sup[j] and lab[j] < 0:
+                        lab[j] = c
+                        stack.append(j)
+            mass.append(m)
+    return lab, mass
+
+
+def max_cluster_mass(t: np.ndarray, adj: list[np.ndarray], thr: float) -> float:
+    return max(clusters(t, adj, thr)[1], default=0.0)
+
+
+def map_permutation(obs: np.ndarray, null: np.ndarray, adj: list[np.ndarray], thr: float = 2.0) -> dict:
+    """Family-wise tests of one change map against its permutation null. ``obs`` (P,), ``null`` (n, P) = the same
+    statistic under label shuffles. Each point is studentised by its null SD (t); then
+      max-statistic  point p = share of permutations whose max |t| over the face >= the point's |t|
+      cluster mass   clusters of |t| > ``thr`` (sign-separate, mesh neighbours); cluster p = share of permutations whose
+                     largest cluster mass >= the cluster's (+1 / +1 throughout).
+    -> t, p_point (FWE), cluster label per point, cluster masses, p per cluster, sig_cluster (P,) bool, sig_point."""
+    obs, null = np.asarray(obs, float), np.asarray(null, float)
+    sd = np.nanstd(null, 0)
+    sd = np.where(sd > 0, sd, np.nan)
+    t = obs / sd
+    tn = null / sd[None, :]
+    n = len(null)
+    mx = np.nanmax(np.abs(tn), 1)
+    p_point = (1 + (mx[None, :] >= np.abs(t)[:, None]).sum(1)) / (1 + n)
+    lab, mass = clusters(t, adj, thr)
+    nmax = np.array([max_cluster_mass(tn[i], adj, thr) for i in range(n)])
+    p_cl = np.array([(1 + (nmax >= m).sum()) / (1 + n) for m in mass])
+    sig_cl = np.zeros(len(t), bool)
+    for c, pc in enumerate(p_cl):
+        if pc < 0.05:
+            sig_cl |= lab == c
+    return {"t": t, "p_point": p_point, "sig_point": p_point < 0.05, "label": lab, "mass": np.array(mass),
+            "p_cluster": p_cl, "sig_cluster": sig_cl, "n_perm": n, "thr": thr}

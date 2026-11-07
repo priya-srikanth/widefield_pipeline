@@ -16,7 +16,14 @@ pre sessions, per point; the mean map = mean over animals of each animal's epoch
   * HALVES: contra-half minus ipsi-half change per session, `boot_delta`; * = interval excludes 0, ** = also Holm over
     the 6 positions of an epoch.
 
-    python scripts/face_rhythm_position_maps.py [--set master_pre_v1] [--window response|precue] [--plot-only]
+PERMUTATION TEST (Priya 11-07, ``--perm N``): per position x epoch, the mean over animals of (epoch mean - pre mean)
+of session log2 speed per point; null = the same with each animal's pre and epoch session labels shuffled WITHIN the
+animal (counts kept). Points studentised by the null SD; CLUSTER MASS (|t| > 2, mesh neighbours, sign-separate) is the
+family-wise map test, the MAX-STATISTIC the point-level one (`face_rhythm.stats.map_permutation`). Rings on
+position_maps_<window>_mean_perm.png = points in clusters with p < .05 (red = up, blue = down);
+data/position_maps_<window>_perm.csv lists every cluster.
+
+    python scripts/face_rhythm_position_maps.py [--set master_pre_v1] [--window response|precue] [--plot-only] [--perm N]
 -> ``<dlc>/face_rhythm/cam4/readouts/<set>/position_maps/``: position_maps_<window>_<animal>.png (rows = positions,
 cols = acute / subacute / chronic), position_maps_<window>_mean.png (mean of the animal maps), and
 position_maps_<window>.csv (per animal x epoch x position: contra / ipsi mean log2 change, its asymmetry);
@@ -133,6 +140,39 @@ def statistics(fdir: Path, window: str, contra: np.ndarray, n_boot: int, fdr: fl
     return mean_maps, marks, pd.DataFrame(prow), H
 
 
+def perm_statistics(fdir: Path, window: str, home: np.ndarray, n_perm: int, seed: int = 0) -> tuple[dict, pd.DataFrame]:
+    """-> ({(epoch, position): map_permutation result + "mean" map}, cluster table). See the module docstring."""
+    from wfield_local.face_rhythm import stats as frs
+    V = session_speed(fdir, window)
+    adj = frs.mesh_adjacency(home)
+    rng = np.random.default_rng(seed)
+    res, rows = {}, []
+    for p in POSITIONS:
+        lg = {k: np.log2(np.maximum(v, 1e-9)) for k, v in V.items() if k[3] == p}
+        for ep in EPOCHS[1:]:
+            per = []                                     # per animal: (sessions, P) stacked pre then epoch, n_epoch
+            for an in sorted({k[0] for k in lg}):
+                pre = [lg[k] for k in sorted(lg) if k[0] == an and k[2] == "pre"]
+                post = [lg[k] for k in sorted(lg) if k[0] == an and k[2] == ep]
+                if pre and post:
+                    per.append((np.vstack(pre + post), len(pre)))
+            if not per:
+                continue
+            stat = lambda idx, per=per: np.mean([X[i[n:]].mean(0) - X[i[:n]].mean(0)  # noqa: E731
+                                        for (X, n), i in zip(per, idx)], 0)
+            obs = stat([np.arange(len(X)) for X, _ in per])
+            null = np.array([stat([rng.permutation(len(X)) for X, _ in per]) for _ in range(n_perm)])
+            r = frs.map_permutation(obs, null, adj)
+            r["mean"] = obs
+            res[(ep, p)] = r
+            for c, (m, pc) in enumerate(zip(r["mass"], r["p_cluster"])):
+                sel = r["label"] == c
+                rows.append({"position": p, "epoch": ep, "cluster": c, "n_points": int(sel.sum()),
+                             "sign": "up" if obs[sel].mean() > 0 else "down", "mass": m, "p_cluster": pc,
+                             "mean_log2": float(obs[sel].mean()), "n_animals": len(per), "n_perm": n_perm})
+    return res, pd.DataFrame(rows)
+
+
 def main(argv=None) -> int:
     import matplotlib
     matplotlib.use("Agg")
@@ -151,6 +191,7 @@ def main(argv=None) -> int:
     ap.add_argument("--min-agree", type=int, default=3, help="animals agreeing in sign (Priya 10-24: 3 of 4)")
     ap.add_argument("--plot-only", action="store_true", help="redraw the mean figure's statistics from the cache")
     ap.add_argument("--out", type=Path, default=None)
+    ap.add_argument("--perm", type=int, default=0, help="also run the within-animal permutation test (N shuffles)")
     a = ap.parse_args(argv)
     rv = PathResolver()
     fdir = a.fdir or fro.factor_dir(rv, a.bundle, a.set)
@@ -203,7 +244,7 @@ def main(argv=None) -> int:
     what = ("movement speed of each face point, cue 0 to +4 s" if a.window == "response"
             else "movement speed of each face point, cue -2 to 0 s")
 
-    def draw(get, title, fn, stats=False):
+    def draw(get, title, fn, stats=False, perm=None):
         with frf.style():
             fig, axs = frf.subplots(len(POSITIONS), 3, figsize=(10.5, 3.1 * len(POSITIONS)), squeeze=False)
             sc = None
@@ -219,10 +260,17 @@ def main(argv=None) -> int:
                     ax.invert_yaxis()
                     ax.set_aspect("equal")
                     title_ = f"{p} -- {ep}"
-                    if stats:
+                    if perm is not None:
+                        r = perm.get((ep, p))
+                        if r is not None:
+                            frf.sign_rings(ax, home, r["sig_cluster"], r["mean"])
+                            k = int((r["p_cluster"] < .05).sum())
+                            title_ += (f"\n{k} cluster{'s' if k != 1 else ''} p < .05 ({int(r['sig_cluster'].sum())} pts); "
+                                       f"max-stat {int(r['sig_point'].sum())} pts")
+                    elif stats:
                         sg = marks.get((ep, p))
                         if sg is not None:
-                            ax.scatter(home[sg, 0], home[sg, 1], s=7, facecolors="none", edgecolors="k", linewidths=0.35)
+                            frf.sign_rings(ax, home, sg, m)
                         h = H[(H.position == p) & (H.epoch == ep)]
                         if len(h):
                             h = h.iloc[0]
@@ -245,6 +293,13 @@ pre, blue = less; clipped at +-1 (2x). Contra / ipsi means of the change: data/p
 
     draw(lambda ep, p: mean_maps.get((ep, p)), f"{fdir.name}: mean of {len(animals)} animals, {what}, per spout "
          "position vs pre (rings = consistent points)", f"position_maps_{a.window}_mean.png", stats=True)
+    if a.perm:
+        R, C = perm_statistics(fdir, a.window, home, a.perm)
+        C.to_csv(figure_layout.sidecar_for(out, f"position_maps_{a.window}_perm", ".csv"), index=False, float_format="%.4g")
+        print(C[C.p_cluster < .05].to_string(index=False))
+        draw(lambda ep, p: R[(ep, p)]["mean"] if (ep, p) in R else None,
+             f"{fdir.name}: mean of {len(animals)} animals, {what}, per spout position vs pre (rings = permutation "
+             f"cluster p < .05, {a.perm} within-animal shuffles)", f"position_maps_{a.window}_mean_perm.png", perm=R)
     print("->", out)
     return 0
 

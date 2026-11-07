@@ -43,6 +43,16 @@ def face_background(ax, home, mask=None) -> None:
     ax.scatter(home[:, 0], home[:, 1], s=1.2, color="0.85", lw=0, zorder=0)
 
 
+def sign_rings(ax, home, mask, values, s: float = 7, lw: float = 0.5) -> None:
+    """Rings around the marked points, dark red where the change is up and dark blue where it is down (Priya 11-07:
+    outlines in the change's colour instead of black)."""
+    import numpy as np
+    home, mask, values = np.asarray(home), np.asarray(mask, bool), np.asarray(values, float)
+    for sel, col in ((mask & (values > 0), "#67001f"), (mask & (values <= 0), "#053061")):
+        if sel.any():
+            ax.scatter(home[sel, 0], home[sel, 1], s=s, facecolors="none", edgecolors=col, linewidths=lw)
+
+
 def sig_cmap():
     """RdBu_r without its pale middle (Priya 11-07: a marked point near white reads as the grey background); marked
     points are never near 0, so nothing is lost."""
