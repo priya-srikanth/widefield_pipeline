@@ -39,6 +39,46 @@ for anything that loads imaging. E = `M:/MICROSCOPE/Priya/Widefield/LP_analysis/
 3. Then tell **sabatinilab-e3** (PI deck) the decoder figures are final: per figure the share PNG path, page Fig N.k,
    script + args, headline numbers, methods text (they asked 10-26 ~22:30; reply sent: not final yet).
 
+### 00-COMPACT-33 (11-07 ~09:00) -- READ FIRST; supersedes 32 for state (32 / 31 / 30 hold for mechanics + tables)
+
+**Live lists:** docs/status/RUNNING_LIST_2026-11-06.md (A decisions / B findings / C running; newest at the end of each section).
+Update blocks below this one (11-06 15:35 .. 11-07 02:10) hold the detail of each fix.
+
+**Priya's answers 11-07 ~09:00:** A1 section-6 changes -- she asked WHAT they are (answered: per-trial classes contact /
+incomplete / jaw-only / no response, shares per spout x epoch; no trial changed class, only WHICH trials count -- working period
+vs the old DAQ engaged cut). A2 -- the close-spout incomplete rise = post-cue licks in trials after the old DAQ quit that miss the
+spout; under the working definition they ARE working trials and are now correctly included (wording: late-session misses, not
+an aiming deficit). A3 YES (pooled 3-D table gate gap). A4 OK (e_drift_june deferred to after the render). A5 YES (push LP
+no-video fix). A6 (a) wire stopped_trial_traces to trial_classes. A7 YES (second slot may take BIG steps beside a low-RAM main
+holder at >= 30 GB available; coordinated restart).
+
+**Code on main (all 11-06 / 11-07 fixes):** ec0ff642 seven 11-06 branches; 8d6da32d kinematics cache routed; ba5b63bf camera-gate
+REST boundary (8 sessions); 0e2154f0 jaw cross-check routed; 4ecf72ed 15r empty-session tuple; LP no-video skip 72729126 (push
+running 09:00, task bh9lq0u7y). In flight (helpers, branches, NOT pushed): fix/pooled-kin-gate-20261107 (A3, worktree
+wf_pooledkin), fix/stopped-traces-camera-20261107 (A6, worktree wf_stoppedcam).
+
+**Render state 09:00:** main slot = g5_section_g since 11-06 20:49 (session 46 / 88 of its main pass, ~5 / h -> ~17:00); slot 2
+idle (everything ready is claimed by slot-1-only lanes). Done since 11-06 15:00: all A20 / A27 / A30 kinematics (v9k, v9k2, v9r-K),
+rest attempt maps re-run (v9r-R), contact + ENL-1s restnl maps + map drift (v9s), decoder retention + recovery timing + rlink
+(v9t), aim + recovery --aim (v9v), split-order chain, e_angle_reach, e_where_z, e_first_lick, l_cued_ramp_extract, b_wsd_lick,
+b_within_spout_mixed, l_c2l_restw, l_restw_check, l_revup_restnl.
+Waiting on the MAIN slot: l_enl_angle (lick-angle decoder), t_frame_te_basis (-> v9u e_pat_stats_maps + 4 ROI steps),
+g5_epoch_15r_r (v9s), gb_sessions_r (v9r-B, slide 102), a_partial_ls, b_partial_frA, t_frame_frlag, b_pix_union_frA,
+b_svf_frA_roi, g5_epoch_1b_v8, v_frAsplit_spont_new. Parked (HOLD): 10 mixed-model / goal-summary steps (catch-up),
+g5_lpfinal_maps (-> A5 fix), l_stopped_restw/_restnl (-> A6), e_rlink_hit (superseded by _r).
+
+**Remaining work (estimate 09:00):** ~9 BIG steps serial ~40 h + section G ~8 h; with A7 (two big at once) ~25-30 h. ~30 medium
+(slot 2, ~10-15 h, parallel) and ~150 light figure / table steps (minutes each, gated by the heavy ones). Then the final catch-up
+(10 HOLD steps, A25 LP epoch arm ~6-9 h heavy, LP map re-runs after A5, A3 / A6 re-runs) -> render + catch-up done ~Sun 11-08
+evening with A7 (~Mon without). Then the replacement pass: provenance merge (CONFIRMED rows, data_block7), 69 caption conflicts,
+OROFACIAL_FINDINGS A27 numbers, kinematics section 6 text, recovery-timing text, REST-column numbers (8 sessions back), slide 102,
+decks (a8) -- about a day.
+
+**Next actions (in order):** (1) A5 push lands -> queue: g5_restnl_maps_lp, g5_lpfinal_maps, g5_map_drift_lp re-run on the new
+main; (2) A7 coordinated restart (HALT -> waiting lanes return claims -> relaunch from copies with BIG allowed in slot 2 when the
+main holder is low-RAM and >= 30 GB available); (3) A3 / A6 helpers report -> review, ask Priya to push, queue their re-runs;
+(4) keep the running list + this block current; re-arm the monitor every 30 min.
+
 ### 00-COMPACT-32 (11-06 ~15:15) -- READ FIRST; supersedes 31 for state (31 / 30 hold for mechanics + tables)
 
 **Organisation check (Priya again 15:10: "not layering changes onto in-flight analyses").** State:
