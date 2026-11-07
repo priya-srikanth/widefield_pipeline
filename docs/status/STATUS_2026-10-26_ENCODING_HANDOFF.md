@@ -39,6 +39,39 @@ for anything that loads imaging. E = `M:/MICROSCOPE/Priya/Widefield/LP_analysis/
 3. Then tell **sabatinilab-e3** (PI deck) the decoder figures are final: per figure the share PNG path, page Fig N.k,
    script + args, headline numbers, methods text (they asked 10-26 ~22:30; reply sent: not final yet).
 
+### 00-COMPACT-34 (11-07 ~10:15) -- READ FIRST; supersedes 33 for state (33 holds the remaining-work estimate + Priya's A1-A7)
+
+**Live lists:** docs/status/RUNNING_LIST_2026-11-06.md. All decisions A1-A8 ANSWERED and acted on; nothing open with Priya.
+
+**On main now (newest last):** ec0ff642 (seven 11-06 branches) · 8d6da32d kin cache routed · ba5b63bf rest boundary · 0e2154f0 jaw
+xcheck routed · 4ecf72ed 15r empty-session · 72729126 LP no-video skip (A5) · 96f77156 pooled 3-D gate (A3) · 7388c713
+stopped-trial traces on camera classes (A6/A8: success / incomplete / jaw_only / no_response inside the working period + stopped
+as a 5th trace; DAQ path unchanged).
+
+**Render machinery since the A7 restart (09:23-09:30):** lanes run from scratchpad/render_daqlk/queue_daqlk{7b,8,8b,8c,8d,8f,9r,9s,
+9u,9w}_a7.sh with A7MIN=35 (a7_try: main HEAVY.lock, or HEAVY3.lock while the main holder is in LOWRAM_HOLDERS="g5_section_g" and
+>= 35 GB available; XL.lock so partial refits never overlap; a_partial_ls / b_partial_frA now --jobs 4); slot-2 lanes from the
+ORIGINAL queue_daqlk8_s2.sh with S2MIN=35. Original queue files untouched; pre-restart lane list lanes_before_A7.txt. Extra queues:
+v9w (LP restnl / lpfinal / map drift, main 72729126), v9x (k_pooled_r DONE 10:01, main 96f77156), v9y (l_stopped_restw ->
+l_stopped_restnl, A7 rules, main 7388c713, waiting for a slot), v9u (decoder-pattern stats + 4 ROI steps, waits t_frame_te_basis).
+To relaunch a lane: A7MIN=35 SECTIONS="..." nohup bash queue_daqlk<q>_a7.sh > logs/queue_<q>_<S>_A7.out 2>&1 &.
+
+**State 10:15:** main slot = g5_section_g (session 51 / 88, ~5 / h -> ~17:00). HEAVY3 / HEAVY2 free: available RAM 29-31 GB
+< 35 while the 17 GB g5_restnl_maps_lp_r (v9w) runs beside section G; when it ends, HEAVY3 admits the next BIG step (partial
+refit at 4 workers, t_frame_te_basis, g5_epoch_15r_r, gb_sessions_r, l_enl_angle ...).
+
+**C: disk (Priya OK 11-07):** deleted wfield_cache/imaging + behaviour (49 GB, cohort-1 non-rebuild input caches, unused by the
+render) and 6 old scratch folders (11 GB); list docs/status/rebuild_20261103/DELETED_LOCAL_20261107.txt (ae33e838). a8 cleared ~9 GB
+of its own + 7 old merged worktrees (kept wf_trendfix, wf_attempt). C: 98 GB free. input_cache_rebuild_20261104 (299 GB) is LIVE
+until the render + catch-up + replacement pass (~Mon). Survey of the rest of C: running (bg task b0j2irdi5) -> bring Priya a
+candidate list with sizes and owners BEFORE deleting anything. After the render: remove my merged worktrees (wf_p1106_*, wf_deffix,
+wf_svg, wf_kincache, wf_reststart, wf_15rfix, wf_lpnovideo, wf_pooledkin, wf_stoppedcam, wf_render_v9*).
+
+**Next actions:** watch HEAVY3 admission once v9w's map step ends (first time two big steps run together -- check RAM log, the
+step logs' "min available RAM" lines); re-arm the monitor every 30 min; update the running list as steps land; when section G
+ends, the main slot takes the next big step and HEAVY3 stops admitting (main holder no longer low-RAM) unless >= 35 GB with
+the XL rule; then the final catch-up + replacement pass (00-COMPACT-33 list).
+
 ### 00-COMPACT-33 (11-07 ~09:00) -- READ FIRST; supersedes 32 for state (32 / 31 / 30 hold for mechanics + tables)
 
 **Live lists:** docs/status/RUNNING_LIST_2026-11-06.md (A decisions / B findings / C running; newest at the end of each section).
