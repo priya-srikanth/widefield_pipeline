@@ -10,8 +10,17 @@ frozen-decoder far-contra retention on HITS only (`attempt_coding/decoder_retent
 far-contra hits; removes the composition dependence -- failed attempts carry no code). Both normalised within animal to
 its pre-stroke level (behaviour: pre far-contra hit rate; neural: 1 = pre hits by construction).
 
-  1. per animal: exponential recovery y(d) = a - (a - b) exp(-d / tau) fitted to each measure's post sessions; half-recovery
-     day = tau ln 2; 95 % CI from resampling the post sessions (1000 draws); neural - behaviour difference with its CI.
+  1. per animal x series (aim = PRIMARY behaviour, Priya 11-07; hit rate secondary; code on hits), on the recovered-
+     fraction scale z = (x - acute) / (pre - acute) (1 = pre, 0 = the animal's acute epoch mean):
+     COMPLETENESS = z by chronic; HALF-RECOVERY RELATIVE TO PRE = the day the exponential fit
+     y(d) = a - (a - b) exp(-d / tau) reaches z = 0.5 (fit-free check: first crossing by interpolation between sessions,
+     day 0 anchored at z = 0). The old tau ln 2 is the time to half of the animal's OWN plateau (free a) -- PS94's aim
+     plateaus at ~0.55, so it never half-recovers to pre -- and survives only as ``*_t_to_own_plateau_half``.
+     Fit-quality flag (A11, 11-07): ok / few_points / not_reached / bound (any parameter at FIT_BOUNDS) / unstable (fit
+     fails, a leave-one-session-out fit fails or never reaches 0.5, or LOO max / min > 10) / few_hits (acute code on hits
+     < analysis_kit.MIN_HITS = 20 hits) / no_acute / no_deficit. The headline ``*_half_to_pre`` is NaN unless "ok"; the
+     raw fitted day stays in ``*_half_to_pre_fit``. 95 % CI from resampling the post sessions (1000 draws); cortex -
+     behaviour (aim and hit rate) on the half-recovery-to-pre day with its CI.
   2. session-to-session lagged models (post sessions in day order, consecutive pairs within animal; animal fixed effects):
      behaviour[t] ~ behaviour[t-1] + neural[t-1]   (does cortex predict the NEXT session's behaviour beyond behaviour?)
      neural[t]    ~ neural[t-1] + behaviour[t-1]   (does behaviour predict the next session's cortex beyond cortex?)
@@ -37,6 +46,7 @@ from wfield_local.orofacial_outputs import encoding_root as _encoding_root  # re
 E = _encoding_root()
 from wfield_local import attempt_coding as _ac  # noqa: E402
 from wfield_local import lp_licks as _lp_licks  # noqa: E402  (coordinator 11-04: the run's attempts table)
+from wfield_local import analysis_kit as ak  # noqa: E402  (MIN_HITS / hits_ok: the hit-gated minimum, Priya 11-07)
 
 A = _ac.out_dir()   # the writer's folder under the run mode (review N1 / N10)
 AN = ["PS92", "PS93", "PS94", "PS95"]
@@ -73,21 +83,294 @@ def series(window: str) -> pd.DataFrame:
     return beh.merge(N, on="label", how="left").sort_values(["animal", "day"]).reset_index(drop=True)
 
 
-def exp_fit(d, y):
+#: exponential recovery fit y(d) = a - (a - b) exp(-d / tau): parameter bounds (a, b, tau) -- unchanged since 10-25
+FIT_BOUNDS = ([-2.0, -2.0, 0.3], [3.0, 3.0, 200.0])
+#: leave-one-session-out instability: the LOO half-recovery days spread by more than this factor (max / min)
+LOO_MAX_RATIO = 10.0
+#: half-recovery RELATIVE TO PRE (Priya 11-07): the day the series reaches 0.5 on the 1 = pre / 0 = acute scale
+HALF = 0.5
+#: fit-quality flags (A11, Priya 11-07 "fitting code flag ok"). Only "ok" fills the headline column.
+FLAGS = ("ok", "few_points", "not_reached", "bound", "unstable", "few_hits", "no_deficit")
+
+
+def _expf(x, a, b, tau):
+    return a - (a - b) * np.exp(-x / tau)
+
+
+def fit_params(d, y):
+    """(a, b, tau) of the exponential fit to the finite points, or None (< 4 points or a failed fit)."""
     from scipy.optimize import curve_fit
-    ok = np.isfinite(y)
+    d, y = np.asarray(d, float), np.asarray(y, float)
+    ok = np.isfinite(y) & np.isfinite(d)
     d, y = d[ok], y[ok]
     if len(d) < 4:
-        return np.nan
-
-    def f(x, a, b, tau):
-        return a - (a - b) * np.exp(-x / tau)
+        return None
     try:
-        (a, b, tau), _ = curve_fit(f, d, y, p0=(np.nanmax(y), np.nanmin(y), 5.0), bounds=([-2, -2, 0.3], [3, 3, 200]),
-                                   maxfev=20000)
-        return tau * np.log(2)
+        p, _ = curve_fit(_expf, d, y, p0=(np.nanmax(y), np.nanmin(y), 5.0), bounds=FIT_BOUNDS, maxfev=20000)
+        return tuple(float(v) for v in p)
     except (RuntimeError, ValueError):
+        return None
+
+
+def exp_fit(d, y):
+    """tau ln 2 of the exponential fit = the time to HALF OF THE ANIMAL'S OWN FITTED PLATEAU (free a), NOT half-recovery
+    to pre (Priya 11-07: PS94's aim plateaus at ~0.55, so its 3.1 d was "time to stop improving"). Reported only as
+    the secondary column ``t_to_own_plateau_half``; the headline is `recovery_metrics`' ``half_to_pre``."""
+    p = fit_params(d, y)
+    return p[2] * np.log(2) if p is not None else np.nan
+
+
+def at_bound(p) -> bool:
+    """Any fitted parameter on (within 0.1 % of the range of) its FIT_BOUNDS bound."""
+    lo, hi = np.asarray(FIT_BOUNDS[0]), np.asarray(FIT_BOUNDS[1])
+    tol = 1e-3 * (hi - lo)
+    p = np.asarray(p, float)
+    return bool(np.any(np.abs(p - lo) <= tol) or np.any(np.abs(p - hi) <= tol))
+
+
+def cross_day(p, level: float = HALF, d_max: float = np.inf) -> float:
+    """First day the fitted curve reaches ``level`` (recovery = rising toward 1). 0 when the curve starts at/above it
+    and its plateau stays there; NaN = not reached (plateau a < level, or the crossing lies beyond ``d_max``, the last
+    observed post day)."""
+    if p is None:
         return np.nan
+    a, b, tau = p
+    if a < level:
+        return np.nan
+    if b >= level:
+        return 0.0
+    x = -tau * np.log((a - level) / (a - b))
+    return float(x) if x <= d_max else np.nan
+
+
+def half_day_interp(d, z, level: float = HALF) -> float:
+    """Fit-free check: first crossing of ``level`` by linear interpolation between consecutive post sessions in day
+    order, with day 0 anchored at the acute level (z = 0). NaN = never reached."""
+    d, z = np.asarray(d, float), np.asarray(z, float)
+    ok = np.isfinite(d) & np.isfinite(z)
+    o = np.argsort(d[ok], kind="stable")
+    dd, zz = np.r_[0.0, d[ok][o]], np.r_[0.0, z[ok][o]]
+    hit = np.flatnonzero(zz >= level)
+    if not len(hit):
+        return np.nan
+    i = hit[0]
+    if zz[i] == zz[i - 1]:
+        return float(dd[i])
+    return float(dd[i - 1] + (level - zz[i - 1]) / (zz[i] - zz[i - 1]) * (dd[i] - dd[i - 1]))
+
+
+def recovered_fraction(x, acute, pre=1.0):
+    """(x - acute) / (pre - acute): 1 = the animal's pre level, 0 = its acute level. NaN without a defined deficit."""
+    x = np.asarray(x, float)
+    if not np.isfinite(acute) or acute == pre:
+        return x * np.nan
+    return (x - acute) / (pre - acute)
+
+
+def half_to_pre_fit(d, z):
+    """Fitted half-recovery-to-pre day of a recovered-fraction series (NaN if not reached / no fit)."""
+    d = np.asarray(d, float)
+    z = np.asarray(z, float)
+    ok = np.isfinite(z) & np.isfinite(d)
+    return cross_day(fit_params(d, z), HALF, d[ok].max() if ok.any() else np.nan)
+
+
+def recovery_metrics(d, z, chronic, gate: str | None = None) -> dict:
+    """Per animal x series, on the recovered-fraction scale ``z`` (1 = pre, 0 = acute) of its post sessions ``d``:
+    completeness (mean z over the ``chronic`` sessions), the fitted and the interpolated half-recovery-to-pre day,
+    the old tau ln 2 (``t_to_own_plateau_half``), the leave-one-session-out range of the fitted day, and the
+    fit-quality flag. ``half_to_pre`` (THE headline) is the fitted day when the flag is "ok", else NaN.
+    Flags, first match wins: ``gate`` (e.g. "few_hits", "no_deficit"); "few_points" (< 4 sessions); "unstable" (fit
+    failed); "not_reached" (fitted curve never reaches 0.5 within the observed days); "bound" (any parameter at its
+    FIT_BOUNDS bound); "unstable" (any LOO fit fails / does not reach 0.5, or LOO max / min > LOO_MAX_RATIO)."""
+    d, z, chronic = np.asarray(d, float), np.asarray(z, float), np.asarray(chronic, bool)
+    ok = np.isfinite(z) & np.isfinite(d)
+    zc = z[chronic & ok]
+    r = {"complete": float(zc.mean()) if len(zc) and gate is None else np.nan, "half_to_pre": np.nan,
+         "half_to_pre_fit": np.nan, "half_to_pre_interp": np.nan, "t_to_own_plateau_half": np.nan,
+         "loo_lo": np.nan, "loo_hi": np.nan, "n_sessions": int(ok.sum()), "flag": gate or "ok"}
+    if gate is not None:
+        return r
+    r["half_to_pre_interp"] = half_day_interp(d, z)
+    if ok.sum() < 4:
+        r["flag"] = "few_points"
+        return r
+    p = fit_params(d, z)
+    if p is None:
+        r["flag"] = "unstable"
+        return r
+    dmax = float(d[ok].max())
+    r["half_to_pre_fit"] = cross_day(p, HALF, dmax)
+    r["t_to_own_plateau_half"] = p[2] * np.log(2)
+    idx = np.flatnonzero(ok)
+    loo = np.array([half_to_pre_fit(d[np.setdiff1d(idx, [i])], z[np.setdiff1d(idx, [i])]) for i in idx])
+    if np.isfinite(loo).any():
+        r["loo_lo"], r["loo_hi"] = float(np.nanmin(loo)), float(np.nanmax(loo))
+    lo_, hi_ = r["loo_lo"], r["loo_hi"]
+    ratio = np.inf if not np.isfinite(loo).all() else (hi_ / lo_ if lo_ > 0 else (1.0 if hi_ == 0 else np.inf))
+    if not np.isfinite(r["half_to_pre_fit"]):
+        r["flag"] = "not_reached"
+    elif at_bound(p):
+        r["flag"] = "bound"
+    elif ratio > LOO_MAX_RATIO:
+        r["flag"] = "unstable"
+    if r["flag"] == "ok":
+        r["half_to_pre"] = r["half_to_pre_fit"]
+    return r
+
+
+def fmt_half(r: dict, unit: str = "d") -> str:
+    """Figure annotation of one recovery_metrics row: the headline day, or 'unresolved (<flag>)'."""
+    if r.get("flag") == "few_hits":
+        from wfield_local.analysis_kit import HIT_GATE_NA
+        return HIT_GATE_NA
+    h = r.get("half_to_pre", np.nan)
+    c = r.get("complete", np.nan)
+    cs = f", {c:.0%} complete" if np.isfinite(c) else ""
+    return (f"{h:.1f} {unit}" if np.isfinite(h) else f"unresolved ({r.get('flag')})") + cs
+
+
+#: series, PRIMARY FIRST (Priya 11-07: "we should use aim rather than hit recovery"): key, label, pre level
+SERIES = [("aim", "far-contra first-lick aim", 0.0), ("beh", "far-contra hit rate", 1.0),
+          ("neu", "cortex: far-contra code on hits", 1.0)]
+SER_SHORT = {"aim": "aim (primary)", "beh": "hit rate (secondary)", "neu": "cortex code on hits"}
+#: flags that mean "no acute reference": the recovered-fraction scale is undefined
+NO_SCALE = ("few_hits", "no_acute", "no_deficit")
+
+
+def epoch_value(g: pd.DataFrame, m: str, ep: str) -> float:
+    """Animal x epoch mean of series ``m`` over its sessions. Code on hits (``neu``) is NaN below
+    analysis_kit.MIN_HITS hit trials summed over the contributing sessions (Priya 11-07)."""
+    from wfield_local import analysis_kit as ak
+    v = g[(g.epoch == ep) & np.isfinite(g[m].to_numpy(float))]
+    if m == "neu" and not ak.hits_ok(v.n_hits.to_numpy(float)):
+        return np.nan
+    return float(v[m].mean()) if len(v) else np.nan
+
+
+def per_animal_recovery(M: pd.DataFrame) -> pd.DataFrame:
+    """Per animal (rule 8) x series in SERIES present in ``M`` (columns animal, epoch, day, <series>, n_hits):
+    epoch means (code on hits gated by MIN_HITS), recovered fraction of the acute deficit (x - acute) / (pre - acute)
+    by subacute / chronic (``*_complete`` = by chronic = COMPLETENESS), half-recovery RELATIVE TO PRE (fit + interp),
+    the old tau ln 2 as ``*_t_to_own_plateau_half``, LOO range, fit-quality flag, and the summed hits behind the
+    acute / chronic code values."""
+    from wfield_local import analysis_kit as ak
+    rows = []
+    for an in AN:
+        g = M[M.animal == an]
+        post = g[g.epoch != "pre"].sort_values("day")
+        r = {"animal": an}
+        for m, _lab, pre_v in SERIES:
+            if m not in g:
+                continue
+            for ep in EP4:
+                r[f"{m}_{ep}"] = epoch_value(g, m, ep)
+            ac = r[f"{m}_acute"]
+            gate = None
+            if m == "neu":
+                for ep in ("acute", "chronic"):
+                    v = g[(g.epoch == ep) & np.isfinite(g.neu.to_numpy(float))]
+                    r[f"neu_hits_{ep}"] = int(np.nansum(v.n_hits.to_numpy(float)))
+                if not ak.hits_ok([r["neu_hits_acute"]]):
+                    gate = "few_hits"
+            if gate is None and not np.isfinite(ac):
+                gate = "no_acute"
+            elif gate is None and (ac == pre_v or (pre_v == 1.0 and ac > pre_v)):
+                gate = "no_deficit"
+            for ep in ("subacute", "chronic"):
+                r[f"{m}_recov_{ep}"] = ((r[f"{m}_{ep}"] - ac) / (pre_v - ac)) if gate is None else np.nan
+            z = recovered_fraction(post[m].to_numpy(float), ac if gate is None else np.nan, pre_v)
+            q = recovery_metrics(post.day.to_numpy(float), z, (post.epoch == "chronic").to_numpy(), gate)
+            q["complete"] = r[f"{m}_recov_chronic"]          # ONE definition: the gated epoch-mean recovered fraction
+            r.update({f"{m}_{k}": v for k, v in q.items()})
+        rows.append(r)
+    return pd.DataFrame(rows)
+
+
+def print_per_animal(PA: pd.DataFrame, title: str) -> None:
+    """Rule 8 table, one block per series (primary first)."""
+    pd.set_option("display.width", 250)
+    pd.set_option("display.max_columns", 60)
+    print(title + "\n  complete = recovered fraction of the acute deficit by chronic; half_to_pre = fitted day the "
+          "series gets half-way from acute back to PRE (headline; NaN unless flag ok); _interp = fit-free crossing; "
+          "t_to_own_plateau_half = old tau ln2 (half of the animal's OWN plateau, NOT recovery to pre)")
+    for m, _l, _p in SERIES:
+        c = ["animal"] + [f"{m}_{k}" for k in ("complete", "half_to_pre", "half_to_pre_fit", "half_to_pre_interp", "flag",
+                                               "loo_lo", "loo_hi", "t_to_own_plateau_half", "n_sessions")
+                          if f"{m}_{k}" in PA]
+        if m == "neu":
+            c += [x for x in ("neu_hits_acute", "neu_hits_chronic") if x in PA]
+        if len(c) > 1:
+            print(f"  -- {SER_SHORT[m]}")
+            print(PA[c].round(2).to_string(index=False))
+
+
+def half_lines(r, sep: str = " | ") -> str:
+    """'aim 4.2 d, 55% complete | hit ... | cortex ...' for one per-animal row (columns of per_animal_recovery)."""
+    out = []
+    for m, _l, _p in SERIES:
+        if f"{m}_flag" in r:
+            out.append(("cortex" if m == "neu" else "hit" if m == "beh" else "aim") + " "
+                       + fmt_half({k: r[f"{m}_{k}"] for k in ("half_to_pre", "complete", "flag")}))
+    return sep.join(out)
+
+
+def diff_line(r, b: str) -> str:
+    """cortex - behaviour on the half-recovery-to-pre day, with its CI, or 'unresolved'."""
+    nm = "aim" if b == "aim" else "hit"
+    v = r.get(f"neural_minus_{b}", np.nan)
+    if not np.isfinite(v):
+        return f"cortex - {nm}: unresolved"
+    return f"cortex - {nm} {v:+.1f} d [{r[f'neural_minus_{b}_lo']:+.1f}, {r[f'neural_minus_{b}_hi']:+.1f}]"
+
+
+def _aim_by_label() -> pd.DataFrame | None:
+    try:
+        return aim_series()[["label", "aim"]]
+    except (FileNotFoundError, OSError) as e:
+        print(f"!! aim table unavailable ({e}); aim rows skipped")
+        return None
+
+
+def halftime_bootstrap(S: pd.DataFrame, Sm: pd.DataFrame, PA: pd.DataFrame, rng, n: int = 1000) -> pd.DataFrame:
+    """95 % CI of each series' half-recovery-to-pre day and of cortex - behaviour (aim primary, hit rate secondary)
+    from resampling each animal's post sessions (the pre-11-07 session bootstrap of this script, same draw sequence;
+    acute references held fixed). Draws whose fit never reaches 0.5 are dropped; *_boot_share_reached = the share
+    that did. Not an analysis_kit primitive (none resamples a per-animal fit); the LOO range in PA is the
+    stability readout the fit-quality flag uses."""
+    post, postm = S[S.epoch != "pre"], Sm[Sm.epoch != "pre"]
+    keys = [m for m, _l, _p in SERIES]
+    rows = []
+    for an in AN:
+        g, gm = post[post.animal == an], postm[postm.animal == an]
+        d = g.day.to_numpy(float)
+        pr = PA[PA.animal == an].iloc[0]
+        Z = {m: recovered_fraction(gm[m].to_numpy(float), np.nan if pr[f"{m}_flag"] in NO_SCALE else pr[f"{m}_acute"],
+                                   pre_v) for m, _l, pre_v in SERIES}
+        bs = []
+        for _ in range(n):
+            i = rng.integers(0, len(g), len(g))
+            bs.append([half_to_pre_fit(d[i], Z[m][i]) if np.isfinite(Z[m]).any() else np.nan for m in keys])
+        bs = np.array(bs)
+        q = lambda x: np.nanpercentile(x, [2.5, 97.5]) if np.isfinite(x).sum() > 50 else (np.nan, np.nan)  # noqa: E731
+        r = {"animal": an}
+        for k, m in enumerate(keys):
+            r[f"{m}_boot_lo"], r[f"{m}_boot_hi"] = q(bs[:, k])
+            r[f"{m}_boot_share_reached"] = float(np.isfinite(bs[:, k]).mean())
+        for b in ("aim", "beh"):                 # cortex vs behaviour on the half-recovery-to-pre day
+            diff = bs[:, keys.index("neu")] - bs[:, keys.index(b)]
+            ok = np.isfinite(diff)
+            r[f"neural_minus_{b}"] = pr["neu_half_to_pre"] - pr[f"{b}_half_to_pre"]
+            r[f"neural_minus_{b}_lo"], r[f"neural_minus_{b}_hi"] = q(diff)
+            r[f"share_neural_later_{b}"] = float((diff[ok] > 0).mean()) if ok.any() else np.nan
+        r.update({"first_neural_day": float(g[np.isfinite(g.neu)].day.min()) if np.isfinite(g.neu).any() else np.nan,
+                  "n_post_sessions": len(g), "n_neural_sessions": int(np.isfinite(g.neu).sum())})
+        rows.append(r)
+    H = PA.merge(pd.DataFrame(rows), on="animal")
+    print("== per animal: half-recovery-to-pre day, 95% CI from resampling post sessions; cortex - behaviour on that day")
+    print(H[["animal"] + [c for c in H if "boot" in c or c.startswith(("neural_minus", "share_"))]].round(2)
+          .to_string(index=False))
+    return H
 
 
 def main(argv=None) -> int:
@@ -98,31 +381,13 @@ def main(argv=None) -> int:
     ap.add_argument("--window", default="lick", choices=("precue", "cue", "lick"))
     a = ap.parse_args(argv)
     S = series(a.window)
-    post = S[S.epoch != "pre"].copy()
+    G = _aim_by_label()
+    Sm = S.merge(G, on="label", how="left") if G is not None else S.assign(aim=np.nan)
+    PA = per_animal_recovery(Sm)
+    print_per_animal(PA, "== per animal (rule 8), BEFORE the bootstrap: completeness + half-recovery RELATIVE TO PRE")
     rng = np.random.default_rng(0)
-    rows = []
-    for an in AN:
-        g = post[post.animal == an]
-        d = g.day.to_numpy(float)
-        th_b, th_n = exp_fit(d, g.beh.to_numpy(float)), exp_fit(d, g.neu.to_numpy(float))
-        bs = []
-        for _ in range(1000):
-            i = rng.integers(0, len(g), len(g))
-            bs.append((exp_fit(d[i], g.beh.to_numpy(float)[i]), exp_fit(d[i], g.neu.to_numpy(float)[i])))
-        bs = np.array(bs)
-        diff = bs[:, 1] - bs[:, 0]
-        ok = np.isfinite(diff)
-        q = lambda x: np.nanpercentile(x, [2.5, 97.5]) if np.isfinite(x).sum() > 50 else (np.nan, np.nan)  # noqa: E731
-        rows.append({"animal": an, "t_half_behaviour": th_b, "beh_lo": q(bs[:, 0])[0], "beh_hi": q(bs[:, 0])[1],
-                     "t_half_neural": th_n, "neu_lo": q(bs[:, 1])[0], "neu_hi": q(bs[:, 1])[1],
-                     "neural_minus_behaviour": th_n - th_b, "diff_lo": q(diff)[0], "diff_hi": q(diff)[1],
-                     "share_neural_later": float((diff[ok] > 0).mean()) if ok.any() else np.nan,
-                     "first_neural_day": float(g[np.isfinite(g.neu)].day.min()), "n_post_sessions": len(g),
-                     "n_neural_sessions": int(np.isfinite(g.neu).sum())})
-    H = pd.DataFrame(rows)
-    pd.set_option("display.width", 220)
-    print("== per animal (rule 8): half-recovery day (exponential fit), 95% CI from resampling post sessions")
-    print(H.round(2).to_string(index=False))
+    H = halftime_bootstrap(S, Sm, PA, rng)      # consumes rng exactly as the pre-11-07 loop did (lagged CIs unchanged)
+    post = S[S.epoch != "pre"].copy()
 
     # lagged models, consecutive post sessions within animal (both measures present)
     L = []
@@ -159,7 +424,7 @@ def main(argv=None) -> int:
     M.to_csv(A / f"recovery_timing_lagged_{a.window}.csv", index=False)
     S.to_csv(A / f"recovery_timing_series_{a.window}.csv", index=False)
 
-    fig, axs = plt.subplots(1, 4, figsize=(17, 3.9), sharey=True)
+    fig, axs = plt.subplots(1, 4, figsize=(17, 4.9), sharey=True)
     for k, an in enumerate(AN):
         ax = axs[k]
         g = S[S.animal == an]
@@ -168,17 +433,21 @@ def main(argv=None) -> int:
         ax.plot(g.day, g.beh, "-o", color="0.25", ms=3.5, lw=1, label="behaviour: far-contra hit rate / pre")
         ax.plot(g.day, g.neu, "-s", color=ACOL[an], ms=4, lw=1.2, label="cortex: far-contra code on hits / pre")
         r = H[H.animal == an].iloc[0]
-        ax.set_title(f"{an}: t1/2 behaviour {r.t_half_behaviour:.1f} d, cortex {r.t_half_neural:.1f} d\n"
-                     f"cortex - behaviour {r.neural_minus_behaviour:+.1f} d [{r.diff_lo:+.1f}, {r.diff_hi:+.1f}]", fontsize=8.5)
+        ax.set_title(f"{an}: half-recovery relative to pre\n" + half_lines(r, "\n") + "\n"
+                     + diff_line(r, "aim") + "\n" + diff_line(r, "beh"), fontsize=7.5)
         ax.set_xlabel("days from stroke")
         for s_ in ("top", "right"):
             ax.spines[s_].set_visible(False)
         if k == 0:
             ax.set_ylabel("relative to the animal's pre-stroke level")
             ax.legend(fontsize=7, frameon=False, loc="lower right")
-    fig.suptitle(f"Recovery timing, HITS ONLY ({a.window} window): behaviour vs the cortical far-contra code on successful trials; "
-                 f"{DATA_HIT}; half-recovery day from exponential fits, 95% CI by resampling sessions", fontsize=10)
-    fig.tight_layout(rect=(0, 0, 1, 0.9))
+    fig.suptitle(f"Recovery timing, HITS ONLY ({a.window} window): behaviour vs the cortical far-contra code on successful "
+                 f"trials\n{DATA_HIT}\nHalf-recovery RELATIVE TO PRE = day the exponential fit gets half-way from the "
+                 "acute level back to pre (aim = primary behaviour, not drawn; hit rate secondary); % = completeness "
+                 "(recovered fraction of the acute deficit by chronic)\n'unresolved' = fit flag not ok; code on hits needs "
+                 f">= {ak.MIN_HITS} hits per animal x epoch (acute sets the scale); 95% CI by resampling sessions",
+                 fontsize=9)
+    fig.tight_layout(rect=(0, 0, 1, 0.8))
     save_png_svg(fig, A / "figures" / f"recovery_timing_{a.window}.png", dpi=120)
     plt.close(fig)
     print("->", A / "figures" / f"recovery_timing_{a.window}.png")
@@ -203,6 +472,15 @@ def _boot_mean_of_animals(by: dict, rng, n=2000):
     d = [np.mean([np.mean(rng.choice(by[k], len(by[k]))) for k in rng.choice(an, len(an))]) for _ in range(n)]
     lo, hi = np.percentile(d, [2.5, 97.5])
     return point, float(lo), float(hi)
+
+
+def _hit_gated(g: pd.DataFrame, m: str) -> np.ndarray:
+    """Session values of series ``m`` for ONE animal x epoch; a code-on-hits series (``neu`` and the ``gap`` built
+    from it) is empty when its sessions sum to < analysis_kit.MIN_HITS hits (Priya 11-07)."""
+    v = g[np.isfinite(g[m].to_numpy(float))]
+    if m in ("neu", "gap") and not ak.hits_ok(v.n_hits.to_numpy(float)):
+        return np.array([])
+    return v[m].to_numpy(float)
 
 
 def pooled_figures(S: pd.DataFrame, window: str, plt) -> None:
@@ -258,11 +536,15 @@ def pooled_figures(S: pd.DataFrame, window: str, plt) -> None:
     for k, (m, lab, col) in enumerate(PAN):
         ax = axs[k]
         ax.axhline(1 if m != "gap" else 0, color="0.5", ls="--", lw=0.8)
-        ref = {an: S[(S.animal == an) & (S.epoch == "pre")][m].dropna().to_numpy() for an in AN}
+        ref = {an: _hit_gated(S[(S.animal == an) & (S.epoch == "pre")], m) for an in AN}
         ref = {an: v for an, v in ref.items() if len(v)}
         for i, ep in enumerate(EP4):
             g = S[S.epoch == ep]
-            by = {an: g[g.animal == an][m].dropna().to_numpy() for an in AN}
+            by = {an: _hit_gated(g[g.animal == an], m) for an in AN}
+            na = [an for an in AN if m != "beh" and len(g[g.animal == an].neu.dropna()) and not len(by[an])]
+            if na:                                   # animal x epoch below MIN_HITS: named, not plotted / tested
+                ax.text(i, -0.25 if m != "gap" else -1.05, ak.HIT_GATE_NA + ": " + "/".join(na), ha="center",
+                        va="bottom", fontsize=6.5, color="0.35")
             by = {an: v for an, v in by.items() if len(v)}
             for j, an in enumerate(AN):
                 if an in by:
@@ -293,10 +575,11 @@ def pooled_figures(S: pd.DataFrame, window: str, plt) -> None:
                + [Line2D([], [], color="k", lw=2.2, label="mean of animals")], loc="lower center", ncol=5, fontsize=8.5,
                frameon=False)
     fig.suptitle(f"Recovery by epoch, one dot per session, normalised within animal ({window} window; cortex = hits only). "
-                 "Numbers = change vs pre, 95% nested CI (bold = excludes 0); acute cortex: sessions with >= 5 hits only\n"
+                 "Numbers = change vs pre, 95% nested CI (bold = excludes 0)\ncortex: sessions with >= 5 hits, and an "
+                 f"animal x epoch needs >= {ak.MIN_HITS} hits summed (else {ak.HIT_GATE_NA})\n"
                  + DATA_HIT,
                  fontsize=10)
-    fig.tight_layout(rect=(0, 0.07, 1, 0.92))
+    fig.tight_layout(rect=(0, 0.07, 1, 0.89))
     save_png_svg(fig, A / "figures" / f"recovery_timing_pooled_epoch_{window}.png", dpi=120)
     plt.close(fig)
     print("->", A / "figures" / f"recovery_timing_pooled_epoch_{window}.png")
@@ -320,8 +603,10 @@ def aim_compute(window: str) -> dict:
     """Fig 0.12 + AIM (Priya 10-30: "can 0.12 include the far contra lick angle index?"). Panel 1 = the existing pooled
     day-bin figure (hit rate / pre, code on hits / pre; same rng order, so it reproduces recovery_timing_pooled_day);
     panel 2 = far-contra aim change vs own pre (deg) by the same day bins, per-animal + animal-weighted mean + 95% CI.
-    Also per animal: acute / subacute / chronic means, recovered fraction of the acute deficit
-    (x - acute) / (pre - acute) per measure, and exponential half-recovery days (aim scaled by the animal's |acute|)."""
+    Also per animal (`per_animal_recovery`; aim = PRIMARY behaviour, Priya 11-07): acute / subacute / chronic means,
+    recovered fraction of the acute deficit (x - acute) / (pre - acute) per measure (code on hits NaN below
+    analysis_kit.MIN_HITS hits per animal x epoch), and half-recovery RELATIVE TO PRE (fit + interpolation) with its
+    fit-quality flag and LOO range; the old tau ln 2 survives only as ``*_t_to_own_plateau_half``."""
     S = pd.read_csv(A / f"recovery_timing_series_{window}.csv")
     G = aim_series()
     rng = np.random.default_rng(0)
@@ -350,25 +635,7 @@ def aim_compute(window: str) -> dict:
     M["animal"] = M.label.str[:4]
     M["epoch"] = M.epoch.fillna(M.label.map(G.set_index("label").epoch))
     M["day"] = M.day.fillna(M.label.map(G.set_index("label").day))
-    pa = []
-    for an in AN:
-        g = M[M.animal == an]
-        e = g.groupby("epoch")[["beh", "neu", "aim"]].mean().reindex(EP4)
-        r = {"animal": an}
-        post = g[g.epoch != "pre"]
-        for m in ("beh", "neu", "aim"):
-            for ep in EP4:
-                r[f"{m}_{ep}"] = e.loc[ep, m]
-            pre_v = 0.0 if m == "aim" else 1.0                # pre reference (beh/neu normalised to pre; aim = change vs pre)
-            ac = e.loc["acute", m]
-            for ep in ("subacute", "chronic"):
-                r[f"{m}_recov_{ep}"] = (e.loc[ep, m] - ac) / (pre_v - ac) if np.isfinite(ac) and ac != pre_v else np.nan
-            y = post[m].to_numpy(float)
-            if m == "aim":
-                y = 1 + y / abs(ac) if np.isfinite(ac) and ac != 0 else y * np.nan   # 1 = pre, 0 = acute deficit
-            r[f"{m}_t_half"] = exp_fit(post.day.to_numpy(float), y)
-        pa.append(r)
-    PA = pd.DataFrame(pa)
+    PA = per_animal_recovery(M)           # aim (primary), hit rate, code on hits: completeness, half-to-pre, flags
     return {"D": D, "PA": PA, "window": window}
 
 
@@ -379,7 +646,9 @@ def aim_draw(F: dict) -> None:
     from matplotlib.lines import Line2D
     D, window = F["D"], F["window"]
     MEAS = [("beh", "far-contra hit rate / pre", "0.25"), ("neu", "cortex: far-contra frozen code on hits / pre", "#c0392b")]
-    fig, (ax, bx) = plt.subplots(2, 1, figsize=(11.5, 7.6), sharex=True, gridspec_kw={"height_ratios": [1, 0.9]})
+    # aim = PRIMARY behavioural recovery measure (Priya 11-07: "we should use aim rather than hit recovery") -> panel A;
+    # hit rate (secondary) + code on hits -> panel B
+    fig, (bx, ax) = plt.subplots(2, 1, figsize=(11.5, 8.4), sharex=True, gridspec_kw={"height_ratios": [0.9, 1]})
     for a_ in (ax, bx):
         a_.axvspan(-13, 0, color="0.93", lw=0)
         for s_ in ("top", "right"):
@@ -395,7 +664,9 @@ def aim_draw(F: dict) -> None:
     ax.legend(handles=[Line2D([], [], color=c, lw=2, marker="o", label=lab) for _m, lab, c in MEAS]
               + [Line2D([], [], color="0.5", lw=0.6, alpha=0.5, label="each animal (faint)")], fontsize=8.5,
               frameon=False, loc="upper left", bbox_to_anchor=(1.01, 1.0))
-    ax.set_title("A  far-contra hit rate and frozen decoder code on hits (as Fig 0.12)", fontsize=10, loc="left")
+    ax.set_title("B  far-contra hit rate (secondary behaviour measure) and frozen decoder code on hits", fontsize=10,
+                 loc="left")
+    ax.set_xlabel("days from stroke (binned; pre = all August pre sessions at x = -6)")
     bx.axhline(0, color="0.5", ls="--", lw=0.8)
     t = D[D.measure == "aim"].sort_values("x")
     for an in AN:
@@ -406,12 +677,17 @@ def aim_draw(F: dict) -> None:
     bx.legend(handles=[Line2D([], [], color=AIM_COL, lw=2, marker="o", label="far-contra first-lick aim (3-D angle)"),
                        Line2D([], [], color=AIM_COL, lw=0.6, alpha=0.5, label="each animal (faint)")], fontsize=8.5,
               frameon=False, loc="upper left", bbox_to_anchor=(1.01, 1.0))
-    bx.set_title("B  far-contra aim: first post-cue lick, 3-D angle minus the animal's pre mean (- = shifted ipsilesional)",
-                 fontsize=10, loc="left")
-    bx.set_xlabel("days from stroke (binned; pre = all August pre sessions at x = -6)")
+    bx.set_title("A  PRIMARY: far-contra aim, first post-cue lick, 3-D angle minus the animal's pre mean "
+                 "(- = shifted ipsilesional)", fontsize=10, loc="left")
+    PA = F.get("PA")
+    if PA is not None and "aim_flag" in PA:     # per-animal completeness + half-recovery relative to pre (fit, flagged)
+        txt = ["Per animal: half-recovery RELATIVE TO PRE (fitted day half-way from acute back to pre);",
+               "% = completeness (recovered fraction of the acute deficit by chronic); 'unresolved' = fit flag not ok"]
+        txt += [f"{r.animal}: {half_lines(r)}" for _, r in PA.iterrows()]
+        fig.text(0.01, 0.005, "\n".join(txt), fontsize=7.2, va="bottom", ha="left", family="monospace")
     fig.suptitle(f"Recovery pooled across animals by day bin ({window} window; cortex = hits only): mean of animals, "
                  "band = 95% CI (animals > sessions). n = 4, PROVISIONAL\n" + DATA_HIT, fontsize=10.5)
-    fig.tight_layout(rect=(0, 0, 1, 0.96))
+    fig.tight_layout(rect=(0, 0.14, 1, 0.96))
     out = A / "figures" / f"recovery_timing_pooled_day_{window}_aim.png"
     save_png_svg(fig, out, dpi=120)
     plt.close(fig)
@@ -424,8 +700,10 @@ def aim_main(window: str, plot_only: bool) -> int:
     if not plot_only:
         F = aim_compute(window)
         pd.set_option("display.width", 250)
-        print("== per animal (rule 8): epoch means (beh, neu = / pre; aim = deg vs pre), recovered fraction of the acute "
-              "deficit, half-recovery day\n" + F["PA"].round(2).to_string(index=False))
+        print_per_animal(F["PA"], "== per animal (rule 8): aim (PRIMARY), hit rate, code on hits")
+        print("  epoch means (beh, neu = / pre; aim = deg vs pre) + recovered fraction by epoch:\n"
+              + F["PA"][["animal"] + [c for c in F["PA"] if c.split("_", 1)[-1] in EP4 or "_recov_" in c]]
+              .round(2).to_string(index=False))
         F["D"].to_csv(A / f"recovery_timing_pooled_day_{window}_aim.csv", index=False)
         F["PA"].to_csv(A / f"recovery_timing_aim_per_animal_{window}.csv", index=False)
         ref = pd.read_csv(A / f"recovery_timing_pooled_day_{window}.csv")
