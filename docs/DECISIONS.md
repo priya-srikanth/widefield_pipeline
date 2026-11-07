@@ -91,3 +91,13 @@
 - 'Where things stand' bottom line rewritten 10-28 (10-25 version: FINDINGS section 0).
 - ALM / tjM1 encoder rows keep the STAT MASK (rim check: no difference, scripts/checks/rim_check_alm_tjm1.py).
 - Like-for-like curves (12.2) Gaussian-smoothed with the offset's sigma, no display bins; SEM over ANIMALS.
+
+## 2026-11-07 -- Where-decoder: UNSCALED features are primary; within-session z-scoring is supplementary at most (Priya)
+
+Priya 11-07: "different gains per area would be meaningful, i don't think we want to normalize this way." The 10-26
+within-session z-score check (`scripts/iti_zscore_check.py`: every area divided by its session frame-wise SD, pre and
+post) removes per-area gain changes, which may be part of the stroke effect. Primary = the unscaled frozen where-decoder
+(`where_decoder_tests.csv`); z-scored outputs (`zscore_check/*_z*`) are a sensitivity check only. Page figures drawn
+from z-scored producers (Fig 10.2, 12.5-12.7, 13.3, 16.3-16.5) switch to unscaled producers in the replacement pass.
+Where the two disagree (e.g. cued sagittal subacute -21 % unscaled vs -9 % z-scored) the gap is the part explained by
+per-area gain. Fig 10.2 key statement rewritten the same day (FINDINGS / ENCODING_FINDINGS, unscaled numbers).

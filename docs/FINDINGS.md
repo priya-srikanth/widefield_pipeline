@@ -185,7 +185,8 @@ No laterality support for Priya's reduced-thalamocortical-drive hypothesis after
    reference +0.01 n.s., 4d0-NIGHT]; cued far contra chronic -0.27 (4/4, ipsilesional). Lateral frozen r: ITI -26 / -22 / -24 % (4/4), cued -20 / -12
    (4/4) / -8 % (n.s., 3/4). CHANGED vs v139: (1) "read further OUT acutely" is GONE -- cued down +0.20 -> +0.03 n.s.;
    cued read CLOSER subacute (-0.25) and chronic (-0.13), 4/4; cued reach like-for-like acute n.s., -0.27 / -0.14 later
-   (4/4); (2) ITI SAGITTAL r now lost subacute / chronic (-13 / -11 %, 4/4; n.s. in plain Allen -> basis-dependent);
+   (4/4); (2) SAGITTAL r is lost too (rebuild 11-07): cued -25 / -21 / -8 % (4/4; the later part = short licks missing the spout),
+   ITI -13 n.s. / -23 / -24 % (4/4), as large as lateral from subacute on;
    (3) cued LATER licks also read contralesional acutely (+0.14, 4/4; was first lick only); (4) no response remains at
    pre aim in any area (16.12); (5) the pull-based details of 4d0 / 4d0b (60 % expected from the pull; read/landing ratios
    0.35-0.60) are obsolete with the measure. REFIT DECODERS (lick_refit_decoders.py, page 10.2b): position is still
@@ -374,9 +375,13 @@ No laterality support for Priya's reduced-thalamocortical-drive hypothesis after
    subacute on. Chronic cued far-contra read ipsilesional also on the sagittal run (-0.24 [-0.35, -0.12], 0/4).
    Note: the pull shrinks every prediction toward the mean of ALL the animal's pre licks (one decoder; it never sees
    the spout), not toward the mouth or each spout's mean; pre-stroke landings cluster MEDIAL of the spouts.
-   Sagittal-run frozen r (change vs pre, acute / subacute / chronic): sagittal ITI -0.01 / -0.07 / -0.05, in-trial
-   -0.09 / -0.04 / +0.01 (all n.s.) -> the r loss is LATERAL (ITI -0.13 / -0.12 / -0.13, in-trial -0.15 / -0.08 / -0.06,
-   4/4 each). Encoder angle atan2(lateral, sagittal): ITI -0.11 / -0.07 / -0.10 (chronic CI excludes 0), in-trial
+   Frozen r change vs pre, normalised to pre (REBUILD 11-07, camera working period / new imaging basis, areas; replaces the
+   10-26 "the r loss is LATERAL" line, Priya 11-07): BOTH AXES are lost on cued licks acutely -- lateral -20 / -10 % (4/4),
+   -8 % chronic (n.s., 3/4); sagittal -25 / -21 / -8 % (4/4 each). The subacute / chronic sagittal loss sits in short licks
+   that MISS the spout within successful trials: on spout-contact licks only, sagittal -24 % acute (4/4), -14 % subacute
+   (n.s., 3/4), +7 % chronic (n.s., 2/4) (scratchpad a10_sagittal, 11-07). ITI: lateral -23 / -22 / -24 % (4/4); sagittal
+   -13 % acute (n.s., 3/4), then -23 / -24 % (4/4) -- as large as lateral from subacute on. Encoder angle atan2(lateral,
+   sagittal): ITI -0.11 / -0.07 / -0.10 (chronic CI excludes 0), in-trial
    -0.09 / -0.05 / -0.04 (chronic n.s., 2/4). The earlier "in-trial angle r ABOVE pre 4/4" used the HORIZONTAL angle
    (lateral vs forward) -> superseded: on the encoder's angle in-trial r returns to ~pre, not above.
    SPREAD-MATCHED r (10-27 ~01:00, `scripts/iti_where_spread_matched.py [--z]`; each session's licks resampled so their

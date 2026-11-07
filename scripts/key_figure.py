@@ -53,13 +53,21 @@ def compute() -> dict:
     Aim = Aim.rename(columns={"far_contra_signed": "aim"})
     # previous key-figure quantity: frozen far-contra code on far-contra HITS (1 = pre by construction)
     B = series("lick")
-    ref = {a: B[(B.animal == a) & (B.epoch == "pre")].neu.dropna().to_numpy() for a in AN}
+    def _gated(a, ep):              # animal x epoch code on hits; empty below ak.MIN_HITS summed hits (Priya 11-07)
+        v = B[(B.animal == a) & (B.epoch == ep)].dropna(subset=["neu"])
+        return v.neu.to_numpy() if ak.hits_ok(v.n_hits.to_numpy(float)) else np.array([])
+
+    ref = {a: _gated(a, "pre") for a in AN}
     code = [dict(epoch="pre", y=1.0, lo=1.0, hi=1.0, n_dir=np.nan, n=np.nan, **{a: 1.0 for a in AN})]
     for ep in EP[1:]:
-        post = {a: B[(B.animal == a) & (B.epoch == ep)].neu.dropna().to_numpy() for a in AN}
+        post = {a: _gated(a, ep) for a in AN}
         com = [a for a in AN if len(post[a]) and len(ref[a])]
         iv = ak.boot_delta({a: post[a] for a in com}, {a: ref[a] for a in com}, np.random.default_rng(0))
         am = {a: float(post[a].mean() - ref[a].mean()) for a in com}
+        if iv is None:                  # every animal below the hit gate: no interval
+            iv = ak.Interval(np.nan, np.nan, np.nan, len(com))
+        if len(com) < len(AN):
+            print(f"   {ep}: code on hits {ak.HIT_GATE_NA} for " + "/".join(a for a in AN if a not in com))
         code.append(dict(epoch=ep, y=1 + iv.point, lo=1 + iv.lo, hi=1 + iv.hi,
                          n_dir=sum(v < 0 for v in am.values()), n=len(com),
                          **{a: (1 + am[a]) if a in am else np.nan for a in AN}))
@@ -121,6 +129,12 @@ def plot(F: dict) -> None:
             for a in AN:
                 ax.scatter(xx[1:], D[a].to_numpy()[1:], s=9, color=c, alpha=0.35, marker=ANIMAL_MARKER.get(a, "o"),
                            lw=0, zorder=1)
+        if st == "trial":                # animals whose code-on-hits cell is below the hit gate (Priya 11-07)
+            for i, ep in enumerate(EP[1:], start=1):
+                na = [a for a in AN if not np.isfinite(code.loc[ep, a])]
+                if na:
+                    ax.text(i, 0.02, ak.HIT_GATE_NA + ":\n" + "/".join(na), transform=ax.get_xaxis_transform(),
+                            ha="center", va="bottom", fontsize=6, color="#b2182b")
         ax.axhline(1, color="0.5", lw=0.7, ls="--")
         ax.set_xticks(x, EP)
         ax.set_ylabel("fraction of pre-stroke level")
