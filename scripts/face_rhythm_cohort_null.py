@@ -231,10 +231,9 @@ def map_figure(P: dict, out: Path, set_name: str) -> None:
                     continue
                 d = pts[("load", nm, ep)]
                 s = d["sig"]
-                ax.scatter(home[~s, 0], home[~s, 1], c=d["t"][~s], s=3, cmap="RdBu_r", vmin=-lim, vmax=lim, alpha=0.35,
-                           lw=0)
-                sc = ax.scatter(home[s, 0], home[s, 1], c=d["t"][s], s=11, cmap="RdBu_r", vmin=-lim, vmax=lim,
-                                edgecolors="k", linewidths=0.25)
+                frf.face_background(ax, home, ~s)
+                sc = ax.scatter(home[s, 0], home[s, 1], c=d["t"][s], s=16, cmap=frf.sig_cmap(), vmin=-lim, vmax=lim,
+                                edgecolors="k", linewidths=0.4)
                 ax.axvline(342.0, color="k", lw=0.4)
                 ax.invert_yaxis()
                 ax.set_aspect("equal")

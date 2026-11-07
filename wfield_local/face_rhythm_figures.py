@@ -33,6 +33,27 @@ def subplots(*args, **kw):
     return plt.subplots(*args, **kw)
 
 
+def face_background(ax, home, mask=None) -> None:
+    """Every mesh point (or those in ``mask``) as a small light-grey dot, under the marked points (Priya 11-07: show the
+    full face on the significant-point maps)."""
+    import numpy as np
+    home = np.asarray(home)
+    if mask is not None:
+        home = home[np.asarray(mask, bool)]
+    ax.scatter(home[:, 0], home[:, 1], s=1.2, color="0.85", lw=0, zorder=0)
+
+
+def sig_cmap():
+    """RdBu_r without its pale middle (Priya 11-07: a marked point near white reads as the grey background); marked
+    points are never near 0, so nothing is lost."""
+    import matplotlib
+    import numpy as np
+    from matplotlib.colors import ListedColormap
+    base = matplotlib.colormaps["RdBu_r"]
+    return ListedColormap(np.vstack([base(np.linspace(0.0, 0.33, 128)), base(np.linspace(0.67, 1.0, 128))]),
+                          name="RdBu_r_nomid")
+
+
 def legend_outside(ax, **kw) -> None:
     """Legend to the right of ``ax`` (constrained layout makes room for it)."""
     ax.legend(loc="upper left", bbox_to_anchor=(1.01, 1.0), borderaxespad=0.0, frameon=False, **kw)

@@ -394,10 +394,10 @@ def pooled_loading_figure(D: dict, names: list[str], out: Path, set_name: str) -
                 ring = agree >= 3 if c != "preA - preB" else np.zeros(len(m), bool)
                 fade = ~ring if c != "preA - preB" else np.zeros(len(m), bool)
                 show = ~fade
-                ax.scatter(home[fade, 0], home[fade, 1], c=m[fade], s=3, cmap="RdBu_r", vmin=-lim, vmax=lim, alpha=0.35,
-                           lw=0)
-                sc = ax.scatter(home[show, 0], home[show, 1], c=m[show], s=11 if c != "preA - preB" else 4, cmap="RdBu_r",
-                                vmin=-lim, vmax=lim, edgecolors="k" if c != "preA - preB" else "none", linewidths=0.25)
+                frf.face_background(ax, home, fade)
+                sc = ax.scatter(home[show, 0], home[show, 1], c=m[show], s=16 if c != "preA - preB" else 4,
+                                cmap=frf.sig_cmap() if c != "preA - preB" else "RdBu_r", vmin=-lim, vmax=lim,
+                                edgecolors="k" if c != "preA - preB" else "none", linewidths=0.4)
                 ax.axvline(342.0, color="k", lw=0.4)
                 ax.invert_yaxis()
                 ax.set_aspect("equal")
