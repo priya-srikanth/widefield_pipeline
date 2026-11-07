@@ -52,6 +52,44 @@ MATCH_ON = "spatial"
 # rows, LOAO-<animal> = the other three -- the per-animal check). A tag stands where an animal does in every readout;
 # `members` says whose pre-stroke spout templates it is compared with. Set by --own-dir.
 OWN = "own_epoch"
+# Matching rule (`--match-rule`). v1 = the settings above. v2 (Priya 11-07, after the 500-permutation null showed
+# duplicated readouts): spatial score with a SPECTRAL TIE-BREAK among columns within `face_rhythm_matching.TIE` of the
+# best spatial cosine; a factor is RECOVERED only if its pick has spatial cos >= .8 AND spectral cos >= .5 (null fits,
+# which hold every factor: spatial 1st percentile .84, spectral 5th percentile .46); the two footprint twins that no rule
+# can separate and that are unstable even in null fits are MERGED into one unit each (master spatial cos .99).
+# Unrecovered cells leave the shape readouts; which factors are lost is its own readout (`face_rhythm_recovery.py`).
+MERGE = {"prelick_nose": ("sniff_prelick", "nose_prelick_slow"), "slow_jaw": ("run_onset_jaw", "prep_jaw")}
+MATCH_RULES = {"v1": dict(assign=ASSIGN, min_spatial=MIN_COS, min_spectral=None, merge={}),
+               "v2": dict(assign="tiebreak", min_spatial=0.8, min_spectral=0.5, merge=MERGE)}
+RULE = "v1"
+
+
+def rule() -> dict:
+    return MATCH_RULES[RULE]
+
+
+def rule_suffix() -> str:
+    """Output folder suffix: v1 writes where it always did, other rules beside it (``<folder>_v2``)."""
+    return "" if RULE == "v1" else f"_{RULE}"
+
+
+def reference(fdir: Path):
+    """(master npz, A_ref (2P, R), B_ref (F, R), names) under the current rule (merged units for v2)."""
+    from wfield_local import face_rhythm_matching as fm
+    M = np.load(fdir / "master.npz")
+    A_ref, B_ref, names = M["spatial"].reshape(-1, M["spatial"].shape[-1]), M["spectral"], frc.factor_names(fdir)
+    if rule()["merge"]:
+        A_ref, B_ref, names = fm.merge_reference(A_ref, B_ref, names, rule()["merge"])
+    return M, A_ref, B_ref, names
+
+
+def pick(A_ref, B_ref, A, B):
+    """-> (match dict, column standing for each reference factor, recovered mask) under the current rule."""
+    from wfield_local import face_rhythm_matching as fm
+    m = fm.match(A_ref, B_ref, A, B, on=MATCH_ON)
+    r = rule()
+    cols = fm.columns(m, r["assign"])
+    return m, cols, fm.recovered(m, cols, r["min_spatial"], r["min_spectral"])
 
 
 def members(tag: str, animals) -> list[str]:
@@ -147,8 +185,7 @@ def deg(c):
 def compute(fdir: Path) -> pd.DataFrame:
     from wfield_local import face_rhythm_matching as fm
     from wfield_local import face_rhythm_readouts as frr
-    M = np.load(fdir / "master.npz")
-    A_ref, B_ref = M["spatial"].reshape(-1, M["spatial"].shape[-1]), M["spectral"]
+    M, A_ref, B_ref, _names = reference(fdir)
     home, mid = M["home"], float(frr.MASTER_MIDLINE_X)
     rows = []
     animals = sorted({f.stem.split("_")[0] for f in (fdir / OWN).glob("*.npz")})
@@ -160,15 +197,13 @@ def compute(fdir: Path) -> pd.DataFrame:
                 z = np.load(f)
                 fits[g] = (z["A_own"].astype(float), z["B_own"].astype(float))
                 nrow[g] = int(z["n_rows"])
-        P = fm.pairwise(fits, A_ref, B_ref, on=MATCH_ON, assign=ASSIGN)       # every pair, aligned to the master's factor order
+        P = fm.pairwise(fits, A_ref, B_ref, on=MATCH_ON, assign=rule()["assign"])  # every pair, aligned to the master's factor order
         cos = {(r.key_a, r.key_b, r.factor): (r.cos_spatial, r.cos_spectral) for r in P.itertuples()}
         get = lambda a, b, k, cos=cos: cos.get((a, b, k), cos.get((b, a, k), (np.nan, np.nan)))  # noqa: E731
-        asym, mcos = {}, {}
+        asym, mcos, rec = {}, {}, {}
         for g, (A, _B) in fits.items():                          # loading asymmetry on the master-aligned columns
-            mm = fm.match(A_ref, B_ref, *fits[g], on=MATCH_ON)
-            order = fm.columns(mm, ASSIGN)
-            cs_g = fm.cosines(A_ref, B_ref, *fits[g])[0]
-            mcos[g] = cs_g[np.arange(len(order)), order]
+            mm, order, rec[g] = pick(A_ref, B_ref, *fits[g])
+            mcos[g] = mm["cs_all"][np.arange(len(order)), order]
             a = fm.loading_asymmetry(A, home, mid)
             asym[g] = np.array([a[o] if o >= 0 else np.nan for o in order])
         R = A_ref.shape[1]
@@ -179,7 +214,8 @@ def compute(fdir: Path) -> pd.DataFrame:
                     continue
                 ca, cb = get(ep, "preA", k), get(ep, "preB", k)
                 row = {"animal": an, "epoch": ep, "factor": k, "n_rows": nrow[ep],
-                       "cos_master": float(min(mcos[ep][k], mcos["preA"][k], mcos["preB"][k]))}
+                       "cos_master": float(min(mcos[ep][k], mcos["preA"][k], mcos["preB"][k])),
+                       "recovered": bool(rec[ep][k] and rec["preA"][k] and rec["preB"][k])}
                 for i, mode in enumerate(("spatial", "spectral")):
                     fa, ea, eb = deg(fl[i]), deg(ca[i]), deg(cb[i])
                     row.update({f"floor_{mode}": fa, f"angle_{mode}": (ea + eb) / 2,
@@ -204,8 +240,7 @@ def loadings_and_templates(fdir: Path, names: list[str], factors=LICK) -> dict:
                                          spout-SPECIFIC movement pattern
       corr[(animal, group, factor)]     (6,) Pearson r of the loading with each spout template"""
     from wfield_local import face_rhythm_matching as fm
-    M = np.load(fdir / "master.npz")
-    A_ref, B_ref = M["spatial"].reshape(-1, M["spatial"].shape[-1]), M["spectral"]
+    M, A_ref, B_ref, _names = reference(fdir)
     ks = [names.index(n) for n in factors if n in names]
     out = {"loading": {}, "template": {}, "corr": {}, "home": M["home"], "factors": ks, "positions": frc.POSITIONS}
     S = frc.sessions(fdir, "proj")
@@ -229,12 +264,10 @@ def loadings_and_templates(fdir: Path, names: list[str], factors=LICK) -> dict:
                 continue
             z = np.load(f)
             A, B = z["A_own"].astype(float), z["B_own"].astype(float)
-            mm = fm.match(A_ref, B_ref, A, B, on=MATCH_ON)
-            order = fm.columns(mm, ASSIGN)
-            cs_g = fm.cosines(A_ref, B_ref, A, B)[0]
+            _mm, order, rec = pick(A_ref, B_ref, A, B)
             mag = fm.spatial_view(A, "magnitude")
             for k in ks:
-                if cs_g[k, order[k]] < MIN_COS:                  # factor not recovered in this fit: leave the cell out
+                if not rec[k]:                                   # factor not recovered in this fit: leave the cell out
                     continue
                 v = mag[:, order[k]]
                 v = v / v.sum()
@@ -402,7 +435,9 @@ def pooled_summary_figures(T: pd.DataFrame, D: dict, names: list[str], out: Path
     from wfield_local import face_rhythm_figures as frf
     acol, ecol = frc.animal_colors(), frc.epoch_colors()
     animals = sorted(T.animal.unique())
-    if "cos_master" in T:                                   # cells whose factor the fit did not recover (MIN_COS)
+    if "recovered" in T:                                    # cells whose factor the fit did not recover
+        T = T[T.recovered.astype(bool)]
+    elif "cos_master" in T:                                 # tables written before 11-07
         T = T[T.cos_master >= MIN_COS]
     T = T.assign(ratio_spatial=T.angle_spatial / T.floor_spatial, ratio_spectral=T.angle_spectral / T.floor_spectral)
     eps = list(frc.POST_EPOCHS)
@@ -519,8 +554,7 @@ def matched_factor_gallery(fdir: Path, names: list[str], out: Path, factors=GALL
     for this master factor is a column the assignment gave to ANOTHER master factor, or cosine < 0.8."""
     from wfield_local import face_rhythm_figures as frf
     from wfield_local import face_rhythm_matching as fm
-    M = np.load(fdir / "master.npz")
-    A_ref, B_ref = M["spatial"].reshape(-1, M["spatial"].shape[-1]), M["spectral"]
+    M, A_ref, B_ref, _names = reference(fdir)
     home, freqs = M["home"], M["freqs"]
     acol = frc.epoch_colors()
     fcol = {"master": "k", "preA": "0.55", "preB": "0.75", **{e: acol[e] for e in frc.POST_EPOCHS}}
@@ -538,7 +572,7 @@ def matched_factor_gallery(fdir: Path, names: list[str], out: Path, factors=GALL
     rows = []
     mag_ref = fm.spatial_view(A_ref, "magnitude")
     with frf.style():
-        for nm in factors:
+        for nm in [f for f in factors if f in names]:
             k = names.index(nm)
             fig, axs = frf.subplots(len(animals), len(FITS) + 1, figsize=(2.5 * len(FITS) + 3.6, 2.6 * len(animals)),
                                     squeeze=False)
@@ -549,7 +583,7 @@ def matched_factor_gallery(fdir: Path, names: list[str], out: Path, factors=GALL
                     if (an, g) not in fits:
                         continue
                     A, B, m = fits[(an, g)]
-                    cols = fm.columns(m, ASSIGN)
+                    cols = fm.columns(m, rule()["assign"])
                     j, jh = int(cols[k]), int(m["order"][k])
                     cs_g, cf_g = fm.cosines(A_ref, B_ref, A, B)
                     mag = fm.spatial_view(A, "magnitude")[:, j]
@@ -684,13 +718,17 @@ def main(argv=None) -> int:
     ap.add_argument("--factors", nargs="+", default=list(LICK),
                     help="factors for the loading maps / templates (default the lateralised lick pair); e.g. the "
                          "non-lateralised lick factors (Priya 10-25 'central lick version') -- use with --out")
+    ap.add_argument("--match-rule", choices=sorted(MATCH_RULES), default="v1",
+                    help="v1 = spatial best match (10-25); v2 = spectral tie-break + recovery threshold + merged twins "
+                         "(11-07); non-v1 output goes to <folder>_<rule>/")
     ap.add_argument("--own-dir", default="own_epoch", help="per-epoch fit folder: own_epoch (per animal) or own_epoch_cohort "
                     "(COHORT + LOAO-<animal> tags; output defaults to epoch_shape_cohort/)")
     a = ap.parse_args(argv)
-    global OWN
-    OWN = a.own_dir
+    global OWN, RULE
+    OWN, RULE = a.own_dir, a.match_rule
     fdir = a.fdir or frc.default_set_dir(set_name=a.set)
-    out = a.out or frc.readouts_dir(a.set) / ("epoch_shape" if OWN == "own_epoch" else f"epoch_shape_{OWN[len('own_epoch_'):] or OWN}")
+    out = a.out or frc.readouts_dir(a.set) / (("epoch_shape" if OWN == "own_epoch"
+                                               else f"epoch_shape_{OWN[len('own_epoch_'):] or OWN}") + rule_suffix())
     writeguard.assert_writable(out)
     out.mkdir(parents=True, exist_ok=True)
     if a.candidates:
@@ -698,7 +736,7 @@ def main(argv=None) -> int:
             print("->", candidates_figure(fdir, frc.factor_names(fdir), out, an, g, fac))
         return 0
     if a.gallery:
-        G = matched_factor_gallery(fdir, frc.factor_names(fdir), out, only=a.animals)
+        G = matched_factor_gallery(fdir, reference(fdir)[3], out, only=a.animals)
         G.to_csv(figure_layout.sidecar_for(out, "matched_factor_gallery", ".csv"), index=False, float_format="%.4g")
         print(G[G.contested].to_string(index=False))
         print("->", out)
@@ -707,7 +745,7 @@ def main(argv=None) -> int:
     T = pd.read_csv(csv) if a.plot_only else compute(fdir)
     if not a.plot_only:
         T.to_csv(csv, index=False, float_format="%.4g")
-    names = frc.factor_names(fdir)
+    names = reference(fdir)[3]
     T["name"] = [names[k] for k in T.factor]
     animals = sorted(T.animal.unique())
     pd.set_option("display.width", 220)

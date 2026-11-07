@@ -29,6 +29,10 @@ import numpy as np
 
 EPS = 1e-12
 ON = ("product", "spatial", "spectral", "sum")
+# `columns(assign="tiebreak")`: columns within this much of a reference factor's best SPATIAL cosine count as tied, and
+# the tie goes to the best SPECTRAL cosine (Priya 11-07: match on place, use frequency only for near-identical places;
+# .02 / .05 / .10 picked nearly the same columns on the cohort fits)
+TIE = 0.05
 
 
 def _unit(X: np.ndarray) -> np.ndarray:
@@ -77,7 +81,8 @@ def match(A_ref, B_ref, A, B, on: str = "product", spatial: str = "vector") -> d
     pick = lambda M: np.array([M[k, order[k]] if order[k] >= 0 else np.nan for k in range(R)])  # noqa: E731
     srt = np.sort(S, axis=1)
     return {"order": order, "cos_spatial": pick(cs), "cos_spectral": pick(cf), "score": pick(S),
-            "free": S.argmax(1), "margin": srt[:, -1] - (srt[:, -2] if S.shape[1] > 1 else 0.0), "score_matrix": S}
+            "free": S.argmax(1), "margin": srt[:, -1] - (srt[:, -2] if S.shape[1] > 1 else 0.0), "score_matrix": S,
+            "cs_all": cs, "cf_all": cf}
 
 
 def chance(A_ref, B_ref, A, B, on: str = "product", spatial: str = "vector", n: int = 200, seed: int = 0,
@@ -105,14 +110,60 @@ def chance(A_ref, B_ref, A, B, on: str = "product", spatial: str = "vector", n: 
     return {"cos_spatial_p95": np.nanpercentile(sp, 95, axis=0), "cos_spectral_p95": np.nanpercentile(sf, 95, axis=0)}
 
 
-def columns(m: dict, assign: str = "hungarian") -> np.ndarray:
+def columns(m: dict, assign: str = "hungarian", tie: float = TIE) -> np.ndarray:
     """The other fit's column standing for each reference factor: ``hungarian`` = the one-to-one assignment (``order``);
     ``best`` = each reference factor's best-scoring column, allowed to repeat (Priya 10-25: after the stroke the extra
     leftward licking is SPLIT over several own factors, and a one-to-one assignment can then hand a factor a poor column
-    -- PS95 acute lick_left got a ~12 Hz factor while its lick_left-like column went to lick_ongoing_7Hz)."""
-    if assign not in ("hungarian", "best"):
-        raise ValueError(f"assign={assign!r}: hungarian | best")
+    -- PS95 acute lick_left got a ~12 Hz factor while its lick_left-like column went to lick_ongoing_7Hz);
+    ``tiebreak`` = as ``best`` on the SPATIAL cosine, but among columns within ``tie`` of the best spatial cosine the one
+    with the highest SPECTRAL cosine (Priya 11-07: factors with near-identical footprints differ only in rhythm)."""
+    if assign not in ("hungarian", "best", "tiebreak"):
+        raise ValueError(f"assign={assign!r}: hungarian | best | tiebreak")
+    if assign == "tiebreak":
+        cs, cf = m["cs_all"], m["cf_all"]
+        out = np.empty(cs.shape[0], int)
+        for k in range(cs.shape[0]):
+            cand = np.flatnonzero(cs[k] >= cs[k].max() - tie)
+            out[k] = cand[np.argmax(cf[k, cand])]
+        return out
     return np.asarray(m["order"] if assign == "hungarian" else m["free"])
+
+
+def recovered(m: dict, cols: np.ndarray, min_spatial: float, min_spectral: float | None = None) -> np.ndarray:
+    """(R,) bool: the column picked for each reference factor is like it in place (spatial cosine >= ``min_spatial``)
+    and, if given, in rhythm (spectral cosine >= ``min_spectral``). A factor that fails was not recovered by the fit."""
+    cols = np.asarray(cols)
+    k = np.arange(len(cols))
+    ok = (cols >= 0) & (m["cs_all"][k, np.maximum(cols, 0)] >= min_spatial)
+    if min_spectral is not None:
+        ok &= m["cf_all"][k, np.maximum(cols, 0)] >= min_spectral
+    return ok
+
+
+def merge_reference(A_ref, B_ref, names: list[str], merge: dict) -> tuple[np.ndarray, np.ndarray, list[str]]:
+    """Reference factors with near-identical footprints merged into one unit: {new name: (member, member, ...)} ->
+    spatial and spectral columns = the sum of the members' unit columns, placed at the first member's position; members
+    absent from ``names`` are skipped (a unit with < 2 present members is left as it is)."""
+    A = _unit(spatial_view(A_ref, "vector"))
+    B = _unit(np.asarray(B_ref, float))
+    keep, colsA, colsB, out = set(), [], [], []
+    first = {}
+    for new, mem in merge.items():
+        idx = [names.index(n) for n in mem if n in names]
+        if len(idx) >= 2:
+            first[min(idx)] = (new, idx)
+            keep.update(idx)
+    for k, n in enumerate(names):
+        if k in first:
+            new, idx = first[k]
+            colsA.append(A[:, idx].sum(1))
+            colsB.append(B[:, idx].sum(1))
+            out.append(new)
+        elif k not in keep:
+            colsA.append(A[:, k])
+            colsB.append(B[:, k])
+            out.append(n)
+    return np.column_stack(colsA), np.column_stack(colsB), out
 
 
 def pairwise(fits: dict, A_ref, B_ref, on: str = "product", spatial: str = "vector",

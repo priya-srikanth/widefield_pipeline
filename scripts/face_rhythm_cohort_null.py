@@ -6,7 +6,7 @@ epoch and permutation, within every animal its pre and that epoch's sessions poo
 kept), then the cohort fit redone on the pseudo-pre and pseudo-post groups by the identical procedure. OBSERVED = the
 same readouts on the real ``own_epoch_cohort/COHORT_pre`` vs ``COHORT_<epoch>`` fits.
 
-Per epoch and master factor k (best spatial match, MIN_COS .5 -- `face_rhythm_epoch_shape.py`), change = post fit - pre
+Per epoch and master factor k (matched by `face_rhythm_epoch_shape.MATCH_RULES`, `--match-rule`), change = post fit - pre
 fit:
   angle_spatial / angle_spectral   angle between the two fits' factor k (deg)
   asym                             loading asymmetry (contra - ipsi) / sum, post - pre
@@ -38,7 +38,8 @@ import pandas as pd
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from face_rhythm_epoch_shape import ASSIGN, MATCH_ON, MIN_COS, deg  # noqa: E402
+import face_rhythm_epoch_shape as es  # noqa: E402
+from face_rhythm_epoch_shape import deg  # noqa: E402
 from face_rhythm_session_shape import FACTORS, _speed  # noqa: E402
 
 from wfield_local.face_rhythm import common as frc  # noqa: E402
@@ -49,12 +50,11 @@ ONE_SIDED = ("angle_spatial", "angle_spectral")
 
 def readout(f: Path, A_ref, B_ref, home, mid) -> dict:
     """One fit's per-factor readouts: matched unit spatial / spectral columns, loading and spectrum fractions,
-    asymmetry; NaN / None where the factor is not recovered (cos < MIN_COS)."""
+    asymmetry; NaN / None where the factor is not recovered (`face_rhythm_epoch_shape.pick`)."""
     from wfield_local import face_rhythm_matching as fm
     with np.load(f, allow_pickle=True) as z:
         A, B, keys = z["A_own"].astype(float), z["B_own"].astype(float), [str(k) for k in z["keys"]]
-    order = fm.columns(fm.match(A_ref, B_ref, A, B, on=MATCH_ON), ASSIGN)
-    cs = fm.cosines(A_ref, B_ref, A, B)[0]
+    _m, order, rec = es.pick(A_ref, B_ref, A, B)
     vec, mag = fm.spatial_view(A, "vector"), fm.spatial_view(A, "magnitude")
     asym = fm.loading_asymmetry(A, home, mid)
     R = A_ref.shape[1]
@@ -62,7 +62,7 @@ def readout(f: Path, A_ref, B_ref, home, mid) -> dict:
            "asym": np.full(R, np.nan)}
     for k in range(R):
         c = int(order[k])
-        if c < 0 or cs[k, c] < MIN_COS:
+        if not rec[k]:
             continue
         out["ok"][k] = True
         out["vec"][k] = vec[:, c] / np.linalg.norm(vec[:, c])
@@ -126,8 +126,7 @@ def maxstat(obs: np.ndarray, null: np.ndarray) -> tuple[np.ndarray, np.ndarray, 
 def compute(fdir: Path, names: list[str]):
     from wfield_local import analysis_kit as ak
     from wfield_local import face_rhythm_readouts as frr
-    M = np.load(fdir / "master.npz")
-    A_ref, B_ref = M["spatial"].reshape(-1, M["spatial"].shape[-1]), M["spectral"]
+    M, A_ref, B_ref, _names = es.reference(fdir)
     home, mid = M["home"], float(frr.MASTER_MIDLINE_X)
     proj = frc.sessions(fdir, "proj")
     pre_keys = proj[proj.epoch == "pre"]
@@ -290,11 +289,14 @@ def main(argv=None) -> int:
     ap.add_argument("--set", default=fro.SET)
     ap.add_argument("--fdir", type=Path, default=None)
     ap.add_argument("--plot-only", action="store_true")
+    ap.add_argument("--match-rule", choices=sorted(es.MATCH_RULES), default="v1",
+                    help="see face_rhythm_epoch_shape.MATCH_RULES; non-v1 output goes to epoch_shape_cohort_<rule>/")
     a = ap.parse_args(argv)
+    es.RULE = a.match_rule
     fdir = a.fdir or frc.default_set_dir(set_name=a.set)
-    out = frc.readouts_dir(a.set) / "epoch_shape_cohort"
+    out = frc.readouts_dir(a.set) / ("epoch_shape_cohort" + es.rule_suffix())
     writeguard.assert_writable(out)
-    names = frc.factor_names(fdir)
+    names = es.reference(fdir)[3]
     csv, pkl = (figure_layout.sidecar_for(out, "cohort_null", e) for e in (".csv", ".pkl"))
     if a.plot_only:
         T, P = pd.read_csv(csv), pd.read_pickle(pkl)

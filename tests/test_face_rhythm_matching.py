@@ -42,3 +42,25 @@ def test_chance_below_identity_and_pairwise_floor():
 def test_magnitude_view_halves_points():
     A = np.arange(12, dtype=float).reshape(6, 2)
     assert fm.spatial_view(A, "magnitude").shape == (3, 2)
+
+
+def test_tiebreak_uses_spectrum_only_among_spatial_ties():
+    rng = np.random.default_rng(3)
+    A, B = _fit(rng, R=3)
+    # own fit: col 0 = ref 0's place with a foreign rhythm; col 1 = ref 0's place (spatial .99+) with ref 0's rhythm
+    A2 = np.column_stack([A[:, 0], A[:, 0] + 0.01 * A[:, 1], A[:, 2]])
+    B2 = np.column_stack([B[:, 2], B[:, 0], B[:, 1]])
+    m = fm.match(A, B, A2, B2, on="spatial")
+    assert fm.columns(m, "best")[0] == 0 and fm.columns(m, "tiebreak")[0] == 1
+    assert fm.columns(m, "tiebreak", tie=0.0)[0] == 0
+    ok = fm.recovered(m, fm.columns(m, "best"), 0.8, 0.999)
+    assert not ok[0]
+
+
+def test_merge_reference_sums_members():
+    rng = np.random.default_rng(4)
+    A, B = _fit(rng, R=4)
+    A2, B2, nm = fm.merge_reference(A, B, ["a", "b", "c", "d"], {"bd": ("b", "d"), "zz": ("c", "missing")})
+    assert nm == ["a", "bd", "c"] and A2.shape[1] == 3 and B2.shape[1] == 3
+    u = A / np.linalg.norm(A, axis=0)
+    np.testing.assert_allclose(A2[:, 1], u[:, 1] + u[:, 3])

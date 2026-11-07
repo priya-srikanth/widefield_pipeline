@@ -25,7 +25,8 @@ import pandas as pd
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from face_rhythm_epoch_shape import ASSIGN, MATCH_ON, MIN_COS, deg, jackknife_se  # noqa: E402
+import face_rhythm_epoch_shape as es  # noqa: E402
+from face_rhythm_epoch_shape import MATCH_ON, deg, jackknife_se  # noqa: E402
 
 from wfield_local.face_rhythm import common as frc  # noqa: E402
 
@@ -36,8 +37,7 @@ GROUPS = ("preA", "preB", "preEarly", "preLate", "acute", "subacute", "chronic")
 def compute(fdir: Path) -> pd.DataFrame:
     from wfield_local import face_rhythm_matching as fm
     from wfield_local import face_rhythm_readouts as frr
-    M = np.load(fdir / "master.npz")
-    A_ref, B_ref = M["spatial"].reshape(-1, M["spatial"].shape[-1]), M["spectral"]
+    M, A_ref, B_ref, _names = es.reference(fdir)
     home, mid = M["home"], float(frr.MASTER_MIDLINE_X)
     tags = sorted({f.stem.rsplit("_", 1)[0] for f in (fdir / OWN).glob("*_preEarly.npz")})
     rows = []
@@ -48,21 +48,19 @@ def compute(fdir: Path) -> pd.DataFrame:
             if f.exists():
                 z = np.load(f)
                 fits[g] = (z["A_own"].astype(float), z["B_own"].astype(float))
-        P = fm.pairwise(fits, A_ref, B_ref, on=MATCH_ON, assign=ASSIGN)
+        P = fm.pairwise(fits, A_ref, B_ref, on=MATCH_ON, assign=es.rule()["assign"])
         cos = {(r.key_a, r.key_b, r.factor): (r.cos_spatial, r.cos_spectral) for r in P.itertuples()}
         get = lambda a, b, k, cos=cos: cos.get((a, b, k), cos.get((b, a, k), (np.nan, np.nan)))  # noqa: E731
-        asym, mcos = {}, {}
+        asym, rec = {}, {}
         for g, (A, B) in fits.items():
-            mm = fm.match(A_ref, B_ref, A, B, on=MATCH_ON)
-            order = fm.columns(mm, ASSIGN)
-            mcos[g] = fm.cosines(A_ref, B_ref, A, B)[0][np.arange(len(order)), order]
+            _mm, order, rec[g] = es.pick(A_ref, B_ref, A, B)
             a = fm.loading_asymmetry(A, home, mid)
             asym[g] = np.array([a[o] if o >= 0 else np.nan for o in order])
         for k in range(A_ref.shape[1]):
-            ok_pre = min(mcos[g][k] for g in ("preA", "preB", "preEarly", "preLate")) >= MIN_COS
+            ok_pre = all(rec[g][k] for g in ("preA", "preB", "preEarly", "preLate"))
             for ep in ("acute", "subacute", "chronic"):
                 row = {"tag": tag, "factor": k, "epoch": ep,
-                       "ok": bool(ok_pre and mcos[ep][k] >= MIN_COS)}
+                       "ok": bool(ok_pre and rec[ep][k])}
                 for i, mode in enumerate(("spatial", "spectral")):
                     row.update({f"noise_{mode}": deg(get("preA", "preB", k)[i]),
                                 f"drift_{mode}": deg(get("preEarly", "preLate", k)[i]),
@@ -132,11 +130,14 @@ def main(argv=None) -> int:
     ap.add_argument("--set", default=fro.SET)
     ap.add_argument("--fdir", type=Path, default=None)
     ap.add_argument("--factors", nargs="+", default=None, help="factor names for the figure (default all)")
+    ap.add_argument("--match-rule", choices=sorted(es.MATCH_RULES), default="v1",
+                    help="see face_rhythm_epoch_shape.MATCH_RULES; non-v1 output goes to epoch_shape_cohort_<rule>/")
     a = ap.parse_args(argv)
+    es.RULE = a.match_rule
     fdir = a.fdir or frc.default_set_dir(set_name=a.set)
-    out = frc.readouts_dir(a.set) / "epoch_shape_cohort"
+    out = frc.readouts_dir(a.set) / ("epoch_shape_cohort" + es.rule_suffix())
     writeguard.assert_writable(out)
-    names = frc.factor_names(fdir)
+    names = es.reference(fdir)[3]
     T = compute(fdir)
     T["name"] = [names[k] for k in T.factor]
     T.to_csv(figure_layout.sidecar_for(out, "drift_floor", ".csv"), index=False, float_format="%.4g")
