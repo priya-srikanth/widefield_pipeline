@@ -187,3 +187,12 @@ the encoding handoff (STATUS_2026-10-26_ENCODING_HANDOFF.md, top blocks); the A1
   map-drift steps unaffected. Also 11-07: section G STOPPED 11:26 (Priya: positions on working trials, not DAQ licks);
   fix eeb36d48 + contact-only d12dfc56 + retained figure 4353fbd2 pushing; restart queue v9z drafted (G = production
   re-run + g7/g6 figures, C = contact-only supplement LAST). Lane G relaunched 11:27 for its independent steps.
+- **C (11-07 13:40) CODE CHANGED AFTER RUN -- re-run before the replacement pass.** Every lane runs from its own clean worktree
+  pinned to a commit (preflight checks it), so pushes never alter a running step; the risk is DONE steps whose code changed later:
+  | change | affected done steps | status |
+  | eeb36d48 positions on working trials | g5_section_g | stopped 11:26; g5_section_g_r (v9z, f75f420a) running since 13:40; g6/g7 held |
+  | 32968a57 LOSO figure no-video | g5_joint_xsession | g5_joint_xsession_r (v9za) running |
+  | analysis/recovery-fit-flags (not pushed) | d_recovery_timing_g1106, a_recov_timing_aim | re-run after merge (light) |
+  | d12dfc56 contact-only, 4353fbd2 retained fig | none (production tag pinned unchanged) | - |
+  Before the replacement pass: check every page/deck output's code SHA against this table.
+  13:40 v9z lane relaunched with A7MIN=25 (main idle: HEAVY3 = l_basis_extract ~2.3 GB; other lanes keep 35).
