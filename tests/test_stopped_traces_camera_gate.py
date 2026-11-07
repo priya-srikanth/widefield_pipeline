@@ -1,9 +1,9 @@
-"""scripts/stopped_trial_traces.py on the CAMERA trial gate (Priya 11-07, option a).
+"""scripts/stopped_trial_traces.py on the CAMERA trial gate (Priya 11-07).
 
-Until 11-07 the script refused under ``WIDEFIELD_TRIAL_GATE=camera`` (`trial_classes.require_gate("daq", ...)`), because
-its working / stopped states came from the DAQ quit-tail rule (`engagement_gate`). Now, under camera, `_states` takes the
-camera class of every DAQ cue from `trial_classes.cue_classes_for` (full cue train; the stop-run rule) and the states from
-the wired `enl_states.states_for(cam_cls=...)`; under daq nothing changes. Synthetic sessions only (no data read).
+Until 11-07 the script refused under ``WIDEFIELD_TRIAL_GATE=camera``. Under camera it now shows the trial_classes classes
+directly: success (contact) / incomplete / jaw_only / no_response inside the camera working period, plus stopped (the
+camera stop-run rule) as a fifth group; everything else is excluded (counted). Under daq nothing changes. Synthetic
+sessions only (no data read).
 """
 from __future__ import annotations
 
@@ -71,35 +71,42 @@ def _fake_session(monkeypatch, raw, *, not_eng=None, label="SYN1_0801"):
     return cs
 
 
-def test_camera_path_selects_the_trial_classes_sets(stt, monkeypatch):
+def test_camera_path_yields_the_five_trial_classes_groups(stt, monkeypatch):
     monkeypatch.setenv(TC.GATE_ENV, "camera")
     raw = _raw()
     cs = _fake_session(monkeypatch, raw)
     S = stt._states("SYN1_0801")
     cls = np.asarray(TC.cue_classes_for("SYN1_0801", cs), dtype=object)          # THE classes (independent call)
     assert S.camcls.tolist() == list(cls)
-    hit = raw == "contact"
-    stopped = ~hit & np.isin(cls, list(TC.STOPPED_CLASSES))
-    working = ~hit & TC.in_sel(cls, "miss_working")
-    assert np.array_equal(S.state.to_numpy() == "stopped", stopped)
-    assert np.array_equal(S.state.to_numpy() == "working", working)
-    assert np.array_equal(S.state.to_numpy() == "success", hit)
-    # the synthetic session's expected sets: the mid-session run AND the quit tail are stopped; the isolated jaw_only is
-    # in neither (its own class); incomplete trials before the last camera lick are miss_working
-    assert np.flatnonzero(stopped).tolist() == list(range(30, 36)) + list(range(51, 60))
-    assert S.state[46] == "other" and S.camcls[46] == "jaw_only"
-    assert np.flatnonzero(working).tolist() == [i for i in range(N) if raw[i] == "incomplete"]
-    assert TC.in_working_period(cls[working]).all()
+    inwp = TC.in_working_period(cls)
+    exp = {"success": inwp & (cls == "contact"), "incomplete": inwp & (cls == "incomplete"),
+           "jaw_only": inwp & (cls == "jaw_only"), "no_response": inwp & (cls == "no_response"),
+           "stopped": np.isin(cls, list(TC.STOPPED_CLASSES))}
+    st = S.state.to_numpy()
+    for g, m in exp.items():
+        assert np.array_equal(st == g, m), g
+    assert set(st) <= set(stt.CAM_GROUPS) | {stt.CAM_EXCLUDED}
+    assert np.array_equal(st == stt.CAM_EXCLUDED, ~np.any(np.stack(list(exp.values())), 0))
+    # the synthetic session: the mid-session run AND the quit tail are stopped; the isolated jaw_only is its own group
+    assert np.flatnonzero(exp["stopped"]).tolist() == list(range(30, 36)) + list(range(51, 60))
+    assert st[46] == "jaw_only"
+    assert np.flatnonzero(st == "incomplete").tolist() == [i for i in range(N) if raw[i] == "incomplete"]
+    assert np.flatnonzero(st == "success").tolist() == [i for i in range(N) if raw[i] == "contact"]
+    # the trace classes / masks / figures of the run are exactly the five groups
+    assert stt.classes() == stt.CAM_GROUPS == stt.class_figs() == stt.lev_classes() == stt.main_classes()
+    assert list(stt.compare_groups().values()) == [stt.CAM_GROUPS]
+    assert stt.jaw_classes() == stt.jaw_compare() == ("incomplete", "jaw_only")
+    assert list(stt.class_masks(pd.DataFrame({"state": st, "cls": "no_try"}))) == list(stt.CAM_GROUPS)
 
 
-def test_camera_states_unit(stt, monkeypatch):
+def test_camera_groups_unit(stt, monkeypatch):
     monkeypatch.setenv(TC.GATE_ENV, "camera")
     cls = np.array(["contact", "incomplete", "jaw_only", "no_response", "stopped", "stopped_licking", "after_end",
-                    "unknown", "stopped"], dtype=object)
-    hit = np.array([1, 0, 0, 0, 0, 0, 0, 0, 1], bool)              # a DAQ hit is never stopped (one definition)
-    st = stt.camera_states(hit, cls)
-    assert st.tolist() == ["success", "working", "other", "other", "stopped", "other", "other", "other", "success"]
-    assert stt._nolick(st).tolist() == [False, True, True, True, True, True, True, True, False]
+                    "early_run", "unknown"], dtype=object)
+    st = stt.camera_groups(cls)
+    assert st.tolist() == ["success", "incomplete", "jaw_only", "no_response", "stopped", "excluded", "excluded",
+                           "excluded", "excluded"]
+    assert stt._nolick(st).tolist() == [False, True, True, True, True, False, False, False, False]
 
 
 def test_daq_path_unchanged(stt, monkeypatch):
@@ -121,6 +128,9 @@ def test_daq_path_unchanged(stt, monkeypatch):
     M = stt.class_masks(D)
     assert np.array_equal(M["jaw_nolick"].to_numpy(), (D.state != "success").to_numpy() & (D.cls == "incomplete").to_numpy())
     assert stt.class_def() == stt.CLASS_DEF
+    assert stt.classes() == stt.CLASSES and stt.class_figs() == stt.CLASS_FIGS and stt.compare_groups() == stt.COMPARE
+    assert stt.lev_classes() == stt.LEV_CLASSES and stt.main_classes() == ("success", "working", "stopped")
+    assert stt._txt("success") == stt.CLS_TXT["success"] and stt._col("working") == stt.CLS_COL["working"]
 
 
 def test_refusal_removed_and_registered_wired():
@@ -130,12 +140,33 @@ def test_refusal_removed_and_registered_wired():
     assert '"scripts/stopped_trial_traces.py": "wired"' in reg
 
 
-def test_camera_caption_names_the_gate(stt, monkeypatch):
+def test_camera_caption_and_rule8_counts(stt, monkeypatch):
     monkeypatch.setenv(TC.GATE_ENV, "camera")
     txt = stt.class_def()
-    assert "camera trial gate" in txt and TC.stopped_rule_name() in txt and "engagement_gate" not in txt
-    D = pd.DataFrame({"animal": ["PS92"] * 4, "epoch": ["pre"] * 4, "state": ["success", "working", "stopped", "other"],
-                      "camcls": ["contact", "incomplete", "stopped", "jaw_only"]})
+    for w in ("camera trial gate", TC.stopped_rule_name(), "DAQ spout-contact", "trial_classes", "working period",
+              "first .. last camera lick", "cue + 70 ms", "Excluded"):
+        assert w in txt, w
+    assert "engagement_gate" not in txt
+    D = pd.DataFrame({"animal": ["PS92"] * 5, "epoch": ["pre"] * 5,
+                      "state": ["success", "incomplete", "stopped", "excluded", "excluded"],
+                      "camcls": ["contact", "incomplete", "stopped", "after_end", "unknown"]})
     T = stt.state_counts(D)
-    assert T.loc[("PS92", "pre")].to_dict() == {"other": 1, "stopped": 1, "success": 1, "working": 1,
-                                               "other:jaw_only": 1}
+    assert T.loc[("PS92", "pre")].to_dict() == {"success": 1, "incomplete": 1, "jaw_only": 0, "no_response": 0,
+                                               "stopped": 1, "excluded:after_end": 1, "excluded:unknown": 1}
+    src = (REPO / "scripts" / "stopped_trial_traces.py").read_text(encoding="utf-8")
+    body = src[src.index("def compute(labels: list)"):]
+    assert body.index("state_counts(D).to_string()") < body.index("for kind, stem in stems():")   # before any figure
+
+
+def test_min_count_marked_in_panel(stt):
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    ax = plt.figure().add_subplot()
+    F = {"gate": "camera", "classes": ("success", "stopped"), "min_n": 5, "S": {"success": {"pre": 1}, "stopped": {}}}
+    stt._mark_missing(ax, F, "pre", F["classes"])
+    assert [t.get_text() for t in ax.texts] == ["< 5 tr/animal: stopped"]
+    ax2 = plt.figure().add_subplot()
+    stt._mark_missing(ax2, {k: v for k, v in F.items() if k != "gate"}, "pre", F["classes"])   # DAQ figures unchanged
+    assert not ax2.texts
+    plt.close("all")
