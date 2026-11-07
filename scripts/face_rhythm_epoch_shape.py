@@ -54,13 +54,15 @@ MATCH_ON = "spatial"
 OWN = "own_epoch"
 # Matching rule (`--match-rule`). v1 = the settings above. v2 (Priya 11-07, after the 500-permutation null showed
 # duplicated readouts): spatial score with a SPECTRAL TIE-BREAK among columns within `face_rhythm_matching.TIE` of the
-# best spatial cosine; a factor is RECOVERED only if its pick has spatial cos >= .8 AND spectral cos >= .5 (null fits,
-# which hold every factor: spatial 1st percentile .84, spectral 5th percentile .46); the two footprint twins that no rule
+# best spatial cosine; a factor is RECOVERED only if its pick has spatial cos >= .7 AND spectral cos >= .5 (spectral:
+# null fits, which hold every factor, 5th percentile .46; spatial .8 first, lowered to .7 by Priya 11-07 because it
+# dropped PS95 acute lick_right -- same column as pre, spectral .94, spatial .78: a CHANGED factor, not a lost one; no
+# null-fit cell with spectral >= .5 sits below .7, and .5 / .7 pick the same real cells); the two footprint twins that no rule
 # can separate and that are unstable even in null fits are MERGED into one unit each (master spatial cos .99).
 # Unrecovered cells leave the shape readouts; which factors are lost is its own readout (`face_rhythm_recovery.py`).
 MERGE = {"prelick_nose": ("sniff_prelick", "nose_prelick_slow"), "slow_jaw": ("run_onset_jaw", "prep_jaw")}
 MATCH_RULES = {"v1": dict(assign=ASSIGN, min_spatial=MIN_COS, min_spectral=None, merge={}),
-               "v2": dict(assign="tiebreak", min_spatial=0.8, min_spectral=0.5, merge=MERGE)}
+               "v2": dict(assign="tiebreak", min_spatial=0.7, min_spectral=0.5, merge=MERGE)}
 RULE = "v1"
 
 
@@ -100,6 +102,11 @@ def members(tag: str, animals) -> list[str]:
     if tag.startswith("LOAO-"):
         return [a for a in animals if a != tag[len("LOAO-"):]]
     return [tag]
+
+
+def tag_label(tag: str) -> str:
+    """Display name of a fit tag: LOAO-<an> reads as "without <an>" (Priya 11-07: "LOAO-PS93" was read as PS93's fit)."""
+    return f"without {tag[len('LOAO-'):]}" if tag.startswith("LOAO-") else tag
 
 
 def tag_style(tag: str, acol: dict) -> dict:
@@ -307,7 +314,7 @@ def loading_figures(D: dict, names: list[str], out: Path, set_name: str) -> None
                     ax.axvline(342.0, color="k", lw=0.4)
                     ax.invert_yaxis()
                     ax.set_aspect("equal")
-                    ax.set_title(f"{an}: {c}", fontsize=8)
+                    ax.set_title(f"{tag_label(an)}: {c}", fontsize=8)
             if sc is not None:
                 fig.colorbar(sc, ax=axs, shrink=0.3, extend="both", label="loading fraction, epoch - pre halves (one scale)")
             fig.suptitle(f"{set_name}: where did {names[k]}'s loading move? (pooled per-epoch fits; image left = "
@@ -316,7 +323,10 @@ def loading_figures(D: dict, names: list[str], out: Path, set_name: str) -> None
 {names[k]}'s spatial loading magnitude |(x, y)| per mesh point as a fraction of its total (shape only), each epoch's
 pooled fit minus the mean of the two pre-half fits; red = more of the factor's loading there after the stroke, blue
 = less. First column: preA - preB, what two fits of the same pre-stroke behaviour differ by (the noise to read the
-others against). One colour scale for all panels. cam4: image LEFT = contralesional; vertical line = face midline.""")
+others against). One colour scale for all panels. cam4: image LEFT = contralesional; vertical line = face midline. "without <animal>" =
+the pooled fit redone without that animal (leave-one-animal-out). DESCRIPTIVE: one fit per row x epoch, no test; the
+tested versions are the permutation null maps (cohort_null_maps.png) and the per-session test
+(session_loading_<rule>/).""")
 
         fig, axs = frf.subplots(len(ks), len(animals), figsize=(3.4 * len(animals), 2.9 * len(ks)), squeeze=False)
         for r_i, k in enumerate(ks):
@@ -329,7 +339,7 @@ others against). One colour scale for all panels. cam4: image LEFT = contralesio
                 ax.set_yticks(range(len(rows)), rows, fontsize=8)
                 for (yy, xx), v in np.ndenumerate(C):
                     ax.text(xx, yy, f"{v:.2f}", ha="center", va="center", fontsize=6)
-                ax.set_title(f"{an}: {names[k]}", fontsize=9)
+                ax.set_title(f"{tag_label(an)}: {names[k]}", fontsize=9)
         fig.colorbar(im, ax=axs, shrink=0.5, label="r(loading, spout template)")
         fig.suptitle(f"{set_name}: which spout's pre-stroke movement does each lick factor look like?")
         frf.save(fig, out / "epoch_shape_templates.png", """
@@ -392,12 +402,10 @@ def pooled_loading_figure(D: dict, names: list[str], out: Path, set_name: str) -
                 sgn = np.sign(m)
                 agree = ((np.sign(P) == sgn) & B).sum(0)
                 ring = agree >= 3 if c != "preA - preB" else np.zeros(len(m), bool)
-                fade = ~ring if c != "preA - preB" else np.zeros(len(m), bool)
-                show = ~fade
-                ax.scatter(home[fade, 0], home[fade, 1], c=m[fade], s=3, cmap="RdBu_r", vmin=-lim, vmax=lim, alpha=0.35,
-                           lw=0)
-                sc = ax.scatter(home[show, 0], home[show, 1], c=m[show], s=11 if c != "preA - preB" else 4, cmap="RdBu_r",
-                                vmin=-lim, vmax=lim, edgecolors="k" if c != "preA - preB" else "none", linewidths=0.25)
+                # Priya 11-07: drawn like the speed maps -- every point coloured, rings (red up / blue down) mark the
+                # points >= 3 animals agree on
+                sc = ax.scatter(home[:, 0], home[:, 1], c=m, s=4, cmap="RdBu_r", vmin=-lim, vmax=lim, lw=0)
+                frf.sign_rings(ax, home, ring, m)
                 ax.axvline(342.0, color="k", lw=0.4)
                 ax.invert_yaxis()
                 ax.set_aspect("equal")
@@ -422,7 +430,9 @@ the {len(animals)} animals (orange = more of the factor's loading there after th
 column: the pooled noise itself (preA - preB on the same scale). One fit per animal x epoch, so the animal count is the
 test -- no session bootstrap. Chance of a ring: the epoch-vs-pre-halves difference has ~0.87x the noise SD of
 preA - preB, so one animal passes 2 SD in one direction with p ~ .01 and >= 3 of 4 with p ~ 5e-6 per point (~0 of
-1,282 expected). PS93 (pre-existing right orofacial deficit) went the other way in the per-animal figure.""")
+1,282 expected). PS93 (pre-existing right orofacial deficit) went the other way in the per-animal figure. A
+CONSISTENCY map, not a family-wise test: the tested versions are the permutation null maps (cohort_null_maps.png) and
+the per-session test (session_loading_<rule>/).""")
     return pd.DataFrame(rows)
 
 

@@ -16,7 +16,14 @@ pre sessions, per point; the mean map = mean over animals of each animal's epoch
   * HALVES: contra-half minus ipsi-half change per session, `boot_delta`; * = interval excludes 0, ** = also Holm over
     the 6 positions of an epoch.
 
-    python scripts/face_rhythm_position_maps.py [--set master_pre_v1] [--window response|precue] [--plot-only]
+PERMUTATION TEST (Priya 11-07, ``--perm N``): per position x epoch, the mean over animals of (epoch mean - pre mean)
+of session log2 speed per point; null = the same with each animal's pre and epoch session labels shuffled WITHIN the
+animal (counts kept). Points studentised by the null SD; CLUSTER MASS (|t| > 2, mesh neighbours, sign-separate) is the
+family-wise map test, the MAX-STATISTIC the point-level one (`face_rhythm.stats.map_permutation`). Rings on
+position_maps_<window>_mean_perm.png = points in clusters with p < .05 (red = up, blue = down);
+data/position_maps_<window>_perm.csv lists every cluster.
+
+    python scripts/face_rhythm_position_maps.py [--set master_pre_v1] [--window response|precue] [--plot-only] [--perm N]
 -> ``<dlc>/face_rhythm/cam4/readouts/<set>/position_maps/``: position_maps_<window>_<animal>.png (rows = positions,
 cols = acute / subacute / chronic), position_maps_<window>_mean.png (mean of the animal maps), and
 position_maps_<window>.csv (per animal x epoch x position: contra / ipsi mean log2 change, its asymmetry);
@@ -133,6 +140,37 @@ def statistics(fdir: Path, window: str, contra: np.ndarray, n_boot: int, fdr: fl
     return mean_maps, marks, pd.DataFrame(prow), H
 
 
+def perm_statistics(fdir: Path, window: str, home: np.ndarray, n_perm: int, seed: int = 0,
+                    drift: bool = False) -> tuple[dict, pd.DataFrame]:
+    """-> ({(epoch, position): `face_rhythm.stats.session_shuffle_test` result}, cluster table). ``drift``: the same test
+    on each animal's EARLY vs LATE pre sessions (`face_rhythm.stats.drift_split`), stored under epoch "late_pre"."""
+    from wfield_local.face_rhythm import stats as frs
+    V = session_speed(fdir, window)
+    adj = frs.mesh_adjacency(home)
+    rng = np.random.default_rng(seed)
+    res, rows = {}, []
+    for p in POSITIONS:
+        lg = {k: np.log2(np.maximum(v, 1e-9)) for k, v in V.items() if k[3] == p}
+        animals = sorted({k[0] for k in lg})
+        sess = lambda an, ep, lg=lg: [lg[k] for k in sorted(lg) if k[0] == an and k[2] == ep]  # noqa: E731  (date order)
+        for ep in (["late_pre"] if drift else EPOCHS[1:]):
+            if drift:
+                per = [frs.drift_split(np.vstack(sess(an, "pre"))) for an in animals if len(sess(an, "pre")) >= 2]
+            else:
+                per = [(np.vstack(sess(an, "pre") + sess(an, ep)), len(sess(an, "pre"))) for an in animals
+                       if sess(an, "pre") and sess(an, ep)]
+            r = frs.session_shuffle_test(per, adj, n_perm, rng)
+            if r is None:
+                continue
+            res[(ep, p)] = r
+            for c, (m, pc) in enumerate(zip(r["mass"], r["p_cluster"])):
+                sel = r["label"] == c
+                rows.append({"position": p, "epoch": ep, "cluster": c, "n_points": int(sel.sum()),
+                             "sign": "up" if r["mean"][sel].mean() > 0 else "down", "mass": m, "p_cluster": pc,
+                             "mean_log2": float(r["mean"][sel].mean()), "n_animals": r["n_animals"], "n_perm": n_perm})
+    return res, pd.DataFrame(rows)
+
+
 def main(argv=None) -> int:
     import matplotlib
     matplotlib.use("Agg")
@@ -151,6 +189,9 @@ def main(argv=None) -> int:
     ap.add_argument("--min-agree", type=int, default=3, help="animals agreeing in sign (Priya 10-24: 3 of 4)")
     ap.add_argument("--plot-only", action="store_true", help="redraw the mean figure's statistics from the cache")
     ap.add_argument("--out", type=Path, default=None)
+    ap.add_argument("--perm", type=int, default=0, help="also run the within-animal permutation test (N shuffles)")
+    ap.add_argument("--drift-control", action="store_true",
+                    help="with --perm: the same test on early vs late PRE sessions only (pre-stroke drift floor)")
     a = ap.parse_args(argv)
     rv = PathResolver()
     fdir = a.fdir or fro.factor_dir(rv, a.bundle, a.set)
@@ -203,7 +244,7 @@ def main(argv=None) -> int:
     what = ("movement speed of each face point, cue 0 to +4 s" if a.window == "response"
             else "movement speed of each face point, cue -2 to 0 s")
 
-    def draw(get, title, fn, stats=False):
+    def draw(get, title, fn, stats=False, perm=None):
         with frf.style():
             fig, axs = frf.subplots(len(POSITIONS), 3, figsize=(10.5, 3.1 * len(POSITIONS)), squeeze=False)
             sc = None
@@ -219,10 +260,17 @@ def main(argv=None) -> int:
                     ax.invert_yaxis()
                     ax.set_aspect("equal")
                     title_ = f"{p} -- {ep}"
-                    if stats:
+                    if perm is not None:
+                        r = perm.get((ep, p))
+                        if r is not None:
+                            frf.sign_rings(ax, home, r["sig_cluster"], r["mean"])
+                            k = int((r["p_cluster"] < .05).sum())
+                            title_ += (f"\n{k} cluster{'s' if k != 1 else ''} p < .05 ({int(r['sig_cluster'].sum())} pts); "
+                                       f"max-stat {int(r['sig_point'].sum())} pts")
+                    elif stats:
                         sg = marks.get((ep, p))
                         if sg is not None:
-                            ax.scatter(home[sg, 0], home[sg, 1], s=7, facecolors="none", edgecolors="k", linewidths=0.35)
+                            frf.sign_rings(ax, home, sg, m)
                         h = H[(H.position == p) & (H.epoch == ep)]
                         if len(h):
                             h = h.iloc[0]
@@ -245,8 +293,53 @@ pre, blue = less; clipped at +-1 (2x). Contra / ipsi means of the change: data/p
 
     draw(lambda ep, p: mean_maps.get((ep, p)), f"{fdir.name}: mean of {len(animals)} animals, {what}, per spout "
          "position vs pre (rings = consistent points)", f"position_maps_{a.window}_mean.png", stats=True)
+    if a.perm and a.drift_control:
+        R, C = perm_statistics(fdir, a.window, home, a.perm, drift=True)
+        C.to_csv(figure_layout.sidecar_for(out, f"position_maps_{a.window}_perm_driftpre", ".csv"), index=False,
+                 float_format="%.4g")
+        print("DRIFT CONTROL (late pre - early pre), clusters p < .05:")
+        print(C[C.p_cluster < .05].to_string(index=False) if len(C) else "none")
+        frs_draw_drift(R, home, mid, out / f"position_maps_{a.window}_driftpre_perm.png", fdir.name, what, a.perm)
+    elif a.perm:
+        R, C = perm_statistics(fdir, a.window, home, a.perm)
+        C.to_csv(figure_layout.sidecar_for(out, f"position_maps_{a.window}_perm", ".csv"), index=False, float_format="%.4g")
+        print(C[C.p_cluster < .05].to_string(index=False))
+        draw(lambda ep, p: R[(ep, p)]["mean"] if (ep, p) in R else None,
+             f"{fdir.name}: mean of {len(animals)} animals, {what}, per spout position vs pre (rings = permutation "
+             f"cluster p < .05, {a.perm} within-animal shuffles)", f"position_maps_{a.window}_mean_perm.png", perm=R)
     print("->", out)
     return 0
+
+
+def frs_draw_drift(R: dict, home, mid: float, path: Path, set_name: str, what: str, n_perm: int) -> None:
+    """One column (late pre - early pre) per spout position, drawn like the epoch figure."""
+    from wfield_local import face_rhythm_figures as frf
+    with frf.style():
+        fig, axs = frf.subplots(2, 3, figsize=(10.5, 6.6), squeeze=False)
+        sc = None
+        for i, p in enumerate(frc.POSITIONS_DISPLAY):
+            ax = axs.ravel()[i]
+            ax.axis("off")
+            r = R.get(("late_pre", p))
+            if r is None:
+                continue
+            sc = ax.scatter(home[:, 0], home[:, 1], c=r["mean"], s=4, cmap="RdBu_r", vmin=-1, vmax=1)
+            frf.sign_rings(ax, home, r["sig_cluster"], r["mean"])
+            ax.axvline(mid, color="k", lw=0.4)
+            ax.invert_yaxis()
+            ax.set_aspect("equal")
+            k = int((r["p_cluster"] < .05).sum())
+            ax.set_title(f"{p} -- late pre vs early pre\n{k} cluster{'s' if k != 1 else ''} p < .05 "
+                         f"({int(r['sig_cluster'].sum())} pts); max-stat {int(r['sig_point'].sum())}", fontsize=7)
+        if sc is not None:
+            fig.colorbar(sc, ax=axs, shrink=0.4, label="log2(late pre / early pre)")
+        fig.suptitle(f"{set_name}: DRIFT CONTROL, {what}: late vs early pre sessions ({n_perm} within-animal shuffles)",
+                     fontsize=10)
+        frf.save(fig, path, """
+DRIFT CONTROL for the permutation test of the epoch maps: each animal's PRE sessions split in date order, early half
+(first n // 2) as the reference and the late half as the 'epoch'; the same statistic, permutation and cluster-mass test
+(`face_rhythm.stats.drift_split` / `session_shuffle_test`). Clusters here are pre-stroke drift: a post-stroke cluster
+of the same sign in the same place is not evidence of a stroke effect.""")
 
 
 if __name__ == "__main__":

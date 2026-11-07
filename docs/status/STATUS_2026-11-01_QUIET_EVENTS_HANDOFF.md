@@ -1,5 +1,19 @@
 # Handoff 2026-11-01: quiet-period cortical events after the VLS stroke (cohort1, PS92-95) + literature context
 
+> **11-07 -- START HERE (a8).** Deck facts of the 11-06 (afternoon) block below still hold (deck
+> `presentations/Overview_2026-11-06.pptx`, notes "Data:" pass waiting on 34's CONFIRMED provenance rows, slide 94 re-tile
+> waiting on 34's split render). 11-07 this window did FaceRhythm work with Priya: matching rule v2, permutation /
+> cluster map statistics with drift controls, per-session shape tests as the MAIN tests, everything delta vs own pre.
+> Decisions: docs/DECISIONS.md "2026-11-07"; state + next steps: STATUS_2026-10-24_FACE_RHYTHM_HANDOFF.md item 00, the
+> "11-07 NIGHT" entry. Also 11-07: shared git hooksPath made relative (`.githooks`); C: cleanup (pip / conda / pytest
+> caches + own scratch; 34 removed old wfield_cache imaging / behaviour + its scratch; 7 idle worktrees removed) ->
+> ~98 GB free; the 299 GB render input cache goes after 34's render (~11-09). FR deck slides will need the new FR
+> figures once Priya approves the switch (draft first). Memory: delta-per-animal-pre.
+> 11-07 LATE: per-session FR results final (10k shuffles, Holm across epochs x measures); findings written; FR page
+> update delegated to a helper (verify live version). DECK NOT TOUCHED (open in PowerPoint) -- FR slide list + steps in
+> the FR handoff "11-07 LATE" entry; still waiting: 34's CONFIRMED provenance rows (notes pass), 34's split render
+> (slide 94 re-tile).
+
 > **11-06 (afternoon) -- START HERE (a8), supersedes the morning block's deck facts.**
 > - DECK RENAMED by Priya: `presentations/Overview_2026-11-06.pptx` (194 slides, 107 hidden; PI_overview_2026-11-02.pptx
 >   no longer exists). Scripts stay in `_source_PI_overview_2026-11-02/`; new ones set DECK to the new name and check the

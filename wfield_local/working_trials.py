@@ -12,6 +12,14 @@ The 11-03 AFTERNOON definition (in_working INCLUDING jaw_only) is the robustness
 ``WIDEFIELD_WORKING_TRIALS=in_working_jaw``; its frozen-model specs (tag without the class suffix) are the 29 models
 published 11-03 afternoon, so it reproduces them exactly.
 
+SUPPLEMENTAL SUCCESSFUL-LICK ARM (Priya 11-07): ``WIDEFIELD_WORKING_TRIALS=in_working_contact`` = in_working AND class ==
+contact only (successful spout-contact licks), same camera working period and end cut (END = "lick"), tag suffix
+"-cls-contact" so its frozen specs, cache keys and output folders never meet production's. Section G run under it is a
+"successful licks only" supplement. Far-contra post-stroke trials are mostly INCOMPLETE licks, so this arm drops
+positions: the lick-only arm's chance 1/n varies with the retained positions -- compare arms via the retained
+above-chance fraction, not raw accuracy. Its no-lick "miss while working" set stays production's (incomplete; see
+`trial_classes.sel_classes`), and the stop rule is production's (jaw_only counts toward a stop run).
+
 History of the paragraph below: written for the afternoon definition.
 
 Priya 11-03: the epoch families' "working" selection is the shared camera trial classification, not the DAQ lick +
@@ -44,28 +52,35 @@ import numpy as np
 WORKING_TRIALS_ENV = "WIDEFIELD_WORKING_TRIALS"
 IN_WORKING = "in_working"                 # PRODUCTION (11-03 late): in_working & class in {contact, incomplete}
 IN_WORKING_JAW = "in_working_jaw"         # robustness: the 11-03 afternoon in_working, jaw_only included
+IN_WORKING_CONTACT = "in_working_contact"  # supplement (Priya 11-07): in_working & class == contact only
 QUIT_TAIL = "quit_tail"                   # robustness: DAQ lick + miss-while-working (flag_engagement quit tail)
-CAMERA_SELECTIONS = (IN_WORKING, IN_WORKING_JAW)
+CAMERA_SELECTIONS = (IN_WORKING, IN_WORKING_JAW, IN_WORKING_CONTACT)
 #: The camera classes a working trial may have, per camera selection (both also cut at the last camera lick). Production
 #: = trial_classes.GATES["camera_lick"]; robustness = trial_classes.GATES["working"] (pinned in tests).
 WORKING_CLASSES = {IN_WORKING: frozenset({"contact", "incomplete"}),
-                   IN_WORKING_JAW: frozenset({"contact", "incomplete", "jaw_only"})}
+                   IN_WORKING_JAW: frozenset({"contact", "incomplete", "jaw_only"}),
+                   IN_WORKING_CONTACT: frozenset({"contact"})}
+#: the tag's class part per camera selection (None = the 11-03 afternoon tag, no class part)
+CLS_PART = {IN_WORKING: "contact-incomplete", IN_WORKING_JAW: None, IN_WORKING_CONTACT: "contact"}
 END = "lick"
 SNAPSHOT_ENV = "WFIELD_S1_CLASSES"        # the same override 5b's s1 script reads
 
 
 def selection() -> str:
     """``"in_working"`` (production since 11-03 late: contact + incomplete licks, cut at the last camera lick),
-    ``"in_working_jaw"`` (the 11-03 afternoon definition, jaw_only included) or ``"quit_tail"`` (the previous lick +
-    miss-while-working set)."""
+    ``"in_working_jaw"`` (the 11-03 afternoon definition, jaw_only included), ``"in_working_contact"`` (supplement,
+    Priya 11-07: contact trials only) or ``"quit_tail"`` (the previous lick + miss-while-working set)."""
     v = os.environ.get(WORKING_TRIALS_ENV, IN_WORKING).strip().lower()
     if v in (IN_WORKING, "camera", "a4", "licks", "in_working_licks"):
         return IN_WORKING
     if v in (IN_WORKING_JAW, "in_working_incl_jaw", "with_jaw"):
         return IN_WORKING_JAW
+    if v in (IN_WORKING_CONTACT, "contact", "contact_only", "in_working_contact_only"):
+        return IN_WORKING_CONTACT
     if v in (QUIT_TAIL, "flag_engagement", "old"):
         return QUIT_TAIL
-    raise ValueError(f"{WORKING_TRIALS_ENV}={v!r}: expected in_working, in_working_jaw or quit_tail")
+    raise ValueError(f"{WORKING_TRIALS_ENV}={v!r}: expected in_working, in_working_jaw, "
+                     "in_working_contact or quit_tail")
 
 
 def is_camera(sel: str | None = None) -> bool:
@@ -91,6 +106,8 @@ def tag(sel: str | None = None) -> str:
         return base
     if sel == IN_WORKING:
         return base + "-cls-contact-incomplete"
+    if sel == IN_WORKING_CONTACT:
+        return base + "-cls-contact"
     raise ValueError(f"{sel!r} is not a camera working selection")
 
 
@@ -119,6 +136,10 @@ def _table(path: str, sel: str = IN_WORKING):
     # the snapshot check above pins; PRODUCTION narrows it to the camera-lick gate (contact | incomplete)
     if sel == IN_WORKING:
         w = w & tc.in_gate(D.cls, "camera_lick")
+    elif sel == IN_WORKING_CONTACT:                     # supplement (Priya 11-07): no GATES entry is contact-only
+        w = w & (D.cls == "contact").to_numpy(bool)
+    elif sel != IN_WORKING_JAW:
+        raise ValueError(f"{sel!r} is not a camera working selection")
     D["w"] = w
     out = {}
     for lab, g in D.groupby("label"):

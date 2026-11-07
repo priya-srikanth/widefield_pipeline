@@ -36,7 +36,7 @@ from wfield_local.locanmf_frozen_decoder import (
 )
 from wfield_local.plot_lick_aligned_averages import DISPLAY_ORDER, POSITION_NAMES
 
-MIN_POST = 20          # a position needs this many post-stroke engaged trials to be "preserved"
+MIN_POST = 20          # a position needs this many post-stroke trials to be "preserved" (`preserved_positions`)
 
 #: Positions used to judge post-stroke ENGAGEMENT: close_L and close_center only (Priya,
 #: 2026-08-18). Deliberately NOT every position that survives on 8/17. close_R is CONTRALESIONAL
@@ -207,6 +207,13 @@ def _lick_scored(d, keep, clf, y_train, sessions, base):
     return oE, oU
 
 
+def _work_txt() -> str:
+    """The run's camera working classes in words, for the section G captions ("contact + incomplete" in production;
+    "contact" under the in_working_contact supplement, Priya 11-07; `trial_classes.sel_class_text`)."""
+    from wfield_local import trial_classes as _tc
+    return _tc.sel_class_text()
+
+
 def _state_frame_tag():
     """The engagement-state discriminators' frame, recorded in every output that uses it (main 4a37cbc8): "spout_frame/
     working" (section G's spout frame is the stored cue / precue decoder's own frame, so its centre is always the
@@ -252,6 +259,44 @@ def _spout_train_d(d):
     return dT
 
 
+#: the rules `preserved_positions` can choose positions by (recorded per session in section G)
+PRESERVED_RULES = ("camera_working", "daq_engaged")
+
+
+def _engaged_counts(d, idx) -> dict:
+    """{position code: DAQ-engaged rows} over the sessions ``idx``."""
+    m = np.isin(d["GE"], list(idx))
+    return {c: int((d["YE"][m] == c).sum()) for c in DISPLAY_ORDER}
+
+
+def _working_counts(d, idx):
+    """{position code: camera WORKING rows (engaged + no-lick)} over the sessions ``idx``, or None when the camera
+    rule does not apply (no camera grouping for this pool, or a session in ``idx`` without camera classes)."""
+    cg = _camera_groups(d)
+    idx = list(idx)
+    if cg is None or not idx or any(i not in cg["have"] for i in idx):
+        return None
+    me = np.isin(d["GE"], idx) & cg["work_e"]
+    mu = np.isin(d["GU"], idx) & cg["work_u"]
+    YU = np.asarray(d["YU"])
+    return {c: int((d["YE"][me] == c).sum() + (YU[mu] == c).sum()) for c in DISPLAY_ORDER}
+
+
+def _position_counts(d, idx):
+    """``(rule, {position code: n})``: the counts `preserved_positions` thresholds (see its docstring)."""
+    wc = _working_counts(d, idx)
+    if wc is not None:
+        return "camera_working", wc
+    return "daq_engaged", _engaged_counts(d, idx)
+
+
+def preserved_detail(d, session) -> dict:
+    """One session's preserved set with the rule that chose it and the per-position counts used (section G record)."""
+    rule, n = _position_counts(d, [session])
+    return {"keep": [c for c in DISPLAY_ORDER if n[c] >= MIN_POST], "rule": rule,
+            "counts": {POSITION_NAMES[c]: n[c] for c in DISPLAY_ORDER}, "min_post": MIN_POST}
+
+
 def preserved_positions(d, session=None, combine="intersection"):
     """Positions the animal still attempts post-stroke -- the only ones a comparison can use.
 
@@ -267,10 +312,17 @@ def preserved_positions(d, session=None, combine="intersection"):
 
     A pooled statistic has to be defensible for every session inside it, which is what the
     intersection guarantees and the union cannot.
+
+    WHICH ROWS ARE COUNTED (Priya 11-07, "we should NOT gate on successful licks"): under the camera grouping
+    (`_camera_groups`: camera gate, a camera working selection, cue / precue pool with classes) a position is preserved
+    when the session has >= MIN_POST camera WORKING rows there (engaged + no-lick rows in the selection's classes:
+    contact | incomplete in production, contact only under in_working_contact) -- the rows the lick-only arm scores
+    (`_lickonly_working`). Before, the DAQ-engaged count chose the positions, so far contra (33-68 incomplete licks,
+    < 20 DAQ licks) was dropped although its working rows were there. Otherwise (DAQ gate, lick window, a session
+    without camera classes) the DAQ-engaged count, as before. `preserved_detail` reports the rule and the counts.
     """
     def _for(idx):
-        m = np.isin(d["GE"], list(idx))
-        return {c for c in DISPLAY_ORDER if int((d["YE"][m] == c).sum()) >= MIN_POST}
+        return {c for c, n in _position_counts(d, idx)[1].items() if n >= MIN_POST}
 
     if session is not None:
         return [c for c in DISPLAY_ORDER if c in _for([session])]
@@ -676,7 +728,7 @@ def decode_matched(d, keep, post_all_trials=True):
     out = na.evaluate_arm(ypost, post_pred, n_perm=1000, labels=pos)
     out["accuracy"] = float(accuracy_score(ypost, post_pred))
     out["post_arm"] = ("ALL trials" if post_all_trials else
-                       "lick-only spouts, camera WORKING trials (contact + incomplete)" if lo_w is not None
+                       f"lick-only spouts, camera WORKING trials ({_work_txt()})" if lo_w is not None
                        else "lick-only")
     out["positions_scored"] = [POSITION_NAMES[c] for c in pos]
     out["n_post"] = len(ypost)
@@ -685,7 +737,8 @@ def decode_matched(d, keep, post_all_trials=True):
                        "n_sessions": len(per)}
     out["below_every_pre_session"] = bool(out["accuracy"] < out["pre_band"]["min"])
     out["pre_recall"] = na.per_position_recall(_pre_y, pre_pred, labels=pos)
-    out["pre_band_rows"] = "camera WORKING (contact + incomplete)" if pre_band_rows is not None else "engaged"
+    out["pre_band_rows"] = (f"camera WORKING ({_work_txt()})" if pre_band_rows is not None
+                            else "engaged")
     return out
 
 
@@ -1146,8 +1199,8 @@ def crossed_confusion(d, labels=DISPLAY_ORDER, post_all_trials=False,
     post_nl_p = clf.predict(XUf[post_u]) if post_u.sum() else np.empty(0, dtype=post_nl_y.dtype)
 
     out = {"post_arm": ("ALL trials (engaged + no-lick)" if post_all_trials else
-                        "camera WORKING trials (contact + incomplete)" if cg is not None else "engaged only"),
-           "pre_arm": ("camera WORKING trials (contact + incomplete), leave-one-session-out" if cg is not None
+                        f"camera WORKING trials ({_work_txt()})" if cg is not None else "engaged only"),
+           "pre_arm": (f"camera WORKING trials ({_work_txt()}), leave-one-session-out" if cg is not None
                        else "engaged only, leave-one-session-out"),
            "groups": "camera" if cg is not None else "daq",
            "pre_nolick_arm": "PRE-stroke NO-LICK trials, decoder trained on other sessions' engaged",

@@ -1,6 +1,6 @@
 # FaceRhythm findings (cam4)
 
-Status: **preliminary, living document.** Last updated **2026-10-24 morning** (FaceRhythm window). Update a section
+Status: **preliminary, living document.** Last updated **2026-11-07** (a8 window: 6e per-session shape tests; earlier 2026-10-24 morning, FaceRhythm window). Update a section
 when its result changes (edit, re-tag, add to the change log). Reasoning and decisions: `DECISIONS.md` (2026-10-21
 evening, 2026-10-22, 2026-10-23); how everything runs: `docs/FACE_RHYTHM_PIPELINE.md`; working state: the newest
 `docs/status/STATUS_*_FACE_RHYTHM_*` handoff (10-24: `STATUS_2026-10-24_FACE_RHYTHM_HANDOFF.md`).
@@ -545,6 +545,42 @@ fits are noisy (pre angles 10-50 deg) and changes differ by animal. LEAD with fr
 and the EVR gap; report shape as heterogeneous. A cleaner shape test if wanted: one own fit per animal x epoch
 (pooled sessions). Amplitude per lick (5b-master) is the 4 / 4 result; shape changes are animal-specific (the 2pRAM manuscript's
 "heterogeneous reorganization", here on one basis across animals).
+
+## 6e. Per-session shape tests -- the MAIN shape tests (11-07, Priya)
+
+PER-SESSION SHAPE TESTS -- THE MAIN TESTS FROM 11-07 (Priya; DECISIONS 2026-11-07). Every session's own fit (own8)
+matched to the master with rule v2 (spatial score + spectral tie-break; recovered at spatial cos >= .7 and spectral
+cos >= .5; merged units prelick_nose, slow_jaw); every readout = the session minus its animal's OWN pre mean, mean
+over animals; within-animal session-label shuffles (10,000, no refit); Holm within a family ACROSS all epochs and
+measures (lick pair 24 tests, other units 72); pre-stroke drift control (early vs late pre) for every test
+(`scripts/face_rhythm_session_shape_tests.py`, `face_rhythm_session_loading_perm.py` -> readouts/master_pre_v1/
+session_shape_v2/, session_loading_v2/). LICK PAIR (acute / subacute / chronic): spatial angle to own pre mean
+lick_right +14.6** / +7.6** / +5.5** deg, lick_left +12.1** / +10.5** / +9.9**; side specificity lick_right -.38** /
+-.25** / -.13**, lick_left -.31** / -.23** / -.10; asymmetry lick_left +.23** / +.18** / +.10* (more contralesional),
+lick_right -.15 acute (n.s. after the family-wide Holm); spectral angle lick_left +22** / +21** / +14**, lick_right
++11** acute. Pre drift (late vs early pre): no readout of any unit passes Holm; lick pair ~0.6 deg spatial. MAPS (cluster
+mass, mesh neighbours |t| > 2): lick_right acute 843 points (882 when each animal is scaled by its own pre session SD
+= the headline version; 783 with ambiguous sessions excluded); lick_right loses weight over the upper / central face
+and gains on the ipsilesional lower cheek and jaw; lick_left roughly the mirror; the drift control finds no lick_right
+cluster and one lick_left cluster (145 points, ipsilesional-central, opposite sign and place to its acute change).
+The lick_right map change does NOT track the drop in right licks (acute rho -.14, p .61). lick_left is AMBIGUOUS acutely
+(median margin to the runner-up component .02 vs .20 pre): only 2 acute sessions are unambiguous, so its acute map has no
+exclusion sensitivity. OTHER UNITS: most change spatially acutely (e.g. whisk_run +12.4**, lick_ongoing_7Hz +12.7*,
+lick_fast_close +12.7*), exploratory family. FACTOR LOSS per session (recovery rate vs own pre, Holm over 30): only
+chronic lick_left survives (-.27, Holm .012; mostly PS93, 2/12 sessions); acute lick_ongoing_7Hz -.44 (p .008) and
+lick_fast_close -.21 (p .04) do not survive -> the acute fast-lick loss is SUGGESTIVE (significant only in the pooled-fit
+null). POOLED-FIT RESULTS are now the descriptive second view: a fragility check (refit-null 95th percentile / pre-only
+fit noise) flags lick_left (7.2x) and lick_far_nose (5.8x) as pooled-test-inconclusive; a pooled fit is not the average
+of the animals (chronic lick_left pooled -.12 asymmetry vs +.27 in 3 / 4 animals' own fits). PS93 (pre-existing right
+facial deficit, pre-stroke right-lick bias 46 % vs 6 % left) stays in; its lick_right is split over two components in
+many sessions, so its per-session maps flip. **STANDS** (lick pair spatial angle, side specificity, lick_left asymmetry,
+lick_right map); **PROVISIONAL** (acute fast-lick loss; other units).
+
+Figures: session_shape_v2/session_scalars.png (normalised, with leave-one-out pre column), session_scalars_raw.png (raw
+angles >= 0 / own asymmetry and side specificity), session_loss.png, session_maps_scaled_lick.png (headline maps),
+session_maps_unambiguous_lick.png; session_loading_v2/session_loading_lick.png, session_loading_other.png,
+session_loading_driftpre.png, ps93_acute_sessions_lick_right.png. Supersedes the per-session statistics of 6c and the
+pooled-fit significance claims of FINDINGS 5.10 as the main test (those stay as the descriptive second view).
 
 ## 6d. Task vs non-task, asymmetry, severity (10-24)
 

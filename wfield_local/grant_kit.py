@@ -1084,6 +1084,10 @@ def _class_note(variant, pattern=False):
         from wfield_local import working_trials as _wt
         if _tc.camera_gate_on() and _wt.is_camera(_tc.working_selection()):
             jaw = _tc.working_selection() == _wt.IN_WORKING_JAW
+            if _tc.working_selection() == _wt.IN_WORKING_CONTACT:      # the successful-lick supplement (Priya 11-07)
+                txt = ("camera WORKING trials: contact only (successful licks; supplement), cue to the session's last "
+                       "camera lick; incomplete and jaw_only excluded")
+                return txt + ("; PRE-STROKE REFERENCE IS LICK TRIALS" if pattern else "")
             txt = ("camera WORKING trials: contact + incomplete" + (" + jaw_only" if jaw else "") +
                    ", cue to the session's last camera lick" + ("" if jaw else "; jaw_only excluded"))
             return txt + ("; PRE-STROKE REFERENCE IS LICK TRIALS" if pattern else "")
