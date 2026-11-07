@@ -38,6 +38,15 @@ the encoding handoff (STATUS_2026-10-26_ENCODING_HANDOFF.md, top blocks); the A1
    labelled DAQ-gate figure; (c) drop it from this rebuild. Recommendation: (a), since the stopped class is now defined by the
    camera rule (A2 + excise) and a DAQ-rule version would disagree with the rest of the page.
 
+7. (~06:00) **Section G is the bottleneck: let one BIG step run beside it?** g5_section_g has held the MAIN heavy slot since
+   20:49 (9 h) and is at session 29 / 88 of its main pass (+4 sessions in the last 90 min -> maybe 15-20 h more; it computes and
+   caches per-session within-session accuracy). It uses only ~4 GB (39 GB free), but every BIG step waits behind it: the
+   lick-angle decoder l_enl_angle, t_frame_te_basis (-> decoder-pattern stats + ROI steps), the 15r re-run, the slide-102 gain
+   re-run, a_partial_ls, and the rest of the v8 L chain. Proposal: when the main slot is held by a low-RAM step (section G), let
+   the SECOND slot also admit BIG steps if >= 30 GB is available. Needs a coordinated lane restart (HALT -> waiting lanes give
+   their claims back -> relaunch from copies with that rule; running steps are not touched). Risk: two big steps at once (~20 GB
+   peak each) -- 4 + 20 + light stays under the box; the 10 GB pause and the RAM log stay on. Or leave it as is.
+
 ## B. Notable findings / result changes (nothing on pages or decks changed yet)
 
 1. **A27 cam4 cohort on the camera working period: no headline change.** 294 cells, same sessions; 0 sign flips in a significant
