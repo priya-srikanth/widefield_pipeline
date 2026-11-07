@@ -76,6 +76,14 @@ unclassified -> OUTSIDE_MAPS, map builders only import engagement_gate). Fixed o
 Priya said YES to cam4-style -> scratchpad push7.sh = the six + wf_p1106_cam4, sequential, merge-only (bg task bn32updgj;
 per-branch push logs scratchpad/push7.<wt>.log). Each push re-runs the full suite (~28 min) when configs/ is in the diff.
 
+**Update 20:20 -- Priya "yes": both fixes on main 0e2154f0 (rest boundary ba5b63bf + jaw-xcheck routing). Queue v9r RUNNING**
+(scratchpad/render_daqlk/queue_daqlk9r.sh, worktree wf_render_v9r @ 0e2154f0, lanes R / B / K): R = move the 12 rest-variant
+attempt_maps npz aside (done, MOVED.txt) -> d_attempt_maps_rest_r -> d_attempt_maps_plot_r; B = move the 8 gain_bio session npz
+aside (done) -> gb_sessions_r -> gb_summarise_r -> gb_stats_r -> gb_fig_r (slide 102); K = k_jaw_xcheck (v9k2 failure moved to
+*_v9k2_fence) + k_pose_validation. Helper move script scratchpad/render_daqlk/move_aside_restbug.py. STILL PARKED until the 15r
+TypeError is understood (helper diagnosing; fix branch would be fix/15r-typeerror-20261106): the g5_epoch REST column re-run
+(15r / 15rpa families), g5_restnl_maps_*, g5_lpfinal_maps, g5_map_drift_*; then d_fig_goal_summary_f3 in the final catch-up.
+
 **Update ~20:00 -- rest-bug impact (audit: rebuild_20261103/ENGAGED_MASK_IMPACT_20261106.md).** The 8 sessions were DROPPED from
 REST-referenced outputs ("no engaged rest frames"), not given a short baseline; gain_bio kept them with empty R5 / R5far / TASK.
 17 steps: DONE affected = g5_epoch (REST column only; 15r also hit an UNRELATED TypeError in the ENL + cue arms -> only
