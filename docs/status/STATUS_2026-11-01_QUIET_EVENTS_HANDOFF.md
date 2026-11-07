@@ -12,6 +12,18 @@
 > - FINDINGS 0 + 5.10, FACE_RHYTHM_FINDINGS 6f, DECISIONS 2026-11-07 (night bullets) written. FR handoff "11-07 NIGHT".
 > - Later: page v42 + slide 84 reworded as a frequency shift (spectral center 6.77 -> 6.56 Hz acute); script
 >   `reword_band_slide_1107e.py` (backup_before_band_reword_1107e).
+> - AMERICAN SPELLING (Priya "use american english spellings everywhere"):
+>   - Deck converted (`american_spelling_1107f.py`, backups `backup_before_american_1107f(_2).pptx`).
+>   - FR page **v45**: text converted; figs 9.1 + 9.3 redrawn (the only FR figures with British text in the image).
+>   - All docs/*.md converted, with code spans protected.
+>   - Code: prose string literals only (c9c5d158 on main; converter `amspell.py` + `amspell_py.py`, copies beside the
+>     deck scripts). NOT converted, by design:
+>     - (a) every file whose source feeds a cache key (code_digest / closure / code_version / csig /
+>       combined_encoding._CACHE_CODE (full bytes of 7 files, 34) / rest_frozen_decoder_nl._code_key); digests
+>       verified unchanged;
+>     - (b) 27 files with pre-existing lint findings (the pre-commit hook would block them).
+>   - Identifiers, file names and column names are never renamed.
+>   - Other windows: e0 converted the imaging page (v52); the kinematics page is e3's.
 
 > **11-07 (evening, before compaction) -- START HERE (a8).** Supersedes the deck facts of every block below.
 > - DECK = `presentations/Overview_2026-11-06.pptx`, now **198 slides** (was 194). A stale lock `~$Overview_2026-11-06.pptx`
