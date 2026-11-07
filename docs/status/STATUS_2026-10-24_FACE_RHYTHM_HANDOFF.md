@@ -160,6 +160,12 @@ All under `M:/MICROSCOPE/Priya/DeepLabCut/Widefield/face_rhythm/cam4/readouts/ma
      86 (spectral), 87 (hidden drift floor -> session_loading_driftpre), add per-session shape (session_scalars) + loss
      slides; notes Data: block per slide; Priya approves the slide text. Lick direction is LP kinematics -> not an FR
      figure. O2 sub / chronic null kept running (Priya) -> rescore pooled view when files land (descriptive only).
+     11-07 EVENING: PAGE v40 + DECK (198 slides) UPDATED -- details and slide map in the a8 handoff top block
+     (STATUS_2026-11-01_QUIET_EVENTS_HANDOFF). Page: cue- and lick-aligned perm maps are the main cue / lick speed maps
+     (same speed measure), 0-4 s response maps = supplement (Priya). Open: fig_ids.csv (15 new ids), rhythm-band movement
+     maps per lick factor, lick-rate (ILI) figure, make v2 + per-session the code defaults and re-render remaining FR
+     figures (pooled-fit figures with session dots / pre column), rescore the pooled null when the O2 sub / chronic
+     files land.
      When all lands: run the scorer normally (overwrites the page outputs), update FINDINGS 5.10 + FR page 7m-7o.
    * BLOCKED: 13b -- on 34's cohort-1 rebuild (the decoder / template deficit tables and the working-gate behaviour
      inputs change) and on Priya confirming the variable list (a8 asked her 11-05; d4 gone).

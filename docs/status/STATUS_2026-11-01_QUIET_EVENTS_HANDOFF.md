@@ -1,5 +1,36 @@
 # Handoff 2026-11-01: quiet-period cortical events after the VLS stroke (cohort1, PS92-95) + literature context
 
+> **11-07 (evening, before compaction) -- START HERE (a8).** Supersedes the deck facts of every block below.
+> - DECK = `presentations/Overview_2026-11-06.pptx`, now **198 slides** (was 194). A stale lock `~$Overview_2026-11-06.pptx`
+>   (from 11-06 14:20) was removed after checking that PowerPoint did not hold the file (Priya: "deck is not open").
+>   FR slides (Priya OK'd the update and the text fixes):
+>   - 82 NEW: cue- and lick-aligned speed maps (permutation);
+>   - 84: matching method, bullets + notes on rule v2;
+>   - 86: per-session weighting map, scaled (headline);
+>   - 87 NEW: per-session shape readouts;
+>   - 88 NEW, hidden: raw readouts;
+>   - 89 NEW, hidden: factor loss;
+>   - 90: lick_right 7 Hz peak, unchanged;
+>   - 91, hidden: per-session drift control.
+>   Slides after 81 shifted by +4: OLD slide numbers in earlier blocks and in 34's provenance table are now off by 4 from
+>   slide 82 on. Scripts: `_source_PI_overview_2026-11-02/update_fr_slides_1107.py` (backup_before_fr_1107.pptx) and
+>   `fix_fr_text_1107b.py` (backup_before_fr_text_1107b.pptx).
+> - The 7-line notes "Data:" block now exists on these FR slides, with the labels "Window: / Licks: / Trial period: /
+>   Trial types: / Gate: / Baseline: / Correction:". The deck-wide notes pass (waiting on 34's CONFIRMED provenance rows)
+>   must use the same labels and must re-map slide numbers (+4 from 82).
+> - FR PAGE https://claude.ai/artifact/X8NDdQNHi3zMP77PBrZAC1 = **version 40**:
+>   - new section 7a, per-session shape tests (main);
+>   - section 3: cue- and lick-aligned permutation maps + drift controls; the 0-4 s response maps collapsed into a
+>     supplement (Priya);
+>   - "Where things stand" updated (pooled = descriptive second view);
+>   - working copy in the session scratchpad `fr_page/index.html`; from a new session read the URL first.
+>   TODO: add the 15 new figure ids to the repo registry `fig_ids.csv`.
+> - FR science state + next steps: FR handoff item 00 "11-07 LATE" + DECISIONS 2026-11-07; FINDINGS 5.10 / 0 and
+>   FACE_RHYTHM_FINDINGS 6e written.
+> - PUSHES HELD for 34 (its config-touching push runs the full suite); push this commit after 34 says it landed.
+> - Still waiting on 34: CONFIRMED provenance rows (notes pass), the ALM/tjM1 split render (slide 94 re-tile; now
+>   slide 98).
+
 > **11-07 -- START HERE (a8).** Deck facts of the 11-06 (afternoon) block below still hold (deck
 > `presentations/Overview_2026-11-06.pptx`, notes "Data:" pass waiting on 34's CONFIRMED provenance rows, slide 94 re-tile
 > waiting on 34's split render). 11-07 this window did FaceRhythm work with Priya: matching rule v2, permutation /
