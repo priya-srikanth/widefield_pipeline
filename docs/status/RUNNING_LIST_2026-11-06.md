@@ -25,6 +25,12 @@ the encoding handoff (STATUS_2026-10-26_ENCODING_HANDOFF.md, top blocks); the A1
    area load raises "Object arrays cannot be loaded" (likely no camera classes in June -> empty / object per-session files).
    Proposal: leave it failed for now (August-only is primary), look at it after the render. OK?
 
+5. (~23:40) **OK to push fix/lp-novideo-skip-20261106 (72729126)?** Under the LP lick source a session that was NEVER filmed
+   (no camera classes AND no raw .avi/.mp4 -- both must agree; PS93_0813 only) contributes nothing, exactly as under the contact
+   arm, instead of crashing the camera-gate map collector. Any other failure (incl. a filmed session with missing LP tables) stays
+   fatal. Map cache keys unchanged (maps stay warm). 57 tests pass. Unblocks g5_restnl_maps_lp, g5_lpfinal_maps, g5_map_drift_lp,
+   and the A25 LP epoch arm (15r + beta maps).
+
 ## B. Notable findings / result changes (nothing on pages or decks changed yet)
 
 1. **A27 cam4 cohort on the camera working period: no headline change.** 294 cells, same sessions; 0 sign flips in a significant
@@ -81,3 +87,5 @@ the encoding handoff (STATUS_2026-10-26_ENCODING_HANDOFF.md, top blocks); the A1
 - 23:29 e_roi_check FAILED: its input (Fig 3.33 decoder-pattern stats figure data) comes from scripts/iti_decoder_pattern_stats.py,
   which was in NO queue (missing producer). Queue v9u on main 4ecf72ed: e_pat_stats_maps -> e_roi_check_r / foci_r / cand_r /
   rim_overlay_r (started 23:30).
+- 23:31 e_pat_stats_maps (v9u) failed: needs encoder_run('_te_basis')/fit spatial_<animal>.pkl = t_frame_te_basis (still waiting
+  for the main slot). v9u re-armed with that dep; the 4 ROI steps follow it.
