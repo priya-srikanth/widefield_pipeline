@@ -108,6 +108,20 @@ All under `M:/MICROSCOPE/Priya/DeepLabCut/Widefield/face_rhythm/cam4/readouts/ma
      11-07 later: ACUTE NULL COMPLETE (500 pairs; subacute 111, chronic 100). v2 rescored (epoch_shape_cohort_v2/):
      acute Holm < .05 = lick_right (all 4 measures), prelick_nose + whisk_run + lick_slow_late spatial angle, whisk_run
      spectral; LOST lick_fast_close (p .002, Holm .004), lick_ongoing_7Hz (p .014, Holm .014). Waiting on sub / chronic.
+     11-07 eve (Priya): v2 recovery spatial threshold .8 -> .7 (PS95 acute lick_right = same column as pre, spectral .94,
+     spatial .78: changed, not lost; .5 / .7 identical on real fits; no null cell < .7). MAP STATS (Priya OK): cluster
+     mass = the map test, max-statistic = point level, within-animal session-label shuffles (face_rhythm.stats
+     map_permutation). Speed maps `face_rhythm_position_maps.py --perm 2000` (August-only pre, refreshed today): acute
+     LESS movement cluster at every spout (far_R -.62, 926 pts), sub / chronic MORE at close + centre. Pooled-fit null
+     maps with clusters: lick_right acute 2 clusters (604 pts; max-stat 2 pts), lick_left acute none. NEW per-session
+     weighting test `face_rhythm_session_loading_perm.py` (own8 fits, v2) -> session_loading_v2/: lick_right acute loses
+     upper / central weight (645 pts), gains ipsi lower cheek + jaw; lick_left roughly mirrored; max-stat 263 / 413 pts.
+     CAVEAT: session shuffle = fixed effects + pre drift -> OPEN: early-vs-late pre drift control for the speed and
+     session-loading tests; re-run aligned_maps (cue / lick / bout, still 10-24 baseline) with --perm. PS93: own acute fit
+     runs OPPOSITE to PS92 / 94 / 95 (pre-existing right facial deficit, 10-24 flag; Priya 11-07 confirms) -> keep PS93
+     in main analyses, show "without PS93" (= LOAO-PS93, retitle) as sensitivity; open: PS93 per-session check. Maps now
+     drawn like the speed maps (all points coloured, red / blue rings). Rhythm-band movement maps per lick factor:
+     proposed, not started. Lick-rate (ILI) figure: requested, not started.
      When all lands: run the scorer normally (overwrites the page outputs), update FINDINGS 5.10 + FR page 7m-7o.
    * BLOCKED: 13b -- on 34's cohort-1 rebuild (the decoder / template deficit tables and the working-gate behaviour
      inputs change) and on Priya confirming the variable list (a8 asked her 11-05; d4 gone).
