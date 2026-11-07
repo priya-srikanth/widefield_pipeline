@@ -10,8 +10,12 @@ the encoding handoff (STATUS_2026-10-26_ENCODING_HANDOFF.md, top blocks); the A1
    below-pre stars at far contra disappear (cleaner "back to pre"); acute close-contra no-response +0.038** -> +0.020* (loses
    Bonferroni); acute far-contra no-response .12 -> .10; "chronic no response <= .008 everywhere" no longer true at close mid
    (.019, n.s. vs pre). Text would change only in the replacement pass.
-2. (~21:00) **Close-spout INCOMPLETE counts rise 3-5x under the new gate (new small stars, acute / subacute).** Cause not yet
-   known -- investigating before anything is read into it (possibly cam1-only / low tongue events now classed incomplete).
+2. (~21:00; ANSWERED by analysis ~21:40) **Close-spout INCOMPLETE rise 3-5x = the gate, not a bug.** The working period now
+   includes the post-DAQ-quit tail where the animal keeps licking without contact: 141 / 142 added close-spout incomplete trials
+   come after the session's last engaged trial; no trial changed class (class definition differs in 53 / 56,979 trials overall).
+   Mostly acute / subacute, mostly PS94 (acute 18 -> 57). Decision for Priya: section 6 text should say these are late-session
+   misses after the DAQ quit, NOT a close-spout aiming deficit; optional sensitivity row with WFIELD_KIN_GATE=legacy. OK?
+   (rebuild_20261103/CLOSE_INCOMPLETE_CAUSE_20261106.md)
 3. (~21:00) **Pipeline gap: kinematics_pooled_figs still reads the UNGATED 10-23 pose3d/kinematics/sessions.csv** (Fig 7.5,
    Fig 9.6, 3-D rows of the section 3 / 5 / 7 tables). Proposed fix: re-run pose3d_kinematics under the gate with a routed output
    (or a gated read in the pooled script), on a branch, then re-run k_pooled. Expected impact ~0 (all other 3-D tables moved <=
