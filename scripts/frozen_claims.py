@@ -31,7 +31,7 @@ from pathlib import Path
 import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from fr_musall import AN, E  # noqa: E402
+from fr_musall import E  # noqa: E402
 from frozen_fr_compare import WINDOWS, bars, boot, session_r2  # noqa: E402
 
 RUNS = {"noFR": _design_tag("frozen_encoder_gate-attempted_v7g3_t3d"), "FR-A": _design_tag("frozen_encoder_gate-attempted_v7g3_t3d_frA")}
@@ -168,33 +168,47 @@ def main(argv=None) -> int:
             fig.subplots_adjust(left=0.05, right=0.995, top=1 - 1.45 / (2.7 * len(rows_) + 1.3), bottom=0.05, hspace=0.75)
             save_png_svg(fig, out / "figures" / f"frozen_claims_{name}_{w}.png", dpi=105)
             plt.close(fig)
-    # trend figure: per animal spout unique over days (cortex, lick), both frames + far-contra contact
-    fig, axs = plt.subplots(1, 4, figsize=(18, 4.2), sharey=True)
-    for ax, an in zip(axs, AN):
-        for k, col in (("noFR", "#999999"), ("FR-A", "#e7298a")):
-            g = C[(C.frame == k) & (C.animal == an) & (C.area == "cortex") & (C.window == "lick")].sort_values("day")
-            ax.plot(g.day, g.u, "o-", color=col, ms=3, lw=1, label=f"spout unique, {k}")
-        ax2 = ax.twinx()
-        b = beh.assign(day=beh.label.map(epochs.days_since_stroke))
-        b = b[b.label.str.startswith(an)].sort_values("day")
-        ax2.plot(b.day, b.contact_far_contra, "s--", color="#1b9e77", ms=3, lw=0.8, label="far-contra contact (behaviour)")
-        ax2.set_ylim(0, 1)
-        ax.axvline(0, color="k", lw=0.6)
-        ax.set_title(an, fontsize=10)
-        ax.set_xlabel("day from stroke")
-        if an == AN[0]:
-            ax.set_ylabel("frozen spout unique R2 (cortex, lick)")
-            ax.legend(fontsize=7, loc="upper left")
-        if an == AN[-1]:
-            ax2.set_ylabel("far-contra contact fraction", color="#1b9e77")
-            ax2.legend(fontsize=7, loc="lower right")
-    fig.suptitle("NEURAL + LICK: recovery course in the FROZEN frame -- spout unique R2 (target + executed spout part) per session vs "
-                 "far-contra contact (green).", fontsize=10)
-    fig.subplots_adjust(left=0.05, right=0.96, top=0.85, bottom=0.14, wspace=0.12)
-    save_png_svg(fig, out / "figures" / "frozen_claims_trend.png", dpi=105)
-    plt.close(fig)
+    trend_figure(plt, C, beh, out)
     print("->", out)
     return 0
+
+
+def trend_figure(plt, C: pd.DataFrame, beh: pd.DataFrame, out: Path) -> Path:
+    """Fig 0.11: spout unique R2 over days (cortex, lick window) in each frozen frame, and far-contra contact, ALL animals
+    pooled per panel. EPOCH-COLOUR CONVENTION (A13, Priya 11-07; before: one panel per animal, lines across days):
+    one OPEN marker per session, shape = animal, colour = epoch, no line joining sessions; per epoch a filled dot in the
+    epoch colour +- SEM over animals (`cat_points.day_dots`). Plotting only."""
+    from wfield_local import cat_points as cp
+    from wfield_local import epochs
+    fig, axs = plt.subplots(1, 3, figsize=(16, 4.4))
+    for ax, k in zip(axs[:2], ("noFR", "FR-A")):
+        g = C[(C.frame == k) & (C.area == "cortex") & (C.window == "lick")]
+        cp.day_dots(ax, g.day, g.u, g.animal, g.epoch)
+        ax.set_title(f"spout unique R2, frozen frame {k}", fontsize=10)
+        ax.set_ylabel("frozen spout unique R2 (cortex, lick)" if k == "noFR" else "")
+    b = beh.assign(day=beh.label.map(epochs.days_since_stroke), animal=beh.label.str.split("_").str[0])
+    b = b.assign(epoch=b.label.map(epochs.epoch_of))
+    cp.day_dots(axs[2], b.day, b.contact_far_contra, b.animal, b.epoch)
+    axs[2].set_ylim(0, 1.02)
+    cp.fit_ylim(axs[2], b.contact_far_contra)
+    axs[2].set_title("far-contra contact (behaviour)", fontsize=10)
+    axs[2].set_ylabel("far-contra contact fraction")
+    for ax in axs:
+        ax.axvline(0, color="k", lw=0.6)
+        ax.set_xlabel("day from stroke")
+        ax.spines[["top", "right"]].set_visible(False)
+    eps = [e for e in cp.EPOCH_ORDER if (C.epoch == e).any()]
+    fig.legend(handles=cp.legend_handles(sorted(C.animal.unique()), eps, epoch_label="{e} mean +- SEM"), loc="center left",
+               bbox_to_anchor=(0.87, 0.5),
+               fontsize=8, frameon=False)
+    fig.suptitle("NEURAL + LICK: recovery course in the FROZEN frame -- spout unique R2 (target + executed spout part) per "
+                 "session, both frames, and far-contra contact.\nOpen markers = sessions (shape = animal, colour = epoch); "
+                 "filled = epoch mean +- SEM over animals (each animal's sessions averaged first).", fontsize=10)
+    fig.subplots_adjust(left=0.05, right=0.86, top=0.82, bottom=0.14, wspace=0.22)
+    p = out / "figures" / "frozen_claims_trend.png"
+    save_png_svg(fig, p, dpi=105)
+    plt.close(fig)
+    return p
 
 
 if __name__ == "__main__":
