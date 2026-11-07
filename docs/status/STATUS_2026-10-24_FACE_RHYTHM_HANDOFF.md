@@ -87,6 +87,14 @@ All under `M:/MICROSCOPE/Priya/DeepLabCut/Widefield/face_rhythm/cam4/readouts/ma
      the 4 cohort fits; figure match_changes_tiebreak05.png (maps + spectra per change). 8 / 10 clearly better (spectrum
      ~ master, spatial within .01-.05); acute lick_fast_close + acute / subacute prep_jaw: neither pick matches the
      master spectrum (factor likely not recovered there). lick_right unchanged. Awaiting Priya's read of the figure.
+     RECOVERY (Priya 11-07: mark poor fits, the factors that DISAPPEAR are interesting; combine similar footprints?):
+     match_quality_tiebreak05.csv. Null fits (should hold every factor): spatial 1st pct .84, freq 5th pct .46 overall,
+     but per factor run_onset_jaw .26, prep_jaw .33, sniff_prelick .46 (unstable even pre; the real COHORT_pre already
+     loses run_onset_jaw, freq .25). Rule tried: recovered = spatial >= .8 and freq >= .5. ACUTE loses lick_ongoing_7Hz
+     (freq .50, borderline) and lick_fast_close (.46): lost in 0-1 % of null fits -> a real acute loss of the fast-lick
+     jaw rhythm, back by subacute. prep_jaw subacute loss = in 21-34 % of null fits -> not a stroke effect. Proposal to
+     Priya: merge only the unstable twins (sniff_prelick + nose_prelick_slow = prelick nose; run_onset_jaw + prep_jaw =
+     slow jaw); keep the stable fast jaw factors separate (merging the whole jaw cluster would hide the acute loss).
      When all lands: run the scorer normally (overwrites the page outputs), update FINDINGS 5.10 + FR page 7m-7o.
    * BLOCKED: 13b -- on 34's cohort-1 rebuild (the decoder / template deficit tables and the working-gate behaviour
      inputs change) and on Priya confirming the variable list (a8 asked her 11-05; d4 gone).
