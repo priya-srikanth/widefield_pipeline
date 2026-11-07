@@ -47,12 +47,12 @@ the encoding handoff (STATUS_2026-10-26_ENCODING_HANDOFF.md, top blocks); the A1
    their claims back -> relaunch from copies with that rule; running steps are not touched). Risk: two big steps at once (~20 GB
    peak each) -- 4 + 20 + light stays under the box; the 10 GB pause and the RAM log stay on. Or leave it as is.
 
-8. (~09:35) **A6 stopped-trial traces wired (fix/stopped-traces-camera-20261107, e79afbf9; 380 tests pass) -- OK to push? And
-   one meaning change to confirm:** under the camera gate "working" misses = production INCOMPLETE trials only (trial_classes);
-   isolated no-response / jaw-only trials inside the working period, which the DAQ rule counted as working, become "other". So
-   the contrast becomes "licked but missed" vs stopped (was "no lick while engaged" vs stopped). PS92_0819 (acute): DAQ working
-   108 / stopped 138 -> camera working 69 / stopped 120 / other 57. Follows the approved definitions; confirm the comparison is
-   still what you want (alternative: working = incomplete + isolated no-response / jaw-only inside the working period).
+8. (~10:00) **A6 stopped-trial traces -- Priya chose the class breakdown: success vs incomplete vs jaw-only vs no response
+   (inside the camera working period) + stopped (camera stop-run rule) as a 5th trace.** Built: fix/stopped-traces-camera-20261107
+   0555f6f5 (on e79afbf9), 381 tests pass; DAQ path unchanged; per-animal x epoch counts print first; groups < 5 trials / animal
+   (3 per spout) are named, not drawn. Dry run: PS92_0810 pre 402 / 2 / 0 / 0 / 0; PS92_0819 acute 305 / 69 / 25 / 27 / 120
+   (+5 excluded). Reading: the 4 groups = cortical activity graded by orofacial output (movement differs by construction);
+   no_response vs stopped = the clean engaged-vs-disengaged contrast. OK to push + run l_stopped_restw / l_stopped_restnl?
 
 ## B. Notable findings / result changes (nothing on pages or decks changed yet)
 
