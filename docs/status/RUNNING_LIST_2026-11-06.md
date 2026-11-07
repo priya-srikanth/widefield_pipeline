@@ -31,6 +31,13 @@ the encoding handoff (STATUS_2026-10-26_ENCODING_HANDOFF.md, top blocks); the A1
    fatal. Map cache keys unchanged (maps stay warm). 57 tests pass. Unblocks g5_restnl_maps_lp, g5_lpfinal_maps, g5_map_drift_lp,
    and the A25 LP epoch arm (15r + beta maps).
 
+6. (~02:10) **scripts/stopped_trial_traces.py refuses the camera trial gate** ("not wired to the camera trial gate (it selects
+   trials by the daq rule); run it with WIDEFIELD_TRIAL_GATE=daq or wire it to trial_classes"). Steps l_stopped_restw (mode STOP --
+   would have halted v8 lane X-L2-L3) and l_stopped_restnl are parked on HOLD. Options: (a) wire it to trial_classes (camera
+   working / stopped classes; code change, branch, then run in the catch-up); (b) run it once with WIDEFIELD_TRIAL_GATE=daq as a
+   labelled DAQ-gate figure; (c) drop it from this rebuild. Recommendation: (a), since the stopped class is now defined by the
+   camera rule (A2 + excise) and a DAQ-rule version would disagree with the rest of the page.
+
 ## B. Notable findings / result changes (nothing on pages or decks changed yet)
 
 1. **A27 cam4 cohort on the camera working period: no headline change.** 294 cells, same sessions; 0 sign flips in a significant
@@ -98,3 +105,7 @@ the encoding handoff (STATUS_2026-10-26_ENCODING_HANDOFF.md, top blocks); the A1
 - 00:53 v9s light-map lane DONE: g5_restnl_maps_contact / _enl1s and g5_map_drift_contact / _enl1s exit 0 (8 rest-bug sessions
   now in their REST rows; PS93_0813 skipped under the contact arm as before). LP arm (g5_restnl_maps_lp failed, g5_lpfinal_maps
   HOLD, g5_map_drift_lp skipped) waits for the LP no-video fix (A5). g5_epoch_15r_r still waits for the main heavy slot.
+- 02:06-02:09 my slot-2 "ready steps" lane ran l_restnl_rescue / l_arrival_restnl before their (undeclared) producers -> both
+  failed fast on missing inputs, nothing written; markers moved *_early_* so their own lanes re-run them in file order. The lane
+  then halted on l_stopped_restw (mode stop) -- a real gap, see A6. l_disengage / l_interhemi_rest / l_lc_extract left to their
+  own lanes. b_wsd_lick DONE 01:40 (-> within-spout mixed models lane v8e-T8); l_revup_restnl DONE.
