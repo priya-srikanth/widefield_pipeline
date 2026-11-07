@@ -155,3 +155,9 @@ the encoding handoff (STATUS_2026-10-26_ENCODING_HANDOFF.md, top blocks); the A1
   low-RAM main holder = section G, XL mutex so two partial refits never overlap, a_partial_ls / b_partial_frA now --jobs 4;
   A7MIN=35) + 3 slot-2 lanes (S2MIN=35). Running steps untouched. HEAVY3 waits until >= 35 GB free (31 GB at 09:30 while the
   17 GB LP restnl map step runs).
+- **C (11-07 12:45)** g5_map_drift_lp_r EXIT 1: the June pre sessions (0606-0608 x 4 animals) are not in the LP
+  trial_attempts table (LP classes start with the August baseline), so the camera gate refuses them; the A5 no-video skip
+  covers never-filmed sessions only. Same June gap as e_drift_june -> DEFERRED with A4 (needs June LP classes). DAQ
+  map-drift steps unaffected. Also 11-07: section G STOPPED 11:26 (Priya: positions on working trials, not DAQ licks);
+  fix eeb36d48 + contact-only d12dfc56 + retained figure 4353fbd2 pushing; restart queue v9z drafted (G = production
+  re-run + g7/g6 figures, C = contact-only supplement LAST). Lane G relaunched 11:27 for its independent steps.
