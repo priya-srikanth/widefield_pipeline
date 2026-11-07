@@ -130,7 +130,7 @@ def main(argv=None) -> int:
     ap.add_argument("--set", default=fro.SET)
     ap.add_argument("--fdir", type=Path, default=None)
     ap.add_argument("--factors", nargs="+", default=None, help="factor names for the figure (default all)")
-    ap.add_argument("--match-rule", choices=sorted(es.MATCH_RULES), default="v1",
+    ap.add_argument("--match-rule", choices=sorted(es.MATCH_RULES), default="v2",
                     help="see face_rhythm_epoch_shape.MATCH_RULES; non-v1 output goes to epoch_shape_cohort_<rule>/")
     a = ap.parse_args(argv)
     es.RULE = a.match_rule

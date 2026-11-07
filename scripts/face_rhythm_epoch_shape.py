@@ -63,7 +63,7 @@ OWN = "own_epoch"
 MERGE = {"prelick_nose": ("sniff_prelick", "nose_prelick_slow"), "slow_jaw": ("run_onset_jaw", "prep_jaw")}
 MATCH_RULES = {"v1": dict(assign=ASSIGN, min_spatial=MIN_COS, min_spectral=None, merge={}),
                "v2": dict(assign="tiebreak", min_spatial=0.7, min_spectral=0.5, merge=MERGE)}
-RULE = "v1"
+RULE = "v2"  # default since 11-07 (Priya: v2 + per-session tests are the main analysis); v1 = --match-rule v1
 
 
 def rule() -> dict:
@@ -728,9 +728,9 @@ def main(argv=None) -> int:
     ap.add_argument("--factors", nargs="+", default=list(LICK),
                     help="factors for the loading maps / templates (default the lateralised lick pair); e.g. the "
                          "non-lateralised lick factors (Priya 10-25 'central lick version') -- use with --out")
-    ap.add_argument("--match-rule", choices=sorted(MATCH_RULES), default="v1",
+    ap.add_argument("--match-rule", choices=sorted(MATCH_RULES), default="v2",
                     help="v1 = spatial best match (10-25); v2 = spectral tie-break + recovery threshold + merged twins "
-                         "(11-07); non-v1 output goes to <folder>_<rule>/")
+                         "(11-07, default); non-v1 output goes to <folder>_<rule>/")
     ap.add_argument("--own-dir", default="own_epoch", help="per-epoch fit folder: own_epoch (per animal) or own_epoch_cohort "
                     "(COHORT + LOAO-<animal> tags; output defaults to epoch_shape_cohort/)")
     a = ap.parse_args(argv)
