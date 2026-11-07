@@ -76,6 +76,17 @@ unclassified -> OUTSIDE_MAPS, map builders only import engagement_gate). Fixed o
 Priya said YES to cam4-style -> scratchpad push7.sh = the six + wf_p1106_cam4, sequential, merge-only (bg task bn32updgj;
 per-branch push logs scratchpad/push7.<wt>.log). Each push re-runs the full suite (~28 min) when configs/ is in the diff.
 
+**Update ~20:00 -- rest-bug impact (audit: rebuild_20261103/ENGAGED_MASK_IMPACT_20261106.md).** The 8 sessions were DROPPED from
+REST-referenced outputs ("no engaged rest frames"), not given a short baseline; gain_bio kept them with empty R5 / R5far / TASK.
+17 steps: DONE affected = g5_epoch (REST column only; 15r also hit an UNRELATED TypeError in the ENL + cue arms -> only
+lick/lick RESTref written), d_attempt_maps_rest, d_attempt_maps_plot, gb_sessions, gb_summarise; failed gb_stats; skipped gb_fig.
+PARKED on RESERVED_HOLD (were RESERVED_v7, live G lane): g5_restnl_maps_{contact,lp,enl1s} (only the REST rows of the amplitude
+CSV), g5_lpfinal_maps, g5_map_drift_{contact,lp,enl1s}. Held downstream already: d_fig_goal_summary_f3 (+ aggregate).
+NOT affected: restw / RESTW / MEAN / PRECUE / RESTnl columns, cd_traj (contrast ref), restnl masks, chronic_stability (PRECUE).
+RE-RUN NEEDS cache moves: attempt_maps skips existing rest-variant maps_<align>_<animal>.npz (move all 12 aside); gain_bio
+returns cached sessions/<label>.npz (VERSION 2) -> move the 8 aside; map_collect recomputes itself. Waiting on Priya: push OK for
+fix/camera-rest-start + fix/jaw-xcheck-routed, and re-run plan (catch-up queue on the fixed main).
+
 **Update ~19:40 -- CAMERA-GATE REST BUG (conclusion-level; Priya told, nothing on pages changed).** v8g gb_stats EXIT 1
 (assert oro - post == oro_post) because 8 / 107 sessions have NaN R5 gain: rest_engagement.engaged_frame_mask put the quit
 boundary at the FIRST non-engaged cue; under the camera gate the working period is a span (first .. last camera lick), so a
