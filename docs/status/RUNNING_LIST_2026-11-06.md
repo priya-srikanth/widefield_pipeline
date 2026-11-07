@@ -89,7 +89,7 @@ the encoding handoff (STATUS_2026-10-26_ENCODING_HANDOFF.md, top blocks); the A1
   FDR (q .099); jaw far_R acute -2.42 -> -1.85. Cued ramp + c2l RESTnl still QUEUED (deps). Proposed: split acute pre-cue
   maps by lick class. Report scratchpad/compare_lick_20261107.md.
 
-- **A13 (11-07 ~15:45, OPEN)** Figure epoch-colour convention audit (scratchpad/epoch_colour_audit.md): 27 producers, 8 OK /
+- **A13 (11-07 ~15:45; Priya ~14:10 OK shared fix + push recovery branch; ~14:25: model figures KEEP coloured model lines, palette must not reuse epoch / other reserved colours; mean +- SEM = epoch-coloured dot + bars)** Figure epoch-colour convention audit (scratchpad/epoch_colour_audit.md): 27 producers, 8 OK /
   6 partial / 13 no. Proposed: shared day-axis helper (open markers, shape = animal, colour = epoch, no lines) for 11
   producers; small fixes for the 6 partial + import EPOCH_LINE instead of private palettes; model-comparison line figures
   (frozen_fr_compare.epoch_lines / bars, ~15 encoding figs incl. Fig 0.1/0.7) need Priya: (a) keep pooled-model lines +
