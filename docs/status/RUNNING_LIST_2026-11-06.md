@@ -83,7 +83,11 @@ the encoding handoff (STATUS_2026-10-26_ENCODING_HANDOFF.md, top blocks); the A1
   PS94 per-animal curves before any text. Headlines hold (chronic hits ~-0.29, behaviour full, gap, aim identical).
   Report scratchpad/compare_recovery_20261107.md.
 
-- **A12 (11-07 ~13:35; Priya ~14:00: run the lick-class split)** Section 7 RESTnl maps: acute far-contra PRE-CUE rise shrinks / reverses -- 7.3b LP 1.59 (2/4)
+- **A12 (11-07 ~13:35; Priya ~14:00: run the lick-class split; CHECK DONE ~14:20; Priya ~14:30: (b) as a NEW SUPPLEMENTARY panel, jaw-only
+  and no-response SEPARATE -- 'interesting if pre-cue was increased on jaw-only'; main figure worded as working trials)**
+  Check: the camera gate REMOVED 60-190 acute far-contra non-licking trials per animal (jaw-only / no response / stopped);
+  incomplete-only = all working (1.31/1.10/1.01/1.07 vs 1.40/1.05/1.00/1.08); old DAQ gate on rebuilt data restores the rise
+  2.14/1.23/1.25/1.62 -> the old rise was carried by NON-LICKING trials. Class split running (scratchpad/a12b_classes). Section 7 RESTnl maps: acute far-contra PRE-CUE rise shrinks / reverses -- 7.3b LP 1.59 (2/4)
   -> 0.86 (0/4); 7.1b contact 1.80 (4/4) -> 1.23 (3/4); 7.5b ENL1s 2.04 (4/4) -> 1.43 (3/4, PS94 .91); far-middle acute cue
   .76 -> .99; cue loss .53 -> .66 (4/4). Smaller: c2l restw tjM1 subacute star lost; within-spout pooled toward-midline loses
   FDR (q .099); jaw far_R acute -2.42 -> -1.85. Cued ramp + c2l RESTnl still QUEUED (deps). Proposed: split acute pre-cue
@@ -203,3 +207,6 @@ the encoding handoff (STATUS_2026-10-26_ENCODING_HANDOFF.md, top blocks); the A1
   | d12dfc56 contact-only, 4353fbd2 retained fig | none (production tag pinned unchanged) | - |
   Before the replacement pass: check every page/deck output's code SHA against this table.
   13:40 v9z lane relaunched with A7MIN=25 (main idle: HEAVY3 = l_basis_extract ~2.3 GB; other lanes keep 35).
+- **C (11-07 14:25)** csig fix becc486b on main (class-code digest restored); section G restart #2 on it (v9zd3, runs as 4th job,
+  not in HEAVY_RE for that lane only); recovery re-run d_decoder_retention_r2 / d_recovery_timing_r2 / a_recov_timing_aim_r2 DONE.
+  American spelling for all new text (Priya, relayed by a8 11-07).
