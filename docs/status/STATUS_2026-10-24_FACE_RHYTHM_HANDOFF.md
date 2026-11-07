@@ -173,3 +173,15 @@ All under `M:/MICROSCOPE/Priya/DeepLabCut/Widefield/face_rhythm/cam4/readouts/ma
      ILI +15-25 ms at EVERY spout acutely (*), back by subacute except close spouts; fast-lick share falls acutely only
      at far contra (-.44) / far mid (-.13) -- partly fewer licks (far contra 3.1 licks / trial vs 8.7 pre; an isolated
      lick has no neighbour), so ILI is the rhythm measure. Not yet on page / deck (caption to Priya first).
+     11-07 NIGHT (2): ALL MAP TESTS NOW 10,000 SHUFFLES (Priya), like the scalars: position, aligned, session_loading
+     (default now 10000) and the new band maps re-run with drift controls; 2000-shuffle cluster tables kept in the session
+     scratchpad for the comparison. Changes vs 2000: position maps none (17 cells, pts +-6); aligned: lick close_L
+     subacute up (258 pts) and close_center chronic down (131) NEW; CUE DRIFT CONTROL 3 -> 2 clusters (far_center 374 pts
+     gone; both left at far_R, where the post-stroke change is a decrease) -> page 3.10a / 3.10b text + slide 82 bullet
+     need rewording (Priya approves); session loading: lick pair unchanged; lick_slow_late acute more (172) gone, whisk_run
+     acute more (112) new (exploratory). RHYTHM-BAND MAPS (`scripts/face_rhythm_band_maps.py`, readouts/<set>/band_maps/):
+     acute decrease at every spout in every lick band, graded by rhythm -- face mean log2 7Hz -.30, fast_close -.20, lick
+     rhythm -.16, far_nose -.12, slow_late -.09, slow_jaw / prelick_nose ~0 -- fits the ILI slowing; later epochs +.06 to
+     +.13 at close spouts; drift control has 13 small clusters (mean drift +.03; far_L up, close_R down) so later-epoch
+     band increases need that caveat. The band gradient is not yet a test (proposed: per-session 7Hz-minus-rhythm contrast,
+     within-animal shuffles). Not on page / deck yet.

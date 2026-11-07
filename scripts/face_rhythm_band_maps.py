@@ -17,7 +17,7 @@ STATISTICS = the speed maps' (`face_rhythm_position_maps.py --perm`): within-ani
 points studentised by the null SD, CLUSTER MASS (|t| > 2, mesh neighbours, sign-separate) = the map test, max-statistic
 = the point test (`face_rhythm.stats.session_shuffle_test`); ``--drift-control`` = the same on early vs late pre.
 
-    python scripts/face_rhythm_band_maps.py [--set master_pre_v1] [--perm 2000] [--drift-control] [--plot-only]
+    python scripts/face_rhythm_band_maps.py [--set master_pre_v1] [--perm 10000] [--drift-control] [--plot-only]
 -> ``readouts/<set>/band_maps/``: band_maps_<unit>.png (rows = spouts, cols = epochs), band_maps_driftpre.png,
 data/band_maps_perm.csv (every cluster), data/band_maps_units.csv (band of each unit), data/band_maps_cache.pkl.
 """
@@ -120,7 +120,7 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--set", default=fro.SET)
     ap.add_argument("--bundle", default=fro.BUNDLE)
-    ap.add_argument("--perm", type=int, default=2000)
+    ap.add_argument("--perm", type=int, default=10000)
     ap.add_argument("--drift-control", action="store_true", help="also the early vs late PRE test")
     ap.add_argument("--plot-only", action="store_true")
     a = ap.parse_args(argv)
