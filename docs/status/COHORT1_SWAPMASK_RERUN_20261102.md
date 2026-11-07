@@ -69,7 +69,7 @@ imaging results ppt decks, in artifact pages, and in the PI update deck. this ca
 Folded into the same rebuild (decided the same day):
 - **LP arm decoders LP-trained** (stored; DAQ-trained kept as the opt-in cross-check).
 - **August-only pre baseline for the decoders**, aligning with the imaging maps, the encoding model and kinematics.
-  Thin cells stay labelled sensitivities (e.g. 12.1b lick-free rest needs June + August).
+  Thin cells stay labeled sensitivities (e.g. 12.1b lick-free rest needs June + August).
 - **One planned cache rebuild:** drop the WIDEFIELD_PRM_LEGACY_DATE8 shim, convert `precue_engagement_states` to the
   frozen store, and narrow the map-cache code digest to the functions that build maps. Old caches are deleted afterwards
   from a kept list.
@@ -97,7 +97,7 @@ Procedure:
   10-30 `swapped_pairs.npz`, new `hemo_*` dirs only).
 - 2026-11-02 (helper): how each family picks the variant: (c) RESTnl maps and (a) frozen decoders read
   `config.svtcorr_path` -> `WIDEFIELD_HEMO_VARIANT`; (b) encoder and (d) quiet events read
-  `combined_encoding.load_imaging`, which HARD-CODED `hemo_{ADOPTED}` -> new `combined_encoding.hemo_dir()` honours the same
+  `combined_encoding.load_imaging`, which HARD-CODED `hemo_{ADOPTED}` -> new `combined_encoding.hemo_dir()` honors the same
   env var (default unchanged, test added). Output-root overrides added: FROZEN_OUT_ROOT, RESTNL_OUT_ROOT, QS_OUT_ROOT.
   Commit b334316a. TRAP found: `session_cache.cached` PRUNES every other signature of the same label x kind, so a variant
   run against the shared session cache would delete the adopted prm / tf caches (and restnl_mask prunes its own dir the

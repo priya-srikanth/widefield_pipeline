@@ -10,7 +10,7 @@ Five questions (Priya 10-31):
 * **Q1 WHAT** in the face carries the pre-launch angle and its post-stroke deviation (jaw lateral steering, nose,
   whisker pad, tongue in the mouth)?
 * **Q2 WHEN**: before jaw opening (plan-like) or only once the jaw moves (execution)?
-* **Q3 RECOVERY**: does the face-decoded deviation recover with the launch aim? Is it a behavioural marker of the deficit?
+* **Q3 RECOVERY**: does the face-decoded deviation recover with the launch aim? Is it a behavioral marker of the deficit?
 * **Q4 WITHIN-SPOUT (pre-stroke)**: does pre-launch face activity read within-spout launch angle, where cortex failed
   (S25 / S25b)?
 * **Q5 CONTROL**: does partialling FaceRhythm out of the cortical features change the post-stroke frozen-decoder
@@ -32,7 +32,7 @@ imaging_encoding/face_prelaunch_aim/` (`writeguard.assert_writable`).
 * `lick_sspn_checks.check3`, the headers of `lick_iti_dock_compare.py`, `lick_matched_readout.py`, `likeforlike.py`,
   `lick_balance_matched_error.py`, `iti_lick_order.predictions`, `iti_where_decoder.area_basis`;
 * FINDINGS "DOCKED-SPOUT ITI LICKS" and "ITI pre-lick window";
-* BEHAVIOUR / DATA-AVAILABILITY counts only (section 0).
+* BEHAVIOR / DATA-AVAILABILITY counts only (section 0).
 
 **Known before writing (stated so it is not mistaken for a fresh test):** S26's FR face decoder result above (cued gate
 r, acute TI 0.49, 4/4). **No value of any NEW decoder, partial regression or offset in this design has been computed.**
@@ -49,7 +49,7 @@ Lick sets are S26's, from its feature cache `prelaunch_aim_tracking/features/<la
   * **ITI docked: 0 %.** Every ITI pre-launch window is in the 5 Hz session bins. Its 0.05-s bins are linear
     interpolations between 0.2-s means, so ITI FR timing is resolved to 0.2 s at best.
   * FR projection: missing only on a few PS92_0908 licks (0.5 %, its lossy bins); every other session complete.
-* **FR is ACAUSAL in time, and this bites in exactly this window.** The VQT filters are centred Hann windows of length
+* **FR is ACAUSAL in time, and this bites in exactly this window.** The VQT filters are centered Hann windows of length
   Q(f)/f, with Q geometric from 4 (1 Hz) to 20 (60 Hz) over 36 log-spaced bins (`params.json`; `vqt.helpers`).
   * At the lick factors' frequencies (5.8-8.2 Hz) the window is 1.1-1.4 s long: support ±0.56-0.69 s, half-height
     half-width ±0.28-0.34 s.
@@ -93,8 +93,8 @@ Lick sets are S26's, from its feature cache `prelaunch_aim_tracking/features/<la
 ## 2. Face signals and feature families (fixed)
 All signals are sampled on S26's 10-ms FINE grid (-0.795..+0.295 s around the reference time, linear interpolation),
 NaN across source gaps, and averaged into S26's 22 bins of 0.05 s (-0.80..+0.30).
-* S26 sampled FR at bin CENTRES only. That is reproduced once from S26's cache (the S26 replication row) and changed to
-  bin means for every new decoder. Bin means are the correct analogue of the 40-ms points / 4-ms pose bins.
+* S26 sampled FR at bin CENTERS only. That is reproduced once from S26's cache (the S26 replication row) and changed to
+  bin means for every new decoder. Bin means are the correct analog of the 40-ms points / 4-ms pose bins.
 
 Windows: **PRE -0.50..-0.05 (primary)**, **PRE10 -0.50..-0.10**, **POST +0.05..+0.30 (positive control)**.
 * Each bin minus the BASE (-0.80..-0.50) mean (S26). This removes static images: posture, and in CUED the stationary
@@ -120,7 +120,7 @@ Families (each a separate decoder; features = bins x traces, flattened):
 Finite rules:
 * a bin is NaN if < 50 % of its fine samples are finite;
 * a lick enters a family only if every bin it uses is finite, and its BASE bins too where BASE is subtracted.
-* JAW at close / centre spouts: the chin is partly covered by the spout, and the jaw point lands on the visible edge
+* JAW at close / center spouts: the chin is partly covered by the spout, and the jaw point lands on the visible edge
   (10-15 handoff). Base subtraction removes the static part. Any residual is a spout-geometry effect and is stated.
 
 **"Beyond jaw" variants (Q1 key secondary):** PTS and FR-all features residualised on the JAW family's features of the
@@ -135,7 +135,7 @@ same window.
 * Regions must be drawn on the MASTER face and fixed BEFORE any region decode. Not run otherwise.
 
 ## 3. Decoder (fixed; S26 section 3 reused verbatim)
-* Ridge on standardised features, alpha from 10^{-1..5} (13 values) by inner leave-one-session-out CV, pre scored
+* Ridge on standardized features, alpha from 10^{-1..5} (13 values) by inner leave-one-session-out CV, pre scored
   leave-one-session-out, all-pre model applied to post (S26 `run_decoder` / `loso_multi`).
 * Minimum counts as S26: >= 3 pre sessions and >= 150 pre licks per animal x arm x family; a session enters epoch
   tables with >= 10 licks; a cell with >= 3.
@@ -226,7 +226,7 @@ Reading Q1:
 * **Per-bin time course**: single-bin decoders per family (PTS, JAW, FR-all), 22 bins -0.80..+0.30, BASE bins as raw
   levels, other bins minus BASE (S26).
   * Tongue-referenced (CUED, ITI) and jaw-referenced (CUED). Each frozen; gate r, calibration, TI per bin.
-  * FR bins whose centre lies within ±0.35 s of the reference (the half-height half-width at the lowest lick-factor
+  * FR bins whose center lies within ±0.35 s of the reference (the half-height half-width at the lowest lick-factor
     frequency, 5.8 Hz) are flagged **leak-exposed**; within ±0.70 s they are flagged "inside filter support".
 * **ITI**: no jaw onsets exist and no ITI jaw detector is built here. The ITI time course is tongue-referenced only.
   The mean cam4 jaw-opening trace (pre licks) is drawn under it, so the reader sees when the jaw moves.
@@ -295,7 +295,7 @@ Reading Q5 (fixed):
 **Q3** (secondary; pre-specified tests, uncorrected, 3/4 rule). Per session, the face-decoded deviation at the same
 target (d_dec*, raw d_dec) and the launch deviation d_exe (session means; PTS, JAW, FR-all; CUED and ITI).
 1. Per-animal Pearson r across POST sessions of d_dec* with d_exe.
-2. Within-animal MixedLM `d_dec* ~ w + b + log(day)`, groups = animal: w = within-animal-centred d_exe, b = animal mean
+2. Within-animal MixedLM `d_dec* ~ w + b + log(day)`, groups = animal: w = within-animal-centered d_exe, b = animal mean
    (as `lick_sspn_checks._track`). The same with the established recovery axis `recmark_sessions.csv` (cued `aim`;
    ITI `iti_ang`).
 3. TI by epoch (acute / subacute / chronic): a constant TI = the same time course.
@@ -304,11 +304,11 @@ target (d_dec*, raw d_dec) and the launch deviation d_exe (session means; PTS, J
 Reading:
 * "**Same time course**" = r > 0 in >= 3/4 animals AND within-animal p < 0.05.
 * Because d_dec* is decoded from the same licks' face, agreement shows the face tracks the launch, not that the face
-  CAUSES the launch. It counts as a "pre-launch behavioural marker" only if the tracking is timing-valid (Q1 / Q2
+  CAUSES the launch. It counts as a "pre-launch behavioral marker" only if the tracking is timing-valid (Q1 / Q2
   criteria met).
 
 **Q4** (pre-stroke only).
-* Within-spout decoder per family: y and features centred within session x target cell, same ridge / LOSO pipeline.
+* Within-spout decoder per family: y and features centered within session x target cell, same ridge / LOSO pipeline.
   Not frozen (never scores post).
 * Statistic: pooled LOSO r; null = 200 permutations of y within cell.
 * Also the within-cell partial r of the across-spout decoder (S26's partial_r).
@@ -333,7 +333,7 @@ Reading:
 * "**Jaw steering vs something else**": section 5 reading.
 * Q5: section 7 reading.
 * Q3 / Q4: section 8 readings.
-* GCaMP is irrelevant to Q1-Q4 (behaviour only). It matters for Q5 (cortical lag).
+* GCaMP is irrelevant to Q1-Q4 (behavior only). It matters for Q5 (cortical lag).
 
 ## 10. Statistics, figures, outputs
 * Session loops via `analysis_kit.fan_sessions`, **<= 4 workers**, free RAM checked first; animals fitted in parallel
@@ -341,12 +341,12 @@ Reading:
 * Seeds fixed (SEED 0; per-cell seeds from animal / arm / family / window).
 * Bootstraps via `analysis_kit` (`boot_delta`, `boot_delta_columns`, `boot_p`, `holm`, `boot_ci`).
 * Figures (Priya's defaults):
-  * sessions = OPEN markers, shape = animal (PS92 o, PS93 s, PS94 ^, PS95 D), colour = epoch
+  * sessions = OPEN markers, shape = animal (PS92 o, PS93 s, PS94 ^, PS95 D), color = epoch
     (`orofacial_cohort.EPOCH_LINE`);
-  * pooled = FILLED epoch-colour marker with 95 % CI;
+  * pooled = FILLED epoch-color marker with 95 % CI;
   * no figure numbers in titles / images (panel letters only); no lines between epochs;
   * stars in the top band (`within_lick_correction.star_top` / `reserve_headroom`);
-  * nothing overlapping data or neighbouring panels (gap columns, shared tick labels hidden);
+  * nothing overlapping data or neighboring panels (gap columns, shared tick labels hidden);
   * time courses = faint per-animal lines + thick pooled.
 * Primary figure:
   * **A** gate r vs null 95th per family x arm (PRE, POST);
@@ -383,7 +383,7 @@ Reading:
   every measure; a "tongue in the mouth" reading is indirect at best.
 * cam4 view:
   * ipsilesional = image RIGHT (jaw lateral sign flipped so + = contralesional);
-  * the chin is partly hidden at close / centre spouts (close_mid cued jaw coverage median 0.96, 25th pct 0.72);
+  * the chin is partly hidden at close / center spouts (close_mid cued jaw coverage median 0.96, 25th pct 0.72);
   * the spout is visible near the mouth in CUED trials. BASE subtraction removes it while it is static; the
     no-baseline variant is confounded by it.
 * Jaw onsets are CUED only. They are opening (vertical) onsets: lateral jaw drift before opening is not an "onset".
@@ -440,7 +440,7 @@ Run facts:
 
 * **The positive controls (POST windows) pass for every primary family.**
 * JAW is **not calibrated across spouts in PS93 / PS95** (b_sp -0.001 / 0.003, cued PRE). The chin is covered at
-  close / centre spouts.
+  close / center spouts.
 * **FaceRhythm reads the pre-launch angle at the same r whatever the window**: PRE, PRE10, and even 0.05-0.50 s
   **before JAW onset** (.47-.55). The timing-valid points read little there: pre-jaw r .04-.14, against .56-.60 in
   POST.
@@ -530,7 +530,7 @@ is not interpretable (rule 8).
 * Chronic TI is not estimable (Δexecuted CI includes 0).
 * Criterion "same time course" (r > 0 in >= 3/4 AND positive within-animal slope, p < .05): **met only for ITI PTS
   PRE, which is the jaw-opening bin** (PRE10 does not track).
-* So the face is not shown to be a pre-launch behavioural marker of the deficit. It follows the executed deviation.
+* So the face is not shown to be a pre-launch behavioral marker of the deficit. It follows the executed deviation.
 
 #### Q4 within-spout (pre-stroke; within-cell decoder vs 200 within-cell permutations)
 | family | CUED PRE | CUED PRE10 | pre-JAW | ITI PRE | ITI PRE10 | CUED POST (control) |
@@ -601,7 +601,7 @@ Variants and sensitivities (docked ITI same-place unless stated):
 
 **Reading Q5:**
 * With the pre-registered primary (A), partialling the face leaves most of the docked ITI offset (~80 %, change ns).
-  At cohort level the offset is not a face-movement artefact under a frozen linear face model.
+  At cohort level the offset is not a face-movement artifact under a frozen linear face model.
 * The equivalence bound (retained lower CI >= 0.5) is not met, so "unchanged" is NOT established. Formally the result
   is "partial".
 * Two cautions:

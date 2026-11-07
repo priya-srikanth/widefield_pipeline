@@ -21,10 +21,10 @@ and the other units (exploratory), as the pooled-fit null.
                     (`face_rhythm.stats.session_shuffle_test`)
   SENSITIVITY       (a) maps without AMBIGUOUS sessions (the unit's best spatial cosine beats the runner-up by < .05);
                     (b) lick_right: does a session's map change track its change in the share of RIGHT licks (both
-                    delta vs own pre, then centred within animal)?
+                    delta vs own pre, then centered within animal)?
   FRAGILITY         per unit: the pooled-fit refit null's 95th-percentile acute spatial angle / the pooled pre-only fit
                     noise (preA - preB): large = the pooled test is inconclusive for that unit (lick_left, 11-07)
-  DIRECTION         share of left / centre / right executed licks per session, delta vs own pre, same test
+  DIRECTION         share of left / center / right executed licks per session, delta vs own pre, same test
 
     python scripts/face_rhythm_session_shape_tests.py [--set master_pre_v1] [--match-rule v2] [--perm 2000]
 -> ``<readouts>/<set>/session_shape_<rule>/``: session_scalars.png, session_loss.png, session_maps_scaled_lick.png,
@@ -235,7 +235,7 @@ def maps(T, units, home, n_perm, rng, **kw):
 
 def right_share_check(T: pd.DataFrame, D: pd.DataFrame, res_maps: dict) -> pd.DataFrame:
     """lick_right, per post epoch: per session, the projection of its map delta (vs own pre) onto the epoch's group
-    pattern, against its delta in the share of RIGHT licks (vs own pre); both centred within animal; Spearman."""
+    pattern, against its delta in the share of RIGHT licks (vs own pre); both centered within animal; Spearman."""
     from scipy.stats import spearmanr
     rows = []
     d = T[(T.unit == "lick_right") & T.recovered]
@@ -311,7 +311,7 @@ def session_values(T: pd.DataFrame, names: list[str], mode: str = "delta") -> pd
     the animal's pre-mean vector minus the animal's mean leave-one-out pre angle). Loss: recovered (0 / 1) minus the
     animal's pre recovery rate (all sessions). PRE sessions (Priya 11-07: show the pre-stroke variability) are scored
     LEAVE-ONE-OUT -- against the mean of the animal's OTHER pre sessions -- so their spread is not shrunk by
-    including themselves. ``mode="raw"`` (Priya 11-07: raw and normalised as separate figures): the session's own value
+    including themselves. ``mode="raw"`` (Priya 11-07: raw and normalized as separate figures): the session's own value
     (asymmetry, side specificity) and the plain angle to the animal's pre-mean vector (pre sessions: leave-one-out
     angle), no baseline subtracted; no loss rows."""
     rows = []
@@ -379,7 +379,7 @@ def session_values(T: pd.DataFrame, names: list[str], mode: str = "delta") -> pd
 
 
 def _row(ax, V: pd.DataFrame, R: pd.DataFrame, units: list[str], pcol: str, zero: bool = True) -> None:
-    """Per unit x epoch: faded open session markers (shape = animal, colour = epoch) + mean +- SEM over sessions; stars
+    """Per unit x epoch: faded open session markers (shape = animal, color = epoch) + mean +- SEM over sessions; stars
     (Holm, animal-weighted within-animal shuffle test) in the top band."""
     from wfield_local import cat_points as cp
     from wfield_local import sig_marks
@@ -447,10 +447,10 @@ def figures(Rs, Rl, V, out, set_name, names, Vraw=None):
 session's loading map with its animal's own pre spout-specific movement maps at the factor's own side (close + far) minus
 the opposite side; a drop = the factor looks less like movement at its own side's spouts. Stars in the top band = the animal-weighted test (mean over animals of epoch - pre; within-animal session-label shuffles): * Holm < .05, ** < .01, Holm within a family ACROSS all epochs and measures -- the lick pair (24 tests, pre-specified) or the other units (exploratory)."""
     scalar_figure(Rs, V, units, out / "session_scalars.png",
-                  f"{set_name}: per-session shape readouts, NORMALISED (delta vs each animal's own pre)", YLAB, True, """
+                  f"{set_name}: per-session shape readouts, NORMALIZED (delta vs each animal's own pre)", YLAB, True, """
 Per-session FaceRhythm fits (own8) matched to the master (rule v2), recovered sessions only. BLACK = each PRE session
 against the mean of its animal's OTHER pre sessions (leave-one-out): the pre-stroke session-to-session variability.
-Coloured open markers = post sessions (shape = animal, colour = epoch): the readout minus the animal's own pre mean
+Colored open markers = post sessions (shape = animal, color = epoch): the readout minus the animal's own pre mean
 (angles: the angle to the animal's pre-mean vector minus the animal's mean leave-one-out pre angle; NEGATIVE = closer to
 the pre mean than a typical pre session, not a direction). Filled = mean +- SEM over sessions. """ + common)
     if Vraw is not None:
@@ -459,7 +459,7 @@ the pre mean than a typical pre session, not a direction). Filled = mean +- SEM 
 Same sessions and tests as session_scalars.png, values NOT baseline-subtracted: each session's own asymmetry and side
 specificity, and its plain angle (>= 0 deg) to its animal's pre-mean vector; BLACK pre markers = each pre session's
 angle to the mean of its animal's OTHER pre sessions (how far pre sessions sit from each other). Animals differ in their
-raw baseline (asymmetry, side specificity), which the normalised figure removes. Filled = mean +- SEM over sessions. """
+raw baseline (asymmetry, side specificity), which the normalized figure removes. Filled = mean +- SEM over sessions. """
                       + common)
     with frf.style():
         fig, ax = frf.subplots(1, 1, figsize=(13.5, 3.8))

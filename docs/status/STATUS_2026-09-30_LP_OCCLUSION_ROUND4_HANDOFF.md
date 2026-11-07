@@ -1,7 +1,7 @@
 > **2026-10-01:** kinematics work continues in `STATUS_2026-10-01_KINEMATICS_HANDOFF.md`; this doc remains the
-> reference for the tracking models and labelling (round 4 is now 131 cam4 frames after the 10-01 add-on).
+> reference for the tracking models and labeling (round 4 is now 131 cam4 frames after the 10-01 add-on).
 
-# Handoff — 2026-09-30: Lightning Pose occlusion fix, labelling round 4 (cam4) + cam1 context, two machine crashes
+# Handoff — 2026-09-30: Lightning Pose occlusion fix, labeling round 4 (cam4) + cam1 context, two machine crashes
 
 **START HERE to continue cam4/cam1 orofacial tracking.** Supersedes §00/§0 of
 `STATUS_2026-09-28_DLC_LIGHTNING_POSE_HANDOFF.md` (still the background: WSL setup, DALI, MSE→KL, clip history).
@@ -13,7 +13,7 @@ Analysis desktop `MNB-SABA-N40713`. **After the 16:23/16:26 crash-reboots: `M:` 
 
 ## 0. RESUME CHECKLIST — what is running / what to do next, in order
 
-**UPDATE 18:24 — steps 1–2 below are DONE.** Round 4 extracted: 55 picks (per session 3–4 incomplete_tongue, 1 erratic_jaw, 1 tricky_spout, 1–2 disagree_tongue/jaw, 1 lp_erratic_jaw) + 64 suggested neighbours = **119 cam4 frames to label** (+252 context) in 6 new cam4 folders; 379 matched cam1 frames in `_frame_staging_unassigned/`; `CAM1_GUIDE.html` rebuilt (cam1: 233 still blank — the student finished `cam1_2026-06-06T16_08_37`). LP predictions for the round-4 windows: `%USERPROFILE%\lp_clips/round4\lp\*.csv`; the lossless .avi clips there (~9 GB) can be deleted once labelling starts (derived, reproducible with `dlc_hard_frames clips`). Note: the lateral-offset rule flags hundreds of `erratic_jaw` candidates per session (only 1 is picked) — it is loose; tighten before reusing it as a detector.
+**UPDATE 18:24 — steps 1–2 below are DONE.** Round 4 extracted: 55 picks (per session 3–4 incomplete_tongue, 1 erratic_jaw, 1 tricky_spout, 1–2 disagree_tongue/jaw, 1 lp_erratic_jaw) + 64 suggested neighbors = **119 cam4 frames to label** (+252 context) in 6 new cam4 folders; 379 matched cam1 frames in `_frame_staging_unassigned/`; `CAM1_GUIDE.html` rebuilt (cam1: 233 still blank — the student finished `cam1_2026-06-06T16_08_37`). LP predictions for the round-4 windows: `%USERPROFILE%\lp_clips/round4\lp\*.csv`; the lossless .avi clips there (~9 GB) can be deleted once labeling starts (derived, reproducible with `dlc_hard_frames clips`). Note: the lateral-offset rule flags hundreds of `erratic_jaw` candidates per session (only 1 is picked) — it is loose; tighten before reusing it as a detector.
 
 1. **Round-4 cam4 pipeline (running detached, started 17:13).** `dlc_hard_frames scan` (DLC round 3 + prior
    over 12 trial windows × 6 sessions, ~9 min/session) then `dlc_hard_frames clips` (same windows → one
@@ -35,7 +35,7 @@ Analysis desktop `MNB-SABA-N40713`. **After the 16:23/16:26 crash-reboots: `M:` 
    Expected size: ≤ ~7 DLC picks + ≤ 2–4 LP picks per session, each with context (see §2), ~100–130 frames to label.
 3. **Priya reviews** `lp_vs_dlc_cue_traces\PS93_20260908\*_cue_traces_DLC_vs_LP[_median5].png` (made 17:25).
    Offered next: a zoomed version (few trials, both models on one axis, 0–1 s) — too dense at 24 × 1000 frames.
-4. **Student is labelling cam1** from `CAM1_GUIDE.html` (now the combined cam1 + cam4-round-4 worksheet, same
+4. **Student is labeling cam1** from `CAM1_GUIDE.html` (now the combined cam1 + cam4-round-4 worksheet, same
    filename). 257 cam1 frames to label (16 targets/folder + 66 suggested lick frames).
 5. **After round-4 labels come back:** retrain DLC (`dlc_train`, which now drops all-blank rows) AND LP (occlusion
    config); build the LP label export with the all-blank drop (not written yet — §4).
@@ -43,7 +43,7 @@ Analysis desktop `MNB-SABA-N40713`. **After the 16:23/16:26 crash-reboots: `M:` 
 
 ## 1. Findings
 
-**2026-10-01 additions (DECISIONS 2026-10-01):** where both models are confident their tracks nearly coincide; **LP's low-confidence point sits at the image centre (~340, 337 px)** — mask LP by likelihood, never interpolate through it; LP–DLC tongue distance shows no spout-position effect on PS93 0908 (median 2.9–4.9 px, >15 px in ≤2 %). Zoomed figure: `lp_vs_dlc_cue_traces/PS93_20260908/*_zoom_DLC_vs_LP.png`.
+**2026-10-01 additions (DECISIONS 2026-10-01):** where both models are confident their tracks nearly coincide; **LP's low-confidence point sits at the image center (~340, 337 px)** — mask LP by likelihood, never interpolate through it; LP–DLC tongue distance shows no spout-position effect on PS93 0908 (median 2.9–4.9 px, >15 px in ≤2 %). Zoomed figure: `lp_vs_dlc_cue_traces/PS93_20260908/*_zoom_DLC_vs_LP.png`.
 
 ### Scientific / tracking
 * **LP never learned "not visible" until today.** `training.uniform_heatmaps_for_nan_keypoints` defaults false;
@@ -87,8 +87,8 @@ Analysis desktop `MNB-SABA-N40713`. **After the 16:23/16:26 crash-reboots: `M:` 
   masking); temporal `prob_threshold` 0.5; batch 4+4; `early_stopping: false` explicitly; KL kept; resolution
   kept (not the recommender's 256 px — incomplete-lick tongue tip is a few px); log_weight 5 kept for now.
 * NVIDIA "Sysmem Fallback Policy" left at default (global; would crash 2pRAM jobs instead of slowing them).
-* **TARGET vs CONTEXT frames.** Target = label completely (blank = occluded). Context = neighbours to scrub;
-  blank, or labelled completely, never partly. Suggested ("context_label") = every ~3rd context frame, flexible
+* **TARGET vs CONTEXT frames.** Target = label completely (blank = occluded). Context = neighbors to scrub;
+  blank, or labeled completely, never partly. Suggested ("context_label") = every ~3rd context frame, flexible
   — "the goal is the toughest frames". Manifest `category` is the only record (`round4`, `context`,
   `context_label`, originals). Filenames stay `img%07d.png`.
 * Blank semantics: DLC = absent always → all-blank rows dropped; LP single-view = occluded → all-blank rows must
@@ -111,7 +111,7 @@ Analysis desktop `MNB-SABA-N40713`. **After the 16:23/16:26 crash-reboots: `M:` 
    machine twice. `--overrides dali.base.predict.sequence_length=16 dali.context.predict.sequence_length=16`.
 2. "100 % GPU, no crash" is not health on Windows — check `Get-Counter '\GPU Adapter Memory(*)\Shared Usage'`.
 3. Type no drive letters; they move on reboot. `net use` shows the mapping.
-4. A context frame labelled partly is read as "other parts occluded" by both models.
+4. A context frame labeled partly is read as "other parts occluded" by both models.
 5. Never stage frames nobody should label under `_frame_staging/cam1_*` — `sync_frames` copies them to the student.
 6. An LP config key that is only a partner of a switch does nothing (`early_stop_patience` without
    `early_stopping: true`; `patch_mask: null` crashes). Check how LP reads a key before relying on it.
@@ -121,25 +121,25 @@ Analysis desktop `MNB-SABA-N40713`. **After the 16:23/16:26 crash-reboots: `M:` 
 9. The repo test `test_no_hardcoded_machine_paths` blocks pushes on typed paths — use `Path.home()`/PathResolver.
 10. Other windows leave uncommitted edits (today: `scripts/chronic_stability.py`, `nightly_figs.py`,
     `PRELIM_DATA_VLS_STROKE.md`, `rotation_maps.py`, `region_reference_contrast.py`): commit only your own files.
-11. **A low-confidence LP coordinate is the image centre, not a position** — mask by likelihood before any kinematics.
+11. **A low-confidence LP coordinate is the image center, not a position** — mask by likelihood before any kinematics.
 
 ## 4. To do (not started)
 * **Kinematics ported 10-01 (DECISIONS):** `tongue_detect`, `tongue_kinematics`, `jaw_kinematics`, `tongue_jaw_mismatch`, `spout_frame`; demo `scripts/pose_kinematics_demo.py`. Next: retune px thresholds on our view; decide on the inherited one-frame v7 offset; check angle_max_signed vs lick-1 angle; run on full sessions (needs whole-session predictions).
 * **Clean traces (`wfield_local/orofacial_clean.py`, ported 10-01 from stroke_orofacial v5p3 + jaw v3.4):** retune every px threshold on our view (x_range_pm, v3.4 ceilings, frame jump); then port the tongue v7 pre-clean + per-trial lick/angle features; build the spout-position reference frame (DECISIONS 10-01) — cam1 for horizontal-plane angles.
 * ~~LP label export with the all-blank drop~~ DONE 10-01: `python -m wfield_local.lp_labels audit|clean <lp_dir>/CollectedData.csv` after `litpose convert` on the training copy.
 * Multi-view export: per-keypoint `visible` column (2/1/0), shared image name per DAQ instant; verify a
-  not-labelled view row trains correctly (checked in LP code only).
+  not-labeled view row trains correctly (checked in LP code only).
 * EKS ensemble after round 4; log_weight 11 comparison; `freeze_until_epoch` 60; vits_dino at 384 px.
 * ~~Zoomed cue-trace figure; disagreement by spout position~~ DONE 10-01 (no position effect on PS93).
 * Guide line for sideways-lick tongue tip is in the round-4 "disagree_tongue" text only — add to
   `LABELLING_GUIDE.html` too when it is next regenerated.
-* cam1/cam4 nose offset (241 same-instant frames) once cam1 is labelled.
+* cam1/cam4 nose offset (241 same-instant frames) once cam1 is labeled.
 
 ## 5. Where things are
 | what | where |
 |---|---|
 | LP occlusion model | WSL `/root/lp/cam4-2026-09-28/models/round3_occl_uniform_20260930/` (best `epoch=184-step=15170-best.ckpt`) |
-| its clip predictions + labelled videos | `M:\…\DeepLabCut\Widefield\lightning-pose\cam4-2026-09-28\eval_occl_20260930\` |
+| its clip predictions + labeled videos | `M:\…\DeepLabCut\Widefield\lightning-pose\cam4-2026-09-28\eval_occl_20260930\` |
 | epoch-170 (pre-fix) model outputs | `…\eval_ep170_20260930\` |
 | DLC round 3 review clips | `M:\…\DeepLabCut\Widefield\inference_check_20260928_round3\labeled_clips\` |
 | cue-trace comparison | `M:\…\DeepLabCut\Widefield\lp_vs_dlc_cue_traces\PS93_20260908\` (`scripts/pose_cue_traces.py`) |

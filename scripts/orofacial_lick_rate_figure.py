@@ -2,7 +2,7 @@
 add"). Two rows of the cohort engagement figure, redrawn from the tables that render already wrote -- no recompute:
 
   * within-bout inter-lick interval (ILI, ms; median of intervals < 300 ms inside a trial) -- the lick rhythm;
-  * fraction of licks with a neighbour < 250 ms -- the fast-lick share (the video counterpart of the FaceRhythm
+  * fraction of licks with a neighbor < 250 ms -- the fast-lick share (the video counterpart of the FaceRhythm
     fast-lick factors).
 
 Same rules as `orofacial_cohort.fig_cohort_epochs_by_position`: each session's change from its animal's OWN pre mean
@@ -32,7 +32,7 @@ def main(argv=None):
     n = Pm.drop_duplicates(["animal", "date"]).groupby("animal").size()
     title = (f"Lick rate per spout, pre vs post stroke -- {a.run} -- ENGAGED trials only -- baseline: LATE pre only "
              f"(>= 0801) -- sessions: " + ", ".join(f"{k} {v}" for k, v in n.items()) + "\n"
-             "ILI = median within-trial interval < 300 ms; fast licks = licks with a neighbour < 250 ms")
+             "ILI = median within-trial interval < 300 ms; fast licks = licks with a neighbor < 250 ms")
     out = figs / "cohort_lick_rate_by_position.png"
     oc.fig_cohort_epochs_by_position(Pm, ("ili_ms", "neighbor_frac"), out, title, ST)
     print(out)

@@ -1,5 +1,5 @@
 > **CORRECTION 2026-11-03 (bal_em ADOPTED, production):** the frozen state decoder is now `session_bal_em`. It is trained on
-> class-balanced pre sessions and scores each session with a label-free EM centre (equal-weight soft class means,
+> class-balanced pre sessions and scores each session with a label-free EM center (equal-weight soft class means,
 > production SD, 3 passes); no test labels are used. PS94 running recall is .99 -> .97 / .96 / .92 (was .98 -> .84 / .54 /
 > .49), and state retained is .972 -> .927 / .950 / .922. State therefore loses 4.6 / 2.3 / 5.1 % against position's
 > 50 / 19 / 12 % (~11x / 8x / 2.3x). The residual state loss is small in every animal (PS94 chronic balanced accuracy .90;
@@ -9,14 +9,14 @@
 > **CORRECTION 2026-11-03:** under the z-scored (production) decoder PS94's loss is its RUNNING class (recall .98 ->
 > .84 / .54 / .49; read as quiet / licking), not licking (licking holds .90-1.0; the licking reading was the pre-fix
 > decoder's). Running alone (running-class recall) is now .98 -> .92 / .83 / .89, not flat. A class-balanced session
-> centring restores PS94 running to .91-.97 (diagnostic; decision open). DECISIONS 2026-11-03 (overnight).
+> centering restores PS94 running to .91-.97 (diagnostic; decision open). DECISIONS 2026-11-03 (overnight).
 
 > **CORRECTION 2026-11-02:** the state decoder's per-session z-score was specified but never applied (fixed;
 > spec scaling="session_z"). It explains only part of PS94's state loss (chronic .64 -> .78); a within-session refit
 > stays .97-.99, so the states remain separable and the definitions hold -- PS94's LICKING pattern changed (licking read
 > as quiet .49 chronic). State is therefore not a clean non-orofacial control in PS94. DECISIONS 2026-11-02 (late).
 
-# The behavioural-state control — does *everything* degrade after the lesion, or only the target?
+# The behavioral-state control — does *everything* degrade after the lesion, or only the target?
 
 > **Current conclusions (10-25): [FINDINGS.md](FINDINGS.md) section 3, claim 2.** The state-decoder numbers below are STALE; current sidecar `epoch_13n_state_vs_position_cue.csv`: position .863 -> .428 / .696 / .761, state .976 -> .872 / .820 / .838 (the claim is the ratio).
 
@@ -36,14 +36,14 @@ against; Priya: *"but cortex isn't lesioned at all, so we should be able to use 
 Correct, and it makes the control **stronger** rather than weaker.
 
 The same cortex, the same cranial window, the same LocaNMF basis, the same estimator, the same
-frozen-model logic. Only the label changes — spout target, or behavioural state. If the target
+frozen-model logic. Only the label changes — spout target, or behavioral state. If the target
 readout collapses and the state readout does not, then the deficit is specific, and every generic
 explanation a reader reaches for first fails at once:
 
 | alternative explanation | why this control kills it |
 |---|---|
 | the window clouded over | would degrade the state readout too |
-| haemodynamic / F0 drift post-surgery | same |
+| hemodynamic / F0 drift post-surgery | same |
 | the animal is differently aroused | same, and more so — state IS arousal-adjacent |
 | the LocaNMF basis drifted | same, and it is one basis for both readouts |
 | "you made a lesion and everything got worse" | this is the claim being tested |
@@ -62,7 +62,7 @@ Frozen pre-stroke decoders, post-cue window, same sessions:
 Against the frozen POSITION decoder on the same sessions, scored the SAME way (balanced
 accuracy, the mean of the six row recalls): 0.886 → 0.523 → 0.749 → 0.833 (chance 1/6).
 
-Normalised as the fraction of above-chance performance retained — the only way to compare a 6-way
+Normalized as the fraction of above-chance performance retained — the only way to compare a 6-way
 problem at chance 0.167 with a 3-way at 0.333:
 
 * **position: 0.863 → 0.428 acutely. It loses 50% of what it had.**
@@ -133,25 +133,25 @@ miss has no lick to anchor on.
 
 **The window stays 1 s, and that is a decision rather than an inherited default.** The position
 decoder uses 2 s; matching it here would have made window DURATION a cue the decoder could separate
-the classes on, because a longer window is a smoother binned feature whatever the behaviour. All
+the classes on, because a longer window is a smoother binned feature whatever the behavior. All
 three classes are therefore duration-matched at 1 s and only the ANCHOR is shared with the position
 arm. `locomotor_state.LICK_POSTCUE_S` is pinned equal to `SEGMENT_S` by a test for exactly this
-reason. `lick_mode="bout"` keeps the old behaviour available for comparison; `"postcue"` is the
+reason. `lick_mode="bout"` keeps the old behavior available for comparison; `"postcue"` is the
 default the figures use, and it refuses to run without cue samples rather than falling back — a
 figure captioned "post-cue" built from free-running bouts would be undetectable downstream.
 
-**This asymmetry is a stated limit, not a hidden one.** Licking windows are locked to a behavioural
+**This asymmetry is a stated limit, not a hidden one.** Licking windows are locked to a behavioral
 *transition* while running and quiet are sampled from inside sustained *states*, so a decoder could
-separate them partly on transient-versus-sustained rather than on which behaviour it is. The control
-answers "does cortex still distinguish behavioural state at all", which is what the argument needs;
+separate them partly on transient-versus-sustained rather than on which behavior it is. The control
+answers "does cortex still distinguish behavioral state at all", which is what the argument needs;
 it is not a clean three-way contrast of matched epochs. It is in the figure subtitle.
 
-### 4. One session is an artefact
+### 4. One session is an artifact
 
 **PS92 8/12's longest "running bout" is 2,441 s** — 41 minutes, 29% of the session — against a cohort
 maximum of 54 s everywhere else. That is the `concat_split_session` discontinuity
 (`docs/EXPERIMENT_ERRORS.md`) read as sustained locomotion. Uncapped it would supply ~7% of the
-entire running class from one artefact. Excluded by name in `locomotor_state.EXCLUDE_SESSIONS`.
+entire running class from one artifact. Excluded by name in `locomotor_state.EXCLUDE_SESSIONS`.
 
 ---
 
@@ -208,7 +208,7 @@ Binary running-vs-quiet decodes at AUROC 0.99–1.00 within session and the thre
 macro-AUROC 0.98–1.00. **A ceiling cannot demonstrate preservation**: a reader sees "the task was too
 easy to fail" and is right. The position claim rests on a frozen pre-stroke model failing on
 post-stroke data, so the control has to be the same object, carrying the same cross-session
-generalisation burden. The within-session number is the ceiling line, not the result.
+generalization burden. The within-session number is the ceiling line, not the result.
 
 **And the running survives the lesion**, which had to be true for any of this to be possible:
 
@@ -324,7 +324,7 @@ Two further changes affect this analysis and are recorded here so they are not d
 **THE CONFOUND.** `locomotor_state` splits a session into licking / running / rest. Those classes are
 not distributed alike over session time — licking is cue-locked, rest fills the ITIs, running drifts
 — while cortex itself drifts: `rest_position_vs_drift` measured the same position's rest early-vs-late
-at **RMS 0.00282**, with no behavioural difference at all. A three-way decoder can therefore separate
+at **RMS 0.00282**, with no behavioral difference at all. A three-way decoder can therefore separate
 the classes partly on WHEN the window sat. **The time-local baseline that fixes this for the maps does
 not reach here**: rest is a CLASS in this analysis, not a subtrahend, so there is nothing to subtract
 it from.
@@ -460,7 +460,7 @@ further against a common cause.
 
 ### The headline numbers moved for STATE and did not move for POSITION
 
-The previously documented triple was *position 0.86 → 0.43 (loses 50%), behavioural state 0.92 →
+The previously documented triple was *position 0.86 → 0.43 (loses 50%), behavioral state 0.92 →
 0.81 (loses 11%), running alone 0.98 → 0.95 (loses 3%)*. On the REST definition:
 
 * **POSITION is unchanged to three decimals** (0.863 → 0.428). Expected, and a useful check: the
@@ -502,25 +502,25 @@ They do not: quiet→licking is 0.143 while quiet→running is 0.027, a 5:1 spli
 A generic degradation does not pick a direction. Something is making quiet windows look
 specifically LICKING-like.
 
-**PRIYA'S HYPOTHESIS, and it would make this a LABELLING error rather than a decoder error.** REST
+**PRIYA'S HYPOTHESIS, and it would make this a LABELING error rather than a decoder error.** REST
 is defined as *between trials, not running, and NOT LICKING* — where "not licking" means **no event
 on the DAQ lick sensor**, which requires tongue-to-spout contact. An INCOMPLETE tongue protrusion
 that never reaches the spout produces no sensor event and is therefore filed as REST. Cortex would
-be doing licking-like things inside a window labelled quiet, and the decoder calling it *licking*
+be doing licking-like things inside a window labeled quiet, and the decoder calling it *licking*
 would be RIGHT while the label was wrong.
 
 **AND THE PREDICTED TIMING IS THE DEFICIT ITSELF.** Failed and incomplete protrusions are what a
 ventrolateral-striatal lesion with an orofacial deficit should produce, and should produce MOST
 acutely — which is exactly where quiet→licking peaks. The hypothesis predicts its own time course.
 
-**THE DLC TEST, stated so it can fail.** Score tongue protrusions from the behaviour video
-independently of the lick sensor, then ask, within REST-labelled windows:
+**THE DLC TEST, stated so it can fail.** Score tongue protrusions from the behavior video
+independently of the lick sensor, then ask, within REST-labeled windows:
 
 * Do windows the decoder calls LICKING contain more DLC protrusions than windows it calls quiet?
 * Is that excess larger ACUTELY than pre-stroke, and does it track the quiet→licking rate by
   epoch and by animal?
 * Confirmed → the REST class is contaminated by sensor-invisible licking and the confusion is a
-  labelling artefact with a biological cause. Refuted (protrusion rates equal) → the acute
+  labeling artifact with a biological cause. Refuted (protrusion rates equal) → the acute
   quiet↔licking confusion is a genuine change in resting cortical state, which is a different and
   also interesting result.
 

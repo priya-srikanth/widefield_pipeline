@@ -1,8 +1,8 @@
 # NEW COHORT from 2026-10-29: cohort2 = PS118, PS120, PS121, PS122 — read before running anything
 
-**For both the IMAGING (PCO) computer and the ANALYSIS / behaviour computer, after `git pull`.**
+**For both the IMAGING (PCO) computer and the ANALYSIS / behavior computer, after `git pull`.**
 
-Imaging of a second cohort started 2026-10-29. It is analysed **fresh and separately**: it is never pooled
+Imaging of a second cohort started 2026-10-29. It is analyzed **fresh and separately**: it is never pooled
 with PS92-95 (now called **cohort1**). The repo enforces that. This page says how, what each computer runs,
 and what is still open.
 
@@ -16,7 +16,7 @@ and what is still open.
 | PS122 | VGLUT1-IRES-Cre x LSL-RiboL1-jGCaMP8s (DOB 2026-01-29, F) | 470 nm (+415) | larger ROI (kept for everyone from here on), cam1 position B |
 
 PS118 / PS120 are **Thy1-GCaMP6s GP4.3**; PS121 / PS122 are **VGLUT1-IRES-Cre x LSL-RiboL1-jGCaMP8s**
-(soma-localised jGCaMP8s); recorded as `genotype` in `configs/cohort2/animals.yaml`. Two indicators in one
+(soma-localized jGCaMP8s); recorded as `genotype` in `configs/cohort2/animals.yaml`. Two indicators in one
 cohort means every pooled result must also be shown split by `genotype`. Same task as cohort1 (one moving
 spout, 6 positions, 4 cameras); a VLS stroke comes later (`stroke_date` null until then).
 
@@ -58,7 +58,7 @@ Motion correction, SVD, the hemo variant, the push to MICROSCOPE, maps and photo
 says `[xreg] PSxxx: no master alignment session (reference_date) chosen yet -> cross-registration SKIPPED`
 and the night carries on; that is expected.
 
-**Analysis / behaviour computer, as before:**
+**Analysis / behavior computer, as before:**
 
 ```powershell
 git pull
@@ -67,11 +67,11 @@ python -m wfield_local.nightly 20261029      # camera + behaviour, then figs; co
 python -m wfield_local.await_locanmf 20261029   # registers cohort2 sessions into configs/cohort2/sessions.yaml
 ```
 
-Camera upload, dropped-frame QC, alignment templates, behaviour events and per-session behaviour figures
+Camera upload, dropped-frame QC, alignment templates, behavior events and per-session behavior figures
 work now. **LocaNMF and everything downstream need the Allen-aligned atlas from cross-registration, so they
 wait for the reference step below.** `await_locanmf` will keep reporting the sessions as not ready until then.
 
-**To analyse cohort2 by hand** (any script, any window), set the cohort first:
+**To analyze cohort2 by hand** (any script, any window), set the cohort first:
 
 ```powershell
 $env:WIDEFIELD_COHORT = "cohort2"     # bash: export WIDEFIELD_COHORT=cohort2
@@ -80,7 +80,7 @@ $env:WIDEFIELD_COHORT = "cohort2"     # bash: export WIDEFIELD_COHORT=cohort2
 A process loads its session list when it starts, so set this BEFORE launching. To work on PS92-95 again,
 unset it or set `cohort1`.
 
-## To do before cohort2 can be analysed across sessions
+## To do before cohort2 can be analyzed across sessions
 
 1. ~~Genotype, sex, DOB~~ entered 10-29 (`configs/cohort2/animals.yaml`).
 2. **Master alignment session (the cross-registration reference).** Choose ONE date for the whole cohort,

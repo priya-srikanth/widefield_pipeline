@@ -20,7 +20,7 @@ reason, owner.
   2.4b-2.8, 1.4, 3.4, 3.5, 4.4 and others.
 - **Kinematics page:** `M:/.../kin_page_src/kin_page/index.html` (11-03 22:15, post-split with the TOC toggles; 68
   figures + 12 LMM toggles).
-- **Behaviour page:** `M:/.../behaviour_page_src/behaviour_page/index.html` (3 figures + 2 LMM toggles).
+- **Behavior page:** `M:/.../behaviour_page_src/behaviour_page/index.html` (3 figures + 2 LMM toggles).
 - **Deck:** PI_overview_2026-11-02.pptx, read with python-pptx and not saved (187 slides, 82 hidden).
   spout_balem_swaps.json was cross-read. Its slide numbers are from an older numbering, so match on the shape names
   (fig:d_acc_cue = slide 13 now, etc.).
@@ -52,7 +52,7 @@ No attempt_coding, iti_licks or quiet-event outputs exist under the rebuild root
 | imaging page: new items (A11, B1-B7, B11) | e0 | 6 | | | |
 | kinematics page: figures (68) + 12 LMM toggles | e0 | 9 | 8 | 63 | |
 | kinematics page: new items (B9, B14) | e0 | 2 | | | |
-| behaviour page: 3 figures + 2 toggles + 2 new | e0 | 7 | | | |
+| behavior page: 3 figures + 2 toggles + 2 new | e0 | 7 | | | |
 | PI deck: 187 slides | a8 | 95 | 17 | 75 | |
 
 Encoding figures by input family:
@@ -65,16 +65,16 @@ Encoding figures by input family:
 | decoder / attempt_coding | 24 + 2 | |
 | O2 FR (sec 21-22) | 18 | |
 | self-fit (sec 4) | 8 | |
-| gate-only behaviour (sec 5 landing) | 8 | |
+| gate-only behavior (sec 5 landing) | 8 | |
 | binned contest (1.6, 1.13-1.15) | 4 | read from the O2 `_daqlk` runs |
 
 ## "check" rows (what is unknown)
 
-- **Encoding 10.6, 16.6, 16.9, 16.10 and kinematics 1.7, 1.8 (behaviour-only; manifest NO):** does their engaged gate
+- **Encoding 10.6, 16.6, 16.9, 16.10 and kinematics 1.7, 1.8 (behavior-only; manifest NO):** does their engaged gate
   move to camera classes (A6) or the August-only pre? Deck slide 8 (16.9) follows.
-- **Encoding: 30 inline behaviour panels of Fig 14.18 / 14.21 (rec_wlc_*, rec_kn_*, rec_lc/pht/pst/pat/fpa,
+- **Encoding: 30 inline behavior panels of Fig 14.18 / 14.21 (rec_wlc_*, rec_kn_*, rec_lc/pht/pst/pat/fpa,
   dis_*, revup_*):** chain E re-runs within_lick_correction / learned_compensation / disengagement. Do the
-  behaviour-only PNGs actually move? The dis_* panels also depend on A6 (camera quit;
+  behavior-only PNGs actually move? The dis_* panels also depend on A6 (camera quit;
   ENGAGEMENT_CAMERA_2026-11-05). Deck slides 57-60 and 62-64 follow. Slide 61 (rec_wlc_neural) = yes.
 - **Imaging 15.1-15.7 (quiet-event copy):** RECONCILIATION D4 recommends replacing them with a pointer to encoding
   section 23 instead of re-rendering. No decision was found.
@@ -107,10 +107,10 @@ Encoding figures by input family:
 
 ## Main decisions encoded
 
-- Kinematics camera figures stay "no" in this pass. They use the behaviour-pipeline gate, and the jaw-only rule
+- Kinematics camera figures stay "no" in this pass. They use the behavior-pipeline gate, and the jaw-only rule
   leaves kinematics outputs unchanged. A7 / A15 change a methods line only. 3-D / spout changes land with the next
   3-D re-run (PAGE_EDITS "NOT in this pass").
-- Behaviour hit-rate / engagement figures are "yes" under A6. This supersedes D8. They are a behaviour-pipeline
+- Behavior hit-rate / engagement figures are "yes" under A6. This supersedes D8. They are a behavior-pipeline
   re-render, not a `_daqlk` run.
 - Encoding section 5 landing figures (and their kinematics 4.12-4.19 copies) are "yes". Their captions say trials =
   the encoder run's attempted gate, which is now the camera-selection trial_attempts table.

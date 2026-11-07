@@ -17,7 +17,7 @@ Read in this order:
    for the 415 scripts outside `archive/`.
 
 Two cohorts exist. **Cohort 1** = PS92-PS95. **Cohort 2** = PS118, PS120, PS121, PS122, imaged from 2026-10-29. They
-are analysed separately and never pooled. Read [`NEW_COHORT_2026-10-29.md`](NEW_COHORT_2026-10-29.md) before running
+are analyzed separately and never pooled. Read [`NEW_COHORT_2026-10-29.md`](NEW_COHORT_2026-10-29.md) before running
 anything: hand runs on cohort 2 need `WIDEFIELD_COHORT=cohort2`.
 
 ---
@@ -33,7 +33,7 @@ one names the older handoff it supersedes. The full list of status docs is in
 | **Code (engineering, refactors)** | [`status/CODE_REVIEW_2026-11-04.md`](status/CODE_REVIEW_2026-11-04.md): verified findings, what to consolidate, the proposed order of work | [`status/REPO_CONSOLIDATION_PLAN_2026-11-03.md`](status/REPO_CONSOLIDATION_PLAN_2026-11-03.md), [`status/REPO_AUDIT_2026-11-03.md`](status/REPO_AUDIT_2026-11-03.md); older inventory [`status/STATUS_2026-09-21_ENGINEERING.md`](status/STATUS_2026-09-21_ENGINEERING.md) |
 | **Trial gates, imaging section 1 table, pose / 3-D (incl. side cameras), spout position** | [`status/STATUS_2026-11-03_TRIAL_GATES_S1_TABLE_HANDOFF.md`](status/STATUS_2026-11-03_TRIAL_GATES_S1_TABLE_HANDOFF.md) (read its "START HERE (window e0, 11-04 late)" block first) | [`POSE_MODELS.md`](POSE_MODELS.md) (Part E = side cameras and four-camera 3-D); [`status/SPOUT_POSITION_AUDIT_2026-11-04.md`](status/SPOUT_POSITION_AUDIT_2026-11-04.md) |
 | **Quiet-period cortical events, PI deck** | [`status/STATUS_2026-11-01_QUIET_EVENTS_HANDOFF.md`](status/STATUS_2026-11-01_QUIET_EVENTS_HANDOFF.md) (read its "11-04 (evening)" block first) | [`status/RUNNING_LIST_2026-11-03_AWAY.md`](status/RUNNING_LIST_2026-11-03_AWAY.md), [`status/PAGE_EDITS_PENDING_2026-11-04.md`](status/PAGE_EDITS_PENDING_2026-11-04.md) |
-| **Kinematics page (behaviour), repo audit** | [`status/STATUS_2026-11-03_KINEMATICS_PAGE_REPO_AUDIT_HANDOFF.md`](status/STATUS_2026-11-03_KINEMATICS_PAGE_REPO_AUDIT_HANDOFF.md) | DECISIONS 2026-11-03 (trial classes) |
+| **Kinematics page (behavior), repo audit** | [`status/STATUS_2026-11-03_KINEMATICS_PAGE_REPO_AUDIT_HANDOFF.md`](status/STATUS_2026-11-03_KINEMATICS_PAGE_REPO_AUDIT_HANDOFF.md) | DECISIONS 2026-11-03 (trial classes) |
 | **Encoding model** | [`status/STATUS_2026-10-26_ENCODING_HANDOFF.md`](status/STATUS_2026-10-26_ENCODING_HANDOFF.md) (section "00. START HERE") | [`ENCODING_FINDINGS.md`](ENCODING_FINDINGS.md). The cohort 1 rebuild (from 11-03) keeps its state on the `rebuild/*` branches (for example `rebuild/cohort1-20261103`), not yet on main. |
 | **FaceRhythm** | [`status/STATUS_2026-10-24_FACE_RHYTHM_HANDOFF.md`](status/STATUS_2026-10-24_FACE_RHYTHM_HANDOFF.md) | [`FACE_RHYTHM_FINDINGS.md`](FACE_RHYTHM_FINDINGS.md), [`FACE_RHYTHM_PIPELINE.md`](FACE_RHYTHM_PIPELINE.md) |
 | **Pose tracking / cam1 / jaw calls (before the 11-03 work)** | [`status/STATUS_2026-10-21_POSE_CAM1_JAW_HANDOFF.md`](status/STATUS_2026-10-21_POSE_CAM1_JAW_HANDOFF.md) | [`POSE_MODELS.md`](POSE_MODELS.md) |
@@ -41,7 +41,7 @@ one names the older handoff it supersedes. The full list of status docs is in
 | **Chronic stability (cohort 1 imaging complete)** | [`status/STATUS_2026-10-07_CHRONIC_STABILITY_COHORT_COMPLETE.md`](status/STATUS_2026-10-07_CHRONIC_STABILITY_COHORT_COMPLETE.md) | DECISIONS 2026-10-07 |
 | **ENL sensory vs plan** | [`status/STATUS_2026-09-24_ENL_SENSORY_VS_PLAN.md`](status/STATUS_2026-09-24_ENL_SENSORY_VS_PLAN.md) | |
 | **CD trajectories** | [`status/STATUS_2026-09-24_CD_TRAJECTORIES.md`](status/STATUS_2026-09-24_CD_TRAJECTORIES.md) | |
-| **Haemodynamics (closed) and engagement** | [`status/STATUS_2026-09-20.md`](status/STATUS_2026-09-20.md) | [`PREPROCESSING_DECISION.md`](PREPROCESSING_DECISION.md) |
+| **Hemodynamics (closed) and engagement** | [`status/STATUS_2026-09-20.md`](status/STATUS_2026-09-20.md) | [`PREPROCESSING_DECISION.md`](PREPROCESSING_DECISION.md) |
 | **Anatomical arm (where the code moves)** | [`status/STATUS_2026-09-12.md`](status/STATUS_2026-09-12.md) | [`WHERE_THE_CODE_MOVES.md`](WHERE_THE_CODE_MOVES.md) |
 | **Rest baseline** | [`status/STATUS_2026-09-16.md`](status/STATUS_2026-09-16.md) | [`REST_ENGAGEMENT_AUDIT.md`](REST_ENGAGEMENT_AUDIT.md) (read before quoting any rest number) |
 
@@ -75,13 +75,13 @@ Three Windows boxes run this repo. `wfield_local/paths.py` (`PathResolver`) pick
 the `WIDEFIELD_MACHINE` env var if set, else a signature path (for this desktop, `C:/Users/SabatiniLab`). The
 mounts per box are in `configs/paths.yaml`. **Take paths from `PathResolver`, never type a drive letter.**
 
-| | **Analysis desktop** (this box; profile `analysis_desktop`) | **Analysis / behaviour GPU box** (profile `analysis`) | **Imaging (PCO) box** (profile `imaging`) |
+| | **Analysis desktop** (this box; profile `analysis_desktop`) | **Analysis / behavior GPU box** (profile `analysis`) | **Imaging (PCO) box** (profile `imaging`) |
 |---|---|---|---|
 | python | `C:/Users/SabatiniLab/miniconda3/envs/locanmf/python.exe` | `C:/Users/sabatini/.conda/envs/locanmf/python.exe` | `C:\ProgramData\anaconda3\envs\wfield` (env `wfield`) |
 | repo | `C:/Users/SabatiniLab/Github/widefield_pipeline` | `C:\Users\sabatini\GitHub\widefield_pipeline` | `C:\Github\widefield_pipeline` |
 | MICROSCOPE share | `M:` | `M:` | `N:` |
 | standby share | `N:` | — | `M:` |
-| local data | — | `D:` (camera + behaviour-log staging) | `E:` (raw imaging + DAQ) |
+| local data | — | `D:` (camera + behavior-log staging) | `E:` (raw imaging + DAQ) |
 | local figure dir (`figures_working`) | `C:/Users/SabatiniLab/cue_lick` | `C:/Users/sabatini/source/cue_lick` | `E:/cue_lick` |
 | GPU / torch | RTX 5060 (Blackwell): torch **cu128** is required (`locanmf`, `dlc`, `lp` envs here have `2.11.0+cu128`) | RTX 4060: torch cu124 (`2.6.0+cu124`, README setup) | not needed (numba + numpy < 2.1) |
 | runbook | this page + the arm handoffs | [`runbooks/analysis_computer_nightly.md`](../runbooks/analysis_computer_nightly.md) | [`runbooks/imaging_computer_nightly.md`](../runbooks/imaging_computer_nightly.md) |

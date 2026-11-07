@@ -143,7 +143,7 @@ def raw_zones(shape, lm: dict) -> np.ndarray:
 
 
 def local_ncc(a: np.ndarray, b: np.ndarray, win: int = LOCAL_WIN) -> np.ndarray:
-    """Windowed normalised cross-correlation map of two images."""
+    """Windowed normalized cross-correlation map of two images."""
     import cv2
     k = (win, win)
     ma, mb = cv2.boxFilter(a, -1, k), cv2.boxFilter(b, -1, k)
@@ -165,7 +165,7 @@ def mouth_weight(shape, mouth) -> np.ndarray:
 def shell_weight(poly, shape, mouth=None) -> np.ndarray:
     """(H, W) weight of the RAW non-rigid field: 1 inside the face polygon deeper than SHELL_PX, ramping to 0 at the
     contour, 0 outside (the OUTER SHELL gets the smoothed field); EXCEPT within MOUTH_R of the resting jaw (``mouth``),
-    kept raw (Priya: keep the edge about the mouth, bottom centre)."""
+    kept raw (Priya: keep the edge about the mouth, bottom center)."""
     import cv2
     H, W = shape
     m = np.zeros((H, W), np.uint8)

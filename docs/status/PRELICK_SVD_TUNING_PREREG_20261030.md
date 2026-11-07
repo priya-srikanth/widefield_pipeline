@@ -54,12 +54,12 @@ hemisphere (float32), plus the existing area pools (MOTOR = mean of ALM and tjM1
 
 ## 2. Decoder (fixed)
 Per animal x hemisphere x window (x K):
-1. **Feature centring**: within session x spout, on all licks of the set (label-free; as the area decode, its deviation 4).
-2. **PCA** on the centred pixel features of the TRAINING sessions only (covariance PCA, pixels not z-scored), first K
+1. **Feature centering**: within session x spout, on all licks of the set (label-free; as the area decode, its deviation 4).
+2. **PCA** on the centered pixel features of the TRAINING sessions only (covariance PCA, pixels not z-scored), first K
    components; **K = 10 primary**, 5 and 20 sensitivity. PCA uses no label, so it is identical under any permutation of
    y: it is computed once per outer fold and reused for the inner CV and every permutation (equivalent to refitting it).
-3. **Ridge** on the K PC scores standardised on the training sessions; alpha from the grid 10^{-1..5} (7 values) chosen
-   by inner leave-one-session-out CV within the training sessions (maximise mean held-out per-session r); refit on all
+3. **Ridge** on the K PC scores standardized on the training sessions; alpha from the grid 10^{-1..5} (7 values) chosen
+   by inner leave-one-session-out CV within the training sessions (maximize mean held-out per-session r); refit on all
    training sessions with that alpha. Intercept = training mean of y (~0 by construction).
 4. **Pre-stroke score = leave-one-SESSION-out**: for each August pre session s, steps 2-3 on the other pre sessions,
    predict s; **r_s = corr(prediction, y) within s**. Animal score **r_LOSO = mean over its pre sessions of r_s**
@@ -80,7 +80,7 @@ C:/Users/SabatiniLab/cue_lick`; `local_dir()` checked and printed before fitting
   alpha CV, LOSO; PCA unchanged by construction, step 2). p = (1 + #{null r_LOSO >= observed}) / 201; null 95th pct saved.
 * **GATE (PRE window, K = 10)**: an animal passes if at least one hemisphere's r_LOSO beats its null at p < 0.05; **gate
   passes if >= 3 / 4 animals pass.** Then P1-P3 below are confirmatory; otherwise every post-stroke number is descriptive
-  and labelled "gate failed". *Note, stated:* "at least one of two hemispheres" is not corrected across hemispheres (per
+  and labeled "gate failed". *Note, stated:* "at least one of two hemispheres" is not corrected across hemispheres (per
   animal false-pass ~0.10 under the null); the per-hemisphere p and the Bonferroni x 2 count are reported beside it.
 * **POSITIVE CONTROL (POST window, K = 10, same rule)**: expected to pass (the area analysis saw a contraversive POST
   pattern 4/4). **If POST fails, the method itself is underpowered at these trial counts and a PRE failure says nothing
@@ -91,7 +91,7 @@ C:/Users/SabatiniLab/cue_lick`; `local_dir()` checked and printed before fitting
   change even if the CI excludes 0 (stated next to each primary number).
 
 ## 4. Post-stroke readout and primary cells
-* Per post session: **frozen r** = corr(frozen full-pre decoder prediction, y) on that session (features centred within
+* Per post session: **frozen r** = corr(frozen full-pre decoder prediction, y) on that session (features centered within
   session x spout as in pre). Pre column = the LOSO r_s (both out-of-session, so comparable).
 * **Primary (PRE window, K = 10)**: **P1 r_c** = contralesional (RIGHT hemisphere, image right) frozen r; **P2 r_i** =
   ipsilesional (LEFT, image left); **P3 D = r_c - r_i** (per session). Each post epoch (acute / subacute / chronic, the
@@ -128,8 +128,8 @@ The decode r is unsigned (information about the angle, not its direction); weigh
 Statistics as sections 3-4; `analysis_kit.fan_sessions` (<= 4 workers, ~1.4 GB each, free RAM checked first) for the
 per-session feature extraction; animals x hemispheres x windows fanned for the permutations. All seeds fixed
 (`SEED = 0`, per-cell seeds from animal / hemisphere / window).
-**Figures** (Priya's defaults): sessions = OPEN markers, shape = animal (PS92 o, PS93 s, PS94 ^, PS95 D), colour =
-epoch (`orofacial_cohort.EPOCH_LINE`); pooled = FILLED marker in the epoch colour with 95 % CI; no figure numbers in
+**Figures** (Priya's defaults): sessions = OPEN markers, shape = animal (PS92 o, PS93 s, PS94 ^, PS95 D), color =
+epoch (`orofacial_cohort.EPOCH_LINE`); pooled = FILLED marker in the epoch color with 95 % CI; no figure numbers in
 titles / images (panel letters only); no lines connecting epochs; stars in the top band (`star_top` + `reserve_headroom`,
 via the `within_lick_correction` wrappers -- `sig_marks.star_top` is not in this worktree); legends / titles clear of
 data; hemisphere comparisons orange = contralesional (right), purple = ipsilesional (left). Primary figure: **A** gate
@@ -145,7 +145,7 @@ n = 4 animals (PROVISIONAL at best); GCaMP6s lag (~0.1-0.2 s), so PRE reflects a
 the jaw leads the tongue by 52-120 ms, so PRE can carry jaw-movement-locked activity (no PREJAW variant here); launch
 noise 5-8 deg per lick bounds any r; within-spout SD 13 deg; ~330 licks per session x 7-8 pre sessions per animal;
 U_atlas registration jitter between sessions blurs a fine pattern pooled across sessions (pooling trades it for trial
-count); per-session pixel offsets removed by centring but per-session gain differences are not; no control area
+count); per-session pixel offsets removed by centering but per-session gain differences are not; no control area
 (RSPd / VISpm) in this add-on, so a non-specific post-stroke change cannot be excluded here.
 
 ## Outcome
@@ -160,7 +160,7 @@ Outputs: `.../imaging_encoding/prelick_svd_tuning/` (`features/<label>.npz`, `ex
 first cued licks per session median 331 (125-559). The V-space projection reproduces the area analysis's ALM PRE values
 (max |diff| 6e-4 against a per-lick SD of 5-17). Frozen: 64 `prelaunch_svd` models `frozen-new` in the LOCAL store
 `C:/Users/SabatiniLab/frozen_models` (existing, with decoder / encoder / enl / lick / reembed / state; not published); the
-frozen-LOSO r equals the permutation-path r to 5e-9. Run time ~5 min (extract 0.9, fit 1.6, refit 1.1, summarise ~1).
+frozen-LOSO r equals the permutation-path r to 5e-9. Run time ~5 min (extract 0.9, fit 1.6, refit 1.1, summarize ~1).
 
 #### Gate (August pre, pooled LOSO, K = 10): PASSED NOMINALLY (3 / 4); positive control (POST) FAILED (2 / 4)
 | animal | PRE c (right) r_LOSO / p | PRE i (left) r_LOSO / p | POST c r / p | POST i r / p | pre sessions |
@@ -201,7 +201,7 @@ Pre r_LOSO, animal means: PRE pixels c +0.011 / i +0.018 vs pool +0.012 / -0.013
 PS95 i). **Pooling sessions alone does not create a pre-launch readout from the area mean.** The pixels add a small one
 in the ipsilesional hemisphere of three animals (PRE) and a clearer one after contact (POST, two animals robustly).
 Spatial pattern therefore matters somewhat: averaging over ALM + tjM1 does cancel part of what pixels carry, most
-visibly POST. The weight maps (F, normalised per hemisphere) show mixed-sign lobes within ALM / tjM1 rather than one
+visibly POST. The weight maps (F, normalized per hemisphere) show mixed-sign lobes within ALM / tjM1 rather than one
 area-wide sign, which is consistent with cancellation. They are noisy and differ between animals (descriptive).
 
 #### Secondary (descriptive, no correction)
@@ -229,7 +229,7 @@ area pool mostly AFTER contact, so spatial cancellation is real but does not unc
 GCaMP6s; PROVISIONAL.
 
 #### Deviations (2026-10-30, dated; the design above is unchanged)
-1. Weight maps are drawn normalised per hemisphere (w / max |w|). The inner-CV alpha differs between hemispheres (0.1 vs
+1. Weight maps are drawn normalized per hemisphere (w / max |w|). The inner-CV alpha differs between hemispheres (0.1 vs
    1e5), so absolute weights are not comparable. This changes the figure only.
 2. Refit r: run as pre-registered; its negative level bias was found after the run (see Secondary). No null was added.
 3. The smoke test (PS92, 4 sessions) wrote its frozen models to a throwaway scratchpad store

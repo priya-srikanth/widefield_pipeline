@@ -22,7 +22,7 @@ SHARE = re.compile(r"M:/MICROSCOPE|oo\.root\(|PathResolver\(\)\.root\(|_run_dir\
 ROUTED = re.compile(r"run_mode|output_dir\(|routed_output|lp_licks\.output_tag|require_default|fe\.out_root\(\)")  # + encoder root
 BEHAVIOUR = {
     "apparatus_mouth.py", "cam1_clean_qc.py", "cam1_incomplete_licks.py", "cam1_lick_aim.py", "cam1_licks.py",
-    "cam4_timing_check.py", "face_rhythm_aligned_maps.py", "face_rhythm_asym_aligned.py",
+    "cam4_timing_check.py", "face_rhythm_aligned_maps.py", "face_rhythm_asym_aligned.py", "face_rhythm_band_maps.py",
     "face_rhythm_bout_split.py", "face_rhythm_evr_epochs.py", "face_rhythm_factor_clips.py",
     "face_rhythm_lick_epochs.py", "face_rhythm_match.py", "face_rhythm_nontask_state.py", "face_rhythm_param_qc.py",
     "face_rhythm_position_maps.py", "face_rhythm_prep.py", "face_rhythm_readouts.py", "face_rhythm_validate.py",

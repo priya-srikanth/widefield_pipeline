@@ -16,13 +16,13 @@ Granger (S18).
 | Lemke 2019 Nat Neurosci 22:1122 | M1-dorsolateral striatum 3-6 Hz LFP coherence around movement | coherence rises with skill learning (0.18 -> 0.24); tracks movement consistency | yes (M1-DLS) |
 | Veuthey 2020 Nat Commun 11:4057 | CCA between M2 and M1 populations -> single-trial cross-area latents | cross-area reach modulation grows with learning, predicts RT / duration; M2 leads M1 | yes |
 | Lemke 2021 eLife 10:e64303 | M1-DLS spindle / slow-oscillation coupling in NREM | coupling grows over learning | yes (sleep) |
-| Kim 2023 Nature 613:103 | PFC-M1 slow-oscillation coupling in sleep; shared-over-total variance | PFC-M1 coupling up as skill stabilises | yes (sleep) |
+| Kim 2023 Nature 613:103 | PFC-M1 slow-oscillation coupling in sleep; shared-over-total variance | PFC-M1 coupling up as skill stabilizes | yes (sleep) |
 | Lemke 2024 Curr Biol 34:1831 | feature-specific information transfer (M1 <-> striatum) | direction of MOVEMENT-SPECIFIC information flow reverses with learning; raw co-activation / total transfer miss it | yes, directed |
 
 **THE 2026 sensory-motor preprint (Priya sent the PDF 10-30): Heimbuch, Khanna, Novik, Morecraft, Ganguly, "Shared
 somatosensory-motor neural population dynamics track motor recovery after stroke", bioRxiv 10.64898/2026.02.10.705199.**
 3 macaques, M1 hand/arm lesion; 64-ch arrays in PMd and Area 2; reach-to-grasp. Method: **DLAG** (Gokcen 2022, two-area
-GPFA) on single trials, 2-s epochs centred on pellet touch, 20 ms bins, sqrt, demeaned by trial average per unit, z-scored;
+GPFA) on single trials, 2-s epochs centered on pellet touch, 20 ms bins, sqrt, demeaned by trial average per unit, z-scored;
 5 cross-area factors (CFs) + 5 within-area factors (WFs) per area, fixed for cross-session comparison; low spiking-band
 power used across recovery (unit identity changes). Readouts per session: CF Gaussian-process **timescale tau**; CF
 **delay** (direction); **stereotypy** = per-trial r of the single-trial CF trace vs the leave-one-out mean of the other
@@ -47,7 +47,7 @@ J Neurosci (fMRI), Hakon 2018, Bice 2022 eLife, Allegra Mascaro 2019 Cell Rep; L
 depression at 1 week; Cecchini 2021 PLoS Comput Biol: slower, irregular propagation subacute. The only "more coupled"
 precedent found: van Meer 2012 J Neurosci (subacute excess clustering). **No widefield mouse paper found reporting a
 cortex-wide correlation rise at rest after stroke**, so our S17 rest result is either new or a confound (arousal /
-global mode / haemodynamics) and needs those controls before it is framed.
+global mode / hemodynamics) and needs those controls before it is framed.
 
 ## Options for this dataset (ranked)
 0. **Heimbuch-style analysis on our data (added 10-30 after reading the preprint).** Two "areas" = sensory and motor groups
@@ -56,7 +56,7 @@ global mode / haemodynamics) and needs those controls before it is framed.
    the 3-frame 10 Hz bins). Readouts per session: CF vs WF stereotypy (leave-one-out template r; model-light, can also be
    run on CCA components first), CF delay (S vs M lead; compare S18), CF tau (CAVEAT: GCaMP6s decay sets a floor on
    tau, so deconvolve and read tau changes only within animal), CF vs WF decoding of tongue kinematics (3-D tongue
-   speed / angle, our analogue of wrist speed). Test: does CF (not WF) stereotypy track hit rate / far-contra aim across
+   speed / angle, our analog of wrist speed). Test: does CF (not WF) stereotypy track hit rate / far-contra aim across
    recovery, per animal. DLAG reference code is MATLAB (Gokcen); a Python port would need checking / writing (no pip
    installs into the shared env). Stability gate written first, as for MVAR.
 1. **Lick-locked CCA / reduced-rank regression between sensory and motor groups** (Veuthey / Semedo): per session,
@@ -65,7 +65,7 @@ global mode / haemodynamics) and needs those controls before it is framed.
    avoids what broke MVAR / CURBD; a lagged version (sensory at t - tau -> motor at t) gives direction.
 2. **Shared-over-total variance (Khanna 1D-SOT) of area traces**, rest vs licks, per network: our synchrony number in
    the language of the papers Priya cites; separates a shared mode from pairwise structure.
-3. **Lick-locked phase consistency (ITPC) and inter-area coherence, 0.1-1 and 1-4 Hz**: the widefield analogue of
+3. **Lick-locked phase consistency (ITPC) and inter-area coherence, 0.1-1 and 1-4 Hz**: the widefield analog of
    Ramanathan / Khanna / Lemke 2019. GCaMP6s attenuates above ~3 Hz, so phase measures not power, and check against
    deconvolved traces.
 4. **Direction as information, not influence** (Lemke 2024): does lick-DIRECTION information appear in motor areas

@@ -9,8 +9,8 @@ Written 2026-09-30, for the K08 resubmission (Aim 1 ranking model).
 ## The question
 
 Aim 1 ranks nodes by how closely their frozen-to-refit gap tracks recovery, using one LMM
-per aim with a node x gap interaction. Behaviour and the gap both change over the weeks
-after stroke, so a raw gap-to-behaviour correlation is confounded by their shared time
+per aim with a node x gap interaction. Behavior and the gap both change over the weeks
+after stroke, so a raw gap-to-behavior correlation is confounded by their shared time
 course. The fix is to enter the gap as a deviation from each animal's own trajectory rather
 than raw.
 
@@ -19,11 +19,11 @@ nearly a deterministic function of time, detrending removes almost all its varia
 gap coefficient is then estimated from noise.** Over-adjustment looks exactly like a null
 result and is not one. So the question is which regime we are in.
 
-There is also a defence that does not depend on this at all, and it is the stronger one:
+There is also a defense that does not depend on this at all, and it is the stronger one:
 **the ranking is a within-session contrast.** Every node in an aim is recorded in the same
 animals on the same days, so a shared monotone time trend is common to all of them and
-cannot make node A appear to track behaviour better than node B. Time confounds the absolute
-claim "gap predicts behaviour"; it does not confound "node A tracks recovery more closely
+cannot make node A appear to track behavior better than node B. Time confounds the absolute
+claim "gap predicts behavior"; it does not confound "node A tracks recovery more closely
 than node B", which is what the aim actually claims.
 
 ## What was measured

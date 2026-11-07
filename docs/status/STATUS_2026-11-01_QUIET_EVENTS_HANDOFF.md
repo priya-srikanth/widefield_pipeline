@@ -10,7 +10,7 @@
 > - FR PAGE v41: all map figures at 10,000 shuffles; 3.10a / 3.10b drift text reworded; NEW section 7b (lick rate +
 >   rhythm-band maps + gradient table) and a "Lick rhythm" status row; registry `fr_page_src/fr_page/fig_ids.csv` = 92 figs.
 > - FINDINGS 0 + 5.10, FACE_RHYTHM_FINDINGS 6f, DECISIONS 2026-11-07 (night bullets) written. FR handoff "11-07 NIGHT".
-> - Later: page v42 + slide 84 reworded as a frequency shift (spectral centre 6.77 -> 6.56 Hz acute); script
+> - Later: page v42 + slide 84 reworded as a frequency shift (spectral center 6.77 -> 6.56 Hz acute); script
 >   `reword_band_slide_1107e.py` (backup_before_band_reword_1107e).
 
 > **11-07 (evening, before compaction) -- START HERE (a8).** Supersedes the deck facts of every block below.
@@ -52,7 +52,7 @@
 > cluster map statistics with drift controls, per-session shape tests as the MAIN tests, everything delta vs own pre.
 > Decisions: docs/DECISIONS.md "2026-11-07"; state + next steps: STATUS_2026-10-24_FACE_RHYTHM_HANDOFF.md item 00, the
 > "11-07 NIGHT" entry. Also 11-07: shared git hooksPath made relative (`.githooks`); C: cleanup (pip / conda / pytest
-> caches + own scratch; 34 removed old wfield_cache imaging / behaviour + its scratch; 7 idle worktrees removed) ->
+> caches + own scratch; 34 removed old wfield_cache imaging / behavior + its scratch; 7 idle worktrees removed) ->
 > ~98 GB free; the 299 GB render input cache goes after 34's render (~11-09). FR deck slides will need the new FR
 > figures once Priya approves the switch (draft first). Memory: delta-per-animal-pre.
 > 11-07 LATE: per-session FR results final (10k shuffles, Holm across epochs x measures); findings written; FR page
@@ -133,7 +133,7 @@
 >
 > **11-04 (evening) -- previous START HERE (PI-deck window sabatinilab-a8).** Live log, questions and findings:
 > docs/status/RUNNING_LIST_2026-11-03_AWAY.md (questions first, WATCH section, findings newest first). Decisions:
-> DECISIONS.md 11-04 entries ("Deck / pages wait for the rebuild ...", "centre = Wt"). Page work: every 11-03 / 11-04
+> DECISIONS.md 11-04 entries ("Deck / pages wait for the rebuild ...", "center = Wt"). Page work: every 11-03 / 11-04
 > change is listed as main or collapsible in docs/status/PAGE_EDITS_PENDING_2026-11-04.md (checked by e0 and 34).
 > NOTHING OF MINE IS RUNNING except the biological-gain helper (docs/status/GAIN_BIO_2026-11-04.md when it lands).
 >
@@ -155,7 +155,7 @@
 >   engagement measures (quit = last camera lick, stop rule A2 "both sides"; DAQ = robustness).
 > - Section D scored on working; section G and the G9 coding-direction classes by camera class (bias guards); G4 =
 >   the camera-class discriminator, z frame on contact rows.
-> - Frozen spout decoder / CD / pattern CENTRE = Wt (the DAQ-label balanced spout mean over working rows; per-session
+> - Frozen spout decoder / CD / pattern CENTER = Wt (the DAQ-label balanced spout mean over working rows; per-session
 >   SD). Robustness: N, WtF (fixed pre SD). Rejected: bal_em W, contact + fill Cto, rest, reference-spout anchor.
 >   The intercept refit is NOT a bound on the deficit (INJECTED_EFFECT §4 / §7).
 > - Split ALM / tjM1 basis for every Allen-ROI analysis; orofacial group = ALM, tjM1, SSp-m, SSp-n.
@@ -171,7 +171,7 @@
 > (~2/3 recovery of a known spout-specific loss; immune to offsets / rest changes). The post-stroke SD rise is a
 > global gain (task + rest); F0 ROSE.
 >
-> WATCH: the encoder pre-cue position credit may fall once spontaneous licks are modelled (LICKS_ALL = split; PS93
+> WATCH: the encoder pre-cue position credit may fall once spontaneous licks are modeled (LICKS_ALL = split; PS93
 > smokes .0072 -> .0029). 34 sends per-animal numbers FIRST when the O2 run (bundle enc_rebuild_20261104b, commanded
 > 3-D targets) lands, with the list of affected claims.
 > CLOSED 11-04: the old measured 3-D spout table (pose3d_spout_positions_20261023.csv) is gone everywhere: 34 deleted
@@ -180,25 +180,25 @@
 > next 3-D re-run. Never start duplicate helpers; resume a stopped one with SendMessage.
 >
 > UPDATE 11-03 (late+): helper (B) DONE -- spout decoder biased (prod understates acute far-contra drop ~.10; fix = bal_em
-> centring, new spec, AWAITING PRIYA); lick decoder clean except cued all-lick acute offset caveat (tell 34 after Priya).
+> centering, new spec, AWAITING PRIYA); lick decoder clean except cued all-lick acute offset caveat (tell 34 after Priya).
 > PS110: refined 891/4,276 is on the MOSAIC detection; per-tile has only strict 559/3,804; asked Priya. See running list.
 > **PRE-COMPACTION SNAPSHOT 11-03 (late) -- START HERE.** Two helpers RUNNING (resume by SendMessage if a rate limit stops
 > them; never start duplicates):
 > (A) bal_em -> PRODUCTION state decoder (Priya approved) + MIN-MASS FALLBACK (Priya approved: if a class's EM share < 5 %
->     (also test 2 / 10 %) centre with the pre-stroke class mix; default only if it clearly cuts the .09 absent-state drop
+>     (also test 2 / 10 %) center with the pre-stroke class mix; default only if it clearly cuts the .09 absent-state drop
 >     and keeps PS94 running .99 / .97 / .96 / .92 within .01). Edits wfield_local/locomotor_decoder.py (UNCOMMITTED, theirs;
 >     e3 promised not to touch it), tests, refit via load_or_fit (new spec id records min_mass), re-render state families
 >     (old -> _superseded_session_z_20261103/), DECISIONS / FROZEN_MODELS / BEHAVIOURAL_STATE_CONTROL / FINDINGS; writes
 >     build_inputs/state_balem_swaps.json (deck slides 13-14) + docs/status/STATE_BALEM_PAGE_EDITS_2026-11-03.md.
 > (B) decoder mix checks (spout frozen decoder: pool_sessions z-score on engaged trials, gated subsets, coupling; lick-
->     direction decoder: like-for-like labels but is any centre / scale over lick samples? frame-SD gain) ->
+>     direction decoder: like-for-like labels but is any center / scale over lick samples? frame-SD gain) ->
 >     labcams/decoder_mix_checks/{spout,lick}/ (figures already written, report pending) + DECISIONS. If biased: tell Priya
 >     first, and sabatinilab-34 (lick decoders = its wf_attempt code).
-> DONE late 11-03: mix-invariance stress test (1f33189e): no normalisation is both mix-invariant and right on PS94 (fixed /
-> per-segment centring fail PS94's session offset; mixture model breaks when a state dominates) -> keep bal_em.
+> DONE late 11-03: mix-invariance stress test (1f33189e): no normalization is both mix-invariant and right on PS94 (fixed /
+> per-segment centering fail PS94's session offset; mixture model breaks when a state dominates) -> keep bal_em.
 > WAITING: sabatinilab-e3 re-rendering trial classes (slides 27-32), orofacial_cohort k_metrics / Fig 1.3 (24-25),
 > cam1_incomplete_licks Fig 7.6 (attempts slide) after A1 (3.5 s hit window) / A2 / A4; will send PNG paths + the A3
-> (animal-weighted change-vs-pre) star-change list -> recrop those slides + behaviour hit-rate slide.
+> (animal-weighted change-vs-pre) star-change list -> recrop those slides + behavior hit-rate slide.
 > PAGES BLOCKED by account (session now on priya.srikanth@hhmi.org / earlier psrikanth87@gmail.com; pages owned by the HMS
 > account): Priya to /login HMS or share with edit. Then publish per docs/status/FIGURE_RULES_AUDIT_2026-11-03.md
 > (+ RESTW-first imaging reorder, section 23, bal_em section-3 edits) and send 34 the encoding-page figure-rules list.
@@ -217,7 +217,7 @@
 > nocentre / per-segment norm D1-D2 / full mixture model E) -> state_decoder_ps94_check/mix_invariance/ + DECISIONS.
 > (3) decoder mix checks (Priya 11-03, diagnostic only) -> labcams/decoder_mix_checks/{spout,lick}/ + DECISIONS: is the
 > SPOUT frozen decoder (pool_sessions z-score on engaged trials; outcome-gated subsets? coupling when far contra loses
-> drive) or the LICK-DIRECTION frozen decoder (like-for-like landing labels, but is any centre / scale computed over lick
+> drive) or the LICK-DIRECTION frozen decoder (like-for-like landing labels, but is any center / scale computed over lick
 > samples, i.e. landing-mix-dependent? frame-SD gain from acute quiet events) biased by a post-stroke class-mix shift?
 > Matters for the read-out-offset finding (licks read contralesional of landing). Helpers 1-2 were rate-limited at
 > ~12:30 and RESUMED; if a helper stops on a rate limit again, resume it (SendMessage), never start a duplicate.
@@ -245,8 +245,8 @@
 > export check). Today's deck steps: audit_1103 (+fix, fix2), short_titles, recrop_trial_classes_1103 (one all-engaged
 > class table, 07385b37), apply_camera_view_1103. Audit record: docs/status/DECK_AUDIT_2026-11-03.md.
 > RUNNING: figure-rules helper (rules: no lines joining spouts / epochs; faded open session dots, shape = animal,
-> colour = epoch; epochs offset; stars never overlap, top band; grey epoch palettes -> EPOCH_LINE) with sub-helpers on
-> imaging (epoch_figures bar dots, cd / rest / per-animal, acc-by-position star overlap, grey -> epoch colours),
+> color = epoch; epochs offset; stars never overlap, top band; gray epoch palettes -> EPOCH_LINE) with sub-helpers on
+> imaging (epoch_figures bar dots, cd / rest / per-animal, acc-by-position star overlap, gray -> epoch colors),
 > FaceRhythm, kinematics (cohort_metrics_minus_pre = fig_cohort_scalars; Fig 1.1 stars; slide-24 4-panel re-cut) and
 > encoding section 23 (ours; publish section 23 ourselves, then tell sabatinilab-34). It publishes imaging + FR pages
 > itself; kinematics _nolines files + deck figure_rules_swaps.json come back to this window. Encoding page outside
@@ -255,8 +255,8 @@
 > Shared helper wfield_local/cat_points.py (a89c1f2d); camera_view.py (9f68c492).
 > PAGES: imaging v49 (+ helper edits; sabatinilab-5b owns section 1 table / Fig 1.2 caption / takeaway -- swap images only;
 > deck slide 9 quotes section 1, 5b will send changes); kinematics v24 (camera-view paths, + = contra default); encoding v312.
-> OPEN FOR PRIYA: (a) state decoder: adopt CLASS-BALANCED session centring as a new frozen spec? (running-definition test
-> 783c04b2: kinematic 1.5 mm/s rule helps PS94 but hurts PS92; balanced centring fixes PS94 .97 / .96 / .91, no animal
+> OPEN FOR PRIYA: (a) state decoder: adopt CLASS-BALANCED session centering as a new frozen spec? (running-definition test
+> 783c04b2: kinematic 1.5 mm/s rule helps PS94 but hurts PS92; balanced centering fixes PS94 .97 / .96 / .91, no animal
 > worse); (b) slide 31 (all-engaged trial classes) as THE main trial-class slide?; (c) RESTW vs REST lead on maps; (d)
 > PS110 mCherry count 559 / 3,804 vs refined 891 / 4,276; (e) Big-picture quiet bullet qualifier; (f) oblique 3-D views
 > relabelled not mirrored -- OK?; (g) path axis + = contra running right-to-left -- OK?; (h) delete 11-02 mirrored path files?
@@ -286,7 +286,7 @@
 > Pages updated (NOT the encoding page): imaging v47 (Figs 0.2, 1.4, 3.4, 4.4; section-1 acute n 4/4/4/1; quiet ~7x),
 > kinematics v15 (Figs 7.6, 10.1). Waiting on Priya: her grant copy (2-photon panel check), cohort-4 stroke date /
 > meaning of 'post-stroke1'; 20261029/ fluoroscopy files are named 20261028_* (likely mis-dated).
-> **OPEN (running): PS94 state decoder** collapses gradually (.98 pre -> .45 chronic normalised; others intact). Lead
+> **OPEN (running): PS94 state decoder** collapses gradually (.98 pre -> .45 chronic normalized; others intact). Lead
 > hypothesis: by_animal_day never z-scores per session although the frozen spec says zscore=True. Diagnostics in
 > M:/MICROSCOPE/Priya/Widefield/labcams/state_decoder_ps94_check/ (collect.py per animal, PIDs 27956 28444 12284 33940;
 > then analyse.py -> per_session.csv, animal_epoch_medians.csv, fig1_confusion_*.png, fig2_speed_hist.png). A fix
@@ -323,15 +323,15 @@
 > video ...]'; compare each headline number DAQ vs LP and record any change in the running list's "conclusions that
 > changed"; publish (re-read live first), message 34. (2) T13 follow-up was run on DAQ-defined events only (decoder windows
 > already exclude LP licks) -- optional LP re-run. (3) Decide with Priya whether to do T20-type laterality with a band free of
-> the 7-11 Hz artefact (4-8 Hz) as the primary synchronisation measure.
+> the 7-11 Hz artifact (4-8 Hz) as the primary synchronization measure.
 >
 > **CURRENT READING (PROVISIONAL, n = 4; LP-based quiet frames):** acutely, a pre-existing, local, non-movement 2-3 Hz event type
 > in anterolateral orofacial cortex -- rare in pre-stroke ENGAGED quiet (0.1-0.5 /min), 8-60x more frequent when the animal
 > disengages, same map in both states -- becomes common while engaged: face-regressed orofacial events x6.7 acute, x3.1
 > subacute, x1.5 chronic (4/4; DAQ-only frames x5.1), orofacial 1-4 Hz power up with NO lesion-side bias. Holds at matched face
 > stillness (largest when still), also in pre-cue / ITI windows. 15.7-type map difference = mostly WHICH events occur.
-> RULED OUT: face movement, contact-only masking (LP makes it larger), haemodynamics (415 nm, T10), interictal (T11, T19),
-> breathing (T9; weak video proxy). WITHDRAWN: ipsilesional > contralesional synchronisation (T22: non-calcium 7-11 Hz peak);
+> RULED OUT: face movement, contact-only masking (LP makes it larger), hemodynamics (415 nm, T10), interictal (T11, T19),
+> breathing (T9; weak video proxy). WITHDRAWN: ipsilesional > contralesional synchronization (T22: non-calcium 7-11 Hz peak);
 > 'acute events decay faster' (not robust to movement correction); 'common driver' from onset timing (31 Hz cannot resolve).
 > MEANING: a pre-cue event goes with a weaker frozen-decoder position code acute / subacute (4/4; NOT decoder contamination,
 > T13 follow-up) but does not predict failed far-contra attempts beyond time-in-session; quiet measures follow the recovery
@@ -411,8 +411,8 @@ See the running list's "Still running" table (single source). Scripts started by
 ## 4. Every test proposed 11-01 to distinguish the hypotheses (status-tagged; run in this order)
 
 Hypotheses: **CIRCUIT** (lesion-driven change in the VLS -> SNr -> motor-thalamus -> orofacial-cortex loop; diaschisis /
-local sleep-like dynamics), **STATE** (drowsiness / low arousal / sickness), **ARTEFACT** (breathing / brain motion,
-haemodynamics, GCaMP epileptiform events), **SELECTION** (a change in which events cross threshold, not in the events).
+local sleep-like dynamics), **STATE** (drowsiness / low arousal / sickness), **ARTIFACT** (breathing / brain motion,
+hemodynamics, GCaMP epileptiform events), **SELECTION** (a change in which events cross threshold, not in the events).
 
 | # | test | separates | prediction | status |
 |---|---|---|---|---|
@@ -424,19 +424,19 @@ haemodynamics, GCaMP epileptiform events), **SELECTION** (a change in which even
 | T6 | quit-period vs engaged quiet: cortex bands, face speed | STATE | -- | DONE: pre quit already has the orofacial 1-4 Hz signature, cortex-wide lower; engaged-quiet face speed halves acutely 4/4 (3.8) |
 | T7 | within engaged quiet: event rate vs face stillness (per session, binned face speed) | STATE contribution | rate rises with stillness -> state adds | DONE: rise persists at matched stillness, largest when still |
 | T8 | per-animal ipsi vs contra comparison of the rate / SD increase (direct, not by eye from 15.6) | CIRCUIT (ipsilesional) vs global | CIRCUIT: ipsi > contra in >= 3/4 | DONE: no ipsi bias (orofacial +0.02 n.s.; limb contra > ipsi acute) -- running list |
-| T9 | breathing: coherence of quiet orofacial trace with FaceRhythm breathing / sniff factors, pre vs acute; respiration rate change | ARTEFACT (breathing) | coherence high / tracks respiration -> artefact | DONE: not supported (low, unchanged coherence; no tracking; regression leaves the rise) |
-| T10 | haemodynamics: the same events / band power in the 415 nm channel and in uncorrected 470 | ARTEFACT (haemodynamic) | events absent in 415 -> neural | DONE: excluded (415 unchanged, no event-locked 415) |
-| T11 | amplitude distribution; count of events > 10 % dF/F and cortex-wide synchronous events (Steinmetz 2017 interictal shape) | ARTEFACT / epileptiform | none -> not interictal | DONE: not interictal (big events rarer acutely, less limb co-occurrence) -- running list |
+| T9 | breathing: coherence of quiet orofacial trace with FaceRhythm breathing / sniff factors, pre vs acute; respiration rate change | ARTIFACT (breathing) | coherence high / tracks respiration -> artifact | DONE: not supported (low, unchanged coherence; no tracking; regression leaves the rise) |
+| T10 | hemodynamics: the same events / band power in the 415 nm channel and in uncorrected 470 | ARTIFACT (hemodynamic) | events absent in 415 -> neural | DONE: excluded (415 unchanged, no event-locked 415) |
+| T11 | amplitude distribution; count of events > 10 % dF/F and cortex-wide synchronous events (Steinmetz 2017 interictal shape) | ARTIFACT / epileptiform | none -> not interictal | DONE: not interictal (big events rarer acutely, less limb co-occurrence) -- running list |
 | T12 | events in pre-cue / ITI (task) windows, not only quiet | relevance | -- | DONE: rise in every task window 4/4 |
 | T13 | pre-cue event on a trial -> failed far-contra attempt / weaker pre-cue position code on that trial | CIRCUIT-noise mechanism for the deficit | events predict failure | DONE: not failure (beyond time-in-session), but weaker position code acute/sub 4/4 |
 | T14 | within animal, event rate vs far-contra recovery with log-day removed (as `iti_recovery_link.py`) | link to recovery | negative relation | DONE: r -0.75 raw, -0.23 detrended (p .048, 2/4) |
-| T15 | rate tracks each animal's deficit (PS93 largest acute rate; PS94 least recovered); pre-register orderings for cohort2 | CIRCUIT vs STATE / ARTEFACT | -- | DONE: no ordering (rho -0.20) |
+| T15 | rate tracks each animal's deficit (PS93 largest acute rate; PS94 least recovered); pre-register orderings for cohort2 | CIRCUIT vs STATE / ARTIFACT | -- | DONE: no ordering (rho -0.20) |
 | T16 | Ramanathan tension: movement-locked low-frequency (1-4 Hz) power in lick windows vs the quiet increase, same sessions | reconcile with Ramanathan 2018 (task LFOs fall) | task LFO down while quiet up | DONE: task-locked ITPC unchanged acutely, evoked LFO up -- no dissociation |
 | T17 | (DONE 11-01, see end of section 6) literature: targeted PubMed search (striatal / capsular stroke + widefield GCaMP / cortical recordings); verify the *(memory)* citations (Allegra Mascaro 2019, Levin 2009, Nudo 1996, Lee-Wang-Sabatini 2020) | context | -- | DONE 11-01 |
-| T19 | Steinmetz criteria explicitly: waveform (rise / decay vs their ~150 ms interictal shape), refractoriness (inter-event interval distribution, 0.5-1 s gap), positive-only vs both polarities, bilateral symmetry, per animal incl. PS93 (cortical injury) | ARTEFACT / epileptiform (T17 caveat: location + rate overlap) | none of the criteria met -> not interictal | DONE: not interictal |
-| T20 | SYNCHRONISATION index (low / high frequency power, e.g. 1-4 Hz / 8-15 Hz) in quiet and pre-cue frames, orofacial vs control areas, ipsi vs contra, by epoch | Priya's original hypothesis: REDUCED tonic thalamocortical drive -> synchronised cortex (Poulet 2012) | more synchronised acutely, strongest orofacial (and ipsilesional if via the loop) | DONE 11-01/02 (972954e3, c1e1eada; laterality withdrawn); re-run 11-05 with ak stats + pre-cue frames (reanalysis_20261105/QUIET_T20_T22_2026-11-05.md, EARLY LOOK): acute orofacial +0.67 log10 quiet / +0.61 pre-cue, 4/4, a 1-4 Hz rise; orofacial - limb +0.53, 4/4; NOT ipsilesional (limb shifts as much; 415 has its own asymmetry); nothing passes Holm |
-| T21 | within PRE sessions: does pre-lick slow power (1-4 Hz, -1..0 s) predict the lick-evoked response size? | is the acute ~2x lick response a consequence of a synchronised state (evoked responses are larger in quiet wakefulness, Crochet & Petersen 2006) rather than more drive | yes -> state explains part of the larger response | DONE 11-02 (4452139a); re-run 11-05: causal power +0.07 % dF/F per SD (2/4), ~2-5 % of the response; the acausal +0.25 is mostly filter leak. Weak; explains little of the acute larger response |
-| T22 | per-area F0 (470 minus the 415-predicted haemodynamic part), ipsi vs contra orofacial vs control areas | tonic level (the only measure close to it; weak) | reduced drive -> relative ipsi orofacial F0 drop | DONE 11-05: not supported (no ipsi orofacial F0 drop in any animal; F0 rises on both sides +0.04 / +0.07, also in limb; the 415 fit is poor in PS94) |
+| T19 | Steinmetz criteria explicitly: waveform (rise / decay vs their ~150 ms interictal shape), refractoriness (inter-event interval distribution, 0.5-1 s gap), positive-only vs both polarities, bilateral symmetry, per animal incl. PS93 (cortical injury) | ARTIFACT / epileptiform (T17 caveat: location + rate overlap) | none of the criteria met -> not interictal | DONE: not interictal |
+| T20 | SYNCHRONIZATION index (low / high frequency power, e.g. 1-4 Hz / 8-15 Hz) in quiet and pre-cue frames, orofacial vs control areas, ipsi vs contra, by epoch | Priya's original hypothesis: REDUCED tonic thalamocortical drive -> synchronized cortex (Poulet 2012) | more synchronized acutely, strongest orofacial (and ipsilesional if via the loop) | DONE 11-01/02 (972954e3, c1e1eada; laterality withdrawn); re-run 11-05 with ak stats + pre-cue frames (reanalysis_20261105/QUIET_T20_T22_2026-11-05.md, EARLY LOOK): acute orofacial +0.67 log10 quiet / +0.61 pre-cue, 4/4, a 1-4 Hz rise; orofacial - limb +0.53, 4/4; NOT ipsilesional (limb shifts as much; 415 has its own asymmetry); nothing passes Holm |
+| T21 | within PRE sessions: does pre-lick slow power (1-4 Hz, -1..0 s) predict the lick-evoked response size? | is the acute ~2x lick response a consequence of a synchronized state (evoked responses are larger in quiet wakefulness, Crochet & Petersen 2006) rather than more drive | yes -> state explains part of the larger response | DONE 11-02 (4452139a); re-run 11-05: causal power +0.07 % dF/F per SD (2/4), ~2-5 % of the response; the acausal +0.25 is mostly filter leak. Weak; explains little of the acute larger response |
+| T22 | per-area F0 (470 minus the 415-predicted hemodynamic part), ipsi vs contra orofacial vs control areas | tonic level (the only measure close to it; weak) | reduced drive -> relative ipsi orofacial F0 drop | DONE 11-05: not supported (no ipsi orofacial F0 drop in any animal; F0 rises on both sides +0.04 / +0.07, also in limb; the 415 fit is poor in PS94) |
 | T18 | k-choice bias: report subacute / chronic (not used to pick k) as the unbiased contrasts; held-out-animal k already LOAO | statistics | -- | NOTE (reported in 15.1 caption) |
 
 ## 5. Files
@@ -466,27 +466,27 @@ FINDINGS.md sections 0-5 plus this arm.
 
 | our result | prior literature | verdict |
 |---|---|---|
-| Behaviour recovers by COMPENSATION (success back; contralesional licks use a changed pattern) | Established in human kinematics and rodent reaching (Levin / Kleim / Wolf definitions; Whishaw rat reaching) *(memory)* | SUPPORTS; orofacial / licking version in mouse new |
+| Behavior recovers by COMPENSATION (success back; contralesional licks use a changed pattern) | Established in human kinematics and rodent reaching (Levin / Kleim / Wolf definitions; Whishaw rat reaching) *(memory)* | SUPPORTS; orofacial / licking version in mouse new |
 | LARGER task responses (ITI lick ~2x acute; chronic residual beyond the pre mapping), widespread, largest day 1, shrinking with recovery, persisting in the least recovered (PS94) | Human fMRI: task overactivation decreasing with recovery (Ward et al. 2003 Brain); meta-analysis: more contralesional M1, bilateral PMv, SMA, decreasing with time (Rehme et al. 2012 NeuroImage). Rodent widefield after CORTICAL stroke: activation spreads and refocuses with rehab (Allegra Mascaro et al. 2019) *(memory)* | STRONGLY SUPPORTS the human picture incl. time course and deficit link; new as rodent calcium after a striatal lesion |
 | (same) | Rat INTERNAL-CAPSULE stroke, multi-unit in M1 / RFA / S1, weeks 5-8: task firing slightly REDUCED, population pattern PRESERVED (Cettina, Nudo, Bundy et al. 2025 bioRxiv) | CONFLICTS (see below) |
 | CONTRALESIONAL > ipsilesional residual; contralesional shift of decoded lick position | Contralesional recruitment = most consistent fMRI finding (Rehme 2012). Orofacial: swallowing recovery tracks pharyngeal-cortex expansion in the UNAFFECTED hemisphere (Hamdy et al. 1998 Gastroenterology) | SUPPORTS direction; decoded-position shift is a new measure |
 | LARGER QUIET FLUCTUATIONS (2-3 Hz, both signs, ~5x acute, recovering; faster decay) | Human EEG: more delta after stroke, contralesional delta prognostic of poor recovery; sleep-like slow waves / OFF-periods in awake cortex after cortico-subcortical lesions (Sarasso et al. 2020 Brain) | CONSISTENT with human; new in rodents after a subcortical lesion |
 | (same) | Rat: reach-locked low-frequency oscillations in perilesional M1 WEAKENED after stroke, their return tracks recovery (Ramanathan et al. 2018 Nat Med). Rodent widefield cortical stroke: connectivity lost then partly restored (eLife 2024, 90080) | TENSION (movement-locked vs quiet; test 4.7) |
-| ACUTE ENCODING LOSS = the changed movement (frozen encoder predicts the far-contra drop from the lick) | No study found that asks whether the pre-stroke mapping already predicts the change from altered behaviour | NEW, conceptually important |
-| CHRONIC REMAPPING (same movement, different response; self-fit better; target and executed coding remapped) | Reorganisation is classic after CORTICAL lesions (Winship & Murphy 2008 J Neurosci; Latifi et al. 2020 Cereb Cortex; Nudo 1996 *(memory)*); after CAPSULAR stroke: no reorganisation (Cettina 2025) | NEW for remote cortex after a subcortical lesion; tension with capsular result; drift caveat |
+| ACUTE ENCODING LOSS = the changed movement (frozen encoder predicts the far-contra drop from the lick) | No study found that asks whether the pre-stroke mapping already predicts the change from altered behavior | NEW, conceptually important |
+| CHRONIC REMAPPING (same movement, different response; self-fit better; target and executed coding remapped) | Reorganization is classic after CORTICAL lesions (Winship & Murphy 2008 J Neurosci; Latifi et al. 2020 Cereb Cortex; Nudo 1996 *(memory)*); after CAPSULAR stroke: no reorganization (Cettina 2025) | NEW for remote cortex after a subcortical lesion; tension with capsular result; drift caveat |
 | Failed attempts (no-contact licks) lose side coding and trial-by-trial coupling; first cued lick read toward target; coupling returns on hits; code plateaus ~3/4; cortex does not lead recovery | No direct precedent found | NEW |
 | Lesion size orders recovery speed | Expected | SUPPORTS |
 | Acute orofacial quiet events LOCAL to anterolateral orofacial cortex (15.7) | Fits the VLS -> SNr -> VM/VAL -> ALM / tjM1 loop anatomy (Lee, Wang & Sabatini 2020) as a hypothesis; no stroke precedent found | NEW (pending test 4.1) |
 
 **The conflict to take seriously (Cettina et al. 2025).** Differences that likely explain much of it: internal capsule
-(corticospinal fibres) vs VLS (basal-ganglia loop node, whose loss should change thalamocortical drive); weeks 5-8
+(corticospinal fibers) vs VLS (basal-ganglia loop node, whose loss should change thalamocortical drive); weeks 5-8
 post-plateau vs our largest effects acute / subacute; ipsilesional only vs our bilateral / contralesional effects;
 multi-unit spikes in 3 areas vs widefield calcium over dorsal cortex. Their "pattern preserved" agrees with parts of
 ours (3 / 4 animals keep the lateral read-out map; PS94 remapped). The real tension is our chronic residual vs their
 chronic ipsilesional spiking.
 
 **Brand new, as far as found:** (1) longitudinal whole-dorsal-cortex calcium after a STRIATAL stroke in an orofacial
-task; (2) separating movement change from mapping change with frozen pre-stroke models; (3) behaviour fully back while
+task; (2) separating movement change from mapping change with frozen pre-stroke models; (3) behavior fully back while
 the code on hits plateaus ~70-77 %; (4) failed attempts as directed movements without a matching cortical spout
 signal; (5) self-initiated vs cued read-outs diverge; (6) quiet-period fluctuation increase as a rodent counterpart of
 human post-stroke delta / local sleep after a subcortical lesion, with a local orofacial footprint.
@@ -518,19 +518,19 @@ restored, propagation patterns (https://pmc.ncbi.nlm.nih.gov/articles/PMC8159272
 (Neuropharmacology 39:788) verified as cited.
 ADD -- precedents (soften "new"): Bauer et al. 2014 NeuroImage (mouse tMCAO, SUBCORTICAL-only infarcts reduce lateral-cortex
 homotopic connectivity; resting, no task; https://pmc.ncbi.nlm.nih.gov/articles/PMC4332714); Cullins & Connor 2024 Front
-Neurol (rat tMCAO, striatum-centred, often into cortex, ~1/3 subcortical; ICMS maps at 8 weeks under anaesthesia;
+Neurol (rat tMCAO, striatum-centered, often into cortex, ~1/3 subcortical; ICMS maps at 8 weeks under anesthesia;
 https://pmc.ncbi.nlm.nih.gov/articles/PMC10987714/) -- ONLY PARTLY AGREES (Priya 11-01, after reading it): ipsilesional
 TONGUE map shrinks (aged rats only; young p .057; more with larger infarcts) whereas our ipsilesional orofacial cortex is
 NOT reduced (chronic lick responses larger there too; lateral read-out map kept in 3/4); intact-hemisphere change is JAW
 only (tongue unchanged) and function tracks the INFARCTED hemisphere, intact-hemisphere maps do not correlate with function,
 whereas our contralesional changes are the larger ones (we do not separate tongue vs jaw cortex, nor show which hemisphere
-tracks function). Different measure (ICMS output efficacy vs calcium activity in behaviour), lesions and ages. Shared only:
+tracks function). Different measure (ICMS output efficacy vs calcium activity in behavior), lesions and ages. Shared only:
 some intact-hemisphere change;
 Ahmed et al. 2017 JCBFM (lick efficiency down after striatal-only MCAO to day 40, compensatory drinking clusters;
 https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5305038/); Fanciullacci 2017 (human subcortical stroke: more delta over the
 affected hemisphere); Gloor 1977 (delta from white-matter / thalamic deafferentation); Carmichael & Chesselet 2002 (rat:
 peri-lesion synchronous 0.1-2 Hz activity days 1-3, drives sprouting; cortical lesion); Kim et al. 2022 Cell Rep (local
-delta waves in sleep, normalise with training). Bollu et al. 2021 (ALM needed for corrective submovements) = mechanistic
+delta waves in sleep, normalize with training). Bollu et al. 2021 (ALM needed for corrective submovements) = mechanistic
 anchor for failed attempts lacking a spout code. No study found that records ALM / tjM1 after VLS lesion or silencing, or
 that uses a frozen pre-stroke encoder: both still look new.
 ADD -- counter-literature a reviewer would cite: Branscheidt et al. 2022 J Neurophysiol (human SUBCORTICAL stroke, 1 year:
@@ -550,7 +550,7 @@ refractoriness vs the Steinmetz criteria. Post-stroke peri-lesional spikes with 
 15 (https://pubmed.ncbi.nlm.nih.gov/41192651/).
 DESCENDING ANATOMY (Priya 11-01): rodent motor cortex reaches tongue / jaw / face motoneurons mainly via brainstem reticular
 premotor neurons (PCRt / IRt), with sparse or no direct cortico-motoneuronal contacts (as for the rodent limb), whereas
-human corticobulbar fibres also contact hypoglossal / facial / trigeminal motoneurons directly *(memory: Kuypers; Lemon --
+human corticobulbar fibers also contact hypoglossal / facial / trigeminal motoneurons directly *(memory: Kuypers; Lemon --
 verify)*. The striatum projects to the brainstem in no species (via SNr / GPi; SNr -> brainstem premotor / SC in rodents and
 primates). Framing consequence: ground homology in control principles and cortical computation, not the final pathway
 (reach models share the limitation); brainstem premotor networks are a candidate compensation site; the SNr -> brainstem
@@ -561,7 +561,7 @@ route makes the frozen-encoder movement-vs-mapping separation essential.
 Why it did not show as a decrease, and why it may still be right: (1) widefield dF/F is relative -- tonic level appears only
 in F0, which rose ~11 % acutely (uniform, 415 similar; confounded by blood / light), so a tonic decrease is largely
 unmeasurable here; (2) the acute effects we see -- larger 2-3 Hz quiet fluctuations, larger lick-evoked responses, engaged
-quiet resembling pre-stroke disengagement -- are what a LESS thalamically driven (synchronised, quiet-wakefulness-like)
+quiet resembling pre-stroke disengagement -- are what a LESS thalamically driven (synchronized, quiet-wakefulness-like)
 cortex shows (Poulet et al. 2012; Crochet & Petersen 2006 -- CHECKED 11-01 at abstract / review level, see below); (3) a whole-VLS lesion removes direct AND indirect pathways with opposing net
 effects on SNr, and SPNs fire little at rest, so the clearest loss is the phasic, lick-locked SNr pause (timing / gain), not
 mean drive. Against: the fluctuation increase is not ipsilesional (T8). Tests T20-T22; direct VM measurement in a future
@@ -569,28 +569,28 @@ cohort would settle it.
 
 CITATION CHECK (Priya 11-01: "read those citations more carefully and see if it holds up"; abstracts + the Frontiers
 review fnsys.2019.00040, full texts paywalled). Poulet, Fernandez, Crochet & Petersen 2012 Nat Neurosci 15:370: in BARREL
-cortex, whisking-related desynchronisation comes with INCREASED VPM firing, is not peripheral (survives infraorbital nerve
+cortex, whisking-related desynchronization comes with INCREASED VPM firing, is not peripheral (survives infraorbital nerve
 cut), is halted by pharmacological thalamic inactivation and mimicked by optogenetic thalamic stimulation -> HOLDS for
-"thalamic input desynchronises the active state"; does NOT show that REDUCED drive makes resting cortex MORE synchronised
+"thalamic input desynchronizes the active state"; does NOT show that REDUCED drive makes resting cortex MORE synchronized
 (under inactivation, whisking Vm was hyperpolarised with REDUCED variance); thalamic inactivation literature is mixed and
-state-dependent (anaesthesia: weaker slow oscillation, J Neurosci 2014 34:5689; an awake study cited as enhanced slow
+state-dependent (anesthesia: weaker slow oscillation, J Neurosci 2014 34:5689; an awake study cited as enhanced slow
 oscillation, not verified; awake preprint: cortical baseline largely unchanged). Crochet & Petersen 2006 Nat Neurosci
 9:608: quiet wakefulness = slow large Vm fluctuations, whisking = small fast; PASSIVE whisker responses robust in quiet,
 suppressed during whisking -> HOLDS only for passive sensory responses in sensory cortex. OVERREACH: both are barrel
 cortex / VPM, not orofacial MOTOR cortex / VM-VAL (layer-1 matrix input); in ALM, VM/VAL silencing COLLAPSES activity
 (Guo et al. 2017) -- Priya's original prediction; lick responses are self-generated motor responses; arousal /
-neuromodulators also set cortical state. Verdict: the reduced-drive -> synchronised-cortex reframing is a plausible
+neuromodulators also set cortical state. Verdict: the reduced-drive -> synchronized-cortex reframing is a plausible
 hypothesis, not supported directly by the literature.
 
-T20 RESULT (11-01, `quiet_sync_index.py`, `V2/sync_index/`): synchronisation index log10(PSD 1-4 / 8-15 Hz), quiet engaged.
+T20 RESULT (11-01, `quiet_sync_index.py`, `V2/sync_index/`): synchronization index log10(PSD 1-4 / 8-15 Hz), quiet engaged.
 Acute: orofacial +0.59 (q < .001), whole cortex +0.39, limb +0.15 n.s.; orofacial - cortex +0.20 (q .001); orofacial IPSI -
 CONTRA +0.13 (q 1e-4; 4/4 positive acute, pre ~0), subacute +0.09; 8-15 Hz power lower ipsilesionally in 4/4. Chronic:
-whole-cortex synchronisation rises more than orofacial (orofacial - cortex -0.27). -> acutely orofacial cortex is more
-synchronised and MORE SO IPSILESIONALLY: the laterality the reduced-drive hypothesis predicts, which the event rate (T8)
+whole-cortex synchronization rises more than orofacial (orofacial - cortex -0.27). -> acutely orofacial cortex is more
+synchronized and MORE SO IPSILESIONALLY: the laterality the reduced-drive hypothesis predicts, which the event rate (T8)
 did not show. Caveat: 8-15 Hz with GCaMP6s is near the noise floor, so the index can rise from slow power alone and the
 ipsi fast-power drop may partly reflect hemisphere brightness / noise differences (T22 checks F0).
 
-T22 (11-01 23:10, commit 972954e3): no ipsilesional F0 drop; the T20 ipsi > contra synchronisation comes from a non-calcium 7-11 Hz peak (415 nm, lower ipsilesionally) -> WITHDRAWN. Section 7's hypothesis loses its laterality support.
+T22 (11-01 23:10, commit 972954e3): no ipsilesional F0 drop; the T20 ipsi > contra synchronization comes from a non-calcium 7-11 Hz peak (415 nm, lower ipsilesionally) -> WITHDRAWN. Section 7's hypothesis loses its laterality support.
 
 ## 8. Overnight 11-01 -> 11-02 (state at ~01:10)
 

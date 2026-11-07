@@ -6,7 +6,7 @@ the settings that matter and why, where it lives, how it scored, and the rule fo
 Reasoning in `DECISIONS.md` (2026-09-28, 09-30, 10-05, 10-13 x3, 10-14); evaluation scripts named below. Last updated 2026-10-18.
 
 Keypoints everywhere: **nose, jaw, tongue, spout** (`dlc.cameras.cam4.bodyparts`). Labels follow the
-TARGET vs CONTEXT rule (DECISIONS 2026-09-30): a blank on a labelled frame means *hidden*; context frames stay blank.
+TARGET vs CONTEXT rule (DECISIONS 2026-09-30): a blank on a labeled frame means *hidden*; context frames stay blank.
 
 ## 1. The models
 
@@ -27,18 +27,18 @@ KL heatmap loss, `pca_singleview` OFF, `downsample_factor 2`, early-stop patienc
 ## 2. Settings that matter, and why
 
 * **Occlusion = flat heatmap** (`uniform_heatmaps_for_nan_keypoints: true`, LP; DLC only masks blanks). LP then
-  reports a hidden part at low likelihood and parks it at the **image centre (~340, 338 px)** — a "not visible"
+  reports a hidden part at low likelihood and parks it at the **image center (~340, 338 px)** — a "not visible"
   answer, NOT a position. Every consumer must filter by likelihood; the cleaning step does (below).
 * **Likelihood cut 0.4 and gap interpolation** (`orofacial_clean`): below 0.4 a point is missing; tongue gaps up to
-  **56 ms** and jaw gaps up to 120 ms are PCHIP-interpolated from the neighbouring good frames. A brief
+  **56 ms** and jaw gaps up to 120 ms are PCHIP-interpolated from the neighboring good frames. A brief
   low-confidence dip mid-lick is filled; a model that is under-confident through most of a lick cannot be rescued.
 * **Tongue zero = the mouth**: the least-squares intersection of the three close->far spout lines (`spout_frame`),
   one per session; jaw keeps its own resting baseline.
-* **Temporal-loss epsilon per keypoint** (from 2026-10-14): the loss penalises frame-to-frame jumps larger than
+* **Temporal-loss epsilon per keypoint** (from 2026-10-14): the loss penalizes frame-to-frame jumps larger than
   epsilon on unlabelled video. Measured genuine motion (confident frames, PS93 0814 / 0821): tongue median 7-10,
   p95 17-25, **p99 23-34**, p99.9 29-46 px/frame; jaw p99 4-6; nose / spout p99 1-3. The old single 10 px
-  penalised roughly the fastest quarter of real tongue movement, so tongue = 35 px (~p99), nose / jaw / spout stay
-  10 px (side-flips of 30-60 px and teleports are still penalised).
+  penalized roughly the fastest quarter of real tongue movement, so tongue = 35 px (~p99), nose / jaw / spout stay
+  10 px (side-flips of 30-60 px and teleports are still penalized).
 * **Temporal-context models need memory.** 5 frames per sample: > 7.8 GB at batch 2 / 640 px once the backbone
   unfreezes; batch 1 / 640 px = 4.6 GB (supervised); semi-supervised adds a 5-frame video batch: > 6 GB at 640 px,
   **5.5 GB at 512 px**. Hence 512 px for the semi-supervised context models (a confound vs the 640 px models).
@@ -105,11 +105,11 @@ review_scored.csv` (answers in the review artifact's `lick_review` collection).
 
 **CORRECTION (2026-10-14, from Priya's request for LP r4 false-positive / EKS false-negative sheets,
 `lp_stage/lick_review/lp_r4_false_positives.png`, `eks_false_negatives.png`).** The EKS r4+ctx numbers above were
-largely an ARTEFACT: when the context model said "not visible" its point is parked at the image centre, and the
+largely an ARTIFACT: when the context model said "not visible" its point is parked at the image center, and the
 occlusion variance floor did not stop that point pulling the smoothed track -- EKS tongue points sat up-right of LP
-r4's (toward the centre) at likelihood ~0.5 (the mean of 1.0 and 0.0), so faint real licks fell below the detector
+r4's (toward the center) at likelihood ~0.5 (the mean of 1.0 and 0.0), so faint real licks fell below the detector
 and some false ones were suppressed. Its 98 % precision and its 0 jaw flips came from that drag, not from good
-judgement. Fixed (`scripts/eks_two_model.py`: a member below the cut takes the confident members' mean position, so
+judgment. Fixed (`scripts/eks_two_model.py`: a member below the cut takes the confident members' mean position, so
 it neither pulls nor vetoes): EKS fixed behaves like LP r4 -- contact recall 98.8 / 99.2 %, review precision 88 %,
 share of real 98 %, kinematics intact at smooth_param 100 (peak vy 5988 vs LP r4 6011 px/s), jaw x flips 17 vs LP
 r4's 30 (pre). The jaw fix is only partial: when both models are confident but on opposite sides of the rod, EKS
@@ -235,7 +235,7 @@ the first validation batch: the O2 `lp` env's transformers is incompatible with 
 | id | settings | why | where / job |
 |---|---|---|---|
 | **ViT-B DINOv2 640** (rerun) | `vitb_dinov2`, 640 px, batch 8, temporal eps 10, round 4 | the first run died on the O2 `transformers` clash; the real test of a ViT backbone after the inconclusive local ViT-S (512 px, small, cut at 254 epochs) | `o2/lp_train_20261016/models/vitb_dinov2_640_b8`, job 56700781 |
-| **LP r4 eps35** | LP r4 recipe exactly (heatmap, ResNet-50, 640 px, batch 4, round 4) but temporal eps **[nose 10, jaw 10, tongue 35, spout 10]** | LP r4 predates the 10-14 per-keypoint epsilon: its 10 px tongue limit penalises roughly the fastest quarter of real tongue steps (cam4 tongue p99 23-34 px/frame). Only the context models ever got 35, so this isolates the epsilon's effect on the production recipe (Priya, 10-18) | `o2/lp_train_20261016/models/heatmap_640_b4_eps35`, `train_heatmap_640_b4_eps35.sbatch` |
+| **LP r4 eps35** | LP r4 recipe exactly (heatmap, ResNet-50, 640 px, batch 4, round 4) but temporal eps **[nose 10, jaw 10, tongue 35, spout 10]** | LP r4 predates the 10-14 per-keypoint epsilon: its 10 px tongue limit penalizes roughly the fastest quarter of real tongue steps (cam4 tongue p99 23-34 px/frame). Only the context models ever got 35, so this isolates the epsilon's effect on the production recipe (Priya, 10-18) | `o2/lp_train_20261016/models/heatmap_640_b4_eps35`, `train_heatmap_640_b4_eps35.sbatch` |
 
 If LP r4 eps35 beats LP r4, switching production means re-running O2 inference, cleaning and every downstream analysis -- Priya's call once
 the numbers are in.
@@ -269,7 +269,7 @@ those, on sessions it never saw, across epochs, in this order:
 7. **Practicality:** inference cost for the full cohort (desktop / O2) and simplicity (one model beats an ensemble
    at equal performance).
 
-Test set: at least one pre, one acute and one chronic session for two animals, none labelled (the PS93 0814 / 0821
+Test set: at least one pre, one acute and one chronic session for two animals, none labeled (the PS93 0814 / 0821
 clips plus e.g. PS93 0908, PS94 0818, PS95 0821, PS94 0921); the review clips for the visual check.
 
 ---
@@ -285,7 +285,7 @@ route; cam4 stays the primary tongue view. Background: `docs/status/STATUS_2026-
 | round | frames / sessions | what was added | why |
 |---|---|---|---|
 | 1 (10-05) | 294 / 11 (DLC staging) | lick-phase targets + spout-contact context frames | first cam1 model |
-| **2 (done 10-18)** | **634 / 21** | Part 2: the four empty round-1 folders (PS93 0606, PS92 0820, PS95 0821, PS94 0903). Part 3 (254 targets, 6 new sessions): cam1 frames at cam4 round 4's 61 picks; 106 hard frames from the round-1 DLC / LP scan (incomplete tongue in the 30-70 px opening band, dropouts, unsure tongue, jaw near spout, erratic, tricky spout, rise / peak / fall); 90 tongue "also label" neighbours (Priya: 12 ms matters for the tongue) | round 1 overfit jaw / tongue (7 training sessions) and was ambiguous about the tongue tip from below |
+| **2 (done 10-18)** | **634 / 21** | Part 2: the four empty round-1 folders (PS93 0606, PS92 0820, PS95 0821, PS94 0903). Part 3 (254 targets, 6 new sessions): cam1 frames at cam4 round 4's 61 picks; 106 hard frames from the round-1 DLC / LP scan (incomplete tongue in the 30-70 px opening band, dropouts, unsure tongue, jaw near spout, erratic, tricky spout, rise / peak / fall); 90 tongue "also label" neighbors (Priya: 12 ms matters for the tongue) | round 1 overfit jaw / tongue (7 training sessions) and was ambiguous about the tongue tip from below |
 
 Fill (round 2): nose 427, jaw 593, tongue 310, spout 605 of 634. Three targets left blank (2 in PS92 0821, 1 in PS95 0821) are
 dropped. Frame provenance: `<DeepLabCut/Widefield>/frame_manifest.csv` (moved out of `_frame_staging` 10-18; `dlc_frames.manifest_path`).
@@ -299,7 +299,7 @@ dropped. Frame provenance: `<DeepLabCut/Widefield>/frame_manifest.csv` (moved ou
 | **LP c1r1** | LP `heatmap`, ResNet-50 | round 1 | 640 px, batch 4, temporal eps 10, early stopping OFF | first cam1 LP; not better than DLC on cam1 (10-05) | WSL `/root/lp/cam1-2026-10-05/models/cam1_occl_uniform_20261005` (epoch 144) |
 | **LP c1r2 heatmap** | LP `heatmap`, ResNet-50 | round 2 | **cam4 LP r4 recipe exactly**: 600 -> 640 px, batch 4, temporal eps 10, early-stop patience 20, blanks = uniform heatmap | like-for-like with the cam4 production model | O2 `o2/lp_train_cam1_r2_20261018/models/heatmap_640_b4`, job 56709413_1 |
 | **LP c1r2 ctx-semi** | LP `heatmap_mhcrnn` (frames t-2..t+2 at inference) | round 2 | 640 px, batch 4 + 8-frame context batch, temporal eps [10, 10, 35, 10] (cam4's 10-14 values) | the 640 px context model matched LP r4 on cam4 with the steadiest jaw | `.../models/mhcrnn_semi_640_b4`, job 56709413_2 |
-| **LP c1r2 eps40** | LP `heatmap`, ResNet-50 | round 2 | LP r4 recipe with temporal eps **measured on cam1: [nose 10, jaw 15, tongue 40, spout 10]** | the temporal loss should penalise only implausible jumps; cam1 sees faster tongue / jaw motion than cam4 (B3) | `.../models/heatmap_640_b4_eps40`, `train_heatmap_640_b4_eps40.sbatch` |
+| **LP c1r2 eps40** | LP `heatmap`, ResNet-50 | round 2 | LP r4 recipe with temporal eps **measured on cam1: [nose 10, jaw 15, tongue 40, spout 10]** | the temporal loss should penalize only implausible jumps; cam1 sees faster tongue / jaw motion than cam4 (B3) | `.../models/heatmap_640_b4_eps40`, `train_heatmap_640_b4_eps40.sbatch` |
 
 All LP c1r2 models train on all 634 labels (LP holds out frames, not sessions) with round 1's 15 unlabelled clips (one per animal
 x epoch) for the temporal loss. Project `/root/lp/cam1-2026-10-18` (`litpose convert` of the DLC training copy, then
@@ -320,7 +320,7 @@ c1r1 on the six round-1 clips (PS92 / PS93 / PS95):
 | spout | 0.1 | 2.3 | 3.5 | 5.3 | 1-3 |
 
 Same rule as cam4: epsilon ~ p99 for the moving parts, 10 px floor otherwise -> **[10, 15, 40, 10]** (jaw 15 sits between p99 and
-p99.9, so large jaw jumps are still penalised). cam1 looks up at a tongue and jaw moving toward it, hence the faster image motion.
+p99.9, so large jaw jumps are still penalized). cam1 looks up at a tongue and jaw moving toward it, hence the faster image motion.
 Caveat: the tongue p99 includes some tip-end switches (the cam1 tip ambiguity), so 40 may be slightly generous; it is still below
 p99.9 (60). To re-check on PS93 0821 (acute).
 
@@ -337,7 +337,7 @@ Not comparable with round 1's test numbers (different held-out sessions).
 |---|---|---|
 | nose | 1.8 / 0 % / 100 % | 3.4 / 0 % / 100 % |
 | jaw | 10.2 / 53 % / 78 % | **6.5 / 33 % / 83 %** |
-| tongue (13 labelled) | 8.3 / 38 % / 92 % | 12.0 / 54 % / 92 % |
+| tongue (13 labeled) | 8.3 / 38 % / 92 % | 12.0 / 54 % / 92 % |
 | spout | 1.8 / 0 % / 97 % | 1.3 / 0 % / 97 % |
 
 Jaw better; tongue not, on too few frames to say -- consistent with the tip-definition ambiguity rather than missing labels.
@@ -350,14 +350,14 @@ Jaw better; tongue not, on too few frames to say -- consistent with the tip-defi
 | tongue > 60 px per 10k | 30 / 39 | 9.5 / **4.0** | **5.1** / 17.4 |
 | jaw coverage post-cue (%) | 74 / 80 | 86 / 85 | **95 / 87** |
 | jaw > 20 px per 10k | 39 / 33 | 12 / 3.3 | **3.3 / 3.2** |
-| jaw coverage, centre positions pre (%) | 35-36 | 54-69 | **82-90** |
+| jaw coverage, center positions pre (%) | 35-36 | 54-69 | **82-90** |
 
-Round 2's labels cut teleports and jaw jumps 3-10x and fixed most of the centre-position jaw. Priya (labelled clip): LP is
+Round 2's labels cut teleports and jaw jumps 3-10x and fixed most of the center-position jaw. Priya (labeled clip): LP is
 mostly good but sometimes sits to one side of the tongue as it emerges. NB the plain LP c1r2 uses the LP r4 recipe's temporal
 epsilon of 10 px for EVERY keypoint (tongue too) -- below cam1's genuine fast tongue motion (p99 40 px, B3), so it may hold the
 emerging tip back; eps40 (same model, tongue 40) and ctx-semi (temporal context, tongue 35) test that.
 
-**LP c1r2 eps40 scored (10-18, tag `_eps40_1018`; O2 job crashed in the post-training labelled-frame eval, predictions from a
+**LP c1r2 eps40 scored (10-18, tag `_eps40_1018`; O2 job crashed in the post-training labeled-frame eval, predictions from a
 predict-only job, so no pixel-error table).** Pre / acute / chronic, eps40 vs plain LP c1r2: contacts seen 99.5 / 98.8 / 99.0
 vs 100 / 99.2 / 99.2; tongue > 60 px per 10k 5.6 / 20.6 / 15.6 vs 5.1 / 17.4 / 12.9; tongue coverage 20.7 / 10.5 / 25.9 vs
 21.0 / 12.2 / 28.9 %; jaw jumps 3.2 / 2.4 / 6.1 vs 3.3 / 3.2 / 5.3; onset within 12 ms of cam4 69.6 / 56.3 / 68.3 vs 66.6 /
@@ -377,19 +377,19 @@ offset down the image toward the tip vs the median of the other three): LP c1r2 
 on average (> 10 px misses 0-3 % of frames for every model) but systematic -- the 10 px tongue epsilon holding the emerging tip
 back. -> plain LP c1r2 dropped; cam1 choice between LP eps40 and ctx-semi (tied on the scores; eps40 cheaper on O2, fewer
 pre teleports). Frames where ALL models miss the tip (e.g. trial 507 +904 ms, tongue part-out / retracting) -> next cam1
-labelling round, with the water-drop frames.
+labeling round, with the water-drop frames.
 **cam1 nose (10-19).** Steady when tracked (median step 0.2 px, p99 ~2 px, no jumps) but "confident" in only 40-68 % of
-frames -- BY DESIGN: at the two CENTRE positions the spout rod covers the nose from below, and the labels leave it blank there
-(nose labelled in 1 % of centre frames vs 91-100 % at the sides), so the models correctly say "not visible" (ctx-semi nose
-lk >= 0.5 at centre 2-4 %, sides 80-94 %). Acute PS93 0821 side positions are lower (58-69 % at close_L / far_L / far_R).
+frames -- BY DESIGN: at the two CENTER positions the spout rod covers the nose from below, and the labels leave it blank there
+(nose labeled in 1 % of center frames vs 91-100 % at the sides), so the models correctly say "not visible" (ctx-semi nose
+lk >= 0.5 at center 2-4 %, sides 80-94 %). Acute PS93 0821 side positions are lower (58-69 % at close_L / far_L / far_R).
 DLC's nose likelihoods are also less decisive (median 0.91 pre, 0.27 acute) -- use lk >= 0.5, not 0.9, for the nose. Fine
-as a session-level head reference (median of side-position frames); not a per-frame signal at the centre.
+as a session-level head reference (median of side-position frames); not a per-frame signal at the center.
 **Faint licks (10-19, Priya: "but eps40 misses faint licks?"):** share of cam4 LP r4 licks (PS93 clip trials; LP r4 found
 99-100 % of real faint licks in both blind reviews) with a confident cam1 tongue within +-20 ms of cam4's peak, pre / acute /
 chronic. No-contact (n = 151 / 88 / 165): **ctx-semi 90.7 / 89.8 / 95.8**, LP c1r2 88.7 / 87.5 / 94.5, eps40 86.8 / **79.5** /
 92.1, DLC c1r2 81.5 / 80.7 / 96.4. Contact licks: all 96-100 %. eps40 repeats eps35's cam4 pattern (loses faint licks, most
 acutely); **ctx-semi sees the most faint licks in every epoch AND fixes the emergence lag -> the recommended cam1 model**
-(cost: temporal-context inference is slower on O2). Clip re-rendered with an outlined mouth X (the grey X vanished on the pale
+(cost: temporal-context inference is slower on O2). Clip re-rendered with an outlined mouth X (the gray X vanished on the pale
 tongue / water under the spout): `.../eval/cleaned_labels_cam1_4models_gap24_v2.mp4`.
 
 **Cross-camera agreement on a second animal (10-19, PS94 0814 / 0821 / 0907, cam1 DLC c1r2, cam4-timed peaks).** cam1 lateral
@@ -415,7 +415,7 @@ two): PS94 0814 / 0821 / 0908 (no PS94 cam1 labels on those dates). Metrics, in 
 
 1. **Epoch gate.** Every metric per epoch; a model that degrades post-stroke is out.
 2. **Tongue at DAQ contacts.** Share of spout contacts with a confident (>= 0.4) cam1 tongue in the contact window, per position
-   (the cam1 analogue of contact recall; far_L, sideways from below, was round 1's worst).
+   (the cam1 analog of contact recall; far_L, sideways from below, was round 1's worst).
 3. **Tip consistency.** One-frame tongue jumps > 40 px per 10k confident frames, next to coverage; plus agreement of cam1 vs cam4
    lick timing (onset / peak on the DAQ clock) for the same licks.
 4. **Jaw.** Coverage per position next to jaw jumps > 20 px per 10k frames (abstaining must not pass for stability).
@@ -462,10 +462,10 @@ two): PS94 0814 / 0821 / 0908 (no PS94 cam1 labels on those dates). Metrics, in 
 
 1. **Single-view models chosen per camera** (Parts C / B, in progress).
 2. **cam1 clean traces** (D2): gaps filled consistently and one-frame tip-end switches removed BEFORE triangulation -- the
-   10-05 calibrated EKS failed because occluded / wrong cam1 points set the 3-D depth (likelihood-blind initialisation).
+   10-05 calibrated EKS failed because occluded / wrong cam1 points set the 3-D depth (likelihood-blind initialization).
 3. **Multi-view LP candidate** (cam1 round 2 + cam4 round 4, split-rule `visible`, no calibration -- the 10-06 pilot found
    calibration added nothing). Why retry: the pilot's one win was the cam1 jaw behind the spout rod (99 vs 87 % confident),
-   exactly the centre-position jaw gap measured on DLC c1r2 (jaw confident 69 % close_center, 54 % far_center vs >= 96 %
+   exactly the center-position jaw gap measured on DLC c1r2 (jaw confident 69 % close_center, 54 % far_center vs >= 96 %
    elsewhere); the pilot used older labels on both cameras. LP 2.4.2 has no multi-view + context model, so if a context model
    wins single-view, the multi-camera route is per-camera context models + the calibration-free multi-camera EKS
    (`pose_eks`, smooth_param explicit). Scored like the single-view candidates.
@@ -483,15 +483,15 @@ data with Priya's QC, as cam4's v35 did.
 
 **Baseline diagnostic (cam4 values on DLC c1r2, PS93 0814, 60 trials, 10-18).** cam1 looks UP at the underside of the
 snout: nose at the top, mouth / jaw low in the image (jaw median y 456), the spout rod running down the middle of the face
-to the mouth (hence the nose blanks and the centre-position jaw occlusion). The tongue comes out of the mouth DOWN the
-image, over the chin (labelled tongue median y 431 vs mouth y 389; QC frames 10-18) -- an earlier note here said "up the
+to the mouth (hence the nose blanks and the center-position jaw occlusion). The tongue comes out of the mouth DOWN the
+image, over the chin (labeled tongue median y 431 vs mouth y 389; QC frames 10-18) -- an earlier note here said "up the
 image", which was wrong.
 
 * **Mouth origin (QC 10-18, `scripts.cam1_clean_qc mouth`, `session_poses/PS93_20260814_cam1/eval/qc_mouth_origin.png`):**
-  cam1 looks almost straight down the CENTRE spout line (close->far 3.4 px vs L / R 48 px; cam4 56 / 66 / 68). The L and R
-  lines meet within 0.3 px at (315, 389), on the lower lip just under the centre spout tip; both centre spouts lie 4-7 px
+  cam1 looks almost straight down the CENTER spout line (close->far 3.4 px vs L / R 48 px; cam4 56 / 66 / 68). The L and R
+  lines meet within 0.3 px at (315, 389), on the lower lip just under the center spout tip; both center spouts lie 4-7 px
   from it. Projection keeps incidence, so this IS the mouth's image (Priya to confirm by eye). BUT `spout_frame.ap_axis`
-  comes from the centre line, which is noise on cam1 -> a cam1 axis must be the L / R bisector; cam1 angles are LR / DV, not
+  comes from the center line, which is noise on cam1 -> a cam1 axis must be the L / R bisector; cam1 angles are LR / DV, not
   AP. Good for 3-D: the two cameras see AP very differently (cam4 56 px, cam1 ~3 px).
 * **Tongue:** confident on 9 % of clip frames; cleaning keeps 9 % raw, interpolates 2 %, fills 89 % with the baseline
   (tongue in the mouth). Steps > 40 px rise from 160 raw to 806 after cleaning -- mostly the jump between the baseline fill and
@@ -515,25 +515,25 @@ chosen cam1 model.
 
 cam4 June 0602-0608 is on a 12.9 % larger scale (v36, DECISIONS 2026-10-18 evening: x 0.8853 before cleaning). **cam1 is
 not**: the same ruler idea (pairwise distances between the six spout positions, per session, relative to the Aug+ median for
-that pair) on the LABELLED cam1 spout tips gives June 0606 = 0.988 / 0.994 / 0.996 / 1.009 (PS93 / PS92 / PS94 / PS95; median
+that pair) on the LABELED cam1 spout tips gives June 0606 = 0.988 / 0.994 / 0.996 / 1.009 (PS93 / PS92 / PS94 / PS95; median
 0.995) vs Aug+ median 1.000 (IQR 0.999-1.008, 17 sessions). So cam1 gets NO June factor (`px_scale` 1.0); only cam4's
 configuration changed. To confirm with the v36 method (no-lick ENL frames, `spout_frame.ruler_*`) on DLC predictions of the
-June cam1 sessions -- labelled spouts sit on lick frames (pushed 2-5 px), though a ratio of pairwise distances is robust to that.
+June cam1 sessions -- labeled spouts sit on lick frames (pushed 2-5 px), though a ratio of pairwise distances is robust to that.
 
 **Consequence for 3-D.** Triangulation uses ABSOLUTE image positions (the 09-11 calibration describes Aug+ cam4). v36
 multiplies June cam4 x, y about the image ORIGIN (pixel 0, 0): right for 2-D px measures relative to the mouth, but every
-point also moves (an image-centre point by ~39 px), so v36 pose is not triangulation input as is. Candidate June corrections,
+point also moves (an image-center point by ~39 px), so v36 pose is not triangulation input as is. Candidate June corrections,
 cheapest first (Priya 10-18: "can we use the scaled image mouth-centered?"):
-1. **Mouth-centred scaling** (x 0.8853 about the session's mouth, mouth kept in place). If the June -> Aug change was a zoom
-   about centre c, the residual error is (1 - 0.885) x |mouth - c| -- ~3-6 px if the mouth is 30-50 px from the optical
-   centre, within the calibration's 6-9 px reprojection error.
+1. **Mouth-centered scaling** (x 0.8853 about the session's mouth, mouth kept in place). If the June -> Aug change was a zoom
+   about center c, the residual error is (1 - 0.885) x |mouth - c| -- ~3-6 px if the mouth is 30-50 px from the optical
+   center, within the calibration's 6-9 px reprojection error.
 2. **Spout-fitted similarity** (scale + rotation + shift, 4 parameters from the six spout medians onto the Aug+ reference
    positions) -- contains 1 as a special case; needed if the shift matters.
 3. **June cam4 recalibration** (intrinsics / extrinsics from the spout positions with cam1 fixed), only if 1-2 fail (camera
    moved rather than zoomed).
 Tests: spout residuals in the cam4 image after 1 vs 2; triangulated June spout distances vs the commanded stage distances
 (Aug+ match 1-2 %). The 2026-08-05 calibration video (board geometry unrecorded; cam4 4 poses, cam1-cam4 22 joint poses)
-may show what changed (zoom vs move, zoom centre) IF it was taken in the June configuration -- check its date against the
+may show what changed (zoom vs move, zoom center) IF it was taken in the June configuration -- check its date against the
 cam4 ruler first. cam1 needs no correction. Likely source of the 10-05 "June ~5 % too large" 3-D spout fit.
 
 **2026-08-05 = the day cam4 was re-set (measured 10-18, v36 ruler on the O2 LP r4 output).** cam4 scale vs Aug+ by session:
@@ -552,9 +552,9 @@ the spout tip's BOTTOM edge (cam4 the top front edge), so the lines meet toward 
 `spout_frame.tongue_path_origin`: per spout position, the line from the median lick-onset tongue point (first confident frame
 after >= 3 hidden ones, > 70 ms after the cue) toward that position's median spout tip; their least-squares meeting point.
 DLC c1r2, PS93: **(310, 369) pre, (310, 367) acute** (paths meet to 8-10 px rms) -- 2 px apart, while the spout-label
-intersection moved 20 px (389 -> 409) and the mouth relative to the centre spout tip moved 25 px: the spouts move between
+intersection moved 20 px (389 -> 409) and the mouth relative to the center spout tip moved 25 px: the spouts move between
 sessions, the head under a fixed camera does not. cam1 axis = `from_medians_lr_bisector` (L / R far->close bisector).
-Centre-spout angles are ill-defined on cam1 (the spouts sit almost on the mouth, end-on); read cam1 angles in 3-D.
+Center-spout angles are ill-defined on cam1 (the spouts sit almost on the mouth, end-on); read cam1 angles in 3-D.
 Option 2 (3-D): cam4's apparatus mouth (lines meet to 0.34 px) triangulated / projected into cam1.
 
 **Water (Priya 10-18).** Spout tip, late in the trial (>= 1500 ms, tongue not out) minus pre-cue ENL, per position: < 2 px on
@@ -582,7 +582,7 @@ with no DAQ contact vs with contacts (PS93 0814): tongue confident 1.9-2.6 % vs 
 detections are slow and STATIC (median step 2.2 px, 23 % of frames < 1 px; contact trials 7.1 px, 4 %), LP c1r2's mostly not
 (8 % static). 0821 (acute) is mixed -- many of its 31 no-contact trials carry real incomplete licks. Small in frames, but it
 lands on licks without contact, the measure that matters most. Fixes, strongest first: (1) drop frames (drop under the tip,
-tongue blank) as hard negatives in the next labelling round (late, sated trials); (2) a cleaning guard against static tongue
+tongue blank) as hard negatives in the next labeling round (late, sated trials); (2) a cleaning guard against static tongue
 runs at the spout tip -- measure what it costs real licks first; (3) include late, sated trials in the cam1 lick review.
 Check the cam4 LP r4 "false detections on the spout rod" (lick review 10-14) for drops too.
 
@@ -590,7 +590,7 @@ Check the cam4 LP r4 "false detections on the spout rod" (lick review 10-14) for
 
 Priya 10-18: the cam1 mouth must not depend on the tongue paths (they change after the stroke) -- use the apparatus.
 `spout_world.apparatus_mouth`: triangulate the six parked spout medians (cam1 + cam4, 09-11 calibration), fit the similarity
-frame to the COMMANDED layout (`spout_world.fit`, mouth-centred stage mm from gui_config), and project the frame's origin --
+frame to the COMMANDED layout (`spout_world.fit`, mouth-centered stage mm from gui_config), and project the frame's origin --
 the stage's mouth set point -- into each camera. `scripts/apparatus_mouth.py` (clips: cam1 DLC c1r2 + cam4 DLC r3 trial clips,
 or the O2 LP r4 whole-session output for cam4 where there is no clip -- June).
 
@@ -605,7 +605,7 @@ apparatus mouth (within ~8 px) and was never noise. The cause is in gui_config: 
 0.70 mm in stage y, and the nose moved 0.78 mm relative to it -- the head stayed, the set point moved. cam4 hardly sees that
 direction (its view runs along it), hence its stable +82 / +85. So the apparatus mouth = the task's reference by design, with
 the day-to-day precision of the set point (~0.7 mm here); the tongue-path mouth is anatomical and stable (2 px) but
-behaviour-dependent. Priya's choice (10-18): apparatus. Labelled frames cannot test June (2-4 positions per session in both
+behavior-dependent. Priya's choice (10-18): apparatus. Labeled frames cannot test June (2-4 positions per session in both
 cameras; the fit needs 5): June cam1 0606 clips (4 animals, 4 trials / position) are cut and queued for DLC c1r2; cam4 June from
 the O2 LP r4 output; the June variants (raw / x0.885 about origin, principal point, cam4 mouth) are then compared by
 reprojection error and fit residual.
@@ -613,26 +613,26 @@ reprojection error and fit residual.
 **June 3-D test (10-19, `apparatus_mouth clips` on the four 0606 sessions, cam1 DLC c1r2 + cam4 from the O2 LP r4 output;
 `session_poses/apparatus_mouth_clips_june_1019.csv`).** Raw June cam4: triangulated spout distances 0.90-0.96 of commanded
 (fit scale 0.950-0.957), residual 0.07-0.12 mm (Aug: 0.98-0.99, 0.03-0.05 mm). Scaling June cam4 by 0.885 brings the scale to
-1.01-1.03 and the residual to 0.05-0.07 mm whichever centre is used -- BUT v36's centre (the image ORIGIN) moves the cam1 mouth
+1.01-1.03 and the residual to 0.05-0.07 mm whichever center is used -- BUT v36's center (the image ORIGIN) moves the cam1 mouth
 ~20 px sideways relative to the nose (mouth - nose x -17 .. -18 vs +2 .. +15 raw and +8 / +11 in August), impossible for a
 head-fixed mouse. Scaling about the cam4 PRINCIPAL POINT or the cam4 MOUTH keeps the cam1 mouth where it is (+3 / +2 px).
 **For 3-D: scale June cam4 about the principal point (or the cam4 mouth -- indistinguishable here), not the image origin.**
-v36's origin-centred scaling stays right for 2-D px measures. Reprojection error June 9-10 px in every variant (Aug 8).
-**No v36 re-run (10-19):** the scaling centre only adds a constant shift (1 - f) x c to every point; every 2-D measure is a
+v36's origin-centered scaling stays right for 2-D px measures. Reprojection error June 9-10 px in every variant (Aug 8).
+**No v36 re-run (10-19):** the scaling center only adds a constant shift (1 - f) x c to every point; every 2-D measure is a
 difference (tongue / jaw relative to the mouth or spout frame, reach, lateral error, speed, angles; the jaw x / y ceilings are
 measured from a baseline, `orofacial_clean.py` jaw rules), so it cancels. Only triangulation sees absolute positions, and the 3-D
 step reads RAW June cam4 from the O2 output and scales it about the principal point itself.
 
 **The calibration's principal points are not suspicious (checked 10-19).** They were PINNED (`fix_principal_point: true`), not
-fitted: `dlc_anipose.measured_principal_point` = sensor centre minus the recorded ROI offset (`defaults.yaml dlc.sensor`,
+fitted: `dlc_anipose.measured_principal_point` = sensor center minus the recorded ROI offset (`defaults.yaml dlc.sensor`,
 Blackfly 1280 x 1024). cam1: ROI at (440, 312) -> (640 - 440, 512 - 312) = (200, 200); cam4: (640 - 308, 512 - 132) = (332, 380).
 A free fit put them outside the frame (the 09-10 recording), hence the pin. With f ~ 5500 px a 100 px error equals a ~1 deg
 rotation, which the extrinsics absorb; the August spout fits (0.05 mm, ratios 0.97-1.00) confirm the geometry.
 
 ## D6. DECISION (Priya 10-18): the cam1 mouth = the L / R spout-line intersection, no offset
 
-`spout_frame.from_medians_lr`: origin where the L and R far->close spout lines meet, axis = their bisector (cam1 sees the centre
-line end-on). Why: apparatus-only (the tongue-path point depends on tongue behaviour, which changes after the stroke); it
+`spout_frame.from_medians_lr`: origin where the L and R far->close spout lines meet, axis = their bisector (cam1 sees the center
+line end-on). Why: apparatus-only (the tongue-path point depends on tongue behavior, which changes after the stroke); it
 tracks the 3-D apparatus mouth within 5-8 px (D5), and DLC / LP and parked / all-frame spout medians give the same point within
 2-3 px. Its day-to-day movement relative to the head is real set-point variation (~0.7 mm, D5), acceptable for a task-defined
 reference. It sits ~15-20 px toward the jaw from where the tongue appears (cam1 labels the spout tip's bottom edge) -- kept,
@@ -650,7 +650,7 @@ that direction). Consequences:
   the jitter, because the origin follows the apparatus, not the anatomy. Most exposed: the SMALLEST licks -- where an
   incomplete lick near the lips falls relative to the origin (and to a fixed px threshold) can shift by up to ~0.7 mm between
   days. Read day-to-day changes in small-lick extent with this in mind; compare within a session where possible.
-* Not yet quantified across the cohort: triangulating the nose into each session's mouth-centred frame (as in D5) gives the
+* Not yet quantified across the cohort: triangulating the nose into each session's mouth-centered frame (as in D5) gives the
   set-point jitter per session for every session with cam1 + cam4 spout positions.
 
 ## D7. The other tongue / jaw cleaning stages on cam1 (10-18; PS93 0814 / 0821, cam1 mouth = D6, cam4 LP r4 as reference)
@@ -658,7 +658,7 @@ that direction). Consequences:
 Kept as cam4: the x-range filter (drops <= 0.02 % of confident cam1 points), the isolated-point rule (cam1 DLC drops 1.4-2.2 %,
 LP 0.4-1.4 %, cam4 0.5-0.8 % -- single-frame flicker, the rule working), gap filling (tongue 1.9-4.8 % of post-cue frames
 filled, cam4 2.5-3.4 %; jaw similar), the jaw rest ("lowest y" = closed: the cam1 jaw also opens down). CHANGED (proposed): the
-between-lick veto's `interlick_near_px` 80 -> **40** (percentile-matched: cam4's 80 px = its 42nd-55th percentile of tongue distance; the same percentiles on cam1 = 44-45 px DLC / 40 px LP; 40 also stays below the close side spouts' ~48 px from the cam1 mouth; the centre spouts are ~5 px from it, end-on, so there only the speed test separates a between-lick pause from a slide round the rod) and `interlick_speed_px` 3 -> 1.7 -- cam1 sees the tongue's reach foreshortened
+between-lick veto's `interlick_near_px` 80 -> **40** (percentile-matched: cam4's 80 px = its 42nd-55th percentile of tongue distance; the same percentiles on cam1 = 44-45 px DLC / 40 px LP; 40 also stays below the close side spouts' ~48 px from the cam1 mouth; the center spouts are ~5 px from it, end-on, so there only the speed test separates a between-lick pause from a slide round the rod) and `interlick_speed_px` 3 -> 1.7 -- cam1 sees the tongue's reach foreshortened
 (distance from the mouth median 36-50 vs 73-98 px, p95 71-106 vs 156-186), so 80 px covered 81-98 % of cam1 tongue frames and
 the veto would also fire on slides round the spout rod. Same foreshortening for ANALYSIS thresholds measured from the mouth:
 cam4's 20 px in-mouth cutoff corresponds to ~10-11 px on cam1 -- set cam1 thresholds from cam1 distributions, not cam4's px.
@@ -672,7 +672,7 @@ DLC r3, same trial and cue-relative time) whether the tongue was out: a gap wher
 of it was the tongue back in the mouth -> interpolating it BRIDGES two licks. Outputs `session_poses/cam1_gap_check_<model>.csv`.
 
 * By gap length (LP c1r2; DLC c1r2 the same shape): <= 12 ms -> cam4 says in-mouth 24-38 % (mostly real dropouts, tongue out);
-  24-40 ms -> 93-97 %; 40-56 ms -> 98-100 %. **Side and centre positions alike** -- not a centre-only problem. On cam4 the
+  24-40 ms -> 93-97 %; 40-56 ms -> 98-100 %. **Side and center positions alike** -- not a center-only problem. On cam4 the
   same-length gaps are the tip hidden behind the rod (hence 56 ms there); from below the rod hides little.
 * The between-lick veto caught only ~10 % of the bridges (it needs a retract-then-protrude in distance from the mouth, which
   cam1's foreshortened reach rarely shows) and at max gaps <= 32 ms it blanks more real tongue than it saves.
@@ -694,27 +694,27 @@ of it was the tongue back in the mouth -> interpolating it BRIDGES two licks. Ou
 would be (reflections pull the keypoint; e.g. PS93 0814 trial 22 far_center +84 / +180 ms, jaw on the drop's lower edge). A
 "jaw above its trial rest" rule is NOT a clean water signature: confident post-cue jaw > 20 px above the trial's pre-cue rest is
 2-7 % of frames, but only 2-24 % of those are in the last quarter of trials (where drops build up) -- something else dominates.
-No water guard proposed yet; next labelling round: water-drop frames with the hidden point left blank (hard negatives).
+No water guard proposed yet; next labeling round: water-drop frames with the hidden point left blank (hard negatives).
 
-## D9. First cam1 behavioural readout -- lateral landing of licks (10-18, PRELIMINARY: one animal, model not chosen)
+## D9. First cam1 behavioral readout -- lateral landing of licks (10-18, PRELIMINARY: one animal, model not chosen)
 
 `python -m scripts.cam1_lick_aim PS93:20260814=pre PS93:20260821=acute PS93:20260908=chronic --model <LP c1r2 csv> --tag _lp_c1r2`
 -> `session_poses/cam1_lick_aim_lp_c1r2{.csv,_summary.csv,.png}`. cam1 GEOMETRY (checked on frames): image up / down =
 dorsal / ventral; the spouts sit almost level with the mouth and differ only laterally; the tongue reaches DOWN under the spout
 tip, 50-100 px below the mouth. An angle of tongue vs spout direction is therefore meaningless on cam1 (first version: -50 ..
 -220 deg); only LATERAL comparisons are valid. Lick = cleaned tongue run (D8 values) reaching > 20 px below the mouth; peak =
-its most ventral frame; `lat_err_px` = peak lateral - spout lateral (+ = outward of the spout; centre: + = mouse's left).
+its most ventral frame; `lat_err_px` = peak lateral - spout lateral (+ = outward of the spout; center: + = mouse's left).
 Runs that never get below the mouth (a pale bump at the lips, LP confident, mouth nearly closed) are counted, not licks.
 
 Median lateral error, contact licks (px; pre / acute / chronic): close_L -6 / -29 / -26; close_center (+ = left) +18 / +1 / -7;
 close_R -41 / -14 / -16; far_L -39 / -49 / -60; far_R -32 / - / -50; far_center +1 / 0 / -3.
 Lesions are LEFT (ipsi = mouse left = cam1 IMAGE RIGHT). On these three clips PS93's licks look shifted to the mouse's RIGHT
-after the stroke, and PS93's cam4 angles on the same trials agree -- **but that is a BASELINE ARTEFACT, corrected 10-18 (Priya:
+after the stroke, and PS93's cam4 angles on the same trials agree -- **but that is a BASELINE ARTIFACT, corrected 10-18 (Priya:
 "I thought PS93 also shifted LEFT")**. Over all curated sessions (median of session medians, cam4 contact licks, + = ipsi)
 PS93 shifts LEFT acutely like the cohort: close_center +10.0, far_center +9.5, far_R +5.9 deg (acute - all pre). 0814 is an odd
 pre day: PS93's close_center angle is BIMODAL across sessions -- about -10 deg on most days, +5 .. +10 on 0814, 0818, 0820, 0915,
 0918, 1002 -- while close_L / close_R do not jump on those days (so not a reference-frame flip): PS93 seems to lick the OTHER
-SIDE of the centre spout on some days, and cam1 shows the same (close_center lateral +18 px on 0814, ~+1 on 0821). A cam1
+SIDE of the center spout on some days, and cam1 shows the same (close_center lateral +18 px on 0814, ~+1 on 0821). A cam1
 epoch comparison needs several sessions per epoch, not one clip day each. (Nose lateral in the cam1 mouth frame moved +6.5 px
 between these days: not the spout set point.) NB cam4 is a FRONTAL view (face from the front, tongue down toward the spouts),
 not a side view as written in places above.
@@ -729,7 +729,7 @@ lateral position covaries with reach; at close_R the pre-stroke "peaks" sit on t
 clock on one 4 ms grid: 99.99 % of cam1 frames have a cam4 frame at EXACTLY the same t_ms (worst case one frame; the template is
 finer still). (The "~12 ms" in B4 is cross-camera agreement of two models' onset estimates -- tracking, not clock.) cam1 sees the
 tongue at cam4's peak for 79-100 % of licks. Per lick, cam1 lateral vs cam4 peak angle: Spearman 0.77 pooled; within position
-0.74-0.88 (far_L, close_L, both centres), close_R 0.45, far_R -0.02. **The right-hand disagreement is near-mouth events**
+0.74-0.88 (far_L, close_L, both centers), close_R 0.45, far_R -0.02. **The right-hand disagreement is near-mouth events**
 (frames: tongue at the lips late in the trial, cam4 angle -65 / -73 deg -- the angle of a point at the mouth is unstable):
 restricted to cam1 tongue > 30 px below the mouth, rho = far_R 0.80, close_R 0.83, close_L 0.75, close_center 0.81, far_L 0.92,
 far_center 0.66. So the two cameras measure the same lateral aim once the tongue is really out -- use a protrusion floor for any
@@ -781,7 +781,7 @@ for production.
 
 `wfield_local/pose3d.py` + `python -m scripts.pose3d {clips | production}` (dlc env; output `session_poses/pose3d/`:
 `<a>_<d>_frames.csv.gz`, `<a>_<d>_licks.csv`, `summary_<source>.csv`). aniposelib `CameraGroup.triangulate` (undistort +
-DLT) with the 09-11 calibration -- the spout fit's own call, not anipose's filter / optimisation pipeline (two cameras, no
+DLT) with the 09-11 calibration -- the spout fit's own call, not anipose's filter / optimization pipeline (two cameras, no
 rigid limbs; multi-camera EKS is the next step if tips prove noisy). Frames pair EXACTLY on (trial_id, t_ms) (same 4 ms
 DAQ grid); each camera is cleaned with its own rules first and tongue / jaw are triangulated only where BOTH cameras
 MEASURED the point (no interpolated point enters); nose / spout raw at likelihood >= 0.9. The per-session spout fit
@@ -796,7 +796,7 @@ cam1 "tip from below" and cam4 "tip from the front" triangulate as one point); 8
 leaves the mouth (resting jaw at (ml, ap, dv) = (-0.2, 1.2, -1.4) mm, i.e. at the close_center spout), so angles from it were
 11-48 deg off target with no sensible structure. At its extension peak the tongue is 1.5-3 mm BELOW the spout tip (the hanging
 drop; Priya's "the tongue reaches down" on cam1) and medial to it. Per lick now: ``miss_mm`` = closest 3-D approach of the tip
-to the commanded spout tip; ``lat_err_mm`` at that frame (+ = outward, centre + = mouse left, the cam1 2-D sign);
+to the commanded spout tip; ``lat_err_mm`` at that frame (+ = outward, center + = mouse left, the cam1 2-D sign);
 ``reach_mm`` at the peak.
 
 **Validation: contact licks come closer** (median miss, pre): far_L 1.53 vs 3.07 mm without contact, far_R 0.93 vs 1.63,
@@ -821,7 +821,7 @@ principal-point variant puts the cam1 mouth - nose x at +18 / +22. So cam4 was m
 0601-0605 are outside the curated set (`cross_session_exclude`), so no analysis is affected; 3-D for them would need a
 per-session cam4 correction (D3 option 2, spout-fitted similarity). **PS92 0605 fails** (fit residual 1.5 mm, distance
 ratios to 8; cam4 cuts 15 % fewer frames) -- its cam4 template is the known quality failure. June reach is ~5-10 % longer
-than August at far positions (scale after correction 1.015-1.023): residual June geometry or early-training behaviour;
+than August at far positions (scale after correction 1.015-1.023): residual June geometry or early-training behavior;
 compare June only within June.
 
 **Cameras posed per session from the commanded spouts (PnP) -- the 3-D default since 10-19.** Priya's video QC (10-19, PS92
@@ -847,7 +847,7 @@ Lick measures barely move (miss / lat_err within ~0.05 mm; PS92 0818 far_R miss 
 readouts stand. The edge labels go into each camera's pose; their difference (~ rod width, mostly depth) is a small constant
 shift of every body point. The old route (09-11 extrinsics + per-session `disparity_shift` + similarity fit) stays as
 ``method="calib"``. Single-camera frames (~40 % of tongue frames; cam1 alone fixes ml / ap, cam4 alone ml / dv) are the next
-step: ray + depth from neighbouring 3-D frames, or multi-camera EKS. Video: `pose3d_figures video --view cam4` (3-D panel
+step: ray + depth from neighboring 3-D frames, or multi-camera EKS. Video: `pose3d_figures video --view cam4` (3-D panel
 seen from cam4's PnP position; also cam1 / hybrid).
 
 **Single-camera frames filled (`pose3d.fill_single_view`, default since 10-19; Priya: "use the known geometry to resolve
@@ -924,7 +924,7 @@ Referenced to the spout itself, so the post-stroke set-point change does not ent
 (1) CLOSEST APPROACH to the spout tip (water access); (2) PEAK ENDPOINT (3-D extension peak) vs the spout tip; (3) peak
 endpoint vs the animal's OWN August-pre median endpoint for that position (error in the motor-control sense, no assumption
 about where on / under the spout the target is). Inputs: each camera's cleaned tongue (measured points only) + the
-single-camera fill. Splits: DAQ contact (cam4 ``contact``), first lick of the trial vs later. Figures: spout-centred scatter
+single-camera fill. Splits: DAQ contact (cam4 ``contact``), first lick of the trial vs later. Figures: spout-centered scatter
 of closest-approach points (front and side), distance-to-spout traces from lick onset.
 Pre (August) medians: closest approach 0.4-1.3 mm; peak 1.5-3.2 mm from the spout and BELOW it (dv -1.3 to -3.0) at every
 position -- Priya's point; peak vs own endpoint 0.7-1.4 mm (lick-to-lick spread). Acute far_R, all three grow in both
@@ -957,20 +957,20 @@ same trial, >= 3 knots); one-sided gaps hold the nearest point; the estimate is 
 **3-D QC, angles and figures (10-19 evening).** (1) Plausibility gates (`pose3d.qc_3d`): tongue > 8 mm from the mouth zero,
 > 2 mm BEHIND it (ap < -2: Priya, "impossible (negative from mouth)"; ap < 0 is common to ~-1 mm = a tip emerging under the
 upper lip), jaw > 5 mm from its session median, single-frame out-and-back spikes > 1.5 mm; filled points dropped when the
-seen camera's ray misses the neighbours' estimate by > 1 mm. Source of the PS92 0607 outliers: PAW-in-face frames -- cam1
+seen camera's ray misses the neighbors' estimate by > 1 mm. Source of the PS92 0607 outliers: PAW-in-face frames -- cam1
 puts 'tongue' on the digits (likelihood 0.91-0.92), cam4 on the incisors in the open mouth (0.97-0.99); reprojection does not
-flag them (error along depth). Hard negatives for a future labelling round: paw-in-face frames, tongue blank, both cameras.
+flag them (error along depth). Hard negatives for a future labeling round: paw-in-face frames, tongue blank, both cameras.
 (2) Direction: 3-D angle error vs the spout direction (consistent across the set-point move: the spouts are commanded from
-it, Priya) + the angle OUT OF THE MIDLINE PLANE through the mouth zero and the centre spouts (= ml 0; asin(ml / |r|), + =
+it, Priya) + the angle OUT OF THE MIDLINE PLANE through the mouth zero and the center spouts (= ml 0; asin(ml / |r|), + =
 ipsi) + forward tilt within it. (3) Figures: `scripts/pose3d_summary_fig.py` (per session over days from the stroke, August
 pre band, June as open markers in its own segment), `scripts/pose3d_phase.py` (peak-aligned 3-D distance, phase portrait
-radial speed vs distance, midline angle and distance vs normalised phase, mean paths in front / side / top planes on
-normalised phase where >= half the licks have a 3-D point). PS92 (9 Aug pre, 3 acute): acute licks are shifted ipsi from
-ONSET through the whole lick at every position (+5..+13 deg at close / centre, ~+30 deg at far_R, where the mean path crosses
-to the mouse's left of the midline); far_R protrusion peak radial speed ~100 vs ~160 mm/s; centre licks reach further acutely.
+radial speed vs distance, midline angle and distance vs normalized phase, mean paths in front / side / top planes on
+normalized phase where >= half the licks have a 3-D point). PS92 (9 Aug pre, 3 acute): acute licks are shifted ipsi from
+ONSET through the whole lick at every position (+5..+13 deg at close / center, ~+30 deg at far_R, where the mean path crosses
+to the mouse's left of the midline); far_R protrusion peak radial speed ~100 vs ~160 mm/s; center licks reach further acutely.
 
 **Combined-track licks (`pose3d.lick_events`, `pose3d_kinematics --licks combined`; Priya 10-19).** Lick events from the 3-D
-track (both cameras or one camera + neighbours, after QC), cue .. trial stop, gaps <= 12 ms bridged, >= 3 frames; flagged
+track (both cameras or one camera + neighbors, after QC), cue .. trial stop, gaps <= 12 ms bridged, >= 3 frames; flagged
 ``cam4_matched`` (overlaps a cam4 lick window) and DAQ ``contact``. Adds 3-7 % licks per session (pre 3.1-6.6 %, acute
 2.4-3.3 %). The added licks (PS92 August): reach 3.4 vs 4.3 mm, 8 vs 18 3-D frames, peak speed 119 vs 184 mm/s, and 47 %
 touched the spout (DAQ) vs 86 % -- real small licks cam4's detection missed. The earlier 31-41 % of cam1 at-the-lips events
@@ -980,14 +980,14 @@ depth prior (held-out test next). Output `session_poses/pose3d/kinematics_combin
 **Jaw one-camera fill limit = 200 ms (10-19 late; `pose3d.FILL_GAP_MS`, `scripts/pose3d_jaw_gap_check.py`).** Held-out (PS92
 0807 / 0818, one camera hidden on both-camera jaw frames): median 0.03-0.05 mm at 24 ms gaps, 0.04-0.07 mm at 200 ms (p90 0.10
 -> 0.20-0.34). One-camera jaw frames are mostly long stretches: 1-3 % lie in gaps <= 24 ms, 13-23 % in gaps <= 200 ms (the rest
--- e.g. the rod over the chin in cam4 for whole centre-spout trials -- stay single-camera). Tongue stays at 24 ms.
+-- e.g. the rod over the chin in cam4 for whole center-spout trials -- stay single-camera). Tongue stays at 24 ms.
 
 **Late 10-19 results (details: `docs/status/STATUS_2026-10-19_POSE3D_HANDOFF.md` §4).** (1) *2-D vs 3-D*
 (`pose3d_vs_cam4`, PS92 August pre, LOSO): target spout from the lick endpoint 0.53 (cam4) vs 0.80 (3-D) balanced accuracy;
-centre close vs far 0.59 vs 0.87. (2) *Jaw cross-check* vs cam4 v36 `jaw_lateral`: per-trial lateral r 0.66-0.88, opening
+center close vs far 0.59 vs 0.87. (2) *Jaw cross-check* vs cam4 v36 `jaw_lateral`: per-trial lateral r 0.66-0.88, opening
 0.63-0.92; session FAR_DIR r 0.99 (acute collapse identical). (3) *Depth prior* for one-camera tongue points: closest point to
 the mouth zero 0.6 mm error on licks < 1 mm, KNN on cam1 2-D 1.5-1.7 mm -> NOT adopted; one-camera tongue frames get 3-D only
-from the neighbour fill. (4) *cam1 2-D lick detector* (`wfield_local/cam1_licks.py`): events = runs of cleaned cam1 tongue
+from the neighbor fill. (4) *cam1 2-D lick detector* (`wfield_local/cam1_licks.py`): events = runs of cleaned cam1 tongue
 frames; ``lips`` = peak <= 20 px below the cam1 mouth (PROPOSED, blind review pending). PS92: cam1-only 8.1 % pre / 4.5 %
 acute; cam4 jaw-only trials with a cam1 tongue 28 % pre vs 5 % acute. (5) The combined-track licks are NOT small (reach
 3.7-4.1 mm vs 4.5): mostly licks cam4 lost to occlusion / merging; the earlier "small licks" wording is superseded.
@@ -1005,12 +1005,12 @@ the ``lips`` / ``out`` class matched Priya's 'at the lips' / 'out' call 24 / 24;
 showed cam1 and cam4 rows from different moments on PS93 0605 / 0606 -- frame-drop sessions whose frame-index time was
 off by up to 0.6 s; fixed by cutting windows on the alignment templates' per-frame camera times.)
 
-**2026-10-20 afternoon (pose3d / cam1, all on template time + jaw anchor).** Jaw anchor raises centre-spout 3-D jaw
+**2026-10-20 afternoon (pose3d / cam1, all on template time + jaw anchor).** Jaw anchor raises center-spout 3-D jaw
 coverage 0.84 -> 1.00 (13-16 % of frames anchored). CLOSE_DIR (close side spouts) PS92 -0.13 -> -0.22 / -0.25, PS93 -0.03
 -> -0.14 / -0.20 mm (pre / acute / chronic); CLOSE_BIAS opposite in the two animals; video sheet: the jaw opens beside the
 rod, away from it (`scripts/pose3d_close_dir_sheet.py`). Cue-aligned 3-D traces (`scripts/pose3d_cue_traces.py`): acute
 far_R trial-averaged distance falls ~85 % (time with the tongue out), tongue-out distance only -12 to -20 %. PS93's
-left-side incomplete licks are pre-stroke behaviour (DAQ contact far_L 0.39), not a cam1 side flip. `apparatus_mouth`
+left-side incomplete licks are pre-stroke behavior (DAQ contact far_L 0.39), not a cam1 side flip. `apparatus_mouth`
 uses the per-session PnP pose (cam1 cleaning origin = PnP mouth + constant 30-32 px, the rod edge). Details:
 `docs/status/STATUS_2026-10-20_POSE3D_TIMING_HANDOFF.md` §4a.
 
@@ -1033,10 +1033,10 @@ Results: held-out frames (frame split, optimistic) median px nose 1.3 / jaw 2.5 
 `DeepLabCut/Widefield/inference_check_20261027_side_pilot/`. Not yet judged by Priya. Next model: O2, temporal loss on
 cropped / flipped side clips, after Parts B / C.
 
-| **LP side crop2** | LP `heatmap`, ResNet-50 | same 228 frames | per-frame-size crop -> 256 px (August native, June 317 -> 256 at August scale), otherwise as the pilot | Priya: prioritise the August crop | `C:/Users/SabatiniLab/lp_stage/lp_side_crop2_20261027/models/side_crop2_heatmap_20261027` |
+| **LP side crop2** | LP `heatmap`, ResNet-50 | same 228 frames | per-frame-size crop -> 256 px (August native, June 317 -> 256 at August scale), otherwise as the pilot | Priya: prioritize the August crop | `C:/Users/SabatiniLab/lp_stage/lp_side_crop2_20261027/models/side_crop2_heatmap_20261027` |
 
 crop2 vs pilot (DECISIONS 2026-10-27 late evening): same accuracy (held-out within ~1 px; unseen agreement ~2 px), adopted.
-Labelled review clips (single-frame model: judge labels / crop, not smoothness): `inference_check_20261027_side_pilot/clips/`.
+Labeled review clips (single-frame model: judge labels / crop, not smoothness): `inference_check_20261027_side_pilot/clips/`.
 Priya 11-04 on the clips: "pretty darn good"; cam2 (sometimes cam3) less confident when the mouth is closed before cue /
 reward -> worth extra closed-mouth frames in Parts B / C.
 
@@ -1050,7 +1050,7 @@ move is slow per frame (36-103 px over 450-550 ms; steps during moves p99 2.7, p
 spout jumps outside moves are errors. Rule as cam4 / cam1 (eps ~ p99 for the tongue, above p99.9 for the rest), but no 10 px
 floor: the side face is small (256 px native crop), so 10 would leave jaw / nose / spout unconstrained.
 Unlabelled set: `scripts/lp_unlabelled_clips.py --project side-2026-11-04 --cam cam2 cam3 [--all-sessions --windows 3]` ->
-`DeepLabCut/Widefield/lightning-pose/side-2026-11-04/videos/`: 126 clips (21 labelled sessions x 3 non-overlapping 30-s
+`DeepLabCut/Widefield/lightning-pose/side-2026-11-04/videos/`: 126 clips (21 labeled sessions x 3 non-overlapping 30-s
 cue-anchored windows x 2 cameras; ~945k frames, 0.57 GB), cut in MODEL space by an ffmpeg chain equal to
 `lp_sidecam.transform_image` (checked: no pixel shift or frame offset; residual = h264 on noisy IR, as cam4's clips).
 **Result (11-04): no gain over crop2.** Held-out median px (same seed-42 split, 22 val / 24 test frames), test crop2 vs
@@ -1058,7 +1058,7 @@ temporal: nose 0.9 / 1.1, jaw 2.0 / 2.8, tongue 1.3 / 2.7, spout 1.1 / 1.4 (val 
 Four review sessions: confident fractions unchanged (jaw 0.89 / 0.86, pre-cue closed-mouth jaw 0.83 / 0.83, tongue 0.20 /
 0.20, spout 0.96 / 0.94); jitter unchanged (p99 step jaw 5.0 / 4.9, spout 3.0 / 2.9; steps > epsilon <= 0.6 % already in
 crop2). The single-frame model had little jitter to remove, and the loss cost some label accuracy (tongue most). crop2 stays
-the pre-labelling model for Parts B / C; revisit the temporal loss on the larger label set. Clips:
+the pre-labeling model for Parts B / C; revisit the temporal loss on the larger label set. Clips:
 `inference_check_20261027_side_pilot/clips/<a>_<d>/labeled_temporal.mp4` beside `labeled_crop2_singleframe.mp4`.
 
 **Round 2 set-up (11-04, Priya).** (1) JAW SEQUENCES (`dlc_sidecam jawseq`): in the 13 Part B / C sessions, one trial per
@@ -1068,7 +1068,7 @@ existing cam2 / cam3 assignment unchanged (checked: 602 / 602 rows identical) an
 camera. (2) PRE-LABELS (`lp_sidecam prelabel`, dlc env): crop2 predicted all 292 listed targets of the 26 unlabelled
 folders (188 Part B / C + 104 jaw), confident points (tongue 0.4, others 0.6) mapped back to the raw frame and seeded as
 CollectedData_Priya (nose 292, jaw 255, tongue 112, spout 265 frames); mapping checked by overlay (June cam3 + August cam2).
-`SIDECAM_GUIDE.html` explains both; a pre-labelled frame counts as to-do on the page until its points are changed.
+`SIDECAM_GUIDE.html` explains both; a pre-labeled frame counts as to-do on the page until its points are changed.
 **Round 2 = Part B only (11-04, Priya: "let's just make this all Part B, hopefully this is our last round").** Old Part C's
 126 ROUTINE cue-locked targets are DEFERRED (`side_assignment.csv` column `deferred`; rule `dlc_sidecam.PILOT_STEMS`:
 routine targets are listed only in the 16 Part A folders) -- Part A already covers every animal / epoch with 144 of them and
@@ -1085,7 +1085,7 @@ four review sessions mapped to raw (`lp_sidecam.to_raw`); reference = production
 * Side PnP: spout reprojection 0.4-0.9 px (cam2 / cam3, August), 1.1 px June; cam1 / cam4 poses identical to production.
 * Side keypoint vs the cam1 + cam4 3-D point (perpendicular to the side ray, mm; PS93 0814 / 0821 / 0908 / PS95 0606, side
   spout keypoint at the commanded tip). cam2 and cam3 mirror each other in ml, as they must:
-  NOSE dv +0.29 to +1.18 (median ~+0.75; side nose HIGHER) -- a labelling-definition difference (profile snout tip vs the
+  NOSE dv +0.29 to +1.18 (median ~+0.75; side nose HIGHER) -- a labeling-definition difference (profile snout tip vs the
   front / bottom nose point), session-variable; JAW ap -0.41 to +0.07 (median ~-0.2), dv within 0.12; TONGUE ap +0.12 to
   +0.30, dv within 0.1, ml +-0.1 mirrored (each side camera sees the near side of the tip); SPOUT ap +0.74 to +0.90 every
   session / camera (stereo +0.94 to +1.07).
@@ -1128,7 +1128,7 @@ four review sessions mapped to raw (`lp_sidecam.to_raw`); reference = production
   key readout): |tip ml - spout ml| at contact 0.614 vs 0.615 mm (= the rod radius 0.62: both put a touching tip on
   the rod surface), per-frame ml |d| p50 0.04 / p90 0.12 mm; the lateral ANGLE moves p50 0.9 / p90 3.5 deg through its
   depth denominator (hypot(ap, dv)), not ml.
-* **Student-label check (11-04, `scripts/side_label_offsets.py`, 5 August Part A sessions, 151 moments labelled in a side
+* **Student-label check (11-04, `scripts/side_label_offsets.py`, 5 August Part A sessions, 151 moments labeled in a side
   camera + cam1 + cam4).** Her side label vs her cam1 + cam4 3-D point: NOSE dv +0.72 (cam2) / +0.85 (cam3), positive in
   all 5 sessions -- the model's side-nose offset (+0.68 / +0.90) is a real view-definition difference, so the side-nose
   correction stands; TONGUE ap +0.15 / -0.02, sessions both signs, leave-one-camera-out <= 0.06 mm in every camera -- her

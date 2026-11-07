@@ -385,7 +385,7 @@ the override now also applies to an align that starts with `precue-`. Ids withou
 `test_non_precue_specs_ignore_the_enl_window`).
 
 - The 4 `attempt_axes_precue-dom_*` models frozen by the first LP attempt render (LP runs default to ENL 1.0 s) were
-  fitted on 1.0 s features but labelled `post_s` 2.0. They were RETIRED by rename (`frozen_models.supersede`, reason
+  fitted on 1.0 s features but labeled `post_s` 2.0. They were RETIRED by rename (`frozen_models.supersede`, reason
   `ENL1.0-features-labelled-post_s2.0`), never deleted. No other model was mislabelled: the coding / CD LP renders used
   cue + lick only, the section G renders are DAQ 2.0 s, and the first ENL 1.0 nolick run only HIT (wrote nothing).
 - Re-verified after the fix: nolick DAQ ENL 1.0 (`nolick/predates_enl1_fixed`, 16 new 1.0 s pre-cue models + 16 cue
@@ -414,7 +414,7 @@ trained:
 `wfield_local/frozen_readouts.py` (new): `pre_loso_ridge(animal, tag, pre, X, Y, alphas, k=None, loso=True)` is the
 construction every script carried inline (StandardScaler + RidgeCV on the animal's pre sessions; one fit per held-out
 pre session plus the all-pre fit; training rows in `pre` order), through `load_or_fit`, kind **`iti_readout`**; opt-out
-**`WIDEFIELD_ITI_FROZEN=0`**. Spec: align = the sanitised read-out tag (script, lick set, target, lag / window / bin,
+**`WIDEFIELD_ITI_FROZEN=0`**. Spec: align = the sanitized read-out tag (script, lick set, target, lag / window / bin,
 feature set; raw tag kept in `spec["tag"]`), plus `alphas`, `n_targets`, `loso`, `train_order` and **`data_sig`** (sha1
 of the training arrays in training order: these read-outs train on derived per-lick tables that the U_atlas / SVTcorr
 stat signatures cannot see, so a re-extraction mints a new id). **LP-only by nature** (LP video licks): the spec always
@@ -452,7 +452,7 @@ render; their scaler means differ from a fresh fit TODAY on the same spec (same 
 feature-column digest), in the post pool and in the excluded pool alike, while PS92 `keep0-1-2-3-4` models frozen at
 23:19 EST reproduce exactly, and no readout mutates the pooled arrays (checked). So the pre-stroke trial features
 PS92 contributes changed between those two times in a way the spec cannot see (`train_sigs` stat only U_atlas and
-SVTcorr) -- most likely a behavioural / trial-definition input (the shared `wfield_cache/behaviour` pickles were
+SVTcorr) -- most likely a behavioral / trial-definition input (the shared `wfield_cache/behaviour` pickles were
 rewritten after 21:00 by jobs on this box), not the store. As briefed, the family was stopped and reported rather than
 papered over; its 58 `g_*` models stay in the store (the PS92 keep-all ones carry the older input).
 
@@ -480,7 +480,7 @@ session: size + mtime of U_atlas and of `config.svtcorr_path(mc)`, the SVTcorr o
 - **Hemo variant / swap-mask**: changes the id ONLY if it reaches the SVTcorr file `config.svtcorr_path` names (a new
   `hemo_<variant>` directory selected by config, or a rewritten SVTcorr: new size / mtime). **A correction applied
   DOWNSTREAM of SVTcorr is NOT seen by any kind except `iti_readout`** (which hashes its training data): a mask applied
-  while building trial features, a re-registered U_atlas written elsewhere, a changed behavioural / gate input, a joint
+  while building trial features, a re-registered U_atlas written elsewhere, a changed behavioral / gate input, a joint
   basis refitted under the same `basis_id`, or a code change in feature building. Kinds with that blind spot:
   `decoder`, `encoder`, `state`, `epoch_decoder`, `rest_frozen`, `nolick_reference`, `attempt_axes`, `drift_decoder`,
   `coding_decoder`, `coding_directions`, `cd_directions`, `g_lickonly_decoder`, `g_lick_disc`, `g_lick_disc_folds`.

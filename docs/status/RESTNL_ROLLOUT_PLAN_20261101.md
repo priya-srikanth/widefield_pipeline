@@ -6,7 +6,7 @@ Nothing has been run, rendered, extracted or committed for it.
 RESTnl = `scripts/restnl.py` (wf_attempt branch `analysis/attempt-coding` only; NOT on `main`): the restdock05 rest mask minus
 every cam4 LP lick (`licks_all.csv`, contact or not) and every DAQ lick onset, buffer [0.5 s before, 2.0 s after], min_rest_s
 floor re-applied, engagement-gated (`rest_frames_by_position(docked=False, engaged_only=True)`), per-position MEDIAN, rule
-`wr` = equal-weight mean over positions with >= 50 frames, >= 4 of 6, renormalised (107 / 107 sessions). FINDINGS.md 10-29
+`wr` = equal-weight mean over positions with >= 50 frames, >= 4 of 6, renormalized (107 / 107 sessions). FINDINGS.md 10-29
 (adoption) / 10-30 (rescue rule) / 11-01 (captions).
 
 Classes used below:
@@ -86,7 +86,7 @@ engaged restdock05 rest frames per bin, interpolated; `position_reference_maps.s
 | imaging | 1.1-1.3, 2.1-2.4, 4.1-4.3, 5.1-5.2, 11.1-11.2, 13.1-13.2 (17) | decoders | no per-trial baseline (decoders) | (c) | - | - | - |
 | imaging | 6.1-6.3, 13.3-13.6 (7) | e_*, m_tmpl_time, m_trend_* | encoder template / R2 (session z-scored on engaged trials; an additive level is absorbed) | (c) | - | - | - |
 | imaging | 9.1-9.11, 10.1-10.2 (13) | c_*, cp_*, r_crossnobis, d_drift | coding directions (z-scored in the pre frame; "mean of the rest" = other positions), crossnobis distances | (c) | - | - | - |
-| imaging | 0.1 | b_timecourse | behaviour | (c) | - | - | - |
+| imaging | 0.1 | b_timecourse | behavior | (c) | - | - | - |
 | imaging | 12.1 | d_rest15f | rest FRAMES as decoder input (docked, lick buffer [0.5, 1.0] DAQ, lick-gap matched) | **(d)** recommend an LP-lick-free sensitivity | scripts/rest_migration/rest_frozen_decoder.py | rest periods from the RESTnl mask (cam4 + DAQ, [0.5, 2.0]); a NEW frozen pre-stroke rest decoder spec (frozen_models rule 10: never overwrite the restdock05 one) | ~1 h incl. frozen fit; here |
 | imaging | 3.1-3.3 | d_state, d_state_delta, s_per_animal | rest = one of the frozen STATE decoder's three classes (DATA) | (d) recommend NO change now | wfield_local/locomotor_decoder.py, epoch_state.py | (would need a new frozen state model, kind `state`) | - |
 | imaging | 15.1-15.7 | q_fr, q_examples, q_fr_detail, q_threshold, q_spectrum, q_sdmaps, q_eta_maps | QUIET frames as DATA (no DAQ contact lick or running within 1.5 s; spout state ignored); event baseline = 2-s running median / pre robust SD (not rest) | (d) recommend an LP-lick-excluded sensitivity for 15.1, 15.6, 15.7 | scripts/cohort2_qc/quiet_spikes_v2(_fr).py `busy_frames`, quiet_fluct.py, quiet_eta_fr.py | add cam4 `licks_all` onsets (+-1.5 s, as the DAQ rule) to `busy_frames` behind a flag; outputs suffixed | ~30-60 min per script family; here |
@@ -130,7 +130,7 @@ trials and positions. The window features are linear means, so for every positio
    cache). Port from `scripts/restw_strict_check.py` (`widen`, `floor_runs`, `_daq_lick_onsets`, the strict mask:
    `floor_runs(rest0 & ~widen(daq_on,[0.5,2.0]) & ~widen(cam4 licks_all daq_on_s,[0.5,2.0]), min_rest_s)`), the frame
    selection by substituting the mask into `rest_frames_by_position(docked=False, engaged_only=True)` (as
-   restw_strict_check does, in-process) and the `wr` estimator (>= 50 frames, >= 4 of 6, renormalised; `strict` as an
+   restw_strict_check does, in-process) and the `wr` estimator (>= 50 frames, >= 4 of 6, renormalized; `strict` as an
    option). `licks_all.csv` path from `lp_licks` (exists on main). Session-cache kind `restnl-svt-<digest>` holding
    `b_nl`, the pixel map, positions used, frame counts per position, ok flag. Never write on the `mc` directories.
 2. `position_reference_maps`: `DERIVED_REFERENCES = ("restnl",)`; KEEP the `refs` entry of the `prm` cache spec equal to
@@ -149,7 +149,7 @@ trials and positions. The window features are linear means, so for every positio
 
 **Sessions:** the map arms hold 120 (contact) / 119 (LP) sessions incl. June pre; restw_check / RESTnl exist for 107
 (August pre + post, built 10-29 in ~7 min with 4 workers). June sessions need new masks (`licks_all.csv` exists for them,
-12 checked); PS93_0813 has no LP licks (no behaviour video) -> loses its RESTnl column (or DAQ-only fallback, decision).
+12 checked); PS93_0813 has no LP licks (no behavior video) -> loses its RESTnl column (or DAQ-only fallback, decision).
 
 **Cache sizes (measured 11-01, `C:/Users/SabatiniLab/.widefield_session_cache`, 45 GB total, 452 GB free on C:):** `prm-*`
 34-42 MB / session / arm (4.1-5.1 GB per arm x 7 arms ~ 33 GB); `bm-*` ~16 MB / session; `tf-*` 0.8-3.2 MB / session.

@@ -255,12 +255,12 @@ def map_figure(P: dict, out: Path, set_name: str) -> None:
         fig.suptitle(f"{set_name}: all-animals-pooled fit, per-point loading change vs the label-shuffle null "
                      "(cluster mass); image left = contralesional")
         frf.save(fig, out / "cohort_null_maps.png", """
-Loading fraction per mesh point of the all-animals-pooled fit's lick factor, COHORT_<epoch> - COHORT_pre. Colour = t: each
+Loading fraction per mesh point of the all-animals-pooled fit's lick factor, COHORT_<epoch> - COHORT_pre. Color = t: each
 point's change divided by its SD over the permutation null (within-animal label shuffle, both fits redone). RINGS = points
-in CLUSTERS with family-wise p < .05: neighbouring mesh points with |t| > 2 of one sign form a cluster, its mass = the
+in CLUSTERS with family-wise p < .05: neighboring mesh points with |t| > 2 of one sign form a cluster, its mass = the
 sum of |t|, and its p = the share of permutations whose LARGEST cluster mass reaches it (Priya 11-07: the map test;
 red ring = more loading, blue = less). Title also gives the point-level MAX-STATISTIC count (a point's |t| against the
-largest |t| over the face per permutation). One colour scale (t) for all panels.""")
+largest |t| over the face per permutation). One color scale (t) for all panels.""")
 
 
 def spectral_figure(P: dict, out: Path, set_name: str) -> None:

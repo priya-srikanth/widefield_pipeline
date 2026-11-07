@@ -70,7 +70,7 @@ a port / separate env (no installs into the shared env) -- costed and brought to
 
 **GATE: coherence / ITPC PASS (6 / 6 measures, >= 3 / 4 animals); CCA FAILS (1 / 4 animals) -> no CCA / stereotypy
 pre vs post, and the DLAG criterion is NOT met.** Script `scripts/sm_coherence_cca.py`. 31 August pre sessions (both
-families) 44 s wall (4 workers), gate 1 s; then 76 post sessions coherence family only 37 s; summarise 25 s; plots 13 s.
+families) 44 s wall (4 workers), gate 1 s; then 76 post sessions coherence family only 37 s; summarize 25 s; plots 13 s.
 * Gate, per animal (PS92 / PS93 / PS94 / PS95), cued, S8M8, tau 0. Signal: every measure above its null in 100 % of pre
   sessions in every animal (CCA also above the null 95th percentile in 100 %; median 8 / 8 canonical pairs above null).
   Reliability = split-half SD / between-session SD (< 1 passes):
@@ -108,20 +108,20 @@ recovery_partial_r); figures `figures/fig1_gate.png`, `fig2_change_vs_pre.png`, 
 (figure data in `figdata/`).
 
 ## Addendum: ITPC controls (design written BEFORE running, 2026-10-30 late)
-Priya 10-30: less interested in how reproducible the lick response is per se (behaviour shows that), but a regression
-showing whether the ITPC rise is explained by behaviour / response size is useful. Cued first licks, S8M8, evoked.
+Priya 10-30: less interested in how reproducible the lick response is per se (behavior shows that), but a regression
+showing whether the ITPC rise is explained by behavior / response size is useful. Cued first licks, S8M8, evoked.
 1. **Event-level kinematic regression.** Per session, regress each event's group trace (S, M; all 41 samples) on the
    per-event movement covariates of `scripts/coupling_vigour_sm.py` (same set and coverage rules as 14.18 S17: 3-D reach,
    peak speed, lick duration, protrusion, lick count +-0.5 / +-1 s, FaceRhythm factors, jaw amplitude, landing error) plus
    spout dummies; keep spout means + residual (i.e. remove only the movement-explained part), recompute ITPC (same 30-event
    subsampling, 50 draws). Control: the same with covariate rows permuted within spout.
 2. **Session-level adjustment.** Per session: neural SNR in each band (power of the event-mean trace / mean power of
-   the event deviations, same taper / FFT) and behavioural variability (mean over covariates of the within-spout SD,
+   the event deviations, same taper / FFT) and behavioral variability (mean over covariates of the within-spout SD,
    each covariate z-scored on the animal's pre sessions). Within animal, ITPC_session ~ epoch + log SNR (and, separately,
-   + behavioural variability); report the epoch effects with and without each covariate (per-animal table first, then
+   + behavioral variability); report the epoch effects with and without each covariate (per-animal table first, then
    boot_delta on the adjusted values = residual + epoch effect).
-Read-out: the share of the pre -> chronic 1.5-4 Hz ITPC change that remains after (1), after SNR, and after behavioural
-variability. Behavioural variability change itself is reported (for the behaviour reading).
+Read-out: the share of the pre -> chronic 1.5-4 Hz ITPC change that remains after (1), after SNR, and after behavioral
+variability. Behavioral variability change itself is reported (for the behavior reading).
 
 ### Addendum outcome (2026-10-30)
 Code: `sm_coherence_cca.py ctrl-run` (107 curated sessions, 4 workers, 54 s, frozen env for the FaceRhythm factors) /
@@ -138,10 +138,10 @@ session values exactly (max |diff| 8e-17; same seeds, so raw / kin / perm share 
   | kinematics regressed | **1.11** (+.183 [.099, .244], 4/4); 1.14 / 1.06 / 1.06 / 1.52 | **1.08** (+.102 [.044, .157], 4/4); 1.13 / 1.02 / .87 / (PS95 raw ~0) |
   | permuted control | 1.03; 1.05 / 1.02 / .99 / 1.17 | 1.03; 1.05 / 1.01 / .93 / - |
   | + log SNR | **.51** (+.085 [.028, .143], 4/4); .51 / .75 / .37 / .04 | **.26** (+.025 [-.040, .098], 2/4); .32 / .87 / -.35 / - |
-  | + behavioural variability | **1.01** (+.166 [.097, .223], 4/4); 1.08 / 1.02 / .85 / 1.49 | **.92** (+.087 [.022, .154], 4/4); 1.09 / 1.06 / .37 / - |
+  | + behavioral variability | **1.01** (+.166 [.097, .223], 4/4); 1.08 / 1.02 / .85 / 1.49 | **.92** (+.087 [.022, .154], 4/4); 1.09 / 1.06 / .37 / - |
   PS95's chronic change is ~0 in raw (S +.041, M +.001), so its ratios are not meaningful. Low band: kin .86 (S) / .96 (M),
   bvar .93 / .89, log SNR -.05 / .13 (the low-band rise is fully absorbed by SNR).
-* **Behavioural variability does NOT fall consistently**: mean within-spout SD (pre-z units) chronic -.038 [-.091, +.025]
+* **Behavioral variability does NOT fall consistently**: mean within-spout SD (pre-z units) chronic -.038 [-.091, +.025]
   (3/4 down; PS92 -.03, PS93 -.08, PS94 -.09, PS95 +.05); acute -.040 (PS95-driven, -.14); subacute ~0. Its within-animal
   slope on ITPC has no consistent sign.
 * **Log SNR rises** (S 1.5-4 Hz chronic +.83 [.51, 1.10], M +.83 [.52, 1.12], both 4/4). Caveat: SNR (event-mean power /
@@ -151,17 +151,17 @@ session values exactly (max |diff| 8e-17; same seeds, so raw / kin / perm share 
   pre-specified): SNR on the same 30-event subsamples as the ITPC leaves even less (S chronic per animal .061 / .118 /
   -.026 / -.003, M .007 / .102 / -.131 / -.035).
 * **Reading (PROVISIONAL, n = 4):** the ITPC rise is NOT explained by lick kinematics (regressing them out per event
-  slightly increases it) and NOT by behavioural variability (which does not fall consistently); it goes together with a
+  slightly increases it) and NOT by behavioral variability (which does not fall consistently); it goes together with a
   larger response SNR, which accounts for about half (sensory) to most (motor) of it.
 * Deviations / choices: the movement design is [spout dummies + movement columns] without the 3-D lick angle (the
   addendum lists spout dummies only; S17's "old" design had the angle); eligibility = S17's rule with its base-design
-  column count; permutation within spout (addendum) rather than S17's global permutation; behavioural variability uses,
+  column count; permutation within spout (addendum) rather than S17's global permutation; behavioral variability uses,
   per animal, the covariates with >= 50 % coverage in every session (all 14 here), z-scored on the animal's pooled pre
   events; SNR on all events of the session (as written). `plot --plot-only` re-rendered figs 1-4 from their unchanged
   figdata.
 
 ## Addendum: GCaMP6s kinetics caveat (2026-10-30, after Priya's comment)
-The deconvolved (tau 0.6) rows were computed by `run` but never summarised. Pre -> chronic, cued, S8M8, evoked, value
+The deconvolved (tau 0.6) rows were computed by `run` but never summarized. Pre -> chronic, cued, S8M8, evoked, value
 minus null, per animal PS92 / 93 / 94 / 95: ITPC S 1.5-4 Hz raw +.179 / +.220 / +.219 / +.041, deconvolved +.173 / +.221 /
 +.229 / +.057; ITPC M 1.5-4 Hz raw +.136 / +.148 / +.094 / +.001, deconv +.128 / +.154 / +.099 / +.016; coherence low raw
 -.057 / -.140 / -.130 / -.021, deconv -.067 / -.164 / -.145 / -.030. The agreement is EXPECTED and uninformative: a

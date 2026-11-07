@@ -9,8 +9,8 @@ the wheel."* Audited — nothing needs recomputing.
 | | |
 |---|---|
 | `43bede0` | `wfield_local/epochs.py` — epoch assignment, 11 tests |
-| `ace8c18` | `wfield_local/epoch_figures.py` — per-epoch pooling, coverage, behaviour weighting |
-| `f248ab9` | per-session dot overlay (4 colours, transparency, deterministic spread) |
+| `ace8c18` | `wfield_local/epoch_figures.py` — per-epoch pooling, coverage, behavior weighting |
+| `f248ab9` | per-session dot overlay (4 colors, transparency, deterministic spread) |
 
 **Epochs are DAYS SINCE EACH ANIMAL'S OWN LESION, not session index.** Read as session index the
 specification is impossible: PS94 has 8 post-stroke sessions and no ninth, so "subacute 9+" would be
@@ -18,7 +18,7 @@ empty and PS94 would silently contribute nothing to every subacute panel. Lesion
 (PS94/PS95 0816, PS92/PS93 0817).
 
 **Session counts every panel must state** — acute PS92 5 / PS93 4 / PS94 6 / **PS95 1**; subacute
-**PS92 2** / PS93 3 / PS94 2 / PS95 7. Behaviour is weighted BY SESSION (Priya's call), so PS94
+**PS92 2** / PS93 3 / PS94 2 / PS95 7. Behavior is weighted BY SESSION (Priya's call), so PS94
 dominates acute and PS95 subacute. The dot overlay makes that visible rather than asserted.
 
 ## Reuse map — every population already exists
@@ -91,7 +91,7 @@ step until the last one.
   overlap check. Fixed by making the canvas ALWAYS `QUARTER_IN`: a point size written in the module
   is now the point size the reader gets, and a fourth panel costs panel width, which is the honest
   price of a quarter page.
-* **The axes were numbered 0–5, not named.** `labels` was a local initialised to `None` and
+* **The axes were numbered 0–5, not named.** `labels` was a local initialized to `None` and
   immediately overwritten with digits, with no way for a caller to pass the position names.
 * **The comment said "ABSOLUTE MARGINS" over `subplots_adjust` fractions** — `left=0.085` is 0.53in
   on one canvas and 0.70in on another. Now inch targets divided by the canvas.

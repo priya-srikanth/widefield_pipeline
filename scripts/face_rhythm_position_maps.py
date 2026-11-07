@@ -18,7 +18,7 @@ pre sessions, per point; the mean map = mean over animals of each animal's epoch
 
 PERMUTATION TEST (Priya 11-07, ``--perm N``): per position x epoch, the mean over animals of (epoch mean - pre mean)
 of session log2 speed per point; null = the same with each animal's pre and epoch session labels shuffled WITHIN the
-animal (counts kept). Points studentised by the null SD; CLUSTER MASS (|t| > 2, mesh neighbours, sign-separate) is the
+animal (counts kept). Points studentised by the null SD; CLUSTER MASS (|t| > 2, mesh neighbors, sign-separate) is the
 family-wise map test, the MAX-STATISTIC the point-level one (`face_rhythm.stats.map_permutation`). Rings on
 position_maps_<window>_mean_perm.png = points in clusters with p < .05 (red = up, blue = down);
 data/position_maps_<window>_perm.csv lists every cluster.

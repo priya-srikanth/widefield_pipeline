@@ -11,8 +11,8 @@ Section G's G4 readouts are `poststroke_compare.looks_like_which` (lw) and `fits
 reports the share of post-stroke DAQ-no-lick trials that look "engaged-like" (cue, acute, animal means):
 
 - z frame: .195
-- spout frame centred on contact + incomplete: .323
-- spout frame centred on contact + incomplete + jaw_only: .502
+- spout frame centered on contact + incomplete: .323
+- spout frame centered on contact + incomplete + jaw_only: .502
 
 This note asks two things.
 
@@ -31,7 +31,7 @@ Priya's 11-04 design change is folded in:
 
 Each frame is used for the training sessions and for the scored sessions.
 
-| tag | frame | centre rows | centre statistic |
+| tag | frame | center rows | center statistic |
 |---|---|---|---|
 | z | production `session_z` | the session's DAQ-lick rows | mean / SD |
 | zw | new (11-04) | the session's working rows (contact + incomplete, either DAQ side) | mean / SD |
@@ -252,14 +252,14 @@ zw +.02, sp +.02, spj +.06.
 their natural-mix values when only the mix changes. This holds even though per_spout also shifts the spout make-up of
 the lick rows.
 
-**Every frame centred on working rows is not stable.**
+**Every frame centered on working rows is not stable.**
 
-- When the mix moves toward post-stroke, more no-lick working rows enter the centre (incomplete for zw / sp, plus
-  jaw_only for spj). The centre then moves toward the no-lick pattern, so every class reads more engaged-like.
-- zw and sp behave the same. The fault is the centre rows, not bal_em.
+- When the mix moves toward post-stroke, more no-lick working rows enter the center (incomplete for zw / sp, plus
+  jaw_only for spj). The center then moves toward the no-lick pattern, so every class reads more engaged-like.
+- zw and sp behave the same. The fault is the center rows, not bal_em.
 - spj is worst, about 2-3x sp, because jaw_only trials are common post-stroke.
 
-**This artefact explains a large part of task 1's frame gap.** The pre trials could reach only part of the post
+**This artifact explains a large part of task 1's frame gap.** The pre trials could reach only part of the post
 mix, yet the bias still accounts for:
 
 - about half of the sp − z gap: NL_overall +.07 per_spout of the +.13 gap;
@@ -272,8 +272,8 @@ The real post mix is more extreme, so the true share is likely larger.
 **Trust z (production `session_z`)**, read through the camera-class discriminator.
 
 - z is the only frame that does not move when the trial mix changes.
-- The spout frames' extra engaged-like share is mostly the mix moving the centre, not a property of the trials.
-- The 11-03 jaw-inclusive centre (.502) should not be used for G4.
+- The spout frames' extra engaged-like share is mostly the mix moving the center, not a property of the trials.
+- The 11-03 jaw-inclusive center (.502) should not be used for G4.
 - Keeping z is the current production default, so nothing changes in production.
 
 G4 headline in z, cue, acute (per animal in 3a; animal-weighted):
@@ -307,7 +307,7 @@ Precue: the readout separates the states too weakly pre-stroke to say anything b
   incomplete trials at only .30 (PS93 .40). It reads "contact-like vs none", and a weaker incomplete signal would be
   hard for it to show.
 - **'none' includes close-mid trials whose jaw was not judged.** These are counted in `n_unjudged` in the split CSVs.
-- **The zw and sp centres use camera-class membership (working rows).** They are label-free with respect to the
+- **The zw and sp centers use camera-class membership (working rows).** They are label-free with respect to the
   discriminator's no-lick class, but not with respect to the camera classes. This applies to the cam discriminator.
 - **Missing camera classes.** PS93_0813 and the June sessions have no camera classes and are absent from every split.
   In z, PS93_0813 stays in the DAQ discriminator's training, as in production.

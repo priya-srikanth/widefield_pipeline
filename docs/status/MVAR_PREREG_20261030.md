@@ -17,7 +17,7 @@ x_t(a) = c_a + sum_{l=1..p} sum_b B_l[a, b] x_{t-l}(b) + e. Ridge on all coeffic
 penalty per model (shared across targets), parametrised per sample: alpha = lambda * n_train, lambda in
 10^{-4 .. 1} (13 values, 0.33-decade steps); p in {1, 2, 3}.
 **AR-only baseline**: the same with B_l diagonal (each region from its own past), its own CV-chosen (lambda, p).
-**Readout matrix** W[a, b] = sum_l B_l[a, b] (lag-summed, standardised units; comparable across p). Off-diagonal = 306
+**Readout matrix** W[a, b] = sum_l B_l[a, b] (lag-summed, standardized units; comparable across p). Off-diagonal = 306
 directed region pairs.
 
 ## Cross-validation (no leakage)
@@ -26,7 +26,7 @@ directed region pairs.
   training set; score the test block. Folds are cut at run boundaries and lagged samples never cross a run boundary,
   so no test sample's lags are in training and vice versa.
 * Held-out one-step R2 = 1 - SSE / SS(x_t - training mean), pooled over regions and outer folds; also reported
-  normalised by the variance of the CHANGE (x_t - x_{t-1}). **Cross-region gain = R2(full) - R2(AR-only)**.
+  normalized by the variance of the CHANGE (x_t - x_{t-1}). **Cross-region gain = R2(full) - R2(AR-only)**.
 * The session's reported matrix: (lambda, p) chosen by the same 5-fold blocked CV on the whole session, refit on all
   samples.
 
@@ -39,7 +39,7 @@ directed region pairs.
 4. **Ridge.** r(W at the CV-chosen lambda, W at lambda x 10) and r(W at lambda, W at lambda / 10) (same p), each
    >= 0.7 median over pre sessions. (The CURBD exploratory VAR moved from weak to heavy ridge with r 0.07-0.21; this
    asks whether the CV-chosen point sits on a plateau.)
-5. **Pair-specific.** Criterion 2 after removing source and target main effects (double-centred off-diagonal W,
+5. **Pair-specific.** Criterion 2 after removing source and target main effects (double-centered off-diagonal W,
    `curbd_pilot.dcenter`) >= 0.5 median over pre sessions; the same for criterion 3 reported, not gated.
 
 An animal PASSES if 1-5 all pass. **The MVAR is interpreted further only if >= 3 of 4 animals pass.** Every number is

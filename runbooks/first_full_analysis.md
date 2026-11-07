@@ -147,7 +147,7 @@ refusals exist because each of them once did not, and a bad result was published
 | `assert_writable` on the output dir | same, for a figure renderer's `--output`. |
 
 A deck with holes in it is a perfectly valid deck, which is precisely why these gates are code and
-not judgement.
+not judgment.
 
 ---
 

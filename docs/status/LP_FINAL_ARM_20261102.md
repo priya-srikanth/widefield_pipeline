@@ -16,7 +16,7 @@ and the RESTnl code; the gate commit's files differ from main only by the date8 
 
 ## 1. Code changes in this tree (beyond the two branches)
 
-| file | change | default behaviour |
+| file | change | default behavior |
 |---|---|---|
 | `position_reference_maps._raw_maps_code` | the WIDEFIELD_PRM_LEGACY_DATE8 path now drops gate hook lines (as `code_digest` does); without it the cherry-pick would have moved the pinned digest | unchanged; legacy digest still 81053b92244b (= the 10-25 `prm-*-3b1e0fc8b886` kinds) |
 | `restnl_mask.cache_dir / _code` | under WIDEFIELD_GATE_SOURCE=lp the RESTnl baselines live in their own dir `.widefield_session_cache_restnl_glp<sha>` (the rest frames are engagement-gated, so they move with the gate; the build prunes superseded keys and must never touch the default ones); hook-marked lines are stripped from the module digest | `_code` 58b723824d63 and dir unchanged |
@@ -217,9 +217,9 @@ LP gate, PRE_FROM=0801 -- the title reads them).
 | 7.23 / 7.24 PRECUE lick LP | `.../epoch/epoch_15r_position_PRECUEref_lick_lick.png`, `.../epoch_15rdrift_PRECUEref_lick_lick.png` |
 | 8.1 a_maps | `E/attempt_maps_LPfinal_restnl/figures/attempt_maps_lick_far_contra_restnl.png` (REST twin: `E/attempt_maps_LPfinal_rest/figures/attempt_maps_lick_far_contra.png`) |
 | 8.2 a_maps_minus | same folders, `..._minus_pre_restnl.png` / `..._minus_pre.png` (+ cue / precue windows, far_mid / far_ipsi) |
-| 2.2 analogue (ENL 1.0 s) | `G/LPfinal/trained_daq/LP_licks_gateLP/epoch/epoch_acc[delta]_by_position_precue_working.png` (DAQ-trained); `G/LPfinal/trained_lp/LP_licks_gateLP/epoch/...` (LP-trained) |
+| 2.2 analog (ENL 1.0 s) | `G/LPfinal/trained_daq/LP_licks_gateLP/epoch/epoch_acc[delta]_by_position_precue_working.png` (DAQ-trained); `G/LPfinal/trained_lp/LP_licks_gateLP/epoch/...` (LP-trained) |
 | ENL 1.5 s | `G/LPfinal/trained_{daq,lp}/LP_licks_ENL1.5s_gateLP/epoch/...` |
-| 2.1 analogue (ENL 2.0 s, flagged) | `G/LPfinal/trained_{daq,lp}/LP_licks_ENL2s_gateLP/epoch/...` |
+| 2.1 analog (ENL 2.0 s, flagged) | `G/LPfinal/trained_{daq,lp}/LP_licks_ENL2s_gateLP/epoch/...` |
 | DAQ-contact references (Aug pre) | `G/LPfinal/trained_daq/DAQ_ENL{1,1.5,2}s/epoch/...` |
 | per-animal tables | `G/LPfinal/compare/lpfinal_vs_current_{maps,decoders}_farcontra.csv`; maps `.../epoch/data/lpfinal_amplitude_per_animal_*.csv`; current LP decoders `G/LPfinal/LP_licks/compare/current_LParm_enl1s_acc_per_animal.csv` |
 
@@ -250,8 +250,8 @@ existing was overwritten, deleted or renamed.
 - The 14m (MEAN-ref beta maps) and 5c / 5cr (confusion) families of the old LP arm were NOT re-rendered (not page
   families); the lick- and cue-window decoders (2.3 / 2.4 analogues) were not re-rendered (task asked for the ENL ones).
 - ENL maps at 1.5 / 2.0 s not rendered (maps stay on the LP 1.0 s window).
-- Session markers on the bar figures are still the old style (filled dots coloured by animal), not the results-page
-  convention (open markers, shape = animal, colour = epoch). A renderer change across every bar figure; not attempted.
+- Session markers on the bar figures are still the old style (filled dots colored by animal), not the results-page
+  convention (open markers, shape = animal, color = epoch). A renderer change across every bar figure; not attempted.
 - `WIDEFIELD_EPOCH_FROZEN` is opt-in; the default epoch render still fits its "frozen" decoders in memory (rule-10
   deviation, pre-existing). Decision for Priya: make the store the default.
 - The epoch acc stars moved to the top band for every bar figure rendered from this tree (Priya's 10-30 rule); the

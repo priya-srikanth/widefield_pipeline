@@ -5,7 +5,7 @@ Question (Priya approved 10-30; RECOVERY_MECHANISMS_LIT_20261030.md sections 1a 
 PRE-LAUNCH cortical activity carries the launch angle, and does that change after the stroke?**
 Code: `scripts/prelick_hemisphere_tuning.py` (`run` / `gate` / `summarise` / `plot`, `--plot-only`). Outputs only under
 `M:/MICROSCOPE/Priya/Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/prelick_hemisphere_tuning/`
-(`writeguard.assert_writable`). Only data looked at before this was written: AUGUST-PRE behaviour of the 31 August-pre
+(`writeguard.assert_writable`). Only data looked at before this was written: AUGUST-PRE behavior of the 31 August-pre
 imaging sessions (feasibility, below) and one pre session's imaging load (timing). No post-stroke number, no neural number.
 
 ## 0. Feasibility (August pre only)
@@ -54,7 +54,7 @@ imaging sessions (feasibility, below) and one pre session's imaging load (timing
   Pre-stroke expectation (contraversive tuning): LEFT (ipsilesional) hemisphere b > 0, RIGHT (contralesional) b < 0.
 * **Hemisphere difference** D = b_c - b_i (right minus left; pre expected < 0).
 * **CV ridge decode** per hemisphere: within-spout launch angle from the 7 orofacial areas of that hemisphere (ALM, tjM1,
-  SSp-m, SSp-n, SSs, MOp_rest, MOs_rest; window y, centred within spout, standardised on the training folds), ridge
+  SSp-m, SSp-n, SSs, MOp_rest, MOs_rest; window y, centered within spout, standardized on the training folds), ridge
   lambda = n features, 5 folds stratified by spout, 5 fold assignments averaged; r(prediction, angle). Null = 20
   within-spout permutations; readout **r_ex = r - mean null r**. Control: RSPd + VISpm of that hemisphere. Also c - i.
 * Time course (descriptive, figure only): b_ang per 0.05 s bin (bin minus BASE).
@@ -78,7 +78,7 @@ decode, total angle, later / ITI, S1-S3, recovery link) is SECONDARY.
 * **Non-specific:** the same change in the CTRL pool (RSPd / VISpm) -> not an orofacial command signal.
 * None: no change anywhere beyond the noise floor (then: not resolvable at area level with GCaMP6s).
 
-## 5. Stability gate and noise floor (August pre; computed before any post statistic is summarised)
+## 5. Stability gate and noise floor (August pre; computed before any post statistic is summarized)
 * Per animal x hemisphere, primary cell (first licks, PRE, within-spout, POOL): session slopes on ODD and on EVEN trials
   (trial_id parity); animal half-means b_odd, b_even (mean over pre sessions). The hemisphere PASSES if sign(b_odd) =
   sign(b_even) AND |b_odd + b_even| / 2 > |b_odd - b_even| (half-agreement better than the half-difference). An ANIMAL
@@ -96,8 +96,8 @@ Per-animal table (animal x epoch session means, n sessions) printed and saved FI
 Recovery link (secondary): post sessions, `lick_correction.track` form: MixedLM aim ~ within-animal value + between +
 log(day) + (1 | animal), aim = far-contra FIRST-lick launch error e_L (within_lick_correction `sessions.csv`, cued,
 far_contra, order first, outcome any; deg, - = ipsilesional), for P1-P3 and the decode c - i; plus per-animal r.
-Figures: session points = OPEN markers, shape = animal (`orofacial_cohort.ANIMAL_MARKER`), colour = epoch
-(`EPOCH_LINE`); pooled = filled marker / thick line with 95 % CI; hemisphere comparisons use one colour per hemisphere
+Figures: session points = OPEN markers, shape = animal (`orofacial_cohort.ANIMAL_MARKER`), color = epoch
+(`EPOCH_LINE`); pooled = filled marker / thick line with 95 % CI; hemisphere comparisons use one color per hemisphere
 with epoch on the x axis; stars only in a reserved top band; no many-thin-bar figures; figdata saved for every figure.
 
 ## Outcome (2026-10-30, run after this design was fixed; `prelick_hemisphere_tuning.py run`, `gate`, `summarise`)
@@ -147,7 +147,7 @@ decode n.s.; per-animal r inconsistent.
   previous lick's response, not pre-launch launch tuning.
 
 ### Reading
-None of the pre-registered hypotheses is favoured: the pre-launch readout has no pre-stroke tuning to measure against
+None of the pre-registered hypotheses is favored: the pre-launch readout has no pre-stroke tuning to measure against
 (gate 0/4), and no post-stroke change appears in either hemisphere, before or after contact, in orofacial areas.
 Route A / B / D (right-hemisphere ipsiversive pre-launch tuning) is NOT supported but NOT excluded (power: the per-session
 estimation SD ~0.3-0.6 dF/F x1e3 per 10 deg against animal-level effects of < 0.2). The only robust signals are
@@ -160,5 +160,5 @@ higher-resolution readout.
    in `extract_summary.csv`.
 2. PREJAW baseline is -0.80..-0.50 s from JAW onset (as written) -- for short reaction times this overlaps the cue.
 3. Recovery-link MixedLM fits emitted convergence warnings for some metrics (estimates reported as is; secondary).
-4. The decode uses within-spout centring of the features on all licks of the session (label-free; not fold-wise).
+4. The decode uses within-spout centering of the features on all licks of the session (label-free; not fold-wise).
 Caveats: n = 4; GCaMP6s lag; launch noise 5-8 deg / lick; area pools average out finer topography. PROVISIONAL.

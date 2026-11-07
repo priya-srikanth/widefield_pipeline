@@ -11,7 +11,7 @@ No library code was changed.
 Both detectors run `lick_detection.detect_licks` on the same `lick_analog` channel. The signal sits high at rest and
 drops when the tongue touches the spout. A lick starts when the signal falls below 2.5 V in both detectors.
 
-| | IMAGING profile | BEHAVIOUR profile |
+| | IMAGING profile | BEHAVIOR profile |
 |---|---|---|
 | used by | `analysis_kit.lick_samples`, `_load_daq_events`, ~39 imaging files | `behavior_events`, `daq_trials`, `dlc_frames` (DAQ contacts in the video tables) |
 | onset threshold | 2.5 V | 2.5 V |
@@ -41,20 +41,20 @@ The config sets 40, so both run at 40 today.
 | | PS92 | PS93 | PS94 | PS95 | all |
 |---|---|---|---|---|---|
 | licks, imaging | 30,683 | 27,395 | 24,080 | 19,658 | 101,816 |
-| licks, behaviour | 30,785 | 27,542 | 24,139 | 19,940 | 102,406 |
-| extra in behaviour (all from the 100 ms refractory) | 102 (0.33 %) | 147 (0.53 %) | 60 (0.25 %) | 282 (1.41 %) | 591 (0.58 %) |
+| licks, behavior | 30,785 | 27,542 | 24,139 | 19,940 | 102,406 |
+| extra in behavior (all from the 100 ms refractory) | 102 (0.33 %) | 147 (0.53 %) | 60 (0.25 %) | 282 (1.41 %) | 591 (0.58 %) |
 | extra from the offset threshold (1.0 vs 0.5 V) | 0 | 0 | 0 | 0 | 0 |
 | extras inside a camera lick | 97 | 141 | 55 | 263 | 556 (94 %) |
-| 40 ms floor removes (behaviour) | 9 | 4 | 9 | 4 | 26 |
-| behaviour intervals 40-100 ms: two separate camera licks / same camera lick / no camera lick | 55 / 36 / 21 | 101 / 28 / 25 | 39 / 6 / 17 | 255 / 7 / 42 | 450 / 77 / 105 |
-| behaviour intervals 90-100 ms: two separate / same camera lick | 32 / 3 | 77 / 0 | 30 / 2 | 202 / 1 | 341 / 6 |
-| precision, imaging / behaviour | .903 / .904 | .955 / .955 | .955 / .955 | .944 / .944 | .939 / .939 |
-| recall (reaching camera licks), imaging / behaviour | .883 / .885 | .862 / .866 | .890 / .892 | .925 / .938 | .890 / .895 |
+| 40 ms floor removes (behavior) | 9 | 4 | 9 | 4 | 26 |
+| behavior intervals 40-100 ms: two separate camera licks / same camera lick / no camera lick | 55 / 36 / 21 | 101 / 28 / 25 | 39 / 6 / 17 | 255 / 7 / 42 | 450 / 77 / 105 |
+| behavior intervals 90-100 ms: two separate / same camera lick | 32 / 3 | 77 / 0 | 30 / 2 | 202 / 1 | 341 / 6 |
+| precision, imaging / behavior | .903 / .904 | .955 / .955 | .955 / .955 | .944 / .944 | .939 / .939 |
+| recall (reaching camera licks), imaging / behavior | .883 / .885 | .862 / .866 | .890 / .892 | .925 / .938 | .890 / .895 |
 | DAQ onset after camera tongue-out (median ms) | 8.4 | 17.5 | 9.7 | 11.1 | 11.7 (same in both) |
 | trials / hits | 1596 / 1296 | 2086 / 1661 | 2236 / 1626 | 2590 / 1937 | 8508 / 6520 |
 | hits that differ | 0 | 0 | 0 | 0 | **0** |
 | first-lick times that differ (70 ms floor) | 2 | 6 | 0 | 2 | **10** |
-| ... of those, behaviour closer to the camera's first lick | 2 | 5 | 0 | 2 | 9 |
+| ... of those, behavior closer to the camera's first lick | 2 | 5 | 0 | 2 | 9 |
 | first-lick times that differ (no floor, as imaging uses it) | 0 | 0 | 0 | 0 | **0** |
 
 Per session: `task1_per_session.csv`. Per animal: `task1_per_animal.csv`. Per epoch: `task1_per_epoch.csv`. Every
@@ -73,15 +73,15 @@ the fastest licker (1.4-1.7 % in 3 of its 4 sessions).
    - Below 90 ms some pairs are one lick counted twice (77 of 632 at 40-100 ms). Most of these are in PS92/PS93 pre,
      where a tongue touches, lifts and touches again within one protrusion.
    - So the refractory mostly drops real fast licks. It is not mainly removing glitches. Fig 1 shows imaging's
-     distribution cut at 100 ms. The camera and behaviour distributions continue below it, most clearly in PS95.
+     distribution cut at 100 ms. The camera and behavior distributions continue below it, most clearly in PS95.
 3. **Glitches are not the issue.** No disagreement onset was a sub-millisecond spike. The disputed contacts are 20-75 ms
    long and full-swing (Fig 2).
-4. **Agreement with the camera is equal, with behaviour slightly ahead.** Precision is identical (.939). Recall is
-   0.5 points higher for behaviour (1.3 points in PS95). Timing against the camera is identical (DAQ contact 12 ms
-   after tongue-out). Behaviour double-counts slightly more often: 0.10 % of camera licks get two onsets, against
+4. **Agreement with the camera is equal, with behavior slightly ahead.** Precision is identical (.939). Recall is
+   0.5 points higher for behavior (1.3 points in PS95). Timing against the camera is identical (DAQ contact 12 ms
+   after tongue-out). Behavior double-counts slightly more often: 0.10 % of camera licks get two onsets, against
    0.03 % for imaging.
 5. **First lick, hit and RT are the same in practice.** 0 of 8,508 trials change hit/miss. With the 70 ms floor,
-   10 of 6,520 RTs change, each by 91-156 ms (imaging later). In 9 of those 10 the behaviour RT is closer to the
+   10 of 6,520 RTs change, each by 91-156 ms (imaging later). In 9 of those 10 the behavior RT is closer to the
    camera. Without the floor, which is what `_trial_features` uses, 0 RTs change. The ENL keeps the cue period
    lick-free, so a refractory carried over from a pre-cue lick almost never fires.
 
@@ -94,13 +94,13 @@ The figures:
 ## 5. Recommendation
 
 - **(a) First lick, hit, RT: either profile.** They agree on every hit and on every RT as imaging computes RT.
-  Switching imaging to the behaviour profile would change **0 hits and 0 RTs** (10 of 6,520 RTs, 0.15 %, if a
+  Switching imaging to the behavior profile would change **0 hits and 0 RTs** (10 of 6,520 RTs, 0.15 %, if a
   cue + 70 ms floor is applied).
-- **(b) Lick counts, rates, intervals, lick-aligned events: the BEHAVIOUR profile.** The 100 ms refractory deletes real
+- **(b) Lick counts, rates, intervals, lick-aligned events: the BEHAVIOR profile.** The 100 ms refractory deletes real
   10-11 Hz licks, and it does so unevenly: 1.4 % in PS95 against 0.25-0.5 % in the others. Any lick-rate or interval
-  measure, and any "is there a lick here" gate, should use the behaviour profile. That is already true for the
-  behaviour pipeline.
-- **One profile can serve both. It should be the behaviour profile** (0.5 V, 40 ms floor). The 1.0 vs 0.5 V choice is
+  measure, and any "is there a lick here" gate, should use the behavior profile. That is already true for the
+  behavior pipeline.
+- **One profile can serve both. It should be the behavior profile** (0.5 V, 40 ms floor). The 1.0 vs 0.5 V choice is
   moot, and the 40 ms floor removes only 0-9 doubles per animal.
 - **Cost of switching imaging.** Lick-aligned imaging uses the FIRST lick after the cue, so the trial set and the
   alignment times would not move. Other users of `lick_samples` would see 0.6 % more licks, mostly inside existing bouts
@@ -128,7 +128,7 @@ and the imaging-profile DAQ lick count from `analysis_kit.lick_samples`.
 - **No session has all-zero or missing contacts while the DAQ has licks.** Every session with a v36 table has contacts
   on 174-783 trials and no missing values.
 - **One flag: PS93_0813.** It has no v36 outputs at all (no `trials.csv`) but 7,445 DAQ licks. This is the known
-  missing behaviour video for that session (`docs/EXPERIMENT_ERRORS.md`). It is not the empty-`.h5` failure of
+  missing behavior video for that session (`docs/EXPERIMENT_ERRORS.md`). It is not the empty-`.h5` failure of
   `dlc_frames`.
 - The lowest contact counts are acute sessions (PS94_0819: contacts on 174 of 600 trials, 3,386 DAQ licks). They match
   the low acute hit rates, so they look genuine.

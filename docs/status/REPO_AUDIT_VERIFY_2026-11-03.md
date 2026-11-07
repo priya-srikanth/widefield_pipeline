@@ -18,7 +18,7 @@ attempt at `3834b3d9`.
 - **Gate hook.** Confirmed. `wfield_local/gate_source.py` exists only on attempt. Its hooks are at `rest_engagement.py:68-71`,
   `rest_by_position.py:183-185`, `nolick_decoder.py:257-258`, plus `beta_maps.py:331`, `poststroke_compare.py:725` and
   `precue_engagement_states.py:181`. With the default `daq` setting they are the identity (`gate_source.py:11-12`, the same
-  object is returned, and this is pinned by a test). **IMPACT:** behaviour changes only under `WIDEFIELD_GATE_SOURCE=lp`, and
+  object is returned, and this is pinned by a test). **IMPACT:** behavior changes only under `WIDEFIELD_GATE_SOURCE=lp`, and
   outputs then go to `*_gateLP` folders. So this is latent for the default cohort-1 numbers.
   - One correction to the report's table: "main = DAQ contact only" is not quite right. Under `WIDEFIELD_LICK_SOURCE=lp`,
     main's `nolick_decoder.categorize` already uses **LP licks only**, because `_load_daq_events` swaps the train in
@@ -82,7 +82,7 @@ attempt at `3834b3d9`.
   are the **same set**. `weighted_abs` and the pre noise floor are unaffected.
 - **Documented?** Not as a mixed baseline. The docstring's "all-pre" is literally true but implies June. DECISIONS 2026-10-27
   (late, ~line 22159) records the first-lick choice only. I recommend rewording the docstring.
-- **Residual subtlety the report missed:** `weighted()` renormalises over the spouts that have at least `MIN` licks. So the
+- **Residual subtlety the report missed:** `weighted()` renormalizes over the spouts that have at least `MIN` licks. So the
   "constant per animal x spout" reference shift is **not** constant per session when the set of spouts present changes. This
   is small, and it applies whatever the baseline is.
 - The ad-hoc `EPS` / `POS` lists (`:41-42`) are confirmed; they match `POS_ORDER`.
@@ -125,7 +125,7 @@ attempt at `3834b3d9`.
   - the cam4 `jaw_pass_qc` from `tongue_jaw_mismatch.csv`;
   - no close_center mask and no jaw-at-cue rule.
   - Classes: contact / incomplete / jaw_only / no_response / unknown.
-- **Consumers.** `trial_attempts` feeds `lp_licks.ATTEMPT_CLASSES` (hence the LP gate), `mixed_models` behaviour indices
+- **Consumers.** `trial_attempts` feeds `lp_licks.ATTEMPT_CLASSES` (hence the LP gate), `mixed_models` behavior indices
   (ttc / attempt rate), `frozen_encoder`, `attempt_coding` and others (22 importers). `jaw_only_incomplete_figs` feeds only
   itself and `trial_class_raw_share_fig.py`, i.e. kinematics page Fig 6.1.
   - Its `GATES` ("working" for the imaging page, `:91-104`) is **not yet imported** by any imaging code (grep across both trees).
@@ -175,7 +175,7 @@ attempt at `3834b3d9`.
 - **Headline paths:**
   - the imaging decode / `_trial_features` (`locanmf_position_decoder.py:453`) and `nolick_decoder.categorize` use 1.0 V /
     0.10 s;
-  - behaviour (`daq_trials`, `behavior_events`), the rest gates and DLC use the config.
+  - behavior (`daq_trials`, `behavior_events`), the rest gates and DLC use the config.
 - Already recorded in DECISIONS.md:19184-19194 and `docs/DLC_IN_WIDEFIELD_ANALYSES.md:21-23` ("imaging hits / RTs can already
   differ from `*_trials.csv`"), and deliberately left. **IMPACT:** a known, documented divergence, not a new finding.
 
@@ -187,7 +187,7 @@ attempt at `3834b3d9`.
   May-2026 training sessions (PS92-95, 0505-0521), before any registered imaging session.
   - Spot checks across epochs: PS92 0601/0805, PS93 0805/0901/1002, PS94 0810, PS95 0820/1001 are all 3500.
   - Cohort 2: PS118 1019/1102 and PS121 1019/1102 are 3500.
-  - So **3.5 s holds in every June-onward session, including cohort 2**. Priya is right for the analysed data. The "every
+  - So **3.5 s holds in every June-onward session, including cohort 2**. Priya is right for the analyzed data. The "every
     session" claim in code comments is false only for May training.
 - **Readers that use the data:**
   - `daq_trials.response_window_s(session_dir, default)` (`daq_trials.py:58-81`) is the correct single resolver: it divides ms
@@ -205,7 +205,7 @@ attempt at `3834b3d9`.
     (`:103`), `engagement_decomposition.DEFAULT_RESP_S = 2.0` (`:67`), `channel_position_maps._quit_trials(resp_s=2.0)`
     (`:138`):** these ARE used as the response window, i.e. "responded" for the S28 quit point and the engagement
     decomposition. This is the real 2.0-vs-3.5 inconsistency. A lick at 2-3.5 s counts as a miss for the quit rule but as a hit
-    in behaviour and the gates. `gate_source.py` calls it "`resp_s` (2.0 s) for the S28 quit rows". The comment at
+    in behavior and the gates. `gate_source.py` calls it "`resp_s` (2.0 s) for the S28 quit rows". The comment at
     `analysis_kit.py:54-55` only says it matches rest_migration; there is no decision saying 2.0 is intended.
     **IMPACT:** a cohort-1 published quantity (the S28 quit point / licks-at-quit) is defined on 2.0 s.
   - `nvc_evoked.LICK_RESP_S = 2.0` (`:79`): an analysis cut-off ("lick this soon after the cue = lick trial"), not the window.
@@ -252,7 +252,7 @@ attempt at `3834b3d9`.
 3. **`quiet_periods.response_window_s` is never fed a `session_dir`**, so the rest-baseline trial windows use the config's
    `max_rt_s` (3.5) rather than the data. The result is correct today only because every session is 3500 ms.
 4. **May-2026 training sessions ran 3000 ms.** Code comments say "every session ran 3500 ms". This is harmless for imaging
-   (no May session is registered), but wrong if any behaviour learning-curve figure scores May with a 3.5 s fallback. I did
+   (no May session is registered), but wrong if any behavior learning-curve figure scores May with a 3.5 s fallback. I did
    not check whether it does.
 5. `orofacial_cohort` / `cam1_incomplete_licks` still use `jaw_pass_qc` as a filter. That is the same denominator bug fixed in
    `jaw_only_incomplete_figs` on 11-03 (see (b)).

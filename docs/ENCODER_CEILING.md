@@ -27,7 +27,7 @@ rescaling. That ambiguity forced the withdrawal of the "half amplitude, half sha
 > all the trials the AVERAGE (binned) per-position activity explains?" The first half is right and
 > the second half is not. The encoder IS the per-position average of the binned component activity.
 > But the score is computed MEAN against MEAN: `M` and `P` are both 6 x features matrices of
-> per-position mean patterns, centred across positions, and the denominator is `sum M^2` — the
+> per-position mean patterns, centered across positions, and the denominator is `sum M^2` — the
 > BETWEEN-POSITION variance of the measured means. Trial-to-trial variance never enters it. So the
 > number answers "how much of the measured position-to-position pattern does the template's
 > position-to-position pattern reproduce", not "how much of the trial variance is explained"; a
@@ -36,7 +36,7 @@ rescaling. That ambiguity forced the withdrawal of the "half amplitude, half sha
 > half-session means — which is why halving the trials lowers it, and why the size-matched arm was
 > needed at all.
 
-## What centring across positions removes — and what it does not
+## What centering across positions removes — and what it does not
 
 Priya, 2026-09-10: *"I'm not getting the sum of M squared being the between-position signal — even
 if there were patterns at different positions that averaged out with global session mean (say,
@@ -47,7 +47,7 @@ Yes, literally — but of `M` **after** `M = M − M.mean(0)`, and that one line
 The claim is an identity, not a gloss, and it is pinned in
 `tests/test_encoder_ceiling.py` so the prose cannot drift from the code.
 
-**1. The identity.** With `n = 6` positions, after centring,
+**1. The identity.** With `n = 6` positions, after centering,
 
 ```
 sum(M**2)  ==  6 * sum_over_features( Var_across_positions(feature) )
@@ -56,12 +56,12 @@ sum(M**2)  ==  6 * sum_over_features( Var_across_positions(feature) )
 exactly — because the sum of squares down a column of a mean-zero vector IS `n` times its variance.
 Nothing about trials enters; trial-to-trial noise was averaged away before `M` was formed.
 
-**2. Every contrast the encoder is scored on is untouched.** Centring subtracts the SAME row from
+**2. Every contrast the encoder is scored on is untouched.** Centering subtracts the SAME row from
 all six rows, so `M[i] − M[j]` is invariant for every pair. The encoder is only ever asked to
-reproduce differences between positions, and centring changes none of them.
+reproduce differences between positions, and centering changes none of them.
 
 **3. The inverted-pattern case, which looks like a counterexample and is not.** Three positions at
-`+x` and three at `−x` have a mean across positions of exactly zero, so centring subtracts nothing
+`+x` and three at `−x` have a mean across positions of exactly zero, so centering subtracts nothing
 and the signal is retained **in full** — sum of squares unchanged to 1e-12. "Averages out with the
 global session mean" describes a pattern that is the SAME at every position, which carries no
 position information by definition; not one that is opposite at different positions, which carries
@@ -72,9 +72,9 @@ the most position information six rows can carry.
 the encoder is not being asked to predict and which would otherwise inflate the denominator and make
 every EV look better than it is.
 
-**5. It does not remove GAIN.** Centring removes an ADDITIVE common offset, not a MULTIPLICATIVE
-one: scaling every position by 0.4 scales the centred matrix by 0.4 and its sum of squares by 0.16.
-If centring removed gain there would be nothing for the amplitude factor `a` to fit, and this
+**5. It does not remove GAIN.** Centering removes an ADDITIVE common offset, not a MULTIPLICATIVE
+one: scaling every position by 0.4 scales the centered matrix by 0.4 and its sum of squares by 0.16.
+If centering removed gain there would be nothing for the amplitude factor `a` to fit, and this
 document's whole amplitude-vs-shape split would be empty.
 
 ## Construction
@@ -147,7 +147,7 @@ recovering in them was the amplitude.
 > 0.943 / **0.361** / 0.677 / 0.947. That second number is the one quoted when explaining why the
 > RAW frozen EV is confounded (`R² = 1 − (1−a)²/a² = −2.13` at a = 0.361), because there the arm
 > being described is the unmatched one. Both are correct in their own place and they have been
-> confused once; `scripts/prelim_numbers_encoder_ceiling.py` now prints both, labelled.
+> confused once; `scripts/prelim_numbers_encoder_ceiling.py` now prints both, labeled.
 
 **THE PRE-STROKE GAP IS 0.276 AND IS NOT AN EFFECT** — the cost of a template coming from other
 sessions at equal training-set size, with no lesion involved. Same phenomenon the matched frozen
@@ -210,7 +210,7 @@ column, which was neither the fraction nor the current value of the EV.
 
 **This converges with the frozen-vs-refit DECODER arm**, which found refitting recovers 34% of
 far-contra's acute deficit and only 9% / 11% at far-ipsi / far-middle. Two analyses, opposite
-directions of fit, same dissociation: far-contra's code is DISPLACED, its neighbours' codes are
+directions of fit, same dissociation: far-contra's code is DISPLACED, its neighbors' codes are
 DEGRADED. The pooled "~28% of structure lost" figure averages those two different things and should
 not be quoted without the split.
 

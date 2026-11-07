@@ -10,10 +10,10 @@ another window) lands on origin/main. Numbers marked *(render)* are filled from 
 given here are the verification run (cached production features, reproduced end to end through `_collect_5c`:
 `labcams/decoder_mix_checks/spout_balem_production/summarise_log.txt`).
 
-## 1. Method line for every affected caption / methods box (replace the normalisation sentence)
+## 1. Method line for every affected caption / methods box (replace the normalization sentence)
 
-> Frozen pre-stroke decoder; each pre-stroke training session centred on the equal-weight mean of its six true spout
-> means; each scored session centred, without labels, on the equal-weight mean of EM-estimated (Saerens et al. 2002)
+> Frozen pre-stroke decoder; each pre-stroke training session centered on the equal-weight mean of its six true spout
+> means; each scored session centered, without labels, on the equal-weight mean of EM-estimated (Saerens et al. 2002)
 > soft spout means of its engaged trials, engaged-trial SD (bal_em).
 
 Limit to state once on the page (decoding section intro): when a spout is nearly absent from the engaged set (acute far
@@ -87,7 +87,7 @@ directions, position axes, attempt axes, pattern-similarity families) are unchan
 
 Not implemented: a real conflict in the DAQ arm, reported to the coordinator instead of choosing. All 76 post-stroke
 sessions have camera classes (PS92_0908 17.5 % unknown cues), but 13 of the 44 PRE-stroke sessions have none (the June
-sessions 0606 / 0607 / 0608 of every animal, and PS93_0813, no behaviour video). The frozen training set and the pre panel
+sessions 0606 / 0607 / 0608 of every animal, and PS93_0813, no behavior video). The frozen training set and the pre panel
 are pre-stroke ENGAGED trials today (the 5c rule: pre = licking trials for lick and working). in_working on the pre side
 needs a choice: (a) keep pre = DAQ-engaged licking trials (no conflict; only the post-stroke scored set changes); (b) pre =
 in_working, dropping the 13 camera-less sessions from training and the pre band (an August-only reference minus PS93_0813);

@@ -2,9 +2,9 @@
 
 **START HERE.** Supersedes `STATUS_2026-10-06_FULLSESSION_MOVEMENT_HANDOFF.md` for current state (still the
 reference for the 10-06 orofacial cleaning changes: windows cut at the next trial, Rule 4 swap, contact classes,
-smooth kernels / split licks). Tracking / labelling / O2 background: `STATUS_2026-10-05_CAM1_LP_EKS_O2_HANDOFF.md`.
+smooth kernels / split licks). Tracking / labeling / O2 background: `STATUS_2026-10-05_CAM1_LP_EKS_O2_HANDOFF.md`.
 Reasoning and numbers: `DECISIONS.md` addenda 2026-10-06 (night) and 2026-10-07 (several). Analysis desktop;
-M: = MICROSCOPE (the behaviour box calls it N:). Everything movement-related below is ONE pre-stroke session
+M: = MICROSCOPE (the behavior box calls it N:). Everything movement-related below is ONE pre-stroke session
 (PS93 0814, whole-session O2 poses from the ROUND-3 cam4 model) unless stated -- pipeline results, not findings.
 
 ## 0. STATE (2026-10-12) -- nothing running
@@ -14,7 +14,7 @@ M: = MICROSCOPE (the behaviour box calls it N:). Everything movement-related bel
   early-June sessions have no camera alignment templates (data gap).
 * Null/potent 24-session subset, LocaNMF + SVD: DONE; CLOSED as a supplementary control (no epoch change).
 * 10-12: failures fixed (`trial_bounds` DAQ-cue fallback, coverage drop; b8dc9e4) and camera templates built for the
-  14 analysed sessions that lacked them (55 / 56 good; PS92 0605 cam4 FAILS quality -- 165k dropped frames; PS93
+  14 analyzed sessions that lacked them (55 / 56 good; PS92 0605 cam4 FAILS quality -- 165k dropped frames; PS93
   0813 has NO VIDEO, logged in docs/EXPERIMENT_ERRORS.md). Rerun of the 20 failed sessions: log
   `M2_enl_multisession_fixes.log`. **Summaries use the CURATED set only** (`analysis_kit.curated_labels()`, 120
   sessions: excludes 6/1-6/5 and 8/5 per animals.yaml `cross_session_exclude`); the 10-12 112-session result was
@@ -38,7 +38,7 @@ variance changes across epochs, then stop. Next, in order:
 3. **Tracking**: cam4 round-4 labels -> retrain -> production O2 run.
 Side check: pixel-PCA vs LocaNMF decoding gap (MO pre-cue 0.47 vs 0.32) against a non-motor control area.
 
-**Labelling status (checked 2026-10-08 from the label files; nothing saved since 10-05 17:03):** Part 1 cam4 round 4
+**Labeling status (checked 2026-10-08 from the label files; nothing saved since 10-05 17:03):** Part 1 cam4 round 4
 21 / 131 (PS93 acute 21/22; five folders untouched) -- ON THE CRITICAL PATH for priorities 2-3; Part 2 cam1 round-1
 290 / 376 (4 empty folders: PS93 0606, PS92 0820, PS95 0821, PS94 0903); Part 3 cam1 round 2 0 / 254. Re-check with
 the helpers in `wfield_local/dlc_cam1_guide.py` (`_round4_folders`, `_folders`, `_round2_folders` + `folder_status`).
@@ -66,8 +66,8 @@ position 0.46 -> 0.76-0.80). Priya: a stationary spout makes ~no motion energy; 
 occlusion / contrast by the rod => the video may OVER-remove => **0.26-0.30 is a LOWER BOUND: a pre-cue, lick-free
 position code survives removal of tongue, jaw, running and all four cameras** (one session; linear removal).
 
-**Behaviour (cohort, through 10/5-10/6):** plateau holds in all four (far_R hit PS92 0.96-1.00, PS93 0.96-1.00,
-PS94 0.87-0.99 wobbling as before, PS95 0.98-1.00). Neural plateau: the behaviour box is producing it (stability
+**Behavior (cohort, through 10/5-10/6):** plateau holds in all four (far_R hit PS92 0.96-1.00, PS93 0.96-1.00,
+PS94 0.87-0.99 wobbling as before, PS95 0.98-1.00). Neural plateau: the behavior box is producing it (stability
 test after its render) -- not run here.
 
 ## 2. Decisions (10-07)
@@ -82,19 +82,19 @@ test after its render) -- not run here.
   |median next N - median previous N| frames, 99th percentile over pixels per frame; N = 3 at our 250 fps = their
   12.5 ms; per-session threshold at the valley of the bimodal distribution -- theirs manual, ours automatic + figure
   + override), plus DAQ licks / running count as moving, 0.3 s post-movement buffer excluded (GCaMP); subspaces by
-  their joint normalised-variance objective with orthogonality (Stiefel gradient ascent = their manopt), d =
-  min(N/2, 20); two-stage PCA control (5 + 5); parallel-analysis dimensionality reported; fit on all labelled frames
+  their joint normalized-variance objective with orthogonality (Stiefel gradient ascent = their manopt), d =
+  min(N/2, 20); two-stage PCA control (5 + 5); parallel-analysis dimensionality reported; fit on all labeled frames
   (label-free => not circular for position decoding); readout = our position decoder on X Q Q' reconstructions,
   ENL and post-cue windows. Code: `wfield_local/motion_state.py`, `wfield_local/null_potent.py` (6 tests),
   `scripts/null_potent_session.py`.
 * `grant_kit._day` = calendar days (was month*31; October sessions were +1). Parity tests skip on a STALE
-  stroke_orofacial checkout instead of failing (the behaviour box's is ~90 commits behind).
+  stroke_orofacial checkout instead of failing (the behavior box's is ~90 commits behind).
 * MUST REVISIT (Priya, "very important"): the executed-angle readout test with complete models -- conditions in
   DECISIONS 2026-10-07 and §3 below.
 
 ## 3. Lines of investigation -- state and next steps
 **A. Tracking models**
-* cam4 DLC: round-3 model in production (O2 run on PS93 0814 done, matches desktop). Waits on labelling round 4
+* cam4 DLC: round-3 model in production (O2 run on PS93 0814 done, matches desktop). Waits on labeling round 4
   (student, CAM1_GUIDE Part 1) -> retrain -> production O2 run over all sessions (videos for cam1 + cam4 already on
   scratch; never touch scratch file dates).
 * cam1 DLC best-40 (own project) + single-view LP (not better than DLC); cam1 round 2 labels pending (Part 3).
@@ -122,18 +122,18 @@ test after its render) -- not run here.
   1. NOW: null/potent PS93 0814 (thresholds -> Priya) -> cohort overnight -> per animal / epoch: does the ENL
      position code sit in the movement-NULL subspace pre-stroke, and does that change after the stroke?
   2. ENL running + video residual across sessions (script ready, untested) -- complementary to 1.
-  3. Movement-null by regression (2pRAM-style top-k) -- deprioritised in favour of the Hasnain method.
+  3. Movement-null by regression (2pRAM-style top-k) -- deprioritized in favor of the Hasnain method.
   4. Nonlinear movement model (their ANN control: 28 % vs 11 % VE over ridge) -- later robustness check.
   5. Per-period residual test (ENL / cue / lick) -- partly answered by the ENL decode.
   6. MUST REVISIT: executed-angle vs target readout (`lick_template_match`) once (i) the next cam4 model, (ii)
      whole-session O2 poses for pre AND post sessions, (iii) retuned cleaning, (iv) full movement model variant,
      (v) straddled-spout licks flagged.
-**D. Imaging pipeline / cohort**: 8 October sessions registered (10/1, 10/2, 10/5, 10/6); behaviour box rendering.
+**D. Imaging pipeline / cohort**: 8 October sessions registered (10/1, 10/2, 10/5, 10/6); behavior box rendering.
 
 ## 4. Pitfalls (new; earlier lists still apply)
 1. **CRLF**: `configs/sessions.yaml` is stored CRLF in the index; `git am` strips CR by default -> "patch does not
-   apply". Use `git am -3 --keep-cr` for the behaviour box's patches.
-2. **Drive letters differ by machine**: MICROSCOPE is M: here, N: on the behaviour box -- translate handoff paths.
+   apply". Use `git am -3 --keep-cr` for the behavior box's patches.
+2. **Drive letters differ by machine**: MICROSCOPE is M: here, N: on the behavior box -- translate handoff paths.
 3. **Never delete on MICROSCOPE without Priya's OK** (she OK'd `_handoff/register_1006`, deleted 10-07).
 4. **Data-driven spout masks from mean frames capture posture + block-time drift**, not the rod; per-position masks
    leak position through the mask itself. Use a UNION mask, and geometric (keypoint / dark-rod) masks if needed.

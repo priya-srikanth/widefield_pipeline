@@ -20,11 +20,11 @@ log for the earlier part of the day is `RUNNING_LIST_2026-11-02_OVERNIGHT.md`.
     crediting pre-cue licking to position. [Suggest yes for consistency, with the current version as a robustness
     row; new frozen ids.]
 13. **NEW (11-04): the lick-response slide (now slide 95, "Lick response larger after stroke") depends on the
-    normalisation** (docs/status/SD_RISE_2026-11-04.md, 371b6e1e).
+    normalization** (docs/status/SD_RISE_2026-11-04.md, 371b6e1e).
     - The traces are raw dF/F x1e3 (wf_attempt lick_cued_ramp.py:91-95, iti_licks.py:359-363), NOT z-scored.
     - Cued first lick, contralesional tjM1, change vs pre (acute / subacute / chronic):
 
-      | normalisation | acute | subacute | chronic |
+      | normalization | acute | subacute | chronic |
       |---|---|---|---|
       | as plotted | +.47* | +.39* | +.40* |
       | per-session z | +.03 (2 / 4) | +.12* | +.14* |
@@ -75,14 +75,14 @@ log for the earlier part of the day is `RUNNING_LIST_2026-11-02_OVERNIGHT.md`.
     - c. within_spout_deviation uses the sliding lick-free 1 s window;
     - d. s1 refit: LP 1.0 s, with 2.0 s as a sensitivity row.
 
-    Centre (question 10): PROVISIONAL default sent to 34 = Wt: the DAQ-label balanced centre on all lick (working)
+    Center (question 10): PROVISIONAL default sent to 34 = Wt: the DAQ-label balanced center on all lick (working)
     rows, no EM, no pre-stroke fill (Priya leans to all lick trials). Robustness rows N and Cto; ~.024 drift caveat.
-    DONE: the rest arms fail (see findings), so Wt stays. Previously: rest-centred arms R5 (restdock05), RW (restw) and R5q (quiet-event frames dropped); pre
-    decoders refit in memory; W / Wt / N recomputed alongside; plus a rest-state check (does the rest centre move
+    DONE: the rest arms fail (see findings), so Wt stays. Previously: rest-centered arms R5 (restdock05), RW (restw) and R5q (quiet-event frames dropped); pre
+    decoders refit in memory; W / Wt / N recomputed alongside; plus a rest-state check (does the rest center move
     post-stroke, and how much bias that adds per spout). Output decoder_mix_checks/rest_centre_1104/,
     docs/status/REST_CENTRE_2026-11-04.md. Concern: rest changes post-stroke (quiet events ~5x acute). 34 will also re-run the 11-03 lick-direction frame check on the rebuild data (Priya yes).
     Earlier notes: Cto = Contact rows + true (DAQ) labels + pre-stroke Offset fill; Priya doubts
-    the pre-stroke fill acutely. Cue far contra acute by centre: W .184, Wt .230, Ct .269, Cto .177, N .259, Z .286;
+    the pre-stroke fill acutely. Cue far contra acute by center: W .184, Wt .230, Ct .269, Cto .177, N .259, Z .286;
     pre ~.87 under all. [Suggest Wt (DAQ labels, working rows, no pre fill) primary; test a hybrid (contact rows,
     a thin spout uses its own working rows); Cto and N as robustness.]
     Original items:
@@ -91,15 +91,15 @@ log for the earlier part of the day is `RUNNING_LIST_2026-11-02_OVERNIGHT.md`.
     - a. quiet_task_events (cohort 1) ev_enl -> LP 1.0 s? Its MIN_CLEAN_S then means fully clean trials. [Yes; fully
       clean = the strict ENL rule of 09-24.]
     - b. within_spout_deviation --window enl is 1 s but not lick-gated. [Gate on the source's licks.]
-    - c. The s1 refit tables pin ENL 2.0 s under LP (Priya 11-03). [1.0 s primary, 2.0 s labelled sensitivity.]
+    - c. The s1 refit tables pin ENL 2.0 s under LP (Priya 11-03). [1.0 s primary, 2.0 s labeled sensitivity.]
     - d. The encoder "enl" R2 scoring window, fixed 2 s, not gated: follow the source (1.0 s under LP)? Scoring only;
-      it must be decided BEFORE the new O2 bundle. [Yes, 1.0 s; no gate, since licks are modelled as kernels.]
-10. **NEW (11-04): centre test result (docs/status/CENTRE_MIXSHIFT_2026-11-04.md, 2e809e8a). Switch the spout decoder
-    and the CD / pattern projections to "Cto"?** Cto = centre on CONTACT rows, true DAQ spout mix, thin spouts filled
+      it must be decided BEFORE the new O2 bundle. [Yes, 1.0 s; no gate, since licks are modeled as kernels.]
+10. **NEW (11-04): center test result (docs/status/CENTRE_MIXSHIFT_2026-11-04.md, 2e809e8a). Switch the spout decoder
+    and the CD / pattern projections to "Cto"?** Cto = center on CONTACT rows, true DAQ spout mix, thin spouts filled
     with the animal's pre-stroke spout offsets.
     - Production W (bal_em on working rows) drifts with the mix: -.025 overall. The cause is the incomplete pattern
       (true-label working drifts the same), not the EM. The EM also gives acute far contra ~0 weight in PS92 / 94 / 95.
-    - Contact-row centres are stable, but plain contact is inflated (10 / 16 acute sessions have a spout with < 5
+    - Contact-row centers are stable, but plain contact is inflated (10 / 16 acute sessions have a spout with < 5
       contacts). Cto is stable and agrees with Wt / Z where the mix is normal.
     - Headlines W -> Cto:
 
@@ -115,29 +115,29 @@ log for the earlier part of the day is `RUNNING_LIST_2026-11-02_OVERNIGHT.md`.
 
     - Production z is NOT stable for the CD (+.147 drift); the engagement axis is fine in z.
     - Caveats:
-      - Cto uses the session's DAQ spout labels in the centre (one offset vector);
+      - Cto uses the session's DAQ spout labels in the center (one offset vector);
       - it assumes the pre-stroke spout offsets still hold;
       - the mix-shift numbers are lower bounds;
       - n = 4.
 
     [Suggest: Cto for the spout decoder + CD / pattern; engagement axis z (Cto gives the same); W and N
-    (no-centre) as robustness rows.]
+    (no-center) as robustness rows.]
 
-9. **RUNNING (Priya OK 11-04): centre test for the SPOUT decoder and the C projections.** Frames: W = bal_em on
+9. **RUNNING (Priya OK 11-04): center test for the SPOUT decoder and the C projections.** Frames: W = bal_em on
    working rows (production), C = bal_em on contact rows only, Z. Two tests: a direct post-stroke comparison (all
    animals) and a pre-stroke mix-shift (PS93 carries it). Write-up docs/status/CENTRE_MIXSHIFT_2026-11-04.md. Frozen
-   models are unchanged (scored frame only). 34 was told to hold the frozen-frame centre for the render. Arms added
+   models are unchanged (scored frame only). 34 was told to hold the frozen-frame center for the render. Arms added
    after Priya's questions (circularity; why not use the DAQ spout positions):
-   - TRUE-LABEL balanced centre (equal-weight mean of per-spout means, DAQ positions) on working rows and on
+   - TRUE-LABEL balanced center (equal-weight mean of per-spout means, DAQ positions) on working rows and on
      contact rows;
-   - NO-CENTRE (pooled pre mean / SD; no post-stroke data in the frame). Also
-   (Priya): engaged / disengaged LABELS come from camera classes (LP licks); the z centre stays on contact rows.
+   - NO-CENTER (pooled pre mean / SD; no post-stroke data in the frame). Also
+   (Priya): engaged / disengaged LABELS come from camera classes (LP licks); the z center stays on contact rows.
 8. **DECIDED (Priya 11-04): convert the coding-direction G9 classes to camera classes, if it can be done without unfair
    bias.** Guards sent to 34:
    - per-spout or position-balanced comparisons, so a class contrast is never a spout-difficulty contrast;
    - a minimum-n floor per animal x epoch x class x spout;
    - each post class against the same pre class;
-   - no incomplete rows in a centre;
+   - no incomplete rows in a center;
    - the DAQ classes kept as a robustness row, with old -> new reported first;
    - any figure that can't meet these stays on the DAQ classes, flagged.
 7. **NEW (11-04): camera-class inventory, 12 questions** (34: wf_attempt
@@ -247,12 +247,12 @@ log for the earlier part of the day is `RUNNING_LIST_2026-11-02_OVERNIGHT.md`.
    - **B (state discriminators in the spout frame), under the new working definition: one marginal miss.** PS93's
      cue held-out pre engaged reference is .869 -> .850 (-.019) against a between-session SD of .016. No animal is
      worse by more than .03, every other pre reference is within noise, and the precue-state AUC is .584 -> .587.
-     The centre already uses the working rows. Post-stroke, the G4 movement is about half the 11-03 estimate: cue
+     The center already uses the working rows. Post-stroke, the G4 movement is about half the 11-03 estimate: cue
      acute engaged-like .195 -> .323 (was .502), fits_engaged .170 -> .322. Kept OFF by the strict rule. [I'd adopt:
      -.019 is 1.2 SD in one cell and inside the .03 tolerance.]
-   - **C (projections in the spout frame, working-row centre).** Coding directions and pattern correlation stay within
-     noise under both centres. The ENGAGEMENT AXIS fails under both (1.6-9.7x the SD, cue and precue); the shift
-     comes from each scored session's own centre, not from the axis definition. Headlines with z -> working centre:
+   - **C (projections in the spout frame, working-row center).** Coding directions and pattern correlation stay within
+     noise under both centers. The ENGAGEMENT AXIS fails under both (1.6-9.7x the SD, cue and precue); the shift
+     comes from each scored session's own center, not from the axis definition. Headlines with z -> working center:
      - far-contra CD cue acute -.051 -> -.130;
      - precue .333 -> .087;
      - precue engagement axis acute .906 -> 1.230.
@@ -309,8 +309,8 @@ The combined render is ON HOLD until Q0-Q2 are answered. Q3 is a default you can
    - far-contra CD acute: cue -.099 -> -.332; precue .218 -> -.035;
    - precue engagement axis acute: .755 -> 1.092.
 
-   The helper centred the projections on the engaged rows of the lick-gate spout model, so that no session drops.
-   That is not the working-row centre the decoders use. Built, default OFF.
+   The helper centered the projections on the engaged rows of the lick-gate spout model, so that no session drops.
+   That is not the working-row center the decoders use. Built, default OFF.
 4. **NEW (11-04): should section D's and G's SCORED sets also become working trials?** On main, only their model and
    frame switched. The scored sets kept their designs:
    - section D (pooled_frozen_loso) scores all DAQ-engaged rows;
@@ -338,7 +338,7 @@ FYI, the 3-class camera variant (lick / jaw-only / none) is thin in PS92 and PS9
   - DECISIONS.md is on the rebuild list, so the entry waits in docs/status/DECISIONS_PENDING_MERGE_2026-11-04.md; it is
     appended after the merge.
   - Safe code fixes merged, plus archive_day fail-closed hash re-verify (e7edc659).
-  - Lick detector (LICK_DETECTOR_COMPARE_2026-11-04): Priya chose the BEHAVIOUR profile everywhere; sent to 34.
+  - Lick detector (LICK_DETECTOR_COMPARE_2026-11-04): Priya chose the BEHAVIOR profile everywhere; sent to 34.
     - Priya (to 34): switch NOW, BEFORE the render.
     - Code is on branch rebuild/daq-lick-detector: yaml accessor, min_ili fix, cache bumps, new run-tag token, pinned
       onset counts.
@@ -355,7 +355,7 @@ FYI, the 3-class camera variant (lick / jaw-only / none) is thin in PS92 and PS9
     from day 7 (p .73).
   - **Orofacial gain does not go down below pre** (chronic +.18, p .012). Chronic orofacial − posterior < 0 (−.14,
     p .038; 3 / 4 animals) because posterior rises more and orofacial eases from its acute peak.
-  - The same relative shift appears in 415, so it may be partly haemodynamic.
+  - The same relative shift appears in 415, so it may be partly hemodynamic.
   - Slide 102 now carries the 5-panel figure with stars plus a new panel E (orofacial vs posterior); the deck is still
     187 / 82 hidden.
 
@@ -364,7 +364,7 @@ FYI, the 3-class camera variant (lick / jaw-only / none) is thin in PS92 and PS9
   - Rest SD acute +.35 [+.23, +.46], 4 / 4. UNIFORM: all 46 areas 1.2-1.5x; no ipsilesional or orofacial excess.
     Later, posterior / medial areas (RSP, VIS, ACAd) rise MORE than orofacial ones.
   - 415 rises about half as much, with a DIFFERENT map (ipsi, lateral, vessel-like, tracking 415 F0): a separate
-    peri-lesional haemodynamic change. Corrected 470 rises as much as raw 470, so the correction doesn't create it.
+    peri-lesional hemodynamic change. Corrected 470 rises as much as raw 470, so the correction doesn't create it.
   - NOT movement: the animals are stiller (face speed 0.5-0.8x), but the gain persists in speed-matched / still
     frames (+.40-.43, 4 / 4) and after face regression. ~80 % remains away from quiet events. No pupil data.
   - Session-level figure (gain_bio_1104/figs/fig4_gain_sessions.png): now hidden deck slide 102 "Backup: post-stroke
@@ -388,7 +388,7 @@ FYI, the 3-class camera variant (lick / jaw-only / none) is thin in PS92 and PS9
     - W understates it by about 1/4;
     - Iref understates it by about half or more.
   - Nuisance:
-    - every session-centred frame absorbs a uniform offset exactly; N does not (its per-spout numbers move either
+    - every session-centered frame absorbs a uniform offset exactly; N does not (its per-spout numbers move either
       way, up to ±.2);
     - only R5 responds to a rest-state change, and it turns it into a far-contra "deficit" (-.19).
   - Rref doubles a global signal loss (it anchors on the close spouts).
@@ -401,7 +401,7 @@ FYI, the 3-class camera variant (lick / jaw-only / none) is thin in PS92 and PS9
     deficit's size.
   - DONE (INJECTED_EFFECT §7, b11b33e4): neither the fixed-SD Wt (WtF) nor the robust-SD Wt (WtR) fixes the ~1/3
     under-reading.
-    - CORRECTION of the mechanism: it is the CENTRE absorbing 1/6 of the far-contra shift (the equal-weight spout
+    - CORRECTION of the mechanism: it is the CENTER absorbing 1/6 of the far-contra shift (the equal-weight spout
       mean), NOT the session SD.
     - WtF is the only frame that also sees a proportional gain change while ignoring offsets and rest. On real data it
       raises cue far contra acute .230 -> .330 (PS94 .36 -> .57, PS95 .24 -> .37), probably via the acute
@@ -415,7 +415,7 @@ FYI, the 3-class camera variant (lick / jaw-only / none) is thin in PS92 and PS9
       - F0 / baseline fluorescence pre vs post (and 415 autofluorescence);
       - task vs rest SD;
       - whether the slide-94 "lick response larger after stroke" traces (raw dF/F, not z-scored) survive F0 and
-        per-session z normalisation.
+        per-session z normalization.
 
       Output docs/status/SD_RISE_2026-11-04.md.
 
@@ -436,15 +436,15 @@ FYI, the 3-class camera variant (lick / jaw-only / none) is thin in PS92 and PS9
   - Caveats: Iref uses the session's labels (a bound, not a frame); its balanced version adds far-contra false alarms
     in PS92 / PS95; n = 4.
 
-- **11-04: a rest-centred frame is WORSE, not neutral (docs/status/REST_CENTRE_2026-11-04.md, 2916dde9).** Production
+- **11-04: a rest-centered frame is WORSE, not neutral (docs/status/REST_CENTRE_2026-11-04.md, 2916dde9).** Production
   W is reproduced exactly; the decoders were refit in memory only.
   - Cue far contra, Wt -> restdock05: acute .230 -> .151, but chronic .720 -> .296 (collapses in 4 / 4).
   - Held-out PRE accuracy drops .030 (fails the sanity check).
   - Precue agrees with Wt (.198 / .198).
-  - Cause: the rest centre itself shifts post-stroke toward a far-contra penalty (acute -.64 log-odds pooled, 4 / 4;
+  - Cause: the rest center itself shifts post-stroke toward a far-contra penalty (acute -.64 log-odds pooled, 4 / 4;
     quiet events carry 25-100 % of it acutely). The rest SD rises 1.1-1.5x.
-  - The score shifts between centres are large relative to margins: W vs Wt 28-56 % of the margin acutely, 7-13 % of
-    predictions flip. That is why the centre matters for a FROZEN decoder (a refit decoder's intercept absorbs it).
+  - The score shifts between centers are large relative to margins: W vs Wt 28-56 % of the margin acutely, 7-13 % of
+    predictions flip. That is why the center matters for a FROZEN decoder (a refit decoder's intercept absorbs it).
   - Reading: keep the trial-based Wt; the rest arms are not adopted.
 
 - **11-04: D / G on main (4a37cbc8, bcdg_1104). Section D scored on WORKING rows moves the acute far spouts a lot.**
@@ -470,8 +470,8 @@ FYI, the 3-class camera variant (lick / jaw-only / none) is thin in PS92 and PS9
     | after_end | .164 | .225 |
 
     Chance is .167. Pre cells are thin.
-  - C engagement-axis failure explained: in z each session is centred on its engaged (lick) mean, so its lick trials
-    sit at the lick pole by construction. The readout's noise is tiny, and any other centre moves it.
+  - C engagement-axis failure explained: in z each session is centered on its engaged (lick) mean, so its lick trials
+    sit at the lick pole by construction. The readout's noise is tiny, and any other center moves it.
   - Ported to 34: the list was sent. Gaps not yet on main:
     - (a) a camera-class state discriminator for G4 (check-script only);
     - (b) coding-direction G9 classes still DAQ (question 8 below);
@@ -480,10 +480,10 @@ FYI, the 3-class camera variant (lick / jaw-only / none) is thin in PS92 and PS9
 
 - **11-04: G4 camera-class split + mix-shift test (docs/status/G4_CAMCLASS_MIXSHIFT_2026-11-04.md, 5f01f2dc). B should
   NOT be adopted: the z frame is the right one.**
-  - Mix-shift on held-out pre sessions: z is mix-stable in all 4 animals (|bias| <= .05). Every frame centred on
-    WORKING rows (z-on-working, spout frame, 11-03 jaw-incl. centre) reads more engaged-like as the mix shifts toward
-    post-stroke: pooled no-lick bias +.06 / +.07 / +.17, mostly PS94 / PS95. The fault is the centre rows, not bal_em.
-  - That artefact explains about half of the .195 -> .323 -> .502 gap, and more with the real post-stroke mix.
+  - Mix-shift on held-out pre sessions: z is mix-stable in all 4 animals (|bias| <= .05). Every frame centered on
+    WORKING rows (z-on-working, spout frame, 11-03 jaw-incl. center) reads more engaged-like as the mix shifts toward
+    post-stroke: pooled no-lick bias +.06 / +.07 / +.17, mostly PS94 / PS95. The fault is the center rows, not bal_em.
+  - That artifact explains about half of the .195 -> .323 -> .502 gap, and more with the real post-stroke mix.
   - The engaged-like share is NOT carried by incomplete licks: calls spread over the classes in proportion to their
     counts. Incomplete > none only in PS94.
   - Under the camera-class discriminator in z, acute no-lick trials are no more working-like than pre-stroke ones:
@@ -531,7 +531,7 @@ FYI, the 3-class camera variant (lick / jaw-only / none) is thin in PS92 and PS9
     1.0 s.
   - ENL audit of the rebuild code (Priya asked):
     - No widefield record that 1.5 s was found fine. The 09 window sweep (DECISIONS ~664) found 1.5 s no better than
-      2.0 s once the filter artefact was fixed. "1.5 s settled" is the 2-photon pipeline (2pRAM handoff 09-26).
+      2.0 s once the filter artifact was fixed. "1.5 s settled" is the 2-photon pipeline (2pRAM handoff 09-26).
     - The decoders follow the source: DAQ 2.0 s (precue_post_s) or LP 1.0 s (lp_licks.apply_enl_window). This covers
       the position / nolick / frozen / attempt_coding decoders and map_collect.
     - BUT these read precue_post_s = 2.0 directly, even under LP: precue_engagement_states :204,
@@ -546,8 +546,8 @@ FYI, the 3-class camera variant (lick / jaw-only / none) is thin in PS92 and PS9
 - **11-04: what the G4 / state discriminators compare.** They are trained on pre DAQ-lick vs DAQ-no-lick trials
   (position-balanced; poststroke_compare.looks_like_which), NOT on camera working. So jaw-only trials were always in the
   no-lick class, in both frames. The no-lick group also contains incomplete licks (genuine attempts) and no-response
-  trials. The B check's PS93 -.019 and the .195 / .323 / .502 spread are therefore pure CENTRING effects. Running (Priya
-  OK): G4 split by camera class (incomplete / jaw-only / none / after end) under the three centres, plus a mix-shift
+  trials. The B check's PS93 -.019 and the .195 / .323 / .502 spread are therefore pure CENTERING effects. Running (Priya
+  OK): G4 split by camera class (incomplete / jaw-only / none / after end) under the three centers, plus a mix-shift
   test on held-out pre sessions resampled to post-stroke class mixes (decoder_mix_checks/g4_camclass_mixshift_1104/).
   B waits on it.
 
@@ -586,11 +586,11 @@ FYI, the 3-class camera variant (lick / jaw-only / none) is thin in PS92 and PS9
     no-response trials (.20 / .25) and far below contact trials (.93).
   - Trained within the class, jaw-only reads about .20-.29 (chance .20), against .67-.79 for licks with the same
     trial count.
-  - Jaw-only errors do not land on the neighbouring spout any more than no-response errors do. Contact errors do.
+  - Jaw-only errors do not land on the neighboring spout any more than no-response errors do. Contact errors do.
   - Adding jaw-only trials to TRAINING does not move the pre reference (B - A = -.002 [-.03, +.03]).
-  - **Most of PS95's close ipsi acute drop (.975 -> .642) comes from CENTRING.** The label-free per-session centre is
+  - **Most of PS95's close ipsi acute drop (.975 -> .642) comes from CENTERING.** The label-free per-session center is
     computed on rows that include the session's jaw-only trials. PS95 acute has 107 of them, all at far mid / far
-    contra, and centring on them lowers close ipsi in all four animals.
+    contra, and centering on them lowers close ipsi in all four animals.
   - Old .975 -> .832 in PS95 is the move from DAQ-lick rows to camera classes + August-only, independent of jaw-only.
   - Precue: every non-lick class reads .25-.39, against .50-.70 for contact trials. That is state before the cue.
 
@@ -613,7 +613,7 @@ FYI, the 3-class camera variant (lick / jaw-only / none) is thin in PS92 and PS9
   hemispheric balance. Four main-slide claims are not significant under the LMM:
   - CSM share: p .13 / .13 / .17;
   - chronic normality: p .14;
-  - acute cortex - behaviour gap: p .21;
+  - acute cortex - behavior gap: p .21;
   - acute orofacial residuals: p .065-.13.
 
   The main captions stay as they are; each hidden slide states its result on the slide.
@@ -633,16 +633,16 @@ FYI, the 3-class camera variant (lick / jaw-only / none) is thin in PS92 and PS9
 - **(11-04) Maps need no re-evaluation for the rest-baseline shift.** Priya: the maps relative to restw, rest,
   pre-cue and raw were all in reasonable agreement, so no single baseline drives them. They only change in the
   rebuild (camera-class trial selection, split basis).
-- (11-04) RUNNING (Priya OK): reference-spout-anchored centre (Rref: the day offset from close ipsi / close mid) PLUS
+- (11-04) RUNNING (Priya OK): reference-spout-anchored center (Rref: the day offset from close ipsi / close mid) PLUS
   an intercept-only refit (Iref: frozen weights, per-session intercepts refit with block CV; an offset-free readout),
   with assumption checks (do the reference spouts change post-stroke? Priya expects yes). Output
   decoder_mix_checks/refspout_centre_1104/, docs/status/REFSPOUT_CENTRE_2026-11-04.md. Wt stays the rebuild default
   regardless.
-- (11-04) RUNNING (Priya asked): literature review on cross-session normalisation / frozen-decoder alignment. It
+- (11-04) RUNNING (Priya asked): literature review on cross-session normalization / frozen-decoder alignment. It
   covers widefield longitudinal and stroke work, 2-photon drift, BCI recalibration, latent alignment and label-shift
   adaptation. Output docs/LITERATURE_CROSS_SESSION_NORMALISATION_2026-11-04.md.
 
-- **(11-04) Centre = Wt FINAL**: the DAQ-label balanced centre on all working rows, for the frozen spout decoder +
+- **(11-04) Center = Wt FINAL**: the DAQ-label balanced center on all working rows, for the frozen spout decoder +
   CD / pattern projections; the engagement axis stays z. Robustness rows N, Cto. DECISIONS 11-04 entry; sent to 34.
 
 - **(11-04) A contact vs incomplete figure panel for sections D and G** (frozen accuracy per spout, both classes, per
@@ -671,8 +671,8 @@ FYI, the 3-class camera variant (lick / jaw-only / none) is thin in PS92 and PS9
   switch.
 - **(11-04) B, C, D, G (questions 1, 2, 4).**
   - **B:** state discriminators go in the spout bal_em frame, AFTER a re-check under the new working definition
-    (centre on working rows).
-  - **C:** Priya asked why not all three projections in the spout frame, centred on working rows like the decoders.
+    (center on working rows).
+  - **C:** Priya asked why not all three projections in the spout frame, centered on working rows like the decoders.
     Being re-checked; not decided.
   - **D:** section D's scored set -> working trials.
   - **G:** section G's groups -> camera classes (contact / incomplete / jaw-only / none, plus "after end"); pre panel
@@ -685,7 +685,7 @@ FYI, the 3-class camera variant (lick / jaw-only / none) is thin in PS92 and PS9
 
 - **(late) Jaw-only trials are OUT of working** and are reported as their own class, like no-response. Working =
   contact + incomplete camera licks, cut at the session's last camera lick. This applies to the frozen training set,
-  the per-session centre, the pre panel and the scored set. It replaces the afternoon rule (jaw or any lick). A helper
+  the per-session center, the pre panel and the scored set. It replaces the afternoon rule (jaw or any lick). A helper
   is implementing it, retraining the cue / precue frozen models (new ids; old ones kept) and verifying against the
   checks' "jaw as its own class" row: acute close ipsi .727, pre panel .856.
 
@@ -694,7 +694,7 @@ FYI, the 3-class camera variant (lick / jaw-only / none) is thin in PS92 and PS9
   the last camera lick. At close mid it is licks only.
 - **State discriminators.** Engaged vs disengaged goes in the spout bal_em frame. The lick / jaw-only / no-movement
   3-class version is built as a reported variant for Priya.
-- **Axes / CDs / patterns.** Same per-session bal_em centring before projecting.
+- **Axes / CDs / patterns.** Same per-session bal_em centering before projecting.
 - **Re-render.** One combined pass once the checks pass; A3 no longer gates it.
 - **Stars.** Main slides keep bootstrap stars. LMM versions go on hidden slides right after each main slide.
 - **Curve figures.** LMM on pre-specified per-session summaries (DECISIONS 82665657).
@@ -713,7 +713,7 @@ FYI, the 3-class camera variant (lick / jaw-only / none) is thin in PS92 and PS9
   - Note: 34's deck slide numbers may predate today's inserts (+1 after 29, +2 after 99); check by shape name when
     swapping.
 
-- **Encoder pre-cue position credit may fall once spontaneous licks are modelled** (LICKS_ALL = split): drop:pos_enl,
+- **Encoder pre-cue position credit may fall once spontaneous licks are modeled** (LICKS_ALL = split): drop:pos_enl,
   PS93_0814 .0072 -> .0029, PS93_0818 .0044 -> .0037 (smokes). If it holds across animals, it touches every encoder
   claim about pre-cue position coding. 34 was asked to report the per-animal / per-epoch split vs no-licksall numbers
   FIRST when the O2 run lands, plus the list of affected page / deck claims.
@@ -751,11 +751,11 @@ FYI, the 3-class camera variant (lick / jaw-only / none) is thin in PS92 and PS9
 - 11-03 late: list started.
 - 11-03 late: Priya (via 34) said the jaw-steering hidden LMM slide is too wide for one graph. I asked e3 to re-render
   k_jaw_epochs_lmm (6 x 4.5 in), decoding_refit_sessions_lmm (8 x 4.5) and frozen_refit_pooled_lmm (9 x 4.5). I will
-  place each at its natural width, centred, and check the other one-panel hidden slides.
+  place each at its natural width, centered, and check the other one-panel hidden slides.
 - 11-03 evening: e3's three narrower figures are written. The deck save is BLOCKED: the deck is open in PowerPoint on
   this box (window "PI_overview_2026-11-02.pptx - PowerPoint", started 18:27; not opened by this window, so I am not
   touching it). place_natural_width_1103.py is ready and will run once the deck is closed. It places the figures at
-  6.0 / 8.0 / 9.0 in, centred, with the caption under each.
+  6.0 / 8.0 / 9.0 in, centered, with the caption under each.
 - 11-03 evening: e3 re-rendered the 3-D phase main slide (fig:p_phase) with cluster-permutation bars (Priya via 34).
   swap_p_phase_perm_1103.py is queued behind the same deck lock. Caveat for Priya: the midline row is marked almost
   everywhere, including ~2 deg chronic shifts. That is a session-level test within these 4 animals; the hidden LMM
@@ -789,7 +789,7 @@ FYI, the 3-class camera variant (lick / jaw-only / none) is thin in PS92 and PS9
   - **test 1:** a decoder trained on pre contact + incomplete trials, scored per class (contact / incomplete /
     jaw-only / none). Jaw-only vs none is the key comparison;
   - **test 2:** train with vs without jaw-only, scored on the same held-out lick trials. Controls: count-matched,
-    per-spout matched, A's centre;
+    per-spout matched, A's center;
   - **split of the old -> new change:** training set, scored set and August-only, switched one at a time (e.g. PS95
     close ipsi acute .975 -> .642).
 
@@ -846,9 +846,9 @@ FYI, the 3-class camera variant (lick / jaw-only / none) is thin in PS92 and PS9
   attribution commit 96618fbd).
 - 11-05: code edits while the O2 run is in flight (Priya OK). Only files that no rebuild/* branch touches (10 branches,
   647 files re-listed today). New tests tests/test_pose_windows.py and tests/test_docked_periods.py (12 tests; new files,
-  no number changes). Colours, appearance only: mixed_models.plot_fits now takes animal colours from animals.yaml
+  no number changes). Colors, appearance only: mixed_models.plot_fits now takes animal colors from animals.yaml
   (ANIMAL_COL kept as a lazy alias for lick_aim_deficit); scripts/session_lick_summary epoch shades now use the
-  EPOCH_LINE hues (were the PS92/93/94 animal colours). e3's mixed-model redraws pick up the animals.yaml colours.
+  EPOCH_LINE hues (were the PS92/93/94 animal colors). e3's mixed-model redraws pick up the animals.yaml colors.
   Everything else in the review waits for the rebuild merge.
 - 11-05: Priya answered decisions 1-7 (DECISIONS_PENDING_MERGE (f)); relayed to 34 and e0. Still open: 8 (composite
   deficit variable list, e0), 9 (ITI tables: shared ak.boot_p vs local +1/N; 22 / 4480 area rows gain a star, none
@@ -859,7 +859,7 @@ FYI, the 3-class camera variant (lick / jaw-only / none) is thin in PS92 and PS9
   version wrapped across the divider; caption already names contralesional tjM1 / SSp-m; notes gain the z-scored
   numbers; 187 / 82 hidden unchanged; scripts update_slide95_title_1105{,b}.py, backup _bak_before_s95_1105.pptx).
   Per-class encoder figure (A14): MAIN for now (sent to 34). 34: B12 early look = spont lick kernels move pre-cue
-  position credit < .002 everywhere; chronic rise in 3 / 4 in both arms (not a spont artefact). Rebuild -> main merge
+  position credit < .002 everywhere; chronic rise in 3 / 4 in both arms (not a spont artifact). Rebuild -> main merge
   done on merge/rebuild-into-main-20261105 (2730033a), unpushed.
 - 11-05 ~15:00: merge push 1 rejected by pre-push (1 failed / 5,028: test_no_imaging_literal_left, cohort2
   led_490_vs_470_dprime.py passed the retired imaging lick profile; 34 fix 411c8385). 34 also merged the section C
@@ -883,7 +883,7 @@ FYI, the 3-class camera variant (lick / jaw-only / none) is thin in PS92 and PS9
   scripts/rest_migration; ban test on `import scripts` in wfield_local with a KNOWN allowlist), d39ee11c (Priya's OK via
   34: kinematics_chain / video_signals / pose_sessions moved verbatim; real-session identical). Pushing: one fallback
   response window behavior.response_window_fallback_s 3.5 (item 3; Priya OK "as long as it won't affect the current
-  rendering run"; number-neutral: all 264 behaviour folders have their own window) + raster gold band = session
+  rendering run"; number-neutral: all 264 behavior folders have their own window) + raster gold band = session
   window (Priya "yes"; licking.response_window_s 2.0 deleted). RENDER NOTE: quiet_periods.response_window_s now reads
   the fallback instead of decode.max_rt_s (same 3.5), so the NEXT render on main may recompute map_collect maps whose
   cache key hashes that source -- same numbers, extra time (34 OK). Still KNOWN (e0's): orofacial_cohort,

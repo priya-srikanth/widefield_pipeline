@@ -6,7 +6,7 @@ Started 2026-09-12. Priya: *"I want to start trying to answer **where** the disp
 codes move post-stroke."*
 
 Everything in the deck so far answers **where in representational space** — far-contralateral's best
-match goes to far-middle (0.50 of sessions) and far-ipsilateral (0.25); the row-centred crossnobis
+match goes to far-middle (0.50 of sessions) and far-ipsilateral (0.25); the row-centered crossnobis
 gives the direction; the encoder says far-contra keeps its own structure while losing the template.
 Nothing answers **where in cortex**. This document is that work.
 
@@ -64,13 +64,13 @@ Restricting it to hemisphere or Allen module recovers only as much anatomy as th
 
 **The mean pattern carries anatomy but only if it is not collapsed**, and per component the basis
 gives ~2–4 components per Allen area (64 distinct areas across 95 components; 32 areas ignoring the
-hemisphere sign), which is too thin to localise.
+hemisphere sign), which is too thin to localize.
 
 **Decoder weights are the wrong tool, and not for the reason first assumed.** The ROI constraint
 does not apply — the joint basis makes component *j* the same footprint in every session by
 construction, which is what `joint_xsession` exists for, so weights ARE comparable across sessions.
 The problem is that multinomial-logistic weights over 95 correlated components are unstable: a
-weight can flip sign with no change in the information represented, because a correlated neighbour
+weight can flip sign with no change in the information represented, because a correlated neighbor
 absorbs it. Any anatomical claim from raw decoder weights would need the Haufe transform
 (`A = Σ_x W`) to convert discriminative filters into interpretable activation patterns first.
 
@@ -90,14 +90,14 @@ becomes a picture.
 ### Coding directions rendered back to cortex
 
 `position_coding_directions.direction()` is a **difference of means** — `mean(P) − mean(not-P)`,
-unit-normalised in (component × bin) space. Two properties matter:
+unit-normalized in (component × bin) space. Two properties matter:
 
 * it is **contrastive**, so it isolates position coding from global activity — a delta map lights up
   when the animal simply moves more, a coding direction cannot;
 * it is a **mean difference, not a fitted discriminative weight**, so none of the logistic-weight
   instability above applies.
 
-The module currently only ever *projects* onto it (`project()` returns a pole-normalised scalar per
+The module currently only ever *projects* onto it (`project()` returns a pole-normalized scalar per
 trial), so the anatomy in `w` is computed and then discarded. Rendering `w` back through the LocaNMF
 footprints gives the cortical pattern that distinguishes one position from the rest; doing it
 pre- and post-stroke and differencing is the anatomical shift, isolated to position coding.
@@ -122,7 +122,7 @@ rest on n=4, which is far worse — better to draw each animal with its own sess
 and let the four panels show the replication.
 
 **Display: mean map with a reliability contour, not a masked map.** Masking destroys magnitude,
-which is the thing being read. Per animal × position: mean post−pre delta in colour, contour where
+which is the thing being read. Per animal × position: mean post−pre delta in color, contour where
 the effect is reliable, effect-size map beside it, with
 `SE = sqrt(var_post/n_post + var_pre/n_pre)` and `t = delta/SE` per pixel.
 
@@ -157,7 +157,7 @@ rendered.
 `session_maps` takes `X, y, g` from `trial_features_cached`; those are the ENGAGED trials. The
 no-lick trials that make the `working` class uniform come back as `Xn, yn` and are **discarded**.
 So `variant` currently selects only whether class weighting is applied, not which trials are used,
-and the two arms labelled `working` are lick-trial maps.
+and the two arms labeled `working` are lick-trial maps.
 
 **How it surfaced:** figure 14's pre-cue panel refused the far-contralateral ACUTE cell. Chasing
 that gave far-contra trials per session of 0–5, 4–12, 0–8 and 1 for the four animals, against
@@ -194,8 +194,8 @@ the two are separable.
 3. **Permutation contours produced nothing visible** on the pre-cue render. With 4 animals the
    between-animal SE is coarse and the test is probably conservative; report that rather than
    loosening the threshold until something appears.
-4. **Vessel structure** faintly visible in POST mean maps — rule out residual haemodynamic
-   artefact before this is a headline.
+4. **Vessel structure** faintly visible in POST mean maps — rule out residual hemodynamic
+   artifact before this is a headline.
 5. **Pixel-space post−pre position maps** from the 123 existing `*_spout_positions_1s_pre_post_delta_maps.npz`
    — never built. Complementary to the decoder maps: raw activity change at full resolution, with
    no decoder and no basis in the path.
@@ -222,7 +222,7 @@ acute trial map look as though there is a relative **increase** in ss-ul/ll acti
 pre-stroke."*
 
 **Correct, and it is structural.** The Haufe pattern is `cov(pixel, decoder output)` on trial-mean-
-centred data, so the reference is the average over all six positions in that session. If one
+centered data, so the reference is the average over all six positions in that session. If one
 position loses drive the reference falls, and **every other position's map gains an apparent
 increase it did not earn**. The six maps are not independent.
 
@@ -271,7 +271,7 @@ animals — so it is an independent line of evidence rather than a restatement.
 ## The statistic and its null
 
 Each animal's own `epoch - pre` map; mean pairwise Pearson r between animals over the 129,770 px of
-`stat_mask`. Scale-free per animal, so the within-animal RMS normalisation cannot affect it.
+`stat_mask`. Scale-free per animal, so the within-animal RMS normalization cannot affect it.
 
 **A NULL IS MANDATORY HERE**, and the reason is in the data: the PRE-STROKE maps already correlate
 between animals at **r ~= 0.88**. Four mice share gross cortical anatomy, one Allen warp and one
@@ -322,7 +322,7 @@ They differ by exactly one term:
 agreement rules out the decoder and nothing else. This answers the "related check worth running"
 noted just above: the one-vs-rest versus one-vs-quiet comparison has now been made, and the two do
 NOT look alike at the near positions — which is the evidence that the near-position rises are a
-reference artefact rather than position code.
+reference artifact rather than position code.
 
 **Full tables, method, and the retraction of the first null-free version:** `DECISIONS.md`,
 2026-09-12 (night).
@@ -339,13 +339,13 @@ as "not yet checked" when that gradient was first reported.
 time-within-session -- `rest_position_vs_drift` put POSITION/DRIFT at 1.02, i.e. the confound is as
 large as the effect. That is unavoidable within one session. **Across sessions it only survives if
 block order is SYSTEMATIC.** If position 4 tends to run early and position 1 late in every session,
-each session's drift pushes the same positions the same way and pooling ADDS the artefact. If the
+each session's drift pushes the same positions the same way and pooling ADDS the artifact. If the
 order shuffles, pooling averages it out and a gradient that survives is not drift.
 
 **THE MEASUREMENT** (`scripts/rest_migration/block_order.py`, all 92 sessions, 0 skipped; each
-trial's normalised index in its session, averaged per position):
+trial's normalized index in its session, averaged per position):
 
-| position | mean normalised index | sd over sessions |
+| position | mean normalized index | sd over sessions |
 |---|---|---|
 | close_L | 0.502 | 0.025 |
 | close_center | 0.494 | 0.024 |
@@ -365,7 +365,7 @@ mean pairwise Spearman of the per-position mean index = **+0.011**.
 ranks, **P(|rho| > 0.6) = 0.417**. The observed 0.40 is BELOW chance, and the mean of +0.011 against
 a null mean of exactly 0 says the high-|rho| pairs split evenly between positive and negative. With
 only four common positions Spearman is a coarse, discrete statistic and a large |rho| is ordinary;
-quoting that fraction without its null would have invented an artefact.
+quoting that fraction without its null would have invented an artifact.
 
 **WHAT THIS LICENSES, AND WHAT IT DOES NOT.** Drift-through-blocks cannot manufacture a POOLED
 position-graded amplitude effect, so the gradient is worth testing properly. It is still NOT

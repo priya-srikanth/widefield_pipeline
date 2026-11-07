@@ -30,7 +30,7 @@ addenda 2026-10-08 (three), 2026-10-12, 2026-10-13 (two). Analysis desktop; M: =
   100 comps + per-area pixel PCA, Musall's basis) because LocaNMF gives only 8-16 comps per area.
 * **Result:** position-related VARIANCE is mostly movement-potent in every area and window (both bases), while
   position is about equally DECODABLE outside those directions; the MO pre-cue "null" result was a small-basis
-  artefact. On the 24-session subset the potent share does not change consistently across epochs or agree between
+  artifact. On the 24-session subset the potent share does not change consistently across epochs or agree between
   bases. **Decision (Priya 10-08, "does this add a lot?"): no** -- the movement regression answers the movement
   confound more directly; null/potent stays a supplementary control, no further work.
 * **Side finding worth following:** pixel bases decode position better than LocaNMF (ENL all 0.48 vs 0.40, MO 0.47
@@ -56,14 +56,14 @@ addenda 2026-10-08 (three), 2026-10-12, 2026-10-13 (two). Analysis desktop; M: =
   outside imaging coverage dropped (PS95 0813); **sessions missing any camera are refused** (PS93 0813 had run
   running-only and was in the first 112 -- corrected 10-13).
 
-### C. Camera alignment templates for every analysed session (Priya: "we should have or make them")
-* Built with `python -m wfield_local.camera_sync <date> --only <animals>` for the 14 analysed sessions that had none
+### C. Camera alignment templates for every analyzed session (Priya: "we should have or make them")
+* Built with `python -m wfield_local.camera_sync <date> --only <animals>` for the 14 analyzed sessions that had none
   (06-02/03/05, 08-05, 09-29): 55 / 56 good (rms 1.15-1.16 ms). **PS92 0605 cam4 FAILS quality** (165k dropped
   frames, 3.3 s residual; saved, flagged). **PS93 0813: no video was recorded** -- experiment error, logged in
   `docs/EXPERIMENT_ERRORS.md`. June 1-5 and 8/5 are outside the curated set (`animals.yaml cross_session_exclude`),
   so those templates matter only for non-curated work.
 
-### D. cam4 labelling round 4 -> DLC round 4
+### D. cam4 labeling round 4 -> DLC round 4
 * Labels: Part 1 (cam4 round 4) 128 / 131 done 10-09 (3 blanks, possibly all-occluded); Part 2 cam1 round-1 290 /
   376; Part 3 cam1 round 2 0 / 254 (status from the label files via `dlc_cam1_guide` helpers).
 * **DLC round 4** (`wfield_local.dlc_train`, 540 frames / 21 sessions, best snapshot 170; iteration-2 `trainset74`,
@@ -82,7 +82,7 @@ addenda 2026-10-08 (three), 2026-10-12, 2026-10-13 (two). Analysis desktop; M: =
 * Every LP model so far (cam4 round 3, cam1, both multi-view arms) used `losses_to_use: [temporal]` = a TRAINING
   penalty on frame-to-frame jumps in unlabelled video; inference was single-frame (`model_type: heatmap`, or
   `heatmap_multiview_transformer`, which shares across cameras, not time). Temporal context at inference =
-  `heatmap_mhcrnn` (frames t-2..t+2), never trained until now. The 09-30 labelling plan kept context frames named
+  `heatmap_mhcrnn` (frames t-2..t+2), never trained until now. The 09-30 labeling plan kept context frames named
   for it. LP 2.4.2 has NO multi-view + context model; the route to both is per-camera context models + the
   calibration-free multi-camera EKS.
 * Round-4 LP project `/root/lp/cam4-2026-10-13` (`litpose convert` of the DLC training copy staged to
@@ -106,7 +106,7 @@ then predicts both session clips + the six review clips -> `lp_stage/r3_vs_r4_lp
 has no DALI -> no unlabelled-video temporal LOSS; the semi-supervised context model needs WSL: do it ATTENDED, batch
 1 + `torch.cuda.set_per_process_memory_fraction`, after a short monitored test. Still to run: the review-clip LP
 predictions (r3, r4 heatmap) and a round-3 context model (`lp_r4_followon.sh` died in the crash).
-**Side cameras:** labelling plan + `SIDECAM_GUIDE.html` built (DECISIONS 10-13 night).
+**Side cameras:** labeling plan + `SIDECAM_GUIDE.html` built (DECISIONS 10-13 night).
 
 **10-14 early -- comparison DONE (DECISIONS 2026-10-14):** five models on both sessions (`r4_eval/cue_traces_compare*.png`,
 `model_lick_compare.csv`, `model_angle_compare.csv`); LP r4 heatmap best all-rounder; the (supervised, Windows) context
@@ -125,16 +125,16 @@ LP r4 ctx-semi, 512 px, eps [10, 10, 35, 10] (`lp_stage/lp_train_semi_ctx_wsl.lo
   (2) executed-angle vs target (MUST REVISIT) once tracking allows; (3) tracking.
 * ENL summaries use the CURATED set (`analysis_kit.curated_labels()`) with >= 60 trials; never a session with an
   incomplete movement model.
-* Camera templates exist for every analysed session with video; PS93 0813 has none (no video).
+* Camera templates exist for every analyzed session with video; PS93 0813 has none (no video).
 * Model choice for cam4 is made on lick detection / kinematics, not pixel error. Evaluate the LP temporal-context
-  model before more labelling.
+  model before more labeling.
 
 ## 3. Pending / to-do
 1. §0 comparison -> figures + lick detection -> pick the cam4 model -> production O2 run over all sessions.
 2. If the context model helps the tongue: cam1 context model, then per-camera context + EKS as the 2-camera route.
 3. Executed-angle vs target readout (needs 1).
 4. Pixel-vs-LocaNMF decoding gap: non-motor control area (spatial-leakage check).
-5. Labelling: cam1 Part 2 (4 empty folders) and Part 3 (round 2) -- worth it only if the model comparison says
+5. Labeling: cam1 Part 2 (4 empty folders) and Part 3 (round 2) -- worth it only if the model comparison says
    labels, not architecture, are the limit.
 6. Optional: tongue likelihood cutoff for round 4 (it is under-confident on clear protrusions at 0.6).
 7. FaceRhythm (Hakim et al., the paper Priya cited with Musall): reading notes + proposal in `docs/FACERHYTHM_PROPOSAL.md`

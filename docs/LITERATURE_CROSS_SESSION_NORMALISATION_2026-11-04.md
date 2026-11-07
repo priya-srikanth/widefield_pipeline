@@ -1,14 +1,14 @@
 # Literature review: putting post-stroke sessions into a frozen decoder's frame (2026-11-04)
 
-Scope: how others normalise or align sessions before applying a fixed decoder across days, weeks or injury, and
+Scope: how others normalize or align sessions before applying a fixed decoder across days, weeks or injury, and
 how this maps onto our frames. Frame tags follow `docs/status/CENTRE_MIXSHIFT_2026-11-04.md` and
 `docs/status/REST_CENTRE_2026-11-04.md`:
 
-- **W**: label-free bal_em centre;
-- **Wt**: true-label balanced centre;
+- **W**: label-free bal_em center;
+- **Wt**: true-label balanced center;
 - **N**: pooled pre-stroke frame;
 - **Z**: per-session z;
-- **R5 / RW**: rest centres;
+- **R5 / RW**: rest centers;
 - reference-condition anchor;
 - intercept-only refit.
 
@@ -28,7 +28,7 @@ A spout-position decoder is trained on pre-stroke widefield sessions and applied
 new session has to be put into the decoder's input frame, because F0, SNR, drift and hemodynamics differ between
 sessions.
 
-Any per-session centre or scale built from that session's own data has two problems:
+Any per-session center or scale built from that session's own data has two problems:
 
 - **Circularity.** It can absorb real post-stroke change.
 - **Trial-mix dependence.** It depends on the session's trial mix: label shift, missing classes, and the share of
@@ -41,7 +41,7 @@ conclusion depends on the choice.
 
 - No widefield stroke paper I could find applies a frozen decoder across the stroke, and none discusses this
   circularity or trial-mix problem.
-- The closest relevant work comes from three areas: BCI decoder stabilisation, the 2-photon drift literature, and
+- The closest relevant work comes from three areas: BCI decoder stabilization, the 2-photon drift literature, and
   ML label-shift theory.
 - The BCI literature is the only one that states the circularity explicitly: mean subtraction can cancel real
   modulation (Jarosiewicz et al. 2015).
@@ -56,14 +56,14 @@ conclusion depends on the choice.
 
 #### What standard widefield pipelines do
 
-Every pipeline I read normalises each recording by its own F0. None applies an across-session z or a pooled frame.
+Every pipeline I read normalizes each recording by its own F0. None applies an across-session z or a pooled frame.
 
-| study | F0 / normalisation | across-session handling | sourcing |
+| study | F0 / normalization | across-session handling | sourcing |
 |---|---|---|---|
 | Allen et al. 2017, *Neuron* | per-pixel ΔF/F with F = median of the entire time series; scaled 410 nm ΔF/F subtracted from 488 nm ΔF/F | atlas registration (CCFv2, affine, four control points) | full text |
 | Peters et al. 2021, *Nature* (striatum + widefield) | violet-scaled hemodynamic subtraction; linear detrend; 0.01 Hz high-pass; ΔF/F0 = divide by each pixel's mean fluorescence "softened by adding the median average fluorescence across pixels" | days aligned by rigid registration of each day's mean violet (vasculature) image; mice aligned by retinotopy | full text |
 | Couto et al. 2021, *Nat Protoc* (wfield) | F0 = "average of a number of frames before trial onset", or the mean of all session frames if that is not possible | chronic imaging over months; Fig. 1e shows two recordings 6 weeks apart in which task activity "strongly increases with learning", each with its own per-session dF/F | full text |
-| Musall et al. 2019, *Nat Neurosci* | baseline-corrected ΔF/F; CCF alignment; SVD; encoding models fit within session | learning analysed as per-session cvR² over training days, not with a cross-session decoder | full text |
+| Musall et al. 2019, *Nat Neurosci* | baseline-corrected ΔF/F; CCF alignment; SVD; encoding models fit within session | learning analyzed as per-session cvR² over training days, not with a cross-session decoder | full text |
 | Pinto et al. 2019, *Neuron* | F0 = mode over a 30 s sliding window; divisive hemodynamic correction ΔF/F = R_b/R_v − 1 | — | full text |
 | MacDowell & Buschman 2020, *Curr Biol* | F0 = rolling mean over a 9,750 ms window, then linear detrend | — | full text |
 | Makino et al. 2017, *Neuron* (motor learning over weeks) | F0 = 10th percentile over 30 s around each time point | ROI Δf/f compared across learning; they report "no net change in the amplitude of movement-related activity" | full text |
@@ -72,7 +72,7 @@ Every pipeline I read normalises each recording by its own F0. None applies an a
 
 So per-recording ΔF/F0 is the universal first step. *Our reading:*
 
-- Per-session F0 is itself a per-session divisive normalisation.
+- Per-session F0 is itself a per-session divisive normalization.
 - Any post-stroke change in F0 or absorption already enters every frame we test, including N, unless N is built
   on raw rather than ΔF/F units. Such changes include autofluorescence, expression, and the light-absorption change
   over the lesion that Bandet & Winship 2024 show.
@@ -82,14 +82,14 @@ cross-validation is the norm.
 
 #### Stroke widefield / mesoscale studies
 
-| study | modality, model | normalisation | what it shows for us | sourcing |
+| study | modality, model | normalization | what it shows for us | sourcing |
 |---|---|---|---|---|
-| Lim, LeDue, Mohajerani & Murphy 2014, *J Neurosci* | ChR2 point stimulation + VSD imaging; cortical stroke; 1 and 8 weeks | — | **Normalisation can hide a global effect.** At 1 week evoked activity is widely depressed, including in the non-injured hemisphere. "scaling the ChR2-evoked VSD responses from the stroke groups to match the sham group mean resulted in a relative distribution of responses that was indistinguishable from the sham group". A global down-scaling ("connectional diaschisis") disappears under a global rescale. A per-session z would do the same. | abstract only |
-| Bauer et al. 2014, *NeuroImage* (Lee / Culver labs) | OIS functional connectivity, tMCAO | GSR vs multiple-signal regression (MSR: separate infarct and non-infarct regressors) | **The most direct "conclusion depends on normalisation" result in stroke imaging.** "With increasing stroke severity, homotopic functional connectivity switches sign using global regression and increases, but decreases using multiple signal regression." GSR alone "resulted in apparently distorted functional connectivity measures in the intact hemisphere", and "it is necessary to properly account for altered hemodynamics in injured brain". | full text |
+| Lim, LeDue, Mohajerani & Murphy 2014, *J Neurosci* | ChR2 point stimulation + VSD imaging; cortical stroke; 1 and 8 weeks | — | **Normalization can hide a global effect.** At 1 week evoked activity is widely depressed, including in the non-injured hemisphere. "scaling the ChR2-evoked VSD responses from the stroke groups to match the sham group mean resulted in a relative distribution of responses that was indistinguishable from the sham group". A global down-scaling ("connectional diaschisis") disappears under a global rescale. A per-session z would do the same. | abstract only |
+| Bauer et al. 2014, *NeuroImage* (Lee / Culver labs) | OIS functional connectivity, tMCAO | GSR vs multiple-signal regression (MSR: separate infarct and non-infarct regressors) | **The most direct "conclusion depends on normalization" result in stroke imaging.** "With increasing stroke severity, homotopic functional connectivity switches sign using global regression and increases, but decreases using multiple signal regression." GSR alone "resulted in apparently distorted functional connectivity measures in the intact hemisphere", and "it is necessary to properly account for altered hemodynamics in injured brain". | full text |
 | Bice et al. 2022, *eLife* | OIS + optogenetics, photothrombosis S1FP, 4 weeks | GSR before RSFC and evoked analyses; affine to atlas; magnitude and area "normalized by the mean baseline values" | pre-stroke baseline as the reference for each animal | full text |
 | Cramer et al. 2019, *NeuroImage* (Liesz lab) | widefield GCaMP, photothrombotic motor-cortex stroke, to day 56 | per-recording ΔF/F with F = mean of the time course; 0.1–1 Hz band-pass; connectivity "normalized to baseline" | autofluorescent (saturated) pixels from necrotic tissue rise sharply after stroke and fall during recovery. They are masked, and ROIs touching them are excluded. This is a post-stroke change in F that a per-session F0 absorbs. | full text (PDF) |
 | Vignozzi et al. 2025, *PLoS Biol* | widefield GCaMP7f in PV interneurons, stroke + rehabilitation, D2–D28 | ΔF/F with F = mean over time; ratiometric hemodynamic correction; GSR | **A robustness check:** FC re-run with and without GSR. "GSR shifted the overall FC values toward lower correlations ... However, global network alterations after stroke were consistent" (S4–S6 Figs). | full text |
-| Balbi et al. 2019, *JCBFM* (Murphy lab) | awake widefield GCaMP6, microinfarcts, longitudinal | — | graph-theoretic FC showed no sham vs microinfarct difference despite behavioural deficits | abstract only |
+| Balbi et al. 2019, *JCBFM* (Murphy lab) | awake widefield GCaMP6, microinfarcts, longitudinal | — | graph-theoretic FC showed no sham vs microinfarct difference despite behavioral deficits | abstract only |
 | Bandet & Winship 2024, *eLife* | 2-photon + widefield, photothrombosis, 2 months | ΔF/F0 per session | peak forelimb ΔF/F0 falls at 8 weeks; Fig. 1D shows "the area of decreased light absorption due to stroke damage", which shrinks over time | full text |
 | Lee, Jadav & Landsness 2026, preprint | widefield Thy1-GCaMP6f, photothrombosis | — | **Rest itself changes after stroke.** Ipsilateral slow-oscillation (0.1–1 Hz) power is acutely suppressed and partly recovers by 1 week | abstract only (preprint) |
 
@@ -97,7 +97,7 @@ cross-validation is the norm.
 
 - None of these studies decodes task variables across the stroke. All compare per-session summary measures: maps,
   FC, evoked amplitude.
-- None discusses the trial-mix or label-shift problem, because none has a multi-class behavioural readout whose
+- None discusses the trial-mix or label-shift problem, because none has a multi-class behavioral readout whose
   class mix changes post-stroke.
 - I did not identify relevant widefield-stroke papers from Silasi, Carmichael (Latifi et al. 2020 is 2-photon,
   abstract only), Wright/Lee (beyond Bauer 2014 / Bice 2022 / Wright 2017) or a "Bhatt / Kim" group. I also did not
@@ -111,7 +111,7 @@ cross-validation is the norm.
 - Posterior parietal cortex, 2-photon, a month of a stable virtual-navigation task.
 - Decoders trained on one day lose accuracy on other days, while the population keeps "statistically similar
   properties each day".
-- No re-centring. This is the motivating phenomenon.
+- No re-centering. This is the motivating phenomenon.
 
 **Rule et al. 2020, *eLife*** [full text]
 
@@ -151,7 +151,7 @@ cross-validation is the norm.
     across-day CCs, so alignment does not trivially make any two datasets look alike.
 - Limits:
   - the claim is stability under "consistent behavior";
-  - behaviour was verified to be matched across days (hand-velocity correlations);
+  - behavior was verified to be matched across days (hand-velocity correlations);
   - if latent dynamics "were to change fundamentally ... no linear transformation would be able to compensate".
 - *Our reading:* CCA fit on all conditions would absorb a real condition-specific post-stroke change. The design
   only works for a stability claim.
@@ -162,7 +162,7 @@ cross-validation is the norm.
   "successively re-estimated".
 - The new loadings are rotated onto the baseline loadings by orthogonal Procrustes, but only over **"stable
   electrodes"**: electrodes whose covariance with the others is unchanged.
-- So the stabiliser does mean re-estimation plus a rotation anchored on the parts of the data assumed unchanged.
+- So the stabilizer does mean re-estimation plus a rotation anchored on the parts of the data assumed unchanged.
 - It "does not require knowledge of user intent".
 - Validation: online monkey BCI with artificially induced instabilities (electrode dropout, swaps), single-day and
   multi-day. It recovered control and could outperform supervised recalibration.
@@ -170,7 +170,7 @@ cross-validation is the norm.
   - "any instabilities that do not result in a change in covariance will be missed";
   - it needs more stable electrodes than latent dimensions;
   - too few assumed dimensions "severely" hurts.
-- *Our reading:* the stable-electrode anchor is the closest published analogue of our reference-condition anchor.
+- *Our reading:* the stable-electrode anchor is the closest published analog of our reference-condition anchor.
   The difference is that the anchor is a subset of channels, not of task conditions.
 
 **Farshchian et al. 2018 (ADAN)** [abstract only, arXiv]; **Ma et al. 2023, *eLife*** [full text]
@@ -180,7 +180,7 @@ cross-validation is the norm.
 - Farshchian's abstract: CCA "requires matched time points", whereas KL-based alignment does not.
 - Ma et al. on CCA: it requires that "paired trials correspond to the same behavior and contain the same number of
   timepoints". Without trial alignment, "no amount of spatial rotation will achieve a correlation".
-- Distribution alignment does not need labels. *Our reading:* it does implicitly need the behaviour distribution to
+- Distribution alignment does not need labels. *Our reading:* it does implicitly need the behavior distribution to
   be the same on both days, which is the label-shift assumption in another form.
 
 **Karpowicz et al. 2025, *Nat Commun* (NoMAD)** [full text]
@@ -195,13 +195,13 @@ cross-validation is the norm.
 **Dyer et al. 2017, *Nat Biomed Eng*** [abstract only]
 
 - Decoding by aligning decoder outputs to the expected distribution of movements (KL).
-- *Our reading:* a label-prior-matching approach. It assumes the behaviour distribution is known.
+- *Our reading:* a label-prior-matching approach. It assumes the behavior distribution is known.
 
 **What 2.2 shows.**
 
-- (a) Re-centring or mean re-estimation is a standard part of these stabilisers (Degenhart μ; NoMAD first moments).
-- (b) Latent alignment (CCA / Procrustes / KL) is the main tool. Every variant assumes the same behaviour and the
-  same neural-to-behaviour mapping, and is validated by restored decoding.
+- (a) Re-centering or mean re-estimation is a standard part of these stabilizers (Degenhart μ; NoMAD first moments).
+- (b) Latent alignment (CCA / Procrustes / KL) is the main tool. Every variant assumes the same behavior and the
+  same neural-to-behavior mapping, and is validated by restored decoding.
 - (c) Intercept or bias recalibration appears as the offset term in Rule's affine LMS decoder, and as a separate
   stage in the BCI papers (2.3).
 - (d) Label-shift EM does not appear in any of these papers.
@@ -209,7 +209,7 @@ cross-validation is the norm.
   control is the nearest thing to a check that alignment is not trivially successful.
 - Class imbalance is handled by subsampling to equal trials per target (Gallego; Degenhart: "Trials were removed
   from the calibration set to preserve a uniform number of trials across target conditions"). *Our reading:* this
-  is the analogue of our Wt.
+  is the analog of our Wt.
 
 ### 2.3 Intracortical BCI recalibration: fixed weights + mean / bias re-estimation
 
@@ -229,7 +229,7 @@ subsequent bias opposite the intended movement". They also describe a feedback l
 from counteracting the bias would enter into the estimation of the new baseline rates".
 
 Their fix was to estimate means only from pauses, so the estimate does not depend on task demands. That is the BCI
-analogue of our R5 / RW rest centre. They correct the remaining bias at the output, which is the analogue of an
+analog of our R5 / RW rest center. They correct the remaining bias at the output, which is the analog of an
 intercept-only refit.
 
 - Validation: hours to days of self-paced typing. With all methods off, typing rate declined (r = −0.85, −0.87), and
@@ -244,7 +244,7 @@ decoder trained on an earlier session is tested on a later one after each of:
 
 - supervised recalibration;
 - **mean recalibration**;
-- FA stabilisation (Degenhart);
+- FA stabilization (Degenhart);
 - ADAN;
 - their HMM target-inference method (PRI-T).
 
@@ -258,7 +258,7 @@ Findings:
   raised R² to 0.23.
 - "All methods generally outperformed mean recalibration", so mean recalibration is the floor.
 - With iterative (chained) use, distribution-matching approaches "appear to accumulate compounding errors over time",
-  and FA stabilisation "appears to accumulate error until eventually diverging".
+  and FA stabilization "appears to accumulate error until eventually diverging".
 
 Relevance:
 
@@ -292,9 +292,9 @@ neural change. All validate by restored performance. This is a real gap.
 - EM re-estimates the new class priors from unlabelled test data and adjusts the posteriors without refitting.
 - *Our reading:* for a softmax or LDA classifier, the posterior adjustment is the same as adding
   log(π̂_c / π_train,c) to each class intercept. Saerens is therefore an intercept-only adjustment at the output,
-  not a feature-space centring.
-- Our W uses the EM priors to build a class-balanced feature centre. That is a hybrid. I found no published
-  instance of EM-reweighted feature centring.
+  not a feature-space centering.
+- Our W uses the EM priors to build a class-balanced feature center. That is a hybrid. I found no published
+  instance of EM-reweighted feature centering.
 
 **Lipton, Wang & Smola 2018 (BBSE), ICML** [abstract only]
 
@@ -302,7 +302,7 @@ neural change. All validate by restored performance. This is a real gap.
 - Works with any black-box predictor "so long as their confusion matrices are invertible".
 - Weaker predictors give looser estimates.
 
-**Azizzadenesheli et al. 2019 (RLLS), ICLR** [abstract only]: a regularised weight estimator for small samples and
+**Azizzadenesheli et al. 2019 (RLLS), ICLR** [abstract only]: a regularized weight estimator for small samples and
 large shifts.
 
 **Alexandari, Kundaje & Shrikumar 2020, ICML** [abstract only]
@@ -326,7 +326,7 @@ large shifts.
 - **Weak classifier, near-singular confusion.** Adjacent spouts are confusable and post-stroke accuracy is low, so π̂
   is poorly identified.
 - **Absent classes.** EM can drive π̂_c to 0. Mass belonging to an absent class is assigned to its confusable
-  neighbours.
+  neighbors.
 - **Calibration.** The frozen decoder's probabilities on a post-stroke session are probably miscalibrated, and
   Alexandari / Garg show MLLS depends on calibration.
 
@@ -335,18 +335,18 @@ large shifts.
 - I found no paper applying Saerens / BBSE / MLLS to invasive or imaging neural decoding.
 - The only neural case is EEG: **Li, Kawanabe & Kobler 2025 (SPDIM), ICLR** [full text, arXiv HTML, first ~100k of
   ~153k characters read].
-  - They show that per-domain Riemannian re-centring, the EEG standard (Zanini et al. 2018 [abstract only]; He &
+  - They show that per-domain Riemannian re-centering, the EEG standard (Zanini et al. 2018 [abstract only]; He &
     Wu 2020 Euclidean alignment [abstract only]), "recovers domain-invariant representations if there are no label
     shifts". It "hurt[s] generalization under label shifts".
   - In their derivation the per-domain mean carries a prior-dependent term.
   - Their fix keeps the source model fixed and learns one bias parameter per target domain by information
-    maximisation.
+    maximization.
   - They report that "no method can perfectly compensate" the label shifts they introduced.
-  - This is the first published statement of our trial-mix problem for per-session centring.
+  - This is the first published statement of our trial-mix problem for per-session centering.
 - He & Wu 2020 (*IEEE TNSRE*) "label alignment" [abstract only] needs "as few as one labeled sample from each class"
-  of the target. It is a small labelled calibration set.
+  of the target. It is a small labeled calibration set.
 
-### 2.5 Rest / baseline-period normalisation, and when rest changes
+### 2.5 Rest / baseline-period normalization, and when rest changes
 
 - **Running-percentile and pre-stimulus baselines** are standard (2.1 table: Makino 10th percentile / 30 s; Pinto
   mode / 30 s; MacDowell rolling mean; Couto pre-trial frames).
@@ -359,12 +359,12 @@ large shifts.
   - Argues that subtracting a baseline is "statistically unnecessary and even undesirable".
   - Recommends entering the baseline as a GLM covariate, so the data decide how much correction to apply. Full and
     no correction are special cases.
-  - *Our reading:* this is a principled middle ground between N and a rest centre.
+  - *Our reading:* this is a principled middle ground between N and a rest center.
 - **Rest is state-dependent:**
   - Wright et al. 2017 (*PLoS One*) [full text]: calcium FC structure differs between ketamine/xylazine and awake.
   - Ma et al. 2016 (*PNAS*) [abstract only]: neurovascular coupling is fast in awake mice and slower, with extra
     < 0.04 Hz components, under urethane.
-  - Shimaoka et al. 2018 (*Cell Rep*) [abstract only]: arousal (running, pupil) depolarises or hyperpolarises
+  - Shimaoka et al. 2018 (*Cell Rep*) [abstract only]: arousal (running, pupil) depolarizes or hyperpolarises
     cortex in a modality-specific way.
 - **Rest changes after stroke:**
   - Lee et al. 2026 preprint: slow-oscillation power suppressed acutely;
@@ -377,7 +377,7 @@ large shifts.
 - **The BCI precedent** (Jarosiewicz) uses rest (pauses) as the reference precisely because rest is assumed not to
   depend on the task. No paper I found validates a rest anchor when rest itself is altered by injury.
 
-### 2.6 Studies that compare several normalisation choices (robustness)
+### 2.6 Studies that compare several normalization choices (robustness)
 
 **Stroke imaging**
 
@@ -396,7 +396,7 @@ large shifts.
 
 - Steegen et al. 2016 (*Perspect Psychol Sci*) [abstract only]: the "multiverse analysis". Run all reasonable
   processing choices and report how much the conclusion changes.
-- Botvinik-Nezer et al. 2020 (*Nature*) [abstract only]: 70 teams analysing one fMRI dataset gave "sizeable
+- Botvinik-Nezer et al. 2020 (*Nature*) [abstract only]: 70 teams analyzing one fMRI dataset gave "sizeable
   variation in the results of hypothesis tests".
 - Murphy & Fox 2017 (*NeuroImage*) [abstract only]: GSR consensus. There is "not a single 'right' way", and different
   approaches "likely reveal complementary insights".
@@ -421,13 +421,13 @@ I found no study that compares cross-session frames for a frozen decoder across 
    LocaNMF uses atlas constraints.
 5. GSR or multi-signal regression in FC work. It is debated, and Bauer shows that after stroke the choice can
    reverse the sign of the effect.
-6. Cross-session comparison of summary measures (maps, FC, evoked ΔF/F amplitude, within-session cvR²), normalised
+6. Cross-session comparison of summary measures (maps, FC, evoked ΔF/F amplitude, within-session cvR²), normalized
    per session. Stroke papers express post values relative to each animal's pre-stroke baseline and include sham
    groups (Bice, Cramer, Bandet).
 
 **There is no widefield standard for a frozen cross-session decoder frame.**
 
-- The nearest widefield default a reviewer would recognise is per-session ΔF/F0 plus per-session z-scoring of
+- The nearest widefield default a reviewer would recognize is per-session ΔF/F0 plus per-session z-scoring of
   features before decoding.
 - The nearest neural-decoding default is mean recalibration (BCI).
 - Reviewers from the BCI or drift side will know Gallego / Degenhart alignment and expect it to be considered.
@@ -489,7 +489,7 @@ precedent, which is a gap in the literature.
 
 - Train the pre-stroke decoder with per-session random offset and gain jitter, and with equal trials per session and
   per spout.
-- The frozen decoder then tolerates session-level offset and gain without any per-session centre, so N becomes
+- The frozen decoder then tolerates session-level offset and gain without any per-session center, so N becomes
   viable.
 - Built-in check: the jitter must not be large enough to remove spout information.
 
@@ -497,7 +497,7 @@ precedent, which is a gap in the literature.
 
 - In the C projections or encoding readouts, include the session's rest level (R5) as a covariate, with its slope fit
   on pre sessions.
-- The data then decide how much rest correction to apply. This brackets N (slope 0) and full rest centring
+- The data then decide how much rest correction to apply. This brackets N (slope 0) and full rest centering
   (slope 1).
 
 **7. Offset- and gain-invariant readouts.**
@@ -523,9 +523,9 @@ precedent, which is a gap in the literature.
 - The decision rule: choose the frame that (i) uses no post-stroke labels or features that could carry the effect,
   and (ii) passes the injected-effect test (§4.1).
 - Until that test is run, the defensible pairing is:
-  - **N (pooled pre frame, no session centre)** as the conservative frame. It cannot absorb a post-stroke change, but
+  - **N (pooled pre frame, no session center)** as the conservative frame. It cannot absorb a post-stroke change, but
     it carries every nuisance offset into the score.
-  - **Wt (true-label balanced centre)** as the mix-corrected frame. It removes the trial-mix confound with known
+  - **Wt (true-label balanced center)** as the mix-corrected frame. It removes the trial-mix confound with known
     labels, but absorbs any effect shared equally by all spouts.
 - W is the label-free deployable version of Wt. The literature (SPDIM; label-shift theory under concept shift) gives
   specific reasons to report it alongside Wt, not instead of it.
@@ -544,23 +544,23 @@ precedent, which is a gap in the literature.
 - If the far-contra deficit survives the frame that biases against it, say so. That is the strongest wording
   available.
 - Always show held-out pre sessions (LOSO) under the same frame as the reference. Every published cross-day decoder
-  normalises by a within-day or pre benchmark (Gallego's normalised accuracy; Wilson's normalisation to supervised
+  normalizes by a within-day or pre benchmark (Gallego's normalized accuracy; Wilson's normalization to supervised
   recalibration).
 
 **What to write in methods** (draft):
 
 > Each session's features were expressed in the frozen decoder's frame by [primary]. Because any per-session
-> normalisation estimated from post-stroke data can absorb genuine post-stroke change (cf. Jarosiewicz et al. 2015)
-> and per-session centring is biased by changes in the class mix (Li et al. 2025; Saerens et al. 2002), we report
+> normalization estimated from post-stroke data can absorb genuine post-stroke change (cf. Jarosiewicz et al. 2015)
+> and per-session centering is biased by changes in the class mix (Li et al. 2025; Saerens et al. 2002), we report
 > every effect under [N, Wt, W, rest, reference anchor], and we tested each frame on held-out pre-stroke sessions
 > with the observed post-stroke trial mix imposed by resampling [and with a known injected change]. Held-out
 > pre-stroke sessions scored with leave-one-session-out models provide the reference under each frame.
 
 **What reviewers will ask:**
 
-1. Does the centre use the scored trials? Is it estimated on the same rows it is applied to, and could it absorb the
+1. Does the center use the scored trials? Is it estimated on the same rows it is applied to, and could it absorb the
    effect? This is Jarosiewicz's point.
-2. Does the post-stroke change in trial mix or failure rate move the centre? Show the mix-shift control.
+2. Does the post-stroke change in trial mix or failure rate move the center? Show the mix-shift control.
 3. Is the result a global gain or offset change that z-scoring hides (Lim 2014), or a condition-specific change
    that z-scoring keeps? Show N.
 4. Did F0, autofluorescence, absorption or hemodynamic correction change after the stroke? Show raw F0 maps over

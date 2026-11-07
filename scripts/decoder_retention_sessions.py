@@ -13,6 +13,9 @@ its trials of the cell (hollow diamonds), which are not part of the test.
 EPOCH-COLOUR CONVENTION (PI decision A13, Priya 11-07): every session point is an OPEN marker, shape = animal, colour =
 epoch; no line joins sessions; the epoch summary is a filled dot in the epoch colour +- SEM over animals (each animal's
 sessions averaged first). Trial class is told apart by panel row (days figure) or x offset (pooled figure).
+HIT-GATED MINIMUM (Priya 11-07, A11): in the pooled-by-epoch figure a HIT cell (code on hits) needs
+>= analysis_kit.MIN_HITS = 20 hit trials summed over the animal x epoch's sessions (and a hollow hit diamond >= 20 hits);
+below it the animal is named "n.a. (<20 hits)" and left out of the mean and the test. Failed attempts are not hit-gated.
 Usage: python scripts/decoder_retention_sessions.py
 """
 from __future__ import annotations
@@ -47,6 +50,15 @@ def load() -> pd.DataFrame:
         T["ret"] = (T.p_true - 1 / 6) / (T.animal.map(ref) - 1 / 6)
         out.append(T.assign(window=w))
     return pd.concat(out, ignore_index=True)
+
+
+def _cell(v: pd.DataFrame, c: str):
+    """Session retention values of one animal x epoch x class cell. A HIT cell (code on hits) is empty when its
+    sessions sum to < analysis_kit.MIN_HITS hit trials (Priya 11-07); failed attempts are not hit-gated."""
+    from wfield_local import analysis_kit as ak
+    if c == "hit" and not ak.hits_ok(v.n.to_numpy(float)):
+        return np.array([])
+    return v.ret.to_numpy()
 
 
 def main() -> int:
@@ -110,13 +122,19 @@ def main() -> int:
         ax = axs[k]
         ax.axhline(0, color="k", lw=0.6)
         ax.axhline(1, color="0.5", lw=0.8, ls="--")
-        ref = {an: S[(S.window == w) & (S.epoch == "pre") & (S.cls2 == "hit") & (S.animal == an)].ret.to_numpy() for an in AN}
+        ref = {an: _cell(S[(S.window == w) & (S.epoch == "pre") & (S.cls2 == "hit") & (S.animal == an)], "hit")
+               for an in AN}
         ref = {an: v for an, v in ref.items() if len(v)}
         for i, ep in enumerate(EP):
             for c, _lab, _col in CLS:
                 xx = i + xo[c]
                 v = S[(S.window == w) & (S.epoch == ep) & (S.cls2 == c)]
-                by = {an: v[v.animal == an].ret.to_numpy() for an in AN if (v.animal == an).any()}
+                by = {an: _cell(v[v.animal == an], c) for an in AN if (v.animal == an).any()}
+                na = [an for an, b in by.items() if not len(b)]
+                by = {an: b for an, b in by.items() if len(b)}
+                if na:                                  # hit cell below MIN_HITS summed hits: named, not plotted / tested
+                    ax.text(xx, 0.01, ak.HIT_GATE_NA + "\n" + "/".join(na), ha="center", va="bottom", fontsize=5.5,
+                            color=cp.epoch_color(ep), transform=ax.get_xaxis_transform())   # axes bottom, any y range
                 for j, an in enumerate(AN):
                     if an in by:
                         xs = xx + (j - 1.5) * 0.04 + np.random.default_rng(10 * i + j).uniform(-0.015, 0.015, len(by[an]))
@@ -126,7 +144,8 @@ def main() -> int:
                 if len(by) >= 2:                        # epoch summary: filled dot +- SEM over animals (A13)
                     cp.epoch_mean_sem(ax, xx, [b.mean() for b in by.values()], ep)
                 else:                                   # too few sessions: each animal's retention over all its trials
-                    aa = Aall[(Aall.window == w) & (Aall.epoch == ep) & (Aall.cls2 == c) & (Aall.n >= 3)]
+                    aa = Aall[(Aall.window == w) & (Aall.epoch == ep) & (Aall.cls2 == c)
+                              & (Aall.n >= (ak.MIN_HITS if c == "hit" else 3))]   # hits: the hit-gated minimum
                     for _, r in aa.iterrows():
                         ax.scatter(xx + (AN.index(r.animal) - 1.5) * 0.04, r.ret, marker="D", s=40, facecolor="none",
                                    edgecolor=cp.epoch_color(ep), lw=1.2, zorder=4)
@@ -155,7 +174,8 @@ def main() -> int:
     print("== change vs pre-stroke hits (session values, nested bootstrap animals > sessions)\n" + R.round(3).to_string(index=False))
     legend(fig, [Line2D([], [], marker="D", ls="", mfc="none", mec="0.3", label="animal, all trials (too few per session)")])
     fig.suptitle(f"NEURAL: frozen-decoder far-contra retention pooled per epoch, one dot per SESSION (>= {MIN_TRIALS} trials; left of each "
-                 "epoch = hits, right = failed attempts). Numbers = "
+                 f"epoch = hits, right = failed attempts; a hit cell needs >= {ak.MIN_HITS} hits per animal x epoch, else "
+                 f"{ak.HIT_GATE_NA}). Numbers = "
                  "change vs pre-stroke hits,\n95% nested CI (animals > sessions; bold = excludes 0); failed attempts have no pre-stroke "
                  "counterpart", fontsize=10)
     fig.tight_layout(rect=(0, 0.12, 1, 0.9))

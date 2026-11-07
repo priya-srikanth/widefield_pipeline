@@ -9,7 +9,7 @@ pipeline and identify any other figures and analyses that need to be redone."*
 ## 1. THE DEFECT, AND ITS EXACT SHAPE
 
 `flag_engagement`'s **terminal quit period** — the sated tail where the animal has stopped working —
-is a different behavioural state. Rest is most ABUNDANT there (the animal has stopped working, so
+is a different behavioral state. Rest is most ABUNDANT there (the animal has stopped working, so
 inter-trial intervals lengthen and multiply), it sits at the END of the session where drift is
 largest, and **its share grows after the lesion**. Measured over all 111 sessions:
 
@@ -30,7 +30,7 @@ from an across-epoch contrast, carries that.
 **THIS IS THE ARGUMENT `restw` WAS BUILT ON, ONE AXIS OVER.** `session_restw_svt`'s docstring:
 *"`rest` averages over rest FRAMES, so a position contributing more rest frames pulls the baseline
 toward its own resting state … Post-stroke the animal stops attempting the far positions … so the
-baseline changes WITH the deficit."* Substitute "behavioural state" for "position" and it is the
+baseline changes WITH the deficit."* Substitute "behavioral state" for "position" and it is the
 same sentence. `restw` fixed the POSITION axis on 2026-09-13; the ENGAGEMENT axis was fixed for
 `restw` on 2026-09-14 and **nowhere else**.
 
@@ -101,7 +101,7 @@ too coarse: `position_reference_maps` contains a gated builder AND an ungated on
    per-session decoder, and any baseline-subtracting analysis cancels it.
 
    **The frozen cross-session decoder never reads this path** — `grant_figures._pooled_bundle` goes
-   through `joint_locanmf`, which carries no quiet normalisation. That was the exposure worth
+   through `joint_locanmf`, which carries no quiet normalization. That was the exposure worth
    worrying about and it does not exist. `_quiet_zscore` reaches only
    `locanmf_cue_lick_analysis`, `locanmf_cue_auc` and `locanmf_lick_aligned`.
 
@@ -216,7 +216,7 @@ from exactly this quantity was WITHDRAWN on 2026-09-15 because PS95 rises. Plot 
 unchanged: REST CARRIES POSITION INFORMATION.
 
 **The gate RAISED this statistic, and the direction is informative.** The ratio's denominator is
-WITHIN-position split-half noise; the quit period is a different behavioural state sitting where
+WITHIN-position split-half noise; the quit period is a different behavioral state sitting where
 drift is largest, so removing it cuts that denominator. A contaminant that had been INFLATING the
 effect would have moved it the other way. Same direction as finding 11 holding at 1.634.
 
@@ -255,5 +255,5 @@ computed the rest mask independently and "a comment in the second claimed they a
 to BOTH bracketing trials — not merely in its docstring. That assertion is what was missing: four
 analyses documented a gate none of them ran, one of them printing "(working trials…)" as it did so.
 
-`--no-engagement-gate` preserves the old behaviour so the SIZE of each correction can be measured
+`--no-engagement-gate` preserves the old behavior so the SIZE of each correction can be measured
 rather than asserted. **A fix whose magnitude is unknown is not yet a finding.**

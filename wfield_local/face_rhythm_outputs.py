@@ -76,7 +76,7 @@ def labels(fdir: Path) -> list[str]:
 def combined_series(files: list[Path], kind: str = "factors", k: int | None = None,
                     absolute: bool = False) -> tuple[np.ndarray, np.ndarray]:
     """(t_daq_s (n,), W (n, R)) sorted by time. factors: trial-window 25 Hz samples + session 5 Hz samples outside
-    them; ``absolute``: weights x the bin's FR normaliser D (the component's absolute expression, not its share of
+    them; ``absolute``: weights x the bin's FR normalizer D (the component's absolute expression, not its share of
     the frame); points: the 25 Hz displacement PCs (first ``k``)."""
     ts, ws, hashes = [], [], set()
     for f in files:

@@ -17,11 +17,11 @@ goal-question page, https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d). Conventi
 - **Captions carry the full method** (Priya 10-26): model / decoder (frozen or refit) or data source (pose model, camera),
   window / bins and baseline, variables included / excluded, trial / lick gate, sessions / animals, statistic, correction
   and n, and the script (`<b>Script:</b> <code>...</code>`).
-- **Tag each section** neural (`data-kind="n"`) or lick / behaviour (`data-kind="l"`).
+- **Tag each section** neural (`data-kind="n"`) or lick / behavior (`data-kind="l"`).
 - Each figure's caption says how to read it and gives the headline numbers; one `.take` box per section with the
-  result; within a section the pooled / cohort (within-animal-normalised, with statistics) figures come BEFORE the
+  result; within a section the pooled / cohort (within-animal-normalized, with statistics) figures come BEFORE the
   per-animal ones (Priya 10-25 evening; reverses the earlier per-animal-first rule), headline figure first.
-  Change maps: diverging RdBu_r (red = more), one colour scale for all panels of a figure, significant points large and
+  Change maps: diverging RdBu_r (red = more), one color scale for all panels of a figure, significant points large and
   outlined with the rest faded.
 - **Significance stars go in a band at the TOP of each panel** (Priya 10-30, all figures): visible at a glance, never on
   data points, error bars or the horizontal pre / 0 line. Use `wfield_local.sig_marks.star_top` + `reserve_headroom`
@@ -37,11 +37,11 @@ goal-question page, https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d). Conventi
 - Figures appear in number / letter order down the page; renumber rather than insert out of sequence. The contents
   groups each figure number's letters behind a toggle (the encoding page's script).
 
-## Figure colour / marker defaults (Priya 10-26, 10-30)
-- Epoch colours everywhere = `wfield_local.orofacial_cohort.EPOCH_LINE`: pre `k`, acute `#d01c8b`, subacute `#b8860b`,
-  chronic `#01665e`; a no-stroke / June reference = grey.
+## Figure color / marker defaults (Priya 10-26, 10-30)
+- Epoch colors everywhere = `wfield_local.orofacial_cohort.EPOCH_LINE`: pre `k`, acute `#d01c8b`, subacute `#b8860b`,
+  chronic `#01665e`; a no-stroke / June reference = gray.
 - Show SESSIONS, not per-animal lines: open markers, shape = animal (`orofacial_cohort.ANIMAL_MARKER`: PS92 o, PS93 s,
-  PS94 ^, PS95 D), colour = epoch; pooled level = filled marker / thick line + 95 % CI in the epoch colour.
-- Distributions (ECDFs, histograms): thin per-session curves in epoch colours + thick pooled curve per epoch.
-- Panels comparing several series (hit vs miss, hemispheres): keep series colours, epoch on the x axis, say so in the
+  PS94 ^, PS95 D), color = epoch; pooled level = filled marker / thick line + 95 % CI in the epoch color.
+- Distributions (ECDFs, histograms): thin per-session curves in epoch colors + thick pooled curve per epoch.
+- Panels comparing several series (hit vs miss, hemispheres): keep series colors, epoch on the x axis, say so in the
   caption.

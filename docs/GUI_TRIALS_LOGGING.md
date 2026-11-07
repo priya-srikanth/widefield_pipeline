@@ -10,7 +10,7 @@ makes behavior and imaging agree on trial identity.
 **First v47 session: 2026-08-10** (all four animals; the v47 stub rows first appear that day). **Log fallback now
 inverts the shift (2026-10-17):** `spout_behavior._gui_shift_corrected` measures, per session, the offset between log
 positions and log outcomes against the DAQ and moves the positions back; logs with no DAQ dated before 08-10 get the
-documented shift of 1. Before this fix the behaviour pipeline's log-sourced pre-v47 sessions (May, 06-01, 08-05, 08-06)
+documented shift of 1. Before this fix the behavior pipeline's log-sourced pre-v47 sessions (May, 06-01, 08-05, 08-06)
 carried the shift -- see DECISIONS 2026-10-17.
 
 Once `v47` is running, `trials.csv pos_idx` should agree with the DAQ strobe codes trial-for-trial.
@@ -18,7 +18,7 @@ That is worth confirming on the first session (the same comparison used to find 
 strobe codes, pair each cue with the last strobe at or before it, and check agreement is 1.000).
 
 The same firmware trial-id lag exists on the 2pRAM and GB219 Teensy rigs, so **their `trials.csv`
-carries the identical corruption** and `v47` fixes them too. Anything analysing those datasets from
+carries the identical corruption** and `v47` fixes them too. Anything analyzing those datasets from
 `pos_idx` needs the same treatment — and unlike the widefield rig they may have no DAQ strobe record
 to fall back on, in which case invert the shift (below) instead.
 
@@ -127,9 +127,9 @@ holds the previous trial's position, i.e. the signature of this bug):
 - **Every per-session figure and the cohort CSV had to be REGENERATED, not appended to** — positions
   move on ~15% of trials and hit/miss is re-scored under the real 3.5 s window. DONE 2026-08-09 for
   the curated set (0606-0608, 0806, 0807): 20 sessions x 2 figures + cohort.
-- Sessions whose `trials.csv`/`events.csv` were never written now analyse from the DAQ alone:
+- Sessions whose `trials.csv`/`events.csv` were never written now analyze from the DAQ alone:
   **PS93 6/6** (488 trials in `summary_end.json`, 0 rows written) — recovered, 493 trials, all 6
-  positions; also PS94 6/3. PS93 8/5 has manually-labelled positions (`behavior_trials` in
+  positions; also PS94 6/3. PS93 8/5 has manually-labeled positions (`behavior_trials` in
   `sessions.yaml`), which take priority over both the DAQ and the log.
 
 ## What this did NOT affect: the imaging / LocaNMF analysis

@@ -44,10 +44,10 @@ list.
 | # | item | A | B | resolution (code) |
 |---|---|---|---|---|
 | M1 | `hemispheric_intensity_*`, `vessel_contrast` (analysis deck, 6 rows) | REDO (family default) | NO | **changed -> NO.** Raw 415 / 470 mean-image ratios, no SVTcorr: [fd] `wfield_local/hemispheric_intensity.py:1-14`, `vessel_contrast.py:1-32`. `hemispheric_dynamics` stays REDO (`hemispheric_dynamics.py:11` uses SVTcorr; `--source roi` default `:251`). |
-| M2 | `iti_lick_rate` (goal 10.6), `iti_recovery_measure` (16.6), `lick_aim_deficit` (16.10, review), `iti_lmm_figures` behaviour panel (16.9, PI slide 6) | NO | REDO ("imaging via imported script iti_licks") | **changed -> NO** (B over-propagated imports). Behaviour only: [wa] `scripts/iti_lick_rate.py:1-16,46`; aim = 3-D landing angle, `iti_recovery_measure.py:55-67`; `lick_aim_deficit.py:1-16`; `iti_lmm_figures.py:108-112` (`_behaviour` = aim only). Caveat: the aim rows are read from `where_preds_z.csv` (decoder prediction rows), which the rebuild rewrites -> re-run as a verify-identical check. |
+| M2 | `iti_lick_rate` (goal 10.6), `iti_recovery_measure` (16.6), `lick_aim_deficit` (16.10, review), `iti_lmm_figures` behavior panel (16.9, PI slide 6) | NO | REDO ("imaging via imported script iti_licks") | **changed -> NO** (B over-propagated imports). Behavior only: [wa] `scripts/iti_lick_rate.py:1-16,46`; aim = 3-D landing angle, `iti_recovery_measure.py:55-67`; `lick_aim_deficit.py:1-16`; `iti_lmm_figures.py:108-112` (`_behaviour` = aim only). Caveat: the aim rows are read from `where_preds_z.csv` (decoder prediction rows), which the rebuild rewrites -> re-run as a verify-identical check. |
 | M3 | `fr_enl_decode` (FR page 6.1) | NO | REDO ("direct imaging consumer") | **changed -> NO.** FaceRhythm factors only, no SVTcorr / load_imaging: [fd] `scripts/fr_enl_decode.py:1-18`. Its engaged gate is in decision D8. |
 | M4 | `rebuild_lick_maps`, `rest_migration/regen_lick_maps`, `regen_running_maps` | (preprocessing deck REDO) | CSV NO, addendum "REDO" | **changed -> REDO.** They run `preprocess._maps_commands` -> `framemap_event_maps`, which loads `config.svtcorr_in` ([fd] `wfield_local/framemap_event_maps.py:110-116`, `preprocess.py:512-600`). |
-| M5 | per-session LocaNMF families labelled "joint-LocaNMF C" by A: `locanmf_rsa_*`, `locanmf_cross_mouse_*`, `locanmf_within_animal_consistency`, `locanmf_decoder_rolling_by_animal_*`, `locanmf_encoder_ev_*`, `precue_lickfree_*_locanmf` (46 rows) | REDO | UNSURE (rows 13 / 542) | **changed -> DECISION D1.** All use `source="locanmf"` = per-session C from `config.locanmf_dir`: [fd] `locanmf_rsa.py:56`, `locanmf_cross_mouse.py:63`, `locanmf_decoder_weights.py:63,225`, `locanmf_position_encoder.py:58,184`, `locanmf_position_decoder.py:57-60`; `nightly_figs.py:590-592` runs precue_lickfree in BOTH roi and locanmf. `locanmf_frozen_*_joint/_roi` stay REDO (joint basis / ROI). |
+| M5 | per-session LocaNMF families labeled "joint-LocaNMF C" by A: `locanmf_rsa_*`, `locanmf_cross_mouse_*`, `locanmf_within_animal_consistency`, `locanmf_decoder_rolling_by_animal_*`, `locanmf_encoder_ev_*`, `precue_lickfree_*_locanmf` (46 rows) | REDO | UNSURE (rows 13 / 542) | **changed -> DECISION D1.** All use `source="locanmf"` = per-session C from `config.locanmf_dir`: [fd] `locanmf_rsa.py:56`, `locanmf_cross_mouse.py:63`, `locanmf_decoder_weights.py:63,225`, `locanmf_position_encoder.py:58,184`, `locanmf_position_decoder.py:57-60`; `nightly_figs.py:590-592` runs precue_lickfree in BOTH roi and locanmf. `locanmf_frozen_*_joint/_roi` stay REDO (joint basis / ROI). |
 | M6 | `locanmf_position_session_*` (734 deck rows) + imaging Fig 11.2 | REDO / UNSURE | UNSURE | **changed -> DECISION D1** (same reason; Fig 11.2 `d_enl_move` reads per-session C per A). |
 | M7 | preprocessing decks PS92-95, 935 map slides | REDO | no row (preprocess.py / preprocess_deck absent) | **changed -> DECISION D2**; B gap filled with a G2 pipeline-step row. |
 | M8 | imaging section 15 (Figs 15.1-15.7) | REDO | REDO | **changed -> DECISION D4** (page says it is a frozen copy of encoding 23). |
@@ -57,13 +57,13 @@ list.
 | M12 | imaging page "Closed / corrected / pending" text | UNSURE | - | **changed -> REDO** (G8 text; quotes neural numbers and the correction name). |
 | M13 | `cd_geometry_figure` (imaging 9.1) | REDO | UNSURE | **-> REDO**, results-fed: reads `cd_trajectories` dumps ([fd] `scripts/cd_geometry_figure.py:7-8,78`). Order G7. |
 | M14 | `pose3d_cue_traces`, `pose3d_spout_error` (kinematics 3.2-3.5, 6.6, 7.1-7.4) | NO | UNSURE | **-> NO.** `session_traces` is a pose worker ([fd] `pose3d_cue_traces.py:55-61`; `pose3d_spout_error.py:89,139`). |
-| M15 | `revup_followup` (goal supplements revup_jaw_traces / revup_late_engaged) | NO | UNSURE | **-> NO** (verify-identical). The "neural" gate is the revup_neural TRIAL SET read from `revup_neural_trials.csv` ([wa] `revup_followup.py:144-155`), a behaviour set that the rebuild rewrites. |
+| M15 | `revup_followup` (goal supplements revup_jaw_traces / revup_late_engaged) | NO | UNSURE | **-> NO** (verify-identical). The "neural" gate is the revup_neural TRIAL SET read from `revup_neural_trials.csv` ([wa] `revup_followup.py:144-155`), a behavior set that the rebuild rewrites. |
 | M16 | `slowband_decode_check`, `iti_hemo_check`, `quiet_hemo_check`, `o2_video_me` | REDO (A) | row 16 UNSURE vs rows 387 / 217 / 76 REDO, 288 NO | **-> REDO, REDO, REDO, NO** (B internal inconsistency). |
 | M17 | `exec_angle_spread_check` | NO (spurious name match) | REDO | REDO, share qc only; reads encoder dR2 json ([fd] `exec_angle_spread_check.py:68-72`). Not on any page. |
 | M18 | `likeforlike`, `iti_lick_timing_audit` | REDO (co-listed) | NO | both right: library / audit; the A rows are REDO through the co-listed scripts. |
 | M19 | helper vs B CSV: `rest_migration/channel_*`, `nvc_evoked`, `evoked_hrf_latency`, `rest_coupling` | - | helper UNSURE, CSV REDO | REDO (svtcorr_in + raw channels); deck-only (`epoch_16/20/21`) or not shown. |
 | M20 | helper vs B CSV: `video_motion_session` | - | helper NO, CSV REDO | **changed -> NO**: imaging used only for frame times. |
-| M21 | helper vs B CSV: `epileptiform_*`, `prestroke_quiet_videos`, `qc_running_survey`, `qc_running_push_survey` | - | helper UNSURE / CSV NO | NO (videos / behaviour; CSV already NO). |
+| M21 | helper vs B CSV: `epileptiform_*`, `prestroke_quiet_videos`, `qc_running_survey`, `qc_running_push_survey` | - | helper UNSURE / CSV NO | NO (videos / behavior; CSV already NO). |
 | M22 | B's "main = 910a3ab9" | - | - | main is now 458f128b: 11-03 commits add the shared camera gates (aca69271), the s1 LocaNMF refit table, and `--plot-only` re-renders of quiet-events / FR / kinematics figures under the 11-03 figure rules. Merge 458f128b or later. |
 | M23 | B section 1: "variant data DONE, do NOT rebuild" | - | - | **changed -> REDO (G1).** Change 1 now REPLACES the order-10 polynomial with block-protected DCT cosines (`DRIFT_CUTOFF_CHECK_20261103.md`, [sm] `hemo_variants.py:126-136` `dctblk<c>_lag`). That is a different SVTcorr, so a new variant dir must be built for all 120 sessions. `build_swapmask_cohort1.py:23-25` hard-codes `VARIANT="meegkit_hpfit_lag"`. All `swapmask_rerun_20261102` outputs become a comparison arm, not final. |
 | M24 | change 4 in both inventories | not classified | not classified | **new pipeline step (G0).** The camera gate exists only in [main] `scripts/jaw_only_incomplete_figs.py:91-160` (GATES / session_classes / cue_classes / in_gate). No imaging family calls it: the working class is still `grant_kit._class_select` ([fd] `grant_kit.py:819-843`), `beta_maps._quit_mask`, `position_coding_directions._gate_all`, `nolick_decoder.categorize` (`nolick_decoder.py:255-264`), `cd_trajectories` (`:812`), `attempt_coding.classify` (`attempt_coding.py:76-88`). |
@@ -71,16 +71,16 @@ list.
 | M26 | B families with no page map (rows 5, 17, 18: "exact figure ids UNSURE", "per-slide map NOT finished", "figure-id-to-script map NOT finished") | - | UNSURE | closed by the join: every page / deck output is a manifest row. |
 | M27 | A's 441 image rows with no producing script | blank | - | filled where an output-name grep found the writer (`script_source` = "reconciler grep"); still blank for deck-only crops and renamed copies (section 7). |
 
-Behaviour NO rows re-checked against changes 2-4 specifically (both inventories classified by imaging):
-- **Change 2:** behaviour epoch figures (imaging Fig 0.1, deck `epoch_1b/1c/1bdelta`, `grant_1/1b`) define pre as every
+Behavior NO rows re-checked against changes 2-4 specifically (both inventories classified by imaging):
+- **Change 2:** behavior epoch figures (imaging Fig 0.1, deck `epoch_1b/1c/1bdelta`, `grant_1/1b`) define pre as every
   pre-stroke day (`epoch_figures.epoch_of_day` [fd] `:581-582`), not `config.phase_labels`, so `WIDEFIELD_PRE_FROM`
   cannot move them. Kinematics / FR already use August-only (`orofacial_cohort.LATE_PRE_FROM` [fd] `:1487`). Goal 5.x
   (`lick_path_softmax`) uses the kinematics table's pre. All stay NO.
-- **Change 3:** no behaviour figure uses a decoder. NO.
-- **Change 4:** only M11 flips. The behaviour-pipeline engaged gate (Fig 0.1 / 0.2, deck `epoch_1f/1g`, `G1a`,
+- **Change 3:** no behavior figure uses a decoder. NO.
+- **Change 4:** only M11 flips. The behavior-pipeline engaged gate (Fig 0.1 / 0.2, deck `epoch_1f/1g`, `G1a`,
   kinematics / FR via `orofacial_cohort.engagement_keep`) is outside the gate the decision replaces
   (`gate_source.py` docstring [fd] lists them as "NOT wired"), so they stay NO pending D8. `disengagement_tests` (goal
-  14.18 S28 behaviour panels) characterise the DAQ quit point itself, which is kept as the robustness row: NO.
+  14.18 S28 behavior panels) characterize the DAQ quit point itself, which is kept as the robustness row: NO.
   `enl_state_counts` numbers DO move (working / stopped counts): not on a page, re-run as the feasibility table.
 
 ## 3. What both inventories missed
@@ -92,7 +92,7 @@ Behaviour NO rows re-checked against changes 2-4 specifically (both inventories 
    190-192`). A camera-gate hook written the same way would NOT change the map-cache digest. Frozen specs deliberately do
    not carry the gate (gate_source docstring). So the camera default and the DAQ robustness row would share cache and
    output keys unless a gate tag (like `cache_tag()` / `_gateLP`) is added.
-3. **Camera gate coverage holes**: PS93_0813 has no behaviour video, so `session_classes` returns None and "the caller
+3. **Camera gate coverage holes**: PS93_0813 has no behavior video, so `session_classes` returns None and "the caller
    must say what it does" ([main] `jaw_only_incomplete_figs.py:109-120`); PS92_0908 matches only 82.5 % of DAQ cues
    (commit aca69271 message). Decide per-session handling before any render.
 4. **Preprocess map regeneration overwrites in place** (M4 / M7): maps are written into each session's
@@ -104,7 +104,7 @@ Behaviour NO rows re-checked against changes 2-4 specifically (both inventories 
    `deck_text.py:535` and `locanmf_analysis_deck.py:582` ("order 10, 600 s" polynomial). Update before the deck rebuild.
 7. **Stacked drift removal** (D9): with drift removed in the shared signal, the encoder / ITI / stray_licks cosine steps
    (B trap 14) would remove it twice.
-8. **Behaviour figures that read regenerated tables** (M2, M15): numbers should not move, but their input files are
+8. **Behavior figures that read regenerated tables** (M2, M15): numbers should not move, but their input files are
    rewritten; run them as verify-identical checks after the rebuild.
 9. **Lost scripts are recoverable but only from temp scratchpads** (section 7): `fig_goal_summary.py` /
    `fig_goal_epochs.py` and `per_animal_fig.py`.
@@ -124,7 +124,7 @@ DECISION D6.
 | 16 | slowband / o2_video_me / iti_hemo_check / quiet_hemo_check | REDO / NO / REDO / REDO (M16) |
 | 34 | cd_geometry_figure | REDO (M13) |
 | 44 | coding_direction_audit | NO: no figure, not on any page; optional verifier |
-| 131, 132 | enl_lick_rates, enl_lp_census | NO: behaviour counts / census (docstrings `:1-8`) |
+| 131, 132 | enl_lick_rates, enl_lp_census | NO: behavior counts / census (docstrings `:1-8`) |
 | 136 | enl_state_counts | NO for pages; numbers move under change 4, re-run as feasibility table |
 | 181 | frozen_default_compare | NO: diagnostic; use as post-rebuild verifier |
 | 271 | lp_trial_counts | NO (no imaging; `lp_trial_counts.py:1-6`); trial-count columns of imaging section 2 tables are REDO via the text row |
@@ -164,7 +164,7 @@ Rows in the manifest carry `order_group`. Steps inside a group are ordered.
   project_all, 3cd00814) + [main] >= 458f128b (quiet events, camera gates, cat_points) + [wa] goal-page scripts. Then:
   make `hemo_dir` follow the same switch as `config.svtcorr_path` (or always set the env var); `project_all` keyed on
   the basis's variant or `WIDEFIELD_JOINT_PROJECT_ALL=1`; wire the camera working gate with its own cache / output tag;
-  per-session-footprint projection (D1); parameterise `build_swapmask_cohort1.py`; parameterise hard-coded-ADOPTED
+  per-session-footprint projection (D1); parameterize `build_swapmask_cohort1.py`; parameterize hard-coded-ADOPTED
   scripts (`slowband_decode_check`, `iti_hemo_check`, `quiet_hemo_check`, `lick_balance_imaging_control(+_primary)`,
   `lick_acad_midline_control`, `s1_refit_basis_table`, `encoding_drift_check`, `iti_mixed_models`,
   `wfield_local/postcue_window_test`); drop `WIDEFIELD_PRM_LEGACY_DATE8` ([fd] `lp_final_render.py:71`,

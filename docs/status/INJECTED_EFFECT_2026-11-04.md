@@ -36,9 +36,9 @@ its stored LOSO model on its camera working rows, cue and precue.
 **Injections.** They apply to every trial row, working and non-working. Parameters come from the natural session, in
 its pool-z coordinates:
 
-- m6 = the true-label balanced working centre;
+- m6 = the true-label balanced working center;
 - μ_q = spout q's working-row mean;
-- sdB = between-session SD of the training sessions' six-spout centres.
+- sdB = between-session SD of the training sessions' six-spout centers.
 
 | tag | effect | what is injected |
 |---|---|---|
@@ -48,7 +48,7 @@ its pool-z coordinates:
 | E2s_g | signal-only global loss (added) | x += (g − 1)(μ_y − m6), g = .6 / .8; every spout's mean shrinks, scatter kept |
 | E3u_k / E3r_k | uniform offset on every row AND the rest frames | u = all-features direction (an F0 / brightness error is a near-uniform dF/F offset); r = sdB ⊙ N(0,1), fixed per session; ‖d‖ = k‖sdB‖, k = 1 / 2 |
 | E4u / E4r | offset + spout-specific loss | E1 f = .5 + E3 k = 1 |
-| E5 | rest state only | rest centre += the animal's MEASURED acute R5 shift, rest SD × 1.3; trials untouched (E5c centre only, E5s SD only) |
+| E5 | rest state only | rest center += the animal's MEASURED acute R5 shift, rest SD × 1.3; trials untouched (E5c center only, E5s SD only) |
 
 **Injection sizes** (cue, session means, RMS over features in units of the working-row SD):
 
@@ -59,7 +59,7 @@ its pool-z coordinates:
 | PS94 | .38 | .47 | .18 | .09 |
 | PS95 | .29 | .42 | .16 | .12 |
 
-**Frames.** Each centre is recomputed from the resampled, injected rows:
+**Frames.** Each center is recomputed from the resampled, injected rows:
 
 - Wt (primary), W (bal_em), N, Cto, Z (re-z on the DAQ-lick rows);
 - Rref (Rref_w_a);
@@ -67,7 +67,7 @@ its pool-z coordinates:
 - IrefN / IrefWt (the class-balanced intercept-only refits, Iref_N_bal / Iref_Wt_bal).
 
 **Truth.** The ORACLE frame O is the natural session's Wt frame (m6, sdWt), computed before any mix or injection. It
-adds the injected offset to its centre for E3 / E4 and ignores rest changes. The truth is O's accuracy on the
+adds the injected offset to its center for E3 / E4 and ignores rest changes. The truth is O's accuracy on the
 injected rows.
 
 - O treats E1, E2 and E2s as real effects and E3 and E5 as nuisance.
@@ -122,7 +122,7 @@ mix + effect together.**
 | IrefWt | −.009 | −.001 | −.077 | −.044 [−.068, −.021] |
 | Z | +.002 | −.001 | **+.091 [+.003, +.22]** | −.019 |
 
-- **The mix alone moves far contra by ±.1-.2 per animal in every session-centred frame**, with the sign differing by
+- **The mix alone moves far contra by ±.1-.2 per animal in every session-centered frame**, with the sign differing by
   animal. Pooled, nothing but Z is clear of 0. Z overstates far contra under the mix (+.09), as found on 11-03.
 - **Overall**, the mix lowers accuracy by about .02 in W, Wt, Z and R5, and by .03-.04 in the Iref arms. Cto is the
   most mix-stable (−.004), as in CENTRE_MIXSHIFT.
@@ -225,21 +225,21 @@ At precue E5 acute is −.040 at far contra and −.040* overall.
 **Which frame recovers the spout-specific loss (E1 / E4)?**
 
 - **Recovered in full, in all four animals:** N (recovery .89-1.13), Rref (.95-1.22) and R5 (.88-1.15). None of them
-  re-centres on the far-contra rows.
+  re-centers on the far-contra rows.
 - **Wt, Cto and Z UNDERSTATE it by about a third**, in every animal (recovery .62-.79; precue .82-.88).
-  - Mechanism: part comes from the centre, which holds 1/6 of the far-contra shift. The larger part comes from the
+  - Mechanism: part comes from the center, which holds 1/6 of the far-contra shift. The larger part comes from the
     scale: shrinking the far-contra class reduces the session SD, which re-expands every row.
   - They also spill a small loss onto the other five spouts (−.009).
 - **W understates it less (.71-.85)**, because its EM down-weights far contra.
 - **Iref understates it most (.36-.61):** the label-fitted far-contra offset re-thresholds a real loss away.
 - **Consequence for REFSPOUT.** Iref's smaller real-data deficit (−.46 against Wt's −.64) is what a GENUINE
   spout-specific loss would also produce. It is not evidence that part of the deficit is a day offset.
-- **E4 behaves as E1** for every session-centred frame: they absorb the offset exactly and leave the E1 part as
+- **E4 behaves as E1** for every session-centered frame: they absorb the offset exactly and leave the E1 part as
   above. N does not: the same offset made N's far-contra loss look smaller (u: +.11) or larger (r: −.11).
 
 **Which frame absorbs the nuisance (E3 / E5)?**
 
-- **Offsets (E3).** Every session-centred frame absorbs them exactly (Wt, W, Cto, Z, Rref, R5, Iref: 0.000), by
+- **Offsets (E3).** Every session-centered frame absorbs them exactly (Wt, W, Cto, Z, Rref, R5, Iref: 0.000), by
   construction. N absorbs nothing.
 - **Rest change (E5).** Every trial-based frame is untouched. R5 is the only frame that moves: acute far contra
   −.19 [CI excludes 0], −.45 in PS94 and −.19 in PS95; overall −.035. The rest frame turns a pure rest-state change
@@ -282,7 +282,7 @@ At precue E5 acute is −.040 at far contra and −.040* overall.
 **Is Wt a sound primary for the far-contra claim? Yes, as a CONSERVATIVE frame.**
 
 - No nuisance in this test can manufacture a far-contra loss under Wt: offsets and rest changes give exactly 0, and
-  the mix-only bias is centred near 0 (+.03 pooled, ±.1 per animal).
+  the mix-only bias is centered near 0 (+.03 pooled, ±.1 per animal).
 - A genuine spout-specific loss is reported at ~2/3 of its size.
 - So a far-contra deficit under Wt is real, and it is at least as large as Wt says, to the extent the effect is
   spout-specific and linear.
@@ -291,7 +291,7 @@ At precue E5 acute is −.040 at far contra and −.040* overall.
 
 **What the bracket should look like.**
 
-- Wt (primary, conservative) beside N (no session centre, unbiased for a spout-specific loss).
+- Wt (primary, conservative) beside N (no session center, unbiased for a spout-specific loss).
 - State the directions this test measured:
   - Wt can only understate a spout-specific loss (by ~1/3);
   - N's per-spout error is offset-driven and can go either way, while its overall error can only lower accuracy.
@@ -319,9 +319,9 @@ Nothing here changes production; Priya decides.
   carries the recovery reading.
 - **The oracle is the natural Wt frame.** It counts a gain change as real by definition. Whether a gain change after
   stroke is neural or optical cannot be settled here.
-- **E5 uses the measured acute R5 centre shift (raw) and a fixed SD ×1.3.** PS95 has one acute session.
-- **Offsets are set at 1-2× the pre between-session SD of the six-spout centres.** Real post-stroke offsets may be
-  larger (REST_CENTRE measured rest-centre shifts of up to 1.2 log-odds at far contra).
+- **E5 uses the measured acute R5 center shift (raw) and a fixed SD ×1.3.** PS95 has one acute session.
+- **Offsets are set at 1-2× the pre between-session SD of the six-spout centers.** Real post-stroke offsets may be
+  larger (REST_CENTRE measured rest-center shifts of up to 1.2 log-odds at far contra).
 - **R5 uses an in-memory refit.** The others use the stored models.
 
 ## 6. Files (`decoder_mix_checks/injected_effect_1104/`)
@@ -359,7 +359,7 @@ identical to the first run (1.18 M cells, |Δk| = 0). The real-session Wt / N / 
 
 ### The new frames
 
-Both keep the Wt centre (the DAQ-label balanced mean of the session's working rows) and change only the scale.
+Both keep the Wt center (the DAQ-label balanced mean of the session's working rows) and change only the scale.
 
 | tag | scale |
 |---|---|
@@ -421,12 +421,12 @@ of Wt's understatement comes from the session SD. That is wrong.
 
 - A fixed scale (WtF) and a scale the class means cannot move (WtR) give the same recovery as Wt (.68-.71). The scale
   is not the cause.
-- The understatement comes from the CENTRE. Shrinking far contra moves the six-spout centre away from far contra by
-  f/6 of the far-contra offset. Re-centring therefore pushes every row toward far contra:
+- The understatement comes from the CENTER. Shrinking far contra moves the six-spout center away from far contra by
+  f/6 of the far-contra offset. Re-centering therefore pushes every row toward far contra:
   - far contra regains part of its distance;
   - the other spouts pick up the −.01 spill-over.
 - On a frozen decoder near its boundary, that 1/6 shift is worth about a third of the accuracy change.
-- Only frames whose centre does not include the far-contra rows recover E1 fully: N, Rref and R5.
+- Only frames whose center does not include the far-contra rows recover E1 fully: N, Rref and R5.
 
 ### 7c. Effect part under E2 / E2s / E3 / E5 (pooled; * = CI excludes 0)
 
@@ -526,7 +526,7 @@ epoch − held-out pre (`boot_delta`).
 **For the bracket.**
 - Wt stays the primary.
 - WtF is worth reporting beside N as the gain-sensitive frame, with its offset immunity stated. It is the
-  "Wt-centred but not z-scored" reading.
+  "Wt-centered but not z-scored" reading.
 - The far-contra deficit holds in every frame (−.53 to −.64 cue acute).
 - How much of the acute gap between frames is a gain change (WtF) and how much is a day offset (N) is the open
   question.

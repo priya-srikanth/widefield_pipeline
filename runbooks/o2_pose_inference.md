@@ -63,7 +63,7 @@ collect <- share (M:) <-------   /n/files  <---rsync---------------  /n/scratch/
 6. **Desktop**, from the repo folder (`C:\Users\SabatiniLab\Github\widefield_pipeline`), `dlc` env (h5py added
    10-06) or `locanmf`: `python -m wfield_local.o2_inference collect --name <name>` → `session_poses/<a>_<d>_full/`.
    Checks predicted frames == the video's frame count, then splits the whole video into every trial's window
-   (strobe - 0.5 s .. stop + 3 s; neighbouring windows overlap a few s) in the `session_poses` format.
+   (strobe - 0.5 s .. stop + 3 s; neighboring windows overlap a few s) in the `session_poses` format.
 7. Clean `_chunks/` once collected. Staged videos stay until Priya confirms all server analysis is finished.
 
 ## Lightning Pose (the production cam4 model, from 2026-10-15)
@@ -142,7 +142,7 @@ helps the job backfill sooner.
   Root cause check: `module load conda/miniforge3/26.9.4-1; conda activate lp; python -c "import torch;
   print(torch.cuda.get_arch_list())"` -> `sm_75 ... sm_120`, no `sm_70`. Re-check after any rebuild of the env.
 * **Coverage check (run after any failure / resubmit, and at the end)** -- by OUTPUTS, not sacct states (a task can end
-  FAILED, NODE_FAIL, TIMEOUT, CANCELLED ...):
+  FAILED, NODE_FAIL, TIMEOUT, CANCELED ...):
   ```
   cd /n/scratch/users/p/ps150/o2/<bundle>
   awk -F'	' 'NR>1{sub(/\.avi$/,"",$4); print $1, "out/"$2"_"$3"/"$4"_done.json"}' tasks.tsv     | while read id f; do [ -f "$f" ] || echo $id; done | sort -n > /tmp/notdone
@@ -179,7 +179,7 @@ also took the 6 calibration-folder videos; harmless).
 
 `r3_PS93_20261002` (round-3 cam4 model, 3 PS93 videos): smoke test passed; array task 1 (0814) submitted as job
 55345148 and running. Tasks 2-3 need their videos copied first. This is a PIPELINE test — the production run
-waits for the next cam4 model (labelling round 4).
+waits for the next cam4 model (labeling round 4).
 
 ## Next on O2
 

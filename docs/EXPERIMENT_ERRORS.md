@@ -1,6 +1,6 @@
 # Experiment errors and acquisition incidents — running log
 
-Acquisition and rig problems that constrain what can be analysed, and what we decided to do about each.
+Acquisition and rig problems that constrain what can be analyzed, and what we decided to do about each.
 **This is about the EXPERIMENT, not the code.** Analysis/method errors live in
 [`DECISIONS.md`](../DECISIONS.md) and [`PREPROCESSING_DECISION.md`](PREPROCESSING_DECISION.md).
 
@@ -32,9 +32,9 @@ frames, which were stretched before; they are outside every pooled set. (3) Chec
 
 **Still open.** Write the two frame sizes here once the data are uploaded (`alignment_reference --sessions` lists them).
 
-## 2026-10-29 [cohort2] — bottom behaviour camera (cam1) nudged between PS118 / PS120 / PS121 and PS122
+## 2026-10-29 [cohort2] — bottom behavior camera (cam1) nudged between PS118 / PS120 / PS121 and PS122
 
-**What happened.** The bottom (cam1, view from below) behaviour camera was adjusted slightly between the
+**What happened.** The bottom (cam1, view from below) behavior camera was adjusted slightly between the
 first three animals and PS122 on 2026-10-29 (Priya, 2026-10-29).
 
 **What it costs.** cam1 geometry differs between those sessions: pixel coordinates (pose, mouth / spout
@@ -177,11 +177,11 @@ with the other animal's DAQ gave 19306/19388 and 17730/17812 at **1.15-1.16 ms**
 82-edge boundary margin every clean session shows. The gate did its job: it refused to publish a
 bad template rather than writing one that looked fine.
 
-**What it costs.** Nothing that was published. The imaging, DAQ and behaviour paths never read the
+**What it costs.** Nothing that was published. The imaging, DAQ and behavior paths never read the
 behavior-camera folders — trials, positions and licks come from the DAQ — so hit rates, engagement,
 decoding and every epoch figure are unaffected. The two alignment templates had already FAILED their
 quality check rather than being written as usable, so nothing downstream consumed them. The single
-wrong artefact on disk was `dropped_frames_summary_20260818.csv`, whose `session` column named the
+wrong artifact on disk was `dropped_frames_summary_20260818.csv`, whose `session` column named the
 wrong animal for eight of sixteen rows.
 
 **What we do.** Swapped the two directories — a metadata-only rename, no file read or rewritten,
@@ -212,7 +212,7 @@ signal), and most visibly the frozen pre-stroke decoder, which reads **0.016 wit
 permutation** (grant_5c: cL→fL, cC→fR, cR→fC, fL→cC, fC→cR, fR→cC) rather than a near-chance smear. A
 decoder trained on correct-channel pre-stroke data cannot read a swapped-channel session, so the
 permutation is the tell that this is technical, not biological — a 2-day jump from day 9 (0826) = 0.91 to
-day 11 (0828) = 0.016 confirms it. **BEHAVIOUR IS UNAFFECTED**: positions and licks come from the DAQ,
+day 11 (0828) = 0.016 confirms it. **BEHAVIOR IS UNAFFECTED**: positions and licks come from the DAQ,
 independent of the optical channels — PS92 8/28 hit rate is 1.0/1.0/1.0/0.91/0.98/0.98 over 311 engaged
 trials. **PS93 8/28 is fine** (frozen 0.80), so the swap was PS92's session only, not the rig.
 
@@ -221,7 +221,7 @@ cannot be relabelled downstream. Add a per-session override in `configs/session_
 `svd.functional_channel` 1→0 for PS92 8/28, then re-run ONLY the SVD + hemodynamic step with `--redo`
 (it otherwise skips on the existing `SVTcorr` — `preprocess.py:567`); motion correction is reused. Re-upload
 the corrected `SVTcorr`, re-fit LocaNMF, then the analysis box redoes ONLY PS92 8/28's affected
-decode/encode/RSA/pattern figures and rebuilds the deck. Behaviour stays in throughout.
+decode/encode/RSA/pattern figures and rebuilds the deck. Behavior stays in throughout.
 
 **What is still open.** As of 2026-08-29 the corrected preprocessing has not yet been produced; the
 published deck still shows the corrupted PS92 8/28 (frozen 0.016, flipped maps). Corrected once the
@@ -243,7 +243,7 @@ behavior cameras cover the full session and stay fully usable.
 
 **MEASURED SPLIT POINT (`wfield_local.led_alternation_qc`, run 2026-08-13).** The DAQ carries
 `led415_ttl` / `led470_ttl` (analog) and `pco_exposure` (digital), so each camera exposure can be
-labelled with the LED that fired — no reliance on image content and no assumption of alternation.
+labeled with the LED that fired — no reliance on image content and no assumption of alternation.
 (That frame *i* of the `.dat` is exposure pulse *i* was assumed here and is now **verified** — see
 "Alignment verified" below; it does not follow from the counts agreeing.):
 
@@ -387,7 +387,7 @@ already exists (`Behavior_logs/Widefield/PS92_20260812_concat/trials.csv`).
 
 **CORRECTED 2026-08-14 — it is not "563 trials".** The concat log has 563 ROWS, but `trial_id` runs
 0-282 with no resets: roughly two rows per trial (an open row and the scored row, the same
-open-row behaviour that causes the `pos_idx` bug). The real accounting is **283 trials, 280 scored,
+open-row behavior that causes the `pos_idx` bug). The real accounting is **283 trials, 280 scored,
 vs 225 DAQ cues** — so the DAQ recorder's crash cost ~55 trials, not the ~338 that "563 vs 225"
 implied.
 
@@ -407,7 +407,7 @@ positions were verified against DAQ codes (0.984-0.996 aligned vs 0.818-0.827 sh
 *Video in the gap:* deferred. Priya's read is that behavior video is most valuable where there is
 concomitant neural recording, which by definition excludes the gap.
 
-*Camera <-> DAQ alignment templates — FIXED 2026-10-15.* The behaviour cameras also restarted, so every
+*Camera <-> DAQ alignment templates — FIXED 2026-10-15.* The behavior cameras also restarted, so every
 camera has TWO files that day: `cam*_2026-08-12T15_26_25` (part 1; ~39 min of video, but the DAQ recorded
 only its first 10.6 min before the crash) and `cam*_2026-08-12T16_17_48` (part 2). `camera_sync.run`
 had made ONE template per camera per date by pairing each file with the first matching DAQ `.h5` -- part 1's
@@ -429,11 +429,11 @@ and what needs to be redone").* Three separate faults, all from code treating th
 1. **Six lookups took part 1's crash-truncated DAQ file.** They found "the" DAQ file with
    `sorted(glob("<animal>_<date>_*.h5"))[0]`, and `..._152628.h5` (part 1, 10.6 min) sorts before
    `..._161746.h5` and `..._concat.h5`. Sites: `dlc_frames.lick_onsets` (the lick cache), `trial_windows`
-   (strobe times, behaviour-log sync), `contact_classes.session_durations`, `dlc_context_frames`,
+   (strobe times, behavior-log sync), `contact_classes.session_durations`, `dlc_context_frames`,
    `scripts/movement_encoding_session.running_signal`. FIX: `daq_io.session_h5` (registered `sessions.yaml`
    file, else `_concat`, else the single match) at every site. The lick cache held 662 licks ending at 636.5 s;
    rebuilt: 5,840 licks over the whole session (old cache kept as `lick_onsets/PS92_20260812.npz.bad_20261015`).
-2. **The behaviour-camera templates paired part 2's camera with part 1's DAQ** (above). FIX: per-recording
+2. **The behavior-camera templates paired part 2's camera with part 1's DAQ** (above). FIX: per-recording
    templates against the concat DAQ.
 3. **The concat's zero-padded 40.7-min gap read as running.** Its zeros calibrate to a constant treadmill
    speed, so the canonical events had a 2,441-s running bout (cohort max elsewhere 54 s). FIX:
@@ -446,35 +446,35 @@ What each analysis family saw, and what was done:
 | analysis | used | affected? | action |
 |---|---|---|---|
 | LocaNMF decode / encode / frozen decoder / RSA / cross-session / joint basis | registered `_concat.h5` + canonical events | **no** (licks and rest came from the concat file) | none |
-| behaviour summaries (`spout_behavior`, trials, lick metrics) | prefers `_concat` already | **no** | none |
+| behavior summaries (`spout_behavior`, trials, lick metrics) | prefers `_concat` already | **no** | none |
 | docked-rest arm | canonical events, reconstructed dock window | **no** (rest unchanged by fix 3) | none |
 | ENL movement-removed decoding (`enl_movement_multisession`) | lick cache (fault 1) + camera templates (fault 2) | **yes**: 22 of 225 trials survived the lick-response test (part 2 had no licks), dropped from summaries as degenerate | RE-RUN (motion energy per recording): 210 trials, raw 0.40 / residual 0.28 / video-only 0.90 -- in line with PS92's other pre sessions; summaries now 119 sessions, across-animal pre raw 0.40 -> 0.41, every other number unchanged |
-| behavioural-state (locomotor) decoder (`epoch_13*`) | canonical running bouts (fault 3) | **yes**: session excluded by name (`EXCLUDE_SESSIONS`) | exclusion removed; RE-RENDERED 2026-10-15 (`epoch_grant_figures --only 13s`, analysis desktop with explicit root overrides): PS92's frozen pre-stroke state model now trains on 11 sessions incl. 0812 |
+| behavioral-state (locomotor) decoder (`epoch_13*`) | canonical running bouts (fault 3) | **yes**: session excluded by name (`EXCLUDE_SESSIONS`) | exclusion removed; RE-RENDERED 2026-10-15 (`epoch_grant_figures --only 13s`, analysis desktop with explicit root overrides): PS92's frozen pre-stroke state model now trains on 11 sessions incl. 0812 |
 | null / potent subspaces, movement encoding, DLC/LP poses, kinematics, contact classes, video motion energy | faults 1-2 | **no outputs**: 0812 was never run | future runs use the fixed lookups / templates |
-| DLC / LP labelling frames | faults 1-2 | **no**: no labelled frame comes from PS92 0812 | none |
+| DLC / LP labeling frames | faults 1-2 | **no**: no labeled frame comes from PS92 0812 | none |
 
 **PS92 0604 (the other concatenated session) -- camera templates BUILT 2026-10-15.** The DAQ crashed and restarted
-(gap 27 s; `PS92_20260604_concat.h5`) while the behaviour cameras kept recording ONE file each, and the day had no
+(gap 27 s; `PS92_20260604_concat.h5`) while the behavior cameras kept recording ONE file each, and the day had no
 camera template at all (early June). Matching each DAQ segment to its own stretch of camera sync edges (the camera's
 65 extra edges = the gap) fits both at 1.16 ms RMS with an identical slope, but the two fits differ by a constant
 **1.62 s**: `concat_split_session` padded the gap from the files' creation timestamps, which were 1.6 s off. A single
 camera template for the whole file would therefore be 1.6 s wrong after the gap. Now one template PER DAQ SEGMENT
 (`<cam>/PS92/20260604__<recording>__seg<k>.npz`); 341 cues split 121 / 220 between the segments, all inside the video.
-Imaging and behaviour are unaffected: everything on the DAQ (pco pulses, cues, licks, treadmill) shifts together, and
-the behaviour log maps to the DAQ through sync pulses, not the padded gap. 0604 stays outside the curated set; it now
+Imaging and behavior are unaffected: everything on the DAQ (pco pulses, cues, licks, treadmill) shifts together, and
+the behavior log maps to the DAQ through sync pulses, not the padded gap. 0604 stays outside the curated set; it now
 has camera data like every other session. **Rule (both split days):** no single `<date>.npz` -- the copies written
 earlier on 10-15 are kept as `<date>.npz.split_day_ambiguous_20261015`, so single-template code fails loudly instead of
 misaligning; split-aware code uses `camera_sync.templates_for`.
 
 ---
 
-## 2026-08-13 — PS93: no behaviour-camera video recorded (experiment error)
+## 2026-08-13 — PS93: no behavior-camera video recorded (experiment error)
 
-**What happened.** No behaviour-camera video was recorded for PS93's 8/13 session (Priya, 2026-10-12: an
+**What happened.** No behavior-camera video was recorded for PS93's 8/13 session (Priya, 2026-10-12: an
 experiment error -- the cameras were not recording, not a lost upload). Imaging, the DAQ `.h5`
-(`PS93_20260813_184848.h5`) and the behaviour log (`PS93_20260813_184854`) exist; there is no
+(`PS93_20260813_184848.h5`) and the behavior log (`PS93_20260813_184854`) exist; there is no
 `Behavior_Cameras/Widefield/20260813/PS93/` folder, and the 8/13 dropped-frame QC lists only PS92, PS94, PS95.
-Found 2026-10-12 while building camera<->DAQ alignment templates for every analysed session.
+Found 2026-10-12 while building camera<->DAQ alignment templates for every analyzed session.
 
 **What it costs.** Every VIDEO-based analysis loses this session: DLC / LP poses (tongue, jaw, kinematics,
 executed angle), video motion energy (movement-encoding video regressors, the ENL running + video removal in
@@ -557,7 +557,7 @@ date's summary rebuilt COMPLETE rather than replacing it. Backfilled values: PS9
 so the figure honestly shows 415 BEGINNING 32 min in; the repaired `_2_` file would have been wrong
 there, since its frame *k* is no longer exposure *k*.
 
-The earlier judgement in this entry ("not worth recovering") was wrong because it assumed photobleach
+The earlier judgment in this entry ("not worth recovering") was wrong because it assumed photobleach
 reads the whole file. It reads 3,000 frames.
 
 **What we do.** The summary is a pure function of the per-session records on disk, so the fix is
@@ -581,7 +581,7 @@ covers the whole 142 min, so **197 of 871 cues (23%) occur before any surviving 
 frame ~0 and decoded as if it were real.
 
 **What it cost.** Cue-aligned 0.61 vs ~0.90 for that animal; pre-cue 0.29 vs ~0.37. Roughly a quarter
-of the session's trials were noise labelled with real positions.
+of the session's trials were noise labeled with real positions.
 
 **Why it was invisible.** For every normal session imaging spans the whole recording, so the clip never
 bites and the code had been correct for 60 sessions. Only a session with a HOLE exposes it — and the
@@ -602,7 +602,7 @@ n 786 → 589. That is a large recovery but short of the ~0.90 predicted, so the
 SECOND fault in the repair. It is not:
 
 * Positions stay balanced (82–116 per class) and no class is dead — recall 0.63–0.91 — so trial
-  labelling is intact. A mislabelled position collapses one class, and none has.
+  labeling is intact. A mislabelled position collapses one class, and none has.
 * Lick-aligned recovers to within 0.04 of the animal's floor, so the retained movie is fine. A bad
   decomposition or a residual frame offset would hurt both alignments alike.
 * Accuracy by trial-order third is **0.822 / 0.796 / 0.602** — the trials immediately after the
@@ -633,7 +633,7 @@ the DAQ file. On PS92 2026-09-22 the order reversed: the camera's first frame wa
 already running — first rising edge at sample 13, line low at sample 0. **154 camera frames
 (2.466 s) have no DAQ pulse, and they are at the HEAD of the `.dat`.** Whether the operator clicked
 the DAQ second or the recorder lagged on start cannot be told from the records; either way the
-excess is at the head. Behaviour and the DAQ↔task side are perfect (sync trains 18,741 = 18,741,
+excess is at the head. Behavior and the DAQ↔task side are perfect (sync trains 18,741 = 18,741,
 1 ms residual; 333 cues index-for-index; 100% hit rate at all six positions).
 
 **What the pipeline did with it** (`trim_illuminated_labcams.load_daq_labels`). The DAQ had 455,665
@@ -652,7 +652,7 @@ executed before, and its first real case was the opposite of the one it assumed.
   frames landed in the wrong channel with the wrong channel's mean subtracted**, ±600-count steps of
   opposite sign in the two halves, carrying the 470−415 difference image (vessels vs parenchyma,
   larger on the left where 415 is dimmer). That produced the r = −0.99 anti-correlation between the
-  channel halves, the 86%-negative haemodynamic coefficients, the 3× variance, the vessel-patterned
+  channel halves, the 86%-negative hemodynamic coefficients, the 3× variance, the vessel-patterned
   first SVD component, and the left-hemisphere excess in the 415 temporal-std map.
 * Both task decoders and the encoder at chance; the rest-arm refit (not trial-locked) still worked.
 
@@ -663,18 +663,18 @@ executed before, and its first real case was the opposite of the one it assumed.
   difference variance in 5% of the pairs** (Cohen d 5.6; 0918: −0.17);
 * **camlog per-frame LED ids vs DAQ per-pulse labels: 95.4% agreement at offset 0, 100.0000% at 154
   in every 10-min bin** (0918: 100% at 0). Camera frame 155 is the DAQ's first pulse.
-* parity: at the shifted offset the 470-labelled half carries the full transient and the 415 half
+* parity: at the shifted offset the 470-labeled half carries the full transient and the 415 half
   the usual ~¼ bleed-through — the halves are the right way round, so the offset is even.
 
 **Ruled out along the way, so they are not re-proposed:** a 0828-type channel swap (intensities and
 transient placement normal); both channels lit by one LED (LED TTLs 3.287 V, sd 0.0014, identical all
 session); motion (0.33 px, even/odd identical to 0.02 px); Allen registration (NCC 0.846 vs 0.85–0.87);
-a superficial blood/fluid layer (mean-image ratios in the CCF frame show no localised change); the rig
+a superficial blood/fluid layer (mean-image ratios in the CCF frame show no localized change); the rig
 (PS93 the same day is normal). **Two wrong diagnoses were written and retracted the same day:** (1) an
 "optical/vascular event, cause not established, not recoverable" — the anti-phase signal was the
 label-flip contamination; (2) channel-parity flips at the 151 skipped frames — refuted by the shift
-array's structure, then superseded by the real mechanism. A repair by borrowing a neighbour's
-haemodynamic coefficients was also tested and failed, correctly: there was nothing wrong with the
+array's structure, then superseded by the real mechanism. A repair by borrowing a neighbor's
+hemodynamic coefficients was also tested and failed, correctly: there was nothing wrong with the
 coefficients' inputs except their timing.
 
 **What it costs.** The session's imaging as processed is unusable and contaminated every PS92 chronic
@@ -685,7 +685,7 @@ excess (cohort scan of all 124 cleanpairs summaries and DAQ PCO trains, 2026-09-
 **What we do.**
 1. **Pipeline fix (2026-09-28, this repo):** a DAT longer than the DAQ record is placed by the camlog's
    per-frame LED record (`find_dat_head_offset`), or by an explicit `--head-offset`, and is otherwise
-   **refused** — the pre-`1a68c7c` behaviour with a way out. The frame map now carries
+   **refused** — the pre-`1a68c7c` behavior with a way out. The frame map now carries
    `dat_head_offset` and `daq_pulse_index_*`; `framemap_event_maps._corrected_frame_samples` subtracts
    the head. Maps without the key are head 0, which is what they always assumed. Tests pin the head
    case, the genuine tail case, the refusal, and the consumer.
@@ -706,7 +706,7 @@ excess (cohort scan of all 124 cleanpairs summaries and DAQ PCO trains, 2026-09-
    be reused. Then `preprocess_deck`, and on the analysis box `nightly_figs 20260922 --only PS92`:
    per-session caches, the PS92 joint basis and the joint-basis frozen decoders all key on the
    SVTcorr/U signatures and re-derive themselves.
-3. Until that has run, **PS92_0922 is excluded from the imaging arms** (its behaviour stays — it is a
+3. Until that has run, **PS92_0922 is excluded from the imaging arms** (its behavior stays — it is a
    perfect session there).
 
 **REDO IN PROGRESS (2026-09-28, run on the ANALYSIS DESKTOP, not the imaging box).** That box has
@@ -737,10 +737,10 @@ no realignment applied, backup vs new (`labcams/PS92_0922_diagnosis/PS92_0922_re
 | raw 470 peak after cue | +2.88 s | **+0.42 s** |
 | raw 470 mean 0–1 s / 2–3.5 s | +0.006 / +0.012 | **+0.032 / +0.007** |
 | production SVTcorr (meegkit_hpfit) peak | +2.88 s | **+0.51 s** |
-| haemodynamic `T` diagonal / `rcoeffs` < 0 | −0.52 / 86% | **+1.36 / 0%** |
+| hemodynamic `T` diagonal / `rcoeffs` < 0 | −0.52 / 86% | **+1.36 / 0%** |
 | 415↔470 component-0 correlation (0.1 Hz HP) | −1.00 | **+0.64** |
 
-The transient is where the cue is, the haemodynamic fit has the sign it has on every other session,
+The transient is where the cue is, the hemodynamic fit has the sign it has on every other session,
 and the two channels are no longer anti-phase. The 154 frames the DAQ never saw are unmonitored and
 dropped (frame count 455,818 → 227,756 pairs + 152 skipped + 154 head).
 
@@ -780,7 +780,7 @@ hand and the glob fixed in `defaults.yaml`). The backup of the pre-fix outputs s
 ## 2026-10-16 — cam4 video shorter than the session (found while processing LP pose outputs)
 
 * **PS92 0908** (curated, chronic): the cam4 video covers DAQ -6 .. 6,437 s but trials run to 7,268 s -- the camera
-  stopped ~14 min before the DAQ; the last **68 trials have no orofacial video**. Imaging and DAQ behaviour unaffected.
+  stopped ~14 min before the DAQ; the last **68 trials have no orofacial video**. Imaging and DAQ behavior unaffected.
 * **PS94 0603** (pre, outside the curated set): camera stopped ~90 s early; last 10 trials without video.
 * **PS94 0601 and PS95 0601** (first baseline day, both outside the curated set): cam4 dropped 274,857 / 280,213
   frames; the camera <-> DAQ fit fails (RMS ~3.2 s), so no alignment template and no pose analysis for that day. Both

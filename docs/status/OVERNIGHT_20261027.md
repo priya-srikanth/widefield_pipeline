@@ -14,8 +14,8 @@ Queue 1-5 DONE; page v146 live. Headline results overnight (all PROVISIONAL, det
 3. Refit decoders (evening): post-acute the code is still decodable; the frozen read-out moved.
 4. Maps: ITI "cortex-wide components" are mostly a variance effect (z-scored check); FWER map stats: ITI lateral pattern
    does not change shape; cued lateral pattern changes acutely and chronically; pixel mixed models: cued lateral map
-   drops, partly returns, stays changed at full behavioural recovery; far-contra maps scale with the aim deficit.
-5. First-lick aim (behaviour axis) doubles the measured chronic deficit, ranking unchanged.
+   drops, partly returns, stays changed at full behavioral recovery; far-contra maps scale with the aim deficit.
+5. First-lick aim (behavior axis) doubles the measured chronic deficit, ranking unchanged.
 Questions for you: junk files to delete by hand (incident 2); cued wording; ITI FaceRhythm controls redo; ALM / tjM1
 ROI-mask choice + which expensive refits; z-scored map check follow-ups none.
 
@@ -27,8 +27,8 @@ ROI-mask choice + which expensive refits; z-scored map check follow-ups none.
    table -> implement cheap ones, prove no M: writes) -> merge -> run -> captions -> publish.
 3. Anything the helper costs as expensive (re-extraction) -> WAIT for Priya (listed under Questions).
 4. Housekeeping that needs no decision: handoff + FINDINGS kept current; commit each step.
-4b. NEW (Priya decided 10-27 late, DECISIONS): (i) behaviour axis = FIRST-LICK weighted aim (all-lick = sensitivity):
-    switch recovery measure / recovery link / mixed-model behaviour model / lmm figures; old vs new side by side;
+4b. NEW (Priya decided 10-27 late, DECISIONS): (i) behavior axis = FIRST-LICK weighted aim (all-lick = sensitivity):
+    switch recovery measure / recovery link / mixed-model behavior model / lmm figures; old vs new side by side;
     (ii) pixel map stats -> FWER max-statistic (pattern_stats / spout_pattern_stats / pattern_area_stats).
 5. EARLIER APPROVED BACKLOG (handoff 00-LATE + SVD_GAUSS queue part C / D; on the split basis + Gaussian reference
    decided tonight), in this order:
@@ -45,33 +45,33 @@ ROI-mask choice + which expensive refits; z-scored map check follow-ups none.
        divided by its session frame SD (iti_basis_frame_sd), side by side with the unscaled maps -> are the ITI
        cortex-wide components real or a scale effect? Supplementary.
    5d. Per-animal change-vs-pre scatter; first-lick row on the lick-order / per-spout figure (old 3.29).
-   5e. PIXEL mixed models on maps with TFCE (time model step + recovery maps, behaviour model aim map; session-label
+   5e. PIXEL mixed models on maps with TFCE (time model step + recovery maps, behavior model aim map; session-label
        permutation) -- heaviest, last.
-   5f. LOW: non-linear decoder; behaviour-only decoder.
+   5f. LOW: non-linear decoder; behavior-only decoder.
 NOT done without Priya: deleting v1 `sessions/`, `roi_v2_backup_20261027/`, `superseded_split_20261027/`.
 
 ## Results / findings (overnight)
 - (10-28 ~04:15) 5f run DONE (0 errors) = dry-run numbers; PAGE v146: 11.14 non-linear decoder (supplementary), 11.15
-  behaviour-only decoder (supporting). QUEUE COMPLETE.
+  behavior-only decoder (supporting). QUEUE COMPLETE.
 - (10-28 ~03:50) 5f merged (3be5c189) + running (run_5f.sh, ~21 min). Full-cohort dry-run answers: (1) NON-LINEAR
   decoder (RBF kernel ridge, nested CV) is 0.01-0.04 r better on held-out pre but loses the same fraction post-stroke
   (ITI lateral r/pre -0.22 / -0.19 / -0.21 vs linear -0.26 / -0.22 / -0.24) and the ITI offset is unchanged (+0.35 /
-  +0.25 / +0.29 mm, 4/4) -> loss + offset are not a linear-read-out artefact. (2) BEHAVIOUR-ONLY decoder (FaceRhythm 5
+  +0.25 / +0.29 mm, 4/4) -> loss + offset are not a linear-read-out artifact. (2) BEHAVIOR-ONLY decoder (FaceRhythm 5
   factors x 3 windows unblanked + reach + peak speed; no lateral / angle / landing / elevation): matches or beats cortex
-  pre-stroke for ITI (lateral 0.67 vs 0.62), cortex adds a unique +0.05-0.09 r (4/4); post-stroke the BEHAVIOUR decoder
+  pre-stroke for ITI (lateral 0.67 vs 0.62), cortex adds a unique +0.05-0.09 r (4/4); post-stroke the BEHAVIOR decoder
   of ITI licks barely changes (-0.06 / -0.01 / -0.06 n.s.) while cortex loses -0.27 / -0.21 / -0.24 (4/4) -> the ITI
   read-out loss is CORTICAL, not a loss of position information in the movement. Cued: both drop acutely.
-- (10-28 ~03:20) 5e DONE (1000 permutations, 0 errors), PAGE v145: 15.21 (time) / 15.22 (behaviour) + per-spout
+- (10-28 ~03:20) 5e DONE (1000 permutations, 0 errors), PAGE v145: 15.21 (time) / 15.22 (behavior) + per-spout
   supplements. % of cortex FWER (sign): CUED LATERAL step -94 %, recovery +59 % (returning), aim slope 2 %, change at
-  full behavioural recovery -92 % -> the cued lateral map drops, partly returns, and stays changed even where aim has
+  full behavioral recovery -92 % -> the cued lateral map drops, partly returns, and stays changed even where aim has
   recovered; it does not track the aim deficit. ITI LATERAL: nothing anywhere (first lick: -43 % at full recovery).
   FAR CONTRA: step +78 % cued / +100 % ITI, recovery -75 / -77 % (returning), aim slope +73 / +58 % -> far-contra maps
   scale with the aim deficit. ITI close contra / ipsi: aim slope -86 / -84 %, change at full recovery +93 / +91 %.
-  Caveats: sessions as observations (fixed effects), serial correlation not modelled, slow drift can read as recovery.
-- (10-28 ~03:20) 5f (non-linear decoder + behaviour-only decoder from FaceRhythm unblanked + non-target kinematics)
+  Caveats: sessions as observations (fixed effects), serial correlation not modeled, slow drift can read as recovery.
+- (10-28 ~03:20) 5f (non-linear decoder + behavior-only decoder from FaceRhythm unblanked + non-target kinematics)
   helper started.
 - (10-28 ~03:00) 5e merged (0fa918d7; scripts/lick_session_pixel_lmm.py) and running (run_5e.sh, 1000 permutations,
-  ~20 min). Per-pixel TIME model (animal + post + post x log days) and BEHAVIOUR model (animal + post + post x
+  ~20 min). Per-pixel TIME model (animal + post + post x log days) and BEHAVIOR model (animal + post + post x
   first-lick aim deficit) on the per-session level maps; t per pixel, TFCE, FWER via max |TFCE| (shared _fwer);
   dashed = + >= 3 animals' own coefficient same sign. 20-permutation preview: cued lateral step negative over 91 % of
   cortex, recovery positive (returning) 65 %; ITI lateral: no term significant (all licks); per-animal agreement with the
@@ -119,14 +119,14 @@ NOT done without Priya: deleting v1 `sessions/`, `roi_v2_backup_20261027/`, `sup
   animals; uniform cortex-wide part -0.10 / -0.03 / -0.29 deg, i.e. ~0); 4/4 positive every ITI epoch (PS92 2.5 / 3.5 /
   1.9, PS93 1.8 / 0.5 / 1.0, PS94 7.1 / 4.5 / 5.8, PS95 11.3 / 3.6 / 5.3); cued +2.6 acute (4/4), +1.2 subacute, ~0
   chronic. REACH: read SHORTER, mostly patterned, cued subacute -0.28 mm (4/4), chronic -0.15 (4/4); ITI small. The
-  uniform part being ~0 matches the lateral result: no global-gain artefact in the angle offset either.
+  uniform part being ~0 matches the lateral result: no global-gain artifact in the angle offset either.
 - (10-28 ~00:45) 5c-ter first run FAILED at its last step: the held-out comparison read a pattern-stats column that 4b
   renamed (frac_sig_max -> frac_sig = FWER). Reader fixed to accept both (5b217bce); levels_z rerunning (run_5c_levels.sh).
 - (10-28 ~00:30) 4b merged (b7af100d) + running (run_4b.sh, ~30-45 min). (i) FIRST-LICK weighted aim (WFIELD_AIM, default
   first; all-lick tagged _aimall). Per animal chronic - pre, all-lick -> first-lick: PS92 -0.5 -> -2.2, PS93 -3.0 ->
   -6.7, PS94 -5.7 -> -11.8, PS95 -2.4 -> -4.3 deg; deficit left after acute 4/39/27/15 % -> 14/54/48/24 %; ranking
   unchanged (PS92 > PS95 > PS93 > PS94). Mixed model: day-1 -19.7 deg, +4.0 per e-fold; epochs -17.8 / -9.5 / -6.2.
-  BEHAVIOUR MODEL CHANGES (deficit was far-contra time-to-contact in mixed_models, now first-lick aim): key-ROI response
+  BEHAVIOR MODEL CHANGES (deficit was far-contra time-to-contact in mixed_models, now first-lick aim): key-ROI response
   at deficit 0 0.36 (p 1e-4) -> 0.05 n.s.; ITI lateral offset 0.25 -> 0.19 (still sig); cued lateral offset -0.01 n.s.
   -> -0.11 (p < 1e-4); cued lateral r -0.08 -> 0.005 n.s. Recovery link (offset vs first-lick aim, within animal, time
   removed): r -0.53, p 0.0002, 4/4 negative (far-contra angle gave -0.54). (ii) map stats = permutation FWER max-stat
@@ -196,7 +196,7 @@ NOT done without Priya: deleting v1 `sessions/`, `roi_v2_backup_20261027/`, `sup
 ## 10-28 morning (Priya reviewing the page)
 - Page v147-v150: key-figure sidebar label; 10.3 legend moved (the frozen decoder IS the right column); 10.5 x = far-contra
   FIRST-lick aim + pooled column (in-trial +0.63 4/4 p 0.0002, detrended +0.21 p 0.09; ITI +0.06; hit-rate / weighted-aim
-  sensitivities in recovery_marker_beh_compare.csv); 10.7 / 10.8 pooled pre-normalised column; 12.1 short y label;
+  sensitivities in recovery_marker_beh_compare.csv); 10.7 / 10.8 pooled pre-normalized column; 12.1 short y label;
   12.2 Gaussian-smoothed curves (sigma 0.1 mm, solid = 4 animals, dashed = 3; dropouts = PS93 ipsi end, PS94 contra end
   post-stroke = no landings there), tests unchanged (verified identical); 12.15 panel titles say what 'covered' means.
 - DELETED (Priya "ok to all"): iti_licks/sessions/ (v1, 107 npz, 1.4 GB), superseded_split_20261027/ (153 MB).

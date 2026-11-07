@@ -123,8 +123,8 @@ def figure(T: pd.DataFrame, names: list[str], out: Path, set_name: str, factors)
         frf.save(fig, out / "drift_floor.png", """
 All-animals-pooled factor fits (`fitcohort`, equal rows per animal; filled point = the all-animals fit +- jackknife SE over
 animals, open markers = the four leave-one-animal-out fits, shape = the animal left out; DESCRIPTIVE -- the per-session
-tests are the main tests, 11-07). Grey: NOISE = angle between fits of interleaved pre days (A vs B); DRIFT = angle
-between fits of the first and second half of the pre days in time (noise + slow change). Coloured: each epoch's fit vs
+tests are the main tests, 11-07). Gray: NOISE = angle between fits of interleaved pre days (A vs B); DRIFT = angle
+between fits of the first and second half of the pre days in time (noise + slow change). Colored: each epoch's fit vs
 the LATER pre half. Dashed = the drift value: a change above it is more than the face drifts over ~two pre-stroke weeks.
 Right: loading asymmetry (cam4 contralesional = image left), epoch - late pre; dashed +- the late - early pre change.""")
 

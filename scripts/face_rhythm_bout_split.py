@@ -16,7 +16,7 @@ ipsi) / (contra + ipsi). Window summaries: PRE -0.5 .. -0.1 s and POST 0 .. +0.5
 
     python scripts/face_rhythm_bout_split.py [--set master_pre_v1] [--jobs 4] [--plot-only]
 -> ``<dlc>/face_rhythm/cam4/readouts/<set>/asym_aligned/bout_split/``: bout_split.png (animal-mean traces; rows =
-positions, columns = classes, epochs in the FR epoch colours), bout_split_pre_window.png (per-animal PRE-window asymmetry), data/
+positions, columns = classes, epochs in the FR epoch colors), bout_split_pre_window.png (per-animal PRE-window asymmetry), data/
 bout_split_traces.npz (cache; ``--plot-only`` redraws from it), bout_split_windows.csv (per animal x epoch x class x
 position: pre / post asymmetry, n events).
 """
@@ -268,11 +268,11 @@ pre-onset window {PRE_WIN[0]:+g}..{PRE_WIN[1]:+g} s. > 0 = more contralesional (
     fig.tight_layout()
     frf.save(fig, out / "bout_split_pre_window.png", """Pre-onset window asymmetry, -0.5..-0.1 s before bout
 onset. Faded open markers: the SESSIONS (per-session pre-window asymmetry of its own traces, split-video halves averaged;
-shape = animal, colour = epoch, seeded jitter). Filled marker + bar: the LEVEL, nested animals -> sessions bootstrap
-(`analysis_kit.boot_ci`) point and 95 % interval, in the epoch colour (pre, acute, subacute, chronic left to right
+shape = animal, color = epoch, seeded jitter). Filled marker + bar: the LEVEL, nested animals -> sessions bootstrap
+(`analysis_kit.boot_ci`) point and 95 % interval, in the epoch color (pre, acute, subacute, chronic left to right
 within each bout class; no bars, no line joins classes or epochs, Priya 11-03). Panels in the canonical spout order close
 ipsi, close mid, close contra, far ipsi, far mid, far contra (the animal's L spouts ipsilesional, R contralesional; all
-lesions left). Top band, epoch colour: * = the interval excludes 0 (data/bout_split_pre_window_stats.csv). Per-animal
+lesions left). Top band, epoch color: * = the interval excludes 0 (data/bout_split_pre_window_stats.csv). Per-animal
 epoch means: bout_split_windows.csv.""")
     plt.close(fig)
     print(f"-> {out}")
