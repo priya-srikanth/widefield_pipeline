@@ -8,9 +8,14 @@ sessions bootstrap, 95 %). Dots = sessions, coloured by animal. A cell needs >= 
                               `orofacial_cohort` angle_tuning, which is per animal)
   angle_change_pooled_contra.png  the same signed + = CONTRALESIONAL (goal-page convention, Priya 10-30); re-seeded,
                               so every number is the + = ipsi one negated. `--angle-only` draws just these two.
-  pose3d_change_pooled.png    3-D per-session medians (`pose3d_kinematics` sessions.csv): midline error toward ipsi,
+  pose3d_change_pooled.png    3-D per-session medians (`sessions3d`): midline error toward ipsi,
                               miss distance, reach, peak speed, widest jaw opening, by position x epoch; jaw FAR_DIR /
-                              CLOSE_DIR
+                              CLOSE_DIR. Also pose3d_days_pooled (`fig_days`). LICK / TRIAL GATE (Priya 11-07, A20 gap):
+                              the per-session medians are RE-MADE over camera-working-period licks / jaw trials
+                              (`pose3d_summary_fig.gated_sessions` on the kinematics licks / jaw_trials snapshot ->
+                              `trial_classes.gate_kin_licks`), written beside the figures as pose3d_sessions.csv; before
+                              11-07 this read the UNGATED kinematics/sessions.csv (10-23), which is now read only
+                              under ``WFIELD_KIN_GATE=legacy`` (outputs then go to the _legacygate folder)
   pose3d_paths_pooled.png     3-D tongue / jaw paths through the lick (front / side / top views), cohort pre path +
                               mean over animals of each session's change from its animal's pre path (twin of the
                               per-animal `pose3d_phase` trajectories3d)
@@ -155,9 +160,32 @@ def fig_angle(out: Path, rng, contra: bool = False, save: bool = True) -> pd.Dat
     return P
 
 
+_S3D: dict = {}
+
+
+def sessions3d() -> pd.DataFrame:
+    """The 3-D per-session medians behind `fig_3d` / `fig_days` (one row per session; ``<measure>|<position>`` columns +
+    jaw FAR_DIR / CLOSE_DIR), under THE kinematics gate (A20, Priya 11-07: the pooled-table gap). "working" (default):
+    re-made from the kinematics licks / jaw trials snapshot through `trial_classes.gate_kin_licks` with the same
+    per-session medians as `pose3d_kinematics._session_result` (`pose3d_summary_fig.gated_sessions`), so no session is
+    recomputed; a session with no camera classes contributes nothing. ``WFIELD_KIN_GATE=legacy``: the ungated 10-23
+    kinematics/sessions.csv, as before. Memoised per gate (the gate is read once per figure set)."""
+    tc = _tc()
+    g = tc.kin_gate()
+    if g not in _S3D:
+        d3 = pose3d_dir()
+        if g == "working":
+            from scripts.pose3d_summary_fig import gated_sessions
+            _S3D[g] = gated_sessions(pd.read_csv(d3 / "kinematics" / "licks.csv.gz", dtype={"date": str}),
+                                     pd.read_csv(d3 / "kinematics" / "jaw_trials.csv.gz", dtype={"date": str}))
+        else:
+            _S3D[g] = pd.read_csv(d3 / "kinematics" / "sessions.csv", dtype={"date": str})
+    return _S3D[g].copy()
+
+
 def fig_3d(out: Path, rng, contra: bool = False) -> pd.DataFrame:
     import matplotlib.pyplot as plt
-    S = pd.read_csv(pose3d_dir() / "kinematics" / "sessions.csv")
+    S = sessions3d()
     meas = [("midline_err_ipsi", "midline error\n(deg; + = contra)" if contra else "midline error\n(deg; + = ipsi)"), ("miss_mm", "closest approach\nto spout (mm)"),
             ("reach_mm", "reach from\nmouth zero (mm)"), ("speed_peak", "peak tongue\nspeed (mm/s)"),
             ("open_max_mm", "widest jaw\nopening (mm)")]
@@ -434,7 +462,7 @@ def fig_days(out: Path, contra: bool = False) -> pd.DataFrame:
     import matplotlib.pyplot as plt
     from matplotlib.lines import Line2D
     from wfield_local.epochs import days_since_stroke
-    S = pd.read_csv(pose3d_dir() / "kinematics" / "sessions.csv")
+    S = sessions3d()
     S["day"] = [days_since_stroke(f"{a}_{str(d)[-4:]}") for a, d in zip(S.animal, S.date)]
     aug = _is_aug_pre(S)
     meas = [("midline_err_ipsi", f"midline error (deg; + = {'contra' if contra else 'ipsi'})"),
@@ -661,6 +689,7 @@ def main(argv=None) -> int:
         return 0
     B = fig_3d(out, rng)
     B.to_csv(out / "pose3d_change_pooled.csv", index=False)
+    sessions3d().to_csv(out / "pose3d_sessions.csv", index=False)     # the gated per-session table read
     C = fig_cue(out)
     C.to_csv(out / "pose3d_cue_pooled.csv", index=False)
     D = fig_paths3d(out)
