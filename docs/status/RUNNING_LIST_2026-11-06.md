@@ -89,6 +89,13 @@ the encoding handoff (STATUS_2026-10-26_ENCODING_HANDOFF.md, top blocks); the A1
   FDR (q .099); jaw far_R acute -2.42 -> -1.85. Cued ramp + c2l RESTnl still QUEUED (deps). Proposed: split acute pre-cue
   maps by lick class. Report scratchpad/compare_lick_20261107.md.
 
+- **A13 (11-07 ~15:45, OPEN)** Figure epoch-colour convention audit (scratchpad/epoch_colour_audit.md): 27 producers, 8 OK /
+  6 partial / 13 no. Proposed: shared day-axis helper (open markers, shape = animal, colour = epoch, no lines) for 11
+  producers; small fixes for the 6 partial + import EPOCH_LINE instead of private palettes; model-comparison line figures
+  (frozen_fr_compare.epoch_lines / bars, ~15 encoding figs incl. Fig 0.1/0.7) need Priya: (a) keep pooled-model lines +
+  add epoch-coloured session dots, or (b) strict no lines. Also 11-07: Priya -- UNSCALED where-decoder primary (z = supplementary);
+  Fig 10.2 text committed d3d4834b (docs/fig10-2-sagittal, not pushed); queue v9zb = unscaled recovery-link (16.3-16.5).
+
 ## B. Notable findings / result changes (nothing on pages or decks changed yet)
 
 1. **A27 cam4 cohort on the camera working period: no headline change.** 294 cells, same sessions; 0 sign flips in a significant
