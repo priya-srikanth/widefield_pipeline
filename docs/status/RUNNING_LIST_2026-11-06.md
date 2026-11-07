@@ -47,6 +47,13 @@ the encoding handoff (STATUS_2026-10-26_ENCODING_HANDOFF.md, top blocks); the A1
    their claims back -> relaunch from copies with that rule; running steps are not touched). Risk: two big steps at once (~20 GB
    peak each) -- 4 + 20 + light stays under the box; the 10 GB pause and the RAM log stay on. Or leave it as is.
 
+8. (~09:35) **A6 stopped-trial traces wired (fix/stopped-traces-camera-20261107, e79afbf9; 380 tests pass) -- OK to push? And
+   one meaning change to confirm:** under the camera gate "working" misses = production INCOMPLETE trials only (trial_classes);
+   isolated no-response / jaw-only trials inside the working period, which the DAQ rule counted as working, become "other". So
+   the contrast becomes "licked but missed" vs stopped (was "no lick while engaged" vs stopped). PS92_0819 (acute): DAQ working
+   108 / stopped 138 -> camera working 69 / stopped 120 / other 57. Follows the approved definitions; confirm the comparison is
+   still what you want (alternative: working = incomplete + isolated no-response / jaw-only inside the working period).
+
 ## B. Notable findings / result changes (nothing on pages or decks changed yet)
 
 1. **A27 cam4 cohort on the camera working period: no headline change.** 294 cells, same sessions; 0 sign flips in a significant
@@ -127,3 +134,9 @@ the encoding handoff (STATUS_2026-10-26_ENCODING_HANDOFF.md, top blocks); the A1
   reading the ungated 10-23 sessions.csv; ungated rebuild reproduces that file for all 119 sessions x 38 columns (max rel diff
   4.9e-4 = %.4g rounding) -> NO 119-session recompute; re-run only k_pooled. Affects Fig 7.5, Fig 9.6, 3-D rows of section 3/5/7
   tables. 31 tests pass. Push needs Priya's OK.
+- 09:12 A5 LP no-video fix ON MAIN 72729126 -> queue v9w (LP restnl maps / lpfinal / map drift) running. 09:20 A3 pooled 3-D
+  gate ON MAIN 96f77156 -> queue v9x k_pooled_r running. 09:23-09:30 A7 RESTART done: HALT -> 16 waiting lanes returned their
+  claims; 11 orphaned dep-wait claims released; 19 lanes relaunched from queue_daqlk*_a7.sh (third heavy slot HEAVY3 beside a
+  low-RAM main holder = section G, XL mutex so two partial refits never overlap, a_partial_ls / b_partial_frA now --jobs 4;
+  A7MIN=35) + 3 slot-2 lanes (S2MIN=35). Running steps untouched. HEAVY3 waits until >= 35 GB free (31 GB at 09:30 while the
+  17 GB LP restnl map step runs).

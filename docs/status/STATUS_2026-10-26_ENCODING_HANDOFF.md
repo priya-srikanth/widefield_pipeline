@@ -74,6 +74,11 @@ evening with A7 (~Mon without). Then the replacement pass: provenance merge (CON
 OROFACIAL_FINDINGS A27 numbers, kinematics section 6 text, recovery-timing text, REST-column numbers (8 sessions back), slide 102,
 decks (a8) -- about a day.
 
+**Update 09:35:** A5 on main 72729126 (v9w), A3 on main 96f77156 (v9x k_pooled_r), A7 RESTART DONE 09:23-09:30: lanes now run
+from scratchpad/render_daqlk/queue_daqlk{7b,8,8b,8c,8d,8f,9r,9s,9u,9w}_a7.sh (A7 block: a7_try -> HEAVY.lock, or HEAVY3.lock when
+the main holder is in LOWRAM_HOLDERS="g5_section_g" and >= A7MIN GB; XL.lock for XL_STEPS partial refits; heavy_release frees
+both) with A7MIN=35; slot-2 lanes from queue_daqlk8_s2.sh with S2MIN=35. Pre-restart lane list: lanes_before_A7.txt. The
+original queue files are untouched. A6 fix ready (e79afbf9) -- push + meaning-change question to Priya (running list A8).
 **Next actions (in order):** (1) A5 push lands -> queue: g5_restnl_maps_lp, g5_lpfinal_maps, g5_map_drift_lp re-run on the new
 main; (2) A7 coordinated restart (HALT -> waiting lanes return claims -> relaunch from copies with BIG allowed in slot 2 when the
 main holder is low-RAM and >= 30 GB available); (3) A3 / A6 helpers report -> review, ask Priya to push, queue their re-runs;
