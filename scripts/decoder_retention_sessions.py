@@ -5,11 +5,14 @@ pre). Retention = (P - 1/6) / (the animal's pre-stroke hit mean - 1/6): 1 = as w
 hits, 0 = chance. Per SESSION and class (hits = pre_hit + hit; failed attempts = incomplete) with >= MIN_TRIALS trials;
 windows pre-cue (ENL), cue and lick. August pre only.
 
-Figures (<E>/attempt_coding/figures/): decoder_retention_sessions.png (retention vs days from stroke) and
+Figures (<E>/attempt_coding/figures/): decoder_retention_sessions.png (retention vs days from stroke; rows = class) and
 decoder_retention_pooled.png (pooled per epoch, one dot per session; numbers = change vs pre-stroke hits on session values,
 `analysis_kit.boot_delta`, animals -> sessions; failed attempts have no pre-stroke counterpart, so their change is against
 pre hits). Cells with too few trials per session (acute hits, ~4 per session) also show each animal's retention over ALL
 its trials of the cell (hollow diamonds), which are not part of the test.
+EPOCH-COLOR CONVENTION (PI decision A13, Priya 11-07): every session point is an OPEN marker, shape = animal, color =
+epoch; no line joins sessions; the epoch summary is a filled dot in the epoch color +- SEM over animals (each animal's
+sessions averaged first). Trial class is told apart by panel row (days figure) or x offset (pooled figure).
 HIT-GATED MINIMUM (Priya 11-07, A11): in the pooled-by-epoch figure a HIT cell (code on hits) needs
 >= analysis_kit.MIN_HITS = 20 hit trials summed over the animal x epoch's sessions (and a hollow hit diamond >= 20 hits);
 below it the animal is named "n.a. (<20 hits)" and left out of the mean and the test. Failed attempts are not hit-gated.
@@ -31,8 +34,7 @@ A = _ac.out_dir()   # the writer's folder under the run mode (review N1 / N10)
 AN = ["PS92", "PS93", "PS94", "PS95"]
 EP = ["pre", "acute", "subacute", "chronic"]
 WIN = [("precue", "pre-cue (ENL)"), ("cue", "cue window"), ("lick", "lick window")]
-MK = {"PS92": "o", "PS93": "s", "PS94": "^", "PS95": "D"}
-CLS = [("hit", "hits", "#2c3e50"), ("failed", "failed attempts", "#c0392b")]
+CLS = [("hit", "hits", "#2c3e50"), ("failed", "failed attempts", "#c0392b")]   # colours unused since 11-07 (A13)
 MIN_TRIALS = 5
 
 
@@ -66,6 +68,7 @@ def main() -> int:
     from matplotlib.lines import Line2D
 
     from wfield_local import analysis_kit as ak
+    from wfield_local import cat_points as cp
     T = load()
     S = (T.groupby(["window", "animal", "epoch", "cls2", "label"])
          .agg(day=("day", "first"), ret=("ret", "mean"), p_true=("p_true", "mean"), n=("ret", "size")).reset_index())
@@ -82,34 +85,31 @@ def main() -> int:
           .reindex(columns=EP, level=0).to_string())
 
     def legend(fig, extra=()):
-        h = [Line2D([], [], marker="o", ls="", mfc=c, mec=c, label=lab) for _k, lab, c in CLS]
-        h += [Line2D([], [], marker=MK[a], ls="", mfc="w", mec="k", label=a) for a in AN] + list(extra)
-        fig.legend(handles=h, loc="lower center", ncol=len(h), fontsize=8.5, frameon=False)
+        h = cp.legend_handles(AN, EP) + list(extra)
+        fig.legend(handles=h, loc="lower center", ncol=int(np.ceil(len(h) / 2)), fontsize=8.5, frameon=False)
 
-    # FIG 1: retention vs days from stroke
-    fig, axs = plt.subplots(1, 3, figsize=(17, 4.6), sharey=True)
-    for k, (w, wl) in enumerate(WIN):
-        ax = axs[k]
-        ax.axvspan(S.day.min() - 2, 0, color="0.93", lw=0, zorder=0)
-        ax.axhline(0, color="k", lw=0.6)
-        ax.axhline(1, color="0.5", lw=0.8, ls="--")
-        for c, _lab, col in CLS:
-            for an in AN:
-                v = S[(S.window == w) & (S.cls2 == c) & (S.animal == an)].sort_values("day")
-                if len(v):
-                    ax.plot(v.day, v.ret, color=col, lw=0.6, alpha=0.35)
-                    ax.scatter(v.day, v.ret, marker=MK[an], s=26, facecolor=col if c == "hit" else "w", edgecolor=col, lw=1.1,
-                               zorder=5)
-        ax.set_title(wl, fontsize=10)
-        ax.set_xlabel("days from stroke (gray = pre-stroke)")
-        for s_ in ("top", "right"):
-            ax.spines[s_].set_visible(False)
-        if k == 0:
-            ax.set_ylabel("far-contra code retained\n(P(true) - 1/6) / (pre-stroke hits - 1/6)")
+    # FIG 1: retention vs days from stroke; rows = trial class (colour is the epoch's, A13)
+    fig, axs = plt.subplots(len(CLS), 3, figsize=(17, 7.6), sharey=True, sharex=True, squeeze=False)
+    for r_, (c, clab, _col) in enumerate(CLS):
+        for k, (w, wl) in enumerate(WIN):
+            ax = axs[r_, k]
+            ax.axvline(0, color="0.6", lw=0.7, ls=":")
+            ax.axhline(0, color="k", lw=0.6)
+            ax.axhline(1, color="0.5", lw=0.8, ls="--")
+            v = S[(S.window == w) & (S.cls2 == c)]
+            cp.day_dots(ax, v.day, v.ret, v.animal, v.epoch)
+            ax.set_title(f"{clab}, {wl}", fontsize=10)
+            if r_ == len(CLS) - 1:
+                ax.set_xlabel("days from stroke")
+            for s_ in ("top", "right"):
+                ax.spines[s_].set_visible(False)
+            if k == 0:
+                ax.set_ylabel(f"{clab}: far-contra code retained\n(P(true) - 1/6) / (pre-stroke hits - 1/6)", fontsize=9)
     legend(fig)
     fig.suptitle(f"NEURAL: frozen pre-stroke decoder on far-contra trials, PER SESSION (>= {MIN_TRIALS} trials of the class); 1 = the "
-                 "animal's pre-stroke hits, 0 = chance (dashed = 1)", fontsize=10)
-    fig.tight_layout(rect=(0, 0.07, 1, 0.93))
+                 "animal's pre-stroke hits, 0 = chance (dashed = 1).\nOpen markers = sessions (shape = animal, color = "
+                 "epoch); filled = epoch mean +- SEM over animals", fontsize=10)
+    fig.tight_layout(rect=(0, 0.08, 1, 0.93))
     save_png_svg(fig, out / "decoder_retention_sessions.png", dpi=120)
     plt.close(fig)
 
@@ -117,6 +117,7 @@ def main() -> int:
     xo = {"hit": -0.18, "failed": 0.18}
     rows = []
     fig, axs = plt.subplots(1, 3, figsize=(17, 5.0), sharey=True)
+    allv = [-1.0, 2.0]                                    # the y range keeps every plotted value (A13: no clipping)
     for k, (w, wl) in enumerate(WIN):
         ax = axs[k]
         ax.axhline(0, color="k", lw=0.6)
@@ -125,28 +126,30 @@ def main() -> int:
                for an in AN}
         ref = {an: v for an, v in ref.items() if len(v)}
         for i, ep in enumerate(EP):
-            for c, _lab, col in CLS:
+            for c, _lab, _col in CLS:
                 xx = i + xo[c]
                 v = S[(S.window == w) & (S.epoch == ep) & (S.cls2 == c)]
                 by = {an: _cell(v[v.animal == an], c) for an in AN if (v.animal == an).any()}
                 na = [an for an, b in by.items() if not len(b)]
                 by = {an: b for an, b in by.items() if len(b)}
                 if na:                                  # hit cell below MIN_HITS summed hits: named, not plotted / tested
-                    ax.text(xx, -0.98, ak.HIT_GATE_NA + "\n" + "/".join(na), ha="center", va="bottom", fontsize=5.5,
-                            color=col)
+                    ax.text(xx, 0.01, ak.HIT_GATE_NA + "\n" + "/".join(na), ha="center", va="bottom", fontsize=5.5,
+                            color=cp.epoch_color(ep), transform=ax.get_xaxis_transform())   # axes bottom, any y range
                 for j, an in enumerate(AN):
                     if an in by:
                         xs = xx + (j - 1.5) * 0.04 + np.random.default_rng(10 * i + j).uniform(-0.015, 0.015, len(by[an]))
-                        ax.scatter(xs, by[an], marker=MK[an], s=18, facecolor=col if c == "hit" else "w", edgecolor=col, lw=1.0,
-                                   zorder=4)
-                if len(by) >= 2:
-                    ax.plot([xx - 0.15, xx + 0.15], [np.mean([b.mean() for b in by.values()])] * 2, color=col, lw=2.2, zorder=5)
+                        ax.plot(xs, by[an], ls="none", marker=cp.animal_marker(an), ms=4, mfc="none",
+                                mec=cp.epoch_color(ep), mew=0.9, alpha=0.8, zorder=4)
+                        allv += list(by[an])
+                if len(by) >= 2:                        # epoch summary: filled dot +- SEM over animals (A13)
+                    cp.epoch_mean_sem(ax, xx, [b.mean() for b in by.values()], ep)
                 else:                                   # too few sessions: each animal's retention over all its trials
                     aa = Aall[(Aall.window == w) & (Aall.epoch == ep) & (Aall.cls2 == c)
                               & (Aall.n >= (ak.MIN_HITS if c == "hit" else 3))]   # hits: the hit-gated minimum
                     for _, r in aa.iterrows():
                         ax.scatter(xx + (AN.index(r.animal) - 1.5) * 0.04, r.ret, marker="D", s=40, facecolor="none",
-                                   edgecolor=col, lw=1.2, zorder=4)
+                                   edgecolor=cp.epoch_color(ep), lw=1.2, zorder=4)
+                        allv.append(r.ret)
                 com = [an for an in by if an in ref]
                 if ep != "pre" and len(com) >= 2:
                     iv = ak.boot_delta({an: by[an] for an in com}, {an: ref[an] for an in com}, np.random.default_rng(0))
@@ -154,24 +157,28 @@ def main() -> int:
                         rows.append({"window": w, "epoch": ep, "class": c, "delta": iv.point, "lo": iv.lo, "hi": iv.hi,
                                      "animals": "/".join(com), "n_sessions": sum(len(by[an]) for an in com)})
                         sig = iv.lo > 0 or iv.hi < 0
-                        ax.text(xx, 2.18, f"{iv.point:+.2f}\n[{iv.lo:+.2f},\n{iv.hi:+.2f}]", ha="center", va="top", fontsize=6.5,
-                                color=col, fontweight="bold" if sig else "normal")
-        ax.set_xticks(range(4)); ax.set_xticklabels(EP); ax.set_ylim(-1.0, 2.2)
+                        ax.text(xx, 0.995, f"{iv.point:+.2f}\n[{iv.lo:+.2f},\n{iv.hi:+.2f}]", ha="center", va="top",
+                                fontsize=6.5, color=cp.epoch_color(ep), fontweight="bold" if sig else "normal",
+                                transform=ax.get_xaxis_transform())
+        ax.set_xticks(range(4)); ax.set_xticklabels([f"{e}\nhits | failed" for e in EP])
         ax.set_title(wl, fontsize=10)
         for s_ in ("top", "right"):
             ax.spines[s_].set_visible(False)
         if k == 0:
             ax.set_ylabel("far-contra code retained\n(1 = pre-stroke hits, 0 = chance)")
+    lo_, hi_ = float(np.nanmin(allv)), float(np.nanmax(allv))  # every point inside; top 22 % kept for the numbers
+    pad = 0.05 * (hi_ - lo_)
+    axs[0].set_ylim(lo_ - pad, hi_ + pad + (hi_ - lo_ + 2 * pad) * 0.22 / 0.78)
     R = pd.DataFrame(rows)
     R.to_csv(A / "decoder_retention_pooled.csv", index=False)
     print("== change vs pre-stroke hits (session values, nested bootstrap animals > sessions)\n" + R.round(3).to_string(index=False))
-    legend(fig, [Line2D([], [], color="0.3", lw=2.2, label="mean of animals"),
-                 Line2D([], [], marker="D", ls="", mfc="none", mec="0.3", label="animal, all trials (too few per session)")])
-    fig.suptitle(f"NEURAL: frozen-decoder far-contra retention pooled per epoch, one dot per SESSION (>= {MIN_TRIALS} trials; a hit "
-                 f"cell needs >= {ak.MIN_HITS} hits per animal x epoch, else {ak.HIT_GATE_NA}). Numbers = "
+    legend(fig, [Line2D([], [], marker="D", ls="", mfc="none", mec="0.3", label="animal, all trials (too few per session)")])
+    fig.suptitle(f"NEURAL: frozen-decoder far-contra retention pooled per epoch, one dot per SESSION (>= {MIN_TRIALS} trials; left of each "
+                 f"epoch = hits, right = failed attempts; a hit cell needs >= {ak.MIN_HITS} hits per animal x epoch, else "
+                 f"{ak.HIT_GATE_NA}). Numbers = "
                  "change vs pre-stroke hits,\n95% nested CI (animals > sessions; bold = excludes 0); failed attempts have no pre-stroke "
                  "counterpart", fontsize=10)
-    fig.tight_layout(rect=(0, 0.07, 1, 0.9))
+    fig.tight_layout(rect=(0, 0.12, 1, 0.9))
     save_png_svg(fig, out / "decoder_retention_pooled.png", dpi=120)
     plt.close(fig)
     print(f"-> {out}")

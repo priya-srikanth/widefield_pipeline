@@ -210,6 +210,40 @@ def compute() -> dict:
     return {"T": T, "M": M, "tr": _traces(C), "pos": list(lo.POS)}
 
 
+def _sessions_table(F: dict):
+    """The per-session table behind the AUC figures (for the session dots; A13): F["S"] when the figure data carry it,
+    else <OUT_W>/lateral_ratio_sessions.csv written by `compute`; None if neither exists (dots then skipped)."""
+    if F.get("S") is not None:
+        return F["S"]
+    f = il.OUT_W / "lateral_ratio_sessions.csv"
+    return pd.read_csv(f) if f.exists() else None
+
+
+def _session_values(S, st: str, a: str, v: str, p: str, pos) -> pd.DataFrame:
+    """Per session (animal, epoch, y) for one AUC cell, built exactly like `compute`'s test rows: a spout row as is;
+    "all" / a ring = the session's mean over its spouts (of the ring); empty when S is None."""
+    if S is None:
+        return pd.DataFrame(columns=["animal", "epoch", "y"])
+    g = S[(S.set == st) & (S.pair == a)].dropna(subset=[v]).rename(columns={v: "y"})
+    if p in ("all", *RINGS):
+        h = g[g.spout.isin(pos)]
+        if p != "all":
+            h = h[h.spout.str.startswith(p.split("_")[1])]
+        return h.groupby(["label", "animal", "epoch"]).y.mean().reset_index()
+    return g[g.spout == p][["animal", "epoch", "y"]]
+
+
+def _dots(ax, d: pd.DataFrame, x: float, ep: str, seed: int, sub=None) -> None:
+    """Session dots at x: OPEN markers, shape = animal, colour = epoch (A13, Priya 11-07). `sub` = per-animal value
+    subtracted (the rings' change vs pre)."""
+    from wfield_local import cat_points as cp
+    q = d[d.epoch == ep]
+    if q.empty:
+        return
+    y = q.y.to_numpy(float) - (q.animal.map(sub).to_numpy(float) if sub is not None else 0.0)
+    cp.session_dots(ax, x, y, q.animal, cp.epoch_color(ep), jitter=0.035, seed=seed, ms=3.0, alpha=0.5)
+
+
 def plot(F: dict) -> None:
     import matplotlib
     matplotlib.use("Agg")
@@ -251,7 +285,10 @@ def plot(F: dict) -> None:
         fig.tight_layout(rect=(0, 0.04, 1, 0.93))
         save_png_svg(fig, out / f"lick_lateral_ratio_traces_{st}.png", dpi=95)
         plt.close(fig)
-    # AUC summary: rows = sets, columns = pairs; x = spouts, one marker per epoch
+    # AUC summary: rows = sets, columns = pairs; x = spouts, one marker per epoch (+ the session dots, A13 11-07)
+    from wfield_local import cat_points as cp
+    from wfield_local.sig_marks import reserve_headroom, star_top
+    S = _sessions_table(F)
     for w0, w1 in WINDOWS:
         v, wl = f"logr_{w0:g}-{w1:g}", f"{w0:g}..{w1:g} s"
         fig, axs = plt.subplots(len(SETS), len(PAIRS), figsize=(26, 12.5), squeeze=False)
@@ -263,12 +300,14 @@ def plot(F: dict) -> None:
                 for k, ep in enumerate(il.EP4):
                     q = t[t.epoch == ep].set_index("spout").reindex(xs)
                     x = np.arange(len(xs)) + (k - 1.5) * 0.17
-                    ax.errorbar(x, q.level, yerr=q.level_se, fmt="o", color=col[ep], ms=4.5, capsize=1.5, lw=1)
+                    for xx, p_ in zip(x, xs):
+                        _dots(ax, _session_values(S, st, a, v, p_, pos), xx, ep, seed=k)
+                    cp.summary_point(ax, x, q.level.to_numpy(float), q.level_se.to_numpy(float), col[ep], ms=4.5,
+                                     capsize=1.5)
                     if ep != "pre":
                         for xx, (_s, row) in zip(x, q.iterrows()):
-                            if row.get("sig") is True:
-                                ax.text(xx, row.level + (row.level_se if np.isfinite(row.level_se) else 0), "*",
-                                        color=col[ep], ha="center", va="bottom", fontsize=11, fontweight="bold")
+                            if row.get("sig") is True:                 # top band (Priya 10-30)
+                                star_top(ax, xx, "*", col[ep], row=k - 1, fontsize=10)
                 ax.axhline(0, color="0.6", lw=0.7, ls="--")
                 ax.axvline(len(pos) - 0.5, color="0.85", lw=0.8)
                 ax.set_xticks(range(len(xs)), [s.replace("_", "\n") for s in xs], fontsize=7.5)
@@ -280,11 +319,14 @@ def plot(F: dict) -> None:
                              f"{pz['spout x epoch']:.2g}; epoch p = {pz['epoch (all spouts)']:.2g}", fontsize=8.5)
                 if c == 0:
                     ax.set_ylabel(f"{SETS[st][3]}\nlog2(contra AUC / ipsi AUC), {wl}\n(0 = equal; +1 = contra 2x)", fontsize=8)
-        fig.legend(handles=[Line2D([], [], color=col[e], marker="o", lw=0, label=e) for e in il.EP4], loc="lower center",
-                   ncol=4, fontsize=9.5, frameon=False)
+        fig.legend(handles=cp.legend_handles(sorted(S.animal.unique()) if S is not None else [], il.EP4,
+                                             epoch_label="{e}: mean +- SEM over animals"), loc="lower center",
+                   ncol=8, fontsize=9.5, frameon=False)
+        reserve_headroom(fig)
         fig.suptitle(f"NEURAL: contralesional / ipsilesional response ratio per spout and epoch: log2 of the AUC ratio {wl} "
-                     "(per session, spouts with >= 5 licks), mean +- SEM over animals; 'all' = each session's mean over spouts.\n"
-                     "* = change vs pre at that spout, 95% paired nested bootstrap CI excludes 0. Titles: mixed models (random "
+                     "(per session, spouts with >= 5 licks), mean +- SEM over animals; 'all' = each session's mean over spouts; "
+                     "open = sessions (shape = animal, colour = epoch).\n"
+                     "* (top, one row per post epoch) = change vs pre at that spout, 95% paired nested bootstrap CI excludes 0. Titles: mixed models (random "
                      "intercept per animal, ML, likelihood ratio): (1) spout effect in PRE sessions; (2) spout x epoch "
                      "interaction; epoch main effect. PROVISIONAL", fontsize=9.5)
         fig.tight_layout(rect=(0, 0.04, 1, 0.93))
@@ -383,7 +425,10 @@ def plot_rings(F: dict) -> None:
     from matplotlib.lines import Line2D
 
     from wfield_local.orofacial_cohort import EPOCH_LINE as col
+    from wfield_local.sig_marks import star_top
     T, M = F["T"], F["M"]
+    S = _sessions_table(F)
+    pos = F["pos"]
     for w0, w1 in WINDOWS:
         v = f"logr_{w0:g}-{w1:g}"
         fig, axs = plt.subplots(len(SETS), len(PAIRS), figsize=(21, 11), sharey="row", squeeze=False)
@@ -394,14 +439,17 @@ def plot_rings(F: dict) -> None:
                 for k, ep in enumerate(EP):
                     q = t[t.epoch == ep].set_index("spout").reindex(RINGS)
                     x = np.arange(len(RINGS)) + (k - 1) * 0.18
+                    for xx, rg in zip(x, RINGS):              # session dots: change vs the animal's pre mean (A13)
+                        dv = _session_values(S, st, a, v, rg, pos)
+                        base = dv[dv.epoch == "pre"].groupby("animal").y.mean()
+                        _dots(ax, dv, xx, ep, seed=k, sub=base)
                     ax.errorbar(x, q.delta, yerr=[q.delta - q.lo, q.hi - q.delta], fmt="none", ecolor=col[ep], capsize=2)
                     sg = q.sig.fillna(False).astype(bool).to_numpy()
                     ax.plot(x[sg], q.delta[sg], "o", color=col[ep], ms=6, zorder=3)
                     ax.plot(x[~sg], q.delta[~sg], "o", mec=col[ep], mfc="white", ms=6, zorder=3)
-                    for xx, (_s, row) in zip(x, q.iterrows()):   # * = change vs pre, CI excludes 0
+                    for xx, (_s, row) in zip(x, q.iterrows()):   # * = change vs pre, CI excludes 0 (top band)
                         if row.get("sig") is True:
-                            ax.text(xx, row.hi, "*", color=col[ep], ha="center", va="bottom", fontsize=12,
-                                    fontweight="bold")
+                            star_top(ax, xx, "*", col[ep], row=1, fontsize=11)
                 # far minus close per epoch (session difference, paired nested bootstrap vs pre)
                 dd = t[(t.spout == "ring_diff")].set_index("epoch")
                 txt = []
@@ -417,8 +465,6 @@ def plot_rings(F: dict) -> None:
                 ax.axhline(0, color="0.6", lw=0.7, ls="--")
                 ax.set_xticks(range(len(RINGS)), ["close ring\n(3 spouts)", "far ring\n(3 spouts)"])
                 ax.set_xlim(-0.6, 1.6)
-                lo_, hi_ = ax.get_ylim()
-                ax.set_ylim(lo_, hi_ + 0.18 * (hi_ - lo_))
                 for sp in ("top", "right"):
                     ax.spines[sp].set_visible(False)
                 m = M[(M.set == st) & (M.pair == a) & (M.window == v)].set_index("test")
@@ -429,9 +475,14 @@ def plot_rings(F: dict) -> None:
                              fontsize=9)
                 if c == 0:
                     ax.set_ylabel(f"{SETS[st][3]}\nchange in log2(contra / ipsi), {w0:g}..{w1:g} s", fontsize=8)
-        fig.legend(handles=[Line2D([], [], color=col[e], marker="o", lw=0, label=e) for e in EP]
+            # ONCE per shared-y row (it was per axes, which compounded the headroom five times): top band = text + stars
+            lo_, hi_ = axs[r, 0].get_ylim()
+            axs[r, 0].set_ylim(lo_, hi_ + 0.30 * (hi_ - lo_))
+        from wfield_local import cat_points as cp
+        fig.legend(handles=cp.animal_handles(sorted(S.animal.unique()) if S is not None else [])
+                   + [Line2D([], [], color=col[e], marker="o", lw=0, label=e) for e in EP]
                    + [Line2D([], [], color="0.4", marker="o", mfc="white", lw=0, label="hollow = CI includes 0")],
-                   loc="lower center", ncol=4, fontsize=9.5, frameon=False)
+                   loc="lower center", ncol=8, fontsize=9.5, frameon=False)
         fig.suptitle(f"Contra / ipsi ratio, CLOSE vs FAR ring: change vs pre of log2(contra / ipsi AUC {w0:g}..{w1:g} s), "
                      "each session's mean over the ring's three spouts (ipsi, mid, contra); mean of animals, 95% paired "
                      "nested bootstrap CI.\nTitles: mixed model on per-spout rows, y ~ spout + epoch * far vs y ~ spout + "

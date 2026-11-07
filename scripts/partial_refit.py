@@ -451,30 +451,26 @@ def summarise(run: Path, out: Path) -> None:
     Bs.to_csv(out / "boot_by_spout.csv", index=False)
     print("== by spout, SSp-m contra, chronic\n" + Bs[(Bs.area == "SSp-m_right") & (Bs.epoch == "chronic")]
           [["q", "window", "spout", "point", "lo", "hi", "n_up", "n"]].round(4).to_string(index=False))
-    cols = dict(zip(VARIANTS, ["#e41a1c", "#377eb8", "#4daf4a", "#984ea3", "#ff7f00", "#a65628", "#f781bf", "#66c2a5", "#999999",
-                               "#bdd7e7"]))
-    cols.update({"target - null": "#b2182b", "exec - null": "#6baed6", "exec - target": "#2166ac",
-                 "lickspout - target": "#8c510a"})
-    if TE:
-        cols = dict(zip(VARIANTS, ["#e41a1c", "#fb9a99", "#b2182b", "#377eb8", "#1f78b4", "#4daf4a", "#984ea3", "#999999",
-                                   "#cccccc", "#9ecae1", "#c6dbef"]))
-        cols.update({"target - null": "#b2182b", "target lick - null": "#e7298a", "landing lick - null": "#2166ac",
-                     "execution - null": "#6baed6", "landing lick - target lick": "#8c510a",
-                     "execution - target": "#01665e"})
+    # THE shared model palette (cat_points.MODEL_COLORS, Priya 11-07: never an epoch / animal / class colour), in
+    # VARIANTS order (bars past the 7th cycle the palette and are hatched by ffc.bars); the contrasts drawn as lines
+    from wfield_local import cat_points as cp
+    cols = {v: cp.model_color(i) for i, v in enumerate(VARIANTS)}
+    con = (("target - null", "exec - null", "exec - target", "lickspout - target") if not TE else
+           ("target - null", "execution - null", "target lick - null", "landing lick - null",
+            "landing lick - target lick", "execution - target"))
+    cols.update({q: cp.model_color(i) for i, q in enumerate(con)})
     ffc.COL.update(cols)
     (out / "figures").mkdir(exist_ok=True)
     for w in ffc.WINDOWS:
         fig, (ax, ax2) = plt.subplots(2, 1, figsize=(15, 8.6))
         ffc.bars(ax, B[B.window == w], [v for v in VARIANTS if (B.q == v).any()], AREAS, "R2 gain over frozen, epoch - pre",
-                 "refit ONLY one set (legend); grays / light blues = the label-shuffled nulls" if TE else
-                 "refit ONLY: red = target, blue = executed position, green = executed + FR side / distance, purple = "
-                 "target + executed, orange = target + executed + FR, gray = target with shuffled labels (null)")
+                 "refit ONLY one set (legend; the label-shuffled nulls are the *_perm / *_shuf sets)")
         ax.legend(fontsize=8, frameon=False, loc="upper left", bbox_to_anchor=(1.0, 1.0))
         ffc.bars(ax2, B[B.window == w], [v for v in CONTRASTS if (B.q == v).any()], AREAS, "difference of gains, epoch - pre",
                  "CONTRASTS (legend): each set minus its label-shuffled null; landing vs target-labeled lick kernels; "
                  "execution vs target" if TE else
-                 "CONTRASTS: dark red = target minus its shuffled-label null; light blue = executed minus its shuffled-"
-                 "label null; dark blue = executed minus target (whose refit helps more)")
+                 "CONTRASTS (legend): target and executed each minus its shuffled-label null; executed minus target "
+                 "(whose refit helps more)")
         ax2.legend(fontsize=8, frameon=False, loc="upper left", bbox_to_anchor=(1.0, 1.0))
         fig.suptitle(f"NEURAL: PARTIAL REFIT, {w} window: one group refit per session (cross-validated), all else frozen;\n"
                      f"{model_label(run)}\ngain in held-out R2 over the frozen model, as a change from pre "

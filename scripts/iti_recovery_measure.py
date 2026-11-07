@@ -175,25 +175,29 @@ def plot(S: pd.DataFrame, aim: str = AIM) -> None:
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
-    fig, axs = plt.subplots(1, 2, figsize=(13, 4.6))
+    from wfield_local import cat_points as cp
+    fig, axs = plt.subplots(1, 2, figsize=(14.5, 4.6))
     for k, (val, lab) in enumerate((("weighted_signed", "weighted SIGNED angle offset from own pre (deg; - = ipsi)"),
                                     ("far_contra_signed", "far-contra signed angle offset (deg; - = ipsilesional)"))):
         ax = axs[k]
-        for j, a in enumerate(AN):
-            g = S[S.animal == a].sort_values("day")
-            ax.plot(g.day, g[val], "o-", ms=3, lw=1, color=plt.get_cmap("tab10")(j), label=a)
+        # EPOCH-COLOUR CONVENTION (A13, Priya 11-07; was: tab10 animal colours joined by lines): open point per
+        # session, shape = animal, colour = epoch, no line; filled = epoch mean +- SEM over animals
+        cp.day_dots(ax, S.day, S[val], S.animal, S.epoch)
         ax.axvline(0, color="k", lw=0.7, ls="--")
         ax.axhline(0, color="0.7", lw=0.6, ls=":")
         ax.set_xlabel("day after stroke")
         ax.set_ylabel(lab, fontsize=9)
         for s_ in ("top", "right"):
             ax.spines[s_].set_visible(False)
-    axs[0].legend(fontsize=8, frameon=False)
+    axs[1].legend(handles=cp.legend_handles(AN, [e for e in cp.EPOCH_ORDER if (S.epoch == e).any()],
+                                            sessions_label="{a}", epoch_label="{e}: mean +- SEM"),
+                  fontsize=8, frameon=False, loc="upper left", bbox_to_anchor=(1.01, 1.0))
     which = ("FIRST post-cue lick of each trial (PRIMARY)" if aim == "first" else
              "ALL cued licks (sensitivity; the primary is the first lick)")
     fig.suptitle(f"BEHAVIOR: recovery measure -- {which}: angle offset from the animal's own pre landing at the target "
-                 "spout,\nweighted far contra 3 : far mid 2 : others 1 (left), and far contra signed (right). One dot per "
-                 "session; pre sessions (left of the dashed line) = the noise floor. PROVISIONAL", fontsize=9.5)
+                 "spout,\nweighted far contra 3 : far mid 2 : others 1 (left), and far contra signed (right).\nOne dot per "
+                 "session (open; shape = animal, color = epoch; filled = epoch mean +- SEM over animals); pre sessions (left of the "
+                 "dashed line) = the noise floor. PROVISIONAL", fontsize=9.5)
     fig.tight_layout(rect=(0, 0, 1, 0.88))
     save_png_svg(fig, il.OUT / "figures" / f"lick_cued_recovery_measure{'' if aim == 'first' else '_aimall'}.png", dpi=100)
     plt.close(fig)

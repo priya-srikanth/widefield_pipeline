@@ -2,7 +2,8 @@
 normalized within-animal normalized cross-animal session pooled version of fig 2 (and anything else that needs a pooled
 fig)"). Every value is a SESSION minus ITS ANIMAL's August pre mean; the bold estimate is the mean over animals of each
 animal's mean change (animals weighted equally) and the interval is `analysis_kit.boot_delta` (paired animals ->
-sessions bootstrap, 95 %). Dots = sessions, colored by animal. A cell needs >= 3 animals to be drawn with an interval.
+sessions bootstrap, 95 %). Dots = sessions: OPEN markers, shape = animal, color = epoch (PI decision A13, Priya 11-07;
+they were filled and colored by animal). A cell needs >= 3 animals to be drawn with an interval.
 
   angle_change_pooled.png     cam4 executed peak angle (+ = ipsi), change by position x epoch  (pooled twin of
                               `orofacial_cohort` angle_tuning, which is per animal)
@@ -50,8 +51,11 @@ EPOCHS = ("acute", "subacute", "chronic")
 POS_CAM4 = ("close_ipsi", "close_mid", "close_contra", "far_ipsi", "far_mid", "far_contra")
 POS_3D = ("close_L", "close_center", "close_R", "far_L", "far_center", "far_R")    # L = ipsi, R = contra
 POS_LABEL = dict(zip(POS_3D, POS_CAM4))
-ACOL = {"PS92": "#1b9e77", "PS93": "#d95f02", "PS94": "#7570b3", "PS95": "#e7298a"}
-ECOL = {"acute": "#c51b7d", "subacute": "#b8860b", "chronic": "#01665e"}
+#: THE epoch palette (orofacial_cohort.EPOCH_LINE; A13, Priya 11-07: the private copy had drifted, acute #c51b7d).
+#: The private animal colour dict is gone (config rule 3): animals are told apart by marker SHAPE.
+from wfield_local.orofacial_cohort import EPOCH_LINE as _EPOCH_LINE  # noqa: E402
+
+ECOL = {e: _EPOCH_LINE[e] for e in EPOCHS}
 V36 = "lp_r4_heatmap_20261013__clean_v36"
 
 
@@ -106,11 +110,15 @@ def _sessions_minus_pre(df: pd.DataFrame, col: str, group: str) -> pd.DataFrame:
 
 
 def _panel(ax, d: pd.DataFrame, P: pd.DataFrame, g, ylabel: str | None, rng):
+    from wfield_local.cat_points import animal_marker
     for k, e in enumerate(EPOCHS):
         s = d[(d.epoch == e)]
         for a in ANIMALS:
             v = s[s.animal == a].chg.dropna()
-            ax.scatter(k + rng.uniform(-0.18, 0.18, len(v)), v, s=7, color=ACOL[a], alpha=0.5, lw=0)
+            # the jitter draw comes from the SHARED rng the bootstrap also uses: drawn exactly as before (same call,
+            # same size, same order), or every later interval in the figure set would move
+            xj = k + rng.uniform(-0.18, 0.18, len(v))
+            ax.plot(xj, v, ls="none", marker=animal_marker(a), ms=3.2, mfc="none", mec=ECOL[e], mew=0.7, alpha=0.6)
         r = P[(P.group == g) & (P.epoch == e)]
         if len(r) and np.isfinite(r.est.iloc[0]):
             est, lo, hi = r.est.iloc[0], r.lo.iloc[0], r.hi.iloc[0]
@@ -126,7 +134,9 @@ def _panel(ax, d: pd.DataFrame, P: pd.DataFrame, g, ylabel: str | None, rng):
 
 def _legend(fig):
     from matplotlib.lines import Line2D
-    h = [Line2D([], [], marker="o", ls="", color=ACOL[a], label=a) for a in ANIMALS]
+
+    from wfield_local import cat_points as cp
+    h = cp.animal_handles(ANIMALS)
     h += [Line2D([], [], marker="o", ls="-", color=ECOL[e], label=f"{e}: animal-weighted mean, 95 % CI") for e in EPOCHS]
     fig.legend(handles=h, loc="lower center", ncol=7, fontsize=7, frameon=False)
 
@@ -362,7 +372,7 @@ def fig_paths3d(out: Path, shared: bool = False, contra: bool = False) -> pd.Dat
              ("side", "out", "TOP: side (+ = contra) x out" if contra else "TOP: side (+ = ipsi) x out"))
     fig, axs = plt.subplots(3, 6, figsize=((11.5, 10.2) if contra else (11.5, 9.4)) if shared else ((16, 9.2) if contra else (16, 8.4)), sharex="row" if shared else False,
                             sharey="row" if shared else False)
-    col = {"pre": "#222222", **ECOL}
+    col = {"pre": _EPOCH_LINE["pre"], **ECOL}
     for j, p in enumerate(POS_3D):
         for i, (a, b, lab) in enumerate(views):
             ax = axs[i, j]
@@ -430,12 +440,14 @@ DAY_BINS = ((1, 3), (4, 7), (8, 14), (15, 21), (22, 35), (36, 70))
 
 
 def _draw_days(ax, S, aug, col, key, rows, sg: float = 1.0):
+    """Sessions over days (A13, Priya 11-07): open markers, shape = animal, color = epoch, no line; filled = epoch mean
+    +- SEM over animals. The day-bin table (rows -> pose3d_days_pooled.csv) is computed exactly as before; it is no
+    longer drawn as a black line across the bins."""
+    from wfield_local import cat_points as cp
     base = S[aug].groupby("animal")[col].mean()
     d = S[S.day.notna()].assign(chg=(S[col] - S.animal.map(base)) * sg)          # sg: plot-level sign (--contra)
     d = d[(d.day > 0) | aug]
-    for a in ANIMALS:
-        q = d[d.animal == a]
-        ax.scatter(q.day, q.chg, s=8, color=ACOL[a], alpha=0.55, lw=0)
+    cp.day_dots(ax, d.day, d.chg, d.animal, d.epoch, ms=2.8, summary_ms=4.5)
     xs, ms, ss = [], [], []
     for lo, hi in DAY_BINS:
         per = d[(d.day >= lo) & (d.day <= hi)].groupby("animal").chg.mean().dropna()
@@ -447,9 +459,6 @@ def _draw_days(ax, S, aug, col, key, rows, sg: float = 1.0):
             xs.append((lo + hi) / 2)
             ms.append(per.mean())
             ss.append(per.std() / np.sqrt(len(per)))
-    xs, ms, ss = np.asarray(xs), np.asarray(ms), np.asarray(ss)
-    ax.plot(xs, ms, color="k", lw=1.6)
-    ax.fill_between(xs, ms - ss, ms + ss, color="k", alpha=0.15, lw=0)
     ax.axhline(0, color="0.6", lw=0.8)
     ax.axvline(0, color="0.8", lw=0.8)
     ax.tick_params(labelsize=6.5)
@@ -457,10 +466,10 @@ def _draw_days(ax, S, aug, col, key, rows, sg: float = 1.0):
 
 def fig_days(out: Path, contra: bool = False) -> pd.DataFrame:
     """POOLED twin of the per-animal 3-D summaries (`pose3d_summary_fig`): every session's change from ITS animal's
-    August pre mean against days from that animal's stroke, all animals on one axis (dots colored by animal); line =
-    mean over animals of each animal's mean change within day bins (>= 3 animals), band = SEM over animals."""
+    August pre mean against days from that animal's stroke, all animals on one axis (open markers, shape = animal,
+    color = epoch); filled = epoch mean +- SEM over animals. The day-bin means (>= 3 animals, SEM over animals) are
+    still computed and written (pose3d_days_pooled.csv), not drawn."""
     import matplotlib.pyplot as plt
-    from matplotlib.lines import Line2D
     from wfield_local.epochs import days_since_stroke
     S = sessions3d()
     S["day"] = [days_since_stroke(f"{a}_{str(d)[-4:]}") for a, d in zip(S.animal, S.date)]
@@ -490,11 +499,12 @@ def fig_days(out: Path, contra: bool = False) -> pd.DataFrame:
         axs[-1, j].set_xlabel("days from stroke (left of 0 = August pre)", fontsize=7)
     for j in range(2, 6):
         axs[-1, j].axis("off")
-    fig.legend(handles=[Line2D([], [], marker="o", ls="", color=ACOL[a], label=a) for a in ANIMALS]
-               + [Line2D([], [], color="k", label="mean over animals of within-animal bin means (+- SEM)")],
-               loc="lower right", ncol=5, fontsize=7, frameon=False)
+    from wfield_local import cat_points as cp
+    fig.legend(handles=cp.legend_handles(ANIMALS, ("pre",) + EPOCHS, sessions_label="{a}",
+                                         epoch_label="{e}: mean +- SEM over animals"),
+               loc="lower right", bbox_to_anchor=(0.98, 0.02), ncol=2, fontsize=8, frameon=False)
     fig.suptitle("3-D measures over days, POOLED within animal: each session minus its animal's August pre mean; "
-                 "day bins 1-3, 4-7, 8-14, 15-21, 22-35, 36-70"
+                 "open = sessions (shape = animal, color = epoch), filled = epoch mean +- SEM over animals; day-bin means (1-3 .. 36-70) in pose3d_days_pooled.csv"
                  + ("; midline error (and the center spouts' lateral error) signed + = CONTRALESIONAL" if contra else ""),
                  fontsize=10)
     fig.tight_layout(rect=(0, 0.02, 1, 0.97))

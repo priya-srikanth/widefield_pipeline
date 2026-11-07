@@ -168,24 +168,23 @@ def fig_behaviour_timecourse(out_dir):
     # boundaries would be the one lying about them.
     bounds = {a: (s_["acute"][1], s_["subacute_from"], s_.get("chronic_from"))
               for a in epochs.EPOCH_SPEC for s_ in [epochs.spec_for(a)] if s_}
-    # ONE PANEL PER ANIMAL, six positions overlaid (Priya, 2026-09-08). The epochs are per-animal,
-    # so the per-POSITION layout had to draw all four animals' boundaries on every axes -- eight
-    # vertical lines belonging to no particular trace. Per animal, a shaded span means that
-    # animal's acute period and the recovery can be read straight off it.
+    # ONE PANEL PER POSITION since 2026-11-07 (PI decision A13, epoch-colour convention). From
+    # 09-08 to 11-07 it was one panel per animal with the six positions overlaid, because a
+    # per-position panel had to draw all four animals' boundaries as lines; now each point is
+    # coloured by ITS animal's epoch, so the per-animal boundaries ride on the colour instead.
     return ef.timecourse_by_animal(
         per_day, out_dir, name="epoch_1c_behaviour_timecourse",
         title="Hit rate and licks/trial by spout position over days since lesion, "
-              "one panel per animal",
+              "all animals pooled",
         subtitle=ef.stats_line(counts, notes=[
-            (f"shaded = that animal's acute period ({epochs.ACUTE_RULE}); subacute is simply "
-             f"everything after it, so the shading's right edge marks that onset. dashed = "
-             f"its first chronic day where one exists ({epochs.CHRONIC_RULE}) -- only PS92 "
-             "has stabilized, so only PS92 carries a dashed line"),
+            (f"open markers = sessions, shape = animal, color = that animal's epoch (acute: "
+             f"{epochs.ACUTE_RULE}; subacute is everything after it; chronic: {epochs.CHRONIC_RULE}); "
+             "filled = epoch mean +- SEM over animals; no lines across days"),
             "ENGAGED TRIALS ONLY (the `hit_rate` column, hits_engaged / trials_engaged): the "
             "gate is judged at the reference positions and backdated to the start of the run "
             "of misses that trips it, so far misses after a lesion stay in as the deficit "
             "rather than being deleted as disengagement",
-            "color = spout position (hue = side, lighter = far); pre = that animal's whole "
+            "columns = spout position; pre = that animal's whole "
             "pre-stroke baseline as one point, hits and trials summed -- the same number figure "
             "1b's pre bar plots, and the one the acute rule is measured against"]),
         # LONG names in the LEGEND: "Ipsi" appearing twice would not say which distance it is.

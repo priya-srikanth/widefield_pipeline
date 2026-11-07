@@ -203,7 +203,8 @@ def main(argv=None) -> int:
 
     # FIGURE 1: group bars
     gl = ["orofacial contra", "orofacial ipsi", "control", "orofacial - control"]
-    ffc.COL.update({"residual_z": "#d95f02"})
+    from wfield_local.cat_points import MODEL_COLORS as _MC      # the shared model palette (Priya 11-07)
+    ffc.COL.update({"residual_z": _MC[2]})
     nx = has_split + l2_split                            # extra panels: residual by ROI, Layer 2 by ROI
     fig, axs = plt.subplots(3 + nx, 1, figsize=(13, 11 + 3.6 * nx))
     for ax, w in zip(axs[:2], WINDOWS):
@@ -214,12 +215,12 @@ def main(argv=None) -> int:
     LBp = LB.copy()
     LBp["frame"] = "layer2"
     LBp["epoch"] = LBp.epoch.replace({"pre_late_split": "pre_split"})
-    ffc.COL["layer2"] = "#1b9e77"
+    ffc.COL["layer2"] = _MC[0]
     ffc.bars(axs[2], LBp, ["layer2"], gl, "change_ref minus pre_late (R2)",
              "LAYER 2: mapping change beyond pre-stroke drift, by area group")
     if has_split:
         ffc.ALAB.update({x: esr.side_label(x) for x in SR})
-        ffc.COL.update({"cue": "#e6ab02", "lick": "#d95f02"})
+        ffc.COL.update({"cue": _MC[1], "lick": _MC[2]})
         ffc.bars(axs[3], BS, list(WINDOWS), SR, "change from pre (pre-SD units)",
                  "RESIDUAL by ROI: MOp, tjM1, MOp_rest, MOs, ALM, MOs_rest (ROI v8 on the stat mask; ALM / tjM1 / rests from "
                  "the frozen run's basis twin)")

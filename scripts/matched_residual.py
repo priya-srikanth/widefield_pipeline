@@ -133,7 +133,8 @@ def main(argv=None) -> int:
           [["frame", "window", "area", "epoch", "point", "lo", "hi", "n_up", "n"]].round(2).to_string(index=False))
     sels = ["all trials", "3-D tracked", "inside envelope"]
     ffc.ALAB.update({"MOs_right": "MOs contra", "MOs_left": "MOs ipsi"})
-    ffc.COL.update(dict(zip(sels, ["#999999", "#66a61e", "#d95f02"])))
+    from wfield_local.cat_points import MODEL_COLORS as _MC      # the shared model palette (Priya 11-07)
+    ffc.COL.update(dict(zip(sels, [_MC[5], _MC[0], _MC[2]])))
     fig, axs = plt.subplots(2, 1, figsize=(15, 8.5))
     for ax, w in zip(axs, ffc.WINDOWS):
         ffc.bars(ax, Bt[Bt.window == w], sels, AREAS, "residual change from pre (x1e3 dF/F)",

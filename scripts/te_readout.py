@@ -27,8 +27,10 @@ AREAS = ["SSp-m_right", "SSp-m_left", "MOp_right", "MOp_left", "cortex"]
 UNIQUE = {"target": "no_target", "execution": "no_execution", "contact": "no_contact", "task": "no_task",
           "movement": "no_movement"}
 ALONE = {"target alone": "target_only", "execution alone": "execution_only"}
-SERIES = [("target", "target (unique)", "#b2182b"), ("execution", "execution (unique)", "#2166ac"),
-          ("contact", "contact (unique)", "#999999"), ("execution - target", "execution minus target", "#01665e")]
+from wfield_local.cat_points import MODEL_COLORS as MC  # noqa: E402 - the shared model palette (Priya 11-07)
+
+SERIES = [("target", "target (unique)", MC[2]), ("execution", "execution (unique)", MC[0]),
+          ("contact", "contact (unique)", MC[5]), ("execution - target", "execution minus target", MC[1])]
 
 
 def table(run: Path, measure: str) -> pd.DataFrame:

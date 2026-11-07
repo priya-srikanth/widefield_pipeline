@@ -22,6 +22,7 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import frozen_fr_compare as ffc  # noqa: E402
+from wfield_local.cat_points import MODEL_COLORS as MC  # noqa: E402 - the shared model palette (Priya 11-07)
 from fr_musall import E  # noqa: E402
 
 AREAS = ["SSp-m_right", "SSp-m_left", "MOp_right", "MOp_left", "cortex"]
@@ -83,17 +84,17 @@ def main() -> int:
                                                                       "lick kernels by LANDING": "lickspout"}),
                    unique_table(_design_tag("gate-attempted_v7g3_t3d_frA_ls"), {"target | target split": "target",
                                                                   "lick kernels by TARGET": "lickspout"})])
-    figure(plt, T, [("target | landing split", "target (lick kernels split by landing)", "#b2182b"),
-                    ("lick kernels by LANDING", "lick kernels split by 3-D landing", "#2166ac"),
-                    ("target | target split", "target (lick kernels split by target spout)", "#f4a582"),
-                    ("lick kernels by TARGET", "lick kernels split by target spout", "#92c5de")],
+    figure(plt, T, [("target | landing split", "target (lick kernels split by landing)", MC[2]),
+                    ("lick kernels by LANDING", "lick kernels split by 3-D landing", MC[0]),
+                    ("target | target split", "target (lick kernels split by target spout)", MC[4]),
+                    ("lick kernels by TARGET", "lick kernels split by target spout", MC[1])],
            "NEURAL: target vs per-spout lick kernels in the FROZEN pre-stroke model -- lick kernels assigned by where each lick "
            "LANDED (dark) or by the trial's TARGET spout (light).\nUnique R2 (joint minus the model without the group), change "
            "from pre within animal; line = mean of animals, band = 95% nested CI.", "unique R2, change from pre",
            OUT / "contest_landing_vs_target.png")
     T = unique_table(_design_tag("gate-attempted_v7g3_t3d_frA_frlag"), {"cortex leads": "frcortexlead", "face leads": "frfacelead"})
-    figure(plt, T, [("cortex leads", "cortex leads face (future-face FaceRhythm columns)", "#7b3294"),
-                    ("face leads", "face leads cortex (past-face FaceRhythm columns)", "#008837")],
+    figure(plt, T, [("cortex leads", "cortex leads face (future-face FaceRhythm columns)", MC[0]),
+                    ("face leads", "face leads cortex (past-face FaceRhythm columns)", MC[1])],
            "NEURAL: lagged FaceRhythm in the FROZEN model -- unique R2 of the lead (+0.1..0.3 s) vs lag (-0.1..-0.3 s) face "
            "columns, change from pre.\nPre-stroke 'face leads' dominates (calcium lag), so only the CHANGE is read.",
            "unique R2, change from pre", OUT / "contest_fr_lags.png")
@@ -101,10 +102,10 @@ def main() -> int:
                    remap_table(_design_tag("gate-attempted_v7g3_t3d_frA_ls"), {"target | with lick kernels": "target",
                                                                   "lick kernels": "lickspout",
                                                                   "spout group (target + executed + lick kernels)": "spout"})])
-    figure(plt, T, [("target | no lick kernels", "target, design without per-spout lick kernels", "#f4a582"),
-                    ("target | with lick kernels", "target, design WITH per-spout lick kernels", "#b2182b"),
-                    ("lick kernels", "per-spout lick kernels", "#2166ac"),
-                    ("spout group (target + executed + lick kernels)", "whole spout group", "#4d4d4d")],
+    figure(plt, T, [("target | no lick kernels", "target, design without per-spout lick kernels", MC[4]),
+                    ("target | with lick kernels", "target, design WITH per-spout lick kernels", MC[2]),
+                    ("lick kernels", "per-spout lick kernels", MC[0]),
+                    ("spout group (target + executed + lick kernels)", "whole spout group", MC[5])],
            "NEURAL: REMAPPING index from per-session self-fits (self-fit unique minus frozen unique), change from pre.\n"
            "With per-spout lick kernels in the design the target's remapping roughly halves and the lick kernels show none, "
            "while the whole spout group stays remapped.", "remapping index, change from pre",

@@ -15,6 +15,9 @@ resampled within the animal. Session dots (figures 2-4) need >= MIN_SESS trials 
 
 Figures (<E>/attempt_coding_pp/figures/): coupling_cls_animals.png (page 4i), coupling_cls_sessions.png (4i2),
 coupling_cls_pooled.png (4i3), coupling_cls_pooled_norm.png (4i4).
+EPOCH-COLOR CONVENTION (PI decision A13, Priya 11-07): animal / session points are OPEN markers, shape = animal, color
+= epoch; no line joins sessions; trial class is told apart by x offset (left = hits, right = failed) or panel row; epoch
+summaries are filled dots in the epoch color +- SEM over animals; numbers sit in the top band.
 Usage: python scripts/coupling_by_class.py
 """
 from __future__ import annotations
@@ -38,9 +41,7 @@ from wfield_local import run_mode as _rmode  # noqa: E402
 D = _rmode.routed_output(E / "attempt_coding_pp", make=False, guard=False, lp_family=True)
 AN = ["PS92", "PS93", "PS94", "PS95"]
 EP = ["pre", "acute", "subacute", "chronic"]
-MK = {"PS92": "o", "PS93": "s", "PS94": "^", "PS95": "D"}
-ACOL = {"PS92": "#1b9e77", "PS93": "#d95f02", "PS94": "#7570b3", "PS95": "#e7298a"}
-CLS = [("hit", "hits (contact)", "#2c3e50"), ("failed", "failed attempts (no contact)", "#c0392b")]
+CLS = [("hit", "hits (contact)", "#2c3e50"), ("failed", "failed attempts (no contact)", "#c0392b")]  # colours unused (A13)
 MIN_SESS = 10
 N_BOOT = 2000
 
@@ -118,10 +119,9 @@ def main() -> int:
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
-    from matplotlib.lines import Line2D
 
     from wfield_local import analysis_kit as ak
-    from wfield_local.sig_marks import sig_star
+    from wfield_local import cat_points as cp
     data = load()
     pd.set_option("display.width", 220)
     lev, tst, ses = [], [], []
@@ -171,78 +171,92 @@ def main() -> int:
     out.mkdir(parents=True, exist_ok=True)
     xo = {"hit": -0.18, "failed": 0.18}
 
-    def legend(fig, extra=()):
-        h = [Line2D([], [], marker="o", ls="", mfc=col, mec=col, label=lab) for _c, lab, col in CLS]
-        h += [Line2D([], [], marker=MK[a], ls="", mfc="w", mec="k", label=a) for a in AN] + list(extra)
-        fig.legend(handles=h, loc="lower center", ncol=len(h), fontsize=8, frameon=False)
+    def legend(fig, extra=(), epoch_label="{e}: mean +- SEM over animals"):
+        h = cp.legend_handles(AN, EP, sessions_label="{a}", epoch_label=epoch_label) + list(extra)
+        fig.legend(handles=h, loc="lower center", ncol=int(np.ceil(len(h) / 2)), fontsize=8, frameon=False)
 
     def delta_text(ax, kind, ep, c, y, animal="ALL"):
+        """The change-vs-pre numbers in the TOP BAND (y = axes fraction), in the epoch color."""
         r = Tt[(Tt.exec == kind) & (Tt.animal == animal) & (Tt.epoch == ep) & (Tt["class"] == c)]
         if len(r):
             r = r.iloc[0]
             sig = r.lo > 0 or r.hi < 0
             ax.text(ep_x[ep] + xo[c], y, f"{r.point:+.2f}\n[{r.lo:+.2f},\n{r.hi:+.2f}]", ha="center", va="top", fontsize=6.5,
-                    color=dict((k, col) for k, _l, col in CLS)[c], fontweight="bold" if sig else "normal")
+                    color=cp.epoch_color(ep), fontweight="bold" if sig else "normal", transform=ax.get_xaxis_transform())
+
+    def top_band(axs_, vals, frac=0.24):
+        """One y range over the shared axes: every plotted value inside, the top `frac` free for the numbers."""
+        v = np.asarray([u for u in vals if np.isfinite(u)], float)
+        lo_, hi_ = float(v.min()), float(v.max())
+        pad = 0.05 * (hi_ - lo_)
+        axs_[0].set_ylim(lo_ - pad, hi_ + pad + (hi_ - lo_ + 2 * pad) * frac / (1 - frac))
+
+    def class_ticks(ax):
+        ax.set_xticks(range(4)); ax.set_xticklabels([f"{e}\nhits | failed" for e in EP])
 
     ep_x = {e: i for i, e in enumerate(EP)}
 
     # FIG A (4i): per animal x epoch x class; bar = pooled r of all animals; numbers = change vs pre hits
     fig, axs = plt.subplots(1, 2, figsize=(13, 4.9), sharey=True)
+    vals = [-0.45, 1.0, 0.0]
     for k, kind in enumerate(data):
         ax = axs[k]
         ax.axhline(0, color="k", lw=0.6)
         for ep in EP:
-            for c, _lab, col in CLS:
+            for c, _lab, _col in CLS:
                 a = L[(L.exec == kind) & (L.epoch == ep) & (L["class"] == c)]
                 if not len(a):
                     continue
                 xx = ep_x[ep] + xo[c]
                 al = a[a.animal == "ALL"]
                 if len(al):
-                    ax.bar(xx, al.r.iloc[0], width=0.32, color=col, alpha=0.25)
+                    ax.bar(xx, al.r.iloc[0], width=0.32, color=cp.epoch_color(ep), alpha=0.25)
+                    vals.append(al.r.iloc[0])
                 for j, an in enumerate(AN):
                     v = a[a.animal == an]
                     if len(v) and v.n.iloc[0] >= 10:
-                        ax.scatter(xx + (j - 1.5) * 0.05, v.r.iloc[0], marker=MK[an], s=30, facecolor=col if c == "hit" else "w",
-                                   edgecolor=col, lw=1.2, zorder=5)
-                delta_text(ax, kind, ep, c, 0.98)
-        ax.set_xticks(range(4)); ax.set_xticklabels(EP); ax.set_ylim(-0.45, 1.0)
+                        ax.plot([xx + (j - 1.5) * 0.05], [v.r.iloc[0]], ls="none", marker=cp.animal_marker(an), ms=5.5,
+                                mfc="none", mec=cp.epoch_color(ep), mew=1.2, zorder=5)
+                        vals.append(v.r.iloc[0])
+                delta_text(ax, kind, ep, c, 0.995)
+        class_ticks(ax)
         ax.set_title(f"executed = {kind}", fontsize=10)
         for s_ in ("top", "right"):
             ax.spines[s_].set_visible(False)
         if k == 0:
             ax.set_ylabel("within-session r: neural (fM - fC)\nvs executed (fM - fC)")
-    legend(fig, [plt.Rectangle((0, 0), 1, 1, color="0.6", alpha=0.3, label="all animals pooled")])
-    fig.suptitle("Trial-by-trial coupling on far-contra trials BY TRIAL CLASS (dots = animals with >= 10 trials; bar = all animals "
-                 "pooled). Numbers = change vs PRE-STROKE HITS,\n95% nested CI (animals > sessions; bold = excludes 0). Pre-stroke "
-                 "trials are hits only: failed attempts have no class-matched pre reference", fontsize=9.5)
-    fig.tight_layout(rect=(0, 0.07, 1, 0.9))
+    top_band(axs, vals)
+    legend(fig, [plt.Rectangle((0, 0), 1, 1, color="0.6", alpha=0.3, label="bar = all animals pooled (epoch color)")],
+           epoch_label="{e}")
+    fig.suptitle("Trial-by-trial coupling on far-contra trials BY TRIAL CLASS (open markers = animals with >= 10 trials, color = "
+                 "epoch;\nleft = hits, right = failed attempts; bar = all animals "
+                 "pooled). Numbers = change vs PRE-STROKE HITS, 95% nested CI (animals > sessions; bold = excludes 0).\n"
+                 "Pre-stroke trials are hits only: failed attempts have no class-matched pre reference", fontsize=9.5)
+    fig.tight_layout(rect=(0, 0.12, 1, 0.86))
     save_png_svg(fig, out / "coupling_cls_animals.png", dpi=125)
     plt.close(fig)
 
     # FIG B (4i2): per session vs day, by class
-    fig, axs = plt.subplots(1, 2, figsize=(14, 4.6), sharey=True)
-    for k, kind in enumerate(data):
-        ax = axs[k]
-        ax.axvspan(S.day.min() - 2, 0, color="0.93", lw=0, zorder=0)
-        ax.axhline(0, color="k", lw=0.6)
-        for c, _lab, col in CLS:
-            for an in AN:
-                v = S[(S.exec == kind) & (S["class"] == c) & (S.animal == an)].sort_values("day")
-                if len(v):
-                    ax.plot(v.day, v.r, color=col, lw=0.6, alpha=0.35)
-                    ax.scatter(v.day, v.r, marker=MK[an], s=28, facecolor=col if c == "hit" else "w", edgecolor=col, lw=1.1,
-                               zorder=5)
-        ax.set_xlabel("days from stroke (gray = pre-stroke)")
-        ax.set_title(f"executed = {kind}", fontsize=10)
-        for s_ in ("top", "right"):
-            ax.spines[s_].set_visible(False)
-        if k == 0:
-            ax.set_ylabel("within-session r (sessions with\n>= 10 trials of that class)")
+    fig, axs = plt.subplots(len(CLS), 2, figsize=(14, 7.6), sharey=True, sharex=True, squeeze=False)
+    for r_, (c, clab, _col) in enumerate(CLS):
+        for k, kind in enumerate(data):
+            ax = axs[r_, k]
+            ax.axvline(0, color="0.6", lw=0.7, ls=":")
+            ax.axhline(0, color="k", lw=0.6)
+            v = S[(S.exec == kind) & (S["class"] == c)] if len(S) else S
+            if len(v):
+                cp.day_dots(ax, v.day, v.r, v.animal, v.epoch)
+            if r_ == len(CLS) - 1:
+                ax.set_xlabel("days from stroke")
+            ax.set_title(f"{clab}, executed = {kind}", fontsize=10)
+            for s_ in ("top", "right"):
+                ax.spines[s_].set_visible(False)
+            if k == 0:
+                ax.set_ylabel(f"{clab}\nwithin-session r (sessions with\n>= 10 trials of that class)", fontsize=9)
     legend(fig)
     fig.suptitle(f"Trial-by-trial coupling PER SESSION, by trial class (sessions with >= {MIN_SESS} trials of the class; acute "
                  "sessions have ~4 hits each, so acute hits appear only pooled, Fig A / C)", fontsize=9.5)
-    fig.tight_layout(rect=(0, 0.07, 1, 0.92))
+    fig.tight_layout(rect=(0, 0.08, 1, 0.92))
     save_png_svg(fig, out / "coupling_cls_sessions.png", dpi=125)
     plt.close(fig)
 
@@ -255,13 +269,14 @@ def main() -> int:
              1.0, ", NORMALIZED within animal to its pre-stroke hits")):
         fig, axs = plt.subplots(1, 2, figsize=(13, 4.9), sharey=True)
         prow = []
+        vals = list(ylim) + [0.0]
         for k, kind in enumerate(data):
             ax = axs[k]
             ax.axhline(0, color="k", lw=0.6)
             if ref is not None:
                 ax.axhline(ref, color="0.5", lw=0.8, ls="--")
             for ep in EP:
-                for c, _lab, col in CLS:
+                for c, _lab, _col in CLS:
                     v = S[(S.exec == kind) & (S.epoch == ep) & (S["class"] == c)]
                     xx = ep_x[ep] + xo[c]
                     if len(v):
@@ -269,10 +284,11 @@ def main() -> int:
                             w = v[v.animal == an]
                             if len(w):
                                 xs = xx + (j - 1.5) * 0.04 + np.random.default_rng(j + 10 * ep_x[ep]).uniform(-0.015, 0.015, len(w))
-                                ax.scatter(xs, w[vcol], marker=MK[an], s=20, facecolor=col if c == "hit" else "w", edgecolor=col,
-                                           lw=1.0, zorder=4)
+                                ax.plot(xs, w[vcol], ls="none", marker=cp.animal_marker(an), ms=4, mfc="none",
+                                        mec=cp.epoch_color(ep), mew=0.9, alpha=0.8, zorder=4)
+                                vals += list(w[vcol])
                         by = {an: v[v.animal == an][vcol].to_numpy() for an in AN if (v.animal == an).any()}
-                        ax.plot([xx - 0.15, xx + 0.15], [np.mean([b.mean() for b in by.values()])] * 2, color=col, lw=2.2, zorder=5)
+                        cp.epoch_mean_sem(ax, xx, [b.mean() for b in by.values()], ep)   # filled dot +- SEM (A13)
                         ref_by = {an: S[(S.exec == kind) & (S.epoch == "pre") & (S["class"] == "hit") & (S.animal == an)][vcol]
                                   .to_numpy() for an in by}
                         ref_by = {an: b for an, b in ref_by.items() if len(b)}
@@ -283,9 +299,10 @@ def main() -> int:
                                 prow.append({"exec": kind, "epoch": ep, "class": c, "delta": iv.point, "lo": iv.lo, "hi": iv.hi,
                                              "animals": "/".join(com)})
                                 sig = iv.lo > 0 or iv.hi < 0
-                                ax.text(xx, ylim[1] - 0.02 * (ylim[1] - ylim[0]), f"{iv.point:+.2f}\n[{iv.lo:+.2f},\n{iv.hi:+.2f}]",
-                                        ha="center", va="top", fontsize=6.5, color=col, fontweight="bold" if sig else "normal")
-            ax.set_xticks(range(4)); ax.set_xticklabels(EP); ax.set_ylim(*ylim)
+                                ax.text(xx, 0.995, f"{iv.point:+.2f}\n[{iv.lo:+.2f},\n{iv.hi:+.2f}]",
+                                        ha="center", va="top", fontsize=6.5, color=cp.epoch_color(ep),
+                                        fontweight="bold" if sig else "normal", transform=ax.get_xaxis_transform())
+            class_ticks(ax)
             ax.set_title(f"executed = {kind}", fontsize=10)
             for s_ in ("top", "right"):
                 ax.spines[s_].set_visible(False)
@@ -294,14 +311,14 @@ def main() -> int:
         Pd = pd.DataFrame(prow)
         Pd.to_csv(D / fname.replace(".png", ".csv"), index=False)
         print(f"== {fname}: session-level epoch - pre hits (boot_delta, animals > sessions)\n" + Pd.round(3).to_string(index=False))
-        legend(fig, [Line2D([], [], color="0.3", lw=2.2, label="mean of animals")])
+        top_band(axs, vals)
+        legend(fig)
         fig.suptitle(f"Coupling pooled per epoch, one dot per SESSION (>= {MIN_SESS} trials of the class){ttl}. Numbers = change vs "
                      "pre-stroke hits,\nsession values, 95% nested CI (animals > sessions; bold = excludes 0). Acute hits: too few per "
                      "session to show (see Fig A for their pooled r)", fontsize=9.5)
-        fig.tight_layout(rect=(0, 0.07, 1, 0.9))
+        fig.tight_layout(rect=(0, 0.12, 1, 0.9))
         save_png_svg(fig, out / fname, dpi=125)
         plt.close(fig)
-    _ = sig_star
     print(f"-> {out}")
     return 0
 

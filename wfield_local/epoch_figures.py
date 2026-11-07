@@ -2621,7 +2621,9 @@ def _thin_day_ticks(post, max_ticks=MAX_DAY_TICKS):
 def timecourse_by_animal(per_day, out, *, name, title, ylabel, positions, tick_labels=None,
                          subtitle=None, boundaries=None, chance=None, ylim=(0.0, 1.06),
                          extra_rows=None):
-    """One axes per ANIMAL, all six spout positions overlaid, with that animal's own boundaries.
+    """One axes per ANIMAL, all six spout positions overlaid, with that animal's own boundaries -- UNTIL 2026-11-07: since
+    PI decision A13 the axes are one per POSITION x measure with all animals pooled under the epoch-colour convention
+    (see the comment at the drawing code); the history below explains the per-animal layout it replaces.
 
     THE TRANSPOSE OF `timecourse_panel`, and the reason is the boundaries (Priya, 2026-09-08). The
     epochs are per-animal -- four lesion dates, four acute ends, four subacute starts -- so a
@@ -2641,9 +2643,7 @@ def timecourse_by_animal(per_day, out, *, name, title, ylabel, positions, tick_l
     linestyle = side) rather than inventing a second scheme for the same six things.
     """
     import matplotlib.pyplot as plt
-    from matplotlib.lines import Line2D
 
-    from wfield_local.spout_behavior import IDX_ORDER, POS_BY_IDX, SIDE_LS, SIDE_MARKER, pos_color
 
     positions = list(positions)
     labels = list(tick_labels or positions)
@@ -2667,17 +2667,22 @@ def timecourse_by_animal(per_day, out, *, name, title, ylabel, positions, tick_l
     if not ncol:
         return None
 
-    fig_w = QUARTER_IN * 2.0
-    left_in, right_in = 0.62, 1.30           # room for a six-entry position legend
+    from wfield_local import cat_points as cp
+
+    # EPOCH-COLOUR CONVENTION (PI decision A13, Priya 2026-11-07). Before: one axes per ANIMAL with the six positions as
+    # coloured lines across days (colour = position) and the animal's acute span shaded. Now: one axes per POSITION
+    # (columns, `positions` order) x measure (rows), all animals pooled; every point is OPEN, shape = animal, colour =
+    # the EPOCH of that animal's day (`epoch_of_day`, i.e. each animal's own boundaries -- which is what the shaded span
+    # carried), no line joins days; per epoch a filled dot in the epoch colour +- SEM over animals. Pre = each animal's
+    # collapsed baseline at PRE_X, as before. `boundaries` is still recorded in the meta sidecar.
+    npos = len(positions)
+    fig_w = max(QUARTER_IN * 2.0, 1.75 * npos + 1.9)
+    left_in, right_in = 0.62, 1.85           # room for the animal + epoch legend
     top_in = 0.52 + 0.15 * len(str(subtitle).split("\n")) * bool(subtitle)
-    # TALLER THAN THE PER-POSITION VERSION. `stats_line` wraps the epoch rules to ~10 lines, so at
-    # the old 1.55in the caption occupied more of the figure than the data did and the hit-rate
-    # axis -- the thing being read -- was the smallest thing on it. Four panels instead of six also
-    # buys width, so the extra height does not make them narrow.
-    bottom_in, gap_in = 0.52, 0.20
-    panel_h = 2.45 if nrow == 1 else 1.85    # a second row earns its height without doubling it
-    row_gap_in = 0.42                        # room between rows
-    panel_w = (fig_w - left_in - right_in - gap_in * (ncol - 1)) / ncol
+    bottom_in, gap_in = 0.52, 0.16
+    panel_h = 2.2 if nrow == 1 else 1.75
+    row_gap_in = 0.42
+    panel_w = (fig_w - left_in - right_in - gap_in * (npos - 1)) / npos
     fig_h = top_in + nrow * panel_h + (nrow - 1) * row_gap_in + bottom_in
     fig = plt.figure(figsize=(fig_w, fig_h))
 
@@ -2685,76 +2690,67 @@ def timecourse_by_animal(per_day, out, *, name, title, ylabel, positions, tick_l
     lo = min(days_all) if days_all else -1
     hi = max(days_all) if days_all else 1
     post = [d for d in days_all if d > 0]
-    # THE PARITY FILTER AGAIN, and it survived here because the 2026-09-10 fix was applied to
-    # `timecourse_panel` and this is the OTHER timecourse renderer (Priya, 2026-09-11: "the I1 x
-    # axis ticks still aren't labeling all the later days"). `d % 2 == 1` on the real schedule
-    # 1 2 3 4 5 7 9 11 15 18 22 25 keeps 1 3 5 7 9 11 15 25 and drops 18 and 22, so the axis
-    # reads as a gap in the experiment rather than as a thinned axis. Two renderers, one rule.
-    ticks = [PRE_X] + _thin_day_ticks(post)
+    # THE PARITY FILTER (Priya, 2026-09-11): one rule for both timecourse renderers -- `_thin_day_ticks`.
+    ticks = [PRE_X] + [d for d in _thin_day_ticks(post, max_ticks=5) if d >= 4]   # narrow panels: "pre" needs room
     first_col, top_right = [], None
     for r, (per_animal, row_label, row_ylim, row_chance) in enumerate(series):
         y0 = bottom_in + (nrow - 1 - r) * (panel_h + row_gap_in)   # row 0 is the TOP row
-        for i, an in enumerate(animals):
-            ax = fig.add_axes([(left_in + i * (panel_w + gap_in)) / fig_w, y0 / fig_h,
+        row_axes, row_vals = [], []
+        for qi in range(npos):
+            ax = fig.add_axes([(left_in + qi * (panel_w + gap_in)) / fig_w, y0 / fig_h,
                                panel_w / fig_w, panel_h / fig_h])
-            if i == 0:
+            row_axes.append(ax)
+            if qi == 0:
                 first_col.append(ax)
-            if r == 0 and i == ncol - 1:
+            if r == 0 and qi == npos - 1:
                 top_right = ax
-            bnd = (boundaries or {}).get(an)
-            if bnd:
-                acute_hi = bnd[0]
-                chronic_lo = bnd[2] if len(bnd) > 2 else None
-                # NEUTRAL GREY, not the animal colour: the panel already IS the animal, and a
-                # coloured span here would read as one of the six position traces.
-                ax.axvspan(0.5, acute_hi + 0.5, color="0.85", alpha=0.45, lw=0, zorder=0)
-                # NO SUBACUTE LINE (Priya, 2026-09-08). Subacute is simply "after acute", so the
-                # right edge of the shaded span already marks it and a second line said the same
-                # thing twice. It was not even the same day: `subacute_from` is the first RECORDED
-                # session after the acute period, so PS92 read acute-ends-5 / subacute-starts-7
-                # purely because nothing was run on day 6 -- a recording-schedule gap drawn as
-                # though it were a boundary.
-                if chronic_lo is not None:
-                    ax.axvline(chronic_lo - 0.5, color="0.20", lw=1.2, alpha=0.9, ls="--", zorder=1)
             ax.axvline(0.5, color="0.25", lw=0.9, zorder=2)          # the lesion
-            for qi in sorted(per_animal.get(an, {})):
-                p = POS_BY_IDX[IDX_ORDER[qi]]
-                by = per_animal[an][qi]
-                xs = sorted(by)
-                ax.plot(xs, [by[d] for d in xs], color=pos_color(IDX_ORDER[qi]), lw=0.9,
-                        alpha=0.75, ls=SIDE_LS[p["side"]], marker=SIDE_MARKER[p["side"]], ms=3.0,
-                        zorder=3)
+            dd, vv, aa = [], [], []
+            for an in animals:
+                by = (per_animal.get(an) or {}).get(qi) or {}
+                for d, v in by.items():
+                    dd.append(float(d))
+                    vv.append(float(v))
+                    aa.append(an)
+            if dd:
+                cp.day_dots(ax, dd, vv, aa, ms=3.4, summary_ms=5.0)
+                row_vals += vv
             if row_chance is not None:
                 ax.axhline(row_chance, color="0.4", lw=0.7, ls="--", zorder=2)
             ax.set_xticks(ticks)
             ax.set_xlim(lo - 0.6, hi + 0.6)
-            if row_ylim:
-                ax.set_ylim(*row_ylim)
             ax.tick_params(labelsize=FS_TICK - 2)
             if r == 0:
-                ax.set_title(an, fontsize=FS_ANNOT)
-            # ONLY THE BOTTOM ROW CARRIES DAY NUMBERS: repeating them under every row spends height
-            # on the same axis twice and invites reading the rows as separate x scales.
+                ax.set_title(labels[qi], fontsize=FS_ANNOT - 0.5)
+            # ONLY THE BOTTOM ROW CARRIES DAY NUMBERS
             if r == nrow - 1:
-                ax.set_xticklabels(["pre"] + [str(int(d)) for d in ticks[1:]])
+                ax.set_xticklabels(["pre"] + [str(int(d)) for d in ticks[1:]], fontsize=FS_TICK - 3)
             else:
                 ax.set_xticklabels([])
-            if i:
+            if qi:
                 ax.set_yticklabels([])
             for sp in ("top", "right"):
                 ax.spines[sp].set_visible(False)
+        if row_ylim:                         # one y range per row; never clip a plotted point (A13)
+            for ax in row_axes:
+                ax.set_ylim(*row_ylim)
+                cp.fit_ylim(ax, row_vals)
+        else:
+            ys = [ax.get_ylim() for ax in row_axes]
+            for ax in row_axes:
+                ax.set_ylim(min(y[0] for y in ys), max(y[1] for y in ys))
+        for ax in row_axes[1:]:
+            ax.set_yticks(row_axes[0].get_yticks())
+            ax.set_ylim(row_axes[0].get_ylim())
+            ax.set_yticklabels([])
         first_col[r].set_ylabel(row_label, fontsize=FS_LABEL - 1)
-    # ANCHORED IN INCHES, not in a figure fraction. A fixed fraction moves with `fig_h`, so raising
-    # the panel height slid this label up into the tick numbers it labels.
+    # ANCHORED IN INCHES, not in a figure fraction (a fixed fraction moved with `fig_h`).
     fig.text((left_in + (fig_w - left_in - right_in) / 2) / fig_w, 0.11 / fig_h,
              "days from lesion (each animal's own)", ha="center", va="bottom",
              fontsize=FS_LABEL - 1)
-    handles = [Line2D([], [], color=pos_color(IDX_ORDER[qi]), lw=1.2,
-                      ls=SIDE_LS[POS_BY_IDX[IDX_ORDER[qi]]["side"]],
-                      marker=SIDE_MARKER[POS_BY_IDX[IDX_ORDER[qi]]["side"]], ms=3.5,
-                      label=labels[qi]) for qi in range(len(positions))]
-    leg = top_right.legend(handles=handles, fontsize=FS_ANNOT - 1.5, loc="upper left",
-                           frameon=False, handlelength=2.2, labelspacing=0.35)
+    eps = [e for e in cp.EPOCH_ORDER]
+    leg = top_right.legend(handles=cp.legend_handles(animals, eps, sessions_label="{a}", epoch_label="{e} mean +- SEM"),
+                           fontsize=FS_ANNOT - 1.5, loc="upper left", frameon=False, labelspacing=0.35)
     leg.set_bbox_to_anchor((1.02, 1.0))
     _t, _tlines = wrap_title(title, fig_w, FS_ANNOT + 0.5)
     fig.suptitle(_t, fontsize=FS_ANNOT + 0.5, y=0.985)

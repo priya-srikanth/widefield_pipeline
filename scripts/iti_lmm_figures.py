@@ -9,7 +9,8 @@ animal random effects (ladder: intercept + step + slope -> intercept + step -> i
                                        WFIELD_AIM=all = all-lick sensitivity, every output tagged _aimall); `post` = the
                                        change still present at FULL recovery of aim (--deficit ttc = far-contra time to
                                        contact, the earlier default)
-Figures (mx.plot_fits: session values vs day / deficit, colored by animal, fitted fixed effects), one per group x model,
+Figures (mx.plot_fits: session values vs day / deficit -- open markers, shape = animal, color = epoch -- with the
+fitted fixed effects), one per group x model,
 <E>/iti_licks/figures/lmm_{time,behavior}_<group>.png:
   readout     decoder r (lateral, sagittal, angle) / the animal's pre mean and the like-for-like (same-place) read-out,
               ITI + cued

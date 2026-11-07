@@ -271,7 +271,11 @@ def plot_epoch(L: pd.DataFrame, T: pd.DataFrame, panels, path: Path, title: str 
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
-    from wfield_local.orofacial_cohort import ANIMAL_MARKER, EPOCH_LINE
+    # EPOCH-COLOUR CONVENTION (PI decision A13, Priya 11-07): sessions = OPEN markers, shape = animal, colour = epoch
+    # (they were filled); the per-epoch summary = filled dot in the epoch colour +- SEM over ANIMALS (each animal's
+    # sessions averaged first; it replaces the open animal-mean markers); the black square stays the model's fitted level
+    from wfield_local import cat_points as cp
+    from wfield_local.orofacial_cohort import EPOCH_LINE
     nrows = int(np.ceil(len(panels) / ncols))
     fig, ax = plt.subplots(nrows, ncols, figsize=(4.4 * ncols, 3.9 * nrows), squeeze=False)
     for k, (name, sel) in enumerate(panels):
@@ -288,13 +292,13 @@ def plot_epoch(L: pd.DataFrame, T: pd.DataFrame, panels, path: Path, title: str 
             g = G[G.epoch == ep]
             rng = np.random.default_rng(i)
             for an, h in g.groupby("animal"):
-                mk = ANIMAL_MARKER.get(an, "o")
-                a_.plot(i + rng.uniform(-0.2, 0.2, len(h)), h.y, mk, color=EPOCH_LINE[ep], ms=3, alpha=0.4, mew=0)
-                a_.plot(i, h.y.mean(), mk, mfc="none", mec=EPOCH_LINE[ep], mew=1.1, ms=6)
+                a_.plot(i - 0.05 + rng.uniform(-0.15, 0.15, len(h)), h.y, ls="none", marker=cp.animal_marker(an),
+                        mfc="none", mec=EPOCH_LINE[ep], ms=3.4, mew=0.8, alpha=0.55)
+            cp.epoch_mean_sem(a_, i + 0.18, g.groupby("animal").y.mean().to_numpy(float), ep, ms=6)
             t = f"C(epoch)[T.{ep}]"
             lvl, se = (pre, c.se.get("pre_level", np.nan)) if ep == "pre" else (pre + c.coef.get(t, np.nan),
                                                                                 c.se.get(t, np.nan))
-            a_.errorbar(i + 0.3, lvl, yerr=1.96 * se, fmt="s", color="k", ms=4, capsize=3, zorder=4)
+            a_.errorbar(i + 0.36, lvl, yerr=1.96 * se, fmt="s", color="k", ms=4, capsize=3, zorder=4)
             if ep != "pre" and t in c.index:
                 q = c.q.get(t, np.nan)
                 txt = f"{c.coef[t]:+.3g}" + ("*" if q < 0.05 else "") + f"\nq {q:.3f}"
@@ -308,10 +312,13 @@ def plot_epoch(L: pd.DataFrame, T: pd.DataFrame, panels, path: Path, title: str 
         a_.spines["top"].set_visible(False)           # no top frame line (Priya 11-03)
     for a_ in ax.flat[len(panels):]:
         a_.axis("off")
-    fig.suptitle(f"{title} -- EPOCH mixed model (y ~ C(epoch), animal random effects): small = sessions, open = animal "
-                 "means, shape = animal; black square = fitted epoch level +/- 95% CI; text = change vs pre, bold * = "
-                 "BH-FDR q < 0.05", fontsize=9)
-    fig.tight_layout(rect=(0, 0, 1, 1 - 0.5 / fig.get_size_inches()[1]))
+    import textwrap
+    sup = textwrap.fill(f"{title} -- EPOCH mixed model (y ~ C(epoch), animal random effects): open = sessions (shape = "
+                        "animal, colour = epoch), filled = mean +- SEM over animals; black square = fitted epoch level "
+                        "+/- 95% CI; text = change vs pre, bold * = BH-FDR q < 0.05", int(fig.get_size_inches()[0] * 15))
+    fig.suptitle(sup, fontsize=9)
+    nl = sup.count("\n") + 1
+    fig.tight_layout(rect=(0, 0, 1, 1 - (0.3 + 0.17 * nl) / fig.get_size_inches()[1]))
     Path(path).parent.mkdir(parents=True, exist_ok=True)
     save_png_svg(fig, path, dpi=130)
     plt.close(fig)
