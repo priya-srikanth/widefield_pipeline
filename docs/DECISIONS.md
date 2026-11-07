@@ -1,3 +1,39 @@
+## 2026-11-07 -- FaceRhythm factor matching, map statistics, per-session tests (Priya; a8 window)
+- MATCHING RULE v2 (`face_rhythm_epoch_shape.MATCH_RULES`, `--match-rule v2`; v1 stays the code default until the page /
+  deck switch): spatial score as before, but among columns within .05 of a factor's best spatial cosine the one with the
+  best SPECTRAL cosine wins (Priya: "spatial cosine score, then only for factors with similar spatial cosine use
+  frequency"). Hungarian re-tested and rejected again (re-creates the 10-25 PS95 lick_left mis-match). Product
+  (spatial x spectral) matching rejected: circular for the spectral readouts.
+- RECOVERED = spatial cos >= .7 AND spectral cos >= .5. Spectral floor from null fits (5th percentile .46). Spatial .8
+  first, LOWERED to .7 by Priya: .8 dropped PS95 acute lick_right (same column as pre, spectral .94, spatial .78 = a
+  changed, not a lost, factor); .5 and .7 pick the same real cells. Unrecovered cells leave the shape readouts and are a
+  readout of their own (factor LOSS).
+- MERGED UNITS: sniff_prelick + nose_prelick_slow = prelick_nose; run_onset_jaw + prep_jaw = slow_jaw (master spatial cos
+  .99, unstable even in null fits). The fast jaw factors stay separate (merging the whole jaw cluster would hide their
+  acute loss).
+- MAP STATISTICS (Priya "ok for the stats as you propose"): CLUSTER MASS is the map test (mesh neighbours, |t| > 2,
+  sign-separate), the MAX-STATISTIC the point-level one; shuffles WITHIN animal; every session-shuffle test gets an
+  early-vs-late PRE DRIFT CONTROL (`face_rhythm.stats.session_shuffle_test`, `drift_split`). Spectra: keep the
+  max-statistic (changes are narrow peak shifts; clusters along frequency find fewer). Maps drawn like the speed maps:
+  every point coloured, rings red = up / blue = down; marked points never in the pale middle of the scale.
+- PER-SESSION TESTS ARE THE MAIN SHAPE TESTS (Priya "ok"): every session's own fit (own8) matched to the master; maps,
+  scalars (asymmetry, spatial / spectral angle to the animal's pre mean, side specificity) and factor loss as delta vs
+  each animal's own pre; within-animal session shuffles, no refit (`scripts/face_rhythm_session_loading_perm.py`,
+  `scripts/face_rhythm_session_shape_tests.py`). WHY: the pooled-fit refit null is inflated for factors that reorganise
+  after the stroke (lick_left: pre-only pooled fits 4-7 deg, shuffled pools up to 37 deg, regardless of how many acute
+  sessions they hold) -- a fragility check flags such factors (lick_left, lick_far_nose) as "pooled test
+  inconclusive"; and a pooled fit is not the average of the animals (chronic lick_left: 3 / 4 animals' own fits +.27
+  asymmetry, pooled fit -.12).
+- EVERYTHING AS DELTA vs THE ANIMAL'S OWN PRE wherever possible (Priya); pooled-fit results are a descriptive second
+  view. The 500-permutation O2 pooled null is now optional for subacute / chronic (acute complete).
+- PS93 stays in the main analyses (n = 4, decided before seeing results); "without PS93" (= LOAO-PS93, retitled) as the
+  sensitivity. PS93 had a pre-existing right facial deficit and a strong pre-stroke RIGHT lick bias (46 % right, 6 %
+  left); its lick_right is often split over two lick_right-like components (pre margin .02), so its per-session maps
+  flip. Split-aware merging NOT adopted (circular, can hide real splits); instead ambiguous sessions (margin < .05) are
+  an exclusion sensitivity.
+- FIGURES Priya likes for the page: cue- and lick-aligned speed maps (permutation versions), per-session lick_right /
+  lick_left weighting, per-session other lick factors.
+
 ## 2026-10-28 (late night) -- balance definition for recovery markers (Priya)
 - PRIMARY marker FIXED (Priya "proceed with the model including SSs"; "what's the harm in 0-0.5"): gain ratio 0.1..0.5 s
   after the first lick, pool ALM + tjM1 + SSp-m + SSp-n + SSs, both cued and ITI (one window: 0.1-0.5 best for both,

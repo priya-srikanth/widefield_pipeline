@@ -134,6 +134,32 @@ All under `M:/MICROSCOPE/Priya/DeepLabCut/Widefield/face_rhythm/cam4/readouts/ma
      bins, clusters 0): spectral changes are narrow peak shifts -> keep max-stat for spectra (recommend). PS93 per
      session: acute 08-18 / 08-20 go WITH PS92 / 94 / 95 (r +.52 / +.34), 08-19 / 08-21 AGAINST (r -.43 / -.57) ->
      PS93 inconsistent acutely, not reversed (session_loading_v2/ps93_acute_sessions_lick_right.png).
+     11-07 NIGHT -- STATE FOR THE NEXT WINDOW (decisions: DECISIONS 2026-11-07). Per-session tests = main shape tests
+     (session_shape_v2/, session_loading_v2/; scripts face_rhythm_session_shape_tests.py / _session_loading_perm.py),
+     all delta vs own pre, drift-controlled. RESULTS (acute unless noted): spatial angle vs own pre up for most units
+     (lick_right +14.6 deg, lick_left +12.1, Holm < .05; pre drift ~0.6 deg, none Holm); asymmetry lick_right -.15*,
+     lick_left +.23* (also sub / chronic); side specificity lick_right -.38*, lick_left -.31*; LOSS per session:
+     lick_ongoing_7Hz -.44 (p .006, Holm .065), lick_fast_close -.21 (p .044), chronic lick_left -.28 (Holm .005, mostly
+     PS93 2/12) -> per-session loss weaker than the pooled-fit loss; MAPS lick_right robust (838 / 880 scaled / 786
+     unambiguous pts acute), lick_left acute untestable without ambiguous sessions (2 left); right-lick share does NOT
+     explain the lick_right map change acutely (rho -.14, p .61); fragility: lick_left 7.2x, lick_far_nose 5.8x (pooled
+     inconclusive); lick direction: acute right share -.16, left +.24 (p < .001). NEXT: (1) make v2 + per-session the
+     default and re-render every FR figure in one pass (wait for Priya on the sub / chronic O2 null: keep or scancel);
+     (2) draft FR page (fr_page_src on M:, published from Priya's HMS account) + PI deck FR slides + FINDINGS wording ->
+     Priya approves before any text change; (3) rhythm-band movement maps per lick factor (proposed, not started);
+     (4) lick-rate (ILI) figure for page + deck (requested, not started); (5) encoder FR regressors read proj/ (pre
+     sessions slightly in-sample; proj_loso exists) -- flag only.
+     11-07 LATE -- FINAL STATE. 10,000-shuffle per-session tests done, Holm within family ACROSS all epochs x
+     measures (Priya); FINDINGS 5.10 (PER-SESSION paragraph), FINDINGS 0 "Where things stand, face movement",
+     FACE_RHYTHM_FINDINGS 6e written. Figures: session_shape_v2/session_scalars.png (normalised, leave-one-out pre
+     column) + session_scalars_raw.png (Priya: both, separate) + session_loss.png; headline map = scaled
+     (session_maps_scaled_lick.png); `face_rhythm_session_shape_tests.py --plot-only` redraws. FR PAGE: a helper agent
+     was updating it (new per-session section before section 7, speed-map permutation figures, "Where things stand");
+     check the live page version before more edits. PI DECK NOT UPDATED: Overview_2026-11-06.pptx was open (lock) all
+     evening -- when closed, update slides 83 (matching method -> v2), 85 (loading maps -> session_maps_scaled_lick),
+     86 (spectral), 87 (hidden drift floor -> session_loading_driftpre), add per-session shape (session_scalars) + loss
+     slides; notes Data: block per slide; Priya approves the slide text. Lick direction is LP kinematics -> not an FR
+     figure. O2 sub / chronic null kept running (Priya) -> rescore pooled view when files land (descriptive only).
      When all lands: run the scorer normally (overwrites the page outputs), update FINDINGS 5.10 + FR page 7m-7o.
    * BLOCKED: 13b -- on 34's cohort-1 rebuild (the decoder / template deficit tables and the working-gate behaviour
      inputs change) and on Priya confirming the variable list (a8 asked her 11-05; d4 gone).

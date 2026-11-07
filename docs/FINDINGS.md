@@ -38,6 +38,15 @@ window larger in orofacial cortex but shared with non-orofacial cortex), a contr
 cortex-wide and grows with time -- not concentrated in orofacial cortex; whether it is a stroke effect (diaschisis, state)
 or slow drift cannot be decided without a time-matched no-stroke reference.
 
+**Where things stand, face movement (FaceRhythm, updated 11-07; claim 5.10, DECISIONS 2026-11-07):** tested per
+session against each animal's own pre (within-animal shuffles, Holm across every epoch and measure, drift-controlled),
+both lateral lick factors CHANGE SHAPE after the stroke and lose side specificity at every epoch (lick_right spatial
++14.6 / +7.6 / +5.5 deg, side specificity -.38 / -.25 / -.13; lick_left +12.1 / +10.5 / +9.9 deg, -.31 / -.23 / -.10),
+lick_left moves toward the contralesional face (+.23 / +.18 / +.10), and lick_right's weight leaves the central face
+for the ipsilesional cheek and jaw (map, 4 / 4 animals' sessions); none of this is pre-stroke drift or the loss of
+right licks. The acute loss of the fast-lick jaw rhythm is suggestive only (pooled fits yes, per session not after
+correction). PS93, with a pre-existing facial deficit, is inconsistent.
+
 **Where things stand, quiet-period state (updated 11-02, claim 3.Q; handoff STATUS_2026-11-01_QUIET_EVENTS_HANDOFF):** in quiet
 periods, acutely orofacial 1-4 Hz power rises (no lesion-side bias; the earlier 'more so on the lesioned side' is
 WITHDRAWN, T22) and a normally rare, local, non-movement 2-3 Hz event type (common pre-stroke only when the animal disengages)
@@ -1740,6 +1749,33 @@ each animal's own pre. Factor names, not numbers (numbers shift between fits).*
     smallest p is ~.0099 and Holm over ten needs < .005; many sit at the floor (e.g. whisk_run, lick_fast_close,
     lick_ongoing_7Hz spatial acute). Calling any of them needs >= 500 permutations. The null includes drift (within-
     animal shuffle across all pre days). **STANDS** (lick pair, subacute + chronic; lick_right acute too).
+    PER-SESSION SHAPE TESTS -- THE MAIN TESTS FROM 11-07 (Priya; DECISIONS 2026-11-07). Every session's own fit (own8)
+    matched to the master with rule v2 (spatial score + spectral tie-break; recovered at spatial cos >= .7 and spectral
+    cos >= .5; merged units prelick_nose, slow_jaw); every readout = the session minus its animal's OWN pre mean, mean
+    over animals; within-animal session-label shuffles (10,000, no refit); Holm within a family ACROSS all epochs and
+    measures (lick pair 24 tests, other units 72); pre-stroke drift control (early vs late pre) for every test
+    (`scripts/face_rhythm_session_shape_tests.py`, `face_rhythm_session_loading_perm.py` -> readouts/master_pre_v1/
+    session_shape_v2/, session_loading_v2/). LICK PAIR (acute / subacute / chronic): spatial angle to own pre mean
+    lick_right +14.6** / +7.6** / +5.5** deg, lick_left +12.1** / +10.5** / +9.9**; side specificity lick_right -.38** /
+    -.25** / -.13**, lick_left -.31** / -.23** / -.10; asymmetry lick_left +.23** / +.18** / +.10* (more contralesional),
+    lick_right -.15 acute (n.s. after the family-wide Holm); spectral angle lick_left +22** / +21** / +14**, lick_right
+    +11** acute. Pre drift (late vs early pre): no readout of any unit passes Holm; lick pair ~0.6 deg spatial. MAPS (cluster
+    mass, mesh neighbours |t| > 2): lick_right acute 843 points (882 when each animal is scaled by its own pre session SD
+    = the headline version; 783 with ambiguous sessions excluded); lick_right loses weight over the upper / central face
+    and gains on the ipsilesional lower cheek and jaw; lick_left roughly the mirror; the drift control finds no lick_right
+    cluster and one lick_left cluster (145 points, ipsilesional-central, opposite sign and place to its acute change).
+    The lick_right map change does NOT track the drop in right licks (acute rho -.14, p .61). lick_left is AMBIGUOUS acutely
+    (median margin to the runner-up component .02 vs .20 pre): only 2 acute sessions are unambiguous, so its acute map has no
+    exclusion sensitivity. OTHER UNITS: most change spatially acutely (e.g. whisk_run +12.4**, lick_ongoing_7Hz +12.7*,
+    lick_fast_close +12.7*), exploratory family. FACTOR LOSS per session (recovery rate vs own pre, Holm over 30): only
+    chronic lick_left survives (-.27, Holm .012; mostly PS93, 2/12 sessions); acute lick_ongoing_7Hz -.44 (p .008) and
+    lick_fast_close -.21 (p .04) do not survive -> the acute fast-lick loss is SUGGESTIVE (significant only in the pooled-fit
+    null). POOLED-FIT RESULTS are now the descriptive second view: a fragility check (refit-null 95th percentile / pre-only
+    fit noise) flags lick_left (7.2x) and lick_far_nose (5.8x) as pooled-test-inconclusive; a pooled fit is not the average
+    of the animals (chronic lick_left pooled -.12 asymmetry vs +.27 in 3 / 4 animals' own fits). PS93 (pre-existing right
+    facial deficit, pre-stroke right-lick bias 46 % vs 6 % left) stays in; its lick_right is split over two components in
+    many sessions, so its per-session maps flip. **STANDS** (lick pair spatial angle, side specificity, lick_left asymmetry,
+    lick_right map); **PROVISIONAL** (acute fast-lick loss; other units).
 11. **"Acutely fewer licks, not smaller ones" -- WITHDRAWN (10-24, Priya).** The face mesh cannot see tongue extent or
     lick rate; the DLC / LP kinematics show acute licks are slower and shorter (section 1). The acute per-trial drop =
     fewer, later and slower / shorter licks (5f).
