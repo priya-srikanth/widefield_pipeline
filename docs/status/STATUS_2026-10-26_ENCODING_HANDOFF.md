@@ -76,6 +76,16 @@ unclassified -> OUTSIDE_MAPS, map builders only import engagement_gate). Fixed o
 Priya said YES to cam4-style -> scratchpad push7.sh = the six + wf_p1106_cam4, sequential, merge-only (bg task bn32updgj;
 per-branch push logs scratchpad/push7.<wt>.log). Each push re-runs the full suite (~28 min) when configs/ is in the diff.
 
+**Update 11-07 ~02:10 (overnight; live lists in RUNNING_LIST_2026-11-06.md).** Extra queues run on main 4ecf72ed (worktree
+wf_render_v9s): v9t (decoder retention + recovery_timing lick + e_rlink_* re-runs) DONE; v9v (A29 aim + recovery_timing --aim)
+DONE; v9u (iti_decoder_pattern_stats -- was in NO queue -- then e_roi_check/foci/cand/rim_overlay re-runs) waits on
+t_frame_te_basis. LP no-video fix ready on fix/lp-novideo-skip-20261106 (72729126, NOT pushed, needs Priya): blocks
+g5_restnl_maps_lp (failed), g5_lpfinal_maps (HOLD), g5_map_drift_lp (skipped) and the A25 LP epoch arm. e_drift_june fails (June
+object arrays; superseded sensitivity; asked Priya to defer). LESSON: an ONLY= lane bypasses FILE ORDER, which hides undeclared
+producer deps (l_restnl_rescue ran before l_precue_restnl -> failed fast; markers moved *_early_0206 so its own lane re-runs it in
+order). Only put steps in ONLY= lanes whose producers are already DONE, not just their declared deps. restnl_maps.py uses ~17 GB
+(single process) -- treat as heavy.
+
 **Update 20:45 -- Priya: "parallelize as much as safe, proceed through all pending tasks, keep a running list" ->
 docs/status/RUNNING_LIST_2026-11-06.md (A decisions / B findings / C running).** 15r fix on main 4ecf72ed; queue v9s
 (wf_render_v9s @ 4ecf72ed): lane P = g5_epoch_15r_r (heavy, waits main lock) ; lane P (ONLY) = the 7 ex-HOLD light map steps.
