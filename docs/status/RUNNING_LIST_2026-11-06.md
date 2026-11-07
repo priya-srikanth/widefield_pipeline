@@ -89,3 +89,9 @@ the encoding handoff (STATUS_2026-10-26_ENCODING_HANDOFF.md, top blocks); the A1
   rim_overlay_r (started 23:30).
 - 23:31 e_pat_stats_maps (v9u) failed: needs encoder_run('_te_basis')/fit spatial_<animal>.pkl = t_frame_te_basis (still waiting
   for the main slot). v9u re-armed with that dep; the 4 ROI steps follow it.
+- 23:38 queue v9v DONE (A29): a_aim_by_spout + a_recov_timing_aim, exit 0 (check vs recovery_timing_pooled_day max |diff| 4e-16).
+  First look, NOT yet compared with the page (kinematics Figs 1.4 / 1.5; recovery timing): cued-lick AIM, weighted over spouts:
+  post -19.7 deg (SE 3.6), recovering +4.0 deg per log-day (p < .001; 107 sessions); far_mid -18.0 then +3.5 / log-day.
+  Recovery per animal (PS92 / 93 / 94 / 95), behaviour (Fig 0.2 hit rate, A21) back to pre by chronic in all 4 (1.02 / 1.02 /
+  0.98 / 1.01); lick-window neural retention only partly (0.69 / 0.38 / -0.47 / PS95 acute missing) -> behaviour recovers
+  before / beyond the neural code. Compare with the page's recovery-timing text in the replacement pass.
