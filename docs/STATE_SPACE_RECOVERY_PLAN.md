@@ -232,6 +232,68 @@ What this means for the analysis:
 5. **Acute trial counts (15 per spout) cost about 1/4 to 1/3 of the power** for rotation and spread. Acute nulls
    are reported at matched counts.
 
+## Single-trial run, all 107 sessions (11-07, EXPLORATORY, `scripts/state_space_recovery_trials.py`)
+
+- Session vs each pre session, within spout, matched trial counts.
+- First-lick trials (contact + incomplete).
+- Path distances noise-corrected.
+- Outputs: `Widefield/state_space_recovery/trials/` (sessions, pairs, drift, change_vs_pre, figure).
+- Change vs pre = `boot_delta`, animal-weighted; "k/4" = animals above their own pre mean.
+
+| readout | acute | subacute | chronic |
+|---|---|---|---|
+| pattern r with pre | -.20 (0/4 up) | -.08 (0/4) | -.10 (0/4) |
+| amplitude ratio | +.12 (3/4) | +.31 (4/4) | +.38 (4/4) |
+| rotation beyond gain (rot_gain) | **+.032 (4/4, CI > 0)** | +.002 | -.006 |
+| variance outside the pre space, beyond per-area gains | +.011 (4/4) | +.009 (4/4) | +.006 (4/4) |
+| shared (condition-independent) shift, noise units | +7.5 (3/4) | +16 (4/4) | +28 (4/4) |
+| trial spread, raw / amplitude-normalized | +.43 (3/4) / +.05 | +.13 / -.38 (0/4) | +.13 (4/4) / -.46 (0/4) |
+| balance log2 contra / ipsi, orofacial far ring (FINDINGS 0b measure) | +.21 (3/4; PS93 the other way) | +.21 (4/4) | +.26 (4/4) |
+| position on the pre (0) -> chronic (1) line, alpha | -.13 (1/4) | +.59 (4/4) | +.97 (by construction) |
+| share of chronic-like trials | +.02 | +.30 (4/4) | +.43 (4/4) |
+| spread along pre -> chronic, relative | +1.0 | **-4.9 (0/4)** | +.2 |
+| distance from the pre sessions (pre-pre median units) | +.65 (4/4) | +.62 (4/4) | +.87 (4/4) |
+| day-to-day step | +.79 (4/4) | +.72 (4/4) | +.24 (3/4, CI spans 0) |
+
+**Drift** (noise-corrected distance vs day gap):
+
+- within pre: +.04 to +.18 per day, gaps <= 8 days;
+- within chronic: +.00 to +.03 per day, over 25-39 days.
+
+The chronic state is STABLE (no ongoing drift), but chronic vs pre still cannot be separated from time since pre with
+these data (the earlier June -> August no-stroke drift problem).
+
+**Corrections recorded:**
+
+- `hemi_gain` (per-area regression slope, ipsi - contra) is a PATTERN measure, not response size. Its PS93 acute
+  outlier (ipsi x2-9 on days 1-3) is real but one animal.
+- The size-based balance reproduces FINDINGS 0b: contra / ipsi rises post-stroke (Priya 11-07).
+
+**Tentative path, for discussion, not a claim:**
+
+1. **Acute** = an excursion: the pattern decorrelates, some rotation beyond gain, a little activity outside the pre
+   space, more trial spread, large day-to-day jumps. It does NOT point toward the eventual chronic state
+   (alpha ~0 or negative).
+2. **Subacute** = moving toward the new state: alpha .59, a third of trials already chronic-like. The trial spread is
+   NOT aimed along the pre -> chronic line (aligned 0/4), which argues against a directed search.
+3. **Chronic** = a stable NEW state, not a return to pre: larger (x1.4), pattern r still -.10, shared trajectory
+   shifted, contra / ipsi balance up, day-to-day steps back near pre.
+
+In BCI terms: not pure scaling. A disrupted acute state, then consolidation into a new mostly-within-manifold
+solution with gain and a shared shift.
+
+**Caveats before any of this is used:**
+
+- Behavior differs on the same trials. Like-for-like executed landing is NOT yet matched (Priya 11-07); the per-trial
+  extract has no trial id, so it must be joined via `iti_licks._first_lick_times`.
+- The acute rot_gain may partly be trial spread (the sim showed leakage at +1 SD).
+- Raw spread vs amplitude-normalized spread disagree whenever amplitude changes. Decide which noise model holds
+  (does the signal grow, or signal and noise together?).
+- alpha / chronic_like use a chronic template, so chronic values are circular. The "repertoire before mean" test
+  (is the chronic-like share higher than a sliding cloud at that alpha would give?) is not done yet.
+- First-lick trials only.
+- PS95 acute = 1 session.
+
 ## Rules
 
 - Per-animal table first (CLAUDE.md rule 8); a claim needs >= 3 / 4 animals.
