@@ -294,6 +294,66 @@ solution with gain and a shared shift.
 - First-lick trials only.
 - PS95 acute = 1 session.
 
+## Follow-ups 11-07 (exploratory): like-for-like landings, drift direction, repertoire before mean
+
+**Landing join** (`scripts/state_space_landing.py` -> `Widefield/state_space_recovery/landing/first_lick_landing.csv`):
+
+- Extract rows are paired with the 3-D first lick (licks.csv.gz, lick_idx 0) by spout + timing: 3-D peak - onset
+  = 39 +- 18 ms. This avoids the 65 s/session behavior reload.
+- Validated: 99 % exact trial agreement on PS94_0820; 92-98 % of rows matched in every epoch.
+- Landing bin = nearest pre landing center per animal (Mahalanobis).
+- Acute far-contra first licks land on target in 0-3 % (mostly the far-ipsi bin). Chronic: PS92 / PS95 .72-.74,
+  PS93 .22, PS94 .08.
+
+**Like-for-like** (`--condition on_target | landing`; outputs `trials_on_target/`, `trials_landing/`). Change vs pre,
+k/4 animals up, * = boot_delta CI excludes 0:
+
+| readout | target (all trials) | on-target trials only | grouped by landing |
+|---|---|---|---|
+| pattern r, acute / chronic | -.20* / -.10* | -.16* / -.11* | -.17* / -.12* |
+| amplitude, chronic | +.38* | +.39* | +.32* |
+| **rotation beyond gain, acute** | **+.032 (4/4*)** | **+.011 (2/4)** | **+.012 (3/4)** |
+| outside the pre space beyond gain, acute / chronic | +.011* / +.006* | +.013* / +.006* | +.013* / +.006* |
+| shared shift, chronic | +28* | +19* | +21* |
+| raw trial spread, acute / chronic | +.43* / +.13* | +.38 / +.22* | +.44* / +.23* |
+| **balance contra / ipsi, far ring, acute / chronic** | **+.21* / +.26*** | **+.33* / +.27*** | **+.02 / +.11*** |
+| alpha subacute; chronic-like share subacute | .59* ; +.30* | .65* ; +.34* | .65* ; +.29* |
+| distance from pre, chronic; day-to-day step, acute | +.87* ; +.79* | +.84* ; +.94* | +.89* ; +.73* |
+
+Reading:
+
+- Almost everything holds on like-for-like movements, so it is NOT the changed movement. This covers the
+  decorrelated pattern, larger amplitude, the small out-of-space part, the shared shift, the path, and the
+  day-to-day jumps.
+- **Two exceptions:**
+  - The acute "rotation beyond gain" does NOT survive. It was the changed movement / landing composition, so drop it.
+  - The hemispheric balance follows the TARGET, not the executed landing: it holds or grows on on-target trials but
+    is ~0 acutely / subacutely when trials are grouped by where the tongue landed. Consistent with FINDINGS 0b (the
+    balance tracks the decoder's read-out offset, not the tongue's deviation).
+
+**(2) Drift direction** (`scripts/state_space_path_tests.py` -> `path_tests/drift_direction.csv`). The pre-stroke
+drift direction (slope over the 8 August days; split-half cosine .83 / .86 / .64 for PS92 / 93 / 94, .38 for PS95):
+
+- Cosine with chronic - pre: +.59 / +.48 / +.63 / -.18.
+  - 35 / 23 / 40 / 3 % of the chronic change lies along it.
+  - At the pre rate, the whole chronic offset is only ~8-11 days of drift.
+- Cosine with acute - pre: -.44 / -.36 / -.42 / +.28. The acute change points AGAINST the drift.
+
+So in 3 / 4 animals a quarter to 40 % of the chronic "new state" lies along the direction cortex was already drifting
+before the stroke. The drift then STOPS (within-chronic slope ~0 over 25-39 days). Whether chronic is "where practice
+would have gone anyway" cannot be decided without a no-stroke control. Cohort 2's pre period may say whether pre drift
+saturates (cohort 2 is analyzed separately, never pooled).
+
+**(3) Repertoire before mean** (`path_tests/repertoire_before_mean.csv`): observed share of chronic-like trials minus
+the share for a pre cloud slid to the session's own position on the line, with matched spread:
+
+- acute +.03 / +.01 / +.01 / -.01;
+- subacute +.06 / +.01 / -.02 / .00;
+- 10/16 acute and 8/17 subacute sessions > 0.
+
+No sign that chronic-like patterns appear in the trial tails before the mean. The cloud SLIDES rather than searching
+and selecting (no Golub / Oby-type repertoire signature at this resolution).
+
 ## Rules
 
 - Per-animal table first (CLAUDE.md rule 8); a claim needs >= 3 / 4 animals.
