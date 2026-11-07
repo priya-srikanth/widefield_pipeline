@@ -675,8 +675,20 @@ def session_raw_maps_cached(session, align, *, post_s=2.0, variant="working"):
 
 def _raw_maps_job(job):
     """Module-level worker for `map_collect.collect`: ``(label, session, align, post_s, variant)``."""
+    from wfield_local import lp_licks, map_collect
     _lab, s, align, post_s, variant = job
-    return session_raw_maps_cached(s, align, post_s=post_s, variant=variant)
+    try:
+        return session_raw_maps_cached(s, align, post_s=post_s, variant=variant)
+    except lp_licks.LPUnavailable as ex:
+        # LP arm, session never filmed (PS93_0813): empty, exactly as the contact arm; anything else re-raises
+        return map_collect.skip_lp_unavailable_no_video(s["label"], ex, _empty_parts())
+
+
+def _empty_parts() -> dict:
+    """The all-empty `session_raw_maps` dict: a session with no trials in the arm (`maps_by_epoch` skips it)."""
+    return {"raw": {}, "used": {}, "quiet_flat": None, "trial_mean": None,
+            "raw_precue": {}, "used_precue": {}, "raw_rest": {}, "used_rest": {},
+            "raw_restw": {}, "used_restw": {}, "restw_positions": []}
 
 
 def _as_parts(res):
@@ -692,9 +704,7 @@ def _as_parts(res):
     if isinstance(res, dict):
         return res
     if isinstance(res, tuple) and not any(isinstance(x, dict) and x for x in res):
-        return {"raw": {}, "used": {}, "quiet_flat": None, "trial_mean": None,
-                "raw_precue": {}, "used_precue": {}, "raw_rest": {}, "used_rest": {},
-                "raw_restw": {}, "used_restw": {}, "restw_positions": []}
+        return _empty_parts()
     raise TypeError(f"session_raw_maps result of unexpected shape: {type(res).__name__}")
 
 
