@@ -6,7 +6,16 @@ the encoding handoff (STATUS_2026-10-26_ENCODING_HANDOFF.md, top blocks); the A1
 
 ## A. Decisions / questions waiting for Priya
 
-_(none open right now -- all of today's asks answered: pushes, A27 findings update, rest-bug re-run, 15r fix)_
+1. (~21:00) **Kinematics page section 6 (trial-class shares) after the working-period gate -- accept the changes?** (B7) Chronic
+   below-pre stars at far contra disappear (cleaner "back to pre"); acute close-contra no-response +0.038** -> +0.020* (loses
+   Bonferroni); acute far-contra no-response .12 -> .10; "chronic no response <= .008 everywhere" no longer true at close mid
+   (.019, n.s. vs pre). Text would change only in the replacement pass.
+2. (~21:00) **Close-spout INCOMPLETE counts rise 3-5x under the new gate (new small stars, acute / subacute).** Cause not yet
+   known -- investigating before anything is read into it (possibly cam1-only / low tongue events now classed incomplete).
+3. (~21:00) **Pipeline gap: kinematics_pooled_figs still reads the UNGATED 10-23 pose3d/kinematics/sessions.csv** (Fig 7.5,
+   Fig 9.6, 3-D rows of the section 3 / 5 / 7 tables). Proposed fix: re-run pose3d_kinematics under the gate with a routed output
+   (or a gated read in the pooled script), on a branch, then re-run k_pooled. Expected impact ~0 (all other 3-D tables moved <=
+   0.06), but unverified. OK to do?
 
 ## B. Notable findings / result changes (nothing on pages or decks changed yet)
 
@@ -28,6 +37,11 @@ _(none open right now -- all of today's asks answered: pushes, A27 findings upda
    kinematics outputs now DONE (v9k / v9k2 / v9r). Comparison with the current kinematics page: pending (helper).
 6. Earlier today (provisional, a8): the acute rise in unique R2 of "movement WITH lick-position info" is NOT more regressor
    variance (text calling it "more variable licks" would be wrong); frozen contact-only R2 decline has no epoch-LMM star (p .06-.09).
+
+7. **(~21:00) 3-D kinematics on the working period vs the kinematics page: no 3-D lick result changes** (spout error 3 / 3,495
+   rows move <= 0.03 mm; phase <= 0.06, none of 1,188 sig bars differ; cue traces <= 0.23 deg; FAR_DIR <= 0.003 mm; cam4 angle
+   Fig 3.6 -29.1 -> -29.2). All conclusion / star changes are in section 6 (see A1, A2). Report:
+   rebuild_20261103/KIN3D_WORKING_PERIOD_COMPARE_20261106.md.
 
 ## C. What is running / next (summary; detail in the handoff)
 
