@@ -95,3 +95,6 @@ the encoding handoff (STATUS_2026-10-26_ENCODING_HANDOFF.md, top blocks); the A1
   Recovery per animal (PS92 / 93 / 94 / 95), behaviour (Fig 0.2 hit rate, A21) back to pre by chronic in all 4 (1.02 / 1.02 /
   0.98 / 1.01); lick-window neural retention only partly (0.69 / 0.38 / -0.47 / PS95 acute missing) -> behaviour recovers
   before / beyond the neural code. Compare with the page's recovery-timing text in the replacement pass.
+- 00:53 v9s light-map lane DONE: g5_restnl_maps_contact / _enl1s and g5_map_drift_contact / _enl1s exit 0 (8 rest-bug sessions
+  now in their REST rows; PS93_0813 skipped under the contact arm as before). LP arm (g5_restnl_maps_lp failed, g5_lpfinal_maps
+  HOLD, g5_map_drift_lp skipped) waits for the LP no-video fix (A5). g5_epoch_15r_r still waits for the main heavy slot.
