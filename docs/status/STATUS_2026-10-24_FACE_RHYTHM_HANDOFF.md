@@ -95,6 +95,16 @@ All under `M:/MICROSCOPE/Priya/DeepLabCut/Widefield/face_rhythm/cam4/readouts/ma
      jaw rhythm, back by subacute. prep_jaw subacute loss = in 21-34 % of null fits -> not a stroke effect. Proposal to
      Priya: merge only the unstable twins (sniff_prelick + nose_prelick_slow = prelick nose; run_onset_jaw + prep_jaw =
      slow jaw); keep the stable fast jaw factors separate (merging the whole jaw cluster would hide the acute loss).
+     11-07 Priya "yes" -> CODE (ed350a43): `--match-rule v2` on face_rhythm_epoch_shape / drift_floor / cohort_null
+     (v1 default, reproduces old numbers; v2 -> <folder>_v2/) + NEW scripts/face_rhythm_recovery.py (factor loss vs the
+     permutation null). RUN on interim null (acute 497, sub / chronic 100): epoch_shape_v2/, epoch_shape_cohort_v2/.
+     RESULT: acute LOSES lick_fast_close (p .002, Holm .004; 1/4 animals) and lick_ongoing_7Hz (p .014, Holm .014;
+     2/4); back by subacute. v1 -> v2 diff (scratchpad v1v2_diff.txt, rerun scripts there): lick_right IDENTICAL in
+     cohort / null / drift; per-animal acute lick pair 4/4 -> 3/3 (PS95 acute not recovered at the stricter threshold),
+     so per-animal mean asym change acute lick_right -.125 -> -.053, lick_left +.144 -> +.302; cohort subacute lick_left
+     loses one LOAO fit. Fast jaw factors acute move from "shape changed" to "lost". prelick_nose spatial acute p .004*
+     (one unit now). chronic lick_far_nose: v1 had picked nose_steps' component (6 deg) -> v2 43 deg. Priya asked 11-07
+     whether to switch page + deck to v2: answer = yes once the full null lands; page / deck text to her first.
      When all lands: run the scorer normally (overwrites the page outputs), update FINDINGS 5.10 + FR page 7m-7o.
    * BLOCKED: 13b -- on 34's cohort-1 rebuild (the decoder / template deficit tables and the working-gate behaviour
      inputs change) and on Priya confirming the variable list (a8 asked her 11-05; d4 gone).
