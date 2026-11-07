@@ -381,11 +381,6 @@ def write_csv(rows, dest: Path, cols=None) -> Path:
     return dest
 
 
-def _animal_colours():
-    from wfield_local.grant_figures import ANIMALS
-    return {a: c for a, c in zip(ANIMALS, ("#4C72B0", "#DD8452", "#55A868", "#C44E52"))}
-
-
 def _by_animal(rows):
     out = {}
     for r in rows:
@@ -402,20 +397,22 @@ def figure(rows, summary, out_dir, align, variant, tag="unmatched") -> list[Path
     noise, and with ~12 sessions per animal scattering by +/-0.05 in G there is no such separation
     to find. The per-animal trajectory view is drawn SEPARATELY by `figure_by_animal`, where it can
     be read one animal at a time instead of four crossing paths in one axes.
+
+    EPOCH-COLOUR CONVENTION (PI decision A13, Priya 11-07): one OPEN marker per session, shape =
+    animal, colour = the session's epoch, no line joining sessions; per epoch a filled dot in the
+    epoch colour +- SEM across animals (`cat_points.day_dots`).
     """
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
-    col = _animal_colours()
-    by = _by_animal(rows)
-    fig, axes = plt.subplots(1, 2, figsize=(10.4, 4.3))
-    for an, rs in by.items():
-        d = [r["day"] for r in rs]
-        axes[0].plot(d, [r["F_deficit"] for r in rs], "o-", color=col.get(an), label=an, ms=4.5,
-                     lw=1.6)
-        axes[1].plot(d, [r["G_reorg"] for r in rs], "o-", color=col.get(an), label=an, ms=4.5,
-                     lw=1.6)
+    from wfield_local import cat_points as cp
+    fig, axes = plt.subplots(1, 2, figsize=(11.6, 4.3))
+    d = [r["day"] for r in rows]
+    an_ = [r["animal"] for r in rows]
+    ep_ = [r.get("epoch") for r in rows]
+    for ax, key in ((axes[0], "F_deficit"), (axes[1], "G_reorg")):
+        cp.day_dots(ax, d, [r[key] for r in rows], an_, ep_)
     for a, lab, ttl in ((axes[0], "frozen-readout deficit  (pre - frozen)",
                          "A   the pre-stroke readout recovers"),
                         (axes[1], "reorganisation  (refit gap - pre gap)",
@@ -425,7 +422,9 @@ def figure(rows, summary, out_dir, align, variant, tag="unmatched") -> list[Path
         a.set_ylabel(lab)
         a.set_title(ttl, fontsize=11)
         a.spines[["top", "right"]].set_visible(False)
-    axes[0].legend(fontsize=8.5, frameon=False, ncol=2)
+    eps = [e for e in cp.EPOCH_ORDER if e in set(ep_)]
+    axes[1].legend(handles=cp.legend_handles(sorted(set(an_)), eps), fontsize=7.5, frameon=False,
+                   loc="upper left", bbox_to_anchor=(1.01, 1.0))
     c = summary["_cohort"]
     fig.suptitle(f"Recovery trajectory ({tag.upper()} training sets), {align}-aligned / {variant}\n"
                  f"{c['animals']} animals, "
@@ -445,9 +444,12 @@ def figure_by_animal(rows, summary, out_dir, align, variant, pre=None,
         ends at the ORIGIN            the code came back and nothing is left the old readout misses
         ends at the UPPER LEFT        the readout recovered and something persists beyond it
 
-    Start is an open square, end a filled star, and the connecting segments carry arrowheads, because
-    without a direction marker a scatter of joined points can be read in either temporal order -- and
-    the two accounts differ precisely in direction.
+    EPOCH-COLOUR CONVENTION (PI decision A13, Priya 11-07): sessions are OPEN markers in the animal's
+    shape, coloured by EPOCH, and NO line or arrow joins them across epochs (before 11-07: a path with
+    arrowheads, points coloured by day). The direction of time is carried by the epoch colours
+    (acute -> subacute -> chronic); the first post-stroke session is ringed by a large open square and
+    the last by a large open star; the dotted arrow from the origin is the lesion step (an event, not a
+    measured transition). Filled dots = each epoch's mean +- SEM over that animal's sessions.
 
     Axes are SHARED across animals. Per-panel autoscaling would make a mouse whose G never left 0.02
     look like one whose G sat at 0.2.
@@ -456,7 +458,7 @@ def figure_by_animal(rows, summary, out_dir, align, variant, pre=None,
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
-    col = _animal_colours()
+    from wfield_local import cat_points as cp
     by = _by_animal(rows)
     if not by:
         return []
@@ -464,15 +466,13 @@ def figure_by_animal(rows, summary, out_dir, align, variant, pre=None,
     gy = [r["G_reorg"] for r in rows] + [q[1] for v in (pre or {}).values() for q in v]
     xlim = (min(fx) - 0.04, max(fx) + 0.04)
     ylim = (min(gy) - 0.03, max(gy) + 0.04)
-    days = [r["day"] for r in rows]
 
     n = len(by)
     fig, axes = plt.subplots(1, n, figsize=(3.5 * n, 3.9), squeeze=False)
-    sc = None
     for ax, (an, rs) in zip(axes[0], by.items()):
         x = np.array([r["F_deficit"] for r in rs])
         y = np.array([r["G_reorg"] for r in rs])
-        d = np.array([r["day"] for r in rs])
+        ep = [r.get("epoch") for r in rs]
         ax.axhline(0, color="0.55", lw=0.9, ls="--")
         ax.axvline(0, color="0.55", lw=0.9, ls="--")
         # THE UNITY LINE F = G, WHICH IS "THE REFIT DECODER IS BACK TO BASELINE".
@@ -498,11 +498,12 @@ def figure_by_animal(rows, summary, out_dir, align, variant, pre=None,
         if pp:
             pf = np.array([q[0] for q in pp])
             pg = np.array([q[1] for q in pp])
-            ax.scatter(pf, pg, s=16, c="0.72", edgecolor="none", zorder=0)
+            ax.plot(pf, pg, ls="none", marker=cp.animal_marker(an), ms=4, mfc="none",
+                    mec=cp.epoch_color("pre"), mew=0.8, alpha=0.45, zorder=0)
             n = max(1, len(pf))
             sf, sg = pf.std(ddof=1) / np.sqrt(n), pg.std(ddof=1) / np.sqrt(n)
-            ax.errorbar(pf.mean(), pg.mean(), xerr=sf, yerr=sg, fmt="o", ms=6.5,
-                        color="0.35", ecolor="0.35", elinewidth=1.6, capsize=3, zorder=6)
+            ax.errorbar(pf.mean(), pg.mean(), xerr=sf, yerr=sg, fmt="o", ms=6.5, mec="w", mew=0.6,
+                        color=cp.epoch_color("pre"), elinewidth=1.4, capsize=3, zorder=6)
 
         # THE LESION STEP, origin -> first post-stroke session. Without it the square floats
         # unexplained: it sits far from the origin BECAUSE the lesion put it there, and a reader
@@ -512,17 +513,22 @@ def figure_by_animal(rows, summary, out_dir, align, variant, pre=None,
         ax.annotate("", xy=(x[0], y[0]), xytext=(0, 0),
                     arrowprops={"arrowstyle": "-|>", "color": "0.45", "ls": ":", "lw": 1.1,
                                 "shrinkA": 5, "shrinkB": 6}, zorder=1)
-        ax.plot(x, y, "-", color=col.get(an), alpha=0.45, lw=1.3, zorder=1)
-        for i in range(len(x) - 1):
-            ax.annotate("", xy=(x[i + 1], y[i + 1]), xytext=(x[i], y[i]),
-                        arrowprops={"arrowstyle": "-|>", "color": col.get(an), "alpha": 0.55,
-                                    "lw": 0.9, "shrinkA": 3.5, "shrinkB": 3.5}, zorder=2)
-        sc = ax.scatter(x, y, c=d, cmap="viridis", vmin=min(days), vmax=max(days), s=38,
-                        zorder=3, edgecolor="0.25", linewidth=0.6)
-        ax.scatter([x[0]], [y[0]], marker="s", s=95, facecolor="none", edgecolor="0.15",
-                   linewidth=1.4, zorder=4)
-        ax.scatter([x[-1]], [y[-1]], marker="*", s=210, color=col.get(an), edgecolor="0.15",
-                   linewidth=0.8, zorder=5)
+        for e in sorted(set(ep), key=lambda u: (u is None, str(u))):
+            k = np.array([u == e for u in ep], bool)
+            ax.plot(x[k], y[k], ls="none", marker=cp.animal_marker(an), ms=5.5, mfc="none",
+                    mec=cp.epoch_color(e), mew=1.1, zorder=3)
+        for e in cp.EPOCH_ORDER[1:]:                 # epoch means of this animal's sessions, +- SEM
+            k = np.array([u == e for u in ep], bool)
+            if k.any():
+                n_ = int(k.sum())
+                sx = x[k].std(ddof=1) / np.sqrt(n_) if n_ > 1 else None
+                sy = y[k].std(ddof=1) / np.sqrt(n_) if n_ > 1 else None
+                ax.errorbar(x[k].mean(), y[k].mean(), xerr=sx, yerr=sy, fmt="o", ms=6.5, mec="w",
+                            mew=0.6, color=cp.epoch_color(e), elinewidth=1.4, capsize=3, zorder=6)
+        ax.scatter([x[0]], [y[0]], marker="s", s=150, facecolor="none", edgecolor="0.15",
+                   linewidth=1.2, zorder=4)
+        ax.scatter([x[-1]], [y[-1]], marker="*", s=260, facecolor="none", edgecolor="0.15",
+                   linewidth=1.0, zorder=5)
         v = summary.get(an, {})
         ax.set_title(f"{an}   final F={v.get('final_F', float('nan')):+.3f}  "
                      f"G={v.get('final_G', float('nan')):+.3f}", fontsize=10)
@@ -534,19 +540,18 @@ def figure_by_animal(rows, summary, out_dir, align, variant, pre=None,
     fig.suptitle(
         "Per-animal recovery trajectory. THE ORIGIN IS THAT ANIMAL'S OWN PRE-STROKE STATE -- both "
         "axes are differences from its baseline.\n"
-        "grey dots = pre-stroke sessions, dark cross = their mean +/-1 SEM (the spread with NO "
-        "lesion);  dotted arrow = the lesion;  square = first post-stroke session, star = last\n"
-        "DASHED DIAGONAL F=G: the refit decoder is back to baseline. Height above zero = the "
+        "open = sessions (shape = animal, colour = epoch; black = pre-stroke = the spread with NO lesion); "
+        "filled = epoch mean +/-1 SEM\n"
+        "dotted arrow = the lesion;  big square = first post-stroke session, big star = last.  "
+        "DASHED DIAGONAL F=G: the refit decoder is back to baseline.\nHeight above zero = the "
         "DISPLACED part;  distance below the diagonal = the part NO decoder recovers.",
         fontsize=9.5)
-    # SUBPLOTS_ADJUST FIRST, THEN THE COLOURBAR IN ITS OWN AXES. Calling `fig.colorbar(ax=...)`
+    # SUBPLOTS_ADJUST FIRST, THEN THE FIGURE-LEVEL EPOCH LEGEND (it replaced the day colourbar 11-07). `fig.colorbar(ax=...)`
     # reserves space by shrinking the axes it is given, and a later `subplots_adjust` silently undoes
     # that -- which put the bar on top of the last panel's title and clipped it.
-    fig.subplots_adjust(top=0.78, bottom=0.15, left=0.06, right=0.90)
-    if sc is not None:
-        cax = fig.add_axes((0.925, 0.15, 0.012, 0.63))
-        cb = fig.colorbar(sc, cax=cax)
-        cb.set_label("days from lesion", fontsize=9)
+    fig.subplots_adjust(top=0.74, bottom=0.15, left=0.06, right=0.89)
+    fig.legend(handles=cp.epoch_colour_handles(cp.EPOCH_ORDER), loc="center left", bbox_to_anchor=(0.895, 0.47),
+               fontsize=8.5, frameon=False, title="epoch", title_fontsize=9)
     return _write(fig, out_dir, f"recovery_trajectory_byanimal_{tag}_{align}_{variant}")
 
 
