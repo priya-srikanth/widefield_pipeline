@@ -212,3 +212,18 @@ the encoding handoff (STATUS_2026-10-26_ENCODING_HANDOFF.md, top blocks); the A1
   American spelling for all new text (Priya, relayed by a8 11-07).
 - **C (11-07 15:13)** section G restart #2 phase 1 9/12; A13 convention branch merged with main (conflict in decoder_retention_sessions
   resolved: convention + MIN_HITS kept) and pushing (push15); A12b class split (jaw-only / no response separate) running; handoff 00-COMPACT-35.
+- **C (11-07 15:50)** A13 convention branch ON MAIN 2434dec5 (793 tests). Plot-only re-render of converted page figures = first step
+  of the replacement pass (lanes are pinned to older code, so queued figures still draw the old style; numbers unaffected).
+  Section G restart #2 cache audit: imaging input cache 0 new of 442 (all hits); session_cache 0 new of 7837 (all hits); stored
+  frozen pre-stroke decoders reloaded, none refit (new frozen_models since 14:23 are only l_basis iti_readout + g5_nolick
+  nolick_reference); behaviour input cache MISSED (56 rebuilt, ~1-1.5 min each, byte-identical sizes) because the 7 _CACHE_CODE
+  files changed after the 11-06 20:50 run (last 72729126). Phase 1 67 min; phase 2 (88 units) started ~15:30.
+  e3 (state-space) told: frozen_encoder frA joint/sessions PETHs (11-05) and iti_licks sessions_roi8fr (e_iti_main, 11-05) are final.
+- **DECISION NEEDED: A12b result (supplement, contact arm, RESTnl pre-cue RMS / own-pre working map; trials pooled within
+  animal x epoch; n<20 = n.a.; null = working subsampled to same n, 30 draws).** Repro of Fig 7.1b far contra exact, 0 cache misses.
+  Far contra ACUTE, PS92/93/94/95: jaw_only 6.08*/2.87*/1.73*/2.52* (pooled 3.30 [2.01, 5.19]); no_response 3.47*/n.a./1.39/n.a.;
+  stopped 2.64*/0.69/1.90*/n.a.; incomplete 1.29/1.05/0.99/1.07. BUT not far-contra specific: acute jaw_only far ipsi
+  3.75/3.98/2.76/n.a. (3/3*), far mid 3.34*/n.a./2.04/0.44; PS95 jaw_only far contra already 5.41* PRE; PS94 stopped 2-3x every
+  epoch incl. pre -> reads as a trial-state effect (non-working trials have high pre-cue activity), not a stroke effect.
+  Files: scratchpad/a12b_classes/ (a12b_precue_by_class.png, tables.txt, trial_counts.csv, pooled.csv, null_PS*.csv, scripts).
+  Proposed: supplementary panel "pre-cue by camera class" with all positions shown, pre epoch included as the control.
