@@ -76,6 +76,14 @@ unclassified -> OUTSIDE_MAPS, map builders only import engagement_gate). Fixed o
 Priya said YES to cam4-style -> scratchpad push7.sh = the six + wf_p1106_cam4, sequential, merge-only (bg task bn32updgj;
 per-branch push logs scratchpad/push7.<wt>.log). Each push re-runs the full suite (~28 min) when configs/ is in the diff.
 
+**Update 20:45 -- Priya: "parallelize as much as safe, proceed through all pending tasks, keep a running list" ->
+docs/status/RUNNING_LIST_2026-11-06.md (A decisions / B findings / C running).** 15r fix on main 4ecf72ed; queue v9s
+(wf_render_v9s @ 4ecf72ed): lane P = g5_epoch_15r_r (heavy, waits main lock) ; lane P (ONLY) = the 7 ex-HOLD light map steps.
+Unblocking lanes added: v8 SECTIONS=E (took e_basis, waits l_basis_extract -- harmless), v8 SECTIONS=E ONLY=e_split_order_* (->
+v7b lane E -> e_angle_reach -> lick-angle chain), v8_s2 ONLY=l_cued_ramp_extract (slot 2, running 20:39 -> l_enl_angle).
+v9k2 + v9r K lanes DONE: all A20 / A27 / A30 kinematics outputs present. Helper comparing new 3-D kinematics vs the page ->
+scratchpad/kin3d_compare.md.
+
 **Update ~20:45 -- 15r TypeError diagnosed (separate from the rest bug).** position_reference_maps.session_raw_maps:482 returns
 a legacy 6-tuple for a session with no trials in the arm; the session cache stores it; maps_by_epoch (line ~801) reads it as a
 dict -> TypeError kills the ENL + cue arms of 15r (g5_epoch caught it, exit 0; only lick/lick written). Only session hit:
