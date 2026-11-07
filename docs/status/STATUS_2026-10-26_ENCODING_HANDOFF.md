@@ -76,6 +76,16 @@ unclassified -> OUTSIDE_MAPS, map builders only import engagement_gate). Fixed o
 Priya said YES to cam4-style -> scratchpad push7.sh = the six + wf_p1106_cam4, sequential, merge-only (bg task bn32updgj;
 per-branch push logs scratchpad/push7.<wt>.log). Each push re-runs the full suite (~28 min) when configs/ is in the diff.
 
+**Update ~20:45 -- 15r TypeError diagnosed (separate from the rest bug).** position_reference_maps.session_raw_maps:482 returns
+a legacy 6-tuple for a session with no trials in the arm; the session cache stores it; maps_by_epoch (line ~801) reads it as a
+dict -> TypeError kills the ENL + cue arms of 15r (g5_epoch caught it, exit 0; only lick/lick written). Only session hit:
+PS93_0813 (no behaviour video -> zero camera working trials) in prm-cue-working + prm-precue-working. Main 0e2154f0 still has it.
+Fix: branch fix/15r-typeerror-20261106 (worktree wf_15rfix, 4ecf72ed, from 0e2154f0): _as_parts() normalises the empty tuple
+(raises on non-empty), called in maps_by_epoch + reference_maps; session_raw_maps untouched so the prm cache key is unchanged
+(2950853f103b); tests/test_prm_empty_session.py (7) + map_cache_key + reference_registry: 41 pass. NOT pushed (Priya OK).
+Without it the parked restnl_maps / lp_final_render maps / map_drift_prepre steps would exit non-zero. After push: re-run
+g5_epoch --only 15r (warm prm cache) + the 7 parked steps, on code with ba5b63bf + 4ecf72ed.
+
 **Update 20:20 -- Priya "yes": both fixes on main 0e2154f0 (rest boundary ba5b63bf + jaw-xcheck routing). Queue v9r RUNNING**
 (scratchpad/render_daqlk/queue_daqlk9r.sh, worktree wf_render_v9r @ 0e2154f0, lanes R / B / K): R = move the 12 rest-variant
 attempt_maps npz aside (done, MOVED.txt) -> d_attempt_maps_rest_r -> d_attempt_maps_plot_r; B = move the 8 gain_bio session npz
