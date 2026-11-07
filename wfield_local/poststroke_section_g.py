@@ -372,7 +372,7 @@ def main(argv=None) -> int:
     if _tcg.camera_gate_on():
         from wfield_local import poststroke_compare as _pcg
         from wfield_local import spout_scaling as _ssg
-        json.dump({"scored_rows": ("camera WORKING rows (contact + incomplete) for the pre panel / pre band and the "
+        json.dump({"scored_rows": (f"camera WORKING rows ({_tcg.sel_class_text()}) for the pre panel / pre band and the "
                                    "engaged-only post arm, all trials for the all-trials arm; by_class panels per "
                                    "camera group (Priya 11-04, main 4a37cbc8)"
                                    if _pcg.section_g_groups() == "camera" else

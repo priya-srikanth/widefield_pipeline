@@ -830,7 +830,13 @@ def _camera_class_block(proj, W, XE, XU, GE, GU, en, un, pre_i, kept, groups, mi
     sess)`` = the method's projection (held-out direction for a pre session); pre rows of a session are projected on
     ITS held-out direction (the directions are fitted on pre lick rows). Rows are engaged and no-lick rows of the group
     stacked, in the contact-row z frame (`_g9_contact_frame`)."""
+    from wfield_local import trial_classes as _tcg9
     from wfield_local import working_trials as _wt
+    if _tcg9.camera_gate_on() and _tcg9.working_selection() == _wt.IN_WORKING_CONTACT:
+        # the pooled "working" group below is G_WORKING (contact + incomplete); the contact-only supplement (Priya
+        # 11-07) is wired for section G only -- refuse rather than report production's working group under its tag
+        raise NotImplementedError(f"G9 camera-class record: {_wt.WORKING_TRIALS_ENV}={_wt.IN_WORKING_CONTACT} is not "
+                                  "supported (section G supplement only); run G9 under in_working")
     ge, gu, je, ju, _have = groups
     X = np.vstack([XE, XU])
     G = np.concatenate([GE, GU])

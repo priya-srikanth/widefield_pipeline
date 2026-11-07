@@ -207,6 +207,13 @@ def _lick_scored(d, keep, clf, y_train, sessions, base):
     return oE, oU
 
 
+def _work_txt() -> str:
+    """The run's camera working classes in words, for the section G captions ("contact + incomplete" in production;
+    "contact" under the in_working_contact supplement, Priya 11-07; `trial_classes.sel_class_text`)."""
+    from wfield_local import trial_classes as _tc
+    return _tc.sel_class_text()
+
+
 def _state_frame_tag():
     """The engagement-state discriminators' frame, recorded in every output that uses it (main 4a37cbc8): "spout_frame/
     working" (section G's spout frame is the stored cue / precue decoder's own frame, so its centre is always the
@@ -676,7 +683,7 @@ def decode_matched(d, keep, post_all_trials=True):
     out = na.evaluate_arm(ypost, post_pred, n_perm=1000, labels=pos)
     out["accuracy"] = float(accuracy_score(ypost, post_pred))
     out["post_arm"] = ("ALL trials" if post_all_trials else
-                       "lick-only spouts, camera WORKING trials (contact + incomplete)" if lo_w is not None
+                       f"lick-only spouts, camera WORKING trials ({_work_txt()})" if lo_w is not None
                        else "lick-only")
     out["positions_scored"] = [POSITION_NAMES[c] for c in pos]
     out["n_post"] = len(ypost)
@@ -685,7 +692,8 @@ def decode_matched(d, keep, post_all_trials=True):
                        "n_sessions": len(per)}
     out["below_every_pre_session"] = bool(out["accuracy"] < out["pre_band"]["min"])
     out["pre_recall"] = na.per_position_recall(_pre_y, pre_pred, labels=pos)
-    out["pre_band_rows"] = "camera WORKING (contact + incomplete)" if pre_band_rows is not None else "engaged"
+    out["pre_band_rows"] = (f"camera WORKING ({_work_txt()})" if pre_band_rows is not None
+                            else "engaged")
     return out
 
 
@@ -1146,8 +1154,8 @@ def crossed_confusion(d, labels=DISPLAY_ORDER, post_all_trials=False,
     post_nl_p = clf.predict(XUf[post_u]) if post_u.sum() else np.empty(0, dtype=post_nl_y.dtype)
 
     out = {"post_arm": ("ALL trials (engaged + no-lick)" if post_all_trials else
-                        "camera WORKING trials (contact + incomplete)" if cg is not None else "engaged only"),
-           "pre_arm": ("camera WORKING trials (contact + incomplete), leave-one-session-out" if cg is not None
+                        f"camera WORKING trials ({_work_txt()})" if cg is not None else "engaged only"),
+           "pre_arm": (f"camera WORKING trials ({_work_txt()}), leave-one-session-out" if cg is not None
                        else "engaged only, leave-one-session-out"),
            "groups": "camera" if cg is not None else "daq",
            "pre_nolick_arm": "PRE-stroke NO-LICK trials, decoder trained on other sessions' engaged",
