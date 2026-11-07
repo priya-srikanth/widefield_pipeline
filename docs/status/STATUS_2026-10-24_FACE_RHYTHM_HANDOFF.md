@@ -185,3 +185,8 @@ All under `M:/MICROSCOPE/Priya/DeepLabCut/Widefield/face_rhythm/cam4/readouts/ma
      +.13 at close spouts; drift control has 13 small clusters (mean drift +.03; far_L up, close_R down) so later-epoch
      band increases need that caveat. The band gradient is not yet a test (proposed: per-session 7Hz-minus-rhythm contrast,
      within-animal shuffles). Not on page / deck yet.
+     11-07 NIGHT (3): GRADIENT TEST DONE (`face_rhythm_band_maps.py --gradient`): 7 Hz band minus lick rhythm -.13 log2
+     acute (Holm .002), -.04 subacute (.03); slower lick bands fall less; drift none -> FINDINGS 0 / 5.10, FACE_RHYTHM 6f.
+     PAGE v41 + DECK (201 slides; 83 lick rate, 84 band maps, 85 hidden band drift) updated with Priya's OK, incl. the
+     10k rewording of 3.10a / 3.10b / slide 82. Open: rescore the pooled null when the O2 sub / chronic files land
+     (descriptive); the deck-wide notes "Data:" pass (waits on 34).

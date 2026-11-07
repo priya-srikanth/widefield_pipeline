@@ -582,6 +582,40 @@ session_maps_unambiguous_lick.png; session_loading_v2/session_loading_lick.png, 
 session_loading_driftpre.png, ps93_acute_sessions_lick_right.png. Supersedes the per-session statistics of 6c and the
 pooled-fit significance claims of FINDINGS 5.10 as the main test (those stay as the descriptive second view).
 
+## 6f. Lick rhythm: video lick interval and rhythm-band face movement (11-07 night)
+
+RHYTHM-BAND MOVEMENT + LICK RATE (11-07 night, Priya; FACE_RHYTHM_FINDINGS 6f). Video licks (LP v36): the within-bout
+inter-lick interval lengthens 15-25 ms at EVERY spout acutely (session MWU + bootstrap agree), back by subacute except
+close mid / contra (`scripts/orofacial_lick_rate_figure.py`). Face movement per mesh point in each lick unit's rhythm
+(stored per-point spectra weighted by the unit's master frequency profile, cue 0..+4 s, no refit;
+`scripts/face_rhythm_band_maps.py`) falls acutely at every spout in every lick band (face mean log2 -.09 to -.30, Holm
+.002) and the loss is GRADED by rhythm: per session vs own pre, the 7 Hz band falls MORE than the lick rhythm itself
+(-.13 log2, Holm p .002; subacute -.04, Holm .03), the slower lick bands less (slow_late +.07, far_nose +.05 relative);
+fast_close not different (-.04, n.s.). Chronically every lick band is above pre (+.06 to +.13). Drift control passes no
+band or contrast (10,000 within-animal shuffles; Holm over 7 x 3 bands, 6 x 3 contrasts). Limits: bands separate units by
+rhythm only (lick_right / lick_left share theirs, read by spout); profiles are broad and overlap. **STANDS** (acute lick
+slowing and graded band loss).
+
+Gradient test (`face_rhythm_band_maps.py --gradient` -> band_maps/data/band_gradient.csv), face-wide mean log2 per
+session, delta vs own pre, acute / subacute / chronic; ** Holm < .01, * < .05:
+
+| band (peak) | band alone | band minus lick rhythm |
+|---|---|---|
+| lick rhythm (6.5 Hz) | -.16** / +.03 / +.09** | -- |
+| lick_ongoing_7Hz (6.5-15 Hz) | -.30** / -.02 / +.11** | **-.13**** / -.04* / +.02 |
+| lick_fast_close (8.2 Hz) | -.20** / +.01 / +.06* | -.04 / -.02 / -.03 |
+| lick_far_nose (5.8 Hz) | -.12** / +.05 / +.09** | +.05** / +.02** / .00 |
+| lick_slow_late (5.8 Hz) | -.09** / +.09** / +.13** | +.07** / +.07** / +.04** |
+| slow_jaw (1.0 Hz) | +.04 / -.01 / -.05** | +.20** / -.04 / -.14** |
+| prelick_nose (1.6 Hz) | -.02 / +.01 / .00 | +.15** / -.02 / -.09** |
+
+Band maps (cluster mass, 10,000 shuffles): every lick band loses movement acutely at every spout; later epochs gain at
+the close spouts. The band-map drift control has 13 small clusters (mean +.03 log2; up at far_L, down at close_R), so
+later-epoch band increases there need that caveat. Fast-lick share (licks with a neighbour < 250 ms) falls acutely only
+at far contra (-.44) / far mid (-.13), partly because licks per trial fall there (far contra 3.1 vs 8.7 pre).
+Figures: band_maps/band_maps_<unit>.png, band_maps_driftpre.png; LP_analysis/.../cohort_lick_rate_by_position.png.
+FR page section 7b (v41); PI deck slides 83-85.
+
 ## 6d. Task vs non-task, asymmetry, severity (10-24)
 
 * Task (lick factors, response window) vs non-task (other factors, between trials), vs pre: acute task .66-.80, non-task

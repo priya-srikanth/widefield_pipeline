@@ -44,8 +44,10 @@ both lateral lick factors CHANGE SHAPE after the stroke and lose side specificit
 +14.6 / +7.6 / +5.5 deg, side specificity -.38 / -.25 / -.13; lick_left +12.1 / +10.5 / +9.9 deg, -.31 / -.23 / -.10),
 lick_left moves toward the contralesional face (+.23 / +.18 / +.10), and lick_right's weight leaves the central face
 for the ipsilesional cheek and jaw (map, 4 / 4 animals' sessions); none of this is pre-stroke drift or the loss of
-right licks. The acute loss of the fast-lick jaw rhythm is suggestive only (pooled fits yes, per session not after
-correction). PS93, with a pre-existing facial deficit, is inconsistent.
+right licks. Acutely the lick rhythm slows (video licks: within-bout interval +15-25 ms at every spout) and the face
+loses its fastest lick movement most: movement in the 7 Hz band falls more than in the lick rhythm itself (per
+session, -.13 log2, Holm .002; subacute -.04), although the 7 Hz factor is not LOST more often per session after
+correction. Map tests use 10,000 shuffles (11-07 night). PS93, with a pre-existing facial deficit, is inconsistent.
 
 **Where things stand, quiet-period state (updated 11-02, claim 3.Q; handoff STATUS_2026-11-01_QUIET_EVENTS_HANDOFF):** in quiet
 periods, acutely orofacial 1-4 Hz power rises (no lesion-side bias; the earlier 'more so on the lesioned side' is
@@ -1775,7 +1777,20 @@ each animal's own pre. Factor names, not numbers (numbers shift between fits).*
     of the animals (chronic lick_left pooled -.12 asymmetry vs +.27 in 3 / 4 animals' own fits). PS93 (pre-existing right
     facial deficit, pre-stroke right-lick bias 46 % vs 6 % left) stays in; its lick_right is split over two components in
     many sessions, so its per-session maps flip. **STANDS** (lick pair spatial angle, side specificity, lick_left asymmetry,
-    lick_right map); **PROVISIONAL** (acute fast-lick loss; other units).
+    lick_right map); **PROVISIONAL** (acute fast-lick factor LOSS per session; other units). Since 11-07 night every
+    map test uses 10,000 shuffles (only change vs 2,000 that touched text: the cue-aligned speed-map drift control lost
+    its far_center cluster, 2 clusters left at far_R).
+    RHYTHM-BAND MOVEMENT + LICK RATE (11-07 night, Priya; FACE_RHYTHM_FINDINGS 6f). Video licks (LP v36): the within-bout
+    inter-lick interval lengthens 15-25 ms at EVERY spout acutely (session MWU + bootstrap agree), back by subacute except
+    close mid / contra (`scripts/orofacial_lick_rate_figure.py`). Face movement per mesh point in each lick unit's rhythm
+    (stored per-point spectra weighted by the unit's master frequency profile, cue 0..+4 s, no refit;
+    `scripts/face_rhythm_band_maps.py`) falls acutely at every spout in every lick band (face mean log2 -.09 to -.30, Holm
+    .002) and the loss is GRADED by rhythm: per session vs own pre, the 7 Hz band falls MORE than the lick rhythm itself
+    (-.13 log2, Holm p .002; subacute -.04, Holm .03), the slower lick bands less (slow_late +.07, far_nose +.05 relative);
+    fast_close not different (-.04, n.s.). Chronically every lick band is above pre (+.06 to +.13). Drift control passes no
+    band or contrast (10,000 within-animal shuffles; Holm over 7 x 3 bands, 6 x 3 contrasts). Limits: bands separate units by
+    rhythm only (lick_right / lick_left share theirs, read by spout); profiles are broad and overlap. **STANDS** (acute lick
+    slowing and graded band loss).
 11. **"Acutely fewer licks, not smaller ones" -- WITHDRAWN (10-24, Priya).** The face mesh cannot see tongue extent or
     lick rate; the DLC / LP kinematics show acute licks are slower and shorter (section 1). The acute per-trial drop =
     fewer, later and slower / shorter licks (5f).

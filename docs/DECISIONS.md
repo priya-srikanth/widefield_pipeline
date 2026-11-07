@@ -33,6 +33,17 @@
   an exclusion sensitivity.
 - FIGURES Priya likes for the page: cue- and lick-aligned speed maps (permutation versions), per-session lick_right /
   lick_left weighting, per-session other lick factors.
+- (night) v2 is now the DEFAULT `--match-rule` (epoch_shape, drift_floor, cohort_null; v1 selectable; folders keyed on
+  the rule name, so nothing moved).
+- (night) EVERY MAP TEST AT 10,000 SHUFFLES, like the scalars (Priya "should the speed maps be 10k?"): at 2,000 a p
+  near .05 carries ~+-.005 Monte-Carlo error and 4 / 14 / 17 clusters of the position / aligned / session-loading
+  maps sat at p .03-.08. Re-run: position maps unchanged; aligned lick maps gain 2 small clusters; the cue-aligned
+  drift control loses its far_center cluster (2 left, both at far_R, where the post-stroke change is a decrease);
+  session loading: lick pair unchanged, two exploratory flips. Page / slide text reworded with Priya's OK.
+- (night) RHYTHM-BAND MAPS (`scripts/face_rhythm_band_maps.py`): per-point spectra x a unit's master frequency
+  profile (v2 units) = movement in that unit's rhythm, no refit; lick_right + lick_left share one band, read by
+  spout. Cue 0..+4 s only (no spectra stored for the 0..2 s window). The rhythm GRADIENT is tested per session as
+  band minus lick rhythm (face-wide mean log2), within-animal shuffles, Holm over 6 bands x 3 epochs.
 
 ## 2026-10-28 (late night) -- balance definition for recovery markers (Priya)
 - PRIMARY marker FIXED (Priya "proceed with the model including SSs"; "what's the harm in 0-0.5"): gain ratio 0.1..0.5 s

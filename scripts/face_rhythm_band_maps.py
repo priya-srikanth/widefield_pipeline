@@ -109,6 +109,49 @@ def perm_statistics(V: dict, home: np.ndarray, n_perm: int, drift: bool = False,
     return res, pd.DataFrame(rows)
 
 
+def gradient_test(V: dict, n_perm: int, seed: int = 0) -> pd.DataFrame:
+    """Is the acute drop GRADED by rhythm? Per session: face-wide mean log2 band power per unit (mean over points, then
+    spouts); value = unit minus lick_rhythm (the lateral pair's own band). Statistic = mean over animals of (epoch mean -
+    own pre mean), null = within-animal session-label shuffles (`face_rhythm_session_shape_tests.shuffle_test`), Holm
+    over units x epochs; plus each band alone vs own pre, and the drift control (late vs early pre)."""
+    import face_rhythm_session_shape_tests as sst
+    from statsmodels.stats.multitest import multipletests
+    rng = np.random.default_rng(seed)
+    rows = {}
+    for (u, an, lab, ep, _p), v in V.items():
+        rows.setdefault((an, lab, ep), {}).setdefault(u, []).append(float(np.log2(np.maximum(v, 1e-12)).mean()))
+    S = pd.DataFrame([{"animal": an, "label": lab, "epoch": ep, **{u: np.mean(x) for u, x in d.items()}}
+                      for (an, lab, ep), d in sorted(rows.items())])
+    out = []
+    for what in ("contrast", "band"):
+        for u in UNITS:
+            if what == "contrast" and u == "lick_rhythm":
+                continue
+            val = S[u] - S["lick_rhythm"] if what == "contrast" else S[u]
+            for ep in (*EPOCHS[1:], "late_pre"):
+                groups = []
+                for an in sorted(S.animal.unique()):
+                    m = S.animal == an
+                    if ep == "late_pre":                      # drift control: early half of pre = reference
+                        x = val[m & (S.epoch == "pre")].to_numpy()
+                        n = len(x) // 2
+                        if n < 1:
+                            continue
+                        groups.append((x, np.arange(len(x)) < n))
+                    else:
+                        k = m & S.epoch.isin(["pre", ep])
+                        groups.append((val[k].to_numpy(), (S.epoch[k] == "pre").to_numpy()))
+                obs, pv, na = sst.shuffle_test(groups, "value", n_perm, rng, "two-sided")
+                out.append({"test": what, "unit": u, "vs": "lick_rhythm" if what == "contrast" else "own pre",
+                            "epoch": ep, "delta_log2": obs, "p": pv, "n_animals": na, "n_perm": n_perm})
+    T = pd.DataFrame(out)
+    T["p_holm"] = np.nan
+    for what in ("contrast", "band"):
+        k = (T.test == what) & (T.epoch != "late_pre")
+        T.loc[k, "p_holm"] = multipletests(T.loc[k, "p"], method="holm")[1]
+    return T
+
+
 def main(argv=None) -> int:
     import matplotlib
     matplotlib.use("Agg")
@@ -123,6 +166,9 @@ def main(argv=None) -> int:
     ap.add_argument("--perm", type=int, default=10000)
     ap.add_argument("--drift-control", action="store_true", help="also the early vs late PRE test")
     ap.add_argument("--plot-only", action="store_true")
+    ap.add_argument("--gradient", action="store_true",
+                    help="only the rhythm-gradient test (each band minus the lick rhythm, per session) -> "
+                         "data/band_gradient.csv")
     a = ap.parse_args(argv)
     rv = PathResolver()
     fdir = fro.factor_dir(rv, a.bundle, a.set)
@@ -131,6 +177,19 @@ def main(argv=None) -> int:
     out.mkdir(parents=True, exist_ok=True)
     M = np.load(fdir / "master.npz")
     home, mid = M["home"], float(frr.MASTER_MIDLINE_X)
+    if a.gradient:
+        W, U = unit_weights(fdir)
+        G = gradient_test(session_band(fdir, W), a.perm)
+        G.to_csv(figure_layout.sidecar_for(out, "band_gradient", ".csv"), index=False, float_format="%.4g")
+        pd.set_option("display.width", 200)
+        for what in ("contrast", "band"):
+            g = G[G.test == what]
+            print(f"\n{what.upper()} (delta log2 vs own pre; Holm over units x epochs; late_pre = drift, uncorrected)")
+            print(g.assign(cell=lambda d: d.delta_log2.map("{:+.3f}".format) + " p" + d.p.map("{:.4f}".format)
+                           + d.p_holm.map(lambda x: "" if pd.isna(x) else f" H{x:.3f}"))
+                  .pivot(index="unit", columns="epoch", values="cell")
+                  .reindex(columns=[*EPOCHS[1:], "late_pre"]).to_string())
+        return 0
     cache = figure_layout.sidecar_for(out, "band_maps_cache", ".pkl")
     if a.plot_only:
         U, R, C, RD, CD = pd.read_pickle(cache)
