@@ -91,7 +91,7 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md (00-COMPACT-17 + 10-29 additions)
 - Cued licks: the balance shift and decoder offset largely re-describe the landing error (target code); the cued
   balance is a valid state readout but not an independent mechanism.
 - Persistent, behavior-independent signals: (a) ITI post-onset contralesional shift (tracks recovery); (b) slow rise
-  of the contralesional hemisphere's share on cued licks (reorganisation?).
+  of the contralesional hemisphere's share on cued licks (reorganization?).
 - Grant: chronic contralesional silencing tests whether the extra share supports recovered behavior; SSp-m/n both
   hemispheres first; ACAd dropped.
 
@@ -152,7 +152,7 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md (00-COMPACT-17 + 10-29 additions)
 - 10-29 ~01:00: page v232 published. The artifact hit its 512-file cap: removed 75 published images the page no longer
   references (old iti_* duplicates, superseded variants; local copies kept in _goal_page/), added the rev-up figures.
 - 10-29 night: list created (commit after d13f51f5).
-- 10-30: page v275 -- every supplement now numbered Fig X Sn (#s<fig>-<n>; 17 more figures); Fig 0.13 early predictors cut (CUT_FIGURES). RESTnl rescue sweep done: adopt s20_f50_wr (renormalised weights, same 2.0 s buffer / 50-frame floor; all 107 sessions, PS93 pre 7; headlines unchanged). Helpers started: (a) RESTnl wr adoption + re-render + Fig 0.12 far-contra aim line; (b) encoder SSp-n/ALM/tjM1 tables + movement-null Musall maps; (c) interhemispheric follow-ups (global-signal removed, balance partialled) + cross-area correlation pre vs post.
+- 10-30: page v275 -- every supplement now numbered Fig X Sn (#s<fig>-<n>; 17 more figures); Fig 0.13 early predictors cut (CUT_FIGURES). RESTnl rescue sweep done: adopt s20_f50_wr (renormalized weights, same 2.0 s buffer / 50-frame floor; all 107 sessions, PS93 pre 7; headlines unchanged). Helpers started: (a) RESTnl wr adoption + re-render + Fig 0.12 far-contra aim line; (b) encoder SSp-n/ALM/tjM1 tables + movement-null Musall maps; (c) interhemispheric follow-ups (global-signal removed, balance partialled) + cross-area correlation pre vs post.
 - 10-30 later: page v276-278. Encoder SSp-n/ALM/tjM1 in Figs 0.2/0.8 (v2) + movement-null plan maps (0.2 S1, 0.8 S1). Interhemispheric follow-ups added to 14.18 S10; cross-area correlation = new 14.18 S17. RESTnl wr adopted (107/107 sessions, headlines unchanged) and 13 page images re-rendered; Fig 0.12 now two panels with far-contra aim. Open: cross-area movement-variability confound (add lick vigor / kinematics to the residual model); lick-history regressor for the movement-null model if wanted.
 - 10-30 evening: lick-history regressor SKIPPED (Priya). Pooled 6-node MVAR (pre-registered) FAILED gate on raw 0/4 (gsr 4/4, not gated; p = 8 = top of range) -> no pre vs post; FINDINGS 4.16. Literature scan of cross-area methods (Ganguly lab + CCA / RRR / ITPC) -> docs/CROSS_AREA_METHODS_LIT_20261030.md; awaiting Priya's pick.
 - 10-30 evening: coherence vs CCA (Guo 2021 / Heimbuch 2026) pre-registered (docs/status/COHERENCE_CCA_PREREG_20261030.md, commit 0b34ef76); helper implementing scripts/sm_coherence_cca.py; DLAG only if CCA gate passes >= 3/4 animals (then cost a port for Priya).

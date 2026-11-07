@@ -1149,7 +1149,7 @@ fixed-A least-squares refit land at different points on the same ridge. Three pr
 | the failures are the WEAK components | **refuted**, ρ = −0.02 / −0.32; the weaker half agrees slightly *better* |
 
 This is why the answers are unaffected. Splitting amplitude between collinear components is an
-invertible linear reparameterisation of the feature vector, and both downstream readouts are (near)
+invertible linear reparameterization of the feature vector, and both downstream readouts are (near)
 invariant to one: Mahalanobis/crossnobis distance is exactly invariant under an invertible linear map,
 and regularized logistic regression nearly so. Hence RDM agreement +0.950–0.993 and decode within
 ±0.02. The caveat that follows: **do not interpret an INDIVIDUAL projected component's amplitude** as
@@ -2659,7 +2659,7 @@ the 0.62 the first residual table assumed. **PS94 chronic exceeds 1.0 in all thr
 (1.40-1.46) -- more unremoved shared amplitude than the entire pre-stroke shared response, against a
 position-specific signal of ~1-2. That panel is not readable.
 
-**PS94 CHRONIC IS THE ONE CELL IN THE REORGANISATION CORNER**: lowest overlap (0.332-0.338) AND
+**PS94 CHRONIC IS THE ONE CELL IN THE REORGANIZATION CORNER**: lowest overlap (0.332-0.338) AND
 largest amplitude (1.72-1.79), consistently across all three alignments. Overlap down with scale up
 is the only combination that says the code went somewhere else rather than got stronger or weaker.
 
@@ -2734,7 +2734,7 @@ the code. `--orth` projects the condition-independent subspace out; after it, ev
 
 Priya: *"this should be similar to using a single-cell population for CD."* Per-component sd spans
 **107x** on PS95's 95-component basis and the **top five components hold 82% of the variance**, so
-an unstandardised difference-of-means direction is set by about five components on amplitude alone.
+an unstandardized difference-of-means direction is set by about five components on amplitude alone.
 Z-scored in a FROZEN pre-stroke frame -- per session would erase real between-session differences,
 per epoch would normalize away the post-stroke change being measured.
 
@@ -2755,7 +2755,7 @@ that second reading licenses discounting a post-stroke panel.
 right"* -- right. Overlap is scale-invariant, so a response that keeps its orientation and halves in
 size scores 1.00, which for a lesion study is a blind spot on the most likely effect. `cim_scale`
 reports magnitude beside it. The two dissociate, and that is the value of the method: same
-subspace + smaller scale is "weaker drive", rotated subspace + same scale is REORGANISATION, and a
+subspace + smaller scale is "weaker drive", rotated subspace + same scale is REORGANIZATION, and a
 decoder score conflates them because both lower accuracy.
 
 **THE NULL IS NOT BUILT.** Two subspaces estimated from different SESSIONS do not fully overlap even
@@ -4368,7 +4368,7 @@ the basis are recorded as 1.0 by CONSTRUCTION and would poison the correlation).
 
 The basis describes every post-stroke session above 96% and within 3.2% of the others. **The decline
 is neural.** Caveat: this tests basis QUALITY, not basis APPROPRIATENESS — footprints can describe a
-reorganised cortex's variance well while no longer being the right parts. Only refitting could see
+reorganized cortex's variance well while no longer being the right parts. Only refitting could see
 that, and refitting defeats the point of a frozen basis.
 
 ---
@@ -4997,7 +4997,7 @@ measures disagree about direction, and the class result is the better-controlled
 **PS94 -- FOCAL POST-CUE; THE NEIGHBORS RECOVER AND far_R DOES NOT.** far_R is −0.06 (cue) and +0.01
 (lick) pooled -- not rotated, UNRELATED -- and per block −0.43 -> 0.00 -> +0.14 (cue), −0.38 -> +0.23
 -> +0.18 (lick). Over the same blocks far_center climbs −0.27 -> +0.38 -> +0.77 (cue) and −0.24 ->
-+0.58 -> +0.81 (lick), close_R +0.35 -> +0.79. **The dissociation is the finding**: reorganisation
++0.58 -> +0.81 (lick), close_R +0.35 -> +0.79. **The dissociation is the finding**: reorganization
 and return at the neighboring positions, no return at the contraversive one. Pre-cue is flat and
 mild (0.40-0.78, no ordering).
 
@@ -5162,7 +5162,7 @@ With that context, the measurement below stands as a re-measurement:
 | PS94 | far_R\|far_L | 0.702 |
 | PS95 | far_R\|far_center | 0.609 |
 
-At 0.89 the orthogonalisation discards nearly all of that position axis and renormalises a residual
+At 0.89 the orthogonalisation discards nearly all of that position axis and renormalizes a residual
 of ~46% of the original magnitude. `orthogonalise` warns that "any position information lying along e
 goes with it"; how much was never measured, and for the worst pairs it is MOST OF IT.
 
@@ -9337,12 +9337,12 @@ Two axes, both signed so zero is the pre-stroke state:
 | | acute | subacute | chronic |
 |---|---|---|---|
 | **F** frozen deficit | +0.339 [0.279, 0.402] | +0.159 [0.108, 0.213] | **+0.038 [0.016, 0.057]** |
-| **G** reorganisation | +0.098 [0.075, 0.125] | +0.065 [0.019, 0.108] | **+0.075 [0.020, 0.121]** |
+| **G** reorganization | +0.098 [0.075, 0.125] | +0.065 [0.019, 0.108] | **+0.075 [0.020, 0.121]** |
 
 **Neither account alone.** The frozen readout recovers ~89% of its deficit — the hypothesis's first
 clause holds. But G does NOT decay: flat from subacute to chronic, and positive in every animal at
 every epoch (chronic: PS92 +0.095, PS93 +0.111, PS95 +0.018). A component of position information
-reorganises into a form the pre-stroke decoder cannot access and stays that way.
+reorganizes into a form the pre-stroke decoder cannot access and stays that way.
 
 **Why chronic G "excludes zero" must be read carefully.** n = 3 animals. The interval excludes zero
 because all three are positive, not because three animals give a powerful test. Quote the direction
@@ -9656,7 +9656,7 @@ Priya: *"but we cannot achieve enough power to see what positions change?"* Corr
 stating as arithmetic rather than as a hedge, because the arithmetic says which fix works and which
 does not.
 
-Variance components of the reorganisation index `G`, from the per-session series
+Variance components of the reorganization index `G`, from the per-session series
 (`recovery_trajectory_cue_working.csv`):
 
 | epoch | animals | sessions each | between-ANIMAL SD | between-SESSION SD | 95% half-width | share of SE² from the animal level |
@@ -9701,7 +9701,7 @@ would clear zero.
 1. **Do not claim a per-position chronic result from this cohort.** The pooled result is supported;
    "far-contralateral specifically" at chronic is not. Acute is a different matter — the
    between-animal SD is 0.012 there and the per-position acute effects are large.
-2. **A power statement for the grant is now available**: resolving which positions reorganise
+2. **A power statement for the grant is now available**: resolving which positions reorganize
    chronically needs roughly **8 animals reaching chronic**, and is NOT achievable by recording more
    sessions from the four we have. That is a defensible aims-section number rather than a guess.
 3. **Prefer a CONTRAST to six tests.** Six per-position tests spend their power on a question nobody
@@ -9716,7 +9716,7 @@ zero when the animal-level effect is small relative to session noise. It did not
 
 ---
 
-## 2026-09-12 (later) — WITHDRAWN: "reorganisation persists into chronic". It is a point estimate, not a result
+## 2026-09-12 (later) — WITHDRAWN: "reorganization persists into chronic". It is a point estimate, not a result
 
 Priya, reading the rendered `5rmo` delta panel: *"these figures don't suggest a significant
 persistent reorganization though."* Correct. **The claim is withdrawn.** Both entries above this one
@@ -9735,7 +9735,7 @@ assert it and both are wrong on that point.
 | matched | subacute | +0.081 | [0.015, 0.146] | [−0.005, 0.163] crosses |
 | matched | chronic | +0.074 | **[−0.004, 0.162] crosses** | crosses |
 
-**Only ACUTE reorganisation survives correction, and only unmatched.** Matched acute already crosses
+**Only ACUTE reorganization survives correction, and only unmatched.** Matched acute already crosses
 zero. Nothing at subacute or chronic survives, and matched chronic crosses even uncorrected.
 
 ### How the wrong claim got made, because the mechanism is repeatable
@@ -9762,7 +9762,7 @@ return — and it holds under both training-set conventions.
 **Acutely the code is displaced, not merely lost** (+0.100 corrected, unmatched): re-fitting reaches
 information the pre-stroke readout cannot.
 
-**Whether a reorganised component PERSISTS is not resolvable with this cohort.** Point estimates stay
+**Whether a reorganized component PERSISTS is not resolvable with this cohort.** Point estimates stay
 positive and flat (0.100 → 0.066 → 0.078) but every post-acute interval includes zero. That is not
 evidence of absence, and the variance decomposition in the entry above says why: 83% of the chronic
 uncertainty is between animals, the corrected half-width is ~0.08–0.09, and the effect if real is
@@ -9776,7 +9776,7 @@ which converts a limitation into an aims justification:
 > Recovery re-establishes a representation the original readout can use: a frozen pre-stroke decoder
 > loses 0.36 of its accuracy acutely and returns to within 0.06 of baseline chronically,
 > indistinguishable from pre-stroke. Acutely, a within-session refit reaches information the frozen
-> model cannot (+0.100), showing the code is displaced rather than simply lost. Whether a reorganised
+> model cannot (+0.100), showing the code is displaced rather than simply lost. Whether a reorganized
 > component persists into the chronic stage is not resolvable in this cohort — point estimates remain
 > positive (+0.07) with intervals spanning zero, and 83% of that uncertainty is between animals, so
 > ~8 animals reaching chronic would be required rather than more sessions from these four.
@@ -9784,7 +9784,7 @@ which converts a limitation into an aims justification:
 ### Do not re-derive the withdrawn claim
 
 The point estimates are positive at every epoch and will keep looking like a result. Three separate
-analyses of this cohort have now produced "reorganisation persists" as a point estimate and none has
+analyses of this cohort have now produced "reorganization persists" as a point estimate and none has
 produced it as a significant one. Any future version needs either more animals or a pre-registered
 single contrast with the power to see it (see the entry above) — not another bootstrap.
 
@@ -9832,7 +9832,7 @@ that looked strongest of all — +0.138 corrected at acute, and significant at a
 `_frozen_vs_refit_matched`'s own docstring already said the two bracket rather than settle:
 *"both bounds are real effects and neither is 'the' answer."* The defensible statement is therefore:
 
-> Reorganisation is supported at one end of a bracket and absent at the other. It is not established.
+> Reorganization is supported at one end of a bracket and absent at the other. It is not established.
 
 ### THE RULE
 
@@ -9851,7 +9851,7 @@ BOTH windows, i.e. accuracy is statistically indistinguishable from pre-stroke. 
 discriminating test the hypothesis names — *a decoder trained on pre-stroke activity recovers only if
 the original patterns return* — and it never depended on the gap at all.
 
-The grant paragraph should lead with it, state the reorganisation question as open with the power
+The grant paragraph should lead with it, state the reorganization question as open with the power
 number attached, and cite the MATCHED family wherever the gap appears.
 
 ---
@@ -9942,7 +9942,7 @@ noise dominates.
 
 ---
 
-## 2026-09-12 (late) — On LICK TRIALS the reorganisation SURVIVES matching, and it is not a window artifact
+## 2026-09-12 (late) — On LICK TRIALS the reorganization SURVIVES matching, and it is not a window artifact
 
 This **partially qualifies the withdrawal above**, which says nothing survives training-set matching
 anywhere. That is now true only of the ALL-TRIALS arms.
@@ -9958,7 +9958,7 @@ window. Matched family, gap as change from pre, Bonferroni-corrected over nine c
 
 ### What the window test was for, and exactly what it shows
 
-The post-lick arm was the only surviving reorganisation signal, and two accounts predicted it:
+The post-lick arm was the only surviving reorganization signal, and two accounts predicted it:
 
     CODING     the position code moved into a form the frozen readout cannot reach
     EXECUTION  the post-lick window is dominated by activity generated by performing the lick;
@@ -9994,7 +9994,7 @@ Post-cue, matched, same window, only the trial set differs:
 | `working` (lick + miss-while-working) | +0.043 crosses | +0.074 crosses |
 | **`lick` only** | **+0.158 EXCLUDES** | **+0.090 EXCLUDES** |
 
-**On trials the animal completed, a reorganisation signal survives matching and correction. Adding
+**On trials the animal completed, a reorganization signal survives matching and correction. Adding
 the failed trials destroys it.** That is a coherent and interesting claim, and it is the only one
 today that holds in the matched family.
 
@@ -10003,7 +10003,7 @@ today that holds in the matched family.
 **Selection.** The window test separates WINDOW from CODING; it says nothing about whether the
 lick-trial POPULATION changes with the deficit — and it does. Acute far-contralateral is still gated
 out of these arms below `MIN_REFIT_SHARE` (0.0–4.3% of trials against a pre-stroke 16.5%), so the
-acute row is effectively over five positions. "The code reorganised on completed trials" and "the
+acute row is effectively over five positions. "The code reorganized on completed trials" and "the
 completed trials are a different population" both remain live.
 
 Both corrected lower bounds are thin (+0.020 acute, +0.010 chronic post-cue) and chronic rests on
@@ -14329,7 +14329,7 @@ stroke-to-chronic interval, against observed gains of +0.02 to +0.20.
 chronically" is true and has been read as the code being lost or replaced. It is neither: the
 information is MORE decodable chronically than it ever was pre-stroke, and the frozen model fails
 because the readout is obsolete, not because the code is gone. Behavior recovers, the readout does
-not transfer, and the content increases -- reorganisation with net gain.
+not transfer, and the content increases -- reorganization with net gain.
 
 **WHAT THE TOP ROW IS.** `train pre -> test post` duplicates what the existing frozen-decoder
 families already report; rows 2-4 are the new content, and `chronic -> pre` is the only cell that
@@ -18378,7 +18378,7 @@ animal. No cohort p (n = 4); per-animal verdicts and their consistency are the e
 
 **Verdicts.** Behavior has plateaued in all four. The readouts that track behavior — frozen and
 refit decoding — have plateaued in all four (no animal's decoder is still rising). The readouts that
-index ongoing reorganisation have plateaued in PS92, PS93 and PS94 and **have NOT in PS95**, where
+index ongoing reorganization have plateaued in PS92, PS93 and PS94 and **have NOT in PS95**, where
 six readouts are still moving in one coherent direction through day 39 (G, crossnobis, encoder
 ceiling and map amplitude RISING; frozen encoder, gain and best-match FALLING) — the within-session
 code strengthening while the pre-stroke readout loses grip, with a step at day 29 that is that
@@ -21038,8 +21038,8 @@ metrics (time / epoch only; the deficit is itself behavior). **Not yet:** epoch 
 per-session pre values first); CD trajectories (per-session window means from `session_traces`). **Pixel maps** keep
 the beta_maps tests (per-pixel fixed-intercept OLS only as a descriptive companion).
 **First results:** the frozen decoder's deficit recovers with log-days (z -3.9 / -4.7) and tracks the behavioral
-deficit (z 4.2 / 4.9), ~0 at full behavioral recovery (0.05, n.s.); refit-over-frozen reorganisation STAYS positive at
-full recovery (+0.10, z 3.7 / 3.1) -> reorganised code with normalized behavior. Position ceiling (trend table) falls
+deficit (z 4.2 / 4.9), ~0 at full behavioral recovery (0.05, n.s.); refit-over-frozen reorganization STAYS positive at
+full recovery (+0.10, z 3.7 / 3.1) -> reorganized code with normalized behavior. Position ceiling (trend table) falls
 with the deficit (z -4.9) and sits above pre at full recovery (+0.040, z 5.3).
 **Also tonight:** whole-session licks from the other window (`licks_all.csv`, cam1 `_events_all.csv`; clocks match ours
 to 2 ms): the 2 s pre-cue window holds NO-CONTACT licks on 5-44 % of trials (PS95 .. PS93, pre-stroke; contact fraction
@@ -21091,7 +21091,7 @@ log days (z 7.2) and is still below pre at full behavioral recovery (z -4.1); be
 (-8.7 / +5.9 / -4.1); far-contra own-position best match (10b) tracks the deficit (z -19.1) and is back at pre at full
 recovery (z -0.7); the encoder ceiling (11c) is at / above pre at recovery (z +1.3, n.s.). With the frozen-decoder
 trajectory (G_reorg) this says: identity of far contra returns with behavior, but the pre-stroke frozen code does not
-fully -- reorganised code.
+fully -- reorganized code.
 
 ## 2026-10-21 (night) -- trial_attempts jaw input = jaw_onsets.csv (cam1 timing fix)
 
@@ -21704,10 +21704,10 @@ reorganization stays >0?" (the 10-20 late line in ENCODING_FINDINGS). Checked ag
 - frozen deficit F at deficit = 0: +0.083 (z 2.2) matched / +0.082 (z 2.7) unmatched -- NOT ~0. Per animal from day 11
   (matched / unmatched): PS92 -.02 / .02, PS93 .09 / .06, PS94 .15 / .17, PS95 .09 / .08 -> only PS92 is back. The refit
   decoder is back (refit deficit -0.01, z -0.4).
-- reorganisation G at deficit = 0: +0.093 (z 3.9) / +0.092 (z 5.1); > 0 in 4/4 from day 11 (.05-.17); does not track the
+- reorganization G at deficit = 0: +0.093 (z 3.9) / +0.092 (z 5.1); > 0 in 4/4 from day 11 (.05-.17); does not track the
   deficit (z -1.4 / -0.4); matched time model ~0 at day 1, rising with log(day) (z 2.2).
 The z values come from an LMM with no block level and no correction across the deck's nine contrasts; the 2026-09-12
-entry withdrew "reorganisation persists" for exactly that reason (deck bootstrap: chronic G intervals span 0). So: the
+entry withdrew "reorganization persists" for exactly that reason (deck bootstrap: chronic G intervals span 0). So: the
 first half of the 10-20 line is wrong, the second half is a 4/4 point-estimate pattern, not an established effect.
 FINDINGS §2 decoder bullet and §4.3.5 corrected; a single pre-registered contrast at the deck's resampling level is the
 way to settle it (FINDINGS §7.8).
@@ -22009,10 +22009,10 @@ spout figures written under `frozen_encoder_gate-attempted_v7g3_t3d_basis`.
   joins on `days_since_stroke` and silently dropped them (decoder rows n_chronic 10 / 10 / 6 / 9 instead of 12 / 12 / 8 /
   11), including the PS92_1002 frozen dip the 10-07 handoff asked to check. Re-rendered (`wfield_local.recovery_trajectory`,
   values within .007 of the old table, 8 day labels changed), then `scripts.chronic_stability` and
-  `scripts.chronic_drift_vs_reorg`. Frozen decoder: chronic level unchanged (+-.01), FLAT 4 / 4. Reorganisation G: now
+  `scripts.chronic_drift_vs_reorg`. Frozen decoder: chronic level unchanged (+-.01), FLAT 4 / 4. Reorganization G: now
   still RISING chronically in 3 / 4 (PS92, PS93, PS95; was 1 / 4), matching the session LMM's log-day slope (+.030, z
-  4.5); with the June -> August no-stroke arm (G drift-sized) this is a rising readout, not reorganisation beyond drift.
-  Crossnobis drift-vs-reorganisation: DRIFT-consistent 4 / 4, unchanged.
+  4.5); with the June -> August no-stroke arm (G drift-sized) this is a rising readout, not reorganization beyond drift.
+  Crossnobis drift-vs-reorganization: DRIFT-consistent 4 / 4, unchanged.
 * **Per-animal tables** (`scripts/imaging_per_animal_tables.py`, `labcams/grant_figures/epoch/per_animal_tables/`,
   existing sidecars, nothing refitted): (1) the frozen STATE decoder's cohort-level drop is carried by PS94 (above chance
   .98 -> .75 / .58 / .45); the other three lose .01-.09 -- "state also falls" is one animal; the position-vs-state
@@ -22759,7 +22759,7 @@ quoted to ~.05.**
   - Lick/lick: far contra +.025, others -.02 to -.04.
   - The full acute mix roughly doubles the loss at the other positions (close mid -.076).
   - Mechanism: the session mean leaves far contra, so every trial is pushed toward the far-contra pattern.
-- *Coupling test:* pre far-contra trials attenuated to the session mean (alpha = 0). The renormalisation alone lowers the
+- *Coupling test:* pre far-contra trials attenuated to the session mean (alpha = 0). The renormalization alone lowers the
   other five positions by -.018 to -.024 (CI excludes 0, 4/4 at every alignment); -.007 to -.009 at alpha = .5.
 - *Fixes on the stress test:* class-balanced centering (oracle labels) removes 85-95 % of the artifact. Label-free `bal_em`
   (as in the state check: production SD, 3 passes) removes ~90 % for cue / lick and ~70 % for precue. When a class is

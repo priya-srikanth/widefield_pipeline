@@ -2679,7 +2679,7 @@ infrastructure, so it is ported here first, still default OFF.
       s_s·sdw_s), expressed in each session's z. It needs `pool_sessions`' per-session z stats, now registered per XE
       object (`register_pool_stats` / `pool_stats_of`; the return value is unchanged).
   - **Min-rows guard (Priya 11-04).** Wt needs >= 20 (MIN_CENTRE_ROWS) working rows at EVERY spout and REFUSES
-    (BalEmCentreRefused) otherwise. The check's "drop spouts < 5 and renormalise" is deliberately NOT ported: no fill,
+    (BalEmCentreRefused) otherwise. The check's "drop spouts < 5 and renormalize" is deliberately NOT ported: no fill,
     no fallback. A session with no working rows (PS93_0813) is unscored as before; a post session with none raises.
     Dry count of the minimum below.
   - Applies to: `frozen_scored_frame` (sections D, G, attempt, joint) and `grant_kit._frozen_frame` (5b / 5c and the

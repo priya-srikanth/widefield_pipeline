@@ -364,7 +364,7 @@ and why the deck's existing blanket staleness disclaimer is not a substitute for
       Is the lesioned hemisphere brighter? 415 nm is the ISOSBESTIC channel, so a left-sided 470 rise is not an activity change unless 470/415 moves too — the two questions are one measurement. The PERFUSION DIRECTION of a 415 shift is UNRESOLVED: measured on this data the raw 415 RISES with activation (+0.5 to +2.0%), contradicting a simple absorption account, so do NOT read a 415 change as hypo- or hy
 
 - [ ] **locanmf_analysis_deck:2002** (2 values)
-      Every panel shares one symmetric vmin/vmax, so a 2-3x amplitude difference shows as a 2-3x difference in saturation. The standard maps renormalise per session and cannot show this. Baseline F is unchanged (ratios 0.99-1.02), so the change is in the numerator.
+      Every panel shares one symmetric vmin/vmax, so a 2-3x amplitude difference shows as a 2-3x difference in saturation. The standard maps renormalize per session and cannot show this. Baseline F is unchanged (ratios 0.99-1.02), so the change is in the numerator.
 
 - [ ] **locanmf_analysis_deck:2064** (2 values)
       . Their 8/16 attempt produced no deficit; the effective lesion (3.75 / 5.5 mW) followed the 8/17 session, so 8/17 is neither a clean baseline nor post-stroke and belongs to neither phase. They are NOT unanalysed — they are the SMALL-LESION COMPARISON, shown per session at G7c and as the two gray squares in G2c's grid, and more importantly, the WITHIN-ANIMAL BEFORE/AFTER CONTROL in G2c: these same 

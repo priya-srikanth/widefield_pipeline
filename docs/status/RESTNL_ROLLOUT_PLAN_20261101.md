@@ -6,7 +6,7 @@ Nothing has been run, rendered, extracted or committed for it.
 RESTnl = `scripts/restnl.py` (wf_attempt branch `analysis/attempt-coding` only; NOT on `main`): the restdock05 rest mask minus
 every cam4 LP lick (`licks_all.csv`, contact or not) and every DAQ lick onset, buffer [0.5 s before, 2.0 s after], min_rest_s
 floor re-applied, engagement-gated (`rest_frames_by_position(docked=False, engaged_only=True)`), per-position MEDIAN, rule
-`wr` = equal-weight mean over positions with >= 50 frames, >= 4 of 6, renormalised (107 / 107 sessions). FINDINGS.md 10-29
+`wr` = equal-weight mean over positions with >= 50 frames, >= 4 of 6, renormalized (107 / 107 sessions). FINDINGS.md 10-29
 (adoption) / 10-30 (rescue rule) / 11-01 (captions).
 
 Classes used below:
@@ -130,7 +130,7 @@ trials and positions. The window features are linear means, so for every positio
    cache). Port from `scripts/restw_strict_check.py` (`widen`, `floor_runs`, `_daq_lick_onsets`, the strict mask:
    `floor_runs(rest0 & ~widen(daq_on,[0.5,2.0]) & ~widen(cam4 licks_all daq_on_s,[0.5,2.0]), min_rest_s)`), the frame
    selection by substituting the mask into `rest_frames_by_position(docked=False, engaged_only=True)` (as
-   restw_strict_check does, in-process) and the `wr` estimator (>= 50 frames, >= 4 of 6, renormalised; `strict` as an
+   restw_strict_check does, in-process) and the `wr` estimator (>= 50 frames, >= 4 of 6, renormalized; `strict` as an
    option). `licks_all.csv` path from `lp_licks` (exists on main). Session-cache kind `restnl-svt-<digest>` holding
    `b_nl`, the pixel map, positions used, frame counts per position, ok flag. Never write on the `mc` directories.
 2. `position_reference_maps`: `DERIVED_REFERENCES = ("restnl",)`; KEEP the `refs` entry of the `prm` cache spec equal to

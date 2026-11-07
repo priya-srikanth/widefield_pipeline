@@ -157,7 +157,7 @@ The pose / 3-D / cam1 work is the OTHER window: `STATUS_2026-10-20_POSE3D_TIMING
   (`sse_trial_lick`), `COMBINED_ENCODING_LICKS_ALL=shared|split` (whole-session licks; folder `_licksall-<mode>`).
 
 **Key results tonight** -- coding tracks behavioral recovery and overshoots pre (lick distance z -5.2 / +4.5); frozen
-decoder recovers with behavior, reorganisation persists; chronic bilateral anterolateral-frontal ECCENTRICITY change
+decoder recovers with behavior, reorganization persists; chronic bilateral anterolateral-frontal ECCENTRICITY change
 (only post-stroke map change surviving the animal-level test); 3-D confirms the crossed executed component (~0.2 of the
 across-spout slope); acute deficits: PS92 / PS93 slow start vs PS94 / PS95 prompt-but-miss; pre-cue window contact-free
 by design but holds no-contact licks (5-44 % of trials) and GCaMP spillover from contacts just before it.

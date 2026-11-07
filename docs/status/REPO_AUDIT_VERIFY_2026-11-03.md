@@ -82,7 +82,7 @@ attempt at `3834b3d9`.
   are the **same set**. `weighted_abs` and the pre noise floor are unaffected.
 - **Documented?** Not as a mixed baseline. The docstring's "all-pre" is literally true but implies June. DECISIONS 2026-10-27
   (late, ~line 22159) records the first-lick choice only. I recommend rewording the docstring.
-- **Residual subtlety the report missed:** `weighted()` renormalises over the spouts that have at least `MIN` licks. So the
+- **Residual subtlety the report missed:** `weighted()` renormalizes over the spouts that have at least `MIN` licks. So the
   "constant per animal x spout" reference shift is **not** constant per session when the set of spouts present changes. This
   is small, and it applies whatever the baseline is.
 - The ad-hoc `EPS` / `POS` lists (`:41-42`) are confirmed; they match `POS_ORDER`.

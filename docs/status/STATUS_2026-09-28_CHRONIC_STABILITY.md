@@ -31,7 +31,7 @@ residual as a ratio, not the flag. And **the flat test is one-sided**: a readout
 passes, a readout still *rising* fails — so "RISING" below means the animal is still moving away
 from its pre-stroke state on that readout.
 
-Readouts: frozen and refit decoder accuracy and their difference *G* (reorganisation index);
+Readouts: frozen and refit decoder accuracy and their difference *G* (reorganization index);
 encoder ceiling, training-matched frozen encoder, and gain; best-match template accuracy; crossnobis
 distance from each position's own pre-stroke template; cue-evoked map amplitude at far-contra and
 near-ipsi; and behavior, as the reference. Per-session values come from the deck's own `_sessions.csv`
@@ -79,7 +79,7 @@ PS92 excludes 0922 (with it, every PS92 residual roughly doubles and nothing els
 | **behavior** far-contra hit | 1.04 · flat · **0.05×** settled | 1.02 · flat · **0.09×** settled | 1.04 · flat · 0.63× | 1.07 · flat · **0.15×** settled |
 | decoder **frozen** | 1.05 · flat · 0.56× | 0.87 · falling −2.2 · 1.21× | 0.83 · +0.8 · 0.64× | 0.90 · flat · 0.64× |
 | decoder **refit** | 1.11 · flat · **0.29×** settled | 1.08 · flat · **0.31×** settled | 1.00 · flat · 0.91× | 0.99 · flat · 1.27× |
-| **reorganisation G** | +0.05 · **RISING +1.4** · 0.85× | +0.14 · **RISING +1.0** · 0.84× | +0.13 · falling −2.2 · 0.56× | +0.07 · **RISING +1.4** · 0.61× |
+| **reorganization G** | +0.05 · **RISING +1.4** · 0.85× | +0.14 · **RISING +1.0** · 0.84× | +0.13 · falling −2.2 · 0.56× | +0.07 · **RISING +1.4** · 0.61× |
 | encoder **ceiling** | 1.28 · flat · 0.46× | 1.08 · flat · **0.24×** | 0.97 · flat · 1.00× | 1.08 · **RISING +1.1** · 0.30× |
 | encoder **frozen** (matched) | 0.93 · flat · 0.47× | 0.61 · flat · 0.84× | 0.75 · falling −1.1 · 0.60× | 0.47 · falling −2.6 · 0.67× |
 | encoder **gain** | 1.28 · flat · 0.54× | 0.85 · flat · 0.75× | 0.79 · falling −1.4 · 0.73× | 0.75 · falling −2.0 · 0.61× |
@@ -115,7 +115,7 @@ and five points cannot argue *for* it either.
 crossnobis (both), and map amplitude (both) **rising**; frozen encoder, gain and best-match
 **falling**. That is one coherent motion — the within-session code strengthening while the
 pre-stroke readout loses grip — continuing through days 15–39, with a step at day 29 that is not
-instrumental. PS95 is still reorganising. If any animal would give different chronic numbers with
+instrumental. PS95 is still reorganizing. If any animal would give different chronic numbers with
 four more weeks of sessions, it is this one.
 
 ---
@@ -126,7 +126,7 @@ four more weeks of sessions, it is this one.
   established by the rule and is not in question.
 * **The readouts that track behavior — frozen and refit decoding — have plateaued in all four.**
   No animal's decoder is still rising.
-* **The readouts that index ongoing reorganisation — G, crossnobis distance, map amplitude — have
+* **The readouts that index ongoing reorganization — G, crossnobis distance, map amplitude — have
   plateaued in PS92, PS93 and PS94, and have not in PS95.** G is still rising slowly in three of four.
 * **"Stable" and "recovered" are different claims** (PRELIM_DATA §10). PS92 is both; PS93 and PS95
   are stable-in-behavior with a representation still drifting away from pre-stroke; PS94 is

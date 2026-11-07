@@ -18,7 +18,7 @@ Analysis box (M: = MICROSCOPE). Reasoning + durable pointer: `DECISIONS.md` 2026
    (frozen + refit). These are the "has the chronic level settled" metrics.
 2. **The only still-moving signal is the representational geometry** — crossnobis distance from each
    animal's own pre-stroke template is still rising in **PS92, PS93, PS95** (`crossnobis mean(6 pos)`),
-   plus a few map-amplitude / reorganisation-G series. **PS94 is fully flat.**
+   plus a few map-amplitude / reorganization-G series. **PS94 is fully flat.**
 3. **That rise is DRIFT, not reorganization.** A fixed pre-template cannot separate the two (both grow
    distance-from-pre over time), so the follow-up `scripts/chronic_drift_vs_reorg.py` instead compares
    the *per-day rate* of session-to-session change in two windows. In all four animals the

@@ -122,7 +122,7 @@ test after its render) -- not run here.
   1. NOW: null/potent PS93 0814 (thresholds -> Priya) -> cohort overnight -> per animal / epoch: does the ENL
      position code sit in the movement-NULL subspace pre-stroke, and does that change after the stroke?
   2. ENL running + video residual across sessions (script ready, untested) -- complementary to 1.
-  3. Movement-null by regression (2pRAM-style top-k) -- deprioritised in favor of the Hasnain method.
+  3. Movement-null by regression (2pRAM-style top-k) -- deprioritized in favor of the Hasnain method.
   4. Nonlinear movement model (their ANN control: 28 % vs 11 % VE over ridge) -- later robustness check.
   5. Per-period residual test (ENL / cue / lick) -- partly answered by the ENL decode.
   6. MUST REVISIT: executed-angle vs target readout (`lick_template_match`) once (i) the next cam4 model, (ii)

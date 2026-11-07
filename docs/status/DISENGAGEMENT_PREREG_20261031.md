@@ -488,7 +488,7 @@ and DAQ contacts). Acute far contra is lowest (LP ~3 vs pre ~8.5).
 9. Trajectory bins (5 min) require each control to be engaged through the END of that bin. The quit period uses
    [quit, quit + 10 min] cut at session end, needing >= 5 min.
 10. FaceRhythm "between trials" excludes [cue - 0.5, cue + 4 s] and lossy samples, in 10-s bins.
-11. Lapse logistic: sklearn, effectively unpenalised (C = 1e6), standardized covariates, cells with >= 10 lapses and
+11. Lapse logistic: sklearn, effectively unpenalized (C = 1e6), standardized covariates, cells with >= 10 lapses and
     >= 10 non-lapses.
 12. The giving-up rate is also computed for pre quits (drawn, descriptive). The pre working distribution = 5-min
     collected rate at every trial >= 5 min into a session and before any quit, all August pre sessions.

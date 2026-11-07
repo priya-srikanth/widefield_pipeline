@@ -473,7 +473,7 @@ FINDINGS.md sections 0-5 plus this arm.
 | LARGER QUIET FLUCTUATIONS (2-3 Hz, both signs, ~5x acute, recovering; faster decay) | Human EEG: more delta after stroke, contralesional delta prognostic of poor recovery; sleep-like slow waves / OFF-periods in awake cortex after cortico-subcortical lesions (Sarasso et al. 2020 Brain) | CONSISTENT with human; new in rodents after a subcortical lesion |
 | (same) | Rat: reach-locked low-frequency oscillations in perilesional M1 WEAKENED after stroke, their return tracks recovery (Ramanathan et al. 2018 Nat Med). Rodent widefield cortical stroke: connectivity lost then partly restored (eLife 2024, 90080) | TENSION (movement-locked vs quiet; test 4.7) |
 | ACUTE ENCODING LOSS = the changed movement (frozen encoder predicts the far-contra drop from the lick) | No study found that asks whether the pre-stroke mapping already predicts the change from altered behavior | NEW, conceptually important |
-| CHRONIC REMAPPING (same movement, different response; self-fit better; target and executed coding remapped) | Reorganisation is classic after CORTICAL lesions (Winship & Murphy 2008 J Neurosci; Latifi et al. 2020 Cereb Cortex; Nudo 1996 *(memory)*); after CAPSULAR stroke: no reorganisation (Cettina 2025) | NEW for remote cortex after a subcortical lesion; tension with capsular result; drift caveat |
+| CHRONIC REMAPPING (same movement, different response; self-fit better; target and executed coding remapped) | Reorganization is classic after CORTICAL lesions (Winship & Murphy 2008 J Neurosci; Latifi et al. 2020 Cereb Cortex; Nudo 1996 *(memory)*); after CAPSULAR stroke: no reorganization (Cettina 2025) | NEW for remote cortex after a subcortical lesion; tension with capsular result; drift caveat |
 | Failed attempts (no-contact licks) lose side coding and trial-by-trial coupling; first cued lick read toward target; coupling returns on hits; code plateaus ~3/4; cortex does not lead recovery | No direct precedent found | NEW |
 | Lesion size orders recovery speed | Expected | SUPPORTS |
 | Acute orofacial quiet events LOCAL to anterolateral orofacial cortex (15.7) | Fits the VLS -> SNr -> VM/VAL -> ALM / tjM1 loop anatomy (Lee, Wang & Sabatini 2020) as a hypothesis; no stroke precedent found | NEW (pending test 4.1) |
@@ -569,9 +569,9 @@ cohort would settle it.
 
 CITATION CHECK (Priya 11-01: "read those citations more carefully and see if it holds up"; abstracts + the Frontiers
 review fnsys.2019.00040, full texts paywalled). Poulet, Fernandez, Crochet & Petersen 2012 Nat Neurosci 15:370: in BARREL
-cortex, whisking-related desynchronisation comes with INCREASED VPM firing, is not peripheral (survives infraorbital nerve
+cortex, whisking-related desynchronization comes with INCREASED VPM firing, is not peripheral (survives infraorbital nerve
 cut), is halted by pharmacological thalamic inactivation and mimicked by optogenetic thalamic stimulation -> HOLDS for
-"thalamic input desynchronises the active state"; does NOT show that REDUCED drive makes resting cortex MORE synchronized
+"thalamic input desynchronizes the active state"; does NOT show that REDUCED drive makes resting cortex MORE synchronized
 (under inactivation, whisking Vm was hyperpolarised with REDUCED variance); thalamic inactivation literature is mixed and
 state-dependent (anesthesia: weaker slow oscillation, J Neurosci 2014 34:5689; an awake study cited as enhanced slow
 oscillation, not verified; awake preprint: cortical baseline largely unchanged). Crochet & Petersen 2006 Nat Neurosci

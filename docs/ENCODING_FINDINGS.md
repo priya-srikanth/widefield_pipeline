@@ -38,7 +38,7 @@ Status tags: **STANDS** (survived the controls listed), **PROVISIONAL** (one con
 > | Relabel: far-contra trials sit in another spout's pre-stroke state (2.7, 8.3) | NOT ESTABLISHED at session level (heterogeneous; other spouts also lose their label; nothing survives Bonferroni) | 4 animals, final frame; per-trial run in progress |
 > | Failed attempts on the frozen decoder: "distance kept, side lost"; no pre-cue plan signature (2.8) | FIRST RUN (10-24) | video attempt classes, rebuilt attempts table; DAQ-frozen pre decoder |
 > | Failed-attempt maps: same bilateral pattern, lower amplitude than hits (3/4) but not than touch-matched pre misses (2/4) (2.9) | FIRST RUN (10-24) | >= 5 trials per session x spout x class |
-> | Layer 2: the behavior -> cortex mapping changes chronically beyond pre-stroke session variability (2.5 Layer 2, 8.5) | STANDS vs the random-split null (chronic P = 0, 4/4); PROVISIONAL as "reorganisation" | grows with time (early chronic ~null in PS93 / PS95); slow drift not separable without a trend model; no single group carries it |
+> | Layer 2: the behavior -> cortex mapping changes chronically beyond pre-stroke session variability (2.5 Layer 2, 8.5) | STANDS vs the random-split null (chronic P = 0, 4/4); PROVISIONAL as "reorganization" | grows with time (early chronic ~null in PS93 / PS95); slow drift not separable without a trend model; no single group carries it |
 > | Licks land / travel toward the wrong spout from launch; decoder follows landing on average, trial coupling breaks acutely (8.1, 8.2) | STANDS | landing + trajectory softmax, nested bootstrap, Bonferroni 36 cells; 4/4 |
 >
 > **Standing re-run rule (Priya 10-23) -- NOW DUE:** every lick-DIRECTION result (exec_within / exec_locked dR2, stray
@@ -350,24 +350,24 @@ No per-lick plan signature. "Target" here = spout location / touch / posture / c
   (q .08); strict executed null. Old outputs `qc/superseded_attempts_jaw_20261021/`.
 
 - **Frozen decoder vs refit after behavioral recovery (CORRECTED 10-23; was "decoders recover with behavior, the code
-  stays reorganised", 10-20 late; `scripts/imaging_lmm.py`).** The 10-20 line said the frozen-decoder deficit is ~0 at
-  full behavioral recovery while refit-over-frozen reorganisation stays positive (z 3.7). **The current output (rerun
+  stays reorganized", 10-20 late; `scripts/imaging_lmm.py`).** The 10-20 line said the frozen-decoder deficit is ~0 at
+  full behavioral recovery while refit-over-frozen reorganization stays positive (z 3.7). **The current output (rerun
   10-21 14:36 after the attempt re-definitions, `qc/imaging_lmm_summary.csv`, post rows, y ~ deficit, cue / working)
   supports only the second half:**
   - frozen deficit F at deficit = 0: **+0.083 (z 2.2) matched / +0.082 (z 2.7) unmatched -- NOT ~0**; per animal
     (sessions from day 11 on, matched / unmatched) PS92 -.02 / .02, PS93 .09 / .06, PS94 .15 / .17, PS95 .09 / .08
     -> only PS92 is back at its pre-stroke frozen accuracy; the refit decoder itself is back (refit deficit -0.01, z -0.4);
-  - reorganisation G = (refit - frozen) - pre gap at deficit = 0: +0.093 (z 3.9) matched / +0.092 (z 5.1) unmatched,
+  - reorganization G = (refit - frozen) - pre gap at deficit = 0: +0.093 (z 3.9) matched / +0.092 (z 5.1) unmatched,
     > 0 in 4/4 animals from day 11 (.06-.17 matched, .05-.15 unmatched; last three sessions .08-.22); G does NOT track
     the behavioral deficit (slope z -1.4 / -0.4), so it is roughly flat over the post period; matched time model:
     ~0 at day 1 (z 0.7), rising with log(day) (z 2.2).
-  **Status: PROVISIONAL and in tension with the 2026-09-12 withdrawal** (DECISIONS: "reorganisation persists into
+  **Status: PROVISIONAL and in tension with the 2026-09-12 withdrawal** (DECISIONS: "reorganization persists into
   chronic" withdrawn because the deck's animals -> sessions -> BLOCKS bootstrap, Bonferroni over 9 contrasts, puts chronic
   G at +0.07-0.08 with intervals spanning 0; 83 % of the uncertainty between animals). The LMM has no block level and no
   correction across those contrasts, so per that entry's rule it does not overrule the deck. What is new: G is positive
   in each of the four animals individually (rule 8 met as a point-estimate pattern), and the frozen readout is not fully
   back at full behavioral recovery in 3/4. Read as "refit gains over frozen persist in every animal; significance
-  depends on the resampling" -- not as established persistent reorganisation.
+  depends on the resampling" -- not as established persistent reorganization.
   All session-level time courses now via `wfield_local/mixed_models.py` (one definition).
 
 - **CORRECTED 10-24 (afternoon) -- the Layer 2 drift-null comparison below is NOT like-for-like; the claim does not
@@ -390,7 +390,7 @@ No per-lick plan signature. "Target" here = spout location / touch / posture / c
   38.7 / 59.0 / 4.0, last-4 122.6 / 59.6 / 62.1 / 138.3 vs null 9.8 / 33.4 / 28.7 / 22.1 -> not a session-count effect
   (PS92 / PS94 stay far above), but it GROWS WITH TIME (PS93 / PS95: early chronic ~null, late chronic >> null). Early
   chronic > null 2/4, late chronic 4/4. The null spans one week, chronic one to two months, so progressive
-  reorganisation and slow drift are not separable here -> the deciding test is a trend model with a pre-stroke slope
+  reorganization and slow drift are not separable here -> the deciding test is a trend model with a pre-stroke slope
   (as 4.3.3). PROVISIONAL.
   **All-August-pre reference (10-24 evening, Priya: "just use august sessions with loso"):** the "post" fit already does
   this (every August pre session is reference, held out LOSO): change_ref cortex acute 50.2 / 36.5 / 60.2 / (1 session),
@@ -917,7 +917,7 @@ with fallbacks; DECISIONS 2026-10-20 night / late night, 2026-10-21 night). What
    -- while refit-over-frozen G is +0.09, z 3.9-5.1, > 0 in 4/4 but not significant under the deck's block bootstrap,
    DECISIONS 2026-09-12; PROVISIONAL.) Frozen encoder EV (family 11)
    still below pre at full recovery (z -4.1) while far-contra own-position best match (10b) is back at pre (z -0.7).
-   Epoch tables alone could not separate "not yet recovered" from "recovered but reorganised".
+   Epoch tables alone could not separate "not yet recovered" from "recovered but reorganized".
 6. **Some epoch effects weakened or went away under the LMM + controls:** the within-spout toward-midline chronic
    change (LMM z -3.4) falls to -1.5 with the contact covariate (hits only) -- not robust; position coding in the
    first-lick window only z -2.0 (q .08) after the attempt re-definition; cue-window effects partly reflect delayed
@@ -1022,7 +1022,7 @@ own kernel + per-epoch deltas in the all-session model; a frozen push kernel fai
 | frozen encoder decomposition | `qc/` | `lp_encoder_decompose_frozen_encoder_gate-attempted_<tag>_<variant>[_lick]_by_animal.csv` |
 | frozen encoder pixel maps | `frozen_encoder_gate-attempted_v6basis/` (`_v6grid` PS92 check) | `figures/pixel_maps_*`, `figures/pre_spout_{maps,contrast}_*` |
 | running-model comparison | `qc/` | `frozen_running_compare_*.csv` (+ `_curves.csv`); QC `qc/running_clips/`, `_v6thr1/figures/qc_running_threshold*.png` |
-| decoder / reorganisation LMM | `qc/` | `imaging_lmm_summary.csv` (source `decoder_*`); inputs `labcams/grant_figures/epoch/data/recovery_trajectory_*_cue_working.csv` |
+| decoder / reorganization LMM | `qc/` | `imaging_lmm_summary.csv` (source `decoder_*`); inputs `labcams/grant_figures/epoch/data/recovery_trajectory_*_cue_working.csv` |
 
 ## 7. Next (in order; 10-24) -- the goal question
 
@@ -1049,7 +1049,7 @@ the final frame + O2 main; O2 variants not in the batch (nokin_matched / tr / wi
 in the final frame (attempted gate + combined licks; cue-aligned + ENL variants; mixed model, per-position direction maps,
 reliability chained after); destination vs landing (fix `CONTEST_3D`, deleted folder) and lick templates on 4 animals;
 behavior / target-vs-execution figures, `lick_contact_by_epoch`, recovery trend, trial-average R2 after the O2 collect.
-Deferred: non-linear ceiling; pre-cue -> lick-window carry-over decode; decoder reorganisation contrast (2 / 4.3.5).
+Deferred: non-linear ceiling; pre-cue -> lick-window carry-over decode; decoder reorganization contrast (2 / 4.3.5).
 
 ## 8. Results of 10-24 night / 10-25 (goal question; to be folded into 2-4) — results page Figs renumbered 10-25
 
@@ -1246,7 +1246,7 @@ so the UNMATCHED fit (all of a group's sessions; table mode = all) is read along
 - TARGET kernels: too noisy to read (split-half 0.13-0.76; late pre vs early pre already 0.35-0.75).
 - CAVEAT that decides the reading: chronic sessions are 3-7 weeks from early pre, late pre only days, so a steady
   divergence is what ordinary representational drift predicts (the 10-07 chronic_drift_vs_reorg result: the crossnobis
-  distance still rising chronically was drift, not reorganisation). NEEDED: a drift-RATE test -- within-chronic early vs
+  distance still rising chronically was drift, not reorganization). NEEDED: a drift-RATE test -- within-chronic early vs
   late kernel r per day against the pre-stroke rate per day -- before any "lick kernels remapped" claim. Maps at +0.1 s
   also show midline venous stripes post-stroke (vessel contamination, as in 8.13).
 Figures `<run>/epoch_kernels/epoch_kernels_r.png`, `epoch_kernel_maps_<lick|target|cue>.png`; page Figs 1uc2 / 1uc3.

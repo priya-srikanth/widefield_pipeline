@@ -1,6 +1,6 @@
 # Preliminary data: what VLS stroke does to cortical position coding
 
-> **Current conclusions (10-25): [FINDINGS.md](FINDINGS.md) section 3.** This remains the detailed 09-26-render record. Since then: the chronic "reorganisation" framing (section 3, H5) is CORRECTED to NOT ESTABLISHED (DECISIONS 09-12 withdrawal, 10-23 correction, 10-24 June -> August drift group); chronic crossnobis "replacement" is PROVISIONAL (F18 drift); chronic region cells were pending.
+> **Current conclusions (10-25): [FINDINGS.md](FINDINGS.md) section 3.** This remains the detailed 09-26-render record. Since then: the chronic "reorganization" framing (section 3, H5) is CORRECTED to NOT ESTABLISHED (DECISIONS 09-12 withdrawal, 10-23 correction, 10-24 June -> August drift group); chronic crossnobis "replacement" is PROVISIONAL (F18 drift); chronic region cells were pending.
 
 **Rewritten clean on 2026-09-17.** Earlier versions carried four stacked "SUPERSEDED" strata
 (2026-09-09, 09-10, 09-12, 09-16), numbers read off renders that no longer exist, and one whole
@@ -139,7 +139,7 @@ decoder is still impaired chronically (§2), a same-day refit reads the position
 deficit in the pre-stroke readout is *displacement*, not loss, and it is the same signature as the
 acute far-contra cell, now at two positions. This is the per-position form of the replacement result
 in §4 and §6, and it is the strongest single piece of evidence that chronic recovery is
-representational reorganisation rather than restitution (§10).
+representational reorganization rather than restitution (§10).
 
 **THE DATA-POVERTY OBJECTION RUNS THE OTHER WAY.** Too few same-day far-contra trials would give the
 refit arm less to learn from and push the gap NEGATIVE. The observed gap is POSITIVE, so scarcity
@@ -475,7 +475,7 @@ pre-stroke representation has been replaced in every window.
 
 **So the position whose ENL representation never returns is not the one with the behavioral
 deficit.** That is the same pattern the chronic crossnobis shows (§5: largest displacement at
-near-**ipsi**), and it is the strongest evidence here that chronic reorganisation is not confined to
+near-**ipsi**), and it is the strongest evidence here that chronic reorganization is not confined to
 the impaired representation.
 
 ### The matched frozen-vs-refit gap, by window
@@ -814,7 +814,7 @@ near, 0.961/0.980/**0.975** far — far-contra at or above pre) has recovered co
 per-position frozen decoding has recovered at four of six positions; at the other two, near-middle
 and far-contra, a same-day refit reads what the frozen model cannot.
 
-**Behavior recovers; the readout does not.** Recovery is reorganisation, not restitution. With 31
+**Behavior recovers; the readout does not.** Recovery is reorganization, not restitution. With 31
 chronic sessions and all four animals contributing, every one of the four estimators above moved
 in the direction of MORE divergence between frozen and refit, not less.
 
@@ -950,7 +950,7 @@ The acute and chronic deficits are different in kind, and each is characterized 
 * **Chronic = a diffuse SHAPE change.** Rescaling recovers almost nothing (0.310 → 0.375), and every
   position has moved, the largest being near-**ipsi** — a position with no acute deficit at all.
 
-**The chronic reorganisation is not confined to the impaired representation.** Positions that were
+**The chronic reorganization is not confined to the impaired representation.** Positions that were
 never behaviorally affected have moved the most by chronic, and near-middle — never impaired — has
 lost its pre-stroke template in all three task windows and its pre-cue map amplitude, while a
 same-day refit still reads it. That is hard to reconcile with a purely local repair account and
@@ -976,7 +976,7 @@ target, contralesionally. A recovery account has to explain all three at once.
    exactly when the task-based readout fails. **But it is a different code** (cosine 0.09–0.16), so
    it is a complementary readout, not a substitute for the task one.
 4. **"Recovered" needs to be stated at a level.** Behaviorally recovered, representationally
-   reorganised, and readout-incompatible are three different states, and this cohort is all three at
+   reorganized, and readout-incompatible are three different states, and this cohort is all three at
    once.
 
 ### What would move this from suggestive to established

@@ -19,7 +19,7 @@
 - PER-SESSION TESTS ARE THE MAIN SHAPE TESTS (Priya "ok"): every session's own fit (own8) matched to the master; maps,
   scalars (asymmetry, spatial / spectral angle to the animal's pre mean, side specificity) and factor loss as delta vs
   each animal's own pre; within-animal session shuffles, no refit (`scripts/face_rhythm_session_loading_perm.py`,
-  `scripts/face_rhythm_session_shape_tests.py`). WHY: the pooled-fit refit null is inflated for factors that reorganise
+  `scripts/face_rhythm_session_shape_tests.py`). WHY: the pooled-fit refit null is inflated for factors that reorganize
   after the stroke (lick_left: pre-only pooled fits 4-7 deg, shuffled pools up to 37 deg, regardless of how many acute
   sessions they hold) -- a fragility check flags such factors (lick_left, lick_far_nose) as "pooled test
   inconclusive"; and a pooled fit is not the average of the animals (chronic lick_left: 3 / 4 animals' own fits +.27

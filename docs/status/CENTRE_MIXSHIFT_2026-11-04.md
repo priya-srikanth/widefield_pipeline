@@ -30,7 +30,7 @@ working rows (section D's 11-04 default).
 |---|---|---|
 | W | working (contact + incomplete) | label-free bal_em: production decoder frame; projection "working center" |
 | C | contact only | label-free bal_em, same model and prior |
-| Wt / Ct | working / contact | TRUE-LABEL balanced: equal-weight mean of per-spout means (spout from the DAQ strobe); a spout with < 5 rows is dropped and the weights renormalised |
+| Wt / Ct | working / contact | TRUE-LABEL balanced: equal-weight mean of per-spout means (spout from the DAQ strobe); a spout with < 5 rows is dropped and the weights renormalized |
 | Wo / Co | working / contact | bal_em + pre-stroke spout offsets (11-03 `prebal_off` / Option 2): center = mean − sd · Σ π̂(c) δ(c) |
 | Wto / Cto | working / contact | the same with the TRUE spout mix of the center rows instead of π̂ (no EM) |
 | Z | DAQ-lick rows | production session z: projection production frame; the old decoder frame |

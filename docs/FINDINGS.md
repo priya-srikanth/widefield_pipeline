@@ -644,7 +644,7 @@ per-lick measure (proposed 10-25: the first-lick window stays primary; Priya to 
   overshoot, not a return; tracks cued aim within animals r -0.15 / 0.85 / 0.81 / 0.46 but not beyond log(day)
   (p 0.76). ITI within-spout balance tracks the ITI angle (r 0.53 / 0.74 / 0.61 / 0.23, p 0.005).
   NOTE (Priya 10-29, keep for the grant): the contralesional hemisphere gains relative weight over weeks, independent
-  of where the lick lands -- fits gradual reorganisation, the intact hemisphere taking on a larger share, more than a
+  of where the lick lands -- fits gradual reorganization, the intact hemisphere taking on a larger share, more than a
   direct correlate of aim. Silencing contralesional cortex in the CHRONIC phase would test whether that extra share
   supports the recovered behavior.
   DECIDED (Priya 10-29 morning): (1) WORDING -- the cued imbalance is REDUNDANT with the landing error and appears
@@ -1148,7 +1148,7 @@ be read with it, and the "rules out generic explanations" argument holds for 3 /
    shows G +.05-.10 (DECISIONS 09-12, 10-23). June -> August no-stroke drift group (5b, 10-24,
    `scripts/june_august_drift.py`): frozen-decoder deficit / refit gain June -> Aug vs Aug -> chronic .13 / .09 vs
    .03 / .11, .28 / .16 vs .09 / .21, .17 / .18 vs .18 / .20, .18 / .18 vs .11 / .11 -> not beyond drift (3 / 4).
-   "Chronic reorganisation" (PRELIM §3, H5) is **CORRECTED -> NOT ESTABLISHED**; "decoder back" **CORRECTED**.
+   "Chronic reorganization" (PRELIM §3, H5) is **CORRECTED -> NOT ESTABLISHED**; "decoder back" **CORRECTED**.
    October sessions now included (10-25 re-render; the 10-07 table had dropped 2 chronic sessions / animal): frozen
    chronic level / pre 1.04 / .85 / .83 / .90, flat 4 / 4; G still rising in 3 / 4 (mixed-model log-day slope +.030,
    z 4.5) but does not track behavior (q .16) -- drift-sized per the June -> August group.
@@ -1168,7 +1168,7 @@ be read with it, and the "rules out generic explanations" argument holds for 3 /
    three references); at far contra the cue-evoked increment falls 1.7-3x more in the ipsilesional hemisphere (4 / 4).
    **STANDS** acutely; chronic region cells **PROVISIONAL** (the `15k` table predates the full chronic cohort).
 8. **Representational geometry.** Crossnobis distance from each position's pre template: far contra +1.02 acutely;
-   chronic +.30 to +.78 at all six positions. The still-RISING chronic distance is drift, not ongoing reorganisation
+   chronic +.30 to +.78 at all six positions. The still-RISING chronic distance is drift, not ongoing reorganization
    (within-chronic rate not above each animal's pre drift floor, 4 / 4; F18). But chronic distance from the August
    template exceeds June -> August drift in 3 / 4 (Aug-vs-June / chronic-vs-Aug .63 / 1.01, .95 / 1.16, .43 / .43,
    .59 / .81; June -> Aug includes learning, so an upper bound). "Chronic diffuse = replacement" (PRELIM H4)
@@ -1877,7 +1877,7 @@ FINDINGS.md sections 0-5 plus this arm.
 | LARGER QUIET FLUCTUATIONS (2-3 Hz, both signs, ~x6.7 acute with LP-lick quiet frames, recovering; the 'faster decay' did not survive movement correction) | Human EEG: more delta after stroke, contralesional delta prognostic of poor recovery; sleep-like slow waves / OFF-periods in awake cortex after cortico-subcortical lesions (Sarasso et al. 2020 Brain) | CONSISTENT with human; new in rodents after a subcortical lesion |
 | (same) | Rat: reach-locked low-frequency oscillations in perilesional M1 WEAKENED after stroke, their return tracks recovery (Ramanathan et al. 2018 Nat Med). Rodent widefield cortical stroke: connectivity lost then partly restored (eLife 2024, 90080) | TENSION (movement-locked vs quiet; test 4.7) |
 | ACUTE ENCODING LOSS = the changed movement (frozen encoder predicts the far-contra drop from the lick) | No study found that asks whether the pre-stroke mapping already predicts the change from altered behavior | NEW, conceptually important |
-| CHRONIC REMAPPING (same movement, different response; self-fit better; target and executed coding remapped) | Reorganisation is classic after CORTICAL lesions (Winship & Murphy 2008 J Neurosci; Latifi et al. 2020 Cereb Cortex; Nudo 1996 *(memory)*); after CAPSULAR stroke: no reorganisation (Cettina 2025) | NEW for remote cortex after a subcortical lesion; tension with capsular result; drift caveat |
+| CHRONIC REMAPPING (same movement, different response; self-fit better; target and executed coding remapped) | Reorganization is classic after CORTICAL lesions (Winship & Murphy 2008 J Neurosci; Latifi et al. 2020 Cereb Cortex; Nudo 1996 *(memory)*); after CAPSULAR stroke: no reorganization (Cettina 2025) | NEW for remote cortex after a subcortical lesion; tension with capsular result; drift caveat |
 | Failed attempts (no-contact licks) lose side coding and trial-by-trial coupling; first cued lick read toward target; coupling returns on hits; code plateaus ~3/4; cortex does not lead recovery | No direct precedent found | NEW |
 | Lesion size orders recovery speed | Expected | SUPPORTS |
 | Acute orofacial quiet events LOCAL to anterolateral orofacial cortex (15.7) | Fits the VLS -> SNr -> VM/VAL -> ALM / tjM1 loop anatomy (Lee, Wang & Sabatini 2020) as a hypothesis; no stroke precedent found | NEW (pending test 4.1) |

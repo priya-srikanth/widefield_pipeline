@@ -197,7 +197,7 @@ trial set (pre-cue drops trials with no lick-free window; PS93 shows the differe
 small, K=2 vs 3). **LICK is the independent alignment** and gives 12/12 above 1.0, mean 1.43.
 **Effective n is 12 cells, not 24.**
 
-**PS94 CHRONIC IS THE ONLY CELL IN THE REORGANISATION CORNER** — lowest overlap (0.332–0.338) AND
+**PS94 CHRONIC IS THE ONLY CELL IN THE REORGANIZATION CORNER** — lowest overlap (0.332–0.338) AND
 largest amplitude (1.72–1.79), consistent across all three alignments. Overlap down with scale up is
 the only combination that means the code went somewhere else rather than got stronger or weaker.
 
@@ -217,7 +217,7 @@ The two DISSOCIATE, and the dissociation is the point:
 |---|---|---|
 | ~1 | ~1 | nothing moved |
 | ~1 | <1 | same geometry, weaker drive |
-| <1 | ~1 | **REORGANISATION** — the code went somewhere else |
+| <1 | ~1 | **REORGANIZATION** — the code went somewhere else |
 | <1 | <1 | mixed, and neither number alone would say so |
 
 A decoder score conflates all four, since every one lowers accuracy. **This is the main thing the
@@ -264,7 +264,7 @@ is the truth. `surviving` is recorded per position and printed on each panel, re
 
 **Effect on real data** (PS95 pre-cue, peak over [0.2, 1.5] s):
 
-| position | survives | peak BEFORE (renormalised) | peak AFTER |
+| position | survives | peak BEFORE (renormalized) | peak AFTER |
 |---|---|---|---|
 | close_center | 60.7% | **+14.08** | **2.32** |
 | close_L | 88.4% | +4.05 | 2.01 |

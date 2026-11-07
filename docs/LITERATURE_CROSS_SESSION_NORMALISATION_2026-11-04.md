@@ -364,7 +364,7 @@ large shifts.
   - Wright et al. 2017 (*PLoS One*) [full text]: calcium FC structure differs between ketamine/xylazine and awake.
   - Ma et al. 2016 (*PNAS*) [abstract only]: neurovascular coupling is fast in awake mice and slower, with extra
     < 0.04 Hz components, under urethane.
-  - Shimaoka et al. 2018 (*Cell Rep*) [abstract only]: arousal (running, pupil) depolarises or hyperpolarises
+  - Shimaoka et al. 2018 (*Cell Rep*) [abstract only]: arousal (running, pupil) depolarizes or hyperpolarises
     cortex in a modality-specific way.
 - **Rest changes after stroke:**
   - Lee et al. 2026 preprint: slow-oscillation power suppressed acutely;
