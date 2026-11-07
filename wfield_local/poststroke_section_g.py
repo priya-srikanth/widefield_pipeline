@@ -95,8 +95,10 @@ def _counts(d, session):
     return out
 
 
-def _one_arm(d_by_align, session, keep, arm_all):
-    """The arm-dependent half: matched decoding, recoding, similarity, confusion."""
+def _one_arm(d_by_align, session, keep, arm_all, keep_lick=None):
+    """The arm-dependent half: matched decoding, recoding, similarity, confusion. ``keep_lick`` = the lick-only arm's
+    positions at the LICK alignment (`lick_keep`; default ``keep``)."""
+    keep_lick = keep if keep_lick is None else keep_lick
     rec = {"arm": "ALL trials" if arm_all else "lick-only",
            "n_positions_scored": len(DISPLAY_ORDER) if arm_all else len(keep),
            "chance": (1.0 / len(DISPLAY_ORDER)) if arm_all else (1.0 / max(len(keep), 1))}
@@ -110,9 +112,14 @@ def _one_arm(d_by_align, session, keep, arm_all):
             continue
         dd = dict(d)
         dd["post_i"] = {session}
+        kp = keep_lick if align == "lick" else keep
+        if align == "lick" and len(kp) < 2:
+            rec[f"{cond} note"] = (f"only {len(kp)} position(s) with >= {pc.MIN_POST} DAQ-lick trials: no lick-aligned "
+                                   "lick-only arm")
+            continue
         for fn, key in ((pc.decode_matched, cond), (pc.recoding_test, f"{cond} within-session")):
             try:
-                r = fn(dd, keep, post_all_trials=arm_all)
+                r = fn(dd, kp, post_all_trials=arm_all)
             except Exception as ex:                                       # noqa: BLE001
                 print(f"      {key}: {fn.__name__} failed ({str(ex)[:60]})", flush=True)
                 continue
@@ -204,18 +211,37 @@ def _nolick_readouts(d_by_align, session, keep):
     return out
 
 
+def lick_keep(d_by_align, session, pres):
+    """The lick-only arm's positions at the LICK alignment. Post-lick aligns to a DAQ lick, so it has engaged rows
+    only: when the camera-working rule chose ``pres["keep"]`` (Priya 11-07), a position also needs >= MIN_POST
+    DAQ-engaged rows of this session in the lick pool (else the cue pool) -- never scored on positions without
+    lick-aligned rows. Under the DAQ rule ``keep`` is already that count: unchanged."""
+    keep = pres["keep"]
+    if pres["rule"] != "camera_working":
+        return list(keep)
+    dl = d_by_align.get("lick") or d_by_align.get("cue")
+    n = pc._engaged_counts(dl, [session])
+    return [c for c in keep if n[c] >= pc.MIN_POST]
+
+
 def run_session(d_by_align, animal, session, label, phase_tag):
     """Everything Section G shows for ONE session: both arms plus the arm-independent readouts."""
     d0 = d_by_align.get("cue")
     if d0 is None:
         return None
-    keep = pc.preserved_positions(d0, session=session)
+    pres = pc.preserved_detail(d0, session)
+    keep = pres["keep"]
+    keep_lick = lick_keep(d_by_align, session, pres)
+    # Priya 11-07: which rule chose the positions and the counts it used (camera WORKING rows, not successful licks,
+    # under the camera grouping); the post-lick arm's own (DAQ-lick) set beside it
     rec = {"animal": animal, "label": label, "phase_tag": phase_tag,
            "preserved_positions": [POSITION_NAMES[c] for c in keep],
+           "preserved_rule": pres["rule"], "preserved_counts": pres["counts"], "preserved_min_n": pres["min_post"],
+           "preserved_positions_lick": [POSITION_NAMES[c] for c in keep_lick],
            "counts": _counts(d0, session), "arms": {}}
     for arm in ARMS:
         print(f"    {label} [{arm}]", flush=True)
-        rec["arms"][arm] = _one_arm(d_by_align, session, keep, arm_all=(arm == "all"))
+        rec["arms"][arm] = _one_arm(d_by_align, session, keep, arm_all=(arm == "all"), keep_lick=keep_lick)
     rec.update(_nolick_readouts(d_by_align, session, keep))
     return rec
 

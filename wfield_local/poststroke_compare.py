@@ -36,7 +36,7 @@ from wfield_local.locanmf_frozen_decoder import (
 )
 from wfield_local.plot_lick_aligned_averages import DISPLAY_ORDER, POSITION_NAMES
 
-MIN_POST = 20          # a position needs this many post-stroke engaged trials to be "preserved"
+MIN_POST = 20          # a position needs this many post-stroke trials to be "preserved" (`preserved_positions`)
 
 #: Positions used to judge post-stroke ENGAGEMENT: close_L and close_center only (Priya,
 #: 2026-08-18). Deliberately NOT every position that survives on 8/17. close_R is CONTRALESIONAL
@@ -259,6 +259,44 @@ def _spout_train_d(d):
     return dT
 
 
+#: the rules `preserved_positions` can choose positions by (recorded per session in section G)
+PRESERVED_RULES = ("camera_working", "daq_engaged")
+
+
+def _engaged_counts(d, idx) -> dict:
+    """{position code: DAQ-engaged rows} over the sessions ``idx``."""
+    m = np.isin(d["GE"], list(idx))
+    return {c: int((d["YE"][m] == c).sum()) for c in DISPLAY_ORDER}
+
+
+def _working_counts(d, idx):
+    """{position code: camera WORKING rows (engaged + no-lick)} over the sessions ``idx``, or None when the camera
+    rule does not apply (no camera grouping for this pool, or a session in ``idx`` without camera classes)."""
+    cg = _camera_groups(d)
+    idx = list(idx)
+    if cg is None or not idx or any(i not in cg["have"] for i in idx):
+        return None
+    me = np.isin(d["GE"], idx) & cg["work_e"]
+    mu = np.isin(d["GU"], idx) & cg["work_u"]
+    YU = np.asarray(d["YU"])
+    return {c: int((d["YE"][me] == c).sum() + (YU[mu] == c).sum()) for c in DISPLAY_ORDER}
+
+
+def _position_counts(d, idx):
+    """``(rule, {position code: n})``: the counts `preserved_positions` thresholds (see its docstring)."""
+    wc = _working_counts(d, idx)
+    if wc is not None:
+        return "camera_working", wc
+    return "daq_engaged", _engaged_counts(d, idx)
+
+
+def preserved_detail(d, session) -> dict:
+    """One session's preserved set with the rule that chose it and the per-position counts used (section G record)."""
+    rule, n = _position_counts(d, [session])
+    return {"keep": [c for c in DISPLAY_ORDER if n[c] >= MIN_POST], "rule": rule,
+            "counts": {POSITION_NAMES[c]: n[c] for c in DISPLAY_ORDER}, "min_post": MIN_POST}
+
+
 def preserved_positions(d, session=None, combine="intersection"):
     """Positions the animal still attempts post-stroke -- the only ones a comparison can use.
 
@@ -274,10 +312,17 @@ def preserved_positions(d, session=None, combine="intersection"):
 
     A pooled statistic has to be defensible for every session inside it, which is what the
     intersection guarantees and the union cannot.
+
+    WHICH ROWS ARE COUNTED (Priya 11-07, "we should NOT gate on successful licks"): under the camera grouping
+    (`_camera_groups`: camera gate, a camera working selection, cue / precue pool with classes) a position is preserved
+    when the session has >= MIN_POST camera WORKING rows there (engaged + no-lick rows in the selection's classes:
+    contact | incomplete in production, contact only under in_working_contact) -- the rows the lick-only arm scores
+    (`_lickonly_working`). Before, the DAQ-engaged count chose the positions, so far contra (33-68 incomplete licks,
+    < 20 DAQ licks) was dropped although its working rows were there. Otherwise (DAQ gate, lick window, a session
+    without camera classes) the DAQ-engaged count, as before. `preserved_detail` reports the rule and the counts.
     """
     def _for(idx):
-        m = np.isin(d["GE"], list(idx))
-        return {c for c in DISPLAY_ORDER if int((d["YE"][m] == c).sum()) >= MIN_POST}
+        return {c for c, n in _position_counts(d, idx)[1].items() if n >= MIN_POST}
 
     if session is not None:
         return [c for c in DISPLAY_ORDER if c in _for([session])]
