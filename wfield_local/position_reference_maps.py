@@ -679,6 +679,25 @@ def _raw_maps_job(job):
     return session_raw_maps_cached(s, align, post_s=post_s, variant=variant)
 
 
+def _as_parts(res):
+    """One `session_raw_maps` result as its DICT form, whatever shape it arrived in.
+
+    `session_raw_maps` exits early with the retired 6-TUPLE ``({}, {}, None, None, {}, {})`` when a session has NO
+    trials in the arm, and the session cache stores that tuple as-is. Every consumer indexes the dict by key, so one
+    such session crashed the whole arm: 2026-11-06 render g5_epoch, 15r cue + ENL arms, ``TypeError tuple indices
+    must be integers or slices, not str`` -- PS93_0813 has zero working trials under the camera gate (its lick arm
+    is fine). Normalised HERE, at the consumer, rather than in `session_raw_maps`, because that function's source is
+    in the prm cache digest (`_raw_maps_parts`) and editing it would cold-start every prm cache. An empty-trial
+    session becomes an all-empty dict, which `maps_by_epoch` already reports as "no position reached N trials"."""
+    if isinstance(res, dict):
+        return res
+    if isinstance(res, tuple) and not any(isinstance(x, dict) and x for x in res):
+        return {"raw": {}, "used": {}, "quiet_flat": None, "trial_mean": None,
+                "raw_precue": {}, "used_precue": {}, "raw_rest": {}, "used_rest": {},
+                "raw_restw": {}, "used_restw": {}, "restw_positions": []}
+    raise TypeError(f"session_raw_maps result of unexpected shape: {type(res).__name__}")
+
+
 def reference_maps(parts, reference):
     """Turn one `session_raw_maps` result into one referenced form. ``parts`` is its dict.
 
@@ -699,6 +718,7 @@ def reference_maps(parts, reference):
     interchangeable at the call site with nothing to catch a transposition -- a swap would have
     produced a complete, plausible, wrong figure.
     """
+    parts = _as_parts(parts)
     if reference == "mean":
         tm = parts.get("trial_mean")
         if tm is None:
@@ -775,6 +795,7 @@ def maps_by_epoch(align, variant, post_s=2.0):
     # PASS 3 below sees them in the same order as the old serial loop -- never completion order (rule 9).
     jobs = [(s["label"], s, align, post_s, variant) for v in plan.values() for s, _e in v]
     by_label, fail = map_collect.collect(jobs, _raw_maps_job, label="ref-map")
+    by_label = {k: _as_parts(v) for k, v in by_label.items()}    # empty-trial sessions arrive as a tuple
     for it, err in fail:
         print(f"  !! ref-map {it[0]}: {err[:90]}", flush=True)
     # DERIVED REFERENCES (WIDEFIELD_MAP_REFS), attached per label AFTER collection; the cached dicts are copied, never
