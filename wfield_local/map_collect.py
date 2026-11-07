@@ -160,6 +160,42 @@ def cache_kind(prefix: str, align: str, variant: str, spec: dict, code: str) -> 
     return f"{prefix}-{align}-{variant}-{digest}"
 
 
+VIDEO_GLOBS = ("*.avi", "*.mp4")
+
+
+def session_has_no_video(label: str) -> bool:
+    """True only when BOTH independent sources say the session was never filmed: no camera classes (the class source,
+    `trial_classes.session_trials` is None -> no camera working period) AND no raw recordings in
+    ``<behavior_cameras>/<date8>/<animal>/``. False when either has anything, or when the camera root cannot be read
+    (we cannot confirm "no video", so the caller must not skip). PS93_0813 (docs/EXPERIMENT_ERRORS.md) is the case."""
+    from wfield_local import trial_classes
+    from wfield_local.paths import PathResolver
+    animal, date = str(label).split("_")
+    date8 = date if len(date) == 8 else f"2026{date}"
+    try:
+        if trial_classes.session_trials(f"{animal}_{date8}") is not None:
+            return False
+        root = Path(PathResolver().root("behavior_cameras"))
+    except Exception:                                                   # noqa: BLE001 - unknown -> do not skip
+        return False
+    if not root.is_dir():
+        return False
+    sd = root / date8 / animal
+    return not (sd.is_dir() and any(any(sd.glob(g)) for g in VIDEO_GLOBS))
+
+
+def skip_lp_unavailable_no_video(label: str, ex: BaseException, empty):
+    """Job-wrapper guard for the LP lick source (2026-11-06, render g5_restnl_maps_lp): a session with NO LP lick tables
+    because it has NO behaviour video contributes ``empty`` -- the result the builder gives under the contact arm, where
+    such a session has no camera working period -- instead of failing the whole collection under the camera gate
+    (review N9). Any other session re-raises ``ex``: LP tables missing by mistake on a FILMED session stay fatal.
+    Lives in the job wrappers, not in the builders, so no map cache digest changes."""
+    if not session_has_no_video(label):
+        raise ex
+    print(f"  .. {label}: skipped: no LP licks (no video) -- contributes nothing, as under the contact arm", flush=True)
+    return empty
+
+
 def collect(items, worker, *, label="session", jobs=None):
     """``({item[0]: result}, [(item, error)])`` -- `worker(item)` over `items`, fanned out when jobs > 1.
 

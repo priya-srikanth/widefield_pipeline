@@ -64,6 +64,15 @@ All under `M:/MICROSCOPE/Priya/DeepLabCut/Widefield/face_rhythm/cam4/readouts/ma
    * READY, PRIYA SUBMITS: >= 500 permutations -> `run_fitcohortnull500.sbatch` (share copy of the set dir; new conda
      module, --n-perm 500, array skips the 600 done). Matters for the specificity claim (several of the other ten sit at
      the p .0099 floor), not the lick pair. Then rsync own_epoch_cohort_null/ back + `face_rhythm_cohort_null.py`.
+     11-07 (a8) SUBMITTED + RUNNING; INTERIM SCORE on the first copy-back (acute 482 pairs; subacute / chronic still the
+     original 100): readouts/master_pre_v1/epoch_shape_cohort/interim_500perm_20261107/ (page outputs one level up,
+     n = 100, untouched; scored by importing compute(), no code change). Lick pair unchanged (lick_right angle_spatial /
+     angle_spectral / asym / side_spec p .002-.004, Holm < .01; lick_left n.s.). SPECIFICITY WEAKENS ACUTELY: off the
+     floor, of the other ten, Holm < .05 for angle_spatial sniff_prelick, nose_prelick_slow, lick_ongoing_7Hz,
+     lick_fast_close, whisk_run; angle_spectral lick_fast_close; asym lick_ongoing_7Hz, lick_fast_close, lick_slow_late.
+     NOTE sniff_prelick == nose_prelick_slow and run_onset_jaw == prep_jaw give identical spatial readouts (two master
+     factors matched to one fit column) -- also in the n = 100 run; check before quoting them as separate factors.
+     When all lands: run the scorer normally (overwrites the page outputs), update FINDINGS 5.10 + FR page 7m-7o.
    * BLOCKED: 13b -- on 34's cohort-1 rebuild (the decoder / template deficit tables and the working-gate behaviour
      inputs change) and on Priya confirming the variable list (a8 asked her 11-05; d4 gone).
 
