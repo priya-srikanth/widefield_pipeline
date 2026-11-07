@@ -55,3 +55,7 @@ the encoding handoff (STATUS_2026-10-26_ENCODING_HANDOFF.md, top blocks); the A1
   map steps in their own lane.
 - Final catch-up queue after the render: 10 HOLD steps (mixed models, goal summary), aim / decoder-retention / recovery-timing,
   A25 LP epoch arm, goal-summary fig 3. Then provenance merge + replacement pass (pages, analysis deck, PI deck).
+- 21:00-22:00: rest attempt maps re-run DONE (8 sessions back in: 0 "no engaged rest" lines, was 24); e_split_order_* all DONE
+  (v7b lane E moving toward e_angle_reach); l_cued_ramp_extract DONE (-> l_enl_angle, waits main slot); 21:58 slot-2 lane for the
+  8 ready + unclaimed medium steps (b_wsd_lick -> within-spout mixed models, l_revup_restnl, l_restnl_rescue, l_arrival_restnl,
+  l_stopped_restw, l_disengage, l_interhemi_rest, l_lc_extract).
