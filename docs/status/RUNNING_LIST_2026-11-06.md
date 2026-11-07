@@ -64,3 +64,7 @@ the encoding handoff (STATUS_2026-10-26_ENCODING_HANDOFF.md, top blocks); the A1
   e_rlink_hit parked (HOLD); e_rlink_lat_z was already taken by lane E (fails fast, harmless). 22:35 queue v9t on main 4ecf72ed:
   d_decoder_retention_g1106 -> d_recovery_timing_g1106 (--window lick, A21 denominator) + e_rlink_{angle_z,lat_z,hit}_r.
   The aim producer still waits on e_first_lick (not run yet) -> stays in the final catch-up.
+- 22:56 queue v9t DONE, all 5 steps exit 0 (decoder retention, recovery_timing --window lick on the A21 Fig 0.2 hit-rate
+  denominator, e_rlink_{angle_z,lat_z,hit}_r). Not yet compared with the page (recovery timing / goal Fig 0.x): first look --
+  lick-window neural retention still below pre chronically (-0.29 [-0.43, -0.13], 4/4 animals, 43 sessions); behaviour-minus-
+  neural "gap" acute +0.30 [+0.03, +0.56] (only 3 animals, 6 sessions), subacute ~0, chronic -0.29. Compare in the replacement pass.
