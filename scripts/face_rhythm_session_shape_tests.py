@@ -303,9 +303,11 @@ YLAB = {"asym": "loading asymmetry\n(contra - ipsi), delta", "angle_spatial": "s
 
 
 def session_values(T: pd.DataFrame, names: list[str]) -> pd.DataFrame:
-    """One row per POST session x unit x measure: the session's value minus its animal's own pre mean (angles: the
-    angle to the animal's pre-mean vector minus the animal's mean leave-one-out pre angle). Loss: recovered (0 / 1)
-    minus the animal's pre recovery rate (all sessions)."""
+    """One row per session x unit x measure: the session's value minus its animal's own pre mean (angles: the angle to
+    the animal's pre-mean vector minus the animal's mean leave-one-out pre angle). Loss: recovered (0 / 1) minus the
+    animal's pre recovery rate (all sessions). PRE sessions (Priya 11-07: show the pre-stroke variability) are scored
+    LEAVE-ONE-OUT -- against the mean of the animal's OTHER pre sessions -- so their spread is not shrunk by
+    including themselves."""
     rows = []
     for nm in names:
         for an, g in T[T.unit == nm].groupby("animal"):
@@ -314,6 +316,11 @@ def session_values(T: pd.DataFrame, names: list[str]) -> pd.DataFrame:
             rate = pre_all.recovered.mean()
             for r in post_all.itertuples():
                 rows.append(dict(unit=nm, animal=an, epoch=r.epoch, measure="loss", value=float(r.recovered) - rate))
+            if len(pre_all) > 1:
+                rec = pre_all.recovered.to_numpy(float)
+                for i in range(len(rec)):
+                    rows.append(dict(unit=nm, animal=an, epoch="pre", measure="loss",
+                                     value=rec[i] - np.delete(rec, i).mean()))
             pre, post = pre_all[pre_all.recovered], post_all[post_all.recovered]
             if pre.empty or post.empty:
                 continue
@@ -323,14 +330,23 @@ def session_values(T: pd.DataFrame, names: list[str]) -> pd.DataFrame:
                 base = pre[m].mean()
                 for r in post.itertuples():
                     rows.append(dict(unit=nm, animal=an, epoch=r.epoch, measure=m, value=getattr(r, m) - base))
+                pv = pre[m].to_numpy(float)
+                if len(pv) > 1:
+                    for i in range(len(pv)):
+                        rows.append(dict(unit=nm, animal=an, epoch="pre", measure=m, value=pv[i] - np.delete(pv, i).mean()))
             for m, col in (("angle_spatial", "vec"), ("angle_spectral", "spec")):
                 P = np.vstack(pre[col].to_numpy())
                 tot = P.sum(0)
-                loo = np.nanmean([es.deg(float(P[i] @ unit(tot - P[i]))) for i in range(len(P))]) if len(P) > 1 else np.nan
+                a_loo = np.array([es.deg(float(P[i] @ unit(tot - P[i]))) for i in range(len(P))]) if len(P) > 1 \
+                    else np.array([np.nan])
+                loo = np.nanmean(a_loo)
                 pm = unit(tot)
                 for r in post.itertuples():
                     rows.append(dict(unit=nm, animal=an, epoch=r.epoch, measure=m,
                                      value=float(es.deg(float(getattr(r, col) @ pm))) - loo))
+                for i in range(len(a_loo) if len(P) > 1 else 0):   # pre: own LOO angle minus the OTHER pre sessions' mean
+                    rows.append(dict(unit=nm, animal=an, epoch="pre", measure=m,
+                                     value=float(a_loo[i] - np.delete(a_loo, i).mean()) if len(P) > 2 else np.nan))
     return pd.DataFrame(rows)
 
 
@@ -340,8 +356,8 @@ def _row(ax, V: pd.DataFrame, R: pd.DataFrame, units: list[str], pcol: str) -> N
     from wfield_local import cat_points as cp
     from wfield_local import sig_marks
     ecol = frc.epoch_colors()
-    eps = list(frc.POST_EPOCHS)
-    off = cp.epoch_offsets(len(eps))
+    eps = ["pre", *frc.POST_EPOCHS]                  # pre = leave-one-out pre sessions: the pre-stroke variability
+    off = cp.epoch_offsets(len(eps), step=0.21)
     for u_i, u in enumerate(units):
         for k, ep in enumerate(eps):
             v = V[(V.unit == u) & (V.epoch == ep)]
@@ -351,7 +367,7 @@ def _row(ax, V: pd.DataFrame, R: pd.DataFrame, units: list[str], pcol: str) -> N
                 se = v.value.std(ddof=1) / np.sqrt(len(v)) if len(v) > 1 else None
                 cp.summary_point(ax, x, v.value.mean(), se, ecol[ep], ms=5)
             r = R[(R.unit == u) & (R.epoch == ep)]
-            if len(r) and np.isfinite(r[pcol].iloc[0]) and r[pcol].iloc[0] < .05:
+            if ep != "pre" and len(r) and np.isfinite(r[pcol].iloc[0]) and r[pcol].iloc[0] < .05:
                 sig_marks.star_top(ax, x, "**" if r[pcol].iloc[0] < .01 else "*", color=ecol[ep])
     ax.axhline(0, color="0.6", lw=0.8, zorder=0)
     ax.set_xticks(range(len(units)), units, rotation=25, ha="right", fontsize=8)
@@ -376,14 +392,16 @@ def figures(Rs, Rl, V, out, set_name, names):
             _row(ax, V[V.measure == m], Rs[Rs.measure == m], us, "p_holm")
             ax.set_ylabel(YLAB[m], fontsize=8)
             if i == 0:
-                hs = [plt.Line2D([], [], color=ecol[e], marker="o", ls="none", label=e) for e in frc.POST_EPOCHS]
+                hs = [plt.Line2D([], [], color=ecol[e], marker="o", ls="none", label=e + (" (leave-one-out)" if e == "pre" else ""))
+                      for e in ("pre", *frc.POST_EPOCHS)]
                 ax.legend(handles=hs + cp.animal_handles(sorted(V.animal.unique())), fontsize=7, frameon=False,
                           loc="upper left", bbox_to_anchor=(1.0, 1.0))
         sig_marks.reserve_headroom(fig)
         fig.suptitle(f"{set_name}: per-session shape readouts, delta vs each animal's own pre", y=0.995)
         frf.save(fig, out / "session_scalars.png", """
-Per-session FaceRhythm fits (own8) matched to the master (rule v2), recovered sessions only. Each open marker = one post
-session (shape = animal, colour = epoch): its readout minus its animal's own pre mean (angles: the angle to the animal's
+Per-session FaceRhythm fits (own8) matched to the master (rule v2), recovered sessions only. BLACK = each PRE session
+against the mean of its animal's OTHER pre sessions (leave-one-out): the pre-stroke session-to-session variability to read
+the post epochs against. Each coloured open marker = one post session (shape = animal, colour = epoch): its readout minus its animal's own pre mean (angles: the angle to the animal's
 pre-mean vector minus the animal's mean leave-one-out pre angle, so 0 = as different as one pre session is from the
 other pre sessions). Filled = mean +- SEM over sessions. Stars in the top band = the animal-weighted test (mean over
 animals of epoch - pre; within-animal session-label shuffles): * Holm < .05, ** < .01, Holm over the lick pair or over the
@@ -394,7 +412,8 @@ side (close + far) minus the opposite side; a drop = the factor looks less like 
         fig, ax = frf.subplots(1, 1, figsize=(13.5, 3.8))
         _row(ax, V[V.measure == "loss"], Rl, units, "p_holm")
         ax.set_ylabel(YLAB["loss"], fontsize=8)
-        hs = [plt.Line2D([], [], color=ecol[e], marker="o", ls="none", label=e) for e in frc.POST_EPOCHS]
+        hs = [plt.Line2D([], [], color=ecol[e], marker="o", ls="none", label=e + (" (leave-one-out)" if e == "pre" else ""))
+              for e in ("pre", *frc.POST_EPOCHS)]
         ax.legend(handles=hs + cp.animal_handles(sorted(V.animal.unique())), fontsize=7, frameon=False,
                   loc="upper left", bbox_to_anchor=(1.0, 1.0))
         sig_marks.reserve_headroom(fig)
