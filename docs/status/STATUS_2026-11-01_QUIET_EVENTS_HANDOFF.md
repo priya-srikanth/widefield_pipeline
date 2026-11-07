@@ -9,6 +9,10 @@
 > caches + own scratch; 34 removed old wfield_cache imaging / behaviour + its scratch; 7 idle worktrees removed) ->
 > ~98 GB free; the 299 GB render input cache goes after 34's render (~11-09). FR deck slides will need the new FR
 > figures once Priya approves the switch (draft first). Memory: delta-per-animal-pre.
+> 11-07 LATE: per-session FR results final (10k shuffles, Holm across epochs x measures); findings written; FR page
+> update delegated to a helper (verify live version). DECK NOT TOUCHED (open in PowerPoint) -- FR slide list + steps in
+> the FR handoff "11-07 LATE" entry; still waiting: 34's CONFIRMED provenance rows (notes pass), 34's split render
+> (slide 94 re-tile).
 
 > **11-06 (afternoon) -- START HERE (a8), supersedes the morning block's deck facts.**
 > - DECK RENAMED by Priya: `presentations/Overview_2026-11-06.pptx` (194 slides, 107 hidden; PI_overview_2026-11-02.pptx

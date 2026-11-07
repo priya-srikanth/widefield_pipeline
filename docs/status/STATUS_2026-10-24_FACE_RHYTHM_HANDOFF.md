@@ -149,6 +149,17 @@ All under `M:/MICROSCOPE/Priya/DeepLabCut/Widefield/face_rhythm/cam4/readouts/ma
      Priya approves before any text change; (3) rhythm-band movement maps per lick factor (proposed, not started);
      (4) lick-rate (ILI) figure for page + deck (requested, not started); (5) encoder FR regressors read proj/ (pre
      sessions slightly in-sample; proj_loso exists) -- flag only.
+     11-07 LATE -- FINAL STATE. 10,000-shuffle per-session tests done, Holm within family ACROSS all epochs x
+     measures (Priya); FINDINGS 5.10 (PER-SESSION paragraph), FINDINGS 0 "Where things stand, face movement",
+     FACE_RHYTHM_FINDINGS 6e written. Figures: session_shape_v2/session_scalars.png (normalised, leave-one-out pre
+     column) + session_scalars_raw.png (Priya: both, separate) + session_loss.png; headline map = scaled
+     (session_maps_scaled_lick.png); `face_rhythm_session_shape_tests.py --plot-only` redraws. FR PAGE: a helper agent
+     was updating it (new per-session section before section 7, speed-map permutation figures, "Where things stand");
+     check the live page version before more edits. PI DECK NOT UPDATED: Overview_2026-11-06.pptx was open (lock) all
+     evening -- when closed, update slides 83 (matching method -> v2), 85 (loading maps -> session_maps_scaled_lick),
+     86 (spectral), 87 (hidden drift floor -> session_loading_driftpre), add per-session shape (session_scalars) + loss
+     slides; notes Data: block per slide; Priya approves the slide text. Lick direction is LP kinematics -> not an FR
+     figure. O2 sub / chronic null kept running (Priya) -> rescore pooled view when files land (descriptive only).
      When all lands: run the scorer normally (overwrites the page outputs), update FINDINGS 5.10 + FR page 7m-7o.
    * BLOCKED: 13b -- on 34's cohort-1 rebuild (the decoder / template deficit tables and the working-gate behaviour
      inputs change) and on Priya confirming the variable list (a8 asked her 11-05; d4 gone).
