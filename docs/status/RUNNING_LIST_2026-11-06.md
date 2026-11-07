@@ -63,16 +63,16 @@ the encoding handoff (STATUS_2026-10-26_ENCODING_HANDOFF.md, top blocks); the A1
   Old 10-07 DAQ json = preview only (older basis + DAQ-quit cut). Drawing fixes for G2c / H3b / G2b (one chance line /
   union band across sessions of different n) proposed, not yet approved.
 
-- **A10 (11-07 ~13:20, OPEN)** ITI where-decoder (Fig 10.2 KEY "loss mainly LATERAL; cued sagittal not lost") no longer holds:
+- **A10 (11-07 ~13:20; Priya ~14:00: RUN the contact/incomplete split + rewrite the Fig 10.2 text; she suspects short licks drive it)** ITI where-decoder (Fig 10.2 KEY "loss mainly LATERAL; cued sagittal not lost") no longer holds:
   cued sagittal r_norm -25/-21/-8% (CI excl 0, 4/4 each) vs page -21 n.s./-8 n.s./+2; ITI sagittal chronic -24% ~ lateral.
   Proposed first: split cued sagittal by contact vs incomplete (incomplete licks now in the cued set). Also: queue the missing
   Fig 16.4 aim recovery-link step (--beh aim never queued). Report scratchpad/compare_iti_20261107.md.
-- **A11 (11-07 ~13:25, OPEN)** Recovery family: FINDINGS 4c(i) lesion-size order of recovery speed fails (PS95 half-recovery
+- **A11 (11-07 ~13:25; Priya ~14:00: run the fit check, DISCUSS before text)** Recovery family: FINDINGS 4c(i) lesion-size order of recovery speed fails (PS95 half-recovery
   0.57 d from a DEGENERATE fit) and 4c(ii); Fig 0.12 PS94 code-on-hits fraction 0.23 -> -0.47. Proposed: check PS95 fit +
   PS94 per-animal curves before any text. Headlines hold (chronic hits ~-0.29, behaviour full, gap, aim identical).
   Report scratchpad/compare_recovery_20261107.md.
 
-- **A12 (11-07 ~13:35, OPEN)** Section 7 RESTnl maps: acute far-contra PRE-CUE rise shrinks / reverses -- 7.3b LP 1.59 (2/4)
+- **A12 (11-07 ~13:35; Priya ~14:00: run the lick-class split)** Section 7 RESTnl maps: acute far-contra PRE-CUE rise shrinks / reverses -- 7.3b LP 1.59 (2/4)
   -> 0.86 (0/4); 7.1b contact 1.80 (4/4) -> 1.23 (3/4); 7.5b ENL1s 2.04 (4/4) -> 1.43 (3/4, PS94 .91); far-middle acute cue
   .76 -> .99; cue loss .53 -> .66 (4/4). Smaller: c2l restw tjM1 subacute star lost; within-spout pooled toward-midline loses
   FDR (q .099); jaw far_R acute -2.42 -> -1.85. Cued ramp + c2l RESTnl still QUEUED (deps). Proposed: split acute pre-cue
