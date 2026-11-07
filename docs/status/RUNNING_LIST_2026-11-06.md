@@ -67,7 +67,12 @@ the encoding handoff (STATUS_2026-10-26_ENCODING_HANDOFF.md, top blocks); the A1
   cued sagittal r_norm -25/-21/-8% (CI excl 0, 4/4 each) vs page -21 n.s./-8 n.s./+2; ITI sagittal chronic -24% ~ lateral.
   Proposed first: split cued sagittal by contact vs incomplete (incomplete licks now in the cued set). Also: queue the missing
   Fig 16.4 aim recovery-link step (--beh aim never queued). Report scratchpad/compare_iti_20261107.md.
-- **A11 (11-07 ~13:25; Priya ~14:00: run the fit check, DISCUSS before text)** Recovery family: FINDINGS 4c(i) lesion-size order of recovery speed fails (PS95 half-recovery
+- **A11 (11-07 ~13:25; check DONE ~14:20; Priya ~14:35: 4c wording AFTER the A10/A12 checks; fit-quality flag OK; hit-gated values need >= 20 hits;
+  USE AIM (first-lick angle offset) RATHER THAN HIT RATE for behavioural recovery)** Check: PS95 old 7.9 d = end-of-session
+  disengagement counted as misses (same hits, smaller denominator); new 0.57 d = degenerate fit (b bound, LOO 0.57-28.8 d);
+  aim t1/2 PS92 5.4 / PS93 3.2 / PS94 3.1 / PS95 4.3 d (gate-independent; PS95 aim -27.5/-11.2/-2.7 deg). PS94 Fig 0.12 flip =
+  one 8-hit session (0823), lick-window p_true .42 -> .69 (cue window .73 -> .69): rebuild decoder / inputs / first-lick anchor,
+  not the gate. Code: branch analysis/recovery-fit-flags (flag + MIN_HITS 20 + aim primary), in progress. Recovery family: FINDINGS 4c(i) lesion-size order of recovery speed fails (PS95 half-recovery
   0.57 d from a DEGENERATE fit) and 4c(ii); Fig 0.12 PS94 code-on-hits fraction 0.23 -> -0.47. Proposed: check PS95 fit +
   PS94 per-animal curves before any text. Headlines hold (chronic hits ~-0.29, behaviour full, gap, aim identical).
   Report scratchpad/compare_recovery_20261107.md.
