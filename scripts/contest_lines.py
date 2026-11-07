@@ -94,7 +94,7 @@ def main() -> int:
            OUT / "contest_landing_vs_target.png")
     T = unique_table(_design_tag("gate-attempted_v7g3_t3d_frA_frlag"), {"cortex leads": "frcortexlead", "face leads": "frfacelead"})
     figure(plt, T, [("cortex leads", "cortex leads face (future-face FaceRhythm columns)", MC[0]),
-                    ("face leads", "face leads cortex (past-face FaceRhythm columns)", MC[3])],
+                    ("face leads", "face leads cortex (past-face FaceRhythm columns)", MC[1])],
            "NEURAL: lagged FaceRhythm in the FROZEN model -- unique R2 of the lead (+0.1..0.3 s) vs lag (-0.1..-0.3 s) face "
            "columns, change from pre.\nPre-stroke 'face leads' dominates (calcium lag), so only the CHANGE is read.",
            "unique R2, change from pre", OUT / "contest_fr_lags.png")

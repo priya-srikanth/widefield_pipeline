@@ -220,7 +220,7 @@ def main(argv=None) -> int:
              "LAYER 2: mapping change beyond pre-stroke drift, by area group")
     if has_split:
         ffc.ALAB.update({x: esr.side_label(x) for x in SR})
-        ffc.COL.update({"cue": _MC[3], "lick": _MC[2]})
+        ffc.COL.update({"cue": _MC[1], "lick": _MC[2]})
         ffc.bars(axs[3], BS, list(WINDOWS), SR, "change from pre (pre-SD units)",
                  "RESIDUAL by ROI: MOp, tjM1, MOp_rest, MOs, ALM, MOs_rest (ROI v8 on the stat mask; ALM / tjM1 / rests from "
                  "the frozen run's basis twin)")

@@ -119,11 +119,11 @@ def animal_handles(animals, color="0.35"):
 
 #: ONE palette for MODEL / series identity on the model-comparison figures (frozen_fr_compare.epoch_lines / bars and
 #: their callers; Priya 11-07: a model keeps its coloured line across epochs, but its colour must not reuse a colour that
-#: means something else). Paul Tol's muted set minus the members near an EPOCH colour (EPOCH_LINE: black / #d01c8b /
+#: means something else). Paul Tol's muted set (sand swapped for a violet: sand read as subacute's goldenrod) minus the members near an EPOCH colour (EPOCH_LINE: black / #d01c8b /
 #: #b8860b / #01665e), an ANIMAL colour (animals.yaml: tab:blue / red / orange / green, cohort2 tab:purple / brown / pink
 #: / olive) or a trial-CLASS colour (#2c3e50 / #c0392b, Dark2): every entry is >= 25 CIELAB dE from all of them
 #: (tests/test_cat_points_epoch_convention.py). Index order = the order a caller assigns them; past 7, cycle + hatch.
-MODEL_COLORS = ("#332288", "#88CCEE", "#882255", "#DDCC77", "#CC6677", "#AAAAAA", "#FFAABB")
+MODEL_COLORS = ("#332288", "#88CCEE", "#882255", "#B017CF", "#CC6677", "#AAAAAA", "#FFAABB")
 
 
 def model_color(k: int) -> str:
