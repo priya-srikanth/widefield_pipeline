@@ -226,25 +226,31 @@ def fig_epochs(S: pd.DataFrame, D: pd.DataFrame, path: Path, title: str) -> None
 
 
 def fig_timecourse(S: pd.DataFrame, path: Path, title: str) -> None:
-    from wfield_local import config
-    col = config.animal_color()
+    """Kinematics 5.2. EPOCH-COLOUR CONVENTION (A13, Priya 11-07; before: animal-coloured lines + CI bands across days):
+    one OPEN point per session (shape = animal, colour = epoch) with its trial-bootstrap CI as a thin vertical bar in the
+    same colour, no line across sessions; filled = epoch mean +- SEM over animals."""
+    from wfield_local import cat_points as cp
+    from wfield_local.orofacial_cohort import EPOCH_ORDER as _EO
     plt = _plt()
     cs = ("lr_wide_far_dir", "lr_wide_reached_far_dir", "angle_far_dir", "lr_wide_far_bias")
     fig, axs = plt.subplots(1, len(cs), figsize=(4.2 * len(cs), 3.2), squeeze=False)
     for ax, c in zip(axs[0], cs):
-        for a, g in S.sort_values("day").groupby("animal"):
-            ax.plot(g.day, g[c], "o-", ms=3, lw=1, color=col.get(a, "k"), label=a, zorder=3)
-            if f"{c}_lo" in g:
-                ax.fill_between(g.day, g[f"{c}_lo"], g[f"{c}_hi"], color=col.get(a, "k"), alpha=0.12, lw=0)
+        if f"{c}_lo" in S:
+            for _, r in S.iterrows():
+                if np.isfinite(r[f"{c}_lo"]) and np.isfinite(r[f"{c}_hi"]):
+                    ax.plot([r.day, r.day], [r[f"{c}_lo"], r[f"{c}_hi"]], color=cp.epoch_color(r.epoch), lw=0.6,
+                            alpha=0.35, zorder=2)
+        cp.day_dots(ax, S.day, S[c], S.animal, S.epoch, ms=3.5, summary_ms=5.5)
         ax.axhline(0, color="0.85", lw=0.8, zorder=0)
         ax.axvline(0.5, color="0.6", ls="--", lw=0.8, zorder=0)
         ax.set_title(SUMMARY_COLS[c], fontsize=8)
         ax.set_ylabel(SUMMARY_COLS[c], fontsize=7)
         ax.set_xlabel("days since stroke", fontsize=7.5)
         ax.tick_params(labelsize=7)
-    axs[0][0].legend(fontsize=7, frameon=False)
-    fig.suptitle(title + "\none point per session (band = trial-bootstrap 95% CI where available); dashed = lesion",
-                 fontsize=9)
+    axs[0][0].legend(handles=cp.legend_handles(sorted(S.animal.unique()), [e for e in _EO if (S.epoch == e).any()],
+                                               sessions_label="{a}", epoch_label="{e}"), fontsize=7, frameon=False)
+    fig.suptitle(title + "\none open point per session (shape = animal, colour = epoch; thin bar = its trial-bootstrap 95% CI "
+                 "where available), filled = epoch mean +- SEM over animals; dashed = lesion", fontsize=9)
     from wfield_local.orofacial_cohort import _tidy, save_png_svg
     _tidy(fig)
     fig.tight_layout()
