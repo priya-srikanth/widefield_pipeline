@@ -210,3 +210,5 @@ the encoding handoff (STATUS_2026-10-26_ENCODING_HANDOFF.md, top blocks); the A1
 - **C (11-07 14:25)** csig fix becc486b on main (class-code digest restored); section G restart #2 on it (v9zd3, runs as 4th job,
   not in HEAVY_RE for that lane only); recovery re-run d_decoder_retention_r2 / d_recovery_timing_r2 / a_recov_timing_aim_r2 DONE.
   American spelling for all new text (Priya, relayed by a8 11-07).
+- **C (11-07 15:13)** section G restart #2 phase 1 9/12; A13 convention branch merged with main (conflict in decoder_retention_sessions
+  resolved: convention + MIN_HITS kept) and pushing (push15); A12b class split (jaw-only / no response separate) running; handoff 00-COMPACT-35.

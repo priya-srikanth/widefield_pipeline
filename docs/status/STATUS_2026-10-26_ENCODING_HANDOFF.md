@@ -39,6 +39,42 @@ for anything that loads imaging. E = `M:/MICROSCOPE/Priya/Widefield/LP_analysis/
 3. Then tell **sabatinilab-e3** (PI deck) the decoder figures are final: per figure the share PNG path, page Fig N.k,
    script + args, headline numbers, methods text (they asked 10-26 ~22:30; reply sent: not final yet).
 
+### 00-COMPACT-35 (11-07 ~15:15) -- READ FIRST; supersedes 34 for state (34 / 33 hold the A7 machinery + remaining-work list)
+
+**Live lists:** docs/status/RUNNING_LIST_2026-11-06.md (A9-A13 = today's decisions; C = progress + "code changed after run" table).
+American spelling in all new text (Priya, relayed by a8 11-07).
+
+**On main (all Priya-approved pushes today):** d12dfc56 + eeb36d48 contact-only selection + section G preserved positions counted on
+camera WORKING rows (never on successful/DAQ licks) -- 4353fbd2 retained above-chance figure (section_g_retained) -- 32968a57 LOSO
+figure skips no-video session -- 25a049d7 recovery fit flags (half-recovery RELATIVE TO PRE + completeness; flag ok/bound/unstable/
+not_reached; MIN_HITS = 20 for hit-gated values; AIM primary, hit rate secondary; epoch-colour figures) -- 63229f3a Fig 10.2 text
+(both axes lost on cued licks acutely; later cued sagittal loss = short licks missing the spout) + DECISIONS: UNSCALED where-decoder
+primary, z-scored supplementary only -- becc486b csig fix (the contact-only branch in trial_classes.sel_classes hook-marked; class-code
+digest back to 0fa0c1a2b432 = the render's, so camera-gated caches hit again) -- figures/epoch-convention (A13: shared cat_points
+helpers day_dots / epoch_mean_sem / MODEL_COLORS; ~20 producers to open session markers, shape = animal, colour = epoch, no
+cross-epoch lines, mean +- SEM epoch-coloured dot; model-comparison figures KEEP model-coloured lines in a palette distinct from
+epochs; Priya OK'd 4 layout changes) -- push in flight at 15:13 (scratchpad/push15.out).
+
+**Render state 15:13:** main HEAVY = v_frAsplit_spont_new (since 14:19), HEAVY3 = l_basis_extract (since 10:38, ~2.3 GB, slow multi-
+pass). SECTION G restart #2 = g5_section_g_r2 in lane v9zd3 (queue_daqlk9zd3.sh = copy with poststroke_section_g removed from
+HEAVY_RE for that lane only; runs as a 4th job; worktree wf_render_v9zd @ becc486b); phase 1 at 9/12 pools; phase 2 cache reuse
+not yet measured. Then g7_section_g_figs_r2 + g6_grant_r2 (same lane); section C (contact-only supplement) launch LAST by hand:
+SECTIONS="C" bash queue_daqlk9zd.sh. g6_grant / g7_section_g_figs (v7) stay RESERVED_HOLD (replaced by _r2). Lane R (v9zd): recovery
+re-run d_decoder_retention_r2 / d_recovery_timing_r2 / a_recov_timing_aim_r2 DONE; l_key_figure_r2 waits on e_recov_meas
+(l_key_figure parked RESERVED_HOLD). v9za: g5_joint_xsession_r DONE (all 6 jsons). v9zb: unscaled recovery-link angle / lateral done,
+aim in progress (Fig 16.3-16.5). Stopped today (exact PIDs, logged in CHAIN): g5_section_g 11:26 (DAQ-lick positions), g5_section_g_r
+14:19 (cold, csig). Failures: g5_map_drift_lp_r (June not in LP classes, deferred with A4).
+
+**Open with Priya:** A10 done (text on main). A11: 4c wording after checks (aim-based; PS95 hit fast / aim ~4 d; PS94 aim plateau
+-16 deg, completeness 0.55); A12: main fig = working trials; NEW supplementary pre-cue split by class (contact / incomplete /
+JAW-ONLY / NO RESPONSE / stopped separately; Priya: "interesting if pre-cue increased on jaw-only") -- RUNNING (subagent,
+scratchpad/a12b_classes); A13 branch pushing. Queued after the render: cued-sagittal attribution test (old vs new inputs one change
+at a time: hemo / swapmask / lnmfproj / pre0801).
+
+**Next:** watch section G phase 2 (cache hits, rate) -> estimate; push15 result -> plot-only re-render of the converted page figures
+from rebuild outputs; A12b result to Priya; replacement pass (provenance check of every page/deck output's code SHA vs the
+code-changed table first).
+
 ### 00-COMPACT-34 (11-07 ~10:15) -- READ FIRST; supersedes 33 for state (33 holds the remaining-work estimate + Priya's A1-A7)
 
 **Live lists:** docs/status/RUNNING_LIST_2026-11-06.md. All decisions A1-A8 ANSWERED and acted on; nothing open with Priya.
