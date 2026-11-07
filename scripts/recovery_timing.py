@@ -616,21 +616,28 @@ def pooled_figures(S: pd.DataFrame, window: str, plt) -> None:
         ax.axhline(1 if m != "gap" else 0, color="0.5", ls="--", lw=0.8)
         ref = {an: _hit_gated(S[(S.animal == an) & (S.epoch == "pre")], m) for an in AN}
         ref = {an: v for an, v in ref.items() if len(v)}
+        plotted = []                                     # every drawn value, so the y range never clips a point
         for i, ep in enumerate(EP4):
             g = S[S.epoch == ep]
             by = {an: _hit_gated(g[g.animal == an], m) for an in AN}
             na = [an for an in AN if m != "beh" and len(g[g.animal == an].neu.dropna()) and not len(by[an])]
             if na:                                   # animal x epoch below MIN_HITS: named, not plotted / tested
-                ax.text(i, -0.25 if m != "gap" else -1.05, ak.HIT_GATE_NA + ": " + "/".join(na), ha="center",
-                        va="bottom", fontsize=6.5, color="0.35")
+                ax.text(i, 0.01, ak.HIT_GATE_NA + ": " + "/".join(na), ha="center", va="bottom", fontsize=6.5,
+                        color="0.35", transform=ax.get_xaxis_transform())
             by = {an: v for an, v in by.items() if len(v)}
             for j, an in enumerate(AN):
                 if an in by:
                     xs = i + (j - 1.5) * 0.07 + np.random.default_rng(10 * i + j).uniform(-0.02, 0.02, len(by[an]))
                     ax.scatter(xs, by[an], marker=MK[an], s=22, facecolors="none", edgecolors=[_ecol(ep)], lw=0.9,
                                alpha=0.8, zorder=4)
+                    plotted.extend(np.asarray(by[an], float).tolist())
             if by:
-                ax.plot([i - 0.3, i + 0.3], [np.mean([v.mean() for v in by.values()])] * 2, color="k", lw=2.2, zorder=5)
+                # mean of animals +- SEM across animals: filled dot + bars in the epoch colour (Priya 11-07, as the
+                # epoch-bar figures); SEM needs >= 2 animals, a single animal is drawn as its mean only
+                am = np.array([v.mean() for v in by.values()], float)
+                sem = am.std(ddof=1) / np.sqrt(len(am)) if len(am) >= 2 else 0.0
+                ax.errorbar(i + 0.33, am.mean(), yerr=sem, fmt="o", ms=7, color=_ecol(ep), mec=_ecol(ep), elinewidth=1.8,
+                            capsize=3, zorder=6)
             com = [an for an in by if an in ref]
             if ep != "pre" and len(com) >= 2:
                 iv = ak.boot_delta({an: by[an] for an in com}, {an: ref[an] for an in com}, np.random.default_rng(0))
@@ -638,10 +645,16 @@ def pooled_figures(S: pd.DataFrame, window: str, plt) -> None:
                     sig = iv.lo > 0 or iv.hi < 0
                     tst.append({"measure": m, "epoch": ep, "delta": iv.point, "lo": iv.lo, "hi": iv.hi,
                                 "animals": "/".join(com), "n_sessions": sum(len(by[an]) for an in com)})
-                    ax.text(i, 1.42 if m != "gap" else 0.62, f"{iv.point:+.2f}\n[{iv.lo:+.2f}, {iv.hi:+.2f}]", ha="center",
-                            va="top", fontsize=7.5, fontweight="bold" if sig else "normal")
+                    ax.text(i, 0.99, f"{iv.point:+.2f}\n[{iv.lo:+.2f}, {iv.hi:+.2f}]", ha="center", va="top",
+                            fontsize=7.5, fontweight="bold" if sig else "normal",
+                            transform=ax.get_xaxis_transform())   # top band, axes coords: never on the data
         ax.set_xticks(range(4)); ax.set_xticklabels(EP4)
-        ax.set_ylim(*((-0.3, 1.45) if m != "gap" else (-1.1, 0.65)))
+        # 11-07: the fixed (-1.1, 0.65) gap range silently clipped PS93_0818 acute (+0.74). Extend the range to every
+        # plotted point, with ~22 % headroom on top for the CI labels and a little room below for the n.a. note.
+        lo, hi = (-0.3, 1.2) if m != "gap" else (-1.1, 0.4)
+        if plotted:
+            lo, hi = min(lo, float(np.nanmin(plotted)) - 0.05), max(hi, float(np.nanmax(plotted)) + 0.05)
+        ax.set_ylim(lo - 0.06 * (hi - lo), hi + 0.22 * (hi - lo))
         ax.set_title(lab, fontsize=10)
         for s_ in ("top", "right"):
             ax.spines[s_].set_visible(False)
@@ -651,7 +664,7 @@ def pooled_figures(S: pd.DataFrame, window: str, plt) -> None:
     Tt.to_csv(A / f"recovery_timing_pooled_epoch_{window}.csv", index=False)
     print("== pooled by epoch: change vs pre (nested bootstrap animals > sessions)\n" + Tt.round(3).to_string(index=False))
     _tidy_axes(fig)
-    _conv_legend(fig, AN, EP4, [Line2D([], [], color="k", lw=2.2, label="mean of animals")], loc="lower center",
+    _conv_legend(fig, AN, EP4, [Line2D([], [], ls="none", marker="o", color="0.3", ms=7, label="mean of animals +- SEM (epoch colour)")], loc="lower center",
                  ncol=9, fontsize=8.5)
     fig.suptitle(f"Recovery by epoch, one dot per session, normalised within animal ({window} window; cortex = hits only). "
                  "Numbers = change vs pre, 95% nested CI (bold = excludes 0)\ncortex: sessions with >= 5 hits, and an "
