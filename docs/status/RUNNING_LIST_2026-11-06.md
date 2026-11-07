@@ -118,3 +118,12 @@ the encoding handoff (STATUS_2026-10-26_ENCODING_HANDOFF.md, top blocks); the A1
   failed fast on missing inputs, nothing written; markers moved *_early_* so their own lanes re-run them in file order. The lane
   then halted on l_stopped_restw (mode stop) -- a real gap, see A6. l_disengage / l_interhemi_rest / l_lc_extract left to their
   own lanes. b_wsd_lick DONE 01:40 (-> within-spout mixed models lane v8e-T8); l_revup_restnl DONE.
+- 11-07 09:00 Priya answered A1-A7 (see handoff 00-COMPACT-33): A3 yes, A4 defer, A5 yes (LP fix ON MAIN 72729126; queue v9w
+  09:17 re-runs g5_restnl_maps_lp_r -> g5_lpfinal_maps -> g5_map_drift_lp_r), A6 (a), A7 yes. She asked about O2 for the partial
+  refits: recommended NO (new bundle code mid-render + cross-machine tolerance vs t_partial_te done here); instead raise
+  a_partial_ls / b_partial_frA to 4 workers inside the A7 restart, memory-capped. Waiting for her OK on that.
+- 09:25 A3 fix READY: fix/pooled-kin-gate-20261107 (ec67a0d5, worktree wf_pooledkin). kinematics_pooled_figs builds the
+  per-session 3-D table from the 10-23 lick + jaw snapshot gated with gate_kin_licks (same helper as k_summary_fig) instead of
+  reading the ungated 10-23 sessions.csv; ungated rebuild reproduces that file for all 119 sessions x 38 columns (max rel diff
+  4.9e-4 = %.4g rounding) -> NO 119-session recompute; re-run only k_pooled. Affects Fig 7.5, Fig 9.6, 3-D rows of section 3/5/7
+  tables. 31 tests pass. Push needs Priya's OK.
