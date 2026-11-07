@@ -188,6 +188,50 @@ and CD-trajectory results.
 and overlaps are biased even for pre (the pre "specific_norm_ratio" floor is 1.14-1.33). Next version: session-vs-session
 comparisons, trial-count matched, with the pre-vs-pre distribution as the null.
 
+## Inputs are FINAL (34, 11-07)
+
+The render rewrites neither the encoder PETHs (frA joint/sessions, written 11-05 02:14-04:37; no queued step runs
+frozen_encoder on that tag) nor the per-trial extracts (`sessions_roi8fr`, step e_iti_main, done 11-05; downstream
+steps done, not re-queued). Analyses here can run now.
+
+## Method check: planted changes in pre-stroke sessions (11-07, `scripts/state_space_sim.py`)
+
+- Each pre session in turn gets a known change.
+- It is scored against every other pre session of its animal, single session vs single session, trial-matched.
+- Unchanged sessions = the null (31 sessions; false-positive rate 6 % by construction).
+- Detection = share of planted sessions outside the null's 95 % range.
+- Tables: `Widefield/state_space_recovery/sim/sim_detection_n{0,15}.csv`; n0 = all trials, n15 = 15 per spout,
+  acute-like.
+
+| planted change | best readout | detected (all trials / 15 per spout) | confused with |
+|---|---|---|---|
+| rotation in the top-2 plane, 10 / 20 / 30° | rot_gain (ladder L4 - L3) | .48 / .84 / 1.00 ; .39 / .61 / .84 | none; r also drops |
+| rotation in a random plane of the top-8, 20 / 30 / 45° | rot_gain | .32 / .42 / .74 ; .19 / .32 / .61 | - |
+| per-area gain, random, log SD .15 / .30 | out_var | .94 / 1.00 | **looks "outside the pre space"** (out_resid .48 / .94) |
+| ipsilesional hemisphere x .8 / x .6 | out_var | .26 / 1.00 | **looks "outside"** (out_resid .19 / .81); gain_sd misses it (.00 / .16) |
+| global amplitude x 1.25 / x 1.5 | amp | .61 / .74 | inflates raw spread (.65 / .97) and shared norm; spread_norm is clean (.06) |
+| shared (condition-independent) shift, .25 / .5 of its norm | shared_dist | .13 / .39 | weak: needs a better readout |
+| new spout-coding dimension outside the pre space, 5 / 15 % of variance | out_var, out_resid | 1.00 / 1.00 | gain_sd also flags it (.87 / .97) |
+| trial spread (local search), + .5 / + 1 pre trial SD | spread | .45 / .90 ; .19 / .71 | some leak into rot_gain (.48 at +1 SD) |
+
+What this means for the analysis:
+
+1. **A rotation can be claimed or excluded only for >= ~20° in the dominant plane** (>= ~30° at acute trial
+   counts). Per-area gains do NOT read as rotation in the ladder (rot_gain stays near the null). The first pass's
+   "no rotation beyond gain" therefore means "none >= ~20-30° in the main plane", not "none".
+2. **"Outside the pre space" is NOT specific.** Region gains, especially a hemisphere-wide one, push variance
+   outside the top-8 space as strongly as genuinely new dimensions do, even after a per-area gain correction
+   fitted session vs session (noisy gains). A new-pattern claim needs the gain explanation excluded directly. Next:
+   - a hemisphere-contrast gain readout (mean log gain ipsi - contra), because gain_sd misses a uniform hemisphere
+     gain;
+   - out_resid with gains fitted against the multi-session template rather than one noisy session.
+3. **A condition-independent shift is barely detectable** with a norm-ratio or distance readout. Next: a per-time-bin
+   shared-trajectory difference in units of the trial noise (Sun 2022 style).
+4. **Trial spread:** use the amplitude-normalized version (spread_norm), because a global amplitude change inflates
+   raw spread. It detects + 1 SD at .65 (all trials).
+5. **Acute trial counts (15 per spout) cost about 1/4 to 1/3 of the power** for rotation and spread. Acute nulls
+   are reported at matched counts.
+
 ## Rules
 
 - Per-animal table first (CLAUDE.md rule 8); a claim needs >= 3 / 4 animals.
