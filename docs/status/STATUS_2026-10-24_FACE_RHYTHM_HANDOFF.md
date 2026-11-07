@@ -105,6 +105,9 @@ All under `M:/MICROSCOPE/Priya/DeepLabCut/Widefield/face_rhythm/cam4/readouts/ma
      loses one LOAO fit. Fast jaw factors acute move from "shape changed" to "lost". prelick_nose spatial acute p .004*
      (one unit now). chronic lick_far_nose: v1 had picked nose_steps' component (6 deg) -> v2 43 deg. Priya asked 11-07
      whether to switch page + deck to v2: answer = yes once the full null lands; page / deck text to her first.
+     11-07 later: ACUTE NULL COMPLETE (500 pairs; subacute 111, chronic 100). v2 rescored (epoch_shape_cohort_v2/):
+     acute Holm < .05 = lick_right (all 4 measures), prelick_nose + whisk_run + lick_slow_late spatial angle, whisk_run
+     spectral; LOST lick_fast_close (p .002, Holm .004), lick_ongoing_7Hz (p .014, Holm .014). Waiting on sub / chronic.
      When all lands: run the scorer normally (overwrites the page outputs), update FINDINGS 5.10 + FR page 7m-7o.
    * BLOCKED: 13b -- on 34's cohort-1 rebuild (the decoder / template deficit tables and the working-gate behaviour
      inputs change) and on Priya confirming the variable list (a8 asked her 11-05; d4 gone).
