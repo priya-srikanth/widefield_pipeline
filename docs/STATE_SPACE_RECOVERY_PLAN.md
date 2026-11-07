@@ -16,7 +16,7 @@ biological candidate (lost basal ganglia -> thalamus -> cortex drive), not an im
 
 | earlier result | where | reads as |
 |---|---|---|
-| post-stroke activity stays on the pre-stroke manifold: VAF .83-.88 vs ceilings .89-.91 (k = 14-16 PCs, joint basis) | `scripts/archive/axis_manifold.py`, DECISIONS ~l.4813 | within-manifold |
+| post-stroke activity stays on the pre-stroke manifold: VAF .83-.88 vs ceilings .89-.91 (k = 14-16 PCs, joint basis). **08-23 only**: the then-registered sessions (acute days only, no subacute / chronic), pre incl. June, the old signal variant. Never re-run on the full set; no figure on any page or deck. | `scripts/archive/axis_manifold.py`, DECISIONS ~l.4813 | within-manifold, acute only |
 | position transfer matrix: symmetric "partial rotation", keeps ~.8 of the pre ceiling; blind to changes shared by all six positions | `epoch_15g` / `15h`, `transfer_matrix.py`, STATUS_2026-09-17 | some within-manifold remapping |
 | condition-independent mode grows post-stroke (magnitude ratio > 1 in 12/12 cells, mean 1.41; overlap .61-.68); only PS94 chronic in the "reorganization corner" | `cd_trajectories.py`, `cd_overlap_null.py`, STATUS_2026-09-24_CD_TRAJECTORIES | uniform shift / gain of the shared mode (Sun 2022 analog) |
 | lick-code subspace: no rotation beyond ~10-17° (detection limit); contralesional offset + gain loss | `scripts/lick_code_subspace.py`, `lick_code_noisematch.py`, FINDINGS ~l.671 | gain + offset, not rotation |
@@ -104,6 +104,24 @@ Scaling vs rotation vs local search vs other, read from the sequence of sessions
 - **P3. Variability as the search signature.** Day-to-day distance between consecutive sessions, and trial-to-trial
   spread (trial-count matched). Expected under exploration: both up in the subacute window, then contracting
   (Athalye 2017, Kim 2023).
+- **P3b. Trial clouds over days (Priya 11-07: trial-level variability for the path question).** Project every working
+  trial (contact + incomplete) of every session into ONE fixed per-animal pre space. Each day is then a cloud, and the
+  sequence of clouds is the path. Per day, per spout and pooled:
+  - the cloud's center (the path, with per-day uncertainty from the trials, which helps with only 1-7 sessions per
+    epoch);
+  - its spread (within-day dispersion vs the pre within-day dispersion, trial-count matched);
+  - its shape: which directions the spread lies in. Is the spread along the direction the mean later moves (search
+    aimed at the solution), or isotropic?
+  - **Repertoire before mean** (Golub 2018 / Oby 2019 analog): do chronic-like patterns appear in the TAILS of
+    subacute trial clouds before the session mean gets there? Score each trial's distance to the animal's chronic
+    template vs its pre template, and track the share of "chronic-like" trials by day against the mean's position.
+    Under local search the share rises before the mean moves; under smooth scaling the whole cloud slides together.
+  - Split contact vs incomplete trials where counts allow (acute far contra): do incomplete trials sit further from
+    pre, or in the same cloud?
+
+  Data: the per-trial area extracts (`first_cue` / `first_peth`, 63 areas incl. ALM / tjM1; first-lick trials only)
+  and the encoder `_trials.npz` `trial_parts` (attempted trials, window-averaged). Per-trial widefield noise is large:
+  every spread number is relative to the pre within-day spread at matched counts.
 - **P4. Lead / lag against behavior.** Does the neural path move before, with, or after daily far-contra hit rate and
   aim? Neural settling before behavior suggests the network finds the solution first; settling after suggests the
   network follows behavior.
