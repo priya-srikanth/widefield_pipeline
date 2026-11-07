@@ -1282,10 +1282,14 @@ coupling (direction not determined), not more face variability.
   pending Priya). Chronic cued far-contra lateral -0.24 [-0.35, -0.12] (0/4) stands. MAE sagittal: ITI +0.15 subacute
   only. Pull centre = mean of ALL the animal's pre licks (one decoder, spout unknown), not each spout's mean; pre
   landings cluster medial of the spouts; acute far-contra sagittal extension is LOWER than pre (4/4).
-  Sagittal-run frozen r change vs pre: sagittal ITI -0.01 / -0.07 / -0.05, in-trial -0.09 / -0.04 / +0.01 (n.s.);
-  lateral ITI -0.13 / -0.12 / -0.13, in-trial -0.15 / -0.08 / -0.06 (4/4); encoder angle ITI -0.11 / -0.07 / -0.10,
-  in-trial -0.09 / -0.05 / -0.04 (n.s. chronic). The r loss is lateral; "in-trial angle above pre" (horizontal angle)
-  superseded -- on the encoder angle it returns to ~pre.
+  Frozen r change vs pre (REBUILD 11-07, r normalised to pre, areas; replaces "the r loss is lateral", Priya 11-07): cued
+  licks lose BOTH axes acutely -- lateral -20 / -10 % (4/4), -8 % chronic (n.s., 3/4); sagittal -25 / -21 / -8 % (4/4);
+  the subacute / chronic sagittal loss is carried by short licks that miss the spout within successful trials (contact
+  licks only: -24 % acute 4/4, -14 % n.s., +7 % n.s.). ITI: lateral -23 / -22 / -24 % (4/4); sagittal -13 % n.s., then
+  -23 / -24 % (4/4). The page -> rebuild change is not the trial gate (the cued set is all post-cue camera licks); it
+  comes from the imaging / pre-set changes (attribution test queued). Encoder angle: ITI -0.11 / -0.07 / -0.10, in-trial
+  -0.09 / -0.05 / -0.04 (n.s. chronic); "in-trial angle above pre" (horizontal angle) superseded -- on the encoder angle
+  it returns to ~pre.
   Z-SCORE CHECK (10-26 late, `scripts/iti_zscore_check.py` -> iti_licks/zscore_check/; Priya: "z-scored within session
   is ok", not a pre-lick baseline because the ITI carries position information): every area divided by its frame-wise
   SD in the session (after the same drift removal; over all frames, not licks). Beyond-pull ITI lateral +0.33 / +0.22 /
