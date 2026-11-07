@@ -136,7 +136,7 @@ def _cli_many(cmds, jobs=None):
 
 
 def _resolve_epochs():
-    """DERIVE tonight's epoch boundaries from behaviour, publish them, and log anything that moved.
+    """DERIVE tonight's epoch boundaries from behavior, publish them, and log anything that moved.
 
     MUST RUN BEFORE ANY FIGURE STEP. Every figure that stratifies by epoch reads `epochs.epoch_of`,
     so resolving after the figures would render the deck on last run's boundaries and then write
@@ -170,7 +170,7 @@ def _resolve_epochs():
         if not res["available"]:
             # NOT the same as "nothing changed", and must not read like it: without the cohort
             # table nothing was derived, and the stored spec is what the figures will use.
-            log("  !! epoch boundaries NOT DERIVED this run (no cohort behaviour table); "
+            log("  !! epoch boundaries NOT DERIVED this run (no cohort behavior table); "
                 "figures will use the LAST DERIVED epoch_boundaries.json, or animals.yaml if "
                 "there is none")
             return

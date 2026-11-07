@@ -82,7 +82,7 @@ def draw(D: dict) -> None:
                + [Line2D([], [], color="k", ls="--", label="animal's pre median (current threshold)"),
                   Line2D([], [], color="0.5", ls=":", label="cohort pre median (single threshold)")],
                loc="upper left", ncol=6, fontsize=9, frameon=False)
-    fig.suptitle("BEHAVIOUR: lick extension per animal x epoch (3-D, extension peak). Text = % of each epoch's licks above "
+    fig.suptitle("BEHAVIOR: lick extension per animal x epoch (3-D, extension peak). Text = % of each epoch's licks above "
                  "the animal's pre median.", fontsize=10)
     fig.tight_layout(rect=(0, 0, 1, 0.95))
     fig.savefig(il.OUT / "figures" / f"{FIG}.png", dpi=90)

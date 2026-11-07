@@ -22,7 +22,7 @@ session median. A frame is bad if any band is.
 REPAIR (`RepairedDat`, a read-only view; the .bin on disk is never touched):
   * both slots of a pair are FULL swaps (>= 90% of bands bad, alpha ~ 0)  -> the two slots are exchanged;
   * any other bad frame (single swap, partial / rolling-shutter band, dual exposure) -> replaced by the mean of its
-    nearest good same-slot neighbours. It is DROPPED in effect, but the frame grid stays regular, so the frame map,
+    nearest good same-slot neighbors. It is DROPPED in effect, but the frame grid stays regular, so the frame map,
     event timing and the SVD's shape are unchanged.
 `frames_average` is corrected by the same edits (exact: old mean + sum(repaired - original) / T).
 
@@ -70,7 +70,7 @@ def _brain_ds(frames_average: np.ndarray, func: int) -> np.ndarray:
 
 
 def _band_fit(d, P, brain, edges):
-    """Vectorised least squares d ~ alpha + beta * P per row band over brain pixels.
+    """Vectorized least squares d ~ alpha + beta * P per row band over brain pixels.
 
     d, P: (n, h, w). Returns (n, NB, 2) = (alpha, beta); NaN where the band has < 8 brain pixels or no P spread."""
     n = d.shape[0]

@@ -3,7 +3,7 @@
     conda activate dlc            # pandas + PIL; no DLC import
     python -m wfield_local.lp_sidecam stage C:/Users/SabatiniLab/lp_stage/lp_side_pilot_20261027
     python -m wfield_local.lp_sidecam unseen C:/Users/SabatiniLab/lp_stage/lp_side_pilot_20261027   # Parts B/C targets
-    python -m wfield_local.lp_sidecam audit                  # what is labelled in the side folders, nothing written
+    python -m wfield_local.lp_sidecam audit                  # what is labeled in the side folders, nothing written
     conda activate dlc            # pytables, for DLC's .h5
     python -m wfield_local.lp_sidecam prelabel <preds.csv> [--dry-run]   # seed the unlabelled side folders
 
@@ -15,13 +15,13 @@ DLC ``CollectedData_Priya`` through `dlc_prelabel.write_labels` (staging) + `dlc
 that already holds labels is NEVER touched -- the seeds are a starting point to correct, not labels.
 
 THE PLAN (DECISIONS 2026-10-13 night, `dlc_sidecam`): one shared model for both side views, cam3 flipped at
-TRAINING and INFERENCE time; labelling is on the raw images. The four parts are midline / single structures, so a
+TRAINING and INFERENCE time; labeling is on the raw images. The four parts are midline / single structures, so a
 flip needs no left / right label swap.
 
 THE TRANSFORM (`to_model` / `to_raw`), applied identically to labels, images and later to videos:
-  1. cam3 only: x -> W - 1 - x, W = that frame's own width (pixel centres; PIL FLIP_LEFT_RIGHT does the same).
+  1. cam3 only: x -> W - 1 - x, W = that frame's own width (pixel centers; PIL FLIP_LEFT_RIGHT does the same).
   2. crop the square CROPS[W] = (x0, y0, side) of the (flipped) frame and resize it to OUT x OUT (256; a multiple of
-     128, LP's check). Model coordinates = (x - x0 + 0.5) * OUT / side - 0.5 (PIL's pixel-centre resize mapping).
+     128, LP's check). Model coordinates = (x - x0 + 0.5) * OUT / side - 0.5 (PIL's pixel-center resize mapping).
 
 ONE CROP PER FRAME SIZE (Priya 2026-10-27: "prioritize the august crop, or design different crops"). The JUNE side
 videos are 800 x 600, August onward 600 x 450, and the face is 1.24x larger in June (June / August median nose-spout
@@ -40,7 +40,7 @@ WHICH ROWS. All-blank rows never reach training (`dlc_train.drop_unlabelled`; un
 blank row teaches "everything hidden"). Rows with ONE part only are dropped too: the nose is visible on every listed
 Part A frame (143 / 143), so a lone part is far more likely a half-finished frame than a real three-part occlusion,
 and a partial frame's blanks would be read as hidden (the guide's "never label only one part"). CONTEXT frames that
-were labelled completely are kept (Priya 2026-10-27; allowed since 10-13: "context stays blank, or is labelled
+were labeled completely are kept (Priya 2026-10-27; allowed since 10-13: "context stays blank, or is labeled
 completely").
 """
 from __future__ import annotations
@@ -150,7 +150,7 @@ def stage(dest: Path, proj: Path | None = None, only: list[str] | None = None) -
                         "sizes": ",".join(f"{w}x{h}" for w, h in sorted(widths)),
                         **{p: int(lab[f"{p}_x"].notna().sum()) for p in PARTS}})
     if not rows:
-        raise SystemExit("no labelled side-camera frames found")
+        raise SystemExit("no labeled side-camera frames found")
     out = pd.DataFrame(rows).set_index("path")
     cols = pd.MultiIndex.from_tuples([(SCORER, p, c) for p in PARTS for c in ("x", "y")],
                                      names=["scorer", "bodyparts", "coords"])
@@ -189,7 +189,7 @@ def stage_unseen(dest: Path, exclude: set[str], proj: Path | None = None) -> int
 def prelabel(preds_csv: Path, rv=None, dry: bool = False, replace_unchecked: bool = False) -> int:
     """Seed the side folders listed in ``preds_csv`` (rows ``unseen/<stem>/<img>``) with confident predictions, for
     the LISTED targets only (`side_assignment.csv`: label and not deferred). ``replace_unchecked``: a folder whose
-    live CollectedData is still EXACTLY its earlier seed file (nobody has edited it) is re-seeded; any other labelled
+    live CollectedData is still EXACTLY its earlier seed file (nobody has edited it) is re-seeded; any other labeled
     folder is left alone."""
     from PIL import Image
 
@@ -251,7 +251,7 @@ def prelabel(preds_csv: Path, rv=None, dry: bool = False, replace_unchecked: boo
     written = DP.write_labels(labels, index, rv, dry=dry)
     if written:
         folders, images, n = dlc_project.sync_frames(dlc_project.project_dir(rv), rv, cams=list(SIDE))
-        print(f"wrote {len(written)} seed files; synced {n} into the labelling project")
+        print(f"wrote {len(written)} seed files; synced {n} into the labeling project")
     return len(written)
 
 
@@ -260,7 +260,7 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("cmd", choices=["stage", "unseen", "audit", "prelabel"])
     ap.add_argument("dest", nargs="?", type=Path)
-    ap.add_argument("--only", nargs="+", default=None, help="folder names (default: every labelled side folder)")
+    ap.add_argument("--only", nargs="+", default=None, help="folder names (default: every labeled side folder)")
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--replace-unchecked", action="store_true",
                     help="prelabel: re-seed folders whose labels are still exactly the earlier seeds")

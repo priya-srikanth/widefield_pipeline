@@ -2,8 +2,8 @@
 
 One figure, four panels, every value read from outputs other scripts already wrote (no new statistics except the
 far-contra code-on-hits change, which uses the same paired nested bootstrap as everything else):
-  A  BEHAVIOUR recovers: far-contra FIRST-cued-lick aim offset (deg vs the animal's pre landing, - = ipsilesional;
-     `iti_recovery_measure`, the behaviour axis everywhere) per post session over days, per animal (thin) + mean of
+  A  BEHAVIOR recovers: far-contra FIRST-cued-lick aim offset (deg vs the animal's pre landing, - = ipsilesional;
+     `iti_recovery_measure`, the behavior axis everywhere) per post session over days, per animal (thin) + mean of
      animals per epoch (bold, at the epoch's median day).
   B  CUED licks, fraction of pre: the FROZEN pre-stroke far-contra spout code on far-contra HITS (`recovery_timing.series`
      'neu', the previous key figure's quantity), the FROZEN lateral lick decoder r / pre, and the same decoder REFIT per
@@ -12,7 +12,7 @@ far-contra code-on-hits change, which uses the same paired nested bootstrap as e
   D  ITI like-for-like read-out offset (mm, + = contralesional) against pre licks that landed at the same place: any spout
      (12.1, matched_gauss_tests.csv) and the same previous-trial target (12.15, sametarget_tests.csv); per animal + mean
      of animals with 95 % paired nested bootstrap CI.
-Reading: behaviour returns; the frozen pre-stroke read-out stays low (ITI) while a decoder refit after the stroke reads
+Reading: behavior returns; the frozen pre-stroke read-out stays low (ITI) while a decoder refit after the stroke reads
 position again (the code is there, read differently); ITI licks are read ~0.25 mm contralesional of where they land.
 Outputs <E>/iti_licks/figures/key_figure.png; figdata/key_figure.pkl (--plot-only redraws from it).
 Usage: python scripts/key_figure.py [--plot-only]
@@ -112,7 +112,7 @@ def plot(F: dict) -> None:
     ax.set_xlabel("day from stroke")
     ax.set_ylabel("far-contra first-lick aim offset\n(deg vs pre landing; - = ipsilesional)")
     rem = (Mn.loc["chronic", "v"] - Mn.loc["pre", "v"]) / (Mn.loc["acute", "v"] - Mn.loc["pre", "v"])
-    ax.set_title(f"A  BEHAVIOUR mostly recovers: {rem:.0%} of the acute aim\ndeficit remains chronically (grey = "
+    ax.set_title(f"A  BEHAVIOR mostly recovers: {rem:.0%} of the acute aim\ndeficit remains chronically (gray = "
                  "animals; bold = mean)", fontsize=10, loc="left")
     # B, C decoders
     x = np.arange(len(EP))
@@ -163,7 +163,7 @@ def plot(F: dict) -> None:
     for a_ in axs:
         for s_ in ("top", "right"):
             a_.spines[s_].set_visible(False)
-    fig.suptitle("KEY FIGURE: behaviour mostly recovers; the FROZEN pre-stroke read-out stays down for the far-contra spout "
+    fig.suptitle("KEY FIGURE: behavior mostly recovers; the FROZEN pre-stroke read-out stays down for the far-contra spout "
                  "code (~70%) and for ITI licks (~75%),\nwhile a decoder REFIT after the stroke reads lick position at ~95-100% "
                  "of pre (the code is there, read differently); ITI licks are read ~0.25 mm contralesional of where they "
                  "land,\neven against pre licks of the same previous-trial target. Decoders: z-scored Allen areas with the ALM / tjM1 split, lags 0..0.2 s; "

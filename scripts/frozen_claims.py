@@ -9,13 +9,13 @@ A. TARGET vs EXECUTED (refit claim: binned contest, chronic target-beyond-execut
    part) and exec_within (where the tongue / jaw went relative to that spout's usual path).
 B. TRIAL-TO-TRIAL vs PETH (refit claim: the acute spout loss is a PETH loss, FINDINGS 4.12 / 8.9): the same unique R2 on
    `trial` (around each spout's mean trace) and `avg` (the spout-mean traces = PETH) segments of the frozen prediction.
-C. RECOVERY TREND (refit claim: chronic position-coding gain beyond the practice trend, follows behaviour, ENCODING 4.1-4.2):
+C. RECOVERY TREND (refit claim: chronic position-coding gain beyond the practice trend, follows behavior, ENCODING 4.1-4.2):
    per session spout unique R2 (cortex, frame), pre -> chronic per animal, and the day it reaches half its acute ->
-   chronic change vs far-contra contact (behaviour, `qc/position_coding_trend_recovery_sessions.csv`).
+   chronic change vs far-contra contact (behavior, `qc/position_coding_trend_recovery_sessions.csv`).
 ALM / tjM1 / MOs_rest / MOp_rest ROWS (Priya 10-27 / 10-28 "yes let's redo musall"): the area run saved area means only,
 so these rows come from the frame's BASIS twin re-run with FROZEN_PIX_MUSALL=1 (`<run>_basis_pixmusall`, ridge alphas
 held at the area run's) -- ROI R2 = 1 - w'Ew / w'Sw (`encoder_split_rows.musall_rows`), ROI v8 on the stat mask. Placed
-right after their parent (MOp -> tjM1, MOp_rest; MOs -> ALM, MOs_rest) on a grey band; MOs (area run) added as their
+right after their parent (MOp -> tjM1, MOp_rest; MOs -> ALM, MOs_rest) on a gray band; MOs (area run) added as their
 parent. Validation (basis route vs the area run's MOs / MOp / SSp-m / cortex): docs/status/ALM_TJM1_ROWS_PLAN_20261027.md.
 Usage: python scripts/frozen_claims.py [--out DIR] [--pix-root DIR]
 Output: <E>/frozen_fr_compare/claims_*.csv, figures/frozen_claims_{contest,peth,trend}.png
@@ -177,7 +177,7 @@ def main(argv=None) -> int:
         ax2 = ax.twinx()
         b = beh.assign(day=beh.label.map(epochs.days_since_stroke))
         b = b[b.label.str.startswith(an)].sort_values("day")
-        ax2.plot(b.day, b.contact_far_contra, "s--", color="#1b9e77", ms=3, lw=0.8, label="far-contra contact (behaviour)")
+        ax2.plot(b.day, b.contact_far_contra, "s--", color="#1b9e77", ms=3, lw=0.8, label="far-contra contact (behavior)")
         ax2.set_ylim(0, 1)
         ax.axvline(0, color="k", lw=0.6)
         ax.set_title(an, fontsize=10)

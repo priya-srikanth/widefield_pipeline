@@ -7,12 +7,12 @@ so it is an independent line of evidence rather than a restatement.
 
 THE STATISTIC. For each (reference, position, epoch): take each animal's OWN `epoch - pre` map,
 then the MEAN PAIRWISE PEARSON r between animals, over the 129,770 px of `stat_mask`. Pearson r is
-invariant to a positive scale factor per animal, so the within-animal RMS normalisation cannot move
+invariant to a positive scale factor per animal, so the within-animal RMS normalization cannot move
 it -- it measures SHAPE agreement, not size.
 
 WHY IT NEEDS A NULL, and this is the part that matters. **The PRE-STROKE maps already correlate
 between animals at r ~= 0.88.** Four mice share gross cortical anatomy, one Allen warp, one imaging
-geometry and one set of optical artefacts. A large positive r is this statistic's RESTING STATE, not
+geometry and one set of optical artifacts. A large positive r is this statistic's RESTING STATE, not
 a finding. Reading a ranking off the raw numbers -- which is what I did the first time -- mistakes
 the shared anatomy for a shared result.
 

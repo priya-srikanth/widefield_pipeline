@@ -4,9 +4,9 @@ One value per animal. Early (acute) features: the first post-stroke session's or
 pre-SD units, mean of SSp-m / MOp both hemispheres; cue and lick), its mean over days 1-3, acute frozen-decoder far-contra
 retention on ALL far-contra trials and on HITS (lick window), acute trial-by-trial coupling (all far-contra trials,
 landing), and lesion burden (% of ipsilesional caudoputamen, docs/HISTOLOGY.md) as the structural reference. Outcomes:
-behavioural (hit-rate) half-recovery day RELATIVE TO PRE (`recovery_timing.py` beh_half_to_pre, NaN unless its fit flag
+behavioral (hit-rate) half-recovery day RELATIVE TO PRE (`recovery_timing.py` beh_half_to_pre, NaN unless its fit flag
 is ok; 11-07), chronic far-contra hit rate (relative to pre), chronic cortical
-far-contra code on hits, chronic per-session gap (cortex - behaviour), chronic orofacial residual (cue).
+far-contra code on hits, chronic per-session gap (cortex - behavior), chronic orofacial residual (cue).
 
 ALM / tjM1 (Priya 10-27: "add ALM / tjM1 ... rows"): the day-1 residual is also given in ALM + tjM1 (both hemispheres; ROI v8
 on the stat mask, from the frozen run's basis twin via specificity_control) as two extra predictor columns.

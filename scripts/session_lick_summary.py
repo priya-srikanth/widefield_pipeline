@@ -96,7 +96,7 @@ _SESSION_COLOR: dict = {}
 
 
 def session_color(date: str, ep: str) -> str:
-    """One colour per session: the epoch's hue, a different shade for each further session of that epoch."""
+    """One color per session: the epoch's hue, a different shade for each further session of that epoch."""
     key = (date, ep)
     if key not in _SESSION_COLOR:
         k = sum(1 for (_d, e) in _SESSION_COLOR if e == ep)

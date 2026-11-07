@@ -2,7 +2,7 @@
 
 Columns = sessions. Rows:
   (1) RAW brain-mean counts: 470 (func) and 415 (iso)  -> absolute levels + bleaching
-  (2) RAW normalised to % of start: 470 and 415         -> DIFFERENTIAL bleaching between channels
+  (2) RAW normalized to % of start: 470 and 415         -> DIFFERENTIAL bleaching between channels
   (3) CORRECTED cortex-mean (SVTcorr, hemo_meegkit_hpfit), SD units, 2 s bins,
       with the >=300 s slow component overlaid           -> the "surviving slow drift"
 """

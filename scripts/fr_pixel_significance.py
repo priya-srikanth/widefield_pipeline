@@ -4,7 +4,7 @@ Per-session maps = held-out R2 (fraction, 0-1) per 2 x 2-px block (`fr_musall.se
 block SSE maps, main no-FR run + FR run). Test = the repo's map test for epoch changes
 (`beta_maps.hierarchical_bootstrap_significance`: animals -> sessions nested bootstrap of epoch - pre, bootstrap-SE
 interval; family-wise threshold over bins = the max-statistic, `beta_maps.CORRECTION = "maxstat"`: the 95th percentile over
-draws of max over all tested bins of |boot - obs| / SE, so per panel, not corrected across panels), on the RAW R2 scale (R2 is already scale-free, so no per-animal pre normalisation).
+draws of max over all tested bins of |boot - obs| / SE, so per panel, not corrected across panels), on the RAW R2 scale (R2 is already scale-free, so no per-animal pre normalization).
 Bins: 16 and 32 FULL-resolution px (= 8 and 16 block px on this half-resolution grid), stat mask = the eroded brain
 mask (`beta_maps.stat_mask`) block-downsampled. Calibration as for the residual maps: random half-splits of each
 animal's pre sessions (pseudo pre vs pseudo post) -> share of null splits with >= 1 significant bin.
@@ -268,11 +268,11 @@ def drift_control(meta, maps, mask, out, a, zsd) -> int:
         reserve_headroom(fig)
         ttl = (f"SUPPLEMENTAL drift control, NEURAL: FaceRhythm-encoder pixel maps, {w} window, {unit}, mean of animals. "
                "Row 1: LATE pre minus EARLY pre (each animal's pre sessions in date order, second half minus first half). "
-               "Row 2: chronic minus pre (the main figure's test, read back; same colour scale as row 1). Same test for "
+               "Row 2: chronic minus pre (the main figure's test, read back; same color scale as row 1). Same test for "
                f"both: nested bootstrap animals -> sessions, {correction_label()}; black = 16 px, purple dashed = 32 px "
                "bins. Row 2 titles: significant bins; of them, bins whose pre drift has the same sign (point estimate); "
                "and bins whose same-sign drift is itself significant. Row 3: per-session in-mask mean (open markers: "
-               "shape = animal, colour = epoch). Image left = ipsilesional.")
+               "shape = animal, color = epoch). Image left = ipsilesional.")
         fig.suptitle("\n".join(textwrap.wrap(ttl, int(26 * len(QS)))), fontsize=8)
         fig.subplots_adjust(left=0.04, right=0.93, top=0.84, bottom=0.06, wspace=0.12, hspace=0.42)
         save_png_svg(fig, out / "figures" / f"fr_pixel_significance_{w}_mode{a.mode}_driftcontrol.png", dpi=115)

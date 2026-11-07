@@ -1,16 +1,16 @@
-"""LICK-VIGOUR control for the PER-SPOUT lick responses of 14.7 (Priya 10-28: "should we try regressing on lick vigor";
+"""LICK-VIGOR control for the PER-SPOUT lick responses of 14.7 (Priya 10-28: "should we try regressing on lick vigor";
 "proceed ... starting with lick vigor control").
 
 Question: are the per-spout differences of 14.7 -- cued far-contra licks not larger acutely (PS92 / PS93 below pre), ITI
 licks larger after every previous spout -- explained by HOW the tongue moved? Per lick: response = dF/F AUC 0..0.5 s
 after lick onset (baseline -1.0..-0.5 s, = 14.7) / the animal's pre AUC over all spouts (= 14.7's scale). Covariates =
 the lick's own kinematics, z-scored against the animal's PRE licks of the same set:
-  VIGOUR   3-D reach, peak tongue speed, outward (AP) and height (DV) of the tip, cam4 lick duration, retraction speed
+  VIGOR   3-D reach, peak tongue speed, outward (AP) and height (DV) of the tip, cam4 lick duration, retraction speed
   +LANDING the same plus the lateral tip position (side_ml) = where the lick landed
 Per animal, a linear fit on PRE licks only (all spouts); each lick's response minus the fitted covariate part (+ the pre
 intercept) -- as 14.13 (`iti_licks._pre_adjust`). Then per spout, session means (>= MIN_SPOUT licks), change vs pre at
-that spout (paired nested bootstrap, `analysis_kit.boot_delta`), unadjusted / vigour / vigour+landing on the SAME scale.
-Vigour + landing asks: same movement, same place -- is the response still different? (For cued far-contra licks that
+that spout (paired nested bootstrap, `analysis_kit.boot_delta`), unadjusted / vigor / vigor+landing on the SAME scale.
+Vigor + landing asks: same movement, same place -- is the response still different? (For cued far-contra licks that
 miss ipsilesionally, adjusting for landing removes the part of the response that follows where the lick went.)
 Lick kinematics: cam4 licks_all.csv (onset, duration, retraction) + pose3d kinematics_all (reach, speed, 3-D tip),
 matched to each lick by DAQ onset time (ITI: exact, as 14.13; cued first licks: nearest cam4 onset within MATCH_S).
@@ -69,7 +69,7 @@ _K = {}
 
 def _kin(label: str, t: np.ndarray, exact: bool) -> pd.DataFrame:
     """Kinematics of licks at DAQ onset times t: exact onset match (ITI bout starts are cam4 onsets) or nearest cam4
-    onset within MATCH_S (cued first licks come from the behaviour lick table)."""
+    onset within MATCH_S (cued first licks come from the behavior lick table)."""
     from wfield_local import config
     from wfield_local import orofacial_cohort as oc
     from wfield_local import orofacial_outputs as oo
@@ -166,7 +166,7 @@ def compute() -> dict:
         out.append(G)
     L = pd.concat(out, ignore_index=True)
     L.to_csv(il.OUT_W / "vigor_perspout_licks.csv", index=False)
-    print("== vigour per spout (z vs the animal's pre licks of the set; session means, mean over sessions)")
+    print("== vigor per spout (z vs the animal's pre licks of the set; session means, mean over sessions)")
     S0 = L.groupby(["set", "pos", "label", "animal", "epoch"])[["z_reach", "z_speed", "z_dur_ms", "z_side_ml"]].mean()
     print(S0.groupby(["set", "pos", "epoch"]).mean().unstack("epoch").reindex(columns=il.EP4, level=1).round(2).to_string())
     tests = []
@@ -191,7 +191,7 @@ def compute() -> dict:
     T = pd.DataFrame(tests)
     T.to_csv(il.OUT_W / "vigor_perspout_tests.csv", index=False)
     T["cell"] = [f"{d:+.2f}{'*' if s else ''}" for d, s in zip(T.delta, T.sig)]
-    print("== change vs pre at the spout (units of the animal's all-spout pre AUC), none / vigour / vigour+landing")
+    print("== change vs pre at the spout (units of the animal's all-spout pre AUC), none / vigor / vigor+landing")
     print(T[T.roi.isin(["tjM1_right", "SSp-m_right"])].pivot_table(index=["set", "roi", "spout", "window"], columns=["epoch", "model"],
           values="cell", aggfunc="first").reindex(columns=EP, level=0).reindex(columns=list(MODELS), level=1).to_string())
     print("== per animal (rule 8), far contra, tjM1_right")
@@ -240,10 +240,10 @@ def plot(F: dict) -> None:
                     ax.set_ylabel(f"{what}\n{r}: epoch MINUS pre at the spout\n(0 = no change; units = animal's pre AUC)",
                                   fontsize=8.5)
         fig.legend(handles=[Line2D([], [], color=MCOL[m], marker="o", lw=0, label={"none": "unadjusted",
-                   "vigour": "vigour regressed out", "vigour+landing": "vigour + landing regressed out"}[m]) for m in MODELS]
+                   "vigour": "vigor regressed out", "vigour+landing": "vigor + landing regressed out"}[m]) for m in MODELS]
                    + [Line2D([], [], color="0.4", marker="o", mfc="white", lw=0, label="hollow = CI includes 0")],
                    loc="lower center", ncol=4, fontsize=9.5, frameon=False)
-        fig.suptitle(f"LICK-VIGOUR CONTROL for the per-spout responses (14.7): response AUC {wn.replace('-', '..')} s after lick onset, in units of the pre 0..0.5 s AUC (baseline "
+        fig.suptitle(f"LICK-VIGOR CONTROL for the per-spout responses (14.7): response AUC {wn.replace('-', '..')} s after lick onset, in units of the pre 0..0.5 s AUC (baseline "
                      "-1.0..-0.5 s), epoch MINUS pre AT THAT SPOUT (0 = no change; 1 = one whole pre response, all-spout average), mean of animals with 95% paired nested bootstrap CI.\nVigour = "
                      "3-D reach, peak speed, outward and height of the tip, lick duration, retraction speed; + landing = also "
                      "the lateral tip position; per animal, linear fit on PRE licks only (as 14.13);\none common lick set (licks "

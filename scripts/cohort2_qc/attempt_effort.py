@@ -119,7 +119,7 @@ def contrasts(S):
 
 def figure(S, out=None):
     """Priya 11-03 rules: no lines; per epoch, the four trial classes side by side; each class's SESSION means (mean over
-    that session's trials) as faded open markers (shape = animal, colour = class), the animal means (mean over the
+    that session's trials) as faded open markers (shape = animal, color = class), the animal means (mean over the
     animal's trials, as before) small filled, and the mean of animals as a large marker +- SEM across animals.
     Returns {(subset, measure, epoch, class): (animal means, mean of animals)} for the --plot-only check."""
     import matplotlib
@@ -184,7 +184,7 @@ def figure(S, out=None):
                fontsize=8, ncol=8, loc="upper center", bbox_to_anchor=(0.5, 0.935), frameon=False)
     fig.suptitle("Do animals recruit the body when they cannot lick? Running and limb cortex by trial outcome (hit / "
                  "lick-no-contact / jaw-only / no try). Large = mean of animals +- SEM across animals; small filled = "
-                 "animal (shape; mean over its trials); faded open = sessions (shape = animal, colour = class)",
+                 "animal (shape; mean over its trials); faded open = sessions (shape = animal, color = class)",
                  fontsize=9, wrap=True)
     fig.tight_layout(rect=(0, 0, 1, 0.9))
     out = OUTE / "attempt_effort.png" if out is None else out

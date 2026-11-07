@@ -1,5 +1,5 @@
 """Coordinator 11-04: the previously REFUSING REDO scripts are routed -- no require_default, outputs under the run tag
-(run_mode / lp_licks / frozen_encoder routing helpers), behaviour inputs from the untagged behaviour qc dir."""
+(run_mode / lp_licks / frozen_encoder routing helpers), behavior inputs from the untagged behavior qc dir."""
 from __future__ import annotations
 
 import os

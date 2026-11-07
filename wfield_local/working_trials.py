@@ -4,7 +4,7 @@ PRODUCTION SINCE 11-03 LATE (Priya): working = ``in_working & class in {contact,
 trials (contact or incomplete lick), cue -> trial stop, cut at the session's last camera lick. JAW-ONLY TRIALS ARE NOT
 WORKING: they are reported as their own class, like no-response (docs/status/JAW_ONLY_CHECKS_2026-11-03.md: jaw_only
 reads like no_response in PS94 / PS95 at cue and precue; adding them to training does not move the pre reference;
-centring a post-stroke session on rows that include them drives PS95 close ipsi acute .975 -> .642). Every contact /
+centering a post-stroke session on rows that include them drives PS95 close ipsi acute .975 -> .642). Every contact /
 incomplete trial is at or before the last camera lick by construction, so the end cut only ever removed jaw_only /
 no_response trials; it stays in the definition so the rule reads as written. ``WORKING_CLASSES`` names the sets.
 
@@ -38,7 +38,7 @@ end-of-session cutoff recomputed here by 5b's `trial_classes.in_working` and che
 no-lick cue indices per session), exactly as `scripts/s1_refit_locanmf_table.py` does, so 5b's section-1 trial sets
 are reproduced row for row (pinned in tests).
 
-Sessions with NO camera classes (no behaviour video: PS93_0813; the June sessions, outside the August-only baseline)
+Sessions with NO camera classes (no behavior video: PS93_0813; the June sessions, outside the August-only baseline)
 have no working trials: they drop out of every working training set and pre band.
 """
 from __future__ import annotations
@@ -329,7 +329,7 @@ def row_masks(kept, indices, GE, GU, sel: str | None = None):
 def projection_work(kept, features, GE, GU, align):
     """``(work_e, work_u, cls_e, cls_u)`` for `spout_scaling.projection_arrays` under
     ``WIDEFIELD_PROJECTION_CENTRE=working`` / ``contact`` (main 4a37cbc8, item C re-check), or None: the lick window
-    (lick gate), the DAQ gate or a non-camera selection, the engaged centre, the frame off, or a builder without cue
+    (lick gate), the DAQ gate or a non-camera selection, the engaged center, the frame off, or a builder without cue
     ``.indices``. REBUILD: the classes are live (`trial_classes.pool_row_classes`), the working rows `in_sel` of them."""
     from wfield_local import spout_scaling as ss
     from wfield_local import trial_classes as tc
@@ -338,7 +338,7 @@ def projection_work(kept, features, GE, GU, align):
         return None                   # the lick window / the DAQ gate / the frame off: the engaged-row frame
     if not getattr(features, "indices", None):
         raise RuntimeError(f"projection frame ({ss.projection_tag()}): a camera {align} pool without cue indices "
-                           "cannot take the working-row centre -- build it with features_with_indices")
+                           "cannot take the working-row center -- build it with features_with_indices")
     ce, cu = tc.pool_row_classes(features, kept, len(GE), len(GU))
     return tc.in_sel(ce, "working"), tc.in_sel(cu, "working"), ce, cu
 
@@ -355,8 +355,8 @@ def eax_rows(kept, features, XE, XU, GE, GU):
 
 
 def projection_cls_e(kept, features, GE, GU, align):
-    """The camera class per ENGAGED row for the projection frame's engaged centre (`spout_scaling.centre_mask` needs
-    them under the camera centre), or None (the DAQ gate / the frame off / no ``.indices``)."""
+    """The camera class per ENGAGED row for the projection frame's engaged center (`spout_scaling.centre_mask` needs
+    them under the camera center), or None (the DAQ gate / the frame off / no ``.indices``)."""
     from wfield_local import spout_scaling as ss
     from wfield_local import trial_classes as tc
     if not ss.projection_frame_on() or not tc.camera_gate_on() or not getattr(features, "indices", None):

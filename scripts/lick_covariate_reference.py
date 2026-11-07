@@ -19,10 +19,10 @@ and the covariates Z is residualised on landing with the SAME Gaussian kernel as
 Watson from the pre licks, same sigma, same range / weight rules); beta = OLS (no intercept) of the decoded residual on
 the covariate residuals over PRE licks; reference(lick) = m_dec(x) + beta . (Z - m_Z(x)), so
     resid = (dec - m_dec(x)) - beta . (Z - m_Z(x)).
-Why this one (vs a covariate fit inside each kernel neighbourhood): with Z empty it IS the current Gaussian reference
+Why this one (vs a covariate fit inside each kernel neighborhood): with Z empty it IS the current Gaussian reference
 (reference 1 reproduces likeforlike "nw" to float precision -- checked at run time), so the four references differ ONLY
 by the covariate terms; beta is one pre-stroke slope per set x animal (thousands of pre licks per coefficient, no
-per-neighbourhood fits that go unstable at the range edges where neighbours are few); the landing dependence of Z is
+per-neighborhood fits that go unstable at the range edges where neighbors are few); the landing dependence of Z is
 removed before beta is fitted, so beta is the covariate effect AT A FIXED LANDING PLACE and cannot re-absorb the landing
 effect. Pre licks: m from the other pre sessions and beta fitted on the other pre sessions' (leave-one-out) residuals,
 so the pre sessions stay out of sample (~0 by construction, their spread = the noise level); post licks: m and beta from

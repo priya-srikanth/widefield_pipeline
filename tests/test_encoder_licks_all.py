@@ -49,7 +49,7 @@ def test_split_every_lick_in_exactly_one_kernel():
 
 
 def test_split_kernels_and_unset_from_the_same_behaviour(monkeypatch):
-    """Split adds a pre-cue and an ITI lick kernel and uses the whole-window contacts; the SAME Behaviour without
+    """Split adds a pre-cue and an ITI lick kernel and uses the whole-window contacts; the SAME Behavior without
     LICKS_ALL gives exactly the unset design (the pickle keeps the cue-table contacts)."""
     x, B = _B()
     ft = x["imaging"][1]

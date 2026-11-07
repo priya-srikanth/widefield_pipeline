@@ -214,7 +214,7 @@ def plot(D: dict) -> None:
     il._headroom([axs[0, 0]])                              # y is shared: raise once
     fig.suptitle(f"NEURAL: the FROZEN pre-stroke decoder (fit once on pre licks, never refit) of lateral tongue-tip position in {len(srcs)} SPATIAL bases (same licks, same decoder; "
                  "per animal, trained on August pre licks, pre leave-one-session-out). Title numbers = change from pre "
-                 "normalised to the animal's pre (lags 0-0.2 s); * = nested-bootstrap CI excludes 0.\n" + il.SIG_NOTE,
+                 "normalized to the animal's pre (lags 0-0.2 s); * = nested-bootstrap CI excludes 0.\n" + il.SIG_NOTE,
                  fontsize=9.5, wrap=True)
     fig.tight_layout(rect=(0, 0, 1, 0.9))
     save_png_svg(fig, il.OUT / "figures" / f"{FIG}.png", dpi=110)

@@ -10,8 +10,8 @@ Feature sets, each at the lick's own peak:
   cam4 2-D : lateral ``lr_px``, vertical ('out') ``ap_px`` (+ ``protrusion_px``, ``peak_angle_deg``)
   3-D      : ``side_ml``, ``out_ap``, ``down_dv`` at the 3-D peak (mm, mouth-zero frame)
 1. DECODING the target spout (6 classes, chance 1/6) from each lick's endpoint: multinomial logistic regression on
-   standardised features, leave-one-SESSION-out over the animal's AUGUST pre sessions; balanced accuracy. Also per pair of
-   neighbouring positions (close vs far on each side, the depth contrast cam4 cannot see).
+   standardized features, leave-one-SESSION-out over the animal's AUGUST pre sessions; balanced accuracy. Also per pair of
+   neighboring positions (close vs far on each side, the depth contrast cam4 cannot see).
 2. EFFECT SIZE of each post session vs pre: (post median - mean of the August pre session medians) / SD of those
    medians, per position, for matched measures: lateral (cam4 lr_px vs 3-D side), protrusion vs 3-D reach, cam4 peak angle
    vs 3-D midline angle, plus 3-D only (out, down, miss). Larger |z| = the measure separates the epoch from day-to-day
@@ -30,7 +30,7 @@ V36 = "lp_r4_heatmap_20261013__clean_v36"
 POS = ("close_L", "close_center", "close_R", "far_L", "far_center", "far_R")
 FEATS = {"cam4 2-D": ["lr_px", "ap_px"], "cam4 2-D + angle": ["lr_px", "ap_px", "peak_angle_deg"],
          "3-D": ["side_ml", "out_ap", "down_dv"]}
-PAIRS = {"L close vs far": ("close_L", "far_L"), "centre close vs far": ("close_center", "far_center"),
+PAIRS = {"L close vs far": ("close_L", "far_L"), "center close vs far": ("close_center", "far_center"),
          "R close vs far": ("close_R", "far_R")}
 MATCHED = (("lateral", "lr_px", "side_ml"), ("protrusion / reach", "protrusion_px", "reach_mm"),
            ("angle", "peak_angle_deg", "midline"), ("3-D only: out", None, "out_ap"),

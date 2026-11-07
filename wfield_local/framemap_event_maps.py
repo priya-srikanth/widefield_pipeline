@@ -267,7 +267,7 @@ def in_trial_mask(lick_samples, cue_samples, end_samples):
     contributed 93 and 83 licks to their maps, at a median of 7.2 and 7.6 s after the cue, by which
     time the NEXT spout had already moved into place. Worse, the contamination is graded by severity
     -- 18% of licks pre-stroke at every position, against 28/47/50/100/100% post-stroke -- so the
-    artefact tracks the very deficit it would be read as evidence for (Priya, 2026-08-22).
+    artifact tracks the very deficit it would be read as evidence for (Priya, 2026-08-22).
 
     Reward-consumption licks are KEPT: trial_end lands after the response window, so a hit at 200 ms
     still contributes its consumption bout, which belongs to that trial.
@@ -442,7 +442,7 @@ def main() -> int:
     p.add_argument("--lick-gate", choices=("trial_end", "none"), default="trial_end",
                    help="trial_end (default): keep only licks inside [cue, trial_end), so a "
                         "lick in the ITI cannot be attributed to the spout that happened to be "
-                        "cued last. none: the pre-2026-08-22 behaviour, every lick.")
+                        "cued last. none: the pre-2026-08-22 behavior, every lick.")
     p.add_argument("--lick-channel", default="lick_analog")
     ld = config.defaults()["lick_detection"]     # thresholds live in configs/defaults.yaml (single source)
     p.add_argument("--lick-thresh-upper-v", type=float, default=ld["thresh_upper"])

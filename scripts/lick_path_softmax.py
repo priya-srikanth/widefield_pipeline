@@ -1,4 +1,4 @@
-"""TRAJECTORY softmax confusion matrices, the path analogue of the landing matrices (Priya 10-24: "can you make the same
+"""TRAJECTORY softmax confusion matrices, the path analog of the landing matrices (Priya 10-24: "can you make the same
 softmax_trajectory_change confusion matrices as you did for landing?"). LICK DATA only.
 
   1. per lick: the 3-D tongue path on a fixed 4 ms grid from -PRE to +POST ms around the lick's 3-D peak (the TRACKED part

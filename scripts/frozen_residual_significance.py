@@ -2,13 +2,13 @@
 maps in each epoch?").
 
 The residual (data - full) of one session = the part of its evoked response the frozen pre-stroke model does not
-predict from that session's behaviour. Pre-stroke sessions are scored leave-one-session-out, so THEY HAVE A RESIDUAL
+predict from that session's behavior. Pre-stroke sessions are scored leave-one-session-out, so THEY HAVE A RESIDUAL
 TOO, and it drifts (FINDINGS 3.4: late pre - early pre +5..+12 x1e3 in SSp-m, 3/4 animals). So the test is NOT
 "residual != 0" but "this epoch's residual maps differ from the pre-stroke sessions' residual maps":
 
     post_by_animal = that epoch's per-session residual maps;  pre_by_animal = the pre sessions' residual maps
     tests = the repo's map tests (`beta_maps.significance_contour`): "nested" (animals -> sessions bootstrap on the 8 x 8
-            grid, max-statistic over bins = family-wise per panel, pre-normalised -- PRIMARY) and "cluster" (cluster mass, within-animal
+            grid, max-statistic over bins = family-wise per panel, pre-normalized -- PRIMARY) and "cluster" (cluster mass, within-animal
             relabelling, animal = unit)
     REFERENCE = ALL the pre sessions, each scored leave-one-session-out (Priya 10-24: "i don't want to use early vs late
             pre - just all loso pre"). The late-vs-early-pre calibration is optional (--drift), off by default.
@@ -186,7 +186,7 @@ def main(argv=None) -> int:
                          fontsize=8)
             ax.set_xticks([]); ax.set_yticks([])
         fig.suptitle(f"Frozen-encoder RESIDUAL (data - full), {a.spout}, {al} window: epoch residual minus pre-stroke "
-                     f"residual,\npre-normalised, mean of animals. Contours: black = nested bootstrap on {a.bin} px blocks (primary), purple "
+                     f"residual,\npre-normalized, mean of animals. Contours: black = nested bootstrap on {a.bin} px blocks (primary), purple "
                      f"dashed = cluster.\nReference = all pre sessions (LOSO). Image left = ipsilesional.", fontsize=8)
         fig.tight_layout(rect=(0, 0, 1, 0.86))
         fig.savefig(fd / f"residual_significance_{a.variant}_{a.spout}_{al}{bx}.png", dpi=130)

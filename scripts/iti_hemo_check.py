@@ -1,4 +1,4 @@
-"""Is the larger post-stroke ITI-lick response HAEMODYNAMIC, a FILTER effect, MOTION / EDGE / VESSEL, or an F0 artefact?
+"""Is the larger post-stroke ITI-lick response HEMODYNAMIC, a FILTER effect, MOTION / EDGE / VESSEL, or an F0 artifact?
 
 The claim under test (scripts/iti_licks.py, ramp_auc_sessions.csv / area_auc_sessions.csv): the cortical response to each
 self-initiated (bout-start ITI, >= 2 s without licking) lick -- AUC 0..0.5 s after lick ONSET of the per-session mean PETH,
@@ -10,7 +10,7 @@ SAME drift removal, SAME window and SAME estimator are recomputed in four SIGNAL
   adopted   hemo_meegkit_hpfit/SVTcorr.npy           -- must reproduce the published numbers (sanity check, (a))
   orig      the ORIGINAL pipeline SVTcorr.npy          -- zero-phase 0.1 Hz high-pass (filter sensitivity, (b))
   raw470    UNCORRECTED functional half of raw SVT.npy (c)
-  raw415    the 415 nm half of raw SVT.npy             (d) -- haemodynamics (+ a small NEGATIVE calcium term at 415 nm,
+  raw415    the 415 nm half of raw SVT.npy             (d) -- hemodynamics (+ a small NEGATIVE calcium term at 415 nm,
                                                         see hemo_map_control docstring) + motion
 
 RAW SVT LAYOUT. `SVT.npy` is (K, 2T), the two channels INTERLEAVED in time; the functional slot is
@@ -18,7 +18,7 @@ RAW SVT LAYOUT. `SVT.npy` is (K, 2T), the two channels INTERLEAVED in time; the 
 `hemo_variants.compute` builds SVTcorr from it (and the slot is checked against each session's hemo manifest). UNITS:
 wfield `approximate_svd(divide_by_average=True)` divides each frame by its OWN channel's session-mean image
 (frames_average[c]) before projecting on the shared U, so both halves of SVT are dF/F on the same basis as SVTcorr: no
-extra normalisation is needed, and U_atlas projects all four variants identically. Frame time: the 415 frame of a pair is
+extra normalization is needed, and U_atlas projects all four variants identically. Frame time: the 415 frame of a pair is
 ~16 ms from its 470 frame; both use the pair's frame time `ft` (16 ms against a 500 ms AUC window).
 
 ALL THE ESTIMATORS ARE LINEAR, so per lick the baseline-subtracted response AUC is computed once in COMPONENT space
@@ -28,7 +28,7 @@ ALL THE ESTIMATORS ARE LINEAR, so per lick the baseline-subtracted response AUC 
       16-px rim `beta_maps.stat_mask` removes), INTERIOR = stat mask. VESSEL = top 5 % (within the interior) of a
       vesselness map = high-passed (sigma 12 px) NEGATED mean 470 image (`frames_average_atlas`, as in
       hemo_map_control.vessel_template but on the functional slot), vs the other 95 %. VAR415 = top 5 % of interior
-      pixels by 415 temporal variance (drift removed) vs the other 95 %. Motion / haemodynamic artefacts concentrate at
+      pixels by 415 temporal variance (drift removed) vs the other 95 %. Motion / hemodynamic artifacts concentrate at
       edges and on vessels, so a post/pre change that is LARGER there than in the interior / non-vessel pixels would flag one.
   (f) F0 per Allen area: mean of `frames_average_atlas` (raw counts, both channels) over each area's stat-mask pixels,
       plus the whole-frame central-60 % mean of iti_f0_check; change vs pre per area.
@@ -40,10 +40,10 @@ ALL THE ESTIMATORS ARE LINEAR, so per lick the baseline-subtracted response AUC 
       10-20, >= 20 s) matches its animal's pooled pre distribution; response recomputed.
 
 Epoch comparisons: per-animal table first (CLAUDE.md rule 8), then `analysis_kit.boot_delta` (paired animals > sessions).
-Normalisation for comparing variants: every variant's response is divided by the animal's PRE ADOPTED response (same ROI),
+Normalization for comparing variants: every variant's response is divided by the animal's PRE ADOPTED response (same ROI),
 so "415 change" is read in units of the corrected pre response (415's own pre response is near zero / sign-variable and a
 ratio to it is meaningless).
-Usage: python scripts/iti_hemo_check.py [--labels ...] [--jobs 3]     (extract, cached, then summarise)
+Usage: python scripts/iti_hemo_check.py [--labels ...] [--jobs 3]     (extract, cached, then summarize)
        python scripts/iti_hemo_check.py --summarise
        python scripts/iti_hemo_check.py --plot-only     (re-render the figures from figdata/*.pkl only)
 Output: <iti_licks OUT>/hemo_check/*.csv, cache/<label>.npz ; figures <OUT>/figures/iti_hemo_check_*.png
@@ -84,7 +84,7 @@ def _read_variant_label() -> str:
 
 
 VLAB = {"adopted": f"corrected ADOPTED ({_read_variant_label()})", "orig": "corrected ORIGINAL (zero-phase HP)",
-        "raw470": "UNCORRECTED 470 nm", "raw415": "415 nm (haemodynamic)"}
+        "raw470": "UNCORRECTED 470 nm", "raw415": "415 nm (hemodynamic)"}
 if REF_VARIANT:
     VLAB["ref"] = f"corrected REFERENCE ({REF_VARIANT})"
 MAP_VARIANTS = ("adopted", "raw415")
@@ -262,7 +262,7 @@ def _panel(ax, T: pd.DataFrame, val: str, colors: dict, ref: float | None = 1.0)
     = `_panel_compute` (table + tests; picklable) + `_panel_draw`.
 
     The change-vs-pre numbers are a compact 3-row TABLE in a reserved band at the top of the axes (one row per post
-    epoch, in the epoch colour, monospace so the columns line up) -- not centred over each epoch, where the three
+    epoch, in the epoch color, monospace so the columns line up) -- not centered over each epoch, where the three
     labels ran into each other in narrow panels. The y range is extended so no data reaches the band."""
     _panel_draw(ax, _panel_compute(T, val), colors, ref=ref)
 
@@ -578,7 +578,7 @@ def draw_variants(F: dict) -> None:
                 ax.set_ylabel(f"{VLAB[v]}\n/ pre ADOPTED resp.", fontsize=7)
     _title(fig, "NEURAL, NO DECODER: self-initiated (ITI) lick response (AUC 0..0.5 s after onset, baseline -1.5..-1.0 s, "
            ">= 2 s no-lick gap) in four signal variants -- same licks, ROIs, drift removal and window. Every variant is "
-           "divided by the animal's PRE response in the ADOPTED corrected signal (1 = pre corrected response). Grey = "
+           "divided by the animal's PRE response in the ADOPTED corrected signal (1 = pre corrected response). Gray = "
            "animals, black = mean of animals; text rows (top of each panel) = change vs pre (Δ) with paired nested "
            "bootstrap (animals > sessions) 95% CI, * excludes 0. key_mean = mean of ALM, tjM1, SSp-m (both sides) and "
            "cortex, as iti_f0_check.", 230)
@@ -688,9 +688,9 @@ def draw_edge_vessel(F: dict) -> None:
     _panel_draw(ax, F["p415"], colors, ref=0.0)
     ax.set_title("415 interior response / pre ADOPTED interior", fontsize=8)
     fig.subplots_adjust(wspace=0.32)
-    _title(fig, "MOTION / EDGE / VESSEL check: ITI-lick response maps (AUC 0..0.5 s), mean of animals, one colour scale "
+    _title(fig, "MOTION / EDGE / VESSEL check: ITI-lick response maps (AUC 0..0.5 s), mean of animals, one color scale "
            "(adopted pre 99th pct); contour = eroded stat mask (outside = EDGE rim). Image left = ipsilesional. Bottom: "
-           "per-session ratios of the adopted response in artefact-prone pixels to the rest (grey = animals, black = mean; "
+           "per-session ratios of the adopted response in artifact-prone pixels to the rest (gray = animals, black = mean; "
            "text rows = change vs pre (Δ) with nested bootstrap 95% CI, * excludes 0). VESSEL = top 5 % of the "
            "high-passed negated mean 470 image; 415-variance = top 5 % of interior pixels by 415 variance.", 190)
     _savefig(fig, "lick_iti_hemo_check_edge_vessel.png", 105, tight_bbox=True)
@@ -755,8 +755,8 @@ def draw_state_gap(F: dict) -> None:
     axs[2].set_title("ADOPTED key_mean response / pre (all licks)", fontsize=8)
     _panel_draw(axs[3], P[3], colors)
     axs[3].set_title("same, GAP-MATCHED to the animal's pre distribution", fontsize=8)
-    _title(fig, "BEHAVIOUR + NEURAL: global state around ITI licks and the response after matching the no-lick gap "
-           "(grey = animals, black = mean; text rows = change vs pre (Δ) with nested bootstrap 95% CI, * excludes 0).",
+    _title(fig, "BEHAVIOR + NEURAL: global state around ITI licks and the response after matching the no-lick gap "
+           "(gray = animals, black = mean; text rows = change vs pre (Δ) with nested bootstrap 95% CI, * excludes 0).",
            230)
     _savefig(fig, "lick_iti_hemo_check_state_gap.png", 110)
 

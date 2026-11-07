@@ -133,7 +133,7 @@ def preds_path() -> Path:
 
 
 VALS = ("landing", "decoded", "lfl")
-VLAB = {"landing": "landing vs pre at the spout (BEHAVIOUR)", "decoded": "decoded position vs pre at the spout (NEURAL)",
+VLAB = {"landing": "landing vs pre at the spout (BEHAVIOR)", "decoded": "decoded position vs pre at the spout (NEURAL)",
         "lfl": "like-for-like offset, same place (NEURAL)"}
 VCOL = {"landing": "0.45", "decoded": "#2c7fb8", "lfl": "#7b3294"}
 
@@ -314,7 +314,7 @@ def plot_classes(T: pd.DataFrame) -> None:
           ("trial", "later"): "#eba59d"}
     fig, axs = plt.subplots(2, 3, figsize=(15, 7.8), squeeze=False)
     for i, scope in enumerate(("all spouts", "far contra")):
-        for j, (val, lab) in enumerate((("landing", "landing (BEHAVIOUR)"), ("lfl", "like-for-like offset, same place (NEURAL)"),
+        for j, (val, lab) in enumerate((("landing", "landing (BEHAVIOR)"), ("lfl", "like-for-like offset, same place (NEURAL)"),
                                         ("lfl_diff", "first - later, like-for-like offset (NEURAL)"))):
             ax = axs[i, j]
             keys = [("iti", "diff"), ("trial", "diff")] if val.endswith("diff") else list(CL)
@@ -422,7 +422,7 @@ def plot_slope(P: pd.DataFrame, T: pd.DataFrame) -> None:
                  "* = CI excludes 0 (bold), † = mixed (LMM) p < 0.05 (second opinion, anti-conservative at n=4), k/n "
                  "animals.\nColumns 1-2: bars above the curves = lick orders where that epoch differs from pre (paired nested "
                  "bootstrap animals > sessions per order, BH-FDR q = 0.05 across the 10 orders), one row per epoch in its "
-                 "colour. PROVISIONAL", fontsize=9.5)
+                 "color. PROVISIONAL", fontsize=9.5)
     _layout(fig, bottom=0.08)
     save_png_svg(fig, WOUT / "figures" / f"lick_order_iti_cued_slope{SRC_TAG}.png", dpi=100)
     R = pd.DataFrame(sig_recs)

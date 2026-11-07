@@ -121,7 +121,7 @@ def figure(R, path):
                             fontsize=10, loc="left", pad=20)
     fig.suptitle("Single-trial response SNR = mean / across-trial SD of the baseline-subtracted hotspot response "
                  "(a standardized effect size, NOT a signal-detection d').\nPS118 GCaMP6s (triangles), RiboL1 PS121 "
-                 "(circles) / PS122 (squares): 490 nm (red filled) vs 470 nm (grey open), one marker per session. "
+                 "(circles) / PS122 (squares): 490 nm (red filled) vs 470 nm (gray open), one marker per session. "
                  "490 raises ΔF/F and trial SD about equally, so SNR ~ each mouse's best 470 day.", fontsize=9.5)
     fig.tight_layout(rect=(0, 0.05, 1, 0.9))
     fig.savefig(path, dpi=130, bbox_inches="tight")

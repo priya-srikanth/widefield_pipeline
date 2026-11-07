@@ -45,7 +45,7 @@ def _stamp(msg):
 def stale_input(summary: Path, svt) -> float | None:
     """Seconds by which ``svt`` (the SVTcorr the fit read) post-dates ``summary``, or None if the
     fit is current. No ``svt`` in the manifest, or one that is not on disk, means nothing can be
-    compared and the fit is trusted -- the pre-2026-09-28 behaviour."""
+    compared and the fit is trusted -- the pre-2026-09-28 behavior."""
     if not svt:
         return None
     svt = Path(svt)

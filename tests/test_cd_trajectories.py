@@ -83,7 +83,7 @@ def test_trajectory_marks_a_trial_too_close_to_an_edge():
 def test_the_trailing_window_ENDS_at_the_sample_it_is_plotted_at():
     """THE BUG THIS PINS. The first version took `full[n-1:]`, which is the window ending at
     i+n-1 -- a LEADING window, the whole trace shifted one window early, so the t=0 point showed
-    the POST-cue response instead of the ENL. A step input localises it exactly.
+    the POST-cue response instead of the ENL. A step input localizes it exactly.
     """
     fs, w = 10.0, 2.0                       # 20-sample window
     v = np.concatenate([np.zeros(100), np.ones(100)])
@@ -257,7 +257,7 @@ def test_orthogonalising_scales_by_the_ORIGINAL_gap_not_the_collapsed_one():
 
     Here one position is built to lie almost entirely in the shared subspace, so orthogonalising
     should leave it with a SMALL surviving fraction and a correspondingly small trace -- not a
-    renormalised one.
+    renormalized one.
     """
     rng = np.random.default_rng(19)
     ncomp = 24
@@ -405,7 +405,7 @@ def test_the_LICK_direction_is_fitted_on_the_LICK_not_the_cue(monkeypatch):
     """THE DEFECT THIS PINS, measured 2026-09-25: `cos(w_cue, w_lick)` was 1.000000 at every
     position in two animals because `session_arms` set `ref0 = c0` for everything but `precue` -- so
     the lick arm was the cue arm replotted. `fit` must be the FIRST LICK for `lick`, and it must
-    equal `at`, since the window starts where the trace is centred.
+    equal `at`, since the window starts where the trace is centered.
     """
     import types
 
@@ -423,7 +423,7 @@ def test_the_LICK_direction_is_fitted_on_the_LICK_not_the_cue(monkeypatch):
     basis = types.SimpleNamespace(basis_id="x", ncomp=4)
     arms = cdt.session_arms({"label": "PS99_0101"}, args, basis, "lick")
     assert arms["success"]["fit"] == arms["success"]["at"], (
-        "the lick window must START at the lick it is centred on")
+        "the lick window must START at the lick it is centered on")
     assert list(arms["success"]["at"]) == list(licks)
 
     arms_cue = cdt.session_arms({"label": "PS99_0101"}, args, basis, "cue")

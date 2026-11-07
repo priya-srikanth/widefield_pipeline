@@ -11,7 +11,7 @@ Per animal x region x window, far-contra spout (and the mean over the six spouts
   deviation      each post session's residual minus the pre-trend prediction; per epoch: mean deviation, the share of
                  sessions above the 95 % PI, and a z of the epoch mean against the mean prediction SE.
   flat baseline  the same against the pre MEAN (no slope): how the answer depends on assuming a trend at all.
-  chronic slope  residual ~ day within the chronic sessions (behaviour stable): does it keep rising after recovery?
+  chronic slope  residual ~ day within the chronic sessions (behavior stable): does it keep rising after recovery?
 The residual per session = evoked (lick: 0 .. 1 s vs -0.3 .. -0.1 s around the first lick; cue: 0.5 .. 1.5 s vs
 -0.5 .. 0 s) of data minus full, from the saved PETHs (`<variant>/sessions/<label>.npz`), x1e3.
 

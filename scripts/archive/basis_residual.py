@@ -24,7 +24,7 @@ AND IT PRODUCED A CONVINCING WRONG ANSWER, which is why this file survives. Feed
 directions to a pipeline whose `StandardScaler` z-scores each feature independently RESURRECTS them
 all to unit variance, reconstructing a re-mix of the session's entire temporal space. "The residual"
 then decoded position at 0.93 balanced accuracy pre-stroke against a chance of 0.167 -- a number
-that looks like a discovery and is an artefact of the construction. Restoring the singular-value
+that looks like a discovery and is an artifact of the construction. Restoring the singular-value
 scaling (below, and it is the correct arithmetic) changed the decode NOT AT ALL, because the scaler
 undoes it; that invariance is what exposed the error.
 

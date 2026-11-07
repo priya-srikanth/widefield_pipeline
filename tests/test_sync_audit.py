@@ -2,7 +2,7 @@
 
 Answering "have there been dropped frames, and are we syncing to ensure alignment?" needs the
 distinction the audit exists to hold: the PCO camera is ON the DAQ clock (every exposure raises
-pco_exposure, so alignment is an index), while the Blackfly behaviour cameras use the Arduino
+pco_exposure, so alignment is an index), while the Blackfly behavior cameras use the Arduino
 heartbeat and a fitted match. Reporting one as if it were the other is the failure mode.
 """
 import json

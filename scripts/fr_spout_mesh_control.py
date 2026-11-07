@@ -12,7 +12,7 @@ lowest points carry the decode.
 Method: re-project the ENL bins (cue -2 s to the cue) of every session's TRIALS spectrogram on the frozen basis with
 the mesh points within R px of ANY spout tip (all sessions, all six positions -- one mask for every trial and session,
 so the mask itself cannot carry position) removed from both the data rows and the spatial factors (A). The per-row
-normaliser D is FR's own (recovered from the full row, as `cmd_project`), so only the projection changes. Then the
+normalizer D is FR's own (recovered from the full row, as `cmd_project`), so only the projection changes. Then the
 SAME decoder / trials / arms as `fr_enl_decode` (its ``one``). R = 0 (no mask) reproduces `proj/` (checked per session:
 max |W - proj| reported) and is the reference arm.
 

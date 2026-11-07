@@ -3,7 +3,7 @@ Krakauer 2023 eLife). Pre-registration: docs/status/REEMBEDDING_PREREG_20261030.
 post-stroke number; read it first -- this docstring only maps it to code).
 
 Per session, cued FIRST licks (iti_licks session files: first_peth onset-aligned, first_cue cue-aligned), 45 split-basis
-Allen areas / frame SD, centred on the calibration half. k = 10 PCs of the lick-window (-0.5..+0.75 s) activity.
+Allen areas / frame SD, centered on the calibration half. k = 10 PCs of the lick-window (-0.5..+0.75 s) activity.
 Three decoders scored on the same held-out half (2 folds of interleaved 10-trial blocks):
   (i)   FROZEN  pre PCs + frozen pre decoder (frozen_models.load_or_fit, kind 'reembed'; pre sessions -> LOSO siblings)
   (ii)  ALIGNED own PCs -> CCA map (Gallego) of the label-free trial-averaged trajectories (lick -0.5..0.75 + cue
@@ -17,7 +17,7 @@ orthogonal area rotation of pre sessions (C5, code check).
 Stats: per-animal table first (rule 8); analysis_kit.boot_delta vs pre->pre; index = dA / dG from paired draws.
 Outputs (only) under <E>/reembedding/: sessions_cache.pkl, reembed_sessions.csv, reembed_animals.csv,
 reembed_tests.csv, reembed_gate.csv, reembed_areas.csv, figdata/*.pkl, figures/*.png.
-Usage: python scripts/reembedding_test.py [--jobs 3] [--reload]   (load + run + summarise + plot)
+Usage: python scripts/reembedding_test.py [--jobs 3] [--reload]   (load + run + summarize + plot)
        python scripts/reembedding_test.py --summarise                (stats + figures from reembed_sessions.csv)
        python scripts/reembedding_test.py --plot-only                (figures from figdata only)
 """
@@ -167,7 +167,7 @@ def _bins(Z: np.ndarray, lags: np.ndarray, bins) -> np.ndarray:
 
 
 def _pca(Xs: np.ndarray, k: int = K) -> np.ndarray:
-    """Centred samples (n, F) -> (F, k) top-k PCs, sign fixed (largest |loading| positive)."""
+    """Centered samples (n, F) -> (F, k) top-k PCs, sign fixed (largest |loading| positive)."""
     C = Xs.T @ Xs / max(len(Xs) - 1, 1)
     w, v = np.linalg.eigh(C)
     P = v[:, np.argsort(w)[::-1][:k]]
@@ -190,7 +190,7 @@ def _ridge():
 
 
 def _traj(Zl: np.ndarray, Zc: np.ndarray) -> np.ndarray:
-    """label-free trial-averaged latent trajectories (lick window, then cue window), (T, k), centred over time."""
+    """label-free trial-averaged latent trajectories (lick window, then cue window), (T, k), centered over time."""
     T = np.vstack([Zl.mean(0), Zc.mean(0)])
     return T - T.mean(0)
 
@@ -211,7 +211,7 @@ def proc_map(Lb: np.ndarray, La: np.ndarray) -> np.ndarray:
 
 
 def build_ref(sessions: list[dict]) -> dict:
-    """Pre reference from pre sessions (each centred on its own lick-window mean): PCs, decoders, trajectories."""
+    """Pre reference from pre sessions (each centered on its own lick-window mean): PCs, decoders, trajectories."""
     mus = [s["Xl"].reshape(-1, s["Xl"].shape[-1]).mean(0) for s in sessions]
     P = _pca(np.vstack([(s["Xl"] - m).reshape(-1, len(m)) for s, m in zip(sessions, mus)]))
     Zl = [(s["Xl"] - m) @ P for s, m in zip(sessions, mus)]
@@ -285,7 +285,7 @@ def _share(W: np.ndarray) -> np.ndarray:
 
 
 def _lat_weights(clf, k: int) -> np.ndarray:
-    """Decoder weights per latent: (k, classes * bins) (standardisation folded in)."""
+    """Decoder weights per latent: (k, classes * bins) (standardization folded in)."""
     sc, lr = clf[0], clf[-1]
     Wf = lr.coef_ / sc.scale_[None, :]                   # (classes, k * bins)
     nb = Wf.shape[1] // k
@@ -293,7 +293,7 @@ def _lat_weights(clf, k: int) -> np.ndarray:
 
 
 def score_session(s: dict, R: dict, keep: np.ndarray, rng, rot: np.ndarray | None = None) -> dict:
-    """The three decoders + controls on one session (2-fold); keep = the analysed licks (matched / all)."""
+    """The three decoders + controls on one session (2-fold); keep = the analyzed licks (matched / all)."""
     folds = _folds(s["t"])
     Xl, Xc = s["Xl"].astype(float), s["Xc"].astype(float)
     if rot is not None:
@@ -672,7 +672,7 @@ def draw_decoders(F: dict, path: Path, fam: str = "") -> None:
                bbox_to_anchor=(0.5, -0.01))
     fam_txt = {"": "first-lick window", "c_": "cue window", "s_": "landing side_ml (ridge r)"}[fam]
     fig.suptitle(f"Re-embedding test: three decoders on each session ({fam_txt}; kinematics-matched first licks)\n"
-                 "open markers = sessions (shape = animal, colour = epoch); filled = pooled level (boot_ci); * = change vs pre->pre (boot_delta, CI excl. 0, "
+                 "open markers = sessions (shape = animal, color = epoch); filled = pooled level (boot_ci); * = change vs pre->pre (boot_delta, CI excl. 0, "
                  ">= 3/4 animals)", fontsize=9)
     fig.tight_layout(rect=(0, 0.06, 1, 1))
     fig.savefig(path, dpi=150, bbox_inches="tight")

@@ -1,6 +1,6 @@
 """Checks on the per-session vs frozen REMAPPING maps (Priya 10-25: "this is striking, can we review" -> checks 1, 2):
 
-  1. TIME COURSE: session mixed models (`wfield_local.mixed_models`, time y ~ post + post:lday and behaviour y ~ post +
+  1. TIME COURSE: session mixed models (`wfield_local.mixed_models`, time y ~ post + post:lday and behavior y ~ post +
      post:deficit) of the remapping gain (self - frozen, per session) per area group x regressor group. A stroke effect
      steps up at the stroke and / or tracks the deficit; slow drift rises steadily with log day and is larger in later,
      better-behaving sessions (the Layer 2 control-area signature, ENCODING_FINDINGS 8.11).

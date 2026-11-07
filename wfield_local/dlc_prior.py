@@ -16,7 +16,7 @@ nine frames is the real spout. Measured, same nine frames:
 
 So the frames are recovered rather than lost. Post-hoc rejection would have scored nine dropouts.
 
-**IT IS INERT ON GOOD FRAMES, AND THAT IS THE DESIGN.** Scored on the 96 held-out labelled frames,
+**IT IS INERT ON GOOD FRAMES, AND THAT IS THE DESIGN.** Scored on the 96 held-out labeled frames,
 the per-part error is byte-identical with and without the prior, at every padding tested down to
 ±10 px (nose 3.21, jaw 3.77, tongue 7.48, spout 1.85). Every ordinary prediction already lands inside
 the box. This buys NOTHING on accuracy and is not an accuracy tool — it is insurance against the rare
@@ -26,16 +26,16 @@ gross failure. Do not expect it to move an RMSE, and do not read an unchanged RM
 2026-09-26: the first attempt at a crop width was taken from the extent of high-confidence
 predictions over 10,000 frames, which put the spout's left edge at x=103 — i.e. it was set by the
 very hallucination the prior exists to exclude, and would have widened the box to admit it. The
-labelled points are human-verified; the predictions are the thing under test. `boxes()` reads
+labeled points are human-verified; the predictions are the thing under test. `boxes()` reads
 `CollectedData` only.
 
 **THE SPOUT MOVES BETWEEN TRIALS, AND IT TURNS OUT NOT TO MATTER** (Priya, 2026-09-26: *"the spout
-DURING TRIALS occupies 6 positions, but keep in mind that it moves between trials"*). The labelled
+DURING TRIALS occupies 6 positions, but keep in mind that it moves between trials"*). The labeled
 frames are trial-locked — `dlc_frames` samples cue/ENL/lick phases — so they see the spout AT its six
 positions and never in transit, and a box drawn tight around them could in principle be too narrow in
-exactly the interval no labelled frame covers. Measured over 400 s per animal (12,500 sampled frames
+exactly the interval no labeled frame covers. Measured over 400 s per animal (12,500 sampled frames
 across PS93 and PS95, spanning many trials and ITIs): the spout's 0.5–99.5 percentile is x 279–416
-against a labelled envelope of 215–440. **The transit never leaves the box.** The sampling gap is
+against a labeled envelope of 215–440. **The transit never leaves the box.** The sampling gap is
 real; the consequence feared from it is not.
 
 **THE PART THAT ACTUALLY NEEDS THIS IS THE TONGUE.** The same measurement: 1.96% of CONFIDENT tongue
@@ -81,7 +81,7 @@ def parts() -> list[str] | None:
     occluded during every lick, which is when a confident wrong peak elsewhere gets its chance.
     `nose` and `spout` stay unmasked until a full-session run has shown their boxes mask nothing
     real -- the spout's box in particular has to hold the between-trial transit (measured x 279-416
-    against a labelled envelope of 215-440, but on two animals).
+    against a labeled envelope of 215-440, but on two animals).
     """
     v = _cfg().get("parts")
     return None if not v else [str(x) for x in v]
@@ -124,12 +124,12 @@ def apply(rv=None, cam: str | None = None, offset: tuple[float, float] = (0.0, 0
 
 
 def pad() -> float:
-    """Padding in px added on every side of the labelled envelope.
+    """Padding in px added on every side of the labeled envelope.
 
-    Covers three things the labelled set under-samples, all of which are real: the spout IN TRANSIT
-    between trials (no labelled frame is in that interval), cross-animal and cross-session variation
+    Covers three things the labeled set under-samples, all of which are real: the spout IN TRANSIT
+    between trials (no labeled frame is in that interval), cross-animal and cross-session variation
     in head position, and the plain fact that 24 frames per session is a thin sample of the extremes.
-    Default 60 px, which on the measured envelope leaves every labelled point at least 78 px from a
+    Default 60 px, which on the measured envelope leaves every labeled point at least 78 px from a
     box edge while still excluding the x≈105 fur hallucination by a wide margin.
     """
     return float(_cfg().get("pad", 60))
@@ -152,7 +152,7 @@ def boxes(rv=None, cam: str | None = None, padding: float | None = None,
         a = dlc_train._xy(lab, bp)
         a = a[~np.isnan(a[:, 0])]
         if not len(a):
-            raise SystemExit(f"no labelled points for {bp} — cannot build a prior for it")
+            raise SystemExit(f"no labeled points for {bp} — cannot build a prior for it")
         out[bp] = (max(0.0, a[:, 0].min() - p), min(frame[0], a[:, 0].max() + p),
                    max(0.0, a[:, 1].min() - p), min(frame[1], a[:, 1].max() + p))
     return out

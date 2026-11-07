@@ -7,7 +7,7 @@
 
 WHY IT MATTERS (their docstring, Priya 2026-04-30): after the stroke a missing lick is NOT a perceptual or
 motivational failure if the jaw still moves to the cue. The dissociation -- jaw motor output spared, tongue
-absent -- localises the deficit to tongue motor control. Mismatch trials are positive evidence for that
+absent -- localizes the deficit to tongue motor control. Mismatch trials are positive evidence for that
 reading, not a QC gate.
 
 THE RULE (their Cell 53, unchanged):
@@ -54,7 +54,7 @@ WHAT CHANGED, ON PURPOSE (each also noted at its site):
     `configs/defaults.yaml` `orofacial_kinematics.mismatch` (deep-merged). Jaw knobs come from
     `jaw_kinematics.params()`.
 
-INHERITED DIFFERENCES FROM THE LEGACY NOTEBOOK (their module's behaviour, kept): the detector has no
+INHERITED DIFFERENCES FROM THE LEGACY NOTEBOOK (their module's behavior, kept): the detector has no
 max_licks=30 cap (only matters for the reported count, never for zero-vs-nonzero); after a peak rejected by
 min_peak_y_abs (or an all-NaN peak segment) the search resumes at turnover+1, where Cell 53 resumed after that
 peak's fall run (or the peak segment). So a too-small rise followed by a big one BEFORE the small one's fall
@@ -270,7 +270,7 @@ def _detector_params(tongue_detector_cfg: dict) -> dict:
                                           inherited as-is; Cell 53's SMOOTH_MS=12 never reached their module.
     strict_no_fallback = True             no turnover before the window ends -> stop searching.
     accept_peaks_without_fall_run = True  Cell 53 looked for the fall only to advance the search, never to
-                                          reject a peak (Cells 36/39/42 behaviour, not Cell 33's strict one).
+                                          reject a peak (Cells 36/39/42 behavior, not Cell 33's strict one).
     """
     return {**tongue_detector_cfg, "min_finite_samples_per_lick": 0, "smooth_ms_detect_y": 0.0,
             "strict_no_fallback": True, "accept_peaks_without_fall_run": True}
@@ -296,7 +296,7 @@ class LickPeaks:
 
 
 def _moving_avg_nan(arr: np.ndarray, window_ms: float, fps: float) -> np.ndarray:
-    """NaN-tolerant centred moving average (their `_detector._moving_avg_nan`)."""
+    """NaN-tolerant centered moving average (their `_detector._moving_avg_nan`)."""
     win_n = max(1, int(round(window_ms / 1000.0 * fps)))
     if win_n <= 1:
         return arr.astype(np.float64, copy=True)

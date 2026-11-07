@@ -4,7 +4,7 @@ The sharp one is `test_shared_decoder_holds_blocks_out_of_every_arm`. Readout 4 
 and scores `stopped` and `miss_working` with the same fitted model, and those arms come from the SAME
 sessions and the same position blocks -- a stopped trial and a success trial in one block share a
 spout position and sit seconds apart. If the fold that scores a stopped trial trained on success
-trials from its own block, the ratio would report memorisation, and it would report it as the answer
+trials from its own block, the ratio would report memorization, and it would report it as the answer
 to the question the analysis exists to ask.
 """
 import numpy as np
@@ -85,7 +85,7 @@ def test_shared_decoder_holds_blocks_out_of_every_arm():
 
 
 def test_shared_decoder_recovers_a_label_that_is_not_block_confounded():
-    """The companion to the leakage test: hold-out must not destroy a real, generalising code."""
+    """The companion to the leakage test: hold-out must not destroy a real, generalizing code."""
     rng = np.random.default_rng(1)
     tmpl = rng.normal(size=(6, 20)) * 3.0
 

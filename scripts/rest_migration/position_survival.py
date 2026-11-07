@@ -1,4 +1,4 @@
-"""Do the behavioural exclusions remove ITIs EVENLY across positions, or do they track the deficit?
+"""Do the behavioral exclusions remove ITIs EVENLY across positions, or do they track the deficit?
 
 Priya, 2026-09-13: *"the time-weighted by sweep will be affected by thrown-out ITIs due to running
 etc"*.
@@ -13,12 +13,12 @@ removed by the lick buffer, and the rest baseline's COMPOSITION TRACKS THE DEFIC
 **That is precisely the failure that retired the 8 s post-reward definition on 2026-09-12**, where
 "quiet" measured 4.4% of frames pre-stroke against 17.1% acutely because the category was anchored
 on the animal's PERFORMANCE. Re-introducing it one layer down, via a term nobody is looking at,
-would be worse than the original because the definition now LOOKS behaviour-independent.
+would be worse than the original because the definition now LOOKS behavior-independent.
 
 WHAT IS MEASURED. For every position, the fraction of its DOCKED ITI samples that survive into the
 final rest mask, broken down by epoch:
 
-    denominator  the docked interval following each of that position's trials, with NO behavioural
+    denominator  the docked interval following each of that position's trials, with NO behavioral
                  exclusion at all -- the spout is parked, that is all
     numerator    those same samples that also clear the treadmill and lick terms
 

@@ -7,7 +7,7 @@ model part, per spout x area): evoked = mean over the response window minus the 
 `scripts/lp_encoder_decompose.py` (lick: 0 .. 1 s vs -0.3 .. -0.1 s from the first post-cue lick; cue: 0.5 .. 1.5 s
 vs -0.5 .. 0 s). Change = mean over the epoch's sessions minus mean over the pre sessions, PER ANIMAL (rule 8), then
 the mean over animals. Columns: data, full prediction, each part, data - full (what the frozen pre-stroke mapping does
-not predict from the behaviour actually made). Units dF/F x 1e3. ipsi (lesioned, LEFT hemisphere) = image LEFT
+not predict from the behavior actually made). Units dF/F x 1e3. ipsi (lesioned, LEFT hemisphere) = image LEFT
 (checked against the atlas area names). Areas absent in an animal are blank.
 
 Usage: python scripts/frozen_area_maps.py [--tag gate-attempted_v4] [--variant joint] [--spout far_contra]

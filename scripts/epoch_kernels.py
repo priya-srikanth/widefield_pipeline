@@ -28,7 +28,7 @@ the maps stacked over a window (target 0.2-1.5 s after the cue, lick -0.1..+0.5 
 relative to early pre; split-half r. A stroke-specific change = r vs early pre below late_pre's (drift) and below the
 group's own split-half reliability.
 Figures: epoch_kernels_r.png (lines; main), epoch_kernel_maps_<kernel>.png (rows = groups, cols = spouts, canonical
-order, one colour scale per figure, mean of animals; image left = ipsilesional).
+order, one color scale per figure, mean of animals; image left = ipsilesional).
 Usage: python scripts/epoch_kernels.py [--tag ...] [--jobs 3] [--stats-only] [--plot-only] [--labels L ...]
 Output: <E>/frozen_encoder_<tag>/epoch_kernels/
 """
@@ -297,7 +297,7 @@ def figures(run: Path, out: Path, R: pd.DataFrame, labels_by_an: dict) -> None:
         cb = fig.colorbar(im, ax=axs, fraction=0.02, pad=0.01)
         cb.set_label("beta x1e3 (dF/F per unit)", fontsize=8)
         fig.suptitle(f"NEURAL: {kname} kernel at {lags[li]:+.1f} s, per-epoch pooled fits (matched sessions), mean of "
-                     "animals; one colour scale. Image left = ipsilesional.", fontsize=9.5)
+                     "animals; one color scale. Image left = ipsilesional.", fontsize=9.5)
         save_png_svg(fig, out / f"epoch_kernel_maps_{kname}.png", dpi=110)
         plt.close(fig)
     print("->", out)

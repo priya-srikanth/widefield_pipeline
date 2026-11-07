@@ -1,4 +1,4 @@
-"""POOLED EPOCH FIGURES — BEHAVIOUR
+"""POOLED EPOCH FIGURES — BEHAVIOR
 
 Licking accuracy and its time course, pooled across animals and stratified by epoch.
 
@@ -12,10 +12,10 @@ Entry points, dispatched by `epoch_grant_figures.main`:
   - `fig_behaviour_timecourse`
 
 HIT-RATE PERIOD OF 1b (Priya 11-05, after DECISIONS_PENDING_MERGE_2026-11-04 (f) 2): PRIMARY = the CAMERA working
-period, like Fig 0.2 -- per trial of the behaviour trial table, inside `trial_classes.in_working_period` (first cue ->
+period, like Fig 0.2 -- per trial of the behavior trial table, inside `trial_classes.in_working_period` (first cue ->
 the last camera lick, minus the stopped runs) and hit = camera class contact (Priya 11-04 answer 2); a session without
 camera classes is left out and listed. `epoch_1b_behaviour_by_position*` are the camera figures; the DAQ quit-tail /
-engaged-gated version is the labelled robustness row `epoch_1b_behaviour_by_position_daq_quittail*`. The 1c time course
+engaged-gated version is the labeled robustness row `epoch_1b_behaviour_by_position_daq_quittail*`. The 1c time course
 stays on the DAQ series: it is the series the epoch boundaries were drawn from, and they stay pinned (Q11).
 """
 from __future__ import annotations
@@ -180,12 +180,12 @@ def fig_behaviour_timecourse(out_dir):
             (f"shaded = that animal's acute period ({epochs.ACUTE_RULE}); subacute is simply "
              f"everything after it, so the shading's right edge marks that onset. dashed = "
              f"its first chronic day where one exists ({epochs.CHRONIC_RULE}) -- only PS92 "
-             "has stabilised, so only PS92 carries a dashed line"),
+             "has stabilized, so only PS92 carries a dashed line"),
             "ENGAGED TRIALS ONLY (the `hit_rate` column, hits_engaged / trials_engaged): the "
             "gate is judged at the reference positions and backdated to the start of the run "
             "of misses that trips it, so far misses after a lesion stay in as the deficit "
             "rather than being deleted as disengagement",
-            "colour = spout position (hue = side, lighter = far); pre = that animal's whole "
+            "color = spout position (hue = side, lighter = far); pre = that animal's whole "
             "pre-stroke baseline as one point, hits and trials summed -- the same number figure "
             "1b's pre bar plots, and the one the acute rule is measured against"]),
         # LONG names in the LEGEND: "Ipsi" appearing twice would not say which distance it is.
@@ -206,7 +206,7 @@ PERIODS = {"camera": ("", "camera working period (first cue -> last camera lick,
 
 
 def _trials_table(an, mmdd):
-    """The behaviour pipeline's per-trial table of one session (the newest ``*_trials.csv``), or None."""
+    """The behavior pipeline's per-trial table of one session (the newest ``*_trials.csv``), or None."""
     import pandas as pd
 
     from wfield_local.paths import PathResolver
@@ -221,7 +221,7 @@ def _trials_table(an, mmdd):
 
 
 def _camera_trials(an, mmdd):
-    """The behaviour trial table with the CAMERA working period: ``working`` (`trial_classes.camera_period_trials`,
+    """The behavior trial table with the CAMERA working period: ``working`` (`trial_classes.camera_period_trials`,
     matched by DAQ cue time) and ``hit`` replaced by camera class contact. None without the table or without camera
     classes (no video: such a session leaves the camera rows; `_NO_CAMERA` lists it)."""
     from wfield_local import trial_classes as tc
@@ -257,9 +257,9 @@ def _camera_position_metrics(an, mmdd):
 def _behaviour_records(period="daq"):
     """``{animal: ([pre records], {day: record})}`` from the persisted per-trial tables.
 
-    A behaviour session is encoded as the SAME ``(y_true, y_pred, blocks)`` record the decoding
+    A behavior session is encoded as the SAME ``(y_true, y_pred, blocks)`` record the decoding
     collectors return: ``y_true`` is the spout position, ``y_pred`` is that position on a hit and
-    -1 on a miss. "Accuracy at position q" then reads out as the hit rate at q, and behaviour and
+    -1 on a miss. "Accuracy at position q" then reads out as the hit rate at q, and behavior and
     decoding share one bootstrap -- animals, then sessions, then blocks -- rather than growing a
     second one that agrees with the first until somebody edits it.
 
@@ -364,7 +364,7 @@ def _behaviour_contrast(per_session, epoch, position, *, rng, n_boot):
 
 def fig_behaviour(out_dir, period="camera"):
     """1b pooled: hit rate per spout position, per epoch, weighted by session. ``period`` "camera" (primary, 11-05) or
-    "daq" (the labelled robustness row; the pre-11-05 figure, renamed `_daq_quittail`)."""
+    "daq" (the labeled robustness row; the pre-11-05 figure, renamed `_daq_quittail`)."""
     from wfield_local.grant_figures import CONF_LABELS, _sessions
     from wfield_local.grant_figures import _position_metrics as _daq_metrics
 
@@ -479,7 +479,7 @@ def fig_behaviour(out_dir, period="camera"):
     if period == "camera" and _NO_CAMERA:
         print(f"  1b camera: no camera classes (left out, DAQ-only): {sorted(_NO_CAMERA)}", flush=True)
     made = ef.bar_row(values, out_dir, name=f"epoch_1b_behaviour_by_position{sfx}",
-                      title="Behaviour: hit rate by spout position, pooled across animals "
+                      title="Behavior: hit rate by spout position, pooled across animals "
                             f"(one dot per session) -- {note}",
                       # TOTALS in the legend, the PER-EPOCH breakdown in the subtitle. The legend
                       # answers "how many dots of this colour are on the figure at all"; the
@@ -499,6 +499,6 @@ def fig_behaviour(out_dir, period="camera"):
             tick_labels=_minor(), groups=_groups(), n_comparisons=n_comp, points=ef.session_deltas(points))
     return made
 def _position_codes():
-    """``{position name: numeric code}`` -- the behaviour table's `pos_idx` domain."""
+    """``{position name: numeric code}`` -- the behavior table's `pos_idx` domain."""
     from wfield_local.locanmf_cue_lick_analysis import POSITION_NAMES
     return {nm: int(code) for code, nm in POSITION_NAMES.items()}

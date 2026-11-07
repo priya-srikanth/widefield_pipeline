@@ -8,7 +8,7 @@ Each clip is cut from a CUE so it contains the whole failure surface in one wind
 Sampling only lick-dense windows (as the throughput check clips do) would train the temporal loss on
 the licking and never on the interval where the spout dropout happened.
 
-Sessions are the LABELLED ones (from the frame manifest), one per animal x epoch, so the unlabelled
+Sessions are the LABELED ones (from the frame manifest), one per animal x epoch, so the unlabelled
 distribution matches the supervised one across all four animals and all four epochs. Seeded, and
 idempotent: an existing clip is kept, so re-running after the label set grows adds nothing and
 removes nothing. Recovered into the repo 2026-09-28 from the 2026-09-26 scratch script that cut the
@@ -17,7 +17,7 @@ removes nothing. Recovered into the repo 2026-09-28 from the 2026-09-26 scratch 
 SIDE CAMERAS (`--cam cam2 cam3`, 2026-11-04): the clip is written in MODEL space, exactly what the shared side model sees
 (`lp_sidecam.transform_image`: cam3 flipped left-right, the per-frame-size square crop, June resized to the August scale),
 via the matching ffmpeg filter chain; one clip per camera per picked session, `<video stem>_t<s>.mp4`.
-`--all-sessions --windows N` (Priya 11-04: "plenty of temporal loss training frames"): every labelled session of the
+`--all-sessions --windows N` (Priya 11-04: "plenty of temporal loss training frames"): every labeled session of the
 camera, N non-overlapping cue-anchored windows each, seeded per session.
 """
 from __future__ import annotations
@@ -42,7 +42,7 @@ def _ffmpeg() -> str:
 
 
 def pick_sessions(manifest: pd.DataFrame, cam: str = "cam4") -> pd.DataFrame:
-    """One labelled session per (animal, epoch): the first in a deterministic sort."""
+    """One labeled session per (animal, epoch): the first in a deterministic sort."""
     m = manifest[manifest.cam == cam].drop_duplicates("video_stem")[["animal", "date", "video_stem", "epoch"]]
     return m.sort_values(["epoch", "animal"]).groupby(["animal", "epoch"], as_index=False).first()
 
@@ -68,7 +68,7 @@ def main(argv=None) -> int:
     ap.add_argument("--project", default="cam4-2026-09-26", help="LP project dir name under <dlc root>/lightning-pose/")
     ap.add_argument("--cam", nargs="+", default=["cam4"], help="cam4, or the side cameras: cam2 cam3")
     ap.add_argument("--all-sessions", action="store_true",
-                    help="every labelled session of the camera, not one per animal x epoch")
+                    help="every labeled session of the camera, not one per animal x epoch")
     ap.add_argument("--windows", type=int, default=1,
                     help="with --all-sessions: non-overlapping 30 s windows per session (per-session seed)")
     a = ap.parse_args(argv)
@@ -104,7 +104,7 @@ def _cut(rv, man: pd.DataFrame, cam: str, out: Path) -> None:
 
 
 def _cut_all(rv, man: pd.DataFrame, cam: str, out: Path, windows: int) -> None:
-    """Every labelled session of `cam`, `windows` non-overlapping cue-anchored windows each. The seed is per session
+    """Every labeled session of `cam`, `windows` non-overlapping cue-anchored windows each. The seed is per session
     (SEED + the video stem), so adding sessions or re-running never moves an existing session's windows; a window that
     starts within DUR_S of an existing clip of that session (e.g. from the one-per-animal x epoch run) is skipped."""
     import zlib

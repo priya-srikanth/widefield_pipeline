@@ -1,4 +1,4 @@
-"""The context-frame rules: bursts, contact pairing, and that existing targets are never re-labelled context."""
+"""The context-frame rules: bursts, contact pairing, and that existing targets are never re-labeled context."""
 import numpy as np
 import pandas as pd
 

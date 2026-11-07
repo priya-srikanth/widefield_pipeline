@@ -1,4 +1,4 @@
-"""Key-finding figures for the encoding / behaviour work (Priya 10-20: "are there other figures you could or should make to
+"""Key-finding figures for the encoding / behavior work (Priya 10-20: "are there other figures you could or should make to
 illustrate key and important points or findings"). Reads tables other scripts already wrote -- no refitting.
 
   precue_licking.png     pre-cue (spout present, before the cue) DAQ contacts per animal x epoch, and the pre-cue

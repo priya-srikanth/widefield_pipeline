@@ -220,9 +220,9 @@ def main() -> int:
             subtitle=(
                 "EACH CELL IS THAT ANIMAL'S MEAN REST MAP FOR ONE POSITION, MINUS ITS OWN "
                 "ACROSS-POSITION MEAN -- the exact contrast the bootstrap tests, so figure and "
-                "statistic show the same quantity. Rest periods are labelled by position ONLY when "
+                "statistic show the same quantity. Rest periods are labeled by position ONLY when "
                 "the preceding and following trial share one, so the label is unambiguous. "
-                "PRE-STROKE SESSIONS ONLY. Colour scale is PER ANIMAL: these are raw dF/F units and "
+                "PRE-STROKE SESSIONS ONLY. Color scale is PER ANIMAL: these are raw dF/F units and "
                 "animals differ in expression, so rows are not comparable to each other. "
                 "IF THE REST BASELINE WERE POSITION-INDEPENDENT -- which is what the REST reference "
                 "assumes when it subtracts ONE session mean from all six positions -- every cell "

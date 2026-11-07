@@ -22,7 +22,7 @@ SIGN CONVENTIONS (every table / figure):
 Usage (bash env per the repo; outputs only under <v36>/imaging_encoding/within_lick_correction/):
   python scripts/within_lick_correction.py run [--jobs 3] [--redo]   per-lick extraction (pre first -> threshold ->
                                                                        post) + neural per-session fits
-  python scripts/within_lick_correction.py summarise                 session cells, per-animal tables, boot_delta,
+  python scripts/within_lick_correction.py summarize                 session cells, per-animal tables, boot_delta,
                                                                        recovery link; writes figdata
   python scripts/within_lick_correction.py plot   (or any subcommand with --plot-only)   figures from figdata only
 """
@@ -791,7 +791,7 @@ def fig_primary(D):
     th = D["cal"].get("theta_sp")
     fig.suptitle(_wrap(f"Within-lick correction at the FAR-CONTRA spout (cued post-cue licks, all orders and "
                        f"outcomes; PS92-95, August pre). Filled = pooled session level with 95 % nested bootstrap CI; "
-                       f"open markers = SESSIONS (shape = animal: o PS92, s PS93, ^ PS94, D PS95; colour = epoch). Top-band * = change vs pre (CI excludes 0 "
+                       f"open markers = SESSIONS (shape = animal: o PS92, s PS93, ^ PS94, D PS95; color = epoch). Top-band * = change vs pre (CI excludes 0 "
                        f"AND >= 3/4 animals same sign); ** = also Holm over the 9 primary tests. Angles + = "
                        f"contralesional. CSM threshold {th} mm/s speed-peak prominence (noise-calibrated on August "
                        f"pre). Dotted = pre level.", 175), fontsize=9.5)
@@ -836,7 +836,7 @@ def fig_spouts(D):
     fig.legend(h_, l_, loc="outside lower center", ncol=3, fontsize=9, frameon=False,
                title="epoch (pooled change vs August pre, 95 % CI; open markers = sessions minus own pre)", title_fontsize=9)
     fig.suptitle(_wrap("Per spout (canonical order), cued post-cue licks, all orders / outcomes. Top-band * "
-                       "(one row per epoch, epoch colour) = change vs pre by the pre-registered criterion. Angles + = "
+                       "(one row per epoch, epoch color) = change vs pre by the pre-registered criterion. Angles + = "
                        "contralesional; correction + = endpoint more contralesional than launch.", 170), fontsize=9.5)
     return fig
 
@@ -862,7 +862,7 @@ def fig_split(D):
     fig.legend(h_, l_, loc="outside lower center", ncol=2, fontsize=9, frameon=False)
     fig.suptitle(_wrap("Far-contra spout split by lick order (FIRST post-cue lick vs LATER licks) and outcome "
                        "(HIT = the lick contacted the spout). Filled = pooled (95 % CI), open markers = sessions; top-band * "
-                       "(row per outcome, its colour) = change vs pre (CI excludes 0 AND >= 3/4 same sign).", 170),
+                       "(row per outcome, its color) = change vs pre (CI excludes 0 AND >= 3/4 same sign).", 170),
                  fontsize=9.5)
     return fig
 
@@ -922,7 +922,7 @@ def fig_paths(D):
             if r == 2:
                 ax.set_xlabel("ml (mm; + = contralesional)", fontsize=8)
     fig.suptitle(_wrap("Mean tongue path from the first tracked frame (dot) to the extension peak, cued post-cue "
-                       "licks at the three FAR spouts, per animal and epoch (11 time-normalised points, SG-smoothed). "
+                       "licks at the three FAR spouts, per animal and epoch (11 time-normalized points, SG-smoothed). "
                        "A launch bias that is corrected inside the lick bends the path toward + ml late; a straight "
                        "biased path means no within-lick correction.", 170), fontsize=9.5)
     return fig
@@ -953,7 +953,7 @@ def fig_pre_signatures(D):
             ax.plot(i + dx, v, "o", color=col, mec="k", ms=7, zorder=5)
     ax.set_xticks(np.arange(len(POS)) + 0.2, [p.replace("_", "\n") for p in POS], fontsize=9)
     ax.set_ylabel("share of licks with >= 1 corrective submovement", fontsize=9)
-    ax.set_title("A. Pre-stroke, cued licks by spout: black = real licks, grey = noise surrogate (false rate)",
+    ax.set_title("A. Pre-stroke, cued licks by spout: black = real licks, gray = noise surrogate (false rate)",
                  fontsize=10, loc="left")
     ax = axs[1]
     for k, (ctx, grp) in enumerate((("cued", "all"), ("iti", "iti"))):

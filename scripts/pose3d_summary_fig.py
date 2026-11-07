@@ -4,13 +4,13 @@
 
 One figure per animal, `session_poses/pose3d/figures/summary_<animal>.png`: x = days from the stroke (config stroke_date; the
 lesion followed that day's session, so day 1 = the first post session), one dot per session (median over its licks / trials),
-an OPEN marker, shape = animal, colour = epoch (black / pink / yellow / green; June pre grey; A30); columns = the six positions; grey band = the animal's AUGUST pre range (min-max over sessions), dashed
+an OPEN marker, shape = animal, color = epoch (black / pink / yellow / green; June pre gray; A30); columns = the six positions; gray band = the animal's AUGUST pre range (min-max over sessions), dashed
 line = its median. Rows, in the order agreed 10-19 (distance offsets primary, one angle secondary):
   1. closest approach to the target spout (mm)                    -- spout error 1, origin-free
-  2. lateral error at closest approach (mm; + = outward, centre + = mouse left)
+  2. lateral error at closest approach (mm; + = outward, center + = mouse left)
   3-5. endpoint vs the animal's OWN pre endpoint: lateral / out (+ = beyond) / up (mm)   -- spout error 3
   6-8. DIRECTION from the mouth zero vs the direction to the target spout: the 3-D angle error; the angle OUT OF THE
-     MIDLINE PLANE (the sagittal plane through the mouth zero and the close / far centre spouts = ml 0; asin(ml / |r|),
+     MIDLINE PLANE (the sagittal plane through the mouth zero and the close / far center spouts = ml 0; asin(ml / |r|),
      + = toward ipsi; Priya 10-19) and the forward tilt WITHIN it (atan2(out, down)). Consistent across the post-stroke
      set-point move (Priya 10-19: the spouts are commanded relative to the set point, which marks the mouth that day).
      Non-zero before the stroke (licks run steeper than the line to the spout tips): read against the pre band.
@@ -43,8 +43,8 @@ JUNE_EDGE = "0.6"        # June pre sessions (reference only): grey open markers
 
 def session_dots(ax, day, v, animal: str, epoch: str, june: bool = False):
     """THE session dots (Priya 11-06, A30; results-page convention): OPEN markers, shape = animal
-    (`cat_points.animal_marker`, animals.yaml), colour = epoch (`EP_COL` = orofacial_cohort.EPOCH_LINE); June pre
-    (reference only) in grey."""
+    (`cat_points.animal_marker`, animals.yaml), color = epoch (`EP_COL` = orofacial_cohort.EPOCH_LINE); June pre
+    (reference only) in gray."""
     from wfield_local.cat_points import animal_marker
     return ax.scatter(day, v, s=20, marker=animal_marker(animal), facecolors="none",
                       edgecolors=JUNE_EDGE if june else EP_COL.get(epoch, "0.4"), linewidths=0.9, zorder=3,
@@ -223,10 +223,10 @@ def figure(animal: str, SE: pd.DataFrame, K: pd.DataFrame, out: Path, pre_from: 
         if j == 0:
             ax.legend(fontsize=6, loc="best")
     from wfield_local import trial_classes as tc
-    fig.suptitle(f"{animal}: 3-D tongue / jaw per session (cam1 + cam4; grey = August pre range, dashed = its median)"
+    fig.suptitle(f"{animal}: 3-D tongue / jaw per session (cam1 + cam4; gray = August pre range, dashed = its median)"
                  + ("; camera-working-period trials (first cue -> last camera lick, stopped runs out)"
                     if tc.kin_gate() == "working" else "; every post-cue lick / jaw trial (no gate, legacy)")
-                 + ("\nSIGN: lesion-signed rows + = CONTRALESIONAL (mouse right), flipped at plot level; centre-spout "
+                 + ("\nSIGN: lesion-signed rows + = CONTRALESIONAL (mouse right), flipped at plot level; center-spout "
                     "lateral errors negated (outward rows otherwise unchanged)" if contra else ""), fontsize=10)
     fig.tight_layout(rect=(0, 0, 1, 0.985))
     save_png_svg(fig, out, dpi=110)

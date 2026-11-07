@@ -6,7 +6,7 @@ Candidates (per hemisphere, within the Allen MOs (ALM) / MOp (tjM1) masks on the
   v2    anterolateral 50 % / 60 % (same rank)
   AP    ALM = MOs anterior of AP_ALM; tjM1 = MOp anterior of AP_TJ (an anterior-only cut, which reaches medially)
   AP2   anterior-weighted rank 2 z(anterior) + z(lateral), 60 % / 70 %
-Literature centres (mm from bregma): ALM AP +2.5 ML 1.5 (Guo 2014), tjM1 AP +1.8 ML 2.6 (Mayrhofer 2019), tongue / jaw
+Literature centers (mm from bregma): ALM AP +2.5 ML 1.5 (Guo 2014), tjM1 AP +1.8 ML 2.6 (Mayrhofer 2019), tongue / jaw
 ICMS AP +2.4 ML 2.0 (Komiyama 2010) as markers. Atlas: bregma at pixel (320, 270), 0.0194 mm / px (allen_register).
 Output figures/lick_roi_candidates.png. Usage: python scripts/lick_roi_candidates.py
 """
@@ -118,7 +118,7 @@ def main() -> int:
         ax.set_ylim(420, 60)
         ax.axis("off")
     fig.suptitle("Candidate ALM (black) / tjM1 (green) ROIs over the PRE ITI sagittal Haufe map (orange = more active for longer "
-                 "licks). Grey = Allen MOs / MOp. Circles = literature centres: black ALM AP +2.5 ML 1.5 (Guo 2014), green "
+                 "licks). Gray = Allen MOs / MOp. Circles = literature centers: black ALM AP +2.5 ML 1.5 (Guo 2014), green "
                  "tjM1 AP +1.8 ML 2.6 (Mayrhofer 2019),\nmagenta tongue/jaw ICMS AP +2.4 ML 2.0 (Komiyama 2010), blue wM2 / RFA AP +2.0 ML 1.0 (Esmaeili 2021), "
                  "lime tjM1 AP +2.0 ML 2.0 (Esmaeili 2021), yellow wM1 AP +1.0 ML 1.0, cyan CFA AP +0.5 ML 1.25; red + = bregma. Last panel: PRE cued lateral map. ipsi (lesion) = image LEFT. PROVISIONAL", fontsize=9)
     save_png_svg(fig, il.OUT / "figures" / "lick_roi_candidates.png", dpi=95)

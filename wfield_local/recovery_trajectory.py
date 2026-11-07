@@ -15,7 +15,7 @@ epoch figures merely group those days with `epoch_figures.epoch_of_day`. Here th
 **THE TWO ACCOUNTS MAKE DIFFERENT PREDICTIONS ABOUT THE SHAPE, not just the endpoint.** Write
 ``F`` for the frozen decoder's accuracy deficit (how far the pre-stroke readout is from baseline) and
 ``G`` for the refit-minus-frozen gap above its pre-stroke value (how much information the session
-carries that the pre-stroke readout cannot reach -- a reorganisation index):
+carries that the pre-stroke readout cannot reach -- a reorganization index):
 
     RETRACE      the code weakens and re-strengthens along its original axis. G stays near zero
                  throughout, or peaks early and decays monotonically to zero. F and G recover
@@ -125,7 +125,7 @@ def series(align: str = "cue", variant: str = "working", matched: bool = False) 
     signed so that ZERO IS THE PRE-STROKE STATE and the lesion moves them positive:
 
         F = pre_frozen - frozen      the frozen readout's DEFICIT  (recovery drives it to 0)
-        G = gap - pre_gap            reorganisation ABOVE baseline (retrace keeps it at 0)
+        G = gap - pre_gap            reorganization ABOVE baseline (retrace keeps it at 0)
     """
     from wfield_local import epoch_figures as ef
     from wfield_local import grant_figures as G
@@ -218,7 +218,7 @@ def pre_points(align: str = "cue", variant: str = "working", matched: bool = Fal
     from their own mean. This supplies the yardstick.
 
     The baseline these are measured against is the POOLED pre-stroke value, i.e. the mean of the very
-    sessions plotted, so the cloud is centred near the origin by construction. That is the point --
+    sessions plotted, so the cloud is centered near the origin by construction. That is the point --
     it is a dispersion, not an effect, and it is why the mean dot is drawn with SEM rather than with
     a confidence interval on a difference.
     """
@@ -247,21 +247,21 @@ def pre_points(align: str = "cue", variant: str = "working", matched: bool = Fal
 
 
 def summarise(rows: list[dict]) -> dict:
-    """Per animal: the ACUTE level of reorganisation, and what happened to it afterwards.
+    """Per animal: the ACUTE level of reorganization, and what happened to it afterwards.
 
     **THE REFERENCE IS THE ACUTE PEAK, NOT THE GLOBAL ONE, and getting that wrong inverts the
     result.** A first version took ``argmax`` over all post-stroke sessions. For PS93 the maximum
-    sits on day 25 -- the LAST session -- so it was labelled "the peak", nothing could come after
+    sits on day 25 -- the LAST session -- so it was labeled "the peak", nothing could come after
     it, and the late-resurgence flag reported False. That is precisely the MIGRATE signature being
-    hidden by the statistic meant to detect it: reorganisation still climbing at the end of
+    hidden by the statistic meant to detect it: reorganization still climbing at the end of
     recovery. The acute window is the lesion's immediate effect and is the only defensible
     reference for "did this grow afterwards".
 
     Reported per animal:
 
-      ``acute_G``            reorganisation during the acute window (max over acute sessions)
+      ``acute_G``            reorganization during the acute window (max over acute sessions)
       ``post_slope``         slope of G per day over the POST-acute sessions; negative = unwinding
-      ``post_corr_F_G``      do the frozen deficit and reorganisation fall together? retrace says yes
+      ``post_corr_F_G``      do the frozen deficit and reorganization fall together? retrace says yes
       ``late_exceeds_acute`` any post-acute session above the acute level -- the migrate signature
     """
     out, animals = {}, sorted({r["animal"] for r in rows})
@@ -338,7 +338,7 @@ def load_csv(path) -> list[dict]:
     """Re-read a written series, so a summary can be revised without rebuilding the bundles.
 
     This is the sidecar earning its keep on the first day it exists: correcting the reference in
-    `summarise` would otherwise have cost a full twenty-minute re-derivation of numbers that had
+    `summarize` would otherwise have cost a full twenty-minute re-derivation of numbers that had
     not changed.
     """
     num = {"day", "matched", "n_trials", "frozen", "refit", "gap", "pre_frozen", "pre_refit", "pre_gap",
@@ -418,7 +418,7 @@ def figure(rows, summary, out_dir, align, variant, tag="unmatched") -> list[Path
                      lw=1.6)
     for a, lab, ttl in ((axes[0], "frozen-readout deficit  (pre - frozen)",
                          "A   the pre-stroke readout recovers"),
-                        (axes[1], "reorganisation  (refit gap - pre gap)",
+                        (axes[1], "reorganization  (refit gap - pre gap)",
                          "B   what it cannot reach does not")):
         a.axhline(0, color="0.35", lw=1.0, ls="--")
         a.set_xlabel("days from lesion")
@@ -530,11 +530,11 @@ def figure_by_animal(rows, summary, out_dir, align, variant, pre=None,
         ax.set_ylim(*ylim)
         ax.set_xlabel("frozen-readout deficit  F")
         ax.spines[["top", "right"]].set_visible(False)
-    axes[0][0].set_ylabel("reorganisation  G")
+    axes[0][0].set_ylabel("reorganization  G")
     fig.suptitle(
         "Per-animal recovery trajectory. THE ORIGIN IS THAT ANIMAL'S OWN PRE-STROKE STATE -- both "
         "axes are differences from its baseline.\n"
-        "grey dots = pre-stroke sessions, dark cross = their mean +/-1 SEM (the spread with NO "
+        "gray dots = pre-stroke sessions, dark cross = their mean +/-1 SEM (the spread with NO "
         "lesion);  dotted arrow = the lesion;  square = first post-stroke session, star = last\n"
         "DASHED DIAGONAL F=G: the refit decoder is back to baseline. Height above zero = the "
         "DISPLACED part;  distance below the diagonal = the part NO decoder recovers.",
@@ -629,7 +629,7 @@ def main(argv=None) -> int:
     ap.add_argument("--variant", default="working", choices=("working", "lick"))
     ap.add_argument("--output", default=None)
     ap.add_argument("--from-csv", default=None,
-                    help="re-summarise a written series without rebuilding the bundles")
+                    help="re-summarize a written series without rebuilding the bundles")
     args = ap.parse_args(argv)
     run(args.align, args.variant, args.output, args.from_csv)
     return 0

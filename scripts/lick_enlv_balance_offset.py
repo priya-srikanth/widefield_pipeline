@@ -28,9 +28,9 @@ hemisphere larger; angle + = contralesional):
              bit-identical to lick_order_preds), enlv = frozen pre ENLv decoder trained on the PRIMARY pre ENLv licks
              (align enlv_on1; pre sessions scored by their held-out sibling). Decoder features are always the raw
              (uncorrected) 0..0.2 s features for `off`; `off_<r>_c` uses the arrival-corrected features.
-  aim_err    behaviour: angle - the animal's pre cued mean angle at the spout (enl_lick_audit)
+  aim_err    behavior: angle - the animal's pre cued mean angle at the spout (enl_lick_audit)
 BOUT STARTS (BOUTS = on1_clean) are reported next to the primary in enlv_compare: the balance on ALL licks has an unstable
-baseline (-1..-0.5 s often holds the previous lick of the bout); the analogue of the ITI first-after-quiet set is the bout
+baseline (-1..-0.5 s often holds the previous lick of the bout); the analog of the ITI first-after-quiet set is the bout
 start. NB clean_start already implies >= 1 s after arrival, so on0_clean == on1_clean.
 Change vs pre: per-animal table first (rule 8), then analysis_kit.boot_delta (paired nested animals -> sessions); flag
 '<3' when fewer than 3 animals share the pooled sign.
@@ -222,7 +222,7 @@ def _line(tr, x, y):
 
 
 def _predict(g: pd.DataFrame, by_spout: bool, pairs) -> pd.DataFrame:
-    """lick_balance_matched_error._predict generalised to any (y, x, out) pairs; pre LOSO."""
+    """lick_balance_matched_error._predict generalized to any (y, x, out) pairs; pre LOSO."""
     g = g.copy()
     for _y, _x, col in pairs:
         g[col] = np.nan
@@ -585,7 +585,7 @@ def fig_arrival(F: dict) -> None:
                      lw=1.4)
             ax2.tick_params(axis="y", colors="#C44E52")
         axs[3, j].axvline(1.0, color="k", lw=0.8)
-        axs[3, j].set_title(f"{a}: BEHAVIOUR onset time from arrival (s; clipped at 6)", fontsize=9)
+        axs[3, j].set_title(f"{a}: BEHAVIOR onset time from arrival (s; clipped at 6)", fontsize=9)
         axs[3, j].set_xlabel("time since spout arrival (strobe) / lick onset (s)")
     axs[0, 0].set_ylabel("dF/F x1e3 (summed pool)")
     fr = F["free"]
@@ -598,7 +598,7 @@ def fig_arrival(F: dict) -> None:
         for k, r in pre.iterrows()) + "; regression arrival kernel: " + "; ".join(
         f"{k} {r['arr_1.0_1.5_over_lick']:+.0%} / {r['arr_1.5_2.0_over_lick']:+.0%} of the lick-kernel peak"
         for k, r in rr.iterrows()))
-    fig.suptitle(textwrap.fill("NEURAL + BEHAVIOUR: does the spout-ARRIVAL response overlap ENLv licks? Rows 1-2: "
+    fig.suptitle(textwrap.fill("NEURAL + BEHAVIOR: does the spout-ARRIVAL response overlap ENLv licks? Rows 1-2: "
                                "per-session ridge regression (arrival kernel + lick-onset kernel, PRE-CUE frames only, "
                                "no cue kernel; the kernel's late level is weakly identified -- it trades off against the "
                                "intercept); row 3: model-free strobe-aligned mean on lick-free trials (thin pre-stroke "
@@ -675,7 +675,7 @@ def fig_perspout(TS: pd.DataFrame, AS: pd.DataFrame) -> None:
     ms = [("d_raw_ci", "C/I vs pre at the same spout (TARGET frame, log2)"),
           ("d_bal_angle", "balance vs pre angle model (LANDED frame, log2)"),
           ("off_iti", "same-place offset, ITI reader (mm)"), ("off_enlv", "same-place offset, ENLv decoder (mm)"),
-          ("lerr", "BEHAVIOUR landing error vs pre ENLv at spout (deg)")]
+          ("lerr", "BEHAVIOR landing error vs pre ENLv at spout (deg)")]
     col = {"acute": "#C44E52", "subacute": "#DD8452", "chronic": "#4C72B0"}
     off = {"acute": -0.22, "subacute": 0.0, "chronic": 0.22}
     fig, axs = plt.subplots(1, len(ms), figsize=(5.2 * len(ms), 5.2), squeeze=False)
@@ -697,7 +697,7 @@ def fig_perspout(TS: pd.DataFrame, AS: pd.DataFrame) -> None:
         ax.set_title(lab + "\nchange vs pre", fontsize=9)
     h_, l_ = axs.flat[0].get_legend_handles_labels()
     fig.legend(h_, l_, loc="upper center", bbox_to_anchor=(0.5, 0.955), ncol=len(l_), fontsize=9, frameon=False)
-    fig.suptitle("NEURAL / BEHAVIOUR per spout, ENLv PRIMARY (onset >= 1.0 s after arrival, window before the cue). "
+    fig.suptitle("NEURAL / BEHAVIOR per spout, ENLv PRIMARY (onset >= 1.0 s after arrival, window before the cue). "
                  "Spout = the trial's spout in place. Lines = pooled change vs pre (95% nested bootstrap), small markers "
                  "= animals; '<3' = fewer than 3 animals share the sign. PROVISIONAL", fontsize=9, y=0.995)
     fig.tight_layout(rect=(0, 0, 1, 0.91))
@@ -709,7 +709,7 @@ def fig_perspout(TS: pd.DataFrame, AS: pd.DataFrame) -> None:
 SWEEP_M = [("bal_all", "primary balance\n(angle ref.)"), ("bal_spout", "within-spout balance"),
            ("d_raw_ci_spmean", "raw C/I vs pre\n(mean over spouts)"), ("off_iti", "same-place offset\nITI reader (mm)"),
            ("offsp_iti", "matched-error offset\nITI reader (mm)"), ("off_enlv", "same-place offset\nENLv decoder (mm)"),
-           ("lerr", "BEHAVIOUR landing\nerror (deg)")]
+           ("lerr", "BEHAVIOR landing\nerror (deg)")]
 
 
 SWEEP_SIMPLE_V = ["on1", "on1_clean", "on0", "on1_corr", "on1_contact", "on1_noncontact", "on1_nocuerule"]
@@ -743,7 +743,7 @@ def fig_sweep(T: pd.DataFrame, vs: list | None = None, mm: list | None = None,
     H = fig.get_size_inches()[1]
     fig.legend(h_, l_, loc="upper center", bbox_to_anchor=(0.5, 1 - 0.55 / H), ncol=len(l_), fontsize=9,
                frameon=False)
-    sup = ("NEURAL / BEHAVIOUR: ENLv SENSITIVITY table (change vs pre; 95% nested bootstrap; small markers = "
+    sup = ("NEURAL / BEHAVIOR: ENLv SENSITIVITY table (change vs pre; 95% nested bootstrap; small markers = "
            "animals). Highlight = PRIMARY (onset >= 1.0 s after arrival). Raw signals unless 'arrival-corrected' "
            "(per-session arrival + lick ridge regression, pre-cue frames). PROVISIONAL")
     if mm:
@@ -758,7 +758,7 @@ def fig_sweep(T: pd.DataFrame, vs: list | None = None, mm: list | None = None,
 def fig_firstlater(T: pd.DataFrame, vs: list | None = None, name: str = "lick_enlv_first_later.png") -> None:
     import matplotlib.pyplot as plt
     vs = ["first", "later", "first_corr", "later_corr", "first_on1", "later_on1"] if vs is None else vs
-    ms = [("aim_err", "BEHAVIOUR aim error vs pre cued (deg)"), ("off_iti", "same-place offset, ITI reader (mm)"),
+    ms = [("aim_err", "BEHAVIOR aim error vs pre cued (deg)"), ("off_iti", "same-place offset, ITI reader (mm)"),
           ("off_enlv", "same-place offset, ENLv decoder (mm)"), ("bal_all", "primary balance (angle ref.)"),
           ("d_raw_ci_spmean", "raw C/I vs pre (mean over spouts)")]
     cmap = {"first": "#d95f02", "later": "#7570b3", "first_corr": "#fdae6b", "later_corr": "#bcbddc",
@@ -778,7 +778,7 @@ def fig_firstlater(T: pd.DataFrame, vs: list | None = None, name: str = "lick_en
         ax.set_title(lab + "\nchange vs pre", fontsize=9)
     h_, l_ = axs.flat[0].get_legend_handles_labels()
     fig.legend(h_, l_, loc="upper center", bbox_to_anchor=(0.5, 0.955), ncol=len(l_), fontsize=9, frameon=False)
-    sup = ("NEURAL / BEHAVIOUR: FIRST ENLv lick of the trial vs LATER ENLv licks (any time / arrival-corrected / "
+    sup = ("NEURAL / BEHAVIOR: FIRST ENLv lick of the trial vs LATER ENLv licks (any time / arrival-corrected / "
            "both restricted to onset >= 1 s, which separates a first-lick effect from a time-since-arrival "
            "effect). Windows end before the cue. PROVISIONAL")
     if len(vs) < 6:

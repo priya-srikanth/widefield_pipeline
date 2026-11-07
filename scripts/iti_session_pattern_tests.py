@@ -1,4 +1,4 @@
-"""Map-level permutation tests + AMPLITUDE-NORMALISED change maps on the fully per-session Haufe maps
+"""Map-level permutation tests + AMPLITUDE-NORMALIZED change maps on the fully per-session Haufe maps
 (`iti_session_patterns.py`; Priya 10-27: "is there a way to measure significant DIFFERENCES between maps" -> "yes build
 map-level permutation and amplitude-normalized change maps").
 
@@ -10,7 +10,7 @@ kept separately as GAIN), so a cortex-wide change in response size cannot pass a
     animals with p < 0.05 (rule 8). This works at n = 4 animals because the permutation is over SESSIONS (8 pre x 10-24
     post per animal), unlike a sign-flip over 4 animals (16 arrangements, min p 0.0625).
 (2) SIMILARITY over days: r(session map, mean pre map), pre sessions against the mean of the OTHER pre sessions.
-(3) AMPLITUDE-NORMALISED CHANGE MAPS: per pixel, epoch - pre on the unit-RMS maps, paired by animal, nested bootstrap
+(3) AMPLITUDE-NORMALIZED CHANGE MAPS: per pixel, epoch - pre on the unit-RMS maps, paired by animal, nested bootstrap
     (animals > sessions, `iti_decoder_pattern_stats._boot`), BH q 0.05 over cortex, outline = significant AND >= 3
     animals share the sign. Level maps (epoch mean) drawn alongside.
 Outputs <E>/iti_licks/session_pattern_{maplevel,similarity,gain}.csv, figures/lick_session_pattern_maplevel.png,
@@ -270,7 +270,7 @@ def plot_similarity(D: dict) -> None:
             if j == 0:
                 ax.set_ylabel("r(session map, pre map)", fontsize=7.5)
     fig.suptitle("NEURAL: per-session map SHAPE vs the animal's pre map over days (pre sessions vs the mean of the OTHER "
-                 "pre sessions = the noise floor, blue line). Grey band = pre. PROVISIONAL", fontsize=9)
+                 "pre sessions = the noise floor, blue line). Gray band = pre. PROVISIONAL", fontsize=9)
     fig.tight_layout(rect=(0, 0, 1, 1 - 0.45 / fig.get_size_inches()[1]))
     save_png_svg(fig, il.OUT / "figures" / "lick_session_pattern_similarity.png", dpi=90)
     plt.close(fig)

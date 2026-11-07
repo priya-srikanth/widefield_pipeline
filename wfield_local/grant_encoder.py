@@ -120,7 +120,7 @@ def fig_encoder_gain_shape(out_dir, min_trials=10):
     by construction and every distance-based panel is dominated by.
 
     RIGHT -- per position, what is left after the session gain is removed: a genuine tuning change,
-    localised. A boxed cell is one whose change from the pre-stroke ceiling excludes zero.
+    localized. A boxed cell is one whose change from the pre-stroke ceiling excludes zero.
 
     THE PRE COLUMN IS THE CEILING, leave-one-session-out, and it is not 1.0: a held-out pre-stroke
     day does not reproduce the others exactly either. Read every post column against it.
@@ -129,7 +129,7 @@ def fig_encoder_gain_shape(out_dir, min_trials=10):
     anything that co-varies with it, including how differently the animal moves to reach each spout,
     so a post-stroke change in movement would appear here as a change in tuning. The `lick` class,
     the pre-cue window (which contains no lick at all) and the `working` class each bound that
-    differently; a difference that holds across all three is not a movement artefact, and one that
+    differently; a difference that holds across all three is not a movement artifact, and one that
     appears only in the lick window probably is.
     """
     made = []
@@ -329,7 +329,7 @@ def _enc_terms(m_by_q, p_by_q):
     THE GAIN IS ONE NUMBER PER SESSION, deliberately: a per-position gain would absorb the
     position-specific amplitude loss that IS the deficit, and the decomposition would say nothing.
 
-    Patterns are centred on the session's own mean across positions first, so a session-wide shift
+    Patterns are centered on the session's own mean across positions first, so a session-wide shift
     in F0 or SNR -- which carries no position information and which the encoder is not being asked
     to predict -- is charged to neither term.
 

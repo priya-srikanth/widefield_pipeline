@@ -4,7 +4,7 @@ The rebuild renders in a NON-DEFAULT run mode (hemo variant + camera gate), so n
 into a default folder. Each such script either routes (run_mode / lp_licks.output_dir / routed_output / a routed root
 such as il.OUT or attempt_coding.out_dir) or REFUSES (`run_mode.require_default`). Two exemptions, listed here so a
 new writer fails until someone classifies it:
-  BEHAVIOUR  writes behaviour / pose / FaceRhythm / camera products that do not depend on any imaging run mode
+  BEHAVIOR  writes behavior / pose / FaceRhythm / camera products that do not depend on any imaging run mode
              (no imaging module, no SVTcorr / LocaNMF / encoder input): the same file in every mode.
   INDIRECT   writes only through an already-routed root (il.OUT, attempt_coding.out_dir(), ...).
 """

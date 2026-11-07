@@ -8,7 +8,7 @@ swaps in the node series and the lag range (patched into mvar_regions at import,
     python scripts/mvar_pooled.py fit                 # August pre sessions, all modes
     python scripts/mvar_pooled.py gate
     python scripts/mvar_pooled.py fixed               # only if >= 3 / 4 animals pass on raw
-    python scripts/mvar_pooled.py summarise
+    python scripts/mvar_pooled.py summarize
     python scripts/mvar_pooled.py plot | --plot-only
 """
 import argparse

@@ -378,7 +378,7 @@ def test_regime_a_sessions_are_excluded_from_the_deck_by_default(monkeypatch, tm
 
 
 def test_build_deck_EXCLUDES_stale_map_sessions_not_just_warns(tmp_path, monkeypatch):
-    """"No stale figures in the deck" has to be enforced, not advised. Generalises past regime A: it
+    """"No stale figures in the deck" has to be enforced, not advised. Generalizes past regime A: it
     also catches PS92 6/2, whose legacy illuminated_rescue layout the standard re-render cannot see."""
     calls = {}
 

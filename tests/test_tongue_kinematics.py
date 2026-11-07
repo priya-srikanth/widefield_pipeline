@@ -197,7 +197,7 @@ def _same(a, b, exact=True):
 
 
 def test_parity_full_v7_path_and_features(source):
-    """Ten randomised sessions: kept licks, every per-trial feature, bout rows, traces and angles equal theirs.
+    """Ten randomized sessions: kept licks, every per-trial feature, bout rows, traces and angles equal theirs.
 
     Angles are compared to 1e-9 not exactly: their reference vector is (-eye) and ours the unit (-ap_axis), the
     same direction at a different length, which atan2 ignores only up to rounding. Everything else is exact.

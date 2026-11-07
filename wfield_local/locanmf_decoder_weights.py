@@ -387,7 +387,7 @@ def fig_rolling_cue_by_animal(animal, labels, out):
         ax.plot(offs / FS, accs, marker="o", ms=3, color=c, label=f"{lab[-4:-2]}/{lab[-2:]} (n={len(y)})")
         allv += [a for a in accs if a == a]
     ax.axvspan(-3.0, 0, color="grey", alpha=0.08); ax.axvline(0, color="k", lw=1.2); ax.axhline(1 / 6, color="k", ls="--", lw=0.8)
-    ax.set_xlabel("time from cue (s)  [grey = pre-cue ENL]"); ax.set_ylabel("decoding accuracy (0.5s window, block-CV)")
+    ax.set_xlabel("time from cue (s)  [gray = pre-cue ENL]"); ax.set_ylabel("decoding accuracy (0.5s window, block-CV)")
     ax.set_ylim(max(0.0, min([1 / 6] + allv) - 0.05), min(1.0, max([1 / 6] + allv) + 0.05))
     ax.legend(fontsize=9, loc="upper left", title="session")
     ax.set_title(f"{animal} cue-aligned rolling decoder across sessions (pre-cue ENL -> post-cue)", fontsize=11)

@@ -3,9 +3,9 @@
 Priya 11-01: "can you show example traces pre- and post-stroke with the thresholds you used? how did you decide spike
 threshold". Same traces, rest frames and threshold as quiet_area_spikes.py / quiet_spikes_fr.py (frozen FR basis):
 orofacial and limb (contralesional) dF/F % minus the 2-s running median; ENGAGED restdock05 rest shaded; licks / running
-from the canonical behaviour events; threshold = 5 x the animal's AUGUST-pre median engaged-rest robust SD, applied to
+from the canonical behavior events; threshold = 5 x the animal's AUGUST-pre median engaged-rest robust SD, applied to
 PROMINENCE (height above the higher of the two flanking troughs), drawn as a bar from each detected peak's base; the
-dashed line = rest median + threshold, a guide only. Grey = the face-regressed residual (out of fold) with its own
+dashed line = rest median + threshold, a guide only. Gray = the face-regressed residual (out of fold) with its own
 threshold. Window = the 60 s of the session's middle third with the most engaged rest.
 
     python scripts/cohort2_qc/quiet_spikes_examples.py
@@ -159,10 +159,10 @@ def main():
         a.set_ylabel(f"{lab}\n{ep}", fontsize=8)
         a.set_ylim(-4, off + 2)
     ax[-1].set_xlabel("s (60-s window, middle third of the session with the most engaged rest)")
-    fig.suptitle("Rest traces (dF/F %, 2-s running median removed): orofacial (epoch colour) and limb (blue), "
-                 "contralesional; grey = face-regressed residual. Shaded = engaged rest; black bar = a detected spike's "
-                 "prominence (must exceed 5 x the animal's pre-stroke rest robust SD, labelled); dashed = rest median + "
-                 "threshold (guide); gold star = v2 (height above the preceding 1 s > threshold, no swapped frame within 0.5 s, in rest OR quiet). Grey bands = engaged restdock05 rest; purple top strip = QUIET (no lick / running within 1.5 s before or after; spout may be out); black triangles = cues; dark bar = spout out (strobe -> trial end); red ticks = DAQ contact licks; green = running.", fontsize=8, wrap=True)
+    fig.suptitle("Rest traces (dF/F %, 2-s running median removed): orofacial (epoch color) and limb (blue), "
+                 "contralesional; gray = face-regressed residual. Shaded = engaged rest; black bar = a detected spike's "
+                 "prominence (must exceed 5 x the animal's pre-stroke rest robust SD, labeled); dashed = rest median + "
+                 "threshold (guide); gold star = v2 (height above the preceding 1 s > threshold, no swapped frame within 0.5 s, in rest OR quiet). Gray bands = engaged restdock05 rest; purple top strip = QUIET (no lick / running within 1.5 s before or after; spout may be out); black triangles = cues; dark bar = spout out (strobe -> trial end); red ticks = DAQ contact licks; green = running.", fontsize=8, wrap=True)
     fig.tight_layout(rect=(0, 0, 0.96, 0.95))
     out = FR_OUT / "rest_spike_example_traces.png"
     fig.savefig(out, dpi=110)

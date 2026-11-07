@@ -17,7 +17,7 @@ It answers three questions, in order:
 **IT COUNTS POSES, NOT FRAMES**, and the first version did not — which made it wrong in both
 directions on the same recording. Priya, 2026-09-08: *"do cam4 and cam2/3 really not have more
 co-visible frames? I thought I recorded for a fair amount of time at many angles."* She had, and the
-frame-based verdict was an artefact. Measured on ``camera_calibration_20260805`` at 50 Hz:
+frame-based verdict was an artifact. Measured on ``camera_calibration_20260805`` at 50 Hz:
 
     cam    usable  poses   px/bit    pair        frames  poses
     cam1     6350     20     5.2     cam1-cam4     6163     22   OK
@@ -28,7 +28,7 @@ frame-based verdict was an artefact. Measured on ``camera_calibration_20260805``
                                      cam2-cam3        0      0   none
 
 Three things only the pose count shows. **cam2 IS connected** to the snout pair (16 shared poses) —
-the earlier "11 frames" was a step-25 sampling artefact, and the same recording read 69 at step 5.
+the earlier "11 frames" was a step-25 sampling artifact, and the same recording read 69 at step 5.
 **cam3 is the real hole** at 7 shared poses. And **cam4, which looks like the best camera on every
 frame-based measure, has FOUR distinct poses** out of 8,969 usable frames: the board was held in
 front of it rather than swept, so its intrinsics are the least constrained in the rig.
@@ -293,7 +293,7 @@ def per_pair(df: pd.DataFrame) -> pd.DataFrame:
     """One row per camera pair: frames in which BOTH cameras cleared ``MIN_MARKERS``.
 
     Pairs on the sampled frame INDEX, which is sound here only because the rig's four cameras are
-    hardware-synchronised off one Arduino heartbeat and no calibration recording has dropped a frame
+    hardware-synchronized off one Arduino heartbeat and no calibration recording has dropped a frame
     (``dropframe_qc``). If a future recording drops frames, frame index stops meaning time and this
     has to pair through the Bonsai timestamps instead.
     """

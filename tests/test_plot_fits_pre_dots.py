@@ -1,4 +1,4 @@
-"""Pins the house style of `mixed_models.plot_fits` (open session markers, shape = animal, colour = epoch) and the
+"""Pins the house style of `mixed_models.plot_fits` (open session markers, shape = animal, color = epoch) and the
 pre-session dots of the decoder trajectory (Priya 11-06): pre rows go to a SEPARATE sidecar, the post-only series CSV
 is byte-identical to what it was, the pre rows carry their own label / day, and `imaging_lmm.decoder_table` reads
 them. Synthetic only: no share access, no real figure."""
@@ -61,14 +61,14 @@ def test_session_markers_are_OPEN_and_coloured_by_EPOCH(monkeypatch, tmp_path, m
         ec = {tuple(np.round(e[:3], 3)) for e in c.get_edgecolors()}
         assert len(ec) == 1
         match = [ep for ep, col in EPOCH_LINE.items() if tuple(np.round(to_rgb(col), 3)) in ec]
-        assert match, f"edge colour {ec} is not an epoch colour"
+        assert match, f"edge color {ec} is not an epoch color"
         seen.add(match[0])
     assert seen == {"pre", "acute", "subacute", "chronic"}
     assert not ax.spines["top"].get_visible()
 
 
 def test_post_only_fit_leaves_the_pre_dots_OUT_of_the_line(monkeypatch, tmp_path):
-    """time_post: pre rows are drawn (pre colour, negative days) but the fitted curve starts at day 1."""
+    """time_post: pre rows are drawn (pre color, negative days) but the fitted curve starts at day 1."""
     fig = _draw(monkeypatch, tmp_path, _long(), "time_post")
     ax = fig.axes[0]
     pre_rgb = tuple(np.round(to_rgb(EPOCH_LINE["pre"]), 3))

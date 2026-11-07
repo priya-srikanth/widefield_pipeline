@@ -30,7 +30,7 @@ not a redistribution of activity.** That is the single most important thing this
 and it is why all three are computed rather than the one that was observed.
 
 PS92/PS93 ARE THE SMALL-LESION ARM, NOT A CONTROL (Priya, 2026-08-18) -- they were lesioned too, just
-mildly. Same recording day, rig, anaesthesia and preprocessing, so they control for the DAY; if their
+mildly. Same recording day, rig, anesthesia and preprocessing, so they control for the DAY; if their
 amplitudes jump equally the effect is the session. If they jump LESS, that is a severity relationship,
 which is a stronger result than a clean control would have given.
 
@@ -97,7 +97,7 @@ def _session_amplitudes(s, align="cue", source="roi", post_all_trials=True):
     POST-STROKE SESSIONS USE ALL TRIALS (Priya, 2026-08-18). The missing licks ARE the phenotype, so
     discarding no-lick trials removes the effect being measured. This is not a small correction
     post-stroke: PS94 8/18 is only 40% engaged, so an engaged-only version reads a minority subset
-    selected by the behaviour the lesion disrupted. Pre-stroke keeps the engaged cut (the mismatch is
+    selected by the behavior the lesion disrupted. Pre-stroke keeps the engaged cut (the mismatch is
     declared in nolick_analysis.SANCTIONED_MISMATCHES). An earlier version filtered BOTH sides to
     engaged trials, contradicting the decision it was written under.
    """
@@ -356,7 +356,7 @@ def plot(rows, summ, out_dir, align="cue"):
         "confound the others do not — the signal is a deviation from the session's own mean and LED "
         "power is set by hand, so a rise can be a larger response OR a smaller baseline. ROWS 2-3 are "
         "scale-free. IF ROW 1 MOVES AND ROWS 2-3 DO NOT, the change is a GAIN change, not a "
-        "redistribution of activity. Grey squares = the small-lesion animals (same day, mild lesion, "
+        "redistribution of activity. Gray squares = the small-lesion animals (same day, mild lesion, "
         "NOT a no-lesion control).", fontsize=9, wrap=True)
     fig.tight_layout(rect=(0, 0, 1, 0.90))
     p = Path(out_dir) / f"evoked_amplitude_{align}.png"

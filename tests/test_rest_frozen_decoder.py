@@ -199,7 +199,7 @@ def test_matched_frozen_declines_a_single_class_subset():
 
 
 def test_the_matched_seed_is_stable_across_processes():
-    """NOT `hash(label)` -- Python randomises string hashing per process, so that would make the
+    """NOT `hash(label)` -- Python randomizes string hashing per process, so that would make the
     matched arm irreproducible between runs while looking deterministic."""
     src = __import__("inspect").getsource(rfd.main)
     assert "hashlib.sha1(lab.encode())" in src

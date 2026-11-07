@@ -5,10 +5,10 @@ detectors -> gates -> kept licks, plus the video frame at every rejected peak.
 
 Priya, 2026-10-01: "let's visually qc each step on our data". PS93 0908 cue clip (24 trials). Tongue y is px from
 the MOUTH (spout-frame origin), y grows downward = tongue out. Per selected trial, three rows:
-  1  raw tongue y (black = likelihood >= the cleaning cutoff, grey = below) and the v5p3 clean trace (blue)
-  2  v7 pre-clean: cleaned trace; shaded = raw clusters the pre-clean labelled artifact (red) / keep_low (green)
+  1  raw tongue y (black = likelihood >= the cleaning cutoff, gray = below) and the v5p3 clean trace (blue)
+  2  v7 pre-clean: cleaned trace; shaded = raw clusters the pre-clean labeled artifact (red) / keep_low (green)
   3  peaks: every merged peak, marker = detector (o lmax, s bounded, ^ legacy); green = kept, red X = rejected
-     with its gate letter; grey band = the response window (cue + 70 ms .. trial stop); dashed lines = the current
+     with its gate letter; gray band = the response window (cue + 70 ms .. trial stop); dashed lines = the current
      px thresholds (min peak 20, shape_low 80, high 130) in mouth-relative px, i.e. what a retune would move.
 Trials shown: all with a rejected peak or an artifact cluster, then fill to `--n` with ordinary ones.
 """

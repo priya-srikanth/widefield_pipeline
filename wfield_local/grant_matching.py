@@ -254,13 +254,13 @@ def fig_best_match_by_session(out_dir, min_trials=10):
     ROWS = position, COLUMNS = PRE then each post-stroke day.
     THE TEXT IN A CELL is the position that day's trials matched BEST -- read it as "this row's
     trials looked most like THAT position's pre-stroke pattern".
-    THE COLOUR is the RANK of the true position among the six, which the text alone cannot give:
+    THE COLOR is the RANK of the true position among the six, which the text alone cannot give:
     a cell reading `fL` is a different result when the correct answer ranked second than when it
     ranked sixth. Green = the position still matched itself, red = it ranked last.
     A BOXED CELL is one that still matched itself, so the intact diagonal is visible at a glance
     and survives `--compact`, which drops the text.
 
-    THE PRE COLUMN IS ELEVEN SESSIONS COLLAPSED, not one: colour is the MEAN rank over held-out
+    THE PRE COLUMN IS ELEVEN SESSIONS COLLAPSED, not one: color is the MEAN rank over held-out
     pre-stroke sessions and the text is the modal best match, with the fraction that agreed. It is
     the same quantity as a post column, computed the same way, and it is NOT a perfect score.
     """
@@ -341,12 +341,12 @@ def fig_best_match_by_session(out_dir, min_trials=10):
                             f"Which pre-stroke position did each one match BEST, SESSION BY "
                             f"SESSION? -- {wname} window\n"
                             f"Post-stroke class: {cls}.  Figure 10 unpooled: the text is the "
-                            f"best-matching pre-stroke position, the COLOUR is the rank of the "
+                            f"best-matching pre-stroke position, the COLOR is the rank of the "
                             f"TRUE one among six.\n"
                             f"A cell reading fL means different things when the correct answer "
                             f"ranked second and when it ranked sixth -- the text alone cannot say "
-                            f"which, so the colour carries it. BOXED = still matched itself.\n"
-                            f"PRE = eleven held-out pre-stroke sessions collapsed (colour = mean "
+                            f"which, so the color carries it. BOXED = still matched itself.\n"
+                            f"PRE = eleven held-out pre-stroke sessions collapsed (color = mean "
                             f"rank, text = modal match and the fraction agreeing). It is NOT a "
                             f"perfect score, and it is the standard the post columns are read "
                             f"against.")

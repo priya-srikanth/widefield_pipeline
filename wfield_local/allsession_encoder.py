@@ -1,6 +1,6 @@
 """ALL-SESSION ENCODER: shared kernels + per-epoch kernel CHANGES (Layer 2; Priya 10-23: "i like the shared kernels with
 per-epoch changes idea!", then "should move up layer 2" -- the frozen encoder splits a cortical change into the parts
-each BEHAVIOURAL change explains through the pre-stroke mapping (Layer 1) and leaves any change in how cortex RESPONDS
+each BEHAVIORAL change explains through the pre-stroke mapping (Layer 1) and leaves any change in how cortex RESPONDS
 in one unattributed residual; this model attributes that residual to groups).
 
 Per animal, on ALL its sessions (August pre + post), in the frozen encoder's frame (same columns, the pre-stroke

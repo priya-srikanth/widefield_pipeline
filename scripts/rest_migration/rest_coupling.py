@@ -14,7 +14,7 @@ pre-stroke runs ~3,650 trials per position per arm. **THE BINDING CONSTRAINT IS 
 boundary of day 25, re-checked against the new rule and no epoch label in this dataset moved),
 because the bootstrap resamples animals first. More samples per
 session therefore do NOT narrow an animal-limited CI much. Rest buys cleaner cells and removes the
-behavioural confounds; it does not buy power against between-animal variance.
+behavioral confounds; it does not buy power against between-animal variance.
 
 **WHICH IS WHY THE L/R CONTRAST IS THE STRONGER OF THE TWO.** It is WITHIN animal and WITHIN
 session, so each animal is its own control and the n=4 bottleneck does not apply to it. Every animal
@@ -25,21 +25,21 @@ instrumental.
 
 THE THREE MEASURES, all computed on REST frames only, per hemisphere:
 
-    r(415, 470)          TEMPORAL co-fluctuation -- the natural rest analogue of the spatial
+    r(415, 470)          TEMPORAL co-fluctuation -- the natural rest analog of the spatial
                          correlation the task version used
-    SD(415) / SD(470)    amplitude ratio, the rest analogue of the coupling gain
+    SD(415) / SD(470)    amplitude ratio, the rest analog of the coupling gain
     LAG                  **THIS MEASURE WAS WRONG TWICE, AND BOTH MISTAKES ARE WORTH KEEPING.**
 
                          v1 cross-correlated 470 against 415 and returned -0.06 to 0.00 s in every
                          session. Not a failed measurement -- the correct answer to the wrong
                          question: **415 and 470 BOTH SEE THE SAME BLOOD AT THE SAME INSTANT**, so
-                         the haemoglobin term is simultaneous in the two channels. The
-                         haemodynamic lag is between NEURAL ACTIVITY and BLOOD, not between two
+                         the hemoglobin term is simultaneous in the two channels. The
+                         hemodynamic lag is between NEURAL ACTIVITY and BLOOD, not between two
                          optical channels that both report blood. So the pair became `SVTcorr`
                          (calcium, hemo nulled) against 415.
 
                          v2 kept `argmax` and returned -0.26 to -0.48 s in every session: 415
-                         LEADING calcium, which no haemodynamic response can do. **PLOTTING THE
+                         LEADING calcium, which no hemodynamic response can do. **PLOTTING THE
                          WHOLE CURVE INSTEAD OF ITS ARGMAX SETTLED IT IN ONE LOOK.** The function
                          is BIPHASIC -- a positive lobe near -0.45 s and a deeper negative lobe
                          near +0.48 s -- and `argmax` was reporting the wrong one. Blood ABSORBS,
@@ -61,7 +61,7 @@ lag 0 with an enormous width -- and `filtfilt` is ZERO-PHASE, so it cannot intro
 lag between the channels. The EXTREMUM MUST BE CHOSEN BY PHYSICS, not by `argmax`, for the reason
 above. And the ABSOLUTE lag is not interpretable: `SVTcorr` is orthogonal to 415 at lag zero BY
 CONSTRUCTION, so the regression itself notches the curve and pushes both lobes outward, and
-`470 = C - H` still contains the haemodynamic term. **A CHANGE in lag across epochs is interpretable
+`470 = C - H` still contains the hemodynamic term. **A CHANGE in lag across epochs is interpretable
 even when the absolute value is not**, which is the same argument that licenses every other
 biased-but-stable measure in this analysis.
 
@@ -98,7 +98,7 @@ def _bandpass(x, fs):
 def _xcorr_curve(a, b, fs, max_lag_s=MAX_LAG_S):
     """``(lags_s, r)`` for `b` relative to `a`. POSITIVE lag = b LAGS a.
 
-    Normalised so the values are correlations rather than covariances, and evaluated only within
+    Normalized so the values are correlations rather than covariances, and evaluated only within
     +/- `max_lag_s`. **RETURN THE WHOLE CURVE, NOT AN EXTREMUM** -- the curve of interest here is
     BIPHASIC, and any single-extremum summary of a biphasic function is a choice that has to be
     made explicitly rather than by `argmax`.
@@ -124,10 +124,10 @@ def _hrf_lag(calcium, iso, fs, max_lag_s=MAX_LAG_S):
     calcium, which is the HRF.
 
     **THE TROUGH, NOT THE PEAK, AND THE REASON IS PHOTOMETRIC RATHER THAN STATISTICAL.** More
-    haemoglobin absorbs more light, so blood volume enters a dF/F fluorescence trace with a
+    hemoglobin absorbs more light, so blood volume enters a dF/F fluorescence trace with a
     NEGATIVE sign -- in BOTH channels, which is why the correction works at all, and which the
     zero-lag correlation cannot reveal because a common sign flip on both traces cancels. So the
-    haemodynamic response to a calcium transient appears in `r(SVTcorr, 415)` as a NEGATIVE lobe
+    hemodynamic response to a calcium transient appears in `r(SVTcorr, 415)` as a NEGATIVE lobe
     at POSITIVE lag. `argmax` reads the other lobe and reports the HRF with its sign reversed.
     """
     lags, o = _xcorr_curve(calcium, -np.asarray(iso, np.float64), fs, max_lag_s)
@@ -141,8 +141,8 @@ def _asym(f470, iso, fs, at_s=ASYM_S):
     **THE VALUE OF THIS ONE IS THAT IT DOES NOT TOUCH `T`.** `SVTcorr` is orthogonal to 415 at lag
     zero by construction, so the notch that splits its cross-correlation into two lobes is put
     there by the regression, and both lobe POSITIONS are therefore part signal and part fitting
-    artefact. The raw pair has no notch. With `470 = C - H` and `415 = -kH`, the calcium term
-    enters `r(470, 415)` with a MINUS sign at the haemodynamic delay, so an HRF tilts the raw
+    artifact. The raw pair has no notch. With `470 = C - H` and `415 = -kH`, the calcium term
+    enters `r(470, 415)` with a MINUS sign at the hemodynamic delay, so an HRF tilts the raw
     cross-correlation to the LEFT and this difference goes negative. Same physics, no free
     parameter.
     """
@@ -371,7 +371,7 @@ def main(argv=None) -> int:
                 line += (f"{g[0]:>+11.3f} [{g[1]:+.2f},{g[2]:+.2f}]{star}" if g
                          else f"{'--':>24}")
             print(line)
-    print("\n  A LONGER lag is a SLUGGISH haemodynamic response -- impaired coupling in the")
+    print("\n  A LONGER lag is a SLUGGISH hemodynamic response -- impaired coupling in the")
     print("  latency domain, which is the only domain calcium bleed-through does not touch.")
     print("  Both sides moving together is systemic or instrumental, not focal.")
 
@@ -398,7 +398,7 @@ def main(argv=None) -> int:
     print("  systemic or instrumental, not a consequence of the infarct.")
     print("\n  AND THE ABSOLUTE LAG IS NOT INTERPRETABLE. `SVTcorr` is orthogonal to 415 at lag")
     print("  zero BY CONSTRUCTION, so the regression itself notches the curve and shifts both")
-    print("  lobes outward; 470 also still contains the haemodynamic term. A CHANGE across")
+    print("  lobes outward; 470 also still contains the hemodynamic term. A CHANGE across")
     print("  epochs is interpretable, and `asym_470_415` is the version with no `T` in it.")
     return 0
 

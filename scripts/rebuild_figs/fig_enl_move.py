@@ -25,7 +25,7 @@ SESSIONS (inferred from the caption, confirmed against the image): curated sessi
   PS92_0812 of the 10-13 CSV). Points sorted by day, joined by lines per arm and animal.
 PLOT PARAMETERS INFERRED from the surviving PNG (pixel-identical at these values, 1980 x 440 at dpi 110): figsize
   18 x 4, 1 x 4 panels sharey, symlog x with linthresh 5 (linscale 1), markers "o-" ms 3 lw 1, chance 1/6 dotted 0.6
-  grey, stroke line at day 0 (0.6 grey, lw 0.8), legend fontsize 7 in the first panel, suptitle fontsize 10.
+  gray, stroke line at day 0 (0.6 gray, lw 0.8), legend fontsize 7 in the first panel, suptitle fontsize 10.
   With the live (10-15) CSV the only change is PS92_0812 (day -5, raw .395) appearing (0.08 % of pixels).
 REBUILD: enl_movement_multisession.py reads per-session LocaNMF C, which ignores the hemo variant (config.py:161-164,
   decision D1) and is skip-if-exists per session: run it into a NEW output (or prune) and pass its CSV here.

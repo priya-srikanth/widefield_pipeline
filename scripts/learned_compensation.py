@@ -1,4 +1,4 @@
-"""LEARNED, CONTEXT-SPECIFIC COMPENSATION -- behaviour-only tests (Priya 10-30; RECOVERY_MECHANISMS_LIT_20261030.md 1a).
+"""LEARNED, CONTEXT-SPECIFIC COMPENSATION -- behavior-only tests (Priya 10-30; RECOVERY_MECHANISMS_LIT_20261030.md 1a).
 
 DESIGN (fixed before any post-stroke number): docs/status/LEARNED_COMPENSATION_PREREG_20261030.md -- read it first.
   T1 learning signature: far-contra cued FIRST-lick launch error e_L (and engaged hit rate) within a session (late third
@@ -17,7 +17,7 @@ iti_licks/iti_dock_audit.csv, <v36>/sessions/<an>/<date>/{licks_all.csv, windows
 geometry).
 Usage (bash env per the repo):
   python scripts/learned_compensation.py run [--jobs 3]   per-session timing extraction + trial / ITI tables
-  python scripts/learned_compensation.py summarise        per-animal tables, boot_delta, mixed models, figdata
+  python scripts/learned_compensation.py summarize        per-animal tables, boot_delta, mixed models, figdata
   python scripts/learned_compensation.py plot             figures from figdata only (also: any command --plot-only)
 Outputs: <v36>/imaging_encoding/learned_compensation/
 """
@@ -765,7 +765,7 @@ def fig1_daycourse(fd: dict) -> None:
             if c == 0:
                 ax.set_ylabel(yl)
             if row == 1:
-                ax.set_xlabel("sessions in order (label = day from stroke; grey line = stroke)", fontsize=8)
+                ax.set_xlabel("sessions in order (label = day from stroke; gray line = stroke)", fontsize=8)
     fig.suptitle("T1 within-session change and change between sessions, far contra (August pre + post days 1-14): each "
                  "session = early | mid | late third (solid); dashed = to the next day, dotted = to a session > 1 day "
                  "later", fontsize=9)
@@ -860,7 +860,7 @@ def fig3_t2_phases(fd: dict) -> None:
     axs[0].relim()
     axs[0].autoscale(axis="y")
     axs[0].set_ylabel("ITI launch angle - pre ITI (same prev spout, phase), deg")
-    fig.suptitle("T2 ITI launch angle by cycle phase after a far-contra (colour) vs other-spout (grey) trial; "
+    fig.suptitle("T2 ITI launch angle by cycle phase after a far-contra (color) vs other-spout (gray) trial; "
                  "open = animal means, filled = pooled sessions (95 % CI); dashed = cued far-contra e_L", fontsize=9)
     _legend_animals_epochs(fig)
     fig.tight_layout(rect=(0, 0.07, 1, 0.93))

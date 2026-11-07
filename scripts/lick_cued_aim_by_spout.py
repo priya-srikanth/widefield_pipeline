@@ -1,4 +1,4 @@
-"""Aim offset BY SPOUT x EPOCH (Priya 10-29: "behavioural deficit by angle offset from target over time by epochs, as an
+"""Aim offset BY SPOUT x EPOCH (Priya 10-29: "behavioral deficit by angle offset from target over time by epochs, as an
 addition to the spout contact data"; for the kinematics page).
 
 THE aim definition (iti_recovery_measure.aim_licks, rule 9): per cued lick, 3-D angle atan2(lateral, sagittal) at the
@@ -7,12 +7,12 @@ each trial; a spout counts in a session with >= 5 such licks. Per session x spou
 over its pre sessions at that spout (change vs own pre, deg). SIGN + = contralesional, the encoder goal page's convention (Priya 10-30:
 align signs; the kinematics page's p_angle is + = ipsi and is to be aligned to this).
 
-Fig A (POOLED): 6 spouts (canonical order) x epoch; dots = sessions coloured by animal; big marker = animal-weighted mean
+Fig A (POOLED): 6 spouts (canonical order) x epoch; dots = sessions colored by animal; big marker = animal-weighted mean
 (mean of per-animal epoch means), 95% CI = nested bootstrap animals -> sessions (2,000 draws); * CI excludes 0
 (uncorrected), ** after Bonferroni over 18 tests (6 spouts x 3 post epochs). Pre column = pre sessions vs their own
 mean (the noise floor).
 Both figures carry a 7th panel, the WEIGHTED aim (iti_recovery_measure.weighted: far contra 3, far mid 2, others 1;
-the goal page's behaviour axis), same change-vs-own-pre treatment (Priya 10-30).
+the goal page's behavior axis), same change-vs-own-pre treatment (Priya 10-30).
 Fig B (over time): per spout, change vs pre against day after stroke, one thin line per animal, plus the POOLED
 cross-animal fit of the goal page's shared TIME model (wfield_local.mixed_models: y ~ post + post:lday, animal random
 effects, lday = log days since stroke, 0 at day 1; the same model as goal-page Fig 16.9), fit per panel; BH-FDR over the

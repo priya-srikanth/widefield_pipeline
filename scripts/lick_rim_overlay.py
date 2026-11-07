@@ -3,7 +3,7 @@
 Pre-stroke lick response per pixel (ITI bout starts with >= 2 s quiet; dF/F x1e3, 0..0.3 s minus -1.5..-1.0 s; one map per
 session from the session's adopted hemo-corrected SVD (Ub @ V), drift removed as `iti_licks.extract`; mean of the
 animal's PRE sessions, then mean of animals), drawn on the brain mask, with:
-  grey dashed  the 16-px stat-mask rim (excluded from ROI / area averages in ROI v1-v2)
+  gray dashed  the 16-px stat-mask rim (excluded from ROI / area averages in ROI v1-v2)
   cyan         pixels ROI v4 adds back (thin rim, lateral edge only, anterior of RIM_LAT_AP_MIN)
   black / green ALM / tjM1 (v4); magenta SSp-m, orange SSp-n (Allen)
 Output figures/lick_rim_overlay.png (figdata figdata/lick_rim_overlay.pkl; --plot-only redraws).

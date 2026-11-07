@@ -19,7 +19,7 @@ simply days nobody recorded. Verified below and pinned in `tests/test_epochs.py`
 
 WHERE THE BOUNDARIES COME FROM, and it differs by epoch since 2026-09-07:
 
-ALL THREE are DERIVED from behaviour every run (Priya, 2026-09-07: *"I'd like the pipeline to run
+ALL THREE are DERIVED from behavior every run (Priya, 2026-09-07: *"I'd like the pipeline to run
 the epoch definitions and just determine if we have met 'chronic' criteria"*, and then *"we have
 clear derivation definitions for acute and subacute right? like, we don't have to hard-code
 them?"*). `configs/animals.yaml` holds the declared values as a seed and a pinned reference.
@@ -47,7 +47,7 @@ deck, the nightly diffs that file against the previous run and logs every bounda
 
 THE PIPELINE NEVER WRITES `configs/animals.yaml`. It is version-controlled, both machines push
 `main`, and most of its value is hand-written comments a YAML dump would delete. So the declared
-`chronic_from` there can fall behind what behaviour now implies. `epoch_audit` reports that every
+`chronic_from` there can fall behind what behavior now implies. `epoch_audit` reports that every
 run and prints the lines to paste; promoting is a deliberate human step.
 
 THE PRECEDENCE, because "fallback" is too vague to act on:
@@ -74,8 +74,8 @@ the four places it was wrong are worth naming for whoever adds a fifth epoch:
   * `epoch_figures.epoch_of_day` keeps its OWN copy of the boundary logic, keyed on day number
     rather than label, and needed the same new branch in the same order
     (`tests/test_chronic_epoch.py` now pins the two copies together for every pooled session);
-  * `epoch_figures.EPOCH_GREY` needed a fourth colour, or every chronic bar would have silently
-    fallen back to the acute grey;
+  * `epoch_figures.EPOCH_GREY` needed a fourth color, or every chronic bar would have silently
+    fallen back to the acute gray;
   * `timecourse_panel`'s `boundaries` argument was a 2-tuple per animal;
   * `verify_against_behaviour` compared derived and stored labels DIRECTLY, so every chronic session
     would have been reported as a disagreement with the acute rule -- a rule that cannot say
@@ -297,7 +297,7 @@ def pinned() -> bool:
     """True when derivation is disabled and `EPOCH_SPEC` is authoritative.
 
     Set `WIDEFIELD_EPOCHS_PINNED=1` to rebuild an older figure set under the boundaries it was
-    published with, rather than under whatever behaviour now implies.
+    published with, rather than under whatever behavior now implies.
     """
     return os.environ.get("WIDEFIELD_EPOCHS_PINNED", "") not in ("", "0")
 
@@ -394,7 +394,7 @@ def spec_for(animal: str) -> dict | None:
     Replacing wholesale would leave `epoch_of` returning None for every post-stroke session, which
     empties every pooled panel while rendering perfectly cleanly.
 
-    `acute` is normalised to a TUPLE because JSON round-trips it as a list, and a list compares
+    `acute` is normalized to a TUPLE because JSON round-trips it as a list, and a list compares
     unequal to an identical tuple -- which would surface as a mismatch far from here.
     """
     base = EPOCH_SPEC.get(animal)
@@ -442,13 +442,13 @@ def epoch_of(label: str) -> str | None:
       * the animal has no epoch specification;
       * the day falls in the gap between the acute range and the first subacute day. No CURRENT
         session does (days 6 and 8 were simply not recorded), but a future one could, and assigning
-        it to whichever neighbour is nearer would invent a boundary Priya did not set.
+        it to whichever neighbor is nearer would invent a boundary Priya did not set.
 
     CHRONIC IS TESTED BEFORE SUBACUTE and the ranges deliberately overlap: PS92's ``subacute_from``
     is 7 and its ``chronic_from`` is 11, so days 7-10 are subacute and 11+ are chronic. Ordering the
     checks the other way round would make ``chronic_from`` dead code. An animal whose
     ``chronic_from`` is None stays subacute forever, which is the intended reading -- it has not
-    stabilised, not that its late sessions are unassigned.
+    stabilized, not that its late sessions are unassigned.
     """
     animal = config.animal_of(label)
     phase = config.session_phase(animal, label.split("_")[-1])
@@ -497,7 +497,7 @@ def epoch_table() -> list[dict]:
 
 def verify_against_behaviour(accuracy_by_session, *, position=RULE_POSITION,
                              fraction=ACUTE_FRACTION):
-    """Re-derive the acute/subacute split from behaviour and compare it with `EPOCH_SPEC`.
+    """Re-derive the acute/subacute split from behavior and compare it with `EPOCH_SPEC`.
 
     ``accuracy_by_session`` maps ``label -> {position_name: accuracy}``. The baseline is that
     animal's mean `position` accuracy over its PRE-stroke sessions; a post-stroke session is acute
@@ -506,7 +506,7 @@ def verify_against_behaviour(accuracy_by_session, *, position=RULE_POSITION,
     Returns ``{animal: {"agree": bool, "derived": {...}, "stored": {...}, "disagreements": [...]}}``.
 
     IT REPORTS, IT DOES NOT REASSIGN. The stored specification is Priya's call and is what figures
-    use; this exists so that if behaviour and specification ever diverge, someone is told rather than
+    use; this exists so that if behavior and specification ever diverge, someone is told rather than
     the figures quietly following whichever the code happened to consult. A rule evaluated at figure
     time would move published epoch boundaries the moment a session was registered.
     """
@@ -576,7 +576,7 @@ def _is_flat(tail, sd_pre):
     window holds or how far apart they are -- which matters here because post-stroke tail sessions
     sit 3.3-3.7x further apart than pre-stroke ones. See the correction above `CHRONIC_RULE`.
 
-    ``rate`` reproduces the pre-2026-09-10 behaviour: the per-session slope against
+    ``rate`` reproduces the pre-2026-09-10 behavior: the per-session slope against
     ``CHRONIC_K_SD x SD``. At the minimum window the two coincide when
     ``k_drift = k_sd x (min_tail - 1)``; they diverge for longer tails, where ``rate`` lets total
     drift grow with the number of sessions and ``drift`` does not.
@@ -635,7 +635,7 @@ def _plateau_index(series, sd_pre, level_min, *, days=None, min_day=None):
 
 
 def _normalised_series(by_session, animal, position):
-    """``(pre_normalised, [(day, normalised), ...])`` for one animal and one behavioural measure.
+    """``(pre_normalised, [(day, normalized), ...])`` for one animal and one behavioral measure.
 
     Everything is expressed as a fraction of that animal's OWN pre-stroke mean, which is what makes
     the per-series pre-stroke SD a meaningful tolerance. Ratios are NOT capped at 1.0 -- Priya,
@@ -664,7 +664,7 @@ def _normalised_series(by_session, animal, position):
 
 def derive_acute_boundaries(accuracy_by_session, *, position=RULE_POSITION,
                             fraction=ACUTE_FRACTION):
-    """Re-derive each animal's acute range and first subacute day from behaviour.
+    """Re-derive each animal's acute range and first subacute day from behavior.
 
     Returns ``{animal: {"acute": (lo, hi)|None, "subacute_from": int|None, "relapse": [days],
     "threshold": float}}``.
@@ -719,7 +719,7 @@ def derive_acute_boundaries(accuracy_by_session, *, position=RULE_POSITION,
 
 
 def derive_chronic_boundaries(hit_by_session, licks_by_session, *, position=RULE_POSITION):
-    """Re-derive each animal's chronic boundary from behaviour and compare it with `EPOCH_SPEC`.
+    """Re-derive each animal's chronic boundary from behavior and compare it with `EPOCH_SPEC`.
 
     ``hit_by_session`` and ``licks_by_session`` both map ``label -> {position_name: value}``, the
     same shape `verify_against_behaviour` takes. Both must already be restricted to ENGAGED trials;

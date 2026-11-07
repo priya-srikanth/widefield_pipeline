@@ -9,10 +9,10 @@ This plots what actually happens, rather than reasoning about it.
 Shows, on one time axis (session minutes):
   A  RAW 470 and 415 spatial-mean fluorescence, with the FITTED polynomial trend for each overlaid
   B  the DETRENDED traces -- what the drift removal leaves
-  C  the corrected output actually analysed (meegkit_hpfit) against the stock zerophase product
+  C  the corrected output actually analyzed (meegkit_hpfit) against the stock zerophase product
   D  a zoom on the final stretch, where the animal stops
 Rest frames and the last ENGAGED trial are marked throughout, so "where it stopped" is drawn from the
-behaviour and not eyeballed from the trace.
+behavior and not eyeballed from the trace.
 
     python -m scripts.rest_migration.plot_session_residual --sessions PS94_0903 PS92_0813
 """
@@ -75,7 +75,7 @@ def _behaviour_marks(s, n_frames):
     try:
         rest, cs, codes, ts, fs_samp, sync = _session_daq(s)
     except Exception as ex:                                          # noqa: BLE001
-        print(f"    (no behaviour marks: {type(ex).__name__} {str(ex)[:60]})", flush=True)
+        print(f"    (no behavior marks: {type(ex).__name__} {str(ex)[:60]})", flush=True)
         return None, None, None
     f_of = np.asarray(fs_samp)[:n_frames]
     rf = np.flatnonzero(rest[np.clip(f_of, 0, rest.size - 1)])
@@ -159,7 +159,7 @@ def plot_session(label, outdir):
     _panel_marks(ax, last_min, rest_frames, t)
 
     ax = axes[2]
-    ax.plot(t, out_new, lw=0.3, color="tab:green", label=f"ANALYSED ({VARIANT})")
+    ax.plot(t, out_new, lw=0.3, color="tab:green", label=f"ANALYZED ({VARIANT})")
     if out_old is not None:
         ax.plot(t, out_old, lw=0.3, color="tab:red", alpha=0.55, label="stock zerophase")
     ax.axhline(0, color="0.3", lw=0.8)
@@ -205,7 +205,7 @@ def plot_session(label, outdir):
               f"({(np.median(tail)-np.median(mid))/(np.std(mid) or 1e-12):+.2f} SD)", flush=True)
 
     for arr, nm in ((raw470, "raw 470"), (trend470, "fitted trend 470"),
-                    (det470, "detrended 470"), (out_new, "corrected (analysed)")):
+                    (det470, "detrended 470"), (out_new, "corrected (analyzed)")):
         _tail_stats(arr, nm)
     return p
 

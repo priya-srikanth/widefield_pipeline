@@ -5,12 +5,12 @@ pre-stroke hits; the pre-stroke reference is hits only.
 
 Per far-contra target trial (lick window, August pre): neural = frozen decoder P(far mid) - P(far contra); executed = the
 trial's lick weight far mid - far contra (landing: 3-D endpoints; trajectory: lick paths; `softmax_neural_vs_lick`). Both
-centred within SESSION x CLASS, then r is pooled over the trials of an animal x epoch x class (or all animals).
+centered within SESSION x CLASS, then r is pooled over the trials of an animal x epoch x class (or all animals).
 
 STATISTIC = class-matched change across epochs. Acute hits are ~4 per session, so a per-session r does not exist; the test
 resamples the pooled r: nested bootstrap (animals, then sessions within animal, 2000 draws), delta = r[epoch, class] -
 r[pre, hits] with the SAME animal draw in both. Hits vs pre hits is class-matched; failed attempts have no pre-stroke
-counterpart (pre trials are hits only), so their delta is against pre hits and labelled as such. Per animal: sessions
+counterpart (pre trials are hits only), so their delta is against pre hits and labeled as such. Per animal: sessions
 resampled within the animal. Session dots (figures 2-4) need >= MIN_SESS trials of that class in the session.
 
 Figures (<E>/attempt_coding_pp/figures/): coupling_cls_animals.png (page 4i), coupling_cls_sessions.png (4i2),
@@ -233,7 +233,7 @@ def main() -> int:
                     ax.plot(v.day, v.r, color=col, lw=0.6, alpha=0.35)
                     ax.scatter(v.day, v.r, marker=MK[an], s=28, facecolor=col if c == "hit" else "w", edgecolor=col, lw=1.1,
                                zorder=5)
-        ax.set_xlabel("days from stroke (grey = pre-stroke)")
+        ax.set_xlabel("days from stroke (gray = pre-stroke)")
         ax.set_title(f"executed = {kind}", fontsize=10)
         for s_ in ("top", "right"):
             ax.spines[s_].set_visible(False)
@@ -252,7 +252,7 @@ def main() -> int:
     for fname, vcol, ylab, ylim, ref, ttl in (
             ("coupling_cls_pooled.png", "r", "within-session r", (-0.6, 1.25), None, ""),
             ("coupling_cls_pooled_norm.png", "rn", "r / the animal's pre-stroke hit r\n(1 = pre-stroke coupling)", (-3.2, 5.0),
-             1.0, ", NORMALISED within animal to its pre-stroke hits")):
+             1.0, ", NORMALIZED within animal to its pre-stroke hits")):
         fig, axs = plt.subplots(1, 2, figsize=(13, 4.9), sharey=True)
         prow = []
         for k, kind in enumerate(data):

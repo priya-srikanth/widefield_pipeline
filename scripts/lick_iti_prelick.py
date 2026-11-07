@@ -45,7 +45,7 @@ frame-level SD):
   per-window decoder. Freezing either would write into the shared frozen-model store (outside this script's write
   root) and read every pre session's U_atlas / SVTcorr for the signature -- not done; flagged in the report.
 BALANCE. Primary-style: per lick, area x side value referenced to the animal's PRE line on lick angle (per animal x lick
-  order, pre sessions leave-one-session-out; vectorised lrm._residuals); pool ALM, tjM1, SSp-m, SSp-n, SSs (contra =
+  order, pre sessions leave-one-session-out; vectorized lrm._residuals); pool ALM, tjM1, SSp-m, SSp-n, SSs (contra =
   right hemisphere). ratio = log2(sum obs contra / sum predicted contra) - log2(same, ipsi) (bs only; NaN when a sum is
   <= 0 -- a near-zero pre-lick response makes it unstable, see n_ratio_nan), diff = mean over areas of the session-mean
   referenced (contra - ipsi) (raw and bs). By epoch (boot_delta) and recovery tracking within animals
@@ -379,7 +379,7 @@ def split_terms(beta: np.ndarray, dh: np.ndarray, names: list[str]) -> dict:
 
 def residualize(V: np.ndarray, M: pd.DataFrame) -> np.ndarray:
     """V (n, m) minus the animal's PRE line on angle per animal x lick order; pre licks by the line fitted without their
-    own session (vectorised lrm._residuals; rows with any NaN value or NaN angle are not fitted / get NaN)."""
+    own session (vectorized lrm._residuals; rows with any NaN value or NaN angle are not fitted / get NaN)."""
     R = np.full(V.shape, np.nan)
     ok = np.isfinite(V).all(1) & np.isfinite(M.angle.to_numpy(float))
     ang = M.angle.to_numpy(float)
@@ -858,7 +858,7 @@ def plot() -> None:
         ax.set_title(f"onset-aligned windows: {lab}\nchange vs pre (k/n = animals with the sign of the mean)", fontsize=8.5)
     if v1:
         sub = ("Rows 1-2: sliding 0.1 s bins (onset-aligned: bout-start subset, baseline -1.5..-1.0 s, blue; peak-aligned: "
-               "all licks, baseline -1.0..-0.5 s); grey = last 0.15 s (tongue already moving). Row 3: fixed windows. "
+               "all licks, baseline -1.0..-0.5 s); gray = last 0.15 s (tongue already moving). Row 3: fixed windows. "
                "PROVISIONAL")
     else:
         J = pd.read_csv(fn("jaw.csv")) if fn("jaw.csv").exists() else None
@@ -866,8 +866,8 @@ def plot() -> None:
                                    f"{np.nanmin(J.jaw_lead_med_ms):.0f}-{np.nanmax(J.jaw_lead_med_ms):.0f} ms "
                                    "(animal x epoch)")
         sub = (f"WINDOW LIMIT {LIMIT:g} s: every PRE window ends >= {LIMIT:g} s before the lick ONSET (per lick; JAW windows: "
-               f"before the cam4 jaw-opening onset){jt}. Grey columns = reference windows that straddle / follow onset.\n"
-               f"Rows 1-2: sliding 0.1 s bins at their LAST sample; grey = bins holding data later than {LIMIT:g} s before "
+               f"before the cam4 jaw-opening onset){jt}. Gray columns = reference windows that straddle / follow onset.\n"
+               f"Rows 1-2: sliding 0.1 s bins at their LAST sample; gray = bins holding data later than {LIMIT:g} s before "
                "onset (onset-aligned: bout-start subset, baseline -1.5..-1.0 s, blue; peak-aligned: all licks, baseline "
                "-1.0..-0.5 s). Imaging 31 Hz, interpolated: a sample carries up to 1 frame (32 ms) later. PROVISIONAL")
     fig.suptitle("BEFORE the lick: frozen pre-stroke lateral decoder (12.17) and hemispheric balance (ALM, tjM1, SSp-m, SSp-n, "

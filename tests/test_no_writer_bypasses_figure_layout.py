@@ -15,7 +15,7 @@ never will.
 
 DELIBERATELY NARROW. The rule is "a sidecar extension joined onto a directory, where the filename
 follows the epoch/figure naming convention". A broader rule matched 69 lines, almost all of them
-session artefacts in session directories (`U_atlas.npy`, `events.csv`, `gui_config.json`) -- a
+session artifacts in session directories (`U_atlas.npy`, `events.csv`, `gui_config.json`) -- a
 guard that cries wolf is one people learn to silence.
 """
 from __future__ import annotations

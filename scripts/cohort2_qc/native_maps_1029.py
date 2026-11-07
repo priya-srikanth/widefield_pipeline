@@ -5,11 +5,11 @@ landmarks; these use the session's own U, in camera pixels, native orientation.
 Signal: hemo_meegkit_hpfit_refitT_swapmask SVTcorr (other-LED frames excluded, §0c-0e of the QC doc). Events from the
 DAQ (cue TTL, lick_analog via the pipeline's loaders, mapped to frames by `_frames`). Spout position per trial =
 the DAQ strobe code at the cue (agrees 100% with trials.csv pos_idx on all four sessions); 0 close_center,
-1 close_L, 2 close_R, 3 far_center, 4 far_L, 5 far_R. No lesion yet, so positions are shown as L / centre / R
+1 close_L, 2 close_R, 3 far_center, 4 far_L, 5 far_R. No lesion yet, so positions are shown as L / center / R
 (the GUI's names), close row then far row. Trials whose window touches an excluded pair are dropped.
 
 Per session, one figure: per position, the cue response (0-1 s minus -1-0 s), plus all trials, the first-lick
-response (0-0.4 s minus -1-0 s), and L-minus-R (close and far). One colour scale per figure (the 99th percentile
+response (0-0.4 s minus -1-0 s), and L-minus-R (close and far). One color scale per figure (the 99th percentile
 of |all-trial cue response|), so the panels compare. Plus a 4-session summary (all-trial cue | first lick).
 
     conda activate locanmf

@@ -1,7 +1,7 @@
 """Drift vs reorganization, per animal.
 
 Is the still-rising chronic crossnobis-from-pre representational DRIFT (the ordinary week-scale
-turnover a behaviourally stable animal shows) or ongoing stroke REORGANIZATION?
+turnover a behaviorally stable animal shows) or ongoing stroke REORGANIZATION?
 
 A fixed pre-stroke template cannot separate the two: both grow distance-from-pre over time. So this
 instead measures the per-day RATE of session-to-session change in two windows, in the SAME

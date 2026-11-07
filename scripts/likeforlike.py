@@ -5,7 +5,7 @@ For one coordinate (lateral, angle, reach, ...), per lick set x animal, the refe
 the frozen decoder read for the animal's PRE licks that landed at x:
   local-linear  a Gaussian-weighted straight line (decoded vs actual) through the pre licks near x, read off at x. Unlike
                 the weighted MEAN (Nadaraya-Watson, `lick_matched_readout --ref gauss`), it is not pulled inward at the
-                edges of the pre range, where every neighbour sits on one side.
+                edges of the pre range, where every neighbor sits on one side.
   edges         beyond the pre range [lo, hi] (0.5th / 99.5th percentile of the pre actual values) the edge line is
                 carried out: ref(x) = ref(hi) + slope(hi) * (x - hi). EVERY lick gets a reference (none dropped);
                 `beyond` = signed distance outside the range (0 inside), so results are reported on all licks (primary)
@@ -43,7 +43,7 @@ SIGMA_DEG = (2.0, 3.0, 5.0, 7.5, 10.0, 15.0)        # widths tried, degrees (ang
 
 
 def _ll_grid(xr: np.ndarray, yr: np.ndarray, g: np.ndarray, sigma: float) -> tuple[np.ndarray, np.ndarray]:
-    """Local-linear value and slope at grid points g (weights normalised per point, so sparse places never underflow)."""
+    """Local-linear value and slope at grid points g (weights normalized per point, so sparse places never underflow)."""
     lw = -0.5 * ((g[:, None] - xr[None, :]) / sigma) ** 2
     w = np.exp(lw - lw.max(1, keepdims=True))
     sw = w.sum(1)

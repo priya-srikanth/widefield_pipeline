@@ -3,11 +3,11 @@ be different for ipsi vs contra spouts" -> "try the per-spout decomposition"). N
 
 Per session x lick set (ITI by previous spout / cued by target), per spout s (>= MIN licks):
   dDec_s  = session mean decoded position at s - the animal's pre mean decoded position at s    (NEURAL)
-  dLand_s = session mean landing at s - the animal's pre mean landing at s                        (BEHAVIOUR)
+  dLand_s = session mean landing at s - the animal's pre mean landing at s                        (BEHAVIOR)
   x_s     = the animal's pre mean landing at s - the animal's pre mean over all licks             (spout's place, mm)
 OLS over the spouts:  dDec_s = SHIFT + GAIN * x_s + TRACK * dLand_s
   SHIFT  uniform read-out shift, the same at every spout (+ = contralesional) -- the "contralesional read-out" proper
-  GAIN   change in the read-out's lateral spread (- = compression toward the centre: ipsi spouts read more contra,
+  GAIN   change in the read-out's lateral spread (- = compression toward the center: ipsi spouts read more contra,
          contra spouts more ipsi; the map-level face of a lower lateral r)
   TRACK  how much of each spout's landing change the read-out follows (the within-session pull slope, estimated, not
          assumed)
@@ -155,7 +155,7 @@ def plot(S: pd.DataFrame, T: pd.DataFrame) -> None:
             ax.axhline(0 if term != "track" else lv["pre"], color="0.7", lw=0.6, ls=":")
             ax.set_xticks(range(4), EPS)
             ax.set_ylabel(lab[term], fontsize=8)
-            ax.set_title(f"{SETS[st]}: {lab[term]}\nsession fits, grey = animals; text = change vs pre", fontsize=8.5)
+            ax.set_title(f"{SETS[st]}: {lab[term]}\nsession fits, gray = animals; text = change vs pre", fontsize=8.5)
             lo_, hi_ = ax.get_ylim()
             ax.set_ylim(lo_, hi_ + 0.25 * (hi_ - lo_))
         for ax in axs[i]:
@@ -164,8 +164,8 @@ def plot(S: pd.DataFrame, T: pd.DataFrame) -> None:
     fig.legend(handles=[Line2D([], [], color=col[e], marker="o", lw=1.3, label=e) for e in EPS], loc="lower center",
                ncol=4, fontsize=9, frameon=False)
     fig.suptitle("Per-spout DECOMPOSITION of the decoded lateral shift (no pull slope assumed): per session, over spouts, "
-                 "dDecoded_s = SHIFT + GAIN x (spout's pre landing - centre) + TRACK x dLanding_s.\nSHIFT = same at every "
-                 "spout (+ = contralesional); GAIN < 0 = read-out compressed toward the centre; TRACK = share of the "
+                 "dDecoded_s = SHIFT + GAIN x (spout's pre landing - center) + TRACK x dLanding_s.\nSHIFT = same at every "
+                 "spout (+ = contralesional); GAIN < 0 = read-out compressed toward the center; TRACK = share of the "
                  "landing change the read-out follows.\n95% paired nested bootstrap of the change vs pre, * = CI excludes "
                  "0 (bold), k/n animals. Frozen KEY-row decoder per set. PROVISIONAL", fontsize=9.5)
     fig.tight_layout(rect=(0, 0.05, 1, 0.87))

@@ -224,7 +224,7 @@ def plot(F: dict) -> None:
                         if k in m.index and "p" in m and np.isfinite(m.loc[k, "p"]) and m.loc[k, "p"] < 0.05:
                             ax.plot(xm, c.loc[k, "loao"], "o", mfc="none", mec=col, ms=10)
                 ax.axvline(0, color="0.6", lw=0.6)
-                ax.set_xlabel("time from lick (s), bin centre", fontsize=8)
+                ax.set_xlabel("time from lick (s), bin center", fontsize=8)
                 ax.set_title(f"{st} -> {y}: orofacial, by time bin (LOAO cvR²)", fontsize=9)
             ax.axhline(dd, color="0.4", ls="--", lw=1, label="days since stroke")
             ax.axhline(0, color="k", lw=0.6)

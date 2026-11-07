@@ -1,4 +1,4 @@
-"""11-07: under the camera gate a session with no camera working trials (no behaviour video, PS93_0813) drops out of the
+"""11-07: under the camera gate a session with no camera working trials (no behavior video, PS93_0813) drops out of the
 frozen decoder's held-out set but stays in ``labels``; `_loso_fig` raised KeyError drawing it (g5_joint_xsession)."""
 from __future__ import annotations
 

@@ -1,5 +1,5 @@
 """DOES THE CHRONIC REMAPPING TRACK RECOVERY? (Priya 10-25, analysis 2 of the synthesis.) Session mixed models
-(`wfield_local.mixed_models`, the shared definition: time y ~ post + post:lday, behaviour y ~ post + post:deficit, epoch;
+(`wfield_local.mixed_models`, the shared definition: time y ~ post + post:lday, behavior y ~ post + post:deficit, epoch;
 random intercept / step / slope per animal when estimable) with the two strongest chronic results as the OUTCOME:
 
   residual   frozen-encoder residual (data - prediction, evoked, mean of six spouts) per session, from the specificity
@@ -8,8 +8,8 @@ random intercept / step / slope per animal when estimable) with the two stronges
   layer2     Layer 2 change_ref per session (combined fit; pre rows = the LATE-pre sessions, i.e. drift from early pre,
              so `post` is the change beyond pre-stroke drift), same area groups
 
-Behaviour model deficit: `ttc` (far-contra time to contact, primary) and `contact` (both deficit definitions, as
-imaging_lmm). Reading: post:deficit < 0 with post > 0 = the remapping is largest when behaviour is worst and shrinks with
+Behavior model deficit: `ttc` (far-contra time to contact, primary) and `contact` (both deficit definitions, as
+imaging_lmm). Reading: post:deficit < 0 with post > 0 = the remapping is largest when behavior is worst and shrinks with
 recovery (a disruption); post:deficit ~ 0 with post > 0 = present at full recovery, independent of the deficit (a new
 steady state); post:deficit > 0 would mean more remapping in worse sessions only if deficit is coded worse = larger
 (it is: 0 = pre level, larger = worse). Compensation predicts remapping that GROWS as the deficit shrinks (time slope

@@ -48,7 +48,7 @@ def cmd_build(sd: Path) -> None:
 
 
 def _centred_disp(path: Path, bins=None) -> tuple[np.ndarray, np.ndarray]:
-    """A task's 25 Hz displacements (bins, 2P) float32, point-major (point, xy), centred on the session mean (finite
+    """A task's 25 Hz displacements (bins, 2P) float32, point-major (point, xy), centered on the session mean (finite
     bins), and that mean. ``bins``: only these rows (the mean is still the whole session's)."""
     D = npz_memmap(path, "disp")
     n, P = D.shape[0], D.shape[1]
@@ -64,7 +64,7 @@ def _centred_disp(path: Path, bins=None) -> tuple[np.ndarray, np.ndarray]:
 
 
 def build_points_pca(sd: Path, pl: dict, od: Path) -> None:
-    """Frozen-to-be PCA of centred displacements on the plan's pre-stroke bins (equal per animal)."""
+    """Frozen-to-be PCA of centered displacements on the plan's pre-stroke bins (equal per animal)."""
     rows = []
     for _a, per_key in pl["points_fit"].items():
         for key, bins in per_key.items():

@@ -254,8 +254,8 @@ def _strat_mean(by_session, rng):
     state that does not exist.
 
     Conditioning on the sessions instead makes the interval mean: "how well determined is this
-    estimate GIVEN THESE DAYS". It does NOT license generalisation to other days -- that question
-    needs the trajectory, which is what the per-session figure shows rather than summarises.
+    estimate GIVEN THESE DAYS". It does NOT license generalization to other days -- that question
+    needs the trajectory, which is what the per-session figure shows rather than summarizes.
     """
     tot = None
     n = 0
@@ -975,7 +975,7 @@ def fig_reliability_verdict(out_dir, min_trials=10):
                 f"RIGHT: the middle divided by sqrt(rel_post x rel_pre) -- what the correlation "
                 f"would be if both means were measured without noise.\n"
                 f"A drop that SURVIVES the right panel is a code that moved; a drop that "
-                f"DISAPPEARS was a code measured less repeatably. A grey dot = reliability below "
+                f"DISAPPEARS was a code measured less repeatably. A gray dot = reliability below "
                 f"{MIN_REL} on one side, where the ratio is not stable enough to print.\n"
                 f"BOXED cell (right panel) = its 95% cluster-bootstrap interval lies entirely "
                 f"BELOW that animal-and-position's own PRE value: a drop the interval separates "

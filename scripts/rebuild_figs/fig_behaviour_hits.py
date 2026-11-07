@@ -1,10 +1,10 @@
-"""Imaging results page Fig 0.2 (`behaviour_hits_by_spout.png`; also the PI-deck behaviour opener, slide 4):
+"""Imaging results page Fig 0.2 (`behaviour_hits_by_spout.png`; also the PI-deck behavior opener, slide 4):
 hit rate per spout in the CAMERA WORKING PERIOD, by epoch, one open marker per session, cohort 1 (PS92-95); the DAQ
-quit-tail (engaged-gated) hit rate is drawn as the labelled robustness figure `behaviour_hits_by_spout_daq_quittail.png`.
+quit-tail (engaged-gated) hit rate is drawn as the labeled robustness figure `behaviour_hits_by_spout_daq_quittail.png`.
 
 HIT-RATE PERIOD (Priya 11-05, DECISIONS_PENDING_MERGE_2026-11-04 (f) 2; supersedes RECONCILIATION D8 for the hit
 rate): PRIMARY = the camera working period, first cue -> the session's last camera lick, minus the stopped runs; the
-DAQ quit-tail rule is the labelled robustness row. The camera hit rate comes from the run's trial-attempts table
+DAQ quit-tail rule is the labeled robustness row. The camera hit rate comes from the run's trial-attempts table
 (`scripts/trial_attempts.py` under the camera trial gate, `run_mode.attempts_dir()`): column `frac_hit_<pos>` =
 contact trials / working-period trials (`canonical`: every trial not stopped / stopped_licking / early_run / after_end
 / unknown), i.e. Priya's 11-04 camera-class answer 2: numerator = contact, denominator = contact + incomplete +
@@ -25,7 +25,7 @@ Lesion LEFT in all four (asserted), so contralesional = R spouts.
 REBUILD: regenerate cohort_session_metrics.csv (spout_behavior --cohort) if the engagement gate changes (decision D8);
 curated_labels / epoch_of_day come from the configs.
 
-PLOT: one open marker per SESSION (shape = animal, colour = epoch), filled dot + bar beside it = mean of the 4
+PLOT: one open marker per SESSION (shape = animal, color = epoch), filled dot + bar beside it = mean of the 4
 animals' session means +- SEM over animals; no connecting lines, no close / far divider; canonical spout order
 (orofacial_cohort.POS_ORDER).
 OUT: <out>/behaviour_hits_by_spout.png + .csv (camera working period, PRIMARY) and
@@ -55,7 +55,7 @@ NAME_DAQ = NAME + "_daq_quittail"
 CAMERA_COL = "frac_hit_{pos}"
 
 def _src() -> Path:
-    """The behaviour pipeline's cohort table, through the path resolver (behavior_out; read in place)."""
+    """The behavior pipeline's cohort table, through the path resolver (behavior_out; read in place)."""
     from wfield_local import config
     return Path(config.resolver().root("behavior_out")) / "cohort" / "cohort_session_metrics.csv"
 

@@ -22,10 +22,10 @@ no LP verdict (no attempts row / unmatched) is `lp_cov = False` and is excluded 
 Secondary: `lp_any` = any raw LP lick onset in [cue, cue + window] (includes jaw_only-class tongue events).
 
 Trial universe = DAQ cues with a resolved position (classify_cues_with_backup), NOT the imaging-kept subset (coverage
-/ lick-free drops), so the img gate here is the gate on the full behavioural trial list; stated in the results doc.
+/ lick-free drops), so the img gate here is the gate on the full behavioral trial list; stated in the results doc.
 
     python scripts/gate_lp_check.py extract [--jobs 4]     per-session pickles (local cache)
-    python scripts/gate_lp_check.py analyse                tables -> <E>/gate_lp_check/, figdata + figure
+    python scripts/gate_lp_check.py analyze                tables -> <E>/gate_lp_check/, figdata + figure
 """
 from __future__ import annotations
 
@@ -494,7 +494,7 @@ def plot(fd=None):
         axs[0].scatter([], [], marker=MK[a], facecolors="none", edgecolors="k", label=a)
     axs[0].legend(fontsize=6, frameon=False, loc="upper left")
     fig.suptitle("DAQ-contact gate vs LP lick attempts (PS92-95, August pre; open markers = sessions, shape = "
-                 "animal, colour = epoch; bar = boot_ci; stars = boot_delta vs pre; dotted = decision threshold)",
+                 "animal, color = epoch; bar = boot_ci; stars = boot_delta vs pre; dotted = decision threshold)",
                  fontsize=8)
     sig_marks.reserve_headroom(fig)
     fig.tight_layout()

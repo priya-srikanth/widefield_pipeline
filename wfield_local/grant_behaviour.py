@@ -1,4 +1,4 @@
-"""GRANT FIGURES — BEHAVIOUR
+"""GRANT FIGURES — BEHAVIOR
 
 Licking accuracy per spout position, and the pre-stroke decoding capability claim.
 
@@ -296,7 +296,7 @@ def fig_prestroke_decoding_cohort(out_dir):
     """2b: the cohort version of panel 2 -- one bar per window, all four animals.
 
     THE ANIMAL IS THE UNIT. Bar = mean of the four per-animal leave-one-session-out accuracies,
-    error bar = SEM across ANIMALS (n=4), and each animal is drawn as a labelled point. Pooling all
+    error bar = SEM across ANIMALS (n=4), and each animal is drawn as a labeled point. Pooling all
     ~44 held-out sessions into one bar instead would give a far tighter interval that describes how
     much a SESSION varies, not how much an ANIMAL does -- and a cohort claim is a claim about
     animals. With n=4 the SEM is wide, which is honest: it is what four mice support.

@@ -57,7 +57,7 @@ def test_it_reaches_a_module_that_resolves_the_root_directly(unset, monkeypatch,
     from wfield_local import joint_locanmf
     importlib.reload(joint_locanmf)
     assert pathlib.Path(joint_locanmf.BASIS_DIR) == tmp_path / "joint_bases", (
-        "joint_locanmf did not honour the documented override")
+        "joint_locanmf did not honor the documented override")
     monkeypatch.delenv("WIDEFIELD_FIGURES_WORKING")
     importlib.reload(joint_locanmf)
 

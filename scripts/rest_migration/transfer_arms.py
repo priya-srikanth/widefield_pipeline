@@ -233,7 +233,7 @@ def _figure(summary, out_dir, tag=""):
     DRAWN IN RAW ABOVE-CHANCE UNITS throughout, deliberately. The retained ratios are in the CSVs
     and are fine per cell, but a figure invites exactly the cross-direction comparison that the
     ratios cannot support -- see `wfield_local.transfer_matrix`. Plotting the ratios here would
-    reintroduce the artefact that the first version of this analysis published.
+    reintroduce the artifact that the first version of this analysis published.
     """
     import csv as _csv
 

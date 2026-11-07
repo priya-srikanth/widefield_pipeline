@@ -2,7 +2,7 @@
 
 Priya, 2026-09-13: *"do we need time local still? isn't the SVD already locally-corrected"*.
 
-THE QUESTION IS SHARP AND THE PRIOR FAVOURS HER. The production signal removes slow drift with a
+THE QUESTION IS SHARP AND THE PRIOR FAVORS HER. The production signal removes slow drift with a
 zero-phase 0.1 Hz Butterworth (docs/PREPROCESSING_DECISION.md) -- that is a HIGH-PASS at 0.1 Hz,
 which removes everything slower than ~10 s. The time-local baseline bins a 30-60 min session into
 12, so each bin spans 2.5-5 MINUTES. Structure on that timescale is three orders of magnitude below

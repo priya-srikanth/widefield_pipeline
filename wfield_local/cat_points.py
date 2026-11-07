@@ -9,7 +9,7 @@ epoch):
    epochs). An epoch summary is a marker + interval only (`summary_point`). Time-continuous x (ms from cue, lick phase,
    days) keeps its traces; this module is not for those.
 2. Every summary marker carries the SESSION values behind it as faded dots (`session_dots`): OPEN markers, shape =
-   animal (`ANIMAL_MARKER`, Priya 10-27), colour = epoch, alpha ~0.4, a small seeded jitter.
+   animal (`ANIMAL_MARKER`, Priya 10-27), color = epoch, alpha ~0.4, a small seeded jitter.
 3. Epochs within one category sit at clearly separated lateral offsets (`epoch_offsets`, default 0.26 apart for 3
    epochs) so their dots do not overlap.
 
@@ -59,7 +59,7 @@ def animal_marker(animal: str) -> str:
 
 
 def epoch_offsets(n: int, step: float = 0.26) -> np.ndarray:
-    """Lateral offsets for n epochs drawn side by side inside one category (centred on 0)."""
+    """Lateral offsets for n epochs drawn side by side inside one category (centered on 0)."""
     return (np.arange(n) - (n - 1) / 2.0) * step
 
 
@@ -71,7 +71,7 @@ def _jitter(n: int, width: float, seed: int) -> np.ndarray:
 
 def session_dots(ax, x: float, values, animals, color, *, jitter: float = JITTER, alpha: float = SESSION_ALPHA,
                  ms: float = SESSION_MS, seed: int = 0, zorder: float = 1.5) -> None:
-    """Faded OPEN markers for the session values at one category x (shape = animal, colour = the epoch's)."""
+    """Faded OPEN markers for the session values at one category x (shape = animal, color = the epoch's)."""
     v = np.asarray(values, float)
     an = np.asarray(list(animals), dtype=object)
     ok = np.isfinite(v)
@@ -105,7 +105,7 @@ def add_animal_entries(ax, animals, color="0.35") -> None:
 
 
 def animal_handles(animals, color="0.35"):
-    """Legend handles for the session-dot shapes (open, grey)."""
+    """Legend handles for the session-dot shapes (open, gray)."""
     from matplotlib.lines import Line2D
     return [Line2D([], [], ls="none", marker=animal_marker(a), mfc="none", mec=color, mew=0.9, ms=SESSION_MS + 1,
                    label=f"{a} sessions") for a in sorted(animals)]

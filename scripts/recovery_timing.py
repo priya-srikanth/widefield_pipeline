@@ -1,16 +1,16 @@
-"""RECOVERY TIMING, HITS ONLY (Priya 10-25: "how strong is the evidence that cortex recovers at / after behaviour" -> run
+"""RECOVERY TIMING, HITS ONLY (Priya 10-25: "how strong is the evidence that cortex recovers at / after behavior" -> run
 the hits-only test; and "can we predict animals' recovery from cortical activity?").
 
-Per post-stroke SESSION: behaviour = far-contra hit rate, THE Fig 0.2 / 1b rate (Priya 11-06, A21): column
+Per post-stroke SESSION: behavior = far-contra hit rate, THE Fig 0.2 / 1b rate (Priya 11-06, A21): column
 ``frac_hit_far_contra`` of the run's trial_attempts_sessions.csv (`trial_attempts.session_summary`: camera class contact
 / far-contra trials inside the CAMERA WORKING PERIOD -- denominator contact + incomplete + jaw_only + no_response; stopped,
 stopped-licking, early-run, after-end and unknown trials excluded); a table built without the camera gate is refused.
 Before 11-06 the denominator was every far-contra trial_attempts row (no period). Neural =
 frozen-decoder far-contra retention on HITS only (`attempt_coding/decoder_retention_sessions.csv`, sessions with >= 5
-far-contra hits; removes the composition dependence -- failed attempts carry no code). Both normalised within animal to
-its pre-stroke level (behaviour: pre far-contra hit rate; neural: 1 = pre hits by construction).
+far-contra hits; removes the composition dependence -- failed attempts carry no code). Both normalized within animal to
+its pre-stroke level (behavior: pre far-contra hit rate; neural: 1 = pre hits by construction).
 
-  1. per animal x series (aim = PRIMARY behaviour, Priya 11-07; hit rate secondary; code on hits), on the recovered-
+  1. per animal x series (aim = PRIMARY behavior, Priya 11-07; hit rate secondary; code on hits), on the recovered-
      fraction scale z = (x - acute) / (pre - acute) (1 = pre, 0 = the animal's acute epoch mean):
      COMPLETENESS = z by chronic; HALF-RECOVERY RELATIVE TO PRE = the day the exponential fit
      y(d) = a - (a - b) exp(-d / tau) reaches z = 0.5 (fit-free check: first crossing by interpolation between sessions,
@@ -20,13 +20,13 @@ its pre-stroke level (behaviour: pre far-contra hit rate; neural: 1 = pre hits b
      fails, a leave-one-session-out fit fails or never reaches 0.5, or LOO max / min > 10) / few_hits (acute code on hits
      < analysis_kit.MIN_HITS = 20 hits) / no_acute / no_deficit. The headline ``*_half_to_pre`` is NaN unless "ok"; the
      raw fitted day stays in ``*_half_to_pre_fit``. 95 % CI from resampling the post sessions (1000 draws); cortex -
-     behaviour (aim and hit rate) on the half-recovery-to-pre day with its CI.
+     behavior (aim and hit rate) on the half-recovery-to-pre day with its CI.
   2. session-to-session lagged models (post sessions in day order, consecutive pairs within animal; animal fixed effects):
-     behaviour[t] ~ behaviour[t-1] + neural[t-1]   (does cortex predict the NEXT session's behaviour beyond behaviour?)
-     neural[t]    ~ neural[t-1] + behaviour[t-1]   (does behaviour predict the next session's cortex beyond cortex?)
+     behavior[t] ~ behavior[t-1] + neural[t-1]   (does cortex predict the NEXT session's behavior beyond behavior?)
+     neural[t]    ~ neural[t-1] + behavior[t-1]   (does behavior predict the next session's cortex beyond cortex?)
      OLS with animal dummies, cluster-robust SE by animal is meaningless at n = 4, so a session-level bootstrap within
      animal is used for the CIs. With 4 animals, between-animal prediction (who recovers fastest) is descriptive only.
-Caveat: acute sessions often have < 5 far-contra hits, so the neural series starts later than the behavioural one.
+Caveat: acute sessions often have < 5 far-contra hits, so the neural series starts later than the behavioral one.
 
 Usage: python scripts/recovery_timing.py [--window lick]
        python scripts/recovery_timing.py --aim [--plot-only]   (Fig 0.12 + far-contra AIM panel, 10-30 -> figures/
@@ -316,7 +316,7 @@ def half_lines(r, sep: str = " | ") -> str:
 
 
 def diff_line(r, b: str) -> str:
-    """cortex - behaviour on the half-recovery-to-pre day, with its CI, or 'unresolved'."""
+    """cortex - behavior on the half-recovery-to-pre day, with its CI, or 'unresolved'."""
     nm = "aim" if b == "aim" else "hit"
     v = r.get(f"neural_minus_{b}", np.nan)
     if not np.isfinite(v):
@@ -333,7 +333,7 @@ def _aim_by_label() -> pd.DataFrame | None:
 
 
 def halftime_bootstrap(S: pd.DataFrame, Sm: pd.DataFrame, PA: pd.DataFrame, rng, n: int = 1000) -> pd.DataFrame:
-    """95 % CI of each series' half-recovery-to-pre day and of cortex - behaviour (aim primary, hit rate secondary)
+    """95 % CI of each series' half-recovery-to-pre day and of cortex - behavior (aim primary, hit rate secondary)
     from resampling each animal's post sessions (the pre-11-07 session bootstrap of this script, same draw sequence;
     acute references held fixed). Draws whose fit never reaches 0.5 are dropped; *_boot_share_reached = the share
     that did. Not an analysis_kit primitive (none resamples a per-animal fit); the LOO range in PA is the
@@ -367,7 +367,7 @@ def halftime_bootstrap(S: pd.DataFrame, Sm: pd.DataFrame, PA: pd.DataFrame, rng,
                   "n_post_sessions": len(g), "n_neural_sessions": int(np.isfinite(g.neu).sum())})
         rows.append(r)
     H = PA.merge(pd.DataFrame(rows), on="animal")
-    print("== per animal: half-recovery-to-pre day, 95% CI from resampling post sessions; cortex - behaviour on that day")
+    print("== per animal: half-recovery-to-pre day, 95% CI from resampling post sessions; cortex - behavior on that day")
     print(H[["animal"] + [c for c in H if "boot" in c or c.startswith(("neural_minus", "share_"))]].round(2)
           .to_string(index=False))
     return H
@@ -436,7 +436,7 @@ def main(argv=None) -> int:
 # measures in separate panels; top spine hidden (sig_marks.reserve_headroom).
 MEAS_LABEL = {"aim": "far-contra first-lick aim,\nchange vs own pre (deg)\n+ = contralesional",
               "beh": "far-contra hit rate / pre", "neu": "cortex: far-contra frozen\ncode on hits / pre",
-              "gap": "gap: cortex - behaviour"}
+              "gap": "gap: cortex - behavior"}
 MEAS_REF = {"aim": 0.0, "beh": 1.0, "neu": 1.0, "gap": 0.0}
 
 
@@ -461,7 +461,7 @@ def _epoch_runs(T: pd.DataFrame):
 
 
 def _session_points(ax, P: pd.DataFrame, col: str, lines: bool = False) -> None:
-    """Open markers per session (shape = animal, colour = epoch); optional thin per-animal lines within an epoch."""
+    """Open markers per session (shape = animal, color = epoch); optional thin per-animal lines within an epoch."""
     from wfield_local import cat_points as cp
     P = P[np.isfinite(P[col].to_numpy(float))].sort_values(["animal", "day"])
     for an, g in P.groupby("animal"):
@@ -473,7 +473,7 @@ def _session_points(ax, P: pd.DataFrame, col: str, lines: bool = False) -> None:
 
 
 def _bin_means(ax, T: pd.DataFrame) -> None:
-    """Pooled day-bin means: filled markers + CI band coloured by the bin's epoch, joined only within an epoch."""
+    """Pooled day-bin means: filled markers + CI band colored by the bin's epoch, joined only within an epoch."""
     T = T.sort_values("x")
     for ep, run in _epoch_runs(T):
         c = _ecol(ep)
@@ -502,7 +502,7 @@ def _tidy_axes(fig) -> None:
 
 def per_animal_figure(Sm: pd.DataFrame, H: pd.DataFrame, window: str, plt) -> None:
     """Per animal (columns) x measure (rows: aim PRIMARY, hit rate, code on hits): session points (open, shape =
-    animal, colour = epoch, lines within an epoch only) + the per-series half-recovery-to-pre / completeness / flag."""
+    animal, color = epoch, lines within an epoch only) + the per-series half-recovery-to-pre / completeness / flag."""
     rows = [m for m, _l, _p in SERIES if m in Sm]
     fig, axs = plt.subplots(len(rows), 4, figsize=(17, 2.9 * len(rows) + 1.6), sharex=True, sharey="row", squeeze=False)
     for k, an in enumerate(AN):
@@ -524,7 +524,7 @@ def per_animal_figure(Sm: pd.DataFrame, H: pd.DataFrame, window: str, plt) -> No
                 ax.set_xlabel("days from stroke")
     _tidy_axes(fig)
     _conv_legend(fig, AN, [e for e in EP4 if (Sm.epoch == e).any()], loc="lower center", ncol=8, fontsize=8.5)
-    fig.suptitle(f"Recovery timing per animal ({window} window): aim (PRIMARY behaviour), far-contra hit rate (secondary), "
+    fig.suptitle(f"Recovery timing per animal ({window} window): aim (PRIMARY behavior), far-contra hit rate (secondary), "
                  "frozen far-contra code on HITS\n" + DATA_HIT + "\nTitles: half-recovery RELATIVE TO PRE = day the "
                  "exponential fit gets half-way from the acute level back to pre;\n% = completeness (recovered fraction "
                  "of the acute deficit by chronic); 'unresolved' = fit flag not ok; code on hits needs >= "
@@ -566,15 +566,15 @@ def _hit_gated(g: pd.DataFrame, m: str) -> np.ndarray:
 
 
 def pooled_figures(S: pd.DataFrame, window: str, plt) -> None:
-    """POOLED ACROSS ANIMALS (Priya 10-25): per-animal-normalised behaviour and cortex (hits) (a) by day bin and (b) by
-    epoch with one dot per session, plus the per-session GAP cortex - behaviour (does behaviour recover more than cortex?)."""
+    """POOLED ACROSS ANIMALS (Priya 10-25): per-animal-normalized behavior and cortex (hits) (a) by day bin and (b) by
+    epoch with one dot per session, plus the per-session GAP cortex - behavior (does behavior recover more than cortex?)."""
     from matplotlib.lines import Line2D
 
     from wfield_local import analysis_kit as ak
     rng = np.random.default_rng(0)
     S = S.copy()
     S["gap"] = S.neu - S.beh
-    MEAS = [("beh", "behaviour: far-contra hit rate", "0.25"), ("neu", "cortex: far-contra code on hits", "#c0392b")]
+    MEAS = [("beh", "behavior: far-contra hit rate", "0.25"), ("neu", "cortex: far-contra code on hits", "#c0392b")]
     # (a) by day bin
     rows = []
     for lo, hi in DAY_BINS:
@@ -600,14 +600,14 @@ def pooled_figures(S: pd.DataFrame, window: str, plt) -> None:
     _tidy_axes(fig)
     _conv_legend(fig, AN, [e for e in EP4 if (S.epoch == e).any()], loc="lower center", ncol=8, fontsize=8.5)
     fig.suptitle(f"Recovery, pooled across animals ({window} window, hits only for cortex): open = sessions (shape = "
-                 "animal, colour = epoch);\nfilled = mean of animals per day bin, band = 95% CI (animals > sessions)\n"
+                 "animal, color = epoch);\nfilled = mean of animals per day bin, band = 95% CI (animals > sessions)\n"
                  + DATA_HIT, fontsize=9.5)
     fig.tight_layout(rect=(0, 0.05, 1, 0.91))
     save_png_svg(fig, A / "figures" / f"recovery_timing_pooled_day_{window}.png", dpi=120)
     plt.close(fig)
 
     # (b) by epoch, one dot per session; change vs pre (boot_delta); the gap panel
-    PAN = MEAS + [("gap", "gap: cortex - behaviour", "#2471a3")]
+    PAN = MEAS + [("gap", "gap: cortex - behavior", "#2471a3")]
     MK = {"PS92": "o", "PS93": "s", "PS94": "^", "PS95": "D"}
     fig, axs = plt.subplots(1, 3, figsize=(15, 4.6))
     tst = []
@@ -664,9 +664,9 @@ def pooled_figures(S: pd.DataFrame, window: str, plt) -> None:
     Tt.to_csv(A / f"recovery_timing_pooled_epoch_{window}.csv", index=False)
     print("== pooled by epoch: change vs pre (nested bootstrap animals > sessions)\n" + Tt.round(3).to_string(index=False))
     _tidy_axes(fig)
-    _conv_legend(fig, AN, EP4, [Line2D([], [], ls="none", marker="o", color="0.3", ms=7, label="mean of animals +- SEM (epoch colour)")], loc="lower center",
+    _conv_legend(fig, AN, EP4, [Line2D([], [], ls="none", marker="o", color="0.3", ms=7, label="mean of animals +- SEM (epoch color)")], loc="lower center",
                  ncol=9, fontsize=8.5)
-    fig.suptitle(f"Recovery by epoch, one dot per session, normalised within animal ({window} window; cortex = hits only). "
+    fig.suptitle(f"Recovery by epoch, one dot per session, normalized within animal ({window} window; cortex = hits only). "
                  "Numbers = change vs pre, 95% nested CI (bold = excludes 0)\ncortex: sessions with >= 5 hits, and an "
                  f"animal x epoch needs >= {ak.MIN_HITS} hits summed (else {ak.HIT_GATE_NA})\n"
                  + DATA_HIT,
@@ -695,7 +695,7 @@ def aim_compute(window: str) -> dict:
     """Fig 0.12 + AIM (Priya 10-30: "can 0.12 include the far contra lick angle index?"). Panel 1 = the existing pooled
     day-bin figure (hit rate / pre, code on hits / pre; same rng order, so it reproduces recovery_timing_pooled_day);
     panel 2 = far-contra aim change vs own pre (deg) by the same day bins, per-animal + animal-weighted mean + 95% CI.
-    Also per animal (`per_animal_recovery`; aim = PRIMARY behaviour, Priya 11-07): acute / subacute / chronic means,
+    Also per animal (`per_animal_recovery`; aim = PRIMARY behavior, Priya 11-07): acute / subacute / chronic means,
     recovered fraction of the acute deficit (x - acute) / (pre - acute) per measure (code on hits NaN below
     analysis_kit.MIN_HITS hits per animal x epoch), and half-recovery RELATIVE TO PRE (fit + interpolation) with its
     fit-quality flag and LOO range; the old tau ln 2 survives only as ``*_t_to_own_plateau_half``."""
@@ -744,7 +744,7 @@ def aim_draw(F: dict) -> None:
     # hit rate (secondary) -> B; code on hits -> C. Conventions as per_animal_figure (11-07).
     PAN = [("aim", "A  PRIMARY: far-contra aim, first post-cue lick, 3-D angle minus the animal's pre mean "
                    "(- = shifted ipsilesional)"),
-           ("beh", "B  far-contra hit rate (secondary behaviour measure)"),
+           ("beh", "B  far-contra hit rate (secondary behavior measure)"),
            ("neu", "C  frozen decoder far-contra code on hits")]
     fig, axs = plt.subplots(3, 1, figsize=(11.5, 10.5), sharex=True)
     for ax, (m, ttl) in zip(axs, PAN):
@@ -771,7 +771,7 @@ def aim_draw(F: dict) -> None:
         txt += [f"{r.animal}: {half_lines(r)}" for _, r in PA.iterrows()]
         fig.text(0.01, 0.005, "\n".join(txt), fontsize=7.2, va="bottom", ha="left", family="monospace")
     fig.suptitle(f"Recovery pooled across animals by day bin ({window} window; cortex = hits only): open = sessions "
-                 "(shape = animal, colour = epoch),\nfilled = mean of animals, band = 95% CI (animals > sessions). "
+                 "(shape = animal, color = epoch),\nfilled = mean of animals, band = 95% CI (animals > sessions). "
                  "n = 4, PROVISIONAL\n" + DATA_HIT, fontsize=9.5)
     fig.tight_layout(rect=(0, 0.145, 1, 0.94))
     out = A / "figures" / f"recovery_timing_pooled_day_{window}_aim.png"

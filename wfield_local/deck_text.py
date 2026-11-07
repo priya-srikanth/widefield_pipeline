@@ -51,11 +51,11 @@ TRIALS_LICK = (
     "used here.")
 TRIALS_NOLICK = (
     "TRIALS: no-lick only -- trials with NO detected lick in the response window. Absence of a "
-    "detection, not a judgement about engagement.")
+    "detection, not a judgment about engagement.")
 TRIALS_WORKING = (
     "TRIALS: lick + miss-while-working. The no-lick trials are split by the ENGAGEMENT GATE "
     "(judged at the reference positions close_L/close_center, backdated to the first miss of the "
-    "run that trips it); 'stopped' trials are analysed as their own class, not discarded.")
+    "run that trips it); 'stopped' trials are analyzed as their own class, not discarded.")
 TRIALS_BEHAVIOUR = (
     "TRIALS: all scored trials, with disengaged trials REMOVED from the denominator by the "
     "engagement gate (reference positions only, backdated to the first miss of the run).")
@@ -65,7 +65,7 @@ S_G1B = (
     "READ THE DENOMINATOR FIRST. A position with zero engaged trials has no lick-only decoding "
     "number at all -- not a low one. PS94 8/20 has ZERO engaged far_R and 17 far_center against ~70 "
     "elsewhere; PS93 is at 8-10 far_R; PS92 reached 4 by 8/21. FALSIFIER: if the no-lick bars were "
-    "also near zero, the position stopped being PRESENTED and this is a task artefact. They are not "
+    "also near zero, the position stopped being PRESENTED and this is a task artifact. They are not "
     "-- the spout still moves there every trial -- so this is the animal declining, which is the "
     "phenotype the rest of section G is trying to explain.")
 
@@ -100,8 +100,8 @@ S_G7 = (
     "effects appeared here too, they would be attributable to the procedure rather than the lesion.")
 
 S_G8E = (
-    "Raw fluorescence, no lick split -- so this is independent of every behavioural gate elsewhere in "
-    "the section. That independence is the point: if the decoding results were an artefact of which "
+    "Raw fluorescence, no lick split -- so this is independent of every behavioral gate elsewhere in "
+    "the section. That independence is the point: if the decoding results were an artifact of which "
     "trials survive the engaged cut, this panel would not show anything.")
 
 S_G9 = (
@@ -114,7 +114,7 @@ S_G9 = (
 S_DRIFT = (
     "THE ONE THING TO CARRY OUT OF THIS SLIDE: every pre-cue number in this deck is ~72% of what a "
     "pre-14-Aug-2026 figure would have shown, and that is the CORRECTED value. Do not reconcile "
-    "against older slides -- they are the artefact. FALSIFIER APPLIED: the acausal filter's shadow "
+    "against older slides -- they are the artifact. FALSIFIER APPLIED: the acausal filter's shadow "
     "predicts pre-cue ANTI-correlated with post-cue; that was true in 30/36 sessions before the fix "
     "and 2/36 after. What survives is real -- significant in 35/36 sessions, PS92 0.225 to PS94 "
     "0.500, against an empirical null of 0.137-0.147 by block-label permutation, NOT 1/6.")
@@ -242,7 +242,7 @@ S_NOLICK_C = (
     "AGREEMENT BETWEEN BASES IS THE POINT, not which basis wins. ROI is atlas-anchored and poolable "
     "across days; joint LocaNMF retains ~98% of the pixel map against ROI's 64.5%. They answer the "
     "same question through different features, so a result present in ONE of them is a basis "
-    "artefact and must not be reported. Both bases agreeing is what licensed the no-lick "
+    "artifact and must not be reported. Both bases agreeing is what licensed the no-lick "
     "conclusion.")
 
 S_XMOUSE = (
@@ -301,12 +301,12 @@ S_G0 = (
     "enough to leave no overt deficit (Priya, 2026-08-18).")
 
 S_G1 = (
-    "BEHAVIOUR FIRST, because most of Section G is only interpretable against it. The lesion marker "
+    "BEHAVIOR FIRST, because most of Section G is only interpretable against it. The lesion marker "
     "is the axis every later comparison is anchored to, and the response-rate collapse is "
     "POSITION-SPECIFIC in the animals with overt deficits -- that specificity is what separates a "
     "lesion effect from a bad night. LASER POWER DOES NOT PREDICT MAGNITUDE: PS94 at the lowest dose "
     "(3 mW) has the largest post-cue deficit, PS93 at the highest (5.5 mW) one of the smallest. "
-    "Behavioural severity tracks the neural effect; dose does not (DECISIONS 2026-08-19).")
+    "Behavioral severity tracks the neural effect; dose does not (DECISIONS 2026-08-19).")
 
 S_G2B = (
     "PER-POSITION RECALL NEEDS ITS COLUMN BASELINE, which is printed under each column. The frozen "
@@ -332,9 +332,9 @@ S_G4B = (
     "for: a softmax decoder is at its most confident where it has no business being.")
 
 S_G6 = (
-    "THE SPLIT IS PER SESSION, because 'still attempts this position' is a behavioural state that "
+    "THE SPLIT IS PER SESSION, because 'still attempts this position' is a behavioral state that "
     "changes overnight -- PS95 far_R is 1/120 on 8/17 and 88/112 on 8/18. A trial is therefore "
-    "labelled by what the animal was doing THAT night, not by an animal-level verdict. READ THE "
+    "labeled by what the animal was doing THAT night, not by an animal-level verdict. READ THE "
     "PRESERVED ARM AS THE CONTROL: if the decoder cannot read a position from a no-lick trial even "
     "where the animal is working that position, then 'no lick -> no code' is a property of no-lick "
     "trials in general and says nothing about the lesion. That arm is thin per session -- PS95 8/17 "
@@ -344,8 +344,8 @@ S_G7B = (
     "THE PREMISE OF THE WHOLE SMALL-LESION ARM: all six positions still attempted. If that fails, "
     "every G7 comparison collapses into the same denominator problem as G1b and the neural "
     "comparison stops being like-for-like -- so check this slide before reading G7c or G7d. These "
-    "animals control for the DAY and the PROCEDURE (same rig, anaesthesia, handling, preprocessing, "
-    "frozen decoder), and an 8/17 artefact would have hit all four and did not. They CANNOT show "
+    "animals control for the DAY and the PROCEDURE (same rig, anesthesia, handling, preprocessing, "
+    "frozen decoder), and an 8/17 artifact would have hit all four and did not. They CANNOT show "
     "that a lesion is necessary for an effect.")
 
 S_G7C = (
@@ -426,16 +426,16 @@ S_G8B = (
     "out to be spatial BROADENING rather than a stronger response.")
 
 S_G8C = (
-    "THE ONE PERFUSION-DIRECT MEASURE IN THIS DECK. Vessels appear dark because haemoglobin absorbs, "
+    "THE ONE PERFUSION-DIRECT MEASURE IN THIS DECK. Vessels appear dark because hemoglobin absorbs, "
     "so their contrast against the surrounding cortex reads out how much blood sits in the light "
     "path: fainter vessels mean less absorption, i.e. less blood. Crucially it does NOT depend on "
     "knowing the sign of the evoked 415 response, which is what forced the G8 retraction. "
-    "GAIN-INVARIANT by construction -- contrast is normalised by the hemisphere's own median -- so "
+    "GAIN-INVARIANT by construction -- contrast is normalized by the hemisphere's own median -- so "
     "an exposure or LED change cannot manufacture an effect. Priya's observation, 2026-08-18: the "
     "vessels look fainter post-stroke.")
 
 S_G8D = (
-    "COMMON COLOUR SCALE, and that is the entire point: the per-session maps elsewhere set their "
+    "COMMON COLOR SCALE, and that is the entire point: the per-session maps elsewhere set their "
     "limits from each session's OWN percentile. PS94 is +/-0.02425 on 8/14 and +/-0.08854 on 8/17, "
     "a factor of 3.65 -- on 8/17's range the whole of 8/14's negative range renders near white, so "
     "'the post-stroke map lost its blue' is the SCALE, not the biology (DECISIONS 2026-08-22). The "
@@ -638,7 +638,7 @@ M_NOLICK = (
     "NO-DETECTED-LICK REFERENCE (wfield_local.nolick_decoder / nolick_analysis). Trained on ENGAGED "
     "trials (first detected lick within 2 s of the cue) and applied, frozen, to trials without one. "
     "Purpose: post-stroke a failed trial can mean the plan was never formed OR that it was formed "
-    "and the movement failed, and the behaviour log cannot tell those apart. They make opposite "
+    "and the movement failed, and the behavior log cannot tell those apart. They make opposite "
     "predictions here -- plan-intact keeps the PRE-cue code while the POST-cue code collapses, "
     "because post-cue decoding is largely driven by the lick itself. "
     "\n\nTHREE ARMS, NOT TWO, AND ALL THREE BOUNDED BY THE RESPONSE WINDOW. 'engaged' = a lick "
@@ -682,7 +682,7 @@ M_HEMI = (
     "channel, meant to carry the optical component without calcium, so only the ratio of "
     "ratios (470 L/R)/(415 L/R) is GCaMP-specific."
     "\n\nTHE PERFUSION DIRECTION IS UNRESOLVED, and an earlier version of this note "
-    "asserted it wrongly (Priya challenged it, 2026-08-18). It argued that haemoglobin "
+    "asserted it wrongly (Priya challenged it, 2026-08-18). It argued that hemoglobin "
     "absorbs, so more blood means less light, so a 415 RISE meant hypoperfusion. Measured "
     "here that is backwards: cue-triggered averages of the RAW violet trace RISE in all four "
     "animals (+0.54 to +1.96%), tracking the blue positive control (+2.31 to +3.69%) at about "
@@ -732,7 +732,7 @@ M_HEMIDYN = (
     "\n\nGREY POINTS ARE PS92/PS93 8/17 — SMALL strokes with no overt deficit. They are "
     "NOT a no-lesion control: the 8/16 laser did lesion them (Priya, 2026-08-18, correcting an "
     "earlier claim of mine). What they DO control for is the recording DAY — same rig, "
-    "anaesthesia, handling, preprocessing and frozen decoder — so an artefact of 8/17 would "
+    "anesthesia, handling, preprocessing and frozen decoder — so an artifact of 8/17 would "
     "have hit all four animals. They also give a LESION-SEVERITY contrast. What they cannot show "
     "is that a lesion is NECESSARY for an effect: a null in a small-stroke animal is equally "
     "consistent with small stroke, small effect."
@@ -741,7 +741,7 @@ M_HEMIDYN = (
     "approximate; where they disagree the ROI answer is the conservative one.")
 
 M_VESSEL = (
-    "SURFACE VESSEL CONTRAST (wfield_local.vessel_contrast). Vessels image DARK because haemoglobin "
+    "SURFACE VESSEL CONTRAST (wfield_local.vessel_contrast). Vessels image DARK because hemoglobin "
     "absorbs, so their contrast against surrounding cortex is an optical readout of blood in the light "
     "path: fainter vessels mean less blood. Measured on the session mean image as the depth of dark "
     "structure against a blurred background (90th percentile, plus the mean as a total-energy "
@@ -762,7 +762,7 @@ M_VESSEL = (
     "imaged field. A null in this measure is weak evidence about perfusion at the lesion, and it would "
     "be wrong to read it as showing that striatal perfusion is intact."
     "\n\nSANITY CHECK, and it fails in 11 of 65 sessions. 415 nm should show MORE vessel contrast "
-    "than 470 because haemoglobin absorbs far more strongly there. The failures cluster in PS92 (6) and "
+    "than 470 because hemoglobin absorbs far more strongly there. The failures cluster in PS92 (6) and "
     "PS93 (4) rather than scattering, which points at something systematic in those animals' windows. "
     "Every PS94 and PS95 session passes, including both 8/17 sessions, so the numbers quoted above are "
     "not affected -- but PS93_0817 fails, so its small-lesion value should not be read."
@@ -772,20 +772,20 @@ M_VESSEL = (
 
 M_FIXEDSCALE = (
     _M_LICK_UNIT +
-    "PRE- vs POST-STROKE ACTIVITY MAPS ON ONE COMMON COLOUR SCALE (wfield_local.fixed_scale_maps). "
+    "PRE- vs POST-STROKE ACTIVITY MAPS ON ONE COMMON COLOR SCALE (wfield_local.fixed_scale_maps). "
     "Built to answer Priya directly: the preprocessing decks show much larger amplitude bars post-stroke, and the question was whether any existing figure bears that out. None does, and one "
     "actively hides it."
-    "\n\nWHY THE STANDARD MAPS CANNOT SHOW IT. plot_spout_trial_averages sets its colour limit from a percentile of THAT SESSION's own maps, so every session is renormalised to fill the same "
-    "colour range. A session whose responses are three times larger looks identical -- only the "
+    "\n\nWHY THE STANDARD MAPS CANNOT SHOW IT. plot_spout_trial_averages sets its color limit from a percentile of THAT SESSION's own maps, so every session is renormalized to fill the same "
+    "color range. A session whose responses are three times larger looks identical -- only the "
     "number on the colourbar changes. That is the right default for reading one session's spatial "
     "pattern and exactly wrong for comparing amplitude across sessions, which is why the "
     "observation had to be made by reading colourbar numbers. Here every panel in a figure shares "
     "one symmetric vmin/vmax computed across ALL panels, so a 2-3x amplitude difference appears as "
-    "a 2-3x difference in colour saturation."
+    "a 2-3x difference in color saturation."
     "\n\nMETHOD. Maps are reconstructed on the ATLAS grid (U_atlas @ window-mean SVT), so pixels are comparable across sessions and animals, and the window is the same one the decoders use. "
     "Minimum 8 trials per position. NO z-scoring anywhere in this figure -- z-scoring is what would "
     "destroy the amplitude comparison it exists to make. Post-stroke sessions use ALL trials."
-    "\n\nTHE dF/F DENOMINATOR WAS CHECKED FIRST, because a figure that dramatises an artefact is worse than no figure. Baseline F is unchanged post-stroke (PS94 pre/post ratio 1.01, PS95 1.02, "
+    "\n\nTHE dF/F DENOMINATOR WAS CHECKED FIRST, because a figure that dramatises an artifact is worse than no figure. Baseline F is unchanged post-stroke (PS94 pre/post ratio 1.01, PS95 1.02, "
     "PS92 0.99), so the rise is in the numerator, not the denominator."
     "\n\nWHAT THE MAPS ACTUALLY SHOW, AND IT IS NOT WHAT THE SUMMED MEASURE SAID. PS94 PEAK amplitude rises only at close_L (0.039 -> 0.073) and close_center (0.029 -> 0.055), is flat at "
     "close_R, and FALLS at the far positions (far_center 0.018 -> 0.008) -- the positions the animal "
@@ -793,7 +793,7 @@ M_FIXEDSCALE = (
     "1.070) while its peak stayed flat (0.019 -> 0.017). Those reconcile only one way: the response "
     "became spatially BROADER, not stronger. Read this figure as the evidence for SPREAD; read G8e "
     "for the decomposition."
-    "\n\nCAVEAT. LED power is set by hand daily, so absolute pixel values carry a session confound that this figure deliberately does NOT normalise away. It is here to make the raw "
+    "\n\nCAVEAT. LED power is set by hand daily, so absolute pixel values carry a session confound that this figure deliberately does NOT normalize away. It is here to make the raw "
     "comparison visible and honest, not to settle it; the scale-free measures in G8e do that.")
 
 M_EVOKED = (
@@ -808,7 +808,7 @@ M_EVOKED = (
     "homotopic pair. Only ABSOLUTE carries the baseline confound: the signal is a deviation from the "
     "session's own mean and LED power is set by hand daily, so a rise can be a larger response OR a "
     "smaller baseline. SHARE and R-L are scale-free. The R-L index validates on pre-stroke data, "
-    "giving +0.44 at close_L and -0.81 at close_R in PS94 -- clean contralateral organisation. Post "
+    "giving +0.44 at close_L and -0.81 at close_R in PS94 -- clean contralateral organization. Post "
     "arm = ALL trials; reference = the CURATED pre-stroke set only."
     "\n\nTHE HEADLINE THIS SLIDE USED TO CARRY WAS FALSE, and the way it was false matters. It read "
     "AMPLITUDE RISES IN ALL FOUR ANIMALS, GRADED BY SEVERITY. PS92 and PS93 had contributed NO "
@@ -821,7 +821,7 @@ M_EVOKED = (
     "and far_R falls in all four animals on day 1 (z = -2.4 PS92, -2.1 PS93, -1.3 PS94, -4.7 PS95). "
     "The far positions are the ones the animals stop reaching, so part of this is trial composition "
     "on the all-trials arm rather than a change in the response to a given movement -- PS95's far_R "
-    "goes 0.086 with one lick trial on 8/17 to 0.643 with 84 on 8/18, tracking the behaviour exactly. "
+    "goes 0.086 with one lick trial on 8/17 to 0.643 with 84 on 8/18, tracking the behavior exactly. "
     "Read it as amplitude COVARYING WITH ATTEMPT, not as a lesion effect on the sensory response."
     "\n\nAND THE SUMMED MEASURE CONFLATES AMPLITUDE WITH SPATIAL EXTENT. G8d's common-scale maps "
     "separate them: PS94 PEAK amplitude rises only at close_L (0.039 -> 0.073) and close_center "
@@ -877,7 +877,7 @@ M_SPATIAL = (
     "positions it still licks at (PS94 has four), so scoring it against a band computed over six "
     "would compare a mean over one pair set with a mean over another. That is a different quantity, "
     "not a smaller one, and it is the same error class as the decoding arms' chance level moving "
-    "with behaviour. Corrected 2026-08-19; the pre-session matrices are stored, so the matched band "
+    "with behavior. Corrected 2026-08-19; the pre-session matrices are stored, so the matched band "
     "follows from them exactly."
     "\n\nRESULT 1: POST-CUE GEOMETRY CONVERGES IN THREE OF FOUR. All-trials arm, day 1 after an "
     "effective lesion: PS92 z=-3.3, PS93 -2.3, PS94 -3.0, all below their own pre-stroke minimum; "
@@ -887,7 +887,7 @@ M_SPATIAL = (
     "together rather than picking one."
     "\n\nRESULT 2, AND IT QUALIFIES THE HEADLINE: PS94's PRE-CUE GEOMETRY IS ALSO DEGRADED. "
     "PS94 pre-cue z=-3.7 on 8/17 and -5.5 on 8/18, and this SURVIVES the lick-only arm almost "
-    "unchanged (-3.2, -5.4) -- so it is not an artefact of folding heterogeneous no-lick trials into "
+    "unchanged (-3.2, -5.4) -- so it is not an artifact of folding heterogeneous no-lick trials into "
     "a within-position covariance estimate, which was the obvious explanation and was tested for "
     "exactly this reason. The other three animals' pre-cue geometry stays inside the band (PS92 "
     "-0.1, PS93 -1.2, PS95 +0.2/+0.5)."
@@ -952,15 +952,15 @@ M_RECODING = (
     "between-animal comparison, and it exists only because the excluded sessions were kept analysable "
     "instead of discarded."
     "\n\nDAY 2 SEPARATES THE ANIMALS. PS94 loses the plan as well (pre-cue z=-3.4, post-cue z=-12.1) "
-    "while PS95 returns fully inside the band (+2.1, +1.3) alongside a behavioural recovery of the far "
+    "while PS95 returns fully inside the band (+2.1, +1.3) alongside a behavioral recovery of the far "
     "positions (far_center 10 -> 99 trials, far_R 1 -> 84). Deterioration versus recovery, tracking "
-    "the behaviour in both cases."
+    "the behavior in both cases."
     "\n\nLASER POWER DOES NOT PREDICT MAGNITUDE. PS94 at the LOWEST dose (3 mW) has the largest "
-    "post-cue deficit (z=-7.1) and PS93 at the highest (5.5 mW) has -3.6. Behavioural severity tracks "
+    "post-cue deficit (z=-7.1) and PS93 at the highest (5.5 mW) has -3.6. Behavioral severity tracks "
     "the effect; dose does not. PS93 was flagged in advance as the dose test and came out negative."
     "\n\nTHE ALL-TRIALS ARM IS THE ONE TO READ ACROSS SESSIONS. Its position set is fixed at six, so "
     "chance is fixed at 1/6. The LICK-ONLY arm uses each session's preserved positions, which change "
-    "with behaviour -- PS95 has 4 on 8/17 and 6 on 8/18 -- so its numbers carry different chance "
+    "with behavior -- PS95 has 4 on 8/17 and 6 on 8/18 -- so its numbers carry different chance "
     "levels and CANNOT be laid side by side. Both arms are reported because their DIFFERENCE separates "
     "a degraded code from a code that is fine whenever the animal manages to lick."
     "\n\nEARLIER VERSIONS OF THIS NOTE WERE WRONG and the corrections are recorded in DECISIONS.md "
@@ -980,7 +980,7 @@ M_CODING_DIR = (
     "component PER MOMENT in the window. For each spout position P it is fitted on PRE-STROKE "
     "trials WITH A SUCCESSFUL LICK, P against the other five, in the SHARED joint-LocaNMF basis "
     "(fixed footprints; post-stroke sessions are projected, never refitted). It is a CONTRAST: "
-    "without the comparison there is no axis.\n\nREPORTED AS A LINEAR PROJECTION, pole-normalised "
+    "without the comparison there is no axis.\n\nREPORTED AS A LINEAR PROJECTION, pole-normalized "
     "so 0 = pre-stroke not-this-position and 1 = pre-stroke lick here. NOT a probability: a sigmoid "
     "saturates, these directions are strong (AUC up to 0.98), so degradation measured from a "
     "saturated reference is understated and unevenly so between positions of different "
@@ -1017,7 +1017,7 @@ M_CODING_DIR = (
     "AND IS NOT DRIVING THIS. The projection is unbounded, so a trial sitting further from its "
     "session's engaged centroid scores higher whether or not its ANGLE to the direction changed -- "
     "and the two are not independent, since moving further out ALONG the direction raises both. "
-    "Re-projecting UNIT-NORMALISED trials (cos(x,w), blind to magnitude, sensitive only to "
+    "Re-projecting UNIT-NORMALIZED trials (cos(x,w), blind to magnitude, sensitive only to "
     "direction) leaves the picture intact: per-cell shifts are at most 0.15 in PS93/PS94/PS95, and "
     "the cell-to-cell pattern is preserved at r=+0.86 to +1.00 in every animal. PS92's far_center "
     "outlier moves 2.12 -> 1.75, so magnitude contributes about a third of its excess over 1.0 and "
@@ -1074,8 +1074,8 @@ M_POSTSTROKE = (
     "misdirected lick registers as nothing -- PS93's pre-existing rightward bias already produces "
     "exactly this pre-stroke at far_L. Every no-lick conclusion here is provisional on DLC/facial "
     "tracking, which replaces the inference with a measurement. In a severe stroke, spout contact may "
-    "not be a usable behavioural readout at all. "
-    "\n\nTHE NO-LICK ARM USED TO CONTAIN REWARDED HITS; FIXED 2026-08-21. _trial_features split on decode.max_rt_s = 2.0 s while the task's response window is 3.5 s, so a lick at 2.5 s was a HIT by the task's own scoring that every imaging analysis filed under 'no lick'. That contamination was 9.7% of PS94's no-lick arm and 4.7% of PS95's, but 39.3% for PS92 and 33.9% for PS93. This note previously warned that the slides must be rebuilt when PS92/PS93 re-entered as post-stroke animals or they would report a late-lick effect as a no-lick effect; they re-entered on 8/18, and the fix taken was to move the cut itself -- decode.max_rt_s is now 3.5 s, so 'engaged' means the same thing here as in the behaviour pipeline's hit/miss. EVERY NUMBER COMPUTED BEFORE THAT CHANGE USED THE 2.0 s CUT. nolick_decoder keeps its own 2.0 s boundary so the three-arm split stays available: the late-vs-undetected distinction is a real result, and on PS93 8/12 the entire pre-cue survival sat in the LATE arm (balanced 0.532, p=0.003) while undetected showed nothing (0.153, p=0.76). "
+    "not be a usable behavioral readout at all. "
+    "\n\nTHE NO-LICK ARM USED TO CONTAIN REWARDED HITS; FIXED 2026-08-21. _trial_features split on decode.max_rt_s = 2.0 s while the task's response window is 3.5 s, so a lick at 2.5 s was a HIT by the task's own scoring that every imaging analysis filed under 'no lick'. That contamination was 9.7% of PS94's no-lick arm and 4.7% of PS95's, but 39.3% for PS92 and 33.9% for PS93. This note previously warned that the slides must be rebuilt when PS92/PS93 re-entered as post-stroke animals or they would report a late-lick effect as a no-lick effect; they re-entered on 8/18, and the fix taken was to move the cut itself -- decode.max_rt_s is now 3.5 s, so 'engaged' means the same thing here as in the behavior pipeline's hit/miss. EVERY NUMBER COMPUTED BEFORE THAT CHANGE USED THE 2.0 s CUT. nolick_decoder keeps its own 2.0 s boundary so the three-arm split stays available: the late-vs-undetected distinction is a real result, and on PS93 8/12 the entire pre-cue survival sat in the LATE arm (balanced 0.532, p=0.003) while undetected showed nothing (0.153, p=0.76). "
     "\n\nONE SESSION. n=1 post-stroke night per animal: PS94 and PS95 differ (PS94 below every "
     "pre-stroke session in all three readouts, PS95 inside the band), and with one session each that "
     "is a description of two animals, not an established dissociation. Joint-basis replication and "
@@ -1156,7 +1156,7 @@ M_ENCODE = ("Encoder (forward model): cross-validated ridge regression (alpha=1)
             "FEVE = captured/ceiling (1 = all explainable captured; center positions often have ~0 ceiling "
             "so low raw EV there is no signal, not failure). Predicted maps = footprint-reconstructed "
             "expected activity per intended position. r2-per-region restricts to each Allen area's "
-            "components. Per-animal EV: one graph/animal, sessions distinguished by colour. " + M_COMMON)
+            "components. Per-animal EV: one graph/animal, sessions distinguished by color. " + M_COMMON)
 M_RSA = ("Per session build a 6x6 representational matrix from the 6 position mean-activity patterns. RDM = "
          "1 - Pearson correlation (diag 0). Second-order RSA = Spearman correlation between two sessions' "
          "RDMs (15 unique off-diagonal entries), basis-free and valid across sessions/animals; within-animal "

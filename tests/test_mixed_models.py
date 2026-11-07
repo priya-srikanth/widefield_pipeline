@@ -87,7 +87,7 @@ def test_summary_table_runs(model):
 
 
 def test_log_deficit_primary_keeps_raw_axis():
-    """Priya 11-05: the log deficit (log(session / pre) of ttc) is the PRIMARY behaviour axis; add_deficit keeps the raw
+    """Priya 11-05: the log deficit (log(session / pre) of ttc) is the PRIMARY behavior axis; add_deficit keeps the raw
     relative deficit for plotting, and the linear ttc stays available as the sensitivity row."""
     import numpy as np
     import pandas as pd

@@ -3,7 +3,7 @@
 Priya 10-31: "do any other recordings have this, and if so can you render them as well"; "real epileptiform events
 should have the narrow spike like ps 122, though 6s could be slower". Candidates = epileptiform_scan.json events
 with amp >= 5%, half-width 60-250 ms and 415 STRICTLY flat (|415| < 0.15 x 470 at the peak; the looser 0.35 let
-through vessel-centred events where 415 rises with 470, epileptiform_gallery.png). One 3-min window per session,
+through vessel-centered events where 415 rises with 470, epileptiform_gallery.png). One 3-min window per session,
 over its densest cluster. Cohort1 cam4 templates are the saved ones (alignment_templates/cam4/<animal>/<date>.npz).
 Same renderer as PS122 (seizure_events_video.render_cam).
 

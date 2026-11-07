@@ -1,4 +1,4 @@
-"""Old (raw-dF tests) vs new (pre-normalised tests) significant-bin counts, per figure x row x column (2026-10-21,
+"""Old (raw-dF tests) vs new (pre-normalized tests) significant-bin counts, per figure x row x column (2026-10-21,
 `beta_maps.NORMALISE_TESTS_BY_PRE`; Priya: "archive the existing results so we don't lose them and can compare them").
 
 Reads every `*_stats.csv` sidecar in the archive (`labcams/grant_figures/epoch/archive_rawdF_tests_20261021/data/`) and

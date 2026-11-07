@@ -142,7 +142,7 @@ def f0() -> dict:
               ("resp_dF_rel", "(4) post-lick response in dF, raw units (/ pre)\n= (3) x (1), session by session"))
     P = [(0, j, epoch_compute(S, val), 1.0, lab, "/ pre" if j == 0 else "") for j, (val, lab) in enumerate(panels)]
     return dict(kind="grid", name="lick_iti_check_f0", shape=(1, 4), figsize=(17, 4.6), panels=P, share=[(0, 2), (0, 3)],
-                suptitle="NEURAL / MEASUREMENT: is the larger post-lick response an F0 artefact (dF/F inflated by a fall in "
+                suptitle="NEURAL / MEASUREMENT: is the larger post-lick response an F0 artifact (dF/F inflated by a fall in "
                 "baseline fluorescence)? F0 = mean of frames_average.npy over the central 60% of the image;\nresponse "
                 "= the ITI-lick response area (orofacial ROIs, the ITI-lick PETH figures). If F0 fell, dF/F would rise with no change in dF: the dF "
                 "panel answers it. PROVISIONAL")
@@ -173,7 +173,7 @@ def _days() -> pd.DataFrame:
 
 
 def _aim() -> pd.DataFrame:
-    """Per session: far-contra cued lick angle change vs the animal's pre mean (deg; the recovery-link behaviour)."""
+    """Per session: far-contra cued lick angle change vs the animal's pre mean (deg; the recovery-link behavior)."""
     return pd.read_csv(il.OUT / "recovery_link_sessions_withpre_angle_z.csv")[["label", "beh"]].drop_duplicates("label")
 
 
@@ -196,7 +196,7 @@ def course(rows: list, title: str, name: str, ref_of: dict) -> dict:
                 p.update(x2=g2.day.to_numpy(), y2=g2[val2].to_numpy(), label2=row[5] if len(row) > 5 else val2)
             panels.append(p)
     return dict(kind="course", name=f"{name}_sessions", nrows=len(rows), panels=panels,
-                suptitle=title + "\nOne dot per SESSION; grey band = pre-stroke sessions; blue line = the animal's pre mean.")
+                suptitle=title + "\nOne dot per SESSION; gray band = pre-stroke sessions; blue line = the animal's pre mean.")
 
 
 def course_draw(F: dict) -> None:
@@ -272,7 +272,7 @@ def landing_errors(p: pd.DataFrame) -> pd.DataFrame:
 def error_hist(sets: tuple = ("iti", "trial"), name: str = "lick_check_error_per_lick", landing: bool = False,
                coords: tuple = ("lateral",)) -> dict:
     """Per LICK: signed decoding error (decoded - actual) distributions per epoch, one NEURAL row per (coordinate, lick
-    set) and, with landing=True, one BEHAVIOUR row per coordinate (`landing_errors`); POOLED column first (animals
+    set) and, with landing=True, one BEHAVIOR row per coordinate (`landing_errors`); POOLED column first (animals
     weighted equally), then per animal. A SHIFTED distribution = bias; a WIDER one = scatter.
     Stats (session = unit): per session, mean and SD of the signed error. Per animal: change vs pre with a within-animal
     session bootstrap 95% CI (2000 draws). Pooled: paired nested bootstrap (animals > sessions, `boot_delta`) + the
@@ -294,7 +294,7 @@ def error_hist(sets: tuple = ("iti", "trial"), name: str = "lick_check_error_per
             rows.append((f"{'ITI' if st == 'iti' else 'cued'} {clab.split(' ')[0].lower()}: NEURAL", p[p.set == st],
                          f"decoded - actual {clab}, {unit}", -rng_, rng_))
         if landing:
-            rows.append((f"cued {clab.split(' ')[0].lower()}: BEHAVIOUR", landing_errors(p),
+            rows.append((f"cued {clab.split(' ')[0].lower()}: BEHAVIOR", landing_errors(p),
                          f"landing - own pre landing at spout, {clab}, {unit}", -1.33 * rng_, 1.33 * rng_))
     rng = np.random.default_rng(0)
 
@@ -367,7 +367,7 @@ def error_hist(sets: tuple = ("iti", "trial"), name: str = "lick_check_error_per
                     exp = [f"{e[:3]} {(am_[e] - am_['pre']).mean():+.2f}" for e in EPS[1:] if e in am_.columns]
                     lines.append(("pre", "CONTROL, pull-only expected shift: " + ", ".join(exp)))
             panels.append(dict(i=i, j=j, a=a, rlab=rlab, xlab=xlab, x0=x0, x1=x1, hists=hists, tris=tris, lines=lines))
-    beh = (" BEHAVIOUR rows: landing in that coordinate (3-D, extension peak) minus the animal's pre landing at the same spout."
+    beh = (" BEHAVIOR rows: landing in that coordinate (3-D, extension peak) minus the animal's pre landing at the same spout."
            if landing else "")
     title = (f"Per-LICK error distributions: {', '.join(COORDS[c][1] + ' (' + COORDS[c][2] + ')' for c in coords)}. NEURAL rows: frozen where-decoder (z-scored {il.basis_label()}), decoded - "
              "actual." + beh + "\nA shifted distribution = BIAS, a wider one = SCATTER; dashed = epoch mean. Text = "
@@ -495,7 +495,7 @@ def compute_all():
     yield course([("F0 470 (raw fluorescence) / pre", F, "f0_470_rel"),
                   ("post-lick response / pre: dF/F vs dF (dF = dF/F x F0)", F, "resp_auc_rel", "resp_dF_rel",
                    "dF/F (as on the page)", "dF, raw units"),
-                  ("far-contra lick angle, change vs pre (deg; behaviour)", F, "beh")],
+                  ("far-contra lick angle, change vs pre (deg; behavior)", F, "beh")],
                  "NEURAL / MEASUREMENT: F0 and the ITI post-lick response per session, with far-contra aim for comparison.",
                  "lick_iti_check_f0", {"f0_470_rel": 1, "resp_auc_rel": 1, "resp_dF_rel": 1, "beh": 0})
     T = pd.read_csv(il.OUT / "where_3axis_sessions.csv")

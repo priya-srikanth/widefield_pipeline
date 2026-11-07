@@ -16,7 +16,7 @@ comparisons with NO stroke, on figure 14's beta maps (cue / working by default):
 lick-aligned"): the same on family 15r's POSITION ACTIVITY maps (`position_reference_maps.maps_by_epoch`), one CSV per
 reference (raw / rest / restw / precue / mean); arms precue/working (ENL), cue/working, lick/lick.
 
-Each with the nested bootstrap and the cluster permutation, on RAW maps and on PRE-NORMALISED maps (each animal divided
+Each with the nested bootstrap and the cluster permutation, on RAW maps and on PRE-NORMALIZED maps (each animal divided
 by its own pre-group RMS, `beta_maps.NORMALISE_BY_PRE`). Reported: fraction of tested bins (nested) / in-mask pixels
 (cluster) flagged. A valid FWER test flags a non-empty set in <= 5 % of null comparisons; read N1 / N2 that way. N3
 measures how much "change" two months of drift alone produces.

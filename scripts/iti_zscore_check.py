@@ -4,7 +4,7 @@ pre-lick baseline, because the inter-trial period carries position information).
 The decoder's area traces already have each session's mean and slow drift removed (`iti_licks.extract`: adopted
 hemo-corrected SVD -> area means -> drift basis regressed out -> x1e3), so a session-wide LEVEL change cannot reach the
 decoder. A session-wide SCALE change can (F0 / expression, or the post-stroke rise in total variance, page 9.20): a
-frozen linear readout then moves decoded means toward or away from its centre. Here every area is divided by its
+frozen linear readout then moves decoded means toward or away from its center. Here every area is divided by its
 frame-wise SD in that session (all frames after the same drift removal; NOT over licks, which would force every
 session's mean lick feature to 0 and erase offsets by construction), in pre training and post scoring alike, and
 the r, like-for-like offset and per-area readouts are rerun.
@@ -100,7 +100,7 @@ def main() -> int:
         w = R.pivot_table(index=["set", "target", "animal", "epoch"], values="r").r.unstack("epoch")
         ch = (w[["acute", "subacute", "chronic"]].div(w["pre"], axis=0) - 1)
         rows.append(ch.groupby(["set", "target"]).mean().assign(version=tag))
-    print("== frozen r, normalised change vs pre (mean of animals)")
+    print("== frozen r, normalized change vs pre (mean of animals)")
     print(pd.concat(rows).reset_index().set_index(["set", "target", "version"]).sort_index().round(3).to_string())
     # (b) -> like-for-like offsets (was beyond-pull; 10-27 late)
     P.to_csv(il.pred_file("zscore_check/where_preds_z.csv"), index=False)

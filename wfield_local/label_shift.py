@@ -1,16 +1,16 @@
-"""Label-free class-balanced centring ("bal_em") for a FROZEN decoder: the shared primitives.
+"""Label-free class-balanced centering ("bal_em") for a FROZEN decoder: the shared primitives.
 
 ONE definition, used by both frozen decoders that adopted it (CLAUDE.md rule 9):
 
-  * the behavioural-STATE decoder (`locomotor_decoder`, production since 2026-11-03, "ok bal_em it is");
+  * the behavioral-STATE decoder (`locomotor_decoder`, production since 2026-11-03, "ok bal_em it is");
   * the SPOUT-POSITION decoder (`spout_scaling`, production since 2026-11-03, "I would adopt B everywhere").
 
-WHY. A frozen decoder scores each session after a per-session normalisation (mean / SD of that session's samples).
+WHY. A frozen decoder scores each session after a per-session normalization (mean / SD of that session's samples).
 The session mean depends on the session's CLASS MIX, so when a class becomes rare post-stroke (far contra on the
-engaged set, running in PS94) the centre moves toward the remaining classes and every sample is pushed toward the
+engaged set, running in PS94) the center moves toward the remaining classes and every sample is pushed toward the
 rare class's pattern. bal_em replaces that mean by the EQUAL-weight mean of the session's class means, estimated
 WITHOUT labels: the frozen model's posteriors -> Saerens, Latinne & Decaestecker (2002) EM re-estimates the session's
-class priors -> soft class means from the prior-adjusted posteriors -> equal-weight centre (production SD kept) ->
+class priors -> soft class means from the prior-adjusted posteriors -> equal-weight center (production SD kept) ->
 re-predict; ``n_outer`` passes. DECISIONS 2026-11-03 (state: "bal_em adopted"; spout: "spout-position bal_em
 adopted").
 
@@ -27,7 +27,7 @@ BAL_EM_PASSES = 3
 
 
 def session_sd(X):
-    """Per-feature SD over the session's rows; zero-SD features get 1 (left centred, as `pool_sessions` does)."""
+    """Per-feature SD over the session's rows; zero-SD features get 1 (left centered, as `pool_sessions` does)."""
     sd = np.asarray(X, float).std(0)
     return np.where(sd > 0, sd, 1.0)
 
@@ -60,21 +60,21 @@ def saerens_em(P, pi_train, n_iter=200, tol=1e-8):
 
 
 def bal_em_centre(model, X, pi_train, *, n_outer=None, min_mass=None, return_info=False, mu0=None, sd=None):
-    """SCORING-side centring for bal_em -- LABEL-FREE (DECISIONS 2026-11-03). Takes no labels, by signature.
+    """SCORING-side centering for bal_em -- LABEL-FREE (DECISIONS 2026-11-03). Takes no labels, by signature.
 
-    Start from the production centring (session mean / session SD); then ``n_outer`` passes of: the frozen model's
+    Start from the production centering (session mean / session SD); then ``n_outer`` passes of: the frozen model's
     posteriors -> Saerens EM priors (training prior = ``pi_train``) -> SOFT class means of the RAW features from the
-    adjusted posteriors -> centre at their EQUAL-weight mean (classes with no mass dropped), keeping production's
+    adjusted posteriors -> center at their EQUAL-weight mean (classes with no mass dropped), keeping production's
     per-session SD -> re-z-score. Returns the scaled features (and, with ``return_info``, the estimated priors, the
-    centre, the SD and whether the optional min-mass guard fired). Exactly the ``bal_em`` arm of
+    center, the SD and whether the optional min-mass guard fired). Exactly the ``bal_em`` arm of
     labcams/state_decoder_ps94_check/prebal/analyse_prebal.py (``prebal_centre(..., w_target=[1/3]*3)``) and arm B of
     labcams/decoder_mix_checks/spout_guard/analyse_guard.py.
 
-    ``min_mass`` (default None = OFF): if set, a pass whose EM-estimated share of any class is below it centres on
+    ``min_mass`` (default None = OFF): if set, a pass whose EM-estimated share of any class is below it centers on
     the training mix ``pi_train`` instead of equal weights.
 
-    ``mu0`` / ``sd`` (default None = the session mean / SD of ``X``, the behaviour above): a fixed starting centre and a
-    fixed SD, for a caller whose production normalisation comes from a DIFFERENT row set than the one the classes are
+    ``mu0`` / ``sd`` (default None = the session mean / SD of ``X``, the behavior above): a fixed starting center and a
+    fixed SD, for a caller whose production normalization comes from a DIFFERENT row set than the one the classes are
     balanced over (the engagement-state discriminators: production frame = the engaged trials, state classes = all
     trials; `spout_scaling.state_centre`)."""
     n_outer = BAL_EM_PASSES if n_outer is None else int(n_outer)
@@ -102,7 +102,7 @@ def bal_em_centre(model, X, pi_train, *, n_outer=None, min_mass=None, return_inf
 
 
 def balanced_centre(X, y, classes):
-    """TRAINING-side centre: the EQUAL-weight mean of the session's TRUE class means (classes absent from the session
+    """TRAINING-side center: the EQUAL-weight mean of the session's TRUE class means (classes absent from the session
     dropped). Training labels only -- a SCORED session goes through `bal_em_centre`."""
     X = np.asarray(X, float)
     y = np.asarray(y)

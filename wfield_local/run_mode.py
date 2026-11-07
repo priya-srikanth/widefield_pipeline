@@ -17,7 +17,7 @@ and cache key is byte-identical to before (pinned by tests/test_run_mode.py). Pa
     pre         ``pre<MMDD>``           WIDEFIELD_PRE_FROM (`config.pre_from`)
     selection   ``sel-<source>-<win>``  a trial selection other than the untagged DAQ quit-tail rule
                                          (`trial_classes.run_selection_tag`)
-    lickdet     ``daqlk``               THE behaviour DAQ lick detector for imaging (REBUILD_CODE 8.53, 11-05): in every
+    lickdet     ``daqlk``               THE behavior DAQ lick detector for imaging (REBUILD_CODE 8.53, 11-05): in every
                                          run that has any other output part (never in the default run) -- output AND
                                          cache; the SESSION-CACHE KIND carries it in EVERY run, default included
                                          (`session_kind_tag`, 11-06: one detector since session_cache v14)
@@ -76,8 +76,8 @@ def drift_part() -> str:
 
 
 def emcentre_part() -> str:
-    """``emc-engaged`` when the camera trial gate runs with the bal_em centre on every DAQ-engaged row (the
-    alternative to its default camera-working centre, `spout_scaling.centre_rows`); "" for each gate's default."""
+    """``emc-engaged`` when the camera trial gate runs with the bal_em center on every DAQ-engaged row (the
+    alternative to its default camera-working center, `spout_scaling.centre_rows`); "" for each gate's default."""
     from wfield_local import spout_scaling, trial_classes
     if spout_scaling.spout_scaling() is None or not trial_classes.camera_gate_on():
         return ""
@@ -87,16 +87,16 @@ def emcentre_part() -> str:
 def scoring_part() -> str:
     """``sc-<a>+<b>...`` for every NON-DEFAULT option that changes scored outputs without changing a frozen-model id or
     another part (coordinator 11-04), "" for the default run:
-      ctr<K>     scored-frame centre kind != wt (`spout_scaling.score_centre_rows`): ctrN, ctrCto, ctrW, ctrC
+      ctr<K>     scored-frame center kind != wt (`spout_scaling.score_centre_rows`): ctrN, ctrCto, ctrW, ctrC
       projz      projection frame OFF (`spout_scaling.projection_frame_on`; default ON since 11-04)
-      pctr<K>    projection centre != wt while the frame is on: pctrEngaged, pctrN, pctrCto, pctrW, pctrC
+      pctr<K>    projection center != wt while the frame is on: pctrEngaged, pctrN, pctrCto, pctrW, pctrC
       dEng       section D scored on engaged rows (`locanmf_frozen_decoder.section_d_scored`)
       gDaq       section G grouped by DAQ (`poststroke_compare.section_g_groups`)
       g4Daq      G4 primary = the DAQ discriminators (`poststroke_compare.g4_disc`)
-      g4c<K>     G4 frame centre != contact (`poststroke_compare.g4_centre`): g4cWorking, g4cEngaged
+      g4c<K>     G4 frame center != contact (`poststroke_compare.g4_centre`): g4cWorking, g4cEngaged
       g9Daq      G9 camera-class block off (`position_coding_directions.g9_classes`)
       sd<K>      state-discriminator frame != session_z (`spout_scaling.state_disc_scaling`): sdSpout, sdStatebal
-      sdcEng     its spout-frame centre on engaged rows (only with sdSpout)
+      sdcEng     its spout-frame center on engaged rows (only with sdSpout)
     Each reads its env only (no heavy import of the analysis modules' state)."""
     import os as _os
     from wfield_local import spout_scaling as ss
@@ -176,7 +176,7 @@ def csig_part() -> str:
 
 def lickdet_part() -> str:
     """``daqlk`` (`config.LICK_DETECTOR_TAG`) in every TAGGED run (REBUILD_CODE 8.53, Priya 11-04/05): imaging lick
-    trains come from THE behaviour DAQ detector (`config.lick_detector`; no 0.10 s refractory, 0.5 V offset) since
+    trains come from THE behavior DAQ detector (`config.lick_detector`; no 0.10 s refractory, 0.5 V offset) since
     11-05, so no output, store or cache entry a tagged run wrote under the old imaging detector can be read as the new
     one. The DEFAULT (untagged) run stays untagged -- every default path byte-identical (its per-session caches moved
     with session_cache v14). Present iff any other output part is."""
@@ -317,7 +317,7 @@ def _norm(p) -> str:
 
 
 def lp_family_root_ok(c: str) -> bool:
-    """True if the normalised path ``c`` lies under a registered LP-family root, at that root's routed location."""
+    """True if the normalized path ``c`` lies under a registered LP-family root, at that root's routed location."""
     t = lp_family_tag().lower()
     return any(c.startswith(r) and ((not t) or c[len(r):].startswith(t + "/")) for r in _LP_FAMILY_ROOTS)
 
@@ -429,9 +429,9 @@ def encoding_out_root(run: str | None = None) -> Path:
 
 
 def behaviour_qc_dir() -> Path:
-    """The UNTAGGED ``imaging_encoding/qc`` of the adopted run: RUN-INDEPENDENT behaviour tables (trial attempts, contacts,
+    """The UNTAGGED ``imaging_encoding/qc`` of the adopted run: RUN-INDEPENDENT behavior tables (trial attempts, contacts,
     latencies, jaw / nose onsets, camera coverage) -- seeded into / produced inside the rebuild root, never per run tag.
-    Routed encoding-family scripts read their behaviour inputs here and their run-dependent inputs under
+    Routed encoding-family scripts read their behavior inputs here and their run-dependent inputs under
     `encoding_out_root` (coordinator 11-04)."""
     from wfield_local import lp_licks
     return Path(lp_licks._enc_dir()) / "qc"
@@ -452,7 +452,7 @@ ATTEMPTS_FILES = ("trial_attempts.csv", "trial_attempts_sessions.csv", "trial_at
 
 
 def deficit_qc_dir() -> Path:
-    """Where the mixed models' behavioural DEFICIT tables live (`mixed_models.DEFICITS`: trial_attempts_sessions.csv
+    """Where the mixed models' behavioral DEFICIT tables live (`mixed_models.DEFICITS`: trial_attempts_sessions.csv
     ...): `attempts_dir` (routed trial_attempts; in a camera-gated run built on the run's camera classes)."""
     return attempts_dir()
 

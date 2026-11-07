@@ -1,5 +1,5 @@
 """Heterogeneous spread: y ~ C(epoch) + (1|animal) + animal x epoch variance SEPARATE per post epoch (and per-epoch
-residual variance is NOT modelled -- statsmodels can't). Tests t on df = n_animals - 1 per epoch. Plus the summary-
+residual variance is NOT modeled -- statsmodels can't). Tests t on df = n_animals - 1 per epoch. Plus the summary-
 statistic test: one-sample t on each animal's own change (mean post - mean pre), df = 3. Holm across 18 and within epoch."""
 import sys, warnings
 import numpy as np, pandas as pd, statsmodels.formula.api as smf

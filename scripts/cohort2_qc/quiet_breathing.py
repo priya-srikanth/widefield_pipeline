@@ -1,4 +1,4 @@
-"""T9 (breathing artefact): is the post-stroke rise of quiet-period orofacial 1-4 Hz power (peak ~2-3 Hz) breathing?
+"""T9 (breathing artifact): is the post-stroke rise of quiet-period orofacial 1-4 Hz power (peak ~2-3 Hz) breathing?
 (cohort1 PS92-95 only, 2026-11-01; handoff STATUS_2026-11-01_QUIET_EVENTS_HANDOFF section 4, T9.)
 
 2-3 Hz is the resting respiration rate of a mouse, so brain motion / blood with each breath could put power there.
@@ -18,7 +18,7 @@ displacement spectrum above the 1/f trend (choose_proxy), chosen per session WIT
 max of the velocity spectrum in 1-5 Hz, landed on the 5 Hz band edge in most sessions -- not a peak -- and was
 dropped.) Its peak frequency, prominence and peak-band displacement power (+-0.5 Hz) are the breathing read-outs (b).
 Because a single PC may miss respiration, coh_max_pc = the best of all 20 PCs (upward-biased by the max). (A
-frequency-domain CV regression on all 20 PCs at once was tried and dropped: unregularised, it overfit -- CV explained
+frequency-domain CV regression on all 20 PCs at once was tried and dropped: unregularized, it overfit -- CV explained
 fractions down to -3.6.)
 
 MEASURES per session and trace (orofacial_left = ipsilesional, orofacial_right = contralesional, orofacial, limb, cortex):
@@ -464,7 +464,7 @@ def figure(D, S, T):
         a.legend(fontsize=6.5, loc="upper center", bbox_to_anchor=(0.5, -0.17), ncol=2, frameon=False)
 
     spectra(ax[0, 0], "coh", "magnitude-squared coherence", "(a) orofacial vs respiration proxy: coherence", null=True)
-    spectra(ax[0, 1], "vel", "velocity PSD / median 0.5-10 Hz", "(b) respiration-proxy velocity spectrum (chosen face-point PC, normalised)")
+    spectra(ax[0, 1], "vel", "velocity PSD / median 0.5-10 Hz", "(b) respiration-proxy velocity spectrum (chosen face-point PC, normalized)")
     spectra(ax[0, 2], "Pxx", "PSD (dF/F %)^2 / Hz", "orofacial quiet power spectrum (reference)")
     ax[0, 2].set_yscale("log")
     a = ax[0, 3]
@@ -535,8 +535,8 @@ def figure(D, S, T):
         f"regressed out; k=4 event rate {rr:+.2f} vs {rres:+.2f} log10. Coherence with the proxy is low (< 0.1) and "
         "does not rise after the stroke. Proxy = per-session face-point PC with the most prominent interior 1-5 Hz "
         "spectral peak above 1/f (no FaceRhythm factor is a resting-breathing factor).",
-        "Top: thin = animals (shape), thick = mean of animals, grey band = 1.5-4 Hz; dashed = coherence floor from "
-        "randomly re-paired segments. Lower rows: open markers = sessions (shape = animal, colour = epoch); filled = "
+        "Top: thin = animals (shape), thick = mean of animals, gray band = 1.5-4 Hz; dashed = coherence floor from "
+        "randomly re-paired segments. Lower rows: open markers = sessions (shape = animal, color = epoch); filled = "
         "pooled mean, nested animal -> session bootstrap 95% CI; stars = LMM epoch vs August pre, FDR q.",
     ]
     fig.suptitle("\n".join(textwrap.fill(t, 190) for t in paras), fontsize=9, y=0.995)

@@ -107,11 +107,11 @@ SESSION_FIGS = [
 # longest session. This note rides those grid slides.
 RASTER_NOTE = (
     "Mirror of the rig GUI's live 'Cumulative task raster', tiled 8 sessions to a slide on ONE shared "
-    "x-axis normalised to this animal's LONGEST session, so trial pacing reads across days (the axis "
+    "x-axis normalized to this animal's LONGEST session, so trial pacing reads across days (the axis "
     "length differs between animals). Each panel: x = time in the session (minutes, t=0 at the first "
     "trial); y = the six spout positions in the GUI's row order (close_center, close_L, close_R, "
     "far_center, far_L, far_R). GREEN = hit (a lick inside the session's real response window); RED = "
-    "miss. THE DOT IS THE ANIMAL'S BEHAVIOUR, NOT WHETHER WATER ARRIVED: reward_mode auto_after_delay "
+    "miss. THE DOT IS THE ANIMAL'S BEHAVIOR, NOT WHETHER WATER ARRIVED: reward_mode auto_after_delay "
     "delivers water on most trials whatever the animal does, withheld only by auto_hold_after_miss "
     "(PS92 8/21: 397 rewards against 310 hits). NOT engagement-gated, deliberately: the sated tail — "
     "the run of red at the end — is what this figure is for. " + _M_TRIALS)
@@ -246,7 +246,7 @@ def build_behavior_deck(behavior_out, out_path, animals=None, epoch_dir=None) ->
 
     # ---------------- behaviour by epoch (END) ----------------
     if epoch_dir:
-        divider("Behaviour by epoch",
+        divider("Behavior by epoch",
                 "the same per-session hit rates as above, pooled into pre / acute / subacute / "
                 "chronic on the boundaries in force this run")
         for stem, ttl, sub in EPOCH_FIGS:
@@ -266,7 +266,7 @@ def main(argv=None) -> int:
     ap.add_argument("--only", nargs="+", metavar="ANIMAL", help="restrict to these animals, or 'all'")
     ap.add_argument("--machine", default=None)
     ap.add_argument("--skip-epoch", action="store_true",
-                    help="omit the behaviour-by-epoch section (it is placed by default)")
+                    help="omit the behavior-by-epoch section (it is placed by default)")
     args = ap.parse_args(argv)
     rv = PathResolver(machine=args.machine)
     root = Path(rv.root("behavior_out"))

@@ -10,14 +10,14 @@ brain mask minus clipped pixels, DAQ events on the frame clock (`_frames`).
                cue response and anticipatory licking)
 Trials dropped where the window leaves the recording, and in PS122 10-29 after 110 min (epileptiform discharges,
 QC doc §0o). Columns in canonical order close L / C / R, far L / C / R, then the all-spout mean and the
-SPOUT-SPECIFIC part (each spout minus the all-spout mean, shown as the RMS over spouts). One colour scale per
+SPOUT-SPECIFIC part (each spout minus the all-spout mean, shown as the RMS over spouts). One color scale per
 SESSION (shared by its cue and lick rows): GCaMP6s and 8s amplitudes differ ~3x, so a cohort scale would blank
 the RiboL1 rows. Sessions without a DAQ .h5 on the share are listed and skipped.
 
     conda activate locanmf
     python scripts/cohort2_qc/spout_maps.py 20261029 [20261030] [--uniform]
 
---uniform (Priya 10-31): ONE colour scale for every animal and session (99th percentile of |dF/F| pooled over all
+--uniform (Priya 10-31): ONE color scale for every animal and session (99th percentile of |dF/F| pooled over all
 sessions' cue + lick spout maps), and one shared scale for the spout-specific RMS column. Written as
 cohort2_spout_maps_<dates>_uniform.png; RiboL1 rows then look faint by design.
 
@@ -172,7 +172,7 @@ def per_session_figure(r, out_dir):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("dates", nargs="+")
-    ap.add_argument("--uniform", action="store_true", help="one colour scale across all animals and sessions")
+    ap.add_argument("--uniform", action="store_true", help="one color scale across all animals and sessions")
     ap.add_argument("--per-session", action="store_true", help="one deck figure per session in spout_maps_native/")
     a = ap.parse_args()
     if a.dates == ["all"]:

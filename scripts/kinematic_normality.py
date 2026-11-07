@@ -26,7 +26,7 @@ each other), pooled Fisher z, within-animal permutation p; epoch changes by anal
 SIGNS: lick angle + = contralesional (mouse right); aim + = contralesional, - = ipsilesional deficit; jaw lateral
 lr_wide_mm + = ipsilesional (mouse left); spouts L = ipsi, R = contra (all lesions LEFT VLS).
 
-Usage:  python scripts/kinematic_normality.py            (run + summarise + plot)
+Usage:  python scripts/kinematic_normality.py            (run + summarize + plot)
         python scripts/kinematic_normality.py --plot-only (redraw from figdata)
 Outputs: <E>/kinematic_normality/{trials.csv.gz, sessions.csv, coverage.csv, per_animal_epoch.csv, epoch_tests.csv,
          fits.csv, fit_diffs.csv, corr_animals.csv, corr_pooled.csv}, figures/*.png, figdata/*.pkl
@@ -724,7 +724,7 @@ def run() -> dict:
     print(PA.round(3).to_string(index=False))
     print("== boot_delta vs August pre (change = CI excludes 0 AND >= 3/4 same sign)")
     print(ET.round(3).to_string(index=False))
-    print("== normalisation references (pre / acute session means, raw units)")
+    print("== normalization references (pre / acute session means, raw units)")
     print(ref.round(3).to_string(index=False))
     fits, fdiff, curves = fit_all(N, ref)
     print("== exponential fits on the fraction-of-acute-deficit scale (post sessions; CI = 1000 session resamples)")

@@ -1,4 +1,4 @@
-"""POOLED cross-animal, within-animal-normalised versions of the per-animal results-page figures (Priya 10-24): goal
+"""POOLED cross-animal, within-animal-normalized versions of the per-animal results-page figures (Priya 10-24): goal
 page Figs 1p / 2c / 4p / 5p / 5c / 6p / 10p / 12p (`fig1p_contest_pooled.png` ... `fig12p_residual_trend_pooled.png`).
 
 Each quantity is a CHANGE from the animal's own reference (pre, or the pre-stroke null), pooled with the paired
@@ -165,7 +165,7 @@ def draw(fd: dict, OUT: Path) -> list:
         ax.set_title(f"{w} window"); ax.legend(fontsize=8, frameon=False, ncol=5, loc="upper right")
     axs[0].set_ylabel("share of the pre-stroke far-contra code retained\n(P(true) - 1/6) / (pre hits - 1/6)")
     animal_legend(fig, ci=False)
-    fig.suptitle("NEURAL, pooled: frozen pre-stroke decoder on far-contra trials by trial type, normalised to each animal's pre-stroke hits\n"
+    fig.suptitle("NEURAL, pooled: frozen pre-stroke decoder on far-contra trials by trial type, normalized to each animal's pre-stroke hits\n"
                  "(1 = as well coded as pre-stroke hits, 0 = chance); bar = mean of animals with >= 5 trials (count under each bar)", fontsize=10)
     fig.tight_layout(rect=(0, 0.06, 1, 0.86)); save_png_svg(fig, OUT / "fig2c_decoder_pooled.png", dpi=130); plt.close(fig)
 

@@ -8,7 +8,7 @@ WHY IT MATTERS EVEN THOUGH THE RESOLVER COPES. `quiet_periods.quiet_frame_path` 
 and finds either name, so every ANALYSIS consumer was fine. But `preprocess.py` constructs the path
 explicitly -- `qf = f"{quiet}/{lab}_quiet_frame.npy"` -- and passes it to `framemap_event_maps
 --quiet-frame`. Under the new variant that file would not exist, so the imaging box's lick-map step
-would fail (or silently skip its quiet-normalised panel) on every session. Found by diffing the two
+would fail (or silently skip its quiet-normalized panel) on every session. Found by diffing the two
 directories' filenames rather than by running it.
 """
 from __future__ import annotations

@@ -14,7 +14,7 @@ Per session x spout (>= MIN licks): offset (as 1) and within-session slope; chan
 bootstrap (animals > sessions); per-animal table first (rule 8). Decoder = the KEY-row where-decoder on z-scored Allen
 areas with the ALM / tjM1 split (zscore_check/where_preds_z<PRED_TAG>.csv), cued licks.
 Outputs <E>/iti_licks/overcorrection_{sessions,tests}.csv, figures/lick_cued_overcorrection[_angle].png.
---angle: the same in lick ANGLE (atan2(lateral, sagittal), degrees), the primary behaviour measure (Priya 10-27: "keep
+--angle: the same in lick ANGLE (atan2(lateral, sagittal), degrees), the primary behavior measure (Priya 10-27: "keep
 angle and lateral analyses, but make primary the one that is most consistent").
 Figure data <E>/iti_licks/figdata/lick_cued_overcorrection[_angle].pkl; --plot-only redraws from it alone (no bootstrap).
 Usage: python scripts/iti_overcorrection.py [--angle] [--plot-only]
@@ -91,7 +91,7 @@ def plot(S: pd.DataFrame, T: pd.DataFrame, angle: bool = False) -> None:
 
     from wfield_local.orofacial_cohort import EPOCH_LINE
     u = "deg" if angle else "mm"
-    meas = [("landing", f"BEHAVIOUR: {'angle' if angle else 'landing'} vs pre at the spout ({u})"),
+    meas = [("landing", f"BEHAVIOR: {'angle' if angle else 'landing'} vs pre at the spout ({u})"),
             ("lfl", f"NEURAL: like-for-like offset, same place ({u})"),
             ("slope", "NEURAL: within-session slope, decoded on landing")]
     fig, axs = plt.subplots(len(meas), len(POS), figsize=(3.0 * len(POS), 2.9 * len(meas) + 1.2), squeeze=False,

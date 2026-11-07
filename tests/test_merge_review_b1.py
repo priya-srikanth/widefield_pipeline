@@ -105,7 +105,7 @@ def test_section_g_store_errors_propagate_and_unkeyed_pools_refuse_in_a_tagged_r
 
 
 def test_collect_5c_cache_is_keyed_by_the_run(monkeypatch):
-    """Re-verify item 4: the 5c collector's cache key carries the run tag / selection and the bal_em centre."""
+    """Re-verify item 4: the 5c collector's cache key carries the run tag / selection and the bal_em center."""
     from wfield_local import grant_confusion as gc
     seen = []
     monkeypatch.setattr(gc, "_collect_5c_cached", lambda align, variant, mode, run: seen.append(run) or ({}, []))

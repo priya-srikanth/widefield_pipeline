@@ -9,9 +9,9 @@ from the saved CSVs of the producing scripts; nothing is re-fit and no new stati
   partial_refit_cue_numbers.md         <- <frA run>/partial_refit/boot.csv      (scripts/partial_refit.py;   Fig 1.12)
 
 Encoder panels: point = mean of animals' epoch - pre (the saved `point`), bar = the saved 95 % nested CI (`lo`, `hi`),
-grey dots = the four animals (saved per-animal columns), * = CI excludes 0 (`wfield_local.sig_marks.sig_star`), k/n =
+gray dots = the four animals (saved per-animal columns), * = CI excludes 0 (`wfield_local.sig_marks.sig_star`), k/n =
 saved `n_up` / `n`. Marker: filled circle = contralesional (right, lesion left), open circle = ipsilesional, square =
-whole cortex, diamond = contra - ipsi. Colour = epoch (lick_enlv_curves / orofacial_cohort.EPOCH_LINE).
+whole cortex, diamond = contra - ipsi. Color = epoch (lick_enlv_curves / orofacial_cohort.EPOCH_LINE).
 ALM / tjM1 rows exist only in the claims CSVs (FROZEN_PIX_MUSALL basis re-runs); musall_change.csv has cortex, SSp-m and
 MOp only, and no saved table has SSp-n for these encoder quantities -- the simple figures say so rather than substitute.
   frozen_musall_<w>_simple_v2.png      <- frozen_fr_compare/musall_change_v2.csv (scripts/frozen_fr_musall_v2.py, 10-30):
@@ -133,7 +133,7 @@ def fig_musall(plt, w: str, claim: str) -> Path:
         ax.text(6.3, 1.0, "frozen + FaceRhythm", transform=ax.get_xaxis_transform(), ha="center", va="bottom", fontsize=8)
         ax.axvline(3.9, color="0.85", lw=0.8)
     fig.suptitle(f"{_wrap(claim)}\nFrozen pre-stroke encoder, {WLAB[w]}, chronic epoch. PROVISIONAL, n = 4", fontsize=10)
-    _foot(fig, "Marker = mean of animals' chronic - pre; bar = 95% nested CI (animals > sessions); grey dots = animals; "
+    _foot(fig, "Marker = mean of animals' chronic - pre; bar = 95% nested CI (animals > sessions); gray dots = animals; "
                "* CI excludes 0; k/n = animals above 0. Filled = contralesional, open = ipsilesional, square = cortex, "
                "diamond = contra - ipsi. ALM / tjM1 / SSp-n are not in the saved table for these quantities "
                "(musall_change.csv). Source: scripts/frozen_fr_musall.py.")
@@ -183,10 +183,10 @@ def fig_musall_v2(plt, w: str, claim: str) -> Path:
     pd.concat(used).to_csv(FIG_FC / f"frozen_musall_{w}_simple_v2_data.csv", index=False)
     fig.suptitle(f"{_wrap(claim, 150)}\nFrozen pre-stroke encoder, {WLAB[w]}, chronic epoch. PROVISIONAL, n = 4",
                  fontsize=10)
-    _foot(fig, "Marker = mean of animals' chronic - pre; bar = 95% nested CI (animals > sessions); grey dots = animals; "
+    _foot(fig, "Marker = mean of animals' chronic - pre; bar = 95% nested CI (animals > sessions); gray dots = animals; "
                "* CI excludes 0; k/n = animals above 0. Filled = contralesional, open = ipsilesional, square = cortex, "
                "diamond = contra - ipsi (ticks: c = contra, i = ipsi, c-i). cortex / SSp-m / SSp-n / MOp: area run (Allen area on the stat mask); ALM / tjM1 "
-               "(grey band): ROI v8 on the stat mask from the FROZEN_PIX_MUSALL basis twin (same route as the claims "
+               "(gray band): ROI v8 on the stat mask from the FROZEN_PIX_MUSALL basis twin (same route as the claims "
                "figures; checked per session on SSp-m / SSp-n / MOp: r >= 0.987, median |diff| <= 0.0004, worst single session 0.13). "
                "Source: scripts/frozen_fr_musall_v2.py -> musall_change_v2.csv.")
     fig.subplots_adjust(left=0.05, right=0.995, top=0.86, bottom=0.12, wspace=0.05, hspace=0.55)
@@ -210,7 +210,7 @@ def _grid(plt, B: pd.DataFrame, rows: list, w: str, claim: str, foot: str, name:
                                 "change from pre (R²)" if j == 0 else None))
         set_range(axs[i], rr)
     fig.suptitle(f"{_wrap(claim)}\nFrozen pre-stroke encoder (no FaceRhythm), {WLAB[w]}. PROVISIONAL, n = 4", fontsize=10)
-    _foot(fig, "Marker = mean of animals' epoch - pre; bar = 95% nested CI (animals > sessions); grey dots = animals; "
+    _foot(fig, "Marker = mean of animals' epoch - pre; bar = 95% nested CI (animals > sessions); gray dots = animals; "
                "* CI excludes 0; k/n = animals above 0. Filled = contralesional, open = ipsilesional, square = whole "
                "cortex. SSp-n is not in the saved table. " + foot)
     fig.subplots_adjust(left=0.07, right=0.99, top=1 - 1.35 / (3.3 * len(rows) + 1.3), bottom=0.55 / (3.3 * len(rows) + 1.3) + 0.04,
@@ -285,7 +285,7 @@ def fig_lick_dots(plt) -> Path:
                  "(far contra chronic +4.5 deg vs pre, 4/4). Cued post-cue lick pairs k -> k+1. PROVISIONAL, n = 4",
                  fontsize=9.5)
     _foot(fig, "Marker = pooled session level, bar = 95% nested bootstrap CI (saved corr_beh_boot.csv, all lick orders); "
-               "grey dots = animals (session means, corr_beh_per_animal.csv); * = change vs pre CI excludes 0. Session "
+               "gray dots = animals (session means, corr_beh_per_animal.csv); * = change vs pre CI excludes 0. Session "
                "cells need >= 10 misses and >= 10 hits; per-spout close cells (median 1-13 misses / session) are not "
                "shown, the five non-far-contra spouts are the script's pooled group. Source: scripts/lick_correction.py.")
     fig.subplots_adjust(left=0.07, right=0.97, top=0.82, bottom=0.2, wspace=0.28)

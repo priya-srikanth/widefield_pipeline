@@ -14,7 +14,7 @@ construction, not merely absent by luck.
 
 WHAT THE CHECK ADDS ANYWAY. "Largely" is per-SESSION, not per-animal: PS93 sits at 98% lick-free in
 June but falls to 76% on 8/9. A per-animal average would hide exactly the sessions where the licking
-behaviour is most atypical -- and PS93's licking (often not reaching the spout) is already unusual.
+behavior is most atypical -- and PS93's licking (often not reaching the spout) is already unusual.
 
 THE WINDOW IS SEARCHED, NOT FIXED (Priya, 2026-08-13). Requiring the fixed 2 s ending at the cue to be
 clean discards a whole trial for one lick anywhere in it -- including a lick 200 ms before the cue,
@@ -153,7 +153,7 @@ def rolling_lickfree(session, source="roi", win_s=ROLL_WIN_S, step_s=ROLL_STEP_S
     COURSE spanning ENL -> post-cue instead of a single scalar. Exclusion is per (trial, bin), so a
     trial contributes wherever it is quiet and is dropped only from the bins it contaminates.
 
-    Returns offsets (s, window CENTRE relative to cue), accuracy with and without lick filtering, and
+    Returns offsets (s, window CENTER relative to cue), accuracy with and without lick filtering, and
     the surviving trial count per bin -- the count is reported because it is the honest denominator: a
     bin decoded from few trials is not comparable to one decoded from all of them.
     

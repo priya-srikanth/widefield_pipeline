@@ -1,5 +1,5 @@
-"""BEHAVIOURAL AIM DEFICIT per session, FIRST cued lick vs all licks, weighted vs far contra (Priya 10-27: switch the
-behaviour axis / mixed-model deficit to the first-lick weighted aim; "can I see a comparison between the weighted deficit
+"""BEHAVIORAL AIM DEFICIT per session, FIRST cued lick vs all licks, weighted vs far contra (Priya 10-27: switch the
+behavior axis / mixed-model deficit to the first-lick weighted aim; "can I see a comparison between the weighted deficit
 and the first-lick far-contra deficit vs time across animals").
 
 THE aim definition lives in `iti_recovery_measure.py` (aim_licks / weighted / far_contra; rule 9): per cued lick, angle
@@ -8,7 +8,7 @@ spout. First lick = lick_idx 0 (first post-cue lick of the trial; joined via fir
   weighted_first / weighted_all   signed offset per spout, combined with weights far contra 3, far mid 2, others 1
   farcontra_first / farcontra_all signed offset at far contra
 (- = aim shifted ipsilesional). Split-half reliability (random half of the session's licks, Spearman-Brown).
-Min licks per spout: first 5, all 10 (iti_recovery_measure.MIN_LICKS). The mixed models' behaviour deficit = pre -
+Min licks per spout: first 5, all 10 (iti_recovery_measure.MIN_LICKS). The mixed models' behavior deficit = pre -
 session of the weighted aim of the WFIELD_AIM lick set (first by default; iti_recovery_measure.aim_deficit).
 Outputs <E>/iti_licks/aim_deficit_sessions.csv, figures/lick_cued_aim_deficit_compare.png
 (figure data figdata/lick_cued_aim_deficit_compare.pkl; --plot-only redraws from it).
@@ -98,9 +98,9 @@ def plot(S: pd.DataFrame, rel: dict) -> None:
                      fontsize=7.5, frameon=False, loc="lower right")
     txt = "; ".join(f"{k.replace('_', ' ')}: split-half r {v[0]:.2f}, reliability {v[1]:.2f} ({v[2]} sessions)"
                     for k, v in rel.items())
-    fig.suptitle("BEHAVIOUR: cued-lick aim deficit per session vs days since stroke -- weighted (far contra x3, far mid x2, "
+    fig.suptitle("BEHAVIOR: cued-lick aim deficit per session vs days since stroke -- weighted (far contra x3, far mid x2, "
                  "others x1) vs far contra only, FIRST post-cue lick vs all licks.\n" + txt + ". The mixed models' "
-                 "behaviour deficit = pre - session of the FIRST-lick weighted aim. PROVISIONAL", fontsize=9.5)
+                 "behavior deficit = pre - session of the FIRST-lick weighted aim. PROVISIONAL", fontsize=9.5)
     fig.tight_layout(rect=(0, 0, 1, 0.86))
     save_png_svg(fig, il.OUT / "figures" / "lick_cued_aim_deficit_compare.png", dpi=100)
     plt.close(fig)

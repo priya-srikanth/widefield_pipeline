@@ -17,7 +17,7 @@ on the figure (every 2nd row / column, `drawn_index`):
            level CI it replaces) says the map is non-zero, not that the session carries position.
 SOLID outline = FWER p < 0.05; DASHED = also >= 3 animals (of 4) share the sign (an outline only; rule 8). The OLD
 per-pixel test is kept for comparison in the CSV (frac_sig_fdr*: nested bootstrap animals > sessions, `N_BOOT` draws,
-two-sided p, Benjamini-Hochberg q 0.05 over the stat mask; frac_sig_maxboot: the bootstrap-standardised max-statistic
+two-sided p, Benjamini-Hochberg q 0.05 over the stat mask; frac_sig_maxboot: the bootstrap-standardized max-statistic
 drawn as the solid line before 10-27 late). Similarity to pre: per-animal r(epoch session-mean map, pre map) with a
 session-bootstrap 95% CI (within animal), printed per animal.
 Outputs <E>/iti_licks/decoder_pattern_stats.csv (per epoch / axis / set: method, fraction of the drawn cortex FWER-
@@ -115,8 +115,8 @@ def _boot(per_animal: dict, rng, paired_ref: dict | None = None) -> np.ndarray:
 
 
 def _maxstat(B: np.ndarray, point: np.ndarray, alpha: float = 0.05) -> np.ndarray:
-    """FWER (max-statistic) significance, as the decoder page's Haufe maps: standardise each bootstrap draw per pixel
-    (centred on the bootstrap mean, / bootstrap SD), take the max |t| over pixels per draw, threshold = its (1 - alpha)
+    """FWER (max-statistic) significance, as the decoder page's Haufe maps: standardize each bootstrap draw per pixel
+    (centered on the bootstrap mean, / bootstrap SD), take the max |t| over pixels per draw, threshold = its (1 - alpha)
     quantile; a pixel is significant if |point| / SD exceeds it."""
     sd = B.std(0)
     sd = np.where(sd > 0, sd, np.inf)
@@ -163,7 +163,7 @@ def fwer_maps(cells: dict, n_perm: int, prefix: str, sel: np.ndarray, npix: int)
 
 def old_fdr(per_animal: dict, rng, ref: dict | None) -> dict:
     """The OLD per-pixel test, kept for comparison (until 10-27 late): nested bootstrap (animals > sessions), two-sided
-    p, BH q 0.05 (sig_fdr), and the bootstrap-standardised max-statistic (sig_maxboot)."""
+    p, BH q 0.05 (sig_fdr), and the bootstrap-standardized max-statistic (sig_maxboot)."""
     am = np.vstack([per_animal[a].mean(0) - (ref[a].mean(0) if ref else 0) for a in sorted(per_animal)])
     point = am.mean(0)
     B = _boot(per_animal, rng, ref)

@@ -2,7 +2,7 @@
 
 THE QUESTION THIS EXISTS FOR. Post-stroke, an animal will fail trials. A failed trial can mean the
 plan was never formed (engagement/attention) or that it was formed and the movement failed (motor).
-Those are different injuries and they look identical in the behaviour log. Widefield can separate
+Those are different injuries and they look identical in the behavior log. Widefield can separate
 them, because the two make opposite predictions about WHEN in the trial the position code survives:
 
     plan intact, execution fails  ->  PRE-CUE code preserved, POST-CUE code collapses
@@ -49,7 +49,7 @@ So this module reports, in order:
      from for PS93.
   3. A POSITION-MATCHED subsample as an independent check, since (1) and (2) are corrections and a
      reader may reasonably want the version with the confound physically removed rather than
-     modelled.
+     modeled.
 
 An above-chance PRE-CUE result here is expected and biologically meaningful (Priya, 2026-08-17): the
 animal can know where the spout is and still not lick. The discriminating comparison is not
@@ -77,7 +77,7 @@ def balanced_accuracy(y_true, y_pred, labels=DISPLAY_ORDER):
     This is the headline metric because its null expectation is exactly 1/len(labels) regardless of
     how the trials or the predictions are distributed (see module docstring). Classes absent from
     y_true are skipped rather than scored 0 -- with a skewed no-lick set some positions can have no
-    trials at all, and counting them as failures would penalise the animal for what it declined.
+    trials at all, and counting them as failures would penalize the animal for what it declined.
     """
     y_true, y_pred = np.asarray(y_true), np.asarray(y_pred)
     rec = [float((y_pred[m] == c).mean()) for c in labels if (m := (y_true == c)).any()]
@@ -141,7 +141,7 @@ def permutation_null(y_true, y_pred, n_perm=N_PERM, seed=0, labels=DISPLAY_ORDER
 def match_profile(y, target_frac, seed=0, labels=DISPLAY_ORDER, n_draws=200):
     """Indices of a subsample of `y` whose position profile matches `target_frac`.
 
-    The correction-free version of the imbalance fix: rather than modelling the skew, remove it. The
+    The correction-free version of the imbalance fix: rather than modeling the skew, remove it. The
     subsample is the largest one that can hit the target exactly, so it is bounded by the scarcest
     position relative to its target share -- which for PS93 is severe, and is exactly why this is a
     robustness check and not the headline.
@@ -244,7 +244,7 @@ def dissociation_ci(precue_raw, cue_raw, n_boot=N_BOOT, alpha=ALPHA, seed=0,
     whether the pre-cue MINUS post-cue survival difference excludes zero needs no threshold, and
     gives each animal an uncertainty rather than a verdict.
 
-    SESSIONS are the resampling unit, not trials: the claim generalises to an unseen DAY, and trials
+    SESSIONS are the resampling unit, not trials: the claim generalizes to an unseen DAY, and trials
     within a session are not independent (~6-trial position blocks, shared F0, shared engagement
     state). Resampling trials would produce intervals far too narrow -- the same reasoning as
     decode_ci.frozen_ci, which resamples sessions for the same reason.
@@ -453,7 +453,7 @@ CRITERIA = {
     "all_trials": "every cue with a usable position label, licked or not",
     "engaged_reference_positions": "engaged as judged ONLY at reference positions the deficit is "
                                    "expected to spare (post-stroke motivation control; which "
-                                   "positions is a phenotype question, hence parameterised)",
+                                   "positions is a phenotype question, hence parameterized)",
 }
 
 
@@ -463,7 +463,7 @@ def reference_position_engagement(codes, cat, reference_positions):
     Post-stroke, "did not lick" at an impaired position confounds motivation with motor failure. At a
     position the animal can still reach, a miss is much more likely to be genuine disengagement. This
     returns the detected-lick rate restricted to `reference_positions`, so engagement can be measured
-    where the deficit is not acting -- Priya's close_L / close_center proposal, left parameterised
+    where the deficit is not acting -- Priya's close_L / close_center proposal, left parameterized
     because which positions are spared is an empirical question about the phenotype, not a constant.
     """
     codes, cat = np.asarray(codes), np.asarray(cat)

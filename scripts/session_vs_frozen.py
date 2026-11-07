@@ -223,7 +223,7 @@ def area_maps(run: Path, out: Path, variants, split=None) -> None:
     """Allen-area maps of the remapping: per area, (self - frozen) epoch - pre within animal, mean of animals, for the
     full model and each group's unique R2; outline = significant after Bonferroni over areas (nested bootstrap).
     ``split`` = (frozen ROI run, basis fit run or None = exact; `frozen_split_r2`): MOs / MOp painted as ALM + MOs_rest / tjM1 + MOp_rest (self side = the
-    ROI targets of the self-fit, frozen side = `frozen_split_r2`); Bonferroni count and colour scale = the Allen areas."""
+    ROI targets of the self-fit, frozen side = `frozen_split_r2`); Bonferroni count and color scale = the Allen areas."""
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
@@ -292,7 +292,7 @@ def area_maps(run: Path, out: Path, variants, split=None) -> None:
                      "\n> 0 = a session-specific mapping explains more than the pre-stroke one, beyond the pre-stroke gap. "
                      "Outline = significant after Bonferroni over areas (nested bootstrap). Image left = ipsilesional."
                      + ("\nMOs / MOp drawn as ALM + MOs_rest / tjM1 + MOp_rest (ROI v8 on the stat mask; self = ROI targets "
-                        f"of the self-fit, frozen = ROI R2 from {split[0].name}); Allen Bonferroni count and colour scale."
+                        f"of the self-fit, frozen = ROI R2 from {split[0].name}); Allen Bonferroni count and color scale."
                         if has_split else ""), fontsize=8.5)
         fig.subplots_adjust(left=0.04, right=0.99, bottom=0.08, top=0.83 if has_split else 0.86, wspace=0.06, hspace=0.3)
         save_png_svg(fig, out / "figures" / f"remap_area_maps_{w}.png", dpi=110)
@@ -349,13 +349,13 @@ def summarise(run: Path, out: Path, variants) -> None:
     for w in ffc.WINDOWS:
         fig, ax = plt.subplots(1, 1, figsize=(15, 4.8))
         ffc.bars(ax, B[(B.window == w) & B.q.isin(qs)].assign(frame=lambda d: d.q), qs, AREAS, "remap: (self - frozen) epoch - pre (R2)",
-                 "black = full model; colours = each group's UNIQUE R2, self-fit minus frozen")
+                 "black = full model; colors = each group's UNIQUE R2, self-fit minus frozen")
         ax.legend(fontsize=8, frameon=False, loc="upper left", bbox_to_anchor=(1.0, 1.0))
         fig.suptitle(f"NEURAL: per-session vs FROZEN encoder, {w} window, {run.name.replace('frozen_encoder_', '')}. "
                      "Each session refit on itself (same design, leave-one-trial-block-out) minus the frozen pre-stroke "
                      "model,\nas a change from pre (within animal). > 0 = a session-specific mapping helps more than "
                      "before the stroke. Bars = mean of animals; whisker 95 % nested CI; * excludes 0; dots = animals; "
-                     "grey band = pre split-half range.", fontsize=9)
+                     "gray band = pre split-half range.", fontsize=9)
         fig.subplots_adjust(left=0.05, right=0.88, top=0.84, bottom=0.12)
         save_png_svg(fig, out / "figures" / f"session_vs_frozen_{w}.png", dpi=105)
         plt.close(fig)

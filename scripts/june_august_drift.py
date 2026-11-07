@@ -6,7 +6,7 @@ June and August pre-stroke sessions are ~2 months apart with no lesion in betwee
 August pre -> chronic. So each post-stroke readout that compares a session to a FROZEN pre-stroke reference
 gets a twin in which June plays "pre" and August plays "post": what that readout does from time alone.
 
-  DISTANCE  crossnobis distance of each session from a pooled reference, own-position diagonal, normalised by
+  DISTANCE  crossnobis distance of each session from a pooled reference, own-position diagonal, normalized by
             the animal's pre-stroke between-position scale (the units of `epoch_8diag` and
             `scripts/chronic_drift_vs_reorg.py`, whose helpers this reuses):
               aug_from_june   each August pre session vs the JUNE template          (drift, ~2 months)
@@ -95,7 +95,7 @@ _DRIFT_MODELS: dict = {}
 def drift_payload(an, bd, month, log=print, scaling=None):
     """{"full", "loso"} for one animal x month from the store (fitted once), or None when opted out. Under bal_em
     (``scaling``) the models are fitted on the bal_em TRAINING frame (`spout_scaling.train_frame`: each month session
-    centred on its true class means, the frame `FrozenFrame` trains in) and the spec carries the scaling; under
+    centered on its true class means, the frame `FrozenFrame` trains in) and the spec carries the scaling; under
     session_z on the production frame, as before."""
     from wfield_local import config, frozen_models, spout_scaling
     from wfield_local.locanmf_frozen_decoder import _pipe

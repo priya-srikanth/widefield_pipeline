@@ -4,7 +4,7 @@ THE CONFOUND. `locomotor_state` splits a session into three classes -- licking, 
 those classes are NOT distributed alike across session time. Licking is cue-locked, so it lands
 wherever trials are; rest fills the inter-trial intervals; running is whenever the animal ran, which
 for a sated mouse drifts later. Meanwhile cortex itself DRIFTS: `rest_position_vs_drift` measured
-the same position's rest early-vs-late at RMS 0.00282, with no behavioural difference at all. So a
+the same position's rest early-vs-late at RMS 0.00282, with no behavioral difference at all. So a
 three-way decoder can separate the classes partly on WHEN the window sat rather than on what the
 animal was doing, and nothing in the current figures says so.
 

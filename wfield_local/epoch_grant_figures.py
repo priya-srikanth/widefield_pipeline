@@ -286,8 +286,8 @@ MATRIX_FAMILIES = (
     # substitution claim otherwise rests on decoder confusions and best-match fraction, both of
     # which are LABEL-level -- they say which position the readout assigns, not which position the
     # pattern moved toward. Diverging: the scale is centred on zero, so RdBu_r not magma.
-    ("8rc", "_matrices_crossnobis_rowcentred", "crossnobis distance, row-centred", "RdBu_r", None,
-     "Crossnobis geometry, row-centred -- which position did it move TOWARD"),
+    ("8rc", "_matrices_crossnobis_rowcentred", "crossnobis distance, row-centered", "RdBu_r", None,
+     "Crossnobis geometry, row-centered -- which position did it move TOWARD"),
     # WHERE THE BEST MATCH WENT (Priya, 2026-09-10): "could we add a version that plots, for each
     # spout position across epochs, where the best matches were -- so we could see if there is a
     # shift to one other position or if it's evenly distributed". Family 10b already reduces this
@@ -301,7 +301,7 @@ MATRIX_FAMILIES = (
     # epochs and not in MAGNITUDE. Dividing each row by its own SD makes it a z-profile and fixes
     # that, at the cost of discarding how far the position moved -- which 8 and 8rc still carry.
     ("8rz", "_matrices_crossnobis_rownorm", "row z-score", "RdBu_r", (-2.0, 2.0),
-     "Crossnobis geometry, row-NORMALISED -- direction only, scale-free"),
+     "Crossnobis geometry, row-NORMALIZED -- direction only, scale-free"),
 )
 
 

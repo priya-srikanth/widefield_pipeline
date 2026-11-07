@@ -2,7 +2,7 @@
 
 ``dlc_calibration`` asks "is this recording usable?"; ``dlc_calibrate`` solves ONE recording by
 chaining pairwise extrinsics over a spanning tree. This solves SEVERAL recordings at once with
-aniposelib, which optimises every camera together instead of composing pairs, and which carries the
+aniposelib, which optimizes every camera together instead of composing pairs, and which carries the
 triangulation the whole exercise is for.
 
 Why pooling is needed at all: **no single board size works for all four cameras on this rig.** cam1
@@ -29,7 +29,7 @@ rather than silently taken** -- an untested rigid-rig assumption is the kind of 
 confident, wrong 3D reconstruction with nothing in the output to reveal it.
 
 **aniposelib's thresholds are stricter than ours and they are what actually decide.**
-``CameraGroup.calibrate_rows`` keeps a view for the intrinsics initialisation only at
+``CameraGroup.calibrate_rows`` keeps a view for the intrinsics initialization only at
 ``min_corners_intrinsic=9`` ChArUco corners, and admits a row to the bundle adjustment only at
 ``ids.size >= 8``. ``dlc_calibrate`` used 6. A camera clearing our gate and failing aniposelib's is
 not a contradiction -- it is why `gate()` below reports aniposelib's numbers, not ours.
@@ -152,7 +152,7 @@ def _detect_video(board, path, step: int):
     on a tenth of them. Over the share that is the difference between minutes and an hour per
     recording, and it buys nothing: ``grab()`` advances the decoder without producing a frame.
 
-    Its ``go`` behaviour is deliberately NOT kept. aniposelib re-arms a ``step/2`` run of dense
+    Its ``go`` behavior is deliberately NOT kept. aniposelib re-arms a ``step/2`` run of dense
     detection after every hit, so on a recording where most frames carry a board -- 80% of cam1's
     here -- the run never expires and it detects on essentially every frame regardless of ``skip``.
     Everything downstream selects one row per POSE, so those dense runs are decoded, detected and
@@ -312,14 +312,14 @@ def gate(recordings) -> dict:
 def measured_principal_point(cam, size):
     """The optical axis in FRAME coordinates, from the recorded ROI -- or ``None`` if not known.
 
-    Each camera records a crop off a 1280x1024 sensor and the optical axis is at the SENSOR centre,
+    Each camera records a crop off a 1280x1024 sensor and the optical axis is at the SENSOR center,
     so in frame coordinates the principal point is ``sensor_centre - roi_offset``. That is a
-    measurement; the frame centre is an assumption, and on this rig it is wrong by 141 px on cam1 and
+    measurement; the frame center is an assumption, and on this rig it is wrong by 141 px on cam1 and
     160 px on cam2 -- error the solve then has to absorb into focal length and distortion.
 
     **The recorded ROI size is checked against the actual frame.** A camera re-cropped without
     updating ``dlc.sensor.roi`` would otherwise contribute a confident ~150 px offset in the wrong
-    place, which is worse than assuming the centre. A mismatch returns None and the caller falls back.
+    place, which is worse than assuming the center. A mismatch returns None and the caller falls back.
     """
     sen = (config.defaults().get("dlc") or {}).get("sensor") or {}
     roi = (sen.get("roi") or {}).get(cam)
@@ -328,7 +328,7 @@ def measured_principal_point(cam, size):
     if (int(roi["w"]), int(roi["h"])) != (int(size[0]), int(size[1])):
         print(f"[dlc_anipose] {cam}: dlc.sensor.roi says {roi['w']}x{roi['h']} but the video is "
               f"{size[0]}x{size[1]} -- the camera was re-cropped and the config was not updated. "
-              f"Falling back to the frame centre for the principal point.", flush=True)
+              f"Falling back to the frame center for the principal point.", flush=True)
         return None
     return (float(sen["width"]) / 2.0 - float(roi["x"]),
             float(sen["height"]) / 2.0 - float(roi["y"]))
@@ -350,7 +350,7 @@ def intrinsics_quality(K, dist, size, expect_pp=None) -> dict:
     k1 = float(np.ravel(dist)[0])
     aspect = abs(fx - fy) / max(fx, fy)
     inside = 0 <= cx < size[0] and 0 <= cy < size[1]
-    where = "the measured optical axis" if expect_pp is not None else "the frame centre"
+    where = "the measured optical axis" if expect_pp is not None else "the frame center"
     problems = []
     if not inside:
         problems.append(f"principal point ({cx:.0f},{cy:.0f}) is OUTSIDE the {size[0]}x{size[1]} frame")
@@ -501,10 +501,10 @@ def solve(cal_dirs, step: int = 10, assume_rig_unmoved: bool = False, refresh: b
     """Pool the given recordings and solve. Intrinsics always; extrinsics from one recording unless
     ``assume_rig_unmoved`` AND the rig-unmoved test passes.
 
-    ``fix_principal_point`` pins the principal point to the FRAME centre, which rescues an
+    ``fix_principal_point`` pins the principal point to the FRAME center, which rescues an
     unidentifiable solve (see ``MAX_PP_OFFSET``) at the cost of an assumption that is only
     approximately true: these frames are ROIs read off a larger sensor, so the optical axis sits at
-    the ROI centre only if the ROI is centred on the sensor. It is a fallback for a recording whose
+    the ROI center only if the ROI is centered on the sensor. It is a fallback for a recording whose
     board poses are not diverse enough, never the first choice.
     """
     import cv2
@@ -529,7 +529,7 @@ def solve(cal_dirs, step: int = 10, assume_rig_unmoved: bool = False, refresh: b
     cams = sorted({c for (cs, _r, _s, _sp) in recordings.values() for c in cs})
     K, dist, rms, nviews, src, qual = {}, {}, {}, {}, {}, {}
     print("\n[dlc_anipose] pooled intrinsics"
-          + ("  (principal point PINNED to the frame centre)" if fix_principal_point else ""),
+          + ("  (principal point PINNED to the frame center)" if fix_principal_point else ""),
           flush=True)
     usable = []
     for cam in cams:
@@ -559,9 +559,9 @@ def solve(cal_dirs, step: int = 10, assume_rig_unmoved: bool = False, refresh: b
                   "here -- the degeneracy has moved into the aspect ratio or the distortion, and "
                   "the fix is at the rig."
                   if fix_principal_point else
-                  "Or re-run with --fix-principal-point to pin it to the frame centre -- an "
+                  "Or re-run with --fix-principal-point to pin it to the frame center -- an "
                   "assumption, not a measurement: these frames are ROIs and the optical axis is at "
-                  "the ROI centre only if the ROI is centred on the sensor.")
+                  "the ROI center only if the ROI is centered on the sensor.")
         raise RuntimeError(
             f"intrinsics are not identifiable for {', '.join(bad)} despite a low reprojection error "
             f"-- every board pose in these recordings sits at a similar depth and tilt, so focal "
@@ -693,7 +693,7 @@ def main(argv=None) -> int:
                     help="pool EXTRINSICS too; refused unless the rig-unmoved test passes")
     ap.add_argument("--gate", action="store_true", help="report what aniposelib accepts, no solve")
     ap.add_argument("--fix-principal-point", action="store_true",
-                    help="pin the principal point to the frame centre (an assumption; see --help)")
+                    help="pin the principal point to the frame center (an assumption; see --help)")
     ap.add_argument("--refresh", action="store_true", help="re-detect, ignoring the cache")
     ap.add_argument("--output", default=None)
     ap.add_argument("--machine", default=None)

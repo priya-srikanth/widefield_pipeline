@@ -1,6 +1,6 @@
 """PIXEL MIXED MODELS on the per-session Haufe LEVEL maps, with TFCE (overnight 10-27 backlog 5e; spec
 docs/status/SVD_GAUSS_SUPERSEDE_QUEUE_2026-10-27.md part D: "per pixel, time model (day-1 step map, recovery-per-e-fold
-map) and behaviour model (aim-deficit map), animal fixed intercepts solved for all pixels at once (descriptive per
+map) and behavior model (aim-deficit map), animal fixed intercepts solved for all pixels at once (descriptive per
 mixed_models.py), significance by session-label permutation (pre/post within animal for the step; post days within
 animal for recovery) + TFCE").
 
@@ -8,7 +8,7 @@ MAPS. The per-session self-fit Haufe maps of `lick_session_level_maps.py` exactl
 its cache session_levels/patterns_gap2_enc.pkl, `build_maps`: amplitude KEPT, each map / the animal's mean pre-session
 RMS of the all-lick map of that set and target; sessions with decoder fit share < MIN_FIT dropped; drawn pixels = stat
 mask on every 2nd row / column). Maps: LATERAL (ITI + cued x all + first licks) and the per-spout one-vs-rest maps (cued
-+ ITI, all licks; canonical spout order). WFIELD_MAP_SCALE=frame (z-scored features) is honoured as there (outputs "_z").
++ ITI, all licks; canonical spout order). WFIELD_MAP_SCALE=frame (z-scored features) is honored as there (outputs "_z").
 
 MODELS (one design matrix per map, shared by every pixel; closed-form OLS, all pixels at once). Rows = sessions, the
 same covariates as `wfield_local.mixed_models` / `iti_mixed_models.py` (`add_time_covariates`: August pre only, post =
@@ -17,16 +17,16 @@ animal's August-pre mean - session FIRST-lick weighted signed aim, degrees, + = 
 WFIELD_AIM=all = all-lick sensitivity, outputs "_aimall"):
   TIME       map ~ animal + post + post:lday       -> STEP (post: level at day 1 vs pre) and RECOVERY (post:lday: change
                                                       per e-fold of days since stroke)
-  BEHAVIOUR  map ~ animal + post + post:deficit    -> AIM (post:deficit: change per degree of aim deficit, drawn per
+  BEHAVIOR  map ~ animal + post + post:deficit    -> AIM (post:deficit: change per degree of aim deficit, drawn per
                                                       10 deg) and POST_REC (post: change left at deficit 0 = full
-                                                      behavioural recovery); mirrors mixed_models' behaviour model
+                                                      behavioral recovery); mirrors mixed_models' behavior model
 Animal = FIXED intercepts (4 dummies, no grand intercept): descriptive per mixed_models.py ("a per-pixel fixed-intercept
 OLS can be drawn as a descriptive companion only"); random effects are not fitted per pixel. Sessions are weighted
 equally (an animal with more sessions weighs more), unlike change_z's equal animal weights.
 STATISTIC per pixel: t = coefficient / its OLS SE, SE = s * sqrt((X'X)^-1_jj), s = the residual SD (df n - p) floored at
 its 10th percentile over pixels (floor fixed across permutations, as `change_z` / `level_z`). Why t and not the
 per-animal-effect / pooled-SD form of iti_session_cluster_tests: the slopes (recovery, aim) have no per-animal
-mean-difference form, and s IS that module's s_pooled generalised -- the within-animal session SD (around each animal's
+mean-difference form, and s IS that module's s_pooled generalized -- the within-animal session SD (around each animal's
 fitted course instead of its group mean) pooled over all animals, df-weighted. For the step with no slope term t would
 be change_z up to the animal weighting.
 NULLS (session labels permuted WITHIN animal, the same permutation for every pixel, so the maps' spatial correlation is
@@ -42,11 +42,11 @@ shares the sign (the per-animal guard, as every other map family; no animal gate
 RULE 8 (printed before the tests): sessions per animal (pre / post, day range, deficit range) and, per map x term, each
 animal's own coefficient map: its RMS, r with the pooled coefficient map, and the share of pixels with the pooled sign.
 Inference is over sessions within THESE animals (fixed effects), as the level / change tests; serial correlation between
-neighbouring sessions is not modelled (t somewhat optimistic; the permutation null re-deals whole sessions, so it carries
+neighboring sessions is not modeled (t somewhat optimistic; the permutation null re-deals whole sessions, so it carries
 the same caveat only through exchangeability within animal).
 Outputs (<OUT_W> = il.OUT unless WFIELD_ITI_OUT_W redirects): <OUT_W>/session_levels/pixel_lmm_{tests,per_animal,
 sessions}.csv, pixel_lmm_maps.npz (coef / t / tfce / p / agree per map x term on the half-resolution image + idx_img);
-figures/lick_session_pixel_lmm_{time,behaviour}.png (lateral rows) and lick_session_pixel_lmm_{time,behaviour}_spout_
+figures/lick_session_pixel_lmm_{time,behavior}.png (lateral rows) and lick_session_pixel_lmm_{time,behavior}_spout_
 {cued,iti}.png; figure data figdata/<stem>.pkl. --plot-only redraws from the figure data alone.
 Usage: [WFIELD_MAP_SCALE=frame] [WFIELD_AIM=all] python scripts/lick_session_pixel_lmm.py [--plot-only] [--perm N]
        [--jobs N (<= 8)] [--animals PS92,PS93] [--maps lat|spout|all] [--timing]
@@ -79,7 +79,7 @@ MODELS = {"time": ("step", "recovery"), "behaviour": ("post_rec", "aim")}
 TERM = {"step": ("time", "post"), "recovery": ("time", "slope"), "post_rec": ("behaviour", "post"),
         "aim": ("behaviour", "slope")}
 TERM_LAB = {"step": "day-1 STEP vs pre", "recovery": "RECOVERY per e-fold of days",
-            "post_rec": "POST at full behavioural recovery (deficit 0)", "aim": f"AIM DEFICIT slope, per {AIM_PER:g} deg"}
+            "post_rec": "POST at full behavioral recovery (deficit 0)", "aim": f"AIM DEFICIT slope, per {AIM_PER:g} deg"}
 SCALE_OF = {"step": 1.0, "recovery": 1.0, "post_rec": 1.0, "aim": AIM_PER}
 LAT_KEYS = [f"{st}/{sub}/lat" for st in lm.SETS for sub in lm.SUBS]
 
@@ -97,7 +97,7 @@ def stem(name: str) -> str:
 
 def design(cov: pd.DataFrame, model: str) -> np.ndarray:
     """Design matrix (sessions x [animal dummies (sorted), post, post:slope]); slope = lday (time) | deficit
-    (behaviour). cov has animal, post, lday, deficit."""
+    (behavior). cov has animal, post, lday, deficit."""
     an = sorted(cov.animal.unique())
     D = (cov.animal.to_numpy()[:, None] == np.array(an)[None, :]).astype(float)
     x = cov["lday" if model == "time" else "deficit"].to_numpy(float)
@@ -296,9 +296,9 @@ def _head(model: str, fam: str, n_perm: int, aim: str) -> str:
         null = ("null: pre / post labels (with their days) re-dealt within animal (step); post days re-dealt within "
                 "animal (recovery)")
     else:
-        mdl = (f"BEHAVIOUR model per pixel: map ~ animal (fixed intercepts) + post + post:aim deficit (deficit = animal's "
+        mdl = (f"BEHAVIOR model per pixel: map ~ animal (fixed intercepts) + post + post:aim deficit (deficit = animal's "
                f"pre - session {aim} weighted signed aim, deg, + = ipsilesional; 0 for pre). Col 2 = POST term = change "
-               f"left at full behavioural recovery (deficit 0); col 3 = change per {AIM_PER:g} deg of aim deficit.")
+               f"left at full behavioral recovery (deficit 0); col 3 = change per {AIM_PER:g} deg of aim deficit.")
         null = ("null: (pre / post, deficit) re-dealt within animal (post term); deficits re-dealt among the animal's "
                 "post sessions (aim slope)")
     paras = [f"NEURAL: per-SESSION self-fit Haufe maps -- {what}; amplitude kept (/ animal's mean pre-session RMS of the "

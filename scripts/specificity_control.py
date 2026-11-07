@@ -1,6 +1,6 @@
 """SPECIFICITY CONTROL for the chronic residual and Layer 2 (Priya 10-25, analysis 1 of the synthesis: "is the chronic
 increase specific or global?"). Total variance rose cortex-wide after the stroke (VISp x1.83, cortex x1.54; variance_maps),
-so a cortex-wide change in signal scale (expression, haemodynamics, arousal) could produce a positive residual and a
+so a cortex-wide change in signal scale (expression, hemodynamics, arousal) could produce a positive residual and a
 changed mapping everywhere. Three tests, all within animal, nested bootstrap animals -> sessions (per-animal table first):
 
   1. RESIDUAL BY AREA (data - frozen prediction, evoked: lick 0..1 s vs -0.3..-0.1 s around the first lick; cue 0.5..1.5 s
@@ -234,7 +234,7 @@ def main(argv=None) -> int:
                  f"{l2dir.name})")
     fig.suptitle(f"NEURAL: is the chronic change SPECIFIC to orofacial cortex? Frozen frame ({a.tag}); orofacial = SSp-m, "
                  "SSp-n, MOp, MOs; control = visual, retrosplenial, SSp trunk / lower limb.\nBars = mean of animals; "
-                 "whisker 95 % nested CI; * excludes 0; dots = animals; grey band = pre split-half range. contra = right.",
+                 "whisker 95 % nested CI; * excludes 0; dots = animals; gray band = pre split-half range. contra = right.",
                  fontsize=9.5)
     fig.subplots_adjust(left=0.07, right=0.86, top=1 - 1.0 / (11 + 3.6 * nx), bottom=0.05, hspace=0.45)
     save_png_svg(fig, out / "figures" / "specificity_groups.png", dpi=105)

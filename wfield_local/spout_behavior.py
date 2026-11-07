@@ -1,6 +1,6 @@
 """Spout behavior-session figures (1 cue + 6 spout positions).
 
-The widefield analogue of ``stroke_orofacial_pipeline``'s ``spout_behavior`` (that rig had 2 cues +
+The widefield analog of ``stroke_orofacial_pipeline``'s ``spout_behavior`` (that rig had 2 cues +
 L/R; this rig has 1 cue and a 2x3 grid of spout positions: close/far x L/center/R).
 
 **Trials come from the DAQ recorder ``.h5``, not the task-controller log** (:func:`load_trials`
@@ -93,7 +93,7 @@ RASTER_ROW_ORDER = [0, 1, 2, 3, 4, 5]
 
 
 def pos_color(pos_idx: int):
-    """Per-position colour: side hue, made darker (close) or lighter (far) in HLS while KEEPING
+    """Per-position color: side hue, made darker (close) or lighter (far) in HLS while KEEPING
     saturation — so far positions stay a lighter version of the same hue (red stays red, not pink)."""
     import colorsys
 
@@ -105,24 +105,24 @@ def pos_color(pos_idx: int):
 
 
 def position_style(name: str):
-    """THE cohort-wide style for one position NAME: ``(colour, marker, linestyle)``.
+    """THE cohort-wide style for one position NAME: ``(color, marker, linestyle)``.
 
     ONE PALETTE, and this is it (Priya, 2026-09-10: "can we also make sure we're using the same
-    colour conventions for line plots that include all 6 positions... I think I prefer the former"):
+    color conventions for line plots that include all 6 positions... I think I prefer the former"):
 
-        HUE      = side      L dodger blue, centre purple, R crimson
+        HUE      = side      L dodger blue, center purple, R crimson
         LIGHTNESS= ring      close deeper, far paler -- the same hue, not a different one
         MARKER   = side      o / D / ^, so the six stay separable in greyscale
         LINESTYLE= side      solid / dashed / dotted
 
-    There were THREE conventions before today. This one; `grant_figures.POS_STYLE`, which coloured
-    by RING (far reds, close blues) and whose comment claimed it was "the convention the behaviour
+    There were THREE conventions before today. This one; `grant_figures.POS_STYLE`, which colored
+    by RING (far reds, close blues) and whose comment claimed it was "the convention the behavior
     figures already use" -- it was the opposite of it; and `locanmf_dff_by_position.POS_COLOR`,
-    six unrelated tab10 colours with no mapping at all. A position that is crimson in one figure and
+    six unrelated tab10 colors with no mapping at all. A position that is crimson in one figure and
     blue in the next is a reader's problem, not a palette preference.
 
     Keyed by NAME because the figure modules think in names; `pos_color` stays keyed by index for
-    the behaviour code that already uses it, and both resolve to the same colour.
+    the behavior code that already uses it, and both resolve to the same color.
     """
     idx = next((q["idx"] for q in POSITIONS if q["name"] == name), None)
     if idx is None:
@@ -185,7 +185,7 @@ def load_trials(session_dir: Path, rv=None, params: dict | None = None,
                 gui = _gui_trials_or_none(session_dir)
                 if gui is not None and len(gui) and len(daq) < DAQ_LOG_COVER_TOL * len(gui):
                     print(f"[spout_behavior] {session_dir.name}: DAQ covers {len(daq)} of {len(gui)} "
-                          f"logged trials (crashed recorder) -> BEHAVIOUR figures use the full-session "
+                          f"logged trials (crashed recorder) -> BEHAVIOR figures use the full-session "
                           f"LOG", flush=True)
                     return _gui_shift_corrected(gui, session_dir, rv)
             _warn_if_daq_covers_less_than_log(session_dir, daq)
@@ -202,7 +202,7 @@ _POS_COLS = ("pos_idx", "pos_name", "pos_dist_mm_after_trial")
 
 
 def _gui_shift_corrected(gui: pd.DataFrame, session_dir: Path, rv=None) -> pd.DataFrame:
-    """Undo the pre-v47 one-trial POSITION shift in a behaviour-log trial table (Priya 2026-10-17).
+    """Undo the pre-v47 one-trial POSITION shift in a behavior-log trial table (Priya 2026-10-17).
 
     Before GUI v47 a row's OUTCOME columns belong to trial N but its POSITION columns (pos_idx, pos_name,
     pos_dist_mm_after_trial) to trial N+1 (docs/GUI_TRIALS_LOGGING.md: "invert the shift" when falling back to the
@@ -456,9 +456,9 @@ def load_licks(session_dir: Path, rv=None, trials: pd.DataFrame | None = None) -
 def _atomic_csv(df: pd.DataFrame, path: Path) -> None:
     """Write a CSV by tmp-then-rename, so a concurrent reader never sees a half-written file.
 
-    `<sid>_position_metrics.csv` is READ BY THE IMAGING SIDE while behaviour is being regenerated:
+    `<sid>_position_metrics.csv` is READ BY THE IMAGING SIDE while behavior is being regenerated:
     `grant_figures._position_metrics` opens it for section G and the epoch figures. A plain
-    `to_csv` truncates in place, so re-cutting the behaviour figures during a `nightly_figs` run --
+    `to_csv` truncates in place, so re-cutting the behavior figures during a `nightly_figs` run --
     which is exactly when you want to, since the run takes hours -- exposes a window where the
     reader gets a short file and the stage dies or, worse, scores a session on three positions.
     """
@@ -700,8 +700,8 @@ def reference_engagement(responded, positions, *, tail_min_misses=6, reference=N
     union keeps the anti-circularity of the imaging gate and the sensitivity of the old terminal
     rule, and gives up neither.
 
-    THIS IS A BEHAVIOUR-SIDE GATE, and that is deliberate rather than an inconsistency. Imaging
-    KEEPS its disengaged trials as the `poststroke_stopped` class and analyses them; a behavioural
+    THIS IS A BEHAVIOR-SIDE GATE, and that is deliberate rather than an inconsistency. Imaging
+    KEEPS its disengaged trials as the `poststroke_stopped` class and analyses them; a behavioral
     hit rate wants them out of the denominator. Same invariant, different question.
     """
     from wfield_local.precue_engagement_states import REFERENCE, engagement_gate
@@ -716,7 +716,7 @@ def reference_engagement(responded, positions, *, tail_min_misses=6, reference=N
     from wfield_local import trial_classes as _tc
     # a MEASURE / reporting gate of the behaviour figures, not an imaging trial selection: the DAQ rule stays under the
     # camera trial gate (rebuild 11-03; measures of engagement are not gated)
-    with _tc.daq_quit_rule("spout_behavior.flag_engagement: behaviour reporting gate (measure of engagement)"):
+    with _tc.daq_quit_rule("spout_behavior.flag_engagement: behavior reporting gate (measure of engagement)"):
         collapse = engagement_gate(np.arange(n), resp, pos)
 
     # the terminal tail, counted in REFERENCE trials but marked over the whole session: once the
@@ -928,7 +928,7 @@ def _engagement_timeline(ax, scored: pd.DataFrame, eng: dict, m: dict | None = N
     Priya, 2026-09-10: "do the behavior deck figures that plot engagement across each session
     accurately show what is 'working' and what is 'stopped'?" The shading was already the right
     gate -- `session_metrics` uses `reference_engagement`, the same gate every analysis figure and
-    the epoch rule use -- but the figure showed it as an unlabelled grey band, which leaves three
+    the epoch rule use -- but the figure showed it as an unlabelled gray band, which leaves three
     things a reader has to know rather than see:
 
     1. **WHICH SIDE IS WHICH.** Unshaded is WORKING: the animal is still trying, and a MISS here is
@@ -1051,7 +1051,7 @@ def _latency_by_position(ax, scored: pd.DataFrame, latency: pd.Series):
 
 
 def _peri_cue_raster(ax, raster, resp_window_s, window_s):
-    """One row per trial; a dot per lick at its time from cue, coloured by position. Cue at 0."""
+    """One row per trial; a dot per lick at its time from cue, colored by position. Cue at 0."""
     for y, (delays, pos, _order) in enumerate(raster):
         if delays.size:
             ax.plot(delays, np.full(delays.size, y), ".", ms=1.6, color=pos_color(pos))
@@ -1061,7 +1061,7 @@ def _peri_cue_raster(ax, raster, resp_window_s, window_s):
     ax.set_ylim(-1, len(raster))
     ax.set_xlabel("time from cue (s)")
     ax.set_ylabel("trial")
-    ax.set_title("peri-cue lick raster (colour = position)")
+    ax.set_title("peri-cue lick raster (color = position)")
 
 
 def _peri_cue_psth(ax, raster, bin_ms, window_s):
@@ -1224,7 +1224,7 @@ def raster_markers(trials: pd.DataFrame) -> pd.DataFrame | None:
       * ``outcome`` "earned" (green) — the animal licked in the response window
       * ``outcome`` "miss"   (red)   — it did not
 
-    THE DOT IS THE ANIMAL'S BEHAVIOUR, NOT WHETHER WATER ARRIVED. Recent sessions run
+    THE DOT IS THE ANIMAL'S BEHAVIOR, NOT WHETHER WATER ARRIVED. Recent sessions run
     ``reward_mode: auto_after_delay`` with ``auto_reward_delay: 0``, so water is delivered on most
     trials whether or not the animal licks, withheld only by ``auto_hold_after_miss`` -- "hit" and
     "a reward was delivered" are NOT the same fact, and PS92 8/21 shows the gap plainly (397 rewards
@@ -1341,7 +1341,7 @@ def _raster_panel(ax, mk: pd.DataFrame, xmax: float, title: str, show_ylabels: b
 
 def plot_animal_raster_grid(animal: str, session_dirs, out_dir: Path, params: dict, rv=None):
     """Tile the animal's per-session cumulative rasters 4x2 (8 dates a slide), every panel on ONE
-    shared x-axis normalised to that animal's LONGEST session so trial pacing reads across days. The
+    shared x-axis normalized to that animal's LONGEST session so trial pacing reads across days. The
     axis length is per-animal (a slow animal is not squeezed to match a fast one). One PNG per page of
     8 sessions -> ``cohort/by_animal/<animal>_raster_grid_p{n}.png``. Returns the paths written."""
     entries = []
@@ -1726,7 +1726,7 @@ def _mark_stroke(ax, bx, excluded_idx, annotate=False):
     """Draw the lesion boundary and shade excluded sessions.
 
     Without this line a reader compares a post-stroke point against the pre-stroke trend by counting
-    tick labels, and these figures are the behavioural ground truth every decoding claim in Section G
+    tick labels, and these figures are the behavioral ground truth every decoding claim in Section G
     rests on -- the boundary is the single most important thing on them.
     """
     if bx is not None:
@@ -1864,13 +1864,13 @@ def plot_animal_metric_series(animal: str, adf: pd.DataFrame, out_dir: Path):
 # --------------------------------------------------------------------------- orchestration
 
 def _refresh_epoch_behaviour(rv):
-    """Derive tonight's epoch boundaries, redraw the epoch BEHAVIOUR figures, return their dir.
+    """Derive tonight's epoch boundaries, redraw the epoch BEHAVIOR figures, return their dir.
 
     Returns None on any failure, which drops the deck's epoch section rather than placing one built
     on boundaries that may not be tonight's -- a wrong epoch label on a published figure is worse
     than a missing section, because nothing about the slide says which boundaries drew it.
 
-    IN THIS ORDER, AND HERE. `epoch_audit.resolve` derives `chronic_from` from the cohort behaviour
+    IN THIS ORDER, AND HERE. `epoch_audit.resolve` derives `chronic_from` from the cohort behavior
     table that `cohort_summary` has just written, so the boundaries cannot be resolved before this
     point in the run -- and the two epoch figures read only the per-session `position_metrics.csv`
     this module also writes, so nothing here waits on LocaNMF. Building them anywhere else is what
@@ -1890,7 +1890,7 @@ def _refresh_epoch_behaviour(rv):
         epoch_grant_figures.main(["--only", "1b", "1c"])
         return behavior_deck.epoch_fig_dir(rv)
     except Exception as e:                                             # noqa: BLE001
-        print(f"[spout_behavior] epoch behaviour figures FAILED: {type(e).__name__}: {e} "
+        print(f"[spout_behavior] epoch behavior figures FAILED: {type(e).__name__}: {e} "
               f"-- deck will omit the epoch section", flush=True)
         return None
 

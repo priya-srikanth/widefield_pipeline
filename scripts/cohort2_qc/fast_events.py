@@ -4,7 +4,7 @@ Found by session_qc.py's residual-spike count: PS122 10-29 has, in its last ~10 
 6-9% dF/F within ONE pair (32 ms) that decay over ~150 ms, every 10-20 s, with 415 flat. A one-pair rise in 470 only
 is calcium, not blood or light. Large synchronous recurring events of this shape are what epileptiform
 discharges look like in widefield GCaMP data (Steinmetz et al. 2017), so they are surveyed here before any task
-analysis pools over them. They are NOT repair artefacts: swap_repair left them in (a swap changes one frame, these
+analysis pools over them. They are NOT repair artifacts: swap_repair left them in (a swap changes one frame, these
 rise then decay over several).
 
 Event = a pair where cortex-mean 470 rises > RISE % from the previous pair, 415 changes < ISO_MAX %, and the rise

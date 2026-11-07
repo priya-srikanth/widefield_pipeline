@@ -2,9 +2,9 @@
 
   A27 the cam4 orofacial cohort (`orofacial_cohort`, `orofacial_jaw_lateral` and every reader of their tables) runs on
       the CAMERA WORKING PERIOD (`trial_classes.working_period_ids`, one definition); WFIELD_KIN_GATE=legacy keeps the
-      pre-11-06 behaviour engaged gate (`engagement_keep`, unchanged); the folders carry the gate name
+      pre-11-06 behavior engaged gate (`engagement_keep`, unchanged); the folders carry the gate name
       (prepost_working / prepost_legacygate / prepost_alltrials), so old and new tables never mix.
-  A30 pose3d_summary_fig session dots = OPEN markers, shape = animal, colour = epoch; pose3d_phase hides the top spine
+  A30 pose3d_summary_fig session dots = OPEN markers, shape = animal, color = epoch; pose3d_phase hides the top spine
       on every 2-D panel.
 """
 from __future__ import annotations
@@ -58,7 +58,7 @@ def session(monkeypatch):
 
 # ------------------------------------------------------------------------------------------------ A27 gate
 def test_default_gate_is_the_camera_working_period(session, monkeypatch, tmp_path):
-    monkeypatch.setattr(oc, "engagement_keep", lambda *a, **k: pytest.fail("behaviour gate used under the default"))
+    monkeypatch.setattr(oc, "engagement_keep", lambda *a, **k: pytest.fail("behavior gate used under the default"))
     assert oc.cohort_gate() == "working"
     keep, lab = oc.cohort_keep("PS92", "20260810", tmp_path)
     assert keep == {1, 2, 3, 4, 5} == tc.working_period_ids("PS92_0810")       # one definition (rule 9)
@@ -124,7 +124,7 @@ def test_provenance_line_and_titles(session, monkeypatch):
 
 
 def test_producers_and_readers_use_the_one_gate_and_folder():
-    """Static: the per-session workers call `cohort_keep` (not the behaviour gate) and every reader of the cohort tables
+    """Static: the per-session workers call `cohort_keep` (not the behavior gate) and every reader of the cohort tables
     resolves them through `cohort_dir` (no hard-coded tables/prepost left)."""
     src = (REPO / "wfield_local" / "orofacial_cohort.py").read_text(encoding="utf-8")
     body = src[src.index("def session_metrics"):src.index("def collect(")]

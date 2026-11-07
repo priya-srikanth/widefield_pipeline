@@ -192,7 +192,7 @@ def main(argv=None) -> int:
                         ax.set_ylabel(f"{MLABEL[meas]} R$^2$", fontsize=8)
             axs[0][0].legend(fontsize=6, frameon=False, loc="lower right")
             fig.suptitle(f"Task-aligned vs task-independent, {area}, {align}-aligned -- Musall Fig. 5 style.\n"
-                         f"Stacked: colour = task-independent (unique), grey = task-aligned (alone - unique), top = "
+                         f"Stacked: color = task-independent (unique), gray = task-aligned (alone - unique), top = "
                          f"alone; hatched below 0 = negative unique part. Open dots = alone, filled = unique, per "
                          f"animal\n{stamp}", fontsize=8)
             fig.tight_layout()

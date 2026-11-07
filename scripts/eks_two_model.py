@@ -6,7 +6,7 @@
 Priya, 2026-10-14 ("let's try both"): the heatmap model is the better tongue detector, the temporal-context model
 removes the close-position jaw side-flips -- an ensemble smoother can take each where it is good. Members below a
 likelihood cut (`--cut`, 0.4 = our cleaning threshold) get the occlusion variance floor, so a member that says
-"hidden" (LP parks it at the image centre) does not pull the track; smooth_param is fixed
+"hidden" (LP parks it at the image center) does not pull the track; smooth_param is fixed
 (10: the 2026-10-05 tests -- the auto fit over-smoothed the tongue to ~1/3 of each lick's excursion).
 Output: a DLC-format csv (x, y, likelihood = EKS's score) that `pose_cue_traces compare` and
 `model_lick_compare` read like any model.

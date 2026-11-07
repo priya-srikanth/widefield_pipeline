@@ -8,8 +8,8 @@ check that the scaling removes the wrong points (jumps, a jaw riding the tongue,
 
 Per trial (the side review-clip trials): top = cam2 | cam3 raw views, ring = raw confident point (tongue >= 0.4, jaw >=
 0.6), filled dot = the cleaned MEASURED point that enters the 3-D (no interpolated frames); bottom = the trial's jaw
-(image y, px from its trial median) and tongue (distance from the projected mouth, px) per camera, raw grey vs cleaned
-colour, cursor = the current frame. Prints per camera x part: raw confident frames, kept, removed by cleaning. Writes
+(image y, px from its trial median) and tongue (distance from the projected mouth, px) per camera, raw gray vs cleaned
+color, cursor = the current frame. Prints per camera x part: raw confident frames, kept, removed by cleaning. Writes
 `session_poses/pose3d_side/side_clean_qc_<a>_<d>.mp4` + ``side_clean_qc_stats.csv``.
 """
 from __future__ import annotations
@@ -124,8 +124,8 @@ def run(rv, session: str, per_position: int, t0: float, t1: float) -> tuple[Path
             bar = np.zeros((40, frame.shape[1], 3), np.uint8)
             cv2.putText(bar, f"{animal} {date}  trial {tr}  {ix2.position.iloc[rows['cam2'][0]]}  t = {tt[i]:+.0f} ms",
                         (8, 16), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (255, 255, 255), 1, cv2.LINE_AA)
-            cv2.putText(bar, "ring = raw confident, dot = kept by cleaning | jaw green, tongue red | traces: grey raw, "
-                        "colour cleaned", (8, 33), cv2.FONT_HERSHEY_SIMPLEX, 0.38, (255, 255, 255), 1, cv2.LINE_AA)
+            cv2.putText(bar, "ring = raw confident, dot = kept by cleaning | jaw green, tongue red | traces: gray raw, "
+                        "color cleaned", (8, 33), cv2.FONT_HERSHEY_SIMPLEX, 0.38, (255, 255, 255), 1, cv2.LINE_AA)
             frame = np.vstack([bar, frame])
             if vw is None:
                 vw = cv2.VideoWriter(str(f_out), cv2.VideoWriter_fourcc(*"mp4v"), 25, (frame.shape[1], frame.shape[0]))

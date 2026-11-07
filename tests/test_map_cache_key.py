@@ -96,7 +96,7 @@ def test_builder_modules_read_only_covered_sections():
         for ln in src.splitlines():
             code = ln.split("#", 1)[0]
             if "defaults()" in code and not pat.search(code) and "def defaults" not in code:
-                pytest.fail(f"{m}: unrecognised defaults() access, classify it by hand: {ln.strip()}")
+                pytest.fail(f"{m}: unrecognized defaults() access, classify it by hand: {ln.strip()}")
     unexpected = {s: ms for s, ms in read.items() if s not in covered | VIA_KIND | OUTSIDE_MAPS}
     assert not unexpected, unexpected
 

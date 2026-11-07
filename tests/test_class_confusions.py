@@ -12,7 +12,7 @@ The fix is granularity rather than a second store. One matrix PER CLASS means:
     post_all     = poststroke_lick + poststroke_miss_working + poststroke_stopped
 
 so nothing ever has to be un-summed. Two properties make that valid and are pinned below: the
-matrices are RAW COUNTS (row-normalised matrices cannot be added), and every post class is scored by
+matrices are RAW COUNTS (row-normalized matrices cannot be added), and every post class is scored by
 the SAME frozen model (matrices from different decoders would not be comparable, let alone additive).
 
 IT LIVES IN `position_coding_directions` because that is where the classes are DEFINED -- `_gate_all`
@@ -109,11 +109,11 @@ def test_the_populations_5b_needs_are_sums(synthetic):
 
 
 def test_matrices_are_raw_counts_not_normalised(synthetic):
-    """Row-normalised matrices cannot be added, which would defeat the entire design."""
+    """Row-normalized matrices cannot be added, which would defeat the entire design."""
     r, *_ = synthetic
     assert r["counts"] is True
     M = np.array(r["poststroke_lick"])
-    assert M.sum() > len(DISPLAY_ORDER), "matrix looks normalised, not counts"
+    assert M.sum() > len(DISPLAY_ORDER), "matrix looks normalized, not counts"
     assert np.allclose(M, np.round(M)), "counts are not integral"
 
 

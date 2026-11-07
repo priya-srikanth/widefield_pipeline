@@ -1,9 +1,9 @@
-"""Is the ACAd left/right lick-response result REAL CORTEX, or the midline (vessel / registration / neighbours)?
+"""Is the ACAd left/right lick-response result REAL CORTEX, or the midline (vessel / registration / neighbors)?
 
 QUESTION (10-29). check 2 of lick_sspn_checks.py: the weight-free same-place right - left difference d = dh_right -
 dh_left of the ITI lick response in ACAd tracks recovery within animals about as strongly as SSp-n does (ITI -> iti_ang,
 mean r 0.59, MixedLM p < 0.005). Left and right ACAd are ~0.33 mm strips either side of the Allen MIDLINE, over the
-superior sagittal sinus, so d could come from (a) the VESSEL (haemodynamic / shadow artefact), (b) REGISTRATION (a
+superior sagittal sinus, so d could come from (a) the VESSEL (hemodynamic / shadow artifact), (b) REGISTRATION (a
 session-to-session left/right shift of the Allen midline moves sinus pixels from one ACAd into the other) or (c)
 SPILL-OVER from MOs / PL. Priya chooses chemogenetic-grant regions from this.
 
@@ -28,7 +28,7 @@ CHECKS
   row-averaged column profile, rows 120-300, linear trend removed, parabolic sub-pixel) and the MIRROR-SYMMETRY axis
   (high-passed image); offset = axis - 319.5 px. Offset by epoch, its own recovery link, d with the offset partialled
   within animal, and a MIDLINE-CORRECTED d (both ACAd masks moved by the session's rounded valley offset, -4..4 px).
-4 NEIGHBOURS: ACAd d residualised within animal (post sessions) on the MOs_rest and PL d of check 2.
+4 NEIGHBORS: ACAd d residualised within animal (post sessions) on the MOs_rest and PL d of check 2.
 5 PIXEL MAP: per pixel the same dh (pixel trace scaled by its own frame SD; pixels on a 2-px grid of the frontal midline
   crop), mirrored d(p) = dh(p) - dh(mirror p) at right-hemisphere positions, then per animal the within-animal r with
   iti_ang over post sessions; the mean-of-animals map and the per-animal maps, adopted and 415 nm.
@@ -401,13 +401,13 @@ def tests(S: pd.DataFrame) -> pd.DataFrame:
     groups = {
         "0 reference": ["chk2_ACAd", "d_neu[all]", "chk2_SSp-n", "chk2_MOs_rest", "chk2_PL"],
         "1 midline distance": [f"d_neu[{v}]" for v in VARIANTS],
-        "2 vessel / haemodynamic": [f"d_h415[{v}]" for v in VARIANTS] + [f"d_r470[{v}]" for v in VARIANTS]
+        "2 vessel / hemodynamic": [f"d_h415[{v}]" for v in VARIANTS] + [f"d_r470[{v}]" for v in VARIANTS]
         + [f"f0asym_470[{v}]" for v in VARIANTS] + [f"f0asym_415[{v}]" for v in VARIANTS]
         + ["resid_415", "resid_f0asym"],
         "3 registration": ["valley_off_470", "valley_off_415", "mirror_off_470", "mirror_off_415", "contrast_470",
                            "resid_offset", "resid_offset_mirror", "d_neu[corrected]"]
         + [f"d_neu[shift{s:+d}]" for s in SHIFTS],
-        "4 neighbours": ["resid_MOs_rest", "resid_PL", "resid_MOs_rest+PL", "MOs_rest_resid_ACAd", "SSp-n_resid_ACAd",
+        "4 neighbors": ["resid_MOs_rest", "resid_PL", "resid_MOs_rest+PL", "MOs_rest_resid_ACAd", "SSp-n_resid_ACAd",
                          "resid_all_confounds"],
     }
     out = []
@@ -551,12 +551,12 @@ def plot() -> None:
                           top=0.95, bottom=0.07)
     t = TR[(TR.set == "iti") & (TR.y == "iti_ang")]
     pan = [("1 midline distance", [f"d_neu[{v}]" for v in VARIANTS], "1  ACAd d by distance from the Allen midline"),
-           ("2 vessel / haemodynamic", ["d_h415[all]", "d_h415[d>=0.2]", "d_r470[all]", "f0asym_470[all]",
-                                         "f0asym_415[all]", "resid_415", "resid_f0asym"], "2  vessel / haemodynamic"),
+           ("2 vessel / hemodynamic", ["d_h415[all]", "d_h415[d>=0.2]", "d_r470[all]", "f0asym_470[all]",
+                                         "f0asym_415[all]", "resid_415", "resid_f0asym"], "2  vessel / hemodynamic"),
            ("3 registration", ["valley_off_470", "mirror_off_470", "contrast_470", "resid_offset", "resid_offset_mirror",
                                "d_neu[corrected]"], "3  registration (midline offset)"),
-           ("4 neighbours", ["resid_MOs_rest", "resid_PL", "resid_MOs_rest+PL", "MOs_rest_resid_ACAd", "SSp-n_resid_ACAd",
-                             "resid_all_confounds"], "4  neighbours partialled (within animal)")]
+           ("4 neighbors", ["resid_MOs_rest", "resid_PL", "resid_MOs_rest+PL", "MOs_rest_resid_ACAd", "SSp-n_resid_ACAd",
+                             "resid_all_confounds"], "4  neighbors partialled (within animal)")]
     ref = t[(t.check == "0 reference")]
     for i, (chk, ms, title) in enumerate(pan):
         ax = fig.add_subplot(gs[i // 2, (i % 2) * 3:(i % 2) * 3 + 3])
@@ -612,7 +612,7 @@ def plot() -> None:
         ax.axvspan(0, 0.33, color="0.9", zorder=0)
         ax.axvspan(0, 0.1, color="0.8", zorder=0)
         ax.axhline(0, color="k", lw=0.5)
-        ax.set_xlabel("mm from Allen midline (grey = ACAd; dark = < 0.1 mm strip over the sinus)", fontsize=8)
+        ax.set_xlabel("mm from Allen midline (gray = ACAd; dark = < 0.1 mm strip over the sinus)", fontsize=8)
         ax.set_ylabel("pixel r with ITI lick angle\n(mean over ACAd rows)", fontsize=8)
         ax.set_title(f"Fig 6{'ab'[j]}. medio-lateral profile of the pixel r, {'adopted' if ch == 'neu' else 'raw 415 nm'}",
                      fontsize=9)

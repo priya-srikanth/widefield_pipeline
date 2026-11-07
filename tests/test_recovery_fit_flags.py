@@ -65,7 +65,7 @@ def test_partial_plateau_is_not_half_recovery_to_pre():
 
 
 def test_bound_case_flagged_and_headline_nan():
-    """PS95 behaviour (A11): one very low acute session then a near-flat high series drives b to its -2 bound."""
+    """PS95 behavior (A11): one very low acute session then a near-flat high series drives b to its -2 bound."""
     import recovery_timing as rt
     d = np.array([1, 2, 3, 4, 6, 8, 10, 13, 17, 21, 27, 34, 41], float)
     z = np.r_[0.05, 0.95, 1.02, 0.97, 1.0, 1.03, 0.98, 1.01, 0.99, 1.0, 1.02, 0.97, 1.0]

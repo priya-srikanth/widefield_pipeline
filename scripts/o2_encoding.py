@@ -7,7 +7,7 @@ version"). A local pass is 7-8 h on the shared desktop; on O2 every session is i
     python scripts/o2_encoding.py [--profile <render profile>] refresh-code --name <name>
 
 bundle (this desktop): per session, everything `run_session` reads from the share (`combined_encoding.session_inputs`:
-imaging tuple, Behaviour, epoch / day, and the video motion-energy matrix where it exists) -> inputs/<label>.pkl; a
+imaging tuple, Behavior, epoch / day, and the video motion-energy matrix where it exists) -> inputs/<label>.pkl; a
 snapshot of the code (`git archive HEAD`: wfield_local/, configs/) -> code/; the runner; a PARAMETRISED sbatch; and
 COMMANDS.md -> <DeepLabCut/Widefield>/o2/<name>/ on the share. The model options are NOT baked in: each submit sets
 ORDER / ONLY / VIDEO / FR / TAG (`sbatch --export=...`), so one bundle serves every run (main, nokin, nodir, trmodels,

@@ -11,7 +11,7 @@ above chance puts every session on one scale:
     retained = (post_within_acc - c) / (pre_band_mean - c)      c = 1 / n_positions of THAT record
 
 1 = the session decodes as far above chance as the animal's own pre-stroke sessions on those positions;
-0 = at chance. The secondary column ``dnorm`` is the difference of chance-normalised accuracies,
+0 = at chance. The secondary column ``dnorm`` is the difference of chance-normalized accuracies,
 ``(post - c)/(1 - c) - (pre - c)/(1 - c)``, which does not blow up when the pre margin is small.
 
 Reads ``section_g.json`` (written by `poststroke_section_g`), so the numbers here and on the other
@@ -48,7 +48,7 @@ def retained_fraction(post, pre, chance):
 
 
 def dnorm(post, pre, chance):
-    """(post - c)/(1 - c) - (pre - c)/(1 - c): change in chance-normalised accuracy."""
+    """(post - c)/(1 - c) - (pre - c)/(1 - c): change in chance-normalized accuracy."""
     return ((post - chance) - (pre - chance)) / (1.0 - chance)
 
 
@@ -248,7 +248,7 @@ def fig_retained(rows, out, *, suffix="", json_path=None, note=""):
         "Trial set: ALL arm = post session all trials at all 6 positions; LICK-ONLY = engaged trials on the "
         "session's preserved positions.\nBaseline = the animal's pre-stroke within-session band (mean) on the SAME "
         "positions (engaged trials). Correction = ratio to the pre margin above chance. "
-        "Points: one session, shape = animal, colour = epoch; x offset per animal ±0.25 d.")
+        "Points: one session, shape = animal, color = epoch; x offset per animal ±0.25 d.")
 
     title = "\n".join(textwrap.fill(par, 175) for par in title.split("\n"))
     fig.suptitle(title, fontsize=9.5, y=0.995)

@@ -11,7 +11,7 @@ with appropriate interpolation and dropping of outliers / low confidence frames"
   interpolation.py  "v5p3"  -> `clean_bodypart`. Six stages, transcribed function for function:
      1 x-range   NaN frames outside median(x of confident frames) +- x_range_pm      (`_stage_xrange`)
      2 lk gate   NaN frames below lk_thr                                            (`_stage_thr`)
-     3 isolated  NaN confident frames with < n_neigh confident neighbours in +- neighbor_ms (`_stage_drop`)
+     3 isolated  NaN confident frames with < n_neigh confident neighbors in +- neighbor_ms (`_stage_drop`)
      4 gap fill  PCHIP (linear fallback) over NaN runs <= max_gap_ms, bracketed by confident frames,
                  n_side context points each side                                  (`_interp_small_gaps`)
      5 baseline fill  remaining NaN -> (X0, Y0)
@@ -32,14 +32,14 @@ WHAT CHANGED, ON PURPOSE (each also noted at its site):
     mouth, and every px threshold downstream (pre-clean, detector, gates) is relative to the mouth -- retune
     them in those units.
   * No centering step. Theirs subtracted a reference (spout midpoint for tongue, eye midpoint for jaw) before
-    stage 1; stage 1 uses the bodypart's OWN median and stage 6 subtracts X0/Y0, so a constant centre cancels.
+    stage 1; stage 1 uses the bodypart's OWN median and stage 6 subtracts X0/Y0, so a constant center cancels.
     A task/anatomical reference frame (spout axes, nose) belongs in a later geometry step, not in cleaning.
   * lk_thr 0.4 instead of their 0.5 (Priya 2026-10-01; 0.6 = `dlc.train.pcutoff` at port time).
   * NOT YET PORTED: the tongue "v7 pre-clean" (`_preclean.py`: cluster classifier + x-side rules, 646 lines,
     thresholds tuned on old-rig tongue shapes) and the per-trial lick detector / angle features built on it.
     Port those once the px thresholds here are retuned on our view, since they sit on top of these traces.
 
-LIGHTNING POSE NOTE: an LP point below its cutoff is the image centre (~338, 338 px), not a position (a flat
+LIGHTNING POSE NOTE: an LP point below its cutoff is the image center (~338, 338 px), not a position (a flat
 "occluded" heatmap's soft-argmax). Stage 2 removes it; never feed LP coordinates past this module unmasked.
 
 Every px threshold in `orofacial_clean` (configs/defaults.yaml) is the OLD rig's and must be re-measured.

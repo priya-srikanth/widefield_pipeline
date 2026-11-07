@@ -87,7 +87,7 @@ CMAP_NOTE = "pre map in purple-orange (level); change maps in red-blue"
 
 
 def sym_lim(arrays, q: float = 99) -> float:
-    """Symmetric colour limit: the q-th percentile of |values| over all arrays (NaN ignored); 1 if nothing finite."""
+    """Symmetric color limit: the q-th percentile of |values| over all arrays (NaN ignored); 1 if nothing finite."""
     import numpy as np
     v = np.abs(np.concatenate([np.ravel(a) for a in arrays])) if len(arrays) else np.array([])
     v = v[np.isfinite(v)]

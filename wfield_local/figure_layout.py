@@ -65,7 +65,7 @@ def save_png_svg(fig, fname, *args, **kwargs):
     arguments the writer used before it was routed here, so dpi / bbox / facecolor / transparent
     all mean what they meant; `tests/test_save_png_svg.py` pins the bytes against a plain savefig.
 
-    THE SVG CAN NEVER COST THE PNG. Any failure (an artist that cannot vectorise, a full disk, an
+    THE SVG CAN NEVER COST THE PNG. Any failure (an artist that cannot vectorize, a full disk, an
     unwritable `svg/` dir) warns and returns; a partial SVG is removed so a broken twin never sits
     beside a good figure. Text stays text (``svg.fonttype = "none"``), the setting the histology /
     orofacial writers already used, so labels are editable in Illustrator.

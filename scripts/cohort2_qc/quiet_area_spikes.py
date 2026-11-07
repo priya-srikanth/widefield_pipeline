@@ -259,7 +259,7 @@ def main():
         labels = sorted(curated_labels())
         _, fail = fan_sessions(labels, extract, jobs=a.jobs, label="session")
         if fail:
-            raise SystemExit(f"{len(fail)} session(s) FAILED, not summarising a partial set: {fail[:3]}")
+            raise SystemExit(f"{len(fail)} session(s) FAILED, not summarizing a partial set: {fail[:3]}")
     summarise()
 
 

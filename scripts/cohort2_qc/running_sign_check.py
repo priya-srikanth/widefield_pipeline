@@ -3,7 +3,7 @@
 Priya 10-31 on the PS94 08-25 event video: "when the animal is running sensory limb cortex is blue instead of the
 bright red we normally see w activation during running". The videos show RAW 470 (no hemo correction), so a blue
 limb cortex is either blood volume outweighing GCaMP there, or the 470 / 415 slots swapped over a stretch.
-A swap predicts the "470" running map looks like the 415 one (and the 415 like a GCaMP map); a haemodynamic cause
+A swap predicts the "470" running map looks like the 415 one (and the 415 like a GCaMP map); a hemodynamic cause
 predicts 415 more negative than 470 with the corrected map still positive.
 
 Running onsets = canonical DAQ running bouts (behavior_events npz), bouts >= 2 s with >= 3 s of no running before.

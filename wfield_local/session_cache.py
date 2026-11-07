@@ -155,7 +155,7 @@ def session_signature(session, params=None) -> str:
 
     The LocaNMF directory NAMES the hemodynamic variant it was fitted to, so switching variants
     changes this path and therefore the signature -- cached results from one drift-removal cannot be
-    served for another. That is the intended behaviour, not a coincidence.
+    served for another. That is the intended behavior, not a coincidence.
     """
     # imported lazily, like _default_cache_dir above: config may be unavailable in unit tests
     from wfield_local import config

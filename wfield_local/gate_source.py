@@ -31,9 +31,9 @@ WHERE IT IS WIRED (one helper, `gate_responded`, called at each place a gate's `
   rest_by_position._engaged_trials, rest_engagement.engaged_by_cue (the rest-baseline gates)
   engagement.session_trials   adds a `gate_hit` column ONLY under the switch, and
   engagement.session_quit     uses it when present (-> analysis_kit.session_behavior, S28 quit tests)
-NOT wired (behaviour-pipeline / orofacial gates, judged on the behaviour trial table, not the imaging one):
-  spout_behavior.reference_engagement / flag_engagement (behaviour figures, behavior_clips) and
-  orofacial_cohort.engagement_keep (reads the behaviour table's `engaged` column; its own "attempted" gate options
+NOT wired (behavior-pipeline / orofacial gates, judged on the behavior trial table, not the imaging one):
+  spout_behavior.reference_engagement / flag_engagement (behavior figures, behavior_clips) and
+  orofacial_cohort.engagement_keep (reads the behavior table's `engaged` column; its own "attempted" gate options
   already exist). Scripts that call engagement_gate directly (disengagement_tests, enl_state_counts,
   stopped_trial_traces, channel_position_maps) are DAQ-arm diagnostics and are not wired either.
 

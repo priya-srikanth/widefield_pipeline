@@ -132,8 +132,8 @@ def bars(ax, B: pd.DataFrame, frames, area_list, ylabel, title, scale=1.0):
 def epoch_lines(ax, B: pd.DataFrame, series, area: str, scale: float = 1.0, key: str = "frame"):
     """EPOCH LINES (Priya 10-25: "the partial lines is much better" than grouped bars): x = pre (0 by construction, a
     change from pre) -> acute -> subacute -> chronic; per series a line (mean of animals), a shaded 95 % nested CI, faint
-    per-animal lines; FILLED marker = CI excludes 0, OPEN = includes 0. ``series`` = [(value of B[key], label, colour)];
-    B = ``boot`` output (columns area, epoch, point, lo, hi and one column per animal). Grey band = the pre-stroke
+    per-animal lines; FILLED marker = CI excludes 0, OPEN = includes 0. ``series`` = [(value of B[key], label, color)];
+    B = ``boot`` output (columns area, epoch, point, lo, hi and one column per animal). Gray band = the pre-stroke
     split-half range when B has `<ref>_split` rows."""
     x = np.arange(len(EP4))
     ax.axhline(0, color="0.6", lw=0.8, zorder=0)
@@ -165,7 +165,7 @@ def epoch_lines(ax, B: pd.DataFrame, series, area: str, scale: float = 1.0, key:
 
 
 def lines_legend(fig, series, y: float = 0.01, split: bool = True):
-    """One legend row under the panels: series colours + filled / open marker key + animals (+ pre split-half band)."""
+    """One legend row under the panels: series colors + filled / open marker key + animals (+ pre split-half band)."""
     from matplotlib.lines import Line2D
     from matplotlib.patches import Patch
     h = [Line2D([], [], color=c, lw=2, label=lab) for _q, lab, c in series]
@@ -302,7 +302,7 @@ def main() -> int:
                                                                "direction (joint - no_fr_dir)": "FR-A",
                                                                "all FR (joint - no_fr_all)": "noFR"}}),
              ["FR-B", "FR-A", "noFR"], AREAS, "change from pre (R2)",
-             "3. FR UNIQUE in the frozen frame, epoch - pre: purple = directionless, pink = direction, grey = all FR")
+             "3. FR UNIQUE in the frozen frame, epoch - pre: purple = directionless, pink = direction, gray = all FR")
         bars(axs[1, 1], B4, ["noFR", "FR-A"], AREAS, "change_ref minus pre_late (R2)",
              "4. LAYER 2: how much each epoch's mapping changes beyond the pre-stroke drift (pre_late), all windows")
         h, lb = axs[0, 0].get_legend_handles_labels()

@@ -37,7 +37,7 @@ second group is post-stroke or pre-stroke. Reading the observation against a nul
 pre set instead would hand the null a quieter reference than the observation gets -- conservative for
 overlap, ANTI-conservative for amplitude, i.e. flattering the exact number in question.
 
-K IS FIXED ACROSS THE COMPARISON, from the full pre-stroke set. `subspace_overlap` normalises by the
+K IS FIXED ACROSS THE COMPARISON, from the full pre-stroke set. `subspace_overlap` normalizes by the
 first basis's dimension and chance is K/n, so letting each group choose its own K by variance
 explained would vary the dimension AND the chance level between the observation and its own null.
 
@@ -90,7 +90,7 @@ def trial_matched_split(counts, n_target, k_sessions=None, rng=None, n_swap=N_SW
     when it can also match the trials; trials win, because the bias being calibrated is within-session
     estimation noise and that scales with trials, not sessions.
 
-    GREEDY WITH A TOLERANCE, NOT EXHAUSTIVE. Two reasons it stops early rather than optimising: the
+    GREEDY WITH A TOLERANCE, NOT EXHAUSTIVE. Two reasons it stops early rather than optimizing: the
     draws must VARY (see `MATCH_TOL`), and the achieved counts are reported, so a cell the data
     cannot match is visible in the output rather than absorbed into it.
 

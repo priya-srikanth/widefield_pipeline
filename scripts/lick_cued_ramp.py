@@ -157,7 +157,7 @@ _PC = None
 
 def bout_prev_pos(label: str, bout_t: np.ndarray) -> np.ndarray:
     """PREVIOUS trial's spout of each stored ITI bout start, from the derived cache (PREV_CACHE) when it covers the
-    session -- the rebuild loads the session's behaviour off the share (~46 s per session; 10-28: three jobs x 107
+    session -- the rebuild loads the session's behavior off the share (~46 s per session; 10-28: three jobs x 107
     sessions spent ~80 min each on it). Falls back to the rebuild."""
     global _PC
     if _PC is None:

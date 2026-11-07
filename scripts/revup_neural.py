@@ -12,7 +12,7 @@ QUESTIONS
  (5b) Does a trial's PRE-CUE level (its LICK-FREE 1 s ENL window, above the session's RESTW baseline; Fig 14.21,
      lick_precue_restw.py) predict that trial's latency, within session x spout? And the session's level?
      THE WINDOW SLIDES (Priya 11-04 ~20:00: the between-trial lick ENL family's pre-cue parts slide like the imaging
-     ENL decoders): -1..0 s when no lick (behaviour + licks_all onsets) falls in it, else the latest lick-free 1 s gap
+     ENL decoders): -1..0 s when no lick (behavior + licks_all onsets) falls in it, else the latest lick-free 1 s gap
      after the strobe + 0.3 s (`enl_window.sliding_lags`, the decoders' `precue_window_start`), else the trial has no
      pre-cue level. Until 11-05 the level was the fixed -1..0 s mean on every trial; the 'quiet' selection (no lick in
      -2..0 s) is unchanged by the slide (its windows never move) and stays the fixed-window row.
@@ -24,10 +24,10 @@ METHOD
            restw_ok False sessions are left out of the statistics). Whole-session series, so the cue-aligned window can
            run -3..+10 s (into the ITI; the stored cued_wide files stop at +3 s) and late first licks can be aligned.
   areas  : ALM, tjM1, SSp-m, SSp-n, SSs per hemisphere; controls RSPd (both) and VISp (contralesional ROI only).
-  trials : ENGAGED trials (behaviour table engaged & finite cue) = the precue_restw trial set (checked equal).
+  trials : ENGAGED trials (behavior table engaged & finite cue) = the precue_restw trial set (checked equal).
   first lick per trial (computed HERE -- revup_behaviour's table was not on disk when this ran; if
            <OUT_W>/revup/revup_trials.csv.gz exists, `--join` reports the agreement):
-           in_window = first cam4 behaviour lick onset in cue .. trial stop (the iti_licks._first_lick_times rule);
+           in_window = first cam4 behavior lick onset in cue .. trial stop (the iti_licks._first_lick_times rule);
            late      = no lick in cue .. stop, first video lick onset (licks_all.csv, context iti, any segment) in
                        stop .. next trial's position strobe (spout retracted / moving; Priya 10-26/10-29);
            never     = neither.
@@ -545,10 +545,10 @@ def analyse() -> None:
     T.to_csv(_o("revup_neural_trials.csv.gz"), index=False)
     j = OUT / "revup_trials.csv.gz"
     if j.exists():
-        print(f"== behaviour table present ({j}); join check below")
+        print(f"== behavior table present ({j}); join check below")
         join_check(T, pd.read_csv(j))
     else:
-        print("== revup_trials.csv.gz (behaviour helper) not on disk: latency / phase defined here (see docstring)")
+        print("== revup_trials.csv.gz (behavior helper) not on disk: latency / phase defined here (see docstring)")
     # rule 8 counts first
     C = T.groupby(["animal", "epoch", T.pos.eq("far_contra").map({True: "far_contra", False: "other"}), "phase"]).size()
     print("== trials per animal x epoch x class x phase\n" + C.unstack("phase").fillna(0).astype(int).to_string())
@@ -594,8 +594,8 @@ def analyse() -> None:
 
 
 def join_check(T: pd.DataFrame, J: pd.DataFrame) -> None:
-    """Agreement with the behaviour helper's table (columns permitting): first-lick phase / latency per trial."""
-    print(f"   behaviour table columns: {list(J.columns)[:30]}")
+    """Agreement with the behavior helper's table (columns permitting): first-lick phase / latency per trial."""
+    print(f"   behavior table columns: {list(J.columns)[:30]}")
     keys = [c for c in ("label", "cue_s") if c in J.columns]
     if len(keys) < 2:
         print("   (no label + cue_s columns to join on; agreement not checked)")
@@ -750,7 +750,7 @@ def draw_metrics(D: pd.DataFrame, TS: pd.DataFrame) -> None:
                 ax.set_title(f"{m}: {CT[ct][0]}, {cls}", fontsize=9)
                 ax.tick_params(labelsize=7)
         top = _suptitle(fig, f"NEURAL: within-animal latency CONTRAST of the ramp metrics (per session {CT[ct][0]}; markers = "
-                     "animals (o PS92, s PS93, ^ PS94, D PS95), colour = epoch (pre / acute / subacute / chronic); bar = "
+                     "animals (o PS92, s PS93, ^ PS94, D PS95), color = epoch (pre / acute / subacute / chronic); bar = "
                      "boot_ci over animals > sessions). L_level = level at lick onset (-0.1..+0.05 s): ~0 = common "
                      "threshold. L_slope = lick-aligned slope -0.5..0 s, C_slope = cue-aligned slope 0..0.5 s: < 0 = slower "
                      "ramp in slow trials (C_slope in Q4 - Q1 is confounded: Q1's own lick response falls in 0..0.5 s; read it on the slow-only contrast). t_half = lick-aligned time of the 50 % crossing: < 0 = earlier relative to the "
@@ -857,7 +857,7 @@ def draw_late(CV: dict, LC: pd.DataFrame) -> None:
     top = _suptitle(fig, _rl("NEURAL: LATE first licks (first lick after the trial stop, spout gone) vs NORMAL first licks (in-window, all "
                  "spouts) vs SPONTANEOUS ITI bout starts (>= 2 s quiet), first-lick-aligned, above RESTW. Sessions with >= 2 "
                  "late licks enter the late curve; mean of animal means (row label: n animals in_window / late / spont). Bottom: per-session shape "
-                 "correlation over key areas x hemispheres (-1.5..+1 s, colour = epoch, marker = animal)."))
+                 "correlation over key areas x hemispheres (-1.5..+1 s, color = epoch, marker = animal)."))
     fig.tight_layout(rect=(0, 0, 1, top))
     save_png_svg(fig, FIGS / f"revup_neural_late_vs_normal_vs_spont{SFX}.png", dpi=100, bbox_inches="tight")
     plt.close(fig)
@@ -887,7 +887,7 @@ def draw_precue(R: pd.DataFrame) -> None:
         ax.tick_params(labelsize=7)
     top = _suptitle(fig, _rl("NEURAL: does the trial's PRE-CUE level (-1..0 s above RESTW) predict its first-lick latency? Spearman rho "
                  "within session x spout (trials with a first lick, in-window or late; >= 8 trials), Fisher-z mean per "
-                 "animal (markers) x epoch (colour); bar = mean of animals. Spouts in canonical order. > 0 = higher "
+                 "animal (markers) x epoch (color); bar = mean of animals. Spouts in canonical order. > 0 = higher "
                  "pre-cue level -> slower first lick."))
     bot = _fig_legend(fig, _ep_an_handles(sorted(R.animal.dropna().unique())) +
                       [plt.Line2D([], [], color="0.3", lw=1.5, label="bar = mean of animals")], fontsize=10)

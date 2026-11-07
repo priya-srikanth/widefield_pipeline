@@ -1,6 +1,6 @@
 """Insert / move figures on the goal page and renumber their section (links, caption headers, fig_ids.csv).
 
-Used for the 10-28 page edits (Priya: figures numbered by their neighbours). Every figure number inside the section is
+Used for the 10-28 page edits (Priya: figures numbered by their neighbors). Every figure number inside the section is
 reassigned in page order as <sec>.1, <sec>.2, ...; links whose text is a changed number (with or without "Fig ") are
 updated; plain-text mentions of changed numbers are PRINTED for a manual check (they may refer to other sections).
 Two-pass rename (old -> temporary -> new) so swapped numbers never collide.

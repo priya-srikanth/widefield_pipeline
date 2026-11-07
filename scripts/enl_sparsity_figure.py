@@ -42,13 +42,13 @@ POSITIONS = ("close_L", "close_center", "close_R", "far_L", "far_center", "far_R
 def imaging_counts(decode_results):
     """``{(animal, epoch, position): n}`` -- the stopped trials the DECODE ACTUALLY SCORED.
 
-    THIS FIGURE WAS WRONG UNTIL 2026-09-24 and this is the fix. It was drawn from the behaviour
+    THIS FIGURE WAS WRONG UNTIL 2026-09-24 and this is the fix. It was drawn from the behavior
     table alone, which the counting script's own docstring calls "an upper bound on the imaging
-    set" -- and the gap is not small: PS93 pre-stroke is **67 behaviour-side and 40 in the decode**,
+    set" -- and the gap is not small: PS93 pre-stroke is **67 behavior-side and 40 in the decode**,
     PS92 **10 and 6**. The docstring's guarantee is only that an EMPTY cell is empty in both, which
     is what it was written for (feasibility). It says nothing about a cell reading 12 that is really
     7, and this figure hatches at a floor of 10 -- so the overstatement lands exactly on the
-    judgement the figure exists to support.
+    judgment the figure exists to support.
 
     Taken from `enl_decode`'s own output rather than recounted, so the figure cannot disagree with
     the analysis it is describing (rule 9). `recall_by_position` carries the per-position n of the
@@ -65,8 +65,8 @@ def imaging_counts(decode_results):
 def figure(df, out, floor=FLOOR, imaging=None):
     """One panel per epoch; cell = stopped trials; hatched where below ``floor``.
 
-    With ``imaging`` the cell shows the DECODE's own count and the behaviour-table count beneath it,
-    and the hatch follows the decode count. Without it the figure falls back to behaviour counts and
+    With ``imaging`` the cell shows the DECODE's own count and the behavior-table count beneath it,
+    and the hatch follows the decode count. Without it the figure falls back to behavior counts and
     says so in the title, because a figure that cannot tell you which universe it is counting is
     worse than one that admits it.
     """
@@ -106,7 +106,7 @@ def figure(df, out, floor=FLOOR, imaging=None):
                     ax.text(j, i + 0.06, f"({beh})", ha="center", va="top", fontsize=5.5,
                             color=col, alpha=0.75)
         n_ok = int((np.where(np.isfinite(gi), gi, g) >= floor).all(axis=1).sum())
-        src = "decode" if np.isfinite(gi).any() else "BEHAVIOUR ONLY"
+        src = "decode" if np.isfinite(gi).any() else "BEHAVIOR ONLY"
         ax.set_title(f"{ep}  [{src}]\n{n_ok}/{len(animals)} animals clear {floor}/position",
                      fontsize=9)
         ax.set_xticks(range(len(POSITIONS)))
@@ -117,9 +117,9 @@ def figure(df, out, floor=FLOOR, imaging=None):
     fig.suptitle(
         "STOPPED trials per cell  —  red/hatched < "
         f"{floor}, still shown\n"
-        + ("large = what the DECODE scored, (small) = behaviour table, which OVERSTATES it"
+        + ("large = what the DECODE scored, (small) = behavior table, which OVERSTATES it"
            if any_img else
-           "BEHAVIOUR-TABLE COUNTS ONLY — an UPPER BOUND on the imaging set (PS93 pre: 67 vs 40). "
+           "BEHAVIOR-TABLE COUNTS ONLY — an UPPER BOUND on the imaging set (PS93 pre: 67 vs 40). "
            "Pass --decode-json for the real counts"),
         fontsize=9.5)
     out = Path(out)
@@ -135,7 +135,7 @@ def main(argv=None) -> int:
     ap.add_argument("--cache", required=True, help="CSV from scripts.enl_state_counts --cache")
     ap.add_argument("--decode-json", action="append", default=None,
                     help="output of `enl_decode --out`, repeatable (one per epoch). WITHOUT it "
-                         "the figure falls back to behaviour-table counts, which OVERSTATE the "
+                         "the figure falls back to behavior-table counts, which OVERSTATE the "
                          "imaging set, and says so in the title")
     ap.add_argument("--out", default=None)
     ap.add_argument("--floor", type=int, default=FLOOR)
@@ -147,12 +147,12 @@ def main(argv=None) -> int:
     for pth in args.decode_json or []:
         p_ = Path(pth)
         if not p_.is_file():
-            print(f"[enl_sparsity] MISSING {p_} -- those cells fall back to behaviour", flush=True)
+            print(f"[enl_sparsity] MISSING {p_} -- those cells fall back to behavior", flush=True)
             continue
         results += json.loads(p_.read_text(encoding="utf-8"))
     img = imaging_counts(results)
     if not img:
-        print("[enl_sparsity] no decode counts -- drawing BEHAVIOUR-TABLE UPPER BOUNDS", flush=True)
+        print("[enl_sparsity] no decode counts -- drawing BEHAVIOR-TABLE UPPER BOUNDS", flush=True)
     if args.out:
         out = Path(args.out)
     else:

@@ -243,7 +243,7 @@ def _daq_lookup_selection(sel):
 
 def base_id(spec) -> str:
     """spec_id without the fields a DAQ-trained lookup from the LP arm cannot know (`_DAQ_LOOKUP_IGNORES`), with the
-    selection normalised by `_daq_lookup_selection`."""
+    selection normalized by `_daq_lookup_selection`."""
     d = {k: v for k, v in spec.items() if k not in _DAQ_LOOKUP_IGNORES}
     if "selection" in d:
         d["selection"] = _daq_lookup_selection(d["selection"])
@@ -372,7 +372,7 @@ def find(spec):
 
     - **Within a machine the fit IS bitwise reproducible** (`tests/test_parallel_results_are_
       ordered.py` pins it across BLAS thread counts), so a re-run reproduces a re-run.
-    - **Across machines it is reproducible only to the optimiser's tolerance.** Preferring local
+    - **Across machines it is reproducible only to the optimizer's tolerance.** Preferring local
       over server therefore means two boxes can legitimately be using slightly different models
       for the same spec. Publishing so that every box reads ONE store is what removes that, and is
       why the whole set was published on 2026-09-21.

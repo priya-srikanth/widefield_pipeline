@@ -28,7 +28,7 @@ ROOT = Path(__file__).resolve().parent.parent
 
 
 def test_pin_blas_actually_changes_the_loaded_library():
-    """BEHAVIOURAL, because the structural version of this test passed while the fix did not work.
+    """BEHAVIORAL, because the structural version of this test passed while the fix did not work.
 
     The first attempt set OMP_NUM_THREADS and friends inside `main()`. A test asserting `_pin_blas`
     is *called* there passed; the render still produced the uncapped bytes, because OpenBLAS reads

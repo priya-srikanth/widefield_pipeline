@@ -1,7 +1,7 @@
 """Epoch-line figures for the 10-26 contest results that had only tables (ENCODING_FINDINGS 8.19; Priya 10-26: "which
 figure is this?"). Unique R2 = joint - no_<g> (frozen, frame measure); remapping index = self-fit unique minus frozen
 unique (`session_vs_frozen`); each a change from pre within animal, nested bootstrap (`frozen_fr_compare.boot`), drawn
-with `frozen_fr_compare.epoch_lines` (line = mean of animals, band = 95 % CI, filled = CI excludes 0, grey band = pre
+with `frozen_fr_compare.epoch_lines` (line = mean of animals, band = 95 % CI, filled = CI excludes 0, gray band = pre
 split-half range).
   contest_landing_vs_target.png  target vs per-spout lick kernels, with the lick kernels split by LANDING (..._frA_lsland)
                                  or by TARGET spout (..._frA_ls)

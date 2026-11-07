@@ -1,5 +1,5 @@
 """Priya 11-05, DECISIONS_PENDING_MERGE_2026-11-04 (f) 2: the hit-rate period is the CAMERA working period (first cue
--> last camera lick, minus the stopped runs); the DAQ quit-tail rule is a labelled robustness row. Fig 0.2
+-> last camera lick, minus the stopped runs); the DAQ quit-tail rule is a labeled robustness row. Fig 0.2
 (`scripts/rebuild_figs/fig_behaviour_hits.py`) draws the camera rate as the primary and the DAQ one as
 `behaviour_hits_by_spout_daq_quittail`.
 
@@ -8,7 +8,7 @@ Pins:
     working period, and `trial_attempts.session_summary`'s frac_hit is contact / working-period trials (denominator =
     contact + incomplete + jaw_only + no_response; Priya 11-04 answer 2);
   * fig_behaviour_hits reads exactly that column for the primary and refuses a table built without the camera gate;
-  * it writes the primary and the robustness figure under different names, the robustness one labelled.
+  * it writes the primary and the robustness figure under different names, the robustness one labeled.
 """
 from __future__ import annotations
 

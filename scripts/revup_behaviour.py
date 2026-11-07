@@ -1,4 +1,4 @@
-"""FAR-CONTRA "REV-UP": the structure of the post-stroke first-lick delay -- BEHAVIOUR ONLY (Priya 10-29: "after the
+"""FAR-CONTRA "REV-UP": the structure of the post-stroke first-lick delay -- BEHAVIOR ONLY (Priya 10-29: "after the
 stroke animals seem to 'rev up' before licking the far-contra spout: much longer latencies than pre-stroke, sometimes
 starting a lick only after the spout has left"; addition 10-29: do NOT censor the first-lick search at the response
 window or at spout departure).
@@ -8,10 +8,10 @@ and the first contact ~+900 ms later. What is the delay made of -- (i) one slow 
 (ii) repeated aborted attempts, or (iii) a quiet wait and then a normal lick -- and how much of it spills past the spout?
 
 METHOD (per trial, every trial of the curated sessions from 08-06; reporting set = the CANONICAL trials of THIS RUN'S
-trial-attempts table (`lp_licks.attempts_path()` = `run_mode.attempts_dir()`; coordinator 11-05, Priya: behaviour-only
+trial-attempts table (`lp_licks.attempts_path()` = `run_mode.attempts_dir()`; coordinator 11-05, Priya: behavior-only
 figures move to the camera working period): under the camera trial gate `canonical` = the camera WORKING PERIOD
 (every trial not stopped / stopped_licking / early_run / after_end / unknown, `scripts/trial_attempts.py`); in the
-untagged default run the behaviour pipeline's reference gate `orofacial_cohort.engagement_keep` as before (until 11-05
+untagged default run the behavior pipeline's reference gate `orofacial_cohort.engagement_keep` as before (until 11-05
 this script always read that untagged table); pre = the AUGUST pre-stroke sessions; epochs = `epochs.epoch_of`):
   times      position strobe / cue / trial stop from `trial_windows.trial_bounds` (DAQ; stop = DAQ `trial_end` TTL)
   spout      SPOUT-LEAVE = the trial stop (the spout retracts at the trial-end TTL and starts moving 60-80 ms later,
@@ -31,8 +31,8 @@ this script always read that untagged table); pre = the AUGUST pre-stroke sessio
                 small / incomplete mouth openings cam4 does not register, counted cue .. first lick (n_cam1_pre)
     jaw         `qc/jaw_onsets.csv` (cam4 + cam1, cam1 floor 15 px; searched cue .. stop): onset, or its re-onset when
                 the jaw was already deflected at the cue
-    FR vigour   FaceRhythm master_pre_v1 (cam4), UNBLANKED (`face_rhythm_outputs.fr_signals(blank=False)`, absolute),
-                non-directional lick vigour = sum of the six lick factors (fr_direction_mechanism.LICK); z vs the
+    FR vigor   FaceRhythm master_pre_v1 (cam4), UNBLANKED (`face_rhythm_outputs.fr_signals(blank=False)`, absolute),
+                non-directional lick vigor = sum of the six lick factors (fr_direction_mechanism.LICK); z vs the
                 session's pre-cue (-0.5..0 s) distribution (median / 1.4826 MAD); fr_onset = first time after
                 cue + 40 ms with z > FR_Z for FR_K consecutive 40-ms samples, searched up to the first lick.
                 Also fr_prep_jaw (the factor set's preparatory-jaw factor), same z.
@@ -53,7 +53,7 @@ the within-animal MixedLM slope p (lick_sspn_checks._track's model), next to the
 (recprim_sessions.csv `marker`).
 
 OUTPUTS  <OUT_W>/revup/ : sessions/<label>.pkl (per-session cache), revup_trials.csv.gz (per trial; join key = label +
-trial_id), revup_fr.npz (FR vigour cue- / lick-aligned per trial, row order = revup_trials), revup_cells.csv (animal x
+trial_id), revup_fr.npz (FR vigor cue- / lick-aligned per trial, row order = revup_trials), revup_cells.csv (animal x
 spout x epoch), revup_session.csv (session x spout), revup_boot.csv, revup_survival.csv, revup_track.csv;
 <OUT_W>/figures/revup_*.png.
 Usage: python scripts/revup_behaviour.py [--jobs 6] [--labels ...]
@@ -522,7 +522,7 @@ def _sup(fig, text: str, fontsize: float = 9) -> float:
 
 
 def _leg_below(fig, handles, ncol: int | None = None, fontsize: float = 8) -> float:
-    """ONE figure-level legend centred below the panels (never on top of data); returns the bottom of the axes area for
+    """ONE figure-level legend centered below the panels (never on top of data); returns the bottom of the axes area for
     tight_layout(rect=(0, bottom, 1, top))."""
     ncol = ncol or len(handles)
     fig.legend(handles=handles, loc="lower center", ncol=ncol, fontsize=fontsize, frameon=False,
@@ -574,7 +574,7 @@ def plots() -> None:
     bot = _leg_below(fig, [plt.Line2D([], [], color=EC[e], lw=1.6, label=e) for e in EP4], fontsize=9)
     top = _sup(fig, "Fig R1. First-lick survival after the cue (Kaplan-Meier; cam4 video licks, NOT censored at the window;"
                  "\ncensored at the next trial's position strobe). Dotted = end of the 3.5-s response window (the spout"
-                 " leaves ~0.2 s later). Canonical engaged trials. BEHAVIOUR", fontsize=9)
+                 " leaves ~0.2 s later). Canonical engaged trials. BEHAVIOR", fontsize=9)
     fig.tight_layout(rect=(0, bot, 1, top))
     save_png_svg(fig, FIG / "revup_survival.png", dpi=120)
     plt.close(fig)
@@ -609,7 +609,7 @@ def plots() -> None:
     axs[3].set_ylabel("share of trials")
     bot = _leg_below(fig, [plt.Rectangle((0, 0), 1, 1, color=PH_COL[ph], label=ph) for ph in PHASES], fontsize=10)
     top = _sup(fig, "Fig R2. Where the first post-cue lick falls: response window / after the window with the spout still "
-                 "there\n / after the spout left (ITI, before the next strobe) / never. Per animal x epoch. BEHAVIOUR",
+                 "there\n / after the spout left (ITI, before the next strobe) / never. Per animal x epoch. BEHAVIOR",
                  fontsize=10)
     fig.tight_layout(rect=(0, bot, 1, top))
     save_png_svg(fig, FIG / "revup_phase_shares.png", dpi=120)
@@ -642,7 +642,7 @@ def plots() -> None:
     bot = _leg_below(fig, hd, fontsize=9)
     top = _sup(fig, "Fig R2 (simple). Share of first post-cue licks that fall OUTSIDE the response window, by spout x epoch "
                  "(the rest fall in the window; 'after the window, spout still there' is <= 1.1 % in every cell and not drawn). Bar = mean "
-                 "of animals, markers = animals. BEHAVIOUR", fontsize=10)
+                 "of animals, markers = animals. BEHAVIOR", fontsize=10)
     fig.tight_layout(rect=(0, bot, 1, top))
     save_png_svg(fig, FIG / "revup_phase_shares_simple.png", dpi=120)
     plt.close(fig)
@@ -704,9 +704,9 @@ def plots() -> None:
           plt.Line2D([], [], color="k", marker="_", ls="", ms=12, label="top: median latency")] + \
          [plt.Rectangle((0, 0), 1, 1, color=CL_COL[c], label=f"bottom: {c}") for c in CLASSES]
     bot = _leg_below(fig, hd, ncol=4, fontsize=8)
-    top = _sup(fig, "Fig R3. What fills the delay.\nTop: median cue -> first movement (jaw / cam1 opening / FR lick vigour "
+    top = _sup(fig, "Fig R3. What fills the delay.\nTop: median cue -> first movement (jaw / cam1 opening / FR lick vigor "
                  "z>3) and first movement -> first lick.\nBottom: late trials classed wait / ramp (>= 300 ms "
-                 "movement before the lick) / aborted (>= 2 cam1-only openings). n above bars. BEHAVIOUR", fontsize=8)
+                 "movement before the lick) / aborted (>= 2 cam1-only openings). n above bars. BEHAVIOR", fontsize=8)
     fig.tight_layout(rect=(0, bot, 1, top), h_pad=2.0)
     save_png_svg(fig, FIG / "revup_decomposition.png", dpi=120)
     plt.close(fig)
@@ -737,11 +737,11 @@ def plots() -> None:
         for r in (0, 1):
             axs[r, j].legend(fontsize=7, frameon=False, ncol=2, loc="upper center", bbox_to_anchor=(0.5, -0.22),
                              handlelength=1.2, columnspacing=0.8)
-    axs[0, 0].set_ylabel("FR lick vigour (z vs pre-cue)")
-    axs[1, 0].set_ylabel("FR lick vigour, trials with\nlatency > 600 ms (z)")
-    top = _sup(fig, "Fig R4. FaceRhythm non-directional lick vigour (sum of the six lick factors, unblanked) at far_contra:\n"
+    axs[0, 0].set_ylabel("FR lick vigor (z vs pre-cue)")
+    axs[1, 0].set_ylabel("FR lick vigor, trials with\nlatency > 600 ms (z)")
+    top = _sup(fig, "Fig R4. FaceRhythm non-directional lick vigor (sum of the six lick factors, unblanked) at far_contra:\n"
                  "top cue-aligned (licked trials), bottom aligned to the first lick of slow trials -- a ramp would rise "
-                 "well before 0. BEHAVIOUR", fontsize=8)
+                 "well before 0. BEHAVIOR", fontsize=8)
     fig.tight_layout(rect=(0, 0, 1, top), h_pad=1.0)
     save_png_svg(fig, FIG / "revup_fr_vigour.png", dpi=120)
     plt.close(fig)
@@ -763,7 +763,7 @@ def plots() -> None:
     bot = _leg_below(fig, [plt.Line2D([], [], ls="", marker="o", color=acol.get(a, "k"), label=a)
                            for a in sorted(G.animal.unique())], fontsize=9)
     top = _sup(fig, "Fig R5. Does the far-contra delay track recovery?\npost-stroke sessions; aim = far-contra first-cued-lick"
-                 " aim vs pre. Within-animal tests in revup_track.csv. BEHAVIOUR", fontsize=8)
+                 " aim vs pre. Within-animal tests in revup_track.csv. BEHAVIOR", fontsize=8)
     fig.tight_layout(rect=(0, bot, 1, top))
     save_png_svg(fig, FIG / "revup_recovery.png", dpi=120)
     plt.close(fig)

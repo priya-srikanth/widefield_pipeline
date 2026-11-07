@@ -261,7 +261,7 @@ def test_the_CD_notes_carry_the_ARTEFACT_WARNING_not_just_the_method():
         assert "artefact" in legend.lower() or "artifact" in legend.lower(), pat
         assert "surviving fraction" in legend or "survived" in legend, pat
         assert "Z-SCORED" in legend, pat              # the standardisation, measured
-        assert "HAEMODYNAMICS ARE SLOW" in legend, pat
+        assert "HEMODYNAMICS ARE SLOW" in legend, pat
 
 
 def test_the_geometry_note_states_the_CHANCE_LEVEL_and_the_MISSING_NULL():
@@ -280,7 +280,7 @@ def test_the_DERIVED_families_carry_THEIR_OWN_caveats():
 
     A pooled delta invites "the band includes zero so nothing happened", when pre-stroke is zero BY
     CONSTRUCTION and the difference carries both epochs' noise. A migration matrix invites reading
-    off-diagonal mass as movement, when the six directions are not orthogonal and neighbouring
+    off-diagonal mass as movement, when the six directions are not orthogonal and neighboring
     positions resemble each other already. Neither caveat is the trajectory panels' caveat, so they
     are asserted separately rather than by requiring one string everywhere.
     """

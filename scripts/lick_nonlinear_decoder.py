@@ -9,13 +9,13 @@ every post session scored by the decoder fit on all pre sessions (frozen, never 
   linear      the KEY decoder itself (StandardScaler + RidgeCV per target, lick_refit_decoders._fit), so its r reproduces
               refit_decoders_sessions.csv "frozen" exactly (checked at run time)
   non-linear  KERNEL RIDGE with an RBF kernel, Nystroem approximation (N_LANDMARK training licks as landmarks, fixed seed;
-              exact kernel ridge on ~10^4 pre licks is a 10^4 x 10^4 solve per fit). Features standardised on the training
+              exact kernel ridge on ~10^4 pre licks is a 10^4 x 10^4 solve per fit). Features standardized on the training
               licks. Hyperparameters (RBF width gamma = c / n_features, ridge alpha = a * n_train) chosen by INNER
               leave-one-session-out over the TRAINING pre sessions only (nested: a held-out pre session never informs its
               own hyperparameters), pooled held-out MSE, separately per target.
-Why kernel ridge: it is the smooth, convex, ridge-regularised generalisation of the linear decoder (the same loss and
+Why kernel ridge: it is the smooth, convex, ridge-regularized generalization of the linear decoder (the same loss and
 penalty in an RBF feature space; small gamma -> ~linear), so a difference from the linear row is the non-linearity, not
-a change of loss, optimiser or regularisation family. Boosting / an MLP add tuning knobs and randomness without a reason
+a change of loss, optimizer or regularization family. Boosting / an MLP add tuning knobs and randomness without a reason
 to expect a smoother read-out of 45 area signals.
 Readouts per session: r (decoded vs actual), r / animal's pre mean (model's own pre), and the like-for-like same-place
 offset (likeforlike.offset, Gaussian reference = method "nw", sigma by held-out pre error, chosen per model x target).
@@ -66,7 +66,7 @@ def _nys(X: np.ndarray, gamma: float):
 
 
 def _ridge_path(F: np.ndarray, Y: np.ndarray, alphas: np.ndarray) -> tuple:
-    """Ridge (centred, unpenalised intercept) for every alpha at once from one eigendecomposition. -> (mu_f, mu_y, [W])."""
+    """Ridge (centered, unpenalized intercept) for every alpha at once from one eigendecomposition. -> (mu_f, mu_y, [W])."""
     mu_f, mu_y = F.mean(0), Y.mean(0)
     Fc = F - mu_f
     s, V = np.linalg.eigh(Fc.T @ Fc)

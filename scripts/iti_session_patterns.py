@@ -1,10 +1,10 @@
 """FULLY PER-SESSION Haufe pattern maps (Priya 10-27: "can we not do per-session haufe maps"; map-level permutation and
-amplitude-normalised change maps; per-spout-position version of the position maps).
+amplitude-normalized change maps; per-spout-position version of the position maps).
 
 Every session gets its own decoder, fit on THAT session's licks only (ridge, penalty by internal CV), and its own
 activation pattern A = Cov(X, yhat) / Var(yhat) (Haufe et al. 2014) on the same licks, mapped to pixels with the animal's
 pre-stroke SVD basis (W @ A; features as `iti_decoder_patterns`: 200 components, lags 0..0.2 s from the lick peak).
-Because no map depends on which sessions are labelled pre / post, session labels can be permuted (`iti_session_pattern_
+Because no map depends on which sessions are labeled pre / post, session labels can be permuted (`iti_session_pattern_
 tests.py`). Targets, per lick set (ITI; cued = all post-cue licks, `iti_licks.extract`):
   lat, sag            landing position (lateral + = contralesional; sagittal extension)
   wlat, wsag          WITHIN-SPOUT: landing minus the session's mean landing at that spout (cued: target spout; ITI:

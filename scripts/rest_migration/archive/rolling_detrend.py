@@ -1,15 +1,15 @@
 """ROLLING masked-median detrend -- the smooth version of `filter_acausality_test.detrend_masked`.
 
 THE DEFECT IT FIXES. `detrend_masked` walks NON-OVERLAPPING windows, takes one median per window at
-its centre, and joins those centres with `np.interp` -- LINEAR interpolation. The resulting trend is
+its center, and joins those centers with `np.interp` -- LINEAR interpolation. The resulting trend is
 piecewise-linear with a knot every `win_s`, so at 300 s over a 100 min session it has ~20 knots and
 can only bend at them. That is visible as kinks in the drift-estimator overlay
 (`plot_drift_estimators`), and a trend with corners injects structure of its own into whatever is
 detrended with it.
 
-THE FIX is to evaluate the SAME masked median on a DENSE grid of window centres (default every 10 s)
-instead of one per window. The window still sets the kinetics -- this changes the realisation, not the
-timescale -- but with centres ~30x denser the interpolation artefact disappears.
+THE FIX is to evaluate the SAME masked median on a DENSE grid of window centers (default every 10 s)
+instead of one per window. The window still sets the kinetics -- this changes the realization, not the
+timescale -- but with centers ~30x denser the interpolation artifact disappears.
 
 WHAT IS DELIBERATELY UNCHANGED: it is still a MEDIAN over masked samples, not a convolution. So it
 keeps the property that made the windowed family safe in the first place -- no impulse response, so it
@@ -17,7 +17,7 @@ cannot displace signal backwards in time the way the zero-phase Butterworth does
 must not quietly make it a filter.
 
 EDGES: windows are truncated at the record ends, exactly as the non-overlapping version's first and
-last windows are, and `np.interp` clamps beyond the outermost usable centre.
+last windows are, and `np.interp` clamps beyond the outermost usable center.
 """
 from __future__ import annotations
 
@@ -68,9 +68,9 @@ def rolling_detrend(X, mask, win_s, stride_s=DEFAULT_STRIDE_S):
 def robust_local_linear_trend(X, mask, win_s, stride_s=10.0, min_n=20, iters=2):
     """Rolling ROBUST LOCAL LINEAR trend -- the boundary-corrected counterpart of a rolling median.
 
-    At each centre, fit value ~ a + b*(t - c) by least squares on the masked samples in the window,
+    At each center, fit value ~ a + b*(t - c) by least squares on the masked samples in the window,
     with `iters` rounds of MAD-based reweighting so a transient cannot drag the fit (the robustness
-    the median was chosen for). Evaluating the fit AT the centre means that at an edge, where the
+    the median was chosen for). Evaluating the fit AT the center means that at an edge, where the
     window is one-sided, the slope carries the estimate to the boundary instead of the level being
     pinned to the middle of the available half-window.
     """

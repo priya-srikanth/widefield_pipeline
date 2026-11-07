@@ -166,7 +166,7 @@ def plot(D: dict) -> None:
     fig.legend([Line2D([], [], ls="", marker=m_, mfc="0.7", mec="k", ms=7) for m_ in "oDs"],
                ["left-target licks", "far-R (contralesional) licks landing LEFT", "far-R licks on target"],
                loc="upper center", bbox_to_anchor=(0.5, 0.905), ncol=3, fontsize=8, frameon=False,
-               title="shape = lick group; colour = epoch (pre black, acute pink, subacute gold, chronic green)",
+               title="shape = lick group; color = epoch (pre black, acute pink, subacute gold, chronic green)",
                title_fontsize=8)
     fig.suptitle("MISDIRECTED far-contra (far R) cued licks that land LEFT: left-lick or right-lick cortex? Row 1: score on "
                  "the animal's pre templates (left-target vs on-target far-R licks, Allen areas + ALM / tjM1 split, z-scored);\nrow 2: frozen "

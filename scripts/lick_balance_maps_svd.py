@@ -136,7 +136,7 @@ def _session(label: str) -> dict:
 def _cv_r2_csp(Xs: list, Cs: list, Ds: list, cols: list[np.ndarray]) -> list[np.ndarray]:
     """Leave-one-session-out cvR2 per pixel of Y_s = C_s D_s' for OLS on each design-column subset `cols` of the full
     design (X_s INCLUDING the intercept column 0); pooled SSE / SST over held-out licks (== lick_balance_maps._cv_r2
-    on the materialised lick x pixel matrix)."""
+    on the materialized lick x pixel matrix)."""
     S = len(Xs)
     N = sum(len(x) for x in Xs)
     CtC = [c.T @ c for c in Cs]

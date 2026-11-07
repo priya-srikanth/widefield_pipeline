@@ -58,7 +58,7 @@ def _cam1_kinds(P):
 
 
 def test_cam1_finds_an_incomplete_lick_with_the_nose_hidden():
-    """cam1: the rod hides the nose on centre trials, so the opening is measured from the jaw's rest."""
+    """cam1: the rod hides the nose on center trials, so the opening is measured from the jaw's rest."""
     P = _still()
     nx, ny, _ = P["nose"]
     P["nose"] = (nx, ny, np.zeros(N))                                   # nose never seen

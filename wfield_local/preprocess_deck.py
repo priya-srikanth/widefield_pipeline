@@ -99,7 +99,7 @@ _M_LICK_GATE = (
 METHOD_NOTES = {
     "allen": "Mean 470/415 image with Allen CCF area outlines overlaid — the atlas-alignment QC. " + _M_PRE,
     "cue_maps": "Cue-aligned maps: mean dF/F in the pre and post windows (both 2 s, from configs/defaults.yaml "
-                "preprocess.maps.cue_pre_s / cue_post_s) and their difference, per spout position, shared colour "
+                "preprocess.maps.cue_pre_s / cue_post_s) and their difference, per spout position, shared color "
                 "scale. NB the '1s' in the filename is a legacy label kept only so the deck's glob still matches "
                 "historical sessions -- the pre window is 2 s, as recorded in the figure's *_summary.json. " + _M_PRE,
     "cue_pairwise": "Pairwise contrasts between spout positions (post-cue delta maps) — which cortex "
@@ -123,7 +123,7 @@ METHOD_NOTES = {
                     "mean over [first lick, + 0.5 s] minus the same PRE-CUE baseline (first DAQ lick within the "
                     "3.5 s response window; a pre-lick baseline would contain the cue response). Columns close "
                     "L / C / R, far L / C / R, the all-spout mean, and the spout-specific RMS (each spout minus the "
-                    "all-spout mean). One colour scale per session, shared by its cue and lick rows. Trials with a "
+                    "all-spout mean). One color scale per session, shared by its cue and lick rows. Trials with a "
                     "detected epileptiform discharge within -1.5..+3.5 s of the cue are dropped (count in the "
                     "title), and PS122 10-29 after 110 min. No cross-day pixel registration: compare patterns "
                     "across days visually. " + _M_PRE,

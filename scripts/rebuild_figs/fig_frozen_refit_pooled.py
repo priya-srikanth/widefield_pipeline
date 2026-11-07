@@ -18,7 +18,7 @@ REBUILD: re-render epoch family 5rmo (epoch_grant_figures --only 5rmo) under the
 
 STATS: wfield_local.analysis_kit.boot_delta (paired animals -> sessions, animal-weighted), each post epoch vs pre per
 panel; * = 95% CI excludes 0; ** = CI at alpha 0.05/9 (Bonferroni, 3 post epochs x 3 panels) excludes 0.
-PLOT: sessions = open markers (shape = animal, colour = epoch); filled dot +- bar = mean of animal means +- SEM (n=4);
+PLOT: sessions = open markers (shape = animal, color = epoch); filled dot +- bar = mean of animal means +- SEM (n=4);
 stars in the top band (sig_marks.star_top + reserve_headroom).
 OUT: <out>/frozen_refit_pooled.png / .csv (3 sections: sessions, levels, change vs pre)
 """

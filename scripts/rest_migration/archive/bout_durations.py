@@ -16,7 +16,7 @@ numbers. If they shorten, 1 s may no longer be affordable either.
 
 SUBSAMPLED, deliberately. The full 92-session pass costs ~70 minutes and is dominated by reading
 analog channels off the share; a bout-length DISTRIBUTION does not need every session, and a
-balanced draw across epochs is the honest way to summarise it -- the fraction of frames that are
+balanced draw across epochs is the honest way to summarize it -- the fraction of frames that are
 rest is strongly epoch-dependent under the old definition, so an unbalanced sample would report the
 epoch mix as if it were a property of the definition.
 """

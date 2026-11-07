@@ -1,6 +1,6 @@
 """PREVIEW of an LMM version of an epoch figure: per-session changes vs the animal's own pre (open markers, shape =
-animal, colour = epoch), LMM estimate (filled dot) + 95 % CI (t, df = n_animals - 1), animal bootstrap 95 % beside it
-(grey; describes these animals), LMM stars in the top band (* p < .05, ** Holm within the figure).
+animal, color = epoch), LMM estimate (filled dot) + 95 % CI (t, df = n_animals - 1), animal bootstrap 95 % beside it
+(gray; describes these animals), LMM stars in the top band (* p < .05, ** Holm within the figure).
 usage: a3_lmm_preview.py <sessions.csv> <lmm.csv> <figure-name> <out.png> [ylabel]"""
 import sys
 import numpy as np, pandas as pd

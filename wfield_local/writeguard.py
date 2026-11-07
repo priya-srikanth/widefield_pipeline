@@ -110,7 +110,7 @@ def assert_writable(path: str | os.PathLike[str]) -> None:
 
 
 def in_keyed_store(c: str) -> bool:
-    """True if the normalised path ``c`` lies in a CONTENT-KEYED store a tagged run may write (render blocker 11-04: the
+    """True if the normalized path ``c`` lies in a CONTENT-KEYED store a tagged run may write (render blocker 11-04: the
     tag rule refused <root>/frozen_models). The stores are `_keyed_stores`; the RESTnl caches are the session cache's
     ``<name>_restnl*`` siblings (one per gate source)."""
     if any(c.startswith(s) for s in _keyed_stores()):
@@ -124,7 +124,7 @@ def in_keyed_store(c: str) -> bool:
 
 
 def _keyed_stores() -> list[str]:
-    """Normalised roots of the stores that are keyed by CONTENT, not by the run tag, so a tagged run may write them
+    """Normalized roots of the stores that are keyed by CONTENT, not by the run tag, so a tagged run may write them
     (review N3, 11-03; render blocker 11-04): the frozen-model store(s) (spec ids carry hemo variant, selection, training
     fingerprint; incl. a WIDEFIELD_FROZEN_MODEL_DIR store such as lp_final_render's frozen_models_lpfinal), the
     per-session cache (kinds carry the run-mode cache tag; map_collect and the LP-licks result_cache live inside it),
@@ -159,7 +159,7 @@ def _keyed_stores() -> list[str]:
 
 
 def _under_figures_working(c: str) -> bool:
-    """True if the normalised path ``c`` lies under this machine's `figures_working` root (False if it is unknown) and
+    """True if the normalized path ``c`` lies under this machine's `figures_working` root (False if it is unknown) and
     is NOT inside a content-keyed store (`_keyed_stores`, or any path segment starting "frozen_models")."""
     try:
         from wfield_local import config
@@ -275,4 +275,4 @@ def assert_deletable(path, verified_copies=(), derived: bool = False,
         f"  Acquired files (.dat/.h5/camlog/avi/behavior logs) may only be deleted when a copy is "
         f"confirmed on a server, or with explicit permission.\n"
         f"  Pass verified_copies=[<confirmed server path>], or derived=True if it is reproducible "
-        f"from archived inputs, or approved=True for an explicitly authorised deletion.")
+        f"from archived inputs, or approved=True for an explicitly authorized deletion.")

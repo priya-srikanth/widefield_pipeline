@@ -62,13 +62,13 @@ def _store(days):
 
 
 def test_window_selects_on_day_and_ignores_the_epoch_label(monkeypatch):
-    """THE POINT OF THE SCRIPT. A session in range counts even if it was labelled `subacute`.
+    """THE POINT OF THE SCRIPT. A session in range counts even if it was labeled `subacute`.
 
-    PS94's days 11-29 are labelled subacute only because it has no chronic bin, so day-selection
+    PS94's days 11-29 are labeled subacute only because it has no chronic bin, so day-selection
     must see them regardless of that label -- otherwise re-binning by day would just reproduce the
     epoch bins it exists to bypass.
 
-    That is a statement about the SELECTOR, not a licence to put PS94 in chronic. The window-level
+    That is a statement about the SELECTOR, not a license to put PS94 in chronic. The window-level
     `exclude` keeps it out of the chronic control for a separate reason: it has not plateaued. See
     `test_PS94_is_excluded_from_the_day_binned_chronic_window`.
     """

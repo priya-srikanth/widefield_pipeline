@@ -6,7 +6,7 @@ put four copies of the same three decisions in the tree -- how many workers, how
 what to do when a unit dies -- and this repo has already had to collapse six copies of a decoder
 recipe, three of a lick discriminator and two of an engaged cut. The copies always agree at first.
 
-WHAT THE CALLER STILL OWNS: the UNIT. That is a per-stage judgement and not a mechanical one --
+WHAT THE CALLER STILL OWNS: the UNIT. That is a per-stage judgment and not a mechanical one --
 `poststroke_section_g` fans over animals rather than the six (animal, tag) pairs available, because
 an animal's two tags share a frozen-decoder spec and `load_or_fit` writes it.
 """

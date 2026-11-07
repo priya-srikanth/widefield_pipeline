@@ -24,7 +24,7 @@ profile with ``rebuild_root`` makes it structural:
   `wfield_local/__init__.py` installs it at import when the env var is set (every pipeline module imports the package,
   and subprocesses inherit the env). Not seen: writes made in C code that bypass Python's ``open`` (h5py, cv2); none
   of the render's writers use them for outputs.
-* SEED. Inputs that live INSIDE a derived tree (epoch boundaries; the camera / behaviour QC tables in
+* SEED. Inputs that live INSIDE a derived tree (epoch boundaries; the camera / behavior QC tables in
   ``imaging_encoding/qc``) are copied in once by ``python -m wfield_local.rebuild_root init`` with a sha256 manifest
   (``rebuild.seed_inputs``); inputs that sit beside derived products (``rebuild.inputs_in_place``: the joint bases) are
   read in place through `PathResolver.input_root`.
@@ -114,7 +114,7 @@ def _input_roots() -> dict:
 
 @functools.lru_cache(maxsize=8)
 def _fence(rkey: str) -> dict:
-    """Normalised prefixes for the fence of rebuild root ``rkey`` (cached per root)."""
+    """Normalized prefixes for the fence of rebuild root ``rkey`` (cached per root)."""
     roots = _input_roots()
     fw = roots.get("figures_working")
     local = []                                               # this box's default derived stores (siblings of fw)
@@ -175,7 +175,7 @@ _SEED_ALLOW: set = set()
 
 
 class _seeding:
-    """Context: allow reads of exactly these seed SOURCE paths (normalised) while `init` copies them."""
+    """Context: allow reads of exactly these seed SOURCE paths (normalized) while `init` copies them."""
 
     def __init__(self, paths):
         self.paths = {_norm(p) for p in paths}

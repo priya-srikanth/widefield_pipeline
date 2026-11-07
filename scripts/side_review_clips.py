@@ -1,5 +1,5 @@
 """Side-camera (cam2 + cam3) review clips for the shared side model: cut short trial windows in MODEL space, then render
-the model's predictions as one labelled clip, cam2 | cam3 side by side on the SAME trial and time from cue (Priya
+the model's predictions as one labeled clip, cam2 | cam3 side by side on the SAME trial and time from cue (Priya
 2026-10-27: "should we look at some labeled clips").
 
     python -m scripts.side_review_clips cut    PS93:20260814 PS93:20260821 PS95:20260606 [--per-position 2] --out <dir>

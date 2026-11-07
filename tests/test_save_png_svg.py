@@ -339,7 +339,7 @@ def test_svg_failure_never_costs_the_png(tmp_path, monkeypatch):
     def boom(fname, *a, **k):
         if str(fname).endswith(".svg"):
             pathlib.Path(fname).write_text("partial", encoding="utf-8")
-            raise ValueError("cannot vectorise")
+            raise ValueError("cannot vectorize")
         return orig(fname, *a, **k)
 
     monkeypatch.setattr(fig, "savefig", boom)

@@ -1,7 +1,7 @@
 """Direct check of the contact confound in the within-spout toward-midline slope (Priya 10-21).
 Per session x lateral spout, on the trials the within-spout analysis uses (cam4, lick-aligned): does the window's DAQ
 contact count rise with the lick's deviation TOWARD THE MIDLINE (within spout), raw and with the analysis' other
-covariates (reach, n_licks, latency) held fixed? Reads behaviour only (local input cache)."""
+covariates (reach, n_licks, latency) held fixed? Reads behavior only (local input cache)."""
 from __future__ import annotations
 
 import sys
@@ -53,7 +53,7 @@ def main():
     order = ["pre", "acute", "subacute", "chronic"]
     for col, title in (("slope_adj", "contacts per 10 deg TOWARD MIDLINE, reach / n_licks / latency held fixed"),
                        ("r_mid_contact", "raw correlation, toward-midline deviation vs contact count"),
-                       ("hit_frac", "fraction of analysed trials with >= 1 contact")):
+                       ("hit_frac", "fraction of analyzed trials with >= 1 contact")):
         t = D.groupby(["pos", "animal", "epoch"])[col].mean().unstack("epoch").reindex(columns=order)
         print(f"\n=== {title} (session means)\n" + t.round(3).to_string())
     print("\n=== all four lateral spouts pooled, per animal (session x spout means)")

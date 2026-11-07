@@ -1,7 +1,7 @@
 """Cohort-1 swap-mask re-run, family (b): frozen pre-stroke encoder headline (final frame, no FaceRhythm,
 `frozen_encoder_gate-attempted_v7g3_t3d`), adopted vs swap-mask variant.
 
-Headline numbers (goal page section 0, Figs 0.1 / 0.2 grey = no-FR frame):
+Headline numbers (goal page section 0, Figs 0.1 / 0.2 gray = no-FR frame):
   1. frozen R2 (frame measure, held-out, joint model) per area x window: epoch - pre, per animal first, then the nested
      bootstrap (`frozen_fr_compare.boot`, = the page's lines);
   2. Musall UNIQUE R2 of target and spout = R2(joint) - R2(no_target / no_spout), epoch - pre; spout contra - ipsi.

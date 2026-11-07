@@ -380,8 +380,8 @@ def _frozen_vs_refit_matched(out_dir, align, variant, wname):
     gap cannot be read directly. Matching removes it, and what it exposes is that the baseline does
     not go to zero: it goes the OTHER WAY. At equal training-set size the refit arm is +0.090 BETTER
     pre-stroke (post-cue), because training within a session shares that session's own nuisance
-    structure -- alignment, haemodynamics, arousal, the LocaNMF projection -- while the matched
-    frozen model has to generalise across days.
+    structure -- alignment, hemodynamics, arousal, the LocaNMF projection -- while the matched
+    frozen model has to generalize across days.
 
     SO THE NO-LESION BASELINE IS BRACKETED RATHER THAN KNOWN: -0.073 unmatched (frozen has 10x the
     data) and +0.090 matched (frozen must cross sessions). Both bounds are real effects and neither
@@ -436,7 +436,7 @@ def _frozen_vs_refit(out_dir, align, variant, wname, *, matched=False):
     key = "5rm" if matched else "5r"
     what = (" (training-set MATCHED)" if matched else "")
     note_arm = (["frozen arm trained on a size-matched random subset of pre-stroke BLOCKS",
-                 "the pre gap is cross-session generalisation, not training-set size"]
+                 "the pre gap is cross-session generalization, not training-set size"]
                 if matched else
                 ["each session scored by a 5-fold block-CV decoder fitted on ITSELF",
                  "the pre gap is the training-set-size handicap, not an effect"])
@@ -508,9 +508,9 @@ def _refit_confusion_rows(out_dir, align, variant, wname):
 
         5c off-diagonal, 5cr diagonal restored   the code is INTACT and the pre-stroke readout is
                                                  pointing at the wrong place -- displacement
-        both off-diagonal, and in the SAME cells the code itself is confusable with that neighbour;
+        both off-diagonal, and in the SAME cells the code itself is confusable with that neighbor;
                                                  no readout recovers it -- degradation
-        5cr off-diagonal in DIFFERENT cells      the within-session structure has reorganised rather
+        5cr off-diagonal in DIFFERENT cells      the within-session structure has reorganized rather
                                                  than simply weakened
 
     THE TWO PANELS ARE NOT ON THE SAME FOOTING and the difference is not cosmetic: the frozen arm

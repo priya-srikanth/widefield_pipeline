@@ -1,4 +1,4 @@
-"""Is the CHRONIC neural data stable, per animal, per session -- the same test behaviour gets?
+"""Is the CHRONIC neural data stable, per animal, per session -- the same test behavior gets?
 
 Priya, 2026-09-28: *"behavior has stabilized so I'm wondering if we should deem the experiment
 'complete' and stop recording (and sac the animals for histology). But I want to ensure the neural
@@ -9,11 +9,11 @@ series fails) and SETTLED (residual <= K_RES x pre-stroke SD) -- to every neural
 reports, per animal, expressed against that animal's own pre-stroke sessions.
 
 READOUTS, and where each per-session value comes from:
-  decoder frozen / refit / reorganisation G   recovery_trajectory_matched_cue_working.csv (has days)
+  decoder frozen / refit / reorganization G   recovery_trajectory_matched_cue_working.csv (has days)
   encoder ceiling / frozen-matched / gain     epoch_11c_* / epoch_11amp_*  _sessions.csv
   best-match accuracy                          epoch_10_best_match_acc_*    _sessions.csv
   crossnobis distance from own pre template    epoch_8diag_matrices_*        _sessions.csv
-  behaviour far-contra hit rate                epoch_1b_behaviour_*         _sessions.csv
+  behavior far-contra hit rate                epoch_1b_behaviour_*         _sessions.csv
   cue-evoked map amplitude per position        computed here on the WORKING trials, the same
                                                increment `epoch_15r_position_PRECUEref` draws
                                                (NOT figure 15's ungated npz; see `_map_series`)
@@ -33,9 +33,9 @@ EXCLUDE names sessions whose imaging is known-bad and which are reported BOTH WA
 without). It held PS92_0922 from 2026-09-28 until that afternoon: as first processed it was a
 frame<->DAQ misalignment of 154 frames (docs/EXPERIMENT_ERRORS.md, 2026-09-22: the DAQ was started
 2.466 s after the camera and the relabel mapped the surplus to the wrong end), so both task decoders
-and the encoder read at chance while behaviour was perfect -- the largest excursion in every PS92
+and the encoder read at chance while behavior was perfect -- the largest excursion in every PS92
 chronic series, and instability that was not there. The session was re-preprocessed with the fixed
-relabel and verified the same day (cue transient at +0.42 s, haemodynamic fit sign restored), so
+relabel and verified the same day (cue transient at +0.42 s, hemodynamic fit sign restored), so
 it is back in. The mechanism stays so the next such session can be handled the same way.
 
 Outputs: <labcams>/chronic_stability/chronic_stability.{csv,png} -- every plotted number is in the
@@ -71,7 +71,7 @@ EXCLUDE: set[str] = set()      # was {"PS92_0922"} until its 2026-09-28 redo; se
 
 #: sidecar file, position filter, and whether its pre rows are per-session
 SIDECARS = {
-    "behaviour far-contra hit": ("epoch_1b_behaviour_by_position_sessions.csv", "fC"),
+    "behavior far-contra hit": ("epoch_1b_behaviour_by_position_sessions.csv", "fC"),
     "encoder ceiling (refit)": ("epoch_11c_encoder_ceiling_cue_working_sessions.csv", "ceiling"),
     "encoder frozen (matched)": ("epoch_11c_encoder_ceiling_cue_working_sessions.csv", "frozen (matched)"),
     "encoder gain": ("epoch_11amp_encoder_amplitude_cue_working_sessions.csv", "gain"),
@@ -178,7 +178,7 @@ def build_series(data_dir, labs, log=print):
     rt = pd.read_csv(data_dir / "recovery_trajectory_matched_cue_working.csv")
     rtp = pd.read_csv(data_dir / "recovery_trajectory_matched_cue_working_pre.csv")
     d2l = {a: {days_since_stroke(l): l for ep, L in labs[a].items() if ep != "pre" for l in L} for a in ANIMALS}
-    for name, col in (("decoder frozen acc", "frozen"), ("decoder refit acc", "refit"), ("reorganisation G", "G_reorg")):
+    for name, col in (("decoder frozen acc", "frozen"), ("decoder refit acc", "refit"), ("reorganization G", "G_reorg")):
         series[name] = {a: {d2l[a][int(r.day)]: float(r[col]) for _, r in rt[rt.animal == a].iterrows() if int(r.day) in d2l[a]}
                         for a in ANIMALS}
     for a in ANIMALS:
@@ -186,8 +186,8 @@ def build_series(data_dir, labs, log=print):
         p = rtp[rtp.animal == a]
         pre_vals[("decoder frozen acc", a)] = (pf - p.F_deficit).tolist()
         pre_vals[("decoder refit acc", a)] = (pr - (p.F_deficit - p.G_reorg)).tolist()
-        pre_vals[("reorganisation G", a)] = p.G_reorg.tolist()
-        for n in ("decoder frozen acc", "decoder refit acc", "reorganisation G"):
+        pre_vals[("reorganization G", a)] = p.G_reorg.tolist()
+        for n in ("decoder frozen acc", "decoder refit acc", "reorganization G"):
             pre_src[(n, a)] = "per-session"
 
     maps = _map_series(labs, log)
@@ -202,7 +202,7 @@ def build_series(data_dir, labs, log=print):
 
 
 #: readouts kept in raw units (differences, or quantities that cross zero) rather than as a fraction of pre
-RAW_UNITS = {"reorganisation G", "map amplitude far-contra", "map amplitude near-ipsi"}
+RAW_UNITS = {"reorganization G", "map amplitude far-contra", "map amplitude near-ipsi"}
 
 
 def evaluate(series, pre_vals, pre_src, labs, boundaries):
@@ -281,7 +281,7 @@ def figure(res, curves, out_png):
     for ax in axes[-1]:
         ax.set_xlabel("days since lesion", fontsize=8)
     fig.suptitle("Per-session trajectories against each animal's own pre-stroke band (mean +/- 1 SD). "
-                 "dotted = subacute_from, dashed = behavioural chronic_from. red x = EXCLUDE (none at present).",
+                 "dotted = subacute_from, dashed = behavioral chronic_from. red x = EXCLUDE (none at present).",
                  fontsize=10)
     fig.tight_layout(rect=(0, 0, 1, 0.98))
     fig.savefig(out_png, dpi=110)

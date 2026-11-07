@@ -2,7 +2,7 @@
 Priya 10-23: "do we have the pixel/SVD level unique r2 maps?").
 
 Per session x variant the run saved the all-frames residual second moment E and the data second moment S in TARGET
-space (`resid_mom`, `data_mom`; drift-removed, session-centred data). A pixel's SSE = diag(W E W') and SST =
+space (`resid_mom`, `data_mom`; drift-removed, session-centered data). A pixel's SSE = diag(W E W') and SST =
 diag(W S W') with W the animal's shared basis (grid: each block's own diagonal, painted), so R^2 is that of the data
 RECONSTRUCTED in the basis (200 components, >= 99.9 % of pre variance). Per animal x epoch SSE and SST are SUMMED over
 sessions before the ratio (frames weigh equally); then the mean over animals in pixel space (rule 8: animals first).
@@ -14,7 +14,7 @@ Pre sessions are scored with their leave-one-session-out betas (held out), post 
 
 Figures: <E>/frozen_encoder_<tag>/figures/r2_maps_pre.png (full + unique per group, held-out pre) and
 r2_maps_<epoch>_minus_pre.png (frozen unique R^2, epoch minus pre). Maps saved to figures/r2_maps.npz.
-Two more views of the same numbers (Priya 10-23: one strong animal set the shared colour scale and PS93's contact read
+Two more views of the same numbers (Priya 10-23: one strong animal set the shared color scale and PS93's contact read
 black): `*_peranimal.png` = every panel on its OWN scale (99th percentile, printed in the panel; compare shapes across
 animals, read magnitudes from the numbers) and `r2_share_*.png` = unique R^2 / that animal's full R^2 (fraction of
 what the model explains that is group-specific; pixels with full R^2 < SHARE_MIN_FULL blank).
@@ -157,8 +157,8 @@ def main(argv=None) -> int:
                                  + ("" if per_panel else f"\n{'+/-' if diff else '0..'}{lims[c]:.3g}"), fontsize=7)
                 if j == 0:
                     ax.set_ylabel(r, fontsize=8)
-        sub = ("colour scale PER PANEL (99th percentile, printed bottom-left)" if per_panel
-               else "colour scale per column (99th percentile, in each title)")
+        sub = ("color scale PER PANEL (99th percentile, printed bottom-left)" if per_panel
+               else "color scale per column (99th percentile, in each title)")
         fig.suptitle(f"{title}\n{sub}. ipsi (lesion) = image LEFT. PROVISIONAL", fontsize=8)
         save_png_svg(fig, path, dpi=120, bbox_inches="tight")
         plt.close(fig)

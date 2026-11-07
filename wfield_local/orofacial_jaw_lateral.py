@@ -3,22 +3,22 @@
     python -m wfield_local.orofacial_jaw_lateral [--run lp_r4_heatmap_20261013__clean_v36] [--jobs 6]
 
 Same quantities as `scripts/jaw_lateral.py deviation` (DLC r3 on 60-trial clips, DECISIONS 2026-10-15), now from the
-organised session folders (`orofacial_outputs`: LP r4, the run's cleaning version (run.json), every trial of every curated session):
+organized session folders (`orofacial_outputs`: LP r4, the run's cleaning version (run.json), every trial of every curated session):
 
   per trial  lr_wide  median sideways jaw displacement from rest over frames with opening > OPEN_PX (50 px), in the
-                      SPOUT frame (lr axis perpendicular to the apparatus centre line; + = image right = the mouse's
+                      SPOUT frame (lr axis perpendicular to the apparatus center line; + = image right = the mouse's
                       LEFT = ipsilesional for all four animals), measured jaw frames only, cue + 70 .. 3000 ms;
              angle    jaw opening angle, atan2(lr, opening) from a least-squares fit over open frames (> 15 px);
              open_max widest opening; reach (max tongue protrusion / spout distance over the trial's licks).
   per session FAR_DIR  = (far_L - far_R) / 2 of the per-trial medians: the jaw's movement TOWARD the target side.
                        Positive when the jaw goes left for the left spout and right for the right spout.
               FAR_BIAS = (far_L + far_R) / 2: a side bias independent of the target.
-  Close / centre spouts are not used: they hide part of the chin and the model then marks its visible edge.
+  Close / center spouts are not used: they hide part of the chin and the model then marks its visible edge.
   Control (Priya 10-15: "jaw following a shorter reach?"): FAR_DIR recomputed on trials whose tongue reached the spout
   (reach >= 1), so an acute drop cannot come only from shorter licks.
 
 TRIAL GATE (Priya 11-06, A27): the cam4 cohort's gate, `orofacial_cohort.cohort_keep` -- the CAMERA WORKING PERIOD by
-default (a session with no camera classes contributes nothing); ``WFIELD_KIN_GATE=legacy`` = the pre-11-06 behaviour
+default (a session with no camera classes contributes nothing); ``WFIELD_KIN_GATE=legacy`` = the pre-11-06 behavior
 engaged gate; ``--all-trials`` = ungated control.
 
 Outputs: `orofacial_cohort.cohort_dir` -- <LP_analysis>/<run>/cohort/tables/jaw_lateral<gate sfx>/ (trials.csv,
@@ -171,7 +171,7 @@ def _sem(x) -> float:
 
 
 def fig_epochs(S: pd.DataFrame, D: pd.DataFrame, path: Path, title: str) -> None:
-    """x = epoch; per animal: epoch mean +- SEM over its sessions as a filled marker (shape = animal, colour = epoch)
+    """x = epoch; per animal: epoch mean +- SEM over its sessions as a filled marker (shape = animal, color = epoch)
     at the animal's lateral offset, its SESSIONS as faded open markers around it; no line across epochs (Priya 11-03,
     `cat_points`)."""
     from wfield_local import cat_points as cp
@@ -213,7 +213,7 @@ def fig_epochs(S: pd.DataFrame, D: pd.DataFrame, path: Path, title: str) -> None
     axs.flat[0].legend(fontsize=7, frameon=False)
     note = ("trials: EVERY trial at the far spouts, cue + 70 .. 3000 ms, measured jaw frames only (LP r4, cleaning v35); "
             "FAR_DIR = (far ipsi - far contra) / 2 of the per-trial jaw sideways displacement = jaw movement TOWARD the "
-            "target side; filled = per-animal epoch mean +- SEM over sessions (shape = animal, colour = epoch), faded "
+            "target side; filled = per-animal epoch mean +- SEM over sessions (shape = animal, color = epoch), faded "
             "open = its sessions (" + ", ".join(f"{a} {cp.animal_marker(a)}" for a in animals) + "); no lines "
             "across epochs; title: paired change vs pre (animal-weighted "
             "bootstrap, * = 95% CI excludes 0; >= 2 animals)")

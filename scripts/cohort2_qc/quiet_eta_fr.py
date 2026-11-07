@@ -196,7 +196,7 @@ def fig_maps(D):
             r += 1
     fig.suptitle("MOVEMENT-CORRECTED event-triggered maps: face movement (FaceRhythm) regressed out of every pixel and "
                  "of the event-detection trace; positive events > 4 x pre SD of the residual, engaged quiet; mean of "
-                 "animal means; ipsilesional = image left.\nDELTA = acute - pre within animal (own colour scale); black "
+                 "animal means; ipsilesional = image left.\nDELTA = acute - pre within animal (own color scale); black "
                  "outline = significant (nested animals -> sessions bootstrap, max-statistic family-wise p < 0.05, "
                  "8x8-px bins, eroded mask)", fontsize=9)
     fig.subplots_adjust(top=0.93, right=0.9)
@@ -233,7 +233,7 @@ def fig_decay(D, Tb, T):
         a.axhline(0.5, color="0.6", lw=0.6, ls="--")
         a.axvline(0, color="0.6", lw=0.6)
         a.set_xlim(-0.6, 1.5)
-        a.set_title(f"{g} UP events, residual trace, normalised to peak (mean of animals)", fontsize=8)
+        a.set_title(f"{g} UP events, residual trace, normalized to peak (mean of animals)", fontsize=8)
         a.legend(fontsize=7)
         for c, m, lab in ((1, "decay_half_s", "peak -> half decay (s)"), (2, "rel_at_0p5", "value at +0.5 s / peak")):
             a = ax[r, c]

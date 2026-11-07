@@ -89,7 +89,7 @@ def main() -> int:
     shown = ("\nBalance shown as " + BAL_LABEL.replace("\n", " ") + ";\nslopes and r are vs the value shown (+ slope = "
              "activity reading more contralesional goes with a more contralesional decoder offset)"
              if BAL_DISPLAY == "direction" else "")
-    fig.suptitle("Does the PRIMARY balance track the decoder's like-for-like offset? One point per session (grey = pre, not "
+    fig.suptitle("Does the PRIMARY balance track the decoder's like-for-like offset? One point per session (gray = pre, not "
                  "fitted);\nmixed model offset ~ balance (within animal) + log(day), random intercept per animal; also with "
                  "only licks inside the pre angle range (no extrapolation). PROVISIONAL" + shown, fontsize=9)
     fig.tight_layout(rect=(0, 0, 1, 0.82 if shown else 0.88))

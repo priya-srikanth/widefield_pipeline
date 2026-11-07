@@ -11,7 +11,7 @@ for a spatial pattern that the design cannot produce. This draws the quantity th
 
     pre 0.96 -> acute 0.78 -> subacute 0.81 -> chronic 0.93
 
-THE SOURCE IS THE BEHAVIOUR PIPELINE'S OWN SESSION TABLE, `cohort_session_metrics.csv`, which
+THE SOURCE IS THE BEHAVIOR PIPELINE'S OWN SESSION TABLE, `cohort_session_metrics.csv`, which
 carries `n_engaged` and `n_disengaged` per session. That is the same gate every analysis figure
 and the epoch rule already use, so this figure cannot disagree with them about what "working"
 means. It also makes the figure auditable: the per-position version on the share is produced by

@@ -128,7 +128,7 @@ def test_six_positions_in_a_row_are_one_cycle():
 
 
 def test_a_second_pass_through_the_positions_is_a_second_cycle():
-    """The scheduler re-randomises the order, so cycle 2 is a different permutation."""
+    """The scheduler re-randomizes the order, so cycle 2 is a different permutation."""
     ids = _cyc([p for p in (0, 1, 2, 3, 4, 5) for _ in range(4)]
                + [p for p in (3, 0, 1, 2, 4, 5) for _ in range(4)])
     assert set(ids[:24].tolist()) == {0}
@@ -167,7 +167,7 @@ def test_unusable_trials_do_not_break_a_cycle():
 
 
 def test_the_decoder_uses_this_rule_and_not_a_local_copy():
-    """A second copy of the rule is how the two normalisations diverged elsewhere in this project."""
+    """A second copy of the rule is how the two normalizations diverged elsewhere in this project."""
     import inspect
 
     from wfield_local import locanmf_position_decoder as d
@@ -190,7 +190,7 @@ def test_block_size_max_reads_a_behaviour_directory_directly(tmp_path):
     """`spout_behavior` holds the log directory, not a session mapping.
 
     Accepting both keeps `block_size_max_for` the single reader of `timing.block_size_max`. The
-    alternative was three lines of gui_config parsing in the behaviour path, which is how the block
+    alternative was three lines of gui_config parsing in the behavior path, which is how the block
     definition ends up with two homes that agree until one of them is edited.
     """
     import json

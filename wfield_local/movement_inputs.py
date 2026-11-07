@@ -1,4 +1,4 @@
-"""Build `movement_encoding.MovementInputs` for one session from behaviour-camera pose data + DAQ events.
+"""Build `movement_encoding.MovementInputs` for one session from behavior-camera pose data + DAQ events.
 
 Pairs with `movement_encoding` (the model). Everything is put on the DAQ clock here; the encoder bins it onto imaging
 frames. Real sessions need whole-session pose predictions (O2, after the next DLC / LP iteration -- Priya 2026-10-02);

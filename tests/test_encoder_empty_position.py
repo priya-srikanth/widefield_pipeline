@@ -67,7 +67,7 @@ def test_an_empty_position_contributes_exactly_nothing():
 # ---------------------------------------------------------------- the pooled axis
 
 def test_one_nan_session_no_longer_deletes_every_region():
-    """Defence in depth: even if some path produces nan again, the axis must survive."""
+    """Defense in depth: even if some path produces nan again, the axis must survive."""
     good = {f"R{i}": dict(expl=5.0, tot=10.0) for i in range(12)}
     res = {f"PS9{i % 4 + 2}_08{i:02d}": dict(good) for i in range(57)}
     res["PS94_0819"] = {f"R{i}": dict(expl=float("nan"), tot=10.0) for i in range(12)}

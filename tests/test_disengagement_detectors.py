@@ -1,7 +1,7 @@
-"""(Since 11-05, REBUILD_CODE 8.53, both are the same behaviour DAQ detector; the pin below now checks they agree.)
+"""(Since 11-05, REBUILD_CODE 8.53, both are the same behavior DAQ detector; the pin below now checks they agree.)
 Re-verify at 3a772a26, item 1: disengagement_tests' RESPONSE measures (hit, latency, n_post, n_pre2) stay on the deck's
 discriminator (`analysis_kit.lick_samples`) -- equal to the pre-change values on a real session -- while the lick COUNTS
-(ILIs, bouts, licks / bout) use the behaviour detector (`analysis_kit.lick_count_samples`)."""
+(ILIs, bouts, licks / bout) use the behavior detector (`analysis_kit.lick_count_samples`)."""
 from __future__ import annotations
 
 import numpy as np
@@ -15,7 +15,7 @@ def _inputs(lab):
     except Exception as ex:                                             # noqa: BLE001 - no share on this box
         pytest.skip(f"{lab}: {type(ex).__name__}")
     if b is None:
-        pytest.skip(f"{lab}: no behaviour")
+        pytest.skip(f"{lab}: no behavior")
     sr = b.sample_rate
     cs = np.asarray(b.cue_samples, float) / sr
     order = np.array([r["order"] for r in b.trials], int)

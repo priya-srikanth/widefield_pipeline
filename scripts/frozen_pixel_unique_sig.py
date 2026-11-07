@@ -263,7 +263,7 @@ def main(argv=None) -> int:
     cb.set_label("animals significantly UP minus DOWN\n(per animal: sessions as unit, Welch t, Bonferroni)", fontsize=8)
     fig.suptitle(textwrap.fill(f"NEURAL: FROZEN-frame pixel maps, PER-ANIMAL view (secondary; the nested bootstrap is primary), "
                                f"run {a.tag}, 16 px bins: how many of the 4 animals change significantly in each direction, "
-                               "each tested on its own sessions; black outline = bins where >= 3 animals agree; grey = Allen areas. Image left = ipsilesional.", int(21 * len(qs))), fontsize=9)
+                               "each tested on its own sessions; black outline = bins where >= 3 animals agree; gray = Allen areas. Image left = ipsilesional.", int(21 * len(qs))), fontsize=9)
     save_png_svg(fig, run / "figures" / "unique_sig_per_animal.png", dpi=105)
     plt.close(fig)
     pd.DataFrame(crow).to_csv(run / "unique_sig_per_animal.csv", index=False)

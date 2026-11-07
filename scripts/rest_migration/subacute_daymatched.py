@@ -7,7 +7,7 @@ still open" without a diagnosis.
 
 THE HYPOTHESIS THIS TESTS, and it is not about biology. `acute` is the first `acute_fraction` of
 post-stroke days; `chronic` starts when THAT ANIMAL's hit rate flattens (`configs/defaults.yaml
-epochs.chronic`, a per-animal behavioural criterion). **Subacute is neither -- it is the RESIDUAL.**
+epochs.chronic`, a per-animal behavioral criterion). **Subacute is neither -- it is the RESIDUAL.**
 A residual bin has no fixed meaning across animals, and here the spread is extreme:
 
     animal   acute days        subacute days          median subacute day
@@ -23,7 +23,7 @@ animal starts at day 1 -- not because acute is biologically special.
 
 WHAT THIS SCRIPT DOES. It re-bins the SAME maps by POST-STROKE DAY instead of by epoch label, and
 recomputes the identical statistic and null. If day-matching lifts subacute toward acute, the
-non-replication was an artefact of the binning. If it stays flat, subacute is genuinely
+non-replication was an artifact of the binning. If it stays flat, subacute is genuinely
 heterogeneous and the bin was not the problem.
 
 PS94 MUST NOT BE FOLDED INTO A DAY-BINNED CHRONIC, and an earlier version of this docstring said
@@ -37,7 +37,7 @@ plateaued at day 11.
 
 So a day-binned chronic containing PS94 would put a still-recovering animal in the plateau bin --
 the SAME error as subacute, moved one bin over. It is excluded here, which makes the chronic window
-a POSITIVE CONTROL instead: for the three animals whose behavioural chronic already starts at day
+a POSITIVE CONTROL instead: for the three animals whose behavioral chronic already starts at day
 11, binning by day must reproduce binning by epoch. If it does not, the re-binning machinery is
 wrong and the subacute result cannot be trusted either.
 
@@ -48,7 +48,7 @@ pre-stroke baseline sets `chronic_from = 25` -- not the date of that session, be
 drift` tests total change across the window and is deliberately insensitive to spacing. Below 0.996
 it stays None.
 
-THIS IS A DIAGNOSTIC, NOT A PROPOSED REDEFINITION. The behavioural chronic criterion exists because
+THIS IS A DIAGNOSTIC, NOT A PROPOSED REDEFINITION. The behavioral chronic criterion exists because
 animals recover on their own schedules, and replacing it with calendar days would discard that --
 the same reasoning that put it there. What follows from a positive result is narrower: **do not
 compare the residual bin BETWEEN animals**, and report PS94 separately rather than as a subacute
@@ -126,7 +126,7 @@ def _window(store, ref, q, lo, hi, exclude=()):
     """``({animal: mean map}, {animal: n_sessions})`` over POST days in ``[lo, hi]``.
 
     Pooled across the epoch keys deliberately: the whole point is to ignore the residual bin and
-    select on day, so a session counts if its day is in range regardless of what it was labelled.
+    select on day, so a session counts if its day is in range regardless of what it was labeled.
 
     ``exclude`` drops whole animals, which is NOT a day filter and must not be mistaken for one:
     PS94 is excluded from the chronic window because it has not plateaued, not because its sessions
@@ -155,7 +155,7 @@ def _agree(pre, post, mask, rng):
     """``(observed r, null mean, p, animals)`` for one (reference, window).
 
     The null keeps every animal's REAL delta map and lets each independently draw one of the six
-    POSITIONS. Anatomy, warp, rim and shared optical artefacts survive untouched; only "the animals
+    POSITIONS. Anatomy, warp, rim and shared optical artifacts survive untouched; only "the animals
     changed in the same POSITION-SPECIFIC way" is destroyed. Identical to `rest_null`'s null, so
     the two tables are directly comparable.
     """

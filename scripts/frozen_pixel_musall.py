@@ -4,7 +4,7 @@ trial-by-trial parts of the signal, at pixel level.
 
 Needs a spatial-target run saved with FROZEN_PIX_MUSALL=1 (keys mus_<window>_<avg|trial>_<E|S> in each session npz:
 target-space second moments of the residual (E) and of the data (S) inside the MUSALL window; `avg` = per-spout
-trial-averaged traces centred on their mean over spouts x time, `trial` = single trials minus their spout's mean;
+trial-averaged traces centered on their mean over spouts x time, `trial` = single trials minus their spout's mean;
 see `frozen_encoder.musall_moments`). --measure all uses the all-frames moments (resid_mom / data_mom), which every
 variant has (incl. the novar_* per-variable drops -> Musall bottom row per VARIABLE, task B).
 
@@ -254,7 +254,7 @@ def main(argv=None) -> int:
     ttl = (f"NEURAL: frozen-frame PIXEL maps, {what}, {'all frames' if win == 'allframes' else win + ' window (' + ', '.join(MLAB[m] for m in meas) + ')'}, run {a.tag}. "
            f"Pre level = held-out; epoch - pre = frozen all-pre betas; mean of animals (SSE, SST summed over each animal's "
            f"sessions). Outlines: significant 16-px bins (nested bootstrap animals > sessions, {correction_label()}); +/- = bins up / "
-           f"down. Grey = Allen areas. Image left = ipsilesional.")
+           f"down. Gray = Allen areas. Image left = ipsilesional.")
     fig.suptitle("\n".join(textwrap.wrap(ttl, int(24 * len(qs)))), fontsize=9)
     fig.subplots_adjust(left=0.05, right=0.995, top=1 - 1.0 / (2.6 * len(rws) + 1.3), bottom=0.05,
                         wspace=0.05, hspace=0.3)

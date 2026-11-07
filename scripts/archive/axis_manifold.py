@@ -40,7 +40,7 @@ MIN_FIT = 25
 
 
 def manifold(X, ncomp, target=VAR_TARGET):
-    """(basis, k) from points reshaped to (trial*bin, ncomp). Mean-centred, as PCA requires."""
+    """(basis, k) from points reshaped to (trial*bin, ncomp). Mean-centered, as PCA requires."""
     P = X.reshape(-1, ncomp)
     mu = P.mean(0)
     _U, S, Vt = np.linalg.svd(P - mu, full_matrices=False)

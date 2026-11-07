@@ -8,7 +8,7 @@ basis -> pixels = W @ values (W = the animal's shared basis on the stat mask); g
 value. Then the mean over animals in pixel space (rule 8: animals first). Columns: data, full, each part, data - full.
 dF/F x 1e3; ipsi (lesioned LEFT hemisphere) = image LEFT (orientation checked against the atlas names, as the area
 maps); displayed at half resolution.
-PRE-NORMALISED copy (Priya 10-23: animals differ in overall amplitude, so the mean row leaned on the brighter ones):
+PRE-NORMALIZED copy (Priya 10-23: animals differ in overall amplitude, so the mean row leaned on the brighter ones):
 `*_prenorm.png` divides each animal's change maps by ITS pre-stroke constant = the RMS over the stat mask of its mean
 PRE data evoked map at that spout / alignment (the repo's NORMALISE_BY_PRE convention, beta_maps.pre_scale); units =
 change as a fraction of the animal's typical pre-stroke evoked response; the mean row then weighs animals equally.
@@ -127,7 +127,7 @@ def main(argv=None) -> int:
                 fig.colorbar(sm, ax=axs, fraction=0.012, pad=0.01,
                              label="change vs pre / pre RMS (fraction)" if norm else "change vs pre, dF/F x 1e3")
                 kind = next(iter(spatial.values()))["kind"]
-                nt = ("PRE-NORMALISED (each animal / RMS of its mean pre data map; mean row = animals equal). "
+                nt = ("PRE-NORMALIZED (each animal / RMS of its mean pre data map; mean row = animals equal). "
                       if norm else "")
                 fig.suptitle(f"Frozen encoder ({a.variant}, {kind} targets) PIXEL maps: {a.spout}, {ep} minus pre, "
                              f"{al}-aligned evoked response, per animal then mean. {nt}residual = data - full. "

@@ -18,7 +18,7 @@ Features are NOT z-scored (SVD components share one dF/F scale); the z-scored ch
 Outputs <E>/iti_licks/decoder_patterns.csv (similarities), figures/lick_decoder_patterns_{lat,sag}.png,
 figures/lick_decoder_patterns_animals_lat.png.
 Figure data (figdata.py convention): <E>/iti_licks/figdata/lick_decoder_patterns_{lat,sag,animals_lat}.pkl (the maps each
-figure draws, colour limits, n and similarity per panel + the imaging grid); `--plot-only` redraws the three figures
+figure draws, color limits, n and similarity per panel + the imaging grid); `--plot-only` redraws the three figures
 from those files alone (no decoder fit).
 Usage: python scripts/iti_decoder_patterns.py [--plot-only]
 """
@@ -114,8 +114,8 @@ def fig_stems() -> dict:
 
 
 def figure_data(T: pd.DataFrame, maps: dict) -> dict:
-    """{figure key: figure data}. Per axis figure: per lick set the mean-of-animals map + n per column, the colour limit and
-    the mean noise-corrected similarity per post epoch. Animals figure: per (animal, set) the four epoch maps, the colour
+    """{figure key: figure data}. Per axis figure: per lick set the mean-of-animals map + n per column, the color limit and
+    the mean noise-corrected similarity per post epoch. Animals figure: per (animal, set) the four epoch maps, the color
     limit and the similarity per epoch. Each carries the imaging grid."""
     grid = imaging_grid()
     out = {}

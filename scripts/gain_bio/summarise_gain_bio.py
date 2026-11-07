@@ -1,4 +1,4 @@
-"""Summarise gain_bio.py (read only). Per animal x epoch FIRST (rule 8), then analysis_kit.boot_delta.
+"""Summarize gain_bio.py (read only). Per animal x epoch FIRST (rule 8), then analysis_kit.boot_delta.
 
 RATIO = session SD / the mean SD of the animal's pre sessions (a pre session: the mean of its OTHER pre sessions), per
 area / pixel bin, per signal (corr, corr_hp, r470_hp, r415_hp) and frame set (ALL, R5, R5far, TASK). Animal x epoch
@@ -18,7 +18,7 @@ CHECK 1 (spatial):
 CHECK 2 (movement / arousal at rest, R5 chunks):
   speed bins  face speed / the animal's pre median R5 face speed: < .25, .25-.5, .5-1, 1-2, > 2
   matched     per session, variance over each bin's chunks (about the bin mean); speed-matched variance = sum over
-              bins of the animal's PRE bin weights x the bin variance (weights renormalised over the bins present);
+              bins of the animal's PRE bin weights x the bin variance (weights renormalized over the bins present);
               the same for pre sessions -> matched SD ratio
   still       chunks with face speed < 0.5 x pre median only
   still_far   still AND > 2 s from a quiet event (R5far chunks)

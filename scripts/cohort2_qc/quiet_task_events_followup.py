@@ -238,7 +238,7 @@ def score_session(lab, models, pre_set, raw, sd, rng):
         if spout_scaling.centre_rows() == "working":
             # fifth review N1: this script's centre is every engaged row (no camera classes here) -- refuse under the
             # camera-working centre rather than silently use another centre set
-            raise spout_scaling.BalEmCentreRefused("quiet_task_events_followup: no camera-working centre mask available "
+            raise spout_scaling.BalEmCentreRefused("quiet_task_events_followup: no camera-working center mask available "
                                                    "(bal_em.centre_rows = working); run with centre_rows = engaged")
         pt = models["pi_train"]
         pi = pt["loso"].get(lab, pt["full"]) if lab in pre_set else pt["full"]
@@ -407,7 +407,7 @@ def effects(M):
 
 
 def figure(E, M, out=None):
-    """Priya 11-03 rules: no lines; per-animal STRICT excess small FILLED (shape = animal, colour = epoch group), all
+    """Priya 11-03 rules: no lines; per-animal STRICT excess small FILLED (shape = animal, color = epoch group), all
     animals large filled; the two conditions of a panel (full / removed, before / after) are separate x positions inside
     each epoch group. Per-SESSION values are not stored (the excess pools session x spout strata), so there are no
     session dots. Returns {(analysis, animal, epoch group): plotted excess_strict} for the --plot-only check."""
@@ -474,7 +474,7 @@ def figure(E, M, out=None):
     fig.suptitle("T13 follow-up: is the weaker frozen-decoder position code on pre-cue-event trials contamination by the "
                  "transient or a weaker plan? Frozen pre-stroke precue decoder (LP_licks, 1.0-s window, 4 sub-bins), "
                  "rebuilt per frame; event span = peak -0.3..+0.6 s; no-event controls lose the same frames (matched "
-                 f"pseudo-event masks, {N_DRAW} draws). Small filled = animal (shape), colour = epoch; large = all "
+                 f"pseudo-event masks, {N_DRAW} draws). Small filled = animal (shape), color = epoch; large = all "
                  "animals; STRICT strata; stars = STRICT within-stratum permutation p. Per-session values are not stored "
                  f"(the excess pools session x spout strata), so no session dots. {nev} event-in-window trials. "
                  "Events / masks: "

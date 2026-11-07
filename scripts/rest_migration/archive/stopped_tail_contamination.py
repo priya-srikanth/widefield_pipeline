@@ -9,7 +9,7 @@ BEFORE the stop.
 THE TEST. Fit the drift twice on the same session: once on the FULL record (what production does) and
 once on the WORKING PERIOD ALONE (truncated at the last engaged trial, so the tail cannot pull it).
 Compare the two TRENDS inside the working period. If they agree, the tail is inert and the global fit
-is safe. If they differ by an appreciable fraction of the signal, the tail is corrupting the analysed
+is safe. If they differ by an appreciable fraction of the signal, the tail is corrupting the analyzed
 period and the drift removal needs a local estimator rather than a faster global one.
 
 NOTE THIS IS NOT ANSWERABLE BY RAISING THE POLYNOMIAL ORDER. Order 40 retains 0.22 at a 3000 s period

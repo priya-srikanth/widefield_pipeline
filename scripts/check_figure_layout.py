@@ -40,7 +40,7 @@ newer than the one being read means the pipeline is quietly serving old numbers.
 
 NOT EVERY LOOSE FILE IS A STRAY, and `--ignore <glob>` exists for the ones that are not. The
 working ``analysis_figures/`` root is the case to know: `nightly_figs._publish_figs` copies
-the analysis artefacts to MICROSCOPE with ``Path(out).glob("*.json")`` AT THE TOP LEVEL, so
+the analysis artifacts to MICROSCOPE with ``Path(out).glob("*.json")`` AT THE TOP LEVEL, so
 those JSONs are the SOURCE of a publish step, not sidecars of the PNGs beside them. Tidying
 them into ``data/`` would make that glob match nothing and the nightly would report
 ``copied: 0`` without failing. Check that tree as::

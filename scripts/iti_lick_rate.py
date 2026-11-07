@@ -1,10 +1,10 @@
 """Does INTER-TRIAL licking track recovery, and does it exceed pre-stroke levels? (Priya 10-26.)
 
-BEHAVIOUR only. Per session: ITI licks = licks_all.csv context "iti" (every cam4-detected lick between trials; the
+BEHAVIOR only. Per session: ITI licks = licks_all.csv context "iti" (every cam4-detected lick between trials; the
 spout is retracted, except at the window edges); ITI time = sum over consecutive trials of next arrival (strobe) minus
 this trial's stop, clipped at 0 and at 60 s (long pauses excluded); rate = ITI licks / ITI minutes. Also the share of
 ITI licks that touch the spout (DAQ contact flag) and the no-contact rate. Per-trial counts (ITI licks per trial) as a
-second definition. Normalised to the animal's pre mean.
+second definition. Normalized to the animal's pre mean.
 CAMERA WORKING PERIOD (Priya 11-05, after (f) 2): only the ITIs of trials inside the camera working period count --
 first cue -> the session's last camera lick, minus the stopped runs (`trial_classes.camera_period_trials` on the trial
 cues; an ITI lick belongs to the trial it follows, `trial_classes.working_trial_ids` on its licks_all trial_id). So
@@ -12,13 +12,13 @@ licking after the camera quit and inside stopped runs leaves both the numerator 
 camera classes is left out and listed. Until 11-05 the whole session counted.
 Tests: change from pre per epoch (nested bootstrap, per-animal table first); within animal across POST sessions, the
 correlation with far-contra hit rate / pre (`recovery_timing.series`), raw and with log(day) removed (permutation of
-behaviour within animal, as `iti_recovery_marker.py`).
+behavior within animal, as `iti_recovery_marker.py`).
 Outputs <E>/iti_licks/iti_lick_rate.csv, figures/lick_iti_rate.png.
 Figure data (figdata.py convention): <E>/iti_licks/figdata/lick_iti_rate.pkl = dict(R sessions, T change tests, C recovery
 correlations); `--plot-only` redraws from that file alone (no bootstrap, no permutation).
-BEHAVIOUR AXIS (Priya 10-28: "pooled please, and plot over time and also vs recovery axis"): the recovery axis = the
+BEHAVIOR AXIS (Priya 10-28: "pooled please, and plot over time and also vs recovery axis"): the recovery axis = the
 far-contra FIRST-cued-lick aim offset (`iti_recovery_measure`, degrees vs the animal's pre landing, - = ipsilesional; as
-Fig 10.5); far-contra hit rate / pre kept as a sensitivity (column `beh`, rows behaviour="hit" in the recovery table).
+Fig 10.5); far-contra hit rate / pre kept as a sensitivity (column `beh`, rows behavior="hit" in the recovery table).
 Figure: row 1 over days (per animal + POOLED), row 2 against the aim (per animal + POOLED), row 3 per-epoch summaries.
 Usage: python scripts/iti_lick_rate.py [--plot-only]
 """
@@ -109,7 +109,7 @@ def main() -> int:
             per = {a: round(float(post[a].mean() - ref[a].mean()), 2) for a in com}
             rows.append({"value": v, "epoch": ep, "delta_vs_pre": iv.point, "lo": iv.lo, "hi": iv.hi, **per})
     T = pd.DataFrame(rows)
-    print("\n== change from pre (normalised to the animal's pre = 1)\n" + T.round(3).to_string(index=False))
+    print("\n== change from pre (normalized to the animal's pre = 1)\n" + T.round(3).to_string(index=False))
     rng = np.random.default_rng(0)
     out = []
     for bcol, bname in (("aim", "fc_aim"), ("beh", "hit")):     # recovery axis (primary), hit rate (sensitivity)
@@ -243,7 +243,7 @@ def plot(D: dict) -> None:
                      + " / pre", fontsize=9, pad=14)
         for s_ in ("top", "right"):
             ax.spines[s_].set_visible(False)
-    fig.suptitle("BEHAVIOUR: inter-trial (self-initiated) licking across recovery, divided by the animal's pre mean. Row 1: "
+    fig.suptitle("BEHAVIOR: inter-trial (self-initiated) licking across recovery, divided by the animal's pre mean. Row 1: "
                  "over days (dotted = far-contra first-lick aim offset). Row 2: against the recovery axis (far-contra\n"
                  "first-lick aim offset; post sessions; r within animal, p = within-animal permutation). Row 3: one dot per "
                  "session; black = mean +- SEM; * = nested-bootstrap change from pre. Pooled panels on a log scale.",

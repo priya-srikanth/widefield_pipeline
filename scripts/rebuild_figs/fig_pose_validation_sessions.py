@@ -1,7 +1,7 @@
 """2-D front camera (cam4) vs triangulated 3-D tongue: per-session agreement and target decoding.
 
 Replaces the per-animal table on the PI-deck slide "Validation: the 2-D front camera agrees with 3-D; 3-D sees more"
-(kinematics page section 10) with one open marker per session (shape = animal, colour = epoch).
+(kinematics page section 10) with one open marker per session (shape = animal, color = epoch).
 
 Sources (DeepLabCut/Widefield/session_poses/pose3d/, read as is):
   crosscheck/agreement.csv      per session: r | lateral: cam4 lr vs -ml ; r | peak angle vs -ml   (125 sessions)

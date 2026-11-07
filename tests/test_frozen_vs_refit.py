@@ -179,7 +179,7 @@ def test_thin_classes_are_marked_unavailable_not_scored_wrong():
 
     Acute far-contralateral in the lick-aligned arm has 64 pooled trials against ~1100 at the near
     positions, because acutely that is the spout the mouse does not lick. Scoring it produced a
-    -0.42 gap: the behaviour, presented as the code being gone.
+    -0.42 gap: the behavior, presented as the code being gone.
     """
     from sklearn.linear_model import LogisticRegression
     from sklearn.pipeline import make_pipeline

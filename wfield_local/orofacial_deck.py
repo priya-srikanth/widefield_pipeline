@@ -99,7 +99,7 @@ SECTIONS = [
     ("Spatial distributions -- Wasserstein-2 vs own pre-stroke cloud", [
         ("w2/epochs_by_position.png", "W2 distance from the animal's own pre-stroke keypoint cloud, by epoch",
          "All keypoints in the mouth frame. Spout = the drift control (fixed apparatus; licking pushes it 2-5 px); nose = "
-         "head / snout posture (behaviour). Pre = leave-one-out noise floor. Spout-moved trials excluded."),
+         "head / snout posture (behavior). Pre = leave-one-out noise floor. Spout-moved trials excluded."),
         ("w2/timecourse_by_position.png", "W2 distance from own pre, day bins", ""),
     ]),
     ("Trial-aligned spatial heatmaps (stroke_orofacial proportion / proportion-diff)", [
@@ -153,9 +153,9 @@ SECTIONS = [
         ("prepost/lick_phase_angle.png", "Lick-peak-aligned tongue angle", "Dashed = spout angle."),
         ("prepost/lick_phase_protrusion_px_minus_pre.png", "Lick-peak-aligned protrusion, change vs pre", ""),
         ("prepost/lick_phase_angle_deg_minus_pre.png", "Lick-peak-aligned angle, change vs pre", ""),
-        ("prepost/phase_norm_protrusion_px_first_multi.png", "Protrusion vs normalised lick phase", ""),
-        ("prepost/phase_norm_angle_deg_first_multi.png", "Angle vs normalised lick phase (tongue out)", ""),
-        ("prepost/phase_norm_angle_mouth0_deg_first_multi.png", "Angle vs normalised lick phase (in-mouth = 0)",
+        ("prepost/phase_norm_protrusion_px_first_multi.png", "Protrusion vs normalized lick phase", ""),
+        ("prepost/phase_norm_angle_deg_first_multi.png", "Angle vs normalized lick phase (tongue out)", ""),
+        ("prepost/phase_norm_angle_mouth0_deg_first_multi.png", "Angle vs normalized lick phase (in-mouth = 0)",
          "stroke_orofacial's convention."),
         ("prepost/phase_portrait.png", "Lick phase portraits", ""),
         ("prepost/lick_xy_trajectory_first.png", "Tongue-tip paths: first post-cue lick", ""),
@@ -175,8 +175,8 @@ SECTIONS = [
          "All post-cue licks, lick-peak-aligned, tongue out (animal-weighted)", ""),
         ("prepost/cohort_lick_phase_all_minus_pre_inmouth_excl_animalw.png",
          "All post-cue licks, per-lick phase, tongue out (animal-weighted)", ""),
-        ("prepost/phase_norm_protrusion_px_all_multi.png", "Protrusion vs normalised phase, every multi-lick bout", ""),
-        ("prepost/phase_norm_angle_deg_all_multi.png", "Angle vs normalised phase, every multi-lick bout", ""),
+        ("prepost/phase_norm_protrusion_px_all_multi.png", "Protrusion vs normalized phase, every multi-lick bout", ""),
+        ("prepost/phase_norm_angle_deg_all_multi.png", "Angle vs normalized phase, every multi-lick bout", ""),
     ]),
 ]
 

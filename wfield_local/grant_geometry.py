@@ -577,7 +577,7 @@ def _matrices_crossnobis(align, variant, min_trials=10, row_centre=False):
     the first term depends ONLY ON P. So a change in the overall magnitude of position P's
     post-stroke response moves its distance to EVERY pre-stroke position by the same amount, and the
     panel shows a uniform orange or purple row. That is amplitude, not "this position came to
-    resemble all six". Row-centring removes the term that carries it and leaves the CONTRAST within
+    resemble all six". Row-centering removes the term that carries it and leaves the CONTRAST within
     the row, which is where a substitution lives. Same gain sensitivity that makes 8b the arbiter
     for anything about geometry.
     """
@@ -771,7 +771,7 @@ def _asymmetry_ci(align, variant, min_trials, n_boot=N_BOOT_DELTA):
     A[P,Q] excludes zero, that pair is asymmetric, full stop -- and trial counts are matched by
     construction, which disposes of the other objection to the earlier comparison.
 
-    NOT A PERMUTATION. Shuffling position labels equalises the condition means, so the true
+    NOT A PERMUTATION. Shuffling position labels equalizes the condition means, so the true
     distances collapse toward zero -- but the sampling variance of a crossnobis distance scales with
     the true difference vector, so a real and perfectly SYMMETRIC separation still yields a larger
     |A| than permuted data does. The permuted null sits too low and would call noise asymmetry.

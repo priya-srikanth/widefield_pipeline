@@ -25,18 +25,18 @@ What IS shared, and what makes them comparable, is everything else: the same pre
 sessions, the same window and alignment, the same `_pipe()`, and since 2026-08-26 the same
 pre-stroke-only training restriction inside `pooled_frozen_loso`. So the two are the SAME analysis
 run through two parcellations, which is the point -- DECISIONS 2026-08-12 requires decoders and
-encoders in BOTH bases precisely so that a result appearing in only one can be recognised as a basis
-artefact rather than a finding. Agreement between them is evidence; a single shared model would
+encoders in BOTH bases precisely so that a result appearing in only one can be recognized as a basis
+artifact rather than a finding. Agreement between them is evidence; a single shared model would
 destroy the check by construction.
 
 THE FROZEN MODEL IS NOW AN OBJECT, not a recipe (2026-08-27). This paragraph used to record the gap:
 several modules each fitted their own pre-stroke decoder and agreed only because they shared `_pipe()`
 and the same trial conventions, with nothing enforcing it. `pooled_frozen_loso` and
-`pooled_frozen_encoder` now load a stored artefact from `wfield_local.frozen_models`, keyed on the
+`pooled_frozen_encoder` now load a stored artifact from `wfield_local.frozen_models`, keyed on the
 PRE-STROKE training set and its input signatures, so adding a post-stroke session cannot change the
 model and adding a pre-stroke one mints a new id rather than moving the old one.
 
-Note that a ROI frozen decoder and a joint one still cannot be the same artefact -- as above, 264
+Note that a ROI frozen decoder and a joint one still cannot be the same artifact -- as above, 264
 features against 380, no mapping between them -- and the spec records `source` and `basis_id` so the
 two can never be served for each other. The remaining unpackaged fitters (`grant_figures`,
 `nolick_decoder`, `ood_control`, `poststroke_compare`) are the next step, not this one.

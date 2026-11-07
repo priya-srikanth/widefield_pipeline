@@ -5,7 +5,7 @@ The frozen groups (`wfield_local.frozen_encoder.FGROUP`) are defined by what eac
 Per pre-stroke session: each trial's regressor values averaged over the post-lick window (first post-cue lick -0.1 ..
 +1.0 s; trials without a lick: cue .. +1.1 s), per group and per variable, then a multinomial logistic decoder of the
 spout (six classes, chance 1/6) with block cross-validation (GroupKFold over ~6-trial position blocks, as the
-imaging decoders). STATS_VERSION 4 groups: the LICK group (within-spout deviations of lick timing / vigour) should sit
+imaging decoders). STATS_VERSION 4 groups: the LICK group (within-spout deviations of lick timing / vigor) should sit
 near chance; target / exec_locked near ceiling. Templates leave the tested session out (see main).
 Accuracy above chance in a directionless variable = target information it carries indirectly (e.g. wider jaw
 opening for far spouts), which the encoder will credit to that group.

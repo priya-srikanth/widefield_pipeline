@@ -4,7 +4,7 @@ WHY THIS EXISTS (Priya 2026-10-20: "should we be using the lmm approach for the 
 epochs)" -> "take a close look at the current imaging analyses - decide where lmm approach would make sense and prepare
 code to do so, matching the repo conventions and avoiding redundancy"). Epoch contrasts compare different post-stroke
 times across animals: the chronic epoch starts at day 11 (PS92 / PS93), 15 (PS95) or 25 (PS94), and acute spans days
-1-7 with large changes inside it. A model with each session at its own day -- or at its own behavioural recovery --
+1-7 with large changes inside it. A model with each session at its own day -- or at its own behavioral recovery --
 uses every session and asks the questions directly (DECISIONS 2026-10-20 night: mixed models are the primary readout,
 epochs descriptive).
 
@@ -12,10 +12,10 @@ THE MODELS. One row per session (x whatever the caller groups by), sessions as o
 factor:
   time       y ~ post + post:lday        post = 1 after the stroke; lday = log(days since stroke), 0 at day 1
              -> `post` = the day-1 step vs pre, `post:lday` = change per e-fold of days (fast early, slow late)
-  behaviour  y ~ post + post:deficit     deficit = (animal's August-pre mean - session) / pre mean of a behavioural
+  behavior  y ~ post + post:deficit     deficit = (animal's August-pre mean - session) / pre mean of a behavioral
              index (`DEFICITS`; default ttc = far-contra time to contact, (session - pre) / pre), 0 = pre level, 0 for pre sessions
-             -> `post` = change still present at FULL behavioural recovery, `post:deficit` = change per unit deficit
-             (recovery TIMING differs per animal; indexing by behaviour aligns it -- Priya 10-20)
+             -> `post` = change still present at FULL behavioral recovery, `post:deficit` = change per unit deficit
+             (recovery TIMING differs per animal; indexing by behavior aligns it -- Priya 10-20)
   epoch      y ~ C(epoch)                pre reference; for comparison with the epoch tables
 RANDOM EFFECTS, tried in order, first that converges with ALL standard errors finite (variance components too) and
 predictable random effects wins
@@ -31,8 +31,8 @@ sessions whose epoch is None (excluded PS92 / PS93 0817, gap days) are DROPPED b
 they would count as pre. RULE 8: `lmm_table` prints the per-animal epoch means before any fit.
 
 WHAT IS DELIBERATELY NOT HERE. Pixel maps (keep `beta_maps.significance_contour` / `vs_zero_contour`; a per-pixel
-fixed-intercept OLS can be drawn as a descriptive companion only); serial correlation between neighbouring sessions
-(not modelled -- z-values are somewhat optimistic; check by per-animal summaries); FDR is `orofacial_stats.bh_fdr`
+fixed-intercept OLS can be drawn as a descriptive companion only); serial correlation between neighboring sessions
+(not modeled -- z-values are somewhat optimistic; check by per-animal summaries); FDR is `orofacial_stats.bh_fdr`
 (not a second implementation). Callers: scripts/encoding_mixed.py, scripts/within_spout_mixed.py, scripts/imaging_lmm.py.
 """
 from __future__ import annotations
@@ -120,7 +120,7 @@ def deficit(qc_dir: Path, name: str = DEFICIT) -> dict:
 
 
 def add_deficit(L: pd.DataFrame, deficit: dict, label_col: str = "label") -> pd.DataFrame:
-    """+ deficit (0 for pre sessions; NaN where the session has no behavioural value). A log-scale `Deficit` also adds
+    """+ deficit (0 for pre sessions; NaN where the session has no behavioral value). A log-scale `Deficit` also adds
     `deficit_x` (the raw relative deficit, for the plot axis) and `deficit_tf`."""
     L = L.copy()
     L["deficit"] = np.where(L.post == 0, 0.0, L[label_col].map(deficit))
@@ -193,7 +193,7 @@ def animal_epoch_table(L: pd.DataFrame, by: list[str], value: str = "y") -> pd.D
 def lmm_table(L: pd.DataFrame, by: list[str], models=("time", "behaviour"), value: str = "y",
               print_animals: bool = True, fdr_by: tuple = ("window",)) -> pd.DataFrame:
     """Fit every `by` group under each model; FDR (orofacial_stats.bh_fdr) within model x term x `fdr_by`.
-    `L` needs label / `value` columns and the covariates from `add_time_covariates` (+ `add_deficit` for behaviour)."""
+    `L` needs label / `value` columns and the covariates from `add_time_covariates` (+ `add_deficit` for behavior)."""
     from wfield_local.orofacial_stats import bh_fdr
     if print_animals:
         pd.set_option("display.width", 220)
@@ -239,8 +239,8 @@ def summary_table(T: pd.DataFrame, by: list[str]) -> pd.DataFrame:
 
 
 def __getattr__(name):
-    """`ANIMAL_COL` = the animals.yaml colours (config.animal_color), read when asked for rather than at import so the
-    cohort env var in force at plot time decides. It was a hard-coded Dark2 map, so one animal had different colours on
+    """`ANIMAL_COL` = the animals.yaml colors (config.animal_color), read when asked for rather than at import so the
+    cohort env var in force at plot time decides. It was a hard-coded Dark2 map, so one animal had different colors on
     different page figures (code review 2026-11-04)."""
     if name == "ANIMAL_COL":
         from wfield_local import config
@@ -249,8 +249,8 @@ def __getattr__(name):
 
 
 #: x axis per model: behavioural deficit or days since stroke
-_X = {"behaviour": ("deficit", "behavioural deficit, relative to pre (0 = pre level; larger = worse; mixed_models.DEFICITS)"),
-      "behaviour_post": ("deficit", "behavioural deficit, relative to pre (0 = pre level; larger = worse; mixed_models.DEFICITS)"),
+_X = {"behaviour": ("deficit", "behavioral deficit, relative to pre (0 = pre level; larger = worse; mixed_models.DEFICITS)"),
+      "behaviour_post": ("deficit", "behavioral deficit, relative to pre (0 = pre level; larger = worse; mixed_models.DEFICITS)"),
       "time": ("day", "days since stroke (pre sessions at their negative days)"),
       "time_post": ("day", "days since stroke")}
 
@@ -320,11 +320,11 @@ def plot_epoch(L: pd.DataFrame, T: pd.DataFrame, panels, path: Path, title: str 
 def plot_fits(L: pd.DataFrame, T: pd.DataFrame, panels, model: str, path: Path, title: str = "",
               ylabel: str = "y", ncols: int = 3, xlabel: str | None = None) -> None:
     """Session values vs deficit or days, with the fitted fixed effects. Sessions = OPEN markers, shape = animal,
-    colour = epoch (house style). `panels` = [(panel title, {column: value} selecting rows of L and of T)]; `model` = a
-    T.model value (time, behaviour, time_post, behaviour_post). One figure -> `path`.
+    color = epoch (house style). `panels` = [(panel title, {column: value} selecting rows of L and of T)]; `model` = a
+    T.model value (time, behavior, time_post, behaviour_post). One figure -> `path`.
 
     POST-ONLY MODELS (time_post / behaviour_post) draw whatever rows of L the caller passes: pre-stroke rows there are
-    DOTS ONLY (pre colour, at their negative days), not part of the fit -- the fit is T's, made on the post rows
+    DOTS ONLY (pre color, at their negative days), not part of the fit -- the fit is T's, made on the post rows
     (scripts/imaging_lmm.py: the decoder pre sessions, Priya 11-06). No pre-level line is drawn for them: those models
     have no pre term."""
     import matplotlib

@@ -1,5 +1,5 @@
 """Cross-camera keypoint DEFINITIONS from the student's own labels (Priya 2026-11-04: "plan to compare the student
-labels"): at the same DAQ moment labelled in a side camera AND in cam1 + cam4, where does the side label sit relative to
+labels"): at the same DAQ moment labeled in a side camera AND in cam1 + cam4, where does the side label sit relative to
 the 3-D point her cam1 + cam4 labels triangulate to? Model-free counterpart of the side-model offsets fitted in
 `pose3d_side` (side nose dv +0.3-1.2 mm, side tongue ap +0.1-0.2 mm), which may be the model's or the labels'.
 
@@ -8,11 +8,11 @@ the 3-D point her cam1 + cam4 labels triangulate to? Model-free counterpart of t
         [--clips <dir>] [--preds <dir>]
 
 Moments: the side SIDECAM Part A frames (`dlc_sidecam.PILOT_STEMS`, the student's labels; Part B seeds are skipped until
-edited) sharing (animal, date, trial, time from cue) with labelled cam4 and cam1 frames (`frame_manifest.csv`). Cameras
+edited) sharing (animal, date, trial, time from cue) with labeled cam4 and cam1 frames (`frame_manifest.csv`). Cameras
 posed per session from the ENL no-lick spout medians (cam1 / cam4: the production windows; cam2 / cam3: the side model
 on short cue clips, `scripts/side_review_clips.py cut --pre-ms 1000`), spout with cam1's edge offset. Per part x camera:
 (a) the side label vs the cam1 + cam4 label point (ray-perpendicular vector, mm); (b) leave-one-camera-out over all
-four cameras' labels where >= 3 are labelled. Writes `session_poses/pose3d_side/label_offsets{,_loo}.csv`.
+four cameras' labels where >= 3 are labeled. Writes `session_poses/pose3d_side/label_offsets{,_loo}.csv`.
 August-onward sessions only (June side intrinsics open).
 """
 from __future__ import annotations

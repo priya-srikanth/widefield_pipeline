@@ -1,7 +1,7 @@
 """LP arm: a never-filmed session contributes nothing instead of failing the camera-gated map collection (2026-11-06).
 
 Render g5_restnl_maps_lp died in `map_collect.collect` (review N9: any failed job is fatal under the camera gate) on
-``PS93_0813: LPUnavailable: no LP lick tables`` -- PS93_0813 has no behaviour video (docs/EXPERIMENT_ERRORS.md), so no LP
+``PS93_0813: LPUnavailable: no LP lick tables`` -- PS93_0813 has no behavior video (docs/EXPERIMENT_ERRORS.md), so no LP
 licks and no camera working period. Under the contact arm it already contributes nothing. The ref-map / beta-map job
 wrappers now return that same empty result for such a session, and ONLY for it: a filmed session with missing LP tables
 still fails. Synthetic: no share access.
@@ -22,7 +22,7 @@ def _raise_lp(*_a, **_k):
 
 @pytest.fixture
 def cams(tmp_path, monkeypatch):
-    """A behaviour-camera root on tmp; no camera classes unless a test says otherwise."""
+    """A behavior-camera root on tmp; no camera classes unless a test says otherwise."""
     root = tmp_path / "Behavior_Cameras"
     root.mkdir()
     monkeypatch.setattr(PathResolver, "root", lambda self, key: str(root) if key == "behavior_cameras" else "")

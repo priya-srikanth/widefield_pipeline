@@ -10,7 +10,7 @@ HITS only (first post-cue lick of engaged hit trials), PS92-95, August pre, epoc
   C  WHICH features deviate: per feature, signed z vs the animal's pre hits at the same spout (pre mean / SD), session
      mean, mean over spouts with the feature, then mean of animals; * as in B. ALL LATERAL SIGNS + = CONTRALESIONAL:
      angle as is; landing lateral error re-signed from "+ outward of the spout" (outward = contralesional at contra
-     spouts, ipsilesional at ipsi spouts and at the centre, where + = mouse left); jaw lateral lr_wide_mm (+ ipsi)
+     spouts, ipsilesional at ipsi spouts and at the center, where + = mouse left); jaw lateral lr_wide_mm (+ ipsi)
      negated. log_lat + = slower.
   D  distribution of d2 / k on hits per epoch (pooled trials, animals equally weighted), pre 95 % line.
 
@@ -222,7 +222,7 @@ def plot(F: dict) -> None:
 
 
 def _ecdf_panel(ax, F, sessions=True, only=None):
-    """ECDF of d2/k on hits: thin per-session curves + thick pooled curve per epoch, EPOCH_LINE colours (defaults)."""
+    """ECDF of d2/k on hits: thin per-session curves + thick pooled curve per epoch, EPOCH_LINE colors (defaults)."""
     from wfield_local.orofacial_cohort import EPOCH_LINE
     if sessions:
         for _lab, an, ep, x in F["Dsess"]:
@@ -259,7 +259,7 @@ def _ecdf_panel(ax, F, sessions=True, only=None):
 
 def plot_sessions_ecdf(F: dict) -> None:
     """Per-session summary of panel D (Priya 10-30: the per-session ECDFs were hard to read): each session's MEDIAN and
-    95th-PERCENTILE deviation of successful licks, by epoch. Sessions = open markers (shape = animal, colour = epoch);
+    95th-PERCENTILE deviation of successful licks, by epoch. Sessions = open markers (shape = animal, color = epoch);
     filled = mean of animals; * (top band) = boot_delta vs pre, CI excludes 0 AND >= 3/4 animals."""
     import matplotlib
     matplotlib.use("Agg")
@@ -305,8 +305,8 @@ def plot_sessions_ecdf(F: dict) -> None:
 
 def plot_recovery_score(F: dict) -> None:
     """Recovery scores, ALL FOUR ANIMALS per panel (Priya 10-30): hit rate, the prior far-contra aim offset, and the
-    multivariate normality of hits (all spouts / far contra). Sessions = open markers, shape = animal, colour = epoch;
-    thin grey line joins each animal's sessions."""
+    multivariate normality of hits (all spouts / far contra). Sessions = open markers, shape = animal, color = epoch;
+    thin gray line joins each animal's sessions."""
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
@@ -337,7 +337,7 @@ def plot_recovery_score(F: dict) -> None:
     hl = [Line2D([], [], ls="none", marker=ANIMAL_MARKER[a], mfc="none", mec="0.3", label=a) for a in AN]
     hl += [Line2D([], [], ls="none", marker="o", mfc="none", mec=EPOCH_LINE[e], label=e) for e in EPS]
     fig.legend(handles=hl, loc="outside lower center", ncol=8, fontsize=9, frameon=False)
-    fig.suptitle("Recovery scores, all four animals (sessions: shape = animal, colour = epoch; dotted = pre level). "
+    fig.suptitle("Recovery scores, all four animals (sessions: shape = animal, color = epoch; dotted = pre level). "
                  "Hit rate and far-contra aim recover; the movement of SUCCESSFUL licks stays less normal. n = 4, "
                  "PROVISIONAL", fontsize=11)
     fig.savefig(FIG / "kn_fig6_recovery_scores.png", dpi=150)

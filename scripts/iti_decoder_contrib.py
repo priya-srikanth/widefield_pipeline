@@ -1,7 +1,7 @@
 """Which areas move the frozen decoder's lick position after the stroke? (Priya 10-26: "it's counter intuitive that
 cued licks are read as being closer ... when there is MORE tjM1 and ALM activity").
 
-The frozen where-decoder (`iti_where_decoder.py`, Allen areas, lags 0..0.2 s from the lick peak, ridge on standardised
+The frozen where-decoder (`iti_where_decoder.py`, Allen areas, lags 0..0.2 s from the lick peak, ridge on standardized
 features, fit on ALL of the animal's August pre licks) is linear: decoded = c + sum_i w_i (x_i - mu_i) / sd_i. So the
 change of the mean decoded position from pre to an epoch splits exactly into per-area contributions
 w_i / sd_i * (mean_epoch x_i - mean_pre x_i). Per animal, lick set (ITI / in-trial) and axis (lateral, sagittal);

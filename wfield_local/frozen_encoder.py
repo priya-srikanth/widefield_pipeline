@@ -8,7 +8,7 @@ August pre-stroke sessions and applied, unchanged, to every session:
 - regressors: the encoder's full-model variables (`combined_encoding.GROUP_OF`: cue, arrival, the six position
   deviation blocks, lick kernels, lick angle, tongue, jaw, nose, running) from `raw_blocks`, in RAW units, slow drift
   projected out per session exactly as the encoder does (`_slow_basis`, DRIFT_MIN_PERIOD_S; the constant is in the
-  basis, so every column and target is centred per session);
+  basis, so every column and target is centered per session);
 - SCALING: each column divided by the animal's POOLED pre-stroke SD (not the session's own), so a post-stroke session
   with smaller / rarer licks keeps smaller regressors -- the point of freezing. Pose traces are in LP pixels on a fixed
   rig (v36 timing / June rescale), so their units are comparable across sessions;
@@ -23,7 +23,7 @@ August pre-stroke sessions and applied, unchanged, to every session:
 
 GROUPS (STATS_VERSION 4, 10-22 afternoon; see FGROUP): timing / target / exec_locked / exec_within / lick / other /
 contact, built by splitting every lick-related movement column into the animal's PRE-STROKE spout-locked template (s)
-and the deviation from it (d) -- a behaviour-only first pass over the pre sessions (`template_job`, saved as
+and the deviation from it (d) -- a behavior-only first pass over the pre sessions (`template_job`, saved as
 fit/templates.pkl).
 
 Per session the output matches `combined_encoding`'s session files where the decomposition reads them: `peth` (cue-
@@ -339,7 +339,7 @@ def lick_landing_weights(B, animal: str, date: str, rv, width: float = 1.0) -> n
     L = pd.read_csv(oo.session_dir(rv, ce._run(), animal, date) / "licks.csv")
     L = L[L.trial_id.isin(set(B.trials.trial_id))]
     if len(L) != len(B.lick_on_s):
-        raise ValueError(f"{animal}_{date}: lick table has {len(L)} rows, behaviour {len(B.lick_on_s)} licks")
+        raise ValueError(f"{animal}_{date}: lick table has {len(L)} rows, behavior {len(B.lick_on_s)} licks")
     path = os.environ.get(ce.EXEC3D_TABLE_ENV)
     if not path:
         path = pose3d_dir() / "kinematics" / "licks.csv.gz"
@@ -394,9 +394,9 @@ def _off_target(W: np.ndarray, tg: np.ndarray) -> float:
 def te_lick_parts(parts: dict, B, T, animal: str, date: str, rv, ft: np.ndarray, ridx: np.ndarray,
                   tpos_perm=None, land_roll: float | None = None) -> dict:
     """FROZEN_DESIGN=te lick families into ``parts``: lick_onset@tgt:<q> (lick-locked kernels of every in-trial lick
-    labelled by its trial's TARGET spout) and lick_onset@land:<q> / @land:unknown (every lick, ITI included, by its 3-D
+    labeled by its trial's TARGET spout) and lick_onset@land:<q> / @land:unknown (every lick, ITI included, by its 3-D
     LANDING: soft weights, amplitude-weighted kernels + mean weight x plain kernel as FROZEN_LICKLAND, since
-    `_event_cols` centres an amplitude). Licks: post-cue = the behaviour licks (B.lick_on_s / B.lick_pos), cam1-only
+    `_event_cols` centers an amplitude). Licks: post-cue = the behavior licks (B.lick_on_s / B.lick_pos), cam1-only
     in-trial licks (B.extra_lick_on_s, no 3-D), pre-cue and ITI licks from the session's licks_all.csv (exact DAQ onsets;
     3-D via lick_uid into kinematics_all).
     NULLS (`partial_refit.py`, TE): ``tpos_perm`` = permuted trial spouts (one per row of T, the same array the caller
@@ -530,7 +530,7 @@ def split_blocks(raw: dict) -> dict:
 
 def _licks_all_env():
     """Context: the combined encoder's LICKS_ALL=split routing for the frozen spontaneous-lick design (only around its
-    behaviour load / raw blocks); a no-op for v7g3_t3d. An INHERITED COMBINED_ENCODING_LICKS_ALL is refused either way
+    behavior load / raw blocks); a no-op for v7g3_t3d. An INHERITED COMBINED_ENCODING_LICKS_ALL is refused either way
     (a frame render must not pick up the O2 bundle's setting)."""
     import contextlib
     ce = _ce()
@@ -620,7 +620,7 @@ def template_index(t_cue: np.ndarray, t_lick: np.ndarray) -> np.ndarray:
 
 
 def template_sums(Xc: np.ndarray, pos_of: np.ndarray, k_of: np.ndarray, pos_order: list) -> tuple:
-    """Per spout x cue-relative bin: column sums and frame counts of session-centred raw columns Xc (n, c).
+    """Per spout x cue-relative bin: column sums and frame counts of session-centered raw columns Xc (n, c).
     pos_of: each frame's trial spout ("" = none); k_of: its cue-relative bin index (absolute, from _template_bins)."""
     k0, K = _template_bins()
     S = np.zeros((len(pos_order), K, Xc.shape[1]))
@@ -658,9 +658,9 @@ def _centred(x: np.ndarray) -> np.ndarray:
 
 def session_design(label: str, templates: dict | None = None, template_only: bool = False, spatial: dict | None = None,
                    basis_only: bool = False, relabel: dict | None = None, extra_targets: dict | None = None) -> dict:
-    """Raw (drift-removed, session-centred) design X, area targets Rd, column variables, trial alignment frames.
+    """Raw (drift-removed, session-centered) design X, area targets Rd, column variables, trial alignment frames.
     ``templates`` = the animal's spout-locked templates (`build_templates`), required for the STATS_VERSION 4 layout;
-    ``template_only`` = return only this session's template sums (behaviour pass, no imaging targets);
+    ``template_only`` = return only this session's template sums (behavior pass, no imaging targets);
     ``spatial`` = {"P": (stat pixels x R) projection, "names"} for basis / grid targets instead of Allen areas (Rd stays
     None above MAX_DENSE_TARGETS: Y and Ra are returned and consumers project on demand); ``basis_only`` = return this
     session's variance-weighted spatial components (the shared-basis pass); ``relabel`` = {spout q: spout j}: q's
@@ -874,7 +874,7 @@ def spl_swap_deltas(Ms: dict, templates: dict, pos_of, k_of, pos_order: list, co
 
 
 def template_job(label: str) -> dict:
-    """One pre session's spout-locked template sums (behaviour only)."""
+    """One pre session's spout-locked template sums (behavior only)."""
     return session_design(label, template_only=True)
 
 
@@ -955,7 +955,7 @@ def _run_mode() -> str:
 
 def _knots(knots: list | None) -> list | None:
     """The template knots with the first (= the response onset for spline_thr) overridden by FROZEN_RUN_KNOT0 (mm/s),
-    if set: Priya 10-23 "is 3 mm too high a threshold for this" -- 3 mm/s is the behaviour segmentation's SUSTAINED-
+    if set: Priya 10-23 "is 3 mm too high a threshold for this" -- 3 mm/s is the behavior segmentation's SUSTAINED-
     running threshold, the rest floor is ~0.1-0.5 mm/s (pre trial-frame p90), and the spline's response was mostly
     reached by 2 mm/s. Higher knots stay the pre running-frame percentiles. Default RUN_KNOT0_DEFAULT (v7)."""
     k0 = _knot0()

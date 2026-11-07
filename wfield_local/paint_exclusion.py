@@ -2,7 +2,7 @@
 
     python -m wfield_local.paint_exclusion
 
-WHY A PAINTER AND NOT A THRESHOLD. The fibre glue is the thing this exists for, and it cannot be
+WHY A PAINTER AND NOT A THRESHOLD. The fiber glue is the thing this exists for, and it cannot be
 found automatically: three attempts failed on 2026-09-12, each for a different reason. Thresholding
 DARK pixels found the anterolateral somatosensory band, because the whole left hemisphere is dimmer
 than the right (a tilt/illumination gradient, not glue). The left/right MIRROR RATIO found the same
@@ -10,7 +10,7 @@ thing for the same reason. Thresholding locally BRIGHT pixels -- glue scatters l
 the right sign -- found MOs, RSPd and RSPagl, because the medial dorsal surface is flatter to the
 camera and brighter everywhere. Brightness in this preparation is dominated by geometry.
 
-The person who placed the fibre can see it in one glance. This turns that into a mask.
+The person who placed the fiber can see it in one glance. This turns that into a mask.
 
 ONE MASK PER ANIMAL, because the glue is per animal (Priya, 2026-09-12: "can i not paint a
 different mask for each animal?"). A single shared mask would either miss one animal's occlusion or
@@ -60,11 +60,11 @@ CHANNELS = {1: "470 (functional)", 0: "415 (isosbestic)"}
 def _mean_fluorescence(animals=None, max_sessions=10):
     """``{(animal, channel): (540, 640)}`` -- motion-corrected mean frames, per animal per channel.
 
-    BOTH CHANNELS, because they fail differently. 470 carries calcium and haemodynamics; 415 carries
-    haemodynamics and whatever is optically in the way -- so a surface occlusion appears in the
+    BOTH CHANNELS, because they fail differently. 470 carries calcium and hemodynamics; 415 carries
+    hemodynamics and whatever is optically in the way -- so a surface occlusion appears in the
     ISOSBESTIC image without any of the activity that complicates the functional one.
 
-    NORMALISED PER SESSION by its own in-mask median before averaging, so one bright day does not
+    NORMALIZED PER SESSION by its own in-mask median before averaging, so one bright day does not
     set the picture; the absolute level is meaningless here and the shape is what is looked at.
     """
     from wfield_local import beta_maps as bm

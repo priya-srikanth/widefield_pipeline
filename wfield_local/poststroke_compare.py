@@ -5,7 +5,7 @@ PS94 has ZERO engaged trials at far_center and far_R (from ~106 each pre-stroke)
 So a frozen 6-position model is being scored on 4 positions, and the raw accuracy drop (PS94 0.699
 vs a 0.937 pre-stroke band) is mostly TRIAL COMPOSITION, not coding. Every comparison here is
 restricted to positions the animal still attempts post-stroke, in BOTH phases, so the question is
-"did coding change where behaviour survived" rather than "did behaviour change".
+"did coding change where behavior survived" rather than "did behavior change".
 
 Three questions (Priya, 2026-08-18):
 
@@ -70,7 +70,7 @@ def _pooled(animal, align, source="roi", post_labels=None):
     """Pre-stroke pool + a comparison session, aligned and z-scored together.
 
     `post_labels` overrides the comparison arm. Leave it None for real post-stroke work -- the default
-    is `phase_labels("post")`, which is the only sanctioned pool. Pass it ONLY to analyse sessions that
+    is `phase_labels("post")`, which is the only sanctioned pool. Pass it ONLY to analyze sessions that
     resolve to the 'excluded' phase, and label the output accordingly; `excluded_labels()` supplies
     them. Results built this way must not enter any pooled post-stroke summary (Priya, 2026-08-18).
     """
@@ -134,7 +134,7 @@ def balanced_lick_sample(d, keep, rng, *, exclude_session=None):
 
     ``groups`` are session ids, for callers that want GroupKFold -- an ungrouped fold puts trials
     from one session on both sides, and session identity is exactly what a whole-brain feature
-    vector can memorise.
+    vector can memorize.
 
     THREE COPIES OF THIS EXISTED (`looks_like_which`, `fits_engaged_distribution.balanced_fit`,
     `undetected_state_split`), agreeing only by coincidence, and one of them did not: `balanced_fit`
@@ -170,7 +170,7 @@ def balanced_lick_sample(d, keep, rng, *, exclude_session=None):
 
 def _lick_train(d, keep):
     """``d`` with its XE / XU in the engagement-state discriminator's TRAINING frame (bal_em over the two STATE
-    classes, `spout_scaling.state_train_frame`): each pre-stroke session centred on the equal-weight mean of its engaged
+    classes, `spout_scaling.state_train_frame`): each pre-stroke session centered on the equal-weight mean of its engaged
     and no-lick means over the ``keep`` positions. OPT-IN (``WIDEFIELD_STATE_DISC_SCALING=state_bal_em``), default OFF:
     ``d`` itself (it fails the discriminator's own pre-stroke check; DECISIONS 2026-11-03, `spout_scaling`)."""
     from wfield_local import spout_scaling as _ss
@@ -188,7 +188,7 @@ def _lick_train(d, keep):
 
 def _lick_scored(d, keep, clf, y_train, sessions, base):
     """``(XE, XU)``: ``base``'s matrices with each session in ``sessions`` moved into ``clf``'s label-free EM
-    scoring frame (centre from that session's PRODUCTION-frame engaged + no-lick rows at the ``keep`` positions,
+    scoring frame (center from that session's PRODUCTION-frame engaged + no-lick rows at the ``keep`` positions,
     equal weight over the two states, production SD). ``base``'s own arrays under session_z."""
     from wfield_local import spout_scaling as _ss
     mode = _ss.state_disc_scaling()
@@ -216,7 +216,7 @@ def _work_txt() -> str:
 
 def _state_frame_tag():
     """The engagement-state discriminators' frame, recorded in every output that uses it (main 4a37cbc8): "spout_frame/
-    working" (section G's spout frame is the stored cue / precue decoder's own frame, so its centre is always the
+    working" (section G's spout frame is the stored cue / precue decoder's own frame, so its center is always the
     camera working rows -- or "spout_frame/contact" under WIDEFIELD_SPOUT_SCORE_CENTRE=contact; the lick window and the
     DAQ gate: "spout_frame/engaged"), "session_z", or "state_bal_em". The camera-class discriminator (`g4_camclass`)
     records its own frame (`g4_frame_tag`)."""
@@ -300,7 +300,7 @@ def preserved_detail(d, session) -> dict:
 def preserved_positions(d, session=None, combine="intersection"):
     """Positions the animal still attempts post-stroke -- the only ones a comparison can use.
 
-    PER SESSION, because "still attempts" is a behavioural state that changes day to day (Priya,
+    PER SESSION, because "still attempts" is a behavioral state that changes day to day (Priya,
     2026-08-19). Pass `session` (an index into d["kept"]) for one session's set.
 
     WITHOUT `session`, sessions are combined by INTERSECTION: positions attempted on EVERY
@@ -344,7 +344,7 @@ def frozen(d):
     Returns ``{"full": pipeline, "loso": {label: pipeline}}``, or None when the pool did not record
     what it was built from (an `excluded_labels` pool, or a dict assembled by a test). A None here
     means the caller fits locally exactly as it did before -- this is a shortcut, never a new source
-    of truth, so a pool it cannot key for degrades to the old behaviour rather than to a wrong model.
+    of truth, so a pool it cannot key for degrades to the old behavior rather than to a wrong model.
 
     MEMOISED PER POOL, which is where the saving is. `poststroke_section_g` mutates only
     ``d["post_i"]`` and calls back in once per post-stroke session per arm per alignment, so the
@@ -378,7 +378,7 @@ class SectionGRefused(SystemExit):
 
 def _refuse_unkeyed(what: str) -> None:
     """A pool that records no identity (an `excluded_labels` pool, a test dict) can only be fitted in memory: allowed
-    in the DEFAULT run (the pre-rebuild behaviour), REFUSED in a tagged run (the render profile)."""
+    in the DEFAULT run (the pre-rebuild behavior), REFUSED in a tagged run (the render profile)."""
     from wfield_local import lp_licks
     if lp_licks.output_tag():
         raise SectionGRefused(f"section G {what}: the pool records no identity, so its pre-stroke reference cannot "
@@ -450,7 +450,7 @@ def _g_store(d, kind, extra, fit, meta=None, scaling=None):
     cache[key] = payload
     return payload
 def _engaged_classes(d):
-    """Camera class per pooled engaged row of section G pool ``d`` for the bal_em centre (None unless the run's centre
+    """Camera class per pooled engaged row of section G pool ``d`` for the bal_em center (None unless the run's center
     is the camera working set), memoised on the pool."""
     from wfield_local.locanmf_frozen_decoder import engaged_row_classes
     cache = d.setdefault("_frozen_cache", {})
@@ -463,8 +463,8 @@ def _engaged_classes(d):
 def frozen_X(d):
     """``(XE, XU)`` in the frame the STORED models of `frozen` score in, memoised on ``d``.
 
-    Under ``session_bal_em`` (production since 2026-11-03, `spout_scaling`) each session is centred by the label-free
-    EM centre of its engaged trials under its scoring model (LOSO for a pre session, ``full`` otherwise); under
+    Under ``session_bal_em`` (production since 2026-11-03, `spout_scaling`) each session is centered by the label-free
+    EM center of its engaged trials under its scoring model (LOSO for a pre session, ``full`` otherwise); under
     ``WIDEFIELD_SPOUT_SCALING=session_z``, or when no stored model is available (local fallback fits), it is
     ``(d["XE"], d["XU"])`` itself. The scored frame does not depend on ``post_i``, which `poststroke_section_g`
     mutates, so one frame serves every narrowing of the pool.
@@ -528,7 +528,7 @@ def _camera_groups(d):
 
 
 def _conf_panel(y, p, nl, labels, jj=None):
-    """One row-normalised confusion panel (rows = true position): the dict `crossed_confusion` stores per phase.
+    """One row-normalized confusion panel (rows = true position): the dict `crossed_confusion` stores per phase.
     With ``jj`` (the rows' jaw_judged flags) it also records n, accuracy and the number of jaw-unjudged rows."""
     M = np.full((len(labels), len(labels)), np.nan)
     n, n_nolick = [], []
@@ -746,7 +746,7 @@ def _lickonly_working(d, pos, sc):
     """``(clf, pre_pred, (pre_y, pre_g), (Xpost, ypost))`` for `decode_matched`'s LICK-ONLY arm on the camera WORKING
     rows (follow-on c, coordinator 11-04), or None (not the camera grouping: `_camera_groups`). A FrozenFrame over the
     working rows R (engaged + no-lick, contact | incomplete) restricted to the ``pos`` spouts for training; each scored
-    session centred, label-free, on ALL its R rows (or its contact rows, `spout_scaling.score_centre_rows`); pre band =
+    session centered, label-free, on ALL its R rows (or its contact rows, `spout_scaling.score_centre_rows`); pre band =
     each pre session's R rows at ``pos`` by its leave-one-out model; post = the post sessions' R rows at ``pos`` by the
     full model. STORED (kind g_lickonly_decoder; the align carries "ffwork" + the run's selection tag, so its ids never
     meet the engaged-row arm's)."""
@@ -1097,7 +1097,7 @@ def crossed_confusion(d, labels=DISPLAY_ORDER, post_all_trials=False,
     that scatters them. The 6x6 distinguishes those, and its diagonal is the per-position recall
     table, so the two are one object rather than two.
 
-    Rows are TRUE position, columns PREDICTED, row-normalised. Rows with no post-stroke trials are
+    Rows are TRUE position, columns PREDICTED, row-normalized. Rows with no post-stroke trials are
     returned as NaN rather than zeros -- PS94 has none at far_center or far_R, and a row of zeros
     would read as "always wrong" instead of "never attempted".
 
@@ -1301,7 +1301,7 @@ def poststroke_engagement(s, reference_positions, window=15, min_rate=0.5):
         ccls = _tc.cue_classes_for(s["label"], np.asarray(cue["cue_samples"], float) / float(cue["sample_rate_hz"]),
                                    window="cue_stop")       # the no-lick definition: cue_stop (Priya FINAL 11-03)
         if ccls.size != codes.size:
-            raise RuntimeError(f"camera trial gate: {ccls.size} classified cues vs {codes.size} categorised")
+            raise RuntimeError(f"camera trial gate: {ccls.size} classified cues vs {codes.size} categorized")
         eng = _tc.in_sel(ccls, "miss_working")   # its callers split the NO-LICK arm: no contact class (review M6)
         stopped = np.isin(ccls, list(_tc.STOPPED_CLASSES))
         return eng, {"gate": f"trial_classes camera ({_tc.run_selection()})", "stopped": stopped,
@@ -1705,14 +1705,14 @@ def g4_centre() -> str:
 
 
 def g4_frame_tag() -> str:
-    """The camera-class discriminator's identity: "camclass/z-<centre>/pos-contact+incomplete/neg-none"."""
+    """The camera-class discriminator's identity: "camclass/z-<center>/pos-contact+incomplete/neg-none"."""
     return f"camclass/z-{g4_centre()}/pos-{'+'.join(G4_POS)}/neg-{'+'.join(G4_NEG)}"
 
 
 def g4_frame(d):
-    """``(dT, groups)`` for the camera-class discriminator, memoised on ``d`` per centre: ``dT`` = ``d`` with every
-    session's rows z-scored on its centre rows (`g4_centre`; identity for "engaged") and ``pre_i`` narrowed to the pre
-    sessions WITH camera classes and centre rows; ``groups`` = `_camera_groups(d)`. None when the camera grouping does
+    """``(dT, groups)`` for the camera-class discriminator, memoised on ``d`` per center: ``dT`` = ``d`` with every
+    session's rows z-scored on its center rows (`g4_centre`; identity for "engaged") and ``pre_i`` narrowed to the pre
+    sessions WITH camera classes and center rows; ``groups`` = `_camera_groups(d)`. None when the camera grouping does
     not apply (DAQ gate, lick window, no classes)."""
     from wfield_local import label_shift
     cg = _camera_groups(d)
@@ -1750,7 +1750,7 @@ def g4_frame(d):
 
 
 def cam_balanced_sample(dT, ge, gu, keep, rng, *, exclude_session=None):
-    """The camera-class analogue of `balanced_lick_sample` (ported from g4common.cam_balanced_sample, 11-04): pre
+    """The camera-class analog of `balanced_lick_sample` (ported from g4common.cam_balanced_sample, 11-04): pre
     WORKING (contact | incomplete) vs NONE rows (engaged and no-lick rows stacked), within each kept spout both
     subsampled to the same count (>= 5), positives drawn first, same ``rng`` use. ``(X, y, groups)`` or None."""
     X = np.vstack([dT["XE"], dT["XU"]])
@@ -1813,12 +1813,12 @@ def _g4_cells(clf, X, Y, g, jj, keep, min_n=G4_MIN_N):
 
 def g4_camclass(d, keep, seed=0, min_n=G4_MIN_N):
     """SECTION G4, camera-class discriminator (the PRIMARY since 11-04; follow-on a). Trains WORKING vs NONE on the pre
-    sessions (position-balanced, `cam_balanced_sample`) in the z frame centred on `g4_centre` rows; scores every post
+    sessions (position-balanced, `cam_balanced_sample`) in the z frame centered on `g4_centre` rows; scores every post
     session row by camera group (contact / incomplete / jaw_only / none / after_end), spout-balanced; the PRE reference
     per group = each pre session's rows scored by the discriminator that left it out (one RandomState(seed) across the
     folds, then the full fit, as `fits_engaged_distribution`). Each post group is read against the SAME group pre-stroke
-    (``pre_reference``); a group with no pre cell >= ``min_n`` is read against pre WORKING, labelled
-    ``pre_reference_is`` = "working". STORED (kind g_cam_disc; the spec carries keep, seed, centre, class set and the
+    (``pre_reference``); a group with no pre cell >= ``min_n`` is read against pre WORKING, labeled
+    ``pre_reference_is`` = "working". STORED (kind g_cam_disc; the spec carries keep, seed, center, class set and the
     run's selection tag). None when the camera grouping does not apply."""
     from wfield_local import trial_classes as _tc
     got = g4_frame(d)

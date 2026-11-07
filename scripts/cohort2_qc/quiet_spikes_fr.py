@@ -15,7 +15,7 @@ imaging frames, each minus its own 2-s running median (same high-pass as the cor
 steps: cortex may lead or follow the movement).
 REGRESSION: ridge per session, fitted on ENGAGED + tail REST frames only, alpha by inner CV; the residual is OUT OF FOLD
 (10 contiguous time blocks: fit on the other blocks' rest frames, predict every frame of this block), so the model
-cannot remove a spike by memorising it. Frames with a missing regressor (FR gap) are excluded from rest for BOTH the raw
+cannot remove a spike by memorizing it. Frames with a missing regressor (FR gap) are excluded from rest for BOTH the raw
 and the residual count, so the two are compared on identical frames.
 SPIKES: as quiet_area_spikes (half-width 1.5 frames .. 0.5 s, peak in rest, prominence > 5 x the animal's August-pre
 engaged-rest robust SD), detected on the raw trace and on the residual, each with its OWN threshold (residual SD from
@@ -29,7 +29,7 @@ fraction at 3000 random engaged-rest frames (a window max passes the 90th percen
 STATISTICS: per-animal epoch means printed first (rule 8); then `mixed_models.lmm_table` (session rows, animal random
 effects ladder, August pre) -- `epoch` model (each epoch vs pre) and `time` model (day-1 step + log-day slope); rates on
 log10(rate + 0.2 /min). FDR within model x term x measure family. Pooled figure: epoch mean +/- nested animal->session
-bootstrap CI (`analysis_kit.boot_ci`), sessions as open markers (shape = animal, colour = epoch), stars in the top band.
+bootstrap CI (`analysis_kit.boot_ci`), sessions as open markers (shape = animal, color = epoch), stars in the top band.
 
     set WFIELD_INPUT_CACHE=C:/Users/SabatiniLab/wfield_cache
     python scripts/cohort2_qc/quiet_spikes_fr.py [--jobs 6] [--summarise]
@@ -188,7 +188,7 @@ def lagged(R, fs):
 
 
 def ridge_oof(X, Y, fit_rows, fold):
-    """Out-of-fold ridge prediction of Y (T x c) from X (T x p): per fold, standardise on the training rest rows, pick
+    """Out-of-fold ridge prediction of Y (T x c) from X (T x p): per fold, standardize on the training rest rows, pick
     alpha by an inner 5-block CV on those rows, predict every frame of the held-out block that has a full X row."""
     def solve(Xa, Ya, a):
         G = Xa.T @ Xa
@@ -398,7 +398,7 @@ def figure(S, T):
     sig_marks.reserve_headroom(fig)
     fig.suptitle("cohort1 ENGAGED-rest spikes (restdock05), raw vs after regressing out face movement (FaceRhythm cam4, "
                  "factors + point PCs + speed, lags +-0.3 s, out of fold).\nOpen markers = sessions (shape = animal, "
-                 "colour = epoch); black = pooled mean, nested animal->session bootstrap 95% CI; stars = LMM epoch vs "
+                 "color = epoch); black = pooled mean, nested animal->session bootstrap 95% CI; stars = LMM epoch vs "
                  "August pre, FDR", fontsize=8)
     fig.tight_layout(rect=(0, 0, 1, 0.95))
     fig.savefig(FR_OUT / "rest_spikes_pooled_epochs.png", dpi=110)

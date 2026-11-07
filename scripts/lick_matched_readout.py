@@ -395,7 +395,7 @@ ANIMAL_ROWS = [("iti", "all", "ITI, all licks"), ("iti", "first", "ITI, FIRST li
 def plot_animal(S: pd.DataFrame, T: pd.DataFrame) -> None:
     """PER-ANIMAL change vs pre (overnight queue 5d, approved backlog): for each animal, every post session's offset
     minus the animal's pre mean (small dots), the animal's change (open marker = mean of its session values - pre mean,
-    the quantity the paired bootstrap averages over animals) and its PRE spread (grey bar = +/- 1 SD of its pre session
+    the quantity the paired bootstrap averages over animals) and its PRE spread (gray bar = +/- 1 SD of its pre session
     values around 0: the noise level an epoch value has to clear). Pre sessions sit near 0 by construction (leave-one-
     session-out), so a pre-vs-epoch scatter would be a vertical line; the change with session spread is the clearer view."""
     import matplotlib
@@ -448,7 +448,7 @@ def plot_animal(S: pd.DataFrame, T: pd.DataFrame) -> None:
             for s_ in ("top", "right"):
                 ax.spines[s_].set_visible(False)
     fig.suptitle("LIKE-FOR-LIKE offset PER ANIMAL, change vs pre (reference = " + REFLAB + ").\nsmall dots = post "
-                 "SESSIONS minus the animal's pre mean, open marker = the animal's change (text: value, n sessions), grey "
+                 "SESSIONS minus the animal's pre mean, open marker = the animal's change (text: value, n sessions), gray "
                  "bar = +/- 1 SD of the animal's PRE sessions (noise level);\nright column / bottom right = POOLED: mean of animals, 95% paired "
                  "nested bootstrap CI, * = excludes 0, k/n animals. PROVISIONAL", fontsize=9.5)
     lo._layout(fig, bottom=0.01)

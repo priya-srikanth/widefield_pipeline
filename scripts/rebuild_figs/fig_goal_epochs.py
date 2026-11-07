@@ -86,7 +86,7 @@ def draw(summ: dict, png: Path) -> None:
     fig.legend(h, lab, loc="upper center", ncol=6, fontsize=9, frameon=False, bbox_to_anchor=(0.5, 0.955))
     fig.suptitle("Item 1 across epochs: far-contra trials on the frozen pre-stroke decoder by trial type "
                  "(classes with >= 5 trials; chance dotted, pre-stroke hits solid)\nnumbers under each axis = trials "
-                 "per class (same colours)", fontsize=10)
+                 "per class (same colors)", fontsize=10)
     fig.tight_layout(rect=(0, 0, 1, 0.92))
     fig.subplots_adjust(hspace=0.75)
     save_png_svg(fig, png, dpi=140)

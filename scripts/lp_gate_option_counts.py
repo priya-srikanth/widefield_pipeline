@@ -4,7 +4,7 @@ NO NEW EXTRACTION: reads `scripts/gate_lp_check.py`'s per-session cache (WFIELD_
 curated PS92-95, August-only pre, epochs per `epochs.epoch_of`), whose LP rule is the option's rule
 (tests/test_lp_gate_option.py checks the gate and the quit against it on three sessions, exactly).
 
-Per session, on the full behavioural trial list (DAQ cues with a resolved position):
+Per session, on the full behavioral trial list (DAQ cues with a resolved position):
   img gate (engagement_gate, responded within decode.max_rt_s = 3.5 s), three response rules:
     DAQ      DAQ contact                           -- the DAQ arm, and the gate_lp_check baseline
     LPonly   LP attempt (LP-covered trials only)   -- what the LP_licks arm's imaging gate is TODAY (its engaged arm is

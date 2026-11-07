@@ -10,7 +10,7 @@ limit on the pre-cue readout:
      sustained sensory response and a held intention are temporally coextensive and this design
      cannot separate them."
 
-Timing cannot separate them, so this separates them by BEHAVIOUR instead: remove the intention and
+Timing cannot separate them, so this separates them by BEHAVIOR instead: remove the intention and
 leave the stimulus. On a stopped trial the spout is still in position and the animal is no longer
 going to move. **Position decodable from stopped ENL is direct evidence the pre-cue code is not
 only a held plan** -- the first statement of that kind this project can make.
@@ -33,7 +33,7 @@ FOUR READOUTS, WEAKEST TO STRONGEST:
                       Above null = the representation is present with no plan being formed.
   2  RATIO            stopped accuracy as a fraction of miss_working accuracy, with the CLASS
                       PROFILE MATCHED between arms (`nolick_analysis.match_profile`). Without that
-                      match the comparison is partly an imbalance artefact: a position the animal
+                      match the comparison is partly an imbalance artifact: a position the animal
                       reaches poorly contributes more misses, so the two arms do not see the same
                       six-way problem.
   3  TRANSFER         train on miss_working, test on stopped. If a decoder built where a plan WAS
@@ -126,7 +126,7 @@ MIN_TRIALS = 500
 
 
 def shared_profile(y_by_arm, labels=None):
-    """The position profile both arms are matched to: the ELEMENTWISE MINIMUM share, renormalised.
+    """The position profile both arms are matched to: the ELEMENTWISE MINIMUM share, renormalized.
 
     Matching arm A to arm B's profile and arm B to its own would compare a subsample against a full
     sample. Matching both to the same target makes the two decodes the same six-way problem, which
@@ -201,12 +201,12 @@ def ratio(stopped_arm, working_arm, den_name="working"):
 
 
 def arms_for_session(s, align=ALIGN, source=POOLED_SOURCE, post_s=2.0, basis=None):
-    """``{arm: {X, y, g}}`` for one session -- the SHARED categorisation, re-split, not a new one.
+    """``{arm: {X, y, g}}`` for one session -- the SHARED categorization, re-split, not a new one.
 
     `nolick_decoder.session_features` already returns `sess_eng` per trial, computed from
     `precue_engagement_states.engagement_gate` in the imaging universe. So the two classes this
     module needs are a re-split of a category that exists rather than a parallel path, and
-    `enl_states.states_for` must never be used to build features -- it works on the behaviour
+    `enl_states.states_for` must never be used to build features -- it works on the behavior
     table and would be a second definition of the same quantity (rule 9).
 
     **`late_rewarded` IS EXCLUDED, and that is a correction to this analysis's first design.**
@@ -260,7 +260,7 @@ def pool_arms(per_session):
     Block ids restart at 0 every session, so concatenating them unchanged would let `GroupKFold`
     put block 3 of one session and block 3 of another in the same fold -- which is not leakage of
     trials but is leakage of session, and a session is exactly the level the decoder is supposed to
-    generalise across. Offsetting makes every block globally distinct.
+    generalize across. Offsetting makes every block globally distinct.
     """
     out = {}
     for arm in ("miss_working", "stopped", "success"):
@@ -284,7 +284,7 @@ def decode_within(arm, n_splits=5):
 
     `GroupKFold` on the position BLOCK, the same grouping the production decoder uses: adjacent
     trials share a spout position, so a random split would put near-duplicate trials on both sides
-    and report a generalisation score that is partly memorisation.
+    and report a generalization score that is partly memorization.
     """
     from sklearn.model_selection import GroupKFold, cross_val_predict
 
@@ -328,7 +328,7 @@ def shared_decoder(train, tests, n_splits=5):
     **Blocks are held out across ALL arms at once, not just the training one.** A stopped trial and
     a success trial from the same block share a spout position and sit seconds apart; scoring a
     stopped trial with a model that trained on success trials from its own block would report
-    memorisation. Partitioning by block over the union means each trial in any arm is predicted by
+    memorization. Partitioning by block over the union means each trial in any arm is predicted by
     exactly the fold in which its block was held out -- so `success` here is a genuine cross-
     validated score, directly comparable to the other arms rather than a training-set fit.
 
@@ -378,7 +378,7 @@ def common_positions(arms, labels=None):
 
     `nolick_analysis.balanced_accuracy` is macro-recall over the classes PRESENT IN ``y_true``, and
     absent classes are skipped rather than scored zero (deliberately: with a skewed no-lick set,
-    counting a position the animal never saw as a failure would penalise it for what it declined).
+    counting a position the animal never saw as a failure would penalize it for what it declined).
     The consequence for a RATIO is that two arms with different sets of present positions are
     averages over different things, so dividing them charges the difference in label set to the
     biology.

@@ -101,7 +101,7 @@ def main() -> int:
                     ax.scatter(v.day, v.ret, marker=MK[an], s=26, facecolor=col if c == "hit" else "w", edgecolor=col, lw=1.1,
                                zorder=5)
         ax.set_title(wl, fontsize=10)
-        ax.set_xlabel("days from stroke (grey = pre-stroke)")
+        ax.set_xlabel("days from stroke (gray = pre-stroke)")
         for s_ in ("top", "right"):
             ax.spines[s_].set_visible(False)
         if k == 0:

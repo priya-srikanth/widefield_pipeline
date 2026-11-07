@@ -5,7 +5,7 @@ Ramanathan et al. 2018 (Nat Med) found movement-locked low-frequency oscillation
 motor cortex during reaching FALL after stroke and their return tracks recovery. T16 asks, in the SAME sessions,
 whether task-locked 1-4 Hz activity around licks falls while quiet 1-4 Hz power rises.
 
-EVENTS (DAQ clock; canonical behaviour events `behavior_summary/events/<animal>/<date>.npz` lick_onsets, trials from
+EVENTS (DAQ clock; canonical behavior events `behavior_summary/events/<animal>/<date>.npz` lick_onsets, trials from
 `trial_windows.trial_bounds`, quit from `analysis_kit.session_behavior`), ENGAGED part of the session only:
   cued   = first DAQ lick onset in [cue, stop_s] (stop_s missing -> cue + 3.5 s) of each trial.
   iti    = bout-initiating ITI lick: DAQ lick onset with no lick in the preceding 2 s, outside every trial's
@@ -379,7 +379,7 @@ def fig_epochs(S, T):
                  "sessions. Each value / the animal's August-pre median (log axis; dashed = pre).\nBand-pass 1-4 Hz "
                  "zero-phase on the whole session; window -0.5..+1.5 s around " + LICK_LABEL + " onset; ITPC = Hilbert phase "
                  "consistency over 0-0.5 s; induced = single-trial power after removing the trial average. Open "
-                 "markers = sessions (shape = animal, colour = epoch); filled = pooled mean, nested animal -> session "
+                 "markers = sessions (shape = animal, color = epoch); filled = pooled mean, nested animal -> session "
                  "bootstrap 95% CI; stars = mixed model, epoch vs August pre, FDR q.", fontsize=8.5, wrap=True)
     fig.tight_layout(rect=(0, 0, 1, 0.9), w_pad=1.5)
     fig.savefig(LL / "lick_lfo_epochs.png", dpi=110)
@@ -432,7 +432,7 @@ def fig_traces():
     ax[0, -1].legend(fontsize=7.5, loc="upper left", bbox_to_anchor=(1.02, 1), frameon=False, title="epoch")
     fig.suptitle("Lick-locked 1-4 Hz activity in orofacial cortex (bilateral) per animal: mean over sessions of each "
                  "session's trial-averaged band-passed response (rows 1, 3) and inter-trial phase coherence (rows 2, "
-                 "4; grey = the 0-0.5 s window scored). Colour = epoch (pre = August pre).", fontsize=9, wrap=True)
+                 "4; gray = the 0-0.5 s window scored). Color = epoch (pre = August pre).", fontsize=9, wrap=True)
     fig.tight_layout(rect=(0, 0, 1, 0.95), w_pad=1.2)
     fig.savefig(LL / "lick_lfo_traces.png", dpi=110)
     plt.close(fig)
@@ -747,13 +747,13 @@ def composition_figure(S, T, keep):
             b.set_ylabel("ITPC, log(day) removed", fontsize=8)
     handles = [plt.Line2D([], [], marker=mk, ls="", mfc="none", mec="k", label=an) for an, mk in ANIMAL_MARKER.items()]
     ax[0, -1].legend(handles=handles, fontsize=7, loc="upper left", bbox_to_anchor=(1.02, 1), frameon=False,
-                     title="animal (colour = epoch)", title_fontsize=7)
+                     title="animal (color = epoch)", title_fontsize=7)
     ax[1, -1].legend(fontsize=7, loc="upper left", bbox_to_anchor=(1.02, 1), frameon=False, title="animal")
     sig_marks.reserve_headroom(fig)
     fig.suptitle("T16 trial-composition control: is the cued-lick ITPC <-> far-contra recovery link driven by which "
                  "trials a session contains? Orofacial cortex (bilateral), 1-4 Hz.\nEach session subsampled to the "
                  "same number of licks (the animal's minimum over sessions, >= 15; mean of 20 draws). Top: ITPC / "
-                 "animal's August-pre median; open markers = sessions (shape = animal, colour = epoch), filled = pooled "
+                 "animal's August-pre median; open markers = sessions (shape = animal, color = epoch), filled = pooled "
                  "mean + nested bootstrap 95% CI, stars = LMM vs pre (FDR). Bottom: post sessions, both axes with "
                  "log(day) regressed out within animal; p = 5000 within-animal permutations.", fontsize=8.5, wrap=True)
     fig.tight_layout(rect=(0, 0, 1, 0.9), w_pad=2.0, h_pad=2.0)

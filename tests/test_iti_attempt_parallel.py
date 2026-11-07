@@ -143,7 +143,7 @@ def test_frozen_decode_lags_serial_matches_the_pre_change_loop(monkeypatch):
 
 def test_frozen_decode_lags_specs_are_distinct_per_unit(monkeypatch):
     """Store safety: every (set, target, lag) call names its own frozen spec, so concurrent units never write the same
-    model directory. Checked on the sanitised align (the directory name part) the store actually keys on."""
+    model directory. Checked on the sanitized align (the directory name part) the store actually keys on."""
     il = _iti(monkeypatch)
     _setup_iti(monkeypatch, il, n_lags=41)
     monkeypatch.setattr(il, "LAGS_D", np.round(np.arange(-1.0, 1.0001, 0.05), 3))   # the production lag grid

@@ -5,7 +5,7 @@ apart: if they disagree, one of the two files is stale and that is visible rathe
 
 This and `poststroke_section_g` replace four scratchpad scripts. One opened with
 `for an in ("PS94", "PS95")` and another with `if config.session_phase(a, "0817") != "post"`, so PS92
-and PS93 were absent from every figure downstream and PS93 had no behaviour slide at all. Twelve of
+and PS93 were absent from every figure downstream and PS93 had no behavior slide at all. Twelve of
 the deck's figures were still drawn from files those scripts wrote on 2026-08-18, on a basis
 corrected the next morning, and nothing on the slide said so.
 
@@ -15,7 +15,7 @@ day-2 brain, and for PS94 those differ more from each other than pre differs fro
 
 BOTH ARMS, into separate files, never compared panel-to-panel: the ALL arm scores six positions at a
 fixed 1/6 chance, while the LICK-ONLY arm uses each session's preserved positions, so its chance
-level moves with the animal's behaviour.
+level moves with the animal's behavior.
 
 THE SMALL-LESION FAMILY (G7) IS THE SAME FIGURES over the EXCLUDED sessions. PS92/PS93 8/17 follow
 the 8/16 laser that did not take. They are NOT a no-lesion control -- both animals were lesioned,
@@ -44,14 +44,14 @@ def _sessions(rec, tag):
 
 
 def copy_behaviour_figures(out, rv=None):
-    """G1a: the behaviour pipeline's own per-animal longitudinal figure, copied into the deck dir.
+    """G1a: the behavior pipeline's own per-animal longitudinal figure, copied into the deck dir.
 
-    Copied rather than redrawn so the deck's behavioural ground truth IS the artefact the behaviour
+    Copied rather than redrawn so the deck's behavioral ground truth IS the artifact the behavior
     pipeline produces -- if the two ever disagree that is a bug, not a styling difference.
 
     THE ANIMAL LIST COMES FROM THE PHASE RESOLVER. The script this replaces filtered on
     `session_phase(a, "0817") != "post"`, which is false for PS92 and PS93 -- their effective lesion
-    is 8/18 -- so PS93 had no behaviour slide and the deck build reported one missing figure with
+    is 8/18 -- so PS93 had no behavior slide and the deck build reported one missing figure with
     nothing to say why.
     """
     import shutil
@@ -88,7 +88,7 @@ G2B_CONDITIONS = (
 def _recall_row(phase_rec):
     """Per-position {n, recall} from ONE confusion phase.
 
-    The matrix is row-normalised with TRUE position on the rows, so its diagonal IS the per-position
+    The matrix is row-normalized with TRUE position on the rows, so its diagonal IS the per-position
     recall -- `crossed_confusion` says so explicitly ("its diagonal is the per-position recall table,
     so the two are one object rather than two"). Verified against the superseded day-1 JSON this
     replaces: PS94 post-cue pre reads 0.974/0.916/0.955/0.945/0.903/0.913 on n=976/957/957/931/929/921
@@ -171,7 +171,7 @@ def _render_family(sub, out, prefix, label):
                 sim, out, name=f"{prefix}_similarity_{arm}.png",
                 suptitle=(f"{label} — per-position correlation between the pre- and post-stroke "
                           f"mean patterns, post arm = {arm_name}. Decoding accuracy alone cannot "
-                          f"separate a weakened code from a reorganised one; this can.")))
+                          f"separate a weakened code from a reorganized one; this can.")))
 
         for cond, align in CONFUSION_ALIGNS:
             conf = {k: {align: v["arms"][arm]["confusion"][cond]} for k, v in sub.items()

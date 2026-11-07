@@ -17,7 +17,7 @@ without the calcium signal, which is why it is the control for 470.
   * G moving                  -> a GCaMP-specific change on top of whatever the optics did.
 
 THE SIGN OF R_415 IS NOT ESTABLISHED, AND AN EARLIER VERSION OF THIS DOCSTRING ASSERTED IT WRONGLY.
-It argued that haemoglobin absorbs, so more blood means less light, so a RISE in 415 meant less blood
+It argued that hemoglobin absorbs, so more blood means less light, so a RISE in 415 meant less blood
 == hypoperfusion. Measured on this dataset, that is backwards: cue-triggered averages of the raw
 violet trace RISE in all four animals (+0.54 to +1.96%), tracking the blue channel (+2.31 to +3.69%,
 the positive control) at about a third of its amplitude. More activation -- and the increased blood
@@ -26,7 +26,7 @@ GCaMP's isosbestic (~410 nm) so calcium can leak in; near the Soret band HbO and
 differently, so an HbO rise with an HbR fall need not raise total absorption; and flavoprotein
 autofluorescence sits in this range.)
 
-Nor can the sign simply be flipped. That evoked test characterises the DYNAMIC, task-locked regime,
+Nor can the sign simply be flipped. That evoked test characterizes the DYNAMIC, task-locked regime,
 while R_415 is a STATIC baseline difference between hemispheres over months, and the two need not
 share a sign. So this module reports R_415 as an optical asymmetry whose PERFUSION DIRECTION IS
 UNRESOLVED. Do not read a change in it as hypo- or hyper-perfusion without an independent perfusion
@@ -148,7 +148,7 @@ def session_ratios(s, min_px=200):
     """Per-channel L/R median-count ratios for one session, per region group.
 
     Medians, not means: a bright vessel or a specular highlight moves a mean and barely moves a
-    median, and those are exactly the asymmetric artefacts this analysis cannot otherwise control.
+    median, and those are exactly the asymmetric artifacts this analysis cannot otherwise control.
     """
     fa_path, allen_dir = _session_dirs(s)
     if not fa_path.exists() or not allen_dir.exists():

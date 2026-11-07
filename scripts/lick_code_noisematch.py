@@ -26,15 +26,15 @@ DESIGN (session = unit; every post session is compared with every pre session at
                                   other pre sessions; axes vs the pre-minus-p reference. So pre->D vs pre->post differ
                                   only by n_pre-1 vs n_pre training sessions.
     DEGRADATION ('matched'): X_p + sigma * E_perm, E = p's own residual after regressing its features on
-      [y, spout one-hot] (session-centred), rows shuffled -> noise with the session's real covariance and no
+      [y, spout one-hot] (session-centered), rows shuffled -> noise with the session's real covariance and no
       direction information. sigma chosen per animal x set x epoch by bisection so the mean null within-session r
       equals the mean real post within-session r (sigma = 0 when post is not less decodable than pre at equal m).
-    ROTATION (power): the pre direction code = C_ref (coefficients of the session-centred features on [y, spout
+    ROTATION (power): the pre direction code = C_ref (coefficients of the session-centered features on [y, spout
       one-hot], from the pre-minus-p reference; rank 6), row space B. It is rotated by theta toward a random
       orthonormal U orthogonal to B (a new U per rep), U drawn in proportion to the session's residual covariance
       (E' g): Rot = I + (cos-1)(BB'+UU') + sin(UB'-BU'); every principal angle between injected and original code =
       theta. Two variants:
-        rigid (PRIMARY): the whole session-centred cloud rotated in span(B, U) -- code AND its noise move together,
+        rigid (PRIMARY): the whole session-centered cloud rotated in span(B, U) -- code AND its noise move together,
               within-session decodability preserved exactly, total variance preserved.
         sig: only the code component Z_p C_ref rotated (X_p + Z_p C_ref (Rot' - I)), then the session's shuffled
               residual added until within-session r is back at the unrotated level (a rotated code in less noisy
@@ -98,7 +98,7 @@ FIG = il.OUT_W / "figures"
 
 # ------------------------------------------------------------------------------------------------ pieces
 def _design(y, pos, sess=None):
-    """Session-centred [y, spout one-hot] design."""
+    """Session-centered [y, spout one-hot] design."""
     Z = np.column_stack([y.astype(float), (pos[:, None] == np.array(POS)[None, :]).astype(float)])
     sess = np.zeros(len(y)) if sess is None else sess
     for s in np.unique(sess):
@@ -648,7 +648,7 @@ def figures():
         Line2D([], [], color="0.3", ls=":", label="no degradation"),
         Line2D([], [], color="#b0413e", ls="--", label="80 % power")]
     fig.legend(handles=hand, loc="lower center", ncol=7, fontsize=8, frameon=False)
-    fig.suptitle(W("Fig 2. Power to detect a rotated lick-direction code. The pre code (session-centred features on "
+    fig.suptitle(W("Fig 2. Power to detect a rotated lick-direction code. The pre code (session-centered features on "
                    "[side_ml, spout], rank 6) is rotated rigidly (code + its noise, decodability preserved) by theta "
                    "toward random orthogonal, covariance-weighted directions inside held-out pre sessions at each "
                    "epoch's real session count and lick count; power = share of pooled pseudo-epochs below the 5th "

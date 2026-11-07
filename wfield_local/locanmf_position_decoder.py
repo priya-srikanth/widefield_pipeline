@@ -180,7 +180,7 @@ def would_be_lick_offsets(codes, rt, engaged, min_trials=5):
 
     -- so those windows sat up to 2.1 s early inside a 2 s window, i.e. they did not overlap the
     inferred lick at all, and the error was largest at the most impaired positions. That correlates
-    the artefact with severity, which is the very axis these figures report.
+    the artifact with severity, which is the very axis these figures report.
 
     ``min_trials`` no longer gates the offset, only the WEAK flag: below it the median rests on one
     or two trials and is order-of-magnitude evidence rather than a real median. It is still the

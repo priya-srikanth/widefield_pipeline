@@ -14,7 +14,7 @@ SWEEP (per session; nothing on disk is overwritten -- own cache <restw_check>/re
          The mask's min_rest_s floor is re-applied after each intersection (as restw_strict_check).
   FLOOR  per-position frame floor 50 / 20 / 10
   WEIGHT w6   : equal-weight mean of the 6 per-position medians, all 6 >= floor (current RESTnl rule)
-         wr   : equal-weight mean over the positions that pass the floor (renormalised), >= 4 of 6 required
+         wr   : equal-weight mean over the positions that pass the floor (renormalized), >= 4 of 6 required
          flat : unweighted median over all rest frames, total >= 6 x floor
   Variant name <mask>_f<floor>_<weight>; the reference is s20_f50_w6 (= RESTnl).
 LEVEL / frames = exactly restw_strict_check.session_worker (ROI v8 split traces, `rest_frames_by_position(docked=False,

@@ -2,13 +2,13 @@
 
 Primary panel per alignment (cue, precue): `poststroke_compare.g4_camclass` -- the fraction of each camera group's
 rows a pre-stroke WORKING-vs-NONE discriminator reads as working (spout-balanced over spouts with >= 10 rows), one OPEN
-dot per post session (shape = animal, colour = epoch), groups on x (contact, incomplete, jaw only, no response, quit;
+dot per post session (shape = animal, color = epoch), groups on x (contact, incomplete, jaw only, no response, quit;
 the rebuild's stopped / stopped-licking groups when present), epochs side by side within a group, no lines across
 epochs. Pre reference per group: the held-out pre value of the SAME group (solid tick), or pre WORKING when the group
-has no pre cell (dotted tick, labelled). Stars in the top band (`sig_marks.star_top` + `reserve_headroom`) when the
+has no pre cell (dotted tick, labeled). Stars in the top band (`sig_marks.star_top` + `reserve_headroom`) when the
 paired animals -> sessions bootstrap (`analysis_kit.boot_delta`) of post - pre excludes 0; no top spine.
 
-Robustness panel (labelled): the DAQ lick-vs-no-lick discriminator (`fits_engaged_distribution`): post no-lick value
+Robustness panel (labeled): the DAQ lick-vs-no-lick discriminator (`fits_engaged_distribution`): post no-lick value
 per session against the pre engaged / no-lick reference means.
 
 Data come from ``section_g.json`` only; ``--plot-only`` redraws from the saved figure data (figdata/g4_camclass.pkl).

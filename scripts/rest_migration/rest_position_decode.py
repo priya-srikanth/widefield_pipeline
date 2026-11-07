@@ -98,7 +98,7 @@ def main() -> int:
 
     ap = argparse.ArgumentParser()
     ap.add_argument("--no-engagement-gate", action="store_true",
-                    help="keep the pre-2026-09-16 ungated behaviour, for measuring the "
+                    help="keep the pre-2026-09-16 ungated behavior, for measuring the "
                          "size of the correction only -- never for a reported result")
     ap.add_argument("--perm", type=int, default=50)
     ap.add_argument("--bins", type=int, default=4)

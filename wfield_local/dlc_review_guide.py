@@ -1,7 +1,7 @@
 """Generate the correction guide the LABELLER works from — one page, per session, with the pictures.
 
 `dlc_train --review` produces a table and a folder of crops. That is the right output for whoever
-runs the training; it is the wrong output for the undergraduate doing the labelling, who needs to
+runs the training; it is the wrong output for the undergraduate doing the labeling, who needs to
 know which folder to open, which frames to look at inside it, and what to do to each one.
 
 **GENERATED, NOT HAND-WRITTEN.** The frame list changes every refinement round — that is the whole
@@ -10,7 +10,7 @@ wrong in the most dangerous way, by telling someone to move a point that has alr
 This reads `dlc_train.classify()` and rebuilds the page, so the guide and the network's actual
 complaint cannot drift apart.
 
-**WRITTEN FOR A MacBOOK, because that is where the labelling happens.** The labeller works from her
+**WRITTEN FOR A MacBOOK, because that is where the labeling happens.** The labeller works from her
 own laptop over SMB, not on the rig, and on a Mac she has `napari` + `napari-deeplabcut` and NOT
 DeepLabCut and NOT this repo -- so `python -m wfield_local.dlc_project --label` is not a command she
 can run. The Mac route is `conda activate label` -> `napari` -> *File -> Open Folder...*, which means
@@ -23,8 +23,8 @@ people exactly where the work is, and over SMB from a laptop that is a slow roun
 a few MB and buys a page that works from anywhere, which is also why `LABELLING_GUIDE.html` beside it
 embeds its own figures.
 
-**It sends people to the LABELLING project, never the training copy.** `dlc_train.stage()` overwrites
-the training copy's labels from the labelling project on every run, so a correction made there is
+**It sends people to the LABELING project, never the training copy.** `dlc_train.stage()` overwrites
+the training copy's labels from the labeling project on every run, so a correction made there is
 destroyed by the next retrain — silently, since the file is perfectly well-formed either way.
 
 CLI::
@@ -239,7 +239,7 @@ def _session_block(stem: str, g: pd.DataFrame, review_dir: Path, live: Path) -> 
             f'<p style="margin:.3em 0">These {len(sub)} frames are the <b>same tongue flick</b> '
             f'&mdash; moments of one protrusion, about 80&nbsp;ms from start to finish. Do them '
             f'together and in order: the point has to travel smoothly across them, so fixing one '
-            f'on its own just makes it disagree with its neighbours instead.</p>'
+            f'on its own just makes it disagree with its neighbors instead.</p>'
             + "".join(_frame_card(r, review_dir, positions) for _, r in sub.iterrows())
             + '</div>')
 
@@ -253,7 +253,7 @@ def _session_block(stem: str, g: pd.DataFrame, review_dir: Path, live: Path) -> 
 
 
 def _training_counts(proj: Path, rv=None) -> "dict[str, tuple[int, int]]":
-    """``{bodypart: (frames in the TRAINING split, frames labelled)}`` -- see `_counts_table`."""
+    """``{bodypart: (frames in the TRAINING split, frames labeled)}`` -- see `_counts_table`."""
     import numpy as np
 
     truth = dlc_train.labels(proj)
@@ -289,7 +289,7 @@ def _counts_table(counts: "dict[str, tuple[int, int]]") -> str:
             '<p style="margin:.3em 0">It only knows a landmark from the frames it was trained on. '
             'The tongue is out for only a fraction of the time, so it has seen far fewer of those '
             '&mdash; which is also why most of this page is tongue frames.</p>'
-            "<table><tr><th>Part</th><th>Trained on</th><th>You labelled</th><th></th></tr>"
+            "<table><tr><th>Part</th><th>Trained on</th><th>You labeled</th><th></th></tr>"
             + "".join(rows) + "</table></div>")
 
 
@@ -298,7 +298,7 @@ def pending_frames(live: Path, which: str, bodyparts: list) -> "dict[str, list[s
 
     Derived from the project rather than from a diff of two extraction plans, so it is right at
     every point in the cycle: empty before new frames are extracted, exactly the new ones after,
-    and shrinking as they are labelled. A list computed once and pasted in would be wrong the
+    and shrinking as they are labeled. A list computed once and pasted in would be wrong the
     moment she saved.
 
     "No label" means no row in ``CollectedData``, or a row whose four trained bodyparts are ALL
@@ -349,7 +349,7 @@ SEEDED_INTRO = (
     "own eyes are worth most.</p>")
 
 BLANK_INTRO = ("<p>They are <b>blank</b> — nothing has been placed on them yet, so this is "
-               "ordinary labelling rather than correction.</p>")
+               "ordinary labeling rather than correction.</p>")
 
 
 def _pending_block(pending: "dict[str, list[str]]", bodyparts: list,
@@ -379,7 +379,7 @@ parts it is weakest on \u2014 above all the tongue.</p>
 <h3 style="margin-top:.2em">Place only these four parts</h3>
 <p style="margin:.3em 0"><b>{", ".join(f"<code>{html.escape(b)}</code>" for b in bodyparts)}</b>
 \u2014 and nothing else. Leave the whiskers and the eyes <b>empty</b> on these frames.</p>
-<p style="margin:.3em 0">The main labelling guide asks for ten parts on cam4. <b>That is out of
+<p style="margin:.3em 0">The main labeling guide asks for ten parts on cam4. <b>That is out of
 date as of 2026-09-22</b> — the whiskers are deferred, and the project now lists six names in
 total (these four, plus one eye on each side camera). You should not see whisker rows in napari at
 all. Four parts done well is what is wanted here.</p>
@@ -453,9 +453,9 @@ def build(proj: Path | None = None, rv=None, dest: Path | None = None) -> Path:
 {f"<br><b>plus {n_pending} new frames to check</b>" if n_pending else ""}<br>
 generated {today} from <code>{html.escape(snap_name)}</code></p>
 
-<p>You have already labelled these frames. The network has now been trained on your labels, and
+<p>You have already labeled these frames. The network has now been trained on your labels, and
 these are the points where it disagrees with you strongly enough to be worth a second look. Most of
-your labelling is <b>not</b> on this page, and that is the point — the median point is within 2&nbsp;px
+your labeling is <b>not</b> on this page, and that is the point — the median point is within 2&nbsp;px
 of where the network expects it.</p>
 
 <div class="card note">
@@ -482,13 +482,13 @@ nothing warns you. Every path below is the real project — copy them rather tha
 </ol>
 </div>
 
-<h2>Opening the labelling window</h2>
+<h2>Opening the labeling window</h2>
 <p>Exactly the routine you already have. Connect to the server first — HMS network or VPN,
 Finder <kbd>Cmd</kbd>+<kbd>K</kbd>, <code>smb://research.files.med.harvard.edu/Neurobio</code>
 — then in <b>Terminal</b>:</p>
 <pre><code>conda activate label
 napari</code></pre>
-<p>An empty grey window opens. Leave Terminal open behind it; closing it closes napari too. Then
+<p>An empty gray window opens. Leave Terminal open behind it; closing it closes napari too. Then
 <b>File → Open Folder…</b> (not drag-and-drop), press
 <kbd>Cmd</kbd>+<kbd>Shift</kbd>+<kbd>G</kbd>, and paste the path from whichever section below you are
 working on. Each one is written out in full, ready to copy.</p>

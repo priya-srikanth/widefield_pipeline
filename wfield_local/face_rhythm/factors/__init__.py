@@ -43,16 +43,16 @@ select     freezes rank R as ``master.npz`` (spatial (2, P, R), spectral (F, R),
            init). A frozen set is a REFERENCE (rule 10, docs/FROZEN_MODELS.md): never refitted once used.
 project    per task, spatial + spectral fixed: non-negative temporal weights per bin for the trial windows (25 Hz) and
            the whole session (5 Hz), each bin's relative reconstruction error, and per point and window (pre-cue /
-           response by position, between trials) the SPECTRAL SHARE (FR normalises each frame by its whole-face mean
+           response by position, between trials) the SPECTRAL SHARE (FR normalizes each frame by its whole-face mean
            power: distribution, not amount) and the absolute movement SPEED from the 25 Hz points -> ``proj/<key>.npz``.
-           Plus each bin's FR NORMALISER D (`normaliser`): weights x D = the component's ABSOLUTE expression (the
-           projection is linear, so un-normalising a bin scales its weights by exactly D). Recovered from the saved
+           Plus each bin's FR NORMALIZER D (`normalizer`): weights x D = the component's ABSOLUTE expression (the
+           projection is linear, so un-normalizing a bin scales its weights by exactly D). Recovered from the saved
            float16 spectrogram to 0.01 % median / 0.1 % max per 25 Hz bin (0.14 % / 1.5 % 99th on the 5 Hz
            block means; 10-21 test on the param-test points, D varying with CV 0.5).
            Window means come from the 5 Hz session spectrogram: a 5 Hz bin is the mean of five 25 Hz bins, so means
            over windows aligned to 0.2 s are exact, and one pass over the session file covers every trial.
 points     (inside build / select / project) a frozen PCA basis of the 25 Hz point DISPLACEMENTS (`points` output,
-           2P dims, each session centred on its own mean), fitted on the same pre-stroke animals (equal bins per
+           2P dims, each session centered on its own mean), fitted on the same pre-stroke animals (equal bins per
            animal): the dense POSITION family (the paper's best widefield regressors were points + FR, 0.38; M1
            follows position below ~0.5 Hz, the spectral envelope above). ``proj/<key>.npz`` gets ``points_pc``
            (bins, K) + ``points_t_daq_s``.
@@ -67,12 +67,12 @@ reasoning; `scripts/face_rhythm_factors.py` is the launcher, and `o2.deploy_code
     files    Reading the runner's npz files without copies, the set / output folders, plan + frozen-set loading, and
              the sidecar modules O2 imports from the set folder.
     cp       The maths: non-negative CP by HALS (numpy, chunked), projection with spatial + spectral fixed, the FR
-             normaliser, pooled EVR, and factor matching / similarity.
+             normalizer, pooled EVR, and factor matching / similarity.
     sample   Choosing the fit and session ROWS: engaged trials balanced over positions, between-trial 5 Hz bins, even
              draws over days / groups, and reading the chosen rows off the memory-mapped spectrograms.
     fit      O2 stages `build` (the fit tensor + the frozen point-PCA basis), `fit` (rank sweep, random starts, leave-
              one-animal-out) and the desktop stage `select` (freeze one rank as master.npz).
-    project  O2 stage `project`: every session on the frozen set (temporal weights, normaliser D, per-window spectral
+    project  O2 stage `project`: every session on the frozen set (temporal weights, normalizer D, per-window spectral
              share and point speed, point PCs) -> proj/<key>.npz.
     validate O2 stages that test the set: `splithalf`, `loso` (leave one pre-stroke day out: the noise floor),
              `fitsession` (each session's own fit vs the frozen set) and `fitepoch` (pooled own fit per animal x

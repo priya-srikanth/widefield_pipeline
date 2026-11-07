@@ -12,7 +12,7 @@ Four checks, all on DAQ-correct channels (`SVT` slots 0 = 415, 1 = 470, as dF/F;
      Hemodynamic 415 = slow (peak >~1 s), mostly a dip; calcium in 415 = fast, same time course as 470.
   4. MAPS: per-pixel 0-0.5 s first-lick response for 470 and 415 and their spatial correlation; calcium
      maps are focal and alike, hemodynamic 415 maps follow vessels.
-Event clock: the behaviour board's device_t_ms mapped to PC time by a linear fit to the GUI timestamps (removes
+Event clock: the behavior board's device_t_ms mapped to PC time by a linear fit to the GUI timestamps (removes
 serial jitter and board-clock drift), then PC time minus the DAQ file's start (its name, 1 s resolution).
 A CONSTANT offset of up to ~1-2 s therefore remains: absolute latencies are approximate, but 415 vs 470 relative
 timing and sign are exact (same frames). Frame times come from the clean-pairs frame map (original frame / 2 / FS).

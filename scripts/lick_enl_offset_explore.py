@@ -84,7 +84,7 @@ def history_session(item: tuple) -> dict:
     """One session (module-level for spawn), item = (label, cue times of its trial-table rows in file order): per row the
     previous DAQ trial's spout / hit / engaged / gap / row, and the FaceRhythm factors averaged over the pre-cue windows.
     Rows are matched to the DAQ trial table by CUE TIME (<= 0.02 s; the trial table stores 6 significant digits), not by
-    re-deriving the first-lick rows: the behaviour lick table has changed since the extraction for a few sessions
+    re-deriving the first-lick rows: the behavior lick table has changed since the extraction for a few sessions
     (PS92_0818: 351 vs 362 first-lick rows now), so a re-derivation would not line up."""
     label, cue = item[0], np.asarray(item[1], float)
     os.environ.setdefault("COMBINED_ENCODING_FR", "master_pre_v1")          # the frozen encoder's FR set (frozenenv.sh)
@@ -507,7 +507,7 @@ def task_b(T: pd.DataFrame, names: list) -> dict:
     S7 = R.groupby(["label", "animal", "epoch"])[["tgt_off", "ang_shift", "exec_term"]].mean().reset_index()
     S7 = S7[S7.label.isin(SS.label)]
     t7 = _epoch_change(S7, "tgt_off", "B7 target-matched decoded change (decoded - pre at same spout)", rng)
-    t7 += _epoch_change(S7, "ang_shift", "B7 behaviour: actual angle - pre at same spout", rng)
+    t7 += _epoch_change(S7, "ang_shift", "B7 behavior: actual angle - pre at same spout", rng)
     t7 += _epoch_change(S7, "exec_term", "B7 execution term: offset - target-matched change (trials with an offset)", rng)
     V = pd.concat([V, pd.DataFrame(t7)], ignore_index=True)
     V.to_csv(OUT / "enl_offx_variants.csv", index=False)
@@ -634,7 +634,7 @@ def figure_a(R: pd.DataFrame, A: pd.DataFrame) -> None:
         ax[2].axvline(0, color="0.5", lw=0.6)
         ax[2].set_xlabel("held-out delta R2 (%), bar = mean of animals, dots = animals")
         ax[2].set_title("3. which areas (left + right pair): top 14 by drop-one loss", fontsize=9)
-    fig.suptitle("NEURAL / BEHAVIOUR: is the within-spout ENL -> first-lick angle signal more than trial history and "
+    fig.suptitle("NEURAL / BEHAVIOR: is the within-spout ENL -> first-lick angle signal more than trial history and "
                  "face movement? Pre-stroke, ENL -1..-0.1 s, no lick in the last 2 s; per animal. PROVISIONAL", fontsize=10)
     from matplotlib.lines import Line2D
     hd = {}
@@ -714,8 +714,8 @@ def figure_b(SS, V, trk, L, SP, PP, G7=None) -> None:
         a_.scatter(g.pc_ci - g.pc_ci.mean(), g.offset - g.offset.mean(), s=12, color=col[a],
                    marker="o", label=a)
     lk = L[(L.x == "pc_ci") & (~L.post_only)]
-    a_.set_xlabel("pre-cue contra - ipsi level above restw (ALM, tjM1, SSp-m, SSp-n), animal-centred")
-    a_.set_ylabel("ENL offset, animal-centred (deg)")
+    a_.set_xlabel("pre-cue contra - ipsi level above restw (ALM, tjM1, SSp-m, SSp-n), animal-centered")
+    a_.set_ylabel("ENL offset, animal-centered (deg)")
     if len(lk):
         r = lk.iloc[0]
         a_.set_title(f"5. offset vs the pre-cue hemispheric level (all sessions)\nper-animal r "
@@ -736,7 +736,7 @@ def figure_b(SS, V, trk, L, SP, PP, G7=None) -> None:
     # 7. target vs execution
     a_ = ax[0, 3]
     v7 = V[V.variant.str.startswith("B7")]
-    for k_, (vn, c_) in enumerate((("B7 target", "#4C72B0"), ("B7 behaviour", "#DD8452"))):
+    for k_, (vn, c_) in enumerate((("B7 target", "#4C72B0"), ("B7 behavior", "#DD8452"))):
         q = v7[v7.variant.str.startswith(vn)].set_index("epoch").reindex(EP[1:])
         xx = np.arange(3) + (k_ - 0.5) * 0.35
         a_.bar(xx, q.delta, 0.33, yerr=[q.delta - q.lo, q.hi - q.delta], color=c_, capsize=3,
@@ -793,7 +793,7 @@ def report_b(o: dict) -> None:
     print("== B3 check: beta . dh vs like-for-like readout change (exact Gaussian kernel)\n" + T.round(3).to_string())
     if "G7" in o:
         G = o["G7"]
-        print("== B7 per animal x spout (epoch - pre like-for-like offset vs behavioural angle shift at that spout)\n"
+        print("== B7 per animal x spout (epoch - pre like-for-like offset vs behavioral angle shift at that spout)\n"
               + G.round(2).to_string(index=False))
         for ep, g in G.groupby("epoch"):
             rr = {a: np.corrcoef(h.d_offset, h.ang_shift)[0, 1] for a, h in g.groupby("animal")}

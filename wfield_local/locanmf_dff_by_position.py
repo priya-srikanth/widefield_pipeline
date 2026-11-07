@@ -34,10 +34,10 @@ from wfield_local.locanmf_crossanimal_dff import _footprint_scale, _frames, AREA
 
 POS = [POSITION_NAMES[c] for c in DISPLAY_ORDER]
 def _pos_color_map() -> dict:
-    """The cohort palette (hue = side, lightness = ring), not six unrelated tab10 colours.
+    """The cohort palette (hue = side, lightness = ring), not six unrelated tab10 colors.
 
     What was here before mapped close_L blue, close_center GREEN, close_R red, far_L cyan,
-    far_center GREY and far_R PURPLE -- no systematic relationship to side or ring, and a far_R that
+    far_center GRAY and far_R PURPLE -- no systematic relationship to side or ring, and a far_R that
     is purple here and crimson in every other figure in the deck. Unified 2026-09-10.
     """
     from wfield_local.spout_behavior import position_style

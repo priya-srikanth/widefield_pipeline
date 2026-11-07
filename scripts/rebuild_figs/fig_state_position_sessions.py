@@ -1,5 +1,5 @@
 """Imaging results page Fig 3.4 (`state_position_sessions.png`; PI-deck slide 13): FROZEN position (6-way) vs
-behavioural-state (3-way) decoders, per session, as the fraction of above-chance performance kept.
+behavioral-state (3-way) decoders, per session, as the fraction of above-chance performance kept.
 
 PROVENANCE: recreated 2026-11-03 (cohort-1 rebuild, step 3) from the share-only
   M:/MICROSCOPE/Priya/Widefield/presentations/_source_PI_overview_2026-11-02/fig_state_position_sessions.py
@@ -8,7 +8,7 @@ PROVENANCE: recreated 2026-11-03 (cohort-1 rebuild, step 3) from the share-only
   argparse (--out / --plot-only / --data-dir), no sys.path insert of widefield_pipeline (uses the repo on PYTHONPATH),
   output folder no longer build_inputs/, figdata pickle (<out>/data/state_position_sessions_figdata.pkl).
 
-Normalised: retained = (balanced accuracy - chance) / (1 - chance); chance 1/6 position, 1/3 state.
+Normalized: retained = (balanced accuracy - chance) / (1 - chance); chance 1/6 position, 1/3 state.
 
 INPUTS (figdata sidecars of the epoch render, read as is, nothing re-run), in --data-dir (default = the original's
 hard-coded M:/MICROSCOPE/Priya/Widefield/labcams/grant_figures/epoch/data):
@@ -57,7 +57,7 @@ ANIMALS = ("PS92", "PS93", "PS94", "PS95")
 MARK = {"PS92": "o", "PS93": "s", "PS94": "^", "PS95": "D"}
 EPOCHS = ("pre", "acute", "subacute", "chronic")
 POSITIONS = ("nI", "nM", "nC", "fI", "fM", "fC")
-PANELS = (("position", "Spout position (6-way)", 1 / 6), ("state", "Behavioural state (3-way)", 1 / 3))
+PANELS = (("position", "Spout position (6-way)", 1 / 6), ("state", "Behavioral state (3-way)", 1 / 3))
 # slide table (pooled) and imaging-page 13n sidecar
 TABLE = {"position": (.86, .43, .70, .76), "state": (.98, .87, .82, .84)}
 

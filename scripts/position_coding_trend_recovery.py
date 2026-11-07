@@ -1,23 +1,23 @@
 """Is the chronic gain in cortical position coding beyond the pre-stroke practice trend, and does it lead or follow
-behavioural recovery? (Priya 2026-10-19: tests 1 and 4 of the "what does this reveal about the biology" list.)
+behavioral recovery? (Priya 2026-10-19: tests 1 and 4 of the "what does this reveal about the biology" list.)
 
 Position coding per session (cortex, lick window unless noted), from the outputs already on the share:
   ceiling   nokin:category - nokin:none        (6-category ceiling; `movement_first_subset-nokin`)
   spread    RMS over the six spouts of the signed position deviation (respdev, cue 0.5-1.5 s; main run)
   spread_enl  the same in the pre-cue window (spout arrival .. cue)
-Behaviour per session (engaged trials, licks 0 .. 3.5 s after the cue, LP run licks.csv):
+Behavior per session (engaged trials, licks 0 .. 3.5 s after the cue, LP run licks.csv):
   contact_far_contra   fraction of licks at far contra (far_R; lesions LEFT) that touch the spout
   contact_all          the same over all six spouts
 
 TEST 1 (practice trend): per animal, a line through the PRE sessions (August-only, primary; June + August as the
 long-span sensitivity -- June is otherwise superseded, here it only lengthens the pre-stroke time axis), extrapolated to
 each chronic session's day; the chronic excess = observed - predicted, with the prediction's t-interval. Also the
-within-chronic slope against the pre slope (the F18 drift-vs-reorganisation logic: a gain that merely continues the
+within-chronic slope against the pre slope (the F18 drift-vs-reorganization logic: a gain that merely continues the
 pre-stroke rate is practice / drift, not recovery).
 
 TEST 4 (lead / lag): per animal, each measure's post-stroke course as the fraction of its acute -> chronic change
 (acute = mean of the acute sessions, plateau = mean of the last 4 chronic sessions), on a 2-session running mean; the
-day it first crosses 50 %. Neural earlier than behaviour = cortical gain could support recovery; later = it follows it.
+day it first crosses 50 %. Neural earlier than behavior = cortical gain could support recovery; later = it follows it.
 Undefined when the measure does not change (|plateau - acute| below its pre-stroke session SD).
 
 Output: <imaging_encoding>/qc/position_coding_trend_recovery.csv (+ the printed per-animal tables; rule 8).

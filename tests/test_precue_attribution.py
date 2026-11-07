@@ -1,7 +1,7 @@
 """Tests for the pre-cue attribution analysis.
 
 The module exists to stop invalid claims being made, so the tests target the properties that make its
-outputs trustworthy rather than merely that it runs: EV must be honest about non-generalising features,
+outputs trustworthy rather than merely that it runs: EV must be honest about non-generalizing features,
 the Haufe transform must recover the true source pattern where a raw weight vector would not, and the
 redundancy measure must actually detect duplicated information.
 """
@@ -35,7 +35,7 @@ def test_encoding_ev_high_for_tuned_feature_and_low_for_noise():
 
 
 def test_encoding_ev_can_go_negative_and_is_not_clipped():
-    """A feature whose position means do not generalise SHOULD score below zero; clipping it to 0
+    """A feature whose position means do not generalize SHOULD score below zero; clipping it to 0
     would hide the failure."""
     rng = np.random.default_rng(1)
     y = np.repeat(np.array(DISPLAY_ORDER), 30)

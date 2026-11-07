@@ -72,7 +72,7 @@ def draw(fd: dict, OUT: Path) -> None:
             r, _ = panel(fd, axs[i, j], "all", al, ep, lim)
             axs[i, j].set_title(f"{al} window, {ep} minus pre\n{r.sig}/{r.n_bins} bins ({r.up} up, {r.down} down)",
                                 fontsize=9)
-    fig.suptitle(f"NEURAL: frozen-encoder RESIDUAL, ALL 6 SPOUTS POOLED, epoch minus all-LOSO-pre, pre-normalised, mean of 4 "
+    fig.suptitle(f"NEURAL: frozen-encoder RESIDUAL, ALL 6 SPOUTS POOLED, epoch minus all-LOSO-pre, pre-normalized, mean of 4 "
                  f"animals.\nBlack = significant {F} px bins (nested bootstrap animals -> sessions, Bonferroni). Image left = "
                  f"ipsilesional.", fontsize=9)
     fig.subplots_adjust(left=0.02, right=0.88, bottom=0.02, top=0.86, wspace=0.05, hspace=0.32)

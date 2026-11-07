@@ -1,4 +1,4 @@
-"""Position-specific encoding AFTER regressing out movement, and lick responses organised by EXECUTED tongue angle vs
+"""Position-specific encoding AFTER regressing out movement, and lick responses organized by EXECUTED tongue angle vs
 target position -- LocaNMF dF/F on the frames inside the session's pose windows.
 
     python -m scripts.movement_position_angle PS93:20260814 PS93:20260821 PS93:20260908 [--perms 20]

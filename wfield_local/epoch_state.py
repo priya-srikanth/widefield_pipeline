@@ -1,6 +1,6 @@
 """POOLED EPOCH FIGURES — STATE
 
-The stopped/working split and the behavioural-state decoder.
+The stopped/working split and the behavioral-state decoder.
 
 Split out of `epoch_grant_figures` on 2026-09-21, one module per figure family. THE GROUPING IS
 FROM THE CALL GRAPH: every function here is reached from this family's entry points and from no
@@ -148,9 +148,9 @@ def _retained(acc, chance):
     """Fraction of the ABOVE-CHANCE range a score holds: ``(acc - chance) / (1 - chance)``.
 
     THE ONLY HONEST WAY TO PUT A SIX-WAY AND A THREE-WAY PROBLEM ON ONE AXIS. Position decoding has
-    a chance of 1/6 and the behavioural-state decoder 1/3, so their raw accuracies are not
+    a chance of 1/6 and the behavioral-state decoder 1/3, so their raw accuracies are not
     comparable and their raw DROPS are not either: the same absolute fall means something different
-    when the floor is 0.167 than when it is 0.333. Normalising asks the one question both can
+    when the floor is 0.167 than when it is 0.333. Normalizing asks the one question both can
     answer -- of the performance this readout had above chance, how much survived?
     """
     if acc is None:
@@ -317,7 +317,7 @@ def _fig_12b_stopped_pooled(out_dir, align, variant, wname):
                    stopped arm had no ceiling at all.
 
     WHY IT IS NOT AN ENCODER. "Explained variance" in the encoder families is variance ACROSS
-    POSITIONS -- `_enc_terms` centres a 6 x 380 matrix down the position axis and the denominator is
+    POSITIONS -- `_enc_terms` centers a 6 x 380 matrix down the position axis and the denominator is
     the between-position sum of squares. Pool the positions away and that denominator is zero by
     construction, so an encoder EV has nothing left to explain. Correlation against a reference
     pattern is the measure that survives pooling, which is why this is the pattern-similarity family
@@ -415,16 +415,16 @@ def _fig_12b_stopped_pooled(out_dir, align, variant, wname):
         delta_name=f"epoch_12bdelta_stopped_pooled_similarity_{align}",
         delta_title="Pooled stopped-trial similarity, change from pre-stroke")
 def _fig_13_state(out_dir, align, variant, wname):
-    """13: DOES EVERYTHING DEGRADE, OR ONLY THE TARGET? The frozen behavioural-state decoder.
+    """13: DOES EVERYTHING DEGRADE, OR ONLY THE TARGET? The frozen behavioral-state decoder.
 
     Priya, 2026-09-11: "I'm more looking for evidence that not *all* decoding/encoding degrades
     post stroke, with running as an example."
 
     THE LESION IS VENTROLATERAL STRIATAL. No cortex is damaged anywhere in the field of view, the
     imaging window is the same one, the LocaNMF basis is the same. So if the frozen pre-stroke
-    POSITION decoder collapses while a frozen pre-stroke BEHAVIOURAL-STATE decoder built from the
+    POSITION decoder collapses while a frozen pre-stroke BEHAVIORAL-STATE decoder built from the
     identical features does not, the target deficit is SPECIFIC -- and the generic explanations a
-    reader reaches for first (window clouding, haemodynamic drift, arousal, basis drift, "a lesion
+    reader reaches for first (window clouding, hemodynamic drift, arousal, basis drift, "a lesion
     was made and everything got worse") all fail at once, because every one of them would degrade
     this readout too.
 
@@ -433,11 +433,11 @@ def _fig_13_state(out_dir, align, variant, wname):
     0.98-1.00. A ceiling cannot demonstrate preservation; a reader sees "the task was too easy to
     fail" and is right. The position claim rests on a frozen pre-stroke model failing on
     post-stroke data, so the control must be the same object carrying the same cross-session
-    generalisation burden.
+    generalization burden.
 
     METHOD IN FULL, because nothing else in this deck is built this way:
 
-      UNIT      a ONE-SECOND window, not a trial. Trial-level labelling gives ~17 running trials
+      UNIT      a ONE-SECOND window, not a trial. Trial-level labeling gives ~17 running trials
                 per session, which decodes nothing; tiling the bouts gives 22,986 running, 28,324
                 REST and 38,270 licking one-second segments over the 91 sessions this figure uses
                 (inside imaging coverage, PS92 8/12 excluded; `scripts/rest_migration/
@@ -465,7 +465,7 @@ def _fig_13_state(out_dir, align, variant, wname):
                 two that share a word. The window runs 1 s from that anchor, matching the other
                 two classes so no decoder can separate them on window length. Running and rest are
                 tiled, at most 8 segments per period so no single long period dominates.
-      MODEL     multinomial logistic on standardised features, frozen on ALL pre-stroke segments.
+      MODEL     multinomial logistic on standardized features, frozen on ALL pre-stroke segments.
                 The pre column is leave-one-session-out, as everywhere else here.
       SCORE     BALANCED accuracy against a chance of 1/3, never raw: quiet runs 3.4% of a
                 pre-stroke session, 15.1% acutely and 0.7% chronically, and raw accuracy under a
@@ -480,10 +480,10 @@ def _fig_13_state(out_dir, align, variant, wname):
     MORE after the lesion (5.1% of session acutely against 3.1% pre-stroke), so the state arm is
     not rescued by having more data at baseline than afterwards.
 
-    THE LIMIT, stated here because it is easy to miss: licking windows are locked to a behavioural
+    THE LIMIT, stated here because it is easy to miss: licking windows are locked to a behavioral
     TRANSITION while running and quiet are sampled from inside sustained STATES, so a decoder could
-    separate them partly on transient-versus-sustained rather than on which behaviour it is. This
-    answers "does cortex still distinguish behavioural state at all", which is what the control
+    separate them partly on transient-versus-sustained rather than on which behavior it is. This
+    answers "does cortex still distinguish behavioral state at all", which is what the control
     needs; it is not a clean three-way contrast of matched epochs.
     """
     # ONE ALIGNMENT ONLY. These segments are not trials and have no cue to align to, so there is no
@@ -523,7 +523,7 @@ def _fig_13_state(out_dir, align, variant, wname):
         # detectable -- it is 0.945 -> 0.875, small but not nothing. The claim this figure supports
         # is that it falls FAR LESS than position does, which is what 13n quantifies; a title
         # saying "preserved" would be contradicted by the marks on its own bars.
-        title=("Does EVERYTHING degrade? Frozen pre-stroke BEHAVIOURAL-STATE decoder "
+        title=("Does EVERYTHING degrade? Frozen pre-stroke BEHAVIORAL-STATE decoder "
                "(quiet / running / licking), spout-position agnostic"),
         # `bar_row` APPENDS THE CHANCE LEVEL ITSELF, so naming it here too rendered
         # "balanced accuracy (chance 1/3) (chance 0.33)" down the side of the axes.
@@ -621,7 +621,7 @@ def _fig_13_state(out_dir, align, variant, wname):
     if len(conf) > 1:
         c = ef.confusion_row(
             conf, out_dir, name="epoch_13c_state_confusion_cue",
-            title=("Frozen BEHAVIOURAL-STATE decoder, confusion by epoch -- "
+            title=("Frozen BEHAVIORAL-STATE decoder, confusion by epoch -- "
                    "where do the errors go?"),
             coverage={e: dict(counts.get(e, {})) for e in conf}, delta=True,
             chance=1.0 / 3.0, labels=list(_ls.THREE_WAY))
@@ -649,7 +649,7 @@ def _fig_13_state(out_dir, align, variant, wname):
                   f"{_q.get('acute', float('nan')):.2f} acutely)" if "pre" in _q else "")
         r = _scalar_figure(
             out_dir, name="epoch_13pos_state_decoder_by_class_cue",
-            title="Frozen state decoder, RECALL PER CLASS -- which behavioural state changed?",
+            title="Frozen state decoder, RECALL PER CLASS -- which behavioral state changed?",
             ylabel="recall", keys=CLS, values=pvals, points=ppts, tick_labels=CLS,
             ylim=(0.0, 1.05), session_counts=counts, notes=[
                 NOTES[0],

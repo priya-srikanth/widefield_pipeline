@@ -11,7 +11,7 @@ vector is first made BLIND to the hemispheric balance:
               linear read-out (after any per-feature rescaling) can see the uniform lateral difference; pair sums and the
               pattern of pair differences around their mean are kept. The 3 unpaired areas (VISp / VISal / VISl right;
               no left ROI) are left untouched: subtracting b from them would WRITE the balance into them (V - b).
-  hemi        HEMISPHERE-NORMALISED: each hemisphere's own per-lick mean over its areas subtracted from its areas (removes
+  hemi        HEMISPHERE-NORMALIZED: each hemisphere's own per-lick mean over its areas subtracted from its areas (removes
               each hemisphere's overall level, hence also the uniform balance; keeps within-hemisphere patterns).
   sensitivity unif_paired = unif with the 3 unpaired areas DROPPED (the only leak left in unif: an unpaired right area
               against the pair sums is a crude balance proxy); unif_raw = unif applied in dF/F before the SD scaling.

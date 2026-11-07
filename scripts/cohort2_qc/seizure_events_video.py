@@ -13,7 +13,7 @@ analyses use). Outputs in labcams/cohort2/_tmp_qc_figures_20261031/seizure/:
   PS122_1030_event_traces.png      -- the single 10-30 event (121.5 min), same layout, for comparison
 
 11-04 (Priya 11-05: "a video of 11/4 epileptiform events with behavior video, as for 10/29"; `--day 1104`).
-PS122 was imaged at 490 nm that day (PS121 too; PS118 stayed 470), so the functional channel is labelled 490:
+PS122 was imaged at 490 nm that day (PS121 too; PS118 stayed 470), so the functional channel is labeled 490:
 
   PS122_1104_events_cam4.mp4       -- 75.2-78.2 min (5 discharges): 490 map | cam4 face | traces, real time
   PS122_1104_event_slowmo.mp4      -- the largest discharge (65.4 min, +9.8%), -1 s to +2 s, 5x slowed

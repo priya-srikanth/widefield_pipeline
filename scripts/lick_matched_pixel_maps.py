@@ -24,12 +24,12 @@ CHANGE MAP: per animal, mean over its epoch sessions of R_s minus the mean over 
 POOLED = mean of the 4 animal maps (= analysis_kit.boot_delta's point). MIRRORED DIFFERENCE map at contralesional (image
 RIGHT) pixel p: change(p) - change(mirror p) (mirror = reflection about the atlas midline, column 319.5); + = the
 contralesional hemisphere gained more than the mirrored ipsilesional pixel (HEMISPHERE sign). Image LEFT = ipsilesional.
-ONE colour scale per set across epochs and across both map types. Allen outlines.
+ONE color scale per set across epochs and across both map types. Allen outlines.
 STATISTICS: a priori AREAS (ALM, tjM1, SSp-m, SSp-n, SSs, MOp_rest, VISpm, RSPd, POOL; ROI pixel weights of each session
 on the block grid): area value per session = ROI-weighted mean of R_s; change vs pre by analysis_kit.boot_delta (paired
 nested animals -> sessions, rng seed 0), per-animal changes FIRST (rule 8); contra - ipsi per area. Pixel test: the
 existing calibrated helper beta_maps.significance_contour (nested animals -> sessions bootstrap, max-statistic FWER, 8x8
-bins, rim-artefact suppression; calibrated on pre-vs-pre nulls by map_test_calibration.py), normalise=False (the pre
+bins, rim-artifact suppression; calibrated on pre-vs-pre nulls by map_test_calibration.py), normalize=False (the pre
 maps are ~0 by construction) -- drawn as a contour, read as supporting only.
 OUTPUTS (<OUT_W>/): pixmatch_area_sessions.csv, pixmatch_area_animals.csv, pixmatch_area_tests.csv, pixmatch_validation.csv,
 pixmatch_sig.csv; figdata/lick_matched_pixel_maps.pkl (maps, per animal); figures/lick_matched_pixel_{cued,iti,iti_far1}
@@ -411,14 +411,14 @@ def plot(D: dict) -> None:
             if i == 0:
                 imp = ax.imshow(np.where(m_all, _full(F, pre), np.nan), cmap="magma", interpolation="nearest")
                 ax.imshow(ol, cmap="Greys", vmin=0, vmax=1.2, alpha=0.5, interpolation="nearest")
-                ax.set_title("PRE response, kept licks (mean of animals)\nfor scale; own colour scale", fontsize=7.5)
+                ax.set_title("PRE response, kept licks (mean of animals)\nfor scale; own color scale", fontsize=7.5)
                 pcax = ax.inset_axes([1.03, 0.1, 0.04, 0.8])
                 fig.colorbar(imp, cax=pcax).set_label("dF/F x1e3", fontsize=8)
             ax.axis("off")
         fig.suptitle(_wrap(f"{SETS[st]}: PIXEL map of the post-lick response (0.1-0.5 s minus -1..-0.5 s from the lick peak) "
                            "of post-stroke licks minus PRE licks to the SAME spout landing at the SAME angle (pre within-"
                            "spout line per pixel, pre LOSO; only licks inside the pre angle range of their spout). Mean "
-                           "of animal change maps; one colour scale across epochs and both map types. Image LEFT = "
+                           "of animal change maps; one color scale across epochs and both map types. Image LEFT = "
                            "ipsilesional. Contour = calibrated nested-bootstrap max-stat test (supporting only; areas "
                            "are the a priori test). PROVISIONAL", 160), fontsize=9, y=0.995)
         fig.subplots_adjust(left=0.02, right=0.95, bottom=0.02, top=1 - 1.75 / fig_h)
@@ -587,7 +587,7 @@ def plot_epochs(D: dict, E: dict) -> None:
                                                 fontsize=8)
         fig.suptitle(_wrap(f"{SETS[st]}: per-epoch RAW post-lick response maps (0.1-0.5 s minus -1..-0.5 s from the lick "
                            "peak; mean of animals of the session means over kept licks = licks inside the pre angle "
-                           "range of their spout) on ONE colour scale (row 1), then the matched change maps (rows 2-3, "
+                           "range of their spout) on ONE color scale (row 1), then the matched change maps (rows 2-3, "
                            "one scale; contour = calibrated nested-bootstrap max-stat test, supporting only). NB raw "
                            "epoch minus raw pre is not exactly row 2: row 2 subtracts the pre prediction at each lick's "
                            "own spout + landed angle. Image LEFT = ipsilesional. PROVISIONAL", 175), fontsize=9.5,

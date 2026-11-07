@@ -16,7 +16,7 @@ trial stop before it:
   outbound      trial_start .. arrival      (spout moving out to the next target)
   at_target     arrival .. (next stop)      (should not occur for ITI-context licks; counted)
   before_first  before the first trial's stop;  after_last  after the last dock with no later trial_start
-Event times: the behaviour log mapped device -> DAQ by the sync heartbeat (trial_windows._log_events_daq: dock_start,
+Event times: the behavior log mapped device -> DAQ by the sync heartbeat (trial_windows._log_events_daq: dock_start,
 dock, trial_start, position; source 'log'). Sessions whose log clock does not align (source 'reconstructed'): trial_start
 = the DAQ `trial_start` digital line (log vs DAQ agree to a few ms where both exist), arrival = DAQ strobe, and
 dock / dock_start = stop + the per-spout 95th percentile / median of (event - stop) measured over the log sessions of this

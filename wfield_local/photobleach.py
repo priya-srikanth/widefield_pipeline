@@ -28,8 +28,8 @@ def record_path(out_dir, label):
     """Per-session record: a SELF-CONTAINED json next to the session's PNG.
 
     Why this exists: ``summary()`` needs each session's ``_norm`` traces, which used to live only
-    in the analysing process's memory (they were stripped from the aggregate json). A machine that
-    had not analysed a session therefore could not include it, so whichever box ran ``run()`` LAST
+    in the analyzing process's memory (they were stripped from the aggregate json). A machine that
+    had not analyzed a session therefore could not include it, so whichever box ran ``run()`` LAST
     overwrote the shared summary with only ITS OWN animals. With two boxes splitting a date the
     aggregate could never be complete. Persisting the full record makes the aggregate a pure
     function of what is on disk: order-independent, and rebuildable without re-reading the raw .dat.
@@ -243,12 +243,12 @@ def run(sessions, out_dir, merge=True):
     """`sessions` = iterable of (label, dat, daq); analyze each, then rebuild the date's summary.
 
     MERGE BY DEFAULT. The summary and the aggregate json are rebuilt from the UNION of every
-    session record on disk and the ones just analysed -- not from this run's list alone. That makes
+    session record on disk and the ones just analyzed -- not from this run's list alone. That makes
     the shared outputs order-independent when two machines split a date: previously whichever box
     called ``run()`` last replaced ``photobleach_SUMMARY.png`` / ``photobleach_results.json`` with
     only its own animals, silently dropping the other box's (observed 2026-08-11: the 8/11 summary
     ended up containing a single animal). Pass ``merge=False`` for the old replace-everything
-    behaviour, e.g. to rebuild a date from scratch after deliberately clearing it.
+    behavior, e.g. to rebuild a date from scratch after deliberately clearing it.
     """
     out = [analyze(lbl, dat, daq, out_dir) for (lbl, dat, daq) in sessions]
     fresh = {r["label"]: r for r in out if r}

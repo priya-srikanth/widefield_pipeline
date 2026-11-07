@@ -17,7 +17,7 @@ WHY BOTH ARMS.
             the phenotype, so it is also the arm that can see the abandoned positions at all.
   LICK-ONLY that session's preserved positions, chance 1/n. Forced, not chosen: a position with no
             engaged trials cannot be decoded from engaged trials. Its chance level moves with the
-            animal's behaviour (PS95: 4 positions on 8/17, 6 on 8/18), so its accuracies must NEVER
+            animal's behavior (PS95: 4 positions on 8/17, 6 on 8/18), so its accuracies must NEVER
             be laid side by side across sessions.
 The DIFFERENCE between the arms is the point: it separates "the code degraded" from "the code is
 fine whenever the animal manages to lick". Post-lick has one arm by construction -- it aligns to the
@@ -61,7 +61,7 @@ def post_animals(animals=None):
 def _counts(d, session):
     """Engaged / undetected trials per position: this SESSION against the pre-session mean.
 
-    Behaviour is reported before any decoding number because it bounds what one can mean: a position
+    Behavior is reported before any decoding number because it bounds what one can mean: a position
     with zero engaged trials has no lick-only decoding number at all, and the first pass at this
     analysis reported a PS94 "neural deficit" whose larger part was that fact.
     """

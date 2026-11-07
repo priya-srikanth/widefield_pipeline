@@ -213,7 +213,7 @@ def summarise():
     cap = ("events = brief deflections in the 2-s-median-detrended dF/F trace whose height above the preceding "
            "1.0-0.2 s exceeds 4 x the animal's pre-stroke robust SD (1.4826 x MAD), positive or negative; quiet = no "
            "lick / running within 1.5 s before or after (spout may be out), engaged part of the session. Open markers "
-           "= sessions (shape = animal, colour = epoch); filled = pooled mean, nested animal -> session bootstrap 95% "
+           "= sessions (shape = animal, color = epoch); filled = pooled mean, nested animal -> session bootstrap 95% "
            "CI; stars = mixed model, epoch vs August pre, FDR.")
     figure(S, T, ["res_both"], "quiet_events_face_regressed.png",
            "Quiet-period events per minute after regressing out face movement (each session's own FaceRhythm "

@@ -12,7 +12,7 @@ INPUT (read as is, nothing re-run): LP_analysis/lp_r4_heatmap_20261013__clean_v3
   = post-cue (cue) window, ADOPTED SVTcorr; decoder = filter_acausality_test.decode (multinomial logistic on Allen-ROI
   features, refit per session, GroupKFold by ~6-trial position blocks; chance 1/6). Default path = the original's
   hard-coded M: path (kept; --src overrides). The columns are --pre-col / --post-col so the rebuild can point the
-  figure at a new hemo variant's columns (manifest M00003: "script loads hemo_{ADOPTED} directly; parameterise").
+  figure at a new hemo variant's columns (manifest M00003: "script loads hemo_{ADOPTED} directly; parameterize").
   NOTE (original): three curated acute sessions have EMPTY decode rows in the source (PS92_0818, PS94_0817,
   PS94_0820), so acute n = 4 / 4 / 4 / 1, not the curated 5 / 4 / 6 / 1.
   The TABLE check (the section-1 table values) is printed only; it is a check of THIS input, so expect mismatches

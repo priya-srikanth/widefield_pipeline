@@ -7,7 +7,7 @@ processing_stages, slow_is_bleach, usability_qc) read the raw .dat as fixed even
 (about every 25 s; ~50/50 split; `*_cleanpairs_frame_map.npz`), so every raw-sampled "channel" was a near
 equal MIX of 415 and 470. Here channel identity comes only from products built on the DAQ frame map:
 `frames_average.npy` (2,H,W) and `SVT.npy` (K, 2T), both in `channel_order` 415-470 (slot 0 = 415,
-slot 1 = 470 = `functional_channel`), plus `photobleach/*.json` (DAQ-labelled raw ROI medians).
+slot 1 = 470 = `functional_channel`), plus `photobleach/*.json` (DAQ-labeled raw ROI medians).
 
 The adopted correction is c = a_d - T b_d (hemo_variants.compute, meegkit_hpfit: a = 470, b = 415, _d =
 order-10 meegkit detrend, T fitted on the 0.1 Hz high-passed traces). On the cortex mean,
@@ -134,7 +134,7 @@ def figure(rs, root: Path, out: Path):
         ax[2, j].plot(tm, tr["sb"] / sd, color="violet", lw=1, label=f"-T.415 part ({100*r['bands'][300]['b']:.0f}%)")
         ax[2, j].legend(fontsize=7.5)
         ax[2, j].set_xlabel("min")
-    ax[0, 0].set_ylabel("RAW brain median, % of start\n(DAQ-labelled, photobleach)")
+    ax[0, 0].set_ylabel("RAW brain median, % of start\n(DAQ-labeled, photobleach)")
     ax[1, 0].set_ylabel("cortex-mean dF/F % (SVT)\nbefore detrend / correction")
     ax[2, 0].set_ylabel("corrected cortex mean (SD)\n2 s bins; slow parts >300 s")
     fig.suptitle("cohort2 10-29: per-channel bleaching (DAQ-correct) and what makes the corrected slow drift",

@@ -19,7 +19,7 @@ PROVENANCE: ported 2026-11-05 from M:/MICROSCOPE/Priya/Widefield/labcams/decoder
   Priya 11-06 (VERSION 2; the 11-04 run = VERSION 1):
   - quiet events = the LP version (gb_common.QUIET_SUBDIR v2_quiet_lp: quiet_spikes_v2 with QS_LICK_SOURCE=daq+lp);
   - TASK = cue .. cue + 2 s of the camera WORKING PERIOD cues only (gb_common.task_cues, TASK_ROWS "period"; --task-rows);
-  - the 415 comparison is made like with like downstream (summarise / gain_stats / fig_sessions: gb_common.NONCA vs
+  - the 415 comparison is made like with like downstream (summarize / gain_stats / fig_sessions: gb_common.NONCA vs
     CA_REF); this script's per-session numbers are unchanged by that.
   The 11-04 run read hemo_meegkit_hpfit (46 split-basis areas + cortex); a rerun reads whatever the env selects (the
   render profile: meegkit_hpfit_lag_refitT_swapmask; area_basis.ROI_VERSION; the camera trial gate's quit for the
@@ -46,7 +46,7 @@ FRAME SETS (frames within 3 of a swapped pair dropped from all):
 PER SET: area SD per signal; pixel variance map per signal (diag(U C U'), C = component covariance over the set),
 binned 4 x 4 px onto the 540 x 640 atlas grid.
 MOVEMENT / AROUSAL (R5 frames): cam4 FaceRhythm point-PC face speed (quiet_spikes_fr.face_regressors, own basis; sum of
-the 20 PC speeds), 2 s centred smoothing; treadmill speed (behavior_events.session_speed) 2 s smoothed. No pupil
+the 20 PC speeds), 2 s centered smoothing; treadmill speed (behavior_events.session_speed) 2 s smoothed. No pupil
 tracking exists for cohort 1 (quiet_quit_state.py docstring). R5 split into chunks of <= 62 frames (2 s) inside
 contiguous R5 runs with a constant far / near flag; per chunk: n, far flag, mean face speed, mean running speed,
 and per signal x area the sum and sum of squares of (x - session R5 mean), so any speed-matched subset's variance can
@@ -235,7 +235,7 @@ def run(label):
     R5far = R5 & ~near if near is not None else np.zeros(n, bool)
     TASK = np.zeros(n, bool)
     bh = session_behavior(label)
-    n_cue, task_note = 0, "no behaviour"
+    n_cue, task_note = 0, "no behavior"
     if bh is not None:
         cue_s = np.asarray(bh.cue_samples, float) / bh.sample_rate
         keep, task_note = gb_common.task_cues(label, cue_s)

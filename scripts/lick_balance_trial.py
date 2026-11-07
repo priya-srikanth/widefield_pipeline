@@ -9,8 +9,8 @@ each referenced to the animal's PRE straight line on lick angle (pre sessions le
 pre SD of that residual; trial balance = z(contra residual) - z(ipsi residual).
 Trial aim = the lick's angle minus the animal's pre mean angle at that target spout, signed so - = ipsilesional (as the
 far-contra aim of key figure 1A, here per trial and every spout).
-Both are centred within session x spout (so neither the session's recovery state nor the target can carry the link);
-per animal x epoch: r of the centred values; far-contra trials alone too. PRE sessions are the control: the balance is
+Both are centered within session x spout (so neither the session's recovery state nor the target can carry the link);
+per animal x epoch: r of the centered values; far-contra trials alone too. PRE sessions are the control: the balance is
 angle-referenced, so a mechanical coupling to the lick's own angle would show there as well.
 Outputs <OUT_W>/baltrial_licks.csv.gz, baltrial_r.csv; figure lick_balance_trial.png.
 """
@@ -141,7 +141,7 @@ def plot(F: dict) -> None:
             ax.spines[s_].set_visible(False)
     axs[0].set_ylabel("within-session r (trial balance, trial aim)\ncentred within session x spout", fontsize=9)
     fig.suptitle("TRIAL BY TRIAL: within a session, do first post-cue licks with a more negative balance (contralesional "
-                 "relatively weaker) aim more ipsilesionally? Bars = mean of animals, symbols = animals; pre (grey) = the "
+                 "relatively weaker) aim more ipsilesionally? Bars = mean of animals, symbols = animals; pre (gray) = the "
                  "control for any mechanical coupling to the lick's own angle. PROVISIONAL", fontsize=9.5)
     fig.tight_layout(rect=(0, 0, 1, 0.9))
     save_png_svg(fig, il.OUT_W / "figures" / "lick_balance_trial.png", dpi=95)

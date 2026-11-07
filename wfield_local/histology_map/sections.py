@@ -1,17 +1,17 @@
-"""Load and standardise histology sections for the stroke map.
+"""Load and standardize histology sections for the stroke map.
 
 A section = a level-3 crop of the VS200 scan (``ets.crop_jobs``) + its two QuPath striatum outlines (the pair from
-``scripts/import_histology_areas.py``; ipsi = the smaller outline). Standardisation, in order:
+``scripts/import_histology_areas.py``; ipsi = the smaller outline). Standardization, in order:
 
   1. FLIP so the lesion is on the image LEFT (Priya: "stroke should always be on the left, regardless of
      histology orientation"; flipped mounts are mirrored back).
-  2. ROTATE so the midline is vertical: the angle that maximises mirror overlap of the tissue mask
+  2. ROTATE so the midline is vertical: the angle that maximizes mirror overlap of the tissue mask
      (``symmetry_midline``). Only the angle is used from it.
   3. MIDLINE = the dorsal interhemispheric fissure (``fissure_x``), NOT the mirror-symmetry axis: atrophy of the
      lesioned hemisphere pulls the symmetry axis 0.1-0.3 mm toward the intact side (measured on PS92-95,
      2026-10-21), which then mis-scales the intact hemisphere against the atlas.
 
-Every number a published figure depends on (flip, angle, rotation centre, midline, crop of the painter image) is
+Every number a published figure depends on (flip, angle, rotation center, midline, crop of the painter image) is
 stored in ``configs/histology_map/<cohort>/sections.json`` and re-used, so painted masks stay registered.
 """
 from __future__ import annotations
@@ -66,7 +66,7 @@ def section(img, gi, gc):
 
 
 def symmetry_midline(S):
-    """Step 2: rotation (+ a symmetry x, used only as the search centre for the fissure)."""
+    """Step 2: rotation (+ a symmetry x, used only as the search center for the fissure)."""
     tm = S["tissue"]; ys, xs = np.nonzero(tm); cy = ys.mean(); best = None
     c0 = (S["gi"].centroid.x + S["gc"].centroid.x) / 2
     small = tm[::4, ::4].astype(float)
@@ -102,7 +102,7 @@ def fissure_x(tm, x_guess, half_um=1200):
 
 
 def prepare(img, gi, gc, stored=None):
-    """Full standardisation. ``stored`` (a sections.json record) pins flip / angle / centre / midline so painted
+    """Full standardization. ``stored`` (a sections.json record) pins flip / angle / center / midline so painted
     masks stay registered; without it everything is estimated."""
     S = section(img, gi, gc)
     if stored is not None:

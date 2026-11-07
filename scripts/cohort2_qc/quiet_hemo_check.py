@@ -2,8 +2,8 @@
 light? The same measures on the corrected 470 (adopted), the UNCORRECTED 470 and the 415 nm channel (cohort1, PS92-95).
 
 QUESTION. After the VLS stroke, brief quiet-period events in orofacial cortex rise ~5x acutely and quiet power rises at
-~2-3 Hz (quiet_spikes_v2.py, quiet_fluct.py). The analysed signal is the hemo-corrected 470 (hemo_meegkit_hpfit SVTcorr,
-`combined_encoding.load_imaging`). If the effect were haemodynamic (or a light / motion artefact common to both
+~2-3 Hz (quiet_spikes_v2.py, quiet_fluct.py). The analyzed signal is the hemo-corrected 470 (hemo_meegkit_hpfit SVTcorr,
+`combined_encoding.load_imaging`). If the effect were hemodynamic (or a light / motion artifact common to both
 wavelengths), the 415 nm channel -- calcium-insensitive (isosbestic, plus a small NEGATIVE calcium term) -- would show it
 too, and uncorrected 470 would show it larger than corrected. If it is calcium, 415 shows no increase and no event-locked
 response.
@@ -53,7 +53,7 @@ from wfield_local import config  # noqa: E402
 HO = V2 / "hemo415"
 CACHE_VERSION = 1
 CH = ("corr470", "raw470", "raw415")
-CHLAB = {"corr470": "corrected 470 (analysed)", "raw470": "uncorrected 470", "raw415": "415 nm (calcium-insensitive)"}
+CHLAB = {"corr470": "corrected 470 (analyzed)", "raw470": "uncorrected 470", "raw415": "415 nm (calcium-insensitive)"}
 ROIS = ["orofacial_left", "orofacial_right", "orofacial", "limb_left", "limb_right", "limb", "cortex"]
 K_EVT, SEG_S, N_NULL = 4.0, 4.0, 400
 BANDS = {"p14": (1.0, 4.0), "p0510": (0.5, 1.0)}
@@ -356,10 +356,10 @@ def figure(S, T, roi=SHOW_ROI):
     ax[0, -1].legend(handles=handles, fontsize=7, loc="upper left", bbox_to_anchor=(1.02, 1), frameon=False,
                      title="animal", title_fontsize=7)
     sig_marks.reserve_headroom(fig)
-    fig.suptitle("Is the post-stroke quiet-period change in orofacial cortex calcium or haemodynamic? The same measures on "
-                 "the corrected 470 (analysed), uncorrected 470 and 415 nm channels -- bilateral orofacial ROI, engaged quiet "
-                 "frames, August pre. Open markers = sessions (shape = animal, colour = epoch), filled = pooled mean with "
-                 "nested bootstrap 95% CI; stars = LMM epoch vs pre (FDR within measure). Last column: grey band = 5-95% "
+    fig.suptitle("Is the post-stroke quiet-period change in orofacial cortex calcium or hemodynamic? The same measures on "
+                 "the corrected 470 (analyzed), uncorrected 470 and 415 nm channels -- bilateral orofacial ROI, engaged quiet "
+                 "frames, August pre. Open markers = sessions (shape = animal, color = epoch), filled = pooled mean with "
+                 "nested bootstrap 95% CI; stars = LMM epoch vs pre (FDR within measure). Last column: gray band = 5-95% "
                  "of the random-quiet-frame null.", fontsize=8, wrap=True)
     fig.tight_layout(rect=(0, 0, 0.94, 0.90), w_pad=2.0, h_pad=1.5)
     fig.savefig(HO / "quiet_hemo_check.png", dpi=110)

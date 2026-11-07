@@ -25,7 +25,7 @@ produces. If the answer is ADDITION then "replacement" is the wrong word in ever
 uses it, and the substitute is a set of ADDED dimensions rather than a moved code -- which is a
 different search.
 
-NORMALISATION -- AND THE TRAP IN IT, WHICH THIS SCRIPT WALKED INTO ON ITS FIRST RUN. Each cell is
+NORMALIZATION -- AND THE TRAP IN IT, WHICH THIS SCRIPT WALKED INTO ON ITS FIRST RUN. Each cell is
 also reported as a fraction of the TEST epoch's OWN within-epoch ceiling:
 
     retained(A -> B) = (acc(A -> B) - null) / (acc(B -> B) - null)
@@ -39,7 +39,7 @@ their difference is dominated by how the two ceilings differ rather than by the 
 
 Measured 2026-09-17, and it is not a small correction. The RAW above-chance transfer is very nearly
 symmetric in every animal (pre->chr 0.081 / 0.088 / 0.062 against chr->pre 0.077 / 0.108 / 0.055 for
-PS92 / PS93 / PS95), yet the NORMALISED asymmetry reads +0.404 / +0.441 / -0.001 -- and the formula
+PS92 / PS93 / PS95), yet the NORMALIZED asymmetry reads +0.404 / +0.441 / -0.001 -- and the formula
 above predicts +0.432 / +0.331 / +0.053 from the denominators alone. The apparent "addition"
 signature was the ceiling difference: chronic rest is MORE decodable than pre-stroke rest in PS92
 and PS93 (ceiling gain +0.128 and +0.132 above chance) and barely more in PS95 (+0.018), which is
@@ -63,7 +63,7 @@ draws the SAME number of whole training BLOCKS via `matched_frozen`.
 
 WHAT THIS CANNOT DO. It cannot say WHERE the substitute lives -- that needs the Haufe-transformed
 decoder PATTERN projected through the joint basis, which is the natural follow-on and is
-deliberately not attempted here. Identify whether a substitute exists before characterising one.
+deliberately not attempted here. Identify whether a substitute exists before characterizing one.
 
 IT IMPORTS FROM `rest_frozen_decoder` RATHER THAN COPYING IT. Three of the defects the 2026-09-16
 audit found spread by writing scripts from siblings as templates, carrying prose and structure
@@ -372,7 +372,7 @@ def main() -> int:
             per_animal_rows.append((an, raw_f, raw_r, rf, rr, gain))
             print(f"   {an}: RAW pre->chr {raw_f:+.4f}  chr->pre {raw_r:+.4f}  "
                   f"raw asym {raw_r - raw_f:+.4f}")
-            print(f"          (normalised {rf:+.3f} / {rr:+.3f}, asym {rr - rf:+.3f} -- "
+            print(f"          (normalized {rf:+.3f} / {rr:+.3f}, asym {rr - rf:+.3f} -- "
                   f"ceiling gain {gain:+.4f})")
         print()
         # THE BAR IS ON RAW UNITS and is stated rather than tuned: an asymmetry counts as material
@@ -402,8 +402,8 @@ def main() -> int:
             print(f"=> SPLIT on RAW transfer -- {n_asym} of {len(per_animal_rows)}. NOT a result; report")
             print("   the per-animal values above rather than the cohort mean.")
         print()
-        print("   NOTE the normalised asymmetry above is LARGER and points at 'addition'. It is an")
-        print("   artefact of dividing the two directions by different ceilings; the raw numbers")
+        print("   NOTE the normalized asymmetry above is LARGER and points at 'addition'. It is an")
+        print("   artifact of dividing the two directions by different ceilings; the raw numbers")
         print("   are the ones that carry the geometry. See the module docstring.")
     print("=" * 78)
     if skipped:

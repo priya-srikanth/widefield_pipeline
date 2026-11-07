@@ -6,7 +6,7 @@ licking"; "can i see some pre-stroke 92 and 93 videos to see if the mode switchi
 
 Window choice: 3 min, starting at >= 40 min, scored by the running fraction (canonical DAQ running bouts,
 behavior_events npz) plus licks per minute / 60; the lowest score wins, ties to the later window. Same renderer and
-colour scale as the post-stroke videos (seizure_events_video.render_cam, raw 470, +/-12%), plus running bouts shaded
+color scale as the post-stroke videos (seizure_events_video.render_cam, raw 470, +/-12%), plus running bouts shaded
 blue on the trace. Cohort1 was never swap-repaired before its SVD, so one-frame flashes are swapped frames.
 
     conda activate locanmf

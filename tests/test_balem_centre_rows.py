@@ -1,4 +1,4 @@
-"""bal_em EM centre rows (Priya 11-03, "camera gate everywhere"; log 8.16) and the june_august_drift month model stored
+"""bal_em EM center rows (Priya 11-03, "camera gate everywhere"; log 8.16) and the june_august_drift month model stored
 in the bal_em frame (8.17)."""
 from __future__ import annotations
 
@@ -77,7 +77,7 @@ def test_frozen_frame_centre_uses_only_the_working_rows(camera):
 
 def test_contact_row_fallback_is_explicit_and_the_minimum_is_20(camera, capsys):
     """Fifth review D-B3: a session below MIN_CENTRE_ROWS working rows is REFUSED unless it is a configured contact
-    fallback (PS93_0813, no video), whose centre comes from its DAQ contact rows and is logged by name."""
+    fallback (PS93_0813, no video), whose center comes from its DAQ contact rows and is logged by name."""
     XE, YE, GE = _pool()
     me = GE == 2
     cm = np.ones(len(GE), bool)
@@ -133,7 +133,7 @@ def test_engaged_centre_under_camera_is_tagged(camera):
 def test_scored_frame_refuses_without_centre_rows(camera):
     XE, YE, GE = _pool()
     ff = ss.FrozenFrame(XE, YE, GE, [0, 1], _pipe, loso=False, cls_e=np.array(["contact"] * len(GE), object))
-    with pytest.raises(ss.BalEmCentreRefused, match="WORKING centre rows"):
+    with pytest.raises(ss.BalEmCentreRefused, match="WORKING center rows"):
         ss.scored_frame(XE, GE, XE[:0], np.zeros(0, int), [2], lambda i: ff.full, lambda i: ff.pi["full"])
 
 

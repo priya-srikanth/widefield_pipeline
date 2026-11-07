@@ -8,9 +8,9 @@ that tell us anything about what causes it?"* -- followed by *"typically quits f
 WHAT A STEP RULES OUT. Peripheral orofacial fatigue accumulates -- muscle does not fail abruptly --
 so an abrupt quit is a poor fit for the muscular reading.
 
-WHAT IT DOES NOT RULE OUT, and this is the trap. **Behaviour is a THRESHOLDED readout.** A smoothly
+WHAT IT DOES NOT RULE OUT, and this is the trap. **Behavior is a THRESHOLDED readout.** A smoothly
 rising satiety signal crossing a decision boundary produces a step in the output. So a step rules
-out a gradual behavioural MAPPING, not a gradual internal VARIABLE.
+out a gradual behavioral MAPPING, not a gradual internal VARIABLE.
 
 WHAT IT MAKES POSSIBLE. If the decline is a step you can LOCATE it and ask what is CONSERVED at it:
 
@@ -20,8 +20,8 @@ WHAT IT MAKES POSSIBLE. If the decline is a step you can LOCATE it and ask what 
     NONE conserved, all smaller     **the threshold itself moved** -- malaise, lowered motivation,
         after the stroke            which is the reading "feeling unwell or uninterested" predicts
 
-**AND IT EXPOSES AN ARTEFACT IN THE AVERAGED CURVE.** Averaging step functions whose steps fall at
-different times produces a SMOOTH-LOOKING DECLINE. A quintile plot of session-normalised hit rate
+**AND IT EXPOSES AN ARTIFACT IN THE AVERAGED CURVE.** Averaging step functions whose steps fall at
+different times produces a SMOOTH-LOOKING DECLINE. A quintile plot of session-normalized hit rate
 will therefore look like gradual accumulation even when every single session is a clean step -- and
 it will look like evidence for the mechanism the step argues against. `engagement_decomposition`'s
 within-session table has exactly that exposure; this module is the corrective, because aligning each
@@ -318,8 +318,8 @@ def main(argv=None) -> int:
             line += f"{np.mean(v):>8.2f}" if len(v) >= 10 else f"{'--':>8}"
         print(line)
     print("\n  ALIGNED, so a step survives the average. The same curve plotted against")
-    print("  session-normalised time would look like a smooth ramp whatever the true shape --")
-    print("  that is the artefact this module exists to avoid.")
+    print("  session-normalized time would look like a smooth ramp whatever the true shape --")
+    print("  that is the artifact this module exists to avoid.")
     return 0
 
 

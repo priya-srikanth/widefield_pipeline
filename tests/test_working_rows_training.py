@@ -1,5 +1,5 @@
 """Coordinator BLOCKER 11-04 / main 48f2cc6d: for cue / precue the frozen spout decoder's TRAINING set, each session's
-bal_em CENTRE, the pre panel and the scored set are the camera WORKING rows -- engaged AND no-lick rows of class
+bal_em CENTER, the pre panel and the scored set are the camera WORKING rows -- engaged AND no-lick rows of class
 contact | incomplete, whatever the DAQ lick (a camera-incomplete trial has no DAQ lick, so it is a no-lick row). The
 lick window keeps the engaged (lick-gate) rows."""
 from __future__ import annotations

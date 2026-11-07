@@ -3,7 +3,7 @@
 Under ``WIDEFIELD_TRIAL_GATE=camera`` an output is tagged sel-camera, so a gate still on the DAQ quit-tail rule would
 mislabel it. The DAQ rule (`precue_engagement_states.engagement_gate`) refuses unless the caller opened
 `trial_classes.daq_quit_rule(reason)`; the quit-tail MASK handed out by `_gate_all` / the grant bundle is a
-`RefusedMask`. Measures OF engagement (quit, engagement decline, attempt rate, the behaviour reporting gate) keep the DAQ
+`RefusedMask`. Measures OF engagement (quit, engagement decline, attempt rate, the behavior reporting gate) keep the DAQ
 rule. The REGISTER below lists every call site; a new one fails `test_every_daq_rule_call_site_is_registered` until
 someone decides which kind it is.
 """

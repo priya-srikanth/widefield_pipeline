@@ -64,8 +64,8 @@ WHAT IT FIXES: the null becomes STRUCTURALLY MATCHED. Self-referenced, the obser
 understated the bias and its p was anti-conservative. Held out, neither shares anything with
 `e_ref`, so the same disjoint-halves null is matched and the p is legitimate.
 
-WHAT IT DOES NOT FIX, MEASURED: it does not centre the null cosine at zero. |null median| is 0.212
-held out against 0.233 self-referenced -- barely moved. The nonzero centre was never mainly the
+WHAT IT DOES NOT FIX, MEASURED: it does not center the null cosine at zero. |null median| is 0.212
+held out against 0.233 self-referenced -- barely moved. The nonzero center was never mainly the
 shared term: under the null `d` is a difference between two random groups of pre BASELINES, and
 those are not isotropic -- they occupy a low-dimensional, cortically structured subspace that
 overlaps the evoked pattern. That is a property of the data and survives any reference. It is also
@@ -137,7 +137,7 @@ def normalise(b, e):
     THE ONE LINE THAT MAKES SESSIONS COMPARABLE ACROSS DAYS, and the design's central claim: the
     result is invariant to multiplying that session's data by any positive constant. Expression,
     bleaching and window clarity all act as exactly such a constant, and NO SUBTRACTION REMOVES A
-    GAIN TERM -- `crossday_intensity` owns that confound and this is the local defence against it.
+    GAIN TERM -- `crossday_intensity` owns that confound and this is the local defense against it.
     Without this the measurement would largely report how bright the window was on each day.
 
     Pure and separate from the session load so the invariance can be pinned by a test rather than
@@ -382,7 +382,7 @@ def main() -> int:
                 if (g[2] == "pre").any()}
     names = sorted(pre_mean)
     if len(names) > 1:
-        print("\nCROSS-ANIMAL COMPARABILITY of the mean PRE evoked pattern (unit-normalised "
+        print("\nCROSS-ANIMAL COMPARABILITY of the mean PRE evoked pattern (unit-normalized "
               "per session before averaging, so this is SHAPE, not amplitude):", flush=True)
         rs = []
         for i, a1 in enumerate(names):

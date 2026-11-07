@@ -1,7 +1,7 @@
 """Epoch boundaries are a property of the COHORT; a caller's `--only` subset must not change them.
 
 2026-09-28: `nightly_figs 20260922 --only PS92` exported WIDEFIELD_ONLY_ANIMALS=PS92 and then derived
-the epochs. `config.phase_labels` / `pooled_labels` honour that variable, so PS93/94/95 had no series,
+the epochs. `config.phase_labels` / `pooled_labels` honor that variable, so PS93/94/95 had no series,
 and the rule wrote chronic_from=None for PS93 and PS95 into the SHARED epoch_boundaries.json.
 """
 from __future__ import annotations

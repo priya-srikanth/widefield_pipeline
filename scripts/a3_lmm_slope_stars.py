@@ -3,9 +3,9 @@
 Singular fit pre-specified as lme4's isSingular: a diagonal of the RELATIVE Cholesky factor (L / sigma) < 1e-4 (slope
 variance 0 or |corr| = 1). Singular fits keep their estimate and are flagged. No model choice after seeing p.
 
-Own REML (no R on this box): direct likelihood, Cholesky-parameterised G, several starts, scipy L-BFGS-B with l00, l11 >= 0.
+Own REML (no R on this box): direct likelihood, Cholesky-parameterized G, several starts, scipy L-BFGS-B with l00, l11 >= 0.
 Satterthwaite: df = 2 Var(b)^2 / (grad' A grad), grad = dVar(b)/d(g00, g01, g11, s2), A = inverse Hessian of the
-negative REML log-likelihood in that same parameterisation (lmerTest's 'varpar' route), both by central differences.
+negative REML log-likelihood in that same parameterization (lmerTest's 'varpar' route), both by central differences.
 Cross-checked against statsmodels MixedLM (beta, se) on the fits where it converged non-singular.
 The random-INTERCEPT-only columns (ri_beta, ri_p) in the committed CSV came from a statsmodels side run (same rows)."""
 import sys

@@ -5,7 +5,7 @@ MEASURED BEFORE CHANGING ANYTHING (10-21): the 15r / 14 collectors (`position_re
 `beta_maps.maps_by_epoch`) walked ~120 sessions ONE AT A TIME in one process, ~13 s per session per arm for the
 position maps alone (`session_raw_maps`, PS94_0820 lick: 13.3 s, 30 MB pickled), and kept the per-session maps only in
 an in-process lru_cache. A full `--only 15r 15e 14m` render ran ~5 h at ~12 % CPU on a 24-thread / 64 GB box, and
-it rebuilt every map even when only the SIGNIFICANCE TESTS had changed (the 10-21 normalised-test rerender).
+it rebuilt every map even when only the SIGNIFICANCE TESTS had changed (the 10-21 normalized-test rerender).
 
 TWO FIXES LIVE HERE (the third, concurrent arms, is `epoch_grant_figures --parallel-arms`):
 
@@ -15,7 +15,7 @@ TWO FIXES LIVE HERE (the third, concurrent arms, is `epoch_grant_figures --paral
      narrowed 11-03 from the whole file) and the effective ENL
      window -- so editing a significance test, a figure or a comment elsewhere keeps the cache warm, and editing the
      map code invalidates it without anyone remembering to bump a number. The session's DATA files are in the key via
-     `session_signature` (SVT, U, LocaNMF C, h5, behaviour trials) plus the extra inputs each caller passes
+     `session_signature` (SVT, U, LocaNMF C, h5, behavior trials) plus the extra inputs each caller passes
      (U_atlas, quiet-frame mask). Under WIDEFIELD_LICK_SOURCE=lp the session cache tags the kind itself.
   2. THE SESSION LOOP FANNED OVER CORES (`collect`, rule 6), results re-ordered by session label so nothing downstream
      sees completion order (rule 9). WIDEFIELD_MAP_JOBS sets the worker count (default min(4, default_jobs())); 1 =
@@ -186,7 +186,7 @@ def session_has_no_video(label: str) -> bool:
 
 def skip_lp_unavailable_no_video(label: str, ex: BaseException, empty):
     """Job-wrapper guard for the LP lick source (2026-11-06, render g5_restnl_maps_lp): a session with NO LP lick tables
-    because it has NO behaviour video contributes ``empty`` -- the result the builder gives under the contact arm, where
+    because it has NO behavior video contributes ``empty`` -- the result the builder gives under the contact arm, where
     such a session has no camera working period -- instead of failing the whole collection under the camera gate
     (review N9). Any other session re-raises ``ex``: LP tables missing by mistake on a FILMED session stay fatal.
     Lives in the job wrappers, not in the builders, so no map cache digest changes."""

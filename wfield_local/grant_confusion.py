@@ -95,7 +95,7 @@ from wfield_local.grant_kit import (  # noqa: F401
 def fig_confusion_prestroke(out_dir):
     """4: mean PRE-STROKE leave-one-session-out confusion, 2x2 animals, one file per window.
 
-    Counts are SUMMED over the held-out pre-stroke sessions and then row-normalised, so each row is
+    Counts are SUMMED over the held-out pre-stroke sessions and then row-normalized, so each row is
     P(predicted | true) over the whole baseline -- not the mean of per-session rates, which would
     weight a 200-trial session the same as a 500-trial one.
     """
@@ -145,7 +145,7 @@ def fig_confusion_prestroke(out_dir):
         _suptitle(fig, f"Pre-stroke cross-session decoding — {wname} window\n"
                      "Frozen leave-one-session-out in the shared LocaNMF basis: every trial scored "
                      "by a decoder that never saw its session.\n"
-                     "Counts summed over held-out sessions, then row-normalised. Chance = 0.17.",
+                     "Counts summed over held-out sessions, then row-normalized. Chance = 0.17.",
                      fontsize=10)
         p = Path(out_dir) / f"grant_4_confusion_prestroke_{align}.png"
         _save(fig, p, dpi=200, bbox_inches="tight")
@@ -164,8 +164,8 @@ def fig_confusion_pre_post(out_dir):
     looks like normally, what it looks like without a lick but without a lesion, and what it looks
     like after the lesion.
 
-    Counts are reconstructed from the stored row-normalised matrices (matrix * n_per_true_position),
-    summed across post-stroke sessions, and re-normalised. The `pre` and `pre_nolick` panels are the
+    Counts are reconstructed from the stored row-normalized matrices (matrix * n_per_true_position),
+    summed across post-stroke sessions, and re-normalized. The `pre` and `pre_nolick` panels are the
     POOLED pre-stroke reference and are byte-identical in every session record -- summing them across
     sessions would multiply the same matrix by the session count and change nothing except to imply
     a sample size that does not exist.
@@ -505,7 +505,7 @@ def fig_confusion_pre_post_working(out_dir):
             # sessions' working trials
             _suptitle(fig, f"Frozen pre-stroke decoder on camera WORKING trials — {wname} window\n"
                          f"Rows = TRUE spout position, columns = predicted. Working = {_class_note('working')}; "
-                         "trained, centred and scored on working trials (engaged + no-lick) on BOTH sides.\n"
+                         "trained, centered and scored on working trials (engaged + no-lick) on BOTH sides.\n"
                          "MIDDLE panel = every post-stroke trial. Post-stroke sessions pooled. Chance = 0.17. "
                          "A session without video (PS93_0813) has no working trials and is not in this figure.",
                       fontsize=9.5)
@@ -759,7 +759,7 @@ class PreRecords(list):
 
 def _collect_5c(align, variant="working", mode="frozen"):
     """`_collect_5c_cached` keyed ALSO by the run (re-verify item 4): the full output tag (hemo / projection / selection /
-    LP / ENL ...) and the bal_em scaling + centre, so a process that switches mode never gets another run's records."""
+    LP / ENL ...) and the bal_em scaling + center, so a process that switches mode never gets another run's records."""
     from wfield_local import lp_licks, spout_scaling
     from wfield_local import trial_classes as _tc
     from wfield_local import working_trials as _wt
@@ -1134,7 +1134,7 @@ def fig_confusion_delta(out_dir):
     """5d: figure 5c as DIFFERENCES from the pre-stroke reference.
 
     The frozen decoder's per-session confusion minus the leave-one-session-out pre-stroke confusion,
-    cell by cell, in row-normalised probability. Zero means the decoder makes the same errors in the
+    cell by cell, in row-normalized probability. Zero means the decoder makes the same errors in the
     same proportions it made before the lesion.
 
     WHY THIS IS THE MOST INFORMATIVE OF THE THREE. The pre-stroke confusion is far from uniform --

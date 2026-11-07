@@ -1,4 +1,4 @@
-"""Does the orofacial hemispheric BALANCE predict behavioural RECOVERY? (Priya 10-28: "LMM of orofacial balance and recovery
+"""Does the orofacial hemispheric BALANCE predict behavioral RECOVERY? (Priya 10-28: "LMM of orofacial balance and recovery
 (contra lick angle) -- does it predict recovery").
 
 Recovery axis = the far-contra FIRST-cued-lick aim offset vs the animal's pre landing (deg, - = ipsilesional; key figure
@@ -115,7 +115,7 @@ def plot(F: dict) -> None:
     h += [Line2D([], [], color="0.3", marker=ANIMAL_MARKER.get(x, "o"), lw=0, label=x) for x in ("PS92", "PS93", "PS94", "PS95")]
     fig.legend(handles=h, loc="lower center", ncol=7, fontsize=9, frameon=False)
     fig.suptitle("Does the orofacial hemispheric balance predict RECOVERY (far-contra first-lick aim)? One point per "
-                 "post-stroke session (grey = pre sessions, left-out reference, not fitted). Mixed models with log(day) and a random intercept per animal (sessions as "
+                 "post-stroke session (gray = pre sessions, left-out reference, not fitted). Mixed models with log(day) and a random intercept per animal (sessions as "
                  "observations, anti-conservative):\nleft = concurrent (aim ~ balance), right = predictive (next-session "
                  "aim change ~ this session's balance + current aim). Within-animal slope bold when p < 0.05. PROVISIONAL",
                  fontsize=9.5)
@@ -126,7 +126,7 @@ def plot(F: dict) -> None:
 
 def _pre_cloud() -> pd.DataFrame | None:
     """Pre sessions' orofacial balance (scored leave-one-pre-session-out) and aim, from lick_recovery_markers (Priya 10-28:
-    "add pre references as grey cloud"); None if that script has not run."""
+    "add pre references as gray cloud"); None if that script has not run."""
     f = il.OUT_W / "recmark_sessions.csv"
     if not f.exists():
         return None
