@@ -680,7 +680,7 @@ def main():
             units = _frozen_units(aligns, from_list, only)
             # ONE POOL PER (animal, alignment), shared by the decoder and the encoder
             # (`locanmf_frozen_decoder.frozen_pair`): each used to rebuild the identical ROI pool, and
-            # ROI features are not disk-cached, so this step paid ~19 s a session twice over.
+            # ROI features were not disk-cached before 11-07, so this step paid ~19 s a session twice over.
             # WIDEFIELD_FROZEN_JOBS > 1 also fans the units over cores; serial (1) is the default
             # because the workers' pinned BLAS can move an lbfgs fit -- see `frozen_pairs`.
             jobs = int(os.environ.get("WIDEFIELD_FROZEN_JOBS", "1") or 1)
