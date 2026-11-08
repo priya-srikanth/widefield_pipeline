@@ -77,6 +77,14 @@ always rebuild from the LIVE page (Artifact read) or the current index.html, nev
     `index_pre_toctoggle_1104.html`). `build_behaviour_page_1103.py` predates this: if it is re-run, re-apply the
     script (`behtoc-` on the behavior page; the kinematics page it rewrites already has the toggle, so check for a
     doubled assert failure rather than running it twice there).
+  - **American spelling (Priya 11-07, via a8): published kinematics v29, behavior v3.** Both M: sources converted
+    with a8's `presentations/_source_PI_overview_2026-11-02/amspell.py` (`convert_html`: prose, data-label / alt /
+    title; code spans, file names, ids untouched). 114 + 17 replacements, plus by hand: "relabeled", "uncentered",
+    and the visible TOC tag string 'behaviour' -> 'behavior' in the inline script (both pages). Backups
+    `index_pre_amspell_1107.html` in both folders. NOT converted: words baked into figure PNGs (e.g. "colour" in
+    legends), ids / file names (`#f-behaviour_hits_by_spout`, `behaviour_page_src/`), and the M: build scripts
+    (`build_behaviour_page_1103.py`, `add_*` scripts): if one is re-run, pass its output through `convert_html`
+    and redo the two hand fixes. New text on these pages: American spelling.
   - **SPLIT DONE in the M: sources 11-03 (e3).** Behavior page source `M:/.../Widefield/behaviour_page_src/behaviour_page/` (`build_behaviour_page_1103.py`): Fig 1.1 hit rate over days and Fig 1.2 hit rate by spout (moved from kinematics 1.7 / 1.8, plus the 1.2 mixed-model toggle), and Fig 2.1 engagement by epoch (re-rendered by `scripts.engagement_by_epoch --out`; the script's 'N=1 animals' / 'PS92 (0)' count bug is fixed) plus its mixed-model toggle (acute -.17 p=.043, subacute -.13 p=.030; neither survives Holm). Kinematics: 1.9 -> 1.7, 1.10 -> 1.8, fig_ids.csv updated, backup `index_pre_split_1103.html`. Section 1's summary table stays: its rows are camera-lick measures. Behavior-page pre = all 44 pre sessions (June + August), as in the two moved figures; it becomes August-only with the cohort-1 rebuild. Not moved yet: engagement over days per animal (`epoch_1g`, old style, lines across epochs).
 - **ANSWERED 11-03:** the FaceRhythm page (https://claude.ai/artifact/X8NDdQNHi3zMP77PBrZAC1, source
   `M:/.../Widefield/fr_page_src/`) stays separate, cross-linked both ways. Merging would exceed the length limit (143

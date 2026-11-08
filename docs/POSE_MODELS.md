@@ -1154,3 +1154,62 @@ four review sessions mapped to raw (`lp_sidecam.to_raw`); reference = production
   protrusion (out_ap) -0.04 mm, lat_err +0.02 mm, miss -0.07 mm, peak speed -5.5 mm/s. Precision gain not shown on these
   licks (contact-lick SD within session x position, 13 cells: midline 5.9 vs 5.7 deg, sagittal 3.7 vs 4.6) -- to test on
   the whole-session run.
+
+## D13. June in 3-D, re-evaluated (11-07, a8; Priya asked why June kinematics cannot use the spout-posed 3-D)
+
+**Why June was dropped (10-18):** a 2-D argument. cam4 was re-set on 08-05, and June differs in perspective, not just
+scale. No 2-D transform fits, so pixel measures from the mouth origin cannot be pooled with August.
+
+**That argument does not carry over to 3-D.** Per-session PnP on the commanded spouts poses each camera in stage mm,
+which absorbs the moved camera:
+- June tongue reprojection 3.8-4.2 px vs August 3.3-4.3 (D10 table).
+- The snapshot `pose3d_kin_licks_snapshot_20261023` has 3-D for all 12 curated June sessions (0606-0608 x 4 animals),
+  all 6 positions, 2.9-5.9 k licks each (August pre median 4.5 k).
+- June is dropped only by `config.early_pre` in the 3-D consumers (`lick_path_softmax`, `lick_trajectories_3d`), labeled
+  "encoding rule": a baseline choice, not a geometry failure.
+
+**But June 3-D still differs from August pre, in two ways.** Measure: per-session x position median landing at the 3-D
+peak (side_ml / out_ap / down_dv), against the same animal's August pre mean.
+
+1. **A per-animal COMMON shift (mean over the 6 spouts) of 0.1-0.8 mm, the same on all three June days.** August's
+   leave-one-session-out common shift is 0.06-0.08 mm.
+   - PS92 down_dv +0.55 / +0.78 / +0.55
+   - PS95 side_ml -0.39 / -0.45 / -0.43
+   - PS94 down_dv -0.27..-0.38
+   - PS93 out_ap +0.14..+0.23
+
+   Most likely the June head / set-point placement, since the origin is the stage's mouth set point. This matches the
+   10-18 jaw-from-mouth floor: 0.41 all-pre vs 0.25 August-only.
+2. **A SPOUT-SPECIFIC spread (SD across spouts of the offset) of 0.3-0.5 mm vs August 0.09-0.17.** This is either real
+   June -> August learning (contact fraction 0.11 vs 0.02, 10-18) or residual geometry. This check cannot separate the two.
+
+Summary: per animal x position, June minus August is median |z| 1.1-1.9 against August's day-to-day SD. August
+early-half vs late-half is 0.7-0.9.
+
+**Reading.**
+- Usable from June: measures that cancel a per-session constant shift, e.g. between-spout differences, landing relative
+  to the session's own centroid, trajectory shape, speed, timing.
+- Not usable without a correction: absolute stage-frame measures (miss distance, landing vs the target spout).
+- Even with good geometry, June is an earlier training stage, so it fits better as a learning / drift reference (as
+  `iti_june_ref.py` does) than as pooled stroke baseline. Decision is Priya's.
+- Checked inline from the snapshot; no code or output change.
+
+**D13 head-anchor check (11-07, same day).**
+- Data: 3-D nose and jaw REST, taken as pre-cue frames with the tongue absent, per-session medians from the existing
+  `session_poses/pose3d/<sid>_frames.csv.gz`; 43 pre sessions; scratchpad `june_head_anchor.py`.
+- August day-to-day SD: nose 0.06 / 0.21 / 0.13 mm (ml / ap / dv), jaw rest 0.05 / 0.22 / 0.09.
+
+June shift vs the animal's August mean:
+- **Nose: small**, mostly <= 0.2 mm. Exception: PS95 ap -0.15..-0.41.
+- **Jaw rest: back in every June session** (ap -0.15..-0.77 mm), with otherwise small ml / dv.
+
+**The June lick-landing common shifts are mostly NOT head placement:**
+- PS92 lands 0.55-0.78 mm lower, while its head sits 0.1-0.16 mm lower.
+- PS95 lands 0.39-0.45 mm more to the side, while its nose / jaw ml shift is <= 0.14.
+- Signs mostly agree (r .3-.6 over 12 sessions, largely between animals), so subtracting the head shift removes only a
+  fraction.
+
+Because the nose is measured in the same stage frame and stays put, a June frame / PnP error is also unlikely (it would
+move the nose too). **So the June 3-D offsets are mainly behavior: an earlier training stage, with licks landing
+differently and the jaw resting further back. They are not a geometry failure.** June 3-D is usable as a measurement,
+but it is behaviorally a different baseline: a learning / drift reference, not pooled stroke pre.

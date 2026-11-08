@@ -1,6 +1,23 @@
 # Handoff 2026-11-01: quiet-period cortical events after the VLS stroke (cohort1, PS92-95) + literature context
 
-> **11-07 (night) -- START HERE (a8).** Supersedes the deck / page facts of the 11-07 evening block below.
+> **11-08 (overnight) -- START HERE (a8).** June pre-stroke sessions as a REFERENCE (Priya 11-07 night).
+> - Read first: `docs/status/RUNNING_LIST_2026-11-08_a8_june.md` (decisions for Priya on top, findings, done / running),
+>   `docs/POSE_MODELS.md` D13 (June 3-D: geometry holds; June offsets are behavior, not head placement / frame),
+>   `docs/status/JUNE_COVERAGE_2026-11-07.md` (what exists for June, what is filtered, what was never run).
+> - Task 1 (3-D June reference): `scripts/pose3d_june_reference.py` -> `session_poses/pose3d/june_reference/` (June vs
+>   own August pre, within-animal session shuffles 10k, Holm over positions; post epochs drawn alongside). DONE 11-08:
+>   June differs from August ~1/5 as much as acute; chronic endpoint / lateral residuals exceed June's, jaw opening does
+>   not (running list findings). Not on the page / deck (decision 3 for Priya).
+> - O2: Priya HELD `frf_null` tasks 58716929_[1992-2000] so the June FR run starts first -- release them afterwards.
+> - Task 2 (June trial classes): `trial_classes` already classifies June on demand; June working periods look like
+>   August's. Only session LISTS skip June.
+> - Task 3/4 (FR June): `face_rhythm_warp_rois.py to-sessions --june` + `qc-june` (register/qc_june_rois.png); O2 bundle
+>   `o2/fr_cam4_june_20261108` SUBMITTED by Priya 11-08. Next when it lands: rsync out/, `o2_face_rhythm.py collect
+>   --name fr_cam4_june_20261108`, project onto frozen master_pre_v1, June readouts (exclude off-frame mesh points:
+>   PS95 06/07 4, 06/08 29 -- decision 2 in the running list).
+> - Also 11-07 night: pooled-null interim rescore (subacute 379 perms; FR handoff NIGHT (5)); Priya: page waits for chronic.
+
+> **11-07 (night) -- a8.** Supersedes the deck / page facts of the 11-07 evening block below.
 > - DECK `Overview_2026-11-06.pptx` = **201 slides**. NEW after slide 82 (aligned speed maps): 83 lick rate per spout
 >   (fig:cohort_lick_rate_by_position), 84 rhythm-band maps (fig:band_maps_lick_rhythm + fig:band_maps_lick_ongoing_7Hz),
 >   85 HIDDEN band-map drift control. Slide 82 + hidden drift slide (now 94) refreshed at 10,000 shuffles, slide 82 bullet
