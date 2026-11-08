@@ -158,7 +158,20 @@ print(f"{label}: {len(cue)} rows ({int(np.isfinite(lick).sum())} timed), {R.shap
 '''
 
 
+def analysis_mask():
+    """`beta_maps.brain_mask()` (Allen brain - bulbs - painted glue, union) resolved WITHOUT the rebuild profile, and
+    refused if the glue is missing. Found 11-08: under the profile `paint_exclusion.mask_dir` points at the rebuild's
+    own grant_figures, where the hand-painted masks do not exist, so `painted_exclusion` silently returns an empty mask
+    (192,110 px instead of 151,447: glue IN). Call before `L._env`."""
+    from wfield_local import beta_maps
+    painted = beta_maps.painted_exclusion()
+    if not painted.any():
+        raise SystemExit("painted glue mask is empty (profile applied? paint_exclusion.mask_dir) -- refusing to build")
+    return beta_maps.brain_mask()
+
+
 def cmd_bundle(a) -> None:
+    mask = analysis_mask()                                             # before the profile (see analysis_mask)
     L._env(L.CACHE)                                                    # the rebuild profile: bundle_dir under its root
     import numpy as np
 
@@ -184,9 +197,7 @@ def cmd_bundle(a) -> None:
     sess = {s["label"]: s for s in config.load_sessions()}
     at = Path(sess[pre[0]]["mc"]) / "wfield_local_results" / "allen_aligned_affine8v1" / "allen_area_atlas_native_grid.npy"
     shutil.copyfile(at, d / "atlas.npy")
-    from wfield_local import beta_maps
-    mask = beta_maps.brain_mask()                                      # Allen brain - bulbs - painted glue (union)
-    np.save(d / "mask.npy", mask)
+    np.save(d / "mask.npy", mask)                                      # Allen brain - bulbs - painted glue (union)
     (d / "labels.txt").write_text("".join(f"{x}\n" for x in labels), encoding="utf-8", newline="\n")
     shutil.copyfile(src / "env.json", d / "env.json")                  # same profile settings as the LocaNMF run
     s = oi.scratch(a.user)

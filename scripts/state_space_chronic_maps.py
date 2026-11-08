@@ -140,13 +140,21 @@ def area_table(resp, unit, W, names, version, rng):
     return rows
 
 
-def draw(ax, v, mask, edges, vmax, thr=None):
+def draw(ax, v, mask, edges, vmax, thr=None, brain=None):
+    """One map. Analyzed pixels (``mask``) in color with area outlines inside them; brain pixels NOT analyzed (``brain``
+    minus ``mask``: the painted glue and the bulbs, Priya 11-08 "make clear our mask") in flat grey; the analyzed
+    field of view outlined."""
     img = np.full(mask.shape, np.nan)
     img[mask] = v
-    r, c = np.where(mask)
+    full = mask if brain is None else (brain | mask)
+    r, c = np.where(full)
     sl = (slice(r.min(), r.max() + 1), slice(c.min(), c.max() + 1))
+    if brain is not None:
+        ax.imshow(np.where((brain & ~mask)[sl], 1.0, np.nan), cmap="Greys", vmin=0, vmax=2.5, interpolation="nearest")
     ax.imshow(img[sl], cmap="RdBu_r", vmin=-vmax, vmax=vmax, interpolation="nearest")
-    ax.imshow(np.where(edges[sl], 1.0, np.nan), cmap="gray_r", vmin=0, vmax=1.5, alpha=0.5, interpolation="nearest")
+    ax.imshow(np.where((edges & mask)[sl], 1.0, np.nan), cmap="gray_r", vmin=0, vmax=1.5, alpha=0.5,
+              interpolation="nearest")
+    ax.contour(mask[sl].astype(float), [0.5], colors="0.25", linewidths=0.7)
     if thr is not None:
         sig = np.zeros(mask.shape)
         sig[mask] = np.abs(v) > thr
@@ -158,7 +166,7 @@ def draw(ax, v, mask, edges, vmax, thr=None):
         s.set_visible(False)
 
 
-def fig_cohort(res, mask, edges, version):
+def fig_cohort(res, mask, edges, version, brain=None):
     cols = list(range(7)) if version != "spout" else list(range(1, 7))
     vmax = np.nanpercentile(np.abs(res["chronic"][0][cols]), 99)
     fig, axs = plt.subplots(len(EPS), len(cols), figsize=(2.3 * len(cols), 2.5 * len(EPS) + 0.6), squeeze=False)
@@ -166,7 +174,7 @@ def fig_cohort(res, mask, edges, version):
         M, thr = res[ep][0], res[ep][1]
         for c, ci in enumerate(cols):
             ax = axs[r, c]
-            draw(ax, M[ci], mask, edges, vmax, thr[ci])
+            draw(ax, M[ci], mask, edges, vmax, thr[ci], brain)
             if r == 0:
                 ax.set_title("mean over spouts" if ci == 0 else S.POS[ci - 1].replace("_", " "))
             if c == 0:
@@ -175,25 +183,27 @@ def fig_cohort(res, mask, edges, version):
     fig.colorbar(sm, ax=axs, fraction=0.015, pad=0.01, label="change vs own pre (units of the animal's pre response RMS)")
     fig.suptitle(f"Where the post-stroke response changes: {LABEL[version]}, mean of 4 animals ({S.ALIGN_LABEL[S.ALIGN]}; "
                  f"first-lick trials, camera first lick; response window minus baseline, change vs own pre). Contour: "
-                 f"family-wise p < .05 per panel, within-animal session shuffles ({N_PERM}). Image left = ipsilesional.",
+                 f"family-wise p < .05 per panel, within-animal session shuffles ({N_PERM}). Image left = ipsilesional. Grey = brain "
+                 f"not analyzed (painted fibre glue, olfactory bulbs); outline = analyzed field of view.",
                  y=1.02, fontsize=9.5)
     save_png_svg(fig, FIGS / f"ss_cmap_{version}_{SUF}.png", dpi=120, bbox_inches="tight")
     plt.close(fig)
 
 
-def fig_animals(res, mask, edges, version):
+def fig_animals(res, mask, edges, version, brain=None):
     cols = list(range(7)) if version != "spout" else list(range(1, 7))
     V, ans = res["chronic"][2], res["chronic"][3]
     vmax = np.nanpercentile(np.abs(V[:, cols]), 99)
     fig, axs = plt.subplots(len(ans), len(cols), figsize=(2.3 * len(cols), 2.5 * len(ans)), squeeze=False)
     for r, an in enumerate(ans):
         for c, ci in enumerate(cols):
-            draw(axs[r, c], V[r, ci], mask, edges, vmax)
+            draw(axs[r, c], V[r, ci], mask, edges, vmax, brain=brain)
             if r == 0:
                 axs[r, c].set_title("mean over spouts" if ci == 0 else S.POS[ci - 1].replace("_", " "))
             if c == 0:
                 axs[r, c].set_ylabel(an, fontsize=11)
-    fig.suptitle(f"Chronic change vs own pre, per animal: {LABEL[version]} ({S.ALIGN_LABEL[S.ALIGN]})", y=1.01)
+    fig.suptitle(f"Chronic change vs own pre, per animal: {LABEL[version]} ({S.ALIGN_LABEL[S.ALIGN]}). Grey = brain not "
+                 f"analyzed (glue, bulbs)", y=1.01)
     save_png_svg(fig, FIGS / f"ss_cmap_animals_{version}_{SUF}.png", dpi=100, bbox_inches="tight")
     plt.close(fig)
 
@@ -207,6 +217,18 @@ def main():
     mask = np.load(BASIS_DIR / "mask.npy").reshape(np.load(S.SVD.parents[1] / "atlas.npy").shape)
     atlas = np.load(S.SVD.parents[1] / "atlas.npy")
     edges = region_edges(np.where(mask, atlas, 0))
+    from wfield_local import beta_maps
+    brain = beta_maps.allen_mask()                                             # the whole Allen brain, nothing removed
+    if "--replot" in sys.argv:                                                 # figures only, from the saved maps
+        z = np.load(OUT / "maps.npz")
+        ans = sorted({c.split("_", 1)[1] for c in pd.read_csv(OUT / "areas.csv").columns if c.startswith("d_")})
+        for version in VERSIONS:
+            res = {ep: (z[f"{version}__{ep}__mean"], z[f"{version}__{ep}__thr"], z[f"{version}__{ep}__animals"], ans)
+                   for ep in EPS}
+            fig_cohort(res, mask, edges, version, brain)
+            fig_animals(res, mask, edges, version, brain)
+        print(f"replotted {OUT}")
+        return
     W, names = S._svd_area_weights()
     unit, rows, store = None, [], {}
     for version, xf in VERSIONS.items():
@@ -218,8 +240,8 @@ def main():
                     for an, d in resp.items()}
         rng = np.random.default_rng(0)
         res = pixel_maps(resp, unit, Uc, rng)
-        fig_cohort(res, mask, edges, version)
-        fig_animals(res, mask, edges, version)
+        fig_cohort(res, mask, edges, version, brain)
+        fig_animals(res, mask, edges, version, brain)
         rows += area_table(resp, unit, W, names, version, np.random.default_rng(1))
         for ep, (M, thr, V, _ans) in res.items():
             store[f"{version}__{ep}__mean"] = M.astype(np.float32)
