@@ -555,3 +555,14 @@ re-run needed for A20. (scratchpad/a20/exec_bins_calib_A20.csv)
   sets (DAQ rows) -> which camera group; "none" includes unknown + close-mid unjudged (as G4); run DAQ-grouping G1-G3
   as a labeled supplement?; deck text "engaged-vs-no-lick" (locanmf_analysis_deck.py); stale "NOT lick-free" suptitle
   (encoding_key_figures); 11 legacy scripts still star on data (listed in the new test).
+
+## 11-08 ~14:00 -- section G profile + fix
+- Section G one-unit profile (PS94 unit 5, code c3a8b049 = g5_section_g_r4): WALL 2097 s. 85 % (1778 s) is
+  trial_classes.daq_cue_seconds, called 297x per unit, re-reading + re-decoding the same raw DAQ h5 files (h5 read
+  815 s, digital_bits / rising_edges ~600 s); ~700 s of nt.stat path checks via config.load_sessions (429 calls),
+  partly inside it. Same repeated-loading pattern as partial_refit.
+- Fix: branch perf/daq-cue-seconds-memo (wf_daqmemo, a5b7bf3c on main c12305d4): memoize per (label, WIDEFIELD_* /
+  WFIELD_* env), copy per call; 3 new tests + 83 related pass. NOT pushed.
+- Measuring now: same unit, base (v9zh) vs base + memo (detached wf_prof_memo), results pickled and compared for
+  exact equality (scratchpad/prof_g/{base,memo}.{txt,pkl}). Section G scope proposal waits on this number.
+- t_frame_te_basis (v9zu-TB) EXIT 0 13:39 -> v9u-R / v9zq-SVD lanes unblocked (encoder t_* family, a76352f3, audited).
