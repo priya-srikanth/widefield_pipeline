@@ -662,3 +662,8 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
   figdata redraws.
 - QUESTION for Priya: LP map-drift figures (June vs August pre) cannot be made (June has no camera trial table): keep the
   DAQ "contact" drift figures labeled as such, or drop them?
+- 16:22 v9zw-IT: e_pat_stats_maps_r2 + e_roi_check_r2 EXIT 0 (te-basis fix works); e_roi_foci_r2 EXIT 1 = MISSING
+  PRODUCER: it reads figdata/lick_cued_spout_pattern_stats.pkl from scripts/iti_spout_pattern_stats.py, which (with its
+  input iti_spout_patterns.py, the per-spout Haufe maps "3.35") never ran in the rebuild -- no queue step. 16:24 launched
+  queue_daqlk9zy.sh lane IT2 (597cbed9): e_spout_patterns -> e_spout_pat_stats -> e_roi_foci_r3 -> e_roi_cand_r3 ->
+  e_rim_overlay_r3 (frozen env, as the ITI family).
