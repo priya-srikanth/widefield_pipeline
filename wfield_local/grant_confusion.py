@@ -622,7 +622,13 @@ def _matched_frozen(pipe_of, Xp, Yp, Bp, n_target, rng):
     from wfield_local import spout_scaling
     fitted.spout_pi_train_ = spout_scaling.class_prior(Yp[keep])
     return fitted, int(keep.sum())
-def _refit_pred(pipe_of, X, y, blk, *, max_splits=5):
+#: When a list, `_collect_5c_cached` appends every session's REFIT inputs to it (dict animal, label, pre, X, y, blk) --
+#: exactly the arrays `_refit_pred` sees for the 5r figures. Read-only hook for `scripts/refit_mix_matched_control.py`
+#: (D6, Priya 11-08); None (the default) changes nothing.
+REFIT_CAPTURE = None
+
+
+def _refit_pred(pipe_of, X, y, blk, *, max_splits=5, mark_thin=True):
     """Within-session block-CV prediction on ONE session: what a decoder that SAW this session gets.
 
     The counterpart to the frozen decoder, and the control that separates the two readings of a
@@ -647,6 +653,8 @@ def _refit_pred(pipe_of, X, y, blk, *, max_splits=5):
     except Exception:                                                 # noqa: BLE001
         return None
     y = np.asarray(y)
+    if not mark_thin:      # the mix-matched control scores every class: its matched pre has the same counts (D6)
+        return pred
     cls, cnt = np.unique(y, return_counts=True)
     thin = cls[(cnt < MIN_REFIT_CLASS) | (cnt / max(len(y), 1) < MIN_REFIT_SHARE)]
     if thin.size:
@@ -906,6 +914,9 @@ def _collect_5c_cached(align, variant="working", mode="frozen", _run=None):
                 same leave-one-session-out discipline as the unmatched one.
                 """
                 y, blk = np.asarray(y), np.asarray(blk)
+                if REFIT_CAPTURE is not None and X_refit is not None and sess is not None:
+                    REFIT_CAPTURE.append(dict(animal=an, label=bd["kept"][sess], pre=sess in bd["pre_i"],
+                                              X=np.asarray(X_refit), y=y, blk=blk))
                 if mode == "paired_matched":
                     if pool is None:
                         return None
