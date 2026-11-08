@@ -149,12 +149,33 @@ def extract(jobs: int | None):
 
 
 # =============================================================================================== main
+def times_worker(lab: str) -> pd.DataFrame:
+    """One session's per-trial strobe / stop (ms from the cue; `trial_classes._trial_times` via `session_trials`)."""
+    from wfield_local import trial_classes as tc
+    T = tc.session_trials(lab)
+    return T[["trial_id", "strobe_ms", "stop_ms"]].assign(label=lab)
+
+
+def extract_times(jobs: int | None):
+    """Added 11-08 for the slope-unit test (Priya: "trial lengths can vary post-stroke though (enl licking changes)"):
+    the per-trial strobe -> cue wait and cue -> trial end, joined later on (label, trial_id)."""
+    from wfield_local import analysis_kit as ak
+    labs = sorted(pd.read_csv(OUT / "trials.csv.gz", usecols=["label"]).label.unique())
+    res, fail = ak.fan_sessions(labs, times_worker, jobs=jobs)
+    if fail:
+        raise SystemExit(f"failures: {fail}")
+    pd.concat([v for _k, v in res], ignore_index=True).to_csv(OUT / "trial_times.csv.gz", index=False)
+    print("wrote", OUT / "trial_times.csv.gz")
+
+
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("stage", choices=["extract", "analyze", "plot"])
+    ap.add_argument("stage", choices=["extract", "times", "analyze", "plot"])
     ap.add_argument("--jobs", type=int, default=None)
     a = ap.parse_args()
-    if a.stage == "extract":
+    if a.stage == "times":
+        extract_times(a.jobs)
+    elif a.stage == "extract":
         extract(a.jobs)
     elif a.stage == "analyze":
         analyze()
@@ -197,9 +218,9 @@ MEASURES = [("fc_dside", "dside", "far_contra", MIN_FC), ("oth_dside", "dside", 
             ("all_dside", "dside", None, MIN_ALL), ("lat", "dlat", None, MIN_ALL),
             ("fc_lat", "dlat", "far_contra", MIN_FC), ("contact", "dcontact", None, MIN_ALL),
             ("speed", "dspeed", None, MIN_ALL), ("reach", "dreach", None, MIN_ALL),
-            ("nlick", "dnlick", None, MIN_ALL)]
+            ("nlick", "dnlick", None, MIN_ALL), ("far_dside", "dside", "far", MIN_ALL)]
 UNITS = {"fc_dside": "mm", "oth_dside": "mm", "all_dside": "mm", "lat": "ms", "fc_lat": "ms", "contact": "prop.",
-         "speed": "mm/s", "reach": "mm", "nlick": "licks/trial"}
+         "speed": "mm/s", "reach": "mm", "nlick": "licks/trial", "far_dside": "mm"}
 
 
 def _subset(g, sub):
@@ -207,13 +228,21 @@ def _subset(g, sub):
         return g
     if sub == "not_fc":
         return g[g.pos != "far_contra"]
+    if sub == "far":
+        return g[g.pos.str.startswith("far")]
     return g[g.pos == sub]
 
 
 def session_slopes(D: pd.DataFrame, cut_before_quit_min: float = 0.0) -> pd.DataFrame:
-    """Per session x measure: slope per HOUR of elapsed time and per normalized order (first -> last trial, as the
-    state-space script), on working trials with a 3-D first lick (n_licks rows need only working). Multi-spout
-    measures are demeaned within spout first. ``cut_before_quit_min`` drops trials that close to the camera quit."""
+    """Per session x measure, on working trials with a 3-D first lick (n_licks rows need only working); multi-spout
+    measures demeaned within spout first; ``cut_before_quit_min`` drops trials that close to the camera quit:
+      ``_hr``    slope per HOUR of elapsed time -- PRIMARY (Priya 11-08: post-stroke sessions are shorter, so a
+                 per-normalized-session slope biases against the stroke effect; the pacing tests say the drift is
+                 clock / state-like, so time is the natural unit);
+      ``_trial`` slope per 100 TRIALS of the session (DAQ cue index, every trial counted) -- ROBUSTNESS row (it mixes
+                 the drift with the trial rate, which itself changes after the stroke);
+      ``_ord``   per normalized order (first -> last trial) -- kept ONLY to check the reproduction of the state-space
+                 numbers; no longer tested or reported (Priya 11-08)."""
     rows = []
     for lab, g in D[D.working].groupby("label", sort=True):
         if cut_before_quit_min and np.isfinite(g.quit_min.iloc[0]):
@@ -224,13 +253,14 @@ def session_slopes(D: pd.DataFrame, cut_before_quit_min: float = 0.0) -> pd.Data
         for name, col, sub, nmin in MEASURES:
             h = _subset(g, sub).dropna(subset=[col])
             if len(h) < nmin:
-                r[f"{name}_hr"] = r[f"{name}_ord"] = r[f"{name}_mean"] = np.nan
+                r[f"{name}_hr"] = r[f"{name}_trial"] = r[f"{name}_ord"] = r[f"{name}_mean"] = np.nan
                 continue
             y = h[col].to_numpy(float)
-            if sub in (None, "not_fc"):
+            if sub in (None, "not_fc", "far"):
                 y = y - h.groupby("pos")[col].transform("mean").to_numpy(float)
             order = np.argsort(np.argsort(h.k.to_numpy()))
             r[f"{name}_hr"] = _slope(h.t_hr.to_numpy(float), y)
+            r[f"{name}_trial"] = _slope(h.k.to_numpy(float) / 100.0, y)
             r[f"{name}_ord"] = _slope(order / max(len(h) - 1, 1), y)
             r[f"{name}_mean"] = float(h[col].mean())
         rows.append(r)
@@ -458,6 +488,76 @@ def within_animal_assoc(X: pd.DataFrame, xcol: str, ycol: str, groups=("pre", "e
     return pd.DataFrame(out)
 
 
+# ---------------------------------------------------------------------------------------------- slope unit (11-08)
+UNIT_MEASURES = ("lat", "fc_dside", "far_dside")
+DUR_COLS = ("rate_tph", "cycle_s", "prewait_s", "post_s", "iti_s")
+
+
+def session_durations(D: pd.DataFrame) -> pd.DataFrame:
+    """Per session, working trials: trial RATE (trials per working hour), median cue -> next cue CYCLE (s), and its
+    parts: PRE-CUE WAIT strobe -> cue (s; the ENL period, lengthened by ENL licks that reset it), POST = cue -> trial
+    end (stop, s), ITI = the rest (trial end -> next strobe: spout move / dock). Means over working trials."""
+    TT = pd.read_csv(OUT / "trial_times.csv.gz")
+    X = D.merge(TT, on=["label", "trial_id"], how="left")
+    rows = []
+    for lab, g in X.sort_values(["label", "k"]).groupby("label", sort=True):
+        cyc = np.diff(g.t_min.to_numpy() * 60.0)
+        nxt_work = (g.working.to_numpy()[:-1]) & (np.diff(g.k.to_numpy()) == 1)
+        w = g[g.working]
+        span_h = (w.t_min.max() - w.t_min.min()) / 60.0 if len(w) > 1 else np.nan
+        cycle = float(np.median(cyc[nxt_work])) if nxt_work.any() else np.nan
+        pre = float(np.nanmedian(-w.strobe_ms)) / 1000.0
+        post = float(np.nanmedian(w.stop_ms)) / 1000.0
+        rows.append(dict(label=lab, rate_tph=len(w) / span_h if span_h and span_h > 0 else np.nan, cycle_s=cycle,
+                         prewait_s=pre, post_s=post, iti_s=cycle - pre - post))
+    return pd.DataFrame(rows)
+
+
+def _elasticity(X: pd.DataFrame, ycol: str, group: str) -> float:
+    """Pooled within-animal elasticity of a session slope to the trial rate: y = a_animal + c * log(rate), divided by
+    the group's mean slope. Clock-paced drift: per-hour e = 0, per-trial e = -1; trial-paced: per-hour +1, per-trial 0.
+    Descriptive only (unstable when the mean slope is near 0)."""
+    G = X[X.grp == group].dropna(subset=[ycol, "rate_tph"])
+    G = G[G.groupby("animal").label.transform("size") >= 4]
+    if len(G) < 8:
+        return np.nan
+    xr = np.log(G.rate_tph) - G.groupby("animal").rate_tph.transform(lambda v: np.log(v).mean())
+    yr = G[ycol] - G.groupby("animal")[ycol].transform("mean")
+    c = float((xr * yr).sum() / (xr ** 2).sum())
+    return c / float(G.groupby("animal")[ycol].mean().mean())
+
+
+def unit_test(X: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    """Priya 11-08: which slope unit is independent of the session's trial rate? Per measure x unit, within-animal
+    Spearman (shuffle null) of the session slope with the trial rate and with each duration part, by epoch group,
+    + the pooled elasticity; and the duration parts' change vs own pre."""
+    from wfield_local import analysis_kit as ak
+    A, E = [], []
+    for m in UNIT_MEASURES:
+        for unit in ("hr", "trial"):
+            y = f"{m}_{unit}"
+            for d in DUR_COLS:
+                A.append(within_animal_assoc(X, d, y).assign(measure=m, unit=unit))
+            for gname in ("pre", "early_post", "chronic"):
+                E.append(dict(measure=m, unit=unit, group=gname, elasticity=_elasticity(X, y, gname)))
+    A = pd.concat(A, ignore_index=True)
+    E = pd.DataFrame(E)
+    rng = np.random.default_rng(SEED + 5)
+    out = []
+    for d in DUR_COLS:
+        print(f"\n[unit] per-animal session means: {d}")
+        print(per_animal(X, d).round(3).to_string())
+        for ep in POST:
+            iv = ak.boot_delta(by_animal(X, d, ep), by_animal(X, d, "pre"), rng, N_BOOT)
+            if iv is None:
+                continue
+            Pm = per_animal(X, d)
+            dd = (Pm[ep] - Pm["pre"]).dropna()
+            out.append(dict(measure=d, epoch=ep, delta=iv.point, lo=iv.lo, hi=iv.hi, n_pos=int((dd > 0).sum()),
+                            n_neg=int((dd < 0).sum()), per_animal=" ".join(f"{a}:{v:+.3g}" for a, v in dd.items())))
+    return A, E, pd.DataFrame(out)
+
+
 def spout_slopes(D: pd.DataFrame) -> pd.DataFrame:
     """Per session x spout, per-hour slope of dside and dlat (working, 3-D first lick, >= MIN_FC trials)."""
     rows = []
@@ -489,10 +589,10 @@ def analyze():
     S15 = session_slopes(D, cut_before_quit_min=15.0)
     S15.to_csv(TAB / "session_slopes_cut15.csv", index=False)
     cols_hr = [f"{m[0]}_hr" for m in MEASURES]
-    cols_ord = [f"{m[0]}_ord" for m in MEASURES]
-    R = pd.concat([delta_rows(S, cols_ord, "Q1_order"), delta_rows(S, cols_hr, "Q1_hour"),
+    cols_tr = [f"{m[0]}_trial" for m in MEASURES]
+    R = pd.concat([delta_rows(S, cols_hr, "Q1_hour"), delta_rows(S, cols_tr, "Q1_trial"),
                    delta_rows(S15, ["fc_dside_hr", "lat_hr", "oth_dside_hr", "contact_hr"], "Q1_hour_cut15")])
-    L = pd.concat([level_rows(S, cols_hr, "Q1_hour_level"), level_rows(S, cols_ord, "Q1_order_level")])
+    L = pd.concat([level_rows(S, cols_hr, "Q1_hour_level"), level_rows(S, cols_tr, "Q1_trial_level")])
     L.to_csv(TAB / "q1_slope_levels.csv", index=False)
     print("\n[Q1 levels] within-session slope itself, boot_ci (flat pool):")
     print(L.round(3).to_string(index=False))
@@ -546,7 +646,20 @@ def analyze():
             show[c] = (show[c] * 100).round(2)
         print(show.to_string(index=False))
     X = accrual_instrument(S, D)
+    X = X.merge(session_durations(D), on="label", how="left")
     X.to_csv(TAB / "q3_session_accrual.csv", index=False)
+
+    # ---- slope unit (Priya 11-08): per hour vs per trial, which is independent of the trial rate / duration?
+    UA, UE, UD = unit_test(X)
+    UA.to_csv(TAB / "unit_rate_assoc.csv", index=False)
+    UE.to_csv(TAB / "unit_elasticity.csv", index=False)
+    UD.to_csv(TAB / "unit_durations_vs_pre.csv", index=False)
+    with pd.option_context("display.width", 250):
+        print("\n[unit] duration parts, change vs own pre:\n", UD.round(3).to_string(index=False))
+        print("\n[unit] within-animal r of session slope with trial rate / duration parts:\n",
+              UA[["measure", "unit", "x", "group", "mean_r", "p_shuffle", "per_animal"]].round(3).to_string(index=False))
+        print("\n[unit] pooled elasticity to trial rate (clock: hr 0 / trial -1; trial-paced: hr +1 / trial 0):\n",
+              UE.round(2).to_string(index=False))
     A = pd.concat([within_animal_assoc(X, xc, yc) for yc in ("fc_dside_hr", "lat_hr", "oth_dside_hr")
                    for xc in ("water_rate", "drop_ul", "lick_rate")])
     print("\n[Q3 instrument] within-animal r of the per-hour drift with the early accrual rates:\n",
@@ -556,7 +669,7 @@ def analyze():
     X["quit_or_end"] = np.where(X.censored, X.end_min, X.quit_min)
     X["quit_early"] = ~X.censored
     A4 = pd.concat([within_animal_assoc(X, xc, yc) for yc in ("quit_or_end", "n_working")
-                    for xc in ("fc_dside_hr", "lat_hr", "oth_dside_hr", "fc_dside_ord", "lat_ord")])
+                    for xc in ("fc_dside_hr", "lat_hr", "oth_dside_hr", "fc_dside_trial", "lat_trial")])
     Xq = X[~X.censored]
     A4q = pd.concat([within_animal_assoc(Xq, xc, "quit_min") for xc in ("fc_dside_hr", "lat_hr")]).assign(
         note="quitting sessions only")
@@ -663,6 +776,21 @@ def plot():
     sm.reserve_headroom(fig)
     fig.tight_layout(rect=(0, 0.05, 1, 0.95))
     save_png_svg(fig, FIG / "wsd_fig1_slopes_per_hour.png", dpi=200)
+    plt.close(fig)
+
+    # ---- Fig 1b: the same per 100 trials (robustness row, Priya 11-08)
+    stars_t = {(r["measure"], r["epoch"]): r for r in R[R.family == "Q1_trial"].to_dict("records")}
+    fig, axs = plt.subplots(2, 3, figsize=(9.5, 5.6))
+    for ax, (c, t) in zip(axs.flat, panels):
+        _sessions_panel(ax, S, c.replace("_hr", "_trial"), stars_t, t.replace("/ h)", "/ 100 trials)"))
+    fig.legend(handles=leg, fontsize=6, frameon=False, ncol=8, loc="upper center", bbox_to_anchor=(0.5, 0.955))
+    fig.suptitle("Fig 1b. Within-session drift per 100 trials (robustness row; session = open marker; bar = mean of "
+                 "animal means; dashed = pre)", fontsize=9)
+    fig.text(0.01, 0.005, PROV + " Slope = OLS on the session trial index (every trial counted) / 100.",
+             fontsize=5.5, wrap=True)
+    sm.reserve_headroom(fig)
+    fig.tight_layout(rect=(0, 0.05, 1, 0.95))
+    save_png_svg(fig, FIG / "wsd_fig1b_slopes_per_trial.png", dpi=200)
     plt.close(fig)
 
     # ---- Fig 2: quit-aligned (camera quit) vs time-matched control sessions

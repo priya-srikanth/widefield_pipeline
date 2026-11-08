@@ -8,22 +8,28 @@ Priya (11-07), on the state-space observation that first-lick latency slows and 
 ipsilesionally within post-stroke sessions: *"this is important; i wonder how this relates to the animals 'quitting'
 after stroke. can we look into this"*.
 
-## 0. Decisions needed from Priya first
+## 0. Decisions (Priya, 2026-11-08, relayed by the coordinating session)
 
-1. **Report the drift per HOUR (primary) or per normalized session?** The state-space numbers were per normalized
-   session (first -> last trial). Post-stroke sessions are shorter (subacute working span median 98 min vs pre 122), so
-   per hour is the fairer comparison; both are in the tables and agree in direction. Proposed: per hour primary.
-2. **Wording of the far-contra result.** The ipsilesional within-session drift is NOT far-contra specific: subacute it
-   is also at far ipsi (4/4) and close contra / close mid (3/4), and chronic at far ipsi (4/4). Proposed wording:
-   "within a session the whole far-spout landing pattern drifts ipsilesionally, strongest subacutely; largest at far
-   contra", not "the impaired direction degrades".
-3. **Quit prodrome = latency, in every epoch incl. pre.** Proposed: report the latency rise before the quit as a
-   general property of quitting (not a stroke effect), and say the aim drift is NOT a quit prodrome.
-4. **Satiety vs time cannot be separated within session** (predictors r 0.96-1.00). Accept the between-session /
-   between-animal instruments below as the best available, or plan a manipulation (e.g. pre-loaded water, or a
-   session with smaller drops) if this matters for the paper.
-5. Page / deck placement: a behavior-page subsection next to the S28 disengagement tests (Figs 1, 2, 5 main; 3, 4
-   supporting)? Not published yet.
+1. **Slope unit: per HOUR primary, per 100 TRIALS the robustness row; per normalized session dropped.**
+   Rationale: post-stroke sessions are shorter (subacute working span median 98 min vs pre 122), so a per-normalized-
+   session slope biases against the stroke effect; per trial mixes the drift with the trial rate, which itself changes
+   after the stroke; the pacing tests (R7) say the drift is clock / state-like. Priya's addendum (11-08): *"trial
+   lengths can vary post-stroke though (enl licking changes)"* -> let the data choose: the unit whose slope is
+   independent of the session's trial rate becomes primary. **Test and outcome (section 3, R0): neither unit's slope
+   depends on trial rate for any measure (all within-animal |r| <= 0.31, shuffle p >= 0.12); the one duration
+   dependence (latency drift vs the pre-cue / ENL wait, early post) has the SAME negative sign under both units, which
+   neither pacing model predicts, so it is a session-state covariate, not a unit artifact. The data do not
+   discriminate; per hour stays primary on the rationale above, per trial is the robustness row and agrees in sign
+   in every animal for the headline cells.** The normalized-order slope is still computed only to check the
+   reproduction of the state-space numbers.
+2. **Wording (adopted):** "the far landing pattern drifts ipsilesionally within the session, largest at far contra"
+   -- not "the impaired direction degrades".
+3. **Adopted:** the latency rise before quits is a general sign of quitting (present pre-stroke), not a stroke effect;
+   the aim drift is not a quit prodrome.
+4. **Satiety vs time:** between-session / between-animal comparisons only (R7); no manipulation planned.
+5. **Placement:** a behavior-page subsection next to the disengagement tests (S28). The behavior page belongs to
+   another window: this branch only PREPARES the subsection, `docs/results_pages/within_session_decline/section.html`
+   (not published; the page owner inserts it after the S28 block and uploads the figures).
 
 ## 1. What was already established (not re-tested here)
 
@@ -70,8 +76,12 @@ Per trial (56,979 trials, 107 curated sessions with video; PS93 pre has 7, PS93_
   cache (`disengagement/sessions/beh_<label>.pkl`; DAQ responded trials x reward_ul in force; cache version 2 = the
   pre-11-05 DAQ lick detector, 0.6 % of licks differ; t0 checked = 0.000 s offset in every session).
 
-Analyses: Q1 session slopes (per hour of elapsed time, and per normalized order as the state-space script; multi-spout
-measures demeaned within spout; >= 15 trials, >= 8 for one spout), change vs own pre with `boot_delta`; the slope
+Analyses: Q1 session slopes (per hour of elapsed time = primary; per 100 trials of the session = robustness row,
+decision 1; multi-spout measures demeaned within spout; >= 15 trials, >= 8 for one spout; "far" = the three far spouts
+pooled), change vs own pre with `boot_delta`; slope-unit test (11-08, `times` stage -> `trial_times.csv.gz`: per
+session the trial rate = working trials per working hour, the median cue -> next cue cycle, and its parts: pre-cue
+wait strobe -> cue incl. ENL-lick resets, cue -> trial end, the rest = ITI; within-animal Spearman of each slope with
+each, shuffle null, by epoch group; pooled elasticity, descriptive); the slope
 level with `boot_ci`; the same with the last 15 min before the quit removed. Q2 prodrome: per quitting session the
 change from [-30, -10) to [-10, 0) min before the camera quit, minus the same clock windows in the same animal's
 other sessions of the epoch still working then (time-matched, as `quit_prodrome`); quit-aligned 5-min bins. Q3 time
@@ -88,14 +98,40 @@ working-period / 3-D definitions.
 Outputs (`M:/MICROSCOPE/Priya/Widefield/within_session_decline/`): `trials.csv.gz`; `tables/session_slopes.csv`,
 `session_slopes_cut15.csv`, `q1_slope_levels.csv`, `contrasts_vs_pre.csv`, `q2_prodrome_sessions.csv`,
 `q2_prodrome_levels.csv`, `q2_quit_aligned_bins.csv`, `q3_pacing_fe.csv`, `q3_predictor_correlations.csv`,
-`q3_session_accrual.csv`, `q5_spout_slopes.csv`, `within_animal_assoc.csv`, `session_table.csv`, `analyze_log.txt`
-(every per-animal table, printed before each bootstrap); figures `wsd_fig1_slopes_per_hour`, `wsd_fig2_quit_aligned`,
+`q3_session_accrual.csv` (incl. the per-session trial rate / durations), `unit_rate_assoc.csv`, `unit_elasticity.csv`,
+`unit_durations_vs_pre.csv`, `q5_spout_slopes.csv`, `../trial_times.csv.gz`, `within_animal_assoc.csv`, `session_table.csv`, `analyze_log.txt`
+(every per-animal table, printed before each bootstrap); figures `wsd_fig1_slopes_per_hour`, `wsd_fig1b_slopes_per_trial`, `wsd_fig2_quit_aligned`,
 `wsd_fig3_pacing`, `wsd_fig4_drift_vs_quit`, `wsd_fig5_per_spout` (.png + svg/).
 
 Camera quits (quit / sessions): PS92 pre 0/8, acute 4/5, subacute 0/2, chronic 0/12; PS93 1/7, 3/4, 1/3, 1/12;
 PS94 5/8, 5/6, 4/5, 4/8; PS95 4/8, 0/1, 3/7, 5/11.
 
 ## 3. Results (n = 4; stars = boot_delta 95 % CI excludes 0; per-animal in the tables)
+
+**R0. Slope unit (decision 1; tables `unit_rate_assoc.csv`, `unit_elasticity.csv`, `unit_durations_vs_pre.csv`).**
+* Trial length does change post-stroke, through the PRE-CUE (ENL) wait only: cue -> next cue cycle acute -1.95 s
+  [-5.19, -0.06] (3/4 shorter; PS92 -6.6 s, its pre wait 10.6 s -> 3.7 s), chronic -1.30 s (4/4); pre-cue wait acute
+  -2.03 s [-5.29, -0.01] (3/4), chronic -1.18 (3/4); cue -> trial end -0.05 s (4/4, tiny); ITI +0.13 / -0.03 / -0.07
+  n.s. Trial rate per working hour: acute -4, subacute -24, chronic +11 trials/h, all n.s. (between-animal range
+  165-350 trials/h).
+* Slope vs trial rate, within animal (mean r over animals, shuffle p): latency per hour -0.15 / -0.29 / -0.04 (pre /
+  early post / chronic), per trial -0.15 / -0.31 / -0.04; far-contra aim per hour -0.01 / +0.01 / +0.02, per trial
+  +0.11 / 0.00 / 0.00; all-far aim per hour +0.14 / -0.09 / +0.14, per trial +0.03 / -0.09 / +0.08. None
+  significant, neither unit better.
+* Duration parts: the only dependence is latency drift vs the cycle / pre-cue wait EARLY POST: per hour r -0.60
+  (p .001) with the cycle, -0.45 (p .013) with the pre-cue wait; per trial -0.51 (p .006) and -0.36 (p .058); not
+  with cue -> trial end or the ITI, and not pre or chronic. Clock pacing predicts per-hour r = 0 and per-trial r > 0;
+  trial pacing predicts per-hour r < 0 and per-trial r = 0; both units are negative here, so sessions with long
+  pre-cue waits (more waiting / ENL licking) simply drift less -- a session state, not the unit. Aim drift: no
+  dependence on any part (|r| <= 0.26).
+* Pooled elasticities are unstable (|e| 0.4-62; the aim mean slopes are near 0 and within-animal rate varies only
+  +-10-20 %), so not used.
+* Per-trial vs per-hour, headline cells, per animal (all same sign): far-contra aim subacute per hour -0.20 mm/h
+  (PS92 -0.10, PS93 -0.22, PS94 -0.16, PS95 -0.33) vs per trial -0.074 mm / 100 trials [-0.119, -0.027] 4/4
+  (-0.073, -0.087, -0.043, -0.092); latency acute +126 ms/h (+45, +263, +157, +39) vs +40 ms / 100 trials [+4, +80]
+  4/4 (+5, +93, +48, +12); latency subacute +57 ms/h 4/4 n.s. vs +26 / 100 trials 3/4 n.s. (PS94 -0.3); all-far aim
+  subacute -0.097 mm/h [-0.200, -0.002] 4/4 vs -0.041 / 100 trials [-0.088, -0.000] 4/4; camera licks / trial subacute
+  -3.5 /h vs -1.4 / 100 trials, both 4/4. Fig 1b = Fig 1 per 100 trials.
 
 **R1. Latency slows within the session in every epoch, including pre, and more after the stroke (Fig 1).** Slope
 level per hour: pre +61 ms/h [+24, +114] (4/4 > 0), acute +205 [+130, +285] (4/4), subacute +113 [+58, +174] (4/4),
@@ -111,9 +147,9 @@ epoch (-0.04 to -0.07).
 
 **R3. Not specific to the impaired direction (Fig 5).** Per spout, aim drift change vs pre: subacute far contra -0.20
 (4/4), **far ipsi -0.16 [-0.33, -0.01] 4/4**, close mid -0.12 (3/4, n.s.), close contra -0.10 (3/4, n.s.); acute
-close contra -0.09 [-0.19, -0.01] 4/4; **chronic far ipsi -0.17 [-0.30, -0.03] 4/4**; far mid ~0. So the landing
-pattern as a whole drifts ipsilesionally (leftward) within post-stroke sessions, most at the far spouts, largest at
-far contra. Latency drift is also broad: acute far contra +188 [+12, +394] 4/4, far ipsi +210 [+57, +376] 4/4;
+close contra -0.09 [-0.19, -0.01] 4/4; **chronic far ipsi -0.17 [-0.30, -0.03] 4/4**; far mid ~0; the three far
+spouts pooled, subacute -0.097 mm/h [-0.200, -0.002] 4/4. Wording (decision 2): **the far landing pattern drifts
+ipsilesionally within the session, largest at far contra.** Latency drift is also broad: acute far contra +188 [+12, +394] 4/4, far ipsi +210 [+57, +376] 4/4;
 subacute close ipsi +55 [+1, +115] 4/4.
 
 **R4. Contact and vigor barely move (Fig 1).** First-lick contact slope: subacute -0.026 /h [-0.057, +0.004], 4/4
