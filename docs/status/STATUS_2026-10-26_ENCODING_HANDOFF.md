@@ -70,6 +70,13 @@ returns DAQ-engaged rows; DECISIONS.md 11-03-night line "The lick class stays th
 - Unaffected (checked): encoder lick regressors (COMBINED_ENCODING_LICKS=combined), ITI / cued-lick families, LP / goal
   steps, cue + precue working-arm decoders (Fig 3.4, cue far-contra -0.62 4/4, specificity), kinematics.
 
+**Update ~13:00:** settings audit #2 (scratchpad/settings_audit_actual.md): rest-baseline fix ba5b63bf missing from
+17 finished rest-family steps (re-run them); gain-bio stale; frozen spout decoder stored 3x with different pre input
+sets (trace cue / lick); ENL window follows the lick source. Floor branch (D7 + display floors) + partial-refit speed-up
+being PUSHED (Priya OK). Code fixes on fix/stars-spoutorder-g13-1108 (wf_fixes1108): stars top band, spout order,
+section G G1-G3 (f)1 + camera classes, DECISIONS lick-class correction. A20 table regenerating (scratchpad/a20).
+Then ONE consolidated re-run from a detached worktree at the new main (see running list ~13:00).
+
 **Done 11-08 morning:** section G r4 done 11:15 (88 units, 76 post; the `!!` lines = excluded June / 0817 sessions);
 section G figs done; g6_grant_r4 STOPPED 12:14 (Priya; invalid lick units). D6 matched-pre refit control (renamed
 refit_matched_pre, branch feature/refit-mixmatch-control, unpushed): working half acute far -0.22 / -0.15 / -0.26 (Holm

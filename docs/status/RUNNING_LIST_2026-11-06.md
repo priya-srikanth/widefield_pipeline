@@ -442,3 +442,23 @@ source (documented 10-21 / 11-03 / 11-07); successful lick = DAQ contact, supple
 outputs are relabeled successful-lick, not discarded; LPfinal holds the lick-class acc + maps; missing LP families listed in
 the handoff. g6_grant_r4 stopped (Priya). Refit floor 10 only + display floors removed: branch in progress. A20 calibration
 table not regenerated for the encoder: compare next. Settings audit #2 pending.
+
+**11-08 ~13:00 -- settings audit #2 + fixes under way (Priya: "ok to push. proceed with the fixes").**
+- Audit #2 (actual settings, 264 steps, 23 SHAs): uniform + decision-backed: hemo, projection, camera gate / stop A2,
+  max_rt 3500 + 70 ms, Wt, pre0801 (6 decided exceptions), bal_em, encoder, orofacial gate; no cohort-2 animal anywhere.
+  PROBLEMS: (1) rest-baseline fix ba5b63bf (11-06; 8 sessions counted only pre-first-cue frames as engaged rest under the
+  camera gate) missing from 17 finished rest / restw / RESTnl steps (g5_epoch 15r, g5_cd_traj(+orth_r), g5_rest_frozen(_nl),
+  l_*restw / revup / c2l, g2a/g2b_restnl_mask, gb_sessions, ...); (2) gain-bio stale (gb_sessions pre-fix, gb_sessions_r
+  never finished, gb_stats failed); (3) frozen spout decoder stored 3x (d_attempt_freeze 11-05, g5_joint_xsession(_r) 11-07,
+  "DIFFERENT pre-stroke input set") -> attempt coding and joint_xsession score against different references; cue / lick
+  differences unexplained -> trace; (4) ENL window follows the lick source (DAQ steps 2.0 s contact-lick-free) -> fixed by
+  the LP-source re-run. Low: g5_epoch on 9aaa4cc6; 392 section G r4 entries only in the LOCAL session cache (D2 copy-back);
+  LPfinal models in their own store.
+- Floor branch fix/refit-floor-10-no-display-floor (b27a7acd + b29d834f, on top of feature/refit-mixmatch-control):
+  699 related tests pass; PUSHING (Priya OK) together with perf/partial-refit-reuse-inputs (8669dd1b).
+- Code fixes delegated, branch fix/stars-spoutorder-g13-1108 (wf_fixes1108 @ 68e53e33): stars to the top band
+  (sig_star callers), canonical spout order (3 encoding figure scripts), section G G1-G3 per (f)1 + camera classes,
+  DECISIONS.md lick-class correction + 11-08 entry.
+- A20: calibration table regenerating with the working-period rule into scratchpad/a20 for comparison with the 10-23 one.
+- Next: the consolidated re-run (LP-source families missing from LPfinal, 17 rest-fix steps, gain-bio, section G with
+  G1-G3 fix, grant), from a detached worktree at the new main, heavy steps after b_partial_frA (~13:25).
