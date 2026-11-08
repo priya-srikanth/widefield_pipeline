@@ -16,7 +16,8 @@ classes; 3 = FaceRhythm June face regions; 4 = FaceRhythm June O2 run. Backgroun
    settings as production fr_cam4_20261021: 10-min segments, 4 workers, engaged trials; COMMANDS.md inside). ROIs are
    in place (`face_rhythm/cam4/rois/PS9x_2026060x/`, `rois_ready` True for all 12). Before submitting, please look at
    `face_rhythm/cam4/register/qc_june_rois.png` (June warped regions next to each animal's first August session).
-2. **PS95 06/07 and 06/08 mesh points off the frame.** 4 (06/07) and 29 (06/08) of the 1282 mesh points land outside
+2. **DECIDED (Priya 11-08): option 1 -- NaN the off-frame / folded rim points in the June readouts; PS95 June stays in.**
+   Original item: **PS95 06/07 and 06/08 mesh points off the frame.** 4 (06/07) and 29 (06/08) of the 1282 mesh points land outside
    the 680 x 680 frame (top edge; PS92 06/08 has 24 within 8 px of the edge). Proposal: keep the mesh as is (point i
    must stay the same face location in every session) and exclude off-frame points from the June readouts (NaN), as
    frozen / violating points are already treated. Alternative: leave PS95 06/08 out of June FR.
