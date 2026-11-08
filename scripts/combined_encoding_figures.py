@@ -379,7 +379,8 @@ def fig_position_maps(meta, sess, path: Path, title: str, outline, kind: str = "
     _save(fig, path)
 
 
-POS6 = ("close_contra", "close_mid", "close_ipsi", "far_contra", "far_mid", "far_ipsi")
+# canonical spout order (Priya 10-25; settings audit 11-08 found this one contra-first)
+from wfield_local.orofacial_cohort import POS_ORDER as POS6  # noqa: E402
 
 
 def fig_position_each_maps(meta, sess, path: Path, title: str, outline, window: str, kind: str = "shufpos") -> None:
@@ -510,6 +511,7 @@ def fig_dR2_by_epoch(Wd: pd.DataFrame, ST: pd.DataFrame, path: Path, title: str,
                      prefix: str = "dR2") -> None:
     """dR2 (filled) and alone (open) per epoch, one panel per variable / group, one row per window; animal dots; stars
     = change vs pre significant by both tests."""
+    from wfield_local.sig_marks import reserve_headroom, star_top
     plt = _plt()
     names = [*VARS, *GROUPS]
     D = Wd[Wd.pos == area]
@@ -533,7 +535,7 @@ def fig_dR2_by_epoch(Wd: pd.DataFrame, ST: pd.DataFrame, path: Path, title: str,
                 for xi, e in zip(x, s.index):
                     r = ST[(ST.metric == key) & (ST.pos == area) & (ST.epoch == e)]
                     if len(r) and r.agree.iloc[0] == "both":
-                        ax.text(xi, ax.get_ylim()[1], "*", ha="center", va="top", fontsize=13, color="k")
+                        star_top(ax, xi, "*", "k", fontsize=13)          # top band (10-30), not at the data's ylim
             ax.set_xticks(x)
             ax.set_xticklabels([e[:3] for e in s.index], fontsize=10)
             ax.tick_params(labelsize=9.5)
@@ -544,6 +546,7 @@ def fig_dR2_by_epoch(Wd: pd.DataFrame, ST: pd.DataFrame, path: Path, title: str,
     _title(fig, title, f"Unique $\\Delta$R$^2$ by epoch, {area}: mean +- SEM over animals (within animal first), dots = "
                  "animals; * = change vs pre significant by BOTH the session Mann-Whitney (BH-FDR) and the animal-"
                  "weighted bootstrap")
+    reserve_headroom(fig)
     fig.tight_layout(rect=(0, 0, 1, 0.92))
     _save(fig, path)
 

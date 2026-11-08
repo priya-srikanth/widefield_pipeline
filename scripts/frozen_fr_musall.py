@@ -78,6 +78,8 @@ def main() -> int:
         fig.suptitle(f"NEURAL: Musall-style UNIQUE R2 in the FROZEN frame (pre-stroke model applied unchanged), {w} window. Bars = "
                      "mean of animals' epoch - pre; whisker 95 % nested CI; * excludes 0; dots = animals. contra = right "
                      "(lesion left).", fontsize=10)
+        from wfield_local.sig_marks import reserve_headroom
+        reserve_headroom(fig)                # the `bars` stars sit in the top band (10-30), no top spine (11-03)
         fig.subplots_adjust(left=0.05, right=0.995, top=0.92, bottom=0.04, hspace=0.6)
         save_png_svg(fig, out / "figures" / f"frozen_musall_{w}.png", dpi=105)
         plt.close(fig)

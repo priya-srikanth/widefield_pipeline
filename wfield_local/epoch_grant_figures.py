@@ -140,7 +140,8 @@ ARMS = (("ENL", "precue", "working", "ENL (pre-cue), lick + miss-while-working")
         # acute and +0.112 subacute, both Bonferroni-corrected. But that arm CONDITIONS ON A
         # DETECTED LICK, so post-stroke its trial population is itself a product of the deficit:
         # the animal licks less and licks different spouts, and acute far-contralateral is gated
-        # out entirely below MIN_REFIT_SHARE.
+        # out entirely below MIN_REFIT_SHARE (retired 11-08, D7: 10-trial floor only; lick class = all camera
+        # licks on the LP source, so acute far contra is no longer near-empty there).
         #
         # These two hold the TRIAL SET fixed at lick trials and move only the WINDOW. If the effect
         # is about position coding it should appear post-cue on the same trials; if it is about

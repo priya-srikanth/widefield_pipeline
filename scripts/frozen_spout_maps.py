@@ -23,7 +23,7 @@ from pathlib import Path
 
 import numpy as np
 
-SPOUTS = ("far_contra", "close_contra", "close_mid", "far_mid", "close_ipsi", "far_ipsi")
+from wfield_local.orofacial_cohort import POS_ORDER as SPOUTS  # canonical spout order (Priya 10-25; audit 11-08)
 PARTS = ("data", "spout", "target", "exec_locked", "lick")
 
 

@@ -36,6 +36,8 @@ from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin
 from wfield_local.frozen_encoder import design_tag as _design_tag, tag_is_spont as _tag_is_spont  # frame tag of the FROZEN_LICKS_ALL design (8.51)
 
 import argparse
+import os
+from contextlib import contextmanager
 import json
 import pickle
 import sys
@@ -294,7 +296,50 @@ def _null_preds(fe, label, tpl, F, Zv, beta, grp, R, lam_all, fold, which):
     return out
 
 
+@contextmanager
+def _reuse_inputs(fe):
+    """Load each session input ONCE per job (11-08 profile: one session = 13 `session_design` builds -- the fit + 12
+    nulls -- and 91 % of its 21.6 min was re-reading the same imaging, behavior, FaceRhythm columns and session list,
+    ~23,600 file checks on M:; the ridge refits are 5 %). The nulls patch only `raw_blocks` / `spout_split` /
+    `te_lick_parts`, which stay live; the loaders below do not depend on any patched function. `load_sessions` hands
+    back a deep copy (callers may edit the dicts). Pinned by an exact-equality check against finished session jsons."""
+    import copy
+    from wfield_local import config
+    ce = fe._ce()
+    memo = {}
+    orig = {"load_imaging": ce.load_imaging, "load_behaviour": fe.load_behaviour, "_fr_columns": fe._fr_columns,
+            "load_sessions": config.load_sessions}
+
+    def cached(name, key_of, copy_out=False):
+        f = orig[name]
+
+        def g(*a, **k):
+            key = (name, key_of(*a, **k))
+            if key not in memo:
+                memo[key] = f(*a, **k)
+            return copy.deepcopy(memo[key]) if copy_out else memo[key]
+        return g
+
+    ce.load_imaging = cached("load_imaging", lambda label: label)
+    fe.load_behaviour = cached("load_behaviour",                    # the cam1-fallback path pops the licks env
+                               lambda animal, date, rv: (animal, date, os.environ.get(ce.LICKS_ENV)))
+    fe._fr_columns = cached("_fr_columns", lambda animal, date, rv, ft: (animal, date, len(ft), float(ft[0]),
+                                                                         float(ft[-1])))
+    config.load_sessions = cached("load_sessions", lambda *a, **k: repr((a, sorted(k.items()))), copy_out=True)
+    try:
+        yield
+    finally:
+        ce.load_imaging, fe.load_behaviour, fe._fr_columns = orig["load_imaging"], orig["load_behaviour"], orig["_fr_columns"]
+        config.load_sessions = orig["load_sessions"]
+
+
 def job(item):
+    from wfield_local import frozen_encoder as fe
+    with _reuse_inputs(fe):
+        return _job(item)
+
+
+def _job(item):
     label, run_dir, fits_path, *rest = item
     add = tuple(rest[0]) if rest and rest[0] else None     # add-only mode: compute these nulls, merge into the saved json
     from wfield_local import config
@@ -476,6 +521,8 @@ def summarise(run: Path, out: Path) -> None:
                      f"{model_label(run)}\ngain in held-out R2 over the frozen model, as a change from pre "
                      "(within animal). Bars = mean of animals; whisker 95 % nested CI; * excludes 0; dots = animals.",
                      fontsize=9)
+        from wfield_local.sig_marks import reserve_headroom
+        reserve_headroom(fig)                # the `bars` stars sit in the top band (10-30), no top spine (11-03)
         fig.subplots_adjust(left=0.05, right=0.83, top=0.86, bottom=0.07, hspace=0.35)
         save_png_svg(fig, out / "figures" / f"partial_refit_bars_{w}.png", dpi=105)            # supplementary (all sets)
         plt.close(fig)

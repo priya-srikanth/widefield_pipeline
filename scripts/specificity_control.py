@@ -237,6 +237,8 @@ def main(argv=None) -> int:
                  "SSp-n, MOp, MOs; control = visual, retrosplenial, SSp trunk / lower limb.\nBars = mean of animals; "
                  "whisker 95 % nested CI; * excludes 0; dots = animals; gray band = pre split-half range. contra = right.",
                  fontsize=9.5)
+    from wfield_local.sig_marks import reserve_headroom
+    reserve_headroom(fig)                # the `bars` stars sit in the top band (10-30), no top spine (11-03)
     fig.subplots_adjust(left=0.07, right=0.86, top=1 - 1.0 / (11 + 3.6 * nx), bottom=0.05, hspace=0.45)
     save_png_svg(fig, out / "figures" / "specificity_groups.png", dpi=105)
     plt.close(fig)

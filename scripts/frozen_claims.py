@@ -165,6 +165,8 @@ def main(argv=None) -> int:
                          + ("\nGrey band: ALM / tjM1 / MOs_rest / MOp_rest (ROI v8 on the stat mask), from the basis twin "
                             "re-run (FROZEN_PIX_MUSALL, area-run alphas), placed after their parent." if set(SPLIT) & set(ar_)
                             else ""), fontsize=9.5)
+            from wfield_local.sig_marks import reserve_headroom
+            reserve_headroom(fig)                # the `bars` stars sit in the top band (10-30), no top spine (11-03)
             fig.subplots_adjust(left=0.05, right=0.995, top=1 - 1.45 / (2.7 * len(rows_) + 1.3), bottom=0.05, hspace=0.75)
             save_png_svg(fig, out / "figures" / f"frozen_claims_{name}_{w}.png", dpi=105)
             plt.close(fig)

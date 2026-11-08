@@ -357,6 +357,8 @@ def summarise(run: Path, out: Path, variants) -> None:
                      "model,\nas a change from pre (within animal). > 0 = a session-specific mapping helps more than "
                      "before the stroke. Bars = mean of animals; whisker 95 % nested CI; * excludes 0; dots = animals; "
                      "gray band = pre split-half range.", fontsize=9)
+        from wfield_local.sig_marks import reserve_headroom
+        reserve_headroom(fig)                # the `bars` stars sit in the top band (10-30), no top spine (11-03)
         fig.subplots_adjust(left=0.05, right=0.88, top=0.84, bottom=0.12)
         save_png_svg(fig, out / "figures" / f"session_vs_frozen_{w}.png", dpi=105)
         plt.close(fig)

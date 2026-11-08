@@ -586,8 +586,12 @@ def fig_confusion_per_session(out_dir):
 #: 10b already applies by scoring an absent position as nothing rather than as a wrong match.
 #: Missing data must not become evidence, least of all evidence in the direction that says the code
 #: is gone.
+#:
+#: RETIRED 11-08 (Priya, D7): "1/18 was arbitrary; 1/20 is just as arbitrary" -- every refit family (5r / 5rm / 5ro /
+#: 5rmo) uses the 10-TRIAL floor ONLY. The mix effect the share floor hid is now MEASURED instead, by the matched-pre
+#: control (`scripts/refit_matched_pre.py`: same position mix and size in the animal's own pre sessions), and the lick
+#: class is every camera-seen lick (LP source), which no longer leaves acute far-contra at 0-4 % of a session.
 MIN_REFIT_CLASS = 10
-MIN_REFIT_SHARE = 1.0 / 18.0
 #: Sentinel written into the refit column for a trial whose class the session could not train on.
 #: Both arms drop these trials together, so the refit-minus-frozen contrast stays paired.
 REFIT_UNAVAILABLE = -1
@@ -622,7 +626,13 @@ def _matched_frozen(pipe_of, Xp, Yp, Bp, n_target, rng):
     from wfield_local import spout_scaling
     fitted.spout_pi_train_ = spout_scaling.class_prior(Yp[keep])
     return fitted, int(keep.sum())
-def _refit_pred(pipe_of, X, y, blk, *, max_splits=5):
+#: When a list, `_collect_5c_cached` appends every session's REFIT inputs to it (dict animal, label, pre, X, y, blk) --
+#: exactly the arrays `_refit_pred` sees for the 5r figures. Read-only hook for `scripts/refit_matched_pre.py`
+#: (D6, Priya 11-08); None (the default) changes nothing.
+REFIT_CAPTURE = None
+
+
+def _refit_pred(pipe_of, X, y, blk, *, max_splits=5, mark_thin=True):
     """Within-session block-CV prediction on ONE session: what a decoder that SAW this session gets.
 
     The counterpart to the frozen decoder, and the control that separates the two readings of a
@@ -647,8 +657,10 @@ def _refit_pred(pipe_of, X, y, blk, *, max_splits=5):
     except Exception:                                                 # noqa: BLE001
         return None
     y = np.asarray(y)
+    if not mark_thin:      # the mix-matched control scores every class: its matched pre has the same counts (D6)
+        return pred
     cls, cnt = np.unique(y, return_counts=True)
-    thin = cls[(cnt < MIN_REFIT_CLASS) | (cnt / max(len(y), 1) < MIN_REFIT_SHARE)]
+    thin = cls[cnt < MIN_REFIT_CLASS]
     if thin.size:
         pred = pred.copy()
         pred[np.isin(y, thin)] = REFIT_UNAVAILABLE
@@ -906,6 +918,9 @@ def _collect_5c_cached(align, variant="working", mode="frozen", _run=None):
                 same leave-one-session-out discipline as the unmatched one.
                 """
                 y, blk = np.asarray(y), np.asarray(blk)
+                if REFIT_CAPTURE is not None and X_refit is not None and sess is not None:
+                    REFIT_CAPTURE.append(dict(animal=an, label=bd["kept"][sess], pre=sess in bd["pre_i"],
+                                              X=np.asarray(X_refit), y=y, blk=blk))
                 if mode == "paired_matched":
                     if pool is None:
                         return None

@@ -168,6 +168,71 @@ def balanced_lick_sample(d, keep, rng, *, exclude_session=None):
     return np.vstack(xs), np.concatenate(lab), np.concatenate(grps)
 
 
+#: THE G1-G3 STATE DISCRIMINATORS' TRAINING CLASSES UNDER THE CAMERA GROUPING (Priya 11-05, DECISIONS_PENDING_MERGE_
+#: 2026-11-04 (f) 1; settings audit 11-08). `looks_like_which`, `fits_engaged_distribution` and `undetected_state_split`
+#: trained pre DAQ-engaged vs EVERY pre DAQ no-lick row: the no-lick side held incomplete licks (camera LICKS: Priya
+#: 11-07 / 11-08, "never gate on successful licks"; the lick class is every camera-seen lick, DAQ contact is the
+#: supplemental successful-lick class), jaw_only, the quit tail and the STOPPED runs -- and stop runs sit at session end,
+#: so training on them puts time in session into the label. `precue_engagement_states` was fixed for (f) 1 on 11-05
+#: (a49795b3); this is the same fix for section G, with section G's own groups (`working_trials.g_group`, as the G4
+#: camera-class discriminator `cam_balanced_sample`): WORKING (contact + incomplete, either DAQ arm) vs NONE.
+#: jaw_only, after_end ("quit"), stopped and stopped_licking are never trained on; `_g13_by_class` scores every group on
+#: its own. The DAQ grouping (WIDEFIELD_SECTION_G_GROUPS=daq, the DAQ gate, the lick window, a pool without camera
+#: classes) keeps the DAQ training set and its stored ids, unchanged. The scored post sets (DAQ no-lick / engaged rows)
+#: are NOT changed here: which camera group replaces them is open for Priya (fix branch 11-08).
+G13_TAG = "cls-work-v-none"
+
+
+def _g13_groups(d):
+    """Section G's camera groups for the G1-G3 discriminators (`_camera_groups`), or None (the DAQ training set)."""
+    return _camera_groups(d)
+
+
+def _g13_tag(cg) -> str:
+    """Suffix of the stored model's align: the camera class set, so no camera-class model is ever served for the DAQ
+    lick-vs-no-lick one (whose ids stay as they were) or vice versa."""
+    return "" if cg is None else f"-{G13_TAG}"
+
+
+def _g13_sample(dT, cg, keep, rng, *, exclude_session=None):
+    """The G1-G3 training sample: `cam_balanced_sample` (WORKING vs NONE, position-balanced, positives first, the same
+    ``rng`` use) under the camera grouping, else `balanced_lick_sample` (DAQ engaged vs no-lick). y = 1 for the
+    engaged / working class in both."""
+    if cg is None:
+        return balanced_lick_sample(dT, keep, rng, exclude_session=exclude_session)
+    return cam_balanced_sample(dT, cg["grp_e"], cg["grp_u"], keep, rng, exclude_session=exclude_session)
+
+
+def _g13_classes(cg):
+    """The training classes, recorded in every G1-G3 output."""
+    from wfield_local import working_trials as wt
+    if cg is None:
+        return {"groups": "daq", "positive": ["DAQ engaged"], "negative": ["DAQ no-lick (all)"]}
+    return {"groups": "camera", "tag": G13_TAG, "positive": list(G4_POS), "negative": list(G4_NEG),
+            "scored_only": [g for g in wt.G_ALL if g not in G4_POS + G4_NEG]}
+
+
+def _g13_by_class(model_for, XE, XU, d, cg, keep, sessions):
+    """``{group: {"n", "frac_working_like"}}`` over ``sessions``, engaged and no-lick rows pooled, every camera group
+    (`working_trials.G_ALL`) on its own ((f) 1: stopped is its own class). ``model_for(i)`` = the model that scores
+    session ``i`` (None skips it). Pooled over spouts (G4 gives the spout-balanced reading)."""
+    from wfield_local import working_trials as wt
+    n = {g: 0 for g in wt.G_ALL}
+    k = {g: 0.0 for g in wt.G_ALL}
+    for i in sorted(sessions):
+        clf = model_for(i)
+        if clf is None:
+            continue
+        me = (np.asarray(d["GE"]) == i) & np.isin(d["YE"], keep)
+        mu = (np.asarray(d["GU"]) == i) & np.isin(d["YU"], keep)
+        for g in wt.G_ALL:
+            X = np.vstack([XE[me & (cg["grp_e"] == g)], XU[mu & (cg["grp_u"] == g)]])
+            if len(X):
+                n[g] += len(X)
+                k[g] += float(clf.predict(X).sum())
+    return {g: {"n": int(n[g]), "frac_working_like": (k[g] / n[g]) if n[g] else None} for g in wt.G_ALL}
+
+
 def _lick_train(d, keep):
     """``d`` with its XE / XU in the engagement-state discriminator's TRAINING frame (bal_em over the two STATE
     classes, `spout_scaling.state_train_frame`): each pre-stroke session centered on the equal-weight mean of its engaged
@@ -826,14 +891,15 @@ def looks_like_which(d, keep, seed=0):
     # frame, score each post session in its label-free EM frame (`_lick_train` / `_lick_scored`); pre rows stay in the
     # training frame. The sample draws the SAME indices either way (`rng` sees only counts). Identity when OFF.
     dT = _lick_train(d, keep)
-    sample = balanced_lick_sample(dT, keep, rng)
+    cg = _g13_groups(d)              # camera classes ((f) 1) under the camera grouping, else the DAQ training set
+    sample = _g13_sample(dT, cg, keep, rng)
     if sample is None:
-        return {"note": "no position had >=5 of both classes"}
+        return {"note": "no position had >=5 of both classes", "train_classes": _g13_classes(cg)}
     X, y, grp = sample
     # STORED BY DEFAULT (kind g_lick_disc, 11-02 pass 2): the fit on this fresh-RandomState(seed) sample (on the state
-    # training frame `dT`, main 11-03; its scaling enters the spec)
+    # training frame `dT`, main 11-03; its scaling enters the spec); the camera class set in the align (`_g13_tag`)
     from wfield_local import spout_scaling as _ss
-    clf = _g_store(d, "g_lick_disc", f"{_keep_tag(keep)}-seed{seed}", lambda: lick_pipe().fit(X, y),
+    clf = _g_store(d, "g_lick_disc", f"{_keep_tag(keep)}-seed{seed}{_g13_tag(cg)}", lambda: lick_pipe().fit(X, y),
                    meta={"n_train": int(len(y))}, scaling=_ss.state_disc_scaling())
     if clf is None:
         clf = lick_pipe().fit(X, y)
@@ -895,7 +961,14 @@ def looks_like_which(d, keep, seed=0):
                  - pu[rng.randint(0, len(pu), len(pu))].mean() for _ in range(2000)]
         gap_ci = [float(np.percentile(boots, 2.5)), float(np.percentile(boots, 97.5))]
 
+    by_class = None
+    if cg is not None:
+        # EVERY CAMERA GROUP SCORED ON ITS OWN ((f) 1), pre and post; pre rows of the TRAINED groups are in-sample (the
+        # one full model), so read them as the training fit, not as a test
+        by_class = {"pre": _g13_by_class(lambda i: clf, XEs, XUs, d, cg, keep, dT["pre_i"]),
+                    "post": _g13_by_class(lambda i: clf, XEs, XUs, d, cg, keep, d["post_i"])}
     return {"n_train_per_class": int((y == 1).sum()), "n_post_undetected": int(post_u.sum()),
+            "train_classes": _g13_classes(cg), "by_class": by_class,
             "pre_separability_cv": sep,
             "pre_separability_cv_grouped_by_session": sep_grouped,
             "pre_separability_cv_session_grouped": sep_session,
@@ -933,6 +1006,7 @@ def fits_engaged_distribution(d, keep, seed=0, n_boot=2000):
     # OPTIONAL STATE-CLASS bal_em (as `looks_like_which`; DEFAULT OFF): training frame for the fits, each scored
     # session (a held-out pre session, or the post session) in its own label-free EM frame. Identity when OFF.
     dT = _lick_train(d, keep)
+    cg = _g13_groups(d)              # camera classes ((f) 1) under the camera grouping, else the DAQ training set
 
     def balanced_fit(exclude_session=None):
         """Position-balanced engaged-vs-no-lick discriminator, optionally holding out one session.
@@ -945,7 +1019,7 @@ def fits_engaged_distribution(d, keep, seed=0, n_boot=2000):
         published numbers, so it is a decision to take separately rather than a side effect of
         removing duplication.
         """
-        sample = balanced_lick_sample(dT, keep, rng, exclude_session=exclude_session)
+        sample = _g13_sample(dT, cg, keep, rng, exclude_session=exclude_session)
         if sample is None:
             return None
         X, y, _grp = sample
@@ -961,17 +1035,24 @@ def fits_engaged_distribution(d, keep, seed=0, n_boot=2000):
     # STORED BY DEFAULT (kind g_lick_disc_folds, 11-02 pass 2): all fold models + the full one, fitted ONCE in the
     # in-memory order, so the advancing-RNG draws are exactly the in-memory ones; the stored generator state then
     # puts the bootstrap of the post-stroke value on the same draws as the in-memory path.
-    folds = _g_store(d, "g_lick_disc_folds", f"{_keep_tag(keep)}-seed{seed}-v2", _fit_folds,
+    folds = _g_store(d, "g_lick_disc_folds", f"{_keep_tag(keep)}-seed{seed}-v2{_g13_tag(cg)}", _fit_folds,
                      scaling=__import__("wfield_local.spout_scaling", fromlist=["x"]).state_disc_scaling())
     if folds is not None:
         rng.set_state(folds["rng_after"])
     ref = {"engaged": {}, "nolick": {}}
+    pre_by_class = {}                # camera grouping: every held-out pre session's groups, by its leave-one-out model
     for i in sorted(dT["pre_i"]):
         got = folds["loso"].get(d["kept"][i]) if folds is not None else balanced_fit(exclude_session=i)
         if got is None:
             continue
         clf, _y = got
         hXE, hXU = _lick_scored(d, keep, clf, _y, [i], dT)
+        if cg is not None:
+            for g, v in _g13_by_class(lambda _i, _c=clf: _c, hXE, hXU, d, cg, keep, [i]).items():
+                acc = pre_by_class.setdefault(g, [0, 0.0])
+                if v["n"]:
+                    acc[0] += v["n"]
+                    acc[1] += v["frac_working_like"] * v["n"]
         me = pre_e_all & (d["GE"] == i)
         mu = pre_u_all & (d["GU"] == i)
         if me.sum() >= 20:
@@ -992,7 +1073,13 @@ def fits_engaged_distribution(d, keep, seed=0, n_boot=2000):
     pred_u = clf_all.predict(pXU[post_u]).astype(float)
     P = float(pred_u.mean())
 
+    by_class = None
+    if cg is not None:
+        by_class = {"pre_loso": {g: {"n": n_, "frac_working_like": (k_ / n_) if n_ else None}
+                                 for g, (n_, k_) in pre_by_class.items()},
+                    "post": _g13_by_class(lambda i: clf_all, pXE, pXU, d, cg, keep, d["post_i"])}
     out = {"post_value": P, "n_post_nolick": int(post_u.sum()), "state_disc_frame": _state_frame_tag(),
+           "train_classes": _g13_classes(cg), "by_class": by_class,
            "post_engaged_value": float(clf_all.predict(pXE[post_e]).mean())
                                  if post_e.sum() >= 20 else float("nan"),
            "reference_engaged_per_session": ref["engaged"],
@@ -1387,7 +1474,8 @@ def undetected_state_split(d, keep, args, seed=0):
     # above -- the two really are one model, refitted, and the de-duplication preserves that.
     rng = np.random.RandomState(seed)
     dT = _lick_train(d, keep)        # optional state-class bal_em (default OFF), as `looks_like_which`
-    sample = balanced_lick_sample(dT, keep, rng)
+    cg = _g13_groups(d)              # the same training classes as `looks_like_which` ((f) 1 under the camera grouping)
+    sample = _g13_sample(dT, cg, keep, rng)
     if sample is None:
         # The old code called np.vstack([]) here and raised. It survived only because
         # `looks_like_which` returns early on the same condition and its result is checked above --
@@ -1395,7 +1483,7 @@ def undetected_state_split(d, keep, args, seed=0):
         return dict(base, split={"note": "no position had >=5 of both classes"})
     X, y, _grp = sample
     # the SAME stored model `looks_like_which` loaded (same sample, same spec; kind g_lick_disc)
-    clf = _g_store(d, "g_lick_disc", f"{_keep_tag(keep)}-seed{seed}", lambda: lick_pipe().fit(X, y),
+    clf = _g_store(d, "g_lick_disc", f"{_keep_tag(keep)}-seed{seed}{_g13_tag(cg)}", lambda: lick_pipe().fit(X, y),
                    meta={"n_train": int(len(y))},
                    scaling=__import__("wfield_local.spout_scaling", fromlist=["x"]).state_disc_scaling())
     if clf is None:

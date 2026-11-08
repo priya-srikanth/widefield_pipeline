@@ -77,7 +77,7 @@ def _accuracy_of(record, position=None):
     y, p = _named(record)
     if position is not None:
         m = (y == position)
-        if m.sum() < 5:
+        if not m.any():
             return None
         y, p = y[m], p[m]
     return float(np.mean(y == p)) if len(y) else None
@@ -105,7 +105,7 @@ def _gap_at(y, p, code):
     if p.ndim != 2 or p.shape[1] != 2:
         raise ValueError("_gap_at needs a paired record: use _collect_5c(..., mode='paired')")
     m = (y == code) & (p[:, 1] != REFIT_UNAVAILABLE)
-    if m.sum() < 5:
+    if not m.any():
         return None
     return float(np.mean(p[m, 1] == y[m]) - np.mean(p[m, 0] == y[m]))
 def _gap_of(record, position):
@@ -126,7 +126,7 @@ def _refit_at(y, p, code):
         return None
     y, p = np.asarray(y), np.asarray(p)
     m = (y == code) & (p[:, 1] != REFIT_UNAVAILABLE)
-    if m.sum() < 5:
+    if not m.any():
         return None
     return float(np.mean(p[m, 1] == y[m]))
 def _refit_of(record, position):
