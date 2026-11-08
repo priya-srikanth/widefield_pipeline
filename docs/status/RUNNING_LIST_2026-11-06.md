@@ -356,3 +356,11 @@ acute far -0.175 / -0.199 / -0.240 / -0.207 (PS92 / 93 / 94 / 95); acute close -
 subacute -0.06..+0.05; chronic -0.02..+0.16. Pre null (per-session SD over positions): 0.140 / 0.104 / 0.074 / 0.068.
 Reading: the acute far-position refit drop survives mix and size matching in 4/4 animals, so it is not a trial-mix
 artifact; close is lower acutely in 3/4. CSV: epoch/data/refit_mixmatch_cue_working_sessions.csv. cue / lick arm next.
+
+**D6 result, cue / lick (09:06, m_mixsym_cue_l; 832 pairs, 0 failed).** Mean excess, far / close by animal
+(PS92 / 93 / 94 / 95): acute far -0.055 / -0.060 / +0.008 / +0.202; acute close -0.097 / -0.138 / -0.074 / +0.030;
+chronic close +0.141 / +0.147 / +0.013 / +0.024. Pre null SD 0.127 / 0.106 / 0.068 / 0.060.
+Acute far_R lick trials are 1-12 per session (PS95 has one acute session); at those counts both the post refit and its
+matched pre control score ~0, so excess ~0 = undetermined, not "no deficit". PS95 far +0.20 = one session (0817), far_L
+n=12, control 0.065. Reading: the lick-trial arm can't test the far-contra refit loss; the working arm (all far, 4/4) is
+the usable one. Waiting on Priya before any bootstrap / figure.
