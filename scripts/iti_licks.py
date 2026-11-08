@@ -382,7 +382,8 @@ def extract(item) -> dict:
         return o.reshape(len(t), len(lags), FRM.shape[1])
     f16 = np.float16
     np.savez_compressed(
-        f, cols=np.array(cols), epoch=epochs.epoch_of(label), animal=an, clock_med_s=clock,
+        # epoch "" (not None) before WIDEFIELD_PRE_FROM: a None is saved as an object array (_load, 11-08)
+        f, cols=np.array(cols), epoch=epochs.epoch_of(label) or "", animal=an, clock_med_s=clock,
         bout_peth=_sample(R, ft, to[bout], LAGS_P).astype(f16), bout_side=iti.side_ml.to_numpy(float)[bout], bout_gap=gap[bout],
         # bout_pos = the trial-WINDOW label (the UPCOMING trial for 'lead' licks) -- NOT a spout to group by; use
         # bout_prev_pos = the PREVIOUS trial's spout, the rule of iti_pos (10-28; files before then lack it:
@@ -539,8 +540,24 @@ def attach_fr_unblanked(D: dict, jobs: int | None = None) -> dict:
 
 
 def _load(label: str, sess_dir: Path | None = None) -> dict:
-    z = np.load((sess_dir or XOUT / SESS_NAME) / f"{label}.npz", allow_pickle=False)
-    return {k: z[k] for k in z.files}
+    p = (sess_dir or XOUT / SESS_NAME) / f"{label}.npz"
+    z = np.load(p, allow_pickle=False)
+    try:
+        return {k: z[k] for k in z.files}
+    except ValueError:
+        # JUNE REFERENCE FILES written before 11-08 store epoch=None (`epochs.epoch_of` has no epoch for a session before
+        # WIDEFIELD_PRE_FROM), which numpy saves as an OBJECT array; l_reembed failed on all 12 (11-07). Exactly that
+        # one value is read back as "" -- any other object array is still refused.
+        z = np.load(p, allow_pickle=True)
+        out = {}
+        for k in z.files:
+            a = z[k]
+            if a.dtype == object:
+                if not (k == "epoch" and a.shape == () and a.item() is None):
+                    raise ValueError(f"{p}: object array {k!r} (only a None epoch is tolerated)") from None
+                a = np.array("")
+            out[k] = a
+        return out
 
 
 # ------------------------------------------------------------------------------------------------ area basis (10-27 late)
