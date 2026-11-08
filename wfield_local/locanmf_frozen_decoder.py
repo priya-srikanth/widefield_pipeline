@@ -625,10 +625,9 @@ def frozen_pool(labels, source="roi", align="cue", post_s=2.0, zscore=True, feat
     """``(pooled, features)``: ONE pool that both frozen consumers can score, built once.
 
     `pooled_frozen_loso` and `pooled_frozen_encoder` each called :func:`pool_sessions` with the same
-    labels / source / align / post_s / zscore, and ROI features are not disk-cached
-    (`trial_features_cached` computes non-LocaNMF sources every time, deliberately: their signature
-    would not see a re-made `U_atlas`), so the nightly built every animal's ROI pool TWICE per
-    alignment at ~19 s a session. The pool here is built with the DECODER's feature builder
+    labels / source / align / post_s / zscore, and ROI features were not disk-cached before 11-07
+    (their signature would not see a re-made `U_atlas`; now keyed on `roi_signal_key`), so the
+    nightly built every animal's ROI pool TWICE per alignment at ~19 s a session. The pool here is built with the DECODER's feature builder
     (:func:`loso_features`). Under the camera gate that is `working_trials.roi_features_with_indices`,
     which returns the default builder's first six outputs unchanged and only also records each
     session's cue indices on ``features.indices`` (`_trial_features` appends them after the base

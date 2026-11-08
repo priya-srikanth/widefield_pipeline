@@ -5,7 +5,10 @@
 >   `docs/POSE_MODELS.md` D13 (June 3-D: geometry holds; June offsets are behavior, not head placement / frame),
 >   `docs/status/JUNE_COVERAGE_2026-11-07.md` (what exists for June, what is filtered, what was never run).
 > - Task 1 (3-D June reference): `scripts/pose3d_june_reference.py` -> `session_poses/pose3d/june_reference/` (June vs
->   own August pre, within-animal session shuffles 10k, Holm over positions; post epochs drawn alongside). Running/see list.
+>   own August pre, within-animal session shuffles 10k, Holm over positions; post epochs drawn alongside). DONE 11-08:
+>   June differs from August ~1/5 as much as acute; chronic endpoint / lateral residuals exceed June's, jaw opening does
+>   not (running list findings). Not on the page / deck (decision 3 for Priya).
+> - O2: Priya HELD `frf_null` tasks 58716929_[1992-2000] so the June FR run starts first -- release them afterwards.
 > - Task 2 (June trial classes): `trial_classes` already classifies June on demand; June working periods look like
 >   August's. Only session LISTS skip June.
 > - Task 3/4 (FR June): `face_rhythm_warp_rois.py to-sessions --june` + `qc-june` (register/qc_june_rois.png); O2 bundle
