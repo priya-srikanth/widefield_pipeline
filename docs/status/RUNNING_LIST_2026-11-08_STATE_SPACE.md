@@ -339,6 +339,12 @@ merged to main (no conflicts); A5 applied to FINDINGS 0c item 4 and the page cap
 
 ## D. Done / status log
 
+- 11-08 ~11:45: sweep done (10 variants, B16 / B18); all figures re-rendered with wrapped titles; SVD state-space set
+  done (B15); "why cleaner" measured (B19). Page v15 published (https://claude.ai/artifact/9sGELLFEwADEt9k64fXTxe):
+  new section 9 "Where on cortex" (Figs 9.1-9.10, table 9: RESTnl primary, ENL / pre-lick / none / cue / pre-cue /
+  why-cleaner), summary rows for maps, basis dependence and the 15r comparison; open questions updated (two-part maps,
+  15r window vs trials, A9). FINDINGS not changed: waits on A8 (wording should now cover B15 -- re-patterning only in
+  the per-animal LocaNMF components, not in the cohort SVD or Allen areas).
 - 11-08 10:40: maps -- baselines rest (RESTnl on drift-removed signal, 119/119 usable), enl (lick-free >= 1 s, slid back
   to the strobe from the continuous signal; median 99 % of trials kept), none; pre-cue map (ENL window); split-basis
   area table + ALM / tjM1 outlines; nested-bootstrap contours + per-animal shuffle contours / k/4. Final 10-variant

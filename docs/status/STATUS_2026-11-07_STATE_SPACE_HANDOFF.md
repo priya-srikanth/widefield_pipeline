@@ -46,7 +46,9 @@ running list `docs/status/RUNNING_LIST_2026-11-08_STATE_SPACE.md` sections A (de
   (plan B17; reads the 15r rebuild cache, refuses to recompute) -> `why_cleaner_lick/steps.csv`,
   `page_figs/ss_why_cleaner_lick.png`. Figure titles now wrapped (`_wrap`); re-render all variants with `--replot`
   after the sweep.
-- **Open next:** put the maps on the page + FINDINGS; finish "why cleaner" (B17) and the residual-map half; two-part maps
+- **11-08 ~11:45:** page v15 has section 9 (maps, all baselines, why-cleaner). "Why cleaner" answered for the 15r
+  activity maps (B19: window, not denoising); the residual-map half not done.
+- **Open next:** FINDINGS once A8 is decided (wording must cover B15); residual-map comparison; two-part maps
   (behavior-predicted vs residual, plan B14, inputs `frozen_encoder_gate-attempted_v7g3_t3d_spont_frA_basis`); A8
   (0c item 1 wording), A9 (mask bug).
 
