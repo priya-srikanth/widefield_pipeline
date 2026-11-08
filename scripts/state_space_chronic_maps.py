@@ -18,8 +18,11 @@ units of each animal's own pre response, so the four animals average. Versions (
   spout   each spout minus the session's mean over spouts: the spout-specific part (its spout mean is 0 by construction)
 Columns: the mean over spouts (full, nocw) and each spout in the canonical order.
 
-Statistics. Pixels: within-animal session-label shuffles (pre vs the epoch's sessions, counts kept; N_PERM), cohort map =
-mean over animals; family-wise threshold per panel = 95th percentile of the max |pixel| over shuffles -> contour.
+Statistics. Pixels: THE repo's map test, `beta_maps.significance_contour` (as the 15r activity maps and the frozen-encoder
+residual maps): nested bootstrap animals -> sessions (N_BOOT draws) on 8-px blocks inside `stat_mask` (brain mask eroded
+16 px), max-statistic family-wise per panel, rim-concentrated results suppressed; run on the session maps already in
+the drawn units (normalise=False). (The first render, 11-08, used within-animal session-label shuffles: sessions as the
+unit, more liberal -- replaced.) Masks resolve WITHOUT the rebuild profile (glue removed; see o2_state_space_svd).
 Areas (64 Allen areas, both hemispheres): `analysis_kit.boot_delta_columns` (animals -> sessions, paired) on the session
 area values; * = 95 % CI excludes 0 (primary); k/4 = animals with the change in the pooled direction; per-animal values
 in the table (rule 8). Image: left hemisphere = image LEFT = ipsilesional (all lesions left).
@@ -49,7 +52,7 @@ from wfield_local.figure_layout import save_png_svg  # noqa: E402
 VERSIONS = {"full": "", "nocw": "gsr", "spout": "spout"}
 LABEL = {"full": "full change", "nocw": "minus the cortex-wide mode", "spout": "spout-specific part"}
 EPS = ["acute", "subacute", "chronic"]
-N_PERM = 1000
+N_BOOT = 2000
 OUT = S.ROOT / f"chronic_maps{S.tag()}"
 FIGS = S.ROOT / "page_figs"
 SUF = S.tag().lstrip("_")
@@ -95,19 +98,30 @@ def change(resp, unit, ep, rng=None):
     return out
 
 
-def pixel_maps(resp, unit, Uc, rng):
-    """{epoch: (cohort mean (7, npix), FWER threshold (7,), per-animal (n_an, 7, npix))}."""
+def pixel_maps(resp, unit, Uc, mask):
+    """{epoch: (cohort mean (7, npix), contours [7 x full-frame bool or None], per-animal (n_an, 7, npix), animals,
+    contour labels)}. Contours: `beta_maps.significance_contour` on every session's change map (pre sessions vs the
+    epoch's sessions, per animal, in the drawn units)."""
+    from wfield_local import beta_maps
     res = {}
+
+    def frame(v):
+        img = np.full(mask.shape, np.nan, np.float32)
+        img[mask] = v
+        return img
     for ep in EPS:
         ch = change(resp, unit, ep)
         ans = sorted(ch)
         V = np.stack([ch[a] for a in ans])                                        # n_an x 7 x K
-        mean_v = np.nanmean(V, 0)
-        mx = np.zeros((N_PERM, 7))
-        for k in range(N_PERM):
-            pv = np.nanmean(np.stack([v for v in change(resp, unit, ep, rng).values()]), 0)    # 7 x K
-            mx[k] = np.nanmax(np.abs(np.nan_to_num(pv) @ Uc.T), axis=1)
-        res[ep] = (np.nan_to_num(mean_v) @ Uc.T, np.percentile(mx, 95, axis=0), np.nan_to_num(V) @ Uc.T, ans)
+        sess = {a: {e: (with_mean(resp[a][e]) / unit[a]) @ Uc.T for e in ("pre", ep)} for a in ans}   # n x 7 x npix
+        cont, labs = [], []
+        for ci in range(7):
+            pre_by = {a: [frame(m) for m in sess[a]["pre"][:, ci] if np.isfinite(m).all()] for a in ans}
+            post_by = {a: [frame(m) for m in sess[a][ep][:, ci] if np.isfinite(m).all()] for a in ans}
+            cm, lab = beta_maps.significance_contour(pre_by, post_by, n_boot=N_BOOT, normalise=False)
+            cont.append(cm)
+            labs.append(lab)
+        res[ep] = (np.nan_to_num(np.nanmean(V, 0)) @ Uc.T, cont, np.nan_to_num(V) @ Uc.T, ans, labs)
     return res
 
 
@@ -140,7 +154,7 @@ def area_table(resp, unit, W, names, version, rng):
     return rows
 
 
-def draw(ax, v, mask, edges, vmax, thr=None, brain=None):
+def draw(ax, v, mask, edges, vmax, sig=None, brain=None):
     """One map. Analyzed pixels (``mask``) in color with area outlines inside them; brain pixels NOT analyzed (``brain``
     minus ``mask``: the painted glue and the bulbs, Priya 11-08 "make clear our mask") in flat grey; the analyzed
     field of view outlined."""
@@ -155,12 +169,10 @@ def draw(ax, v, mask, edges, vmax, thr=None, brain=None):
     ax.imshow(np.where((edges & mask)[sl], 1.0, np.nan), cmap="gray_r", vmin=0, vmax=1.5, alpha=0.5,
               interpolation="nearest")
     ax.contour(mask[sl].astype(float), [0.5], colors="0.25", linewidths=0.7)
-    if thr is not None:
-        sig = np.zeros(mask.shape)
-        sig[mask] = np.abs(v) > thr
-        if sig.any():                                     # the repo's significance outline: black on a white halo
-            ax.contour(sig[sl], [0.5], colors="white", linewidths=2.8, alpha=0.85)    # (epoch_figures, 15r maps)
-            ax.contour(sig[sl], [0.5], colors="black", linewidths=1.6)
+    if sig is not None and np.any(sig):              # the repo's significance outline: black on a white halo
+        sig = np.asarray(sig, float)                 # (epoch_figures, the 15r maps)
+        ax.contour(sig[sl], [0.5], colors="white", linewidths=2.8, alpha=0.85)
+        ax.contour(sig[sl], [0.5], colors="black", linewidths=1.6)
     ax.set_xticks([])
     ax.set_yticks([])
     for s in ax.spines.values():
@@ -172,10 +184,10 @@ def fig_cohort(res, mask, edges, version, brain=None):
     vmax = np.nanpercentile(np.abs(res["chronic"][0][cols]), 99)
     fig, axs = plt.subplots(len(EPS), len(cols), figsize=(2.3 * len(cols), 2.5 * len(EPS) + 0.6), squeeze=False)
     for r, ep in enumerate(EPS):
-        M, thr = res[ep][0], res[ep][1]
+        M, cont = res[ep][0], res[ep][1]
         for c, ci in enumerate(cols):
             ax = axs[r, c]
-            draw(ax, M[ci], mask, edges, vmax, thr[ci], brain)
+            draw(ax, M[ci], mask, edges, vmax, cont[ci], brain)
             if r == 0:
                 ax.set_title("mean over spouts" if ci == 0 else S.POS[ci - 1].replace("_", " "))
             if c == 0:
@@ -183,9 +195,10 @@ def fig_cohort(res, mask, edges, version, brain=None):
     sm = plt.cm.ScalarMappable(cmap="RdBu_r", norm=plt.Normalize(-vmax, vmax))
     fig.colorbar(sm, ax=axs, fraction=0.015, pad=0.01, label="change vs own pre (units of the animal's pre response RMS)")
     fig.suptitle(f"Where the post-stroke response changes: {LABEL[version]}, mean of 4 animals ({S.ALIGN_LABEL[S.ALIGN]}; "
-                 f"first-lick trials, camera first lick; response window minus baseline, change vs own pre). Contour: "
-                 f"family-wise p < .05 per panel, within-animal session shuffles ({N_PERM}). Image left = ipsilesional. Grey = brain "
-                 f"not analyzed (painted fibre glue, olfactory bulbs); outline = analyzed field of view.",
+                 f"first-lick trials, camera first lick; response window minus baseline, change vs own pre). Contour: nested "
+                 f"bootstrap animals -> sessions ({N_BOOT}), 8-px blocks, max-stat family-wise per panel "
+                 f"(beta_maps.significance_contour). Image left = ipsilesional. Grey = brain not analyzed (painted fibre "
+                 f"glue, olfactory bulbs); outline = analyzed field of view.",
                  y=1.02, fontsize=9.5)
     save_png_svg(fig, FIGS / f"ss_cmap_{version}_{SUF}.png", dpi=120, bbox_inches="tight")
     plt.close(fig)
@@ -224,8 +237,8 @@ def main():
         z = np.load(OUT / "maps.npz")
         ans = sorted({c.split("_", 1)[1] for c in pd.read_csv(OUT / "areas.csv").columns if c.startswith("d_")})
         for version in VERSIONS:
-            res = {ep: (z[f"{version}__{ep}__mean"], z[f"{version}__{ep}__thr"], z[f"{version}__{ep}__animals"], ans)
-                   for ep in EPS}
+            res = {ep: (z[f"{version}__{ep}__mean"], [c if c.any() else None for c in z[f"{version}__{ep}__sig"]],
+                        z[f"{version}__{ep}__animals"], ans) for ep in EPS}
             fig_cohort(res, mask, edges, version, brain)
             fig_animals(res, mask, edges, version, brain)
         print(f"replotted {OUT}")
@@ -239,15 +252,17 @@ def main():
         if unit is None:                                                        # the FULL pre response sets the unit
             unit = {an: np.sqrt(np.nanmean(np.sum(np.nanmean(d["pre"], 0) ** 2, -1)) / Uc.shape[0])
                     for an, d in resp.items()}
-        rng = np.random.default_rng(0)
-        res = pixel_maps(resp, unit, Uc, rng)
+        res = pixel_maps(resp, unit, Uc, mask)
         fig_cohort(res, mask, edges, version, brain)
         fig_animals(res, mask, edges, version, brain)
         rows += area_table(resp, unit, W, names, version, np.random.default_rng(1))
-        for ep, (M, thr, V, _ans) in res.items():
+        for ep, (M, cont, V, _ans, labs) in res.items():
             store[f"{version}__{ep}__mean"] = M.astype(np.float32)
-            store[f"{version}__{ep}__thr"] = thr
+            store[f"{version}__{ep}__sig"] = np.stack([np.zeros(mask.shape, bool) if c is None else c for c in cont])
             store[f"{version}__{ep}__animals"] = V.astype(np.float32)
+            store[f"{version}__{ep}__labels"] = np.array(labs)
+            print(f"  {version} {ep}: " + " | ".join(f"{c}: {lab or 'none'}" for c, lab in zip(["mean", *S.POS], labs)),
+                  flush=True)
         print(f"{version}: done", flush=True)
     S.XFORM = ""
     np.savez_compressed(OUT / "maps.npz", mask=mask, cols=np.array(["mean", *S.POS]), **store)
