@@ -566,3 +566,11 @@ re-run needed for A20. (scratchpad/a20/exec_bins_calib_A20.csv)
 - Measuring now: same unit, base (v9zh) vs base + memo (detached wf_prof_memo), results pickled and compared for
   exact equality (scratchpad/prof_g/{base,memo}.{txt,pkl}). Section G scope proposal waits on this number.
 - t_frame_te_basis (v9zu-TB) EXIT 0 13:39 -> v9u-R / v9zq-SVD lanes unblocked (encoder t_* family, a76352f3, audited).
+- e_pat_stats_maps (v9u, 4ecf72ed) FAILED 13:40 -> e_roi_check_r / e_roi_foci_r / e_roi_cand_r / e_rim_overlay_r
+  skipped. Cause = PATH BUG, not data: scripts/iti_decoder_patterns.py:43 + iti_basis_decoder.py:47 build
+  SPATIAL = il.encoder_run("_te_basis") from iti_licks.ENCODER_TAG = design_tag(...) under the READER's env
+  (FROZEN_LICKS_ALL=split -> "..._t3d_spont_frA_te_basis", does not exist); t_frame_te_basis wrote
+  "..._t3d_frA_te_basis" (TEENV FROZEN_LICKS_ALL=none; spatial_*.pkl + pre_stats.pkl present, 11-08 10:55-11:20).
+  The spont basis is NOT a substitute: spatial P differs (checked PS92 + PS95). Fix = derive the te-basis folder from
+  the te design (FROZEN_LICKS_ALL=none) explicitly; branch + test, then re-queue e_pat_stats_maps -> e_roi_* ->
+  e_rim_overlay_r. Check whether iti_decoder_patterns / iti_basis_decoder steps hit the same path.
