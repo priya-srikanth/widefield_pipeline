@@ -38,6 +38,8 @@ BEHAVIOUR = {
     "pose3d_side_check.py", "pose3d_side_loo.py", "pose3d_side_video.py", "side_clean_qc.py", "side_label_offsets.py",
     # main's FaceRhythm spout-in-mesh control (video factors only, writes the FR readouts dir), 11-05 merge
     "fr_spout_mesh_control.py",
+    # main's within-session decline arm (licks / trials / pose only; writes its own within_session_decline dir), 11-08
+    "within_session_decline.py",
 }
 INDIRECT = {
     "coupling_vigour_sm.py", "decoder_retention_sessions.py", "lick_correction.py",
