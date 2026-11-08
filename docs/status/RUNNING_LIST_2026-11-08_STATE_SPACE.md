@@ -7,6 +7,9 @@ Branch `analysis/state-space-recovery-20261107` (worktree wf_statespace); nothin
 
 ## A. Decisions / questions for Priya (newest first)
 
+7. Run the planted-change method check (`state_space_sim.py`) in the LocaNMF basis before rewording 0c item 1 (B6)? It
+   is local and moderate (pre sessions only); without it the LocaNMF rotation / out-of-space sizes have no calibration.
+
 6. FINDINGS 0c item 2 + page summary / section 7 ("80-95 % of acute - pre lies orthogonal ... in every variant") ->
    "Most of the acute change lies off the pre -> chronic line: ~75-90 % of its length (~55-85 % of its variance; noise-
    corrected, B5), every animal and basis. Its smaller along-line part points away from the chronic state in PS92 /
@@ -41,6 +44,22 @@ merged to main (no conflicts); A5 applied to FINDINGS 0c item 4 and the page cap
    rebuild re-render of `lick_recovery_primary` would remove that caveat -- worth queuing?)
 
 ## B. Findings (newest first; exploratory)
+
+6. **LocaNMF basis (107 sessions, ~90 components per animal; rows = the Allen rows, checked) changes finding 0c item 1:
+   in the finer basis the RAW change already looks re-patterned, not "gain + shift".** First-lick aligned, change vs own
+   pre, chronic (Allen -> LocaNMF): pattern r -.04* -> -.21* (0/4 back both); amplitude +.30* (4/4) -> +.17 (3/4, n.s.;
+   PS94 -.25); rotation beyond gain .000 -> +.050* (4/4); outside the pre space beyond gains +.003* -> +.043* (4/4,
+   ~14x); shared shift +29* -> +23* (4/4). Holds on contact-only first licks (r -.20*, rot +.057* 4/4, out +.037* 4/4).
+   Per animal chronic - pre (r / rot / out): PS92 -.17 / .07 / .09, PS93 -.26 / .03 / .05, PS94 -.30 / .07 / .01, PS95 -.11
+   / .03 / .03. The LocaNMF raw picture resembles the Allen spout-specific variant (r -.20, out +.016), and the LocaNMF
+   spout-specific variant goes further (r -.28*, rot +.071* 4/4). Unchanged in LocaNMF: acute change mostly off the line
+   (B5), position along pre -> chronic (alpha .28 / .51 / .94), y tracks far-contra aim beyond the balance marker (pooled
+   partial -.72 vs Allen -.69), x / y track aim at every far spout, gradual not step (step best in 3 / 24 fits). CAVEATS:
+   the planted-change method check was Allen only -- how rotation / out-of-space read in a ~90-dim component space with
+   the same top-8 is not measured (a rerun of state_space_sim in lnmf would answer it); component units, no ALM / tjM1
+   split; PS94_0917 basis fit 61 %. Reading: the "consistent with the pre mapping, larger" summary is a property of the
+   coarse Allen space; at the component level the post-stroke code is re-patterned from acute on. Proposed FINDINGS
+   wording after the method check (A7).
 
 5. **"Orthogonal" re-checked (Priya 11-08 "how are we defining orthogonal" -> "yes run"; `state_space_orth_check.py`,
    `orth_check{_lick,}{,_lnmf}/`).** The reported share is a LENGTH ratio |a - (a.u)u| / |a| per spout (a = acute -
