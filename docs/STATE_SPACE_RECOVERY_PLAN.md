@@ -405,7 +405,7 @@ drift-direction cosine with chronic - pre +.41 / +.41 / +.37 / -.06 (share 14-17
 7/17 subacute > 0).
 
 2-D trajectories (`scripts/state_space_trajectories.py` -> `trajectories{tag}/`, `page_figs/ss_traj_*`):
-- ACROSS DAYS, plane x = pre -> chronic, y = acute departure orthogonal to it (same units): 80-95 % of acute - pre is
+- ACROSS DAYS, plane x = pre -> chronic, y = acute departure orthogonal to it (same units): [11-08: noise-corrected ~75-90 % of the length, ~55-85 % of the variance; running list B5] 80-95 % of acute - pre is
   orthogonal to x in every animal and alignment. Lick: acute (x, y) (-.16, .56) / (.18, .62) / (-.18, .97) / (.49, 1.12),
   subacute (.65, .37) / (.42, .29) / (.80, .05) / (.90, .20). A DETOUR: out sideways acutely, back toward the axis while
   moving along it subacutely. Axes built from epoch templates (x circular for chronic, y for acute); subacute positions

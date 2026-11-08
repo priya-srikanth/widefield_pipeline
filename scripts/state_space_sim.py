@@ -63,7 +63,7 @@ ITI_W = ENCODING / "iti_licks" / WTAG                                    # run t
 LICKS3D = pose3d_dir() / "kinematics" / "licks.csv.gz"                   # 3-D first licks (landing join)
 ROOT = Path(PathResolver().root("microscope")) / "Widefield" / "state_space_recovery"   # every state-space output
 LANDING = ROOT / "landing" / "first_lick_landing.csv"
-OUT = ROOT / "sim"
+OUT = ROOT / "sim"                        # method-check tables; main() appends tag() (cue + Allen = sim/, as before)
 POS = list(oc.POS_ORDER)                  # the canonical spout order (close ipsi .. far contra)
 # top-k pre space. 8 = convention when written; checked 11-07 (Priya "how did you choose 8?"): top 8 capture 97-99 % of a
 # HELD-OUT pre session's spout-specific variance in every animal / alignment (k=4: 89-97 %, >8 adds < 3 %).
@@ -439,11 +439,12 @@ def subsample(Y, pos, n, rng):
 
 def run(n_per_spout, seed=0):
     rng = np.random.default_rng(seed)
-    sess = {}
+    sess, cols_an = {}, {}
     for f in sorted(glob.glob(SRC + "/PS9*.npz")):
         Y, pos, cols, ep, an = load(f)
         if ep == "pre":
             sess.setdefault(an, []).append((Path(f).stem, Y, pos))
+            cols_an[an] = cols                                          # per animal: LocaNMF components differ by animal
     rows = []
     for an, S in sorted(sess.items()):
         for i, (lab, Y, pos) in enumerate(S):
@@ -452,7 +453,7 @@ def run(n_per_spout, seed=0):
             P = topk(ref_means)
             mu = flat(ref_means[np.isfinite(ref_means).all(axis=(1, 2))]).mean(0)
             for kind, lvl in PLANTS:
-                Yp = plant(Y, pos, kind, lvl, mu, P, ref_means, cols, rng)
+                Yp = plant(Y, pos, kind, lvl, mu, P, ref_means, cols_an[an], rng)
                 vals = []
                 for _, Yo, po in others:
                     if n_per_spout:
@@ -464,7 +465,7 @@ def run(n_per_spout, seed=0):
                     vals.append(readouts(a, pa, b, pb, P))
                 med = pd.DataFrame(vals).median().to_dict()
                 rows.append({"animal": an, "label": lab, "plant": kind, "level": lvl, "n_per_spout": n_per_spout, **med})
-    return pd.DataFrame(rows), cols
+    return pd.DataFrame(rows), cols_an
 
 
 def detection(df):
@@ -484,7 +485,7 @@ def detection(df):
 def main():
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--n", nargs="+", type=int, default=[0, 15], help="trials per spout (0 = all, matched by session)")
-    ap.add_argument("--out", default=str(OUT))
+    ap.add_argument("--out", default=str(OUT.with_name(OUT.name + tag())))
     a = ap.parse_args()
     out = Path(a.out)
     out.mkdir(parents=True, exist_ok=True)

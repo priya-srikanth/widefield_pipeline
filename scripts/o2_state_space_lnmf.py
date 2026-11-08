@@ -75,7 +75,7 @@ from wfield_local import joint_locanmf as jl
 if ce.DRIFT_MIN_PERIOD_S != meta["drift_min_period_s"]:
     sys.exit(f"drift period {ce.DRIFT_MIN_PERIOD_S} != bundle {meta['drift_min_period_s']}")
 t0 = time.time()
-rows = np.load(b / "rows" / f"{label}.npz")
+rows = np.load(b / "rows" / f"{label}.npz", allow_pickle=True)    # our own file; June epoch was None (object)
 src = b / "inputs" / f"{label}.pkl"                                    # June: shipped in this bundle
 if not src.exists():
     src = Path(meta["enc_scratch"]) / "inputs" / f"{label}.pkl"        # rebuild set: the encoding bundle's inputs
@@ -106,7 +106,7 @@ cue, lick = rows["cue_s"].astype(float), rows["lick_s"].astype(float)
 out.parent.mkdir(parents=True, exist_ok=True)
 np.savez_compressed(out, first_cue=sample(cue, rows["lags_c"]), first_peth=sample(lick, rows["lags_p"]),
                     lags_c=rows["lags_c"], lags_p=rows["lags_p"], first_rt=rows["first_rt"], first_pos=rows["first_pos"],
-                    cue_s=cue, lick_s=lick, src=rows["src"], epoch=rows["epoch"], animal=an, basis_id=B.basis_id,
+                    cue_s=cue, lick_s=lick, src=rows["src"], epoch=str(rows["epoch"]), animal=an, basis_id=B.basis_id,
                     variance_captured=diag["variance_captured"], regions=B.regions if (B.root / "regions.npy").exists()
                     else np.array([]))
 print(f"{label}: {len(cue)} rows ({int(np.isfinite(lick).sum())} timed), {R.shape[1]} comps, "
@@ -168,7 +168,7 @@ def _rows_worker(item):
         lick[t.row.to_numpy(int)] = t.t.to_numpy(float)
         cue = lick - rt
     np.savez(d / "rows" / f"{label}.npz", cue_s=cue, lick_s=lick, first_rt=rt, first_pos=pos, src=src,
-             epoch=epochs.epoch_of(label), lags_c=il.LAGS_C, lags_p=il.LAGS_P)
+             epoch=str(epochs.epoch_of(label)), lags_c=il.LAGS_C, lags_p=il.LAGS_P)
     return {"n": len(rt), "matched": int(np.isfinite(lick).sum())}
 
 
