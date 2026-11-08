@@ -316,3 +316,12 @@ the encoding handoff (STATUS_2026-10-26_ENCODING_HANDOFF.md, top blocks); the A1
   scoring 17 s for 2 sessions x 7 controls x 5 draws -> a full arm ~48 min. Null check on 2 sessions: excess -0.14..+0.09
   per position (~50-60 trials each). cue/working + cue/lick running.
 - Section G r4 phase 2: 8/88 at 01:30; unit times 7-10, 22, 30, ~1.5, ~1.5, 20 min -- uneven, no projection yet.
+- 02:39 g7_cd_geometry_r DONE (v9zj; dumps from g5_cd_traj_orth_r 02:33) -- all four 23:56-00:01 failures now fixed. Its
+  overlap has NO noise ceiling: `cd_overlap_null` is not in the render queue (same kind of gap; add to the queue audit).
+- D6 first version (one-sided matching, v9zm @ c6bca38b): cue/working scored, but the pre NULL is biased (PS93 pre +0.01..+0.23,
+  PS92 -0.11..+0.14) and 453 of ~800 pairs were skipped (post sessions often hold more trials per position than August pre
+  sessions; PS95 acute all NaN). NOT A RESULT. Symmetric version 76e7d604 (both sessions subsampled to S's mix at the size
+  both can supply; no skips; --inputs cache) built + tested, WAITING for Priya's OK.
+  MY ERROR: I edited the wf_mixmatch worktree while lane v9zm ran from it; spawned scoring workers re-imported the new code, so
+  m_mixmatch_cue_l (02:35) scored with the new unit_job and crashed in the old main's printing. Mixed provenance -> discard
+  (overwritten by the rerun). Only that lane was affected. Rule going forward: every lane runs from a DETACHED worktree.
