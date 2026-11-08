@@ -361,8 +361,10 @@ def main():
     pd.concat([d[0].assign(animal=a) for a, d in D.items()]).to_csv(OUT / "days_sessions.csv", index=False)
     pd.concat([d[1].assign(animal=a) for a, d in D.items()]).to_csv(OUT / "days_trials.csv", index=False)
     fig_days(D)
-    proj, pooled, ve, boot = loops(data)
-    fig_loops(proj, pooled, ve, boot)
+    ve = np.nan
+    if S.BASIS == "allen":                       # one top-2 plane pooled over animals: needs a shared area space
+        proj, pooled, ve, boot = loops(data)
+        fig_loops(proj, pooled, ve, boot)
     rs = resp_size(data)
     rs.to_csv(OUT / "resp_size.csv", index=False)
     if S.ALIGN != "splice":

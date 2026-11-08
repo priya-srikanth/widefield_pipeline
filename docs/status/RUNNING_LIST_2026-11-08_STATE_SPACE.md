@@ -37,6 +37,17 @@ merged to main (no conflicts); A5 applied to FINDINGS 0c item 4 and the page cap
 
 ## B. Findings (newest first; exploratory)
 
+4. **June drift reference (LocaNMF basis, contact first licks): the chronic change is about as large as the June ->
+   August-pre change** (`state_space_june_drift.py`, `june_drift{_lick,}_lnmf/june_drift.csv`; distances noise-corrected,
+   in units of each animal's pre-pre median, fixed August-pre top-8 space). chronic_to_pre / june_to_pre, lick: PS92 1.17,
+   PS93 1.17, PS94 1.04, PS95 .96 (cue 1.11 / .94 / .94 / 1.05). Direction: partly along the June -> August direction in
+   PS92 / PS94 (cos .43 / .45 lick, ~20 % of the squared length; cue .49 / .27), not in PS93 / PS95 (-.14 / -.30; cue ~0);
+   chance scale .03. Gaps: June -> August pre ~64 days, August pre -> chronic ~37-43 days. Pre-registered reading:
+   comparable size -> NOT separable from drift + learning by distance alone. Caveats: June -> August includes learning
+   (an upper bound on drift); June rows are DAQ first contacts vs 3-D contact licks later; PS94's pre-pre unit is large
+   (2.3 / 3.1 raw vs .25-.46 for the others). Also: trajectories in LocaNMF reproduce the detour (acute share orthogonal
+   to pre -> chronic .99 / .94 / .78 / .84, Allen .80-.95); PS94_0917 basis captures only 61 % (next lowest 85 %).
+
 3. **RETRACT "trials move as a whole (no search-then-select)": the repertoire test has no power** (handoff item 4;
    `scripts/state_space_repertoire_power.py`, `path_tests_lick/repertoire_power.csv`; first-lick aligned, 33 acute /
    subacute sessions, 20 draws each). Planted two-state sessions (each trial at the pre OR the chronic template, P(chronic)
