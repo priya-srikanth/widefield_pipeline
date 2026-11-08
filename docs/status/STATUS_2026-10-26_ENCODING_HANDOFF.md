@@ -61,7 +61,7 @@ CONSOLIDATED" (questions for Priya / findings / progress); audits in `S2/lick_so
   rebuild one (LPfinal: frozen_models_lpfinal); (9) cohort 1 only. A decision reaching the CODE is not enough: check it
   reached the DATA the render reads.
 - **EFFICIENCY / NO REDUNDANCY (Priya 11-06 + 11-08; memory efficient-no-redo):** before re-running, list what already
-  exists and is valid and re-run only what changed (LPfinal acc + maps exist; A20 identical; encoder / ITI / kinematics /
+  exists and is valid and re-run only what changed (LPfinal = pre-cue acc + 15r maps for precue / cue / lick; A20 identical; encoder / ITI / kinematics /
   LP-goal unaffected); re-run only the affected cells of a big step (section G: lick window, lick-only arm, G1-G3);
   profile the hot path for repeated loading (partial_refit rebuilt inputs 13x per session = 91 %, fixed 2.0x
   exact-equal; section G re-pools the animal per session unit -- profile running); reuse cached session features
@@ -80,7 +80,7 @@ incomplete), LP source, aligned to the LP lick ONSET** (first visible cam4 frame
 is > contact + 50 ms), ENL 1.0 s lick-free on LP licks, LP-trained frozen decoders; **successful lick = DAQ contact,
 supplemental only** (Priya 11-08; 11-07 "never gate on successful licks"). So the DAQ-source "lick" outputs are the
 successful-lick class (relabel, keep, never headline); `LPfinal` (scripts/lp_final_render.py) is the lick class for
-acc / accdelta (lick, cue, precue) + 15r / 15rpa maps. cam1 is complete for all 4 animals (125 event files).
+acc / accdelta for the PRE-CUE window only (lp_final_render.py:260) + 15r / 15rpa maps for precue / cue / lick (corrected 11-08 ~13:50). cam1 is complete for all 4 animals (125 event files).
 
 #### 3. State at ~13:20
 - ON MAIN: 99f0d464 (D9 paths), 65cf7ead (rim overlay), e0e6d0ad (partial_refit input reuse).
@@ -106,7 +106,7 @@ acc / accdelta (lick, cue, precue) + 15r / 15rpa maps. cam1 is complete for all 
 |---|---|---|
 | section G -> figs -> grant | lick cells on LP; G1-G3 (f)1 | r4 13.1 h (-j 4); figs 15 min; grant ~1.8 h (Sept) -- **scope pending the profile** |
 | epoch render, DAQ source | rest fix, D7, display floors; lick arm relabeled successful-lick | g5_epoch 8.9 h + 1b 1.7 h -- re-run only the families each fix touches |
-| epoch families on LP not in LPfinal | lick class | 5c / 5r* / 10e / 13 / 14m lick arms: NOT MEASURED -- time one family, check LPfinal cache hits |
+| epoch families on LP not in LPfinal | lick class | TRIMMED 11-08 ~13:50 (running list): 3 single-arm LP renders on current main -- ENL `--only 5r 14m`, lick `--only acc 14m`, cue `--only scal mat` (pre reference); ~1.75-2.5 h wall at 3 at once; cuelick / ENLlick + other families not needed; g5_epoch_15r_r redundant |
 | cd chain | lick-aligned + rest fix | 0.5 + 2.5 + 0.6 h |
 | lick-aligned decoders / states | lick class | pcd 3.3, nolick 2.4, precue states 0.5, joint xsession 0.6, matched-pre lick 0.7 h -- mark page-feeding vs supporting (FIGURE_PROVENANCE: only cd_traj feeds a page fig, Fig 9.1) |
 | rest family | ba5b63bf missing | restw_check 0.9, precue_restw 0.4, revup 0.4, c2l 0.4, rest_frozen(_nl) 1.9, RESTnl masks 0.4, attempt_maps_restnl 1.3, chronic_stability 1.0 h + the stopped v8 restnl / l_bal chains |
