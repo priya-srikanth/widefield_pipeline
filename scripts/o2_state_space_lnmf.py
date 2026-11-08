@@ -251,7 +251,10 @@ python {b}/runner.py
     share_b = oi.o2_path(d, rv)
     srv_o2 = oi.o2_path(srv, rv)
     n = len(ok)
-    bases = "\n".join(f"rsync -ah --exclude 'C_*' {srv_o2}/{an}/{bid}/ {b}/bases/{an}/{bid}/" for an, bid in pins.items())
+    n_first = 1 + next((i for i, x in enumerate(ok) if x not in june), 0)        # first task on the enc inputs
+    rest = ",".join(str(i) for i in range(2, n + 1) if i != n_first)
+    bases = "\n".join(f"mkdir -p {b}/bases/{an}/{bid} && rsync -ah --exclude 'C_*' {srv_o2}/{an}/{bid}/ {b}/bases/{an}/{bid}/"
+                      for an, bid in pins.items())         # rsync creates only the LAST level of a destination
     cmds = f"""# O2 state-space joint-LocaNMF extraction: {a.name}
 
 {n} sessions ({len([x for x in ok if x in june])} June contact-only); code {commit}; profile {PROFILE}; imaging from
@@ -268,15 +271,15 @@ ls {s}/o2/{ENC}/inputs | wc -l      # expect 107; if the scratch copy was purged
 find {b}/uatlas -name U_atlas.npy | wc -l      # expect {n}
 ```
 
-## 2. Login node  (ssh {a.user}@o2.hms.harvard.edu) -- ONE task first
+## 2. Login node  (ssh {a.user}@o2.hms.harvard.edu) -- TWO tasks first (a June + a rebuild-set session)
 ```bash
-sbatch --array=1 {b}/run.sbatch
+sbatch --array=1,{n_first} {b}/run.sbatch
 squeue -u {a.user}
-tail -n 3 {b}/logs/ss_{a.name}_*_1.out       # "<label>: N rows ..., var captured ..."
+tail -n 3 {b}/logs/ss_{a.name}_*_{{1,{n_first}}}.out       # "<label>: N rows ..., var captured ..."
 ```
 then the rest:
 ```bash
-sbatch --array=2-{n}%40 {b}/run.sbatch
+sbatch --array={rest}%40 {b}/run.sbatch
 ls {b}/out/sessions | wc -l      # expect {n}
 ```
 
