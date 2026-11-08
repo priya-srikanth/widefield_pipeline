@@ -200,3 +200,19 @@ def test_align_maps_recovers_a_shared_code(mods):
         assert np.corrcoef(a[an].ravel(), a["A1"].ravel())[0, 1] > 0.98
     proj, pooled, ve, boot, loo2 = TJ.loops(data, align=True)
     assert pooled["chronic"].shape == (6, nb, 2) and ve > 0.3
+
+
+def test_svd_basis_switches(mods, monkeypatch):
+    """WF_SS_BASIS=svd: shared components -> cross-animal scripts allowed only where named areas are not needed, the
+    hemisphere split is NaN (bilateral components), outputs tagged _svd."""
+    S, _ = mods
+    monkeypatch.setattr(S, "BASIS", "svd")
+    assert S.tag().endswith("_svd")
+    h = S.hemi(np.ones((3, 4)), ["svd#1_both", "svd#2_right", "svd#3_left", "svd#4_both"])
+    assert np.isnan(h["contra"]) and np.isnan(h["ipsi"])
+    S.allen_only("x", shared_ok=True)
+    with pytest.raises(SystemExit):
+        S.allen_only("x")
+    monkeypatch.setattr(S, "BASIS", "lnmf")
+    with pytest.raises(SystemExit):
+        S.allen_only("x", shared_ok=True)

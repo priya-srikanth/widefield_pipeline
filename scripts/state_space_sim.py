@@ -102,14 +102,18 @@ CACHE = ROOT / "cache"
 # sessions (epoch "june", never "pre"), its own binned cache, outputs tagged _lnmf. Columns are components named
 # <Allen area>#<k>_<side> from the basis's region per component; the component set differs per animal, so
 # `load_sessions` then returns {animal: cols} (`cols_of`) and scripts that stack areas across animals refuse
-# (`allen_only`).
+# (`allen_only`). WF_SS_BASIS=svd (Priya 11-08 "could we use one svd basis"): ONE cohort SVD basis (top 100 of the
+# August pre sessions of all four animals on the shared Allen pixel grid, `o2_state_space_svd.py`), same rows; columns
+# svd#<k>_<side> SHARED by all animals, so cross-animal stacking works; 97 / 100 components are bilateral, so the
+# hemisphere readouts (`hemi`) are NaN there.
 BASIS = os.environ.get("WF_SS_BASIS", "allen")
 LNMF = REBUILD / "o2" / "ss_lnmf_20261108" / "out" / "sessions"
-if BASIS not in ("allen", "lnmf"):
+SVD = REBUILD / "o2" / "ss_svd_20261108" / "out" / "sessions"
+if BASIS not in ("allen", "lnmf", "svd"):
     raise ValueError(f"WF_SS_BASIS={BASIS!r}")
-SRC = str(LNMF) if BASIS == "lnmf" else ITI                              # the per-trial files the loaders read
-if BASIS == "lnmf":
-    CACHE = ROOT / "cache_lnmf"
+SRC = {"lnmf": str(LNMF), "svd": str(SVD)}.get(BASIS, ITI)               # the per-trial files the loaders read
+if BASIS != "allen":
+    CACHE = ROOT / f"cache_{BASIS}"
 ALIGN_LABEL = {"cue": "cue-aligned -0.5..2.0 s", "cue25": "cue-aligned -0.5..2.5 s",
                "lick": "first-lick-aligned -1.0..0.7 s", "splice": "cue -0.5..0.5 s + first lick -0.5..0.7 s"}
 
@@ -128,6 +132,8 @@ def hemi(v, cols, sel=None):
     """{"contra", "ipsi"}: mean of v (..., areas) over the contralesional (_right) / ipsilesional (_left) areas, restricted
     to the parent areas in ``sel`` if given (all four lesions are left: right = contralesional). NaN if none."""
     out = {}
+    if BASIS == "svd":                                                  # bilateral components: no hemisphere split
+        return {"contra": np.nan, "ipsi": np.nan}
     for h, suf in (("contra", "_right"), ("ipsi", "_left")):
         idx = [i for i, c in enumerate(cols) if c.endswith(suf) and (sel is None or c[: -len(suf)].split("#")[0] in sel)]
         out[h] = v[..., idx].mean(-1) if idx else np.nan
@@ -139,9 +145,10 @@ def cols_of(cols, an):
     return cols[an] if isinstance(cols, dict) else cols
 
 
-def allen_only(what):
-    """Refuse in the LocaNMF basis: ``what`` stacks or compares areas ACROSS animals (components differ per animal)."""
-    if BASIS != "allen":
+def allen_only(what, shared_ok=False):
+    """Refuse in the LocaNMF basis: ``what`` stacks or compares areas ACROSS animals (components differ per animal).
+    ``shared_ok``: also fine in the cohort SVD basis (shared components; not for readouts that need named areas)."""
+    if BASIS == "lnmf" or (BASIS == "svd" and not shared_ok):
         sys.exit(f"{what}: pools areas across animals -- Allen basis only (WF_SS_BASIS={BASIS})")
 
 
@@ -280,8 +287,8 @@ def _xform(xb, pos, an):
 
 def load(path):
     c = CACHE / ALIGN / f"{Path(path).stem}.npz"
-    if BASIS == "lnmf" and not c.exists():
-        fill_cache([path])                                             # compressed ~90-component files: bin once
+    if BASIS != "allen" and not c.exists():
+        fill_cache([path])                                             # compressed component files: bin once
     if c.exists():
         z = np.load(c)
         pos = z["pos"].astype(str)
@@ -308,7 +315,7 @@ def load_sessions(hook=None, june=False):
     data, cols = {}, {}
     last = None
     files = [f for f in sorted(glob.glob(SRC + "/PS9*.npz")) if june or _epoch(Path(f).stem, "") != "june"]
-    if BASIS == "lnmf":
+    if BASIS != "allen":
         prefill(files)
     for f in files:
         Y, pos, last, ep, an = load(f)
