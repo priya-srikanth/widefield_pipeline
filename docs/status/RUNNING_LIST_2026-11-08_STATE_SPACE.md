@@ -7,6 +7,11 @@ Branch `analysis/state-space-recovery-20261107` (worktree wf_statespace); nothin
 
 ## A. Decisions / questions for Priya (newest first)
 
+**ANSWERED 11-08 (Priya: "ok for noise-corrected wording. run the method check"):** A6 applied (FINDINGS 0c item 2,
+page summary row + section 7 takeaway, handoff item 5, plan note; the along-line sign split named as Allen, LocaNMF
+PS92 ~0 / others toward); A7 running (`sim{tag}` folders: lnmf lick, lnmf cue, allen lick; Allen cue = `sim/`).
+Also asked: loops in the LocaNMF basis (B7).
+
 7. Run the planted-change method check (`state_space_sim.py`) in the LocaNMF basis before rewording 0c item 1 (B6)? It
    is local and moderate (pre sessions only); without it the LocaNMF rotation / out-of-space sizes have no calibration.
 
