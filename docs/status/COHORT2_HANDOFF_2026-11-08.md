@@ -53,11 +53,25 @@ medial OB_center/OB_left/OB_right/RSP_base + lateral MOp_left/MOp_right/SS_left/
 tick **overlay** to morph the Allen atlas onto the image and nudge points until outlines match cortex;
 type **v1** in the label box; **Save**. `Load .dat` switches to the next session (PS121 11-06) in the same window.
 
-## Next steps
-1. Add `allen_register --save-dir`; draw landmarks for all 4 (PS118/PS121 from E:, PS120/PS122 reading .dat
-   from M:, saving to E:).
-2. Set `reference_date` per animal (PS118 1106, PS120 1103, PS121 1106, PS122 1103) in
-   `configs/cohort2/animals.yaml` (or cohorts.yaml master), `reference_landmarks: v1`.
-3. Build each reference's Allen dir (preprocess for the E: ones; `apply_allen_transform` on N: for the
-   archived ones), then register every other session → unblocks LocaNMF/maps.
-4. Archive 11-06 once alignment doesn't need its raw on E:.
+## DONE 2026-11-08 (alignment)
+- `allen_register --save-dir` added (read .dat from M:, save landmarks to E:); landmarks drawn for all 4
+  (affine, 8 pts): PS118 1106, PS121 1106 (E:), PS120 1103, PS122 1103 (read .dat from M:).
+- `configs/cohort2/animals.yaml` reference_date set per animal (1106/1103/1106/1103), reference_landmarks v1.
+- Reference Allen dirs built (`apply_allen_transform` on N:); all 19 sessions registered + warped to their
+  reference CCF (`cross_day_align` reference-native, warp_u=True) from N: — NCC 0.88-1.0, small-ROI 10-29
+  placed at offset + roi_coverage masked. Per-session `allen_aligned_affine8v1/` (U_atlas, atlas, masks) on N:.
+  Cross-day QC `labcams/xday/<animal>_xall/<animal>_cross_day_alignment_qc.png` (2 slides/deck already).
+- Maps (cue/lick + Allen overlay) built per session from N: (`scripts`-style `_maps_commands`); deck shows them.
+
+## STILL TO DO: glue mask (fiber-glue occlusion) — AFTER the CCF settles
+`paint_exclusion.py` (`python -m wfield_local.paint_exclusion`): hand-paint, PER ANIMAL, the fiber-glue
+occlusion no threshold can find (brightness here is dominated by window geometry). `beta_maps.brain_mask()`
+applies it and **every map / LocaNMF / decoder consumes it** — additive to `EXCLUDE_REGIONS` (MOB etc.).
+**It is painted in CCF/atlas space** (loads `frames_average_atlas.npy` + CCF outlines, 540x640). THEREFORE it
+is tied to the current alignment: **refine the CCF → re-paint the glue** (small nudge usually fine; material
+change = redo). So **settle the CCF first, then paint the glue** (it's the last masking step). cohort1 painted
+2026-09-12. Controls in the painter docstring (drag=paint, 0=all-animals mask, 1-4=per-animal, s=save).
+
+## If refining the CCF
+Re-draw that animal's landmarks (same GUI, label v1), re-run `apply_allen_transform` for its reference, then
+re-run the `cross_day_align` warp (warp_u=True) + the maps for its sessions, then re-paint its glue mask.
