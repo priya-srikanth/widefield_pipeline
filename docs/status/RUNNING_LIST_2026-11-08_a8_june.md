@@ -7,7 +7,9 @@ classes; 3 = FaceRhythm June face regions; 4 = FaceRhythm June O2 run. Backgroun
 
 ## DECISIONS / QUESTIONS FOR PRIYA
 
-1. **Submit the June FaceRhythm O2 bundle?** `DeepLabCut/Widefield/o2/fr_cam4_june_20261108/` (12 tasks, same
+1. ~~Submit the June FaceRhythm O2 bundle?~~ **SUBMITTED by Priya 11-08 ~00:30.** When done: transfer-node rsync of
+   `out/` (bundle COMMANDS.md section 3), then `python scripts/o2_face_rhythm.py collect --name fr_cam4_june_20261108`,
+   then project onto frozen `master_pre_v1` + readouts (a8). Original item: `DeepLabCut/Widefield/o2/fr_cam4_june_20261108/` (12 tasks, same
    settings as production fr_cam4_20261021: 10-min segments, 4 workers, engaged trials; COMMANDS.md inside). ROIs are
    in place (`face_rhythm/cam4/rois/PS9x_2026060x/`, `rois_ready` True for all 12). Before submitting, please look at
    `face_rhythm/cam4/register/qc_june_rois.png` (June warped regions next to each animal's first August session).
@@ -26,14 +28,23 @@ classes; 3 = FaceRhythm June face regions; 4 = FaceRhythm June O2 run. Backgroun
   (PS92 06/06: 291 working-period trials, 283 contact / 1 incomplete / 4 jaw-only / 3 no-response); only the session
   LISTS of the snapshot / summary scripts skip June. So the 3-D kinematics gate (A20) already has June working periods.
 
+- **June trial classes look like August's (task 2).** All 12 June sessions, with 8 August sessions (0806, 0810) for
+  comparison:
+  - Working period covers 92-100 % of video trials in June; August 0806/0810 ranges 69-100 % (PS94/95 0806 quit
+    early).
+  - Contact share of working-period trials: June 93-99 %, August 87-100 %.
+  - Incomplete licks are somewhat rarer in June: PS93 17-22 vs 40-71 in August; others 1-10 vs 2-11.
+  - So June has a normal working period, and the A20 gate keeps ~all June trials.
+  - Table: scratchpad `june_classes_check.csv` (copied into the June reference folder with task 1's outputs).
+
 ## DONE (newest last)
 
 - Task 3: `scripts/face_rhythm_warp_rois.py to-sessions --june` (June only; the 107 existing ROIs untouched) ->
   12 June `rois/<s>/ROIs.h5`; `qc-june` -> `register/qc_june_rois.png`.
-- Task 4: June bundle built (not submitted; O2 submission is Priya's).
+- Task 4: June bundle built; Priya submitted it on O2 (11-08 ~00:30).
 
 ## RUNNING / NEXT
 
-- Task 2: class check on all 12 June sessions + 8 August sessions for comparison (running).
+- Task 2: DONE (see findings).
 - Task 1: `scripts/pose3d_june_reference.py` (June vs own August pre, within-animal shuffles, 10k; post epochs drawn
   alongside) running.
