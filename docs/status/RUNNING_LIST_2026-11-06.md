@@ -244,3 +244,13 @@ the encoding handoff (STATUS_2026-10-26_ENCODING_HANDOFF.md, top blocks); the A1
   l_basis_frame_sd_r, e_basis_r, l_offset_where_r, l_session_levels_z_r, l_levels_compare_r, e_pat_stats_maps_r,
   e_roi_check_r2, e_roi_foci_r2. The v9u copy of e_pat_stats_maps (old code) will fail again harmlessly.
   Code-changed table: + | 2f5799a9 ITI TE basis | e_basis, l_offset_where, l_session_levels_z, e_pat_stats_maps, roi check/foci | v9zg |
+
+## OVERNIGHT 11-07 -> 11-08 (Priya asleep ~23:30). DECISIONS NEEDED FIRST, then findings, then log.
+### Decisions / questions for Priya (newest last)
+- (none yet)
+### Findings
+- (filled in as they come)
+### Log
+- 23:30 section G restart #4 (v9zh, c3a8b049, ROI feature cache) phase 1 6/12; ROI-cache push re-queued to run after a_partial_ls
+  (pre-push pytest was stopped at 22:20 for LOW RAM 4 GB). ITI svdbasis retry v9zg waits for t_frame_te_basis. l_reembed
+  failed on the 12 June sessions (object arrays / allow_pickle) -> investigate on a branch. No section G restarts tonight.
