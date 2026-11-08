@@ -628,3 +628,10 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
 - ITI te-basis path bug: helper fixing on fix/iti-te-basis-path-1108 (wf_tebasis); then re-queue e_pat_stats_maps ->
   e_roi_* -> e_rim_overlay_r.
 - 15:51 gb_sessions_r EXIT 0 (107, rest fix); l_stopped_restw_r (99f0d464, fix present) took the lock.
+- CORRECTION (ITI te-basis): the path bug was ALREADY FIXED on main by cc70519e (11-07 20:36, il.te_basis_run, "TE basis
+  path never _spont"); e_pat_stats_maps failed because lane v9u runs from wf_render_v9s at 4ecf72ed (11-06, pre-fix).
+  -> just re-run e_pat_stats_maps -> e_roi_check_r / e_roi_foci_r / e_roi_cand_r / e_rim_overlay_r on current main.
+  Helper branch fix/iti-te-basis-path-1108 (b9189a24, wf_tebasis): hardening only (tag derived from the TE design via
+  frozen_encoder.tag_for_design, clear refusal naming the folder; 473 passed) -- held, optional.
+- 16:0x memo ON MAIN 597cbed9 (two lost push races with another window; 483 passed each time).
+- 15:59 gain-bio DONE on fixed code: gb_sessions_r, gb_summarise_r, gb_stats_r, gb_fig_r all EXIT 0.
