@@ -38,6 +38,9 @@ BASELINE (WF_SS_MAPBASE; Priya 11-08 "let's try the rest baseline and no subtrac
          on the drift-removed signal, one flat vector per session, identical for every trial and spout).
   none   the response window itself. The signal is drift-removed INCLUDING the constant, so this is relative to the
          session's own average (dF/F is already relative to the session's mean frame).
+WINDOW (WF_SS_MAPWIN): resp (default; `BAL_BINS` response window) or precue (cue-aligned only, rest / none only: the
+-0.5..0 s window before the cue -- where the pre-cue position code lives, the arm's key pre-stroke readout; Priya 11-08
+"should we do the cue aligned versions too?"). Outputs then carry _precue.
   The spout-specific version is identical under rest and none (a per-session constant cancels in spout - mean over
   spouts); under nocw the rest vector gets the same cortex-wide projection as the trials.
 Outputs: <state_space_recovery>/chronic_maps{tag}[_<base>]/areas.csv, maps.npz; page_figs/ss_cmap_<version>[_<base>]_
@@ -71,10 +74,15 @@ N_PERM = 1000
 BASE = __import__("os").environ.get("WF_SS_MAPBASE", "lick")
 if BASE not in ("lick", "rest", "none"):
     raise ValueError(f"WF_SS_MAPBASE={BASE!r}")
-BSUF = "" if BASE == "lick" else f"_{BASE}"
+WIN = __import__("os").environ.get("WF_SS_MAPWIN", "resp")
+if WIN not in ("resp", "precue") or (WIN == "precue" and (S.ALIGN != "cue" or BASE == "lick")):
+    raise ValueError(f"WF_SS_MAPWIN={WIN!r} (precue needs WF_SS_ALIGN=cue and a rest / none baseline)")
+BSUF = ("" if BASE == "lick" else f"_{BASE}") + ("_precue" if WIN == "precue" else "")
 BASE_LABEL = {"lick": "response window minus the trial's -1.0..-0.6 s before the first lick",
               "rest": "response window minus the session's RESTnl rest level",
               "none": "response window, no baseline (drift-removed signal)"}
+if WIN == "precue":
+    BASE_LABEL = {k: v.replace("response window", "PRE-CUE window -0.5..0 s") for k, v in BASE_LABEL.items()}
 OUT = S.ROOT / f"chronic_maps{S.tag()}{BSUF}"
 FIGS = S.ROOT / "page_figs"
 SUF = S.tag().lstrip("_")
@@ -87,7 +95,7 @@ def response(M, lab, an):
     base, resp = S.BAL_BINS[S.ALIGN]
     if BASE == "lick":
         return S.evoked(M)
-    r = M[resp].mean(0)
+    r = M[base if WIN == "precue" else resp].mean(0)                  # precue: the cue alignment's -0.5..0 s bins
     if BASE == "none" or S.XFORM == "spout":
         return r
     z = np.load(REST / f"{lab}.npz")
