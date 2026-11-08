@@ -419,3 +419,10 @@ Rim-overlay fix push: denied by the tool permission check; branch fix/rim-overla
 whole json identical (max diff 0). Wall (no profiler, box under load): 662 s / 815 s. Fair baseline (original code, no
 profiler, PS92_0812) running before any restart decision.
 Rim-overlay fix ON MAIN 65cf7ead (Priya allowed the push).
+
+**11-08 10:57 -- b_partial_frA RESTARTED on the speed-up (Priya OK).** Fair baseline PS92_0812, original code, no
+profiler: 1342 s vs 662 s fixed = 2.0x; all three runs whole-json identical. Lane AB stopped (exact PIDs, all mine) after
+v9zv-PF took over the heavy-lock ownership (no other lane could grab it in between). 53 session jsons saved and all
+parse; the restart resumes with 54 to go. Lane v9zv (detached wf_render_v9zv @ 5bf72011 = a76352f3 + the fix) then runs
+AB's 18 remaining reserved steps + b_residual_roi_frA (stop -> cont for 4 of them), releasing the lock after
+b_partial_frA. NB the earlier b_partial_frA.log was overwritten by the restart (its record is in CHAIN.log).
