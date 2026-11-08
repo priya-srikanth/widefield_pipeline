@@ -20,6 +20,10 @@ classes; 3 = FaceRhythm June face regions; 4 = FaceRhythm June O2 run. Backgroun
    `out_superseded_wrongmesh_20261108/` (+ its qc_cache); old QC -> `face_rhythm/cam4/superseded_june_wrongmesh_20261108/`.
    Re-run = move scratch out/ + work/ aside, rsync the new rois, resubmit 1-12 (commands given to Priya 11-08).
    August fields / ROIs / outputs untouched. 3-D (task 1) unaffected: it uses the v36 coordinates consistently.
+   **Re-run 11-08 midday:** 9 / 12 copied back by ~13:00. Not yet copied: PS93 06/07 and 06/08, PS94 06/06; PS92 06/08
+   trials were still copying. All 9 have violations <= 0.02 %, trial samples 100 % filled, and mesh home 54-61 px
+   (median) from the old wrong mesh, all inside the frame. So the new meshes were used. Next = collect + qc once all 12
+   are copied.
 
 1. ~~Submit the June FaceRhythm O2 bundle?~~ **SUBMITTED by Priya 11-08 ~00:30.** When done: transfer-node rsync of
    `out/` (bundle COMMANDS.md section 3), then `python scripts/o2_face_rhythm.py collect --name fr_cam4_june_20261108`,
