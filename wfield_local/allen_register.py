@@ -160,7 +160,7 @@ def _draw_reference_guide(ax, ccf_regions):
     ax.set_title("Allen reference: suggested placements", fontsize=8)
 
 
-def run_gui(dat_path=None):
+def run_gui(dat_path=None, save_dir=None):
     import matplotlib.pyplot as plt
     from matplotlib.widgets import Slider, RadioButtons, Button, CheckButtons, TextBox
 
@@ -354,7 +354,11 @@ def run_gui(dat_path=None):
 
     def do_save(_):
         lab = (tb.text or "v1").strip() or "v1"
-        fn = os.path.join(sess_dir, f"dorsal_cortex_landmarks_{lab}.json")
+        # --save-dir writes the JSON HERE instead of next to the .dat, so the .dat can be READ from M:
+        # standby (immutable) while the landmarks land on E:/N:.
+        outdir = save_dir or sess_dir
+        os.makedirs(outdir, exist_ok=True)
+        fn = os.path.join(outdir, f"dorsal_cortex_landmarks_{lab}.json")
         try:
             fn, tf, eff, ns = save_landmarks_json(points, fn, state["ttype"])
             msg.set_text("Saved (%s, %d pts):\n%s" % (eff, len(ns), fn)); print("[allen_register] saved", fn, eff, ns)
@@ -421,7 +425,8 @@ def run_gui(dat_path=None):
     def set_savedir_text():
         savedir_txt.set_text("compare = cyan(similarity) + magenta(affine)\n"
                              "Del key = remove pt under cursor\nSave dir:\n"
-                             + (sess_dir or "(load a .dat first)"))
+                             + ((save_dir or sess_dir) or "(load a .dat first)")
+                             + ("  [--save-dir]" if save_dir else ""))
 
     def load_dat(path):
         nonlocal reader, sess_dir
@@ -529,13 +534,16 @@ def selftest():
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("dat", nargs="?", default=None)
+    ap.add_argument("--save-dir", default=None,
+                    help="write dorsal_cortex_landmarks_<label>.json HERE instead of next to the .dat "
+                         "(read the .dat from M: standby, save the landmarks to an E: session dir)")
     ap.add_argument("--selftest", action="store_true")
     args = ap.parse_args()
     if args.selftest:
         selftest(); return 0
     # With a path: open that recording. Without: launch the GUI blank and let the
     # user load a .dat (and switch sessions) from within via the "Load .dat" button.
-    run_gui(args.dat)
+    run_gui(args.dat, args.save_dir)
     return 0
 
 
