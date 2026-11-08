@@ -615,3 +615,16 @@ Decisions for Priya: (1) push the section G memo branch (perf only, outputs iden
 (recommended, ~2-3 h with memo) vs affected cells only? (3) include the cue arm (pattern pre-reference)? (4) lick-aligned
 decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camera group replaces the DAQ rows?
 (6) DAQ-grouping G1-G3 as a labeled supplement?
+
+## 11-08 ~16:00 -- Priya's decisions on the trimmed plan
+- APPROVED: push the section G memo (perf only, identical) -> pushing; full section G grid with the memo; include the
+  cue arm (pattern pre-reference); lick-aligned decoders page-feeding first (cd_traj + matched-pre lick half), the
+  other four after.
+- G1-G3 (Priya 11-08, "ok as you propose"): train camera WORKING (contact + incomplete) vs NO_RESPONSE (unknown NOT
+  trained; matches (f) 1 / a49795b3), score post no_response rows as the no-lick set, working rows as the engaged
+  comparison; jaw_only / stopped / quit tail reported per group. Helper implementing on fix/g13-noresp-1108
+  (wf_g13noresp). Section G waits for it.
+- DAQ-grouping G1-G3 supplement: NOT run (Priya 11-08).
+- ITI te-basis path bug: helper fixing on fix/iti-te-basis-path-1108 (wf_tebasis); then re-queue e_pat_stats_maps ->
+  e_roi_* -> e_rim_overlay_r.
+- 15:51 gb_sessions_r EXIT 0 (107, rest fix); l_stopped_restw_r (99f0d464, fix present) took the lock.
