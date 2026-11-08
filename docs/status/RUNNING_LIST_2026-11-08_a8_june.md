@@ -66,6 +66,18 @@ classes; 3 = FaceRhythm June face regions; 4 = FaceRhythm June O2 run. Backgroun
   - Script fix: the classes were built twice per session (licks + jaw trials; ~35 min serial, killed by my 30-min
     timeout on the first run); now precomputed once, 2 workers (~15 min); `--replot` redraws from the CSVs.
 
+- **June FaceRhythm O2 outputs: complete and clean except PS95's mesh rim** (Priya copied out/ 11-08; `o2_face_rhythm.py
+  collect` -> `face_rhythm/cam4/o2_fr_cam4_june_20261108_index.csv`; `qc --jobs 2` -> `o2_fr_cam4_june_20261108_qc.png`
+  + data/ csv). Compared with each animal's August pre sessions of the production run:
+  - integrity 12 / 12; no constraint violations, no NaN bins, trial samples 100 % filled;
+  - interior mesh folds as rare as August (<= 0.13 % of bins; August <= 0.32 %);
+  - displacement in August's range (median 1.1-2.2 px vs 1.1-2.4; p99 15-27 vs 15-25 px);
+  - **PS95 June: a rim fold in every bin (August 80-92 %) and 3x August's p99 folded fraction (0.7 % vs 0.24 % of
+    triangles).** It is the same place as the off-frame mesh points at the top edge (decision 2). PS92 / PS93 / PS94
+    rims are at or below August.
+  - So decision 2 (NaN the off-frame / rim points in the June readouts, or leave PS95 June out) now matters for PS95
+    all three days, not just 06/08.
+
 ## DONE (newest last)
 
 - Task 3: `scripts/face_rhythm_warp_rois.py to-sessions --june` (June only; the 107 existing ROIs untouched) ->
@@ -75,4 +87,5 @@ classes; 3 = FaceRhythm June face regions; 4 = FaceRhythm June O2 run. Backgroun
 ## RUNNING / NEXT
 
 - Task 2: DONE (see findings).
-- Task 1: DONE (see findings). Task 4 follow-up waits on the O2 June run + copy-back.
+- Task 1: DONE (see findings). Task 4: outputs collected + QC'd (see findings); next = project onto frozen
+  master_pre_v1 + June readouts, waits on decision 2 for PS95.
