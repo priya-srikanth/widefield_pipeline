@@ -282,7 +282,7 @@ def se_tube(ax, B, color, brk=(), sub=24):
 
 def fig_loops(proj, pooled, ve, boot, align=False):
     t, brk = times()
-    suf = SUF + ("_aligned" if align and S.BASIS == "allen" else "")
+    suf = SUF + ("_aligned" if align and S.BASIS != "lnmf" else "")
     plane = (f"per-animal pre top-{S.K} spaces rotated onto each other on pre (Procrustes), then the cohort top-2 plane "
              f"({100 * ve:.0f} % of aligned pre variance)" if align else
              f"cohort pre-stroke top-2 plane ({100 * ve:.0f} % of pre variance)")
@@ -401,16 +401,16 @@ def main():
     pd.concat([d[0].assign(animal=a) for a, d in D.items()]).to_csv(OUT / "days_sessions.csv", index=False)
     pd.concat([d[1].assign(animal=a) for a, d in D.items()]).to_csv(OUT / "days_trials.csv", index=False)
     fig_days(D)
-    # one top-2 plane pooled over animals needs a shared space: Allen areas directly; LocaNMF (per-animal components)
+    # one top-2 plane pooled over animals needs a shared space: Allen areas or the cohort SVD directly; LocaNMF (per-animal components)
     # through the pre-only Procrustes alignment. WF_SS_LOOPS=aligned runs the aligned version in Allen too (the check
     # that it reproduces the shared-space loops; figures carry _aligned).
-    align = S.BASIS != "allen" or os.environ.get("WF_SS_LOOPS") == "aligned"
+    align = S.BASIS == "lnmf" or os.environ.get("WF_SS_LOOPS") == "aligned"
     res = loops(data, align=align)
     proj, pooled, ve, boot = res[:4]
     fig_loops(proj, pooled, ve, boot, align=align)
     if align:
         print("alignment, leave-one-animal-out r of the aligned pre template:", {a: round(r, 2) for a, r in res[4].items()})
-        pd.Series(res[4], name="loo_r").to_csv(OUT / f"loops_alignment{'_aligned' if S.BASIS == 'allen' else ''}.csv")
+        pd.Series(res[4], name="loo_r").to_csv(OUT / f"loops_alignment{'_aligned' if S.BASIS != 'lnmf' else ''}.csv")
     np.savez(OUT / f"loops{'_aligned' if align else ''}.npz", ve=ve,
              **{f"{a}__{e}": z for a, d in proj.items() for e, z in d.items()})
     rs = resp_size(data)

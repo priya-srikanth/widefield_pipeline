@@ -143,6 +143,7 @@ def test_lnmf_basis(mods, monkeypatch, tmp_path):
     """WF_SS_BASIS=lnmf: component names from the basis regions, June kept apart, per-animal cols, _lnmf tag."""
     S, _ = mods
     monkeypatch.setattr(S, "BASIS", "lnmf")
+    monkeypatch.setattr(S, "LNMF_MASK", "none")                        # the loader itself; the mask: its own test
     monkeypatch.setattr(S, "SRC", str(tmp_path / "sessions"))
     monkeypatch.setattr(S, "CACHE", tmp_path / "cache")
     monkeypatch.setattr(S, "_NAMES", {3: "MOp_left", -3: "MOp_right", 17: "SSp-m_left", -17: "SSp-m_right"})
@@ -200,3 +201,38 @@ def test_align_maps_recovers_a_shared_code(mods):
         assert np.corrcoef(a[an].ravel(), a["A1"].ravel())[0, 1] > 0.98
     proj, pooled, ve, boot, loo2 = TJ.loops(data, align=True)
     assert pooled["chronic"].shape == (6, nb, 2) and ve > 0.3
+
+
+def test_svd_basis_switches(mods, monkeypatch):
+    """WF_SS_BASIS=svd: shared components -> cross-animal scripts allowed only where named areas are not needed; the
+    hemisphere split reads area means through the basis weights; outputs tagged _svd."""
+    S, _ = mods
+    monkeypatch.setattr(S, "BASIS", "svd")
+    assert S.tag().endswith("_svd")
+    W = np.array([[1.0, 0.0, 2.0], [0.0, 1.0, 0.0]])                  # 2 components x areas MOp_left, MOp_right, SSp_left
+    monkeypatch.setattr(S, "_SVDW", {"W": W, "names": ["MOp_left", "MOp_right", "SSp_left"]})
+    v = np.array([[1.0, 3.0]])                                          # 1 trial x 2 components
+    h = S.hemi(v, ["svd#1_both", "svd#2_both"])
+    assert h["contra"][0] == 3.0 and h["ipsi"][0] == 1.5                 # right: MOp 3; left: mean(MOp 1, SSp 2)
+    assert S.hemi(v, [], sel={"SSp"})["ipsi"][0] == 2.0 and np.isnan(S.hemi(v, [], sel={"SSp"})["contra"])
+    S.allen_only("x", shared_ok=True)
+    with pytest.raises(SystemExit):
+        S.allen_only("x")
+    monkeypatch.setattr(S, "BASIS", "lnmf")
+    with pytest.raises(SystemExit):
+        S.allen_only("x", shared_ok=True)
+
+
+def test_lnmf_brain_mask_drops_occluded(mods, monkeypatch):
+    """LocaNMF on the brain mask: occluded components (glue / bulb) dropped at load, tag _lnmfbm; WF_SS_LNMF_MASK=none
+    keeps them (tag _lnmf)."""
+    S, _ = mods
+    monkeypatch.setattr(S, "BASIS", "lnmf")
+    monkeypatch.setattr(S, "_lnmf_keep", lambda an: np.array([True, False, True]))
+    xb, cols = S._mask_cols(np.arange(12.0).reshape(2, 2, 3), ["a#1_left", "b#1_left", "c#1_right"], "PS92")
+    assert cols == ["a#1_left", "c#1_right"] and xb.shape == (2, 2, 2) and xb[0, 0, 1] == 2.0
+    assert S.tag().endswith("_lnmfbm")
+    with pytest.raises(ValueError):
+        S._mask_cols(np.zeros((1, 1, 2)), ["a", "b"], "PS92")
+    monkeypatch.setattr(S, "LNMF_MASK", "none")
+    assert S.tag().endswith("_lnmf") and S._mask_cols(xb, cols, "PS92")[1] == cols

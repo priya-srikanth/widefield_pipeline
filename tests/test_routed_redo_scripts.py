@@ -57,7 +57,7 @@ def test_trial_attempts_is_routed_and_the_deficit_readers_follow():
     assert "require_default(" not in src and "out = a.out or run_mode.attempts_dir()" in src
     assert "if run_mode.tag() and a.out is None:" in src                       # a comparison build registers nothing
     for name in ("encoding_mixed", "within_spout_mixed"):
-        assert "run_mode.deficit_qc_dir()" in (REPO / "scripts" / f"{name}.py").read_text(encoding="utf-8"), name
+        assert "run_mode.deficit_qc_dir(" in (REPO / "scripts" / f"{name}.py").read_text(encoding="utf-8"), name
 
 
 def test_every_attempts_reader_reads_this_runs_table(monkeypatch):

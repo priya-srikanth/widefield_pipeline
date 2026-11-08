@@ -35,6 +35,9 @@ ROOT = S.ROOT
 # WF_SS_ALIGN as in state_space_sim: inputs from <dir>_<align>, figures named <name>_<align> (cue = no suffix)
 ALIGN = S.ALIGN
 TAG = "" if ALIGN == "cue" else f"_{ALIGN}"
+# WF_SS_BASIS (Priya 11-08 "render and add the SVD basis version of section 3-7 figures" / "and LocaNMF"): inputs from
+# <dir><align><basis>, figures named <name><align><basis>, the basis written top left. Allen = no suffix (unchanged).
+BTAG = S.btag()
 ALIGN_LABEL = S.ALIGN_LABEL
 POST = ["acute", "subacute", "chronic"]
 EPOCHS = ["pre"] + POST
@@ -48,8 +51,11 @@ plt.rcParams.update({"font.size": 9, "axes.titlesize": 9.5, "axes.spines.top": F
 
 def sessions(sub):
     """Session table of a trials run; `sub` may carry "{TAG}" to place the alignment tag itself (variant runs)."""
-    name = sub.format(TAG=TAG) if "{TAG}" in sub else f"{sub}{TAG}"
-    return pd.read_csv(ROOT / name / "state_space_trials_sessions.csv")
+    name = (sub.format(TAG=TAG) if "{TAG}" in sub else f"{sub}{TAG}") + BTAG
+    f = ROOT / name / "state_space_trials_sessions.csv"
+    if BTAG and not f.exists():                 # a basis run without this variant: the series is left out
+        return None
+    return pd.read_csv(f)
 
 
 def deltas(df, col, key=("animal",)):
@@ -143,9 +149,12 @@ def legend_animals_epochs(fig, y=0.995):
 def save(fig, out, name):
     if TAG and name in ("ss_repertoire", "ss_drift", "ss_path_over_days"):     # titles without the alignment
         fig.text(0.0, 1.0, ALIGN_LABEL[ALIGN], fontsize=9, fontweight="bold", va="bottom")
+    if BTAG:
+        fig.text(0.0, 1.035, S.BASIS_LABEL[S.BASIS], fontsize=9.5, fontweight="bold", va="bottom", color="#7570b3"
+                 if S.BASIS == "svd" else "#1b9e77")
     flush_marks(fig)
     sig_marks.reserve_headroom(fig)
-    save_png_svg(fig, out / f"{name}{TAG}.png", dpi=140, bbox_inches="tight")
+    save_png_svg(fig, out / f"{name}{TAG}{BTAG}.png", dpi=140, bbox_inches="tight")
     plt.close(fig)
     print("wrote", name)
 
@@ -166,10 +175,11 @@ SIM_COLS = [("r", "pattern r"), ("amp", "amplitude"), ("rot_gain", "rotation\nbe
             ("shared_dist", "shared\nshift"), ("spread", "spread\n(raw)"), ("spread_norm", "spread\n(amp-free)")]
 
 
-def fig_sim(out):
+def fig_sim(out, sub="sim", name="ss_sim_detection", what=""):
+    """``sub`` = the sim output folder (per basis: sim_lick_svd, sim_lick_lnmfbm; running list B9 / B15)."""
     fig, axs = plt.subplots(1, 2, figsize=(13, 6.6), sharey=True)
     for ax, n, ttl in zip(axs, (0, 15), ("all trials", "15 trials per spout (acute-like)")):
-        t = pd.read_csv(ROOT / "sim" / f"sim_detection_n{n}.csv")
+        t = pd.read_csv(ROOT / sub / f"sim_detection_n{n}.csv")
         M = np.array([[t[(t.plant == p) & np.isclose(t.level, lv)][c].iloc[0] for c, _ in SIM_COLS]
                       for p, lv, _ in SIM_ROWS])
         im = ax.imshow(M, cmap="viridis", vmin=0, vmax=1, aspect="auto")
@@ -183,8 +193,13 @@ def fig_sim(out):
         ax.set_title(ttl)
         ax.spines[:].set_visible(False)
     fig.colorbar(im, ax=axs, shrink=0.6, label="share of planted pre sessions detected (outside the null's 95 %)")
-    fig.suptitle("Method check: known changes planted into pre-stroke sessions, scored session vs session", y=0.99)
-    save(fig, out, "ss_sim_detection")
+    fig.suptitle("Method check: known changes planted into pre-stroke sessions, scored session vs session" + what, y=0.99)
+    if name == "ss_sim_detection":
+        save(fig, out, name)
+    else:                                       # basis runs: the folder already names the alignment
+        flush_marks(fig)
+        save_png_svg(fig, out / f"{name}.png", dpi=140, bbox_inches="tight")
+        plt.close(fig)
 
 
 MAIN = [("r", "pattern r with pre\n(Δ correlation)"), ("amp", "amplitude ratio\n(Δ ratio; pre-pre ≈ 1)"), ("out_resid_t", "outside pre space, beyond gains\n(Δ fraction of variance)"),
@@ -217,6 +232,12 @@ COND_XFORM = [("raw", "trials", "raw areas (primary)", "k"),
               ("z", "trials{TAG}_xz", "areas z-scored", "#7570b3"),
               ("gsr", "trials{TAG}_xgsr", "cortex-wide mode removed", "#1b9e77"),
               ("spout", "trials{TAG}_xspout", "spout-specific part only", "#d95f02")]
+# BASIS COMPARISON (Priya 11-08 "figures?" of "one cohort SVD basis reads like the Allen areas"): the same readouts in
+# the three spaces; each basis gets its own per-animal top-8 pre space. LocaNMF = per-animal joint components with the
+# glue / bulb components dropped (_lnmfbm); SVD = one cohort basis on the glue-free brain mask (_svd).
+COND_BASIS = [("allen", "trials", "Allen areas (62; primary)", "k"),
+              ("lnmf", "trials{TAG}_lnmfbm", "LocaNMF components (per animal, glue dropped)", "#1b9e77"),
+              ("svd", "trials{TAG}_svd", "cohort SVD (100 components, glue-free mask)", "#7570b3")]
 _TITLES = dict(MAIN + COLS_CONTACT)
 COLS_XFORM = [(k, _TITLES[k]) for k in ("r", "amp", "rot_gain", "out_resid_t", "shift_snr", "alpha")]
 
@@ -231,6 +252,7 @@ def fig_like(out, rng, cond=None, cols=None, name="ss_like_for_like",
                     ("dist_pre", "distance from pre sessions\n(Δ, pre-pre median = 1)")]
     COND_ = cond
     dfs = {k: sessions(sub) for k, sub, _, _ in COND_}
+    COND_ = [c for c in COND_ if dfs[c[0]] is not None]
     fig, axs = plt.subplots(2, 3, figsize=(12, 6.8))
     for ax, (c, t) in zip(axs.ravel(), cols):
         ax.axhline(0, color="0.6", lw=0.8, zorder=0)
@@ -345,7 +367,7 @@ def fig_path(out):
 
 
 def fig_cloud(out):
-    t = pd.read_csv(ROOT / f"path_tests{TAG}" / "trial_alpha.csv")
+    t = pd.read_csv(ROOT / f"path_tests{TAG}{BTAG}" / "trial_alpha.csv")
     bins = np.linspace(-4, 5, 46)                                   # trials outside are dropped, not piled at the edge
     ctr = 0.5 * (bins[1:] + bins[:-1])
     fig, axs = plt.subplots(1, 5, figsize=(17, 3.6), sharey=True)
@@ -373,7 +395,7 @@ def fig_cloud(out):
 
 
 def fig_repertoire(out, rng):
-    r = pd.read_csv(ROOT / f"path_tests{TAG}" / "repertoire_before_mean.csv")
+    r = pd.read_csv(ROOT / f"path_tests{TAG}{BTAG}" / "repertoire_before_mean.csv")
     fig, axs = plt.subplots(1, 2, figsize=(10, 4.2), gridspec_kw={"width_ratios": [1.2, 1]})
     ax = axs[0]
     for an, g in r.groupby("animal"):
@@ -404,8 +426,8 @@ def fig_repertoire(out, rng):
 
 
 def fig_drift(out):
-    p = pd.read_csv(ROOT / f"trials{TAG}" / "state_space_trials_pairs.csv")
-    dd = pd.read_csv(ROOT / f"path_tests{TAG}" / "drift_direction.csv")
+    p = pd.read_csv(ROOT / f"trials{TAG}{BTAG}" / "state_space_trials_pairs.csv")
+    dd = pd.read_csv(ROOT / f"path_tests{TAG}{BTAG}" / "drift_direction.csv")
     fig, axs = plt.subplots(1, 5, figsize=(18, 3.8), gridspec_kw={"width_ratios": [1, 1, 1, 1, 1.25]})
     for ax, (an, g) in zip(axs, p.groupby("animal")):
         for ep in ("pre", "chronic"):
@@ -450,6 +472,12 @@ def main():
             "xform": lambda: fig_like(out, rng, COND_XFORM, COLS_XFORM, "ss_xform",
                                       "Dimensionality variants: the same readouts on raw, z-scored, cortex-wide-mode-removed "
                                       "and spout-specific activity"),
+            "basis": lambda: fig_like(out, rng, COND_BASIS, COLS_XFORM, "ss_basis",
+                                      "Does the basis matter? The same readouts in Allen areas, LocaNMF components and "
+                                      "one cohort SVD basis"),
+            "simb": lambda: [fig_sim(out, f"sim{TAG}_{b}", f"ss_sim_detection{TAG}_{b}", f" ({lab}; {ALIGN_LABEL[ALIGN]})")
+                             for b, lab in (("svd", "cohort SVD basis"), ("lnmfbm", "LocaNMF components"))
+                             if (ROOT / f"sim{TAG}_{b}").exists()],
             "contact": lambda: fig_like(out, rng, COND_CONTACT, COLS_CONTACT, "ss_contact_sets",
                                        "Contact + incomplete (primary) vs contact-only vs incomplete-only first licks"),
             "balance": lambda: fig_balance(out, rng), "cross": lambda: fig_balance_cross(out, rng),
