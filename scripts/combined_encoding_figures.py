@@ -379,7 +379,8 @@ def fig_position_maps(meta, sess, path: Path, title: str, outline, kind: str = "
     _save(fig, path)
 
 
-POS6 = ("close_contra", "close_mid", "close_ipsi", "far_contra", "far_mid", "far_ipsi")
+# canonical spout order (Priya 10-25; settings audit 11-08 found this one contra-first)
+from wfield_local.orofacial_cohort import POS_ORDER as POS6  # noqa: E402
 
 
 def fig_position_each_maps(meta, sess, path: Path, title: str, outline, window: str, kind: str = "shufpos") -> None:
