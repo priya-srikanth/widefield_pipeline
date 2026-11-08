@@ -203,13 +203,17 @@ def test_align_maps_recovers_a_shared_code(mods):
 
 
 def test_svd_basis_switches(mods, monkeypatch):
-    """WF_SS_BASIS=svd: shared components -> cross-animal scripts allowed only where named areas are not needed, the
-    hemisphere split is NaN (bilateral components), outputs tagged _svd."""
+    """WF_SS_BASIS=svd: shared components -> cross-animal scripts allowed only where named areas are not needed; the
+    hemisphere split reads area means through the basis weights; outputs tagged _svd."""
     S, _ = mods
     monkeypatch.setattr(S, "BASIS", "svd")
     assert S.tag().endswith("_svd")
-    h = S.hemi(np.ones((3, 4)), ["svd#1_both", "svd#2_right", "svd#3_left", "svd#4_both"])
-    assert np.isnan(h["contra"]) and np.isnan(h["ipsi"])
+    W = np.array([[1.0, 0.0, 2.0], [0.0, 1.0, 0.0]])                  # 2 components x areas MOp_left, MOp_right, SSp_left
+    monkeypatch.setattr(S, "_SVDW", {"W": W, "names": ["MOp_left", "MOp_right", "SSp_left"]})
+    v = np.array([[1.0, 3.0]])                                          # 1 trial x 2 components
+    h = S.hemi(v, ["svd#1_both", "svd#2_both"])
+    assert h["contra"][0] == 3.0 and h["ipsi"][0] == 1.5                 # right: MOp 3; left: mean(MOp 1, SSp 2)
+    assert S.hemi(v, [], sel={"SSp"})["ipsi"][0] == 2.0 and np.isnan(S.hemi(v, [], sel={"SSp"})["contra"])
     S.allen_only("x", shared_ok=True)
     with pytest.raises(SystemExit):
         S.allen_only("x")

@@ -104,8 +104,9 @@ CACHE = ROOT / "cache"
 # `load_sessions` then returns {animal: cols} (`cols_of`) and scripts that stack areas across animals refuse
 # (`allen_only`). WF_SS_BASIS=svd (Priya 11-08 "could we use one svd basis"): ONE cohort SVD basis (top 100 of the
 # August pre sessions of all four animals on the shared Allen pixel grid, `o2_state_space_svd.py`), same rows; columns
-# svd#<k>_<side> SHARED by all animals, so cross-animal stacking works; 97 / 100 components are bilateral, so the
-# hemisphere readouts (`hemi`) are NaN there.
+# svd#<k>_<side> SHARED by all animals, so cross-animal stacking works. 97 / 100 components are bilateral, so `hemi`
+# reads hemispheres / areas through the basis instead: an Allen area's mean is an exact linear readout of the
+# components (the mean of U_cohort over the area's pixels, `_svd_area_weights`; Priya 11-08 "we can split right?").
 BASIS = os.environ.get("WF_SS_BASIS", "allen")
 LNMF = REBUILD / "o2" / "ss_lnmf_20261108" / "out" / "sessions"
 SVD = REBUILD / "o2" / "ss_svd_20261108" / "out" / "sessions"
@@ -132,12 +133,37 @@ def hemi(v, cols, sel=None):
     """{"contra", "ipsi"}: mean of v (..., areas) over the contralesional (_right) / ipsilesional (_left) areas, restricted
     to the parent areas in ``sel`` if given (all four lesions are left: right = contralesional). NaN if none."""
     out = {}
-    if BASIS == "svd":                                                  # bilateral components: no hemisphere split
-        return {"contra": np.nan, "ipsi": np.nan}
+    if BASIS == "svd":                                                  # components -> Allen area means -> sides
+        W, names = _svd_area_weights()
+        for h, suf in (("contra", "_right"), ("ipsi", "_left")):
+            idx = [i for i, n in enumerate(names) if n.endswith(suf) and (sel is None or n[: -len(suf)] in sel)]
+            out[h] = v @ W[:, idx].mean(-1) if idx else np.nan
+        return out
     for h, suf in (("contra", "_right"), ("ipsi", "_left")):
         idx = [i for i, c in enumerate(cols) if c.endswith(suf) and (sel is None or c[: -len(suf)].split("#")[0] in sel)]
         out[h] = v[..., idx].mean(-1) if idx else np.nan
     return out
+
+
+_SVDW: dict = {}
+
+
+def _svd_area_weights():
+    """(W (n_components, n_areas), area names '<area>_<side>') for the cohort SVD basis: W[:, a] = mean of U_cohort over
+    the pixels of Allen area a (bundle atlas, same grid), so component scores @ W = the area means of the session's
+    signal within the basis. Cached in CACHE."""
+    if not _SVDW:
+        f = CACHE / "svd_area_weights.npz"
+        if not f.exists():
+            Uc = np.load(SVD.parent / "basis" / "U_cohort.npy", mmap_mode="r")
+            at = np.load(SVD.parents[1] / "atlas.npy").ravel()
+            vals = sorted(int(x) for x in np.unique(at) if x != 0)
+            W = np.stack([np.asarray(Uc[at == x], np.float64).mean(0) for x in vals], axis=1)
+            f.parent.mkdir(parents=True, exist_ok=True)
+            np.savez(f, W=W, names=np.array([_atlas_names()[x] for x in vals]))
+        z = np.load(f)
+        _SVDW.update(W=z["W"], names=[str(n) for n in z["names"]])
+    return _SVDW["W"], _SVDW["names"]
 
 
 def cols_of(cols, an):
