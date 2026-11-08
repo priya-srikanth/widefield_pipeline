@@ -113,7 +113,7 @@ acc / accdelta for the PRE-CUE window only (lp_final_render.py:260) + 15r / 15rp
 | gain-bio | stale | gb_sessions_r (queued, has the fix) + summarise + stats |
 | redraws | stars, session-level figs | minutes, from figdata |
 
-Order: finish the two measurements (section G one-unit profile `S2/prof_g/prof_PS94_5.txt`; one LP epoch family) ->
+**UPDATED 11-08 ~15:00: measurements DONE -- the trimmed plan + 6 decisions for Priya are in the running list section "11-08 ~15:00 -- TRIMMED RE-RUN PLAN" (section G memo 6x, identical; epoch = 3 single-arm LP renders; v9s-P stopped; both fix branches ON MAIN 9bc33b9b + 21a005ca).** Original order: finish the two measurements (section G one-unit profile `S2/prof_g/prof_PS94_5.txt`; one LP epoch family) ->
 trim the list (reuse / partial / full) -> show Priya -> queue from ONE detached worktree at the new main (after both fix
 branches land) -> settings check on the first step of each group.
 
