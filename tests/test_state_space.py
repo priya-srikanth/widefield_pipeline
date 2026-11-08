@@ -106,3 +106,22 @@ def test_load_sessions_order_and_hook(mods, monkeypatch, tmp_path):
     assert list(data) == ["PS92", "PS93"]
     assert [s[0] for s in data["PS92"]] == ["PS92_0806", "PS92_0812", "PS92_0820"]     # by day
     assert all(s[5] == s[0] for v in data.values() for s in v)                           # the hook's extra column
+
+
+def test_paths_match_the_rebuild_routing(mods):
+    """S.ENCODING / S.XTAG / S.WTAG / S.ITI = what the repo's routing gives under the render profile (computed in a
+    SUBPROCESS so the profile never enters this process)."""
+    import json
+    import subprocess
+    S, _ = mods
+    code = ("import json, os\n"
+            "from wfield_local import render_profile as rp\n"
+            "env = dict(os.environ); rp.apply('%s', environ=env); os.environ.clear(); os.environ.update(env)\n"
+            "from wfield_local import orofacial_outputs as oo, run_mode\n"
+            "print(json.dumps({'enc': oo.encoding_root().as_posix(), 'w': run_mode.tag(),\n"
+            "                  'x': run_mode.tag(include=('hemo', 'lnmf', 'drift', 'pre', 'projall'))}))\n") % S.PROFILE
+    out = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, check=True).stdout
+    got = json.loads(out.strip().splitlines()[-1])
+    assert got["w"] == S.WTAG and got["x"] == S.XTAG
+    assert Path(got["enc"]).as_posix().lower() == S.ENCODING.as_posix().lower()
+    assert Path(S.ITI).parent.name == S.XTAG and S.ITI_W.name == S.WTAG

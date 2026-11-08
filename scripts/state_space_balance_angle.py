@@ -29,7 +29,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 import state_space_recovery_trials as R  # noqa: E402
 import state_space_sim as S  # noqa: E402
 
-OUT = Path("M:/MICROSCOPE/Priya/Widefield/state_space_recovery/landing")
+OUT = S.ROOT / "landing"
 RINGS = {"close": ["close_ipsi", "close_mid", "close_contra"], "far": ["far_ipsi", "far_mid", "far_contra"]}
 
 

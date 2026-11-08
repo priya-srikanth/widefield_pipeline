@@ -39,12 +39,10 @@ import state_space_sim as S  # noqa: E402
 from wfield_local.orofacial_cohort import ANIMAL_MARKER, EPOCH_LINE  # noqa: E402
 from wfield_local.figure_layout import save_png_svg  # noqa: E402  (PNG + svg/ twin, Priya 11-06)
 
-ROOT = Path("M:/MICROSCOPE/Priya/Widefield/state_space_recovery")
+ROOT = S.ROOT
 OUT = ROOT / f"step_vs_gradual{S.tag()}"
 SUF = S.tag().lstrip("_") or "cue"
-AIM = Path("M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/"
-           "iti_licks/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-"
-           "incomplete-stopA2jexrt3500c70_daqlk/aim_deficit_sessions.csv")
+AIM = S.ITI_W / "aim_deficit_sessions.csv"
 READ = [("x", "position pre (0) -> chronic (1)\n(fraction of pre -> chronic distance)"),
         ("y", "acute-departure axis\n(same units)"),
         ("dist_pre", "distance from pre sessions\n(pre-pre median = 1)"),

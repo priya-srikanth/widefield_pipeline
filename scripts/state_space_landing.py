@@ -10,15 +10,18 @@ the encoder page's landing bins in spirit (its softmax bins are pre centre +- 1 
 from __future__ import annotations
 
 import glob
+import sys
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
 
-ITI = ("M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/"
-       "iti_licks/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801/sessions_roi8fr")
-LICKS = "M:/MICROSCOPE/Priya/DeepLabCut/Widefield/session_poses/pose3d/kinematics/licks.csv.gz"
-OUT = Path("M:/MICROSCOPE/Priya/Widefield/state_space_recovery/landing")
+sys.path.insert(0, str(Path(__file__).parent))
+import state_space_sim as S  # noqa: E402
+
+ITI = S.ITI
+LICKS = S.LICKS3D
+OUT = S.ROOT / "landing"
 #: licks.csv.gz uses image-side names; all four lesions are LEFT, so L = ipsi, R = contra
 SIDE = {"close_L": "close_ipsi", "close_center": "close_mid", "close_R": "close_contra",
         "far_L": "far_ipsi", "far_center": "far_mid", "far_R": "far_contra"}
@@ -80,7 +83,6 @@ def landing_bins(D, epoch_of):
 
 
 if __name__ == "__main__":
-    import sys
     from wfield_local import epochs
     OUT.mkdir(parents=True, exist_ok=True)
     D = landing_bins(build(), epochs.epoch_of)

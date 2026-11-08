@@ -39,7 +39,23 @@ Branch `analysis/state-space-recovery-20261107` (worktree wf_statespace); nothin
    can be replaced by this (proposed wording in section A). CAVEAT: the balance values are the PRE-REBUILD run's
    (recprim_sessions.csv was never re-rendered in the rebuild); same sessions, different hemo variant / gate.
 
-## C. Done / status log
+## C. Plans written down before the data arrive (so the test is fixed in advance)
+
+- **LocaNMF basis (O2 option 4).** `WF_SS_BASIS=lnmf` switches `state_space_sim` to the O2 output
+  (`rebuild_20261103/o2/ss_lnmf_20261108/out/sessions`; same rows as the Allen extract for the 107 rebuild sessions),
+  its own binned cache and an `_lnmf` output tag; every script then runs unchanged. Re-run: trials (change vs pre: r,
+  amp, out-of-space), path tests (orthogonal detour), trajectories (x / y), step vs gradual, per position, detour vs
+  balance. Question: do the 0c claims (gain + shift on the shared mode, re-patterned spout-specific part, orthogonal
+  acute detour, y tracks aim) hold in the finer basis? Report per animal first.
+- **June drift reference** (June 6/6-6/8, contact-only first contacts; LocaNMF basis only -- the Allen extract has no
+  June). In each animal's fixed pre space (August pre template), compare (a) the June -> August-pre distance with (b)
+  the August-pre -> chronic distance, both with the trial-noise expectation removed (`state_space_recovery_trials.vdist`),
+  and (c) the angle between them (does chronic - pre lie along the June -> August drift?). Like-for-like: the August
+  and chronic sessions restricted to CONTACT first licks (landing table) so all three use contact trials. June -> August
+  includes learning, so (a) is an upper bound on drift over ~2 months; August pre -> chronic spans ~1.5-2 months.
+  Reading: chronic change >> June drift and not along it -> beyond drift; comparable / along it -> not separable.
+
+## D. Done / status log
 
 - 11-08 night: O2 bundle `rebuild_20261103/o2/ss_lnmf_20261108` staged on scratch by Priya (U_atlas 119/119; bases need
   the mkdir -p rerun -- see COMMANDS.md); jobs not yet confirmed submitted.

@@ -26,7 +26,7 @@ import state_space_recovery_trials as R  # noqa: E402
 import state_space_sim as S  # noqa: E402
 
 
-OUT = Path(f"M:/MICROSCOPE/Priya/Widefield/state_space_recovery/path_tests{S.tag()}")   # WF_SS_ALIGN suffix
+OUT = S.ROOT / f"path_tests{S.tag()}"   # WF_SS_ALIGN suffix
 
 
 def flatvec(M):

@@ -39,19 +39,38 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-ITI = ("M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/"
-       "iti_licks/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801/sessions_roi8fr")
-OUT = Path("M:/MICROSCOPE/Priya/Widefield/state_space_recovery/sim")
-from wfield_local.orofacial_cohort import POS_ORDER  # noqa: E402
-POS = list(POS_ORDER)                     # the canonical spout order (close ipsi .. far contra)
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import iti_licks as il  # noqa: E402
+
+from wfield_local import orofacial_cohort as oc  # noqa: E402
+from wfield_local import render_profile  # noqa: E402
+from wfield_local.paths import PathResolver  # noqa: E402
+from wfield_local.pose3d import pose3d_dir  # noqa: E402
+
+# PATHS (handoff cleanup item 1, 11-08): EVERY location the state-space scripts read or write is defined here and nowhere
+# else. Inputs are products of the cohort-1 REBUILD run (render profile PROFILE): its root from the profile, the encoder
+# tree `<root>/LP_analysis/<orofacial_cohort.RUN>/imaging_encoding` (= orofacial_outputs.encoding_root under the
+# profile) and the run tags run_mode gives under it. The tags stay literals so no profile is applied inside an analysis
+# process (module caches would keep it); tests/test_state_space.py recomputes them in a subprocess and pins them.
+PROFILE = "cohort1_rebuild_20261103"
+REBUILD = Path(render_profile.load(PROFILE)["rebuild_root"])
+ENCODING = REBUILD / "LP_analysis" / oc.RUN / "imaging_encoding"
+XTAG = "hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801"           # run_mode.tag(include=XOUT parts): extracts
+WTAG = XTAG + "_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk"   # run_mode.tag(): tables
+ITI = str(ENCODING / "iti_licks" / XTAG / il.SESS_NAME)                 # per-trial extracts (iti_licks.XOUT / SESS_NAME)
+ITI_W = ENCODING / "iti_licks" / WTAG                                    # run tables (iti_licks.OUT_W): aim, first-lick times
+LICKS3D = pose3d_dir() / "kinematics" / "licks.csv.gz"                   # 3-D first licks (landing join)
+ROOT = Path(PathResolver().root("microscope")) / "Widefield" / "state_space_recovery"   # every state-space output
+LANDING = ROOT / "landing" / "first_lick_landing.csv"
+OUT = ROOT / "sim"
+POS = list(oc.POS_ORDER)                  # the canonical spout order (close ipsi .. far contra)
 # top-k pre space. 8 = convention when written; checked 11-07 (Priya "how did you choose 8?"): top 8 capture 97-99 % of a
 # HELD-OUT pre session's spout-specific variance in every animal / alignment (k=4: 89-97 %, >8 adds < 3 %).
 # WF_SS_K overrides for the sensitivity runs (outputs then carry _k<K>).
 K = int(os.environ.get("WF_SS_K", 8))
 MET = ["out_var", "out_resid", "r", "amp", "rot_gain", "gain_sd", "shared", "shared_dist", "spread", "spread_norm"]
 # the extract's lag grids (iti_licks.LAGS_C: first_cue, -1..2.5 s; LAGS_P: first_peth, -1.5..0.75 s), imported, not re-declared
-sys.path.insert(0, str(Path(__file__).resolve().parent))
-from iti_licks import LAGS_C as LAGS, LAGS_P  # noqa: E402
+LAGS, LAGS_P = il.LAGS_C, il.LAGS_P
 BINS = [(a, a + 0.1) for a in np.round(np.arange(-0.5, 2.0, 0.1), 2)]
 PLANTS = ([("none", 0)] + [("amp", a) for a in (1.25, 1.5)] + [("gain_rand", s) for s in (0.15, 0.3)]
           + [("gain_ipsi", g) for g in (0.8, 0.6)] + [("rot", t) for t in (10, 20, 30, 45)] + [("rot12", t) for t in (10, 20, 30)]
@@ -76,7 +95,9 @@ SEGMENTS = {"cue": [("first_cue", LAGS, _B(-0.5, 2.0))], "cue25": [("first_cue",
 # (FINDINGS 0b's first-lick window); lick baseline -1.0..-0.6 s before the lick, splice baseline -0.5..0 s before the cue
 BAL_BINS = {"cue": (slice(0, 5), slice(5, 15)), "cue25": (slice(0, 5), slice(5, 15)),
             "lick": (slice(0, 4), slice(11, 15)), "splice": (slice(0, 5), slice(16, 20))}
-CACHE = Path("M:/MICROSCOPE/Priya/Widefield/state_space_recovery/cache")
+CACHE = ROOT / "cache"
+ALIGN_LABEL = {"cue": "cue-aligned -0.5..2.0 s", "cue25": "cue-aligned -0.5..2.5 s",
+               "lick": "first-lick-aligned -1.0..0.7 s", "splice": "cue -0.5..0.5 s + first lick -0.5..0.7 s"}
 
 
 def tag():

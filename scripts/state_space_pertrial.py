@@ -33,7 +33,7 @@ import state_space_sim as S  # noqa: E402
 from wfield_local.orofacial_cohort import EPOCH_LINE  # noqa: E402
 from wfield_local.figure_layout import save_png_svg  # noqa: E402  (PNG + svg/ twin, Priya 11-06)
 
-ROOT = Path("M:/MICROSCOPE/Priya/Widefield/state_space_recovery")
+ROOT = S.ROOT
 OUT = ROOT / f"pertrial{S.tag()}"
 FIGS = ROOT / "page_figs"
 SUF = S.tag().lstrip("_") or "cue"

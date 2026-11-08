@@ -24,9 +24,9 @@ sys.path.insert(0, str(Path(__file__).parent))
 import state_space_recovery_trials as R  # noqa: E402
 import state_space_sim as S  # noqa: E402
 
-ROOT = Path("M:/MICROSCOPE/Priya/Widefield/state_space_recovery")
+ROOT = S.ROOT
 OUT = ROOT / "pc2_lick"
-KIN = Path("M:/MICROSCOPE/Priya/DeepLabCut/Widefield/session_poses/pose3d/kinematics/licks.csv.gz")
+KIN = S.LICKS3D
 T0 = -1.0                                                  # first lick-aligned bin start
 idx = lambda a, b: slice(int(round((a - T0) / 0.1)), int(round((b - T0) / 0.1)))  # noqa: E731
 

@@ -27,17 +27,18 @@ import argparse
 import glob
 import json
 import os
+import sys
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
 
-RUN = ("M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/"
-       "hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-"
-       "stopA2jexrt3500c70_daqlk/frozen_encoder_gate-attempted_v7g3_t3d_spont_frA/joint/sessions")
-OUT = Path("M:/MICROSCOPE/Priya/Widefield/state_space_recovery")
-#: canonical spout order (orofacial_cohort.POS_ORDER), in the encoder files' lesion-relative names
-POS = ["close_ipsi", "close_mid", "close_contra", "far_ipsi", "far_mid", "far_contra"]
+sys.path.insert(0, str(Path(__file__).parent))
+import state_space_sim as S  # noqa: E402
+
+RUN = str(S.ENCODING / S.WTAG / "frozen_encoder_gate-attempted_v7g3_t3d_spont_frA" / "joint" / "sessions")
+OUT = S.ROOT
+POS = S.POS                               # canonical spout order, the encoder files' lesion-relative names
 POS_LABEL = ["close ipsi", "close mid", "close contra", "far ipsi", "far mid", "far contra"]
 WINDOWS = {"cue": ("peth", -0.5, 2.0), "lick": ("peth_lick", -0.5, 1.0)}
 BIN_S = 0.1

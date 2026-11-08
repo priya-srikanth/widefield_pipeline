@@ -12,7 +12,6 @@ Writes PNGs to Widefield/state_space_recovery/page_figs/.
 from __future__ import annotations
 
 import argparse
-import os
 from pathlib import Path
 
 import matplotlib
@@ -22,20 +21,24 @@ import matplotlib.pyplot as plt  # noqa: E402
 import numpy as np  # noqa: E402
 import pandas as pd  # noqa: E402
 
+import sys  # noqa: E402
+
+sys.path.insert(0, str(Path(__file__).parent))
+import state_space_sim as S  # noqa: E402
+
 from wfield_local import analysis_kit as kit  # noqa: E402
 from wfield_local import sig_marks  # noqa: E402
 from wfield_local.orofacial_cohort import ANIMAL_MARKER, EPOCH_LINE  # noqa: E402
 from wfield_local.figure_layout import save_png_svg  # noqa: E402  (PNG + svg/ twin, Priya 11-06)
 
-ROOT = Path("M:/MICROSCOPE/Priya/Widefield/state_space_recovery")
+ROOT = S.ROOT
 # WF_SS_ALIGN as in state_space_sim: inputs from <dir>_<align>, figures named <name>_<align> (cue = no suffix)
-ALIGN = os.environ.get("WF_SS_ALIGN", "cue")
+ALIGN = S.ALIGN
 TAG = "" if ALIGN == "cue" else f"_{ALIGN}"
-ALIGN_LABEL = {"cue": "cue-aligned -0.5..2.0 s", "cue25": "cue-aligned -0.5..2.5 s",
-               "lick": "first-lick-aligned -1.0..0.7 s", "splice": "cue -0.5..0.5 s + first lick -0.5..0.7 s"}
+ALIGN_LABEL = S.ALIGN_LABEL
 POST = ["acute", "subacute", "chronic"]
 EPOCHS = ["pre"] + POST
-POS = ["close_ipsi", "close_mid", "close_contra", "far_ipsi", "far_mid", "far_contra"]   # canonical spout order
+POS = S.POS                               # canonical spout order
 POS_LABEL = {p: p.replace("_", " ") for p in POS}
 COND = [("target", "trials", "by target (all trials)", "k"),
         ("on_target", "trials_on_target", "on-target trials only", "#2166ac"),

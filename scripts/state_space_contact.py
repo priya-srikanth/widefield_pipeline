@@ -29,7 +29,7 @@ import state_space_sim as S  # noqa: E402
 from wfield_local import analysis_kit as kit  # noqa: E402
 from wfield_local.figure_layout import save_png_svg  # noqa: E402  (PNG + svg/ twin, Priya 11-06)
 
-ROOT = Path("M:/MICROSCOPE/Priya/Widefield/state_space_recovery")
+ROOT = S.ROOT
 OUT = ROOT / f"contact{S.tag()}"
 READ = [("x", "position pre (0) -> chronic (1)\n(fraction of pre -> chronic distance)"), ("y", "acute-departure axis\n(same units)"), ("size", "response size\n(log2 ratio)"),
         ("r_pre", "pattern r with the pre template\n(correlation)")]

@@ -44,12 +44,12 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 PROFILE = "cohort1_rebuild_20261103"
 ENC = "enc_rebuild_20261104b"                       # the rebuild's O2 encoding bundle (its inputs/ are reused)
-ENC_SHARE = Path("M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/o2") / ENC
+import state_space_sim as S  # noqa: E402
+
+ENC_SHARE = S.REBUILD / "o2" / ENC
 CACHE = "C:/Users/SabatiniLab/wfield_cache/input_cache_rebuild_20261104"
 JUNE = ("0606", "0607", "0608")                     # the curated June pre days (configs/animals.yaml date_policy)
-TIMES = ("M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/"
-         "iti_licks/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-"
-         "incomplete-stopA2jexrt3500c70_daqlk/cued_first_lick_times.csv")   # rebuild run's OUT_W (cleanup item 1: route)
+TIMES = S.ITI_W / "cued_first_lick_times.csv"        # the rebuild run's OUT_W (iti_licks._first_lick_times rows)
 
 RUNNER = r'''"""Runs on O2: one session (task = SLURM_ARRAY_TASK_ID) of the state-space joint-LocaNMF extraction.
 See scripts/o2_state_space_lnmf.py (bundle side) for the definitions."""

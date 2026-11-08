@@ -38,7 +38,7 @@ import state_space_sim as S  # noqa: E402
 from wfield_local import analysis_kit as kit  # noqa: E402
 from wfield_local.figure_layout import save_png_svg  # noqa: E402  (PNG + svg/ twin, Priya 11-06)
 
-OUT = Path(f"M:/MICROSCOPE/Priya/Widefield/state_space_recovery/trials{S.tag()}")   # WF_SS_ALIGN suffix
+OUT = S.ROOT / f"trials{S.tag()}"   # WF_SS_ALIGN suffix
 EPOCHS = ["pre", "acute", "subacute", "chronic"]
 MIN_TRIALS = 5
 N_RESAMPLE = 3
@@ -189,7 +189,7 @@ def vdist(a, b):
     return float(np.sqrt(max(d2, 0.0)))
 
 
-LANDING = Path("M:/MICROSCOPE/Priya/Widefield/state_space_recovery/landing/first_lick_landing.csv")
+LANDING = S.LANDING
 
 
 def relabel(lab, Y, pos, mode, L):

@@ -47,14 +47,13 @@ from wfield_local import sig_marks  # noqa: E402
 from wfield_local.orofacial_cohort import ANIMAL_MARKER, EPOCH_LINE  # noqa: E402
 from wfield_local.figure_layout import save_png_svg  # noqa: E402  (PNG + svg/ twin, Priya 11-06)
 
-ROOT = Path("M:/MICROSCOPE/Priya/Widefield/state_space_recovery")
+ROOT = S.ROOT
 OUT = ROOT / f"trajectories{S.tag()}"
 FIGS = ROOT / "page_figs"
 SUF = S.tag().lstrip("_") or "cue"            # figure suffix: alignment (+ _k / _x variants)
 EPOCHS = R.EPOCHS
 N_BOOT = 400
-LABEL = {"cue": "cue-aligned -0.5..2.0 s", "cue25": "cue-aligned -0.5..2.5 s", "lick": "first-lick-aligned -1.0..0.7 s",
-         "splice": "cue -0.5..0.5 s + first lick -0.5..0.7 s"}
+LABEL = S.ALIGN_LABEL
 plt.rcParams.update({"font.size": 9, "axes.titlesize": 9.5, "axes.spines.top": False, "axes.spines.right": False})
 
 

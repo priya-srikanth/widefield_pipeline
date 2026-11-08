@@ -33,7 +33,7 @@ import state_space_step_vs_gradual as SG  # noqa: E402
 from wfield_local.orofacial_cohort import ANIMAL_MARKER, EPOCH_LINE  # noqa: E402
 from wfield_local.figure_layout import save_png_svg  # noqa: E402  (PNG + svg/ twin, Priya 11-06)
 
-ROOT = Path("M:/MICROSCOPE/Priya/Widefield/state_space_recovery")
+ROOT = S.ROOT
 OUT = ROOT / f"per_position{S.tag()}"
 SUF = S.tag().lstrip("_") or "cue"
 plt.rcParams.update({"font.size": 9, "axes.titlesize": 9, "axes.spines.top": False, "axes.spines.right": False})
