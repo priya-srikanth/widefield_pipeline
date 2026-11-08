@@ -644,3 +644,21 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
   fixed te-basis path cc70519e).
 - Waiting before queueing the rest: settings-check helper (rest family / cd chain / page-feeding lick decoders) and the
   G1-G3 no_response helper (section G).
+- 16:16 LAUNCHED queue_daqlk9zx.sh (same code 597cbed9 / worktree wf_render_v9zw; built from scratchpad/
+  rerun_settings_check.md). CD (MINFREE 15): g5_cd_traj_lp -> g5_cd_traj_orth_lp -> cd_overlap_null_lp ->
+  g7_cd_geometry_lp, env base + LICK_SOURCE=lp + GATE_SOURCE=lp, outputs in LP_licks_gateLP_<tag>/epoch (Fig 9.1);
+  live log confirms lp / gate lp. RS (MINFREE 15): g2a_restnl_mask_r FIRST -> g2b_r, restnl_maps lp_r2 + contact_r,
+  map_drift_contact_r, rest_frozen(_nl)_r, d_attempt_maps_restnl_r, recovery_cue_r -> chronic_stability_r, the l_*
+  restw / restnl chain (frozen env: encoder family has its own camera-lick definition -- never LICK_SOURCE). MP: refit_
+  matched_pre --variant lick on LP (LPfinal store) after the v9zw EP lick / cue arms. Dropped: enl1s arms (superseded),
+  LP map drift (cannot run: the 12 June sessions have no camera trial table -> Priya), g5_map_drift_lp(_r).
+- Settings check findings (rerun_settings_check.md): WIDEFIELD_GATE_SOURCE=lp changes only folders / cache tags under the
+  camera gate; g6_grant also renders DAQ "lick" variants -> the grant re-run after section G needs the LP source;
+  page provenance: LP-named RESTnl maps (7.3b, 7.10b, 7.18b, 7.19b) and LP-named drift figs (7.4/7.4b, 7.11/7.11b, 7.15,
+  7.20/7.20b, 7.24) are DAQ on the page now -> repoint / relabel in the replacement pass.
+- STILL TO QUEUE: section G (after fix/g13-noresp-1108 lands; with memo) -> section G figs -> grant (LP); l_bal_* ->
+  l_recov_markers -> e_recov_meas / l_balmatch / e_dock_* / l_enl_offset -> ENL_SLIDE_FIX -> x_enlv_* (frozen env, defs
+  in rerun_settings_check.md); later: pcd / nolick / precue states / joint xsession on LP; gb_fig_r redraw (stars);
+  figdata redraws.
+- QUESTION for Priya: LP map-drift figures (June vs August pre) cannot be made (June has no camera trial table): keep the
+  DAQ "contact" drift figures labeled as such, or drop them?
