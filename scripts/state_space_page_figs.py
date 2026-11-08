@@ -25,6 +25,7 @@ import pandas as pd  # noqa: E402
 from wfield_local import analysis_kit as kit  # noqa: E402
 from wfield_local import sig_marks  # noqa: E402
 from wfield_local.orofacial_cohort import ANIMAL_MARKER, EPOCH_LINE  # noqa: E402
+from wfield_local.figure_layout import save_png_svg  # noqa: E402  (PNG + svg/ twin, Priya 11-06)
 
 ROOT = Path("M:/MICROSCOPE/Priya/Widefield/state_space_recovery")
 # WF_SS_ALIGN as in state_space_sim: inputs from <dir>_<align>, figures named <name>_<align> (cue = no suffix)
@@ -141,7 +142,7 @@ def save(fig, out, name):
         fig.text(0.0, 1.0, ALIGN_LABEL[ALIGN], fontsize=9, fontweight="bold", va="bottom")
     flush_marks(fig)
     sig_marks.reserve_headroom(fig)
-    fig.savefig(out / f"{name}{TAG}.png", dpi=140, bbox_inches="tight")
+    save_png_svg(fig, out / f"{name}{TAG}.png", dpi=140, bbox_inches="tight")
     plt.close(fig)
     print("wrote", name)
 

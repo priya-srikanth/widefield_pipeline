@@ -93,6 +93,56 @@ LMM results for every run: `state_space_recovery/lmm_change_vs_pre.csv`.
 5. No-stroke drift reference from cohort 2's pre period (separate cohort, never pooled).
 6. FINDINGS (main checkout) not updated with any of this yet -- exploratory; decide with Priya what goes in.
 
+## Code status: EXPLORATORY, clean up before anything is finalized (Priya 11-07)
+
+Priya: "ensure the code you're writing follows the same principles as the rest of the repo, and isn't redundant; use
+existing functions wherever possible. we'll have to clean up things when we finalize them."
+
+Already conforming: shared statistics from `analysis_kit` (`boot_delta`, `boot_ci`, `epoch_change_lmm`), epochs from
+`epochs`, colors / markers from `orofacial_cohort`, star placement via `sig_marks.star_top` + `reserve_headroom`, every
+figure save through `figure_layout.save_png_svg` (PNG + svg twin; switched 11-07 night -- figures not re-rendered since
+then have no svg yet), ruff-clean, outputs only under `MICROSCOPE/Priya/...`.
+
+Cleanup list (do these when an analysis is promoted from exploratory; each item says what to reuse):
+
+1. **Paths.** `state_space_sim.ITI`, `state_space_step_vs_gradual.AIM`, `state_space_recovery_trials.LANDING`, the
+   `ROOT` constants and `KIN` hard-code `M:/...` and the rebuild's `_daqlk`-tagged folder. Resolve through the repo:
+   extracts = `iti_licks.XOUT / "sessions_roi8fr"` and tables = `iti_licks.OUT_W` under the right run mode
+   (`run_mode.subdir`, `fr_musall.E_BASE`, rebuild routing), 3-D licks via `pose3d.pose3d_dir`, own outputs under a
+   `paths.yaml` / `PathResolver` root instead of a literal, and `writeguard.assert_writable` before writes.
+2. **One pre -> chronic frame.** Built four times: `state_space_recovery_trials.cloud`, `state_space_path_tests.
+   trial_alpha` / `repertoire`, `state_space_trajectories.days_coords`, `state_space_contact.frames`. Keep ONE
+   (`frames` returns P, mu and per-spout zp / u / v / L) and have the others call it.
+3. **One session loader.** `load_all` exists in `state_space_path_tests` and `state_space_trajectories`, plus inline
+   loops in trials / noise / contact / pertrial / balance scripts; move a single `load_sessions()` (sorted, with day)
+   into `state_space_sim` next to `load`.
+4. **One response-size / balance measure.** `state_space_recovery_trials.balance`, `state_space_balance_cells.sizes`,
+   `state_space_balance_angle.collect`, `state_space_trajectories.resp_size`, `state_space_noise.cells`,
+   `state_space_pertrial.collect` each compute "response window minus baseline window" norms or hemisphere sizes; one
+   helper with the window from `state_space_sim.BAL_BINS`. Also check it against the repo's existing balance /
+   response-size definitions (`scripts/lick_recovery_markers.py`, FINDINGS 0b) and reuse those where the question
+   is the same.
+5. **Landing join.** `state_space_landing.py` matches extract rows to 3-D first licks by spout + timing (99 % exact on
+   PS94_0820) because `iti_licks._first_lick_times` reloads `_behaviour` (~65 s / session). For a final version, write
+   the trial id into the per-trial extract at extraction time (iti_licks) instead of re-matching afterwards.
+6. **Windows / bins.** `state_space_sim.SEGMENTS` / `BINS` / `LAGS_P` re-declare the extract's lag grids
+   (`iti_licks.LAGS_C` / `LAGS_P`); import them.
+7. **Parallel loops.** Per-session loops are serial (cheap now because they read the local binned cache); route the
+   ones that read the share (`fill_cache`, any future extraction) through `analysis_kit.fan_sessions` (rule 6).
+8. **Tests.** None yet. Before promotion: pin the default cue binning to the old binning (checked by hand 11-07),
+   the transforms (`_xform`), and the frame / alpha definitions on a small synthetic set.
+9. **Throwaway diagnostics** (`state_space_pc2.py`, `state_space_within_session_behavior.py`, the k / dimensionality
+   checks run inline): fold into the main scripts or delete once their result is recorded; `pc2_trials.csv`'s
+   `n_follow` column is a join bug (all 0).
+10. **Page builder.** The page is edited by hand + small insert scripts in the scratchpad; `renumber.py` and
+    `make_fig_ids.py` are in the repo. If the page becomes routine, add a builder like the imaging page's
+    (`docs/results_pages/imaging/page_figs.py`).
+
+Going forward in this arm: reuse `analysis_kit` / `epochs` / `sig_marks` / `figure_layout` / `orofacial_cohort`; no new
+copy of a quantity that already exists (check `analysis_kit`, `iti_licks`, `lick_recovery_markers` first); new code
+calls the existing state-space helpers (`state_space_sim.load`, `state_space_page_figs.epoch_panel` / `change` /
+`lmm_p`) instead of re-implementing them.
+
 ## Pitfalls hit this session
 
 - Bash heredocs / sed turned `\n` inside Python string literals into real newlines several times (broken titles).

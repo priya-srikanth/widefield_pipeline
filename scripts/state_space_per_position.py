@@ -31,6 +31,7 @@ import state_space_sim as S  # noqa: E402
 import state_space_step_vs_gradual as SG  # noqa: E402
 
 from wfield_local.orofacial_cohort import ANIMAL_MARKER, EPOCH_LINE  # noqa: E402
+from wfield_local.figure_layout import save_png_svg  # noqa: E402  (PNG + svg/ twin, Priya 11-06)
 
 ROOT = Path("M:/MICROSCOPE/Priya/Widefield/state_space_recovery")
 OUT = ROOT / f"per_position{S.tag()}"
@@ -129,7 +130,7 @@ def figure(s, A):
                  f"landing (rows 3-4) ({F.ALIGN_LABEL[S.ALIGN]}); r = within-animal PS92 / 93 / 94 / 95, * = within-animal "
                  f"shuffle p < .05", y=1.045)
     fig.tight_layout()
-    fig.savefig(ROOT / "page_figs" / f"ss_perpos_{SUF}.png", dpi=130, bbox_inches="tight")
+    save_png_svg(fig, ROOT / "page_figs" / f"ss_perpos_{SUF}.png", dpi=130, bbox_inches="tight")
     plt.close(fig)
 
 

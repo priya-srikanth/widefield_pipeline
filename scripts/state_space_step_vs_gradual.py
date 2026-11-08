@@ -37,6 +37,7 @@ import state_space_page_figs as F  # noqa: E402
 import state_space_sim as S  # noqa: E402
 
 from wfield_local.orofacial_cohort import ANIMAL_MARKER, EPOCH_LINE  # noqa: E402
+from wfield_local.figure_layout import save_png_svg  # noqa: E402  (PNG + svg/ twin, Priya 11-06)
 
 ROOT = Path("M:/MICROSCOPE/Priya/Widefield/state_space_recovery")
 OUT = ROOT / f"step_vs_gradual{S.tag()}"
@@ -195,7 +196,7 @@ def figure(d, models):
     fig.suptitle(f"Step or gradual? State-space readouts against time and against far-contra aim recovery "
                  f"({F.ALIGN_LABEL[S.ALIGN]}{'; ' + S.XFORM if S.XFORM else ''})", y=1.09)
     fig.tight_layout()
-    fig.savefig(ROOT / "page_figs" / f"ss_step_{SUF}.png", dpi=140, bbox_inches="tight")
+    save_png_svg(fig, ROOT / "page_figs" / f"ss_step_{SUF}.png", dpi=140, bbox_inches="tight")
     plt.close(fig)
 
 

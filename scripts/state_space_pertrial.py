@@ -34,6 +34,7 @@ import state_space_sim as S  # noqa: E402
 
 from wfield_local import epochs  # noqa: E402
 from wfield_local.orofacial_cohort import EPOCH_LINE  # noqa: E402
+from wfield_local.figure_layout import save_png_svg  # noqa: E402  (PNG + svg/ twin, Priya 11-06)
 
 ROOT = Path("M:/MICROSCOPE/Priya/Widefield/state_space_recovery")
 OUT = ROOT / f"pertrial{S.tag()}"
@@ -111,7 +112,7 @@ def fig_plane(D):
     fig.suptitle(f"Every trial in the pre -> chronic / acute-departure plane: highest-density regions per epoch "
                  f"({F.ALIGN_LABEL[S.ALIGN]})", y=1.13)
     fig.tight_layout()
-    fig.savefig(FIGS / f"ss_pt_plane_{SUF}.png", dpi=140, bbox_inches="tight")
+    save_png_svg(fig, FIGS / f"ss_pt_plane_{SUF}.png", dpi=140, bbox_inches="tight")
     plt.close(fig)
 
 
@@ -161,7 +162,7 @@ def fig_order(D, Sl):
     fig.tight_layout()
     F.flush_marks(fig)
     F.sig_marks.reserve_headroom(fig)
-    fig.savefig(FIGS / f"ss_pt_order_{SUF}.png", dpi=140, bbox_inches="tight")
+    save_png_svg(fig, FIGS / f"ss_pt_order_{SUF}.png", dpi=140, bbox_inches="tight")
     plt.close(fig)
 
 
@@ -209,7 +210,7 @@ def fig_size(D):
     fig.legend(handles=hs, loc="upper center", ncol=7, frameon=False, bbox_to_anchor=(0.5, 1.03))
     fig.suptitle(f"Per-trial response size in the full 62-area space, per spout ({F.ALIGN_LABEL[S.ALIGN]})", y=1.07)
     fig.tight_layout()
-    fig.savefig(FIGS / f"ss_pt_size_{SUF}.png", dpi=140, bbox_inches="tight")
+    save_png_svg(fig, FIGS / f"ss_pt_size_{SUF}.png", dpi=140, bbox_inches="tight")
     plt.close(fig)
     return Q
 
@@ -254,7 +255,7 @@ def fig_order_aim(D, Sl):
     hs += [plt.Line2D([], [], color="0.75", lw=1, label="pre sessions")]
     fig.legend(handles=hs, loc="upper center", ncol=6, frameon=False, bbox_to_anchor=(0.45, 1.06))
     fig.suptitle(f"Within a session, colored by behavioral recovery ({F.ALIGN_LABEL[S.ALIGN]}; within spout)", y=1.13)
-    fig.savefig(FIGS / f"ss_pt_order_aim_{SUF}.png", dpi=140, bbox_inches="tight")
+    save_png_svg(fig, FIGS / f"ss_pt_order_aim_{SUF}.png", dpi=140, bbox_inches="tight")
     plt.close(fig)
 
 

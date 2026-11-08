@@ -47,6 +47,7 @@ import state_space_sim as S  # noqa: E402
 from wfield_local import epochs  # noqa: E402
 from wfield_local import sig_marks  # noqa: E402
 from wfield_local.orofacial_cohort import ANIMAL_MARKER, EPOCH_LINE  # noqa: E402
+from wfield_local.figure_layout import save_png_svg  # noqa: E402  (PNG + svg/ twin, Priya 11-06)
 
 ROOT = Path("M:/MICROSCOPE/Priya/Widefield/state_space_recovery")
 OUT = ROOT / f"trajectories{S.tag()}"
@@ -182,7 +183,7 @@ def fig_days(D):
                  y=1.13)
     fig.tight_layout()
     sig_marks.reserve_headroom(fig)
-    fig.savefig(FIGS / f"ss_traj_days_{SUF}.png", dpi=140, bbox_inches="tight")
+    save_png_svg(fig, FIGS / f"ss_traj_days_{SUF}.png", dpi=140, bbox_inches="tight")
     plt.close(fig)
 
 
@@ -289,7 +290,7 @@ def fig_loops(proj, pooled, ve, boot):
                  f"animals ({LABEL[S.ALIGN]})", y=1.15)
     fig.tight_layout()
     sig_marks.reserve_headroom(fig)
-    fig.savefig(FIGS / f"ss_traj_loops_{SUF}.png", dpi=140, bbox_inches="tight")
+    save_png_svg(fig, FIGS / f"ss_traj_loops_{SUF}.png", dpi=140, bbox_inches="tight")
     plt.close(fig)
     # the same curves as PC1 / PC2 against time, 95 % bootstrap bands
     fig, axs = plt.subplots(2, 6, figsize=(19, 5.6), sharex=True, sharey="row")
@@ -318,7 +319,7 @@ def fig_loops(proj, pooled, ve, boot):
                  y=1.08)
     fig.tight_layout()
     sig_marks.reserve_headroom(fig)
-    fig.savefig(FIGS / f"ss_traj_loops_time_{SUF}.png", dpi=140, bbox_inches="tight")
+    save_png_svg(fig, FIGS / f"ss_traj_loops_time_{SUF}.png", dpi=140, bbox_inches="tight")
     plt.close(fig)
     fig, axs = plt.subplots(4, 6, figsize=(19, 12), sharex=True, sharey=True)
     for r, an in enumerate(sorted(proj)):
@@ -335,7 +336,7 @@ def fig_loops(proj, pooled, ve, boot):
     fig.suptitle(f"Per animal, same plane ({LABEL[S.ALIGN]})", y=1.0)
     fig.tight_layout()
     sig_marks.reserve_headroom(fig)
-    fig.savefig(FIGS / f"ss_traj_loops_animals_{SUF}.png", dpi=110, bbox_inches="tight")
+    save_png_svg(fig, FIGS / f"ss_traj_loops_animals_{SUF}.png", dpi=110, bbox_inches="tight")
     plt.close(fig)
 
 
@@ -376,7 +377,7 @@ def fig_resp_size(d):
                  f"{t[base][-1] + 0.05:.1f} s)", y=1.12)
     fig.tight_layout()
     sig_marks.reserve_headroom(fig)
-    fig.savefig(FIGS / f"ss_resp_size_{SUF}.png", dpi=140, bbox_inches="tight")
+    save_png_svg(fig, FIGS / f"ss_resp_size_{SUF}.png", dpi=140, bbox_inches="tight")
     plt.close(fig)
 
 

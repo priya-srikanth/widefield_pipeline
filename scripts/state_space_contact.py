@@ -29,6 +29,7 @@ import state_space_sim as S  # noqa: E402
 
 from wfield_local import analysis_kit as kit  # noqa: E402
 from wfield_local import epochs  # noqa: E402
+from wfield_local.figure_layout import save_png_svg  # noqa: E402  (PNG + svg/ twin, Priya 11-06)
 
 ROOT = Path("M:/MICROSCOPE/Priya/Widefield/state_space_recovery")
 OUT = ROOT / f"contact{S.tag()}"
@@ -135,7 +136,7 @@ def figure(Dsess):
     fig.suptitle(f"Incomplete vs contact first licks within session ({F.ALIGN_LABEL[S.ALIGN]})", y=1.15)
     fig.tight_layout()
     F.sig_marks.reserve_headroom(fig)
-    fig.savefig(ROOT / "page_figs" / f"ss_contact_{S.ALIGN}.png", dpi=140, bbox_inches="tight")
+    save_png_svg(fig, ROOT / "page_figs" / f"ss_contact_{S.ALIGN}.png", dpi=140, bbox_inches="tight")
     plt.close(fig)
 
 

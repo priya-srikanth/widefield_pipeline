@@ -32,6 +32,7 @@ import state_space_recovery_trials as R  # noqa: E402
 import state_space_sim as S  # noqa: E402
 
 from wfield_local import epochs  # noqa: E402
+from wfield_local.figure_layout import save_png_svg  # noqa: E402  (PNG + svg/ twin, Priya 11-06)
 
 ROOT = Path("M:/MICROSCOPE/Priya/Widefield/state_space_recovery")
 OUT = ROOT / f"noise{S.tag()}"
@@ -125,7 +126,7 @@ def figure(s):
     fig.tight_layout()
     F.flush_marks(fig)
     F.sig_marks.reserve_headroom(fig)
-    fig.savefig(F.ROOT / "page_figs" / f"ss_noise_{S.ALIGN}.png", dpi=140, bbox_inches="tight")
+    save_png_svg(fig, F.ROOT / "page_figs" / f"ss_noise_{S.ALIGN}.png", dpi=140, bbox_inches="tight")
     plt.close(fig)
 
 
