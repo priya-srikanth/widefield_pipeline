@@ -111,7 +111,7 @@ def figure(Dsess):
     fig.suptitle(f"Incomplete vs contact first licks within session ({F.ALIGN_LABEL[S.ALIGN]})", y=1.15)
     fig.tight_layout()
     F.sig_marks.reserve_headroom(fig)
-    save_png_svg(fig, ROOT / "page_figs" / f"ss_contact_{S.ALIGN}.png", dpi=140, bbox_inches="tight")
+    save_png_svg(fig, ROOT / "page_figs" / f"ss_contact_{S.ALIGN}{S.btag()}.png", dpi=140, bbox_inches="tight")
     plt.close(fig)
 
 

@@ -187,6 +187,16 @@ def allen_only(what, shared_ok=False):
         sys.exit(f"{what}: pools areas across animals -- Allen basis only (WF_SS_BASIS={BASIS})")
 
 
+def btag():
+    """The basis part of `tag` ('' for Allen, '_svd', '_lnmfbm', '_lnmf'): figure-name suffix of basis runs, so a basis
+    run never overwrites the Allen page figure of the same name."""
+    return ("" if BASIS == "allen" else f"_{BASIS}") + ("bm" if BASIS == "lnmf" and LNMF_MASK == "brain" else "")
+
+
+BASIS_LABEL = {"allen": "", "svd": "cohort SVD basis (100 components, glue-free mask)",
+               "lnmf": "LocaNMF components (per animal, glue / bulb components dropped)"}
+
+
 def tag():
     """Output-folder suffix: '' for the original cue alignment, else '_<align>'."""
     return (("" if ALIGN == "cue" else f"_{ALIGN}") + ("" if K == 8 else f"_k{K}") + (f"_x{XFORM}" if XFORM else "")
