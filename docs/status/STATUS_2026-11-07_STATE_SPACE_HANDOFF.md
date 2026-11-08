@@ -12,6 +12,11 @@ wf_statespace` (NOT pushed, NOT merged; push only if Priya asks -- it is our own
   (re-copy PNGs from `state_space_recovery/page_figs/` if the scratchpad is gone).
 - Plan, every number, decisions, retractions: `docs/STATE_SPACE_RECOVERY_PLAN.md` (read top to bottom; later sections
   supersede earlier ones). Literature: `docs/STATE_SPACE_RECOVERY_LITERATURE.md`.
+- **11-08 (overnight, Priya asleep): read `docs/status/RUNNING_LIST_2026-11-08_STATE_SPACE.md` FIRST** -- decisions
+  waiting for Priya (section A), new findings B1-B3 (detour axis vs the balance marker; within-session neural drift
+  tracks landing drift post-stroke 4/4; the repertoire test has NO power -> slide-vs-search withdrawn), plans fixed
+  before the LocaNMF / June data (C), status log (D). FINDINGS 0c is on main (not pushed); the O2 joint-LocaNMF job
+  `rebuild_20261103/o2/ss_lnmf_20261108` was staged by Priya 11-08 (outputs not on the share yet).
 
 ## Where things stand (one line each; details in the plan)
 
@@ -117,6 +122,23 @@ Already conforming: shared statistics from `analysis_kit` (`boot_delta`, `boot_c
 `epochs`, colors / markers from `orofacial_cohort`, star placement via `sig_marks.star_top` + `reserve_headroom`, every
 figure save through `figure_layout.save_png_svg` (PNG + svg twin; switched 11-07 night -- figures not re-rendered since
 then have no svg yet), ruff-clean, outputs only under `MICROSCOPE/Priya/...`.
+
+**STATUS 11-08 (each step verified by re-running every affected script, cue + lick, and diffing all 44 output CSVs
+against the pre-refactor snapshot -- identical; tests `tests/test_state_space.py`, 6 tests):**
+- DONE 1 Paths: every location in `state_space_sim` (PROFILE / REBUILD from the render profile, ENCODING, XTAG / WTAG
+  pinned by a subprocess test against run_mode / orofacial_outputs routing, ITI, ITI_W, LICKS3D via pose3d_dir, ROOT
+  via PathResolver, LANDING, CACHE). Not done: writeguard before writes; applying the profile in-process (deliberately
+  not: module caches would keep it).
+- DONE 2 (partly) One frame: `state_space_recovery_trials.frames` / `xy` used by trajectories, contact, pertrial.
+  `path_tests.trial_alpha` (leave-self-out chronic template) and `R.cloud` / `repertoire` still project on their own.
+- DONE 3 One loader: `state_space_sim.load_sessions(hook)` in all ten scripts.
+- DONE (verification running at 11-08 ~01:00) 4 One response measure: `state_space_sim.evoked` + `hemi`; definitions
+  unchanged (it is NOT 0b's primary marker -- that is the angle-matched gain ratio of `lick_recovery_primary`; the
+  angle-matched version here is `state_space_balance_angle`).
+- DONE 6 Lag grids + spout order imported (`iti_licks.LAGS_C / LAGS_P`, `orofacial_cohort.POS_ORDER`).
+- DONE 8 Tests (binning, transforms, frame axes, loader order, path tags, evoked / hemi).
+- OPEN 5 (landing join at extraction), 7 (fan_sessions for share reads), 9 (throwaway diagnostics: Priya to decide),
+  10 (page builder).
 
 Cleanup list (do these when an analysis is promoted from exploratory; each item says what to reuse):
 
