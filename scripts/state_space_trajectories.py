@@ -23,11 +23,14 @@ C (Priya: "unexpected that the change is so much more dramatic for close than fa
 the FULL 62-area space per spout (norm over areas of the session's spout mean, response window minus baseline window of
 state_space_sim.BAL_BINS), log2 change vs own pre -- the 2-D plane holds mostly the shared response.
 Outputs: Widefield/state_space_recovery/trajectories{tag}/ (csv) and page_figs/ss_traj_{days,loops,loops_time,
-loops_animals}_<align>.png, ss_resp_size_<align>.png.
+loops_animals}_<align>.png, ss_resp_size_<align>.png. LocaNMF basis (per-animal components): B runs through
+`align_maps` (each animal's pre top-K space, rotated onto the others on pre only); WF_SS_LOOPS=aligned does the same in
+Allen as the check (figures _aligned).
 Exploratory.
 """
 from __future__ import annotations
 
+import os
 import sys
 from pathlib import Path
 
@@ -162,14 +165,47 @@ def fig_days(D):
 
 # ---------------------------------------------------------------- B. within the trial
 
-def loops(data):
+def align_maps(data, n_iter=50):
+    """Per-animal maps into ONE shared coordinate system when animals do not share a component space (LocaNMF; Priya
+    11-08 "can we do loops in locaNMF basis any way?"). Each animal's own fixed pre space (top K of its pre spout x time
+    template, `R.fixed_space`), then generalized orthogonal Procrustes of the four animals' PRE templates in those spaces
+    (rows = spout x bin, matched across animals by condition): rotations / reflections only, no scaling, fitted on pre
+    only, so every post-stroke epoch is out of sample. Returns ({animal: areas x K map}, {animal: leave-one-animal-out r of
+    its aligned pre template with the others' mean}) -- the r says how well the conditions line up across animals."""
+    Z, P = {}, {}
+    for an, sess in sorted(data.items()):
+        T = R.template([s for s in sess if s[1] == "pre"])
+        P[an], mu = R.fixed_space(T)
+        Z[an] = S.flat(np.nan_to_num((T - mu) @ P[an]))                 # (6 x bins) x K; a missing spout -> 0
+    ans = sorted(Z)
+    Q = {an: np.eye(Z[an].shape[1]) for an in ans}
+    ref = Z[ans[0]]
+    for _ in range(n_iter):
+        for an in ans:
+            u, _, vt = np.linalg.svd(Z[an].T @ ref)
+            Q[an] = u @ vt
+        new = np.mean([Z[an] @ Q[an] for an in ans], axis=0)
+        if np.allclose(new, ref, atol=1e-10):
+            break
+        ref = new
+    loo = {an: float(np.corrcoef((Z[an] @ Q[an]).ravel(),
+                                 np.mean([Z[b] @ Q[b] for b in ans if b != an], axis=0).ravel())[0, 1]) for an in ans}
+    return {an: P[an] @ Q[an] for an in ans}, loo
+
+
+def loops(data, align=False):
+    """Cohort top-2 plane of the animals' pre templates. Allen (default): the shared 62-area space. align=True: each
+    animal first mapped through `align_maps` (its own pre top-K space, rotated onto the others on pre only) -- the only
+    option in the LocaNMF basis; in Allen it is the check that the alignment reproduces the shared-space loops."""
+    maps, loo = align_maps(data) if align else ({}, {})
+    amap = lambda an, X: X @ maps[an] if align else X  # noqa: E731
     centered, mus = {}, {}
     for an, sess in data.items():
         pre = [s for s in sess if s[1] == "pre"]
         T = R.template(pre)
         mu = S.flat(T[np.isfinite(T).all(axis=(1, 2))]).mean(0)
         mus[an] = mu
-        centered[an] = {ep: R.template([s for s in sess if s[1] == ep]) - mu for ep in EPOCHS
+        centered[an] = {ep: amap(an, R.template([s for s in sess if s[1] == ep]) - mu) for ep in EPOCHS
                         if any(s[1] == ep for s in sess)}
     F = np.concatenate([S.flat(c["pre"][np.isfinite(c["pre"]).all(axis=(1, 2))]) for c in centered.values()])
     _, sv, Vt = np.linalg.svd(F - F.mean(0), full_matrices=False)
@@ -178,7 +214,8 @@ def loops(data):
     proj = {an: {ep: c @ W for ep, c in d.items()} for an, d in centered.items()}       # 6 x bins x 2
     pooled = {ep: np.nanmean(np.stack([proj[a][ep] for a in proj if ep in proj[a]]), axis=0) for ep in EPOCHS}
     # per-session projected spout means -> nested bootstrap of the pooled curve (animals -> sessions)
-    sp = {an: {ep: np.stack([(S.spout_means(s[3], s[4]) - mus[an]) @ W for s in sess if s[1] == ep])
+    sp = {an: {ep: np.stack([amap(an, S.spout_means(s[3], s[4]) - mus[an]) @ W
+                             for s in sess if s[1] == ep])
                for ep in EPOCHS if any(s[1] == ep for s in sess)} for an, sess in data.items()}
     rng = np.random.default_rng(0)
     boot = {}
@@ -192,7 +229,7 @@ def loops(data):
                 per.append(np.nanmean(X[rng.integers(0, len(X), len(X))], axis=0))
             draws.append(np.nanmean(np.stack(per), axis=0))
         boot[ep] = np.stack(draws)                                                     # n_boot x 6 x bins x 2
-    return proj, pooled, ve, boot
+    return (proj, pooled, ve, boot, loo) if align else (proj, pooled, ve, boot)
 
 
 def draw_loops(ax, Z, t, brk, color, lw):
@@ -243,8 +280,12 @@ def se_tube(ax, B, color, brk=(), sub=24):
                                zorder=1))
 
 
-def fig_loops(proj, pooled, ve, boot):
+def fig_loops(proj, pooled, ve, boot, align=False):
     t, brk = times()
+    suf = SUF + ("_aligned" if align and S.BASIS == "allen" else "")
+    plane = (f"per-animal pre top-{S.K} spaces rotated onto each other on pre (Procrustes), then the cohort top-2 plane "
+             f"({100 * ve:.0f} % of aligned pre variance)" if align else
+             f"cohort pre-stroke top-2 plane ({100 * ve:.0f} % of pre variance)")
     fig, axs = plt.subplots(1, 6, figsize=(19, 3.9), sharex=True, sharey=True)
     for si, (ax, p) in enumerate(zip(axs, S.POS)):
         for ep in EPOCHS:
@@ -259,11 +300,10 @@ def fig_loops(proj, pooled, ve, boot):
            plt.Line2D([], [], marker="o", ls="", mfc="none", mec="k", ms=8, label="event (0 s)"),
            plt.Line2D([], [], color="0.3", alpha=0.3, lw=8, label="1-SE band")]
     fig.legend(handles=hs, loc="upper center", ncol=7, frameon=False, bbox_to_anchor=(0.5, 1.08))
-    fig.suptitle(f"Mean trial trajectories, cohort pre-stroke top-2 plane ({100 * ve:.0f} % of pre variance), mean of 4 "
-                 f"animals ({LABEL[S.ALIGN]})", y=1.15)
+    fig.suptitle(f"Mean trial trajectories, {plane}, mean of 4 animals ({LABEL[S.ALIGN]})", y=1.15)
     fig.tight_layout()
     sig_marks.reserve_headroom(fig)
-    save_png_svg(fig, FIGS / f"ss_traj_loops_{SUF}.png", dpi=140, bbox_inches="tight")
+    save_png_svg(fig, FIGS / f"ss_traj_loops_{suf}.png", dpi=140, bbox_inches="tight")
     plt.close(fig)
     # the same curves as PC1 / PC2 against time, 95 % bootstrap bands
     fig, axs = plt.subplots(2, 6, figsize=(19, 5.6), sharex=True, sharey="row")
@@ -292,7 +332,7 @@ def fig_loops(proj, pooled, ve, boot):
                  y=1.08)
     fig.tight_layout()
     sig_marks.reserve_headroom(fig)
-    save_png_svg(fig, FIGS / f"ss_traj_loops_time_{SUF}.png", dpi=140, bbox_inches="tight")
+    save_png_svg(fig, FIGS / f"ss_traj_loops_time_{suf}.png", dpi=140, bbox_inches="tight")
     plt.close(fig)
     fig, axs = plt.subplots(4, 6, figsize=(19, 12), sharex=True, sharey=True)
     for r, an in enumerate(sorted(proj)):
@@ -309,7 +349,7 @@ def fig_loops(proj, pooled, ve, boot):
     fig.suptitle(f"Per animal, same plane ({LABEL[S.ALIGN]})", y=1.0)
     fig.tight_layout()
     sig_marks.reserve_headroom(fig)
-    save_png_svg(fig, FIGS / f"ss_traj_loops_animals_{SUF}.png", dpi=110, bbox_inches="tight")
+    save_png_svg(fig, FIGS / f"ss_traj_loops_animals_{suf}.png", dpi=110, bbox_inches="tight")
     plt.close(fig)
 
 
@@ -361,10 +401,18 @@ def main():
     pd.concat([d[0].assign(animal=a) for a, d in D.items()]).to_csv(OUT / "days_sessions.csv", index=False)
     pd.concat([d[1].assign(animal=a) for a, d in D.items()]).to_csv(OUT / "days_trials.csv", index=False)
     fig_days(D)
-    ve = np.nan
-    if S.BASIS == "allen":                       # one top-2 plane pooled over animals: needs a shared area space
-        proj, pooled, ve, boot = loops(data)
-        fig_loops(proj, pooled, ve, boot)
+    # one top-2 plane pooled over animals needs a shared space: Allen areas directly; LocaNMF (per-animal components)
+    # through the pre-only Procrustes alignment. WF_SS_LOOPS=aligned runs the aligned version in Allen too (the check
+    # that it reproduces the shared-space loops; figures carry _aligned).
+    align = S.BASIS != "allen" or os.environ.get("WF_SS_LOOPS") == "aligned"
+    res = loops(data, align=align)
+    proj, pooled, ve, boot = res[:4]
+    fig_loops(proj, pooled, ve, boot, align=align)
+    if align:
+        print("alignment, leave-one-animal-out r of the aligned pre template:", {a: round(r, 2) for a, r in res[4].items()})
+        pd.Series(res[4], name="loo_r").to_csv(OUT / f"loops_alignment{'_aligned' if S.BASIS == 'allen' else ''}.csv")
+    np.savez(OUT / f"loops{'_aligned' if align else ''}.npz", ve=ve,
+             **{f"{a}__{e}": z for a, d in proj.items() for e, z in d.items()})
     rs = resp_size(data)
     rs.to_csv(OUT / "resp_size.csv", index=False)
     if S.ALIGN != "splice":

@@ -66,6 +66,19 @@ merged to main (no conflicts); A5 applied to FINDINGS 0c item 4 and the page cap
    coarse Allen space; at the component level the post-stroke code is re-patterned from acute on. Proposed FINDINGS
    wording after the method check (A7).
 
+7. **Loops in the LocaNMF basis (Priya 11-08 "can we do loops in locaNMF basis any way?").** `state_space_trajectories`
+   `align_maps`: each animal's own fixed pre top-8 space, then generalized orthogonal Procrustes of the four animals' PRE
+   spout x time templates (rotations / reflections, no scaling; post epochs out of sample), then the same cohort top-2
+   PCA + nested bootstrap as the Allen loops. Test: `test_align_maps_recovers_a_shared_code`. CHECK in Allen
+   (`WF_SS_LOOPS=aligned`, figures `ss_traj_loops*_{lick,cue}_aligned.png`): aligned vs shared-space loops r >= .998 in
+   every epoch after a pre-only 2-D rotation, loop-size ratios vs pre within .03 (both alignments) -> the alignment is
+   faithful. Leave-one-animal-out r of the aligned pre template: Allen lick .92-.98 (cue .73-.83); LocaNMF lick .79-.86
+   (cue .64-.76) -- the LocaNMF animals line up less well. LocaNMF loops (`ss_traj_loops{,_time,_animals}_{lick_,}lnmf.png`):
+   wide bands; acute dips on PC2 at the lick at every spout; pre far-spout loops larger than post. NOT the Allen picture;
+   given the weaker alignment, read descriptively. Alternative raised by Priya ("could we use one svd basis"): one
+   COHORT SVD basis from all animals' pre sessions on the shared Allen pixel grid (`joint_basis` trick across animals) ->
+   shared components without alignment; needs an O2 run (proposed, not started).
+
 5. **"Orthogonal" re-checked (Priya 11-08 "how are we defining orthogonal" -> "yes run"; `state_space_orth_check.py`,
    `orth_check{_lick,}{,_lnmf}/`).** The reported share is a LENGTH ratio |a - (a.u)u| / |a| per spout (a = acute -
    pre template, u = unit pre -> chronic), averaged over spouts, with no noise correction and no null. Cross-fitted
