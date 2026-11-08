@@ -158,8 +158,9 @@ def draw(ax, v, mask, edges, vmax, thr=None, brain=None):
     if thr is not None:
         sig = np.zeros(mask.shape)
         sig[mask] = np.abs(v) > thr
-        if sig.any():
-            ax.contour(sig[sl], [0.5], colors="k", linewidths=0.8)
+        if sig.any():                                     # the repo's significance outline: black on a white halo
+            ax.contour(sig[sl], [0.5], colors="white", linewidths=2.8, alpha=0.85)    # (epoch_figures, 15r maps)
+            ax.contour(sig[sl], [0.5], colors="black", linewidths=1.6)
     ax.set_xticks([])
     ax.set_yticks([])
     for s in ax.spines.values():
