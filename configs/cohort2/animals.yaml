@@ -30,8 +30,8 @@ animals:
     characteristics: {}
     stroke_date: null
     stroke_laterality: "L"          # planned (same as cohort1); confirm
-    reference_date: null          # null = the cohort's master alignment session
-    reference_landmarks: null
+    reference_date: "1106"        # Allen reference = 11-06 (large 509x480 ROI); landmarks drawn 2026-11-08
+    reference_landmarks: v1
     exclude: []
 
   PS120:
@@ -44,8 +44,8 @@ animals:
     characteristics: {}
     stroke_date: null
     stroke_laterality: "L"
-    reference_date: null          # null = the cohort's master alignment session
-    reference_landmarks: null
+    reference_date: "1103"        # Allen reference = 11-03 (large 509x480 ROI); raw on M:, landmarks read-from-M: 2026-11-08
+    reference_landmarks: v1
     exclude: []
 
   PS121:
@@ -58,8 +58,8 @@ animals:
     characteristics: {}
     stroke_date: null
     stroke_laterality: "L"
-    reference_date: null          # null = the cohort's master alignment session
-    reference_landmarks: null
+    reference_date: "1106"        # Allen reference = 11-06 (large 509x480 ROI); landmarks drawn 2026-11-08
+    reference_landmarks: v1
     exclude: []
 
   PS122:
@@ -76,8 +76,8 @@ animals:
     characteristics: {camera_roi_height_2026_10_29: 509}
     stroke_date: null
     stroke_laterality: "L"
-    reference_date: null          # null = the cohort's master alignment session
-    reference_landmarks: null
+    reference_date: "1103"        # Allen reference = 11-03 (large 509x480 ROI); raw on M:, landmarks read-from-M: 2026-11-08
+    reference_landmarks: v1
     exclude: []
 
 date_policy:
