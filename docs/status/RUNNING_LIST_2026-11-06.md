@@ -282,7 +282,11 @@ the encoding handoff (STATUS_2026-10-26_ENCODING_HANDOFF.md, top blocks); the A1
   **Priya 11-08 ~00:40: include PS94_0817 far contra in the control** (read as PS94; she wrote "ps92 817" -- confirm):
   the matched pre has the same mix, so the share bias cancels. **Priya: 1/18, 1/20 and 10 trials are all arbitrary -> NO
   floor at all in the control** (any position with >= 1 trial; trial-pooled stats weight small cells by their trials; trial
-  count reported per cell). 5r / 5rm stay as rendered tonight; revisit dropping their floor once the control exists.
+  count reported per cell).
+- **D7 -- Priya OK 11-08 ~00:50: ALL refit analyses move to the 10-trial floor only (drop MIN_REFIT_SHARE), with the D6
+  control shown beside the refit figures** (raw refit + matched-pre expectation per cell). Order: D6 control script FIRST
+  (lick arms must not change without it), then time a single-arm 5r run, then re-run 5r / 5rm / 5ro / 5rmo (5 arms) +
+  s1_refit_locanmf_table (page Fig 1.1/1.2) + june_august_drift (both call _refit_pred) behind the heavy lock.
 ### Findings
 - Section G cost = Allen-ROI features were never cached (trial_features_cached refused non-LocaNMF sources); fixed 80090a57,
   measured on PS92_0812: cache read 0.26-0.91 s vs 6-14 s uncached, features byte-identical.
