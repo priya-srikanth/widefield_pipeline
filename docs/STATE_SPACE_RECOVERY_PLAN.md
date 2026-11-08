@@ -487,6 +487,17 @@ drift-direction cosine with chronic - pre +.41 / +.41 / +.37 / -.06 (share 14-17
   p < .05 (backup). Table of LMM results for all runs: `state_space_recovery/lmm_change_vs_pre.csv`.
 - Page v8: renumbering via `docs/results_pages/state_space/renumber.py` (by position; ids permanent).
 
+## Within-session behavior (11-07 night, `scripts/state_space_within_session_behavior.py`)
+
+Priya: "does this correspond with worsening performance over the session?" / "is this true for any other animals".
+Slopes on trial order (first -> last trial, within spout), change vs own pre (boot_delta; dagger = LMM):
+latency +180 ms acute (4/4 * dagger), +75 subacute (4/4), chronic back (pre itself +81 to +193 ms in every animal);
+far-contra first-lick landing drifts ipsilesionally within subacute sessions in 4/4 (-.24 mm *), acute PS93 -.75 /
+PS95 -1.28, chronic only PS94 -.40; all-spout landing weaker (3/4 down, n.s.); contact rate flat. Neural within-session
+drift strong mainly in PS94 (subacute -1.9, chronic -2.1, pre -.3) and PS92 subacute (-.8); across post sessions the
+neural slope tracks the landing slope in PS94 (.56) / PS93 (.75), weakly PS92 / PS95. Handoff:
+`docs/status/STATUS_2026-11-07_STATE_SPACE_HANDOFF.md`.
+
 ## Results page (draft, 11-07)
 
 https://claude.ai/artifact/9sGELLFEwADEt9k64fXTxe (v8: + dimensionality variants, step vs gradual, per position, per trial; source in docs/results_pages/state_space/). Figures: `scripts/state_space_page_figs.py` ->
