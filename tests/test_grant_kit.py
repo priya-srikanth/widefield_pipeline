@@ -133,8 +133,11 @@ def test_every_name_that_moved_is_still_reachable_on_grant_figures():
     # it -- a stale copy that reads like the real thing, which is the precise bug the setter
     # exists to prevent. Reach them through `grant_kit.only()`.
     EXEMPT = {"_ONLY_WINDOW", "_ONLY_VARIANT"}
+    # RETIRED on purpose (not lost in the split): MIN_REFIT_SHARE, the 1/18 refit share floor (Priya 11-08, D7: the
+    # 10-trial floor MIN_REFIT_CLASS only). Keeping it importable would invite a caller to apply it again.
+    RETIRED = {"MIN_REFIT_SHARE"}
     gone = sorted(n for n in was
-                  if not hasattr(grant_figures, n) and not n.startswith("__") and n not in EXEMPT)
+                  if not hasattr(grant_figures, n) and not n.startswith("__") and n not in EXEMPT | RETIRED)
     assert not gone, (
         f"{gone} were defined in grant_figures before the split and are now reachable from "
         f"neither it nor its kit re-export")
