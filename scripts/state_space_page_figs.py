@@ -166,10 +166,11 @@ SIM_COLS = [("r", "pattern r"), ("amp", "amplitude"), ("rot_gain", "rotation\nbe
             ("shared_dist", "shared\nshift"), ("spread", "spread\n(raw)"), ("spread_norm", "spread\n(amp-free)")]
 
 
-def fig_sim(out):
+def fig_sim(out, sub="sim", name="ss_sim_detection", what=""):
+    """``sub`` = the sim output folder (per basis: sim_lick_svd, sim_lick_lnmfbm; running list B9 / B15)."""
     fig, axs = plt.subplots(1, 2, figsize=(13, 6.6), sharey=True)
     for ax, n, ttl in zip(axs, (0, 15), ("all trials", "15 trials per spout (acute-like)")):
-        t = pd.read_csv(ROOT / "sim" / f"sim_detection_n{n}.csv")
+        t = pd.read_csv(ROOT / sub / f"sim_detection_n{n}.csv")
         M = np.array([[t[(t.plant == p) & np.isclose(t.level, lv)][c].iloc[0] for c, _ in SIM_COLS]
                       for p, lv, _ in SIM_ROWS])
         im = ax.imshow(M, cmap="viridis", vmin=0, vmax=1, aspect="auto")
@@ -183,8 +184,13 @@ def fig_sim(out):
         ax.set_title(ttl)
         ax.spines[:].set_visible(False)
     fig.colorbar(im, ax=axs, shrink=0.6, label="share of planted pre sessions detected (outside the null's 95 %)")
-    fig.suptitle("Method check: known changes planted into pre-stroke sessions, scored session vs session", y=0.99)
-    save(fig, out, "ss_sim_detection")
+    fig.suptitle("Method check: known changes planted into pre-stroke sessions, scored session vs session" + what, y=0.99)
+    if name == "ss_sim_detection":
+        save(fig, out, name)
+    else:                                       # basis runs: the folder already names the alignment
+        flush_marks(fig)
+        save_png_svg(fig, out / f"{name}.png", dpi=140, bbox_inches="tight")
+        plt.close(fig)
 
 
 MAIN = [("r", "pattern r with pre\n(Δ correlation)"), ("amp", "amplitude ratio\n(Δ ratio; pre-pre ≈ 1)"), ("out_resid_t", "outside pre space, beyond gains\n(Δ fraction of variance)"),
@@ -217,6 +223,12 @@ COND_XFORM = [("raw", "trials", "raw areas (primary)", "k"),
               ("z", "trials{TAG}_xz", "areas z-scored", "#7570b3"),
               ("gsr", "trials{TAG}_xgsr", "cortex-wide mode removed", "#1b9e77"),
               ("spout", "trials{TAG}_xspout", "spout-specific part only", "#d95f02")]
+# BASIS COMPARISON (Priya 11-08 "figures?" of "one cohort SVD basis reads like the Allen areas"): the same readouts in
+# the three spaces; each basis gets its own per-animal top-8 pre space. LocaNMF = per-animal joint components with the
+# glue / bulb components dropped (_lnmfbm); SVD = one cohort basis on the glue-free brain mask (_svd).
+COND_BASIS = [("allen", "trials", "Allen areas (62; primary)", "k"),
+              ("lnmf", "trials{TAG}_lnmfbm", "LocaNMF components (per animal, glue dropped)", "#1b9e77"),
+              ("svd", "trials{TAG}_svd", "cohort SVD (100 components, glue-free mask)", "#7570b3")]
 _TITLES = dict(MAIN + COLS_CONTACT)
 COLS_XFORM = [(k, _TITLES[k]) for k in ("r", "amp", "rot_gain", "out_resid_t", "shift_snr", "alpha")]
 
@@ -450,6 +462,12 @@ def main():
             "xform": lambda: fig_like(out, rng, COND_XFORM, COLS_XFORM, "ss_xform",
                                       "Dimensionality variants: the same readouts on raw, z-scored, cortex-wide-mode-removed "
                                       "and spout-specific activity"),
+            "basis": lambda: fig_like(out, rng, COND_BASIS, COLS_XFORM, "ss_basis",
+                                      "Does the basis matter? The same readouts in Allen areas, LocaNMF components and "
+                                      "one cohort SVD basis"),
+            "simb": lambda: [fig_sim(out, f"sim{TAG}_{b}", f"ss_sim_detection{TAG}_{b}", f" ({lab}; {ALIGN_LABEL[ALIGN]})")
+                             for b, lab in (("svd", "cohort SVD basis"), ("lnmfbm", "LocaNMF components"))
+                             if (ROOT / f"sim{TAG}_{b}").exists()],
             "contact": lambda: fig_like(out, rng, COND_CONTACT, COLS_CONTACT, "ss_contact_sets",
                                        "Contact + incomplete (primary) vs contact-only vs incomplete-only first licks"),
             "balance": lambda: fig_balance(out, rng), "cross": lambda: fig_balance_cross(out, rng),

@@ -111,9 +111,12 @@ merged to main (no conflicts); A5 applied to FINDINGS 0c item 4 and the page cap
 
 15. **One cohort SVD basis (glue-free, 100 components) reads like the Allen space, not like LocaNMF.** Lick, chronic vs
    own pre: r -.045* [-.058, -.031], amp +.30* [.14, .45] (4/4), rotation beyond gain +.002 [-.008, .009] (n.s.),
-   outside the pre space .008 (out_resid .008). Method check in this basis (`sim_svd`): 5 % new dimensions detected
-   1.00 (out_var / out_resid), 30 deg top-plane rotation .52-.58, 30 deg in the 1-2 plane .71-.97, so the null rotation
-   is not a blind spot. Minus cortex-wide (xgsr): alpha .36 / .58 / .91, chronic_like .20 / .31 / .50 (4/4 each); spout-
+   outside the pre space .008 (out_resid .008). Method check in this basis (`sim_lick_svd`; 11-08 corrected -- the
+   first entry read the wrong columns): rotation beyond gain detects a main-plane (PC1-2) rotation of 20 deg .68 / 30 deg
+   .87 (.65 / .77 at 15 trials per spout), a random-plane 45 deg .90; 5 % new dimensions 1.00 (out_resid). BETTER than
+   in LocaNMF (`sim_lick_lnmfbm`: main plane 20 / 30 deg .48 / .68; 5 % new dims .65), so the SVD null rotation is not a
+   power problem and the LocaNMF rotation is not a more sensitive readout. Figures: page Figs 2.2 / 2.3 (method
+   check per basis), 3.10 / 3.11 (`ss_basis[_lick].png`, the readouts in all three bases). Minus cortex-wide (xgsr): alpha .36 / .58 / .91, chronic_like .20 / .31 / .50 (4/4 each); spout-
    specific (xspout): alpha .25 / .52 / .84. Reading for A8: "larger, same pattern" holds in two smooth large-scale
    bases (Allen areas, cohort SVD); re-patterning (rotation, new dimensions) appears only in the per-animal LocaNMF
    components, so it lives at the fine, local scale those components resolve (or in how per-animal bases are
