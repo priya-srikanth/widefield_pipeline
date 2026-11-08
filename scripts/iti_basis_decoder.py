@@ -44,7 +44,7 @@ EP = ["pre", "acute", "subacute", "chronic"]
 LAGS = np.round(np.arange(-0.5, 0.5001, 0.05), 3)
 WIN = (LAGS >= 0.0) & (LAGS <= 0.2)
 AREAS = {"areas_split": "split", "areas": "plain"}     # Allen-area rows: source -> basis (both always; split = primary)
-SPATIAL = il.encoder_run("_te_basis") / "fit"       # the encoder basis of THIS run mode (coordinator 11-03)
+SPATIAL = il.te_basis_run() / "fit"       # the TE encoder basis of THIS run mode (coordinator 11-03; never _spont, 11-07)
 
 
 def features(label: str, source: str):
@@ -241,6 +241,9 @@ def main(argv=None) -> int:
         _got, fail = ak.fan_sessions(items, extract, jobs=a.jobs, label="basis")
         for it, err in fail:
             print(f"  !! {it}: {err}", flush=True)
+        if fail:   # a half-failed extraction must not be marked done (11-07: all svdbasis items failed, exit 0)
+            print(f"  {len(fail)} of {len(items)} items FAILED; not summarising", flush=True)
+            return 1
         if a.labels:
             return 0
     # the figure / tests use the MASKED LocaNMF (Priya 10-27 late "swap masked locanmf"); extraction is the same files
