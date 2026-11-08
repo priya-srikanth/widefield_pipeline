@@ -1044,7 +1044,7 @@ per-lick measure (proposed 10-25: the first-lick window stays primary; Priya to 
 
 ### 0c. State-space geometry of the first cued lick: scaled, rotated, shifted or new? (11-07) -- EXPLORATORY
 
-Branch `analysis/state-space-recovery-20261107` (not merged); every number, decision and retraction in
+Code on main (merged 11-08 from `analysis/state-space-recovery-20261107`, scripts `scripts/state_space_*.py`); every number, decision and retraction in
 `docs/STATE_SPACE_RECOVERY_PLAN.md`, handoff `docs/status/STATUS_2026-11-07_STATE_SPACE_HANDOFF.md`, draft page
 https://claude.ai/artifact/9sGELLFEwADEt9k64fXTxe. Data: per-trial Allen-area means (62 areas incl. ALM / tjM1, x1e3 dF/F,
 rebuild `_daqlk` extract), first cued lick of working trials (contact + incomplete; contact-only reproduces everything),
@@ -1062,18 +1062,22 @@ August-only pre, every readout vs the animal's OWN pre; `*` = boot_delta, LMM as
    pre -> chronic direction in every variant; subacute sessions slide back toward and along that line. NEW. PROVISIONAL.
 3. **The detour tracks the behavioral deficit, at every spout, gradually.** Its size (acute-departure axis) tracks
    far-contra first-lick aim within animal (r -.78 to -.93, 4/4), also within epochs; all six spouts track it; readouts
-   and aim are ~linear in log days (a step model wins 2 / 24 fits). OPEN: whether this axis is more than the 0b
-   balance marker in another basis. PROVISIONAL.
-4. **Trial clouds move as a whole** (no search-then-select stage within sessions). Power check pending. DESCRIPTIVE.
+   and aim are ~linear in log days (a step model wins 2 / 24 fits). The axis shares ~70 % of its within-animal variance
+   with the 0b balance marker but tracks aim beyond it in 4/4 animals (partial r -.35 to -.88, first-lick aligned); the
+   balance beyond the axis is weaker (3/4). Balance values from the pre-rebuild render (rebuild re-render queued).
+   PROVISIONAL.
+4. **Slide vs switch within sessions cannot be tested here.** Whether trials slide or switch between pre-like and
+   chronic-like states is not resolvable: single-trial scatter along the pre -> chronic line is ~1.4x the whole
+   pre -> chronic distance, and planted two-state sessions score the same as the data (power check). OPEN.
 5. **Method caveat for cue-window claims:** cue-aligned windows miss late acute first licks; part of the apparent acute
    re-patterning was latency (acute r -.20 cue vs -.08 first-lick aligned; acute amplitude +.22, 4/4, clear only
    lick-aligned). STANDS as a caveat.
-6. **Within a session (behavior):** latency lengthens more than pre acutely (+180 ms first -> last trial vs own pre, 4/4
-   `*`) and far-contra landings drift ipsilesionally within subacute sessions (-.24 mm, 4/4 `*`); contact flat. May
-   qualify "no within-session motor fatigue" (09-20, lick-interval based); being tested against quitting on branch
-   `analysis/within-session-decline-quitting-20261107`. PROVISIONAL.
+6. **Within a session:** behavior -> see "WITHIN-SESSION DECLINE OF AIM / LATENCY vs QUITTING" (section 0b list). Neural:
+   post-stroke, sessions whose far landings drift more ipsilesionally also drift more back toward pre on the
+   pre -> chronic line (r .51 within animal, 4/4 positive, shuffle p < .0005); no such link pre-stroke. PROVISIONAL.
 Open: close-spout PC2 transient (posterior-medial vs contralesional orofacial) unexplained; chronic - pre partly lies
-along the August pre drift (PS92-94) -- needs June (queued, contact-only first licks) or cohort 2 pre (kept separate).
+along the August pre drift (PS92-94) -- June reference (contact-only first licks, joint-LocaNMF basis, O2 job
+`ss_lnmf_20261108`, `state_space_june_drift.py`) runs when its outputs land; cohort 2 pre stays separate.
 
 ## 1. Behavior and orofacial kinematics (cam4)
 

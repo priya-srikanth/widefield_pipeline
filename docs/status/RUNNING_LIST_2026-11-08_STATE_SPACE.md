@@ -7,6 +7,12 @@ Branch `analysis/state-space-recovery-20261107` (worktree wf_statespace); nothin
 
 ## A. Decisions / questions for Priya (newest first)
 
+**ANSWERED 11-08 morning (Priya: "1. yes 2. yes if it doesn't conflict the other windows 3. yes 4. now - again as long
+as no conflict 5. yes"):** A1 applied to FINDINGS 0c item 3 + rebuild re-render of the balance marker queued; A4a main
+pushed (with the other window's 4e6630be, after merging origin/main: no conflicts); A4b decline branch merged, 0c item 6
+shortened to a pointer; A4c S28 subsection published into the behavior page by this window; A4d state-space branch
+merged to main (no conflicts); A5 applied to FINDINGS 0c item 4 and the page caption. Items below kept as the record.
+
 5. FINDINGS 0c item 4 ("Trial clouds move as a whole ... Power check pending. DESCRIPTIVE") -> rewrite as "Whether trials
    slide or switch between pre-like and chronic-like states cannot be tested here: single-trial scatter along the
    pre -> chronic line is ~1.4x the whole pre -> chronic distance, and planted two-state sessions score the same as the
