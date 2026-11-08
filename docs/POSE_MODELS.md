@@ -1193,3 +1193,23 @@ early-half vs late-half is 0.7-0.9.
 - Even with good geometry, June is an earlier training stage, so it fits better as a learning / drift reference (as
   `iti_june_ref.py` does) than as pooled stroke baseline. Decision is Priya's.
 - Checked inline from the snapshot; no code or output change.
+
+**D13 head-anchor check (11-07, same day).**
+- Data: 3-D nose and jaw REST, taken as pre-cue frames with the tongue absent, per-session medians from the existing
+  `session_poses/pose3d/<sid>_frames.csv.gz`; 43 pre sessions; scratchpad `june_head_anchor.py`.
+- August day-to-day SD: nose 0.06 / 0.21 / 0.13 mm (ml / ap / dv), jaw rest 0.05 / 0.22 / 0.09.
+
+June shift vs the animal's August mean:
+- **Nose: small**, mostly <= 0.2 mm. Exception: PS95 ap -0.15..-0.41.
+- **Jaw rest: back in every June session** (ap -0.15..-0.77 mm), with otherwise small ml / dv.
+
+**The June lick-landing common shifts are mostly NOT head placement:**
+- PS92 lands 0.55-0.78 mm lower, while its head sits 0.1-0.16 mm lower.
+- PS95 lands 0.39-0.45 mm more to the side, while its nose / jaw ml shift is <= 0.14.
+- Signs mostly agree (r .3-.6 over 12 sessions, largely between animals), so subtracting the head shift removes only a
+  fraction.
+
+Because the nose is measured in the same stage frame and stays put, a June frame / PnP error is also unlikely (it would
+move the nose too). **So the June 3-D offsets are mainly behavior: an earlier training stage, with licks landing
+differently and the jaw resting further back. They are not a geometry failure.** June 3-D is usable as a measurement,
+but it is behaviorally a different baseline: a learning / drift reference, not pooled stroke pre.
