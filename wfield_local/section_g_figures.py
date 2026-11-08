@@ -237,9 +237,14 @@ def render(rec, out, *, json_path=None, suffix="", note=""):
     made = []
     post = _sessions(rec, "post")
     excluded = _sessions(rec, "excluded")
-    made += _render_family(post, out, "section_g", "POST-STROKE")
-    made += _render_readouts(post, out, "section_g")
-    made += _render_family(excluded, out, "section_g_smalllesion",
+    # EVERY NAME CARRIES ``suffix`` (D9 queue audit 11-08): it used to reach only the retained figure, so a second arm
+    # rendered into the same folder (the contact-only supplement, --suffix _contactonly) overwrote the primary figures.
+    # suffix "" leaves every name exactly as before.
+    made += _render_family(post, out, f"section_g{suffix}", "POST-STROKE")
+    # G4 / G6 write FIXED paths (no name argument): with a suffix only the named readouts are drawn, so the second arm
+    # cannot overwrite the primary's two fixed-path figures (they are arm-independent no-lick readouts).
+    made += _render_readouts(post, out, f"section_g{suffix}", named_only=bool(suffix))
+    made += _render_family(excluded, out, f"section_g_smalllesion{suffix}",
                            "SMALL-LESION COMPARISON (the laser did not take)")
     # THE FAILED-LASER FITS-ENGAGED PAIR (G7d), which until 2026-09-09 NO STEP PRODUCED. The deck
     # placed a pair of files hand-made on 2026-08-18 and justified freezing them on the grounds that
@@ -248,12 +253,12 @@ def render(rec, out, *, json_path=None, suffix="", note=""):
     # engagement gate was replaced twice since -- position-blind, then reference-restricted and
     # backdated (880e6bd) -- so those figures were drawn against a gate that no other figure in the
     # deck still uses. A frozen figure is only safe when nothing upstream of it moves.
-    made += _render_readouts(excluded, out, "section_g_smalllesion", named_only=True)
+    made += _render_readouts(excluded, out, f"section_g_smalllesion{suffix}", named_only=True)
 
     # G2b: per-position recall in the four conditions, derived from the confusion diagonals.
     ptab = per_position_table(post)
     if ptab:
-        made.append(pp.fig_per_position(ptab, out, name="section_g_G2b_per_position.png"))
+        made.append(pp.fig_per_position(ptab, out, name=f"section_g_G2b_per_position{suffix}.png"))
 
     # G2c: the grid over BOTH families together. fig_grid colours on phase_tag == "excluded"
     # precisely so PS92/PS93's ineffective-lesion 8/17 sits as a grey square beside their effective
@@ -266,7 +271,7 @@ def render(rec, out, *, json_path=None, suffix="", note=""):
     if both:
         for arm, _ in ARMS:
             made.append(pp.fig_grid(both, out, arm=arm,
-                                    name=f"section_g_grid_withcontrol_{arm}.png"))
+                                    name=f"section_g_grid_withcontrol_{arm}{suffix}.png"))
 
     # RETAINED ABOVE-CHANCE FRACTION (Priya 11-07): within-session accuracy as (post - c) / (pre - c)
     # against the animal's pre band on the SAME positions, so LICK-ONLY sessions scored 4-, 5- and
