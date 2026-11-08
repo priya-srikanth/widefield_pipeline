@@ -207,3 +207,9 @@ All under `M:/MICROSCOPE/Priya/DeepLabCut/Widefield/face_rhythm/cam4/readouts/ma
      lick_left side_spec p .009 -> .032 (still Holm < .05).
      Chronic is still floor-limited at 100 perms (several cells at p .010 without a star).
      Page / deck NOT changed (pooled view is descriptive; Priya to decide whether to swap in after chronic lands).
+     Priya 11-07: "can wait" -> rescore again when chronic perms land; no page change before.
+     11-08 (overnight) JUNE FR (Priya: June as a reference): June ROIs warped from the master through the existing June
+     fields (`face_rhythm_warp_rois.py to-sessions --june`; landmark errors as August's), QC `register/qc_june_rois.png`;
+     O2 bundle `o2/fr_cam4_june_20261108` (12 tasks, production settings) SUBMITTED by Priya. Off-frame mesh points:
+     PS95 06/07 4, 06/08 29 of 1282 (exclude in readouts). June face is 1.17-1.24x larger: displacement amplitudes need
+     scale normalization before comparing with August. Running list: RUNNING_LIST_2026-11-08_a8_june.md.
