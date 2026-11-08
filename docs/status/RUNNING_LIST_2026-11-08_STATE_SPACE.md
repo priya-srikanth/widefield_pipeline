@@ -7,6 +7,14 @@ Branch `analysis/state-space-recovery-20261107` (worktree wf_statespace); nothin
 
 ## A. Decisions / questions for Priya (newest first)
 
+8. FINDINGS 0c item 1, after the LocaNMF method check (B9): "In the Allen-area space the chronic code is the pre
+   mapping, larger and shifted (r with pre -.04, amp +.30*). In the finer LocaNMF components (per animal) it is
+   re-patterned: rotation beyond per-component gain +.050* and variance outside the pre space +.043* in 4/4 -- in the
+   method check that is the size of a ~25 deg rotation of the main pre plane plus ~5 % new-dimension variance, and both
+   readouts respond only to their own planted change; the pattern-correlation drop (-.21) is larger than any single
+   planted change gives (<= -.07). The re-patterning is resolved only at the component level." OK to apply (FINDINGS +
+   page)? Also: the cohort-SVD run (B8) is a third basis to check it in.
+
 **ANSWERED 11-08 (Priya: "ok for noise-corrected wording. run the method check"):** A6 applied (FINDINGS 0c item 2,
 page summary row + section 7 takeaway, handoff item 5, plan note; the along-line sign split named as Allen, LocaNMF
 PS92 ~0 / others toward); A7 running (`sim{tag}` folders: lnmf lick, lnmf cue, allen lick; Allen cue = `sim/`).
@@ -65,6 +73,31 @@ merged to main (no conflicts); A5 applied to FINDINGS 0c item 4 and the page cap
    split; PS94_0917 basis fit 61 %. Reading: the "consistent with the pre mapping, larger" summary is a property of the
    coarse Allen space; at the component level the post-stroke code is re-patterned from acute on. Proposed FINDINGS
    wording after the method check (A7).
+
+9. **Method check in the LocaNMF basis (A7; Priya 11-08 "run the method check").** `state_space_sim.py`, lick-aligned,
+   `sim_lick_lnmf/` (+ `sim_lnmf/` cue; Allen lick `sim_lick/` for the like-for-like comparison; Allen cue = `sim/`).
+   `run()` fixed to pass each animal's own columns to the ipsi-gain plant. All trials, detection (share of planted
+   sessions outside the null's 95 % range; false-positive .065):
+   - rot_gain (rotation beyond per-component gain): rotation in the top pre plane 10 / 20 / 30 deg -> .39 / .68 / .90;
+     random-plane 45 deg .68; NOT produced by gains (.10-.16), new dimensions (.03-.07) or spread (.16-.19). Planted
+     change sizes: top-plane 20 deg +.036, 30 deg +.079; random 45 deg +.045.
+   - out_resid (outside the pre space beyond gains): new dimension 5 % / 15 % variance -> .74 / 1.00 (+.033 / +.094);
+     random gains .30 -> .36 (+.004), rotations <= .39.
+   - r (pattern correlation): weak in LocaNMF (null pre-pre r .81 vs Allen .93; detection <= .29; largest planted drop
+     -.07 at 30 deg top-plane rotation).
+   - 15 trials per spout: rot_gain top-plane 30 deg .81, new dims .61 / .97; everything else near chance.
+   Reading against the observed chronic LocaNMF changes (B6): rot_gain +.050 ~ a 20-30 deg rotation of the main pre
+   plane; out_resid +.043 ~ 5-6 % added variance in new dimensions; both readouts specific; r -.21 is larger than any
+   single planted change (a combination, or a change the plants do not cover). Allen for comparison (same plants):
+   detection similar or higher, so the Allen chronic nulls (rot_gain .000, out_resid +.003) are real "absent at the
+   area level", not blindness. Proposed FINDINGS 0c item 1 wording: A8.
+
+8. **Cohort SVD basis bundle (Priya 11-08 "could we use one svd basis" -> "yes").** `scripts/o2_state_space_svd.py`,
+   bundle `<rebuild>/o2/ss_svd_20261108` (COMMANDS.md): stage 1 one task builds U_cohort (top 100) from the 31 August
+   pre sessions of all four animals (joint_basis trick across animals, drift-removed V, equal total weight per animal;
+   component side from footprint energy, left > 2/3, right < 1/3, else both); stage 2 projects all 119 sessions
+   (rows reused from the LocaNMF bundle, so row i = the same trial in every basis). Waiting for Priya to submit.
+   Desktop side (`WF_SS_BASIS=svd` in state_space_sim) to add when the outputs land.
 
 7. **Loops in the LocaNMF basis (Priya 11-08 "can we do loops in locaNMF basis any way?").** `state_space_trajectories`
    `align_maps`: each animal's own fixed pre top-8 space, then generalized orthogonal Procrustes of the four animals' PRE
