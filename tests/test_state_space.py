@@ -156,6 +156,9 @@ def test_lnmf_basis(mods, monkeypatch, tmp_path):
                             first_peth=rng.normal(size=(n, len(S.LAGS_P), len(reg))).astype(np.float32),
                             first_pos=np.array(S.POS * 2), first_rt=np.full(n, 0.3), epoch="pre",
                             animal=lab[:4], regions=np.array(reg))
+    files = sorted(str(f) for f in (tmp_path / "sessions").glob("*.npz"))
+    S.prefill(files[1:])                        # 2 files -> spawned workers: must write into THIS cache, not the module's
+    assert all((tmp_path / "cache" / a / f"{lab}.npz").exists() for a in S.SEGMENTS for lab in ("PS92_0806", "PS93_0806"))
     data, cols = S.load_sessions()
     assert cols == {"PS92": ["MOp#1_left", "MOp#2_left", "MOp#1_right", "SSp-m#1_left", "SSp-m#1_right"],
                     "PS93": ["MOp#1_left", "SSp-m#1_right"]}

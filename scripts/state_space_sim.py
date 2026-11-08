@@ -196,21 +196,44 @@ def _bin(z, keep, align):
     return np.concatenate(parts, axis=1)
 
 
-def fill_cache(paths):
-    """One read of each extract -> binned arrays for EVERY alignment (cache/<align>/<label>.npz)."""
+def fill_cache(paths, cache=None):
+    """One read of each extract -> binned arrays for EVERY alignment (<cache>/<align>/<label>.npz; default CACHE)."""
+    cache = Path(cache or CACHE)
     for p in paths:
         lab = Path(p).stem
-        if all((CACHE / a / f"{lab}.npz").exists() for a in SEGMENTS):
+        if all((cache / a / f"{lab}.npz").exists() for a in SEGMENTS):
             continue
         z = np.load(p, allow_pickle=True)
         cols = _cols(z)
         keep = [i for i, c in enumerate(cols) if c != "cortex"]
         for a in SEGMENTS:
-            (CACHE / a).mkdir(parents=True, exist_ok=True)
-            np.savez(CACHE / a / f"{lab}.npz", xb=_bin(z, keep, a), pos=np.array([str(q) for q in z["first_pos"]]),
+            (cache / a).mkdir(parents=True, exist_ok=True)
+            np.savez(cache / a / f"{lab}.npz", xb=_bin(z, keep, a), pos=np.array([str(q) for q in z["first_pos"]]),
                      cols=np.array([cols[i] for i in keep]), epoch=_epoch(lab, str(z["epoch"])), animal=str(z["animal"]),
                      rt=z["first_rt"])
         print("cached", lab, flush=True)
+
+
+def _fill_one(item):
+    """Worker: (path, cache dir, atlas names). Everything it needs travels in the item -- a spawned worker re-imports
+    this module under the default env, so CACHE / BASIS / _NAMES there are NOT the caller's."""
+    path, cache, names = item
+    _NAMES.update(names)
+    fill_cache([path], cache)
+    return Path(path).stem
+
+
+def prefill(paths, jobs=3):
+    """Bin every uncached file once, fanned over a few workers (rule 6: these read the share; few, it is a shared box).
+    The atlas names are resolved first, in this process, so workers never race to write them."""
+    todo = [p for p in paths if not all((CACHE / a / f"{Path(p).stem}.npz").exists() for a in SEGMENTS)]
+    if not todo:
+        return
+    names = dict(_atlas_names()) if BASIS == "lnmf" else {}
+    from wfield_local import analysis_kit as kit
+    _, fail = kit.fan_sessions([(p, str(CACHE), names) for p in todo], _fill_one, jobs=min(jobs, len(todo)), label="bin")
+    if fail:
+        raise RuntimeError(f"binning failed for {len(fail)} file(s): {fail}")
 
 
 # DIMENSIONALITY VARIANTS (Priya 11-07: "this seems like an extraordinarily low dimensional state space" -> "can try
@@ -284,9 +307,10 @@ def load_sessions(hook=None, june=False):
     from wfield_local import epochs
     data, cols = {}, {}
     last = None
-    for f in sorted(glob.glob(SRC + "/PS9*.npz")):
-        if not june and _epoch(Path(f).stem, "") == "june":
-            continue
+    files = [f for f in sorted(glob.glob(SRC + "/PS9*.npz")) if june or _epoch(Path(f).stem, "") != "june"]
+    if BASIS == "lnmf":
+        prefill(files)
+    for f in files:
         Y, pos, last, ep, an = load(f)
         cols[an] = last
         lab = Path(f).stem
