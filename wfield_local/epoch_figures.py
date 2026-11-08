@@ -674,7 +674,7 @@ def behaviour_by_epoch(position_metrics, sessions_of, *, positions):
             met = position_metrics(an, mmdd) or {}
             for pos in positions:
                 m = met.get(pos)
-                if not m or m[3] < 5:
+                if not m or m[3] < 1:
                     continue
                 acc[e][pos][0] += round(m[0] * m[3])
                 acc[e][pos][1] += m[3]

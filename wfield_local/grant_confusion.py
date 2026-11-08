@@ -586,8 +586,12 @@ def fig_confusion_per_session(out_dir):
 #: 10b already applies by scoring an absent position as nothing rather than as a wrong match.
 #: Missing data must not become evidence, least of all evidence in the direction that says the code
 #: is gone.
+#:
+#: RETIRED 11-08 (Priya, D7): "1/18 was arbitrary; 1/20 is just as arbitrary" -- every refit family (5r / 5rm / 5ro /
+#: 5rmo) uses the 10-TRIAL floor ONLY. The mix effect the share floor hid is now MEASURED instead, by the matched-pre
+#: control (`scripts/refit_matched_pre.py`: same position mix and size in the animal's own pre sessions), and the lick
+#: class is every camera-seen lick (LP source), which no longer leaves acute far-contra at 0-4 % of a session.
 MIN_REFIT_CLASS = 10
-MIN_REFIT_SHARE = 1.0 / 18.0
 #: Sentinel written into the refit column for a trial whose class the session could not train on.
 #: Both arms drop these trials together, so the refit-minus-frozen contrast stays paired.
 REFIT_UNAVAILABLE = -1
@@ -656,7 +660,7 @@ def _refit_pred(pipe_of, X, y, blk, *, max_splits=5, mark_thin=True):
     if not mark_thin:      # the mix-matched control scores every class: its matched pre has the same counts (D6)
         return pred
     cls, cnt = np.unique(y, return_counts=True)
-    thin = cls[(cnt < MIN_REFIT_CLASS) | (cnt / max(len(y), 1) < MIN_REFIT_SHARE)]
+    thin = cls[cnt < MIN_REFIT_CLASS]
     if thin.size:
         pred = pred.copy()
         pred[np.isin(y, thin)] = REFIT_UNAVAILABLE

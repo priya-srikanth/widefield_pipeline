@@ -25,10 +25,10 @@ def test_gap_is_refit_minus_frozen_at_one_position():
     assert eg._refit_at(y, p, 1) == pytest.approx(5 / 6)
 
 
-def test_gap_is_none_when_the_class_is_too_thin():
+def test_gap_is_scored_on_a_thin_class_and_none_only_when_absent():
     y = np.array([1, 1, 2, 2, 2, 2, 2, 2])
     p = np.column_stack([y, y])
-    assert eg._gap_at(y, p, 1) is None          # 2 trials < the 5-trial floor
+    assert eg._gap_at(y, p, 1) == 0.0           # 2 trials: scored (display floor removed, Priya 11-08)
     assert eg._gap_at(y, p, 9) is None          # absent class
     assert eg._gap_at(y, p, None) is None
 
@@ -209,10 +209,12 @@ def test_gap_drops_unavailable_trials_from_BOTH_arms():
     assert eg._refit_at(y, p, 1) == pytest.approx(1.0)
 
 
-def test_position_with_too_few_available_trials_scores_nothing():
+def test_position_scores_only_its_available_trials():
     y = np.array([1] * 10)
     p = np.column_stack([y, np.array([1, 1] + [G.REFIT_UNAVAILABLE] * 8)])
-    assert eg._gap_at(y, p, 1) is None                                # 2 available < the floor of 5
+    assert eg._gap_at(y, p, 1) == 0.0                                 # the 2 available trials, no floor (11-08)
+    q = np.column_stack([y, np.full(10, G.REFIT_UNAVAILABLE)])
+    assert eg._gap_at(y, q, 1) is None                                # none available: nothing to score
 
 
 def test_min_refit_class_leaves_two_per_training_fold():
@@ -220,8 +222,9 @@ def test_min_refit_class_leaves_two_per_training_fold():
     assert G.MIN_REFIT_CLASS >= 10
 
 
-def test_share_floor_catches_what_the_count_floor_misses():
-    """The two acute lick sessions that broke the count-only guard: 10/380 and 12/277 trials."""
+def test_refit_floor_is_ten_trials_only():
+    """D7 (Priya 11-08): the 1/18 share floor is retired; a class is unavailable only below 10 trials. The two acute
+    lick sessions that motivated the share floor (10/380 and 12/277 trials) are now SCORED; 9 trials are not."""
     from sklearn.linear_model import LogisticRegression
     from sklearn.pipeline import make_pipeline
     from sklearn.preprocessing import StandardScaler
@@ -230,21 +233,22 @@ def test_share_floor_catches_what_the_count_floor_misses():
         return make_pipeline(StandardScaler(), LogisticRegression(max_iter=500))
 
     rng = np.random.default_rng(0)
-    #     12 trials of class 5 in a session of 277 -> 4.3%, above the count floor of 10
-    y = np.concatenate([np.repeat(np.arange(5), 53), np.full(12, 5)])
-    X = rng.normal(size=(len(y), 4)) + y[:, None]
-    blk = np.repeat(np.arange(len(y) // 5 + 1), 5)[: len(y)]
-    pred = G._refit_pred(pipe, X, y, blk)
-    assert pred is not None
-    assert (y == 5).sum() > G.MIN_REFIT_CLASS                 # clears the COUNT floor
-    assert (y == 5).mean() < G.MIN_REFIT_SHARE                # fails the SHARE floor
-    assert (pred[y == 5] == G.REFIT_UNAVAILABLE).all()
-    assert (pred[y != 5] != G.REFIT_UNAVAILABLE).all()
+    assert not hasattr(G, "MIN_REFIT_SHARE")
+    for n_rare, scored in ((12, True), (9, False)):
+        y = np.concatenate([np.repeat(np.arange(5), 53), np.full(n_rare, 5)])
+        X = rng.normal(size=(len(y), 4)) + y[:, None]
+        blk = np.repeat(np.arange(len(y) // 5 + 1), 5)[: len(y)]
+        pred = G._refit_pred(pipe, X, y, blk)
+        assert pred is not None
+        assert (pred[y == 5] != G.REFIT_UNAVAILABLE).all() == scored
+        assert (pred[y != 5] != G.REFIT_UNAVAILABLE).all()
 
 
-def test_share_floor_is_a_third_of_uniform_for_six_positions():
-    assert G.MIN_REFIT_SHARE == pytest.approx(1 / 18)
-    assert G.MIN_REFIT_SHARE < 1 / 6                          # never fires on a balanced session
+def test_per_session_accuracy_has_no_trial_floor():
+    """Display floors removed (Priya 11-08): a 1-trial cell is scored, an absent one is None."""
+    from wfield_local.epoch_kit import _accuracy_at
+    assert _accuracy_at(np.array([3, 1]), np.array([3, 2]), 3) == 1.0
+    assert _accuracy_at(np.array([1, 2]), np.array([1, 2]), 3) is None
 
 
 # ------------------------------------------------------- the training-set-matched arm (2026-09-10)

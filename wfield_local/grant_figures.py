@@ -83,7 +83,6 @@ from wfield_local.grant_behaviour import (  # noqa: F401
 )
 from wfield_local.grant_confusion import (  # noqa: F401
     MIN_REFIT_CLASS,
-    MIN_REFIT_SHARE,
     REFIT_UNAVAILABLE,
     _acc_ci,
     _collect_5c,
