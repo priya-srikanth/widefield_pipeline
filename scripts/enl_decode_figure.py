@@ -23,7 +23,7 @@ permutation nulls with the decoder's predictions held fixed, so they move with p
 figure would be wrong for at least one bar and would flatter it.
 
 NOTHING BELOW THRESHOLD IS BLANKED. An arm at its null is hatched and still drawn with its number; a
-ratio that cannot be computed is labelled with the REASON rather than left empty. "We could not test
+ratio that cannot be computed is labeled with the REASON rather than left empty. "We could not test
 this" and "we tested this and found nothing" are different facts and only one is evidence of
 absence -- the same rule `enl_decode.underpowered` and `enl_sparsity_figure` follow.
 

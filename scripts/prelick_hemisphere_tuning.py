@@ -18,7 +18,7 @@ SIGN CONVENTIONS (every table / figure):
 Usage (bash env per the repo; outputs only under <v36>/imaging_encoding/prelick_hemisphere_tuning/):
   python scripts/prelick_hemisphere_tuning.py run [--jobs 3]     per-session extraction (cached npz) + per-session fits
   python scripts/prelick_hemisphere_tuning.py gate               August-pre stability gate + noise floor
-  python scripts/prelick_hemisphere_tuning.py summarise          per-animal tables, boot_delta, Holm, recovery link
+  python scripts/prelick_hemisphere_tuning.py summarize          per-animal tables, boot_delta, Holm, recovery link
   python scripts/prelick_hemisphere_tuning.py plot  (or any subcommand with --plot-only)   figures from figdata only
 """
 from __future__ import annotations
@@ -403,14 +403,14 @@ def cmd_run(jobs: int) -> None:
     labs = sorted(str(it[0]) for it in items)
     res, fail = ak.fan_sessions(labs, analyse, jobs=jobs)
     if fail:
-        raise SystemExit(f"analyse failed: {fail[:3]}")
+        raise SystemExit(f"analyze failed: {fail[:3]}")
     pd.DataFrame([r for _k, v in res for r in v["T"]]).to_csv(OUT / "tuning_sessions.csv.gz", index=False,
                                                               float_format="%.6g")
     pd.DataFrame([r for _k, v in res for r in v["D"]]).to_csv(OUT / "decode_sessions.csv", index=False,
                                                               float_format="%.6g")
     pd.DataFrame([r for _k, v in res for r in v["TC"]]).to_csv(OUT / "timecourse_sessions.csv.gz", index=False,
                                                                float_format="%.6g")
-    print(f"analysed {(time.time() - t0) / 60:.1f} min", flush=True)
+    print(f"analyzed {(time.time() - t0) / 60:.1f} min", flush=True)
 
 
 def _aug(d: pd.DataFrame) -> pd.DataFrame:
@@ -620,7 +620,7 @@ def _wrap(s, n=110):
 
 
 def epoch_panel(ax, S, B, sel, hemi, val="b", off=0.0, row=0, color=None, holm=None, epoch_colours=False):
-    """Open session markers (shape = animal; colour = epoch for a single series, hemisphere colour otherwise) + pooled
+    """Open session markers (shape = animal; color = epoch for a single series, hemisphere color otherwise) + pooled
     level with 95 % CI (thick); top-band star where the change vs pre meets the criterion."""
     import within_lick_correction as wlc
     from wfield_local.orofacial_cohort import ANIMAL_MARKER, EPOCH_LINE
@@ -757,7 +757,7 @@ def fig_timecourse(D):
         axs[r, 0].set_ylabel("b (dF/F x1e3 / 10 deg)", fontsize=8)
     axs[0, 0].legend(fontsize=8, loc="upper left", frameon=False)
     fig.suptitle(_wrap("Time course of the within-spout launch-angle tuning slope (bin minus BASE -0.80..-0.50 "
-                       "s), first cued licks; pooled session level with 95 % nested bootstrap CI (descriptive). Grey "
+                       "s), first cued licks; pooled session level with 95 % nested bootstrap CI (descriptive). Gray "
                        "bands = PRE and POST windows. Right column: the contralesional hemisphere aligned to JAW onset "
                        "(PREJAW control; the jaw leads the tongue by 52-120 ms). GCaMP6s lags spiking by ~0.1-0.2 s.",
                        190), fontsize=9.5)

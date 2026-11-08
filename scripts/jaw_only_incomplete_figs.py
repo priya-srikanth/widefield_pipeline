@@ -11,13 +11,13 @@ no_response sum to 1 (unknown / stopped / after-end trials are outside the perio
 classification, `wfield_local.trial_classes` (Priya 11-03: one definition for every analysis; response window cue + 70
 ms .. min(cue + 3.5 s, stop), DAQ spout contact, video licks, jaw cam4 OR cam1, close_center jaw unjudged). A session
 with NO camera classes (no video) has no working period and contributes NOTHING (as gain_bio); never a DAQ fallback.
-``WFIELD_KIN_GATE=legacy`` = the pre-11-06 behaviour gate (every ENGAGED trial, `orofacial_cohort.engagement_keep`,
+``WFIELD_KIN_GATE=legacy`` = the pre-11-06 behavior gate (every ENGAGED trial, `orofacial_cohort.engagement_keep`,
 five shares incl. unknown), written to its own folder ``jaw_only_incomplete_figs_legacygate``. History: until 11-03
 this script kept only ``jaw_pass_qc`` trials, then classified all engaged trials with its own rule; the shared
 definition replaced both (DECISIONS 2026-11-03: 99.35 % of engaged trials unchanged).
 
 FIG A (frequency, POOLED): share of trials per class, per session x spout, minus the animal's August pre mean at that
-spout (change vs own pre); dots = sessions coloured by animal; marker = animal-weighted change with the paired nested
+spout (change vs own pre); dots = sessions colored by animal; marker = animal-weighted change with the paired nested
 bootstrap 95 % CI (`analysis_kit.boot_delta`, 2,000 draws); * CI excludes 0, ** bootstrap p < 0.05 / 18 (Bonferroni over
 6 spouts x 3 post epochs, per class); pre column = pre sessions vs their own mean (noise floor). Stars in the top band
 (`sig_marks.star_top`, Priya 10-30 rule).
@@ -73,7 +73,7 @@ def denom() -> str:
     if os.environ.get(DENOM_ENV):
         return os.environ[DENOM_ENV]
     from wfield_local import trial_classes as tc
-    return WORKING_DENOM if tc.kin_gate() == "working" else "ALL engaged trials (behaviour gate; legacy)"
+    return WORKING_DENOM if tc.kin_gate() == "working" else "ALL engaged trials (behavior gate; legacy)"
 
 
 def data_line() -> str:
@@ -256,7 +256,7 @@ def fig_epochs(S: pd.DataFrame, R: pd.DataFrame, path: Path) -> None:
         plt.Line2D([], [], marker="o", ls="", color=EP_COL[e], label=e) for e in EPS]
     fig.legend(handles=hs, loc="lower center", ncol=8, frameon=False, fontsize=9)
     fig.suptitle("Jaw-without-lick and incomplete-lick trials per session, POOLED: share of " + denom() + ",\nchange "
-                 "vs each animal's own August pre. Open markers = sessions (shape = animal, colour = epoch); filled "
+                 "vs each animal's own August pre. Open markers = sessions (shape = animal, color = epoch); filled "
                  "marker = animal-weighted change, paired nested bootstrap 95% CI;\n* CI excludes 0, ** p < 0.05 / 18 "
                  "(Bonferroni, 6 spouts x 3 epochs, per row); pre column = pre sessions vs their own mean (noise floor)",
                  fontsize=9.5)
@@ -365,7 +365,7 @@ def fig_traces(Tr: pd.DataFrame, measure: str, ylab: str, path: Path) -> None:
     fig.legend(handles=hs, loc="lower center", ncol=4, frameon=False, fontsize=9)
     fig.suptitle(f"Cue-aligned {ylab} by trial class, POOLED: 20 ms bins, mean per session (>= {MIN_TR} trials of the "
                  "class at the spout), then per animal x epoch, then mean over animals (band = SEM over animals); pre = "
-                 "August; trials = " + denom() + ";\ncorner = animals / sessions / trials per epoch (< 2 animals: not drawn); grey = before the cue. Rows: jaw moves without a "
+                 "August; trials = " + denom() + ";\ncorner = animals / sessions / trials per epoch (< 2 animals: not drawn); gray = before the cue. Rows: jaw moves without a "
                  "lick (cam1-corrected) | licked but never touched the spout | touched the spout", fontsize=9.5)
     fig.tight_layout(rect=(0, 0.04, 1, 0.92))
     save_png_svg(fig, path, dpi=100)
@@ -387,7 +387,7 @@ def main(argv=None) -> int:
     ap.add_argument("--out", default=None, help="output folder (default: the run's trial_classes folder)")
     a = ap.parse_args(argv)
     if a.trials and not a.out:
-        ap.error("--trials needs --out (its own folder; the behaviour-gate outputs stay as they are)")
+        ap.error("--trials needs --out (its own folder; the behavior-gate outputs stay as they are)")
     if a.trials:
         import os
         os.environ[DENOM_ENV] = WORKING_DENOM

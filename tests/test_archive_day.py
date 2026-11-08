@@ -131,7 +131,7 @@ def test_clean_refuses_to_delete_raw_that_is_STAGED_but_not_yet_preprocessed(tmp
 # ------------------------------------------------------------------ irreplaceable-data deletion
 
 def test_original_data_is_recognised_including_behavior_logs():
-    """The guard must FIRE on acquired files. An earlier version normalised with a trailing slash, so
+    """The guard must FIRE on acquired files. An earlier version normalized with a trailing slash, so
     every endswith('.dat') failed and every basename came out empty -- the guard was inert while its
     permissive tests still passed."""
     from wfield_local import writeguard as wg

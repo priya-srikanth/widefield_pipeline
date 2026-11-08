@@ -117,7 +117,7 @@ echo "task $SLURM_ARRAY_TASK_ID: $N on $(hostname)"; nvidia-smi || true
 if [ ! -f models/$N/train_status.json ] || ! grep -q COMPLETED models/$N/train_status.json; then
   litpose train configs/config_$N.yaml --output_dir models/$N
 fi
-# --skip_viz (2026-10-18): the default labelled video of each ~220k-frame eval clip took hours and held DONE back;
+# --skip_viz (2026-10-18): the default labeled video of each ~220k-frame eval clip took hours and held DONE back;
 # review clips come from scripts.model_label_clips instead
 litpose predict models/$N eval_clips/*.mp4 --skip_viz
 touch models/$N/DONE

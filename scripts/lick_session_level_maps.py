@@ -51,7 +51,7 @@ AMPLITUDE CAVEAT: A = Cov(X, yhat) / Var(yhat) scales as 1 / |decoder weights|, 
 shrunk toward 0 (little information about the target) gets a LARGE, noise-dominated pattern; the map's sign-symmetric
 noise does not bias the level test, but amplitude in A is not coding strength. The table therefore also gives fit_med (in-
 sample var(yhat) / var(y)) and the ENCODING SLOPE map B = Cov(X, y) / Var(y) per session (no decoder; activity per unit
-target), normalised the same way: gain_enc, rms_enc_mean, global_share_enc, r_pre_enc.
+target), normalized the same way: gain_enc, rms_enc_mean, global_share_enc, r_pre_enc.
 EXCLUSION: a session map is dropped when its decoder's in-sample fit share var(yhat) / var(y) < MIN_FIT (0.05): the ridge
 has shrunk to ~0 and A is pure noise blown up by 1 / |w| (measured: cued FIRST-lick within-spout, median fit 0.018, 45 of
 107 sessions < 0.01, |A| / |B| up to ~2600x vs 1.3-2.2x for cued all-lick lateral). The fit share is invariant to y -> -y,
@@ -65,10 +65,10 @@ figures from tests.pkl.
 Z-SCORED VARIANT (Priya 10-27 late "yes do both", OVERNIGHT 5c-ter: are the ITI maps' cortex-wide components real or a
 scale effect of the unscaled SVD features?): env WFIELD_MAP_SCALE=frame divides each SVD component of every session by
 its frame-wise SD in that session (<E>/iti_licks/basis_svdbasis/frame_sd.csv, `iti_basis_frame_sd.py`; 107 sessions x
-200 components). Everything else is identical: the per-session decoder standardises its features (StandardScaler), so
+200 components). Everything else is identical: the per-session decoder standardizes its features (StandardScaler), so
 yhat, the fit share and the MIN_FIT drops are unchanged and the patterns transform EXACTLY as A_z = A / sd, B_z = B / sd
 (per session; checked numerically). So the variant reuses the unscaled pattern cache (session_levels/patterns_gap2_enc.pkl,
-read only) and rescales before mapping to pixels (W @ A_z), normalising and testing as above. Outputs go to
+read only) and rescales before mapping to pixels (W @ A_z), normalizing and testing as above. Outputs go to
 <E>/iti_licks/session_levels_z/ and every figure / figure-data stem gets "_z" (nothing unscaled is overwritten).
 The side-by-side comparison is `lick_session_levels_scale_compare.py`.
 Usage: [WFIELD_MAP_SCALE=frame] python scripts/lick_session_level_maps.py [--plot-only | --reuse-tests] [--perm N]
@@ -142,7 +142,7 @@ def fam_keys(fam: str) -> list[str]:
 
 
 def denom_key(k: str) -> str:
-    """The key whose pre-session RMS normalises k: the ALL-lick map of the same set and target."""
+    """The key whose pre-session RMS normalizes k: the ALL-lick map of the same set and target."""
     st, _sub, tg = k.split("/")
     return f"{st}/all/{tg}"
 

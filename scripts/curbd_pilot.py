@@ -4,7 +4,7 @@ both hemispheres. PILOT, ONE ANIMAL (PS94: overt deficit, plenty of engaged tria
 
     python scripts/curbd_pilot.py prep PS94_0807 PS94_0811 PS94_0812 PS94_0910
     python scripts/curbd_pilot.py fit [--sessions ...] [--jobs 4]
-    python scripts/curbd_pilot.py summarise
+    python scripts/curbd_pilot.py summarize
     python scripts/curbd_pilot.py plot            # == --plot-only: figures from the saved tables / npz only
 
 REGIONS (18): SSp-n, SSp-m, SSs, SSp-ul, tjM1, ALM, MOp_rest, MOs_rest, RSPd (posterior control; VISp_left has 0 px on the stat mask in this grid) x left (ipsilesional)
@@ -385,7 +385,7 @@ G_SWEEP = (0.0, 0.5, 1.0)
 
 def explore_stability(labels=PRE, gs=(1.5,) + G_SWEEP, variant="multi") -> "pandas.DataFrame":  # noqa: F821
     """EXPLORATORY, run AFTER the pre-stated gate failed at g = 1.5: does a weaker initial J (g) make the currents
-    stable? Same fits / metrics as `summarise`, per g. Not a gate; a pointer for what to change."""
+    stable? Same fits / metrics as `summarize`, per g. Not a gate; a pointer for what to change."""
     import itertools
 
     import pandas as pd
@@ -508,7 +508,7 @@ def plot():
     ax[1].axhline(0, c="0.8", lw=0.8)
     ax[1].set_ylabel("pVar (scaled residual units)")
     ax[1].legend(fontsize=6, ncol=2, loc="center right")
-    ax[1].set_title(f"1b  fit quality, reset every {RESET_S:g} s (behaviour-neutral: residuals)", fontsize=9)
+    ax[1].set_title(f"1b  fit quality, reset every {RESET_S:g} s (behavior-neutral: residuals)", fontsize=9)
     fig.suptitle(f"CURBD on encoding-model residuals -- {tag}", fontsize=10)
     fig.tight_layout()
     fig.savefig(fd / "fig1_units_fit_quality.png", dpi=150)

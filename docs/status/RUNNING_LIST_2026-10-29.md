@@ -18,17 +18,17 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md (00-COMPACT-17 + 10-29 additions)
       precue`) if they do not exist; helper told to write only beside the existing lick / cue outputs, not overwrite them.
 - [x] (YES 10-29 morning, done) **Wording "consequence of the errors"**: narrow it (FINDINGS / hypothesis) to "the cued imbalance comes after the lick
       and is redundant with the error; causal role for recovery untested"? (asked 10-29, no answer yet)
-- [x] (YES, without minimising the ITI offset + contralesional-share rise; done, page v236) **Hypothesis update**: cued balance/offset = landing error seen through a target code; the persistent signals are
+- [x] (YES, without minimizing the ITI offset + contralesional-share rise; done, page v236) **Hypothesis update**: cued balance/offset = landing error seen through a target code; the persistent signals are
       the ITI post-onset contralesional shift and the slow rise of the contralesional share on cued licks. Update the
       WTS / Biology-in-brief hypothesis line accordingly?
 - [x] (cued = state readout; ITI offset + ITI SSp-n difference + share rise = mechanistic) **Primary marker framing**: keep the cued balance as the headline recovery marker (valid as a state readout) or
       lead with the ITI balance / decoder offset as the mechanistic marker?
 - [x] **Delete 5 superseded cache files** -- DONE 10-29 (Priya approved; derived, read by nothing) (revup/sessions/PS92_0806/0807/0809/0812/0821 .pkl, from an aborted first run,
       onset-only lick rule, read by nothing)? Waiting until the imaging helper (same folder) finishes.
-- [x] (standard engagement gate = reference; helper re-running behaviour shares) **Late licks after the spout left: spontaneous or delayed responses?** Behaviour (all canonical trials): at the ITI
+- [x] (standard engagement gate = reference; helper re-running behavior shares) **Late licks after the spout left: spontaneous or delayed responses?** Behavior (all canonical trials): at the ITI
       chance rate. Neural (engagement-gated, 48 trials): cued-size, cued-shaped responses. The two used different
-      engagement gates; most behaviour 'after-left' trials are in the sated tail. Which engagement definition should be
-      the reference for this question? (I can re-run the behaviour shares on the engaged set.)
+      engagement gates; most behavior 'after-left' trials are in the sated tail. Which engagement definition should be
+      the reference for this question? (I can re-run the behavior shares on the engaged set.)
 - [x] (DEFERRED) **Movement-null plan encoding model (Musall-style)**: worth building given pre-cue aim beyond history/face is ~0
       at area level? (nested: spout, history, non-directional movement, directional face, upcoming deviation)
 
@@ -43,7 +43,7 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md (00-COMPACT-17 + 10-29 additions)
 | 14.18 supp | Same target, same landing place (matched error) | lick_balance_matched_error.py |
 | 14.21 supp | ENL lick-angle decode | lick_enl_angle_decode.py |
 | 14.21 supp | ENL follow-ups (history test, offset explore) | lick_enl_offset_explore.py |
-| 14.21 area | Revving up: survival, delay decomposition, phase shares, FR vigour, recovery | revup_behaviour.py |
+| 14.21 area | Revving up: survival, delay decomposition, phase shares, FR vigor, recovery | revup_behaviour.py |
 | 14.21 supp | Pre-cue target vs landing (frozen decoder softmax, class-matched, confusion, decodability, tracking) | lick_enl_target_test.py |
 | 14.18 supp | C/I by spout x epoch, target vs landed frame | lick_ci_spout_epoch.py |
 | 14.21 area | Revving up follow-up: jaw (no ramp), late licks vs corrected chance | revup_followup.py |
@@ -69,7 +69,7 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md (00-COMPACT-17 + 10-29 additions)
 - ENL acute +1.55 deg offset: mostly the aim deficit through a target-reading decoder, BUT decoder compression means
   'pre-cue target representation unchanged' is NOT established (far-contra moves ipsilesional in 3/4).
 
-- REVVING UP (behaviour): acute far-contra delay = mostly a quiet WAIT then a normal lick (or none), not aborted
+- REVVING UP (behavior): acute far-contra delay = mostly a quiet WAIT then a normal lick (or none), not aborted
   attempts; NO jaw ramp (jaw quiet, then abrupt normal opening); late licks after the spout left ABOVE corrected chance
   (delayed / spout-triggered; earlier 'chance rate' claim retracted); latency tracks aim (r -0.72 to -0.92).
 
@@ -90,9 +90,9 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md (00-COMPACT-17 + 10-29 additions)
 - Pre-cue: target representation weaker but unbiased; the error emerges after the cue (execution / post-cue).
 - Cued licks: the balance shift and decoder offset largely re-describe the landing error (target code); the cued
   balance is a valid state readout but not an independent mechanism.
-- Persistent, behaviour-independent signals: (a) ITI post-onset contralesional shift (tracks recovery); (b) slow rise
-  of the contralesional hemisphere's share on cued licks (reorganisation?).
-- Grant: chronic contralesional silencing tests whether the extra share supports recovered behaviour; SSp-m/n both
+- Persistent, behavior-independent signals: (a) ITI post-onset contralesional shift (tracks recovery); (b) slow rise
+  of the contralesional hemisphere's share on cued licks (reorganization?).
+- Grant: chronic contralesional silencing tests whether the extra share supports recovered behavior; SSp-m/n both
   hemispheres first; ACAd dropped.
 
 ## 5. Running (will be added above when they report)
@@ -143,7 +143,7 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md (00-COMPACT-17 + 10-29 additions)
 - 10-29 morning: Priya decided items 1-5 (above); hypothesis line + FINDINGS updated; 3 helpers started.
 - 10-29 morning: deleted revup/sessions/PS92_0806/0807/0809/0812/0821.pkl (approved; superseded derived caches).
 - 10-29 morning: class-matched pre-cue test re-run incl. PRE-STROKE (Priya) -> same pattern; FINDINGS, page v235.
-- 10-29 ~00:45: rev-up behaviour reported -> page, FINDINGS, list.
+- 10-29 ~00:45: rev-up behavior reported -> page, FINDINGS, list.
 - 10-29 ~01:45: handoff updated; nothing running. Side effect noted: attempt_coding_pp/run.json was overwritten by
   the precue run and rewritten by the helper to list lick + cue + precue (original backed up in the session scratchpad).
   Minor: lick_enl_target_offtarget.png panels 2-3 have overlapping x labels (cosmetic).
@@ -152,18 +152,18 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md (00-COMPACT-17 + 10-29 additions)
 - 10-29 ~01:00: page v232 published. The artifact hit its 512-file cap: removed 75 published images the page no longer
   references (old iti_* duplicates, superseded variants; local copies kept in _goal_page/), added the rev-up figures.
 - 10-29 night: list created (commit after d13f51f5).
-- 10-30: page v275 -- every supplement now numbered Fig X Sn (#s<fig>-<n>; 17 more figures); Fig 0.13 early predictors cut (CUT_FIGURES). RESTnl rescue sweep done: adopt s20_f50_wr (renormalised weights, same 2.0 s buffer / 50-frame floor; all 107 sessions, PS93 pre 7; headlines unchanged). Helpers started: (a) RESTnl wr adoption + re-render + Fig 0.12 far-contra aim line; (b) encoder SSp-n/ALM/tjM1 tables + movement-null Musall maps; (c) interhemispheric follow-ups (global-signal removed, balance partialled) + cross-area correlation pre vs post.
-- 10-30 later: page v276-278. Encoder SSp-n/ALM/tjM1 in Figs 0.2/0.8 (v2) + movement-null plan maps (0.2 S1, 0.8 S1). Interhemispheric follow-ups added to 14.18 S10; cross-area correlation = new 14.18 S17. RESTnl wr adopted (107/107 sessions, headlines unchanged) and 13 page images re-rendered; Fig 0.12 now two panels with far-contra aim. Open: cross-area movement-variability confound (add lick vigour / kinematics to the residual model); lick-history regressor for the movement-null model if wanted.
+- 10-30: page v275 -- every supplement now numbered Fig X Sn (#s<fig>-<n>; 17 more figures); Fig 0.13 early predictors cut (CUT_FIGURES). RESTnl rescue sweep done: adopt s20_f50_wr (renormalized weights, same 2.0 s buffer / 50-frame floor; all 107 sessions, PS93 pre 7; headlines unchanged). Helpers started: (a) RESTnl wr adoption + re-render + Fig 0.12 far-contra aim line; (b) encoder SSp-n/ALM/tjM1 tables + movement-null Musall maps; (c) interhemispheric follow-ups (global-signal removed, balance partialled) + cross-area correlation pre vs post.
+- 10-30 later: page v276-278. Encoder SSp-n/ALM/tjM1 in Figs 0.2/0.8 (v2) + movement-null plan maps (0.2 S1, 0.8 S1). Interhemispheric follow-ups added to 14.18 S10; cross-area correlation = new 14.18 S17. RESTnl wr adopted (107/107 sessions, headlines unchanged) and 13 page images re-rendered; Fig 0.12 now two panels with far-contra aim. Open: cross-area movement-variability confound (add lick vigor / kinematics to the residual model); lick-history regressor for the movement-null model if wanted.
 - 10-30 evening: lick-history regressor SKIPPED (Priya). Pooled 6-node MVAR (pre-registered) FAILED gate on raw 0/4 (gsr 4/4, not gated; p = 8 = top of range) -> no pre vs post; FINDINGS 4.16. Literature scan of cross-area methods (Ganguly lab + CCA / RRR / ITPC) -> docs/CROSS_AREA_METHODS_LIT_20261030.md; awaiting Priya's pick.
 - 10-30 evening: coherence vs CCA (Guo 2021 / Heimbuch 2026) pre-registered (docs/status/COHERENCE_CCA_PREREG_20261030.md, commit 0b34ef76); helper implementing scripts/sm_coherence_cca.py; DLAG only if CCA gate passes >= 3/4 animals (then cost a port for Priya).
 - 10-30 evening: coherence vs CCA done. CCA FAILED gate (1/4; CC1 ~0.98 = shared cortex-wide component, session noise) -> no DLAG. Coherence/ITPC pass: ITPC up from subacute (4/4), coherence beyond null down (low band) via a rising null; FINDINGS 4.17. Awaiting Priya: global-removed CCA (new prereg) or stop.
-- 10-30 late: ITPC controls done (movement / behavioural variability do not explain the rise; SNR absorbs ~half). Page 14.18 S19 added; FINDINGS 4.17 updated.
+- 10-30 late: ITPC controls done (movement / behavioral variability do not explain the rise; SNR absorbs ~half). Page 14.18 S19 added; FINDINGS 4.17 updated.
 - 10-30 late: Priya flagged GCaMP6s kinetics for phase measures; caveat recorded (FINDINGS 4.17, prereg addendum; the deconvolved sensitivity is uninformative by construction). S19 DEMOTED on the page, v282 (Priya OK).
 - 10-30 late: lick-angle information timing S vs M (option 4; prereg DIRECTION_INFO_LAG_PREREG_20261030): gate 3/4; pre motor leads ~23 ms; chronic lead shrinks to ~10 ms (sensory earlier), 4/4 both readouts; acute/subacute dL50 change not confirmed by shape lag. FINDINGS 4.18; page 14.18 S20.
 - 10-30 late: Priya asked for a recovery-mechanism literature deep dive -> docs/RECOVERY_MECHANISMS_LIT_20261030.md (working model + 8 ranked cohort-1 analyses + cohort-2 design questions). DECISION NEEDED: which analyses to run; cohort-2 design (longer pre baseline, chronic cortical inactivation).
 - 10-30 late: Priya approved recovery analyses 2.1 (within-lick corrections), 2.2 (kinematic normality / compensation score), 2.3 (re-embedding test). Three helpers running in parallel, each pre-registers first (docs/status/WITHIN_LICK_CORRECTION_ / KINEMATIC_NORMALITY_ / REEMBEDDING_PREREG_20261030.md); I integrate + commit. Also recorded: item 4 done, item 5 dropped, cued-vs-ITI hypotheses (RECOVERY_MECHANISMS_LIT).
 - 10-30 night: all three back. 2.2 normality: hits still less normal chronically (-0.10, 4/4; PS94 most), restitution fast but incomplete; far-contra code on hits follows success (FINDINGS 4.19). 2.3 re-embedding: alignment failed gate G1 -> uninformative; half the chronic frozen-refit gap is drift-sized (June ref) (4.20). 2.1 within-lick: recovery = restored launch, no added correction, CSMs fall; larger lick response not carried by correction licks (4.21). DECISION NEEDED: publish reembed frozen refs to MICROSCOPE? new re-embedding prereg with spout-resolving alignment?
-- 10-30 night: learned-compensation tests (FINDINGS 4.22, page S24): no within-session learning, no ITI carry-over, ITI bias behavioural but = cued landing error (NO gap; Priya: important). Pre-launch hemispheric tuning (4.23, S25): gate failed, cannot separate pathway routes -> cohort-2 perturbation. Figure defaults saved (shape = animal, colour = epoch, no figure numbers in images, no epoch connecting lines). Page v292. DECISIONS NEEDED: figures for text-only S2 / S11 / S16? collapse S3 into the offset section? publish reembed frozen refs? new re-embedding prereg?
+- 10-30 night: learned-compensation tests (FINDINGS 4.22, page S24): no within-session learning, no ITI carry-over, ITI bias behavioral but = cued landing error (NO gap; Priya: important). Pre-launch hemispheric tuning (4.23, S25): gate failed, cannot separate pathway routes -> cohort-2 perturbation. Figure defaults saved (shape = animal, color = epoch, no figure numbers in images, no epoch connecting lines). Page v292. DECISIONS NEEDED: figures for text-only S2 / S11 / S16? collapse S3 into the offset section? publish reembed frozen refs? new re-embedding prereg?
 - 10-30 late: Priya asked why S25 used area pools rather than SVD within ALM / tjM1. Proposed a pixel/SVD add-on prereg (frozen per-animal x hemisphere decoder on pooled August pre, same gate, post-contact positive control). DECISION NEEDED: run it? Handoff 00-COMPACT-18 written.
 - 10-30 late: pixel/SVD pre-launch tuning DONE (Priya go; prereg 27bdef52): PRE gate nominal 3/4 (ipsilesional only, r ~0.05, fragile) but POST positive control FAILED 2/4 -> underpowered; no post-stroke change; pixels > area pool mainly post-contact. FINDINGS 4.23 addendum, page S25b. 64 prelaunch_svd frozen models in LOCAL store (not published). Open check (mine): `_cv_r` within-session CV r negatively biased near zero signal (area decode r_ex too).
 - 10-31: Priya: GO on the pre-launch AIM-TRACKING test (frozen across-spout launch-angle decoder, pooled August pre; at the same target, does the pre-launch decoded angle follow the stroke-deviated launch or stay at the target?) PLUS an ITI arm (docked bout-first ITI licks, pre-lick, time-binned "dynamic" features). Feature sets Allen / whole-brain SVD / LocaNMF (if a shared basis exists). Helper writing prereg (docs/status/PRELAUNCH_AIM_TRACKING_PREREG_20261031.md expected), then script scripts/prelaunch_aim_tracking.py.
@@ -172,8 +172,8 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md (00-COMPACT-17 + 10-29 additions)
 - 10-31: face pre-launch follow-up DONE (FINDINGS 4.25, page S27, commit 9b2df881 + this): no timing-valid pre-launch face tracking (FR tracking = filter leak); docked ITI offset after FR partialling 0.23/0.17/0.24 vs 0.30/0.22/0.29 (PARTIAL; PS92 face-carried). Offset figure tick labels shortened.
 - 10-31: Priya GO on disengagement tests 1-4 (satiety, frustration / reward-rate threshold, fatigue, state); helper stage 1 (prereg) running. Per-animal compensation profile table proposed, not yet answered.
 - 10-31: disengagement tests DONE (page S28, FINDINGS): P1 satiety rejected (-290 ul at quit, 4/4), P2 / P3 n.s., P4 level rise = running; still level below engaged (post hoc).
-- 10-31: Priya follow-up: licks/responded trial normalised per animal x spout; water AND minutes to quit with hand-stop / time-censoring classification (pre often hand-stopped at quit; PS92/93 stopped for time); running-regressed level, RESTW, exact 80-min horizon. Helper stage 1 (addendum) running.
-- 10-31: disengagement addendum DONE (page S28d2-g): satiety rejection weakened (session length); running-regressed quit level -7.8 4/4; self-activation not supported; normalised licks figure.
+- 10-31: Priya follow-up: licks/responded trial normalized per animal x spout; water AND minutes to quit with hand-stop / time-censoring classification (pre often hand-stopped at quit; PS92/93 stopped for time); running-regressed level, RESTW, exact 80-min horizon. Helper stage 1 (addendum) running.
+- 10-31: disengagement addendum DONE (page S28d2-g): satiety rejection weakened (session length); running-regressed quit level -7.8 4/4; self-activation not supported; normalized licks figure.
 - 10-31: uncapped time / trials to quit (Priya): KM early post -15 min, -77 trials, 4/4; chronic ~0. Page S28e updated.
 - 11-01: freed C: (Priya OK): stale wfield_cache versions (newest per session kept) + old Claude temp 404 GB (docs/status/DELETED_LOCAL_2026-11-01.txt); local cam4 / cam1 LP copies 15.9 GB (DELETED_LOCAL_LP_2026-11-01.txt; 2 local-only ckpts archived to M: first).
 - 11-01: deleted CD-trajectory session-cache entries (cdcourse / cdfit / cdgmf, all versions, ~14.6 GB; Priya OK; recomputed on demand). List: docs/status/DELETED_LOCAL_SESSIONCACHE_2026-11-01.txt

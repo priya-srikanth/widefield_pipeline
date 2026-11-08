@@ -235,7 +235,7 @@ def by_spout(tag: str) -> int:
                 cb.set_label(f"residual change ({unit})", fontsize=7)
                 fig.suptitle(f"NEURAL: frozen-encoder RESIDUAL by ALLEN AREA, PER SPOUT, {w} window, epoch minus pre, mean of 4 "
                              f"animals ({tag}).\nBlack outline = each area significant after Bonferroni over areas, others faded (nested bootstrap animals > "
-                             "sessions); one colour scale. ROI counterpart of Figs 10 / 10c-10g. Image left = ipsilesional."
+                             "sessions); one color scale. ROI counterpart of Figs 10 / 10c-10g. Image left = ipsilesional."
                              + ("\nMOs / MOp drawn as ALM + MOs_rest / tjM1 + MOp_rest (ROI v8); Bonferroni over the Allen "
                                 "areas; scale of the Allen figure." if kind == "split" else ""), fontsize=8.5)
                 fig.subplots_adjust(left=0.01, right=0.9, bottom=0.02, top=0.86 if kind == "allen" else 0.84, wspace=0.04,

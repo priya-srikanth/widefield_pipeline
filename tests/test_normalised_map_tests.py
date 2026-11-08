@@ -2,10 +2,10 @@
 2026-10-21; DECISIONS 10-21 afternoon, map statistics entry).
 
     one constant              `pre_scale` IS the constant `within_animal_pooled` divides by -- one definition
-    brightness-invariant      multiplying one animal's maps (pre AND post) by a constant cannot move a normalised
+    brightness-invariant      multiplying one animal's maps (pre AND post) by a constant cannot move a normalized
                               contour, for the nested bootstrap, the cluster permutation and vs-zero alike
-    raw still available       normalise=False reproduces the old raw-dF contour exactly
-    labelled                  a normalised contour says so ("[pre-normalised]")
+    raw still available       normalize=False reproduces the old raw-dF contour exactly
+    labeled                  a normalized contour says so ("[pre-normalized]")
 
 The factor is a power of two so the scaled and unscaled draws are bit-identical, not merely close.
 """

@@ -4,8 +4,8 @@ The pre-cue period runs from the spout-arrival strobe to the cue, and its length
 window a lick that CONTACTS the spout restarts the 2-3 s pre-cue timer (non-contact licks do not), so the wait grows with
 the ENL-violation (ENLv) licks. One fixed alignment cannot show the whole period, so three anchors are used.
 
-TRIALS: ENGAGED trials (enl_trials.csv.gz `engaged` = the behaviour-table engagement gate, the precue_restw trial set;
-the gate of the CURRENT behaviour table; the precue_restw cache can hold an older count, only its RESTW level is used) with a finite strobe and cue, in sessions of il.labels() (pre = August only)
+TRIALS: ENGAGED trials (enl_trials.csv.gz `engaged` = the behavior-table engagement gate, the precue_restw trial set;
+the gate of the CURRENT behavior table; the precue_restw cache can hold an older count, only its RESTW level is used) with a finite strobe and cue, in sessions of il.labels() (pre = August only)
 whose precue_restw cache has restw_ok. ENLv licks = rows of enl_licks/enl_licks.csv.gz (cam4 licks with strobe <= onset
 < cue; `contact` = DAQ contact matched to the lick). wait = cue - strobe.
 
@@ -536,7 +536,7 @@ def draw_heat(stem: str) -> None:
     sp = "far-contra target only" if F["sp"] else "all spouts"
     top = _head(fig, f"NEURAL: single-trial traces from arrival to cue, {who}, {sp}; {BASE_TXT}; {TRIAL_TXT}. Rows sorted by "
                  f"wait (cue - arrival); dots = ENLv licks (black = contact, restarts the timer; orange = no contact); "
-                 f"green tick = cue; grey = after cue + 0.5 s or outside the recording. Colour scale per area row "
+                 f"green tick = cue; gray = after cue + 0.5 s or outside the recording. Color scale per area row "
                  f"(98th pct of |value|). Panels with > {HM_ROWS} trials show {HM_ROWS} rows evenly spaced in wait order.", 9)
     fig.subplots_adjust(top=top - 0.45 / fig.get_size_inches()[1])
     for i, c in enumerate(HM_COLS):

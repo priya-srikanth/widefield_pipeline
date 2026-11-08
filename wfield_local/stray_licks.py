@@ -12,8 +12,8 @@ the same aimed spout, overlap-corrected -- the model-light test of "more cortica
   near_j        aimed at j, nearest j's zone (no contact)                       different target, same EXECUTION
   iti_j         between trials (no spout target), nearest j's zone              pure execution, no target
 
-Zones: each spout's CALIBRATED centre = median 3-D tongue-peak position (side_ml, out_ap, down_dv, mm, mouth frame) of
-the animal's August pre CONTACT licks there (nominal spout angles are biased ~21 deg); a lick's zone = nearest centre.
+Zones: each spout's CALIBRATED center = median 3-D tongue-peak position (side_ml, out_ap, down_dv, mm, mouth frame) of
+the animal's August pre CONTACT licks there (nominal spout angles are biased ~21 deg); a lick's zone = nearest center.
 Per-lick 3-D: `<dlc>/session_poses/pose3d/kinematics_all/licks.csv.gz` (pre-cue, post-cue and ITI licks; key lick_uid).
 
 Per session: Allen-area traces on ALL imaging frames (drift slower than DRIFT_MIN_PERIOD_S removed) regressed (ridge) on
@@ -64,7 +64,7 @@ def pos_name(p: str) -> str:
 
 
 def centres(K) -> dict:
-    """{animal: {spout: (3,) calibrated centre}} from August pre post-cue CONTACT licks."""
+    """{animal: {spout: (3,) calibrated center}} from August pre post-cue CONTACT licks."""
     m = (K.epoch == "pre") & (K.date.astype(str) >= PRE_FROM) & (K.context == "post_cue") & K.contact.astype(bool)
     C = K[m].dropna(subset=list(COORDS)).groupby(["animal", "spout"])[list(COORDS)].median()
     return {an: {sp: C.loc[(an, sp)].to_numpy(float) for sp in C.loc[an].index} for an in C.index.get_level_values(0).unique()}
@@ -102,8 +102,8 @@ def _lagged(ev_frames, n: int, lags: np.ndarray):
 
 
 def fit_kernels(Xs, D: np.ndarray, Y: np.ndarray, ridge_frac: float = 0.01) -> np.ndarray:
-    """Ridge of Y on [Xs (sparse event columns) | D (dense nuisance: drift basis, running)]: event columns penalised by
-    ridge_frac x their own Gram diagonal, nuisance ~unpenalised. Returns the event-column betas (Xs.shape[1], R)."""
+    """Ridge of Y on [Xs (sparse event columns) | D (dense nuisance: drift basis, running)]: event columns penalized by
+    ridge_frac x their own Gram diagonal, nuisance ~unpenalized. Returns the event-column betas (Xs.shape[1], R)."""
     XtX = (Xs.T @ Xs).toarray()
     XtD = np.asarray(Xs.T @ D)
     G = np.block([[XtX, XtD], [XtD.T, D.T @ D]])

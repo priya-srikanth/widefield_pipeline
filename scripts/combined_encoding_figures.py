@@ -197,7 +197,7 @@ def fig4_bars(Wd: pd.DataFrame, path: Path, title: str, epoch: str = "pre") -> N
     _title(fig, title, f"Musall Fig. 4-style, cortex, {epoch.upper()} sessions {n}: OPEN = single-variable cvR$^2$ "
                  "(alone; own ridge penalty), FILLED = unique $\\Delta$R$^2$, shuffled in the full movement-first model "
                  "(variance shared with later groups credited to it), HATCHED = drop $\\Delta$R$^2$, full minus a refit "
-                 "without it, unorthogonalised (shared variance credited to nobody); colour = group (task green, instructed orange, uninstructed purple); dots = animals, bars = "
+                 "without it, unorthogonalised (shared variance credited to nobody); color = group (task green, instructed orange, uninstructed purple); dots = animals, bars = "
                  "mean +- SEM over animals")
     fig.tight_layout(rect=(0, 0, 1, 0.93))
     _save(fig, path)
@@ -430,7 +430,7 @@ def fig_position_signed_maps(meta, sess, path: Path, title: str, outline, window
     PATTERN. kind 'respdev' = the fitted position-DEVIATION component (pos_enl / pos_cue: that spout's response minus
     the shared arrival / cue response) averaged over the window, on the pixel grid; 'resp' = the full TASK component per
     spout (absolute). CAVEAT respdev: the deviations are built so their trial-weighted mean over the six spouts is ~0, so
-    a change shared by all spouts splits into opposite signs (the 09-24 CD artefact) -> read respdev as RELATIVE pattern,
+    a change shared by all spouts splits into opposite signs (the 09-24 CD artifact) -> read respdev as RELATIVE pattern,
     'resp' for absolute levels."""
     plt = _plt()
     keys = [f"{kind}:{p}|{window}" for p in POS6]
@@ -573,7 +573,7 @@ def fig5_task_aligned(Wd: pd.DataFrame, path: Path, title: str, window: str = "a
     axs[0][0].set_ylabel(f"cvR$^2$ ({area}, {window})", fontsize=9)
     axs[0][-1].legend(fontsize=10, frameon=False, loc="upper left", bbox_to_anchor=(1.0, 1.0))
     _title(fig, title, "Musall Fig. 5-style: each movement variable's explained variance split into TASK-ALIGNED "
-                 "(grey; also explained by the task variables) and TASK-INDEPENDENT (coloured; cvR$^2$(task + v) - "
+                 "(gray; also explained by the task variables) and TASK-INDEPENDENT (colored; cvR$^2$(task + v) - "
                  "cvR$^2$(task)); mean over animals, bar = SEM of the task-independent part")
     fig.tight_layout(rect=(0, 0, 0.92, 0.88))
     _save(fig, path)
@@ -690,7 +690,7 @@ def fig_peth_partition(meta, sess, path: Path, title: str, epoch: str, areas=("c
     axs[0][-1].legend(fontsize=10, frameon=False, loc="upper left", bbox_to_anchor=(1.0, 1.0))
     n = meta[meta.epoch == epoch].groupby("animal").date.nunique().to_dict()
     _title(fig, title, f"PETH partition, {epoch.upper()} sessions {n}: data (black), the FULL model's prediction "
-                 "(grey dashed) and its split by group (the full model fitted once; its prediction summed over each "
+                 "(gray dashed) and its split by group (the full model fitted once; its prediction summed over each "
                  "group's regressors, no refit), cue-aligned, per spout position; within animal, then mean over animals")
     fig.tight_layout(rect=(0, 0, 0.93, 0.9))
     _save(fig, path)
@@ -795,7 +795,7 @@ def fig_target_vs_executed(Wd: pd.DataFrame, path: Path, title: str, area: str =
 
 def fig_target_vs_executed_sessions(Wd: pd.DataFrame, path: Path, title: str, area: str = "cortex",
                                     st: str = "notxy") -> None:
-    """Every SESSION as a dot (animal colour), animal means as large markers, cohort mean of animal means as the black
+    """Every SESSION as a dot (animal color), animal means as large markers, cohort mean of animal means as the black
     line (Priya 10-19: "are these figures showing all sessions or only each animal mean" -> show both).
     Rows: lick / cue window; columns: category, target (lick kernel), executed (lick kernel), executed - target."""
     from wfield_local import config
@@ -850,7 +850,7 @@ def fig_spatial_contest(Wd: pd.DataFrame, path: Path, title: str, base: str, are
     """The fair target-vs-executed contest of one subset run. Rows: lick / cue / ENL window. Columns: gains over the
     base alone (category ceiling, target, executed, kinematics); unique target vs unique executed (no kinematics);
     the same given the kinematics (+ unique kinematics); per-session executed - target unique (no kinematics).
-    Mean +- SEM over animals, dots = animals; last column dots = sessions (animal colour)."""
+    Mean +- SEM over animals, dots = animals; last column dots = sessions (animal color)."""
     from wfield_local import config
     plt = _plt()
     D = Wd[Wd.pos == area].copy()

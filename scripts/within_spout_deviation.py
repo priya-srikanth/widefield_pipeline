@@ -10,7 +10,7 @@ encoding contest (`wfield_local/combined_encoding.py`, `nokin:*`):
   trial deviation  the executed LATERAL angle of the trial's usable licks in that window, minus the spout's mean
                    ('mean' = mean over those licks; 'first' = the first lick only), plus the same for reach
   within slope     pooled over spouts, everything demeaned within spout: response ~ lateral + reach + n_licks (licking
-                   vigour and reach are the obvious confounds of a lateral deviation)
+                   vigor and reach are the obvious confounds of a lateral deviation)
   between slope    across the six spouts: spout-mean response ~ 1 + spout-mean lateral + spout-mean reach (EXECUTED
                    means, so both slopes are per degree of executed angle)
   between (cmd)    the same across-spout fit on the COMMANDED spout directions (Priya 10-21): spout-mean response ~ 1 +
@@ -691,7 +691,7 @@ def figures_repo_sig(out: Path, maps: dict, method: str = "nested") -> None:
                                f"{100 * frac:.0f} % of brain", fontsize=7)
             ax[0, j].axis("off")
             rows.append({"kind": kind, "method": method, "epoch": ep, "frac_sig": frac, "label": lab_})
-        unit = "/ each animal's pre RMS, pre-normalised" if norm else "x1e-3 dF / 10 deg"
+        unit = "/ each animal's pre RMS, pre-normalized" if norm else "x1e-3 dF / 10 deg"
         fig.suptitle(f"{KIND_TITLE.get(kind, kind)} ({unit}; ipsi hemisphere = image left); |lim| {lim:.2g}; "
                      f"outline: beta_maps '{method}' (animal = unit)", fontsize=7)
         fig.tight_layout()

@@ -14,7 +14,7 @@ ipsilesional = image left. Windows in s from TONGUE onset (jaw variant: from JAW
 Usage (bash env per the repo; outputs only under <v36>/imaging_encoding/prelaunch_aim_tracking/):
   python scripts/prelaunch_aim_tracking.py extract [--jobs 4] [--animals PS92]   per-session features (cached npz)
   python scripts/prelaunch_aim_tracking.py fit [--jobs 4] [--animals PS92] [--nperm 200]   decoders, nulls, frozen
-  python scripts/prelaunch_aim_tracking.py summarise                              tracking, stats, figdata, figures
+  python scripts/prelaunch_aim_tracking.py summarize                              tracking, stats, figdata, figures
   python scripts/prelaunch_aim_tracking.py plot   (or any subcommand with --plot-only)   figures from figdata only
 Env: PAT_OUT redirects all outputs (smoke test); WIDEFIELD_FROZEN_MODEL_DIR redirects the frozen store (smoke test).
 """
@@ -157,7 +157,7 @@ def _binned(R: np.ndarray, ft: np.ndarray, t: np.ndarray) -> np.ndarray:
 def extract(item) -> dict:
     """One session -> FEAT/<label>.npz: per lick set (cued / jaw / iti) the 22 bins (-0.80..+0.30 s) of the Allen split
     features (/ session frame SD), the SVD temporal components (V-space; + the session's 8 x 8 block-mean U), the
-    joint-LocaNMF components (/ frame SD), FaceRhythm factors at the bin centres, and per-lick metadata."""
+    joint-LocaNMF components (/ frame SD), FaceRhythm factors at the bin centers, and per-lick metadata."""
     label, LS, IT, DA = item
     f = FEAT / f"{label}.npz"
     if f.exists() and "--redo" not in sys.argv:
@@ -910,7 +910,7 @@ def cmd_summarise() -> None:
         add("primary", arm, D, "p_allen:PRE")
     # calibration first
     CAL = pd.DataFrame(cal_all)
-    P("\n== CALIBRATION (pre; b_sp = slope of session x target-cell mean decoded on mean theta_L; primary normaliser)")
+    P("\n== CALIBRATION (pre; b_sp = slope of session x target-cell mean decoded on mean theta_L; primary normalizer)")
     P(CAL.round(3).to_string(index=False))
     # per-animal table FIRST (rule 8)
     PA = pd.DataFrame(per_all)
@@ -1139,7 +1139,7 @@ def cmd_plot() -> None:
     ax.set_xticks(range(len(decs)), [f"{a}\n{d.split(':')[0]}" for a, d in decs], fontsize=8)
     ax.axhline(0, color="0.6", lw=0.6)
     ax.set_ylabel("pre held-out r (pooled LOSO)")
-    ax.set_title("A. pre gate, pre-launch window\n(grey tick = null 95th pct; top = animals p < 0.05)", fontsize=9, pad=18)
+    ax.set_title("A. pre gate, pre-launch window\n(gray tick = null 95th pct; top = animals p < 0.05)", fontsize=9, pad=18)
     # B calibration
     ax = fig.add_subplot(gs[0, 2])
     for arm, col in (("cued", "#2166ac"), ("iti", "#b2182b")):
@@ -1287,9 +1287,9 @@ def _plot_secondary(fd, plt, EC, AM):
         ax.axhline(0, color="0.6", lw=0.6)
         ax.axvline(0, color="k", lw=0.6)
         ax.axvspan(BASE[0], BASE[1], color="0.92", zorder=0)
-        ax.set_xlabel("bin centre (s from " + ("JAW" if arm == "jaw" else "tongue") + " onset)")
+        ax.set_xlabel("bin center (s from " + ("JAW" if arm == "jaw" else "tongue") + " onset)")
         ax.set_ylabel("deg vs pre at same target")
-        ax.set_title(f"{ttl}: single-bin decoders\n(grey = BASE; dotted = executed shift)", fontsize=9)
+        ax.set_title(f"{ttl}: single-bin decoders\n(gray = BASE; dotted = executed shift)", fontsize=9)
         ax.legend(fontsize=7, frameon=False, loc="lower left")
     # D per-bin decomposition
     ax = fig.add_subplot(gs[1, 2])
@@ -1302,7 +1302,7 @@ def _plot_secondary(fd, plt, EC, AM):
                         fmt=mk, ms=4, color=EC[ep], mfc="none" if arm == "iti" else EC[ep], capsize=0,
                         label=f"{arm} {ep}")
     ax.axhline(0, color="0.6", lw=0.6)
-    ax.set_xlabel("bin centre (s from tongue onset)")
+    ax.set_xlabel("bin center (s from tongue onset)")
     ax.set_ylabel("contribution to d decoded* (deg)")
     ax.set_title("D. primary decoder: per-bin share of the decoded change", fontsize=9)
     ax.legend(fontsize=7, frameon=False, ncol=2, loc="lower left")

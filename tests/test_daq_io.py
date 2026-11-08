@@ -62,7 +62,7 @@ def test_strobe_codes_are_little_endian_over_the_three_bit_lines():
 
 
 def test_strobe_codes_read_the_lines_at_the_strobe_not_around_it():
-    """The firmware latches the code with the strobe. Sampling a neighbouring frame would silently
+    """The firmware latches the code with the strobe. Sampling a neighboring frame would silently
     pick up the NEXT trial's position on any trial where the spout had already begun moving."""
     names = ["spout_bit0", "spout_bit1", "spout_bit2"]
     bits = np.zeros((6, 3), dtype=np.uint8)

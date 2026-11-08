@@ -7,12 +7,12 @@ Per session, per 0.05-s bin of the -1..+1 s first-lick window, per group (S8 = S
 ALM / MOp_rest / MOs_rest, both hemispheres; SiMi / ScMc 4 vs 4): ridge decode of the executed lick angle (total, and
 within spout) from the group's area values at that bin; 5-fold CV within spout; score = r(prediction, angle) -> curve.
 Readouts: L50 (half-max crossing of the baseline-subtracted curve), dL50 = L50_M - L50_S (+ = sensory first), xlag
-(amplitude-invariant lag of the normalised curves, + = M lags S), peaks. N = 200 events x 10 draws per session (equal
+(amplitude-invariant lag of the normalized curves, + = M lags S), peaks. N = 200 events x 10 draws per session (equal
 across epochs); halves = odd / even events (gate); null = 20 angle permutations.
 
     python scripts/sm_direction_lag.py run [--all] [--labels ...] [--jobs 4]
     python scripts/sm_direction_lag.py gate
-    python scripts/sm_direction_lag.py summarise        # refuses unless >= 3 / 4 animals pass
+    python scripts/sm_direction_lag.py summarize        # refuses unless >= 3 / 4 animals pass
     python scripts/sm_direction_lag.py plot | --plot-only
 """
 from __future__ import annotations
@@ -61,7 +61,7 @@ def _folds(pos: np.ndarray, rng) -> np.ndarray:
 
 
 def cv_curve(X: np.ndarray, y: np.ndarray, folds: np.ndarray) -> np.ndarray:
-    """X (n, T, p), y (n,) -> r(t) of the 5-fold CV ridge prediction (features standardised on the training events)."""
+    """X (n, T, p), y (n,) -> r(t) of the 5-fold CV ridge prediction (features standardized on the training events)."""
     n, T, p = X.shape
     lam = LAM_PER_FEATURE * p
     pred = np.empty((n, T))
@@ -104,7 +104,7 @@ def readouts(r: np.ndarray, null95_pk: float = np.nan) -> dict:
 
 
 def xlag(rS: np.ndarray, rM: np.ndarray) -> float:
-    """Lag (s) maximising corr(cS(t), cM(t + lag)) over -0.5..+1.0 s (overlap only); + = M lags S."""
+    """Lag (s) maximizing corr(cS(t), cM(t + lag)) over -0.5..+1.0 s (overlap only); + = M lags S."""
     def norm(r):
         c = r - r[BASE].mean()
         pk = c[PEAKW].max()
@@ -298,7 +298,7 @@ MET = ["dL50", "xlag", "L50_S", "L50_M", "p_S", "p_M"]
 
 def summarise() -> None:
     if not passed():
-        sys.exit("primary readout failed the pre-registered gate: summarise refused")
+        sys.exit("primary readout failed the pre-registered gate: summarize refused")
     S = collect()
     F = S[S.part == "full"].copy()
     keys = ["set", "target", "pairing"]

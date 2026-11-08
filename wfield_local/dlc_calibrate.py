@@ -19,7 +19,7 @@ aniposelib also carries the triangulation this is all for. Prefer aniposelib for
 this for the diagnostics and as an independent cross-check, which is worth having on a quantity no
 one can eyeball.
 
-Installing it needs the labelling GUI closed (it holds ``cv2.pyd`` open) and pulls
+Installing it needs the labeling GUI closed (it holds ``cv2.pyd`` open) and pulls
 ``opencv-contrib-python`` over ``opencv-python``.
 
 **The reported number that matters is REPROJECTION ERROR**, in pixels. The pose counts in
@@ -111,7 +111,7 @@ def board_for(cal_dir):
     PER RECORDING, not global, and this is what makes combining recordings possible at all. Two
     boards can share a dictionary -- ours both use DICT_4X4_50 with overlapping marker ids -- so
     detecting a recording with the WRONG geometry does not error: it interpolates corners at
-    positions that belong to a different board and returns them confidently. The only defence is
+    positions that belong to a different board and returns them confidently. The only defense is
     that each recording carries its own spec, which is also why `dlc_board` prints the spec onto the
     board itself.
     """

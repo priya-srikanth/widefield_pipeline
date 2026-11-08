@@ -4,13 +4,21 @@ PRODUCTION SINCE 11-03 LATE (Priya): working = ``in_working & class in {contact,
 trials (contact or incomplete lick), cue -> trial stop, cut at the session's last camera lick. JAW-ONLY TRIALS ARE NOT
 WORKING: they are reported as their own class, like no-response (docs/status/JAW_ONLY_CHECKS_2026-11-03.md: jaw_only
 reads like no_response in PS94 / PS95 at cue and precue; adding them to training does not move the pre reference;
-centring a post-stroke session on rows that include them drives PS95 close ipsi acute .975 -> .642). Every contact /
+centering a post-stroke session on rows that include them drives PS95 close ipsi acute .975 -> .642). Every contact /
 incomplete trial is at or before the last camera lick by construction, so the end cut only ever removed jaw_only /
 no_response trials; it stays in the definition so the rule reads as written. ``WORKING_CLASSES`` names the sets.
 
 The 11-03 AFTERNOON definition (in_working INCLUDING jaw_only) is the robustness arm
 ``WIDEFIELD_WORKING_TRIALS=in_working_jaw``; its frozen-model specs (tag without the class suffix) are the 29 models
 published 11-03 afternoon, so it reproduces them exactly.
+
+SUPPLEMENTAL SUCCESSFUL-LICK ARM (Priya 11-07): ``WIDEFIELD_WORKING_TRIALS=in_working_contact`` = in_working AND class ==
+contact only (successful spout-contact licks), same camera working period and end cut (END = "lick"), tag suffix
+"-cls-contact" so its frozen specs, cache keys and output folders never meet production's. Section G run under it is a
+"successful licks only" supplement. Far-contra post-stroke trials are mostly INCOMPLETE licks, so this arm drops
+positions: the lick-only arm's chance 1/n varies with the retained positions -- compare arms via the retained
+above-chance fraction, not raw accuracy. Its no-lick "miss while working" set stays production's (incomplete; see
+`trial_classes.sel_classes`), and the stop rule is production's (jaw_only counts toward a stop run).
 
 History of the paragraph below: written for the afternoon definition.
 
@@ -30,7 +38,7 @@ end-of-session cutoff recomputed here by 5b's `trial_classes.in_working` and che
 no-lick cue indices per session), exactly as `scripts/s1_refit_locanmf_table.py` does, so 5b's section-1 trial sets
 are reproduced row for row (pinned in tests).
 
-Sessions with NO camera classes (no behaviour video: PS93_0813; the June sessions, outside the August-only baseline)
+Sessions with NO camera classes (no behavior video: PS93_0813; the June sessions, outside the August-only baseline)
 have no working trials: they drop out of every working training set and pre band.
 """
 from __future__ import annotations
@@ -44,28 +52,35 @@ import numpy as np
 WORKING_TRIALS_ENV = "WIDEFIELD_WORKING_TRIALS"
 IN_WORKING = "in_working"                 # PRODUCTION (11-03 late): in_working & class in {contact, incomplete}
 IN_WORKING_JAW = "in_working_jaw"         # robustness: the 11-03 afternoon in_working, jaw_only included
+IN_WORKING_CONTACT = "in_working_contact"  # supplement (Priya 11-07): in_working & class == contact only
 QUIT_TAIL = "quit_tail"                   # robustness: DAQ lick + miss-while-working (flag_engagement quit tail)
-CAMERA_SELECTIONS = (IN_WORKING, IN_WORKING_JAW)
+CAMERA_SELECTIONS = (IN_WORKING, IN_WORKING_JAW, IN_WORKING_CONTACT)
 #: The camera classes a working trial may have, per camera selection (both also cut at the last camera lick). Production
 #: = trial_classes.GATES["camera_lick"]; robustness = trial_classes.GATES["working"] (pinned in tests).
 WORKING_CLASSES = {IN_WORKING: frozenset({"contact", "incomplete"}),
-                   IN_WORKING_JAW: frozenset({"contact", "incomplete", "jaw_only"})}
+                   IN_WORKING_JAW: frozenset({"contact", "incomplete", "jaw_only"}),
+                   IN_WORKING_CONTACT: frozenset({"contact"})}
+#: the tag's class part per camera selection (None = the 11-03 afternoon tag, no class part)
+CLS_PART = {IN_WORKING: "contact-incomplete", IN_WORKING_JAW: None, IN_WORKING_CONTACT: "contact"}
 END = "lick"
 SNAPSHOT_ENV = "WFIELD_S1_CLASSES"        # the same override 5b's s1 script reads
 
 
 def selection() -> str:
     """``"in_working"`` (production since 11-03 late: contact + incomplete licks, cut at the last camera lick),
-    ``"in_working_jaw"`` (the 11-03 afternoon definition, jaw_only included) or ``"quit_tail"`` (the previous lick +
-    miss-while-working set)."""
+    ``"in_working_jaw"`` (the 11-03 afternoon definition, jaw_only included), ``"in_working_contact"`` (supplement,
+    Priya 11-07: contact trials only) or ``"quit_tail"`` (the previous lick + miss-while-working set)."""
     v = os.environ.get(WORKING_TRIALS_ENV, IN_WORKING).strip().lower()
     if v in (IN_WORKING, "camera", "a4", "licks", "in_working_licks"):
         return IN_WORKING
     if v in (IN_WORKING_JAW, "in_working_incl_jaw", "with_jaw"):
         return IN_WORKING_JAW
+    if v in (IN_WORKING_CONTACT, "contact", "contact_only", "in_working_contact_only"):
+        return IN_WORKING_CONTACT
     if v in (QUIT_TAIL, "flag_engagement", "old"):
         return QUIT_TAIL
-    raise ValueError(f"{WORKING_TRIALS_ENV}={v!r}: expected in_working, in_working_jaw or quit_tail")
+    raise ValueError(f"{WORKING_TRIALS_ENV}={v!r}: expected in_working, in_working_jaw, "
+                     "in_working_contact or quit_tail")
 
 
 def is_camera(sel: str | None = None) -> bool:
@@ -91,6 +106,8 @@ def tag(sel: str | None = None) -> str:
         return base
     if sel == IN_WORKING:
         return base + "-cls-contact-incomplete"
+    if sel == IN_WORKING_CONTACT:
+        return base + "-cls-contact"
     raise ValueError(f"{sel!r} is not a camera working selection")
 
 
@@ -119,6 +136,10 @@ def _table(path: str, sel: str = IN_WORKING):
     # the snapshot check above pins; PRODUCTION narrows it to the camera-lick gate (contact | incomplete)
     if sel == IN_WORKING:
         w = w & tc.in_gate(D.cls, "camera_lick")
+    elif sel == IN_WORKING_CONTACT:                     # supplement (Priya 11-07): no GATES entry is contact-only
+        w = w & (D.cls == "contact").to_numpy(bool)
+    elif sel != IN_WORKING_JAW:
+        raise ValueError(f"{sel!r} is not a camera working selection")
     D["w"] = w
     out = {}
     for lab, g in D.groupby("label"):
@@ -308,7 +329,7 @@ def row_masks(kept, indices, GE, GU, sel: str | None = None):
 def projection_work(kept, features, GE, GU, align):
     """``(work_e, work_u, cls_e, cls_u)`` for `spout_scaling.projection_arrays` under
     ``WIDEFIELD_PROJECTION_CENTRE=working`` / ``contact`` (main 4a37cbc8, item C re-check), or None: the lick window
-    (lick gate), the DAQ gate or a non-camera selection, the engaged centre, the frame off, or a builder without cue
+    (lick gate), the DAQ gate or a non-camera selection, the engaged center, the frame off, or a builder without cue
     ``.indices``. REBUILD: the classes are live (`trial_classes.pool_row_classes`), the working rows `in_sel` of them."""
     from wfield_local import spout_scaling as ss
     from wfield_local import trial_classes as tc
@@ -317,7 +338,7 @@ def projection_work(kept, features, GE, GU, align):
         return None                   # the lick window / the DAQ gate / the frame off: the engaged-row frame
     if not getattr(features, "indices", None):
         raise RuntimeError(f"projection frame ({ss.projection_tag()}): a camera {align} pool without cue indices "
-                           "cannot take the working-row centre -- build it with features_with_indices")
+                           "cannot take the working-row center -- build it with features_with_indices")
     ce, cu = tc.pool_row_classes(features, kept, len(GE), len(GU))
     return tc.in_sel(ce, "working"), tc.in_sel(cu, "working"), ce, cu
 
@@ -334,8 +355,8 @@ def eax_rows(kept, features, XE, XU, GE, GU):
 
 
 def projection_cls_e(kept, features, GE, GU, align):
-    """The camera class per ENGAGED row for the projection frame's engaged centre (`spout_scaling.centre_mask` needs
-    them under the camera centre), or None (the DAQ gate / the frame off / no ``.indices``)."""
+    """The camera class per ENGAGED row for the projection frame's engaged center (`spout_scaling.centre_mask` needs
+    them under the camera center), or None (the DAQ gate / the frame off / no ``.indices``)."""
     from wfield_local import spout_scaling as ss
     from wfield_local import trial_classes as tc
     if not ss.projection_frame_on() or not tc.camera_gate_on() or not getattr(features, "indices", None):
@@ -345,8 +366,8 @@ def projection_cls_e(kept, features, GE, GU, align):
 
 def roi_features_with_indices(nolick_ref="cue"):
     """The default (ROI) `pool_sessions` feature builder, also keeping each session's cue indices (``.indices``),
-    so a ROI pool can be mapped onto the camera classes. ROI features are not disk-cached (`trial_features_cached`
-    computes non-LocaNMF sources), so this costs nothing extra."""
+    so a ROI pool can be mapped onto the camera classes. ROI features are disk-cached since 11-07 (`trial_features_cached`
+    keys them on `roi_signal_key`); ``with_indices`` is in the cache kind, so this entry is separate from the plain one."""
     from wfield_local.locanmf_position_decoder import trial_features_cached
     idx = {}
 

@@ -83,7 +83,7 @@ def test_it_reproduces_the_loop_with_a_session_held_out():
 
 
 def test_a_shared_generator_still_advances_across_calls():
-    """The behaviour `balanced_fit` depends on and the other two callers do not have. If this ever
+    """The behavior `balanced_fit` depends on and the other two callers do not have. If this ever
     became per-call deterministic, `fits_engaged_distribution`'s numbers would move -- so the test
     exists to make that a decision rather than an accident."""
     d = _pool()

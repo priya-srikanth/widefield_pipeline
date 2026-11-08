@@ -76,7 +76,7 @@ PS95_0809 pre, 1500 µl delivered, 677 hits / 5 misses): censored, not a quit.
   (3.5 s, `gui_config timing.response_window`) x the `reward_ul` in force; **delivered water** is reported beside it.
   Partial collection and drop-size error are unmeasurable (limit).
 * **Body weight**: `configs/animal_weights.csv` (`wfield_local/animal_weights.py`), PRE-session weight, 49 dates per
-  animal from 08-01 on, covering every analysed session day. **No water-schedule / home-cage supplement record exists
+  animal from 08-01 on, covering every analyzed session day. **No water-schedule / home-cage supplement record exists
   in the repo or configs** (searched); none is invented.
 * Free / manual rewards: `free_rewards` 0 in every summary; `manual_reward` events exist in a few sessions (PS93_0813
   19); manual deliveries are counted as delivered and as collected only on a responded trial.
@@ -114,7 +114,7 @@ PS95_0809 pre, 1500 µl delivered, 677 hits / 5 misses): censored, not a quit.
 
 The quit period IS the object here, so no consumer below gates it away silently. Every window is defined explicitly
 (section 2). The **reference** (RESTnl) stays engagement-gated — it must not contain the quit period, or the contrast
-would subtract the state being measured. Per-trial behavioural covariates are measured BEFORE the quit onset only.
+would subtract the state being measured. Per-trial behavioral covariates are measured BEFORE the quit onset only.
 
 ---
 
@@ -258,7 +258,7 @@ early are dropped and counted.
   * neither -> **no movement signature: the animal stops licking but is otherwise unchanged**.
   No pupil means arousal is inferred, not measured — said on every figure that uses the word.
 * Cue-response trend: a decline in the 10 min before the quit beyond controls (>= 3 / 4) -> cortex disengages from
-  the cue BEFORE the behavioural quit; else the loss of the cue response is concurrent with the stop.
+  the cue BEFORE the behavioral quit; else the loss of the cue response is concurrent with the stop.
 
 ---
 
@@ -269,7 +269,7 @@ early are dropped and counted.
 * `analysis_kit`: `boot_delta` (paired animals -> sessions, animal-weighted) for every change and every
   quit-vs-control contrast; `boot_ci` only for levels; `boot_p` on the `draws=True` draws; `holm`. N_BOOT 4000, one
   seeded rng, sessions collected in `curated_sessions(order="sorted")` order via `fan_sessions` (<= 4 workers).
-* **Primary family = {P1, P2, P3, P4}, Holm at 0.05.** Everything else is secondary / descriptive and labelled so;
+* **Primary family = {P1, P2, P3, P4}, Holm at 0.05.** Everything else is secondary / descriptive and labeled so;
   secondary families get BH only if a table needs it, never promoted.
 * Single-session cells (PS95 acute, PS92 subacute 2) are printed and flagged; their uncertainty does not enter the CI.
 * Sensitivity (reported, not tested): 80-min common horizon (`quit_point --horizon-min`; keeps PS94 pre 6 / 8);
@@ -285,19 +285,19 @@ early are dropped and counted.
 
 Outputs: `M:/MICROSCOPE/Priya/Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/disengagement/`
 (`figures/`, `figdata/`, `tables/`). Conventions: sessions = open markers, shape = animal (PS92 o, PS93 s, PS94 ^,
-PS95 D), colour = epoch (`orofacial_cohort.EPOCH_LINE`), pooled = filled epoch-colour marker, June not used (August-only
+PS95 D), color = epoch (`orofacial_cohort.EPOCH_LINE`), pooled = filled epoch-color marker, June not used (August-only
 pre); no figure numbers in images; no epoch connecting lines; 50 / 95 % marked per epoch on distributions; stars in the
-top band (`star_top` + `reserve_headroom`); canonical spout order; titles say BEHAVIOUR or NEURAL; censored sessions
+top band (`star_top` + `reserve_headroom`); canonical spout order; titles say BEHAVIOR or NEURAL; censored sessions
 carry an upward tick (lower bound).
 
-1. BEHAVIOUR — water collected at quit-or-end per session by epoch (P1), + delivered; per-animal KM against water.
-2. BEHAVIOUR — water accrual rate and pre-session weight (% pre) by epoch.
-3. BEHAVIOUR — far-contra-block lapse contrast per session by epoch (P2); quit-triggered far-contra exposure.
-4. BEHAVIOUR — giving-up rate of each post quit on the animal's pre working-rate distribution (5th / 50th marked).
-5. BEHAVIOUR — quit-aligned deceleration / ILI / licks per bout / latency vs time-matched controls (P3).
+1. BEHAVIOR — water collected at quit-or-end per session by epoch (P1), + delivered; per-animal KM against water.
+2. BEHAVIOR — water accrual rate and pre-session weight (% pre) by epoch.
+3. BEHAVIOR — far-contra-block lapse contrast per session by epoch (P2); quit-triggered far-contra exposure.
+4. BEHAVIOR — giving-up rate of each post quit on the animal's pre working-rate distribution (5th / 50th marked).
+5. BEHAVIOR — quit-aligned deceleration / ILI / licks per bout / latency vs time-matched controls (P3).
 6. NEURAL — quit-aligned global and per-area pre-cue level vs controls (P4); pre-cue SD; cue-response trend.
-7. BEHAVIOUR — quit-aligned running and FaceRhythm movement vs controls.
-8. **BEHAVIOUR (descriptive, pre-registered as such)** — licks per responded trial by spout (POS_ORDER) and epoch.
+7. BEHAVIOR — quit-aligned running and FaceRhythm movement vs controls.
+8. **BEHAVIOR (descriptive, pre-registered as such)** — licks per responded trial by spout (POS_ORDER) and epoch.
    Source = the quantity behind FINDINGS orofacial claim 6 ("chronic: more licks per responded trial"):
    `orofacial_cohort` `licks_per_resp` (cam4 LP licks, cue + 70 ms .. DAQ trial stop, engaged trials), read from its
    per-session table, not recomputed; DAQ-contact count per responded trial as a second panel. No test.
@@ -342,7 +342,7 @@ carry an upward tick (lower bound).
 ## Outcome
 
 **Stage 2 run 2026-10-31** (`scripts/disengagement_tests.py`; outputs
-`<v36>/imaging_encoding/disengagement/{sessions,tables,figdata,figures}`). 108 sessions behaviour, 107 imaging
+`<v36>/imaging_encoding/disengagement/{sessions,tables,figdata,figures}`). 108 sessions behavior, 107 imaging
 (PS93_0813 has no imaging input row). PROVISIONAL, n = 4. Per-animal tables are in the run log and `tables/`.
 
 ### Primary family (Holm over P1-P4)
@@ -440,7 +440,7 @@ Mean collected water at quit-or-end, µl (PS95 acute = 1 censored session):
   * The cue response does not decline: prodrome -0.7 n.s., 2/4. The trajectory is flat until the quit, then drops at
     once.
   * Pre-cue level, running and face are unchanged in the 10 min before.
-  * Per the rule: **cortex loses the cue response together with the behavioural stop, not before it.**
+  * Per the rule: **cortex loses the cue response together with the behavioral stop, not before it.**
 * No pupil measure exists, so arousal is not claimed.
 
 ### Synthesis (PROVISIONAL, n = 4)
@@ -454,7 +454,7 @@ thirstier (lower weight) and while earning water more slowly. Satiety at the old
 * The quit state is ACTIVE: the animal runs. The raised cortical level seen on stopped trials is that running; still
   disengaged cortex is lower than engaged.
 
-The data favour a moved quitting threshold (motivation / malaise / state) over satiety, frustration or fatigue as
+The data favor a moved quitting threshold (motivation / malaise / state) over satiety, frustration or fatigue as
 the terminator. It is back near pre chronically (P1 chronic n.s.).
 
 **Licks per responded trial (descriptive figure):** chronic is higher than pre at every spout in both sources (cam4 LP
@@ -477,10 +477,10 @@ and DAQ contacts). Acute far contra is lowest (LP ~3 vs pre ~8.5).
 5. Water volumes: DAQ deliveries equal the events.csv reward rows in 99/108 sessions, and the volume sum then equals
    the GUI `water_ul` to < 1 %. In the 9 mismatches (incl. PS92_0812 concat, PS95_0827) each delivery takes the
    session's mean nominal volume.
-6. **POST HOC (exploratory, labelled on the figure):** `level_still` (pre-cue windows with every 1-s treadmill bin
+6. **POST HOC (exploratory, labeled on the figure):** `level_still` (pre-cue windows with every 1-s treadmill bin
    < 3 mm/s) and `level_quiet` (also no DAQ lick in the 2 s before the cue). Added AFTER seeing running up 4/4,
    because locomotion raises widefield dF/F globally. Not in the Holm family. It reverses the reading of P4. It
-   needed a behaviour re-extract (`BEH_VERSION` 2: + `n_pre2`). All primary numbers were identical after it.
+   needed a behavior re-extract (`BEH_VERSION` 2: + `n_pre2`). All primary numbers were identical after it.
 7. The 80-min horizon sensitivity counts a quit only if onset <= 80 min. It does not re-run the detector on the
    truncated record (`quit_point --horizon-min` does), so it is an approximation.
 8. Bout measures use the post-cue licks inside the task window only (bout gap 0.5 s; deceleration on bouts >= 6 licks,
@@ -488,11 +488,11 @@ and DAQ contacts). Acute far contra is lowest (LP ~3 vs pre ~8.5).
 9. Trajectory bins (5 min) require each control to be engaged through the END of that bin. The quit period uses
    [quit, quit + 10 min] cut at session end, needing >= 5 min.
 10. FaceRhythm "between trials" excludes [cue - 0.5, cue + 4 s] and lossy samples, in 10-s bins.
-11. Lapse logistic: sklearn, effectively unpenalised (C = 1e6), standardised covariates, cells with >= 10 lapses and
+11. Lapse logistic: sklearn, effectively unpenalized (C = 1e6), standardized covariates, cells with >= 10 lapses and
     >= 10 non-lapses.
 12. The giving-up rate is also computed for pre quits (drawn, descriptive). The pre working distribution = 5-min
     collected rate at every trial >= 5 min into a session and before any quit, all August pre sessions.
-13. P3 / P4 figures pool epochs, so they use an animal-shape legend with a black pooled marker (no epoch colour).
+13. P3 / P4 figures pool epochs, so they use an animal-shape legend with a black pooled marker (no epoch color).
     "+" marks a secondary cell whose 95 % CI excludes 0; "*" marks only a Holm-significant primary.
 
 ---
@@ -541,7 +541,7 @@ sessions for symmetry (post mostly end by rule: target trials / max duration).
 * PS92 / PS93 pre values are time-censored LOWER BOUNDS (T), so their pre water / time is at least what is shown.
 * Where pre is H or Q the value is the quit itself.
 
-### A1. Licks per responded trial, normalised to each animal's own pre (ask 1)
+### A1. Licks per responded trial, normalized to each animal's own pre (ask 1)
 
 * Per session x spout: log2(value / that animal x spout's August-pre mean), with both sources:
   * cam4 LP: `orofacial_cohort` `licks_per_resp`;
@@ -551,14 +551,14 @@ sessions for symmetry (post mostly end by rule: target trials / max duration).
   pre (`boot_delta`; each pre session's own log2 ratio, so pre is ~0 by construction).
 * Rule: P8 > 0 (Holm in family A, >= 3/4 animals) means far-contra responded trials carry more licks chronically
   than the same animal's pre. DAQ is the sensitivity.
-* Figure: BEHAVIOUR, log2 ratio by spout and epoch, sessions as open markers, pooled filled, 0 line, both sources
+* Figure: BEHAVIOR, log2 ratio by spout and epoch, sessions as open markers, pooled filled, 0 line, both sources
   side by side.
 
 ### A2. Time to quitting, and water, as survival (ask 2)
 
 * Time = minutes from the session's first cue to quit onset (Q / H events) or to session end (censored).
 * Kaplan-Meier per animal x epoch, in MINUTES and in collected WATER, under the primary reading. The two bounds are
-  drawn as dashed curves. Censored ends are ticked and coloured by class (T / W / U).
+  drawn as dashed curves. Censored ends are ticked and colored by class (T / W / U).
 * **P5 (primary, family A): restricted engaged time min(time to quit-or-end, 90 min), early post (acute + subacute)
   minus pre, `boot_delta`.**
   * Why 90 min: post sessions end by rule at ~95-125 min, so a 90-min restriction compares equal observation windows
@@ -582,7 +582,7 @@ sessions for symmetry (post mostly end by rule: target trials / max duration).
   engaged controls (same animal, same epoch), all quits pooled, exactly as P4. Global = `cortex`; areas secondary.
 * Rule:
   * P6 < 0 (Holm, >= 3/4) confirms the post-hoc "still disengaged cortex sits below engaged".
-  * P6 > 0 means the still-trial result was a selection artefact and a raised level survives running removal.
+  * P6 > 0 means the still-trial result was a selection artifact and a raised level survives running removal.
   * Null means no level difference once running is removed.
 * Sensitivity: the regression fitted on engaged trials only.
 
@@ -649,12 +649,12 @@ The alternative is that running is a generic disengaged / exploratory state.
     "running causes re-engagement" from "both follow arousal". No pupil.
 
 ### A5. Figures planned (addendum)
-* BEHAVIOUR: normalised licks per responded trial (A1).
-* BEHAVIOUR: KM in minutes and in water per animal, primary reading + bounds (A2).
-* BEHAVIOUR: restricted engaged time by epoch + deltas (P5).
+* BEHAVIOR: normalized licks per responded trial (A1).
+* BEHAVIOR: KM in minutes and in water per animal, primary reading + bounds (A2).
+* BEHAVIOR: restricted engaged time by epoch + deltas (P5).
 * NEURAL: running-regressed quit-period level, global + areas, with RESTnl and RESTW versions (P6, A3ii).
-* BEHAVIOUR: 80-min horizon re-detection (A3iii).
-* BEHAVIOUR + NEURAL: Test 4b (re-engagement after run vs still; gain; orofacial-vs-reference running betas; pre vs
+* BEHAVIOR: 80-min horizon re-detection (A3iii).
+* BEHAVIOR + NEURAL: Test 4b (re-engagement after run vs still; gain; orofacial-vs-reference running betas; pre vs
   post quit running).
 * Figure defaults as before.
 
@@ -726,7 +726,7 @@ min), 13 censored at the trial cap (task completed).
 | P6 running-regressed quit-period level | **-7.8 [-11.3, -4.2]** | **0.001** | -11.7 / -5.1 / -10.0 / -4.3 (4/4) | **CONFIRMS: still disengaged cortex sits below engaged** |
 | P8 chronic far-contra licks / responded, log2 vs own pre (LP) | **+0.23 [+0.04, +0.50]** | **0.018** | +0.08 / +0.13 / +0.06 / +0.63 (4/4) | survives (LP source only) |
 
-**A1 (licks per responded trial, own-pre normalised).**
+**A1 (licks per responded trial, own-pre normalized).**
 * Acute: below pre at every spout. Far contra is lowest: LP log2 -1.45 to -1.85, i.e. ~1/3 of pre.
 * Subacute / chronic: above pre at most spouts. Chronic close mid +0.17 to +0.74, far mid -0.29 to +0.90 (LP).
 * P8 (LP) 4/4 positive but small except PS95.
@@ -826,11 +826,11 @@ min), 13 censored at the trial cap (task completed).
      sooner in the early post period (4/4 each), and back near pre chronically. The capped P5 / P5t missed this
      because the 90-min / 300-trial caps sat below most quit times.
 
-**2026-11-05 -- the quit becomes the CAMERA quit (Priya 11-05, relayed by a8: behaviour-only figures move to the camera
+**2026-11-05 -- the quit becomes the CAMERA quit (Priya 11-05, relayed by a8: behavior-only figures move to the camera
 working period + August-only pre).** `scripts/disengagement_tests.py` now takes the quit from
 `trial_classes.camera_quit` (A6 of `docs/status/reanalysis_20261105/ENGAGEMENT_CAMERA_2026-11-05.md`: first trial after
 the session's last camera lick; a quit only when that tail is >= 6 trials and starts >= 300 s after the first cue, else
 censored). Sessions without video (PS93_0813) have no camera quit and leave the camera rows (printed as DAQ-only). The
-prereg's DAQ S28 detector stays as the labelled robustness row (`DISENGAGEMENT_QUIT=daq`, outputs under
+prereg's DAQ S28 detector stays as the labeled robustness row (`DISENGAGEMENT_QUIT=daq`, outputs under
 `disengagement_daqquit/`). Responded / hit covariates, water, licks and imaging are unchanged (DAQ). The camera quit
 comes a median +12 min after the DAQ quit (that doc, F1), so every P1-P4 number moves; nothing re-run yet.

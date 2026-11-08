@@ -23,9 +23,9 @@ Signals: Allen-area / ROI means of the adopted hemo-corrected SVD (`combined_enc
 targets), slow drift removed (the encoder's slow basis), dF/F x1e3. Lick times on the DAQ clock from the session's
 licks_all.csv via lick_uid (NOT the kinematics table's daq_peak_s, which is rounded to 4 significant digits = up to
 0.5 s off in a 1 h session): ramp PETHs are aligned to lick ONSET, direction decoding to the 3-D PEAK; the clock match to
-the behaviour licks is checked per session and recorded.
+the behavior licks is checked per session and recorded.
 Calcium indicator lag delays every rise; the pre -> post CHANGE is the readout, not the absolute lead.
-Usage: python scripts/iti_licks.py [--jobs 3] [--labels ...]   (extract + summarise)
+Usage: python scripts/iti_licks.py [--jobs 3] [--labels ...]   (extract + summarize)
        python scripts/iti_licks.py --plot-only [--key ...]       (redraw from figdata/*.pkl only)
        python scripts/iti_licks.py --summarise                   (from saved sessions)
 Output: <E>/iti_licks/ (sessions/<label>.npz, tables, figures)
@@ -78,11 +78,22 @@ OUT_W = run_mode.subdir(Path(os.environ["WFIELD_ITI_OUT_W"])) if os.environ.get(
 #: through `frozen_encoder.out_root()` -- the encoder run of THIS mode (imaging_encoding/<tag>/ for a tagged run),
 #: never the old variant's folder. Default run: the same path as before.
 ENCODER_TAG = _design_tag("gate-attempted_v7g3_t3d_frA")
+#: the TE (trial-event) design's tag. NOT passed through `design_tag`: the TE runs (t_frame_te / t_frame_te_basis) are
+#: always rendered with FROZEN_LICKS_ALL=none, so their folder never carries `_spont`. Routing the TE basis through
+#: ENCODER_TAG (910c408b, 11-04) pointed the svdbasis readers at `..._spont_frA_te_basis`, which no step writes
+#: (11-07: 107/107 svdbasis items failed in l_basis_extract).
+TE_ENCODER_TAG = "gate-attempted_v7g3_t3d_frA"
 
 
 def encoder_run(suffix: str = "") -> Path:
     from wfield_local import frozen_encoder
     return frozen_encoder.out_root() / f"frozen_encoder_{ENCODER_TAG}{suffix}"
+
+
+def te_basis_run() -> Path:
+    """The TE design's shared-basis encoder run (fit/spatial_<animal>.pkl): the svdbasis source of the ITI readers."""
+    from wfield_local import frozen_encoder
+    return frozen_encoder.out_root() / f"frozen_encoder_{TE_ENCODER_TAG}_te_basis"
 # SUBSET ITI FILTERS (Priya 10-29: ITI offset results on licks made while the spout is DOCKED). Unlike gap2 / far1
 # (iti_lick_order: decoder REFIT on the filtered set, outputs tagged "_<filter>"), these keep the FROZEN all-ITI decoder
 # (rule 10: lick_order_preds cache unchanged) and only drop ITI rows downstream (`iti_subset_keep`, flags from
@@ -371,7 +382,8 @@ def extract(item) -> dict:
         return o.reshape(len(t), len(lags), FRM.shape[1])
     f16 = np.float16
     np.savez_compressed(
-        f, cols=np.array(cols), epoch=epochs.epoch_of(label), animal=an, clock_med_s=clock,
+        # epoch "" (not None) before WIDEFIELD_PRE_FROM: a None is saved as an object array (_load, 11-08)
+        f, cols=np.array(cols), epoch=epochs.epoch_of(label) or "", animal=an, clock_med_s=clock,
         bout_peth=_sample(R, ft, to[bout], LAGS_P).astype(f16), bout_side=iti.side_ml.to_numpy(float)[bout], bout_gap=gap[bout],
         # bout_pos = the trial-WINDOW label (the UPCOMING trial for 'lead' licks) -- NOT a spout to group by; use
         # bout_prev_pos = the PREVIOUS trial's spout, the rule of iti_pos (10-28; files before then lack it:
@@ -438,7 +450,7 @@ def subseq_match(ref: np.ndarray, val: np.ndarray) -> np.ndarray:
 
 def _first_lick_times(label: str, first_rt: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     """(cue_s, first lick onset) of the session file's first-lick rows, rebuilt with extract's rule (engaged trials,
-    first behaviour lick onset in cue .. stop) and matched to the stored first_rt (exact; NaN where unmatched)."""
+    first behavior lick onset in cue .. stop) and matched to the stored first_rt (exact; NaN where unmatched)."""
     B = _behaviour(label)
     T = B.trials
     bo = np.sort(np.asarray(B.lick_on_s, float)[np.isfinite(B.lick_on_s)])
@@ -528,8 +540,24 @@ def attach_fr_unblanked(D: dict, jobs: int | None = None) -> dict:
 
 
 def _load(label: str, sess_dir: Path | None = None) -> dict:
-    z = np.load((sess_dir or XOUT / SESS_NAME) / f"{label}.npz", allow_pickle=False)
-    return {k: z[k] for k in z.files}
+    p = (sess_dir or XOUT / SESS_NAME) / f"{label}.npz"
+    z = np.load(p, allow_pickle=False)
+    try:
+        return {k: z[k] for k in z.files}
+    except ValueError:
+        # JUNE REFERENCE FILES written before 11-08 store epoch=None (`epochs.epoch_of` has no epoch for a session before
+        # WIDEFIELD_PRE_FROM), which numpy saves as an OBJECT array; l_reembed failed on all 12 (11-07). Exactly that
+        # one value is read back as "" -- any other object array is still refused.
+        z = np.load(p, allow_pickle=True)
+        out = {}
+        for k in z.files:
+            a = z[k]
+            if a.dtype == object:
+                if not (k == "epoch" and a.shape == () and a.item() is None):
+                    raise ValueError(f"{p}: object array {k!r} (only a None epoch is tolerated)") from None
+                a = np.array("")
+            out[k] = a
+        return out
 
 
 # ------------------------------------------------------------------------------------------------ area basis (10-27 late)
@@ -833,7 +861,7 @@ def ramp_draw(plt, F: dict, colors: dict, path) -> None:
 
 SIG_Q = 0.05
 SIG_NOTE = ("Bars above the curves: time bins where that epoch differs from pre\n(paired nested bootstrap animals > "
-            "sessions per bin, BH-FDR q = 0.05 across the bins of the curve), one row per epoch in its colour.")
+            "sessions per bin, BH-FDR q = 0.05 across the bins of the curve), one row per epoch in its color.")
 
 
 def sig_bars(ax, t: pd.DataFrame, colors: dict, value: str = "r", rows_top: float = 0.975, row_h: float = 0.04,
@@ -841,8 +869,8 @@ def sig_bars(ax, t: pd.DataFrame, colors: dict, value: str = "r", rows_top: floa
     """Per-time-bin significance of each post epoch vs pre on one curve (Priya 10-26: "mark with lines (colored per
     epoch) where in the time bins curves differ from pre"). ``t`` = one row per session x lag (columns label, animal,
     epoch, lag, ``value``). Per post epoch: `analysis_kit.boot_delta_columns` (the SAME paired animals > sessions draw as
-    every dot-plot star, vectorised over lags) -> `boot_p_columns` -> `bh` (q = SIG_Q) across that curve's lags.
-    Contiguous significant runs are drawn as thick segments in the epoch colour in a strip at the top of the axes (x in
+    every dot-plot star, vectorized over lags) -> `boot_p_columns` -> `bh` (q = SIG_Q) across that curve's lags.
+    Contiguous significant runs are drawn as thick segments in the epoch color in a strip at the top of the axes (x in
     data, y in axes coordinates), one row per epoch; each segment spans half a bin either side. Returns one record per
     epoch x lag for the tests CSV. = `sig_compute` (the test) + `sig_draw` (the strip)."""
     S = sig_compute(t, value=value, tag=tag)
@@ -906,7 +934,7 @@ def _headroom(axs, frac: float = 0.2) -> None:
 
 def plot_direction(DR: pd.DataFrame, FZ: pd.DataFrame) -> None:
     """Page 3.7: within-session direction decoding per lag (session-pooled mean +- SEM) + the frozen pre-ITI decoder.
-    Called by summarise(); `--plot-direction` redraws it from decode_sessions.csv / decode_frozen_sessions.csv
+    Called by summarize(); `--plot-direction` redraws it from decode_sessions.csv / decode_frozen_sessions.csv
     (re-running the per-bin tests); `--plot-only` redraws it from figdata/lick_direction_decoding.pkl alone."""
     from figdata import save_fd
     F = direction_compute(DR, FZ)
@@ -972,7 +1000,7 @@ def direction_draw(F: dict) -> None:
                 ax.scatter([k_], [P[ep].mean()], s=60, color=colors[ep], zorder=5)
         ax.set_xticks(x)
         ax.set_xticklabels(["pre (LOSO)", "acute", "sub", "chronic"], fontsize=8)
-        ax.set_title("FROZEN pre-stroke decoder (ITI licks, never refit)\n(lags 0..0.2 s; grey = animals)", fontsize=9)
+        ax.set_title("FROZEN pre-stroke decoder (ITI licks, never refit)\n(lags 0..0.2 s; gray = animals)", fontsize=9)
         ax.axhline(0, color="0.8", lw=0.6)
         for sp in ("top", "right"):
             ax.spines[sp].set_visible(False)
@@ -1023,7 +1051,7 @@ def summarise(labels: list[str]) -> None:
     meta.to_csv(OUT / "sessions_meta.csv", index=False)
     print("== sessions per animal x epoch (n bout-start ITI licks, summed)\n"
           + meta.pivot_table(index="animal", columns="epoch", values="n_bout", aggfunc="sum").reindex(columns=EP4).to_string())
-    print(f"clock check (median |3-D post-cue peak - behaviour lick peak|, s): max over sessions {meta.clock_med_s.max():.3f}")
+    print(f"clock check (median |3-D post-cue peak - behavior lick peak|, s): max over sessions {meta.clock_med_s.max():.3f}")
     bl = pd.DataFrame([{"label": x, "animal": str(d["animal"]), "epoch": str(d["epoch"]),
                         "nfol": float(d["bout_nfol"][d["bout_gap"] >= GAP_MAIN].mean()),
                         "isolated": float((d["bout_nfol"][d["bout_gap"] >= GAP_MAIN] == 0).mean())}
@@ -1274,7 +1302,7 @@ def _star(ax, x):
 
 
 def session_dots(ax, T: pd.DataFrame, val: str, colors: dict, rng) -> list[dict]:
-    """One dot per session per epoch (epoch colour), mean +- SEM over sessions, * = nested-bootstrap CI of the change
+    """One dot per session per epoch (epoch color), mean +- SEM over sessions, * = nested-bootstrap CI of the change
     from pre excludes 0. T: label, animal, epoch, <val>. Returns the test rows. = `dots_compute` + `dots_draw`."""
     S = dots_compute(T, val, rng)
     dots_draw(ax, S, colors)
@@ -1478,8 +1506,8 @@ def _ramp_pe(D: dict) -> pd.DataFrame:
 def ramp_auc_summary(PE: pd.DataFrame) -> None:
     """14.9 AUC readouts (Priya 10-26): response = AUC 0..0.5 s after lick onset (= the first frame the tongue is
     visible, cam4 `on_frame`); build-up = AUC -0.4..-0.05 s BEFORE it. dF/F x1e3 * s. 10-28 (Priya: response sizes on
-    -1.0..-0.5 s, build-up stays on -1.5..-1.0 s): the RESPONSE AUC uses baseline BASE_RESP and is normalised by the
-    animal's pre response AUC under BASE_RESP; the BUILD-UP AUC keeps BASE and its normalisation (the pre response AUC
+    -1.0..-0.5 s, build-up stays on -1.5..-1.0 s): the RESPONSE AUC uses baseline BASE_RESP and is normalized by the
+    animal's pre response AUC under BASE_RESP; the BUILD-UP AUC keeps BASE and its normalization (the pre response AUC
     under BASE), so the build-up rows are unchanged. Own rng (seed 11) so `--ramp-summary` alone gives the same draws."""
     from figdata import save_fd
     rng = np.random.default_rng(11)
@@ -1536,7 +1564,7 @@ def key_figures_plot(only: tuple = KEY_STEMS) -> None:
             if j == 0:
                 ax.set_ylabel(("FROZEN decoder: " + YR, "same r / animal's pre mean (pre = 1)")[i])
         fig.suptitle("NEURAL: " + FROZEN_TAG + " (lags 0..0.2 s); y = r between decoded and actual lateral tongue-tip position.\n"
-                     "One dot per session, all animals pooled; black = mean +- SEM over sessions. Top: r; bottom: r normalised "
+                     "One dot per session, all animals pooled; black = mean +- SEM over sessions. Top: r; bottom: r normalized "
                      "within animal to its own pre mean. * = change from pre with "
                      "95% nested-bootstrap CI (animals > sessions) excluding 0.", fontsize=9.5, wrap=True)
         fig.tight_layout(rect=(0.01, 0, 0.99, 0.9))
@@ -1570,7 +1598,7 @@ def key_figures_plot(only: tuple = KEY_STEMS) -> None:
         axs[0, 0].legend(fontsize=7, frameon=False, loc="upper left")
         fig.suptitle("NEURAL, NO DECODER: dF/F around self-initiated licks (first ITI lick after >= 2 s without licking), per-session mean "
                      "PETH, all animals pooled: line = mean over sessions, band = SEM (n sessions in legend). Top: raw; bottom: "
-                     "each session divided by its animal's PRE amplitude at the lick (within-animal normalised).\n" + SIG_NOTE,
+                     "each session divided by its animal's PRE amplitude at the lick (within-animal normalized).\n" + SIG_NOTE,
                      fontsize=9.5, wrap=True)
         fig.tight_layout(rect=(0, 0, 1, 0.9))
         save_png_svg(fig, OUT / "figures" / "lick_iti_ramp_sessions.png", dpi=110)
@@ -1918,7 +1946,7 @@ CTRL_FIGS = {   # figdata stem: (grid, figsize, tight rect, ylabels {(row, col):
     "fr_lick_variance": (
         (2, 4), (16, 8), (0.01, 0, 0.99, 0.91), {},
         "FACE: trial-to-trial variability of the FaceRhythm lick factor in the encoder's cue (0..1.5 s) and first-lick "
-        "(-0.1..1.0 s) windows, per session, normalised to each animal's pre mean. var_within = variance after "
+        "(-0.1..1.0 s) windows, per session, normalized to each animal's pre mean. var_within = variance after "
         "removing each spout's mean time course (what the trial-by-trial R2 of Fig 1.16 sees); var_total = all "
         "trials. * = nested-bootstrap change from pre."),
 }
@@ -2107,7 +2135,7 @@ def binned_plot() -> None:
         ax.set_title(ttl, fontsize=9)
         fig.colorbar(im, ax=ax, fraction=0.03)
     fig.suptitle("NEURAL: " + FROZEN_TAG + ", BINNED (lateral tongue-tip position; r = decoded vs actual) -- sweep of window x bin width (boxed = configuration selected "
-                 "on PRE r only). Left: pre-stroke leave-one-session-out r; right: chronic r normalised to each animal's pre.",
+                 "on PRE r only). Left: pre-stroke leave-one-session-out r; right: chronic r normalized to each animal's pre.",
                  fontsize=9.5, wrap=True)
     fig.tight_layout(rect=(0, 0, 1, 0.93))
     save_png_svg(fig, OUT / "figures" / tagged("lick_binned_sweep.png"), dpi=110)

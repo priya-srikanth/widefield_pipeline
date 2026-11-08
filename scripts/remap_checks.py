@@ -1,6 +1,6 @@
 """Checks on the per-session vs frozen REMAPPING maps (Priya 10-25: "this is striking, can we review" -> checks 1, 2):
 
-  1. TIME COURSE: session mixed models (`wfield_local.mixed_models`, time y ~ post + post:lday and behaviour y ~ post +
+  1. TIME COURSE: session mixed models (`wfield_local.mixed_models`, time y ~ post + post:lday and behavior y ~ post +
      post:deficit) of the remapping gain (self - frozen, per session) per area group x regressor group. A stroke effect
      steps up at the stroke and / or tracks the deficit; slow drift rises steadily with log day and is larger in later,
      better-behaving sessions (the Layer 2 control-area signature, ENCODING_FINDINGS 8.11).
@@ -110,7 +110,7 @@ def check_time_course(U: pd.DataFrame, out: Path, deficits) -> None:
     L = mm.add_time_covariates(L)
     for dname in deficits:
         from wfield_local import run_mode as _rm
-        Ld = mm.add_deficit(L, mm.deficit(_rm.deficit_qc_dir(), dname))   # THIS run's trial_attempts table
+        Ld = mm.add_deficit(L, mm.deficit(_rm.deficit_qc_dir(dname), dname))   # THIS run's trial_attempts table
         T = mm.lmm_table(Ld, ["source", "measure"], ("time", "behaviour"), fdr_by=("source",),
                          print_animals=(dname == deficits[0]))
         T.to_csv(out / f"remap_lmm_{dname}.csv", index=False, float_format="%.5g")

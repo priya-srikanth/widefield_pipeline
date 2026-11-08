@@ -1,12 +1,12 @@
-"""BEHAVIOUR-MATCHED RESIDUAL (Priya 10-25, analysis 4 of the synthesis): is the chronic residual (cortex responding more
-than the frozen pre-stroke mapping predicts) a frozen-model EXTRAPOLATION artefact -- post trials whose movements lie
+"""BEHAVIOR-MATCHED RESIDUAL (Priya 10-25, analysis 4 of the synthesis): is the chronic residual (cortex responding more
+than the frozen pre-stroke mapping predicts) a frozen-model EXTRAPOLATION artifact -- post trials whose movements lie
 outside anything the pre-stroke model saw -- or present for movements inside the pre-stroke range?
 
 Per trial (the frozen run's saved per-trial parts, `trial_parts`: data and full prediction averaged over each trial's
 Musall window, cue 0..1.5 s / lick -0.1..+1.0 s around the first lick; per Allen area) the residual = data - full.
-Behaviour per trial: first lick's 3-D endpoint (side_ml, out_ap, down_dv mm), reach_mm, speed_peak, its 3-D peak time
+Behavior per trial: first lick's 3-D endpoint (side_ml, out_ap, down_dv mm), reach_mm, speed_peak, its 3-D peak time
 (latency proxy), and the trial's lick count (trial_attempts.csv). ENVELOPE, per animal x spout: the pre-stroke trials'
-features standardised by the pre mean / SD; a trial is INSIDE when its Mahalanobis distance to the pre trials (pooled pre
+features standardized by the pre mean / SD; a trial is INSIDE when its Mahalanobis distance to the pre trials (pooled pre
 covariance, ridge 1e-3) is <= the 95th percentile of the pre trials' own leave-one-session-out distances. Residual
 change vs pre (within animal, nested bootstrap) for ALL attempted trials vs INSIDE-envelope trials only; per-animal
 table first. If the residual survives on inside-envelope trials, extrapolation does not explain it.
@@ -114,7 +114,7 @@ def main(argv=None) -> int:
     Env.to_csv(out / "trials.csv", index=False)
     pd.set_option("display.width", 220)
     share = Env.groupby(["animal", "epoch"]).inside.mean().unstack("epoch").reindex(columns=ffc.EP4)
-    print("== share of 3-D-tracked trials INSIDE the pre-stroke behavioural envelope (per animal)\n" + share.round(2).to_string())
+    print("== share of 3-D-tracked trials INSIDE the pre-stroke behavioral envelope (per animal)\n" + share.round(2).to_string())
     fc = Env[Env.pos.str.contains("far_contra|far_R")].groupby(["animal", "epoch"]).inside.mean().unstack("epoch")
     print("== far contra only\n" + fc.reindex(columns=ffc.EP4).round(2).to_string())
     M = R.merge(Env[["label", "trial_id", "inside", "maha"]], on=["label", "trial_id"], how="left")
@@ -133,7 +133,8 @@ def main(argv=None) -> int:
           [["frame", "window", "area", "epoch", "point", "lo", "hi", "n_up", "n"]].round(2).to_string(index=False))
     sels = ["all trials", "3-D tracked", "inside envelope"]
     ffc.ALAB.update({"MOs_right": "MOs contra", "MOs_left": "MOs ipsi"})
-    ffc.COL.update(dict(zip(sels, ["#999999", "#66a61e", "#d95f02"])))
+    from wfield_local.cat_points import MODEL_COLORS as _MC      # the shared model palette (Priya 11-07)
+    ffc.COL.update(dict(zip(sels, [_MC[5], _MC[0], _MC[2]])))
     fig, axs = plt.subplots(2, 1, figsize=(15, 8.5))
     for ax, w in zip(axs, ffc.WINDOWS):
         ffc.bars(ax, Bt[Bt.window == w], sels, AREAS, "residual change from pre (x1e3 dF/F)",
@@ -142,7 +143,7 @@ def main(argv=None) -> int:
     fig.suptitle(f"NEURAL: is the chronic residual a frozen-model extrapolation? ({a.tag}). Envelope = per animal x spout, "
                  "Mahalanobis distance on first-lick 3-D endpoint, reach, peak speed, latency and lick count <= the\npre "
                  "trials' leave-one-session-out 95th percentile. Bars = mean of animals; whisker 95 % nested CI; * excludes "
-                 "0; dots = animals; grey band = pre split-half range. contra = right.", fontsize=9)
+                 "0; dots = animals; gray band = pre split-half range. contra = right.", fontsize=9)
     fig.subplots_adjust(left=0.05, right=0.88, top=0.88, bottom=0.07, hspace=0.4)
     save_png_svg(fig, out / "figures" / "matched_residual.png", dpi=105)
     plt.close(fig)

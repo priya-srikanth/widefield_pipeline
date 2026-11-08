@@ -1,20 +1,20 @@
-"""Session-level mixed models for the imaging / behaviour tables that already carry one value per session (Priya
+"""Session-level mixed models for the imaging / behavior tables that already carry one value per session (Priya
 2026-10-20: "take a close look at the current imaging analyses - decide where lmm approach would make sense and prepare
 code to do so ... avoiding redundancy"). Models and conventions: wfield_local/mixed_models.py (the shared definition).
 
 WHICH ANALYSES, AND WHY THESE (survey 10-20, DECISIONS):
   trend      qc/position_coding_trend_recovery_sessions.csv (scripts/position_coding_trend_recovery.py): the position
-             ceiling (category - none) and the per-spout spread, pre + post sessions -> time + behaviour models
+             ceiling (category - none) and the per-spout spread, pre + post sessions -> time + behavior models
   decoder    grant_figures/epoch/data/recovery_trajectory_{unmatched,matched}_cue_working.csv
              (wfield_local/recovery_trajectory.py): frozen / refit decoder recall, gap, F_deficit, G_reorg -- POST rows
              only, already expressed against the animal's pre -> post-only models y ~ lday and y ~ deficit
              (random intercept + slope per animal when estimable). The pre sessions (`*_presessions.csv`, held-out
-             frozen = LOSO) are drawn on the time_post figures as pre-coloured dots at their negative days; not fitted
-  behaviour  cohort/tables/prepost/session_metrics.csv (wfield_local/orofacial_cohort.py): response rate, contact,
-             latency, pre-cue licking, ipsi bias ... -> time model only (the deficit is itself behaviour)
+             frozen = LOSO) are drawn on the time_post figures as pre-colored dots at their negative days; not fitted
+  behavior  cohort/tables/prepost/session_metrics.csv (wfield_local/orofacial_cohort.py): response rate, contact,
+             latency, pre-cue licking, ipsi bias ... -> time model only (the deficit is itself behavior)
   epoch      grant_figures/epoch/data/*_sessions_long.csv (scripts/epoch_sessions_long.py, other window 10-21): the epoch
              scalar families 8g / 10 / 10b / 11 / 11amp / 11pos / 11c per session (pre sessions scored leave-one-out,
-             August pre) -> time / behaviour / epoch models; source = `epoch:<family>`, measure = "<measure> | <arm> |
+             August pre) -> time / behavior / epoch models; source = `epoch:<family>`, measure = "<measure> | <arm> |
              <position>". CD window projections (family cd): PRE ROWS ARE IN-SAMPLE (directions fitted on them), so
              CD gets the post-only models only (y ~ lday, y ~ deficit), never a step from pre.
 ALREADY ON THE MODULE: the encoding measures (scripts/encoding_mixed.py) and the within-spout slopes
@@ -22,7 +22,7 @@ ALREADY ON THE MODULE: the encoding measures (scripts/encoding_mixed.py) and the
 NOT HERE: pixel maps keep beta_maps.significance_contour / vs_zero_contour.
 
 Output: <run>/imaging_encoding/qc/imaging_lmm.csv + imaging_lmm_summary.csv.
-Usage: PYTHONPATH=. python scripts/imaging_lmm.py [--sources trend,decoder,behaviour,epoch]
+Usage: PYTHONPATH=. python scripts/imaging_lmm.py [--sources trend,decoder,behavior,epoch]
 """
 from __future__ import annotations
 
@@ -116,7 +116,7 @@ def epoch_tables() -> tuple[pd.DataFrame, pd.DataFrame]:
 
 
 def post_only_table(L: pd.DataFrame) -> pd.DataFrame:
-    """Post-stroke-only sources: y ~ lday (time) and y ~ deficit (behaviour), random intercept (+ slope)."""
+    """Post-stroke-only sources: y ~ lday (time) and y ~ deficit (behavior), random intercept (+ slope)."""
     from wfield_local import mixed_models as mm
     from wfield_local.orofacial_stats import bh_fdr
     rows = []
@@ -144,7 +144,7 @@ def figures(L: pd.DataFrame, T: pd.DataFrame, figs: Path, sfx: str = "") -> None
     sets = [("trend", ("ceiling", "spread", "spread_enl"), ("time", "behaviour"),
              "position ceiling / spread (trend table)"),
             ("behaviour", ("resp_rate", "contact_frac", "latency_ms", "ipsi_bias_deg", "angle_gain_far",
-                           "precue_rate_hz"), ("time",), "behaviour (orofacial session metrics)")]
+                           "precue_rate_hz"), ("time",), "behavior (orofacial session metrics)")]
     sets += [(f"decoder_{t}", DECODER_METRICS, ("time_post", "behaviour_post"),
               f"frozen / refit decoder ({t}; post-stroke only)") for t in ("unmatched", "matched")]
     ep = [f"{m} | {arm}" for arm in ("cue / working", "lick / lick") for m in ("frozen EV", "EV after rescale")]
@@ -172,7 +172,7 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--run", default=oc.RUN)
     ap.add_argument("--sources", default="trend,decoder,behaviour,epoch")
-    ap.add_argument("--deficit", default=None, help="behavioural index (mixed_models.DEFICITS); non-default -> *_<name>")
+    ap.add_argument("--deficit", default=None, help="behavioral index (mixed_models.DEFICITS); non-default -> *_<name>")
     a = ap.parse_args(argv)
     run_root = oo.root(PathResolver()) / a.run
     E = oo.encoding_root(a.run)
@@ -181,10 +181,11 @@ def main(argv=None) -> int:
     if set(a.sources.split(",")) != {"trend", "decoder", "behaviour", "epoch"}:   # a subset never overwrites the full set
         sfx += "_" + "-".join(a.sources.split(","))
     from wfield_local import run_mode as _rm
-    deficit = mm.deficit(_rm.deficit_qc_dir(), dname)   # THIS run's trial_attempts table (was <E>/qc: missing in a tagged run)
+    deficit = mm.deficit(_rm.deficit_qc_dir(dname), dname)   # THIS run's trial_attempts table (was <E>/qc: missing in a tagged run)
     src = a.sources.split(",")
     tabs, L, D, C = [], None, None, None
-    prepost = [f(E if f in (trend_table, push_table) else run_root)
+    # trend: the run's tagged encoding qc, where position_coding_trend_recovery.py writes it (D9 11-08); push: <E>/qc
+    prepost = [f(_rm.encoding_out_root() if f is trend_table else E if f is push_table else run_root)
                for name, f in (("trend", trend_table), ("behaviour", behaviour_table), ("push", push_table)) if name in src]
     if prepost:
         L = mm.add_time_covariates(pd.concat(prepost, ignore_index=True))

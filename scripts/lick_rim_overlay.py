@@ -3,7 +3,7 @@
 Pre-stroke lick response per pixel (ITI bout starts with >= 2 s quiet; dF/F x1e3, 0..0.3 s minus -1.5..-1.0 s; one map per
 session from the session's adopted hemo-corrected SVD (Ub @ V), drift removed as `iti_licks.extract`; mean of the
 animal's PRE sessions, then mean of animals), drawn on the brain mask, with:
-  grey dashed  the 16-px stat-mask rim (excluded from ROI / area averages in ROI v1-v2)
+  gray dashed  the 16-px stat-mask rim (excluded from ROI / area averages in ROI v1-v2)
   cyan         pixels ROI v4 adds back (thin rim, lateral edge only, anterior of RIM_LAT_AP_MIN)
   black / green ALM / tjM1 (v4); magenta SSp-m, orange SSp-n (Allen)
 Output figures/lick_rim_overlay.png (figdata figdata/lick_rim_overlay.pkl; --plot-only redraws).
@@ -28,7 +28,7 @@ def one(item):
     from wfield_local import combined_encoding as ce
     label = item[0]
     V, ft, Ub, flat, parea, names, shape, pstat = ce.load_imaging(label)
-    z = il._load(label, il.XOUT / "sessions_roi2")            # lick times only (identical in every ROI version)
+    z = il._load(label, il.XOUT / il.SESS_NAME)            # lick times only (identical in every ROI version)
     t = z["bout_t"][z["bout_gap"] >= 2.0]
     Q = np.linalg.qr(ce._slow_basis(ft, ce.DRIFT_MIN_PERIOD_S))[0]
     Vd = V.astype(np.float64) - Q @ (Q.T @ V.astype(np.float64))
@@ -45,8 +45,8 @@ def one(item):
 def compute(jobs: int) -> dict:
     from wfield_local import analysis_kit as ak
     from wfield_local import combined_encoding as ce
-    labels = sorted(p.stem for p in (il.XOUT / "sessions_roi2").glob("*.npz"))
-    pre = [x for x in labels if str(il._load(x, il.XOUT / "sessions_roi2")["epoch"]) == "pre"]
+    labels = sorted(p.stem for p in (il.XOUT / il.SESS_NAME).glob("*.npz"))
+    pre = [x for x in labels if str(il._load(x, il.XOUT / il.SESS_NAME)["epoch"]) == "pre"]
     got, fail = ak.fan_sessions([(x,) for x in pre], one, jobs=jobs, label="rim overlay", log=lambda m: None)
     for it, err in fail:
         print("  !!", it[0], err, flush=True)

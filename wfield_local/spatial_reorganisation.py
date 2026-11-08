@@ -79,7 +79,7 @@ def _area_matrix_uncached(s, align="cue", source="roi", post_all_trials=True):
     POST-STROKE SESSIONS USE ALL TRIALS (Priya, 2026-08-18). The missing licks ARE the phenotype, so
     discarding no-lick trials removes the effect being measured. This is not a small correction
     post-stroke: PS94 8/18 is only 40% engaged, so an engaged-only version reads a minority subset
-    selected by the behaviour the lesion disrupted. Pre-stroke keeps the engaged cut (the mismatch is
+    selected by the behavior the lesion disrupted. Pre-stroke keeps the engaged cut (the mismatch is
     declared in nolick_analysis.SANCTIONED_MISMATCHES). An earlier version filtered BOTH sides to
     engaged trials, contradicting the decision it was written under.
    """
@@ -174,7 +174,7 @@ def _flag_mirror(rec, resemblance_floor=None):
 
     TRANSFER means the pattern now resembles the OPPOSITE hemisphere's more than its own, so mirror
     must actually exceed normal AND the shift must beat the pre-stroke baseline by MIRROR_MARGIN. An
-    even earlier version required only the shift, and so labelled PS94 close_R "transfer" when normal
+    even earlier version required only the shift, and so labeled PS94 close_R "transfer" when normal
     was +0.718 against mirror +0.323 -- the pattern had not moved anywhere, it had merely become less
     asymmetric. REDUCED ASYMMETRY is that weaker, different claim and keeps its own flag.
     """
@@ -454,7 +454,7 @@ def _plot_chunk(cols, POS, out_dir, align, part, n_parts):
             ax.set_ylabel("correlation with pre-stroke pattern", fontsize=8)
             ax.legend(fontsize=6.5, loc="lower left")
     fig.suptitle(
-        f"SPATIAL REORGANISATION, {align}-aligned. TOP: between-position CROSSNOBIS distance -- "
+        f"SPATIAL REORGANIZATION, {align}-aligned. TOP: between-position CROSSNOBIS distance -- "
         "noise-unbiased, required here because post-stroke sessions differ in trial count AND in "
         "response extent, so a plain correlation RDM would move on that alone. LOWER distance = the "
         "positions became less distinguishable, which is the same statement as a decoder failing. "
@@ -462,7 +462,7 @@ def _plot_chunk(cols, POS, out_dir, align, part, n_parts):
         "because mean distance averages over PAIRS and a four-position session has six of them "
         "against fifteen. BOTTOM: does each post-stroke pattern resemble its OWN pre-stroke pattern "
         "(blue) or the HEMISPHERE-SWAPPED one (orange)? Orange above blue would mean the pattern "
-        "relocated across the midline. Dashed grey = the pre-stroke mirror-minus-normal baseline, "
+        "relocated across the midline. Dashed gray = the pre-stroke mirror-minus-normal baseline, "
         "because a symmetric brain already has substantial mirror correlation and only an excess "
         "over it means anything. Where NEITHER bar is appreciably positive the pattern resembles "
         "nothing and is marked PATTERN LOST -- a different and stronger claim than relocation."

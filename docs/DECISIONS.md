@@ -11,15 +11,15 @@
 - MERGED UNITS: sniff_prelick + nose_prelick_slow = prelick_nose; run_onset_jaw + prep_jaw = slow_jaw (master spatial cos
   .99, unstable even in null fits). The fast jaw factors stay separate (merging the whole jaw cluster would hide their
   acute loss).
-- MAP STATISTICS (Priya "ok for the stats as you propose"): CLUSTER MASS is the map test (mesh neighbours, |t| > 2,
+- MAP STATISTICS (Priya "ok for the stats as you propose"): CLUSTER MASS is the map test (mesh neighbors, |t| > 2,
   sign-separate), the MAX-STATISTIC the point-level one; shuffles WITHIN animal; every session-shuffle test gets an
   early-vs-late PRE DRIFT CONTROL (`face_rhythm.stats.session_shuffle_test`, `drift_split`). Spectra: keep the
   max-statistic (changes are narrow peak shifts; clusters along frequency find fewer). Maps drawn like the speed maps:
-  every point coloured, rings red = up / blue = down; marked points never in the pale middle of the scale.
+  every point colored, rings red = up / blue = down; marked points never in the pale middle of the scale.
 - PER-SESSION TESTS ARE THE MAIN SHAPE TESTS (Priya "ok"): every session's own fit (own8) matched to the master; maps,
   scalars (asymmetry, spatial / spectral angle to the animal's pre mean, side specificity) and factor loss as delta vs
   each animal's own pre; within-animal session shuffles, no refit (`scripts/face_rhythm_session_loading_perm.py`,
-  `scripts/face_rhythm_session_shape_tests.py`). WHY: the pooled-fit refit null is inflated for factors that reorganise
+  `scripts/face_rhythm_session_shape_tests.py`). WHY: the pooled-fit refit null is inflated for factors that reorganize
   after the stroke (lick_left: pre-only pooled fits 4-7 deg, shuffled pools up to 37 deg, regardless of how many acute
   sessions they hold) -- a fragility check flags such factors (lick_left, lick_far_nose) as "pooled test
   inconclusive"; and a pooled fit is not the average of the animals (chronic lick_left: 3 / 4 animals' own fits +.27
@@ -33,6 +33,27 @@
   an exclusion sensitivity.
 - FIGURES Priya likes for the page: cue- and lick-aligned speed maps (permutation versions), per-session lick_right /
   lick_left weighting, per-session other lick factors.
+- (night) v2 is now the DEFAULT `--match-rule` (epoch_shape, drift_floor, cohort_null; v1 selectable; folders keyed on
+  the rule name, so nothing moved).
+- (night) EVERY MAP TEST AT 10,000 SHUFFLES, like the scalars (Priya "should the speed maps be 10k?"): at 2,000 a p
+  near .05 carries ~+-.005 Monte-Carlo error and 4 / 14 / 17 clusters of the position / aligned / session-loading
+  maps sat at p .03-.08. Re-run: position maps unchanged; aligned lick maps gain 2 small clusters; the cue-aligned
+  drift control loses its far_center cluster (2 left, both at far_R, where the post-stroke change is a decrease);
+  session loading: lick pair unchanged, two exploratory flips. Page / slide text reworded with Priya's OK.
+- (night) RHYTHM-BAND MAPS (`scripts/face_rhythm_band_maps.py`): per-point spectra x a unit's master frequency
+  profile (v2 units) = movement in that unit's rhythm, no refit; lick_right + lick_left share one band, read by
+  spout. Cue 0..+4 s only (no spectra stored for the 0..2 s window). The rhythm GRADIENT is tested per session as
+  band minus lick rhythm (face-wide mean log2), within-animal shuffles, Holm over 6 bands x 3 epochs.
+- (night) WORDING (Priya asked what "the 7 Hz band falls more" means): the 'lick_ongoing_7Hz' profile is the UPPER
+  part of the lick spectrum (6.5-15 Hz), so the result is reported as a downward FREQUENCY SHIFT of face movement,
+  not as the loss of a separate fast movement; quantified directly by the spectrum's power-weighted center
+  (3-15 Hz main, 4-12 Hz sensitivity; log-frequency mean because the bins are log-spaced).
+- (night) AMERICAN SPELLING EVERYWHERE (Priya): prose in pages, deck, docs and code string literals uses American
+  spellings (center, color, behavior, normalized, gray, labeled). Code identifiers, file names, paths and column names
+  are NEVER renamed (outputs and caches are keyed on them). Files whose SOURCE feeds a cache key (map_collect
+  code_digest / closure, trial_classes csig, result_cache code_version, combined_encoding._CACHE_CODE = full bytes of 7
+  files, rest_frozen_decoder_nl._code_key) are left alone: even a docstring edit there invalidates a cache (section G
+  lost ~1 h to one today). Convert those only when a render is about to rebuild that cache anyway.
 
 ## 2026-10-28 (late night) -- balance definition for recovery markers (Priya)
 - PRIMARY marker FIXED (Priya "proceed with the model including SSs"; "what's the harm in 0-0.5"): gain ratio 0.1..0.5 s
@@ -58,7 +79,7 @@
   -ll, -tr.
 - Recovery-marker cross-validation is now a committed script (scripts/lick_recovery_markers.py; reproduces the earlier
   ad-hoc 14.16 numbers exactly): LOAO (with within-animal shuffle null), leave-one-EPOCH-out, LOSO animal unknown / known.
-  Pre sessions scored leave-one-pre-session-out for the grey reference cloud (14.16, 14.17). Fair pre-fit weights =
+  Pre sessions scored leave-one-pre-session-out for the gray reference cloud (14.16, 14.17). Fair pre-fit weights =
   fit on the OTHER animals' pre licks (z-scored balances).
 - Residual-ROI maps: per-area outlines + fading; atlas areas with no value (FRP, AUDd / AUDpo right, VISp left) blanked
   in the display (they were the 'edge fragments').
@@ -67,7 +88,7 @@
 
 ## 2026-10-28 -- Key figure and cued wording (Priya)
 - KEY FIGURE replaced (Priya: "yes to your A and B; and use the newer behavior recovery metric"): Key figure 1 =
-  scripts/key_figure.py (A behaviour = far-contra FIRST-lick aim; B/C frozen vs epoch-refit lateral decoders, + the old
+  scripts/key_figure.py (A behavior = far-contra FIRST-lick aim; B/C frozen vs epoch-refit lateral decoders, + the old
   far-contra code on hits; D ITI like-for-like offset, any-spout and same-target). Key figure 2 = Fig 13.2 (lick order;
   Priya "another key figure"). The old key figure stays as Fig 0.6.
 - CUED "read ahead of the failing movement" RETIRED (Priya "ok to reword"): the cued like-for-like offset is target
@@ -76,3 +97,13 @@
 - 'Where things stand' bottom line rewritten 10-28 (10-25 version: FINDINGS section 0).
 - ALM / tjM1 encoder rows keep the STAT MASK (rim check: no difference, scripts/checks/rim_check_alm_tjm1.py).
 - Like-for-like curves (12.2) Gaussian-smoothed with the offset's sigma, no display bins; SEM over ANIMALS.
+
+## 2026-11-07 -- Where-decoder: UNSCALED features are primary; within-session z-scoring is supplementary at most (Priya)
+
+Priya 11-07: "different gains per area would be meaningful, i don't think we want to normalize this way." The 10-26
+within-session z-score check (`scripts/iti_zscore_check.py`: every area divided by its session frame-wise SD, pre and
+post) removes per-area gain changes, which may be part of the stroke effect. Primary = the unscaled frozen where-decoder
+(`where_decoder_tests.csv`); z-scored outputs (`zscore_check/*_z*`) are a sensitivity check only. Page figures drawn
+from z-scored producers (Fig 10.2, 12.5-12.7, 13.3, 16.3-16.5) switch to unscaled producers in the replacement pass.
+Where the two disagree (e.g. cued sagittal subacute -21 % unscaled vs -9 % z-scored) the gap is the part explained by
+per-area gain. Fig 10.2 key statement rewritten the same day (FINDINGS / ENCODING_FINDINGS, unscaled numbers).

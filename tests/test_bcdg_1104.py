@@ -1,9 +1,9 @@
 """Priya 11-04, items B / C / D / G (DECISIONS 2026-11-04); main 4a37cbc8 ported to the cohort-1 rebuild.
 
 Pins:
-  B  the discriminators' spout-frame centre rows: "working" by default (`spout_scaling.state_disc_centre`), "engaged"
-     selectable; `precue_engagement_states._working_frame` centres on the camera working rows only.
-  C  `spout_scaling.projection_arrays` under WIDEFIELD_PROJECTION_CENTRE=working centres each session on its working
+  B  the discriminators' spout-frame center rows: "working" by default (`spout_scaling.state_disc_centre`), "engaged"
+     selectable; `precue_engagement_states._working_frame` centers on the camera working rows only.
+  C  `spout_scaling.projection_arrays` under WIDEFIELD_PROJECTION_CENTRE=working centers each session on its working
      rows (a FrozenFrame over them), refuses to run without the masks, and is the identity while the frame is off.
   D  `pooled_frozen_loso` scores the camera WORKING rows of a working-trained model by default, and the engaged rows
      under WIDEFIELD_SECTION_D_SCORED=engaged (the pre-11-04 scored set, bit for bit).
@@ -338,7 +338,7 @@ def test_cto_and_n_follow_the_check_definitions():
 
 def test_wt_scores_section_d_and_carries_its_tag(fake_loso_big, monkeypatch):
     """Wt through pooled_frozen_loso on a pool with >= 20 working rows per spout: the scored frame equals
-    (X - Wt centre) / working SD for a post session, and the result is tagged."""
+    (X - Wt center) / working SD for a post session, and the result is tagged."""
     XE, YE, GE, XU, YU, GU, we, wu, kept = fake_loso_big     # >= 20 working rows per spout in every session
     monkeypatch.setenv(ss.SCORE_CENTRE_ENV, "wt")
     seen = {}

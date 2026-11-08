@@ -32,7 +32,7 @@ corrected frames, over the 92 sessions that carry a mask:
 | **chronic** | 14 | **0.031** | **0.007** | 0.004 |
 
 The QUIET subtrahend is therefore estimated from a different fraction of the session, in a different
-behavioural context, at every epoch — and at chronic from a **median 0.7% of frames**.
+behavioral context, at every epoch — and at chronic from a **median 0.7% of frames**.
 
 *(The first explanation offered for this — "post-stroke animals miss more, so earn fewer rewards, so
 less of the session is buffered out" — was challenged by Priya on the grounds that
@@ -41,7 +41,7 @@ misses. She then noted misses do still reduce the total. Which term actually dri
 being measured per term rather than argued. ANSWER: it is the LICK term, which excludes 73.7% of
 samples pre-stroke and 82.5% at chronic; reward is near-universal at a median 0.977 per trial.)*
 
-**2. The QUIET reference's chronic agreement is an artefact, and the null proves it.** Mean pairwise
+**2. The QUIET reference's chronic agreement is an artifact, and the null proves it.** Mean pairwise
 between-animal r of each animal's own `chronic − pre` map, against a null that re-pairs animals
 across *different positions* (preserving shared anatomy, warp, rim and glue, destroying only
 position-specific agreement):
@@ -118,7 +118,7 @@ Verified by reading each consumer rather than by grep alone.
 | **State decoder** | `rest` is one of the three classes, **and the 1 s segment length was DERIVED from quiet's 1.10 s median bout** ("a 2 s window discards 83% of quiet") | `epoch_12b*`, `epoch_13*`, and the 0.92 → 0.81 / 0.98 → 0.95 headline in `BEHAVIOURAL_STATE_CONTROL.md` |
 | **Position encoder** | `_quiet_baseline` — a time-local quiet median per component, explicitly "the stable cross-session reference for the pre/post-stroke residual" | the **0.749 → 0.286 → 0.745** convergence result |
 | **Deck sections A–C** | `locanmf_cue_lick_analysis` z-scores every LocaNMF trace by quiet mean/SD (`_quiet_zscore`) | all within-day decode/encode figures |
-| lick-aligned normalised maps | `locanmf_lick_aligned`, `plot_lick_aligned_averages`, `framemap_event_maps --quiet-frame`, `roi_activity` | those maps |
+| lick-aligned normalized maps | `locanmf_lick_aligned`, `plot_lick_aligned_averages`, `framemap_event_maps --quiet-frame`, `roi_activity` | those maps |
 | preprocessing deck | `plot_running_activity_maps` quiet / running / running−quiet | preprocessing deck |
 
 **The state decoder's window length is a DERIVED quantity, not a constant.** It is 1 s *because*
@@ -172,7 +172,7 @@ or cue-only path. The cohort is not mixed.
 | subacute | 18 | 0.064 | 0.057 | 0.008 | 0.145 |
 | chronic | 14 | 0.042 | 0.030 | 0.017 | 0.096 |
 
-**The acute artefact is gone.** Ratio to pre: **acute 1.11** (retired definition: 3.89), subacute
+**The acute artifact is gone.** Ratio to pre: **acute 1.11** (retired definition: 3.89), subacute
 0.78, chronic 0.51.
 
 **And the chronic baseline is estimated from 4.3x more frames** — median 3.0% against 0.7%. That is
@@ -181,8 +181,8 @@ between-animal agreement was position-INDEPENDENT shared offset (observed r = +0
 cross-position null of +0.497).
 
 **CHRONIC IS STILL 0.51 OF PRE, and that is not the reward buffer.** It is the LICK term, which
-excludes 73.7% of samples pre-stroke and 82.5% at chronic. Real behaviour, not a definition
-artefact, and it survives under every candidate definition tested. The chronic column needs its own
+excludes 73.7% of samples pre-stroke and 82.5% at chronic. Real behavior, not a definition
+artifact, and it survives under every candidate definition tested. The chronic column needs its own
 caveat regardless of the baseline.
 
 ### Rest bout duration, and the state decoder's window
@@ -240,7 +240,7 @@ So on the REST baseline, acute:
 The reading those support together is **a broad gain change graded by spout position -- near up, far
 down, monotone -- with a spatially SPECIFIC far-contralateral collapse on top of it**. The gradient
 is the striking part: 1.48 at near-ipsilateral falling monotonically to 0.48 at far-contralateral,
-across six positions that were analysed independently.
+across six positions that were analyzed independently.
 
 ### WHY THIS IS NOT YET ESTABLISHED, and what would establish it
 
@@ -257,7 +257,7 @@ loaded by `position_reference_maps.maps_by_epoch` -- and it has not been run.
 pre-stroke rest fraction, and the lick term alone excludes 73.7% of samples pre-stroke against 82.5%
 at chronic. If the rest baseline itself shifts, `activity - rest` shifts with it, and a
 POSITION-INDEPENDENT amplitude change is exactly the signature that confound would produce. That the
-change is GRADED by position argues against a pure baseline artefact -- a baseline shift should
+change is GRADED by position argues against a pure baseline artifact -- a baseline shift should
 affect all six positions equally -- but the gradient has not been tested against that alternative.
 
 **3. THE CHRONIC COLUMN SHOWS SHARED OFFSETS ARE REAL IN THIS DATA.** Under REST, chronic observed
@@ -291,7 +291,7 @@ removes nothing real.**
 
 ### The alarm
 
-Rest periods labelled by position ONLY where the preceding and following trial share one (so the
+Rest periods labeled by position ONLY where the preceding and following trial share one (so the
 label is unambiguous; positions run in ~6-trial blocks, so this is the common case). Each position's
 rest map minus the animal's own across-position mean, nested animals->sessions bootstrap vs zero,
 eroded stat mask, max-statistic threshold -- the same machinery every map figure uses:
@@ -357,7 +357,7 @@ reports "passed" without executing is worse than one that fails.
 
 ---
 
-## 2026-09-13 — the behaviour log DOES carry spout dock timing, and REST currently starts ~0.65 s too early
+## 2026-09-13 — the behavior log DOES carry spout dock timing, and REST currently starts ~0.65 s too early
 
 Priya: *"the behavior log should have the spout dock arrival and leave timing."* It does, and the
 limitation recorded in the correction above -- "the pipeline cannot see the retraction" -- is

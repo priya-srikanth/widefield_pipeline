@@ -165,7 +165,7 @@ I made no code changes and pushed nothing. The basis is the author's log (`docs/
    - `locanmf_session.load_C` default is the same file and the same `np.load` at every replaced site;
    - `_class_select` under daq is byte-identical (frozen-copy test, exact).
 2. **One hemo switch.** Flipping `defaults.yaml hemo.variant` alone (scratch copy) moved svtcorr_path, ADOPTED (at import), locanmf_dir_name, hemo_dir, maps_dir_tag, run_mode tag, effective_kind and project_all. Traps T2 / T3 / T4 / T7 are fixed in wfield_local. No direct ADOPTED / literal-variant / env reads remain in wfield_local. The exceptions are in scripts (L2).
-3. **Joint basis.** Under a non-default variant every consumer goes through a variant-aware path: BasisSource, `_joint_signal` with the project_all check (the nolick fix is real), `signal_or_project`, iti_basis_decoder. Every cache is hv-tagged. `Basis.signal` refuses stored C under project_all. Every `load()` call honours the pin, and nothing else globs basis dirs.
+3. **Joint basis.** Under a non-default variant every consumer goes through a variant-aware path: BasisSource, `_joint_signal` with the project_all check (the nolick fix is real), `signal_or_project`, iti_basis_decoder. Every cache is hv-tagged. `Basis.signal` refuses stored C under project_all. Every `load()` call honors the pin, and nothing else globs basis dirs.
 4. **Fingerprint.**
    - All 15 kinds + matched_frozen hash the rows actually fitted, with the same mask as the fit (per-kind list in review B's notes).
    - `data_fingerprint` hashes dtype + shape + bytes, sorted dicts, ordered lists and exact scalar reprs.
@@ -293,7 +293,7 @@ I made no code changes and pushed nothing. The basis is the author's log (`docs/
 - This undercounts stopped in the sated tail. Options:
   - (a) treat after_end like unknown when counting runs;
   - (b) count them as no_response;
-  - (c) keep this behaviour and document it.
+  - (c) keep this behavior and document it.
 
 **N8. The RESTnl cache key has no config or helper-code coverage (pre-existing; not covered by e04143c6).**
 - `restnl_mask._key:211-220` hashes VERSION, its own source / constants, the session signature and three file stats.
@@ -326,7 +326,7 @@ I made no code changes and pushed nothing. The basis is the author's log (`docs/
 - **Silent "daq" on config failure.** `_selection_cfg` (`trial_classes.py:422-427`) and `stop_run_min` (`:478-482`) catch every exception, so a config failure silently means "daq" / 6. Dangerous once `gate: camera` is the yaml default. Catch ImportError only, or export `WIDEFIELD_TRIAL_GATE` to workers.
 - **Gate exemptions inside shared functions.** `spout_behavior.reference_engagement:706` and `quit_point.session_quit:122` open `daq_quit_rule` themselves. A future imaging caller would get the DAQ rule unrefused and unregistered. Add both to the register regex.
 - **Unknown variants fall through.** `camera_select` / `_class_select` treat an unknown variant as "lick" (e.g. `"miss_working"` returns every engaged row). Raise instead.
-- **Rule edges to confirm with Priya.** A 6+ no-response run at session START, or a mid-session pause, is labelled stopped; comments still say "terminal by construction" (`position_coding_directions.py:1733`, `position_axes.py:274`). A video session with no camera lick at all has no working trials.
+- **Rule edges to confirm with Priya.** A 6+ no-response run at session START, or a mid-session pause, is labeled stopped; comments still say "terminal by construction" (`position_coding_directions.py:1733`, `position_axes.py:274`). A video session with no camera lick at all has no working trials.
 - **Cache-key coverage gaps** (code and files, pre-existing).
   - The bm / prm digests do not cover `locanmf_frozen_decoder._args`, `lick_detection.detect_licks`, `classify_cues_with_backup`, `docked_periods` or `daq_io`.
   - `session_signature` does not stat sessions.yaml `regime` / `fmdir`, the cleanpairs frame map, or `gui_config.json`.
@@ -334,7 +334,7 @@ I made no code changes and pushed nothing. The basis is the author's log (`docs/
 - **`.str[:4]` animal ids** in recovery_timing:320, lick_correction:193, lick_rim_overlay:41 (would break on cohort-2 ids).
 
 ## 3. Verified OK in this pass
-- **Default behaviour** (no env), probed: `tag()` / `cache_tag()` "", `output_tag` None, `keyed_name` / `subdir` identity, `run_selection` = `sel-daq-quittail`, `effective_kind` identity, figures_working writable.
+- **Default behavior** (no env), probed: `tag()` / `cache_tag()` "", `output_tag` None, `keyed_name` / `subdir` identity, `run_selection` = `sel-daq-quittail`, `effective_kind` identity, figures_working writable.
 - **Attempt-coding merge (3988cbe3).**
   - The 9 hand-merged scripts are all OK: iti_basis_decoder, iti_contact_check, iti_first_lick, iti_where_3axis, lick_gain_prediction, iti_lick_order, iti_where_angle_reach, iti_licks, iti_hemo_check.
     - Each differs from the attempt-coding tip only by c61ac5ce's hunks, plus the run_mode line (iti_licks) and the reference row (iti_hemo_check). So every attempt-coding change survives.
@@ -352,7 +352,7 @@ I made no code changes and pushed nothing. The basis is the author's log (`docs/
 - **Camera gate: no hard fail-open path.**
   - Every imaging selection site is wired or fails closed: grant_kit `_class_select` and its callers, beta_maps, position_reference_maps, hemo_map_control, position_coding_directions, position_axes, precue states, nolick categorize, poststroke_engagement, attempt_coding / maps, enl_states, rest_engagement, rest_by_position.
   - `DaqGateRefused` (a SystemExit) survives `except Exception` and fan_out.
-  - Engagement measures (spout_behavior, quit_point, disengagement_tests, s1 quit-tail rows labelled DAQ) are ungated by design.
+  - Engagement measures (spout_behavior, quit_point, disengagement_tests, s1 quit-tail rows labeled DAQ) are ungated by design.
   - The gate-site register test is `tests/test_camera_gate_fail_closed.py`.
 - **Stopped rule** (`apply_stopped_rule:490-514`), by synthetic probes:
   - a run of 6 or more (5 stays no_response) relabels every trial of the run;
@@ -475,7 +475,7 @@ Exception: in face_offset_partial, the "before" decoder `fits0` (`scripts/face_o
 - Fix: make writeguard accept `lp_family_tag()` segments under the LP-family roots (e.g. `routed_output(lp_family=True)` registers the root). Add a test of `is_writable(out_dir()/"_")` under LP with an M:-style path.
 
 **T2. The N11 fix blocks the ITI pipeline in every non-data mode.**
-- Where: `iti_licks.py:2213` `assert_writable(XOUT)`. XOUT is the untagged `iti_licks/` under PRE_FROM / MAP_REFS / inmem / LP / gate-LP / camera, so the guard refuses before extract or summarise.
+- Where: `iti_licks.py:2213` `assert_writable(XOUT)`. XOUT is the untagged `iti_licks/` under PRE_FROM / MAP_REFS / inmem / LP / gate-LP / camera, so the guard refuses before extract or summarize.
 - Before the fix these modes failed later in `labels()`; now they fail at the guard. Either way the ITI family cannot run in these modes.
 - Fix: treat XOUT as a content-keyed store, exempt like the frozen store in N3, and guard it only when an extract will be written. Move the SD-table writers to `XOUT/zscore_check` so they match `_sd_dir`.
 
@@ -485,7 +485,7 @@ Exception: in face_offset_partial, the "before" decoder `fits0` (`scripts/face_o
 - Real data: PS94_0825's only stop run is 12 no_response + 28 jaw_only; PS93_0925 is 38 + 48. 485 jaw-only "reaction" trials now sit in every stopped arm (camera_rows / camera_select, nolick undetected, attempt "stopped", ENL stopped).
 - The decision says jaw-only "counts toward the stop", not that the jaw-only trial is stopped, or that a run needs no no_response.
 - Fix, for Priya to choose:
-  - (a) jaw_late counts toward run length, but only no_response trials are labelled stopped (jaw_late -> after_end); and/or
+  - (a) jaw_late counts toward run length, but only no_response trials are labeled stopped (jaw_late -> after_end); and/or
   - (b) a run needs at least one no_response (or a majority).
   - Add all-jaw and no-lick-session tests.
 
@@ -538,7 +538,7 @@ Exception: in face_offset_partial, the "before" decoder `fits0` (`scripts/face_o
 - **No-lick naming and window.**
   - `nolick_decoder.py:277` relabels a DAQ-undetected cue with a contact as `late_rewarded`, which contradicts the categorize docstring ("no arm past the response window").
   - `poststroke_compare.py:836` uses the run window, not `cue_stop`, for its no-lick split under a non-default window.
-- **Warm-up runs.** A run of 6 or more no_response before the first lick is labelled "stopped" (a warm-up, not satiation); worth one line to Priya. Uncovered-tail sessions never get the N7 rule.
+- **Warm-up runs.** A run of 6 or more no_response before the first lick is labeled "stopped" (a warm-up, not satiation); worth one line to Priya. Uncovered-tail sessions never get the N7 rule.
 - **Stale text.**
   - `attempt_coding.classify` / `attempt_maps.classes_for_rows` docstrings still say noattempt is EMPTY under camera.
   - `coverage_note` stamps "table missing" until `camera_coverage_tables.py` has run.
@@ -604,7 +604,7 @@ Exception: in face_offset_partial, the "before" decoder `fits0` (`scripts/face_o
 - `_code_key` (`:103-108`) hashes code + BINS only. The cache is `fw/rest_decoder_nl_cache` (`:62`), with no hemo / lnmfproj / selection / csig part.
 - `OUT_ROOT = labcams/grant_figures/rest_frozen_decoder_restnl` (`:61`) is literal, and the file has no `require_default` / `assert_writable` / `run_mode` call (grep).
 - So a profile run reuses old-hemo, DAQ-gated session features and overwrites the default 12.1b outputs. Its sibling `rest_frozen_decoder.py` is routed.
-- It was missed because `test_share_writers_mode_safe` scans only `scripts/*.py`, not subfolders and not `wfield_local/`. A broader scan lists about 120 unrouted, unguarded writers in `scripts/rest_migration/`, `scripts/cohort2_qc/`, `scripts/rebuild_figs/` and `wfield_local/` (`review4_A/scan_out.txt`). Most take an explicit `--output`, or are behaviour / cohort-2 products, but each one in the render plan must be checked.
+- It was missed because `test_share_writers_mode_safe` scans only `scripts/*.py`, not subfolders and not `wfield_local/`. A broader scan lists about 120 unrouted, unguarded writers in `scripts/rest_migration/`, `scripts/cohort2_qc/`, `scripts/rebuild_figs/` and `wfield_local/` (`review4_A/scan_out.txt`). Most take an explicit `--output`, or are behavior / cohort-2 products, but each one in the render plan must be checked.
 - Fix: add the run-mode cache tag to `_code_key`, route `OUT_ROOT` through `run_mode.subdir`, and extend the register test to subfolders and `wfield_local/`.
 
 ### MED
@@ -612,7 +612,7 @@ Exception: in face_offset_partial, the "before" decoder `fits0` (`scripts/face_o
 **R2. The tagged analysis deck shows untagged content.**
 - `locanmf_analysis_deck.py:485-486`: `grant_dir` defaults to the untagged `labcams/grant_figures`. Section K (`deck_registry.py:2361+`) uses literal `grant_figures/LP_licks/...` paths and hard-coded numbers.
 - A tagged nightly (`nightly_figs.py:1043`, `grant_dir` not passed) builds `labcams/<tag>/spout_position_analysis_summary.pptx` from the pre-rebuild grant / LP figures.
-- Standalone `python -m wfield_local.locanmf_analysis_deck` (`:2268-2271`) reads the untagged `figures_working` and saves under the tag: a fully default deck labelled as the rebuild.
+- Standalone `python -m wfield_local.locanmf_analysis_deck` (`:2268-2271`) reads the untagged `figures_working` and saves under the tag: a fully default deck labeled as the rebuild.
 - Fix: derive `src` / `grant_dir` / section-K roots from the run mode.
 
 **R3. `scripts/rebuild_figs/` default inputs are untagged pre-rebuild data.**
@@ -637,7 +637,7 @@ Exception: in face_offset_partial, the "before" decoder `fits0` (`scripts/face_o
 - Plain-LP prefix acceptance under LP-family roots.
 - `early_predictors` uses the literal `E`.
 - Warm-up trials sit inside the rest period.
-- A mid-session run of 6 no_response bridged by an isolated in-video unknown is labelled stopped even when licking resumes (`[C,N,N,N,U,N,N,N,C]`). This is consistent with the rule; worth one line to Priya.
+- A mid-session run of 6 no_response bridged by an isolated in-video unknown is labeled stopped even when licking resumes (`[C,N,N,N,U,N,N,N,C]`). This is consistent with the rule; worth one line to Priya.
 
 ## 3. Verdict for the render
 **Not yet safe.**

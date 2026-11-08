@@ -13,7 +13,7 @@ Groups:
                   since an ITI lick has no target (the spout is retracted).
 Per panel, per spout: actual mean (open circle) and decoded mean (filled) with an arrow actual -> decoded and 1-SD
 ellipses (actual solid, decoded dashed). Ridge predictions are SHRUNK toward the mean, so decoded points sit closer to
-the centre even pre-stroke: read each epoch against the pre column, not against the actual points.
+the center even pre-stroke: read each epoch against the pre column, not against the actual points.
 Outputs <E>/iti_licks/where_preds<PRED_TAG>.csv (one row per lick; basis-specific cache name, il.pred_file),
 figures/lick_{cued,iti}_where_scatter.png.
 Usage: python scripts/iti_where_scatter.py [--z] [--plot-only]   (--plot-only: redraw from <E>/iti_licks/figdata/
@@ -120,7 +120,7 @@ DELTA_ROWS = (("trial", "pos", "all"), ("trial", "pos", "on"), ("iti", "near_pos
 def error_change(R: pd.DataFrame) -> pd.DataFrame:
     """Per session x spout: decoded - actual (lateral, sagittal) and the actual / decoded means, MINUS the animal's pre
     value for that spout (pre sessions minus the pre mean too, for the bootstrap). + lateral = contralesional; - sagittal =
-    decoded closer to the mouth than the lick. Subtracting pre removes the ridge's shrinkage toward the centre."""
+    decoded closer to the mouth than the lick. Subtracting pre removes the ridge's shrinkage toward the center."""
     out = []
     for st, gcol, sel in DELTA_ROWS:
         T = R[R.set == st].copy()
@@ -238,7 +238,7 @@ def plot_delta(F: dict) -> None:
            Line2D([], [], marker="s", ls="-", color="k", label="all spouts, 95% nested CI (* excludes 0)")]
     fig.suptitle(ZHEAD * bool(tag) + "NEURAL: how the decoded lick position moved relative to the real one, vs PRE. "
                  f"FROZEN pre-stroke decoder ({il.basis_label()}, lags 0..0.2 s).\nPer spout: (decoded - actual) in the epoch minus "
-                 "the same in pre (removes the decoder's pre-stroke shrinkage toward the centre). 0,0 = same error as "
+                 "the same in pre (removes the decoder's pre-stroke shrinkage toward the center). 0,0 = same error as "
                  "before the stroke.", fontsize=10, y=0.995)
     fig.legend(handles=hd, loc="upper center", ncol=8, fontsize=8.5, frameon=False,
                bbox_to_anchor=(0.5, 0.945 if tag else 0.955))
@@ -316,7 +316,7 @@ def plot(F: dict) -> None:
     fig.suptitle(ZHEAD * bool(tag) + f"NEURAL: decoded vs actual lick landing, {'in-trial' if st == 'trial' else 'ITI (self-initiated)'} licks, "
                  f"grouped by {gname}.\nFROZEN pre-stroke decoder (fit once on each animal's August pre licks, never refit; "
                  f"one ridge per axis, {il.basis_label()} features, lags 0..0.2 s); per lick, lateral x sagittal extension (mm), "
-                 "+ lateral = contralesional.\nThe decoder shrinks predictions toward the centre even before the stroke, "
+                 "+ lateral = contralesional.\nThe decoder shrinks predictions toward the center even before the stroke, "
                  f"so compare each epoch with PRE (change figure: lick_where_delta{tag}.png).", fontsize=10.5, y=0.997)
     fig.legend(handles=hd, loc="upper center", ncol=6, fontsize=9, frameon=False,
                bbox_to_anchor=(0.5, 0.955 if tag else 0.962))

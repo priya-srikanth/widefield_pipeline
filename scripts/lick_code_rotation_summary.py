@@ -3,7 +3,7 @@ far1), ENLv (primary onset >= 1 s after arrival, and its bout starts) side by si
 
 Reads lick_code_noisematch figdata (noisematch.pkl = cued / ITI run, noisematch_enlv.pkl = LICK_CODE_FAMILY=enlv run);
 computes nothing new. Per lick type (column) and post epoch:
-  rows 1-2  observed transfer r (filled, epoch grey) vs the animal's NOISE-MATCHED unrotated null (open green), joined per
+  rows 1-2  observed transfer r (filled, epoch gray) vs the animal's NOISE-MATCHED unrotated null (open green), joined per
             animal (markers = animals); text = pooled real minus null, analysis_kit.boot_delta 95 % CI, n animals same sign
             (noisematch_pooled, null 'matched'). Row 1 pre->post (frozen pre decoder), row 2 post->pre (post-trained).
   row 3     the rotation the real deficit corresponds to (equiv_rotation, primary 'rigid' rotation, noise-matched curve;

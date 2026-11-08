@@ -1,7 +1,7 @@
 """The guide is read by someone who did not build any of this, so the failure modes are social.
 
 The one that matters: sending the labeller to the TRAINING copy. `dlc_train.stage()` overwrites that
-copy's labels from the labelling project on every run, so a correction made there is destroyed by the
+copy's labels from the labeling project on every run, so a correction made there is destroyed by the
 next retrain -- silently, because the file is well-formed either way. Everything else here is about
 the page not going stale or not rendering.
 """
@@ -63,7 +63,7 @@ def test_every_flagged_frame_appears_with_its_picture(built):
 
 def test_frames_of_one_lick_are_grouped_so_they_are_done_together(built):
     """Four offsets are one ~80 ms protrusion; fixing one in isolation makes it disagree with its
-    neighbours, which is why `dlc.frames` pruning keeps a lick whole in the first place."""
+    neighbors, which is why `dlc.frames` pruning keeps a lick whole in the first place."""
     proj, path, s, src = built
     assert 'class="lick"' in s
     assert "same tongue flick" in s
@@ -263,7 +263,7 @@ def test_a_frame_whose_tongue_alone_is_blank_is_not_called_unlabelled(projects):
 
 
 def test_a_frame_with_a_row_but_no_points_at_all_IS_pending(projects):  # noqa: F811
-    """DLC writes an all-NaN row for a frame nobody opened; that one genuinely needs labelling."""
+    """DLC writes an all-NaN row for a frame nobody opened; that one genuinely needs labeling."""
     src, _ = projects
     dt.stage()
     h5 = src / "labeled-data" / "cam4_pre_a" / f"CollectedData_{dt.SCORER}.h5"

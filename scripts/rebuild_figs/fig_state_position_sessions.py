@@ -1,5 +1,5 @@
 """Imaging results page Fig 3.4 (`state_position_sessions.png`; PI-deck slide 13): FROZEN position (6-way) vs
-behavioural-state (3-way) decoders, per session, as the fraction of above-chance performance kept.
+behavioral-state (3-way) decoders, per session, as the fraction of above-chance performance kept.
 
 PROVENANCE: recreated 2026-11-03 (cohort-1 rebuild, step 3) from the share-only
   M:/MICROSCOPE/Priya/Widefield/presentations/_source_PI_overview_2026-11-02/fig_state_position_sessions.py
@@ -8,7 +8,7 @@ PROVENANCE: recreated 2026-11-03 (cohort-1 rebuild, step 3) from the share-only
   argparse (--out / --plot-only / --data-dir), no sys.path insert of widefield_pipeline (uses the repo on PYTHONPATH),
   output folder no longer build_inputs/, figdata pickle (<out>/data/state_position_sessions_figdata.pkl).
 
-Normalised: retained = (balanced accuracy - chance) / (1 - chance); chance 1/6 position, 1/3 state.
+Normalized: retained = (balanced accuracy - chance) / (1 - chance); chance 1/6 position, 1/3 state.
 
 INPUTS (figdata sidecars of the epoch render, read as is, nothing re-run), in --data-dir (default = the original's
 hard-coded M:/MICROSCOPE/Priya/Widefield/labcams/grant_figures/epoch/data):
@@ -21,11 +21,12 @@ hard-coded M:/MICROSCOPE/Priya/Widefield/labcams/grant_figures/epoch/data):
             11-02 21:39 session_z version until the bal_em page edits (docs/status/STATE_BALEM_PAGE_EDITS_2026-11-03.md)
             land; the rebuild render uses the merged state spec (scaling session_bal_em + scaling_params + train_data).
   POSITION  per-session, per-true-position recall of the FROZEN pre-stroke position decoder (cue window, working
-            trials), derived as refit - gap from
+            trials); PRE derived as refit - gap from
               epoch_5r_refit_by_position_cue_working_sessions.csv   (refit recall)
               epoch_5rgap_frozen_vs_refit_cue_working_sessions.csv  (refit - frozen recall, same trials)
             both from `_collect_5c(mode="paired")` (pre = one record PER pre session, LOSO frozen model).
-            Cross-check only: epoch_acc_by_position_cue_working_sessions.csv (mode="frozen", the 13n source).
+            POST from epoch_acc_by_position_cue_working_sessions.csv (mode="frozen", the 13n source; every working
+            trial -- the paired files drop a position where the refit arm cannot train on it, 11-08).
             Rows are paired by within-(epoch, animal, position) ordinal; position and state sessions are NOT matched
             one-to-one (different collectors).
   13n check: epoch_13n_state_vs_position_cue.csv (printed only).
@@ -57,30 +58,54 @@ ANIMALS = ("PS92", "PS93", "PS94", "PS95")
 MARK = {"PS92": "o", "PS93": "s", "PS94": "^", "PS95": "D"}
 EPOCHS = ("pre", "acute", "subacute", "chronic")
 POSITIONS = ("nI", "nM", "nC", "fI", "fM", "fC")
-PANELS = (("position", "Spout position (6-way)", 1 / 6), ("state", "Behavioural state (3-way)", 1 / 3))
+PANELS = (("position", "Spout position (6-way)", 1 / 6), ("state", "Behavioral state (3-way)", 1 / 3))
 # slide table (pooled) and imaging-page 13n sidecar
 TABLE = {"position": (.86, .43, .70, .76), "state": (.98, .87, .82, .84)}
 
 
-def _by_ordinal(src: Path, f: str) -> pd.DataFrame:
+def _by_ordinal(src: Path, f: str, epochs=None) -> pd.DataFrame:
     d = pd.read_csv(src / f)
+    if epochs is not None:
+        d = d[d.epoch.isin(epochs)]
     d["k"] = d.groupby(["epoch", "animal", "position"]).cumcount()
     w = d.set_index(["epoch", "animal", "k", "position"])["value"].unstack("position")
     assert not w.isna().any().any(), f"{f}: missing per-position values"
     return w[list(POSITIONS)]
 
 
+def _check_post(src: Path, post: pd.DataFrame) -> None:
+    """Paired refit - gap vs the frozen-mode sidecar, post-stroke, on every (epoch, animal, position) the paired files
+    hold for EVERY session (ordinal pairing is only valid there)."""
+    r = pd.read_csv(src / "epoch_5r_refit_by_position_cue_working_sessions.csv")
+    g = pd.read_csv(src / "epoch_5rgap_frozen_vs_refit_cue_working_sessions.csv")
+    worst, skipped = 0.0, []
+    for (e, a, q), x in r[r.epoch != "pre"].groupby(["epoch", "animal", "position"]):
+        y = g[(g.epoch == e) & (g.animal == a) & (g.position == q)]
+        ref = post.loc[(e, a), q].to_numpy()
+        if len(x) != len(ref) or len(y) != len(ref):
+            skipped.append(f"{a} {e} {q}")
+            continue
+        worst = max(worst, float(np.abs(x.value.to_numpy() - y.value.to_numpy() - ref).max()))
+    print(f"check post-stroke frozen recall (refit - gap) vs frozen-mode sidecar: max |diff| = {worst:.1e}"
+          + (f"; not comparable (a session lacks the refit value): {', '.join(skipped)}" if skipped else ""))
+
+
 def load(src: Path) -> pd.DataFrame:
-    refit = _by_ordinal(src, "epoch_5r_refit_by_position_cue_working_sessions.csv")
-    gap = _by_ordinal(src, "epoch_5rgap_frozen_vs_refit_cue_working_sessions.csv")
+    # PRE from the paired collector (one record per pre session; refit - gap = frozen recall on the same trials). A
+    # pre session never loses a position to the refit arm's thin-class rule (~1/6 per position).
+    refit = _by_ordinal(src, "epoch_5r_refit_by_position_cue_working_sessions.csv", epochs=["pre"])
+    gap = _by_ordinal(src, "epoch_5rgap_frozen_vs_refit_cue_working_sessions.csv", epochs=["pre"])
     assert refit.index.equals(gap.index)
-    frozen = refit - gap
-    # cross-check against the frozen-mode sidecar (the 13n source)
+    frozen_pre = refit - gap
+    # POST from the frozen-mode sidecar (the 13n source), which scores EVERY working trial. The paired files drop a
+    # position from a session where the REFIT arm cannot train on it (grant_confusion.MIN_REFIT_CLASS / _SHARE), and
+    # this figure has no refit arm: 11-08, PS94_0817 far contra (21 trials, 5.3 %) was dropped there and broke the
+    # row-order pairing. Where both are complete they agree exactly (check below).
     fz = _by_ordinal(src, "epoch_acc_by_position_cue_working_sessions.csv")
     post = fz.drop(index="pre", level="epoch")
-    print(f"check post-stroke frozen recall vs frozen-mode sidecar: max |diff| = "
-          f"{np.abs((post - frozen.loc[post.index]).values).max():.1e}")
-    pre_d = (fz.loc["pre"].droplevel("k") - frozen.loc["pre"].groupby("animal").mean()).abs().values.max()
+    frozen = pd.concat([frozen_pre, post]).sort_index()
+    _check_post(src, post)
+    pre_d = (fz.loc["pre"].droplevel("k") - frozen_pre.loc["pre"].groupby("animal").mean()).abs().values.max()
     print(f"check pre per-animal recall (frozen-mode pooled LOSO) vs session mean: max |diff| = {pre_d:.3f}")
     P = frozen.mean(axis=1).rename("balanced_acc").reset_index()
     P["readout"] = "position"

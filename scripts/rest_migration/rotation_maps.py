@@ -21,13 +21,13 @@ the SHARED JOINT basis -- the same models the transfer matrix scores -- so the m
 comparable across epochs and the difference between two of them IS the rotation the matrix measured.
 Different question, same transform. Do not read one as a re-render of the other.
 
-SHAPE, NOT GAIN. Each position's pattern is normalised to unit length before differencing, because
+SHAPE, NOT GAIN. Each position's pattern is normalized to unit length before differencing, because
 a decoder trained on a higher-SNR epoch produces a larger pattern for reasons that have nothing to
-do with rotation, and the transfer result is about DIRECTIONS. The un-normalised amplitudes are in
+do with rotation, and the transfer result is about DIRECTIONS. The un-normalized amplitudes are in
 the CSV for anyone who wants the gain question instead; `evoked_amplitude` and the rescale analyses
 already own that one.
 
-THE COSINE IS THE SUMMARY, THE MAP IS THE LOCALISATION. ``cos(pattern_pre, pattern_epoch)`` per
+THE COSINE IS THE SUMMARY, THE MAP IS THE LOCALIZATION. ``cos(pattern_pre, pattern_epoch)`` per
 position is "how far did this position's readout direction turn"; the map shows where the turn
 lives. Reported for acute, subacute AND chronic against pre (Priya, 2026-09-17), because the
 matrix's own diagonal shows the three epochs are not on one trajectory -- acute DIPS and chronic
@@ -235,7 +235,7 @@ def null_delta(data, basis, pipe_fn, *, n_draws=12, n_target=None, seed_ns="", l
 
 
 def gain_p(observed_resid, null_resid):
-    """TWO-SIDED p on a position's amplitude change RELATIVE TO ITS NEIGHBOURS.
+    """TWO-SIDED p on a position's amplitude change RELATIVE TO ITS NEIGHBORS.
 
     ``observed_resid`` is log(gain) minus the mean log(gain) over the six positions, so the
     epoch-wide scale is already divided out; the null is the same residual measured between two
@@ -361,7 +361,7 @@ def in_mask_components(basis, min_frac=None, eroded=False):
     gated on `stat_mask`, which is `brain_mask` ERODED BY 16 px -- an erosion that exists for a
     different purpose entirely: it stops PIXEL-LEVEL contours being drawn in the window rim, where
     edge enrichment was measured at ~2x (see `beta_maps.stat_mask`). Applied to a COMPONENT it
-    asks a question it was never built to answer, and it penalises a region for being LATERAL
+    asks a question it was never built to answer, and it penalizes a region for being LATERAL
     rather than for being untrustworthy.
 
     WHAT IT COST, measured on PS93's SSp-m_left: **97.5% of that component's mass is inside
@@ -373,8 +373,8 @@ def in_mask_components(basis, min_frac=None, eroded=False):
     17-29% of its mass -- so the gate was selecting against lateral cortex per se.
 
     `brain_mask` STILL EXCLUDES EVERYTHING THE GATE WAS BUILT FOR: it is `allen_mask` minus
-    `EXCLUDE_REGIONS` (the olfactory bulbs) minus the hand-painted fibre-glue occlusion. Only the
-    16 px rim comes back. Pass ``eroded=True`` to reproduce the superseded behaviour.
+    `EXCLUDE_REGIONS` (the olfactory bulbs) minus the hand-painted fiber-glue occlusion. Only the
+    16 px rim comes back. Pass ``eroded=True`` to reproduce the superseded behavior.
 
     BUT THE RIM STILL HAS TO BE ACCOUNTED FOR, so a SECOND criterion does it explicitly:
     `MIN_IN_STAT_FRAC` of the mass must fall in the eroded interior. Relaxing the first criterion
@@ -492,7 +492,7 @@ def significant_components(real_delta, null_draws, alpha=0.05, keep=None):
 
     THE COMPONENT IS THE UNIT OF TEST, not the pixel. The pixel map is a PROJECTION of component
     values through overlapping footprints, so a contour drawn at a z threshold on the projected map
-    is not a significance statement about that pixel -- neighbouring pixels are not independent
+    is not a significance statement about that pixel -- neighboring pixels are not independent
     tests, they are the same components seen through different mixing weights.
 
     FAMILY-WISE BY MAX-STATISTIC, over the components within this position. Each draw contributes
@@ -557,7 +557,7 @@ def to_pixels(comp_pattern, basis, mask=True):
     this project uses. It removes the olfactory bulbs and the glue/window edge, which are exactly
     where `U` is smallest and the Allen warp least constrained, so they carry partial-volume
     mixing and read as signal (Priya, 2026-09-12 and again 2026-09-17). Outside the mask is NaN
-    rather than zero, so a masked pixel cannot drag a mean or set a colour limit.
+    rather than zero, so a masked pixel cannot drag a mean or set a color limit.
     """
     A = np.nan_to_num(np.asarray(basis.A, dtype=np.float32))
     H, W = A.shape[0], A.shape[1]
@@ -614,14 +614,14 @@ def main() -> int:
                          "excluded even though it is entirely on brain. Adopted 0.50.")
     ap.add_argument("--eroded-gate", action="store_true",
                     help="reproduce the SUPERSEDED single-criterion gate on stat_mask, which "
-                         "excluded SSp-m_left by penalising lateral cortex for being lateral.")
+                         "excluded SSp-m_left by penalizing lateral cortex for being lateral.")
     ap.add_argument("--tag", default="")
     ap.add_argument("--out", type=Path, default=None)
     ap.add_argument("--replot", action="store_true",
                     help="REDRAW from epoch_15h_rotation_cache<tag>.npz without recomputing. "
                          "Seconds instead of ~30 min; use for any change to how the result is "
                          "DRAWN. Refuses if the cache is absent -- it will not silently recompute "
-                         "and charge you half an hour for a colour change.")
+                         "and charge you half an hour for a color change.")
     a = ap.parse_args()
     from wfield_local import lp_licks              # run-mode routing (rebuild 11-03): identity for the default run
     out_dir = a.out or lp_licks.output_dir(Path(PathResolver().root("cohort_out")) / "grant_figures" / "epoch")
@@ -861,7 +861,7 @@ def save_cache(cache, rows, out_dir, tag="", args=None, sha=None):
     """Write the COMPONENT-space results so the figures can be redrawn without recomputing.
 
     THIS EXISTS BECAUSE THE FIGURE COST THREE FULL PASSES IN ONE DAY, two of them purely to change
-    how something was DRAWN. A ~30-minute recomputation to move a colour is the kind of cost that
+    how something was DRAWN. A ~30-minute recomputation to move a color is the kind of cost that
     makes a known-wrong figure stay published, which is exactly what happened on 2026-09-17: the
     mask fix landed at 13:51 and the run that wrote the figures had imported the module at 13:39,
     so the published contours were unmasked and re-rendering them meant paying the whole null again.
@@ -1161,7 +1161,7 @@ def _gain_rotation_figure(rows, out_dir, tag=""):
              "measure: a position can become more\n"
              "SEPARABLE while its response collapses (acute far-contra is dominated by "
              "unattempted trials -- the epoch_14 MEANref inversion).\n"
-             "For the deficit read the REST-referenced maps and the encoder. Colours are ANIMALS, "
+             "For the deficit read the REST-referenced maps and the encoder. Colors are ANIMALS, "
              "from configs/animals.yaml.",
              ha="center", va="top", fontsize=10)
     out = out_dir / f"epoch_15h_gain_vs_rotation{tag}.png"
@@ -1178,7 +1178,7 @@ def _figure(maps, rows, out_dir, tag="", outlines=None):
     one, so the average was hiding exactly the cell worth seeing.
 
     THE CELLS ARE EXCESS-OVER-NOISE, not raw change. The raw |change| map correlates with its own
-    pre-stroke null at r = +0.83, so it localises the BASIS rather than the lesion; each component
+    pre-stroke null at r = +0.83, so it localizes the BASIS rather than the lesion; each component
     is scored against its own split-half null instead. See `null_delta`.
     """
     import matplotlib
@@ -1210,7 +1210,7 @@ def _figure(maps, rows, out_dir, tag="", outlines=None):
     if _EDGES is None:
         print("   !! atlas edges unavailable -- panels drawn WITHOUT Allen boundaries", flush=True)
     if _SM is None:
-        print("   !! stat_mask unavailable -- panels drawn WITHOUT the analysed-region edge",
+        print("   !! stat_mask unavailable -- panels drawn WITHOUT the analyzed-region edge",
               flush=True)
     from wfield_local.locanmf_cue_lick_analysis import POSITION_NAMES
 
@@ -1395,7 +1395,7 @@ def _figure(maps, rows, out_dir, tag="", outlines=None):
                  ha="center", va="top", fontsize=15, fontweight="bold")
         fig.text(0.5, 0.945,
                  "Haufe patterns (A = Cov(X)b) from one block-matched decoder per epoch, in the "
-                 "shared joint LocaNMF basis; unit-normalised per position, so this is SHAPE, not "
+                 "shared joint LocaNMF basis; unit-normalized per position, so this is SHAPE, not "
                  "gain.\n"
                  "BLACK OUTLINES = components clearing a family-wise max-statistic null at "
                  "p < 0.05, in a majority of animals. The test is per COMPONENT, not per pixel: "
@@ -1403,7 +1403,7 @@ def _figure(maps, rows, out_dir, tag="", outlines=None):
                  "threshold on it would outline the basis.\n"
                  "MAPS ARE EXCESS OVER NOISE: each component is scored against its own "
                  "pre-stroke split-half null, because the RAW change map correlates with that null "
-                 "at r = 0.83 and localises the basis, not the lesion.\n"
+                 "at r = 0.83 and localizes the basis, not the lesion.\n"
                  "A decoder WEIGHT is a filter, not a pattern (r = 0.245 here). Cohort mean; "
                  "three animals carry chronic data.\n"
                  "THE MAP AND THE COSINE ARE NOT THE SAME QUANTITY: the map is scale-FREE (each "

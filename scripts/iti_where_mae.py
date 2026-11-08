@@ -5,7 +5,7 @@ Same frozen where-decoder and per-lick predictions as 3.15-3.22 (`where_preds.cs
 scored leave-one-session-out). Per session: mean absolute error (MAE) and root-mean-square error (RMSE) of decoded vs
 actual lateral position, sagittal extension, and the 2-D distance. Unlike r, these include EVERYTHING that separates
 decoded from actual: worse lick-to-lick tracking, a constant offset (3.21 / 3.22) and the decoder's pull toward the
-middle (present before the stroke; it grows when licks land further from the centre, so part of a post-stroke error
+middle (present before the stroke; it grows when licks land further from the center, so part of a post-stroke error
 increase can come from where licks land rather than from cortex). One dot per session (all animals pooled), raw mm
 and divided by the animal's pre mean; black = mean +- SEM over sessions; * = paired nested bootstrap excluding 0.
 Outputs <E>/iti_licks/where_mae_{sessions,tests}.csv, figures/lick_where_mae.png; figure data <E>/iti_licks/figdata/lick_where_mae.pkl.
@@ -99,7 +99,7 @@ def plot(S: pd.DataFrame, T: pd.DataFrame) -> None:
                  "areas, lags 0..0.2 s;\nsame licks and predictions as 3.15-3.22). One dot per session, all animals "
                  "pooled; black = mean +- SEM; * = paired nested bootstrap (animals > sessions) excludes 0.\nUnlike r "
                  "(3.15), error INCLUDES the decoder's pull toward the middle and any constant offset,\nso it rises "
-                 "when licks land further from the centre even with unchanged cortex.", fontsize=9.5)
+                 "when licks land further from the center even with unchanged cortex.", fontsize=9.5)
     fig.tight_layout(rect=(0, 0, 1, 0.91))
     save_png_svg(fig, il.OUT / "figures" / "lick_where_mae.png", dpi=95)
     plt.close(fig)

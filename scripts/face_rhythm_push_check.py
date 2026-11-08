@@ -21,11 +21,11 @@ COMPUTE once (~1 h: every session's treadmill speed is reloaded), then the per-s
 figures without redoing calculations).
 -> ``<dlc>/face_rhythm/cam4/readouts/<set>/push_check/``: push_check_sessions.csv (per session x context), the per
 animal x epoch table (printed; rule 8 first), push_check.png (traces by epoch, per animal), push_check_pooled.png
-(cross-animal pooled, within-animal normalised push - random excess with tests; data/push_check_pooled*.csv).
+(cross-animal pooled, within-animal normalized push - random excess with tests; data/push_check_pooled*.csv).
 ``--pooled-only`` draws only the pooled figure from the cached session CSV and the STORED pooled statistics
 (data/push_check_pooled.csv; no bootstrap, no CSV written; seconds). The pooled figure follows Priya's 11-03 rules
 (`wfield_local.cat_points`): epochs are categories, no lines between them, summary = mean +- SEM over animals, faded
-OPEN markers = the SESSIONS (shape = animal, colour = epoch), stars in the top band.
+OPEN markers = the SESSIONS (shape = animal, color = epoch), stars in the top band.
 """
 from __future__ import annotations
 
@@ -302,7 +302,7 @@ def pooled_stats(P: pd.DataFrame, rng, n_boot: int | None = None) -> pd.DataFram
 def pooled_figure(S: pd.DataFrame, out: Path, set_name: str, n_boot: int | None = None,
                   T: pd.DataFrame | None = None) -> None:
     """push_check_pooled.png: the push - random excess per measure (rows) x context (columns), within-animal
-    normalised, per epoch: session markers, mean +- SEM of animals, level vs 0 and change vs pre. Per-animal table
+    normalized, per epoch: session markers, mean +- SEM of animals, level vs 0 and change vs pre. Per-animal table
     printed first (rule 8). ``T`` given (the stored data/push_check_pooled.csv) = draw only: no bootstrap, no CSV."""
     from wfield_local import cat_points as cp
     from wfield_local import face_rhythm_figures as frf
@@ -369,12 +369,12 @@ def pooled_figure(S: pd.DataFrame, out: Path, set_name: str, n_boot: int | None 
 Cross-animal pooled version of push_check.png. Per SESSION (sessions with >= 5 pushes; a split video's halves pooled,
 push-weighted) and context (in-trial = cue -1 .. +4 s; between trials = the rest): (0 .. 1 s) - (-1.5 .. -0.5 s) of
 the frozen basis's relative reconstruction error (row 1; pre sessions on their held-out leave-one-day-out basis) and of
-the face movement energy D (row 2), push minus random times of the same context. NORMALISED WITHIN ANIMAL by DIVIDING
+the face movement energy D (row 2), push minus random times of the same context. NORMALIZED WITHIN ANIMAL by DIVIDING
 by that animal's SD of the same push - random excess across its PRE sessions (same context): the excess is a signed
 difference, so a log ratio does not apply; the SD keeps 0 = "push same as random" and puts the animals on one noise
 scale. Row 1 below 0 = the pre basis describes the face at pushes BETTER than at random times; row 2 above 0 = more
 face movement at pushes. Each epoch is its own category (Priya 11-03: no lines between epochs): squares = mean of
-the animals' epoch means +- SEM (epoch colours); faded OPEN markers = the individual SESSIONS (shape = animal, colour =
+the animals' epoch means +- SEM (epoch colors); faded OPEN markers = the individual SESSIONS (shape = animal, color =
 epoch). Top band, row 1: * = the level against 0 by `analysis_kit.boot_delta` against a constant-0 baseline (the paired
 animals -> sessions draw, animals weighted equally) has a 95 % interval excluding 0; row 2: "D*" = the change vs pre
 (`boot_delta`, paired animals -> sessions) has a 95 % interval excluding 0. Tick labels: "vs 0 k/n" = animals on the

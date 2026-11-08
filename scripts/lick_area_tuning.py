@@ -436,7 +436,7 @@ def plot_decomp_dots(T: pd.DataFrame) -> None:
     fig.suptitle(_wrap("Matched-lick tuning change vs pre per area (licks to the same spout landing at the same angle as "
                        "pre; contralesional hemisphere unless stated). A pure additive OFFSET moves the level with depth "
                        "~0; a GAIN moves level and depth together; BROADER tuning = depth < 0. Filled = pooled change "
-                       "(paired nested bootstrap 95% CI); open = animals; 0 = pre. VISpm (grey) = non-orofacial control; "
+                       "(paired nested bootstrap 95% CI); open = animals; 0 = pre. VISpm (gray) = non-orofacial control; "
                        "n = animals when < 4 (ratio terms undefined where the pre response < 3 dF/F x1e3). PROVISIONAL "
                        "(n = 4)", 170), fontsize=9.5)
     save_png_svg(fig, FIG / "lick_area_tuning_decomp_dots.png", dpi=100)

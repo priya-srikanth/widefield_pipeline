@@ -192,7 +192,8 @@ def test_render_profile_clears_leftovers_and_checks_the_full_tag():
 
 
 def test_render_profile_check_fails_on_a_tag_mismatch(tmp_path):
-    code = ("import sys; from wfield_local import render_profile as rp; import wfield_local.lp_licks as L; "
+    code = ("import sys; from wfield_local import render_profile as rp; rp.code_check = lambda d, module_file=None: "
+            "(True, 'code check stubbed (test is about the tag)'); import wfield_local.lp_licks as L; "
             "L.output_tag = lambda: 'WRONG'; ok, lines = rp.check('%s'); print('OK' if ok else 'MISMATCH')" % PROFILE)
     r = _run(code, {"WIDEFIELD_GATE_SOURCE": "lp"}, tmp_path)
     assert "MISMATCH" in r.stdout, r.stderr[-2000:]

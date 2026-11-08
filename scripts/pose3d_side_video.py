@@ -1,8 +1,8 @@
 """Four-camera 3-D check clip: cam1 / cam4 / cam2 / cam3 raw views with their 2-D keypoints and the FUSED 3-D point
-reprojected, and the 3-D pose below (Priya 2026-11-04: "show me clips labelled in all 4 cameras with 3d keypoint views
+reprojected, and the 3-D pose below (Priya 2026-11-04: "show me clips labeled in all 4 cameras with 3d keypoint views
 below"). Pipeline = `pose3d_side.fuse_session` (11-04): cleaned cam1 / cam4 (production) AND cleaned cam2 / cam3 (`side_clean`),
 water-drop rule, robust four-camera triangulation (worst view dropped beyond `REJECT_MM`), one-view fill from the
-neighbouring frames (`fill_n`) and the 3-D QC; spout: cam4 = the commanded tip, cam1's edge offset; nose: the side nose
+neighboring frames (`fill_n`) and the 3-D QC; spout: cam4 = the commanded tip, cam1's edge offset; nose: the side nose
 moved onto the cam1 / cam4 definition with a per-session offset.
 
     conda activate dlc
@@ -48,7 +48,7 @@ class Reader:
 
 
 def view_from(cam) -> tuple[float, float]:
-    """matplotlib (elev, azim) putting the viewer at ``cam``'s centre (a PnP-posed camera: world mm)."""
+    """matplotlib (elev, azim) putting the viewer at ``cam``'s center (a PnP-posed camera: world mm)."""
     M = cam.get_extrinsics_mat()
     C = -M[:3, :3].T @ M[:3, 3]
     d = C / np.linalg.norm(C)

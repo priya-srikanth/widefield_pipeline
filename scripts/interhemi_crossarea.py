@@ -29,7 +29,7 @@ TASK 2 -- CROSS-AREA (Priya 10-30: "cross-area dynamics (synchronization / corre
     slow  NOISE correlation = correlation ACROSS EVENTS of the window-mean residual (event-to-event co-fluctuation; a
           sub-1-Hz readout by construction)
     fast  WITHIN-WINDOW correlation of the event-de-meaned residual traces (concatenated over events; ~1-10 Hz part,
-          what "synchronisation" usually means; GCaMP6s smooths it)
+          what "synchronization" usually means; GCaMP6s smooths it)
   Variants: raw, and GS-controlled = partial correlation of each pair given the mean of ALL OTHER 43 areas (leave-pair-out,
   closed form from the 45 x 45 covariance). Band-pass filtering is NOT applied: windows are 1 s, so 0.1-1 Hz cannot be
   resolved inside them; slow vs fast IS the band split available, and slow drift (< 1 / DRIFT_MIN_PERIOD) was already
@@ -595,7 +595,7 @@ def plot1() -> None:
     _legend(fig)
     fig.suptitle(_wrap("Interhemispheric noise correlation (homotopic contra vs ipsi, residual after spout + angle mean, "
                        "window mean -0.5..+0.5 s) BEFORE and AFTER removing the global signal (partial correlation given "
-                       "the mean of all other areas). Grey = control pairs. PROVISIONAL n = 4"), fontsize=9.5)
+                       "the mean of all other areas). Gray = control pairs. PROVISIONAL n = 4"), fontsize=9.5)
     save_png_svg(fig, O1 / "figures" / "ihf_noisecorr_gsr.png", dpi=120)
     plt.close(fig)
     # FIGURE B: lead metrics under the four variants (oro, tau 0.6; w2 for lick sets, w1 rest)

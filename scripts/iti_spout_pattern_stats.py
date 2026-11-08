@@ -10,7 +10,7 @@ sign-flip for level, max |z| over the drawn cortex pixels per spout x epoch x ki
 patterns applies). SOLID = FWER p < 0.05; DASHED = also >= 3 animals (of 4) agree in sign (outline only). The OLD per-
 pixel nested bootstrap + BH q 0.05 is kept in the CSV (frac_sig_fdr*, frac_sig_maxboot) for comparison. Per animal x
 spout: similarity of the session-mean epoch map to the pre map with a within-animal session-bootstrap 95% CI.
---iti: the same for ITI (self-initiated) licks labelled by the PRECEDING trial's spout (`iti_pos`; Priya 10-27: "map
+--iti: the same for ITI (self-initiated) licks labeled by the PRECEDING trial's spout (`iti_pos`; Priya 10-27: "map
 distinguishing ITI licks based on preceding trial's spout location").
 Outputs <E>/iti_licks/spout_pattern_stats[_iti].csv, figures/lick_cued_spout_pattern_stats.png / lick_iti_spout_pattern_stats.png. Usage:
 python scripts/iti_spout_pattern_stats.py [--iti] [--plot-only] [--perm N]
@@ -187,7 +187,7 @@ def plot(D: dict, levels: bool = False) -> None:
             fig.colorbar(im_c, ax=axs[:, 1:].ravel().tolist(), fraction=0.025, pad=0.01, shrink=0.5,
                          label="CHANGE epoch - pre (pattern / pre RMS)")
     import textwrap
-    what = ("ITI (self-initiated) licks labelled by the PRECEDING trial's spout" if st == "iti" else "cued licks")
+    what = ("ITI (self-initiated) licks labeled by the PRECEDING trial's spout" if st == "iti" else "cued licks")
     head = (f"SUPPLEMENTARY to {fig_name(st)}: epoch LEVEL maps (not changes), one shared scale (purple-orange). "
             if levels else ("ITI licks by PRECEDING spout" if st == "iti" else "STATS for the per-spout maps")
             + f" -- {CMAP_NOTE}. ")

@@ -40,7 +40,7 @@ def test_injected_signal_is_used_instead_of_loading_from_disk(monkeypatch):
 
 def test_pool_sessions_calls_the_features_hook_for_every_session():
     """The hook is what makes the joint basis reachable from the pooling code; if pool_sessions ever
-    stopped honouring it, the joint figures would silently show ROI results."""
+    stopped honoring it, the joint figures would silently show ROI results."""
     seen = []
 
     def fake_features(s, args):

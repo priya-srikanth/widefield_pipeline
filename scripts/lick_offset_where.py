@@ -282,7 +282,7 @@ def plot(F: dict) -> None:
             ax.axis("off")
         plt.colorbar(im, ax=axs[i, -1], fraction=0.04, label="mm per +1 SD of the area mean")
     fig.suptitle("NEURAL: decoder EFFECTIVE WEIGHT per area = change of the frozen lateral read-out for a uniform +1 SD "
-                 "change of that area's mean (pre-session frame SD), every basis on pixel dF/F; one colour scale per row.\n"
+                 "change of that area's mean (pre-session frame SD), every basis on pixel dF/F; one color scale per row.\n"
                  "In the Allen basis = the area coefficient. Mean of animals; ipsi (lesion) = image LEFT; i / c = ipsi / "
                  "contra. Weights are not importance (see the drop-area test). PROVISIONAL", fontsize=9)
     fig.tight_layout(rect=(0, 0, 1, 0.92))

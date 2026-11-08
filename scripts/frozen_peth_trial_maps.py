@@ -13,7 +13,7 @@ ALM / tjM1 (Priya 11-06, deck slide 94): with --split, *_split companions of eac
 / tjM1 + MOp_rest (ROI v8 on the stat mask, `encoder_split_rows.split_image`, as residual_roi / specificity_control).
 The area run saved Allen-area means only, so the split values are the frozen Musall R2 of each ROI mean from the
 FROZEN_PIX_MUSALL basis re-run with the area run's alphas (`frozen_encoder_<tag>_basis_pixmusall_union`,
-`encoder_split_rows.musall_rows`); own bootstrap, Allen Bonferroni count, Allen colour scales. Allen outputs unchanged.
+`encoder_split_rows.musall_rows`); own bootstrap, Allen Bonferroni count, Allen color scales. Allen outputs unchanged.
 
 Usage: python scripts/frozen_peth_trial_maps.py [--tag gate-attempted_v7g3_t3d_frA] [--alone] [--split] [--out DIR]
 Output: <E>/frozen_encoder_<tag>/figures/peth_trial_maps_<window>[_alone][_split].png, peth_trial_area[_alone][_split].csv
@@ -204,7 +204,7 @@ def main(argv=None) -> int:
             if kind == "split":
                 title += (" MOs / MOp drawn as ALM + MOs_rest / tjM1 + MOp_rest (ROI v8 on the stat mask; R2 of each ROI "
                           f"mean from the basis re-run {pix.name}, area-run alphas), tested with the Allen Bonferroni "
-                          "count; colour scales as the Allen figure.")
+                          "count; color scales as the Allen figure.")
             fig.suptitle(textwrap.fill(title, width=int(42 * len(qs))), fontsize=8.5)   # wrapped to the figure width
             fig.subplots_adjust(left=0.05, right=0.97, bottom=0.02, top=0.9 if kind == "allen" else 0.88, wspace=0.06,
                                 hspace=0.3)

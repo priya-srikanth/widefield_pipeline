@@ -1,4 +1,4 @@
-"""CUE-ALIGNED TRACES MINUS RESTW (Priya 10-28: "plot pre-cue traces" normalised to restw) -- the time course behind the
+"""CUE-ALIGNED TRACES MINUS RESTW (Priya 10-28: "plot pre-cue traces" normalized to restw) -- the time course behind the
 pre-cue-level maps of `lick_precue_restw.py`.
 
 DEFINITION (per session x area x lag, -2..+3 s around the cue on the 0.05 s grid LAGS):
@@ -275,7 +275,7 @@ def draw(stem: str) -> None:
     import textwrap
     body = rl(body) + (" Trials = CURRENT engaged gate" if F.get("sfx") else "")
     fig.suptitle(textwrap.fill(rl("NEURAL: cue-aligned area traces minus RESTW") + f", ENGAGED trials, {what} -- {body}. Solid = all 4 "
-                 f"animals contribute, dotted = fewer. Grey = -1..0 s window of the pre-cue maps; ticks at the bottom = "
+                 f"animals contribute, dotted = fewer. Gray = -1..0 s window of the pre-cue maps; ticks at the bottom = "
                  f"median first-lick latency per epoch. Rows = areas (ALM / tjM1 split from MOs / MOp, ROI v8; last four "
                  f"= references; VISp has a contralesional ROI only). n: {ns}.", 150), fontsize=9)
     (il.OUT_W / "figures").mkdir(parents=True, exist_ok=True)

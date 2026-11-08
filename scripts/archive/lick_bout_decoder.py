@@ -19,7 +19,7 @@ THREE THINGS THIS GETS RIGHT THAT A NAIVE VERSION WOULD NOT.
    visible instead of silently changing which trials contribute.
 
 3. PHASES ARE SCORED SEPARATELY. `approach` bouts (pre-cue, e.g. licking leftover water as the spout
-   arrives) and `response` bouts are different behavioural contexts, and the animals differ wildly in
+   arrives) and `response` bouts are different behavioral contexts, and the animals differ wildly in
    their mix -- PS92 is 74% approach, PS95 6%. A pooled number would be a different quantity per
    animal.
 

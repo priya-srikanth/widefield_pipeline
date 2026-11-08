@@ -1,4 +1,4 @@
-"""Imaging uses THE behaviour DAQ lick detector everywhere (Priya 11-04/05, REBUILD_CODE 8.53).
+"""Imaging uses THE behavior DAQ lick detector everywhere (Priya 11-04/05, REBUILD_CODE 8.53).
 
 Pins: the one accessor (`config.lick_detector`), that no imaging call site carries the old literal
 ``(2.5, 1.0, (0.001, 0.020), 0.10)`` any more, the 40 ms min-ILI fallback shared by every reader, the cache-version bumps,

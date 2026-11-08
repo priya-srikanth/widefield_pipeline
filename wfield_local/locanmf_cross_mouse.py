@@ -128,7 +128,7 @@ def _session_labels(dates=None, phase="pre"):
     survived eight days because the CLI and the nightly passed different date sets, so whichever you
     read looked right. A module that defines its own scope cannot be given the wrong one.
 
-    Pass ``phase="all"`` to get the old behaviour for a deliberate post-stroke look; the per-session
+    Pass ``phase="all"`` to get the old behavior for a deliberate post-stroke look; the per-session
     numbers are unaffected either way, since every metric is computed within one session.
     """
     from wfield_local import config
@@ -253,7 +253,7 @@ def _pairwise_r(vecs):
 def fig_within_animal_consistency(out, dates=None, tag=None, phase="pre"):
     """How reproducible is each animal's per-position pattern across its sessions? For DECODING (per-
     position recall) and ENCODING (per-position explained variance): overlay each session's 6-position
-    profile (grey) + mean +- SD (bold), per animal. Title reports the mean pairwise cross-session
+    profile (gray) + mean +- SD (bold), per animal. Title reports the mean pairwise cross-session
     correlation (pattern consistency) and the mean per-position SD (magnitude consistency). This sets the
     within-animal noise floor a post-stroke change must exceed. `dates` (set of 'MMDD') restricts to a
     session subset; `tag` suffixes the filename (default = all sessions, no suffix).

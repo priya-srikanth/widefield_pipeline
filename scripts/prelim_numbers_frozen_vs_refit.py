@@ -22,7 +22,7 @@ post-stroke gap charges the lesion for a handicap the design imposes.
 GATED CELLS PRINT AS "gated", NOT AS A NUMBER. A position the session could not train on -- below
 `grant_figures.MIN_REFIT_SHARE` -- is dropped from both arms. In practice this is acute
 far-contralateral in the lick-aligned arm only, where the animal barely licks that spout, and where
-scoring it produced a -0.42 "refit is worse" that was the behaviour rather than the code.
+scoring it produced a -0.42 "refit is worse" that was the behavior rather than the code.
 """
 import numpy as np
 

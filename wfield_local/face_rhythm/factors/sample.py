@@ -66,7 +66,7 @@ def trial_strobes(rv, animal: str, date: str, trial_ids: np.ndarray, cues: np.nd
 
 
 def between_states(rv, animal: str, date: str, t5: np.ndarray) -> np.ndarray:
-    """Per 5 Hz bin (true DAQ s), from the CANONICAL per-session behaviour events on the server (`behavior_events`,
+    """Per 5 Hz bin (true DAQ s), from the CANONICAL per-session behavior events on the server (`behavior_events`,
     ``behavior_summary/events/<animal>/<date>.npz``; no DAQ read): "run" inside a running bout (> 3 mm/s, gaps
     < 0.3 s merged, >= 2 s), "still" inside a REST period (the lab's quiet definition: between trials with the spout
     docked, not running, not near licks / rewards; `quiet_periods.rest_mask`), else "other" (Priya 10-23: the

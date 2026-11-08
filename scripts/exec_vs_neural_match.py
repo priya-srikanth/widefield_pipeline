@@ -3,7 +3,7 @@ bin match confusion matrix?").
 
 Every trial with 3-D licks (pre-stroke hits; post-stroke hits + failed attempts), any target spout: row = the spout
 bin its licks fall in most (dominant softmax weight, width 1; landing or trajectory), column = the frozen pre-stroke
-DECODER's best match (argmax of its six probabilities; LOSO for pre). Rows normalised per session (share of that
+DECODER's best match (argmax of its six probabilities; LOSO for pre). Rows normalized per session (share of that
 session's trials with executed bin r decoded as spout c), averaged over sessions per animal x epoch; epoch minus pre
 within animal, mean of 4, nested bootstrap (Bonferroni over 36). The diagonal = "the cortex is read as the spout the
 tongue went to", whatever the target was. Also the agreement rate (diagonal share of all trials) per animal x epoch,

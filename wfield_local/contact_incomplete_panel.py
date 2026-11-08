@@ -3,19 +3,19 @@
 One standard panel for both sections. Per alignment (cue, precue) one row; per epoch (pre, acute, subacute, chronic)
 one column; x = the six spouts in canonical order (close ipsi, close mid, close contra, far ipsi, far mid, far contra;
 `orofacial_cohort.POS_ORDER`), CONTACT and INCOMPLETE side by side at each spout. Each point is ONE SESSION (open
-marker: shape = animal, colour = epoch); no line joins epochs. Chance 1/6 (dashed).
+marker: shape = animal, color = epoch); no line joins epochs. Chance 1/6 (dashed).
 
 DATA (`rows_from_*`, all to one long table of per-session counts n / k-correct per class x spout):
   * POST sessions: section G's by-class panels (`poststroke_compare._by_class_panels`, the frozen decoder's full model on
     the post session's camera-class rows: ``section_g.json`` arms -> confusion -> by_class -> post).
   * PRE sessions (and any session section D scored): section D's scored WORKING rows split by `working_trials.g_group`
     (`locanmf_frozen_decoder.pooled_frozen_loso` ``confusion_by_class``; pre sessions by their LOSO model).
-  The decoder's scored frame (its centre rows: working | contact, `spout_scaling.score_centre_rows`) is the SAME for
-  both classes and is whatever the producing run used; the panel prints the tag it was given (``centre``), never
+  The decoder's scored frame (its center rows: working | contact, `spout_scaling.score_centre_rows`) is the SAME for
+  both classes and is whatever the producing run used; the panel prints the tag it was given (``center``), never
   assumes one.
 
 PRE REFERENCE per class and spout: the pre sessions' pooled accuracy for THAT class when its pooled pre cell has
->= MIN_N rows; otherwise pre WORKING (contact + incomplete), drawn dotted and labelled "pre working". Never post
+>= MIN_N rows; otherwise pre WORKING (contact + incomplete), drawn dotted and labeled "pre working". Never post
 incomplete against pre contact.
 
 THIN CELLS: a session x class x spout cell with fewer than MIN_N (10) rows is OMITTED from the dots and the test, and
@@ -60,7 +60,7 @@ def _names():
 
 
 def _diag_rows(M, n, meta):
-    """Rows from one row-normalised confusion (DISPLAY_ORDER) and its per-true-position n: k = diag * n."""
+    """Rows from one row-normalized confusion (DISPLAY_ORDER) and its per-true-position n: k = diag * n."""
     out = []
     for j, sp in enumerate(_names()):
         nj = int(n[j]) if n is not None else 0
@@ -222,7 +222,7 @@ def draw(T, out_png, *, min_n=MIN_N, title=None, seed=0):
           Line2D([], [], color="k", lw=1.2, ls=":", label="pre working (class absent pre)"),
           Line2D([], [], color="0.5", ls="--", label="chance 1/6")]
     fig.legend(handles=h, loc="upper center", ncol=len(h), fontsize=6, frameon=False, bbox_to_anchor=(0.5, 1.02))
-    fig.suptitle(title or f"CONTACT (left) vs INCOMPLETE (right) per spout; scored-frame centre: {centre}; cells with "
+    fig.suptitle(title or f"CONTACT (left) vs INCOMPLETE (right) per spout; scored-frame center: {centre}; cells with "
                  f"n < {min_n} omitted", fontsize=8, y=1.06)
     sig_marks.reserve_headroom(fig)
     try:

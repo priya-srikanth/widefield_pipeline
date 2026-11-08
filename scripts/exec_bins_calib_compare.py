@@ -12,8 +12,8 @@ Two regenerations from the SAME 3-D lick table the snapshot was cut from (`exec_
 the one definition): ``legacy`` (WFIELD_KIN_GATE=legacy = every post-cue lick, the snapshot's rule -- the
 reproducibility control: it should match the snapshot up to later changes of the inputs) and ``working`` (the camera
 working period, `trial_classes.gate_kin_licks`). For each against the snapshot, per (animal, calib_for, position):
-centre shifts (ml / ap / down, mm), the shift in within-spout SD units (|delta centre| / snapshot SD, Euclidean), the
-SD (bin scale) changes, and n. The bins have no explicit edges -- a lick goes to the nearest centre in SD units
+center shifts (ml / ap / down, mm), the shift in within-spout SD units (|delta center| / snapshot SD, Euclidean), the
+SD (bin scale) changes, and n. The bins have no explicit edges -- a lick goes to the nearest center in SD units
 (`combined_encoding`, `frozen_encoder.lick_landing_weights`) -- so the EDGE effect is reported as the share of pre-stroke
 licks whose hard bin changes when the snapshot calibration is swapped for the regenerated one (each pre session with
 its own leave-that-session-out row, as the encoder does).
@@ -33,7 +33,7 @@ CENTRE, SD = ("ml", "ap", "down"), ("sd_ml", "sd_ap", "sd_down")
 
 
 def compare(new: pd.DataFrame, snap: pd.DataFrame) -> pd.DataFrame:
-    """Per (animal, calib_for, position) row present in both: d_<axis> (mm), d_<sd axis>, shift_sd (Euclidean centre
+    """Per (animal, calib_for, position) row present in both: d_<axis> (mm), d_<sd axis>, shift_sd (Euclidean center
     shift in snapshot-SD units), d_n."""
     m = snap.merge(new, on=KEY, suffixes=("_snap", "_new"), how="outer", indicator=True)
     for c in (*CENTRE, *SD, "n"):
@@ -45,7 +45,7 @@ def compare(new: pd.DataFrame, snap: pd.DataFrame) -> pd.DataFrame:
 
 def nearest_bin(X: np.ndarray, C: pd.DataFrame) -> np.ndarray:
     """Hard executed bin of each 3-D lick (rows of X = ml, ap, down) against one calibration set ``C`` (one animal,
-    one calib_for): the nearest centre in SD units (the encoder's rule)."""
+    one calib_for): the nearest center in SD units (the encoder's rule)."""
     C = C.dropna(subset=list(CENTRE))
     G, sc = C[list(CENTRE)].to_numpy(float), C[list(SD)].iloc[0].to_numpy(float)
     d = (((X / sc)[:, None, :] - (G / sc)[None]) ** 2).sum(2)
@@ -88,7 +88,7 @@ def summary_lines(name: str, M: pd.DataFrame, B: pd.DataFrame) -> list[str]:
                        f"median {v.median():.3f} {unit}")
         out.append(f"    |d n| (licks)  max {sub.d_n.abs().max():.0f} median {sub.d_n.abs().median():.0f}")
         w = sub.loc[sub.shift_sd.idxmax()]
-        out.append(f"    largest centre shift: {w.animal} {w.calib_for} {w.position} {w.shift_mm:.3f} mm = "
+        out.append(f"    largest center shift: {w.animal} {w.calib_for} {w.position} {w.shift_mm:.3f} mm = "
                    f"{w.shift_sd:.3f} SD (n {w.n_snap:.0f} -> {w.n_new:.0f})")
     out.append("  hard-bin changes of the pre licks (edge effect): "
                + "; ".join(f"{r.animal} {r.n_changed}/{r.n_licks} ({100 * r.frac_changed:.2f} %)"

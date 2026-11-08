@@ -1,4 +1,4 @@
-"""Evaluate the epoch definitions against behaviour, every run. Derives chronic; checks acute.
+"""Evaluate the epoch definitions against behavior, every run. Derives chronic; checks acute.
 
 Priya, 2026-09-07: *"I'd like the pipeline to run the epoch definitions and just determine if we
 have met 'chronic' criteria, order sessions into epochs appropriately, and analyze."*
@@ -22,12 +22,12 @@ WHAT MAKES DERIVING SAFE IS THE RECORD, not the rule. `resolve` writes the bound
 always be asked which epochs it was built from and a run that moved one has to say so. See the
 DERIVED BOUNDARIES section of `epochs`.
 
-IT READS THE BEHAVIOUR STAGE'S OWN CSV, and does not re-derive anything from the DAQ. Two reasons,
+IT READS THE BEHAVIOR STAGE'S OWN CSV, and does not re-derive anything from the DAQ. Two reasons,
 and the second is the important one:
 
   * SPEED. Re-parsing every session's trials and lick microstructure takes ~11 minutes; reading the
     cohort table takes milliseconds, and the nightly is already 18-20 h.
-  * CONSISTENCY. `cohort_session_metrics.csv` is what the behaviour figures are drawn from. An audit
+  * CONSISTENCY. `cohort_session_metrics.csv` is what the behavior figures are drawn from. An audit
     that recomputed its own numbers could disagree with the figures it is auditing, and then nobody
     would know which was right. Verified 2026-09-07: `hit__far_R` reproduces an independent
     re-derivation from `load_trials` + `reference_engagement` on all ten of PS94's post-stroke
@@ -63,7 +63,7 @@ def load_far_position_tables(rv=None, position=None):
     """``(hit_by_session, licks_by_session)`` keyed by session LABEL, engaged-gated.
 
     Both are in the ``{label: {position: value}}`` shape the two verifiers take. Returns
-    ``(None, None)`` when the cohort table is missing, so a box that has not run the behaviour stage
+    ``(None, None)`` when the cohort table is missing, so a box that has not run the behavior stage
     reports "not checked" rather than "no disagreement" -- those must not look alike.
 
     DUPLICATE (animal, date) ROWS keep the one with the most engaged trials. Two sessions were
@@ -109,11 +109,11 @@ def full_cohort():
 
     2026-09-28: `nightly_figs 20260922 --only PS92` set `WIDEFIELD_ONLY_ANIMALS=PS92` before
     `_resolve_epochs`, and `derive_*_boundaries` build their series from `config.phase_labels` /
-    `config.pooled_labels`, which honour that variable. PS93, PS94 and PS95 therefore had "no usable
+    `config.pooled_labels`, which honor that variable. PS93, PS94 and PS95 therefore had "no usable
     hit series", the rule wrote `chronic_from: None` for PS93 and PS95 to the SHARED
     `epoch_boundaries.json` -- the file every figure, decoder and render on every box reads -- and
-    announced it as behaviour having moved. A one-animal render had re-staged the whole cohort.
-    Epoch boundaries are a property of the COHORT'S behaviour; no caller's subset can change them.
+    announced it as behavior having moved. A one-animal render had re-staged the whole cohort.
+    Epoch boundaries are a property of the COHORT'S behavior; no caller's subset can change them.
     """
     from wfield_local import config
     saved = {k: os.environ.pop(k) for k in SUBSET_ENV if k in os.environ}
@@ -145,7 +145,7 @@ def audit(rv=None, position=None):
 def _same(a, b) -> bool:
     """Equality that does not care whether a range arrived as a list or a tuple.
 
-    `acute` is declared in YAML as a list, normalised to a tuple by `config.epoch_spec`, and
+    `acute` is declared in YAML as a list, normalized to a tuple by `config.epoch_spec`, and
     round-trips through JSON as a list again. Comparing them raw reports `(1, 5) -> [1, 5]` as a
     change every single night -- noise that teaches the reader to skip the block that matters.
     """
@@ -163,10 +163,10 @@ def derived_spec(rep) -> dict:
 
     A boundary the rules could not determine is OMITTED rather than written as None, so
     `epochs.spec_for` falls back to the declared value for that key. Writing None would assert
-    "there is no acute epoch", which is a different and much stronger claim than "behaviour could
+    "there is no acute epoch", which is a different and much stronger claim than "behavior could
     not tell me" -- and for acute it would unassign every early post-stroke session.
 
-    `chronic_from` is the exception: None there IS the assertion "tested, has not stabilised", which
+    `chronic_from` is the exception: None there IS the assertion "tested, has not stabilized", which
     is why it is always written.
     """
     acute = rep.get("acute_derived") or {}
@@ -222,7 +222,7 @@ def stale_fallback(spec) -> list[str]:
     last night" -- transient news. This asks "is the committed fallback still right", a standing
     condition that persists until a human acts.
 
-    IT IS NOT URGENT, and saying so matters as much as reporting it. A crashed or behaviour-less run
+    IT IS NOT URGENT, and saying so matters as much as reporting it. A crashed or behavior-less run
     falls back to the LAST DERIVED `epoch_boundaries.json`, not to this, so a stale fallback does
     not silently revert tonight's epochs. It bites in exactly two places: a fresh clone or a box
     with no artifact yet, and `WIDEFIELD_EPOCHS_PINNED=1`. Both are about REPRODUCING a figure set
@@ -237,7 +237,7 @@ def stale_fallback(spec) -> list[str]:
                 continue
             want, have = derived[key], have_all.get(key)
             if not _same(want, have):
-                out.append(f"{animal}: animals.yaml says {key} {have}, behaviour says {want}")
+                out.append(f"{animal}: animals.yaml says {key} {have}, behavior says {want}")
     return out
 
 
@@ -270,8 +270,8 @@ def promotion_yaml(spec) -> list[str]:
             want, have = derived[key], have_all.get(key)
             if _same(want, have):
                 continue
-            note = ("has not stabilised" if (key == "chronic_from" and want is None)
-                    else f"derived from behaviour, was {_y(have)}")
+            note = ("has not stabilized" if (key == "chronic_from" and want is None)
+                    else f"derived from behavior, was {_y(have)}")
             rows.append(f"      {key}: {_y(want)}    # {note}")
         if rows:
             lines += [f"  {animal}:", "    epochs:", *rows]
@@ -288,7 +288,7 @@ def resolve(rv=None, position=None, write=True):
     from disk; installing them only in the parent would build half the deck on derived boundaries
     and half on stored ones, and it would render cleanly.
 
-    ON UNAVAILABLE BEHAVIOUR IT WRITES NOTHING AND INSTALLS NOTHING, which leaves the LAST DERIVED
+    ON UNAVAILABLE BEHAVIOR IT WRITES NOTHING AND INSTALLS NOTHING, which leaves the LAST DERIVED
     `epoch_boundaries.json` in force (`epochs` loads it lazily). That is the safe direction: a
     missing cohort table must not silently move every animal to "no chronic epoch" and restage the
     whole deck, and it must not quietly revert to a hand-declared fallback that may be much older
@@ -310,10 +310,10 @@ def resolve(rv=None, position=None, write=True):
 
 
 def disagreements(rep) -> list[str]:
-    """One line per animal whose behaviour disagrees with the stored spec. Empty when all agree.
+    """One line per animal whose behavior disagrees with the stored spec. Empty when all agree.
 
     This is the return value the nightly acts on, and it is deliberately a list of STRINGS rather
-    than a boolean: "PS93 chronic: behaviour says day 11, spec says none" is the whole point, and
+    than a boolean: "PS93 chronic: behavior says day 11, spec says none" is the whole point, and
     a bare False would send someone back to the log to find out which animal and which boundary.
     """
     if not rep.get("available"):
@@ -326,7 +326,7 @@ def disagreements(rep) -> list[str]:
             out.append(f"{animal} acute: {len(r.get('disagreements', []))} session(s) disagree: {bad}")
     for animal, r in sorted((rep.get("chronic") or {}).items()):
         if r.get("agree") is False:
-            out.append(f"{animal} chronic: behaviour says {r.get('derived_day')}, "
+            out.append(f"{animal} chronic: behavior says {r.get('derived_day')}, "
                        f"spec says {r.get('stored_day')}")
     return out
 
@@ -340,7 +340,7 @@ def report_lines(rep) -> list[str]:
     if not rep.get("available"):
         return [f"epoch audit: NOT CHECKED -- {rep.get('reason')}"]
     lines = [f"epoch audit ({rep['position']}, engaged trials, {rep['n_sessions']} sessions)",
-             "  all three boundaries DERIVED from behaviour; animals.yaml is the seed/pinned ref"]
+             "  all three boundaries DERIVED from behavior; animals.yaml is the seed/pinned ref"]
     lines.append(f"  {'animal':7s} {'acute':>10s} {'subacute':>9s} {'chronic':>8s}   "
                  f"{'(derived, vs animals.yaml)':<28s}")
     ad = rep.get("acute_derived") or {}
@@ -374,14 +374,14 @@ def report_lines(rep) -> list[str]:
             lines.append(f"    {animal}: day(s) {', '.join(str(d) for d in days)}")
     bad = disagreements(rep)
     if bad:
-        lines.append("  BEHAVIOUR HAS MOVED AWAY FROM THE STORED SPEC:")
+        lines.append("  BEHAVIOR HAS MOVED AWAY FROM THE STORED SPEC:")
         lines += [f"    {b}" for b in bad]
         lines.append("    ALL THREE boundaries are DERIVED and have already been applied to this "
                      "run's figures; `epoch_boundaries.json` records what was used. animals.yaml "
                      "is the seed and the pinned reference -- promote when you want a fresh clone "
                      "or a pinned rebuild to reproduce these epochs.")
     else:
-        lines.append("  animals.yaml agrees with behaviour on every animal and all three "
+        lines.append("  animals.yaml agrees with behavior on every animal and all three "
                      "boundaries")
     return lines
 

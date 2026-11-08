@@ -8,7 +8,7 @@ difference from pre is commensurable across animals in a way the raw traces are 
 idiosyncratic pre-stroke shape cancels and what survives is what the lesion changed.
 
 NOTHING IS COMPUTED HERE. It reads the dumps `cd_trajectories` persists, which is what they exist
-for -- so this figure cannot disagree with the per-animal panels it summarises.
+for -- so this figure cannot disagree with the per-animal panels it summarizes.
 
 THREE THINGS THIS FIGURE HAS TO BE HONEST ABOUT, and each is visible on it rather than in a caption:
 
@@ -119,7 +119,7 @@ def pooled_nested(post, pre, n_boot=N_BOOT_BAND, seed=0):
     `post` and `pre` are ``{animal: [per-session trace]}``. Animals are resampled once and then
     sessions within each drawn animal, for BOTH arms under that same draw -- which is what makes it
     paired, so between-animal variance cancels rather than being counted twice. It is
-    `analysis_kit.boot_delta`'s draw, vectorised over time; the canonical call costs 291 ms and a
+    `analysis_kit.boot_delta`'s draw, vectorized over time; the canonical call costs 291 ms and a
     trace has 219 points.
 
     THE ANIMAL-ONLY VERSION IT REPLACES had four values and 35 distinct resamples, so its band was
@@ -175,7 +175,7 @@ def pooled(per_animal, n_boot=N_BOOT_BAND, seed=0):
     the dumps aggregate sessions within an epoch. `boot_delta`'s inner session draw therefore has
     nothing to resample and it degenerates to precisely this: resample animals with replacement, take
     the mean. Its own docstring says so -- "the interval reflects the animal draw alone". What this
-    adds is VECTORISATION OVER TIME, because the canonical call costs 291 ms and a trace has 219
+    adds is VECTORIZATION OVER TIME, because the canonical call costs 291 ms and a trace has 219
     points: 19 minutes for one layout against milliseconds here.
 
     **THE QUOTED SCALARS DO NOT COME THROUGH HERE.** `peak_delta` calls `analysis_kit.boot_delta`
@@ -309,15 +309,15 @@ def _suptitle(got, align, extra):
         f"CROSS-ANIMAL {align.upper()} coding direction — CHANGE FROM EACH ANIMAL'S OWN PRE-STROKE "
         f"TRAJECTORY{extra}\n"
         f"N = {n} animals; BANDS ARE THE NESTED animals -> sessions bootstrap, not four animals "
-        f"with one value each. EPOCHS ARE THE GREY RAMP (light = early), ANIMALS ARE THE COHORT "
-        f"COLOURS — one palette each, so the two never collide. "
+        f"with one value each. EPOCHS ARE THE GRAY RAMP (light = early), ANIMALS ARE THE COHORT "
+        f"COLORS — one palette each, so the two never collide. "
         f"Thin lines, individual animals; heavy line, their mean (DASHED where "
         f"fewer than {MIN_ANIMALS} animals contribute). 0 = that animal's pre-stroke trajectory, so "
         f"pre-stroke is zero BY CONSTRUCTION and carries no band — a Δ near 0 means 'no resolvable "
         f"change', not 'identical', and the spread shown inherits the noise of both epochs.\n"
-        f"Pole-normalised units: 1.0 = that animal's full pre-stroke position-P signature. "
+        f"Pole-normalized units: 1.0 = that animal's full pre-stroke position-P signature. "
         f"Condition-independent mode projected out; {sorted(dropped)} glue/bulb components dropped. "
-        f"x = 0 is the {zero}. HAEMODYNAMICS ARE SLOW — read amplitude and gross time course, NOT "
+        f"x = 0 is the {zero}. HEMODYNAMICS ARE SLOW — read amplitude and gross time course, NOT "
         f"onset or ordering.")
 
 

@@ -3,7 +3,7 @@ movement add variance, and does it absorb the spout-position code? (handoff: "do
 or the spout coding?")
 
 Per session x area x window, from the region tables (held-out R2, combined_encoding):
-  FR gain           fr:full - full                       (what FaceRhythm adds to the full behavioural model)
+  FR gain           fr:full - full                       (what FaceRhythm adds to the full behavioral model)
   position | FR     fr:full - fr:drop:position           (unique spout-position R2 with FR in the model)
   position          full - drop:position (main run)      (unique spout-position R2 without FR; same base model)
   retained          position | FR / position             (1 = FR takes none of the position code)

@@ -15,7 +15,7 @@ dying on it:
 
 The suite could not catch any of them, because a NameError in a branch no test executes is
 invisible to a test suite by construction. Static resolution catches all three in under a second,
-and this is the check the nightly run needs most: the behaviour box runs these modules unattended
+and this is the check the nightly run needs most: the behavior box runs these modules unattended
 for hours, and the cost of the failure is not the crash but the plausible-looking partial output
 it leaves on the share.
 

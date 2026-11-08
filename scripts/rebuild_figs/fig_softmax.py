@@ -140,7 +140,7 @@ def draw(fd: dict, OUT: str) -> None:
             if i == 4: ax.set_xlabel("executed soft bin")
             if an == "mean":
                 for s in ax.spines.values(): s.set_linewidth(2)
-    fig.suptitle("LICK DATA (behaviour, no neural signal): change in where licks land, epoch minus pre within each animal, "
+    fig.suptitle("LICK DATA (behavior, no neural signal): change in where licks land, epoch minus pre within each animal, "
                  "then the mean of animals (bottom row).\nBlue on the diagonal = fewer licks landing like their own target; "
                  "red off-diagonal = landing like another spout. Softmax width 1.", fontsize=9)
     fig.tight_layout(rect=(0, 0, 1, 0.95))

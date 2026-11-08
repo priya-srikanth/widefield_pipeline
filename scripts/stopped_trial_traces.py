@@ -531,7 +531,7 @@ def _curve(ax, lags, mu, se, n, c, lab):
 
 
 def draw_class(stem: str) -> None:
-    """Rows = areas, columns = hemispheres, colour = epoch, one trial class."""
+    """Rows = areas, columns = hemispheres, color = epoch, one trial class."""
     import matplotlib.pyplot as plt
     from wfield_local.orofacial_cohort import EPOCH_LINE
     F = load_fd(stem, FIGD)
@@ -565,7 +565,7 @@ def draw_class(stem: str) -> None:
         ax.set_xlabel(ALIGN_TXT[F["align"]], fontsize=8)
     h, lab = axs[0, 0].get_legend_handles_labels()   # one figure legend under the panels (was over ALM contra data)
     fig.legend(h, lab, fontsize=7.5, frameon=False, loc="outside lower center", ncol=len(h))
-    fig.suptitle(textwrap.fill(_title(F, f"class = {_txt(F['klass']).upper()}, colour = epoch"), 150), fontsize=8.5)
+    fig.suptitle(textwrap.fill(_title(F, f"class = {_txt(F['klass']).upper()}, color = epoch"), 150), fontsize=8.5)
     FIGS.mkdir(parents=True, exist_ok=True)
     save_png_svg(fig, FIGS / f"{_stem(stem)}.png", dpi=105, bbox_inches="tight")
     plt.close(fig)
@@ -582,7 +582,7 @@ def _title(F, what):
 
 
 def draw_compare(stem: str) -> None:
-    """Rows = areas, columns = hemisphere x epoch, colour = class."""
+    """Rows = areas, columns = hemisphere x epoch, color = class."""
     import matplotlib.pyplot as plt
     F = load_fd(stem, FIGD)
     lags, cols = ALIGN[F["align"]], F["cols"]
@@ -634,7 +634,7 @@ def draw_compare(stem: str) -> None:
         h += hh
         lab += ll
     fig.legend(h, lab, fontsize=7, frameon=False, loc="outside lower center", ncol=len(il.EP4))
-    fig.suptitle(textwrap.fill(_title(F, "colour = trial class: " + ", ".join(_txt(k) for k in F["classes"])), 230),
+    fig.suptitle(textwrap.fill(_title(F, "color = trial class: " + ", ".join(_txt(k) for k in F["classes"])), 230),
                  fontsize=9)
     FIGS.mkdir(parents=True, exist_ok=True)
     save_png_svg(fig, FIGS / f"{_stem(stem)}.png", dpi=100, bbox_inches="tight")
@@ -673,7 +673,7 @@ def draw_examples(stem: str) -> None:
         fig.colorbar(im, ax=axs, shrink=0.5, label=_rl(F, "dF/F x1e3 above restw"))
     fig.suptitle(textwrap.fill(_rl(F, f"NEURAL: single STOPPED trials, {F['animal']} -- areas x time, cue-aligned, baseline = minus the "
                  f"session's RESTW level; trials evenly spaced through that animal x epoch's stopped trials "
-                 f"(n stopped per epoch: {F['n']}). One colour scale (98th pct |value|). {_stopped_txt()}"), 170), fontsize=8.5)
+                 f"(n stopped per epoch: {F['n']}). One color scale (98th pct |value|). {_stopped_txt()}"), 170), fontsize=8.5)
     FIGS.mkdir(parents=True, exist_ok=True)
     save_png_svg(fig, FIGS / f"{_stem(stem)}.png", dpi=110, bbox_inches="tight")
     plt.close(fig)
@@ -881,10 +881,11 @@ def within_animal(L: pd.DataFrame, base: str) -> pd.DataFrame:
 def movement_precue(labels: list) -> pd.DataFrame:
     """Pre-cue movement per trial class from qc/jaw_onsets.csv: treadmill -1..0 s (tread_pre_mm_s, DAQ, all spouts) and
     the 3-D jaw / nose pre-cue displacement (jaw3d_rest_mm / nose3d_rest_mm = 95th pct over -500..0 ms; side spouts only,
-    blank at close/far centre). Per animal x epoch x class: median over trials (restw_ok sessions)."""
+    blank at close/far center). Per animal x epoch x class: median over trials (restw_ok sessions)."""
     D = pd.read_csv(OUTD / _o("trial_classes.csv.gz"), low_memory=False)
     D = D[D.restw_ok.astype(str).str.lower().eq("true") & D.label.isin(labels)]
-    J = pd.read_csv(il.OUT.parent / "qc" / "jaw_onsets.csv", low_memory=False,
+    from wfield_local import orofacial_outputs as oo   # <encoding root>/qc (D9 11-08: il.OUT.parent/qc never existed)
+    J = pd.read_csv(oo.encoding_root() / "qc" / "jaw_onsets.csv", low_memory=False,
                     usecols=["session", "trial_id", "tread_pre_mm_s", "jaw3d_rest_mm", "nose3d_rest_mm"])
     J["label"] = J.session.str[:5] + J.session.str[-4:]
     D = D.merge(J.drop(columns="session"), on=["label", "trial_id"], how="left")
@@ -997,7 +998,7 @@ def draw_levels(stem: str) -> None:
     hs += [plt.Line2D([], [], color=_col(c), lw=2.0, label=f"mean, {_txt(c)}") for c in cls]
     fig.legend(handles=hs, fontsize=7, frameon=False, loc="outside lower center", ncol=len(hs))   # was over ALM data
     fig.suptitle(textwrap.fill(_rl(F,
-        "NEURAL: pre-cue (-1..0 s) level per animal (grey, markers = animal) and mean of the animals present (colour), "
+        "NEURAL: pre-cue (-1..0 s) level per animal (gray, markers = animal) and mean of the animals present (color), "
         "all spouts pooled, trial-weighted over sessions. Rows: " + (" / ".join(_txt(c) for c in cls) if _cam() else "hit / miss_working / stopped") + " x (contralesional, above "
         "restw) / (contra minus ipsi, above restw) / (contralesional, RAW dF/F x1e3). RESTW is the engagement-gated "
         "WORKING-period rest, so for stopped (quit-period) trials it is a cross-state reference. Animal sets differ "
@@ -1023,7 +1024,7 @@ def draw_levels(stem: str) -> None:
         ax.set_xticklabels(il.EP4, fontsize=7)
         ax.set_title(t, fontsize=8.5)
     axs[0, 0].legend(fontsize=6.5, frameon=False)
-    fig.suptitle("BEHAVIOUR: pre-cue movement by trial class per animal (markers: PS92 o, PS93 s, PS94 ^, PS95 D); "
+    fig.suptitle("BEHAVIOR: pre-cue movement by trial class per animal (markers: PS92 o, PS93 s, PS94 ^, PS95 D); "
                  "qc/jaw_onsets.csv tread_pre_mm_s / jaw3d_rest_mm / nose3d_rest_mm (3-D: side spouts only)", fontsize=9)
     fig.tight_layout(rect=(0, 0, 1, 0.9))
     save_png_svg(fig, FIGS / f"{_stem(stem)}_movement.png", dpi=100, bbox_inches="tight")

@@ -98,7 +98,7 @@ def test_kin_gate_signature_follows_the_selection(monkeypatch):
 def test_jaw_only_figs_default_is_the_working_period(session, monkeypatch, tmp_path):
     import jaw_only_incomplete_figs as jf
     from wfield_local import orofacial_cohort as oc
-    monkeypatch.setattr(oc, "engagement_keep", lambda *a, **k: pytest.fail("behaviour gate used under the default"))
+    monkeypatch.setattr(oc, "engagement_keep", lambda *a, **k: pytest.fail("behavior gate used under the default"))
     r = jf.session_job(("PS92_20260810", str(tmp_path), str(tmp_path), str(tmp_path)))
     (c,) = r["counts"]
     assert c["n_trials"] == 5 and c["share_unknown"] == 0

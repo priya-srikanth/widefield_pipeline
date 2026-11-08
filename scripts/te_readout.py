@@ -1,6 +1,6 @@
 """TARGET vs EXECUTION readout of the FROZEN_DESIGN=te run (DECISIONS 2026-10-26; Priya: "target kernel vs execution
-kernel"). Groups (`frozen_encoder` TE_BLOCK): target = spout identity (pos_enl, pos_cue) + lick-locked kernels labelled
-by the trial's target spout; execution = 3-D tongue / jaw, exec angle, FaceRhythm, lick-locked kernels labelled by
+kernel"). Groups (`frozen_encoder` TE_BLOCK): target = spout identity (pos_enl, pos_cue) + lick-locked kernels labeled
+by the trial's target spout; execution = 3-D tongue / jaw, exec angle, FaceRhythm, lick-locked kernels labeled by
 3-D landing (ITI licks included); contact = every DAQ lick; timing / other nuisance.
 
 Per session x window (cue / lick) x area, from `<run>/frozen_musall_r2.csv` (held out: pre sessions leave-one-session-
@@ -27,8 +27,10 @@ AREAS = ["SSp-m_right", "SSp-m_left", "MOp_right", "MOp_left", "cortex"]
 UNIQUE = {"target": "no_target", "execution": "no_execution", "contact": "no_contact", "task": "no_task",
           "movement": "no_movement"}
 ALONE = {"target alone": "target_only", "execution alone": "execution_only"}
-SERIES = [("target", "target (unique)", "#b2182b"), ("execution", "execution (unique)", "#2166ac"),
-          ("contact", "contact (unique)", "#999999"), ("execution - target", "execution minus target", "#01665e")]
+from wfield_local.cat_points import MODEL_COLORS as MC  # noqa: E402 - the shared model palette (Priya 11-07)
+
+SERIES = [("target", "target (unique)", MC[2]), ("execution", "execution (unique)", MC[0]),
+          ("contact", "contact (unique)", MC[5]), ("execution - target", "execution minus target", MC[1])]
 
 
 def table(run: Path, measure: str) -> pd.DataFrame:
@@ -83,8 +85,8 @@ def main(argv=None) -> int:
     fig.suptitle(f"NEURAL: TARGET vs EXECUTION kernels in the frozen pre-stroke encoder ({a.measure} R2; "
                  f"{run.name.replace('frozen_encoder_', '')}).\nUnique = full model minus a refit without the group; change "
                  "from pre within animal (line = mean of animals, band = 95% nested CI animals > sessions).\nTarget = spout "
-                 "identity + target-labelled lick kernels; execution = 3-D tongue / jaw, exec angle, FaceRhythm, landing-"
-                 "labelled lick kernels; contact = every DAQ lick.", fontsize=9.5)
+                 "identity + target-labeled lick kernels; execution = 3-D tongue / jaw, exec angle, FaceRhythm, landing-"
+                 "labeled lick kernels; contact = every DAQ lick.", fontsize=9.5)
     fig.subplots_adjust(left=0.09, right=0.99, top=0.8, bottom=0.15, wspace=0.08, hspace=0.25)
     (run / "figures").mkdir(exist_ok=True)
     save_png_svg(fig, run / "figures" / f"te_unique_lines_{a.measure}.png", dpi=110)

@@ -1,7 +1,7 @@
 """WHAT in the FACE carries the pre-launch aim, WHEN, and does face movement explain the frozen-decoder OFFSET?
 Pre-registered: docs/status/FACE_PRELAUNCH_AIM_PREREG_20261031.md (follow-up to S26, prelaunch_aim_tracking.py).
 
-Behaviour-only decoders (Q1-Q4) of launch angle theta_L (+ = contralesional) from face signals in S26's lick sets (cued,
+Behavior-only decoders (Q1-Q4) of launch angle theta_L (+ = contralesional) from face signals in S26's lick sets (cued,
 jaw-referenced cued, docked ITI), S26's ridge / LOSO / frozen pipeline and tracking index (TI). Face families:
   PTS    FaceRhythm mesh point-displacement PCs 1-20 (frozen pre PCA, 25 Hz, timing-valid)        PRIMARY
   JAW    cam4 cleaned jaw lateral (+ = contralesional = image LEFT), opening, both velocities      PRIMARY
@@ -13,7 +13,7 @@ each lick (regression fitted on PRE licks; LOSO for pre), re-scored -> docked IT
 
   python scripts/face_prelaunch_aim.py extract [--jobs 4] [--animals PS93]
   python scripts/face_prelaunch_aim.py fit [--jobs 4] [--animals PS93] [--nperm 200] [--smoke]
-  python scripts/face_prelaunch_aim.py summarise
+  python scripts/face_prelaunch_aim.py summarize
   python scripts/face_prelaunch_aim.py offset [--jobs 4]          (Q5; reproduction check first, stops if it fails)
   python scripts/face_prelaunch_aim.py plot   (or --plot-only)     figures from figdata only
 Env: FPA_OUT redirects outputs (smoke test); WIDEFIELD_FROZEN_MODEL_DIR redirects the frozen store (smoke test).
@@ -370,7 +370,7 @@ def run_decoder(an, arm, name, X, meta, nperm=0, train_mask=None, log=print):
 
 
 def within_spout(an, arm, name, X, meta, nperm, log=print) -> dict:
-    """Q4: within-spout decoder on PRE licks: y and X centred within session x target cell, LOSO, null = permutations
+    """Q4: within-spout decoder on PRE licks: y and X centered within session x target cell, LOSO, null = permutations
     of y within cell (not frozen: never scores post)."""
     pre = (meta.epoch == "pre").to_numpy() & np.isfinite(X).all(1) & np.isfinite(meta.theta_L.to_numpy(float))
     row = {"animal": an, "arm": arm, "decoder": name, "n_pre": int(pre.sum())}
@@ -708,7 +708,7 @@ def plot_all() -> None:
     axA.axhline(0, color="k", lw=0.5)
     axA.set_ylabel("pre LOSO r (angle)")
     axA.set_title("A  pre-stroke gate: r per animal (open), bar = null 95th; * = 3/4 pass\n"
-                  "black cued PRE, purple ITI PRE, green pre-JAW, grey cued POST (control)", fontsize=9, loc="left")
+                  "black cued PRE, purple ITI PRE, green pre-JAW, gray cued POST (control)", fontsize=9, loc="left")
     # B / C / D: TI by epoch per family
     for k, (arm, title, gcol) in enumerate((("cued", "B  CUED, tongue-referenced PRE", 4), ("iti", "C  ITI docked PRE", 6),
                                             ("jaw", "D  CUED, pre-JAW window", 0))):
@@ -776,7 +776,7 @@ def plot_all() -> None:
                 star_top(axF, i + dx, "*", color=col, fontsize=9)
     axF.axhline(0, color="k", lw=0.5)
     axF.set_xticks(range(len(wf)), ["pts", "jaw", "FR", "nose", "3D", "pts|jaw"], fontsize=7, rotation=30)
-    axF.set_title("F  within-spout r (pre)\nblack cued PRE10, green pre-jaw,\npurple ITI PRE10, grey POST", fontsize=8, loc="left")
+    axF.set_title("F  within-spout r (pre)\nblack cued PRE10, green pre-jaw,\npurple ITI PRE10, gray POST", fontsize=8, loc="left")
     # G: per-bin time course (cued, acute) PTS / JAW / FR
     BR = fd["BR"]
     for k, (arm, ref) in enumerate((("cued", "tongue"), ("jaw", "JAW"), ("iti", "tongue"))):
@@ -793,7 +793,7 @@ def plot_all() -> None:
         ax.axvline(0, color="k", lw=0.6)
         ax.axhline(0, color="k", lw=0.4)
         ax.set_ylim(-2.1, 3.1)
-        ax.set_xlabel(f"bin centre (s from {ref} onset)")
+        ax.set_xlabel(f"bin center (s from {ref} onset)")
         ax.set_ylabel("acute TI (single-bin decoders)", fontsize=8)
         ax.legend(fontsize=7, frameon=False, loc="upper left")
         ax.set_title(f"{'GHI'[k]}  per-bin acute TI, {arm} (bins with >= 3 calibrated animals)\n"
@@ -801,7 +801,7 @@ def plot_all() -> None:
     h = [Line2D([], [], marker=AM[a], ls="", mfc="none", mec="k", label=a) for a in AN] + \
         [Line2D([], [], marker="o", ls="", color=EC[e], label=e) for e in EPS[1:]]
     fig.legend(handles=h, loc="lower center", ncol=7, fontsize=8, frameon=False)
-    fig.suptitle("What in the face carries the pre-launch aim (BEHAVIOUR), when, and the cortical offset after face "
+    fig.suptitle("What in the face carries the pre-launch aim (BEHAVIOR), when, and the cortical offset after face "
                  "partialling (NEURAL, E). n = 4, PROVISIONAL", fontsize=11)
     for ax in fig.get_axes():
         for s_ in ("top", "right"):
@@ -873,7 +873,7 @@ def plot_secondary(fd) -> None:
         ax.axvline(0, color="k", lw=0.4)
         ax.set_xlabel("launch deviation at the target (deg, session)")
         ax.set_ylabel("face-decoded deviation (deg-equiv., session)")
-        ax.set_title(f"{'CD'[k]}  CUED {dec.split(':')[0]}: sessions (open), colour = epoch\ncalibrated animals only: "
+        ax.set_title(f"{'CD'[k]}  CUED {dec.split(':')[0]}: sessions (open), color = epoch\ncalibrated animals only: "
                      + ", ".join(sorted(okA)), fontsize=9, loc="left")
     # E: pre jaw-opening trace (behaviour) to time the jaw
     ax = fig.add_subplot(gs[1, 4])
@@ -892,7 +892,7 @@ def plot_secondary(fd) -> None:
     for a_ in fig.get_axes():
         for s_ in ("top", "right"):
             a_.spines[s_].set_visible(False)
-    fig.suptitle("Face pre-launch aim: FaceRhythm decomposition, recovery, jaw timing (BEHAVIOUR; n = 4; PROVISIONAL)", fontsize=11)
+    fig.suptitle("Face pre-launch aim: FaceRhythm decomposition, recovery, jaw timing (BEHAVIOR; n = 4; PROVISIONAL)", fontsize=11)
     reserve_headroom(fig)
     save_png_svg(fig, FIGS / "fpa_secondary.png", dpi=130, bbox_inches="tight")
     plt.close(fig)

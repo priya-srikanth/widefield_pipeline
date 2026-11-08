@@ -1,4 +1,4 @@
-"""THE HAEMODYNAMIC DIP, TIMED DIRECTLY: does the evoked HRF slow after the stroke?
+"""THE HEMODYNAMIC DIP, TIMED DIRECTLY: does the evoked HRF slow after the stroke?
 
 Priya, 2026-09-19: *"why does the lag relate to the neurovascular coupling - i thought the vascular
 part was the later dip"*, then *"yes run the dip comparison"*.
@@ -19,7 +19,7 @@ replication rather than a re-slice of the same data.
 THREE DESIGN CHOICES THAT MATTER:
 
     PARENCHYMA ONLY      Vessels carry no GCaMP, so what the camera collects there is scattered
-                         light from neighbouring cortex -- a diluted copy of the parenchymal
+                         light from neighboring cortex -- a diluted copy of the parenchymal
                          signal by the same factor in BOTH channels (0.41 vs 0.43 at 0.4 s, see
                          `channel_vessel_sign`). Including them adds no information and drags both
                          traces toward each other. The mask is the LOCAL-contrast one, because an

@@ -30,7 +30,7 @@ SEARCH = "middle"                                  # window search: "middle" thi
 
 
 def one(label):
-    """Window traces, quiet mask, event (frame, signed height, baseline) per column, behaviour (spawn worker)."""
+    """Window traces, quiet mask, event (frame, signed height, baseline) per column, behavior (spawn worker)."""
     Xr, ft, fs, rest, engaged, _ = session_traces(label, detrend=False)
     X = detrend(Xr, fs)
     busy, badw = busy_frames(label, ft, fs)
@@ -139,7 +139,7 @@ def main():
         a.text(0.8, 3, "2% dF/F", fontsize=7, va="center")
     ax[-1].set_xlabel("s (60-s window in the middle third of the session with the most engaged quiet)")
     fig.suptitle("Quiet-period events, v2 detector at +/-4 x the animal's pre-stroke robust SD (value at right). Traces = "
-                 "dF/F % minus a 2-s running median; same y-scale in every row. Grey = quiet (no lick / running within 1.5 s "
+                 "dF/F % minus a 2-s running median; same y-scale in every row. Gray = quiet (no lick / running within 1.5 s "
                  "before or after; spout may be out). Black triangles = events (height above the median of the preceding "
                  "1.0-0.2 s beyond the threshold), pointing down onto an UP peak from above / up onto a DOWN trough from "
                  "below. Bottom: blue ticks = cues, dark bar = spout "

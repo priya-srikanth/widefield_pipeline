@@ -4,7 +4,7 @@ Priya, 2026-09-25: *"is there a clean way to look at where a lick's trajectory M
 trajectory (eg did post-stroke far R end up looking more like far center than far center does)?"*
 
 THE OBJECT. ``M[i, j]`` = position i's trials projected onto position j's coding direction, averaged
-over the response window. The POLE NORMALISATION is what makes this readable: every CD is scaled so 0
+over the response window. The POLE NORMALIZATION is what makes this readable: every CD is scaled so 0
 is that animal's pre-stroke not-P and 1 is its pre-stroke lick at P, so an entry of 1.0 means "looks
 exactly like pre-stroke position j" **in the same units in every column**. A row is therefore a
 profile of what those trials resemble, and the question above becomes a comparison of two numbers:
@@ -225,7 +225,7 @@ def delta_significance(got, ep, pos, window=WINDOW, n_boot=N_BOOT_CELL, seed=0):
 
     THE UNIT IS THE ANIMAL and the draw is `boot_delta`'s -- resample animals with replacement, take
     the mean of their within-animal deltas. With one value per animal per cell `boot_delta` reduces
-    to exactly that, so this is that draw vectorised over 36 cells, not a second definition.
+    to exactly that, so this is that draw vectorized over 36 cells, not a second definition.
 
     OFF-DIAGONAL CELLS CANNOT USE SESSIONS. `cd_trajectories` persists per-session traces for the
     DIAGONAL only, so the nested animals -> sessions draw is unavailable here and these intervals are
@@ -234,7 +234,7 @@ def delta_significance(got, ep, pos, window=WINDOW, n_boot=N_BOOT_CELL, seed=0):
     two and should be read that way.
 
     `sig_fwer` uses a BOOTSTRAP MAX-STATISTIC over the whole panel: under each resample the largest
-    absolute centred deviation across all cells forms the null, and a cell must beat its 95th
+    absolute centered deviation across all cells forms the null, and a cell must beat its 95th
     percentile. At 36 cells a nominal 5% would decorate about five of them in a null matrix.
 
     `n_agree` is how many animals share the pooled sign -- printed because an interval at n=4 can
@@ -513,16 +513,16 @@ def figure(got, out, align, window=WINDOW):
     fig.suptitle(
         f"WHERE A POSITION'S TRAJECTORY MOVED — {align.upper()}, pooled over {pooled[eps[0]][2]} "
         f"animals\nM[i, j] = position i's trials projected onto position j's coding direction, "
-        f"averaged over the FITTING window. Pole-normalised, so 1.0 means 'looks like "
+        f"averaged over the FITTING window. Pole-normalized, so 1.0 means 'looks like "
         f"PRE-STROKE position j' and COLUMNS ARE COMPARABLE.\nThe diagonal is the anchor (~1.0 "
-        f"pre-stroke). THE DIRECTIONS ARE NOT ORTHOGONAL — neighbouring positions resemble each "
+        f"pre-stroke). THE DIRECTIONS ARE NOT ORTHOGONAL — neighboring positions resemble each "
         f"other already — so read the BOTTOM row, the change from pre, for migration.\n"
         f"BOLD = THE DIAGONAL, a position's own trials on its own direction — the anchor, ~1.0 "
         f"pre-stroke, and its fall is that position losing its own identity.\n"
         f"A BOXED cell is the strong claim: those trials score higher on the column's direction than "
         f"that column's OWN trials do — a comparison between two different rows, which is why it is "
         f"drawn rather than left to the eye. Top row is the LEVEL, bottom is the CHANGE, and they "
-        f"use different colour maps on purpose.",
+        f"use different color maps on purpose.",
         fontsize=8)
     out = Path(out)
     out.parent.mkdir(parents=True, exist_ok=True)

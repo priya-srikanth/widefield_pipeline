@@ -97,7 +97,7 @@ def test_the_bundle_carries_the_numeric_labels_the_decoders_fit_on():
 
     Dropping them is what kept `fig_confusion_pre_post_working` and `_collect_5c` on their own
     recipes: both fit and score on the integer position codes, and refitting on the display names
-    would be a different call to the optimiser rather than a rename.
+    would be a different call to the optimizer rather than a rename.
     """
     from wfield_local import grant_figures
 

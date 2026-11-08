@@ -9,7 +9,7 @@ WHY PERSIST (both reasons measured, not assumed):
      component counts (PS92 123 vs 128, PS93 93 vs 96, PS94 95 vs 98, PS95 137 vs 135) and moved the
      cross-session RSA by up to 0.054 — larger than the gap between the bases we were choosing among.
      Randomness enters via ``randomized_svd`` (numpy global RNG) and ``torch.randperm`` in LocaNMF's
-     initialisation, so seeding both makes a rebuild reproducible.
+     initialization, so seeding both makes a rebuild reproducible.
   2. A basis refit over "all curated sessions" is a DIFFERENT BASIS every time the session set grows.
      Refitting nightly would silently make last week's numbers incomparable with this week's. The basis
      must be a fixed reference frame, which is also what the post-stroke comparison requires: the
@@ -264,9 +264,16 @@ class Basis:
             raise ValueError(f"{session['label']} is {an} but this basis is for "
                              f"{self.manifest['animal']}; pass allow_cross_animal=True to override")
         u, v = joint_basis._load_session(session["mc"])
+        return self.project_uv(u, v, session["label"], with_diagnostics)
+
+    def project_uv(self, u, v, label, with_diagnostics=False):
+        """`project` on an already-loaded ``(U_flat (npix, K), SVT (K, T))`` pair, as `joint_basis._load_session`
+        returns it (NaNs zeroed, float32). For callers whose U / SVT are not read from the session's ``mc`` dir -- the
+        O2 state-space extraction (`scripts/o2_state_space_lnmf.py`) reads staged copies on scratch. Same arithmetic,
+        one definition. The animal check stays in `project`: callers of this method pass the animal's own basis."""
         Uj = np.load(self.root / "U_joint.npy")
         if u.shape[0] != Uj.shape[0]:
-            raise ValueError(f"{session['label']} is not on the basis pixel grid "
+            raise ValueError(f"{label} is not on the basis pixel grid "
                              f"({u.shape[0]} px vs {Uj.shape[0]}) — needs allen_aligned_affine8v1")
         P = Uj.T @ u                                  # (R, K) — never touches pixel-space time series
         C = self._operator @ (P @ v)                  # (ncomp, R)(R, K)(K, T)
@@ -276,8 +283,8 @@ class Basis:
         W = np.asarray(v @ v.T, dtype=np.float64)     # (K, K)
         den = float(np.sum(np.asarray(u.T @ u, dtype=np.float64) * W))
         num = float(np.sum(np.asarray(P.T @ P, dtype=np.float64) * W))
-        return C, {"basis_id": self.basis_id, "label": session["label"],
-                   "variance_captured": num / max(den, 1e-30), "in_fit": session["label"] in self.labels}
+        return C, {"basis_id": self.basis_id, "label": label,
+                   "variance_captured": num / max(den, 1e-30), "in_fit": label in self.labels}
 
     def signal_or_project(self, session):
         """``signal`` when the session is in the fit, ``project`` when it is not — so callers do not
@@ -296,7 +303,7 @@ class Basis:
 
 def _seed_everything(seed=SEED):
     """LocaNMF draws from the numpy global RNG (sklearn ``randomized_svd``) and from torch
-    (``randperm`` in its initialisation). Seed both. NB CUDA reductions are not bitwise deterministic,
+    (``randperm`` in its initialization). Seed both. NB CUDA reductions are not bitwise deterministic,
     so a rebuild can still differ in the last digits — but not in component identity."""
     np.random.seed(seed)
     try:

@@ -1,12 +1,12 @@
-"""BEHAVIOURAL RECOVERY MEASURE for ranking animals (Priya 10-27: "angle offset from intended spout as measure of recovery -
+"""BEHAVIORAL RECOVERY MEASURE for ranking animals (Priya 10-27: "angle offset from intended spout as measure of recovery -
 weighted for far contra then far mid, then all others") -- and THE ONE DEFINITION of the weighted signed AIM that is the
-behaviour axis everywhere (recovery link, mixed-model behaviour model / deficit, lmm figures, aim-deficit comparison;
+behavior axis everywhere (recovery link, mixed-model behavior model / deficit, lmm figures, aim-deficit comparison;
 CLAUDE.md rule 9).
 
 Per cued lick: angle atan2(lateral, sagittal) (degrees, 3-D, extension peak) minus the animal's PRE mean angle at the
 same target spout over ALL its pre cued licks (its own pre landing, not the geometric spout direction: pre landings sit
 medial of the spout, and the geometric angle carries the mouth-origin error). Per session: mean offset per spout (signed
-and |.|), combined over spouts with weights far contra 3, far mid 2, every other spout 1 (renormalised over the spouts
+and |.|), combined over spouts with weights far contra 3, far mid 2, every other spout 1 (renormalized over the spouts
 present with >= MIN_LICKS licks). Also the far-contra offset alone (- = ipsilesional).
 
 LICK SET (DECISIONS 2026-10-27 late, Priya): PRIMARY = the FIRST post-cue lick of each trial (lick_idx 0, joined from
@@ -71,7 +71,7 @@ def aim_licks() -> pd.DataFrame:
 
 def weighted(g: pd.DataFrame, min_n: int, absolute: bool = False) -> float:
     """THE weighted aim of one session's licks: per spout mean offset (|offset| if absolute) over spouts with >= min_n
-    licks, weights far contra 3, far mid 2, others 1, renormalised over the spouts present."""
+    licks, weights far contra 3, far mid 2, others 1, renormalized over the spouts present."""
     v = g.off.abs() if absolute else g.off
     m = v.groupby(g.pos).agg(["mean", "size"])
     m = m[m["size"] >= min_n]
@@ -88,7 +88,7 @@ def far_contra(g: pd.DataFrame, min_n: int, absolute: bool = False) -> float:
 
 
 def session_table(p: pd.DataFrame, aim: str = AIM) -> pd.DataFrame:
-    """Per session: weighted_signed (THE behaviour axis), weighted_abs, far_contra_signed, far_contra_abs, n_spouts,
+    """Per session: weighted_signed (THE behavior axis), weighted_abs, far_contra_signed, far_contra_abs, n_spouts,
     n_licks, on the `aim` lick set ('first' | 'all')."""
     q = p[p["first"]] if aim == "first" else p
     mn = MIN_LICKS[aim]
@@ -115,12 +115,12 @@ def animal_table(S: pd.DataFrame) -> pd.DataFrame:
 
 
 def sessions_csv(aim: str = AIM) -> Path:
-    """The session table of lick set `aim` (what every behaviour-axis consumer reads)."""
+    """The session table of lick set `aim` (what every behavior-axis consumer reads)."""
     return il.OUT / f"recovery_measure_sessions{'' if aim == 'first' else '_aimall'}.csv"
 
 
 def aim_deficit(aim: str = AIM) -> dict:
-    """{label: behaviour deficit} for the mixed models' behaviour model = (animal's August-pre mean - session) of the
+    """{label: behavior deficit} for the mixed models' behavior model = (animal's August-pre mean - session) of the
     weighted signed aim, degrees (+ = aim shifted ipsilesional; mixed_models.behaviour_deficit, relative=False)."""
     from wfield_local import mixed_models as mx
     return mx.behaviour_deficit(sessions_csv(aim), "weighted_signed", True, relative=False)
@@ -175,25 +175,29 @@ def plot(S: pd.DataFrame, aim: str = AIM) -> None:
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
-    fig, axs = plt.subplots(1, 2, figsize=(13, 4.6))
+    from wfield_local import cat_points as cp
+    fig, axs = plt.subplots(1, 2, figsize=(14.5, 4.6))
     for k, (val, lab) in enumerate((("weighted_signed", "weighted SIGNED angle offset from own pre (deg; - = ipsi)"),
                                     ("far_contra_signed", "far-contra signed angle offset (deg; - = ipsilesional)"))):
         ax = axs[k]
-        for j, a in enumerate(AN):
-            g = S[S.animal == a].sort_values("day")
-            ax.plot(g.day, g[val], "o-", ms=3, lw=1, color=plt.get_cmap("tab10")(j), label=a)
+        # EPOCH-COLOUR CONVENTION (A13, Priya 11-07; was: tab10 animal colours joined by lines): open point per
+        # session, shape = animal, colour = epoch, no line; filled = epoch mean +- SEM over animals
+        cp.day_dots(ax, S.day, S[val], S.animal, S.epoch)
         ax.axvline(0, color="k", lw=0.7, ls="--")
         ax.axhline(0, color="0.7", lw=0.6, ls=":")
         ax.set_xlabel("day after stroke")
         ax.set_ylabel(lab, fontsize=9)
         for s_ in ("top", "right"):
             ax.spines[s_].set_visible(False)
-    axs[0].legend(fontsize=8, frameon=False)
+    axs[1].legend(handles=cp.legend_handles(AN, [e for e in cp.EPOCH_ORDER if (S.epoch == e).any()],
+                                            sessions_label="{a}", epoch_label="{e}: mean +- SEM"),
+                  fontsize=8, frameon=False, loc="upper left", bbox_to_anchor=(1.01, 1.0))
     which = ("FIRST post-cue lick of each trial (PRIMARY)" if aim == "first" else
              "ALL cued licks (sensitivity; the primary is the first lick)")
-    fig.suptitle(f"BEHAVIOUR: recovery measure -- {which}: angle offset from the animal's own pre landing at the target "
-                 "spout,\nweighted far contra 3 : far mid 2 : others 1 (left), and far contra signed (right). One dot per "
-                 "session; pre sessions (left of the dashed line) = the noise floor. PROVISIONAL", fontsize=9.5)
+    fig.suptitle(f"BEHAVIOR: recovery measure -- {which}: angle offset from the animal's own pre landing at the target "
+                 "spout,\nweighted far contra 3 : far mid 2 : others 1 (left), and far contra signed (right).\nOne dot per "
+                 "session (open; shape = animal, color = epoch; filled = epoch mean +- SEM over animals); pre sessions (left of the "
+                 "dashed line) = the noise floor. PROVISIONAL", fontsize=9.5)
     fig.tight_layout(rect=(0, 0, 1, 0.88))
     save_png_svg(fig, il.OUT / "figures" / f"lick_cued_recovery_measure{'' if aim == 'first' else '_aimall'}.png", dpi=100)
     plt.close(fig)

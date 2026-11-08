@@ -4,7 +4,7 @@ WHY THIS FILE EXISTS. The `nolick_ref` parameter was added and then silently did
 signature patch landed in the module that IMPORTS `features_with_indices` rather than the one that
 defines it, so the keyword was never threaded through. The module imported, ruff passed, and all 464
 tests passed -- the failure only appeared as a TypeError at runtime, because no test exercised the
-new parameter. These tests pin the behaviour rather than the plumbing.
+new parameter. These tests pin the behavior rather than the plumbing.
 """
 from __future__ import annotations
 

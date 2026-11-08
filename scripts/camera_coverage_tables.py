@@ -10,7 +10,7 @@ Read-only on the data; writes four CSVs into <run>/imaging_encoding/qc/.
    (one definition: cue -> trial stop, contacts from cue + 70 ms, the contact table) such a trial is a CONTACT trial in
    the no-lick analysis too, so this table is the CHECK that the two DAQ lick paths agree; every disagreement is
    listed with its cause (camera_contact_nolick_trials.csv):
-     late_after_response_window   the contact falls after the categorisation's response window, before the stop
+     late_after_response_window   the contact falls after the categorization's response window, before the stop
      cue_frame                    a detected lick sits IN the cue's imaging frame (`searchsorted(..., "right")`
                                   starts after it)
      refractory_merge             a detected lick lies within the detector's minimum gap before the cue (the
@@ -33,7 +33,7 @@ import numpy as np
 import pandas as pd
 
 def _min_gap_s() -> float:
-    """The categorisation's minimum gap between kept DAQ onsets: max(refractory, 40 ms floor) of THE DAQ lick detector
+    """The categorization's minimum gap between kept DAQ onsets: max(refractory, 40 ms floor) of THE DAQ lick detector
     (`config.lick_detector`, REBUILD_CODE 8.53; it was the old imaging 0.10 s refractory)."""
     from wfield_local import config
     d = config.lick_detector()
@@ -151,7 +151,7 @@ def main(argv=None) -> int:
     W.to_csv(qc / "camera_contact_nolick_trials.csv", index=False)
     S = stop_lengths(pd.concat(stops, ignore_index=True)) if stops else pd.DataFrame()
     S.to_csv(qc / "camera_stop_lengths.csv", index=False)
-    print("response windows used by the no-lick categorisation (s):",
+    print("response windows used by the no-lick categorization (s):",
           sorted(set(W.response_window_s)) if len(W) else "(no disagreement rows)")
     print(C[C.partial].to_string(index=False) if C.partial.any() else "no partially covered session")
     print(N.to_string(index=False))

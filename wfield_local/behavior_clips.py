@@ -61,7 +61,7 @@ def categorise(d):
     ENGAGEMENT IS RECOMPUTED rather than read from the table's ``engaged`` column: the gate was
     backdated on 2026-09-07 to start at the first miss of the run that trips it, and a persisted
     trials.csv may predate that. Calling the function keeps one source of truth and makes the clips
-    correct whether or not the behaviour analysis has been re-run yet.
+    correct whether or not the behavior analysis has been re-run yet.
     """
     from wfield_local.spout_behavior import reference_engagement
 
@@ -242,9 +242,9 @@ def refile_stale_epochs(rv=None, dry=False):
     """Move clip folders whose EPOCH has moved since they were cut. Returns the moves made.
 
     THE DIRECTORY NAME IS A CLAIM, AND `epochs` RE-DERIVES THE TRUTH EACH RUN. `chronic_from` is
-    computed from behaviour and republished nightly, so a boundary that shifts silently restales
+    computed from behavior and republished nightly, so a boundary that shifts silently restales
     every clip cut before it: three PS92 sessions were sitting under `subacute/` on 2026-09-07 after
-    the animal's chronic boundary landed, and the deck was labelling them from the folder.
+    the animal's chronic boundary landed, and the deck was labeling them from the folder.
 
     Cheap to do every night -- a rename, no video touched -- and it is the difference between a
     label that is checked and a label that was true once.

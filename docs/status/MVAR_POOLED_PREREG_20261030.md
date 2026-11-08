@@ -22,14 +22,14 @@ minus its regression on the mean of the other 17, BEFORE pooling), dec (deconvol
 ## Model, CV (as the 18-region pre-registration, except)
 * p in {1, 2, 3, 4, 6, 8} (up to ~0.77 s); lagged samples need all 8 lags inside the run for every p (common sample
   set). lambda grid unchanged (10^-5 .. 10, 19 values).
-* W = lag-summed coefficients (6 x 6, standardised units); 30 off-diagonal entries.
+* W = lag-summed coefficients (6 x 6, standardized units); 30 off-diagonal entries.
 
 ## Stability gate (per animal, AUGUST pre, raw; identical thresholds)
 1. Prediction: cross-node gain > 0 in >= 75 % of pre sessions and >= 4/5 outer folds in the median session.
 2. Halves: r(off-diagonal W, first vs second half) median >= 0.7, no session < 0.5.
 3. Sessions: median pairwise r of off-diagonal W across pre sessions >= 0.7.
 4. Ridge: r(W at CV lambda, W at lambda x10 and / 10) median >= 0.7 each.
-5. Pair-specific halves (double-centred W) median >= 0.5.
+5. Pair-specific halves (double-centered W) median >= 0.5.
 **Interpret pre vs post only if >= 3 / 4 animals pass on raw.** Every number reported either way.
 Reported, not gated: the split-half difference of each PRIMARY readout (below), as a noise floor to read the post
 changes against.
@@ -38,7 +38,7 @@ changes against.
 All curated sessions at the animal's FIXED (lambda = geometric median of its pre CV choices, p = their mode); per-session
 CV choice = sensitivity. PRIMARY readouts, from W[target, source]:
 * `S->M intra` = (W[M_i,S_i] + W[M_c,S_c]) / 2; `S->M inter` = (W[M_c,S_i] + W[M_i,S_c]) / 2; the same for M->S;
-* `dir intra` = S->M intra - M->S intra; `dir inter` likewise (the S18 Granger analogue);
+* `dir intra` = S->M intra - M->S intra; `dir inter` likewise (the S18 Granger analog);
 * per hemisphere pair: `dir Si<->Mi`, `dir Sc<->Mc`, `dir Si<->Mc`, `dir Sc<->Mi`.
 SPECIFICITY control: `R->M` (mean of the 4 RSPd -> motor entries) and `dir R<->M`, same treatment; a sensory-specific
 loss should exceed the RSPd one. Per-animal table first (rule 8), then `analysis_kit.boot_delta` per post epoch.

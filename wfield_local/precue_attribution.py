@@ -100,7 +100,7 @@ def encoding_ev(X, y, g, k=5):
     The model is just the per-position mean fitted on training blocks and applied to held-out blocks,
     which is the saturated position model — anything richer would fit the same 6 conditions. R^2 is
     computed against the test fold's own total variance and CAN be negative (a feature whose position
-    means do not generalise), which is informative and is not clipped.
+    means do not generalize), which is informative and is not clipped.
 
     ``ceiling`` is the Spearman-Brown-corrected split-half correlation of the 6-vector of position
     means, SQUARED so it is on the same scale as R^2. NB an earlier version of this idea in the RSA
@@ -168,7 +168,7 @@ def haufe_patterns(X, y, g):
     """(nfeat, nclass) ACTIVATION patterns, one column per position, in the features' own units.
 
     Fit on all trials — this describes the model, it is not a performance estimate, so no CV is
-    needed and using all data makes the covariance better determined. Weights are un-standardised
+    needed and using all data makes the covariance better determined. Weights are un-standardized
     before the transform, since the classifier is fit on z-scored features but the activation pattern
     must live in the data's units to be mapped to pixels.
     """

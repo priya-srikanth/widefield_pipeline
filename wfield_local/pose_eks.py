@@ -1,7 +1,7 @@
 """Ensemble Kalman Smoother (EKS) plumbing for two-camera orofacial pose (cam1 below, cam4 frontal).
 
 WHY (Priya, 2026-10-05). DLC and Lightning Pose each miss or mis-place the tongue on different frames, and
-cam1 cannot see what cam4 sees (the rod hides the nose from below at the centre spout positions). The
+cam1 cannot see what cam4 sees (the rod hides the nose from below at the center spout positions). The
 Lightning Pose ecosystem's EKS (`pip install ensemble-kalman-smoother`, import ``eks``) fuses an ENSEMBLE
 of per-camera predictions -- and, in its multi-camera form, the two views -- into one smoothed track with
 a posterior variance per frame. The variance is the useful new quantity: it is large where ensemble
@@ -83,7 +83,7 @@ def pose_from_lp_csv(path: str | Path, parts=PARTS) -> np.ndarray:
 def mask_low(pose: np.ndarray, cut: float | dict, parts=PARTS) -> np.ndarray:
     """Copy of ``pose`` with x, y set to NaN where likelihood < ``cut`` (a float, or {part: cut}).
 
-    WHY: in our labelling convention a blank means OCCLUDED (DECISIONS 2026-09-26), and both networks
+    WHY: in our labeling convention a blank means OCCLUDED (DECISIONS 2026-09-26), and both networks
     report an occluded part as a low-likelihood guess somewhere plausible. Handing that guess to a
     smoother as data pulls the track toward it; NaN tells EKS there is no observation at that frame."""
     out = np.array(pose, dtype=float, copy=True)
@@ -236,14 +236,14 @@ def smooth_multicam(poses_by_cam: dict, parts=PARTS, smooth_param=None, quantile
     distances match the stage to 1-2 % in Aug-Sep -- June sessions need another calibration.
     MEASURED 2026-10-05 (six Aug/Sep windows, s 3/10/30): the calibrated path was WORSE than the
     calibration-free one on every cam1 measure. Hidden-cam1-tongue hold-out error was 42-45 px against
-    17-18 px. The cam1 nose at the centre spout landed 95-155 px from the same session's visible far_L
+    17-18 px. The cam1 nose at the center spout landed 95-155 px from the same session's visible far_L
     nose (calibration-free: 85-98 px, about where the networks' raw guess sits). The 3-D estimate itself
-    reprojects at 6-9 px in cam1 (the labelled-pair level). Cause: a view that loses a part leaves depth
+    reprojects at 6-9 px in cam1 (the labeled-pair level). Cause: a view that loses a part leaves depth
     along the other camera's ray unobserved, and EKS seeds the 3-D state from a likelihood-BLIND
     triangulation of the raw (occluded) guesses, which the random walk then holds. A larger occlusion
     variance (1e5, 1e6) did not fix it. Do not use it for occluded parts without a likelihood-weighted
-    initialisation.
-    NB the smoothing parameter is NOT comparable between the two paths: the linear path normalises
+    initialization.
+    NB the smoothing parameter is NOT comparable between the two paths: the linear path normalizes
     its process covariance to max 1 in PCA units, the nonlinear one takes it from the triangulated
     track's frame-to-frame MAD in calibration units (mm).
 
@@ -297,7 +297,7 @@ def pca_keep_quantile(mean_lik: np.ndarray, cut, cap: float = 50.0, lo: float = 
     PCA is fit on occluded guesses. The tongue is out on maybe a fifth of a 3-s window, so the
     package default of 50 % does exactly that. This returns 90 % of the both-views-visible fraction of
     the scarcest keypoint, clipped to [lo, cap]; keypoints seen in both views on < ``min_seen`` of
-    frames (cam1's nose at the centre spout, hidden by the rod) are left out of the minimum -- their
+    frames (cam1's nose at the center spout, hidden by the rod) are left out of the minimum -- their
     PCA is unidentifiable from this window whatever the setting, and they would starve the others."""
     seen = (np.asarray(mean_lik) >= np.asarray(cut, dtype=float)).all(axis=0).mean(axis=0)   # (K,)
     usable = seen[seen >= min_seen]

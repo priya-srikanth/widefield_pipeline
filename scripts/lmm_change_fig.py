@@ -9,9 +9,9 @@ figures write the same four columns. Optional ``panel`` column (or --panel-by) s
 Holm family.
 
 Drawn per cell and epoch:
-  * open markers  = each session's change from ITS ANIMAL's pre mean (shape = animal, colour = epoch);
+  * open markers  = each session's change from ITS ANIMAL's pre mean (shape = animal, color = epoch);
   * filled dot    = `analysis_kit.epoch_change_lmm` estimate, whisker = its 95 % t interval (df = n_animals - 1);
-  * grey bar      = the animal bootstrap 95 % interval (`paired_animal_draws`): a description of THESE animals;
+  * gray bar      = the animal bootstrap 95 % interval (`paired_animal_draws`): a description of THESE animals;
   * stars (top band) = `analysis_kit.lmm_stars`: * p < .05, ** Holm across ALL the figure's cells x epochs.
 Writes <png> and <png stem>_lmm.csv (the statistics). Canonical spout order when the cells are spouts.
 """
@@ -55,7 +55,7 @@ def statistics(S: pd.DataFrame, cells, family=None) -> pd.DataFrame:
 def draw_axis(ax, S: pd.DataFrame, T: pd.DataFrame, cs, labels: dict, *, dot_s: float = 16, dot_alpha: float = 0.6,
               label_size: float = 8) -> None:
     """One panel: for each cell in ``cs`` and each post epoch, the session changes (open markers), the animal
-    bootstrap bar (grey) and the LMM estimate + CI (filled dot) from ``T``, stars in the top band."""
+    bootstrap bar (gray) and the LMM estimate + CI (filled dot) from ``T``, stars in the top band."""
     from wfield_local import analysis_kit as ak
     from wfield_local import cat_points as cp
     from wfield_local import epoch_figures as ef

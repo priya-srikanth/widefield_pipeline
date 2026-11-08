@@ -76,7 +76,7 @@ def draw(fd: dict, out: Path) -> pd.DataFrame:
             if j == 0:
                 ax.set_ylabel(f"{ar}\nchange_ref, held-out R2 gain (fraction)")
     fig.suptitle("NEURAL: Layer 2 random-split null. Each dot = one of 20 fits in which a random set of August pre sessions "
-                 "plays a\npseudo epoch (grey; shaded = its 5-95% range) alongside the real post epochs; line = median over "
+                 "plays a\npseudo epoch (gray; shaded = its 5-95% range) alongside the real post epochs; line = median over "
                  "splits.\nP = share of splits where the pseudo epoch gains at least as much as that epoch (0.00 = none of "
                  "20).", fontsize=9)
     fig.tight_layout(rect=(0, 0, 1, 0.92))

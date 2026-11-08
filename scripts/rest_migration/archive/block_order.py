@@ -12,11 +12,11 @@ THE AMPLITUDE GRADIENT (1.48 / 1.21 / 1.27 near -> 1.01 / 0.69 / 0.48 far, acute
 ESTABLISHED, and DECISIONS.md records that leaning on it needs this check first. This is that check,
 and it is deliberately cheap: DAQ position codes only, no imaging, no maps.
 
-THE STATISTIC. For each session give every trial its NORMALISED INDEX in the session (0 = first,
+THE STATISTIC. For each session give every trial its NORMALIZED INDEX in the session (0 = first,
 1 = last) and take each position's mean. Under a shuffled order that mean is ~0.5 for every position,
 and -- more to the point -- a position's deviation from 0.5 is UNCORRELATED across sessions.
 
-    per-position mean normalised index, averaged over sessions:  is any position systematically
+    per-position mean normalized index, averaged over sessions:  is any position systematically
                                                                  early or late in the cohort?
     between-session consistency (mean pairwise Spearman of the   the direct test: +1 = identical
     six per-position means, session against session)             order every session, 0 = shuffled
@@ -87,7 +87,7 @@ def main() -> int:
             print("   skipped:", x)
         return 1
 
-    print("\nMEAN NORMALISED TRIAL INDEX PER POSITION (0 = start of session, 1 = end)")
+    print("\nMEAN NORMALIZED TRIAL INDEX PER POSITION (0 = start of session, 1 = end)")
     print(f"{'position':<14}{'mean':>8}{'sd over sessions':>20}{'n sess':>8}")
     cols = {}
     for q in CONF_LABELS:

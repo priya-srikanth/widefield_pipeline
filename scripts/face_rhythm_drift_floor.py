@@ -73,6 +73,7 @@ def compute(fdir: Path) -> pd.DataFrame:
 
 
 def figure(T: pd.DataFrame, names: list[str], out: Path, set_name: str, factors) -> None:
+    from wfield_local import cat_points as cp
     from wfield_local import face_rhythm_figures as frf
     ecol = frc.epoch_colors()
     eps = list(frc.POST_EPOCHS)
@@ -96,10 +97,16 @@ def figure(T: pd.DataFrame, names: list[str], out: Path, set_name: str, factors)
                 x = np.arange(len(labs))
                 se = jackknife_se(curves)
                 colors = ["0.6"] * (len(labs) - 3) + [ecol[e] for e in eps]
-                ax.bar(x, curves["COHORT"], color=colors, width=0.65, yerr=se, capsize=3, error_kw={"lw": 1})
-                for t, v in curves.items():
-                    if t.startswith("LOAO-"):
-                        ax.plot(x, v, "o", ms=2.5, color="k", alpha=0.45, zorder=3)
+                loao = [t for t in curves if t.startswith("LOAO-")]     # open markers: shape = the animal left out
+                for i in x:
+                    cp.session_dots(ax, i, [curves[t][i] for t in loao], [t[5:] for t in loao], colors[i], seed=i)
+                    cp.summary_point(ax, i, curves["COHORT"][i], se[i], color=colors[i])
+                ax.set_xlim(-0.6, len(labs) - 0.4)
+                if r_i == 0 and c_i == 2:
+                    ax.legend(handles=[h.__class__([], [], ls="none", marker=h.get_marker(), mfc="none", mec="0.35",
+                                                   mew=0.9, ms=h.get_markersize(), label=f"without {h.get_label()[:4]}")
+                                       for h in cp.animal_handles([t[5:] for t in loao])],
+                              fontsize=7, frameon=False, loc="upper left", bbox_to_anchor=(1.0, 1.0))
                 if mode != "asym":
                     ax.axhline(curves["COHORT"][1], color="0.3", ls="--", lw=0.8)
                 else:
@@ -109,15 +116,16 @@ def figure(T: pd.DataFrame, names: list[str], out: Path, set_name: str, factors)
                 ax.set_xticks(x, labs, fontsize=7)
                 ok = d[d.tag == "COHORT"].ok.all()
                 ax.set_title(f"{names[k]}: {mode if mode != 'asym' else 'loading asymmetry change'}"
-                             + ("" if ok else "  (unrecovered fit, cos < .5)"), fontsize=8.5)
+                             + ("" if ok else "  (not recovered)"), fontsize=8.5)
                 ax.set_ylabel("angle (deg)" if mode != "asym" else "(contra - ipsi) / sum")
-        fig.suptitle(f"{set_name}: post-stroke shape change vs pre-stroke DRIFT (all animals pooled; dots = each animal "
-                     "left out)")
+        fig.suptitle(f"{set_name}: post-stroke shape change vs pre-stroke DRIFT (all animals pooled, descriptive; "
+                     "open markers = each animal left out)")
         frf.save(fig, out / "drift_floor.png", """
-All-animals-pooled factor fits (`fitcohort`, equal rows per animal; bars +- jackknife SE over animals, dots = the four
-leave-one-animal-out fits). Grey bars: NOISE = angle between fits of interleaved pre days (A vs B); DRIFT = angle
-between fits of the first and second half of the pre days in time (noise + slow change). Coloured: each epoch's fit vs
-the LATER pre half. Dashed = the drift bar: a change above it is more than the face drifts over ~two pre-stroke weeks.
+All-animals-pooled factor fits (`fitcohort`, equal rows per animal; filled point = the all-animals fit +- jackknife SE over
+animals, open markers = the four leave-one-animal-out fits, shape = the animal left out; DESCRIPTIVE -- the per-session
+tests are the main tests, 11-07). Gray: NOISE = angle between fits of interleaved pre days (A vs B); DRIFT = angle
+between fits of the first and second half of the pre days in time (noise + slow change). Colored: each epoch's fit vs
+the LATER pre half. Dashed = the drift value: a change above it is more than the face drifts over ~two pre-stroke weeks.
 Right: loading asymmetry (cam4 contralesional = image left), epoch - late pre; dashed +- the late - early pre change.""")
 
 
@@ -130,7 +138,7 @@ def main(argv=None) -> int:
     ap.add_argument("--set", default=fro.SET)
     ap.add_argument("--fdir", type=Path, default=None)
     ap.add_argument("--factors", nargs="+", default=None, help="factor names for the figure (default all)")
-    ap.add_argument("--match-rule", choices=sorted(es.MATCH_RULES), default="v1",
+    ap.add_argument("--match-rule", choices=sorted(es.MATCH_RULES), default="v2",
                     help="see face_rhythm_epoch_shape.MATCH_RULES; non-v1 output goes to epoch_shape_cohort_<rule>/")
     a = ap.parse_args(argv)
     es.RULE = a.match_rule

@@ -75,7 +75,7 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--pre", nargs="+", required=True, help="pre-stroke session(s), pooled for the templates")
     ap.add_argument("--post", nargs="+", required=True)
-    ap.add_argument("--cued", nargs="+", default=["far_R"], help="cued positions to analyse ('all' = every one)")
+    ap.add_argument("--cued", nargs="+", default=["far_R"], help="cued positions to analyze ('all' = every one)")
     ap.add_argument("--baseline", choices=["pre_onset", "pre_cue"], default=None)
     ap.add_argument("--tag", default="", help="suffix for the output names")
     a = ap.parse_args(argv)

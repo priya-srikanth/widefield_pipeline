@@ -9,7 +9,7 @@ and this module is that cycle's TRAIN end. Every step is DeepLabCut's own API �
 ``create_training_dataset``, ``train_network``, ``evaluate_network``, ``WeightInitialization``,
 and ``iteration`` as the round counter. Nothing here reimplements a step DLC already has.
 
-**WHAT HAS BEEN REFINED IS NOT WHAT IS LABELLED.** `dlc_prelabel` seeds ten bodyparts on cam4 from
+**WHAT HAS BEEN REFINED IS NOT WHAT IS LABELED.** `dlc_prelabel` seeds ten bodyparts on cam4 from
 the 2pRAM donor, and a seeded point is a *prediction*, not a label. As of 2026-09-21 the refinement
 pass covered `nose`, `jaw`, `tongue` and `spout` across all 15 cam4 folders; the six whisker columns
 are still raw donor output. Measured on the one folder that kept a pre-refinement backup
@@ -23,10 +23,10 @@ are still raw donor output. Measured on the one folder that kept a pre-refinemen
 So training on the union would fit six channels to the donor's own guesses about a view 2.5x more
 zoomed than the one it learned — the hallucination `dlc_frames.bodyparts` exists to prevent, arriving
 by a different door. `dlc.train.bodyparts` is the list of parts a HUMAN has actually placed, and it
-is the contract: widen it when the labelling widens, not before.
+is the contract: widen it when the labeling widens, not before.
 
 **THIS TRAINS IN A SEPARATE PROJECT, AND THE COPY DIRECTION IS THE OPPOSITE OF `dlc_project`'s.**
-The labelling project is the single source of truth for labels; this one is derived and disposable,
+The labeling project is the single source of truth for labels; this one is derived and disposable,
 and every run re-syncs labels FORWARD from it and overwrites what is here. `dlc_project` refuses to
 overwrite a `CollectedData` file because there the human edit is downstream; here it is upstream, and
 refusing would train on stale labels. Do not label in the training project.
@@ -35,14 +35,14 @@ A separate project rather than an edit in place, for three reasons that are all 
 views:
 
   * `config.yaml` carries ONE bodypart list for the whole project. Cutting the live one to four
-    parts would make `cam2`/`cam3` — 8 parts each, including the eyes, and not yet labelled at all —
+    parts would make `cam2`/`cam3` — 8 parts each, including the eyes, and not yet labeled at all —
     impossible to label.
   * `dlc_project.write_config` rewrites `bodyparts` to the union on EVERY run, so an in-place edit
     is silently reverted the next time anyone opens the GUI, and a training set rebuilt after that
     would quietly pull the whisker seeds back in without erroring.
   * ``iteration`` is project-wide. Bumping it in the live project to version a cam4 refinement round
     would also re-version the other views' work -- `cam2`/`cam3` have no labels yet, and `cam1` has
-    one partly-labelled session (`cam1_2026-06-06T12_25_18`, 2026-09-10: jaw 71/72, tongue 38/72,
+    one partly-labeled session (`cam1_2026-06-06T12_25_18`, 2026-09-10: jaw 71/72, tongue 38/72,
     hand-placed since `dlc_prelabel` seeds cam4 only).
 
 **THE DONOR SUPPLIES WEIGHTS, NOT AUGMENTATION.** `dlc_orofacial.md` step 3 says to add scale
@@ -56,12 +56,12 @@ across. `dlc.train.scaling` is the knob if you want to reach further down toward
 apparent size; the default is DLC's own, on purpose.
 
 **THE SPLIT HOLDS OUT WHOLE SESSIONS, NOT RANDOM FRAMES.** DLC's default split is uniform over
-frames, and on THIS labelling set that measures the wrong thing. `dlc.frames.lick_offsets_s` samples
+frames, and on THIS labeling set that measures the wrong thing. `dlc.frames.lick_offsets_s` samples
 four points of a single ~80 ms protrusion, and `dlc_frames`'s own pruning measurement found 99–100%
 of within-onset frame pairs closer in appearance than the 5th percentile of between-onset pairs. A
 uniform split therefore puts near-duplicate frames on both sides of it and reports a test RMSE that
 is optimistic about the only thing the number is for — a session the network has not seen. Sessions
-are held out whole, one per epoch in a seeded order, so `test rmse` is a generalisation estimate and
+are held out whole, one per epoch in a seeded order, so `test rmse` is a generalization estimate and
 `--per-epoch` can ask the question the runbook actually cares about:
 
     "a network that tracks a healthy mouse well and a hemiparetic one badly reads as a deficit
@@ -130,7 +130,7 @@ def cam() -> str:
 
 
 def train_project(rv=None, which: str | None = None) -> Path:
-    """``<dlc>/training/<labelling project>-<tag>[-<cam>]`` — derived, and OUT OF THE LABELLING GLOB.
+    """``<dlc>/training/<labeling project>-<tag>[-<cam>]`` — derived, and OUT OF THE LABELING GLOB.
 
     ONE TRAINING PROJECT PER CAMERA (2026-10-05, first cam1 model). cam4 keeps the bare
     ``-<tag>`` name it has had since 2026-09-21, because the round-3 model in use, its priors
@@ -141,7 +141,7 @@ def train_project(rv=None, which: str | None = None) -> Path:
 
     The subdirectory is not tidiness. `dlc_project.project_dir` globs
     ``<Task>-<scorer>-*`` in the dlc root and returns the LAST match, so a sibling named
-    ``widefield-Priya-2026-09-08-orofacial`` sorts after the real project and becomes the labelling
+    ``widefield-Priya-2026-09-08-orofacial`` sorts after the real project and becomes the labeling
     target — `dlc_project --label` then opens the GUI on this disposable four-bodypart copy, and any
     label placed there is destroyed by the next `stage()`. That happened on 2026-09-21, on the first
     real run. `project_dir` now also matches the date shape rather than `*`; both guards stay,
@@ -177,7 +177,7 @@ def donor_bodyparts() -> list[str]:
 
 
 def donor_snapshot() -> Path:
-    """The donor snapshot to initialise from; prefers the local copy, falls back to the share.
+    """The donor snapshot to initialize from; prefers the local copy, falls back to the share.
 
     Read-only either way — DLC ``torch.load``s this path and writes only into the NEW project — so
     reading it off MICROSCOPE breaks no ground rule. The local copy is preferred because it is
@@ -203,13 +203,13 @@ def conversion(bodyparts: list[str] | None = None) -> tuple[list[int], list[str]
 
     ``None`` when any requested part has no donor counterpart, because DLC requires one entry per
     project bodypart when ``with_decoder=True`` — a partial mapping is not a thing it accepts, so
-    the caller falls back to a re-initialised head rather than guessing a channel.
+    the caller falls back to a re-initialized head rather than guessing a channel.
 
     The mapping itself is `dlc.donor.conversion` (target -> donor name), restricted to the parts
     being trained. On the four refined parts that is ``nose->nose, jaw->jaw, tongue->tongue,
     spout->R_spout`` = ``[0, 1, 2, 12]``, and dropping the whiskers makes this a BETTER transfer
     than the ten-part version would have been: every channel that survives is one whose supervision
-    is a human label, rather than six more initialised from the donor to be fitted back to the
+    is a human label, rather than six more initialized from the donor to be fitted back to the
     donor's own guesses.
     """
     bps = list(bodyparts or parts())
@@ -237,7 +237,7 @@ def weight_init(bodyparts: list[str] | None = None):
         would build the model config from SUPERANIMAL templates. Our donor is a custom project, not
         a SuperAnimal model, and we want DLC's ordinary resnet_50 + `aug_default` templates — the
         two-sided scaling in the module docstring is exactly what that branch would discard.
-      * `PoseModel.build` (``models/model.py``) honours ``with_decoder`` and ``conversion_array``
+      * `PoseModel.build` (``models/model.py``) honors ``with_decoder`` and ``conversion_array``
         for ANY snapshot — it loads the backbone, then calls ``head.convert_weights`` with the
         conversion tensor. Nothing there is SuperAnimal-specific.
 
@@ -255,7 +255,7 @@ def weight_init(bodyparts: list[str] | None = None):
     snap = donor_snapshot()
     if conv is None:
         print("[dlc_train] no complete donor mapping for these bodyparts — backbone only, "
-              "head re-initialised", flush=True)
+              "head re-initialized", flush=True)
         return WeightInitialization(snapshot_path=snap, with_decoder=False)
     arr, bps = conv
     order = donor_bodyparts()
@@ -300,25 +300,25 @@ def subset_labels(df: pd.DataFrame, bodyparts: list[str]) -> pd.DataFrame:
 
 
 def drop_unlabelled(df: pd.DataFrame) -> tuple[pd.DataFrame, int]:
-    """Rows with at least one labelled part, and how many all-blank rows were dropped.
+    """Rows with at least one labeled part, and how many all-blank rows were dropped.
 
     DLC reads EVERY blank as "absent here" -- its target for a missing part is an all-zero heatmap --
     so an all-blank row trains the network that nose, jaw, tongue and spout are all invisible in a
     perfectly ordinary frame. Such rows arise two ways: napari leaves one behind when a frame is
-    labelled and then cleared (cam1_2026-06-06T12_25_18 has one, 2026-09-30), and CONTEXT frames --
-    the +-4 / +-2 neighbours extracted around a pick so the labeller can scrub through a lick -- are
-    in the folder precisely so that most of them are never labelled. Dropping here makes "extracted
-    but not labelled" mean "not in the training set" for DLC by construction, not by labeller care.
+    labeled and then cleared (cam1_2026-06-06T12_25_18 has one, 2026-09-30), and CONTEXT frames --
+    the +-4 / +-2 neighbors extracted around a pick so the labeller can scrub through a lick -- are
+    in the folder precisely so that most of them are never labeled. Dropping here makes "extracted
+    but not labeled" mean "not in the training set" for DLC by construction, not by labeller care.
 
-    A frame with SOME parts labelled stays, and its blanks mean occluded: that is DLC's semantics
-    and the labelling guide's rule ("a frame you label, you label completely").
+    A frame with SOME parts labeled stays, and its blanks mean occluded: that is DLC's semantics
+    and the labeling guide's rule ("a frame you label, you label completely").
     """
     keep = df.notna().any(axis=1)
     return df[keep], int((~keep).sum())
 
 
 def stage(bodyparts=None, which=None, rv=None, iteration: int | None = None) -> Path:
-    """Build/refresh the training project from the labelling project. Returns its path.
+    """Build/refresh the training project from the labeling project. Returns its path.
 
     Labels are re-copied FORWARD every run and the copy here is overwritten — see the module
     docstring. Images are copied once (cheap, ~240 PNGs) rather than linked, because a Windows
@@ -330,7 +330,7 @@ def stage(bodyparts=None, which=None, rv=None, iteration: int | None = None) -> 
     bps, which = list(bodyparts or parts()), which or cam()
     src, dest = dlc_project.project_dir(rv), train_project(rv, which)
     if not (src / "config.yaml").is_file():
-        raise SystemExit(f"No labelling project at {src}. Run dlc_project first.")
+        raise SystemExit(f"No labeling project at {src}. Run dlc_project first.")
 
     assert_writable(dest)
     for sub in ("labeled-data", "training-datasets", "dlc-models-pytorch", "videos"):
@@ -402,7 +402,7 @@ def audit(proj: Path, which: str | None = None) -> pd.DataFrame:
 
     A blank is NOT a negative example: DLC masks NaN keypoints out of the loss, so a part is learned
     from the frames where it is placed and nowhere else. That makes the tongue's count the one to
-    read carefully — it is out for only ~70 ms per lick, so a low count is the BEHAVIOUR rather than
+    read carefully — it is out for only ~70 ms per lick, so a low count is the BEHAVIOR rather than
     unfinished work (`dlc.frames.lick_fraction` 0.5 with one tongue-in offset of four puts ~90 of
     240 cam4 frames in the tongue-out set, which is what 93 placed tongues means).
     """
@@ -633,11 +633,11 @@ def per_epoch_error(proj: Path, which=None, rv=None) -> pd.DataFrame | None:
     it is the one that decides whether any orofacial result is real, so it is computed here from the
     predictions DLC wrote and `frame_manifest.csv`'s epoch column.
 
-    **THE TRAIN/TEST COLUMN IS NOT COSMETIC.** `evaluate_network` predicts on EVERY labelled image,
+    **THE TRAIN/TEST COLUMN IS NOT COSMETIC.** `evaluate_network` predicts on EVERY labeled image,
     train and test alike, so pooling them makes each epoch's error depend on what share of that
-    epoch's sessions happened to be held out — an artefact of the split reported as a property of
+    epoch's sessions happened to be held out — an artifact of the split reported as a property of
     the epoch, which is the same class of error the table exists to catch. Read the `test` rows for
-    generalisation; the `train` rows only say whether the fit took.
+    generalization; the `train` rows only say whether the fit took.
 
     Read it as a CONTRAST across epochs, not against a threshold. Degrading tracking and genuine
     recovery are the same measurement until this table says the error is flat. Note which epochs the
@@ -704,16 +704,16 @@ def worst_frames(proj: Path, n: int = 15, which=None, rv=None) -> pd.DataFrame |
     """The frames to re-open in ``refine_labels``, worst prediction-vs-label error first.
 
     This is the refine loop's INPUT, and DLC has no call for it: `extract_outlier_frames` finds
-    outliers in a video's predictions (temporal jumps), which needs analysed videos and says nothing
+    outliers in a video's predictions (temporal jumps), which needs analyzed videos and says nothing
     about a LABEL being wrong. Comparing the network against its own training labels does, and a
     large error on a TRAIN frame is the informative case — the network had every chance to fit it and
     could not, so the label is the thing more likely to be wrong.
 
     That is not hypothetical. The first real run (2026-09-21) put the `subacute` train tongue RMSE at
     53.36 px, entirely from ONE frame at 266 px (`cam4_2026-08-26T12_25_41/img1796416.png`, likelihood
-    0.012): the tongue was labelled at x=619 on a 680 px frame while every other tongue in that
+    0.012): the tongue was labeled at x=619 on a 680 px frame while every other tongue in that
     session sits at x=338-373 and the nose, jaw and spout are all at x=244-323. A misclick on the far
-    edge of the frame. The median tongue error over all 93 labelled tongues was 1.91 px.
+    edge of the frame. The median tongue error over all 93 labeled tongues was 1.91 px.
 
     **Read `likelihood` next to the error.** Low error + low likelihood is a hard frame; LARGE error
     + low likelihood is the network refusing the label, which is the signature above.
@@ -928,7 +928,7 @@ def review_images(proj: Path, which=None, rv=None, dest: Path | None = None, tol
 def next_round(proj: Path) -> None:
     """How the next refinement round attaches — DLC's loop, not a new one.
 
-    Nothing to automate yet (it needs analysed videos, which is `dlc.o2.*`'s job), so this prints
+    Nothing to automate yet (it needs analyzed videos, which is `dlc.o2.*`'s job), so this prints
     the four DLC calls rather than pretending to a step the pipeline has not ported. The important
     part is that `iteration` is the counter: `merge_datasets` bumps it, so each round's training
     set and model folder are separate and an earlier network stays reproducible.
@@ -955,7 +955,7 @@ def seed_pending(proj: Path | None = None, rv=None, shuffle: int = 1, dry: bool 
                  pcutoff: float | None = None) -> int:
     """Seed the UNLABELLED frames with THIS network's predictions. Returns points written.
 
-    Frames added by a later `dlc_frames` run arrive blank, and blank-page labelling is several
+    Frames added by a later `dlc_frames` run arrive blank, and blank-page labeling is several
     times slower than correction. `dlc_prelabel` exists for exactly this and seeds from the 2pRAM
     DONOR -- which was right when there was nothing better, and is not any more: on this view the
     donor needed a 0.45 rescale to find the nose at all and still found the tongue on about half of
@@ -965,7 +965,7 @@ def seed_pending(proj: Path | None = None, rv=None, shuffle: int = 1, dry: bool 
     chosen by APPEARANCE DIVERSITY -- deliberately the poses the set has least of -- so they are
     where this network is least reliable, and its own confidence is the right gate. `nose` and
     `spout` will seed nearly everywhere and cost only a glance; the tongue stays blank precisely
-    where the network is unsure, which is where an independent judgement is worth having.
+    where the network is unsure, which is where an independent judgment is worth having.
 
     **The honest cost:** seeding from our own network means the labeller nudges its predictions
     rather than placing fresh, which biases the labels toward what the network already believes.
@@ -976,7 +976,7 @@ def seed_pending(proj: Path | None = None, rv=None, shuffle: int = 1, dry: bool 
 
     EXISTING ROWS ARE NEVER TOUCHED. Rows are added for pending images only, and every pre-existing
     row is asserted byte-identical before the file is written -- the 240 corrected labels are the
-    expensive artefact here and this is the one function that opens their file for writing.
+    expensive artifact here and this is the one function that opens their file for writing.
     """
     import numpy as np
 
@@ -1166,7 +1166,7 @@ def main(argv=None) -> int:
                          "write annotated crops to <project>/review/")
     ap.add_argument("--guide", action="store_true",
                     help="also (re)generate CORRECTION_GUIDE.html on the share, for whoever "
-                         "is doing the labelling")
+                         "is doing the labeling")
     ap.add_argument("--plotting", action="store_true", help="write evaluation overlay images")
     ap.add_argument("--machine", default=None)
     args = ap.parse_args(argv)

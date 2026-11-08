@@ -4,13 +4,13 @@ do the CD mean and trajectories").
     python -m scripts.cd_loo_figures [--out <labcams>/grant_figures/epoch/cd_loo]
 
 Per alignment (pre-cue / cue / lick), rows = animals, columns = spout positions, each panel the position's OWN coding
-direction (diagonal; pole-normalised: 0 = pre-stroke not-P, 1 = pre-stroke lick at P):
+direction (diagonal; pole-normalized: 0 = pre-stroke not-P, 1 = pre-stroke lick at P):
   cd_loo_window_<align>.png   every session's window mean (`CD_WINDOWS`) against days from stroke; August pre sessions
-                              scored leave-one-out (grey; band = their range, dashed = median), post coloured by epoch
+                              scored leave-one-out (gray; band = their range, dashed = median), post colored by epoch
   cd_loo_traj_<align>.png     the time course per epoch: mean +- SEM over SESSIONS (sessions are the unit, as
                               `cd_trajectories`), pre = held-out August pre sessions; shaded = the window-mean window
 Reads <labcams>/grant_figures/epoch/data/{cd_window_projection_loo_sessions_long.csv, cd_loo_traces.npz}. Remember the
-haemodynamic caveat (`cd_trajectories`): read amplitude and gross time course, not onset timing.
+hemodynamic caveat (`cd_trajectories`): read amplitude and gross time course, not onset timing.
 """
 from __future__ import annotations
 from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
@@ -56,7 +56,7 @@ def fig_window(C: pd.DataFrame, align: str, path: Path) -> None:
                 ax.set_xlabel("days from stroke", fontsize=7)
     axes[0, 0].legend(fontsize=6, loc="best")
     meas = D.measure.iloc[0] if len(D) else align
-    fig.suptitle(f"CD window mean, own direction ({meas}); August pre held out (grey band = pre range), "
+    fig.suptitle(f"CD window mean, own direction ({meas}); August pre held out (gray band = pre range), "
                  "1 = pre-stroke lick signature", fontsize=9)
     fig.tight_layout(rect=(0, 0, 1, 0.97))
     save_png_svg(fig, path, dpi=110)

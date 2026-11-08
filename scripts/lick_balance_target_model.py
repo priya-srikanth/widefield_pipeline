@@ -3,7 +3,7 @@
 QUESTION. Is the post-lick hemispheric balance (and the frozen lick decoder's like-for-like offset) the sum of a TARGET
 (spout location / intended direction) component and an EXECUTED-angle component? Pre-stroke the two coincide; post-stroke
 the landing error (landed - target) would expose the target component as an apparent "contralesional offset", so the
-angle-referenced balance would be roughly proportional to the landing error (partly a re-description of the behaviour).
+angle-referenced balance would be roughly proportional to the landing error (partly a re-description of the behavior).
 Is there a STATE SHIFT beyond it, and does that residual still track recovery?
 
 SIGN CONVENTIONS (every table / figure):

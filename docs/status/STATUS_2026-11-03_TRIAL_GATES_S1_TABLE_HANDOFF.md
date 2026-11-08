@@ -13,7 +13,7 @@ the page-edit list), **e3** (kinematics page sources on M:).
 `docs/status/PAGE_EDITS_PENDING_2026-11-04.md` (a8). e0 applies the imaging items (A1 incl. the section-0 definition box,
 A2-A6, A8-A12, B1-B3, B5-B7, B11, C paragraph, SPOUT_BALEM section 7). TRIGGER: 34's "render done" message with the old ->
 new figure list. Then, in this order:
-  a. Section-1 tables on the rebuild data (Priya 11-04: LP ENL 1.0 s primary, 2.0 s labelled sensitivity row):
+  a. Section-1 tables on the rebuild data (Priya 11-04: LP ENL 1.0 s primary, 2.0 s labeled sensitivity row):
      `WIDEFIELD_LICK_SOURCE=lp WIDEFIELD_ENL_WINDOW_S=1.0 python scripts/s1_refit_locanmf_table.py --suffix _1104r` and the
      Allen table (`wf_attempt` analysis/attempt-coding, `PYTHONPATH=. python scripts/s1_refit_basis_table.py --jobs 6
      --suffix _1104r`) at 1.0, then the Allen table again at `WIDEFIELD_ENL_WINDOW_S=2.0`; then
@@ -23,7 +23,7 @@ new figure list. Then, in this order:
   c. Read the LIVE imaging page first (https://claude.ai/artifact/PvraHiF82BFXur1hnNUCeV, v51), apply, publish.
   The imaging page still needs sharing with the organization (Priya, Share menu).
   d. Priya 11-05 (via a8), same pass: hit-rate period = the CAMERA working period primary, DAQ quit tail = robustness
-     row (changes behaviour-page Fig 0.2 when 34's render lands; A6 in PAGE_EDITS_PENDING); the per-animal trend-line
+     row (changes behavior-page Fig 0.2 when 34's render lands; A6 in PAGE_EDITS_PENDING); the per-animal trend-line
      panels of `orofacial_cohort.fig_epochs` move to a collapsible section, off the main page.
   e. FR page section 6 (Priya OK 11-05 via a8; "not sure what this is" -> say it plainly): add
      `readouts/master_pre_v1/spout_mesh_control/spout_mesh_control.png` with: "Is the face signal just the spout? The
@@ -48,7 +48,7 @@ new figure list. Then, in this order:
 
 **2. Side cameras + four-camera 3-D (all in `docs/POSE_MODELS.md` Part E; memory `four-camera-3d-ready`).**
   * Side model round 1 = crop2 (single-frame LP; temporal-loss variant tried, not adopted). Round 2 = Part B only
-    (`SIDECAM_GUIDE.html`, Part B first): 166 pre-labelled frames (62 cam4 round-4 moments + 104 jaw-sequence targets);
+    (`SIDECAM_GUIDE.html`, Part B first): 166 pre-labeled frames (62 cam4 round-4 moments + 104 jaw-sequence targets);
     routine old-Part-C frames deferred (`side_assignment.csv` `deferred`). Waiting on the student.
   * Four-camera 3-D built + validated on review clips: `wfield_local/pose3d_side.py` (`fuse_session`: side cleaning
     APPROVED by Priya, robust fusion, water-drop rule, one-view fill, per-session side nose + tongue offsets),
@@ -80,7 +80,7 @@ rule for the v36 2-D chain (~17 scripts): FIX WITH THE NEXT 3-D RE-RUN (Priya; r
 
 **5. Nothing runs now.** e0 waits on two triggers: 34's "render done" (item 1) and the student's Part B labels (item 2).
 
-**4. Published 11-04 (HMS account):** behaviour v2, kinematics v28, FaceRhythm v37 (e3's M: sources synced); imaging v51.
+**4. Published 11-04 (HMS account):** behavior v2, kinematics v28, FaceRhythm v37 (e3's M: sources synced); imaging v51.
 
 ## UPDATE 11-04 early — jaw-only OUT of working (Priya decision 11-03 late, via a8)
 
@@ -90,7 +90,7 @@ methods paragraph, SPOUT_BALEM section 7. CAVEAT for A11 (the jaw-free s1 table)
 (`LP_licks_ENL2s`, the old table's window). If A9 (ENL follows the lick source: LP 1.0 s) applies to section 1, re-run both
 s1 tables at 1.0 s in that pass (`WIDEFIELD_LICK_SOURCE=lp WIDEFIELD_ENL_WINDOW_S=1.0`, `--suffix`), then
 `p_img_s1_table_20261103.py` pointed at those files. Told a8 11-04.
-**DECIDED (Priya 11-04, via 34 / a8): section-1 refit = LP ENL 1.0 s, 2.0 s as a labelled sensitivity row.** The table
+**DECIDED (Priya 11-04, via 34 / a8): section-1 refit = LP ENL 1.0 s, 2.0 s as a labeled sensitivity row.** The table
 script is set up for it (`PRIMARY = LP_licks`, `SENSITIVITY = LP_licks_ENL2s`, both with suffix `_1104r`): in the
 post-rebuild pass run the LocaNMF + Allen s1 tables at `WIDEFIELD_ENL_WINDOW_S=1.0` and the Allen table again at 2.0,
 all with `--suffix _1104r`, then the table script (A11 in PAGE_EDITS_PENDING).
@@ -112,7 +112,7 @@ cleanly, with no correction notes:
 - figures whose numbers come from working trials: §1 (Fig 1-1, 1-2, S1 table), §2 (2-1, 2-2), §3 (3-1, 3-3),
   §4 (4-1, 4-2), §6 (6-1..6-3), §7 (7-1..7-4); replace the numbers with the re-rendered ones;
 - the LP-attempt decoder figures (2-3 and the §4 jaw-only mention) already exclude jaw-only trials; no change.
-Kinematics / behaviour / FaceRhythm pages: no "working = jaw or lick" wording found (jaw-only is already its own class there).
+Kinematics / behavior / FaceRhythm pages: no "working = jaw or lick" wording found (jaw-only is already its own class there).
 
 **a8 11-04: main combined render NOT run tonight** (34's cohort-1 rebuild will replace the working-gated families in
 1-2 days; interim swap = Priya's call in the morning). Keep holding all imaging page edits.
@@ -152,12 +152,12 @@ Kinematics / behaviour / FaceRhythm pages: no "working = jaw or lick" wording fo
   + kinematics cross-link, new files `lmm/{peak_side_headline,per_lick_stats,asym_aligned_change}_lmm.png`. The FR M: source
   (10-27) is OLDER than live v36: refresh it from live v36 first, re-run `kin_page_src/kin_page/add_lmm_toggles_1103.py fr`
   (idempotent), diff, publish. Send e3 the version numbers.
-  **e3 11-03 (later): HOLD the kinematics publish.** e3 is splitting the page (DAQ-contact figures move to a new behaviour page, cross-linked), so `kin_lmm/` is superseded; publish kinematics + the new behaviour page from M: only when e3 says the sources are ready. FaceRhythm (`fr_lmm/`) still goes ahead. Account: the tool needs a Claude Code restart after switching to HMS (the switch alone left it on the old sign-in, list empty).
-  **e3 11-03 (split READY) — publish order once the tool works:** (1) BEHAVIOUR, new page "Task Behaviour After Stroke", icon chart, from `M:/.../behaviour_page_src/behaviour_page/index.html`; local files `epoch_1f_engagement_by_epoch.png`, `lmm/epoch_1f_engagement_by_epoch_lmm.png`, `lmm/behaviour_hits_by_spout_lmm.png`; copy `b_timecourse.png` + `behaviour_hits_by_spout.png` server-side from the kinematics artifact (v26); NOT `epoch_1g_*`, `svg/` or `data/`. (2) KINEMATICS from `M:/.../kin_page_src/kin_page/index.html` (backups `index_pre_split_1103.html`, `index_v26_pre_lmm.html`), after replacing the 2 `href="#behaviour-page"` (data-behaviour-link) with the behaviour URL; files = 12 `lmm/<stem>_lmm.png`. (3) FACERHYTHM `fr_lmm/` staged + optionally the behaviour link in xlink-kin. Read each live page in full first; send e3 the three versions + the behaviour URL.
+  **e3 11-03 (later): HOLD the kinematics publish.** e3 is splitting the page (DAQ-contact figures move to a new behavior page, cross-linked), so `kin_lmm/` is superseded; publish kinematics + the new behavior page from M: only when e3 says the sources are ready. FaceRhythm (`fr_lmm/`) still goes ahead. Account: the tool needs a Claude Code restart after switching to HMS (the switch alone left it on the old sign-in, list empty).
+  **e3 11-03 (split READY) — publish order once the tool works:** (1) BEHAVIOR, new page "Task Behavior After Stroke", icon chart, from `M:/.../behaviour_page_src/behaviour_page/index.html`; local files `epoch_1f_engagement_by_epoch.png`, `lmm/epoch_1f_engagement_by_epoch_lmm.png`, `lmm/behaviour_hits_by_spout_lmm.png`; copy `b_timecourse.png` + `behaviour_hits_by_spout.png` server-side from the kinematics artifact (v26); NOT `epoch_1g_*`, `svg/` or `data/`. (2) KINEMATICS from `M:/.../kin_page_src/kin_page/index.html` (backups `index_pre_split_1103.html`, `index_v26_pre_lmm.html`), after replacing the 2 `href="#behaviour-page"` (data-behavior-link) with the behavior URL; files = 12 `lmm/<stem>_lmm.png`. (3) FACERHYTHM `fr_lmm/` staged + optionally the behavior link in xlink-kin. Read each live page in full first; send e3 the three versions + the behavior URL.
   **+ e3 (later):** kinematics files map also gets `p_phase_contra.png` (Fig 9.7 replaced by the 3-D phase figure with test bars; caption rewritten in index.html; same name, so it replaces the published file).
-  **11-04:** sidebar figure toggles (first figure per section, rest behind a ▸ N button, as on the encoder / FaceRhythm / imaging pages) added to KINEMATICS v28 (1793762111-ab7c) and BEHAVIOUR v2 (1793762112-2bde), script scratchpad `add_toc_toggles_1104.py <page> <localStorage prefix>` (asserts once-only); e3 asked to fold it into the M: sources. Sharing checked 11-04: encoder, kinematics, FaceRhythm, behaviour = organization; IMAGING page still private (Priya to share). Publishing images: use the explicit {path: absolute source} `files` map (root + list form was refused).
-  **11-03 21:55 ALL THREE PUBLISHED:** behaviour v1 (1793760190-da2d) https://claude.ai/artifact/M1xhZBWSPS84aELTSFaMMK; FaceRhythm v37 (1793760943-8fe2; 3 LMM toggles + kinematics / behaviour links); kinematics v27 (1793760972-f7dd; e3 split + 12 LMM toggles + new Fig 9.7 p_phase_contra.png, behaviour links set). The "Read permission rule" refusals were the `root` + list form of `files`; the explicit {published path: absolute source} map published fine. e3 told. (The block below is superseded.)
-  **11-03 21:45 PUBLISH STATE:** BEHAVIOUR page published https://claude.ai/artifact/M1xhZBWSPS84aELTSFaMMK v1 (1793760190-da2d; b_timecourse / behaviour_hits_by_spout copied from kinematics v26). KINEMATICS and FACERHYTHM NOT published: every image upload after that was refused ("blocked by a Read permission rule"; p_phase_contra.png, then lmm/*.png); waiting on Priya to approve. Staged: scratchpad `kin_split/` (M: source with the 2 behaviour links set to the URL, 12 lmm PNGs + p_phase_contra.png; live still v26 1793740846-76c9) and `fr_lmm/` (behaviour link added to xlink-kin; live still v36 1793745454-bdeb).
+  **11-04:** sidebar figure toggles (first figure per section, rest behind a ▸ N button, as on the encoder / FaceRhythm / imaging pages) added to KINEMATICS v28 (1793762111-ab7c) and BEHAVIOR v2 (1793762112-2bde), script scratchpad `add_toc_toggles_1104.py <page> <localStorage prefix>` (asserts once-only); e3 asked to fold it into the M: sources. Sharing checked 11-04: encoder, kinematics, FaceRhythm, behavior = organization; IMAGING page still private (Priya to share). Publishing images: use the explicit {path: absolute source} `files` map (root + list form was refused).
+  **11-03 21:55 ALL THREE PUBLISHED:** behavior v1 (1793760190-da2d) https://claude.ai/artifact/M1xhZBWSPS84aELTSFaMMK; FaceRhythm v37 (1793760943-8fe2; 3 LMM toggles + kinematics / behavior links); kinematics v27 (1793760972-f7dd; e3 split + 12 LMM toggles + new Fig 9.7 p_phase_contra.png, behavior links set). The "Read permission rule" refusals were the `root` + list form of `files`; the explicit {published path: absolute source} map published fine. e3 told. (The block below is superseded.)
+  **11-03 21:45 PUBLISH STATE:** BEHAVIOR page published https://claude.ai/artifact/M1xhZBWSPS84aELTSFaMMK v1 (1793760190-da2d; b_timecourse / behaviour_hits_by_spout copied from kinematics v26). KINEMATICS and FACERHYTHM NOT published: every image upload after that was refused ("blocked by a Read permission rule"; p_phase_contra.png, then lmm/*.png); waiting on Priya to approve. Staged: scratchpad `kin_split/` (M: source with the 2 behavior links set to the URL, 12 lmm PNGs + p_phase_contra.png; live still v26 1793740846-76c9) and `fr_lmm/` (behavior link added to xlink-kin; live still v36 1793745454-bdeb).
   **STAGED 11-03** (scratchpad, session-local): `fr_lmm/index.html` (+ `fr_lmm/lmm/*.png`, `fr_lmm/fig/*_rules.png`) = v36 +
   toggles + xlink-kin; `kin_lmm/kin_page.html` (+ `kin_lmm/lmm/*.png`) = e3's source. In both the lmm-supp-style block was moved
   from the publish wrapper's head into the body (the wrapper head is replaced on publish). Before publishing: confirm live is
@@ -312,7 +312,7 @@ None open (the post-quit jaw-only option is with e3 -> Priya). Decided today:
 * `session_classes(label)` -> every trial (no engagement filter): trial_id, position, cue_daq, cls, has_cam1.
 * `cue_classes(table, cue_s)` -> class per DAQ cue, matched by cue TIME within 20 ms (never trial id).
 * `in_gate(cls, "working" | "camera_lick")`.
-* Coverage, 108 curated imaging sessions from 08-06: **107 with v36** (PS93_0813 has no behaviour video —
+* Coverage, 108 curated imaging sessions from 08-06: **107 with v36** (PS93_0813 has no behavior video —
   EXPERIMENT_ERRORS 2026-08-13; it drops out of camera-gated rows only), **all 107 with cam1**, >= 99.7 % of DAQ
   cues matched except **PS92_0908 (82.5 %**, video covers 321 / 389 trials; the rest are "unknown").
 * cam4-only sessions (none today) would be classified without cam1 (no cam1-only licks, jaw-only not cam1-corrected).

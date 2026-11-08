@@ -12,7 +12,7 @@ SIGN CONVENTIONS (every table / figure):
   HEMISPHERE: c = contralesional = '_right' features (image right), i = ipsilesional ('_left'); c - i + = contralesional
             hemisphere larger.
 
-BEHAVIOUR (all curated sessions with 3-D licks; kinematics_all licks.csv.gz, context post_cue; lick order = lick_idx
+BEHAVIOR (all curated sessions with 3-D licks; kinematics_all licks.csv.gz, context post_cue; lick order = lick_idx
 within the trial's post-cue licks; pairs k -> k+1 within a trial with both 3-D tracked, peak-to-peak interval <= ILI_MAX):
   per session x spout group (all / far contra / other five) x order (k = 0 first lick / k >= 1 later licks):
     dang = a + g_hit * (-e_k) + d_g * miss_k * (-e_k) + step * miss_k * sign(-e_k) + spout FE
@@ -47,7 +47,7 @@ NEURAL (imaging sessions; own extraction: EVERY post-cue lick, no 1500 cap; same
 
 Areas: SSp-n, SSp-m, tjM1, ALM, SSs, MOp (whole MOp, includes tjM1); controls RSPd (both), VISp (right only).
 Usage: python scripts/lick_correction.py --extract [--jobs 4]     (per-session neural extraction, cached)
-       python scripts/lick_correction.py                          (behaviour + neural analyses + figures)
+       python scripts/lick_correction.py                          (behavior + neural analyses + figures)
        python scripts/lick_correction.py --plot-only              (redraw from figdata)
 Outputs <OUT_W>/lick_correction/ (sessions/<label>.npz, CSVs), figures <OUT_W>/figures/lick_correction_*.png,
 figdata <OUT_W>/figdata/lick_correction_*.pkl.
@@ -436,7 +436,7 @@ def behaviour() -> dict:
     S.to_csv(OUT / "corr_beh_sessions.csv", index=False)
     PA = per_animal(S[S.group.isin(["all", "far_contra", "other5"])], ["group", "order"], BMET)
     PA.to_csv(OUT / "corr_beh_per_animal.csv", index=False)
-    print("\n== PER-ANIMAL (rule 8): behaviour, order any ==")
+    print("\n== PER-ANIMAL (rule 8): behavior, order any ==")
     show = PA[PA.order.isin(["first", "later"])]
     print(show[["group", "order", "animal", "epoch", "g_hit_mean", "g_miss_mean", "step_mean", "xcorr_mean",
                 "miss_rate_mean", "step_count"]].round(3).to_string(index=False), flush=True)
@@ -656,7 +656,7 @@ YLAB = "next lick's shift, angle_k+1 - angle_k\n(deg; + = moved contralesional)"
 
 
 def _curve_panel(ax, C: pd.DataFrame, gn: str, ep: str, eps: list, marker: dict, ecol: dict) -> None:
-    """Binned next-lick shift vs lick k's landing error (hit solid, miss dashed); per-animal thin grey, mean thick."""
+    """Binned next-lick shift vs lick k's landing error (hit solid, miss dashed); per-animal thin gray, mean thick."""
     for e in eps:
         g = C[(C.group == gn) & (C.epoch == e) & (C.n >= 3)]
         for ms, ls, lab in ((0, "-", "lick k HIT"), (1, "--", "lick k MISS")):
@@ -671,7 +671,7 @@ def _curve_panel(ax, C: pd.DataFrame, gn: str, ep: str, eps: list, marker: dict,
     ax.axvline(0, color="0.6", lw=0.5)
     ax.set_xlim(-40, 40)
     ax.set_ylim(-30, 40)
-    ax.text(-38, 38, "grey diagonal, slope 1 = next lick returns\nfully to the target (also what independent\n"
+    ax.text(-38, 38, "gray diagonal, slope 1 = next lick returns\nfully to the target (also what independent\n"
             "licks scattered around the target give);\nslope 0 = next lick repeats lick k", fontsize=6.5,
             va="top", ha="left", color="0.3")
     ax.text(38, -28, "e.g. x = +10: lick k landed 10 deg IPSI of\ntarget; y = +10: next lick moved 10 deg\n"
@@ -709,14 +709,14 @@ def plot(FB: dict, FN: dict) -> None:
         _epoch_panel(axs[3, c], B[(B.metric == m) & (B.order == on)], S[S.order == on], m, {}, lines,
                      f"1-{7 + c}. {m} after a miss, lick k = {'FIRST lick' if on == 'first' else 'LATER licks'}",
                      "deg toward target")
-    fig.suptitle(_wrap("Fig 1. BEHAVIOUR -- correction of the next lick after a miss (cued post-cue licks, pairs k -> "
+    fig.suptitle(_wrap("Fig 1. BEHAVIOR -- correction of the next lick after a miss (cued post-cue licks, pairs k -> "
                        "k+1 within a trial, ILI <= 0.35 s). Bars = pooled session level, 95% nested bootstrap CI; "
                        "* = epoch differs from pre (paired boot_delta); open markers = animals (o PS92, s PS93, ^ "
                        "PS94, D PS95). Gain alone includes regression to the mean; the MISS-minus-HIT contrasts "
                        "(1-5..1-10) are the feedback-specific measures.", 170), fontsize=9)
     h1, l1 = axs[0, 0].get_legend_handles_labels()
     h2, l2 = axs[2, 0].get_legend_handles_labels()
-    fig.legend(h1 + h2, ["rows 1-2: " + x.split(": ", 1)[1].replace(" (mean of animals)", "") + " (mean of animals; colour = epoch)"
+    fig.legend(h1 + h2, ["rows 1-2: " + x.split(": ", 1)[1].replace(" (mean of animals)", "") + " (mean of animals; color = epoch)"
                          for x in l1] + [f"rows 3-4: {x}" for x in l2], loc="outside lower center", ncol=4, fontsize=8,
                frameon=False)
     save_png_svg(fig, FIGS / "lick_correction_behaviour.png", dpi=110)
@@ -731,10 +731,10 @@ def plot(FB: dict, FN: dict) -> None:
                loc="outside lower center", ncol=4, fontsize=9, frameon=False)
     fig.suptitle(_wrap("Next-lick correction, cued post-cue licks (pairs k -> k+1 within a trial, ILI <= 0.35 s), PRE vs "
                        "CHRONIC. x = how far lick k landed IPSILESIONAL of the target (+) or contralesional (-); y = how "
-                       "far the next lick moved (+ = contralesional). Points on the grey diagonal (slope 1) = the next "
+                       "far the next lick moved (+ = contralesional). Points on the gray diagonal (slope 1) = the next "
                        "lick returns fully to the target, which is also what independent licks scattered around the "
                        "target give; slope 0 = the next lick repeats lick k. Solid = lick k contacted the spout (HIT), "
-                       "dashed = MISS; thick = mean of animals (bins with >= 3 animals), thin grey = animals. Acute / "
+                       "dashed = MISS; thick = mean of animals (bins with >= 3 animals), thin gray = animals. Acute / "
                        "subacute panels: lick_correction_behaviour.png. PROVISIONAL (n = 4).", 190), fontsize=9.5)
     save_png_svg(fig, FIGS / "lick_correction_behaviour_compact.png", dpi=110)
     plt.close(fig)
@@ -799,7 +799,7 @@ def plot(FB: dict, FN: dict) -> None:
         ax.tick_params(labelsize=7)
     hh, ll = axs[0, 0].get_legend_handles_labels()
     fig.legend(hh, ll, loc="outside lower center", ncol=3, fontsize=8, frameon=False,
-               title="rows 1-2 lines; row 3 bars use the same hemisphere colours", title_fontsize=8)
+               title="rows 1-2 lines; row 3 bars use the same hemisphere colors", title_fontsize=8)
     fig.suptitle(_wrap("Fig 3. ERROR SIGNAL -- activity after a MISSED lick k minus a HIT at matched angles of BOTH "
                        "lick k and k+1 (plus reach, k+1 contact, ILI, order, spout, pre-lick level; per-session OLS "
                        "coefficient). Pool = ALM + tjM1 + SSp-m + SSp-n + SSs per hemisphere. Bars = pooled session "
@@ -822,7 +822,7 @@ def plot(FB: dict, FN: dict) -> None:
     fig.legend(hh, ll, loc="outside lower center", ncol=4, fontsize=8, frameon=False)
     fig.suptitle(_wrap("Fig 4. Does activity around lick k predict the next lick's correction beyond lick k's angle, "
                        "error and contact? Cross-validated within session (5-fold by trial); neural = area level "
-                       "change residualised on lick k's angle / reach / spout; dcvR2 = gain over the behavioural "
+                       "change residualised on lick k's angle / reach / spout; dcvR2 = gain over the behavioral "
                        "baseline. Windows after lick k already contain lick k+1's command (calcium lag), so HIT pairs "
                        "measure next-command information; MISS - HIT is the error-specific part.", 170), fontsize=9)
     save_png_svg(fig, FIGS / "lick_correction_prediction.png", dpi=110)
@@ -847,7 +847,7 @@ def main() -> int:
         else:
             FB = behaviour()
             save_fd("lick_correction_behaviour", FB)
-        print(f"behaviour done {(time.time() - t0) / 60:.1f} min", flush=True)
+        print(f"behavior done {(time.time() - t0) / 60:.1f} min", flush=True)
         if "--behaviour-only" in sys.argv:
             FN = load_fd("lick_correction_neural")
         else:

@@ -1,0 +1,87 @@
+<!--
+  Behavior-page subsection: WITHIN-SESSION DECLINE OF AIM AND LATENCY vs QUITTING (cohort1, 2026-11-08).
+  PREPARED ONLY, NOT PUBLISHED. The behavior page belongs to another window: insert this <section> directly after the
+  disengagement-tests (S28) block, add the TOC entry (id "wsd-within-session-decline"), and upload the figures from
+  M:/MICROSCOPE/Priya/Widefield/within_session_decline/figures/ (paths below are relative "figures/<name>.png";
+  replace with the page's asset urls). Ids are stable names, never numbers; the page's own figure numbering applies.
+  Source: docs/WITHIN_SESSION_DECLINE_QUITTING.md, scripts/within_session_decline.py (branch
+  analysis/within-session-decline-quitting-20261107). Tags: behavior.
+-->
+<section id="wsd-within-session-decline" class="behavior">
+  <h2>Within a session: latency slows and the far landing pattern drifts ipsilesionally &mdash; separate from quitting</h2>
+  <p class="tag">behavior</p>
+  <p><b>Question (Priya, 11-07).</b> The first lick slows and the far-contra landing drifts toward the lesion side
+  within post-stroke sessions. Is this the animals quitting, and is it fatigue, satiety or time?</p>
+  <ul class="takeaways">
+    <li><b>Latency slows within every session, more after the stroke.</b> Pre +61 ms/h (4/4); change vs own pre
+      acute <b>+126 ms/h [+37, +230], 4/4</b>; subacute +57 (4/4, CI includes 0); chronic about 0.</li>
+    <li><b>The far landing pattern drifts ipsilesionally within the session, largest at far contra.</b> Subacute far
+      contra <b>&minus;0.20 mm/h [&minus;0.36, &minus;0.07], 4/4</b>; far ipsi &minus;0.16 (4/4); chronic far ipsi
+      &minus;0.17 (4/4). Peak tongue speed and contact barely change.</li>
+    <li><b>Not quitting.</b> The drift is the same size with the last 15 min before the quit removed, aim shows no
+      change before quits, and a session's drift does not predict when it ends. Latency does rise in the 10 min
+      before a quit, but pre-stroke as much as after (+150 ms vs time-matched sessions, 3/3): a general sign of
+      quitting, not of the stroke.</li>
+    <li><b>Paced like a clock, not like water.</b> Within a session time, licks and water are collinear (r
+      0.96&ndash;1.00). Between sessions and animals the drift does not scale with how fast water is collected or
+      with drop size. Satiety vs time is judged only from these comparisons (no manipulation).</li>
+    <li><b>Unit.</b> Slopes per hour; per 100 trials gives the same sign in every animal. Neither depends on the
+      session's trial rate. Post-stroke trials shorten only through the pre-cue (ENL) wait (acute &minus;2.0 s, 3/4).</li>
+  </ul>
+
+  <figure id="wsd-slopes-hour">
+    <img src="figures/wsd_fig1_slopes_per_hour.png" alt="Within-session slopes per hour by epoch">
+    <figcaption><b>Within-session drift per hour, by epoch.</b> Far-contra aim (mm/h), other-spout aim, first-lick
+    latency (ms/h), first-lick contact, peak speed, camera licks per trial. Each open marker = one session (shape =
+    animal, color = epoch); bar = mean of animal means; dashed = pre. Stars = <code>boot_delta</code> change vs the
+    animal's own pre (animals &rarr; sessions, 95 % CI excludes 0).
+    <i>Data:</i> cohort1 PS92&ndash;95, curated sessions, August-only pre baseline. <i>Window:</i> the whole working
+    period of each session. <i>Licks:</i> video (3-D pose) first lick of the trial (lick_idx 0); latency = its peak
+    time after the cue; aim = its lateral landing minus the animal's pre mean at that spout (mm, &minus; =
+    ipsilesional); contact from the 3-D lick. <i>Trials:</i> camera working period (to the session's last camera lick;
+    stopped runs out), all trial types with a 3-D first lick. <i>Slope:</i> OLS on elapsed hours, multi-spout measures
+    demeaned within spout, &ge; 15 trials (&ge; 8 for one spout). No multiple-comparison correction (exploratory).</figcaption>
+  </figure>
+
+  <figure id="wsd-slopes-trial" class="supporting">
+    <img src="figures/wsd_fig1b_slopes_per_trial.png" alt="Within-session slopes per 100 trials by epoch">
+    <figcaption><b>Robustness: the same slopes per 100 trials.</b> As above, slope on the session trial index (every
+    trial counted) / 100. Far-contra aim subacute &minus;0.074 mm per 100 trials, 4/4; latency acute +40 ms per 100
+    trials, 4/4. Same data, window, licks, trials, baseline and statistics as the per-hour figure.</figcaption>
+  </figure>
+
+  <figure id="wsd-spout">
+    <img src="figures/wsd_fig5_per_spout.png" alt="Per-spout within-session drift change vs own pre">
+    <figcaption><b>The drift is broad, not specific to the impaired direction.</b> Per spout (close ipsi, mid, contra,
+    then far ipsi, mid, contra), per-hour slope of aim (mm/h) and latency (ms/h), change vs the animal's own pre;
+    markers = animals (color = epoch), bar = <code>boot_delta</code> 95 % CI, stars in the top band = CI excludes 0.
+    Same data, window, licks, trials and baseline as the per-hour figure.</figcaption>
+  </figure>
+
+  <figure id="wsd-quit-aligned">
+    <img src="figures/wsd_fig2_quit_aligned.png" alt="Aim and latency before the camera quit vs time-matched sessions">
+    <figcaption><b>Before the quit.</b> Far-contra aim, other-spout aim, latency, contact and camera licks per trial in
+    5-min bins before the camera quit (solid) vs the same clock time in the same animal's sessions of that epoch that
+    were still working (dotted); mean of animal means &plusmn; SEM; markers = animals. <i>Quit:</i> the first trial
+    of the tail after the session's last camera lick (&ge; 6 trials, &ge; 5 min into the session; otherwise censored).
+    Deviations from the animal's pre mean at each spout. Same licks, trials and baseline as above. Thin: acute and
+    subacute have 1&ndash;2 animals with both a quit and a time-matched control.</figcaption>
+  </figure>
+
+  <figure id="wsd-pacing" class="supporting">
+    <img src="figures/wsd_fig3_pacing.png" alt="Time vs licks vs water as pacers of the drift">
+    <figcaption><b>Time vs effort vs water.</b> Per animal &times; epoch, working trials pooled with session &times;
+    spout fixed effects: share of within-session variance of far-contra aim, latency and other-spout aim explained by
+    elapsed time, cumulative camera licks, cumulative collected water (DAQ-responded trials &times; nominal drop) and
+    cumulative far-contra trials, alone (top) and uniquely (bottom). The four are collinear (r 0.96&ndash;1.00), so
+    no predictor wins. Descriptive.</figcaption>
+  </figure>
+
+  <figure id="wsd-drift-vs-quit" class="supporting">
+    <img src="figures/wsd_fig4_drift_vs_quit.png" alt="Session drift vs minutes to quit">
+    <figcaption><b>A session's drift does not predict how early it ends.</b> Per-hour drift vs minutes to quit-or-end,
+    both centered within animal &times; epoch group (pre / acute + subacute / chronic); thick edge = quit, thin =
+    censored. Within-animal Spearman r averaged over animals, p from a within-animal shuffle (5,000). Only chronic
+    far-contra aim reaches p .05 (r +0.32).</figcaption>
+  </figure>
+</section>

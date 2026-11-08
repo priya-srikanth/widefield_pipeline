@@ -1,16 +1,16 @@
-"""The labelling page for the SIDE cameras (cam2 = left side, cam3 = right side) -- SIDECAM_GUIDE.html.
+"""The labeling page for the SIDE cameras (cam2 = left side, cam3 = right side) -- SIDECAM_GUIDE.html.
 
     conda activate locanmf          # pandas + Pillow only
     python -m wfield_local.dlc_sidecam assign        # first: which camera labels which moment
     python -m wfield_local.dlc_sidecam_guide [--open]
 
 Separate from CAM1_GUIDE.html (the student's cam4 / cam1 worksheet) on purpose (Priya, 2026-10-13: "we will want a
-separate cam2/3 labelling guide"). Generated, like that page, because what it lists changes as folders are done.
+separate cam2/3 labeling guide"). Generated, like that page, because what it lists changes as folders are done.
 
 WHAT IT ENCODES (`wfield_local/dlc_sidecam.py` for the reasons):
   * four parts only -- nose, jaw, tongue, spout -- on the raw image as recorded (cam3 is flipped later, for
     training, not for the labeller);
-  * each listed frame is labelled in the camera it is listed under; a moment is listed under ONE side camera,
+  * each listed frame is labeled in the camera it is listed under; a moment is listed under ONE side camera,
     except about one in five, listed under BOTH ("both" -- the overlap that lets cam2 and cam3 be checked
     against each other);
   * targets vs context exactly as on the cam1 page: label listed frames completely, leave context blank;
@@ -122,7 +122,7 @@ def _block(label: str, r, live: Path) -> str:
             f'<span class="legend">{CAM_NAME[r.cam]} &middot; {html.escape(r.animal)} &middot; '
             f'{html.escape(r.epoch)} &middot; {html.escape(r.date)}</span>{done}</h3>'
             f'<ul style="margin:.3em 0">{"".join(items)}</ul>'
-            f'<p style="margin:.2em 0">The other {n_ctx} frames in this folder are <b>not for labelling</b>: context '
+            f'<p style="margin:.2em 0">The other {n_ctx} frames in this folder are <b>not for labeling</b>: context '
             f'to scroll through, or moments listed under the other side camera.</p>'
             f'<pre><code>{html.escape(mac)}</code></pre></div>')
 
@@ -163,12 +163,12 @@ def build(rv=None, dest: Path | None = None) -> Path:
     root = f"{MAC_ROOT}/{live.name}"
     today = _dt.date.today().isoformat()
     head = f"""<div class="wrap">
-<h1>Side-camera labelling worksheet &mdash; cameras 2 and 3</h1>
+<h1>Side-camera labeling worksheet &mdash; cameras 2 and 3</h1>
 <p class="sub">generated {today}</p>
 <p>Cameras 2 and 3 film the face from the left and right side. They show two things camera 4 cannot: the jaw
 opening in profile, with no spout rod across the chin, and how far forward and down the tongue reaches. One network
 will learn both side views together (camera 3 is mirrored for it automatically, later) &mdash; so <b>each moment
-is labelled in only ONE of the two side cameras</b>, the one it is listed under below. About one moment in five is
+is labeled in only ONE of the two side cameras</b>, the one it is listed under below. About one moment in five is
 listed under both; label it in both. <b>Start with <a href="#B">Part B</a></b>, the last round, listed first below;
 <a href="#A">Part A</a> (the pilot) is done and listed at the end for reference. Installing and napari basics:
 <code>LABELLING_GUIDE.html</code>; camera 4 / camera 1 work stays on <code>CAM1_GUIDE.html</code>.</p>
@@ -217,7 +217,7 @@ paste <pre><code>{html.escape(root)}/config.yaml</code></pre>(nothing visible ha
 </div>
 
 <div class="card note">
-<h3 style="margin-top:.2em">Part B comes PRE-LABELLED, and includes jaw sequences (new, 2026-11-04)</h3>
+<h3 style="margin-top:.2em">Part B comes PRE-LABELED, and includes jaw sequences (new, 2026-11-04)</h3>
 <ul>
 <li><b>Pre-labels.</b> In Part B the listed frames already carry points from the first side-camera
 network. They are a starting point, not answers: <b>check every point and drag it to the right place</b>, delete
@@ -241,7 +241,7 @@ connection</b> makes a save fail: check the sidebar after a break.</p>
 </div>
 """
     a_intro = ("<div class='card note'><p>The pilot: eight sessions chosen so that every animal and every recovery "
-               "stage appears. A first side-camera network is trained on these before anything else is labelled.</p></div>")
+               "stage appears. A first side-camera network is trained on these before anything else is labeled.</p></div>")
     b_intro = ("<div class='card note'><p>The last round: moments that were hard on camera 4 (mostly incomplete "
                "licks and a jaw behind the spout) and, in every session, the jaw sequences. Many folders hold context "
                "frames from camera 4's bursts and other moments that are not listed; label only the listed frames."
@@ -252,7 +252,7 @@ connection</b> makes a save fail: check the sidebar after a break.</p>
             + _part("Part A &mdash; pilot (done)", "A", a_intro, df, pilot, "A", live))
     page = ("<!doctype html><html><head><meta charset='utf-8'>"
             "<meta name='viewport' content='width=device-width, initial-scale=1'>"
-            f"<title>Side-camera labelling</title><style>{CSS}</style></head><body>{head}{body}</div></body></html>")
+            f"<title>Side-camera labeling</title><style>{CSS}</style></head><body>{head}{body}</div></body></html>")
     dest.write_text(page, encoding="utf-8")
     for name, order in (("A pilot", pilot), ("B last round", part_b)):
         sub = df[df.session.isin(order)]

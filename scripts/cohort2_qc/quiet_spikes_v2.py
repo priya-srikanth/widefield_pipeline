@@ -22,13 +22,13 @@ positive, negative and either polarity ("both" = pos + neg).
 THRESHOLD CHOICE (Priya 11-01: "what if we see if we can maximize ROC AUC for pre vs acute"): per k, the session-level
 ROC AUC of the event rate for pre vs acute sessions; k chosen LEAVE-ONE-ANIMAL-OUT (best k on three animals, AUC scored
 on the held-out fourth), so the reported held-out AUC is not inflated by the choice. The LMM at the chosen k still
-re-uses the data that chose it -- its ACUTE contrast is optimistic; subacute / chronic were not optimised.
+re-uses the data that chose it -- its ACUTE contrast is optimistic; subacute / chronic were not optimized.
 SENSITIVITY: synthetic events (difference of exponentials, rise 40 ms, decay 300 ms; half-width ~0.25 s, about the
 GCaMP6s events in the scan) of 1, 2, 3, 4, 6 % added to the RAW trace at 40 random engaged-quiet frames >= 3 s apart, then
 detrended and detected as above; hit = an event peak 0 .. 0.25 s after the injection onset.
 STATISTICS at the chosen k: per-animal epoch table first (rule 8); `mixed_models.lmm_table` epoch + time models (August
-pre; log10(rate + 0.2)); pooled figure = sessions as open markers (shape = animal, colour = epoch), pooled mean + nested
-bootstrap CI in the epoch colour, stars (LMM epoch vs pre, FDR) in the top band.
+pre; log10(rate + 0.2)); pooled figure = sessions as open markers (shape = animal, color = epoch), pooled mean + nested
+bootstrap CI in the epoch color, stars (LMM epoch vs pre, FDR) in the top band.
 
     set WFIELD_INPUT_CACHE=C:/Users/SabatiniLab/wfield_cache
     python scripts/cohort2_qc/quiet_spikes_v2.py [--jobs 6] [--summarise] [--k 5]
@@ -298,7 +298,7 @@ def threshold_figure(R, I, A, ks):
     ax[1, 0].legend(fontsize=7, title="polarity", title_fontsize=7)
     ax[2, 0].legend(fontsize=6, ncol=2)
     fig.suptitle("Choosing the event threshold: event rate by polarity, session-level ROC AUC (pre vs acute), and "
-                 "recovery of injected GCaMP6s-shaped events (engaged quiet frames, August sessions). Grey line = the k "
+                 "recovery of injected GCaMP6s-shaped events (engaged quiet frames, August sessions). Gray line = the k "
                  f"used ({ks['orofacial']:g}; {KNOTE[0]}).", fontsize=8, wrap=True)
     fig.tight_layout(rect=(0, 0, 1, 0.95))
     save_png_svg(fig, V2 / "threshold_choice.png", dpi=110)
@@ -377,7 +377,7 @@ def pooled_figure(S, T, ks):
     sig_marks.reserve_headroom(fig)
     fig.suptitle(f"Quiet-period cortical events (no lick / running within 1.5 s; spout may be out), height > k x the "
                  f"animal's pre-stroke robust SD (k orofacial {ks['orofacial']:g}, limb {ks['limb']:g}; {KNOTE[0]}); engaged part of the session, August pre. Open markers = sessions "
-                 "(shape = animal, colour = epoch); filled = pooled mean, nested animal -> session bootstrap 95% CI; "
+                 "(shape = animal, color = epoch); filled = pooled mean, nested animal -> session bootstrap 95% CI; "
                  "stars = LMM epoch vs pre, FDR.", fontsize=8, wrap=True)
     fig.tight_layout(rect=(0, 0, 1, 0.93))
     save_png_svg(fig, V2 / "quiet_events_pooled_epochs.png", dpi=110)

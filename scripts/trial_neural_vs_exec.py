@@ -10,7 +10,7 @@ width 1 (`softmax_neural_vs_lick.lick_weights / path_weights`).
      P(far mid), P(far ipsi) per animal x epoch (n >= 8 trials), pre included as the control (pre far-contra trials
      that happened to land like far mid).
   2. within-session coupling: neural (P far mid - P far contra) regressed on executed (w far mid - w far contra), both
-     centred within session; slope and r per animal x epoch; null = executed values block-permuted within session (runs of consecutive far-contra trials, 1000x),
+     centered within session; slope and r per animal x epoch; null = executed values block-permuted within session (runs of consecutive far-contra trials, 1000x),
      p = share of shuffled |slopes| >= observed.
 
 Usage: python scripts/trial_neural_vs_exec.py
@@ -184,7 +184,7 @@ def main() -> int:
                AN + ["filled = epoch differs from the animal's own pre sessions (p < 0.05, Welch t over sessions)"],
                loc="lower center", ncol=5, fontsize=8.5, frameon=False)
     fig.suptitle("Trial-by-trial coupling on far-contra target trials: the more a trial's licks look like far mid rather than far contra, "
-                 "\nthe more its cortex is decoded as far mid rather than far contra? (both centred within session; line = mean of animals)", fontsize=10)
+                 "\nthe more its cortex is decoded as far mid rather than far contra? (both centered within session; line = mean of animals)", fontsize=10)
     fig.tight_layout(rect=(0, 0.08, 1, 0.88))
     save_png_svg(fig, D / "figures" / "trial_neural_vs_exec_coupling.png", dpi=125)
     plt.close(fig)
@@ -202,7 +202,7 @@ def main() -> int:
                 continue
             ax.plot(c.day, c.r, color=ACOL[an], lw=0.8, alpha=0.5)
             ax.scatter(c.day, c.r, marker=MK[an], s=32, color=ACOL[an], edgecolor="k", lw=0.5, zorder=5)
-        ax.set_xlabel("days from stroke (grey = pre-stroke)")
+        ax.set_xlabel("days from stroke (gray = pre-stroke)")
         ax.set_title(f"executed = {kind}", fontsize=10)
         for s_ in ("top", "right"):
             ax.spines[s_].set_visible(False)
@@ -212,7 +212,7 @@ def main() -> int:
     fig.legend(handles=h, loc="lower center", ncol=6, fontsize=8.5, frameon=False)
     fig.suptitle("Trial-by-trial coupling PER SESSION (far-contra target trials, sessions with >= 20 such trials): does cortex follow "
                  "where each lick went?\nr between the decoder's (P far mid - P far contra) and the lick's (far mid - far contra) "
-                 "weight, centred within session", fontsize=10)
+                 "weight, centered within session", fontsize=10)
     fig.tight_layout(rect=(0, 0.08, 1, 0.9))
     save_png_svg(fig, D / "figures" / "trial_neural_vs_exec_coupling_sessions.png", dpi=125)
     plt.close(fig)

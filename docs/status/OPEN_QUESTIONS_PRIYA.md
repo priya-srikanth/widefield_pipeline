@@ -44,7 +44,7 @@ Kept by Claude; answer any item whenever convenient (a line in chat is enough); 
   **10-19 review on PS92 / PS94 / PS95 acute:** precision eps35 100 % vs LP r4 95.6 %, but eps35 finds 93.6 % of real faint
   licks vs 99.1 % (misses 7, removes 5 false). Recommendation: KEEP LP r4 for production unless the false faint licks matter
   more than the missed ones.
-- **cam1 cleaned-trace QC** -- `session_poses\PS93_20260814_cam1\eval\cleaned_labels_cam1_dlc2_lp2.mp4`: (1) centre positions --
+- **cam1 cleaned-trace QC** -- `session_poses\PS93_20260814_cam1\eval\cleaned_labels_cam1_dlc2_lp2.mp4`: (1) center positions --
   does the cleaning bridge between-lick gaps (trial 251)? (2) the last two (sated) trials -- water; (3) jaw hidden stretches.
   Approve / adjust `orofacial_clean_cam1` (proposed values, POSE_MODELS D7).
 

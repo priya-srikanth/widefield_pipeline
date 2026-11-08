@@ -60,7 +60,7 @@ def trial_state(label: str) -> pd.DataFrame:
 
 
 def eta2(df: pd.DataFrame, col: str, pos: str = "pos") -> tuple[float, float]:
-    """(within-session eta2 averaged over sessions, systematic eta2 of the session-centred spout means)."""
+    """(within-session eta2 averaged over sessions, systematic eta2 of the session-centered spout means)."""
     w, num, den = [], 0.0, 0.0
     for _, g in df.groupby("label"):
         y = g[col].to_numpy(float)

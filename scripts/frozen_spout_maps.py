@@ -6,7 +6,7 @@ part: data / spout (= target + spout-locked lick, the whole spout-specific respo
 Rows = spouts (contra = the mouse's right), one figure per animal + the animal mean (rule 8). ``--contrast`` subtracts
 the six-spout mean per part, removing the large response shared by all spouts: that is where laterality shows (contra
 spouts -> left hemisphere, ipsi -> right, in all four animals) and where the target / exec_locked SPLIT is seen to be
-unstable (close_mid: +13 vs -13, cancelling) while their SUM (spout) tracks the data -- target and the spout-locked lick
+unstable (close_mid: +13 vs -13, canceling) while their SUM (spout) tracks the data -- target and the spout-locked lick
 are the same variable on on-target licks; only strays separate them. dF/F x 1e3; ipsi (lesion LEFT) = image LEFT.
 
 Usage: python scripts/frozen_spout_maps.py --tag gate-attempted_v6basis [--variant joint] [--align lick] [--contrast]

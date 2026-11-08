@@ -1,5 +1,5 @@
 """Consolidation A1 (Priya 11-03): no analysis hard-codes the response window; each session's own window is read from its
-behaviour log through `analysis_kit.response_window_s`."""
+behavior log through `analysis_kit.response_window_s`."""
 from wfield_local import analysis_kit as ak
 
 

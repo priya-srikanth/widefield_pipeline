@@ -8,7 +8,7 @@ Candidates, one column each, per session:
     response-window lick, hits), quit_min (quit_point.session_quit; NaN when censored).
   ENGAGEMENT (the gate the imaging lick sets use: `iti_licks._behaviour` -> combined_encoding.load_behaviour, T.engaged,
     OROFACIAL_GATE of the frozen env = "attempted"): n_trials_img, n_engaged, eng_frac, n_eng_lick (engaged trials with a
-    behaviour lick onset in cue .. stop, extract's rule without the imaging-edge check), n_first_file (extract's stored
+    behavior lick onset in cue .. stop, extract's rule without the imaging-edge check), n_first_file (extract's stored
     first licks, with the imaging-edge check), n_rewards (DAQ reward TTLs).
   3-D TRACKING (pose3d kinematics_all licks table, table 'licks', context post_cue, finite side_ml): n_pc_tracked (all
     tracked post-cue licks), n_first_tracked (lick_idx == 0), licks_per_trial = n_pc_tracked / n_first_tracked.
@@ -117,7 +117,7 @@ def plot(S: pd.DataFrame, path: Path) -> None:
     for ax in axs.ravel()[len(SHOW):]:
         ax.axis("off")
     axs.ravel()[0].legend(fontsize=7, frameon=False)
-    fig.suptitle("Why acute sessions have more first post-cue licks in the decoder set (BEHAVIOUR): per-session dots, "
+    fig.suptitle("Why acute sessions have more first post-cue licks in the decoder set (BEHAVIOR): per-session dots, "
                  "per-animal epoch means (lines).\nThe cued decoder set is capped at 1500 randomly drawn tracked post-cue "
                  "licks per session; first licks kept = 1500 / (tracked post-cue licks per first lick)", fontsize=9.5)
     fig.tight_layout(rect=(0, 0, 1, 0.95))

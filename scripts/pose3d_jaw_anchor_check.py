@@ -1,8 +1,8 @@
-"""Held-out test of a REST-DEPTH ANCHOR for long one-camera JAW stretches (Priya 10-20: recover the centre-spout jaw).
+"""Held-out test of a REST-DEPTH ANCHOR for long one-camera JAW stretches (Priya 10-20: recover the center-spout jaw).
 
     PYTHONPATH=. python -m scripts.pose3d_jaw_anchor_check      # dlc env (aniposelib), ~20 min
 
-Why: at both centre positions the rod sits end-on in cam1's line of sight to the chin (cam1 keeps ~46-49 % of jaw frames
+Why: at both center positions the rod sits end-on in cam1's line of sight to the chin (cam1 keeps ~46-49 % of jaw frames
 vs 98-100 % elsewhere), and at close_center cam4 also loses ~40 %. The one-camera fill (`pose3d.fill_single_view`) needs
 a both-camera frame within 200 ms, so these long stretches have no 3-D jaw (far_center 38 %, close_center 48 % of frames).
 

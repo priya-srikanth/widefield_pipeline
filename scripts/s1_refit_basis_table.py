@@ -23,7 +23,7 @@ WIDEFIELD_LICK_SOURCE=lp -- the LP video lick train replaces DAQ contact everywh
 camera lick attempt within max_rt, hit or incomplete; the lick-free pre-cue window and the quit-period call read video
 licks too). ENL WINDOW (Priya 11-04): the shared LP lick-free ENL, `lp_licks.enl_post_s()` = 1.0 s, lick-free on the LP
 train (`_trial_features`, the same train as `lp_licks.gate_licks_s`) -> output folder LP_licks. NO LONGER PINNED at 2 s:
-the 11-03 2.0 s table is the labelled SENSITIVITY arm, `WIDEFIELD_ENL_WINDOW_S=2.0` (folder LP_licks_ENL2s). The
+the 11-03 2.0 s table is the labeled SENSITIVITY arm, `WIDEFIELD_ENL_WINDOW_S=2.0` (folder LP_licks_ENL2s). The
 window is also in the CSV (`enl_s`).
 Sessions: curated, from 08-06 (as `slowband_decode_check --all`). Output -> <run>/imaging_encoding/qc/s1_refit_basis.csv
 """
@@ -64,7 +64,7 @@ def basis_signals(label: str, SVTc: np.ndarray) -> dict:
 
 
 def _cv_acc(X: np.ndarray, y: np.ndarray, g: np.ndarray) -> float:
-    """`filter_acausality_test.decode`'s scoring exactly: all 6 positions required, standardised logistic C = 0.5,
+    """`filter_acausality_test.decode`'s scoring exactly: all 6 positions required, standardized logistic C = 0.5,
     GroupKFold(min(5, n blocks)) by position block, accuracy of the cross-validated predictions."""
     from sklearn.linear_model import LogisticRegression
     from sklearn.metrics import accuracy_score
@@ -105,7 +105,7 @@ def decode_lick_working(s: dict, sig: np.ndarray, regs, align: str) -> dict:
     quit_ = np.zeros(len(order), bool)
     from wfield_local import trial_classes as _tc
     # the "working" column here is the LABELLED quit-tail robustness row (the camera columns follow from the snapshot)
-    with _tc.daq_quit_rule("s1_refit_basis_table: labelled quit-tail robustness row"):
+    with _tc.daq_quit_rule("s1_refit_basis_table: labeled quit-tail robustness row"):
         quit_[o] = engagement_gate(order[o], np.r_[np.ones(len(ie), bool), np.zeros(len(inl), bool)][o], name[o])
     keep = ~quit_[len(ie):]
     if len(yn) and keep.any():

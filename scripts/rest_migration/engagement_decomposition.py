@@ -1,4 +1,4 @@
-"""WHY does engagement fall after the stroke? Behaviour only -- no imaging.
+"""WHY does engagement fall after the stroke? Behavior only -- no imaging.
 
 Priya, 2026-09-19: *"can we brainstorm how to think about the change in engagement post-stroke? it
 could be framed as the animal being tired, feeling unwell or uninterested, or orofacial fatigue due
@@ -85,7 +85,7 @@ def licks_vs_time(rows, only=None):
     THE NEAR SPOUTS ARE THE INTERNAL CONTROL. The animal demonstrably CAN reach them -- PS94 acute
     near-ipsi latency is 0.152 s against 0.136 s pre-stroke, essentially normal -- so any decline
     there is a change of STATE, not of CAPACITY. That is exactly the global component this test is
-    trying to characterise, measured where capacity is not the limiting factor.
+    trying to characterize, measured where capacity is not the limiting factor.
 
     INCLUDING THE FAR SPOUTS BREAKS IT THREE WAYS: their acute hit rate sits on the floor (PS94
     far-contra 0.017), so there is no variance for a correlation to work on; a floored series cannot
@@ -212,7 +212,7 @@ def main(argv=None) -> int:
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--animals", nargs="+", default=None)
     ap.add_argument("--resp-s", type=float, default=DEFAULT_RESP_S,
-                    help="override the response window (s); default = each session's own, from its behaviour log")
+                    help="override the response window (s); default = each session's own, from its behavior log")
     ap.add_argument("--jobs", type=int, default=None,
                     help="sessions in parallel (default cores-2 capped at 8; 1 for serial)")
     ap.add_argument("--from-csv", action="store_true",

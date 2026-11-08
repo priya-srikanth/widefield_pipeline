@@ -1,5 +1,5 @@
 """Priya 11-05 ~22:10 (via coordinator), follow-ups of (f) 2:
-  (2) epoch family 1b on the CAMERA working period, the DAQ version a labelled robustness row (boundaries stay pinned);
+  (2) epoch family 1b on the CAMERA working period, the DAQ version a labeled robustness row (boundaries stay pinned);
   (3) iti_lick_rate and within_lick_correction cut to the camera working period (no licks after the camera quit / in
       stopped runs; sessions without camera classes left out and listed).
 

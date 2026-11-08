@@ -23,7 +23,7 @@ THREE THINGS MAKE A CELL MEAN ANYTHING, and all three are enforced here rather t
     10-17, chronic 6, PS94 chronic 0), so an unmatched matrix measures how much training data each
     epoch happened to have. Every cell draws the same number of whole BLOCKS. This is the `5rm`
     lesson: unmatched, the pre-stroke gap carries a training-size handicap with no lesion in it.
-  * THE DIAGONAL HOLDS OUT ITS OWN TEST SESSION, so it is a real ceiling and not a memorised one.
+  * THE DIAGONAL HOLDS OUT ITS OWN TEST SESSION, so it is a real ceiling and not a memorized one.
   * THE NULL IS A BLOCK PERMUTATION, not the analytic 1/n. Positions run in blocks, so two units
     from one block share whatever slow drift the session has; shuffling labels ACROSS blocks keeps
     that structure inside the null.
@@ -35,7 +35,7 @@ across two: the two directions have different denominators, so
     retained(B->A) - retained(A->B) = r * (1/ceil_A - 1/ceil_B)      for symmetric raw r
 
 is nonzero whenever the ceilings differ, with no asymmetry in the data at all. Measured on the rest
-arm 2026-09-17: raw transfer symmetric in 3/3 animals, yet the normalised asymmetry read +0.404 /
+arm 2026-09-17: raw transfer symmetric in 3/3 animals, yet the normalized asymmetry read +0.404 /
 +0.441 / -0.001 and the closed form above predicts +0.432 / +0.331 / +0.053 from the ceilings alone.
 The first version of that analysis printed "consistent with ADDITION" and was reporting its own
 denominators. See DECISIONS.md.
@@ -94,12 +94,12 @@ CMAP_LEVEL = "viridis"
 
 
 def arm_color(arm):
-    """Colour for a trial window. Never an animal colour -- see the block above."""
+    """Color for a trial window. Never an animal color -- see the block above."""
     return ARM_COLOR.get(arm, "0.3")
 
 
 def epoch_color(epoch):
-    """Colour for a stroke epoch -- the project's existing grey ramp, never a new palette."""
+    """Color for a stroke epoch -- the project's existing gray ramp, never a new palette."""
     from wfield_local.epoch_figures import EPOCH_GREY
     return EPOCH_GREY.get(epoch, "#8a8a8a")
 
@@ -319,7 +319,7 @@ def report(rows, agg, a_ep="pre", b_ep="chronic", log=print):
         per_animal.append((an, raw_f, raw_r, rf, rr, gain))
         log(f"   {an}: RAW {a_ep}->{b_ep} {raw_f:+.4f}  {b_ep}->{a_ep} {raw_r:+.4f}  "
             f"raw asym {raw_r - raw_f:+.4f}")
-        log(f"          (normalised {rf:+.3f} / {rr:+.3f}, ceiling gain {gain:+.4f})")
+        log(f"          (normalized {rf:+.3f} / {rr:+.3f}, ceiling gain {gain:+.4f})")
 
     def material(raw_f, raw_r):
         return abs(raw_r - raw_f) >= MATERIAL_FRACTION * max(abs(raw_f), abs(raw_r), 1e-9)
@@ -356,8 +356,8 @@ def haufe_pattern(fit, X, target):
     Haufe pattern answers "which channels actually co-vary with the decoder's output", which is
     the anatomical question. In this dataset the two correlate at only r = 0.245.
 
-    THE SCALER IS UNDONE FIRST. The pipeline standardises, so `coef_` lives in standardised units;
-    the basis multiplies FEATURE-space coefficients, and a pattern built from standardised ones is
+    THE SCALER IS UNDONE FIRST. The pipeline standardizes, so `coef_` lives in standardized units;
+    the basis multiplies FEATURE-space coefficients, and a pattern built from standardized ones is
     scaled by 1/sd per component. Mirrors `beta_maps.haufe_map`, which is the established
     implementation -- this one exists only because that one refits per session in the SESSION's own
     basis, and the transfer question needs the SHARED joint basis.

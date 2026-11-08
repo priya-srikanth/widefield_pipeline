@@ -1,7 +1,7 @@
 """movement_encoding / movement_inputs on a synthetic session with KNOWN kernels: the design matrix puts events and
 signals on the right imaging frames, grouped ridge recovers the kernels, CV folds are trial blocks, variance
 partitioning attributes each output to the group that drives it, a frozen model transfers with its training
-standardisation, and the residual removes exactly the chosen groups."""
+standardization, and the residual removes exactly the chosen groups."""
 from __future__ import annotations
 
 import numpy as np

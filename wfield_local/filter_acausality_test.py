@@ -93,12 +93,12 @@ TRIAL_PRE_S, TRIAL_POST_S, DETREND_WIN_S = 1.0, 4.0, 60.0
 
 def fit_mask(s, n_frames, csmp, cue, pre_s=TRIAL_PRE_S, post_s=TRIAL_POST_S,
              from_strobe=True, require_quiet=True):
-    """Frames usable for estimating slow drift: BEHAVIOURALLY QUIET **and** outside every trial.
+    """Frames usable for estimating slow drift: BEHAVIORALLY QUIET **and** outside every trial.
 
     Both halves are necessary and neither alone is enough.
 
     * TRIAL-MASKED (van Driel et al. 2021): if the drift estimate sees the evoked responses, it
-      partially tracks them, and subtracting it redistributes response energy into neighbouring time --
+      partially tracks them, and subtracting it redistributes response energy into neighboring time --
       the same displacement the zero-phase filter causes, just via a different route.
     * QUIET-ONLY (Priya, 2026-08-13): cortex-wide activity is dominated by movement (Musall et al.
       2019), so drift fitted across running or licking epochs is fitting movement, not drift. The quiet
@@ -449,7 +449,7 @@ def main(argv=None) -> int:
         print("  !! " + it[0] + ": " + err[:80], flush=True)
     rows = [r for _it, r in res if r and all(m in r for m in modes)]
     if not rows:
-        print("no sessions analysed")
+        print("no sessions analyzed")
         return 1
     _summary(rows, modes)
     if args.output:

@@ -1,4 +1,4 @@
-"""Priya 11-05 (relayed by a8 via the coordinator): behaviour-only figures move to the CAMERA working period +
+"""Priya 11-05 (relayed by a8 via the coordinator): behavior-only figures move to the CAMERA working period +
 August-only pre.
 
 Pins:

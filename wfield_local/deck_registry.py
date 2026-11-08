@@ -59,15 +59,15 @@ _ROT_LEGEND = (
     " are not. Rows are spout position, columns the epoch contrast, and each cell is scored"
     " against that component`s OWN split-half null."
     "\n\nEXCESS-OVER-NOISE, NOT RAW CHANGE. The raw |change| map correlates with its own"
-    " pre-stroke null at r = +0.83, so it localises the BASIS rather than the lesion."
-    "\n\nPATTERNS ARE UNIT-NORMALISED PER POSITION before comparison, so these maps are SHAPE"
+    " pre-stroke null at r = +0.83, so it localizes the BASIS rather than the lesion."
+    "\n\nPATTERNS ARE UNIT-NORMALIZED PER POSITION before comparison, so these maps are SHAPE"
     " ONLY -- gain is divided out by construction and lives in the gain-vs-rotation slide."
     "\n\nTHE TEST FAMILY IS MASKED. A component enters only if >= 0.85 of its footprint mass"
-    " lies inside `brain_mask` (olfactory bulbs and the painted fibre-glue already removed) AND"
+    " lies inside `brain_mask` (olfactory bulbs and the painted fiber-glue already removed) AND"
     " >= 0.50 inside the eroded `stat_mask`. Two criteria because there are two failure modes:"
     " the first asks whether it is cortex, the second whether enough of it sits away from the"
-    " window rim to be testable. Gating on the eroded mask ALONE -- as every artefact before"
-    " 2026-09-17 evening did -- penalises a region for being LATERAL and cost ipsilesional"
+    " window rim to be testable. Gating on the eroded mask ALONE -- as every artifact before"
+    " 2026-09-17 evening did -- penalizes a region for being LATERAL and cost ipsilesional"
     " mouth cortex entirely."
     "\n\nPER POSITION, NEVER AVERAGED OVER THEM. {note}"
     "\n\nTWO LEVELS OF STATISTIC, AND THE SLIDE SHOWS THE FIRST. The per-cell values drawn"
@@ -127,7 +127,7 @@ _REF_LEGEND = (
     " the area -- MOs is 15,613 px and a focal change in part of it is swamped by the rest."
     " Components do not correspond across animals (95/87/90/95) but their Allen labels do, and"
     " the vocabulary is the INTERSECTION, so no region`s cohort mean rests on a different"
-    " subset of animals than its neighbour`s."
+    " subset of animals than its neighbor`s."
     "\n\nTHE CLAIM IS AN INTERVAL, NEVER A p. With four animals an animal-level permutation"
     " has 2^4 = 16 assignments and a floor of 0.0625, so no cell could reach 0.05 at any"
     " effect size. The guard is agreement across references, not a threshold."
@@ -149,18 +149,18 @@ _REF_LEGEND = (
 )
 _CCF_LEGEND = (
     "The same result as the preceding matrix, painted on the brain: rows are epoch, columns"
-    " are spout position, and a region is coloured only where the cohort interval excludes"
-    " zero in EVERY reference. Colour is the `restw` value -- one reference supplies the"
+    " are spout position, and a region is colored only where the cohort interval excludes"
+    " zero in EVERY reference. Color is the `restw` value -- one reference supplies the"
     " number because the references are not in the same units and averaging them would invent"
     " a quantity none of them measures."
-    "\n\nTHE FLAT COLOUR INSIDE A REGION IS THE RESULT, NOT A RENDERING SHORTCUT. The unit"
+    "\n\nTHE FLAT COLOR INSIDE A REGION IS THE RESULT, NOT A RENDERING SHORTCUT. The unit"
     " is a LocaNMF component mean spread over its Allen footprint, so the sharp edges are the"
     " parcellation`s, not the data`s. Read it beside `epoch_15r`, whose blobs are pixel-level"
     " and whose edges ARE data -- agreement between two different test units and two different"
     " correction families is much stronger than either alone."
-    "\n\nDashed line is the analysed mask. Pale grey means the references agreed on nothing"
-    " there; a column labelled NO TRIALS IN ANY ANIMAL is a different fact entirely and is"
-    " labelled rather than left as anonymous grey."
+    "\n\nDashed line is the analyzed mask. Pale gray means the references agreed on nothing"
+    " there; a column labeled NO TRIALS IN ANY ANIMAL is a different fact entirely and is"
+    " labeled rather than left as anonymous gray."
     "\n\n`_left` IS THE ANIMAL`S LEFT, verified rather than assumed: pre-stroke, a"
     " right-side spout drives every `_left` area harder and every `_right` area less, across"
     " six independent area pairs (11 of 11). Every lesion in this cohort is LEFT-sided, so"
@@ -187,13 +187,13 @@ _CD_METHOD = (
     "frame by frame to give a trajectory; `position_coding_directions` fits in (component x "
     "sub-bin) space and its vector cannot be applied to a single frame. Components are Z-SCORED in "
     "a frozen pre-stroke frame -- per-component sd spans 107x and the top five hold 82% of the "
-    "variance, so an unstandardised difference of means is set by about five components on "
+    "variance, so an unstandardized difference of means is set by about five components on "
     "amplitude alone. Trials are averaged by MEAN and the band is the 95% CI OF THE MEAN, not the "
     "trial spread; the per-trial projection is strongly skewed, so a median reads below zero at "
-    "three of six positions for pre-stroke success alone. Display smoothing is a 0.2 s CENTRED "
+    "three of six positions for pre-stroke success alone. Display smoothing is a 0.2 s CENTERED "
     "boxcar (costs 4% of peak; 0.4 s costs 8%, and the cost falls on the fast far-position "
     "transients, not the slow close ones). Axis: 0 = pre-stroke not-P, 1 = pre-stroke lick at P. "
-    "HAEMODYNAMICS ARE SLOW -- read amplitude and gross time course, never onset or ordering.")
+    "HEMODYNAMICS ARE SLOW -- read amplitude and gross time course, never onset or ordering.")
 
 _CD_ORTH = (
     "WHY THE CONDITION-INDEPENDENT MODE IS PROJECTED OUT. The directions are one-vs-rest, so across "
@@ -203,18 +203,18 @@ _CD_ORTH = (
     "and it is large -- decomposed on PS95 pre-cue, close_center reads +14.08 of which +14.32 is "
     "the shared term and -0.24 is position-specific, and the position-specific part is ~1-2 at "
     "EVERY position. So the striking position differences in an unorthogonalised panel are an "
-    "artefact of the cancellation geometry. The top-K components of the pre-stroke grand-mean "
+    "artifact of the cancellation geometry. The top-K components of the pre-stroke grand-mean "
     "trajectory are projected out (K by variance explained, 2-3 here); K=1 is not enough because a "
     "SUBSPACE rotates where a single vector appears not to (K=1 cosines 0.88/0.95/0.88 against K=2 "
     "subspace overlaps 0.68/0.61/0.66). The mode is fitted on PRE-STROKE sessions and applied to "
     "every epoch -- a per-epoch mode would subtract away the change being measured. "
     "TRACES ARE SCALED BY THE UNROTATED GAP, so a direction that barely survives the projection "
-    "draws SMALL rather than being renormalised back to 1; each panel prints its surviving "
+    "draws SMALL rather than being renormalized back to 1; each panel prints its surviving "
     "fraction, RED below 70%, and a panel below that should not be read.")
 
 _CD_MASK = (
     "COMPONENT SELECTION. Components whose spatial mass is more than half inside that animal's "
-    "hand-painted fibre-glue mask or an olfactory bulb are DROPPED -- about a quarter of every "
+    "hand-painted fiber-glue mask or an olfactory bulb are DROPPED -- about a quarter of every "
     "basis (19-24 of 87-95). The map analyses already exclude that territory and LocaNMF does not. "
     "Measured before adopting it: the direction loads on those components at their share BY COUNT, "
     "which is the null expectation under equal-variance weighting, and the real fit comes in at or "
@@ -236,19 +236,19 @@ CD_FIGURES = (
      "x = 0 is the CUE and the direction is fitted on the 2 s BEFORE it, i.e. the enforced-no-lick "
      "period, on trials with no lick anywhere in that window. A dashed trace is a cell with fewer "
      "than 10 trials -- drawn rather than omitted, because 'could not test' and 'tested and found "
-     "nothing' are different facts. Y-AXIS SHARED ACROSS PANELS: the pole normalisation makes the "
+     "nothing' are different facts. Y-AXIS SHARED ACROSS PANELS: the pole normalization makes the "
      "six commensurable, so a per-panel scale would make positions of different amplitude look "
      "alike. " + _CD_ORTH + " " + _CD_METHOD + " " + _CD_MASK),
     ("cd_epochs_*_cue_dom_contrast_lick_orth_cortexonly.png",
      "Cue-aligned coding direction, four epochs overlaid",
      "As the pre-cue panel, with the direction fitted on the 2 s AFTER the cue instead of before "
      "it. NOTE that both are drawn against the cue -- the alignment token selects which window the "
-     "DIRECTION is fitted on, not where the trace is centred -- so this is not an independent "
+     "DIRECTION is fitted on, not where the trace is centered -- so this is not an independent "
      "replication of the pre-cue figure, and the two agreeing is expected. " + _CD_ORTH + " "
      + _CD_METHOD + " " + _CD_MASK),
     ("cd_epochs_*_lick_dom_contrast_lick_orth_cortexonly.png",
      "Lick-aligned coding direction, four epochs overlaid",
-     "As above, centred on the FIRST LICK and fitted on the 2 s after it. This is the independent "
+     "As above, centered on the FIRST LICK and fitted on the 2 s after it. This is the independent "
      "alignment: no-lick trials have no lick to align to, so the gate is forced back to successful "
      "trials whatever was asked for -- a trajectory through an inferred lick time would have an "
      "x-axis that stretches with the latency, and post-stroke the latency is long and variable. "
@@ -267,7 +267,7 @@ CD_FIGURES = (
      "Cue-aligned CROSS-projection", "As the pre-cue cross-projection, direction fitted after the "
      "cue. " + _CD_ORTH + " " + _CD_METHOD + " " + _CD_MASK),
     ("cd_cross_*_lick_dom_contrast_lick_orth_cortexonly.png",
-     "Lick-aligned CROSS-projection", "As above, centred on the first lick. " + _CD_ORTH + " "
+     "Lick-aligned CROSS-projection", "As above, centered on the first lick. " + _CD_ORTH + " "
      + _CD_METHOD + " " + _CD_MASK),
     ("cd_epochs_*_precue_dom_contrast_lick_or_working_orth_cortexonly.png",
      "Pre-cue coding direction, SUCCESS + MISS-WHILE-WORKING, four epochs overlaid",
@@ -286,12 +286,12 @@ CD_FIGURES = (
      "Pooled across animals, one panel per spout position, the three post-stroke epochs overlaid. "
      "THE SUBTRACTION IS WITHIN ANIMAL and the pooling is across them: each animal is its own "
      "pre-stroke control, which is what makes the difference paired and cancels between-animal "
-     "variance instead of counting it twice. The pole normalisation is what allows the pooling at "
+     "variance instead of counting it twice. The pole normalization is what allows the pooling at "
      "all -- every animal's axis is scaled so 0 is its own pre-stroke not-P and 1 its own pre-stroke "
      "lick at P, so a difference from pre is commensurable across animals in a way the raw traces "
-     "are not. Thin lines, individual animals in the cohort colours; heavy line, their mean, DASHED "
-     "where fewer than three animals contribute. EPOCHS ARE THE GREY RAMP and animals are the "
-     "colours, one palette each, so the two can never be confused. **Pre-stroke is zero BY "
+     "are not. Thin lines, individual animals in the cohort colors; heavy line, their mean, DASHED "
+     "where fewer than three animals contribute. EPOCHS ARE THE GRAY RAMP and animals are the "
+     "colors, one palette each, so the two can never be confused. **Pre-stroke is zero BY "
      "CONSTRUCTION and carries no band**: the reference is exact by definition, while the difference "
      "inherits the estimation noise of both epochs, so a Δ near zero means 'no resolvable change' "
      "and never 'identical'. Intervals on the accompanying table come from "
@@ -308,7 +308,7 @@ CD_FIGURES = (
     ("cd_migration_*.png",
      "Where a position's trajectory MOVED TO",
      "M[i, j] is position i's trials projected onto position j's coding direction, averaged over the "
-     "response window. The pole normalisation makes the COLUMNS COMPARABLE -- 1.0 means 'looks like "
+     "response window. The pole normalization makes the COLUMNS COMPARABLE -- 1.0 means 'looks like "
      "pre-stroke position j' in every column -- so a row is a profile of what those trials now "
      "resemble. BOLD IS THE DIAGONAL, a position's own trials on its own direction: the anchor, "
      "~1.0 pre-stroke, and its fall is that position losing its own identity. A BOXED cell is the "
@@ -317,10 +317,10 @@ CD_FIGURES = (
      "HATCHED diagonal has lost more than half its pre-stroke value, so being beaten on it says more "
      "about the collapse than about the winner; the two are separated for that reason. **THE SIX "
      "DIRECTIONS ARE NOT ORTHOGONAL TO EACH OTHER** (measured: mean |cos| 0.33-0.43 after the "
-     "condition-independent mode is removed, pairs reaching 0.78) and neighbouring positions "
+     "condition-independent mode is removed, pairs reaching 0.78) and neighboring positions "
      "genuinely resemble one another, so off-diagonal mass is not migration on its own -- read the "
      "BOTTOM row, the within-animal change from pre. Top row is the LEVEL and bottom the CHANGE, on "
-     "deliberately different colour maps so 'more' and 'different' never look alike."),
+     "deliberately different color maps so 'more' and 'different' never look alike."),
     ("cd_cim_geometry_*.png",
      "The condition-independent mode after stroke: orientation, magnitude, and what orthogonalising leaves behind",
      "Three rows, and the third is the only one that licenses a claim about a post-stroke panel. "
@@ -335,7 +335,7 @@ CD_FIGURES = (
      "UNREMOVED shared amplitude, sqrt(1 - overlap) x scale, in units of the pre-stroke shared "
      "response; the dashed line is the same quantity with the scale assumed to be 1.0, i.e. what "
      "row B corrects. Read A and B TOGETHER or neither: same subspace with a smaller scale is "
-     "weaker drive, a rotated subspace at the same scale is REORGANISATION, and a decoder score "
+     "weaker drive, a rotated subspace at the same scale is REORGANIZATION, and a decoder score "
      "conflates them because both lower accuracy. PS94 chronic is the only cell with overlap DOWN "
      "and scale UP in all three alignments, and its row-C value exceeds 1.0 -- more unremoved "
      "shared signal than the whole pre-stroke shared response, against a position-specific signal "
@@ -348,10 +348,10 @@ CD_FIGURES = (
 
 EPOCH_FIGURES = (
     ("epoch_1c_behaviour_timecourse.png",
-     "Behavioural deficit and recovery, and where the epochs come from",
+     "Behavioral deficit and recovery, and where the epochs come from",
      "Licking accuracy at each of six spout positions across days from lesion, pooled"
      "across four mice (N = 4, n = 74 sessions). Each point is one session of one animal;"
-     "colour identifies the animal. The pre-stroke baseline is that animal's entire pre-"
+     "color identifies the animal. The pre-stroke baseline is that animal's entire pre-"
      "lesion record collapsed to a single point (hits and trials summed), which is the"
      "value the epoch rule is measured against. Days are counted from each animal's OWN"
      "lesion, since PS94/PS95 and PS92/PS93 were lesioned on different dates. Shaded span,"
@@ -361,9 +361,9 @@ EPOCH_FIGURES = (
      "at animal-specific rates -- which is why the analyses that follow are stratified by"
      "epoch rather than by day."),
     ("epoch_1b_behaviour_by_position.png",
-     "Behaviour by position and epoch",
+     "Behavior by position and epoch",
      "Licking accuracy per spout position, pooled across four mice and stratified by"
-     "recovery epoch. Bars, session-weighted means; dots, individual sessions coloured by"
+     "recovery epoch. Bars, session-weighted means; dots, individual sessions colored by"
      "animal, so the imbalance between epochs is visible rather than asserted (the acute"
      "epoch is six PS94 sessions against one PS95 session). Error bars, 95% intervals from"
      "a hierarchical bootstrap resampling animals, then sessions within animal, then the"
@@ -372,9 +372,9 @@ EPOCH_FIGURES = (
      "comparisons. Trials are those of the CAMERA working period -- first cue to the"
      "session's last camera lick, minus the stopped runs -- and a hit is a spout contact, so"
      "a run of misses at an impaired position counts as the deficit it is rather than being"
-     "discarded as disengagement. Sessions without behaviour video are left out."),
+     "discarded as disengagement. Sessions without behavior video are left out."),
     ("epoch_1bdelta_behaviour_by_position.png",
-     "Behaviour, change from pre-stroke",
+     "Behavior, change from pre-stroke",
      "The contrasts of the preceding figure plotted as differences from the pre-stroke"
      "baseline. Point, the difference in the data; thick bar, 95% interval; thin bar, the"
      "Bonferroni-corrected interval -- both from one set of bootstrap draws, so the"
@@ -382,17 +382,17 @@ EPOCH_FIGURES = (
      "comparison that matters is each epoch against no change, not the epochs against each"
      "other."),
     ("epoch_1b_behaviour_by_position_daq_quittail.png",
-     "Robustness: behaviour by position, DAQ quit-tail period",
+     "Robustness: behavior by position, DAQ quit-tail period",
      "The same figure on the DAQ engagement gate (the terminal non-recovering collapse of the"
      " reference-position response rate) instead of the camera working period, with a hit ="
      " a DAQ lick in the response window."),
     ("epoch_1bdelta_behaviour_by_position_daq_quittail.png",
-     "Robustness: behaviour change from pre-stroke, DAQ quit-tail period",
+     "Robustness: behavior change from pre-stroke, DAQ quit-tail period",
      "The change-from-pre contrasts of the DAQ quit-tail robustness figure."),
     ("epoch_1f_engagement_by_epoch.png",
      "Was the animal still working? Engagement by epoch",
-     "The DENOMINATOR behind every behavioural number in this section, plotted in its own"
-     " right. WORKING is the behaviour gate`s `engaged` flag, judged ONLY at the reference"
+     "The DENOMINATOR behind every behavioral number in this section, plotted in its own"
+     " right. WORKING is the behavior gate`s `engaged` flag, judged ONLY at the reference"
      " positions the lesion spares (near ipsi, near middle), so a run of misses at an impaired"
      " position can never lower it. That asymmetry is deliberate: reward is auto-held after a"
      " miss run, so a sated animal`s late misses are disengagement, while an impaired animal`s"
@@ -412,10 +412,10 @@ EPOCH_FIGURES = (
      " accuracy is engagement-GATED, both describe the same trials: subacute animals are accurate"
      " WHEN WORKING and still stop working early. Carry the standing subacute caveat -- that bin"
      " is a RESIDUAL rather than a fixed interval, and it is PS94-weighted, 7 sessions to PS92`s 2."
-     "\n\nSource is the behaviour pipeline`s own `cohort_session_metrics.csv` (`n_engaged` /"
+     "\n\nSource is the behavior pipeline`s own `cohort_session_metrics.csv` (`n_engaged` /"
      " `n_disengaged`), the same gate the epoch rule uses, so this cannot disagree with the other"
-     " behaviour figures about what working means. Bars, session means; dots, individual sessions"
-     " coloured by animal; intervals from the nested animals->sessions bootstrap."),
+     " behavior figures about what working means. Bars, session means; dots, individual sessions"
+     " colored by animal; intervals from the nested animals->sessions bootstrap."),
     ("epoch_1g_engagement_timecourse.png",
      "Engagement over days from lesion, one panel per animal",
      "The sessions behind the pooled bars, unpooled, against days since that animal`s OWN lesion."
@@ -430,7 +430,7 @@ EPOCH_FIGURES = (
      " it oscillates between 0.37 and 1.0 through day 25, which is the same non-plateau that leaves"
      " it with NO chronic epoch. PS95 recovers and then drops again at day 25. An animal-level"
      " reading of the subacute bin should start here rather than at the bar."
-     "\n\nBuilt by `scripts/engagement_by_epoch.py` from the behaviour pipeline`s own"
+     "\n\nBuilt by `scripts/engagement_by_epoch.py` from the behavior pipeline`s own"
      " `cohort_session_metrics.csv`, the same gate the epoch rule uses."),
     ("epoch_acc_by_position_*_*.png",
      "Position decoding by epoch",
@@ -443,7 +443,7 @@ EPOCH_FIGURES = (
      "lick-aligned window admits lick trials only because a trial with no detected lick has no"
      "lick to align to. The lick-only pre-cue and post-cue arms are the SELECTION CONTROL for"
      "the post-lick result: they hold the trial set fixed and move only the window, so a"
-     "finding that survives them is not an artefact of which trials the animal completed."
+     "finding that survives them is not an artifact of which trials the animal completed."
      "A sixth and seventh arm (the terminal quit period, pre-cue and post-cue) were RETIRED on"
      "2026-09-12 -- their pre-stroke reference was lick trials, so they compared post-stroke"
      "quitting against pre-stroke engaged cortex; the state-matched question is asked properly"
@@ -452,7 +452,7 @@ EPOCH_FIGURES = (
      "Decoding accuracy, change from pre-stroke",
      "Epoch minus pre-stroke at each position, with 95% and corrected intervals as above."
      "Note that the ENL (pre-cue) deficit is BROAD -- every position falls, not only the"
-     "impaired ones -- while the behavioural deficit is spatially specific. The pre-cue"
+     "impaired ones -- while the behavioral deficit is spatially specific. The pre-cue"
      "position code degrades globally after the lesion even where the animal can still"
      "reach the spout."),
     ("epoch_5r_refit_by_position_*_*.png",
@@ -461,7 +461,7 @@ EPOCH_FIGURES = (
      "estimator, same block grouping as the frozen decoder two figures up, differing only in"
      "what it was trained on. Five-fold block cross-validation within the session, so every"
      "prediction is out of sample. Bars, session-weighted means with 95% hierarchical"
-     "bootstrap intervals; dots, individual sessions coloured by animal; chance 1/6. Read"
+     "bootstrap intervals; dots, individual sessions colored by animal; chance 1/6. Read"
      "against the frozen panel: a position the refit decoder recovers is a position whose"
      "information survived and whose pre-stroke readout no longer points at it."),
     ("epoch_5rdelta_refit_by_position_*_*.png",
@@ -496,10 +496,10 @@ EPOCH_FIGURES = (
      "WAY. Unmatched, the frozen arm has ten sessions against the refit arm's four fifths of"
      "one, and refitting COSTS 0.073 pre-stroke (post-cue). Matched, refitting is +0.090"
      "BETTER pre-stroke, because a model trained inside a session shares that session's own"
-     "nuisance structure -- alignment, haemodynamics, arousal, the LocaNMF projection -- while"
-     "the matched frozen model has to generalise across days. So the no-lesion baseline is"
+     "nuisance structure -- alignment, hemodynamics, arousal, the LocaNMF projection -- while"
+     "the matched frozen model has to generalize across days. So the no-lesion baseline is"
      "BRACKETED, -0.073 to +0.090, and neither bound is 'the' answer: one measures training-set"
-     "size, the other cross-session generalisation. Both are read as epoch-minus-pre, and the"
+     "size, the other cross-session generalization. Both are read as epoch-minus-pre, and the"
      "headline survives either way -- far-contralateral carries the largest lesion-attributable"
      "recoverable component, +0.196 unmatched and +0.158 matched."),
     ("epoch_5rmgapdelta_frozen_vs_refit_*_*.png",
@@ -510,7 +510,7 @@ EPOCH_FIGURES = (
      "+0.039 pooled. Per position the ordering is unchanged and far-contralateral is still"
      "the largest, +0.158."),
     ("recovery_trajectory_*_*.png",
-     "THE ROUTE, not the endpoint: readout deficit against reorganisation",
+     "THE ROUTE, not the endpoint: readout deficit against reorganization",
      "THE ONE FIGURE IN THIS SECTION THAT IS NOT A BAR CHART, and it asks a different question."
      "Every other panel asks WHERE a quantity ended up in each epoch; this asks what PATH it"
      "took between them. Each point is one post-stroke session, on two axes built from the same"
@@ -557,7 +557,7 @@ EPOCH_FIGURES = (
      "family spends five sixths of its trials on a resolution this cohort cannot support at"
      "chronic. Pooling over positions is what makes the interval narrower than the effect."
      "Three bars per epoch -- the FROZEN pre-stroke decoder, the WITHIN-SESSION refit, and"
-     "their paired difference -- with one dot per session coloured by animal, and the"
+     "their paired difference -- with one dot per session colored by animal, and the"
      "epoch-minus-pre companion beneath. Both arms score the SAME trials, so the gap is paired"
      "at the trial level and stays paired through every level of the bootstrap."
      "\n\nSIGN CONVENTION, AND IT DIFFERS FROM THE RECOVERY-TRAJECTORY FIGURES ON PURPOSE. The"
@@ -583,8 +583,8 @@ EPOCH_FIGURES = (
      "bounds. Unmatched, refitting COSTS 0.073 pre-stroke because the frozen model has ten"
      "times the data; matched, refitting is +0.090 BETTER pre-stroke, because a model trained"
      "inside a session shares that session's own nuisance structure -- alignment,"
-     "haemodynamics, arousal, the LocaNMF projection -- while the matched frozen model must"
-     "generalise across days. Both bounds are real effects and neither is 'the' answer, which"
+     "hemodynamics, arousal, the LocaNMF projection -- while the matched frozen model must"
+     "generalize across days. Both bounds are real effects and neither is 'the' answer, which"
      "is why both families are drawn and both are read as epoch-minus-pre."),
     ("epoch_5rmodelta_frozen_refit_overall_*_*.png",
      "Pooled frozen/refit accuracy (matched), change from pre-stroke",
@@ -614,9 +614,9 @@ EPOCH_FIGURES = (
      "diagonal is not the interesting part: WHERE the errors go is. Three readings. If 5c goes"
      "off-diagonal and this one restores the diagonal, the code is INTACT and the pre-stroke"
      "readout is pointing at the wrong place -- displacement. If both go off-diagonal in the"
-     "SAME cells, that position is genuinely confusable with that neighbour and no readout"
+     "SAME cells, that position is genuinely confusable with that neighbor and no readout"
      "recovers it -- degradation. If this one goes off-diagonal in DIFFERENT cells, the"
-     "within-session structure has reorganised rather than weakened. THE TWO FAMILIES ARE NOT"
+     "within-session structure has reorganized rather than weakened. THE TWO FAMILIES ARE NOT"
      "ON THE SAME FOOTING: the frozen arm trains on ten pre-stroke sessions and this one on"
      "four fifths of ONE, so its pre panel is already worse with no lesion involved. Read each"
      "family against ITS OWN pre column -- which is what the delta row beneath does -- and"
@@ -628,9 +628,9 @@ EPOCH_FIGURES = (
      "Confusion matrices of the frozen pre-stroke decoder pooled across animals within each"
      "epoch (top row), and each epoch's change from pre-stroke (bottom row, placed beneath"
      "the epoch it describes). Rows, true position; columns, decoded position. Panels are"
-     "row-normalised for display while the stored matrices remain raw counts, which is what"
+     "row-normalized for display while the stored matrices remain raw counts, which is what"
      "makes pooling a sum. BOTH differences use the pre-stroke baseline and share one"
-     "colour scale, so they are directly comparable -- the question a recovery figure is"
+     "color scale, so they are directly comparable -- the question a recovery figure is"
      "asked is whether the code returned to baseline, not whether it improved on its worst"
      "point. Panel titles carry n and the per-animal session counts."),
     ("epoch_6_matrices_pattern_*_*.png",
@@ -648,7 +648,7 @@ EPOCH_FIGURES = (
      "own pre-stroke pattern. The matrix carries this on its diagonal but a reader cannot"
      "compare six diagonal cells across three panels by eye, which is the comparison the"
      "recovery question actually asks. Bars, mean over sessions; dots, individual sessions"
-     "coloured by animal; error bars, 95% intervals from resampling animals then sessions."
+     "colored by animal; error bars, 95% intervals from resampling animals then sessions."
      "*, the epoch-minus-pre interval excludes zero; **, it survives Bonferroni across the"
      "figure."),
     ("epoch_6diagdelta_matrices_pattern_*_*.png",
@@ -666,7 +666,7 @@ EPOCH_FIGURES = (
      "own pre-stroke pattern. The matrix carries this on its diagonal but a reader cannot"
      "compare six diagonal cells across three panels by eye, which is the comparison the"
      "recovery question actually asks. Bars, mean over sessions; dots, individual sessions"
-     "coloured by animal; error bars, 95% intervals from resampling animals then sessions."
+     "colored by animal; error bars, 95% intervals from resampling animals then sessions."
      "*, the epoch-minus-pre interval excludes zero; **, it survives Bonferroni across the"
      "figure. Read against the preceding figure this is the CEILING: a drop there with a"
      "drop here is a code measured less repeatably, a drop there without one is a code that"
@@ -682,8 +682,8 @@ EPOCH_FIGURES = (
      " response magnitude: d(post P, pre Q) carries a |mu_postP|^2 term depending only on P, so"
      " a gain change shifts P's distance to every reference equally. Measured post-cue"
      " 2026-09-09, chronic elevation here is largest at SPARED positions (near-ipsi +0.862,"
-     " far-middle +0.845) where the row-centred value is ~0 -- amplitude, not geometry. Use the"
-     " row-centred family below for anything about WHERE a pattern went. The colour scale is"
+     " far-middle +0.845) where the row-centered value is ~0 -- amplitude, not geometry. Use the"
+     " row-centered family below for anything about WHERE a pattern went. The color scale is"
      " taken from the data rather than fixed, because a distance has no natural range."),
     ("epoch_8diag_matrices_crossnobis_*_*.png",
      "Crossnobis distance, own position",
@@ -691,7 +691,7 @@ EPOCH_FIGURES = (
      "own pre-stroke pattern. The matrix carries this on its diagonal but a reader cannot"
      "compare six diagonal cells across three panels by eye, which is the comparison the"
      "recovery question actually asks. Bars, mean over sessions; dots, individual sessions"
-     "coloured by animal; error bars, 95% intervals from resampling animals then sessions."
+     "colored by animal; error bars, 95% intervals from resampling animals then sessions."
      "*, the epoch-minus-pre interval excludes zero; **, it survives Bonferroni across the"
      "figure. Crossnobis is noise-unbiased and immune to uniform amplitude change, so this"
      "is the arbiter when the correlation measures and the coding directions disagree."),
@@ -699,49 +699,49 @@ EPOCH_FIGURES = (
      "Crossnobis distance, own position, change from pre-stroke",
      None),
     ("epoch_8rc_matrices_crossnobis_rowcentred_*_*.png",
-     "Crossnobis geometry, row-centred: which position did it move TOWARD",
-     "The same matrices with each ROW centred on its own mean. The raw distance"
+     "Crossnobis geometry, row-centered: which position did it move TOWARD",
+     "The same matrices with each ROW centered on its own mean. The raw distance"
      " d(post P, pre Q) = |mu_postP|^2 - 2 mu_postP . mu_preQ + |mu_preQ|^2 carries a first"
      " term depending only on P, so a change in the overall MAGNITUDE of position P's"
      " post-stroke response shifts its distance to every pre-stroke position equally and"
      " paints a uniform row -- which reads as 'moved toward all six' and means nothing of the"
-     " kind. Centring removes that term and leaves the contrast WITHIN the row, which is where"
+     " kind. Centering removes that term and leaves the contrast WITHIN the row, which is where"
      " a substitution lives: a far-contra row going negative under an ipsilateral column is"
      " that position's pattern having moved toward it. Needed because the decoder confusions"
      " and best-match fraction are LABEL-level -- they say which position the readout assigns,"
      " not which position the pattern moved toward (Priya, 2026-09-09)."),
     ("epoch_8rcdiag_matrices_crossnobis_rowcentred_*_*.png",
-     "Crossnobis distance row-centred, own position",
-     "The diagonal of the row-centred matrix: how far each position sits from its own"
+     "Crossnobis distance row-centered, own position",
+     "The diagonal of the row-centered matrix: how far each position sits from its own"
      " pre-stroke pattern RELATIVE to its distance from the other five. Read against the raw"
      " diagonal two slides earlier -- the pair separates a pattern that moved from a response"
      " that merely changed size, and the two disagree chronically."),
     ("epoch_8rcdiagdelta_matrices_crossnobis_rowcentred_*_*.png",
-     "Crossnobis distance row-centred, own position, change from pre-stroke",
+     "Crossnobis distance row-centered, own position, change from pre-stroke",
      "THE ARBITER FOR 'DID THE CODE COME BACK'. Measured post-cue 2026-09-09: acutely every"
      " position is displaced and far-contra most (+0.665 vs +0.188 to +0.463 elsewhere);"
      " chronically the displacement resolves at every position except far-contra (+0.177) and"
      " near-middle (+0.107). The RAW diagonal disagrees, showing chronic elevation largest at"
-     " SPARED positions (near-ipsi +0.862, far-middle +0.845) where the row-centred value is"
-     " ~0 -- that is a global gain change, not reorganisation, and it is the reason this panel"
+     " SPARED positions (near-ipsi +0.862, far-middle +0.845) where the row-centered value is"
+     " ~0 -- that is a global gain change, not reorganization, and it is the reason this panel"
      " exists."),
     ("epoch_8rz_matrices_crossnobis_rownorm_*_*.png",
-     "Crossnobis geometry, row-NORMALISED (scale-free)",
-     "The row-centred matrix with every row also divided by its own SD across columns, so each"
-     "row is a z-profile and a cell reads 'how many row-SDs from this row's mean'. Row-centring"
+     "Crossnobis geometry, row-NORMALIZED (scale-free)",
+     "The row-centered matrix with every row also divided by its own SD across columns, so each"
+     "row is a z-profile and a cell reads 'how many row-SDs from this row's mean'. Row-centering"
      "alone is NOT scale-free: writing the row out, the position-dependent term scales linearly"
-     "with that position's response amplitude, so row-centred values are comparable across"
+     "with that position's response amplitude, so row-centered values are comparable across"
      "epochs in SIGN and RANK but not in MAGNITUDE -- and amplitude moved hard (fitted"
      "amplitude factor a: 0.94 pre-stroke to 0.36 acute, post-cue). This figure is magnitude-"
      "comparable and deliberately throws away HOW FAR a position moved, which the two preceding"
      "families still carry. Read direction here, distance there."),
     ("epoch_8rzdiag_matrices_crossnobis_rownorm_*_*.png",
-     "Row-normalised crossnobis, own position",
+     "Row-normalized crossnobis, own position",
      "The diagonal: how many row-SDs the own-position cell sits from that row's mean. More"
      "negative = the position still resembles its own pre-stroke pattern more than it resembles"
      "the others, which is the pre-stroke state."),
     ("epoch_8rzdiagdelta_matrices_crossnobis_rownorm_*_*.png",
-     "Row-normalised crossnobis, own position, change from pre-stroke",
+     "Row-normalized crossnobis, own position, change from pre-stroke",
      "Scale-free, so these deltas are comparable between epochs even where amplitude is not."),
     ("epoch_10c_matrices_best_match_destination_*_*.png",
      "Where each position's best pre-stroke match went",
@@ -753,7 +753,7 @@ EPOCH_FIGURES = (
      "is what that number cannot show -- whether a position's code moved to ONE other position"
      "(substitution) or scattered evenly (collapse). Acutely far-contralateral keeps only 0.06"
      "of its own sessions and sends 0.50 to far-MIDDLE and 0.25 to far-ipsilateral: a"
-     "concentrated substitution onto specific neighbours, not a dissolution. THE PRE COLUMN IS"
+     "concentrated substitution onto specific neighbors, not a dissolution. THE PRE COLUMN IS"
      "ONE-HOTTED PER SESSION AND THEN AVERAGED, matching how every post-stroke epoch is built;"
      "one-hotting the AVERAGED leave-one-session-out matrix instead makes the baseline a"
      "perfect identity and charges the difference to the lesion."),
@@ -771,7 +771,7 @@ EPOCH_FIGURES = (
      " bootstrap interval from the same draws the bar families use. THIS IS THE ONE THAT TESTS"
      " THE SUBSTITUTION CLAIM. 10c draws the matrix with no uncertainty at all, and 10cdiag"
      " tests only the DIAGONAL -- so `far-contra now best-matches far-middle` was, until this"
-     " figure, a colour rather than a result. The off-diagonal is where that claim lives and"
+     " figure, a color rather than a result. The off-diagonal is where that claim lives and"
      " this is where it is measured."
      "\n\nTHE REFERENCE IS CHANCE, NOT ZERO, on the absolute row. A cell is the fraction of"
      " sessions whose best match landed there, so the question a mark answers is whether it"
@@ -851,7 +851,7 @@ EPOCH_FIGURES = (
      "The same question resolved per position: the fraction of sessions at which that"
      "position's closest pre-stroke pattern is itself. A position whose row is entirely"
      "ungated in a session scores nothing rather than zero -- counting missing data as a"
-     "wrong match would turn absence into evidence of reorganisation."),
+     "wrong match would turn absence into evidence of reorganization."),
     ("epoch_10bdelta_best_match_by_position_*_*.png",
      "Best match per position, change from pre-stroke",
      None),
@@ -931,7 +931,7 @@ EPOCH_FIGURES = (
      "acutely against 0.628 pre-stroke, a change of -0.002, so its own trials predict each"
      "other as well as before the lesion. The positions that lose ceiling are the FLANKING"
      "ones, far-ipsilateral (-0.323) and far-middle (-0.270). Read with the next figure: far-contra"
-     "keeps its structure and loses its template; its neighbours lose the structure itself."),
+     "keeps its structure and loses its template; its neighbors lose the structure itself."),
     ("epoch_11cposdelta_encoder_ceiling_by_position_*_*.png",
      "Encoder shape ceiling per position, change from pre-stroke",
      "Zero at far-contralateral is the result (-0.002), not a missing bar."),
@@ -954,7 +954,7 @@ EPOCH_FIGURES = (
      "encoder's units. Converges with the frozen-vs-refit decoder arm, which recovers 34% of"
      "far-contra's acute deficit by refitting and only 9% and 11% at far-ipsi and far-middle."),
     ("epoch_13_state_decoder_*.png",
-     "DOES EVERYTHING DEGRADE? Frozen BEHAVIOURAL-STATE decoder",
+     "DOES EVERYTHING DEGRADE? Frozen BEHAVIORAL-STATE decoder",
      "PROVISIONAL NUMBERS, 2026-09-12: every statistic on this slide that involves the LICKING "
      "class was computed with the superseded lick-BOUT anchor and has not yet been "
      "recomputed against the post-cue anchor now in use. That is the class balance, "
@@ -965,11 +965,11 @@ EPOCH_FIGURES = (
      "THE SPECIFICITY CONTROL FOR THE WHOLE DECK. The lesion is ventrolateral STRIATAL, so no"
      "cortex is damaged anywhere in the field of view: same window, same LocaNMF basis, same"
      "estimator, same frozen-model discipline, and only the LABEL changes -- spout target, or"
-     "behavioural state. If the target readout collapses and the state readout does not, the"
+     "behavioral state. If the target readout collapses and the state readout does not, the"
      "deficit is SPECIFIC, and every generic explanation a reader reaches for first fails at"
-     "once -- window clouding, haemodynamic drift, arousal, basis drift, 'a lesion was made and"
+     "once -- window clouding, hemodynamic drift, arousal, basis drift, 'a lesion was made and"
      "everything got worse' -- because each of them would degrade this readout too."
-     "\n\nMETHOD. The unit is a ONE-SECOND window, not a trial: trial-level labelling gives"
+     "\n\nMETHOD. The unit is a ONE-SECOND window, not a trial: trial-level labeling gives"
      "~17 running trials per session, which decodes nothing, while tiling the bouts gives"
      "33,060 running and 41,549 quiet one-second segments across the cohort. The window LENGTH"
      "is set by quiet and not chosen -- quiet periods have a median of 1.10 s, so the 2 s window"
@@ -988,7 +988,7 @@ EPOCH_FIGURES = (
      "the first lick after the cue is also the first lick after reward. THE WINDOW IS 1 s, NOT"
      "THE 2 s THE POSITION DECODER USES, and that is deliberate: a 2 s licking window beside 1 s"
      "running and quiet windows would make window DURATION a cue the decoder could separate the"
-     "classes on -- a longer window is a smoother binned feature whatever the behaviour -- so"
+     "classes on -- a longer window is a smoother binned feature whatever the behavior -- so"
      "all three are duration-matched and only the anchor is shared with the position arm. A"
      "trial whose lick never arrives within the 3.5 s response window contributes nothing,"
      "because a miss has no lick to anchor on. Running and quiet are tiled at"
@@ -1016,7 +1016,7 @@ EPOCH_FIGURES = (
      "depend on it. The FIGURE is current; these prose numbers are hand-copied and "
      "lag it. Read them off the value sidecar, not off this caption. "
      "The same quantity as epoch-minus-pre. Read it beside the POSITION decoder's contrast"
-     "panel earlier in this section, and read the normalised comparison on the next slide,"
+     "panel earlier in this section, and read the normalized comparison on the next slide,"
      "which is the one that puts the two on a single axis."),
     ("epoch_13n_state_vs_position_*.png",
      "Of what each readout had ABOVE CHANCE, how much survived?",
@@ -1040,7 +1040,7 @@ EPOCH_FIGURES = (
      "construction (PS93's are 49% far_center). Neither bar carries an interval: each is one"
      "pooled number, so there is nothing to resample."),
     ("epoch_13pos_state_decoder_by_class_*.png",
-     "State decoder recall PER CLASS -- which behavioural state changed?",
+     "State decoder recall PER CLASS -- which behavioral state changed?",
      "PROVISIONAL NUMBERS, 2026-09-12: every statistic on this slide that involves the LICKING "
      "class was computed with the superseded lick-BOUT anchor and has not yet been "
      "recomputed against the post-cue anchor now in use. That is the class balance, "
@@ -1073,21 +1073,21 @@ EPOCH_FIGURES = (
      "sentence used to quote -- 3.4% pre, 15.1% acute -- were measured on the RETIRED "
      "reward-anchored quiet definition and are withdrawn pending re-measurement on REST; the "
      "direction is unchanged and is visible in the counts.)"
-     "\n\nTWO LIMITS, both easy to miss. FIRST, licking windows are locked to a behavioural "
+     "\n\nTWO LIMITS, both easy to miss. FIRST, licking windows are locked to a behavioral "
      "TRANSITION (the first post-cue lick) while running and rest are sampled from inside "
      "sustained STATES, so a decoder could separate them partly on transient-versus-sustained "
-     "rather than on which behaviour it is. SECOND, THE CLASSES ARE NOT SPREAD ALIKE OVER "
+     "rather than on which behavior it is. SECOND, THE CLASSES ARE NOT SPREAD ALIKE OVER "
      "SESSION TIME and the imbalance is steeper post-stroke than pre -- licking falls ~60% "
      "from the first fifth of an acute session to the last while rest and running rise. "
      "THAT SECOND ONE WAS TESTED AND IS INERT: scoring the frozen decoder separately within "
      "each fifth of the session gives a spread of 0.008 pre-stroke against a pre-to-subacute "
      "drop of 0.096, and the spread does NOT track the composition shift -- acute has the "
-     "steepest drift and the second-smallest spread. The decoder is reading behaviour, not "
+     "steepest drift and the second-smallest spread. The decoder is reading behavior, not "
      "clock time, so the classes are deliberately NOT balanced across time bins: doing so "
      "would cost 65-75% of the segments and empty a class-bin in 30 of 91 sessions to remove "
      "something measured not to matter (DECISIONS.md 2026-09-13). This family answers 'does "
      "cortex still distinguish "
-     "behavioural state at all', which is what the control needs; it is not a clean three-way "
+     "behavioral state at all', which is what the control needs; it is not a clean three-way "
      "contrast of matched epochs."),
     ("epoch_13posdelta_state_decoder_by_class_*.png",
      "State decoder recall per class, change from pre-stroke",
@@ -1109,14 +1109,14 @@ EPOCH_FIGURES = (
      "window length, the feature width or the PS92 8/12 exclusion, which do not "
      "depend on it. The FIGURE is current; these prose numbers are hand-copied and "
      "lag it. Read them off the value sidecar, not off this caption. "
-     "THE SAME ARGUMENT 5c MAKES FOR THE POSITION DECODER, applied to behavioural state: the"
+     "THE SAME ARGUMENT 5c MAKES FOR THE POSITION DECODER, applied to behavioral state: the"
      "per-class panel gives the DIAGONAL -- how often each class is recalled -- and says nothing"
      "about where the errors land, which is the part that names what changed. A quiet segment"
      "misread as LICKING and one misread as RUNNING are different failures: the first says the"
      "post-stroke immobile animal looks TASK-ENGAGED to the readout, the second that it looks"
      "like it is MOVING. Recall cannot tell those apart."
      "\n\nTop row is the epoch, bottom row is that epoch's change from pre-stroke, placed"
-     "beneath the panel it describes. Panels are row-normalised for display while the stored"
+     "beneath the panel it describes. Panels are row-normalized for display while the stored"
      "matrices stay raw counts -- which is what makes pooling an epoch a SUM rather than a mean"
      "of rates. Chance is 1/3. Read each panel against the PRE panel of this figure, never"
      "against the position decoder's confusion: the two have different class counts, different"
@@ -1132,7 +1132,7 @@ EPOCH_FIGURES = (
      " MEASURED: SVT rather than LocaNMF (SVT beats it by 0.06-0.09 balanced accuracy); L2"
      " rather than their L1 (split-half of the pre-stroke mean map: L1 0.688, L2 0.715, L2 +"
      " Haufe 0.960); and the HAUFE TRANSFORM, which the paper does not use and which is the"
-     " single biggest factor -- a decoder weight is a FILTER whose job includes cancelling"
+     " single biggest factor -- a decoder weight is a FILTER whose job includes canceling"
      " correlated noise, so a channel with NO signal can carry a large weight as a suppressor."
      " A = Cov(X) x beta converts it to a PATTERN, cov(channel, decoder output), which is the"
      " anatomical question. Pattern and filter correlate at only r = 0.245."
@@ -1169,7 +1169,7 @@ EPOCH_FIGURES = (
      " refused for fewer than 20 trials is DRAWN with its reason -- on the lick arm"
      " far-contralateral acute is refused because the animal does not lick there, which is the"
      " deficit rather than a rendering fault."
-     "\n\nHOW TO READ IT. The colour scale is shared across ALL SIX POSITIONS, because they"
+     "\n\nHOW TO READ IT. The color scale is shared across ALL SIX POSITIONS, because they"
      " are the same quantity in the same units from the same sessions and far-falls-near-does"
      " -not is a BETWEEN-position claim. Difference columns keep their own diverging map and"
      " EXPAND their limit rather than clipping. r in each panel is the split-half reliability"
@@ -1197,7 +1197,7 @@ EPOCH_FIGURES = (
      " without being counted as independent animals, which is what a flat session-level test"
      " would do."
      "\n\nTHE FAMILY-WISE THRESHOLD COMES FROM THE BOOTSTRAP'S OWN MAX-STATISTIC, not from"
-     " Bonferroni. Each draw is centred on the observed and studentised by the bootstrap SE;"
+     " Bonferroni. Each draw is centered on the observed and studentised by the bootstrap SE;"
      " the maximum |z| across bins is taken per draw; the 95th percentile of those maxima is"
      " the threshold. Correlated bins produce a smaller maximum than independent ones, so the"
      " data's own covariance performs the correction -- no independence assumption and no"
@@ -1215,13 +1215,13 @@ EPOCH_FIGURES = (
     " replication is actually visible, and at n = 4 replication carries more than an interval."
      "\n\nTESTED ON AN ERODED MASK (16 px) while DISPLAY keeps the full one. The rim is where U"
      " is smallest and the Allen warp least constrained, so it carries partial-volume mixing"
-     " and alignment jitter -- and those artefacts are SYSTEMATIC, hence consistent across"
+     " and alignment jitter -- and those artifacts are SYSTEMATIC, hence consistent across"
      " animals, which is exactly what a between-animal denominator rewards. The max-statistic"
      " fixes multiplicity, NOT this: measured, the near positions are 1.35-1.54x rim-enriched"
      " without erosion. Any result more than 2x concentrated in the rim is SUPPRESSED rather"
      " than annotated, because a drawn contour is read as a result and a subtitle caveat is"
      " not."
-     "\n\nFIELD OF VIEW. Both olfactory bulbs are excluded by name, and the fibre-glue"
+     "\n\nFIELD OF VIEW. Both olfactory bulbs are excluded by name, and the fiber-glue"
      " occlusion is excluded from a HAND-PAINTED per-animal mask -- pooled figures use the"
      " UNION, since a pixel occluded in ANY animal cannot contribute to a cross-animal average."
      " 207,213 -> 151,447 px. The glue could not be found automatically (brightness here is"
@@ -1229,7 +1229,7 @@ EPOCH_FIGURES = (
      " of each position's acute effect energy, because the position code lives in SSp/MO."
      "\n\nPOOLING IS WITHIN ANIMAL. A difference uses only animals present in BOTH epochs, and"
      " each animal is divided by its OWN pre-stroke map amplitude before pooling, per position."
-     " That is a SCALE NORMALISATION and NOT a z-score: one constant per (animal, position),"
+     " That is a SCALE NORMALIZATION and NOT a z-score: one constant per (animal, position),"
      " computed only from pre-stroke data, so it cancels exactly in every within-animal epoch"
      " ratio and cannot leak epoch information. It was needed because pre-stroke amplitude"
      " varies 2.44x across animals, so an unweighted pooled map was largely the brightest"
@@ -1238,9 +1238,9 @@ EPOCH_FIGURES = (
      "Decoder beta maps PER ANIMAL -- does the pattern replicate?",
      "THE POOLED FIGURE AVERAGES FOUR ANIMALS AND EVERY TEST ESTIMATES ITS SPREAD FROM FOUR, so"
      " neither can show whether a pattern REPLICATES -- which at n=4 is the stronger evidence."
-     " One position per figure (far-contralateral, where the deficit is); its neighbours are on"
+     " One position per figure (far-contralateral, where the deficit is); its neighbors are on"
      " the pooled panel."
-     "\n\nMETHOD is identical to the pooled figure. THE COLOUR SCALE IS PER ANIMAL here and"
+     "\n\nMETHOD is identical to the pooled figure. THE COLOR SCALE IS PER ANIMAL here and"
      " NOT shared, because a row is a different mouse whose dF/F scale moves with expression"
      " and window clarity -- one scale would make a dim animal look like a weak effect. Rows"
      " are comparable across their own epochs, not to each other. NO significance is drawn: a"
@@ -1278,7 +1278,7 @@ EPOCH_FIGURES = (
      " without being counted as independent animals, which is what a flat session-level test"
      " would do."
      "\n\nTHE FAMILY-WISE THRESHOLD COMES FROM THE BOOTSTRAP'S OWN MAX-STATISTIC, not from"
-     " Bonferroni. Each draw is centred on the observed and studentised by the bootstrap SE;"
+     " Bonferroni. Each draw is centered on the observed and studentised by the bootstrap SE;"
      " the maximum |z| across bins is taken per draw; the 95th percentile of those maxima is"
      " the threshold. Correlated bins produce a smaller maximum than independent ones, so the"
      " data's own covariance performs the correction -- no independence assumption and no"
@@ -1289,13 +1289,13 @@ EPOCH_FIGURES = (
      " SESSION-level unit gave them the power to absorb it and four animals does not."
      "\n\nTESTED ON AN ERODED MASK (16 px) while DISPLAY keeps the full one. The rim is where U"
      " is smallest and the Allen warp least constrained, so it carries partial-volume mixing"
-     " and alignment jitter -- and those artefacts are SYSTEMATIC, hence consistent across"
+     " and alignment jitter -- and those artifacts are SYSTEMATIC, hence consistent across"
      " animals, which is exactly what a between-animal denominator rewards. The max-statistic"
      " fixes multiplicity, NOT this: measured, the near positions are 1.35-1.54x rim-enriched"
      " without erosion. Any result more than 2x concentrated in the rim is SUPPRESSED rather"
      " than annotated, because a drawn contour is read as a result and a subtitle caveat is"
      " not."
-     "\n\nFIELD OF VIEW. Both olfactory bulbs are excluded by name, and the fibre-glue"
+     "\n\nFIELD OF VIEW. Both olfactory bulbs are excluded by name, and the fiber-glue"
      " occlusion is excluded from a HAND-PAINTED per-animal mask -- pooled figures use the"
      " UNION, since a pixel occluded in ANY animal cannot contribute to a cross-animal average."
      " 207,213 -> 151,447 px. The glue could not be found automatically (brightness here is"
@@ -1303,7 +1303,7 @@ EPOCH_FIGURES = (
      " of each position's acute effect energy, because the position code lives in SSp/MO."
      "\n\nPOOLING IS WITHIN ANIMAL. A difference uses only animals present in BOTH epochs, and"
      " each animal is divided by its OWN pre-stroke map amplitude before pooling, per position."
-     " That is a SCALE NORMALISATION and NOT a z-score: one constant per (animal, position),"
+     " That is a SCALE NORMALIZATION and NOT a z-score: one constant per (animal, position),"
      " computed only from pre-stroke data, so it cancels exactly in every within-animal epoch"
      " ratio and cannot leak epoch information. It was needed because pre-stroke amplitude"
      " varies 2.44x across animals, so an unweighted pooled map was largely the brightest"
@@ -1338,7 +1338,7 @@ EPOCH_FIGURES = (
      " without being counted as independent animals, which is what a flat session-level test"
      " would do."
      "\n\nTHE FAMILY-WISE THRESHOLD COMES FROM THE BOOTSTRAP'S OWN MAX-STATISTIC, not from"
-     " Bonferroni. Each draw is centred on the observed and studentised by the bootstrap SE;"
+     " Bonferroni. Each draw is centered on the observed and studentised by the bootstrap SE;"
      " the maximum |z| across bins is taken per draw; the 95th percentile of those maxima is"
      " the threshold. Correlated bins produce a smaller maximum than independent ones, so the"
      " data's own covariance performs the correction -- no independence assumption and no"
@@ -1349,13 +1349,13 @@ EPOCH_FIGURES = (
      " SESSION-level unit gave them the power to absorb it and four animals does not."
      "\n\nTESTED ON AN ERODED MASK (16 px) while DISPLAY keeps the full one. The rim is where U"
      " is smallest and the Allen warp least constrained, so it carries partial-volume mixing"
-     " and alignment jitter -- and those artefacts are SYSTEMATIC, hence consistent across"
+     " and alignment jitter -- and those artifacts are SYSTEMATIC, hence consistent across"
      " animals, which is exactly what a between-animal denominator rewards. The max-statistic"
      " fixes multiplicity, NOT this: measured, the near positions are 1.35-1.54x rim-enriched"
      " without erosion. Any result more than 2x concentrated in the rim is SUPPRESSED rather"
      " than annotated, because a drawn contour is read as a result and a subtitle caveat is"
      " not."
-     "\n\nFIELD OF VIEW. Both olfactory bulbs are excluded by name, and the fibre-glue"
+     "\n\nFIELD OF VIEW. Both olfactory bulbs are excluded by name, and the fiber-glue"
      " occlusion is excluded from a HAND-PAINTED per-animal mask -- pooled figures use the"
      " UNION, since a pixel occluded in ANY animal cannot contribute to a cross-animal average."
      " 207,213 -> 151,447 px. The glue could not be found automatically (brightness here is"
@@ -1363,7 +1363,7 @@ EPOCH_FIGURES = (
      " of each position's acute effect energy, because the position code lives in SSp/MO."
      "\n\nPOOLING IS WITHIN ANIMAL. A difference uses only animals present in BOTH epochs, and"
      " each animal is divided by its OWN pre-stroke map amplitude before pooling, per position."
-     " That is a SCALE NORMALISATION and NOT a z-score: one constant per (animal, position),"
+     " That is a SCALE NORMALIZATION and NOT a z-score: one constant per (animal, position),"
      " computed only from pre-stroke data, so it cancels exactly in every within-animal epoch"
      " ratio and cannot leak epoch information. It was needed because pre-stroke amplitude"
      " varies 2.44x across animals, so an unweighted pooled map was largely the brightest"
@@ -1388,9 +1388,9 @@ EPOCH_FIGURES = (
      " identical for all six positions, so subtracting it CANNOT couple them; and it carries no"
      " position information, so nothing real is removed."
      "\n\nWHY THIS IS THE RIGHT REFERENCE. Decision F12 permits a SESSION-CONSTANT baseline"
-     " (it is invisible to a standardised decoder) while rejecting a per-trial pre-cue one."
-     " Maps are not standardised, so for maps that constant is a real choice -- and the rest"
-     " baseline is the map-space analogue of what F12 endorses. It answers whether this"
+     " (it is invisible to a standardized decoder) while rejecting a per-trial pre-cue one."
+     " Maps are not standardized, so for maps that constant is a real choice -- and the rest"
+     " baseline is the map-space analog of what F12 endorses. It answers whether this"
      " position's cortex is driven AT ALL, where the mean-referenced family answers whether it"
      " is driven more than the others."
      "\n\nCHECK THE FILENAME BEFORE READING THE CHRONIC COLUMN. `_REWARD8ref_` is the RETIRED"
@@ -1426,7 +1426,7 @@ EPOCH_FIGURES = (
      " without being counted as independent animals, which is what a flat session-level test"
      " would do."
      "\n\nTHE FAMILY-WISE THRESHOLD COMES FROM THE BOOTSTRAP'S OWN MAX-STATISTIC, not from"
-     " Bonferroni. Each draw is centred on the observed and studentised by the bootstrap SE;"
+     " Bonferroni. Each draw is centered on the observed and studentised by the bootstrap SE;"
      " the maximum |z| across bins is taken per draw; the 95th percentile of those maxima is"
      " the threshold. Correlated bins produce a smaller maximum than independent ones, so the"
      " data's own covariance performs the correction -- no independence assumption and no"
@@ -1437,13 +1437,13 @@ EPOCH_FIGURES = (
      " SESSION-level unit gave them the power to absorb it and four animals does not."
      "\n\nTESTED ON AN ERODED MASK (16 px) while DISPLAY keeps the full one. The rim is where U"
      " is smallest and the Allen warp least constrained, so it carries partial-volume mixing"
-     " and alignment jitter -- and those artefacts are SYSTEMATIC, hence consistent across"
+     " and alignment jitter -- and those artifacts are SYSTEMATIC, hence consistent across"
      " animals, which is exactly what a between-animal denominator rewards. The max-statistic"
      " fixes multiplicity, NOT this: measured, the near positions are 1.35-1.54x rim-enriched"
      " without erosion. Any result more than 2x concentrated in the rim is SUPPRESSED rather"
      " than annotated, because a drawn contour is read as a result and a subtitle caveat is"
      " not."
-     "\n\nFIELD OF VIEW. Both olfactory bulbs are excluded by name, and the fibre-glue"
+     "\n\nFIELD OF VIEW. Both olfactory bulbs are excluded by name, and the fiber-glue"
      " occlusion is excluded from a HAND-PAINTED per-animal mask -- pooled figures use the"
      " UNION, since a pixel occluded in ANY animal cannot contribute to a cross-animal average."
      " 207,213 -> 151,447 px. The glue could not be found automatically (brightness here is"
@@ -1451,7 +1451,7 @@ EPOCH_FIGURES = (
      " of each position's acute effect energy, because the position code lives in SSp/MO."
      "\n\nPOOLING IS WITHIN ANIMAL. A difference uses only animals present in BOTH epochs, and"
      " each animal is divided by its OWN pre-stroke map amplitude before pooling, per position."
-     " That is a SCALE NORMALISATION and NOT a z-score: one constant per (animal, position),"
+     " That is a SCALE NORMALIZATION and NOT a z-score: one constant per (animal, position),"
      " computed only from pre-stroke data, so it cancels exactly in every within-animal epoch"
      " ratio and cannot leak epoch information. It was needed because pre-stroke amplitude"
      " varies 2.44x across animals, so an unweighted pooled map was largely the brightest"
@@ -1460,12 +1460,12 @@ EPOCH_FIGURES = (
      "Position maps vs the MEAN OVER ALL TRIALS -- the coupled reference, for comparison",
      "THE SAME TRIALS AND WINDOW AS ITS REST-REFERENCED PARTNER, with only the subtrahend"
      " changed: here it is the mean over ALL trials in the window, which is what the beta-map"
-     " decoder centres on. IT EXISTS TO BE COMPARED AGAINST, not to be read alone."
+     " decoder centers on. IT EXISTS TO BE COMPARED AGAINST, not to be read alone."
      "\n\nTHE SIX ROWS ARE NOT INDEPENDENT. A position that loses drive lowers the shared"
      " reference and hands every other position an increase it did not earn. This family shows"
      " that coupling as a PLAIN TRIAL AVERAGE -- no decoder, no folds, no Haufe transform -- so"
-     " the artefact can be seen without three other things in the way. A rise that appears here"
-     " and NOT under the rest reference is the artefact."
+     " the artifact can be seen without three other things in the way. A rise that appears here"
+     " and NOT under the rest reference is the artifact."
      "\n\nTHE THREE FAMILIES DECOMPOSE, which is what makes this a controlled set rather"
      " than three opinions. Figure 14 is data + mean reference + decoder/Haufe estimator; this"
      " family is data + mean reference; the REST and PRECUE families are data. So FIG 14 vs"
@@ -1478,14 +1478,14 @@ EPOCH_FIGURES = (
      " that re-pairs animals ACROSS POSITIONS (preserving anatomy, warp, rim and glue, and"
      " destroying only position-specific agreement): NEAR MIDDLE reaches r = +0.655, p = 0.003"
      " under THIS reference and vanishes under both uncoupled ones (p = 0.24, p = 0.19). That"
-     " is the coupling artefact with a number on it. FAR CONTRALATERAL survives everywhere"
+     " is the coupling artifact with a number on it. FAR CONTRALATERAL survives everywhere"
      " (+0.819 / +0.769 / +0.856, all p <= 0.001, nulls near zero). Under the mean reference a"
      " high between-animal r is what coupling PREDICTS -- it is not evidence."
      "\n\nIT IS ALSO THE NOISIER REFERENCE, by construction: subtracting the mean removes the"
      " large common task response and leaves a small position-specific residual, so split-half"
      " reliability falls -- as low as r = -0.02 on the pre-cue arm, against 0.93-0.98 for the"
      " rest reference. Dramatic-looking difference panels on this family are frequently that"
-     " residual noise rendered on a shared colour scale."
+     " residual noise rendered on a shared color scale."
      "\n\nSTATISTICS, shared by every map family in this section. THE UNIT IS THE ANIMAL"
      " and the estimator is the NESTED ANIMALS-to-SESSIONS BOOTSTRAP -- the same object every"
      " bar family in this deck uses (`epoch_figures.contrast_draws`, minus its block level,"
@@ -1494,7 +1494,7 @@ EPOCH_FIGURES = (
      " without being counted as independent animals, which is what a flat session-level test"
      " would do."
      "\n\nTHE FAMILY-WISE THRESHOLD COMES FROM THE BOOTSTRAP'S OWN MAX-STATISTIC, not from"
-     " Bonferroni. Each draw is centred on the observed and studentised by the bootstrap SE;"
+     " Bonferroni. Each draw is centered on the observed and studentised by the bootstrap SE;"
      " the maximum |z| across bins is taken per draw; the 95th percentile of those maxima is"
      " the threshold. Correlated bins produce a smaller maximum than independent ones, so the"
      " data's own covariance performs the correction -- no independence assumption and no"
@@ -1505,13 +1505,13 @@ EPOCH_FIGURES = (
      " SESSION-level unit gave them the power to absorb it and four animals does not."
      "\n\nTESTED ON AN ERODED MASK (16 px) while DISPLAY keeps the full one. The rim is where U"
      " is smallest and the Allen warp least constrained, so it carries partial-volume mixing"
-     " and alignment jitter -- and those artefacts are SYSTEMATIC, hence consistent across"
+     " and alignment jitter -- and those artifacts are SYSTEMATIC, hence consistent across"
      " animals, which is exactly what a between-animal denominator rewards. The max-statistic"
      " fixes multiplicity, NOT this: measured, the near positions are 1.35-1.54x rim-enriched"
      " without erosion. Any result more than 2x concentrated in the rim is SUPPRESSED rather"
      " than annotated, because a drawn contour is read as a result and a subtitle caveat is"
      " not."
-     "\n\nFIELD OF VIEW. Both olfactory bulbs are excluded by name, and the fibre-glue"
+     "\n\nFIELD OF VIEW. Both olfactory bulbs are excluded by name, and the fiber-glue"
      " occlusion is excluded from a HAND-PAINTED per-animal mask -- pooled figures use the"
      " UNION, since a pixel occluded in ANY animal cannot contribute to a cross-animal average."
      " 207,213 -> 151,447 px. The glue could not be found automatically (brightness here is"
@@ -1519,7 +1519,7 @@ EPOCH_FIGURES = (
      " of each position's acute effect energy, because the position code lives in SSp/MO."
      "\n\nPOOLING IS WITHIN ANIMAL. A difference uses only animals present in BOTH epochs, and"
      " each animal is divided by its OWN pre-stroke map amplitude before pooling, per position."
-     " That is a SCALE NORMALISATION and NOT a z-score: one constant per (animal, position),"
+     " That is a SCALE NORMALIZATION and NOT a z-score: one constant per (animal, position),"
      " computed only from pre-stroke data, so it cancels exactly in every within-animal epoch"
      " ratio and cannot leak epoch information. It was needed because pre-stroke amplitude"
      " varies 2.44x across animals, so an unweighted pooled map was largely the brightest"
@@ -1582,7 +1582,7 @@ EPOCH_FIGURES = (
      "quits, which is the same fact that makes the engagement gate worth having. The subtitle"
      "names whoever is excluded and their counts."
      "\n\nWHY THIS IS NOT AN ENCODER FIGURE. 'Explained variance' in the encoder families is"
-     "variance ACROSS POSITIONS: `_enc_terms` centres a 6 x 380 matrix down the position axis"
+     "variance ACROSS POSITIONS: `_enc_terms` centers a 6 x 380 matrix down the position axis"
      "and the denominator is the between-position sum of squares. Pool the positions away and"
      "that denominator is zero by construction, so an encoder EV would have nothing left to"
      "explain. Correlation against a reference pattern is the measure that survives pooling."),
@@ -1600,7 +1600,7 @@ EPOCH_FIGURES = (
      "THE ANSWER IS THAT THERE IS ALMOST NOTHING THERE TO MOVE. The pre diagonal is -0.01 and"
      "every post-stroke diagonal is within 0.02 of zero, so stopped trials carry essentially no"
      "position pattern before the lesion either; the change row beneath is a difference between"
-     "two near-zero numbers and its colours should not be read as structure. This agrees with"
+     "two near-zero numbers and its colors should not be read as structure. This agrees with"
      "the stopped DECODER arm, whose pre-stroke accuracy is 0.18-0.31 against a chance of"
      "0.167. The control rests on PS94 and PS95: an animal needs four of six positions and 100"
      "pre-stroke stopped trials to define it, and PS92 has 6 and PS93 has 40 -- one session"
@@ -1662,12 +1662,12 @@ EPOCH_FIGURES = (
      "Does the PRE-STROKE rest code survive, or is it REPLACED?",
      "A decoder is trained on PRE-STROKE rest periods, FROZEN, and applied across epochs"
      " (black); a second decoder is refit WITHIN each session on the SAME rest periods, with"
-     " block-CV (grey, right panel). Both read the shared joint LocaNMF basis, so component i"
+     " block-CV (gray, right panel). Both read the shared joint LocaNMF basis, so component i"
      " is the same cortical patch on every day -- a model frozen in one session`s own SVD basis"
      " and applied in another is not a degraded decoder but a meaningless one. Scored as"
      " BALANCED accuracy (mean of the six row recalls) and reported as the FRACTION OF"
-     " ABOVE-CHANCE PERFORMANCE RETAINED, the normalisation that lets a 6-way problem be"
-     " compared with the 3-way behavioural-state control."
+     " ABOVE-CHANCE PERFORMANCE RETAINED, the normalization that lets a 6-way problem be"
+     " compared with the 3-way behavioral-state control."
      "\n\nWHAT THE PAIR SEPARATES. Frozen low with refit high means the information is PRESENT"
      " and the pre-stroke readout no longer points at it -- REPLACEMENT. Both low means the"
      " code is genuinely degraded. A per-session decoder alone cannot tell these apart, because"
@@ -1688,7 +1688,7 @@ EPOCH_FIGURES = (
      "Where the frozen rest decoder`s errors GO",
      "Confusion of the frozen pre-stroke rest decoder, pooled across animals, one panel per"
      " epoch with that epoch`s change from pre-stroke beneath it. Rows are the true position,"
-     " panels are row-normalised for display while the stored matrices stay RAW COUNTS -- which"
+     " panels are row-normalized for display while the stored matrices stay RAW COUNTS -- which"
      " is what makes pooling an epoch a sum rather than a mean of rates."
      "\n\nWHY IT EXISTS. A retained fraction is a scalar: it says how much position"
      " information survives and cannot say WHERE it goes. Errors scattering uniformly means the"
@@ -1719,7 +1719,7 @@ EPOCH_FIGURES = (
      " epoch. Pre-cue is consistently positive -- +0.060 pre-stroke and +0.188 acute,"
      " null-corrected, 4/4 animals both times. But the effect is small: the COSINE between a"
      " position`s task map and its own rest map is 0.09 post-cue and 0.16 pre-cue, close to"
-     " unrelated, and that is not a magnitude artefact (the amplitude ratio is 0.605 pre-cue,"
+     " unrelated, and that is not a magnitude artifact (the amplitude ratio is 0.605 pre-cue,"
      " so a strong shape match would have shown). The useful reading is that rest carries"
      " position in a largely DIFFERENT spatial code from the task."
      "\n\nWHICH WAY THE SHARED COMPONENT POINTS -- this figure cannot say, and the"
@@ -1913,13 +1913,13 @@ EPOCH_FIGURES = (
 
     ("epoch_16_nvc_evoked.png",
      "CUE-EVOKED RAW 415 AND 470 at frame resolution -- is 415 isosbestic HERE?",
-     "TIMING SETTLES WHAT AMPLITUDE CANNOT. Calcium is fast (hundreds of ms), haemodynamics"
+     "TIMING SETTLES WHAT AMPLITUDE CANNOT. Calcium is fast (hundreds of ms), hemodynamics"
      " slow (peaks 1-2 s). If 415 sits BELOW GCaMP`s neutral/anionic crossing there is an"
      " EARLY NEGATIVE deflection before the slow positive one; if 415 were truly isosbestic"
      " there is no early dip at all. The +0.54% to +1.96% cue-evoked 415 rises quoted"
      " elsewhere are WINDOW AVERAGES over the whole post-cue period, which average an early"
      " dip away completely -- which is exactly why they looked like a clean positive"
-     " haemodynamic response."
+     " hemodynamic response."
      "\n\nTHE LITERATURE DISAGREES ON WHERE THE CROSSING SITS, and two of three estimates"
      " put our 415 BELOW it: conventional photometry practice 405-415; Simpson et al. 2024"
      " (Neuron primer) 420-430 for GCaMP6; Barnett/Drobizhev 2017 440-450 for GCaMP6m with NO"
@@ -1928,7 +1928,7 @@ EPOCH_FIGURES = (
      " IN THE EVENT-ALIGNED AVERAGE`."
      "\n\nREAD WITH `epoch_20` AND `epoch_21`, which reach the same conclusion from the"
      " time course and from the vessel/parenchyma dilution ratio."
-     "\n\nNOT NORMALISED, DELIBERATELY. `U @ SVT` reconstructs the DEVIATION from each"
+     "\n\nNOT NORMALIZED, DELIBERATELY. `U @ SVT` reconstructs the DEVIATION from each"
      " channel`s mean, so the reconstructed means are ZERO and dividing by them is division by"
      " ~0 -- a trap already paid here once (+692% and -2881% evoked responses). It is ALREADY"
      " fractional; the fix is not a different denominator, it is NO denominator."),
@@ -1942,7 +1942,7 @@ EPOCH_FIGURES = (
     ("channel_position_epoch_cue.png",
      "415 vs 470 BY SPOUT POSITION AND EPOCH -- cue-aligned",
      "ROW 3 IS THE COUPLING MEASURE AND ROWS 1-2 ARE WHY IT CANNOT BE READ ALONE."
-     " ||415||/||470raw|| is haemodynamic response per unit neural response -- but A RATIO"
+     " ||415||/||470raw|| is hemodynamic response per unit neural response -- but A RATIO"
      " RISES WHEN ITS DENOMINATOR FALLS, and a stroke is expected to lower the 470 response."
      " Row 3 up while row 1 is down and row 2 holds is a shrinking denominator, not better"
      " coupling. Rows 1 and 2 carry the cross-day scaling confound (expression, bleaching,"
@@ -1953,7 +1953,7 @@ EPOCH_FIGURES = (
      " ~75% global) and two broad blobs correlate for reasons unrelated to coupling. Row 5"
      " subtracts r(415 here, 470 at the OTHER positions): if the rise survives it is"
      " position-specific; if row 5 is flat at zero the rise was globalness."
-     "\n\nTHE DOTS ARE THE POINT, NOT DECORATION -- one per session, coloured by animal, so a"
+     "\n\nTHE DOTS ARE THE POINT, NOT DECORATION -- one per session, colored by animal, so a"
      " cell carried by one animal with six sessions cannot read as four animals agreeing."
      " Acute far-contra is thin in event count for every animal and absent for some."
      "\n\nTHE SEM IS ACROSS SESSIONS AND IS THE WRONG ERROR BAR FOR A COHORT CLAIM: sessions"
@@ -2030,7 +2030,7 @@ EPOCH_FIGURES = (
      " the rhythm)."
      "\n\nACUTE ADDITIONALLY STEEPENS ACROSS THE SESSION, +10.1 [+0.9, +19.1] -- the fatigue"
      " signature proper."
-     "\n\nTHE MISS ARTEFACT DOES NOT EXPLAIN IT. Contact-based detection turns a missed lick"
+     "\n\nTHE MISS ARTIFACT DOES NOT EXPLAIN IT. Contact-based detection turns a missed lick"
      " into a doubled interval, but CHRONIC HIT RATE HAS RECOVERED while chronic slope is"
      " still +15.8 to +20.8 and significant in all five quintiles. That is an argument, not a"
      " control -- DLC tongue tracking would make it one."),
@@ -2055,7 +2055,7 @@ EPOCH_FIGURES = (
 _CI_LEGEND = ("Epoch minus pre-stroke for each quantity in the preceding figure. Point, the "
               "difference in the data; thick bar, 95% interval; thin bar, the "
               "Bonferroni-corrected interval across all comparisons on the figure -- both "
-              "summarised from one set of bootstrap draws, so the corrected interval "
+              "summarized from one set of bootstrap draws, so the corrected interval "
               "necessarily contains the uncorrected one. Zero is drawn.")
 
 
@@ -2107,7 +2107,7 @@ GRANT_FIGURES = (
      "H4. Pre-stroke cross-session confusion, per window",
      ("The strongest and least contestable result in the set: no lesion, no trial-class "
      "definitions, no engagement gate, no alignment inference. Counts summed over held-out "
-     "sessions then row-normalised, so a 500-trial session is not weighted like a 200-trial "
+     "sessions then row-normalized, so a 500-trial session is not weighted like a 200-trial "
      "one. Rows = TRUE position, columns = PREDICTED.")),
     # ------------------------------------------------------------------------------------
     # CUT FROM THE DECK 2026-09-13 (Priya): H5, H5b, H6, H8d, H8e, H10, H10b.
@@ -2152,7 +2152,7 @@ GRANT_FIGURES = (
      "absolute post-stroke cell of 0.3 means different things in different places. Subtracting "
      "removes the baseline texture and leaves only what the lesion did: a negative DIAGONAL "
      "cell is recall lost at that position, and the positive cell in the SAME ROW says where "
-     "those trials went instead. Two colour bars: column 1 is in probability, the rest in "
+     "those trials went instead. Two color bars: column 1 is in probability, the rest in "
      "change of probability.")),
     # CUT 2026-09-13 (Priya) -- see the cut block above. H6:
     # ("grant_6_pattern_*.png",
@@ -2209,7 +2209,7 @@ GRANT_FIGURES = (
      "correlation would be if both means were noise-free. A drop that SURVIVES it is a code "
      "that moved; a drop that DISAPPEARS was a code measured less repeatably. Same correction "
      "the coding directions have used since 2026-08-20, which the pattern measure never had. "
-     "A grey dot marks reliability below 0.5 on one side, where the ratio is not stable enough "
+     "A gray dot marks reliability below 0.5 on one side, where the ratio is not stable enough "
      "to print -- and that is worst exactly at the impaired positions, where the question is "
      "sharpest.")),
     ("grant_8_crossnobis_*.png",
@@ -2309,13 +2309,13 @@ GRANT_FIGURES = (
      "pre-stroke mean pattern; one gain fitted per session splits its failure. LEFT: transfer "
      "without rescaling and with, the shaded gap being what rescaling recovers. MIDDLE: the "
      "fitted gain, 1.0 = no amplitude change. RIGHT: what is left per position after the "
-     "session gain, i.e. a genuine tuning change, localised. READ THE GAIN FIRST -- a wide gap "
+     "session gain, i.e. a genuine tuning change, localized. READ THE GAIN FIRST -- a wide gap "
      "alone is NOT an amplitude result, because an unrelated code also recovers a lot by "
      "collapsing the gain towards zero. Observed: PS92 shows no detectable change on any day, "
      "while PS93/94/95 keep a LOW after-gain score, so rescaling does not recover their loss. "
      "CAVEAT, and it is the big one: NO MOVEMENT REGRESSORS (no DLC yet), so a post-stroke "
      "change in how the animal moves would appear here as a change in tuning. A difference "
-     "that holds across the lick, working and pre-cue variants is not a movement artefact; one "
+     "that holds across the lick, working and pre-cue variants is not a movement artifact; one "
      "that appears only in the lick window probably is.")),
 )
 
@@ -2439,7 +2439,7 @@ _CD_LOO = (
     "CD, LEAVE-ONE-SESSION-OUT. Each animal's per-position coding direction (one-vs-rest, condition-"
     "independent mode projected out, window mean) is refitted with each pre-stroke session held out"
     " and that session projected onto it, so pre-stroke values are out-of-sample like post-stroke"
-    " ones (an in-sample pre projection is ~1 by construction). Projections are normalised to the"
+    " ones (an in-sample pre projection is ~1 by construction). Projections are normalized to the"
     " animal's in-sample pre mean. August-only pre fit; contact-gated trials (DAQ).\n\nWHAT IT SHOWS."
     " Held-out pre, all positions, pre-cue window: PS92 0.87, PS93 0.70, PS94 0.66, PS95 0.69 -- the"
     " cross-day cost of a pre-stroke direction. Far contra, pre-cue, pre / acute / subacute / chronic:"

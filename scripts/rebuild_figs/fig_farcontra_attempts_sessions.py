@@ -1,7 +1,7 @@
 """Far-contra trials, per session: attempt rate, completion, licks without contact, jaw moves without lick.
 
 Replaces the per-animal table on the PI-deck slide "Far-contra trials: animals try and fail, the jaw reacts without
-licking" with one open marker per session (shape = animal, colour = epoch) and the mean of animals +- SEM.
+licking" with one open marker per session (shape = animal, color = epoch) and the mean of animals +- SEM.
 
 Cohort 1 only (PS92-95, lesion LEFT -> far contra = far_R = canonical `far_contra`). Pre = August-only pre sessions.
 Curated sessions only (`analysis_kit.curated_labels`). Epoch = `epoch_figures.epoch_of_day` on days from

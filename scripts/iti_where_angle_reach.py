@@ -143,7 +143,7 @@ def plot(F: dict) -> None:
                  "August pre licks) on the lick's 3-D POLAR coordinates: lateral ANGLE (atan2(lateral, sagittal)), ELEVATION below the axial plane (atan2(down, horizontal extent); + = steeper down) and 3-D REACH.\nr / pre: how well cortex "
                  "tracks each lick (like-for-like OFFSETS on these coordinates: lick_matched_angle_reach.png). ALL tracked licks (no "
                  "extension filter).\n"
-                 "Thin lines = animals, black = mean, grey dots = sessions, diamonds = change vs pre with 95% paired "
+                 "Thin lines = animals, black = mean, gray dots = sessions, diamonds = change vs pre with 95% paired "
                  "nested bootstrap CI (* = excludes 0). PROVISIONAL", fontsize=9)
     fig.tight_layout(rect=(0, 0, 1, 1 - 0.8 / fig.get_size_inches()[1]))
     save_png_svg(fig, il.OUT / "figures" / "lick_where_angle_reach.png", dpi=100)

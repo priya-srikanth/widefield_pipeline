@@ -1,8 +1,8 @@
-"""WHICH WAY DOES 415 MOVE AFTER A CUE, AND WHEN? The sign of the haemodynamic term, measured.
+"""WHICH WAY DOES 415 MOVE AFTER A CUE, AND WHEN? The sign of the hemodynamic term, measured.
 
 Priya, 2026-09-19: *"we're not measuring the Hgb absorbance, we're measuring the Ca-independent
 (ish) fluorescence of GCaMP ... which will increase with increased blood"*, against my claim that
-blood enters both dF/F traces NEGATIVELY because haemoglobin absorbs.
+blood enters both dF/F traces NEGATIVELY because hemoglobin absorbs.
 
 **THE WHOLE TROUGH-VERSUS-PEAK CHOICE IN `rest_coupling` RESTS ON THIS SIGN**, so it is worth one
 measurement rather than an argument from spectra. A cue-aligned brain-mean average settles it,
@@ -87,7 +87,7 @@ def session_segments(s):
 
 
 def _bin(t, seg, bin_s=BIN_S):
-    """Bin to `bin_s`, returning ``(centres, mean, sem)`` with the SEM taken ACROSS CUES."""
+    """Bin to `bin_s`, returning ``(centers, mean, sem)`` with the SEM taken ACROSS CUES."""
     edges = np.arange(-PRE, POST + 1e-9, bin_s)
     idx = np.digitize(t, edges) - 1
     keep = [k for k in range(edges.size - 1) if (idx == k).any()]

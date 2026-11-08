@@ -1,4 +1,4 @@
-# Handoff — 2026-10-15 late / 10-16: LP r4 production on O2, organised orofacial outputs, split-session fixes
+# Handoff — 2026-10-15 late / 10-16: LP r4 production on O2, organized orofacial outputs, split-session fixes
 
 **START HERE.** Supersedes `STATUS_2026-10-15_JAW_CLEANING_MODEL_CHOICE_HANDOFF.md` as the entry point (still the
 reference for jaw cleaning v35, the cohort jaw-steering readout and the model choice; its pitfalls still apply).
@@ -24,7 +24,7 @@ Cohort pre- vs post-stroke kinematics: `python -m wfield_local.orofacial_cohort`
    partition 342,857, age 3,576). Never submit a duplicate array over the same videos.
    **10-16: the V100S nodes (`compute-g-17-[147-152]`) failed 43 tasks** (torch in `lp` has no sm_70 kernels) -> job
    given `ExcNodeList=compute-g-16-[254-255],compute-g-17-[147-152]`; the failed ids resubmitted as array **56481998**
-   (duplicate 56481741 cancelled); throttle raised to 24. Check coverage with the runbook's done.json / squeue check. The bundle on the share still
+   (duplicate 56481741 canceled); throttle raised to 24. Check coverage with the runbook's done.json / squeue check. The bundle on the share still
    says `gpu:l40s:1` / 24 h in run_pose.sbatch (the live job was edited, not the file).
 2. **Processing as results arrive.** Priya copies back (COMMANDS step 5, transfer node,
    `rsync -ah --partial --exclude 'tmp*' <scratch>/out/ <share bundle>/out/`); then here:
@@ -62,15 +62,15 @@ Cohort pre- vs post-stroke kinematics: `python -m wfield_local.orofacial_cohort`
    Main LocaNMF analyses always used the concat file and are unchanged.
 5. **PS92 0604 (the other concat): camera templates PER DAQ SEGMENT.** One camera file ran through a 27-s DAQ restart;
    the two segment fits differ by a constant 1.62 s because `concat_split_session` padded the gap from file
-   timestamps. Imaging / behaviour unaffected (all on the DAQ clock; behaviour log maps by sync pulses). Split days
+   timestamps. Imaging / behavior unaffected (all on the DAQ clock; behavior log maps by sync pulses). Split days
    have NO single `<date>.npz` any more (copies moved aside as `.split_day_ambiguous_20261015`) so single-template code
    fails loudly; split-aware code uses `camera_sync.templates_for` (lists per recording).
-6. **Frozen pre-stroke decoders are the rule for future cohorts** (Priya): the behavioural-STATE decoder now goes
+6. **Frozen pre-stroke decoders are the rule for future cohorts** (Priya): the behavioral-STATE decoder now goes
    through `frozen_models.load_or_fit` (`locomotor_decoder.frozen_state_models`, kind `state`, full + LOSO models);
    frozen on this desktop (11 pre sessions per animal, PS92's incl. 0812) and the 4 models PUBLISHED to
-   `labcams/frozen_models` (SHA-verified). This desktop is the publishing box for STATE models; the behaviour box for
+   `labcams/frozen_models` (SHA-verified). This desktop is the publishing box for STATE models; the behavior box for
    position models. `docs/FROZEN_MODELS.md` §7, CLAUDE.md rule 10.
-7. **Organised orofacial outputs on the share** (`wfield_local/orofacial_outputs.py`, root `orofacial` =
+7. **Organized orofacial outputs on the share** (`wfield_local/orofacial_outputs.py`, root `orofacial` =
    `M:/MICROSCOPE/Priya/Widefield/LP_analysis/`; moved from `Priya/Orofacial/Widefield` on 10-16, Priya): RUN-versioned (`lp_r4_heatmap_20261013__clean_v35`; `run.json` holds
    a params digest and refuses mixing) and SESSION-first (`sessions/<animal>/<date>/`: manifest.json, windows.npz,
    clean.npz, licks / trials / jaw_trials / tongue_jaw_mismatch CSVs, qc.png); `cohort/{tables,figures}/<analysis>/`
@@ -152,7 +152,7 @@ reference for small chronic shifts.
 ## 4b. 10-16 afternoon / evening (all in DECISIONS 2026-10-16)
 
 - Outputs moved to `Priya/Widefield/LP_analysis`; `wfield_local/orofacial_cohort.py` = the pre- vs post-stroke cohort
-  pass (session / position / lick-set metrics, lick phase time-aligned + phase-normalised (interpolated, stroke_orofacial
+  pass (session / position / lick-set metrics, lick phase time-aligned + phase-normalized (interpolated, stroke_orofacial
   method), phase portraits, x-y trajectories (camera view, SEM ribbons), lick 1 vs 2, lick walk (angle at peak +
   max angle in lick, paired lick 1 vs 3), mismatch, Family 8.1 / 8.2, minus-pre versions; spout-angle reference,
   lick selection in titles, in-mouth included / excluded stated).
@@ -163,12 +163,12 @@ reference for small chronic shifts.
 - This desktop's machine profile fixed (rule-10 check passed). Camera templates built for PS94 / PS95 0604; PS94 /
   PS95 0601 unalignable (rig camera problem).
 - Preliminary findings (3 animals with acute data): acute far contra -- licks / trial ~1, contact 1-22 %, protrusion
-  -30..-48 px, isolated licks (neighbour fraction 0.94 -> 0.38-0.56), lick 2 delayed (+240-630 ms), tongue angle while
+  -30..-48 px, isolated licks (neighbor fraction 0.94 -> 0.38-0.56), lick 2 delayed (+240-630 ms), tongue angle while
   out ~+40 deg toward ipsi across the response window (PS92, PS94), recovering by chronic in PS92. Pre-stroke: later
   licks drift toward the middle at the close spouts in all four animals.
 
 ## 5. Pitfalls (new; older lists still apply)
-1. **This desktop resolves local roots to the behaviour box** (`C:/Users/sabatini`): set `WIDEFIELD_FIGURES_WORKING`
+1. **This desktop resolves local roots to the behavior box** (`C:/Users/sabatini`): set `WIDEFIELD_FIGURES_WORKING`
    and `WIDEFIELD_SESSION_CACHE` before any render or processing. A render without them FAILED EVERY SESSION AND
    EXITED 0 -- grep logs for `PermissionError`; never trust the exit code.
 2. **Never pick a DAQ file by name sort** -- use `daq_io.session_h5`. Never assume one camera template per date --

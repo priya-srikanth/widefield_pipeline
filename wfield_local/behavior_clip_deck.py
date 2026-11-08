@@ -9,7 +9,7 @@ and a stopped trial looks like a stopped trial -- the second example makes eithe
 `working` miss at the far contralateral or far middle spout IS the deficit and earns a run.
 
 EVERY POSITION KEEPS ITS SLOT. The grid is indexed by position, not by what a slide happens to show,
-so far middle and far contra sit bottom-centre and bottom-right on every slide. Packing the shown
+so far middle and far contra sit bottom-center and bottom-right on every slide. Packing the shown
 clips from the top-left would move a position between slides and the reader would compare different
 spouts in the same place without noticing. An unused slot says "-- none --" rather than going blank:
 a position with no working misses is a position the animal was not failing at, which is a result.
@@ -243,7 +243,7 @@ def build(animal, rv=None, dest=None, tmp=None, dates=None):
                 r.font.size, r.font.bold, r.font.color.rgb = Pt(21), True, navy
                 r2 = tf.add_paragraph().add_run()
                 r2.text = ("%.0f s pre-cue to %.1f s post-cue at 0.25x; ENL / Cue / Response "
-                           "labelled per frame. 'N of M' = clips cut of trials available."
+                           "labeled per frame. 'N of M' = clips cut of trials available."
                            % (PRE_S, POST_S))
                 r2.font.size, r2.font.color.rgb = Pt(10.5), grey
                 for i, pos in enumerate(POS_ORDER):

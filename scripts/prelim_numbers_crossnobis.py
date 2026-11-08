@@ -8,7 +8,7 @@ numbers with no committed way to regenerate them is a document nobody can check.
 "GAIN vs MOVE" and "Direction of the acute move" tables comes from one run of this script
 (2026-09-09, cue/working).
 
-WHAT IT COMPUTES. Row-centring is an EXACT decomposition of the crossnobis own-position distance,
+WHAT IT COMPUTES. Row-centering is an EXACT decomposition of the crossnobis own-position distance,
 not an approximation. Because ``rowcentred[i,j] = raw[i,j] - mean_j raw[i,:]``:
 
     raw_diag[i]  =  rowmean[i]            +  rc_diag[i]
@@ -21,7 +21,7 @@ The identity is checked numerically on every epoch and the residual printed; if 
 ~1e-16 then one of the two collectors has changed and the tables in the document are stale.
 
 READ THE SIGN CONVENTION BEFORE QUOTING ANYTHING. `_matrices_crossnobis` returns RAW distances
-normalised to pre-stroke units, so LARGER = further from baseline = more changed. `_mats_crossnobis`
+normalized to pre-stroke units, so LARGER = further from baseline = more changed. `_mats_crossnobis`
 (figure 8d) NEGATES them. The two are one letter apart in the name and carry opposite signs.
 """
 import sys
@@ -49,7 +49,7 @@ def main() -> int:
     order = [e for e in ORDER if e in raw_p]
     print(f"=== {ALIGN}/{VARIANT}   epochs: {order}")
 
-    print("\n--- raw own-position distance = row mean (GAIN) + row-centred (MOVE)")
+    print("\n--- raw own-position distance = row mean (GAIN) + row-centered (MOVE)")
     print(f"{'pos':4s}" + "".join(f" | {e:^24s}" for e in order))
     print(f"{'':4s}" + "".join(f" | {'raw':>7s} {'gain':>7s} {'move':>7s}" for _ in order))
     for i, p in enumerate(SHORT):
@@ -76,7 +76,7 @@ def main() -> int:
     # position. No per-cell interval exists for these; they are point estimates and the document
     # says so.
     i = SHORT.index("fC")
-    print("\n--- far-contra ROW, row-centred, minus pre (negative = moved TOWARD)")
+    print("\n--- far-contra ROW, row-centered, minus pre (negative = moved TOWARD)")
     print(f"{'epoch':9s} " + " ".join(f"{c:>7s}" for c in SHORT))
     for e in order[1:]:
         C = np.asarray(rc_p[e], float)

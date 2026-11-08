@@ -1,10 +1,10 @@
 """ONE fallback response window (code review 11-04 item 6, 2026-11-05).
 
-Until 11-05 behaviour (`spout_behavior`, via the 2.0 s `behavior.licking.response_window_s`) and imaging
+Until 11-05 behavior (`spout_behavior`, via the 2.0 s `behavior.licking.response_window_s`) and imaging
 (`nolick_decoder` 3.5, `quiet_periods` decode.max_rt_s 3.5) fell back to DIFFERENT windows for a session without a
 gui_config, so the same word, "responded", could mean two things. Now every resolver goes through
 `daq_trials.response_window_s`, whose fallback is `behavior.response_window_fallback_s`, and no production call passes its
-own. On 11-05 every behaviour-log folder (264) had its own timing.response_window, so the change moved no number.
+own. On 11-05 every behavior-log folder (264) had its own timing.response_window, so the change moved no number.
 """
 import ast
 import json

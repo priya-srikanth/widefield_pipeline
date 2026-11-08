@@ -10,7 +10,7 @@ dF/F x1e3, sampled every 0.05 s on il.LAGS_D = -1..+1 s around the 3-D lick PEAK
   iti_gap2  ITI licks with no lick onset in the preceding 2 s (bout starts after quiet; pre-lick window lick-free)
   rest      quiet DOCKED rest (restdock05 rest mask x strict docked window, engaged period only:
             rest_by_position.rest_frames_by_position(docked=True)); docked rest periods are only ~1.0-1.5 s long, so
-            ONE pseudo-event per period >= 0.95 s (its centre), window -0.5..+0.5 s (cached in
+            ONE pseudo-event per period >= 0.95 s (its center), window -0.5..+0.5 s (cached in
             <OUT_W>/interhemi_rest_w1/<label>.npz)
 WINDOWS: w2 = -1..+1 s (lick sets: nc_post / nc_pre, cc lags +-0.5 s); w1 = -0.5..+0.5 s, identical code on lick sets
   and rest (nc_win = noise corr of the window mean, cc lags +-0.3 s); lick-vs-rest comparisons use w1 only.
@@ -37,7 +37,7 @@ METRICS (sign: + = CONTRALESIONAL hemisphere leads / predicts):
              recmark_sessions) and with the cued contralesional share (balmatch_sessions bal_spout, matched-error
              within-spout balance), both controlling log(day), post sessions only; pooled = animal-demeaned partial r
              with a within-animal permutation p.
-TIMING CAVEAT: GCaMP6s rise ~0.1-0.2 s, decay 0.5-1 s; hemispheres can differ in indicator expression / haemodynamics, so a
+TIMING CAVEAT: GCaMP6s rise ~0.1-0.2 s, decay 0.5-1 s; hemispheres can differ in indicator expression / hemodynamics, so a
   lag or Granger asymmetry under ~0.1-0.2 s is NOT neural timing, and a CHANGE in it is only suggestive. Samples are
   interpolated at 20 Hz from the imaging frame rate. Nothing here is causal.
 Statistics: per-animal tables FIRST (rule 8), then analysis_kit.boot_delta (paired nested animals -> sessions) of each
@@ -102,7 +102,7 @@ W_POST, W_BASE, W_PRE = _w(0.1, 0.5), _w(*il.BASE_RESP, incl=True), _w(-1.0, 0.0
 
 # ------------------------------------------------------------------------------------------------ rest extraction
 def rest_extract(label: str) -> dict:
-    """Docked engaged rest windows of one session -> REST_DIR/<label>.npz (X (n, 41, cols) float16, centres t)."""
+    """Docked engaged rest windows of one session -> REST_DIR/<label>.npz (X (n, 41, cols) float16, centers t)."""
     from wfield_local import combined_encoding as ce
     from wfield_local import config
     from wfield_local import rest_by_position as rbp
@@ -678,7 +678,7 @@ SIMPLE_CTX = [("cued", "CUED licks"), ("rest", "DOCKED QUIET REST (no licks)"),
 def plot_simple() -> None:
     """ONE figure, key points only (Priya 10-29): interhemispheric noise correlation (same 1-s window, w1, raw), change
     vs pre, orofacial pool vs control pairs, during cued licks / at docked rest / lick minus rest; per-animal dots,
-    standard epoch colours; plus one small panel for the recovery link. From the saved tables only."""
+    standard epoch colors; plus one small panel for the recovery link. From the saved tables only."""
     import matplotlib.pyplot as plt
     from matplotlib.lines import Line2D
 
@@ -753,8 +753,8 @@ def plot_simple() -> None:
                        "control areas (controls from acute on); during cued licks the orofacial rise (chronic) is no "
                        "larger than at rest, and lick minus rest is flat (orofacial) or falls (controls) -> a GLOBAL, "
                        "state-wide increase, not a lick- or orofacial-specific one. Orofacial pre level z = "
-                       f"{pre:.2f} (r = {np.tanh(pre):.2f}). Grey band = control areas. Right: the orofacial coupling "
-                       "does not track behavioural recovery. PROVISIONAL (n = 4)", 200), fontsize=9.5)
+                       f"{pre:.2f} (r = {np.tanh(pre):.2f}). Gray band = control areas. Right: the orofacial coupling "
+                       "does not track behavioral recovery. PROVISIONAL (n = 4)", 200), fontsize=9.5)
     save_png_svg(fig, FIGS / "lick_interhemi_simple.png", dpi=120)
     plt.close(fig)
 

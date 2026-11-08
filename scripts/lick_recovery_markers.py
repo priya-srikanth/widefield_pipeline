@@ -1,6 +1,6 @@
-"""Which per-session NEURAL measure tracks behavioural RECOVERY? Orofacial response SIZE vs hemispheric BALANCE, with the
+"""Which per-session NEURAL measure tracks behavioral RECOVERY? Orofacial response SIZE vs hemispheric BALANCE, with the
 cross-validated marker tests that back 14.16 (Priya 10-28: "yes let's do response size vs recovery"; "where are the LOAO
-and LOSO cvR2 for the balance vs recovery figures"; "add pre references as grey cloud").
+and LOSO cvR2 for the balance vs recovery figures"; "add pre references as gray cloud").
 
 Recovery axis = far-contra FIRST-cued-lick aim vs the animal's pre landing (deg, - = ipsilesional; aim_deficit_sessions.csv
 farcontra_first, key figure 1A). Hemispheres: _right = contralesional, _left = ipsilesional (configs/animals.yaml).
@@ -267,7 +267,7 @@ N_BLOCKS, GAP = 4, 1
 def cv_blocked(g: pd.DataFrame, cols: list[str]) -> float:
     """WITHIN-ANIMAL BLOCKED cvR2 (Priya 10-28: replaces leave-one-epoch-out, which tested extrapolation to an aim range
     the model never saw). Each animal's sessions, in day order, are cut into N_BLOCKS contiguous blocks; each block is
-    held out in turn, its GAP neighbouring sessions on each side are dropped from training, and the model is fit on the
+    held out in turn, its GAP neighboring sessions on each side are dropped from training, and the model is fit on the
     rest (that animal's other sessions + the other animals) WITH animal intercepts. Pooled SSE / SST around the mean."""
     g = g.sort_values(["animal", "day"]).reset_index(drop=True)
     pos = g.groupby("animal").cumcount().to_numpy()
@@ -432,7 +432,7 @@ def plot(F: dict) -> None:
             for s_ in ("top", "right"):
                 a_.spines[s_].set_visible(False)
     fig.suptitle("Which session measure estimates RECOVERY (far-contra first-lick aim)? BALANCE (contra - ipsi, red) vs SIZE "
-                 "(blue) of the orofacial lick response, vs days since stroke (grey). Post-stroke sessions.\nDecoder-window "
+                 "(blue) of the orofacial lick response, vs days since stroke (gray). Post-stroke sessions.\nDecoder-window "
                  "measures (0-0.2 s, same lick angle & order as pre): oro balance / size / contra / ipsi, non-oro; AUC = the 14.x "
                  "response (0-1 s, / animal's pre - 1). OLS aim ~ measure; pooled R². Shuffle = measure permuted "
                  "across each animal's sessions (2000x). PROVISIONAL", fontsize=10)
@@ -473,7 +473,7 @@ def plot(F: dict) -> None:
     h += [Line2D([], [], color=EPOCH_LINE[e], marker="o", lw=0, label=e) for e in ("acute", "subacute", "chronic")]
     h += [Line2D([], [], color="0.3", marker=ANIMAL_MARKER.get(x, "o"), lw=0, label=x) for x in AN]
     fig.legend(handles=h, loc="lower center", ncol=8, fontsize=9, frameon=False)
-    fig.suptitle("Recovery vs orofacial BALANCE and SIZE, one point per session (grey = pre sessions scored "
+    fig.suptitle("Recovery vs orofacial BALANCE and SIZE, one point per session (gray = pre sessions scored "
                  "leave-one-pre-session-out: the noise floor; not in the fits). Mixed models on post-stroke sessions, random "
                  "intercept per animal, log(day). PROVISIONAL", fontsize=10)
     fig.tight_layout(rect=(0, 0.05, 1, 0.94))
@@ -556,7 +556,7 @@ def plot(F: dict) -> None:
                 a_.spines[s_].set_visible(False)
     fig.suptitle("ITI licks against an ITI RECOVERY AXIS of their own (a different question from the cued aim): per session, "
                  "the ITI lick angle vs the animal's pre sessions (mean; and the 90th percentile toward contralesional).\n"
-                 "Same measures and cross-validation as the cued figure; grey = pre sessions (not fitted). PROVISIONAL",
+                 "Same measures and cross-validation as the cued figure; gray = pre sessions (not fitted). PROVISIONAL",
                  fontsize=10)
     fig.tight_layout(rect=(0, 0, 1, 0.93))
     save_png_svg(fig, fig_dir / "lick_recovery_markers_iti_axis.png", dpi=95)

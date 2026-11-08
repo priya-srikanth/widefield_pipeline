@@ -80,7 +80,7 @@ def main() -> int:
         if info.get("error"):
             print(f"  rest-by-position FAILED: {info['error']}")
             continue
-        print(f"  {info['n_periods']} labelled rest periods; frames per position: "
+        print(f"  {info['n_periods']} labeled rest periods; frames per position: "
               + ", ".join(f"{c}:{len(f)}" for c, f in sorted(per.items())))
 
         bw, used = prm.session_restw_svt(s, V)

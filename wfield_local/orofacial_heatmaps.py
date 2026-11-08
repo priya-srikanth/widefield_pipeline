@@ -14,10 +14,10 @@ Port of stroke_orofacial's tone-aligned proportion / proportion-diff heatmaps (`
            y = forward, out of the mouth toward the spouts. The rotation also removes camera-angle drift. tongue = CLEANED
            tip, OUT frames only (>= 20 px; in-mouth frames are counted in the denominator, not placed at the origin);
            jaw = CLEANED jaw (rest-relative, rotated only); nose, spout = pose, likelihood >= 0.6. The SPOUT is the
-           drift CONTROL (fixed apparatus); the NOSE is behaviour (head / snout posture).
+           drift CONTROL (fixed apparatus); the NOSE is behavior (head / snout posture).
   P        per session x position x keypoint: counts per bin / ALL frames in the window (their Q17 denominator), so a
-           keypoint that is out less often (fewer licks) loses mass rather than being renormalised away.
-  raw      within animal first (mean over the animal's sessions in the epoch), then the mean over animals; log colour.
+           keypoint that is out less often (fewer licks) loses mass rather than being renormalized away.
+  raw      within animal first (mean over the animal's sessions in the epoch), then the mean over animals; log color.
   delta    per session P - the animal's PRE pool at that position (mean of its pre sessions; a pre session against the
            OTHER pre sessions = the noise floor, as in W2), averaged within animal, then over animals. Blue = less
            occupancy than pre, red = more (their cmap). White = no data in either.
@@ -308,7 +308,7 @@ def _vmax(maps, kind):
 
 KP_DESC = {"tongue": "tongue tip (cleaned, OUT frames >= 20 px)", "jaw": "jaw (cleaned, rest-relative)",
            "jaw_mouth": "jaw (cleaned) from the MOUTH origin -- resting-jaw shifts included",
-           "nose": "nose (pose; head / snout posture = behaviour)",
+           "nose": "nose (pose; head / snout posture = behavior)",
            "spout": "spout tip (pose; fixed apparatus = the drift CONTROL)",
            "nose_enl": "nose, NO-LICK ENL (resting head / snout posture)",
            "spout_enl": "spout tip, NO-LICK ENL (the W2 spout control: water-on-tip error kept, licking removed)"}
@@ -322,7 +322,7 @@ def _note(kp: str, title: str, kind: str) -> str:
                f"not detected; P = frames in bin / no-lick ENL frames. " if kp in ENL_KPS else
                "frames: ENGAGED trials, cue .. DAQ trial stop, cut at spout-retraction onset; P = frames in bin / ALL "
                "window frames (stroke_orofacial Q17). "))
-    what += ("RAW: within animal (mean over sessions), then mean over animals; log colour. " if kind in ("raw", "both")
+    what += ("RAW: within animal (mean over sessions), then mean over animals; log color. " if kind in ("raw", "both")
              else "")
     what += (f"DELTA: each animal's epoch mean minus ITS OWN pre pool at the position, then the mean over animals; PRE "
              f"column = noise / drift floor = each animal's later half of pre sessions minus its earlier half; smoothed "

@@ -33,7 +33,7 @@ encoding bundle `DeepLabCut/Widefield/o2/enc_v36_20261019/`, and the local input
 | CHECK | 3 | 2.9 | Priya decides |
 | KEEP | 47 | 3.6 | current |
 
-Local input cache `C:/Users/SabatiniLab/wfield_cache`: **304 GB** (imaging 129, behaviour 175). Disposable by
+Local input cache `C:/Users/SabatiniLab/wfield_cache`: **304 GB** (imaging 129, behavior 175). Disposable by
 design (keys include code hash + inputs, so most entries belong to old code). Proposal: delete entries not modified
 since 10-23 (before the current code) once no run is using them.
 
@@ -55,10 +55,10 @@ since 10-23 (before the current code) once no run is using them.
 | qc | `enl_lp_census_summary.csv` | 0.00 | 10-21 18:08 | LP-lick counts 10-21 (PS94/95 cam1 incomplete, stale attempts) | after attempts |
 | qc | `imaging_lmm.csv` | 0.00 | 10-21 14:36 | LMMs 10-21: stale attempts / deficit, cam4-era encoding measures | after attempts + re-runs |
 | qc | `imaging_lmm_contact.csv` | 0.00 | 10-21 02:13 | LMMs 10-21: stale attempts / deficit, cam4-era encoding measures | after attempts + re-runs |
-| qc | `imaging_lmm_push.csv` | 0.00 | 10-23 18:39 | push LMM: behaviour is DAQ-only but the deficit index is stale | after attempts rebuild |
+| qc | `imaging_lmm_push.csv` | 0.00 | 10-23 18:39 | push LMM: behavior is DAQ-only but the deficit index is stale | after attempts rebuild |
 | qc | `imaging_lmm_summary.csv` | 0.00 | 10-21 14:36 | LMMs 10-21: stale attempts / deficit, cam4-era encoding measures | after attempts + re-runs |
 | qc | `imaging_lmm_summary_contact.csv` | 0.00 | 10-21 02:13 | LMMs 10-21: stale attempts / deficit, cam4-era encoding measures | after attempts + re-runs |
-| qc | `imaging_lmm_summary_push.csv` | 0.00 | 10-23 18:39 | push LMM: behaviour is DAQ-only but the deficit index is stale | after attempts rebuild |
+| qc | `imaging_lmm_summary_push.csv` | 0.00 | 10-23 18:39 | push LMM: behavior is DAQ-only but the deficit index is stale | after attempts rebuild |
 | qc | `lick_templates_polar_20261021` | 0.00 | 10-21 14:03 | lick-template test, 2 animals | 4 animals |
 | qc | `lp_encoder_decompose.csv` | 0.00 | 10-22 07:21 | decompositions of cam4-era / stale-gate runs | O2 bundle |
 | qc | `lp_encoder_decompose_by_animal.csv` | 0.00 | 10-22 07:21 | decompositions of cam4-era / stale-gate runs | O2 bundle |
@@ -77,7 +77,7 @@ since 10-23 (before the current code) once no run is using them.
 | qc | `position_coding_half_recovery.csv` | 0.00 | 10-20 16:20 | recovery trend from cam4-era runs | after O2 re-runs |
 | qc | `position_coding_trend_recovery.csv` | 0.00 | 10-20 16:20 | recovery trend from cam4-era runs | after O2 re-runs |
 | qc | `position_coding_trend_recovery_sessions.csv` | 0.00 | 10-20 16:20 | recovery trend from cam4-era runs | after O2 re-runs |
-| qc | `push_behaviour_sessions.csv` | 0.00 | 10-23 18:39 | push LMM: behaviour is DAQ-only but the deficit index is stale | after attempts rebuild |
+| qc | `push_behaviour_sessions.csv` | 0.00 | 10-23 18:39 | push LMM: behavior is DAQ-only but the deficit index is stale | after attempts rebuild |
 | qc | `trial_attempts.csv` | 0.01 | 10-21 14:33 | cam1 on PS94 40 % / PS95 0 % of trials | REBUILD running |
 | qc | `trial_attempts_gate.csv` | 0.00 | 10-21 14:33 | cam1 on PS94 40 % / PS95 0 % of trials | REBUILD running |
 | qc | `trial_attempts_sessions.csv` | 0.00 | 10-21 14:33 | cam1 on PS94 40 % / PS95 0 % of trials | REBUILD running |
@@ -296,17 +296,17 @@ since 10-23 (before the current code) once no run is using them.
 | o2 | `logs` | 0.00 |  | small: figures / O2 bundle scaffolding | - |
 | o2 | `match.json` | 0.00 | 10-19 12:31 | small: figures / O2 bundle scaffolding | - |
 | o2 | `run_enc.sbatch` | 0.00 | 10-20 21:25 | small: figures / O2 bundle scaffolding | - |
-| qc | `_cache` | 0.02 | 10-23 19:54 | imaging / behaviour only or small; not affected | - |
+| qc | `_cache` | 0.02 | 10-23 19:54 | imaging / behavior only or small; not affected | - |
 | qc | `contact_direction_predictability.csv` | 0.00 | 10-23 19:20 | current | - |
-| qc | `drift_blocks_heatmap.png` | 0.00 | 10-18 19:34 | imaging / behaviour only or small; not affected | - |
-| qc | `drift_cohort.png` | 0.00 | 10-18 19:34 | imaging / behaviour only or small; not affected | - |
-| qc | `drift_examples.png` | 0.00 | 10-18 19:34 | imaging / behaviour only or small; not affected | - |
-| qc | `drift_sessions.csv` | 0.00 | 10-18 19:34 | imaging / behaviour only or small; not affected | - |
-| qc | `drift_traces.npz` | 0.00 | 10-18 19:34 | imaging / behaviour only or small; not affected | - |
-| qc | `enl_window_licks.csv` | 0.00 | 10-20 22:05 | imaging / behaviour only or small; not affected | - |
-| qc | `figures` | 0.01 | 10-21 06:25 | imaging / behaviour only or small; not affected | - |
+| qc | `drift_blocks_heatmap.png` | 0.00 | 10-18 19:34 | imaging / behavior only or small; not affected | - |
+| qc | `drift_cohort.png` | 0.00 | 10-18 19:34 | imaging / behavior only or small; not affected | - |
+| qc | `drift_examples.png` | 0.00 | 10-18 19:34 | imaging / behavior only or small; not affected | - |
+| qc | `drift_sessions.csv` | 0.00 | 10-18 19:34 | imaging / behavior only or small; not affected | - |
+| qc | `drift_traces.npz` | 0.00 | 10-18 19:34 | imaging / behavior only or small; not affected | - |
+| qc | `enl_window_licks.csv` | 0.00 | 10-20 22:05 | imaging / behavior only or small; not affected | - |
+| qc | `figures` | 0.01 | 10-21 06:25 | imaging / behavior only or small; not affected | - |
 | qc | `first_lick_latency.csv` | 0.00 | 10-23 18:15 | current | - |
-| qc | `first_lick_latency_late_licked_trials.csv` | 0.00 | 10-20 19:21 | imaging / behaviour only or small; not affected | - |
+| qc | `first_lick_latency_late_licked_trials.csv` | 0.00 | 10-20 19:21 | imaging / behavior only or small; not affected | - |
 | qc | `first_lick_latency_summary.csv` | 0.00 | 10-23 18:15 | current | - |
 | qc | `frozen_group_leakage.csv` | 0.00 | 10-22 13:53 | current | - |
 | qc | `frozen_running_compare_v6_to_v6thr1.csv` | 0.00 | 10-23 14:21 | evidence for the v7 running choice (small) | - |
@@ -316,16 +316,16 @@ since 10-23 (before the current code) once no run is using them.
 | qc | `frozen_running_compare_v7fwd15_to_v7pushfree.csv` | 0.00 | 10-23 22:11 | current | - |
 | qc | `frozen_running_compare_v7fwd15_to_v7pushfree_curves.csv` | 0.00 | 10-23 22:11 | current | - |
 | qc | `jaw_onsets.csv` | 0.01 | 10-23 19:54 | current | - |
-| qc | `lick_contact_by_epoch.csv` | 0.00 | 10-23 08:32 | imaging / behaviour only or small; not affected | - |
-| qc | `position_block_durations.png` | 0.00 | 10-19 06:13 | imaging / behaviour only or small; not affected | - |
-| qc | `position_block_summary.csv` | 0.00 | 10-19 06:13 | imaging / behaviour only or small; not affected | - |
-| qc | `position_blocks.csv` | 0.00 | 10-19 06:13 | imaging / behaviour only or small; not affected | - |
-| qc | `precue_contacts.csv` | 0.00 | 10-20 21:55 | imaging / behaviour only or small; not affected | - |
-| qc | `running_clips` | 0.06 | 10-23 13:24 | imaging / behaviour only or small; not affected | - |
-| qc | `slowband_caveat.png` | 0.00 | 10-20 11:22 | imaging / behaviour only or small; not affected | - |
-| qc | `slowband_decode.csv` | 0.00 | 10-19 06:42 | imaging / behaviour only or small; not affected | - |
-| qc | `slowband_decode_all.csv` | 0.00 | 10-20 11:54 | imaging / behaviour only or small; not affected | - |
-| qc | `svg` | 0.00 | 10-19 08:06 | imaging / behaviour only or small; not affected | - |
+| qc | `lick_contact_by_epoch.csv` | 0.00 | 10-23 08:32 | imaging / behavior only or small; not affected | - |
+| qc | `position_block_durations.png` | 0.00 | 10-19 06:13 | imaging / behavior only or small; not affected | - |
+| qc | `position_block_summary.csv` | 0.00 | 10-19 06:13 | imaging / behavior only or small; not affected | - |
+| qc | `position_blocks.csv` | 0.00 | 10-19 06:13 | imaging / behavior only or small; not affected | - |
+| qc | `precue_contacts.csv` | 0.00 | 10-20 21:55 | imaging / behavior only or small; not affected | - |
+| qc | `running_clips` | 0.06 | 10-23 13:24 | imaging / behavior only or small; not affected | - |
+| qc | `slowband_caveat.png` | 0.00 | 10-20 11:22 | imaging / behavior only or small; not affected | - |
+| qc | `slowband_decode.csv` | 0.00 | 10-19 06:42 | imaging / behavior only or small; not affected | - |
+| qc | `slowband_decode_all.csv` | 0.00 | 10-20 11:54 | imaging / behavior only or small; not affected | - |
+| qc | `svg` | 0.00 | 10-19 08:06 | imaging / behavior only or small; not affected | - |
 | qc | `within_spout_deviation_polar_lick` | 0.00 |  | RUNNING: within-spout 3-D, 4 animals | - |
 | qc | `within_spout_deviation_polar_lick_contact` | 0.00 |  | RUNNING: within-spout 3-D, 4 animals | - |
 | qc | `within_spout_deviation_polar_lick_contact_hits` | 0.00 |  | RUNNING: within-spout 3-D, 4 animals | - |

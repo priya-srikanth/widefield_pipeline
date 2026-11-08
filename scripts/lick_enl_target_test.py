@@ -36,7 +36,7 @@ PART B  OWN 6-WAY CLASSIFIER (secondary check, area features): multinomial logis
         LOSO for pre, FROZEN via frozen_models.load_or_fit kind `enl_spout` (align enl_w<W>_lf<lf>). Same A1-A3 read-outs
         with probabilities; landing additionally = nearest pre spout mean angle WITHIN the target's distance row (the
         first-lick angle does not separate close from far).
-PART C  GAIN-NORMALISED TRACKING of the frozen ridge angle read-out (lick_enl_angle_decode.frozen_fits, kind
+PART C  GAIN-NORMALIZED TRACKING of the frozen ridge angle read-out (lick_enl_angle_decode.frozen_fits, kind
         enl_angle, loaded not refitted; pre = its LOSO predictions). Per animal the pre held-out GAIN g = slope of the
         six spout-mean decoded angles on the six spout-mean actual angles (ACROSS spouts; variant: the WITHIN session x
         spout slope). Per session x spout (>= MIN_CELL trials): mean decoded / g and mean actual angle. Per animal x
@@ -345,7 +345,7 @@ def shrink_decomposition(TRK: pd.DataFrame, G: pd.DataFrame) -> pd.DataFrame:
 
 
 def cls_tracking(T: pd.DataFrame, ex: str, tag: dict) -> list:
-    """Classifier-space TRACKING of off-target post-stroke trials (the analogue of PART C). Per off-target trial i with
+    """Classifier-space TRACKING of off-target post-stroke trials (the analog of PART C). Per off-target trial i with
     target t_i and executed bin q_i, against the animal's PRE confusion (LOSO; P_pre(c | target r) = mean over pre
     trials targeted at r of [decoded c] (argmax) or of pp_c (prob)):
       exec  = (x_i(q_i) - P_pre(q_i | t_i)) / (P_pre(q_i | q_i) - P_pre(q_i | t_i))   read as the landing bin
@@ -665,7 +665,7 @@ def _fill(t: str, w: int) -> str:
 def _fig_classmatched_epochs(CM: pd.DataFrame, col: dict, mk: dict) -> None:
     """lick_enl_target_classmatched_epochs.png: frozen position decoder, class-matched deviated - matched hit for read as
     target / read as landing, windows precue / cue / lick x epochs pre..chronic; primary rule (black + animals) and the
-    >= 1 deviated sensitivity (grey hollow); n deviated trials per animal under each epoch."""
+    >= 1 deviated sensitivity (gray hollow); n deviated trials per animal under each epoch."""
     import matplotlib.pyplot as plt
     c = CM[(CM.source == "frozen_position") & (CM.subset == "all") & (CM.exec == "exec_land")]
     vals = (("dec_target", "read as TARGET (far contra)"), ("dec_landing", "read as the LANDING bin"))
@@ -712,8 +712,8 @@ def _fig_classmatched_epochs(CM: pd.DataFrame, col: dict, mk: dict) -> None:
     fig.suptitle("Class-matched test by epoch, frozen pre-stroke POSITION decoder (pre = its LOSO predictions): far contra "
                  "TARGET trials whose 3-D landing bin is ipsilesional of far contra (deviated) minus the nearest on-target "
                  "far contra trial of the same session (matched hit), all trials. Black = pooled with 95% CI (nested animals "
-                 "-> sessions bootstrap of off - on; sessions with >= 2 deviated and >= 2 on-target trials), colour = per "
-                 "animal; grey hollow = sensitivity with >= 1 deviated trial. Under each epoch: deviated trials per animal "
+                 "-> sessions bootstrap of off - on; sessions with >= 2 deviated and >= 2 on-target trials), color = per "
+                 "animal; gray hollow = sensitivity with >= 1 deviated trial. Under each epoch: deviated trials per animal "
                  f"({'/'.join(AN)}) under each rule. Shaded pre = the pre-stroke LEVEL; few pre deviated trials.", fontsize=10)
     _wrap_titles(fig, sup_width=170)
     fig.tight_layout(rect=(0, 0.035, 1, 1))
@@ -762,7 +762,7 @@ def figures() -> None:
                 a_.set_ylabel("tracking = d(decoded / gain) / d(actual angle)\n0 = target (blue), 1 = execution (red)")
     h_, l_ = ax[0, 0].get_legend_handles_labels()
     fig.legend(h_, l_, fontsize=9, loc="lower center", ncol=len(h_), frameon=False)
-    fig.suptitle("Gain-normalised tracking of the frozen ENL ridge angle read-out (W 1.0 s, no lick 2 s; gain = pre held-out "
+    fig.suptitle("Gain-normalized tracking of the frozen ENL ridge angle read-out (W 1.0 s, no lick 2 s; gain = pre held-out "
                  "slope ACROSS spouts). + angle = contralesional. Hollow = ill-conditioned (|d actual| < 5 deg or its CI "
                  "spans 0); clipped to [-3, 4]", fontsize=10)
     _wrap_titles(fig)
@@ -882,7 +882,7 @@ def figures() -> None:
                     ax[k].plot(x + 0.08, r[f"d_{a}"], mk[a], color=col[a], ms=4)
         ax[k].axhline(0, color="0.5")
         ax[k].set_xticks(range(3), POST)
-        ax[k].set_title(f"{ttl}: change vs pre\n(paired nested bootstrap; colour = animals)", fontsize=9)
+        ax[k].set_title(f"{ttl}: change vs pre\n(paired nested bootstrap; color = animals)", fontsize=9)
     h_, l_ = ax[0].get_legend_handles_labels()
     fig.legend(h_, ["all trials", "settled trials"] if l_ == ["all", "settled"] else l_, fontsize=9,
                loc="lower center", ncol=len(h_), frameon=False)

@@ -21,9 +21,9 @@ epoch".
 ## 1. New correction block (insert ABOVE the existing "CORRECTION (11-02, late)" block)
 
 > **CORRECTION (11-03): bal_em is now the production state decoder** (widefield_pipeline commit 9547a773; DECISIONS.md
-> "2026-11-03 — bal_em adopted as the production state decoder"). Training: each pre-stroke session is centred at the
+> "2026-11-03 — bal_em adopted as the production state decoder"). Training: each pre-stroke session is centered at the
 > equal-weight mean of its three class means (training labels). Scoring: the frozen model's posteriors -> EM re-estimate
-> of the session's class mix (Saerens et al. 2002) -> soft class means of the raw features -> centre at their equal-weight
+> of the session's class mix (Saerens et al. 2002) -> soft class means of the raw features -> center at their equal-weight
 > mean, production SD, 3 passes. **No test-session labels are used.** Stored models: new spec ids PS92 96f8d3543d94,
 > PS93 084308f266df, PS94 8bfbb26d78de, PS95 57866a0b31e3. The session_z models are kept. Epoch family 13 was re-rendered
 > 11-03 ~11:05; the session_z outputs are in `grant_figures/epoch/_superseded_session_z_20261103/`.
@@ -42,16 +42,16 @@ epoch".
 >
 > The 11-02 block below is kept as the record; its state numbers are superseded.
 
-## 2. Table "frozen decoder, above-chance (normalised)"
+## 2. Table "frozen decoder, above-chance (normalized)"
 
 Add a row ABOVE the "(z-scored, 11-02)" row, and relabel that row:
 
-| frozen decoder, above-chance (normalised) | pre | acute | subacute | chronic |
+| frozen decoder, above-chance (normalized) | pre | acute | subacute | chronic |
 |---|---|---|---|---|
 | position | .863 | .428 | .696 | .761 |
-| **behavioural state (bal_em, 11-03, production)** | **.972** | **.927** | **.950** | **.922** |
-| behavioural state (session_z, 11-02; superseded) | .967 | .903 | .865 | .873 |
-| behavioural state, pre-fix (unscaled, 10-15 render) | .976 | .872 | .820 | .838 |
+| **behavioral state (bal_em, 11-03, production)** | **.972** | **.927** | **.950** | **.922** |
+| behavioral state (session_z, 11-02; superseded) | .967 | .903 | .865 | .873 |
+| behavioral state, pre-fix (unscaled, 10-15 render) | .976 | .872 | .820 | .838 |
 
 ## 3. Paragraph after that table: replace its first sentence through "...never that state is flat."
 
@@ -86,7 +86,7 @@ Replace the paragraph under it with:
 > -.53). The other three animals change by -.055 (PS92) / -.012 (PS93) / -.019 (PS95) chronic. PS92 acute is the one
 > cell that is LOWER than under session_z (.871 vs .902; quiet recall .88 -> .80). PS94's states were always separable
 > within session (refit .97-.99). What the session_z decoder lost was PS94's running class, and the label-free
-> class-balanced centring recovers it (Fig 3.5). So the state readout is nearly intact in all four animals, while
+> class-balanced centering recovers it (Fig 3.5). So the state readout is nearly intact in all four animals, while
 > position falls by half acutely. Session means, cue window, engaged trials; pre = leave one session out (n = 11).
 > Source: `epoch_13_state_decoder_cue_sessions.csv` (11-03 re-render); table
 > `imaging_page_src/s_per_animal_regen_20261103_balem/state_table_balem.py`. Earlier values are in brackets (session_z)
@@ -104,19 +104,19 @@ Replace the paragraph under it with:
 
 ### Fig 3.1: title and re-render line
 
-- **Title:** "Frozen position vs behavioural-state decoders, cue window: position loses ~half its above-chance accuracy
+- **Title:** "Frozen position vs behavioral-state decoders, cue window: position loses ~half its above-chance accuracy
   acutely, state ~5 % (bal_em, 11-03)".
 - **Replace the "Re-rendered 11-02 (late)..." line with:** "Re-rendered 11-03 with the production bal_em state decoder
   (commit 9547a773; `labcams/grant_figures/epoch/epoch_13n_state_vs_position_cue.png`, ~11:05). State .972 / .927 /
   .950 / .922 (session_z .967 / .903 / .865 / .873; pre-fix .976 / .872 / .820 / .838). Position unchanged at .863 /
   .428 / .696 / .761. Session_z image: `_superseded_session_z_20261103/d_state.png`."
 - **In the caption body:** after "State = logistic (C = 1.0) classifying 1 s segments ...", add: "Scaling: bal_em. Each
-  training session is centred at the equal-weight mean of its class means. Each scored session is centred at the
+  training session is centered at the equal-weight mean of its class means. Each scored session is centered at the
   equal-weight mean of EM-estimated soft class means (no test labels), with the per-session SD."
 
 ### Fig 3.2: title and re-render line
 
-- **Title:** "Frozen behavioural-state decoder, change from pre: a small fall (−.02 to −.04 balanced accuracy); only
+- **Title:** "Frozen behavioral-state decoder, change from pre: a small fall (−.02 to −.04 balanced accuracy); only
   chronic survives Bonferroni (bal_em, 11-03)".
 - **Replace the "Re-rendered 11-02 (late)..." line with:** "Re-rendered 11-03 (bal_em). Raw balanced accuracy minus
   pre: acute −0.022 [95 % −0.047, −0.002; Bonferroni −0.053, +0.000], subacute −0.018 [−0.041, +0.000; −0.045,
@@ -136,7 +136,7 @@ Replace the paragraph under it with:
 
 ### Fig 3.4: title, re-render line and stats / reading
 
-- **Title:** "Frozen position vs behavioural-state decoders, cue window, one marker per session: position loses .41 of
+- **Title:** "Frozen position vs behavioral-state decoders, cue window, one marker per session: position loses .41 of
   its above-chance performance acutely, state .03; state stays ≥ .85 per animal (bal_em, 11-03)".
 - **Replace the "Re-rendered 11-02 (late)..." line with:** "Re-rendered 11-03 with the bal_em state decoder
   (`build_inputs/state_position_sessions_balem.png`, from the 11-03 sessions sidecar). The state panel and its stats
@@ -153,15 +153,15 @@ Replace the paragraph under it with:
   PS94's RUNNING class and bal_em (production since 11-03) restores it".
 - **Decoders sentence:**
   - bal_em (orange) = the stored `scaling="session_bal_em"` models, scored by the production path (`score_animal`; label-free
-    EM equal-weight centre, production SD, 3 passes).
+    EM equal-weight center, production SD, 3 passes).
   - session_z (blue) = the stored 11-02 models (previous production).
-  - Within-session refit (grey) is unchanged.
+  - Within-session refit (gray) is unchanged.
 - **Measured, row 3:** "PS94 pooled confusion of the **bal_em** decoder per epoch".
 - **Reading:** "PS94 balanced accuracy: bal_em .99 / .97 / .93 / .90, session_z .98 / .91 / .81 / .78, refit .98 / .99 /
   .98 / .98. PS94 running recall: bal_em .99 / .97 / .96 / .92 vs session_z .98 / .84 / .54 / .49. The cost is chronic
   quiet .95 → .89 (read as running .08) and licking .90 → .88. PS92 / PS93 / PS95 are .91–.99 under bal_em. Mechanism
   unchanged: PS94 runs ~2x faster and has ~4x more running segments post-stroke, which pulled the all-segment session
-  mean. The EM-estimated class mix lets the centre follow the class means without test labels."
+  mean. The EM-estimated class mix lets the center follow the class means without test labels."
 - **Delete:** "Whether the state decoder should use the class-balanced z-score is open (Pending)." It is DECIDED.
 - **Source:** `build_inputs/state_ps94_balem.png / .csv / _confusions.csv`. Script: `fig_state_ps94_balem.py`, same folder.
 

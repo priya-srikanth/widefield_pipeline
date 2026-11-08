@@ -17,7 +17,7 @@ being recomputed every night over a session set that grows every night, which ha
 
 WHAT "FROZEN" MEANS HERE, because the word is already overloaded in this repo. A *frozen decoder*
 (`locanmf_frozen_decoder`) is frozen ACROSS DAYS -- trained on an animal's other days, applied to a
-held-out day. That is a modelling choice and it refits every run. A *frozen reference*, this module,
+held-out day. That is a modeling choice and it refits every run. A *frozen reference*, this module,
 is frozen IN TIME: computed once, stored, and reused verbatim until someone deliberately supersedes
 it. The two are unrelated and a decoder can be both.
 

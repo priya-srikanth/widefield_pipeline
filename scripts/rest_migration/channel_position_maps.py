@@ -11,7 +11,7 @@ THREE THINGS ARE FIXED RELATIVE TO THAT SCRIPT, and two of them were real bugs.
 1. **CHANNEL IDENTITY COMES FROM THE SESSION'S OWN RECORD, CHECKED.** The old script hardcoded
    `SVT[:, 0::2]` as 415 on the strength of a comment. THIS IS THE EXACT PLACE A SWAP IS INVISIBLE:
    both halves produce a plausible cortical map, so a transposed pair reads as "415 carries a lot
-   of structure" rather than as a labelling error. My first attempt at a fix -- DERIVING the
+   of structure" rather than as a labeling error. My first attempt at a fix -- DERIVING the
    identity by correlating each half with `SVTcorr` -- was worse than useless and is documented in
    `_signals`: it is a coin flip on some sessions and it flipped the wrong way on PS93. The module
    now reads `functional_channel` from `local_wfield_summary.json` and keeps the correlation only
@@ -21,7 +21,7 @@ THREE THINGS ARE FIXED RELATIVE TO THAT SCRIPT, and two of them were real bugs.
    `spout_bit1` on the August sessions reads that bit low and COLLAPSES 6 positions onto 4
    (2->0, 3->1, 6->4, 7->5) -- and `PS92_0806` onward are pre-stroke sessions, so this is not a
    post-stroke-only concern. `classify_cues_with_backup` detects the collapse and repairs it from
-   the behaviour log. On the June example session the two agree, which is why the original figure
+   the behavior log. On the June example session the two agree, which is why the original figure
    looked right.
 
 3. **ANATOMICAL POSITION LABELS**, near/far x contra/ipsi, not the rig's `close_L` / `far_R`.
@@ -35,8 +35,8 @@ what we would expect with neurovascular coupling"*, and that is right, so a 415 
 THE ONE THING IT DOES ADJUDICATE is whether the correction ran correctly at all: r(415, corrected)
 must fall below r(415, raw). That check is what exposed the PS93 channel swap described above.
 
-SHARED COLOUR SCALE ACROSS THE THREE COLUMNS OF A ROW, so relative magnitude is honest. This is the
-whole point of the layout and it is why the columns are not individually normalised: the question
+SHARED COLOR SCALE ACROSS THE THREE COLUMNS OF A ROW, so relative magnitude is honest. This is the
+whole point of the layout and it is why the columns are not individually normalized: the question
 includes "how big is 415 compared to 470", and per-panel scaling would answer a different one.
 
     python -m scripts.rest_migration.channel_position_maps [--sessions PS92_0608 ...] [--n 4]
@@ -206,7 +206,7 @@ _PANELS = (("rms_raw", "470 raw AMPLITUDE\nRMS = sqrt(mean^2 + SD^2)"),
 
 
 def position_epoch_figure(stats, out_dir, arm):
-    """Per POSITION and epoch: session dots coloured by animal, with mean +/- SEM.
+    """Per POSITION and epoch: session dots colored by animal, with mean +/- SEM.
 
     Priya, 2026-09-19: *"can we do this per-position and plot the results with mean +- SEM and dots
     per session, across animals?"*
@@ -287,11 +287,11 @@ def position_epoch_figure(stats, out_dir, arm):
         fig.legend(h, lab, loc="upper right", frameon=False, fontsize=9, ncol=len(h),
                    bbox_to_anchor=(0.995, 0.845))
     fig.text(0.5, 0.995, f"415 vs 470 by SPOUT POSITION and EPOCH -- {arm}-aligned. "
-             f"Dots = sessions, coloured by animal; bar = mean +/- SEM; small number = n sessions.",
+             f"Dots = sessions, colored by animal; bar = mean +/- SEM; small number = n sessions.",
              ha="center", va="top", fontsize=13, fontweight="bold")
     import textwrap
     cap = ("ROW 3 IS THE COUPLING MEASURE AND ROWS 1-2 ARE WHY IT CANNOT BE READ ALONE. "
-             "||415||/||470raw|| is haemodynamic response per unit neural response -- but a ratio "
+             "||415||/||470raw|| is hemodynamic response per unit neural response -- but a ratio "
              "RISES WHEN ITS DENOMINATOR FALLS, and a stroke is expected to lower the 470 response. "
              "If row 3 goes up while row 1 goes down and row 2 holds, that is a shrinking "
              "denominator, not better coupling.\n"
@@ -323,13 +323,13 @@ def epoch_summary(stats, out_dir, seed):
     Priya, 2026-09-19: *"we could just look at the r(415, raw) or r(415, 470) - is there a
     difference pre vs post-stroke to see differences in coupling, no?"* -- and this is a better
     question than the one the module was built for, because **IT DOES NOT REQUIRE RESOLVING WHERE
-    GCaMP'S CROSSING SITS.** Whatever 415 is made of, if it is dominated by haemodynamics then
-    `||415|| / ||470raw||` is haemodynamic response per unit neural response -- an NVC GAIN -- and
+    GCaMP'S CROSSING SITS.** Whatever 415 is made of, if it is dominated by hemodynamics then
+    `||415|| / ||470raw||` is hemodynamic response per unit neural response -- an NVC GAIN -- and
     `r(415, 470raw)` is how well the vascular map tracks the neural one. Both should FALL if
     coupling is lost.
 
     THE TWO STATISTICS ARE BIASED IN OPPOSITE, KNOWN DIRECTIONS, AND THAT IS WHY BOTH ARE HERE.
-    `raw = C + H` contains H, so `r(415, raw)` is inflated by shared haemodynamics; `corr` had
+    `raw = C + H` contains H, so `r(415, raw)` is inflated by shared hemodynamics; `corr` had
     `T*415` subtracted, so `r(415, corr)` is deflated by construction (measured -0.19 to -0.36
     pre-stroke, and that negative is arithmetic, not biology). **Neither is a clean NVC
     coefficient.** They are usable HERE only because the bias is a property of the estimator and
@@ -430,7 +430,7 @@ def epoch_summary(stats, out_dir, seed):
             w.writeheader()
             w.writerows(rows)
         print(f"\n  wrote {q}")
-    print("\n  BOTH FALLING after the stroke -> less haemodynamic response per unit neural")
+    print("\n  BOTH FALLING after the stroke -> less hemodynamic response per unit neural")
     print("      response AND a worse spatial match: weaker coupling on two counts.")
     print("  AMPLITUDE FALLS, r HOLDS -> the vasculature still responds where it should, less.")
     print("  r FALLS, AMPLITUDE HOLDS -> the response is there but misdirected -- the pattern")
@@ -500,11 +500,11 @@ def _quantify(maps, mask):
     **AND SPATIAL CORRELATION DOES NOT SEPARATE THEM EITHER -- this module's first version claimed
     it did, and Priya corrected it the same day:** *"a spatial pattern of correlation is what we
     would expect with neurovascular coupling"*. Exactly so. Blood flow follows neural activity, so
-    the haemodynamic map RESEMBLES the neural map by construction. The measured `r_415_raw` of
+    the hemodynamic map RESEMBLES the neural map by construction. The measured `r_415_raw` of
     +0.56 to +0.59 is the NVC signature, not evidence of calcium in the control channel.
 
         415 carries scaled CALCIUM              -> positive r, ratio invariant to amplitude
-        415 carries HAEMODYNAMICS that scale    -> positive r, ratio invariant to amplitude
+        415 carries HEMODYNAMICS that scale    -> positive r, ratio invariant to amplitude
             with calcium (i.e. NVC)
 
     The two are indistinguishable in every static quantity, because NVC is itself
@@ -565,7 +565,7 @@ def _offdiag_r(built, mask):
     **THE CONTROL FOR THE READING I COULD NOT OTHERWISE EXCLUDE.** `r(415, 470)` rises acutely at
     several positions, which looks like stronger neurovascular coupling. But acutely the maps also
     become more GLOBAL -- `15k` measures the cue acute panel at ~75% global -- and two broad, smooth
-    maps correlate highly for reasons that have nothing to do with coupling. Mean-centring removes a
+    maps correlate highly for reasons that have nothing to do with coupling. Mean-centering removes a
     DC offset; it does not remove a shared low-spatial-frequency pattern.
 
     THE MISMATCHED PAIR IS THE NULL. If 415 and 470 agree because the vasculature tracks activity
@@ -622,7 +622,7 @@ def _limit(maps, mask):
     (2026-09-19, caught by Priya: *"is there really so little lick aligned activity in this
     session? ... Does this session just have an extraordinarily high response to lick near_ipsi?"*).
     No -- `U_atlas` carries a band of extreme values at the registered edge, outside cortex, and it
-    was setting the colour limit. PS93_0606, lick arm, all-pixel limit against in-mask limit:
+    was setting the color limit. PS93_0606, lick arm, all-pixel limit against in-mask limit:
 
         near ipsi     0.0393 / 0.0394   x1.00      <- the ONE row that was not inflated
         near middle   0.1705 / 0.0365   x4.67
@@ -633,8 +633,8 @@ def _limit(maps, mask):
 
     So five rows were washed out by a factor of up to 4.8 and the sixth was not, which READS as one
     position with a huge response. In-mask the six limits span 0.033-0.069 -- under 2x, no outlier.
-    **A per-row scale computed from pixels nobody is looking at turned an edge artefact into a
-    result.** The maps are also NaN-ed outside the mask now, so the artefact cannot be drawn.
+    **A per-row scale computed from pixels nobody is looking at turned an edge artifact into a
+    result.** The maps are also NaN-ed outside the mask now, so the artifact cannot be drawn.
     """
     v = np.concatenate([np.asarray(m)[mask].ravel() for m in maps])
     return max(float(np.nanpercentile(np.abs(v), 99.0)), 1e-6)
@@ -1101,10 +1101,10 @@ def main(argv=None) -> int:
     print("\n  READ r(415, raw) AS NEUROVASCULAR COUPLING, NOT AS BLEED-THROUGH. Priya, 2026-09-19:")
     print("  *\"a spatial pattern of correlation is what we would expect with neurovascular")
     print("  coupling\"* -- and that is right. Blood flow follows neural activity, so the")
-    print("  haemodynamic map SHOULD resemble the neural map. A high r is the NVC signature. It is")
+    print("  hemodynamic map SHOULD resemble the neural map. A high r is the NVC signature. It is")
     print("  NOT a discriminator, and this module's first version claimed it was.")
     print("\n  WHICH LEAVES THE REAL QUESTION OPEN, AND NOTHING HERE CLOSES IT. Both accounts --")
-    print("  415 carrying scaled CALCIUM, and 415 carrying HAEMODYNAMICS THAT SCALE WITH calcium")
+    print("  415 carrying scaled CALCIUM, and 415 carrying HEMODYNAMICS THAT SCALE WITH calcium")
     print("  -- predict a positive spatial correlation AND an amplitude-invariant ratio, because")
     print("  NVC is itself signal-proportional. No amplitude and no map shape separates them.")
     print("\n  ONLY LATENCY DOES. Direct optical calcium leak has ZERO lag; NVC has 0.5-2 s. The")
@@ -1123,7 +1123,7 @@ def main(argv=None) -> int:
             if p is not None:
                 print(f"  wrote {p}")
         if epoch_dir != out_dir:
-            print(f"\n[channel maps] pooled epoch artefacts -> {epoch_dir}"
+            print(f"\n[channel maps] pooled epoch artifacts -> {epoch_dir}"
                   f"\n[channel maps] per-session diagnostics  -> {out_dir}")
     return 0
 

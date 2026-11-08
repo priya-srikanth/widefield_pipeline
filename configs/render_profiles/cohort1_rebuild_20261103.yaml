@@ -126,6 +126,16 @@ arms:
              "pattern / template families"]
     expected_run_tag: hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk_sc-ctrCto+pctrCto
 
+  # SUCCESSFUL-LICK SUPPLEMENT (Priya 11-07): working = in_working & class == contact only (same working period / end
+  # cut); the selection part carries "-cls-contact", so its frozen models, caches and section_g.json never meet the
+  # primary ones. Wired for section G only (G9 refuses it). Far-contra post-stroke is mostly incomplete licks, so the
+  # lick-only arm drops positions (chance 1/n varies): compare via the retained above-chance fraction.
+  contactOnly:
+    env:
+      WIDEFIELD_WORKING_TRIALS: in_working_contact
+    blocks: ["section G supplement: successful (contact) licks only"]
+    expected_run_tag: hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-stopA2jexrt3500c70_daqlk
+
   # FROZEN encoder ROBUSTNESS row (Priya 11-04): v7g3_t3d = post-cue lick kernels only (no licks_pre / licks_iti). Its
   # outputs are kept apart by the FRAME tag (frozen_encoder_gate-attempted_v7g3_t3d[...], no "spont" segment;
   # frozen_encoder.check_tag refuses a mismatch), not by the run tag, which stays the primary's.

@@ -1,4 +1,4 @@
-"""THE GRANT RENDERER'S SHARED MACHINERY — plotting, saving, seeding, caching, labelling.
+"""THE GRANT RENDERER'S SHARED MACHINERY — plotting, saving, seeding, caching, labeling.
 
 Split out of `grant_figures` on 2026-09-21. `grant_figures.py` was 6,599 lines and 133 functions;
 these twenty are the ones that are not about any particular figure. Measured by call graph rather
@@ -145,7 +145,7 @@ def _boot_cached(tag, parts, compute):
     were present in the run that produced it. Both were fixed first, deliberately, and neither is
     optional for this.
 
-    Stored beside the session cache and honouring the same disable switch, so one environment
+    Stored beside the session cache and honoring the same disable switch, so one environment
     variable turns off every memoisation at once when a result is under suspicion.
     """
     import pickle
@@ -438,7 +438,7 @@ def _twinned(axa, axb):
 
 
 def _overlaps(fig):
-    """Intersecting pairs among a figure's CHROME: suptitle, figure texts, legends, colour-bar
+    """Intersecting pairs among a figure's CHROME: suptitle, figure texts, legends, color-bar
     labels, axis labels and panel titles. Tick labels are excluded -- they sit close to their own
     axis by design.
 
@@ -551,7 +551,7 @@ def _save(fig, path, **kw):
     """Save, and REPORT any chrome overlap on the way out.
 
     Layout faults in this module have been found by eye, one at a time, each fix pushing the problem
-    onto a neighbour -- the reference colour bar alone collided with three different things. A render
+    onto a neighbor -- the reference color bar alone collided with three different things. A render
     that names its own overlaps turns that into a list, and the list is checkable after every run
     instead of after every complaint.
 
@@ -597,7 +597,7 @@ def _footer(fig, source_labels=None):
     # that lives in the speaker notes is not present when the panel is lifted into a grant.
     fig.text(0.5, 0.004,
              coverage_note(source_labels)
-             + "      positions: c = close, f = far;  L / C / R = left / centre / right",
+             + "      positions: c = close, f = far;  L / C / R = left / center / right",
              ha="center", va="bottom", fontsize=7, color="0.30")
 
 
@@ -677,7 +677,7 @@ def only() -> tuple:
 # ============================================================================================
 # ------------------------------------------------------------------ 1. behaviour
 def _position_metrics(animal, mmdd):
-    """{position: (hit_rate, ci_lo, ci_hi, n_engaged)} from the behaviour per-session CSV."""
+    """{position: (hit_rate, ci_lo, ci_hi, n_engaged)} from the behavior per-session CSV."""
     root = Path(PathResolver().root("behavior_out")) / "sessions" / animal / config.date8(mmdd)
     if not root.exists():
         return {}
@@ -734,7 +734,7 @@ def _out(out_dir, stem):
     """Output path for a figure stem."""
     return Path(out_dir) / f"{stem}.png"
 def _short(labels):
-    """Position labels shortened for an axis. Anything unrecognised passes through unchanged."""
+    """Position labels shortened for an axis. Anything unrecognized passes through unchanged."""
     return [POS_SHORT.get(str(q), str(q)) for q in labels]
 #: One bundle per (animal, alignment), reused across every figure that needs it.
 #:
@@ -835,9 +835,9 @@ def _working_masks(bd):
 def _proj_arrays(bd):
     """``(XE, XU)`` for the pattern / template families (main 26fd5b44 / 4a37cbc8, Priya 11-03 item C, 11-04 re-check):
     the bundle's rows in a spout decoder's scoring frame when the projection frame is on
-    (`spout_scaling.projection_frame_on`), else the production rows. The centre rows (`spout_scaling.projection_centre`):
-    "engaged" = the engaged-trained frame (`_frozen_frame(bd)`, its centre rows by the rebuild's `centre_mask`),
-    "working" / "contact" = the working-trained frame centred on the working / contact rows."""
+    (`spout_scaling.projection_frame_on`), else the production rows. The center rows (`spout_scaling.projection_centre`):
+    "engaged" = the engaged-trained frame (`_frozen_frame(bd)`, its center rows by the rebuild's `centre_mask`),
+    "working" / "contact" = the working-trained frame centered on the working / contact rows."""
     from wfield_local import spout_scaling
     if not spout_scaling.projection_frame_on():
         return bd["XE"], bd["XU"]
@@ -860,22 +860,22 @@ def _frozen_frame(bd, an=None, align=None, store=True, sel="engaged", centre=Non
     """The pre-stroke SPOUT-POSITION decoder for one bundle, and the frames it is trained and scored in.
 
     ``{"scaling", "sel", "XT", "full", "loso": {pre index: model}, "pi_full", "pi_loso", "XEs", "XUs", "R", "RT",
-    "train_sessions", "work"}``, memoised ON the bundle (per scaling, centre, store, selection), so every frozen-decoder
+    "train_sessions", "work"}``, memoised ON the bundle (per scaling, center, store, selection), so every frozen-decoder
     site that reads a bundle uses one fit and one frame.
 
-    ``sel`` = the TRAINING and CENTRE rows (main 48f2cc6d `_frozen_frame(bd, sel)`): "engaged" (the lick gate; the
+    ``sel`` = the TRAINING and CENTER rows (main 48f2cc6d `_frozen_frame(bd, sel)`): "engaged" (the lick gate; the
     lick window, the `lick` / `stopped` classes) or "working" (Priya 11-03 late / coordinator 11-04: the camera WORKING
     trials, ENGAGED AND NO-LICK rows of class contact | incomplete, on both sides -- the pre-stroke training set, each
-    session's label-free EM centre and the pre panel). "working" falls back to "engaged" for the lick window and the
-    DAQ gate. ``R`` = (RX, RY, RG), the training / centre rows; ``RT`` = R in the training frame; ``train_sessions`` =
+    session's label-free EM center and the pre panel). "working" falls back to "engaged" for the lick window and the
+    DAQ gate. ``R`` = (RX, RY, RG), the training / center rows; ``RT`` = R in the training frame; ``train_sessions`` =
     the pre sessions with R rows (PS93_0813, no video, has none under "working", so it is neither trained on nor
-    scored). ``centre`` (working frame only) = the SCORED frame's centre rows, "working" or "contact"; None = the run's
+    scored). ``center`` (working frame only) = the SCORED frame's center rows, "working" or "contact"; None = the run's
     `spout_scaling.score_centre_rows` (coordinator 11-04). The models do not depend on it; the memo key does.
 
     ``scaling`` is `spout_scaling.spout_scaling()`: ``session_bal_em`` in production since 2026-11-03 (Priya, "I would
     adopt B everywhere"; DECISIONS 2026-11-03). Then ``XT`` = the bundle's engaged rows with each pre session
-    re-centred on the equal-weight mean of its TRUE class means (training labels), and ``XEs`` / ``XUs`` = every
-    session in its SCORING frame: label-free EM centre from its engaged rows with its scoring model (LOSO for a pre
+    re-centered on the equal-weight mean of its TRUE class means (training labels), and ``XEs`` / ``XUs`` = every
+    session in its SCORING frame: label-free EM center from its engaged rows with its scoring model (LOSO for a pre
     session, ``full`` otherwise), applied to its no-lick rows too. Under ``WIDEFIELD_SPOUT_SCALING=session_z``,
     ``XT = XEs = bd["XE"]`` and ``XUs = bd["XU"]`` (the same objects), so the pre-11-03 output is bit-identical.
 
@@ -960,7 +960,7 @@ def _frozen_frame(bd, an=None, align=None, store=True, sel="engaged", centre=Non
                     spout_scaling.note_working_excluded(bd["kept"][i], "_frozen_frame")
                     continue
                 raise spout_scaling.BalEmCentreRefused(            # review 7A NB4: never scored uncentred
-                    f"working frame: post session {bd['kept'][i]} has 0 camera working rows -- cannot centre it")
+                    f"working frame: post session {bd['kept'][i]} has 0 camera working rows -- cannot center it")
             mu, sdv = got
             XEs[GEa == i] = (np.asarray(XE)[GEa == i] - mu) / sdv
             if len(GUa) and np.any(GUa == i):
@@ -989,7 +989,7 @@ def _bundle_centre_mask(bd):
 
 def _frozen_score_rows(bd, model, pi, i, Xe_rows, Xu_rows=None, centre_rows=None):
     """Session ``i``'s rows in the scoring frame of an AD HOC frozen-style model (the size-matched frozen arm):
-    centre from ALL of the session's engaged rows (production-z), label-free, applied to the given rows. Identity under
+    center from ALL of the session's engaged rows (production-z), label-free, applied to the given rows. Identity under
     session_z."""
     from wfield_local import spout_scaling
     if not spout_scaling.spout_scaling():
@@ -1084,6 +1084,10 @@ def _class_note(variant, pattern=False):
         from wfield_local import working_trials as _wt
         if _tc.camera_gate_on() and _wt.is_camera(_tc.working_selection()):
             jaw = _tc.working_selection() == _wt.IN_WORKING_JAW
+            if _tc.working_selection() == _wt.IN_WORKING_CONTACT:      # the successful-lick supplement (Priya 11-07)
+                txt = ("camera WORKING trials: contact only (successful licks; supplement), cue to the session's last "
+                       "camera lick; incomplete and jaw_only excluded")
+                return txt + ("; PRE-STROKE REFERENCE IS LICK TRIALS" if pattern else "")
             txt = ("camera WORKING trials: contact + incomplete" + (" + jaw_only" if jaw else "") +
                    ", cue to the session's last camera lick" + ("" if jaw else "; jaw_only excluded"))
             return txt + ("; PRE-STROKE REFERENCE IS LICK TRIALS" if pattern else "")
@@ -1368,10 +1372,10 @@ def _delta_grid(mats, days, out_dir, fname, *, title, abs_label, delta_label,
                 vmin, vmax, cmap, dmax, summary, ylab, figh=9.5, cis=None,
                 higher_is_better=True):
     """Column 0 = the pre-stroke reference in its own units; every later column = that column MINUS
-    the reference, on a diverging scale centred at zero.
+    the reference, on a diverging scale centered at zero.
 
     TWO COLOURBARS, DELIBERATELY. One shared scale would either compress the deltas into the middle
-    of an absolute ramp or draw the reference on a diverging map centred somewhere meaningless. The
+    of an absolute ramp or draw the reference on a diverging map centered somewhere meaningless. The
     two columns groups are different quantities and are scaled as such.
     """
     # A DEDICATED SPACER COLUMN FOR THE REFERENCE COLOUR BAR. Attaching it to `ax=axes[:, 0]` puts
@@ -1637,7 +1641,7 @@ def _best_match(M, higher_is_better=True):
         rank[i] = 1 + int((v[ok] > v[i]).sum())
     return best, rank
 def _impaired(an, thresh=0.5, min_n=10):
-    """Positions that DROPPED below `thresh` on any post-stroke session, from behaviour alone.
+    """Positions that DROPPED below `thresh` on any post-stroke session, from behavior alone.
 
     THE WORST SESSION, not the pooled rate. Pooling across every post-stroke day averages a
     recovery away: PS95's far_R goes 0.00 on day 1 to 0.87 by day 2, which pools to 0.48-0.55 and

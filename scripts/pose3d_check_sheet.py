@@ -7,7 +7,7 @@ A. far_center DIAGONAL (PS92 chronic): closest-approach points on a line paralle
    the rod?
 B. acute far_R PRE-CUE tongue (PS92 acute): the 3-D tongue sits ~0.25 mm out before the cue (pre ~0.05). Pre-cue frames
    with a 3-D tongue point -- tongue at the lips, a real lick, or a false point?
-C. ANCHORED JAW at the centre spouts (PS92 pre): frames placed by the rest-depth anchor (`pose3d.anchor_single_view`,
+C. ANCHORED JAW at the center spouts (PS92 pre): frames placed by the rest-depth anchor (`pose3d.anchor_single_view`,
    src 4 = cam1 + anchor, 5 = cam4 + anchor), the one place the held-out test could not check. The anchored 3-D jaw is
    projected into BOTH cameras -- including the one that did not see it -- does it land on the chin?
 
@@ -192,12 +192,12 @@ def section_c(rv, out: Path, per: int, rng) -> None:
     tiles = []
     for code, lab in ((5, "cam4 + anchor (cam1 missed)"), (4, "cam1 + anchor (cam4 missed)")):
         g = S[S.position.isin(["far_center", "close_center"]) & (S.jaw_src == code) & (S.t_ms > 70)]
-        print(f"{s}: centre-spout anchored jaw frames src {code}: {len(g)}")
+        print(f"{s}: center-spout anchored jaw frames src {code}: {len(g)}")
         g = g.groupby("trial_id").head(1)
         for _, row in g.sample(min(per, len(g)), random_state=int(rng.integers(1 << 30))).iterrows():
             tiles.append(_tiles(rv, ses, row, "jaw", f"{lab}: {row.position} trial {row.trial_id} t {row.t_ms:+.0f} ms",
                                 extra=model.get((row.trial_id, row.t_ms))))
-    _grid(tiles, 2, f"C. {s} (pre) centre spouts: one-camera 3-D jaw, REST-DEPTH ANCHOR (cyan) vs DEPTH MODEL "
+    _grid(tiles, 2, f"C. {s} (pre) center spouts: one-camera 3-D jaw, REST-DEPTH ANCHOR (cyan) vs DEPTH MODEL "
                     "(yellow), projected into both cameras; 2-D LP jaw (magenta)", out / f"C_anchored_jaw_{s}.png")
 
 

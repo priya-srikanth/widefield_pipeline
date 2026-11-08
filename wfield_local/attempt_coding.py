@@ -18,12 +18,12 @@ CLASSES (post-stroke, per spout; pre-stroke reference = video HITS at that spout
   late         attempted after max_rt (reported for n only)
 
 PRIMARY READOUT = p_true (the frozen decoder). The PS92 smoke run (10-24) showed `own` is unstable post-stroke (class
-means -8 .. +5 on a 0 / 1 pole scale): the 1.0 s ENL axes separate spouts weakly, so the pole normalisation divides by
+means -8 .. +5 on a 0 / 1 pole scale): the 1.0 s ENL axes separate spouts weakly, so the pole normalization divides by
 a small gap, and `pool_sessions` z-scores each session on its OWN engaged (attempted) trials, whose spout mix shifts
 acutely. `own` is kept for comparison with August; do not read its contrasts alone.
 
 READOUTS, per trial, from directions fitted on pre-stroke hits only (`position_coding_directions.direction`):
-  own          projection on ITS spout's axis, pole-normalised (0 = pre-stroke hits elsewhere, 1 = pre-stroke hits here)
+  own          projection on ITS spout's axis, pole-normalized (0 = pre-stroke hits elsewhere, 1 = pre-stroke hits here)
                -- the August number, kept for comparison. No "own minus other axes" index: the six one-vs-rest axes
                sum to ~0 (STATUS_2026-09-24_CD_TRAJECTORIES), so the other axes' mean is nearly a linear function of
                own and the index adds nothing (caught by the unit test, 10-24). A trial-wide state change is handled
@@ -159,7 +159,7 @@ def stored_axes(animal, align, post_s, X, G, sp, ref, kept, basis_id, verbose=Tr
 
 
 def score(X, spout, W):
-    """Pole-normalised projection of each row on its own spout's axis; NaN where that spout has no axis."""
+    """Pole-normalized projection of each row on its own spout's axis; NaN where that spout has no axis."""
     from wfield_local.position_coding_directions import project
     own = np.full(len(X), np.nan)
     for P, (w, p0, p1) in W.items():

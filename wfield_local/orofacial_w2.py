@@ -16,7 +16,7 @@ change. Here, per session x spout position x keypoint:
            mouth origin (a resting-posture shift is not subtracted out); nose, spout = pose (likelihood
            >= 0.6) in the SAME MOUTH FRAME (minus the session's `tongue_origin`). Everything is in the mouth frame
            (Priya 10-18). The SPOUT is the noise / drift CONTROL (a fixed apparatus point per position: it should not
-           move relative to the mouth). The NOSE is BEHAVIOUR, not a control -- head / snout posture can change after
+           move relative to the mouth). The NOSE is BEHAVIOR, not a control -- head / snout posture can change after
            the stroke. (Raw image-pixel positions were tried and dropped: camera framing drifts 25-60 px across months.)
   W2       exact W2 between equal-size subsamples (N points each, `linear_sum_assignment` on squared distances),
            averaged over `draws` seeded draws; the reference is the animal's pooled PRE-stroke points at the position

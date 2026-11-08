@@ -7,7 +7,7 @@ then a ~2-s two-channel undershoot (QC doc §0o).
 Detector, on the cortex-mean 470 dF/F (U . SVT over the brain mask, raw per channel; the same in both cohorts):
   d = x - running median over 2 s;   events = scipy find_peaks(d) with
     prominence  > PROM %              (PS122 median +6.5%; lick responses are a few % and slow)
-    half-width  < MAX_W pairs (250 ms) (GCaMP6s interictal events are ~200 ms; behavioural responses are longer)
+    half-width  < MAX_W pairs (250 ms) (GCaMP6s interictal events are ~200 ms; behavioral responses are longer)
     rise        : d[peak] - d[peak - 3] > 0.6 * d[peak]       (up within ~100 ms)
     415         : |415 change at the peak| < 0.35 x the 470 change   (not light / blood / a swap)
   and, cohort1 (never repaired before the SVD): no event within +-3 pairs of a swapped pair

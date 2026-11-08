@@ -5,12 +5,12 @@ uses the stored 11-03-late production models (frozen-hit). The only fits are in 
 (Iref) and a within-session refit for the upper bound (S1roi). None was stored or published.
 Scripts, CSVs and logs are in `M:/MICROSCOPE/Priya/Widefield/labcams/decoder_mix_checks/refspout_centre_1104/`. The
 pools, frame engine and section-D reproduction are reused from `CENTRE_MIXSHIFT_2026-11-04.md` (`centre_mixshift_1104/`),
-and the rest centres from `REST_CENTRE_2026-11-04.md` (`rest_centre_1104/`).
+and the rest centers from `REST_CENTRE_2026-11-04.md` (`rest_centre_1104/`).
 
 ## 1. Question
 
-The frozen spout decoder's per-session centre is Wt (DECISIONS 11-04): the equal-weight mean of the per-spout means
-of all working rows. Priya's point is that any centre built from post-stroke data absorbs some of the stroke, and that
+The frozen spout decoder's per-session center is Wt (DECISIONS 11-04): the equal-weight mean of the per-spout means
+of all working rows. Priya's point is that any center built from post-stroke data absorbs some of the stroke, and that
 post-stroke activity changes at every spout, close spouts included. Two arms test this:
 
 - **A. Reference-spout anchor (Rref).** Estimate each session's day offset from the reference spouts only
@@ -18,7 +18,7 @@ post-stroke activity changes at every spout, close spouts included. Two arms tes
   those spouts do not change, so their change is MEASURED (checks 1-3).
 - **B. Intercept-only refit (Iref).** Keep the frozen weights and let each session have free class offsets, fitted
   with cross-validation across blocks. A common feature offset c changes every class score by the constant −w_k·c, so
-  free intercepts absorb any per-session offset exactly. That makes Iref the readout least dependent on a centre
+  free intercepts absorb any per-session offset exactly. That makes Iref the readout least dependent on a center
   choice.
 
 ## 2. Design
@@ -33,9 +33,9 @@ T(i) is the scoring model's set of training sessions (August-only pre).
 
 | tag | frame (stored model) |
 |---|---|
-| W / Wt / N | as before: production bal_em; true-label balanced working centre (the default); pooled pre, no session centre |
-| **Rref_w_a** | centre = mean_q μ_iq − mean_q mean_{s∈T(i)} μ_sq + c̄6. Here μ_iq is the session's working-row mean at reference spout q (equal weight over the 2 spouts; a spout needs ≥ 5 rows) and c̄6 is the pooled pre six-spout balanced centre, all in raw units. Scale = Wt's per-session SD |
-| Rref_w_b | the same centre; scale = SD of the session's reference-spout rows × the pooled pre ratio (working SD / reference SD, per feature) |
+| W / Wt / N | as before: production bal_em; true-label balanced working center (the default); pooled pre, no session center |
+| **Rref_w_a** | center = mean_q μ_iq − mean_q mean_{s∈T(i)} μ_sq + c̄6. Here μ_iq is the session's working-row mean at reference spout q (equal weight over the 2 spouts; a spout needs ≥ 5 rows) and c̄6 is the pooled pre six-spout balanced center, all in raw units. Scale = Wt's per-session SD |
+| Rref_w_b | the same center; scale = SD of the session's reference-spout rows × the pooled pre ratio (working SD / reference SD, per feature) |
 | Rref_c_a / _c_b | the same with contact rows only at the reference spouts |
 | **Iref_Wt / Iref_N** | frame Wt or N. S = the frozen model's decision scores. GroupKFold over position blocks (n = min(5, #blocks); DAQ-lick rows use pool BE, no-lick rows use runs of position, production's `_scored_rows` rule). On the training folds, fit 6 offsets b by maximum likelihood of softmax(S + b) (ridge 1e-2, only to keep b finite); score the held-out fold by argmax(S + b) |
 | Iref_*_bal | the same, with class-balanced likelihood weights (each spout's rows weigh 1/n_spout), so b carries no session class-frequency prior |
@@ -47,8 +47,8 @@ T(i) is the scoring model's set of training sessions (August-only pre).
 day-offset proxy. A pre session is compared leave-one-out. The proxies are:
 
 - none (raw dF/F);
-- Wt (the session's six-spout balanced centre);
-- R5 (the session's rest centre);
+- Wt (the session's six-spout balanced center);
+- R5 (the session's rest center);
 - **contrast**: close_L − close_center. This needs no proxy at all.
 
 Two size measures:
@@ -56,15 +56,15 @@ Two size measures:
 - **rel** = ‖Δ‖ / RMS of the pre sessions' leave-one-out ‖Δ‖. It is about 1 at pre by construction.
 - **rmsz** = the RMS over features of Δ divided by the pre between-session SD.
 
-Δ is projected on the scoring model as b_k = −w_k·Δ/sdN (w = coef / scaler scale), centred over spouts. That gives a
+Δ is projected on the scoring model as b_k = −w_k·Δ/sdN (w = coef / scaler scale), centered over spouts. That gives a
 log-odds bias per spout, the same projection as rest_centre_1104 A2.
 
 **Check 2: how do the reference spouts themselves decode?** Recall and confusion at close_L and close_center, under each
 frame.
 
 **Check 3: how much bias does Rref pick up from the reference spouts' own change?** "refmean" is the projected bias of
-the Δ averaged over the reference spouts, which is exactly the Rref centre's own error relative to that proxy. It is
-set beside the realised recall change Rref − Wt at each spout.
+the Δ averaged over the reference spouts, which is exactly the Rref center's own error relative to that proxy. It is
+set beside the realized recall change Rref − Wt at each spout.
 
 ### Reproduction (passed before any new frame was read)
 
@@ -235,7 +235,7 @@ The per-animal columns are the cue acute values. Chronic and precue per animal: 
 | pooled post − pre | −.59 [−1.08, −.21] | +.79 [−.35, +1.92] | +.07 [−.60, +.68] | +2.35 [+1.83, +2.92] |
 
 **The size and even the sign of the reference spouts' "own" change depend on which proxy stands in for the day
-offset.** The two proxies disagree because the rest centre itself moves after the stroke (REST_CENTRE §5d). The shift
+offset.** The two proxies disagree because the rest center itself moves after the stroke (REST_CENTRE §5d). The shift
 is also not confined to far contra. Under the Wt proxy, acute biases reach +1.84 at close_ipsi (PS95) and −1.14 at
 close_contra (PS93). Per spout: `tables/C1_bias_*`.
 
@@ -248,36 +248,36 @@ close_contra (PS93). Per spout: `tables/C1_bias_*`.
 | PS94 | .968 | .539 / .598 / .932 / .693 / .860 | **close_mid .359** | .890 | .903 / .832 / .666 / .879 / .717 |
 | PS95 | .917 | .899 / .731 / .966 / .958 / .924 | close_mid .210 | .851 | .841 / .796 / .885 / .903 / .894 |
 
-- **Under the session-centred frames, close_L loses .12-.37 acutely in every animal.** Most of the errors go to
+- **Under the session-centered frames, close_L loses .12-.37 acutely in every animal.** Most of the errors go to
   close_center.
 - **Under N it is spared, but close_center falls instead.** PS92 .509, with its errors going to close_ipsi .19 and
   close_contra .17; PS94 .666.
 - So the session offset shifts the close_L / close_center boundary, and the two reference spouts trade accuracy
-  depending on the centre.
+  depending on the center.
 - **Chronic, PS93:** close_center stays low under Wt (.457, errors to close_ipsi .25 and close_contra .24). Rref raises
   it to .767.
 - Full confusions: `tables/C2_ref_confusion.csv`.
 
 ### Check 3: how much bias the reference spouts' change adds under Rref
 
-| animal | Rref − Wt centre distance, acute (pre) | projected far-contra bias, acute (Wt proxy) | realised far-contra recall Rref − Wt, acute (pre) | realised close_L recall Rref − Wt, acute |
+| animal | Rref − Wt center distance, acute (pre) | projected far-contra bias, acute (Wt proxy) | realized far-contra recall Rref − Wt, acute (pre) | realized close_L recall Rref − Wt, acute |
 |---|---|---|---|---|
 | PS92 | .21 (.10) | −.50 | −.061 (−.011) | +.030 |
 | PS93 | .28 (.13) | −.46 | −.009 (−.015) | +.012 |
 | PS94 | .31 (.12) | −.35 | −.066 (−.009) | +.095 |
 | PS95 | .26 (.13) | −1.33 | −.098 (−.016) | +.227 |
 
-The centre distance is in pooled-pre working SD units.
+The center distance is in pooled-pre working SD units.
 
-- **Every post-stroke centre distance is 2-3x the pre value.** The Rref centre departs from Wt by exactly the reference
+- **Every post-stroke center distance is 2-3x the pre value.** The Rref center departs from Wt by exactly the reference
   spouts' change relative to the other four spouts.
 - **Rref moves the spout scores as one pattern.** It raises recall at the anchor spouts (close_L +.01 to +.23) and
   lowers far contra (−.01 to −.10) in all four animals.
-- **What remains unknown is which centre is unbiased.** Against the rest proxy the same Rref error would push far contra
+- **What remains unknown is which center is unbiased.** Against the rest proxy the same Rref error would push far contra
   UP (+.79 pooled).
 - **Precue behaves the same way:** far contra −.04 to −.15 and close_L / close_center −.01 to +.14 (`tables/C3_*`).
 
-### The fitted offsets (Iref, full session, class-centred log-odds; cue acute)
+### The fitted offsets (Iref, full session, class-centered log-odds; cue acute)
 
 | animal | Iref_Wt far contra | Iref_Wt close_ipsi | Iref_N far contra | Iref_N_bal far contra | Iref_N close_ipsi |
 |---|---|---|---|---|---|
@@ -313,15 +313,15 @@ Pre values are within ±.2 everywhere.
 reference.**
 
 - **The reference spouts change after the stroke.** The proxy-free close_L − close_center contrast moves 1.5-2.4x
-  beyond pre day-to-day variation in 3/4 animals, acutely and chronically. Against a six-spout centre, close_L changes
+  beyond pre day-to-day variation in 3/4 animals, acutely and chronically. Against a six-spout center, close_L changes
   most (1.6-3.7x).
 - **Their decoding changes too:** close_L loses .12-.37 acutely under Wt, mostly into close_center.
 - **Under Rref this change is transferred to every spout.** Relative to Wt it projects to −.35 to −1.33 log-odds at far
-  contra acutely, realised as −.01 to −.10 recall.
+  contra acutely, realized as −.01 to −.10 recall.
 - **The sign flips under the rest proxy.** So "how much Rref is biased" depends on which post-stroke quantity is taken
   to be unchanged. That is the same circularity Priya raised: Rref swaps the six-spout assumption for a two-spout one,
   and the two-spout one is measurably violated.
-- Rref is therefore a different centre, not a stroke-free one.
+- Rref is therefore a different center, not a stroke-free one.
 
 **What does Iref (frozen weights, offsets free) say the far-contra deficit is?**
 
@@ -361,10 +361,10 @@ Nothing here is a production recommendation; Priya decides.
 - **Intercepts absorb offsets, not scale.** Iref_Wt and Iref_N differ only in the per-session scale (session SD vs
   pooled pre SD), and they give .236 vs .304. Scale stays a choice.
 - **There is no independent day-offset reference.** Every proxy in check 1 is itself post-stroke data (the six-spout
-  centre, rest), except the close_L − close_center contrast. The contrast shows that the reference spouts change
+  center, rest), except the close_L − close_center contrast. The contrast shows that the reference spouts change
   RELATIVE to each other, but it cannot say how either changes against a true baseline.
 - **The projection in check 1 / 3 is linear and in pooled-pre SD units.** It sets the direction and rough size of a
-  score bias. The realised recall change is the measured effect.
+  score bias. The realized recall change is the measured effect.
 - **S1roi is the ROI-pool refit** on the same rows and folds. The s1 table is the joint-LocaNMF refit and has only
   overall accuracy, so the per-spout upper bound comes from S1roi alone.
 - **Reference spouts have ample rows** (≥ 49 per spout per session). The contact and working variants coincide because

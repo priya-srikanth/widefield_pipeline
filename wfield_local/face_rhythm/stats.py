@@ -93,8 +93,8 @@ def tick_label(epoch: str, row: dict | pd.Series | None, fmt: str = "+.2f", inte
 # ---- permutation tests over the face mesh (Priya 11-07: cluster mass as the main map test, max-statistic for points) ----
 
 def mesh_adjacency(home: np.ndarray, factor: float = 1.6) -> list[np.ndarray]:
-    """Neighbours of each mesh point: points within ``factor`` x the median nearest-neighbour distance (the mesh is a
-    near-regular grid, so this is the 8-neighbourhood)."""
+    """Neighbors of each mesh point: points within ``factor`` x the median nearest-neighbor distance (the mesh is a
+    near-regular grid, so this is the 8-neighborhood)."""
     from scipy.spatial import cKDTree
     home = np.asarray(home, float)
     tree = cKDTree(home)
@@ -135,7 +135,7 @@ def map_permutation(obs: np.ndarray, null: np.ndarray, adj: list[np.ndarray], th
     """Family-wise tests of one change map against its permutation null. ``obs`` (P,), ``null`` (n, P) = the same
     statistic under label shuffles. Each point is studentised by its null SD (t); then
       max-statistic  point p = share of permutations whose max |t| over the face >= the point's |t|
-      cluster mass   clusters of |t| > ``thr`` (sign-separate, mesh neighbours); cluster p = share of permutations whose
+      cluster mass   clusters of |t| > ``thr`` (sign-separate, mesh neighbors); cluster p = share of permutations whose
                      largest cluster mass >= the cluster's (+1 / +1 throughout).
     -> t, p_point (FWE), cluster label per point, cluster masses, p per cluster, sig_cluster (P,) bool, sig_point."""
     obs, null = np.asarray(obs, float), np.asarray(null, float)
@@ -187,5 +187,5 @@ def drift_split(X_pre_in_date_order: np.ndarray) -> tuple[np.ndarray, int]:
 
 
 def chain_adjacency(n: int) -> list[np.ndarray]:
-    """Neighbours along a 1-D axis (frequency bins) for `map_permutation`."""
+    """Neighbors along a 1-D axis (frequency bins) for `map_permutation`."""
     return [np.array([j for j in (i - 1, i + 1) if 0 <= j < n], int) for i in range(n)]

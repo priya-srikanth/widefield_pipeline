@@ -11,7 +11,7 @@ entries. Scratchpad (launchers, logs, 3-D tables): `C:\Users\SABATI~1\AppData\Lo
 
 - Curated sessions only (`analysis_kit.curated_labels()`); August-only pre baseline primary. Lead with drop dR2;
   per-animal tables first (rule 8); do not dismiss bilateral changes; canonical spout order (`orofacial_cohort.POS_ORDER`).
-- Mixed models primary, epochs descriptive. No circular behavioural index (lateral error descriptive only).
+- Mixed models primary, epochs descriptive. No circular behavioral index (lateral error descriptive only).
 - Brain maps ipsi = image LEFT; cam1 face video ipsi = image RIGHT.
 - Priya runs O2 / transfer node / process-stopping commands: give `Get-CimInstance ... | Select ProcessId, CommandLine`
   + `taskkill /PID <pid> /T /F`. **Kill the TOP shell of a queue** (walk ParentProcessId up to the bash under
@@ -24,7 +24,7 @@ entries. Scratchpad (launchers, logs, 3-D tables): `C:\Users\SABATI~1\AppData\Lo
 
 ## 1. Done today (details ENCODING_FINDINGS + DECISIONS 2026-10-21)
 
-- **Behavioural index:** `scripts/trial_attempts.py` (hit / incomplete / jaw_only / no_try / unknown; jaw from
+- **Behavioral index:** `scripts/trial_attempts.py` (hit / incomplete / jaw_only / no_try / unknown; jaw from
   `qc/jaw_onsets.csv` cam4 OR cam1, re-onset rule for jaw deflected at the cue); deficit = **time to first far-contra
   contact** on attempted trials (`mixed_models.DEFICITS["ttc"]`, `--deficit` in encoding_mixed / imaging_lmm /
   within_spout_mixed). Deficit is execution, not initiation (acute attempt .81-.93, completion .01-.11).
@@ -49,12 +49,12 @@ entries. Scratchpad (launchers, logs, 3-D tables): `C:\Users\SABATI~1\AppData\Lo
 Root `E` = `M:\MICROSCOPE\Priya\Widefield\LP_analysis\lp_r4_heatmap_20261013__clean_v36\imaging_encoding\`. Numbers use
 the CURRENT attempt definition (attempted = hit + incomplete; jaw_only = reaction).
 
-1. **Behavioural deficit = execution in all four + initiation in PS94 / PS95.** Acute far contra: completion .03-.15;
+1. **Behavioral deficit = execution in all four + initiation in PS94 / PS95.** Acute far contra: completion .03-.15;
    attempt rate .79 / .80 / .64 / .32 (PS92-PS95). Time to contact pre 344-619 ms -> acute 3114-3419 -> chronic
    239-631; back by subacute in PS94 / PS95, by chronic in PS92 / PS93.
    [attempt_classes_far.png](M:/MICROSCOPE/Priya/Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/figures/behaviour/attempt_classes_far.png),
    [lick_deficits.png](M:/MICROSCOPE/Priya/Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/figures/behaviour/lick_deficits.png)
-2. **Spout coding tracks behavioural recovery and overshoots pre; the rise is TARGET.** Cortex deficit slopes: 3-D unique
+2. **Spout coding tracks behavioral recovery and overshoots pre; the rise is TARGET.** Cortex deficit slopes: 3-D unique
    target z -6.8, cam4 -6.7 (cue) / -5.1 (first lick), position -2.7; strict executed null (-1.3).
    [encoding_mixed_behaviour_cortex.png](M:/MICROSCOPE/Priya/Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/figures/mixed_models/encoding_mixed_behaviour_cortex.png),
    [encoding_mixed_time_cortex.png](M:/MICROSCOPE/Priya/Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/figures/mixed_models/encoding_mixed_time_cortex.png),
@@ -107,31 +107,31 @@ Scripts for 7-8 and the four new summary figures: `scripts/contact_dev_check.py`
     PS95's chronic weakening was attenuation. [spout_mid_maps_per_animal_z.png](M:/MICROSCOPE/Priya/Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/figures/within_spout/within_spout_deviation_lick_contact/spout_mid_maps_per_animal_z.png)
     (NB the figure still labels values "toward midline": flip the sign at ipsi spouts to read direction.)
 12. **Map statistics review** (Priya asked about the 15r POSITION ACTIVITY maps, ENL / cue / lick): pooled pictures are
-    pre-normalised per animal since 09-12 but the significance contours are computed on RAW maps; 14z picture raw;
+    pre-normalized per animal since 09-12 but the significance contours are computed on RAW maps; 14z picture raw;
     within-spout vs-zero "cluster" call silently fails. Calibration on figure-14 beta maps: pure nulls flag NOTHING (both
-    tests) -> no small-n correction; June vs August (drift) flags up to 14 % (nested) / 53 % (cluster, normalised) at
-    contra positions; normalising removes acute far_center (23 % -> 0.1 %). 15r position-map calibration RUNNING.
+    tests) -> no small-n correction; June vs August (drift) flags up to 14 % (nested) / 53 % (cluster, normalized) at
+    contra positions; normalizing removes acute far_center (23 % -> 0.1 %). 15r position-map calibration RUNNING.
 
-## 1d. EVENING (10-21 15:30-18:00) -- normalised map tests MERGED, LP_licks family BUILT (branch), ENL census
+## 1d. EVENING (10-21 15:30-18:00) -- normalized map tests MERGED, LP_licks family BUILT (branch), ENL census
 
 13. **Map-test calibration, all three 15r windows** (precue/ENL, cue, lick x references raw / rest / restw / precue /
     mean; CSVs `labcams/grant_figures/epoch/results/map_test_calibration_position_<ref>_<align>_<variant>.csv`):
     - NESTED (primary) flags NOTHING on any pure null (August split, all-pre split), any window / reference, raw or
-      normalised -> no small-sample correction.
+      normalized -> no small-sample correction.
     - CLUSTER (second line) occasionally fires on a null at ONE position and then covers 14-58 % of the brain (rest /
       restw close_center precue, far_R cue / lick). 24 random within-animal splits (rest close_center): fired on 2
       (8 %, consistent with 5 %), nested 0. **Read cluster contours as yes / no, never by area.**
     - June vs August drift up to ~21 % at a few positions -> supports the August-only baseline.
-    - Acute far contra (cue): 58-93 % under every reference, both tests, raw and normalised. Lick window cannot test
+    - Acute far contra (cue): 58-93 % under every reference, both tests, raw and normalized. Lick window cannot test
       far contra (0 acute sessions reach 20 contact-lick trials) -> LP_licks below.
-    - Normalising removes precue-referenced near-spout changes (18-28 % -> 0-9 %) and far_center (5-9 % -> 0-6 %):
+    - Normalizing removes precue-referenced near-spout changes (18-28 % -> 0-9 %) and far_center (5-9 % -> 0-6 %):
       carried by the brighter animals.
-14. **Normalised map tests MERGED to main** (`dc10705`, `babe04f`; DECISIONS 10-21 late afternoon). `beta_maps.pre_scale`
+14. **Normalized map tests MERGED to main** (`dc10705`, `babe04f`; DECISIONS 10-21 late afternoon). `beta_maps.pre_scale`
     = THE per-animal x position constant (shared with the pooled picture); nested / Musall on pre-scaled maps; cluster
-    recomputes the constant inside every relabelling draw; `vs_zero_contour(scale_by=)`; labels "[pre-normalised]". 14z
-    picture normalised; within-spout vs-zero uses nested (the "cluster" call used to raise); z pixel maps
+    recomputes the constant inside every relabelling draw; `vs_zero_contour(scale_by=)`; labels "[pre-normalized]". 14z
+    picture normalized; within-spout vs-zero uses nested (the "cluster" call used to raise); z pixel maps
     (`mixed_time_maps_*_z.png`); `spout_dir_maps_per_animal*.png` = per-position DIRECTION (+ = mouse's left), old
-    toward-midline PNGs kept. `scripts/compare_map_tests.py` = raw vs normalised sig-bin table per figure cell.
+    toward-midline PNGs kept. `scripts/compare_map_tests.py` = raw vs normalized sig-bin table per figure cell.
     [spout_dir_maps_per_animal_z.png](M:/MICROSCOPE/Priya/Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/figures/within_spout/within_spout_deviation_lick_contact/spout_dir_maps_per_animal_z.png)
 15. **LP_licks family (Priya: "a separate family - LP_licks"; lick-aligned AND lick-gated analyses) -- BUILT on branch
     `lick/lp-source` (worktree `S/wf_lp`, commits `09f163f`, `a6ac0fe`), NOT merged, full suite not yet run.**
@@ -158,12 +158,12 @@ Scripts for 7-8 and the four new summary figures: `scripts/contact_dev_check.py`
 
 | what | task / log | then |
 |---|---|---|
-| Rerender after the normalised tests (main) | DONE 21:09 (all steps exit 0); comparison `labcams/grant_figures/epoch/results/map_tests_raw_vs_normalised.csv` (353 cells, 30 moved >= 5 pts: mostly acute near-spout precue-ref cells; rest ref small; far contra unchanged) | ENCODING_FINDINGS already carries the caveat |
+| Rerender after the normalized tests (main) | DONE 21:09 (all steps exit 0); comparison `labcams/grant_figures/epoch/results/map_tests_raw_vs_normalised.csv` (353 cells, 30 moved >= 5 pts: mostly acute near-spout precue-ref cells; rest ref small; far contra unchanged) | ENCODING_FINDINGS already carries the caveat |
 | ENL LP census | DONE: `E/qc/enl_lp_census{,_summary}.csv` | window chosen: 1.0 s (DECISIONS late evening) |
 | jaw_onsets watcher (`S/watch_jaw.sh`) | EXPIRED 18:13, no rewrite seen | restart only if the pose window still plans the rewrite |
 | **LP_licks map render** 15r + 14m, `--parallel-arms 3`, from main | DONE 22:45 (81 min, rc 0) but 4 June pre sessions dropped by the cache race in some arms -> superseded by the fixed rerender | - |
 | LP rerender with the race fix (worktree `S/wf_render`, `fix/cache-race`) | DONE 22:58 (12 min warm, rc 0, 0 PermissionError; only PS93_0813 LPUnavailable = no video); output `labcams/grant_figures/LP_licks/epoch/` = full session set | fix merged to main (cherry-pick 882db3f) |
-| **LP null calibration** (15r position maps, lick / cue / ENL 1.0 s) | DONE 23:23: 13 CSVs in `labcams/grant_figures/LP_licks/epoch/results/` + `calibration_LP_vs_DAQ_summary.csv` (precue-ref x ENL arm has no maps -> KeyError on the empty table, expected) | Pure nulls (N1/N2, 312 tests): nested flags >=1 bin in 5 (1.6%; four are 1-7 of 2022 bins, worst rest/ENL far_L 28 bins pre-normalised); cluster 4 (max 27% area, DAQ max 58%). Drift N3 at far_R <= 1.4% (rest/restw lick). REAL acute far_R lick window, now drawable (4 an, 15 acute sess): rest 19.0% / restw 16.6% / precue 17.3% / raw 26.1% of bins (pre-normalised nested), vs 0 sessions under DAQ. Cue window far_R LP ~= DAQ (58-93%). ENL far_R LP 6.1% (1.0 s) vs DAQ 16.8% (2 s window) -- NOT comparable until the DAQ_ENL1s arm. |
+| **LP null calibration** (15r position maps, lick / cue / ENL 1.0 s) | DONE 23:23: 13 CSVs in `labcams/grant_figures/LP_licks/epoch/results/` + `calibration_LP_vs_DAQ_summary.csv` (precue-ref x ENL arm has no maps -> KeyError on the empty table, expected) | Pure nulls (N1/N2, 312 tests): nested flags >=1 bin in 5 (1.6%; four are 1-7 of 2022 bins, worst rest/ENL far_L 28 bins pre-normalized); cluster 4 (max 27% area, DAQ max 58%). Drift N3 at far_R <= 1.4% (rest/restw lick). REAL acute far_R lick window, now drawable (4 an, 15 acute sess): rest 19.0% / restw 16.6% / precue 17.3% / raw 26.1% of bins (pre-normalized nested), vs 0 sessions under DAQ. Cue window far_R LP ~= DAQ (58-93%). ENL far_R LP 6.1% (1.0 s) vs DAQ 16.8% (2 s window) -- NOT comparable until the DAQ_ENL1s arm. |
 | **LP items 1-3 (Priya 10-21 night: provisional)** from worktree `S/wf_render` (detached at main), `S/run_lp_items.sh` + `S/run_lp_encoder.sh` | (3) DAQ_ENL1s arm DONE 00:59 (`grant_figures/DAQ_ENL1s/epoch/`, acc 5c 5cr 15r 14m, ENL + ENLlick; 1.0 s precue decoders frozen); (2) LP decoders acc / 5c / 5cr all arms DONE 01:10 (`LP_licks/epoch/`); (1) LP-gated encoder DONE 04:56, 119 sessions (92 combined licks 23:36-03:50; the 27 without cam1 -- PS95 all, PS94_1005 -- rerun with cam4 licks into the same folder, `S/run_lp_encoder_cam4.sh`; json `lick_set` says which) (`OROFACIAL_GATE=attempted COMBINED_ENCODING_LICKS=combined COMBINED_ENCODING_ONLY=drop: COMBINED_ENCODING_SUFFIX=_gate-attempted`, jobs 6, ~3.6 min / session, ETA ~07:00; log buffered until exit -- count `<E>/movement_first_subset-drop_licks-combined_gate-attempted/sessions/*.json`) | results in ENCODING_FINDINGS 3.3 (decoders: contact overstated acute far-spout lick decoding, 0.50 -> 0.32; ENL lick definition irrelevant to decoding at 1 s, ENL far-contra map change shrinks 9.9 -> 4.4 %). Encoder: trial sets barely differ from the reference gate (PS92 330 -> 308 acute); decomposition DONE (`scripts/lp_encoder_decompose.py` -> `E/qc/lp_encoder_decompose{,_by_animal}.csv`): acute far-contra drop = movement terms, 4/4 (ENCODING_FINDINGS 3.3) |
 
 ## 2c. NEXT for LP_licks, in order
@@ -196,16 +196,16 @@ and chronic change < 2 %. PS93 pre far_L +39 % (its non-contact attempts). Agree
    events are post-cue only anyway). The LP cache tag includes the cam1 folder (`306ba22`), so new cam1 files force a
    full LP recompute; rerun `scripts/trial_attempts.py` first (the gate reads it), then the LP renders.
 
-## 2b. Normalised map tests (Priya 10-21 ~15:30: "sounds good proceed") -- DONE 1-4 and 7 (merged), 5 RUNNING, 6 open
+## 2b. Normalized map tests (Priya 10-21 ~15:30: "sounds good proceed") -- DONE 1-4 and 7 (merged), 5 RUNNING, 6 open
 
 1. `wfield_local/beta_maps.py`: add `NORMALISE_TESTS_BY_PRE = True` with the justification (DECISIONS 10-21 afternoon,
    map statistics entry); `pre_scale(pre_by_animal, mask)` (THE per-animal constant, brain_mask RMS of the mean pre
    map, 1.0 if degenerate) and use it inside `within_animal_pooled`; `scale_maps`; `significance_contour(normalise=None)`
    -> nested / musall on maps divided by `pre_scale(pre)`, CLUSTER via a new `cluster_permutation(normalise=True)` that
    recomputes each animal's constant inside `_stat(assign)` from that draw's pseudo-pre sessions; labels prefixed
-   "[pre-normalised]"; `vs_zero_contour(scale_by=pre_by)`. A draft (fixed-constant cluster, to be revised) is in
+   "[pre-normalized]"; `vs_zero_contour(scale_by=pre_by)`. A draft (fixed-constant cluster, to be revised) is in
    `S/patch_normtest.py`. Tests for `pre_scale` / scale invariance. Editing beta_maps invalidates the input cache.
-2. `wfield_local/epoch_maps.py` `_fig_14z_beta_vs_zero`: normalise the PICTURE (each animal / its pre constant) and pass
+2. `wfield_local/epoch_maps.py` `_fig_14z_beta_vs_zero`: normalize the PICTURE (each animal / its pre constant) and pass
    `scale_by` (pre maps of the same position).
 3. `scripts/within_spout_deviation.py` ~line 642: vs-zero with method "cluster" -> use "nested" (label it) + `scale_by`.
 4. `scripts/within_spout_mixed.py` `pixel_maps`: z versions (each animal's maps x its pre lat_sd / resp_sd, cortex,
@@ -234,7 +234,7 @@ and chronic change < 2 %. PS93 pre far_L +39 % (its non-contact attempts). Agree
 3. DONE 14:03: template ceiling (NEITHER share persists chronically; DECISIONS 10-21 afternoon).
 4. Rerun after the pose window's jaw_onsets rewrite (watcher does it); then consider the new columns (jaw direction
    open vs up, pre-cue contrast, treadmill speed) for the reaction vs attempt split and the walking confound.
-5. Behaviour follow-up: miss-then-correct (corrective recovery, PS94 chronic) as its own readout / class.
+5. Behavior follow-up: miss-then-correct (corrective recovery, PS94 chronic) as its own readout / class.
 6. Shorten the LMM x-axis label (overlaps panels).
 7. Destination test for PS94 / PS95 when their 3-D exists.
 8. Whole-session-lick refits need an O2 re-bundle (Priya submits).
@@ -242,7 +242,7 @@ and chronic change < 2 %. PS93 pre far_L +39 % (its non-contact attempts). Agree
    `qc/within_spout_deviation*/figures/`.
 10. PARKED (Priya 10-21 evening: "not right now"): per-animal sidecar for contoured map cells (each animal's change /
    its pre map, agreement with the other three, single-session flag) + a sensitivity dropping animals with < 2 sessions
-   in an epoch. Why: the big raw-vs-normalised swings (cue: precue-ref Near Ipsi / Near Contra acute 23-24 % -> 1-5 %)
+   in an epoch. Why: the big raw-vs-normalized swings (cue: precue-ref Near Ipsi / Near Contra acute 23-24 % -> 1-5 %)
    are cells where PS92 goes the other way and PS95's acute epoch is ONE session (34-43 % of the raw pooled change);
    all map statistics are ANIMAL-weighted, so that session counts as a full animal and its uncertainty never enters.
 11. Carried over (10-20 evening §4): first-lick latency cam4 vs cam4 + cam1 vs DAQ; LocaNMF cross-check of within-spout
@@ -252,7 +252,7 @@ and chronic change < 2 %. PS93 pre far_L +39 % (its non-contact attempts). Agree
 
 - `jaw_pass_qc` in v36 = "jaw moved", not a tracking-QC flag. cam1 jaw needs `jaw_onsets.csv` (old cam1 windows were on
   the frame-index clock). True/False strings vs 1/0 read as 0 % agreement.
-- Colons in figure filenames create NTFS alternate data streams (`imaging_lmm.py` now sanitises).
+- Colons in figure filenames create NTFS alternate data streams (`imaging_lmm.py` now sanitizes).
 - `combined_encoding_figures.py` on `drop_win` folders exits cleanly (no `alone:` models).
 - The pooled within-spout slope weights spouts by their lateral spread (PS94_0806: pooled +0.00027 vs equal-weight
   -0.00024) -- read `equal` / per-spout rows.

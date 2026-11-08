@@ -1,11 +1,11 @@
-"""Is the post-stroke shift in the HEMISPHERIC BALANCE of the lick response an IMAGING artefact?  (Priya 10-28)
+"""Is the post-stroke shift in the HEMISPHERIC BALANCE of the lick response an IMAGING artifact?  (Priya 10-28)
 
 The claim (scripts/lick_lateral_ratio.py, lateral_ratio_sessions.csv): log2(contra AUC / ipsi AUC) of the lick-evoked dF/F,
 X_right (contralesional) vs X_left (ipsilesional), rises post-stroke (e.g. cued licks to contra-side targets, tjM1 +0.20).
 Alternative: a ONE-SIDED imaging change on the lesioned side --
   (a) baseline fluorescence F0 (dF/F = dF / F0, so an F0 fall on one side inflates that side's dF/F by the same factor:
-      the artefact predicts  delta logr = - delta log2(F0_R / F0_L));
-  (b) haemodynamics: the 415 nm (isosbestic) channel's own lick-evoked response, contra vs ipsi, on the SAME licks;
+      the artifact predicts  delta logr = - delta log2(F0_R / F0_L));
+  (b) hemodynamics: the 415 nm (isosbestic) channel's own lick-evoked response, contra vs ipsi, on the SAME licks;
   (c) vessel / edge contamination: the balance recomputed on ROI pixels that are in the stat (interior) mask and NOT in
       the top 5 % vesselness (iti_hemo_check's definition) -- "clean" pixels.
 
@@ -373,7 +373,7 @@ def figure(D: pd.DataFrame, C: pd.DataFrame) -> None:
         if x.startswith("f0"):
             lim = np.nanmax(np.abs(g[f"d_{x}"])) * 1.1
             xx = np.linspace(-lim, lim, 3)
-            ax.plot(xx, -xx, color="k", ls=":", lw=1, label="pure F0 artefact" if c == 0 else None)
+            ax.plot(xx, -xx, color="k", ls=":", lw=1, label="pure F0 artifact" if c == 0 else None)
         ax.axhline(0, color="0.7", lw=0.6)
         ax.axvline(0, color="0.7", lw=0.6)
         ax.set_xlabel(xl)
@@ -381,7 +381,7 @@ def figure(D: pd.DataFrame, C: pd.DataFrame) -> None:
         if c == 0:
             ax.set_ylabel("d neural balance log2(c/i)")
     axs[2, 0].legend(fontsize=7, frameon=False)
-    fig.suptitle(f"Is the post-stroke hemispheric balance shift an imaging artefact? ({st} first licks, {sp} targets, "
+    fig.suptitle(f"Is the post-stroke hemispheric balance shift an imaging artifact? ({st} first licks, {sp} targets, "
                  f"AUC 0..1.0 s, baseline -1.0..-0.5 s; right = contralesional)\nF0 = mean raw fluorescence per ROI; 415 = "
                  "isosbestic lick response on the same licks; clean = interior non-vessel pixels; boot_delta animals>sessions",
                  fontsize=11)

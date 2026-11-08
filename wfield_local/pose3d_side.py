@@ -25,7 +25,7 @@ HOW.
     paired with the side frames on (trial_id, t_ms) -- the side review clips are cut on each camera's own template on
     the same 4 ms grid from the cue.
   * OFFSET per side camera x part: the side keypoint minus the projection of the cam1 + cam4 3-D point, in px (median
-    dx, dy: a SYSTEMATIC shift is a labelling offset; the spread is noise), and in mm as the perpendicular vector from
+    dx, dy: a SYSTEMATIC shift is a labeling offset; the spread is noise), and in mm as the perpendicular vector from
     that 3-D point to the side camera's ray (world ml / ap / dv; the component along the ray is invisible to one camera).
   * SIDE STEREO: cam2 + cam3 triangulated alone, against cam1 + cam4: the full 3-D offset vector per part.
 
@@ -132,7 +132,7 @@ def confident_xy(flat: pd.DataFrame, part: str, cut: float | None = None) -> np.
 
 def pose_all(cg, meds: dict, geometry: dict, side_edge_dv: float = 0.0):
     """Every camera in ``meds`` posed per session from the spouts (`pose3d.pnp_group`). ``side_edge_dv``: where the
-    side spout keypoint sits below the commanded (upper-tip) point, mm (0 = at it; -rod radius = the rod's centre line)."""
+    side spout keypoint sits below the commanded (upper-tip) point, mm (0 = at it; -rod radius = the rod's center line)."""
     from wfield_local import pose3d as P3
     g = cg.subset_cameras_names(list(meds))
     off = {**P3.EDGE_OFFSET_MM, **{c: (0.0, 0.0, side_edge_dv) for c in SIDE}}
@@ -499,7 +499,7 @@ def droplet_mask(tongue_pts: np.ndarray, order: list[str], trial: np.ndarray, sc
 
 def fill_n(g, X: np.ndarray, pts: np.ndarray, used: np.ndarray, trial: np.ndarray, t: np.ndarray, max_gap_ms: float,
            max_ray_miss_mm: float = 3.0) -> tuple[np.ndarray, np.ndarray]:
-    """Frames with ONE used view: that camera's ray at the depth of the neighbouring multi-view frames (Akima through
+    """Frames with ONE used view: that camera's ray at the depth of the neighboring multi-view frames (Akima through
     them inside two-sided gaps, nearest within ``max_gap_ms`` one-sided), as `pose3d.fill_single_view`. Returns
     (X, views: number of views behind each point, -1 for a one-view fill, 0 none)."""
     from scipy.interpolate import Akima1DInterpolator

@@ -6,13 +6,13 @@ WHY THIS EXISTS. The repo verifies a refactor by rendering before and after and 
 output. That works for PNG -- 90 of 90 byte-identical across the 2026-09-21 `grant_kit`
 extraction. It does NOT work for SVG: every file differs on every run, so a plain byte comparison
 reports 90 differences whatever you did, which is the same as reporting nothing. Measured that
-day: 89 of 89 SVGs "differed", and every one of them was identical once normalised.
+day: 89 of 89 SVGs "differed", and every one of them was identical once normalized.
 
 MATPLOTLIB SVG IS NOT BYTE-REPRODUCIBLE, so SVG byte-comparison is not a verification method --
 it always reports a difference and therefore reports nothing. Two things vary per render:
   <dc:date>...</dc:date>     the render timestamp
   id="pXXXXXXXXX" / url(#p..) / id="imageXXXXXXXX"   random element ids
-Normalise both away and what is left is the drawing.
+Normalize both away and what is left is the drawing.
 """
 import re
 import sys
@@ -37,7 +37,7 @@ for f in sorted(after.glob("*.svg")):
         same += 1
     else:
         diff += 1; bad.append(f.name)
-print(f"SVG normalised: identical={same}  differing={diff}  not-in-baseline={miss}")
+print(f"SVG normalized: identical={same}  differing={diff}  not-in-baseline={miss}")
 for n in bad[:8]:
     print("  DIFFERS:", n)
 # REFUSE A PASS ON NOTHING. Pointed at a directory that does not exist -- a typo, an unset shell

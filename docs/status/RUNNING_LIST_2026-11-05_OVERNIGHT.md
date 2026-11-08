@@ -43,7 +43,7 @@ until Priya answers the matching question.
 - **Fail-loud DAQ contacts (item 5): no current output took the silent-zero path.** All 133 v36 sessions: DAQ .h5
   present, n_daq_contacts never all-zero / NaN / missing, 2,006-10,805 DAQ licks each; rebuild trial_attempts (107
   sessions, 57,048 rows) has no session without contact trials. Lowest contact shares vs the animal-epoch median
-  (all with DAQ, so behavioural): PS94_0819 acute .29 (median .47), PS95_0820 subacute .47 (.61), PS93_0822
+  (all with DAQ, so behavioral): PS94_0819 acute .29 (median .47), PS95_0820 subacute .47 (.61), PS93_0822
   subacute .54 (.85), PS95_0910 chronic .60 (.88), PS94_0806 pre .67 (.91). No cache bump needed.
 - **Baseline sweep, all of it: no session moves.** ~180 sites (126 files). Every "0801" / month / LATE_PRE_FROM
   site on an uncurated input was checked on disk: no 0801-0805 entries in any input (0805 exists only in the pose3d
@@ -52,7 +52,7 @@ until Priya answers the matching question.
 - **Deck notes carried the OLD engaged-trial numbers (fixed 11-05 night).** After the working-period swap, the
   bullets of slides 37-43 had the new numbers but the speaker notes of 37 / 39 / 40 still quoted the 11-03
   engaged-trial tables (far contra contact .95 / .05 / .74 / .98, incomplete +.57 [.40, .72], per animal .74 / .64 /
-  .60 / .32, "1 unknown of 50,929 trials", dots "colour = animal"), and the method lines on 37 / 39-43 said "all
+  .60 / .32, "1 unknown of 50,929 trials", dots "color = animal"), and the method lines on 37 / 39-43 said "all
   ENGAGED trials". Regenerated from e0's working-period tables (notes_working_period_1105.py,
   notes_numbers_working_1105.py, notes_s38_working_1105.py; backups beside them). New: contact .96 / .05 / .74 /
   .96; acute incomplete +.60 [.42, .75] **; per animal incomplete .80 / .71 / .63 / .36, jaw-only .09 / .10 / .21 /

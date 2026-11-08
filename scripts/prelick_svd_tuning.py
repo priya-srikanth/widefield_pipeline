@@ -19,7 +19,7 @@ Usage (bash env per the repo; outputs only under <v36>/imaging_encoding/prelick_
   python scripts/prelick_svd_tuning.py extract [--jobs 4] [--only PS92] [--labels a,b]   per-session pixel features
   python scripts/prelick_svd_tuning.py fit [--only PS92]          pooled-pre LOSO + permutations + frozen + post scores
   python scripts/prelick_svd_tuning.py refit [--jobs 4]           per-session within-session CV refit r
-  python scripts/prelick_svd_tuning.py summarise                  gate, per-animal table, boot_delta, Holm, figdata
+  python scripts/prelick_svd_tuning.py summarize                  gate, per-animal table, boot_delta, Holm, figdata
   python scripts/prelick_svd_tuning.py plot  (or --plot-only)     figures from figdata only
 """
 from __future__ import annotations
@@ -191,7 +191,7 @@ def cmd_extract(jobs: int) -> None:
 
 # ================================================================================================ decoder primitives
 def _centre(X: np.ndarray, sess: np.ndarray, pos: np.ndarray) -> np.ndarray:
-    """Within session x spout centring on all licks of the set (label-free)."""
+    """Within session x spout centering on all licks of the set (label-free)."""
     X = np.array(X, np.float64, copy=True)
     key = pd.Series(sess).astype(str) + "|" + pd.Series(pos).astype(str)
     for _k, ix in key.groupby(key).groups.items():
@@ -230,7 +230,7 @@ def _colcorr(P: np.ndarray, Y: np.ndarray) -> np.ndarray:
 
 
 def _inner_alpha(Z, Y, groups) -> np.ndarray:
-    """Per column of Y: the alpha maximising the mean held-out r over the inner groups (sessions or folds)."""
+    """Per column of Y: the alpha maximizing the mean held-out r over the inner groups (sessions or folds)."""
     gs = np.unique(groups)
     acc = np.zeros((len(ALPHAS), Y.shape[1]))
     for g in gs:
@@ -246,7 +246,7 @@ def _std(Ztr, *Zs):
 
 
 def _fit_model(X, y, sess, K, pca=None) -> dict:
-    """PCA (K; None = no PCA) + standardise + ridge with alpha by inner leave-one-session-out. Real y only."""
+    """PCA (K; None = no PCA) + standardize + ridge with alpha by inner leave-one-session-out. Real y only."""
     if K is None:
         mu, comps = np.zeros(X.shape[1]), np.eye(X.shape[1])
     else:
@@ -671,7 +671,7 @@ def _wrap(s, n=110):
 
 
 def epoch_panel(ax, S, B, sel, hemi, row=0, holm=None):
-    """Sessions = open markers (shape = animal, colour = epoch); pooled level = filled marker in the epoch colour with
+    """Sessions = open markers (shape = animal, color = epoch); pooled level = filled marker in the epoch color with
     95 % CI; no lines between epochs; top-band * = change vs pre (CI excl 0 AND >= 3/4 animals), ** = also Holm."""
     import within_lick_correction as wlc
     from wfield_local.orofacial_cohort import ANIMAL_MARKER, EPOCH_LINE
@@ -800,7 +800,7 @@ def fig_primary(D):
     axE = fig.add_subplot(gs[0, 8:13])
     pix_vs_pool_panel(axE, N)
     axE.set_title(_wrap("E  Pixels vs the MOTOR area pool (ALM + tjM1 mean, 1 feature), same pooled-pre LOSO "
-                        "pipeline: per animal (open) and mean (bar); coloured = pixels, grey = pool", 60),
+                        "pipeline: per animal (open) and mean (bar); colored = pixels, gray = pool", 60),
                   fontsize=9, loc="left")
     sel = {"score": "frozen", "feat": f"pix{K0}"}
     axs = {}
@@ -839,7 +839,7 @@ def fig_primary(D):
                        "training sessions, ridge), August pre sessions pooled (leave-one-session-out). Cued FIRST "
                        "licks, engaged, no lick in the prior 1 s; target = within-spout launch angle residualised on "
                        "reach / peak speed / RT. Windows from tongue onset: PRE -0.30..-0.05 s, POST +0.05..+0.30 s, "
-                       "minus BASE -0.80..-0.50 s. Open = sessions (shape = animal, colour = epoch). Top-band * = "
+                       "minus BASE -0.80..-0.50 s. Open = sessions (shape = animal, color = epoch). Top-band * = "
                        "change vs pre (CI excludes 0 AND >= 3/4 animals); ** = also Holm over P1-P3 within the epoch. "
                        + ("" if gate["PRE"]["passed"] else "Gate FAILED: post-stroke panels are DESCRIPTIVE."), 200),
                  fontsize=9.5)

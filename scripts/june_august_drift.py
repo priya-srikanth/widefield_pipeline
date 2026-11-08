@@ -6,7 +6,7 @@ June and August pre-stroke sessions are ~2 months apart with no lesion in betwee
 August pre -> chronic. So each post-stroke readout that compares a session to a FROZEN pre-stroke reference
 gets a twin in which June plays "pre" and August plays "post": what that readout does from time alone.
 
-  DISTANCE  crossnobis distance of each session from a pooled reference, own-position diagonal, normalised by
+  DISTANCE  crossnobis distance of each session from a pooled reference, own-position diagonal, normalized by
             the animal's pre-stroke between-position scale (the units of `epoch_8diag` and
             `scripts/chronic_drift_vs_reorg.py`, whose helpers this reuses):
               aug_from_june   each August pre session vs the JUNE template          (drift, ~2 months)
@@ -95,7 +95,7 @@ _DRIFT_MODELS: dict = {}
 def drift_payload(an, bd, month, log=print, scaling=None):
     """{"full", "loso"} for one animal x month from the store (fitted once), or None when opted out. Under bal_em
     (``scaling``) the models are fitted on the bal_em TRAINING frame (`spout_scaling.train_frame`: each month session
-    centred on its true class means, the frame `FrozenFrame` trains in) and the spec carries the scaling; under
+    centered on its true class means, the frame `FrozenFrame` trains in) and the spec carries the scaling; under
     session_z on the production frame, as before."""
     from wfield_local import config, frozen_models, spout_scaling
     from wfield_local.locanmf_frozen_decoder import _pipe
@@ -298,19 +298,24 @@ def figure(D: pd.DataFrame, R: pd.DataFrame, out_png: Path) -> None:
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
+    # EPOCH-COLOUR CONVENTION (A13, Priya 11-07): colours are THE epoch palette (orofacial_cohort.EPOCH_LINE; the
+    # no-stroke June -> August group is pre-stroke, so the pre colour), points OPEN; the group is told apart by marker
+    # (panel = one animal, so the animal shape carries nothing here): square = Aug pre vs June, circle = post vs Aug
+    from wfield_local.orofacial_cohort import EPOCH_LINE as col
     fig, axes = plt.subplots(2, 4, figsize=(17, 7.6))
-    col = {"aug_from_june": "#1b7837", "acute": "#b2182b", "subacute": "#ef8a62", "chronic": "#2166ac"}
     for k, an in enumerate(ANIMALS):
         ax = axes[0, k]
         d = D[D.animal == an]
         a = d[d.group == "aug_from_june"]
-        ax.scatter(a.gap_days, a.distance, c=col["aug_from_june"], marker="s", label="Aug pre vs June template (no stroke)")
+        ax.scatter(a.gap_days, a.distance, facecolors="none", edgecolors=col["pre"], marker="s", lw=1.0,
+                   label="Aug pre vs June template (no stroke)")
         al = d[d.group == "aug_loso"].distance
         if len(al):
             ax.axhline(al.median(), color="0.5", ls=":", lw=1, label="Aug pre vs other Aug (floor)")
         for ep in ("acute", "subacute", "chronic"):
             p = d[(d.group == "post_from_aug") & (d.epoch == ep)]
-            ax.scatter(p.gap_days, p.distance, c=col[ep], s=18, label=f"{ep} vs Aug template")
+            ax.scatter(p.gap_days, p.distance, facecolors="none", edgecolors=col[ep], s=22, lw=1.0,
+                       label=f"{ep} vs Aug template")
         ax.set(title=an, xlabel="days between template and session", ylabel="distance (pre between-position units)" if k == 0 else "")
         if k == 0:
             ax.legend(fontsize=7, loc="upper left")
@@ -319,20 +324,26 @@ def figure(D: pd.DataFrame, R: pd.DataFrame, out_png: Path) -> None:
         groups = (("june_loso", "June\nLOSO"), ("aug_from_june", "Aug\n<- June"), ("aug_loso", "Aug\nLOSO"),
                   ("acute_from_aug", "acute\n<- Aug"), ("subacute_from_aug", "subac.\n<- Aug"),
                   ("chronic_from_aug", "chronic\n<- Aug"))
+        gep = {"june_loso": "pre", "aug_from_june": "pre", "aug_loso": "pre", "acute_from_aug": "acute",
+               "subacute_from_aug": "subacute", "chronic_from_aug": "chronic"}
         for j, (g, _lab) in enumerate(groups):
             s = q[q.group == g]
             x = np.full(len(s), j, float)
-            ax2.scatter(x - 0.12, s.frozen_matched_acc, c="#555", s=14, label="frozen (size-matched)" if j == 0 else None)
-            ax2.scatter(x + 0.12, s.refit_acc, c="#c51b7d", s=14, marker="^", label="refit within session" if j == 0 else None)
-        ax2.axvspan(-0.5, 1.5, color="#1b7837", alpha=0.07, lw=0)
+            c_ = col[gep[g]]
+            ax2.scatter(x - 0.12, s.frozen_matched_acc, facecolors="none", edgecolors=c_, s=16, lw=0.9, marker="o",
+                        label="frozen (size-matched)" if j == 0 else None)
+            ax2.scatter(x + 0.12, s.refit_acc, facecolors="none", edgecolors=c_, s=18, lw=0.9, marker="v",
+                        label="refit within session" if j == 0 else None)
+        ax2.axvspan(-0.5, 1.5, color="0.5", alpha=0.07, lw=0)
         ax2.set(xticks=range(len(groups)), xticklabels=[g[1] for g in groups],
                 ylabel="accuracy (cue, licking trials)" if k == 0 else "", ylim=(0, 1), xlim=(-0.5, len(groups) - 0.5))
         ax2.tick_params(axis="x", labelsize=7)
         ax2.axhline(1 / 6, color="0.6", ls=":", lw=1)
         if k == 0:
             ax2.legend(fontsize=7, loc="lower left")
-    fig.suptitle("No-stroke drift group (green): June pre -> August pre. Top: crossnobis distance from a template by gap. "
-                 "Bottom: frozen (size-matched) vs refit; '<- X' = decoder frozen on X", fontsize=10)
+    fig.suptitle("No-stroke drift group (grey band; pre colour): June pre -> August pre. Top: crossnobis distance from a "
+                 "template by gap. Bottom: frozen (size-matched, circles) vs refit (triangles); '<- X' = decoder frozen on X; "
+                 "colour = epoch", fontsize=10)
     fig.tight_layout()
     save_png_svg(fig, out_png, dpi=130)
 

@@ -20,7 +20,7 @@ def direction_colours(Wk: np.ndarray) -> np.ndarray:
 
 
 def position_style(pos: str) -> dict:
-    """Line style per spout position: left blue / right red / centre grey; close solid, far dashed."""
+    """Line style per spout position: left blue / right red / center gray; close solid, far dashed."""
     c = "tab:blue" if pos.endswith("_L") else "tab:red" if pos.endswith("_R") else "0.4"
     return {"color": c, "ls": "-" if pos.startswith("close") else "--"}
 
@@ -29,7 +29,7 @@ def cmd_report(sd: Path, face: Path | None = None, absolute: bool = False, match
     """Factor-set QC into ``<set>/report/``: the rank sweep (rank*.json), the leave-one-day-out tables and, once frozen,
     the factor gallery and the epoch figure. Methods for every figure: ``report/README.md`` (`face_rhythm_figures`).
     Session readouts (epochs, EVR gap, morphing, movement maps) are `scripts/face_rhythm_readouts.py`. ``absolute``:
-    time courses as absolute expression (weights x FR normaliser D) -> *_abs.png."""
+    time courses as absolute expression (weights x FR normalizer D) -> *_abs.png."""
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
@@ -148,9 +148,9 @@ animals {', '.join(sorted(pl['fit']))}. Rank sweep fits may skip the animal-out 
     units_md = ("Y UNITS: arbitrary. The weight is the factor's amplitude in a bin (its spatial and spectral columns have "
                 "unit norm) on the spectrogram -- VQT magnitude of point displacement x f^0.5 -- divided by the animal's "
                 "ONE scale (RMS of its pre-stroke fit rows); " + (
-                    "x D (the bin's FR normaliser, recovered from the saved spectrogram) undoes FR's per-frame "
-                    "normalisation, so this is how MUCH the factor is expressed. " if absolute else
-                    "without D it is the factor's SHARE of the frame's movement (FR normalises every frame). ") +
+                    "x D (the bin's FR normalizer, recovered from the saved spectrogram) undoes FR's per-frame "
+                    "normalization, so this is how MUCH the factor is expressed. " if absolute else
+                    "without D it is the factor's SHARE of the frame's movement (FR normalizes every frame). ") +
                 "Comparable within an animal across sessions; between factors compare shape, not height.")
     img = plt.imread(face) if face and Path(face).exists() else None
     with frf.style():
@@ -190,7 +190,7 @@ One row per factor of the frozen set (`master.npz`, spec {M['spec_hash']}).
   vertical; Rich's convention, as the factor clips); opacity and size = the WHERE weight.
 * **spectrum**: the factor's spectral weights over the 36 VQT frequencies (1-60 Hz, unit norm).
 * **pre-stroke trials by position**: mean over engaged trials of the projected temporal weights, cue-aligned (25 Hz),
-  per spout position (left blue / right red / centre grey; close solid, far dashed), mean over {len(n_pre)} pre-stroke
+  per spout position (left blue / right red / center gray; close solid, far dashed), mean over {len(n_pre)} pre-stroke
   sessions ({', '.join(sorted(n_pre))}). Pre-stroke sessions are projected on the fit that LEFT THEIR DAY OUT where it
   exists (`basis` = loso in the proj files), post-stroke ones on the full pre fit.
 {units_md}""")
@@ -224,7 +224,7 @@ One row per factor of the frozen set (`master.npz`, spec {M['spec_hash']}).
             frf.save(fig, rd / f"factor_epochs{sfx}.png", f"""
 Per animal (columns) and factor (rows): the cue-aligned mean projected expression of each epoch (pre / acute /
 subacute / chronic, `wfield_local.epochs.epoch_of`; n = sessions). Per session the mean over ALL its engaged trials
-(every spout position), then the mean over the epoch's sessions. NORMALISED per animal x factor: divided by the maximum
+(every spout position), then the mean over the epoch's sessions. NORMALIZED per animal x factor: divided by the maximum
 of that animal's pre-stroke mean curve, so pre peaks at 1 (dotted line) and the other epochs read as fractions of it.
 Pre-stroke sessions on their left-out-day basis, post-stroke on the full pre fit. {units_md}""")
     print(f"report -> {rd}")

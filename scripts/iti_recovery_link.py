@@ -1,11 +1,11 @@
-"""Do the frozen where-decoder's post-stroke changes (r loss, like-for-like offsets, MAE) track behavioural recovery?
+"""Do the frozen where-decoder's post-stroke changes (r loss, like-for-like offsets, MAE) track behavioral recovery?
 (Priya 10-26: "does PS94, who had the least complete recovery, show the most persistence of the decreased r and
 increased error signal?")
 
-Behaviour (--beh) per session: "hit" = far-contra hit rate / the animal's pre mean (`recovery_timing.series`;
+Behavior (--beh) per session: "hit" = far-contra hit rate / the animal's pre mean (`recovery_timing.series`;
 saturates chronically, all animals ~1.0); "angle" = mean tongue angle atan2(lateral, sagittal) (= encoder exec_angle)
 of cued far-contra licks and "lateral" = their mean lateral protrusion (side_ml), both as CHANGE vs the pre mean;
-"aim" = THE behaviour axis (DECISIONS 2026-10-27 late): the session's weighted signed aim (far contra 3 : far mid 2 :
+"aim" = THE behavior axis (DECISIONS 2026-10-27 late): the session's weighted signed aim (far contra 3 : far mid 2 :
 others 1; `iti_recovery_measure.py`), FIRST post-cue lick by default, as CHANGE vs the animal's pre mean (deg); with env
 WFIELD_AIM=all the all-lick sensitivity, outputs tagged "aimall" instead of "aim". The kinematic measures use the same
 licks the decoder scores (not independent of r / offsets; read with that in mind).
@@ -17,9 +17,9 @@ Decoder measures per session and lick set (ITI / in-trial), from the where-decod
   lfl_<ax2>  same on the second axis (sagittal, or outward in the 10-26 outward backup)
   mae_lat, mae_2d   MAE / pre mean (`where_mae_sessions.csv`; includes pull + offsets, no direction)
 Two levels:
-  BETWEEN animals (n = 4, descriptive only): chronic means per animal, ranked against chronic behaviour.
-  WITHIN animal across post sessions: Pearson r of measure vs behaviour, raw and with log(day) regressed out of both
-  (the shared recovery trend); mean of animals, within-animal permutation of behaviour (N_PERM).
+  BETWEEN animals (n = 4, descriptive only): chronic means per animal, ranked against chronic behavior.
+  WITHIN animal across post sessions: Pearson r of measure vs behavior, raw and with log(day) regressed out of both
+  (the shared recovery trend); mean of animals, within-animal permutation of behavior (N_PERM).
 Figure data (figdata.py convention): <DIR>/figdata/lick_recovery_link{,_pooled,_sessions}_<tag>.pkl (tag = beh + "_z"
 if --z) hold everything each figure draws (session table, within-animal r table, the pooled nested-bootstrap CIs, the
 per-animal fit lines); `--plot-only` redraws the three figures from those files alone (no permutation, no bootstrap).
@@ -30,6 +30,7 @@ from __future__ import annotations
 from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import argparse
+import textwrap
 import sys
 from pathlib import Path
 
@@ -146,7 +147,7 @@ def main(argv=None) -> int:
     pd.set_option("display.width", 220)
     # BETWEEN animals (descriptive)
     bb = G.drop_duplicates("label").groupby(["animal", "epoch"]).beh.mean().unstack()[EP]
-    print(f"== behaviour ({_blab(tag)}), per animal\n" + bb.round(2).to_string())
+    print(f"== behavior ({_blab(tag)}), per animal\n" + bb.round(2).to_string())
     for st in ("trial", "iti"):
         T = G[G.set == st].groupby(["animal", "epoch"])[meas].mean().unstack("epoch")
         T = T.reindex(columns=EP, level=1)
@@ -169,7 +170,7 @@ def main(argv=None) -> int:
         rows.append({"set": st, "measure": m, "kind": kind, **dict(zip(AN, np.round(rs, 2))), "mean_r": round(mu, 3),
                      "p_perm": round(p, 4)})
     R = pd.DataFrame(rows)
-    print("\n== within-animal r(measure, behaviour / pre) over post sessions\n" + R.to_string(index=False))
+    print("\n== within-animal r(measure, behavior / pre) over post sessions\n" + R.to_string(index=False))
     R.to_csv(src / f"recovery_link_within_{tag}.csv", index=False)
     G.to_csv(src / f"recovery_link_sessions_{tag}.csv", index=False)
     GA.to_csv(src / f"recovery_link_sessions_withpre_{tag}.csv", index=False)
@@ -183,7 +184,7 @@ def main(argv=None) -> int:
 
 
 def _bname(tag: str) -> str:
-    """Short behaviour name for the figure titles."""
+    """Short behavior name for the figure titles."""
     return {"aim": "first-lick weighted aim", "aimall": "all-lick weighted aim"}.get(tag.replace("_z", ""),
                                                                                     "far-contra aim")
 
@@ -196,7 +197,7 @@ def _blab(tag: str) -> str:
 
 
 def _bref(tag: str) -> float:
-    """Behaviour's pre reference: 1 for the hit-rate ratio, 0 for the angle / lateral changes."""
+    """Behavior's pre reference: 1 for the hit-rate ratio, 0 for the angle / lateral changes."""
     return 1.0 if tag.startswith("hit") else 0.0
 
 
@@ -219,34 +220,34 @@ def scatter_data(GA: pd.DataFrame, tag: str, z: bool, src: Path) -> dict:
 
 
 def plot_session_scatter(D: dict) -> None:
-    """POOLED over animals, one dot per SESSION (pre included): decoder lateral offset vs far-contra aim, colour =
-    animal, marker = epoch; a line per animal = its least-squares fit over post sessions."""
+    """POOLED over animals, one dot per SESSION (pre included): decoder lateral offset vs far-contra aim. EPOCH-COLOR
+    CONVENTION (A13, Priya 11-07; was color = animal, marker = epoch): OPEN marker, shape = animal, color = epoch; a
+    thin gray line per animal = its least-squares fit over post sessions (a fit, not a path through sessions)."""
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
+
+    from wfield_local import cat_points as cp
     GA, tag, z, src = D["pts"], D["tag"], D["z"], D["src"]
     blab = _blab(tag)
-    cols = plt.get_cmap("tab10")
-    mk = {"pre": "o", "acute": "^", "subacute": "s", "chronic": "*"}
     fig, axs = plt.subplots(1, 2, figsize=(14, 5.6), squeeze=False)
     for i, st in enumerate(("iti", "trial")):
         ax = axs[0, i]
         g = GA[GA.set == st]
-        for k, a in enumerate(AN):
+        for a in AN:
             h = g[g.animal == a]
-            for ep, m_ in mk.items():
+            for ep in ["pre", *EP]:
                 q = h[h.epoch == ep]
-                ax.scatter(q.beh, q.lfl_lat, marker=m_, s=40 if m_ == "*" else 22, color=cols(k), alpha=0.8,
-                           edgecolor="k" if ep == "pre" else "none", lw=0.4, label=a if ep == "acute" else None)
+                ax.plot(q.beh, q.lfl_lat, ls="none", marker=cp.animal_marker(a), ms=5, mfc="none",
+                        mec=cp.epoch_color(ep), mew=1.0, alpha=0.85)
             if (st, a) in D["lines"]:
                 xx, yy = D["lines"][(st, a)]
-                ax.plot(xx, yy, color=cols(k), lw=1.2)
+                ax.plot(xx, yy, color="0.55", lw=1.0, ls=(0, (4, 2)))
         r_all = D["r_all"][st]
         ax.axhline(0, color="0.7", lw=0.6, ls=":")
         ax.axvline(_bref(tag), color="0.7", lw=0.6, ls=":")
-        for ep, m_ in mk.items():
-            ax.scatter([], [], marker=m_, color="0.5", label=ep)
-        ax.legend(fontsize=7, frameon=False, ncol=2)
+        ax.legend(handles=cp.legend_handles(AN, ["pre", *EP], sessions_label="{a}", epoch_label="{e}"), fontsize=7,
+                  frameon=False, ncol=2)
         ax.set_xlabel(blab, fontsize=9)
         ax.set_ylabel("lateral like-for-like offset (same place), mm (change vs pre;\n+ = read contralesional)", fontsize=9)
         ax.set_title(f"{'ITI' if st == 'iti' else 'cued'} licks: all post sessions pooled r {r_all:+.2f} "
@@ -255,8 +256,8 @@ def plot_session_scatter(D: dict) -> None:
             ax.spines[s_].set_visible(False)
     # three short lines: the first line overflowed the figure once the behaviour name got longer (first-lick aim, 10-28)
     fig.suptitle(("Z-SCORED FEATURES. " if z else "") + "POOLED, one dot per SESSION: FROZEN decoder's lateral "
-                 f"like-for-like (same-place) offset\nvs {_bname(tag)}. Colour = animal, marker = epoch (outlined = "
-                 "pre-stroke); lines = per-animal fit over post sessions.\nThe within-animal test with the shared time trend "
+                 f"like-for-like (same-place) offset\nvs {_bname(tag)}. Open markers: shape = animal, color = epoch; dashed gray "
+                 "lines = per-animal fit over post sessions.\nThe within-animal test with the shared time trend "
                  "removed is in the per-animal recovery-link figure (this pooled r mixes animals and includes the time "
                  "trend). PROVISIONAL", fontsize=9.5)
     fig.tight_layout(rect=(0, 0, 1, 0.86))
@@ -293,120 +294,140 @@ def pooled_data(GA: pd.DataFrame, tag: str, z: bool, src: Path) -> dict:
 
 
 def plot_pooled(D: dict) -> None:
-    """Per epoch (pre included): behaviour and lateral offset, animal means + nested-bootstrap CI of the change vs pre,
-    and the per-animal epoch trajectory in (behaviour, offset) space."""
+    """Per epoch (pre included): behavior and lateral offset, animal means + nested-bootstrap CI of the change vs pre,
+    and the per-animal epoch trajectory in (behavior, offset) space."""
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     tag, z, src = D["tag"], D["z"], D["src"]
+    from wfield_local import cat_points as cp
+    from wfield_local.sig_marks import reserve_headroom, star_top
     eps = ["pre", *EP]
     blab = _blab(tag)
     fig, axs = plt.subplots(2, 3, figsize=(15, 8.2), squeeze=False)
-    cols = plt.get_cmap("tab10")
     for i, st in enumerate(("iti", "trial")):
         am = D["sets"][st]["am"]
         for j, (val, lab) in enumerate((("beh", blab), ("lfl_lat", "lateral like-for-like offset (same place), mm\n"
                                                                    "(+ = read contralesional; change vs pre)"))):
             ax = axs[i, j]
+            # A13 (Priya 11-07): animals = OPEN markers (shape = animal, colour = epoch), no line across epochs;
+            # filled dot = mean +- SEM over animals; open diamond = pre mean + the nested-bootstrap change (95% CI)
             for k, a in enumerate(AN):
-                y = [am[val].get((a, e), np.nan) for e in eps]
-                ax.plot(range(4), y, "o-", color=cols(k), ms=5, lw=1, alpha=0.75, label=a)
+                for x, e in enumerate(eps):
+                    v = am[val].get((a, e), np.nan)
+                    if np.isfinite(v):
+                        ax.plot([x - 0.18 + 0.05 * k], [v], ls="none", marker=cp.animal_marker(a), ms=5, mfc="none",
+                                mec=cp.epoch_color(e), mew=1.0, zorder=3)
             mu = D["sets"][st]["mu"][val]
-            ax.plot(range(4), mu, "-", color="k", lw=2.5, zorder=5, label="mean of animals")
+            for x, e in enumerate(eps):
+                cp.epoch_mean_sem(ax, x + 0.05, [am[val].get((a, e), np.nan) for a in AN], e, ms=6)
             for x, e in enumerate(EP, start=1):
                 point, lo, hi = D["sets"][st]["ci"][(val, e)]
                 ref = mu[0]
-                ax.errorbar(x + 0.12, ref + point, yerr=[[point - lo], [hi - point]], fmt="D",
-                            color="k", ms=6, capsize=3, zorder=6)
+                ax.errorbar(x + 0.22, ref + point, yerr=[[point - lo], [hi - point]], fmt="_", mew=2.2,
+                            color=cp.epoch_color(e), ms=11, capsize=3, zorder=6)
                 sig = lo > 0 or hi < 0
-                ax.text(x + 0.12, ref + hi, f"{point:+.2f}" + (" *" if sig else ""), ha="center",
-                        va="bottom", fontsize=8)
+                ax.text(x + 0.22, ref + hi, f"{point:+.2f}", ha="center", va="bottom", fontsize=8,
+                        color=cp.epoch_color(e))
+                if sig:
+                    star_top(ax, x + 0.22, "*", cp.epoch_color(e))
             ax.axhline(_bref(tag) if val == "beh" else 0, color="0.7", lw=0.7, ls=":")
             ax.set_xticks(range(4), eps)
             ax.set_ylabel(lab, fontsize=8.5)
-            ax.set_title(f"{'ITI' if st == 'iti' else 'cued'} licks: {'behaviour' if val == 'beh' else 'decoder'}",
-                         fontsize=9.5)
-            if i == 0 and j == 0:
-                ax.legend(fontsize=7.5, frameon=False)
+            # behavior is the CUED first-lick aim in both rows; only the decoder panel changes set (Priya 11-07)
+            ax.set_title("behavior: cued first-lick aim" if val == "beh"
+                         else f"decoder: {'ITI' if st == 'iti' else 'cued'} licks", fontsize=9.5)
             for s_ in ("top", "right"):
                 ax.spines[s_].set_visible(False)
         ax = axs[i, 2]
-        for k, a in enumerate(AN):
-            x = [am["beh"].get((a, e), np.nan) for e in eps]
-            y = [am["lfl_lat"].get((a, e), np.nan) for e in eps]
-            ax.plot(x, y, "-", color=cols(k), lw=1, alpha=0.7)
-            for _e, xx, yy, mk in zip(eps, x, y, ("o", "^", "s", "*")):
-                ax.plot(xx, yy, mk, color=cols(k), ms=7 if mk != "*" else 11, mec="k", mew=0.4)
-        ax.plot([], [], "o", color="0.5", label="pre")
-        ax.plot([], [], "^", color="0.5", label="acute")
-        ax.plot([], [], "s", color="0.5", label="subacute")
-        ax.plot([], [], "*", color="0.5", ms=10, label="chronic")
-        ax.legend(fontsize=7.5, frameon=False)
+        for a in AN:                       # per-animal epoch means: open, shape = animal, colour = epoch, no path
+            for e in eps:
+                xx, yy = am["beh"].get((a, e), np.nan), am["lfl_lat"].get((a, e), np.nan)
+                ax.plot([xx], [yy], ls="none", marker=cp.animal_marker(a), ms=6.5, mfc="none",
+                        mec=cp.epoch_color(e), mew=1.1)
+        for e in eps:                      # epoch mean of animals +- SEM on both axes
+            xs_ = np.array([am["beh"].get((a, e), np.nan) for a in AN], float)
+            ys_ = np.array([am["lfl_lat"].get((a, e), np.nan) for a in AN], float)
+            ok = np.isfinite(xs_) & np.isfinite(ys_)
+            if ok.sum():
+                sx = xs_[ok].std(ddof=1) / np.sqrt(ok.sum()) if ok.sum() > 1 else 0.0
+                cp.epoch_mean_sem(ax, xs_[ok].mean(), ys_[ok], e, xerr=sx)
         ax.axhline(0, color="0.7", lw=0.7, ls=":")
         ax.axvline(_bref(tag), color="0.7", lw=0.7, ls=":")
         ax.set_xlabel(blab, fontsize=8.5)
         ax.set_ylabel("lateral offset (mm, change vs pre)", fontsize=8.5)
-        ax.set_title("per animal, epoch means: aim vs decoder offset", fontsize=9.5)
+        ax.set_title(f"{'ITI' if st == 'iti' else 'cued'}-lick decoder offset vs cued first-lick aim\n"
+                     "per animal epoch means (open), mean +- SEM (filled)", fontsize=9.5)
         for s_ in ("top", "right"):
             ax.spines[s_].set_visible(False)
     fig.suptitle(("Z-SCORED FEATURES. " if z else "") + f"POOLED per epoch (pre included): {_bname(tag)} and the "
-                 "FROZEN pre-stroke decoder's lateral like-for-like offset (same place).\nThin lines = animals (session "
-                 "means per epoch); black line = mean of animals; diamonds = mean of animals' pre + change vs pre "
-                 "with 95% nested bootstrap CI\n(animals > sessions; * = CI excludes 0). TOP = ITI licks, BOTTOM = "
-                 "cued licks. Behaviour is the same in both rows ("
+                 "FROZEN pre-stroke decoder's lateral like-for-like offset (same place).\nOpen markers = animals (session "
+                 "means per epoch; shape = animal, color = epoch); filled = mean +- SEM over animals; bars with a dash = "
+                 "mean of animals' pre + change vs pre with 95% nested bootstrap CI\n(animals > sessions; * top = CI "
+                 "excludes 0). TOP = ITI licks, BOTTOM = "
+                 "cued licks. Behavior is the same in both rows ("
                  + ("cued licks" if tag.startswith("aim") else "cued far-contra licks") + ").", fontsize=9.5)
-    fig.tight_layout(rect=(0, 0, 1, 0.92))
+    reserve_headroom(fig)
+    fig.legend(handles=cp.legend_handles(AN, eps, sessions_label="{a}", epoch_label="{e}: mean +- SEM over animals"),
+               loc="lower center", ncol=8, fontsize=8, frameon=False)
+    fig.tight_layout(rect=(0, 0.05, 1, 0.92))
     save_png_svg(fig, src / "figures" / f"lick_recovery_link_pooled_{tag}.png", dpi=100)
     plt.close(fig)
 
 
 def plot_course(D: dict) -> None:
-    """Per animal over days, pre-stroke sessions included (left of the stroke line): behaviour (/ pre) and the
-    decoder's lateral like-for-like offset (same place). Pre values scatter around 1 / 0 by construction (the reference).
-    D = figure data: G (session table incl. pre), R (within-animal r table), tag, z, src."""
+    """Behavior (/ pre) and the decoder's lateral like-for-like offset (same place) over days, pre-stroke sessions
+    included (left of the stroke line; they scatter around 1 / 0 by construction, the reference). D = figure data: G
+    (session table incl. pre), R (within-animal r table), tag, z, src.
+
+    EPOCH-COLOR CONVENTION (PI decision A13, Priya 11-07; before: one panel per animal, black behavior and red decoder
+    lines across days on twin axes): rows = lick set (ITI, cued), columns = behavior / decoder offset, all animals
+    pooled; one OPEN point per session (shape = animal, color = epoch), no line; filled = epoch mean +- SEM over
+    animals. The within-animal r per animal stays in the panel text (rule 8)."""
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
+
+    from wfield_local import cat_points as cp
     G, R, tag, z, src = D["G"], D["R"], D["tag"], D["z"], D["src"]
     blab = _blab(tag)
     zl = " [decoder on Z-SCORED features]" if z else ""
-    fig, axs = plt.subplots(2, 4, figsize=(17, 7.5), sharex="col", squeeze=False)
+    fig, axs = plt.subplots(2, 2, figsize=(15, 8.6), sharex=True, squeeze=False)
     for i, st in enumerate(("iti", "trial")):
-        for j, a in enumerate(AN):
+        g = G[G.set == st]
+        r = R[(R.set == st) & (R.measure == "lfl_lat")].set_index("kind")
+        per = "  ".join(f"{a} {r.loc['raw', a]:+.2f} ({r.loc['detrended', a]:+.2f})" for a in AN if a in r)
+        for j, (col, lab, ref) in enumerate((("beh", blab, _bref(tag)),
+                                             ("lfl_lat", "decoded lateral offset, mm\n(+ = contralesional; change vs pre)",
+                                              0.0))):
             ax = axs[i, j]
-            g = G[(G.animal == a) & (G.set == st)].sort_values("day")
-            ax.plot(g.day, g.beh, "o-", color="k", ms=4, lw=1.2, label=blab)
-            ax.axhline(_bref(tag), color="0.8", lw=0.6)
-            ax.set_ylabel(blab if j == 0 else "", fontsize=8.5)
-            ax2_ = ax.twinx()
-            ax2_.plot(g.day, g.lfl_lat, "s-", color="#c0392b", ms=4, lw=1.2, alpha=0.85,
-                      label="decoded lateral like-for-like offset (same place) (mm, change vs pre)")
-            ax2_.axhline(0, color="#c0392b", lw=0.5, ls=":")
-            ax.axvspan(g.day.min() - 1, 0, color="0.93", zorder=0)
+            ax.axhline(ref, color="0.75", lw=0.7, ls=":")
             ax.axvline(0, color="k", lw=0.8, ls="--")
-            if i == 0 and j == 0:
-                ax.text(0, 1.0, " stroke", transform=ax.get_xaxis_transform(), fontsize=7.5, va="top")
-            if j == 3:
-                ax2_.set_ylabel("lateral offset, mm\n(+ = read contralesional)" + ("\n" + zl.strip() if z else ""),
-                                fontsize=8.5, color="#c0392b")
-            r = R[(R.set == st) & (R.measure == "lfl_lat")].set_index("kind")[a]
-            ax.set_title(f"{a}, {'ITI' if st == 'iti' else 'cued'} licks: r {r['raw']:+.2f} "
-                         f"(time trend removed {r['detrended']:+.2f})", fontsize=9)
+            cp.day_dots(ax, g.day, g[col], g.animal, g.epoch)
+            ax.set_ylabel(lab if "\n" in lab else "\n".join(textwrap.wrap(lab, 34)), fontsize=8.5)
+            ax.set_title(f"{'ITI' if st == 'iti' else 'cued'} licks: {'behaviour' if col == 'beh' else 'decoder offset'}",
+                         fontsize=9.5)
+            if col == "lfl_lat":                      # per animal first (rule 8)
+                ax.text(0.01, 0.99, f"within-animal r (time trend removed):\n{per}", transform=ax.transAxes,
+                        ha="left", va="top", fontsize=7, color="0.3")
             if i == 1:
                 ax.set_xlabel("day after stroke", fontsize=9)
-            for s_ in ("top",):
+            for s_ in ("top", "right"):
                 ax.spines[s_].set_visible(False)
+    axs[0, 1].legend(handles=cp.legend_handles(AN, ["pre", *EP], sessions_label="{a}", epoch_label="{e}: mean +- SEM"),
+                     fontsize=7.5, frameon=False, loc="upper left", bbox_to_anchor=(1.01, 1.0))
     rr = R[(R.measure == "lfl_lat")].set_index(["set", "kind"])
-    fig.suptitle(("Z-SCORED FEATURES. " if z else "") + f"NEURAL vs BEHAVIOUR, within animal: as {_bname(tag)} "
-                 f"recovers, does the decoder's contralesional reading fade?\nBlack = {blab} (one dot per session; grey = PRE-STROKE "
-                 "sessions, the reference); red = FROZEN pre-stroke decoder's lateral like-for-like offset (same place) (" + il.basis_label() + ", lags "
-                 "0..0.2 s;\n+ = cortex reads the lick more contralesional than it landed)" + zl + ". TOP = ITI licks "
-                 "(different licks from those defining recovery), BOTTOM = cued licks.\nMean within-animal r: ITI "
+    fig.suptitle(("Z-SCORED FEATURES. " if z else "") + f"NEURAL vs BEHAVIOR: as {_bname(tag)} "
+                 f"recovers, does the decoder's contralesional reading fade?\nLeft = {blab}; right = FROZEN pre-stroke "
+                 "decoder's lateral like-for-like offset (same place)" + zl + "\n(" + il.basis_label() + ", lags 0..0.2 s; "
+                 "+ = cortex reads the lick more contralesional than it landed).\nOpen = one point per session (shape = animal, "
+                 "color = epoch; pre = the reference), filled = epoch mean +- SEM over animals. TOP = ITI licks, BOTTOM = "
+                 "cued licks.\nMean within-animal r: ITI "
                  f"{rr.loc[('iti', 'raw'), 'mean_r']:+.2f} (time trend removed {rr.loc[('iti', 'detrended'), 'mean_r']:+.2f},"
                  f" p {rr.loc[('iti', 'detrended'), 'p_perm']:.4f}); cued {rr.loc[('trial', 'raw'), 'mean_r']:+.2f} "
                  f"({rr.loc[('trial', 'detrended'), 'mean_r']:+.2f}, p {rr.loc[('trial', 'detrended'), 'p_perm']:.4f}); "
-                 "p = within-animal permutation of behaviour.", fontsize=9.5)
-    fig.tight_layout(rect=(0, 0, 1, 0.89))
+                 "p = within-animal permutation of behavior.", fontsize=9.5)
+    fig.tight_layout(rect=(0, 0, 0.88, 0.84))
     save_png_svg(fig, src / "figures" / f"lick_recovery_link_{tag}.png", dpi=100)
     plt.close(fig)
 

@@ -1,5 +1,5 @@
 """Per-trial attempt classes, a movement-based engagement label and an attempt / completion / latency split of the
-behavioural deficit (Priya 10-20: "fraction of trials with lick as well as incomplete vs complete licks at far mid and
+behavioral deficit (Priya 10-20: "fraction of trials with lick as well as incomplete vs complete licks at far mid and
 far contra"; "call a trial engaged if there is any evidence of attempted lick ... analyze no-try trials in the
 canonical 'engaged' period separately"; "will we include latency?"). Plan: docs/DLC_IN_WIDEFIELD_ANALYSES.md 3B.
 
@@ -11,7 +11,7 @@ trials, cam1 + cam4 to the trial stop: 0 / 24 judged attempts; all 11 jaw_only t
 (6), other movement (4, 2 walking) or still (1); 4 / 6 no_try trials just under the floor also showed a jaw response --
 key session_poses/attempt_review/key.csv). Confounds: sub-threshold walking moves the jaw; some jaw responses follow
 the spout leaving (it starts moving 60-80 ms after stop; detection ends at stop). Until 10-21 jaw_only counted as an
-attempt (outputs copied to qc/superseded_attempts_jaw_20261021/). `canonical` = the behaviour pipeline's
+attempt (outputs copied to qc/superseded_attempts_jaw_20261021/). `canonical` = the behavior pipeline's
 reference-position gate (`orofacial_cohort.engagement_keep`), which stays the DENOMINATOR: no-try trials inside it are
 kept as their own class, never dropped, so failure to initiate stays measurable.
 
@@ -120,7 +120,7 @@ def session_summary(D: pd.DataFrame) -> pd.DataFrame:
       completion, incomplete_share, latency_attempt_ms (first lick), latency_move_ms (first lick or after-cue jaw onset),
       latency_contact_ms                                                                attempted trials (components)
       lateral_bias / lateral_scatter   first cam4 lick peak angle on attempted trials vs the animal's August-pre mean /
-                          sd at that spout (+ = toward ipsi). DESCRIPTIVE ONLY -- never a behavioural index: the executed
+                          sd at that spout (+ = toward ipsi). DESCRIPTIVE ONLY -- never a behavioral index: the executed
                           angle enters the neural measures' construction (DECISIONS 10-20, no circular index)
     """
     rows = []

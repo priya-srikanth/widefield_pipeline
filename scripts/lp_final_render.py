@@ -12,7 +12,8 @@ Plan + results: docs/status/LP_FINAL_ARM_20261102.md. One configuration, set her
     decoders  WIDEFIELD_EPOCH_FROZEN=1 (`grant_confusion.EPOCH_FROZEN_ENV`): the epoch acc decoders go through the
               frozen store. DAQ-TRAINED = fitted by a DAQ-source run (`decoders --source daq`, same window + pre set),
               loaded by the LP run; LP-TRAINED (sensitivity) = WIDEFIELD_LP_FROZEN=lp. Store: WIDEFIELD_FROZEN_MODEL_DIR
-              = <figures_working>/frozen_models_lpfinal (own store; the canonical ones are untouched).
+              = <figures_working>/frozen_models_lpfinal, or <rebuild root>/frozen_models_lpfinal under a rebuild
+              root (own store; the canonical ones are untouched).
 
 Steps (each prints what it resolved):
     restnl                         gate-LP RESTnl baselines (own cache dir `.widefield_session_cache_restnl_glp<sha>`)
@@ -67,11 +68,20 @@ def settings(source="lp", window=None, trained=None, refs=ALL_REFS, august=True,
         env["WIDEFIELD_MAP_REFS"] = refs
     if trained:
         env["WIDEFIELD_EPOCH_FROZEN"] = "1"
-        wd = Path(os.environ.get("WIDEFIELD_FIGURES_WORKING", str(Path.home() / "cue_lick")))
-        env["WIDEFIELD_FROZEN_MODEL_DIR"] = str(wd / "frozen_models_lpfinal")
+        env["WIDEFIELD_FROZEN_MODEL_DIR"] = str(lpfinal_store())
         if trained == "lp":
             env["WIDEFIELD_LP_FROZEN"] = "lp"
     return env
+
+
+def lpfinal_store() -> Path:
+    """The LP arm's own frozen-model store. Under a rebuild root it lives in that root (the write guard refuses
+    this box's default figures_working); otherwise beside <figures_working>, as before."""
+    from wfield_local import rebuild_root
+    if rebuild_root.active():
+        return rebuild_root.root() / "frozen_models_lpfinal"
+    wd = Path(os.environ.get("WIDEFIELD_FIGURES_WORKING", str(Path.home() / "cue_lick")))
+    return wd / "frozen_models_lpfinal"
 
 
 def _apply(env: dict) -> None:
@@ -189,6 +199,15 @@ def dec_out(trained) -> Path:
     return lp_licks.output_dir(root() / f"trained_{trained}" / "epoch")
 
 
+def pre_sessions(blocks) -> int:
+    """Pre-stroke sessions in a pooled record's block ids. Licking rows carry session index * 1e6 + block; no-lick rows
+    carry NEGATIVE run ids (`grant_kit._runs_to_blocks`), which floor-divide to -1 and were counted as one extra session
+    (11-08: 9 shown for PS94 / PS95, frozen on 8)."""
+    import numpy as np
+    b = np.asarray(blocks)
+    return int(np.unique(b[b >= 0] // 1_000_000).size)
+
+
 def trial_table(per_animal):
     """Trials and sessions per animal x epoch x position in the decoder's own scored sets (rule 8)."""
     import numpy as np
@@ -207,8 +226,8 @@ def trial_table(per_animal):
                 continue
             y, _p = _named(rec)
             pre = per_animal[an][0]
-            n_s = (int(np.unique(np.asarray(pre[2]) // 1_000_000).size) if e == "pre" and pre is not None
-                   else cov.get(e, {}).get(an, 0))              # pre blocks = session index * 1e6 + block
+            n_s = (pre_sessions(pre[2]) if e == "pre" and pre is not None
+                   else cov.get(e, {}).get(an, 0))
             r = {"animal": an, "epoch": e, "n_sessions": n_s, "n_trials": int(len(y))}
             for q in CONF_LABELS:
                 r[f"n_{q}"] = int(np.sum(y == q))

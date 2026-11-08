@@ -7,7 +7,7 @@ Scratchpad (logs, quick scripts): `C:\Users\SABATI~1\AppData\Local\Temp\claude\C
 
 ## 0. Late-morning update (10-19) -- read first; details in DECISIONS 2026-10-19 (late morning)
 
-- **O2 runs done and collected**: nokin 116, nodir 114, trmodels 118, musall_shuf 118 of 119. 7 tasks were cancelled by
+- **O2 runs done and collected**: nokin 116, nodir 114, trmodels 118, musall_shuf 118 of 119. 7 tasks were canceled by
   the scheduler 2 s after start and RESUBMITTED (nokin PS95_0817 / 0819 / 0928, nodir PS95_0818 / 0819 / 0917, trmodels
   PS95_0917) -> when they finish: Priya rsyncs `out/` back, then `o2_encoding.py collect --tag <t>` and rerun the
   readouts (`combined_encoding_figures.py --order movement_first_subset-nokin` / `-nodir` / `-trmodels`,
@@ -38,11 +38,11 @@ Along the way:
   drift slower than ~20 min BY DESIGN (trial-contrast analyses are blind to it); the encoding model now projects drift
   (>= 600 s) out of signal and design (FWL). Churchland lab / wfield never see this: they high-pass at 0.1 Hz, the filter
   retired 08-13.
-- **Two-band correction** (a second 415 -> 470 coefficient for the slow band) fixes the artefact at the source but was NOT
+- **Two-band correction** (a second 415 -> 470 coefficient for the slow band) fixes the artifact at the source but was NOT
   adopted: blood-flow correction identical, post-cue decode unchanged, pre-cue decode lower (26/32 sessions).
 - That led to: **the slow band (>= 5 min) carries part of the pre-cue position decode** (0.41 -> 0.35 without it; the slow
   component alone decodes 0.29-0.32 in PS92 / PS93, whose position blocks are longer). Quote pre-cue numbers with that
-  caveat. Smooth signals decode BELOW chance under block CV (neighbouring blocks differ) -- not neutral for the decoder.
+  caveat. Smooth signals decode BELOW chance under block CV (neighboring blocks differ) -- not neutral for the decoder.
 - **Credit rules:** our movement_first SHUFFLE dR2 credits instructed with everything it shares with task (Musall left
   task RAW). Lead with the order-free DROP dR2; `--order musall` added for direct comparison.
 - **Fair target vs executed:** the original base kept jaw / nose / tongue kinematics that already carry executed direction
@@ -98,7 +98,7 @@ Along the way:
   protrusion / speed, jaw opening / speed); contact events carry position.
 - **Slow drift**: fatal for continuous-time models with contiguous-block CV; remove it inside the model (projection), never
   by re-adding a 0.1 Hz filter.
-- **Smooth signals decode BELOW chance under block CV** (neighbouring position blocks differ); a slow component is not
+- **Smooth signals decode BELOW chance under block CV** (neighboring position blocks differ); a slow component is not
   neutral for the decoder.
 - **Variance explained != information**: video takes shared variance; use residual decoding for movement-null questions.
 - **Cohort figures are means of animal means** (PS95 acute = 1 session; PS92 subacute = 2 incl. 0824); stats are

@@ -1,4 +1,4 @@
-"""Hemodynamic correction under ALTERNATIVE drift-removal, written to LABELLED side-by-side outputs.
+"""Hemodynamic correction under ALTERNATIVE drift-removal, written to LABELED side-by-side outputs.
 
 WHY THIS EXISTS. The pipeline's `SVTcorr.npy` is produced by `wfield.hemodynamic_correction`, which
 removes slow drift with a ZERO-PHASE (acausal) 0.1 Hz Butterworth applied to both channels -- and the
@@ -52,7 +52,7 @@ def functional_channel(session) -> int:
     `FUNC = 1` is the COHORT default and it is wrong for `PS92_0828`, where labcams saved a normal
     alternating session mislabelled single-channel and the rescue relabel locked exposure offset 1,
     swapping the slots. `configs/session_overrides.yaml` records `functional_channel: 0` for it and
-    THE PRODUCTION CHAIN HONOURS THAT END TO END -- config override -> `local_wfield_summary.json`
+    THE PRODUCTION CHAIN HONORS THAT END TO END -- config override -> `local_wfield_summary.json`
     -> `hemo_meegkit_hpfit/manifest.json` all read 0, so every figure built on `SVTcorr` is correct.
 
     THE EXPOSURE IS IN CODE THAT SLICES **RAW** `SVT` BY THE CONSTANT (2026-09-19 audit). Ten call
@@ -308,7 +308,7 @@ def refit_T(U, a, b, chunk=20000):
 
 
 def _interp_pairs(x, bad):
-    """(K, T) traces with the ``bad`` pair columns replaced by linear interpolation from their good neighbours."""
+    """(K, T) traces with the ``bad`` pair columns replaced by linear interpolation from their good neighbors."""
     bad = np.asarray(bad, bool)[:x.shape[1]]
     if not bad.any():
         return x
@@ -455,7 +455,7 @@ def out_dir(session, variant, refit_t=True, tag: str = "") -> Path:
 
 def write(session, variant, refit_t=True, win_s=DETREND_WIN_S, verbose=True, func=None, bad_pairs=None,
           tag: str = "") -> Path:
-    """Compute and persist to the labelled subdirectory. Refuses to touch the original files."""
+    """Compute and persist to the labeled subdirectory. Refuses to touch the original files."""
     from wfield_local import writeguard
 
     if bad_pairs is not None and not tag:
@@ -493,7 +493,7 @@ def main(argv=None) -> int:
     ap.add_argument("--no-refit-t", action="store_true",
                     help="reuse the saved T instead of refitting on the drift-removed traces "
                          "(correct for a controlled COMPARISON, wrong for a product)")
-    ap.add_argument("--write", action="store_true", help="persist to the labelled subdirectory")
+    ap.add_argument("--write", action="store_true", help="persist to the labeled subdirectory")
     ap.add_argument("--functional-channel", type=int, default=None,
                     help="functional (470) channel index; the isosbestic (415) is the other slot. "
                          "Default: each session's own slot (functional_channel: session_overrides / the "

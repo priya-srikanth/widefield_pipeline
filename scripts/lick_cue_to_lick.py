@@ -662,7 +662,7 @@ def draw_B_pre(stem: str) -> None:
     fig.legend(keep.values(), keep.keys(), loc="outside lower center", ncol=5, fontsize=7, frameon=False)
     fig.suptitle(_wrap("NEURAL, PRE-STROKE, baseline = the trial's own pre-cue level (-0.5..0 s; restw cancels): quantity vs "
                  "first-lick latency, latency-binned means (all spouts; sessions pooled per animal, bins >= 5 trials), "
-                 "coloured = animals, black = mean of animals (bins with >= 3 animals). Dotted = model predictions scaled "
+                 "colored = animals, black = mean of animals (bins with >= 3 animals). Dotted = model predictions scaled "
                  "through the black curve at the median latency: M1 accumulate-to-bound (AUC fixed), M2 fixed level "
                  "crossing (level fixed), M3 delayed start with a fixed trajectory; dashed green = M4, the cue-locked "
                  "template (trials not yet licked by t + 0.3 s) at that latency." + (
@@ -752,7 +752,7 @@ def draw_B_onpre(stem: str) -> None:
     h, lab = axs[0, 0].get_legend_handles_labels()
     fig.legend(h, lab, loc="outside lower center", ncol=4, fontsize=7, frameon=False)
     fig.suptitle(_wrap("NEURAL, contralesional key areas: do slow post-stroke FAR-CONTRA first licks sit on the PRE-stroke "
-                 "latency relation? Latency-binned means (bins >= 5 trials) per animal: black = pre, all spouts; colours = "
+                 "latency relation? Latency-binned means (bins >= 5 trials) per animal: black = pre, all spouts; colors = "
                  "post-stroke epochs, far-contra trials. Baselines: own pre-cue level (-0.5..0 s) or session RESTW (row "
                  "label). Pre latencies rarely exceed ~0.5 s, so slow-trial comparisons extrapolate the pre relation "
                  "(c2l_B_onpre_summary.csv).", fw, 8), fontsize=8)
@@ -851,7 +851,7 @@ def draw_threshold_simple(src: str = "lick_cue_to_lick_B_farcontra_on_pre",
         "NEURAL, contralesional ALM, tjM1, SSp-m, SSp-n POOLED (mean of the four areas per animal x latency bin), "
         "baseline = the trial's own pre-cue level (-0.5..0 s), raw GCaMP6s dF/F (slow, lagged). Thin black = pre per "
         "animal, thick = mean of animals (bins >= 3 animals); dotted = models scaled through the pre curve at its median "
-        "latency. CAVEAT: pre-stroke latencies sit at ~0.1-0.6 s, so the grey region (and every slow-trial comparison) extrapolates the pre relation. PROVISIONAL, n = 4 mice."
+        "latency. CAVEAT: pre-stroke latencies sit at ~0.1-0.6 s, so the gray region (and every slow-trial comparison) extrapolates the pre relation. PROVISIONAL, n = 4 mice."
         + (" Trials = CURRENT engaged gate, sessions with a RESTnl level (rest-independent quantity)." if SFX else ""),
         13.5, 9), fontsize=9)
     FIGS.mkdir(parents=True, exist_ok=True)
@@ -904,7 +904,7 @@ def draw_A_simple(src: str = "lick_cue_to_lick_A_level_contra", out: str = "lick
     fig.suptitle(_wrap(_rl(
         "NEURAL, baseline = session RESTW: change from pre of the mean dF/F from the cue to the first lick (ENGAGED "
         "trials with an in-window first lick), orofacial areas; contralesional (left of each pair, filled) and "
-        "ipsilesional (right, open). Dots = per-animal change (colour = animal); square + bar = paired nested bootstrap "
+        "ipsilesional (right, open). Dots = per-animal change (color = animal); square + bar = paired nested bootstrap "
         "point and 95% CI (analysis_kit.boot_delta, animals > sessions); * = CI excludes 0, (*) = significant but fewer "
         "than 3 animals share the sign. Not latency-matched (slower post-stroke licks lengthen the window). "
         "PROVISIONAL, n = 4 mice."), 12, 9), fontsize=9)

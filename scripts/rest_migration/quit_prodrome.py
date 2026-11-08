@@ -18,7 +18,7 @@ therefore drawn twice: over all sessions, and over CENSORED sessions only.
 the difference on the figure (2026-09-20: *"in 23 quit prodrome gated, top row acute 'sessions with
 NO quit' still looks like there's a step off in lick number"*). `engagement_gate` needs a sustained
 non-recovering run to confirm a quit, so an animal that stops near the END of a session leaves too
-little tail and the session is labelled censored -- and post-stroke sessions run to a fixed ~120
+little tail and the session is labeled censored -- and post-stroke sessions run to a fixed ~120
 min, so a quit at 110 min has ten minutes to prove itself. The TERMINAL DROP table measures how
 often that happens instead of assuming it does not.
 
@@ -28,7 +28,7 @@ mid-session rate: pre 0.77 (29 sessions, 21% below half), chronic 0.86 (18, 6%),
 "no quit" curve is about one clean session plus three quits the gate could not confirm, which is
 exactly the step Priya saw in it. Read the pre and chronic censored curves; do not read acute.
 
-Panel B is the artefact-free version. Each quitter is aligned to ITS OWN quit, and compared with
+Panel B is the artifact-free version. Each quitter is aligned to ITS OWN quit, and compared with
 sessions from the SAME ANIMAL that were still engaged at that same absolute session time, read in
 the same bins. Lick rate declines in every session, so a quit-aligned average alone always shows a
 ramp into the quit and proves nothing; the time-matched control is what makes the comparison mean

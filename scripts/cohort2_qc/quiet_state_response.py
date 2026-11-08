@@ -1,7 +1,7 @@
-"""T21: is the acute ~2x larger lick-evoked cortical response a consequence of a SYNCHRONISED cortical state? (cohort1, 11-01)
+"""T21: is the acute ~2x larger lick-evoked cortical response a consequence of a SYNCHRONIZED cortical state? (cohort1, 11-01)
 
-WHY. Acutely the lick-evoked orofacial response is ~2x larger and quiet orofacial cortex is more synchronised (more 1-4 Hz
-power, T20). In barrel cortex, passive sensory responses are larger in the synchronised quiet-wakefulness state
+WHY. Acutely the lick-evoked orofacial response is ~2x larger and quiet orofacial cortex is more synchronized (more 1-4 Hz
+power, T20). In barrel cortex, passive sensory responses are larger in the synchronized quiet-wakefulness state
 (Crochet & Petersen 2006). If the same holds here, licks that start from a high-slow-power state should evoke larger
 responses WITHIN pre-stroke sessions, and the acute increase in pre-lick slow power should predict part of the acute
 response increase.
@@ -323,7 +323,7 @@ def fig_slopes(S, T):
     sig_marks.reserve_headroom(fig)
     fig.suptitle(_wrap("T21: within-session slope of the lick-evoked response (mean dF/F 0..0.5 s minus -0.5..-0.1 s) on "
                        "pre-lick 1-4 Hz power (-1.0..-0.1 s, z-scored within session). Open markers = sessions (shape = "
-                       "animal, colour = epoch); filled = pooled mean, nested animal -> session bootstrap 95% CI. Stars: "
+                       "animal, color = epoch); filled = pooled mean, nested animal -> session bootstrap 95% CI. Stars: "
                        "at PRE = mean pre slope differs from 0 (mixed model pre_level); post epochs = slope differs from "
                        "pre (epoch model); FDR q within measure. Causal power = forward-only filter, no post-lick leak.",
                        190), fontsize=9)
@@ -420,7 +420,7 @@ def fig_matched(L, S):
         ax[i, 0].set_ylabel("lick-evoked response\n(% dF/F, mean +/- SEM)", fontsize=8)
     fig.suptitle(_wrap("T21 matched-power check: is the post-stroke response still larger at the SAME pre-lick 1-4 Hz power? "
                        "Quintile bins of the animal's licks pooled over epochs; each epoch's licks in each bin (bins with "
-                       ">= 5 licks). Colour = epoch; legend = licks per epoch.", 190), fontsize=9)
+                       ">= 5 licks). Color = epoch; legend = licks per epoch.", 190), fontsize=9)
     fig.tight_layout(rect=(0, 0, 1, 0.94), h_pad=3)
     save_png_svg(fig, SR / "state_response_matched_power.png", dpi=110)
     plt.close(fig)

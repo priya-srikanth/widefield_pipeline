@@ -9,7 +9,7 @@ the six spouts (removes any epoch-wide change, so only the SPATIAL arrangement a
 For far contra (and far ipsi as the mirror control):
   gain    = <P_ep, P_pre> / |P_pre|^2     (1 = same strength along the pre pattern; < 1 = weaker copy)
   cos     = cosine(P_ep, P_pre)          (1 = same pattern up to scale)
-  cos_to  = cosine(P_ep, P_pre[other spout]) for every spout (drift toward a neighbour shows as a rise here)
+  cos_to  = cosine(P_ep, P_pre[other spout]) for every spout (drift toward a neighbor shows as a rise here)
 Noise floor: pre sessions split in two halves (alternating by date), the same numbers between halves.
 "usual" rows repeat it on licks landing within 0.25 mm (lateral x sagittal) of that spout's pre landing mean.
 Output <E>/iti_licks/farcontra_pattern.csv; usage: python scripts/iti_farcontra_pattern.py
@@ -50,7 +50,7 @@ def licks() -> dict:
 
 
 def patterns(rows: list, usual: dict | None = None) -> dict | None:
-    """{spout: centred pattern} from a list of session tuples (session means first, then mean of sessions)."""
+    """{spout: centered pattern} from a list of session tuples (session means first, then mean of sessions)."""
     per = {p: [] for p in POS}
     for _x, _ep, X, lat, sag, P in rows:
         for p in POS:

@@ -39,13 +39,13 @@ silently rests on a different subset of animals. (30 under the SUPERSEDED eroded
 
 A component's value is its FOOTPRINT-WEIGHTED mean of the map, `sum(|A_c|*map)/sum(|A_c|)`; the
 region is then the MEAN over its components, NEVER a sum. A sum would rank regions by how many
-components they happen to hold, which is the retrosplenial artefact in a third guise (footprint mass
+components they happen to hold, which is the retrosplenial artifact in a third guise (footprint mass
 spans 67x).
 
 MASKED FIRST via `in_mask_components`, which is TWO criteria: at least 0.85 of a component's
 footprint mass inside `beta_maps.brain_mask` (bulbs and painted glue already removed) AND at least
 0.50 inside the eroded `stat_mask`. Gating on the eroded mask ALONE, as this did until 2026-09-17
-evening, penalises a region for being lateral -- see `in_mask_components` for what that cost.
+evening, penalizes a region for being lateral -- see `in_mask_components` for what that cost.
 
 TWO STATISTICS, AND THEY ANSWER DIFFERENT QUESTIONS. The PER-ANIMAL max-statistic corrects across
 regions within an animal. The COHORT delta (`cohort_delta`) resamples ANIMALS -> SESSIONS and is the
@@ -159,7 +159,7 @@ def cohort_delta(per_animal, n_boot=2000, seed=7, alpha=0.05):
 def _ordered(positions):
     """Positions in the CANONICAL Near Ipsi -> Far Contra order, not alphabetical.
 
-    `CONF_LABELS` is the project's order and every neighbouring figure uses it. Sorting these
+    `CONF_LABELS` is the project's order and every neighboring figure uses it. Sorting these
     strings alphabetically gives close_L, close_center, close_R, far_L, far_center, far_R -- which
     happens to coincide here, but silently would not if a label were renamed, and a table whose
     rows are in a different order from the figure beside it is the kind of mismatch nobody checks.
@@ -211,7 +211,7 @@ def region_means(pixmap, W, rid, n_regions, mask):
     A component's value is its FOOTPRINT-WEIGHTED mean of the map, `sum(|A_c|*map)/sum(|A_c|)`, so a
     component contributes where it actually lives. Regions then average their components with EQUAL
     weight -- a sum would rank regions by how many components they happen to contain, which is the
-    retrosplenial artefact in a third guise (footprint mass spans 67x).
+    retrosplenial artifact in a third guise (footprint mass spans 67x).
 
     NaN-safe: a region with no finite component value returns NaN, because "no data" and "no change"
     must not render as the same number.
@@ -235,7 +235,7 @@ def maxstat_p(real, null_draws):
     """Family-wise p per region by the PERMUTATION MAX-STATISTIC across regions.
 
     Each draw contributes its single most extreme |value| across the whole region family; the
-    family-wise null is the distribution of those maxima. This respects the fact that neighbouring
+    family-wise null is the distribution of those maxima. This respects the fact that neighboring
     regions share components and drift -- correlated regions give correlated draws, so the max
     distribution is narrower than independence implies -- and it costs NO extra draws, because it
     reuses the ones already computed. Strictly better than Bonferroni here, not merely different.

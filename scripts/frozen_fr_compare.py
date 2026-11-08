@@ -43,7 +43,11 @@ ALAB = {"cortex": "cortex", "SSp-m_right": "SSp-m contra", "SSp-m_left": "SSp-m 
 EP4 = ["pre", "acute", "subacute", "chronic"]
 EPS = EP4[1:]
 WINDOWS = ["cue", "lick"]                                 # cue before lick (Priya 10-25)
-COL = {"noFR": "#999999", "FR-B": "#7570b3", "FR-A": "#e7298a"}
+#: model colours from THE shared model palette (`cat_points.MODEL_COLORS`, Priya 11-07: never an epoch / animal / class
+#: colour); noFR keeps the palette's grey (the baseline model)
+from wfield_local.cat_points import MODEL_COLORS as _MC  # noqa: E402
+
+COL = {"noFR": _MC[5], "FR-B": _MC[0], "FR-A": _MC[2]}
 
 
 def session_r2(folder: str, variant: str, measure: str = "frame", areas=None) -> pd.DataFrame:
@@ -97,7 +101,9 @@ def boot(df: pd.DataFrame, val: str, ref_epoch: str = "pre", epochs=EPS, keys=("
 
 
 def bars(ax, B: pd.DataFrame, frames, area_list, ylabel, title, scale=1.0):
-    """Grouped bars: x = area x epoch, one bar per frame; whisker 95 % CI; * CI excludes 0; dots = animals."""
+    """Grouped bars: x = area x epoch, one bar per frame (color = `cat_points.MODEL_COLORS`, hatched past the 7th);
+    whisker 95 % CI; * CI excludes 0; dots = animals: OPEN markers, shape = animal, color = the bar's epoch (A13)."""
+    from wfield_local import cat_points as cp
     from wfield_local.sig_marks import sig_star
     nf = len(frames)
     xt, xl = [], []
@@ -118,10 +124,15 @@ def bars(ax, B: pd.DataFrame, frames, area_list, ylabel, title, scale=1.0):
                     continue
                 r = r.iloc[0]
                 x = x0 + (k - (nf - 1) / 2) * 0.8 / nf
-                ax.bar(x, r.point * scale, width=0.8 / nf, color=COL.get(fr, f"C{k}"), label=fr if (i == 0 and j == 0) else None)
+                ax.bar(x, r.point * scale, width=0.8 / nf, color=COL.get(fr, cp.model_color(k)),
+                       hatch="//" if k >= len(cp.MODEL_COLORS) else None, edgecolor="w", lw=0,
+                       label=fr if (i == 0 and j == 0) else None)
                 ax.plot([x, x], [r.lo * scale, r.hi * scale], color="k", lw=0.8)
                 dots = [r.get(an, np.nan) * scale for an in AN]
-                ax.scatter([x] * 4, dots, s=5, c="k", zorder=5)
+                for an, dv in zip(AN, dots):
+                    if np.isfinite(dv):
+                        ax.plot([x], [dv], ls="none", marker=cp.animal_marker(an), ms=3.2, mfc="none",
+                                mec=cp.epoch_color(ep), mew=0.8, zorder=5)
                 sig_star(ax, x, r.lo * scale, r.hi * scale, dots)
     ax.axhline(0, color="k", lw=0.6)
     ax.set_xticks(xt); ax.set_xticklabels(xl, fontsize=7)
@@ -131,10 +142,13 @@ def bars(ax, B: pd.DataFrame, frames, area_list, ylabel, title, scale=1.0):
 
 def epoch_lines(ax, B: pd.DataFrame, series, area: str, scale: float = 1.0, key: str = "frame"):
     """EPOCH LINES (Priya 10-25: "the partial lines is much better" than grouped bars): x = pre (0 by construction, a
-    change from pre) -> acute -> subacute -> chronic; per series a line (mean of animals), a shaded 95 % nested CI, faint
-    per-animal lines; FILLED marker = CI excludes 0, OPEN = includes 0. ``series`` = [(value of B[key], label, colour)];
-    B = ``boot`` output (columns area, epoch, point, lo, hi and one column per animal). Grey band = the pre-stroke
+    change from pre) -> acute -> subacute -> chronic; per series a line (mean of animals, the POOLED value: Priya 11-07
+    keeps one model-colored line per model), a shaded 95 % nested CI; FILLED marker = CI excludes 0, OPEN = includes 0.
+    Each animal's value is an OPEN marker, shape = animal, color = EPOCH (A13; no per-animal line across epochs; pre is
+    0 by construction, so no animal markers there). Series colors should come from `cat_points.MODEL_COLORS`. ``series`` = [(value of B[key], label, color)];
+    B = ``boot`` output (columns area, epoch, point, lo, hi and one column per animal). Gray band = the pre-stroke
     split-half range when B has `<ref>_split` rows."""
+    from wfield_local import cat_points as cp
     x = np.arange(len(EP4))
     ax.axhline(0, color="0.6", lw=0.8, zorder=0)
     nb = B[B.area.eq(area) & B.epoch.astype(str).str.endswith("_split") & B[key].isin([s[0] for s in series])]
@@ -150,7 +164,11 @@ def epoch_lines(ax, B: pd.DataFrame, series, area: str, scale: float = 1.0, key:
         lo, hi = np.r_[0, t.lo.to_numpy() * scale], np.r_[0, t.hi.to_numpy() * scale]
         for an in AN:
             if an in t:
-                ax.plot(xs, np.r_[0, t[an].to_numpy() * scale], color=col, lw=0.6, alpha=0.25)
+                for e_i, ep in enumerate(EPS, start=1):
+                    v = t[an].get(ep, np.nan) * scale
+                    if np.isfinite(v):
+                        ax.plot([xs[e_i]], [v], ls="none", marker=cp.animal_marker(an), ms=3.4, mfc="none",
+                                mec=cp.epoch_color(ep), mew=0.8, alpha=0.75, zorder=4)
         ax.fill_between(xs, lo, hi, color=col, alpha=0.15, lw=0)
         ax.plot(xs, pt, color=col, lw=2)
         sig = np.r_[False, ((t.lo > 0) | (t.hi < 0)).to_numpy()]
@@ -165,16 +183,23 @@ def epoch_lines(ax, B: pd.DataFrame, series, area: str, scale: float = 1.0, key:
 
 
 def lines_legend(fig, series, y: float = 0.01, split: bool = True):
-    """One legend row under the panels: series colours + filled / open marker key + animals (+ pre split-half band)."""
+    """One legend under the panels: series (model) colors + filled / open marker key + animal shapes and epoch colors
+    of the per-animal markers (+ pre split-half band)."""
     from matplotlib.lines import Line2D
     from matplotlib.patches import Patch
+
+    from wfield_local import cat_points as cp
     h = [Line2D([], [], color=c, lw=2, label=lab) for _q, lab, c in series]
     h += [Line2D([], [], marker="o", ls="", mfc="0.4", mec="k", label="95% nested CI excludes 0"),
-          Line2D([], [], marker="o", ls="", mfc="w", mec="0.4", mew=1.5, label="CI includes 0"),
-          Line2D([], [], color="0.4", lw=0.6, alpha=0.5, label="each animal")]
+          Line2D([], [], marker="o", ls="", mfc="w", mec="0.4", mew=1.5, label="CI includes 0")]
     if split:
         h.append(Patch(color="#bbbbbb", alpha=0.4, label="pre-stroke split-half range"))
-    fig.legend(handles=h, loc="lower center", bbox_to_anchor=(0.5, y), ncol=min(len(h), 6), frameon=False, fontsize=8.5)
+    h += cp.animal_handles(AN)
+    for hh in h[-len(AN):]:
+        hh.set_label(hh.get_label().replace(" sessions", " (animal)"))
+    h += cp.epoch_colour_handles(EPS, "{e} (animal color)")
+    fig.legend(handles=h, loc="lower center", bbox_to_anchor=(0.5, y), ncol=int(np.ceil(len(h) / 3)), frameon=False,
+               fontsize=8, columnspacing=1.2, handletextpad=0.4)
 
 
 def lines_figure(plt, w, B1, B2, B3, B4, lev, out):
@@ -302,7 +327,7 @@ def main() -> int:
                                                                "direction (joint - no_fr_dir)": "FR-A",
                                                                "all FR (joint - no_fr_all)": "noFR"}}),
              ["FR-B", "FR-A", "noFR"], AREAS, "change from pre (R2)",
-             "3. FR UNIQUE in the frozen frame, epoch - pre: purple = directionless, pink = direction, grey = all FR")
+             "3. FR UNIQUE in the frozen frame, epoch - pre: indigo = directionless, wine = direction, gray = all FR")
         bars(axs[1, 1], B4, ["noFR", "FR-A"], AREAS, "change_ref minus pre_late (R2)",
              "4. LAYER 2: how much each epoch's mapping changes beyond the pre-stroke drift (pre_late), all windows")
         h, lb = axs[0, 0].get_legend_handles_labels()

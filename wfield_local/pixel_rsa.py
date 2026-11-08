@@ -15,7 +15,7 @@ registration they are not:
 The affine warp to the Allen grid resamples the spatial components, and resampling does not preserve
 orthogonality. So a coefficient-space RDM silently applies the WRONG METRIC -- it treats components
 as orthogonal and equally scaled when they are neither, off by ~23% in Frobenius norm. That is the
-same class of error as an unnormalised RDM: it looks like a geometry and is partly a basis artefact.
+same class of error as an unnormalized RDM: it looks like a geometry and is partly a basis artifact.
 
 WHAT THIS DOES INSTEAD. The exact pixel-space squared distance between two coefficient vectors is
 
@@ -27,11 +27,11 @@ pixel distance -- so every existing crossnobis / RDM routine can be reused uncha
 approximation and no special-casing downstream.
 
 The mask matters: G computed over the whole frame is dominated by background pixels, which carry
-registration edge artefacts and no signal. G is taken over the Allen brain mask only.
+registration edge artifacts and no signal. G is taken over the Allen brain mask only.
 
 WHAT IT IS FOR. Every geometry result in the deck currently rests on a parcellation -- Allen ROIs or
 LocaNMF components. If the pre/post convergence and the midline null survive in pixel space, they are
-not artefacts of how the cortex was divided up. If they do not, that is worth knowing before any of
+not artifacts of how the cortex was divided up. If they do not, that is worth knowing before any of
 it is written up.
 """
 from __future__ import annotations
@@ -55,7 +55,7 @@ def _atlas_dir(s):
 def brain_mask(atlas_dir) -> np.ndarray | None:
     """Boolean (H, W) mask of pixels inside the Allen atlas, or None if no atlas is available.
 
-    Background is excluded deliberately: it carries registration edge artefacts and no signal, and
+    Background is excluded deliberately: it carries registration edge artifacts and no signal, and
     including it lets those pixels dominate the Gram matrix that defines the metric.
     """
     p = Path(atlas_dir) / "allen_brain_mask_native_grid.npy"
@@ -130,7 +130,7 @@ def basis_distortion(G) -> dict:
 
 
 def mirror_operators(session, mask=None, footprints=None):
-    """``(G, M, Gf, s, sf, n)`` -- everything needed for CENTRED pixel-space correlations, k x k.
+    """``(G, M, Gf, s, sf, n)`` -- everything needed for CENTERED pixel-space correlations, k x k.
 
     The Allen mirror test swaps each area's ``_left`` value with its ``_right``. Pixel space has no
     areas, so the equivalent is a genuine left-right image flip about the frame midline. Written out,
@@ -139,7 +139,7 @@ def mirror_operators(session, mask=None, footprints=None):
         G  = sum_P U[p]^T U[p]              (norm of the unflipped map)
         Gf = sum_P U[f(p)]^T U[f(p)]        (norm of the flipped map)
         M  = sum_P U[p]^T U[f(p)]           (their inner product)
-        s  = sum_P U[p],  sf = sum_P U[f(p)],  n = |P|      (for centring)
+        s  = sum_P U[p],  sf = sum_P U[f(p)],  n = |P|      (for centering)
 
     P IS SYMMETRISED: a pixel counts only if its mirror is also in the brain, so that a pixel whose
     mirror lands on background cannot contribute a background value to one side of the comparison.
@@ -179,7 +179,7 @@ def mirror_operators(session, mask=None, footprints=None):
 def mirror_correlation(a, b, ops) -> float:
     """Pearson correlation between pixel maps ``U a`` and ``flip(U) b``, from the k x k operators.
 
-    Centred exactly as ``np.corrcoef`` would be on the pixel maps themselves: the mean of each map
+    Centered exactly as ``np.corrcoef`` would be on the pixel maps themselves: the mean of each map
     over the shared mask is subtracted, which in this algebra is the ``s``/``n`` correction terms.
     """
     G, M, Gf, s, sf, n = ops

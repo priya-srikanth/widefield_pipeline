@@ -3,7 +3,7 @@
 Priya, 2026-08-18: *"Another casual observation - the vessels look significantly smaller/fainter
 post-stroke."*
 
-WHY THIS IS WORTH MEASURING RATHER THAN NOTING. Vessels appear DARK because haemoglobin absorbs, so
+WHY THIS IS WORTH MEASURING RATHER THAN NOTING. Vessels appear DARK because hemoglobin absorbs, so
 their contrast against the surrounding cortex is a direct optical readout of how much blood sits in
 the light path. Fainter vessels mean less absorption, i.e. less blood. That makes this the one
 observation in this line that speaks to PERFUSION directly -- and it is independent of the evoked
@@ -28,7 +28,7 @@ bilateral drop is uninformative -- it is the optics. The interpretable quantity 
 which a symmetric optical change leaves alone. That is why the ratio is the headline and the absolute
 values are shown beside it rather than instead of it.
 
-BOTH CHANNELS. Haemoglobin absorbs far more strongly at 415 nm than at 470, so vessel contrast should
+BOTH CHANNELS. Hemoglobin absorbs far more strongly at 415 nm than at 470, so vessel contrast should
 be higher at 415 in every session. If it is not, the channel assignment or the image is wrong, and
 that check is run rather than assumed.
 
@@ -63,7 +63,7 @@ def _dark_contrast(img, mask, sigma=BLUR_SIGMA):
     """Median depth of DARK structure relative to a blurred background, as a fraction of the median.
 
     Only negative deviations count: a vessel is darker than its surround, whereas a specular highlight
-    or a bright edge artefact is not a vessel and would inflate a symmetric measure.
+    or a bright edge artifact is not a vessel and would inflate a symmetric measure.
     """
     im = img.astype(float)
     bg = gaussian_filter(im, sigma)
@@ -219,12 +219,12 @@ def plot(rows, out_dir):
             if k == 0:
                 ax.set_title(a, fontsize=11, fontweight="bold")
     fig.suptitle(
-        "SURFACE VESSEL CONTRAST across days. Vessels are DARK because haemoglobin absorbs, so their "
+        "SURFACE VESSEL CONTRAST across days. Vessels are DARK because hemoglobin absorbs, so their "
         "contrast is an optical readout of blood in the light path: fainter vessels = less blood. "
         "Measured as the median depth of dark structure against a blurred background, divided by the "
         "median so it is invariant to LED power, exposure and gain. FOCUS DRIFT AND A CLOUDING WINDOW "
         "REDUCE IT BILATERALLY, so the L/R RATIO is the interpretable row and the two-hemisphere mean "
-        "is shown only to reveal such a global change. GREY = the small-lesion animals (PS92/PS93 "
+        "is shown only to reveal such a global change. GRAY = the small-lesion animals (PS92/PS93 "
         "8/17), which were lesioned too and are not a no-lesion control.", fontsize=9, wrap=True)
     fig.tight_layout(rect=(0, 0, 1, 0.90))
     p = Path(out_dir) / "vessel_contrast.png"
@@ -248,7 +248,7 @@ def main(argv=None) -> int:
     bad = [r["label"] for r in rows if not r.get("sanity_415_gt_470")]
     if bad:
         print(f"\n[vessel_contrast] WARNING: 415 vessel contrast is NOT above 470 in {len(bad)} "
-              f"session(s) -- haemoglobin absorbs far more at 415, so check the channel assignment "
+              f"session(s) -- hemoglobin absorbs far more at 415, so check the channel assignment "
               f"before reading anything below: {bad[:6]}")
     summ = summarise(rows)
     print(f"\n=== summary ({len(rows)} sessions) ===")

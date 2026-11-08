@@ -1,5 +1,5 @@
 """Imaging results page Fig 3.3 (`s_per_animal.png`): per animal, pre-stroke template amplitude, the variance the
-pre-stroke template captures, and the frozen behavioural-state decoder (cue window), session means per animal x epoch.
+pre-stroke template captures, and the frozen behavioral-state decoder (cue window), session means per animal x epoch.
 
 PROVENANCE: recreated 2026-11-03 (cohort-1 rebuild, step 3) from three session scripts, none in the repo:
   * per_animal_tables.py  (session c1a9581a scratchpad imaging/, 10-25): template tables from the epoch sidecars.

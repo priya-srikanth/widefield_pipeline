@@ -1,5 +1,5 @@
 """Leave-one-camera-out offsets in the four-camera 3-D (`pose3d_side`): is a camera's keypoint a CONSTANT offset from the
-other cameras' 3-D point (a labelling-definition difference -> build it in, like cam1's spout edge) or a variable one
+other cameras' 3-D point (a labeling-definition difference -> build it in, like cam1's spout edge) or a variable one
 (weight it down / leave it out)? Priya 2026-11-04: "should we build in cam1 offset for jaw / tongue".
 
     conda activate dlc

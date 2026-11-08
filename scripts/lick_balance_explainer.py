@@ -143,7 +143,7 @@ def plot(F: dict) -> None:
     ax2 = ax.twinx()
     ax2.plot(S.day, S.aim, "s--", color="#8172B3", ms=4, lw=0.8, alpha=0.8, label="far-contra first-lick aim")
     ax2.set_ylabel("far-contra first-lick aim (deg vs pre)", fontsize=9, color="#8172B3")
-    ax.set_title(f"{EXAMPLE_ANIMAL}: {rp.BAL_SHORT} per session over recovery (grey = pre, left-out)\nand the behavioural "
+    ax.set_title(f"{EXAMPLE_ANIMAL}: {rp.BAL_SHORT} per session over recovery (gray = pre, left-out)\nand the behavioral "
                  "recovery axis it tracks", fontsize=10)
     h1, l1 = ax.get_legend_handles_labels()
     h2, l2 = ax2.get_legend_handles_labels()

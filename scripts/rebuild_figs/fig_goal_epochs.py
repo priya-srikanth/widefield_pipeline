@@ -15,6 +15,11 @@ INPUT: attempt_coding/summary_{cue,lick}.csv (wfield_local/attempt_coding.py, WI
 REBUILD: re-run attempt_coding.py under the new data (decision D7: training rule of the LP-gated stored DAQ model) and
   point --coding-dir at its output.
 OUT: <out>/fig2b_attempt_decoder_epochs.png
+EPOCH-COLOR CONVENTION (PI decision A13, Priya 11-07): before, one panel per animal with the attempt classes as colored
+lines joining acute -> subacute -> chronic. Now one panel per CLASS (columns) x window (rows), x = epoch (pre = the
+animals' pre-stroke hits, the reference): each animal's value is an OPEN marker, shape = animal, color = epoch, error bar
+= its SEM over trials; NO line across epochs; filled dot = mean +- SEM over animals. Same inclusion (>= 5 trials), same
+numbers; trial counts (summed over animals) under each epoch.
 """
 from __future__ import annotations
 from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
@@ -52,43 +57,51 @@ def load(A: Path) -> dict:
 
 
 def draw(summ: dict, png: Path) -> None:
-    fig, axes = plt.subplots(2, 4, figsize=(14, 9), sharey="row")
+    from wfield_local import cat_points as cp
+    classes = [cl for cl, _c in CL]
+    fig, axes = plt.subplots(2, len(classes), figsize=(16, 8.4), sharey="row", squeeze=False)
     for r, w in enumerate(WINDOWS):
         s = summ[w]
-        for k, an in enumerate(AN):
-            ax = axes[r, k]
-            x = s[(s.animal == an) & (s.cls == "pre_hit")]
-            if len(x):
-                ax.axhline(x.p_true.iloc[0], color="0.2", lw=1.5, label="pre-stroke hits")
-            for j, (cl, col) in enumerate(CL):
-                xs, ys, es, ns = [], [], [], []
-                for i, e in enumerate(EP[1:]):
-                    y = s[(s.animal == an) & (s.cls == cl) & (s.epoch == e)]
-                    if len(y) and y.n.iloc[0] >= 5:
-                        xs.append(i + (j - 2) * 0.1)
-                        ys.append(y.p_true.iloc[0])
-                        es.append(y.p_true_sem.iloc[0])
-                        ns.append(int(y.n.iloc[0]))
-                if xs:
-                    ax.errorbar(xs, ys, yerr=es, fmt="-o", color=col, ms=5, lw=1.5, capsize=2, label=cl)
-                    for xx, nn in zip(xs, ns):           # trial counts in a column under the axis, one row per class
-                        ax.text(round(xx), -0.13 - 0.075 * j, str(nn), transform=ax.get_xaxis_transform(),
-                                ha="center", va="top", fontsize=7, color=col)
+        vals = [0.0, 1.0]
+        for j, cl in enumerate(classes):
+            ax = axes[r, j]
+            for i, e in enumerate(EP):
+                key = "pre_hit" if e == "pre" else cl
+                am, ntot = [], 0
+                for k, an in enumerate(AN):
+                    y = s[(s.animal == an) & (s.cls == key) & (s.epoch == e)] if e != "pre" else \
+                        s[(s.animal == an) & (s.cls == "pre_hit")]
+                    if len(y) and (e == "pre" or y.n.iloc[0] >= 5):
+                        v, se = float(y.p_true.iloc[0]), float(y.p_true_sem.iloc[0])
+                        ax.errorbar(i - 0.2 + 0.07 * k, v, yerr=se, fmt=cp.animal_marker(an), ms=5, mfc="none",
+                                    mec=cp.epoch_color(e), ecolor=cp.epoch_color(e), mew=1.0, elinewidth=0.7,
+                                    capsize=1.5, zorder=3)
+                        am.append(v)
+                        ntot += int(y.n.iloc[0])
+                        vals += [v - se, v + se]
+                if am:
+                    cp.epoch_mean_sem(ax, i + 0.2, am, e, ms=6.5)
+                    ax.text(i, -0.12, f"n {ntot}", transform=ax.get_xaxis_transform(), ha="center", va="top",
+                            fontsize=7, color=cp.epoch_color(e))
             ax.axhline(1 / 6, color="k", ls=":", lw=1)
-            ax.set_xticks(range(3))
-            ax.set_xticklabels(EP[1:])
-            ax.set_ylim(0, 1)
+            ax.set_xticks(range(len(EP)))
+            ax.set_xticklabels(["pre hits", *EP[1:]], fontsize=8)
+            for s_ in ("top", "right"):
+                ax.spines[s_].set_visible(False)
             if r == 0:
-                ax.set_title(an)
-            if k == 0:
+                ax.set_title(cl)
+            if j == 0:
                 ax.set_ylabel(f"{w} window\nP(true spout), far contra")
-    h, lab = axes[0, 0].get_legend_handles_labels()
-    fig.legend(h, lab, loc="upper center", ncol=6, fontsize=9, frameon=False, bbox_to_anchor=(0.5, 0.955))
+        axes[r, 0].set_ylim(0, 1)
+        cp.fit_ylim(axes[r, 0], vals)                    # 0..1, grown only if a mean +- SEM falls outside
+    fig.legend(handles=cp.legend_handles(AN, EP, sessions_label="{a}", epoch_label="{e}: mean +- SEM over animals"),
+               loc="upper center", ncol=8, fontsize=8.5, frameon=False, bbox_to_anchor=(0.5, 0.935))
     fig.suptitle("Item 1 across epochs: far-contra trials on the frozen pre-stroke decoder by trial type "
-                 "(classes with >= 5 trials; chance dotted, pre-stroke hits solid)\nnumbers under each axis = trials "
-                 "per class (same colours)", fontsize=10)
-    fig.tight_layout(rect=(0, 0, 1, 0.92))
-    fig.subplots_adjust(hspace=0.75)
+                 "(classes with >= 5 trials per animal; chance dotted; pre = the animals' pre-stroke hits)\nopen = each "
+                 "animal (mean +- SEM over trials; shape = animal, color = epoch), filled = mean +- SEM over animals, no "
+                 "lines across epochs; n = trials summed over animals", fontsize=10)
+    fig.tight_layout(rect=(0, 0.02, 1, 0.88))
+    fig.subplots_adjust(hspace=0.45)
     save_png_svg(fig, png, dpi=140)
     plt.close(fig)
 

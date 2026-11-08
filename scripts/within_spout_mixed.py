@@ -4,7 +4,7 @@ stroke to be a variable"). Reads the per-session table of `scripts/within_spout_
 Per outcome (area slope, crossed = left - right, bilateral = (left + right) / 2; within- and between-spout; dF per 10 deg
 executed lateral, x1e3), sessions as observations:
 
-  models (wfield_local/mixed_models.py -- the shared definition): `time` y ~ post + post:lday, `behaviour`
+  models (wfield_local/mixed_models.py -- the shared definition): `time` y ~ post + post:lday, `behavior`
   y ~ post + post:deficit (far-contra contact deficit), `epoch` y ~ C(epoch); random intercept + step + slope per animal
   with the module's fallback ladder (incl. fixed animal intercepts); FDR within model x term x kind; per-animal epoch
   means printed first (rule 8). Unweighted (per-session SEs not used). Pixel maps: the same
@@ -31,7 +31,7 @@ def add_z(D: pd.DataFrame) -> pd.DataFrame:
     b_z  = b x (the animal's PRE-stroke median within-spout lateral SD) / (its PRE-stroke median within-spout response
            SD), per animal x spouts x area x variant: pre-stroke SDs of activity per pre-stroke SD of lick deviation. A
            per-animal rescaling -- animals become comparable (cam4 angle compression, expression / window amplitude),
-           and a post-stroke change stays in that animal's pre-stroke units (a change in scatter is not normalised away).
+           and a post-stroke change stays in that animal's pre-stroke units (a change in scatter is not normalized away).
     b_zs = b x the SESSION's own lateral SD / its response SD (correlation-like; check only).
     Rows without the SDs (equal-weight, folders computed before 10-21 midday) stay NaN."""
     if "resp_sd" not in D or "lat_sd" not in D:
@@ -105,7 +105,7 @@ def outcomes_dirmid(DM: pd.DataFrame) -> pd.DataFrame:
 
 
 def area_table(L: pd.DataFrame, qc_dir: Path, deficit: str | None = None) -> pd.DataFrame:
-    """Time / behaviour / epoch models per kind x measure (wfield_local/mixed_models.py)."""
+    """Time / behavior / epoch models per kind x measure (wfield_local/mixed_models.py)."""
     from wfield_local import mixed_models as mm
     L = mm.add_deficit(L, mm.deficit(qc_dir, deficit or mm.DEFICIT))
     return mm.lmm_table(L, ["kind", "measure"], ("time", "behaviour", "epoch"), fdr_by=("kind",),
@@ -199,7 +199,7 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--run", default=oc.RUN)
     ap.add_argument("--folder", default="within_spout_deviation_lick")
-    ap.add_argument("--deficit", default=None, help="behavioural index (mixed_models.DEFICITS); non-default -> *_<name>")
+    ap.add_argument("--deficit", default=None, help="behavioral index (mixed_models.DEFICITS); non-default -> *_<name>")
     a = ap.parse_args(argv)
     from wfield_local import run_mode
     folder = run_mode.encoding_out_root(a.run) / "qc" / a.folder   # within_spout_deviation's (tagged) output
@@ -209,7 +209,7 @@ def main(argv=None) -> int:
         L = pd.concat([L, outcomes_dirmid(pd.read_csv(folder / "dirmid.csv"))], ignore_index=True)
     from wfield_local import mixed_models as mm
     print(mm.animal_epoch_table(L[L.measure.str.startswith(FOCUS)], ["kind", "measure"]).round(3).to_string())  # rule 8
-    T = area_table(L, run_mode.deficit_qc_dir(), a.deficit)   # the deficit: THIS run's trial_attempts_sessions.csv
+    T = area_table(L, run_mode.deficit_qc_dir(a.deficit), a.deficit)   # the deficit: THIS run's trial_attempts_sessions.csv
     sfx = "" if (a.deficit or mm.DEFICIT) == mm.DEFICIT else f"_{a.deficit}"
     T.to_csv(folder / f"mixed_model{sfx}.csv", index=False, float_format="%.5g")
     pd.set_option("display.width", 230)

@@ -1,4 +1,4 @@
-"""Aim offset BY SPOUT x EPOCH (Priya 10-29: "behavioural deficit by angle offset from target over time by epochs, as an
+"""Aim offset BY SPOUT x EPOCH (Priya 10-29: "behavioral deficit by angle offset from target over time by epochs, as an
 addition to the spout contact data"; for the kinematics page).
 
 THE aim definition (iti_recovery_measure.aim_licks, rule 9): per cued lick, 3-D angle atan2(lateral, sagittal) at the
@@ -7,13 +7,15 @@ each trial; a spout counts in a session with >= 5 such licks. Per session x spou
 over its pre sessions at that spout (change vs own pre, deg). SIGN + = contralesional, the encoder goal page's convention (Priya 10-30:
 align signs; the kinematics page's p_angle is + = ipsi and is to be aligned to this).
 
-Fig A (POOLED): 6 spouts (canonical order) x epoch; dots = sessions coloured by animal; big marker = animal-weighted mean
+Fig A (POOLED): 6 spouts (canonical order) x epoch; dots = sessions (open, shape = animal, color = epoch; A13, Priya
+11-07); big marker = animal-weighted mean
 (mean of per-animal epoch means), 95% CI = nested bootstrap animals -> sessions (2,000 draws); * CI excludes 0
 (uncorrected), ** after Bonferroni over 18 tests (6 spouts x 3 post epochs). Pre column = pre sessions vs their own
 mean (the noise floor).
 Both figures carry a 7th panel, the WEIGHTED aim (iti_recovery_measure.weighted: far contra 3, far mid 2, others 1;
-the goal page's behaviour axis), same change-vs-own-pre treatment (Priya 10-30).
-Fig B (over time): per spout, change vs pre against day after stroke, one thin line per animal, plus the POOLED
+the goal page's behavior axis), same change-vs-own-pre treatment (Priya 10-30).
+Fig B (over time): per spout, change vs pre against day after stroke, one open point per session (shape = animal,
+color = epoch, no line), filled = epoch mean +- SEM over animals, plus the POOLED
 cross-animal fit of the goal page's shared TIME model (wfield_local.mixed_models: y ~ post + post:lday, animal random
 effects, lday = log days since stroke, 0 at day 1; the same model as goal-page Fig 16.9), fit per panel; BH-FDR over the
 7 panels per term. Fit table: aim_by_spout_time_lmm.csv.
@@ -37,8 +39,9 @@ AN, EPS, POS = rm.AN, rm.EPS, rm.POS
 POST = EPS[1:]
 PANELS = POS + ["weighted"]
 LAB = {**{p: p.replace("_", " ") for p in POS}, "weighted": "WEIGHTED aim\n(far contra 3 : far mid 2 : others 1)"}
-COL = {"PS92": "#1b9e77", "PS93": "#d95f02", "PS94": "#7570b3", "PS95": "#e7298a"}
-ECOL = {"pre": "#555555", "acute": "#c51b7d", "subacute": "#b8860b", "chronic": "#00695c"}
+#: THE epoch palette (orofacial_cohort.EPOCH_LINE; A13, Priya 11-07 -- the private copy had drifted). The private animal
+#: colour dict is gone (config rule 3): animals are told apart by marker shape (cat_points.animal_marker).
+from wfield_local.orofacial_cohort import EPOCH_LINE as ECOL  # noqa: E402
 MINN = rm.MIN_LICKS["first"]
 NB = 2000
 
@@ -71,6 +74,7 @@ def main() -> int:
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
+    from wfield_local import cat_points as cp
     S = session_spout()
     S.to_csv(il.OUT / "aim_by_spout_sessions.csv", index=False)
     rng = np.random.default_rng(0)
@@ -101,8 +105,11 @@ def main() -> int:
     for ax, pos in zip(axs, PANELS):
         for k, ep in enumerate(EPS):
             d = S[(S.pos == pos) & (S.epoch == ep)]
-            x = k + rng.uniform(-0.18, 0.18, len(d))
-            ax.scatter(x, d.chg, s=9, c=[COL[a] for a in d.animal], alpha=0.55, lw=0)
+            x = k + rng.uniform(-0.18, 0.18, len(d))      # same draw as before (rng is not reused for any number)
+            for a in sorted(d.animal.unique()):
+                kk = (d.animal == a).to_numpy()
+                ax.plot(x[kk], d.chg.to_numpy()[kk], ls="none", marker=cp.animal_marker(a), ms=3.4, mfc="none",
+                        mec=ECOL[ep], mew=0.8, alpha=0.65)
             r = T[(T.pos == pos) & (T.epoch == ep)]
             if r.empty:
                 continue
@@ -123,8 +130,8 @@ def main() -> int:
     axs[0].set_ylabel("first-lick aim offset, change vs own pre\n(deg; + = contralesional)")
     lo_, hi_ = axs[0].get_ylim()                         # sharey: one range; the top band holds the stars, no data
     axs[0].set_ylim(lo_, hi_ + 0.14 * (hi_ - lo_))
-    hs = [plt.Line2D([], [], marker="o", ls="", color=COL[a], label=a) for a in AN]
-    fig.legend(handles=hs, loc="lower center", ncol=4, frameon=False, fontsize=9)
+    hs = cp.legend_handles(AN, EPS, sessions_label="{a} sessions", epoch_label="{e}: animal-weighted mean, 95% CI")
+    fig.legend(handles=hs, loc="lower center", ncol=8, frameon=False, fontsize=8.5)
     fig.suptitle("Aim offset by spout (3-D angle of the FIRST cued lick minus the animal's pre landing at that spout), "
                  "POOLED (last panel = the weighted aim); dots = sessions; marker = animal-weighted mean, nested-bootstrap 95% CI;\n* CI excludes 0, "
                  "** after Bonferroni over 18 tests; pre column = pre sessions vs their own mean (noise floor)",
@@ -144,9 +151,8 @@ def main() -> int:
     print(M[["pos", "term", "coef", "se", "z", "q", "re", "n"]].round(3).to_string(index=False))
     fig, axs = plt.subplots(1, 7, figsize=(19.5, 4.6), sharey=True)
     for ax, pos in zip(axs, PANELS):
-        for a in AN:
-            d = S[(S.pos == pos) & (S.animal == a)].sort_values("day")
-            ax.plot(d.day, d.chg, "o-", ms=2, lw=0.8, alpha=0.55, color=COL[a], label=a)
+        d = S[S.pos == pos]
+        cp.day_dots(ax, d.day, d.chg, d.animal, d.epoch, ms=3.2, summary_ms=5.5)
         c = M[M.pos == pos].set_index("term")
         if len(c):
             dd = np.linspace(1, S.day.max(), 200)
@@ -163,10 +169,11 @@ def main() -> int:
         for s_ in ("top", "right"):
             ax.spines[s_].set_visible(False)
     axs[0].set_ylabel("first-lick aim offset, change vs own pre\n(deg; + = contralesional)")
-    hs, ls_ = axs[-1].get_legend_handles_labels()
-    fig.legend(hs[:len(AN) + 1], ls_[:len(AN) + 1], loc="lower center", ncol=len(AN) + 1, frameon=False, fontsize=9)
-    fig.suptitle("Aim offset by spout over days: thin = per animal (one point per session with >= 5 first licks at the "
-                 "spout); BLACK = POOLED cross-animal time model y ~ post + post:lday (animal random effects; the goal "
+    hs = cp.legend_handles(AN, EPS, sessions_label="{a} sessions", epoch_label="{e}: mean +- SEM over animals")
+    hs += [plt.Line2D([], [], color="k", lw=2.2, label="pooled fit")]
+    fig.legend(handles=hs, loc="lower center", ncol=9, frameon=False, fontsize=8.5)
+    fig.suptitle("Aim offset by spout over days: open = one point per session with >= 5 first licks at the spout (shape = "
+                 "animal, color = epoch); filled = epoch mean +- SEM over animals;\nBLACK = POOLED cross-animal time model y ~ post + post:lday (animal random effects; the goal "
                  "page's Fig 16.9 model),\nstep = day-1 change vs pre, recovery = change per e-fold of days; q = BH over "
                  "the 7 panels", fontsize=9.5)
     fig.tight_layout(rect=(0, 0.06, 1, 0.88))

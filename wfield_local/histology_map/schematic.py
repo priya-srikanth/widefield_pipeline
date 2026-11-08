@@ -1,10 +1,10 @@
 """Stroke-extent schematic: painted masks on outline-only Paxinos plates, lesion left, animals overlaid.
 
-Per section: painted mask (painter px) -> standardised section px -> plate mm with that section's fit
+Per section: painted mask (painter px) -> standardized section px -> plate mm with that section's fit
 (``fit.to_mm``), unioned per animal per plate, clipped to the plate's left hemisphere. Plates = every AP level that
 has a section (Priya's figure assignments). Levels BETWEEN an animal's measured levels are filled by signed-distance
 interpolation of the two nearest measured footprints (Priya: "strokes shouldn't skip sections"); those are drawn
-dashed and lighter and labelled "interp." -- they are estimates, not measurements.
+dashed and lighter and labeled "interp." -- they are estimates, not measurements.
 """
 from __future__ import annotations
 
@@ -97,7 +97,7 @@ def fill_gaps(byplate):
 
 def render(sections, masks_dir, plates_pdf, colors, out_stem, title, ncol=4, interpolate_gaps=True, per_line=4,
            polygons_dir=None, style="filled"):
-    """style: "filled" (translucent fill + thin outline) or "outline" (coloured outlines only, no fill; Priya
+    """style: "filled" (translucent fill + thin outline) or "outline" (colored outlines only, no fill; Priya
     2026-10-22: overlapping fills made animals hard to tell apart)."""
     import matplotlib
     matplotlib.use("Agg")

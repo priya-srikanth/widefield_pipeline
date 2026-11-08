@@ -80,7 +80,7 @@ def plot(F: dict) -> None:
                 ax.plot(x + 0.2, h.act, mk, color=col[ep], ms=3, alpha=0.4, mfc="none")
             ax.axhline(0, color="0.8", lw=0.6)
             ax.set_xticks(x, [p.replace("_", "\n") for p in POS], fontsize=8)
-            ax.set_title(f"{SETS[st]}: {ep.upper()}" + ("" if ep == "pre" else "\n(grey open = pre: circle decoded, square actual)"),
+            ax.set_title(f"{SETS[st]}: {ep.upper()}" + ("" if ep == "pre" else "\n(gray open = pre: circle decoded, square actual)"),
                          fontsize=9, color=col[ep])
             if j == 0:
                 ax.set_ylabel("lateral position (mm, + = contralesional)", fontsize=9)
@@ -90,7 +90,7 @@ def plot(F: dict) -> None:
     fig.suptitle("DECODED (filled circles) and ACTUAL landing (open squares) lateral lick position PER SPOUT, per epoch; mean +/- "
                  "SEM over animals, small = animals.\nFrozen pre-stroke KEY-row lateral decoder (z-scored Allen areas with the "
                  "ALM / tjM1 split, lags 0..0.2 s; pre leave-one-session-out). Decoded values are on the decoder's (shrunken) "
-                 "scale: compare with the grey pre line. PROVISIONAL", fontsize=9.5)
+                 "scale: compare with the gray pre line. PROVISIONAL", fontsize=9.5)
     fig.tight_layout(rect=(0, 0, 1, 0.92))
     save_png_svg(fig, il.OUT_W / "figures" / "lick_position_per_spout.png", dpi=100)
     plt.close(fig)

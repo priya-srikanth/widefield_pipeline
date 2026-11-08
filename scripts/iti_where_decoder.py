@@ -135,7 +135,7 @@ def basis_dir(source: str) -> str:
 
 def locanmf_keep(animal: str) -> np.ndarray:
     """Boolean per joint-LocaNMF component: <= MASK_OUT_MAX of its |footprint| outside `beta_maps.brain_mask()` (the
-    imaging-map mask that excludes fibre glue and the olfactory bulbs). Shared by every masked-LocaNMF decoder."""
+    imaging-map mask that excludes fiber glue and the olfactory bulbs). Shared by every masked-LocaNMF decoder."""
     if animal not in _KEEP:
         from wfield_local import beta_maps
         from wfield_local import joint_locanmf as jl

@@ -168,7 +168,7 @@ def cohort_cosine(cells, n_boot=2000, seed=7, alpha=0.05):
 
     AN ANIMAL WITH NO BOOTSTRAP DRAWS CONTRIBUTES ITS POINT ESTIMATE rather than being dropped.
     Dropping it would change the COHORT COMPOSITION between cells, and a cell whose animals differ
-    from its neighbour's is not comparable to it -- that is the same trap the 15k vocabulary
+    from its neighbor's is not comparable to it -- that is the same trap the 15k vocabulary
     intersection exists to avoid.
     """
     if not cells:
@@ -218,7 +218,7 @@ def maxstat_threshold(by_cell, alpha=0.05):
     and `_MEANref_`'s legend: "the maximum |z| across bins is taken per draw; the 95th percentile
     of those maxima is the threshold"):
 
-        1. standardise every draw of every cell by THAT CELL'S own null moments, so cells with
+        1. standardize every draw of every cell by THAT CELL'S own null moments, so cells with
            different noise levels are on one scale;
         2. average over animals within a draw, giving a cohort z per cell per draw;
         3. take the maximum over the family's cells, per draw;

@@ -14,7 +14,7 @@ for:
     sessions kept separate.
   * `_pooled_bundle(animal, align)` -> the shared joint-basis load behind figures 6, 6b, 7 and 8,
     memoised per (animal, alignment).
-  * `_position_metrics(animal, mmdd)` -> per-position ``(hit_rate, ci_lo, ci_hi, n)`` behaviour.
+  * `_position_metrics(animal, mmdd)` -> per-position ``(hit_rate, ci_lo, ci_hi, n)`` behavior.
 
 So an epoch figure is an AGGREGATION: group the existing per-day records by `epochs.epoch_of`, then
 concatenate. Trial-level records concatenate across animals directly; confusion counts are raw, so
@@ -50,7 +50,7 @@ PANELS = epochs.EPOCHS
 def _save_png_svg(fig, q, *, dpi=200):
     """Write the figure as PNG (what the deck places) AND a vector SVG beside it (Priya, 2026-08-29).
 
-    The SVG warns rather than raises, so a figure that cannot vectorise still yields its PNG."""
+    The SVG warns rather than raises, so a figure that cannot vectorize still yields its PNG."""
     import pathlib
     q = pathlib.Path(q)
     from wfield_local import lp_licks
@@ -66,7 +66,7 @@ def _save_png_svg(fig, q, *, dpi=200):
     # PNG as before + SVG twin through the shared helper (2026-11-06: text kept as text, a failed SVG warns).
     save_png_svg(fig, q, dpi=dpi)
 
-def write_values(values, q, *, points=None, marks=None):
+def write_values(values, q, *, points=None, marks=None, sessions=None):
     """Write the numbers a bar figure PLOTS, beside it as ``<name>.csv``. (An LP_licks folder needs the LP switch:
     `lp_licks.refuse_lp_folder`.)
 
@@ -105,7 +105,7 @@ def write_values(values, q, *, points=None, marks=None):
                         mk = (marks.get(ep, {}) or {}).get(pos, "") or ""
                     w.writerow([ep, pos, val, lo, hi, mk])
         if points:
-            _write_sessions_csv(points, q)
+            _write_sessions_csv(points, q, sessions)
     except Exception as ex:                                            # noqa: BLE001
         # A sidecar must never cost a figure. Warn and carry on, as `_save_png_svg` does for SVG.
         print(f"  [values] {main.name}: failed ({type(ex).__name__})", flush=True)
@@ -113,7 +113,7 @@ def write_values(values, q, *, points=None, marks=None):
 
 
 def wrap_ticks(labels, n_slots=None, max_chars=None):
-    """Tick labels wrapped onto SEVERAL LINES so neighbours cannot collide horizontally.
+    """Tick labels wrapped onto SEVERAL LINES so neighbors cannot collide horizontally.
 
     Priya, 2026-09-13: *"all these figures need the X labels addressed to not overlap (maybe each
     can be in two rows)"*. The collision this fixes is `"frozen EV"` against `"EV after rescale"` on
@@ -176,7 +176,7 @@ def write_matrix_values(mats, q, *, labels=None, row_labels=None, col_labels=Non
     the sidecar cannot disagree with the picture; a passed-in delta could, and the whole point of
     the file is to be quotable without re-deriving anything.
 
-    ``extra`` carries the UNNORMALISED matrix where the figure shows a normalised one --
+    ``extra`` carries the UNNORMALIZED matrix where the figure shows a normalized one --
     `confusion_row` divides each row by its sum, so the fraction is what is plotted and the raw
     count is what says how much trial data is behind it. A sidecar with only the fraction cannot
     distinguish 1/1 from 40/40.
@@ -301,7 +301,7 @@ def save_map_bundle(q, cells, **kw):
     was called with.
 
     Two files beside the figure: ``<name>_bundle.npz`` (cell arrays at `BUNDLE_DTYPE`, contour and
-    blank masks bit-packed) and ``<name>_bundle.json`` (labels, titles, colour-scale settings, the
+    blank masks bit-packed) and ``<name>_bundle.json`` (labels, titles, color-scale settings, the
     stats rows). `replot_map` takes the pair and reproduces the figure; a tweak to an axis, a
     colormap or a title is then seconds rather than the hours a re-render costs.
 
@@ -562,7 +562,7 @@ def epoch_of_day(animal: str, day: int) -> str | None:
 
     Pre-stroke days are negative and return ``'pre'``. Delegates the post-stroke boundaries to
     `epochs.EPOCH_SPEC` so there is one definition; a day between the acute range and the first
-    subacute day returns None rather than being rounded to a neighbour.
+    subacute day returns None rather than being rounded to a neighbor.
 
     THE BRANCH ORDER MIRRORS `epochs.epoch_of` AND MUST STAY IN STEP: chronic is tested before
     subacute because the ranges overlap by construction (PS92 is subacute from day 7 and chronic
@@ -589,7 +589,7 @@ def group_days_by_epoch(per_animal: dict) -> dict[str, list[tuple[str, int]]]:
     """``{epoch: [(animal, day), ...]}`` from a collector's ``{animal: (pre, {day: rec})}``.
 
     Days that belong to no epoch are DROPPED and reported by `epoch_coverage`, never folded into a
-    neighbouring panel.
+    neighboring panel.
     """
     out: dict[str, list[tuple[str, int]]] = {e: [] for e in PANELS if e != "pre"}
     for an, (_pre, by_day) in per_animal.items():
@@ -660,7 +660,7 @@ def behaviour_by_epoch(position_metrics, sessions_of, *, positions):
     panel where PS95 has one session and PS94 has six.
 
     ``position_metrics(animal, mmdd)`` and ``sessions_of(animal)`` are injected rather than imported
-    so this is testable without the behaviour tree, and so the caller decides which store to read.
+    so this is testable without the behavior tree, and so the caller decides which store to read.
     Returns ``{epoch: {position: (rate, lo, hi, n_trials, n_sessions)}}``.
     """
     from wfield_local.grant_figures import _wilson
@@ -707,17 +707,26 @@ def counts_by_epoch(per_animal: dict) -> dict:
 # dominates the acute panel (6 sessions) and PS95 the subacute (7) -- and a note saying so is read
 # once and forgotten, while a column of dots is read every time the figure is looked at. One dot per
 # SESSION VALUE means the reader can count the contributors and see that PS95's acute panel rests on
-def _write_sessions_csv(points, q):
-    """``<name>_sessions.csv``: ``epoch, position, animal, value``, one row per session dot."""
+def _write_sessions_csv(points, q, sessions=None):
+    """``<name>_sessions.csv``: ``epoch, position, animal, value``, one row per session dot.
+
+    With ``sessions`` (``{epoch: {position: [key, ...]}}``, parallel to ``points``) a fifth column ``session`` names
+    the session behind each dot, so a reader can pair positions within a session even where one position has no
+    value there (11-08: the state-position figure paired by row order and broke on one missing cell). Without it the
+    file is byte-identical to before."""
     import csv as _csv
     with open(sidecar(pathlib.Path(q), "_sessions.csv"), "w", newline="", encoding="utf-8") as fh:
         w = _csv.writer(fh)
-        w.writerow(["epoch", "position", "animal", "value"])
+        w.writerow(["epoch", "position", "animal", "value"] + (["session"] if sessions else []))
         for ep, per_pos in points.items():
             for pos, lst in (per_pos or {}).items():
-                for item in lst or []:
+                keys = ((sessions or {}).get(ep) or {}).get(pos) if sessions else None
+                if sessions and (keys is None or len(keys) != len(lst or [])):
+                    raise ValueError(f"sessions[{ep}][{pos}] does not match points ({len(keys or [])} vs "
+                                     f"{len(lst or [])})")
+                for i, item in enumerate(lst or []):
                     an, val = (item if isinstance(item, (tuple, list)) else ("", item))[:2]
-                    w.writerow([ep, pos, an, val])
+                    w.writerow([ep, pos, an, val] + ([keys[i]] if sessions else []))
 
 
 def write_session_values(points, q):
@@ -752,11 +761,11 @@ BAR_POINT_Z = 2.5
 
 def session_points(ax, x, per_session, *, spread=0.16, size=POINT_SIZE, alpha=POINT_ALPHA,
                    zorder=5):
-    """One dot per session value at ``x``, coloured by animal, spread deterministically.
+    """One dot per session value at ``x``, colored by animal, spread deterministically.
 
-    ``per_session`` is ``[(animal, value), ...]``. Colours come from `config.animal_color`, the
-    single source of truth, rather than four colours chosen here -- the same animal must be the same
-    colour in this figure and in every per-animal figure beside it.
+    ``per_session`` is ``[(animal, value), ...]``. Colors come from `config.animal_color`, the
+    single source of truth, rather than four colors chosen here -- the same animal must be the same
+    color in this figure and in every per-animal figure beside it.
 
     THE SPREAD IS DETERMINISTIC, NOT RANDOM. A jittered point cloud that moves between renders makes
     two versions of the same figure impossible to compare, and this project has already been bitten
@@ -812,14 +821,14 @@ BAR_FACE_ALPHA = 0.35
 
 
 def epoch_dot_color(epoch):
-    """Session-dot (and star) colour for an epoch: the epoch colour, scaled by `DOT_DARKEN`."""
+    """Session-dot (and star) color for an epoch: the epoch color, scaled by `DOT_DARKEN`."""
     import matplotlib.colors as mc
     r, g, b = mc.to_rgb(EPOCH_GREY.get(epoch, "#8a8a8a"))
     return (r * DOT_DARKEN, g * DOT_DARKEN, b * DOT_DARKEN)
 
 
 def epoch_session_dots(ax, x, per_session, epoch, *, jitter, seed=0, zorder=BAR_POINT_Z):
-    """``[(animal, value), ...]`` at ``x`` as faded open markers (shape = animal, colour = epoch).
+    """``[(animal, value), ...]`` at ``x`` as faded open markers (shape = animal, color = epoch).
 
     Seeded jitter (`cat_points.session_dots`), so the same data always draws the same picture.
     Returns the number of finite values drawn."""
@@ -833,7 +842,7 @@ def epoch_session_dots(ax, x, per_session, epoch, *, jitter, seed=0, zorder=BAR_
 
 
 def _shape_handles(animals, counts=None):
-    """Legend entries for the session-dot shapes (open, grey), optionally ``PS92 (n)``."""
+    """Legend entries for the session-dot shapes (open, gray), optionally ``PS92 (n)``."""
     from matplotlib.lines import Line2D
 
     from wfield_local import cat_points as cp
@@ -849,7 +858,7 @@ def session_deltas(points, ref="pre"):
     post-epoch session value has ITS OWN ANIMAL'S mean reference value at that position
     subtracted -- paired within animal, as the contrast bootstrap pairs its animal draw. Animals
     with no reference value there are dropped. DESCRIPTIVE: the panel's point estimate is a pooled
-    contrast (trial-pooled or session-mean), so the dots need not centre on it exactly.
+    contrast (trial-pooled or session-mean), so the dots need not center on it exactly.
     """
     base = (points or {}).get(ref) or {}
     out = {}
@@ -867,9 +876,11 @@ def session_deltas(points, ref="pre"):
     return out
 
 
-def per_session_values(per_animal, epoch, value_of):
+def per_session_values(per_animal, epoch, value_of, *, with_session=False):
     """``[(animal, value), ...]`` for one epoch, one value per SESSION -- the input `session_points`
-    wants.
+    wants. ``with_session=True`` returns ``(animal, value, session)`` instead: ``pre<k>`` (the k-th pre record of
+    that animal, in collector order) or ``day<d>`` (days from stroke), identical across positions and across figures
+    built from the same collector.
 
     ``value_of(animal, day, record)`` reduces a per-day record to the scalar the panel plots, so the
     same grouping serves accuracy, similarity and reliability without any of them re-deriving which
@@ -880,13 +891,13 @@ def per_session_values(per_animal, epoch, value_of):
         for an, (pre, _bd) in sorted(per_animal.items()):
             if pre is None:
                 continue
-            for r in (pre if isinstance(pre, list) else [pre]):
-                out.append((an, value_of(an, None, r)))
+            for k, r in enumerate(pre if isinstance(pre, list) else [pre]):
+                out.append((an, value_of(an, None, r)) + ((f"pre{k}",) if with_session else ()))
         return out
     for an, day in group_days_by_epoch(per_animal).get(epoch, []):
         rec = per_animal[an][1].get(day)
         if rec is not None:
-            out.append((an, value_of(an, day, rec)))
+            out.append((an, value_of(an, day, rec)) + ((f"day{day}",) if with_session else ()))
     return out
 
 
@@ -905,7 +916,7 @@ def confusion_row(counts, out, *, name, title, coverage=None, delta=True, chance
     than three, for the reason `_pooled_bundle` was extracted: three copies of a panel that claim
     to show the same thing eventually stop doing so.
 
-    ``counts`` is ``{epoch: MxM raw counts or None}``. Panels are ROW-NORMALISED for display only;
+    ``counts`` is ``{epoch: MxM raw counts or None}``. Panels are ROW-NORMALIZED for display only;
     the stored matrices stay raw counts so they remain addable, which is what makes epoch pooling
     a sum in the first place.
 
@@ -917,15 +928,15 @@ def confusion_row(counts, out, *, name, title, coverage=None, delta=True, chance
     answers "did it recover from its worst point"; subacute - pre answers "has it returned to
     baseline", which is the question a recovery figure is asked, and it is the one a reader
     assumes is being answered unless told otherwise. Both deltas therefore share the SAME
-    reference and the same colour scale, so the two panels are directly comparable to each other
+    reference and the same color scale, so the two panels are directly comparable to each other
     -- which they are not when one is measured against pre and the other against acute.
 
-    Differences are of ROW-NORMALISED matrices, not of counts: the epochs have very different n
+    Differences are of ROW-NORMALIZED matrices, not of counts: the epochs have very different n
     (acute 16 sessions, subacute 14, neither balanced across animals), so a count difference would
     mostly report how many sessions each epoch happens to contain.
 
     ``annotate=False`` by default -- Priya, for the crossnobis panels: numbers in the boxes are
-    unreadable at a quarter page and fight the colour they duplicate. The colour bars carry the
+    unreadable at a quarter page and fight the color they duplicate. The color bars carry the
     scale instead, one per row, since the two rows are on different scales and units.
 
     ``coverage`` is `epoch_coverage(...)['per_epoch']`; when given, each post panel's title carries
@@ -1084,7 +1095,7 @@ def _annotate_marks(ax, marks, k):
 
 
 def _cbar(fig, im, fig_w, fig_h, left_in, gutter_in, panel_in, top_in, row, row_gap_in, label):
-    """A slim colour bar in the reserved right gutter, aligned to one row of panels."""
+    """A slim color bar in the reserved right gutter, aligned to one row of panels."""
     if im is None:
         return
     x0 = (fig_w - gutter_in + 0.10) / fig_w
@@ -1110,7 +1121,7 @@ EPOCH_COLOR = EPOCH_GREY
 def _value_and_ci(v):
     """``(value, lo, hi)`` from either a bare number or a `behaviour_by_epoch` tuple.
 
-    Both shapes occur by design -- behaviour carries a Wilson interval, a decoding accuracy read off
+    Both shapes occur by design -- behavior carries a Wilson interval, a decoding accuracy read off
     a confusion diagonal does not -- and a renderer that accepted only one would force its caller to
     invent the other, which is how a fabricated interval gets drawn.
     """
@@ -1273,15 +1284,15 @@ def _data_span(values, points):
 
 def bar_row(values, out, *, name, title, ylabel, positions, points=None, chance=None,
             counts=None, ylim=(0.0, 1.0), subtitle=None, groups=None, tick_labels=None,
-            marks=None, reference=None, dot_style="open"):
+            marks=None, reference=None, dot_style="open", sessions=None):
     """Per-position values as grouped bars, one group per position and one bar per epoch.
 
     ``dot_style`` (Priya 2026-11-03, figure rule 2): ``"open"`` (default) draws each session as a
-    faded OPEN marker, shape = animal, colour = epoch, over a lighter bar, with the marks in the
-    top band (`sig_marks.star_top`); ``"animal"`` is the earlier style (filled dots coloured by
+    faded OPEN marker, shape = animal, color = epoch, over a lighter bar, with the marks in the
+    top band (`sig_marks.star_top`); ``"animal"`` is the earlier style (filled dots colored by
     animal, marks above the bar). The sidecars are identical either way.
 
-    Serves figure 1b (behaviour hit rate per spout position) and the per-position decoding
+    Serves figure 1b (behavior hit rate per spout position) and the per-position decoding
     accuracies, which differ only in what they are handed.
 
     ``values`` is ``{epoch: {position: value}}`` where a value is a bare number or a
@@ -1488,7 +1499,7 @@ def bar_row(values, out, *, name, title, ylabel, positions, points=None, chance=
     write_meta(q, chance=chance, reference=reference, ylim=ylim, counts=counts,
                positions=positions, tick_labels=tick_labels, groups=groups,
                title=title, subtitle=subtitle, ylabel=ylabel)
-    write_values(values, q, points=points, marks=marks)
+    write_values(values, q, points=points, marks=marks, sessions=sessions)
     save_figdata(q, "bar_row", _figdata)
     plt.close(fig)
     return q
@@ -1616,8 +1627,8 @@ def _sessions_of(per_animal, animal, epoch):
 
     A ``pre`` entry may be ONE record or a LIST of them. `_collect_5c` gives one -- a
     leave-one-session-out pool that is already an aggregate over that animal's pre-stroke days --
-    while the behaviour tables give one record per session, and there the session level is real
-    and must be resampled. Accepting both is what lets behaviour and decoding share this bootstrap
+    while the behavior tables give one record per session, and there the session level is real
+    and must be resampled. Accepting both is what lets behavior and decoding share this bootstrap
     instead of growing a second one that agrees with it until it doesn't.
     """
     pre, by_day = per_animal.get(animal, (None, {}))
@@ -1670,7 +1681,7 @@ def contrast_draws(per_animal, epoch_a, epoch_b, stat, *, rng, n_boot=2000):
     position). ``point`` is computed on the REAL data, not on the bootstrap mean, so the number
     printed on a figure is the number in the data.
 
-    THE DRAWS ARE RETURNED RATHER THAN AN INTERVAL because the same draws have to be summarised at
+    THE DRAWS ARE RETURNED RATHER THAN AN INTERVAL because the same draws have to be summarized at
     more than one level -- an uncorrected 95% and a Bonferroni-corrected one across the twelve
     comparisons a per-position figure makes. Re-running the bootstrap per level would cost twice
     and, worse, give two intervals from two different resamples, so a corrected interval could come
@@ -1730,7 +1741,7 @@ def contrast_marks(draws, *, n_comparisons, alpha=0.05):
     turn every real effect into a blank -- and only the uncorrected one would call twelve
     comparisons one. The figure states which is which; the reader decides.
 
-    Summarised from ONE set of draws, so the corrected interval necessarily contains the
+    Summarized from ONE set of draws, so the corrected interval necessarily contains the
     uncorrected one. Two bootstraps would not guarantee that.
     """
     if draws is None or not len(draws):
@@ -1750,7 +1761,7 @@ def contrast_panel(rows, out, *, name, title, ylabel, positions, tick_labels=Non
     ``points`` (optional, Priya 2026-11-03 figure rule 2) is ``{epoch: {position: [(animal,
     delta), ...]}}`` -- the per-SESSION changes behind each interval (e.g. `session_deltas` of the
     companion bar figure's dots). When given they are drawn as faded OPEN markers (shape = animal,
-    colour = epoch) at each epoch's offset and written to ``<name>_sessions.csv``; the main
+    color = epoch) at each epoch's offset and written to ``<name>_sessions.csv``; the main
     ``<name>.csv`` is unchanged.
 
     ``rows`` is ``{epoch: {position: (point, lo, hi, clo, chi)}}`` -- the uncorrected and the
@@ -1919,7 +1930,7 @@ def stats_line(per_epoch, *, blocks=None, n_boot=None, notes=None, unit="session
     count on a figure has to mean the thing it names.
 
     WRAPPED, because a single line of this does not fit 6.2in and matplotlib does not clip a
-    centred `fig.text` -- it runs off BOTH edges, which is how the first render lost the "N=4
+    centered `fig.text` -- it runs off BOTH edges, which is how the first render lost the "N=4
     animals" at one end and half the subacute breakdown at the other.
     """
     import textwrap
@@ -2053,7 +2064,7 @@ def matrix_row(mats, out, *, name, title, labels, cmap="viridis", vmin=None, vma
                pre_sessions=None, cell_marks=None, delta_cell_marks=None):
     """pre | acute | subacute of an ALREADY-REDUCED matrix, with each epoch's change beneath it.
 
-    The sibling of `confusion_row` for the `_matrices_*` family. It does not row-normalise -- these
+    The sibling of `confusion_row` for the `_matrices_*` family. It does not row-normalize -- these
     are correlations, reliabilities or distances, already on their own scale -- and it takes the
     scale from the data unless told, because a crossnobis distance and a correlation do not share
     a sensible fixed range.
@@ -2191,7 +2202,7 @@ def map_grid(cells, out, *, name, title, row_labels, col_labels, subtitle=None,
     have "fixed" a scaling bug by hiding it.
 
     ``delta_cols`` names columns that hold DIFFERENCES; they get their own diverging map and their
-    own symmetric limit, because a difference and an absolute map on one colour bar is a category
+    own symmetric limit, because a difference and an absolute map on one color bar is a category
     error that reads as a magnitude claim.
 
     LIMITS FROM A PERCENTILE, not the max: one saturated pixel at the edge of the window -- and
@@ -2621,7 +2632,9 @@ def _thin_day_ticks(post, max_ticks=MAX_DAY_TICKS):
 def timecourse_by_animal(per_day, out, *, name, title, ylabel, positions, tick_labels=None,
                          subtitle=None, boundaries=None, chance=None, ylim=(0.0, 1.06),
                          extra_rows=None):
-    """One axes per ANIMAL, all six spout positions overlaid, with that animal's own boundaries.
+    """One axes per ANIMAL, all six spout positions overlaid, with that animal's own boundaries -- UNTIL 2026-11-07: since
+    PI decision A13 the axes are one per POSITION x measure with all animals pooled under the epoch-colour convention
+    (see the comment at the drawing code); the history below explains the per-animal layout it replaces.
 
     THE TRANSPOSE OF `timecourse_panel`, and the reason is the boundaries (Priya, 2026-09-08). The
     epochs are per-animal -- four lesion dates, four acute ends, four subacute starts -- so a
@@ -2641,9 +2654,7 @@ def timecourse_by_animal(per_day, out, *, name, title, ylabel, positions, tick_l
     linestyle = side) rather than inventing a second scheme for the same six things.
     """
     import matplotlib.pyplot as plt
-    from matplotlib.lines import Line2D
 
-    from wfield_local.spout_behavior import IDX_ORDER, POS_BY_IDX, SIDE_LS, SIDE_MARKER, pos_color
 
     positions = list(positions)
     labels = list(tick_labels or positions)
@@ -2667,17 +2678,22 @@ def timecourse_by_animal(per_day, out, *, name, title, ylabel, positions, tick_l
     if not ncol:
         return None
 
-    fig_w = QUARTER_IN * 2.0
-    left_in, right_in = 0.62, 1.30           # room for a six-entry position legend
+    from wfield_local import cat_points as cp
+
+    # EPOCH-COLOUR CONVENTION (PI decision A13, Priya 2026-11-07). Before: one axes per ANIMAL with the six positions as
+    # coloured lines across days (colour = position) and the animal's acute span shaded. Now: one axes per POSITION
+    # (columns, `positions` order) x measure (rows), all animals pooled; every point is OPEN, shape = animal, colour =
+    # the EPOCH of that animal's day (`epoch_of_day`, i.e. each animal's own boundaries -- which is what the shaded span
+    # carried), no line joins days; per epoch a filled dot in the epoch colour +- SEM over animals. Pre = each animal's
+    # collapsed baseline at PRE_X, as before. `boundaries` is still recorded in the meta sidecar.
+    npos = len(positions)
+    fig_w = max(QUARTER_IN * 2.0, 1.75 * npos + 1.9)
+    left_in, right_in = 0.62, 1.85           # room for the animal + epoch legend
     top_in = 0.52 + 0.15 * len(str(subtitle).split("\n")) * bool(subtitle)
-    # TALLER THAN THE PER-POSITION VERSION. `stats_line` wraps the epoch rules to ~10 lines, so at
-    # the old 1.55in the caption occupied more of the figure than the data did and the hit-rate
-    # axis -- the thing being read -- was the smallest thing on it. Four panels instead of six also
-    # buys width, so the extra height does not make them narrow.
-    bottom_in, gap_in = 0.52, 0.20
-    panel_h = 2.45 if nrow == 1 else 1.85    # a second row earns its height without doubling it
-    row_gap_in = 0.42                        # room between rows
-    panel_w = (fig_w - left_in - right_in - gap_in * (ncol - 1)) / ncol
+    bottom_in, gap_in = 0.52, 0.16
+    panel_h = 2.2 if nrow == 1 else 1.75
+    row_gap_in = 0.42
+    panel_w = (fig_w - left_in - right_in - gap_in * (npos - 1)) / npos
     fig_h = top_in + nrow * panel_h + (nrow - 1) * row_gap_in + bottom_in
     fig = plt.figure(figsize=(fig_w, fig_h))
 
@@ -2685,76 +2701,67 @@ def timecourse_by_animal(per_day, out, *, name, title, ylabel, positions, tick_l
     lo = min(days_all) if days_all else -1
     hi = max(days_all) if days_all else 1
     post = [d for d in days_all if d > 0]
-    # THE PARITY FILTER AGAIN, and it survived here because the 2026-09-10 fix was applied to
-    # `timecourse_panel` and this is the OTHER timecourse renderer (Priya, 2026-09-11: "the I1 x
-    # axis ticks still aren't labeling all the later days"). `d % 2 == 1` on the real schedule
-    # 1 2 3 4 5 7 9 11 15 18 22 25 keeps 1 3 5 7 9 11 15 25 and drops 18 and 22, so the axis
-    # reads as a gap in the experiment rather than as a thinned axis. Two renderers, one rule.
-    ticks = [PRE_X] + _thin_day_ticks(post)
+    # THE PARITY FILTER (Priya, 2026-09-11): one rule for both timecourse renderers -- `_thin_day_ticks`.
+    ticks = [PRE_X] + [d for d in _thin_day_ticks(post, max_ticks=5) if d >= 4]   # narrow panels: "pre" needs room
     first_col, top_right = [], None
     for r, (per_animal, row_label, row_ylim, row_chance) in enumerate(series):
         y0 = bottom_in + (nrow - 1 - r) * (panel_h + row_gap_in)   # row 0 is the TOP row
-        for i, an in enumerate(animals):
-            ax = fig.add_axes([(left_in + i * (panel_w + gap_in)) / fig_w, y0 / fig_h,
+        row_axes, row_vals = [], []
+        for qi in range(npos):
+            ax = fig.add_axes([(left_in + qi * (panel_w + gap_in)) / fig_w, y0 / fig_h,
                                panel_w / fig_w, panel_h / fig_h])
-            if i == 0:
+            row_axes.append(ax)
+            if qi == 0:
                 first_col.append(ax)
-            if r == 0 and i == ncol - 1:
+            if r == 0 and qi == npos - 1:
                 top_right = ax
-            bnd = (boundaries or {}).get(an)
-            if bnd:
-                acute_hi = bnd[0]
-                chronic_lo = bnd[2] if len(bnd) > 2 else None
-                # NEUTRAL GREY, not the animal colour: the panel already IS the animal, and a
-                # coloured span here would read as one of the six position traces.
-                ax.axvspan(0.5, acute_hi + 0.5, color="0.85", alpha=0.45, lw=0, zorder=0)
-                # NO SUBACUTE LINE (Priya, 2026-09-08). Subacute is simply "after acute", so the
-                # right edge of the shaded span already marks it and a second line said the same
-                # thing twice. It was not even the same day: `subacute_from` is the first RECORDED
-                # session after the acute period, so PS92 read acute-ends-5 / subacute-starts-7
-                # purely because nothing was run on day 6 -- a recording-schedule gap drawn as
-                # though it were a boundary.
-                if chronic_lo is not None:
-                    ax.axvline(chronic_lo - 0.5, color="0.20", lw=1.2, alpha=0.9, ls="--", zorder=1)
             ax.axvline(0.5, color="0.25", lw=0.9, zorder=2)          # the lesion
-            for qi in sorted(per_animal.get(an, {})):
-                p = POS_BY_IDX[IDX_ORDER[qi]]
-                by = per_animal[an][qi]
-                xs = sorted(by)
-                ax.plot(xs, [by[d] for d in xs], color=pos_color(IDX_ORDER[qi]), lw=0.9,
-                        alpha=0.75, ls=SIDE_LS[p["side"]], marker=SIDE_MARKER[p["side"]], ms=3.0,
-                        zorder=3)
+            dd, vv, aa = [], [], []
+            for an in animals:
+                by = (per_animal.get(an) or {}).get(qi) or {}
+                for d, v in by.items():
+                    dd.append(float(d))
+                    vv.append(float(v))
+                    aa.append(an)
+            if dd:
+                cp.day_dots(ax, dd, vv, aa, ms=3.4, summary_ms=5.0)
+                row_vals += vv
             if row_chance is not None:
                 ax.axhline(row_chance, color="0.4", lw=0.7, ls="--", zorder=2)
             ax.set_xticks(ticks)
             ax.set_xlim(lo - 0.6, hi + 0.6)
-            if row_ylim:
-                ax.set_ylim(*row_ylim)
             ax.tick_params(labelsize=FS_TICK - 2)
             if r == 0:
-                ax.set_title(an, fontsize=FS_ANNOT)
-            # ONLY THE BOTTOM ROW CARRIES DAY NUMBERS: repeating them under every row spends height
-            # on the same axis twice and invites reading the rows as separate x scales.
+                ax.set_title(labels[qi], fontsize=FS_ANNOT - 0.5)
+            # ONLY THE BOTTOM ROW CARRIES DAY NUMBERS
             if r == nrow - 1:
-                ax.set_xticklabels(["pre"] + [str(int(d)) for d in ticks[1:]])
+                ax.set_xticklabels(["pre"] + [str(int(d)) for d in ticks[1:]], fontsize=FS_TICK - 3)
             else:
                 ax.set_xticklabels([])
-            if i:
+            if qi:
                 ax.set_yticklabels([])
             for sp in ("top", "right"):
                 ax.spines[sp].set_visible(False)
+        if row_ylim:                         # one y range per row; never clip a plotted point (A13)
+            for ax in row_axes:
+                ax.set_ylim(*row_ylim)
+                cp.fit_ylim(ax, row_vals)
+        else:
+            ys = [ax.get_ylim() for ax in row_axes]
+            for ax in row_axes:
+                ax.set_ylim(min(y[0] for y in ys), max(y[1] for y in ys))
+        for ax in row_axes[1:]:
+            ax.set_yticks(row_axes[0].get_yticks())
+            ax.set_ylim(row_axes[0].get_ylim())
+            ax.set_yticklabels([])
         first_col[r].set_ylabel(row_label, fontsize=FS_LABEL - 1)
-    # ANCHORED IN INCHES, not in a figure fraction. A fixed fraction moves with `fig_h`, so raising
-    # the panel height slid this label up into the tick numbers it labels.
+    # ANCHORED IN INCHES, not in a figure fraction (a fixed fraction moved with `fig_h`).
     fig.text((left_in + (fig_w - left_in - right_in) / 2) / fig_w, 0.11 / fig_h,
              "days from lesion (each animal's own)", ha="center", va="bottom",
              fontsize=FS_LABEL - 1)
-    handles = [Line2D([], [], color=pos_color(IDX_ORDER[qi]), lw=1.2,
-                      ls=SIDE_LS[POS_BY_IDX[IDX_ORDER[qi]]["side"]],
-                      marker=SIDE_MARKER[POS_BY_IDX[IDX_ORDER[qi]]["side"]], ms=3.5,
-                      label=labels[qi]) for qi in range(len(positions))]
-    leg = top_right.legend(handles=handles, fontsize=FS_ANNOT - 1.5, loc="upper left",
-                           frameon=False, handlelength=2.2, labelspacing=0.35)
+    eps = [e for e in cp.EPOCH_ORDER]
+    leg = top_right.legend(handles=cp.legend_handles(animals, eps, sessions_label="{a}", epoch_label="{e} mean +- SEM"),
+                           fontsize=FS_ANNOT - 1.5, loc="upper left", frameon=False, labelspacing=0.35)
     leg.set_bbox_to_anchor((1.02, 1.0))
     _t, _tlines = wrap_title(title, fig_w, FS_ANNOT + 0.5)
     fig.suptitle(_t, fontsize=FS_ANNOT + 0.5, y=0.985)
@@ -2946,14 +2953,14 @@ def with_ci(point_draws):
 def wrap_title(text, fig_w_in, fontsize, *, margin_in=0.12):
     """A horizontal title wrapped to the CANVAS WIDTH, with its line count.
 
-    The counterpart of `wrap_ylabel` for the other axis. A suptitle is centred, and matplotlib does
+    The counterpart of `wrap_ylabel` for the other axis. A suptitle is centered, and matplotlib does
     not clip it -- it runs off BOTH edges, which is how a 2.58in figure ended up with a title
     written for a 6.2in one. Priya, 2026-08-28.
 
     THE 0.5-EM ESTIMATE THIS USED TO MAKE WAS WRONG FOR THIS PROJECT'S TEXT, and the error was
     one-sided. `per_char = 0.5 * fontsize` is about right for lower-case prose; the captions here
     SHOUT their key phrases, and capitals in DejaVu Sans run 0.65-0.72 em. A caption that is half
-    upper-case therefore overflowed by ~30% -- and because a centred `fig.text` is not clipped but
+    upper-case therefore overflowed by ~30% -- and because a centered `fig.text` is not clipped but
     runs off BOTH edges, the symptom was paragraphs starting mid-word with no error anywhere.
     Priya, 2026-09-17, reading it off a rendered panel.
 
@@ -3009,7 +3016,7 @@ def fit_subtitle(text, fig_w_in, fontsize):
     """Re-wrap an already-wrapped subtitle to THIS canvas: ``(text, n_lines)``.
 
     `stats_line` wraps at a fixed character count chosen for a quarter page. On the narrow one- and
-    two-group figures that overflowed by nearly two inches on EACH side -- and a centred `fig.text`
+    two-group figures that overflowed by nearly two inches on EACH side -- and a centered `fig.text`
     is not clipped, it simply runs off both edges. Line breaks the caller already inserted are
     treated as paragraph breaks and re-flowed, so a subtitle written once fits every width it is
     drawn at.

@@ -21,11 +21,11 @@ TWO WAYS THAT CAN GO WRONG:
    baseline is MEASURED early and INTERPOLATED late; another position is the reverse. Averaging the
    six then blends estimates of unequal reliability at every moment, and the blend changes over the
    session. Block order is SHUFFLED across sessions at the cohort level (DECISIONS.md finding 9:
-   mean normalised index 0.50 +- 0.006), but that is a statement about the COHORT and says nothing
+   mean normalized index 0.50 +- 0.006), but that is a statement about the COHORT and says nothing
    about whether a GIVEN session spreads a given position evenly.
 
 WHAT THIS REPORTS, per session and per position: how many of the 12 bins actually contain that
-position's rest frames, the frames-per-occupied-bin, and the mean NORMALISED SESSION TIME of that
+position's rest frames, the frames-per-occupied-bin, and the mean NORMALIZED SESSION TIME of that
 position's rest frames (0.5 = evenly spread; far from 0.5 = clustered early or late).
 
 RUN:  python -m scripts.rest_migration.archive.restw_bin_coverage [--limit 6] [--bins 12]
@@ -70,7 +70,7 @@ def main() -> int:
             print(f"  !! {lab}: {info.get('error')}")
             continue
         edges = np.linspace(0, T, a.bins + 1)
-        print(f"\n=== {lab}  ({info['n_periods']} labelled rest periods, T={T}) ===")
+        print(f"\n=== {lab}  ({info['n_periods']} labeled rest periods, T={T}) ===")
         print(f"    {'pos':>4}{'frames':>9}{'bins/12':>9}{'per bin':>10}{'mean t':>9}")
         for c in sorted(per):
             fr = np.asarray(per[c])

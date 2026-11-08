@@ -202,7 +202,7 @@ def test_a_pinned_chronic_agrees_and_keeps_the_advisory():
     day 25 (2026-09-25) because it recovered but wobbles too much to re-derive as a tight plateau,
     and the terminal-state rule says a chronic once reached should not revert on noise.
 
-    The honest derivation is kept in `derived_day_raw` so the audit can still print what behaviour
+    The honest derivation is kept in `derived_day_raw` so the audit can still print what behavior
     now says -- the pin hides the disagreement from the GUARD, not from the reader."""
     pre = [l for l in config.phase_labels("pre") if config.animal_of(l) == "PS94"]
     post = sorted((l for l in config.pooled_labels("PS94") if epochs.epoch_of(l) != "pre"),
@@ -333,9 +333,9 @@ def test_the_subacute_floor_is_what_stops_a_never_licking_animal_plateauing():
 def test_every_module_colours_a_position_the_same_way():
     """A far_R that is crimson in one figure and purple in the next is a reader's problem.
 
-    Three conventions coexisted until 2026-09-10: hue-by-side (behaviour), hue-by-RING
-    (grant_figures, whose comment claimed it matched the behaviour figures and did not), and six
-    unrelated tab10 colours (locanmf_dff_by_position). All three now resolve through
+    Three conventions coexisted until 2026-09-10: hue-by-side (behavior), hue-by-RING
+    (grant_figures, whose comment claimed it matched the behavior figures and did not), and six
+    unrelated tab10 colors (locanmf_dff_by_position). All three now resolve through
     `spout_behavior.position_style`.
     """
     from wfield_local import grant_figures as gf

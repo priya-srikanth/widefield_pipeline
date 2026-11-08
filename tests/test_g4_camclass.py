@@ -3,10 +3,10 @@ arm of `decode_matched` on camera working rows.
 
 Pins:
   a  `cam_balanced_sample` = g4common.cam_balanced_sample (WORKING vs NONE, position-balanced, positives first, the same
-     rng use); `g4_frame` z-scores each session on its CONTACT rows by default (working / engaged selectable, a centre
+     rng use); `g4_frame` z-scores each session on its CONTACT rows by default (working / engaged selectable, a center
      with incomplete rows only under "working"); `g4_camclass` scores jaw_only / after_end as their own groups, flags
      thin cells (< 10) and reads each post group against the SAME pre group or, when that has no cell, pre WORKING
-     (labelled); the stored discriminator's spec carries the class set and the centre.
+     (labeled); the stored discriminator's spec carries the class set and the center.
   c  `_lickonly_working` trains on working rows only, scores the post session's working rows, and its stored spec is
      not the engaged-row arm's.
 """

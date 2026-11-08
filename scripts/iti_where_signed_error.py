@@ -3,7 +3,7 @@
    `iti_where_scatter.py` (where_preds.csv). err = decoded - actual lateral (mm; + = contralesional); change vs the
    animal's PRE error for the same spout (in-trial: target; ITI: nearest spout), mean over spouts per session.
    "on pre landing" = licks within 0.25 mm of the animal's pre landing mean for that spout (actual position held
-   fixed, so the decoder's pull toward the middle for off-centre licks cannot make the shift).
+   fixed, so the decoder's pull toward the middle for off-center licks cannot make the shift).
 Usage: python scripts/iti_where_signed_error.py <iti_licks dir>; writes where_signed_error_tests.csv there.
 Predictions: <dir>/where_preds<PRED_TAG>.csv (basis-specific name, iti_licks.pred_file; split basis by default).
 """

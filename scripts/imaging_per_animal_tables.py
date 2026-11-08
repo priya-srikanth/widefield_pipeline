@@ -1,6 +1,6 @@
 """Per-animal tables for two imaging readouts the results page reported pooled only (Priya 10-25, imaging page
 "pending"): the pre-stroke position TEMPLATE (epoch family 11 / 11amp / 11c, cue window, engaged trials) and the frozen
-BEHAVIOURAL-STATE decoder (family 13). Read from the existing per-session sidecars -- nothing is refitted; the frozen
+BEHAVIORAL-STATE decoder (family 13). Read from the existing per-session sidecars -- nothing is refitted; the frozen
 models are references (CLAUDE.md rule 10).
 
 Session means per animal x epoch; pre = the leave-one-session-out pre sessions the figures use (template: the 8

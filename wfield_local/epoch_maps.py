@@ -52,7 +52,7 @@ def _fig_14pa_beta_maps_by_animal(out_dir, align, variant, wname):
 
     ONE POSITION PER FIGURE, far-contralateral by default: six positions x four animals x five
     epochs is 120 panels, which is a contact sheet rather than a figure. Far-contra is where the
-    deficit is, and its neighbours are on the pooled panel.
+    deficit is, and its neighbors are on the pooled panel.
 
     A ROW THAT LOOKS UNLIKE THE OTHER THREE IS THE POINT, not noise to be averaged away: PS94 and
     PS95 took 3 mW and show overt deficits while PS92 and PS93 were milder, so a severity-graded
@@ -106,7 +106,7 @@ def _fig_14pa_beta_maps_by_animal(out_dir, align, variant, wname):
         delta_label="change vs pre-stroke\n(orange-blue; expands if larger)",
         subtitle=("The pooled figure averages these four rows and the permutation test rests on "
                   "them, so neither can show REPLICATION -- which at n=4 is the stronger evidence. "
-                  "Method identical to the pooled figure. Colour scale is per ANIMAL, so each row "
+                  "Method identical to the pooled figure. Color scale is per ANIMAL, so each row "
                   "is comparable across its own epochs and rows are not comparable to each other. "
                   "PS94 and PS95 took 3 mW and show overt deficits; PS92 and PS93 were milder, so a "
                   "severity-graded difference between rows is a finding and a random one is a "
@@ -128,7 +128,7 @@ _REF_TEXT = {
               "*increase* in ss-ul/ll activity compared to pre-stroke.\" This is figure 14's "
               "reference rendered as a plain trial average, so the coupling can be seen without "
               "the decoder, the folds and the Haufe transform in the way. READ IT AGAINST THE "
-              "QUIET-REFERENCED FIGURE: a rise that appears here and NOT there is the artefact."),
+              "QUIET-REFERENCED FIGURE: a rise that appears here and NOT there is the artifact."),
     ),
     # ADDED 2026-09-13. `precue` was put into `position_reference_maps.REFERENCES` when the pre-cue
     # reference moved onto the deck's own window, and this table was not extended with it -- so
@@ -177,7 +177,7 @@ _REF_TEXT = {
               "\n\nIT VIOLATES F12 AND THAT IS THE POINT OF HAVING IT. The pre-cue window carries "
               "genuine anticipatory position signal (LOSO 0.510), so subtracting it removes real "
               "code and measures the cue-evoked INCREMENT. Read it as a third reference whose "
-              "disagreements with REST localise what the pre-cue window contains, not as the "
+              "disagreements with REST localize what the pre-cue window contains, not as the "
               "position map."),
     ),
     "rest": dict(
@@ -408,7 +408,7 @@ def _fig_15rpa_reference_by_animal(out_dir, align, variant, wname):
                 f"differs between them differs BECAUSE of the reference. NO significance is drawn "
                 f"here: a per-animal panel has no between-animal spread to test, and a "
                 f"within-animal test would be answering a different question from the pooled "
-                f"figures. Colour scale is per ANIMAL, so each row is comparable across its own "
+                f"figures. Color scale is per ANIMAL, so each row is comparable across its own "
                 f"epochs and rows are not comparable to each other. PS94 and PS95 took 3 mW and "
                 f"show overt deficits; PS92 and PS93 were milder, so a severity-graded difference "
                 f"between rows is a finding and a random one is a warning. {txt['note']}")))
@@ -416,14 +416,14 @@ def _fig_15rpa_reference_by_animal(out_dir, align, variant, wname):
 #: How each correction reads in a figure's methods line. Keyed by `beta_maps.CORRECTION`.
 _CORRECTION_TEXT = {
     "maxstat": ("family-wise corrected by the BOOTSTRAP MAX-STATISTIC over {n} in-mask bins of an "
-                "8x downsampled grid -- each draw is centred on the observed and studentised by "
+                "8x downsampled grid -- each draw is centered on the observed and studentised by "
                 "the bootstrap SE, the maximum |z| across bins is taken, and the threshold is the "
                 "95th percentile of those maxima, so THE DATA'S OWN SPATIAL COVARIANCE PERFORMS "
                 "THE CORRECTION and no independence or smoothness is assumed"),
     "resel": ("Bonferroni over the {n} RESOLUTION ELEMENTS the map actually carries (in-mask area "
               "/ FWHM^2), not over its bins"),
     "bonferroni": ("Bonferroni over {n} in-mask bins of an 8x downsampled grid -- CONSERVATIVE, "
-                   "because neighbouring bins are not independent at this smoothness"),
+                   "because neighboring bins are not independent at this smoothness"),
     "none": "UNCORRECTED across bins",
 }
 def _n_stat_bins():
@@ -468,12 +468,12 @@ def _stats_sentence(stat_rows):
     if any(int(r.get("suppressed") or 0) for r in rows):
         tail = (" PANELS WHOSE FLAGGED PIXELS WERE MORE THAN "
                 f"{bm.EDGE_ENRICHMENT_MAX:.0f}x CONCENTRATED IN THE MASK RIM ARE SUPPRESSED and "
-                "draw no contour -- that pattern is an imaging-window artefact, and because it is "
-                "the same artefact in every animal a between-animal test cannot reject it.")
+                "draw no contour -- that pattern is an imaging-window artifact, and because it is "
+                "the same artifact in every animal a between-animal test cannot reject it.")
     return ("BLACK contours are bins significant under the NESTED animals->sessions bootstrap "
             f"(2,000 draws, resampled with replacement at both levels), {txt}. The test runs on "
             f"the brain mask ERODED {bm.STAT_ERODE_PX} px, with the olfactory bulbs and the "
-            f"hand-painted fibre-glue occlusion removed.{tail}")
+            f"hand-painted fiber-glue occlusion removed.{tail}")
 def _fig_15r_reference_maps(out_dir, align, variant, wname):
     """15r: the SAME position maps under two different references -- the reference IS the claim.
 
@@ -496,7 +496,7 @@ def _fig_15r_reference_maps(out_dir, align, variant, wname):
         quiet  here     minus the session's quiet baseline -- positions INDEPENDENT
         self   fig 15   minus that position's own pre-cue window -- positions INDEPENDENT
 
-    Two independent references that disagree would localise the problem to what sits between them,
+    Two independent references that disagree would localize the problem to what sits between them,
     which is the pre-cue window's own content: anticipation and locomotor state.
     """
     # SAME THREE ARMS AS FIGURE 14, which is what "the only difference is the reference" requires.
@@ -601,7 +601,7 @@ def _fig_15r_reference_maps(out_dir, align, variant, wname):
                 f"folds, no Haufe transform. {txt['note']} "
                 # ONE COLOUR SCALE FOR ALL ROWS (row_scaled=False below; maps are on each animal's own
                 # pre-stroke scale). This sentence said "PER ROW" until 11-01 (imaging page prov_s7: stale).
-                "Colour scale is SHARED by all rows (row_scaled=False; each animal's maps are on its own "
+                "Color scale is SHARED by all rows (row_scaled=False; each animal's maps are on its own "
                 "pre-stroke scale before pooling); the difference columns share it. "
                 # NO COLOUR WORD HERE -- `_stats_sentence` supplies it. This line used to add
                 # its own, so the caption read "GREEN GREEN contours" on every panel of this
@@ -629,7 +629,7 @@ def _fig_15pa_evoked_maps_by_animal(out_dir, align, variant, wname):
     averaged away: PS94 and PS95 took 3 mW and show overt deficits while PS92 and PS93 were milder.
 
     ONE POSITION PER FIGURE. Six positions x four animals x five epochs is a contact sheet; this
-    draws far-contralateral, where the deficit lives, and the pooled figure carries its neighbours.
+    draws far-contralateral, where the deficit lives, and the pooled figure carries its neighbors.
     """
     if align != "cue" or variant != "working":
         return None
@@ -675,7 +675,7 @@ def _fig_15pa_evoked_maps_by_animal(out_dir, align, variant, wname):
             "that position's OWN post-cue minus pre-cue, so the six positions are independent and "
             "a change cannot be inherited from another position's loss. Four animals is the "
             "ceiling on the permutation test and the pooled figure averages these rows, so "
-            "neither can show REPLICATION -- which at n=4 is the stronger evidence. Colour scale "
+            "neither can show REPLICATION -- which at n=4 is the stronger evidence. Color scale "
             "is per ANIMAL: each row is comparable across its own epochs, rows are not comparable "
             "to each other. PS94 and PS95 took 3 mW and show overt deficits; PS92 and PS93 were "
             "milder, so a severity-graded difference between rows is a finding and a random one "
@@ -802,7 +802,7 @@ def _fig_15_evoked_maps(out_dir, align, variant, wname):
         row_scaled=False,
         stat_rows=_stats,
         subtitle=(
-            "READ THIS BEFORE FIGURE 14. Figure 14's decoder maps are one-vs-rest, centred on the "
+            "READ THIS BEFORE FIGURE 14. Figure 14's decoder maps are one-vs-rest, centered on the "
             "mean over all six positions, so a position that loses drive lowers the reference and "
             "hands every other position an increase it did not earn -- four of its six rows cannot "
             "be read as written. Here each map is that position's OWN post-cue minus pre-cue, a "
@@ -811,7 +811,7 @@ def _fig_15_evoked_maps(out_dir, align, variant, wname):
             "arousal -- not only the part that carries target identity, which is what figure 14 "
             "isolates. A change visible here and absent there is a change in DRIVE without "
             "position information; the reverse is a change in TUNING without a change in drive. "
-            "Maps from `framemap_event_maps`; nothing recomputed. Colour scale per ROW; the "
+            "Maps from `framemap_event_maps`; nothing recomputed. Color scale per ROW; the "
             "difference columns share their row's scale. THE THIN DARK OUTLINES ARE ALLEN CCF "
             "BOUNDARIES, not statistics. BLACK contours are bins where the change differs from "
             f"zero. {_stats_sentence(_stats)} "
@@ -912,7 +912,7 @@ def _fig_14z_beta_vs_zero(out_dir, align, variant, wname):
         row_scaled=False,
         stat_rows=_stats,
         subtitle=(
-            ("PRE-NORMALISED: each animal divided by its own pre-stroke RMS for this position before pooling AND "
+            ("PRE-NORMALIZED: each animal divided by its own pre-stroke RMS for this position before pooling AND "
              "before testing (one constant per animal x position, pre-stroke sessions only). " if norm else "")
             + "A DIFFERENT QUESTION FROM EVERY OTHER MAP FIGURE HERE: not where the code CHANGED, but "
             "where it IS in each epoch. Each panel is tested on its own against zero, so it is "
@@ -930,7 +930,7 @@ def _fig_14z_beta_vs_zero(out_dir, align, variant, wname):
             "is far more powerful and treats two sessions from one animal as independent -- that "
             "number is printed in the render log beside ours. Contours are drawn on an ERODED mask "
             "and any result concentrated more than 2x in the rim is suppressed, because the edge of "
-            "the imaging window produces artefacts that are consistent ACROSS animals and so cannot "
+            "the imaging window produces artifacts that are consistent ACROSS animals and so cannot "
             "be rejected by a between-animal test. Since the maps are one-vs-rest, a significant "
             "bin means this position's trials differ from the average trial THERE -- read it with "
             "the coupling caveat that applies to every mean-referenced figure."))
@@ -944,7 +944,7 @@ def _fig_14_beta_maps(out_dir, align, variant, wname):
     EVERY OTHER FAMILY IN THIS SECTION ANSWERS "MOVED TOWARD WHAT", NOT "MOVED WHERE". Best-match
     destination collapses 380 features into one correlation per position pair and takes an argmax --
     a representational destination, not a location. Per component the joint basis gives 2-4
-    components per Allen area, too thin to localise. This is the anatomical arm.
+    components per Allen area, too thin to localize. This is the anatomical arm.
 
     METHOD, and the three departures from the paper are each measured -- see `wfield_local/beta_maps.py`:
 
@@ -955,7 +955,7 @@ def _fig_14_beta_maps(out_dir, align, variant, wname):
                  choice among correlated predictors is free to change between days. Split-half of
                  the pre-stroke mean map: L1 0.688, L2 0.715, L2+Haufe 0.960.
       TRANSFORM  HAUFE, which the paper does not do and which is the single biggest factor above.
-                 A decoder weight is a FILTER whose job includes cancelling correlated noise, so a
+                 A decoder weight is a FILTER whose job includes canceling correlated noise, so a
                  channel with NO signal can carry a large weight as a suppressor. `A = Cov(X) @ b`
                  makes it a PATTERN -- cov(channel, decoder output) -- which is the anatomical
                  question. Pattern and filter correlate at only r = 0.245 here.
@@ -963,7 +963,7 @@ def _fig_14_beta_maps(out_dir, align, variant, wname):
                  (16.1-17.2% each) so pre-cue and post-cue need none; `lick` runs far-contra at
                  9.2-14.2% against ~19% near, and that skew IS the deficit.
 
-    THE COLOUR SCALE IS PER ROW so each position is comparable across ITS OWN epochs, which is the
+    THE COLOR SCALE IS PER ROW so each position is comparable across ITS OWN epochs, which is the
     comparison being made. Rows are not comparable to each other.
 
     `r` IN EACH PANEL IS THE SPLIT-HALF RELIABILITY of that epoch's mean map -- the ceiling any
@@ -1112,7 +1112,7 @@ def _fig_14_beta_maps(out_dir, align, variant, wname):
             "USES, is a different map (they correlate at r = 0.245). "
             "Allen CCF boundaries overlaid. "
             f"{_stats_sentence(_stats)} "
-            "Colour scale is PER ROW, so a position is comparable across its own epochs and rows "
+            "Color scale is PER ROW, so a position is comparable across its own epochs and rows "
             "are not comparable to each other. "
             "r = split-half reliability of that epoch's mean map, the ceiling a difference can "
             "reach -- and where a map is near-absent, low r IS the result rather than a reason to "

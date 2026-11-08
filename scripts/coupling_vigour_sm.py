@@ -1,10 +1,10 @@
-"""LICK VIGOUR / KINEMATICS CONTROL OF THE LICK-STATE COUPLING RISE + SENSORY -> MOTOR COUPLING KINETICS (10-30;
+"""LICK VIGOR / KINEMATICS CONTROL OF THE LICK-STATE COUPLING RISE + SENSORY -> MOTOR COUPLING KINETICS (10-30;
 PROVISIONAL, n = 4). Follow-up of scripts/interhemi_crossarea.py (FINDINGS "CROSS-AREA CORRELATION STRUCTURE").
 
-TASK 1 -- VIGOUR CONTROL. interhemi_crossarea found that during licks (ITI docked, cued first licks) the orofacial /
+TASK 1 -- VIGOR CONTROL. interhemi_crossarea found that during licks (ITI docked, cued first licks) the orofacial /
   frontal-lateral network covaries MORE after the stroke (raw ITI-dock oro_all +0.25 every epoch 4/4; cued +0.18 / +0.09 /
   +0.19). Its residual model (lick_interhemispheric._design: spout dummies + 3-D lick angle) does not remove trial-to-trial
-  lick VIGOUR, which drives exactly those areas. Here the SAME events / windows / area features / correlation code
+  lick VIGOR, which drives exactly those areas. Here the SAME events / windows / area features / correlation code
   (functions imported from interhemi_crossarea and lick_interhemispheric) are re-run with per-event MOVEMENT COVARIATES
   added to the residual design (every lag x area regressed on [1, spout dummies, angle, movement]):
     reach_mm, speed_peak      3-D tongue reach at the peak (mm) and peak speed -- pose3d kinematics_all/licks.csv.gz
@@ -16,7 +16,7 @@ TASK 1 -- VIGOUR CONTROL. interhemi_crossarea found that during licks (ITI docke
                               -0.1..+0.2 s around the peak = lick_covariate_reference.FR_WIN; a face / jaw movement
                               read-out available for ITI licks too; in the ITI the projection is 5 Hz -- caveat)
     jaw_amp (cued only)       per-TRIAL cam4 jaw peak |deflection| (jaw_trials.csv, jaw_pass_qc), joined on trial_id --
-                              the jaw is NOT in any per-lick table, so this is trial-level jaw vigour
+                              the jaw is NOT in any per-lick table, so this is trial-level jaw vigor
     miss_mm, ang3d_err (cued) 3-D landing error vs the target spout (undefined for ITI licks: no target)
   A covariate is used in a session x set when >= 50 % of its events have it; missing values are filled with the session
   mean plus a missingness indicator; covariates are z-scored within session. Designs:
@@ -523,7 +523,7 @@ def plot1() -> None:
         axs[i, 0].set_ylabel("change vs pre, mean noise corr\n(Fisher z, 1-s window)", fontsize=8.5)
     _legend(fig, [(Line2D([], [], marker="o", ls="", mfc="white", mec="0.3", ms=5), "open: publ. = published model, +perm = permuted movement"),
                   (Line2D([], [], marker="o", ls="", color="0.3", ms=5), "filled: +mov = movement partialled (per-animal dots)")])
-    fig.suptitle(_wrap("Does the lick-state coupling rise survive partialling LICK VIGOUR? Cross-area noise correlation "
+    fig.suptitle(_wrap("Does the lick-state coupling rise survive partialling LICK VIGOR? Cross-area noise correlation "
                        "(residual 1-s window mean) with the published residual model (spout + angle), with per-event "
                        "movement covariates added (3-D reach, peak speed, lick duration, protrusion, lick count +-0.5 / "
                        "+-1 s, FaceRhythm face factors; cued: + trial jaw amplitude, landing error), and with the same "
@@ -632,7 +632,7 @@ def plot2() -> None:
     axs[1, 0].set_ylabel("change vs pre, Granger direction", fontsize=8.5)
     _legend(fig)
     fig.suptitle(_wrap("Sensory -> motor DIRECTION over recovery (tau 0.6 s; lick sets movement-partialled, rest intercept "
-                       "only): change vs August pre per pair group, per-animal dots + pooled paired bootstrap; grey = "
+                       "only): change vs August pre per pair group, per-animal dots + pooled paired bootstrap; gray = "
                        "contrasts (intra- minus interhemispheric; contralesional minus ipsilesional hemisphere). Text = "
                        "pooled pre level. PROVISIONAL n = 4"), fontsize=9.5)
     save_png_svg(fig, O2 / "figures" / "sm_direction_change.png", dpi=120)

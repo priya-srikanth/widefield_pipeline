@@ -2,7 +2,7 @@
 (Priya 10-27 late: "we're going to want to re-do the per session / per-epoch decoders now too right, to show they can
 be fit"). Same features and targets as the KEY where-decoder (iti_where_decoder.decode, z-scored like iti_zscore_check):
 Allen areas with the ALM / tjM1 split (ROI v8; WFIELD_AREA_BASIS), lags 0..0.2 s, each area / its frame-wise SD in the
-session; ridge (RidgeCV) on standardised features.
+session; ridge (RidgeCV) on standardized features.
 
 Per animal x lick set (ITI / cued) x target (lateral, sagittal, angle, reach, 2-D):
   frozen         trained on the animal's PRE licks (pre sessions leave-one-session-out) and applied to every session
@@ -10,7 +10,7 @@ Per animal x lick set (ITI / cued) x target (lateral, sagittal, angle, reach, 2-
   epoch refit    trained on the OTHER sessions of the SAME epoch (leave-one-session-out within the epoch); pre = the
                  frozen pre scores by construction. Needs >= 2 sessions in the epoch.
   session refit  trained and scored within ONE session: 5 contiguous blocks of licks (time order, no shuffling, so
-                 neighbouring licks never straddle train and test), r over the pooled held-out predictions.
+                 neighboring licks never straddle train and test), r over the pooled held-out predictions.
   pre, matched n the epoch-refit control for training size: pre leave-one-session-out with the training licks randomly
                  subsampled to the mean training size of that animal's epoch refit (fewer post sessions = fewer
                  training licks, which alone lowers r).
@@ -226,7 +226,7 @@ def plot(F: dict) -> None:
     fig.suptitle("Can lick position still be DECODED after the stroke? Frozen pre decoder vs decoders REFIT per epoch "
                  "(leave-one-session-out within the epoch) and per session (5 contiguous blocks).\n" + il.basis_label() +
                  " (ROI v8), z-scored, lags 0-0.2 s. Mean +/- SEM over animals; text = change vs pre (frozen / session "
-                 "refit: vs their pre; epoch refit: vs pre trained on the SAME number of licks, grey bars), 95 % paired "
+                 "refit: vs their pre; epoch refit: vs pre trained on the SAME number of licks, gray bars), 95 % paired "
                  "nested bootstrap, * = CI excludes 0, k/n animals lower. PROVISIONAL", fontsize=9)
     fig.tight_layout(rect=(0, 0, 1, 0.9))
     save_png_svg(fig, il.OUT / "figures" / f"{STEM}.png", dpi=100)

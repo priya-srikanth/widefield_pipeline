@@ -1,4 +1,4 @@
-"""Backward / postural treadmill PUSHES as a behavioural readout, per session (Priya 10-23, option 3 of "let's do all 3":
+"""Backward / postural treadmill PUSHES as a behavioral readout, per session (Priya 10-23, option 3 of "let's do all 3":
 pushes become 2-5x more frequent after the stroke in 3/4 animals -- does that track recovery or the far-contra
 deficit?). Side-camera clips (10-23): negative speed at bout ends = a paw pushed forward; the post-cue dip = upper-limb
 extension / posture change. Both are real movements, not belt backlash.
@@ -13,7 +13,7 @@ Per session, the signed treadmill speed (DAQ analog, the encoder's running regre
   cue_dip        median over trials of (min speed 0-1 s after the cue - mean speed -0.5-0 s), mm/s (negative = dip)
   cue_push_frac_far_contra / cue_dip_far_contra   the same on far-contra trials only
 -> <run>/imaging_encoding/qc/push_behaviour_sessions.csv; the LMMs: `python scripts/imaging_lmm.py --sources push`
-(TIME and BEHAVIOUR models, per-animal table first).
+(TIME and BEHAVIOR models, per-animal table first).
 Usage: python scripts/push_behaviour.py [--jobs N]
 """
 from __future__ import annotations

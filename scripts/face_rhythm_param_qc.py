@@ -5,12 +5,12 @@
 
 Inputs: the bundle's ``out_test/<key>_<set>.npz`` (full-rate points per parameter set), the session's cam4 video (read
 with decord, the reader the tracking used) and its v36 cam4 ``windows.npz`` (LP tongue likelihood = licking, nose).
-clips      the same frames side by side for every set, each set's mesh drawn on the video, dots coloured by
+clips      the same frames side by side for every set, each set's mesh drawn on the video, dots colored by
            |displacement from home| (0-6 px): a 4 s lick bout (most tongue frames) and a 4 s rest window (no tongue,
            least nose motion), written at 50 fps (5x slow) -> <dlc>/face_rhythm/cam4/param_test/clips/.
 decompose  per set: the production spectrogram (keyframe notches, VQT 1-60 Hz, 25 Hz) -> 12.5 Hz -> non-negative CP
            (tensorly HALS; FR's TCA, (xy, points) x frequency x time) -> variance explained, and per component its
-           spatial map, spectrum and time course against LP tongue visibility and nose speed; components labelled where
+           spatial map, spectrum and time course against LP tongue visibility and nose speed; components labeled where
            clear (licking: temporal r with tongue; whisking: 6-14 Hz peak on the whisker pads; nose: weight near the
            nose). Two minutes of data: a first look, not the cohort factors.
 """
@@ -225,7 +225,7 @@ def main(argv=None) -> int:
     ap.add_argument("--sets", nargs="*", default=None, help="decompose: only these parameter sets")
     ap.add_argument("--threads", type=int, default=6, help="CPU threads (shared box: keep low)")
     ap.add_argument("--color", choices=["disp", "plain"], default="disp",
-                    help="clips: dots coloured by |displacement from home|, or one colour (judge jitter by position)")
+                    help="clips: dots colored by |displacement from home|, or one color (judge jitter by position)")
     a = ap.parse_args(argv)
     if a.cmd == "clips":
         cmd_clips(a.bundle, color=a.color, only=a.sets)

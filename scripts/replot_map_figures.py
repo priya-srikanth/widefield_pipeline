@@ -114,7 +114,7 @@ def main(argv=None) -> int:
                 fixed = _COLOUR_RUN.sub(lambda m: "BLACK " + m.group("word"), sub)
                 if fixed != sub:
                     over["subtitle"] = fixed
-                    print(f"   .. {stem}: subtitle contour colour -> black", flush=True)
+                    print(f"   .. {stem}: subtitle contour color -> black", flush=True)
             ef.replot_map(b, **over)
             ok += 1
             print(f"   {stem}", flush=True)

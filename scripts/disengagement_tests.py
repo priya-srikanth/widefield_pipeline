@@ -8,21 +8,21 @@ read it first; this script implements it, and every departure is logged there un
                            non-reference block, early post minus pre; + giving-up rate vs the pre working distribution
     TEST 3 FATIGUE      P3 within-bout deceleration in the 10 min before the quit minus time-matched controls
     TEST 4 STATE        P4 global (cortex) pre-cue level, RESTnl-referenced, quit period minus time-matched controls
-    + a DESCRIPTIVE behaviour figure: licks per responded trial by spout and epoch.
+    + a DESCRIPTIVE behavior figure: licks per responded trial by spout and epoch.
 
 Primary family {P1..P4}, Holm. Per-animal tables are PRINTED (and written) before every bootstrap (ground rule 8).
 
 STAGES (all outputs under <imaging_encoding>/disengagement/):
     python scripts/disengagement_tests.py extract [--jobs 4]   per-session caches  sessions/beh_<label>.pkl, img_<label>.npz
-    python scripts/disengagement_tests.py analyse              tables/*.csv + figdata/disengagement.pkl (+ draws figures)
+    python scripts/disengagement_tests.py analyze              tables/*.csv + figdata/disengagement.pkl (+ draws figures)
     python scripts/disengagement_tests.py plot                 figures from figdata only (also: --plot-only)
 
 DEFINITIONS (prereg section 2): trials = `engagement_decomposition.session_trials` through `analysis_kit.session_behavior`;
-QUIT = the CAMERA quit since 11-05 (Priya 11-05: behaviour-only figures move to the camera working period;
+QUIT = the CAMERA quit since 11-05 (Priya 11-05: behavior-only figures move to the camera working period;
 `trial_classes.camera_quit`, A6 of docs/status/reanalysis_20261105/ENGAGEMENT_CAMERA_2026-11-05.md: the first trial after
 the session's last camera lick, a quit only when that tail is >= 6 trials and starts >= 300 s after the first cue, else
 censored); sessions without video (PS93_0813) have no camera quit and are left out (listed as DAQ-only rows).
-DISENGAGEMENT_QUIT=daq reruns the prereg's DAQ detector (`quit_point.session_quit`, 2.0 s scoring) as the labelled
+DISENGAGEMENT_QUIT=daq reruns the prereg's DAQ detector (`quit_point.session_quit`, 2.0 s scoring) as the labeled
 robustness row, into <imaging_encoding>/disengagement_daqquit/ (session caches shared). Pre = August only (unchanged).
 Until 11-05 the DAQ quit was the only quit. Responded / hit for every covariate =
 DAQ lick inside the session's own task window (gui_config timing.response_window, 3.5 s), cut at the next cue. Water: a
@@ -139,9 +139,9 @@ def _bouts(t):
 
 
 def _trial_rows(rows, cue, nxt, t0, rwin, deliv, lk, lk_resp):
-    """Per-trial behaviour rows. RESPONSE measures (hit, lat, n_post, n_pre2) from ``lk_resp`` (the deck's
+    """Per-trial behavior rows. RESPONSE measures (hit, lat, n_post, n_pre2) from ``lk_resp`` (the deck's
     discriminator, `analysis_kit.lick_samples`); lick COUNTS (ILIs, bouts, licks / bout, deceleration) from ``lk`` (the
-    behaviour detector, `analysis_kit.lick_count_samples`). Times in s."""
+    behavior detector, `analysis_kit.lick_count_samples`). Times in s."""
     from wfield_local.plot_lick_aligned_averages import POSITION_NAMES
     T = []
     for i, r in enumerate(rows):
@@ -654,7 +654,7 @@ def _trajectory(B, I, key, area=0, lo=-1800, hi=1200, step=300, same_epoch=True)
 def analyse():
     from wfield_local import analysis_kit as ak
     B, I = _load_all()
-    print(f"sessions: behaviour {len(B)}, imaging {len(I)}", flush=True)
+    print(f"sessions: behavior {len(B)}, imaging {len(I)}", flush=True)
     rng = np.random.default_rng(SEED)
     TAB.mkdir(parents=True, exist_ok=True)
     FD = {}
@@ -854,7 +854,7 @@ def analyse():
     LG = pd.DataFrame(lg)
     LG.to_csv(TAB / "test2_lapse_logistic.csv", index=False)
     if len(LG):
-        print("\n=== TEST 2 trial-level lapse logistic (standardised coefficients; descriptive) ===")
+        print("\n=== TEST 2 trial-level lapse logistic (standardized coefficients; descriptive) ===")
         print(LG.round(2).to_string(index=False), flush=True)
     FD["t2"] = dict(S2=S2, P2=P2, sens=t2_sens, TRIG=TRIG, TH=TH, pre_dist=pre_dist, pct=pct, LG=LG,
                     thr_tab=thr_tab, table=t2_tab)
@@ -998,7 +998,7 @@ def _stars():
 
 
 def _epoch_scatter(ax, S, col, label, cens_col=None):
-    """Sessions as open markers (shape = animal, colour = epoch), pooled flat mean + boot_ci as a filled marker."""
+    """Sessions as open markers (shape = animal, color = epoch), pooled flat mean + boot_ci as a filled marker."""
     from wfield_local import analysis_kit as ak
     EL, AM, _ = _style()
     rng = np.random.default_rng(SEED)
@@ -1135,7 +1135,7 @@ def plot(FD=None):
     ax[1].set_title(f"P1 collected water (Holm p = {fam.loc['P1', 'p_holm']:.3g})", fontsize=10)
     _delta_panel(ax[2], t1["sens"]["delivered"], "change vs pre, µl (delivered)")
     ax[2].set_title("delivered water (secondary)", fontsize=10)
-    fig.suptitle("BEHAVIOUR -- Test 1 satiety: water before the quit, pre vs post", fontsize=12)
+    fig.suptitle("BEHAVIOR -- Test 1 satiety: water before the quit, pre vs post", fontsize=12)
     _legend_animals(fig)
     fig.tight_layout(rect=(0, 0.06, 1, 0.95))
     _save(fig, "t1_satiety_water")
@@ -1156,7 +1156,7 @@ def plot(FD=None):
         ax[i].set_xlabel("cumulative collected water, µl")
     ax[0].set_ylabel("fraction of sessions not yet quit")
     ax[-1].legend(frameon=False, fontsize=8, loc="lower left")
-    fig.suptitle("BEHAVIOUR -- Test 1: Kaplan-Meier on the water scale (| = session ended without a quit)", fontsize=12)
+    fig.suptitle("BEHAVIOR -- Test 1: Kaplan-Meier on the water scale (| = session ended without a quit)", fontsize=12)
     fig.tight_layout(rect=(0, 0, 1, 0.92))
     _save(fig, "t1_km_water")
 
@@ -1165,7 +1165,7 @@ def plot(FD=None):
     ax[0].set_title("water accrual rate", fontsize=10)
     _epoch_scatter(ax[1], t1["S"], "weight_pct", "pre-session body weight, % August pre")
     ax[1].set_title("body weight", fontsize=10)
-    fig.suptitle("BEHAVIOUR -- Test 1: water accrual and body weight", fontsize=12)
+    fig.suptitle("BEHAVIOR -- Test 1: water accrual and body weight", fontsize=12)
     _legend_animals(fig)
     fig.tight_layout(rect=(0, 0.07, 1, 0.93))
     _save(fig, "t1_accrual_weight")
@@ -1183,7 +1183,7 @@ def plot(FD=None):
         _epoch_scatter(ax[2], TR, "excess", "far-contra share, 16 trials before quit - scheduled")
         ax[2].axhline(0, color="0.6", lw=0.8)
     ax[2].set_title("do quits follow far-contra runs? (one point per quit)", fontsize=10)
-    fig.suptitle("BEHAVIOUR -- Test 2 frustration: scheduled failure runs and disengagement", fontsize=12)
+    fig.suptitle("BEHAVIOR -- Test 2 frustration: scheduled failure runs and disengagement", fontsize=12)
     _legend_animals(fig)
     fig.tight_layout(rect=(0, 0.06, 1, 0.94))
     _save(fig, "t2_frustration_blocks")
@@ -1205,7 +1205,7 @@ def plot(FD=None):
         ax[i].set_title(f"{an}  (dotted = pre 5 %, solid = 50 %)", fontsize=9)
         ax[i].set_xlabel("collected µl / min, previous 5 min")
     ax[0].set_ylabel("pre working distribution (density)")
-    fig.suptitle("BEHAVIOUR -- Test 2 foraging threshold: giving-up rate of each quit (markers, rows = epoch) on the "
+    fig.suptitle("BEHAVIOR -- Test 2 foraging threshold: giving-up rate of each quit (markers, rows = epoch) on the "
                  "animal's pre-stroke working rates", fontsize=11)
     _legend_animals(fig)
     fig.tight_layout(rect=(0, 0.07, 1, 0.92))
@@ -1226,8 +1226,8 @@ def plot(FD=None):
     _pair_panel(ax[1, 1], [("ILI", t3["ili"]["test"], None)], "prodrome - control, ms")
     _pair_panel(ax[1, 2], [("licks/bout", t3["lpb"]["test"], None)], "prodrome - control")
     _pair_panel(ax[1, 3], [("latency", t3["lat"]["test"], None), ], "prodrome - control, s")
-    fig.suptitle("BEHAVIOUR -- Test 3 motor fatigue: lick motor measures before the quit vs time-matched controls "
-                 "(top: grey = animals, black = mean +/- SEM over animals; + = 95 % CI excludes 0, * = Holm primary)", fontsize=11)
+    fig.suptitle("BEHAVIOR -- Test 3 motor fatigue: lick motor measures before the quit vs time-matched controls "
+                 "(top: gray = animals, black = mean +/- SEM over animals; + = 95 % CI excludes 0, * = Holm primary)", fontsize=11)
     _legend_animals(fig, epochs=False)
     fig.tight_layout(rect=(0, 0.05, 1, 0.95))
     _save(fig, "t3_fatigue_prodrome")
@@ -1271,7 +1271,7 @@ def plot(FD=None):
     _pair_panel(ax[1, 2], [("0.01-0.05 Hz\nglobal power", t4["band"]["test"], None)], "quit period - control")
     ax[1, 2].set_title("NEURAL global 0.01-0.05 Hz power: rises although evoked\nresponses stop (running transients may contribute)",
                        fontsize=9)
-    fig.suptitle("BEHAVIOUR -- Test 4 state: movement in the quit period vs time-matched engaged controls "
+    fig.suptitle("BEHAVIOR -- Test 4 state: movement in the quit period vs time-matched engaged controls "
                  "(no pupil measure exists)", fontsize=12)
     _legend_animals(fig, epochs=False)
     fig.tight_layout(rect=(0, 0.05, 1, 0.95))
@@ -1296,7 +1296,7 @@ def plot(FD=None):
         axi.set_xticklabels([p.replace("_", "\n") for p in POS])
         axi.set_ylabel("licks per responded trial")
         axi.set_title(src, fontsize=10)
-    fig.suptitle("BEHAVIOUR -- licks per responded trial by spout and epoch (engaged trials; DESCRIPTIVE)", fontsize=12)
+    fig.suptitle("BEHAVIOR -- licks per responded trial by spout and epoch (engaged trials; DESCRIPTIVE)", fontsize=12)
     _legend_animals(fig)
     fig.tight_layout(rect=(0, 0.06, 1, 0.94))
     _save(fig, "licks_per_responded_trial")
@@ -1891,7 +1891,7 @@ def plot_addendum(FD=None):
         axi.set_title(title, fontsize=10)
     ax[0].set_ylabel("log2(licks per responded trial / own August-pre mean, same spout)")
     p8 = fam.loc["P8"]
-    fig.suptitle(f"BEHAVIOUR -- licks per responded trial relative to each animal's own pre, per spout "
+    fig.suptitle(f"BEHAVIOR -- licks per responded trial relative to each animal's own pre, per spout "
                  f"(P8 chronic far contra, LP: {p8.point:+.2f} [{p8.lo:+.2f}, {p8.hi:+.2f}], Holm p = {p8.p_holm:.3g})",
                  fontsize=11)
     _legend_animals(fig)
@@ -1931,7 +1931,7 @@ def plot_addendum(FD=None):
                                                                               ("x", "water limit (W)"),
                                                                               ("+", "unknown (U)"))]
     fig.legend(handles=h, loc="lower center", ncol=5, frameon=False, fontsize=8)
-    fig.suptitle("BEHAVIOUR -- Kaplan-Meier of the quit in minutes (top), collected water (middle) and trials (bottom); "
+    fig.suptitle("BEHAVIOR -- Kaplan-Meier of the quit in minutes (top), collected water (middle) and trials (bottom); "
                  "pre-session ends classified per A0", fontsize=11)
     fig.tight_layout(rect=(0, 0.06, 1, 0.96))
     _save(fig, "a2_km_time_water_trials")
@@ -1951,7 +1951,7 @@ def plot_addendum(FD=None):
     ax[1, 1].set_title(f"P5t trials (Holm p = {fam.loc['P5t', 'p_holm']:.3g}, family A)", fontsize=10)
     _delta_panel(ax[1, 2], FD["a2"]["sens"]["responded trials"], "change vs pre, responded trials")
     ax[1, 2].set_title("responded trials to quit-or-end (uncapped, secondary)", fontsize=10)
-    fig.suptitle("BEHAVIOUR -- engagement before the quit, CAPPED (pre-registered P5 / P5t), pre vs post", fontsize=12)
+    fig.suptitle("BEHAVIOR -- engagement before the quit, CAPPED (pre-registered P5 / P5t), pre vs post", fontsize=12)
     _legend_animals(fig)
     fig.tight_layout(rect=(0, 0.05, 1, 0.95))
     _save(fig, "a2_time_trials_capped")
@@ -1971,7 +1971,7 @@ def plot_addendum(FD=None):
     for r in range(3):
         lo_, hi_ = ax[r, 0].get_ylim()
         ax[r, 0].set_ylim(lo_, hi_ + 0.08 * (hi_ - lo_))            # room for the censoring arrows
-    fig.suptitle("BEHAVIOUR -- time and trials to the quit, UNCAPPED, with censoring bounds (outside the Holm families)\n"
+    fig.suptitle("BEHAVIOR -- time and trials to the quit, UNCAPPED, with censoring bounds (outside the Holm families)\n"
                  "Uncapped minutes are confounded: pre sessions ran to ~150 min, post stopped at 120 min / 100 per spout. "
                  "The KM restricted mean\ncompares pre and post only up to the shorter group's longest observation "
                  "(per animal), which removes that confound.", fontsize=10)
@@ -1994,7 +1994,7 @@ def plot_addendum(FD=None):
     ax.set_xticks(range(len(POS)))
     ax.set_xticklabels([p.replace("_", "\n") for p in POS])
     ax.set_ylabel("trials done at quit (or end) / 100")
-    ax.set_title("BEHAVIOUR -- per-spout trial progress at the quit (dotted = the post-stroke 100-per-spout stop rule)",
+    ax.set_title("BEHAVIOR -- per-spout trial progress at the quit (dotted = the post-stroke 100-per-spout stop rule)",
                  fontsize=11)
     _legend_animals(fig)
     fig.tight_layout(rect=(0, 0.08, 1, 1))
@@ -2005,7 +2005,7 @@ def plot_addendum(FD=None):
     ax[0].set_title("water, exact 80-min horizon", fontsize=10)
     _delta_panel(ax[1], FD["a3iii"]["water"], "change vs own pre, µl")
     ax[1].set_title("sensitivity of P1 (not tested)", fontsize=10)
-    fig.suptitle("BEHAVIOUR -- P1 with quits re-detected on records cut at 80 min", fontsize=12)
+    fig.suptitle("BEHAVIOR -- P1 with quits re-detected on records cut at 80 min", fontsize=12)
     _legend_animals(fig)
     fig.tight_layout(rect=(0, 0.08, 1, 0.92))
     _save(fig, "a3iii_h80_water")
@@ -2060,7 +2060,7 @@ def plot_addendum(FD=None):
     R4 = t["R4"]
     _epoch_scatter(ax[1, 1], R4, "q_runfrac", "fraction of quit period running")
     ax[1, 1].set_title("(4) running in quit periods by epoch (pre = PS93 1, PS94 4, PS95 6 quits)", fontsize=9)
-    fig.suptitle("BEHAVIOUR + NEURAL -- Test 4b: is quit-period running self-activation to get back to licking?",
+    fig.suptitle("BEHAVIOR + NEURAL -- Test 4b: is quit-period running self-activation to get back to licking?",
                  fontsize=12)
     _legend_animals(fig)
     fig.tight_layout(rect=(0, 0.05, 1, 0.95))

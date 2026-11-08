@@ -47,6 +47,19 @@ N_BOOT = 4000
 #: are 95%.
 PCTL = (2.5, 97.5)
 
+#: HIT-GATED MINIMUM (Priya 11-07, decision A11: "for analyses gated on hits, > 20 hits would be reasonable").
+#: An epoch value / recovered fraction built from HIT-trial decoder retention ("code on hits", cls2 == "hit") needs at
+#: least this many hit trials summed over the animal x epoch's contributing sessions; below it the value is NaN and
+#: figures say ``HIT_GATE_NA``. Prompted by Fig 0.12's PS94 acute code resting on ONE session with 8 hits.
+MIN_HITS = 20
+HIT_GATE_NA = f"n.a. (<{MIN_HITS} hits)"
+
+
+def hits_ok(n_hits) -> bool:
+    """True when the summed hit count of an animal x epoch cell (one entry per contributing session) is >= MIN_HITS."""
+    n = np.asarray(n_hits, dtype=float)
+    return bool(n.size) and float(np.nansum(n)) >= MIN_HITS
+
 #: Response window for scoring a trial as a hit: NOT a constant. ``None`` = read THIS session's window from its
 #: behaviour log (`response_window_s`). Until 2026-11-03 this was 2.0 s, which was never the task's window (3.5 s in
 #: every session from June on; 3.0 s in May training) -- Priya 11-03: "2 s was not deliberate" (consolidation A1).

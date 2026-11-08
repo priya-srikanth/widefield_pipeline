@@ -373,7 +373,7 @@ def t12_figure(S, A, T, out=None):
     fig.suptitle("T12: orofacial events in TASK windows. v2 detector (2-s median detrended dF/F %, height > 4 x the "
                  "animal's August-pre robust SD, either polarity); task masks exclude frames within 0.5 s of a contact "
                  "lick / running / swapped pair; engaged part of the session. Open markers = sessions (shape = animal, "
-                 "colour = epoch); filled = pooled mean, nested animal -> session bootstrap 95% CI; stars = LMM epoch "
+                 "color = epoch); filled = pooled mean, nested animal -> session bootstrap 95% CI; stars = LMM epoch "
                  "vs pre on log10(rate + 0.2), FDR.", fontsize=8.5, wrap=True)
     fig.tight_layout(rect=(0, 0, 1, 0.92), w_pad=2.0, h_pad=1.5)
     fig.savefig(TE / "t12_task_window_event_rates.png" if out is None else out, dpi=110)
@@ -537,7 +537,7 @@ def t13_by_spout(Tr):
 
 
 def t13_figure(R, RS, out=None):
-    """Priya 11-03 rules: no connecting lines; per-animal values small FILLED (shape = animal, colour = epoch);
+    """Priya 11-03 rules: no connecting lines; per-animal values small FILLED (shape = animal, color = epoch);
     all-animal summaries large; by-spout epochs at cat_points.epoch_offsets in the canonical spout order. Per-SESSION
     values are not stored for T13 (the excess is computed over the pooled session x spout strata), so there are no
     session dots. Returns {(panel, kind, animal | epoch, epoch | spout): plotted value} for the --plot-only check."""

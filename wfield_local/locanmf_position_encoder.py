@@ -494,7 +494,7 @@ def _feve_label_colors(regs):
 
 
 def _feve_heatmap(ax, M, rows, regs, fig):
-    """Shared FEVE heatmap: rows x regions, cell = FEVE% (0-100 viridis; <0 and NaN greyed), annotated."""
+    """Shared FEVE heatmap: rows x regions, cell = FEVE% (0-100 viridis; <0 and NaN grayed), annotated."""
     cmap = plt.cm.viridis.copy(); cmap.set_bad("#dddddd")
     Mc = np.where(M < 0, np.nan, M)                                    # below-0 FEVE shown as 'no capture' grey
     im = ax.imshow(Mc, cmap=cmap, vmin=0, vmax=100, aspect="auto")
@@ -560,7 +560,7 @@ def _feve_log(f, q) -> str:
 def fig_region_feve_pooled(res, out, floor=0.02):
     """ACROSS-SESSIONS: per region, FEVE (% of explainable/ceiling variance the encoder captures) pooled
     within each animal (SS summed over all of that animal's sessions). Heatmap animal x region; 100% = the
-    encoder captures all position-explainable variance in that region. Grey = <0 (no capture) or no
+    encoder captures all position-explainable variance in that region. Gray = <0 (no capture) or no
     explainable signal. Regions sorted by pooled explainable variance; SSp red / MO blue x-labels."""
     by = defaultdict(list)
     for lab in res:
@@ -674,13 +674,13 @@ def ev_per_position(label):
 
 
 def fig_ev_matrix(by_animal, out, name="locanmf_encoder_ev_matrix.png"):
-    """Encoded variance per POSITION x SESSION, one panel per animal, on ONE colour scale.
+    """Encoded variance per POSITION x SESSION, one panel per animal, on ONE color scale.
 
-    The per-animal bar charts this summarises put six grouped bars per position on one axis and
-    asked the reader to track a position across sessions by colour. As a matrix, a position that
-    degrades over days is a column that changes colour, and the lesion is a horizontal rule.
+    The per-animal bar charts this summarizes put six grouped bars per position on one axis and
+    asked the reader to track a position across sessions by color. As a matrix, a position that
+    degrades over days is a column that changes color, and the lesion is a horizontal rule.
 
-    ONE COLOUR SCALE across animals, so panels are comparable -- which is the whole point of a
+    ONE COLOR SCALE across animals, so panels are comparable -- which is the whole point of a
     summary and is exactly what the per-session figures could not offer.
     """
     from wfield_local import config
@@ -735,9 +735,9 @@ def fig_ev_matrix(by_animal, out, name="locanmf_encoder_ev_matrix.png"):
     fig.suptitle(
         "ENCODED VARIANCE PER SPOUT POSITION, per session. Ridge from a one-hot position design onto "
         "the feature matrix, scored per position with the same block GroupKFold the decoders use. "
-        "ONE colour scale across all animals, so the panels are comparable -- which the per-session "
+        "ONE color scale across all animals, so the panels are comparable -- which the per-session "
         "bar charts could not offer. A position that degrades across days is a COLUMN that changes "
-        "colour; the red rule is the lesion.", fontsize=8.5, wrap=True)
+        "color; the red rule is the lesion.", fontsize=8.5, wrap=True)
     fig.tight_layout(rect=(0, 0, 0.88, 0.90))
     p = out / name
     fig.savefig(p, dpi=140)
@@ -747,7 +747,7 @@ def fig_ev_matrix(by_animal, out, name="locanmf_encoder_ev_matrix.png"):
 
 def fig_ev_by_position_animal(animal, labels, out):
     """Per-position held-out EV for ONE animal across its sessions — one graph, sessions distinguished by
-    colour (grouped bars), labelled by date. The per-animal-across-sessions view of fig_ev_by_position."""
+    color (grouped bars), labeled by date. The per-animal-across-sessions view of fig_ev_by_position."""
     posn = [POSITION_NAMES[c] for c in DISPLAY_ORDER]; pos = np.array(DISPLAY_ORDER)  # noqa: F841
     fig, ax = plt.subplots(figsize=(11, 5.5)); x = np.arange(6); w = 0.8 / max(len(labels), 1)
     for i, lab in enumerate(labels):
@@ -761,7 +761,7 @@ def fig_ev_by_position_animal(animal, labels, out):
 
 
 def fig_ev_ceiling_by_position_animal(animal, labels, out):
-    """Per-position EV RELATIVE TO CEILING for ONE animal across sessions (one graph, sessions by colour).
+    """Per-position EV RELATIVE TO CEILING for ONE animal across sessions (one graph, sessions by color).
     Left: noise ceiling (explainable var) per position; right: captured/ceiling. Per-animal fig_ev_ceiling."""
     posn = [POSITION_NAMES[c] for c in DISPLAY_ORDER]; pos = np.array(DISPLAY_ORDER)
     fig, axes = plt.subplots(1, 2, figsize=(15, 5.5)); w = 0.8 / max(len(labels), 1)

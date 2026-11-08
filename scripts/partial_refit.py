@@ -24,7 +24,7 @@ Readout: gain = R2[variant] - R2[frozen], epoch - pre within animal (nested boot
 FROZEN_DESIGN=te runs (DECISIONS 2026-10-26: target vs execution kernels) use their own sets and nulls (TE_SETS):
   target / target_spout (pos_enl, pos_cue) / target_lick (lick_onset@tgt:*) / execution / exec_land
   (lick_onset@land:*) / contact / target_land; nulls target_perm + target_lick_perm (ONE block permutation of the trial
-  spouts fed to BOTH raw_blocks and te_lick_parts, so the arrival / cue kernels and the target-labelled lick kernels see
+  spouts fed to BOTH raw_blocks and te_lick_parts, so the arrival / cue kernels and the target-labeled lick kernels see
   the same shuffled labels), exec_land_perm + execution_perm (landing weights circularly shifted along the session's
   landed licks by a random 10-90 % of their number; kinematics / FR stay real -> conservative). N_PERM draws each.
 Run with the SAME env as the frozen run (run_frozen_fr.sh for the frA frame; run_te.sh for the te frame).
@@ -96,8 +96,8 @@ def model_label(run: Path) -> str:
     if _tag_is_spont(tag):
         parts.append("+ spontaneous lick kernels (pre-cue / ITI licks, uninstructed: in other; cued licks = post-cue)")
     if tag.endswith("_te"):
-        design = ("NEW target-vs-execution design: target = spout identity + target-labelled lick kernels, execution = "
-                  "3-D tongue / jaw + FaceRhythm + landing-labelled lick kernels; ITI frames included")
+        design = ("NEW target-vs-execution design: target = spout identity + target-labeled lick kernels, execution = "
+                  "3-D tongue / jaw + FaceRhythm + landing-labeled lick kernels; ITI frames included")
     elif tag.endswith("_ls"):
         design = "OLD design + per-spout lick kernels (target vs executed spout-locked templates vs lick kernels)"
     else:
@@ -451,30 +451,26 @@ def summarise(run: Path, out: Path) -> None:
     Bs.to_csv(out / "boot_by_spout.csv", index=False)
     print("== by spout, SSp-m contra, chronic\n" + Bs[(Bs.area == "SSp-m_right") & (Bs.epoch == "chronic")]
           [["q", "window", "spout", "point", "lo", "hi", "n_up", "n"]].round(4).to_string(index=False))
-    cols = dict(zip(VARIANTS, ["#e41a1c", "#377eb8", "#4daf4a", "#984ea3", "#ff7f00", "#a65628", "#f781bf", "#66c2a5", "#999999",
-                               "#bdd7e7"]))
-    cols.update({"target - null": "#b2182b", "exec - null": "#6baed6", "exec - target": "#2166ac",
-                 "lickspout - target": "#8c510a"})
-    if TE:
-        cols = dict(zip(VARIANTS, ["#e41a1c", "#fb9a99", "#b2182b", "#377eb8", "#1f78b4", "#4daf4a", "#984ea3", "#999999",
-                                   "#cccccc", "#9ecae1", "#c6dbef"]))
-        cols.update({"target - null": "#b2182b", "target lick - null": "#e7298a", "landing lick - null": "#2166ac",
-                     "execution - null": "#6baed6", "landing lick - target lick": "#8c510a",
-                     "execution - target": "#01665e"})
+    # THE shared model palette (cat_points.MODEL_COLORS, Priya 11-07: never an epoch / animal / class colour), in
+    # VARIANTS order (bars past the 7th cycle the palette and are hatched by ffc.bars); the contrasts drawn as lines
+    from wfield_local import cat_points as cp
+    cols = {v: cp.model_color(i) for i, v in enumerate(VARIANTS)}
+    con = (("target - null", "exec - null", "exec - target", "lickspout - target") if not TE else
+           ("target - null", "execution - null", "target lick - null", "landing lick - null",
+            "landing lick - target lick", "execution - target"))
+    cols.update({q: cp.model_color(i) for i, q in enumerate(con)})
     ffc.COL.update(cols)
     (out / "figures").mkdir(exist_ok=True)
     for w in ffc.WINDOWS:
         fig, (ax, ax2) = plt.subplots(2, 1, figsize=(15, 8.6))
         ffc.bars(ax, B[B.window == w], [v for v in VARIANTS if (B.q == v).any()], AREAS, "R2 gain over frozen, epoch - pre",
-                 "refit ONLY one set (legend); greys / light blues = the label-shuffled nulls" if TE else
-                 "refit ONLY: red = target, blue = executed position, green = executed + FR side / distance, purple = "
-                 "target + executed, orange = target + executed + FR, grey = target with shuffled labels (null)")
+                 "refit ONLY one set (legend; the label-shuffled nulls are the *_perm / *_shuf sets)")
         ax.legend(fontsize=8, frameon=False, loc="upper left", bbox_to_anchor=(1.0, 1.0))
         ffc.bars(ax2, B[B.window == w], [v for v in CONTRASTS if (B.q == v).any()], AREAS, "difference of gains, epoch - pre",
-                 "CONTRASTS (legend): each set minus its label-shuffled null; landing vs target-labelled lick kernels; "
+                 "CONTRASTS (legend): each set minus its label-shuffled null; landing vs target-labeled lick kernels; "
                  "execution vs target" if TE else
-                 "CONTRASTS: dark red = target minus its shuffled-label null; light blue = executed minus its shuffled-"
-                 "label null; dark blue = executed minus target (whose refit helps more)")
+                 "CONTRASTS (legend): target and executed each minus its shuffled-label null; executed minus target "
+                 "(whose refit helps more)")
         ax2.legend(fontsize=8, frameon=False, loc="upper left", bbox_to_anchor=(1.0, 1.0))
         fig.suptitle(f"NEURAL: PARTIAL REFIT, {w} window: one group refit per session (cross-validated), all else frozen;\n"
                      f"{model_label(run)}\ngain in held-out R2 over the frozen model, as a change from pre "
@@ -487,9 +483,9 @@ def summarise(run: Path, out: Path) -> None:
     ser = [(q, lab, cols[q]) for q, lab in (("target - null", "target (vs its null)"),
                                             ("exec - null", "executed movement (vs its null)"),
                                             ("lickspout - target", "per-spout lick kernels minus target"),
-                                            ("target lick - null", "target-labelled lick kernels (vs null)"),
-                                            ("landing lick - null", "landing-labelled lick kernels (vs null)"),
-                                            ("landing lick - target lick", "landing- minus target-labelled lick kernels"),
+                                            ("target lick - null", "target-labeled lick kernels (vs null)"),
+                                            ("landing lick - null", "landing-labeled lick kernels (vs null)"),
+                                            ("landing lick - target lick", "landing- minus target-labeled lick kernels"),
                                             ("execution - target", "execution minus target"))
            if (B.q == q).any()]
     areas = ["SSp-m_right", "SSp-m_left", "MOp_right", "MOp_left", "cortex"]

@@ -10,7 +10,7 @@ figure under a name nothing reads, which is the exact failure this deck spent 20
 
 THE DIRECTION. For each spout position P, a direction is fitted on PRE-STROKE trials WITH A
 SUCCESSFUL LICK in the response window: P against the other positions. It is therefore "the pattern
-that precedes/accompanies a successful lick to P" -- defined entirely where behaviour is intact.
+that precedes/accompanies a successful lick to P" -- defined entirely where behavior is intact.
 
 WHY ONE DIRECTION PER POSITION RATHER THAN ONE ENGAGEMENT AXIS. The two post-stroke phenomena differ
 enormously in position composition -- MISS-WHILE-WORKING is 34-44% far_R, STOPPED is near-uniform, total
@@ -35,7 +35,7 @@ lick events and are indistinguishable from lying still.
 
 That matters most exactly where the deficit is. If the lesion impairs REACHING the contraversive
 spout, "failed to contact" is the deficit's signature rather than evidence about intention -- so
-STOPPED is NOT a "not trying" control, and a class labelled by non-response cannot support a claim
+STOPPED is NOT a "not trying" control, and a class labeled by non-response cannot support a claim
 about whether a plan formed. The fix is movement onset from the Blackfly VIDEO rather than contact
 from the spout sensor, which would split the miss class into attempted-but-no-contact (a motor
 deficit) and no-attempt (a plan deficit); those have opposite predictions here and no DAQ-only
@@ -220,7 +220,7 @@ def engagement_axis(X_lick, X_nolick, pos_lick=None, pos_nolick=None):
 
 
 def orthogonalise(w, e):
-    """Gram-Schmidt: remove w's component along e, renormalise.
+    """Gram-Schmidt: remove w's component along e, renormalize.
 
     After this w.e == 0, so a trial's score CANNOT move because it was a lick or a no-lick trial.
     The cost is real: any position information lying along e goes with it, so the projection answers
@@ -253,7 +253,7 @@ def poles(Xp, Xn, w):
 
 
 def project(X, w, p0, p1):
-    """Pole-normalised projection: 0 = pre-stroke not-P, 1 = pre-stroke lick at P."""
+    """Pole-normalized projection: 0 = pre-stroke not-P, 1 = pre-stroke lick at P."""
     if len(X) == 0:
         return np.empty(0)
     v = np.asarray(X) @ w
@@ -283,11 +283,11 @@ def _ring(p):
 
 
 def _pos_color(name):
-    """The cohort's canonical per-position colour (side = hue, ring = lightness).
+    """The cohort's canonical per-position color (side = hue, ring = lightness).
 
     Borrowed from `spout_behavior` rather than reinvented: a position that is crimson in the
-    behaviour deck and something else here is a reader's problem, not a palette preference. Lazy
-    import so this module does not pull the behaviour stack unless a figure asks for a colour.
+    behavior deck and something else here is a reader's problem, not a palette preference. Lazy
+    import so this module does not pull the behavior stack unless a figure asks for a color.
     """
     from wfield_local.spout_behavior import POSITIONS, pos_color
     idx = next((q["idx"] for q in POSITIONS if q["name"] == name), None)
@@ -308,7 +308,7 @@ def _by_quartile(frac, mask, fn):
 def response_by_quartile(feat, kept, YE, GE, YU, GU, pre_i):
     """Response rate per position per within-session quartile, split pre/post stroke.
 
-    THE BEHAVIOURAL COUNTERPART of the within-session neural figure, and the thing that decides how
+    THE BEHAVIORAL COUNTERPART of the within-session neural figure, and the thing that decides how
     to read it. Built from the SAME trial indices the features come from (feat.indices), so "where
     in the session" cannot disagree between the two -- reconstructing a trial filter elsewhere is
     how bugs 15-17 happened.
@@ -341,7 +341,7 @@ def _diagnostics(XE, en, e_pre, frac_e, W, base_m, do_orth, e_axis):
     closefar      how much of each position's axis is the close-vs-far dimension
     slopes        that position's within-session drift on its own axis (pre-stroke LICK)
     pairwise      the same two numbers for every A-vs-B axis, tagged within-ring or cross-ring
-    norm_unit     post-stroke LICK scored raw and on UNIT-NORMALISED trials, plus the norm ratio
+    norm_unit     post-stroke LICK scored raw and on UNIT-NORMALIZED trials, plus the norm ratio
     """
     d = {}
     far_m = e_pre & np.isin(en, FAR)
@@ -463,8 +463,8 @@ def _class_confusions(XE, YE, GE, XU, YU, e_pre, pre_i, _mask, kept, rt_e=None, 
     """Confusion of the frozen PRE-stroke decoder, one counts matrix per class.
 
     Rows are the TRUE position and columns the predicted one, both in DISPLAY_ORDER, as raw counts
-    rather than row-normalised -- a caller summing two classes must be able to add them, and
-    normalised rows cannot be added.
+    rather than row-normalized -- a caller summing two classes must be able to add them, and
+    normalized rows cannot be added.
 
     THE PRE PANEL IS LEAVE-ONE-SESSION-OUT and the post panels are not, which is not an
     inconsistency: post-stroke trials are held out by construction (the decoder never saw a
@@ -716,7 +716,7 @@ def _gate_all(feat, kept, XE, YE, GE, XU, YU, GU, rule=None):
     CAMERA TRIAL GATE (rebuild 11-03, fail closed): ``not_eng`` IS the DAQ quit-tail mask, so under
     gate=camera it is a `trial_classes.RefusedMask` (any use raises) and the gate is not computed; the
     ``frac_*`` bookkeeping is unchanged. Camera-wired callers take their classes from
-    `trial_classes.pool_row_classes`. ``rule="daq"`` builds the real DAQ mask anyway, for a LABELLED
+    `trial_classes.pool_row_classes`. ``rule="daq"`` builds the real DAQ mask anyway, for a LABELED
     DAQ robustness row (`grant_kit._pooled_bundle["not_eng_daq"]`).
     """
     from wfield_local import trial_classes as _tc
@@ -733,7 +733,7 @@ def _gate_all(feat, kept, XE, YE, GE, XU, YU, GU, rule=None):
         span = max(int(t["order"].max()), 1)
         if not refused:
             pos = _positions_for(tables, si, YE, GE, YU, GU, ie, inl)
-            with _tc.daq_quit_rule("labelled DAQ robustness row (rule='daq')") if rule == "daq" \
+            with _tc.daq_quit_rule("labeled DAQ robustness row (rule='daq')") if rule == "daq" \
                     else contextlib.nullcontext():
                 ne = engagement_gate(t["order"], t["responded"], pos)
             bne = {int(k): bool(v) for k, v in zip(t["order"], ne)}
@@ -830,7 +830,13 @@ def _camera_class_block(proj, W, XE, XU, GE, GU, en, un, pre_i, kept, groups, mi
     sess)`` = the method's projection (held-out direction for a pre session); pre rows of a session are projected on
     ITS held-out direction (the directions are fitted on pre lick rows). Rows are engaged and no-lick rows of the group
     stacked, in the contact-row z frame (`_g9_contact_frame`)."""
+    from wfield_local import trial_classes as _tcg9
     from wfield_local import working_trials as _wt
+    if _tcg9.camera_gate_on() and _tcg9.working_selection() == _wt.IN_WORKING_CONTACT:
+        # the pooled "working" group below is G_WORKING (contact + incomplete); the contact-only supplement (Priya
+        # 11-07) is wired for section G only -- refuse rather than report production's working group under its tag
+        raise NotImplementedError(f"G9 camera-class record: {_wt.WORKING_TRIALS_ENV}={_wt.IN_WORKING_CONTACT} is not "
+                                  "supported (section G supplement only); run G9 under in_working")
     ge, gu, je, ju, _have = groups
     X = np.vstack([XE, XU])
     G = np.concatenate([GE, GU])
@@ -1362,7 +1368,7 @@ def figure_animal(res, out, align="precue", meth="dom"):
     fig.suptitle(
         f"{res['animal']} \u2014 {disp} window, {meth.upper()} coding direction. Each position's "
         f"PRE-STROKE successful-lick direction, every class over time.\nLINEAR projection, "
-        f"pole-normalised: 0 = pre-stroke NOT-this-position, 1 = pre-stroke LICK here (dotted "
+        f"pole-normalized: 0 = pre-stroke NOT-this-position, 1 = pre-stroke LICK here (dotted "
         f"lines). Panels MOST IMPAIRED first. Bars = SEM. Hollow = <{MIN_TRIALS} trials.",
         fontsize=10)
     fig.tight_layout(rect=(0, 0.07, 1, 0.90))
@@ -1375,7 +1381,7 @@ def figure_animal(res, out, align="precue", meth="dom"):
 def figure_cross(res, out, align="precue", meth="dom"):
     """6x6: every class at TRUE position (rows) scored on EVERY direction (columns).
 
-    THE BASELINE PANEL IS THE POINT. Neighbouring positions are intrinsically similar before any
+    THE BASELINE PANEL IS THE POINT. Neighboring positions are intrinsically similar before any
     stroke -- pre-stroke far_center already scores 0.76 on the far_R direction -- so a raw
     off-diagonal value says nothing on its own. Every post-stroke panel is therefore drawn as a
     DIFFERENCE from the pre-stroke LICK matrix, and remapping is a departure from that baseline
@@ -1566,8 +1572,8 @@ def figure_pairwise_sessions(res, out, align="precue", meth="dom", cls="poststro
     Splitting by class keeps a panel to one class over time, which is the question the figure is for
     (Priya, 2026-08-23: "show dots for each post-stroke session").
 
-    SEQUENTIAL COLOUR = DATE, so time reads left-to-right in the legend and dark-to-light in the
-    panel. The pooled value is drawn as a grey line behind the dots: if the dots straddle it widely,
+    SEQUENTIAL COLOR = DATE, so time reads left-to-right in the legend and dark-to-light in the
+    panel. The pooled value is drawn as a gray line behind the dots: if the dots straddle it widely,
     the pooled pairwise figure is averaging a moving target and should not be read as a state.
     """
     if not res or meth not in res.get("methods", {}):
@@ -1628,7 +1634,7 @@ def figure_pairwise_sessions(res, out, align="precue", meth="dom", cls="poststro
         f"both are DEFINITIONS, so the anchors are not results. Dropping toward 0 against a "
         f"particular partner is that trial set looking like THAT position \u2014 but a drop against "
         f"EVERY partner is loss of this position's pattern, not resemblance to all of them.\n"
-        f"Grey = the pooled value the other pairwise figure shows. Dots straddling it widely mean "
+        f"Gray = the pooled value the other pairwise figure shows. Dots straddling it widely mean "
         f"that figure is averaging a moving target. (sep N) is the pre-stroke separation of the "
         f"pair, i.e. the denominator: a small one amplifies.", fontsize=9)
     fig.tight_layout(rect=(0, 0.08, 1, 0.86))
@@ -1967,7 +1973,7 @@ def figure_within_session(res, out, align="precue", meth="dom"):
 # ---------------------------------------------------------------------------------------------
 
 def figure_engagement(res, out, align="precue", meth="dom"):
-    """BEHAVIOUR: response rate per position across the course of a session, pre and post stroke.
+    """BEHAVIOR: response rate per position across the course of a session, pre and post stroke.
 
     This is the figure that decides how to read the within-session neural panel. Pre-stroke, PS94 and
     PS95 lose a quarter to a third of their responding by the last quartile while PS92 and PS93 lose
@@ -2002,7 +2008,7 @@ def figure_engagement(res, out, align="precue", meth="dom"):
     # identically -- and they are NOT the same figure: each alignment keeps a different trial set
     # (pre-cue drops trials with no lick-free window, lick drops positions with no engaged trial),
     # so the response rates can differ between them. Audited 2026-08-24.
-    fig.suptitle(f"{res['animal']} \u2014 BEHAVIOUR: response rate by position over the COURSE of a "
+    fig.suptitle(f"{res['animal']} \u2014 BEHAVIOR: response rate by position over the COURSE of a "
                  f"session, on the trials the {disp} window keeps.\nA terminal collapse here is "
                  f"DISENGAGEMENT (reward is auto-held after a miss run), and it is what a "
                  f"within-session neural decline has to be read against.",
@@ -2019,7 +2025,7 @@ def figure_norm_unit(res, out, align="precue", meth="dom"):
 
     x.w grows either because the trial points more along w (position structure) or because it sits
     further from its session's engaged centroid (everything else). The two are not independent, so
-    correlating the projection with the norm cannot separate them -- re-projecting UNIT-NORMALISED
+    correlating the projection with the norm cannot separate them -- re-projecting UNIT-NORMALIZED
     trials can, being blind to magnitude and sensitive only to direction.
     """
     disp = dict(ALIGNS)[align]

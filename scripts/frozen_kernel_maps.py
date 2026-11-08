@@ -5,7 +5,7 @@ mapped back to pixels through its basis P (stat pixels x 200, orthonormal): pixe
 scale[col]), dF/F per unit of the raw regressor. Event kernels use a raised-cosine basis (0.1 s spacing; the cue / target
 kernels 0.4 s after 2 s), so column k is the kernel's value at lag = start + k * spacing. Mean of the 4 animals (same
 Allen grid). VENOUS CONTAMINATION: the sagittal sinus runs along the midline; a band of MIDLINE_PX pixels either side of
-the hemispheric boundary is masked (grey) -- crude (the transverse sinus and other vessels stay). Image left = ipsilesional.
+the hemispheric boundary is masked (gray) -- crude (the transverse sinus and other vessels stay). Image left = ipsilesional.
 
 Figures: kernel_maps.png (selected kernels), kernel_maps_target_6spouts.png (the target kernel of every spout = its
 DEVIATION from the shared cue kernel, at several lags). Spout-specific LICK kernels are not in this model (one shared lick
@@ -176,7 +176,7 @@ def main(argv=None) -> int:
          "them with that caution.", ol, None)
     draw(maps, [t for t, _v, _k in TARGET if t in maps], run / "figures" / "kernel_maps_target_6spouts.png",
          base + " TARGET kernels of all six spouts (canonical order: close ipsi, mid, contra, then far ipsi, mid, contra): each spout's deviation from the shared "
-         "cue kernel, at 0.3 / 0.6 / 1.0 / 2.0 s after the cue; one colour scale per row.", ol, None, ncol=6, shared_rows=True)
+         "cue kernel, at 0.3 / 0.6 / 1.0 / 2.0 s after the cue; one color scale per row.", ol, None, ncol=6, shared_rows=True)
     print("grid", shape)
     return 0
 

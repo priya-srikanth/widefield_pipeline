@@ -1,4 +1,4 @@
-"""Labelled video of the CLEANED tongue and jaw (orofacial_clean) on a few trials of a `session_poses` clip, to judge
+"""Labeled video of the CLEANED tongue and jaw (orofacial_clean) on a few trials of a `session_poses` clip, to judge
 the cleaning -- and, with several ``--model``s, the models -- by eye. Priya, 2026-10-15: "see if filling in mouth zero
 makes sense"; "comparison slowed-down clips of the top models with cleaner data".
 
@@ -6,7 +6,7 @@ makes sense"; "comparison slowed-down clips of the top models with cleaner data"
         --trials 508 12 47 125 87 515 [--fps 50] [--tag top6]
 
 One panel per model (3 per row), the SAME frame in every panel. Markers (image coordinates):
-  tongue  filled orange dot = measured; hollow orange ring = interpolated (gap <= 56 ms); grey X at the MOUTH = the
+  tongue  filled orange dot = measured; hollow orange ring = interpolated (gap <= 56 ms); gray X at the MOUTH = the
           mouth-zero fill (tongue in the mouth); nothing = no value
   jaw     filled cyan dot = measured; hollow cyan ring = interpolated; nothing = hidden (jaw.v34.hidden_fill: nan)
   raw     small white dot = the model's raw point where p >= 0.4 (tongue and jaw)
@@ -135,7 +135,7 @@ def main(argv=None) -> int:
         cv2.putText(frame, f"{d.name}  trial {int(g.trial_id)} {g.position}  {g.t_ms:+.0f} ms from cue  "
                     f"({a.fps / 250:.1f}x speed)", (8, 18), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (255, 255, 255), 1,
                     cv2.LINE_AA)
-        cv2.putText(frame, "CLEANED: tongue orange (dot measured, ring interpolated, grey X = mouth fill) | jaw cyan "
+        cv2.putText(frame, "CLEANED: tongue orange (dot measured, ring interpolated, gray X = mouth fill) | jaw cyan "
                     f"(dot measured, ring interpolated, none = hidden) | white = raw p>={raw_cut['tongue']}/{raw_cut['jaw']}", (8, 37),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.42, (200, 200, 200), 1, cv2.LINE_AA)
         ff.stdin.write(frame.tobytes())

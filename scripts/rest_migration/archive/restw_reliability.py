@@ -1,4 +1,4 @@
-"""SPLIT-HALF RELIABILITY of `rest` vs `restw` -- is equal weighting normalising to thin data?
+"""SPLIT-HALF RELIABILITY of `rest` vs `restw` -- is equal weighting normalizing to thin data?
 
 THE CONCERN (Priya, 2026-09-14): "I worry normalizing to thin data will do more harm than good."
 
@@ -6,12 +6,12 @@ It is quantifiable and the frame counts understate it. `restw` takes a MEDIAN PE
 averages the six EQUALLY, so a position estimated from 200 frames gets the same influence as one
 estimated from 3000. 200 frames is 6.4 s at 31.23 Hz, and calcium is heavily autocorrelated on ~1 s
 timescales, so the EFFECTIVE sample size behind a thin position is nearer 6 than 200. Equal weighting
-is the worst available weighting for that: it maximises the contribution of the noisiest estimates.
+is the worst available weighting for that: it maximizes the contribution of the noisiest estimates.
 
 So `restw` trades a known, FIXED composition bias (17.5% per-position survival spread, stable across
 epochs) for added VARIANCE. Which is worse is empirical, and this measures it.
 
-THE MEASUREMENT. Split each position's labelled rest PERIODS -- not frames -- into two halves, build
+THE MEASUREMENT. Split each position's labeled rest PERIODS -- not frames -- into two halves, build
 each baseline from each half, and correlate the halves. Splitting by period matters: adjacent frames
 inside one rest bout are nearly the same sample, so a frame-wise split would report a reliability that
 the data does not have.
@@ -39,7 +39,7 @@ from wfield_local.rest_by_position import (
 def _periods_by_position(session, n_frames):
     """``{code: [frame_index_array, ...]}`` -- rest frames grouped by position AND BY PERIOD.
 
-    Mirrors `rest_frames_by_position` but keeps each labelled rest period separate instead of
+    Mirrors `rest_frames_by_position` but keeps each labeled rest period separate instead of
     concatenating, which is what makes an honest split possible.
     """
     from wfield_local.precue_engagement_states import engagement_gate

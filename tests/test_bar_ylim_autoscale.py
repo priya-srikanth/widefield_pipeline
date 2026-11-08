@@ -5,7 +5,7 @@ WHY (2026-09-07, Priya from deck slides 590-592 and 602-604). The section I bars
 was pinned at (-0.65, 0.35). 1.10 is a CORRELATION's bound applied to a crossnobis DISTANCE --
 `MATRIX_FAMILIES` records `None` for that family precisely because "a crossnobis distance does
 not [have a natural range], and forcing one on it would compress every panel into a corner". The
-matrix honoured that; the diagonal bars did not.
+matrix honored that; the diagonal bars did not.
 
 THE ERROR BARS GO FIRST. A mean can sit comfortably inside a fixed window while its 95% interval
 and its individual session dots run off the top, so the span has to be taken over intervals and

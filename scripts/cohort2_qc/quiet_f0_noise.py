@@ -8,11 +8,11 @@ channels; the 470 slot is `hemo_variants.functional_channel(label)` (0 for PS92_
 (brain mask & beta_maps.brain_mask, eroded stat mask, `iti_licks.roi_masks`: Allen areas per hemisphere + ALM / tjM1 =
 anterolateral 40 % of MOs / MOp). Groups as quiet_area_spikes: orofacial = ALM + tjM1 + SSp-m + SSp-n (pixel union),
 limb = SSp-ul + SSp-ll, cortex = stat mask. _left = ipsilesional (image left). Measures: log10 F470, log10 F415, log10
-(F470 / F415) (crude haemodynamics / expression normalisation: 415 is isosbestic, so the ratio cancels expression and
+(F470 / F415) (crude hemodynamics / expression normalization: 415 is isosbestic, so the ratio cancels expression and
 common light losses, but more blood lowers 415 more than 470 and RAISES the ratio). Contrast: ipsi - contra (log10),
 change vs the animal's August pre.
 
-(2) NOISE FLOOR UNDER T20. T20's synchronisation index = log10(PSD 1-4 / 8-15 Hz) of the quiet engaged trace
+(2) NOISE FLOOR UNDER T20. T20's synchronization index = log10(PSD 1-4 / 8-15 Hz) of the quiet engaged trace
 (quiet_fluct spectra, v2_quiet/fluct/sessions). Floor = mean PSD 12-15 Hz per trace (white-noise estimate; fs 31.25 Hz).
 Shot noise predicts floor ~ 1 / F0 (PSD of dF/F), i.e. slope -1 of log floor on log F0. T20 contrast (orofacial ipsi -
 contra) recomputed as: A original; B floor-subtracted log10((P1-4 - fl) / (P8-15 - fl)); C fast band 4-8 Hz
@@ -332,8 +332,8 @@ def figure(C, K, N, H, Hc, fit, T, PSD, fr):
     xx = np.array([Hc.l470.min(), Hc.l470.max()])
     a.plot(xx, -xx, color="0.4", ls="--", lw=1)
     a.plot(xx, fit["pooled"] * xx, color="k", lw=1.2)
-    a.set_xlabel("log10 F0 (470), centred within animal x hemisphere ROI", fontsize=8.5)
-    a.set_ylabel("log10 noise floor (PSD 12-15 Hz), centred", fontsize=8.5)
+    a.set_xlabel("log10 F0 (470), centered within animal x hemisphere ROI", fontsize=8.5)
+    a.set_ylabel("log10 noise floor (PSD 12-15 Hz), centered", fontsize=8.5)
     a.set_title(f"Noise floor vs F0 (orofacial + limb hemisphere traces): slope {fit['pooled']:.2f} "
                 f"(dashed = -1, pure shot noise)", fontsize=8.5)
     a = fig.add_subplot(gs[2, 2:4])
@@ -350,7 +350,7 @@ def figure(C, K, N, H, Hc, fit, T, PSD, fr):
     a.axvspan(*B_CARD, color="#fde0dd", zorder=0, alpha=0.6)
     a.set_xlabel("Hz", fontsize=8.5)
     a.set_ylabel("PSD ((dF/F %)^2 / Hz)", fontsize=8.5)
-    a.set_title("Orofacial quiet PSD, median of animals (grey = floor band 12-15 Hz,\npink = 7-11 Hz peak, also "
+    a.set_title("Orofacial quiet PSD, median of animals (gray = floor band 12-15 Hz,\npink = 7-11 Hz peak, also "
                 "in 415 nm); solid = ipsi, dashed = contra", fontsize=8.5)
     a = fig.add_subplot(gs[2, 4])
     _strip(a, K, "d_lfloor|orofacial_ipsi_minus_contra", T, "lfloor", "lfloor|orofacial_ipsi_minus_contra",
@@ -364,8 +364,8 @@ def figure(C, K, N, H, Hc, fit, T, PSD, fr):
     fig.legend(handles=hand, loc="lower center", ncol=len(hand), fontsize=8.5, frameon=False, bbox_to_anchor=(0.5, 0.0))
     sig_marks.reserve_headroom(fig)
     fig.suptitle("T22 (cohort1): row 1 = baseline fluorescence F0 per area (tonic proxy; ipsi = lesioned left hemisphere); "
-                 "row 2 = T20 orofacial ipsi - contra synchronisation contrast with noise-floor / fast-band variants; "
-                 "row 3 = noise-floor diagnostics.\nSessions (shape = animal, colour = epoch), bar = mean of animals; "
+                 "row 2 = T20 orofacial ipsi - contra synchronization contrast with noise-floor / fast-band variants; "
+                 "row 3 = noise-floor diagnostics.\nSessions (shape = animal, color = epoch), bar = mean of animals; "
                  "stars = LMM epoch vs August pre, FDR within measure", fontsize=10)
     fig.subplots_adjust(left=0.05, right=0.99, top=0.9, bottom=0.08)
     save_png_svg(fig, OUT / "quiet_f0_noise.png", dpi=105)

@@ -12,8 +12,8 @@ What is kept, and why (Priya, 2026-10-21: "outlines only, no letter identifiers"
   * NOT the small unlabelled circle every plate carries in the right caudoputamen (~1.5 mm lateral, ~0.12 mm wide):
     a reference mark of the drawing, not anatomy;
   * NOT line art outside the brain outline (Fig 30 has a stray mark above the brain);
-  * filled shapes (the ventricles) are drawn light grey so they do not compete with stroke colours.
-Grid lines (grey, 1 mm) give the calibration: ~71.2 pt / mm; x = 0 is the central vertical grid line.
+  * filled shapes (the ventricles) are drawn light gray so they do not compete with stroke colors.
+Grid lines (gray, 1 mm) give the calibration: ~71.2 pt / mm; x = 0 is the central vertical grid line.
 """
 from __future__ import annotations
 

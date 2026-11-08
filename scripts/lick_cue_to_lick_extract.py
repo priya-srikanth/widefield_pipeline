@@ -102,9 +102,9 @@ def sess_dir(var: str = "restw"):
 
 
 def _first_licks(label: str, B, T, cue: np.ndarray, stop: np.ndarray, t_end: float) -> dict:
-    """revup_neural.session_worker's first-lick rule, verbatim: in_window = first behaviour lick onset in cue..stop;
+    """revup_neural.session_worker's first-lick rule, verbatim: in_window = first behavior lick onset in cue..stop;
     else late = first ITI video lick (licks_all.csv context iti) after stop and before the next trial's strobe; quiet =
-    time since the last lick (behaviour + video) before the cue; npre = licks in -2..0 s."""
+    time since the last lick (behavior + video) before the cue; npre = licks in -2..0 s."""
     import pandas as pd
 
     from wfield_local import config

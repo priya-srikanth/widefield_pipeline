@@ -1,7 +1,7 @@
 """Follow-on (b), Priya 11-04 (approved with guards): G9 coding-direction classes by CAMERA class.
 
 Pins the guards: per spout only; thin cells (< 10) kept and flagged; each post class read against the SAME pre class,
-else pre working (labelled); rows z-scored per session on CONTACT rows; the DAQ classes stay the default reading of every
+else pre working (labeled); rows z-scored per session on CONTACT rows; the DAQ classes stay the default reading of every
 consumer (`g9_daq_classes`), and `g9_old_new` reports old next to new.
 """
 import numpy as np

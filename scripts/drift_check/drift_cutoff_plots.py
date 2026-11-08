@@ -103,7 +103,7 @@ def fig_order(out: Path):
                      f"{o.time_only_loso_acc:.2f} (chance .17)", fontsize=8)
         ax.set_xticks(range(6))
         ax.set_xticklabels([p.replace("_", "\n") for p in POS_ORDER], fontsize=7)
-    axs[0].set_ylabel("mean normalised time in session (per session)")
+    axs[0].set_ylabel("mean normalized time in session (per session)")
     fig.suptitle("Fig 2. Spout order vs time in session (markers = sessions; bar = mean over sessions)")
     fig.tight_layout()
     _save(fig, out, "fig2_spout_order.png")
@@ -165,7 +165,7 @@ def fig_arms(out: Path, M: pd.DataFrame, arms=ARMS, name="fig4_arms.png", title=
                 ax.set_ylabel(title, fontsize=8)
             ax.tick_params(labelsize=6)
     fig.suptitle(title or "Fig 4. Slow cosine removal stacked on hpfit (pos = position-protected, cos = unprotected): "
-                 "retention, block means, removed variance, decoding\n(sessions; shape = animal, colour = epoch; "
+                 "retention, block means, removed variance, decoding\n(sessions; shape = animal, color = epoch; "
                  "bar = median). Block-band retention is 1 by construction when the band is faster than the cutoff.")
     fig.tight_layout(rect=(0, 0, 1, 0.97))
     _save(fig, out, name)
@@ -254,7 +254,7 @@ def fig_replacement(out: Path):
         ax.set_xticklabels([f"{c} min" for c in cuts])
         ax.set_title(t, fontsize=8)
     fig.suptitle("Fig 5. Replacement (polynomial -> position-protected cosines) vs stacked (hpfit + same cosines); "
-                 "8 sessions, shape = animal, colour = epoch")
+                 "8 sessions, shape = animal, color = epoch")
     fig.tight_layout()
     _save(fig, out, "fig5_replacement_vs_stacked.png")
     plt.close(fig)

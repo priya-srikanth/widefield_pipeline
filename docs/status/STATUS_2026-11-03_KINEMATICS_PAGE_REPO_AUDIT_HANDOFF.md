@@ -1,4 +1,4 @@
-# Handoff 2026-11-03 — kinematics page (behaviour split) + repo consolidation audit
+# Handoff 2026-11-03 — kinematics page (behavior split) + repo consolidation audit
 
 Window: sabatinilab-e3. Owns the **kinematics page** and the **repo consolidation review**. Read this first, then
 `docs/status/REPO_AUDIT_2026-11-03.md` (the audit) and DECISIONS 2026-11-03 (trial classes).
@@ -15,9 +15,9 @@ ownership table and her answers are in `REPO_CONSOLIDATION_PLAN_2026-11-03.md`.
 | **A4 amendment** (Priya via a8): close_center no-lick / no-contact / no-tongue = no_response, `jaw_judged` flag | **committed locally 23c8f775, NOT PUSHED** | push together with A1; then tell 5b (re-runs the s1 snapshot and asserts working / camera_lick unchanged), 34, a8 |
 | **A2** jaw-without-lick from trial_classes, all-trial denominator (orofacial_cohort `jaw_no_lick_frac`, cam1_incomplete_licks `jaw_only_*`) | **committed locally 23c8f775, NOT PUSHED** | re-render cohort tables / Fig 1.3, incomplete/sessions.csv + Fig 7.6; tell a8 (deck) |
 | **A1** per-session response window (`analysis_kit.response_window_s`; RESP_S = None; quit_point, engagement_decomposition, channel_position_maps quit gate, rest_engagement reader) | **ON MAIN ef70a2a8** (A4 amendment + A2 23c8f775 also on main). 3.5 s in all 120 curated sessions; hit +0.016 mean; quit later in 7/120; censoring unchanged (DECISIONS A1, `docs/status/A1_RESPONSE_WINDOW_BEFORE_AFTER_2026-11-03.csv`). 5b / 34 / a8 told | 34 renders quit / engagement + gates once in the rebuild |
-| **A3** animal-weighted change-vs-pre | **coded, UNCOMMITTED**: one draw `analysis_kit.paired_animal_draws` (only animals in both arms; each animal's own change; mean over animals; animals → sessions [→ blocks]); used by `boot_delta` (pinned tests unchanged), `epoch_figures.scalar_contrast_draws` (= boot_delta) / `contrast_draws` (stat per animal), `matrix_bootstrap.delta_draws`, `epoch_behaviour._behaviour_contrast`. `tests/test_paired_animal_draws.py` (5 pass). Plotting untouched (a8's defaults kept). 238 focused tests pass. **Behaviour before/after: 3 / 21 stars change** (`docs/status/A3_STAR_CHANGES_BEHAVIOUR_2026-11-03.csv`): 1b chronic fM and nC `**`→`*`; **1f acute engagement `**`→none** (PS95 has ONE acute session at +0.08 vs −0.2 in the other three; animal-weighted −0.135 [−0.27, +0.015]; LMM −0.18 p<1e-4) | **Priya chose C (via a8): random-intercept + epoch-slope LMM per contrast, small-sample df, Holm; boot_delta as sensitivity.** Run on all 21 behaviour stars: `A3_LMM_SLOPE_STARS_2026-11-03.md` (30f49cc8). 17/21 fits singular; Satterthwaite undefined / absurd there; df = 3 column (= KR here): only acute fC keeps `**`, all chronic stars go. **WAITING for Priya: fallback df (a: df = 3, e3 recommends / b: install R for KR), Holm scope (18 vs per epoch), which imaging families.** Then wire the rule into the star code; Then commit + push (34 agreed: lands before its render; boot_ci untouched), send the list to 34 + a8 |
-| **A3 DONE (11-03 eve)** | ON MAIN 1decbe53 + 9bc3f2f0: animal-weighted `paired_animal_draws` everywhere; bootstrap kept and LABELLED "these 4 animals" (10-19 % false positives at n = 4 when animals differ: simulation in `A3_LMM_SLOPE_STARS_2026-11-03.md`); `analysis_kit.epoch_change_lmm` / `lmm_stars` = the inferential test (separate animal x epoch variance per epoch, df = animals - 1, ** = Holm across the figure). PI deck: bootstrap = main slides, LMM = hidden slides (`scripts/lmm_change_fig.py`, outputs `labcams/grant_figures/lmm_hidden_20261103/`, named by deck shape_name): 15 done by e3; 14 wf_attempt figures by 34 (scripts/lmm_hidden/); p_phase + FR loading map keep family-wise tests. 3-D paths got cluster markers (22aa4fac). DECISIONS: A3 entry + trial stop = posthold | rebuild: redraw d_acc_cue / d_refitgap / frozen_refit_pooled / d_lpf_enl1_lp LMM from 34's new *_sessions.csv |
-| **A5** one responded-type selector beside GATES | **IMPLEMENTED ON THE REBUILD BRANCH** (34, `rebuild/cohort1-20261103`, worktree `wf_rebuild`, not pushed): `trial_classes.gate_mode()` / `run_selection(source=None)` -> camera / daq (defaults.yaml `trial_selection.gate`, env `WIDEFIELD_TRIAL_GATE`); `selection_tag(source, window="cue_stop", end)` in every cache key; unknown (no video) excluded + logged; DAQ quit-tail = labelled robustness row; lick gate separate. **Do NOT write a separate `responded()` on main** (would collide in trial_classes.py). It lands on main when the rebuild merges. | with the rebuild merge |
+| **A3** animal-weighted change-vs-pre | **coded, UNCOMMITTED**: one draw `analysis_kit.paired_animal_draws` (only animals in both arms; each animal's own change; mean over animals; animals → sessions [→ blocks]); used by `boot_delta` (pinned tests unchanged), `epoch_figures.scalar_contrast_draws` (= boot_delta) / `contrast_draws` (stat per animal), `matrix_bootstrap.delta_draws`, `epoch_behaviour._behaviour_contrast`. `tests/test_paired_animal_draws.py` (5 pass). Plotting untouched (a8's defaults kept). 238 focused tests pass. **Behavior before/after: 3 / 21 stars change** (`docs/status/A3_STAR_CHANGES_BEHAVIOUR_2026-11-03.csv`): 1b chronic fM and nC `**`→`*`; **1f acute engagement `**`→none** (PS95 has ONE acute session at +0.08 vs −0.2 in the other three; animal-weighted −0.135 [−0.27, +0.015]; LMM −0.18 p<1e-4) | **Priya chose C (via a8): random-intercept + epoch-slope LMM per contrast, small-sample df, Holm; boot_delta as sensitivity.** Run on all 21 behavior stars: `A3_LMM_SLOPE_STARS_2026-11-03.md` (30f49cc8). 17/21 fits singular; Satterthwaite undefined / absurd there; df = 3 column (= KR here): only acute fC keeps `**`, all chronic stars go. **WAITING for Priya: fallback df (a: df = 3, e3 recommends / b: install R for KR), Holm scope (18 vs per epoch), which imaging families.** Then wire the rule into the star code; Then commit + push (34 agreed: lands before its render; boot_ci untouched), send the list to 34 + a8 |
+| **A3 DONE (11-03 eve)** | ON MAIN 1decbe53 + 9bc3f2f0: animal-weighted `paired_animal_draws` everywhere; bootstrap kept and LABELED "these 4 animals" (10-19 % false positives at n = 4 when animals differ: simulation in `A3_LMM_SLOPE_STARS_2026-11-03.md`); `analysis_kit.epoch_change_lmm` / `lmm_stars` = the inferential test (separate animal x epoch variance per epoch, df = animals - 1, ** = Holm across the figure). PI deck: bootstrap = main slides, LMM = hidden slides (`scripts/lmm_change_fig.py`, outputs `labcams/grant_figures/lmm_hidden_20261103/`, named by deck shape_name): 15 done by e3; 14 wf_attempt figures by 34 (scripts/lmm_hidden/); p_phase + FR loading map keep family-wise tests. 3-D paths got cluster markers (22aa4fac). DECISIONS: A3 entry + trial stop = posthold | rebuild: redraw d_acc_cue / d_refitgap / frozen_refit_pooled / d_lpf_enl1_lp LMM from 34's new *_sessions.csv |
+| **A5** one responded-type selector beside GATES | **IMPLEMENTED ON THE REBUILD BRANCH** (34, `rebuild/cohort1-20261103`, worktree `wf_rebuild`, not pushed): `trial_classes.gate_mode()` / `run_selection(source=None)` -> camera / daq (defaults.yaml `trial_selection.gate`, env `WIDEFIELD_TRIAL_GATE`); `selection_tag(source, window="cue_stop", end)` in every cache key; unknown (no video) excluded + logged; DAQ quit-tail = labeled robustness row; lick gate separate. **Do NOT write a separate `responded()` on main** (would collide in trial_classes.py). It lands on main when the rebuild merges. | with the rebuild merge |
 | Open with Priya | (1) jaw-only trials AFTER the session's last contact (807 = 1.5 % of working): **answered, `docs/status/QUIT_TAIL_JAW_ONLY_2026-11-03.md`**: they occur pre-stroke too (150 in 15/31 pre sessions) but are smaller + later in every epoch, 95 % already outside the engagement gate, 4x more of working acutely (3.8 % vs 0.9 %). e3 recommends working AND before the last contact as primary (plain gate = robustness); her call. (2) the FaceRhythm page merge question (§2). (3) A3 single-session animal rule (above). | |
 | Re-renders (11-03 morning) | trial classes (jaw_only_incomplete_figs) DONE → `session_poses/cam1_licks/trial_classes`; incomplete licks DONE → `session_poses/cam1_licks/incomplete/` (sessions.csv, figures/incomplete_PS9x.png); orofacial_cohort (Fig 1.3 = `cohort/figures/prepost/cohort_epochs_by_position_accuracy_contra.png`) RUNNING. Fig 7.6 is a8's `fig_farcontra_attempts_sessions.py` (needs 34's trial_attempts_sessions.csv re-run too) | tell a8 the paths; republish the kinematics page when the account is fixed |
 | Publishing | the session switched to psrikanth87@gmail.com; the results pages belong to the HMS account, so page publishes will fail until Priya logs back in as HMS or shares the pages (she'll fix it). Artifact watches dropped | republish after she fixes it |
@@ -26,7 +26,7 @@ ownership table and her answers are in `REPO_CONSOLIDATION_PLAN_2026-11-03.md`.
 
 | thread | state | next step |
 |---|---|---|
-| Kinematics page | **v23** live, https://claude.ai/artifact/DKcKRJKbhBoratxxRc6qZv | behaviour / kinematics split (§2), after Priya answers the FaceRhythm question |
+| Kinematics page | **v23** live, https://claude.ai/artifact/DKcKRJKbhBoratxxRc6qZv | behavior / kinematics split (§2), after Priya answers the FaceRhythm question |
 | Repo audit | audit + independent verification DONE (`REPO_AUDIT_2026-11-03.md`, `REPO_AUDIT_VERIFY_2026-11-03.md`); draft plan `REPO_CONSOLIDATION_PLAN_2026-11-03.md` | superseded by §00 |
 | Code changes from the audit | superseded by §00 | |
 
@@ -52,35 +52,43 @@ always rebuild from the LIVE page (Artifact read) or the current index.html, nev
 
 ## 2. Decided / pending with Priya
 
-- **Behaviour vs kinematics split (Priya 11-03):**
-  - NEW **behaviour page** = DAQ-contact measures: hit rate (1.7, 1.8), engagement / quitting (responded fraction, all
+- **Behavior vs kinematics split (Priya 11-03):**
+  - NEW **behavior page** = DAQ-contact measures: hit rate (1.7, 1.8), engagement / quitting (responded fraction, all
     trials vs engaged), contact-based lick timing / rate.
   - **Kinematics page** = camera-based: camera lick timing / rate, aim, paths, landing, jaw, AND the section-6 trial
     classes (Priya: kinematics page).
-  - **ALL THREE PUBLISHED 11-03 (e0):** behaviour https://claude.ai/artifact/M1xhZBWSPS84aELTSFaMMK v1; kinematics
-    v27 (split, 12 lmm toggles, new Fig 9.7 3-D phase with tests, behaviour links); FaceRhythm v37 (v36 + 3 lmm
-    toggles + xlink to kinematics and behaviour). The M: kinematics source and `build_behaviour_page_1103.py` now carry
-    the real behaviour URL. **The M: FR source was synced to live v37 on 11-03 (e3, Priya's request):** `index.html` =
+  - **ALL THREE PUBLISHED 11-03 (e0):** behavior https://claude.ai/artifact/M1xhZBWSPS84aELTSFaMMK v1; kinematics
+    v27 (split, 12 lmm toggles, new Fig 9.7 3-D phase with tests, behavior links); FaceRhythm v37 (v36 + 3 lmm
+    toggles + xlink to kinematics and behavior). The M: kinematics source and `build_behaviour_page_1103.py` now carry
+    the real behavior URL. **The M: FR source was synced to live v37 on 11-03 (e3, Priya's request):** `index.html` =
     the v37 page without the publish wrapper (old copy kept as `index_pre_v37_sync_1103.html`), plus the 27
     re-drawn `fig/*_rules.png` (figure-rules redraws, 11-03) that existed only on the artifact. Every image the page
     references is now in the folder. `rebuild.py` there predates the `_rules` redraws; do not re-run it over this
     index.
   - **Jaw-only OUT of working (Priya 11-03 late; a8 agreed 11-04):** `trial_classes` gate values stay incl. jaw-only
     (robustness; cec38954 documents it); production = `in_working & camera_lick` via `working_trials`. Rename to
-    `working_jaw` later, together with working_trials + the s1 snapshot + tests. None of the kin / behaviour / FR
+    `working_jaw` later, together with working_trials + the s1 snapshot + tests. None of the kin / behavior / FR
     outputs change. The s1 table (camwork*, working_pl_*) is on the afternoon definition: flagged to e0 (owner).
     a8's main-branch imaging render is HELD (34's rebuild replaces those families in 1-2 days; Priya decides any
     interim swap), so the LMM-slide redraws wait for whichever render feeds the deck.
-  - **Sidebar figure toggles (Priya 11-04; e0 published kinematics v28, behaviour v2):** each section's first figure
+  - **Sidebar figure toggles (Priya 11-04; e0 published kinematics v28, behavior v2):** each section's first figure
     shown in the contents, the rest behind a "▸ N" button (localStorage keys `kintoc-` / `behtoc-`). Folded into
     both M: sources by e0's `add_toc_toggles_1104.py` (copy in `behaviour_page_src/behaviour_page/`; backups
     `index_pre_toctoggle_1104.html`). `build_behaviour_page_1103.py` predates this: if it is re-run, re-apply the
-    script (`behtoc-` on the behaviour page; the kinematics page it rewrites already has the toggle, so check for a
+    script (`behtoc-` on the behavior page; the kinematics page it rewrites already has the toggle, so check for a
     doubled assert failure rather than running it twice there).
-  - **SPLIT DONE in the M: sources 11-03 (e3).** Behaviour page source `M:/.../Widefield/behaviour_page_src/behaviour_page/` (`build_behaviour_page_1103.py`): Fig 1.1 hit rate over days and Fig 1.2 hit rate by spout (moved from kinematics 1.7 / 1.8, plus the 1.2 mixed-model toggle), and Fig 2.1 engagement by epoch (re-rendered by `scripts.engagement_by_epoch --out`; the script's 'N=1 animals' / 'PS92 (0)' count bug is fixed) plus its mixed-model toggle (acute -.17 p=.043, subacute -.13 p=.030; neither survives Holm). Kinematics: 1.9 -> 1.7, 1.10 -> 1.8, fig_ids.csv updated, backup `index_pre_split_1103.html`. Section 1's summary table stays: its rows are camera-lick measures. Behaviour-page pre = all 44 pre sessions (June + August), as in the two moved figures; it becomes August-only with the cohort-1 rebuild. Not moved yet: engagement over days per animal (`epoch_1g`, old style, lines across epochs).
+  - **American spelling (Priya 11-07, via a8): published kinematics v29, behavior v3.** Both M: sources converted
+    with a8's `presentations/_source_PI_overview_2026-11-02/amspell.py` (`convert_html`: prose, data-label / alt /
+    title; code spans, file names, ids untouched). 114 + 17 replacements, plus by hand: "relabeled", "uncentered",
+    and the visible TOC tag string 'behaviour' -> 'behavior' in the inline script (both pages). Backups
+    `index_pre_amspell_1107.html` in both folders. NOT converted: words baked into figure PNGs (e.g. "colour" in
+    legends), ids / file names (`#f-behaviour_hits_by_spout`, `behaviour_page_src/`), and the M: build scripts
+    (`build_behaviour_page_1103.py`, `add_*` scripts): if one is re-run, pass its output through `convert_html`
+    and redo the two hand fixes. New text on these pages: American spelling.
+  - **SPLIT DONE in the M: sources 11-03 (e3).** Behavior page source `M:/.../Widefield/behaviour_page_src/behaviour_page/` (`build_behaviour_page_1103.py`): Fig 1.1 hit rate over days and Fig 1.2 hit rate by spout (moved from kinematics 1.7 / 1.8, plus the 1.2 mixed-model toggle), and Fig 2.1 engagement by epoch (re-rendered by `scripts.engagement_by_epoch --out`; the script's 'N=1 animals' / 'PS92 (0)' count bug is fixed) plus its mixed-model toggle (acute -.17 p=.043, subacute -.13 p=.030; neither survives Holm). Kinematics: 1.9 -> 1.7, 1.10 -> 1.8, fig_ids.csv updated, backup `index_pre_split_1103.html`. Section 1's summary table stays: its rows are camera-lick measures. Behavior-page pre = all 44 pre sessions (June + August), as in the two moved figures; it becomes August-only with the cohort-1 rebuild. Not moved yet: engagement over days per animal (`epoch_1g`, old style, lines across epochs).
 - **ANSWERED 11-03:** the FaceRhythm page (https://claude.ai/artifact/X8NDdQNHi3zMP77PBrZAC1, source
   `M:/.../Widefield/fr_page_src/`) stays separate, cross-linked both ways. Merging would exceed the length limit (143
-  figures, ~90 MB); see DECISIONS 11-03. The behaviour / kinematics split can go ahead.
+  figures, ~90 MB); see DECISIONS 11-03. The behavior / kinematics split can go ahead.
 - **Mixed-model supplements (Priya 11-03):** collapsed toggles are in both M: sources (13 on kinematics, 3 on
   FaceRhythm; `add_lmm_toggles_1103.py`). Publishing was handed to sabatinilab-e0 because this window's account can't
   reach the pages. Pending until e0 reports the version numbers.
@@ -88,7 +96,7 @@ always rebuild from the LIVE page (Artifact read) or the current index.html, nev
 - **Encoder page trim (Priya: yes):** ask the encoder-page window to replace encoder 5.2, 5.5–5.8, 10.6 and 16.10
   with links to the kinematics copies. Keep 5.1 / 5.3 / 5.4 (landing labels its sections 6–7 use) and 16.6 / 16.9
   (recovery axis). NOT YET SENT.
-- **Response window (Priya):** read it from the behaviour log, never hard-code it; she believes it is 3.5 s everywhere.
+- **Response window (Priya):** read it from the behavior log, never hard-code it; she believes it is 3.5 s everywhere.
   The verifier was asked where it is recorded and what the 2.0 s sites really are.
 
 ## 3. Repo audit: top findings (unverified until VERIFY.md)
@@ -128,4 +136,4 @@ The pre-SVD repair applies to RiboL1 only.
 - Publish conflicts: merge onto the version the refusal hands back; check the M: source wasn't overwritten by another window.
 - Commit only own files, staged by name. The clone has other windows' uncommitted edits → `git rebase --autostash`.
 - Kinematics page convention: one figure per idea, stars in the top band (sig_marks.star_top), sessions as open
-  markers (shape = animal, colour = epoch).
+  markers (shape = animal, color = epoch).

@@ -8,7 +8,7 @@ frames.
 
 WEIGHTING RULE (the choice, 10-30; sweep = scripts/restnl_rescue.py, <iti_licks>/restw_check/rescue/):
   wr      (DEFAULT, rescue variant `s20_f50_wr`): equal-weight mean of the per-position medians over the positions
-          with >= 50 frames, RENORMALISED over the positions present; >= 4 of 6 positions required.
+          with >= 50 frames, RENORMALIZED over the positions present; >= 4 of 6 positions required.
           Keeps 107 / 107 sessions (PS93 pre 7); headlines H1-H3 unchanged vs strict (rescue_headlines.csv).
   strict  (the 10-29 rule, `strict_w50`; select with `--restnl-rule strict` or env RESTNL_RULE=strict): equal-weight
           mean of all 6 per-position medians, all 6 required with >= 50 frames each. Keeps 97 / 107 (PS93 pre 2).
@@ -50,7 +50,7 @@ def rule() -> str:
 
 RULE = rule()
 SFX = "_restnl" if RULE == "wr" else "_restnl_strict"
-_WDEF = ("mean of the per-position medians over positions with >= 50 frames (>= 4 of 6, renormalised)" if RULE == "wr"
+_WDEF = ("mean of the per-position medians over positions with >= 50 frames (>= 4 of 6, renormalized)" if RULE == "wr"
          else "position-weighted median, all 6 positions >= 50 frames")
 DEF = ("RESTnl = no-lick rest: restdock05 rest minus every cam4 / DAQ lick [0.5 s before, 2.0 s after], engagement-gated, "
        + _WDEF)

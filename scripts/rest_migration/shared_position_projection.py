@@ -147,7 +147,7 @@ def projection_components(rest_c, trial_c, restw_c, G):
 def _plot(rows, out, variant_name, aligns):
     """`epoch_15s_shared_position_*` -- one row per window, positions on x, epochs as series.
 
-    THE NULL IS DRAWN, not summarised in a caption. `shared` is a regression coefficient with no
+    THE NULL IS DRAWN, not summarized in a caption. `shared` is a regression coefficient with no
     natural zero-point for "unrelated" once drift and block structure are in play, so a bar without
     its circular-shift null cannot be read at all. The null band is the 5th-95th percentile of the
     per-cell nulls pooled within (window, epoch).
@@ -386,7 +386,7 @@ def main() -> int:
     ap.add_argument("--perm", type=int, default=50)
     ap.add_argument("--animals", nargs="*", default=None)
     ap.add_argument("--no-engagement-gate", action="store_true",
-                    help="keep the pre-2026-09-16 ungated behaviour, for measuring "
+                    help="keep the pre-2026-09-16 ungated behavior, for measuring "
                          "the size of the correction only")
     ap.add_argument("--replot", action="store_true",
                     help="redraw the figure from the existing CSV without re-measuring")

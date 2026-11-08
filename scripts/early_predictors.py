@@ -4,8 +4,9 @@ One value per animal. Early (acute) features: the first post-stroke session's or
 pre-SD units, mean of SSp-m / MOp both hemispheres; cue and lick), its mean over days 1-3, acute frozen-decoder far-contra
 retention on ALL far-contra trials and on HITS (lick window), acute trial-by-trial coupling (all far-contra trials,
 landing), and lesion burden (% of ipsilesional caudoputamen, docs/HISTOLOGY.md) as the structural reference. Outcomes:
-behavioural half-recovery day (`recovery_timing.py`), chronic far-contra hit rate (relative to pre), chronic cortical
-far-contra code on hits, chronic per-session gap (cortex - behaviour), chronic orofacial residual (cue).
+behavioral (hit-rate) half-recovery day RELATIVE TO PRE (`recovery_timing.py` beh_half_to_pre, NaN unless its fit flag
+is ok; 11-07), chronic far-contra hit rate (relative to pre), chronic cortical
+far-contra code on hits, chronic per-session gap (cortex - behavior), chronic orofacial residual (cue).
 
 ALM / tjM1 (Priya 10-27: "add ALM / tjM1 ... rows"): the day-1 residual is also given in ALM + tjM1 (both hemispheres; ROI v8
 on the stat mask, from the frozen run's basis twin via specificity_control) as two extra predictor columns.
@@ -27,6 +28,7 @@ import pandas as pd
 from wfield_local.orofacial_outputs import encoding_root as _encoding_root  # rebuild root (11-03)
 
 E = _encoding_root()
+from wfield_local import analysis_kit as ak  # noqa: E402  (MIN_HITS, Priya 11-07)
 from wfield_local import attempt_coding as _ac  # noqa: E402
 from wfield_local.attempt_coding import trials_name as attempt_trials_name  # noqa: E402
 
@@ -76,14 +78,18 @@ def features() -> pd.DataFrame:
         r["resid_chronic_cue"] = s[(s.epoch == "chronic") & (s.window == "cue")].residual_z.mean()
         r["ret_acute_all"] = T[(T.animal == an) & (T.epoch == "acute")].ret.mean()
         h = T[(T.animal == an) & (T.epoch == "acute") & (T.cls == "hit")]
-        r["ret_acute_hits"] = h.ret.mean() if len(h) >= 5 else np.nan
+        r["ret_acute_hits"] = h.ret.mean() if len(h) >= ak.MIN_HITS else np.nan   # hit-gated minimum (Priya 11-07)
         c = allc[(allc.animal == an) & (allc.epoch == "acute") & (allc.exec == "landing")]
         r["coupling_acute"] = float(c.r.iloc[0]) if len(c) else np.nan
         g = ser[ser.animal == an]
-        r["beh_t_half"] = half.loc[an, "t_half_behaviour"]
+        # half-recovery RELATIVE TO PRE of the hit rate (Priya 11-07; NaN unless the fit flag is ok). Was the old tau ln 2
+        # (time to half of the animal's own plateau), column t_half_behaviour, before 11-07.
+        r["beh_t_half"] = half.loc[an, "beh_half_to_pre"]
         r["beh_chronic"] = g[g.epoch == "chronic"].beh.mean()
-        r["cortex_chronic_hits"] = g[g.epoch == "chronic"].neu.mean()
-        r["gap_chronic"] = (g[g.epoch == "chronic"].neu - g[g.epoch == "chronic"].beh).mean()
+        ch = g[(g.epoch == "chronic") & g.neu.notna()]
+        ok = ak.hits_ok(ch.n_hits.to_numpy(float))      # code on hits: >= MIN_HITS summed hits (Priya 11-07)
+        r["cortex_chronic_hits"] = ch.neu.mean() if ok else np.nan
+        r["gap_chronic"] = (ch.neu - ch.beh).mean() if ok else np.nan
         rows.append(r)
     return pd.DataFrame(rows).set_index("animal")
 

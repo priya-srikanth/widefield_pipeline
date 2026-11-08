@@ -23,7 +23,7 @@ performed here: `framemap_event_maps` writes a `delta = post - pre` field into e
 `*_spout_positions_1s_pre_post_delta_maps.npz`, and this module aggregates that pre-existing
 product.
 
-WHAT IT THEREFORE MEASURES, and how it must be labelled: the CUE-EVOKED INCREMENT in
+WHAT IT THEREFORE MEASURES, and how it must be labeled: the CUE-EVOKED INCREMENT in
 position-specific activity, not the position representation. Two consequences:
 
   * an amplitude of 0.11 for far-contralateral acute cannot be read as "the map fell to 11% of
@@ -40,7 +40,7 @@ without that cost.
 USE `position_reference_maps` WITH THE QUIET REFERENCE AS THE PRIMARY MAP. A quiet-period baseline
 is SESSION-CONSTANT, which is the kind F12 explicitly permits; maps are not standardized, so for
 maps that constant is a real choice rather than an invisible one, and quiet is the defensible pick.
-This module stays for the increment question, labelled as such.
+This module stays for the increment question, labeled as such.
 
 THE REFERENCE HERE IS WITHIN TRIAL AND PER POSITION: each map is that position's own
 `post-cue mean - pre-cue mean`. Far-contralateral collapsing cannot leak into near-ipsilateral's

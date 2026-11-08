@@ -85,7 +85,7 @@ def _rows(animal, gs, fs, n_acute=2, start=2):
 
 
 def test_RETRACE_is_reported_as_a_decaying_reorganisation():
-    """Reorganisation peaks acutely and unwinds while the frozen readout recovers."""
+    """Reorganization peaks acutely and unwinds while the frozen readout recovers."""
     g = [0.05, 0.20, 0.15, 0.10, 0.05, 0.01]
     f = [0.50, 0.55, 0.40, 0.28, 0.14, 0.03]
     s = rt.summarise(_rows("PS92", g, f))["PS92"]
@@ -96,14 +96,14 @@ def test_RETRACE_is_reported_as_a_decaying_reorganisation():
 
 def test_MIGRATE_IS_DETECTED_WHEN_REORGANISATION_PEAKS_LAST():
     """THE BUG THIS TEST EXISTS FOR. A first version took argmax over ALL post-stroke sessions, so
-    an animal whose reorganisation is still climbing on its last day had that day called "the peak",
+    an animal whose reorganization is still climbing on its last day had that day called "the peak",
     nothing could come after it, and the late-resurgence flag reported False. On the real data that
     is PS93, whose maximum sits on day 25 -- the migrate signature, silenced by the statistic meant
     to detect it. Referencing the ACUTE window instead is what makes it visible."""
     g = [0.05, 0.10, 0.18, 0.26, 0.33, 0.40]          # still rising at the end
     f = [0.50, 0.45, 0.33, 0.22, 0.12, 0.04]          # while the frozen deficit closes
     s = rt.summarise(_rows("PS93", g, f))["PS93"]
-    assert s["late_exceeds_acute"] is True, "reorganisation above its acute level must be flagged"
+    assert s["late_exceeds_acute"] is True, "reorganization above its acute level must be flagged"
     assert s["post_slope"] > 0
     assert s["post_corr_F_G"] < 0, "G rising as F falls is the migrate signature"
 

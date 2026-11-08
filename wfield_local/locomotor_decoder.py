@@ -1,4 +1,4 @@
-"""The FROZEN pre-stroke behavioural-state decoder: does cortex still report quiet/running/licking?
+"""The FROZEN pre-stroke behavioral-state decoder: does cortex still report quiet/running/licking?
 
 THE SPECIFICITY CONTROL, and it has to be the FROZEN arm rather than the within-session one.
 
@@ -11,7 +11,7 @@ fail" and is right to.
 
 The position claim rests on a FROZEN PRE-STROKE MODEL failing on post-stroke data. So the control
 has to be the same object: freeze a pre-stroke state decoder, apply it to each post-stroke session,
-and put its accuracy on the same axis as the frozen position decoder's. Cross-session generalisation
+and put its accuracy on the same axis as the frozen position decoder's. Cross-session generalization
 is the hard part of the position result, and the state arm has to survive exactly that.
 
     frozen POSITION decoder, by epoch    0.886 pre -> 0.523 acute  (collapses)
@@ -107,7 +107,7 @@ def bal_em_params(min_mass="default", n_outer=None):
 
 def session_zscore(X):
     """Each feature z-scored over THIS session's segments (mean / SD over all its classes), as `pool_sessions` does
-    for trials; zero-SD features are left centred. Note the session's class mix enters the mean (as the trial mix
+    for trials; zero-SD features are left centered. Note the session's class mix enters the mean (as the trial mix
     does for `pool_sessions`)."""
     X = np.asarray(X, float)
     if not len(X):
@@ -124,7 +124,7 @@ from wfield_local.label_shift import session_sd as _session_sd  # noqa: E402
 
 
 def balanced_zscore(X, y, classes=ls.THREE_WAY):
-    """TRAINING-side centring for bal_em: centre at the EQUAL-weight mean of the session's class means (TRUE labels --
+    """TRAINING-side centering for bal_em: center at the EQUAL-weight mean of the session's class means (TRUE labels --
     pre-stroke training labels are allowed), divide by the production per-session SD (all segments). Only ever applied
     to the pre-stroke sessions a model is trained on; a scored session goes through `bal_em_centre`."""
     from wfield_local.label_shift import balanced_centre
@@ -154,7 +154,7 @@ def train_transform(X, y, scaling):
 
 def score_transform(model, X, scaling, pi_train=None, *, min_mass=None):
     """How a SCORED session's features are scaled under ``scaling``. Takes no labels: nothing about a scored
-    session's true classes can reach its centre."""
+    session's true classes can reach its center."""
     if scaling is None:
         return np.asarray(X)
     if scaling == SCALING_SESSION_Z:
@@ -165,7 +165,7 @@ def score_transform(model, X, scaling, pi_train=None, *, min_mass=None):
 
 
 def _pipe():
-    """The same shape as the position decoder's: standardise, then multinomial logistic."""
+    """The same shape as the position decoder's: standardize, then multinomial logistic."""
     return make_pipeline(StandardScaler(), LogisticRegression(max_iter=2000, C=1.0))
 
 
@@ -240,7 +240,7 @@ def score(model, X, y, classes=ls.THREE_WAY):
     PER-CLASS RECALL IS RETURNED ALONGSIDE THE SUMMARY, because a pooled balanced accuracy can hide
     the interesting failure: a state decoder that keeps quiet and running but loses LICKING would be
     reporting a change in the task-engaged state specifically, which is a different claim from
-    "cortex still reports behavioural state" and should not be averaged into it.
+    "cortex still reports behavioral state" and should not be averaged into it.
     """
     from sklearn.metrics import balanced_accuracy_score, roc_auc_score
 
@@ -337,7 +337,7 @@ def score_animal(an, basis_id, got, scaling="env", min_mass="default", models=No
 
     ``rec = {"PRE": [score, ...], day: score}``; PRE is leave-one-session-out, post-stroke days use the model frozen
     on ALL pre-stroke segments. Each scored session's features are scaled by `score_transform`, which never sees
-    that session's labels (bal_em: label-free EM centre). ``models`` lets a caller pass an already-loaded payload."""
+    that session's labels (bal_em: label-free EM center). ``models`` lets a caller pass an already-loaded payload."""
     if scaling == "env":
         scaling = state_scaling()
     if min_mass == "default":

@@ -149,7 +149,7 @@ def test_a_class_with_no_per_session_data_returns_none(tmp_path):
 
 
 def test_the_per_session_cross_matrix_is_a_DIFFERENCE_from_the_baseline(tmp_path):
-    """Raw off-diagonal magnitude means nothing -- neighbouring positions are already similar
+    """Raw off-diagonal magnitude means nothing -- neighboring positions are already similar
     pre-stroke (far_center scores 0.76 on the far_R direction). A session identical to the baseline
     must therefore render as all-zero difference rather than as a strong pattern."""
     r, _labs = _res_sessions(n_post=1)

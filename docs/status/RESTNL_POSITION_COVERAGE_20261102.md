@@ -104,7 +104,7 @@ the cached `base_map` to 2e-6 relative and the page's RESTnl maps to 1.5e-8 abso
 - `impute` (Q2b: simple, so done): each missing position c = this session's mean over its used set U, plus the
   offset of c from the mean over U, averaged over the nearest earlier and the nearest later session of the same
   animal that have c and all of U. The offset is taken in map space (shared Allen grid). The baseline is then
-  the mean over all 6 positions. Neighbours: PS93 pre far contra from 0806 and 0814 (both pre); PS93_0828 from
+  the mean over all 6 positions. Neighbors: PS93 pre far contra from 0806 and 0814 (both pre); PS93_0828 from
   0826 and 0901; PS92_0826 from 0824 and 0828; PS92 far_L from 0810 and 0813; PS93 close_R from 0819 and 0821.
 
 | fig | baseline | PS92 | PS93 | PS94 | PS95 | count | pooled | d pooled |
@@ -198,6 +198,6 @@ unrelated near-1 cells more than the coverage gap does.
   `restnl_maps.setup_env` (August-only pre, legacy digest pin, WIDEFIELD_MAP_JOBS = 4); the arms were run
   sequentially. PS93_0813 has no RESTnl and is excluded, as on the page.
 - Ratio = RMS(animal epoch-mean map) / RMS(animal pre-mean map), brain mask; pooled = `within_animal_pooled`
-  (each animal normalised by its own pre RMS, intersection of animals). This is the same definition as
+  (each animal normalized by its own pre RMS, intersection of animals). This is the same definition as
   `restnl_maps.amplitude_table` / the 15r line.
 - Run time about 1 h 15 min (posmaps about 5 min with 4 workers; map collection about 1 h for 5 aligns).

@@ -47,7 +47,7 @@ WHAT CHANGED, ON PURPOSE (each also noted at its site):
     theirs were per side (2). The cue frame is a FLOAT (camera frame of a DAQ time); t_ms is measured from
     it exactly, and the slice bounds are floor/ceil of cue + window, which equals theirs for an integer cue.
   * ANGLE REFERENCE: theirs = angle at the eye midpoint between (eye -> spout midpoint) and (eye -> tongue),
-    in spout-midpoint-centred coordinates. Ours = angle at `SpoutFrame.origin` (the mouth: where the
+    in spout-midpoint-centered coordinates. Ours = angle at `SpoutFrame.origin` (the mouth: where the
     close->far spout lines meet) between the reversed AP axis (out of the mouth, toward the spouts) and
     (origin -> tongue tip), in ABSOLUTE image px: tip = (x_final + X0, y_final + Y0), because
     `orofacial_clean` output is baseline-subtracted. Positive = toward image-right. No SpoutFrame = no angles
@@ -209,7 +209,7 @@ class Trial:
 @dataclass(frozen=True)
 class SpoutFrame:
     """Angle reference, image px. ``origin`` = the mouth (where the close->far spout lines meet); ``ap_axis`` =
-    direction from the far_center spout TOWARD the origin (normalised here). Angle 0 = tongue pointing straight
+    direction from the far_center spout TOWARD the origin (normalized here). Angle 0 = tongue pointing straight
     out along -ap_axis, i.e. at far_center."""
     origin: tuple[float, float]
     ap_axis: tuple[float, float]
@@ -239,7 +239,7 @@ def extract_trial_slice(arr, cue_frame: float, win_ms, fps: float):
     Returns (slice, t_ms, lo, hi_incl) -- lo/hi are the session frames spanned (theirs recomputed them in the
     caller with the same formula). Adapted for a FLOAT cue frame: bounds are floor(cue + w0) / ceil(cue + w1)
     in frames, which is theirs ``int(tone + floor(w0))`` exactly when the cue is an integer, and t_ms is from
-    the true (fractional) cue, so a lick time is not quantised to the frame the cue happened to round to.
+    the true (fractional) cue, so a lick time is not quantized to the frame the cue happened to round to.
     """
     n = len(arr)
     lo_frame = int(np.floor(cue_frame + win_ms[0] / 1000.0 * fps))
@@ -352,7 +352,7 @@ def angle_max_signed_per_lick(angle_per_frame, fps, cue_frame, lick_t_peaks_ms, 
                               dist_per_frame=None, min_frac_of_peak=None, extents=None):
     """Per lick, the largest-|angle| value (sign kept) within +-peak_pad_ms of its time.
 
-    Theirs centred on ``tone_frame_idx + int(round(t * fps / 1000))``; with a float cue the centre is
+    Theirs centered on ``tone_frame_idx + int(round(t * fps / 1000))``; with a float cue the center is
     ``round(cue + t * fps / 1000)`` -- the same frame for an integer cue, and the nearest frame otherwise.
     """
     out = np.full(len(lick_t_peaks_ms), np.nan, dtype=np.float64)
@@ -763,7 +763,7 @@ def own_bout_scalars(kept_licks, *, p: dict) -> dict[str, float | int]:
 
 
 def _moving_avg_window(arr, win_n):
-    """Centred NaN-tolerant moving average over ``win_n`` bins."""
+    """Centered NaN-tolerant moving average over ``win_n`` bins."""
     win_n = max(1, int(win_n))
     if win_n <= 1:
         return arr.astype(np.float64, copy=True)
@@ -958,7 +958,7 @@ def lick_phase_table(results: list[V7TrialResult], X0, Y0, spout_frame: SpoutFra
 def _centered_phase_table(results, X0, Y0, spout_frame, fps, *, n_points, spout_angle_by_trial, cycle_ms):
     """Centered-on-peak phase (stroke_orofacial): for each kept lick, the frames at peak_t + (phase - 0.5) *
     cycle_ms (nearest frame), tongue position where visible, NaN where the tongue is in (baseline fill) or the
-    window leaves the trial slice. The window spans half an ILI each side, so it can reach into a neighbouring
+    window leaves the trial slice. The window spans half an ILI each side, so it can reach into a neighboring
     lick in a fast bout -- as theirs. rise_ms / fall_ms carry the lick's own visible extent for reference."""
     if cycle_ms is None:
         ili = within_bout_ili_ms(results)

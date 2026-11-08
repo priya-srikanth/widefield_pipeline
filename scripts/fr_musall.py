@@ -11,7 +11,7 @@ fr:alone, fr:drop:<g>). Groups g: task, instructed, uninstructed, position (+ FR
 Figures: (1) per window, rows = [stacked task-independent (unique | FR) + task-aligned, per group; unique without vs
 with FR], columns = epochs, bars = mean of animals, dots = animals; (2) area maps (Allen areas painted with each area's
 value): pre level and chronic minus pre of full R2 with FR, FR unique, position unique without / with FR, task and
-uninstructed unique | FR; one colour scale and colorbar per column.
+uninstructed unique | FR; one color scale and colorbar per column.
 
 Usage: python scripts/fr_musall.py [--mode A] [--windows lick cue]
 Output: <E>/fr_encoding_summary/figures/fr_musall_*.png, fr_area_maps_*.png, fr_musall_by_animal.csv
@@ -207,7 +207,7 @@ def main(argv=None) -> int:
         axs[0, 0].set_ylabel(f"{a.area}, {w} window\nheld-out R2 (fraction, 0-1)"); axs[1, 0].set_ylabel("unique R2 (fraction, 0-1)\nwithout vs with FaceRhythm")
         axs[0, 0].legend(fontsize=7, frameon=False, loc="upper left"); axs[1, 0].legend(fontsize=7, frameon=False, loc="upper left")
         fig.suptitle(f"NEURAL: Musall-style variance with FaceRhythm (master_pre_v1, mode {a.mode}) in the per-session encoder, {a.area}, {w} window.\n"
-                     "Top: stacked task-independent (unique R2 with FR in the model; coloured) + task-aligned (alone - unique; grey); filled dots = unique, "
+                     "Top: stacked task-independent (unique R2 with FR in the model; colored) + task-aligned (alone - unique; gray); filled dots = unique, "
                      "open = alone, per animal (position has no alone model).\nBottom: each group's unique R2 without vs with FaceRhythm (what FR takes).",
                      fontsize=9)
         fig.tight_layout(rect=(0, 0, 1, 0.9))

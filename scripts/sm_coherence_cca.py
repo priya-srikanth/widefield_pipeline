@@ -28,16 +28,16 @@ GATE (per animal, August pre, cued, S8M8, tau 0; coherence / ITPC on evoked, CCA
 DEVIATIONS (forced; recorded in the doc):
   * stereotypy on ttt data is degenerate (per-spout mean removed -> the leave-one-out mean is -x_i / (k - 1), r = -1),
     so it is computed on the EVOKED traces projected with the version's weights (ttt rows: ttt-fitted weights).
-  * ITPC null (unspecified): the same subsamples with each event's phases randomised (uniform), mean of the draws.
+  * ITPC null (unspecified): the same subsamples with each event's phases randomized (uniform), mean of the draws.
   * "exceeds its null" = session value minus the mean of the null draws > 0 (95th-percentile version also tabled).
   * halves with < 30 events: both halves use N = min(30, n_half1, n_half2) events per coherence draw.
 
     python scripts/sm_coherence_cca.py run [--all] [--labels ...] [--jobs 4]
     python scripts/sm_coherence_cca.py gate
-    python scripts/sm_coherence_cca.py summarise      # refuses unless a measure passed the gate
+    python scripts/sm_coherence_cca.py summarize      # refuses unless a measure passed the gate
     python scripts/sm_coherence_cca.py plot | --plot-only
     python scripts/sm_coherence_cca.py ctrl-run [--labels ...] [--jobs 4]   # ITPC controls (addendum); frozen env
-    python scripts/sm_coherence_cca.py ctrl-summarise                       # then plot -> fig5_itpc_controls.png
+    python scripts/sm_coherence_cca.py ctrl-summarize                       # then plot -> fig5_itpc_controls.png
 """
 from __future__ import annotations
 
@@ -456,7 +456,7 @@ def families(meas: list[str]) -> set:
 def summarise() -> None:
     meas = passed_measures()
     if not meas:
-        sys.exit("no measure passed the pre-registered gate: summarise refused")
+        sys.exit("no measure passed the pre-registered gate: summarize refused")
     S = collect()
     S = S[S.part == "full"].copy()
     keys = ["set", "pairing", "version", "tau"]
@@ -604,7 +604,7 @@ def plot_change() -> None:
         pickle.dump({"T": T, "metrics": mets}, fh)
     fig.suptitle(_wrap("Change vs August pre (CUED, S8M8) for the measures that passed the gate: squares = paired "
                        "nested bootstrap (boot_delta) with 95% CI, filled = CI excludes 0 AND >= 3/4 animals share the "
-                       "sign; grey dots = animals. n = 4."), fontsize=9.5)
+                       "sign; gray dots = animals. n = 4."), fontsize=9.5)
     fig.savefig(FIGS / "fig2_change_vs_pre.png", dpi=140)
     plt.close(fig)
 
@@ -782,7 +782,7 @@ def _within_spout_perm(pos: np.ndarray, rng) -> np.ndarray:
 
 def ctrl_work(item):
     """One session: ITPC of the S / M group means raw, kinematics-regressed and permuted-kinematics control; band SNR;
-    the per-event covariates (for behavioural variability in ctrl-summarise)."""
+    the per-event covariates (for behavioral variability in ctrl-summarize)."""
     label, meta, dock_t, _f = item
     cv = _cv()
     from wfield_local import config, epochs
@@ -862,7 +862,7 @@ def ctrl_run(labs, jobs) -> None:
 
 
 def _bvar(K: pd.DataFrame) -> pd.DataFrame:
-    """Behavioural variability per session: mean over covariates of the within-spout SD (spout dummies removed, the
+    """Behavioral variability per session: mean over covariates of the within-spout SD (spout dummies removed, the
     coupling_vigour_sm wsd definition) of each covariate z-scored on the animal's pooled pre events. Covariate set per
     animal fixed = those with >= MIN_COV coverage in every one of its sessions (so the mean is over the same set)."""
     cv = _cv()
@@ -948,7 +948,7 @@ def ctrl_summarise() -> None:
     # behavioural variability
     B = _bvar(K)
     B.to_csv(TAB / "ctrl_behav_var_sessions.csv", index=False)
-    print("\n=== PER-ANIMAL behavioural variability (mean within-spout SD, pre-z units)\n"
+    print("\n=== PER-ANIMAL behavioral variability (mean within-spout SD, pre-z units)\n"
           + B.groupby(["animal", "epoch"]).bvar.mean().unstack().reindex(columns=EPS).round(3).to_string(), flush=True)
     # wide session table: raw / kin / perm ITPC (minus null) + SNR + bvar
     W = raw[["animal", "epoch", "n"] + [f"{m}_d" for m in ITPC_M]
@@ -1018,14 +1018,14 @@ def ctrl_summarise() -> None:
 
 CTRL_COL = {"raw": "k", "kin": "#d95f02", "perm": "0.6", "snr": "#1b9e77", "bvar": "#7570b3"}
 CTRL_LAB = {"raw": "raw", "kin": "kinematics regressed (per event)", "perm": "permuted-kinematics control",
-            "snr": "adjusted for log SNR (per session)", "bvar": "adjusted for behavioural variability (per session)"}
+            "snr": "adjusted for log SNR (per session)", "bvar": "adjusted for behavioral variability (per session)"}
 ITPC_LAB = {"itpcS_delta": "sensory, 1.5-4 Hz", "itpcM_delta": "motor, 1.5-4 Hz", "itpcS_low": "sensory, 0.5-1.5 Hz",
             "itpcM_low": "motor, 0.5-1.5 Hz"}
 
 
 def plot_ctrl() -> None:
     """Fig 5: ITPC controls (addendum). Row 1 per-animal ITPC levels by epoch, raw / kinematics-regressed / permuted;
-    row 2 change vs pre raw / SNR-adjusted / behavioural-variability-adjusted; row 3 behavioural variability and SNR."""
+    row 2 change vs pre raw / SNR-adjusted / behavioral-variability-adjusted; row 3 behavioral variability and SNR."""
     import matplotlib.pyplot as plt
     from matplotlib.lines import Line2D
 
@@ -1073,7 +1073,7 @@ def plot_ctrl() -> None:
         ax.set_xlim(-0.5, len(eps) - 0.5)
         ax.set_title(f"B{j + 1}  change vs pre, {ITPC_LAB[m]}", fontsize=9.5, loc="left")
         if j == 0:
-            ax.set_ylabel("change in ITPC minus null vs pre\n(square = boot_delta 95% CI; grey = animals)",
+            ax.set_ylabel("change in ITPC minus null vs pre\n(square = boot_delta 95% CI; gray = animals)",
                           fontsize=8.5)
     # row 3: behavioural variability, log SNR (1.5-4 Hz, S and M), movement R2
     B = D["B"]
@@ -1084,7 +1084,7 @@ def plot_ctrl() -> None:
     ax.plot(x, A_.mean(0).values, "-", color="k", lw=2.2)
     ax.set_xticks(x, EPS)
     ax.set_ylabel("mean within-spout SD of the covariates\n(z units of the animal's pre events)", fontsize=8.5)
-    ax.set_title("C1  behavioural variability", fontsize=9.5, loc="left")
+    ax.set_title("C1  behavioral variability", fontsize=9.5, loc="left")
     for j, m in enumerate(("itpcS_delta", "itpcM_delta")):
         ax = axs[2, 1 + j]
         A_ = W.groupby(["animal", "epoch"])[f"lsnr_{m}"].mean().unstack().reindex(columns=EPS)
@@ -1118,7 +1118,7 @@ def plot_ctrl() -> None:
                        "A: ITPC with per-event movement covariates (3-D reach, peak speed, lick duration, protrusion, "
                        "lick counts, FaceRhythm factors, jaw amplitude, landing error) regressed out within session "
                        "(spout means kept) and with the covariate rows permuted within spout. B: within-animal "
-                       "adjustment of the session ITPC for log response SNR or behavioural variability (filled square = "
+                       "adjustment of the session ITPC for log response SNR or behavioral variability (filled square = "
                        "CI excludes 0 and >= 3/4 animals share the sign). C: the session covariates. PROVISIONAL, "
                        "n = 4 animals."), fontsize=9.5)
     FIGS.mkdir(parents=True, exist_ok=True)

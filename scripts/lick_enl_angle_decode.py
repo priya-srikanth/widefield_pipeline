@@ -5,7 +5,7 @@ Per engaged trial with a first post-cue lick (the trial rows of the ITI session 
   features  ENL-window mean of every Allen area x hemisphere in the split basis (ALM / tjM1 + MOs / MOp rest;
             `iti_licks.area_features`) from the CUE-aligned traces <OUT_W>/cued_wide/<label>.npz (drift-removed dF/F
             x1e3, no per-trial baseline), each area / its frame-wise SD in the session (`iti_licks.area_sd`, the
-            KEY-row decoders' z-scoring; no trial-dependent centring, so the frozen decoder transfers unchanged).
+            KEY-row decoders' z-scoring; no trial-dependent centering, so the frozen decoder transfers unchanged).
             Window = lags [-W, -0.10] s from the cue (W = 1.0 primary, 0.5 variant); it stops 0.10 s before the cue so
             interpolation never reaches a post-cue frame.
   lick-free SLIDING (Priya 11-04 ~20:00, "the between-trial lick ENL family and fr_enl_decode also SLIDE, for
@@ -19,7 +19,7 @@ Per engaged trial with a first post-cue lick (the trial rows of the ITI session 
             Until 11-05 "2s" was primary and the window never slid (the 11-04 ~19:00 "keep them fixed" note).
   target    angle = degrees(arcsin(side_ml / reach_mm)) of the FIRST post-cue lick, from <OUT_W>/firstlick_full/
             <label>.npz (3-D kinematics of every bout-first post-cue lick), matched by DAQ time: the kinematic lick whose
-            peak lies in [onset - 0.02, onset + MATCH_S] of the behaviour first-lick onset. + = toward + side_ml.
+            peak lies in [onset - 0.02, onset + MATCH_S] of the behavior first-lick onset. + = toward + side_ml.
 Per animal (rule 8): ridge (StandardScaler + RidgeCV, as lick_refit_decoders) trained on PRE sessions, leave-one-pre-
 session-out; held-out r pooled over trials:
   raw       target = angle (partly = which spout)

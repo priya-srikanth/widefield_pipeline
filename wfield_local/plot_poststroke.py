@@ -1,6 +1,6 @@
 """Figures for deck Section G — POST-STROKE, read from the saved JSON rather than recomputed.
 
-ORDER IS THE ARGUMENT. Behaviour comes first (G1), because on 8/17 both animals stopped attempting
+ORDER IS THE ARGUMENT. Behavior comes first (G1), because on 8/17 both animals stopped attempting
 the far positions -- PS94 has ZERO engaged trials at far_center and far_R -- and every decoding
 number after it is uninterpretable without that. Putting decoding first is exactly the error that
 produced a "PS94 neural deficit" headline which was mostly trial composition.
@@ -82,7 +82,7 @@ def _fig_behaviour_one(counts, ans, out, name, suptitle, part):
             ax.set_ylabel("trials")
             if r == 0 and k == 0:
                 ax.legend(fontsize=7)
-    head = suptitle or ("POST-STROKE BEHAVIOUR FIRST: which positions the animal still attempts. "
+    head = suptitle or ("POST-STROKE BEHAVIOR FIRST: which positions the animal still attempts. "
                         "Zero engaged trials at a position means no decoding number for it can "
                         "exist.")
     if part[1] > 1:
@@ -239,8 +239,8 @@ def fig_similarity(sim, out, name="poststroke_G5_similarity.png", suptitle=None)
     x 3 days is 10 series x 6 positions = 60 bars competing for one legend: the per-animal
     time course -- the thing the figure is for -- could not be read out of it (Priya, 2026-08-20).
 
-    Sessions are ordered in time within each animal and coloured by their position in that order,
-    so the same colour means the same day across panels.
+    Sessions are ordered in time within each animal and colored by their position in that order,
+    so the same color means the same day across panels.
     """
     by_animal = {}
     for lab in sorted(sim):
@@ -318,7 +318,7 @@ def fig_similarity(sim, out, name="poststroke_G5_similarity.png", suptitle=None)
     axes[0][0].set_ylabel("r (pre-stroke vs post-stroke mean pattern)")
     fig.suptitle((suptitle or "Per-position correlation between the pre- and post-stroke mean "
                   "activity patterns, one panel per animal, one series per post-stroke day.")
-                 + "  GREY LINE = the pre-stroke ceiling (each pre-stroke session against the pool "
+                 + "  GRAY LINE = the pre-stroke ceiling (each pre-stroke session against the pool "
                    "of the others). Read the bars against IT, never against 1.0: two pre-stroke "
                    "days already differ by ordinary drift.",
                  fontsize=9, wrap=True)
@@ -534,7 +534,7 @@ def fig_confusion_alltrials(conf, out, align="cue", name=None, arm_name="ALL tri
     THE COLUMN BASELINE IS ON THE FIGURE FOR A REASON. Reading a diagonal against 1/6 is wrong here:
     the frozen decoder predicts far_R on ~35% of ALL PS94 post-stroke trials, so far_R "recall" is
     inflated by that bias before any position information is involved. Under a label permutation the
-    expected recall for a position is exactly its PREDICTION rate, which is what the grey bar under
+    expected recall for a position is exactly its PREDICTION rate, which is what the gray bar under
     each column shows. The finding is the OFF-diagonal pull, and the diagonal only counts where it
     exceeds that column's own baseline.
     """
@@ -617,9 +617,9 @@ def fig_confusion_alltrials(conf, out, align="cue", name=None, arm_name="ALL tri
             "PANEL 2 IS THE MATCHED CONTROL: "
             "pre-stroke NO-LICK trials scored by a decoder trained on the OTHER pre-stroke "
             "sessions' engaged trials, so it differs from the post panel in PHASE alone rather "
-            "than in phase and the absence of a movement together. BOTH NORMALISATIONS for the "
+            "than in phase and the absence of a movement together. BOTH NORMALIZATIONS for the "
             "post panel: ROW = P(pred|true) = RECALL, the question the hypothesis asks; COLUMN = "
-            "P(true|pred) = PRECISION, which exposes what row normalisation structurally hides "
+            "P(true|pred) = PRECISION, which exposes what row normalization structurally hides "
             "— a decoder predicting one position everywhere earns high recall there without "
             "carrying information. '(pred)' under each column is how often that position is "
             "predicted at all, which IS the recall expected under a label permutation; '(prec)' "
@@ -728,7 +728,7 @@ def fig_grid(rec, out, arm="all", name=None):
     day 1 (8/18). That pairing is a within-animal before/after control -- same rig, one day apart --
     and it exists only because the excluded sessions were kept analysable rather than discarded.
 
-    DIRECTION IS COLOURED SEPARATELY, because it has to be. Colouring on `inside_pre_range` alone
+    DIRECTION IS COLORED SEPARATELY, because it has to be. Coloring on `inside_pre_range` alone
     paints a value ABOVE the pre-stroke band the same as a collapse, and PS95's post-lick sits at
     z=+1.7/+2.4 -- better than pre-stroke. That mistake was made twice before this figure existed.
     """
@@ -806,7 +806,7 @@ def fig_grid(rec, out, arm="all", name=None):
         "measure. Pre-cue and post-cue are two windows on the SAME TRIALS, so LED power, baseline F, "
         "amplitude, arousal, engagement and trial count act on both equally and cannot produce a "
         "difference between them.\n"
-        "GREY SQUARES are sessions after a laser that did NOT take -- nothing outside the band. The "
+        "GRAY SQUARES are sessions after a laser that did NOT take -- nothing outside the band. The "
         "same animals one day later, after the effective lesion, show the dissociation: a "
         "within-animal before/after control.", fontsize=8.5, wrap=True)
     fig.tight_layout(rect=(0, 0, 1, 0.83))

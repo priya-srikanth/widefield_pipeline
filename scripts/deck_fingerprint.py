@@ -11,9 +11,9 @@ WHY NOT BYTES, AND WHY NOT SLIDE COUNT. A .pptx is a zip whose bytes differ run 
 ordering and timestamps -- so byte comparison always reports a difference and therefore reports
 nothing. Slide count is the opposite failure: it would pass a refactor that swapped two slides'
 speaker notes, which is precisely the damage a careless registry move does. This walks the built
-deck and emits one line per shape -- text with its run sizes and colours, pictures as position,
+deck and emits one line per shape -- text with its run sizes and colors, pictures as position,
 size and image sha1, and each slide's RESOLVED speaker notes. Everything that reaches the reader
-is in it; nothing that is an artefact of when the file was written is.
+is in it; nothing that is an artifact of when the file was written is.
 
 WHY A STUB TREE. On a machine that is not the analysis box, `figures_working` has a handful of
 PNGs, so sections A-G place nothing and a fingerprint over that build proves only that H and I

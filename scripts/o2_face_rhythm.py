@@ -198,7 +198,7 @@ def setup(task, threads, mode="r+", P=None, work=True):
         assert s.m >= settle, f"VQT margin {s.m} < notch settling {settle:.0f} frames"
     s.n_bins = s.n // s.DS
     s.n5 = s.n_bins // s.D5
-    # trial grid -> fractional source frames (bundle); 25 Hz bin j is centred on frame 10 j + 4.5
+    # trial grid -> fractional source frames (bundle); 25 Hz bin j is centered on frame 10 j + 4.5
     with np.load(B / "trials" / f"{s.key}.npz") as Z:
         s.Z = {k: Z[k] for k in Z.files}
     u = (s.Z["src_frame"] - (s.DS - 1) / 2) / s.DS
@@ -591,13 +591,13 @@ def trial_frames(w) -> dict:
 
 
 def engaged_only(tr: dict, animal: str, date: str, sd: Path) -> tuple[dict, str]:
-    """``tr`` cut to the engaged trials (`orofacial_cohort.engagement_keep`, the cohort tables' gate: the behaviour
+    """``tr`` cut to the engaged trials (`orofacial_cohort.engagement_keep`, the cohort tables' gate: the behavior
     pipeline's `engaged` flag, ids matched to ours by id / DAQ cue time / order). Ungated (all trials) when the session
     has no usable flag; the label says which."""
     from wfield_local import orofacial_cohort as oc
     keep, label = oc.engagement_keep(animal, date, sd)
     if "matched by" in label:                  # e.g. 08/06 (dead spout_bit1): behaviour table from the GUI log, 1-based
-        label = "reference (behaviour ids differ from ours; matched by " + label.split("(matched by ")[1].split(":")[0] + ")"
+        label = "reference (behavior ids differ from ours; matched by " + label.split("(matched by ")[1].split(":")[0] + ")"
     if keep is None:
         return tr, label
     m = np.isin(tr["trial_id"], sorted(keep))

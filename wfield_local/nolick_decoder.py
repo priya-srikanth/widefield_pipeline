@@ -6,7 +6,7 @@ live in that module's docstring; this one is the plumbing.
 
 WHAT IS SHARED AND WHAT IS NOT. Features come from `locanmf_position_decoder`'s own helpers
 (`_build_signal`, `_window_feature`, `_bins_for`), so an engaged trial here is byte-identical to an
-engaged trial in the deck. Only the CATEGORISATION is new, which is the whole point of the module:
+engaged trial in the deck. Only the CATEGORIZATION is new, which is the whole point of the module:
 
     engaged        first detected lick within decode.max_rt_s of the cue    (the decoder's set)
     late_rewarded  lick after max_rt but within the RESPONSE WINDOW          (a hit the decoder drops)
@@ -116,14 +116,14 @@ def response_window_for(s, default=None):
 
     Read per session rather than taken from defaults because it is a TASK setting that has been
     changed at the rig; `daq_trials.response_window_s` is the pipeline's one resolver for it, so the
-    behaviour scoring and this analysis cannot disagree about what a response is.
+    behavior scoring and this analysis cannot disagree about what a response is.
 
     THE DATE MUST COME FROM THIS SESSION. An earlier version globbed `{animal}_*` when it could not
     resolve the date and took the first match, so every session silently read its animal's EARLIEST
     config -- all 44 curated sessions reported 3.0 s when the file says 3500 ms. It failed the same
     way for every session, which is exactly why it looked like a consistent finding rather than a
     bug. The date is taken from the session's own DAQ path, and an unresolvable one raises rather
-    than falling back to a wrong-but-plausible neighbour.
+    than falling back to a wrong-but-plausible neighbor.
     """
     import glob as _glob
     import re as _re
@@ -335,7 +335,7 @@ def _cam_working_of(d):
 def session_features_cache_kind(args, *, signal_key, lead_s) -> str:
     """Cache kind for one `session_features` call: every result-changing input, hashed.
 
-    Modelled on `locanmf_position_decoder.feature_cache_kind`, and it inherits that function's
+    Modeled on `locanmf_position_decoder.feature_cache_kind`, and it inherits that function's
     central warning: `session_cache` stats DATA files, so anything that lives in `defaults.yaml`
     changes the result while moving no mtime the signature looks at. Two such keys here, both of
     which arrived on 2026-09-24 and both of which would otherwise let a stale entry serve features
@@ -353,7 +353,7 @@ def session_features_cache_kind(args, *, signal_key, lead_s) -> str:
 
     CACHE_VERSION IS NOT BUMPED. This is a NEW kind -- no entry under it has ever been written, so
     there is nothing stale to invalidate, and a bump would discard every OTHER cached kind (RSA,
-    spatial reorganisation, the engagement tables) for a change none of them can see. That is the
+    spatial reorganization, the engagement tables) for a change none of them can see. That is the
     same reasoning `feature_cache_kind` records for `with_rt`.
     """
     spec = {k: getattr(args, k, None) for k in _SF_ARGS}
@@ -1002,7 +1002,7 @@ def build_reference(animals=None, dates=None, bases=BASES, out=None, n_perm=na.N
                           "undetected": "no detected lick within the response window (NOT the same "
                                         "as no attempt -- see ATTEMPT_CONFOUNDED). Licks after the "
                                         "window are counted here: the spout is already moving, so "
-                                        "they belong to no trial cleanly and are never analysed"},
+                                        "they belong to no trial cleanly and are never analyzed"},
            "attempt_confounded": ATTEMPT_CONFOUNDED, "by_basis": {}}
     # Both ENGAGED CUTS x both BASES. The cut is folded into the key rather than nesting another
     # level, so every downstream consumer (figures, consensus, direction_consistency) keeps working

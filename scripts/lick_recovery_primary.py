@@ -204,7 +204,7 @@ def plot(F: dict) -> None:
              if BAL_DISPLAY == "direction" else "")
     fig.suptitle("PRIMARY recovery marker: hemispheric balance (contralesional vs ipsilesional, angle-matched gain ratio) "
                  "of orofacial cortex + SSs after the FIRST lick (cued: first post-cue lick; ITI: first lick after >= 2 s "
-                 f"quiet).{shown}\nTop: one point per session, grey = pre (not fitted), mixed models with log(day) (bold "
+                 f"quiet).{shown}\nTop: one point per session, gray = pre (not fitted), mixed models with log(day) (bold "
                  "p < 0.05). Bottom: cross-validated R² vs days since stroke. PROVISIONAL", fontsize=10)
     fig.tight_layout(rect=(0, 0.04, 1, 0.91 if shown else 0.93))
     save_png_svg(fig, il.OUT_W / "figures" / f"lick_recovery_primary{SFX}.png", dpi=95)

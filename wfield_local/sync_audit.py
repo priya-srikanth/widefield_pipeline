@@ -1,4 +1,4 @@
-"""Audit imaging-frame synchronisation across every processed session.
+"""Audit imaging-frame synchronization across every processed session.
 
 THE QUESTION (Priya, 2026-08-21): "have there been dropped frames in other recordings? are we
 syncing using sync pulse to ensure alignment?"
@@ -8,7 +8,7 @@ HOW ALIGNMENT ACTUALLY WORKS, because there are two clocks and only one of them 
   * The PCO imaging camera needs no sync pulse. Every exposure raises the DAQ digital
     ``pco_exposure`` line, so the frame train IS on the DAQ clock -- alignment is an index, not a
     fit. ``chosen_exposure_offset`` records the shift the frame map had to apply to line the two up.
-  * The Blackfly behaviour cameras are on their own clock and DO use the Arduino heartbeat (GPIO
+  * The Blackfly behavior cameras are on their own clock and DO use the Arduino heartbeat (GPIO
     bit0 against DAQ digital ``sync``), matched by ``camera_sync``/``frame_sync``. That is a
     different mechanism for a different camera, and conflating the two is the mistake this docstring
     exists to prevent.
@@ -81,7 +81,7 @@ def collect(labcams_root=None) -> list[dict]:
 
 
 def audit(records) -> dict:
-    """Summarise, and flag only what actually deserves it."""
+    """Summarize, and flag only what actually deserves it."""
     bad_delta = [r for r in records if abs(r["delta"]) > MAX_EXPECTED_DELTA]
     shifted = [r for r in records if r.get("exposure_offset") not in (0, None)]
     return {"n": len(records), "bad_delta": bad_delta, "shifted": shifted,

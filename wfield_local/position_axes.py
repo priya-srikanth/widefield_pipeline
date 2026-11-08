@@ -360,7 +360,7 @@ def run_animal(animal, align="precue", seed=0, pool_n=1):
             BOTH ARE COMPUTED because orthogonalising is not the safe default it was assumed to
             be. Measured 2026-08-24 (`scripts/engagement_axis_balance.py`), position axes sit at
             |cos| 0.61-0.89 to the engagement axis, so for the worst pairs the projection discards
-            most of the position axis and renormalises what is left. The raw form keeps that
+            most of the position axis and renormalizes what is left. The raw form keeps that
             structure and pays for it with any genuine state contamination. Neither is right on
             its own; the pair brackets the answer, and a claim that holds in only one of them is
             a claim about the projection.

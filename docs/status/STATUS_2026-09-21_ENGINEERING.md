@@ -44,8 +44,8 @@ Three rules that are load-bearing and must survive any restructuring:
 - **Ground rule 6:** per-session loops fan out over cores via `wfield_local/parallel.py`.
 - **Ground rule 8:** print the per-animal table before the bootstrap.
 
-**Behaviour-preserving is the bar.** Every refactor below can be verified the same way the
-parallelisation was: run before, run after, diff the per-session output. That method caught a real
+**Behavior-preserving is the bar.** Every refactor below can be verified the same way the
+parallelization was: run before, run after, diff the per-session output. That method caught a real
 CI shift that a passing test suite would have missed.
 
 ---
@@ -109,7 +109,7 @@ incantation is still written out in ~35 places, most of them in `wfield_local/` 
 want the whole returned dict rather than just `lick_samples`. `analysis_kit.lick_samples` exists;
 sweeping the call sites is a separate change, and several of them are on the nightly path.
 
-### 2.2 Finish the parallelisation (mechanical, measured payoff)
+### 2.2 Finish the parallelization (mechanical, measured payoff)
 
 8 of 11 `rest_migration` loops are still serial. Converted: `quit_prodrome` 36→6 min,
 `rest_coupling` 85→9m43s (×8.7), `evoked_hrf_latency` 90→~12 min, all byte-identical. **Use 2.1's
@@ -164,7 +164,7 @@ matplotlib writes a `<dc:date>` and random element ids, so all 90 SVGs "differ" 
 `_ONLY_WINDOW`/`_ONLY_VARIANT` had to become `grant_kit.set_only()`, because a global assigned in
 one module and read in another is two variables and the failure is silent.
 
-### 2.5 Standardise intermediates so re-runs are cheap
+### 2.5 Standardize intermediates so re-runs are cheap
 
 `rest_coupling --from-csv` re-derives every table from its CSV in seconds. **Nothing else has
 it**, and the absence cost two full re-runs today: ILI was not written to CSV so the per-animal
@@ -186,7 +186,7 @@ while everything else writes to `grant_figures/epoch/`.
 3. ~~Convert the remaining 7 loops (**2.2**)~~ **FOUR DONE 2026-09-21** — `quit_point`,
    `engagement_decomposition`, `nvc_evoked`, `channel_position_maps`; **all four verified** against
    a `git worktree` at HEAD -- the first three diff-identical, `channel_position_maps`
-   order-insensitively identical with all four written artefacts byte-identical. Use `analysis_kit.input_order`, not the default
+   order-insensitively identical with all four written artifacts byte-identical. Use `analysis_kit.input_order`, not the default
    alphabetical collection, or the CIs move. Remaining serial loops are the small diagnostics
    (`channel_evoked_sign`, `channel_vessel_sign`, `cutoff_scaling`, `onset_edge_bias`,
    `restw_reliability`, …) — none on the nightly path
@@ -197,7 +197,7 @@ while everything else writes to `grant_figures/epoch/`.
    (4 m 50 s → **10.7 s**) and `channel_position_maps` (3 m 32 s → **23.6 s**), both verified to
    reproduce their full run's tables exactly; `analysis_kit.read_rows` is the shared reader.
    `quit_point`, `nvc_evoked`, `quit_prodrome` and `lick_bout_structure` still lack one and each
-   needs a SECOND artefact written first (quit-aligned hits, pooled curves, nested per-session
+   needs a SECOND artifact written first (quit-aligned hits, pooled curves, nested per-session
    records) — a `--from-csv` rebuilding only the table half would break the rule it serves.
    ~~The output-dir unification is NOT done and needs a decision~~ **DONE 2026-09-21**:
    the two POOLED figures go to `grant_figures/epoch` and ARE registered (109 → 111 entries); the

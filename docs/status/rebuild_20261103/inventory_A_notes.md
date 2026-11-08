@@ -10,13 +10,13 @@ Everything was read-only. No render ran and no process was touched.
    - **Imaging page:** live artifact, 111 figures.
    - **Goal page:** live v312, 306 figures.
    - **Inline images on the goal page:** 127 `<img>` sit outside any `<figure>`, in `<details>` supplements and the
-     "Biology in brief" cards. They have no figure number. Their rows are labelled "inline supplement (details)".
+     "Biology in brief" cards. They have no figure number. Their rows are labeled "inline supplement (details)".
    - **Section text:** each page's prose and tables with numbers get one row per section.
    - **Pages that hold no figures:** the 10-27 review page.
 2. **Kinematics and FaceRhythm pages.** Sources are on the share (`kin_page_src/kin_page/index.html`,
    `fr_page_src/fr_page/index.html`), not in Github. I scanned every caption for imaging terms (dF/F, cortex, SVT,
    LocaNMF, encoder, hemo, 415, Allen). The only hits were folder names (`imaging_encoding/...` tables) and figures
-   copied from goal-page section 5. Every figure on both pages is behaviour / pose / FaceRhythm only, so all are **NO**.
+   copied from goal-page section 5. Every figure on both pages is behavior / pose / FaceRhythm only, so all are **NO**.
 3. **Decks.** I used python-pptx in the locanmf env, read-only. For every picture I listed the slide, hidden flag,
    title, shape name and alt text (descr), plus a SHA of the image.
    - PI decks: the `fig:<fid>` shape names were joined to `_source_PI_overview_2026-11-02/figure_provenance.csv` and
@@ -43,11 +43,11 @@ Everything was read-only. No render ran and no process was touched.
 | preprocessing decks PS92-95 | 935 | 410 | 0 |
 | other share pptx (alignment decks, history, backups) | 0 | 3 | 8 |
 
-**Imaging page NO:** only Figs 0.1 and 0.2 (behaviour).
+**Imaging page NO:** only Figs 0.1 and 0.2 (behavior).
 
 **Goal page NO (38):**
 - Figures: 3.4, 5.1-5.8, 10.6, 16.6, 16.9, 16.10, 21.13, 21.14 (schematics).
-- 23 behaviour supplements: 14.18 S21a/b/c, S22a-e, S24a/b, S27a, S28a-e; the revup behaviour panels; enl_lick_audit.
+- 23 behavior supplements: 14.18 S21a/b/c, S22a-e, S24a/b, S27a, S28a-e; the revup behavior panels; enl_lick_audit.
 
 ## How the UNSURE rows were handled
 - **Resolved to NO:**
@@ -55,7 +55,7 @@ Everything was read-only. No render ran and no process was touched.
   - The PI-deck pose / FaceRhythm crops: names did not match a page image, but the originals are under
     `DeepLabCut/...` or `kin_page` / `fr_page`.
 - **Resolved to REDO:**
-  - Goal 14.35 is tagged BEHAVIOUR, but it reports the corrected lick response after gap matching.
+  - Goal 14.35 is tagged BEHAVIOR, but it reports the corrected lick response after gap matching.
   - Goal 23.11 (415 control) carries a corrected-470 row.
   - PI 10-26 slides 4 and 7 are native tables with refit / state decoder numbers.
 - **Still UNSURE (28 rows):**

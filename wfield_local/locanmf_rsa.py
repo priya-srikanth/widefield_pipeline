@@ -123,7 +123,7 @@ def _crossnobis_rdm(X, y, g, whiten=CROSSNOBIS_WHITEN, sigma=CROSSNOBIS_SIGMA):
 
     ``whiten='ledoit'`` (DEFAULT since 2026-08-12) uses the Ledoit-Wolf shrunk INVERSE COVARIANCE, so
     noise shared BETWEEN features is discounted instead of counted once per feature. ``'diag'`` is the
-    old per-feature-variance behaviour, kept for comparison.
+    old per-feature-variance behavior, kept for comparison.
 
     Why this matters, measured on all four animals (mean sibling RSA, lick-aligned):
 
@@ -141,7 +141,7 @@ def _crossnobis_rdm(X, y, g, whiten=CROSSNOBIS_WHITEN, sigma=CROSSNOBIS_SIGMA):
 
     ``sigma='heldout'`` (DEFAULT since 2026-08-12) estimates that covariance from the folds NOT supplying
     either pattern being multiplied, so the whitening matrix is statistically independent of the data it
-    whitens. ``'all'`` is the previous behaviour (Sigma from every trial, including the folds being
+    whitens. ``'all'`` is the previous behavior (Sigma from every trial, including the folds being
     compared), which makes crossnobis only APPROXIMATELY unbiased. The cost of independence is that Sigma
     is fitted on ~half the trials; the shrinkage absorbs it (lambda roughly doubles, 0.013 -> 0.022 for ROI
     and 0.025 -> 0.047 for LocaNMF, both still small). Needs k>=4 folds; falls back to 'all' below that."""

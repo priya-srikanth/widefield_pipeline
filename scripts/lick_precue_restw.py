@@ -17,7 +17,7 @@ DEFINITION (per session x area):
             no second docked intersection; engagement-gated (quit-period rest excluded, docs/REST_ENGAGEMENT_AUDIT.md).
             A session that cannot form restw gets the unweighted rest median, FLAGGED (`restw_ok` False) and left OUT of
             every statistic and map.
-  precue  = mean over ENGAGED trials (combined_encoding behaviour table, engaged & finite cue) of the trial's mean trace
+  precue  = mean over ENGAGED trials (combined_encoding behavior table, engaged & finite cue) of the trial's mean trace
             over -1.0..0 s before the cue (0.05 s grid, as LAGS_W), minus restw. Secondary window -0.5..0 s (precue05).
             Also on the first-lick trials only (the cued maps' trial set; `precue_fl`) for the correlation check.
   per target spout: the same restricted to engaged trials at that target (>= 5 trials; all spouts >= 10).
@@ -29,7 +29,7 @@ precue_restw_changes[_<spout>].csv, precue_restw_session_notes.csv, figures/lick
 (+ _levels.png), figdata/<stem>.pkl.
 RESTnl VARIANT (Priya 10-29, `--rest-variant restnl`; default restw = everything above, unchanged): the baseline is the
 LICK-FREE rest level of `scripts/restnl.py` (restw_strict_check strict_w50; sessions without it left out), the trial set
-is the CURRENT engaged gate (the behaviour table now; the precue_restw cache holds an older gate in 86 / 107 sessions).
+is the CURRENT engaged gate (the behavior table now; the precue_restw cache holds an older gate in 86 / 107 sessions).
 Cache <OUT_W>/precue_restnl/<label>.npz (field `restw` = the RESTnl level there, `restw_old` = RESTW for comparison);
 every output file name gets the suffix _restnl.
 Usage: python scripts/lick_precue_restw.py [--jobs N] [--plot-only] [--rest-variant restnl]
@@ -260,7 +260,7 @@ def draw(stem: str) -> None:
             ax.axis("off")
         fig.colorbar(im, ax=axs[i, :], fraction=0.015, pad=0.01).set_label(rl("dF/F above restw (x1e3)"))
     fig.suptitle(rl(f"NEURAL, NO DECODER: {F['what']} -- per-epoch PRE-CUE LEVEL per area (mean over animals of each "
-                 f"animal's session mean; not the change from pre); {note}; one colour scale per row. Image left = "
+                 f"animal's session mean; not the change from pre); {note}; one color scale per row. Image left = "
                  "ipsilesional. Descriptive." + (" Trials = CURRENT engaged gate." if sfx else "")), fontsize=10, wrap=True)
     save_png_svg(fig, il.OUT_W / "figures" / f"{base}_levels{sfx}.png", dpi=100, bbox_inches="tight")
     plt.close(fig)

@@ -6,7 +6,7 @@ inference is actually valid -- a well-trained animal may simply work through the
 If there are no pre-stroke stopped trials there is no pre-stroke contrast, and that is worth
 knowing before the feature and decode layers are written rather than after.
 
-BEHAVIOUR-SIDE COUNTS, AND THEY ARE AN UPPER BOUND ON THE IMAGING SET. Trials come from
+BEHAVIOR-SIDE COUNTS, AND THEY ARE AN UPPER BOUND ON THE IMAGING SET. Trials come from
 `session_trials` (the repaired-position classifier), not from `_trial_features`, because this only
 needs to count and the imaging path costs minutes per session. The two universes disagree slightly:
 `hit` here uses the session's real response window while the decoder's `success` requires a lick

@@ -28,7 +28,9 @@ KEY = ["label", "animal", "epoch", "window", "area"]
 AREAS = ["cortex", "SSp-m_right", "SSp-m_left", "MOp_right", "MOp_left"]
 QS = [("posinfo unique", "no_posinfo", "unique"), ("noposinfo unique", "no_noposinfo", "unique"),
       ("posinfo alone", "posinfo_only", "alone"), ("noposinfo alone", "noposinfo_only", "alone")]
-COLS = {"posinfo unique": "#d95f02", "noposinfo unique": "#7570b3", "posinfo alone": "#fdb863", "noposinfo alone": "#b2abd2"}
+from wfield_local.cat_points import MODEL_COLORS as _MC  # noqa: E402 - the shared model palette (Priya 11-07)
+
+COLS = {"posinfo unique": _MC[2], "noposinfo unique": _MC[0], "posinfo alone": _MC[4], "noposinfo alone": _MC[1]}
 
 
 def main(argv=None) -> int:
@@ -64,7 +66,7 @@ def main(argv=None) -> int:
         for ax, kind in zip(axs, ("unique", "alone")):
             qs = [q for q, _v, k in QS if k == kind and (B.q == q).any()]
             bars(ax, B[(B.window == w) & B.q.isin(qs)], qs, AREAS, "change from pre (R2)",
-                 f"{kind.upper()} R2, epoch - pre: orange = movement WITH lick-position information, purple = WITHOUT")
+                 f"{kind.upper()} R2, epoch - pre: wine = movement WITH lick-position information, indigo = WITHOUT (light = alone)")
             pre = B[(B.window == w) & B.q.isin(qs) & (B.epoch == "chronic")].set_index(["q", "area"]).ref
             ax.text(0.005, 0.03, "pre level: " + "; ".join(f"{q.split()[0]} {ALAB[ar]} {pre.get((q, ar), float('nan')):.3f}"
                                                          for q in qs for ar in ("SSp-m_right", "cortex")),

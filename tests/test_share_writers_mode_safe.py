@@ -4,7 +4,7 @@ The rebuild renders in a NON-DEFAULT run mode (hemo variant + camera gate), so n
 into a default folder. Each such script either routes (run_mode / lp_licks.output_dir / routed_output / a routed root
 such as il.OUT or attempt_coding.out_dir) or REFUSES (`run_mode.require_default`). Two exemptions, listed here so a
 new writer fails until someone classifies it:
-  BEHAVIOUR  writes behaviour / pose / FaceRhythm / camera products that do not depend on any imaging run mode
+  BEHAVIOR  writes behavior / pose / FaceRhythm / camera products that do not depend on any imaging run mode
              (no imaging module, no SVTcorr / LocaNMF / encoder input): the same file in every mode.
   INDIRECT   writes only through an already-routed root (il.OUT, attempt_coding.out_dir(), ...).
 """
@@ -22,7 +22,7 @@ SHARE = re.compile(r"M:/MICROSCOPE|oo\.root\(|PathResolver\(\)\.root\(|_run_dir\
 ROUTED = re.compile(r"run_mode|output_dir\(|routed_output|lp_licks\.output_tag|require_default|fe\.out_root\(\)")  # + encoder root
 BEHAVIOUR = {
     "apparatus_mouth.py", "cam1_clean_qc.py", "cam1_incomplete_licks.py", "cam1_lick_aim.py", "cam1_licks.py",
-    "cam4_timing_check.py", "face_rhythm_aligned_maps.py", "face_rhythm_asym_aligned.py",
+    "cam4_timing_check.py", "face_rhythm_aligned_maps.py", "face_rhythm_asym_aligned.py", "face_rhythm_band_maps.py",
     "face_rhythm_bout_split.py", "face_rhythm_evr_epochs.py", "face_rhythm_factor_clips.py",
     "face_rhythm_lick_epochs.py", "face_rhythm_match.py", "face_rhythm_nontask_state.py", "face_rhythm_param_qc.py",
     "face_rhythm_position_maps.py", "face_rhythm_prep.py", "face_rhythm_readouts.py", "face_rhythm_validate.py",
@@ -38,6 +38,8 @@ BEHAVIOUR = {
     "pose3d_side_check.py", "pose3d_side_loo.py", "pose3d_side_video.py", "side_clean_qc.py", "side_label_offsets.py",
     # main's FaceRhythm spout-in-mesh control (video factors only, writes the FR readouts dir), 11-05 merge
     "fr_spout_mesh_control.py",
+    # main's within-session decline arm (licks / trials / pose only; writes its own within_session_decline dir), 11-08
+    "within_session_decline.py",
 }
 INDIRECT = {
     "coupling_vigour_sm.py", "decoder_retention_sessions.py", "lick_correction.py",

@@ -28,12 +28,12 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   render behind Fig 7.19 gives -55 / -49 / -38 / -9 % (PS95 -9 %, not +2 %). Headline-adjacent -> NOT edited; update it?
 - [ ] Rest decoder 12.1 lick-free: August-only pre RESTnl is TOO THIN for PS92 / PS93 (frozen training pool far contra
   PS93 9 periods, PS92 far ipsi 25) -> not fitted. Options (REST_DECODER_NL_20261102.md section 7, worktree wf_restdec):
-  (1) June+Aug pre as sensitivity [RUNNING as a labelled sensitivity, cheap]; (2) Aug-only PS94/PS95 per animal, no pooled
+  (1) June+Aug pre as sensitivity [RUNNING as a labeled sensitivity, cheap]; (2) Aug-only PS94/PS95 per animal, no pooled
   claim; (3) drop thin positions (loses PS93 far contra); (4) shorter cam4 post-lick buffer; (5) fit anyway (no).
 - [ ] 12.1 caption: says 50 permutations, code uses 200; its pre-stroke models are refit in memory each render (rule 10).
   Correct the caption (append note)?
 - [ ] Fig 2.4 under stored frozen DAQ decoder: re-render (acute far contra pooled .314 -> .260; PS92 .27 -> .15; still
-  4/4 below pre) or keep current labelled "LP-trained in memory"? (Correction note on 2.4 still awaiting Priya.)
+  4/4 below pre) or keep current labeled "LP-trained in memory"? (Correction note on 2.4 still awaiting Priya.)
 - [ ] Move the remaining in-memory "frozen" fits to the store too (5c frozen-vs-refit column, grant_figures 5b
   confusions)? In the LP arm these are LP-trained while acc is now DAQ-trained. RECOMMEND yes.
 - [ ] frozen_models.siblings() logs false SPEC-CHANGED (ignores window length / lick source). Fix?
@@ -109,7 +109,7 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   results" -> final LP arm re-render APPROVED; RULE for tonight: ADD new versions only; nothing removed from the page and
   no headline result replaced without discussion (new versions go next to / below, old kept visible).
 - 01:20 goal page PUBLISHED v305 (14.21 main + S7 RESTnl; section 23 merged; nothing on the live page lost, verified block by block). Told the quiet window.
-- 01:35 quiet window v306 (section 23: ipsi > contra synchronisation WITHDRAWN -- non-calcium 7-11 Hz peak; quiet frames being re-run with DAQ + LP licks overnight); merged locally (commit below). Live = v306.
+- 01:35 quiet window v306 (section 23: ipsi > contra synchronization WITHDRAWN -- non-calcium 7-11 Hz peak; quiet frames being re-run with DAQ + LP licks overnight); merged locally (commit below). Live = v306.
 - 02:00 LP GATE OPTION DONE + committed (dea1de5f; LP_GATE_OPTION_20261101.md): WIDEFIELD_GATE_SOURCE=lp (response =
   own response OR DAQ contact OR LP hit/incomplete; jaw_only / no_try do not count); default byte-identical (18 tests);
   map caches stay warm (hook lines excluded from the digest), frozen ids unchanged; outputs go to *_gateLP folders.
@@ -170,9 +170,9 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   PS92/PS93 lick-adjacent rest caveat). Priya: "we should cache frozen decoders as we always do" -> helper making the stored
   frozen path the DEFAULT for the epoch acc family and 12.1 (branch analysis/frozen-default, worktree wf_frozendef; verify
   identical numbers where the training set is unchanged). 12.1 REST reproduction with the new driver (June+Aug pre): chronic
-  retained 0.54 = page. Priya asked why the RESTnl NORMALISATION works if PS92/PS93 fail the decoder: the baseline needs a
+  retained 0.54 = page. Priya asked why the RESTnl NORMALIZATION works if PS92/PS93 fail the decoder: the baseline needs a
   per-session mean (rule wr: >= 50 FRAMES at >= 4 of 6 positions, equal-weight mean over the positions present); the decoder
-  needs >= 30 independent labelled PERIODS per position for training. CAVEAT FOUND: PS93 far contra is below 50 lick-free
+  needs >= 30 independent labeled PERIODS per position for training. CAVEAT FOUND: PS93 far contra is below 50 lick-free
   frames in 5 of 7 August pre sessions (0807, 0809-0812; 16-36 frames) and in 0828 -> its baseline there is the mean of the
   other 4-5 positions; PS92 drops one position in 0811 / 0812 / 0826. Per-position RESTnl counts in the npz cache
   (C:/Users/SabatiniLab/.widefield_session_cache_restnl/, nfr_pos / positions_used).
@@ -279,7 +279,7 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   hit + incomplete; jaw_only = reaction; cue-deflected jaw without lick = unknown unless re-onset). Its consumers (failed-attempt
   decoder / maps, mixed_models.DEFICITS, attempt-coding) re-render once in the rebuild.
 - 11-03 DECISIONS (Priya, on RECONCILIATION.md): D2 preprocessing decks -> REGENERATE the map slides (maps rebuilt anyway for 15e;
-  new folders, never in place). D8 camera "working" gate applied EVERYWHERE a trial selection is made (behaviour / kinematics
+  new folders, never in place). D8 camera "working" gate applied EVERYWHERE a trial selection is made (behavior / kinematics
   too); not used as a gate where engagement itself is the measured quantity (quit, engagement decline, attempt rate).
   D9 once the up-front drift step is in the shared signal, the encoder / ITI / stray_licks own drift steps are removed (kept as
   a sensitivity row). D10 (Aug-only pre per decoder render block) and D11 (DAQ robustness row on headline working arms) mine.
@@ -291,7 +291,7 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   nolick / attempt / drift / coding / CD / ITI stored by default, all IDENTICAL to in-memory; LP arm default LP-trained again
   (WIDEFIELD_LP_FROZEN=daq = cross-check). Section G converted but UNCOMMITTED (PS92 lick-only arm differs, max .031: PS92 pre
   features changed between 11-02 21:23 and later with an unchanged spec -> behaviour/trial input changed; other animals identical).
-  KEY FINDING: make_spec hashes pre labels + U_atlas / SVTcorr size+mtime only, so trial-selection / behaviour / gate changes
+  KEY FINDING: make_spec hashes pre labels + U_atlas / SVTcorr size+mtime only, so trial-selection / behavior / gate changes
   are invisible to 14 kinds -> recommend a training-data signature (+ selection_tag) in make_spec for the rebuild's fresh store.
   frozen_encoder not converted (plan P2.6). Pre-existing bug: nolick_decoder crashes after the first animal (KeyError, arms
   < 30 trials) -> fix in the rebuild.
@@ -313,7 +313,7 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   scripts recreated and reproduced on old data. Log: wf_rebuild docs/status/REBUILD_CODE_20261103.md.
 - 11-03 (a8, Priya OK'd): lick-landing frozen decoder class-mix check CLEAN (frame-SD scaling over ALL frames; subsampling to the
   acute mix moves the offset +.003 / -.001 mm vs observed +.36 / +.17). KEEP frame-SD scaling in the rebuild (lick-sample z-scoring
-  would create a +.21-.25 mm artefact). Caveat to state beside the cued ALL-lick acute offset: frame SD rises 1.06-1.20x acute;
+  would create a +.21-.25 mm artifact). Caveat to state beside the cued ALL-lick acute offset: frame SD rises 1.06-1.20x acute;
   removing it gives .166 -> .119 [-.049, .281] (PS95 -> -.13); ITI and first-cued-lick offsets still exclude 0. Priya: do NOT
   undo the SD rise in production. Files decoder_mix_checks/lick/; DECISIONS fa70b651.
 - 11-03: LocaNMF test DONE (LOCANMF_REFIT_TEST_20261103.md): refits not reproducible even seeded (counts 92-100 from identical

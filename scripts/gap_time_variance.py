@@ -1,8 +1,8 @@
 """How much of the frozen-to-refit gap is a function of time since lesion?
 
-WHY THIS EXISTS. The K08 ranking model (Aim 1) relates per-session behaviour to the
+WHY THIS EXISTS. The K08 ranking model (Aim 1) relates per-session behavior to the
 frozen-to-refit gap at each node and asks which node tracks recovery most closely. Both the
-gap and behaviour change over the weeks after stroke, so a raw gap-to-behaviour correlation
+gap and behavior change over the weeks after stroke, so a raw gap-to-behavior correlation
 is confounded by their shared time course. The standard fix is to enter days since lesion,
 or each animal's own trajectory, as a covariate. That fix has its own failure mode: if the
 gap is very nearly a deterministic function of time, detrending removes almost all of its

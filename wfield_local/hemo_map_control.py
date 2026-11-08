@@ -1,7 +1,7 @@
 """Is the structure in the position maps CALCIUM, or is it leftover blood? Two independent checks.
 
 WHY. Faint vessel-shaped structure is visible in the POST-stroke mean maps of figure 14, and a
-stroke is exactly the manipulation that could make a haemodynamic artefact grow between epochs --
+stroke is exactly the manipulation that could make a hemodynamic artifact grow between epochs --
 altered perfusion, altered vasomotion, a window that ages. If some of the post-stroke map is
 residual blood volume rather than calcium, then "the far-contralateral map collapses" could in
 principle be a statement about vessels. This module tries to falsify that.
@@ -15,11 +15,11 @@ NEGATIVE calcium term, not a calcium-free one. See DECISIONS.md 2026-09-19.
 
 THE CONTROL SURVIVES THAT. A negative calcium term makes r(corrected, 415) MORE negative,
 never less, so the test's failure direction -- r RISING toward +1, structure shared
-between the corrected map and the haemodynamic one -- is unaffected. What it does mean is
+between the corrected map and the hemodynamic one -- is unaffected. What it does mean is
 that the observed negative r must not be explained as "activity lowers 415" (it does not;
 the raw 415 RISES with activation in 4/4 animals). At 415 nm GCaMP fluorescence does not
 depend on
-calcium, so that channel carries haemodynamics and noise and nothing else. Build the SAME position
+calcium, so that channel carries hemodynamics and noise and nothing else. Build the SAME position
 map from the 415 series -- same trials, same window, same basis, same code path, with only the
 signal swapped -- and correlate it against the corrected map:
 
@@ -35,12 +35,12 @@ is the session's mean fluorescence on the shared grid; vessels are the DARK line
 it, so a spatial high-pass of the negated image is a crude vesselness map. Correlating |position
 map| against it says whether map amplitude piles up on vessels. Crude because real cortical signal
 is not uniform either and some areas are genuinely more vascular -- so a non-zero correlation is
-not by itself evidence of artefact. WHAT MATTERS IS THE CHANGE BETWEEN EPOCHS: the pre-stroke value
+not by itself evidence of artifact. WHAT MATTERS IS THE CHANGE BETWEEN EPOCHS: the pre-stroke value
 is the control for how much vessel-alignment a clean map has in this preparation.
 
 NEITHER CHECK CAN PROVE THE MAPS ARE CLEAN. They can only fail to show contamination, which is what
-a control is for. Read them as "the artefact is not large enough to see by two methods", never as
-"there is no artefact".
+a control is for. Read them as "the artifact is not large enough to see by two methods", never as
+"there is no artifact".
 """
 from __future__ import annotations
 
@@ -235,7 +235,7 @@ def main(argv=None) -> int:
         print(f"{e:10s}{len(b['sessions']):>6d}{len(b['r_iso']):>6d}"
               f"{f[0]:>20.3f}{f[1]:>24.3f}{f[2]:>18.3f}")
     print("\nREAD THE CHANGE, NOT THE LEVEL. A non-zero vessel correlation is expected -- cortex is "
-          "not uniformly vascular. What would indicate an artefact is r(corrected, 415) RISING "
+          "not uniformly vascular. What would indicate an artifact is r(corrected, 415) RISING "
           "after the stroke, or the vessel correlation of the CORRECTED map converging on that of "
           "the 415 map.")
     return 0

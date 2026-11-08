@@ -1,4 +1,4 @@
-"""CONTEXT frames: consecutive neighbours extracted around a labelling TARGET, to scrub through, not to label.
+"""CONTEXT frames: consecutive neighbors extracted around a labeling TARGET, to scrub through, not to label.
 
     conda activate locanmf
     python -m wfield_local.dlc_context_frames cam1 --dry-run     # what would be added, per folder
@@ -18,7 +18,7 @@ TARGET vs CONTEXT -- the rule everything else follows from:
     COMPLETELY like a target. Never partly: a frame with ANY label has its blanks read as occluded,
     by DLC always and by Lightning Pose under `uniform_heatmaps_for_nan_keypoints`.
   * An all-blank frame never reaches training: `dlc_train.drop_unlabelled` removes it before DLC
-    sees it, and the Lightning Pose export must do the same (single-view) or mark it "not labelled"
+    sees it, and the Lightning Pose export must do the same (single-view) or mark it "not labeled"
     (`visible`=0, multi-view). See DECISIONS.md, 2026-09-30, "target vs context frames".
 
 Context rows go into `frame_manifest.csv` with ``category == "context"`` and a phase naming the anchor
@@ -27,9 +27,9 @@ the ONLY record of which frames are targets; the worksheet reads it. Filenames s
 a burst sorts contiguously in napari's slider and so Lightning Pose's context model (which reads
 frames t-2..t+2 by index) could use the same folders.
 
-SCOPE: cam1 folders with NO labels yet (the student's untouched folders). Folders already labelled are
+SCOPE: cam1 folders with NO labels yet (the student's untouched folders). Folders already labeled are
 left exactly as they are. Existing targets are never moved -- they are the same DAQ instants as the
-cam4 labelled frames, which is what makes the two views pairable (nose offset, multi-view LP).
+cam4 labeled frames, which is what makes the two views pairable (nose offset, multi-view LP).
 """
 from __future__ import annotations
 
@@ -126,9 +126,9 @@ def contact_context(targets: pd.DataFrame, tpl: dict, contacts_s: np.ndarray, ha
 
 def promote(targets, context, spacing: int = PROMOTE_SPACING) -> list[int]:
     """Context frames to label: walk them in order, keep one at least ``spacing`` frames from every
-    frame already labelled (targets and earlier promotions).
+    frame already labeled (targets and earlier promotions).
 
-    "Every 3rd frame" measured from the LABELLED frames rather than counted along the context list, so
+    "Every 3rd frame" measured from the LABELED frames rather than counted along the context list, so
     a promoted frame is never adjacent to an existing target (-4 and 0 are targets around each contact
     onset; counting along the list would label -3 next to -4 and add nothing).
     """
@@ -144,7 +144,7 @@ def promote(targets, context, spacing: int = PROMOTE_SPACING) -> list[int]:
 def promote_in_manifest(man_path: Path, stems, spacing: int = PROMOTE_SPACING, dry: bool = False) -> pd.DataFrame:
     """Re-mark the chosen context rows of ``stems`` as `CONTEXT_LABEL`. Returns the promoted rows.
 
-    Idempotent: already-promoted rows count as labelled, so a second run adds nothing.
+    Idempotent: already-promoted rows count as labeled, so a second run adds nothing.
     """
     assert_writable(man_path.parent)
     man = pd.read_csv(man_path, dtype=str)
@@ -191,7 +191,7 @@ def contacts(animal: str, date: str, rv=None) -> np.ndarray:
 
 
 def untouched_folders(cam: str, rv=None) -> list[str]:
-    """Video stems whose live labelling folder has no CollectedData yet."""
+    """Video stems whose live labeling folder has no CollectedData yet."""
     from wfield_local import dlc_project
 
     live = dlc_project.project_dir(rv) / "labeled-data"
@@ -222,7 +222,7 @@ def main(argv=None) -> int:
     ap.add_argument("--half", type=int, default=HALF_LICK)
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--promote", type=int, default=None, metavar="SPACING",
-                    help="instead of extracting: mark context frames >= SPACING frames from every labelled "
+                    help="instead of extracting: mark context frames >= SPACING frames from every labeled "
                          "frame as targets (context_label), in folders with no labels yet")
     a = ap.parse_args(argv)
     rv = PathResolver()

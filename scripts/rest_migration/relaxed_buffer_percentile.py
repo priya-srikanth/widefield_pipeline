@@ -14,7 +14,7 @@ prevent. A percentile trims a TAIL; it does not remove a systematic SHIFT.
 
 THE MEASUREMENT, chosen because it asks the question directly rather than via maps. For each arm,
 build a baseline PER POSITION from that position's rest frames, then report the SPREAD ACROSS THE SIX
-positions, normalised by the session's own signal scale. A position-neutral subtrahend should have
+positions, normalized by the session's own signal scale. A position-neutral subtrahend should have
 small spread.
 
     relaxing widens the spread      -> contamination came in

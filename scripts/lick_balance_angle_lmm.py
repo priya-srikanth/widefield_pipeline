@@ -11,7 +11,7 @@ session contributes one point per spout and the lick angle varies across spouts 
                      x1e3 dF/F, no per-lick baseline) -- the measure of 12.17
               resp = log2(contra / ipsi response AUC 0..1.0 s, baseline -1.0..-0.5 s) -- the measure of 14.9
               (cued: first cued licks; ITI: bout starts)
-MODELS (statsmodels MixedLM, random intercept per animal, ML; centred angle):
+MODELS (statsmodels MixedLM, random intercept per animal, ML; centered angle):
   y ~ angle * post          post = any post-stroke epoch: (1) slope of balance on angle pre-stroke; (2) angle x post =
                             does the slope change; (3) post = the shift at the SAME angle (the landing-matched balance
                             shift, the question 12.17 vs 14.9 left open)

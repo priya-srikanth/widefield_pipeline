@@ -6,7 +6,7 @@ lick-free trials. If the face already differs by spout there (posture / orientin
 place ~3 s), part of that cortical code could be movement. This is the FR side of that question.
 
 Inputs: the frozen cohort factors (`master_pre_v1`, rank 12) projected on every session (`<set>/proj/*.npz`; absolute
-expression = trials * trials_D, 25 Hz bins on the DAQ clock, cue -2 to +4 s; ENGAGED trials only, the behaviour
+expression = trials * trials_D, 25 Hz bins on the DAQ clock, cue -2 to +4 s; ENGAGED trials only, the behavior
 gate `orofacial_cohort.engagement_keep`). Pre = August only (the FR bundle has no June).
 
 Trial selection: the window SLIDES (Priya 11-04 ~20:00: "the between-trial lick ENL family and fr_enl_decode also
@@ -151,7 +151,7 @@ def epoch_table(S: pd.DataFrame) -> pd.DataFrame:
 
 
 def figure(S: pd.DataFrame, path: Path) -> None:
-    """Priya 11-03 categorical-x rules: no line joins epochs; sessions = faded OPEN markers (shape = animal, colour =
+    """Priya 11-03 categorical-x rules: no line joins epochs; sessions = faded OPEN markers (shape = animal, color =
     epoch), each animal at its own offset with a short tick at its mean; the mean of animals = a filled marker +- SEM
     over the animal means, to the right of the epoch's dots."""
     import matplotlib
@@ -193,7 +193,7 @@ def figure(S: pd.DataFrame, path: Path) -> None:
           Line2D([], [], color="0.2", lw=2.0, label="animal mean"), *cp.animal_handles(animals)]
     np.atleast_1d(axs)[-1].legend(handles=hs, fontsize=7, frameon=False, loc="upper left", bbox_to_anchor=(1.01, 1.0))
     fig.suptitle("PRE-CUE (ENL, lick-free) window -- spout position from face movement (FaceRhythm master_pre_v1, "
-                 "12 factors, 0.5 s bins).\nOpen markers = sessions (shape = animal, colour = epoch), ticks = animal "
+                 "12 factors, 0.5 s bins).\nOpen markers = sessions (shape = animal, color = epoch), ticks = animal "
                  "means, squares = mean of animals +- SEM, dotted = chance (1 / positions decoded)", fontsize=8.5)
     save_png_svg(fig, path, dpi=160)
     plt.close(fig)

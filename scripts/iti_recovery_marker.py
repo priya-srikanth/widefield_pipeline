@@ -2,21 +2,21 @@
 recovery?" about the in-trial recovery of page 3.9.)
 
 Within each animal, across its POST-stroke sessions: does that session's frozen-decoder r (in-trial licks; ITI licks
-as the comparison) track that day's behaviour = far-contra hit rate / the animal's pre-stroke rate
-(`recovery_timing.series`)? Chronic behaviour has no between-animal spread, so this is a within-animal time-course test.
+as the comparison) track that day's behavior = far-contra hit rate / the animal's pre-stroke rate
+(`recovery_timing.series`)? Chronic behavior has no between-animal spread, so this is a within-animal time-course test.
 Both measures recover with time, so the correlation is also computed on residuals after regressing log(day) out of
-each, per animal (does the decoder track day-to-day behaviour BEYOND the shared recovery trend?). SPREAD control: r
+each, per animal (does the decoder track day-to-day behavior BEYOND the shared recovery trend?). SPREAD control: r
 is a correlation, so a session with a wider spread of lick directions scores higher by itself, and more far-contra
-hits widen the in-trial spread (PS92: r(behaviour, spread) 0.79) -> also partial out the session's SD of lick lateral
+hits widen the in-trial spread (PS92: r(behavior, spread) 0.79) -> also partial out the session's SD of lick lateral
 direction ("spread"), and spread + log(day) ("spread+day").
-Per animal Pearson r; summary = mean of animals with a within-animal permutation test (behaviour shuffled across that
+Per animal Pearson r; summary = mean of animals with a within-animal permutation test (behavior shuffled across that
 animal's post sessions, N_PERM draws, same shuffle for every statistic of a draw).
 Inputs: <E>/iti_licks/contact_check.csv (`iti_contact_check.py`). Output: <E>/iti_licks/recovery_marker.csv,
 figures/lick_recovery_marker.png.
 Figure data <E>/iti_licks/figdata/lick_recovery_marker.pkl; --plot-only redraws from it alone (no permutations).
-BEHAVIOUR AXIS (Priya 10-28: "use our new far contra angle metric", + a POOLED panel): env WFIELD_MARKER_BEH =
+BEHAVIOR AXIS (Priya 10-28: "use our new far contra angle metric", + a POOLED panel): env WFIELD_MARKER_BEH =
 fc_aim (default: far-contra FIRST-cued-lick angle offset vs the animal's pre landing, degrees, - = ipsilesional;
-`iti_recovery_measure`, recovery -> 0) | w_aim (the weighted signed aim, THE behaviour axis elsewhere) | hit (far-contra
+`iti_recovery_measure`, recovery -> 0) | w_aim (the weighted signed aim, THE behavior axis elsewhere) | hit (far-contra
 hit rate / pre, the original axis). Non-default runs write *_<beh> outputs; recovery_marker_beh_compare.csv collects
 every axis that has been run.
 Usage: [WFIELD_MARKER_BEH=hit] python scripts/iti_recovery_marker.py [--plot-only]
@@ -57,7 +57,7 @@ def _resid(y, *cov):
 
 
 def _stats(G: pd.DataFrame, beh: dict) -> dict:
-    """Per animal r (raw, detrended) between behaviour and r_norm for each lick set; plus their means."""
+    """Per animal r (raw, detrended) between behavior and r_norm for each lick set; plus their means."""
     out = {}
     for st in ("trial", "iti"):
         for kind in KINDS:
@@ -174,7 +174,7 @@ def plot(F: dict) -> None:
     from matplotlib.lines import Line2D
     axs[1, 4].legend([Line2D([], [], ls="", marker=marks[a_], color="0.4") for a_ in AN], AN, fontsize=7,
                      frameon=False, loc="lower right")
-    fig.suptitle("NEURAL vs BEHAVIOUR: does the FROZEN pre-stroke decoder of lateral tongue-tip position (fit once on pre "
+    fig.suptitle("NEURAL vs BEHAVIOR: does the FROZEN pre-stroke decoder of lateral tongue-tip position (fit once on pre "
                  "licks, never refit; y = r decoded vs actual, / the animal's pre) track recovery? One dot per post-stroke "
                  f"session; x = {BEH_LABEL[beh]}. Mean within-animal r: in-trial "
                  f"{t_.loc[('trial', 'raw'), 'mean_r']:+.2f} (p {t_.loc[('trial', 'raw'), 'p_perm']:.3f}), ITI "
@@ -182,7 +182,7 @@ def plot(F: dict) -> None:
                  f"{t_.loc[('trial', 'detrended'), 'mean_r']:+.2f} (p {t_.loc[('trial', 'detrended'), 'p_perm']:.3f}), ITI "
                  f"{t_.loc[('iti', 'detrended'), 'mean_r']:+.2f} (p {t_.loc[('iti', 'detrended'), 'p_perm']:.3f}); also the "
                  f"session's spread of lick directions: in-trial {t_.loc[('trial', 'spread+day'), 'mean_r']:+.2f} (p "
-                 f"{t_.loc[('trial', 'spread+day'), 'p_perm']:.3f}). p = within-animal permutation of behaviour.",
+                 f"{t_.loc[('trial', 'spread+day'), 'p_perm']:.3f}). p = within-animal permutation of behavior.",
                  fontsize=9.5, wrap=True)
     fig.tight_layout(rect=(0, 0, 1, 0.88))
     save_png_svg(fig, il.OUT / "figures" / f"lick_recovery_marker{'' if beh == 'fc_aim' else '_' + beh}.png", dpi=110)

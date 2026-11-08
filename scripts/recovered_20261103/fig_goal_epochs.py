@@ -40,7 +40,7 @@ for r, w in enumerate(["cue", "lick"]):
 h, l = axes[0, 0].get_legend_handles_labels()
 fig.legend(h, l, loc="upper center", ncol=6, fontsize=9, frameon=False, bbox_to_anchor=(0.5, 0.955))
 fig.suptitle("Item 1 across epochs: far-contra trials on the frozen pre-stroke decoder by trial type "
-             "(classes with >= 5 trials; chance dotted, pre-stroke hits solid)\nnumbers under each axis = trials per class (same colours)", fontsize=10)
+             "(classes with >= 5 trials; chance dotted, pre-stroke hits solid)\nnumbers under each axis = trials per class (same colors)", fontsize=10)
 fig.tight_layout(rect=(0, 0, 1, 0.92)); fig.subplots_adjust(hspace=0.75)
 save_png_svg(fig, OUT / "fig2b_attempt_decoder_epochs.png", dpi=140)
 print("ok")

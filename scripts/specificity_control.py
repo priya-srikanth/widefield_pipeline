@@ -1,6 +1,6 @@
 """SPECIFICITY CONTROL for the chronic residual and Layer 2 (Priya 10-25, analysis 1 of the synthesis: "is the chronic
 increase specific or global?"). Total variance rose cortex-wide after the stroke (VISp x1.83, cortex x1.54; variance_maps),
-so a cortex-wide change in signal scale (expression, haemodynamics, arousal) could produce a positive residual and a
+so a cortex-wide change in signal scale (expression, hemodynamics, arousal) could produce a positive residual and a
 changed mapping everywhere. Three tests, all within animal, nested bootstrap animals -> sessions (per-animal table first):
 
   1. RESIDUAL BY AREA (data - frozen prediction, evoked: lick 0..1 s vs -0.3..-0.1 s around the first lick; cue 0.5..1.5 s
@@ -203,7 +203,8 @@ def main(argv=None) -> int:
 
     # FIGURE 1: group bars
     gl = ["orofacial contra", "orofacial ipsi", "control", "orofacial - control"]
-    ffc.COL.update({"residual_z": "#d95f02"})
+    from wfield_local.cat_points import MODEL_COLORS as _MC      # the shared model palette (Priya 11-07)
+    ffc.COL.update({"residual_z": _MC[2]})
     nx = has_split + l2_split                            # extra panels: residual by ROI, Layer 2 by ROI
     fig, axs = plt.subplots(3 + nx, 1, figsize=(13, 11 + 3.6 * nx))
     for ax, w in zip(axs[:2], WINDOWS):
@@ -214,12 +215,12 @@ def main(argv=None) -> int:
     LBp = LB.copy()
     LBp["frame"] = "layer2"
     LBp["epoch"] = LBp.epoch.replace({"pre_late_split": "pre_split"})
-    ffc.COL["layer2"] = "#1b9e77"
+    ffc.COL["layer2"] = _MC[0]
     ffc.bars(axs[2], LBp, ["layer2"], gl, "change_ref minus pre_late (R2)",
              "LAYER 2: mapping change beyond pre-stroke drift, by area group")
     if has_split:
         ffc.ALAB.update({x: esr.side_label(x) for x in SR})
-        ffc.COL.update({"cue": "#e6ab02", "lick": "#d95f02"})
+        ffc.COL.update({"cue": _MC[1], "lick": _MC[2]})
         ffc.bars(axs[3], BS, list(WINDOWS), SR, "change from pre (pre-SD units)",
                  "RESIDUAL by ROI: MOp, tjM1, MOp_rest, MOs, ALM, MOs_rest (ROI v8 on the stat mask; ALM / tjM1 / rests from "
                  "the frozen run's basis twin)")
@@ -234,7 +235,7 @@ def main(argv=None) -> int:
                  f"{l2dir.name})")
     fig.suptitle(f"NEURAL: is the chronic change SPECIFIC to orofacial cortex? Frozen frame ({a.tag}); orofacial = SSp-m, "
                  "SSp-n, MOp, MOs; control = visual, retrosplenial, SSp trunk / lower limb.\nBars = mean of animals; "
-                 "whisker 95 % nested CI; * excludes 0; dots = animals; grey band = pre split-half range. contra = right.",
+                 "whisker 95 % nested CI; * excludes 0; dots = animals; gray band = pre split-half range. contra = right.",
                  fontsize=9.5)
     fig.subplots_adjust(left=0.07, right=0.86, top=1 - 1.0 / (11 + 3.6 * nx), bottom=0.05, hspace=0.45)
     save_png_svg(fig, out / "figures" / "specificity_groups.png", dpi=105)

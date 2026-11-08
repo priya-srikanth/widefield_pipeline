@@ -21,7 +21,7 @@ statistic recomputed, no CSV written. The lick-triggered curves come from data/l
 projections if absent -- traces only, no table).
 Categorical x (directions, quantities, epochs) follows Priya's 11-03 rules (`wfield_local.cat_points`): no lines between
 categories, epochs side by side, summary = mean +- SEM over animals, faded OPEN markers = the SESSIONS behind it (shape =
-animal, colour = epoch), significance in the top band (`sig_marks.star_top`).
+animal, color = epoch), significance in the top band (`sig_marks.star_top`).
 Session means first, then the mean over an animal's sessions of an epoch (each session counts once); per animal, never
 pooled before the per-animal table (CLAUDE.md rule 8).
 """
@@ -48,8 +48,8 @@ LPT_FLOOR = 0.01
 
 EPOCH_COL = frc.epoch_colors()   # FR epoch palette (orofacial / 3-D kinematics)
 CAT_RULE = ("Each category (direction / quantity) holds the epochs side by side, NO lines between categories (Priya "
-            "11-03): filled marker = mean +- SEM across the animals' epoch means (epoch colours); faded OPEN markers = "
-            "the individual SESSIONS behind it (shape = animal, colour = epoch, small jitter).")
+            "11-03): filled marker = mean +- SEM across the animals' epoch means (epoch colors); faded OPEN markers = "
+            "the individual SESSIONS behind it (shape = animal, color = epoch, small jitter).")
 
 
 def _per_lick_quantities(names: list[str], pref: list[str]) -> list[tuple]:
@@ -97,7 +97,7 @@ def per_lick_stats(T: pd.DataFrame, names: list[str], pref: list[str], out: Path
 
 def plot_per_lick_stats(T: pd.DataFrame, S: pd.DataFrame, q: list[tuple], out: Path, set_name: str) -> None:
     """per_lick_stats.png: x = epoch (categories, no connecting lines); faded open markers = sessions (shape = animal,
-    colour = epoch), filled = mean +- SEM over animals; * / ** in the top band."""
+    color = epoch), filled = mean +- SEM over animals; * / ** in the top band."""
     from wfield_local import cat_points as cp
     from wfield_local import face_rhythm_figures as frf
     from wfield_local import sig_marks
@@ -147,8 +147,8 @@ Per session (data/sessions.csv): licks per engaged trial by executed direction (
 trial so a session without licks of a direction counts as a large drop) and each factor's expression PER LICK of its
 preferred direction (largest pre per-lick expression), as log2 minus the mean log2 of the animal's pre sessions (pre =
 0). Each epoch is its own category (Priya 11-03: no lines between epochs): filled marker = mean +- SEM across the
-animals' epoch means (epoch colours; pre = 0 by construction); faded OPEN markers = the individual SESSIONS behind it
-(shape = animal, colour = epoch, small jitter). Under each epoch: change vs pre, `analysis_kit.boot_delta` (paired
+animals' epoch means (epoch colors; pre = 0 by construction); faded OPEN markers = the individual SESSIONS behind it
+(shape = animal, color = epoch, small jitter). Under each epoch: change vs pre, `analysis_kit.boot_delta` (paired
 animals -> sessions, animal-weighted); top band: * = 95 % interval excludes 0; ** = also significant after Holm over the
 12 per-lick factors of that epoch (bootstrap p from the same draws). Licks per trial are planned tests (* only). Red
 titles: the contralesional quantities of FINDINGS 5b-master. Statistics: data/per_lick_stats.csv.""")
@@ -157,7 +157,7 @@ titles: the contralesional quantities of FINDINGS 5b-master. Statistics: data/pe
 def _cat_panel(ax, cats: list, epochs: list[str], sess: dict, summ: dict, seed: int = 0, label: bool = False) -> None:
     """One categorical panel: x = ``cats``, epochs side by side (`cat_points.epoch_offsets`). ``sess[(c, e)]`` =
     (values, animals) of the sessions; ``summ[(c, e)]`` = per-animal epoch means (array). Summary = mean +- SEM over
-    animals; sessions = faded open markers (shape = animal, colour = epoch)."""
+    animals; sessions = faded open markers (shape = animal, color = epoch)."""
     from wfield_local import cat_points as cp
     off = cp.epoch_offsets(len(epochs), step=0.2)
     for c_i, c in enumerate(cats):
@@ -288,7 +288,7 @@ def plot_per_lick_by_epoch(T, E, rel, ep, animals, names, pref, lta, out, set_na
   follows the licks / trial category = fewer licks; one that follows per lick = different licks.
 * columns 1-2: {CAT_RULE} Sessions are each session / the animal's pre mean.
 * **around preferred licks**: the lick-triggered mean by epoch, each animal's pre curve peak = 1, mean over animals
-  (data/lick_triggered.npz). Bouts are 6-8 Hz, so the +-1 s window also holds neighbouring licks.""")
+  (data/lick_triggered.npz). Bouts are 6-8 Hz, so the +-1 s window also holds neighboring licks.""")
 
 
 def _common(set_name, T, E, ep, animals) -> str:
@@ -298,10 +298,10 @@ def _common(set_name, T, E, ep, animals) -> str:
                                        for e in ep) for an in animals)
     return (f"Set `{set_name}`; {len(T)} projected sessions ({ns} "
             f"sessions {'/'.join(ep)}). Licks: v36 LP `licks_all.csv`, executed DIRECTION from the lick's own angle "
-            f"(left > +{frv.ANGLE_DEG:.0f} deg, right < -{frv.ANGLE_DEG:.0f} deg, centre between; + = the animal's "
+            f"(left > +{frv.ANGLE_DEG:.0f} deg, right < -{frv.ANGLE_DEG:.0f} deg, center between; + = the animal's "
             f"left; all lesions LEFT, so RIGHT = contralesional); licks with onset 0..{frv.RESP_S:.0f} s after an "
-            f"engaged trial's cue (n = {nl['left']} left / {nl['centre']} centre / {nl['right']} right). "
-            f"Expression = projected temporal weights x FR normaliser D (ABSOLUTE, a.u. on the animal's scale; pre "
+            f"engaged trial's cue (n = {nl['left']} left / {nl['centre']} center / {nl['right']} right). "
+            f"Expression = projected temporal weights x FR normalizer D (ABSOLUTE, a.u. on the animal's scale; pre "
             f"sessions on their left-out-day basis). Per session first, then the mean over the animal's sessions of "
             f"the epoch; 'relative to pre' = epoch mean / the same animal's pre mean (1 = unchanged).")
 

@@ -3,22 +3,22 @@
     python -m wfield_local.orofacial_jaw_lateral [--run lp_r4_heatmap_20261013__clean_v36] [--jobs 6]
 
 Same quantities as `scripts/jaw_lateral.py deviation` (DLC r3 on 60-trial clips, DECISIONS 2026-10-15), now from the
-organised session folders (`orofacial_outputs`: LP r4, the run's cleaning version (run.json), every trial of every curated session):
+organized session folders (`orofacial_outputs`: LP r4, the run's cleaning version (run.json), every trial of every curated session):
 
   per trial  lr_wide  median sideways jaw displacement from rest over frames with opening > OPEN_PX (50 px), in the
-                      SPOUT frame (lr axis perpendicular to the apparatus centre line; + = image right = the mouse's
+                      SPOUT frame (lr axis perpendicular to the apparatus center line; + = image right = the mouse's
                       LEFT = ipsilesional for all four animals), measured jaw frames only, cue + 70 .. 3000 ms;
              angle    jaw opening angle, atan2(lr, opening) from a least-squares fit over open frames (> 15 px);
              open_max widest opening; reach (max tongue protrusion / spout distance over the trial's licks).
   per session FAR_DIR  = (far_L - far_R) / 2 of the per-trial medians: the jaw's movement TOWARD the target side.
                        Positive when the jaw goes left for the left spout and right for the right spout.
               FAR_BIAS = (far_L + far_R) / 2: a side bias independent of the target.
-  Close / centre spouts are not used: they hide part of the chin and the model then marks its visible edge.
+  Close / center spouts are not used: they hide part of the chin and the model then marks its visible edge.
   Control (Priya 10-15: "jaw following a shorter reach?"): FAR_DIR recomputed on trials whose tongue reached the spout
   (reach >= 1), so an acute drop cannot come only from shorter licks.
 
 TRIAL GATE (Priya 11-06, A27): the cam4 cohort's gate, `orofacial_cohort.cohort_keep` -- the CAMERA WORKING PERIOD by
-default (a session with no camera classes contributes nothing); ``WFIELD_KIN_GATE=legacy`` = the pre-11-06 behaviour
+default (a session with no camera classes contributes nothing); ``WFIELD_KIN_GATE=legacy`` = the pre-11-06 behavior
 engaged gate; ``--all-trials`` = ungated control.
 
 Outputs: `orofacial_cohort.cohort_dir` -- <LP_analysis>/<run>/cohort/tables/jaw_lateral<gate sfx>/ (trials.csv,
@@ -171,7 +171,7 @@ def _sem(x) -> float:
 
 
 def fig_epochs(S: pd.DataFrame, D: pd.DataFrame, path: Path, title: str) -> None:
-    """x = epoch; per animal: epoch mean +- SEM over its sessions as a filled marker (shape = animal, colour = epoch)
+    """x = epoch; per animal: epoch mean +- SEM over its sessions as a filled marker (shape = animal, color = epoch)
     at the animal's lateral offset, its SESSIONS as faded open markers around it; no line across epochs (Priya 11-03,
     `cat_points`)."""
     from wfield_local import cat_points as cp
@@ -213,7 +213,7 @@ def fig_epochs(S: pd.DataFrame, D: pd.DataFrame, path: Path, title: str) -> None
     axs.flat[0].legend(fontsize=7, frameon=False)
     note = ("trials: EVERY trial at the far spouts, cue + 70 .. 3000 ms, measured jaw frames only (LP r4, cleaning v35); "
             "FAR_DIR = (far ipsi - far contra) / 2 of the per-trial jaw sideways displacement = jaw movement TOWARD the "
-            "target side; filled = per-animal epoch mean +- SEM over sessions (shape = animal, colour = epoch), faded "
+            "target side; filled = per-animal epoch mean +- SEM over sessions (shape = animal, color = epoch), faded "
             "open = its sessions (" + ", ".join(f"{a} {cp.animal_marker(a)}" for a in animals) + "); no lines "
             "across epochs; title: paired change vs pre (animal-weighted "
             "bootstrap, * = 95% CI excludes 0; >= 2 animals)")
@@ -226,25 +226,31 @@ def fig_epochs(S: pd.DataFrame, D: pd.DataFrame, path: Path, title: str) -> None
 
 
 def fig_timecourse(S: pd.DataFrame, path: Path, title: str) -> None:
-    from wfield_local import config
-    col = config.animal_color()
+    """Kinematics 5.2. EPOCH-COLOUR CONVENTION (A13, Priya 11-07; before: animal-coloured lines + CI bands across days):
+    one OPEN point per session (shape = animal, colour = epoch) with its trial-bootstrap CI as a thin vertical bar in the
+    same colour, no line across sessions; filled = epoch mean +- SEM over animals."""
+    from wfield_local import cat_points as cp
+    from wfield_local.orofacial_cohort import EPOCH_ORDER as _EO
     plt = _plt()
     cs = ("lr_wide_far_dir", "lr_wide_reached_far_dir", "angle_far_dir", "lr_wide_far_bias")
     fig, axs = plt.subplots(1, len(cs), figsize=(4.2 * len(cs), 3.2), squeeze=False)
     for ax, c in zip(axs[0], cs):
-        for a, g in S.sort_values("day").groupby("animal"):
-            ax.plot(g.day, g[c], "o-", ms=3, lw=1, color=col.get(a, "k"), label=a, zorder=3)
-            if f"{c}_lo" in g:
-                ax.fill_between(g.day, g[f"{c}_lo"], g[f"{c}_hi"], color=col.get(a, "k"), alpha=0.12, lw=0)
+        if f"{c}_lo" in S:
+            for _, r in S.iterrows():
+                if np.isfinite(r[f"{c}_lo"]) and np.isfinite(r[f"{c}_hi"]):
+                    ax.plot([r.day, r.day], [r[f"{c}_lo"], r[f"{c}_hi"]], color=cp.epoch_color(r.epoch), lw=0.6,
+                            alpha=0.35, zorder=2)
+        cp.day_dots(ax, S.day, S[c], S.animal, S.epoch, ms=3.5, summary_ms=5.5)
         ax.axhline(0, color="0.85", lw=0.8, zorder=0)
         ax.axvline(0.5, color="0.6", ls="--", lw=0.8, zorder=0)
         ax.set_title(SUMMARY_COLS[c], fontsize=8)
         ax.set_ylabel(SUMMARY_COLS[c], fontsize=7)
         ax.set_xlabel("days since stroke", fontsize=7.5)
         ax.tick_params(labelsize=7)
-    axs[0][0].legend(fontsize=7, frameon=False)
-    fig.suptitle(title + "\none point per session (band = trial-bootstrap 95% CI where available); dashed = lesion",
-                 fontsize=9)
+    axs[0][0].legend(handles=cp.legend_handles(sorted(S.animal.unique()), [e for e in _EO if (S.epoch == e).any()],
+                                               sessions_label="{a}", epoch_label="{e}"), fontsize=7, frameon=False)
+    fig.suptitle(title + "\none open point per session (shape = animal, colour = epoch; thin bar = its trial-bootstrap 95% CI "
+                 "where available), filled = epoch mean +- SEM over animals; dashed = lesion", fontsize=9)
     from wfield_local.orofacial_cohort import _tidy, save_png_svg
     _tidy(fig)
     fig.tight_layout()

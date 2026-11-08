@@ -4,13 +4,14 @@ ITI / lick figures as the primary figures; the epoch-bar figures stay as supplem
 Per measure, the SHARED models of wfield_local.mixed_models (nothing is fitted here; rule 9), sessions as observations,
 animal random effects (ladder: intercept + step + slope -> intercept + step -> intercept -> fixed animal intercepts):
   time       y ~ post + post:lday      `post` = day-1 step vs pre, `post:lday` = recovery slope per e-fold of days
-  behaviour  y ~ post + post:deficit   deficit = the cued licks' weighted signed AIM (deg, pre - session; 10-27 late,
+  behavior  y ~ post + post:deficit   deficit = the cued licks' weighted signed AIM (deg, pre - session; 10-27 late,
                                        Priya), FIRST post-cue lick by default (DECISIONS 2026-10-27 late; env
                                        WFIELD_AIM=all = all-lick sensitivity, every output tagged _aimall); `post` = the
                                        change still present at FULL recovery of aim (--deficit ttc = far-contra time to
                                        contact, the earlier default)
-Figures (mx.plot_fits: session values vs day / deficit, coloured by animal, fitted fixed effects), one per group x model,
-<E>/iti_licks/figures/lmm_{time,behaviour}_<group>.png:
+Figures (mx.plot_fits: session values vs day / deficit -- open markers, shape = animal, color = epoch -- with the
+fitted fixed effects), one per group x model,
+<E>/iti_licks/figures/lmm_{time,behavior}_<group>.png:
   readout     decoder r (lateral, sagittal, angle) / the animal's pre mean and the like-for-like (same-place) read-out,
               ITI + cued
   response    ITI post-lick response / pre adopted response: key_mean, cortex, key ROIs (adopted), key_mean at 415 nm
@@ -18,8 +19,8 @@ Figures (mx.plot_fits: session values vs day / deficit, coloured by animal, fitt
   perspout    like-for-like read-out per spout, cued + ITI
 Decoder basis = iti_lick_order.SOURCE (Allen + ALM / tjM1 split by default since 10-27 late; its outputs are untagged, so
 the figure stems are unchanged; plain Allen areas write *_plain).
-  behaviour   cued lick angle offset from own pre landing, WFIELD_AIM lick set -- TIME model only (indexing a
-              behavioural measure by behavioural recovery is circular)
+  behavior   cued lick angle offset from own pre landing, WFIELD_AIM lick set -- TIME model only (indexing a
+              behavioral measure by behavioral recovery is circular)
 Session values come from the producing scripts' session tables via the readers in scripts/iti_mixed_models.py.
 Fitted tables: <E>/iti_licks/lmm_figures/lmm_<group>.csv. Rule 8: lmm_table prints the per-animal epoch means first.
 Usage: [WFIELD_AIM=all] python scripts/iti_lmm_figures.py [--groups readout response ...]
@@ -107,9 +108,9 @@ def _perspout() -> list:
 
 def _behaviour() -> list:
     w = rm.AIM_LABEL[rm.AIM]
-    return [("aim_weighted", f"weighted signed aim, {w} (BEHAVIOUR)\n(deg vs own pre landing, + = contralesional)",
+    return [("aim_weighted", f"weighted signed aim, {w} (BEHAVIOR)\n(deg vs own pre landing, + = contralesional)",
              imm.recovery_measure("weighted_signed")),
-            ("aim_far_contra", f"signed aim, far contra, {w} (BEHAVIOUR)\n(deg vs own pre landing, + = contralesional)",
+            ("aim_far_contra", f"signed aim, far contra, {w} (BEHAVIOR)\n(deg vs own pre landing, + = contralesional)",
              imm.recovery_measure("far_contra_signed"))]
 
 
@@ -120,7 +121,7 @@ GROUPS = {"readout": (_readout, ("time", "behaviour", "epoch"), 4, "ITI / cued r
           "lickclass": (_lickclass, ("time", "behaviour"), 4, "first vs later licks, ITI and cued (rows 1-4 all spouts, "
                                                               "5-8 far contra)"),
           "perspout": (_perspout, ("time", "behaviour"), 6, "like-for-like read-out per spout (row 1 cued, row 2 ITI)"),
-          "behaviour": (_behaviour, ("time",), 2, "behavioural aim (time model only)")}
+          "behaviour": (_behaviour, ("time",), 2, "behavioral aim (time model only)")}
 
 
 def lo_tag() -> str:

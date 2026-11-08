@@ -21,7 +21,7 @@ Video coverage: cam4 / cam1 / jaw exclusions exist only inside the video windows
 RESULTS UNDER STRICT: per-session baseline swap, value_strict = value_restw + restw - strict (exact: every one of these
 values is a trace minus the session restw), then the scripts' own statistics (iti_area_maps.changes for the pre-cue
 maps; lick_cue_to_lick.per_session / matched / deltas with rng default_rng(0) in the published order for mean_rw).
-ENGAGED-COUNT AUDIT: precue_restw cache trials (behaviour table at extraction time) vs the behaviour table now vs
+ENGAGED-COUNT AUDIT: precue_restw cache trials (behavior table at extraction time) vs the behavior table now vs
 enl_trials.csv.gz `engaged` (the gate of arrival_to_cue / stopped traces) vs the DAQ gate the restw rest frames use;
 pre-cue level (-1..0 s) recomputed on the enl_trials engaged set.
 Outputs: <iti_licks>/restw_check/ (sessions/<label>.npz, *.csv, figures/, figdata/).

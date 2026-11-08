@@ -1,7 +1,7 @@
 # Handoff — 2026-10-06: first whole-session (O2) analyses, movement-model upgrades, contact classes, video regressors
 
 **START HERE for the imaging x movement analyses and the orofacial cleaning changes of 10-06.** Continues
-`STATUS_2026-10-05_CAM1_LP_EKS_O2_HANDOFF.md` (tracking / labelling / O2; still the entry point for those) and
+`STATUS_2026-10-05_CAM1_LP_EKS_O2_HANDOFF.md` (tracking / labeling / O2; still the entry point for those) and
 `STATUS_2026-10-05_IMAGING_MOVEMENT_HANDOFF.md` (the pre-registered movement analyses). Reasoning and numbers:
 `DECISIONS.md` 2026-10-06 entry + afternoon addendum. Analysis desktop; M: = MICROSCOPE. Everything below is ONE
 pre-stroke session (PS93 0814) tracked with the ROUND-3 cam4 model -- pipeline tests with real numbers, not results.
@@ -23,7 +23,7 @@ pre-stroke session (PS93 0814) tracked with the ROUND-3 cam4 model -- pipeline t
    `~/lp_stage/lp_train_mv_a_full.log`); arm (b) after it: `Start-Process wsl.exe -WindowStyle Hidden
    -ArgumentList '-e','bash','/mnt/c/Users/SabatiniLab/train_lp_multiview_fg.sh','b','full'`. Priya OK'd: random
    frame split (pilot), 640 px. Arm (b) = calibration + 3-D augmentation + projection losses vs (a) none. NB LP's
-   3-D augmentation warps each image with a 2-D similarity fitted to >= 3 TRIANGULATED keypoints (labelled in both
+   3-D augmentation warps each image with a 2-D similarity fitted to >= 3 TRIANGULATED keypoints (labeled in both
    views); only 105 / 526 moments qualify today, the rest get no geometric augmentation in (b) -> (b) understates
    calibration until more paired labels exist. Patch masking on (LP multi-view default; trains cross-view inference).
 
@@ -81,7 +81,7 @@ variants run.
   (`contact.match: span`); grooming = touch >= 250 ms with the tongue out < 50 % of it, widened +-5 s
   (`contact_classes`; thresholds provisional until the survey).
 * Figures: cohort palette / order (`spout_behavior.position_style`); trajectories in IMAGE orientation (mouth top
-  centre, image-right right); distance / protrusion axes down = further from the mouth.
+  center, image-right right); distance / protrusion axes down = further from the mouth.
 * Angles are tongue angle AT PEAK PROTRUSION everywhere (not stroke_orofacial's max-signed angle).
 * Motion energy: parallel per camera (chunked decoding). SPOUT: motorised -> must not enter; handled in TIME by
   blanking the video regressors outside position strobe .. trial end (repositioning happens between trial end and
@@ -96,7 +96,7 @@ variants run.
    20-perm versions); variant runs write tagged files (`_smooth`, `_splitlicks`).
 3. **Background jobs > 2 h die with the bash tool**: launch long runs detached (`Start-Process cmd.exe /c ...`),
    find / stop them by COMMAND LINE (shared box), never by name.
-4. **Standardised kernel weights look tiny** (per SD of a sparse column): use `kernels(model, per_event=True)`.
+4. **Standardized kernel weights look tiny** (per SD of a sparse column): use `kernels(model, per_event=True)`.
 5. **The detector's rise start / fall end are narrower than the physical lick** -- contacts land ~28 ms before
    the peak; do not match contacts on that span alone.
 6. **Motion energy sees the motorised spout** (target information) -- use video regressors only inside position

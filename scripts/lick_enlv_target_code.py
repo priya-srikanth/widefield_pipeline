@@ -1,7 +1,7 @@
 """TARGET CODE WITHOUT REWARD on ENLv licks (Priya 10-29, item 2). ENLv = ENL-violation lick (pre_cue context: spout
 stationary at the trial's spout, no cue, no reward); never 'ITI'. Same tests as lick_balance_target_model.py (imported,
 not copied -- rule 9), on the PRIMARY ENLv set of lick_enlv_balance_offset.py (set "enlv") AND its bout starts (set
-"enlv_bouts", clean_start: >= 1 s since any lick = the ITI first-after-quiet analogue) (onset >= 1.0 s after arrival, lick window
+"enlv_bouts", clean_start: >= 1 s since any lick = the ITI first-after-quiet analog) (onset >= 1.0 s after arrival, lick window
 ends before the cue, raw signals; target = the trial's spout, which is in place):
   1 PRE models of the post-lick primary-pool response c, i, d = c - i (ALM + tjM1 + SSp-m + SSp-n + SSs, 0.1..0.45 s
     minus -1..-0.5 s): angle line / cubic, TARGET (6 levels), angle + target, mix; cvR2 leave-one-pre-session-out; target

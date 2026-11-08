@@ -3,11 +3,11 @@ into this ... it could be critical to interpretation".)
 
 Fig 16n-16o: chronically the side / distance FR factors add ~0 to the per-session encoder in SSp-m (pre +0.011-0.016) and
 take less of the position code, while position | directionless FR rises contralesionally. Three explanations:
-  (a) BEHAVIOUR  the face's side-specific movement itself shrinks / stops differing by spout (e.g. lateral jaw / tongue
+  (a) BEHAVIOR  the face's side-specific movement itself shrinks / stops differing by spout (e.g. lateral jaw / tongue
                  steering lost; jaw FAR_DIR collapses acutely, OROFACIAL_FINDINGS);
   (c) MEASUREMENT the frozen pre-stroke FR vocabulary (master_pre_v1) no longer captures the post-stroke lateral movement;
   (b) NEURAL     the face moves as before, but orofacial cortex stops covarying with it.
-Per session (O2 bundle inputs: the encoder's own imaging, behaviour and raw FR factors), engaged trials, cue window
+Per session (O2 bundle inputs: the encoder's own imaging, behavior and raw FR factors), engaged trials, cue window
 0 .. 1.5 s (FR / cortex = window mean; cortex minus the 0.5 s pre-cue mean):
   side index   fr_lick_left - fr_lick_right;  distance index  fr_lick_far_nose - fr_lick_fast_close;  lick = sum of the
                six lick-locked factors (master_v1 "lick")
@@ -177,7 +177,7 @@ def main(argv=None) -> int:
     print("== epoch - pre (pre level, change [95% nested CI], p, animals down)")
     print(B.round(3).to_string(index=False))
 
-    groups = [("(a) behaviour: spout-specificity", ["eta2_side", "eta2_dist", "eta2_tongue"]),
+    groups = [("(a) behavior: spout-specificity", ["eta2_side", "eta2_dist", "eta2_tongue"]),
               ("(a) amount of side-specific face movement", ["sd_side"]),
               ("(c) FR side index tracks the tongue", ["r_side_tongue"]),
               ("(b) cortex covaries with the FR side index", ["r_SSp-m_right_side", "r_SSp-m_left_side", "r_SSp-m_c-i_side",

@@ -44,7 +44,7 @@ def _folder(proj, stem, n=4, parts=UNION):
 
 @pytest.fixture
 def projects(tmp_path, monkeypatch):
-    """A labelling project with four cam4 sessions over two epochs, and a manifest naming them."""
+    """A labeling project with four cam4 sessions over two epochs, and a manifest naming them."""
     src = tmp_path / "widefield-Priya-2026-09-08"
     (src / "labeled-data").mkdir(parents=True)
     (src / "config.yaml").write_text("Task: widefield\n", encoding="utf-8")
@@ -140,7 +140,7 @@ def test_labels_are_re_synced_FORWARD_and_the_training_copy_is_overwritten(proje
     """The opposite of `dlc_project`'s rule, and the reason it is opposite.
 
     In `dlc_project` the human edit is DOWNSTREAM of the copy, so overwriting would destroy work.
-    Here it is UPSTREAM: the labelling project is the only source of truth, and refusing to
+    Here it is UPSTREAM: the labeling project is the only source of truth, and refusing to
     overwrite would train on a stale snapshot of it -- silently, since a stale label file is
     perfectly well-formed.
     """
@@ -159,7 +159,7 @@ def test_staging_never_writes_into_the_LABELLING_project(projects):
     before = {p: p.read_bytes() for p in src.rglob("*") if p.is_file()}
     dt.stage()
     after = {p: p.read_bytes() for p in src.rglob("*") if p.is_file()}
-    assert before == after, "the labelling project was modified"
+    assert before == after, "the labeling project was modified"
 
 
 def test_the_training_project_is_a_SEPARATE_directory_from_the_labelling_one(projects):
@@ -250,7 +250,7 @@ def test_conversion_array_maps_the_refined_parts_onto_donor_head_channels(monkey
 
 def test_an_unmappable_part_gives_up_the_decoder_rather_than_inventing_a_channel(monkeypatch):
     """DLC requires one entry per project bodypart when `with_decoder=True`, so a partial mapping
-    is not something it accepts -- the only alternatives are a re-initialised head or a fabricated
+    is not something it accepts -- the only alternatives are a re-initialized head or a fabricated
     channel index, and the second would put a part's weights on an unrelated feature."""
     monkeypatch.setattr(dt, "donor_bodyparts", lambda: ["nose", "jaw"])
     assert dt.conversion(["nose", "jaw", "tongue"]) is None
@@ -318,10 +318,10 @@ def test_the_staged_config_names_the_refined_subset_as_the_projects_bodyparts(pr
 # ------------------------------------------------------------------------- the per-epoch table
 
 def test_per_epoch_error_separates_train_from_test(projects, monkeypatch):
-    """`evaluate_network` predicts on EVERY labelled image, train and test alike.
+    """`evaluate_network` predicts on EVERY labeled image, train and test alike.
 
     Pooling them makes each epoch's error depend on what share of that epoch's sessions happened to
-    be held out -- an artefact of the split reported as a property of the epoch, which is the same
+    be held out -- an artifact of the split reported as a property of the epoch, which is the same
     class of mistake the table exists to catch.
     """
     proj = dt.stage()
@@ -365,7 +365,7 @@ def test_the_training_project_does_not_become_the_LABELLING_project(tmp_path, mo
     # the exact name that broke it, plus the subdirectory form actually used now
     (tmp_path / "widefield-Priya-2026-09-08-orofacial").mkdir()
     (tmp_path / "training" / "widefield-Priya-2026-09-08-orofacial").mkdir(parents=True)
-    assert dp.project_dir() == real, "a derived project shadowed the labelling project"
+    assert dp.project_dir() == real, "a derived project shadowed the labeling project"
 
 
 def test_train_project_lives_outside_the_labelling_glob(projects):
@@ -531,7 +531,7 @@ def test_classify_separates_the_three_faults_by_CONFIDENCE_not_by_error(projects
 
 
 def test_classify_finds_an_unplaced_part_the_network_is_confident_about(projects):
-    """ADD: `evaluate_network` scores only what was labelled, so a MISSED part is invisible to it."""
+    """ADD: `evaluate_network` scores only what was labeled, so a MISSED part is invisible to it."""
     src, _ = projects
     d0 = pd.read_hdf(src / "labeled-data" / "cam4_pre_a" / f"CollectedData_{dt.SCORER}.h5")
     d0.loc[d0.index[0], (dt.SCORER, "tongue", slice(None))] = np.nan

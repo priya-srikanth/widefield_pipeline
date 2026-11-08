@@ -17,7 +17,7 @@ before the cue: the spout is stationary there):
     union        the six positions' spout pixels OR-ed, applied to EVERY trial (no mask-induced position cue)
     per_position each trial masks only its own position's spout (Priya's version; the masked-pixel SET differs
                  by position, so a decoder could in principle read the mask -- compared against `union`)
-  MOTION ENERGY per frame (grey, ds x area-averaged, |f_t - f_(t-1)|), averaged in decode.bins.precue bins;
+  MOTION ENERGY per frame (gray, ds x area-averaged, |f_t - f_(t-1)|), averaged in decode.bins.precue bins;
   masked pixels set to the across-trial pixel mean (union: 0 variance -> no information).
   DECODE position (PCA 30 per bin fitted inside each CV fold -> logistic C 0.5, trial blocks as groups), per
   camera x {none, union, per_position}, all bins and per bin; null = labels shuffled with fixed predictions.
@@ -194,7 +194,7 @@ def main(argv=None) -> int:
             if p in masks:
                 tint[masks[p].reshape(shape)] = plt.get_cmap("tab10")(k)[:3]
         axs[1, j].imshow(tint)
-        axs[1, j].set_title("per-position spout masks (colour = position)", fontsize=8)
+        axs[1, j].set_title("per-position spout masks (color = position)", fontsize=8)
         for ax in axs[:, j]:
             ax.axis("off")
         pixmean = me.mean(0, keepdims=True)

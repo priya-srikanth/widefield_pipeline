@@ -4,7 +4,7 @@ lick directionless vs other analyses?"; "the FR direction vs directionless figur
 Grouping modes (`wfield_local/fr_groups.py`, master_v1): B = lick amount + other (DIRECTIONLESS FR); S = B + side
 (left / right lick factors); D = B + distance (close / far factors); A = everything. Per session, per mode m (O2 runs
 fr_A / fr_B / fr_S / fr_D, collected as `..._frg-<m>`):
-  FR gain_m        fr:full_m - full                    (what FaceRhythm adds to the full behavioural model)
+  FR gain_m        fr:full_m - full                    (what FaceRhythm adds to the full behavioral model)
   position | FR_m  fr:full_m - fr:drop:position_m      (unique spout-position R2 with FaceRhythm in the model)
 Direction through FR = S - B (side), D - B (distance), A - B (both); "other" is inside B with lick amount (no model drops
 "other" alone, so it cannot be split off). R2 as a fraction.

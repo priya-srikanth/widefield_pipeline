@@ -5,7 +5,7 @@ acutely (T6), and pre-stroke disengagement already carries an orofacial 1-4 Hz s
 could carry part of the acute rate increase.
 
 STATE per frame = cam4 FaceRhythm point-PC speed (own basis, summed over PCs; quiet_spikes_fr.face_regressors) smoothed
-over 2 s (centred), in units of the animal's August-pre median engaged-quiet speed. Engaged quiet frames as quiet_spikes_v2.
+over 2 s (centered), in units of the animal's August-pre median engaged-quiet speed. Engaged quiet frames as quiet_spikes_v2.
 Events = quiet_spikes_v2_fr raw orofacial (bilateral) events, up + down, > 4 x the animal's pre robust SD, engaged.
 Rate per stillness bin (speed / pre median: < 0.25, 0.25-0.5, 0.5-1, 1-2, > 2) per session; bins with < 0.5 min skipped.
 (a) Does rate rise as speed falls (within session, all epochs)? (b) At MATCHED stillness, is the acute rate still higher
@@ -117,7 +117,7 @@ def summarise():
 
 def figure(S, R, lab, out=None):
     """Priya 11-03 figure rules: x = face-speed bins (ordered, so the epoch mean line stays); epochs at
-    cat_points.epoch_offsets; every session's value as a faded open marker (shape = animal, colour = epoch); per-animal
+    cat_points.epoch_offsets; every session's value as a faded open marker (shape = animal, color = epoch); per-animal
     medians small filled. Returns the plotted epoch means / medians (for the --plot-only check)."""
     import matplotlib
     matplotlib.use("Agg")

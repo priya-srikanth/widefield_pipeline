@@ -21,7 +21,7 @@ the session's mean angle at that spout: the executed deviation, which carries no
 
 ## Decoder (fixed)
 Per session, per time bin t, per group: ridge regression of the target on the group's 8 area values at bin t
-(instantaneous, no history), features standardised on the training events, lambda = 1.0 x n_features (fixed, no
+(instantaneous, no history), features standardized on the training events, lambda = 1.0 x n_features (fixed, no
 tuning), 5-fold CV with folds assigned within spout (every fold sees every spout). Score = Pearson r(CV prediction,
 target) over events -> curve r_G(t). Equal event count across sessions: N = 200 events drawn without replacement, 10
 draws, curves averaged (sessions with < 200 events use all and are flagged; < 60 events -> skipped). Null: target
@@ -33,7 +33,7 @@ on one draw, per-bin 95th percentile and the peak-of-null distribution.
 * **L50_G** = first time (from -0.7 s forward, before t_peak) the baseline-subtracted curve reaches 50 % of
   (p_G - b_G), linear interpolation between bins; NaN if p_G does not exceed the peak-of-null 95th percentile.
 * **PRIMARY: dL50 = L50_M - L50_S** (s; + = sensory information first).
-* Shape check (amplitude-invariant): **xlag** = lag maximising the correlation of the baseline-subtracted, peak-normalised
+* Shape check (amplitude-invariant): **xlag** = lag maximizing the correlation of the baseline-subtracted, peak-normalized
   r_S and r_M over -0.5..+1.0 s, lags +-0.3 s (+-6 bins), parabolic sub-bin interpolation (+ = M lags S).
 * Secondary: p_S, p_M (peak information), L50_S and L50_M separately.
 
@@ -51,7 +51,7 @@ change only if the CI excludes 0 AND >= 3 / 4 animals share its sign. Pre level 
 with its per-animal values and a session bootstrap.
 
 ## Known limits (stated now)
-* GCaMP6s (decay ~0.6 s) and haemodynamic residuals delay and smear both groups' signals. Both groups share the
+* GCaMP6s (decay ~0.6 s) and hemodynamic residuals delay and smear both groups' signals. Both groups share the
   indicator, so a RELATIVE lag is interpretable, but differences in response size / SNR between groups or epochs can move
   a half-max crossing; the post-stroke cued response is larger (FINDINGS 0b). xlag is the amplitude-invariant check, and
   a dL50 change that xlag does not reproduce is not reported as a timing change.
@@ -76,7 +76,7 @@ ITI docked total 1 / 4 -> those are not read.
   i.e. similarly in both, so a group-specific amplitude difference is not the obvious driver; a sensory-specific
   steepening (larger sensory response, FINDINGS 0b) cannot be excluded.
 * Reading limits: total angle carries the spout target (pre-lick r ~.2-.3 above null throughout = the pre-cue position
-  code); the timing readout is the steep lick-onset rise on top of it. Calcium + haemodynamic timing, area level. Jaw
+  code); the timing readout is the steep lick-onset rise on top of it. Calcium + hemodynamic timing, area level. Jaw
   opening leads tongue onset by 52-120 ms, so the motor-first half-max may partly be movement-locked activity around
   lick onset. Information timing, not influence.
 Figures `figures/fig1_curves.png` (curves per epoch, both targets), `fig2_lags.png` (per-animal dL50 / xlag); tables

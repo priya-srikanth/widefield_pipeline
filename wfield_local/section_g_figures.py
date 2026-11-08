@@ -5,7 +5,7 @@ apart: if they disagree, one of the two files is stale and that is visible rathe
 
 This and `poststroke_section_g` replace four scratchpad scripts. One opened with
 `for an in ("PS94", "PS95")` and another with `if config.session_phase(a, "0817") != "post"`, so PS92
-and PS93 were absent from every figure downstream and PS93 had no behaviour slide at all. Twelve of
+and PS93 were absent from every figure downstream and PS93 had no behavior slide at all. Twelve of
 the deck's figures were still drawn from files those scripts wrote on 2026-08-18, on a basis
 corrected the next morning, and nothing on the slide said so.
 
@@ -15,7 +15,7 @@ day-2 brain, and for PS94 those differ more from each other than pre differs fro
 
 BOTH ARMS, into separate files, never compared panel-to-panel: the ALL arm scores six positions at a
 fixed 1/6 chance, while the LICK-ONLY arm uses each session's preserved positions, so its chance
-level moves with the animal's behaviour.
+level moves with the animal's behavior.
 
 THE SMALL-LESION FAMILY (G7) IS THE SAME FIGURES over the EXCLUDED sessions. PS92/PS93 8/17 follow
 the 8/16 laser that did not take. They are NOT a no-lesion control -- both animals were lesioned,
@@ -44,14 +44,14 @@ def _sessions(rec, tag):
 
 
 def copy_behaviour_figures(out, rv=None):
-    """G1a: the behaviour pipeline's own per-animal longitudinal figure, copied into the deck dir.
+    """G1a: the behavior pipeline's own per-animal longitudinal figure, copied into the deck dir.
 
-    Copied rather than redrawn so the deck's behavioural ground truth IS the artefact the behaviour
+    Copied rather than redrawn so the deck's behavioral ground truth IS the artifact the behavior
     pipeline produces -- if the two ever disagree that is a bug, not a styling difference.
 
     THE ANIMAL LIST COMES FROM THE PHASE RESOLVER. The script this replaces filtered on
     `session_phase(a, "0817") != "post"`, which is false for PS92 and PS93 -- their effective lesion
-    is 8/18 -- so PS93 had no behaviour slide and the deck build reported one missing figure with
+    is 8/18 -- so PS93 had no behavior slide and the deck build reported one missing figure with
     nothing to say why.
     """
     import shutil
@@ -88,7 +88,7 @@ G2B_CONDITIONS = (
 def _recall_row(phase_rec):
     """Per-position {n, recall} from ONE confusion phase.
 
-    The matrix is row-normalised with TRUE position on the rows, so its diagonal IS the per-position
+    The matrix is row-normalized with TRUE position on the rows, so its diagonal IS the per-position
     recall -- `crossed_confusion` says so explicitly ("its diagonal is the per-position recall table,
     so the two are one object rather than two"). Verified against the superseded day-1 JSON this
     replaces: PS94 post-cue pre reads 0.974/0.916/0.955/0.945/0.903/0.913 on n=976/957/957/931/929/921
@@ -171,7 +171,7 @@ def _render_family(sub, out, prefix, label):
                 sim, out, name=f"{prefix}_similarity_{arm}.png",
                 suptitle=(f"{label} — per-position correlation between the pre- and post-stroke "
                           f"mean patterns, post arm = {arm_name}. Decoding accuracy alone cannot "
-                          f"separate a weakened code from a reorganised one; this can.")))
+                          f"separate a weakened code from a reorganized one; this can.")))
 
         for cond, align in CONFUSION_ALIGNS:
             conf = {k: {align: v["arms"][arm]["confusion"][cond]} for k, v in sub.items()
@@ -233,13 +233,18 @@ def _render_readouts(sub, out, prefix, *, named_only=False):
     return made
 
 
-def render(rec, out):
+def render(rec, out, *, json_path=None, suffix="", note=""):
     made = []
     post = _sessions(rec, "post")
     excluded = _sessions(rec, "excluded")
-    made += _render_family(post, out, "section_g", "POST-STROKE")
-    made += _render_readouts(post, out, "section_g")
-    made += _render_family(excluded, out, "section_g_smalllesion",
+    # EVERY NAME CARRIES ``suffix`` (D9 queue audit 11-08): it used to reach only the retained figure, so a second arm
+    # rendered into the same folder (the contact-only supplement, --suffix _contactonly) overwrote the primary figures.
+    # suffix "" leaves every name exactly as before.
+    made += _render_family(post, out, f"section_g{suffix}", "POST-STROKE")
+    # G4 / G6 write FIXED paths (no name argument): with a suffix only the named readouts are drawn, so the second arm
+    # cannot overwrite the primary's two fixed-path figures (they are arm-independent no-lick readouts).
+    made += _render_readouts(post, out, f"section_g{suffix}", named_only=bool(suffix))
+    made += _render_family(excluded, out, f"section_g_smalllesion{suffix}",
                            "SMALL-LESION COMPARISON (the laser did not take)")
     # THE FAILED-LASER FITS-ENGAGED PAIR (G7d), which until 2026-09-09 NO STEP PRODUCED. The deck
     # placed a pair of files hand-made on 2026-08-18 and justified freezing them on the grounds that
@@ -248,12 +253,12 @@ def render(rec, out):
     # engagement gate was replaced twice since -- position-blind, then reference-restricted and
     # backdated (880e6bd) -- so those figures were drawn against a gate that no other figure in the
     # deck still uses. A frozen figure is only safe when nothing upstream of it moves.
-    made += _render_readouts(excluded, out, "section_g_smalllesion", named_only=True)
+    made += _render_readouts(excluded, out, f"section_g_smalllesion{suffix}", named_only=True)
 
     # G2b: per-position recall in the four conditions, derived from the confusion diagonals.
     ptab = per_position_table(post)
     if ptab:
-        made.append(pp.fig_per_position(ptab, out, name="section_g_G2b_per_position.png"))
+        made.append(pp.fig_per_position(ptab, out, name=f"section_g_G2b_per_position{suffix}.png"))
 
     # G2c: the grid over BOTH families together. fig_grid colours on phase_tag == "excluded"
     # precisely so PS92/PS93's ineffective-lesion 8/17 sits as a grey square beside their effective
@@ -266,7 +271,13 @@ def render(rec, out):
     if both:
         for arm, _ in ARMS:
             made.append(pp.fig_grid(both, out, arm=arm,
-                                    name=f"section_g_grid_withcontrol_{arm}.png"))
+                                    name=f"section_g_grid_withcontrol_{arm}{suffix}.png"))
+
+    # RETAINED ABOVE-CHANCE FRACTION (Priya 11-07): within-session accuracy as (post - c) / (pre - c)
+    # against the animal's pre band on the SAME positions, so LICK-ONLY sessions scored 4-, 5- and
+    # 6-way share one scale. Both families in one figure; excluded sessions are drawn grey.
+    from wfield_local import section_g_retained
+    made += section_g_retained.render(rec, out, suffix=suffix, json_path=json_path, note=note)
     return [m for m in made if m]
 
 
@@ -275,21 +286,39 @@ def main(argv=None) -> int:
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--src", type=Path, default=None)
     ap.add_argument("--output", type=Path, default=None)
+    ap.add_argument("--json", type=Path, default=None,
+                    help="read this section_g.json instead of the run's own (e.g. a contact-only "
+                         "supplement run); needs --output")
+    ap.add_argument("--suffix", default="",
+                    help="appended to the retained-fraction figure / CSV stem (e.g. _contactonly)")
+    ap.add_argument("--note", default="",
+                    help="short label for the retained figure's title / printed table (e.g. 'old gate')")
+    ap.add_argument("--only", choices=("retained",), default=None,
+                    help="render only this figure (retained = the n-corrected retained fraction)")
     args = ap.parse_args(argv)
+    if args.only == "retained":
+        from wfield_local import section_g_retained
+        if args.json is None or args.output is None:
+            ap.error("--only retained needs --json and --output")
+        rec = json.loads(args.json.read_text(encoding="utf-8"))
+        for q in section_g_retained.render(rec, args.output, suffix=args.suffix,
+                                           json_path=args.json, note=args.note):
+            print(f"  wrote {Path(q).name}", flush=True)
+        return 0
     from wfield_local import run_mode  # tagged runs never overwrite default figures (review H2)
     src = run_mode.routed_output(args.src or Path(PathResolver().root("figures_working")), make=False, guard=False)
     out = args.output or src
     for q in copy_behaviour_figures(out):
         print(f"  copied {Path(q).name}", flush=True)
     from wfield_local import run_mode   # the JSON of THIS run's mode (rebuild 11-03)
-    p = Path(src) / run_mode.keyed_name("section_g.json")
+    p = args.json or Path(src) / run_mode.keyed_name("section_g.json")
     if not p.exists():
         print(f"  SKIP: {p} not computed yet "
               f"(run `python -m wfield_local.poststroke_section_g`)", flush=True)
         return 0
     rec = json.loads(Path(p).read_text(encoding="utf-8"))
     print(f"\n=== {len(rec)} sessions", flush=True)
-    for q in render(rec, out):
+    for q in render(rec, out, json_path=p, suffix=args.suffix, note=args.note):
         print(f"  wrote {Path(q).name}", flush=True)
     return 0
 

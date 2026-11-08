@@ -14,7 +14,7 @@ the side-flips (40-80 px in one frame) without cutting smooth excursions. The QC
 v35 keeps, and frames v35's jump test wipes, for Priya's visual check before the default changes.
 
 deviation: per trial, the jaw's sideways displacement from rest while the mouth is open, in the SPOUT frame
-(`spout_frame`: lr axis perpendicular to the apparatus centre line, so a tilted head / camera does not turn a
+(`spout_frame`: lr axis perpendicular to the apparatus center line, so a tilted head / camera does not turn a
 straight opening into an apparent sideways shift), reported two ways:
   * `lr_wide`  median lr over frames with opening > `--open-px` (50) -- px, + = image-right = the MOUSE'S LEFT on cam4
                (confirmed 2026-10-11 by the 3-D stage fit: *_L = mouse's left, and the *_L spouts sit image-right);
@@ -280,7 +280,7 @@ def cmd_deviation(sessions, rule: str, open_px: float, out: Path) -> None:
     axes[1].set_xticks(range(len(sess)))
     axes[1].set_xticklabels([f"{s.replace('_r4', '')}\n{ph[s]}" for s in sess], fontsize=8)
     fig.suptitle(f"Jaw lateral deviation on opening (DLC r3, cleaning {rule}, spout frame; median over trials, "
-                 f"95% bootstrap CI)\nblack = FAR_BIAS (mean of far_L, far_R: the chin is unobstructed there) -- close / centre "
+                 f"95% bootstrap CI)\nblack = FAR_BIAS (mean of far_L, far_R: the chin is unobstructed there) -- close / center "
                  f"spouts cover the chin and bias the jaw point away from the spout", fontsize=10)
     fig.tight_layout()
     save_png_svg(fig, out / f"jaw_lateral_{rule}.png", dpi=130)

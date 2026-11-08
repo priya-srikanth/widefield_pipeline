@@ -1,7 +1,7 @@
 """SIGNIFICANCE ASTERISK on a bar / point plot. One definition, so every figure marks significance the same way.
 
 Priya 2026-10-25: "for all the bar graphs, the asterisks are hard to see". They were 9-12 pt, drawn AT the whisker tip,
-where the animal dots and the neighbouring bar's whisker sit on top of them. Here: 13 pt bold, a white halo, and placed
+where the animal dots and the neighboring bar's whisker sit on top of them. Here: 13 pt bold, a white halo, and placed
 just beyond the outermost of the whisker end, zero and the animal values, on the side of the effect (above an increase,
 below a decrease).
 """

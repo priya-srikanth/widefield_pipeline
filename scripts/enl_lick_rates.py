@@ -3,7 +3,7 @@
 Priya, 2026-09-24: *"how are the ENL numbers not lick free? from the few sessions before we fixed
 the GUI when we let some stray licks through?"*
 
-Not a GUI artefact -- the baseline rate of stray licks inside the ENL. `precue_window_start` records
+Not a GUI artifact -- the baseline rate of stray licks inside the ENL. `precue_window_start` records
 the measurement that prompted the 2026-08-17 lick-free gate on the HEADLINE pre-cue number: the task
 contingency keeps the window quiet **90.8-99.5%** of the time per session, and **PS93 8/9 falls to
 76%**. This script re-measures that on the curated set and adds the number nobody has: the rate for

@@ -97,7 +97,7 @@ def test_is_free_uses_delivery_not_designation(tmp_path):
 
 
 def test_load_trials_auto_switches_to_log_when_daq_undercovers(monkeypatch, tmp_path):
-    """A crashed recorder (DAQ << log) makes the BEHAVIOUR loader use the full-session log on the
+    """A crashed recorder (DAQ << log) makes the BEHAVIOR loader use the full-session log on the
     default 'auto' path (PS92 8/12); explicit --source daq must NOT switch (decode stays DAQ-only)."""
     d = tmp_path / "PS92_20260812_concat"
     d.mkdir()
@@ -527,7 +527,7 @@ def test_plot_animal_metric_series_writes_split_figures(tmp_path, monkeypatch):
 
 
 def test_plot_animal_raster_grid_tiles_sessions_on_a_shared_axis(tmp_path):
-    """The tiled raster grid writes one page per <=8 sessions, all normalised to the animal's longest
+    """The tiled raster grid writes one page per <=8 sessions, all normalized to the animal's longest
     session, from DAQ-or-log trials (here the log fallback)."""
     pytest.importorskip("matplotlib")
     logs = tmp_path / "logs"
@@ -706,7 +706,7 @@ def test_reward_provenance_does_not_reach_the_raster():
 
     Kept as a test because the columns it read (`is_free`, `reward_delivered`) are still on the
     trial table, so a future change could quietly reintroduce reward into a figure that is about
-    the animal's behaviour. A free-rewarded hit and a plain hit must be indistinguishable here.
+    the animal's behavior. A free-rewarded hit and a plain hit must be indistinguishable here.
     """
     mk = sb.raster_markers(_daq_trials([
         {"pos_idx": 1, "responded": True, "rewarded": True, "free": True},
@@ -891,17 +891,17 @@ def test_backdating_never_reaches_past_the_last_reference_response():
 
 
 def test_both_gates_agree_on_where_a_quit_starts():
-    """The imaging and behaviour gates now share one onset rule (Priya, 2026-09-07).
+    """The imaging and behavior gates now share one onset rule (Priya, 2026-09-07).
 
-    They were deliberately separate until today: the behaviour gate was backdated first and this
+    They were deliberately separate until today: the behavior gate was backdated first and this
     test pinned the imaging one at the CROSSING so the two could not drift silently. Priya then
     asked for the same definition on the imaging side, because `poststroke_miss_working` is a class
     whose entire meaning is that the animal was still trying -- and it was holding the first ~8
     misses of a quit. That moves 408 of 3797 such trials (10.7%) into `poststroke_stopped`.
 
-    Both classes are analysed downstream, so this is a RELABEL, not an exclusion.
+    Both classes are analyzed downstream, so this is a RELABEL, not an exclusion.
 
-    The gates remain SEPARATE FUNCTIONS with separate jobs -- behaviour drops disengaged trials from
+    The gates remain SEPARATE FUNCTIONS with separate jobs -- behavior drops disengaged trials from
     a hit-rate denominator, imaging keeps them as their own condition -- so this asserts they agree
     about the ONSET, which is the part that must not diverge.
     """
@@ -915,7 +915,7 @@ def test_both_gates_agree_on_where_a_quit_starts():
     img = engagement_gate(np.arange(len(pos)), resp, pos)
     beh, _ = reference_engagement(resp, pos)
     assert int(np.flatnonzero(img)[0]) == 10, "imaging gate must start at the first miss"
-    assert int(np.flatnonzero(beh)[0]) == 10, "behaviour gate must start at the first miss"
+    assert int(np.flatnonzero(beh)[0]) == 10, "behavior gate must start at the first miss"
 
 
 def test_the_imaging_gate_still_requires_a_non_recovering_collapse():
@@ -945,7 +945,7 @@ def test_far_position_misses_still_cannot_trip_the_imaging_gate():
 
 
 def test_latency_comes_from_the_trial_table_and_never_outlives_the_response_window():
-    """First-lick latency and hit/miss must be the SAME judgement, not two windows.
+    """First-lick latency and hit/miss must be the SAME judgment, not two windows.
 
     `daq_trials.build_trials` scores both together over [cue, min(cue+response_window, next_cue)],
     so latency exists on exactly the responded trials. `spout_behavior` used to recompute it
@@ -977,7 +977,7 @@ def test_the_engagement_timeline_names_working_and_stopped():
     """Priya, 2026-09-10: does the figure actually show what is "working" and what is "stopped"?
 
     The SHADING was already the right gate -- `session_metrics` uses `reference_engagement`, the
-    same gate the analysis figures and the epoch rule use -- but it was an unlabelled grey band.
+    same gate the analysis figures and the epoch rule use -- but it was an unlabelled gray band.
     Three things a reader had to know rather than see, and all three are now drawn:
 
       * which side is which, in the same word the analysis arm uses (`working`)
@@ -999,7 +999,7 @@ def test_the_engagement_timeline_names_working_and_stopped():
 
 def test_session_metrics_reports_which_arm_stopped_the_animal():
     """`reference_engagement` is a UNION of a collapse and a terminal tail, and those are different
-    behaviours: quitting mid-session, versus running out of thirst at the end. The figure titles
+    behaviors: quitting mid-session, versus running out of thirst at the end. The figure titles
     them, so the metrics have to carry them."""
     import inspect
 

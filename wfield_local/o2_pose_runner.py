@@ -8,7 +8,7 @@ the model, so it runs in a plain DeepLabCut-3 env on O2.
 
 PORTED FROM stroke_orofacial_pipeline `dlc_inference_o2/runner.py` (the generated `run_dlc_batch.py`), and changed:
   * Prediction is OURS, not `deeplabcut.analyze_videos`: the same code path as `dlc_hard_frames.pose_predictor`
-    (PoseModel built from the train dir's pytorch_config.yaml, ImageNet normalisation, `get_predictions`) with
+    (PoseModel built from the train dir's pytorch_config.yaml, ImageNet normalization, `get_predictions`) with
     the per-bodypart heatmap prior of `dlc_prior.masking` (boxes from the bundle's prior.json), so O2 output is
     identical to local output (tested: tests/test_o2_inference.py). analyze_videos would skip the prior.
   * DLC 3 / PyTorch (theirs: TensorFlow, allow_growth, shuffle 5, snapshot renames) -- none of that applies.

@@ -5,7 +5,7 @@ some rim regions. (1) should we apply that before doing CD on the locaNMF compon
 blast radius (2) should we have done this for ALL the decoder analyses??"*
 
 THE FACT THAT PROMPTED IT. `beta_maps.brain_mask()` subtracts the olfactory bulbs AND the
-hand-painted fibre glue, and every MAP analysis goes through it. LocaNMF and every decoder load the
+hand-painted fiber glue, and every MAP analysis goes through it. LocaNMF and every decoder load the
 RAW `allen_brain_mask_native_grid.npy` instead, so the components were fitted over territory no map
 will test. Measured here, per animal, at a 0.5 mass threshold:
 
@@ -36,7 +36,7 @@ correction to results already published.
 IT BECAME MORE PRESSING ON 2026-09-24, for an unrelated reason. `cd_trajectories` now Z-SCORES the
 components before fitting (per-component sd spans 107x; the top five hold 82% of the variance). That
 was right on its own terms, and it removed the amplitude protection that had been implicitly
-down-weighting a dim, mostly-occluded component: after standardising, such a component is scaled to
+down-weighting a dim, mostly-occluded component: after standardizing, such a component is scaled to
 unit variance and competes on equal terms.
 
 WHAT THIS MODULE DOES NOT DO: refit LocaNMF on masked data. That would change `spec_id` for every

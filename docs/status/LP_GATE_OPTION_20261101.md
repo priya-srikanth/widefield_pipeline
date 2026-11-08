@@ -41,9 +41,9 @@ The same one-line `gate_source.gate_responded(...)` call sits at each place a ga
 | `engagement_decomposition.session_trials` adds `gate_hit` (only under the switch); `quit_point.session_quit` scores the gate on it | S28 quit, `analysis_kit.session_behavior` |
 
 Not wired, and stated in the module:
-* the behaviour-pipeline gates `spout_behavior.reference_engagement` / `flag_engagement` (behaviour figures,
+* the behavior-pipeline gates `spout_behavior.reference_engagement` / `flag_engagement` (behavior figures,
   `behavior_clips`);
-* `orofacial_cohort.engagement_keep`, which reads the behaviour table's `engaged` column and already has its own
+* `orofacial_cohort.engagement_keep`, which reads the behavior table's `engaged` column and already has its own
   `attempted` gate options;
 * DAQ-arm diagnostic scripts that call `engagement_gate` directly (`disengagement_tests`, `enl_state_counts`,
   `stopped_trial_traces`, `channel_position_maps`).
@@ -129,7 +129,7 @@ cd C:/Users/SabatiniLab/Github/wf_attempt && PYTHONPATH="$(cygpath -w $PWD);$(cy
 Source: `python scripts/lp_gate_option_counts.py`.
 * No new extraction: it reads gate_lp_check's cache (`wfield_cache/gate_lp_check/`), whose LP rule is this option's rule
   (verified exactly above on 3 sessions).
-* Population: curated PS92-95, August-only pre, epochs from `epochs.epoch_of`, 108 sessions, full behavioural trial list.
+* Population: curated PS92-95, August-only pre, epochs from `epochs.epoch_of`, 108 sessions, full behavioral trial list.
 * Per-session CSV: `M:/.../lp_r4_heatmap_20261013__clean_v36/imaging_encoding/gate_lp_check/lp_gate_option_counts.csv`.
 
 Column definitions:
@@ -203,7 +203,7 @@ WIDEFIELD_LICK_SOURCE=lp WIDEFIELD_GATE_SOURCE=lp python -m wfield_local.epoch_g
 
 ## Limits
 
-* Trial universe for the counts is the full behavioural list, not the imaging-kept subset (coverage, lick-free drops).
+* Trial universe for the counts is the full behavioral list, not the imaging-kept subset (coverage, lick-free drops).
 * The LP-arm S28 quit under today's rule (LP train) is not computed here. Doing so needs `session_trials` rows under the
   LP source, which means an h5 read per session.
 * The switch-on path is checked exactly against gate_lp_check on 3 sessions. The other 105 rely on the rule being the

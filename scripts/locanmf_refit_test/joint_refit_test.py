@@ -6,7 +6,7 @@ SVTcorr. Written to a SEPARATE out_dir (LOCAL_OUT/joint/<animal>/<bid>), never u
 `joint_locanmf.load()` cannot pick it up; the script checks that load() still returns the current basis afterwards.
 
 Compares: footprints (Hungarian-matched spatial r), and per session the new basis's fitted C against the CURRENT
-basis's projection of the same corrected session (the joint analogue of refit vs projection).
+basis's projection of the same corrected session (the joint analog of refit vs projection).
 
     WIDEFIELD_HEMO_VARIANT=meegkit_hpfit_lag_refitT_swapmask python joint_refit_test.py PS94
 """

@@ -1,4 +1,4 @@
-"""Imaging results page Fig 3.5 (`state_ps94_diagnostic.png`; PI-deck slide 14, hidden): PS94 behavioural-state
+"""Imaging results page Fig 3.5 (`state_ps94_diagnostic.png`; PI-deck slide 14, hidden): PS94 behavioral-state
 diagnostic -- the frozen state decoder (the 11-02 PRODUCTION arm, per-session z-score) against a class-balanced-z
 diagnostic and a within-session refit, per animal x epoch, and where PS94's post-stroke errors go.
 
@@ -39,7 +39,7 @@ REPRODUCIBILITY (measured 11-03): with the default BLAS threading this reproduce
   balz rows by 1-2 segments (balanced accuracy <= .005); production and refit arms were unchanged. So do not cap
   BLAS threads when checking this figure against the page.
 
-PLOT: open markers = sessions (shape = animal; colour = arm), filled marker + bar = mean over sessions +- SEM, no lines
+PLOT: open markers = sessions (shape = animal; color = arm), filled marker + bar = mean over sessions +- SEM, no lines
 across epochs, no significance marks (single-animal descriptive panels).
 OUT: <out>/state_ps94_diagnostic.png / .csv + state_ps94_diagnostic_confusions.csv
 """

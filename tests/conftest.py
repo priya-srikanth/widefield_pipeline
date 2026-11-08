@@ -213,10 +213,10 @@ def no_real_cache_writes(monkeypatch, tmp_path):
 def pinned_epoch_boundaries(monkeypatch):
     """Run the suite against the STORED `EPOCH_SPEC`, never against the last real run's output.
 
-    `epochs` learned on 2026-09-07 to derive `chronic_from` from behaviour and publish it to
+    `epochs` learned on 2026-09-07 to derive `chronic_from` from behavior and publish it to
     `epoch_boundaries.json` beside the deck, which every process picks up lazily. That is right for
     the pipeline and wrong for a test suite: the assertions about which sessions land in which epoch
-    would start depending on what the behaviour box wrote last night, and would pass or fail on
+    would start depending on what the behavior box wrote last night, and would pass or fail on
     different boxes for reasons no test names.
 
     Pinning also keeps the guard honest in the other direction -- tests that exercise the DERIVED

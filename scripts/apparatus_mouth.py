@@ -3,7 +3,7 @@
 June cam4 correction ("we should be able to use june scaling to project into june as well").
 
     python -m scripts.apparatus_mouth clips  PS93:20260814 PS93:20260821 PS93:20260908      # trial clips, model predictions
-    python -m scripts.apparatus_mouth labels [--animals PS92 PS93 PS94 PS95]                # labelled frames, both cameras
+    python -m scripts.apparatus_mouth labels [--animals PS92 PS93 PS94 PS95]                # labeled frames, both cameras
     python -m scripts.apparatus_mouth production [ANIMAL:YYYYMMDD ...] [--jobs 4]           # O2 production, every session
 
 (dlc env: aniposelib.) ``production`` (10-19) = cam1 LP ctx-semi + cam4 LP r4 whole-session O2 outputs (`PROD`), every session
@@ -12,7 +12,7 @@ June cam4 x0.885 about the principal point -- `CHOSEN`).
 
 Spout per position: ``clips`` = parked, no-lick ENL medians (`spout_frame.ruler_medians`; cam1 = DLC c1r2, cam4 = DLC r3 on the trial clip,
 or the O2 whole-session LP r4 output where there is no cam4 clip -- June);
-``labels`` = medians of the human spout labels per position (sessions labelled in BOTH cameras; lick frames, so the spout
+``labels`` = medians of the human spout labels per position (sessions labeled in BOTH cameras; lick frames, so the spout
 may be pushed 2-5 px). June cam4 (dates < `orofacial_camera.scale_before`) is tried four ways: raw, and x
 `orofacial_camera.scale_factor` about the image ORIGIN (v36 as applied), the calibration's principal point, and cam4's
 spout-line intersection. Best = lowest reprojection error and fit residual. Reports, per session: the mouth in each camera,
@@ -108,7 +108,7 @@ def _from_o2(rv, animal: str, date: str, bundle: str, cam: str):
 
 
 def _labels_by_session(rv):
-    """{(animal, date): {cam: (spout medians per position, nose median)}} for sessions labelled in BOTH cameras."""
+    """{(animal, date): {cam: (spout medians per position, nose median)}} for sessions labeled in BOTH cameras."""
     from wfield_local import dlc_project
     from wfield_local.dlc_frames import manifest_path
     man = pd.read_csv(manifest_path(rv), dtype=str).drop_duplicates(["video_stem", "image"])

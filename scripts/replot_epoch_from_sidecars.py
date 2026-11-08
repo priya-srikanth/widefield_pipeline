@@ -1,7 +1,7 @@
 """Redraw epoch bar / contrast figures from their stored sidecars, in the 11-03 session-dot style.
 
 Priya 2026-11-03, figure rule 2: every summary at a categorical x shows its SESSION values as faded
-open markers (shape = animal, colour = epoch). This replots WITHOUT recomputation: it reads
+open markers (shape = animal, color = epoch). This replots WITHOUT recomputation: it reads
 ``data/<name>.csv`` + ``_sessions.csv`` + ``_meta.csv`` (`epoch_figures.replot_from_sidecars`) and
 writes ``<name>_nolines.png`` beside the original. It never overwrites the original PNG and never
 writes a sidecar on the share (the redraw happens in a scratch dir); it hashes every sidecar it

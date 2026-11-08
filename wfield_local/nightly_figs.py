@@ -136,7 +136,7 @@ def _cli_many(cmds, jobs=None):
 
 
 def _resolve_epochs():
-    """DERIVE tonight's epoch boundaries from behaviour, publish them, and log anything that moved.
+    """DERIVE tonight's epoch boundaries from behavior, publish them, and log anything that moved.
 
     MUST RUN BEFORE ANY FIGURE STEP. Every figure that stratifies by epoch reads `epochs.epoch_of`,
     so resolving after the figures would render the deck on last run's boundaries and then write
@@ -170,7 +170,7 @@ def _resolve_epochs():
         if not res["available"]:
             # NOT the same as "nothing changed", and must not read like it: without the cohort
             # table nothing was derived, and the stored spec is what the figures will use.
-            log("  !! epoch boundaries NOT DERIVED this run (no cohort behaviour table); "
+            log("  !! epoch boundaries NOT DERIVED this run (no cohort behavior table); "
                 "figures will use the LAST DERIVED epoch_boundaries.json, or animals.yaml if "
                 "there is none")
             return
@@ -680,7 +680,7 @@ def main():
             units = _frozen_units(aligns, from_list, only)
             # ONE POOL PER (animal, alignment), shared by the decoder and the encoder
             # (`locanmf_frozen_decoder.frozen_pair`): each used to rebuild the identical ROI pool, and
-            # ROI features are not disk-cached, so this step paid ~19 s a session twice over.
+            # ROI features were not disk-cached before 11-07, so this step paid ~19 s a session twice over.
             # WIDEFIELD_FROZEN_JOBS > 1 also fans the units over cores; serial (1) is the default
             # because the workers' pinned BLAS can move an lbfgs fit -- see `frozen_pairs`.
             jobs = int(os.environ.get("WIDEFIELD_FROZEN_JOBS", "1") or 1)

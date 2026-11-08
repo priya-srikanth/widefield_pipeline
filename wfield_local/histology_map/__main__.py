@@ -3,7 +3,7 @@
     # 1. where the scans are (Mac / rig): crop every section at level 3
     python -m wfield_local.histology_map jobs --cohort PS92-95 > jobs.json
     python -m wfield_local.histology_map.ets jobs.json <crops_dir> 3
-    # 2. standardise + Claude's suggestion + painter page (writes the transforms into sections.json)
+    # 2. standardize + Claude's suggestion + painter page (writes the transforms into sections.json)
     python -m wfield_local.histology_map prepare --cohort PS92-95 --painter-html painter.html
     # 3. after painting: copy masks from the painter's database into configs/histology_map/<cohort>/masks/
     # 4. AP levels into sections.json (priya_figures), then fit + figures
@@ -128,7 +128,7 @@ def main(argv=None):
         p.add_argument("--crops"); p.add_argument("--qupath"); p.add_argument("--plates")
         p.add_argument("--out"); p.add_argument("--painter-html")
         p.add_argument("--style", choices=("filled", "outline"), default="filled",
-                       help="schematic: translucent fills, or coloured outlines only (interpolated levels dashed)")
+                       help="schematic: translucent fills, or colored outlines only (interpolated levels dashed)")
     a = ap.parse_args(argv); a.fn(a)
 
 

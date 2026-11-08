@@ -353,6 +353,6 @@ def test_the_engaged_rule_has_exactly_one_implementation():
         expected = "engaged" if is_engaged(1.0, rt, 2.0) else None
         got = nd.category_for_rt(rt, 2.0, 3.5)
         if expected:
-            assert got == "engaged", f"rt={rt}: decoder says engaged, categoriser says {got}"
+            assert got == "engaged", f"rt={rt}: decoder says engaged, categorizer says {got}"
         else:
-            assert got != "engaged", f"rt={rt}: decoder says not engaged, categoriser says engaged"
+            assert got != "engaged", f"rt={rt}: decoder says not engaged, categorizer says engaged"

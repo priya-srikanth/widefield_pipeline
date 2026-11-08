@@ -4,14 +4,14 @@
     python -m wfield_local.lp_labels clean  <lp_dir>/CollectedData.csv     # in place; keeps a .bak copy
 
 THE EXPORT ROUTE (unchanged since 2026-09-28): `litpose convert` on DLC's TRAINING copy
-(`dlc_train.train_project`, built by `dlc_train.stage`) -- never the labelling project. Since 2026-09-30
+(`dlc_train.train_project`, built by `dlc_train.stage`) -- never the labeling project. Since 2026-09-30
 `stage` drops all-blank rows (`dlc_train.drop_unlabelled`), so a conversion from the training copy is
 already clean. `clean` makes that a property of the LP file itself rather than of where it was converted
 from: run it on every new LP label file, and `audit` reports whether it was needed.
 
 WHY IT MATTERS MORE FOR LP THAN IT USED TO. Under `training.uniform_heatmaps_for_nan_keypoints: true` (on since
 2026-09-30, the occlusion fix) every blank keypoint is trained toward a flat heatmap = "not visible". An
-all-blank row -- a CONTEXT frame nobody labelled (`dlc_context_frames`, `dlc_hard_frames`), or the empty row
+all-blank row -- a CONTEXT frame nobody labeled (`dlc_context_frames`, `dlc_hard_frames`), or the empty row
 napari can leave behind -- would teach "nose, jaw, tongue and spout all hidden" on an ordinary frame. Before
 the occlusion fix LP simply ignored blanks, so such a row was harmless; now it is not.
 

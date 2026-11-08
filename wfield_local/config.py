@@ -64,7 +64,7 @@ def cohort() -> str:
     """The ACTIVE cohort's name (``WIDEFIELD_COHORT``, else cohorts.yaml `default` = cohort1).
 
     Every animal / session / pooled set in this module is the active cohort's ONLY: cohort1 (PS92-95) and
-    cohort2 (PS118, PS120-122) are never pooled. To analyse another cohort set ``WIDEFIELD_COHORT``.
+    cohort2 (PS118, PS120-122) are never pooled. To analyze another cohort set ``WIDEFIELD_COHORT``.
     """
     return _paths.active_cohort()
 
@@ -379,7 +379,7 @@ def curated_dates(machine: str | None = None, phase: str = "pre") -> list[str]:
     every night was pre-stroke; the moment a lesion exists it becomes a live hazard, because this
     list feeds the joint bases, the frozen decoder's training pool and the no-lick reference. With
     any `stroke_date` set, ``phase="pre"`` (the DEFAULT) returns only dates up to and including the
-    cutoff, ``phase="post"`` only dates after it, and ``phase="all"`` the old behaviour. While the
+    cutoff, ``phase="post"`` only dates after it, and ``phase="all"`` the old behavior. While the
     whole cohort is pre-stroke nothing changes.
 
     This is the ONLY curated-set accessor. A static ``date_policy.cross_session`` list used to sit
@@ -424,8 +424,8 @@ def epoch_spec(animal: str | None = None):
     animal's dict when `animal` is given.
 
     `acute` and `subacute_from` ARE THE SOURCE. `chronic_from` is a last-resort seed: it is derived
-    from behaviour each nightly run and published to `epoch_boundaries.json`, and this value applies
-    only when pinned or when no artifact exists (a fresh clone). A crashed or behaviour-less run
+    from behavior each nightly run and published to `epoch_boundaries.json`, and this value applies
+    only when pinned or when no artifact exists (a fresh clone). A crashed or behavior-less run
     uses the last DERIVED file. See `wfield_local.epochs` for the full precedence.
 
     `acute` becomes a TUPLE. YAML gives a list, and `epoch_of` compares it against stored specs and
@@ -515,7 +515,7 @@ def pre_from() -> str | None:
 
     Unset (the default) changes nothing. Set (e.g. ``0801``), every pre-stroke session dated before it is
     ``'excluded'`` -- out of every pooled set, frozen-model training set and epoch pool, and not scored as post
-    either. Why: behaviour shows the animals were still learning in June (close-spout contact 0.5 -> 0.97 June ->
+    either. Why: behavior shows the animals were still learning in June (close-spout contact 0.5 -> 0.97 June ->
     August; lick kinematics changed as much as many stroke effects), so a June + August baseline can mix learning
     / drift into post-stroke changes. A new training set gets a new frozen-model spec_id (rule 10: the canonical
     models are untouched). `epoch_audit.full_cohort` SUSPENDS it: epoch boundaries are derived from the full pre
@@ -582,10 +582,10 @@ def apply_pre_from(value: str | None) -> str | None:
 
 def require_full_pre(what: str) -> None:
     """Raise when WIDEFIELD_PRE_FROM is set: for analyses that NEED the June pre sessions (the June vs August drift
-    decoder, 12.1b lick-free rest), kept as labelled June + August sensitivities (rebuild 2026-11-03)."""
+    decoder, 12.1b lick-free rest), kept as labeled June + August sensitivities (rebuild 2026-11-03)."""
     global _FULL_PRE_CHOSEN
     if pre_from():
-        raise SystemExit(f"{what} needs the June pre sessions (June + August sensitivity, labelled as such): unset "
+        raise SystemExit(f"{what} needs the June pre sessions (June + August sensitivity, labeled as such): unset "
                          "WIDEFIELD_PRE_FROM / drop --pre-from for this block")
     _FULL_PRE_CHOSEN = True
 
@@ -702,7 +702,7 @@ def lick_min_ili_s() -> float:
 
 
 def lick_detector() -> dict:
-    """THE DAQ lick detector (Priya 11-04/05: imaging uses the BEHAVIOUR detector everywhere; REBUILD_CODE 8.53).
+    """THE DAQ lick detector (Priya 11-04/05: imaging uses the BEHAVIOR detector everywhere; REBUILD_CODE 8.53).
 
     From `defaults.yaml lick_detection`: ``thresh_upper`` (onset, V), ``thresh_lower`` (offset, V), ``lockout_s`` (the
     falling-edge lockout), ``refractory_s`` = 0.0 (no bout-collapse refractory -- the old imaging 0.10 s dropped real

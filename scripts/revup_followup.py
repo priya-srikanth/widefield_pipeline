@@ -1,4 +1,4 @@
-"""REV-UP FOLLOW-UPS (Priya 10-29): (A) reconcile the LATE first licks between the behaviour and neural rev-up analyses;
+"""REV-UP FOLLOW-UPS (Priya 10-29): (A) reconcile the LATE first licks between the behavior and neural rev-up analyses;
 (B) jaw "ramping" energy before the first lick. Reads revup_behaviour's / revup_neural's outputs; adds files, overwrites
 none of theirs.
 
@@ -519,10 +519,10 @@ def plots() -> None:
     bot = rb._leg_below(fig, [plt.Line2D([], [], marker="o", ls="", color=EC[e], label=f"{e} (pooled, boot CI)")
                               for e in EP4] + [plt.Line2D([], [], marker="o", ls="", ms=4, color="0.5",
                                                           label="per-animal mean")], fontsize=9)
-    top = rb._sup(fig, "Fig J3. Jaw 'revving' metrics, session contrasts: pooled level (nested boot CI, colours = epochs) "
-                       "+ per-animal means (grey). gt1-0.5to1 = first lick >1 s minus 0.5-1 s (both wait >= 0.5 s); "
+    top = rb._sup(fig, "Fig J3. Jaw 'revving' metrics, session contrasts: pooled level (nested boot CI, colors = epochs) "
+                       "+ per-animal means (gray). gt1-0.5to1 = first lick >1 s minus 0.5-1 s (both wait >= 0.5 s); "
                        "Q4 jaw_rev = slowest-quartile wait ME minus that trial's pre-cue ME (>0 = revving, <=0 = quiet "
-                       "wait); Q4-Q1 = slowest minus fastest quartile, lick-aligned. BEHAVIOUR", fontsize=9)
+                       "wait); Q4-Q1 = slowest minus fastest quartile, lick-aligned. BEHAVIOR", fontsize=9)
     fig.tight_layout(rect=(0, bot, 1, top))
     save_png_svg(fig, FIG / "revup_jaw_metrics.png", dpi=110)
     plt.close(fig)
@@ -568,7 +568,7 @@ def plots() -> None:
                       "mostly follow licked trials -> high rate). Bottom: within 1 s of the spout leaving vs the plateau "
                       "hazard of the SAME trials 1.5 s on (spontaneous licking with the spout gone)."
                       + (" 'neural' = revup_neural's trial set (= the attempted gate)." if len(gates) > 1 else "")
-                      + " BEHAVIOUR", fontsize=9)
+                      + " BEHAVIOR", fontsize=9)
         fig.tight_layout(rect=(0, bot, 1, top), h_pad=1.5)
         save_png_svg(fig, FIG / f"{stem}.png", dpi=110)
         plt.close(fig)

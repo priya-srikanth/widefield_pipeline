@@ -92,8 +92,8 @@ PARTS = ("target", "executed")
 
 
 def figures(run, a, meta, maps, mask) -> None:
-    """(1) LEVELS per epoch, (2) CHANGES vs pre with significance, (3) PER ANIMAL with each animal's own colour bar.
-    Means across animals use ANIMAL-NORMALISED maps (each animal / its own pre-stroke 99th percentile over spouts of that
+    """(1) LEVELS per epoch, (2) CHANGES vs pre with significance, (3) PER ANIMAL with each animal's own color bar.
+    Means across animals use ANIMAL-NORMALIZED maps (each animal / its own pre-stroke 99th percentile over spouts of that
     part), so one animal cannot set the picture (PS94's target unique is ~10x the others'); tests use the raw maps."""
     import matplotlib.pyplot as plt
 
@@ -130,7 +130,7 @@ def figures(run, a, meta, maps, mask) -> None:
         for an in sorted(meta.animal.unique()):
             st = [lev[(name, "pre", q)][an] for q in POS_ORDER if an in lev[(name, "pre", q)]]
             scale[(name, an)] = np.nanpercentile(np.stack(st), 99) if st else np.nan
-    print("normalising scales (99th pct of pre level):", {k: f"{v:.4f}" for k, v in scale.items()}, flush=True)
+    print("normalizing scales (99th pct of pre level):", {k: f"{v:.4f}" for k, v in scale.items()}, flush=True)
 
     def nmean(name, ep, q, minus_pre=False):
         out = []
@@ -171,7 +171,7 @@ def figures(run, a, meta, maps, mask) -> None:
                     cb.ax.tick_params(labelsize=6)
                     cb.set_label("x animal's pre scale", fontsize=6)
     title(fig, f"NEURAL: PER-SPOUT UNIQUE R2 LEVELS by epoch, TARGET (top 4 rows) vs EXECUTED (bottom 4), frozen pixel run {a.tag} "
-               f"(base {a.base}; each spout's own trials). Mean of 4 animals after normalising each animal by its own pre-stroke "
+               f"(base {a.base}; each spout's own trials). Mean of 4 animals after normalizing each animal by its own pre-stroke "
                "99th percentile (so one animal cannot dominate); one scale per part, so epochs compare directly. Canonical spout "
                "order. Image left = ipsilesional.")
     fig.subplots_adjust(left=0.05, right=0.97, top=0.93, bottom=0.02, wspace=0.06, hspace=0.1)
@@ -218,7 +218,7 @@ def figures(run, a, meta, maps, mask) -> None:
     S.to_csv(run / "spout_unique_sig.csv", index=False)
     print(S.to_string(index=False), flush=True)
     title(fig, f"NEURAL: PER-SPOUT UNIQUE R2 CHANGES, TARGET vs EXECUTED, frozen pixel run {a.tag}: epoch - pre within animal, "
-               "animal-normalised mean (x each animal's pre scale). Contours = significant 16 px bins on the RAW maps (nested "
+               "animal-normalized mean (x each animal's pre scale). Contours = significant 16 px bins on the RAW maps (nested "
                f"bootstrap animals > sessions, {correction_label()}); corner = bins up / down. Canonical spout order. Image left = ipsilesional.")
     fig.subplots_adjust(left=0.05, right=0.97, top=0.9, bottom=0.02, wspace=0.06, hspace=0.12)
     save_png_svg(fig, run / "figures" / "spout_unique_maps.png", dpi=105)
@@ -264,7 +264,7 @@ def figures(run, a, meta, maps, mask) -> None:
                         cb.ax.tick_params(labelsize=6)
                         cb.set_label("unique R2", fontsize=6)
         title(fig, f"NEURAL: PER-SPOUT {name.upper()} UNIQUE R2 per ANIMAL, pre and chronic levels (frozen pixel run {a.tag}, base "
-                   f"{a.base}). One colour scale per animal (pre and chronic share it; colour bar at right of each row) -- read "
+                   f"{a.base}). One color scale per animal (pre and chronic share it; color bar at right of each row) -- read "
                    "magnitudes from the bars: animals differ ~10x. Chronic panels: outlines = 16 px bins where THIS animal's chronic sessions differ from its pre sessions (Welch t, Bonferroni; red up, blue down; secondary view). Canonical spout order. Image left = ipsilesional.")
         fig.subplots_adjust(left=0.05, right=0.96, top=0.94, bottom=0.02, wspace=0.06, hspace=0.12)
         save_png_svg(fig, run / "figures" / f"spout_unique_per_animal_{name}.png", dpi=95)

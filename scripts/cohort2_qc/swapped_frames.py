@@ -7,7 +7,7 @@ LED's image. In cortex-mean dF/F a swapped frame jumps by F_other / F_own - 1, w
     PS121 415 +94% (swap predicts +114%), 470 -54% (-53%); PS122 +56% (+54%), -38% (-35%); PS120 +19%/-13%
     (+13%/-11%); PS118 ~1% (415 and 470 equally bright, so a swap is invisible in brightness).
 
-They are not at the frame map's parity jumps, not motion (motion_correction_shifts), not locked to behaviour events.
+They are not at the frame map's parity jumps, not motion (motion_correction_shifts), not locked to behavior events.
 Under 0.3% of frames, but in RiboL1 they carry ~97% of the 415 fast-band variance, so the 0.1-14 Hz hpfit coefficient
 collapses (cortex-mean slope 0.10 / 0.43). Interpolated out, the RiboL1 415 behaves as isosbestic: heartbeat
 coherence 0.97, r 0.85-0.90, slope ~2.2. Prints per session: swapped-frame counts / amplitudes vs the swap prediction,

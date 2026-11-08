@@ -65,7 +65,7 @@ def plot(D: dict) -> None:
             if j == 0:
                 ax.set_ylabel(f"{a}\n{sp.replace('_', ' ')}", fontsize=8.5)
     fig.suptitle("NEURAL: per-ANIMAL one-vs-rest Haufe maps for far contra and close contra (cued licks),\nmean of "
-                 "held-out per-session maps, / the animal's pre RMS for the spout; one colour scale per row.\nr to pre = "
+                 "held-out per-session maps, / the animal's pre RMS for the spout; one color scale per row.\nr to pre = "
                  "pixel "
                  "correlation with the animal's own pre map. ipsi (lesion) = image LEFT. PROVISIONAL", fontsize=9)
     fig.tight_layout(rect=(0, 0, 1, 1 - 0.55 / fig.get_size_inches()[1]))

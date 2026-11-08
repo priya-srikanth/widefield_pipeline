@@ -24,7 +24,7 @@ data rather than styling:
     n_comparisons                      the Bonferroni divisor. `write_values` stores the MARK but
                                        not what it was corrected against, so a reader could see
                                        `**` with no way to check the correction.
-    vmin / vmax / unit                 a matrix panel's scale. The same array under two colour
+    vmin / vmax / unit                 a matrix panel's scale. The same array under two color
                                        limits makes opposite visual claims.
 
 So this file is not a convenience: without it a regenerated figure would carry the right bars and be

@@ -34,7 +34,7 @@ bottom of this table and walk up only as far as you need.
 | [09-16](STATUS_2026-09-16.md) | 522 | the engagement-gate audit and the `restdock05` migration. **Cited most often**; `CLAUDE.md` points here | 09-17, for everything after the rest-arm audit |
 | [09-17](STATUS_2026-09-17.md) | 1,145 | the rest-arm audit and what followed it | — |
 | [09-19](STATUS_2026-09-19.md) | 254 | **the 415 nm day** and the engagement decomposition | 09-20 |
-| [09-20](STATUS_2026-09-20.md) | 127 | haemodynamics closed, engagement standing, loops parallelised | — |
+| [09-20](STATUS_2026-09-20.md) | 127 | hemodynamics closed, engagement standing, loops parallelized | — |
 | [09-21 engineering](STATUS_2026-09-21_ENGINEERING.md) | 258 | **the codebase-quality plan** — module splits, output-tree restructure, the archive pass. Sections 2.1–2.5 | — |
 
 ---
@@ -74,9 +74,9 @@ One line per markdown file in this directory: the date in its name and its first
 | 11-04 | [G4_CAMCLASS_MIXSHIFT_2026-11-04.md](G4_CAMCLASS_MIXSHIFT_2026-11-04.md) | G4 by camera class + mix-shift test of the state-discriminator frame (2026-11-04) |
 | 11-04 | [CUE70_CHECK_2026-11-04.md](CUE70_CHECK_2026-11-04.md) | Cue + 70 ms contact floor: is 70 ms right? (2026-11-04) |
 | 11-04 | [CODE_REVIEW_2026-11-04.md](CODE_REVIEW_2026-11-04.md) | Code review of `widefield_pipeline` (main at fc09de78, 2026-11-04) |
-| 11-04 | [CENTRE_MIXSHIFT_2026-11-04.md](CENTRE_MIXSHIFT_2026-11-04.md) | Which rows should set the scoring centre? Spout decoder and C projections (2026-11-04) |
+| 11-04 | [CENTRE_MIXSHIFT_2026-11-04.md](CENTRE_MIXSHIFT_2026-11-04.md) | Which rows should set the scoring center? Spout decoder and C projections (2026-11-04) |
 | 11-03 | [STATUS_2026-11-03_TRIAL_GATES_S1_TABLE_HANDOFF.md](STATUS_2026-11-03_TRIAL_GATES_S1_TABLE_HANDOFF.md) | Handoff 2026-11-03 — camera trial gates, jaw-only / incomplete figures, imaging section 1 table (window 5b) |
-| 11-03 | [STATUS_2026-11-03_KINEMATICS_PAGE_REPO_AUDIT_HANDOFF.md](STATUS_2026-11-03_KINEMATICS_PAGE_REPO_AUDIT_HANDOFF.md) | Handoff 2026-11-03 — kinematics page (behaviour split) + repo consolidation audit |
+| 11-03 | [STATUS_2026-11-03_KINEMATICS_PAGE_REPO_AUDIT_HANDOFF.md](STATUS_2026-11-03_KINEMATICS_PAGE_REPO_AUDIT_HANDOFF.md) | Handoff 2026-11-03 — kinematics page (behavior split) + repo consolidation audit |
 | 11-03 | [STATE_BALEM_PAGE_EDITS_2026-11-03.md](STATE_BALEM_PAGE_EDITS_2026-11-03.md) | Imaging page, section 3: edits for the bal_em production state decoder (2026-11-03) |
 | 11-03 | [SPOUT_BALEM_PAGE_EDITS_2026-11-03.md](SPOUT_BALEM_PAGE_EDITS_2026-11-03.md) | Spout-position decoder on bal_em: results-page edits (2026-11-03) |
 | 11-03 | [RUNNING_LIST_2026-11-03_AWAY.md](RUNNING_LIST_2026-11-03_AWAY.md) | Running list, 2026-11-03 (Priya away) -> overnight into 11-04, PI-deck window (sabatinilab-a8) |
@@ -87,7 +87,7 @@ One line per markdown file in this directory: the date in its name and its first
 | 11-03 | [JAW_ONLY_CHECKS_2026-11-03.md](JAW_ONLY_CHECKS_2026-11-03.md) | Jaw-only trials in "working"? — checks, 2026-11-03 |
 | 11-03 | [FIGURE_RULES_AUDIT_2026-11-03.md](FIGURE_RULES_AUDIT_2026-11-03.md) | Figure rules audit, 2026-11-03 |
 | 11-03 | [DECK_AUDIT_2026-11-03.md](DECK_AUDIT_2026-11-03.md) | PI deck audit, 2026-11-03 |
-| 11-03 | [A3_LMM_SLOPE_STARS_2026-11-03.md](A3_LMM_SLOPE_STARS_2026-11-03.md) | A3 star rule: random-slope LMM on the 21 behaviour stars (2026-11-03) |
+| 11-03 | [A3_LMM_SLOPE_STARS_2026-11-03.md](A3_LMM_SLOPE_STARS_2026-11-03.md) | A3 star rule: random-slope LMM on the 21 behavior stars (2026-11-03) |
 | 11-02 | [RUNNING_LIST_2026-11-02_OVERNIGHT.md](RUNNING_LIST_2026-11-02_OVERNIGHT.md) | Running list — overnight 2026-11-02 → 11-03 (Priya: "go ahead with all that you can without me overnight. keep handoff updated and a running list o... |
 | 11-01 | [STATUS_2026-11-01_QUIET_EVENTS_HANDOFF.md](STATUS_2026-11-01_QUIET_EVENTS_HANDOFF.md) | Handoff 2026-11-01: quiet-period cortical events after the VLS stroke (cohort1, PS92-95) + literature context |
 | 11-01 | [RUNNING_LIST_2026-11-01_QUIET_EVENTS.md](RUNNING_LIST_2026-11-01_QUIET_EVENTS.md) | Running list 2026-11-01: quiet-period cortical events, hypothesis tests (cohort1 PS92-95) |
@@ -111,7 +111,7 @@ One line per markdown file in this directory: the date in its name and its first
 | 10-18 | [STATUS_2026-10-18_OROFACIAL_W2_ENCODING_HANDOFF.md](STATUS_2026-10-18_OROFACIAL_W2_ENCODING_HANDOFF.md) | Handoff — 2026-10-18: cam4 orofacial cohort, W2, baselines, imaging sensitivity, Musall-style encoding model |
 | 10-18 | [STATUS_2026-10-18_EVENING_V36_BASELINE_ENCODING_HANDOFF.md](STATUS_2026-10-18_EVENING_V36_BASELINE_ENCODING_HANDOFF.md) | Handoff — 2026-10-18 evening: LP run v36, August-only baseline, encoding-model redesign, maps / ME in flight |
 | 10-18 | [STATUS_2026-10-18_CAM1_ROUND2_3D_HANDOFF.md](STATUS_2026-10-18_CAM1_ROUND2_3D_HANDOFF.md) | Handoff — 2026-10-18: cam1 round-2 retrain, cam1 clean traces, the 3-D apparatus mouth, cam4 eps35 |
-| 10-16 | [STATUS_2026-10-16_O2_PRODUCTION_OUTPUTS_HANDOFF.md](STATUS_2026-10-16_O2_PRODUCTION_OUTPUTS_HANDOFF.md) | Handoff — 2026-10-15 late / 10-16: LP r4 production on O2, organised orofacial outputs, split-session fixes |
+| 10-16 | [STATUS_2026-10-16_O2_PRODUCTION_OUTPUTS_HANDOFF.md](STATUS_2026-10-16_O2_PRODUCTION_OUTPUTS_HANDOFF.md) | Handoff — 2026-10-15 late / 10-16: LP r4 production on O2, organized orofacial outputs, split-session fixes |
 | 10-15 | [STATUS_2026-10-15_JAW_CLEANING_MODEL_CHOICE_HANDOFF.md](STATUS_2026-10-15_JAW_CLEANING_MODEL_CHOICE_HANDOFF.md) | Handoff — 2026-10-15 (morning): jaw cleaning v35, jaw lateral readout across the cohort, LP r4 ctx-semi scored, jaw-source choice |
 | 10-14 | [STATUS_2026-10-14_POSE_MODELS_HANDOFF.md](STATUS_2026-10-14_POSE_MODELS_HANDOFF.md) | Handoff — 2026-10-14 (late morning): cam4 pose-model selection (DLC / LP x round 3 / 4, temporal-context LP, EKS, human lick review), side-camera l... |
 | 10-13 | [STATUS_2026-10-13_ENL_TRAJECTORY_TRACKING_R4_HANDOFF.md](STATUS_2026-10-13_ENL_TRAJECTORY_TRACKING_R4_HANDOFF.md) | Handoff — 2026-10-13: movement-removed ENL trajectory (118 sessions), null/potent closed, cam4 round 4 (DLC + LP, temporal-context LP), camera temp... |
@@ -119,16 +119,16 @@ One line per markdown file in this directory: the date in its name and its first
 | 10-07 | [STATUS_2026-10-07_CHRONIC_STABILITY_COHORT_COMPLETE.md](STATUS_2026-10-07_CHRONIC_STABILITY_COHORT_COMPLETE.md) | STATUS — 2026-10-07: Chronic neural stability → cohort imaging COMPLETE (PS92/PS93/PS94/PS95) |
 | 10-06 | [STATUS_2026-10-06_FULLSESSION_MOVEMENT_HANDOFF.md](STATUS_2026-10-06_FULLSESSION_MOVEMENT_HANDOFF.md) | Handoff — 2026-10-06: first whole-session (O2) analyses, movement-model upgrades, contact classes, video regressors |
 | 10-05 | [STATUS_2026-10-05_IMAGING_MOVEMENT_HANDOFF.md](STATUS_2026-10-05_IMAGING_MOVEMENT_HANDOFF.md) | Handoff — 2026-10-05: orofacial data in the widefield analyses (movement encoding, residual position coding, executed angle), O2 port |
-| 10-05 | [STATUS_2026-10-05_CAM1_LP_EKS_O2_HANDOFF.md](STATUS_2026-10-05_CAM1_LP_EKS_O2_HANDOFF.md) | Handoff — 2026-10-05 (evening): cam1 DLC + LP, cam1 labelling round 2, 3-D spout frame, multi-camera EKS, first O2 run |
+| 10-05 | [STATUS_2026-10-05_CAM1_LP_EKS_O2_HANDOFF.md](STATUS_2026-10-05_CAM1_LP_EKS_O2_HANDOFF.md) | Handoff — 2026-10-05 (evening): cam1 DLC + LP, cam1 labeling round 2, 3-D spout frame, multi-camera EKS, first O2 run |
 | 10-02 | [STATUS_2026-10-02_SESSIONS_REACH_O2_HANDOFF.md](STATUS_2026-10-02_SESSIONS_REACH_O2_HANDOFF.md) | Handoff — 2026-10-02: session-level kinematics (PS93 pre / acute / chronic), lick phase, reach measures, O2 |
 | 10-01 | [STATUS_2026-10-01_KINEMATICS_HANDOFF.md](STATUS_2026-10-01_KINEMATICS_HANDOFF.md) | Handoff — 2026-10-01: clean traces, spout reference frame, tongue/jaw kinematics port, first QC on our data |
 | 09-30 | [STATUS_2026-09-30_LP_OCCLUSION_ROUND4_HANDOFF.md](STATUS_2026-09-30_LP_OCCLUSION_ROUND4_HANDOFF.md) | > **2026-10-01:** kinematics work continues in `STATUS_2026-10-01_KINEMATICS_HANDOFF.md`; this doc remains the |
-| 09-28 | [STATUS_2026-09-28_DLC_LIGHTNING_POSE_HANDOFF.md](STATUS_2026-09-28_DLC_LIGHTNING_POSE_HANDOFF.md) | Handoff — cam4 orofacial tracking: DLC round 3 in use; Lightning Pose (KL) training in WSL2; cam1 labelling under way |
+| 09-28 | [STATUS_2026-09-28_DLC_LIGHTNING_POSE_HANDOFF.md](STATUS_2026-09-28_DLC_LIGHTNING_POSE_HANDOFF.md) | Handoff — cam4 orofacial tracking: DLC round 3 in use; Lightning Pose (KL) training in WSL2; cam1 labeling under way |
 | 09-28 | [STATUS_2026-09-28_CHRONIC_STABILITY.md](STATUS_2026-09-28_CHRONIC_STABILITY.md) | Is the chronic neural data stable? — per-session, per-animal, per-readout (2026-09-28) |
 | 09-24 | [STATUS_2026-09-24_ENL_SENSORY_VS_PLAN.md](STATUS_2026-09-24_ENL_SENSORY_VS_PLAN.md) | ENL sensory-vs-plan — status and handoff (2026-09-24) |
 | 09-24 | [STATUS_2026-09-24_CD_TRAJECTORIES.md](STATUS_2026-09-24_CD_TRAJECTORIES.md) | CD trajectories — status and handoff (2026-09-24) |
 | 09-21 | [STATUS_2026-09-21_ENGINEERING.md](STATUS_2026-09-21_ENGINEERING.md) | HANDOFF 2026-09-21 — codebase quality: efficient, modular, readable, editable |
-| 09-20 | [STATUS_2026-09-20.md](STATUS_2026-09-20.md) | STATUS 2026-09-20 — haemodynamics closed, engagement standing, loops parallelised |
+| 09-20 | [STATUS_2026-09-20.md](STATUS_2026-09-20.md) | STATUS 2026-09-20 — hemodynamics closed, engagement standing, loops parallelized |
 | 09-19 | [STATUS_2026-09-19.md](STATUS_2026-09-19.md) | STATUS 2026-09-19 — the 415 nm day, and the engagement decomposition |
 | 09-17 | [STATUS_2026-09-17.md](STATUS_2026-09-17.md) | STATUS 2026-09-17 — START HERE |
 | 09-16 | [STATUS_2026-09-16.md](STATUS_2026-09-16.md) | STATUS 2026-09-16 / 17 — START HERE |

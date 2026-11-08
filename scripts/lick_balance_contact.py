@@ -286,7 +286,7 @@ def plot(D, S, E, AR, M) -> None:
     m = D[~D.contact].t_next_contact.clip(upper=1.5)
     ax.hist(m.dropna(), bins=np.arange(0, 1.55, 0.025), color=ccol["miss"])
     ax.axvspan(*WIN, color="0.85", zorder=0)
-    ax.set_xlabel("missed first lick: time to the next spout-contact lick (s; grey = balance window)", fontsize=8)
+    ax.set_xlabel("missed first lick: time to the next spout-contact lick (s; gray = balance window)", fontsize=8)
     ax.set_title(f"misses: median {m.median():.2f} s to next contact; {np.mean(m <= STRICT_S):.0%} within {STRICT_S} s",
                  fontsize=9)
     ax = axs[1, 0]

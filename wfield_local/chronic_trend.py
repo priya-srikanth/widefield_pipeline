@@ -1,6 +1,6 @@
-"""IS THE NEURAL MEASURE STILL MOVING AFTER THE BEHAVIOUR HAS PLATEAUED?
+"""IS THE NEURAL MEASURE STILL MOVING AFTER THE BEHAVIOR HAS PLATEAUED?
 
-THE QUESTION (Priya, 2026-09-18). The chronic epoch is defined by BEHAVIOUR: it begins where
+THE QUESTION (Priya, 2026-09-18). The chronic epoch is defined by BEHAVIOR: it begins where
 far-contra hit rate stops changing, by the `epochs.CHRONIC_RULE` flat+settled test. Every claim we
 make about chronic neural change is therefore a claim about a window whose boundary a *different*
 measure drew. That leaves a question nobody has asked of this dataset: inside that window, has the
@@ -11,22 +11,22 @@ figures already answer. A persistent offset and an ongoing drift are indistingui
 single epoch-vs-pre contrast -- both show up as "chronic != pre". Separating them needs the trend
 WITHIN the chronic sessions, which is what this module measures.
 
-WHY IT MATTERS FOR WHAT WE SAY. "The cortical representation remains altered after behaviour has
-normalised" is supported by the epoch contrast. "The circuits remain PLASTIC after behavioural
+WHY IT MATTERS FOR WHAT WE SAY. "The cortical representation remains altered after behavior has
+normalized" is supported by the epoch contrast. "The circuits remain PLASTIC after behavioral
 recovery" is not -- that is a statement about continuing change, and it needs this test. The
 distinction was caught before it reached a grant (Priya, 2026-09-18: "we haven't looked for changes
 DURING the chronic period"), and this module exists so the stronger claim can be made or dropped on
 evidence.
 
-THE TEST IS DELIBERATELY THE BEHAVIOURAL ONE. We reuse `epochs._is_flat` and the same tolerances
+THE TEST IS DELIBERATELY THE BEHAVIORAL ONE. We reuse `epochs._is_flat` and the same tolerances
 (`CHRONIC_K_DRIFT` x pre-stroke SD for total fitted drift, `CHRONIC_K_RES` x pre-stroke SD for
 residual scatter) applied to the neural series, so the sentence the result licenses is exact: "by
-the same criterion that declared the behaviour plateaued, the neural measure has / has not." Any
+the same criterion that declared the behavior plateaued, the neural measure has / has not." Any
 other tolerance would invite the objection that the two were judged by different standards.
 
-Everything is normalised to that animal's own pre-stroke mean by `epochs._normalised_series`, which
+Everything is normalized to that animal's own pre-stroke mean by `epochs._normalised_series`, which
 is what makes a pre-stroke SD the right yardstick, and which works on any `{label: {position:
-value}}` table -- behavioural or neural. That shape is the module's only input contract.
+value}}` table -- behavioral or neural. That shape is the module's only input contract.
 
 WHAT THIS CANNOT DO, and say it before quoting a result:
   * The widefield cohort has TWO animals with a chronic epoch (PS92, PS93), each with a handful of
@@ -73,7 +73,7 @@ def chronic_trend(by_session, animal, position, *, chronic_from=None, seed=0):
     """Flat/settled test applied INSIDE one animal's chronic window, for one measure.
 
     ``by_session`` is ``{session_label: {position_name: value}}`` -- the same contract
-    `epochs.derive_chronic_boundaries` takes, so a neural table and a behavioural one are scored
+    `epochs.derive_chronic_boundaries` takes, so a neural table and a behavioral one are scored
     identically. Returns None when the animal has no chronic epoch or too few chronic sessions.
     """
     spec = epochs.EPOCH_SPEC.get(animal) or {}
@@ -207,14 +207,14 @@ def from_coding_direction(path, *, cls="poststroke_engaged", method="dom_orth"):
 
 
 def behaviour_tables(position=None):
-    """The behavioural hit-rate table the chronic boundary itself was drawn from, for comparison."""
+    """The behavioral hit-rate table the chronic boundary itself was drawn from, for comparison."""
     from wfield_local import epoch_audit
     hit, licks = epoch_audit.load_far_position_tables(position=position)
     tables = {}
     if hit:
-        tables["behaviour: hit rate"] = hit
+        tables["behavior: hit rate"] = hit
     if licks:
-        tables["behaviour: licks/trial"] = licks
+        tables["behavior: licks/trial"] = licks
     return tables
 
 
@@ -225,11 +225,11 @@ def main(argv=None):
                     help="override the chronic onset day for every animal (sensitivity check)")
     ap.add_argument("--csv", action="append", default=[],
                     metavar="NAME=PATH:VALUE_COL[:LABEL_COL[:POSITION_COL]]",
-                    help="add a neural measure from a session-labelled CSV")
+                    help="add a neural measure from a session-labeled CSV")
     ap.add_argument("--coding-direction", default=None,
                     help="path to coding_direction.json (adds the per-position coding measure)")
     ap.add_argument("--no-behaviour", action="store_true",
-                    help="skip the behavioural comparison series")
+                    help="skip the behavioral comparison series")
     ap.add_argument("--out", default=None, help="write results CSV here")
     a = ap.parse_args(argv)
 

@@ -99,7 +99,7 @@ def main() -> int:
                          f"tjM1 {rr[rr.roi == 'tjM1']['ratio_0.4'].mean():.2f} (mean of hemispheres)", fontsize=9)
             ax.axis("off")
             plt.colorbar(im, ax=ax, fraction=0.04, label="pre level (pattern / pre RMS)")
-    fig.suptitle("ALM (black) / tjM1 (green) ROIs = anterolateral 40 % of MOs / MOp (grey) over the PRE Haufe maps (mean of "
+    fig.suptitle("ALM (black) / tjM1 (green) ROIs = anterolateral 40 % of MOs / MOp (gray) over the PRE Haufe maps (mean of "
                  "animals, held-out epoch decoder).\nSign: orange = more active for contralesional (lateral) / longer "
                  "(sagittal) licks. ipsi (lesion) = image LEFT. PROVISIONAL", fontsize=9)
     save_png_svg(fig, il.OUT / "figures" / "lick_roi_check.png", dpi=100)

@@ -7,7 +7,7 @@ so the position SET varies by session (PS93 far contra missing in 5/7 August pre
 Stages (run from the wf_restnl worktree with the usual env prefix):
     python scripts/restnl_position_coverage.py collect --arm contact|lp|enl1s   # raw per-position maps -> scratch
     python scripts/restnl_position_coverage.py posmaps                          # U_atlas @ posmed per session -> scratch
-    python scripts/restnl_position_coverage.py analyse                          # tables -> OUT
+    python scripts/restnl_position_coverage.py analyze                          # tables -> OUT
 
 Read-only on M: and on the RESTnl cache. Maps are read through `position_reference_maps.maps_by_epoch` (warm `prm`
 caches, legacy digest pin as `restnl_maps.setup_env`). Writes: SCRATCH (intermediate maps, brain pixels only) and OUT

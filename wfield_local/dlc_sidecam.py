@@ -1,8 +1,8 @@
-"""Side-view (cam2 + cam3) labelling plan: ONE shared model, cam3 flipped left-right, four parts.
+"""Side-view (cam2 + cam3) labeling plan: ONE shared model, cam3 flipped left-right, four parts.
 
     conda activate locanmf
     python -m wfield_local.dlc_sidecam pairs --dry-run   # cam2/cam3 frames at the cam4 round-4 moments
-    python -m wfield_local.dlc_sidecam pairs             # extract + manifest + sync into the labelling project
+    python -m wfield_local.dlc_sidecam pairs             # extract + manifest + sync into the labeling project
     python -m wfield_local.dlc_context_frames cam2       # +-4 context around contact onset / end (and cam3)
     python -m wfield_local.dlc_sidecam jawseq [--dry-run] # jaw closed -> open runs in the unlabelled side folders
     python -m wfield_local.dlc_sidecam assign            # which camera labels which moment -> side_assignment.csv
@@ -12,7 +12,7 @@ WHY (Priya, 2026-10-13). Tracking stays nose / jaw / tongue / spout. The side vi
 jaw opening in profile with no spout rod across the chin (cam4's close positions make the jaw side-ambiguous --
 DECISIONS 2026-10-13 evening), and how far forward / down the tongue reaches (depth, close vs far). cam3 flipped
 left-right looks like cam2 (same facing, same treadmill layout; cam3 sits a little more frontal), so ONE model
-is trained on both, cam3 flipped at TRAINING / INFERENCE time. Labelling is on the raw images as recorded.
+is trained on both, cam3 flipped at TRAINING / INFERENCE time. Labeling is on the raw images as recorded.
 The four parts are midline or single structures, so flipping needs no left / right label swap.
 
 LABEL EACH MOMENT IN ONE SIDE CAMERA, NOT BOTH (Priya: "can we label fewer frames than doubling"). With a shared
@@ -25,10 +25,10 @@ CARRIED OVER FROM cam4 / cam1 (DECISIONS 2026-09-12, 2026-09-30, 2026-10-05):
   * SAME MOMENTS AS cam4. The side folders were extracted with `dlc.frames.anchor_cam: cam4`, so every side
     target is a moment cam4 also has; `pairs` adds the cam4 round-4 moments the same way (`dlc_hard_frames.
     matched_frames`, by DAQ time through each camera's alignment template).
-  * TARGET vs CONTEXT. Targets are labelled completely (blank = hidden); context frames are for scrubbing and stay
-    blank, or are labelled completely -- never partly. All-blank rows never reach training.
+  * TARGET vs CONTEXT. Targets are labeled completely (blank = hidden); context frames are for scrubbing and stay
+    blank, or are labeled completely -- never partly. All-blank rows never reach training.
   * Paired round-4 moments carry cam4's context bursts as plain context (Priya 2026-10-05, for cam1: "there for
-    context and do NOT need to be labeled"); cam4's suggested neighbours are not targets here.
+    context and do NOT need to be labeled"); cam4's suggested neighbors are not targets here.
 
 JAW SEQUENCES (`jawseq`, Priya 2026-11-04: "include some jaw-closed through jaw-open frames on cam2 & 3 (for better
 closed-jaw labeling; it's helpful for her to be able to see the jaw opening before / after it's closed to track the
@@ -38,7 +38,7 @@ positions) whose jaw was CLOSED at the cue and then OPENED (`jaw_onsets.csv`: ja
 60-1500 ms after the cue; close mid excluded, the chin is hidden there): a continuous run of `JAW_HALF` frames either
 side of the measured opening onset (DAQ time through the camera's alignment template), targets at
 `JAW_TARGET_FRAMES` (closed -48 / -16 ms, opening +16, open +48), the rest context to scroll. Category `JAW`, phase
-``jaw<ms>ms`` from onset. Each sequence is labelled in the camera it was extracted for (no cam2 / cam3 alternation:
+``jaw<ms>ms`` from onset. Each sequence is labeled in the camera it was extracted for (no cam2 / cam3 alternation:
 the other camera has no frames there), so `assign` lists JAW targets as they are and leaves every other row's
 assignment exactly as before.
 """
@@ -103,7 +103,7 @@ def assign(man: pd.DataFrame, overlap_every: int = OVERLAP_EVERY) -> pd.DataFram
 
 
 def pair_rows_side(rv=None) -> list[dict]:
-    """cam2 / cam3 frames at every cam4 round-4 row (targets and their context), re-labelled for the side
+    """cam2 / cam3 frames at every cam4 round-4 row (targets and their context), re-labeled for the side
     worksheet: round-4 picks -> ``side_round4`` (phase ``pair:<kind>``), everything else -> plain context."""
     from wfield_local import dlc_hard_frames as HF
     rv = rv or PathResolver()
@@ -141,7 +141,7 @@ def cmd_pairs(rv, dry: bool) -> int:
 
 
 def jaw_assignment(man: pd.DataFrame) -> pd.DataFrame:
-    """JAW targets as assignment rows: labelled in their own camera (``label`` True, ``both`` False)."""
+    """JAW targets as assignment rows: labeled in their own camera (``label`` True, ``both`` False)."""
     j = man[man.cam.isin(SIDE) & (man.category == JAW)]
     cols = ["animal", "date", "cam", "epoch", "video_stem", "image", "frame", "trial_id", "position", "category",
             "phase", "t_from_cue_s"]

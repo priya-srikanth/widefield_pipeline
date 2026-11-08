@@ -10,7 +10,7 @@ and CORRECTED (trials where cam1 saw the tongue in the quiet window removed from
 gate (`pose3d.failed_sessions`) are left out (the cam4 / 3-D match flags are unreliable there).
 
 Writes `session_poses/cam1_licks/incomplete/{sessions.csv, by_epoch.csv}` and `figures/incomplete_<animal>.png` (x =
-days from the stroke, June compressed at the left as in `pose3d_summary_fig`; grey = August pre range).
+days from the stroke, June compressed at the left as in `pose3d_summary_fig`; gray = August pre range).
 """
 from __future__ import annotations
 
@@ -102,7 +102,7 @@ def figure(S: pd.DataFrame, animal: str, path: Path) -> None:
                 ax.set_ylabel(lab, fontsize=7)
     for ax in axes[-1]:
         ax.set_xlabel("days from stroke", fontsize=7)
-    fig.suptitle(f"{animal}: incomplete licks and jaw-without-lick trials, cam4 + cam1 (droplets removed); grey = August "
+    fig.suptitle(f"{animal}: incomplete licks and jaw-without-lick trials, cam4 + cam1 (droplets removed); gray = August "
                  "pre range, dashed = its median; open = June", fontsize=9)
     fig.tight_layout(rect=(0, 0, 1, 0.97))
     fig.savefig(path, dpi=110)

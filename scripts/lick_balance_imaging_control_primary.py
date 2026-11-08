@@ -1,4 +1,4 @@
-"""Is the PRIMARY hemispheric balance an IMAGING artefact?  (10-28; redo of lick_balance_imaging_control on the primary)
+"""Is the PRIMARY hemispheric balance an IMAGING artifact?  (10-28; redo of lick_balance_imaging_control on the primary)
 
 lick_balance_imaging_control.py (page Fig 14.19) checked the RAW balance (X_right - X_left AUC). The primary recovery
 marker is now (lick_balance_subsets.py + lick_recovery_primary.py): the angle-matched GAIN RATIO
@@ -10,7 +10,7 @@ lick (trial_1), ITI = first ITI lick after >= 2 s quiet (iti_q). Session values 
 Same confounds as the raw-balance control, applied to THAT quantity:
  (1) F0 = mean of frames_average_atlas (raw counts) over each ROI's pixels, 470 (functional slot, per session) and 415;
      asymmetry f0_X = mean over the 5 pool areas of log2(F0_right / F0_left). dF/F = dF / F0, so a one-sided F0 change
-     scales that side's obs and NOT its pre-line prediction: pure artefact => d marker = - d f0_470. Checks: F0 asymmetry
+     scales that side's obs and NOT its pre-line prediction: pure artifact => d marker = - d f0_470. Checks: F0 asymmetry
      by epoch; within-animal regression marker ~ f0 (MixedLM within + between, per-animal r); the marker after undoing
      the F0 scaling (marker_dF = marker + (f0_470 - animal pre mean)) and after partialling the within-animal F0 slope
      (marker_part); the recovery link (per-animal r, LOAO cvR2, concurrent MixedLM y ~ w + b + log(day)) before / after.
@@ -311,7 +311,7 @@ def summarise() -> None:
               .reindex(index=MEAS, columns=POST).to_string())
         print("   per animal:\n" + t.set_index(["measure", "epoch"])[[f"d_{a}" for a in lrm.AN]]
               .reindex(MEAS, level=0).round(3).to_string())
-    print("\n== within-animal r / slope (marker ~ f0_470 asymmetry); artefact predicts slope -1\n"
+    print("\n== within-animal r / slope (marker ~ f0_470 asymmetry); artifact predicts slope -1\n"
           + W.pivot_table(index=["set", "sessions"], columns="animal", values=["r", "slope"]).round(2).to_string())
     print("\n== models (sessions as observations: anti-conservative)\n" + Mo.round(4).to_string(index=False))
     # ---- recovery link before / after
@@ -392,7 +392,7 @@ def figure(S: pd.DataFrame, C: pd.DataFrame, W: pd.DataFrame, L: pd.DataFrame) -
                 h = g[(g.animal == an) & (g.epoch == ep)]
                 ax.plot(h.d_f0_470, h.d_marker, ANIMAL_MARKER.get(an, "o"), color=ec[ep], ms=5, mec="k", mew=0.3)
         lim = np.nanmax(np.abs(g.d_f0_470)) * 1.1
-        ax.plot([-lim, lim], [lim, -lim], "k:", lw=1, label="pure F0 artefact (slope -1)")
+        ax.plot([-lim, lim], [lim, -lim], "k:", lw=1, label="pure F0 artifact (slope -1)")
         w = W[(W.set == st) & (W.sessions == "all")].set_index("animal")
         ax.set_title(f"({'cd'[c]}) {nm}: balance vs F0 asymmetry, change from animal's pre mean\nwithin-animal r "
                      + " / ".join(f"{w.r.get(a, np.nan):+.2f}" for a in lrm.AN), fontsize=9)
@@ -452,8 +452,8 @@ def figure(S: pd.DataFrame, C: pd.DataFrame, W: pd.DataFrame, L: pd.DataFrame) -
     h += [Line2D([], [], color="0.3", marker=ANIMAL_MARKER.get(a, "o"), lw=0, label=a) for a in lrm.AN]
     fig.legend(handles=h, loc="lower center", ncol=8, fontsize=8.5, frameon=False)
     fig.suptitle("Is the PRIMARY hemispheric balance (angle-matched gain ratio, ALM + tjM1 + SSp-m + SSp-n + SSs, 0.1-0.5 s "
-                 "after the first lick) an imaging artefact? right = contralesional\nF0 = mean raw fluorescence per ROI "
-                 "(470 / 415); pure F0 artefact predicts d balance = - d F0 asymmetry; 415 = isosbestic channel through "
+                 "after the first lick) an imaging artifact? right = contralesional\nF0 = mean raw fluorescence per ROI "
+                 "(470 / 415); pure F0 artifact predicts d balance = - d F0 asymmetry; 415 = isosbestic channel through "
                  "the same estimator; boot_delta animals > sessions", fontsize=11)
     fig.tight_layout(rect=(0, 0.03, 1, 0.95))
     out = il.OUT_W / "figures" / "balimg_primary_control.png"

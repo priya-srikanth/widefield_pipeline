@@ -9,7 +9,7 @@ is the same one, the LocaNMF basis is the same, and the animals keep running -- 
 pre-stroke session against 5.1% acutely and 6.3% subacutely, so there is MORE running data exactly
 where the position code collapses. If the same undamaged cortex still reports running normally while
 its report of lick target has changed, then the target deficit is specific, and the generic
-explanations a reviewer reaches for first -- window clouding, haemodynamic drift, arousal, basis
+explanations a reviewer reaches for first -- window clouding, hemodynamic drift, arousal, basis
 drift, "you cut a hole in the brain and everything got worse" -- are all ruled out at once, because
 every one of them would degrade the running readout too.
 
@@ -62,7 +62,7 @@ def sample_to_frame(s, samples):
 
 def segment_features(s, signal, events, *, fs_img, seg_s=ls.SEGMENT_S, bins=ls.SEGMENT_BINS,
                      cap=ls.MAX_SEGMENTS_PER_PERIOD, three_way=True, lick_mode="postcue"):
-    """``(X, y, period)`` for one session's behavioural-state segments.
+    """``(X, y, period)`` for one session's behavioral-state segments.
 
     ``three_way`` (the default) labels quiet / running / LICKING; False gives the binary
     running-vs-quiet arm. The binary one decodes at AUROC 0.99-1.00 within session -- a CEILING,

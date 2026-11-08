@@ -176,7 +176,7 @@ def cmd_fitcohort(sd: Path, task: int, inits: int = 8, rows_per_animal: int = 55
     merge the lick factors (PS95 subacute: lick_left spread over three own factors, best single column .74), and 16
     Hungarian matches per readout are 16 chances to mis-assign; the master itself is a cohort fit. Rows: the same
     ``rows_per_animal`` from every animal (drawn evenly over its sessions in the group, as `cmd_fitepoch`), each animal
-    divided by ITS OWN scale (the master's normalisation), so no animal dominates; PS95 acute (1 session) gives what it
+    divided by ITS OWN scale (the master's normalization), so no animal dominates; PS95 acute (1 session) gives what it
     has. preA / preB = every animal's alternating pre-day halves pooled -> their angle is the cohort noise floor."""
     pl = load_plan(sd)
     tag, g, by_animal = cohort_fit_tasks(pl)[task - 1]

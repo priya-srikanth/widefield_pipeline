@@ -6,14 +6,14 @@ Design + stability gate pre-registered in docs/status/MVAR_PREREG_20261030.md (w
     python scripts/mvar_regions.py fit   [labels ...]        # per session: nested-CV R2 (full vs AR-only), W, +-decade, halves
     python scripts/mvar_regions.py gate                      # stability gate on the AUGUST pre sessions, per animal
     python scripts/mvar_regions.py fixed                     # (only if the gate passed) fixed per-animal lambda / p, all sessions
-    python scripts/mvar_regions.py summarise                 # pre vs post S->M / M->S tables + boot_delta
+    python scripts/mvar_regions.py summarize                 # pre vs post S->M / M->S tables + boot_delta
     python scripts/mvar_regions.py plot | --plot-only        # figures from the saved figdata only
 
 DATA = `curbd_pilot.prep` variant "one" (cached in curbd_pilot/data/): 18 region means, held-out encoder residuals,
 engaged rows, 3-frame means. MODES: raw (primary); gsr (each region minus its regression on the mean of the other 17,
 fit on the session); dec (s = x + 0.6 s dx/dt within run, GCaMP6s).
 MODEL x_t = c + sum_l B_l x_{t-l}; ridge alpha = lambda * n_train; lambda grid 10^-5..10^1; p in 1..3; AR-only = diagonal
-B_l. W = sum_l B_l (standardised). Lagged samples never cross a run (trial) boundary; folds = contiguous blocks of runs.
+B_l. W = sum_l B_l (standardized). Lagged samples never cross a run (trial) boundary; folds = contiguous blocks of runs.
 """
 from __future__ import annotations
 
@@ -122,7 +122,7 @@ def blocks(rid, K) -> np.ndarray:
 
 # --------------------------------------------------------------------------------------------------------------- ridge
 class Fitter:
-    """Ridge fits on a training index set, standardised with the TRAINING statistics; all lambdas at once."""
+    """Ridge fits on a training index set, standardized with the TRAINING statistics; all lambdas at once."""
 
     def __init__(self, Y, L, tr):
         self.mu, self.sd = Y[tr].mean(0), Y[tr].std(0) + 1e-12
@@ -163,7 +163,7 @@ class Fitter:
         return outs
 
     def sse(self, idx, B, c, zt=None):
-        """SSE (standardised units) on samples idx, plus SS around the training mean and SS of the change.
+        """SSE (standardized units) on samples idx, plus SS around the training mean and SS of the change.
         ``zt`` = precomputed self.z(idx) (reused across the lambda grid)."""
         Yt, Lt = zt if zt is not None else self.z(idx)
         pred = c + sum(Lt[l] @ B[l].T for l in range(len(B)))
@@ -171,7 +171,7 @@ class Fitter:
 
 
 def choose(Y, L, rid, idx, kind, K=K_IN) -> tuple[float, int, np.ndarray]:
-    """(lambda, p) minimising blocked-CV SSE over samples idx (contiguous run blocks inside idx). Returns the SSE grid."""
+    """(lambda, p) minimizing blocked-CV SSE over samples idx (contiguous run blocks inside idx). Returns the SSE grid."""
     f = blocks(rid[idx], K)
     grid = np.zeros((len(PS), len(LAMS)))
     ii = np.flatnonzero(idx)
@@ -501,7 +501,7 @@ def plot() -> None:
     np.fill_diagonal(Mp, np.nan)
     v = np.nanmax(np.abs(Mp))
     im = ax[1].imshow(Mp, cmap="RdBu_r", vmin=-v, vmax=v)
-    plt.colorbar(im, ax=ax[1], fraction=0.046, label="W (lag-summed, standardised)")
+    plt.colorbar(im, ax=ax[1], fraction=0.046, label="W (lag-summed, standardized)")
     ax[1].set_xticks(range(NR), [short(r) for r in REGIONS], rotation=90, fontsize=6)
     ax[1].set_yticks(range(NR), [short(r) for r in REGIONS], fontsize=6)
     ax[1].set_xlabel("source")

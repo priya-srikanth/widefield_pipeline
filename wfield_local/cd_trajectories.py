@@ -14,7 +14,7 @@ WHY A SEPARATE DIRECTION HAS TO BE FITTED, AND WHY THAT IS NOT A COMPROMISE.
 `position_coding_directions` fits in (component x TIME SUB-BIN) space -- its own comment: "a
 direction is a weight per component PER MOMENT in the window", 90 x 4 = 360 for an ENL window. Such
 a vector CANNOT be applied to a single frame, and collapsing it would misrepresent what the
-sub-binned classifier learnt. More importantly, a direction with time structure and a trajectory are
+sub-binned classifier learned. More importantly, a direction with time structure and a trajectory are
 redundant: projecting frame t with weights fitted for a different moment is not a coherent readout.
 **A trajectory requires a time-INVARIANT direction**, so this module fits on the window MEAN
 (``bins=1``) and lets all the time structure live in the projection, which is the standard
@@ -32,8 +32,8 @@ is a fifth object beside them, in the spirit of that module's own note that "_or
 SAME construction with the engagement axis projected out. Kept as separate methods rather than
 replacing the originals, so both are on disk and comparable."
 
-THE DIRECTION IS DEFINED WHERE BEHAVIOUR IS INTACT: PRE-STROKE trials with a successful lick, P
-against not-P, matching `position_coding_directions` exactly. Pole-normalised so 0 = pre-stroke
+THE DIRECTION IS DEFINED WHERE BEHAVIOR IS INTACT: PRE-STROKE trials with a successful lick, P
+against not-P, matching `position_coding_directions` exactly. Pole-normalized so 0 = pre-stroke
 not-P and 1 = pre-stroke lick at P; every trajectory then reads as "fraction of the normal
 position-P signature" and is comparable across positions, animals and epochs.
 
@@ -50,7 +50,7 @@ WHAT EACH ALIGNMENT CAN AND CANNOT SAY -- inherited from `position_coding_direct
                 long and variable. Reporting a number with a caveat is defensible; drawing a
                 time course through it is not.
 
-AND THE ONE THING WIDEFIELD CANNOT DO THAT 2p CAN. The haemodynamic response is slow -- seconds
+AND THE ONE THING WIDEFIELD CANNOT DO THAT 2p CAN. The hemodynamic response is slow -- seconds
 wide -- so these trajectories are that kernel convolved with whatever the underlying signal is.
 Onset times, ramp slopes and the ORDER of two nearby events are NOT readable from them the way they
 are from a 2p CD trajectory. Read amplitude and gross time course; do not read timing.
@@ -70,7 +70,7 @@ of trial scatter:
 **A TIGHTER WINDOW IS WORSE**, monotonically and in both animals -- 1 s costs 28% of d' in PS92.
 `defaults.yaml` says "position information concentrates in the final second before the cue", but
 that is about where the cue-evoked INCREMENT lives relative to a baseline; it does not make a 1 s
-window a better direction. The pre-cue code is sustained and the haemodynamics are slow, so
+window a better direction. The pre-cue code is sustained and the hemodynamics are slow, so
 averaging more frames buys more than the extra second dilutes.
 
 **WIDER SCORES BETTER AND IS STILL REFUSED**, for two reasons. PS92 keeps only 458 of 3911 trials at
@@ -253,7 +253,7 @@ def component_stats(X):
 
 
 def smooth(v, fs, seconds=None, trailing=TRAILING):
-    """Boxcar over the CD time course. TRAILING by default, so a value at t summarises [t-w, t].
+    """Boxcar over the CD time course. TRAILING by default, so a value at t summarizes [t-w, t].
 
     Edges shrink the window rather than pad it, so a constant input stays constant everywhere and
     the ends are not dragged toward zero.
@@ -354,7 +354,7 @@ def condition_independent_modes(G, t, baseline=CIM_BASELINE, var=CIM_VAR, kmax=C
     K is chosen by variance explained (`CIM_VAR`) and capped (`CIM_KMAX`), from the SVD of the grand
     mean's deviation from its own pre-event baseline, so no interval or rank is hand-picked.
 
-    `k` OVERRIDES that choice, and the matched null requires it. `subspace_overlap` normalises by
+    `k` OVERRIDES that choice, and the matched null requires it. `subspace_overlap` normalizes by
     the first basis's dimension and `subspace_chance` is K/n, so two groups that each picked their
     own K would be compared at different dimensions AND against different chance levels -- the null
     would then differ from the observation in two ways at once, only one of them intended.
@@ -395,7 +395,7 @@ def subspace_chance(ncomp, k):
 def subspace_overlap(A, B):
     """Mean squared cosine of the principal angles between two orthonormal bases, in [0, 1].
 
-    The subspace generalisation of the single-vector cosine: 1 means the epoch's shared-response
+    The subspace generalization of the single-vector cosine: 1 means the epoch's shared-response
     subspace is the one that was projected out, and `subspace_chance` -- NOT zero -- is what
     "unrelated" looks like. Reported per epoch as `cim_cos`, beside `cim_chance`.
 
@@ -544,7 +544,7 @@ def directions_vs_rest(X, y, base, labels, stats=None, cim=None, drop=None):
 
 
 def _apply_drop(X, drop):
-    """Zero the dropped components AFTER standardising, so the direction is exactly 0 on them.
+    """Zero the dropped components AFTER standardizing, so the direction is exactly 0 on them.
 
     ZEROING RATHER THAN DELETING keeps every downstream array the same width -- `cd_courses`
     projects the full signal with `w @ sig`, so a zero weight contributes nothing and no index has
@@ -623,7 +623,7 @@ def fit_directions(X, y, labels, method="dom", stats=None, cim=None, with_surviv
 
 
 def trajectory(sig, align_f, w, p0, p1, pre_n, post_n, fs=None):
-    """``(n_trials, pre_n + post_n)`` pole-normalised projections, one row per trial.
+    """``(n_trials, pre_n + post_n)`` pole-normalized projections, one row per trial.
 
     The whole signal is projected ONCE (``w @ sig``, a single matvec over the session) and trials
     are then sliced out of it. Projecting per trial would repeat the same multiply for every
@@ -730,7 +730,7 @@ def courses_cache_kind(align, method, basis_key, dirs, win_s, stats=None):
 
 
 def cd_courses(sig, dirs, fs, win_s, stats=None):
-    """``{position: (T,)}`` -- the pole-normalised, smoothed CD time course for each position.
+    """``{position: (T,)}`` -- the pole-normalized, smoothed CD time course for each position.
 
     One matvec per position over the whole session. Slicing trials out of these is then free, which
     is why this and not a per-trial projection: overlapping windows would repeat the same multiply.
@@ -777,7 +777,7 @@ def session_arms(s, args, basis, align):
       ``fit``  where the direction's feature window STARTS -- `precue_window_start` for the ENL
                (slid to a lick-free gap, or None meaning drop), the FIRST LICK for `lick`, the cue
                for `cue`.
-      ``at``   where the trajectory is CENTRED. Always a real observed event: the CUE for `precue`
+      ``at``   where the trajectory is CENTERED. Always a real observed event: the CUE for `precue`
                and `cue`, the FIRST LICK for `lick`. A slid feature window does not move it, so
                panels stay on a common x-axis.
 
@@ -997,7 +997,7 @@ def cim_scale(by_epoch, t, baseline=CIM_BASELINE):
 
         overlap ~1, scale ~1     nothing moved
         overlap ~1, scale < 1    same geometry, weaker drive
-        overlap < 1, scale ~1    REORGANISATION -- the code went somewhere else
+        overlap < 1, scale ~1    REORGANIZATION -- the code went somewhere else
         both < 1                 mixed, and neither number alone would have said so
 
     A decoder score conflates all four, because every one of them lowers accuracy. This is the main
@@ -1596,15 +1596,15 @@ def _differs(a, b):
 EPOCHS = ("pre", "acute", "subacute", "chronic")
 
 def _epoch_color():
-    """The project's GREY RAMP for epochs -- `epoch_figures.EPOCH_GREY`, never a new palette.
+    """The project's GRAY RAMP for epochs -- `epoch_figures.EPOCH_GREY`, never a new palette.
 
     THIS MODULE DEFINED ITS OWN AND THE COLLISION WAS THE POINT OF THE FIX (Priya, 2026-09-25:
     "right now similar colors are being used for epoch and animals"). It was a Dark2 set -- acute
-    orange, subacute purple, chronic green -- against animal colours of tab:orange, tab:red,
-    tab:green and tab:blue, so two of the four epochs wore an animal's colour in a deck that shows
-    both. The grey ramp exists precisely so it cannot: `transfer_matrix.epoch_color` already
-    delegates here, citing Priya 2026-09-17, "use the same shades of grey as in all the decoder
-    graphs". Grey also READS as the ordering the epochs are, which a categorical palette hides.
+    orange, subacute purple, chronic green -- against animal colors of tab:orange, tab:red,
+    tab:green and tab:blue, so two of the four epochs wore an animal's color in a deck that shows
+    both. The gray ramp exists precisely so it cannot: `transfer_matrix.epoch_color` already
+    delegates here, citing Priya 2026-09-17, "use the same shades of gray as in all the decoder
+    graphs". Gray also READS as the ordering the epochs are, which a categorical palette hides.
     """
     from wfield_local.epoch_figures import EPOCH_GREY
 
@@ -1615,7 +1615,7 @@ def _pos_color():
     """The cohort position palette -- hue = SIDE, lightness = RING -- keyed by position CODE.
 
     `spout_behavior.position_style` is the single definition, unified 2026-09-10 after three
-    competing conventions were found in one deck. What was here before was six seaborn-deep colours
+    competing conventions were found in one deck. What was here before was six seaborn-deep colors
     with no mapping to side or ring at all, which is the scheme that unification retired.
     """
     from wfield_local.plot_lick_aligned_averages import POSITION_NAMES as _PN
@@ -1686,9 +1686,9 @@ def _suptitle(res, extra=""):
            if res.get("mask_occluded") else "")
         + (", CONDITION-INDEPENDENT MODE PROJECTED OUT" if res.get("orth") else "")
         + f") · basis {str(res['basis_id'])[:12]} {res['ncomp']}c\n"
-        f"{res.get('smooth_s', float('nan')):g}s centred boxcar · MEAN over trials, band = 95% CI "
+        f"{res.get('smooth_s', float('nan')):g}s centered boxcar · MEAN over trials, band = 95% CI "
         f"OF THE MEAN · anchor: {res.get('anchor', float('nan')):.2f} over {win}{cos_s}\n"
-        f"0 = pre-stroke not-P, 1 = pre-stroke lick at P · x = 0 is the {zero} · HAEMODYNAMICS ARE "
+        f"0 = pre-stroke not-P, 1 = pre-stroke lick at P · x = 0 is the {zero} · HEMODYNAMICS ARE "
         f"SLOW — read amplitude and gross time course, NOT onset or ordering")
 
 
@@ -1960,7 +1960,7 @@ def main(argv=None) -> int:
     ap.add_argument("--post-s", type=float, default=None,
                     help="override decode.{align}_post_s; default reads it per alignment")
     ap.add_argument("--occluded", default="drop", choices=("drop", "keep"),
-                    help="what to do with the components that sit mostly under the painted fibre "
+                    help="what to do with the components that sit mostly under the painted fiber "
                          "glue or in an olfactory bulb -- about a quarter of every animal's basis "
                          "(see wfield_local.component_exclusion). DROP is the default: the map "
                          "analyses already exclude that territory, dropping costs about what "
@@ -1970,7 +1970,7 @@ def main(argv=None) -> int:
     ap.add_argument("--replot", action="store_true",
                     help="re-draw from the SAVED numbers under <out>/results/ and compute nothing. "
                          "Every run without it persists what each figure needs, so an axis or "
-                         "colour change costs seconds instead of re-projecting the basis. A dump "
+                         "color change costs seconds instead of re-projecting the basis. A dump "
                          "made under different constants is REFUSED rather than redrawn.")
     ap.add_argument("--jobs", type=int, default=None, help="parallel animals (default: cores-2)")
     ap.add_argument("--out", default=None,

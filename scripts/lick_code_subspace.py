@@ -14,18 +14,18 @@ that spout (lick_balance_matched_error's rule, on side_ml), so a range differenc
 matching (secondary).
 
 (1) CODING AXIS / SUBSPACE, per animal x set x epoch.
-  ENCODING AXIS b = per-feature OLS slope of activity on y with session fixed effects (X and y centred within session):
+  ENCODING AXIS b = per-feature OLS slope of activity on y with session fixed effects (X and y centered within session):
     activity change per mm of lateral lick position (= the PLS-1 weight direction). cos(b_post, b_pre) = same pattern?
     GAIN = b_post . b_pre / |b_pre|^2 (post slope ALONG the pre axis, 1 = unchanged) -> rescaling.
-  RIDGE AXIS = ridge weights on the same centred features (alpha chosen by RidgeCV on the animal's pre licks, then held
+  RIDGE AXIS = ridge weights on the same centered features (alpha chosen by RidgeCV on the animal's pre licks, then held
     fixed), cosine pre vs post (a decoder-side check; the encoding axis is the primary 'which activity pattern').
-  CLASS-MEAN SUBSPACE = top-2 PCs of the 6 spout means (session-centred features); overlap = mean cos^2 of the two
+  CLASS-MEAN SUBSPACE = top-2 PCs of the 6 spout means (session-centered features); overlap = mean cos^2 of the two
     principal angles (1 = same plane, chance ~ 2 / n_features).
   CEILING (pre-vs-pre, sample-matched): for each post epoch, R_CEIL draws of k = min(n_post_sessions, n_pre - 2) random
     pre sessions as a pseudo-post (licks subsampled to the post epoch's matched lick count) vs the remaining pre
     sessions; the REAL comparison uses the SAME draws' reference sessions, so reference size is matched exactly.
   FLOOR: post y permuted within session (R_CEIL draws) vs the full pre reference.
-  NORMALISED = (real - floor) / (ceiling - floor) (1 = as similar as two pre sets; 0 = chance). Per animal: one-sided
+  NORMALIZED = (real - floor) / (ceiling - floor) (1 = as similar as two pre sets; 0 = chance). Per animal: one-sided
     p = share of ceiling draws <= real.
   SESSION LEVEL (pooled CIs): per session, its axis from N_SUB licks (R_SUB subsamples, mean) vs the pre axis (pre
     sessions: leave-that-session-out = the session-level ceiling); change vs pre by analysis_kit.boot_delta (paired
@@ -337,7 +337,7 @@ def unit(a):
 
 
 class Cell:
-    """One animal x set: pre and post licks, centred per session."""
+    """One animal x set: pre and post licks, centered per session."""
 
     def __init__(self, L: pd.DataFrame, X: np.ndarray, matched: bool):
         L = L.reset_index(drop=True)
@@ -910,7 +910,7 @@ def figures():
             ax.set_ylabel("per-session axis cosine", fontsize=8)
     hd, lb = axs[0, 0].get_legend_handles_labels()
     fig.legend(hd, lb, loc="lower center", ncol=len(lb), fontsize=8, frameon=False)
-    fig.suptitle(W("Drift vs re-organisation: pairwise cosine of per-session encoding axes (common lick subsample) vs "
+    fig.suptitle(W("Drift vs re-organization: pairwise cosine of per-session encoding axes (common lick subsample) vs "
                    "elapsed days. Red = the animal's pre-stroke drift line; dotted = longest pre-pre gap (beyond it the "
                    "line is extrapolated).", 150), fontsize=10)
     fig.tight_layout(rect=(0, 0.035, 1, 0.94))

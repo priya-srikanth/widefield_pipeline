@@ -32,7 +32,7 @@ checked main's added lines against it (scratch diff) to find any main-only fix.
 
 | file | resolution |
 |---|---|
-| wfield_local/attempt_coding.py, grant_confusion.py, grant_kit.py, joint_xsession.py, locanmf_frozen_decoder.py, position_axes.py, position_coding_directions.py, poststroke_compare.py, poststroke_section_g.py, precue_engagement_states.py, spout_scaling.py, trial_classes.py, working_trials.py (add/add) | Rebuild file (the port of main's B/C/D/G, working = contact + incomplete, Wt centre). |
+| wfield_local/attempt_coding.py, grant_confusion.py, grant_kit.py, joint_xsession.py, locanmf_frozen_decoder.py, position_axes.py, position_coding_directions.py, poststroke_compare.py, poststroke_section_g.py, precue_engagement_states.py, spout_scaling.py, trial_classes.py, working_trials.py (add/add) | Rebuild file (the port of main's B/C/D/G, working = contact + incomplete, Wt center). |
 | wfield_local/grant_similarity.py | Rebuild file, plus main's explicit closure binding in the `7b_disatt` lambda (`pre_x=pre_x, ...`) instead of the rebuild's `# noqa: B023`. |
 | wfield_local/nightly_figs.py | Rebuild file. Main's cohort-1 `os.environ.setdefault("WIDEFIELD_PRE_FROM", "0801")` and `IMAGING_PRE_FROM` are **not** kept. See decision 1. |
 | scripts/s1_trial_class_snapshot.py | Rebuild's `working_pl_<anchor>` (from `classify_session`), plus main's jaw-free `working_pl_<anchor>_licks = working_pl_<anchor> & camera_lick` columns. `p_img_s1_table_20261103.py` reads them. |
@@ -62,15 +62,15 @@ checked main's added lines against it (scratch diff) to find any main-only fix.
   camera classes (`_class_select(cls=)` / `trial_classes.camera_select`) and records `trial_classes.run_selection()`,
   which carries main's `-cls-contact-incomplete` part. I rewrote both tests on that API with the same selections:
   in_working, in_working_jaw, the DAQ rule, and no fallback without classes. The frame check uses the label-free
-  working centre (`WIDEFIELD_SPOUT_SCORE_CENTRE=working`), as `test_bcdg_1104` does, because the synthetic pool is too
-  thin at some spouts for the default Wt centre.
+  working center (`WIDEFIELD_SPOUT_SCORE_CENTRE=working`), as `test_bcdg_1104` does, because the synthetic pool is too
+  thin at some spouts for the default Wt center.
 - **`fed41d8d` `tests/test_share_writers_mode_safe.py`.**
-  - Added to BEHAVIOUR: main's pose-only side-camera writers (`pose3d_side_check`, `pose3d_side_loo`,
+  - Added to BEHAVIOR: main's pose-only side-camera writers (`pose3d_side_check`, `pose3d_side_loo`,
     `pose3d_side_video`, `side_clean_qc`, `side_label_offsets`).
   - Removed: `iti_first_lick`, `pose3d_close_dir_sheet`, `pose3d_figures` and `pose3d_summary_fig`. After
     `pose3d_dir()` / `il.OUT` they are no longer unrouted share writers.
 - **`51dae7cd` `tests/test_rebuild_root.py`.**
-  - Registered main's `wfield_local/dlc_sidecam.py` (side-camera labelling frames) as RESOLVED.
+  - Registered main's `wfield_local/dlc_sidecam.py` (side-camera labeling frames) as RESOLVED.
   - Dropped `wfield_local/locanmf_event_master.py`, which main deleted in ed516423 (Priya approved 11-04).
 
 ## Decisions for Priya
@@ -121,7 +121,7 @@ no render profile is active (`rebuild_root.active()` false). Under the profile, 
 ## Second merge of origin/main (138048a3, 4 commits: cohort2 decks, FR spout-in-mesh control)
 - One conflict, wfield_local/preprocess_deck.py: kept both. main's `__SPOUTMAPS_NATIVE__` cohort-level branch runs first,
   then the rebuild's `_tagged_map_dir(subdir)`. Bucket loop: main's `for animals, _n in buckets:` (the index was unused).
-- Guard tests: fr_spout_mesh_control.py classified behaviour-only (FR readouts dir); cohort2_qc/spout_maps.py dropped
+- Guard tests: fr_spout_mesh_control.py classified behavior-only (FR readouts dir); cohort2_qc/spout_maps.py dropped
   from LITERAL (it now takes its share root from seizure_events_video.MICRO; the runtime fence still applies).
 - Re-run after the fix: test_preprocess_deck, test_crossday_intensity, test_share_writers_mode_safe, test_rebuild_root,
   test_nightly_pre_from_default, test_entrypoint_after_defs, test_cli_help_is_console_safe: all pass.

@@ -8,19 +8,19 @@ DIRECTION through FR, and "position beyond FR" becomes a lower bound by construc
   lick      SUM of every lick-locked factor (absolute expression, so amplitudes add): how much licking, whichever
             spout. Directionless only because it is balanced across directions -- dropping one direction's factor
             (e.g. central f4) would make the sum read low on those trials and carry direction (10-22 discussion)
-  left / centre / right   side-pooled lick factors: lick DIRECTION through FR
+  left / center / right   side-pooled lick factors: lick DIRECTION through FR
   close / far             distance-selective lick factors (master_v1 only, Priya 10-24): spout DISTANCE through FR
   other     the remaining factors, one trace each (includes lick-INITIATION factors: not "non-lick")
 
 Modes (the env value "<grouping>:<mode>", COMBINED_ENCODING_FR_GROUPS, read by `face_rhythm_outputs.fr_signals`):
-  A = lick + left + centre + right + close + far + other   (everything FR says, side and distance included)
+  A = lick + left + center + right + close + far + other   (everything FR says, side and distance included)
   B = lick + other                            (directionless FR: position beyond B = position beyond FR's lick amount)
-  S = lick + left + centre + right + other    (side only)
+  S = lick + left + center + right + other    (side only)
   D = lick + close + far + other              (distance only)
 Side information through FR = S - B; distance = D - B; both = A - B. A part a grouping does not define, or defines
-empty, is left out (pilot_v1 has no close / far; master_v1 no centre).
+empty, is left out (pilot_v1 has no close / far; master_v1 no center).
 
-GROUPINGS keys name a factor SET's labelling; factor numbers shift between fits, so a grouping is only valid for the
+GROUPINGS keys name a factor SET's labeling; factor numbers shift between fits, so a grouping is only valid for the
 set it names (checked).
 """
 from __future__ import annotations

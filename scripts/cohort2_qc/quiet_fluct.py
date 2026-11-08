@@ -387,7 +387,7 @@ def fig_eta(D):
             fig.colorbar(im, ax=ax[r, :].tolist(), fraction=0.02, label="dF/F %" if ep != "delta" else "delta dF/F %")
             r += 1
     fig.suptitle("Event-triggered average maps (high-passed movie, positive events > 4 x pre SD), mean of animal means; "
-                 "ipsilesional = image left.\nDELTA = acute - pre within animal (own colour scale); black outline = "
+                 "ipsilesional = image left.\nDELTA = acute - pre within animal (own color scale); black outline = "
                  "significant (nested animals -> sessions bootstrap, max-statistic family-wise p < 0.05, 8x8-px bins, "
                  "eroded mask)", fontsize=9)
     fig.subplots_adjust(top=0.93)

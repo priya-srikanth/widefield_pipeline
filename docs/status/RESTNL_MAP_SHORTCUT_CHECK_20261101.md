@@ -91,7 +91,7 @@ Per session, built in memory and validated here on 8 sessions:
    the strict mask and `_engaged_trials` returning the DAQ gate. This is the same in-process substitution
    `restw_strict_check` uses. Here it was done with try/finally restore.
 3. **The wr level on the SVT.** For each position with ≥ 50 frames, take the per-component median `np.median(V[:,
-   frames], 1)`. Take the equal-weight mean over those positions, renormalised. The session is OK only if ≥ 4 of 6
+   frames], 1)`. Take the equal-weight mean over those positions, renormalized. The session is OK only if ≥ 4 of 6
    positions qualify. All 8 sessions passed. Note that PS92_0814 had only 4 positions with ≥ 50 frames
    ([269, 147, 64, 178, 59, 483]), so it is marginal.
 4. **The projection.** `base_map = (U_atlas_flat @ b_nl).reshape(MAP_SHAPE)`, with U from `joint_basis._load_session`.

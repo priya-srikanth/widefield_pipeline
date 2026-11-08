@@ -21,10 +21,10 @@ and the other units (exploratory), as the pooled-fit null.
                     (`face_rhythm.stats.session_shuffle_test`)
   SENSITIVITY       (a) maps without AMBIGUOUS sessions (the unit's best spatial cosine beats the runner-up by < .05);
                     (b) lick_right: does a session's map change track its change in the share of RIGHT licks (both
-                    delta vs own pre, then centred within animal)?
+                    delta vs own pre, then centered within animal)?
   FRAGILITY         per unit: the pooled-fit refit null's 95th-percentile acute spatial angle / the pooled pre-only fit
                     noise (preA - preB): large = the pooled test is inconclusive for that unit (lick_left, 11-07)
-  DIRECTION         share of left / centre / right executed licks per session, delta vs own pre, same test
+  DIRECTION         share of left / center / right executed licks per session, delta vs own pre, same test
 
     python scripts/face_rhythm_session_shape_tests.py [--set master_pre_v1] [--match-rule v2] [--perm 2000]
 -> ``<readouts>/<set>/session_shape_<rule>/``: session_scalars.png, session_loss.png, session_maps_scaled_lick.png,
@@ -165,11 +165,14 @@ def scalars(T: pd.DataFrame, names: list[str], n_perm: int, rng, drift: bool = F
                                  delta=obs, p=p, n_animals=n_an,
                                  n_sessions=int((d.epoch == "pre").sum() if drift else (d.epoch == ep).sum())))
     R = pd.DataFrame(rows)
-    R["p_holm"] = np.nan
-    for _, idx in R.groupby(["epoch", "measure", "family"]).groups.items():
-        ok = [i for i in idx if np.isfinite(R.at[i, "p"])]
-        if ok:
-            R.loc[ok, "p_holm"] = ak.holm(R.loc[ok, "p"].to_numpy())
+    # Holm within a FAMILY across every epoch x measure (Priya 11-07): lick pair = 24 tests (pre-specified), other
+    # units = the rest (exploratory); the narrower per-epoch x measure version kept as p_holm_epoch for reference
+    for col, keys in (("p_holm", ["family"]), ("p_holm_epoch", ["epoch", "measure", "family"])):
+        R[col] = np.nan
+        for _, idx in R.groupby(keys).groups.items():
+            ok = [i for i in idx if np.isfinite(R.at[i, "p"])]
+            if ok:
+                R.loc[ok, col] = ak.holm(R.loc[ok, "p"].to_numpy())
     return R
 
 
@@ -187,9 +190,10 @@ def loss(T: pd.DataFrame, names: list[str], n_perm: int, rng) -> pd.DataFrame:
                              post=f"{int(rec.loc[ep, 'sum'])}/{int(rec.loc[ep, 'size'])}" if ep in rec.index else "-",
                              n_animals=n_an))
     R = pd.DataFrame(rows)
-    R["p_holm"] = np.nan
+    R["p_holm"] = ak.holm(R.p_loss.to_numpy())               # across every unit x epoch (Priya 11-07)
+    R["p_holm_epoch"] = np.nan
     for _, idx in R.groupby(["epoch"]).groups.items():
-        R.loc[idx, "p_holm"] = ak.holm(R.loc[idx, "p_loss"].to_numpy())
+        R.loc[idx, "p_holm_epoch"] = ak.holm(R.loc[idx, "p_loss"].to_numpy())
     return R
 
 
@@ -231,7 +235,7 @@ def maps(T, units, home, n_perm, rng, **kw):
 
 def right_share_check(T: pd.DataFrame, D: pd.DataFrame, res_maps: dict) -> pd.DataFrame:
     """lick_right, per post epoch: per session, the projection of its map delta (vs own pre) onto the epoch's group
-    pattern, against its delta in the share of RIGHT licks (vs own pre); both centred within animal; Spearman."""
+    pattern, against its delta in the share of RIGHT licks (vs own pre); both centered within animal; Spearman."""
     from scipy.stats import spearmanr
     rows = []
     d = T[(T.unit == "lick_right") & T.recovered]
@@ -302,13 +306,37 @@ YLAB = {"asym": "loading asymmetry\n(contra - ipsi), delta", "angle_spatial": "s
         "loss": "recovered (0 / 1),\ndelta vs own pre rate"}
 
 
-def session_values(T: pd.DataFrame, names: list[str]) -> pd.DataFrame:
+def session_values(T: pd.DataFrame, names: list[str], mode: str = "delta") -> pd.DataFrame:
     """One row per session x unit x measure: the session's value minus its animal's own pre mean (angles: the angle to
     the animal's pre-mean vector minus the animal's mean leave-one-out pre angle). Loss: recovered (0 / 1) minus the
     animal's pre recovery rate (all sessions). PRE sessions (Priya 11-07: show the pre-stroke variability) are scored
     LEAVE-ONE-OUT -- against the mean of the animal's OTHER pre sessions -- so their spread is not shrunk by
-    including themselves."""
+    including themselves. ``mode="raw"`` (Priya 11-07: raw and normalized as separate figures): the session's own value
+    (asymmetry, side specificity) and the plain angle to the animal's pre-mean vector (pre sessions: leave-one-out
+    angle), no baseline subtracted; no loss rows."""
     rows = []
+    if mode == "raw":
+        for nm in names:
+            for an, g in T[(T.unit == nm) & T.recovered].groupby("animal"):
+                pre = g[g.epoch == "pre"]
+                if len(pre) < 2:
+                    continue
+                for m in ("asym", "side_spec"):
+                    if m == "side_spec" and nm not in OWN_SIDE:
+                        continue
+                    for r in g.itertuples():
+                        rows.append(dict(unit=nm, animal=an, epoch=r.epoch, measure=m, value=getattr(r, m)))
+                for m, col in (("angle_spatial", "vec"), ("angle_spectral", "spec")):
+                    P = np.vstack(pre[col].to_numpy())
+                    tot = P.sum(0)
+                    pm = unit(tot)
+                    for i in range(len(P)):
+                        rows.append(dict(unit=nm, animal=an, epoch="pre", measure=m,
+                                         value=float(es.deg(float(P[i] @ unit(tot - P[i]))))))
+                    for r in g[g.epoch != "pre"].itertuples():
+                        rows.append(dict(unit=nm, animal=an, epoch=r.epoch, measure=m,
+                                         value=float(es.deg(float(getattr(r, col) @ pm)))))
+        return pd.DataFrame(rows)
     for nm in names:
         for an, g in T[T.unit == nm].groupby("animal"):
             pre_all = g[g.epoch == "pre"]
@@ -350,8 +378,8 @@ def session_values(T: pd.DataFrame, names: list[str]) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
-def _row(ax, V: pd.DataFrame, R: pd.DataFrame, units: list[str], pcol: str) -> None:
-    """Per unit x epoch: faded open session markers (shape = animal, colour = epoch) + mean +- SEM over sessions; stars
+def _row(ax, V: pd.DataFrame, R: pd.DataFrame, units: list[str], pcol: str, zero: bool = True) -> None:
+    """Per unit x epoch: faded open session markers (shape = animal, color = epoch) + mean +- SEM over sessions; stars
     (Holm, animal-weighted within-animal shuffle test) in the top band."""
     from wfield_local import cat_points as cp
     from wfield_local import sig_marks
@@ -369,13 +397,45 @@ def _row(ax, V: pd.DataFrame, R: pd.DataFrame, units: list[str], pcol: str) -> N
             r = R[(R.unit == u) & (R.epoch == ep)]
             if ep != "pre" and len(r) and np.isfinite(r[pcol].iloc[0]) and r[pcol].iloc[0] < .05:
                 sig_marks.star_top(ax, x, "**" if r[pcol].iloc[0] < .01 else "*", color=ecol[ep])
-    ax.axhline(0, color="0.6", lw=0.8, zorder=0)
+    if zero:
+        ax.axhline(0, color="0.6", lw=0.8, zorder=0)
     ax.set_xticks(range(len(units)), units, rotation=25, ha="right", fontsize=8)
     ax.set_xlim(-0.6, len(units) - 0.4)
     ax.spines[["top", "right"]].set_visible(False)
 
 
-def figures(Rs, Rl, V, out, set_name, names):
+YLAB_RAW = {"asym": "loading asymmetry\n(contra - ipsi)", "angle_spatial": "spatial angle to own\npre mean (deg)",
+            "angle_spectral": "spectral angle to own\npre mean (deg)", "side_spec": "side specificity"}
+
+
+def scalar_figure(Rs, V, units, path, title, ylab, zero, caption):
+    import matplotlib.pyplot as plt
+
+    from wfield_local import cat_points as cp
+    from wfield_local import face_rhythm_figures as frf
+    from wfield_local import sig_marks
+    ecol = frc.epoch_colors()
+    with frf.style():
+        fig = plt.figure(figsize=(13.5, 2.9 * len(SCALARS)))
+        gs = fig.add_gridspec(len(SCALARS), len(units), hspace=0.75)
+        for i, m in enumerate(SCALARS):
+            us = [u for u in units if u in set(Rs[Rs.measure == m].unit)]
+            ax = fig.add_subplot(gs[i, :len(us)])                 # side_spec (2 units) gets a 2-unit-wide panel
+            _row(ax, V[V.measure == m], Rs[Rs.measure == m], us, "p_holm", zero=zero or m in ("asym", "side_spec"))
+            if not zero and m.startswith("angle"):
+                ax.set_ylim(bottom=0)
+            ax.set_ylabel(ylab[m], fontsize=8)
+            if i == 0:
+                hs = [plt.Line2D([], [], color=ecol[e], marker="o", ls="none",
+                                 label=e + (" (leave-one-out)" if e == "pre" else "")) for e in ("pre", *frc.POST_EPOCHS)]
+                ax.legend(handles=hs + cp.animal_handles(sorted(V.animal.unique())), fontsize=7, frameon=False,
+                          loc="upper left", bbox_to_anchor=(1.0, 1.0))
+        sig_marks.reserve_headroom(fig)
+        fig.suptitle(title, y=0.995)
+        frf.save(fig, path, caption)
+
+
+def figures(Rs, Rl, V, out, set_name, names, Vraw=None):
     import matplotlib.pyplot as plt
 
     from wfield_local import cat_points as cp
@@ -383,32 +443,25 @@ def figures(Rs, Rl, V, out, set_name, names):
     from wfield_local import sig_marks
     ecol = frc.epoch_colors()
     units = [u for u in ORDER if u in names] + [u for u in names if u not in ORDER]
-    with frf.style():
-        fig = plt.figure(figsize=(13.5, 2.9 * len(SCALARS)))
-        gs = fig.add_gridspec(len(SCALARS), len(units), hspace=0.75)
-        for i, m in enumerate(SCALARS):
-            us = [u for u in units if u in set(Rs[Rs.measure == m].unit)]
-            ax = fig.add_subplot(gs[i, :len(us)])                 # side_spec (2 units) gets a 2-unit-wide panel
-            _row(ax, V[V.measure == m], Rs[Rs.measure == m], us, "p_holm")
-            ax.set_ylabel(YLAB[m], fontsize=8)
-            if i == 0:
-                hs = [plt.Line2D([], [], color=ecol[e], marker="o", ls="none", label=e + (" (leave-one-out)" if e == "pre" else ""))
-                      for e in ("pre", *frc.POST_EPOCHS)]
-                ax.legend(handles=hs + cp.animal_handles(sorted(V.animal.unique())), fontsize=7, frameon=False,
-                          loc="upper left", bbox_to_anchor=(1.0, 1.0))
-        sig_marks.reserve_headroom(fig)
-        fig.suptitle(f"{set_name}: per-session shape readouts, delta vs each animal's own pre", y=0.995)
-        frf.save(fig, out / "session_scalars.png", """
+    common = """ASYMMETRY = (contra - ipsi) / sum of the loading. SIDE SPECIFICITY (lateral lick pair only) = mean r of the
+session's loading map with its animal's own pre spout-specific movement maps at the factor's own side (close + far) minus
+the opposite side; a drop = the factor looks less like movement at its own side's spouts. Stars in the top band = the animal-weighted test (mean over animals of epoch - pre; within-animal session-label shuffles): * Holm < .05, ** < .01, Holm within a family ACROSS all epochs and measures -- the lick pair (24 tests, pre-specified) or the other units (exploratory)."""
+    scalar_figure(Rs, V, units, out / "session_scalars.png",
+                  f"{set_name}: per-session shape readouts, NORMALIZED (delta vs each animal's own pre)", YLAB, True, """
 Per-session FaceRhythm fits (own8) matched to the master (rule v2), recovered sessions only. BLACK = each PRE session
-against the mean of its animal's OTHER pre sessions (leave-one-out): the pre-stroke session-to-session variability to read
-the post epochs against. Each coloured open marker = one post session (shape = animal, colour = epoch): its readout minus its animal's own pre mean (angles: the angle to the animal's
-pre-mean vector minus the animal's mean leave-one-out pre angle, so 0 = as different as one pre session is from the
-other pre sessions). Filled = mean +- SEM over sessions. Stars in the top band = the animal-weighted test (mean over
-animals of epoch - pre; within-animal session-label shuffles): * Holm < .05, ** < .01, Holm over the lick pair or over the
-other units per epoch x measure. ASYMMETRY = (contra - ipsi) / sum of the loading. SIDE SPECIFICITY (lateral lick pair
-only) = mean r of the session's loading map with its animal's own pre spout-specific movement maps at the factor's own
-side (close + far) minus the opposite side; a drop = the factor looks less like movement at its own side's spouts.""")
-
+against the mean of its animal's OTHER pre sessions (leave-one-out): the pre-stroke session-to-session variability.
+Colored open markers = post sessions (shape = animal, color = epoch): the readout minus the animal's own pre mean
+(angles: the angle to the animal's pre-mean vector minus the animal's mean leave-one-out pre angle; NEGATIVE = closer to
+the pre mean than a typical pre session, not a direction). Filled = mean +- SEM over sessions. """ + common)
+    if Vraw is not None:
+        scalar_figure(Rs, Vraw, units, out / "session_scalars_raw.png",
+                      f"{set_name}: per-session shape readouts, RAW", YLAB_RAW, False, """
+Same sessions and tests as session_scalars.png, values NOT baseline-subtracted: each session's own asymmetry and side
+specificity, and its plain angle (>= 0 deg) to its animal's pre-mean vector; BLACK pre markers = each pre session's
+angle to the mean of its animal's OTHER pre sessions (how far pre sessions sit from each other). Animals differ in their
+raw baseline (asymmetry, side specificity), which the normalized figure removes. Filled = mean +- SEM over sessions. """
+                      + common)
+    with frf.style():
         fig, ax = frf.subplots(1, 1, figsize=(13.5, 3.8))
         _row(ax, V[V.measure == "loss"], Rl, units, "p_holm")
         ax.set_ylabel(YLAB["loss"], fontsize=8)
@@ -422,7 +475,8 @@ side (close + far) minus the opposite side; a drop = the factor looks less like 
 Each open marker = one post session: recovered (1) or not (0) -- its own fit's best match to the unit reaches spatial cos
 >= .7 and spectral cos >= .5 after v2 matching -- minus its animal's pre recovery rate (so markers sit at two levels per
 animal). Filled = mean +- SEM over sessions. Stars = animal-weighted test (mean over animals of the recovery-rate change;
-within-animal session shuffles), one-sided (fewer recovered), Holm over the units of an epoch.""")
+within-animal session shuffles), one-sided (fewer recovered), Holm across every unit x epoch (30 tests). BLACK = each pre
+session against its animal's OTHER pre sessions (leave-one-out).""")
 
 
 def main(argv=None) -> int:
@@ -434,7 +488,7 @@ def main(argv=None) -> int:
     ap.add_argument("--set", default=fro.SET)
     ap.add_argument("--fdir", type=Path, default=None)
     ap.add_argument("--match-rule", choices=sorted(es.MATCH_RULES), default="v2")
-    ap.add_argument("--perm", type=int, default=2000)
+    ap.add_argument("--perm", type=int, default=10000)
     ap.add_argument("--plot-only", action="store_true",
                     help="redraw the scalar / loss figures from data/session_scalars.csv + session_loss.csv (no tests)")
     a = ap.parse_args(argv)
@@ -450,7 +504,7 @@ def main(argv=None) -> int:
     T, names, home = load_sessions(fdir)
     if a.plot_only:
         figures(pd.read_csv(side("session_scalars")), pd.read_csv(side("session_loss")), session_values(T, names), out,
-                fdir.name, names)
+                fdir.name, names, Vraw=session_values(T, names, "raw"))
         print("->", out)
         return 0
     D = pd.read_csv(frc.readouts_dir(a.set).parent.parent / "validation" / a.set / "lick_epochs" / "data" / "sessions.csv")
@@ -499,7 +553,7 @@ def main(argv=None) -> int:
     Dd = direction(D, a.perm, rng)
     Dd.to_csv(side("lick_direction"), index=False, float_format="%.4g")
     print("\nLICK DIRECTION shares, delta vs own pre:\n" + Dd.round(3).to_string(index=False))
-    figures(Rs, Rl, session_values(T, names), out, fdir.name, names)
+    figures(Rs, Rl, session_values(T, names), out, fdir.name, names, Vraw=session_values(T, names, "raw"))
     print("->", out)
     return 0
 

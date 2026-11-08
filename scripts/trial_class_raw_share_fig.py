@@ -5,7 +5,7 @@ but not spout contact?" -- the kinematics page's Fig 6.1 (jaw_only_incomplete_fi
 own August pre; this is the same data as plain fractions, so the pre level is visible. Reads only
 session_poses/cam1_licks/trial_classes/{sessions.csv, tests.csv} (nothing re-run).
 
-Plot: one open marker per session (shape = animal, colour = epoch); black bar = mean of animal means +/- SEM over
+Plot: one open marker per session (shape = animal, color = epoch); black bar = mean of animal means +/- SEM over
 animals. Stars = the Fig 6.1 tests (paired nested bootstrap of the change vs own pre; * CI excludes 0, ** Bonferroni
 over 18), drawn in the top band.
 
@@ -111,7 +111,7 @@ def main(argv=None) -> int:
     what = ("CHANGE vs each animal's own August pre mean in the fraction of trials per class" if a.change
             else "Fraction of trials per class")
     fig.suptitle(what + ", per session x spout, by epoch (pre = August); denominator = " + den +
-                 ";\nopen markers = sessions (shape = animal, colour = epoch); black bar = mean of animals +/- SEM; stars = "
+                 ";\nopen markers = sessions (shape = animal, color = epoch); black bar = mean of animals +/- SEM; stars = "
                  "paired nested bootstrap of the change vs own pre: * CI excludes 0, ** Bonferroni over 18 (per row)",
                  fontsize=9.5)
     reserve_headroom(fig)

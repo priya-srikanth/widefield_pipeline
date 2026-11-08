@@ -122,7 +122,7 @@ not only in pickle metadata — the coefficients differ.** Worst pair,
 
 - **Within a machine the fit IS bitwise reproducible**, including across BLAS thread counts
   (pinned in `tests/test_parallel_results_are_ordered.py`).
-- **Across machines it is reproducible only to the optimiser's tolerance.**
+- **Across machines it is reproducible only to the optimizer's tolerance.**
 
 ### Does it change any result? YES — SLIGHTLY. Two proxy tests said no and both were wrong.
 
@@ -254,7 +254,7 @@ pre set and the ids differ. The 11-03 bal_em models (June + August, engaged-trai
 store.
 
 **2026-11-03 (later still): working EXCLUDES jaw-only (Priya 11-03 late).** Cue / precue spout decoders are now trained
-(and centred) on in_working & camera lick (contact | incomplete): `scaling_params["trials"] =
+(and centered) on in_working & camera lick (contact | incomplete): `scaling_params["trials"] =
 "sel-camera-cue_stop-endlick-cls-contact-incomplete"`. 20 new models (ROI + joint x cue / precue x 4 animals, 4
 attempt-pool ENL 1.0 precue), ids in DECISIONS "Working excludes jaw-only (Priya 11-03 late)"; published SHA-verified
 from the analysis desktop. Lick models and the attempt pool's cue / lick / ENL 2.0 models are unchanged (frozen-hits).
@@ -270,7 +270,7 @@ and reused."* Any decoder that scores post-stroke data against a pre-stroke refe
 | decoder | where | spec `kind` | since |
 |---|---|---|---|
 | position (cue / lick / precue; roi and joint bases) | `locanmf_position_decoder`, `pooled_frozen_*` | `decoder` / `encoder` | 2026-08/09 (decoder **session_bal_em 11-03**) |
-| behavioural STATE (quiet / running / licking) | `locomotor_decoder.frozen_state_models` | `state` | **2026-10-15**  (session_z 11-02; **session_bal_em 11-03**) |
+| behavioral STATE (quiet / running / licking) | `locomotor_decoder.frozen_state_models` | `state` | **2026-10-15**  (session_z 11-02; **session_bal_em 11-03**) |
 | epoch acc / 5c position decoder (imaging page 2.x; `_collect_5c` mode `frozen`) | `grant_confusion._stored_epoch_decoder` | `epoch_decoder` | opt-in 11-02 (lp-final), **default 11-02** (`frozen-default`) |
 | docked REST position decoder (imaging page 12.1) | `rest_frozen_decoder.frozen_rest_payload` (+ `rest_frozen_decoder_nl.frozen_payload`, same spec for the page flags) | `rest_frozen` | **default 11-02** |
 | frozen column of frozen-vs-refit (`_collect_5c` mode `paired`: epoch 5r / 5ro, `recovery_trajectory`, `prelim_numbers_frozen_vs_refit`) | `grant_confusion._stored_epoch_decoder` (the acc family's model, same spec) | `epoch_decoder` | **default 11-02** (`FROZEN_ALL_20261102`) |
@@ -307,13 +307,13 @@ per pre-stroke session (the PRE column). A grown pre-stroke set reports `SPEC-CH
 
 **For a new decoder:** build the spec with `make_spec` (one animal, sorted PRE labels only -- post-stroke sessions
 never enter an identity), put every model the analysis needs (full + LOSO) in one payload, and read
-`load_or_fit`'s status in the log. **First freezes follow §5:** fit and publish from ONE box (the behaviour box
-holds the canonical set); a second box's fit is a different reference to the optimiser's tolerance.
+`load_or_fit`'s status in the log. **First freezes follow §5:** fit and publish from ONE box (the behavior box
+holds the canonical set); a second box's fit is a different reference to the optimizer's tolerance.
 
 **State: the first freeze (2026-10-15).** Fitted on the analysis desktop (local store `C:/Users/SabatiniLab/frozen_models`,
 created by this run) and published to `labcams/frozen_models` (4 models, `PS9x/state_segments_joint<basis>_<id>`, 11
 pre-stroke sessions each). By Priya's decision **the analysis desktop is the one box that publishes STATE models**; the
-behaviour box keeps publishing position models. On this desktop always set `WIDEFIELD_FIGURES_WORKING=C:/Users/
+behavior box keeps publishing position models. On this desktop always set `WIDEFIELD_FIGURES_WORKING=C:/Users/
 SabatiniLab/cue_lick` (its profile otherwise resolves local roots to `C:/Users/sabatini`, and `local_dir()` derives
 from that root). It also has 48 orphaned position models in `C:/wf_local/frozen_models` (§4) -- untouched, not published.
 
@@ -347,7 +347,7 @@ section G = the animal's whole pre pool (engaged + no-lick); iti_readout = its e
 - EVERY id changes by design. The rebuild freezes into a FRESH store (`WIDEFIELD_FROZEN_MODEL_DIR`, rebuild order G3).
   `_write` REFUSES to put a v2 model into a store that already holds v1 models for that animal (the pre-rebuild
   `C:/Users/SabatiniLab/frozen_models`, the M: store), so the generations never mix and `refreeze` can never retire
-  a v1 model in favour of a v2 one.
+  a v1 model in favor of a v2 one.
 - A changed pool now mints a new id (reported as SPEC-CHANGED against its siblings) instead of loading a model trained
   on other data. Expect SPEC-CHANGED lines whenever a gate, a trial table or a hemo variant changes.
 - **LP arm, DAQ-trained cross-check** (`WIDEFIELD_LP_FROZEN=daq`): the LP run cannot rebuild the DAQ run's arrays, so its
@@ -355,6 +355,6 @@ section G = the animal's whole pre pool (engaged + no-lick); iti_readout = its e
   (`find_daq_trained`, `base_id`); two DAQ models with different fingerprints under one identity raise (ambiguous).
 - The ITI / lick-landing read-outs (`frozen_readouts`): only the SPEC changed. `ridge_fit` / `fit_all` / `data_sig` are
   pinned by source hash and the stored payload is pinned equal to the in-memory fit
-  (`tests/test_frozen_fingerprint.py`); their per-session FRAME-level SD scaling (scripts' feature building, no centring
+  (`tests/test_frozen_fingerprint.py`); their per-session FRAME-level SD scaling (scripts' feature building, no centering
   over lick samples; DECISIONS fa70b651) is untouched.
 - Tests use temp stores only.

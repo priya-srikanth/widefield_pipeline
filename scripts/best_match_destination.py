@@ -5,8 +5,8 @@ execution vs neither".) PS92 / PS93 (3-D landing zones), map / pattern level -- 
 
 BRAIN: figure 10b's destination -- for each post-stroke session and aimed spout, the pre-stroke spout whose activity
 pattern it matches best (`grant_figures._matrices_best_match_destination`: argmax of the frozen pattern-correlation row,
-one-hot per session; pre = per-session leave-one-out one-hots). Pure brain activity, labelled by the COMMANDED spout.
-BEHAVIOUR: where that session's licks to that spout LANDED -- the 3-D calibrated landing zones (`landing`, CONTEST_3D);
+one-hot per session; pre = per-session leave-one-out one-hots). Pure brain activity, labeled by the COMMANDED spout.
+BEHAVIOR: where that session's licks to that spout LANDED -- the 3-D calibrated landing zones (`landing`, CONTEST_3D);
 so PS92 / PS93 until PS94 / PS95 have 3-D.
 ROW CLASS (session x aimed spout): target-like = best match is its own spout; execution-like = best match is another spout
 AND that spout is where most licks landed; neither = best match is another spout that is not the landing mode.

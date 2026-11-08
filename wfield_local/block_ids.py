@@ -12,7 +12,7 @@ WHY THE FIRMWARE COUNT IS THE GROUND TRUTH, AND WHY IT IS ONLY A TOTAL.
 `device_snapshot_end.json` carries `block_number`, the scheduler's own count of blocks it ran. It is a
 session TOTAL, not per-trial: the GUI polls device status every second but `logging.timeseries_enabled`
 is off, so the polls are never written. (Turning it on would give per-trial block IDs, and was
-considered and rejected — it would stream enough to risk destabilising the log. Priya, 2026-08-18.)
+considered and rejected — it would stream enough to risk destabilizing the log. Priya, 2026-08-18.)
 So `firmware_blocks - observed_runs` gives the exact merge COUNT per session with no inference, but
 not where the boundaries are.
 
@@ -77,12 +77,12 @@ N_POSITIONS = 6                     # the scheduler's cycle length -- six spout 
 
 
 def _behavior_dir(s):
-    """The behaviour-log directory for this session, or None.
+    """The behavior-log directory for this session, or None.
 
-    ``s`` is a session MAPPING, or a Path to the behaviour directory itself. The second form is
+    ``s`` is a session MAPPING, or a Path to the behavior directory itself. The second form is
     what `spout_behavior` holds -- it is already standing in the session's log directory -- and
     accepting it here keeps `block_size_max_for` the single reader of `timing.block_size_max`
-    rather than having the behaviour path grow its own copy of the same three lines.
+    rather than having the behavior path grow its own copy of the same three lines.
 
     Resolved from the session's OWN date, never by globbing the animal — that shortcut silently gave
     every session its animal's earliest config once already (see nolick_decoder.response_window_for).
@@ -195,7 +195,7 @@ def block_ids(codes, block_size_max=DEFAULT_BLOCK_SIZE_MAX):
 def cycle_ids(codes, block_size_max=DEFAULT_BLOCK_SIZE_MAX, n_positions=N_POSITIONS):
     """Cycle id per trial (-1 = unusable), for the scheduler's `balanced_block_cycles` design.
 
-    The scheduler presents all six positions in a random order, re-randomises, and starts again
+    The scheduler presents all six positions in a random order, re-randomizes, and starts again
     (`gui_config.json timing.scheduling_mode: balanced_block_cycles`, `stop_mode:
     end_of_balanced_cycle`). A cycle is therefore six blocks covering six DISTINCT positions, and a
     position cannot repeat inside one.
@@ -231,7 +231,7 @@ def cycle_ids(codes, block_size_max=DEFAULT_BLOCK_SIZE_MAX, n_positions=N_POSITI
     tests should permute WITHIN cycle rather than within session; measured on all 44 curated
     sessions, no verdict sits in the band where null width could matter, so the within-session nulls
     stand. See DECISIONS.md 2026-09-26. It is kept because it is the prerequisite for reopening that
-    question, and because per-cycle is a natural unit for a behavioural one (does performance drift
+    question, and because per-cycle is a natural unit for a behavioral one (does performance drift
     within a cycle?).
     """
     codes = np.asarray(codes)
@@ -274,8 +274,8 @@ def audit(s, codes, block_size_max=None, verbose=True):
       * reconstructed < firmware -> residual 4+4 merges, the known limit above.
       * reconstructed > firmware -> IMPOSSIBLE from merging alone, so it indicates damaged position
         labels. It fired on exactly the two sessions already known to be damaged: PS93_0806 (dead
-        spout_bit1, behaviour-log fallback) and PS92_0812 (crash + concat). Worth keeping as a
-        position-labelling guard independently of the block question.
+        spout_bit1, behavior-log fallback) and PS92_0812 (crash + concat). Worth keeping as a
+        position-labeling guard independently of the block question.
     """
     bmax = block_size_max or block_size_max_for(s)
     ids = block_ids(np.asarray(codes), bmax)
@@ -297,7 +297,7 @@ def audit(s, codes, block_size_max=None, verbose=True):
         out["status"] = "MORE blocks than the firmware ran -- position labels are suspect"
         if verbose:
             print(f"  [block_ids] {s['label']}: {n_rec} reconstructed vs {n_fw} firmware blocks -- "
-                  f"impossible from merging; check position labelling", flush=True)
+                  f"impossible from merging; check position labeling", flush=True)
     elif n_rec < n_fw:
         out["status"] = f"{n_fw - n_rec} residual merge(s) (4+4 at run-length {bmax})"
     else:

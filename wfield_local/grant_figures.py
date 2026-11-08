@@ -9,25 +9,25 @@ docstring and in DECISIONS.md rather than on the axes.
 
 WHAT IS SHOWN
 
-  1  BEHAVIOUR at all six spout positions, per animal, against days-from-lesion. Engaged hit rate --
+  1  BEHAVIOR at all six spout positions, per animal, against days-from-lesion. Engaged hit rate --
      the "stopped" (terminal quit) trials are excluded, which is what `hit_rate` in the per-position
      metrics CSV already means -- with Wilson CIs. This is the deficit the rest of the work is about.
 
   2  PRE-STROKE CROSS-SESSION DECODING in the shared joint-LocaNMF basis, ENL / cue / lick. Each bar
      is leave-one-session-out accuracy pooled over the curated pre-stroke sessions, the error bar is
      the 95% CI across HELD-OUT SESSIONS (not across trials -- the session is the unit that
-     generalisation is claimed over), and every held-out session is plotted as a point. Chance is
+     generalization is claimed over), and every held-out session is plotted as a point. Chance is
      1/6.
 
   3a POST-STROKE CODING RETAINED, per animal, per window, over days. y = the projection of that
-     position's own trials onto its own pre-stroke coding direction, pole-normalised so 1.0 = the
+     position's own trials onto its own pre-stroke coding direction, pole-normalized so 1.0 = the
      pre-stroke lick signature and 0 = the other positions. Error bars are SEM over trials. This is
      the "how much of the normal code is left" view.
 
   3b FROZEN vs WITHIN-SESSION DECODING, per animal, per window, over days. The frozen pre-stroke
      decoder asks whether the OLD code still reads out; a decoder trained on the post-stroke session
      itself asks whether position information is present AT ALL. Frozen falling while within-session
-     holds up is reorganisation rather than loss -- the two lines and the gap between them are the
+     holds up is reorganization rather than loss -- the two lines and the gap between them are the
      point. Error bars are binomial 95% CIs on each session's own trial count.
 
 EXCLUSIONS, and they are not cosmetic
@@ -649,17 +649,17 @@ def _collect_stopped_pooled(align, min_trials=20):
 def _matrices_crossnobis_rownorm(align, variant, min_trials=10):
     """`_matrices_crossnobis_rowcentred` with every row also divided by its OWN SD across columns.
 
-    WHY ROW-CENTRING ALONE IS NOT SCALE-FREE. Writing the row out,
+    WHY ROW-CENTERING ALONE IS NOT SCALE-FREE. Writing the row out,
 
         d(P,Q) - mean_Q d(P,.) = -2 mu_postP . (mu_preQ - mean mu_pre)
                                   + (|mu_preQ|^2 - mean |mu_pre|^2)
 
     the first term scales LINEARLY with |mu_postP| and the second does not depend on P at all. So
-    row-centring removes amplitude from the row's OFFSET and leaves it MULTIPLYING the row's shape:
-    double P's response and the whole row-centred profile doubles. Priya, 2026-09-10: "any universal
+    row-centering removes amplitude from the row's OFFSET and leaves it MULTIPLYING the row's shape:
+    double P's response and the whole row-centered profile doubles. Priya, 2026-09-10: "any universal
     gain should change the shape anyway, right?" -- right in the sense that matters for DIRECTION,
     since scaling a profile preserves its rank order and its signs, which is what the "moved toward"
-    claim rests on. Wrong for MAGNITUDE: a row-centred value cannot be compared across epochs or
+    claim rests on. Wrong for MAGNITUDE: a row-centered value cannot be compared across epochs or
     positions whose amplitude differs, and the encoder says amplitude fell hard acutely (fitted
     a: 0.94 pre to 0.36 acute, post-cue).
 
@@ -668,7 +668,7 @@ def _matrices_crossnobis_rownorm(align, variant, min_trials=10):
 
     WHAT IT DELIBERATELY THROWS AWAY: how FAR a position moved. A row that barely moved and a row
     that moved enormously have the same z-profile if they moved in the same direction. This is the
-    companion to the row-centred family, not its replacement -- read direction here and distance
+    companion to the row-centered family, not its replacement -- read direction here and distance
     there.
     """
     mats, days = _matrices_crossnobis_rowcentred(align, variant, min_trials)
@@ -704,7 +704,7 @@ def _matrices_best_match_destination(align, variant, min_trials=10):
     position or scattered evenly, which is the difference between substitution and collapse.
 
     WHY THIS IS THE MOST LEGIBLE FORM OF "MOVED TOWARD" (Priya, 2026-09-10, asking for exactly this):
-    it needs no sign convention, no row-centring and no units. A cell is a fraction of sessions.
+    it needs no sign convention, no row-centering and no units. A cell is a fraction of sessions.
     Everything else in the 6/7/8 families requires the reader to hold "is larger better here" in
     their head; a destination matrix does not.
 
@@ -772,7 +772,7 @@ def _matrices_best_match_destination(align, variant, min_trials=10):
 
 
 def _matrices_crossnobis_rowcentred(align, variant, min_trials=10):
-    """`_matrices_crossnobis` with every ROW centred: WHICH position did it move toward.
+    """`_matrices_crossnobis` with every ROW centered: WHICH position did it move toward.
 
     A NAMED COLLECTOR RATHER THAN A KWARG because `MATRIX_FAMILIES` resolves collectors by name
     through `getattr`, and a family is the unit that gets a matrix, a diagonal and a delta panel.
@@ -784,7 +784,7 @@ def _matrices_crossnobis_rowcentred(align, variant, min_trials=10):
     confounded the other way: `d(post P, pre Q) = |mu_postP|^2 - 2 mu_postP . mu_preQ + |mu_preQ|^2`
     has a first term depending only on P, so a pure amplitude change in P shifts its distance to
     EVERY pre-stroke position equally and paints a uniform row that looks like "moved toward all
-    six". Row-centring removes that term and leaves the CONTRAST within the row, which is where a
+    six". Row-centering removes that term and leaves the CONTRAST within the row, which is where a
     substitution actually lives -- so a far-contra row going negative under the far-middle column is
     that position's pattern having moved toward far-middle, not merely away from itself.
     """
@@ -972,7 +972,7 @@ def _enc_matched_tables(align, variant, min_trials=10):
     Read against `_enc_ceiling_tables` rather than against `_enc_tables`: those two share the scored
     side and the reference size, so `ceiling - matched` is the cost of the reference coming from
     OTHER sessions, with training-set size held constant. At pre-stroke that difference is the
-    cross-session generalisation cost and nothing else, which is the baseline every post-stroke epoch
+    cross-session generalization cost and nothing else, which is the baseline every post-stroke epoch
     has to be read against.
     """
     _ceil, matched, days = _enc_half_tables(align, variant, min_trials)
@@ -1151,7 +1151,7 @@ def _run_parallel(units, out, n_jobs, threads_per_worker):
     """Fan the units over a PROCESS pool. Returns (n_written, [failures]).
 
     PROCESSES, NOT THREADS, and not negotiable: pyplot keeps a global figure registry and the GIL
-    serialises the numpy that dominates this render anyway. The backend is Agg, set at import.
+    serializes the numpy that dominates this render anyway. The backend is Agg, set at import.
 
     Each worker is capped to `threads_per_worker` BLAS threads. Left uncapped, every worker's numpy
     grabs the whole box: the serial render already averages 1.5 cores from BLAS alone, so ten

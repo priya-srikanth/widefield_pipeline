@@ -4,9 +4,9 @@ activity maps to look at the whole cortex question? (supplemental figure with VI
 From the saved ITI sessions (`scripts/iti_licks.py`, every Allen area per bout-start ITI lick, >= 2 s without licking):
 per session x area, response AUC (0..0.5 s after lick onset = first frame the tongue is visible) and build-up AUC
 (-0.4..-0.05 s), baseline -1.5..-1.0 s.
-  lick_iti_area_maps.png   change from pre per area in RAW dF/F AUC (acute / subacute / chronic) on the Allen atlas, one colour
+  lick_iti_area_maps.png   change from pre per area in RAW dF/F AUC (acute / subacute / chronic) on the Allen atlas, one color
                       scale per row; areas whose nested-bootstrap CI (animals > sessions) excludes 0 are outlined (black).
-                      (10-26: per-area normalisation by the area's own pre response was dropped -- small caudal areas
+                      (10-26: per-area normalization by the area's own pre response was dropped -- small caudal areas
                       with near-zero pre responses gave huge ratios of either sign and dominated the maps.)
   lick_iti_area_peth.png   per-session mean PETH +- SEM (all animals pooled) for non-orofacial areas, both hemispheres.
   lick_iti_area_groups.png orofacial (ALM, tjM1, MOs, MOp, SSp-m, SSp-n) vs visual + retrosplenial areas: one dot per
@@ -250,7 +250,7 @@ def draw_maps(stem: str) -> None:
 
 def _levels(T: pd.DataFrame, vals) -> list:
     """Per-epoch LEVEL maps (Priya 10-28: "collapsible supplementals of the per-epoch responses, not the deltas"): per
-    value, per epoch (pre, acute, subacute, chronic), area -> mean over animals of the animal's session mean; one colour
+    value, per epoch (pre, acute, subacute, chronic), area -> mean over animals of the animal's session mean; one color
     limit per value (98th percentile of |level| over all epochs)."""
     out = []
     for val, ttl in vals:
@@ -286,14 +286,14 @@ def draw_levels(stem: str) -> None:
         fig.colorbar(im, ax=axs[i, :], fraction=0.015, pad=0.01).set_label("dF/F AUC (x1e3 s)")
     what = F.get("what", "self-initiated (ITI) licks, all bout starts")
     fig.suptitle(f"NEURAL, NO DECODER: {what} -- per-epoch LEVEL per area (mean over animals of each animal's session mean; "
-                 "not the change from pre), raw dF/F AUC (x1e3 s); one colour scale per row. Image left = ipsilesional. "
+                 "not the change from pre), raw dF/F AUC (x1e3 s); one color scale per row. Image left = ipsilesional. "
                  "Descriptive.", fontsize=10, wrap=True)
     save_png_svg(fig, WOUT / "figures" / f"{stem}_levels.png", dpi=100, bbox_inches="tight")
     plt.close(fig)
 
 
 def _sig_halo(ax, img: np.ndarray, nm: list, sig_areas, shown_areas) -> None:
-    """Significant areas: EACH outlined on its own (a black line on a wider white stroke, so neighbouring significant
+    """Significant areas: EACH outlined on its own (a black line on a wider white stroke, so neighboring significant
     areas no longer merge into one outline); non-significant areas FADED (white veil), so in vs out is unambiguous
     (Priya 10-28: "outline with halo black line significant areas"; "hard to tell what's in vs outside")."""
     from matplotlib import patheffects

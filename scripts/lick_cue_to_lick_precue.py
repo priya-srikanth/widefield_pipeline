@@ -1,6 +1,6 @@
 """CHRONIC PRE-CUE 'DIP' DECOMPOSITION (Priya 10-29, task D). PROVISIONAL.
 
-Priya: the chronic pre-cue dF/F looks DECREASED in the NON-restw-normalised cue-aligned regional traces, but not (in
+Priya: the chronic pre-cue dF/F looks DECREASED in the NON-restw-normalized cue-aligned regional traces, but not (in
 orofacial areas) in the restw-referenced ones (Fig 14.21, lick_precue_restw_traces.py). Which component moved?
 
 Per session x area (8 areas x 2 hemispheres; ENGAGED trials = the precue_restw set; per-trial raw traces of
@@ -184,7 +184,7 @@ def draw_traces(stem: str) -> None:
     fig.suptitle(_wrap(_rl("NEURAL, NO BASELINE (non-restw version of Fig 14.21): cue-aligned area traces of ENGAGED trials, all "
                  "spouts; the drift basis incl. the constant is removed, so 0 = the area's SESSION MEAN. Dashed = the "
                  "epoch's mean RESTW level in the same units (rest sits below the session mean). Per animal x epoch mean "
-                 "over sessions, mean of animals, shade = SEM over animals. Grey = -1..0 s pre-cue window. "
+                 "over sessions, mean of animals, shade = SEM over animals. Gray = -1..0 s pre-cue window. "
                  f"n: {F['nlab']}. PROVISIONAL."), 11, 9), fontsize=9)
     reserve_headroom(fig)
     save_png_svg(fig, FIGS / f"{stem}{SFX}.png", dpi=110, bbox_inches="tight")
@@ -301,7 +301,7 @@ def draw_decomp_simple(src: str = "lick_cue_to_lick_D_decomposition", out: str =
         "Change from PRE of the raw pre-cue level (-1..0 s, NO baseline, 0 = session mean) = "
         "(pre-cue minus RESTW, the Fig 14.21 quantity) + RESTW level, contralesional areas, ENGAGED trials, all spouts "
         "(dF/F x1e3; one scale per row). Raw F0 (470 nm) chronic change: " + f0s
-        + (" (all n.s.)" if nsig == 0 else "") + ". NEURAL; dots = per-animal change (colour = animal), square + bar = "
+        + (" (all n.s.)" if nsig == 0 else "") + ". NEURAL; dots = per-animal change (color = animal), square + bar = "
         "paired nested bootstrap point and 95% CI (analysis_kit.boot_delta); * = CI excludes 0, (*) = fewer than 3 "
         "animals share the sign. PROVISIONAL, n = 4."), 8.4, 8.5), fontsize=8.5)
     FIGS.mkdir(parents=True, exist_ok=True)

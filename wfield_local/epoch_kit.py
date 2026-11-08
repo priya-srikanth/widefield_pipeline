@@ -72,7 +72,7 @@ def _totals(per_epoch):
     """``{animal: sessions across all epochs}`` -- the legend's count.
 
     Deliberately a different number from the subtitle's, and both are wanted: the legend says how
-    many dots of a colour are on the figure, the subtitle says how they split across the panels.
+    many dots of a color are on the figure, the subtitle says how they split across the panels.
     """
     out = {}
     for per in per_epoch.values():
@@ -128,7 +128,7 @@ def _scalar_figure(out_dir, *, name, title, ylabel, keys, values, points, tick_l
     because four existing families depend on the mutation to draw their intervals.)
 
     ``session_counts`` OVERRIDES the epoch assignment's counts. Every family here is built on
-    TRIALS, so the assignment's per-epoch session counts describe them exactly; the behavioural-
+    TRIALS, so the assignment's per-epoch session counts describe them exactly; the behavioral-
     state family is built on one-second SEGMENTS that are not trials and whose sessions are a
     different set, and a subtitle that states the assignment's counts over that panel is simply
     wrong. The same correction `_position_bars` needed for the `stopped` class.

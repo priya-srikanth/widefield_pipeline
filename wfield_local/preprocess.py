@@ -105,7 +105,7 @@ def _discover(yyyymmdd: str, raw_root: str, daq_root: str) -> list[dict]:
         m = DAT_ANY_RE.search(p.name)
         if m and m.group(1) != "2":
             ch, h, w = m.groups()
-            print(f"[discover] WARNING: {p.name} is labelled {ch}-channel, not 2, and was SKIPPED. "
+            print(f"[discover] WARNING: {p.name} is labeled {ch}-channel, not 2, and was SKIPPED. "
                   f"A normal 415/470 session that labcams mis-saved as single-channel looks exactly "
                   f"like this; if its DAQ shows both LEDs alternating, rename the '_{ch}_{h}_{w}_' "
                   f"segment to '_2_{h}_{w}_' to rescue it. [{p}]", flush=True)

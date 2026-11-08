@@ -1,11 +1,11 @@
 """bal_em: the PRODUCTION frozen SPOUT-POSITION decoder scaling since 2026-11-03 (Priya: "I would adopt B everywhere").
 
-Train on pre-stroke sessions each centred on the equal-weight mean of its TRUE class means; score every session with
-the label-free EM centre of its ENGAGED trials (Saerens priors -> soft class means -> 1/6 each, production SD, 3
+Train on pre-stroke sessions each centered on the equal-weight mean of its TRUE class means; score every session with
+the label-free EM center of its ENGAGED trials (Saerens priors -> soft class means -> 1/6 each, production SD, 3
 passes, no guard), applied to its no-lick trials too. DECISIONS 2026-11-03.
 
 Pins: (a) spec ids: session_z (= the pre-11-03 production) is byte-identical to the old spec, bal_em is a new id that
-differs only in ``scaling`` / ``scaling_params``; (b) no scored-session label reaches its centre -- shuffling them leaves
+differs only in ``scaling`` / ``scaling_params``; (b) no scored-session label reaches its center -- shuffling them leaves
 the inputs to the model bit-identical, and the scoring functions take no labels by signature; (c) on a synthetic
 6-spout case whose engaged set loses one spout, the old engaged-trial z-score biases the per-spout accuracies and
 bal_em removes most of that bias; (d) the state decoder still reads the shared primitives (moved, not copied).
@@ -39,7 +39,7 @@ def fake_store(monkeypatch):
 
 
 def _session(rng, mix, n=360, a=2.5, n_nolick=0):
-    """Six spout patterns + a per-session offset and gain (what the per-session normalisation is for). ``n_nolick``
+    """Six spout patterns + a per-session offset and gain (what the per-session normalization is for). ``n_nolick``
     extra trials of spout 5 share the session's offset and gain: the no-lick arm of the acute far-contra cell."""
     k = rng.choice(K, size=n, p=mix)
     k = np.concatenate([k, np.full(n_nolick, K - 1)])
@@ -54,7 +54,7 @@ def _session(rng, mix, n=360, a=2.5, n_nolick=0):
 
 def _pool(seed=0, post_mix=None, n_pre=5, n_post=3):
     """Production-frame pool: engaged rows z-scored per session (as `pool_sessions`), plus no-lick rows of the missing
-    spout normalised with the ENGAGED statistics (the shape of the acute far-contra cell)."""
+    spout normalized with the ENGAGED statistics (the shape of the acute far-contra cell)."""
     rng = np.random.default_rng(seed)
     post_mix = post_mix or [0.24, 0.24, 0.24, 0.14, 0.12, 0.02]
     XE, YE, GE, XU, YU, GU, kept = [], [], [], [], [], [], []
@@ -204,7 +204,7 @@ def _per_class(y, p):
 def test_bal_em_removes_the_mix_bias_session_z_has(fake_store, monkeypatch):
     """Post sessions' ENGAGED set has spout 5 at 2 % (pre: 1/6); spout-5 trials are scored mostly from the no-lick arm,
     in the engaged frame (the acute far-contra cell). The engaged-trial z-score pulls every trial toward spout 5's
-    pattern; bal_em's label-free centre lands near the ORACLE centre (true class means, the same bal_em-trained model)
+    pattern; bal_em's label-free center lands near the ORACLE center (true class means, the same bal_em-trained model)
     and removes most of the per-spout bias."""
     XE, YE, GE, XU, YU, GU, kept, pre_i = _pool(seed=11)
     post = [i for i in range(len(kept)) if i not in pre_i]

@@ -9,9 +9,9 @@ from the saved CSVs of the producing scripts; nothing is re-fit and no new stati
   partial_refit_cue_numbers.md         <- <frA run>/partial_refit/boot.csv      (scripts/partial_refit.py;   Fig 1.12)
 
 Encoder panels: point = mean of animals' epoch - pre (the saved `point`), bar = the saved 95 % nested CI (`lo`, `hi`),
-grey dots = the four animals (saved per-animal columns), * = CI excludes 0 (`wfield_local.sig_marks.sig_star`), k/n =
+open markers = the four animals (saved per-animal columns; shape = animal, color = epoch), * = CI excludes 0 (`wfield_local.sig_marks.sig_star`), k/n =
 saved `n_up` / `n`. Marker: filled circle = contralesional (right, lesion left), open circle = ipsilesional, square =
-whole cortex, diamond = contra - ipsi. Colour = epoch (lick_enlv_curves / orofacial_cohort.EPOCH_LINE).
+whole cortex, diamond = contra - ipsi. Color = epoch (lick_enlv_curves / orofacial_cohort.EPOCH_LINE).
 ALM / tjM1 rows exist only in the claims CSVs (FROZEN_PIX_MUSALL basis re-runs); musall_change.csv has cortex, SSp-m and
 MOp only, and no saved table has SSp-n for these encoder quantities -- the simple figures say so rather than substitute.
   frozen_musall_<w>_simple_v2.png      <- frozen_fr_compare/musall_change_v2.csv (scripts/frozen_fr_musall_v2.py, 10-30):
@@ -32,13 +32,14 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from fr_musall import E  # noqa: E402
+import iti_licks as il  # noqa: E402
 
 AN = ["PS92", "PS93", "PS94", "PS95"]
-EPOCH_COL = {"pre": "k", "acute": "#d01c8b", "subacute": "#b8860b", "chronic": "#01665e"}   # = EPOCH_LINE
+from wfield_local.orofacial_cohort import EPOCH_LINE as EPOCH_COL  # noqa: E402 - THE epoch palette (A13, Priya 11-07)
 FC = E / "frozen_fr_compare"
 FIG_FC = FC / "figures"
-LC = E / "iti_licks" / "lick_correction"
-FIG_LC = E / "iti_licks" / "figures"
+LC = il.OUT_W / "lick_correction"      # where lick_correction.py writes (D9 11-08: E/iti_licks/... is untagged)
+FIG_LC = il.OUT_W / "figures"
 PR = E / _design_tag("frozen_encoder_gate-attempted_v7g3_t3d_frA") / "partial_refit"
 KEY_AREAS = [("cortex", "cortex"), ("ALM_right", "ALM"), ("ALM_left", "ALM"), ("tjM1_right", "tjM1"),
              ("tjM1_left", "tjM1"), ("SSp-m_right", "SSp-m"), ("SSp-m_left", "SSp-m")]
@@ -63,7 +64,8 @@ def _side(area: str) -> str:
 def dot_panel(ax, B: pd.DataFrame, items: list, title: str, ylabel: str | None) -> tuple[float, float]:
     """items = [(x, area, short name, epoch)]; B rows keyed by area + epoch (one row each). Returns the data range
     (CI ends, dots, 0) so the caller can set one y range per row (`set_range`)."""
-    from wfield_local.sig_marks import sig_star
+    from wfield_local import cat_points as cp
+    from wfield_local.sig_marks import star_top
     rng = np.random.default_rng(0)
     vals = [0.0]
     for x, area, _nm, ep in items:
@@ -75,10 +77,15 @@ def dot_panel(ax, B: pd.DataFrame, items: list, title: str, ylabel: str | None) 
         mk, filled = _style(area)
         dots = np.array([r.get(a, np.nan) for a in AN], float)
         vals += [r.lo, r.hi, *dots[np.isfinite(dots)]]
-        ax.scatter(x + 0.18 + rng.uniform(-0.04, 0.04, 4), dots, s=10, c="0.55", zorder=3, lw=0)
+        xj = x + 0.18 + rng.uniform(-0.04, 0.04, 4)       # animals: open, shape = animal, colour = epoch (A13)
+        for a, xa, dv in zip(AN, xj, dots):
+            if np.isfinite(dv):
+                ax.plot([xa], [dv], ls="none", marker=cp.animal_marker(a), ms=3.6, mfc="none", mec=col, mew=0.8,
+                        zorder=3)
         ax.plot([x, x], [r.lo, r.hi], color=col, lw=1.6, zorder=4)
         ax.plot(x, r.point, marker=mk, ms=7, color=col, mfc=col if filled else "white", mew=1.6, zorder=5, ls="none")
-        sig_star(ax, x, r.lo, r.hi, dots, fontsize=12, color=col)
+        if r.lo > 0 or r.hi < 0:                          # stars in the top band (Priya 10-30)
+            star_top(ax, x, "*", col, fontsize=12)
         ax.annotate(f"{int(r.n_up)}/{int(r.n)}", (x, 0), xycoords=("data", "axes fraction"), xytext=(0, 3),
                     textcoords="offset points", ha="center", va="bottom", fontsize=6.5, color="0.35")
     ax.axhline(0, color="0.5", lw=0.7, zorder=1)
@@ -91,6 +98,18 @@ def dot_panel(ax, B: pd.DataFrame, items: list, title: str, ylabel: str | None) 
     for s in ("top", "right"):
         ax.spines[s].set_visible(False)
     return float(np.nanmin(vals)), float(np.nanmax(vals))
+
+
+def _headroom(fig) -> None:
+    """After `set_range`: keep the top band free for the `star_top` marks and drop the top spine."""
+    from wfield_local import cat_points as cp
+    from wfield_local.sig_marks import reserve_headroom
+    reserve_headroom(fig)
+    h = cp.animal_handles(AN)                            # the animal-dot shapes (colour = epoch, as the markers)
+    for x in h:
+        x.set_label(x.get_label().replace(" sessions", ""))
+    fig.legend(handles=h, loc="upper left", bbox_to_anchor=(0.003, 0.997), fontsize=6.5, frameon=False,
+               handletextpad=0.2, labelspacing=0.2, title="animals", title_fontsize=6.5)
 
 
 def set_range(axs, rngs) -> None:
@@ -132,8 +151,9 @@ def fig_musall(plt, w: str, claim: str) -> Path:
         ax.text(1.5, 1.0, "frozen model", transform=ax.get_xaxis_transform(), ha="center", va="bottom", fontsize=8)
         ax.text(6.3, 1.0, "frozen + FaceRhythm", transform=ax.get_xaxis_transform(), ha="center", va="bottom", fontsize=8)
         ax.axvline(3.9, color="0.85", lw=0.8)
+    _headroom(fig)
     fig.suptitle(f"{_wrap(claim)}\nFrozen pre-stroke encoder, {WLAB[w]}, chronic epoch. PROVISIONAL, n = 4", fontsize=10)
-    _foot(fig, "Marker = mean of animals' chronic - pre; bar = 95% nested CI (animals > sessions); grey dots = animals; "
+    _foot(fig, "Marker = mean of animals' chronic - pre; bar = 95% nested CI (animals > sessions); open markers = animals (shape = animal, color = epoch); "
                "* CI excludes 0; k/n = animals above 0. Filled = contralesional, open = ipsilesional, square = cortex, "
                "diamond = contra - ipsi. ALM / tjM1 / SSp-n are not in the saved table for these quantities "
                "(musall_change.csv). Source: scripts/frozen_fr_musall.py.")
@@ -180,13 +200,14 @@ def fig_musall_v2(plt, w: str, claim: str) -> Path:
                 if a.endswith("_right") and a.startswith(("ALM", "tjM1")):
                     ax.axvspan(x0 - 0.45, x0 + 2.45, color="#f0f0f0", zorder=-1, lw=0)
         set_range(axs[i], rr)
+    _headroom(fig)
     pd.concat(used).to_csv(FIG_FC / f"frozen_musall_{w}_simple_v2_data.csv", index=False)
     fig.suptitle(f"{_wrap(claim, 150)}\nFrozen pre-stroke encoder, {WLAB[w]}, chronic epoch. PROVISIONAL, n = 4",
                  fontsize=10)
-    _foot(fig, "Marker = mean of animals' chronic - pre; bar = 95% nested CI (animals > sessions); grey dots = animals; "
+    _foot(fig, "Marker = mean of animals' chronic - pre; bar = 95% nested CI (animals > sessions); open markers = animals (shape = animal, color = epoch); "
                "* CI excludes 0; k/n = animals above 0. Filled = contralesional, open = ipsilesional, square = cortex, "
                "diamond = contra - ipsi (ticks: c = contra, i = ipsi, c-i). cortex / SSp-m / SSp-n / MOp: area run (Allen area on the stat mask); ALM / tjM1 "
-               "(grey band): ROI v8 on the stat mask from the FROZEN_PIX_MUSALL basis twin (same route as the claims "
+               "(gray band): ROI v8 on the stat mask from the FROZEN_PIX_MUSALL basis twin (same route as the claims "
                "figures; checked per session on SSp-m / SSp-n / MOp: r >= 0.987, median |diff| <= 0.0004, worst single session 0.13). "
                "Source: scripts/frozen_fr_musall_v2.py -> musall_change_v2.csv.")
     fig.subplots_adjust(left=0.05, right=0.995, top=0.86, bottom=0.12, wspace=0.05, hspace=0.55)
@@ -209,8 +230,9 @@ def _grid(plt, B: pd.DataFrame, rows: list, w: str, claim: str, foot: str, name:
             rr.append(dot_panel(axs[i, j], b, items, f"{rt}, {ep.upper()} - pre",
                                 "change from pre (R²)" if j == 0 else None))
         set_range(axs[i], rr)
+    _headroom(fig)
     fig.suptitle(f"{_wrap(claim)}\nFrozen pre-stroke encoder (no FaceRhythm), {WLAB[w]}. PROVISIONAL, n = 4", fontsize=10)
-    _foot(fig, "Marker = mean of animals' epoch - pre; bar = 95% nested CI (animals > sessions); grey dots = animals; "
+    _foot(fig, "Marker = mean of animals' epoch - pre; bar = 95% nested CI (animals > sessions); open markers = animals (shape = animal, color = epoch); "
                "* CI excludes 0; k/n = animals above 0. Filled = contralesional, open = ipsilesional, square = whole "
                "cortex. SSp-n is not in the saved table. " + foot)
     fig.subplots_adjust(left=0.07, right=0.99, top=1 - 1.35 / (3.3 * len(rows) + 1.3), bottom=0.55 / (3.3 * len(rows) + 1.3) + 0.04,
@@ -237,6 +259,8 @@ def fig_peth(plt, w: str, claim: str) -> Path:
 
 
 def fig_lick_dots(plt) -> Path:
+    from wfield_local import cat_points as cp
+    from wfield_local.sig_marks import star_top
     B = pd.read_csv(LC / "corr_beh_boot.csv")
     PA = pd.read_csv(LC / "corr_beh_per_animal.csv")
     B, PA = B[B.order == "any"], PA[PA.order == "any"]
@@ -257,12 +281,14 @@ def fig_lick_dots(plt) -> Path:
                 col = EPOCH_COL[ep]
                 x = i + off
                 v = pa[pa.epoch == ep].set_index("animal")[f"{m}_mean"].reindex(AN).to_numpy(float)
-                ax.scatter(np.full(4, x + (0.07 if off > 0 else -0.07)), v, s=9, c="0.6", lw=0, zorder=3)
+                for a, dv in zip(AN, v):                  # animals: open, shape = animal, colour = epoch (A13)
+                    if np.isfinite(dv):
+                        ax.plot([x + (0.07 if off > 0 else -0.07)], [dv], ls="none", marker=cp.animal_marker(a),
+                                ms=3.4, mfc="none", mec=col, mew=0.8, zorder=3)
                 ax.plot([x, x], [r.level_lo, r.level_hi], color=col, lw=1.6, zorder=4)
                 ax.plot(x, r.level, "o", ms=7, color=col, mfc=col if filled else "white", mew=1.6, zorder=5)
                 if ep != "pre" and np.isfinite(r.delta) and (r.delta_lo > 0 or r.delta_hi < 0):
-                    top = np.nanmax([r.level_hi, *v])
-                    ax.text(x, top, "*", color=col, ha="center", va="bottom", fontsize=13, fontweight="bold")
+                    star_top(ax, x, "*", col, fontsize=13)
                 if ep != "pre" and int(r.n_animals) < 4:
                     ax.annotate(f"{int(r.n_animals)} animals", (x, r.level_lo), xytext=(0, -9), textcoords="offset points",
                                 ha="center", fontsize=6.5, color="0.35")
@@ -285,9 +311,10 @@ def fig_lick_dots(plt) -> Path:
                  "(far contra chronic +4.5 deg vs pre, 4/4). Cued post-cue lick pairs k -> k+1. PROVISIONAL, n = 4",
                  fontsize=9.5)
     _foot(fig, "Marker = pooled session level, bar = 95% nested bootstrap CI (saved corr_beh_boot.csv, all lick orders); "
-               "grey dots = animals (session means, corr_beh_per_animal.csv); * = change vs pre CI excludes 0. Session "
+               "open markers = animals (shape = animal, color = epoch) (session means, corr_beh_per_animal.csv); * = change vs pre CI excludes 0. Session "
                "cells need >= 10 misses and >= 10 hits; per-spout close cells (median 1-13 misses / session) are not "
                "shown, the five non-far-contra spouts are the script's pooled group. Source: scripts/lick_correction.py.")
+    _headroom(fig)
     fig.subplots_adjust(left=0.07, right=0.97, top=0.82, bottom=0.2, wspace=0.28)
     p = FIG_LC / "lick_correction_spouts_dots.png"
     save_png_svg(fig, p, dpi=130)

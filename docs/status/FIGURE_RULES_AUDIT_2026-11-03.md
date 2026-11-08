@@ -8,7 +8,7 @@ Rules applied (categorical x = spout position or epoch):
 
 1. No line joins categories (spouts or epochs). An epoch summary = marker + interval. Time-continuous x (ms from cue,
    lick phase, days) keeps its traces.
-2. Every summary marker shows the session values behind it as faded OPEN markers: shape = animal, colour = epoch,
+2. Every summary marker shows the session values behind it as faded OPEN markers: shape = animal, color = epoch,
    alpha ~0.4, seeded jitter.
 3. Epochs within a spout are spread laterally (`cat_points.epoch_offsets`, 0.26 apart for 3 epochs). Canonical spout
    order, stars in the top band (`sig_marks.star_top` + `reserve_headroom`), + = contralesional.
@@ -35,10 +35,10 @@ summary values written as a sidecar `<name>_nolines.csv`. Code: 25b6cd4a, 910a3a
 | 2.9 | l_pos_first_contra.png | prepost/by_position_licks_first_contra_nolines.png | orofacial_cohort : _per_animal_figure / _by_pos_panel | FIXED |
 | 2.10 | l_pos_all_contra.png | prepost/by_position_licks_all_contra_nolines.png | same | FIXED |
 | 3.1 | k_angle.png | prepost/angle_tuning_contra_nolines.png | orofacial_cohort : fig_angle_tuning | FIXED |
-| 5.1 | k_jaw_epochs.png | jaw_lateral/epochs_nolines.png | wfield_local/orofacial_jaw_lateral.py : fig_epochs (`--plot-only --suffix _nolines`) | FIXED (FAR_BIAS panel still labelled + = ipsi: target sign, unchanged) |
+| 5.1 | k_jaw_epochs.png | jaw_lateral/epochs_nolines.png | wfield_local/orofacial_jaw_lateral.py : fig_epochs (`--plot-only --suffix _nolines`) | FIXED (FAR_BIAS panel still labeled + = ipsi: target sign, unchanged) |
 | 8.1 | k_w2.png | w2/epochs_by_position_nolines.png | wfield_local/orofacial_w2.py : figures (`--plot-only`) -> fig_cohort_epochs_by_position | FIXED |
 | 10.1 | pose_validation_sessions.png | -- | (cam4 2-D -> 3-D per animal; x = method, not spout / epoch) | borderline, left |
-| style only | 1.4 k_aim_spout, 3.6 p_angle, 7.5 p_3d_contra | -- | session dots filled, coloured by animal | not changed |
+| style only | 1.4 k_aim_spout, 3.6 p_angle, 7.5 p_3d_contra | -- | session dots filled, colored by animal | not changed |
 
 Shared fixes in `orofacial_cohort._tidy`: a legend moved next to the last panel of its row is no longer rebuilt from that
 panel's own artists, and explicit legend entries survive the move. `_spout_markers` no longer joins the spout-angle bars.
@@ -85,7 +85,7 @@ R = `M:/MICROSCOPE/Priya/DeepLabCut/Widefield/face_rhythm/cam4/readouts/master_p
 | 10.1 r_crossnobis | `M:/MICROSCOPE/Priya/Widefield/labcams/grant_figures/epoch/epoch_8diagdelta_matrices_crossnobis_cue_working_nolines.png` | contrast_panel | FIXED |
 | 5.2 | fig2b_attempt_decoder_epochs | scratch fig_goal_epochs.py (encoding window) | NOT FIXED: script not in repo |
 
-Shared changes (epoch_figures, all epoch families on their next render): `bar_row` session dots open / shape = animal / colour = epoch; stars via `sig_marks.star_top` in alternating rows (overlap fixed); `contrast_panel(points=)` per-session deltas; `EPOCH_GREY` = `orofacial_cohort.EPOCH_LINE` (grey ramp replaced). Not re-rendered (no sidecar path; recolour on the next normal render): transfer_matrix.epoch_color users (rotation_maps), cd_trajectories.EPOCH_COLOR users.
+Shared changes (epoch_figures, all epoch families on their next render): `bar_row` session dots open / shape = animal / color = epoch; stars via `sig_marks.star_top` in alternating rows (overlap fixed); `contrast_panel(points=)` per-session deltas; `EPOCH_GREY` = `orofacial_cohort.EPOCH_LINE` (gray ramp replaced). Not re-rendered (no sidecar path; recolour on the next normal render): transfer_matrix.epoch_color users (rotation_maps), cd_trajectories.EPOCH_COLOR users.
 
 ## Encoding page section 23 (this window): `*_nolines.png` beside originals, commit 458f128b
 23.4 `.../v2_quiet_lp/stillness/quiet_stillness_nolines.png`; 23.5 `.../task_events/t13_precue_event_vs_outcome_nolines.png`;
@@ -140,12 +140,12 @@ scripts (no shared plotting module), so these figures are for window 34 to fix. 
 | lick_balance_trial | R2 |
 | lick_balance_imaging_control(_primary) | R2 |
 | lick_enl_target_test : _fig_classmatched_epochs | R2 |
-| (style only) lick_enl_angle_decode, lick_balance_recovery, lick_recovery_markers_size, lick_*_recovery_search | session dots filled, coloured by animal |
+| (style only) lick_enl_angle_decode, lick_balance_recovery, lick_recovery_markers_size, lick_*_recovery_search | session dots filled, colored by animal |
 
 ### Key figures, Figs 0.1 - 5.2
 
 **Root cause for most of these:** two helpers in `scripts/frozen_fr_compare.py` -- `epoch_lines` (lines across epochs,
-per-animal faint lines instead of session dots) and `bars` (grey dots = animals, not sessions). At least 9 encoding
+per-animal faint lines instead of session dots) and `bars` (gray dots = animals, not sessions). At least 9 encoding
 scripts import them (contest_lines, te_readout, partial_refit, frozen_claims, frozen_fr_musall, frozen_posinfo, ...).
 Fixing the two helpers fixes most rows below. Not in `wfield_local`.
 
@@ -157,7 +157,7 @@ Fixing the two helpers fixes most rows below. Not in `wfield_local`.
 | 0.2, 0.8 | frozen_musall_{cue,lick}_simple_v2.png | R2 | frozen_fr_musall : main (bars); cited frozen_fr_musall_v2.py not in repo |
 | 0.3, 0.4, 0.9, 0.10 | frozen_claims_{contest,peth}_{cue,lick}_simple.png | R2 | frozen_claims : main (bars) |
 | 1.2 | te_unique_lines_frame.png | R1 + R2 | te_readout : main (epoch_lines) |
-| 1.3, 1.4 | te_partial_refit_lines.png, partial_refit_lines.png | R1 + R2 | partial_refit : summarise (epoch_lines) |
+| 1.3, 1.4 | te_partial_refit_lines.png, partial_refit_lines.png | R1 + R2 | partial_refit : summarize (epoch_lines) |
 | 1.5, 4.7 | contest_landing_vs_target.png, contest_selffit_remap.png | R1 + R2 | contest_lines : figure (epoch_lines) |
 | 3.11 | epoch_kernels_r.png | R1 + R2 | epoch_kernels : figures |
 | 1.6, 1.15 | fig1p_contest_pooled.png, fig10p_width_pooled.png | R2 | no local source (O2 script) |

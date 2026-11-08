@@ -1,4 +1,4 @@
-"""First cam1 behavioural readout (Priya 2026-10-18, PRELIMINARY: the cam1 model is not chosen yet): where does each lick
+"""First cam1 behavioral readout (Priya 2026-10-18, PRELIMINARY: the cam1 model is not chosen yet): where does each lick
 point, relative to its spout, seen from below? cam1 sees left-right and up-down, which cam4 (side view) cannot.
 
     python -m scripts.cam1_lick_aim PS93:20260814=pre PS93:20260821=acute PS93:20260908=chronic \\
@@ -17,7 +17,7 @@ A LICK = a run of cleaned (measured or interpolated) tongue frames after the cue
 >= 3 frames, whose most VENTRAL point (the PEAK, max ``out``) is > 20 px below the mouth. Runs that never get there are
 counted (``n_dorsal_runs``) but not licks: on frames they are a pale bump at the lips with the mouth nearly closed (out -30
 .. -45 px; LP confident). Per lick: ``contact`` = a DAQ spout contact within the run +- 20 ms; ``lat_err_px`` = peak lateral
-- spout lateral, + = more LATERAL (outward) than the spout for side positions, + = mouse's left at the centre (spout ~0);
+- spout lateral, + = more LATERAL (outward) than the spout for side positions, + = mouse's left at the center (spout ~0);
 ``reach_px`` = the peak's ``out`` (ventral reach).
 
 Writes ``session_poses/cam1_lick_aim<tag>.csv`` (one row per lick), ``..._summary.csv`` and ``....png``.

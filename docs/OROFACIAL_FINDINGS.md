@@ -67,7 +67,7 @@ this file is not regenerated.
 | PS94 | 6 | 5 | 8 |
 | PS95 | **1** | 7 | 11 |
 
-- **Trials:** engaged trials only (the behaviour pipeline's reference-position gate): 56,629 of 62,771. The ungated
+- **Trials:** engaged trials only (the behavior pipeline's reference-position gate): 56,629 of 62,771. The ungated
   control is `*_alltrials`.
 - **Licks:** LP-detected post-cue licks (cue + 70 ms to the DAQ trial stop).
 
@@ -119,7 +119,7 @@ months, which is why raw image positions are never used.
 | measured peak protrusion | −30 / −26 px (**caveat below**) |
 | reach | −0.16 / −0.18 |
 | lick duration | +20 ms |
-| licks with a neighbour within 250 ms | −0.44 (isolated licks) |
+| licks with a neighbor within 250 ms | −0.44 (isolated licks) |
 | pre-cue licking | −0.38 Hz |
 
 > **Protrusion caveat (2026-10-20, per-animal check, v36 August pre):** far-contra protrusion acute is −12 / −27 / −30 /
@@ -211,7 +211,7 @@ the commanded spouts; `docs/POSE_MODELS.md` D10-D12). Per animal, post sessions 
   lateral, 0.57-0.83 opening. So findings 1-3 stand as measured; how far the tongue comes FORWARD is invisible to cam4.
 - **8b. 3-D carries more target information** (`pose3d_vs_cam4`, target spout decoded from the lick endpoint, August pre,
   leave-one-session-out, 6 positions, chance 0.17): 3-D 0.81 / 0.67 / 0.86 / 0.74 vs cam4 0.53 / 0.42 / 0.78 / 0.59.
-  Largest gain on centre close vs far (depth). CORRECTED from the 10-19 PS92-only line (0.80 vs 0.53), which holds.
+  Largest gain on center close vs far (depth). CORRECTED from the 10-19 PS92-only line (0.80 vs 0.53), which holds.
 - **8c. Reach** drops acutely at BOTH far spouts in PS93 / PS94 (not contra-specific), consistent with finding 1's
   protrusion caveat; PS92's far-contra licks are full length but aimed ipsi.
 - **8d. Incomplete licks** (no contact; cam4 + cam1-only, `cam1_incomplete_licks`): share of far_R licks pre -> acute
@@ -221,9 +221,9 @@ the commanded spouts; `docs/POSE_MODELS.md` D10-D12). Per animal, post sessions 
   no-contact events), far_R only. Not the same as FACE_RHYTHM_FINDINGS 5c's per-lick contra MISSES (close + far
   contra pooled), which are mildly up chronically in 3 / 4 incl. PS95 (.13 vs .09): the two agree that chronic far-
   contra misses remain in some animals and differ in which positions they pool.
-- **8e. CLOSE_DIR** (jaw moves away from a close side spout, 10-20 in PS92 / PS93) does NOT generalise: PS94 / PS95 flat.
+- **8e. CLOSE_DIR** (jaw moves away from a close side spout, 10-20 in PS92 / PS93) does NOT generalize: PS94 / PS95 flat.
 - Whole-session 3-D lick table (pre-cue + post-cue + ITI licks; ITI licks have no target) exists since 10-23:
-  `session_poses/pose3d/kinematics_all/licks.csv.gz` (`context` column). Not yet analysed here.
+  `session_poses/pose3d/kinematics_all/licks.csv.gz` (`context` column). Not yet analyzed here.
 
 ## Robustness to PS93 (leave-PS93-out)
 
@@ -301,7 +301,7 @@ the same effect size but drop to one test, which is expected with 3 animals.
 
 - 3-D jaw / nose onsets as appended `jaw_onsets.csv` columns, checked against Priya's 24 reviewed trials (10-23, in progress).
 - Per-animal check of each chronic cell in finding 7 and of W2 (finding 5) on v36.
-- Analyse the whole-session 3-D licks (`kinematics_all`, ITI / spontaneous licks; the encoding window's stray test uses them).
+- Analyze the whole-session 3-D licks (`kinematics_all`, ITI / spontaneous licks; the encoding window's stray test uses them).
 
 ## Change log
 

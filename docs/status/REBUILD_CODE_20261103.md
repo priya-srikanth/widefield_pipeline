@@ -9,7 +9,7 @@ NOT pushed. main and the other worktrees were not touched. No result renders; on
 | # | branch (tip at merge) | merge commit | conflicts and resolution |
 |---|---|---|---|
 | 1 | analysis/restnl-maps (1cb58c9c) | 89664325 | none |
-| 2 | analysis/lp-final (5822cbad) | 2b182c76 | `wfield_local/epoch_figures.py`, 4 hunks. (i) significance marks: main = top band for the default open-dot style (epoch-coloured, alternating rows), lp-final = top band for every style (one row per post epoch, y ticks trimmed). KEPT main's default path exactly; lp-final's top band now covers `dot_style="animal"`, which main still drew above the bar (both Priya 10-30). (ii) `reserve_headroom`: same split. (iii) `contrast_panel` tail: kept main's `write_session_values` AND lp-final's `save_figdata`. (iv) end of module: kept main's `replot_from_sidecars` family AND lp-final's `save_figdata` / `replot_figdata` (independent additions). |
+| 2 | analysis/lp-final (5822cbad) | 2b182c76 | `wfield_local/epoch_figures.py`, 4 hunks. (i) significance marks: main = top band for the default open-dot style (epoch-colored, alternating rows), lp-final = top band for every style (one row per post epoch, y ticks trimmed). KEPT main's default path exactly; lp-final's top band now covers `dot_style="animal"`, which main still drew above the bar (both Priya 10-30). (ii) `reserve_headroom`: same split. (iii) `contrast_panel` tail: kept main's `write_session_values` AND lp-final's `save_figdata`. (iv) end of module: kept main's `replot_from_sidecars` family AND lp-final's `save_figdata` / `replot_figdata` (independent additions). |
 | 3 | analysis/rest-decoder-nl (7c53214a) | 22959cec | none |
 | 4 | analysis/frozen-default (876c87b0) | 6622a3c3 | `wfield_local/frozen_models.py` `make_spec` tail: kept main's `scaling` field (state decoder session_z) AND frozen-default's `lp_trained()` rule (LP-trained default, Priya 11-03). |
 | 5 | analysis/cohort1-swapmask (2c3fccfb) | db711802 | none |
@@ -21,7 +21,7 @@ wf_swapmask (drift check, LocaNMF test) -- anything after 2c3fccfb is NOT in thi
 
 Tests after the merges (frozen copy of db711802, 4 shards, 4,284 tests): see section 4.
 Merge breakage found and fixed: `tests/test_rest_frozen_decoder_nl.py::test_only_collect_changed` (rest-decoder-nl
-pins every function of `rest_frozen_decoder` to 0e592a20; main changed `_plot` -- animal colours from config, the
+pins every function of `rest_frozen_decoder` to 0e592a20; main changed `_plot` -- animal colors from config, the
 cohort-2 change). Fixed by allowing `_plot` (and the rebuild's routed `_epoch_dir`) in its CHANGED set, commit 335f23f3.
 
 ## 2. Code changes (commits on rebuild/cohort1-20261103)
@@ -34,7 +34,7 @@ cohort-2 change). Fixed by allowing `_plot` (and the rebuild's routed `_epoch_di
 | ce5ecf6a | step 3 scripts |
 
 (The items are entangled across shared modules, so they share commits; each commit message lists its items.)
-DEFAULT BEHAVIOUR: every default path, cache key, output folder and file name is unchanged (pinned in
+DEFAULT BEHAVIOR: every default path, cache key, output folder and file name is unchanged (pinned in
 `tests/test_rebuild_switches.py`), EXCEPT the two changes that are cold-cache / new-id by design: (e) every frozen spec
 id, and (h) the map / prm / restnl cache digests.
 
@@ -226,7 +226,7 @@ Steps 2-4 read SVTcorr / the joint basis (so the hemo switch, project_all and a 
 
 ## 5. Blocked / for Priya / open
 - Drift-step design + cutoff, LocaNMF refit vs projection: not touched (the variant build, D9 removal of the
-  encoder / ITI / stray_licks drift steps, and `build_swapmask_cohort1.py` parameterisation wait on them).
+  encoder / ITI / stray_licks drift steps, and `build_swapmask_cohort1.py` parameterization wait on them).
 - wf_attempt-only scripts (item a list; T18 skip-if-exists writers): need edits on attempt-coding or its merge.
 - Camera gate: wire (or make refuse) the not-yet-wired gates listed under f; confirm camera "stopped" = no_response;
   flip `trial_selection.gate` at render time.
@@ -290,7 +290,7 @@ so attempt-coding's version is a strict descendant.
 both per-file ignores. Docs, both sides in date order:
 - DECISIONS: HEAD's 10-25 FaceRhythm entry; the 10-27 side-camera addenda, then attempt-coding's 10-27 / 10-28 entries,
   HEAD's 10-29 / 10-30, attempt-coding's 11-02 evening, HEAD's 11-02 late .. 11-03. Every heading present once (checked).
-- FINDINGS: one-side additions; the 4d0 "Behaviour on the same cued licks" line takes attempt-coding's 10-28 rewording.
+- FINDINGS: one-side additions; the 4d0 "Behavior on the same cued licks" line takes attempt-coding's 10-28 rewording.
 - POSE_MODELS: attempt-coding's 11-01 local-cleanup note stays with the cam4 / cam1 parts it describes, then HEAD's
   Part E (side cameras; those models were not deleted).
 - 10-26 encoding handoff, SVD_GAUSS queue: attempt-coding's additions.
@@ -322,7 +322,7 @@ stopped_trial_traces; `JOBS`: lick_iti_prelick x3). Not fixed here (goal-page ow
 
 ### 8.2 Camera gate (8d169197; review fixes 5361b2fa)
 WIRED under gate=camera: nolick_decoder.categorize (-> cd_trajectories classes, enl_decode arms, the nolick undetected
-split; an undetected cue in neither miss_working nor stopped leaves the categorisation), poststroke_engagement /
+split; an undetected cue in neither miss_working nor stopped leaves the categorization), poststroke_engagement /
 nolick_state_vector / undetected_state_split, precue_engagement_states states 5 / 6 (+ D1), attempt_coding.classify,
 attempt_maps.classes_for_rows, position_axes, grant_confusion post_working panels, and the rest-baseline gates
 (rest_engagement.engaged_by_cue / engaged_frame_mask, rest_by_position._engaged_trials; through them rest_frozen_decoder,
@@ -331,7 +331,7 @@ rest baseline, attempt_maps' time-local rest). Previously wired: grant_kit, beta
 hemo_map_control, position_coding_directions.
 FAIL CLOSED: `engagement_gate` raises `trial_classes.DaqGateRefused` (a SystemExit, so the fail-open rest gates cannot
 swallow it) under camera unless `daq_quit_rule(reason)` is open. `_gate_all` and the grant bundle hand out a
-`RefusedMask`; the real mask stays in `bundle["not_eng_daq"]` for `rule="daq"`. Exempt (measures, diagnostics, labelled
+`RefusedMask`; the real mask stays in `bundle["not_eng_daq"]` for `rule="daq"`. Exempt (measures, diagnostics, labeled
 DAQ rows): spout_behavior.flag_engagement, disengagement_tests, quit_point, gate_lp_check, lp_gate_option_counts, the
 s1 tables' quit-tail rows. Refuse up front (`require_gate`): enl_states.states_for, enl_state_counts,
 stopped_trial_traces, channel_position_maps; engagement_axis_balance / nocontact_census refuse on the mask.
@@ -430,7 +430,7 @@ All in the "second pass" commit after 630c277b; tests in `tests/test_review_seco
 |---|---|---|
 | 1 | no-lick rows with camera class "contact": in NEITHER miss-while-working nor stopped; count them | `GATES["miss_working"]` excludes contact (already); `trial_classes.contact_nolick_counts` + `scripts/camera_coverage_tables.py` -> `camera_contact_nolick.csv` (per animal x epoch, with the cause split) and `camera_contact_nolick_trials.csv` |
 | 1b (final window) | the no-lick analysis counts licks / contacts EXACTLY as cue_stop (cue -> trial stop, contacts from cue + 70 ms, the contact table) | `nolick_decoder.categorize` under camera: classes from `cue_classes_for(..., window="cue_stop")`; a DAQ-"undetected" cue whose cue_stop class is contact becomes `late_rewarded` (a contact trial, out of the no-lick arm), so the two definitions cannot disagree. `trial_classes.nolick_selection()` (`sel-camera-cue_stop-...`) enters the nolick reference spec and the session-features cache kind (camera only; default keys unchanged). The superseded "response window" variant was written and REMOVED before commit (no fork of the classifier) |
-| 1c (check) | the count table is a check that the disagreement is 0; residuals with cause; trial-stop lengths | causes: late_after_response_window / cue_frame / refractory_merge / definition_mismatch (never a sensor miss: contact IS the DAQ sensor); `camera_stop_lengths.csv` (trials, stops > 3.6 s, their median, median of all). SCRATCH CHECK, 3 sessions (PS92_0908, PS93_0818, PS94_0821; read-only, outputs in scratch): the categorisation's response window = 3.5 s in all (per-session, A1); disagreements 0 / 1 / 0, the one (PS93_0818 acute) = late_after_response_window (now a contact trial); trials with stop > 3.6 s 289/321, 373/554, 376/600, median of those 3.76 / 3.94 / 3.72 s, median of all 3.72 / 3.77 / 3.66 s. The full table needs a run of the script (it writes into the share qc folder) |
+| 1c (check) | the count table is a check that the disagreement is 0; residuals with cause; trial-stop lengths | causes: late_after_response_window / cue_frame / refractory_merge / definition_mismatch (never a sensor miss: contact IS the DAQ sensor); `camera_stop_lengths.csv` (trials, stops > 3.6 s, their median, median of all). SCRATCH CHECK, 3 sessions (PS92_0908, PS93_0818, PS94_0821; read-only, outputs in scratch): the categorization's response window = 3.5 s in all (per-session, A1); disagreements 0 / 1 / 0, the one (PS93_0818 acute) = late_after_response_window (now a contact trial); trials with stop > 3.6 s 289/321, 373/554, 376/600, median of those 3.76 / 3.94 / 3.72 s, median of all 3.72 / 3.77 / 3.66 s. The full table needs a run of the script (it writes into the share qc folder) |
 | 2 | rest-baseline working period ends at the LAST CAMERA LICK | `camera_engaged_period`: cues up to the last camera_lick-class cue. SUPERSEDED in part: T8 (8.8) ends it at the last camera lick also with an uncovered tail, and the fourth review (8.10) starts it at the first camera lick |
 | 3 | attempt "noattempt" = no_response inside the working period, not in a sustained stop | `classify_session`: a non-stopped no_response after the end anchor -> after_end, so "no_response" = an isolated lapse; attempt_coding / attempt_maps label it "noattempt" (contrast: isolated lapse vs sustained stop) |
 | 4 | the 7 parallel-ordering scripts | curbd_pilot x2 / iti_decoder_pattern_stats sort the fan_out results; lick_code_subspace docstring no longer reads as a call; SFX resolved at import from argv (spawned workers re-import with the parent argv) in arrival_to_cue_traces / lick_cue_to_lick / revup_neural / stopped_trial_traces; lick_iti_prelick JOBS -> `_RUN["jobs"]`. test_parallel_results_are_ordered: 261 passed |
@@ -451,7 +451,7 @@ All in the "second pass" commit after 630c277b; tests in `tests/test_review_seco
    - 10 INDIRECT: every write goes through an already-routed root (il.OUT / attempt_coding.out_dir()): coupling_vigour_sm,
      iti_first_lick, lick_correction, lick_firstlick_extract, lick_vigor_perspout, restw_strict_check, session_pace_table,
      decoder_retention_sessions, precue_class_matched, recovery_timing.
-   - 42 BEHAVIOUR: behaviour / pose / FaceRhythm / camera products with no imaging input (same file in every mode).
+   - 42 BEHAVIOR: behavior / pose / FaceRhythm / camera products with no imaging input (same file in every mode).
    Also: `fr_musall.E` (imported by ~36 encoder-family scripts) = `frozen_encoder.out_root()` (the old literal by default,
    imaging_encoding/<tag>/ in a tagged run), so they read / write the encoder runs of their own mode. Not scanned:
    scripts/ subfolders (rest_migration routed earlier, 509cd2bd; cohort2_qc is cohort-2 QC; archive).
@@ -523,10 +523,10 @@ All in the "second pass" commit after 630c277b; tests in `tests/test_review_seco
 **Classifier effect, 5c17d76a vs 3ef70b5b** (the 119 curated sessions with trial tables, read-only, scratch CSV;
 CORRECTED 11-03 late after the fourth-review addendum): 513 trials in 44 sessions change class. Cohort: stopped
 2339 -> 1830, after_end 72 -> 581, no_response 2674 -> 2670, warm-up 0 -> 4. The 509 stopped -> after_end trials are
-almost all the BRIDGING JAW-ONLY TRIALS THEMSELVES leaving the stopped arm (the old rule labelled a bridging jaw-only
+almost all the BRIDGING JAW-ONLY TRIALS THEMSELVES leaving the stopped arm (the old rule labeled a bridging jaw-only
 trial stopped; T3 makes it after_end): the review counts 485 jaw_only + 24 no_response on its 139-session set. In
 PS94_0825 and PS93_0925 every moved trial is jaw-only and every stopped no_response trial is unchanged. (The CSV's
-`old_jaw_only` / `new_jaw_only` columns count only trials still LABELLED jaw_only, i.e. inside working, which is why
+`old_jaw_only` / `new_jaw_only` columns count only trials still LABELED jaw_only, i.e. inside working, which is why
 they are equal.) Stopped and after_end are both outside working, so the working / camera-lick sets do not change.
 - PS94_0825 (subacute, 600 cues): stopped 40 -> 12, after_end 0 -> 28 (28 bridging jaw-only trials); contact 440,
   incomplete 27, working jaw_only 55, no_response 38 unchanged.
@@ -536,7 +536,7 @@ they are equal.) Stopped and after_end are both outside working, so the working 
   PS93 41/232/77/86 -> 24/208/52/38; PS94 225/386/156/94 -> 157/328/116/67; PS95 187/0/355/232 -> 135/0/341/147.
 - **Warm-up (PROVISIONAL, for Priya)**: 4 trials in 4 of 119 curated sessions (the review's 5 on 139 sessions adds
   PS94_0805, which is outside the curated set: `date_policy.cross_session_exclude` has 0805) -- PS94 acute 2 (PS94_0817, PS94_0820), PS93
-  subacute 1 (PS93_0824), PS95 subacute 1 (PS95_0818). Labelled neither class.
+  subacute 1 (PS93_0824), PS95 subacute 1 (PS95_0818). Labeled neither class.
 
 **Tests.** 50f59ff8 full suite (5 shards): 4,450 passed, 176 skipped, 0 failed. 3ef70b5b: see 8.9.
 
@@ -593,7 +593,7 @@ sets `WIDEFIELD_REBUILD_ROOT`, and then:
 | `<LP_analysis>/<run>/imaging_encoding`: encoder runs, iti_licks, attempt_coding / attempt_maps, qc tables, kinematic_normality, ... | `<R>/LP_analysis/<run>/imaging_encoding` (`PathResolver.derived` / `orofacial_outputs.encoding_root`) |
 | frozen store / session cache / RESTnl caches (beside the cache) / map npz (in the cache) | `<R>/frozen_models`, `<R>/session_cache`, `<R>/session_cache_restnl_<tag>` |
 | rebuild_figs default --out | `<R>/rebuild_figs` |
-| INPUTS, read in place, never written: labcams session folders (SVTcorr, hemo_*, U_atlas, LocaNMF footprints), the joint bases, DAQ, behaviour logs and behavior_summary, cameras, dlc / session_poses, the v36 pose tables (`<run>/sessions`, `<run>/cohort`) | unchanged |
+| INPUTS, read in place, never written: labcams session folders (SVTcorr, hemo_*, U_atlas, LocaNMF footprints), the joint bases, DAQ, behavior logs and behavior_summary, cameras, dlc / session_poses, the v36 pose tables (`<run>/sessions`, `<run>/cohort`) | unchanged |
 | inputs inside derived trees: epoch_boundaries.json; imaging_encoding/qc jaw_onsets / nose_onsets / trial_attempts / camera_coverage | COPIED by `python -m wfield_local.rebuild_root init --profile cohort1_rebuild_20261103` (sha256, `REBUILD_ROOT.json`; a different existing copy refuses) |
 
 - **Fence.** A `sys.addaudithook` hook, installed by `import wfield_local` whenever the env var is set (subprocesses
@@ -611,7 +611,7 @@ sets `WIDEFIELD_REBUILD_ROOT`, and then:
 - **Rewrite.** About 75 imaging_encoding constructions now go through `oo.encoding_root` / `lp_licks._enc_dir`
   (literal `M:/...` strings, `oo.root(..) / RUN / "imaging_encoding"`, `_run_dir() / "imaging_encoding"`). They are
   byte-identical in a default run on this box. The joint bases use `input_root`.
-- **Behaviour-only writers** (behaviour events, spout_behavior, DLC frames, ...) are not rebuild outputs. Under the
+- **Behavior-only writers** (behavior events, spout_behavior, DLC frames, ...) are not rebuild outputs. Under the
   profile their writes to the share are refused. Run them without the profile.
 
 **B.**
@@ -677,8 +677,8 @@ sets `WIDEFIELD_REBUILD_ROOT`, and then:
   - `enl_lick_rates` (pre-cue ENL);
   - FaceRhythm validation's fixed response window;
   - `face_rhythm_lick_epochs`.
-  Also: the epoch CHRONIC rule reads licks/trial from the cohort behaviour table. The rebuild SEEDS the existing
-  epoch_boundaries.json, so its boundaries do not move unless the epochs are re-derived after the behaviour tables are
+  Also: the epoch CHRONIC rule reads licks/trial from the cohort behavior table. The rebuild SEEDS the existing
+  epoch_boundaries.json, so its boundaries do not move unless the epochs are re-derived after the behavior tables are
   rebuilt.
 
 **Trial stop check** (DAQ trial_end vs first DAQ contact from cue + 70 ms; 6 sessions PS92_0821, PS93_0908, PS94_0818,
@@ -726,7 +726,7 @@ outside a rebuild root is `oo.root(rv) / run / imaging_encoding`.
 ### 8.14 Merge of origin/main (e8491dc8) into the rebuild: merge commit, done in a scratch worktree, then fast-forwarded
 Main brings:
 - A3 (paired animal draws, `epoch_change_lmm` / `lmm_stars`);
-- bal_em: `spout_scaling.FrozenFrame` and the label-free EM centre on every cross-session spout decoder; the state
+- bal_em: `spout_scaling.FrozenFrame` and the label-free EM center on every cross-session spout decoder; the state
   discriminators stay on session_z;
 - A1 per-session response window, and the A2 / A4 amendment;
 - e9a7dc31 DECISIONS (spout hold 3.5 s, lick counts to the trial stop).
@@ -779,12 +779,12 @@ Details for the rows marked "see below":
 - test_spout_bal_em's two pinned-id tests became contract checks: FREEZE_VERSION 2 ids differ from main's literals,
   as already done for test_state_bal_em.
 
-**bal_em and the camera gate.** The EM centre is NOT computed on the gated scored subset. For every scored session it
+**bal_em and the camera gate.** The EM center is NOT computed on the gated scored subset. For every scored session it
 comes from ALL of that session's engaged (DAQ lick-arm, `pool_sessions` XE) rows under its scoring model; it is
 label-free and never uses no-lick rows. It is then applied to whichever rows the gate scores (camera working / stopped
-via `_class_select`). That is main's design ("the label-free EM centre of ALL its engaged rows, whatever the arm
-scores"). Under the camera gate the centre therefore includes DAQ-engaged rows that the camera calls after_end or
-unknown. FOR PRIYA / the coordinator: whether the centre should use only camera-working rows.
+via `_class_select`). That is main's design ("the label-free EM center of ALL its engaged rows, whatever the arm
+scores"). Under the camera gate the center therefore includes DAQ-engaged rows that the camera calls after_end or
+unknown. FOR PRIYA / the coordinator: whether the center should use only camera-working rows.
 
 **in_working ON HOLD (main docs/status/SPOUT_BALEM_PAGE_EDITS_2026-11-03.md section 6).** Answered by option (b):
 Aug-only pre, June gone, PS93_0813 in the lick class only. The rebuild already selects post-stroke rows by camera
@@ -797,7 +797,7 @@ nothing extra is wired.
 **Post-merge fixes** (the suite on 698c4e57 had 4 failures):
 - 5c "refit" and "paired_matched" asked the store for the epoch decoder after the merge. `_frozen_frame(..., store=)`
   now keeps those two modes in memory, as before the merge.
-- Main's new `scripts/lmm_curve_summaries.py` (pose / kinematics LMM, no imaging) is classified BEHAVIOUR in the
+- Main's new `scripts/lmm_curve_summaries.py` (pose / kinematics LMM, no imaging) is classified BEHAVIOR in the
   writer register.
 - `lmm_curve_summaries` and `kinematics_pooled_figs.fig_phase` wrote figure sidecars in the flat directory (main
   commits 8e2b82e6 / ceb8d2b4; `test_no_writer_bypasses_figure_layout`). Both now use `figure_layout.sidecar_for`,
@@ -807,7 +807,7 @@ nothing extra is wired.
 Full suite, 6 shards, the merge worktree: 4,550 passed, 178 skipped, 0 failed. This includes the pinned
 test_analysis_kit exact-equality tests and main's new test files.
 
-### 8.16 bal_em centre rows = the rows the gate scores (Priya 11-03, camera gate everywhere)
+### 8.16 bal_em center rows = the rows the gate scores (Priya 11-03, camera gate everywhere)
 - `spout_scaling.centre_rows()`: setting `bal_em.centre_rows` (auto | working | engaged), env WIDEFIELD_BALEM_CENTRE.
   "auto" means working under the camera gate and engaged under the DAQ gate. "working" under the DAQ gate raises.
 - `centre_mask(cls_e)` is the camera WORKING classes (contact / incomplete / jaw_only). The classified train already
@@ -825,7 +825,7 @@ test_analysis_kit exact-equality tests and main's new test files.
   camera, and a stale entry raises.
 - NOT wired: `scripts/cohort2_qc/quiet_task_events_followup.py` calls `score_centre` directly; it is a cohort-2
   script, outside the cohort-1 render.
-- **Identity:** `scaling_params.centre_set` = the centre rows, so the two centres have different spec ids.
+- **Identity:** `scaling_params.centre_set` = the center rows, so the two centers have different spec ids.
 - **Tags:** the profile's run tag is UNCHANGED (default auto = working). Camera gate + engaged adds `emc-engaged` to the
   output and cache tags.
 - State discriminators (state_bal_em, default off) are unchanged.
@@ -873,7 +873,7 @@ Those assertions were updated in the next commit, and both tests pass.
   - they are registered in test_share_writers_mode_safe (ARGPATH_READERS);
   - a3_lmm_imaging_stars with no fittable cell now prints a clear message and writes an empty CSV (was KeyError 'p').
 - **(a)** spout_behavior's licks per trial uses the session's own response window (`daq_trials.response_window_s(..,
-  3.5)`). The GUI-fallback sessions used the yaml 2.0 s. Behavioural test (fails on the old code): a lick 3.0 s after
+  3.5)`). The GUI-fallback sessions used the yaml 2.0 s. Behavioral test (fails on the old code): a lick 3.0 s after
   the first contact counts.
 - **(b)** rest_start enters the selection tag (`-restsession` when "session"; the default first_lick adds nothing),
   and with it run_mode tags, cache keys, frozen specs and the `_CUE_CLS` memo. Env overrides: WIDEFIELD_REST_START and
@@ -912,7 +912,7 @@ Those assertions were updated in the next commit, and both tests pass.
 
 ### 8.21 Fifth review scope D + E blockers (D-B1, D-B2, D-B3, N1) and the N5 report
 - **D-B1.** Section G `frozen(d)` no longer catches store errors. A WriteGuardError, the LP "loads DAQ-frozen"
-  refusal, an unreadable entry or a centre refusal now propagates instead of printing "fitting locally" and refitting
+  refusal, an unreadable entry or a center refusal now propagates instead of printing "fitting locally" and refitting
   in memory, untagged. A pool that records no identity (`frozen` / `_g_store`) is still fitted in memory in the
   DEFAULT run, but raises `SectionGRefused` (a SystemExit) in any tagged run. The WIDEFIELD_SECTION_G_FROZEN=0 opt-out
   is already tagged `inmem-section_g` by run_mode.
@@ -921,18 +921,18 @@ Those assertions were updated in the next commit, and both tests pass.
   fixes in `_collect_5c` and `run_animal` stay. Test: the per-class confusions call under the camera gate without
   classes stops the run even inside `try / except Exception`.
 - **D-B3.** The minimum is now 20 working rows (`MIN_CENTRE_ROWS`).
-  - The only fallback is explicit: `bal_em.centre_fallback_contact: ["PS93_0813"]` (no video). Its centre comes from
+  - The only fallback is explicit: `bal_em.centre_fallback_contact: ["PS93_0813"]` (no video). Its center comes from
     its DAQ contact (lick-class) rows, the rows its lick-aligned, contact-only selections score; never no-lick rows.
   - The fallback is recorded in the spec (`scaling_params.centre_set_fallback` + `centre_min_rows`, so the spec id
     changes), in every `figure_meta` sidecar (`bal_em,centre_fallback_sessions`), in the camera-gate caption
     (`lp_licks.stamp`), and in a log line naming the session.
   - Any other session below 20 raises. A session in a WORKING-gated selection cannot be a fallback session: those
     sessions have no camera-working rows, so `_class_select` never selects them. A session with 1-19 working rows
-    that is not in the list raises at centre time.
+    that is not in the list raises at center time.
   - DECISIONS line rewritten.
-  - Session labels now reach every centre site (`FrozenFrame(labels=)` and `scored_frame(labels=)` in all callers).
+  - Session labels now reach every center site (`FrozenFrame(labels=)` and `scored_frame(labels=)` in all callers).
   - Not done: the fallback list is not written into every result JSON, only figure sidecars, captions, specs and logs.
-- **N1.** quiet_task_events_followup raises `BalEmCentreRefused` under the working centre (it has no mask).
+- **N1.** quiet_task_events_followup raises `BalEmCentreRefused` under the working center (it has no mask).
 - **N5 (report only).** File: `C:/Users/SABATI~1/AppData/Local/Temp/claude/C--Users-SabatiniLab/f082ee0c-b33c-49a8-a537-dcee3bb7c84c/scratchpad/n5_report.txt`.
   The REDO families of MASTER_MANIFEST outside epoch_grant_figures / grant_figures were classified heuristically by
   source text.
@@ -947,8 +947,8 @@ Those assertions were updated in the next commit, and both tests pass.
 ### 8.22 Test record (a06f7fb7 + the rename after it)
 Full suite at a06f7fb7, 6 shards: 4,572 passed, 178 skipped, 1 failed. The failure was
 `test_spout_bal_em::test_scoring_takes_no_labels_by_signature`: `scored_frame` had gained a `labels` parameter (session
-names for the centre fallback), a name that test reserves for trial labels. It is renamed `session_names`, and the test
-and the centre suites pass.
+names for the center fallback), a name that test reserves for trial labels. It is renamed `session_names`, and the test
+and the center suites pass.
 
 ### 8.23 Lick detector for counts (i), per-block LP env (N5b), pre-set report (N5a)
 - **(i), coordinator decision.** Every lick COUNT now uses detector A through the new `analysis_kit.lick_count_samples`
@@ -1008,11 +1008,11 @@ Full suite, 6 shards: 4,576 passed, 178 skipped, 0 failed.
 2. **Sidecar fallback.** `figure_meta` writes `bal_em,centre_fallback_sessions` = the sessions whose contact-row
    fallback was actually USED (`spout_scaling.FALLBACK_USED`; an empty value when none was). This is process-level,
    accumulated up to the write. The caption likewise names only the fallbacks used.
-3. **render_profile.** `--check` honours `--block`: the block's env is applied, the run tag must match, and the full
+3. **render_profile.** `--check` honors `--block`: the block's env is applied, the run tag must match, and the full
    tag must end with it (an LP block prefixes LP_licks). An unknown block name (in neither block_env nor block_args)
    raises KeyError. Tests added.
 4. **_collect_5c.** The lru cache moved to `_collect_5c_cached(align, variant, mode, _run)`. `_run` = (full output tag,
-   bal_em scaling, centre rows), filled in by `_collect_5c`. Source tests point at `_collect_5c_cached`; grant_figures
+   bal_em scaling, center rows), filled in by `_collect_5c`. Source tests point at `_collect_5c_cached`; grant_figures
    re-exports it. Test added.
 
 ### 8.27 Priya 11-03 late: August-only pre profile-wide (5b6f35df)
@@ -1043,7 +1043,7 @@ merge is trivial:
     which applies the selection:
     - production: working = contact | incomplete; miss_working = incomplete;
     - in_working_jaw: working adds jaw_only; miss_working = incomplete | jaw_only.
-  - The consumers are: camera_rows, camera_select, spout_scaling.centre_mask (the bal_em centre), nolick_decoder,
+  - The consumers are: camera_rows, camera_select, spout_scaling.centre_mask (the bal_em center), nolick_decoder,
     attempt_coding, attempt_maps, enl_states, position_axes, position_coding_directions, poststroke_compare and
     precue_engagement_states.
   - Under the camera gate, a jaw_only trial inside the working period keeps its own label ("reaction" in attempt
@@ -1075,7 +1075,7 @@ merge is trivial:
 ### 8.29 Dry count (re-verify item 5) under the new working definition
 Read-only: the profile applied, the rebuild root unset, scratch caches. For each of the 108 curated sessions the count is
 the ENGAGED rows (the decoder's DAQ lick-arm category) whose camera class is production working. These are the rows the
-bal_em centre is fitted on, before the per-alignment window drop. Errors: 0. The lowest 12, minimum first:
+bal_em center is fitted on, before the per-alignment window drop. Errors: 0. The lowest 12, minimum first:
 
 | session | epoch | cues | engaged | engaged & working | unknown |
 |---|---|---|---|---|---|
@@ -1107,9 +1107,9 @@ bal_em centre is fitted on, before the per-alignment window drop. Errors: 0. The
   - PS93_0813 (no video);
   - PS92_0908: 373 vs 309, 68 unknown;
   - PS92_0904: 378 vs 377.
-- The jaw change therefore does not move the centre counts.
-- As flagged before, the centre (engaged XE rows) is effectively the contact rows. The checks' "jaw as its own class"
-  cell centres on contact + incomplete rows.
+- The jaw change therefore does not move the center counts.
+- As flagged before, the center (engaged XE rows) is effectively the contact rows. The checks' "jaw as its own class"
+  cell centers on contact + incomplete rows.
 
 ### 8.30 No-video DAQ fallback: agreement check FAILS, so it is not wired
 The check covers the 31 August pre sessions with video, for all four animals. PS93_0813 has no video. The working period
@@ -1119,7 +1119,7 @@ is defined two ways:
 - **DAQ fallback.** Cues up to the last DAQ hit, minus DAQ stops (a run of 6 or more DAQ no-response trials starting at
   least 300 s after the first cue).
 
-The measures are the DAQ-only behaviour rates: hit and no-response rate (a DAQ lick from cue + 70 ms to min(cue + 3.5 s,
+The measures are the DAQ-only behavior rates: hit and no-response rate (a DAQ lick from cue + 70 ms to min(cue + 3.5 s,
 next cue)) and the median latency of hits. The pass rule is at most 2 pp for hit and no-response rates and at most 20 ms
 for latency, on every session.
 
@@ -1133,7 +1133,7 @@ PS95_0811 and PS95_0812.
   at a last incomplete lick after the last DAQ hit.
 
 Per the rule, the fallback is NOT wired: no `trial_selection.daq_fallback_sessions` setting, and PS93_0813 stays out of
-the DAQ-only behaviour rates under the camera gate. Script: scratchpad `daq_fallback_check.py`.
+the DAQ-only behavior rates under the camera gate. Script: scratchpad `daq_fallback_check.py`.
 
 Agreement table (camera working period vs DAQ fallback; d = DAQ - camera):
 
@@ -1176,7 +1176,7 @@ Agreement table (camera working period vs DAQ fallback; d = DAQ - camera):
   - `grant_confusion._collect_5c("cue", "working", "frozen")` at 5b6f35df (= production in_working);
   - under the profile, with the rebuild root unset, scratch caches, and `WIDEFIELD_EPOCH_FROZEN=0` (in-memory fits,
     nothing stored);
-  - joint basis, bal_em centre.
+  - joint basis, bal_em center.
 - **Measures:**
   - pre panel = the pre-stroke LOSO record per animal;
   - acute close ipsi = the close_L trials pooled over each animal's acute days (`epoch_of_day`).
@@ -1197,8 +1197,8 @@ Agreement table (camera working period vs DAQ fallback; d = DAQ - camera):
 - **Expected sources** (not separated):
   - the rebuild's data: the swap-mask hemo variant and the LocaNMF projection;
   - pooled trials vs session means (PS94 has 6 acute sessions, PS95 one);
-  - the centre and training rows. In the rebuild the bal_em centre is the engaged (contact) rows and the frozen
-    training set is the engaged pre rows. The checks' cell trains and centres on contact + incomplete. Flagged, not
+  - the center and training rows. In the rebuild the bal_em center is the engaged (contact) rows and the frozen
+    training set is the engaged pre rows. The checks' cell trains and centers on contact + incomplete. Flagged, not
     restructured.
 - **Direction:** the jaw rule does not lower the rebuild's acute close-ipsi below the checks' cell.
 
@@ -1209,12 +1209,12 @@ pre0801 into the later lp_licks, rebuild_root and share_writers tests of its sha
 through monkeypatch before the import. Re-run of that shard: 646 passed, 26 skipped, 0 failed. Total 4,588 passed,
 179 skipped, 0 failed.
 
-### 8.33 Coordinator BLOCKER 11-04: training, centre, pre panel and scored set on camera working rows (as main 48f2cc6d)
+### 8.33 Coordinator BLOCKER 11-04: training, center, pre panel and scored set on camera working rows (as main 48f2cc6d)
 - **Problem.** For cue and precue, the frozen spout decoder was trained only on the DAQ-engaged (contact) pre rows, and
-  each session's bal_em centre came from those rows too. So camera-INCOMPLETE trials, which have no DAQ lick and are
-  no-lick rows, never entered the training set or the centre. They did enter the scored set through `_class_select`.
+  each session's bal_em center came from those rows too. So camera-INCOMPLETE trials, which have no DAQ lick and are
+  no-lick rows, never entered the training set or the center. They did enter the scored set through `_class_select`.
   The 8.31 validation ran on that code.
-- **Now (mirrors main).** For cue and precue, the training set, the centre, the pre panel and the scored set are the
+- **Now (mirrors main).** For cue and precue, the training set, the center, the pre panel and the scored set are the
   camera WORKING rows on both arms: every engaged or no-lick row whose class is in the run's working set
   (`trial_classes.in_sel`; production contact | incomplete, whatever the DAQ lick).
 - **Lick window.** It keeps the lick class (DAQ contacts), because a trial without a lick has no lick time. The DAQ gate
@@ -1222,7 +1222,7 @@ through monkeypatch before the import. Re-run of that shard: 646 passed, 26 skip
 - **Sites changed**, each matched to main:
   - `grant_kit`: new `_working_masks` and `_uses_working`; `_frozen_frame(bd, an, align, store, sel)`.
     - `sel="working"` trains on R = XE working rows plus XU working rows of the pre sessions that have them.
-    - Each session is centred from its own R rows (LOSO model for a pre session) via `spout_scaling.working_centre`
+    - Each session is centered from its own R rows (LOSO model for a pre session) via `spout_scaling.working_centre`
       (at least 20 rows, otherwise it raises). A session with no R rows is neither trained on nor scored.
     - It returns `R`, `RT` (R in the training frame), `train_sessions` and `work`.
     - The memo key carries the selection. `_frozen_score_rows(..., centre_rows=)` is used by the matched arm.
@@ -1235,23 +1235,23 @@ through monkeypatch before the import. Re-run of that shard: 646 passed, 26 skip
   - `locanmf_frozen_decoder`:
     - `working_rows`, `pool_work` (rebuild: live classes via `pool_row_classes`, not main's s1 snapshot);
     - `decoder_spec(trials=)` and `frozen_decoder_models(work=)`, which train on R and record `trials` / `pre_labels`;
-    - `frozen_scored_frame(work=)`, which centres from R rows;
+    - `frozen_scored_frame(work=)`, which centers from R rows;
     - `pooled_frozen_loso`: ROI features with indices; pre band = sessions with a LOSO model; per-session values, CI and
       confusion over scored sessions only; `frozen_model_id` from the R rows.
   - `poststroke_compare` (section G):
     - `_pooled` uses ROI features with indices (`_features`);
-    - `frozen` passes `work`, and `frozen_X` centres from R rows;
+    - `frozen` passes `work`, and `frozen_X` centers from R rows;
     - `decode_matched` and `crossed_confusion` drop pre sessions without a LOSO model.
   - `attempt_coding` (scoring and `--freeze`) and `joint_xsession` (decoder features with indices).
   - `spout_scaling`: `spec_kw(scaling, trials)` (main's signature; `centre_set: working_rows`) and `working_centre`.
 - **Where the rebuild differs from main:**
   - Classes are computed live (`cue_classes_for`) rather than read from main's s1 snapshot.
-  - The lick-gate (engaged) model centres on its working engaged rows, with the PS93_0813 contact fallback. Main
-    centres it on all engaged rows. This is the rebuild's 11-03 centre rule and is unchanged.
+  - The lick-gate (engaged) model centers on its working engaged rows, with the PS93_0813 contact fallback. Main
+    centers it on all engaged rows. This is the rebuild's 11-03 center rule and is unchanged.
   - The other `FrozenFrame` sites keep their engaged-row training. Main does not change them either: nolick_decoder,
     position_coding_directions, precue_engagement_states, poststroke `decode_matched`'s lick-only arm and
     june_august_drift.
-- **Dry count** (re-run). The centre rows of the working frame are the engaged + no-lick rows of class contact |
+- **Dry count** (re-run). The center rows of the working frame are the engaged + no-lick rows of class contact |
   incomplete, counted per curated session before the window drop. Errors: 0.
   - No session other than PS93_0813 is below 20. PS93_0813 has 0 rows (no video) and is not trained on or scored.
   - The lowest sessions:
@@ -1286,12 +1286,12 @@ through monkeypatch before the import. Re-run of that shard: 646 passed, 26 skip
 - (b) reproduces the checks to .001 on every animal, so the rebuild code has no code difference on this cell.
 - The data effect (swap-mask hemo plus the LocaNMF projection) is small on the pre panel. On acute close ipsi it is
   mixed in sign: PS94 is +.10 and PS93 is -.05, giving +.007 on the mean.
-- 8.31's +.11 came from the contact-only training and centre plus trial pooling, not from the data.
+- 8.31's +.11 came from the contact-only training and center plus trial pooling, not from the data.
 - Files: scratchpad `jaw_val/{sessions,animals}_a.csv` and `jaw_val_b/{sessions,animals}_b.csv`; script
   `r4/jaw_validation2.py`.
 - **Tests:**
   - New `tests/test_working_rows_training.py`:
-    - the working frame trains on and centres from engaged + no-lick working rows;
+    - the working frame trains on and centers from engaged + no-lick working rows;
     - a no-video session is neither trained nor scored;
     - the engaged frame and the lick window keep the engaged rows;
     - the jaw arm adds jaw_only rows;
@@ -1509,7 +1509,7 @@ render imports the wf_rebuild worktree only when the worktree is first on sys.pa
   - `lp_licks.output_dir`: `grant_figures/<tag>/epoch`;
   - `run_mode.subdir` / `routed_output`: `<dir>/<tag>`; attempt_coding_pp uses the LP-family tag;
   - the ITI family uses `il.OUT` / `il.OUT_W`.
-- Run-independent behaviour tables are read untagged from `run_mode.behaviour_qc_dir()` (seeded): jaw / nose onsets,
+- Run-independent behavior tables are read untagged from `run_mode.behaviour_qc_dir()` (seeded): jaw / nose onsets,
   precue_contacts, first_lick_latency_late_licked_trials, position_block_summary.
 
 **Commits:**
@@ -1741,7 +1741,7 @@ any import.
 - env.json = `wfield_local.o2_bundle.settings()`: the full profile env + COMBINED_ENCODING_* / OROFACIAL_*. Local store
   paths and per-submit options are excluded; files go to tables/; a directory value is refused.
 - bundle.json = run identity (run tag, selection, area basis), full commit, attempts table (copied to tables/ for
-  provenance; the gate is inside each Behaviour).
+  provenance; the gate is inside each Behavior).
 - Runner: clears the O2 shell's settings, applies env.json before importing wfield_local, and refuses unless the bundled
   code recomputes the identity.
 - code/ = `git archive` of the recorded commit, refused when wfield_local / configs are dirty.
@@ -1947,7 +1947,7 @@ with no lick has no lick-aligned trace.
   licks_all.csv`. Present for all 107 bundle sessions.
 - Every lick in exactly ONE kernel (`split_licks`):
   - post-cue = licks.csv (every row post-cue; the 0-70 ms licks, 14 / 4 on PS93_0814 / 0818, are here: the 70 ms floor is
-    for counting contacts, not modelling) + the pre-cue / ITI-table rows whose onset is post-cue (`post_extra`, 11 per
+    for counting contacts, not modeling) + the pre-cue / ITI-table rows whose onset is post-cue (`post_extra`, 11 per
     session, >= 60 ms from any licks.csv lick, before this in NO kernel) + cam1-only post-cue;
   - pre-cue = licks_all pre_cue;
   - ITI = licks_all iti.
@@ -2265,7 +2265,7 @@ animal (pre / acute / subacute / chronic): PS92 8 / 44 / 0 / 0, PS93 8 / 39 / 22
 26 / 15. Per animal x epoch x spout: `transitions_final_animal_epoch_spout.csv` (A2 without the excise) and
 `merged_census_final.csv` (per cue).
 
-**Encoder (final code, 3613cf0b):** PS92_0806 Behaviour IDENTICAL again (LICKS_ALL unset and split; attempts table
+**Encoder (final code, 3613cf0b):** PS92_0806 Behavior IDENTICAL again (LICKS_ALL unset and split; attempts table
 pinned to the existing stopRun6j table, since the new tag's table does not exist until trial_attempts is regenerated).
 
 **Test record (3613cf0b, full suite, 4 shards run one at a time):** 4,790 passed, 171 skipped, 1 failed
@@ -2343,18 +2343,18 @@ CODE + TESTS ONLY: no renders, nothing written to M:. Worktree `wf_rebuild_enl`.
 - `configs/defaults.yaml decode.precue_lickfree_check_s: 2.0`: no code reads it (the `precue_lick` flag uses the
   effective window). Dead key; left.
 - FaceRhythm windows `(-2, 0)` (face_rhythm/factors/config PRECUE_S, face_rhythm_readouts, fr position maps, fr_peak,
-  fr asym): behaviour windows on a projection grid that starts at cue - 2 s, not lick-gated ENL analyses. Left.
+  fr asym): behavior windows on a projection grid that starts at cue - 2 s, not lick-gated ENL analyses. Left.
 - `scripts/fr_enl_decode.py`: explicit W = 1 and 2 s, gate = LP OR DAQ. Left (explicit sweep).
 - `orofacial_w2.py` / `orofacial_heatmaps.py`: "NO-LICK ENL frames cue - 2 s .. cue" with the LP tongue gate
-  (behaviour). Left as a 2 s LP-gated behaviour window. Flag for Priya if "every ENL analysis" includes behaviour.
+  (behavior). Left as a 2 s LP-gated behavior window. Flag for Priya if "every ENL analysis" includes behavior.
 - `scripts/lick_enl_angle_decode.py`, `lick_enl_target_test.py`: explicit W = 1.0 / 0.5 s, lick-free rule 2 s on the
-  iti_licks behaviour licks. Left (own family, explicit).
+  iti_licks behavior licks. Left (own family, explicit).
 - `scripts/enl_lp_census.py`, `gate_lp_check.py`: censuses of 2.0 / 1.5 / 1.0 / 0.5 s windows by both sources. Left.
 - `scripts/s1_refit_basis_table.py`, `s1_refit_locanmf_table.py`: their docstrings run `WIDEFIELD_LICK_SOURCE=lp
-  WIDEFIELD_ENL_WINDOW_S=2.0` (ENL pinned at 2 s, Priya 11-03). The override is still honoured. This conflicts with
+  WIDEFIELD_ENL_WINDOW_S=2.0` (ENL pinned at 2 s, Priya 11-03). The override is still honored. This conflicts with
   11-04 unless it is meant as the table's sensitivity row: OPEN 3.
 - `state_spout_check.py:49`, `disengagement_tests.py:455/1348`, `revup_neural.py:303`, `iti_licks.py CUE_EXCL`:
-  behaviour / exclusion windows, not ENL lick-free windows. Left.
+  behavior / exclusion windows, not ENL lick-free windows. Left.
 - Function defaults `post_s=2.0` (beta_maps, nolick_decoder, enl_decode, enl_lick_control, grant_confusion,
   poststroke_compare, ...): each reaches its features through `trial_features_cached` / `_trial_features` /
   `nolick_decoder.session_features`, which apply `apply_enl_window` BEFORE the key. Frozen specs go through
@@ -2418,7 +2418,7 @@ CODE + TESTS ONLY: no renders, nothing written to M:. Worktree `wf_rebuild_enl`.
   - each switched site resolving to the shared window (at runtime where cheap, static otherwise);
   - a repo-wide check that only lp_licks (and precue_engagement_states' `cue` branch) read the config window
     directly.
-- `test_share_writers_mode_safe`: enl_video_spout_check moved out of BEHAVIOUR (it now routes).
+- `test_share_writers_mode_safe`: enl_video_spout_check moved out of BEHAVIOR (it now routes).
 
 **Test record (cb7b1f49).** New file: 43 passed. Related set (23 files): 414 passed. Full suite, 4 shards run one at
 a time (RAM checked before each): 4,787 passed, 171 skipped, 1 failed.
@@ -2437,7 +2437,7 @@ Priya's decisions, all relayed by the coordinator on 11-04:
 - Any ENL prediction must use a LICK-FREE ENL.
 - The window SLIDES with the decoders' own search, and a trial is dropped only when no lick-free window exists. This
   is neither "fully clean trials" nor a fixed-window gate.
-- The s1 refit tables switch to LP 1.0 s, with 2.0 s kept only as a labelled sensitivity arm.
+- The s1 refit tables switch to LP 1.0 s, with 2.0 s kept only as a labeled sensitivity arm.
 
 Commits:
 - 9efc3c22: s1 refit.
@@ -2542,8 +2542,8 @@ which has no video and so no LP verdict.
 - Folder `within_spout_deviation[_..]_enllf<W>s` (was `_enl`), so old ungated per-session npz are never reused. No
   reader depends on the old name.
 
-Before / after under LP: 46,495 -> 46,092 trials (99.1 %), from a cheap count on behaviour only, all curated sessions
-from 08-06. PS93_0813 is excluded in both, as it has no behaviour bundle (no video).
+Before / after under LP: 46,495 -> 46,092 trials (99.1 %), from a cheap count on behavior only, all curated sessions
+from 08-06. PS93_0813 is excluded in both, as it has no behavior bundle (no video).
 
 | animal | pre | acute | subacute | chronic |
 |---|---|---|---|---|
@@ -2604,7 +2604,7 @@ other ENL analysis (8.45). Test: test_enl_window_source::test_one_enl_search_and
 
 **Smoke (PS92_0806, rebuild profile + the r4 run_bundle.sh env applied after `render_profile.apply`).** `_load_behaviour`
 at the merged tip vs the encoder-classes tip (825020c2), the same attempts table for both (the stopRun6j one; the
-stopA2jexrt3500c70 table is not built yet): LICKS_ALL unset and split are BIT-IDENTICAL (every Behaviour field;
+stopA2jexrt3500c70 table is not built yet): LICKS_ALL unset and split are BIT-IDENTICAL (every Behavior field;
 split lists 2,397 pre_cue / 967 iti / 15 post_extra; 381 trials, 364 engaged, 3,680 licks). The session's licks_all is
 pre-11-04 (no onset_context), so the onset label cannot differ there; the relabel check above covers a re-rendered one.
 The run tag under cohort1_rebuild_20261103 is ...stopA2jexrt3500c70 (= the profile's expected_run_tag).
@@ -2628,7 +2628,7 @@ infrastructure, so it is ported here first, still default OFF.
 - Section D is scored on working rows (`WIDEFIELD_SECTION_D_SCORED=working`).
 - Section G is grouped by camera class (`WIDEFIELD_SECTION_G_GROUPS=camera`).
 - The state discriminators stay z: `STATE_DISC_DEFAULT = session_z`, so B is OFF.
-- The projection frame stays off: `WIDEFIELD_PROJECTION_FRAME=session_z`, so C is OFF. Its working / contact centre
+- The projection frame stays off: `WIDEFIELD_PROJECTION_FRAME=session_z`, so C is OFF. Its working / contact center
   is an option only.
 - G4's primary is the camera-class discriminator (`WIDEFIELD_G4_DISC=camera`).
 - The G9 camera-class block is computed alongside the DAQ classes (`WIDEFIELD_G9_CLASSES=camera`); every figure
@@ -2640,23 +2640,23 @@ infrastructure, so it is ported here first, still default OFF.
 |---|---|---|
 | `working_trials.G_GROUPS / G_WORKING / g_group / g_jaw_judged / _group_table` | same | verbatim; `G_LABELS` added (after_end reads "quit") |
 | `working_trials.row_groups` (s1 snapshot) | same name, LIVE classes | via the new `trial_classes.cue_groups_for` (raw class, after-end flag, matched), the same end and coverage rule as `classify_session`. Stopped and early_run map through their RAW class: early_run -> none; stopped -> none / jaw_only, or after_end when past the last camera lick. after_end -> after_end. So the five groups are main's. Positions come from YE / YU for `jaw_judged`. A session with no matched cue is not in `have`. |
-| `working_trials.projection_work` | same | live classes; returns `(we, wu, cls_e, cls_u)`; + `projection_cls_e` (the engaged centre needs classes under the camera gate) |
-| `locanmf_frozen_decoder.section_d_scored / SECTION_D_SCORED_ENV / _scored_rows` + scoring block | same | Reconciled with 8.33, which already TRAINED and centred on working rows but scored engaged rows (`scored_rows: "engaged"`). The field now reports the scored set. New fields: `scored_set`, `n_scored`, `n_scored_from_nolick`, `per_session_engaged_scored`, `scored_centre` (+ `confusion_by_class`, panel commit). |
+| `working_trials.projection_work` | same | live classes; returns `(we, wu, cls_e, cls_u)`; + `projection_cls_e` (the engaged center needs classes under the camera gate) |
+| `locanmf_frozen_decoder.section_d_scored / SECTION_D_SCORED_ENV / _scored_rows` + scoring block | same | Reconciled with 8.33, which already TRAINED and centered on working rows but scored engaged rows (`scored_rows: "engaged"`). The field now reports the scored set. New fields: `scored_set`, `n_scored`, `n_scored_from_nolick`, `per_session_engaged_scored`, `scored_centre` (+ `confusion_by_class`, panel commit). |
 | `spout_scaling.state_disc_centre / STATE_DISC_CENTRE_ENV` | same | |
 | `spout_scaling.projection_centre / PROJECTION_CENTRE_ENV / projection_arrays(work=, YU=)` | same + `cls_e=`, `labels=` | engaged / working / **contact** (coordinator 11-04); `projection_tag` |
 | 26fd5b44: `SCALING_SPOUT_FRAME`, `STATE_DISC_DEFAULT`, `state_disc_scaling` spout option, `FrozenFrame.train_apply`, `PROJECTION_FRAME_ENV`, `projection_frame_on` | `spout_scaling` | the state_bal_em helpers now act only on state_bal_em |
-| `grant_kit._proj_arrays` (+ `_session_trials` through it) | `grant_kit` | `_frozen_frame(..., centre=)`: working or contact centre; the memo key carries it |
+| `grant_kit._proj_arrays` (+ `_session_trials` through it) | `grant_kit` | `_frozen_frame(..., centre=)`: working or contact center; the memo key carries it |
 | `grant_similarity` (2 sites) | same | 26fd5b44 |
 | `poststroke_compare.section_g_groups, _camera_groups, _conf_panel, _loso_rows, _by_class_panels, _state_frame_tag` | same | `_camera_groups` gates on the camera gate + `working_selection()` (the rebuild's tests); `_by_class_panels` adds `group_labels` |
 | `poststroke_compare` crossed_confusion / decode_matched / `_proj_X` / looks_like_which / fits_engaged | same | + 26fd5b44 `_spout_train_d`, `_lick_train` / `_lick_scored` spout branch, `pattern_similarity` in `_proj_X` (memo keyed by `projection_tag`) |
 | `poststroke_section_g._counts` by_class | same | design sidecar `section_g_design.json` now says camera grouping, `scored_centre`, `state_disc_frame` |
 | `precue_engagement_states._working_frame` + spout-frame block in `run_animal` | `_working_frame` + `_spout_frame_block` | Kept to a few lines in `run_animal`: the bookkeeping moved into `_spout_frame_block`, and the `post_s` default line (204) is untouched for rebuild/enl-window. The stored discriminator's spec scaling = `spout_frame/<working or engaged>` when ON; unchanged (None) when OFF. |
 | `position_coding_directions.run_animal`, `position_axes.run_animal` | same | projection with masks + classes; the confusion block and its STORED decoder keep the production rows (`XE0`) |
-| `attempt_coding` (26fd5b44 projection) | same | **follow-on (d)**: masks and classes passed, so every centre works |
+| `attempt_coding` (26fd5b44 projection) | same | **follow-on (d)**: masks and classes passed, so every center works |
 
 **Conflicts and how they were resolved.**
 - DECISIONS.md: not cherry-picked. The rebuild's own 11-04 entry stands; this log is the record.
-- `grant_kit`: main replaced `_frozen_frame`. The rebuild's version (store, centre rule, working centre) is kept, and
+- `grant_kit`: main replaced `_frozen_frame`. The rebuild's version (store, center rule, working center) is kept, and
   `_proj_arrays` is added before it.
 - `locanmf_frozen_decoder`: the rebuild's working training, `frozen_scored_frame(work=)` and PS93_0813 rules are kept;
   main's scoring block is grafted on.
@@ -2665,7 +2665,7 @@ infrastructure, so it is ported here first, still default OFF.
 - `position_*`, `spout_scaling`: the 26fd5b44 code was missing, so it was added.
 
 **Coordinator 11-04 additions.**
-- **Scored-frame centre kind: `WIDEFIELD_SPOUT_SCORE_CENTRE`** (Priya 11-04, **FINAL: Wt**; also set in the rebuild profile).
+- **Scored-frame center kind: `WIDEFIELD_SPOUT_SCORE_CENTRE`** (Priya 11-04, **FINAL: Wt**; also set in the rebuild profile).
   - Kinds: `wt` (DEFAULT) | `working` (W, the label-free bal_em that was the rebuild rule until today) | `contact` (C)
     | `cto` | `n`.
   - Definitions: main `docs/status/CENTRE_MIXSHIFT_2026-11-04.md` and its `centre_mixshift_1104/cmcommon.Engine`.
@@ -2673,18 +2673,18 @@ infrastructure, so it is ported here first, still default OFF.
     - **Wt** = the equal-weight mean of the per-spout means of the session's WORKING rows (spout = DAQ strobe label),
       SD over those rows; no EM, no pre fill.
     - **Cto** = the mean of the contact rows − sd · (true spout share of the contact rows) · δC. δC = the pooled pre
-      contact-row offsets from each training session's balanced working centre, in working-SD units, averaged over the
+      contact-row offsets from each training session's balanced working center, in working-SD units, averaged over the
       scoring model's training sessions (nan → 0).
     - **N** = one fixed raw-unit frame from the scoring model's PRE training sessions (mean of m_s + s_s·c_s, mean of
       s_s·sdw_s), expressed in each session's z. It needs `pool_sessions`' per-session z stats, now registered per XE
       object (`register_pool_stats` / `pool_stats_of`; the return value is unchanged).
   - **Min-rows guard (Priya 11-04).** Wt needs >= 20 (MIN_CENTRE_ROWS) working rows at EVERY spout and REFUSES
-    (BalEmCentreRefused) otherwise. The check's "drop spouts < 5 and renormalise" is deliberately NOT ported: no fill,
+    (BalEmCentreRefused) otherwise. The check's "drop spouts < 5 and renormalize" is deliberately NOT ported: no fill,
     no fallback. A session with no working rows (PS93_0813) is unscored as before; a post session with none raises.
     Dry count of the minimum below.
   - Applies to: `frozen_scored_frame` (sections D, G, attempt, joint) and `grant_kit._frozen_frame` (5b / 5c and the
     working projection).
-    - On the lick-only working arm (a `pos`-spout model): wt is the balanced centre over the `pos` spouts; cto and n
+    - On the lick-only working arm (a `pos`-spout model): wt is the balanced center over the `pos` spouts; cto and n
       refuse there.
     - The lick window / engaged models are unchanged.
   - The models are unchanged (training frame unchanged); only the scored frame moves.
@@ -2692,7 +2692,7 @@ infrastructure, so it is ported here first, still default OFF.
     `pooled_frozen_loso` `scored_centre` (e.g. `wt_centre`), the section G sidecar and `_state_frame_tag`.
   - **Known caveat (CENTRE_MIXSHIFT 3d):** Wt drifts like W under a high incomplete share, about −.024 overall
     [−.042, −.011] (cue, acute mix). That is mechanism (ii), the incomplete trials' own pattern, not the EM.
-- **Projection centre `WIDEFIELD_PROJECTION_CENTRE`** = `wt` (default, following the decision) | engaged | working |
+- **Projection center `WIDEFIELD_PROJECTION_CENTRE`** = `wt` (default, following the decision) | engaged | working |
   contact | cto | n. It is used only while `WIDEFIELD_PROJECTION_FRAME=spout_frame`; the frame stays OFF by default.
   The G4 engagement discriminator stays z on contact rows (`WIDEFIELD_G4_CENTRE=contact`).
 - **(a) G4 camera-class discriminator** (`poststroke_compare.g4_camclass`; section G record `g4_camclass_{precue,cue}`,
@@ -2702,8 +2702,8 @@ infrastructure, so it is ported here first, still default OFF.
   - Frame: z on CONTACT rows by default (`WIDEFIELD_G4_CENTRE` = contact | working | engaged; engaged = the production
     z, identity).
   - Scores are spout-balanced per group. Cells with n < 10 are kept, flagged `thin`, and left out of the means.
-  - Each post group is read against the same pre group, else against pre working (labelled).
-  - Stored as kind `g_cam_disc`. The spec extra carries keep, seed, `camclass/z-<centre>/pos-contact+incomplete/
+  - Each post group is read against the same pre group, else against pre working (labeled).
+  - Stored as kind `g_cam_disc`. The spec extra carries keep, seed, `camclass/z-<center>/pos-contact+incomplete/
     neg-none` and the run's selection tag.
   - The DAQ G4 readouts stay as robustness. `WIDEFIELD_G4_DISC=daq` drops the camera block. The G4 FIGURES still draw
     the DAQ readouts: no figure function reads `g4_camclass_*` yet.
@@ -2716,9 +2716,9 @@ infrastructure, so it is ported here first, still default OFF.
 changes:
 - `g_lickonly_decoder` with align `<cue|precue>-keep<spouts>-ffwork-<selection tag>-f<cols>`: NEW, one per animal x
   window x preserved-spout set.
-- `g_cam_disc`: NEW kind, one per animal x window x keep x seed x centre.
+- `g_cam_disc`: NEW kind, one per animal x window x keep x seed x center.
 - Unchanged ids (spec unchanged):
-  - the stored cue / precue spout decoders (`decoder`): the score centre is not in the spec;
+  - the stored cue / precue spout decoders (`decoder`): the score center is not in the spec;
   - `g_lick_disc` / `g_lick_disc_folds` / `engagement_states` while B is OFF;
   - `attempt_axes` / `coding_decoder` while C is OFF. With C on, the projected rows change the training-data
     fingerprint, so ids change automatically.
@@ -2726,14 +2726,14 @@ changes:
 
 **Not ported / left as is.**
 - joint_xsession's section D decoder still scores engaged rows. a8 changed `pooled_frozen_loso` only.
-- main's s1-snapshot `row_groups` behaviour is replaced by live classes. `_group_table` is kept for parity.
+- main's s1-snapshot `row_groups` behavior is replaced by live classes. `_group_table` is kept for parity.
 - B's / C's re-check numbers (bcdg_1104) are main-data numbers, not re-run here.
 
 **Tests.**
 - `tests/test_bcdg_1104.py` (a8's file, adapted):
   - g_group pins and the live `row_groups`;
   - stopped / early_run through `cue_groups_for`, including the uncovered-tail rule;
-  - the contact score / projection centre;
+  - the contact score / projection center;
   - D with a no-video PRE session: a post session without working rows raises in the rebuild.
 - `tests/test_g4_camclass.py`: cam sample = g4common; contact z frame; groups, thin flags and pre-reference fallback;
   spec extra; lick-only working arm.
@@ -2757,8 +2757,8 @@ changes:
 **Contact vs incomplete panel (d15fe9af, its own commit).**
 - `wfield_local/contact_incomplete_panel.py`:
   - rows = cue / precue, columns = epochs; x = canonical spouts, contact | incomplete side by side;
-  - open session dots (shape = animal, colour = epoch), no lines across epochs;
-  - pre reference per class, else pre working (dotted, labelled); chance 1/6;
+  - open session dots (shape = animal, color = epoch), no lines across epochs;
+  - pre reference per class, else pre working (dotted, labeled); chance 1/6;
   - cells with n < 10 are OMITTED and counted ("n<10:k");
   - stars in the top band from `analysis_kit.boot_delta`; no top spine;
   - figdata + `--plot-only`.
@@ -2766,7 +2766,7 @@ changes:
   - section G: `by_class.post`;
   - section D: the new `pooled_frozen_loso` `confusion_by_class` (scored working rows split into contact /
     incomplete).
-- The centre is the producer's (printed tag).
+- The center is the producer's (printed tag).
 - Test: test_contact_incomplete_panel.
 
 **Wt per-spout dry count** (read-only, under the cohort1_rebuild profile; working cues per spout per curated session,
@@ -2803,7 +2803,7 @@ the minimum per animal x epoch; spout names are DAQ (L = ipsi, R = contra).
   function.
 - **Needed from cue70:** a `stop_kind` per cue ("run" / "tail" / ""), exposed as
   `trial_classes.stop_kind_for(label, cue_s)`, memoised like `cue_classes_for`. With it, g_group_final sends a tail
-  stop to "after_end" (labelled "quit") and a run stop to "stopped". Without it, stopped trials keep the raw-class
+  stop to "after_end" (labeled "quit") and a run stop to "stopped". Without it, stopped trials keep the raw-class
   route, and under A2 every post-last-lick trial would become none / jaw_only.
 - `G_ALL = G_GROUPS + ("stopped", "stopped_licking")` is iterated by every by-class consumer.
 
@@ -2811,7 +2811,7 @@ the minimum per animal x epoch; spout names are DAQ (L = ipsi, R = contra).
 - 724862f9: the port + (a) / (c) / (d).
 - fecc69c9: (b) G9, separable.
 - d15fe9af: the contact / incomplete panel, separable.
-- 361c83bd: the centre kinds (Wt default) + the cue70 hooks.
+- 361c83bd: the center kinds (Wt default) + the cue70 hooks.
 - This log.
 
 **Wt final (Priya 11-04).**
@@ -2821,13 +2821,13 @@ the minimum per animal x epoch; spout names are DAQ (L = ipsi, R = contra).
 - Robustness kinds: `n`, `cto`. The engagement axis / G4 stays z on contact rows.
 - Method note:
   - ~-.024 drift under a high incomplete share (CENTRE_MIXSHIFT_2026-11-04 3d);
-  - the rest-centred frame was tested and REJECTED (REST_CENTRE_2026-11-04: it absorbs the post-stroke rest-state
+  - the rest-centered frame was tested and REJECTED (REST_CENTRE_2026-11-04: it absorbs the post-stroke rest-state
     change; chronic far contra ~.29 vs .72).
 - **Open (for Priya / the coordinator):**
   - The projection FRAME itself is still OFF (`WIDEFIELD_PROJECTION_FRAME=session_z`): Wt only acts on CD / pattern
     rows once it is switched on. And `position_coding_directions` projects the engagement axis from the same rows, so
     "eax stays z" needs a per-readout split before the frame goes on.
-  - The centre kind is in the scored-frame tags and memo keys but NOT in the run tag, so N / Cto robustness arms
+  - The center kind is in the scored-frame tags and memo keys but NOT in the run tag, so N / Cto robustness arms
     rendered under this profile would write into the primary folders. They need a run-tag part first, so no arm was
     added.
 
@@ -2838,7 +2838,7 @@ port: 379 passed. After the profile edit: profile / o2 / rebuild_root / 7ab / bc
 
 **1. C ON with Wt, plus a per-readout split (5c62a272).**
 - `WIDEFIELD_PROJECTION_FRAME` now defaults to `spout_frame`; `session_z` is the old frame and carries the tag part
-  `projz`. The projection centre is `wt`.
+  `projz`. The projection center is `wt`.
 - **Readers, and the frame each gets:**
 
   | reader | frame |
@@ -2866,11 +2866,11 @@ port: 379 passed. After the profile edit: profile / o2 / rebuild_root / 7ab / bc
 **2. Run-tag parts (bf5a6d69).**
 - `run_mode.scoring_part` builds one output-tag part `sc-<a>+<b>`. It is empty for the default run, so the primary tag
   is unchanged. It covers:
-  - `ctrN` / `ctrCto` / `ctrW` / `ctrC`: scored-frame centre;
-  - `projz`, `pctr<K>`: projection frame / centre;
+  - `ctrN` / `ctrCto` / `ctrW` / `ctrC`: scored-frame center;
+  - `projz`, `pctr<K>`: projection frame / center;
   - `dEng`: section D scored on engaged rows;
   - `gDaq`: section G grouped by DAQ;
-  - `g4Daq`, `g4cWorking` / `g4cEngaged`: G4 disc / centre;
+  - `g4Daq`, `g4cWorking` / `g4cEngaged`: G4 disc / center;
   - `g9Daq`: G9 classes;
   - `sdSpout` / `sdcEng` / `sdStatebal`: state-disc frame.
 - It is not in the cache keys, because none of these change a per-session cached function.
@@ -2881,7 +2881,7 @@ port: 379 passed. After the profile edit: profile / o2 / rebuild_root / 7ab / bc
 **3. G4 figures (8089793a).**
 - `wfield_local/g4_figures.py`:
   - camera-class discriminator PRIMARY;
-  - DAQ `fits_engaged` panel labelled ROBUSTNESS;
+  - DAQ `fits_engaged` panel labeled ROBUSTNESS;
   - figdata + `--plot-only`; stars in the top band; no top spine.
 - `section_g_figures` renders it before the DAQ G4 set, and the deck places it before G4 identity.
 - **Bug fixed** in the 8.48 contact / incomplete panel: `T.align` is `DataFrame.align` (a method), so every filter came
@@ -2997,7 +2997,7 @@ scratchpad (`.../scratchpad/fl/`).
 **Profile.**
 - `cohort1_rebuild_20261103.yaml` env: `FROZEN_LICKS_ALL: split` (the rebuild default for frozen frames). It is not a
   run-tag part: the designs are kept apart by the frame tag.
-- Arm `frozenNoSpont` (`FROZEN_LICKS_ALL: none`) = the labelled robustness row v7g3_t3d. Its own frame tag is
+- Arm `frozenNoSpont` (`FROZEN_LICKS_ALL: none`) = the labeled robustness row v7g3_t3d. Its own frame tag is
   gate-attempted_v7g3_t3d[...] with no "spont"; its run tag equals the primary's.
 - ENCODER_RENDER_COMMANDS.md is NOT in this branch: it lives on analysis/attempt-coding (wf_attempt), not edited. Needed
   there:
@@ -3108,7 +3108,7 @@ scratchpad (`.../scratchpad/fl/`).
   - "other" grows because it now contains them.
   - The lick-window rows are not like-for-like (the spont design moves 2 / 6 trials to the DAQ contact).
 - Runtime (template + stats + fit + predict 2), same box while the O2 bundle built:
-  - spont 14 m 13 s (split behaviour cache cold);
+  - spont 14 m 13 s (split behavior cache cold);
   - v7g3_t3d new code 13 m 13 s; base code 12 m 57 s.
 - Peak RAM, root + workers summed:
   - working set 7.2 GB, private 8.6 GB (spont); 9.3 / 10.9 GB (v7g3_t3d, new code);
@@ -3193,7 +3193,7 @@ OWN `fit/pre_stats.pkl` + `templates.pkl`.
 - Smoke: on a copy of the earlier v7g3_t3d smoke frame (made by the pre-8.52 code), the post hoc files are BIT-IDENTICAL
   to the files of a full run on this code (2 files, 96 arrays). The frame's own 46 files stay unchanged.
 - Cost: 1 m 25 s for PS93 (8 trial variants, 2 sessions, `--jobs 2`), peak 6.1 GB working set (2 workers). About 40-60 s
-  per session per worker, dominated by `session_design` (imaging + behaviour loads from the input cache).
+  per session per worker, dominated by `session_design` (imaging + behavior loads from the input cache).
 - Estimate: a full frame (107 sessions) at 4 workers is about 25-35 min, ~3 GB per worker. The frA frame is similar plus
   the FR load. Not run on a real frame.
 
@@ -3238,13 +3238,13 @@ the session mean, as `sst`; trial R2 = trial-to-trial, spout x class means remov
 - Full suite, 4 shards one at a time on 984116bd (>= 44 GB free before each): 4,942 passed, 173 skipped, 0 failed
   (1,978 + 5 skipped; 1,212 + 167; 890 + 1; 862).
 
-### 8.53 Imaging licks = THE behaviour DAQ lick detector (Priya 11-04/05; branch rebuild/daq-lick-detector off 34425934)
+### 8.53 Imaging licks = THE behavior DAQ lick detector (Priya 11-04/05; branch rebuild/daq-lick-detector off 34425934)
 
 CODE + TESTS ONLY: no renders, nothing written to M:. Worktree `wf_rebuild_lickdet`. Scratch outputs (onset counts,
 trial_attempts preview) in the session scratchpad (`.../scratchpad/lickdet/`).
 
 **Why.** LICK_DETECTOR_COMPARE_2026-11-04 (widefield_pipeline main a69fb9c3): the imaging profile
-`(2.5, 1.0, (0.001, 0.020), 0.10)` and the behaviour profile (yaml `lick_detection`: 2.5 / 0.5 V, 40 ms floor) differ
+`(2.5, 1.0, (0.001, 0.020), 0.10)` and the behavior profile (yaml `lick_detection`: 2.5 / 0.5 V, 40 ms floor) differ
 ONLY by imaging's 0.10 s refractory (the 1.0 vs 0.5 V offset moves 0 onsets in 16 sessions). The refractory drops 0.58 %
 of licks, 94 % of them inside a camera lick (real 10-11 Hz licking), unevenly (PS95 1.4 %). 0 hits change; 0 RTs as
 imaging computes them (10 / 6,520 with a cue + 70 ms floor). Priya approved switching imaging before the render.
@@ -3275,8 +3275,8 @@ applies the floor (`config.lick_min_ili_s`). Its `lick_detection` record now als
   the synthetic lick to 1 frame before the cue).
 - Left alone, deliberately: scripts/archive/lick_bout_decoder.py, scripts/rest_migration/archive/{stopped_tail_contamination,
   worktrunc_result_impact}.py (archived; they reproduce archived results as they ran). `analysis_kit.lick_count_samples`
-  (already the behaviour detector via `daq_trials.decode`; it stays the DAQ train under an LP lick source). The
-  behaviour-side readers (behavior_events, daq_trials, dlc_frames, dlc_context_frames, contact_classes, spout_behavior,
+  (already the behavior detector via `daq_trials.decode`; it stays the DAQ train under an LP lick source). The
+  behavior-side readers (behavior_events, daq_trials, dlc_frames, dlc_context_frames, contact_classes, spout_behavior,
   restnl_mask, rest_by_position, restw_strict_check) already used the yaml profile.
 
 **min_ili fallback.** `config.LICK_MIN_ILI_MS_DEFAULT = 40` is the one fallback when the yaml has no `min_ili_ms`:
@@ -3290,7 +3290,7 @@ dlc_context_frames / spout_behavior to 40 (spout_behavior, quiet_periods, plot_f
 - `gate_source.GATE_VERSION` 1 -> 2 (DAQ contact train of the LP-inclusive gate).
 - `scripts/disengagement_tests.BEH_VERSION` 2 -> 3, `scripts/gate_lp_check.VERSION` 1 -> 2 (their own pickles).
 - Not bumped, checked: `lp_licks.LP_VERSION` (its DAQ contact fallback = `dlc_frames.lick_onsets` = `daq_trials.decode`
-  with the yaml profile, unchanged); the WFIELD_INPUT_CACHE encoder inputs (behaviour inputs use DAQ contacts from
+  with the yaml profile, unchanged); the WFIELD_INPUT_CACHE encoder inputs (behavior inputs use DAQ contacts from
   dlc_frames; their key hashes daq_trials.py, whose edit re-keys them once anyway); `dlc_frames` lick cache (params
   digest of the yaml, unchanged); behavior_events SCHEMA_VERSION, RESTnl / restw caches (yaml profile already);
   trial_attempts / qc tables (keyed by the SELECTION tag, which does not change: they never read the imaging detector,
@@ -3301,7 +3301,7 @@ dlc_context_frames / spout_behavior to 40 (spout_behavior, quiet_periods, plot_f
   its per-session caches moved with v14). `_TAG_PREFIXES` gains "daqlk". New rebuild run tag:
   `hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk`
   (cache tag `hv-..._lnmfproj_sel-...-stopA2jexrt3500c70_daqlk_csig-<sha>`); every arm's `expected_run_tag` in
-  `cohort1_rebuild_20261103.yaml` gains `_daqlk` (before `_sc-...` in the centre arms). An O2 bundle recorded under the
+  `cohort1_rebuild_20261103.yaml` gains `_daqlk` (before `_sc-...` in the center arms). An O2 bundle recorded under the
   old tag (enc_rebuild_20261104b) is refused by `o2_bundle.verify` under this code.
 
 **Onset counts, before (old imaging profile) / after (THE DAQ detector).** `tests/fixtures/lick_detector_onsets_20261105.csv`,
@@ -3315,7 +3315,7 @@ PS95_0811 +99 (2.1 %); PS94_0819 is the one session with an onset the old detect
 34425934 code, and compared with the current `o2/enc_rebuild_20261104b/tables/trial_attempts.csv`: 0 class changes
 (cls / cls_raw / attempted / canonical / stop_kind), 0 first_lick_ms (RT) changes, 0 timing_source changes, 0 contact /
 n_licks changes in either comparison. Expected: every DAQ contact in the attempts path comes from `dlc_frames.lick_onsets`
-(the behaviour detector already).
+(the behavior detector already).
 
 **Tests.**
 - New tests/test_lick_detector_daq.py, 12 tests: the accessor = yaml; one 40 ms min_ili fallback and no reader with its
@@ -3332,7 +3332,7 @@ n_licks changes in either comparison. Expected: every DAQ contact in the attempt
 
 **Open (for Priya / the coordinator).**
 1. The O2 encoder (combined_encoding / frozen_encoder) never reads the imaging detector (DAQ contacts come from
-   dlc_frames = the behaviour detector), so its outputs do not change, but the new run tag makes `o2_bundle.verify`
+   dlc_frames = the behavior detector), so its outputs do not change, but the new run tag makes `o2_bundle.verify`
    refuse enc_rebuild_20261104b and routes encoder outputs to the `_daqlk` folder. Re-run it, or exempt the encoder?
 2. Preprocessing-side lick-aligned products (imaging box: `plot_lick_aligned_averages` / `locanmf_lick_aligned` CLIs ->
    `lick_aligned_affine8v1`, `locanmf_lick_aligned_affine8v1/*.npz`, read by locanmf_lick_pool / cards / event_master /
@@ -3352,7 +3352,7 @@ CODE + TESTS ONLY: nothing written to M:. Scratch: `.../scratchpad/lickdet/` (en
   WFIELD_INPUT_CACHE, WIDEFIELD_NO_CACHE=1, an audit hook refusing any write on M: / N:. The attempts table read is
   the one the bundle recorded (sha256 bef06b0a..., unchanged). Identity computed: the 8.53 tag with `_daqlk`, the same
   selection, area basis splitr8.
-- Result, array by array (every ndarray / DataFrame / Series / scalar of the input dict and the Behaviour object):
+- Result, array by array (every ndarray / DataFrame / Series / scalar of the input dict and the Behavior object):
   PS95_0917 342 leaves, PS94_0819 342, PS93_0814 444 (video): **0 differences**. PS95_0917 and PS94_0819 are
   byte-identical files. PS93_0814 is 253 bytes shorter: the pickle memo of numpy dtype objects (the bundle pickled a
   fresh `dtype('i8' / 'f8' / 'b1')` per array where the rebuild re-used one); every array buffer is the same, and the two

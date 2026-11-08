@@ -9,13 +9,13 @@ Pipeline (each step is a module; ``python -m wfield_local.histology_map --help``
              Run where the scans are (the Mac / a rig box): crops every section at level 3 (8x, 5.2 um/px).
   plates     Paxinos & Franklin vector plates -> outline-only line art (labels, leader lines and the unlabelled
              reference circle removed) + mm-calibrated brain / CPu masks.
-  sections   per-section standardisation: lesion LEFT (flipped mounts mirrored), rotation from outline
+  sections   per-section standardization: lesion LEFT (flipped mounts mirrored), rotation from outline
              symmetry, and the ANATOMICAL midline (dorsal interhemispheric fissure).
   footprint  automatic stroke suggestion (NeuN-blank / GFAP scar / autofluorescent core, each judged against the
              mirror point; spill into territory absent ipsi but present contra) -- a starting point for painting.
   painter    the QC page where Priya paints the masks; build its data and decode what it saved.
   fit        section -> plate: contralesional hemisphere ONLY, scaled from the midline, independent x / y,
-             boundary distance to the plate brain + CPu outlines, striatum favoured.
+             boundary distance to the plate brain + CPu outlines, striatum favored.
   schematic  masks -> plates (same transform), animals overlaid, gaps between measured levels interpolated.
 
 Data that defines a published figure lives in ``configs/histology_map/<cohort>/``: ``sections.json``

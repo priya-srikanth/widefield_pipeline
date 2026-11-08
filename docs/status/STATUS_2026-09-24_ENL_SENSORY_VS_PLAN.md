@@ -13,7 +13,7 @@ signal is from that alone vs motor plan."*
 
 The spout is physically in position during the ENL of **every** trial. A trial the animal is still
 working is one where a plan is also being formed; a trial from the terminal quit period is one where
-(pre-stroke) it is not. So the contrast uses the animal's own behaviour as the switch: **remove the
+(pre-stroke) it is not. So the contrast uses the animal's own behavior as the switch: **remove the
 intention, leave the stimulus.**
 
 That matters because CLAUDE.md records this as a standing, unresolved limit:
@@ -22,7 +22,7 @@ That matters because CLAUDE.md records this as a standing, unresolved limit:
 > sustained sensory response and a held intention are temporally coextensive and **this design
 > cannot separate them.**
 
-Timing cannot separate them. Behaviour can. **Position decodable from STOPPED ENL is the first
+Timing cannot separate them. Behavior can. **Position decodable from STOPPED ENL is the first
 direct evidence in this project that the pre-cue code is not only a held plan.**
 
 ---
@@ -117,7 +117,7 @@ whose whole purpose is to be outcome-matched to `stopped`. `nolick_decoder` alre
 ### 3. Block groups restart per session
 
 Pooling them unchanged lets `GroupKFold` put block 3 of session A and block 3 of session B in one
-fold — not trial leakage but **session** leakage, and the session is the level this must generalise
+fold — not trial leakage but **session** leakage, and the session is the level this must generalize
 across. `enl_decode.pool_arms` offsets them (verified: 16 distinct blocks from two 8-block sessions).
 
 ### And one wrong statistic
@@ -148,7 +148,7 @@ differing between numerator and denominator is *which trials are being read*.
 
 **Blocks are held out across ALL arms at once, not just the training one.** A stopped trial and a
 success trial from the same block share a spout position and sit seconds apart, so scoring a stopped
-trial with a fold that trained on success trials from its own block would report memorisation. Every
+trial with a fold that trained on success trials from its own block would report memorization. Every
 trial in every arm is predicted by exactly the fold in which its block was held out — which also
 makes the `success` number a genuine cross-validated score rather than a training fit, and therefore
 comparable to the others. `coverage` reports the fraction of an arm that fell in a held-out block, so
@@ -312,7 +312,7 @@ words. A control that cannot report its own failure is not a control.
 
 | file | state |
 |---|---|
-| `scripts/enl_state_counts.py` | **done**, cached, fanned over cores. Counts the BEHAVIOUR table — see the caveat below |
+| `scripts/enl_state_counts.py` | **done**, cached, fanned over cores. Counts the BEHAVIOR table — see the caveat below |
 | `scripts/enl_sparsity_figure.py` | **done**. Drawn from that cache, so it OVERSTATES every cell |
 | `scripts/enl_lick_rates.py` | **done and run**, 104 sessions — the in-window / lead / no-clean rates |
 | `scripts/enl_decode_figure.py` | **done and run** → `enl_decode_pre.png` (3 panels, bootstrap CIs) |
@@ -329,7 +329,7 @@ stated in words. The negative controls are the ones that matter.
 
 ### THE FEASIBILITY TABLE AGREED ALL ALONG — one script had a second response window
 
-**RESOLVED 2026-09-24. An earlier version of this document recorded the behaviour-table counts as
+**RESOLVED 2026-09-24. An earlier version of this document recorded the behavior-table counts as
 an unexplained overstatement of the imaging set and left "which dominates has NOT been verified"
 open. That was wrong, and the answer was not a universe difference.**
 
@@ -340,8 +340,8 @@ there** — it fell through to `stopped`. The decode calls that same trial `succ
 
 | STOPPED, pre-stroke | PS92 | PS93 | PS94 | PS95 |
 |---|---|---|---|---|
-| behaviour, before | 10 | 67 | 327 | 509 |
-| behaviour, after `response_window_for(s)` | **6** | **40** | **326** | **495** |
+| behavior, before | 10 | 67 | 327 | 509 |
+| behavior, after `response_window_for(s)` | **6** | **40** | **326** | **495** |
 | decode | 6 | 40 | 326 | 495 |
 
 Exact agreement. PS94/PS95 barely moved because their licks are fast; PS93 and PS92 have the most
@@ -413,7 +413,7 @@ discriminator demonstrably works at all.
 4. **Nothing is dropped for sparsity — it is marked.** "Could not test" and "tested and found
    nothing" are different facts.
 5. **One definition per quantity.** `arms_for_session` re-splits `nolick_decoder`'s existing
-   `undetected` category by its existing `sess_eng`; `enl_states.states_for` is behaviour-table-only
+   `undetected` category by its existing `sess_eng`; `enl_states.states_for` is behavior-table-only
    (for counting) and must never build features.
 
 ## What a positive result will NOT license
@@ -432,4 +432,4 @@ Computed and reported, **never** used to support "no plan was formed". `enl_stat
 reads whether `precue_engagement_states`' discriminator (trained on the PRE-stroke lick/no-lick
 contrast) separates post-stroke working from stopped, and `stamp_caveat` puts the licensed
 interpretation on every row. Currently `"not run"` → reports as DESCRIPTIVE ONLY rather than
-defaulting to the favourable reading. **Run that witness before interpreting any post-stroke cell.**
+defaulting to the favorable reading. **Run that witness before interpreting any post-stroke cell.**

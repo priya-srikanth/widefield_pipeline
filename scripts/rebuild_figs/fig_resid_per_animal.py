@@ -1,5 +1,5 @@
 """Goal page Fig 8 (`fig8_residual_per_animal_{lick,cue}.png`): frozen-encoder RESIDUAL change per animal (epoch - all
-LOSO pre), far contra, each animal normalised by its own pre-stroke scale; contour = within-animal test.
+LOSO pre), far contra, each animal normalized by its own pre-stroke scale; contour = within-animal test.
 
 PROVENANCE: recreated 2026-11-04 (RECONCILIATION section 7) from scratchpad_scripts_backup_20261104/S1_cdd1e016/
   fig_resid_per_animal.py. Computation, layout and styling unchanged. Changes: the encoder run is THIS run's
@@ -87,7 +87,7 @@ def draw(fd: dict, OUT: Path) -> None:
         sm = plt.cm.ScalarMappable(cmap="RdBu_r", norm=plt.Normalize(-lim, lim))
         fig.colorbar(sm, ax=axs, fraction=0.02, pad=0.01, label="residual change / animal's pre-stroke scale")
         fig.suptitle(f"Frozen-encoder RESIDUAL change per animal (epoch - all LOSO pre), far contra, {al} window, each animal "
-                     f"normalised by its own pre-stroke scale, shared colour scale.\nContour = within-animal test, sessions as "
+                     f"normalized by its own pre-stroke scale, shared color scale.\nContour = within-animal test, sessions as "
                      f"unit (UNCALIBRATED: see random-split null). Image left = ipsilesional.", fontsize=8)
         save_png_svg(fig, OUT / f"fig8_residual_per_animal_{al}.png", dpi=120, bbox_inches="tight")
         plt.close(fig)

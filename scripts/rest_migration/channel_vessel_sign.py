@@ -11,14 +11,14 @@ candidate sources have completely different SPATIAL signatures, and the vessels 
 separate:
 
     calcium bleed-through  ->  PARENCHYMA-shaped, matching the 470 activation map
-    haemodynamic           ->  VESSEL-shaped, concentrated on veins and sinuses
+    hemodynamic           ->  VESSEL-shaped, concentrated on veins and sinuses
 
 and the SIGN at the vessels then says which way blood moves the signal. A POSITIVE vessel-shaped
 415 response means blood INCREASES 415 fluorescence and my absorption argument is wrong -- which
 would invalidate reading the TROUGH in `rest_coupling._hrf_lag`, since that choice rests entirely
 on blood entering 415 negatively.
 
-VESSELS ARE DEFINED FROM THE MEAN IMAGE, not from an atlas. Haemoglobin absorbs, so vessels are
+VESSELS ARE DEFINED FROM THE MEAN IMAGE, not from an atlas. Hemoglobin absorbs, so vessels are
 DARK in `frames_average_atlas` whatever happens dynamically -- a static fact that does not assume
 the answer to the dynamic question being asked.
 
@@ -30,9 +30,9 @@ times darker than the brain, and only 49% of it overlapped the real vasculature.
 vessel compartment look flat when the maps plainly show the sinus and the big cortical veins
 moving, which is how the error was caught (Priya: *"there are clearly veins there"*).
 
-`_vesselness` compares each pixel to a Gaussian-smoothed copy of its own neighbourhood, so a slow
+`_vesselness` compares each pixel to a Gaussian-smoothed copy of its own neighborhood, so a slow
 gradient cancels and only LOCAL darkness survives. That mask lands at column 316 +/- 71 against a
-brain centred at 319 +/- 136 -- tight on the midline, which is the superior sagittal sinus.
+brain centered at 319 +/- 136 -- tight on the midline, which is the superior sagittal sinus.
 
     python -m scripts.rest_migration.channel_vessel_sign [--sessions PS93_0607 ...]
 """
@@ -53,7 +53,7 @@ LATENCIES = (0.2, 0.4, 0.6, 0.9, 1.2, 1.6, 2.0, 2.5)
 
 
 def _vesselness(mean_img, brain, sigma=VESSEL_SIGMA):
-    """How much DARKER than its own neighbourhood each pixel is. High = vessel.
+    """How much DARKER than its own neighborhood each pixel is. High = vessel.
 
     A raw intensity threshold selects the dim periphery, not the vasculature -- see the module
     docstring. Dividing by the smoothed image makes this a relative contrast, so it does not
@@ -181,7 +181,7 @@ def main(argv=None) -> int:
                 if i == 0:
                     ax.set_ylabel(f"{lab}\n{k}  (+/-{v:.2f}%)", fontsize=7.5)
     fig.suptitle("CUE-ALIGNED MAPS. If the 415 row is PARENCHYMA-shaped and tracks the 470 row it "
-                 "is calcium bleed-through;\nif it is VESSEL-shaped it is haemodynamic, and its "
+                 "is calcium bleed-through;\nif it is VESSEL-shaped it is hemodynamic, and its "
                  "SIGN at the vessels says which way blood moves 415.", fontsize=9.5)
     fig.tight_layout(rect=(0, 0, 1, 0.93))
     q = out_dir / "epoch_21_channel_vessel_sign.png"

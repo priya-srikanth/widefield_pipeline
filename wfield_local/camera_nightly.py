@@ -14,7 +14,7 @@ One command per date runs the camera nightly, in order:
   4. **Spout behavior figures** (:mod:`wfield_local.spout_behavior`) -> per-session behavior PNG +
      per-position metrics, and a refresh of the curated cross-session cohort summary.
   5. **Epoch boundaries** (:mod:`wfield_local.epoch_audit`) -> derives ``chronic_from`` and
-     publishes ``epoch_boundaries.json``. Step 4 resolves these too (and draws the epoch behaviour
+     publishes ``epoch_boundaries.json``. Step 4 resolves these too (and draws the epoch behavior
      figures onto the deck from them); this repeats it so the clips below are still filed on
      tonight's boundaries under ``--skip-behavior``. Idempotent and cheap.
   6. **Annotated example clips** (:mod:`wfield_local.behavior_clips`) -> cue-aligned cam4
@@ -57,7 +57,7 @@ def _copy_one(src: str, dst: str, dry: bool, verify: bool = False) -> str:
     below ``HASH_READBACK_MAX`` (larger files stay size-only so the slow link can't stall).
 
     The copy + verify is `safe_copy.verified_copy` (shared with archive_day since 2026-11-04). One
-    behaviour change from the copy that lived here: an already-present same-size file whose source AND
+    behavior change from the copy that lived here: an already-present same-size file whose source AND
     destination could not be hashed used to pass (``None != None`` is False) and is now FAIL."""
     if dry:
         return "dry"
@@ -169,7 +169,7 @@ def run(date, rv, animals=None, do_copy=True, do_dropframe=True, do_align=True, 
             for _line in epoch_audit.report_lines(_res["report"]):
                 print("   " + _line, flush=True)
             if not _res["available"]:
-                print("   !! NOT DERIVED (no cohort behaviour table); clips will be filed on the "
+                print("   !! NOT DERIVED (no cohort behavior table); clips will be filed on the "
                       "LAST DERIVED boundaries", flush=True)
             elif _res["changes"]:
                 # The clips cut below are the FIRST artifact to use the new boundary, so this is

@@ -1,4 +1,4 @@
-"""BEHAVIOUR-ONLY decoder of lick position (overnight queue 5f, approved LOW item; SVD_GAUSS queue E8 "behaviour-only
+"""BEHAVIOR-ONLY decoder of lick position (overnight queue 5f, approved LOW item; SVD_GAUSS queue E8 "behavior-only
 decoder from FaceRhythm (+ 3-D kinematics): same targets, compare with the cortical decoder"). Is the cortical lick-position
 information MORE than what the face / tongue dynamics carry?
 
@@ -7,7 +7,7 @@ Same licks, targets (lateral mm, angle deg) and frozen scheme as the KEY cortica
 pre sessions leave-one-session-out, post sessions scored by the all-pre fit). Feature sets (rows), all scored on ONE
 common lick set per session (every feature below finite), so differences are the features, not the licks:
   cortex              the KEY features: Allen areas + ALM / tjM1 split (ROI v8), / frame-wise session SD, lags 0..0.2 s
-  behaviour           FaceRhythm + kinematics (below)
+  behavior           FaceRhythm + kinematics (below)
   FaceRhythm          the five master_pre_v1 mode-A factors of the frozen encoder (iti_licks.FR_KEEP: lick, right, left,
                       close, far; COMBINED_ENCODING_FR_GROUPS=master_v1:A, absolute expression), each averaged in THREE
                       windows around the lick peak, -0.1..0, 0..0.1, 0.1..0.2 s (15 features). Read UNBLANKED (blank=False)
@@ -16,7 +16,7 @@ common lick set per session (every feature below finite), so differences are the
                       in the ITI they are the projection's 5 Hz session samples (smoother; caveat). `fr_in_mask` = share
                       the frozen mask would have kept.
   kinematics          3-D reach (reach_mm, tip distance from the mouth at the peak) and peak tongue speed (speed_peak)
-  cortex + behaviour  both (does cortex add to behaviour: r(cortex + behaviour) - r(behaviour))
+  cortex + behavior  both (does cortex add to behavior: r(cortex + behavior) - r(behavior))
 NO LEAKAGE of the target: the kinematic features carry no lateral sign and no direction -- reach and speed are unsigned
 magnitudes. EXCLUDED on purpose: side_ml / lateral / angle (the targets), every *_target / *_err / miss / midline / frontal
 column, the landing spout / position, ELEVATION (atan2(down, hypot(lateral, forward)) has |lateral| in it), and out_ap /
@@ -26,7 +26,7 @@ measures how much that buys (its r is the leakage ceiling of the kinematic part)
 (mesh displacement around the mouth, mode A); their left / right factors carry direction legitimately -- that is the
 question: how much of the lick position is visible in the face.
 Readouts per session: r (decoded vs actual), r / animal's pre mean (the row's own pre). Change vs pre per row and PAIRED
-contrasts per session (cortex - behaviour; cortex + behaviour - behaviour), then post - pre: nested bootstrap
+contrasts per session (cortex - behavior; cortex + behavior - behavior), then post - pre: nested bootstrap
 (analysis_kit.boot_delta, lick_nonlinear_decoder.tests); held-out pre r levels and their paired differences per animal.
 Outputs <OUT_W>/behaviour_decoder_{features.csv.gz,sessions.csv,tests.csv,pre.csv,coverage.csv},
 figures/lick_behaviour_decoder.png, figdata/lick_behaviour_decoder.pkl (--plot-only redraws from it).
@@ -56,10 +56,10 @@ FR_GRID = np.round(np.arange(-0.1, 0.2001, 0.02), 3)
 WINS = {"m100_0": (-0.1, -0.001), "0_100": (0.0, 0.099), "100_200": (0.1, 0.2)}    # grid points inside each window
 KIN = ["reach_mm", "speed_peak"]
 FRF = [f"{v}_{w}" for v in il.FR_KEEP for w in WINS]
-ROWS = {"cortex": None, "behaviour": FRF + KIN, "FaceRhythm": FRF, "kinematics": KIN, "cortex + behaviour": FRF + KIN}
+ROWS = {"cortex": None, "behaviour": FRF + KIN, "FaceRhythm": FRF, "kinematics": KIN, "cortex + behavior": FRF + KIN}
 RCOL = {"cortex": "#7b3294", "behaviour": "#1b9e77", "FaceRhythm": "#66c2a5", "kinematics": "#a6761d",
-        "cortex + behaviour": "#2c7fb8"}
-CONTRASTS = (("cortex", "behaviour"), ("cortex + behaviour", "behaviour"))
+        "cortex + behavior": "#2c7fb8"}
+CONTRASTS = (("cortex", "behaviour"), ("cortex + behavior", "behaviour"))
 STEM = "lick_behaviour_decoder"
 
 
@@ -105,15 +105,15 @@ def _session_beh(label: str) -> pd.DataFrame:
 
 
 def features(labels: list[str], jobs: int | None) -> pd.DataFrame:
-    """Per-lick behaviour features of every session file lick (cached <OUT_W>/behaviour_decoder_features.csv.gz)."""
+    """Per-lick behavior features of every session file lick (cached <OUT_W>/behaviour_decoder_features.csv.gz)."""
     f = il.OUT_W / "behaviour_decoder_features.csv.gz"
     if f.exists():
         C = pd.read_csv(f)
         if set(labels) <= set(C.label):
             return C
-    res, fail = ak.fan_sessions(sorted(labels), _session_beh, jobs=jobs, label="behaviour features")
+    res, fail = ak.fan_sessions(sorted(labels), _session_beh, jobs=jobs, label="behavior features")
     if fail:
-        raise RuntimeError(f"behaviour features failed for {len(fail)} sessions: {fail[:3]}")
+        raise RuntimeError(f"behavior features failed for {len(fail)} sessions: {fail[:3]}")
     C = pd.concat([v for _it, v in res], ignore_index=True)
     f.parent.mkdir(parents=True, exist_ok=True)
     C.to_csv(f, index=False)
@@ -153,7 +153,7 @@ def compute(animals: list[str] | None, jobs: int | None) -> dict:
                     if fc is None:
                         return Xc
                     Xb = Bd[fc].to_numpy(float)
-                    return np.hstack([Xc, Xb]) if row == "cortex + behaviour" else Xb
+                    return np.hstack([Xc, Xb]) if row == "cortex + behavior" else Xb
                 fits = {h: lr._fit(np.vstack([feats(q) for q in pre if q != h]), np.vstack([S[q][2] for q in pre if q != h]))
                         for h in [*pre, None]}
                 for x, (ep, _f, Y) in S.items():
@@ -210,13 +210,13 @@ def plot(F: dict) -> None:
                         if k in pl.index:
                             d = pl.loc[k]
                             sig = "*" if (d.lo > 0 or d.hi < 0) else ""
-                            short = k.replace("cortex + behaviour", "C+B").replace("cortex", "C").replace("behaviour", "B")
+                            short = k.replace("cortex + behavior", "C+B").replace("cortex", "C").replace("behaviour", "B")
                             txt.append(f"held-out pre r, {short}: {d.point:+.3f}{sig} {int(d.n_dir)}/{int(d.n)}")
                     ax.set_ylabel("decoded vs actual, r (held-out)" if j == 0 else "", fontsize=9)
                 else:
                     ax.axhline(1, color="0.7", lw=0.8, ls="--")
                     for e in range(1, len(EP)):
-                        for q, m in enumerate(("cortex", "behaviour", "cortex - behaviour")):
+                        for q, m in enumerate(("cortex", "behaviour", "cortex - behavior")):
                             t = T[(T.set == st) & (T.target == tg) & (T.model == m) & (T.value == "r_norm")
                                   & (T.epoch == EP[e])]
                             if len(t):
@@ -238,10 +238,10 @@ def plot(F: dict) -> None:
                     for s in SETS)
     fig.suptitle("Is the cortical lick-position information more than the FACE / TONGUE carry? Frozen pre-stroke ridge "
                  "decoders (KEY scheme), same licks per session, one row per feature set:\ncortex = "
-                 f"{il.basis_label()} (z-scored, lags 0-0.2 s); behaviour = 5 FaceRhythm factors x 3 windows (-0.1..0.2 s, "
+                 f"{il.basis_label()} (z-scored, lags 0-0.2 s); behavior = 5 FaceRhythm factors x 3 windows (-0.1..0.2 s, "
                  "unblanked) + 3-D reach + peak speed (no lateral / angle / landing / elevation quantity).\nMean +/- SEM "
                  "over animals. Text: change vs pre (r / pre), 95 % paired nested bootstrap, * = CI excludes 0, k/n "
-                 "animals; C-B = paired contrast cortex - behaviour; 'pre ...' = held-out pre r difference.\n"
+                 "animals; C-B = paired contrast cortex - behavior; 'pre ...' = held-out pre r difference.\n"
                  f"Common lick set (all features finite): {cvs}. PROVISIONAL", fontsize=9.5)
     lo._layout(fig, bottom=0.05)
     fig.subplots_adjust(top=1 - (0.17 * 5 + 0.25 + 0.55) / fig.get_size_inches()[1])   # suptitle + 3-line panel titles

@@ -7,7 +7,7 @@ squared deviation of the held-out data from its mean over the window's frames; n
 only -- no model involved. Per animal x epoch: mean over sessions.
   POOLED              epoch - pre within animal, mean of the 4 animals (raw dF/F^2 units)
   PER-ANIMAL NORMED   log2(epoch / pre) within animal, mean of animals (each animal's own scale; 1 = doubling)
-Significance (normalised version): `beta_maps.hierarchical_bootstrap_significance` on per-session log2 variance (animals
+Significance (normalized version): `beta_maps.hierarchical_bootstrap_significance` on per-session log2 variance (animals
 -> sessions, max-statistic over bins = family-wise per panel, `beta_maps.CORRECTION`), 16 and 32 full-res px (8 / 16 block px), stat mask = eroded brain mask; calibration:
 random pre half-splits (share of splits with >= 1 false bin). Image left = ipsilesional.
 
@@ -99,7 +99,7 @@ def main(argv=None) -> int:
                              "n_animals": len(com)})
             panels = [("pre-stroke level, log10 variance" if i == 0 else None, np.log10(pre_lv), "viridis", None),
                       (f"{ep} - pre (pooled, dF/F$^2$)", raw, "RdBu_r", "sym"),
-                      (f"{ep} vs pre, log2 ratio (per-animal normalised)", nrm, "RdBu_r", 1.0)]
+                      (f"{ep} vs pre, log2 ratio (per-animal normalized)", nrm, "RdBu_r", 1.0)]
             for j, (title, M, cmap, lim) in enumerate(panels):
                 ax = axs[i, j]
                 if j == 0 and i > 0:

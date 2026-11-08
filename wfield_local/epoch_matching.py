@@ -160,7 +160,7 @@ def _fig_10cs(out_dir, align, variant, wname):
     WHAT THIS ADDS THAT 10c AND 10cdiag DO NOT. 10c draws the same matrix with no uncertainty at
     all; 10cdiag tests the DIAGONAL as bars, so "did position P still match itself" is already
     answered with intervals. Neither touches the OFF-DIAGONAL, which is where the substitution claim
-    lives -- "acute far-contra now best-matches far-middle" was a colour, not a test. Every cell here
+    lives -- "acute far-contra now best-matches far-middle" was a color, not a test. Every cell here
     carries a nested animals->sessions interval from the same bootstrap the bar families use.
 
     THE REFERENCE IS CHANCE, NOT ZERO, on the absolute row: a cell is the fraction of sessions whose
@@ -238,7 +238,7 @@ def _fig_10b(out_dir, align, variant, wname):
 
     A ROW OF ALL-NaN SCORES NOTHING rather than scoring zero: a position gated out for too few
     trials has no best match, and counting that as "matched the wrong position" would turn missing
-    data into evidence of reorganisation, which is the direction that would flatter the result.
+    data into evidence of reorganization, which is the direction that would flatter the result.
     """
     from wfield_local import grant_figures as G
     from wfield_local.grant_figures import CONF_LABELS
@@ -405,7 +405,7 @@ def _fig_11c(out_dir, align, variant, wname):
     READ `ceiling - frozen (matched)`, NOT `ceiling - frozen (all pre)`. Only the first holds
     training-set size constant, so only the first isolates "the template came from other sessions".
     And read it against its own PRE value rather than against zero: at pre-stroke that difference is
-    the cross-session generalisation cost with no lesion involved, and it is large -- 0.276 post-cue.
+    the cross-session generalization cost with no lesion involved, and it is large -- 0.276 post-cue.
 
     WHY THE MATCHED ARM HAD TO BE ADDED. Without it the pre-cue window was uninterpretable: frozen EV
     0.330 against a ceiling of 0.090, a frozen arm beating its own ceiling, which is impossible for a
@@ -498,7 +498,7 @@ def _fig_11cpos(out_dir, align, variant, wname):
 
     THE FRACTION IS CLIPPED FOR DISPLAY AND NOT FOR COMPUTATION. Where a ceiling is near zero the
     ratio is unstable and can exceed 1 or go negative; those cells are dropped rather than drawn,
-    because a 300% "captured" bar is an artefact of a small denominator and reads as a result.
+    because a 300% "captured" bar is an artifact of a small denominator and reads as a result.
     """
     from wfield_local import grant_figures as G
     from wfield_local.grant_figures import CONF_LABELS

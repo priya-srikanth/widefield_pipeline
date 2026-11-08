@@ -1,6 +1,6 @@
-"""Imaging page Fig 3.3 (`s_per_animal`): the pre-stroke position TEMPLATE and the frozen BEHAVIOURAL-STATE decoder,
+"""Imaging page Fig 3.3 (`s_per_animal`): the pre-stroke position TEMPLATE and the frozen BEHAVIORAL-STATE decoder,
 per animal across epochs -- redrawn under Priya's 11-03 categorical-x rules (no lines across epochs; session values as
-faded open markers, shape = animal, colour = epoch; summary = mean of animals +- SEM over animals, marker + interval).
+faded open markers, shape = animal, color = epoch; summary = mean of animals +- SEM over animals, marker + interval).
 
 Brought into the repo from M:/MICROSCOPE/Priya/Widefield/imaging_page_src/s_per_animal_regen_20261102/per_animal_fig.py
 (and the session-c1a9581a `per_animal_tables.py` that built its tables). NOTHING IS REFITTED: every value is read from

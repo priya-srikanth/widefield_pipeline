@@ -387,7 +387,7 @@ def plot_shape_d(D: dict) -> None:
          Line2D([], [], color="k", marker="o", mfc="w", lw=0, label="black edge = animal's own p < 0.05")]
     axs[0, 0].legend(handles=h, fontsize=7, frameon=False, loc="upper left")
     fig.suptitle("NEURAL: whole-map SHAPE change per spout (per-session self-fit maps, unit RMS): dots = animals, bar = "
-                 "cohort mean (epoch colour), dashed = drift floor;\n* = cohort session-label permutation p, BH q 0.05 "
+                 "cohort mean (epoch color), dashed = drift floor;\n* = cohort session-label permutation p, BH q 0.05 "
                  "over all maps x epochs (bold); k/n = animals with their own p < 0.05. Canonical spout order. PROVISIONAL",
                  fontsize=9.5)
     fig.tight_layout(rect=(0, 0, 1, 0.9))

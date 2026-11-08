@@ -23,8 +23,8 @@ with >= 5 licks, change vs pre by analysis_kit.boot_delta, BH within set x epoch
 ANGLE = degrees(arcsin(lateral / 3-D reach)) for every set (enl_lick_audit's definition); for ITI / cued the 3-D reach is
 taken from where_angle_reach_preds (same lick rows, matched on the lateral landing in order within the session).
 GAIN (Priya 10-29 addition): per panel x animal x post epoch, the landing range shared by pre and that epoch
-(intersection of their 2.5-97.5 % landing quantiles; no extrapolation), centre = its midpoint; per SESSION (>= 8 licks in
-range) an OLS line decoded ~ landing -> SLOPE (gain) and value at the centre (offset); change vs pre = per-animal table
+(intersection of their 2.5-97.5 % landing quantiles; no extrapolation), center = its midpoint; per SESSION (>= 8 licks in
+range) an OLS line decoded ~ landing -> SLOPE (gain) and value at the center (offset); change vs pre = per-animal table
 first (rule 8), then analysis_kit.boot_delta. RESIDUAL: (epoch curve - pre curve) minus the gain + offset prediction from
 the animal's pooled-lick lines, on the curve grid inside the shared range. EDGE check: local slope (gradient) of the
 smoothed curves per epoch -- the decoder's own compression shows in the PRE (held-out) curve; a same-place comparison
@@ -230,7 +230,7 @@ def _line(x, y):
 
 
 def gain(Q: pd.DataFrame, ax: str) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """Session lines (slope, value at the shared-range centre) per panel x animal x post epoch, and the animal's
+    """Session lines (slope, value at the shared-range center) per panel x animal x post epoch, and the animal's
     pooled-lick lines (for the residual)."""
     col = AXES[ax][0]
     srows, arows = [], []
@@ -489,7 +489,7 @@ def fig_gain(D: dict) -> None:
                 ax.set_xticks(range(3), POST, fontsize=7.5)
                 ax.set_xlim(-0.5, 2.7)
                 ttl = (f"GAIN change vs pre\n(slope, mm/{unit})" if kind == "slope" else
-                       "OFFSET change vs pre\n(value at shared-range centre, mm)")
+                       "OFFSET change vs pre\n(value at shared-range center, mm)")
                 ax.set_title(f"{'lateral' if axn == 'lat' else 'angle'}: {ttl}", fontsize=8, pad=20)
             elif kind == "resid":
                 g = R[(R.axis == axn) & (R.panel == pn)]
@@ -531,7 +531,7 @@ def fig_gain(D: dict) -> None:
             _sty(ax)
     fig.suptitle("NEURAL: GAIN vs OFFSET of decoded lateral position on landing (lateral place, angle), per animal x "
                  "epoch, over the landing range SHARED by pre and that epoch (2.5-97.5 % of each; no extrapolation).\n"
-                 "Session OLS lines (>= 8 licks in range): slope = gain, value at the range centre = offset; open markers "
+                 "Session OLS lines (>= 8 licks in range): slope = gain, value at the range center = offset; open markers "
                  "= animals (circle PS92, square PS93, triangle PS94, diamond PS95), black = change vs pre, 95% paired "
                  "nested bootstrap, * = excludes 0, k/n animals.\nResidual columns: if gain + offset describe the change, "
                  "the solid line is flat at 0 across the range (both ends). n = 4 mice, PROVISIONAL", fontsize=9.5)
@@ -593,7 +593,7 @@ def fig_all(D: dict) -> None:
         ax.set_xlim(-3, 3)
     # ---- gain / offset change vs pre (lateral place)
     for k_, (meas, ttl) in enumerate((("slope", "GAIN change vs pre (slope of decoded on landing, mm/mm)"),
-                                      ("offset", "OFFSET change vs pre (decoded at the shared-range centre, mm)"))):
+                                      ("offset", "OFFSET change vs pre (decoded at the shared-range center, mm)"))):
         ax = fig.add_subplot(gs[1, 3 * k_:3 * k_ + 3])
         g = GT[(GT.axis == "lat") & (GT.measure == meas)]
         for i, pn in enumerate(ALL_PANELS):
@@ -620,7 +620,7 @@ def fig_all(D: dict) -> None:
         ax.set_xticks([i * 4 + e for i in range(len(ALL_PANELS)) for e in range(3)], minor=True)
         ax.tick_params(axis="x", which="major", length=0, pad=4)
         ax.set_xlim(-0.8, 4 * len(ALL_PANELS) - 1.2)
-        ax.set_title(f"NEURAL: {ttl}\neach set: acute / subacute / chronic (colour); open = animals, black = 95% paired "
+        ax.set_title(f"NEURAL: {ttl}\neach set: acute / subacute / chronic (color); open = animals, black = 95% paired "
                      "nested bootstrap (* = excludes 0), number above = point, k/n animals", fontsize=8.5, pad=30)
         ax.set_ylabel("change vs pre (mm/mm)" if meas == "slope" else "change vs pre (mm)", fontsize=8.5)
         _sty(ax)
@@ -641,7 +641,7 @@ def fig_all(D: dict) -> None:
                  "previous lick (the primary ITI set); cued 1st = first post-cue lick of each trial; ENLv (a) = first ENLv "
                  "lick / trial >= 1 s after spout\narrival, (b) = ENLv bout starts (>= 1 s since any lick) >= 1 s after "
                  "arrival, windows ending before the cue. Bottom: per session OLS of decoded on landing over the range "
-                 "SHARED by pre and that epoch (2.5-97.5 % of each), slope = gain, value at the range centre = offset. "
+                 "SHARED by pre and that epoch (2.5-97.5 % of each), slope = gain, value at the range center = offset. "
                  "n = 4 mice, PROVISIONAL", fontsize=9.5, y=0.995)
     save_png_svg(fig, FIG / "lick_like_for_like_all.png", dpi=100)
     plt.close(fig)

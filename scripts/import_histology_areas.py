@@ -10,7 +10,7 @@ Writes `configs/histology_striatum_area.csv`, one row per SECTION:
     ipsi_cx_px, ipsi_cy_px, contra_cx_px, contra_cy_px
 
 How the two outlines of a section are identified, since QuPath stores no names:
-  * PAIRING: mutual nearest neighbours by centroid. Every pair is asserted to sit on one slide row
+  * PAIRING: mutual nearest neighbors by centroid. Every pair is asserted to sit on one slide row
     (|dy| < ROW_TOL_PX) at hemisphere spacing (MIN_DX_PX < |dx| < MAX_DX_PX), so a mis-pairing
     fails the import instead of producing a plausible ratio.
   * IPSI = THE SMALLER OUTLINE (Priya, 2026-10-21: "the one with smaller area will always be ipsi
@@ -56,7 +56,7 @@ def pair_sections(ann: pd.DataFrame) -> list[tuple[int, int]]:
     pairs = set()
     for i, j in enumerate(nn):
         if nn[j] != i:
-            raise ValueError(f"{ann.image.iloc[0]}: outline {i} has no mutual nearest neighbour")
+            raise ValueError(f"{ann.image.iloc[0]}: outline {i} has no mutual nearest neighbor")
         dx, dy = abs(c[i, 0] - c[j, 0]), abs(c[i, 1] - c[j, 1])
         if dy > ROW_TOL_PX or not (MIN_DX_PX < dx < MAX_DX_PX):
             raise ValueError(f"{ann.image.iloc[0]}: outlines {i},{j} do not look like one section (dx={dx:.0f}, dy={dy:.0f})")

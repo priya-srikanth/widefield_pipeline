@@ -1,4 +1,4 @@
-"""Every frame-map -> DAQ-time conversion must go through `frame_samples_from_map`, which honours
+"""Every frame-map -> DAQ-time conversion must go through `frame_samples_from_map`, which honors
 `dat_head_offset`. Ten call sites indexed `pco[original_frame_index_ch0 + offset]` by hand (2026-09-28)
 and would have placed PS92_0922 2.466 s late after its frame map had been fixed."""
 from __future__ import annotations

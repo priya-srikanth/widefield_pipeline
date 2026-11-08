@@ -3,7 +3,7 @@
 
 NEURAL softmax = the stored frozen pre-stroke spout decoder's probabilities over the six spouts per trial (`attempt_coding`
 pp_<spout>, LOSO for pre sessions). LICK softmax = each lick's weights over the six executed bins (3-D landing, the
-encoder's rule: w_p ~ exp(-0.5 d_p^2 / w^2), d in within-spout SD units to each spout's pre-stroke landing centre,
+encoder's rule: w_p ~ exp(-0.5 d_p^2 / w^2), d in within-spout SD units to each spout's pre-stroke landing center,
 `exec_bins_calib_20261023.csv`), averaged over the trial's licks; widths 0.5 and 1. Trials with licks only: pre-stroke
 hits, post-stroke hits + failed attempts (incomplete).
 

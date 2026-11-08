@@ -255,12 +255,12 @@ def map_figure(P: dict, out: Path, set_name: str) -> None:
         fig.suptitle(f"{set_name}: all-animals-pooled fit, per-point loading change vs the label-shuffle null "
                      "(cluster mass); image left = contralesional")
         frf.save(fig, out / "cohort_null_maps.png", """
-Loading fraction per mesh point of the all-animals-pooled fit's lick factor, COHORT_<epoch> - COHORT_pre. Colour = t: each
+Loading fraction per mesh point of the all-animals-pooled fit's lick factor, COHORT_<epoch> - COHORT_pre. Color = t: each
 point's change divided by its SD over the permutation null (within-animal label shuffle, both fits redone). RINGS = points
-in CLUSTERS with family-wise p < .05: neighbouring mesh points with |t| > 2 of one sign form a cluster, its mass = the
+in CLUSTERS with family-wise p < .05: neighboring mesh points with |t| > 2 of one sign form a cluster, its mass = the
 sum of |t|, and its p = the share of permutations whose LARGEST cluster mass reaches it (Priya 11-07: the map test;
 red ring = more loading, blue = less). Title also gives the point-level MAX-STATISTIC count (a point's |t| against the
-largest |t| over the face per permutation). One colour scale (t) for all panels.""")
+largest |t| over the face per permutation). One color scale (t) for all panels.""")
 
 
 def spectral_figure(P: dict, out: Path, set_name: str) -> None:
@@ -302,7 +302,7 @@ def main(argv=None) -> int:
     ap.add_argument("--set", default=fro.SET)
     ap.add_argument("--fdir", type=Path, default=None)
     ap.add_argument("--plot-only", action="store_true")
-    ap.add_argument("--match-rule", choices=sorted(es.MATCH_RULES), default="v1",
+    ap.add_argument("--match-rule", choices=sorted(es.MATCH_RULES), default="v2",
                     help="see face_rhythm_epoch_shape.MATCH_RULES; non-v1 output goes to epoch_shape_cohort_<rule>/")
     a = ap.parse_args(argv)
     es.RULE = a.match_rule

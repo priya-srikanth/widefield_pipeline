@@ -25,6 +25,7 @@ import argparse
 import hashlib
 import glob
 import json
+import os
 from pathlib import Path
 
 import matplotlib
@@ -180,7 +181,7 @@ def would_be_lick_offsets(codes, rt, engaged, min_trials=5):
 
     -- so those windows sat up to 2.1 s early inside a 2 s window, i.e. they did not overlap the
     inferred lick at all, and the error was largest at the most impaired positions. That correlates
-    the artefact with severity, which is the very axis these figures report.
+    the artifact with severity, which is the very axis these figures report.
 
     ``min_trials`` no longer gates the offset, only the WEAK flag: below it the median rests on one
     or two trials and is order-of-magnitude evidence rather than a real median. It is still the
@@ -285,6 +286,31 @@ def feature_cache_kind(args, *, signal_key, nolick_ref, with_precue_licks, with_
     return f"tf-{spec['align']}-{digest}"
 
 
+def roi_signal_inputs(s) -> list[str]:
+    """The files `_build_signal(s, "roi")` reads: the Allen-aligned U, atlas and brain mask, and the SVTcorr of THIS
+    hemodynamic variant (`config.svtcorr_path`, so a variant switch is a different path)."""
+    mc = s["mc"]
+    hits = glob.glob(f"{mc}/wfield_local_results/allen_aligned_affine8v1")
+    ad = hits[0] if hits else f"{mc}/wfield_local_results/allen_aligned_affine8v1"
+    return [f"{ad}/U_atlas.npy", f"{ad}/allen_area_atlas_native_grid.npy",
+            f"{ad}/allen_brain_mask_native_grid.npy", str(config.svtcorr_path(mc))]
+
+
+def roi_signal_key(s) -> str:
+    """``signal_key`` for the Allen-ROI source: a digest of (path, mtime_ns, size) of every `roi_signal_inputs` file.
+
+    A re-preprocess, a re-registration or a hemodynamic-variant switch changes one of them and so the cache kind; a
+    missing file is recorded as missing (and `_build_signal` then fails exactly as it did uncached)."""
+    st = []
+    for f in roi_signal_inputs(s):
+        try:
+            x = os.stat(f)
+            st.append((f, x.st_mtime_ns, x.st_size))
+        except OSError:
+            st.append((f, None, None))
+    return "roi-" + hashlib.sha1(repr(st).encode()).hexdigest()[:12]
+
+
 def trial_features_cached(s, args, *, signal=None, feat_region=None, signal_fn=None,
                           signal_key=None, with_precue_licks=False, with_indices=False,
                           with_rt=False, nolick_ref="cue", verbose=False):
@@ -298,11 +324,13 @@ def trial_features_cached(s, args, *, signal=None, feat_region=None, signal_fn=N
       expensive thing we are avoiding building, and hashing ~100 MB per call would cost more than the
       rebuild). A caller that injects a signal must say where it came from; one that does not gets a
       correct, uncached answer instead of a fast, possibly wrong one.
-    * ``source`` OTHER THAN ``locanmf`` WITHOUT AN INJECTED SIGNAL. `_build_signal` then reads
+    * ``source`` OTHER THAN ``locanmf`` / ``roi`` WITHOUT AN INJECTED SIGNAL. `_build_signal` then reads
       `U_atlas.npy` and the SVTcorr, and `session_signature` stats neither, so a re-preprocess would
-      not invalidate the entry. Those sources are diagnostics (`pixel_rsa`, the filter tests), not
-      the hot path, so the honest fix is to leave them uncached rather than to widen a signature
-      every other cached kind also depends on.
+      not invalidate the entry. Those sources (``svt`` ...) are diagnostics (`pixel_rsa`, the filter
+      tests), not the hot path, so they stay uncached rather than widening a signature every other
+      cached kind also depends on. ``roi`` IS cached (11-07): it is section G's and the frozen pools'
+      hot path (~19 s per session-alignment uncached), and its key carries the stats of exactly those
+      files (`roi_signal_key`), so the signature is widened for that kind alone.
 
     ``signal_fn`` is the same injection DEFERRED: a zero-arg callable returning ``(signal, regions)``,
     invoked only when the cache misses. That is what makes the saving real for the joint-basis paths,
@@ -325,7 +353,14 @@ def trial_features_cached(s, args, *, signal=None, feat_region=None, signal_fn=N
     injected = signal is not None or signal_fn is not None
     if injected and not signal_key:
         return _compute()
-    if not injected and getattr(args, "source", "locanmf") != "locanmf":
+    source = getattr(args, "source", "locanmf")
+    if not injected and source == "roi":
+        # ALLEN-ROI IS CACHED (11-07), keyed on the stats of every file `_build_signal` reads for it. It is section G's
+        # pooling source, and uncached it rebuilt every session at every alignment in every unit straight off
+        # MICROSCOPE (~15 min per unit, network-bound). The refusal below was about exactly these files being
+        # invisible to `session_signature`; putting their (path, mtime, size) in the key answers it for this source.
+        signal_key = roi_signal_key(s)
+    elif not injected and source != "locanmf":
         return _compute()
     kind = feature_cache_kind(args, signal_key=signal_key or "own", nolick_ref=nolick_ref,
                               with_precue_licks=with_precue_licks, with_indices=with_indices,

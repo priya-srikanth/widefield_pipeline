@@ -2,12 +2,12 @@
 2026-10-19: "in the acute far_contra ... the animal clearly has a lick but it doesn't contact the spout (deviated) --
 does that activity look like a planned + executed far right lick or the lick that it executes?")
 
-Per session, from the O2 bundle inputs (imaging + behaviour; `scripts/o2_encoding.py bundle`) and licks.csv (contact):
+Per session, from the O2 bundle inputs (imaging + behavior; `scripts/o2_encoding.py bundle`) and licks.csv (contact):
   features  region-mean activity (Allen areas x hemisphere, eroded stat mask, z-scored) per lick in three windows:
             evoked = mean over [onset, onset + EVOKED_S] minus mean over [onset - BASE_S, onset)   (lick-evoked, primary)
             post   = mean over [onset, onset + EVOKED_S]                                         (not baseline-subtracted)
             pre    = mean over [onset - BASE_S, onset)                                            (trial context only)
-  decoder   multinomial logistic regression (standardised, L2) trained on CONTACTED licks of ENGAGED trials, label =
+  decoder   multinomial logistic regression (standardized, L2) trained on CONTACTED licks of ENGAGED trials, label =
             spout position (6 classes); cross-validated predictions for the training licks (folds grouped by TRIAL)
   probe     MISDIRECTED licks = no contact, at FAR_CONTRA, executed peak angle deviated > DEV deg toward ipsi; for each,
             the EXECUTION-matched position = the FAR spout whose angle is nearest the executed angle (only licks whose
@@ -17,7 +17,7 @@ Per session, from the O2 bundle inputs (imaging + behaviour; `scripts/o2_encodin
             'pre' window (if misdirected licks already decode as far_contra BEFORE the lick, that is trial context, not
             a lick plan). Pre-stroke far-contra misses = the same analysis without the lesion.
 Caveats: contacted licks carry a touch response that misdirected licks lack (both templates have it); widefield GCaMP is
-slow relative to a ~7 Hz lick rhythm, so a lick's window overlaps its neighbours (baseline subtraction helps).
+slow relative to a ~7 Hz lick rhythm, so a lick's window overlaps its neighbors (baseline subtraction helps).
 
     python scripts/misdirected_lick_decode.py [--run ...] [--name enc_v36_20261019] [--dev 15] [--min-probe 15]
 
@@ -47,7 +47,7 @@ def region_traces(im) -> tuple[np.ndarray, np.ndarray, list[str]]:
 
 
 def lick_table(rv, run: str, animal: str, date: str, B) -> pd.DataFrame:
-    """Per lick (same order as the Behaviour arrays): onset (DAQ s), trial, position, executed angle, contact, engaged."""
+    """Per lick (same order as the Behavior arrays): onset (DAQ s), trial, position, executed angle, contact, engaged."""
     from wfield_local import combined_encoding as ce
     from wfield_local import orofacial_cohort as oc
     from wfield_local import orofacial_outputs as oo
@@ -56,7 +56,7 @@ def lick_table(rv, run: str, animal: str, date: str, B) -> pd.DataFrame:
     L = pd.read_csv(sd / "licks.csv")
     L = L[L.trial_id.isin(cue_t.index)].reset_index(drop=True)
     if len(L) != len(B.lick_on_s):
-        raise RuntimeError(f"lick table / Behaviour mismatch {len(L)} vs {len(B.lick_on_s)}")
+        raise RuntimeError(f"lick table / Behavior mismatch {len(L)} vs {len(B.lick_on_s)}")
     ok = (~L.peak_interp.astype(bool)) & (L.protrusion_px >= ce.MIN_REACH_PX) & np.isfinite(L.peak_angle_deg)
     eng = set(B.trials.trial_id[B.trials.engaged].astype(int))
     return pd.DataFrame({"on_s": B.lick_on_s, "trial_id": L.trial_id.to_numpy(int), "pos": B.lick_pos,
@@ -190,7 +190,7 @@ def _pc(a: np.ndarray, b: np.ndarray) -> float:
 
 
 def template_analysis(Ls: dict, meta: dict, min_n: int = 10, prefix: str = "r_") -> pd.DataFrame:
-    """Per animal, PRE-stroke contacted-lick templates per far spout (mean lick-evoked region pattern), centred on the
+    """Per animal, PRE-stroke contacted-lick templates per far spout (mean lick-evoked region pattern), centered on the
     mean over the far spouts so only the position-SPECIFIC part is compared. Per test set (a session's misdirected
     licks, split by their exec-matched spout; and controls), r(pattern, T_far_contra) vs r(pattern, T_exec). Pre
     sessions are tested against templates built WITHOUT them (leave-one-session-out)."""
@@ -493,7 +493,7 @@ def _figure(S: pd.DataFrame, path, run: str, dev: float) -> None:
                       + [Line2D([], [], ls="--", color="0.6", label="chance")], frameon=False, fontsize=8,
                       loc="upper right")
     fig.suptitle(f"Misdirected far-contra licks (no contact, deviated > {dev:.0f} deg toward ipsi, nearer another far "
-                 f"spout): decoder trained on contacted licks (6 positions) -- {run}. Markers = animals (colour), bar = "
+                 f"spout): decoder trained on contacted licks (6 positions) -- {run}. Markers = animals (color), bar = "
                  "mean of animals; sessions with too few misdirected licks skipped.", fontsize=10, y=0.995, va="top",
                  wrap=True)
     fig.tight_layout(rect=(0, 0, 1, 0.9))

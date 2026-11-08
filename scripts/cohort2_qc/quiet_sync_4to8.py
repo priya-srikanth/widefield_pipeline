@@ -1,4 +1,4 @@
-"""T20b (EXPLORATORY, PROVISIONAL): T20-type synchronisation laterality with a fast band free of the 7-11 Hz artefact.
+"""T20b (EXPLORATORY, PROVISIONAL): T20-type synchronization laterality with a fast band free of the 7-11 Hz artifact.
 (cohort1 PS92-95, 2026-11-02; quiet-events handoff NEXT item 3.)
 
 T20's index = log10(PSD 1-4 Hz / PSD 8-15 Hz) of the quiet engaged trace; its acute orofacial ipsi > contra rise was
@@ -150,8 +150,8 @@ def figure(K, T, F):
     fig.legend(handles=handles, fontsize=8, loc="upper center", bbox_to_anchor=(0.5, 0.925), ncol=7, frameon=False)
     sig_marks.reserve_headroom(fig)
     src = "LP-based quiet frames (DAQ contact + LP video licks)" if LICK_SOURCE == "daq+lp" else "DAQ-contact quiet frames"
-    fig.suptitle("T20b (EXPLORATORY, PROVISIONAL n = 4): quiet-period synchronisation laterality with fast bands that avoid "
-                 "the non-calcium 7-11 Hz peak (T22).\nSessions (shape = animal), colour = epoch; stars = LMM vs August pre, "
+    fig.suptitle("T20b (EXPLORATORY, PROVISIONAL n = 4): quiet-period synchronization laterality with fast bands that avoid "
+                 "the non-calcium 7-11 Hz peak (T22).\nSessions (shape = animal), color = epoch; stars = LMM vs August pre, "
                  f"FDR within measure; {src}.\nAcute orofacial ipsi - contra kept vs 8-15 Hz (LMM coefficient ratio): "
                  f"4-8 Hz {fo.get('I_4_8', np.nan):.0%}, 4-7 Hz {fo.get('I_4_7', np.nan):.0%}, "
                  f"4-8 floor-subtracted {fo.get('I_4_8fl', np.nan):.0%}", fontsize=9.5)

@@ -5,26 +5,26 @@
     ap, lr = SF.to_frame(x, y, frame);  ang = SF.angle_deg(x, y, frame)
 
 WHY (DECISIONS 2026-10-01, "the spout reference frame, tested"). The six spout positions lie on three lines
-(L, centre, R; close and far on each) that meet at one point -- the mouth -- to within 0.1-0.8 px in every
+(L, center, R; close and far on each) that meet at one point -- the mouth -- to within 0.1-0.8 px in every
 session tested, and stay within 4 px across a session. Priya: nose and jaw can themselves change after the
 stroke (facial weakness), so the frame comes from the APPARATUS, rebuilt per session, and nose / jaw are
 MEASURED in it, not used to define it.
 
 DEFINITIONS (image coordinates, y grows downward):
   origin   least-squares point nearest the three far->close lines (the "mouth").
-  ap_axis  unit vector along the centre line, pointing from far_center TOWARD the origin (into the animal).
+  ap_axis  unit vector along the center line, pointing from far_center TOWARD the origin (into the animal).
   lr_axis  ap_axis rotated so that +lr points to image-right.
   to_frame (ap, lr) of a point: ap = component along -ap_axis, i.e. OUT of the mouth toward the spouts (so a
            protruded tongue has ap > 0); lr = component along lr_axis.
-  angle    atan2(lr, ap) in degrees: 0 = straight out along the centre line, + = toward image-right.
+  angle    atan2(lr, ap) in degrees: 0 = straight out along the center line, + = toward image-right.
   Which image side is the mouse's left: cam4 is frontal, so the mouse's LEFT is image-RIGHT (the `close_L` /
   `far_L` spouts sit on the image right). Report angles with that in mind; `mouse_left_sign` says which sign it is.
 
 LIMITS. Each camera sees the spout lines foreshortened differently. Measured 2026-10-18 (PS93 0814, close->far
-length per line): cam4 L 66 / centre 56 / R 68 px; **cam1 L 48 / centre 3.4 / R 48 px -- cam1 looks almost straight down
-the centre line**, so it sees LR and DV, hardly AP (this docstring used to say the opposite: "horizontal-plane angles
+length per line): cam4 L 66 / center 56 / R 68 px; **cam1 L 48 / center 3.4 / R 48 px -- cam1 looks almost straight down
+the center line**, so it sees LR and DV, hardly AP (this docstring used to say the opposite: "horizontal-plane angles
 need cam1 (ventral)"). On cam1 the ORIGIN is still the mouth (projection keeps incidence: L and R meet within 0.3 px, both
-centre spouts 4-7 px from it), but ``ap_axis`` -- taken from the centre line -- is noise there; a cam1 axis must come from
+center spouts 4-7 px from it), but ``ap_axis`` -- taken from the center line -- is noise there; a cam1 axis must come from
 the L / R lines (their bisector). True AP-plane angles need 3-D.
 """
 from __future__ import annotations
@@ -110,11 +110,11 @@ def position_medians(spout_xyp: np.ndarray, spans, pcut: float = PCUT) -> dict:
 
 
 def from_medians(med: dict) -> SpoutFrame:
-    """The frame from per-position medians; needs close+far for at least two sides, and the centre line."""
+    """The frame from per-position medians; needs close+far for at least two sides, and the center line."""
     lines = {s: (np.array(med[c][:2]), np.array(med[c][:2]) - np.array(med[f][:2]))
              for s, (c, f) in SIDES.items() if c in med and f in med}
     if "center" not in lines or len(lines) < 2:
-        raise ValueError(f"need close+far for the centre and one more side; have {sorted(med)}")
+        raise ValueError(f"need close+far for the center and one more side; have {sorted(med)}")
     X, rms, dist = ls_intersection(list(lines.values()))
     ap = lines["center"][1] / np.linalg.norm(lines["center"][1])
     lr = np.array([-ap[1], ap[0]])
@@ -130,7 +130,7 @@ def to_frame(x, y, frame: SpoutFrame) -> tuple[np.ndarray, np.ndarray]:
 
 
 def angle_deg(x, y, frame: SpoutFrame) -> np.ndarray:
-    """Angle of the point from the origin, relative to the centre line: 0 straight out, + toward image-right."""
+    """Angle of the point from the origin, relative to the center line: 0 straight out, + toward image-right."""
     ap, lr = to_frame(x, y, frame)
     return np.degrees(np.arctan2(lr, ap))
 
@@ -209,7 +209,7 @@ def tongue_path_origin(tongue_x, tongue_y, tongue_lk, positions, t_ms, src_frame
 
 
 def from_medians_lr_bisector(med: dict, origin) -> SpoutFrame:
-    """A frame for a camera that sees the centre line END-ON (cam1): given ``origin``, ``ap_axis`` = the bisector of the
+    """A frame for a camera that sees the center line END-ON (cam1): given ``origin``, ``ap_axis`` = the bisector of the
     L and R far->close directions (into the animal, symmetric by construction), +lr toward image-right."""
     dirs = []
     for side in ("L", "R"):
@@ -227,12 +227,12 @@ def from_medians_lr_bisector(med: dict, origin) -> SpoutFrame:
 def from_medians_lr(med: dict) -> SpoutFrame:
     """THE cam1 FRAME (Priya 2026-10-18): origin = where the L and R far->close spout lines meet; axis = their bisector.
 
-    Apparatus-only -- no body part enters, so a post-stroke change in the tongue cannot move it. cam1 sees the centre
+    Apparatus-only -- no body part enters, so a post-stroke change in the tongue cannot move it. cam1 sees the center
     line end-on (close->far 3.4 px), so only the two side lines are used. Validated against the 3-D apparatus mouth
     (`spout_world.apparatus_mouth`: the gui_config mouth set point projected into cam1) to within 5-8 px on PS93 0814 /
     0821 -- with the 09-11 extrinsics + similarity fit, which absorbs the rod-edge offset. Against the per-session PnP
     pose (`pose3d.pnp_group`, the commanded TIP; 10-20) it is 2 px sideways and a CONSTANT 30-32 px below (0814 / 0821):
-    one rod diameter, cam1 labelling the rod's inferior edge. It sits ~15-20 px toward the jaw from where the tongue appears (cam1 labels the spout tip's bottom edge): a
+    one rod diameter, cam1 labeling the rod's inferior edge. It sits ~15-20 px toward the jaw from where the tongue appears (cam1 labels the spout tip's bottom edge): a
     constant offset relative to the apparatus, kept on purpose (no shift). Adaptive (shorter far_L) trials stay in: the
     stage moves along the same ray from the mouth, so they lie on the same line. `tongue_path_origin` remains a QC
     comparison only (it depends on the tongue)."""

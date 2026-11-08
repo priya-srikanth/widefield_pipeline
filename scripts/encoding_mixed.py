@@ -9,7 +9,7 @@ Outcomes per session x area x window (dR2 x1e3, cortex + both hemispheres of the
   far-close      mean(far spouts) - mean(close spouts)  of the per-spout values (does distance coding change?)
   contra-ipsi    mean(contra spouts) - mean(ipsi spouts)
 
-Models (wfield_local/mixed_models.py -- the shared definition): `time` y ~ post + post:lday and `behaviour`
+Models (wfield_local/mixed_models.py -- the shared definition): `time` y ~ post + post:lday and `behavior`
 y ~ post + post:deficit (mixed_models.DEFICITS; default ttc_log = log(session / pre) of ttc, Priya 11-05; ttc = linear sensitivity), random intercept + step + slope per animal with the module's
 fallback ladder; FDR (orofacial_stats.bh_fdr) within model x term x window; per-animal epoch means printed first.
 Extra windows (cue2lick = cue .. first lick, cuestop = cue .. trial stop, firstlick = first post-cue lick -0.1 .. +1 s)
@@ -94,7 +94,7 @@ def outcomes(E: Path, labels: set, deficit: str | None = None) -> pd.DataFrame:
     L = mm.add_time_covariates(pd.concat(rows, ignore_index=True).dropna(subset=["y"]))
     from wfield_local import run_mode
     # the behavioural deficit: THIS run's trial_attempts_sessions.csv (routed trial_attempts, camera classes)
-    return mm.add_deficit(L, mm.deficit(run_mode.deficit_qc_dir(), deficit or mm.DEFICIT))
+    return mm.add_deficit(L, mm.deficit(run_mode.deficit_qc_dir(deficit or mm.DEFICIT), deficit or mm.DEFICIT))
 
 
 # Angle panels = the 3-D contest (Priya 11-05; the rebuild has no cam4 contest run), unique target from the BINNED
@@ -103,7 +103,7 @@ def outcomes(E: Path, labels: set, deficit: str | None = None) -> pd.DataFrame:
 FIG_PANELS = (("cue", "3d:ceiling"), ("cue", "3d:u_tgtbin"), ("cue", "position"),
               ("lick", "distance"), ("lick", "3d:u_tgtbin"), ("lick", "position"))
 def figures(L: pd.DataFrame, T: pd.DataFrame, out: Path, area: str = "cortex", sfx: str = "") -> None:
-    """Session values vs behavioural deficit and vs days, fitted fixed effects (mixed_models.plot_fits)."""
+    """Session values vs behavioral deficit and vs days, fitted fixed effects (mixed_models.plot_fits)."""
     from wfield_local import mixed_models as mm
     panels = [(f"{meas} | {win} window", {"window": win, "measure": meas, "area": area}) for win, meas in FIG_PANELS]
     for model in ("behaviour", "time"):
@@ -119,7 +119,7 @@ def main(argv=None) -> int:
     from wfield_local import orofacial_cohort as oc
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--run", default=oc.RUN)
-    ap.add_argument("--deficit", default=None, help="behavioural index (mixed_models.DEFICITS); default = primary, "
+    ap.add_argument("--deficit", default=None, help="behavioral index (mixed_models.DEFICITS); default = primary, "
                     "others write *_<name> outputs")
     ap.add_argument("--plot-only", action="store_true", help="redraw the figures from the saved long table + model "
                     "table (qc/encoding_mixed_long*.csv.gz, qc/encoding_mixed*.csv) without reloading sessions")
@@ -135,7 +135,7 @@ def main(argv=None) -> int:
         L = pd.read_csv(E / "qc" / f"encoding_mixed_long{sfx}.csv.gz")
         from wfield_local import run_mode as _rm      # deficit columns re-derived (cheap): raw axis + transform
         L = mm.add_deficit(L.drop(columns=[c for c in ("deficit", "deficit_x", "deficit_tf") if c in L]),
-                           mm.deficit(_rm.deficit_qc_dir(), dname))
+                           mm.deficit(_rm.deficit_qc_dir(dname), dname))
         T = pd.read_csv(E / "qc" / f"encoding_mixed{sfx}.csv")
         for area in ("cortex", "SSp-m_left", "SSp-m_right"):
             figures(L, T, E / "figures" / "mixed_models", area, sfx)

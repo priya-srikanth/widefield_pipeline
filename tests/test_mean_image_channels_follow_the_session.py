@@ -1,9 +1,9 @@
-"""The 415/470 mean panels are labelled by WAVELENGTH, not by slot index.
+"""The 415/470 mean panels are labeled by WAVELENGTH, not by slot index.
 
 WHY (2026-09-07, Priya from the preprocessing deck). PS92 2026-08-28 was saved mislabelled
 single-channel; the rescue relabel locked exposure offset 1, so slot 0 holds the 470 (functional)
 frames and slot 1 the 415. `session_overrides.yaml` records that as
-`preprocess.svd.functional_channel: 0`, and `preprocess.py` already honours it per session when
+`preprocess.svd.functional_channel: 0`, and `preprocess.py` already honors it per session when
 cross-registering. `_plot_mean_overlay` did not -- it hardcoded slot 0 as "415 nm mean", so for
 that one session both panels carried the wrong caption.
 

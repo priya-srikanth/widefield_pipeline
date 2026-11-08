@@ -1,22 +1,22 @@
-"""POOLED, within-animal normalised versions of the CD leave-one-out figures (`scripts/cd_loo_figures.py`; imaging page
+"""POOLED, within-animal normalized versions of the CD leave-one-out figures (`scripts/cd_loo_figures.py`; imaging page
 Figs 9c-e). Priya 10-25: "can we have a within-animal normalized pooled version of 9c-e".
 
 Same inputs as `cd_loo_figures` (<labcams>/grant_figures/epoch/data/cd_window_projection_loo_sessions_long.csv and
-cd_loo_traces.npz): each position's projection on its OWN coding direction, pole-normalised per animal (0 = pre-stroke
+cd_loo_traces.npz): each position's projection on its OWN coding direction, pole-normalized per animal (0 = pre-stroke
 not-P, 1 = pre-stroke lick at P), August pre sessions scored leave-one-out. Here each animal's held-out pre mean for that
 position and alignment (window mean) is SUBTRACTED, so pre = 0 for every animal and the pooled figure is an average of
 animals, not of sessions. Subtracted, not divided: the pole scale is already shared across animals, and a held-out pre
 near 0 (PS93 close_center pre-cue) made the first, ratio version blow up (acute -89x).
 
-  cd_loo_pooled_window_<align>.png  per position: session values (faded open markers, shape = animal, colour =
-                                    epoch), mean of animals +- SEM (epoch colour), no lines across epochs; under each post epoch the change vs pre by `analysis_kit.boot_delta`
+  cd_loo_pooled_window_<align>.png  per position: session values (faded open markers, shape = animal, color =
+                                    epoch), mean of animals +- SEM (epoch color), no lines across epochs; under each post epoch the change vs pre by `analysis_kit.boot_delta`
                                     (paired animals -> sessions, animal-weighted, 95 % interval; * = excludes 0) and
                                     k / n animals below pre
   cd_loo_pooled_traj_<align>.png    per position and epoch: each animal's session-mean trace - its pre window mean, then
                                     mean +- SEM over ANIMALS (n animals in the legend)
   cd_loo_pooled_stats.csv           every plotted change
 Caveats: pre = August only (~10-day span; the June -> August drift of these projections is not measured here); PS95
-acute = 1 session; haemodynamic caveat of `cd_trajectories` (read amplitude and gross time course, not onset timing).
+acute = 1 session; hemodynamic caveat of `cd_trajectories` (read amplitude and gross time course, not onset timing).
 
     python -m scripts.cd_loo_pooled [--out DIR] [--plot-only]
 """
@@ -69,8 +69,8 @@ def _r2(x: float) -> str:
 
 
 def fig_window(D: pd.DataFrame, stats: list[dict], align: str, path: Path) -> None:
-    """Per position: each SESSION's value (faded open markers, shape = animal, colour = epoch) and the mean of animals
-    +- SEM over animals (filled, epoch colour). No line joins epochs (Priya 11-03, `wfield_local.cat_points`). Under each
+    """Per position: each SESSION's value (faded open markers, shape = animal, color = epoch) and the mean of animals
+    +- SEM over animals (filled, epoch color). No line joins epochs (Priya 11-03, `wfield_local.cat_points`). Under each
     post epoch: change vs pre (`boot_delta`; * = 95 % interval excludes 0, also starred in the top band) and k / n
     animals below pre."""
     import matplotlib

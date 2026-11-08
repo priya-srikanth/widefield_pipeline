@@ -97,7 +97,7 @@ def test_raw_blocks_route_every_lick_like_the_encoder(fs, monkeypatch):
 
 def test_v7g3_t3d_raw_blocks_byte_identical(monkeypatch):
     """The v7g3_t3d path: frozen raw_blocks = split_blocks(encoder raw_blocks) with LICKS_ALL unset, exactly, even on a
-    Behaviour carrying the context licks (they are not modelled)."""
+    Behavior carrying the context licks (they are not modeled)."""
     m = _load(monkeypatch, None)
     monkeypatch.delenv(ce.LICKS_ALL_ENV, raising=False)
     x, B = tla._B()
