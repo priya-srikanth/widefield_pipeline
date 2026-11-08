@@ -195,3 +195,15 @@ All under `M:/MICROSCOPE/Priya/DeepLabCut/Widefield/face_rhythm/cam4/readouts/ma
      face movement spectrum center 6.77 -> 6.56 Hz acute (4 / 4, Holm .0003), back subacute; licks 6.45 -> 5.71 Hz.
      Page v42 (7b heading / text / status row / 7b.3 title), slide 84 title + bullets + notes
      (`reword_band_slide_1107e.py`), FINDINGS 0 / 5.10, FACE_RHYTHM 6f, DECISIONS updated.
+     11-07 NIGHT (5): POOLED NULL INTERIM RESCORE (v2). Copied-back O2 null pairs: acute 500, SUBACUTE 379 (was 111),
+     chronic still 100. Scored into readouts/master_pre_v1/epoch_shape_cohort_v2/interim_sub379_chr100_20261107/
+     (page outputs in data/ untouched; scratchpad interim_null_score.py imports compute(), no code change).
+     Acute and chronic p identical to the page.
+     Subacute: the six cells that change Holm status are all crossing from "not" to "Holm < .05":
+     - lick_ongoing_7Hz / lick_fast_close / lick_slow_late / whisk_run spatial angle: .07-.09 -> .02-.03;
+     - whisk_run spectral angle: .07 -> .02;
+     - lick_right asym: .052 -> .021.
+     This is the p floor (1/112 = .009 -> 1/380 = .003), not new data: observed values unchanged.
+     lick_left side_spec p .009 -> .032 (still Holm < .05).
+     Chronic is still floor-limited at 100 perms (several cells at p .010 without a star).
+     Page / deck NOT changed (pooled view is descriptive; Priya to decide whether to swap in after chronic lands).
