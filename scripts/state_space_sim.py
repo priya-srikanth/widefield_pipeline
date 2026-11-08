@@ -42,7 +42,10 @@ ITI = ("M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/LP_analysis/lp_r4_heatmap
        "iti_licks/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801/sessions_roi8fr")
 OUT = Path("M:/MICROSCOPE/Priya/Widefield/state_space_recovery/sim")
 POS = ["close_ipsi", "close_mid", "close_contra", "far_ipsi", "far_mid", "far_contra"]
-K = 8
+# top-k pre space. 8 = convention when written; checked 11-07 (Priya "how did you choose 8?"): top 8 capture 97-99 % of a
+# HELD-OUT pre session's spout-specific variance in every animal / alignment (k=4: 89-97 %, >8 adds < 3 %).
+# WF_SS_K overrides for the sensitivity runs (outputs then carry _k<K>).
+K = int(os.environ.get("WF_SS_K", 8))
 MET = ["out_var", "out_resid", "r", "amp", "rot_gain", "gain_sd", "shared", "shared_dist", "spread", "spread_norm"]
 LAGS = np.round(np.arange(-1.0, 2.5 + 1e-9, 0.05), 3)
 BINS = [(a, a + 0.1) for a in np.round(np.arange(-0.5, 2.0, 0.1), 2)]
@@ -75,7 +78,7 @@ CACHE = Path("M:/MICROSCOPE/Priya/Widefield/state_space_recovery/cache")
 
 def tag():
     """Output-folder suffix: '' for the original cue alignment, else '_<align>'."""
-    return "" if ALIGN == "cue" else f"_{ALIGN}"
+    return ("" if ALIGN == "cue" else f"_{ALIGN}") + ("" if K == 8 else f"_k{K}")
 
 
 def _bin(z, keep, align):

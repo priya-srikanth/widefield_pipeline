@@ -441,9 +441,27 @@ drift-direction cosine with chronic - pre +.41 / +.41 / +.37 / -.06 (share 14-17
   continuous 1-SE band (bootstrap covariance at every bin, interpolated, shapely union); loops vs time with 95 % bands.
 - Cue vs lick traces by epoch already exist (goal page 14.7-14.22, FINDINGS 0b): not rebuilt here.
 
+## Dimensionality, k, units, provenance (11-07 late)
+
+- **k = 8** ("how did you choose 8?"): convention when written, checked after the fact: the top 8 capture 97-99 % of a
+  HELD-OUT pre session's spout-specific variance (template minus spout average) in every animal and both alignments
+  (k=4: 89-97 %, beyond 8 < 3 % more). Sensitivity (`WF_SS_K`, outputs `trials_lick_k4`, `trials_lick_k12`): r, amp,
+  shift, alpha, chronic-like, distances identical or near; out-of-space fraction shrinks with k (4/4 at every k);
+  acute rot_gain n.s. at k=4 (and fails like-for-like anyway).
+- **The space is very low-dimensional** (Priya: "extraordinarily low dimensional"). Lick-aligned, pre: participation
+  ratio of the spout x time means 1.1-1.4 (PC1 84-96 %), spout-specific part 1.9-2.7, single-trial deviations 1.4-1.7
+  (PC1 77-83 %); mean |r| between area time courses .75-.95. One cortex-wide mode dominates means AND trial noise.
+  "Within the pre space" is a statement about this coarse 62-area space, not a BCI-style neural manifold. Options
+  (not run): z-score areas; remove the cortex-wide mode per trial; spout-specific subspace only; pixel / LocaNMF basis.
+- Units of each readout's change are in the panel titles and the Fig 3.1 caption.
+- Provenance (page methods box): signal = Allen-area means of the hemo-corrected SVD (meegkit_hpfit_lag_refitT, LocaNMF
+  projection), slow drift removed, dF/F x1e3; first lick = first CAMERA (LP) lick onset (`combined_encoding.
+  load_behaviour`) in cue..stop on engaged trials; no correction across readouts (exploratory).
+- Page now in the repo: `docs/results_pages/state_space/` (index.html, fig_ids.csv via make_fig_ids.py, README).
+
 ## Results page (draft, 11-07)
 
-https://claude.ai/artifact/9sGELLFEwADEt9k64fXTxe (v5: cue + first-lick alignments, 2-D trajectories with error, noise checks, contact / incomplete, zoom viewer). Figures: `scripts/state_space_page_figs.py` ->
+https://claude.ai/artifact/9sGELLFEwADEt9k64fXTxe (v6: + units, methods box, k / dimensionality, collapsible contents; source in docs/results_pages/state_space/). Figures: `scripts/state_space_page_figs.py` ->
 `Widefield/state_space_recovery/page_figs/`; page source backed up at `Widefield/state_space_recovery/page/index.html`.
 Per-trial alpha for the trial-cloud figure: `state_space_path_tests.py --trial-alpha` -> `path_tests/trial_alpha.csv`.
 

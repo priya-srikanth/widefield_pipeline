@@ -111,9 +111,10 @@ def figure(s):
     import state_space_page_figs as F
     import matplotlib.pyplot as plt
     rng = np.random.default_rng(0)
-    panels = [("l2_size2", "response size$^2$ (signal)"), ("l2_base_noise", "baseline trial noise"),
-              ("l2_resp_noise", "response-window trial noise"), ("mv_excess", "trial noise beyond the pre\n"
-                                                                              "mean-variance relation")]
+    panels = [("l2_size2", "response size$^2$ (signal)\n(log2 vs own pre)"),
+              ("l2_base_noise", "baseline trial noise\n(log2 vs own pre)"),
+              ("l2_resp_noise", "response-window trial noise\n(log2 vs own pre)"),
+              ("mv_excess", "trial noise beyond the pre\nmean-variance relation (log2 obs / pred)")]
     fig, axs = plt.subplots(1, 4, figsize=(15, 4), sharey=True)
     for ax, (c, t) in zip(axs, panels):
         F.epoch_panel(ax, s, c, t, rng)

@@ -32,8 +32,8 @@ from wfield_local import epochs  # noqa: E402
 
 ROOT = Path("M:/MICROSCOPE/Priya/Widefield/state_space_recovery")
 OUT = ROOT / f"contact{S.tag()}"
-READ = [("x", "position pre (0) -> chronic (1)"), ("y", "acute-departure axis"), ("size", "response size, log2"),
-        ("r_pre", "pattern r with the pre template")]
+READ = [("x", "position pre (0) -> chronic (1)\n(fraction of pre -> chronic distance)"), ("y", "acute-departure axis\n(same units)"), ("size", "response size\n(log2 ratio)"),
+        ("r_pre", "pattern r with the pre template\n(correlation)")]
 
 
 def frames(sess):

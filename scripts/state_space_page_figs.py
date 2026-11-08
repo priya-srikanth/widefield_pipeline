@@ -150,10 +150,10 @@ def fig_sim(out):
     save(fig, out, "ss_sim_detection")
 
 
-MAIN = [("r", "pattern r with pre"), ("amp", "amplitude ratio"), ("out_resid_t", "outside pre space, beyond gains"),
-        ("rot_gain", "rotation beyond gain"), ("shift_snr", "shared shift (noise units)"),
-        ("spread_raw", "trial spread, raw"), ("spread_norm", "trial spread, amplitude-free"),
-        ("dist_pre", "distance from pre sessions"), ("step", "day-to-day step")]
+MAIN = [("r", "pattern r with pre\n(Δ correlation)"), ("amp", "amplitude ratio\n(Δ ratio; pre-pre ≈ 1)"), ("out_resid_t", "outside pre space, beyond gains\n(Δ fraction of variance)"),
+        ("rot_gain", "rotation beyond gain\n(Δ held-out R²)"), ("shift_snr", "shared shift\n(Δ squared distance / noise expectation)"),
+        ("spread_raw", "trial spread, raw\n(Δ ratio to a pre session)"), ("spread_norm", "trial spread / amplitude²\n(Δ ratio)"),
+        ("dist_pre", "distance from pre sessions\n(Δ, pre-pre median = 1)"), ("step", "day-to-day step\n(Δ, pre median = 1)")]
 
 
 def fig_change(out, rng):
@@ -171,9 +171,9 @@ def fig_change(out, rng):
 COND_CONTACT = [("target", "trials", "contact + incomplete (primary)", "k"),
                 ("contact", "trials_contact", "contact only (robustness)", "#2166ac"),
                 ("incomplete", "trials_incomplete", "incomplete only (descriptive)", "#e08214")]
-COLS_CONTACT = [("r", "pattern r with pre"), ("amp", "amplitude ratio"), ("out_resid_t", "outside pre space, beyond gains"),
-                ("shift_snr", "shared shift (noise units)"), ("alpha", "position pre (0) -> chronic (1)"),
-                ("chronic_like", "share of chronic-like trials")]
+COLS_CONTACT = [("r", "pattern r with pre\n(Δ correlation)"), ("amp", "amplitude ratio\n(Δ ratio; pre-pre ≈ 1)"), ("out_resid_t", "outside pre space, beyond gains\n(Δ fraction of variance)"),
+                ("shift_snr", "shared shift\n(Δ squared distance / noise expectation)"), ("alpha", "position pre (0) -> chronic (1)\n(Δ fraction of pre -> chronic distance)"),
+                ("chronic_like", "share of chronic-like trials\n(Δ proportion of trials)")]
 
 
 def fig_like(out, rng, cond=None, cols=None, name="ss_like_for_like",
@@ -181,9 +181,9 @@ def fig_like(out, rng, cond=None, cols=None, name="ss_like_for_like",
     """Readouts under several trial selections (series colors); a series without a readout (incomplete-only has no
     session-pair readouts: too few incomplete trials per spout in pre sessions) is left out of that panel."""
     cond = cond or COND
-    cols = cols or [("r", "pattern r with pre"), ("amp", "amplitude ratio"), ("rot_gain", "rotation beyond gain"),
-                    ("out_resid_t", "outside pre space, beyond gains"), ("shift_snr", "shared shift (noise units)"),
-                    ("dist_pre", "distance from pre sessions")]
+    cols = cols or [("r", "pattern r with pre\n(Δ correlation)"), ("amp", "amplitude ratio\n(Δ ratio; pre-pre ≈ 1)"), ("rot_gain", "rotation beyond gain\n(Δ held-out R²)"),
+                    ("out_resid_t", "outside pre space, beyond gains\n(Δ fraction of variance)"), ("shift_snr", "shared shift\n(Δ squared distance / noise expectation)"),
+                    ("dist_pre", "distance from pre sessions\n(Δ, pre-pre median = 1)")]
     COND_ = cond
     dfs = {k: sessions(sub) for k, sub, _, _ in COND_}
     fig, axs = plt.subplots(2, 3, figsize=(12, 6.8))
