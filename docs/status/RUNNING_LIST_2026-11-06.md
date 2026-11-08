@@ -528,3 +528,30 @@ re-run needed for A20. (scratchpad/a20/exec_bins_calib_A20.csv)
 - g5_epoch_15r_r (v9s, queued for the lock after AB): DAQ source -> cue arm duplicates LPfinal cue 15r, lick arms =
   successful-lick supplement only, ENL arm uses the retired DAQ 2.0 s rule. Proposed: drop it from the lock queue
   (part of the trimmed plan for Priya); it cannot start before AB's 19 steps finish.
+
+## 11-08 ~13:50 -- epoch re-run trimmed by page figure (helper, verified)
+- CORRECTION (my earlier claim): LPfinal DECODERS cover the pre-cue (ENL 1.0 s) window only
+  (lp_final_render.py:260 `_epoch_arm("precue","working")`); LPfinal MAPS cover 15r + 15rpa for precue / cue / lick,
+  all 6 refs. No Haufe (14m) in LPfinal.
+- The 11-05 main render's 15r CRASHED on the ENL and cue arms (TypeError, ENL.log:501, cue.log:238; fixed 4ecf72ed):
+  only lick-window 15r exists from the DAQ render.
+- Lick-source dependence (code path, file:line in scratchpad/epoch_trim.md): cue window on camera working trials =
+  independent (decoders + maps); 13s state decoder = independent (cue window, DAQ behavior_events). Pattern families
+  (scal / mat: e_amp, e_ceiling, e_captured, r_crossnobis) depend via the PRE reference = "lick" trials
+  (grant_kit.py:1167-1176); LP vs DAQ pre lick trials differ <= 3 % except PS93 far ipsi 27 % / far mid 14 %.
+  ENL and lick arms = dependent.
+- Minimal LP re-run (one process per arm; --arm exists, --parallel-arms ignored with it; WIDEFIELD_MAP_JOBS=2):
+  ENL `--only 5r 14m` (~70-100 min), lick `--only acc 14m` (~75-105 min), cue `--only scal mat` (~95 min, the pre
+  reference) -> ~1.75-2.5 h wall with 3 at once, vs 8.75 h for the full LP render. NOT needed: cuelick, ENLlick, and
+  families 5c 5cr 5ro 10e 10cs 12s 12b 13s 15r 1b 1c (no page / deck reader, or LPfinal supplies them).
+  MUST run on current main (needs 72729126, LP map jobs skip never-filmed PS93_0813), not wf_render_daqlk.
+- Page / deck mapping (no re-run): point to LPfinal = Figs 2.1 (-> 2.8), 7.3, 7.7, 7.8, 7.10, 7.12, 7.14, 7.18, 7.19,
+  7.23, slides 22 / 171 / 172; reuse main render captioned "independent of lick source" = Figs 1.2, 2.3, 3.1, 3.2, 4.2,
+  14.2, 14.5, 14.8, slides 13/14, 17/18, 20; successful-lick supplement = Figs 2.4b, 7.16, 7.21; drop (superseded by
+  LP 1.0 s) = Figs 2.2, 7.1, 7.5 (and 2.5-2.7 unless wanted).
+- g5_epoch_15r_r (DAQ, queued after AB) is therefore redundant: cue/precue 15r come from LPfinal. Propose to drop.
+- Fix-branch helper: 1151 passed, 1 failed = tests/test_gain_bio_port.py::test_fig4_draws_from_figdata (No module
+  named '_common') -- FAILS ON MAIN 9bc33b9b TOO (pre-existing, not the branch). Helper's open points: G1-G3 scored
+  sets (DAQ rows) -> which camera group; "none" includes unknown + close-mid unjudged (as G4); run DAQ-grouping G1-G3
+  as a labeled supplement?; deck text "engaged-vs-no-lick" (locanmf_analysis_deck.py); stale "NOT lick-free" suptitle
+  (encoding_key_figures); 11 legacy scripts still star on data (listed in the new test).
