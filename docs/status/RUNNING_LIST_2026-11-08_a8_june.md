@@ -20,7 +20,9 @@ classes; 3 = FaceRhythm June face regions; 4 = FaceRhythm June O2 run. Backgroun
    the 680 x 680 frame (top edge; PS92 06/08 has 24 within 8 px of the edge). Proposal: keep the mesh as is (point i
    must stay the same face location in every session) and exclude off-frame points from the June readouts (NaN), as
    frozen / violating points are already treated. Alternative: leave PS95 06/08 out of June FR.
-3. (pending results) whether June goes on the page / deck as a reference panel.
+3. **Whether June goes on the page / deck as a reference panel** (task 1 results below). Proposal: one HIDDEN
+   supporting slide / one page panel ("June -> August learning changes are ~1/5 of the acute change; chronic
+   endpoint / lateral residuals exceed them; jaw opening does not"). Nothing changed on the page or deck.
 
 ## FINDINGS (newest last)
 
@@ -40,6 +42,30 @@ classes; 3 = FaceRhythm June face regions; 4 = FaceRhythm June O2 run. Backgroun
   - So June has a normal working period, and the A20 gate keeps ~all June trials.
   - Table: scratchpad `june_classes_check.csv` (copied into the June reference folder with task 1's outputs).
 
+- **Task 1: June vs own August pre, 3-D kinematics** (`session_poses/pose3d/june_reference/`: june_vs_august.csv,
+  sessions_delta.csv, june_reference.png, june_classes_check.csv; 3 June + 7-8 August sessions per animal; within-animal
+  session shuffles 10k; Holm over the 6 positions per measure; values below = mean over animals of the per-animal mean
+  delta vs own August pre).
+  - **June differs from August far less than acute does.** Median |June| / |acute| over measure x position = 0.19.
+    At far_R (the deficit spout): closest approach June +0.13 vs acute +1.75 mm; 3-D angle error +2.4 vs +23.5 deg;
+    endpoint side -0.20 vs -2.28 mm; lateral error -0.13 vs -1.71 mm.
+  - **June-vs-August cells passing Holm (14 of 54 drawn):**
+    - jaw opens LESS in June at close_L / close_R / far_R (-0.22 / -0.30 / -0.35 mm; z -1.4 to -2.4);
+    - tongue FASTER in June at far_L / far_center (+10 / +13 mm/s);
+    - close_L reaches further and lower (+0.29 / +0.25 mm);
+    - far_R: angle error +2.4 deg (z +3.8) and endpoint side -0.20 mm;
+    - closest approach close_R +0.09 / far_center -0.11 mm; lateral error far_center +0.11 mm.
+  - **Read against the post epochs:**
+    - post-stroke tongue SLOWING (acute -22 to -56 mm/s, chronic -4 to -23) runs opposite to June's direction, so
+      it is not a return to the earlier training stage;
+    - chronic endpoint-out / lateral residuals (out close_R +0.39, far_R +0.47 mm; lateral far_center +0.36 mm)
+      are 3-5x June's (<= 0.13), so they exceed the learning-stage difference;
+    - chronic jaw-opening deficits (-0.10 to -0.34 mm) are the SAME size as June's (-0.2 to -0.35), so a
+      chronic jaw-opening change is within the training-stage range.
+  - Peak-timing row (dt_peak_ms) kept in the table but not drawn (moves in whole 4 ms frames; medians ~all 0).
+  - Script fix: the classes were built twice per session (licks + jaw trials; ~35 min serial, killed by my 30-min
+    timeout on the first run); now precomputed once, 2 workers (~15 min); `--replot` redraws from the CSVs.
+
 ## DONE (newest last)
 
 - Task 3: `scripts/face_rhythm_warp_rois.py to-sessions --june` (June only; the 107 existing ROIs untouched) ->
@@ -49,5 +75,4 @@ classes; 3 = FaceRhythm June face regions; 4 = FaceRhythm June O2 run. Backgroun
 ## RUNNING / NEXT
 
 - Task 2: DONE (see findings).
-- Task 1: `scripts/pose3d_june_reference.py` (June vs own August pre, within-animal shuffles, 10k; post epochs drawn
-  alongside) running.
+- Task 1: DONE (see findings). Task 4 follow-up waits on the O2 June run + copy-back.
