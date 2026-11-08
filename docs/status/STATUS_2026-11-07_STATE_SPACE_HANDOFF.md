@@ -41,6 +41,11 @@ wf_statespace` (NOT pushed, NOT merged; push only if Priya asks -- it is our own
     and subacutely (+75, 4/4, n.s.), back by chronic; far-contra landings drift ipsilesionally within SUBACUTE
     sessions in 4/4 (-.24 mm vs own pre, boot *; acute strong in PS93 -.75 / PS95 -1.28; chronic only PS94 -.40).
     A within-session fatigue of aim that is larger after the stroke -- candidate follow-up with the behavior arm.
+    OUTSOURCED 11-07 (Priya: "i wonder how this relates to the animals 'quitting' after stroke ... independent of our
+    BCI analyses"): a separate agent in its own worktree / branch (`analysis/within-session-decline-quitting-20261107`
+    or similar), doc `docs/WITHIN_SESSION_DECLINE_QUITTING.md`, outputs `Widefield/within_session_decline/`. Brief:
+    reconcile with the 09-20 engagement findings (no within-session motor fatigue in ILI; quitting time-driven),
+    prodrome of quitting, fatigue vs satiety vs time, far-contra specificity. Check its branch before redoing this.
 11. Pre-stroke drift: part of chronic - pre lies along the pre drift in PS92-94; drift slows after the stroke in those
     three; PS95 barely drifted pre. Needs a no-stroke reference (cohort 2 pre, kept separate).
 12. OPEN: close-spout PC2 transient post-stroke (posterior-medial vs contralesional orofacial); not latency, not reach.
