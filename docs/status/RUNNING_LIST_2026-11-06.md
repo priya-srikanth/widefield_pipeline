@@ -436,3 +436,9 @@ Plus a hidden per-session 5-trial floor (epoch_accuracy._accuracy_of, epoch_kit.
 sessions from the per-session tables. ALL lick-aligned / lick-class rebuild results are INVALID until re-run on camera
 licks (nothing deleted; no page text touched). Read-only audit of every lick-touching step running (-> scratchpad
 lick_source_audit.md); fix + re-run list to Priya before running.
+
+**11-08 ~12:45 -- corrected framing + audits (details in handoff 00-COMPACT-38).** Lick class = all camera licks on the LP
+source (documented 10-21 / 11-03 / 11-07); successful lick = DAQ contact, supplemental (Priya 11-08). Main-render "lick"
+outputs are relabeled successful-lick, not discarded; LPfinal holds the lick-class acc + maps; missing LP families listed in
+the handoff. g6_grant_r4 stopped (Priya). Refit floor 10 only + display floors removed: branch in progress. A20 calibration
+table not regenerated for the encoder: compare next. Settings audit #2 pending.
