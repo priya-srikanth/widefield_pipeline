@@ -178,9 +178,19 @@ def balanced_lick_sample(d, keep, rng, *, exclude_session=None):
 #: camera-class discriminator `cam_balanced_sample`): WORKING (contact + incomplete, either DAQ arm) vs NONE.
 #: jaw_only, after_end ("quit"), stopped and stopped_licking are never trained on; `_g13_by_class` scores every group on
 #: its own. The DAQ grouping (WIDEFIELD_SECTION_G_GROUPS=daq, the DAQ gate, the lick window, a pool without camera
-#: classes) keeps the DAQ training set and its stored ids, unchanged. The scored post sets (DAQ no-lick / engaged rows)
-#: are NOT changed here: which camera group replaces them is open for Priya (fix branch 11-08).
-G13_TAG = "cls-work-v-none"
+#: classes) keeps the DAQ training set and its stored ids, unchanged.
+#: PRIYA 11-08 (decision, fix/g13-noresp-1108): the NEGATIVE class is the RAW camera class no_response only. Section G's
+#: "none" group lumps no_response AND unknown (jaw not judgeable); unknown is never trained on (`G13_NEG`; the "none"
+#: group is split by the raw class, `_g13_split`). The SCORED sets follow the camera too (`_g13_rows`): the "no-lick"
+#: set = rows whose RAW class is no_response (no lick seen on camera; either DAQ arm, any point in the session),
+#: replacing the DAQ no-lick rows (which held incomplete camera licks); the engaged comparison / control = camera
+#: WORKING rows (contact + incomplete groups, either DAQ arm), replacing the DAQ engaged rows; pre references and post
+#: sets use the same two definitions. G4 (`cam_balanced_sample` default, G4_NEG) is unchanged.
+G13_TAG = "cls-work-v-noresp"
+#: the G1-G3 negative training class under the camera grouping (a split of section G's "none" group, `_g13_split`)
+G13_NEG = ("no_response",)
+#: the "none" group's split by the raw class (Priya 11-08), scored as their own `_g13_by_class` entries
+G13_NONE_SPLIT = ("no_response", "unknown")
 
 
 def _g13_groups(d):
@@ -194,43 +204,90 @@ def _g13_tag(cg) -> str:
     return "" if cg is None else f"-{G13_TAG}"
 
 
+def _g13_split(cg):
+    """``(grp_e, grp_u)``: section G's groups with "none" split by the RAW camera class into "no_response" and
+    "unknown" (Priya 11-08); every other group as it is. Needs ``cg["raw_e"]`` / ``cg["raw_u"]`` (`_camera_groups`)."""
+    out = []
+    for g, r in ((cg["grp_e"], cg["raw_e"]), (cg["grp_u"], cg["raw_u"])):
+        g = np.array(g, dtype=object)
+        r = np.asarray(r, dtype=object)
+        none = g == "none"
+        g[none & (r == "no_response")] = "no_response"
+        g[none & (r == "unknown")] = "unknown"
+        out.append(g)
+    return out[0], out[1]
+
+
 def _g13_sample(dT, cg, keep, rng, *, exclude_session=None):
-    """The G1-G3 training sample: `cam_balanced_sample` (WORKING vs NONE, position-balanced, positives first, the same
-    ``rng`` use) under the camera grouping, else `balanced_lick_sample` (DAQ engaged vs no-lick). y = 1 for the
-    engaged / working class in both."""
+    """The G1-G3 training sample: `cam_balanced_sample` (WORKING vs NO_RESPONSE, Priya 11-08: the "none" group split by
+    the raw class, unknown never trained; position-balanced, positives first, the same ``rng`` use) under the camera
+    grouping, else `balanced_lick_sample` (DAQ engaged vs no-lick). y = 1 for the engaged / working class in both."""
     if cg is None:
         return balanced_lick_sample(dT, keep, rng, exclude_session=exclude_session)
-    return cam_balanced_sample(dT, cg["grp_e"], cg["grp_u"], keep, rng, exclude_session=exclude_session)
+    ge, gu = _g13_split(cg)
+    return cam_balanced_sample(dT, ge, gu, keep, rng, exclude_session=exclude_session, neg=G13_NEG)
+
+
+def _g13_rows(d, cg, keep, sessions, which):
+    """``(me, mu)``: the engaged-arm and no-lick-arm row masks of one G1-G3 SCORED set over ``sessions`` at the ``keep``
+    spouts. ``which`` = "engaged" (camera grouping: the WORKING groups contact + incomplete, either DAQ arm; DAQ
+    grouping: the DAQ engaged rows) or "nolick" (camera grouping: rows whose RAW class is no_response, either DAQ arm;
+    DAQ grouping: the DAQ no-lick rows). Priya 11-08."""
+    me = np.isin(d["GE"], list(sessions)) & np.isin(d["YE"], keep)
+    mu = np.isin(d["GU"], list(sessions)) & np.isin(d["YU"], keep)
+    if cg is None:
+        return (me, np.zeros_like(mu)) if which == "engaged" else (np.zeros_like(me), mu)
+    if which == "engaged":
+        return me & np.isin(cg["grp_e"], list(G4_POS)), mu & np.isin(cg["grp_u"], list(G4_POS))
+    return (me & (np.asarray(cg["raw_e"], dtype=object) == "no_response"),
+            mu & (np.asarray(cg["raw_u"], dtype=object) == "no_response"))
+
+
+def _g13_X(XE, XU, m):
+    """The rows of a `_g13_rows` mask pair, engaged arm first."""
+    return np.vstack([XE[m[0]], XU[m[1]]])
+
+
+def _g13_n(m) -> int:
+    """The row count of a `_g13_rows` mask pair."""
+    return int(m[0].sum() + m[1].sum())
 
 
 def _g13_classes(cg):
-    """The training classes, recorded in every G1-G3 output."""
+    """The training classes and the scored-set definitions, recorded in every G1-G3 output."""
     from wfield_local import working_trials as wt
     if cg is None:
-        return {"groups": "daq", "positive": ["DAQ engaged"], "negative": ["DAQ no-lick (all)"]}
-    return {"groups": "camera", "tag": G13_TAG, "positive": list(G4_POS), "negative": list(G4_NEG),
-            "scored_only": [g for g in wt.G_ALL if g not in G4_POS + G4_NEG]}
+        return {"groups": "daq", "positive": ["DAQ engaged"], "negative": ["DAQ no-lick (all)"],
+                "scored_sets": {"engaged": "DAQ engaged rows", "nolick": "DAQ no-lick rows"}}
+    return {"groups": "camera", "tag": G13_TAG, "positive": list(G4_POS), "negative": list(G13_NEG),
+            "scored_only": [g for g in wt.G_ALL if g not in G4_POS + ("none",)] + ["unknown"],
+            "scored_sets": {"engaged": "camera WORKING rows (groups contact + incomplete, either DAQ arm)",
+                            "nolick": "raw camera class no_response (no lick seen on camera, either DAQ arm)"}}
 
 
 def _g13_by_class(model_for, XE, XU, d, cg, keep, sessions):
     """``{group: {"n", "frac_working_like"}}`` over ``sessions``, engaged and no-lick rows pooled, every camera group
-    (`working_trials.G_ALL`) on its own ((f) 1: stopped is its own class). ``model_for(i)`` = the model that scores
-    session ``i`` (None skips it). Pooled over spouts (G4 gives the spout-balanced reading)."""
+    (`working_trials.G_ALL`) on its own ((f) 1: stopped is its own class), plus "none" split by the raw class into
+    "no_response" and "unknown" (Priya 11-08; `_g13_split`). ``model_for(i)`` = the model that scores session ``i``
+    (None skips it). Pooled over spouts (G4 gives the spout-balanced reading)."""
     from wfield_local import working_trials as wt
-    n = {g: 0 for g in wt.G_ALL}
-    k = {g: 0.0 for g in wt.G_ALL}
+    se, su = _g13_split(cg)
+    groups = list(wt.G_ALL) + list(G13_NONE_SPLIT)
+    n = {g: 0 for g in groups}
+    k = {g: 0.0 for g in groups}
     for i in sorted(sessions):
         clf = model_for(i)
         if clf is None:
             continue
         me = (np.asarray(d["GE"]) == i) & np.isin(d["YE"], keep)
         mu = (np.asarray(d["GU"]) == i) & np.isin(d["YU"], keep)
-        for g in wt.G_ALL:
-            X = np.vstack([XE[me & (cg["grp_e"] == g)], XU[mu & (cg["grp_u"] == g)]])
+        for g in groups:
+            ge, gu = (se, su) if g in G13_NONE_SPLIT else (cg["grp_e"], cg["grp_u"])
+            X = np.vstack([XE[me & (ge == g)], XU[mu & (gu == g)]])
             if len(X):
                 n[g] += len(X)
                 k[g] += float(clf.predict(X).sum())
-    return {g: {"n": int(n[g]), "frac_working_like": (k[g] / n[g]) if n[g] else None} for g in wt.G_ALL}
+    return {g: {"n": int(n[g]), "frac_working_like": (k[g] / n[g]) if n[g] else None} for g in groups}
 
 
 def _lick_train(d, keep):
@@ -585,9 +642,11 @@ def _camera_groups(d):
         if work is None:
             cache["groups"] = None
         else:
-            ge, gu, je, ju, have = wt.row_groups(d["kept"], d["_features"].indices, d["GE"], d["GU"],
-                                                 YE=d["YE"], YU=d["YU"])
+            ge, gu, je, ju, have, re_, ru_ = wt.row_groups(d["kept"], d["_features"].indices, d["GE"], d["GU"],
+                                                           YE=d["YE"], YU=d["YU"], with_raw=True)
+            # raw_e / raw_u: each row's RAW camera class (no_response vs unknown inside "none"; G1-G3, Priya 11-08)
             cache["groups"] = {"grp_e": ge, "grp_u": gu, "jj_e": je, "jj_u": ju, "have": have,
+                               "raw_e": re_, "raw_u": ru_,
                                "work_e": np.asarray(work["work_e"], bool), "work_u": np.asarray(work["work_u"], bool)}
     return cache["groups"]
 
@@ -880,18 +939,19 @@ def looks_like_which(d, keep, seed=0):
     same count, so position carries no information about the label.
     """
     rng = np.random.RandomState(seed)
-    pre_e = np.isin(d["GE"], list(d["pre_i"])) & np.isin(d["YE"], keep)
-    pre_u = np.isin(d["GU"], list(d["pre_i"])) & np.isin(d["YU"], keep)
-    post_u = np.isin(d["GU"], list(d["post_i"])) & np.isin(d["YU"], keep)
-    if pre_u.sum() < 30 or post_u.sum() < 20:
-        return {"note": "too few no-lick trials to discriminate",
-                "n_pre_undetected": int(pre_u.sum()), "n_post_undetected": int(post_u.sum())}
+    # THE SCORED SETS (`_g13_rows`, Priya 11-08): under the camera grouping the "no-lick" set is the raw camera class
+    # no_response and the engaged set the camera WORKING rows (either DAQ arm); the DAQ grouping keeps the DAQ arms
+    cg = _g13_groups(d)              # camera classes ((f) 1) under the camera grouping, else the DAQ training set
+    pre_u = _g13_rows(d, cg, keep, d["pre_i"], "nolick")
+    post_u = _g13_rows(d, cg, keep, d["post_i"], "nolick")
+    if _g13_n(pre_u) < 30 or _g13_n(post_u) < 20:
+        return {"note": "too few no-lick trials to discriminate", "train_classes": _g13_classes(cg),
+                "n_pre_undetected": _g13_n(pre_u), "n_post_undetected": _g13_n(post_u)}
     # OPTIONAL STATE-CLASS bal_em (WIDEFIELD_STATE_DISC_SCALING=state_bal_em; DEFAULT OFF, 11-03 -- it fails this
     # discriminator's own pre-stroke check, see `spout_scaling.state_disc_scaling`): train on the state-balanced pre
     # frame, score each post session in its label-free EM frame (`_lick_train` / `_lick_scored`); pre rows stay in the
     # training frame. The sample draws the SAME indices either way (`rng` sees only counts). Identity when OFF.
     dT = _lick_train(d, keep)
-    cg = _g13_groups(d)              # camera classes ((f) 1) under the camera grouping, else the DAQ training set
     sample = _g13_sample(dT, cg, keep, rng)
     if sample is None:
         return {"note": "no position had >=5 of both classes", "train_classes": _g13_classes(cg)}
@@ -905,8 +965,8 @@ def looks_like_which(d, keep, seed=0):
         clf = lick_pipe().fit(X, y)
     XEs, XUs = _lick_scored(d, keep, clf, y, sorted(d["post_i"]), dT)
     # the pre reference rows: the sessions the frame kept (all of them unless spout_frame dropped a no-camera one)
-    pre_e = np.isin(d["GE"], list(dT["pre_i"])) & np.isin(d["YE"], keep)
-    pre_u = np.isin(d["GU"], list(dT["pre_i"])) & np.isin(d["YU"], keep)
+    pre_e = _g13_rows(d, cg, keep, dT["pre_i"], "engaged")
+    pre_u = _g13_rows(d, cg, keep, dT["pre_i"], "nolick")
     # how well does it separate the two PRE-stroke states at all? without this the post-stroke
     # answer is uninterpretable -- a coin-flip discriminator says nothing.
     # GROUPED by session. An ungrouped cv=5 puts trials from one session on both sides of a fold, and
@@ -931,7 +991,7 @@ def looks_like_which(d, keep, seed=0):
         sep_session = float("nan")
         sep_grouped = False
     sep = sep_session if sep_grouped else sep_trial
-    p_post = float(clf.predict(XUs[post_u]).mean())
+    p_post = float(clf.predict(_g13_X(XEs, XUs, post_u)).mean())
 
     # THE CONTROL THIS TEST IS WORTHLESS WITHOUT. The boundary is trained entirely on PRE-stroke
     # data, so post-stroke trials are out of distribution: any global post-lesion shift could push
@@ -939,15 +999,15 @@ def looks_like_which(d, keep, seed=0):
     # trials says whether it still tracks licking after the lesion. If engaged and undetected land at
     # the same rate, the classifier is reporting "post-stroke", not "licking", and the headline
     # number means nothing.
-    post_e = np.isin(d["GE"], list(d["post_i"])) & np.isin(d["YE"], keep)
-    p_post_eng = float(clf.predict(XEs[post_e]).mean()) if post_e.sum() >= 20 else float("nan")
+    post_e = _g13_rows(d, cg, keep, d["post_i"], "engaged")
+    p_post_eng = float(clf.predict(_g13_X(XEs, XUs, post_e)).mean()) if _g13_n(post_e) >= 20 else float("nan")
     # ALL pre-stroke trials of each class, not the position-balanced training subsample -- these two
     # are the scale the post-stroke rate is read against, so they must describe the population and
     # not the sample the boundary was drawn from. (They were `Xe`/`Xu`, bound by the sampling loop
     # that `balanced_lick_sample` replaced on 2026-08-28; caught by ruff F821, which is why that
     # guard exists -- an undefined name here fails hours into a run, not at import.)
-    pre_e_held = float(clf.predict(XEs[pre_e]).mean())   # pre-stroke engaged, for scale
-    pre_u_held = float(clf.predict(XUs[pre_u]).mean())   # pre-stroke undetected, for scale
+    pre_e_held = float(clf.predict(_g13_X(XEs, XUs, pre_e)).mean())   # pre-stroke engaged, for scale
+    pre_u_held = float(clf.predict(_g13_X(XEs, XUs, pre_u)).mean())   # pre-stroke undetected, for scale
     gap = p_post_eng - p_post if np.isfinite(p_post_eng) else float("nan")
 
     # Interval on the CONTROL gap. It decides whether the headline number may be read at all, so a
@@ -955,8 +1015,8 @@ def looks_like_which(d, keep, seed=0):
     # the post-stroke engaged and no-lick arms independently, since they are separate samples.
     gap_ci = [float("nan"), float("nan")]
     if np.isfinite(p_post_eng):
-        pe = clf.predict(XEs[post_e]).astype(float)
-        pu = clf.predict(XUs[post_u]).astype(float)
+        pe = clf.predict(_g13_X(XEs, XUs, post_e)).astype(float)
+        pu = clf.predict(_g13_X(XEs, XUs, post_u)).astype(float)
         boots = [pe[rng.randint(0, len(pe), len(pe))].mean()
                  - pu[rng.randint(0, len(pu), len(pu))].mean() for _ in range(2000)]
         gap_ci = [float(np.percentile(boots, 2.5)), float(np.percentile(boots, 97.5))]
@@ -967,7 +1027,7 @@ def looks_like_which(d, keep, seed=0):
         # one full model), so read them as the training fit, not as a test
         by_class = {"pre": _g13_by_class(lambda i: clf, XEs, XUs, d, cg, keep, dT["pre_i"]),
                     "post": _g13_by_class(lambda i: clf, XEs, XUs, d, cg, keep, d["post_i"])}
-    return {"n_train_per_class": int((y == 1).sum()), "n_post_undetected": int(post_u.sum()),
+    return {"n_train_per_class": int((y == 1).sum()), "n_post_undetected": _g13_n(post_u),
             "train_classes": _g13_classes(cg), "by_class": by_class,
             "pre_separability_cv": sep,
             "pre_separability_cv_grouped_by_session": sep_grouped,
@@ -977,7 +1037,7 @@ def looks_like_which(d, keep, seed=0):
             "control_gap_ci95": gap_ci,
             "post_undetected_frac_classified_ENGAGED_like": p_post,
             "CONTROL_post_engaged_frac_engaged_like": p_post_eng,
-            "n_post_engaged": int(post_e.sum()),
+            "n_post_engaged": _g13_n(post_e),
             "scale_pre_engaged": pre_e_held, "scale_pre_undetected": pre_u_held,
             "engaged_minus_undetected_post": gap,
             # the WHOLE interval must clear zero: a positive point estimate whose interval spans
@@ -1001,12 +1061,14 @@ def fits_engaged_distribution(d, keep, seed=0, n_boot=2000):
     Returns per-session reference values, their ranges, and where the post-stroke value sits.
     """
     rng = np.random.RandomState(seed)
-    pre_e_all = np.isin(d["GE"], list(d["pre_i"])) & np.isin(d["YE"], keep)
-    pre_u_all = np.isin(d["GU"], list(d["pre_i"])) & np.isin(d["YU"], keep)
+    cg = _g13_groups(d)              # camera classes ((f) 1) under the camera grouping, else the DAQ training set
+    # the reference / scored sets (`_g13_rows`, Priya 11-08): camera WORKING and raw no_response rows under the camera
+    # grouping, the DAQ engaged / no-lick arms under the DAQ grouping
+    pre_e_all = _g13_rows(d, cg, keep, d["pre_i"], "engaged")
+    pre_u_all = _g13_rows(d, cg, keep, d["pre_i"], "nolick")
     # OPTIONAL STATE-CLASS bal_em (as `looks_like_which`; DEFAULT OFF): training frame for the fits, each scored
     # session (a held-out pre session, or the post session) in its own label-free EM frame. Identity when OFF.
     dT = _lick_train(d, keep)
-    cg = _g13_groups(d)              # camera classes ((f) 1) under the camera grouping, else the DAQ training set
 
     def balanced_fit(exclude_session=None):
         """Position-balanced engaged-vs-no-lick discriminator, optionally holding out one session.
@@ -1053,24 +1115,25 @@ def fits_engaged_distribution(d, keep, seed=0, n_boot=2000):
                 if v["n"]:
                     acc[0] += v["n"]
                     acc[1] += v["frac_working_like"] * v["n"]
-        me = pre_e_all & (d["GE"] == i)
-        mu = pre_u_all & (d["GU"] == i)
-        if me.sum() >= 20:
-            ref["engaged"][d["kept"][i]] = float(clf.predict(hXE[me]).mean())
-        if mu.sum() >= 10:
-            ref["nolick"][d["kept"][i]] = float(clf.predict(hXU[mu]).mean())
+        me = (pre_e_all[0] & (d["GE"] == i), pre_e_all[1] & (d["GU"] == i))
+        mu = (pre_u_all[0] & (d["GE"] == i), pre_u_all[1] & (d["GU"] == i))
+        if _g13_n(me) >= 20:
+            ref["engaged"][d["kept"][i]] = float(clf.predict(_g13_X(hXE, hXU, me)).mean())
+        if _g13_n(mu) >= 10:
+            ref["nolick"][d["kept"][i]] = float(clf.predict(_g13_X(hXE, hXU, mu)).mean())
     if len(ref["engaged"]) < 3 or len(ref["nolick"]) < 3:
         return {"note": "too few pre-stroke sessions to build a reference distribution",
                 "n_engaged_sessions": len(ref["engaged"]), "n_nolick_sessions": len(ref["nolick"])}
 
     got_all = folds["full"] if folds is not None else balanced_fit()
     clf_all = got_all[0] if got_all is not None else None
-    post_u = np.isin(d["GU"], list(d["post_i"])) & np.isin(d["YU"], keep)
-    post_e = np.isin(d["GE"], list(d["post_i"])) & np.isin(d["YE"], keep)
-    if post_u.sum() < 10 or clf_all is None:
-        return {"note": "too few post-stroke no-lick trials", "n_post_nolick": int(post_u.sum())}
+    post_u = _g13_rows(d, cg, keep, d["post_i"], "nolick")
+    post_e = _g13_rows(d, cg, keep, d["post_i"], "engaged")
+    if _g13_n(post_u) < 10 or clf_all is None:
+        return {"note": "too few post-stroke no-lick trials", "n_post_nolick": _g13_n(post_u),
+                "train_classes": _g13_classes(cg)}
     pXE, pXU = _lick_scored(d, keep, clf_all, got_all[1], sorted(d["post_i"]), dT)
-    pred_u = clf_all.predict(pXU[post_u]).astype(float)
+    pred_u = clf_all.predict(_g13_X(pXE, pXU, post_u)).astype(float)
     P = float(pred_u.mean())
 
     by_class = None
@@ -1078,10 +1141,10 @@ def fits_engaged_distribution(d, keep, seed=0, n_boot=2000):
         by_class = {"pre_loso": {g: {"n": n_, "frac_working_like": (k_ / n_) if n_ else None}
                                  for g, (n_, k_) in pre_by_class.items()},
                     "post": _g13_by_class(lambda i: clf_all, pXE, pXU, d, cg, keep, d["post_i"])}
-    out = {"post_value": P, "n_post_nolick": int(post_u.sum()), "state_disc_frame": _state_frame_tag(),
+    out = {"post_value": P, "n_post_nolick": _g13_n(post_u), "state_disc_frame": _state_frame_tag(),
            "train_classes": _g13_classes(cg), "by_class": by_class,
-           "post_engaged_value": float(clf_all.predict(pXE[post_e]).mean())
-                                 if post_e.sum() >= 20 else float("nan"),
+           "post_engaged_value": float(clf_all.predict(_g13_X(pXE, pXU, post_e)).mean())
+                                 if _g13_n(post_e) >= 20 else float("nan"),
            "reference_engaged_per_session": ref["engaged"],
            "reference_nolick_per_session": ref["nolick"]}
     # a bootstrap interval on the post-stroke value itself, so the comparison is interval-to-interval
@@ -1496,7 +1559,11 @@ def undetected_state_split(d, keep, args, seed=0):
         out["split"] = {"note": f"state vector {state.size} vs pooled no-lick {d['GU'].size}; "
                                 f"refusing to pair them"}
         return out
-    post_m = np.isin(d["GU"], list(d["post_i"])) & np.isin(d["YU"], keep)
+    # the split pairs the no-lick ARM with the per-row state vector; under the camera grouping (Priya 11-08) only its
+    # rows whose RAW camera class is no_response are scored (`_g13_rows` "nolick", no-lick arm). The engaged-arm
+    # no_response rows have no state entry and stay out of the split (they are in `looks_like_which`'s set above).
+    post_m = _g13_rows(d, cg, keep, d["post_i"], "nolick")[1] if cg is not None else (
+        np.isin(d["GU"], list(d["post_i"])) & np.isin(d["YU"], keep))
     _XEs, XUs = _lick_scored(d, keep, clf, y, sorted(d["post_i"]), dT)
     p = clf.predict(XUs)
     w = post_m & state
@@ -1837,10 +1904,11 @@ def g4_frame(d):
     return cache[key]
 
 
-def cam_balanced_sample(dT, ge, gu, keep, rng, *, exclude_session=None):
+def cam_balanced_sample(dT, ge, gu, keep, rng, *, exclude_session=None, neg=None):
     """The camera-class analog of `balanced_lick_sample` (ported from g4common.cam_balanced_sample, 11-04): pre
     WORKING (contact | incomplete) vs NONE rows (engaged and no-lick rows stacked), within each kept spout both
-    subsampled to the same count (>= 5), positives drawn first, same ``rng`` use. ``(X, y, groups)`` or None."""
+    subsampled to the same count (>= 5), positives drawn first, same ``rng`` use. ``(X, y, groups)`` or None.
+    ``neg`` = the negative groups: None = `G4_NEG` (G4, unchanged); G1-G3 pass `G13_NEG` on the raw-split groups."""
     X = np.vstack([dT["XE"], dT["XU"]])
     Y = np.concatenate([dT["YE"], np.asarray(dT["YU"]).astype(dT["YE"].dtype)])
     G = np.concatenate([dT["GE"], dT["GU"]])
@@ -1849,7 +1917,7 @@ def cam_balanced_sample(dT, ge, gu, keep, rng, *, exclude_session=None):
     if exclude_session is not None:
         m &= G != exclude_session
     pos = m & np.isin(g, list(G4_POS))
-    neg = m & np.isin(g, list(G4_NEG))
+    neg = m & np.isin(g, list(G4_NEG if neg is None else neg))
     xs, lab, grps = [], [], []
     for c in keep:
         ie, iu = np.flatnonzero(pos & (Y == c)), np.flatnonzero(neg & (Y == c))

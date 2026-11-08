@@ -10,6 +10,8 @@
   (`WIDEFIELD_LICK_SOURCE=lp`, LP lick onset, ENL 1.0 s, LP-trained frozen decoders). Successful-lick class = DAQ
   contact, supplemental only; never gate on it. PS93_0813 (no video) is in the successful-lick class only. Correction
   recorded at the 11-03 (night) camera-gate entry in the root DECISIONS.md.
+- (2026-11-08) Section G G1-G3 (Priya 11-08): train camera WORKING vs NO_RESPONSE (unknown excluded), score post
+  no_response rows as the no-lick set, working rows as the engaged comparison; DAQ-grouping supplement not run.
 
 ## 2026-11-07 -- FaceRhythm factor matching, map statistics, per-session tests (Priya; a8 window)
 - MATCHING RULE v2 (`face_rhythm_epoch_shape.MATCH_RULES`, `--match-rule v2`; v1 stays the code default until the page /
