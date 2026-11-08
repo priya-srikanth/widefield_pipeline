@@ -599,8 +599,214 @@ def analyze():
     print("\nwrote", TAB)
 
 
+# =============================================================================================== plot
+EP_X = {e: i for i, e in enumerate(EPS)}
+PROV = ("Data: cohort1 PS92-95, curated sessions, August-only pre; trials = camera working period (to the last camera "
+        "lick); first lick = 3-D lick_idx 0 (pose3d licks.csv.gz); aim = lateral landing minus the animal's pre mean at "
+        "that spout (mm, - = ipsilesional); latency = 3-D first-lick peak after the cue (ms); stars = boot_delta vs own "
+        "pre (animals -> sessions, 95 % CI excludes 0).")
+
+
+def _sessions_panel(ax, S, col, stars, title):
+    from wfield_local import orofacial_cohort as oc
+    from wfield_local import sig_marks as sm
+    rng = np.random.default_rng(0)
+    for (an, ep), g in S.dropna(subset=[col]).groupby(["animal", "epoch"]):
+        x = EP_X[ep] + rng.uniform(-0.22, 0.22, len(g))
+        ax.scatter(x, g[col], s=16, marker=oc.ANIMAL_MARKER[an], facecolors="none",
+                   edgecolors=oc.EPOCH_LINE[ep], linewidths=0.8, zorder=3)
+    am = S.groupby(["animal", "epoch"])[col].mean().unstack().reindex(columns=list(EPS))
+    for ep in EPS:
+        v = am[ep].dropna()
+        if len(v):
+            ax.hlines(v.mean(), EP_X[ep] - 0.3, EP_X[ep] + 0.3, color=oc.EPOCH_LINE[ep], lw=2.2, zorder=4)
+    ax.axhline(0, color="0.6", lw=0.6, zorder=1)
+    if np.isfinite(am["pre"]).any():
+        ax.axhline(am["pre"].mean(), color="k", lw=0.8, ls="--", zorder=1)
+    for ep in POST:
+        r = stars.get((col, ep))
+        if r is not None and (r["lo"] > 0 or r["hi"] < 0):
+            sm.star_top(ax, EP_X[ep], "*", color=oc.EPOCH_LINE[ep])
+    ax.set_xticks(range(len(EPS)), EPS, fontsize=7)
+    ax.set_title(title, fontsize=8)
+    ax.tick_params(labelsize=7)
+
+
 def plot():
-    raise NotImplementedError
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    from matplotlib.lines import Line2D
+
+    from wfield_local import orofacial_cohort as oc
+    from wfield_local import sig_marks as sm
+    from wfield_local.figure_layout import save_png_svg
+    FIG.mkdir(parents=True, exist_ok=True)
+    S = pd.read_csv(TAB / "session_slopes.csv")
+    R = pd.read_csv(TAB / "contrasts_vs_pre.csv")
+    stars = {(r["measure"], r["epoch"]): r for r in R[R.family == "Q1_hour"].to_dict("records")}
+    leg = ([Line2D([], [], ls="", marker=m, mfc="none", mec="k", label=a) for a, m in oc.ANIMAL_MARKER.items()]
+           + [Line2D([], [], color=c, lw=2, label=e) for e, c in oc.EPOCH_LINE.items()])
+
+    # ---- Fig 1: within-session slope per hour, by epoch
+    panels = [("fc_dside_hr", "far-contra aim drift (mm / h)"), ("oth_dside_hr", "other spouts aim drift (mm / h)"),
+              ("lat_hr", "first-lick latency drift (ms / h)"), ("contact_hr", "first-lick contact drift (prop. / h)"),
+              ("speed_hr", "first-lick peak speed drift (mm/s / h)"), ("nlick_hr", "camera licks / trial drift (/ h)")]
+    fig, axs = plt.subplots(2, 3, figsize=(9.5, 5.6))
+    for ax, (c, t) in zip(axs.flat, panels):
+        _sessions_panel(ax, S, c, stars, t)
+    fig.legend(handles=leg, fontsize=6, frameon=False, ncol=8, loc="upper center", bbox_to_anchor=(0.5, 0.955))
+    fig.suptitle("Fig 1. Within-session drift per hour of the working period (session = open marker; bar = mean of "
+                 "animal means; dashed = pre)", fontsize=9)
+    fig.text(0.01, 0.005, PROV + " Slope = OLS on elapsed hours, multi-spout measures demeaned within spout.",
+             fontsize=5.5, wrap=True)
+    sm.reserve_headroom(fig)
+    fig.tight_layout(rect=(0, 0.05, 1, 0.95))
+    save_png_svg(fig, FIG / "wsd_fig1_slopes_per_hour.png", dpi=200)
+    plt.close(fig)
+
+    # ---- Fig 2: quit-aligned (camera quit) vs time-matched control sessions
+    C = pd.read_csv(TAB / "q2_quit_aligned_bins.csv")
+    meas = [("dside_fc", "far-contra aim (mm vs pre)"), ("dside_oth", "other spouts aim (mm vs pre)"),
+            ("dlat", "first-lick latency (ms vs pre)"), ("dcontact", "first-lick contact (vs pre)"),
+            ("dnlick", "camera licks / trial (vs pre)")]
+    fig, axs = plt.subplots(len(meas), len(EPS), figsize=(10, 10), sharex=True, sharey="row")
+    for i, (m, t) in enumerate(meas):
+        for j, ep in enumerate(EPS):
+            ax = axs[i, j]
+            for arm, ls in (("quit", "-"), ("ctrl", ":")):
+                g = C[(C.epoch == ep) & (C.arm == arm)]
+                if not len(g):
+                    continue
+                # animal-weighted: mean over animals of the animal's session mean per bin
+                A = g.groupby(["animal", "bin"])[m].mean().unstack("animal")
+                mu, se = A.mean(1), A.std(1) / np.sqrt(A.notna().sum(1).clip(lower=1))
+                ax.plot(mu.index, mu, ls=ls, color=oc.EPOCH_LINE[ep], lw=1.6, label=arm)
+                ax.fill_between(mu.index, mu - se, mu + se, color=oc.EPOCH_LINE[ep], alpha=0.12 if arm == "quit"
+                                else 0.05)
+                if arm == "quit":
+                    for an, gg in g.groupby("animal"):
+                        v = gg.groupby("bin")[m].mean()
+                        ax.plot(v.index, v, ls="", marker=oc.ANIMAL_MARKER[an], mfc="none",
+                                mec=oc.EPOCH_LINE[ep], ms=3, mew=0.6)
+            ax.axhline(0, color="0.6", lw=0.6)
+            ax.axvline(0, color="k", lw=0.6)
+            ax.spines["right"].set_visible(False)
+            ax.tick_params(labelsize=6)
+            if i == 0:
+                n = C[(C.epoch == ep) & (C.arm == "quit")]
+                ax.set_title(f"{ep} (quit sessions {n.label.nunique()}, animals {n.animal.nunique()})", fontsize=7)
+            if j == 0:
+                ax.set_ylabel(t, fontsize=7)
+            if i == len(meas) - 1:
+                ax.set_xlabel("minutes before the camera quit", fontsize=7)
+    axs[0, 0].legend(fontsize=6, frameon=False)
+    fig.suptitle("Fig 2. Aim, latency, contact, licks before the camera quit (solid) vs the same clock time in the same\n"
+                 "animal's still-working sessions of the epoch (dotted); mean of animal means +- SEM; markers = animals",
+                 fontsize=8)
+    fig.text(0.01, 0.005, PROV + " Quit = trial_classes.camera_quit (tail after the last camera lick, >= 6 trials).",
+             fontsize=5.5, wrap=True)
+    sm.reserve_headroom(fig)
+    fig.tight_layout(rect=(0, 0.03, 1, 0.96))
+    save_png_svg(fig, FIG / "wsd_fig2_quit_aligned.png", dpi=200)
+    plt.close(fig)
+
+    # ---- Fig 3: pacing (unique R2 of time / licks / water / far-contra trials)
+    PA = pd.read_csv(TAB / "q3_pacing_fe.csv")
+    ys = [("fc_dside", "far-contra aim"), ("lat", "first-lick latency"), ("oth_dside", "other spouts aim")]
+    fig, axs = plt.subplots(2, len(ys), figsize=(10, 5.6), sharey="row")
+    for j, (y, t) in enumerate(ys):
+        for i, kind in enumerate(("r2", "uniq")):
+            ax = axs[i, j]
+            g = PA[PA.y == y]
+            for k, p in enumerate(PRED):
+                for _, r in g.iterrows():
+                    ax.scatter(k + (EP_X[r.epoch] - 1.5) * 0.17, 100 * r[f"{kind}_{p}"], s=16,
+                               marker=oc.ANIMAL_MARKER[r.animal], facecolors="none",
+                               edgecolors=oc.EPOCH_LINE[r.epoch], linewidths=0.8)
+            ax.axhline(0, color="0.6", lw=0.6)
+            ax.set_xticks(range(len(PRED)), ["time", "cum. licks", "cum. water", "cum. far-contra\ntrials"],
+                          fontsize=6)
+            ax.tick_params(labelsize=6)
+            ax.set_title(f"{t}: {'R2 alone' if kind == 'r2' else 'unique R2'} (% within-session variance)",
+                         fontsize=7)
+    fig.legend(handles=leg, fontsize=6, frameon=False, ncol=8, loc="upper center", bbox_to_anchor=(0.5, 0.95))
+    fig.suptitle("Fig 3. What paces the within-session drift: elapsed time vs effort (camera licks) vs water vs "
+                 "far-contra attempts (animal x epoch, session x spout fixed effects)", fontsize=8)
+    fig.text(0.01, 0.005, PROV + " Unique R2 = R2 lost when that predictor is dropped from the joint model.",
+             fontsize=5.5, wrap=True)
+    sm.reserve_headroom(fig)
+    fig.tight_layout(rect=(0, 0.04, 1, 0.95))
+    save_png_svg(fig, FIG / "wsd_fig3_pacing.png", dpi=200)
+    plt.close(fig)
+
+    # ---- Fig 4: drift vs time to quit (within animal, centered)
+    X = pd.read_csv(TAB / "session_table.csv")
+    X["quit_or_end"] = np.where(X.censored, X.end_min, X.quit_min)
+    A = pd.read_csv(TAB / "within_animal_assoc.csv")
+    fig, axs = plt.subplots(1, 3, figsize=(10, 3.4))
+    for ax, (xc, t) in zip(axs, (("fc_dside_hr", "far-contra aim drift (mm / h)"),
+                                 ("lat_hr", "latency drift (ms / h)"), ("oth_dside_hr", "other spouts aim drift"))):
+        for (an, _grp), g in X.dropna(subset=[xc]).groupby(["animal", "grp"]):
+            xx = g[xc] - g[xc].mean()
+            yy = g.quit_or_end - g.quit_or_end.mean()
+            for e, gg in g.groupby("epoch"):
+                ax.scatter(xx[gg.index], yy[gg.index], s=18, marker=oc.ANIMAL_MARKER[an], facecolors="none",
+                           edgecolors=oc.EPOCH_LINE[e], linewidths=[1.4 if c else 0.8 for c in ~gg.censored])
+        txt = []
+        for gname in ("pre", "early_post", "chronic"):
+            r = A[(A.family == "Q4_quit") & (A.x == xc) & (A.y == "quit_or_end") & (A.group == gname)]
+            if len(r):
+                txt.append(f"{gname}: r {r.mean_r.iloc[0]:+.2f}, p {r.p_shuffle.iloc[0]:.2f}")
+        ax.text(0.02, 0.02, "\n".join(txt), transform=ax.transAxes, fontsize=6)
+        ax.axhline(0, color="0.7", lw=0.5)
+        ax.axvline(0, color="0.7", lw=0.5)
+        ax.set_xlabel(t + ", centered within animal x epoch group", fontsize=7)
+        ax.set_title(t, fontsize=8)
+        ax.tick_params(labelsize=6)
+    axs[0].set_ylabel("minutes to quit-or-end, centered", fontsize=7)
+    fig.suptitle("Fig 4. Does a session's drift predict how early it quits? (within-animal Spearman r, within-animal "
+                 "shuffle p; thick edge = quit, thin = censored)", fontsize=8)
+    fig.text(0.01, 0.005, PROV, fontsize=5.5, wrap=True)
+    sm.reserve_headroom(fig)
+    fig.tight_layout(rect=(0, 0.06, 1, 0.93))
+    save_png_svg(fig, FIG / "wsd_fig4_drift_vs_quit.png", dpi=200)
+    plt.close(fig)
+
+    # ---- Fig 5: per spout, change vs own pre of the per-hour drift
+    SP = pd.read_csv(TAB / "q5_spout_slopes.csv")
+    Q5 = R[R.family == "Q5_spout"]
+    fig, axs = plt.subplots(1, 2, figsize=(10, 3.8))
+    for ax, (c, t) in zip(axs, (("dside_hr", "aim drift change vs own pre (mm / h)"),
+                                ("dlat_hr", "latency drift change vs own pre (ms / h)"))):
+        for j, ep in enumerate(POST):
+            for i, pos in enumerate(oc.POS_ORDER):
+                Pm = per_animal(SP[SP.pos == pos], c)
+                d = (Pm[ep] - Pm["pre"]).dropna()
+                x = i + (j - 1) * 0.25
+                for an, v in d.items():
+                    ax.scatter(x, v, s=14, marker=oc.ANIMAL_MARKER[an], facecolors="none",
+                               edgecolors=oc.EPOCH_LINE[ep], linewidths=0.8)
+                r = Q5[(Q5.pos == pos) & (Q5.measure == c) & (Q5.epoch == ep)]
+                if len(r):
+                    r = r.iloc[0]
+                    ax.errorbar(x, r.delta, yerr=[[r.delta - r.lo], [r.hi - r.delta]], fmt="_", color=oc.EPOCH_LINE[ep],
+                                ms=9, lw=1.2)
+                    if r.lo > 0 or r.hi < 0:
+                        sm.star_top(ax, x, "*", color=oc.EPOCH_LINE[ep], row=j)
+        ax.axhline(0, color="0.6", lw=0.6)
+        ax.set_xticks(range(6), [p.replace("_", "\n") for p in oc.POS_ORDER], fontsize=7)
+        ax.set_title(t, fontsize=8)
+        ax.tick_params(labelsize=6)
+    fig.legend(handles=leg, fontsize=6, frameon=False, ncol=8, loc="upper center", bbox_to_anchor=(0.5, 0.92))
+    fig.suptitle("Fig 5. Is the within-session drift specific to the impaired direction? Per spout, per-hour slope, "
+                 "change vs own pre (markers = animals; bar = boot_delta 95 % CI)", fontsize=8)
+    fig.text(0.01, 0.005, PROV, fontsize=5.5, wrap=True)
+    sm.reserve_headroom(fig)
+    fig.tight_layout(rect=(0, 0.06, 1, 0.93))
+    save_png_svg(fig, FIG / "wsd_fig5_per_spout.png", dpi=200)
+    plt.close(fig)
+    print("wrote", FIG)
 
 
 if __name__ == "__main__":
