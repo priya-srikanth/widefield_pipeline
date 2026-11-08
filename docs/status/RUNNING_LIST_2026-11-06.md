@@ -574,3 +574,11 @@ re-run needed for A20. (scratchpad/a20/exec_bins_calib_A20.csv)
   The spont basis is NOT a substitute: spatial P differs (checked PS92 + PS95). Fix = derive the te-basis folder from
   the te design (FROZEN_LICKS_ALL=none) explicitly; branch + test, then re-queue e_pat_stats_maps -> e_roi_* ->
   e_rim_overlay_r. Check whether iti_decoder_patterns / iti_basis_decoder steps hit the same path.
+- 13:53 b_partial_frA EXIT 0 (107/107, reuse fix). Lock released (takeover); l_block_compare (v8, 5db29b07, encoder
+  env, no rest / lick-source dependence) took it 13:53. AB's 19 steps continue in v9zv.
+- 13:55 STOPPED lane v9s-P (PID 943516, mine, only waiting; empty claim g5_epoch_15r_r removed): its only remaining
+  step g5_epoch_15r_r is redundant (LPfinal maps give 15r for precue / cue / lick with the rest fix; DAQ lick arms =
+  successful-lick supplement; ENL arm = retired DAQ 2.0 s). Its other steps were already done / failed / skipped:
+  g5_restnl_maps_* + g5_map_drift_* READ the pre-fix restnl masks (g2a / g2b on 9aaa4cc6) -> stale, in the re-run list.
+- Fix branch tests (logged run): 1151 passed, 1 failed = the pre-existing test_gain_bio_port '_common' failure (fails on
+  main too). Pushing fix/stars-spoutorder-g13-1108 (push7, gated on >= 15 GB free).
