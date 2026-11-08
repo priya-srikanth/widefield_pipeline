@@ -667,3 +667,15 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
   input iti_spout_patterns.py, the per-spout Haufe maps "3.35") never ran in the rebuild -- no queue step. 16:24 launched
   queue_daqlk9zy.sh lane IT2 (597cbed9): e_spout_patterns -> e_spout_pat_stats -> e_roi_foci_r3 -> e_roi_cand_r3 ->
   e_rim_overlay_r3 (frozen env, as the ITI family).
+- 16:45 RESTNL MASKS: today's g2a_restnl_mask_r rebuild is IDENTICAL to the masks on disk (PS92_0813, PS93_0818,
+  PS92_0806 checked); the old files were written 11-06 21:28, AFTER ba5b63bf, by g5_restnl_maps_contact (4ecf72ed, has
+  the fix). -> l_stopped_restnl_r (99f0d464) valid; g5_restnl_maps_contact_r + g5_map_drift_contact_r marked .done as
+  REDUNDANT (reason in their .done files + CHAIN.log; ~2.5 h saved). The audit's "restnl readers stale" applied only to
+  steps whose OWN code lacked the fix (rest_frozen(_nl), l_* restw chain, d_attempt_maps_restnl, chronic_stability) --
+  those still re-run.
+- FINDING (efficiency): the first section G memo (a5b7bf3c) moved the camera-class digest csig 3d7bbe921e ->
+  edce41f2a5 (class_source_signature hashes trial_classes' top-level code), so every camera-gated per-session cache
+  entry missed on 597cbed9: the v9zw / v9zx / v9zy lanes recompute them (valid, slower). FIX d8f4e900
+  (perf/daq-memo-keep-csig, wf_memocsig): memo moved to wfield_local/session_memo.py, applied by a hook-marked
+  decorator; csig back to 3d7bbe921e (verified), trial_classes = pre-memo text + 1 line; 76 related tests pass; a test
+  pins the memo out of the digest. Pushing (part of Priya's memo OK). Section G + grant will run on it -> warm caches.
