@@ -33,6 +33,7 @@ from __future__ import annotations
 import argparse
 import glob
 import os
+import sys
 from pathlib import Path
 
 import numpy as np
@@ -41,13 +42,16 @@ import pandas as pd
 ITI = ("M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/"
        "iti_licks/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801/sessions_roi8fr")
 OUT = Path("M:/MICROSCOPE/Priya/Widefield/state_space_recovery/sim")
-POS = ["close_ipsi", "close_mid", "close_contra", "far_ipsi", "far_mid", "far_contra"]
+from wfield_local.orofacial_cohort import POS_ORDER  # noqa: E402
+POS = list(POS_ORDER)                     # the canonical spout order (close ipsi .. far contra)
 # top-k pre space. 8 = convention when written; checked 11-07 (Priya "how did you choose 8?"): top 8 capture 97-99 % of a
 # HELD-OUT pre session's spout-specific variance in every animal / alignment (k=4: 89-97 %, >8 adds < 3 %).
 # WF_SS_K overrides for the sensitivity runs (outputs then carry _k<K>).
 K = int(os.environ.get("WF_SS_K", 8))
 MET = ["out_var", "out_resid", "r", "amp", "rot_gain", "gain_sd", "shared", "shared_dist", "spread", "spread_norm"]
-LAGS = np.round(np.arange(-1.0, 2.5 + 1e-9, 0.05), 3)
+# the extract's lag grids (iti_licks.LAGS_C: first_cue, -1..2.5 s; LAGS_P: first_peth, -1.5..0.75 s), imported, not re-declared
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from iti_licks import LAGS_C as LAGS, LAGS_P  # noqa: E402
 BINS = [(a, a + 0.1) for a in np.round(np.arange(-0.5, 2.0, 0.1), 2)]
 PLANTS = ([("none", 0)] + [("amp", a) for a in (1.25, 1.5)] + [("gain_rand", s) for s in (0.15, 0.3)]
           + [("gain_ipsi", g) for g in (0.8, 0.6)] + [("rot", t) for t in (10, 20, 30, 45)] + [("rot12", t) for t in (10, 20, 30)]
@@ -63,7 +67,6 @@ PLANTS = ([("none", 0)] + [("amp", a) for a in (1.25, 1.5)] + [("gain_rand", s) 
 #   lick    first_peth, -1.0..0.7 s from the first lick (17 bins; the extract spans -1.5..0.75 s)
 #   splice  cue -0.5..0.5 s (10 bins) followed by lick -0.5..0.7 s (12 bins): both events at any latency. For first
 #           licks within 1 s of the cue the two segments sample overlapping time (each segment is its own features).
-LAGS_P = np.round(np.arange(-1.5, 0.75 + 1e-9, 0.05), 3)
 ALIGN = os.environ.get("WF_SS_ALIGN", "cue")
 _B = lambda a, b: [(t, t + 0.1) for t in np.round(np.arange(a, b - 1e-9, 0.1), 2)]  # noqa: E731
 SEGMENTS = {"cue": [("first_cue", LAGS, _B(-0.5, 2.0))], "cue25": [("first_cue", LAGS, _B(-0.5, 2.5))],
@@ -164,6 +167,22 @@ def load(path):
     xb = _bin(z, keep, ALIGN)                                          # trials x bins x areas
     pos = np.array([str(p) for p in z["first_pos"]])
     return xb, pos, [cols[i] for i in keep], str(z["epoch"]), str(z["animal"])
+
+
+def load_sessions(hook=None):
+    """Every extract session -> ({animal: [(label, epoch, day, Y, pos, ...)] sorted by day}, area columns), the ONE
+    session loader of the state-space scripts (`load` per file, days from `epochs.days_since_stroke`). ``hook(label, Y,
+    pos)`` returns the tuple appended after (label, epoch, day) -- default (Y, pos); a relabel (trials) or an extra
+    per-trial column (contact) goes there. Files in sorted path order, sessions sorted by day (stable): the order every
+    caller used before (rule 9: pools need a defined order)."""
+    from wfield_local import epochs
+    data, cols = {}, None
+    for f in sorted(glob.glob(ITI + "/PS9*.npz")):
+        Y, pos, cols, ep, an = load(f)
+        lab = Path(f).stem
+        data.setdefault(an, []).append((lab, ep, epochs.days_since_stroke(lab),
+                                        *(hook(lab, Y, pos) if hook else (Y, pos))))
+    return {a: sorted(v, key=lambda s: s[2]) for a, v in data.items()}, cols
 
 
 def spout_means(Y, pos):

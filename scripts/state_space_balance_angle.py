@@ -19,7 +19,6 @@ Step 1 (`--collect`, ~9 min of share I/O): per-trial table -> landing/trial_size
 """
 from __future__ import annotations
 
-import glob
 import sys
 from pathlib import Path
 
@@ -38,18 +37,18 @@ def collect():
     L = pd.read_csv(R.LANDING)
     L = {lab: g for lab, g in L[L.side_ml.notna()].groupby("label")}
     rows = []
-    for f in sorted(glob.glob(S.ITI + "/PS9*.npz")):
-        Y, pos, cols, ep, an = S.load(f)
-        lab = Path(f).stem
-        g = L.get(lab)
-        if g is None:
-            continue
-        resp = Y[:, R.RESP_BINS].mean(1) - Y[:, R.BASE_BINS].mean(1)              # trials x areas
-        idx = {h: [i for i, c in enumerate(cols) if c.endswith(suf) and c[: -len(suf)] in R.OROFACIAL]
-               for h, suf in (("contra", "_right"), ("ipsi", "_left"))}
-        for r, sm, land in zip(g.row.to_numpy(), g.side_ml.to_numpy(), g.land.to_numpy()):
-            rows.append({"animal": an, "epoch": ep, "label": lab, "target": pos[r], "land": land, "side_ml": sm,
-                         "contra": float(resp[r, idx["contra"]].mean()), "ipsi": float(resp[r, idx["ipsi"]].mean())})
+    data, cols = S.load_sessions()
+    idx = {h: [i for i, c in enumerate(cols) if c.endswith(suf) and c[: -len(suf)] in R.OROFACIAL]
+           for h, suf in (("contra", "_right"), ("ipsi", "_left"))}
+    for an, sess in sorted(data.items()):
+        for lab, ep, _day, Y, pos in sess:
+            g = L.get(lab)
+            if g is None:
+                continue
+            resp = Y[:, R.RESP_BINS].mean(1) - Y[:, R.BASE_BINS].mean(1)              # trials x areas
+            for r, sm, land in zip(g.row.to_numpy(), g.side_ml.to_numpy(), g.land.to_numpy()):
+                rows.append({"animal": an, "epoch": ep, "label": lab, "target": pos[r], "land": land, "side_ml": sm,
+                             "contra": float(resp[r, idx["contra"]].mean()), "ipsi": float(resp[r, idx["ipsi"]].mean())})
     pd.DataFrame(rows).to_csv(OUT / "trial_sizes.csv", index=False)
     print("wrote trial_sizes.csv", len(rows))
 

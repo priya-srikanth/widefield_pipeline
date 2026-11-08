@@ -20,7 +20,6 @@ Output: Widefield/state_space_recovery/noise{tag}/noise_sessions.csv, page_figs/
 """
 from __future__ import annotations
 
-import glob
 import sys
 from pathlib import Path
 
@@ -31,7 +30,6 @@ sys.path.insert(0, str(Path(__file__).parent))
 import state_space_recovery_trials as R  # noqa: E402
 import state_space_sim as S  # noqa: E402
 
-from wfield_local import epochs  # noqa: E402
 from wfield_local.figure_layout import save_png_svg  # noqa: E402  (PNG + svg/ twin, Priya 11-06)
 
 ROOT = Path("M:/MICROSCOPE/Priya/Widefield/state_space_recovery")
@@ -70,15 +68,15 @@ def fit_mv(M, V):
 def main():
     base, resp = S.BAL_BINS[S.ALIGN]
     rows, cellset = [], {}
-    for f in sorted(glob.glob(S.ITI + "/PS9*.npz")):
-        Y, pos, cols, ep, an = S.load(f)
-        lab = Path(f).stem
-        sp, M, V = cells(Y, pos, base, resp)
-        if not sp:
-            continue
-        cellset[lab] = (an, ep, M, V)
-        for p, v in sp.items():
-            rows.append({"animal": an, "label": lab, "epoch": ep, "day": epochs.days_since_stroke(lab), "spout": p, **v})
+    data, _ = S.load_sessions()
+    for an, sess in sorted(data.items()):
+        for lab, ep, day, Y, pos in sess:
+            sp, M, V = cells(Y, pos, base, resp)
+            if not sp:
+                continue
+            cellset[lab] = (an, ep, M, V)
+            for p, v in sp.items():
+                rows.append({"animal": an, "label": lab, "epoch": ep, "day": day, "spout": p, **v})
     d = pd.DataFrame(rows)
     # session level: mean over spouts, then log2 vs the animal's pre mean
     s = d.groupby(["animal", "label", "epoch", "day"])[["base_noise", "resp_noise", "size2"]].mean().reset_index()

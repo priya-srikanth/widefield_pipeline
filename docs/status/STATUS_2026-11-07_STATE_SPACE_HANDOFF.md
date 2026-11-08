@@ -90,13 +90,21 @@ LMM results for every run: `state_space_recovery/lmm_change_vs_pre.csv`.
 1. Option 4 -- finer basis: per-trial, time-resolved first-lick extraction in the joint-LocaNMF basis (cue- and
    lick-aligned, spout labels). NOT available: the decoder cache (`_trial_features`, joint basis) is time-averaged;
    `iti_licks/basis_locanmf/sessions` (10-26, pre-rebuild) holds 90 components x 21 lags around ITI licks + a random
-   1,500 post-cue licks, no first-lick / spout identity. Needs SVD reads (~107 x 150 MB): Priya OK'd O2; job script
-   not written yet (pattern: scripts/o2_encoding.py; reuse `_trial_features` with an injected joint-basis signal).
+   1,500 post-cue licks, no first-lick / spout identity. 11-08: JOB WRITTEN, `scripts/o2_state_space_lnmf.py` (bundle
+   `rebuild_20261103/o2/ss_lnmf_20261108`, COMMANDS.md inside). Reuses the rebuild's O2 encoding bundle inputs
+   (`enc_rebuild_20261104b/inputs` on scratch: V / ft), rows = the Allen extract's rows timed by the run's
+   `cued_first_lick_times.csv`; projection = `joint_locanmf.Basis.project_uv` (new; `project` calls it); U_atlas + pinned
+   bases staged share -> scratch on the transfer node. PLUS June 6/6-6/8 (Priya 11-08 "add june where possible ...
+   contact-only"): rows = first DAQ contact in cue .. stop of engaged trials, V / ft shipped in the bundle. Output
+   `<bundle>/out/sessions/<label>.npz`; next: point state_space_sim at it (an extract-source switch) and re-run the
+   variants; June = the no-stroke drift reference (upper bound: includes learning). (The local input cache does NOT hit
+   from this worktree -- its keys include module source -- so desktop behaviour loads read the share, ~2.5 min each.)
 2. Close-spout PC2 transient: still unexplained.
 3. Matched-landing balance in FINDINGS 0b's first-lick window (0.1-0.5 s, with ALM / tjM1).
 4. Power check for the repertoire test (plant a chronic-like subset).
 5. No-stroke drift reference from cohort 2's pre period (separate cohort, never pooled).
-6. FINDINGS (main checkout) not updated with any of this yet -- exploratory; decide with Priya what goes in.
+6. FINDINGS: section 0c added on main 11-08 (Priya "yes add findings to main"; commit 4598ec00, NOT pushed: main also
+   held another window's unpushed 4e6630be). Keep 0c in step with this branch.
 
 ## Code status: EXPLORATORY, clean up before anything is finalized (Priya 11-07)
 

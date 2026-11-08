@@ -16,7 +16,6 @@ Exploratory.
 """
 from __future__ import annotations
 
-import glob
 import sys
 from pathlib import Path
 
@@ -28,7 +27,6 @@ import state_space_recovery_trials as R  # noqa: E402
 import state_space_sim as S  # noqa: E402
 
 from wfield_local import analysis_kit as kit  # noqa: E402
-from wfield_local import epochs  # noqa: E402
 from wfield_local.figure_layout import save_png_svg  # noqa: E402  (PNG + svg/ twin, Priya 11-06)
 
 ROOT = Path("M:/MICROSCOPE/Priya/Widefield/state_space_recovery")
@@ -37,55 +35,33 @@ READ = [("x", "position pre (0) -> chronic (1)\n(fraction of pre -> chronic dist
         ("r_pre", "pattern r with the pre template\n(correlation)")]
 
 
-def frames(sess):
-    """Per-spout (pre template z, unit x direction, unit y direction, pre -> chronic length) in the fixed pre space."""
-    pre = [s for s in sess if s[1] == "pre"]
-    T = R.template(pre)
-    P, mu = R.fixed_space(T)
-    z = {ep: (R.template([s for s in sess if s[1] == ep]) - mu) @ P for ep in ("pre", "acute", "chronic")}
-    fr = {}
-    for si, p in enumerate(S.POS):
-        zp, zc, za = (z[e][si].ravel() for e in ("pre", "chronic", "acute"))
-        if not (np.isfinite(zp).all() and np.isfinite(zc).all() and np.isfinite(za).all()):
-            continue
-        d = zc - zp
-        L = np.linalg.norm(d)
-        u = d / L
-        a = za - zp
-        ap = a - (a @ u) * u
-        fr[p] = (zp, u, ap / np.linalg.norm(ap), L, T[si])
-    return P, mu, fr
-
-
 def main():
     base, resp = S.BAL_BINS[S.ALIGN]
     Lc = pd.read_csv(R.LANDING)
     Lc = {lab: g for lab, g in Lc[Lc.contact.notna()].groupby("label")}
-    data = {}
-    for f in sorted(glob.glob(S.ITI + "/PS9*.npz")):
-        Y, pos, cols, ep, an = S.load(f)
-        lab = Path(f).stem
+
+    def with_contact(lab, Y, pos):
         c = np.full(len(pos), np.nan)
         g = Lc.get(lab)
         if g is not None:
             c[g.row.to_numpy()] = g.contact.to_numpy(float)
-        data.setdefault(an, []).append((lab, ep, epochs.days_since_stroke(lab), Y, pos, c))
+        return Y, pos, c
+    data, _ = S.load_sessions(with_contact)
     rows = []
     for an, sess in sorted(data.items()):
-        sess = sorted(sess, key=lambda s: s[2])
-        P, mu, fr = frames([s[:5] for s in sess])
+        P, mu, fr = R.frames([s[:5] for s in sess])
         for lab, ep, day, Y, pos, c in sess:
-            for p, (zp, u, v, L, Tpre) in fr.items():
+            for p, f in fr.items():
                 m1, m0 = (pos == p) & (c == 1), (pos == p) & (c == 0)
                 if m1.sum() < R.MIN_TRIALS or m0.sum() < R.MIN_TRIALS:
                     continue
-                Tc = Tpre - Tpre.mean(0)
+                Tc = f["Tpre"] - f["Tpre"].mean(0)
                 for cls, m in (("contact", m1), ("incomplete", m0)):
                     M = Y[m].mean(0)
-                    q = ((M - mu) @ P).ravel() - zp
+                    x, y = R.xy(((M - mu) @ P).ravel() - f["zp"], f)
                     Mc = M - M.mean(0)
                     rows.append({"animal": an, "label": lab, "epoch": ep, "day": day, "spout": p, "cls": cls,
-                                 "n": int(m.sum()), "x": float(q @ u / L), "y": float(q @ v / L),
+                                 "n": int(m.sum()), "x": float(x), "y": float(y),
                                  "size": float(np.log2(np.linalg.norm(M[resp].mean(0) - M[base].mean(0)))),
                                  "r_pre": float((Mc * Tc).sum() / np.linalg.norm(Mc) / np.linalg.norm(Tc))})
     C = pd.DataFrame(rows)

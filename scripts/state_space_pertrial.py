@@ -14,7 +14,6 @@ Output: Widefield/state_space_recovery/pertrial{tag}/, page_figs/ss_pt_{plane,or
 """
 from __future__ import annotations
 
-import glob
 import sys
 from pathlib import Path
 
@@ -27,12 +26,10 @@ import pandas as pd  # noqa: E402
 from scipy.ndimage import gaussian_filter  # noqa: E402
 
 sys.path.insert(0, str(Path(__file__).parent))
-import state_space_contact as C  # noqa: E402
 import state_space_page_figs as F  # noqa: E402
 import state_space_recovery_trials as R  # noqa: E402
 import state_space_sim as S  # noqa: E402
 
-from wfield_local import epochs  # noqa: E402
 from wfield_local.orofacial_cohort import EPOCH_LINE  # noqa: E402
 from wfield_local.figure_layout import save_png_svg  # noqa: E402  (PNG + svg/ twin, Priya 11-06)
 
@@ -45,28 +42,23 @@ plt.rcParams.update({"font.size": 9, "axes.titlesize": 9.5, "axes.spines.top": F
 
 def collect():
     base, resp = S.BAL_BINS[S.ALIGN]
-    data = {}
-    for f in sorted(glob.glob(S.ITI + "/PS9*.npz")):
-        Y, pos, cols, ep, an = S.load(f)
-        lab = Path(f).stem
-        data.setdefault(an, []).append((lab, ep, epochs.days_since_stroke(lab), Y, pos))
+    data, _ = S.load_sessions()
     rows = []
     for an, sess in sorted(data.items()):
-        sess = sorted(sess, key=lambda s: s[2])
-        P, mu, fr = C.frames(sess)
+        P, mu, fr = R.frames(sess)
         for lab, ep, day, Y, pos in sess:
             n = len(pos)
             order = np.arange(n) / max(n - 1, 1)
             size = np.linalg.norm(Y[:, resp].mean(1) - Y[:, base].mean(1), axis=1)
             z = ((Y - mu) @ P).reshape(n, -1)
-            for p, (zp, u, v, L, _) in fr.items():
+            for p, f in fr.items():
                 m = np.flatnonzero(pos == p)
                 if len(m) < R.MIN_TRIALS:
                     continue
-                q = z[m] - zp
+                xs, ys = R.xy(z[m] - f["zp"], f)
                 for i, j in enumerate(m):
                     rows.append({"animal": an, "label": lab, "epoch": ep, "day": day, "spout": p, "trial": int(j),
-                                 "order": float(order[j]), "x": float(q[i] @ u / L), "y": float(q[i] @ v / L),
+                                 "order": float(order[j]), "x": float(xs[i]), "y": float(ys[i]),
                                  "size": float(size[j])})
     D = pd.DataFrame(rows)
     pre_med = D[D.epoch == "pre"].groupby(["animal", "spout"])["size"].median()

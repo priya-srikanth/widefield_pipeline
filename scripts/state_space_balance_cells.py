@@ -15,7 +15,6 @@ Output: Widefield/state_space_recovery/landing/balance_cells{,_sessions,_target}
 """
 from __future__ import annotations
 
-import glob
 import sys
 from pathlib import Path
 
@@ -43,20 +42,19 @@ def main():
     L = pd.read_csv(R.LANDING)
     L = {lab: g for lab, g in L[L.land.notna()].groupby("label")}
     trials = []                                                        # (animal, epoch, label, target, land, Y row)
-    cols = None
     trows = []
-    for f in sorted(glob.glob(S.ITI + "/PS9*.npz")):
-        Y, pos, cols, ep, an = S.load(f)
-        lab = Path(f).stem
-        for p in S.POS:
-            if (pos == p).sum() >= R.MIN_TRIALS:
-                trows.append({"animal": an, "epoch": ep, "label": lab, "target": p, "n": int((pos == p).sum()),
-                              **sizes(Y[pos == p].mean(0), cols)})
-        g = L.get(lab)
-        if g is None:
-            continue
-        for r, land in zip(g.row.to_numpy(), g.land.to_numpy()):
-            trials.append((an, ep, lab, pos[r], land, Y[r]))
+    data, cols = S.load_sessions()
+    for an, sess in sorted(data.items()):
+        for lab, ep, _day, Y, pos in sess:
+            for p in S.POS:
+                if (pos == p).sum() >= R.MIN_TRIALS:
+                    trows.append({"animal": an, "epoch": ep, "label": lab, "target": p, "n": int((pos == p).sum()),
+                                  **sizes(Y[pos == p].mean(0), cols)})
+            g = L.get(lab)
+            if g is None:
+                continue
+            for r, land in zip(g.row.to_numpy(), g.land.to_numpy()):
+                trials.append((an, ep, lab, pos[r], land, Y[r]))
     T = pd.DataFrame([t[:5] for t in trials], columns=["animal", "epoch", "label", "target", "land"])
     Yall = np.stack([t[5] for t in trials])
     rows = []

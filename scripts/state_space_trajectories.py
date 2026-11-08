@@ -28,7 +28,6 @@ Exploratory.
 """
 from __future__ import annotations
 
-import glob
 import sys
 from pathlib import Path
 
@@ -44,7 +43,6 @@ sys.path.insert(0, str(Path(__file__).parent))
 import state_space_recovery_trials as R  # noqa: E402
 import state_space_sim as S  # noqa: E402
 
-from wfield_local import epochs  # noqa: E402
 from wfield_local import sig_marks  # noqa: E402
 from wfield_local.orofacial_cohort import ANIMAL_MARKER, EPOCH_LINE  # noqa: E402
 from wfield_local.figure_layout import save_png_svg  # noqa: E402  (PNG + svg/ twin, Priya 11-06)
@@ -60,15 +58,6 @@ LABEL = {"cue": "cue-aligned -0.5..2.0 s", "cue25": "cue-aligned -0.5..2.5 s", "
 plt.rcParams.update({"font.size": 9, "axes.titlesize": 9.5, "axes.spines.top": False, "axes.spines.right": False})
 
 
-def load_all():
-    data = {}
-    for f in sorted(glob.glob(S.ITI + "/PS9*.npz")):
-        Y, pos, cols, ep, an = S.load(f)
-        lab = Path(f).stem
-        data.setdefault(an, []).append((lab, ep, epochs.days_since_stroke(lab), Y, pos))
-    return {a: sorted(v, key=lambda s: s[2]) for a, v in data.items()}, cols
-
-
 def times():
     """Bin centers and the segment break (splice) for the current alignment."""
     t, brk = [], []
@@ -82,37 +71,22 @@ def times():
 # ---------------------------------------------------------------- A. across days
 
 def days_coords(sess):
-    pre = [s for s in sess if s[1] == "pre"]
-    P, mu = R.fixed_space(R.template(pre))
-    tmpl = {ep: R.template([s for s in sess if s[1] == ep]) for ep in ("pre", "acute", "chronic")}
-    z = {ep: ((T - mu) @ P) for ep, T in tmpl.items()}
-    frames = {}
-    for si, p in enumerate(S.POS):
-        zp, zc, za = (z[e][si].ravel() for e in ("pre", "chronic", "acute"))
-        if not (np.isfinite(zp).all() and np.isfinite(zc).all() and np.isfinite(za).all()):
-            continue
-        d = zc - zp
-        L = np.linalg.norm(d)
-        u = d / L
-        a = za - zp
-        ap = a - (a @ u) * u
-        frames[p] = (zp, u, ap / np.linalg.norm(ap), L, float(np.linalg.norm(ap) / np.linalg.norm(a)))
+    P, mu, frames = R.frames(sess)
     srows, trows = [], []
     for lab, ep, day, Y, pos in sess:
         zt = (Y - mu) @ P
         xs, ys = [], []
-        for p, (zp, u, v, L, _) in frames.items():
+        for p, f in frames.items():
             m = pos == p
             if m.sum() < R.MIN_TRIALS:
                 continue
-            q = zt[m].reshape(m.sum(), -1) - zp
-            x, y = q @ u / L, q @ v / L
+            x, y = R.xy(zt[m].reshape(m.sum(), -1) - f["zp"], f)
             xs.append(x.mean())
             ys.append(y.mean())
             trows += [{"label": lab, "epoch": ep, "day": day, "spout": p, "x": a, "y": b} for a, b in zip(x, y)]
         if xs:
             srows.append({"label": lab, "epoch": ep, "day": day, "x": float(np.mean(xs)), "y": float(np.mean(ys))})
-    orth = float(np.mean([f[4] for f in frames.values()]))
+    orth = float(np.mean([f["orth"] for f in frames.values()]))
     return pd.DataFrame(srows), pd.DataFrame(trows), orth
 
 
@@ -384,7 +358,7 @@ def fig_resp_size(d):
 def main():
     OUT.mkdir(parents=True, exist_ok=True)
     FIGS.mkdir(parents=True, exist_ok=True)
-    data, _ = load_all()
+    data, _ = S.load_sessions()
     D = {an: days_coords(sess) for an, sess in sorted(data.items())}
     pd.concat([d[0].assign(animal=a) for a, d in D.items()]).to_csv(OUT / "days_sessions.csv", index=False)
     pd.concat([d[1].assign(animal=a) for a, d in D.items()]).to_csv(OUT / "days_trials.csv", index=False)

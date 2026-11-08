@@ -25,7 +25,7 @@ transfer node, share -> scratch.
 Output on O2 -> rsync back to <bundle>/out/sessions/<label>.npz (first_cue (n, LAGS_C, ncomp), first_peth (n, LAGS_P,
 ncomp), first_rt, first_pos, cue_s, lick_s, src, basis_id, variance_captured, epoch, animal). Units: LocaNMF component
 amplitude (footprint-scaled, `_footprint_scale`), NOT x1e3 dF/F -- the state-space transforms are per-animal anyway.
-EXPLORATORY (state-space branch); bundle -> <state_space_recovery>/o2/<name>.
+EXPLORATORY (state-space branch); bundle -> <rebuild root>/o2/<name> (`o2_encoding.bundle_dir`).
 """
 from __future__ import annotations
 
@@ -46,7 +46,6 @@ PROFILE = "cohort1_rebuild_20261103"
 ENC = "enc_rebuild_20261104b"                       # the rebuild's O2 encoding bundle (its inputs/ are reused)
 ENC_SHARE = Path("M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/o2") / ENC
 CACHE = "C:/Users/SabatiniLab/wfield_cache/input_cache_rebuild_20261104"
-ROOT = Path("M:/MICROSCOPE/Priya/Widefield/state_space_recovery/o2")
 JUNE = ("0606", "0607", "0608")                     # the curated June pre days (configs/animals.yaml date_policy)
 TIMES = ("M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/"
          "iti_licks/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-"
@@ -139,6 +138,10 @@ def _rows_worker(item):
     from wfield_local import epochs
     d = Path(d)
     if june:
+        # contact-only rows need no 3-D: June has no spout 3-D positions, so the encoder's 3-D executed / target / tongue
+        # settings (read at call time) are dropped for these loads; trials, engagement and DAQ contacts are unaffected
+        for k in (ce.EXEC_ENV, ce.EXEC3D_TABLE_ENV, ce.TARGET3D_TABLE_ENV, ce.TONGUE_ENV, ce.BINS_CALIB_ENV):
+            os.environ.pop(k, None)
         B = il._behaviour(label)
         T = B.trials
         co = np.sort(np.asarray(B.contact_s, float)[np.isfinite(B.contact_s)])
@@ -186,7 +189,8 @@ def cmd_bundle(a) -> None:
     dirty = _git(repo, "status", "--porcelain", "--", "wfield_local", "configs")
     if dirty:
         raise SystemExit(f"uncommitted changes in {repo} (the bundle archives HEAD):\n{dirty}")
-    d = ROOT / a.name
+    import o2_encoding as oe
+    d = oe.bundle_dir(rv, a.name)                      # <rebuild root>/o2/<name> (the profile's write fence)
     writeguard.assert_writable(d)
     for sub in ("rows", "logs", "out", "uatlas", "bases"):
         (d / sub).mkdir(parents=True, exist_ok=True)
@@ -218,7 +222,7 @@ def cmd_bundle(a) -> None:
     commit = _git(repo, "rev-parse", "HEAD")
     meta = {"name": a.name, "commit": commit, "code_root": str(repo), "profile": PROFILE, "enc_bundle": ENC,
             "enc_scratch": f"{s}/o2/{ENC}", "drift_min_period_s": ce.DRIFT_MIN_PERIOD_S, "bases": pins,
-            "uatlas": ua, "june": june, "n_sessions": len(ok), "created": datetime.datetime.now().isoformat("seconds")}
+            "uatlas": ua, "june": june, "n_sessions": len(ok), "created": datetime.datetime.now().isoformat(timespec="seconds")}
     (d / "bundle.json").write_text(json.dumps(meta, indent=1), encoding="utf-8", newline="\n")
     code = d / "code"
     if code.exists():

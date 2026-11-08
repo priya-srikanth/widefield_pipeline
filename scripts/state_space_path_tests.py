@@ -15,7 +15,6 @@ Within spout, fixed per-animal pre space; first-lick trials (contact + incomplet
 """
 from __future__ import annotations
 
-import glob
 import sys
 from pathlib import Path
 
@@ -26,22 +25,12 @@ sys.path.insert(0, str(Path(__file__).parent))
 import state_space_recovery_trials as R  # noqa: E402
 import state_space_sim as S  # noqa: E402
 
-from wfield_local import epochs  # noqa: E402
 
 OUT = Path(f"M:/MICROSCOPE/Priya/Widefield/state_space_recovery/path_tests{S.tag()}")   # WF_SS_ALIGN suffix
 
 
 def flatvec(M):
     return M.reshape(-1)
-
-
-def load_all():
-    data = {}
-    for f in sorted(glob.glob(S.ITI + "/PS9*.npz")):
-        Y, pos, cols, ep, an = S.load(f)
-        lab = Path(f).stem
-        data.setdefault(an, []).append((lab, ep, epochs.days_since_stroke(lab), Y, pos))
-    return {a: sorted(v, key=lambda s: s[2]) for a, v in data.items()}
 
 
 def drift_direction(sess, P, mu):
@@ -128,7 +117,7 @@ def trial_alpha(sess, P, mu):
 def main():
     OUT.mkdir(parents=True, exist_ok=True)
     rng = np.random.default_rng(0)
-    data = load_all()
+    data = S.load_sessions()[0]
     if "--trial-alpha" in sys.argv:
         rows = []
         for an, sess in sorted(data.items()):

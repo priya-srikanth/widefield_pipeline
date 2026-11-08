@@ -12,7 +12,6 @@ Output: Widefield/state_space_recovery/pc2_lick/ (pc2_trials.csv, pc2_loadings.c
 """
 from __future__ import annotations
 
-import glob
 import os
 import sys
 from pathlib import Path
@@ -34,10 +33,7 @@ idx = lambda a, b: slice(int(round((a - T0) / 0.1)), int(round((b - T0) / 0.1)))
 
 def main():
     assert S.ALIGN == "lick"
-    data, cols = {}, None
-    for f in sorted(glob.glob(S.ITI + "/PS9*.npz")):
-        Y, pos, cols, ep, an = S.load(f)
-        data.setdefault(an, []).append((Path(f).stem, ep, 0, Y, pos))
+    data, cols = S.load_sessions()
     mus, cent = {}, []
     for an, sess in data.items():
         T = R.template([s for s in sess if s[1] == "pre"])

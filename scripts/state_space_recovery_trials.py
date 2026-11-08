@@ -26,7 +26,6 @@ session; both in units of the pre-to-pre median.
 from __future__ import annotations
 
 import argparse
-import glob
 import sys
 from pathlib import Path
 
@@ -37,7 +36,6 @@ sys.path.insert(0, str(Path(__file__).parent))
 import state_space_sim as S  # noqa: E402
 
 from wfield_local import analysis_kit as kit  # noqa: E402
-from wfield_local import epochs  # noqa: E402
 from wfield_local.figure_layout import save_png_svg  # noqa: E402  (PNG + svg/ twin, Priya 11-06)
 
 OUT = Path(f"M:/MICROSCOPE/Priya/Widefield/state_space_recovery/trials{S.tag()}")   # WF_SS_ALIGN suffix
@@ -109,6 +107,37 @@ def fixed_space(T):
     P = S.topk(T)
     mu = S.flat(T[np.isfinite(T).all(axis=(1, 2))]).mean(0)
     return P, mu
+
+
+def frames(sess):
+    """THE pre -> chronic frame of one animal (the 2-D maps, per-trial positions, contact split): the fixed pre space
+    (P, mu) and per spout the pre template point zp, the unit x direction u (pre -> chronic), the unit acute-departure
+    direction v (acute - pre with its x part removed), the pre -> chronic length L, the spout's pre template (bins x
+    areas) and the share of acute - pre orthogonal to x ("orth"). Spouts missing any of the three epoch templates are
+    left out. Returns (P, mu, {spout: dict})."""
+    pre = [s for s in sess if s[1] == "pre"]
+    T = template(pre)
+    P, mu = fixed_space(T)
+    z = {ep: (template([s for s in sess if s[1] == ep]) - mu) @ P for ep in ("pre", "acute", "chronic")}
+    fr = {}
+    for si, p in enumerate(S.POS):
+        zp, zc, za = (z[e][si].ravel() for e in ("pre", "chronic", "acute"))
+        if not (np.isfinite(zp).all() and np.isfinite(zc).all() and np.isfinite(za).all()):
+            continue
+        d = zc - zp
+        L = np.linalg.norm(d)
+        u = d / L
+        a = za - zp
+        ap = a - (a @ u) * u
+        fr[p] = {"zp": zp, "u": u, "v": ap / np.linalg.norm(ap), "L": L, "Tpre": T[si],
+                 "orth": float(np.linalg.norm(ap) / np.linalg.norm(a))}
+    return P, mu, fr
+
+
+def xy(q, f):
+    """Position of rows q (n, bins * k; already minus f["zp"]) in frame f: x along pre (0) -> chronic (1), y along the
+    acute departure, both in units of the pre -> chronic length."""
+    return q @ f["u"] / f["L"], q @ f["v"] / f["L"]
 
 
 def cloud(Y, pos, Tpre, Tchr, P, mu):
@@ -191,22 +220,15 @@ def relabel(lab, Y, pos, mode, L):
 
 def run(seed=0, mode="target"):
     rng = np.random.default_rng(seed)
-    data = {}
-    cols = None
     L = {}
     if mode != "target":
         D = pd.read_csv(LANDING)
         D = D[D.contact.notna()] if mode in ("contact", "incomplete") else D[D.land.notna()]
         L = {lab: g for lab, g in D.groupby("label")}
-    for f in sorted(glob.glob(S.ITI + "/PS9*.npz")):
-        Y, pos, cols, ep, an = S.load(f)
-        lab = Path(f).stem
-        Y, pos = relabel(lab, Y, pos, mode, L)
-        data.setdefault(an, []).append((lab, ep, epochs.days_since_stroke(lab), Y, pos))
+    data, cols = S.load_sessions(lambda lab, Y, pos: relabel(lab, Y, pos, mode, L))
     left = np.array([c.endswith("_left") for c in cols])
     rows, pairs = [], []
     for an, sess in sorted(data.items()):
-        sess = sorted(sess, key=lambda s: s[2])
         pre = [s for s in sess if s[1] == "pre"]
         chr_ = [s for s in sess if s[1] == "chronic"]
         P_all, mu_all = fixed_space(template(pre))
