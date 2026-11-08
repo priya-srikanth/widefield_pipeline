@@ -8,17 +8,20 @@ recall there is low from the trial MIX alone -- post-stroke that reads as "posit
 against it with a share floor (grant_confusion.MIN_REFIT_SHARE); Priya: every floor is arbitrary. This control measures
 the mix effect instead of hiding it.
 
-THE CONTROL, per post-stroke session S and position q:
-  * for EVERY August pre-stroke session P of the SAME animal: subsample P to S's trial count at EACH position (size and
-    mix matched together), drawing whole blocks (the ~6-trial runs at one position) and trimming the last block to the
-    exact count; refit WITHIN P with the same estimator and block CV as the 5r refit (`grant_confusion._refit_pred`);
-    `--draws` random draws per (S, P), averaged. Never pooled across sessions (cross-day drift would lower the control).
-  * a (S, P) pair where P holds fewer trials at some position than S needs is SKIPPED and counted, never resampled with
-    replacement.
-  * control(S, q) = mean over the animal's usable pre sessions; excess(S, q) = refit(S, q) - control(S, q).
+THE CONTROL, per post-stroke session S and position q (SYMMETRIC since 11-08 02:15; the first version subsampled only P
+to S's full counts and skipped any P short of them -- 453 of ~800 pairs, because post sessions often hold more trials per
+position than any August pre session -- and its pre null check came out biased, up to +0.23):
+  * for EVERY August pre-stroke session P of the SAME animal: the common counts c_q = floor(f * S_q), f = min(1,
+    min_q P_q / S_q) -- S's position MIX at the largest size both sessions can supply. BOTH S and P are subsampled to c
+    (whole blocks, the last one trimmed to the exact count) and refit WITHIN themselves with the same estimator and block
+    CV as the 5r refit (`grant_confusion._refit_pred`); `--draws` draws per (S, P). Never pooled across sessions.
+  * excess(S, q) = mean over P and draws of [refit(S_sub, q) - refit(P_sub, q)]: same size, same mix, same procedure;
+    only the session differs. No pair is skipped. refit_full = S's own refit on all its trials, for reference.
   * NO FLOOR (Priya 11-08: 1/18, 1/20 and 10 trials are all arbitrary): every position with >= 1 trial is scored, in S and
     in its controls alike (`mark_thin=False`); the trial count of every cell is written so small cells are visible.
-NULL CHECK: each PRE session is run as if it were S, against the animal's OTHER pre sessions; its excess should be ~0.
+NULL: each PRE session is run as if it were S, against the animal's OTHER pre sessions. Symmetric by construction (a pair
+appears both ways with the same c), so its MEAN is ~0 by design; its SPREAD is the noise floor post excess must beat.
+CACHE: `--inputs` saves / reuses the captured arrays (the capture is ~35-40 min; scoring ~1-2 min).
 
 INPUTS: exactly the arrays the 5r figure refits (`grant_confusion.REFIT_CAPTURE` during `_collect_5c(align, variant,
 "frozen")` -- the frozen mode loads the stored decoders and refits nothing).
@@ -86,46 +89,59 @@ def _seed(*parts) -> int:
     return zlib.crc32("|".join(map(str, parts)).encode())
 
 
+def common_counts(S_counts: dict, P_counts: dict) -> dict:
+    """S's position mix at the largest size P can also supply: c_q = floor(f * S_q), f = min(1, min_q P_q / S_q)."""
+    f = min([1.0] + [P_counts.get(q, 0) / n for q, n in S_counts.items() if n > 0])
+    return {q: int(np.floor(f * n)) for q, n in S_counts.items()}
+
+
+def _counts(sess: dict) -> dict:
+    q, n = np.unique(sess["y"], return_counts=True)
+    return {int(a): int(b) for a, b in zip(q, n)}
+
+
+def _mean(v) -> float:
+    return float(np.mean(v)) if v else np.nan
+
+
 def unit_job(unit) -> list[dict]:
-    """One scored session S against its animal's pre sessions -> one row per position."""
+    """One scored session S against its animal's pre sessions, both subsampled to common counts -> rows per position."""
     S, pres, draws = unit
-    own = refit_recall(S["X"], S["y"], S["blk"])
-    if own is None:
+    full = refit_recall(S["X"], S["y"], S["blk"])
+    if full is None:
         return []
-    counts = {q: n for q, (n, _r) in own.items()}
-    ctrl = {q: [] for q in counts}
-    used, skipped, failed = 0, 0, 0
+    sc = _counts(S)
+    diff, s_acc, p_acc, n_used = ({q: [] for q in sc} for _ in range(4))
+    pairs, failed = 0, 0
     for P in pres:
         if P["label"] == S["label"]:
             continue
-        per_draw = {q: [] for q in counts}
-        for d in range(draws):
-            rows = matched_rows(P, counts, np.random.default_rng(_seed(S["label"], P["label"], d)))
-            if rows is None:
-                break
-            r = refit_recall(P["X"][rows], P["y"][rows], P["blk"][rows])
-            if r is None:
-                continue
-            for q in counts:
-                if q in r:
-                    per_draw[q].append(r[q][1])
-        if rows is None:
-            skipped += 1
-            continue
-        if not any(per_draw.values()):
+        c = {q: n for q, n in common_counts(sc, _counts(P)).items() if n > 0}
+        if len(c) < 2:
             failed += 1
             continue
-        used += 1
-        for q in counts:
-            if per_draw[q]:
-                ctrl[q].append(float(np.mean(per_draw[q])))
-    out = []
-    for q, (n, r) in own.items():
-        c = float(np.mean(ctrl[q])) if ctrl[q] else np.nan
-        out.append(dict(animal=S["animal"], label=S["label"], position=q, n=n, share=n / sum(counts.values()),
-                        refit=r, control=c, excess=r - c if ctrl[q] else np.nan, pre_used=used, pre_skipped=skipped,
-                        pre_failed=failed))
-    return out
+        got = False
+        for d in range(draws):
+            rs = matched_rows(S, c, np.random.default_rng(_seed(S["label"], P["label"], d, "S")))
+            rp = matched_rows(P, c, np.random.default_rng(_seed(S["label"], P["label"], d, "P")))
+            a = refit_recall(S["X"][rs], S["y"][rs], S["blk"][rs])
+            b = refit_recall(P["X"][rp], P["y"][rp], P["blk"][rp])
+            if a is None or b is None:
+                continue
+            got = True
+            for q in c:
+                if q in a and q in b:
+                    diff[q].append(a[q][1] - b[q][1])
+                    s_acc[q].append(a[q][1])
+                    p_acc[q].append(b[q][1])
+                    n_used[q].append(c[q])
+        pairs += got
+        failed += not got
+    tot = sum(sc.values())
+    return [dict(animal=S["animal"], label=S["label"], position=q, n=n, share=n / tot, refit_full=r,
+                 refit_sub=_mean(s_acc[q]), control=_mean(p_acc[q]), excess=_mean(diff[q]),
+                 n_matched=_mean(n_used[q]), pairs=pairs, pairs_failed=failed)
+            for q, (n, r) in full.items()]
 
 
 def main(argv=None) -> int:
@@ -137,6 +153,7 @@ def main(argv=None) -> int:
     ap.add_argument("--jobs", type=int, default=6)
     ap.add_argument("--animals", nargs="*", default=None)
     ap.add_argument("--limit", type=int, default=None, help="score only the first N sessions per animal (timing)")
+    ap.add_argument("--inputs", type=Path, default=None, help="pickle of the captured arrays: reused if present, else written")
     a = ap.parse_args(argv)
     import time
 
@@ -146,7 +163,19 @@ def main(argv=None) -> int:
 
     writeguard.assert_writable(a.out)
     t0 = time.time()
-    cap = [c for c in capture(a.align, a.variant) if a.animals is None or c["animal"] in a.animals]
+    import pickle
+    if a.inputs is not None and a.inputs.exists():
+        with open(a.inputs, "rb") as fh:
+            cap = pickle.load(fh)
+        print(f"inputs reused: {a.inputs}", flush=True)
+    else:
+        cap = capture(a.align, a.variant)
+        if a.inputs is not None:
+            writeguard.assert_writable(a.inputs.parent)
+            a.inputs.parent.mkdir(parents=True, exist_ok=True)
+            with open(a.inputs, "wb") as fh:
+                pickle.dump(cap, fh, protocol=pickle.HIGHEST_PROTOCOL)
+    cap = [c for c in cap if a.animals is None or c["animal"] in a.animals]
     print(f"captured {len(cap)} sessions in {time.time() - t0:.0f} s", flush=True)
     units = []
     for an in sorted({c["animal"] for c in cap}):
@@ -169,15 +198,18 @@ def main(argv=None) -> int:
     f = a.out / f"refit_mixmatch_{a.align}_{a.variant}_sessions.csv"
     D.to_csv(f, index=False, float_format="%.4g")
     pd.set_option("display.width", 240)
-    for col in ("refit", "control", "excess"):
+    for col in ("refit_full", "refit_sub", "control", "excess"):
         t = D.groupby(["animal", "position", "epoch"])[col].mean().unstack("epoch").reindex(columns=list(EPOCHS))
         print(f"\n== {col} (session means) by animal x position x epoch; {a.align} / {a.variant}; pre = null check")
         print(t.round(3).to_string())
     n = D.groupby(["animal", "position", "epoch"]).n.agg(["sum", "min"]).unstack("epoch")
     print("\n== trials (sum / min over sessions)")
     print(n.to_string())
-    print(f"\npairs skipped (pre session short of a position count): {int(D.drop_duplicates('label').pre_skipped.sum())}; "
-          f"refit failed: {int(D.drop_duplicates('label').pre_failed.sum())}")
+    u = D.drop_duplicates("label")
+    print(f"\npairs scored: {int(u.pairs.sum())}; pairs that could not be refit: {int(u.pairs_failed.sum())}")
+    m = D.groupby(["animal", "position", "epoch"]).n_matched.mean().unstack("epoch").reindex(columns=list(EPOCHS))
+    print("\n== matched trials per position (mean)")
+    print(m.round(1).to_string())
     print("->", f)
     return 0
 

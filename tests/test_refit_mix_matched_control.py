@@ -41,3 +41,24 @@ def test_short_pre_session_is_skipped():
 def test_recall_per_position():
     r = M.recall([0, 0, 1, 1, 1], [0, 1, 1, 1, 0])
     assert r == {0: (2, 0.5), 1: (3, 2 / 3)}
+
+
+def test_common_counts_keep_the_mix_at_the_size_both_can_supply():
+    assert M.common_counts({0: 100, 1: 20}, {0: 50, 1: 60}) == {0: 50, 1: 10}     # f = 0.5: P's 50 at position 0 binds
+    assert M.common_counts({0: 30, 1: 6}, {0: 90, 1: 90}) == {0: 30, 1: 6}        # never above S's own counts
+
+
+def test_unit_job_symmetric_pair_counts():
+    rng = np.random.default_rng(1)
+
+    def sess(label, per_pos):
+        s = _session(per_pos)
+        s["X"] = rng.normal(size=(len(s["y"]), 4)) + s["y"][:, None]
+        s.update(label=label, animal="PSx")
+        return s
+    S = sess("S", (60, 60, 60, 60, 60, 12))
+    P = [sess("P1", (30, 30, 30, 30, 30, 30)), sess("P2", (60, 60, 60, 60, 60, 60))]
+    rows = M.unit_job((S, P, 2))
+    assert len(rows) == 6 and all(r["pairs"] == 2 for r in rows)
+    r5 = [r for r in rows if r["position"] == 5][0]
+    assert r5["n_matched"] == (6 + 12) / 2        # P1 halves S's mix (12 -> 6), P2 keeps it
