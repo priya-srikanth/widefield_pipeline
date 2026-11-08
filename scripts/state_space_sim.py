@@ -115,6 +115,15 @@ if BASIS not in ("allen", "lnmf", "svd"):
 SRC = {"lnmf": str(LNMF), "svd": str(SVD)}.get(BASIS, ITI)               # the per-trial files the loaders read
 if BASIS != "allen":
     CACHE = ROOT / f"cache_{BASIS}"
+# LocaNMF on the BRAIN MASK (Priya 11-08 "we should be looking only at the brain mask (without glue areas)" / "do we need
+# to redo the locanmf as well with mask"): the joint-LocaNMF bases were fitted on the raw Allen mask (glue + bulbs in), so
+# by default the components > 50 % of their mass in that animal's painted glue or an olfactory bulb are DROPPED
+# (`component_exclusion.occluded`, the repo's route: no refit; ~1/4 of each basis). Outputs then carry _lnmfbm.
+# WF_SS_LNMF_MASK=none keeps every component (the 11-08 morning runs, tagged _lnmf). The Allen extract (`area_basis`) and
+# the cohort SVD (ss_svdbm) are on `beta_maps.brain_mask()` already.
+LNMF_MASK = os.environ.get("WF_SS_LNMF_MASK", "brain")
+if LNMF_MASK not in ("brain", "none"):
+    raise ValueError(f"WF_SS_LNMF_MASK={LNMF_MASK!r}")
 ALIGN_LABEL = {"cue": "cue-aligned -0.5..2.0 s", "cue25": "cue-aligned -0.5..2.5 s",
                "lick": "first-lick-aligned -1.0..0.7 s", "splice": "cue -0.5..0.5 s + first lick -0.5..0.7 s"}
 
@@ -181,7 +190,7 @@ def allen_only(what, shared_ok=False):
 def tag():
     """Output-folder suffix: '' for the original cue alignment, else '_<align>'."""
     return (("" if ALIGN == "cue" else f"_{ALIGN}") + ("" if K == 8 else f"_k{K}") + (f"_x{XFORM}" if XFORM else "")
-            + ("" if BASIS == "allen" else f"_{BASIS}"))
+            + ("" if BASIS == "allen" else f"_{BASIS}") + ("bm" if BASIS == "lnmf" and LNMF_MASK == "brain" else ""))
 
 
 def _epoch(lab, ep):
@@ -311,6 +320,27 @@ def _xform(xb, pos, an):
     raise ValueError(f"WF_SS_XFORM={XFORM!r}")
 
 
+def _lnmf_keep(animal):
+    """bool (ncomp,): the pinned joint-LocaNMF components of ``animal`` NOT occluded by glue / bulb (cached in CACHE)."""
+    from wfield_local import joint_locanmf as jl
+    bid = jl.pinned(animal)["id"]
+    f = CACHE / f"lnmf_keep_{animal}_{bid}.npy"
+    if not f.exists():
+        from wfield_local import component_exclusion as cx
+        np.save(f, ~cx.occluded(jl.load(animal, bid=bid, warn_stale=False), animal))
+    return np.load(f)
+
+
+def _mask_cols(xb, cols, animal):
+    """Drop the occluded LocaNMF components (`LNMF_MASK`); identity in every other basis."""
+    if BASIS != "lnmf" or LNMF_MASK != "brain":
+        return xb, cols
+    keep = _lnmf_keep(animal)
+    if len(keep) != len(cols):
+        raise ValueError(f"{animal}: {len(cols)} columns vs {len(keep)} basis components")
+    return xb[..., keep], [c for c, k in zip(cols, keep) if k]
+
+
 def load(path):
     c = CACHE / ALIGN / f"{Path(path).stem}.npz"
     if BASIS != "allen" and not c.exists():
@@ -318,8 +348,8 @@ def load(path):
     if c.exists():
         z = np.load(c)
         pos = z["pos"].astype(str)
-        return (_xform(z["xb"], pos, str(z["animal"])), pos, [str(x) for x in z["cols"]], str(z["epoch"]),
-                str(z["animal"]))
+        xb, cols = _mask_cols(z["xb"], [str(x) for x in z["cols"]], str(z["animal"]))
+        return _xform(xb, pos, str(z["animal"])), pos, cols, str(z["epoch"]), str(z["animal"])
     if XFORM:
         raise FileNotFoundError(f"WF_SS_XFORM needs the binned cache: {c}")
     z = np.load(path, allow_pickle=True)
@@ -327,7 +357,8 @@ def load(path):
     keep = [i for i, c in enumerate(cols) if c != "cortex"]
     xb = _bin(z, keep, ALIGN)                                          # trials x bins x areas
     pos = np.array([str(p) for p in z["first_pos"]])
-    return xb, pos, [cols[i] for i in keep], _epoch(Path(path).stem, str(z["epoch"])), str(z["animal"])
+    xb, cols = _mask_cols(xb, [cols[i] for i in keep], str(z["animal"]))
+    return xb, pos, cols, _epoch(Path(path).stem, str(z["epoch"])), str(z["animal"])
 
 
 def load_sessions(hook=None, june=False):

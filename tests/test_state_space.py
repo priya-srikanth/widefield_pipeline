@@ -143,6 +143,7 @@ def test_lnmf_basis(mods, monkeypatch, tmp_path):
     """WF_SS_BASIS=lnmf: component names from the basis regions, June kept apart, per-animal cols, _lnmf tag."""
     S, _ = mods
     monkeypatch.setattr(S, "BASIS", "lnmf")
+    monkeypatch.setattr(S, "LNMF_MASK", "none")                        # the loader itself; the mask: its own test
     monkeypatch.setattr(S, "SRC", str(tmp_path / "sessions"))
     monkeypatch.setattr(S, "CACHE", tmp_path / "cache")
     monkeypatch.setattr(S, "_NAMES", {3: "MOp_left", -3: "MOp_right", 17: "SSp-m_left", -17: "SSp-m_right"})
@@ -220,3 +221,18 @@ def test_svd_basis_switches(mods, monkeypatch):
     monkeypatch.setattr(S, "BASIS", "lnmf")
     with pytest.raises(SystemExit):
         S.allen_only("x", shared_ok=True)
+
+
+def test_lnmf_brain_mask_drops_occluded(mods, monkeypatch):
+    """LocaNMF on the brain mask: occluded components (glue / bulb) dropped at load, tag _lnmfbm; WF_SS_LNMF_MASK=none
+    keeps them (tag _lnmf)."""
+    S, _ = mods
+    monkeypatch.setattr(S, "BASIS", "lnmf")
+    monkeypatch.setattr(S, "_lnmf_keep", lambda an: np.array([True, False, True]))
+    xb, cols = S._mask_cols(np.arange(12.0).reshape(2, 2, 3), ["a#1_left", "b#1_left", "c#1_right"], "PS92")
+    assert cols == ["a#1_left", "c#1_right"] and xb.shape == (2, 2, 2) and xb[0, 0, 1] == 2.0
+    assert S.tag().endswith("_lnmfbm")
+    with pytest.raises(ValueError):
+        S._mask_cols(np.zeros((1, 1, 2)), ["a", "b"], "PS92")
+    monkeypatch.setattr(S, "LNMF_MASK", "none")
+    assert S.tag().endswith("_lnmf") and S._mask_cols(xb, cols, "PS92")[1] == cols
