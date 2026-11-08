@@ -124,7 +124,7 @@ def figure(s):
     fig.tight_layout()
     F.flush_marks(fig)
     F.sig_marks.reserve_headroom(fig)
-    save_png_svg(fig, F.ROOT / "page_figs" / f"ss_noise_{S.ALIGN}.png", dpi=140, bbox_inches="tight")
+    save_png_svg(fig, F.ROOT / "page_figs" / f"ss_noise_{S.ALIGN}{S.btag()}.png", dpi=140, bbox_inches="tight")
     plt.close(fig)
 
 

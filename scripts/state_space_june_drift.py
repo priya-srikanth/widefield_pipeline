@@ -69,8 +69,8 @@ def animal_row(an, sess):
 
 
 def main():
-    if S.BASIS != "lnmf":
-        sys.exit("state_space_june_drift: June exists only in the LocaNMF basis -- run with WF_SS_BASIS=lnmf")
+    if S.BASIS == "allen":
+        sys.exit("state_space_june_drift: June exists only in the O2 bases -- run with WF_SS_BASIS=lnmf or svd")
     D = pd.read_csv(R.LANDING)
     L = {lab: g for lab, g in D[D.contact.notna()].groupby("label")}
     hook = lambda lab, Y, pos: (Y, pos) if S._epoch(lab, "") == "june" else R.relabel(lab, Y, pos, "contact", L)  # noqa: E731
