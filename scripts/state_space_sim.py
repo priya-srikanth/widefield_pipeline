@@ -298,7 +298,8 @@ def _pre_stats(an):
         for f in sorted((CACHE / ALIGN).glob(f"{an}_*.npz")):
             z = np.load(f)
             if str(z["epoch"]) == "pre":
-                rows.append(z["xb"].reshape(-1, z["xb"].shape[-1]))
+                xb = _mask_cols(z["xb"], [str(x) for x in z["cols"]], an)[0]   # the same columns `load` returns
+                rows.append(xb.reshape(-1, xb.shape[-1]))
         X = np.concatenate(rows)
         Xc = X - X.mean(0)
         w = np.linalg.svd(Xc[:: max(1, len(Xc) // 20000)], full_matrices=False)[2][0]
