@@ -165,10 +165,19 @@ LANDING = Path("M:/MICROSCOPE/Priya/Widefield/state_space_recovery/landing/first
 def relabel(lab, Y, pos, mode, L):
     """Condition labels (Priya 11-07, like-for-like executed landings; `state_space_landing.py`):
     target = the target spout (default); on_target = target spout, only trials whose 3-D first lick landed in the
-    target's own pre-stroke bin; landing = the landing bin, whatever the target (the executed movement)."""
+    target's own pre-stroke bin; landing = the landing bin, whatever the target (the executed movement).
+    contact / incomplete (Priya 11-07: contact + incomplete primary, contact-only robustness, incomplete-only
+    descriptive): target spout, only first licks whose 3-D lick touched / did not touch the spout (landing csv
+    `contact`, the 3-D first lick matched to the trial)."""
     if mode == "target":
         return Y, pos
     g = L.get(lab)
+    if mode in ("contact", "incomplete"):
+        c = np.full(len(pos), np.nan)
+        if g is not None:
+            c[g.row.to_numpy()] = g.contact.to_numpy(float)
+        keep = c == (1.0 if mode == "contact" else 0.0)
+        return Y[keep], pos[keep]
     land = np.full(len(pos), None, object)
     if g is not None:
         land[g.row.to_numpy()] = g.land.to_numpy()
@@ -186,7 +195,8 @@ def run(seed=0, mode="target"):
     L = {}
     if mode != "target":
         D = pd.read_csv(LANDING)
-        L = {lab: g for lab, g in D[D.land.notna()].groupby("label")}
+        D = D[D.contact.notna()] if mode in ("contact", "incomplete") else D[D.land.notna()]
+        L = {lab: g for lab, g in D.groupby("label")}
     for f in sorted(glob.glob(S.ITI + "/PS9*.npz")):
         Y, pos, cols, ep, an = S.load(f)
         lab = Path(f).stem
@@ -280,12 +290,13 @@ def drift(pairs):
 
 
 def summarize(df):
+    read = [m for m in READ if m in df]                                # incomplete-only: no session-pair readouts
     with pd.option_context("display.width", 250, "display.max_columns", 30, "display.precision", 3):
         print("\n=== per animal x epoch, raw (rule 8: read this before any interval) ===")
-        print(df.groupby(["animal", "epoch"])[READ].mean().reindex(EPOCHS, level="epoch"))
+        print(df.groupby(["animal", "epoch"])[read].mean().reindex(EPOCHS, level="epoch"))
     rng = np.random.default_rng(0)
     out = []
-    for m in READ:
+    for m in read:
         pre = {a: g[g.epoch == "pre"][m].dropna().tolist() for a, g in df.groupby("animal")}
         for ep in EPOCHS[1:]:
             post = {a: g[g.epoch == ep][m].dropna().tolist() for a, g in df.groupby("animal")}
@@ -315,6 +326,9 @@ def figure(df, out):
               ("z_step", "day-to-day step")]
     fig, axs = plt.subplots(3, 4, figsize=(16, 10), sharex=True)
     for ax, (col, title) in zip(axs.ravel(), panels):
+        if col not in df:
+            ax.set_visible(False)
+            continue
         if col.startswith("z_"):
             ax.axhspan(-1.96, 1.96, color="0.9", zorder=0)
         for an, g in df.groupby("animal"):
@@ -338,7 +352,7 @@ def figure(df, out):
 def main():
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--out", default=str(OUT))
-    ap.add_argument("--condition", default="target", choices=["target", "on_target", "landing"])
+    ap.add_argument("--condition", default="target", choices=["target", "on_target", "landing", "contact", "incomplete"])
     a = ap.parse_args()
     out = Path(a.out) if a.condition == "target" else Path(a.out).with_name(f"trials_{a.condition}{S.tag()}")
     out.mkdir(parents=True, exist_ok=True)

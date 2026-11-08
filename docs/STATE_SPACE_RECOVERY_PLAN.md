@@ -414,9 +414,36 @@ drift-direction cosine with chronic - pre +.41 / +.41 / +.37 / -.06 (share 14-17
   so spout-specific rotations are not visible there): post-stroke loops larger and offset before the lick, clearest at
   close spouts.
 
+## Decisions 11-07 (Priya) and the checks behind them
+
+- **Trial spread is read RAW** (noise checks, `scripts/state_space_noise.py` -> `noise{,_lick}/`). Chronic, log2 vs own
+  pre (cue / lick): response size^2 +.95 / +.84 (4/4), baseline trial noise +.25 / +.26 (4/4), response-window noise
+  +.16 / +.09 (n.s.), noise beyond the pre mean-variance relation (var = a + b mean^2 per animal x area) +.17 / +.29;
+  acute excess +.52 (4/4 cue), subacute +.40 (4/4 lick); PS92 the exception. Noise does not scale with the signal, so
+  spread_norm (/ amp^2) over-corrects; its "spread falls" is retired.
+- **Lick classes** (Priya: "contact + incomplete as primary, contact-only as robustness, incomplete-only as descriptive,
+  and direct within-session contrast"). `state_space_recovery_trials.py --condition contact | incomplete` (contact flag
+  = 3-D first lick in the landing join); contrast `scripts/state_space_contact.py` -> `contact{,_lick}/`.
+  - Contact share of first licks: far contra .80 / .05 / .44 / .71 (pre / acute / subacute / chronic); other spouts
+    .86-.95 every epoch.
+  - Contact-only reproduces the primary result; acute amplitude larger (+.31 cue / +.40 lick, 4/4); acute rot_gain n.s.
+  - Incomplete-only: no session-pair readouts (pre sessions have < 5 incomplete licks per spout in most spouts);
+    template readouts: chronic alpha .64 / .72 vs ~.95, chronic-like share +.22 vs +.40.
+  - Within session x spout (>= 5 of each; 75 pre / 28 acute / 32 subacute / 78 chronic, nearly all far spouts),
+    incomplete - contact: size (lick) pre -.31 n.s., acute -.64*, subacute -.22, chronic -.31; r with pre template
+    pre -.04*, acute -.09*; position on the pre -> chronic line chronic -.30 lick / -.51* cue. The chronic shift is
+    carried mostly by contact licks.
+- **Close vs far in the 2-D loops** (Priya: "unexpected that the change is so much more dramatic for close than far"):
+  full-space lick response size (`trajectories*/resp_size.csv`) grows at every spout chronically, log2 +.41-.56 close
+  (4/4) and +.27-.47 far (3/4; PS94 far ~no change). The close > far look is mostly the top-2 projection: at close spouts
+  post-stroke trials gain a PC2 transient 0.1-0.3 s after the lick that pre close trials lacked and far trials had.
+- **Error on the 2-D plots**: days plane = epoch means with 95 % bootstrap ellipses (animals -> sessions); loops =
+  continuous 1-SE band (bootstrap covariance at every bin, interpolated, shapely union); loops vs time with 95 % bands.
+- Cue vs lick traces by epoch already exist (goal page 14.7-14.22, FINDINGS 0b): not rebuilt here.
+
 ## Results page (draft, 11-07)
 
-https://claude.ai/artifact/9sGELLFEwADEt9k64fXTxe (v3: cue + first-lick alignments, 2-D trajectories, zoom viewer). Figures: `scripts/state_space_page_figs.py` ->
+https://claude.ai/artifact/9sGELLFEwADEt9k64fXTxe (v5: cue + first-lick alignments, 2-D trajectories with error, noise checks, contact / incomplete, zoom viewer). Figures: `scripts/state_space_page_figs.py` ->
 `Widefield/state_space_recovery/page_figs/`; page source backed up at `Widefield/state_space_recovery/page/index.html`.
 Per-trial alpha for the trial-cloud figure: `state_space_path_tests.py --trial-alpha` -> `path_tests/trial_alpha.csv`.
 

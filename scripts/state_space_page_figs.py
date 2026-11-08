@@ -168,16 +168,31 @@ def fig_change(out, rng):
     save(fig, out, "ss_change_vs_pre")
 
 
-def fig_like(out, rng):
-    cols = [("r", "pattern r with pre"), ("amp", "amplitude ratio"), ("rot_gain", "rotation beyond gain"),
-            ("out_resid_t", "outside pre space, beyond gains"), ("shift_snr", "shared shift (noise units)"),
-            ("dist_pre", "distance from pre sessions")]
-    dfs = {k: sessions(sub) for k, sub, _, _ in COND}
+COND_CONTACT = [("target", "trials", "contact + incomplete (primary)", "k"),
+                ("contact", "trials_contact", "contact only (robustness)", "#2166ac"),
+                ("incomplete", "trials_incomplete", "incomplete only (descriptive)", "#e08214")]
+COLS_CONTACT = [("r", "pattern r with pre"), ("amp", "amplitude ratio"), ("out_resid_t", "outside pre space, beyond gains"),
+                ("shift_snr", "shared shift (noise units)"), ("alpha", "position pre (0) -> chronic (1)"),
+                ("chronic_like", "share of chronic-like trials")]
+
+
+def fig_like(out, rng, cond=None, cols=None, name="ss_like_for_like",
+             title="Like for like: trials grouped by target, on-target only, or by landing"):
+    """Readouts under several trial selections (series colors); a series without a readout (incomplete-only has no
+    session-pair readouts: too few incomplete trials per spout in pre sessions) is left out of that panel."""
+    cond = cond or COND
+    cols = cols or [("r", "pattern r with pre"), ("amp", "amplitude ratio"), ("rot_gain", "rotation beyond gain"),
+                    ("out_resid_t", "outside pre space, beyond gains"), ("shift_snr", "shared shift (noise units)"),
+                    ("dist_pre", "distance from pre sessions")]
+    COND_ = cond
+    dfs = {k: sessions(sub) for k, sub, _, _ in COND_}
     fig, axs = plt.subplots(2, 3, figsize=(12, 6.8))
     for ax, (c, t) in zip(axs.ravel(), cols):
         ax.axhline(0, color="0.6", lw=0.8, zorder=0)
-        for k, (key, _, lab, colr) in enumerate(COND):
+        for k, (key, _, lab, colr) in enumerate(COND_):
             df = dfs[key]
+            if c not in df or df[c].notna().sum() == 0:
+                continue
             d = deltas(df, c).dropna(subset=["d"])
             ch = change(df, c, rng)
             for i, ep in enumerate(POST):
@@ -191,10 +206,11 @@ def fig_like(out, rng):
         ax.set_xticks(range(3), POST)
         ax.set_title(t)
         ax.set_ylabel("change vs own pre")
-    axs[0, 0].legend(frameon=False, fontsize=7.5, loc="lower left")
-    fig.suptitle(f"Like for like: trials grouped by target, on-target only, or by landing ({ALIGN_LABEL[ALIGN]})", y=1.0)
+    axs[0, 0].legend(handles=[plt.Line2D([], [], marker="o", color=colr, lw=1.8, label=lab) for _, _, lab, colr in COND_],
+                     frameon=False, fontsize=7.5, loc="lower left")
+    fig.suptitle(f"{title} ({ALIGN_LABEL[ALIGN]})", y=1.0)
     fig.tight_layout()
-    save(fig, out, "ss_like_for_like")
+    save(fig, out, name)
 
 
 def fig_balance(out, rng):
@@ -384,6 +400,8 @@ def main():
     out.mkdir(parents=True, exist_ok=True)
     rng = np.random.default_rng(0)
     figs = {"sim": lambda: fig_sim(out), "change": lambda: fig_change(out, rng), "like": lambda: fig_like(out, rng),
+            "contact": lambda: fig_like(out, rng, COND_CONTACT, COLS_CONTACT, "ss_contact_sets",
+                                       "Contact + incomplete (primary) vs contact-only vs incomplete-only first licks"),
             "balance": lambda: fig_balance(out, rng), "cross": lambda: fig_balance_cross(out, rng),
             "path": lambda: fig_path(out), "cloud": lambda: fig_cloud(out),
             "repertoire": lambda: fig_repertoire(out, rng), "drift": lambda: fig_drift(out)}
