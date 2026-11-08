@@ -83,9 +83,11 @@ merged to main (no conflicts); A5 applied to FINDINGS 0c item 4 and the page cap
    chronically (reference-sensitive, as warned); per-spout level up at close ipsi (every epoch), down at far mid
    (chronic); spout-specific rest mostly n.s. except far contra (central / posterior band chronically = Fig 9.3).
    NEXT: (i) fit the shift as the pre response shifted / compressed in time; (ii) compare with lick-bout length /
-   contact / body movement; (iii) repeat the split against RESTnl (the per-area level). Still running: SVD per-session
-   (raw, gsr), LocaNMF per-session gsr (scratchpad masked/p8_lane_{svd,lnmf}.log) -> add to Figs 10.2 / 10.4 via the
-   basis switch.
+   contact / body movement; (iii) repeat the split against RESTnl (the per-area level). All per-session runs done
+   17:47 (page v20: SVD / LocaNMF versions of Figs 10.2 / 10.4 via the basis switch). SVD minus cortex-wide, per
+   session (median energy, pre response energy = 1; pre / acute / subacute / chronic): shared shift .025 / .163 /
+   .237 / .200, per-spout offset .051 / .159 / .145 / .156, global gain ~.003 throughout -- the shift is the largest
+   part from subacute on, as at the animal level.
 
 23. **What the change is made of: an exact split into eight parts (Priya 11-08 "split into parts" -> "per area shift?"
    -> "is there a per spout shift piece"; `scripts/state_space_change_parts.py`).** Per animal and epoch, Delta = epoch
