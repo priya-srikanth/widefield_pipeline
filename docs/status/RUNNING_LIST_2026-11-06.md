@@ -227,3 +227,20 @@ the encoding handoff (STATUS_2026-10-26_ENCODING_HANDOFF.md, top blocks); the A1
   epoch incl. pre -> reads as a trial-state effect (non-working trials have high pre-cue activity), not a stroke effect.
   Files: scratchpad/a12b_classes/ (a12b_precue_by_class.png, tables.txt, trial_counts.csv, pooled.csv, null_PS*.csv, scripts).
   Proposed: supplementary panel "pre-cue by camera class" with all positions shown, pre epoch included as the control.
+- **C (11-07 18:22)** v_pix_frAsplit_new + v_pixmus_unique_noFR_cue EXIT 1: plot scripts read fit/spatial_<an>.pkl from the run's OWN
+  folder, --fit-from runs keep it in the source run. Copied (cmp-verified) into frAsplit_basis_spont, basis_pixmusall and (waiter)
+  frA_basis_pixmusall_union; retries v9ze DONE, frA cue/lick DONE. Proper fix (plot scripts read the source run) = TODO branch.
+- **C (11-07 19:34)** Section G restart #3 (Priya OK): #2 stopped at 12/88 (network-bound on M: session_cache, ~15 min/unit);
+  session_cache robocopied to C:/Users/SabatiniLab/wfield_cache/session_cache_rebuild_20261103 (7945 files 77.364 GB, verified);
+  queue v9zf, same code becc486b, env token WIDEFIELD_SESSION_CACHE=local. Phase 1 67 min (no faster); phase 2 from 20:41.
+  Local copy is derived -> delete after section G + figs (ask).
+- **C (11-07 20:01)** l_basis_frame_sd EXIT 1. Root cause: 910c408b (11-04) routed the ITI TE basis through design_tag, so
+  under FROZEN_LICKS_ALL=split iti_basis_decoder / iti_decoder_patterns read ..._spont_frA_te_basis (never written; TE runs
+  use FROZEN_LICKS_ALL=none) + l_basis_extract has an undeclared dep on t_frame_te_basis + it exited 0 with 107/107
+  svdbasis items failed. Page SVD numbers were on ..._t3d_frA_te_basis (10-26 / 11-03 path). FIX ON MAIN 2f5799a9 (Priya OK):
+  cc70519e te_basis_run() + extraction exits 1 on failures; 2f5799a9 test fixture (iti_attempt_parallel dropped matplotlib
+  submodules -> 14 order-dependent save_png_svg failures, pre-existing). Parked RESERVED_HOLD l_session_levels_z,
+  l_levels_compare. Retry queue v9zg (worktree wf_render_v9zg @ 2f5799a9) waits for t_frame_te_basis: l_basis_extract_r,
+  l_basis_frame_sd_r, e_basis_r, l_offset_where_r, l_session_levels_z_r, l_levels_compare_r, e_pat_stats_maps_r,
+  e_roi_check_r2, e_roi_foci_r2. The v9u copy of e_pat_stats_maps (old code) will fail again harmlessly.
+  Code-changed table: + | 2f5799a9 ITI TE basis | e_basis, l_offset_where, l_session_levels_z, e_pat_stats_maps, roi check/foci | v9zg |
