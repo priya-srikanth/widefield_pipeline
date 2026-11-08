@@ -74,6 +74,25 @@ merged to main (no conflicts); A5 applied to FINDINGS 0c item 4 and the page cap
    coarse Allen space; at the component level the post-stroke code is re-patterned from acute on. Proposed FINDINGS
    wording after the method check (A7).
 
+10. **Brain mask only (Priya 11-08 "we should be looking only at the brain mask (without glue areas)" / "do we need to
+   redo the locanmf as well with mask").** Audit: the Allen extract (`area_basis`) already uses `beta_maps.brain_mask()`
+   (Allen mask minus bulbs and the painted fibre glue); the joint-LocaNMF bases (raw Allen mask) and the first cohort SVD
+   (every pixel of the frame) did NOT. Fixes: (a) LocaNMF: components > 50 % of their mass in that animal's glue / a bulb
+   dropped at load (`component_exclusion.occluded`, the repo's route, no refit): PS92 95 -> 67, PS93 87 -> 65, PS94
+   90 -> 66, PS95 95 -> 67; outputs `_lnmfbm` (the unmasked `_lnmf` runs kept for comparison; B6 / B7 / B9 numbers are
+   UNMASKED and get re-measured). (b) cohort SVD rebuilt on `brain_mask()` (192,110 px), run LOCALLY (`run-local`;
+   inputs off the share), bundle `ss_svdbm_20261108`; the all-pixel `ss_svd_20261108` is superseded.
+   PS94_0917 (58 % captured by the all-pixel basis): 98.6 % of what the basis missed is OFF-brain at the frame edges, 76 %
+   of it in the first fifth of the session (bursts in the first ~20 min); inside the brain 98.9 % captured (neighbor
+   0914: 99.5 %); off-brain pixels hold 47 % of its total variance (0914: 5 %). Not a bad session for any brain-masked
+   readout; cause of the edge bursts not established.
+   SVD hemisphere / area readouts: an Allen area mean is an exact linear readout of the components (mean of U_cohort over
+   the area's pixels); vs the Allen extract on the same trials r = .999 median (58 areas, 3 sessions, min .93).
+   DELETED (own derived, superseded, Priya's rule): state_space_recovery/cache_svd, trials_lick_svd,
+   trials_contact_lick_svd, path_tests_lick_svd, trajectories_lick_svd, pertrial_lick_svd, step_vs_gradual_lick_svd,
+   june_drift_lick_svd, page_figs/ss_{resp_size,traj_days,traj_loops,traj_loops_animals,traj_loops_time}_lick_svd
+   (.png + svg/) -- the partial all-pixel SVD batch, stopped.
+
 9. **Method check in the LocaNMF basis (A7; Priya 11-08 "run the method check").** `state_space_sim.py`, lick-aligned,
    `sim_lick_lnmf/` (+ `sim_lnmf/` cue; Allen lick `sim_lick/` for the like-for-like comparison; Allen cue = `sim/`).
    `run()` fixed to pass each animal's own columns to the ipsi-gain plant. All trials, detection (share of planted
