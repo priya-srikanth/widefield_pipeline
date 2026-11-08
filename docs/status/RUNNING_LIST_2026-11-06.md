@@ -338,3 +338,13 @@ the encoding handoff (STATUS_2026-10-26_ENCODING_HANDOFF.md, top blocks); the A1
   l_area_maps_split(_cued), e_iti_hemo + e_iti_hemo_sum (re-run after their real dep) DONE.
 - 06:1x ROI-cache push ON MAIN c3e01ed8 (80090a57 + c3a8b049; 988 passed). Section G r4: 45/88 at 05:44 (~7.8 min/unit over
   phase 2) -> ~11:15-11:30 if the rate holds (extrapolated, not measured).
+- ~08:00 Priya: D6 symmetric YES, D9 fix order OK (page/deck first, one branch per family, detached-worktree retries), D8 YES.
+  D8 ON MAIN 236dae4e. D6 symmetric lane v9zo (wf_render_v9zo @ 76e7d604, --inputs cache) running cue/working then cue/lick.
+- D9 batch A (queue-only): stopped lane v9zg (exact PID 25888, mine, had run nothing) -> v9zq (same code 2f5799a9):
+  l_session_levels_r (fixed code) before l_session_levels_z_r; e_pat_stats_maps_r waits for l_basis_extract_r; old
+  l_session_levels parked. v9zr (main 236dae4e): e_checkfigs_r, b_specificity_plain (specificity_control --tag $F, the
+  missing producer) + b_residual_roi_r, e_mm_r + e_lmm_all_r + e_lmm_response_r (renamed deps), e_fpa_*_r (deps on
+  e_pat_extract / l_recov_markers / e_dock_prep_dock). Batch C (producers not yet traced): l_offset_where_r (svd / locanmf
+  contrib terms), e_roi_foci_r2 + e_roi_cand_r2 (iti_spout_pattern_stats), e_rim_overlay_r (sessions_roi2), ENLv chain.
+  Batch B (code, branch): simple_key_figures / restnl_rescue / disengagement / stopped jaw_onsets paths, section_g_figures
+  --suffix on every output, imaging_lmm / remap_lmm / remap_checks qc paths.
