@@ -426,3 +426,13 @@ v9zv-PF took over the heavy-lock ownership (no other lane could grab it in betwe
 parse; the restart resumes with 54 to go. Lane v9zv (detached wf_render_v9zv @ 5bf72011 = a76352f3 + the fix) then runs
 AB's 18 remaining reserved steps + b_residual_roi_frA (stop -> cont for 4 of them), releasing the lock after
 b_partial_frA. NB the earlier b_partial_frA.log was overwritten by the restart (its record is in CHAIN.log).
+
+**11-08 ~11:55 -- MAJOR ERROR FOUND (Priya): the rebuild's lick class / lick-aligned windows are DAQ-contact only.**
+Decided 11-03 (TRIAL_GATES handoff): "Camera lick gate = contact + incomplete. Lick-aligned windows always use the lick
+gate. DEFAULT for the cohort 1 rebuild." Not implemented: trial_classes.camera_select("lick") = DAQ-contact rows only, and
+the main epoch / grant / section G renders ran on the DAQ lick source (only d_attempt_* / LP-final steps set
+WIDEFIELD_LICK_SOURCE=lp). Example: acute far contra, PS95_0817: 40 working trials with a camera lick, 1 DAQ-contact.
+Plus a hidden per-session 5-trial floor (epoch_accuracy._accuracy_of, epoch_kit._accuracy_at, +4 more `< 5` sites) drops
+sessions from the per-session tables. ALL lick-aligned / lick-class rebuild results are INVALID until re-run on camera
+licks (nothing deleted; no page text touched). Read-only audit of every lick-touching step running (-> scratchpad
+lick_source_audit.md); fix + re-run list to Priya before running.
