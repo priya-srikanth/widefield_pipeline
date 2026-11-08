@@ -1,9 +1,9 @@
 """Refit recall vs matched pre (D6, Priya 11-08): is the post-stroke drop in WITHIN-SESSION refit recall a trial-mix effect?
 
-INPUT: `scripts/refit_mix_matched_control.py` output in the run's epoch data folder (nothing re-run here):
-  PRIMARY     refit_mixmatch_cue_working_sessions.csv   cue window, WORKING trials (contact + incomplete camera licks,
+INPUT: `scripts/refit_matched_pre.py` output in the run's epoch data folder (nothing re-run here):
+  PRIMARY     refit_matched_pre_cue_working_sessions.csv   cue window, WORKING trials (contact + incomplete camera licks,
               cut at the last camera lick), DAQ licks (daqlk run)
-  SUPPORTING  refit_mixmatch_cue_lick_sessions.csv      same, lick trials only: TABLE ONLY (Priya 11-08, option 1).
+  SUPPORTING  refit_matched_pre_cue_lick_sessions.csv      same, lick trials only: TABLE ONLY (Priya 11-08, option 1).
               Acute far contra holds 1-12 lick trials per session; there both a post refit and its matched pre control
               score ~0, so the excess is ~0 by construction there -- "can't tell", not "no loss". Not plotted.
 QUANTITY, per session x position: excess = refit recall of the session minus that of the animal's OWN pre-stroke
@@ -56,7 +56,7 @@ def lesion_key(df: pd.DataFrame) -> pd.Series:
 
 
 def load(src: Path, variant: str) -> pd.DataFrame:
-    D = pd.read_csv(src / f"refit_mixmatch_cue_{variant}_sessions.csv")
+    D = pd.read_csv(src / f"refit_matched_pre_cue_{variant}_sessions.csv")
     D["pos"] = lesion_key(D)
     D["epoch"] = pd.Categorical(D.epoch, EPOCHS, ordered=True)
     return D.dropna(subset=["excess"]).sort_values(["animal", "pos", "epoch", "label"]).reset_index(drop=True)

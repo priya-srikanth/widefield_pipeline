@@ -623,7 +623,7 @@ def _matched_frozen(pipe_of, Xp, Yp, Bp, n_target, rng):
     fitted.spout_pi_train_ = spout_scaling.class_prior(Yp[keep])
     return fitted, int(keep.sum())
 #: When a list, `_collect_5c_cached` appends every session's REFIT inputs to it (dict animal, label, pre, X, y, blk) --
-#: exactly the arrays `_refit_pred` sees for the 5r figures. Read-only hook for `scripts/refit_mix_matched_control.py`
+#: exactly the arrays `_refit_pred` sees for the 5r figures. Read-only hook for `scripts/refit_matched_pre.py`
 #: (D6, Priya 11-08); None (the default) changes nothing.
 REFIT_CAPTURE = None
 

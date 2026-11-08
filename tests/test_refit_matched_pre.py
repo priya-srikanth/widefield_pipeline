@@ -5,7 +5,7 @@ from pathlib import Path
 import numpy as np
 
 REPO = Path(__file__).resolve().parents[1]
-spec = importlib.util.spec_from_file_location("rmmc", REPO / "scripts" / "refit_mix_matched_control.py")
+spec = importlib.util.spec_from_file_location("rmmc", REPO / "scripts" / "refit_matched_pre.py")
 M = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(M)
 

@@ -1,6 +1,6 @@
-"""Mix-matched pre-stroke control for the within-session REFIT decoder (D6, Priya 11-08).
+"""Refit recall vs matched pre: mix- and size-matched pre-stroke control for the within-session REFIT decoder (D6, Priya 11-08).
 
-    python scripts/refit_mix_matched_control.py --out <epoch data dir> [--align cue] [--variant working] [--draws 5]
+    python scripts/refit_matched_pre.py --out <epoch data dir> [--align cue] [--variant working] [--draws 5]
                                                 [--jobs 6] [--animals PS94] [--limit N]
 
 THE QUESTION. A refit decoder trained on a session where a position is rare learns a prior against predicting it, so its
@@ -25,7 +25,7 @@ CACHE: `--inputs` saves / reuses the captured arrays (the capture is ~35-40 min;
 
 INPUTS: exactly the arrays the 5r figure refits (`grant_confusion.REFIT_CAPTURE` during `_collect_5c(align, variant,
 "frozen")` -- the frozen mode loads the stored decoders and refits nothing).
-OUT: <out>/refit_mixmatch_<align>_<variant>_sessions.csv (one row per session x position) and the per-animal x epoch x
+OUT: <out>/refit_matched_pre_<align>_<variant>_sessions.csv (one row per session x position) and the per-animal x epoch x
 position table printed (session means; trial counts). No bootstrap here: per-animal tables first (rule), stats after.
 """
 from __future__ import annotations
@@ -195,7 +195,7 @@ def main(argv=None) -> int:
     names = dict(enumerate(CONF_LABELS))
     D["position"] = D.position.map(lambda q: names.get(int(q), q))
     a.out.mkdir(parents=True, exist_ok=True)
-    f = a.out / f"refit_mixmatch_{a.align}_{a.variant}_sessions.csv"
+    f = a.out / f"refit_matched_pre_{a.align}_{a.variant}_sessions.csv"
     D.to_csv(f, index=False, float_format="%.4g")
     pd.set_option("display.width", 240)
     for col in ("refit_full", "refit_sub", "control", "excess"):
