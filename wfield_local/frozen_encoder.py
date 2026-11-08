@@ -209,8 +209,21 @@ def design_tag(tag: str) -> str:
     """A frame / Layer-2 / relabel tag of this design: under FROZEN_LICKS_ALL=split every ``v7g3_t3d`` not already followed
     by ``_spont`` becomes ``v7g3_t3d_spont`` (gate-attempted_v7g3_t3d_frA -> gate-attempted_v7g3_t3d_spont_frA,
     v7g3_t3d_ref -> v7g3_t3d_spont_ref); unchanged otherwise. The readers' default tags go through it."""
+    return tag_for_design(tag, SPONT)
+
+
+def tag_for_design(tag: str, spont: bool) -> str:
+    """`design_tag` under a NAMED lick design instead of this environment's FROZEN_LICKS_ALL (11-08): ``spont=True`` =
+    the FROZEN_LICKS_ALL=split folder name, ``False`` = the v7g3_t3d one. For a reader whose source run was rendered
+    under a different design than the reader itself (the FROZEN_DESIGN=te runs always use FROZEN_LICKS_ALL=none, see
+    the TE guard below, while the ITI readers run under split)."""
     import re
-    return re.sub(rf"{DESIGN_BASE}(?!_{SPONT_PART})", f"{DESIGN_BASE}_{SPONT_PART}", tag) if SPONT else tag
+    return re.sub(rf"{DESIGN_BASE}(?!_{SPONT_PART})", f"{DESIGN_BASE}_{SPONT_PART}", tag) if spont else tag
+
+
+#: the FROZEN_LICKS_ALL mode every FROZEN_DESIGN=te run is built under (the TE guard refuses split): readers of a TE run
+#: derive its folder with ``tag_for_design(tag, TE_LICKS_ALL == "split")``, never from their own environment
+TE_LICKS_ALL = "none"
 
 
 def tag_is_spont(tag: str) -> bool:
@@ -1213,8 +1226,8 @@ TE_LAND = (*LICKSPOUT_POS, "unknown")
 if TE:
     if LICKSPOUT or LICKLAND or FR_SPLIT or FR_LAGS:
         raise ValueError("FROZEN_DESIGN=te replaces FROZEN_LICKSPOUT / LICKLAND / FR_SPLIT / FR_LAGS: unset them")
-    if SPONT:                                            # te routes pre-cue / ITI licks itself (te_lick_parts)
-        raise ValueError(f"FROZEN_DESIGN=te has its own pre-cue / ITI lick families: set {LICKS_ALL_ENV}=none")
+    if LICKS_ALL != TE_LICKS_ALL:                        # te routes pre-cue / ITI licks itself (te_lick_parts)
+        raise ValueError(f"FROZEN_DESIGN=te has its own pre-cue / ITI lick families: set {LICKS_ALL_ENV}={TE_LICKS_ALL}")
     FGROUP = {"cue": "timing", "arrival": "timing", "pos_enl": "target", "pos_cue": "target",
               **{f"lick_onset@tgt:{q}": "target" for q in LICKSPOUT_POS},
               **{f"lick_onset@land:{q}": "execution" for q in TE_LAND},

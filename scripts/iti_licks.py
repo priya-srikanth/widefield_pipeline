@@ -78,11 +78,17 @@ OUT_W = run_mode.subdir(Path(os.environ["WFIELD_ITI_OUT_W"])) if os.environ.get(
 #: through `frozen_encoder.out_root()` -- the encoder run of THIS mode (imaging_encoding/<tag>/ for a tagged run),
 #: never the old variant's folder. Default run: the same path as before.
 ENCODER_TAG = _design_tag("gate-attempted_v7g3_t3d_frA")
-#: the TE (trial-event) design's tag. NOT passed through `design_tag`: the TE runs (t_frame_te / t_frame_te_basis) are
-#: always rendered with FROZEN_LICKS_ALL=none, so their folder never carries `_spont`. Routing the TE basis through
-#: ENCODER_TAG (910c408b, 11-04) pointed the svdbasis readers at `..._spont_frA_te_basis`, which no step writes
-#: (11-07: 107/107 svdbasis items failed in l_basis_extract).
-TE_ENCODER_TAG = "gate-attempted_v7g3_t3d_frA"
+#: the TE (trial-event) design's tag, derived under the TE runs' OWN lick design (frozen_encoder.TE_LICKS_ALL = none:
+#: t_frame_te / t_frame_te_basis are rendered with FROZEN_DESIGN=te FROZEN_LICKS_ALL=none), never under the reader's env.
+#: Routing it through `design_tag` (910c408b, 11-04) pointed the svdbasis readers, which run under FROZEN_LICKS_ALL=split,
+#: at `..._spont_frA_te_basis`, which no step writes (11-07: 107/107 svdbasis items failed in l_basis_extract; 11-08:
+#: e_pat_stats_maps). The spont basis is NOT a substitute (its spatial P differs).
+def _te_tag() -> str:
+    from wfield_local import frozen_encoder as fe
+    return fe.tag_for_design("gate-attempted_v7g3_t3d_frA", spont=fe.TE_LICKS_ALL == "split")
+
+
+TE_ENCODER_TAG = _te_tag()
 
 
 def encoder_run(suffix: str = "") -> Path:
@@ -94,6 +100,22 @@ def te_basis_run() -> Path:
     """The TE design's shared-basis encoder run (fit/spatial_<animal>.pkl): the svdbasis source of the ITI readers."""
     from wfield_local import frozen_encoder
     return frozen_encoder.out_root() / f"frozen_encoder_{TE_ENCODER_TAG}_te_basis"
+
+
+def te_basis_spatial(animal: str, fit: Path | None = None) -> Path:
+    """``<te_basis_run()>/fit/spatial_<animal>.pkl``, REFUSING loudly (naming the folder and the step that writes it)
+    when it is missing, instead of a bare FileNotFoundError deep in a reader. ``fit`` = a reader's SPATIAL override."""
+    fit = Path(fit) if fit is not None else te_basis_run() / "fit"
+    f = fit / f"spatial_{animal}.pkl"
+    if not f.exists():
+        raise SystemExit(f"TE basis missing: {f} not found. Expected the FROZEN_DESIGN=te FROZEN_LICKS_ALL=none run "
+                         f"`frozen_encoder --all --target basis --tag {TE_ENCODER_TAG}_te_basis` (render step "
+                         f"t_frame_te_basis) under {fit.parent.parent}"
+                         + ("" if fit.is_dir() else f" (folder {fit} does not exist)")
+                         + ". Do not substitute the _spont basis (different spatial P).")
+    return f
+
+
 # SUBSET ITI FILTERS (Priya 10-29: ITI offset results on licks made while the spout is DOCKED). Unlike gap2 / far1
 # (iti_lick_order: decoder REFIT on the filtered set, outputs tagged "_<filter>"), these keep the FROZEN all-ITI decoder
 # (rule 10: lick_order_preds cache unchanged) and only drop ITI rows downstream (`iti_subset_keep`, flags from

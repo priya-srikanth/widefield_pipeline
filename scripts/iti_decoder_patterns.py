@@ -65,7 +65,7 @@ def compute():
     D = wd.load("svdbasis")
     rows, maps = [], {}
     for a in AN:
-        sp = pickle.loads((SPATIAL / f"spatial_{a}.pkl").read_bytes())
+        sp = pickle.loads(il.te_basis_spatial(a, SPATIAL).read_bytes())
         W = np.asarray(sp["P"], np.float64)                      # (stat pixels, K)
         for st in ("iti", "trial"):
             S = {}
