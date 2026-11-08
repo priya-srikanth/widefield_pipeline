@@ -25,7 +25,9 @@ wf_statespace` (NOT pushed, NOT merged; push only if Priya asks -- it is our own
    -.11 / -.20) with 5-10x more out-of-space activity (fraction of a smaller total variance: size not comparable
    across variants). The raw "gain + shift" picture is the cortex-wide mode. k = 8 checked (k = 4 / 12 match).
 5. Path: acute = a sideways detour (80-95 % of acute - pre orthogonal to pre -> chronic, every variant); subacute
-   slides back toward and along the line; trial clouds move as a whole (no search-then-select).
+   slides back toward and along the line. Slide vs search-then-select at the TRIAL level: NOT TESTABLE (11-08 power
+   check, running list B3: single-trial scatter along the line ~1.4x the whole pre -> chronic distance; planted
+   two-state sessions score like the data). The earlier "trial clouds move as a whole" is withdrawn.
 6. Gradual, not a step: readouts and the behavioral far-contra aim are ~linear in log days; the acute-departure axis
    tracks far-contra aim within animal (r -.78 to -.93), also within epochs. All six spouts track it; beyond log(day),
    position on the line still tracks aim at every spout.

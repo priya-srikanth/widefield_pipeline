@@ -7,12 +7,40 @@ Branch `analysis/state-space-recovery-20261107` (worktree wf_statespace); nothin
 
 ## A. Decisions / questions for Priya (newest first)
 
+5. FINDINGS 0c item 4 ("Trial clouds move as a whole ... Power check pending. DESCRIPTIVE") -> rewrite as "Whether trials
+   slide or switch between pre-like and chronic-like states cannot be tested here: single-trial scatter along the
+   pre -> chronic line is ~1.4x the whole pre -> chronic distance, and planted two-state sessions score the same as the
+   data (power check B3)." Same rewrite for the page's slide-vs-search figure caption (Fig ss_repertoire / trial clouds)
+   and the handoff "where things stand" item 5. OK to apply? (I have NOT changed FINDINGS / the page yet.)
+
+4. Housekeeping (item 6), all waiting on you:
+   a. PUSH main? It holds FINDINGS 0c (4598ec00 + merge 0f4b5879) behind another window's unpushed 4e6630be
+      ("Handoff: kinematics v29 / behavior v3"). Per the shared-checkout rule I only push when every listed commit is
+      mine -- either that window pushes first, or you OK pushing theirs with mine.
+   b. MERGE the within-session-decline branch (`analysis/within-session-decline-quitting-20261107`, 4 commits incl. a
+      FINDINGS line) into main? Its FINDINGS line and 0c item 6 overlap -- I would shorten 0c item 6 to a pointer.
+   c. The S28 behavior-page subsection (`docs/results_pages/within_session_decline/section.html` on that branch):
+      hand to the behavior-page window, or should I publish it into that page myself?
+   d. The state-space branch itself (this one): merge to main now (exploratory, tests pass, outputs unchanged by the
+      cleanup), or keep it separate until the LocaNMF results are in?
+
 1. FINDINGS 0c item 3 -- replace "OPEN: whether this axis is more than the 0b balance marker" with: "The axis shares ~70 %
    of its within-animal variance with the 0b balance marker but tracks aim beyond it in 4/4 animals (partial r -.35 to
    -.88, first-lick aligned); the balance beyond the axis is weaker (3/4)." OK? (Balance from the pre-rebuild run; a
    rebuild re-render of `lick_recovery_primary` would remove that caveat -- worth queuing?)
 
 ## B. Findings (newest first; exploratory)
+
+3. **RETRACT "trials move as a whole (no search-then-select)": the repertoire test has no power** (handoff item 4;
+   `scripts/state_space_repertoire_power.py`, `path_tests_lick/repertoire_power.csv`; first-lick aligned, 33 acute /
+   subacute sessions, 20 draws each). Planted two-state sessions (each trial at the pre OR the chronic template, P(chronic)
+   = the session's own position on the line, plus the trial's real deviation) give the SAME statistic as the data:
+   excess +.003 (planted mean) vs +.001 (observed); planted > observed in >= 95 % of draws in only 8 / 33 sessions, and
+   per animal x epoch the planted fraction above observed is .15-1.0 (mostly ~.5-.6). Why: single-trial scatter along
+   the pre -> chronic line is ~1.4 x the WHOLE pre -> chronic distance (median within-spout SD of the per-trial position,
+   acute / subacute), while a two-state mixture adds at most SD .5 (variance alpha(1 - alpha) <= .25 against ~2). Trial
+   states cannot be resolved at this noise level in the Allen-area space; the slide-vs-search question is OPEN (maybe the
+   LocaNMF basis is less noisy -- to check when the O2 output lands).
 
 2. **Within a session, the neural drift goes with the landing drift -- after the stroke only** (session-by-session join of
    the state-space within-session slopes with the decline arm's behavior slopes; `state_space_within_session_behavior.py`
