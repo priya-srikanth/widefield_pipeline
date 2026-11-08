@@ -85,6 +85,16 @@ Branch `analysis/state-space-recovery-20261107` (worktree wf_statespace); nothin
 
 ## D. Done / status log
 
+- 11-08: June drift script written (`scripts/state_space_june_drift.py`; the plan in C exactly; contact first licks
+  for every session; per-animal table only). Smoke-tested on a synthetic animal (June offset orthogonal to the chronic
+  change -> cos at the chance scale, distance ratio follows the planted sizes). Waits for the O2 outputs.
+- 11-08: cleanup item 4 verified + committed WITH the LocaNMF switch (326d1930): `WF_SS_BASIS=lnmf` -> loaders read
+  `ss_lnmf_20261108/out/sessions`, cache `state_space_recovery/cache_lnmf`, outputs tagged `_lnmf`; components named
+  `<Allen area>#<k>_<side>` from each basis's `regions.npy` (orofacial balance = SSp-m / SSp-n / SSs components; the
+  LocaNMF atlas has no ALM / tjM1 -- they sit inside MOs / MOp there); cols per animal; June sessions get epoch 'june'
+  and load only with `load_sessions(june=True)` (many scripts read "not pre" as post-stroke); balance_cells and pc2
+  (areas pooled across animals) refuse. Allen path unchanged (the last four verification scripts ran on the new code:
+  identical). O2 outputs: still none on the share at ~01:30.
 - 11-08 night: O2 bundle `rebuild_20261103/o2/ss_lnmf_20261108` staged on scratch by Priya (U_atlas 119/119; bases need
   the mkdir -p rerun -- see COMMANDS.md); jobs not yet confirmed submitted.
 - 11-08: cleanup items 2, 3, 6, 8 committed (3fdd7838), outputs verified identical (44 CSVs, cue + lick).

@@ -103,8 +103,10 @@ LMM results for every run: `state_space_recovery/lmm_change_vs_pre.csv`.
    `cued_first_lick_times.csv`; projection = `joint_locanmf.Basis.project_uv` (new; `project` calls it); U_atlas + pinned
    bases staged share -> scratch on the transfer node. PLUS June 6/6-6/8 (Priya 11-08 "add june where possible ...
    contact-only"): rows = first DAQ contact in cue .. stop of engaged trials, V / ft shipped in the bundle. Output
-   `<bundle>/out/sessions/<label>.npz`; next: point state_space_sim at it (an extract-source switch) and re-run the
-   variants; June = the no-stroke drift reference (upper bound: includes learning). (The local input cache does NOT hit
+   `<bundle>/out/sessions/<label>.npz`. 11-08: LOADER SWITCH DONE (326d1930): `WF_SS_BASIS=lnmf` (own cache
+   `cache_lnmf`, outputs `*_lnmf`, components `<area>#<k>_<side>`, cols per animal, June = epoch 'june' loaded only by
+   `load_sessions(june=True)`; balance_cells / pc2 refuse). June script `scripts/state_space_june_drift.py` written
+   (plan = running list C). Next, once the outputs land: re-run the variants; June = the no-stroke drift reference (upper bound: includes learning). (The local input cache does NOT hit
    from this worktree -- its keys include module source -- so desktop behaviour loads read the share, ~2.5 min each.)
 2. Close-spout PC2 transient: still unexplained.
 3. Matched-landing balance in FINDINGS 0b's first-lick window (0.1-0.5 s, with ALM / tjM1).
@@ -132,11 +134,11 @@ against the pre-refactor snapshot -- identical; tests `tests/test_state_space.py
 - DONE 2 (partly) One frame: `state_space_recovery_trials.frames` / `xy` used by trajectories, contact, pertrial.
   `path_tests.trial_alpha` (leave-self-out chronic template) and `R.cloud` / `repertoire` still project on their own.
 - DONE 3 One loader: `state_space_sim.load_sessions(hook)` in all ten scripts.
-- DONE (verification running at 11-08 ~01:00) 4 One response measure: `state_space_sim.evoked` + `hemi`; definitions
+- DONE (verified 11-08: 43 CSVs identical, only the known new s_y column differs; 326d1930) 4 One response measure: `state_space_sim.evoked` + `hemi`; definitions
   unchanged (it is NOT 0b's primary marker -- that is the angle-matched gain ratio of `lick_recovery_primary`; the
   angle-matched version here is `state_space_balance_angle`).
 - DONE 6 Lag grids + spout order imported (`iti_licks.LAGS_C / LAGS_P`, `orofacial_cohort.POS_ORDER`).
-- DONE 8 Tests (binning, transforms, frame axes, loader order, path tags, evoked / hemi).
+- DONE 8 Tests (binning, transforms, frame axes, loader order, path tags, evoked / hemi, LocaNMF basis switch: 7).
 - OPEN 5 (landing join at extraction), 7 (fan_sessions for share reads), 9 (throwaway diagnostics: Priya to decide),
   10 (page builder).
 
