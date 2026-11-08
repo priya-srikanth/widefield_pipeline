@@ -39,6 +39,32 @@ for anything that loads imaging. E = `M:/MICROSCOPE/Priya/Widefield/LP_analysis/
 3. Then tell **sabatinilab-e3** (PI deck) the decoder figures are final: per figure the share PNG path, page Fig N.k,
    script + args, headline numbers, methods text (they asked 10-26 ~22:30; reply sent: not final yet).
 
+### 00-COMPACT-36 (11-08 ~00:05, Priya asleep) -- READ FIRST; supersedes 35 for state
+Running list = `docs/status/RUNNING_LIST_2026-11-06.md`, section **OVERNIGHT 11-07 -> 11-08** (decisions first). Render dir
+`S2/render_daqlk`, event log `logs/CHAIN.log`.
+- **Section G = restart #4**, queue `v9zh`, worktree `wf_render_v9zh` @ **c3a8b049** (perf/roi-feature-cache), env token
+  `WIDEFIELD_SESSION_CACHE=C:/Users/SabatiniLab/wfield_cache/session_cache_rebuild_20261103` (local robocopy of M: session_cache,
+  7945 files 77.4 GB). Phase 1 done 23:52; phase 2 (88 units) from 23:52. Then g7_section_g_figs_r4, g6_grant_r4. NO further
+  restarts (Priya). Restarts #2 (12/88) and #3 (4/88) were stopped: #3's local-cache premise was wrong -- the real cost was
+  **Allen-ROI features never cached** (`trial_features_cached` refused non-LocaNMF sources). Fixed 80090a57: ROI kind keyed on
+  (path, mtime, size) of U_atlas / atlas / mask / SVTcorr (`roi_signal_key`); measured PS92_0812 read 0.26-0.91 s vs 6-14 s,
+  byte-identical. Old tests that asserted "roi uncached" now pin `svt` (c3a8b049). **Push pending**: waiter re-pushes
+  `wf_roicache` after a_partial_ls ends (first try stopped by me for LOW RAM 4 GB, second failed on those two tests).
+- **D2 (Priya: option b)**: after section G r4 + figs + grant finish -> robocopy new local entries back to M: session_cache
+  (no overwrite), verify one ROI read from M: hits, THEN delete the local copy (guarded rm, keep list).
+- **ON MAIN tonight**: 2f5799a9 (ITI TE-basis path never _spont + extraction exits 1 on failed items + iti_attempt_parallel
+  fixture fix), fa0e4d87 (D1: June ref epoch None -> '' ; loader tolerates it), cc6d11df (D3: --fit-from copies spatial_*.pkl).
+- **Retry lanes waiting**: `v9zg` (wf_render_v9zg @ 2f5799a9) waits for **t_frame_te_basis** (heavy slot) -> l_basis_extract_r
+  (svdbasis half only), l_basis_frame_sd_r, e_basis_r, l_offset_where_r, l_session_levels_z_r, l_levels_compare_r,
+  e_pat_stats_maps_r, e_roi_check_r2, e_roi_foci_r2 (parked RESERVED_HOLD: l_session_levels_z, l_levels_compare; the v9u copy
+  of e_pat_stats_maps will fail harmlessly). `v9zi` (wf_render_v9zi @ 64d54bc3 = D1 commit) -> l_reembed_r, m_reembed_plot_r
+  behind the heavy lock.
+- Pixel-map fixes 11-07: spatial basis hand-copied (cmp) into frAsplit_basis_spont, basis_pixmusall, frA_basis_pixmusall_union;
+  all V/PX steps done.
+- A12b (pre-cue by camera class) reported: jaw-only above own-pre working at far contra acutely 4/4 (pooled 3.30), but also far
+  ipsi and pre-stroke (PS95) -> trial-state effect; supplementary panel proposed, awaiting Priya. Files `S2/a12b_classes/`.
+- Lesson recorded in memory (`measure-before-restart`): profile + time a fix before proposing to stop a long step.
+
 ### 00-COMPACT-35 (11-07 ~15:15) -- READ FIRST; supersedes 34 for state (34 / 33 hold the A7 machinery + remaining-work list)
 
 **Live lists:** docs/status/RUNNING_LIST_2026-11-06.md (A9-A13 = today's decisions; C = progress + "code changed after run" table).
