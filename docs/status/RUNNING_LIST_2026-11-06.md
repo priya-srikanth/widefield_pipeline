@@ -348,3 +348,11 @@ the encoding handoff (STATUS_2026-10-26_ENCODING_HANDOFF.md, top blocks); the A1
   contrib terms), e_roi_foci_r2 + e_roi_cand_r2 (iti_spout_pattern_stats), e_rim_overlay_r (sessions_roi2), ENLv chain.
   Batch B (code, branch): simple_key_figures / restnl_rescue / disengagement / stopped jaw_onsets paths, section_g_figures
   --suffix on every output, imaging_lmm / remap_lmm / remap_checks qc paths.
+
+**D6 result, cue / working (08:24, lane v9zo, m_mixsym_cue_w; 799 pairs, 0 failed; no floor; no bootstrap yet).**
+Excess = refit recall of a post session minus that of the animal's own pre sessions, both subsampled to the SAME
+position mix and size. Mean excess by animal, far / close:
+acute far -0.175 / -0.199 / -0.240 / -0.207 (PS92 / 93 / 94 / 95); acute close -0.121 / -0.120 / -0.097 / +0.039;
+subacute -0.06..+0.05; chronic -0.02..+0.16. Pre null (per-session SD over positions): 0.140 / 0.104 / 0.074 / 0.068.
+Reading: the acute far-position refit drop survives mix and size matching in 4/4 animals, so it is not a trial-mix
+artifact; close is lower acutely in 3/4. CSV: epoch/data/refit_mixmatch_cue_working_sessions.csv. cue / lick arm next.
