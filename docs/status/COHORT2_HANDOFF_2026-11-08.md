@@ -12,15 +12,25 @@ are already durable live in `docs/NEW_COHORT_2026-10-29.md`, `docs/490_VS_470_EX
 - Archive/clean flow: `python -m wfield_local.archive_day archive --date <d> --hash` then
   `clean --date <d> --hash --execute`. **Rule (Priya 11-06): git fetch→merge→push, NEVER rebase.**
 
-## Decks (moved 2026-11-06)
-- New location: **`N:/MICROSCOPE/Priya/Widefield/presentations/pipeline/cohort2/preprocessing/`**
-  (root `decks_out`; was `labcams/cohort2/`). Split by indicator: `_PS118-PS120` (Thy1, 10 sessions),
-  `_PS121-PS122` (RiboL1, 9 sessions, 40 slides, 4 embedded cam4/slow-mo videos).
-- Rebuild wrapper: `scripts/cohort2_qc/build_cohort2_deck.sh` (desktop-enhanced). On the imaging box the
-  cam4/`seizure_events_video`/`spout_maps` steps need data not here; the cheap path is: regenerate
-  `discharge_screen.py` + `led_490_vs_470.py` + `led_490_vs_470_dprime.py`, run `preprocess_deck`
-  (default → new decks_out), then `append_qc_slides.py` with the seizure-folder clips
-  (`labcams/cohort2/_tmp_qc_figures_20261031/seizure/`).
+## Decks — PER-ANIMAL now (Priya 2026-11-08, was indicator-split)
+- Location: **`N:/MICROSCOPE/Priya/Widefield/presentations/pipeline/cohort2/preprocessing/`**
+  (root `decks_out`). **Four per-animal decks** `cross-session_preprocessing_PS{118,120,122,121}.pptx`
+  (cohort1 style), built with `WIDEFIELD_COHORT=cohort2 python -m wfield_local.preprocess_deck
+  --max-sessions 1` (forces one bucket per animal; old `_PS118-PS120`/`_PS121-PS122` auto-pruned).
+- Deck changes committed 2026-11-08 (`preprocess_deck.py`): (1) `spout_native` (CCF-free native-pixel
+  maps) REMOVED — superseded by the Allen-overlay cue/lick maps now that every session is warped;
+  (2) `photobleach` is now ONE trailing "Photobleaching" block at the END (all animals), via
+  `TRAILING_TYPES`, matching cohort1 (was per-animal-interleaved on multi-animal decks).
+- **quiet-vs-running maps now on all 19 sessions**: the figure needs the `behavior_events` npz, which
+  only existed for 10-29. Generated for every cohort2 date (`behavior_events <date>` → cohort2-scoped
+  `behavior_summary/cohort2/events/<animal>/<date>.npz`). NB ad-hoc map scripts must set
+  `WIDEFIELD_COHORT=cohort2` or the resolver returns the UN-scoped `behavior_out` and the lookup misses.
+- **490 labeling** works off the folder tag `PS<n>_490_<date>` (`led_nm`): PS118 11-05, PS121/PS122 11-04
+  show "(490 nm)" on every slide (photobleach title reads "415/490").
+- QC appends (`append_qc_slides.py`, MANUAL post-build — a `preprocess_deck` rebuild DROPS them):
+  490 comparison (`E:/labcams_data/cohort2_490_vs_470{,_dprime}.png`) → PS118/PS121/PS122 decks;
+  discharge screen (`cohort2_discharge_screen.png`) → PS121/PS122 decks. cam4/slow-mo seizure videos
+  are analysis-box assets, not on the imaging box.
 
 ## Key findings (so a reader has them)
 - **PS122 epileptiform:** frank calcium discharges 10-29 and 11-04 (recurrent, intermittent; 470-only,
