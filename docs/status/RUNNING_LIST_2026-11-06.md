@@ -411,3 +411,11 @@ branch + an exact-equality check against finished session jsons before any resta
 **Lane [T] stopped (PID 34776)** and re-queued as v9zu: t_frame_te_basis outside the heavy lock (gate >= 20 GB free,
 Priya OK); the 11-05 run had failed on exec_bins_calib_20261023.csv, which exists since 11-05 20:22.
 Rim-overlay fix push: denied by the tool permission check; branch fix/rim-overlay-roi-dir 65cf7ead waits.
+
+**11-08 ~10:40 -- partial-refit speed-up (Priya: "can we fix this").** Branch perf/partial-refit-reuse-inputs 8669dd1b
+(on main's base); the same commit cherry-picked onto the production code a76352f3 = 5bf72011 (detached wf_prfast_a76).
+`_reuse_inputs`: load_imaging / load_behaviour / _fr_columns / load_sessions once per job; the null patches
+(raw_blocks / spout_split / te_lick_parts) stay live. EXACT check vs the production jsons: PS92_0812 and PS93_0818
+whole json identical (max diff 0). Wall (no profiler, box under load): 662 s / 815 s. Fair baseline (original code, no
+profiler, PS92_0812) running before any restart decision.
+Rim-overlay fix ON MAIN 65cf7ead (Priya allowed the push).
