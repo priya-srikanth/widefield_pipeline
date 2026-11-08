@@ -884,7 +884,8 @@ def movement_precue(labels: list) -> pd.DataFrame:
     blank at close/far center). Per animal x epoch x class: median over trials (restw_ok sessions)."""
     D = pd.read_csv(OUTD / _o("trial_classes.csv.gz"), low_memory=False)
     D = D[D.restw_ok.astype(str).str.lower().eq("true") & D.label.isin(labels)]
-    J = pd.read_csv(il.OUT.parent / "qc" / "jaw_onsets.csv", low_memory=False,
+    from wfield_local import orofacial_outputs as oo   # <encoding root>/qc (D9 11-08: il.OUT.parent/qc never existed)
+    J = pd.read_csv(oo.encoding_root() / "qc" / "jaw_onsets.csv", low_memory=False,
                     usecols=["session", "trial_id", "tread_pre_mm_s", "jaw3d_rest_mm", "nose3d_rest_mm"])
     J["label"] = J.session.str[:5] + J.session.str[-4:]
     D = D.merge(J.drop(columns="session"), on=["label", "trial_id"], how="left")
