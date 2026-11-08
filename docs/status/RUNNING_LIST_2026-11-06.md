@@ -256,17 +256,29 @@ the encoding handoff (STATUS_2026-10-26_ENCODING_HANDOFF.md, top blocks); the A1
 - **D3 push fix/fit-from-copies-spatial (648eafe0)? -- Priya OK 11-07 ~23:50, pushes after D1 lands.** frozen_encoder copies spatial_<animal>.pkl into a --fit-from run's
   own fit/ (the proper fix for the 11-07 pixel-map failures I fixed by hand-copying). Tests added; affects only future
   --fit-from runs; no result changes. Not needed tonight (all affected runs already have their copies).
-- **D4 push fix/lpfinal-store-rebuild-root (cd6da055)?** g5_lpfinal_dec (LP-trained frozen decoders, the LP final arm) failed
-  23:56: the write guard refused `~/cue_lick/frozen_models_lpfinal`, because lp_final_render built its store from this box's
-  default figures_working and ignored the rebuild root. Nothing was written outside. The fix puts the store at
-  `<rebuild root>/frozen_models_lpfinal` when a rebuild root is active (unchanged otherwise); 2 tests added, 27 related tests
-  pass. Nothing downstream depends on the step. With your OK: push, then a one-step retry lane re-runs g5_lpfinal_dec.
-- **D5 g7_fig_state_position: how to pair positions per session?** It failed 23:59 because one PS94 ACUTE session has no
-  far-contra (fC) value in epoch_5r_refit_by_position_cue_working_sessions.csv (5 fC rows vs 6 for the other positions;
-  presumably no fC working trials after the camera gate). The sidecar has no session column, so the figure pairs positions
-  by row order and cannot tell which session lacks fC. Proposed fix (branch, needs a g5_epoch re-run of that family): write a
-  session column into every `_sessions.csv` sidecar (epoch_figures._write_sessions_csv) and pair on it; the session without fC
-  then shows 5 of 6 positions. Alternative without a re-run: drop that PS94 acute session from this one figure, saying so in the caption.
+- **D4 push fix/lpfinal-store-rebuild-root (cd6da055)? -- Priya YES 11-08 ~00:10; ON MAIN cd6da055.** g5_lpfinal_dec failed
+  23:56 (write guard refused ~/cue_lick/frozen_models_lpfinal); store now <rebuild root>/frozen_models_lpfinal. Retry lane
+  v9zl (wf_render_v9zl @ cd6da055) runs g5_lpfinal_dec_r.
+- **D5 g7_fig_state_position -- Priya 11-08 ~00:30: OK to push 480accea (fix/sessions-csv-session-key).** Cause: PS94_0817
+  far contra has 21 gated working trials (5.3 % of 394) -- trials exist (all 6 PS94 acute sessions have 21-68 far-contra
+  working trials) -- but the REFIT arm marks a class below 10 trials OR below 1/18 of the session as untrainable
+  (grant_confusion.MIN_REFIT_SHARE, added 09-09 a986819b by an earlier window; never discussed with Priya, though stated
+  in imaging page Fig 1.1/1.2 captions). Fig 3.4 has no refit arm (refit - gap only recovered frozen recall), so post-stroke
+  frozen recall now comes from epoch_acc_by_position (every working trial); pre stays refit - gap. Complete cells agree
+  exactly (3.3e-16). Rendered to scratch: position retained 0.840 / 0.465 / 0.727 / 0.758; delta acute -0.347, subacute
+  -0.139 (Holm .0015), chronic -0.077 (Holm .057). Plus an optional 'session' column in _position_bars sidecars (not
+  re-run; for the trial-mix control).
+  **Decisions (Priya 11-08):** keep the 1/18 rule for this render (pre-set, not tuned); refit-arm captions name PS94_0817 fC
+  and report its value at 1/20 as a sensitivity line. NO class-balanced refit training (it moves every position's
+  operating point; ~17 fC training trials per fold). 5rm (training-set-size matched) is the right refit-vs-frozen
+  comparison. bal_em does NOT correct the refit arm (it re-centres the frozen decoder's features; refit uses X_refit).
+  Bias direction of the residual skew: post far-contra refit (and gap) slightly LOW -> leans "lost"; near positions and
+  overall (5ro) slightly HIGH; the floor removes the worst cells (selection of the most impaired days).
+- **D6 trial-mix control -- Priya YES, tonight.** Per post session: every August pre session of the SAME animal,
+  subsampled (whole blocks) to that post session's per-position trial counts (size + mix), refit WITHIN that pre session
+  (same 5-fold block CV, estimator, floor), several draws; control = mean over the animal's pre sessions; excess refit cost
+  = post refit recall - control, per position; pairs where a pre session lacks enough trials at a position are skipped and
+  counted. Per-animal table first, then boot_delta (animals -> sessions, pre resampled). New script, own branch.
 ### Findings
 - Section G cost = Allen-ROI features were never cached (trial_features_cached refused non-LocaNMF sources); fixed 80090a57,
   measured on PS92_0812: cache read 0.26-0.91 s vs 6-14 s uncached, features byte-identical.
@@ -285,3 +297,4 @@ the encoding handoff (STATUS_2026-10-26_ENCODING_HANDOFF.md, top blocks); the A1
 - 00:05 resumed from 00-COMPACT-36. Section G r4 phase 2 started 23:52, 0/88 units by 00:05; phase-1 missing-file warnings
   are the same 15 sessions as r2/r3 (nothing new). g5_lpfinal_dec failed (D4, fix on a branch), g7_cd_geometry failed (lane
   v9zj), g7_fig_state_position failed (D5), g7_fig_s_per_animal failed (lane v9zk). g7_fig_frozen_refit_pooled done.
+- 00:15-00:35 D4 on main (cd6da055), lane v9zl. D5 diagnosed + fixed (480accea), push waits on tests. Section G r4 3/88 at 00:15.
