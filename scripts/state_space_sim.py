@@ -102,14 +102,28 @@ CACHE = ROOT / "cache"
 # sessions (epoch "june", never "pre"), its own binned cache, outputs tagged _lnmf. Columns are components named
 # <Allen area>#<k>_<side> from the basis's region per component; the component set differs per animal, so
 # `load_sessions` then returns {animal: cols} (`cols_of`) and scripts that stack areas across animals refuse
-# (`allen_only`).
+# (`allen_only`). WF_SS_BASIS=svd (Priya 11-08 "could we use one svd basis"): ONE cohort SVD basis (top 100 of the
+# August pre sessions of all four animals on the shared Allen pixel grid, `o2_state_space_svd.py`), same rows; columns
+# svd#<k>_<side> SHARED by all animals, so cross-animal stacking works. 97 / 100 components are bilateral, so `hemi`
+# reads hemispheres / areas through the basis instead: an Allen area's mean is an exact linear readout of the
+# components (the mean of U_cohort over the area's pixels, `_svd_area_weights`; Priya 11-08 "we can split right?").
 BASIS = os.environ.get("WF_SS_BASIS", "allen")
 LNMF = REBUILD / "o2" / "ss_lnmf_20261108" / "out" / "sessions"
-if BASIS not in ("allen", "lnmf"):
+SVD = REBUILD / "o2" / "ss_svdbm_20261108" / "out" / "sessions"     # brain mask, no glue / bulbs (ss_svd_: superseded)
+if BASIS not in ("allen", "lnmf", "svd"):
     raise ValueError(f"WF_SS_BASIS={BASIS!r}")
-SRC = str(LNMF) if BASIS == "lnmf" else ITI                              # the per-trial files the loaders read
-if BASIS == "lnmf":
-    CACHE = ROOT / "cache_lnmf"
+SRC = {"lnmf": str(LNMF), "svd": str(SVD)}.get(BASIS, ITI)               # the per-trial files the loaders read
+if BASIS != "allen":
+    CACHE = ROOT / f"cache_{BASIS}"
+# LocaNMF on the BRAIN MASK (Priya 11-08 "we should be looking only at the brain mask (without glue areas)" / "do we need
+# to redo the locanmf as well with mask"): the joint-LocaNMF bases were fitted on the raw Allen mask (glue + bulbs in), so
+# by default the components > 50 % of their mass in that animal's painted glue or an olfactory bulb are DROPPED
+# (`component_exclusion.occluded`, the repo's route: no refit; ~1/4 of each basis). Outputs then carry _lnmfbm.
+# WF_SS_LNMF_MASK=none keeps every component (the 11-08 morning runs, tagged _lnmf). The Allen extract (`area_basis`) and
+# the cohort SVD (ss_svdbm) are on `beta_maps.brain_mask()` already.
+LNMF_MASK = os.environ.get("WF_SS_LNMF_MASK", "brain")
+if LNMF_MASK not in ("brain", "none"):
+    raise ValueError(f"WF_SS_LNMF_MASK={LNMF_MASK!r}")
 ALIGN_LABEL = {"cue": "cue-aligned -0.5..2.0 s", "cue25": "cue-aligned -0.5..2.5 s",
                "lick": "first-lick-aligned -1.0..0.7 s", "splice": "cue -0.5..0.5 s + first lick -0.5..0.7 s"}
 
@@ -128,10 +142,37 @@ def hemi(v, cols, sel=None):
     """{"contra", "ipsi"}: mean of v (..., areas) over the contralesional (_right) / ipsilesional (_left) areas, restricted
     to the parent areas in ``sel`` if given (all four lesions are left: right = contralesional). NaN if none."""
     out = {}
+    if BASIS == "svd":                                                  # components -> Allen area means -> sides
+        W, names = _svd_area_weights()
+        for h, suf in (("contra", "_right"), ("ipsi", "_left")):
+            idx = [i for i, n in enumerate(names) if n.endswith(suf) and (sel is None or n[: -len(suf)] in sel)]
+            out[h] = v @ W[:, idx].mean(-1) if idx else np.nan
+        return out
     for h, suf in (("contra", "_right"), ("ipsi", "_left")):
         idx = [i for i, c in enumerate(cols) if c.endswith(suf) and (sel is None or c[: -len(suf)].split("#")[0] in sel)]
         out[h] = v[..., idx].mean(-1) if idx else np.nan
     return out
+
+
+_SVDW: dict = {}
+
+
+def _svd_area_weights():
+    """(W (n_components, n_areas), area names '<area>_<side>') for the cohort SVD basis: W[:, a] = mean of U_cohort over
+    the pixels of Allen area a (bundle atlas, same grid), so component scores @ W = the area means of the session's
+    signal within the basis. Cached in CACHE."""
+    if not _SVDW:
+        f = CACHE / "svd_area_weights.npz"
+        if not f.exists():
+            Uc = np.load(SVD.parent / "basis" / "U_cohort.npy", mmap_mode="r")     # rows = brain-mask pixels
+            at = np.load(SVD.parents[1] / "atlas.npy").ravel()[np.load(SVD.parent / "basis" / "mask.npy")]
+            vals = sorted(int(x) for x in np.unique(at) if x != 0)
+            W = np.stack([np.asarray(Uc[at == x], np.float64).mean(0) for x in vals], axis=1)
+            f.parent.mkdir(parents=True, exist_ok=True)
+            np.savez(f, W=W, names=np.array([_atlas_names()[x] for x in vals]))
+        z = np.load(f)
+        _SVDW.update(W=z["W"], names=[str(n) for n in z["names"]])
+    return _SVDW["W"], _SVDW["names"]
 
 
 def cols_of(cols, an):
@@ -139,16 +180,17 @@ def cols_of(cols, an):
     return cols[an] if isinstance(cols, dict) else cols
 
 
-def allen_only(what):
-    """Refuse in the LocaNMF basis: ``what`` stacks or compares areas ACROSS animals (components differ per animal)."""
-    if BASIS != "allen":
+def allen_only(what, shared_ok=False):
+    """Refuse in the LocaNMF basis: ``what`` stacks or compares areas ACROSS animals (components differ per animal).
+    ``shared_ok``: also fine in the cohort SVD basis (shared components; not for readouts that need named areas)."""
+    if BASIS == "lnmf" or (BASIS == "svd" and not shared_ok):
         sys.exit(f"{what}: pools areas across animals -- Allen basis only (WF_SS_BASIS={BASIS})")
 
 
 def tag():
     """Output-folder suffix: '' for the original cue alignment, else '_<align>'."""
     return (("" if ALIGN == "cue" else f"_{ALIGN}") + ("" if K == 8 else f"_k{K}") + (f"_x{XFORM}" if XFORM else "")
-            + ("" if BASIS == "allen" else f"_{BASIS}"))
+            + ("" if BASIS == "allen" else f"_{BASIS}") + ("bm" if BASIS == "lnmf" and LNMF_MASK == "brain" else ""))
 
 
 def _epoch(lab, ep):
@@ -256,7 +298,8 @@ def _pre_stats(an):
         for f in sorted((CACHE / ALIGN).glob(f"{an}_*.npz")):
             z = np.load(f)
             if str(z["epoch"]) == "pre":
-                rows.append(z["xb"].reshape(-1, z["xb"].shape[-1]))
+                xb = _mask_cols(z["xb"], [str(x) for x in z["cols"]], an)[0]   # the same columns `load` returns
+                rows.append(xb.reshape(-1, xb.shape[-1]))
         X = np.concatenate(rows)
         Xc = X - X.mean(0)
         w = np.linalg.svd(Xc[:: max(1, len(Xc) // 20000)], full_matrices=False)[2][0]
@@ -278,15 +321,36 @@ def _xform(xb, pos, an):
     raise ValueError(f"WF_SS_XFORM={XFORM!r}")
 
 
+def _lnmf_keep(animal):
+    """bool (ncomp,): the pinned joint-LocaNMF components of ``animal`` NOT occluded by glue / bulb (cached in CACHE)."""
+    from wfield_local import joint_locanmf as jl
+    bid = jl.pinned(animal)["id"]
+    f = CACHE / f"lnmf_keep_{animal}_{bid}.npy"
+    if not f.exists():
+        from wfield_local import component_exclusion as cx
+        np.save(f, ~cx.occluded(jl.load(animal, bid=bid, warn_stale=False), animal))
+    return np.load(f)
+
+
+def _mask_cols(xb, cols, animal):
+    """Drop the occluded LocaNMF components (`LNMF_MASK`); identity in every other basis."""
+    if BASIS != "lnmf" or LNMF_MASK != "brain":
+        return xb, cols
+    keep = _lnmf_keep(animal)
+    if len(keep) != len(cols):
+        raise ValueError(f"{animal}: {len(cols)} columns vs {len(keep)} basis components")
+    return xb[..., keep], [c for c, k in zip(cols, keep) if k]
+
+
 def load(path):
     c = CACHE / ALIGN / f"{Path(path).stem}.npz"
-    if BASIS == "lnmf" and not c.exists():
-        fill_cache([path])                                             # compressed ~90-component files: bin once
+    if BASIS != "allen" and not c.exists():
+        fill_cache([path])                                             # compressed component files: bin once
     if c.exists():
         z = np.load(c)
         pos = z["pos"].astype(str)
-        return (_xform(z["xb"], pos, str(z["animal"])), pos, [str(x) for x in z["cols"]], str(z["epoch"]),
-                str(z["animal"]))
+        xb, cols = _mask_cols(z["xb"], [str(x) for x in z["cols"]], str(z["animal"]))
+        return _xform(xb, pos, str(z["animal"])), pos, cols, str(z["epoch"]), str(z["animal"])
     if XFORM:
         raise FileNotFoundError(f"WF_SS_XFORM needs the binned cache: {c}")
     z = np.load(path, allow_pickle=True)
@@ -294,7 +358,8 @@ def load(path):
     keep = [i for i, c in enumerate(cols) if c != "cortex"]
     xb = _bin(z, keep, ALIGN)                                          # trials x bins x areas
     pos = np.array([str(p) for p in z["first_pos"]])
-    return xb, pos, [cols[i] for i in keep], _epoch(Path(path).stem, str(z["epoch"])), str(z["animal"])
+    xb, cols = _mask_cols(xb, [cols[i] for i in keep], str(z["animal"]))
+    return xb, pos, cols, _epoch(Path(path).stem, str(z["epoch"])), str(z["animal"])
 
 
 def load_sessions(hook=None, june=False):
@@ -308,7 +373,7 @@ def load_sessions(hook=None, june=False):
     data, cols = {}, {}
     last = None
     files = [f for f in sorted(glob.glob(SRC + "/PS9*.npz")) if june or _epoch(Path(f).stem, "") != "june"]
-    if BASIS == "lnmf":
+    if BASIS != "allen":
         prefill(files)
     for f in files:
         Y, pos, last, ep, an = load(f)

@@ -28,7 +28,7 @@ def one(item):
     from wfield_local import combined_encoding as ce
     label = item[0]
     V, ft, Ub, flat, parea, names, shape, pstat = ce.load_imaging(label)
-    z = il._load(label, il.XOUT / "sessions_roi2")            # lick times only (identical in every ROI version)
+    z = il._load(label, il.XOUT / il.SESS_NAME)            # lick times only (identical in every ROI version)
     t = z["bout_t"][z["bout_gap"] >= 2.0]
     Q = np.linalg.qr(ce._slow_basis(ft, ce.DRIFT_MIN_PERIOD_S))[0]
     Vd = V.astype(np.float64) - Q @ (Q.T @ V.astype(np.float64))
@@ -45,8 +45,8 @@ def one(item):
 def compute(jobs: int) -> dict:
     from wfield_local import analysis_kit as ak
     from wfield_local import combined_encoding as ce
-    labels = sorted(p.stem for p in (il.XOUT / "sessions_roi2").glob("*.npz"))
-    pre = [x for x in labels if str(il._load(x, il.XOUT / "sessions_roi2")["epoch"]) == "pre"]
+    labels = sorted(p.stem for p in (il.XOUT / il.SESS_NAME).glob("*.npz"))
+    pre = [x for x in labels if str(il._load(x, il.XOUT / il.SESS_NAME)["epoch"]) == "pre"]
     got, fail = ak.fan_sessions([(x,) for x in pre], one, jobs=jobs, label="rim overlay", log=lambda m: None)
     for it, err in fail:
         print("  !!", it[0], err, flush=True)

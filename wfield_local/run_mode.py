@@ -451,10 +451,15 @@ def attempts_dir() -> Path:
 ATTEMPTS_FILES = ("trial_attempts.csv", "trial_attempts_sessions.csv", "trial_attempts_gate.csv")
 
 
-def deficit_qc_dir() -> Path:
-    """Where the mixed models' behavioral DEFICIT tables live (`mixed_models.DEFICITS`: trial_attempts_sessions.csv
-    ...): `attempts_dir` (routed trial_attempts; in a camera-gated run built on the run's camera classes)."""
-    return attempts_dir()
+def deficit_qc_dir(name: str | None = None) -> Path:
+    """Where the mixed models' behavioral DEFICIT table ``name`` (`mixed_models.DEFICITS`, default `DEFICIT`) lives:
+    the trial-attempts deficits (ttc / ttc_log / attempt / completion / latency) in `attempts_dir` (routed trial_attempts;
+    in a camera-gated run built on the run's camera classes); `contact` (position_coding_trend_recovery_sessions.csv) in
+    the run's tagged encoding qc, where scripts/position_coding_trend_recovery.py writes it (D9 queue audit 11-08:
+    routing every deficit to attempts_dir broke `contact`)."""
+    from wfield_local import mixed_models as mm
+    csv = mm.DEFICITS[name or mm.DEFICIT][0]
+    return attempts_dir() if csv == "trial_attempts_sessions.csv" else encoding_out_root() / "qc"
 
 
 def session_poses_out(script: str, default) -> Path:

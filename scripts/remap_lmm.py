@@ -74,7 +74,7 @@ def main(argv=None) -> int:
     pd.set_option("display.width", 230)
     for dname in a.deficits:
         from wfield_local import run_mode as _rm
-        Ld = mm.add_deficit(L, mm.deficit(_rm.deficit_qc_dir(), dname))   # THIS run's trial_attempts table
+        Ld = mm.add_deficit(L, mm.deficit(_rm.deficit_qc_dir(dname), dname))   # THIS run's trial_attempts table
         T = mm.lmm_table(Ld, ["source", "measure"], ("time", "behaviour", "epoch"), fdr_by=("source",),
                          print_animals=(dname == a.deficits[0]))
         T.to_csv(out / f"remap_lmm_{dname}.csv", index=False, float_format="%.5g")

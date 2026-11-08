@@ -181,10 +181,11 @@ def main(argv=None) -> int:
     if set(a.sources.split(",")) != {"trend", "decoder", "behaviour", "epoch"}:   # a subset never overwrites the full set
         sfx += "_" + "-".join(a.sources.split(","))
     from wfield_local import run_mode as _rm
-    deficit = mm.deficit(_rm.deficit_qc_dir(), dname)   # THIS run's trial_attempts table (was <E>/qc: missing in a tagged run)
+    deficit = mm.deficit(_rm.deficit_qc_dir(dname), dname)   # THIS run's trial_attempts table (was <E>/qc: missing in a tagged run)
     src = a.sources.split(",")
     tabs, L, D, C = [], None, None, None
-    prepost = [f(E if f in (trend_table, push_table) else run_root)
+    # trend: the run's tagged encoding qc, where position_coding_trend_recovery.py writes it (D9 11-08); push: <E>/qc
+    prepost = [f(_rm.encoding_out_root() if f is trend_table else E if f is push_table else run_root)
                for name, f in (("trend", trend_table), ("behaviour", behaviour_table), ("push", push_table)) if name in src]
     if prepost:
         L = mm.add_time_covariates(pd.concat(prepost, ignore_index=True))
