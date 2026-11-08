@@ -290,6 +290,14 @@ the encoding handoff (STATUS_2026-10-26_ENCODING_HANDOFF.md, top blocks); the A1
 - **D8 push fix/lpfinal-pre-session-count (3002728d)? (no rush, display only)** lp_final_render's trial table counted
   pre sessions as unique(block // 1e6); no-lick rows carry NEGATIVE run ids -> all -1 -> one phantom session (table
   8/8/9/9 vs trained 8/7/8/8). Decoders / trials / accuracies unaffected. Test added.
+- **D9 queue audit (02:45, docs/status/QUEUE_AUDIT_2026-11-08.md): ~40 of 191 pending steps would fail or misbehave as
+  queued** (19 no producer / wrong path, 8 arg mismatch, 14 harmful undeclared deps, 2 doomed skips; 0 box-default paths;
+  ~106 OK; 21 superseded). 03:02 PARKED (RESERVED_HOLD, reversible): e_fpa_extract/_fit/_summarise/_offset,
+  b_residual_roi, b_encoding_key_figures, g7_section_g_figs_contact (would OVERWRITE the r4 section G figures),
+  l_restnl_rescue, l_arrival_restnl, l_disengage, l_disengage_daq, l_simple_key_figures. NOT parkable (already claimed,
+  waiting on the heavy lock): l_stopped_restw / l_stopped_restnl (wrong jaw_onsets path -> will fail; cheap).
+  g6_grant_r4 runs 4 workers WITHOUT the heavy lock after r4 -- RAM watch. **Decision for Priya: fix order** (proposal:
+  page / deck inputs first; one branch per family; retry lanes from detached worktrees).
 ### Findings
 - Section G cost = Allen-ROI features were never cached (trial_features_cached refused non-LocaNMF sources); fixed 80090a57,
   measured on PS92_0812: cache read 0.26-0.91 s vs 6-14 s uncached, features byte-identical.
