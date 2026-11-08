@@ -48,6 +48,14 @@ running list `docs/status/RUNNING_LIST_2026-11-08_STATE_SPACE.md` sections A (de
   after the sweep.
 - **11-08 ~11:45:** page v15 has section 9 (maps, all baselines, why-cleaner). "Why cleaner" answered for the 15r
   activity maps (B19: window, not denoising); the residual-map half not done.
+- **11-08 ~12:45 (in flight; running list B20-B23):** page v16 has the basis comparison (Figs 3.10 / 3.11) and the
+  method check per basis (2.2 / 2.3). Sections 3-7 rendered in SVD + LocaNMF (basis switch built, not yet published).
+  `scripts/state_space_change_parts.py` = exact 8-part split of the change (Allen raw done: on manifold; largest
+  chronic part a static per-area level, largest acute part the time-varying shared shift; rotation small, above
+  floor). Running: SVD / LocaNMF, raw + minus cortex-wide, animal + per session (scratchpad masked/p8_lane_*.log),
+  then `scripts/state_space_part_maps.py` (what the parts look like on cortex; masked/partmaps_lane.log). When done:
+  publish the page (basis switch + a "what the change is made of" section with per-session figures + part maps),
+  update "Where things stand", commit.
 - **Open next:** FINDINGS once A8 is decided (wording must cover B15); residual-map comparison; two-part maps
   (behavior-predicted vs residual, plan B14, inputs `frozen_encoder_gate-attempted_v7g3_t3d_spont_frA_basis`); A8
   (0c item 1 wording), A9 (mask bug).

@@ -63,6 +63,58 @@ merged to main (no conflicts); A5 applied to FINDINGS 0c item 4 and the page cap
 
 ## B. Findings (newest first; exploratory)
 
+23. **What the change is made of: an exact split into eight parts (Priya 11-08 "split into parts" -> "per area shift?"
+   -> "is there a per spout shift piece"; `scripts/state_space_change_parts.py`).** Per animal and epoch, Delta = epoch
+   template - pre template (spouts x bins x features, first-lick-aligned), projected on nested pattern sets from the
+   pre template: global gain, per-area gain, per-area offset (static level, all spouts), per-spout offset (static
+   level per spout x area), shared shift (spout-constant, TIME-VARYING), rotation (small-angle, within the top-8 pre
+   space, beyond all of the above), other on manifold, off manifold. Orthogonal: energies sum to |Delta|^2. Noise
+   cross-fitted (pre thirds / epoch halves, patterns from an independent pre third, 20 splits). Floor = odd vs even
+   pre days; chance = an isotropic random change through the same split (rotation .005, off manifold .68).
+   ALLEN, raw, energy in units of the animal's pre response energy (floor -> acute -> chronic): per-area offset .011 ->
+   .089 -> .247; per-spout offset .004 -> .100 -> .077; shared time-varying shift .001 -> .111 -> .052; global gain
+   .009 -> .025 -> .078; per-area gain .002 -> .038 -> .021; rotation .001 -> .023 -> .017; other on manifold .002 ->
+   .033 -> .039; off manifold .000 -> .007 -> .007. Shares acute / chronic: offsets .16 + .20 / .34 + .18, shared
+   shift .27 / .11, global gain .04 / .18, rotation .07 / .04 (14x / 8x chance), off manifold .02 / .02 (chance .68).
+   Readings: (a) the change is overwhelmingly ON manifold; (b) the largest chronic part is a static per-area LEVEL
+   change -- reference-sensitive (signal drift-removed incl. the constant: a level relative to the session mean, as the
+   no-subtraction maps, B16); (c) the time-varying shared shift is the largest ACUTE part and carries most of the acute
+   sideways (y) displacement; (d) rotation is small but well above floor and chance -- the held-out "rotation beyond
+   gain" ~0 chronically then says it does not generalize across spouts (spout-specific). The first 6-part run (11-08
+   ~12:15, shift incl. offsets ~.5 of the change) is superseded by the 8-part split. In flight 11-08 ~12:45: SVD /
+   LocaNMF, raw and minus cortex-wide (WF_SS_XFORM=gsr: the split inside the space left after removing each animal's
+   pre cortex-wide mode, Priya "what if we look at the minus cortex manifold"), animal-level and PER SESSION
+   (`--sessions`: each session vs its animal's pre template, pre sessions leave-one-out = null dots, energies in units
+   of the animal's pre response energy; Priya "per-session dots ... normalized within animal"). Outputs
+   change_parts{tag}/{parts,plane,sessions}.csv; figures page_figs/ss_change_parts[_sessions]{tag}.png.
+
+22. **What the parts LOOK like (Priya 11-08 "what IS the shared shift, on cortex, over time"; script ready):**
+   `scripts/state_space_part_maps.py`, cohort SVD (raw + minus cortex-wide): per session, sequential fit in the split's
+   order -> gain map (0.1..0.5 s), per-area offset map, six per-spout offset maps, the shared shift as a movie in six
+   windows (-1.0..0.7 s) + time courses in split-basis areas (ALM / tjM1 / SSp-m / SSp-n / SSp-tr / SSp-ll / VISa /
+   RSPd / MOp / MOs rest, both hemispheres), and the spout-specific rest per spout (0.1..0.5 s); units = the animal's
+   pre-template pixel RMS; nested-bootstrap contours vs the pre (leave-one-out) session maps. Chained after the SVD
+   split lane; figures page_figs/ss_part_maps_{shift,shift_tc,static,spout_offset,rest}_lick_svd[...].png.
+
+21. **Sideways (orthogonal) vs along-line shifts by basis (Priya 11-08 "see if the svd pre-stroke vs chronic and
+   orthogonal axis shifts are different"):** SVD = Allen, LocaNMF differs. Lick, vs own pre, units of the pre ->
+   chronic length (along acute / subacute; orthogonal acute / subacute): Allen +.08 / +.69, +.82 / +.23; SVD +.09 /
+   +.67, +.83 / +.23; LocaNMF +.19 / +.40, +.94 / +.19 (per animal SVD within ~.05 of Allen; cue the same).
+   Noise-corrected off-line share of the acute change: SVD .77-.92 vs Allen .76-.92; LocaNMF .82-.98. Clarified for
+   Priya: "orthogonal" = the acute displacement points a different way from the chronic one (both inside the pre
+   space); "rotation beyond gain" = whether the code is TURNED within the pre space -- a sideways displacement can be
+   built from gain / shift / pattern change without rotation (B23 measures what it is made of).
+
+20. **Sections 3-7 in all three bases (Priya 11-08 "render and add the SVD basis version of section 3-7 figures" /
+   "and LocaNMF"):** `state_space_page_figs.py` is basis-aware (inputs `<dir><align><basis>`, figures
+   `<name><align><basis>`, basis label top left; `state_space_sim.btag()`), and `state_space_noise.py` /
+   `state_space_contact.py` name figures with the basis (they would have overwritten the Allen page figures). New
+   runs (both bases, both alignments): `--condition on_target | landing | incomplete`, `path_tests --trial-alpha`,
+   noise, contact, xz. Not possible: balance (5.1 / 5.2; named orofacial areas per hemisphere: Allen-only,
+   `allen_only` -- in SVD it could be enabled via the exact area readout, not done) and the splice alignment (7.9).
+   Page: a basis switch for sections 3-7 (scratchpad `state_space_page/add_basis_switch.py`) -- publish pending with
+   B22 / B23.
+
 19. **RESULT of B17: the maps differ by WHAT they measure, not by denoising.** `scripts/state_space_why_cleaner.py`,
    107 sessions (PS93_0813 dropped: no video, no RESTnl baseline), lick-aligned, RESTnl, chronic vs own pre (mean over
    spouts / far contra): r with the state-space map .63 / .86 at S0 (15r as rendered) and unchanged through S1 glue-
