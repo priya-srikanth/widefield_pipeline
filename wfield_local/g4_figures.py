@@ -49,6 +49,7 @@ def g4_table(rec, epoch_of):
             f = r.get(f"fits_engaged_{al}")
             if f and "post_value" in f:
                 daq.append(dict(animal=an, session=lab, epoch=ep, align=al, post_nolick=f["post_value"],
+                                train=(f.get("train_classes") or {}).get("groups", "daq"),
                                 ref_engaged=(f.get("engaged") or {}).get("mean"),
                                 ref_nolick=(f.get("nolick") or {}).get("mean")))
     P = pd.DataFrame([dict(animal=a, align=al, group=g, value=v) for (a, al, g), vs in pre.items() for v in vs])
@@ -123,7 +124,10 @@ def draw(C, D, P, out_png, seed=0):
             bx.axhline(float(np.nanmean(dd.ref_nolick.astype(float))), color="k", lw=1, ls=":")
         bx.set_xticks(range(len(EPOCHS)), EPOCHS, fontsize=7)
         bx.set_ylim(0, 1)
-        bx.set_title("ROBUSTNESS: DAQ lick vs no-lick\n(post no-lick; pre engaged — / no-lick ···)", fontsize=7)
+        # the G1-G3 discriminator trains camera classes under the camera grouping since 11-08 ((f) 1)
+        cam = len(dd) and "train" in dd and (dd.train == "camera").any()
+        bx.set_title(("SESSION-z FRAME: working vs no response" if cam else "ROBUSTNESS: DAQ lick vs no-lick")
+                     + "\n(post no-lick; pre engaged — / no-lick ···)", fontsize=7)
     h = [Line2D([], [], marker=m, ls="", mfc="none", mec="k", label=a) for a, m in ANIMAL_MARKER.items()]
     h += [Line2D([], [], color="k", lw=1.2, label="pre, same group"),
           Line2D([], [], color="k", lw=1.2, ls=":", label="pre working (group absent pre)")]

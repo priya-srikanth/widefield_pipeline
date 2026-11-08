@@ -1052,7 +1052,8 @@ def test_section_g_sites_use_the_store():
     from wfield_local import poststroke_compare as pc
     assert '_g_store(d, "g_lickonly_decoder", f"{_keep_tag(pos)}-ff", fit_all' in inspect.getsource(pc.decode_matched)
     for fn in (pc.looks_like_which, pc.undetected_state_split):
-        assert '_g_store(d, "g_lick_disc", f"{_keep_tag(keep)}-seed{seed}"' in inspect.getsource(fn)
+        # + the camera class set under the camera grouping ((f) 1, 11-08); "" under the DAQ grouping (ids unchanged)
+        assert '_g_store(d, "g_lick_disc", f"{_keep_tag(keep)}-seed{seed}{_g13_tag(cg)}"' in inspect.getsource(fn)
     src = inspect.getsource(pc.fits_engaged_distribution)
     assert '_g_store(d, "g_lick_disc_folds"' in src and 'rng.set_state(folds["rng_after"])' in src
 
