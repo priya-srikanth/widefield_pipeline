@@ -94,7 +94,7 @@ def outcomes(E: Path, labels: set, deficit: str | None = None) -> pd.DataFrame:
     L = mm.add_time_covariates(pd.concat(rows, ignore_index=True).dropna(subset=["y"]))
     from wfield_local import run_mode
     # the behavioural deficit: THIS run's trial_attempts_sessions.csv (routed trial_attempts, camera classes)
-    return mm.add_deficit(L, mm.deficit(run_mode.deficit_qc_dir(), deficit or mm.DEFICIT))
+    return mm.add_deficit(L, mm.deficit(run_mode.deficit_qc_dir(deficit or mm.DEFICIT), deficit or mm.DEFICIT))
 
 
 # Angle panels = the 3-D contest (Priya 11-05; the rebuild has no cam4 contest run), unique target from the BINNED
@@ -135,7 +135,7 @@ def main(argv=None) -> int:
         L = pd.read_csv(E / "qc" / f"encoding_mixed_long{sfx}.csv.gz")
         from wfield_local import run_mode as _rm      # deficit columns re-derived (cheap): raw axis + transform
         L = mm.add_deficit(L.drop(columns=[c for c in ("deficit", "deficit_x", "deficit_tf") if c in L]),
-                           mm.deficit(_rm.deficit_qc_dir(), dname))
+                           mm.deficit(_rm.deficit_qc_dir(dname), dname))
         T = pd.read_csv(E / "qc" / f"encoding_mixed{sfx}.csv")
         for area in ("cortex", "SSp-m_left", "SSp-m_right"):
             figures(L, T, E / "figures" / "mixed_models", area, sfx)

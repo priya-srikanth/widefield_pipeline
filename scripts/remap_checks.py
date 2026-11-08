@@ -110,7 +110,7 @@ def check_time_course(U: pd.DataFrame, out: Path, deficits) -> None:
     L = mm.add_time_covariates(L)
     for dname in deficits:
         from wfield_local import run_mode as _rm
-        Ld = mm.add_deficit(L, mm.deficit(_rm.deficit_qc_dir(), dname))   # THIS run's trial_attempts table
+        Ld = mm.add_deficit(L, mm.deficit(_rm.deficit_qc_dir(dname), dname))   # THIS run's trial_attempts table
         T = mm.lmm_table(Ld, ["source", "measure"], ("time", "behaviour"), fdr_by=("source",),
                          print_animals=(dname == deficits[0]))
         T.to_csv(out / f"remap_lmm_{dname}.csv", index=False, float_format="%.5g")
