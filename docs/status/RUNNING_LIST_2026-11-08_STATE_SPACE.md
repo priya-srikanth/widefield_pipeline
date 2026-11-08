@@ -7,6 +7,11 @@ Branch `analysis/state-space-recovery-20261107` (worktree wf_statespace); nothin
 
 ## A. Decisions / questions for Priya (newest first)
 
+6. FINDINGS 0c item 2 + page summary / section 7 ("80-95 % of acute - pre lies orthogonal ... in every variant") ->
+   "Most of the acute change lies off the pre -> chronic line: ~75-90 % of its length (~55-85 % of its variance; noise-
+   corrected, B5), every animal and basis. Its smaller along-line part points away from the chronic state in PS92 /
+   PS94 and toward it in PS93 / PS95." OK to apply?
+
 **ANSWERED 11-08 morning (Priya: "1. yes 2. yes if it doesn't conflict the other windows 3. yes 4. now - again as long
 as no conflict 5. yes"):** A1 applied to FINDINGS 0c item 3 + rebuild re-render of the balance marker queued; A4a main
 pushed (with the other window's 4e6630be, after merging origin/main: no conflicts); A4b decline branch merged, 0c item 6
@@ -36,6 +41,18 @@ merged to main (no conflicts); A5 applied to FINDINGS 0c item 4 and the page cap
    rebuild re-render of `lick_recovery_primary` would remove that caveat -- worth queuing?)
 
 ## B. Findings (newest first; exploratory)
+
+5. **"Orthogonal" re-checked (Priya 11-08 "how are we defining orthogonal" -> "yes run"; `state_space_orth_check.py`,
+   `orth_check{_lick,}{,_lnmf}/`).** The reported share is a LENGTH ratio |a - (a.u)u| / |a| per spout (a = acute -
+   pre template, u = unit pre -> chronic), averaged over spouts, with no noise correction and no null. Cross-fitted
+   (independent trial splits for the two acute estimates and for u; 50 splits): noise is only 2-12 % of the acute
+   change's squared length, so the share barely moves: Allen lick .88 / .76 / .92 / .87 (PS92-95; cue .69 / .93 / .83 /
+   .84); LocaNMF lick .99 / .94 / .77 / .82. As VARIANCE: Allen lick .77 / .57 / .84 / .75 (cue .47-.87). The along-line
+   part is real (|cos| .40-.73; a random direction would give ~.07) and its SIGN differs by animal: PS92 / PS94 acute
+   moves AWAY from chronic (Allen lick cos -.48 / -.40, position -.17 / -.18 of the pre -> chronic length), PS93 / PS95
+   toward it (+.65 / +.50; +.18 / +.48); LocaNMF: PS92 ~0, the others toward. Reading: "mostly off the line" holds
+   (~75-90 % of its length, ~55-85 % of its variance), but "80-95 % orthogonal" overstates it and the along part is not
+   consistently toward chronic. Proposed rewording of FINDINGS 0c item 2 + the page: in section A (A6).
 
 4. **June drift reference (LocaNMF basis, contact first licks): the chronic change is about as large as the June ->
    August-pre change** (`state_space_june_drift.py`, `june_drift{_lick,}_lnmf/june_drift.csv`; distances noise-corrected,
