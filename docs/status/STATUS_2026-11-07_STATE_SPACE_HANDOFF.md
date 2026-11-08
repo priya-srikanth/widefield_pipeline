@@ -139,8 +139,10 @@ against the pre-refactor snapshot -- identical; tests `tests/test_state_space.py
   angle-matched version here is `state_space_balance_angle`).
 - DONE 6 Lag grids + spout order imported (`iti_licks.LAGS_C / LAGS_P`, `orofacial_cohort.POS_ORDER`).
 - DONE 8 Tests (binning, transforms, frame axes, loader order, path tags, evoked / hemi, LocaNMF basis switch: 7).
-- OPEN 5 (landing join at extraction), 7 (fan_sessions for share reads), 9 (throwaway diagnostics: Priya to decide),
-  10 (page builder).
+- DONE 7 (51788a0a) The binned-cache fill (`state_space_sim.prefill`) fans over 3 workers via `analysis_kit.fan_sessions`;
+  the worker gets cache dir + atlas names in its item (a spawned worker re-imports under the DEFAULT env -- module
+  globals there are not the caller's; caught 11-08 before it wrote anywhere, now pinned by the test).
+- OPEN 5 (landing join at extraction), 9 (throwaway diagnostics: Priya to decide), 10 (page builder).
 
 Cleanup list (do these when an analysis is promoted from exploratory; each item says what to reuse):
 
