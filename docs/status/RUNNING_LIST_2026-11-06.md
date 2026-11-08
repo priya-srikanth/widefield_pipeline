@@ -256,12 +256,32 @@ the encoding handoff (STATUS_2026-10-26_ENCODING_HANDOFF.md, top blocks); the A1
 - **D3 push fix/fit-from-copies-spatial (648eafe0)? -- Priya OK 11-07 ~23:50, pushes after D1 lands.** frozen_encoder copies spatial_<animal>.pkl into a --fit-from run's
   own fit/ (the proper fix for the 11-07 pixel-map failures I fixed by hand-copying). Tests added; affects only future
   --fit-from runs; no result changes. Not needed tonight (all affected runs already have their copies).
+- **D4 push fix/lpfinal-store-rebuild-root (cd6da055)?** g5_lpfinal_dec (LP-trained frozen decoders, the LP final arm) failed
+  23:56: the write guard refused `~/cue_lick/frozen_models_lpfinal`, because lp_final_render built its store from this box's
+  default figures_working and ignored the rebuild root. Nothing was written outside. The fix puts the store at
+  `<rebuild root>/frozen_models_lpfinal` when a rebuild root is active (unchanged otherwise); 2 tests added, 27 related tests
+  pass. Nothing downstream depends on the step. With your OK: push, then a one-step retry lane re-runs g5_lpfinal_dec.
+- **D5 g7_fig_state_position: how to pair positions per session?** It failed 23:59 because one PS94 ACUTE session has no
+  far-contra (fC) value in epoch_5r_refit_by_position_cue_working_sessions.csv (5 fC rows vs 6 for the other positions;
+  presumably no fC working trials after the camera gate). The sidecar has no session column, so the figure pairs positions
+  by row order and cannot tell which session lacks fC. Proposed fix (branch, needs a g5_epoch re-run of that family): write a
+  session column into every `_sessions.csv` sidecar (epoch_figures._write_sessions_csv) and pair on it; the session without fC
+  then shows 5 of 6 positions. Alternative without a re-run: drop that PS94 acute session from this one figure, saying so in the caption.
 ### Findings
 - Section G cost = Allen-ROI features were never cached (trial_features_cached refused non-LocaNMF sources); fixed 80090a57,
   measured on PS92_0812: cache read 0.26-0.91 s vs 6-14 s uncached, features byte-identical.
+- Render-queue gaps found 11-08 ~00:00 (the main [G] lane ended 00:01, 43 failed / 17 skipped in total over the night):
+  (1) g7_cd_geometry needs cd_trajectories dumps with `--orth on` and the lick alignment (the nightly call); the render ran
+  `--align precue cue` only, orth off -> "no saved result" for all 4 animals. Retry lane v9zj runs the nightly call (dumps
+  named *_orth_*, nothing overwritten) then the figure. (2) g7_fig_s_per_animal reads `epoch_11amp/_11c_..._cue_working_
+  sessions_long.csv`, written by scripts.epoch_sessions_long, which was never in the render queue. Retry lane v9zk runs it
+  (cue arm, families 11 + 11c, --out the tagged epoch dir) then the figure. Both lanes run on the render code a76352f3.
 ### Log
 - 23:30 section G restart #4 (v9zh, c3a8b049, ROI feature cache) phase 1 6/12; ROI-cache push re-queued to run after a_partial_ls
   (pre-push pytest was stopped at 22:20 for LOW RAM 4 GB). ITI svdbasis retry v9zg waits for t_frame_te_basis. l_reembed
   failed on the 12 June sessions (object arrays / allow_pickle) -> investigate on a branch. No section G restarts tonight.
 - 00:0x D1 ON MAIN fa0e4d87 (june epoch fix); D3 ON MAIN cc6d11df (fit-from copies spatial). ROI-cache push (80090a57 +
   c3a8b049) still queued behind a_partial_ls. Lane v8-GBMD ended 23:46 (g5_chronic_stability clean).
+- 00:05 resumed from 00-COMPACT-36. Section G r4 phase 2 started 23:52, 0/88 units by 00:05; phase-1 missing-file warnings
+  are the same 15 sessions as r2/r3 (nothing new). g5_lpfinal_dec failed (D4, fix on a branch), g7_cd_geometry failed (lane
+  v9zj), g7_fig_state_position failed (D5), g7_fig_s_per_animal failed (lane v9zk). g7_fig_frozen_refit_pooled done.
