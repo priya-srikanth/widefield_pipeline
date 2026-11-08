@@ -74,6 +74,25 @@ merged to main (no conflicts); A5 applied to FINDINGS 0c item 4 and the page cap
    coarse Allen space; at the component level the post-stroke code is re-patterned from acute on. Proposed FINDINGS
    wording after the method check (A7).
 
+11. **Where the change sits on cortex: full / minus cortex-wide / spout-specific maps (Priya 11-08 "can we map the
+   'chronic' axis back to cortical regions" -> "lets see the spout specific, minus cortex-wide, and full versions").**
+   `state_space_chronic_maps.py`, brain-mask cohort SVD (`_svd`), first-lick aligned (cue to run), evoked response
+   (0.1..0.5 s minus -1.0..-0.6 s), change vs own pre in units of the animal's pre response RMS, mean of 4 animals.
+   Figures `page_figs/ss_cmap_{full,nocw,spout}_lick_svd.png` (+ `ss_cmap_animals_*`), table `chronic_maps_lick_svd/
+   areas.csv` (64 Allen areas; boot_delta_columns CI = * primary; k/4). Pixel contours: within-animal session shuffles,
+   family-wise per panel -- they pool sessions, so they are more liberal than the animal-level area CIs (close ipsi
+   spout-specific: pixel contour, area CIs include 0 at 2-3/4).
+   - FULL, chronic: larger everywhere the response lives, all spouts; largest in contralesional SSp-tr / SSp-ll / SSp-m /
+     MOp / VISa (+.5 to +.7 pre-RMS, 4/4; PS94 smallest). Acute: bilateral anterolateral increases at close spouts;
+     far contra acute: an ipsilesional anterior decrease. Subacute: posterior-medial (right) increases.
+   - MINUS CORTEX-WIDE, chronic: a re-weighting -- contralesional SSp-m (+.33, 4/4), MOp (+.16, 4/4), VISa / RSPd up;
+     ipsilesional MOs (-.12, 4/4) and SSp-n (-.20, 3/4) down. Acute: anterolateral up, a central blob per hemisphere
+     down (map).
+   - SPOUT-SPECIFIC, chronic: the far-contra-specific response is SMALLER over a central / posterior-medial band
+     (SSp-tr / SSp-ll / RSPd / VISa, both hemispheres, -.23 to -.35, 4/4; ipsi MOp / MOs / SSp-m / SSp-n -.08 to -.17,
+     4/4). Acute: far mid / far contra lose bilaterally (anterolateral), close spouts gain ipsilesional anterolateral.
+   EXPLORATORY; area names from the table (CCF), not read off the maps.
+
 10. **Brain mask only (Priya 11-08 "we should be looking only at the brain mask (without glue areas)" / "do we need to
    redo the locanmf as well with mask").** Audit: the Allen extract (`area_basis`) already uses `beta_maps.brain_mask()`
    (Allen mask minus bulbs and the painted fibre glue); the joint-LocaNMF bases (raw Allen mask) and the first cohort SVD
