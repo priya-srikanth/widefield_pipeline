@@ -39,7 +39,7 @@ import state_space_sim as S  # noqa: E402
 from wfield_local import analysis_kit as kit  # noqa: E402
 from wfield_local import epochs  # noqa: E402
 
-OUT = Path("M:/MICROSCOPE/Priya/Widefield/state_space_recovery/trials")
+OUT = Path(f"M:/MICROSCOPE/Priya/Widefield/state_space_recovery/trials{S.tag()}")   # WF_SS_ALIGN suffix
 EPOCHS = ["pre", "acute", "subacute", "chronic"]
 MIN_TRIALS = 5
 N_RESAMPLE = 3
@@ -49,7 +49,7 @@ READ = ["r", "amp", "rot_gain", "out_var", "hemi_gain", "shift_snr", "spread_nor
 
 
 OROFACIAL = ("SSp-m", "SSp-n", "SSs")
-BASE_BINS, RESP_BINS = slice(0, 5), slice(5, 15)                       # -0.5..0 s and 0..1 s (0.1 s bins from -0.5)
+BASE_BINS, RESP_BINS = S.BAL_BINS[S.ALIGN]          # cue: -0.5..0 s and 0..1 s; lick / splice: see state_space_sim
 
 
 def balance(M, cols, sel):
@@ -340,7 +340,7 @@ def main():
     ap.add_argument("--out", default=str(OUT))
     ap.add_argument("--condition", default="target", choices=["target", "on_target", "landing"])
     a = ap.parse_args()
-    out = Path(a.out) if a.condition == "target" else Path(a.out).with_name(f"trials_{a.condition}")
+    out = Path(a.out) if a.condition == "target" else Path(a.out).with_name(f"trials_{a.condition}{S.tag()}")
     out.mkdir(parents=True, exist_ok=True)
     df, pairs = run(mode=a.condition)
     df.to_csv(out / "state_space_trials_sessions.csv", index=False)

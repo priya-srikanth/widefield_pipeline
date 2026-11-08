@@ -28,7 +28,7 @@ import state_space_sim as S  # noqa: E402
 
 from wfield_local import epochs  # noqa: E402
 
-OUT = Path("M:/MICROSCOPE/Priya/Widefield/state_space_recovery/path_tests")
+OUT = Path(f"M:/MICROSCOPE/Priya/Widefield/state_space_recovery/path_tests{S.tag()}")   # WF_SS_ALIGN suffix
 
 
 def flatvec(M):

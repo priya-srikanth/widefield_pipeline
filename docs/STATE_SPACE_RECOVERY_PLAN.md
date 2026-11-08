@@ -381,9 +381,42 @@ far-ipsi values, as pre off-target licks did; neither target nor landing alone s
 0-1 s, SSp-m / SSp-n / SSs; FINDINGS 0b's primary marker is first-lick-aligned 0.1-0.5 s with ALM / tjM1 -- not yet
 checked in that window. PS94 acute far contra: only 37 % of trials inside the pre landing range.
 
+## Alignment: cue vs first lick, and 2-D trajectories (11-07 evening)
+
+Priya: the cue window (-0.5..2.0 s) misses late acute responses (acute far-contra first lick median 0.78 s, 90th pct
+2.4 s). `state_space_sim.load` now takes `WF_SS_ALIGN` = cue (default, unchanged; pinned equal to the old binning) /
+cue25 (-0.5..2.5 s) / lick (`first_peth`, -1.0..0.7 s from the first lick) / splice (cue -0.5..0.5 + lick -0.5..0.7 s).
+Binned arrays cached per alignment at `state_space_recovery/cache/<align>/` (one share read for all). Outputs carry the
+suffix: `trials_lick`, `trials_on_target_lick`, `trials_landing_lick`, `path_tests_lick`, `trials_splice`, ...
+
+| readout, change vs pre | acute cue / lick | subacute cue / lick | chronic cue / lick |
+|---|---|---|---|
+| pattern r | -.20* / -.08* | -.08* / -.04* | -.10* / -.04* (0/4 back) |
+| amplitude | +.12 / +.22* (4/4) | +.31* / +.30* | +.38* / +.30* |
+| rotation beyond gain | +.032* / +.014* (gone like-for-like in both) | ~0 | ~0 |
+| outside pre space, beyond gains | +.011* / +.006* | +.009* / +.005* | +.006* / +.003* |
+| shared shift | +7.5* / +11.6* | +16* / +18* | +28* / +29* |
+| alpha | -.13 / +.07 | +.59* / +.68* | ~1 |
+| far-ring balance (lick: 0.1-0.5 s after the lick) | +.21* / +.31* | +.21* / +.29* | +.26* / +.29* |
+
+Reading: much of the acute "re-patterning" (r) was latency; the acute amplitude increase is clearer lick-aligned. Splice
+agrees with lick. Lick-aligned drift: pre +.177 / +.059 / +.096 / +.005 per day, chronic +.044 / -.002 / +.004 / +.015;
+drift-direction cosine with chronic - pre +.41 / +.41 / +.37 / -.06 (share 14-17 %). Repertoire excess ~0 (11/16 acute,
+7/17 subacute > 0).
+
+2-D trajectories (`scripts/state_space_trajectories.py` -> `trajectories{tag}/`, `page_figs/ss_traj_*`):
+- ACROSS DAYS, plane x = pre -> chronic, y = acute departure orthogonal to it (same units): 80-95 % of acute - pre is
+  orthogonal to x in every animal and alignment. Lick: acute (x, y) (-.16, .56) / (.18, .62) / (-.18, .97) / (.49, 1.12),
+  subacute (.65, .37) / (.42, .29) / (.80, .05) / (.90, .20). A DETOUR: out sideways acutely, back toward the axis while
+  moving along it subacutely. Axes built from epoch templates (x circular for chronic, y for acute); subacute positions
+  and trial clouds are not circular.
+- WITHIN THE TRIAL, cohort top-2 PCs of the animals' pre templates (93-96 % of pre variance; mostly the shared response,
+  so spout-specific rotations are not visible there): post-stroke loops larger and offset before the lick, clearest at
+  close spouts.
+
 ## Results page (draft, 11-07)
 
-https://claude.ai/artifact/9sGELLFEwADEt9k64fXTxe (v1). Figures: `scripts/state_space_page_figs.py` ->
+https://claude.ai/artifact/9sGELLFEwADEt9k64fXTxe (v3: cue + first-lick alignments, 2-D trajectories, zoom viewer). Figures: `scripts/state_space_page_figs.py` ->
 `Widefield/state_space_recovery/page_figs/`; page source backed up at `Widefield/state_space_recovery/page/index.html`.
 Per-trial alpha for the trial-cloud figure: `state_space_path_tests.py --trial-alpha` -> `path_tests/trial_alpha.csv`.
 

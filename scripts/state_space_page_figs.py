@@ -12,6 +12,7 @@ Writes PNGs to Widefield/state_space_recovery/page_figs/.
 from __future__ import annotations
 
 import argparse
+import os
 from pathlib import Path
 
 import matplotlib
@@ -26,6 +27,11 @@ from wfield_local import sig_marks  # noqa: E402
 from wfield_local.orofacial_cohort import ANIMAL_MARKER, EPOCH_LINE  # noqa: E402
 
 ROOT = Path("M:/MICROSCOPE/Priya/Widefield/state_space_recovery")
+# WF_SS_ALIGN as in state_space_sim: inputs from <dir>_<align>, figures named <name>_<align> (cue = no suffix)
+ALIGN = os.environ.get("WF_SS_ALIGN", "cue")
+TAG = "" if ALIGN == "cue" else f"_{ALIGN}"
+ALIGN_LABEL = {"cue": "cue-aligned -0.5..2.0 s", "cue25": "cue-aligned -0.5..2.5 s",
+               "lick": "first-lick-aligned -1.0..0.7 s", "splice": "cue -0.5..0.5 s + first lick -0.5..0.7 s"}
 POST = ["acute", "subacute", "chronic"]
 EPOCHS = ["pre"] + POST
 POS = ["close_ipsi", "close_mid", "close_contra", "far_ipsi", "far_mid", "far_contra"]   # canonical spout order
@@ -37,7 +43,7 @@ plt.rcParams.update({"font.size": 9, "axes.titlesize": 9.5, "axes.spines.top": F
 
 
 def sessions(sub):
-    return pd.read_csv(ROOT / sub / "state_space_trials_sessions.csv")
+    return pd.read_csv(ROOT / f"{sub}{TAG}" / "state_space_trials_sessions.csv")
 
 
 def deltas(df, col, key=("animal",)):
@@ -99,8 +105,10 @@ def legend_animals_epochs(fig, y=0.995):
 
 
 def save(fig, out, name):
+    if TAG and name in ("ss_repertoire", "ss_drift", "ss_path_over_days"):     # titles without the alignment
+        fig.text(0.0, 1.0, ALIGN_LABEL[ALIGN], fontsize=9, fontweight="bold", va="bottom")
     sig_marks.reserve_headroom(fig)
-    fig.savefig(out / f"{name}.png", dpi=140, bbox_inches="tight")
+    fig.savefig(out / f"{name}{TAG}.png", dpi=140, bbox_inches="tight")
     plt.close(fig)
     print("wrote", name)
 
@@ -154,7 +162,8 @@ def fig_change(out, rng):
     for ax, (c, t) in zip(axs.ravel(), MAIN):
         epoch_panel(ax, df, c, t, rng)
     legend_animals_epochs(fig)
-    fig.suptitle("Single-trial state space, session vs each pre session, within spout (target grouping)", y=1.02)
+    fig.suptitle("Single-trial state space, session vs each pre session, within spout "
+                 f"(target grouping; {ALIGN_LABEL[ALIGN]})", y=1.02)
     fig.tight_layout()
     save(fig, out, "ss_change_vs_pre")
 
@@ -183,7 +192,7 @@ def fig_like(out, rng):
         ax.set_title(t)
         ax.set_ylabel("change vs own pre")
     axs[0, 0].legend(frameon=False, fontsize=7.5, loc="lower left")
-    fig.suptitle("Like for like: the same readouts with trials grouped by target, on-target only, or by landing", y=1.0)
+    fig.suptitle(f"Like for like: trials grouped by target, on-target only, or by landing ({ALIGN_LABEL[ALIGN]})", y=1.0)
     fig.tight_layout()
     save(fig, out, "ss_like_for_like")
 
@@ -273,7 +282,7 @@ def fig_path(out):
 
 
 def fig_cloud(out):
-    t = pd.read_csv(ROOT / "path_tests" / "trial_alpha.csv")
+    t = pd.read_csv(ROOT / f"path_tests{TAG}" / "trial_alpha.csv")
     bins = np.linspace(-4, 5, 46)                                   # trials outside are dropped, not piled at the edge
     ctr = 0.5 * (bins[1:] + bins[:-1])
     fig, axs = plt.subplots(1, 5, figsize=(17, 3.6), sharey=True)
@@ -295,13 +304,13 @@ def fig_cloud(out):
     axs[0].set_ylabel("density (thin = sessions)")
     axs[0].legend(frameon=False, fontsize=7.5)
     fig.suptitle("Single-trial clouds along the pre -> chronic line, within spout: does the cloud slide, or do "
-                 "chronic-like trials appear first?", y=1.03)
+                 f"chronic-like trials appear first? ({ALIGN_LABEL[ALIGN]})", y=1.03)
     fig.tight_layout()
     save(fig, out, "ss_trial_clouds")
 
 
 def fig_repertoire(out, rng):
-    r = pd.read_csv(ROOT / "path_tests" / "repertoire_before_mean.csv")
+    r = pd.read_csv(ROOT / f"path_tests{TAG}" / "repertoire_before_mean.csv")
     fig, axs = plt.subplots(1, 2, figsize=(10, 4.2), gridspec_kw={"width_ratios": [1.2, 1]})
     ax = axs[0]
     for an, g in r.groupby("animal"):
@@ -332,8 +341,8 @@ def fig_repertoire(out, rng):
 
 
 def fig_drift(out):
-    p = pd.read_csv(ROOT / "trials" / "state_space_trials_pairs.csv")
-    dd = pd.read_csv(ROOT / "path_tests" / "drift_direction.csv")
+    p = pd.read_csv(ROOT / f"trials{TAG}" / "state_space_trials_pairs.csv")
+    dd = pd.read_csv(ROOT / f"path_tests{TAG}" / "drift_direction.csv")
     fig, axs = plt.subplots(1, 5, figsize=(18, 3.8), gridspec_kw={"width_ratios": [1, 1, 1, 1, 1.25]})
     for ax, (an, g) in zip(axs, p.groupby("animal")):
         for ep in ("pre", "chronic"):

@@ -32,6 +32,7 @@ from __future__ import annotations
 
 import argparse
 import glob
+import os
 from pathlib import Path
 
 import numpy as np
@@ -51,13 +52,67 @@ PLANTS = ([("none", 0)] + [("amp", a) for a in (1.25, 1.5)] + [("gain_rand", s) 
           + [("spread", f) for f in (0.5, 1.0)])
 
 
+# ALIGNMENT (Priya 11-07: "this should probably span the trial length; post-stroke some responses don't come for a few
+# sec. is there a lick-aligned version?"). Acute far-contra first licks: median 0.78 s, 90th pct 2.4 s after the cue, so
+# a fixed cue window misses many acute lick responses. Set WF_SS_ALIGN (default "cue" = everything published before):
+#   cue     first_cue, -0.5..2.0 s from the cue (25 bins)
+#   cue25   first_cue, -0.5..2.5 s (30 bins; the extract ends at 2.5 s)
+#   lick    first_peth, -1.0..0.7 s from the first lick (17 bins; the extract spans -1.5..0.75 s)
+#   splice  cue -0.5..0.5 s (10 bins) followed by lick -0.5..0.7 s (12 bins): both events at any latency. For first
+#           licks within 1 s of the cue the two segments sample overlapping time (each segment is its own features).
+LAGS_P = np.round(np.arange(-1.5, 0.75 + 1e-9, 0.05), 3)
+ALIGN = os.environ.get("WF_SS_ALIGN", "cue")
+_B = lambda a, b: [(t, t + 0.1) for t in np.round(np.arange(a, b - 1e-9, 0.1), 2)]  # noqa: E731
+SEGMENTS = {"cue": [("first_cue", LAGS, _B(-0.5, 2.0))], "cue25": [("first_cue", LAGS, _B(-0.5, 2.5))],
+            "lick": [("first_peth", LAGS_P, _B(-1.0, 0.7))],
+            "splice": [("first_cue", LAGS, _B(-0.5, 0.5)), ("first_peth", LAGS_P, _B(-0.5, 0.7))]}
+# balance windows (bin slices) per alignment: baseline / response. lick + splice: response 0.1..0.5 s after the lick
+# (FINDINGS 0b's first-lick window); lick baseline -1.0..-0.6 s before the lick, splice baseline -0.5..0 s before the cue
+BAL_BINS = {"cue": (slice(0, 5), slice(5, 15)), "cue25": (slice(0, 5), slice(5, 15)),
+            "lick": (slice(0, 4), slice(11, 15)), "splice": (slice(0, 5), slice(16, 20))}
+CACHE = Path("M:/MICROSCOPE/Priya/Widefield/state_space_recovery/cache")
+
+
+def tag():
+    """Output-folder suffix: '' for the original cue alignment, else '_<align>'."""
+    return "" if ALIGN == "cue" else f"_{ALIGN}"
+
+
+def _bin(z, keep, align):
+    parts = []
+    for key, lags, bins in SEGMENTS[align]:
+        x = z[key].astype(float)[:, :, keep]
+        lag = lags[: x.shape[1]]
+        parts.append(np.stack([np.nanmean(x[:, (lag >= a - 1e-9) & (lag < b - 1e-9)], axis=1) for a, b in bins], axis=1))
+    return np.concatenate(parts, axis=1)
+
+
+def fill_cache(paths):
+    """One read of each extract -> binned arrays for EVERY alignment (cache/<align>/<label>.npz)."""
+    for p in paths:
+        lab = Path(p).stem
+        if all((CACHE / a / f"{lab}.npz").exists() for a in SEGMENTS):
+            continue
+        z = np.load(p, allow_pickle=True)
+        cols = [str(c) for c in z["cols"]]
+        keep = [i for i, c in enumerate(cols) if c != "cortex"]
+        for a in SEGMENTS:
+            (CACHE / a).mkdir(parents=True, exist_ok=True)
+            np.savez(CACHE / a / f"{lab}.npz", xb=_bin(z, keep, a), pos=np.array([str(q) for q in z["first_pos"]]),
+                     cols=np.array([cols[i] for i in keep]), epoch=str(z["epoch"]), animal=str(z["animal"]),
+                     rt=z["first_rt"])
+        print("cached", lab, flush=True)
+
+
 def load(path):
+    c = CACHE / ALIGN / f"{Path(path).stem}.npz"
+    if c.exists():
+        z = np.load(c)
+        return z["xb"], z["pos"].astype(str), [str(x) for x in z["cols"]], str(z["epoch"]), str(z["animal"])
     z = np.load(path, allow_pickle=True)
     cols = [str(c) for c in z["cols"]]
     keep = [i for i, c in enumerate(cols) if c != "cortex"]
-    x = z["first_cue"].astype(float)[:, :, keep]                      # trials x lags x areas
-    lag = LAGS[: x.shape[1]]
-    xb = np.stack([np.nanmean(x[:, (lag >= a - 1e-9) & (lag < b - 1e-9)], axis=1) for a, b in BINS], axis=1)
+    xb = _bin(z, keep, ALIGN)                                          # trials x bins x areas
     pos = np.array([str(p) for p in z["first_pos"]])
     return xb, pos, [cols[i] for i in keep], str(z["epoch"]), str(z["animal"])
 
