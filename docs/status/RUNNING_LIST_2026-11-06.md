@@ -462,3 +462,9 @@ table not regenerated for the encoder: compare next. Settings audit #2 pending.
 - A20: calibration table regenerating with the working-period rule into scratchpad/a20 for comparison with the 10-23 one.
 - Next: the consolidated re-run (LP-source families missing from LPfinal, 17 rest-fix steps, gain-bio, section G with
   G1-G3 fix, grant), from a detached worktree at the new main, heavy steps after b_partial_frA (~13:25).
+
+**11-08 ~13:10 -- A20 calibration CHECKED: no change.** exec_bins_calibration.py (A20 working-period gate, kin_gate =
+working, `tc.gate_kin_licks` per pre session) on the same 10-23 kinematics snapshot: 119,090 pre licks with the gate, 119,090
+without (0 dropped) -> the regenerated table equals exec_bins_calib_20261023.csv exactly (210 rows, every landing point and SD
+identical). Post-cue pre licks all fall inside the working period, so A20 does not reach the encoder calibration; NO encoder
+re-run needed for A20. (scratchpad/a20/exec_bins_calib_A20.csv)
