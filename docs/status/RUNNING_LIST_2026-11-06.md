@@ -591,3 +591,27 @@ re-run needed for A20. (scratchpad/a20/exec_bins_calib_A20.csv)
   35 GB at 14:11. Lanes paused, nothing lost.
 - Lane v8-L4L5L6L7L9 now waits on l_recov_markers (in the stopped l_bal_* chain): waits indefinitely, harmless; its
   remaining steps are on pre-fix 5db29b07 and are in the re-run list.
+
+## 11-08 ~15:00 -- TRIMMED RE-RUN PLAN (for Priya; nothing queued yet)
+Section G memo measured: same unit (PS94 #5) 2097 s -> 335 s by cProfile (DAQ loads 297 -> 27, 1778 s -> 117 s);
+outputs IDENTICAL (exact compare, base vs memo, scratchpad/prof_g). (Paired wall run under 1.4 GB RAM / swapping:
+2587 vs 1867 s -- not used.) Next hot spot: config.load_sessions path checks ~150 s / unit (scope a memo to the section
+G worker like partial_refit._reuse_inputs).
+| group | action | why | time (measured step times; G scaled from the profile) |
+|---|---|---|---|
+| epoch render, lick class | PARTIAL: 3 single-arm LP renders on main (ENL 5r 14m; lick acc 14m; cue scal mat) | lick class; cue arm only for the pattern pre-reference | ~1.75-2.5 h wall (3 at once) |
+| epoch page figures | REUSE / repoint (no run) | LPfinal maps + pre-cue decoders; cue-window figures source-independent | 0 |
+| section G | FULL grid with memo (+ load_sessions memo) | lick window + lick-only arm on LP, G1-G3 camera classes (21a005ca) | 13.1 h -> est. ~2-3 h (-j 4); figs 15 min; grant ~1.8 h |
+| cd chain | FULL | lick-aligned + rest fix | 0.5 + 2.5 + 0.6 h |
+| lick-aligned decoders | PAGE-FEEDING FIRST: cd_traj (Fig 9.1) + matched-pre lick half; pcd 3.3 / nolick 2.4 / precue states 0.5 / joint xsession 0.6 h after | lick class | ~0.7 h first, ~6.8 h later |
+| rest family | FULL on fixed code: restnl masks (g2a / g2b) FIRST, then restnl maps / map drift, rest_frozen(_nl), restw / revup / c2l, attempt_maps_restnl, chronic_stability, the stopped restnl + l_bal chains | ba5b63bf missing; restnl masks pre-fix (also LPfinal's restnl ref) | ~6.8 h + masks 0.4 h + l_bal chain (measure) |
+| gain-bio | gb_sessions_r queued (has fix) + summarise + stats | stale | ~1.2 h |
+| ITI te-basis | FIX path bug (branch + test) then re-queue e_pat_stats_maps -> e_roi_* -> e_rim_overlay_r | reader env adds _spont | minutes + ~1 h |
+| redraws | figdata replot (stars top band, POS_ORDER) | style fixes now on main | minutes |
+| AB 19 b_* steps | RUNNING (checked: no fixed path reached) | - | in progress |
+Heavy-lock total ~19 h serial -> ~10 h with Priya's two heavy slots. Run from ONE detached worktree at main 21a005ca
+(+ memo branch if approved), settings check on the first step of each group.
+Decisions for Priya: (1) push the section G memo branch (perf only, outputs identical)? (2) section G = full grid
+(recommended, ~2-3 h with memo) vs affected cells only? (3) include the cue arm (pattern pre-reference)? (4) lick-aligned
+decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camera group replaces the DAQ rows?
+(6) DAQ-grouping G1-G3 as a labeled supplement?
