@@ -468,3 +468,38 @@ working, `tc.gate_kin_licks` per pre session) on the same 10-23 kinematics snaps
 without (0 dropped) -> the regenerated table equals exec_bins_calib_20261023.csv exactly (210 rows, every landing point and SD
 identical). Post-cue pre licks all fall inside the working period, so A20 does not reach the encoder calibration; NO encoder
 re-run needed for A20. (scratchpad/a20/exec_bins_calib_A20.csv)
+
+## 11-08 ~13:20 -- CONSOLIDATED (Priya: keep findings / progress / questions here; handoff = 00-COMPACT-38)
+
+### A. Questions / decisions for Priya (none blocking right now)
+1. Section G re-run scope: full grid vs ONLY the affected cells (lick window, lick-only arm, G1-G3) vs affected cells +
+   an input-reuse speed-up. Waiting on the one-unit profile (scratchpad/prof_g/prof_PS94_5.txt) before proposing.
+2. G1-G3 trial sets: the fix helper implements what (f)1 + the camera classes state unambiguously; any ambiguity comes
+   back as a specific question (not guessed).
+3. Frozen spout decoder stored 3x with different pre input sets (11-05 d_attempt_freeze; 11-07 g5_joint_xsession(_r)):
+   being traced; Priya hears about it only if it changes a number.
+
+### B. Findings today (all in handoff 38; audits in scratchpad/*audit*.md)
+- MAJOR: lick class / lick-aligned windows were DAQ contact in the main renders. Lick = every camera lick, LP source,
+  LP onset, ENL 1.0 s, LP-trained frozen decoders (documented 10-21 / 10-24 / 11-03 / 11-04 / 11-07). Successful lick =
+  DAQ contact, supplemental (Priya 11-08). Main-render "lick" outputs = successful-lick (relabel, keep). LPfinal already
+  holds the all-lick acc decoders + 15r maps (C1 to be read from there).
+- Hidden 5-trial display floors + 1/18 refit share floor -> removed / 10-trial only (D7), branch pushed (see C).
+- Rest-engagement fix ba5b63bf missing from 17 finished rest-family steps; gain-bio stale.
+- Stars on data (sig_star callers); non-canonical spout order in 3 encoding figure scripts; section G G1-G3 violate (f)1.
+- A20 calibration: CHECKED, identical (0 of 119,090 pre licks dropped) -> no encoder re-run.
+- b_partial_frA 91 % input reloads -> input-reuse fix, 2.0x, exact-equal (ON MAIN e0e6d0ad).
+- DECISIONS.md 11-03-night line "lick class stays the DAQ contact set" is wrong -> dated correction (fix branch).
+
+### C. Progress
+- ON MAIN today: 99f0d464 (D9 input paths + within_session_decline classified), 65cf7ead (rim overlay),
+  e0e6d0ad (partial_refit input reuse). Floor branch fix/refit-floor-10-no-display-floor (+ D6 matched-pre underneath):
+  915 tests passed, first push lost a race, RE-PUSHING.
+- Fix branch fix/stars-spoutorder-g13-1108 (wf_fixes1108): helper still running its tests.
+- Running: b_partial_frA (v9zv, 96/107 at 13:10, ~13:25) -> then v9zv runs AB's 19 steps and releases the lock.
+  Allowed to take the lock next (rest fix present, outputs needed): g5_epoch_15r_r, gb_sessions_r, l_stopped_restw_r,
+  l_block_compare (no rest dependence). t_frame_te_basis waits outside the lock for >= 20 GB.
+- STOPPED today (exact PIDs, mine): v9y, [T], AB, g6_grant_r4 (Priya), v8-XL2L3 + v8s2-L2L3 (old code without the rest
+  fix; their restnl + l_bal_* chains go into the re-run).
+- Re-run plan (measured times; heavy lock = wall-time bottleneck; Priya OK two heavy slots): see handoff 38 table.
+  Before starting: section G profile + time ONE LP-source epoch family (check LPfinal cache hits).

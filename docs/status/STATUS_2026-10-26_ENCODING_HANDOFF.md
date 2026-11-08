@@ -39,57 +39,99 @@ for anything that loads imaging. E = `M:/MICROSCOPE/Priya/Widefield/LP_analysis/
 3. Then tell **sabatinilab-e3** (PI deck) the decoder figures are final: per figure the share PNG path, page Fig N.k,
    script + args, headline numbers, methods text (they asked 10-26 ~22:30; reply sent: not final yet).
 
-### 00-COMPACT-38 (11-08 ~12:45) -- READ FIRST; supersedes 37 for state
+### 00-COMPACT-38 (11-08 ~13:20) -- READ FIRST; supersedes 37 for state
 
-**MAJOR ERROR found 11-08 ~11:50 (Priya): the rebuild's main renders used DAQ-CONTACT licks for the LICK class and
-lick-aligned windows.** Documented rule (11-03 TRIAL_GATES handoff; 11-07 running list A9/B "never gate on successful
-licks"): **lick = every camera-seen lick (contact + incomplete), aligned to the LP lick ONSET** (`WIDEFIELD_LICK_SOURCE=lp`;
-onset = first visible cam4 frame; close-spout fallback to the DAQ contact when LP onset > contact + 50 ms, 11-04
-LP_MISSED_CONTACT note; ENL lick-free window 1.0 s, chosen 10-21 from enl_lp_census; frozen decoders LP-trained, 10-24).
-**successful lick = DAQ contact = a SUPPLEMENTAL class** (Priya 11-08: "there should be a successful lick class based on
-daq contact"). The render profile never set WIDEFIELD_LICK_SOURCE (default daq); trial_classes.camera_select("lick")
-returns DAQ-engaged rows; DECISIONS.md 11-03-night line "The lick class stays the DAQ contact set" is WRONG (fix it).
-- So: the main DAQ-source "lick" outputs = the SUCCESSFUL-LICK class (relabel, keep as supplemental, never headline).
-  The LICK class = LP source: `LPfinal` (scripts/lp_final_render.py, docs/status/LP_FINAL_ARM_20261102.md) already has
-  acc / accdelta (lick, cue, precue) + 15r / 15rpa maps; still MISSING on LP: 5c / 5r confusion families, cd trajectories,
-  section G lick cells (+ G1-G3 discriminators train on DAQ-engaged vs all no-lick incl. stopped: violates (f)1), grant
-  lick units. Audits: scratchpad/lick_source_audit.md, settings_audit_decisions.md, settings_audit_actual.md (pending).
-- Hidden per-session `< 5` trial floors (epoch_accuracy _accuracy_of/_gap_at/_refit_at, epoch_kit._accuracy_at,
-  epoch_figures:677) drop 1-4-trial sessions from the session tables: Priya OK to REMOVE (report counts). Refit floor =
-  10 trials ONLY (D7; MIN_REFIT_SHARE 1/18 still on main): branch fix/refit-floor-10-no-display-floor (wf_mixmatch, off
-  feature/refit-mixmatch-control) IN PROGRESS. grant_confusion:418/425 = LOSO CV guards, kept.
-- Other audit findings: sig_marks.sig_star draws stars ON the data (partial_refit, session_vs_frozen, specificity,
-  frozen_claims) -> fix + redraw from figdata; spout order non-canonical in combined_encoding_figures / frozen_spout_maps /
-  encoding_key_figures (not rendered yet); robustness rows not rendered; **A20 not carried to the encoder**: it reads
-  exec_bins_calib_20261023.csv (pre-A20, every post-cue lick); exec_bins_calibration.py was switched to working-period licks
-  11-06 but the table was never regenerated -> regenerate to scratch + compare (shift per animal x spout, licks changing
-  bin) before deciding any encoder re-run.
-- Headline table (pre-correction): docs/status/HEADLINE_TABLE_2026-11-08.md -- its lick-window rows are SUCCESSFUL-LICK
-  numbers; C1 must be re-read from LPfinal. C4 (refit-frozen gap) and C3 (orofacial-specific residual) to be examined
-  carefully after the lick fix (Priya), incl. how spontaneous-lick terms are grouped per analysis (Priya question).
-- Unaffected (checked): encoder lick regressors (COMBINED_ENCODING_LICKS=combined), ITI / cued-lick families, LP / goal
-  steps, cue + precue working-arm decoders (Fig 3.4, cue far-contra -0.62 4/4, specificity), kinematics.
+**Where things are written:** running list `docs/status/RUNNING_LIST_2026-11-06.md`, section "11-08 ~13:20 --
+CONSOLIDATED" (questions for Priya / findings / progress); audits in `S2/lick_source_audit.md`,
+`S2/settings_audit_decisions.md`, `S2/settings_audit_actual.md`; headline table `docs/status/HEADLINE_TABLE_2026-11-08.md`
+(PRE-correction: its lick-window rows are SUCCESSFUL-LICK numbers). Render: `S2/render_daqlk` (queues, `logs/CHAIN.log`).
 
-**Update ~13:00:** settings audit #2 (scratchpad/settings_audit_actual.md): rest-baseline fix ba5b63bf missing from
-17 finished rest-family steps (re-run them); gain-bio stale; frozen spout decoder stored 3x with different pre input
-sets (trace cue / lick); ENL window follows the lick source. Floor branch (D7 + display floors) + partial-refit speed-up
-being PUSHED (Priya OK). Code fixes on fix/stars-spoutorder-g13-1108 (wf_fixes1108): stars top band, spout order,
-section G G1-G3 (f)1 + camera classes, DECISIONS lick-class correction. A20 table regenerating (scratchpad/a20).
-Then ONE consolidated re-run from a detached worktree at the new main (see running list ~13:00).
+#### 1. Rules Priya restated today (apply before ANY step, question or re-run)
+- **Read the docs before asking Priya.** Several questions on 11-08 were already answered: ENL 1.0 s (10-21
+  enl_lp_census), LP-trained frozen decoders (10-24, ENCODING_FINDINGS 3.3), LP onset not peak + 50 ms close-spout DAQ
+  fallback (11-04 LP_MISSED_CONTACT), LP arm spec (docs/status/LP_FINAL_ARM_20261102.md), working / stopped / camera
+  classes (11-03 TRIAL_GATES handoff), A9 / B section G decisions (running list 11-07). Grep DECISIONS.md, docs/status,
+  wf_attempt docs/status and ENCODING_FINDINGS first.
+- **SETTINGS CHECK for every render step (do it, never assume):** read the step's `# env` / `# cmd` / code-sha header and
+  confirm (1) lick source: lick class = LP (`WIDEFIELD_LICK_SOURCE=lp`), successful-lick supplement = DAQ; (2) working =
+  camera in_working (contact + incomplete), end at last camera lick, stop rule A2; (3) ENL 1.0 s lick-free on LP licks;
+  (4) pre0801 (6 agreed exceptions); (5) hemo / lnmfproj / Wt / max_rt 3500 + 70 ms; (6) the code sha contains every
+  number-changing fix (ba5b63bf rest engagement, D7 floors, D9 paths, a49795b3 / ee21ac5d / f069b949 / 825a4e0f camera
+  fixes); (7) snapshot inputs were regenerated after any decision that changes them (cf. A20); (8) frozen store = the
+  rebuild one (LPfinal: frozen_models_lpfinal); (9) cohort 1 only. A decision reaching the CODE is not enough: check it
+  reached the DATA the render reads.
+- **EFFICIENCY / NO REDUNDANCY (Priya 11-06 + 11-08; memory efficient-no-redo):** before re-running, list what already
+  exists and is valid and re-run only what changed (LPfinal acc + maps exist; A20 identical; encoder / ITI / kinematics /
+  LP-goal unaffected); re-run only the affected cells of a big step (section G: lick window, lick-only arm, G1-G3);
+  profile the hot path for repeated loading (partial_refit rebuilt inputs 13x per session = 91 %, fixed 2.0x
+  exact-equal; section G re-pools the animal per session unit -- profile running); reuse cached session features
+  (LPfinal LP cache); never let a known-stale step take the heavy lock (stop its lane by exact PID, re-queue on fixed code).
+- Standing: write only under M:/MICROSCOPE/Priya + repos; push only with Priya's DIRECT OK; merge origin/main, never
+  rebase / force; lanes only from DETACHED worktrees; stop only exact PIDs I started (identify by start time or command
+  line, never by parent); rmdir the empty claim dirs of stopped lanes (LITERAL paths: the rm safety check refuses
+  variable paths); park dependents of parked steps; never edit a running queue file; measure before restart; captions
+  state window / lick source / trial period / trial types / gate / baseline / correction; stars in the top band; ipsi on
+  image left; canonical spout order; American spelling in new text.
 
-**Done 11-08 morning:** section G r4 done 11:15 (88 units, 76 post; the `!!` lines = excluded June / 0817 sessions);
-section G figs done; g6_grant_r4 STOPPED 12:14 (Priya; invalid lick units). D6 matched-pre refit control (renamed
-refit_matched_pre, branch feature/refit-mixmatch-control, unpushed): working half acute far -0.22 / -0.15 / -0.26 (Holm
-.0045), lick half not usable (contact-only, thin). Pushed: fix/d9-input-paths (99f0d464), rim-overlay fix (65cf7ead).
-Batch B light (imaging_lmm / remap_lmm / remap_checks) + batch C light (sametarget, cd_overlap_null, cd geometry) done.
-b_partial_frA restarted 10:57 on the 2.0x input-reuse fix (5bf72011; whole-json identical; branch
-perf/partial-refit-reuse-inputs 8669dd1b, NOT pushed -- ask), lane v9zv, ~13:35; v9zv then runs lane AB's 19 remaining
-steps. t_frame_te_basis queued outside the lock (v9zu-TB, gate >= 20 GB free). Lanes stopped (exact PIDs): v9y, [T], AB.
+#### 2. The lick-class error and the two classes
+Main renders ran with the DAQ lick source (the profile never set WIDEFIELD_LICK_SOURCE;
+`trial_classes.camera_select("lick")` = DAQ-engaged rows). Documented rule: **lick = every camera-seen lick (contact +
+incomplete), LP source, aligned to the LP lick ONSET** (first visible cam4 frame; close-spout DAQ fallback if the LP onset
+is > contact + 50 ms), ENL 1.0 s lick-free on LP licks, LP-trained frozen decoders; **successful lick = DAQ contact,
+supplemental only** (Priya 11-08; 11-07 "never gate on successful licks"). So the DAQ-source "lick" outputs are the
+successful-lick class (relabel, keep, never headline); `LPfinal` (scripts/lp_final_render.py) is the lick class for
+acc / accdelta (lick, cue, precue) + 15r / 15rpa maps. cam1 is complete for all 4 animals (125 event files).
 
-**Lessons (11-08):** (1) read the decision docs (TRIAL_GATES handoff, running-list A-items, LP_FINAL_ARM, DECISIONS)
-BEFORE asking Priya anything -- several questions today were already answered there; (2) every decision needs a check
-that the DATA the render reads reflects it (env var set, snapshot tables regenerated), not just the code; (3) queue
-audits must check lick source, gate source and snapshot dates, not only dependencies.
+#### 3. State at ~13:20
+- ON MAIN: 99f0d464 (D9 paths), 65cf7ead (rim overlay), e0e6d0ad (partial_refit input reuse).
+- PUSHING (Priya OK): `fix/refit-floor-10-no-display-floor` (wf_mixmatch; b27a7acd + b29d834f on top of
+  feature/refit-mixmatch-control = D6 matched-pre control, renamed refit_matched_pre): D7 refit floor 10 only, display
+  floors removed; 915 tests passed; the first push lost a race with another window, re-push running (`S2/push7.sh`,
+  WTS=wf_mixmatch). Check its output and note the sha.
+- Helper running: `fix/stars-spoutorder-g13-1108` (wf_fixes1108 @ 68e53e33): stars to the top band, canonical spout
+  order, section G G1-G3 per (f)1 + camera classes, DECISIONS.md correction + 11-08 entry. Review its commits and tests;
+  Priya said "ok to push" for today's fixes -- confirm the scope covers this branch before pushing.
+- Lanes: v9zv-PF holds the heavy lock (b_partial_frA, 96/107 at 13:10, ~13:25), then runs AB's 19 remaining steps
+  (a76352f3 + reuse fix: CHECK each against the audits before it runs; the b_* encoder residual steps should be
+  unaffected). Waiting for the lock, allowed (rest fix present): g5_epoch_15r_r (v9s), gb_sessions_r (v9r),
+  l_stopped_restw_r + the rest of v9zs-BH (99f0d464), l_block_compare (v8, no rest dependence). t_frame_te_basis = v9zu-TB
+  outside the lock, gate >= 20 GB free. Monitor re-armed every 30 min.
+- Stopped today (all mine, exact PIDs): v9y 36768, [T] 34776, AB 8516 (+ b_partial_frA 4740 + workers), g6_grant_r4 34848
+  (+ workers), v8-XL2L3 34044, v8s2-L2L3 3560. Their unfinished steps must be re-queued: the restnl chain
+  (l_precue_restnl, l_precue_restnl_traces, l_c2l_extract_restnl, l_c2l_restnl, l_c2l_precue_restnl) and the l_bal_*
+  balance chain -> l_recov_markers -> e_recov_meas / l_balmatch / e_dock_* / l_enl_offset -> ENL_SLIDE_FIX -> x_enlv_*.
+
+#### 4. Re-run plan (measured step times from this render's logs; NOT started; Priya OK: two heavy slots)
+| group | why | steps (measured) |
+|---|---|---|
+| section G -> figs -> grant | lick cells on LP; G1-G3 (f)1 | r4 13.1 h (-j 4); figs 15 min; grant ~1.8 h (Sept) -- **scope pending the profile** |
+| epoch render, DAQ source | rest fix, D7, display floors; lick arm relabeled successful-lick | g5_epoch 8.9 h + 1b 1.7 h -- re-run only the families each fix touches |
+| epoch families on LP not in LPfinal | lick class | 5c / 5r* / 10e / 13 / 14m lick arms: NOT MEASURED -- time one family, check LPfinal cache hits |
+| cd chain | lick-aligned + rest fix | 0.5 + 2.5 + 0.6 h |
+| lick-aligned decoders / states | lick class | pcd 3.3, nolick 2.4, precue states 0.5, joint xsession 0.6, matched-pre lick 0.7 h -- mark page-feeding vs supporting (FIGURE_PROVENANCE: only cd_traj feeds a page fig, Fig 9.1) |
+| rest family | ba5b63bf missing | restw_check 0.9, precue_restw 0.4, revup 0.4, c2l 0.4, rest_frozen(_nl) 1.9, RESTnl masks 0.4, attempt_maps_restnl 1.3, chronic_stability 1.0 h + the stopped v8 restnl / l_bal chains |
+| gain-bio | stale | gb_sessions_r (queued, has the fix) + summarise + stats |
+| redraws | stars, session-level figs | minutes, from figdata |
+
+Order: finish the two measurements (section G one-unit profile `S2/prof_g/prof_PS94_5.txt`; one LP epoch family) ->
+trim the list (reuse / partial / full) -> show Priya -> queue from ONE detached worktree at the new main (after both fix
+branches land) -> settings check on the first step of each group.
+
+#### 5. Other open items
+- Priya asked to look carefully at C4 (refit-minus-frozen gap, z 4.5 -> 1.75) and C3 (orofacial-specific chronic
+  residual, +1.33 -> +0.97) AFTER the lick fix, including how the spontaneous-lick terms are grouped in each analysis
+  (grouped with licks vs left out): build a per-analysis table for her.
+- Frozen spout decoder stored 3x (11-05, 11-07 x2; different pre input sets): trace the cue / lick differences.
+- 392 section G r4 entries exist only in the LOCAL session cache (C:/Users/SabatiniLab/wfield_cache/
+  session_cache_rebuild_20261103): D2 copy-back to M:, verify, then delete the local copy only with a kept list +
+  Priya's OK.
+- Robustness rows (DAQ quit-tail, drift1500, stop-rule arms, contact-only section G) not yet rendered.
+- D6 result (working half, valid): acute far -0.22 / -0.15 / -0.26 (Holm .0045); figure refit_matched_pre.png.
+- Then the replacement pass: headline table re-read on corrected outputs -> conclusion changes to Priya -> pages / decks.
+
+**Lessons (11-08):** (1) read the decision docs before asking; (2) verify each decision reached the data a render
+reads; (3) queue audits must check lick source, gate source, code-sha fixes and snapshot dates, not only dependencies;
+(4) never commit before reading the test output; (5) when the heavy lock is about to free, check which steps will take it.
 
 ### 00-COMPACT-37 (11-08 ~08:20, Priya awake) -- READ FIRST; supersedes 36 for state
 Running list = `docs/status/RUNNING_LIST_2026-11-06.md` OVERNIGHT section (D1-D9 + log, newest last). Queue audit report =
