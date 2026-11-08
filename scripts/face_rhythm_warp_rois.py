@@ -99,6 +99,9 @@ def to_sessions(root: Path, spacing: int | None, june: bool = False) -> int:
         F = np.load(f)
         img = np.load(root / "frames" / f"{s}.npz")["median"].astype(np.float32) / 255.0
         polys = {k: _sample(F, v).astype(np.float32) for k, v in M.roi_points.items()}
+        # outlines clipped to the frame (11-08: the re-registered June faces are larger, and an outline vertex past the
+        # edge broke the mask rasterization); the mesh points are NOT clipped -- off-frame points are NaN'd downstream
+        polys = {k: np.clip(v, 0, np.array(img.shape[::-1], np.float32) - 1) for k, v in polys.items()}
         R = fr.rois.ROIs(select_mode="custom", exampleImage=img, coords_rois=polys, verbose=0)
         _save(root / "rois" / s / "ROIs.h5", R, img, _sample(F, pts))
         n += 1

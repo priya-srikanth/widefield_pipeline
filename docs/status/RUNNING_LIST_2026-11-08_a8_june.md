@@ -7,6 +7,20 @@ classes; 3 = FaceRhythm June face regions; 4 = FaceRhythm June O2 run. Backgroun
 
 ## DECISIONS / QUESTIONS FOR PRIYA
 
+0. **June FR must RE-RUN on O2 (11-08 morning).** Priya: "june face mesh fits are off - they look shifted image left (face
+   right) and aren't scaled to be bigger with the face". CAUSE: the June LP landmarks in `face_rhythm/cam4/frames/` are
+   run v36 coordinates (June pose x 0.8853 about (0, 0), the June camera-scale correction), not June image px; the
+   landmark similarity read them as image px, so the June fields had no scale and were 50-77 px off (master nose / jaw /
+   tips vs each June session's own un-rescaled LP). FIX: `scripts/face_rhythm_register.py --june-only` (face-masked
+   image affine June -> the animal's August template, DeepFlow on top, landmarks / 0.8853; PS94 06/06 = fixed median
+   scale + shift search). New June fields: face ECC vs master 0.63-0.72 -> 0.88-0.95 (August 0.87-0.95); nose 0.9-4.5
+   px, jaw 1.3-12, tips 3-16 (`register/qc_june_fields.csv`); June face 1.10-1.14x wide, 1.04-1.12x tall (camera
+   scale 1.129). June ROIs re-warped (`register/qc_june_rois.png`); NO mesh point off the frame any more (decision 2
+   moot). Old fields -> `register/fields_june_superseded_20261108/`; old O2 outputs -> bundle
+   `out_superseded_wrongmesh_20261108/` (+ its qc_cache); old QC -> `face_rhythm/cam4/superseded_june_wrongmesh_20261108/`.
+   Re-run = move scratch out/ + work/ aside, rsync the new rois, resubmit 1-12 (commands given to Priya 11-08).
+   August fields / ROIs / outputs untouched. 3-D (task 1) unaffected: it uses the v36 coordinates consistently.
+
 1. ~~Submit the June FaceRhythm O2 bundle?~~ **SUBMITTED by Priya 11-08 ~00:30.** When done: transfer-node rsync of
    `out/` (bundle COMMANDS.md section 3), then `python scripts/o2_face_rhythm.py collect --name fr_cam4_june_20261108`,
    then project onto frozen `master_pre_v1` + readouts (a8). 11-08 ~00:40: June tasks pending on O2 with
@@ -17,6 +31,7 @@ classes; 3 = FaceRhythm June face regions; 4 = FaceRhythm June O2 run. Backgroun
    in place (`face_rhythm/cam4/rois/PS9x_2026060x/`, `rois_ready` True for all 12). Before submitting, please look at
    `face_rhythm/cam4/register/qc_june_rois.png` (June warped regions next to each animal's first August session).
 2. **DECIDED (Priya 11-08): option 1 -- NaN the off-frame / folded rim points in the June readouts; PS95 June stays in.**
+   MOOT after the June re-registration (no point off the frame); the rule stays for any that appear.
    Original item: **PS95 06/07 and 06/08 mesh points off the frame.** 4 (06/07) and 29 (06/08) of the 1282 mesh points land outside
    the 680 x 680 frame (top edge; PS92 06/08 has 24 within 8 px of the edge). Proposal: keep the mesh as is (point i
    must stay the same face location in every session) and exclude off-frame points from the June readouts (NaN), as
@@ -67,7 +82,7 @@ classes; 3 = FaceRhythm June face regions; 4 = FaceRhythm June O2 run. Backgroun
   - Script fix: the classes were built twice per session (licks + jaw trials; ~35 min serial, killed by my 30-min
     timeout on the first run); now precomputed once, 2 workers (~15 min); `--replot` redraws from the CSVs.
 
-- **June FaceRhythm O2 outputs: complete and clean except PS95's mesh rim** (Priya copied out/ 11-08; `o2_face_rhythm.py
+- **SUPERSEDED (wrong June meshes, item 0):** June FaceRhythm O2 outputs: complete and clean except PS95's mesh rim (Priya copied out/ 11-08; `o2_face_rhythm.py
   collect` -> `face_rhythm/cam4/o2_fr_cam4_june_20261108_index.csv`; `qc --jobs 2` -> `o2_fr_cam4_june_20261108_qc.png`
   + data/ csv). Compared with each animal's August pre sessions of the production run:
   - integrity 12 / 12; no constraint violations, no NaN bins, trial samples 100 % filled;
