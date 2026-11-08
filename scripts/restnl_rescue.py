@@ -43,6 +43,7 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import iti_licks as il  # noqa: E402
+import restnl  # noqa: E402
 import restw_strict_check as rsc  # noqa: E402
 
 OUTD = il.OUT / "restw_check" / "rescue"            # the ONLY write root
@@ -255,7 +256,7 @@ def precue_tables(labels: list) -> dict:
     """{None | 'far_contra': long table label x area: raw mean p10 (no reference), n} from precue_restnl."""
     out = {None: [], "far_contra": []}
     for x in labels:
-        z = np.load(il.OUT / "precue_restnl" / f"{x}.npz")
+        z = np.load(il.OUT_W / restnl.cache("precue_restnl") / f"{x}.npz")   # where lick_precue_restw writes (D9 11-08)
         cs = [str(c) for c in z["cols"]]
         pos = z["pos"].astype(str)
         for sp, mn in ((None, 10), ("far_contra", 5)):

@@ -32,13 +32,14 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from fr_musall import E  # noqa: E402
+import iti_licks as il  # noqa: E402
 
 AN = ["PS92", "PS93", "PS94", "PS95"]
 from wfield_local.orofacial_cohort import EPOCH_LINE as EPOCH_COL  # noqa: E402 - THE epoch palette (A13, Priya 11-07)
 FC = E / "frozen_fr_compare"
 FIG_FC = FC / "figures"
-LC = E / "iti_licks" / "lick_correction"
-FIG_LC = E / "iti_licks" / "figures"
+LC = il.OUT_W / "lick_correction"      # where lick_correction.py writes (D9 11-08: E/iti_licks/... is untagged)
+FIG_LC = il.OUT_W / "figures"
 PR = E / _design_tag("frozen_encoder_gate-attempted_v7g3_t3d_frA") / "partial_refit"
 KEY_AREAS = [("cortex", "cortex"), ("ALM_right", "ALM"), ("ALM_left", "ALM"), ("tjM1_right", "tjM1"),
              ("tjM1_left", "tjM1"), ("SSp-m_right", "SSp-m"), ("SSp-m_left", "SSp-m")]

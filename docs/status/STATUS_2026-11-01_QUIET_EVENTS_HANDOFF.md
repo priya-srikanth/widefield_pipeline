@@ -8,6 +8,8 @@
 >   own August pre, within-animal session shuffles 10k, Holm over positions; post epochs drawn alongside). DONE 11-08:
 >   June differs from August ~1/5 as much as acute; chronic endpoint / lateral residuals exceed June's, jaw opening does
 >   not (running list findings). Not on the page / deck (decision 3 for Priya).
+> - **June FR meshes were wrong -> re-registered (`face_rhythm_register.py --june-only`) and the O2 June run must
+>   re-run** (running list item 0: June LP landmarks are v36 x 0.8853 coordinates, not image px).
 > - O2: Priya HELD `frf_null` tasks 58716929_[1992-2000] so the June FR run starts first -- release them afterwards.
 > - Task 2 (June trial classes): `trial_classes` already classifies June on demand; June working periods look like
 >   August's. Only session LISTS skip June.
