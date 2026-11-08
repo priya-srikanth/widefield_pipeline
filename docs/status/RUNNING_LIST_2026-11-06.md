@@ -400,3 +400,14 @@ near ipsi +0.152 (Holm .0045, ABOVE pre); others n.s.
 - Still to queue (wait on t_frame_te_basis anyway): contrib maps svd / locanmfM -> l_offset_where_r2; spout pattern stats
   -> e_roi_foci_r2 -> cand -> rim (after the fix lands); l_key_figure_r3 (+ l_sametarget_place, e_recov_meas);
   l_bal_offset_primary (+ l_recov_primary dep). Held, not failing: l_arrival_restnl, b_encoding_key_figures.
+
+**11-08 ~10:15 -- profile of b_partial_frA (one finished session, PS92_0812, scratch copy; result identical, max diff 0).**
+Wall 1295 s for one session. session_design runs 13x per session (1 + target/exec shift nulls + 5 + 5 block perms) =
+1184 s (91 %); the ridge refits themselves = 65 s (5 %). Inside the rebuilds: 23,610 file-existence checks on M: at
+~20 ms = 460 s (config.load_sessions 52x -> PathResolver re-reading yaml 29,408x, 150 s); trial_bounds 509 s; imaging
+load 152 s; behavior load 143 s; column_stack 188 s. Every null rebuild reloads data that does not change.
+-> Speed-up = build the session's inputs once and reuse them for the 12 null rebuilds (+ memoize load_sessions); needs a
+branch + an exact-equality check against finished session jsons before any restart.
+**Lane [T] stopped (PID 34776)** and re-queued as v9zu: t_frame_te_basis outside the heavy lock (gate >= 20 GB free,
+Priya OK); the 11-05 run had failed on exec_bins_calib_20261023.csv, which exists since 11-05 20:22.
+Rim-overlay fix push: denied by the tool permission check; branch fix/rim-overlay-roi-dir 65cf7ead waits.
