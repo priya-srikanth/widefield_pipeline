@@ -123,6 +123,7 @@ def figure(s):
     F.legend_animals_epochs(fig, y=1.08)
     fig.suptitle(f"Does trial noise scale with the signal? ({F.ALIGN_LABEL[S.ALIGN]}; 62 areas, within spout)", y=1.15)
     fig.tight_layout()
+    F.flush_marks(fig)
     F.sig_marks.reserve_headroom(fig)
     fig.savefig(F.ROOT / "page_figs" / f"ss_noise_{S.ALIGN}.png", dpi=140, bbox_inches="tight")
     plt.close(fig)

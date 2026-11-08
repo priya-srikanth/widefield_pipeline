@@ -43,7 +43,9 @@ plt.rcParams.update({"font.size": 9, "axes.titlesize": 9.5, "axes.spines.top": F
 
 
 def sessions(sub):
-    return pd.read_csv(ROOT / f"{sub}{TAG}" / "state_space_trials_sessions.csv")
+    """Session table of a trials run; `sub` may carry "{TAG}" to place the alignment tag itself (variant runs)."""
+    name = sub.format(TAG=TAG) if "{TAG}" in sub else f"{sub}{TAG}"
+    return pd.read_csv(ROOT / name / "state_space_trials_sessions.csv")
 
 
 def deltas(df, col, key=("animal",)):
@@ -67,6 +69,33 @@ def change(df, col, rng):
     return out
 
 
+# STARS (Priya 11-07: "LMM can be back up, not primary"): PRIMARY "*" = the animal-weighted nested bootstrap 95 % CI of
+# the change excludes 0 (boot_delta, top row of the band); BACKUP "\u2020" (second row) = analysis_kit.epoch_change_lmm
+# (value ~ C(epoch) + (1 | animal) + (1 | animal:epoch), t on df = animals - 1) p < .05, uncorrected. Panels register
+# the LMM p-values; `flush_marks` draws the daggers once per figure.
+_MARKS: list = []
+
+
+def lmm_p(df, col):
+    """{epoch: p} from epoch_change_lmm on the session values of `col` (NaN where the model cannot test)."""
+    d = df[["animal", "epoch", col]].dropna()
+    if d.empty:
+        return {}
+    r = kit.epoch_change_lmm(d, value=col)
+    return dict(zip(r.epoch, r.p))
+
+
+def mark(ax, x, p, color, row=1, fontsize=10):
+    _MARKS.append((ax, x, p, color, row, fontsize))
+
+
+def flush_marks(fig):
+    for ax, x, p, color, row, fs in (m for m in _MARKS if m[0].figure is fig):
+        if np.isfinite(p) and p < 0.05:
+            sig_marks.star_top(ax, x, "\u2020", color=color, row=row, fontsize=fs)
+    _MARKS[:] = [m for m in _MARKS if m[0].figure is not fig]
+
+
 def scatter_sessions(ax, d, x0, jit=0.13, alpha=0.55, size=16, color=None):
     rng = np.random.default_rng(1)
     for an, g in d.groupby("animal"):
@@ -77,9 +106,11 @@ def scatter_sessions(ax, d, x0, jit=0.13, alpha=0.55, size=16, color=None):
 
 
 def epoch_panel(ax, df, col, title, rng, unit=""):
-    """x = epoch; faded session dots (minus own pre mean) + pooled change and 95 % CI; star = CI excludes 0."""
+    """x = epoch; faded session dots (minus own pre mean) + pooled change and 95 % bootstrap CI; * = CI excludes 0
+    (primary), dagger = LMM p < .05 (backup)."""
     d = deltas(df, col).dropna(subset=["d"])
     ch = change(df, col, rng)
+    ps = lmm_p(df, col)
     ax.axhline(0, color="0.6", lw=0.8, zorder=0)
     for i, ep in enumerate(EPOCHS):
         scatter_sessions(ax, d[d.epoch == ep], i)
@@ -90,6 +121,7 @@ def epoch_panel(ax, df, col, title, rng, unit=""):
                     zorder=4)
         if lo > 0 or hi < 0:
             sig_marks.star_top(ax, i + 0.3, "*", color=EPOCH_LINE[ep])
+        mark(ax, i + 0.3, ps.get(ep, np.nan), EPOCH_LINE[ep])
         ax.annotate(f"{up}/{n}", (i + 0.3, 0), xytext=(0, -14), textcoords="offset points", ha="center",
                     fontsize=7, color=EPOCH_LINE[ep], annotation_clip=False)
     ax.set_xticks(range(4), EPOCHS)
@@ -107,6 +139,7 @@ def legend_animals_epochs(fig, y=0.995):
 def save(fig, out, name):
     if TAG and name in ("ss_repertoire", "ss_drift", "ss_path_over_days"):     # titles without the alignment
         fig.text(0.0, 1.0, ALIGN_LABEL[ALIGN], fontsize=9, fontweight="bold", va="bottom")
+    flush_marks(fig)
     sig_marks.reserve_headroom(fig)
     fig.savefig(out / f"{name}{TAG}.png", dpi=140, bbox_inches="tight")
     plt.close(fig)
@@ -176,6 +209,14 @@ COLS_CONTACT = [("r", "pattern r with pre\n(Δ correlation)"), ("amp", "amplitud
                 ("chronic_like", "share of chronic-like trials\n(Δ proportion of trials)")]
 
 
+COND_XFORM = [("raw", "trials", "raw areas (primary)", "k"),
+              ("z", "trials{TAG}_xz", "areas z-scored", "#7570b3"),
+              ("gsr", "trials{TAG}_xgsr", "cortex-wide mode removed", "#1b9e77"),
+              ("spout", "trials{TAG}_xspout", "spout-specific part only", "#d95f02")]
+_TITLES = dict(MAIN + COLS_CONTACT)
+COLS_XFORM = [(k, _TITLES[k]) for k in ("r", "amp", "rot_gain", "out_resid_t", "shift_snr", "alpha")]
+
+
 def fig_like(out, rng, cond=None, cols=None, name="ss_like_for_like",
              title="Like for like: trials grouped by target, on-target only, or by landing"):
     """Readouts under several trial selections (series colors); a series without a readout (incomplete-only has no
@@ -195,14 +236,16 @@ def fig_like(out, rng, cond=None, cols=None, name="ss_like_for_like",
                 continue
             d = deltas(df, c).dropna(subset=["d"])
             ch = change(df, c, rng)
+            ps = lmm_p(df, c)
             for i, ep in enumerate(POST):
-                x = i + (k - 1) * 0.26
+                x = i + (k - (len(COND_) - 1) / 2) * (0.78 / len(COND_))
                 scatter_sessions(ax, d[d.epoch == ep], x, jit=0.05, alpha=0.25, size=9, color=colr)
                 pt, lo, hi, up, n = ch[ep]
                 ax.errorbar(x, pt, yerr=[[pt - lo], [hi - pt]], fmt="o", color=colr, ms=5, lw=1.8, zorder=4,
                             label=lab if i == 0 else None)
                 if lo > 0 or hi < 0:
                     sig_marks.star_top(ax, x, "*", color=colr, row=0, fontsize=10)
+                mark(ax, x, ps.get(ep, np.nan), colr, row=1, fontsize=9)
         ax.set_xticks(range(3), POST)
         ax.set_title(t)
         ax.set_ylabel("change vs own pre")
@@ -400,6 +443,9 @@ def main():
     out.mkdir(parents=True, exist_ok=True)
     rng = np.random.default_rng(0)
     figs = {"sim": lambda: fig_sim(out), "change": lambda: fig_change(out, rng), "like": lambda: fig_like(out, rng),
+            "xform": lambda: fig_like(out, rng, COND_XFORM, COLS_XFORM, "ss_xform",
+                                      "Dimensionality variants: the same readouts on raw, z-scored, cortex-wide-mode-removed "
+                                      "and spout-specific activity"),
             "contact": lambda: fig_like(out, rng, COND_CONTACT, COLS_CONTACT, "ss_contact_sets",
                                        "Contact + incomplete (primary) vs contact-only vs incomplete-only first licks"),
             "balance": lambda: fig_balance(out, rng), "cross": lambda: fig_balance_cross(out, rng),

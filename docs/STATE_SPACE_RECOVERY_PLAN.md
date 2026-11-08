@@ -459,9 +459,37 @@ drift-direction cosine with chronic - pre +.41 / +.41 / +.37 / -.06 (share 14-17
   load_behaviour`) in cue..stop on engaged trials; no correction across readouts (exploratory).
 - Page now in the repo: `docs/results_pages/state_space/` (index.html, fig_ids.csv via make_fig_ids.py, README).
 
+## 11-07 night: dimensionality variants, step vs gradual, per position, per trial, PC2, stars
+
+- **Dimensionality variants** (`WF_SS_XFORM` = z / gsr / spout in `state_space_sim.load`; pre-only statistics per
+  animal; outputs `*_x<name>`). Lick-aligned, chronic: pattern r raw -.04, z -.05, cortex-wide mode removed -.11,
+  spout-specific -.20 (0/4 back); out-of-space beyond gains +.003 / +.004 / +.034 / +.016 (4/4, every epoch); acute
+  spout-specific rotation beyond gain +.094 (4/4) -> +.033 like-for-like (4/4 by landing, n.s. on target / contact).
+  Re-patterning and out-of-space hold on on-target / landing / contact trials in both variants. Reading: the raw "gain +
+  shared shift, mostly within the pre space" picture is the cortex-wide mode; the spout-specific code is reorganized.
+  Option 4 (LocaNMF / pixel per-trial basis) not run: needs a per-trial extraction from SVT (~107 x 150 MB share I/O).
+- **Step vs gradual** (`scripts/state_space_step_vs_gradual.py`, Priya: "lmm against recovery ... gradual vs a step";
+  "try log curves"): per animal, leave-one-session-out step / ramp / exp / log models; a step wins 2 of 24 animal x
+  readout fits; position, acute-departure axis and the behavioral far-contra aim are ~linear in log days. Against the
+  aim (`aim_deficit_sessions.csv` farcontra_first, rebuild _daqlk run): acute-departure axis r -.78 to -.93 within animal
+  (shuffle p < .001), also within epochs (MixedLM with epoch p .0008); position r .54-.90 (within epochs p .08).
+- **Per position** (`scripts/state_space_per_position.py`, Priya: "might the relationship be different for different
+  spout positions"): every spout's x / y track far-contra recovery (y r -.6 to -.93 at all six; slope steepest far contra
+  and close spouts, weakest far mid) and mostly the spout's own landing offset (not close ipsi). Partial on log(day)
+  within animal: x still tracks the aim at every spout (PS92 .58-.74, others .0-.48); y mostly not (PS94 only).
+- **Per trial** (`scripts/state_space_pertrial.py`): (a) the acute 50 % trial region moves as a whole (not a subset);
+  (b) every epoch drifts within a session, pre included (later trials less chronic-like) -- engagement / satiety, read
+  vs pre; only y slope subacute differs (+.29, 4/4); (c) response-size percentiles shift together (whole distribution).
+- **PC2 close-spout transient** (`scripts/state_space_pc2.py`): PC2 = posterior-medial (RSP, VISam, SSp-tr) vs
+  contralesional orofacial (SSp-m, SSp-n, tjM1). Not reach (no trial-level relation), not latency (at RT < 150 ms: pre 5
+  vs subacute 44 / chronic 33). OPEN. (n_follow column in pc2_trials.csv is a join bug: all 0; ignore.)
+- **Stars** (Priya: "LMM can be back up, not primary"): "*" = boot_delta CI excludes 0 (primary), dagger = epoch_change_lmm
+  p < .05 (backup). Table of LMM results for all runs: `state_space_recovery/lmm_change_vs_pre.csv`.
+- Page v8: renumbering via `docs/results_pages/state_space/renumber.py` (by position; ids permanent).
+
 ## Results page (draft, 11-07)
 
-https://claude.ai/artifact/9sGELLFEwADEt9k64fXTxe (v6: + units, methods box, k / dimensionality, collapsible contents; source in docs/results_pages/state_space/). Figures: `scripts/state_space_page_figs.py` ->
+https://claude.ai/artifact/9sGELLFEwADEt9k64fXTxe (v8: + dimensionality variants, step vs gradual, per position, per trial; source in docs/results_pages/state_space/). Figures: `scripts/state_space_page_figs.py` ->
 `Widefield/state_space_recovery/page_figs/`; page source backed up at `Widefield/state_space_recovery/page/index.html`.
 Per-trial alpha for the trial-cloud figure: `state_space_path_tests.py --trial-alpha` -> `path_tests/trial_alpha.csv`.
 

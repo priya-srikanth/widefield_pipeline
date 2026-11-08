@@ -51,6 +51,7 @@ from wfield_local.orofacial_cohort import ANIMAL_MARKER, EPOCH_LINE  # noqa: E40
 ROOT = Path("M:/MICROSCOPE/Priya/Widefield/state_space_recovery")
 OUT = ROOT / f"trajectories{S.tag()}"
 FIGS = ROOT / "page_figs"
+SUF = S.tag().lstrip("_") or "cue"            # figure suffix: alignment (+ _k / _x variants)
 EPOCHS = R.EPOCHS
 N_BOOT = 400
 LABEL = {"cue": "cue-aligned -0.5..2.0 s", "cue25": "cue-aligned -0.5..2.5 s", "lick": "first-lick-aligned -1.0..0.7 s",
@@ -181,7 +182,7 @@ def fig_days(D):
                  y=1.13)
     fig.tight_layout()
     sig_marks.reserve_headroom(fig)
-    fig.savefig(FIGS / f"ss_traj_days_{S.ALIGN}.png", dpi=140, bbox_inches="tight")
+    fig.savefig(FIGS / f"ss_traj_days_{SUF}.png", dpi=140, bbox_inches="tight")
     plt.close(fig)
 
 
@@ -288,7 +289,7 @@ def fig_loops(proj, pooled, ve, boot):
                  f"animals ({LABEL[S.ALIGN]})", y=1.15)
     fig.tight_layout()
     sig_marks.reserve_headroom(fig)
-    fig.savefig(FIGS / f"ss_traj_loops_{S.ALIGN}.png", dpi=140, bbox_inches="tight")
+    fig.savefig(FIGS / f"ss_traj_loops_{SUF}.png", dpi=140, bbox_inches="tight")
     plt.close(fig)
     # the same curves as PC1 / PC2 against time, 95 % bootstrap bands
     fig, axs = plt.subplots(2, 6, figsize=(19, 5.6), sharex=True, sharey="row")
@@ -317,7 +318,7 @@ def fig_loops(proj, pooled, ve, boot):
                  y=1.08)
     fig.tight_layout()
     sig_marks.reserve_headroom(fig)
-    fig.savefig(FIGS / f"ss_traj_loops_time_{S.ALIGN}.png", dpi=140, bbox_inches="tight")
+    fig.savefig(FIGS / f"ss_traj_loops_time_{SUF}.png", dpi=140, bbox_inches="tight")
     plt.close(fig)
     fig, axs = plt.subplots(4, 6, figsize=(19, 12), sharex=True, sharey=True)
     for r, an in enumerate(sorted(proj)):
@@ -334,7 +335,7 @@ def fig_loops(proj, pooled, ve, boot):
     fig.suptitle(f"Per animal, same plane ({LABEL[S.ALIGN]})", y=1.0)
     fig.tight_layout()
     sig_marks.reserve_headroom(fig)
-    fig.savefig(FIGS / f"ss_traj_loops_animals_{S.ALIGN}.png", dpi=110, bbox_inches="tight")
+    fig.savefig(FIGS / f"ss_traj_loops_animals_{SUF}.png", dpi=110, bbox_inches="tight")
     plt.close(fig)
 
 
@@ -369,12 +370,13 @@ def fig_resp_size(d):
         ax.tick_params(axis="x", labelsize=7.5)
     axs[0].set_ylabel("log2 response size vs own pre")
     F.legend_animals_epochs(fig, y=1.06)
+    F.flush_marks(fig)
     fig.suptitle(f"Response size in the full 62-area space, per spout ({LABEL[S.ALIGN]}; response "
                  f"{t[resp][0] - 0.05:.1f}..{t[resp][-1] + 0.05:.1f} s minus {t[base][0] - 0.05:.1f}.."
                  f"{t[base][-1] + 0.05:.1f} s)", y=1.12)
     fig.tight_layout()
     sig_marks.reserve_headroom(fig)
-    fig.savefig(FIGS / f"ss_resp_size_{S.ALIGN}.png", dpi=140, bbox_inches="tight")
+    fig.savefig(FIGS / f"ss_resp_size_{SUF}.png", dpi=140, bbox_inches="tight")
     plt.close(fig)
 
 

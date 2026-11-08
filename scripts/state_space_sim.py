@@ -78,7 +78,7 @@ CACHE = Path("M:/MICROSCOPE/Priya/Widefield/state_space_recovery/cache")
 
 def tag():
     """Output-folder suffix: '' for the original cue alignment, else '_<align>'."""
-    return ("" if ALIGN == "cue" else f"_{ALIGN}") + ("" if K == 8 else f"_k{K}")
+    return ("" if ALIGN == "cue" else f"_{ALIGN}") + ("" if K == 8 else f"_k{K}") + (f"_x{XFORM}" if XFORM else "")
 
 
 def _bin(z, keep, align):
@@ -107,11 +107,57 @@ def fill_cache(paths):
         print("cached", lab, flush=True)
 
 
+# DIMENSIONALITY VARIANTS (Priya 11-07: "this seems like an extraordinarily low dimensional state space" -> "can try
+# options 1-4"). One cortex-wide mode carries 84-96 % of the mean response and 77-83 % of single-trial fluctuations.
+# WF_SS_XFORM (outputs carry _x<name>), applied per trial at load, statistics from the animal's PRE sessions only:
+#   z      each area divided by its pre SD (trial x bin values, per animal): every area weighs the same
+#   gsr    project out the animal's pre cortex-wide mode (PC1 of pre single-trial x bin vectors over areas): like global
+#          signal regression, with its caveats (it also removes any real cortex-wide change)
+#   spout  subtract the session's cross-spout mean time course (mean of its spout means): the spout-specific part only;
+#          removes the shared response AND any shared shift (shift_snr is then ~meaningless)
+# Option 4 (a finer basis: LocaNMF components / pixels) needs a new per-trial extraction from SVT; not here.
+XFORM = os.environ.get("WF_SS_XFORM", "")
+_XSTATS: dict = {}
+
+
+def _pre_stats(an):
+    """Per-animal (area SD, cortex-wide unit vector) from the animal's pre sessions in the current alignment's cache."""
+    if an not in _XSTATS:
+        rows = []
+        for f in sorted((CACHE / ALIGN).glob(f"{an}_*.npz")):
+            z = np.load(f)
+            if str(z["epoch"]) == "pre":
+                rows.append(z["xb"].reshape(-1, z["xb"].shape[-1]))
+        X = np.concatenate(rows)
+        Xc = X - X.mean(0)
+        w = np.linalg.svd(Xc[:: max(1, len(Xc) // 20000)], full_matrices=False)[2][0]
+        _XSTATS[an] = (Xc.std(0), w / np.linalg.norm(w))
+    return _XSTATS[an]
+
+
+def _xform(xb, pos, an):
+    if not XFORM:
+        return xb
+    if XFORM == "z":
+        return xb / _pre_stats(an)[0]
+    if XFORM == "gsr":
+        w = _pre_stats(an)[1]
+        return xb - (xb @ w)[..., None] * w
+    if XFORM == "spout":
+        means = [xb[pos == p].mean(0) for p in POS if (pos == p).any()]
+        return xb - np.mean(means, axis=0)
+    raise ValueError(f"WF_SS_XFORM={XFORM!r}")
+
+
 def load(path):
     c = CACHE / ALIGN / f"{Path(path).stem}.npz"
     if c.exists():
         z = np.load(c)
-        return z["xb"], z["pos"].astype(str), [str(x) for x in z["cols"]], str(z["epoch"]), str(z["animal"])
+        pos = z["pos"].astype(str)
+        return (_xform(z["xb"], pos, str(z["animal"])), pos, [str(x) for x in z["cols"]], str(z["epoch"]),
+                str(z["animal"]))
+    if XFORM:
+        raise FileNotFoundError(f"WF_SS_XFORM needs the binned cache: {c}")
     z = np.load(path, allow_pickle=True)
     cols = [str(c) for c in z["cols"]]
     keep = [i for i, c in enumerate(cols) if c != "cortex"]
