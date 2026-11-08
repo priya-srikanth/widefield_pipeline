@@ -7,6 +7,11 @@ Branch `analysis/state-space-recovery-20261107` (worktree wf_statespace); nothin
 
 ## A. Decisions / questions for Priya (newest first)
 
+9. REBUILD MASK BUG (B12): under the rebuild profile the painted glue mask is silently empty, so every rebuild step that
+   calls `beta_maps.brain_mask()` (encoder, area masks of the Allen extract, maps) includes the glue. OK to fix
+   `paint_exclusion.mask_dir` in shared code (canonical masks regardless of profile + raise when missing)? The re-runs
+   it implies belong to the rebuild / encoding arms -- tell them, or me?
+
 8. FINDINGS 0c item 1, after the LocaNMF method check (B9): "In the Allen-area space the chronic code is the pre
    mapping, larger and shifted (r with pre -.04, amp +.30*). In the finer LocaNMF components (per animal) it is
    re-patterned: rotation beyond per-component gain +.050* and variance outside the pre space +.043* in 4/4 -- in the
@@ -74,6 +79,21 @@ merged to main (no conflicts); A5 applied to FINDINGS 0c item 4 and the page cap
    coarse Allen space; at the component level the post-stroke code is re-patterned from acute on. Proposed FINDINGS
    wording after the method check (A7).
 
+12. **REBUILD MASK BUG (affects other arms -- decision for Priya, A9).** Under the rebuild profile
+   (`cohort1_rebuild_20261103`) `paint_exclusion.mask_dir` resolves to `<rebuild>/labcams/grant_figures`, where the
+   hand-painted glue masks do not exist, so `beta_maps.painted_exclusion()` silently returns an EMPTY mask and
+   `brain_mask()` = Allen minus bulbs only: 192,110 px instead of 151,447 (glue IN). Measured: the rebuild encoding
+   bundle's inputs (`enc_rebuild_20261104b/inputs/*.pkl`, imaging[2..4]) carry 192,110 brain pixels -> the rebuild's
+   encoder fits, its per-session area masks (the Allen-area extract this arm reads: VIS / RSP areas under the glue
+   included) and anything else calling `brain_mask()` under the profile include the glue. Default-profile runs are
+   fine. This arm: the first brain-mask SVD (ss_svdbm, 192,110 px) also had glue IN -> deleted (49 outputs: the svd
+   state-space set, chronic maps, cache_svd, page_figs *_svd) and rebuilt with the mask resolved before the profile and
+   a guard that refuses an empty painted mask (`o2_state_space_svd.analysis_mask`). The LocaNMF glue drop
+   (`component_exclusion`, no profile) was correct (28 / 22 / 24 / 28 dropped, = documented counts).
+   Proposed shared fix (NOT applied, other arms' code): `paint_exclusion.mask_dir` reads the canonical painted masks
+   regardless of profile (they are hand-made inputs, not run outputs), + a raise in `painted_exclusion` when no mask is
+   found; then the rebuild's map / encoder / area-extract steps need a re-run.
+
 11. **Where the change sits on cortex: full / minus cortex-wide / spout-specific maps (Priya 11-08 "can we map the
    'chronic' axis back to cortical regions" -> "lets see the spout specific, minus cortex-wide, and full versions").**
    `state_space_chronic_maps.py`, brain-mask cohort SVD (`_svd`), first-lick aligned (cue to run), evoked response
@@ -92,6 +112,13 @@ merged to main (no conflicts); A5 applied to FINDINGS 0c item 4 and the page cap
      (SSp-tr / SSp-ll / RSPd / VISa, both hemispheres, -.23 to -.35, 4/4; ipsi MOp / MOs / SSp-m / SSp-n -.08 to -.17,
      4/4). Acute: far mid / far contra lose bilaterally (anterolateral), close spouts gain ipsilesional anterolateral.
    EXPLORATORY; area names from the table (CCF), not read off the maps.
+
+13. **Masked LocaNMF re-run (`_lnmfbm`, glue / bulb components dropped).** Lick, chronic vs own pre (unmasked ->
+   masked): r -.21* -> -.18* (0/4 back both); amp +.17 n.s. -> +.26* (4/4); rot_gain +.050* (4/4) -> +.046* (3/4);
+   out_resid +.043* -> +.048* (4/4); shift +23* -> +27* (4/4). Contact-only: r -.17*, amp +.24* 4/4, rot +.059* 3/4,
+   out +.048* 4/4. Spout-specific: r -.17*, rot +.067* 3/4. -> the re-patterning holds without glue components;
+   amplitude now significant as in Allen. (Fixed on the way: gsr / z pre statistics used all cached columns -> 95 vs 67
+   mismatch; now the masked columns.) Masked LocaNMF loops / method check: in `trajectories_*_lnmfbm`, `sim_lick_lnmfbm`.
 
 10. **Brain mask only (Priya 11-08 "we should be looking only at the brain mask (without glue areas)" / "do we need to
    redo the locanmf as well with mask").** Audit: the Allen extract (`area_basis`) already uses `beta_maps.brain_mask()`
