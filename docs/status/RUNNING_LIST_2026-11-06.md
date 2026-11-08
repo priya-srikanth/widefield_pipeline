@@ -247,9 +247,15 @@ the encoding handoff (STATUS_2026-10-26_ENCODING_HANDOFF.md, top blocks); the A1
 
 ## OVERNIGHT 11-07 -> 11-08 (Priya asleep ~23:30). DECISIONS NEEDED FIRST, then findings, then log.
 ### Decisions / questions for Priya (newest last)
-- (none yet)
+- **D1 push fix/june-ref-epoch-none (64d54bc3)?** June ref files stored epoch=None (object array) -> strict iti_licks._load
+  refused all 12 -> l_reembed failed, m_reembed_plot skipped. Writer now saves '', loader tolerates exactly a None epoch
+  (any other object array still refused); all 12 real files load; tests added. Retry lane v9zi runs l_reembed_r +
+  m_reembed_plot_r FROM THE BRANCH (64d54bc3) behind the heavy lock; outputs re-made if you reject.
+- **D2 delete the local session_cache copy** C:/Users/SabatiniLab/wfield_cache/session_cache_rebuild_20261103 (77 GB, derived)
+  after section G r4 + figs finish? (r4 writes its ROI feature entries there; copy back the new tf-* entries to M: first?)
 ### Findings
-- (filled in as they come)
+- Section G cost = Allen-ROI features were never cached (trial_features_cached refused non-LocaNMF sources); fixed 80090a57,
+  measured on PS92_0812: cache read 0.26-0.91 s vs 6-14 s uncached, features byte-identical.
 ### Log
 - 23:30 section G restart #4 (v9zh, c3a8b049, ROI feature cache) phase 1 6/12; ROI-cache push re-queued to run after a_partial_ls
   (pre-push pytest was stopped at 22:20 for LOW RAM 4 GB). ITI svdbasis retry v9zg waits for t_frame_te_basis. l_reembed
