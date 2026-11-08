@@ -109,7 +109,7 @@ CACHE = ROOT / "cache"
 # components (the mean of U_cohort over the area's pixels, `_svd_area_weights`; Priya 11-08 "we can split right?").
 BASIS = os.environ.get("WF_SS_BASIS", "allen")
 LNMF = REBUILD / "o2" / "ss_lnmf_20261108" / "out" / "sessions"
-SVD = REBUILD / "o2" / "ss_svd_20261108" / "out" / "sessions"
+SVD = REBUILD / "o2" / "ss_svdbm_20261108" / "out" / "sessions"     # brain mask, no glue / bulbs (ss_svd_: superseded)
 if BASIS not in ("allen", "lnmf", "svd"):
     raise ValueError(f"WF_SS_BASIS={BASIS!r}")
 SRC = {"lnmf": str(LNMF), "svd": str(SVD)}.get(BASIS, ITI)               # the per-trial files the loaders read
@@ -155,8 +155,8 @@ def _svd_area_weights():
     if not _SVDW:
         f = CACHE / "svd_area_weights.npz"
         if not f.exists():
-            Uc = np.load(SVD.parent / "basis" / "U_cohort.npy", mmap_mode="r")
-            at = np.load(SVD.parents[1] / "atlas.npy").ravel()
+            Uc = np.load(SVD.parent / "basis" / "U_cohort.npy", mmap_mode="r")     # rows = brain-mask pixels
+            at = np.load(SVD.parents[1] / "atlas.npy").ravel()[np.load(SVD.parent / "basis" / "mask.npy")]
             vals = sorted(int(x) for x in np.unique(at) if x != 0)
             W = np.stack([np.asarray(Uc[at == x], np.float64).mean(0) for x in vals], axis=1)
             f.parent.mkdir(parents=True, exist_ok=True)
