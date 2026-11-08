@@ -55,8 +55,6 @@ PER_DATE_TYPES = [
      "lick_aligned_affine8v1", "_lick_aligned_pairwise_spout_position_contrasts.png", "FIT"),
     ("cue_vs_lick", "Cue-aligned (2 s) vs lick-aligned (150 ms, in-trial licks) maps",
      "lick_aligned_affine8v1", "_cue_vs_lick_spout_position_maps.png", "FIT"),
-    ("spout_native", "Cue- and first-lick-aligned maps by spout position (native pixels)",
-     "__SPOUTMAPS_NATIVE__", "spout_maps_native", "FIT"),
     ("quiet_running", "Quiet vs running activity (SVD)",
      "running_activity_affine8v1", "_quiet_running_activity_maps.png", "FIT"),
     ("motion_qc", "Motion-correction QC",
@@ -64,6 +62,13 @@ PER_DATE_TYPES = [
     ("photobleach", "Photobleaching — 415/470 ROI-median trend",
      "__PHOTOBLEACH__", "photobleach", "FIT"),
 ]
+
+# Types rendered as one trailing section covering ALL animals at the END of the deck, rather than
+# interleaved per-animal. In cohort1's single-animal decks photobleach was naturally the final block
+# (animal->type->date, photobleach last); with multiple animals per deck (cohort2, split by indicator)
+# the per-animal loop would otherwise drop a photobleach block at the end of EACH animal. Keep it as a
+# single "Photobleaching" section at the end for all animals (Priya 2026-11-08).
+TRAILING_TYPES = {"photobleach"}
 
 # Methodology for the speaker NOTES (how each figure is made). Common preprocessing prefix + per-type.
 _M_PRE = ("Widefield GCaMP: alternating 470 nm (GCaMP) + 415 nm (isosbestic) frames. Pipeline: sign-fixed "
@@ -589,6 +594,8 @@ def build_deck(out_path, sessions=None, resolver=None, machine=None,
                      f"{len(a_sessions)} session(s) — preprocessing outputs")
 
         for key, title, subdir, suffix, layout_kind in PER_DATE_TYPES:
+            if key in TRAILING_TYPES:            # rendered once at the end, all animals (see below)
+                continue
             for s in a_sessions:
                 img = _discover_figure(s, key, subdir, suffix, labcams_root)
                 if not img:
@@ -609,6 +616,30 @@ def build_deck(out_path, sessions=None, resolver=None, machine=None,
             crossday_qc_count += 1
 
         per_animal[animal] = len(prs.slides) - before
+
+    # ---- Trailing photobleach section: ONE block at the end, all animals (not per-animal). ----
+    # cohort1's single-animal decks ended with photobleach naturally; keep that for multi-animal decks.
+    pb = next((t for t in PER_DATE_TYPES if t[0] in TRAILING_TYPES), None)
+    if pb:
+        key, title, subdir, suffix, layout_kind = pb
+        pb_slides = []
+        for animal in config.animals():
+            for s in _sessions_for_animal(sessions, animal):
+                img = _discover_figure(s, key, subdir, suffix, labcams_root)
+                if not img:
+                    continue
+                ymd = _yyyymmdd(s["mc"]) or ""
+                date_disp = f"{ymd[:4]}-{ymd[4:6]}-{ymd[6:8]}" if len(ymd) == 8 else _mmdd_of(s)
+                led = led_nm(s)
+                slide_title = f"{animal}  {date_disp}  |  {with_led(title, led)}" + (
+                    f"  ({led} nm)" if led != "470" else "")
+                pb_slides.append((slide_title, img, layout_kind, with_led(METHOD_NOTES.get(key), led)))
+        if pb_slides:
+            _add_divider(prs, blank, "Photobleaching — 415/470 ROI-median trend",
+                         "Within-session 415/470 fluorescence decay, all sessions (all animals).")
+            for slide_title, img, layout_kind, note in pb_slides:
+                _add_content(prs, blank, slide_title, img, layout_kind, note=note)
+                type_counts[key] += 1
 
     # ---- Global cross-day summary section (only on the last deck when split) ----
     xint = _crossday_intensity(xday_root, labcams_root) if include_global_summary else None

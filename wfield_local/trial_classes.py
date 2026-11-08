@@ -1537,6 +1537,7 @@ def cue_groups_for(label: str, cue_s, window: str | None = None):
     return _CUE_GRP[key]
 
 
+@__import__("wfield_local.session_memo", fromlist=["per_env"]).per_env  # memo per env (session_memo)  # [gate-source hook]
 def daq_cue_seconds(label: str) -> np.ndarray:
     """The session's DAQ cue times (s) -- the train every imaging trial index refers to (`_trial_features`)."""
     from wfield_local import config
