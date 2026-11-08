@@ -1,0 +1,46 @@
+# Running list, 2026-11-08 overnight (state-space arm, unattended)
+
+Priya 11-08 ~23:30: "i'm going to sleep - please continue to proceed through tasks, keep a running list of findings, and
+any questions or decisions you need me for." Order agreed before: (4) cleanup -> (1) detour vs balance marker -> (2)
+LocaNMF switch + June plan -> (3) neural vs behavioral within-session drift -> (5) repertoire power check -> (6) housekeeping.
+Branch `analysis/state-space-recovery-20261107` (worktree wf_statespace); nothing pushed.
+
+## A. Decisions / questions for Priya (newest first)
+
+1. FINDINGS 0c item 3 -- replace "OPEN: whether this axis is more than the 0b balance marker" with: "The axis shares ~70 %
+   of its within-animal variance with the 0b balance marker but tracks aim beyond it in 4/4 animals (partial r -.35 to
+   -.88, first-lick aligned); the balance beyond the axis is weaker (3/4)." OK? (Balance from the pre-rebuild run; a
+   rebuild re-render of `lick_recovery_primary` would remove that caveat -- worth queuing?)
+
+## B. Findings (newest first; exploratory)
+
+2. **Within a session, the neural drift goes with the landing drift -- after the stroke only** (session-by-session join of
+   the state-space within-session slopes with the decline arm's behavior slopes; `state_space_within_session_behavior.py`
+   join, `pertrial_lick/within_session_join.csv`; slopes per normalized session; first-lick aligned). Post-stroke (76
+   sessions): sessions whose far landings drift more ipsilesionally (first -> last trial) also drift more back toward the
+   pre-stroke state on the pre -> chronic line: s_x vs all-far landing drift r .51 within animal (PS92 .19, PS93 .72,
+   PS94 .60, PS95 .32; 4/4 positive; within-animal shuffle p < .0005); vs far-contra landing .39 (4/4 positive, .18-.52,
+   p .002); vs contact drift .27 (4/4 positive, p .009). Latency drift: no consistent link (PS94 +.74, the others
+   -.28 to -.50). Pre-stroke (31 sessions): no landing link (signs split 2/2), so it is not a generic session-state
+   coupling. The acute-departure axis (s_y) links weakly the other way (all-far -.27, p .03; 3/4). Reading: within a
+   session the neural position tracks where the licks go, the same coupling as across sessions (x and y track far-contra
+   aim) -- consistent with cortex following (or setting) the executed aim, not separable here. Extends handoff item 10
+   ("tracks landing drift in PS94 / PS93 only") to 4/4 with the decline arm's all-far measure.
+
+1. **The acute-departure axis is mostly, but not only, the 0b balance marker** (`scripts/state_space_detour_vs_balance.py`,
+   `state_space_recovery/detour_vs_balance{,_lick}/`; post-stroke sessions, 19 per animal). Within animal, y and the
+   primary balance marker (cued first lick, ALM + tjM1 + SSp-m + SSp-n + SSs gain ratio, 0.1..0.5 s) share ~70 % of
+   their variance (pooled within-animal r -.85 lick / -.83 cue; per animal -.55 to -.96: PS93 / PS94 ~-.95, PS92 / PS95
+   ~-.6). Beyond the balance, y still tracks far-contra aim in 4/4 (partial r, lick: PS92 -.88, PS93 -.58, PS94 -.35,
+   PS95 -.67; pooled -.69, within-animal shuffle p < .0005; cue: -.86 / -.32 / -.39 / -.55, pooled -.59). The balance
+   beyond y is weaker and not 4/4 (lick .51 / -.10 / .44 / .62). Position along pre -> chronic (x) also tracks aim beyond
+   the balance 4/4 (lick .78 / .43 / .50 / .60). Reading: the population axis contains the balance marker and carries
+   additional aim-related structure, most where the balance is a weaker proxy (PS92, PS95). FINDINGS 0c item 3's caveat
+   can be replaced by this (proposed wording in section A). CAVEAT: the balance values are the PRE-REBUILD run's
+   (recprim_sessions.csv was never re-rendered in the rebuild); same sessions, different hemo variant / gate.
+
+## C. Done / status log
+
+- 11-08 night: O2 bundle `rebuild_20261103/o2/ss_lnmf_20261108` staged on scratch by Priya (U_atlas 119/119; bases need
+  the mkdir -p rerun -- see COMMANDS.md); jobs not yet confirmed submitted.
+- 11-08: cleanup items 2, 3, 6, 8 committed (3fdd7838), outputs verified identical (44 CSVs, cue + lick).
