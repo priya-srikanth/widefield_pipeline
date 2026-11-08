@@ -181,11 +181,13 @@ def balanced_lick_sample(d, keep, rng, *, exclude_session=None):
 #: classes) keeps the DAQ training set and its stored ids, unchanged.
 #: PRIYA 11-08 (decision, fix/g13-noresp-1108): the NEGATIVE class is the RAW camera class no_response only. Section G's
 #: "none" group lumps no_response AND unknown (jaw not judgeable); unknown is never trained on (`G13_NEG`; the "none"
-#: group is split by the raw class, `_g13_split`). The SCORED sets follow the camera too (`_g13_rows`): the "no-lick"
-#: set = rows whose RAW class is no_response (no lick seen on camera; either DAQ arm, any point in the session),
+#: group is split by the raw class, `_g13_split`). The SCORED sets follow the camera too (`_g13_rows`), with the SAME row
+#: definitions training uses: the "no-lick" set = rows of group "none" whose RAW class is no_response (no lick seen on
+#: camera, WITHIN the working period: before the session's last camera lick, never a stopped / after_end /
+#: stopped_licking row -- stopped is its own class per (f) 1 and the quit tail a robustness arm only; either DAQ arm),
 #: replacing the DAQ no-lick rows (which held incomplete camera licks); the engaged comparison / control = camera
 #: WORKING rows (contact + incomplete groups, either DAQ arm), replacing the DAQ engaged rows; pre references and post
-#: sets use the same two definitions. G4 (`cam_balanced_sample` default, G4_NEG) is unchanged.
+#: values alike. G4 (`cam_balanced_sample` default, G4_NEG) is unchanged.
 G13_TAG = "cls-work-v-noresp"
 #: the G1-G3 negative training class under the camera grouping (a split of section G's "none" group, `_g13_split`)
 G13_NEG = ("no_response",)
@@ -231,16 +233,19 @@ def _g13_sample(dT, cg, keep, rng, *, exclude_session=None):
 def _g13_rows(d, cg, keep, sessions, which):
     """``(me, mu)``: the engaged-arm and no-lick-arm row masks of one G1-G3 SCORED set over ``sessions`` at the ``keep``
     spouts. ``which`` = "engaged" (camera grouping: the WORKING groups contact + incomplete, either DAQ arm; DAQ
-    grouping: the DAQ engaged rows) or "nolick" (camera grouping: rows whose RAW class is no_response, either DAQ arm;
-    DAQ grouping: the DAQ no-lick rows). Priya 11-08."""
+    grouping: the DAQ engaged rows) or "nolick" (camera grouping: group "none" AND raw class no_response -- the working
+    period only, never stopped / after_end / stopped_licking, the training negatives' definition; either DAQ arm; DAQ
+    grouping: the DAQ no-lick rows). Priya 11-08."""
     me = np.isin(d["GE"], list(sessions)) & np.isin(d["YE"], keep)
     mu = np.isin(d["GU"], list(sessions)) & np.isin(d["YU"], keep)
     if cg is None:
         return (me, np.zeros_like(mu)) if which == "engaged" else (np.zeros_like(me), mu)
     if which == "engaged":
         return me & np.isin(cg["grp_e"], list(G4_POS)), mu & np.isin(cg["grp_u"], list(G4_POS))
-    return (me & (np.asarray(cg["raw_e"], dtype=object) == "no_response"),
-            mu & (np.asarray(cg["raw_u"], dtype=object) == "no_response"))
+    return (me & (np.asarray(cg["grp_e"], dtype=object) == "none")
+            & (np.asarray(cg["raw_e"], dtype=object) == "no_response"),
+            mu & (np.asarray(cg["grp_u"], dtype=object) == "none")
+            & (np.asarray(cg["raw_u"], dtype=object) == "no_response"))
 
 
 def _g13_X(XE, XU, m):
@@ -262,7 +267,9 @@ def _g13_classes(cg):
     return {"groups": "camera", "tag": G13_TAG, "positive": list(G4_POS), "negative": list(G13_NEG),
             "scored_only": [g for g in wt.G_ALL if g not in G4_POS + ("none",)] + ["unknown"],
             "scored_sets": {"engaged": "camera WORKING rows (groups contact + incomplete, either DAQ arm)",
-                            "nolick": "raw camera class no_response (no lick seen on camera, either DAQ arm)"}}
+                            "nolick": "group none AND raw camera class no_response (no lick seen on camera, within "
+                                      "the working period: before the last camera lick, not stopped / after_end / "
+                                      "stopped_licking; either DAQ arm)"}}
 
 
 def _g13_by_class(model_for, XE, XU, d, cg, keep, sessions):
@@ -1560,7 +1567,7 @@ def undetected_state_split(d, keep, args, seed=0):
                                 f"refusing to pair them"}
         return out
     # the split pairs the no-lick ARM with the per-row state vector; under the camera grouping (Priya 11-08) only its
-    # rows whose RAW camera class is no_response are scored (`_g13_rows` "nolick", no-lick arm). The engaged-arm
+    # rows of the scored no-lick set are scored (`_g13_rows` "nolick", no-lick arm: group "none" + raw no_response). The engaged-arm
     # no_response rows have no state entry and stay out of the split (they are in `looks_like_which`'s set above).
     post_m = _g13_rows(d, cg, keep, d["post_i"], "nolick")[1] if cg is not None else (
         np.isin(d["GU"], list(d["post_i"])) & np.isin(d["YU"], keep))

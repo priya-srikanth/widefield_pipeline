@@ -88,7 +88,8 @@ def _n_post(d, cg, which):
     if which == "engaged":
         return int((pe & np.isin(cg["grp_e"], ["contact", "incomplete"])).sum()
                    + (pu & np.isin(cg["grp_u"], ["contact", "incomplete"])).sum())
-    return int((pe & (cg["raw_e"] == "no_response")).sum() + (pu & (cg["raw_u"] == "no_response")).sum())
+    return int((pe & (cg["grp_e"] == "none") & (cg["raw_e"] == "no_response")).sum()
+               + (pu & (cg["grp_u"] == "none") & (cg["raw_u"] == "no_response")).sum())
 
 
 def test_tag_and_negative_class():
@@ -156,13 +157,33 @@ def test_scored_post_sets_are_camera_defined(env):
     d, state, _, _ = env
     cg = state["cg"]
     r = pc.looks_like_which(d, KEEP)
-    assert r["n_post_undetected"] == _n_post(d, cg, "nolick")      # raw no_response rows, both DAQ arms
+    assert r["n_post_undetected"] == _n_post(d, cg, "nolick")      # "none" + raw no_response rows, both DAQ arms
     assert r["n_post_engaged"] == _n_post(d, cg, "engaged")         # camera WORKING rows, both DAQ arms
     # the camera sets are not the DAQ arms
     assert r["n_post_undetected"] != _n_post(d, None, "nolick")
     assert r["n_post_engaged"] != _n_post(d, None, "engaged")
     f = pc.fits_engaged_distribution(d, KEEP, n_boot=200)
     assert f["n_post_nolick"] == _n_post(d, cg, "nolick")
+
+
+def test_scored_no_lick_set_is_the_working_period_only(env):
+    """after_end ("quit") and stopped rows of raw class no_response are NOT in the scored no-lick set (pre or post);
+    by_class still reports them in their own groups."""
+    d, state, _, _ = env
+    cg = state["cg"]
+    for sess in (d["pre_i"], d["post_i"]):
+        me, mu = pc._g13_rows(d, cg, KEEP, sess, "nolick")
+        for g in ("after_end", "stopped"):
+            bad_u = (cg["grp_u"] == g) & (cg["raw_u"] == "no_response") & np.isin(d["GU"], list(sess))
+            assert bad_u.any() and not np.any(mu & bad_u)
+        assert set(cg["grp_e"][me]) | set(cg["grp_u"][mu]) == {"none"}
+        assert set(cg["raw_e"][me]) | set(cg["raw_u"][mu]) == {"no_response"}
+    raw_all = int(sum(((np.isin(d[G], list(d["post_i"])) & np.isin(d[Y], KEEP) & (cg[r] == "no_response")).sum()
+                       for G, Y, r in (("GE", "YE", "raw_e"), ("GU", "YU", "raw_u")))))
+    r = pc.looks_like_which(d, KEEP)
+    assert r["n_post_undetected"] == _n_post(d, cg, "nolick") < raw_all
+    assert r["n_post_undetected"] == r["by_class"]["post"]["no_response"]["n"]
+    assert r["by_class"]["post"]["after_end"]["n"] > 0 and r["by_class"]["post"]["stopped"]["n"] > 0
 
 
 def test_daq_grouping_keeps_the_old_training_set_ids_and_scored_sets(env):
