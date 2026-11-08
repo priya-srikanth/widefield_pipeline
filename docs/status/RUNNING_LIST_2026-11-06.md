@@ -370,3 +370,17 @@ fig_refit_matched_pre.py, renamed from fig_refit_mixmatch (branch feature/refit-
 _stats.csv, _lick_table.csv, _caption.txt. Change vs pre (boot_delta, Holm over 18): acute far ipsi -0.221, far mid
 -0.148, far contra -0.259 (all Holm .0045); acute near -0.06..-0.08 (n.s. after Holm); subacute all n.s.; chronic
 near ipsi +0.152 (Holm .0045, ABOVE pre); others n.s.
+
+**11-08 ~09:55 -- D9 batch B queued; v9y stopped; b_partial_frA profile.**
+- fix/d9-input-paths ON MAIN 99f0d464 (654 passed); within_session_decline.py classified BEHAVIOUR in the share-writer
+  test with Priya's push OK (state-space window told).
+- v9y stopped (PID 36768, mine): its l_stopped_restw would have run pre-D9 code (qc/jaw_onsets.csv read from a path that
+  never existed) after waiting ~5 h for the heavy lock. Its claims l_stopped_restw / l_stopped_restnl parked
+  RESERVED_HOLD (superseded by _r).
+- Lane v9zs (detached wf_render_v9zs @ 99f0d464): BL (light, running now) b_imaging_lmm_r, b_remap_lmm_r,
+  b_remap_checks_r; BH (heavy, waits for the lock) l_stopped_restw_r/_restnl_r, l_disengage_r/_daq_r/_add_r,
+  l_restnl_rescue_r, l_face_offset_partial_r, g5_section_g_contact_r4 (after r4) + figs, l_simple_key_figures_r.
+- b_partial_frA (heavy lock since 06:26): 42/107 at 09:45, ~4.7 min/session; 4 workers at ~0.5 core each, box ~24 %
+  busy, 17 GB free. Resumes from sessions/<label>.json. Profiling one finished session (PS92_0812) into scratch
+  (scratchpad/prof_partial) before any restart recommendation.
+- Batch C producer tracing delegated (read-only).
