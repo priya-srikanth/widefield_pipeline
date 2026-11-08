@@ -170,3 +170,33 @@ def test_lnmf_basis(mods, monkeypatch, tmp_path):
     h = S.hemi(v, S.cols_of(cols, "PS92"), ("SSp-m",))
     assert h == {"contra": 1000.0, "ipsi": 100.0}                               # '#k' stripped for the parent area
     assert S.hemi(v, cols["PS92"])["ipsi"] == pytest.approx((1 + 3 + 100) / 3)
+
+
+def test_align_maps_recovers_a_shared_code(mods):
+    """Loops in a per-animal basis (LocaNMF): one shared pre code (6 spouts x bins x 8 latents) seen through a different
+    random mixing into 20 'components' per animal (+ trial noise) -> the pre-only Procrustes alignment lines the animals
+    up (leave-one-animal-out r ~ 1), the aligned post epoch reproduces the planted post change, and the PCA plane runs."""
+    S, R = mods
+    import state_space_trajectories as TJ
+    rng = np.random.default_rng(1)
+    nb, d = len(S.BINS), 8
+    code = rng.normal(size=(6, nb, d))
+    post = code * 1.5                                                  # a pure gain change, shared by all animals
+    data = {}
+    for k, an in enumerate(["A1", "A2", "A3", "A4"]):
+        mix = np.linalg.qr(rng.normal(size=(20, d)))[0].T              # latent -> this animal's 20 components
+        sess = []
+        for ep, c, n in (("pre", code, 3), ("acute", code, 2), ("subacute", code, 2), ("chronic", post, 2)):
+            for j in range(n):
+                pos = np.repeat(S.POS, 20)
+                Y = c[[S.POS.index(p) for p in pos]] @ mix + 0.05 * rng.normal(size=(len(pos), nb, 20)) + k
+                sess.append((f"{an}_{ep}{j}", ep, j, Y, pos))
+        data[an] = sess
+    maps, loo = TJ.align_maps(data)
+    assert min(loo.values()) > 0.98
+    a = {an: (R.template([s for s in sess if s[1] == "chronic"]) - R.template([s for s in sess if s[1] == "pre"]))
+         @ maps[an] for an, sess in data.items()}
+    for an in a:                                                       # aligned post changes agree across animals
+        assert np.corrcoef(a[an].ravel(), a["A1"].ravel())[0, 1] > 0.98
+    proj, pooled, ve, boot, loo2 = TJ.loops(data, align=True)
+    assert pooled["chronic"].shape == (6, nb, 2) and ve > 0.3

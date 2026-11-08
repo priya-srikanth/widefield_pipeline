@@ -162,13 +162,14 @@ def _position_bars(per_animal, out_dir, align, variant, wname, *, name, title, d
     from wfield_local.grant_figures import CONF_LABELS
 
     short = dict(zip(CONF_LABELS, _short_labels()))
-    values, points = {}, {}
+    values, points, sessions = {}, {}, {}
     for e in ef.PANELS:
         rec = ef.pool_records(per_animal, e)
         if rec is None:
             continue
         values[e] = {}
         points[e] = {}
+        sessions[e] = {}
         for q in CONF_LABELS:
             # THE BAR'S OWN INTERVAL, from the same animals -> sessions -> blocks resampling the
             # marks use. Passing a bare number drew no error bar at all, silently: `bar_row` draws
@@ -181,8 +182,9 @@ def _position_bars(per_animal, out_dir, align, variant, wname, *, name, title, d
             if a is not None:
                 values[e][short[q]] = a
             # one dot per session, from the SAME records the pooled bar sums
-            pts = ef.per_session_values(per_animal, e, lambda _an, _d, r, q=q: value_of(r, q))
-            points[e][short[q]] = [(an, v) for an, v in pts if v is not None]
+            pts = ef.per_session_values(per_animal, e, lambda _an, _d, r, q=q: value_of(r, q), with_session=True)
+            points[e][short[q]] = [(an, v) for an, v, _s in pts if v is not None]
+            sessions[e][short[q]] = [s for _an, v, s in pts if v is not None]
     if not values:
         return None
     cov = ef.epoch_coverage(per_animal)
@@ -232,7 +234,7 @@ def _position_bars(per_animal, out_dir, align, variant, wname, *, name, title, d
                         blocks=ef.block_counts(per_animal), n_boot=N_BOOT, notes=list(notes))
     made = ef.bar_row(
         values, out_dir, name=name, title=title,
-        subtitle=sub, counts=_totals(per_epoch), marks=marks, points=points,
+        subtitle=sub, counts=_totals(per_epoch), marks=marks, points=points, sessions=sessions,
         ylabel=ylabel, positions=_short_labels(), tick_labels=_minor(), groups=_groups(),
         chance=chance, ylim=ylim, reference=reference)
     if any(rows.values()):

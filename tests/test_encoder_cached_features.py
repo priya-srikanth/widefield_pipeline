@@ -88,9 +88,9 @@ def test_different_args_are_different_entries(fake):
 
 
 def test_refused_source_is_computed_not_cached(fake):
-    """The wrapper's refusal (non-locanmf source, no injected signal) still holds through `_features`'s
-    disk tier: computed every time, nothing written."""
-    args = SimpleNamespace(**{**vars(enc._args(2.0)), "source": "roi"})
+    """The wrapper's refusal (a diagnostic non-locanmf source, no injected signal; ``roi`` is cached since 11-07)
+    still holds through `_features`'s disk tier: computed every time, nothing written."""
+    args = SimpleNamespace(**{**vars(enc._args(2.0)), "source": "svt"})
     r1 = dec.trial_features_cached(SESSION, args)
     r2 = dec.trial_features_cached(SESSION, args)
     _assert_identical(r1, r2)

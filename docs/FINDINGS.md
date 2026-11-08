@@ -1058,8 +1058,11 @@ August-only pre, every readout vs the animal's OWN pre; `*` = boot_delta, LMM as
    or only the spout-specific part kept, the code is re-patterned (chronic r with the pre template -.11 / -.20) and
    partly outside the pre space. Reading: "cortex consistent with the pre mapping" holds for the dominant shared
    dimension, "remapped" (4b d, self-fit gap) for the spout-specific part. PROVISIONAL.
-2. **The acute state is a DETOUR, not a point on the way to chronic.** 80-95 % of acute - pre lies orthogonal to the
-   pre -> chronic direction in every variant; subacute sessions slide back toward and along that line. NEW. PROVISIONAL.
+2. **The acute state is a DETOUR, not a point on the way to chronic.** Most of the acute change lies off the pre ->
+   chronic line: ~75-90 % of its length (~55-85 % of its variance; noise-corrected, cross-fitted trial splits), every
+   animal and basis. Its smaller along-line part points away from the chronic state in PS92 / PS94 and toward it in
+   PS93 / PS95 (Allen areas; LocaNMF: PS92 ~0, the other three toward). Subacute sessions slide back toward and along
+   that line. PROVISIONAL.
 3. **The detour tracks the behavioral deficit, at every spout, gradually.** Its size (acute-departure axis) tracks
    far-contra first-lick aim within animal (r -.78 to -.93, 4/4), also within epochs; all six spouts track it; readouts
    and aim are ~linear in log days (a step model wins 2 / 24 fits). The axis shares ~70 % of its within-animal variance

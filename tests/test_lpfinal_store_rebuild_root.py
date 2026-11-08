@@ -23,3 +23,9 @@ def test_store_without_a_rebuild_root_is_beside_figures_working(monkeypatch, tmp
     monkeypatch.setenv("WIDEFIELD_FIGURES_WORKING", str(tmp_path / "fw"))
     env = _mod().settings(source="lp", window=1.0, trained="lp")
     assert Path(env["WIDEFIELD_FROZEN_MODEL_DIR"]) == tmp_path / "fw" / "frozen_models_lpfinal"
+
+
+def test_pre_session_count_ignores_no_lick_run_ids():
+    import numpy as np
+    blocks = np.array([0 * 1_000_000 + 3, 0 * 1_000_000 + 4, 2 * 1_000_000 + 1, -1, -2, -7])
+    assert _mod().pre_sessions(blocks) == 2

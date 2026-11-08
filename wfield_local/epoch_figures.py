@@ -66,7 +66,7 @@ def _save_png_svg(fig, q, *, dpi=200):
     # PNG as before + SVG twin through the shared helper (2026-11-06: text kept as text, a failed SVG warns).
     save_png_svg(fig, q, dpi=dpi)
 
-def write_values(values, q, *, points=None, marks=None):
+def write_values(values, q, *, points=None, marks=None, sessions=None):
     """Write the numbers a bar figure PLOTS, beside it as ``<name>.csv``. (An LP_licks folder needs the LP switch:
     `lp_licks.refuse_lp_folder`.)
 
@@ -105,7 +105,7 @@ def write_values(values, q, *, points=None, marks=None):
                         mk = (marks.get(ep, {}) or {}).get(pos, "") or ""
                     w.writerow([ep, pos, val, lo, hi, mk])
         if points:
-            _write_sessions_csv(points, q)
+            _write_sessions_csv(points, q, sessions)
     except Exception as ex:                                            # noqa: BLE001
         # A sidecar must never cost a figure. Warn and carry on, as `_save_png_svg` does for SVG.
         print(f"  [values] {main.name}: failed ({type(ex).__name__})", flush=True)
@@ -707,17 +707,26 @@ def counts_by_epoch(per_animal: dict) -> dict:
 # dominates the acute panel (6 sessions) and PS95 the subacute (7) -- and a note saying so is read
 # once and forgotten, while a column of dots is read every time the figure is looked at. One dot per
 # SESSION VALUE means the reader can count the contributors and see that PS95's acute panel rests on
-def _write_sessions_csv(points, q):
-    """``<name>_sessions.csv``: ``epoch, position, animal, value``, one row per session dot."""
+def _write_sessions_csv(points, q, sessions=None):
+    """``<name>_sessions.csv``: ``epoch, position, animal, value``, one row per session dot.
+
+    With ``sessions`` (``{epoch: {position: [key, ...]}}``, parallel to ``points``) a fifth column ``session`` names
+    the session behind each dot, so a reader can pair positions within a session even where one position has no
+    value there (11-08: the state-position figure paired by row order and broke on one missing cell). Without it the
+    file is byte-identical to before."""
     import csv as _csv
     with open(sidecar(pathlib.Path(q), "_sessions.csv"), "w", newline="", encoding="utf-8") as fh:
         w = _csv.writer(fh)
-        w.writerow(["epoch", "position", "animal", "value"])
+        w.writerow(["epoch", "position", "animal", "value"] + (["session"] if sessions else []))
         for ep, per_pos in points.items():
             for pos, lst in (per_pos or {}).items():
-                for item in lst or []:
+                keys = ((sessions or {}).get(ep) or {}).get(pos) if sessions else None
+                if sessions and (keys is None or len(keys) != len(lst or [])):
+                    raise ValueError(f"sessions[{ep}][{pos}] does not match points ({len(keys or [])} vs "
+                                     f"{len(lst or [])})")
+                for i, item in enumerate(lst or []):
                     an, val = (item if isinstance(item, (tuple, list)) else ("", item))[:2]
-                    w.writerow([ep, pos, an, val])
+                    w.writerow([ep, pos, an, val] + ([keys[i]] if sessions else []))
 
 
 def write_session_values(points, q):
@@ -867,9 +876,11 @@ def session_deltas(points, ref="pre"):
     return out
 
 
-def per_session_values(per_animal, epoch, value_of):
+def per_session_values(per_animal, epoch, value_of, *, with_session=False):
     """``[(animal, value), ...]`` for one epoch, one value per SESSION -- the input `session_points`
-    wants.
+    wants. ``with_session=True`` returns ``(animal, value, session)`` instead: ``pre<k>`` (the k-th pre record of
+    that animal, in collector order) or ``day<d>`` (days from stroke), identical across positions and across figures
+    built from the same collector.
 
     ``value_of(animal, day, record)`` reduces a per-day record to the scalar the panel plots, so the
     same grouping serves accuracy, similarity and reliability without any of them re-deriving which
@@ -880,13 +891,13 @@ def per_session_values(per_animal, epoch, value_of):
         for an, (pre, _bd) in sorted(per_animal.items()):
             if pre is None:
                 continue
-            for r in (pre if isinstance(pre, list) else [pre]):
-                out.append((an, value_of(an, None, r)))
+            for k, r in enumerate(pre if isinstance(pre, list) else [pre]):
+                out.append((an, value_of(an, None, r)) + ((f"pre{k}",) if with_session else ()))
         return out
     for an, day in group_days_by_epoch(per_animal).get(epoch, []):
         rec = per_animal[an][1].get(day)
         if rec is not None:
-            out.append((an, value_of(an, day, rec)))
+            out.append((an, value_of(an, day, rec)) + ((f"day{day}",) if with_session else ()))
     return out
 
 
@@ -1273,7 +1284,7 @@ def _data_span(values, points):
 
 def bar_row(values, out, *, name, title, ylabel, positions, points=None, chance=None,
             counts=None, ylim=(0.0, 1.0), subtitle=None, groups=None, tick_labels=None,
-            marks=None, reference=None, dot_style="open"):
+            marks=None, reference=None, dot_style="open", sessions=None):
     """Per-position values as grouped bars, one group per position and one bar per epoch.
 
     ``dot_style`` (Priya 2026-11-03, figure rule 2): ``"open"`` (default) draws each session as a
@@ -1488,7 +1499,7 @@ def bar_row(values, out, *, name, title, ylabel, positions, points=None, chance=
     write_meta(q, chance=chance, reference=reference, ylim=ylim, counts=counts,
                positions=positions, tick_labels=tick_labels, groups=groups,
                title=title, subtitle=subtitle, ylabel=ylabel)
-    write_values(values, q, points=points, marks=marks)
+    write_values(values, q, points=points, marks=marks, sessions=sessions)
     save_figdata(q, "bar_row", _figdata)
     plt.close(fig)
     return q

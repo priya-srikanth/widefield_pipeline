@@ -199,6 +199,15 @@ def dec_out(trained) -> Path:
     return lp_licks.output_dir(root() / f"trained_{trained}" / "epoch")
 
 
+def pre_sessions(blocks) -> int:
+    """Pre-stroke sessions in a pooled record's block ids. Licking rows carry session index * 1e6 + block; no-lick rows
+    carry NEGATIVE run ids (`grant_kit._runs_to_blocks`), which floor-divide to -1 and were counted as one extra session
+    (11-08: 9 shown for PS94 / PS95, frozen on 8)."""
+    import numpy as np
+    b = np.asarray(blocks)
+    return int(np.unique(b[b >= 0] // 1_000_000).size)
+
+
 def trial_table(per_animal):
     """Trials and sessions per animal x epoch x position in the decoder's own scored sets (rule 8)."""
     import numpy as np
@@ -217,8 +226,8 @@ def trial_table(per_animal):
                 continue
             y, _p = _named(rec)
             pre = per_animal[an][0]
-            n_s = (int(np.unique(np.asarray(pre[2]) // 1_000_000).size) if e == "pre" and pre is not None
-                   else cov.get(e, {}).get(an, 0))              # pre blocks = session index * 1e6 + block
+            n_s = (pre_sessions(pre[2]) if e == "pre" and pre is not None
+                   else cov.get(e, {}).get(an, 0))
             r = {"animal": an, "epoch": e, "n_sessions": n_s, "n_trials": int(len(y))}
             for q in CONF_LABELS:
                 r[f"n_{q}"] = int(np.sum(y == q))
