@@ -27,7 +27,10 @@ helpful"): each animal's chronic map gets its OWN contour from shuffling that an
 counts kept, N_PERM), max |change| over `stat_mask` pixels per panel (family-wise); the bottom row counts, per pixel, the
 animals significant in the direction of the cohort mean (k/4). Masks resolve WITHOUT the rebuild profile (glue
 removed; see o2_state_space_svd).
-Areas (64 Allen areas, both hemispheres): `analysis_kit.boot_delta_columns` (animals -> sessions, paired) on the session
+Areas: the SPLIT area basis (`area_basis.roi_masks` / `basis_masks`, ROI v8, Priya 11-04 "all Allen-ROI analyses
+use the split area basis"; 45 ROIs: every Allen area on the eroded stat mask + rim rules, ALM / tjM1 and MOs_rest / MOp_rest
+per hemisphere), each ROI's mean read through the basis (mean of U_cohort over its pixels). ALM and tjM1 are outlined
+(dashed) on every map. Statistics: `analysis_kit.boot_delta_columns` (animals -> sessions, paired) on the session
 area values; * = 95 % CI excludes 0 (primary); k/4 = animals with the change in the pooled direction; per-animal values
 in the table (rule 8). Image: left hemisphere = image LEFT = ipsilesional (all lesions left).
 BASELINE (WF_SS_MAPBASE; Priya 11-08 "let's try the rest baseline and no subtraction"):
@@ -264,6 +267,9 @@ def area_table(resp, unit, W, names, version, rng):
     return rows
 
 
+_ROI_OUTLINES: list = []                                  # full-frame bool masks (ALM / tjM1 per side), filled in main
+
+
 def draw(ax, v, mask, edges, vmax, sig=None, brain=None):
     """One map. Analyzed pixels (``mask``) in color with area outlines inside them; brain pixels NOT analyzed (``brain``
     minus ``mask``: the painted glue and the bulbs, Priya 11-08 "make clear our mask") in flat grey; the analyzed
@@ -279,6 +285,8 @@ def draw(ax, v, mask, edges, vmax, sig=None, brain=None):
     ax.imshow(np.where((edges & mask)[sl], 1.0, np.nan), cmap="gray_r", vmin=0, vmax=1.5, alpha=0.5,
               interpolation="nearest")
     ax.contour(mask[sl].astype(float), [0.5], colors="0.25", linewidths=0.7)
+    for roi in _ROI_OUTLINES:                                # ALM / tjM1 (split basis), dashed
+        ax.contour(roi[sl].astype(float), [0.5], colors="0.1", linewidths=0.8, linestyles="--")
     if sig is not None and np.any(sig):              # the repo's significance outline: black on a white halo
         sig = np.asarray(sig, float)                 # (epoch_figures, the 15r maps)
         ax.contour(sig[sl], [0.5], colors="white", linewidths=2.8, alpha=0.85)
@@ -378,6 +386,14 @@ def main():
     from wfield_local import beta_maps
     brain = beta_maps.allen_mask()                                             # the whole Allen brain, nothing removed
     statpx = beta_maps.stat_mask()[mask]                                       # eroded brain mask, on the basis pixels
+    from wfield_local import area_basis
+    flat = np.flatnonzero(mask.ravel())
+    split = area_basis.basis_masks(area_basis.roi_masks(atlas.ravel()[flat], beta_maps.stat_mask().ravel()[flat],
+                                                        dict(S._atlas_names()), flat, mask.shape))["split"]
+    for k in ("ALM_left", "ALM_right", "tjM1_left", "tjM1_right"):
+        f = np.zeros(mask.size, bool)
+        f[flat[split[k]]] = True
+        _ROI_OUTLINES.append(f.reshape(mask.shape))
     if "--replot" in sys.argv:                                                 # figures only, from the saved maps
         z = np.load(OUT / "maps.npz")
         ans = sorted({c.split("_", 1)[1] for c in pd.read_csv(OUT / "areas.csv").columns if c.startswith("d_")})
@@ -389,7 +405,8 @@ def main():
             fig_animals(res, mask, edges, version, brain, asig)
         print(f"replotted {OUT}")
         return
-    W, names = S._svd_area_weights()
+    names = list(split)                                                        # split-basis ROI weights (K x n_roi)
+    W = np.stack([Uc[split[n]].mean(0) for n in names], axis=1)
     unit, rows, store = None, [], {}
     for version, xf in VERSIONS.items():
         S.XFORM = xf                                                            # the loader reads it per call
