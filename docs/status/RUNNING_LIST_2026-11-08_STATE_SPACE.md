@@ -113,6 +113,29 @@ merged to main (no conflicts); A5 applied to FINDINGS 0c item 4 and the page cap
      4/4). Acute: far mid / far contra lose bilaterally (anterolateral), close spouts gain ipsilesional anterolateral.
    EXPLORATORY; area names from the table (CCF), not read off the maps.
 
+14. **PLAN: two-part change maps, "explained by the changed behavior" vs "beyond it" (Priya 11-08 "yes plan the two-
+   part change map").** Delta data = Delta (frozen pre-stroke encoder's prediction from the ACTUAL post-stroke behavior)
+   + Delta (residual). Inputs exist (checked): `<rebuild>/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/
+   hv-...daqlk/frozen_encoder_gate-attempted_v7g3_t3d_spont_basis/<variant>/sessions/<label>.npz`, `evoked_lick` /
+   `evoked_cue` = (12 parts x 6 spouts x 201 spatial targets): data, full, the seven groups timing / target / exec_locked
+   / exec_within / lick / other / contact (+ spout, lick_all super-groups, spont); pre sessions LOSO-frozen. Targets ->
+   pixels through `fit/spatial_<animal>.pkl`. Encoder windows: lick 0..1 s minus -0.3..-0.1 s, cue 0.5..1.5 s minus
+   -0.5..0 s; engaged (gate attempted) first-lick trials.
+   Steps: (1) BRIDGE -- the encoder's Delta data vs this arm's maps (same epochs, cohort SVD): r per spout / epoch, so
+   differences in trials / windows / baseline are measured, not assumed. (2) every part -> pixels -> analysis mask ->
+   cohort SVD (same smoothing as the maps), one unit per animal (its pre Delta-data RMS) for all parts. (3) per animal
+   and epoch: Delta data, Delta full, Delta residual (= data - full, exact), Delta per group. (4) figures: rows data /
+   predicted / residual, columns mean + six spouts, full + spout-specific (+ nocw), nested-bootstrap contours, per-animal
+   + k/4. (5) numbers: share of the Delta-data energy the prediction carries (1 - |Delta resid|^2 / |Delta data|^2) and
+   cos(Delta data, Delta pred) per animal x spout; which groups carry Delta pred (descriptive: groups are correlated);
+   area table for all three. Local, ~10 min (119 small npz + four 133 MB bases).
+   Open: (a) baseline -- the encoder's evoked parts carry ITS window (-0.3..-0.1 s before the lick); first pass uses it
+   (consistent within the decomposition) and the bridge shows whether the baseline matters; a rest / none version needs
+   `_predict_spatial` re-run with other windows. (b) the encoder was fit under the rebuild profile -> glue pixels IN
+   (B12 / A9): drawn on the analysis mask, but the fit itself saw the glue; a clean version waits on the A9 fix.
+   (c) over-control: movement that the stroke changed THROUGH cortex is removed with it -- read Delta residual as a
+   lower bound on change beyond behavior.
+
 13. **Masked LocaNMF re-run (`_lnmfbm`, glue / bulb components dropped).** Lick, chronic vs own pre (unmasked ->
    masked): r -.21* -> -.18* (0/4 back both); amp +.17 n.s. -> +.26* (4/4); rot_gain +.050* (4/4) -> +.046* (3/4);
    out_resid +.043* -> +.048* (4/4); shift +23* -> +27* (4/4). Contact-only: r -.17*, amp +.24* 4/4, rot +.059* 3/4,
