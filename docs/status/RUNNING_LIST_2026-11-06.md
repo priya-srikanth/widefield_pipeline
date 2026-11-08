@@ -635,3 +635,12 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
   frozen_encoder.tag_for_design, clear refusal naming the folder; 473 passed) -- held, optional.
 - 16:0x memo ON MAIN 597cbed9 (two lost push races with another window; 483 passed each time).
 - 15:59 gain-bio DONE on fixed code: gb_sessions_r, gb_summarise_r, gb_stats_r, gb_fig_r all EXIT 0.
+- 16:02 LAUNCHED queue_daqlk9zw.sh (worktree wf_render_v9zw, detached at main 597cbed9: every 11-08 fix + memo).
+  Lane v9zw-EP (second heavy slot, NOHEAVY, MINFREE 20, sequential): g5_epoch_lp_ENL (--only 5r 14m) -> g5_epoch_lp_lick
+  (acc 14m) -> g5_epoch_lp_cue (scal mat). SETTINGS CHECK on the live log: WIDEFIELD_LICK_SOURCE=lp, GATE_SOURCE=lp,
+  TRIAL_GATE=camera, frozen store frozen_models_lpfinal (same LP-trained decoders as LPfinal), output
+  LP_licks_gateLP_<tag> (LPfinal's folder), families 14m 5r, arm ENL. ENL 1.0 s = lp_licks.enl_post_s default under lp.
+  Lane v9zw-IT: e_pat_stats_maps_r2 -> e_roi_check_r2 -> e_roi_foci_r2 -> e_roi_cand_r2 -> e_rim_overlay_r2 (frozen env,
+  fixed te-basis path cc70519e).
+- Waiting before queueing the rest: settings-check helper (rest family / cd chain / page-feeding lick decoders) and the
+  G1-G3 no_response helper (section G).
