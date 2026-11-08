@@ -86,6 +86,22 @@ classes; 3 = FaceRhythm June face regions; 4 = FaceRhythm June O2 run. Backgroun
   - Script fix: the classes were built twice per session (licks + jaw trials; ~35 min serial, killed by my 30-min
     timeout on the first run); now precomputed once, 2 workers (~15 min); `--replot` redraws from the CSVs.
 
+- **June FaceRhythm RE-RUN (correct meshes), 11-08 afternoon: clean, and the PS95 rim problem is gone.** All 12 copied
+  back; `collect` 12 / 12; `qc --jobs 2` -> `face_rhythm/cam4/o2_fr_cam4_june_20261108_qc.png` + data/ csv; `timing`
+  (dropped frames median 0.08 %, max 0.10 %). Compared with the wrong-mesh run and with each animal's August pre:
+  - violations 0, no NaN bins, trial samples 100 % filled;
+  - interior folds <= 0.4 % of bins (August pre <= 0.3 %);
+  - p99 folded fraction 0.001-0.002 (wrong mesh: PS95 0.005-0.007; August pre <= 0.003);
+  - rim folds: PS95 0.51-0.87 of bins (wrong mesh 1.00), PS92 0.55-0.72, PS93 0.27-0.42, PS94 0.14-0.24; all within
+    August pre (up to 0.92);
+  - **displacement is LARGER than August:** median 1.1-2.6 px vs August pre 1.0-2.4. By animal: PS92 2.2-2.3 vs
+    1.2-1.5; PS95 2.3-2.6 vs 1.4-2.0. Up 1.2-1.35x from the wrong mesh, which sat partly off the face. The face-scale
+    difference (~1.13x) explains only part of it (PS92 ~1.6x), so June face movement is larger in px even after
+    scale. Readouts must be scale-normalized and interpreted as a training-stage difference, not tracking.
+  - So decision 2 is moot for the tracking as well: no PS95 June exclusion is needed.
+  Projection onto frozen `master_pre_v1`: `scripts/face_rhythm_june_project.py` (separate set folder
+  `o2/fr_cam4_june_20261108/factors/master_pre_v1_june/`: byte copy of master.npz + a 12-task June plan; production set
+  untouched) -> `master_pre_v1_june/proj/`. Running (2 workers).
 - **SUPERSEDED (wrong June meshes, item 0):** June FaceRhythm O2 outputs: complete and clean except PS95's mesh rim (Priya copied out/ 11-08; `o2_face_rhythm.py
   collect` -> `face_rhythm/cam4/o2_fr_cam4_june_20261108_index.csv`; `qc --jobs 2` -> `o2_fr_cam4_june_20261108_qc.png`
   + data/ csv). Compared with each animal's August pre sessions of the production run:
