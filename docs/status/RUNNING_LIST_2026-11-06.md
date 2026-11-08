@@ -263,3 +263,5 @@ the encoding handoff (STATUS_2026-10-26_ENCODING_HANDOFF.md, top blocks); the A1
 - 23:30 section G restart #4 (v9zh, c3a8b049, ROI feature cache) phase 1 6/12; ROI-cache push re-queued to run after a_partial_ls
   (pre-push pytest was stopped at 22:20 for LOW RAM 4 GB). ITI svdbasis retry v9zg waits for t_frame_te_basis. l_reembed
   failed on the 12 June sessions (object arrays / allow_pickle) -> investigate on a branch. No section G restarts tonight.
+- 00:0x D1 ON MAIN fa0e4d87 (june epoch fix); D3 ON MAIN cc6d11df (fit-from copies spatial). ROI-cache push (80090a57 +
+  c3a8b049) still queued behind a_partial_ls. Lane v8-GBMD ended 23:46 (g5_chronic_stability clean).
