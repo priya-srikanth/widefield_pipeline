@@ -144,6 +144,8 @@ def main(argv=None) -> int:
                  "Mahalanobis distance on first-lick 3-D endpoint, reach, peak speed, latency and lick count <= the\npre "
                  "trials' leave-one-session-out 95th percentile. Bars = mean of animals; whisker 95 % nested CI; * excludes "
                  "0; dots = animals; gray band = pre split-half range. contra = right.", fontsize=9)
+    from wfield_local.sig_marks import reserve_headroom
+    reserve_headroom(fig)                # the `bars` stars sit in the top band (10-30), no top spine (11-03)
     fig.subplots_adjust(left=0.05, right=0.88, top=0.88, bottom=0.07, hspace=0.4)
     save_png_svg(fig, out / "figures" / "matched_residual.png", dpi=105)
     plt.close(fig)

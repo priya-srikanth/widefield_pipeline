@@ -70,7 +70,7 @@ def lick_deficits(E: Path, figs: Path) -> None:
     S = pd.read_csv(run_mode.behaviour_qc_dir() / "first_lick_latency_late_licked_trials.csv")   # behaviour (seeded)
     cols = (("cam4_late", "first cam4 lick > 1.5 s after cue"), ("comb_late", "... with cam1 small licks added"),
             ("contact_none", "no spout contact at all"))
-    sp = ("far_contra", "far_mid", "close_contra")
+    sp = tuple(p for p in POS if p in ("far_contra", "far_mid", "close_contra"))   # canonical order (Priya 10-25)
     fig, ax = plt.subplots(len(sp), len(cols), figsize=(12, 8), squeeze=False, sharey=True)
     for i, p in enumerate(sp):
         for j, (c, t) in enumerate(cols):

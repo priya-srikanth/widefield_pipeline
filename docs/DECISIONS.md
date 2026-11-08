@@ -1,3 +1,16 @@
+## 2026-11-08 -- Refit floor, display floors, lick vs successful-lick classes (Priya)
+- D7 REFIT FLOOR = 10 TRIALS ONLY. Every refit analysis marks a position untrainable only below 10 trials; the 1/18-of-
+  session share rule (`grant_confusion.MIN_REFIT_SHARE`, added 09-09, never discussed with Priya) is RETIRED. The D6
+  trial-mix control (matched pre subsamples, no floor) is shown beside the refit figures. Priya: 1/18, 1/20 and 10 are
+  all arbitrary choices; 10 is kept for the refit fits only.
+- PER-SESSION DISPLAY FLOORS REMOVED. The hidden per-session 5-trial floors (`epoch_accuracy._accuracy_of`,
+  `epoch_kit._accuracy_at` and the other `< 5` sites) dropped sessions from the per-session tables; they are removed
+  (branch fix/refit-floor-10-no-display-floor, together with the D7 change).
+- LICK vs SUCCESSFUL-LICK CLASSES. Lick class = every camera-seen lick (contact + incomplete) on the LP source
+  (`WIDEFIELD_LICK_SOURCE=lp`, LP lick onset, ENL 1.0 s, LP-trained frozen decoders). Successful-lick class = DAQ
+  contact, supplemental only; never gate on it. PS93_0813 (no video) is in the successful-lick class only. Correction
+  recorded at the 11-03 (night) camera-gate entry in the root DECISIONS.md.
+
 ## 2026-11-07 -- FaceRhythm factor matching, map statistics, per-session tests (Priya; a8 window)
 - MATCHING RULE v2 (`face_rhythm_epoch_shape.MATCH_RULES`, `--match-rule v2`; v1 stays the code default until the page /
   deck switch): spatial score as before, but among columns within .05 of a factor's best spatial cosine the one with the

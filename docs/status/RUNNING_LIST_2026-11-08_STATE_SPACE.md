@@ -63,6 +63,30 @@ merged to main (no conflicts); A5 applied to FINDINGS 0c item 4 and the page cap
 
 ## B. Findings (newest first; exploratory)
 
+24. **The split in every basis + what the parts look like on cortex (11-08 ~15:00; page v17 section 10).** Shares,
+   acute / chronic: SVD = Allen (shift .30 / .13, per-area offset .16 / .34, per-spout offset .22 / .18, global gain
+   .03 / .15, rotation .05 / .03, off manifold .01); LocaNMF same order, more per-area gain (.16 / .20) and a larger
+   chronic shift (.22). MINUS the cortex-wide mode (WF_SS_XFORM=gsr): global gain -> ~0 and most of the per-area level
+   goes (Allen chronic .078 -> .003, .247 -> .070 in units of pre response energy) -- both were the cortex-wide mode;
+   the shared shift leads (chronic share Allen .24, SVD .31) with per-spout levels (.25-.26). Per session (Allen raw
+   + gsr, LocaNMF raw): pre leave-one-out dots ~0 for every part; shift above pre in every epoch 4/4, acute y > 0 in
+   every acute session; rotation ~.02, 4/4. "Response energy" (Priya asked) = sum of squares of the animal's pre
+   template (spouts x bins x features) after removing each feature's mean -- the task modulation, NOT the level.
+   PART MAPS (cohort SVD, `state_space_part_maps.py`): the SHARED SHIFT is a sharper lick-locked transient -- below pre
+   before the lick, above from -0.1 to +0.4 s (peak ~+0.15 s, +0.6-0.8 pre pixel RMS; acute rise from ~-0.25 s),
+   below again +0.4..+0.7 s; largest RSPd / SSp-tr / SSp-ll / VISa / MOp, bilateral, smallest ALM / tjM1. Minus the
+   cortex-wide mode: posterior-medial up at +0.1..+0.4 s (RSPd +1.2) with lateral limb / trunk SSp down (SSp-ll
+   -0.8), then lateral orofacial SSp (SSp-m to +1.3, SSp-n +0.8) up at +0.4..+0.7 s while RSPd falls (-0.8); every
+   epoch. Reading: down-up-down = an earlier / briefer lick response minus the pre one; spout-independent and
+   bilateral -> may be how licking unfolds after the first lick (bout length, contact, body movement). Other parts:
+   gain adds over bilateral lateral orofacial / SSp (subacute, chronic); per-area offset 0 significant pixels
+   chronically (reference-sensitive, as warned); per-spout level up at close ipsi (every epoch), down at far mid
+   (chronic); spout-specific rest mostly n.s. except far contra (central / posterior band chronically = Fig 9.3).
+   NEXT: (i) fit the shift as the pre response shifted / compressed in time; (ii) compare with lick-bout length /
+   contact / body movement; (iii) repeat the split against RESTnl (the per-area level). Still running: SVD per-session
+   (raw, gsr), LocaNMF per-session gsr (scratchpad masked/p8_lane_{svd,lnmf}.log) -> add to Figs 10.2 / 10.4 via the
+   basis switch.
+
 23. **What the change is made of: an exact split into eight parts (Priya 11-08 "split into parts" -> "per area shift?"
    -> "is there a per spout shift piece"; `scripts/state_space_change_parts.py`).** Per animal and epoch, Delta = epoch
    template - pre template (spouts x bins x features, first-lick-aligned), projected on nested pattern sets from the

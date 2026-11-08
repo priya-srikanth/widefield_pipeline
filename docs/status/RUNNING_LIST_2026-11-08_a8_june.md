@@ -101,7 +101,30 @@ classes; 3 = FaceRhythm June face regions; 4 = FaceRhythm June O2 run. Backgroun
   - So decision 2 is moot for the tracking as well: no PS95 June exclusion is needed.
   Projection onto frozen `master_pre_v1`: `scripts/face_rhythm_june_project.py` (separate set folder
   `o2/fr_cam4_june_20261108/factors/master_pre_v1_june/`: byte copy of master.npz + a 12-task June plan; production set
-  untouched) -> `master_pre_v1_june/proj/`. Running (2 workers).
+  untouched) -> `master_pre_v1_june/proj/`. DONE (12 / 12, ~10 min each). Reconstruction error (relative, trial
+  median): June 0.44-0.48, the same as acute (0.44-0.49); held-out August pre 0.42-0.46, chronic 0.43-0.46. So the
+  frozen basis describes June about as well as acute: June faces are not fully inside the August-pre space.
+- **June FR factor peaks vs own August pre** (`scripts/face_rhythm_june_reference.py --split side` ->
+  `readouts/master_pre_v1/june_reference/`: june_peak_reference_side.png, data/june_peak_{sessions,stats}_side.csv;
+  the 5d peak quantity, June peaks divided by face scale sqrt(sx sy), boot_delta 10k, Holm over 12 factors):
+  - **Absolute amplitude: June is higher on almost every factor** (+0.3 to +0.6 log2; 26 / 36 factor x side cells
+    pass). It is a GLOBAL gain, not factor-specific. The median over factors per animal is PS92 +0.43, PS93 +0.52,
+    PS94 +0.20, PS95 +0.15 (chronic +0.16 to +0.39). It survives the face-scale division, so camera geometry alone
+    does not explain it; lighting, contrast or focus could (the June camera setup differed), and so could more
+    vigorous June movement. Absolute June amplitudes are therefore NOT a clean reference.
+  - **Composition (scale-free: each factor's log2 peak minus the session's mean over the 12 factors, vs own pre)
+    removes the gain.** June differs from August ~1/3 as much as acute does (median |June| / |acute| 0.32). The cells
+    where all 4 animals move the same way:
+    - run_onset_jaw LOWER (-0.22 to -0.40 in all three sides);
+    - prep_jaw LOWER at contra / ipsi (-0.18 / -0.24);
+    - sniff_prelick HIGHER at center / ipsi (+0.22 / +0.29);
+    - lick_left higher at center (+0.25).
+    The jaw factors converge with task 1 (3-D: the June jaw opens less).
+  - **The contralesional lick deficit is NOT a training-stage difference:** lick_right composition June ~0 (-0.02 to
+    +0.01) vs acute -0.49 to -0.83 and chronic -0.22 to -0.79. The chronic lick_fast_close and lick_ongoing_7Hz rises
+    (+0.3 to +0.65) are also absent in June (-0.2 to +0.15).
+  - The composition numbers are a scratch analysis (per-animal means + sign counts, no bootstrap yet). If Priya wants
+    June on the page / deck (decision 3), add `--relative` with boot_delta to the script.
 - **SUPERSEDED (wrong June meshes, item 0):** June FaceRhythm O2 outputs: complete and clean except PS95's mesh rim (Priya copied out/ 11-08; `o2_face_rhythm.py
   collect` -> `face_rhythm/cam4/o2_fr_cam4_june_20261108_index.csv`; `qc --jobs 2` -> `o2_fr_cam4_june_20261108_qc.png`
   + data/ csv). Compared with each animal's August pre sessions of the production run:

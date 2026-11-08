@@ -77,6 +77,8 @@ def main(argv=None) -> int:
         fig.suptitle(f"NEURAL: movement WITH vs WITHOUT lick-position information (pose + FaceRhythm), FROZEN frame, {w} window "
                      f"({note}).\nBars = mean of animals' epoch - pre; whisker 95 % nested CI; * excludes 0; dots = animals. "
                      "contra = right (lesion left).", fontsize=9.5)
+        from wfield_local.sig_marks import reserve_headroom
+        reserve_headroom(fig)                # the `bars` stars sit in the top band (10-30), no top spine (11-03)
         fig.subplots_adjust(left=0.05, right=0.995, top=0.88, bottom=0.07, hspace=0.45)
         save_png_svg(fig, out / "figures" / f"frozen_posinfo_{a.tag}_{w}.png", dpi=105)
         plt.close(fig)

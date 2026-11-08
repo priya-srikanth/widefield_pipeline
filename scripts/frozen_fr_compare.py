@@ -102,7 +102,8 @@ def boot(df: pd.DataFrame, val: str, ref_epoch: str = "pre", epochs=EPS, keys=("
 
 def bars(ax, B: pd.DataFrame, frames, area_list, ylabel, title, scale=1.0):
     """Grouped bars: x = area x epoch, one bar per frame (color = `cat_points.MODEL_COLORS`, hatched past the 7th);
-    whisker 95 % CI; * CI excludes 0; dots = animals: OPEN markers, shape = animal, color = the bar's epoch (A13)."""
+    whisker 95 % CI; * CI excludes 0 (top band, `sig_marks.sig_star`: the caller runs `reserve_headroom(fig)` before
+    layout / savefig); dots = animals: OPEN markers, shape = animal, color = the bar's epoch (A13)."""
     from wfield_local import cat_points as cp
     from wfield_local.sig_marks import sig_star
     nf = len(frames)
@@ -337,6 +338,8 @@ def main() -> int:
         fig.suptitle(f"NEURAL: FROZEN pre-stroke encoder with vs without FaceRhythm, {w} window (panel 4: all frames). Bars = "
                      "mean of animals' epoch - pre (panel 4: - pre_late); whisker 95 % nested CI; * excludes 0; dots = animals.",
                      fontsize=10)
+        from wfield_local.sig_marks import reserve_headroom
+        reserve_headroom(fig)                # the `bars` stars sit in the top band (10-30), no top spine (11-03)
         fig.subplots_adjust(left=0.045, right=0.995, top=0.86, bottom=0.07, hspace=0.42, wspace=0.14)
         save_png_svg(fig, out / "figures" / f"frozen_fr_compare_{w}.png", dpi=110)
         plt.close(fig)

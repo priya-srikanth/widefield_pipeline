@@ -163,6 +163,14 @@ def _grid_shape(n, max_cols=4):
     return int(np.ceil(n / cols)), cols
 
 
+def _disc_train_txt(records) -> str:
+    """The G1-G3 discriminator's training classes in words, from the records' ``train_classes`` (11-08): camera
+    WORKING vs NO RESPONSE under section G's camera grouping (decision (f) 1), else the DAQ engaged-vs-undetected set."""
+    cam = any(((r or {}).get("train_classes") or {}).get("groups") == "camera" for r in records)
+    return ("PRE-stroke camera WORKING (contact + incomplete) vs NO RESPONSE (jaw-only, quit and stopped trials never "
+            "trained on)" if cam else "PRE-stroke engaged-vs-undetected")
+
+
 def fig_identity(ident, out):
     """G4: do post-stroke no-lick trials look like pre-stroke licking? WITH the control."""
     ans = sorted(ident)
@@ -219,7 +227,7 @@ def fig_identity(ident, out):
     axes[0][0].legend(fontsize=7.5, ncol=4, loc="upper center", bbox_to_anchor=(0.5, 1.14),
               frameon=False)
     fig.suptitle("Do post-stroke NO-LICK trials look like pre-stroke LICKING trials?  "
-                 "Boundary trained on PRE-stroke engaged-vs-undetected, position-balanced so it "
+                 f"Boundary trained on {_disc_train_txt(ident.values())}, position-balanced so it "
                  "cannot simply answer 'far'.  READ THE CONTROL FIRST: post ENGAGED (green) must sit "
                  "ABOVE post UNDETECTED (red), or the boundary is tracking 'post-stroke' rather than "
                  "licking and the answer means nothing. The control gap and its bootstrap 95% CI are printed under each animal: the whole interval must clear zero, and an interval spanning zero means UNDETERMINED, not failed.", fontsize=9, wrap=True)
@@ -708,7 +716,8 @@ def fig_fits_engaged(fits, out, align="precue", name=None):
         "so the spread IS the confidence interval — and it is the right one, because sessions differ "
         "from each other far more than trials within a session. Unlike the G4 control this makes NO "
         "assumption that the two post-stroke classes should differ, which is what the "
-        "execution-failure hypothesis denies.", fontsize=9, wrap=True)
+        f"execution-failure hypothesis denies. Boundary trained on {_disc_train_txt([v.get(align) for v in fits.values()])}.",
+        fontsize=9, wrap=True)
     fig.tight_layout(rect=(0, 0, 1, 0.86))
     q = Path(out) / (name or f"poststroke_G4b_fits_engaged_{align}.png")
     _blank_unused(axes, len(ans), _rows, _cols)

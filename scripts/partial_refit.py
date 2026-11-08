@@ -521,6 +521,8 @@ def summarise(run: Path, out: Path) -> None:
                      f"{model_label(run)}\ngain in held-out R2 over the frozen model, as a change from pre "
                      "(within animal). Bars = mean of animals; whisker 95 % nested CI; * excludes 0; dots = animals.",
                      fontsize=9)
+        from wfield_local.sig_marks import reserve_headroom
+        reserve_headroom(fig)                # the `bars` stars sit in the top band (10-30), no top spine (11-03)
         fig.subplots_adjust(left=0.05, right=0.83, top=0.86, bottom=0.07, hspace=0.35)
         save_png_svg(fig, out / "figures" / f"partial_refit_bars_{w}.png", dpi=105)            # supplementary (all sets)
         plt.close(fig)
