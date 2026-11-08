@@ -195,3 +195,21 @@ All under `M:/MICROSCOPE/Priya/DeepLabCut/Widefield/face_rhythm/cam4/readouts/ma
      face movement spectrum center 6.77 -> 6.56 Hz acute (4 / 4, Holm .0003), back subacute; licks 6.45 -> 5.71 Hz.
      Page v42 (7b heading / text / status row / 7b.3 title), slide 84 title + bullets + notes
      (`reword_band_slide_1107e.py`), FINDINGS 0 / 5.10, FACE_RHYTHM 6f, DECISIONS updated.
+     11-07 NIGHT (5): POOLED NULL INTERIM RESCORE (v2). Copied-back O2 null pairs: acute 500, SUBACUTE 379 (was 111),
+     chronic still 100. Scored into readouts/master_pre_v1/epoch_shape_cohort_v2/interim_sub379_chr100_20261107/
+     (page outputs in data/ untouched; scratchpad interim_null_score.py imports compute(), no code change).
+     Acute and chronic p identical to the page.
+     Subacute: the six cells that change Holm status are all crossing from "not" to "Holm < .05":
+     - lick_ongoing_7Hz / lick_fast_close / lick_slow_late / whisk_run spatial angle: .07-.09 -> .02-.03;
+     - whisk_run spectral angle: .07 -> .02;
+     - lick_right asym: .052 -> .021.
+     This is the p floor (1/112 = .009 -> 1/380 = .003), not new data: observed values unchanged.
+     lick_left side_spec p .009 -> .032 (still Holm < .05).
+     Chronic is still floor-limited at 100 perms (several cells at p .010 without a star).
+     Page / deck NOT changed (pooled view is descriptive; Priya to decide whether to swap in after chronic lands).
+     Priya 11-07: "can wait" -> rescore again when chronic perms land; no page change before.
+     11-08 (overnight) JUNE FR (Priya: June as a reference): June ROIs warped from the master through the existing June
+     fields (`face_rhythm_warp_rois.py to-sessions --june`; landmark errors as August's), QC `register/qc_june_rois.png`;
+     O2 bundle `o2/fr_cam4_june_20261108` (12 tasks, production settings) SUBMITTED by Priya. Off-frame mesh points:
+     PS95 06/07 4, 06/08 29 of 1282 (exclude in readouts). June face is 1.17-1.24x larger: displacement amplitudes need
+     scale normalization before comparing with August. Running list: RUNNING_LIST_2026-11-08_a8_june.md.
