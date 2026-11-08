@@ -366,8 +366,8 @@ def projection_cls_e(kept, features, GE, GU, align):
 
 def roi_features_with_indices(nolick_ref="cue"):
     """The default (ROI) `pool_sessions` feature builder, also keeping each session's cue indices (``.indices``),
-    so a ROI pool can be mapped onto the camera classes. ROI features are not disk-cached (`trial_features_cached`
-    computes non-LocaNMF sources), so this costs nothing extra."""
+    so a ROI pool can be mapped onto the camera classes. ROI features are disk-cached since 11-07 (`trial_features_cached`
+    keys them on `roi_signal_key`); ``with_indices`` is in the cache kind, so this entry is separate from the plain one."""
     from wfield_local.locanmf_position_decoder import trial_features_cached
     idx = {}
 

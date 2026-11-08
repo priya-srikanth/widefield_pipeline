@@ -29,7 +29,7 @@ wf_statespace` (NOT pushed, NOT merged; push only if Priya asks -- it is our own
    fluctuations. Removing it, or keeping only the spout-specific part, shows a clearly re-patterned code (chronic r
    -.11 / -.20) with 5-10x more out-of-space activity (fraction of a smaller total variance: size not comparable
    across variants). The raw "gain + shift" picture is the cortex-wide mode. k = 8 checked (k = 4 / 12 match).
-5. Path: acute = a sideways detour (80-95 % of acute - pre orthogonal to pre -> chronic, every variant); subacute
+5. Path: acute = a sideways detour (~75-90 % of the length of acute - pre, ~55-85 % of its variance, off the pre -> chronic line, noise-corrected, every animal and basis; along-line part away from chronic in PS92 / PS94, toward in PS93 / PS95); subacute
    slides back toward and along the line. Slide vs search-then-select at the TRIAL level: NOT TESTABLE (11-08 power
    check, running list B3: single-trial scatter along the line ~1.4x the whole pre -> chronic distance; planted
    two-state sessions score like the data). The earlier "trial clouds move as a whole" is withdrawn.
