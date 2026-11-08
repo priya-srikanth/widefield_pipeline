@@ -29,11 +29,7 @@ OUT = S.ROOT / "landing"
 
 
 def sizes(M, cols):
-    resp = M[R.RESP_BINS].mean(0) - M[R.BASE_BINS].mean(0)
-    out = {}
-    for h, suf in (("contra", "_right"), ("ipsi", "_left")):
-        idx = [i for i, c in enumerate(cols) if c.endswith(suf) and c[: -len(suf)] in R.OROFACIAL]
-        out[h] = float(resp[idx].mean())
+    out = {h: float(v) for h, v in S.hemi(S.evoked(M), cols, R.OROFACIAL).items()}
     out["bal"] = float(np.log2(out["contra"] / out["ipsi"])) if out["contra"] > 0 and out["ipsi"] > 0 else np.nan
     return out
 
@@ -43,6 +39,7 @@ def main():
     L = {lab: g for lab, g in L[L.land.notna()].groupby("label")}
     trials = []                                                        # (animal, epoch, label, target, land, Y row)
     trows = []
+    S.allen_only("state_space_balance_cells")                         # cells stack trials across animals
     data, cols = S.load_sessions()
     for an, sess in sorted(data.items()):
         for lab, ep, _day, Y, pos in sess:

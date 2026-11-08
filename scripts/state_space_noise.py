@@ -49,7 +49,7 @@ def cells(Y, pos, base, resp):
         var = X.var(0, ddof=1)
         b0 = mu[base].mean(0)
         out[p] = {"base_noise": float(var[base].mean(0).sum()), "resp_noise": float(var[resp].mean(0).sum()),
-                  "size2": float(((mu[resp].mean(0) - b0) ** 2).sum())}
+                  "size2": float((S.evoked(mu) ** 2).sum())}
         cm.append(mu - b0)
         cv.append(var)
     return out, (np.concatenate(cm) if cm else None), (np.concatenate(cv) if cv else None)

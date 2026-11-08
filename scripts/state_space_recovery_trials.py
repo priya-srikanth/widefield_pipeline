@@ -53,11 +53,7 @@ BASE_BINS, RESP_BINS = S.BAL_BINS[S.ALIGN]          # cue: -0.5..0 s and 0..1 s;
 
 def balance(M, cols, sel):
     """log2 (contralesional / ipsilesional) response size of one spout's mean (bins x areas); NaN if either <= 0."""
-    resp = M[RESP_BINS].mean(0) - M[BASE_BINS].mean(0)
-    side = {}
-    for h, suf in (("contra", "_right"), ("ipsi", "_left")):
-        idx = [i for i, c in enumerate(cols) if c.endswith(suf) and (sel is None or c[: -len(suf)] in sel)]
-        side[h] = resp[idx].mean() if idx else np.nan
+    side = S.hemi(S.evoked(M), cols, sel)
     if not (side["contra"] > 0 and side["ipsi"] > 0):
         return np.nan
     return float(np.log2(side["contra"] / side["ipsi"]))
@@ -225,10 +221,11 @@ def run(seed=0, mode="target"):
         D = pd.read_csv(LANDING)
         D = D[D.contact.notna()] if mode in ("contact", "incomplete") else D[D.land.notna()]
         L = {lab: g for lab, g in D.groupby("label")}
-    data, cols = S.load_sessions(lambda lab, Y, pos: relabel(lab, Y, pos, mode, L))
-    left = np.array([c.endswith("_left") for c in cols])
+    data, cols_all = S.load_sessions(lambda lab, Y, pos: relabel(lab, Y, pos, mode, L))
     rows, pairs = [], []
     for an, sess in sorted(data.items()):
+        cols = S.cols_of(cols_all, an)                                 # per animal in the LocaNMF basis
+        left = np.array([c.endswith("_left") for c in cols])
         pre = [s for s in sess if s[1] == "pre"]
         chr_ = [s for s in sess if s[1] == "chronic"]
         P_all, mu_all = fixed_space(template(pre))

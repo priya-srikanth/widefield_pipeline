@@ -41,7 +41,6 @@ plt.rcParams.update({"font.size": 9, "axes.titlesize": 9.5, "axes.spines.top": F
 
 
 def collect():
-    base, resp = S.BAL_BINS[S.ALIGN]
     data, _ = S.load_sessions()
     rows = []
     for an, sess in sorted(data.items()):
@@ -49,7 +48,7 @@ def collect():
         for lab, ep, day, Y, pos in sess:
             n = len(pos)
             order = np.arange(n) / max(n - 1, 1)
-            size = np.linalg.norm(Y[:, resp].mean(1) - Y[:, base].mean(1), axis=1)
+            size = np.linalg.norm(S.evoked(Y), axis=1)
             z = ((Y - mu) @ P).reshape(n, -1)
             for p, f in fr.items():
                 m = np.flatnonzero(pos == p)

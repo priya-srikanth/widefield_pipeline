@@ -32,6 +32,7 @@ from __future__ import annotations
 
 import argparse
 import glob
+import json
 import os
 import sys
 from pathlib import Path
@@ -96,13 +97,94 @@ SEGMENTS = {"cue": [("first_cue", LAGS, _B(-0.5, 2.0))], "cue25": [("first_cue",
 BAL_BINS = {"cue": (slice(0, 5), slice(5, 15)), "cue25": (slice(0, 5), slice(5, 15)),
             "lick": (slice(0, 4), slice(11, 15)), "splice": (slice(0, 5), slice(16, 20))}
 CACHE = ROOT / "cache"
+# BASIS (O2 option 4, running list C). WF_SS_BASIS=lnmf reads the joint-LocaNMF per-trial files of the O2 job
+# (`o2_state_space_lnmf.py`) instead of the Allen extract: the same rows for the rebuild sessions plus June contact-only
+# sessions (epoch "june", never "pre"), its own binned cache, outputs tagged _lnmf. Columns are components named
+# <Allen area>#<k>_<side> from the basis's region per component; the component set differs per animal, so
+# `load_sessions` then returns {animal: cols} (`cols_of`) and scripts that stack areas across animals refuse
+# (`allen_only`).
+BASIS = os.environ.get("WF_SS_BASIS", "allen")
+LNMF = REBUILD / "o2" / "ss_lnmf_20261108" / "out" / "sessions"
+if BASIS not in ("allen", "lnmf"):
+    raise ValueError(f"WF_SS_BASIS={BASIS!r}")
+SRC = str(LNMF) if BASIS == "lnmf" else ITI                              # the per-trial files the loaders read
+if BASIS == "lnmf":
+    CACHE = ROOT / "cache_lnmf"
 ALIGN_LABEL = {"cue": "cue-aligned -0.5..2.0 s", "cue25": "cue-aligned -0.5..2.5 s",
                "lick": "first-lick-aligned -1.0..0.7 s", "splice": "cue -0.5..0.5 s + first lick -0.5..0.7 s"}
 
 
+def evoked(X):
+    """THE response measure of every state-space size / balance readout: response-window mean minus baseline-window mean
+    over the bin axis (-2) for the current alignment (`BAL_BINS`); X (..., bins, areas) -> (..., areas). Lick alignment:
+    response 0.1..0.5 s after the first lick (FINDINGS 0b's first-lick window), baseline -1.0..-0.6 s. NOT 0b's primary
+    marker itself (that is an angle-matched gain ratio vs the pre line, `lick_recovery_primary`; the angle-matched version
+    here is `state_space_balance_angle`)."""
+    base, resp = BAL_BINS[ALIGN]
+    return X[..., resp, :].mean(-2) - X[..., base, :].mean(-2)
+
+
+def hemi(v, cols, sel=None):
+    """{"contra", "ipsi"}: mean of v (..., areas) over the contralesional (_right) / ipsilesional (_left) areas, restricted
+    to the parent areas in ``sel`` if given (all four lesions are left: right = contralesional). NaN if none."""
+    out = {}
+    for h, suf in (("contra", "_right"), ("ipsi", "_left")):
+        idx = [i for i, c in enumerate(cols) if c.endswith(suf) and (sel is None or c[: -len(suf)].split("#")[0] in sel)]
+        out[h] = v[..., idx].mean(-1) if idx else np.nan
+    return out
+
+
+def cols_of(cols, an):
+    """The column names of animal ``an`` from `load_sessions`' cols (one list for the Allen basis, per animal for lnmf)."""
+    return cols[an] if isinstance(cols, dict) else cols
+
+
+def allen_only(what):
+    """Refuse in the LocaNMF basis: ``what`` stacks or compares areas ACROSS animals (components differ per animal)."""
+    if BASIS != "allen":
+        sys.exit(f"{what}: pools areas across animals -- Allen basis only (WF_SS_BASIS={BASIS})")
+
+
 def tag():
     """Output-folder suffix: '' for the original cue alignment, else '_<align>'."""
-    return ("" if ALIGN == "cue" else f"_{ALIGN}") + ("" if K == 8 else f"_k{K}") + (f"_x{XFORM}" if XFORM else "")
+    return (("" if ALIGN == "cue" else f"_{ALIGN}") + ("" if K == 8 else f"_k{K}") + (f"_x{XFORM}" if XFORM else "")
+            + ("" if BASIS == "allen" else f"_{BASIS}"))
+
+
+def _epoch(lab, ep):
+    """June (month 06) sessions are the no-stroke drift reference, never 'pre' (epochs.epoch_of calls them pre)."""
+    return "june" if lab.split("_")[1].startswith("06") else ep
+
+
+_NAMES: dict = {}
+
+
+def _atlas_names():
+    """{atlas label -> '<area>_<side>'} (allen_area_names.json; the label convention is the same for every session)."""
+    if not _NAMES:
+        f = CACHE / "allen_area_names.json"
+        if not f.exists():
+            from wfield_local.locanmf_cue_lick_analysis import SESSIONS
+            src = glob.glob(f"{SESSIONS[0]['mc']}/wfield_local_results/allen_aligned_affine8v1/allen_area_names.json")[0]
+            f.parent.mkdir(parents=True, exist_ok=True)
+            f.write_text(Path(src).read_text(encoding="utf-8"), encoding="utf-8")
+        _NAMES.update({int(c): str(n) for c, n in json.loads(f.read_text(encoding="utf-8"))})
+    return _NAMES
+
+
+def _cols(z):
+    """Column names of a per-trial file: the Allen extract's areas, or LocaNMF components <area>#<k>_<side>."""
+    if "cols" in z.files:
+        return [str(c) for c in z["cols"]]
+    reg = np.asarray(z["regions"], int)
+    if not len(reg):
+        raise ValueError("LocaNMF file without regions (the basis's regions.npy was not staged)")
+    seen, out = {}, []
+    for r in reg:
+        area, side = _atlas_names()[int(r)].rsplit("_", 1)
+        seen[r] = seen.get(r, 0) + 1
+        out.append(f"{area}#{seen[r]}_{side}")
+    return out
 
 
 def _bin(z, keep, align):
@@ -121,12 +203,12 @@ def fill_cache(paths):
         if all((CACHE / a / f"{lab}.npz").exists() for a in SEGMENTS):
             continue
         z = np.load(p, allow_pickle=True)
-        cols = [str(c) for c in z["cols"]]
+        cols = _cols(z)
         keep = [i for i, c in enumerate(cols) if c != "cortex"]
         for a in SEGMENTS:
             (CACHE / a).mkdir(parents=True, exist_ok=True)
             np.savez(CACHE / a / f"{lab}.npz", xb=_bin(z, keep, a), pos=np.array([str(q) for q in z["first_pos"]]),
-                     cols=np.array([cols[i] for i in keep]), epoch=str(z["epoch"]), animal=str(z["animal"]),
+                     cols=np.array([cols[i] for i in keep]), epoch=_epoch(lab, str(z["epoch"])), animal=str(z["animal"]),
                      rt=z["first_rt"])
         print("cached", lab, flush=True)
 
@@ -175,6 +257,8 @@ def _xform(xb, pos, an):
 
 def load(path):
     c = CACHE / ALIGN / f"{Path(path).stem}.npz"
+    if BASIS == "lnmf" and not c.exists():
+        fill_cache([path])                                             # compressed ~90-component files: bin once
     if c.exists():
         z = np.load(c)
         pos = z["pos"].astype(str)
@@ -183,27 +267,32 @@ def load(path):
     if XFORM:
         raise FileNotFoundError(f"WF_SS_XFORM needs the binned cache: {c}")
     z = np.load(path, allow_pickle=True)
-    cols = [str(c) for c in z["cols"]]
+    cols = _cols(z)
     keep = [i for i, c in enumerate(cols) if c != "cortex"]
     xb = _bin(z, keep, ALIGN)                                          # trials x bins x areas
     pos = np.array([str(p) for p in z["first_pos"]])
-    return xb, pos, [cols[i] for i in keep], str(z["epoch"]), str(z["animal"])
+    return xb, pos, [cols[i] for i in keep], _epoch(Path(path).stem, str(z["epoch"])), str(z["animal"])
 
 
-def load_sessions(hook=None):
+def load_sessions(hook=None, june=False):
     """Every extract session -> ({animal: [(label, epoch, day, Y, pos, ...)] sorted by day}, area columns), the ONE
     session loader of the state-space scripts (`load` per file, days from `epochs.days_since_stroke`). ``hook(label, Y,
     pos)`` returns the tuple appended after (label, epoch, day) -- default (Y, pos); a relabel (trials) or an extra
     per-trial column (contact) goes there. Files in sorted path order, sessions sorted by day (stable): the order every
-    caller used before (rule 9: pools need a defined order)."""
+    caller used before (rule 9: pools need a defined order). LocaNMF basis: cols = {animal: cols} (`cols_of`). June
+    sessions (epoch 'june', LocaNMF basis only) only with ``june=True``: many scripts read 'not pre' as post-stroke."""
     from wfield_local import epochs
-    data, cols = {}, None
-    for f in sorted(glob.glob(ITI + "/PS9*.npz")):
-        Y, pos, cols, ep, an = load(f)
+    data, cols = {}, {}
+    last = None
+    for f in sorted(glob.glob(SRC + "/PS9*.npz")):
+        if not june and _epoch(Path(f).stem, "") == "june":
+            continue
+        Y, pos, last, ep, an = load(f)
+        cols[an] = last
         lab = Path(f).stem
         data.setdefault(an, []).append((lab, ep, epochs.days_since_stroke(lab),
                                         *(hook(lab, Y, pos) if hook else (Y, pos))))
-    return {a: sorted(v, key=lambda s: s[2]) for a, v in data.items()}, cols
+    return {a: sorted(v, key=lambda s: s[2]) for a, v in data.items()}, (cols if BASIS == "lnmf" else last)
 
 
 def spout_means(Y, pos):
@@ -327,7 +416,7 @@ def subsample(Y, pos, n, rng):
 def run(n_per_spout, seed=0):
     rng = np.random.default_rng(seed)
     sess = {}
-    for f in sorted(glob.glob(ITI + "/PS9*.npz")):
+    for f in sorted(glob.glob(SRC + "/PS9*.npz")):
         Y, pos, cols, ep, an = load(f)
         if ep == "pre":
             sess.setdefault(an, []).append((Path(f).stem, Y, pos))

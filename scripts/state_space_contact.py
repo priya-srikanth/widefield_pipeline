@@ -36,7 +36,6 @@ READ = [("x", "position pre (0) -> chronic (1)\n(fraction of pre -> chronic dist
 
 
 def main():
-    base, resp = S.BAL_BINS[S.ALIGN]
     Lc = pd.read_csv(R.LANDING)
     Lc = {lab: g for lab, g in Lc[Lc.contact.notna()].groupby("label")}
 
@@ -62,7 +61,7 @@ def main():
                     Mc = M - M.mean(0)
                     rows.append({"animal": an, "label": lab, "epoch": ep, "day": day, "spout": p, "cls": cls,
                                  "n": int(m.sum()), "x": float(x), "y": float(y),
-                                 "size": float(np.log2(np.linalg.norm(M[resp].mean(0) - M[base].mean(0)))),
+                                 "size": float(np.log2(np.linalg.norm(S.evoked(M)))),
                                  "r_pre": float((Mc * Tc).sum() / np.linalg.norm(Mc) / np.linalg.norm(Tc))})
     C = pd.DataFrame(rows)
     W = C.pivot_table(index=["animal", "label", "epoch", "day", "spout"], columns="cls", values=[k for k, _ in READ])

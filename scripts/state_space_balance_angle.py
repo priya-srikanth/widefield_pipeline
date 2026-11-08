@@ -38,17 +38,15 @@ def collect():
     L = {lab: g for lab, g in L[L.side_ml.notna()].groupby("label")}
     rows = []
     data, cols = S.load_sessions()
-    idx = {h: [i for i, c in enumerate(cols) if c.endswith(suf) and c[: -len(suf)] in R.OROFACIAL]
-           for h, suf in (("contra", "_right"), ("ipsi", "_left"))}
     for an, sess in sorted(data.items()):
         for lab, ep, _day, Y, pos in sess:
             g = L.get(lab)
             if g is None:
                 continue
-            resp = Y[:, R.RESP_BINS].mean(1) - Y[:, R.BASE_BINS].mean(1)              # trials x areas
+            hs = S.hemi(S.evoked(Y), S.cols_of(cols, an), R.OROFACIAL)                                # per trial
             for r, sm, land in zip(g.row.to_numpy(), g.side_ml.to_numpy(), g.land.to_numpy()):
                 rows.append({"animal": an, "epoch": ep, "label": lab, "target": pos[r], "land": land, "side_ml": sm,
-                             "contra": float(resp[r, idx["contra"]].mean()), "ipsi": float(resp[r, idx["ipsi"]].mean())})
+                             "contra": float(hs["contra"][r]), "ipsi": float(hs["ipsi"][r])})
     pd.DataFrame(rows).to_csv(OUT / "trial_sizes.csv", index=False)
     print("wrote trial_sizes.csv", len(rows))
 

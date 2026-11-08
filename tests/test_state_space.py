@@ -98,7 +98,7 @@ def test_load_sessions_order_and_hook(mods, monkeypatch, tmp_path):
     labs = ["PS92_0820", "PS92_0806", "PS93_0806", "PS92_0812"]
     for lab in labs:
         (tmp_path / f"{lab}.npz").write_bytes(b"")
-    monkeypatch.setattr(S, "ITI", str(tmp_path))
+    monkeypatch.setattr(S, "SRC", str(tmp_path))
     pos = np.array(S.POS)
     monkeypatch.setattr(S, "load", lambda f: (np.zeros((6, 2, 3)), pos, ["a", "b", "c"], "pre", Path(f).stem[:4]))
     data, cols = S.load_sessions(lambda lab, Y, p: (Y, p, lab))
@@ -125,3 +125,45 @@ def test_paths_match_the_rebuild_routing(mods):
     assert got["w"] == S.WTAG and got["x"] == S.XTAG
     assert Path(got["enc"]).as_posix().lower() == S.ENCODING.as_posix().lower()
     assert Path(S.ITI).parent.name == S.XTAG and S.ITI_W.name == S.WTAG
+
+
+def test_evoked_and_hemi(mods):
+    """S.evoked = response-window mean minus baseline-window mean (BAL_BINS of the alignment); S.hemi = right / left means."""
+    S, _ = mods
+    rng = np.random.default_rng(3)
+    Y = rng.normal(size=(5, 25, 4))
+    base, resp = S.BAL_BINS["cue"]
+    np.testing.assert_allclose(S.evoked(Y), Y[:, resp].mean(1) - Y[:, base].mean(1))
+    np.testing.assert_allclose(S.evoked(Y[0]), Y[0, resp].mean(0) - Y[0, base].mean(0))
+    h = S.hemi(Y[0, 0], ["SSp-m_right", "SSp-m_left", "VISp_right", "VISp_left"], ("SSp-m",))
+    assert h == {"contra": Y[0, 0, 0], "ipsi": Y[0, 0, 1]}
+
+
+def test_lnmf_basis(mods, monkeypatch, tmp_path):
+    """WF_SS_BASIS=lnmf: component names from the basis regions, June kept apart, per-animal cols, _lnmf tag."""
+    S, _ = mods
+    monkeypatch.setattr(S, "BASIS", "lnmf")
+    monkeypatch.setattr(S, "SRC", str(tmp_path / "sessions"))
+    monkeypatch.setattr(S, "CACHE", tmp_path / "cache")
+    monkeypatch.setattr(S, "_NAMES", {3: "MOp_left", -3: "MOp_right", 17: "SSp-m_left", -17: "SSp-m_right"})
+    assert S.tag().endswith("_lnmf")
+    (tmp_path / "sessions").mkdir()
+    rng = np.random.default_rng(0)
+    for lab, reg in (("PS92_0606", [3, 3, -3, 17, -17]), ("PS92_0806", [3, 3, -3, 17, -17]), ("PS93_0806", [3, -17])):
+        n = 12
+        np.savez_compressed(tmp_path / "sessions" / f"{lab}.npz",
+                            first_cue=rng.normal(size=(n, len(S.LAGS), len(reg))).astype(np.float32),
+                            first_peth=rng.normal(size=(n, len(S.LAGS_P), len(reg))).astype(np.float32),
+                            first_pos=np.array(S.POS * 2), first_rt=np.full(n, 0.3), epoch="pre",
+                            animal=lab[:4], regions=np.array(reg))
+    data, cols = S.load_sessions()
+    assert cols == {"PS92": ["MOp#1_left", "MOp#2_left", "MOp#1_right", "SSp-m#1_left", "SSp-m#1_right"],
+                    "PS93": ["MOp#1_left", "SSp-m#1_right"]}
+    assert [s[0] for s in data["PS92"]] == ["PS92_0806"]                       # June left out by default
+    data, _ = S.load_sessions(june=True)
+    assert [(s[0], s[1]) for s in data["PS92"]] == [("PS92_0606", "june"), ("PS92_0806", "pre")]
+    assert (tmp_path / "cache" / S.ALIGN / "PS92_0806.npz").exists()            # binned once
+    v = np.array([1.0, 3.0, 10.0, 100.0, 1000.0])
+    h = S.hemi(v, S.cols_of(cols, "PS92"), ("SSp-m",))
+    assert h == {"contra": 1000.0, "ipsi": 100.0}                               # '#k' stripped for the parent area
+    assert S.hemi(v, cols["PS92"])["ipsi"] == pytest.approx((1 + 3 + 100) / 3)

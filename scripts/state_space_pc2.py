@@ -33,6 +33,7 @@ idx = lambda a, b: slice(int(round((a - T0) / 0.1)), int(round((b - T0) / 0.1)))
 
 def main():
     assert S.ALIGN == "lick"
+    S.allen_only("state_space_pc2")                                    # one area loading shared by all animals
     data, cols = S.load_sessions()
     mus, cent = {}, []
     for an, sess in data.items():

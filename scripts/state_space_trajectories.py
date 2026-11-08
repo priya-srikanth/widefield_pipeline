@@ -316,7 +316,6 @@ def fig_loops(proj, pooled, ve, boot):
 def resp_size(data):
     """Per session x spout: lick response size in the FULL 62-area space = norm over areas of (response window mean -
     baseline window mean) of the session's spout mean (>= MIN_TRIALS trials); windows = state_space_sim.BAL_BINS."""
-    base, resp = S.BAL_BINS[S.ALIGN]
     rows = []
     for an, sess in data.items():
         for lab, ep, day, Y, pos in sess:
@@ -325,7 +324,7 @@ def resp_size(data):
                 if m.sum() >= R.MIN_TRIALS:
                     M = Y[m].mean(0)
                     rows.append({"animal": an, "label": lab, "epoch": ep, "day": day, "spout": p, "n": int(m.sum()),
-                                 "size": float(np.linalg.norm(M[resp].mean(0) - M[base].mean(0)))})
+                                 "size": float(np.linalg.norm(S.evoked(M)))})
     d = pd.DataFrame(rows)
     pre = d[d.epoch == "pre"].groupby(["animal", "spout"])["size"].mean()
     d["lsize"] = np.log2(d["size"].to_numpy() / d.set_index(["animal", "spout"]).index.map(pre).to_numpy())
