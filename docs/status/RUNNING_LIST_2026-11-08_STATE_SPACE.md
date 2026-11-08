@@ -82,6 +82,12 @@ Branch `analysis/state-space-recovery-20261107` (worktree wf_statespace); nothin
   and chronic sessions restricted to CONTACT first licks (landing table) so all three use contact trials. June -> August
   includes learning, so (a) is an upper bound on drift over ~2 months; August pre -> chronic spans ~1.5-2 months.
   Reading: chronic change >> June drift and not along it -> beyond drift; comparable / along it -> not separable.
+- **Batch, once `ss_lnmf_20261108/out/sessions` holds 119 files** (all outputs tagged `_lnmf`; page figures untouched):
+  `WF_SS_BASIS=lnmf`, for WF_SS_ALIGN in lick (primary), cue: `state_space_recovery_trials.py` (+ `--condition
+  contact`), `path_tests`, `trajectories`, `pertrial`, `step_vs_gradual`, `per_position`, `detour_vs_balance`,
+  `june_drift`; then lick trials with `WF_SS_XFORM=spout` and `gsr` (the 0c "shared mode vs re-patterned
+  spout-specific part" claim). Order matters: step_vs_gradual / detour_vs_balance read trials + trajectories,
+  per_position reads pertrial. First check: a LocaNMF file's rows = the Allen file's rows (first_pos, first_rt equal).
 
 ## D. Done / status log
 
