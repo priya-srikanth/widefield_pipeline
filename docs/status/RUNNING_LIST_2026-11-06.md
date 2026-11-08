@@ -287,6 +287,9 @@ the encoding handoff (STATUS_2026-10-26_ENCODING_HANDOFF.md, top blocks); the A1
   control shown beside the refit figures** (raw refit + matched-pre expectation per cell). Order: D6 control script FIRST
   (lick arms must not change without it), then time a single-arm 5r run, then re-run 5r / 5rm / 5ro / 5rmo (5 arms) +
   s1_refit_locanmf_table (page Fig 1.1/1.2) + june_august_drift (both call _refit_pred) behind the heavy lock.
+- **D8 push fix/lpfinal-pre-session-count (3002728d)? (no rush, display only)** lp_final_render's trial table counted
+  pre sessions as unique(block // 1e6); no-lick rows carry NEGATIVE run ids -> all -1 -> one phantom session (table
+  8/8/9/9 vs trained 8/7/8/8). Decoders / trials / accuracies unaffected. Test added.
 ### Findings
 - Section G cost = Allen-ROI features were never cached (trial_features_cached refused non-LocaNMF sources); fixed 80090a57,
   measured on PS92_0812: cache read 0.26-0.91 s vs 6-14 s uncached, features byte-identical.
@@ -306,3 +309,10 @@ the encoding handoff (STATUS_2026-10-26_ENCODING_HANDOFF.md, top blocks); the A1
   are the same 15 sessions as r2/r3 (nothing new). g5_lpfinal_dec failed (D4, fix on a branch), g7_cd_geometry failed (lane
   v9zj), g7_fig_state_position failed (D5), g7_fig_s_per_animal failed (lane v9zk). g7_fig_frozen_refit_pooled done.
 - 00:15-00:35 D4 on main (cd6da055), lane v9zl. D5 diagnosed + fixed (480accea), push waits on tests. Section G r4 3/88 at 00:15.
+- 00:47 g7_fig_state_position_r DONE (v9zn, main 480accea; all 6 PS94 acute sessions). 01:04 g7_fig_s_per_animal_r DONE
+  (v9zk, after g5_sessions_long_r 01:03). 01:48 g5_lpfinal_dec_r DONE (v9zl, cd6da055; LP-trained decoders frozen-new in
+  <rebuild root>/frozen_models_lpfinal; far_R pre-cue acc drops acutely in 4/4). Still running: v9zj (CD orth on).
+- D6 timing (m_mixmatch_t, 2 PS94 pre sessions): capture of all four animals' refit inputs 42 min (stored decoders hit),
+  scoring 17 s for 2 sessions x 7 controls x 5 draws -> a full arm ~48 min. Null check on 2 sessions: excess -0.14..+0.09
+  per position (~50-60 trials each). cue/working + cue/lick running.
+- Section G r4 phase 2: 8/88 at 01:30; unit times 7-10, 22, 30, ~1.5, ~1.5, 20 min -- uneven, no projection yet.
