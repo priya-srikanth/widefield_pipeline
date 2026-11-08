@@ -503,3 +503,28 @@ re-run needed for A20. (scratchpad/a20/exec_bins_calib_A20.csv)
   fix; their restnl + l_bal_* chains go into the re-run).
 - Re-run plan (measured times; heavy lock = wall-time bottleneck; Priya OK two heavy slots): see handoff 38 table.
   Before starting: section G profile + time ONE LP-source epoch family (check LPfinal cache hits).
+
+## 11-08 ~13:35 -- after compaction
+- PUSHED: fix/refit-floor-10-no-display-floor ON MAIN 9bc33b9b (915 passed): D7 10-trial refit floor only, display
+  floors removed, D6 matched-pre (refit_matched_pre) underneath.
+- Fix branch fix/stars-spoutorder-g13-1108 (wf_fixes1108, 609a3b58): 4 commits reviewed (stars -> star_top + headroom;
+  POS_ORDER in combined_encoding_figures / encoding_key_figures / frozen_spout_maps; DECISIONS 11-08 lick-class
+  correction; section G G1-G3 train camera WORKING vs NONE under the camera grouping, stored ids "-cls-work-v-none", DAQ
+  grouping unchanged). The helper ended before its tests finished; re-running the same -k selection to
+  scratchpad/fixes1108_tests.log. Push after a clean run (Priya's "ok to push" 11-08 covered today's fixes).
+  OPEN for Priya (from the helper, not guessed): G1-G3 SCORED post sets are still DAQ no-lick / engaged rows; which
+  camera group replaces them? (by_class output already scores every camera group on its own.)
+- AB's 19 steps (v9zv, a76352f3 + reuse): CHECKED before they take the lock. None of the 13 scripts calls the fixed code
+  paths (engaged_frame_mask users = cd_trajectories / position_reference_maps / restnl_mask / rest_by_position;
+  working-period, discriminator and D7 floor code not reached); 37bacf12 (0806 cut) is a respelling with the same
+  session sets; 41f47e15 (A23) touches only --source encoder's tag lookup, same value under the same env. Encoder results
+  = lick-source-independent (lick_source_audit). -> run as queued; their figures' stars get redrawn from figdata later.
+- Epoch render arm times (11-05 log, all families, --parallel-arms 2): ENL 190, cue 251, lick 260, cuelick 130,
+  ENLlick 144 min. Every arm but cue depends on the lick source (lick alignment or the ENL lick-free rule) -> the LP
+  lick class needs lick / cuelick / ENLlick / ENL arms on LP (~12.0 h serial, ~6.5 h at 2 arms) MINUS what LPfinal
+  already has (acc + 15r for lick / cue / precue).
+- LPfinal maps (72729126) and decoders (cd6da055) HAVE the rest fix + camera fixes; LP source, LP gate, ENL 1.0.
+  BUT their restnl reference reads g2b_restnl_mask_lp (9aaa4cc6, pre-fix) -> restnl ref stale; rest / restw refs fine.
+- g5_epoch_15r_r (v9s, queued for the lock after AB): DAQ source -> cue arm duplicates LPfinal cue 15r, lick arms =
+  successful-lick supplement only, ENL arm uses the retired DAQ 2.0 s rule. Proposed: drop it from the lock queue
+  (part of the trimmed plan for Priya); it cannot start before AB's 19 steps finish.
