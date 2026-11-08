@@ -936,6 +936,18 @@ per-lick measure (proposed 10-25: the first-lick window stays primary; Priya to 
   common horizon, early post -15.1 min [-25.4, -5.6] 4/4, -77 trials [-144, -20] 4/4, responded -103 4/4; chronic ~0.
   Lower bound (censored ends = quits): -27.4 min, -69 trials (3/4), -146 responded. -> animals DO quit sooner early post
   (~15 min / ~75 trials), recovered chronically; the 90-min / 300-trial caps sat below most quits.
+- **WITHIN-SESSION DECLINE OF AIM / LATENCY vs QUITTING (11-07, docs/WITHIN_SESSION_DECLINE_QUITTING.md,
+  scripts/within_session_decline.py):** 3-D first-lick latency slows within every session incl. pre (+61 ms/h, 4/4) and
+  more acutely (+126 ms/h vs own pre [+37, +230], 4/4; subacute +57 4/4 n.s.; chronic ~0). THE FAR LANDING PATTERN
+  DRIFTS IPSILESIONALLY WITHIN THE SESSION, LARGEST AT FAR CONTRA (subacute far contra -0.20 mm/h [-0.36, -0.07] 4/4,
+  far ipsi -0.16 4/4, far pooled -0.10 4/4; chronic far ipsi -0.17 4/4). Peak speed / contact barely move. Per 100
+  trials (robustness row) same sign in every animal (far contra subacute -0.074 4/4; latency acute +40 4/4); neither
+  unit depends on trial rate (Priya 11-08 test; post-stroke trials shorten only via the pre-cue / ENL wait, acute
+  -2.0 s 3/4). The aim drift is NOT a quit prodrome (same size without the last 15 min; no aim change before quits);
+  the latency rise before quits is a general quitting sign, present pre-stroke (+150 ms vs time-matched, 3/3). Drift
+  does not predict quit time (chronic aim r +0.32 p .05 only). Time / licks / water collinear within session (r
+  0.96-1.00); between sessions / animals the drift does not scale with water accrual or drop size -> not
+  satiety-paced; clock / state-like. PROVISIONAL.
 - CAVEAT 10-31 to the next line: the raised stopped-trial level is largely RUNNING (disengagement tests P4, post hoc).
 - Stopped-trial traces 10-29 (page Fig 14.21 S11, scripts/stopped_trial_traces.py, stopped_traces/): stopped (quit-period, no
   lick) trials have NO cue-evoked response in any area / epoch, only a flat level above restw (~4-12 x1e3); miss_working a
@@ -1029,6 +1041,43 @@ per-lick measure (proposed 10-25: the first-lick window stays primary; Priya to 
   ~40% of the code (Shapley pre r 0.27 of 0.62 ITI, 0.29 of 0.77 cued) and of the ITI offset (0.15 of 0.37 mm acute);
   the rest is spread and redundant (no block necessary). SSs alone decodes but adds nothing uniquely (a copy of the
   orofacial signal). PROVISIONAL.
+
+### 0c. State-space geometry of the first cued lick: scaled, rotated, shifted or new? (11-07) -- EXPLORATORY
+
+Code on main (merged 11-08 from `analysis/state-space-recovery-20261107`, scripts `scripts/state_space_*.py`); every number, decision and retraction in
+`docs/STATE_SPACE_RECOVERY_PLAN.md`, handoff `docs/status/STATUS_2026-11-07_STATE_SPACE_HANDOFF.md`, draft page
+https://claude.ai/artifact/9sGELLFEwADEt9k64fXTxe. Data: per-trial Allen-area means (62 areas incl. ALM / tjM1, x1e3 dF/F,
+rebuild `_daqlk` extract), first cued lick of working trials (contact + incomplete; contact-only reproduces everything),
+first-lick aligned -1.0..+0.7 s (cue-aligned as a check), spout x time pattern in each animal's top-8 pre-stroke PCs,
+August-only pre, every readout vs the animal's OWN pre; `*` = boot_delta, LMM as a backup. n = 4; Allen areas only
+(joint-LocaNMF per-trial extraction queued on O2); no June / no-stroke reference yet (pre drift = August only).
+
+1. **Most of the post-stroke change is ONE cortex-wide dimension.** A single cortex-wide mode carries 84-96 % of the
+   mean response and 77-83 % of single-trial fluctuations. On it the response is LARGER and SHIFTED with no rotation
+   beyond gain (raw space, like-for-like trials; matches the larger lick-evoked responses of 0b). With that mode removed,
+   or only the spout-specific part kept, the code is re-patterned (chronic r with the pre template -.11 / -.20) and
+   partly outside the pre space. Reading: "cortex consistent with the pre mapping" holds for the dominant shared
+   dimension, "remapped" (4b d, self-fit gap) for the spout-specific part. PROVISIONAL.
+2. **The acute state is a DETOUR, not a point on the way to chronic.** 80-95 % of acute - pre lies orthogonal to the
+   pre -> chronic direction in every variant; subacute sessions slide back toward and along that line. NEW. PROVISIONAL.
+3. **The detour tracks the behavioral deficit, at every spout, gradually.** Its size (acute-departure axis) tracks
+   far-contra first-lick aim within animal (r -.78 to -.93, 4/4), also within epochs; all six spouts track it; readouts
+   and aim are ~linear in log days (a step model wins 2 / 24 fits). The axis shares ~70 % of its within-animal variance
+   with the 0b balance marker but tracks aim beyond it in 4/4 animals (partial r -.35 to -.88, first-lick aligned); the
+   balance beyond the axis is weaker (3/4). Balance values from the pre-rebuild render (rebuild re-render queued).
+   PROVISIONAL.
+4. **Slide vs switch within sessions cannot be tested here.** Whether trials slide or switch between pre-like and
+   chronic-like states is not resolvable: single-trial scatter along the pre -> chronic line is ~1.4x the whole
+   pre -> chronic distance, and planted two-state sessions score the same as the data (power check). OPEN.
+5. **Method caveat for cue-window claims:** cue-aligned windows miss late acute first licks; part of the apparent acute
+   re-patterning was latency (acute r -.20 cue vs -.08 first-lick aligned; acute amplitude +.22, 4/4, clear only
+   lick-aligned). STANDS as a caveat.
+6. **Within a session:** behavior -> see "WITHIN-SESSION DECLINE OF AIM / LATENCY vs QUITTING" (section 0b list). Neural:
+   post-stroke, sessions whose far landings drift more ipsilesionally also drift more back toward pre on the
+   pre -> chronic line (r .51 within animal, 4/4 positive, shuffle p < .0005); no such link pre-stroke. PROVISIONAL.
+Open: close-spout PC2 transient (posterior-medial vs contralesional orofacial) unexplained; chronic - pre partly lies
+along the August pre drift (PS92-94) -- June reference (contact-only first licks, joint-LocaNMF basis, O2 job
+`ss_lnmf_20261108`, `state_space_june_drift.py`) runs when its outputs land; cohort 2 pre stays separate.
 
 ## 1. Behavior and orofacial kinematics (cam4)
 
