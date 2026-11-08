@@ -48,6 +48,12 @@
   part of the lick spectrum (6.5-15 Hz), so the result is reported as a downward FREQUENCY SHIFT of face movement,
   not as the loss of a separate fast movement; quantified directly by the spectrum's power-weighted center
   (3-15 Hz main, 4-12 Hz sensitivity; log-frequency mean because the bins are log-spaced).
+- (night) AMERICAN SPELLING EVERYWHERE (Priya): prose in pages, deck, docs and code string literals uses American
+  spellings (center, color, behavior, normalized, gray, labeled). Code identifiers, file names, paths and column names
+  are NEVER renamed (outputs and caches are keyed on them). Files whose SOURCE feeds a cache key (map_collect
+  code_digest / closure, trial_classes csig, result_cache code_version, combined_encoding._CACHE_CODE = full bytes of 7
+  files, rest_frozen_decoder_nl._code_key) are left alone: even a docstring edit there invalidates a cache (section G
+  lost ~1 h to one today). Convert those only when a render is about to rebuild that cache anyway.
 
 ## 2026-10-28 (late night) -- balance definition for recovery markers (Priya)
 - PRIMARY marker FIXED (Priya "proceed with the model including SSs"; "what's the harm in 0-0.5"): gain ratio 0.1..0.5 s

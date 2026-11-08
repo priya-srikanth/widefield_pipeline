@@ -32,8 +32,13 @@ def _restore_env_and_modules():
     os.environ.update(env)
     # SCRIPT modules only (iti_licks, fr_musall, ...): a dropped `wfield_local.*` submodule would leave the package
     # attribute pointing at the old object while pickle / importlib find a new one ("not the same object")
+    # ONLY modules loaded from scripts/: dropping a third-party submodule first imported here (matplotlib.gridspec, ...)
+    # left a second copy for later tests to import, and matplotlib then rejected its own GridSpec ("Single argument to
+    # subplot must be a three-digit integer"; 14 test_save_png_svg failures whenever this file ran first, 11-07)
+    scripts = str(REPO / "scripts")
     for m in set(sys.modules) - mods:
-        if m != "wfield_local" and not m.startswith("wfield_local."):
+        f = getattr(sys.modules.get(m), "__file__", None) or ""
+        if f.startswith(scripts):
             del sys.modules[m]
     sys.path[:] = path
 

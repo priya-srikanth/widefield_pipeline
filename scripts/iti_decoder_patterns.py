@@ -40,7 +40,7 @@ from figdata import CHANGE_CMAP, PRE_CMAP, grid_fns, imaging_grid, load_fd, plot
 AN =["PS92", "PS93", "PS94", "PS95"]
 EP = ["pre", "acute", "subacute", "chronic"]
 AXES = {"lat": 0, "sag": 3}
-SPATIAL = il.encoder_run("_te_basis") / "fit"       # the encoder basis of THIS run mode (coordinator 11-03)
+SPATIAL = il.te_basis_run() / "fit"       # the TE encoder basis of THIS run mode (coordinator 11-03; never _spont, 11-07)
 
 
 def pattern(X: np.ndarray, y: np.ndarray) -> np.ndarray:
