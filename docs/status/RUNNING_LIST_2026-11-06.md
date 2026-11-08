@@ -384,3 +384,19 @@ near ipsi +0.152 (Holm .0045, ABOVE pre); others n.s.
   busy, 17 GB free. Resumes from sessions/<label>.json. Profiling one finished session (PS92_0812) into scratch
   (scratchpad/prof_partial) before any restart recommendation.
 - Batch C producer tracing delegated (read-only).
+
+**11-08 ~10:20 -- D9 batch C traced (read-only helper) + light part queued.**
+- Two upstream blockers explain most of it, both behind the heavy lock (b_partial_frA): (1) t_frame_te_basis has no
+  usable output (11-05 run was no-calibration, moved aside) -> no fit/spatial_<A>.pkl -> l_basis_extract (all 107 svdbasis
+  items failed), l_basis_frame_sd, e_pat_stats_maps -> e_roi_check -> e_roi_foci / cand / rim, l_offset_where;
+  (2) lane v8-XL2L3 waits on the lock at l_precue_restnl, so l_bal_reference -> l_bal_regions / l_bal_recovery ->
+  (v8b) l_recov_markers -> e_recov_meas, l_balmatch, e_dock_*, l_enl_offset -> ENL_SLIDE_FIX -> the ENLv chain all wait.
+  Nothing there is failing; it is queued behind the lock.
+- Producers NOT queued anywhere: svd / locanmfM offset contrib maps (l_offset_where), iti_spout_pattern_stats
+  (e_roi_foci), lick_same_target_place (key figure), cd_overlap_null (cd geometry ceiling).
+- Queued now, lane v9zt (light, worktree wf_render_v9zs): l_sametarget_place, cd_overlap_null, g7_cd_geometry_r2.
+- Code bug: lick_rim_overlay hardcoded sessions_roi2 (no run writes it) -> fix/rim-overlay-roi-dir 65cf7ead (il.SESS_NAME
+  = sessions_roi8fr, 107 sessions, fields checked). NOT pushed: needs Priya's OK.
+- Still to queue (wait on t_frame_te_basis anyway): contrib maps svd / locanmfM -> l_offset_where_r2; spout pattern stats
+  -> e_roi_foci_r2 -> cand -> rim (after the fix lands); l_key_figure_r3 (+ l_sametarget_place, e_recov_meas);
+  l_bal_offset_primary (+ l_recov_primary dep). Held, not failing: l_arrival_restnl, b_encoding_key_figures.
