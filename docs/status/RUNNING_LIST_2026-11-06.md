@@ -679,3 +679,22 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
   (perf/daq-memo-keep-csig, wf_memocsig): memo moved to wfield_local/session_memo.py, applied by a hook-marked
   decorator; csig back to 3d7bbe921e (verified), trial_classes = pre-memo text + 1 line; 76 related tests pass; a test
   pins the memo out of the digest. Pushing (part of Priya's memo OK). Section G + grant will run on it -> warm caches.
+
+## 11-08 ~17:45 -- state
+- ON MAIN since 16:00: 597cbed9 (section G memo), d8f4e900 (memo keeps csig 3d7bbe921e), b83f376d (G1-G3 = camera
+  WORKING vs NO_RESPONSE, scored = working-period no_response rows, tag cls-work-v-noresp; DAQ path unchanged; 18435c15).
+  Note for Priya: under the camera grouping undetected_state_split now nearly always reports UNDECIDABLE (stopped /
+  quit-tail have their own groups); by_class answers that question directly (no_response / stopped / after_end each
+  scored against the working-vs-no_response discriminator).
+- 17:09 v9zy-IT2 DONE: e_spout_patterns, e_spout_pat_stats, e_roi_foci_r3, e_roi_cand_r3, e_rim_overlay_r3 all EXIT 0.
+- 17:43 LAUNCHED queue_daqlk9zz.sh lane SG (worktree wf_render_v9zz at b83f376d, csig 3d7bbe921e verified):
+  g5_section_g_lp (full grid, -j 4, LICK_SOURCE=lp, GATE_SOURCE=lp, LP_FROZEN=lp via profile, store
+  frozen_models_lpfinal, session cache = M: default) -> g6_grant_lp (deps section G, g5_cd_traj_orth_lp,
+  g5_recovery_cue_r). Waiting for the heavy lock (l_disengage_r, v9zs-BH).
+- RUNNING: v9zw-EP (LP epoch arms, sequential), v9zx-CD (LP cd chain), v9zx-RS (rest family), v9zx-MP (waits on EP),
+  v9zz-SG, plus older lanes (v9zv AB b_* steps, v9zs-BH l_stopped/l_disengage, v8 waiting lanes).
+- STILL TO QUEUE: l_bal_* -> l_recov_markers -> e_recov_meas / l_balmatch / e_dock_* / l_enl_offset -> ENL_SLIDE_FIX ->
+  x_enlv_* (frozen env; defs + deps in scratchpad/rerun_settings_check.md); later pcd / nolick / precue states / joint
+  xsession on LP; gb_fig_r redraw; figdata star redraws; then the replacement pass (headline table on corrected outputs ->
+  Priya -> pages / decks; page repointing list in scratchpad/epoch_trim.md + rerun_settings_check.md).
+- OPEN for Priya: LP map-drift (June vs August) cannot be made -- keep DAQ "contact" drift labeled, or drop?
