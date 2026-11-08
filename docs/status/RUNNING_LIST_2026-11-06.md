@@ -582,3 +582,12 @@ re-run needed for A20. (scratchpad/a20/exec_bins_calib_A20.csv)
   g5_restnl_maps_* + g5_map_drift_* READ the pre-fix restnl masks (g2a / g2b on 9aaa4cc6) -> stale, in the re-run list.
 - Fix branch tests (logged run): 1151 passed, 1 failed = the pre-existing test_gain_bio_port '_common' failure (fails on
   main too). Pushing fix/stars-spoutorder-g13-1108 (push7, gated on >= 15 GB free).
+- 14:1x PUSHED fix/stars-spoutorder-g13-1108 -> ON MAIN 21a005ca (532 pre-push tests passed; logged -k run 1151 passed +
+  the pre-existing gain_bio '_common' failure). Stars top band, POS_ORDER, section G G1-G3 camera classes, DECISIONS
+  11-08 lick-class correction.
+- 14:11 l_block_compare EXIT 0; 14:12 l_basis_extract_r (v9zq-SVD, 2f5799a9, ITI family) took the lock: svdbasis items
+  running ok. Watch: its script (iti_basis_decoder.py) has the te-basis path bug -- a te-basis source would fail.
+- RAM 14:08: 1.4 GB free (another window's FR projection fr_cam4_june tasks 9 + 10 = 31 GB + state-space 8 GB); back to
+  35 GB at 14:11. Lanes paused, nothing lost.
+- Lane v8-L4L5L6L7L9 now waits on l_recov_markers (in the stopped l_bal_* chain): waits indefinitely, harmless; its
+  remaining steps are on pre-fix 5db29b07 and are in the re-run list.
