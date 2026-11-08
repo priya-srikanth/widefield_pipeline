@@ -936,6 +936,15 @@ per-lick measure (proposed 10-25: the first-lick window stays primary; Priya to 
   common horizon, early post -15.1 min [-25.4, -5.6] 4/4, -77 trials [-144, -20] 4/4, responded -103 4/4; chronic ~0.
   Lower bound (censored ends = quits): -27.4 min, -69 trials (3/4), -146 responded. -> animals DO quit sooner early post
   (~15 min / ~75 trials), recovered chronically; the 90-min / 300-trial caps sat below most quits.
+- **WITHIN-SESSION DECLINE OF AIM / LATENCY vs QUITTING (11-07, docs/WITHIN_SESSION_DECLINE_QUITTING.md,
+  scripts/within_session_decline.py):** 3-D first-lick latency slows within every session incl. pre (+61 ms/h, 4/4) and
+  more acutely (+126 ms/h vs own pre [+37, +230], 4/4; subacute +57 4/4 n.s.; chronic ~0). Far-contra landing drifts
+  ipsilesionally within subacute sessions (-0.20 mm/h vs pre [-0.36, -0.07], 4/4), also far ipsi (-0.16, 4/4; chronic
+  -0.17 4/4) -> a drift of the whole far landing pattern, largest at far contra, not impaired-direction specific. Peak
+  speed / contact barely move. Not a quit prodrome (same size without the last 15 min; no aim change before quits); the
+  latency rise before quits is present pre-stroke too (+150 ms vs time-matched, 3/3). Drift does not predict quit time
+  (chronic aim r +0.32 p .05 only). Time / licks / water collinear within session (r 0.96-1.00); across sessions and
+  animals the drift does not scale with water accrual or drop size -> not satiety-paced; clock / state-like. PROVISIONAL.
 - CAVEAT 10-31 to the next line: the raised stopped-trial level is largely RUNNING (disengagement tests P4, post hoc).
 - Stopped-trial traces 10-29 (page Fig 14.21 S11, scripts/stopped_trial_traces.py, stopped_traces/): stopped (quit-period, no
   lick) trials have NO cue-evoked response in any area / epoch, only a flat level above restw (~4-12 x1e3); miss_working a
