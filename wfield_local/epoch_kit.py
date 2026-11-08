@@ -94,7 +94,7 @@ def _accuracy_at(y, p, code):
         return None
     y, p = np.asarray(y), np.asarray(p)
     m = (y == code)
-    if m.sum() < 5:
+    if not m.any():
         return None
     return float(np.mean(y[m] == p[m]))
 def _pre_counts(align, variant):
