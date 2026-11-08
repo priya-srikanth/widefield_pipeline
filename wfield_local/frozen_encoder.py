@@ -191,6 +191,20 @@ def design_name() -> str:
     return f"{DESIGN_BASE}_{SPONT_PART}" if SPONT else DESIGN_BASE
 
 
+def copy_fit_spatial(src_fit, dst_fit, animals) -> list:
+    """Copy each animal's ``spatial_<animal>.pkl`` from a --fit-from source run's fit/ into this run's fit/ (11-08).
+
+    Byte-for-byte (`shutil.copy2`); a missing source or an existing copy is skipped. Returns the paths written."""
+    import shutil
+    done = []
+    for an in animals:
+        src, dst = Path(src_fit) / f"spatial_{an}.pkl", Path(dst_fit) / f"spatial_{an}.pkl"
+        if src.exists() and not dst.exists():
+            shutil.copy2(src, dst)
+            done.append(dst)
+    return done
+
+
 def design_tag(tag: str) -> str:
     """A frame / Layer-2 / relabel tag of this design: under FROZEN_LICKS_ALL=split every ``v7g3_t3d`` not already followed
     by ``_spont`` becomes ``v7g3_t3d_spont`` (gate-attempted_v7g3_t3d_frA -> gate-attempted_v7g3_t3d_spont_frA,
@@ -2128,6 +2142,12 @@ def main(argv=None) -> int:
     if saved is not None:                                # a re-scoring run: the pre statistics are already saved
         got = [(s_["label"], s_) for s_ in saved if s_["label"] in pre and s_.get("pos_order")]
         print(f"  reusing {len(got)} pre-session statistics from {sp}", flush=True)
+        if a.fit_from and spath:
+            # THE BASIS THIS RUN SCORED IN, BESIDE ITS OUTPUTS (11-08). The pixel readers (frozen_pixel_unique_sig,
+            # frozen_pixel_musall) read <run>/fit/spatial_<animal>.pkl from the run they plot; a --fit-from run kept it
+            # only in the source run, so they failed (v_pix_frAsplit_new / v_pixmus_unique_noFR_cue, 11-07). Copied
+            # byte-for-byte (the source fit stays read-only); an existing copy is left alone.
+            copy_fit_spatial(src_fit, out / "fit", sorted({config.animal_of(x) for x in pre}))
     else:
         # pass 1 (behaviour only): the animals' SPOUT-LOCKED templates from their pre sessions (FGROUP comment)
         tparts, tfail = ak.fan_sessions(pre, template_job, jobs=a.jobs, label="template")
