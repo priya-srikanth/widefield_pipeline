@@ -4,24 +4,25 @@ Priya 2026-10-25: "for all the bar graphs, the asterisks are hard to see". They 
 where the animal dots and the neighboring bar's whisker sit on top of them. Here: 13 pt bold, a white halo, and placed
 just beyond the outermost of the whisker end, zero and the animal values, on the side of the effect (above an increase,
 below a decrease).
+
+2026-11-08: `sig_star` now draws in the TOP BAND (`star_top`), not on the data. The 10-25 placement above still put the
+star beside the whiskers / animal dots / 0 line, which broke Priya's 10-30 rule (every star in a band at the top of the
+panel), and it never hid the top spine (11-03 rule). The settings audit (11-08) found the frozen
+bar figures (partial_refit, session_vs_frozen, specificity_control, frozen_claims, via `frozen_fr_compare.bars`) still
+on it. Callers keep their signature; each figure must call `reserve_headroom(fig)` once before layout / savefig.
+`tests/test_sig_marks_top_band.py` pins both the placement and that every caller of a star reserves the band.
 """
 from __future__ import annotations
 
-import numpy as np
 
-
-def sig_star(ax, x: float, lo: float, hi: float, values=(), *, text: str = "*", fontsize: float = 13, color: str = "k"):
-    """Mark x when the interval [lo, hi] excludes 0; `values` = the animal dots plotted at x (same scale as lo / hi).
-    Returns the annotation, or None when the interval contains 0."""
-    import matplotlib.patheffects as pe
+def sig_star(ax, x: float, lo: float, hi: float, values=(), *, text: str = "*", fontsize: float = 13, color: str = "k",
+             row: int = 0):
+    """Mark x when the interval [lo, hi] excludes 0, in the top band (`star_top`, row 0 = the top line). `values` (the
+    animal dots at x) is kept for the old call signature; it no longer moves the star. Returns the text, or None when
+    the interval contains 0. The figure must call `reserve_headroom(fig)` before layout / savefig."""
     if not (lo > 0 or hi < 0):
         return None
-    up = lo > 0
-    v = [float(u) for u in values if u is not None and np.isfinite(u)]
-    ext = max([hi, 0.0, *v]) if up else min([lo, 0.0, *v])
-    return ax.annotate(text, (x, ext), xytext=(0, 1 if up else -1), textcoords="offset points", ha="center",
-                       va="bottom" if up else "top", fontsize=fontsize, fontweight="bold", color=color, zorder=6,
-                       annotation_clip=False, path_effects=[pe.withStroke(linewidth=2.5, foreground="w")])
+    return star_top(ax, x, text, color, row=row, fontsize=fontsize)
 
 
 # ---- TOP-BAND marks (Priya 10-30, ALL figures): "place significance stars at top of figure space as possible, so they're
@@ -61,5 +62,8 @@ def reserve_headroom(fig) -> None:
         done.add(key)
         n = max(getattr(a, "_wf_mark_rows", 0) for a in sib)
         lo, hi = ax.get_ylim()
+        if getattr(ax, "_wf_headroom", None) == (lo, hi):    # already reserved and nothing changed the range since:
+            continue                                         # a second call must not grow the band again
         frac = getattr(ax, "_wf_mark_step", STEP) * n + PAD
         ax.set_ylim(lo, hi + (hi - lo) * frac / (1 - frac))
+        ax._wf_headroom = ax.get_ylim()
