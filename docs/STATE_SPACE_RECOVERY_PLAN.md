@@ -327,9 +327,9 @@ Reading:
   day-to-day jumps.
 - **Two exceptions:**
   - The acute "rotation beyond gain" does NOT survive. It was the changed movement / landing composition, so drop it.
-  - The hemispheric balance follows the TARGET, not the executed landing: it holds or grows on on-target trials but
-    is ~0 acutely / subacutely when trials are grouped by where the tongue landed. Consistent with FINDINGS 0b (the
-    balance tracks the decoder's read-out offset, not the tongue's deviation).
+  - ~~The hemispheric balance follows the TARGET, not the executed landing~~ **RETRACTED 11-07 (see "Balance at
+    matched movement" below)**: the on-target / landing ring averages lack far contra acutely (too few trials), the
+    spout with the most negative pre balance, so the +.33 / ~0 columns were composition artifacts.
 
 **(2) Drift direction** (`scripts/state_space_path_tests.py` -> `path_tests/drift_direction.csv`). The pre-stroke
 drift direction (slope over the 8 August days; split-half cosine .83 / .86 / .64 for PS92 / 93 / 94, .38 for PS95):
@@ -340,7 +340,9 @@ drift direction (slope over the 8 August days; split-half cosine .83 / .86 / .64
 - Cosine with acute - pre: -.44 / -.36 / -.42 / +.28. The acute change points AGAINST the drift.
 
 So in 3 / 4 animals a quarter to 40 % of the chronic "new state" lies along the direction cortex was already drifting
-before the stroke. The drift then STOPS (within-chronic slope ~0 over 25-39 days). Whether chronic is "where practice
+before the stroke. The drift then SLOWS (corrected 11-07 from "stops"): within-chronic slope +.026 / +.001 / +.006 /
++.020 per day vs pre +.182 / +.116 / +.098 / +.043 (PS92-95), i.e. flat in PS93 / PS94 only; PS92 / PS95 still drift
+slowly, in line with FINDINGS 8 (crossnobis distance still rising at drift rate). Whether chronic is "where practice
 would have gone anyway" cannot be decided without a no-stroke control. Cohort 2's pre period may say whether pre drift
 saturates (cohort 2 is analyzed separately, never pooled).
 
@@ -353,6 +355,37 @@ the share for a pre cloud slid to the session's own position on the line, with m
 
 No sign that chronic-like patterns appear in the trial tails before the mean. The cloud SLIDES rather than searching
 and selecting (no Golub / Oby-type repertoire signature at this resolution).
+
+## Balance at matched movement (11-07, Priya: "use the angle / lateral offset to use all spouts")
+
+Scripts: `state_space_balance_cells.py` (target x landing-bin cells, per-session target balance) and
+`state_space_balance_angle.py` (every first lick; per animal x ring a PRE-only fit of each hemisphere's per-trial
+orofacial response size = target intercept + shared slope x 3-D `side_ml`; post balance minus the fit's prediction for
+the same trials). Outputs `landing/balance_cells*.csv`, `trial_sizes.csv`, `balance_angle_{sessions,coefs}.csv`.
+
+| spout | by target, acute / sub / chronic | matched target + landing, acute / sub / chronic |
+|---|---|---|
+| close ipsi | -.30* / -.15 / -.14* | -.24* (0/4) / -.11 / -.11 (0/4) |
+| close mid | +.03 / +.16* / +.17* | .00 / +.12 / +.14* (4/4) |
+| close contra | +.19 / +.24 / +.25* | +.13 / +.20 / +.24* (4/4) |
+| far ipsi | -.18* / +.12 / +.18 | -.39* (0/4) / -.05 / +.06 |
+| far mid | +.11 / +.09* / +.20* | -.12 / -.04 / +.12* (4/4) |
+| far contra | +.60* (4/4) / +.40* / +.40* | +.33 (2/4; PS94 / PS95 +.8, PS92 / PS93 < 0) / +.27* (4/4) / +.35* (4/4) |
+
+Reading: subacute / chronic the balance moves contralesional at contra-side and middle targets at matched movement
+(not the movement); ipsi-side targets do not share it (acutely they move the other way). The across-spout range of the
+on-target balance (5 spouts, far contra excluded in every epoch) compresses: -.47 (0/3) / -.32 / -.27 (0/4), CIs < 0 --
+consistent with FINDINGS 0b "post-stroke ~30 % flatter". About half the acute far-contra rise is the landing.
+Same-landing / different-target cells: acute far-contra-aimed licks landing far ipsi sit between the pre far-contra and
+far-ipsi values, as pre off-target licks did; neither target nor landing alone sets the balance. Caveat: cue-aligned
+0-1 s, SSp-m / SSp-n / SSs; FINDINGS 0b's primary marker is first-lick-aligned 0.1-0.5 s with ALM / tjM1 -- not yet
+checked in that window. PS94 acute far contra: only 37 % of trials inside the pre landing range.
+
+## Results page (draft, 11-07)
+
+https://claude.ai/artifact/9sGELLFEwADEt9k64fXTxe (v1). Figures: `scripts/state_space_page_figs.py` ->
+`Widefield/state_space_recovery/page_figs/`; page source backed up at `Widefield/state_space_recovery/page/index.html`.
+Per-trial alpha for the trial-cloud figure: `state_space_path_tests.py --trial-alpha` -> `path_tests/trial_alpha.csv`.
 
 ## Rules
 

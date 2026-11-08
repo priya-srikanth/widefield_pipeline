@@ -103,10 +103,40 @@ def repertoire(sess, P, mu, rng):
     return out
 
 
+def trial_alpha(sess, P, mu):
+    """Per-trial position on the pre (0) -> chronic (1) line, spout by spout (the trial cloud the repertoire test
+    summarizes; for the slide-vs-search figure). Chronic sessions use a chronic template without themselves."""
+    pre = [s for s in sess if s[1] == "pre"]
+    chr_ = [s for s in sess if s[1] == "chronic"]
+    Tp = R.template(pre)
+    zp = (Tp - mu) @ P
+    out = []
+    for lab, ep, day, Y, pos in sess:
+        Tc = R.template([s for s in chr_ if s[0] != lab])
+        zc = (Tc - mu) @ P
+        z = (Y - mu) @ P
+        for si, p in enumerate(S.POS):
+            m = pos == p
+            if m.sum() < R.MIN_TRIALS or not (np.isfinite(zp[si]).all() and np.isfinite(zc[si]).all()):
+                continue
+            dlt = (zc[si] - zp[si]).ravel()
+            a = (z[m].reshape(m.sum(), -1) - zp[si].ravel()) @ dlt / (dlt @ dlt)
+            out += [{"label": lab, "epoch": ep, "day": day, "spout": p, "alpha": float(v)} for v in a]
+    return out
+
+
 def main():
     OUT.mkdir(parents=True, exist_ok=True)
     rng = np.random.default_rng(0)
     data = load_all()
+    if "--trial-alpha" in sys.argv:
+        rows = []
+        for an, sess in sorted(data.items()):
+            P, mu = R.fixed_space(R.template([s for s in sess if s[1] == "pre"]))
+            rows += [{"animal": an, **r} for r in trial_alpha(sess, P, mu)]
+        pd.DataFrame(rows).to_csv(OUT / "trial_alpha.csv", index=False)
+        print(f"wrote {OUT / 'trial_alpha.csv'} ({len(rows)} trials)")
+        return
     dr, rp = [], []
     for an, sess in sorted(data.items()):
         pre = [s for s in sess if s[1] == "pre"]
