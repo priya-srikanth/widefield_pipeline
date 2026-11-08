@@ -30,8 +30,18 @@ removed; see o2_state_space_svd).
 Areas (64 Allen areas, both hemispheres): `analysis_kit.boot_delta_columns` (animals -> sessions, paired) on the session
 area values; * = 95 % CI excludes 0 (primary); k/4 = animals with the change in the pooled direction; per-animal values
 in the table (rule 8). Image: left hemisphere = image LEFT = ipsilesional (all lesions left).
-Outputs: <state_space_recovery>/chronic_maps{tag}/areas.csv, maps.npz; page_figs/ss_cmap_<version>_<align>.png and
-ss_cmap_animals_<version>_<align>.png (chronic, per animal). EXPLORATORY.
+BASELINE (WF_SS_MAPBASE; Priya 11-08 "let's try the rest baseline and no subtraction"):
+  lick   response window minus the SAME trial's window -1.0..-0.6 s before the first lick (`state_space_sim.evoked`):
+         mostly pre-cue (F12: carries the pre-cue position code) and it reaches past the cue on 13 % of pre trials vs
+         26 % acute -> an epoch-dependent subtrahend. Kept as the "lick-evoked increment" variant.
+  rest   response window minus the session's RESTnl level (`state_space_rest_baseline.py`: `restnl_mask`'s definition
+         on the drift-removed signal, one flat vector per session, identical for every trial and spout).
+  none   the response window itself. The signal is drift-removed INCLUDING the constant, so this is relative to the
+         session's own average (dF/F is already relative to the session's mean frame).
+  The spout-specific version is identical under rest and none (a per-session constant cancels in spout - mean over
+  spouts); under nocw the rest vector gets the same cortex-wide projection as the trials.
+Outputs: <state_space_recovery>/chronic_maps{tag}[_<base>]/areas.csv, maps.npz; page_figs/ss_cmap_<version>[_<base>]_
+<align>.png and ss_cmap_animals_... (chronic, per animal); no suffix = the lick baseline (the first render). EXPLORATORY.
 """
 from __future__ import annotations
 
@@ -58,25 +68,53 @@ LABEL = {"full": "full change", "nocw": "minus the cortex-wide mode", "spout": "
 EPS = ["acute", "subacute", "chronic"]
 N_BOOT = 2000
 N_PERM = 1000
-OUT = S.ROOT / f"chronic_maps{S.tag()}"
+BASE = __import__("os").environ.get("WF_SS_MAPBASE", "lick")
+if BASE not in ("lick", "rest", "none"):
+    raise ValueError(f"WF_SS_MAPBASE={BASE!r}")
+BSUF = "" if BASE == "lick" else f"_{BASE}"
+BASE_LABEL = {"lick": "response window minus the trial's -1.0..-0.6 s before the first lick",
+              "rest": "response window minus the session's RESTnl rest level",
+              "none": "response window, no baseline (drift-removed signal)"}
+OUT = S.ROOT / f"chronic_maps{S.tag()}{BSUF}"
 FIGS = S.ROOT / "page_figs"
 SUF = S.tag().lstrip("_")
+REST = S.ROOT / "rest_baseline_svd"
 BASIS_DIR = S.SVD.parent / "basis"
 
 
+def response(M, lab, an):
+    """One spout mean (bins, K) -> (K,) under BASE (module docstring)."""
+    base, resp = S.BAL_BINS[S.ALIGN]
+    if BASE == "lick":
+        return S.evoked(M)
+    r = M[resp].mean(0)
+    if BASE == "none" or S.XFORM == "spout":
+        return r
+    z = np.load(REST / f"{lab}.npz")
+    if not bool(z["ok"]):
+        return np.full_like(r, np.nan)                                 # no usable RESTnl level: session dropped
+    c = z["c_rest"].astype(float)
+    if S.XFORM == "gsr":
+        w = S._pre_stats(an)[1]
+        c = c - (c @ w) * w
+    return r - c
+
+
 def session_responses(data):
-    """{animal: {epoch: (n_sessions, 6, K) evoked spout means}} (NaN where a spout has < MIN_TRIALS trials)."""
+    """{animal: {epoch: (n_sessions, 6, K) spout responses under BASE}} (NaN where a spout has < MIN_TRIALS trials or
+    the session has no usable rest level)."""
     out = {}
     for an, sess in sorted(data.items()):
         d = {}
         for ep in ["pre", *EPS]:
             rows = []
-            for _lab, e, _day, Y, pos in sess:
+            for lab, e, _day, Y, pos in sess:
                 if e != ep:
                     continue
-                M = np.stack([S.evoked(Y[pos == p].mean(0)) if (pos == p).sum() >= R.MIN_TRIALS
+                M = np.stack([response(Y[pos == p].mean(0), lab, an) if (pos == p).sum() >= R.MIN_TRIALS
                               else np.full(Y.shape[-1], np.nan) for p in S.POS])
-                rows.append(M)
+                if np.isfinite(M).any():
+                    rows.append(M)
             if rows:
                 d[ep] = np.stack(rows)
         out[an] = d
@@ -215,12 +253,12 @@ def fig_cohort(res, mask, edges, version, brain=None):
     sm = plt.cm.ScalarMappable(cmap="RdBu_r", norm=plt.Normalize(-vmax, vmax))
     fig.colorbar(sm, ax=axs, fraction=0.015, pad=0.01, label="change vs own pre (units of the animal's pre response RMS)")
     fig.suptitle(f"Where the post-stroke response changes: {LABEL[version]}, mean of 4 animals ({S.ALIGN_LABEL[S.ALIGN]}; "
-                 f"first-lick trials, camera first lick; response window minus baseline, change vs own pre). Contour: nested "
+                 f"first-lick trials, camera first lick; {BASE_LABEL[BASE]}; change vs own pre). Contour: nested "
                  f"bootstrap animals -> sessions ({N_BOOT}), 8-px blocks, max-stat family-wise per panel "
                  f"(beta_maps.significance_contour). Image left = ipsilesional. Grey = brain not analyzed (painted fibre "
                  f"glue, olfactory bulbs); outline = analyzed field of view.",
                  y=1.02, fontsize=9.5)
-    save_png_svg(fig, FIGS / f"ss_cmap_{version}_{SUF}.png", dpi=120, bbox_inches="tight")
+    save_png_svg(fig, FIGS / f"ss_cmap_{version}{BSUF}_{SUF}.png", dpi=120, bbox_inches="tight")
     plt.close(fig)
 
 
@@ -268,11 +306,11 @@ def fig_animals(res, mask, edges, version, brain=None, asig=None):
             if c == 0:
                 ax.set_ylabel("k / 4 animals", fontsize=11)
         fig.colorbar(im, ax=axs[-1, :], fraction=0.02, pad=0.01, ticks=range(5), label="animals significant, same sign")
-    fig.suptitle(f"Chronic change vs own pre, per animal: {LABEL[version]} ({S.ALIGN_LABEL[S.ALIGN]}). Contour: that "
+    fig.suptitle(f"Chronic change vs own pre, per animal: {LABEL[version]} ({S.ALIGN_LABEL[S.ALIGN]}; {BASE_LABEL[BASE]}). Contour: that "
                  f"animal's own session-label shuffle ({N_PERM}), max-stat per panel over stat_mask. Bottom: animals "
                  f"significant in the direction of the cohort mean. Grey = brain not analyzed (glue, bulbs)", y=1.01,
                  fontsize=9.5)
-    save_png_svg(fig, FIGS / f"ss_cmap_animals_{version}_{SUF}.png", dpi=100, bbox_inches="tight")
+    save_png_svg(fig, FIGS / f"ss_cmap_animals_{version}{BSUF}_{SUF}.png", dpi=100, bbox_inches="tight")
     plt.close(fig)
 
 
