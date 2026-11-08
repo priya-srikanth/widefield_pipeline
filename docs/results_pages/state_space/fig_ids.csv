@@ -27,6 +27,8 @@ f-ss_repertoire,6.7,Repertoire before mean: observed chronic-like share vs a sli
 f-ss_repertoire_lick,6.8,Repertoire before mean: observed chronic-like share vs a slid pre cloud · first lick −1.0..0.7 s,ss_repertoire_lick.png
 f-ss_pt_order_cue,6.9,Within a session: trial position on the pre → chronic line and the acute-departure axis by fifth of the session · cue −0.5..2.0 s,ss_pt_order_cue.png
 f-ss_pt_order_lick,6.10,Within a session: trial position on the pre → chronic line and the acute-departure axis by fifth of the session · first lick −1.0..0.7 s,ss_pt_order_lick.png
+f-ss_pt_order_aim_cue,6.11,"Within a session, colored by behavioral recovery: trial position by session fifth and within-session slopes against far-contra aim · cue −0.5..2.0 s",ss_pt_order_aim_cue.png
+f-ss_pt_order_aim_lick,6.12,"Within a session, colored by behavioral recovery: trial position by session fifth and within-session slopes against far-contra aim · first lick −1.0..0.7 s",ss_pt_order_aim_lick.png
 f-ss_traj_days_cue,7.1,Sessions and trial clouds in the pre → chronic / acute-departure plane · cue −0.5..2.0 s,ss_traj_days_cue.png
 f-ss_traj_days_lick,7.2,Sessions and trial clouds in the pre → chronic / acute-departure plane · first lick −1.0..0.7 s,ss_traj_days_lick.png
 f-ss_pt_plane_cue,7.3,Every trial in the pre → chronic / acute-departure plane: 50 % and 90 % highest-density regions per epoch · cue −0.5..2.0 s,ss_pt_plane_cue.png

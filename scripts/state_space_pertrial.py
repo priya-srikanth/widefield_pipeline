@@ -214,6 +214,50 @@ def fig_size(D):
     return Q
 
 
+def fig_order_aim(D, Sl):
+    """Within-session trial order, colored by RECOVERY (Priya 11-07: "with color grading on the recovery axis (eg
+    viridis)"): each post-stroke session's per-fifth mean x / y as a thin line colored by its far-contra aim vs own pre
+    (deg; viridis, yellow = recovered), pre sessions gray; right: each session's within-session slope against its aim."""
+    import matplotlib as mpl
+
+    import state_space_step_vs_gradual as SG
+    aim = pd.read_csv(SG.AIM)[["label", "farcontra_first"]].rename(columns={"farcontra_first": "aim"})
+    D = D.assign(q=np.minimum((D.order * 5).astype(int), 4)).merge(aim, on="label", how="left")
+    Sl = Sl.merge(aim, on="label", how="left")
+    post = D[D.epoch != "pre"]
+    norm = mpl.colors.Normalize(vmin=np.nanpercentile(post.aim, 2), vmax=np.nanpercentile(post.aim, 98))
+    cmap = mpl.colormaps["viridis"]
+    fig, axs = plt.subplots(1, 4, figsize=(18, 4.3))
+    for ax, c, t in ((axs[0], "x", "position pre (0) -> chronic (1)\n(fraction of pre -> chronic distance)"),
+                     (axs[1], "y", "acute-departure axis\n(same units)")):
+        s = D.groupby(["label", "epoch", "q"])[c].mean().reset_index().merge(aim, on="label", how="left")
+        for (_lab, ep), g in s.groupby(["label", "epoch"]):
+            g = g.sort_values("q")
+            col = "0.75" if ep == "pre" else cmap(norm(g.aim.iloc[0])) if np.isfinite(g.aim.iloc[0]) else "0.5"
+            ax.plot(g.q, g[c], color=col, lw=0.9 if ep != "pre" else 0.6, alpha=0.85, zorder=1 if ep == "pre" else 2)
+        ax.set_xticks(range(5), ["1st", "2nd", "3rd", "4th", "5th"])
+        ax.set_xlabel("fifth of the session (trial order)")
+        ax.set_title(t)
+    for ax, c, t in ((axs[2], "slope_x", "within-session slope of position\n(per session, first -> last trial)"),
+                     (axs[3], "slope_y", "within-session slope, acute-departure axis\n(per session)")):
+        ax.axhline(0, color="0.6", lw=0.8)
+        pre = Sl[Sl.epoch == "pre"]
+        ax.scatter(pre.aim, pre[c], color="0.75", s=14, zorder=1)
+        for an, g in Sl[Sl.epoch != "pre"].groupby("animal"):
+            ax.scatter(g.aim, g[c], marker=F.ANIMAL_MARKER[an], c=cmap(norm(g.aim)), s=26, edgecolors="k", lw=0.4,
+                       zorder=2)
+        ax.set_xlabel("far-contra aim vs own pre (deg)")
+        ax.set_title(t)
+    sm = mpl.cm.ScalarMappable(norm=norm, cmap=cmap)
+    fig.colorbar(sm, ax=axs, shrink=0.8, pad=0.01, label="far-contra aim vs own pre (deg; - = ipsilesional)")
+    hs = [plt.Line2D([], [], marker=F.ANIMAL_MARKER[a], ls="", mfc="0.6", mec="k", label=a) for a in sorted(F.ANIMAL_MARKER)]
+    hs += [plt.Line2D([], [], color="0.75", lw=1, label="pre sessions")]
+    fig.legend(handles=hs, loc="upper center", ncol=6, frameon=False, bbox_to_anchor=(0.45, 1.06))
+    fig.suptitle(f"Within a session, colored by behavioral recovery ({F.ALIGN_LABEL[S.ALIGN]}; within spout)", y=1.13)
+    fig.savefig(FIGS / f"ss_pt_order_aim_{SUF}.png", dpi=140, bbox_inches="tight")
+    plt.close(fig)
+
+
 def main():
     OUT.mkdir(parents=True, exist_ok=True)
     D = collect()
@@ -222,6 +266,7 @@ def main():
     Sl.to_csv(OUT / "within_session_slopes.csv", index=False)
     fig_plane(D)
     fig_order(D, Sl)
+    fig_order_aim(D, Sl)
     Q = fig_size(D)
     Q.to_csv(OUT / "size_percentiles.csv", index=False)
     rng = np.random.default_rng(0)
