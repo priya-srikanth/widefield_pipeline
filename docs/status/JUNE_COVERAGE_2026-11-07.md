@@ -20,7 +20,7 @@ behavior (an earlier training stage), not head placement or the camera frame.
 | Two-camera 3-D, kinematics_all | DONE-BUT-EXCLUDED (`pose3d_kinematics.py:270` `date >= 20260801`; `lick_path_softmax`, `lick_trajectories_3d` `early_pre`) | `session_poses/pose3d/<PS>_202606xx_*`, `kinematics_all/sessions.csv` | consumer change: June-reference output, shift-invariant measures only (D13) |
 | Side cams cam2/3 pose, 4-cam 3-D | NOT DONE for any session (August too); June = training labels + PS95 0606 pilot (PnP 1.1 px) | POSE_MODELS Part E | side round-2 model -> whole-session O2 -> confirm June side PnP |
 | FaceRhythm | PARTIAL, stops before ROIs: frames, registration fields (similarity fallback, landmark err 4-16 px), O2 trial windows exist; no ROIs (`face_rhythm_warp_rois.py:93` skips June), no O2 output, no readouts | `face_rhythm/cam4/{frames,register/fields}`, `o2/fr_cam4_20261021/trials/` | QC June ROI warp (decision), O2 `--include-june` (12 tasks), project on frozen `master_pre_v1`; normalize for June 1.17-1.24x face magnification |
-| Video motion energy | NOT DONE for the movement models (`o2_video_me.py:89` drops June) | no June `video_motion_cam*.npz` | local `video_motion_session` or O2 ME array |
+| Video motion energy | NOT DONE (`o2_video_me.py:89` drops June). NOT NEEDED: ME is not in any current primary result (only the opt-in `COMBINED_ENCODING_VIDEO` variant from the 23-session 10-18 pilot, the early-October ENL movement-removed lower bound, and the 10-29 rev-up jaw follow-up) | no June `video_motion_cam*.npz` | -- (only if one of those is revived) |
 | ITI licks | DONE as a separate June reference (`iti_june_ref.py`) | `iti_licks/june_ref/sessions/` | -- |
 
 Cheapest first:
@@ -28,7 +28,7 @@ Cheapest first:
 2. Trial classes for June: local CPU.
 3. FR June ROI decision, then local warp.
 4. FR O2 run with June: 12 tasks.
-5. Optional: June motion energy, a June encoding O2 run, cam1 for non-curated June.
+5. Optional: a June encoding O2 run, cam1 for non-curated June (motion energy not needed).
 6. Side-camera chain: shared with August.
 
 Unverified: the cam1 O2 gap for PS94/95 0601-0605; where the ENL movement-multisession outputs live (and whether they
