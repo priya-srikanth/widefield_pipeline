@@ -247,13 +247,13 @@ the encoding handoff (STATUS_2026-10-26_ENCODING_HANDOFF.md, top blocks); the A1
 
 ## OVERNIGHT 11-07 -> 11-08 (Priya asleep ~23:30). DECISIONS NEEDED FIRST, then findings, then log.
 ### Decisions / questions for Priya (newest last)
-- **D1 push fix/june-ref-epoch-none (64d54bc3)?** June ref files stored epoch=None (object array) -> strict iti_licks._load
+- **D1 push fix/june-ref-epoch-none (64d54bc3)? -- Priya YES 11-07 ~23:45, pushing.** June ref files stored epoch=None (object array) -> strict iti_licks._load
   refused all 12 -> l_reembed failed, m_reembed_plot skipped. Writer now saves '', loader tolerates exactly a None epoch
   (any other object array still refused); all 12 real files load; tests added. Retry lane v9zi runs l_reembed_r +
   m_reembed_plot_r FROM THE BRANCH (64d54bc3) behind the heavy lock; outputs re-made if you reject.
-- **D2 delete the local session_cache copy** C:/Users/SabatiniLab/wfield_cache/session_cache_rebuild_20261103 (77 GB, derived)
+- **D2 (Priya: discuss first; proposed (b) copy new tf-* back to M:, verify one M: read hits, then delete) delete the local session_cache copy** C:/Users/SabatiniLab/wfield_cache/session_cache_rebuild_20261103 (77 GB, derived)
   after section G r4 + figs finish? (r4 writes its ROI feature entries there; copy back the new tf-* entries to M: first?)
-- **D3 push fix/fit-from-copies-spatial (648eafe0)?** frozen_encoder copies spatial_<animal>.pkl into a --fit-from run's
+- **D3 push fix/fit-from-copies-spatial (648eafe0)? -- Priya OK 11-07 ~23:50, pushes after D1 lands.** frozen_encoder copies spatial_<animal>.pkl into a --fit-from run's
   own fit/ (the proper fix for the 11-07 pixel-map failures I fixed by hand-copying). Tests added; affects only future
   --fit-from runs; no result changes. Not needed tonight (all affected runs already have their copies).
 ### Findings
