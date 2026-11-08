@@ -364,3 +364,9 @@ Acute far_R lick trials are 1-12 per session (PS95 has one acute session); at th
 matched pre control score ~0, so excess ~0 = undetermined, not "no deficit". PS95 far +0.20 = one session (0817), far_L
 n=12, control 0.065. Reading: the lick-trial arm can't test the far-contra refit loss; the working arm (all far, 4/4) is
 the usable one. Waiting on Priya before any bootstrap / figure.
+
+**D6 figure (Priya 11-08: option 1 = working trials plotted, lick trials as a table).** scripts/rebuild_figs/
+fig_refit_mixmatch.py (branch feature/refit-mixmatch-control, not pushed). Out: rebuild_figs/<TAG>/refit_mixmatch.png,
+_stats.csv, _lick_table.csv, _caption.txt. Change vs pre (boot_delta, Holm over 18): acute far ipsi -0.221, far mid
+-0.148, far contra -0.259 (all Holm .0045); acute near -0.06..-0.08 (n.s. after Holm); subacute all n.s.; chronic
+near ipsi +0.152 (Holm .0045, ABOVE pre); others n.s.
