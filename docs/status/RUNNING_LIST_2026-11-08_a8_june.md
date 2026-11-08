@@ -9,7 +9,10 @@ classes; 3 = FaceRhythm June face regions; 4 = FaceRhythm June O2 run. Backgroun
 
 1. ~~Submit the June FaceRhythm O2 bundle?~~ **SUBMITTED by Priya 11-08 ~00:30.** When done: transfer-node rsync of
    `out/` (bundle COMMANDS.md section 3), then `python scripts/o2_face_rhythm.py collect --name fr_cam4_june_20261108`,
-   then project onto frozen `master_pre_v1` + readouts (a8). Original item: `DeepLabCut/Widefield/o2/fr_cam4_june_20261108/` (12 tasks, same
+   then project onto frozen `master_pre_v1` + readouts (a8). 11-08 ~00:40: June tasks pending on O2 with
+   `AssocGrpCpuLimit` (group CPU cap); Priya HELD the remaining pooled-null tasks (`scontrol hold
+   58716929_[1992-2000]`) so June runs first. **To do: `scontrol release 58716929_[1992-2000]` once the June tasks
+   start** (the chronic null rescore waits on those tasks). Original item: `DeepLabCut/Widefield/o2/fr_cam4_june_20261108/` (12 tasks, same
    settings as production fr_cam4_20261021: 10-min segments, 4 workers, engaged trials; COMMANDS.md inside). ROIs are
    in place (`face_rhythm/cam4/rois/PS9x_2026060x/`, `rois_ready` True for all 12). Before submitting, please look at
    `face_rhythm/cam4/register/qc_june_rois.png` (June warped regions next to each animal's first August session).
