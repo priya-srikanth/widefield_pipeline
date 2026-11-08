@@ -48,6 +48,14 @@ running list `docs/status/RUNNING_LIST_2026-11-08_STATE_SPACE.md` sections A (de
   after the sweep.
 - **11-08 ~11:45:** page v15 has section 9 (maps, all baselines, why-cleaner). "Why cleaner" answered for the 15r
   activity maps (B19: window, not denoising); the residual-map half not done.
+- **11-08 ~15:00 (running list B24):** page v17 = basis switch for sections 3-7 and 10 + new section 10 "what the
+  change is made of" (8-part split per animal / per session, raw + minus cortex-wide, part maps on cortex; Table 10)
+  + two "Where things stand" rows. Page source: session scratchpad `state_space_page/index.html` (scripts
+  `add_parts_section.py`, `add_basis_switch.py` there; v16 backup `index_v16_backup.html`). Shared shift = sharper
+  lick-locked transient over posterior-medial cortex; minus cortex-wide a medial-then-lateral-orofacial sequence.
+  Still running: SVD per-session (raw, gsr) and LocaNMF per-session gsr (scratchpad masked/p8_lane_*.log); when
+  done, copy `ss_change_parts_sessions_lick[_xgsr]_{svd,lnmfbm}.png` next to index.html, add `data-svd` / `data-lnmf`
+  to Figs 10.2 / 10.4, republish. Next analysis: is the shift timing (B24 NEXT).
 - **11-08 ~12:45 (in flight; running list B20-B23):** page v16 has the basis comparison (Figs 3.10 / 3.11) and the
   method check per basis (2.2 / 2.3). Sections 3-7 rendered in SVD + LocaNMF (basis switch built, not yet published).
   `scripts/state_space_change_parts.py` = exact 8-part split of the change (Allen raw done: on manifold; largest
