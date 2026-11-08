@@ -253,6 +253,9 @@ the encoding handoff (STATUS_2026-10-26_ENCODING_HANDOFF.md, top blocks); the A1
   m_reembed_plot_r FROM THE BRANCH (64d54bc3) behind the heavy lock; outputs re-made if you reject.
 - **D2 delete the local session_cache copy** C:/Users/SabatiniLab/wfield_cache/session_cache_rebuild_20261103 (77 GB, derived)
   after section G r4 + figs finish? (r4 writes its ROI feature entries there; copy back the new tf-* entries to M: first?)
+- **D3 push fix/fit-from-copies-spatial (648eafe0)?** frozen_encoder copies spatial_<animal>.pkl into a --fit-from run's
+  own fit/ (the proper fix for the 11-07 pixel-map failures I fixed by hand-copying). Tests added; affects only future
+  --fit-from runs; no result changes. Not needed tonight (all affected runs already have their copies).
 ### Findings
 - Section G cost = Allen-ROI features were never cached (trial_features_cached refused non-LocaNMF sources); fixed 80090a57,
   measured on PS92_0812: cache read 0.26-0.91 s vs 6-14 s uncached, features byte-identical.
