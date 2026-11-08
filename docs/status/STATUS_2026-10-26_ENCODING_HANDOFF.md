@@ -39,6 +39,41 @@ for anything that loads imaging. E = `M:/MICROSCOPE/Priya/Widefield/LP_analysis/
 3. Then tell **sabatinilab-e3** (PI deck) the decoder figures are final: per figure the share PNG path, page Fig N.k,
    script + args, headline numbers, methods text (they asked 10-26 ~22:30; reply sent: not final yet).
 
+### 00-COMPACT-37 (11-08 ~08:20, Priya awake) -- READ FIRST; supersedes 36 for state
+Running list = `docs/status/RUNNING_LIST_2026-11-06.md` OVERNIGHT section (D1-D9 + log, newest last). Queue audit report =
+`docs/status/QUEUE_AUDIT_2026-11-08.md`. Render dir `S2/render_daqlk`, log `logs/CHAIN.log`.
+- **ON MAIN since 36**: cd6da055 (D4 lp_final_render frozen store in the rebuild root), 480accea (D5 Fig 3.4 post-stroke frozen
+  recall from the frozen-mode sidecar + optional `session` column in _position_bars sidecars), 236dae4e (D8 lpfinal pre-session
+  count), c3e01ed8 (ROI feature cache, 80090a57 + c3a8b049). **Pushing**: fix/d9-input-paths (76da97e5 stopped_trial_traces
+  jaw_onsets / restnl_rescue precue_restnl_wr / simple_key_figures lick_correction; 143cee02 section_g_figures --suffix on
+  every name; ae867505 run_mode.deficit_qc_dir(name) routes contact to the tagged encoding qc + imaging_lmm trend from there).
+- **Section G r4** (v9zh, ROI cache): 65/88 at 07:51, ~7.8 min/unit -> ~11:00-11:30 (extrapolated); then g7_section_g_figs_r4,
+  g6_grant_r4 (runs -j 4 WITHOUT the heavy lock: watch RAM). Then section C contact-only by hand (`after:g5_section_g_r4`), its
+  figures with --suffix (needs the d9 branch on main). Then D2 (b): copy new local session_cache entries back to M:, verify,
+  delete the local copy.
+- **Fixed + re-run tonight**: g7_fig_state_position (v9zn), g7_fig_s_per_animal (v9zk: epoch_sessions_long was never queued),
+  g5_lpfinal_dec (v9zl), g7_cd_geometry (v9zj: cd_trajectories --orth on + lick; NO ceiling -- cd_overlap_null never queued),
+  l_reembed_r + m_reembed_plot_r (v9zi, D1), e_iti_hemo + e_iti_hemo_sum (after e_iti_area_maps), e_checkfigs_r,
+  b_specificity_plain + b_residual_roi_r (v9zr).
+- **Decisions (Priya 11-08)**: refit share floor 1/18 was an earlier window's choice, never discussed -> D7: ALL refit analyses
+  move to a 10-trial floor only, with the D6 mix-matched control beside them (5r/5rm/5ro/5rmo + s1_refit_locanmf_table +
+  june_august_drift re-run, single-arm timing first). 5rm (size-matched) is the refit-vs-frozen comparison. No class-balanced
+  refit. D6 control: per post session, every August pre session of the same animal; BOTH subsampled to the post session's mix at
+  the largest common size (symmetric; the one-sided first version was biased, 453/800 pairs skipped); refit within session; no
+  floor. Lane v9zo (wf_render_v9zo @ 76e7d604, --inputs cache) running cue/working then cue/lick -> per-animal table first.
+- **Lanes I made (all from DETACHED worktrees)**: v9zo (D6), v9zq (ITI svdbasis chain on 2f5799a9, replaces v9zg; waits for
+  t_frame_te_basis, which another window re-runs with calibration), v9zr (batch A on main: e_mm_r / e_lmm_*_r / e_fpa_*_r wait
+  for e_recov_meas / e_pat_extract). Batch B retries to queue after the d9 push. Batch C (producers to trace first):
+  l_offset_where_r (svd / locanmf contrib terms), e_roi_foci_r2 / e_roi_cand_r2 (iti_spout_pattern_stats), e_rim_overlay_r
+  (sessions_roi2), the ENLv chain (lick_enlv_extract --regress, enlv code family), l_key_figure_r2 (lick_same_target_place),
+  l_bal_offset_primary (WFIELD_BAL_INSIDE), l_arrival_restnl (arrival_to_cue without --rest-variant), b_encoding_key_figures.
+- **Parked RESERVED_HOLD** (logged in CHAIN): the audit's 12 + l_session_levels + dependents l_face_offset_partial,
+  l_disengage_add (a lane waits FOREVER on a parked dep -- park dependents too).
+- **Bottleneck**: the heavy lock is serial; b_partial_frA holds it since 06:26 (a_partial_ls took 8 h); behind it
+  t_frame_te_basis, l_precue_restnl, g5_epoch_15r_r, gb_sessions_r, l_block_compare, l_stopped_restw (old code, will fail).
+- **Lessons**: never edit a worktree a lane runs from (spawned workers re-import code); stopping a lane leaves EMPTY claim dirs
+  that other lanes treat as taken -> rmdir them; check the full producer chain before queueing a consumer.
+
 ### 00-COMPACT-36 (11-08 ~00:05, Priya asleep) -- READ FIRST; supersedes 35 for state
 Running list = `docs/status/RUNNING_LIST_2026-11-06.md`, section **OVERNIGHT 11-07 -> 11-08** (decisions first). Render dir
 `S2/render_daqlk`, event log `logs/CHAIN.log`.
