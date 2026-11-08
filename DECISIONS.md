@@ -23047,6 +23047,14 @@ Collected from the rebuild rounds of 11-03 (coordinator relays; implementation `
 - **Sessions without video** (PS93_0813; reconciliation D12): every cue is "unknown", so the session is in neither
   working nor stopped and has no rest working period (no DAQ fallback). The lick class stays the DAQ contact set, so a
   lick-aligned (contact-only) selection still includes it.
+  - **CORRECTION 2026-11-08 (Priya): the sentence above is wrong as a statement of the analysis classes.** The LICK
+    class is every camera-seen lick (contact + incomplete), on the LP source (`WIDEFIELD_LICK_SOURCE=lp`): aligned to the
+    LP lick onset, ENL window 1.0 s on LP licks, scored by the LP-trained frozen decoders. The SUCCESSFUL-LICK class is
+    the DAQ contact set, and it is supplemental only (never a gate: "never gate on successful licks", 11-07). PS93_0813
+    (no video) is in the successful-lick class only; it has no lick-class rows. The 11-03 rule itself said the camera lick
+    gate is contact + incomplete and that lick-aligned windows use it; the rebuild implemented the lick class as DAQ
+    contacts (`trial_classes.camera_select("lick")`), so those outputs are the successful-lick class (relabeled, not
+    discarded; RUNNING_LIST_2026-11-06, 11-08 ~11:55 / ~12:45).
 - **late_rewarded (no-lick decoder).** A cue the DAQ calls "undetected" whose cue_stop camera class is contact is a
   contact trial: it moves to `late_rewarded` (out of the no-lick arm), so the no-lick arm and the camera classes cannot
   disagree.
