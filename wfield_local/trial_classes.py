@@ -1537,23 +1537,9 @@ def cue_groups_for(label: str, cue_s, window: str | None = None):
     return _CUE_GRP[key]
 
 
+@__import__("wfield_local.session_memo", fromlist=["per_env"]).per_env  # memo per env (session_memo)  # [gate-source hook]
 def daq_cue_seconds(label: str) -> np.ndarray:
-    """The session's DAQ cue times (s) -- the train every imaging trial index refers to (`_trial_features`).
-
-    MEMOIZED per (label, input environment) (profile 11-08: one section G session unit called this 297 times, 1778 of
-    its 2097 s re-reading and re-decoding the same raw DAQ h5 files). The DAQ file is original data, so the result can
-    only change with the environment that picks the session list; the key holds every WIDEFIELD_* / WFIELD_* variable.
-    Each call returns its own copy, so a caller that edits the array cannot change what the next caller gets."""
-    return _daq_cue_seconds_cached(label, _input_env()).copy()
-
-
-def _input_env() -> tuple:
-    import os
-    return tuple(sorted((k, v) for k, v in os.environ.items() if k.startswith(("WIDEFIELD_", "WFIELD_"))))
-
-
-@functools.lru_cache(maxsize=None)
-def _daq_cue_seconds_cached(label: str, _env: tuple) -> np.ndarray:
+    """The session's DAQ cue times (s) -- the train every imaging trial index refers to (`_trial_features`)."""
     from wfield_local import config
     from wfield_local.plot_spout_trial_averages import _load_daq_events
     s = next(x for x in config.load_sessions() if x["label"] == label)
