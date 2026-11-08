@@ -1,4 +1,4 @@
-"""Mix-matched refit control (D6, Priya 11-08): is the post-stroke drop in WITHIN-SESSION refit recall a trial-mix effect?
+"""Refit recall vs matched pre (D6, Priya 11-08): is the post-stroke drop in WITHIN-SESSION refit recall a trial-mix effect?
 
 INPUT: `scripts/refit_mix_matched_control.py` output in the run's epoch data folder (nothing re-run here):
   PRIMARY     refit_mixmatch_cue_working_sessions.csv   cue window, WORKING trials (contact + incomplete camera licks,
@@ -13,7 +13,7 @@ pre partners and draws. No trial floor. Pre sessions are scored the same way aga
 STATS: change vs pre per position x post epoch = `analysis_kit.boot_delta` (paired animals -> sessions, 4000 draws) of
 post-session excess against pre-session excess; `boot_p`; Holm over the 18 tests (6 positions x 3 epochs). Stars in
 the top band. Per-animal table printed first (ground rule 8).
-OUT: <out>/refit_mixmatch.png (+ svg), refit_mixmatch_stats.csv, refit_mixmatch_lick_table.csv, refit_mixmatch_caption.txt
+OUT: <out>/refit_matched_pre.png (+ svg), refit_matched_pre_stats.csv, refit_matched_pre_lick_table.csv, refit_matched_pre_caption.txt
 """
 from __future__ import annotations
 
@@ -31,7 +31,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import _common  # noqa: E402
 from wfield_local.figure_layout import save_png_svg  # noqa: E402
 
-NAME = "refit_mixmatch"
+NAME = "refit_matched_pre"
 ANIMALS = ("PS92", "PS93", "PS94", "PS95")
 MARK = {"PS92": "o", "PS93": "s", "PS94": "^", "PS95": "D"}
 EPOCHS = ("pre", "acute", "subacute", "chronic")
