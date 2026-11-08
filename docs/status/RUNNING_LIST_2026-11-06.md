@@ -333,3 +333,8 @@ the encoding handoff (STATUS_2026-10-26_ENCODING_HANDOFF.md, top blocks); the A1
   MY ERROR: I edited the wf_mixmatch worktree while lane v9zm ran from it; spawned scoring workers re-imported the new code, so
   m_mixmatch_cue_l (02:35) scored with the new unit_job and crashed in the old main's printing. Mixed provenance -> discard
   (overwritten by the rerun). Only that lane was affected. Rule going forward: every lane runs from a DETACHED worktree.
+- 05:49 a_partial_ls DONE (heavy lock since 21:47); heavy slot -> l_balimg (DONE 06:08) -> l_lc_extract. AB lane: b_fr_musall,
+  b_fr_musall_v2, b_posinfo, b_specificity, b_svf_frA_plot, b_matched_residual all DONE 05:52-06:10. 04:00-04:25 e_iti_area_maps,
+  l_area_maps_split(_cued), e_iti_hemo + e_iti_hemo_sum (re-run after their real dep) DONE.
+- 06:1x ROI-cache push ON MAIN c3e01ed8 (80090a57 + c3a8b049; 988 passed). Section G r4: 45/88 at 05:44 (~7.8 min/unit over
+  phase 2) -> ~11:15-11:30 if the rate holds (extrapolated, not measured).
