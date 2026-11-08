@@ -283,6 +283,13 @@ merged to main (no conflicts); A5 applied to FINDINGS 0c item 4 and the page cap
 
 ## D. Done / status log
 
+- 11-08 10:40: maps -- baselines rest (RESTnl on drift-removed signal, 119/119 usable), enl (lick-free >= 1 s, slid back
+  to the strobe from the continuous signal; median 99 % of trials kept), none; pre-cue map (ENL window); split-basis
+  area table + ALM / tjM1 outlines; nested-bootstrap contours + per-animal shuffle contours / k/4. Final 10-variant
+  sweep running. SVD state-space set re-run on the glue-free basis (chain svd_chain.sh). No-subtraction maps (lick +
+  cue): far-contra-specific loss robust to baseline; full-change size depends on it; PS94 opposite sign (level vs
+  session mean) -- rest / enl maps will tell.
+
 - 11-08: June drift script written (`scripts/state_space_june_drift.py`; the plan in C exactly; contact first licks
   for every session; per-animal table only). Smoke-tested on a synthetic animal (June offset orthogonal to the chronic
   change -> cos at the chance scale, distance ratio follows the planted sizes). Waits for the O2 outputs.

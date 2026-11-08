@@ -18,6 +18,33 @@ wf_statespace` (NOT pushed, NOT merged; push only if Priya asks -- it is our own
   before the LocaNMF / June data (C), status log (D). FINDINGS 0c is on main (not pushed); the O2 joint-LocaNMF job
   `rebuild_20261103/o2/ss_lnmf_20261108` was staged by Priya 11-08 (outputs not on the share yet).
 
+## 11-08 DAY -- START HERE (latest state; supersedes the branch / worktree note above)
+
+Code is on MAIN (`C:/Users/SabatiniLab/Github/widefield_pipeline`; the wf_statespace branch was merged 11-08). Read the
+running list `docs/status/RUNNING_LIST_2026-11-08_STATE_SPACE.md` sections A (decisions) and B (B4-B14) first.
+- **Bases** (`WF_SS_BASIS`): allen (default) | lnmf (per-animal joint LocaNMF, O2 `ss_lnmf_20261108`; glue / bulb
+  components DROPPED at load by default -> outputs `_lnmfbm`; `WF_SS_LNMF_MASK=none` = the unmasked `_lnmf` runs) |
+  svd (ONE cohort SVD on the brain mask, glue + bulbs removed, built LOCALLY: `scripts/o2_state_space_svd.py bundle
+  --local` + `run-local`, bundle `rebuild_20261103/o2/ss_svdbm_20261108`; outputs `_svd`).
+- **REBUILD MASK BUG (B12, decision A9 open):** under the rebuild profile `beta_maps.painted_exclusion()` is silently
+  empty (masks only in the canonical grant_figures) -> every rebuild `brain_mask()` consumer (encoder, area masks of
+  the Allen extract, maps) includes the glue. This arm resolves its masks WITHOUT the profile (guard in
+  `o2_state_space_svd.analysis_mask`). Shared fix proposed, not applied.
+- **Cortical change maps** (`scripts/state_space_chronic_maps.py`, svd only): per animal change vs own pre in units of
+  its pre response, mean of 4; versions full / nocw (minus cortex-wide PC1) / spout (spout-specific); contours =
+  `beta_maps.significance_contour` (nested bootstrap, as the 15r / residual maps); per-animal session-shuffle contours
+  + k/4 row; split-basis area table (ALM / tjM1, ROI v8) + ALM / tjM1 outlines; grey = unanalyzed brain.
+  `WF_SS_MAPBASE` lick (pre-lick window; F12 caveat, epoch-dependent) | rest (RESTnl on the drift-removed signal,
+  `scripts/state_space_rest_baseline.py`) | none (session-mean reference) | enl (the trial's lick-free >= 1 s ENL window,
+  `scripts/state_space_enl_baseline.py`, from the continuous signal); `WF_SS_MAPWIN=precue` = the pre-cue map (the ENL
+  window itself, vs rest / none). Trials: working (camera gate) first-lick trials, misses excluded.
+  Figures `page_figs/ss_cmap_<version>[_<base>][_precue]_<align>_svd.png`; tables `chronic_maps_<align>_svd[_<base>]...`.
+  Final sweep of all 10 variants: scratchpad `maps_sweep.sh` (11-08 ~10:30).
+- **Open next:** look at the sweep (PS94's opposite sign without subtraction: rest vs session-mean reference?), put
+  the maps on the page + FINDINGS; "why cleaner" comparison vs the 15r / residual maps (B11 notes); two-part maps
+  (behavior-predicted vs residual, plan B14, inputs `frozen_encoder_gate-attempted_v7g3_t3d_spont_frA_basis`); A8
+  (0c item 1 wording), A9 (mask bug).
+
 ## Where things stand (one line each; details in the plan)
 
 1. Method check (planted changes): rotation detectable only >= ~20-30 deg in the main plane; per-area gains look
