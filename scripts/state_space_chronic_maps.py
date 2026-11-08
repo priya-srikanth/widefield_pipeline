@@ -38,9 +38,15 @@ BASELINE (WF_SS_MAPBASE; Priya 11-08 "let's try the rest baseline and no subtrac
          on the drift-removed signal, one flat vector per session, identical for every trial and spout).
   none   the response window itself. The signal is drift-removed INCLUDING the constant, so this is relative to the
          session's own average (dF/F is already relative to the session's mean frame).
-WINDOW (WF_SS_MAPWIN): resp (default; `BAL_BINS` response window) or precue (cue-aligned only, rest / none only: the
--0.5..0 s window before the cue -- where the pre-cue position code lives, the arm's key pre-stroke readout; Priya 11-08
-"should we do the cue aligned versions too?"). Outputs then carry _precue.
+  enl    response window minus THE SAME TRIAL's lick-free ENL window (Priya 11-08 "cue minus lick-free ENL baseline and
+         lick minus lick-free ENL baseline"): `state_space_enl_baseline.py`, `enl_window`'s search (>= 1 s lick-free,
+         LP licks, back to the strobe) on the continuous signal; trials without a window are dropped. F12: the ENL
+         window carries the pre-cue position code, so this is the cue / lick-evoked increment over the trial's own
+         pre-cue state.
+WINDOW (WF_SS_MAPWIN): resp (default; `BAL_BINS` response window) or precue = THE PRE-CUE MAP: the trial's lick-free
+(>= 1 s) ENL window itself (Priya 11-08 "yes to pre-cue, but let's make it the >= 1 s lick-free ENL" / "we'll need
+> 1 s before cue"), with a rest or none baseline -- where the pre-cue position code lives, the arm's key pre-stroke
+readout. Alignment-free (one window per trial); outputs carry _precue.
   The spout-specific version is identical under rest and none (a per-session constant cancels in spout - mean over
   spouts); under nocw the rest vector gets the same cortex-wide projection as the trials.
 Outputs: <state_space_recovery>/chronic_maps{tag}[_<base>]/areas.csv, maps.npz; page_figs/ss_cmap_<version>[_<base>]_
@@ -72,57 +78,95 @@ EPS = ["acute", "subacute", "chronic"]
 N_BOOT = 2000
 N_PERM = 1000
 BASE = __import__("os").environ.get("WF_SS_MAPBASE", "lick")
-if BASE not in ("lick", "rest", "none"):
+if BASE not in ("lick", "rest", "none", "enl"):
     raise ValueError(f"WF_SS_MAPBASE={BASE!r}")
 WIN = __import__("os").environ.get("WF_SS_MAPWIN", "resp")
-if WIN not in ("resp", "precue") or (WIN == "precue" and (S.ALIGN != "cue" or BASE == "lick")):
-    raise ValueError(f"WF_SS_MAPWIN={WIN!r} (precue needs WF_SS_ALIGN=cue and a rest / none baseline)")
+if WIN not in ("resp", "precue") or (WIN == "precue" and BASE not in ("rest", "none")):
+    raise ValueError(f"WF_SS_MAPWIN={WIN!r} (the pre-cue map needs a rest / none baseline)")
 BSUF = ("" if BASE == "lick" else f"_{BASE}") + ("_precue" if WIN == "precue" else "")
 BASE_LABEL = {"lick": "response window minus the trial's -1.0..-0.6 s before the first lick",
               "rest": "response window minus the session's RESTnl rest level",
-              "none": "response window, no baseline (drift-removed signal)"}
+              "none": "response window, no baseline (drift-removed signal)",
+              "enl": "response window minus the trial's lick-free (>= 1 s) ENL window"}
 if WIN == "precue":
-    BASE_LABEL = {k: v.replace("response window", "PRE-CUE window -0.5..0 s") for k, v in BASE_LABEL.items()}
+    BASE_LABEL = {k: v.replace("response window", "PRE-CUE lick-free (>= 1 s) ENL window") for k, v in BASE_LABEL.items()}
 OUT = S.ROOT / f"chronic_maps{S.tag()}{BSUF}"
 FIGS = S.ROOT / "page_figs"
 SUF = S.tag().lstrip("_")
 REST = S.ROOT / "rest_baseline_svd"
+ENL = S.ROOT / "enl_baseline_svd"
 BASIS_DIR = S.SVD.parent / "basis"
 
 
-def response(M, lab, an):
-    """One spout mean (bins, K) -> (K,) under BASE (module docstring)."""
-    base, resp = S.BAL_BINS[S.ALIGN]
-    if BASE == "lick":
-        return S.evoked(M)
-    r = M[base if WIN == "precue" else resp].mean(0)                  # precue: the cue alignment's -0.5..0 s bins
-    if BASE == "none" or S.XFORM == "spout":
-        return r
+def _xf_vectors(E, pos, an):
+    """Trial-level baseline / window vectors (n, K) under the loader's WF_SS_XFORM, as the trials themselves."""
+    if S.XFORM == "gsr":
+        w = S._pre_stats(an)[1]
+        return E - (E @ w)[:, None] * w
+    if S.XFORM == "spout":
+        means = [np.nanmean(E[pos == p], 0) for p in S.POS if (pos == p).any() and np.isfinite(E[pos == p]).any()]
+        return E - np.nanmean(means, 0)
+    return E
+
+
+def _rest(lab, an):
+    """The session's RESTnl level (K,) under the transform, or None (no usable level)."""
     z = np.load(REST / f"{lab}.npz")
     if not bool(z["ok"]):
-        return np.full_like(r, np.nan)                                 # no usable RESTnl level: session dropped
+        return None
     c = z["c_rest"].astype(float)
     if S.XFORM == "gsr":
         w = S._pre_stats(an)[1]
         c = c - (c @ w) * w
-    return r - c
+    return c
+
+
+def session_spouts(lab, an, Y, pos):
+    """(6, K) per-spout responses of one session under BASE / WIN (module docstring); NaN rows where a spout has <
+    MIN_TRIALS usable trials, all NaN when the session lacks its baseline."""
+    base_b, resp_b = S.BAL_BINS[S.ALIGN]
+    K = Y.shape[-1]
+    keep = np.ones(len(pos), bool)
+    E = None
+    if BASE == "enl" or WIN == "precue":
+        E = np.load(ENL / f"{lab}.npz")["b"].astype(float) if (ENL / f"{lab}.npz").exists() else None
+        if E is None or len(E) != len(pos):
+            return np.full((6, K), np.nan)
+        keep = np.isfinite(E).all(1)
+        E = _xf_vectors(np.where(keep[:, None], E, np.nan), pos, an)
+    c = None
+    if BASE == "rest" and S.XFORM != "spout":                      # a per-session constant cancels in the spout version
+        c = _rest(lab, an)
+        if c is None:
+            return np.full((6, K), np.nan)
+    out = np.full((6, K), np.nan)
+    for i, p in enumerate(S.POS):
+        m = (pos == p) & keep
+        if m.sum() < R.MIN_TRIALS:
+            continue
+        if WIN == "precue":
+            r = E[m].mean(0)
+        elif BASE == "lick":
+            r = S.evoked(Y[m].mean(0))
+        else:
+            r = Y[m].mean(0)[resp_b].mean(0)
+        if BASE == "enl":
+            r = r - E[m].mean(0)
+        elif c is not None:
+            r = r - c
+        out[i] = r
+    return out
 
 
 def session_responses(data):
-    """{animal: {epoch: (n_sessions, 6, K) spout responses under BASE}} (NaN where a spout has < MIN_TRIALS trials or
-    the session has no usable rest level)."""
+    """{animal: {epoch: (n_sessions, 6, K) spout responses under BASE / WIN}} (sessions without their baseline
+    dropped)."""
     out = {}
     for an, sess in sorted(data.items()):
         d = {}
         for ep in ["pre", *EPS]:
-            rows = []
-            for lab, e, _day, Y, pos in sess:
-                if e != ep:
-                    continue
-                M = np.stack([response(Y[pos == p].mean(0), lab, an) if (pos == p).sum() >= R.MIN_TRIALS
-                              else np.full(Y.shape[-1], np.nan) for p in S.POS])
-                if np.isfinite(M).any():
-                    rows.append(M)
+            rows = [M for lab, e, _day, Y, pos in sess if e == ep
+                    for M in [session_spouts(lab, an, Y, pos)] if np.isfinite(M).any()]
             if rows:
                 d[ep] = np.stack(rows)
         out[an] = d
