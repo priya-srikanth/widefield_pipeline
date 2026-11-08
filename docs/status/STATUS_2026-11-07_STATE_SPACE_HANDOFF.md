@@ -40,8 +40,13 @@ running list `docs/status/RUNNING_LIST_2026-11-08_STATE_SPACE.md` sections A (de
   window itself, vs rest / none). Trials: working (camera gate) first-lick trials, misses excluded.
   Figures `page_figs/ss_cmap_<version>[_<base>][_precue]_<align>_svd.png`; tables `chronic_maps_<align>_svd[_<base>]...`.
   Final sweep of all 10 variants: scratchpad `maps_sweep.sh` (11-08 ~10:30).
-- **Open next:** look at the sweep (PS94's opposite sign without subtraction: rest vs session-mean reference?), put
-  the maps on the page + FINDINGS; "why cleaner" comparison vs the 15r / residual maps (B11 notes); two-part maps
+- **11-08 late morning:** SVD state-space set complete (running list B15: the cohort SVD reads like Allen -- larger,
+  no rotation -- so re-patterning is LocaNMF-only; affects A8). Sweep: RESTnl + ENL lick maps done (B16: PS94's
+  negative no-subtraction map is mostly the session-mean reference). "Why cleaner": `scripts/state_space_why_cleaner.py`
+  (plan B17; reads the 15r rebuild cache, refuses to recompute) -> `why_cleaner_lick/steps.csv`,
+  `page_figs/ss_why_cleaner_lick.png`. Figure titles now wrapped (`_wrap`); re-render all variants with `--replot`
+  after the sweep.
+- **Open next:** put the maps on the page + FINDINGS; finish "why cleaner" (B17) and the residual-map half; two-part maps
   (behavior-predicted vs residual, plan B14, inputs `frozen_encoder_gate-attempted_v7g3_t3d_spont_frA_basis`); A8
   (0c item 1 wording), A9 (mask bug).
 

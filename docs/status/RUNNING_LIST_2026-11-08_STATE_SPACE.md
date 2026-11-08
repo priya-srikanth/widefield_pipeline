@@ -63,6 +63,62 @@ merged to main (no conflicts); A5 applied to FINDINGS 0c item 4 and the page cap
 
 ## B. Findings (newest first; exploratory)
 
+19. **RESULT of B17: the maps differ by WHAT they measure, not by denoising.** `scripts/state_space_why_cleaner.py`,
+   107 sessions (PS93_0813 dropped: no video, no RESTnl baseline), lick-aligned, RESTnl, chronic vs own pre (mean over
+   spouts / far contra): r with the state-space map .63 / .86 at S0 (15r as rendered) and unchanged through S1 glue-
+   free mask (.63 / .86), S2 one unit per animal (.63 / .84), S3 cohort SVD (.63 / .84). The 15r maps are ALREADY
+   smooth and reliable: 99.6 % of their energy lies inside the 100-component SVD space, split-half r .989 (chronic
+   mean) / .976 (far contra); none of the three "cleaning" steps moves the map, the reliability or the contour (stat-
+   mask fraction .16 / .12-.13 at every step). The whole difference is S3 -> S4 (contour .47 / .28): the WINDOW and
+   trials. 15r lick arm = 0..+2 s after the first lick (8 bins averaged, SVTcorr, camera-gated working trials); state-
+   space = 0.1..0.5 s (drift-removed signal, first-lick trials). Figure `page_figs/ss_why_cleaner_lick.png`: both agree
+   on the chronic bilateral anterolateral increase (tjM1 / SSp-m, inside every contour); they DISAGREE over central
+   cortex -- blue (decrease) in the 0..2 s 15r map, red (increase, inside the contour) in the 0.1..0.5 s map. Reading:
+   the "cleaner" look is an earlier window that excludes the later lick-bout phase (where the central change is
+   negative), not less noise. The S3 -> S4 step cannot be split further without new extractions (the state-space
+   trials stop at +0.7 s; the 15r cache holds only the 0..2 s mean). Also visible: S0 colors the painted-glue area
+   (posterior lateral) -- the A9 mask bug in a rendered 15r figure. Next, if wanted: a 15r-style map at 0.1..0.5 s
+   (one cached feature build per session with post_s=0.5; heavy-ish, not started) would separate window from trials.
+
+17. **PLAN: why are the state-space change maps cleaner than the 15r activity maps? Measured one step at a time
+   (Priya 11-08).** Start from the 15r lick / lick arm as rendered (rebuild session cache `prm-lick-lick-*`, the
+   working-trial camera gate, RESTnl reference = `raw - restnl_base`, per-POSITION pre RMS over `brain_mask()`, which
+   under the rebuild profile still holds the glue, A9) and change ONE thing per step toward the state-space map:
+   S0 15r as rendered -> S1 glue-free analysis mask (scale + display) -> S2 one unit per animal (pre response RMS over
+   all spouts) instead of per position -> S3 through the cohort SVD (U_c U_c^T on the mask: the low-rank denoising)
+   -> S4 the state-space map itself (RESTnl, drift-removed signal, first-lick 0.1..0.5 s window, its trials). Per
+   step and per panel (chronic, mean over spouts + far contra): r with S4, split-half reliability (odd vs even sessions
+   within animal, change map r), fraction of the stat mask inside the nested-bootstrap contour, and rim enrichment.
+   Expected (not assumed): S3 carries most of the gain in reliability; S1 / S2 mostly change the scale of the far-
+   field. The 15r cache is read as files (no recompute); if the code digest moved and the cache is cold, stop and say.
+
+18. **Pre-cue map (the trial's lick-free >= 1 s ENL window itself; Priya 11-08 "make it the >= 1 s lick-free ENL"):
+   the sign depends on the reference.** Chronic, full, mean over spouts: vs RESTnl the pre-cue state RISES over
+   anterolateral cortex (tjM1 contra +.98, SSp-m contra +.79, SSp-m ipsi +.74, tjM1 ipsi +.74, all 4/4, boot *; minus
+   cortex-wide: tjM1 / SSp-m / ALM contra +.63 to +1.06, 4/4); vs the session mean (no subtraction) the same areas
+   read as DECREASES (SSp-m -.79 to -.85, 4/4). Second time the session-mean reference flips a sign (B16): the
+   session mean itself moves with epoch, so "none" is not a neutral reference here. Spout-specific pre-cue (far
+   contra): no area change survives (2-3/4, CIs include 0) -- the pre-cue position code does not measurably move at
+   area level. Units: each animal's pre RMS of the pre-cue map itself. All 10 sweep variants done 11-08 ~11:10.
+
+16. **PS94's opposite sign without subtraction is mostly the session-mean reference (maps, lick-aligned, 11-08).** With
+   no baseline (session-mean reference) PS94's chronic full change is negative almost everywhere; against RESTnl
+   (drift-removed signal) its anterior change turns positive like the other three animals (tjM1 contra +.62, SSp-m
+   contra +.55, pre-RMS units), and only a lateral central patch (both hemispheres, far ipsi / far mid) stays negative.
+   RESTnl, chronic, full, mean over spouts (4/4, boot *): SSp-m contra +.70, tjM1 contra +.66, SSp-m ipsi +.62, SSp-tr
+   contra +.53, SSp-n contra +.50. Spout-specific far contra under RESTnl repeats the loss over SSp-tr / SSp-ll / VISa /
+   RSPd (-.17 to -.33, 4/4): baseline-robust. Figures `ss_cmap_*_rest_{lick_,}svd.png`.
+
+15. **One cohort SVD basis (glue-free, 100 components) reads like the Allen space, not like LocaNMF.** Lick, chronic vs
+   own pre: r -.045* [-.058, -.031], amp +.30* [.14, .45] (4/4), rotation beyond gain +.002 [-.008, .009] (n.s.),
+   outside the pre space .008 (out_resid .008). Method check in this basis (`sim_svd`): 5 % new dimensions detected
+   1.00 (out_var / out_resid), 30 deg top-plane rotation .52-.58, 30 deg in the 1-2 plane .71-.97, so the null rotation
+   is not a blind spot. Minus cortex-wide (xgsr): alpha .36 / .58 / .91, chronic_like .20 / .31 / .50 (4/4 each); spout-
+   specific (xspout): alpha .25 / .52 / .84. Reading for A8: "larger, same pattern" holds in two smooth large-scale
+   bases (Allen areas, cohort SVD); re-patterning (rotation, new dimensions) appears only in the per-animal LocaNMF
+   components, so it lives at the fine, local scale those components resolve (or in how per-animal bases are
+   aligned). The FINDINGS 0c item 1 wording should say so, not pick one basis.
+
 6. **LocaNMF basis (107 sessions, ~90 components per animal; rows = the Allen rows, checked) changes finding 0c item 1:
    in the finer basis the RAW change already looks re-patterned, not "gain + shift".** First-lick aligned, change vs own
    pre, chronic (Allen -> LocaNMF): pattern r -.04* -> -.21* (0/4 back both); amplitude +.30* (4/4) -> +.17 (3/4, n.s.;

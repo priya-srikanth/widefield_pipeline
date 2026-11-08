@@ -58,6 +58,7 @@ Outputs: <state_space_recovery>/chronic_maps{tag}[_<base>]/areas.csv, maps.npz; 
 from __future__ import annotations
 
 import sys
+import textwrap
 from pathlib import Path
 
 import matplotlib
@@ -99,6 +100,11 @@ SUF = S.tag().lstrip("_")
 REST = S.ROOT / "rest_baseline_svd"
 ENL = S.ROOT / "enl_baseline_svd"
 BASIS_DIR = S.SVD.parent / "basis"
+
+
+def _wrap(title, width=150):
+    """A long one-line suptitle sets the canvas width under bbox_inches="tight" (the maps became a strip): wrap it."""
+    return textwrap.fill(title, width)
 
 
 def _xf_vectors(E, pos, an):
@@ -312,11 +318,11 @@ def fig_cohort(res, mask, edges, version, brain=None):
                 ax.set_ylabel(ep, fontsize=11)
     sm = plt.cm.ScalarMappable(cmap="RdBu_r", norm=plt.Normalize(-vmax, vmax))
     fig.colorbar(sm, ax=axs, fraction=0.015, pad=0.01, label="change vs own pre (units of the animal's pre response RMS)")
-    fig.suptitle(f"Where the post-stroke response changes: {LABEL[version]}, mean of 4 animals ({S.ALIGN_LABEL[S.ALIGN]}; "
+    fig.suptitle(_wrap(f"Where the post-stroke response changes: {LABEL[version]}, mean of 4 animals ({S.ALIGN_LABEL[S.ALIGN]}; "
                  f"first-lick trials, camera first lick; {BASE_LABEL[BASE]}; change vs own pre). Contour: nested "
                  f"bootstrap animals -> sessions ({N_BOOT}), 8-px blocks, max-stat family-wise per panel "
-                 f"(beta_maps.significance_contour). Image left = ipsilesional. Grey = brain not analyzed (painted fibre "
-                 f"glue, olfactory bulbs); outline = analyzed field of view.",
+                 f"(beta_maps.significance_contour). Image left = ipsilesional. Grey = brain not analyzed (painted fiber "
+                 f"glue, olfactory bulbs); outline = analyzed field of view."),
                  y=1.02, fontsize=9.5)
     save_png_svg(fig, FIGS / f"ss_cmap_{version}{BSUF}_{SUF}.png", dpi=120, bbox_inches="tight")
     plt.close(fig)
@@ -365,10 +371,11 @@ def fig_animals(res, mask, edges, version, brain=None, asig=None):
                 sp.set_visible(False)
             if c == 0:
                 ax.set_ylabel("k / 4 animals", fontsize=11)
-        fig.colorbar(im, ax=axs[-1, :], fraction=0.02, pad=0.01, ticks=range(5), label="animals significant, same sign")
-    fig.suptitle(f"Chronic change vs own pre, per animal: {LABEL[version]} ({S.ALIGN_LABEL[S.ALIGN]}; {BASE_LABEL[BASE]}). Contour: that "
+        cb = fig.colorbar(im, ax=axs[-1, :], fraction=0.02, pad=0.01, ticks=range(5))
+        cb.set_label("k / 4 same sign", fontsize=9)     # short: the long label was clipped at the row height
+    fig.suptitle(_wrap(f"Chronic change vs own pre, per animal: {LABEL[version]} ({S.ALIGN_LABEL[S.ALIGN]}; {BASE_LABEL[BASE]}). Contour: that "
                  f"animal's own session-label shuffle ({N_PERM}), max-stat per panel over stat_mask. Bottom: animals "
-                 f"significant in the direction of the cohort mean. Grey = brain not analyzed (glue, bulbs)", y=1.01,
+                 f"significant in the direction of the cohort mean. Grey = brain not analyzed (glue, bulbs)"), y=1.01,
                  fontsize=9.5)
     save_png_svg(fig, FIGS / f"ss_cmap_animals_{version}{BSUF}_{SUF}.png", dpi=100, bbox_inches="tight")
     plt.close(fig)
