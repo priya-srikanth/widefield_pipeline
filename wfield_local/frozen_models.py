@@ -57,6 +57,9 @@ from wfield_local import config
 FREEZE_VERSION = 2          # 2 = training-data fingerprint + selection + hemo variant in every spec (2026-11-03)
 #: LP_licks only: "lp" freezes LP-TRAINED sensitivity models under their own spec (see `load_or_fit`).
 LP_FROZEN_ENV = "WIDEFIELD_LP_FROZEN"
+#: "1" = LOAD ONLY: a miss raises instead of fitting (11-09, the LP `joint_xsession` run that must load the attempt-
+#: coding LP decoder, copy D, and nothing else). Unset = the normal load-or-fit.
+LOAD_ONLY_ENV = "WIDEFIELD_FROZEN_LOAD_ONLY"
 
 STATUS_NEW, STATUS_HIT, STATUS_SPEC_CHANGED = "frozen-new", "frozen-hit", "SPEC-CHANGED"
 
@@ -516,6 +519,10 @@ def load_or_fit(spec, fit, *, meta=None, refreeze=None, log=print):
         raise RuntimeError(f"[frozen] the LP arm's DAQ-trained cross-check ({LP_FROZEN_ENV}=daq) loads DAQ-frozen models, "
                            f"but none is stored for {_slug(spec)} ({spec['animal']}); run the DAQ path first, or unset "
                            f"{LP_FROZEN_ENV} for the LP-trained default")
+    # LOAD-ONLY RUNS (11-09): a run whose job is to SCORE with a stored model must never mint a new one on a miss.
+    if os.environ.get(LOAD_ONLY_ENV, "").strip().lower() in ("1", "true", "yes", "on"):
+        raise RuntimeError(f"[frozen] {LOAD_ONLY_ENV} is set and no stored model matches {_slug(spec)} "
+                           f"({spec['animal']}); refusing to fit a new one")
     prior = [s for s in siblings(spec) if s["dir"].name != _slug(spec)]
     if refreeze:
         for s in prior:

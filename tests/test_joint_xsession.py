@@ -328,3 +328,21 @@ def test_coverage_mask_handles_a_degenerate_frame_list():
     from wfield_local.locanmf_lick_aligned import coverage_mask
 
     assert not coverage_mask(np.array([1, 2]), np.array([5]))[0]
+
+
+def test_decoder_only_never_touches_the_frozen_encoder(monkeypatch):
+    """--decoder-only (11-09, the LP run): the encoder is neither loaded nor fitted; the decoder result is returned."""
+    basis = SimpleNamespace(basis_id="b1", ncomp=3, labels=["PS99_0101"])
+    monkeypatch.setattr(joint_xsession.joint_locanmf, "load", lambda animal, sessions=None: basis)
+    feat = SimpleNamespace(variance_captured={"PS99_0101": 1.0})
+    monkeypatch.setattr(joint_xsession, "joint_features", lambda b: feat)
+    import wfield_local.precue_engagement_states as pes
+    monkeypatch.setattr(pes, "features_with_indices", lambda b, **kw: feat)
+    monkeypatch.setattr(joint_xsession, "pooled_frozen_loso",
+                        lambda labels, **kw: {"labels": list(labels), "loso_accuracy": 0.5})
+
+    def _no_encoder(*a, **k):
+        raise AssertionError("the encoder was called under decoder-only")
+    monkeypatch.setattr(joint_xsession, "pooled_frozen_encoder", _no_encoder)
+    r = joint_xsession.run_animal("PS99", ["PS99_0101", "PS99_0102"], align="cue", encoder=False)
+    assert r["encoder"] is None and r["decoder"]["loso_accuracy"] == 0.5
