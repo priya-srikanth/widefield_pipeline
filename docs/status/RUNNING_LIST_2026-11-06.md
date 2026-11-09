@@ -942,3 +942,6 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
   wf_render_v14a at the reviewed commit 0899267d (all fixes; csig 3d7bbe921e): g5_restnl_maps_lp_ts (MP) +
   g5_lpfinal_maps_ts (LF) -- primary + working-period supplement + jaw-only (pooled per epoch) + exact trial-set captions.
   Same step names as chain_v14's queue, so its lanes (if the push lands) skip them via claims. ETA ~13:00-14:00.
+- 09:30 status: no new failures since 06:25. v14a map re-renders: reference maps 107/108 in ~20 min (warm), new trial sets
+  next. chain_v14 caption push passed tests but lost a push race (retrying). v12 interhemi rest extract EXIT 0 08:11.
+  Pending helpers: order-dependent stamp test fix (unblocks memos), trial-set wiring (unblocks grant).

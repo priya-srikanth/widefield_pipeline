@@ -77,6 +77,8 @@ thinning, matched-pre --lick-dir); dff97e56 interhemi RESTnl + raw. PUSHING: fea
 NOT yet: feat/trial-set-wiring-1109 (helper wiring the trial-set sentence into grant, section G, other epoch families,
 cd chain, ITI / lick, encoding, interhemi + stale deck wording).
 
+**UPDATED 11-09 ~09:30: no new failures since 06:25 (all earlier ones fixed: offset_primary _r3, ENL-v table _r3 / balance + curves _r4, v12 relaunched). Map re-renders RUNNING from a DETACHED worktree wf_render_v14a at the reviewed caption commit 0899267d (queue_daqlk14a.sh: g5_restnl_maps_lp_ts + g5_lpfinal_maps_ts; reference maps 107/108 after 20 min -- warm caches; new period / jaw-only sets next). Caption-branch push (chain_v14) passed its tests but lost a push race, retrying; its lanes will skip the v14a steps (claims). Grant memos blocked only by the ORDER-DEPENDENT test test_grant_stamp_fit (helper fixing on fix/test-stamp-order-1109). Caption wiring for the remaining families: helper on feat/trial-set-wiring-1109. Random splits 3 lanes in parallel; interhemi RESTnl rest extract done 08:11. test_cohorts fix ON MAIN 98e6a353.**
+
 #### 3. Render state (~07:50)
 DONE overnight (all on fixed code): section G LP (3 h 14) + G4-only (34 min) + G4 figure; LP epoch arms; LP cd chain (Fig
 9.1); matched-pre lick half + LP table; ITI chain; gain-bio; rest family; balance / ENL-slide / ENLv chain (4 missing
