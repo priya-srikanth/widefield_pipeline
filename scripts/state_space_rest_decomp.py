@@ -275,6 +275,7 @@ def analyze():
                  "(rest = -sum f_k (m_k - m_rest)); change vs own pre, boot_delta * = 95 % CI excludes 0", fontsize=10)
     fig.tight_layout()
     FIG = S.ROOT / "page_figs" / f"ss_rest_decomp{S.tag()}.png"
+    sig_marks.reserve_headroom(fig)                  # stars in the top band, no top spine (Priya 10-30 / 11-03)
     save_png_svg(fig, FIG)
     print(f"wrote {FIG}", flush=True)
 

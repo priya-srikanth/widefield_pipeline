@@ -176,6 +176,7 @@ def main():
                  "areas; kept = along the data change; * = boot_delta 95 % CI excludes 0", 170), fontsize=10)
     fig.tight_layout()
     fp = S.ROOT / "page_figs" / "ss_encoder_subtract.png"
+    sig_marks.reserve_headroom(fig)                  # stars in the top band, no top spine (Priya 10-30 / 11-03)
     save_png_svg(fig, fp)
     print(f"wrote {fp}", flush=True)
 
