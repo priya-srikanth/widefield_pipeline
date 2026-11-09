@@ -159,7 +159,7 @@ classes; 3 = FaceRhythm June face regions; 4 = FaceRhythm June O2 run. Backgroun
   2. **June-only cohort factor fit READY for O2** (`scripts/face_rhythm_june_fit.py plan`): session_rows drawn with
      the production params and seed rule (60 trials per session, as August), code deployed, `run_fitjune.sbatch` (5
      tasks: COHORT + 4 LOAO, 16 CPU / 96 GB) and `run_fitsession8_june.sbatch` (12 per-session own fits, as production
-     own8), commands in the set folder's COMMANDS_JUNE_FIT.md. Waits on Priya to submit.
+     own8), commands in the set folder's COMMANDS_JUNE_FIT.md. SUBMITTED by Priya 11-09 (queued behind frf_null). When done: rsync own_epoch_cohort/ + own8/ back, then angle June fit vs production COHORT pre / preEarly (drift_floor matching).
 - **11-09 Priya: "can we also do the frozen pre-stroke analysis on june sessions (using august frozen reference) - for
   fr and other analyses".** FR: done (frozen projection + peak / composition / asymmetry readouts; per-session own fits
   queued above). Other arms with an August-frozen reference: imaging position decoder (5r / 5ro frozen-vs-refit),

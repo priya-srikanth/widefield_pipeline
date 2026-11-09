@@ -191,6 +191,9 @@ def cached(session, kind, compute, params=None, verbose=True):
     kind = effective_kind(kind)
     lab = session["label"]
     sig = session_signature(session, params)
+    sup = _attempts_supplement_token(lab)
+    if sup:                     # a session served from the opt-in LP attempts supplement: its own key, tracking that file
+        sig = hashlib.sha1(f"{sig}|{sup}".encode()).hexdigest()[:16]
     fp = CACHE_DIR / f"{lab}__{kind}__{sig}.pkl"
     if fp.exists():
         try:
@@ -199,6 +202,19 @@ def cached(session, kind, compute, params=None, verbose=True):
         except Exception:
             pass  # corrupt/partial -> recompute below
     return _store(fp, lab, kind, compute(), verbose)
+
+
+def _attempts_supplement_token(label: str) -> str:
+    """`lp_licks.supplement_token` under an LP switch (lick source or gate source), else "". Empty for every session in
+    the registered attempts table and whenever WIDEFIELD_ATTEMPTS_SUPPLEMENT is unset, so those keys are unchanged
+    (Priya 11-09: only the supplement's own sessions -- June -- get a key that tracks the supplement)."""
+    from wfield_local import lp_licks
+    if not os.environ.get(lp_licks.SUPPLEMENT_ENV, "").strip():
+        return ""
+    from wfield_local import gate_source
+    if not (lp_licks.is_lp() or gate_source.is_lp()):
+        return ""
+    return lp_licks.supplement_token(label)
 
 
 def effective_kind(kind: str) -> str:
