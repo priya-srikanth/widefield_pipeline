@@ -3,8 +3,24 @@ import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
+import pytest  # noqa: E402
 
 from wfield_local import grant_confusion, grant_kit  # noqa: E402
+
+
+@pytest.fixture(autouse=True)
+def _default_rc():
+    """Matplotlib DEFAULTS for every test here, whatever was imported before.
+
+    These tests measure text extents, so they depend on the global rcParams. The third-party
+    `wfield` package restyles matplotlib AT IMPORT (wfield/viz.py: ``style.use(mplstyledict)`` --
+    Arial, 12 pt, ...), and any test module that imports `wfield_local.cross_day_align` (e.g.
+    test_cross_day_roi) pulls it in during collection. In a full run that moved the stamp's
+    overlap partner and test_stamp_gets_its_own_band failed only there (11-09).
+    """
+    with matplotlib.rc_context():
+        matplotlib.rcdefaults()          # leaves the backend alone (rcsetup STYLE_BLACKLIST)
+        yield
 
 DAYS = [1, 2, 3, 4, 5, 7, 9, 11, 15, 18, 22, 25, 29, 32, 36, 39, 43, 46, 50]
 
@@ -27,7 +43,8 @@ def test_stamp_gets_its_own_band():
     fig, _ = _fig()
     st = fig.text(0.995, 0.002, "LP licks: video lick attempts\nline 2\nline 3\nline 4", ha="right", va="bottom",
                   fontsize=6, color="#8a2be2")
-    assert any("LP licks" in a for a, _b, _c in grant_kit._overlaps(fig))
+    # the stamp may be either member of the pair -- the order follows fig.texts, not importance
+    assert any("LP licks" in a or "LP licks" in b for a, b, _c in grant_kit._overlaps(fig))
     grant_kit._fit_stamp(fig, [st])
     assert not [r for r in grant_kit._overlaps(fig) if "LP licks" in r[0] or "LP licks" in r[1]]
     plt.close(fig)
