@@ -1103,3 +1103,10 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
   / musall_* (move so they rebuild); orphaned state_space_recovery cache/{cue,cue25,lick,splice} + lnmf_keep. NOT to
   move: rebuild frozen_models store (2,861 manifests lack mask_sig -> only the LP-arm DAQ cross-check refuses them;
   re-freeze the DAQ run if that check is needed). Push of this branch: asking Priya.
+- 12:55 WIRING PUSH FAILED (5 of 6134 tests): (a) test_parallel_results_are_ordered -- iti_licks.main set the runtime
+  module global _TS_ON (spawned workers never see it); (b) test_trial_set_lick_b for lick_enl_angle_decode /
+  lick_enl_offset_explore -- their main write-guards OUT before declaring, and an earlier test leaves an LP tag. Fix
+  2355e68c on wf_tswire: caption switch via env TS_ENV (WFIELD_ITI_TRIAL_SET_CAPTIONS), test redirects OUT; 377 tests
+  pass. chain_v15 / v16 aborted on it; chain_v17 loop stopped (its frozenD push continues alone) so precue does not
+  push before the fixed wiring. NEW chain_v18 (sequential, after running pushes): gluefix, frozenD, tswire,
+  grantmemo, misc1109, precueenl. Mask-keys branch push: asked Priya.
