@@ -39,6 +39,8 @@ def camera(monkeypatch):
     monkeypatch.syspath_prepend(str(RF))
     monkeypatch.syspath_prepend(str(GB))
     monkeypatch.syspath_prepend(str(REPO / "scripts"))
+    import _common                                   # no producer outputs here: the encoder gate falls back to the env
+    monkeypatch.setitem(_common._RECORDED, "v", {})
     yield
 
 

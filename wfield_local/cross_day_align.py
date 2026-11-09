@@ -66,7 +66,10 @@ from skimage.feature import SIFT, match_descriptors
 from skimage.measure import ransac
 from skimage.registration import phase_cross_correlation
 
-from wfield.allen import load_allen_landmarks
+from wfield_local.wfield_import import no_style_leak
+
+with no_style_leak():   # wfield restyles matplotlib at import (wfield_import docstring)
+    from wfield.allen import load_allen_landmarks
 
 DIMS = (540, 640)
 

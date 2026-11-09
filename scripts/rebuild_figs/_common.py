@@ -115,10 +115,73 @@ def _split(sentence: str) -> tuple[str, str]:
     return inc, exc
 
 
+#: the combined-encoder run whose session JSONs carry the gate THIS run's encoders were fitted under (combined_encoding
+#: res["gate"] = `orofacial_cohort.engagement_keep`'s label, e.g. "attempted (trial_attempts.csv)"); the binned contest
+#: that Figs 1 / 9 / 10 and fig_pooled read
+GATE_SOURCE_RUN = "movement_first_subset-nokin_exec-polar_licks-combined_bins"
+
+
+def _gate_token(label) -> str | None:
+    """`orofacial_cohort.GATES` member named by a recorded gate label or a run tag ("gate-<g>"), else None."""
+    from wfield_local import orofacial_cohort as oc
+    s = str(label or "")
+    head = s.split(" (")[0].strip()
+    if head in oc.GATES:
+        return head
+    for g in sorted(oc.GATES, key=len, reverse=True):          # canonical_attempted before attempted
+        if f"gate-{g}" in s:
+            return g
+    return None
+
+
+_RECORDED: dict = {}
+
+
+def recorded_encoder_gates() -> dict:
+    """{producer: gate} recorded by THIS run's encoder outputs (`run_mode.encoding_out_root()`): the gate of the
+    GATE_SOURCE_RUN session JSONs and the "gate-<g>" token of every frozen_encoder_gate-* run folder. {} when none is
+    there (or the root cannot be read). Read once per process."""
+    if "v" in _RECORDED:
+        return _RECORDED["v"]
+    out: dict = {}
+    try:
+        import json
+
+        from wfield_local import run_mode
+        E = Path(run_mode.encoding_out_root())
+        js = next(iter(sorted((E / GATE_SOURCE_RUN / "sessions").glob("*.json"))), None)
+        if js is not None:
+            g = _gate_token(json.loads(js.read_text(encoding="utf-8")).get("gate"))
+            if g:
+                out[GATE_SOURCE_RUN] = g
+        for d in sorted(E.glob("frozen_encoder_gate-*")):
+            g = _gate_token(d.name)
+            if g and d.is_dir():
+                out[d.name] = g
+    except Exception as e:                                      # noqa: BLE001 - a caption never kills a figure
+        print(f"[rebuild_figs] encoder gate: producer outputs not readable ({e}); using this process's env")
+    _RECORDED["v"] = out
+    return out
+
+
 def encoder_gate() -> str:
-    """The encoders' trial gate (`orofacial_cohort.engagement_keep`, env OROFACIAL_GATE, default "reference"): NOT the
-    widefield trial gate. Read from THIS process's env -- the producer's run / session json records the gate it used."""
-    return os.environ.get("OROFACIAL_GATE", "reference")
+    """The encoders' trial gate (`orofacial_cohort.engagement_keep`; NOT the widefield trial gate), READ FROM THE
+    PRODUCERS' OUTPUTS (Priya 11-09: "use the same gate as everywhere"): the queue fitted every encoder under
+    OROFACIAL_GATE=attempted, which the render profile does not set, so a plain replot under the profile used to caption
+    the code default "reference". Now the gate the producers recorded wins; OROFACIAL_GATE in this process must agree with
+    it (SystemExit otherwise), and two producers recording different gates is an error too. Only when no producer
+    output records one does the env (default "reference") apply."""
+    rec = recorded_encoder_gates()
+    env = os.environ.get("OROFACIAL_GATE", "").strip()
+    gates = sorted(set(rec.values()))
+    if len(gates) > 1:
+        raise SystemExit(f"encoder producers of this run record different gates {rec}; caption refused")
+    if gates:
+        if env and env != gates[0]:
+            raise SystemExit(f"OROFACIAL_GATE={env} in this process, but this run's encoders were fitted under gate "
+                             f"{gates[0]!r} ({sorted(rec)}); unset it or render the matching run")
+        return gates[0]
+    return env or "reference"
 
 
 def encoder_trials() -> str:
@@ -135,7 +198,8 @@ def encoder_trials() -> str:
         else:
             att = "trial_attempts.csv attempted = hit + incomplete"
         t = f"attempted trials ({att})" + (", inside the canonical period" if g == "canonical_attempted" else "")
-    return f"{t} [encoder gate OROFACIAL_GATE={g}]"
+    how = "as recorded by the encoder outputs" if recorded_encoder_gates() else "this process's env"
+    return f"{t} [encoder gate OROFACIAL_GATE={g}, {how}]"
 
 
 #: the frames an encoder fit reads per trial (`frozen_encoder` / `combined_encoding`: strobe - 0.5 s .. stop + 1 s)
