@@ -101,8 +101,9 @@ def test_class_scores_reports_every_class_separately():
 def test_section_g_camera_discriminator_never_trains_on_stopped():
     rng = np.random.default_rng(1)
     n = 400
-    groups = np.array(["contact", "incomplete", "jaw_only", "none", "after_end", "stopped", "stopped_licking"],
-                      dtype=object)
+    # section G's groups with "none" split by the raw class (`_g13_split`; G4 negatives = no_response, Priya 11-09)
+    groups = np.array(["contact", "incomplete", "jaw_only", "no_response", "unknown", "after_end", "stopped",
+                       "stopped_licking"], dtype=object)
     gE, gU = rng.choice(groups, n), rng.choice(groups, n)
     dT = {"XE": np.c_[np.arange(n), np.zeros(n)], "XU": np.c_[np.arange(n) + 10_000, np.zeros(n)],
           "YE": rng.integers(0, 2, n), "YU": rng.integers(0, 2, n), "GE": rng.integers(0, 3, n),
@@ -111,7 +112,7 @@ def test_section_g_camera_discriminator_never_trains_on_stopped():
     ids = X[:, 0].astype(int)
     drawn = np.where(ids >= 10_000, gU[np.clip(ids - 10_000, 0, n - 1)], gE[np.clip(ids, 0, n - 1)])
     assert set(drawn[y == 1]) <= {"contact", "incomplete"}
-    assert set(drawn[y == 0]) == {"none"}
+    assert set(drawn[y == 0]) == {"no_response"}
 
 
 def test_camera_floor_is_15_and_in_the_id(monkeypatch):

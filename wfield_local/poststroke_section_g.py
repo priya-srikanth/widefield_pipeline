@@ -179,7 +179,8 @@ def _nolick_readouts(d_by_align, session, keep):
         except Exception as ex:                                           # noqa: BLE001
             print(f"      {key} failed ({str(ex)[:60]})", flush=True)
     # G4 CAMERA-CLASS DISCRIMINATOR (Priya 11-04, follow-on a): the PRIMARY G4 readout under the camera grouping
-    # (`poststroke_compare.g4_camclass`: working vs none, position-balanced, jaw_only / quit scored separately, z frame
+    # (`poststroke_compare.g4_camclass`: working vs raw no_response (Priya 11-09, as G1-G3; unknown never trained),
+    # position-balanced, jaw_only / quit / no_response / unknown scored separately, z frame
     # on contact rows by default); the DAQ readouts above stay as the labelled robustness arm (WIDEFIELD_G4_DISC=daq
     # makes them primary again)
     out["g4_primary"] = pc.g4_disc()

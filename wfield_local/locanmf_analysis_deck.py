@@ -1314,7 +1314,8 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
         if (src / "section_g_g4_camclass.png").exists():
             s = slide()
             title(s, "G4. Post-stroke trials by CAMERA CLASS, read by a pre-stroke working-vs-no-response boundary",
-                  "Pre-stroke WORKING (contact + incomplete) vs NO-RESPONSE, position-balanced; each group's post "
+                  "Pre-stroke WORKING (contact + incomplete) vs NO-RESPONSE (raw camera class, working period; "
+                  "unknown never trained), position-balanced; each group's post "
                   "rows scored separately (spout-balanced, cells < 10 rows left out), against the same group "
                   "pre-stroke (dotted = pre working where the group is absent pre). Right: the DAQ "
                   "lick-vs-no-lick discriminator, ROBUSTNESS.")

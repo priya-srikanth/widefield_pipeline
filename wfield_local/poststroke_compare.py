@@ -187,7 +187,7 @@ def balanced_lick_sample(d, keep, rng, *, exclude_session=None):
 #: stopped_licking row -- stopped is its own class per (f) 1 and the quit tail a robustness arm only; either DAQ arm),
 #: replacing the DAQ no-lick rows (which held incomplete camera licks); the engaged comparison / control = camera
 #: WORKING rows (contact + incomplete groups, either DAQ arm), replacing the DAQ engaged rows; pre references and post
-#: values alike. G4 (`cam_balanced_sample` default, G4_NEG) is unchanged.
+#: values alike. PRIYA 11-09: G4 (`g4_camclass`, G4_NEG = G13_NEG) trains and scores the same way.
 G13_TAG = "cls-work-v-noresp"
 #: the G1-G3 negative training class under the camera grouping (a split of section G's "none" group, `_g13_split`)
 G13_NEG = ("no_response",)
@@ -1826,11 +1826,13 @@ def recoding_test(d, keep, min_trials=40, n_splits=5, post_all_trials=True):
 
 # ------------------------------------------------------------------------------------------ G4 camera-class
 #: SECTION G4's PRIMARY discriminator (Priya 11-04, follow-on a): a CAMERA-CLASS state discriminator. The two training
-#: classes are camera classes, not the DAQ lick: WORKING (contact + incomplete, any DAQ side) vs NONE (no response; the
-#: close-mid unjudged default included, as section G's "none"), position-balanced exactly as `balanced_lick_sample`
-#: (within each kept spout both classes subsampled to the same count, >= 5; positives drawn first; same rng use).
-#: jaw_only and after_end ("quit") are never trained on; they are SCORED as their own groups, as are contact /
-#: incomplete / none separately. The only existing version was the check script
+#: classes are camera classes, not the DAQ lick: WORKING (contact + incomplete, any DAQ side) vs the RAW camera class
+#: NO_RESPONSE (PRIYA 11-09, as G1-G3: section G's "none" group split by the raw class, `_g13_split`; "unknown" -- jaw
+#: not judgeable -- is never trained on; until 11-09 the negative was the whole "none" group, unknown included),
+#: position-balanced exactly as `balanced_lick_sample` (within each kept spout both classes subsampled to the same
+#: count, >= 5; positives drawn first; same rng use). jaw_only, after_end ("quit"), stopped and stopped_licking are
+#: never trained on; they are SCORED as their own groups, as are contact / incomplete / none, and none's split
+#: no_response / unknown (`G13_NONE_SPLIT`). The only existing version was the check script
 #: labcams/decoder_mix_checks/g4_camclass_mixshift_1104/g4common.py (`cam_balanced_sample`), ported here.
 #: "daq" = the production DAQ lick-vs-no-lick discriminators (`looks_like_which` / `fits_engaged_distribution`), kept
 #: as the labelled robustness arm.
@@ -1843,7 +1845,12 @@ G4_CENTRE_ENV = "WIDEFIELD_G4_CENTRE"
 G4_CENTRES = ("contact", "working", "engaged")
 #: the classes of the camera-class discriminator (part of its spec): positives / negatives
 G4_POS = ("contact", "incomplete")
-G4_NEG = ("none",)
+#: Priya 11-09: the RAW no_response class (on `_g13_split` groups), as G1-G3; was ("none",) -- part of the stored id
+#: (`g4_frame_tag` "neg-no_response"), so no working-vs-none G4 model is ever served
+G4_NEG = G13_NEG
+#: caption labels of "none"'s raw split (Priya 11-09; `working_trials.G_LABELS` names "none" "no response")
+G4_SPLIT_LABELS = {"none": "none (no resp. + unknown)", "no_response": "no response",
+                   "unknown": "unknown (jaw unjudged)"}
 #: minimum rows per scored cell (animal x epoch x group x spout), as in the G4 check
 G4_MIN_N = 10
 
@@ -1867,7 +1874,8 @@ def g4_centre() -> str:
 
 
 def g4_frame_tag() -> str:
-    """The camera-class discriminator's identity: "camclass/z-<center>/pos-contact+incomplete/neg-none"."""
+    """The camera-class discriminator's identity: "camclass/z-<center>/pos-contact+incomplete/neg-no_response"
+    (Priya 11-09; "neg-none" until then)."""
     return f"camclass/z-{g4_centre()}/pos-{'+'.join(G4_POS)}/neg-{'+'.join(G4_NEG)}"
 
 
@@ -1913,9 +1921,10 @@ def g4_frame(d):
 
 def cam_balanced_sample(dT, ge, gu, keep, rng, *, exclude_session=None, neg=None):
     """The camera-class analog of `balanced_lick_sample` (ported from g4common.cam_balanced_sample, 11-04): pre
-    WORKING (contact | incomplete) vs NONE rows (engaged and no-lick rows stacked), within each kept spout both
+    WORKING (contact | incomplete) vs negative rows (engaged and no-lick rows stacked), within each kept spout both
     subsampled to the same count (>= 5), positives drawn first, same ``rng`` use. ``(X, y, groups)`` or None.
-    ``neg`` = the negative groups: None = `G4_NEG` (G4, unchanged); G1-G3 pass `G13_NEG` on the raw-split groups."""
+    ``neg`` = the negative groups: None = `G4_NEG` (= `G13_NEG`, "no_response": pass the RAW-SPLIT groups,
+    `_g13_split`; Priya 11-09); a caller with unsplit groups names its own (e.g. ("none",))."""
     X = np.vstack([dT["XE"], dT["XU"]])
     Y = np.concatenate([dT["YE"], np.asarray(dT["YU"]).astype(dT["YE"].dtype)])
     G = np.concatenate([dT["GE"], dT["GU"]])
@@ -1940,8 +1949,9 @@ def cam_balanced_sample(dT, ge, gu, keep, rng, *, exclude_session=None, neg=None
     return np.vstack(xs), np.concatenate(lab), np.concatenate(grps)
 
 
-def _g4_rows(dT, cg, sessions, keep):
-    """All rows of ``sessions`` at the ``keep`` spouts, both arms stacked: ``(X, Y, group, jaw_judged, side)``."""
+def _g4_rows(dT, cg, sessions, keep, split=None):
+    """All rows of ``sessions`` at the ``keep`` spouts, both arms stacked: ``(X, Y, group, jaw_judged, side)``; with
+    ``split`` (`_g13_split` groups) also the rows' split group: ``(X, Y, group, jaw_judged, side, split_group)``."""
     me = np.isin(dT["GE"], list(sessions)) & np.isin(dT["YE"], keep)
     mu = np.isin(dT["GU"], list(sessions)) & np.isin(dT["YU"], keep)
     X = np.vstack([dT["XE"][me], dT["XU"][mu]])
@@ -1949,18 +1959,28 @@ def _g4_rows(dT, cg, sessions, keep):
     g = np.concatenate([cg["grp_e"][me], cg["grp_u"][mu]])
     jj = np.concatenate([cg["jj_e"][me], cg["jj_u"][mu]])
     side = np.array(["lick"] * int(me.sum()) + ["nolick"] * int(mu.sum()), dtype=object)
-    return X, Y, g, jj, side
+    if split is None:
+        return X, Y, g, jj, side
+    return X, Y, g, jj, side, np.concatenate([split[0][me], split[1][mu]])
 
 
-def _g4_cells(clf, X, Y, g, jj, keep, min_n=G4_MIN_N):
+def g4_groups():
+    """The groups G4 scores: every section G group (`working_trials.G_ALL`) plus "none" split by the raw class into
+    no_response / unknown (`G13_NONE_SPLIT`; Priya 11-09, as G1-G3 `_g13_by_class`)."""
+    from wfield_local import working_trials as wt
+    return tuple(wt.G_ALL) + tuple(G13_NONE_SPLIT)
+
+
+def _g4_cells(clf, X, Y, g, jj, keep, min_n=G4_MIN_N, gs=None):
     """Per camera group: the fraction classified WORKING-like over all its rows (spout-balanced: the mean of per-spout
     fractions over spouts with >= ``min_n`` rows, so a pooled value is never a spout-mix contrast), plus per spout
-    {n, frac, thin}. Thin cells (< ``min_n``) are KEPT with ``thin`` = True and left out of the balanced mean."""
+    {n, frac, thin}. Thin cells (< ``min_n``) are KEPT with ``thin`` = True and left out of the balanced mean. With
+    ``gs`` (the rows' `_g13_split` groups) no_response and unknown are scored as their own entries too (`g4_groups`)."""
     from wfield_local import working_trials as wt
     out = {}
     pr = clf.predict(X).astype(float) if len(X) else np.zeros(0)
-    for grp in wt.G_ALL:
-        m = g == grp
+    for grp in (g4_groups() if gs is not None else wt.G_ALL):
+        m = (gs == grp) if grp in G13_NONE_SPLIT else (g == grp)
         per = {}
         for c in keep:
             mc = m & (Y == c)
@@ -1975,9 +1995,11 @@ def _g4_cells(clf, X, Y, g, jj, keep, min_n=G4_MIN_N):
 
 
 def g4_camclass(d, keep, seed=0, min_n=G4_MIN_N):
-    """SECTION G4, camera-class discriminator (the PRIMARY since 11-04; follow-on a). Trains WORKING vs NONE on the pre
-    sessions (position-balanced, `cam_balanced_sample`) in the z frame centered on `g4_centre` rows; scores every post
-    session row by camera group (contact / incomplete / jaw_only / none / after_end), spout-balanced; the PRE reference
+    """SECTION G4, camera-class discriminator (the PRIMARY since 11-04; follow-on a). Trains WORKING vs the RAW camera
+    class NO_RESPONSE (Priya 11-09, as G1-G3: "none" split by `_g13_split`, unknown never trained) on the pre sessions
+    (position-balanced, `cam_balanced_sample`) in the z frame centered on `g4_centre` rows; scores every post session
+    row by camera group (`g4_groups`: contact / incomplete / jaw_only / none / after_end / stopped / stopped_licking,
+    and none's no_response / unknown apart), spout-balanced; the PRE reference
     per group = each pre session's rows scored by the discriminator that left it out (one RandomState(seed) across the
     folds, then the full fit, as `fits_engaged_distribution`). Each post group is read against the SAME group pre-stroke
     (``pre_reference``); a group with no pre cell >= ``min_n`` is read against pre WORKING, labeled
@@ -1988,10 +2010,11 @@ def g4_camclass(d, keep, seed=0, min_n=G4_MIN_N):
     if got is None:
         return None
     dT, cg = got
+    split = _g13_split(cg)
     rng = np.random.RandomState(seed)
 
     def _fit(exclude_session=None):
-        s = cam_balanced_sample(dT, cg["grp_e"], cg["grp_u"], keep, rng, exclude_session=exclude_session)
+        s = cam_balanced_sample(dT, split[0], split[1], keep, rng, exclude_session=exclude_session, neg=G4_NEG)
         if s is None:
             return None
         X, y, _g = s
@@ -2006,18 +2029,18 @@ def g4_camclass(d, keep, seed=0, min_n=G4_MIN_N):
     if folds is None:
         folds = _fit_folds()
     if folds["full"] is None:
-        return {"note": "no spout had >= 5 pre WORKING and >= 5 pre NONE rows", "frame": g4_frame_tag()}
+        return {"note": "no spout had >= 5 pre WORKING and >= 5 pre NO_RESPONSE rows", "frame": g4_frame_tag()}
     # PRE reference: every pre session by the discriminator that left it out
     pre_cells = []
     for i in sorted(dT["pre_i"]):
         clf_i = folds["loso"].get(d["kept"][i])
         if clf_i is None:
             continue
-        X, Y, g, jj, _s = _g4_rows(dT, cg, [i], keep)
-        pre_cells.append(_g4_cells(clf_i, X, Y, g, jj, keep, min_n=1))
+        X, Y, g, jj, _s, gs = _g4_rows(dT, cg, [i], keep, split=split)
+        pre_cells.append(_g4_cells(clf_i, X, Y, g, jj, keep, min_n=1, gs=gs))
     from wfield_local import working_trials as wt
     pre_ref = {}
-    for grp in wt.G_ALL:
+    for grp in g4_groups():
         # pooled over pre sessions, per spout (n summed; fraction weighted by n), then spout-balanced at the floor
         per = {}
         for c in keep:
@@ -2035,9 +2058,9 @@ def g4_camclass(d, keep, seed=0, min_n=G4_MIN_N):
         k = sum((pre_ref[gq]["per_spout"][p]["frac"] or 0.0) * pre_ref[gq]["per_spout"][p]["n"] for gq in G4_POS)
         work_ref[p] = {"n": int(n), "frac": (k / n) if n else None, "thin": n < min_n}
     okw = [v["frac"] for v in work_ref.values() if not v["thin"]]
-    X, Y, g, jj, _s = _g4_rows(dT, cg, dT["post_i"], keep)
-    post = _g4_cells(folds["full"], X, Y, g, jj, keep, min_n=min_n)
-    for grp in wt.G_ALL:
+    X, Y, g, jj, _s, gs = _g4_rows(dT, cg, dT["post_i"], keep, split=split)
+    post = _g4_cells(folds["full"], X, Y, g, jj, keep, min_n=min_n, gs=gs)
+    for grp in g4_groups():
         same = pre_ref[grp]["frac_spout_balanced"]
         post[grp]["pre_reference_is"] = grp if same is not None else "working"
         post[grp]["pre_reference"] = same if same is not None else (float(np.mean(okw)) if okw else None)
@@ -2045,5 +2068,8 @@ def g4_camclass(d, keep, seed=0, min_n=G4_MIN_N):
             "left out of the spout-balanced means", "post": post, "pre_reference": pre_ref,
             "pre_working_reference": {"frac_spout_balanced": float(np.mean(okw)) if okw else None,
                                       "per_spout": work_ref},
-            "group_labels": dict(wt.G_LABELS), "n_pre_sessions": len(pre_cells),
+            "group_labels": {**wt.G_LABELS, **G4_SPLIT_LABELS},
+            "train_classes": {"groups": "camera", "positive": list(G4_POS), "negative": list(G4_NEG),
+                              "scored_only": [g_ for g_ in g4_groups() if g_ not in G4_POS + G4_NEG]},
+            "n_pre_sessions": len(pre_cells),
             "post_sessions": [d["kept"][i] for i in sorted(dT["post_i"])]}
