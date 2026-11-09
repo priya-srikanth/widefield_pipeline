@@ -1142,3 +1142,10 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
   every later test ran as a pre0801 tagged run (writeguard / rebuild_root / cohort tests). Fixed (monkeypatch first);
   + main's own new break: pose_frame_pair.py (another window, 13:40) unclassified share writer -> BEHAVIOUR. 4abcea72;
   the 31 failing files + leaker: pass. Priya paused the state-space window's pushes ~13:55. Push 2 running.
+- 16:50 (session was interrupted ~14:45-16:30 -- account change; nothing ran meanwhile, HALT held). INTEG PUSH 2
+  failed 8 tests: (a) test_iti_where_decoder_subset's subprocess loaded wfield_local from the installed shared
+  checkout (no mask_keys) -> PYTHONPATH = this checkout; (b) ITI / lick caption tests wrote to the live share when run
+  after the full prefix (reproduced: prefix + iti_a = 3 failed / 5959 passed): an earlier test drops iti_licks from
+  sys.modules, so drivers imported before (`import iti_licks as il`) hold a stale copy the fixture never patches ->
+  conftest autouse one_iti_licks re-points stale references for each test. 8aed3a7b; 131 caption + writeguard tests
+  pass. Push 4 running (~20 min tests).
