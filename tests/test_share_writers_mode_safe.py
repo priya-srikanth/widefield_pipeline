@@ -40,11 +40,17 @@ BEHAVIOUR = {
     "fr_spout_mesh_control.py",
     # main's within-session decline arm (licks / trials / pose only; writes its own within_session_decline dir), 11-08
     "within_session_decline.py",
+    # main's June drift-floor summary (FaceRhythm readouts + pose3d june_reference deltas only; writes the FR
+    # readouts june_reference dir), 11-09
+    "june_drift_summary_fig.py",
 }
 INDIRECT = {
     "coupling_vigour_sm.py", "decoder_retention_sessions.py", "lick_correction.py",
     "lick_firstlick_extract.py", "lick_vigor_perspout.py", "precue_class_matched.py", "recovery_timing.py",
     "restw_strict_check.py", "session_pace_table.py",
+    # state-space arm (11-09): writes only under state_space_sim.ROOT (inputs pinned to the rebuild profile's literal
+    # run tags, like every state_space_*.py); trips the scan only through its M:/MICROSCOPE/Priya INPUT paths
+    "state_space_shift_movement.py",
 }
 
 
