@@ -752,3 +752,9 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
   3d7bbe921e; queue_daqlk10.sh launched. JD: g5_map_drift_lp_june running with WIDEFIELD_ATTEMPTS_SUPPLEMENT set
   (120 ref maps = 108 + 12 June). G4: g5_section_g_g4only waiting for the heavy lock (l_precue_restnl_r), then
   g5_g4_fig_redraw.
+- 02:01 g5_map_drift_lp_june EXIT 0 (33 min; LP drift figs with June, grant_figures/map_drift_prepre/LP_licks_<tag>).
+- 02:27 v9zx-RS DONE: rest family complete on the rest fix (chronic_stability_r; l_* restw chain; restnl variants) --
+  all EXIT 0.
+- Grant (LP) slow: 12/96 at 02:03 (6 units / 77 min). Profiling ONE unit in a separate process (outputs to scratch;
+  scratchpad/prof_grant/REPORT.md) to find repeated loading vs cold collection; no restart on an estimate.
+- Heavy lock: l_balimg_primary_r2 (BAL); g5_section_g_g4only queued behind it.
