@@ -963,3 +963,18 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
   rebuild_figs encoder figs gated by OROFACIAL_GATE (unset in profile -> 'reference'); iti_where_decoder subset filter
   draws unfiltered CSV into subset folder; fig_softmax.py:60 crosstab orientation possibly wrong (unverified); two
   lick_enl_target_test titles still say "no lick 2 s"; not wired: rebuild_lick_maps subprocess modules.
+- 10:55 PRIYA DECISIONS:
+  (a) pre-cue LEVEL (lick_precue_restw[_traces], Figs 14.20 / 14.21): use the per-trial LICK-FREE ENL window
+      (lp_licks.enl_window_starts_s, LP licks, drop trials without one), RESTnl primary + session-mean twin. Helper on
+      feat/precue-enl-window-1109 (wf_precueenl).
+  (b) OK to queue the full grant + epoch re-renders for the trial-set captions once the pushes land.
+  (c) rebuild_figs encoder figures: same gate as everywhere = working trials (OROFACIAL_GATE=attempted under the camera
+      gate). Queue fig steps already ran with attempted; plain replots under the profile defaulted to "reference" -- fix.
+  (d) wfield import style leak (site-packages wfield/viz.py:84 style.use at import: Arial, dpi 500, black cycle): STOP it,
+      use our own styling.
+  (e) fix iti_where_decoder subset bug, verify/fix fig_softmax orientation, lick_enl_target_test "2 s" titles.
+      (c)-(e): helper on fix/style-leak-misc-1109 (wf_misc1109).
+  (f) l_xa_restnl crash (area_order: lateral VIS/AUD/TEa areas): FIX, keeping ONLY areas inside our glue mask (no left
+      VIS). Helper on fix/xa-restnl-areas-1109 (wf_xafix). v12-IH lane halted at that step (mode stop).
+  Stamp-test root cause: importing `wfield` restyles matplotlib globally (test-only fix 6bb2a103, queued in chain_v15).
+  10:36 stopped the stamp helper's full-suite pytest (PID 39412, 13.7 GB; RAM was 1 GB free) -- pre-push hook covers it.
