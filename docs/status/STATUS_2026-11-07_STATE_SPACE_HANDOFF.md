@@ -48,6 +48,9 @@ running list `docs/status/RUNNING_LIST_2026-11-08_STATE_SPACE.md` sections A (de
   after the sweep.
 - **11-08 ~11:45:** page v15 has section 9 (maps, all baselines, why-cleaner). "Why cleaner" answered for the 15r
   activity maps (B19: window, not denoising); the residual-map half not done.
+- **11-09 ~02:30 (running list B28):** `scripts/state_space_shift_movement.py` (jaw + FaceRhythm + running on top of
+  licking; no motion energy per Priya): orofacial increase survives (residual = observed, 4/4); part of the
+  posterior-medial transient is movement. Page v24 Fig 10.22 (page script `state_space_page/add_shift_movement.py`).
 - **11-09 ~01:45 (running list B27):** `scripts/state_space_shift_behavior.py`: the shared orofacial increase and the
   posterior-medial transient are NOT explained by licking (frozen pre-stroke activity-vs-licking fit; residual =
   observed). Page v23 Fig 10.21 (page script `state_space_page/add_shift_behavior.py` in the session scratchpad).

@@ -63,6 +63,20 @@ merged to main (no conflicts); A5 applied to FINDINGS 0c item 4 and the page cap
 
 ## B. Findings (newest first; exploratory)
 
+28. **Nor face / jaw / body movement for the orofacial increase (Priya 11-09 "go ahead"; "don't use motion energy - we
+   have FR and 3d keypoints"; `scripts/state_space_shift_movement.py`, on B27's trial table; page v24 Fig 10.22).**
+   Nested pre-stroke models on the SAME trials (all covariates present; FaceRhythm sessions Aug-Oct, so pre = August):
+   licking; + jaw (pose3d jaw_trials: open_max_mm, lr_wide_mm, n_wide); + FaceRhythm master_pre_v1 (12 factors x D
+   over -1.0..+0.7 s from the first lick, log1p, + D) + running (fraction of the window in a behavior_events running
+   bout). No motion energy (Priya). Pre leave-session-out R^2 beyond spout: orofacial .02-.14 -> .15-.26,
+   posterior-medial .02-.05 -> .38-.45 (the model is strong). Orofacial contra late observed +1.22 / +1.31 / +1.39,
+   residual (full model) +1.29 / +1.14 / +1.20 (4/4); early / ipsi the same; chronic before the lick +.39 -> +.32 contra,
+   +.30 -> +.29 ipsi (4/4). Posterior-medial transient partly movement: early contra chronic +.85 -> +.56 (3/4), ipsi
+   +.54 -> +.21 (n.s.), subacute +1.16 -> +.94 (4/4); late posterior-medial -> ~0. Reading: the sustained orofacial
+   increase is not a by-product of licking / face / jaw / running as measured. Not measured: body posture / paws
+   (side cams pilot only). Next candidates: same increase as the pre-cue rise vs rest (Fig 9.8) / Figs 9.1-9.2;
+   relation to behavioral recovery within animal.
+
 27. **The shared increase is NOT explained by licking (Priya 11-09 "go ahead" on the behavior test;
    `scripts/state_space_shift_behavior.py`, SVD, lick-aligned, minus RESTnl; page v23 Fig 10.21).** Per trial: region
    means (orofacial = tjM1 + SSp-m + SSp-n; posterior-medial = RSPd + SSp-tr + SSp-ll; contra / ipsi) in three windows
