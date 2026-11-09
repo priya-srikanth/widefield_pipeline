@@ -74,6 +74,13 @@ def save_png_svg(fig, fname, *args, **kwargs):
     else happens. ``fig`` only needs a ``savefig`` method, so a seaborn grid works too; for
     ``plt.savefig(...)`` pass ``plt.gcf()``. Returns what ``savefig`` returned.
     """
+    # THE TRIAL SET (Priya 11-09): the active trial-set sentence on the figure (`trial_set_text.stamp`; idempotent, a
+    # no-op when no renderer declared a trial set, so a plain call writes exactly what savefig would).
+    try:
+        from wfield_local import trial_set_text
+        trial_set_text.stamp(fig, below=kwargs.get("bbox_inches") == "tight")
+    except Exception as ex:                                            # noqa: BLE001 - never cost the figure
+        warnings.warn(f"[trial set] caption not written ({type(ex).__name__}: {ex})", RuntimeWarning, stacklevel=2)
     out = fig.savefig(fname, *args, **kwargs)
     if not isinstance(fname, (str, os.PathLike)):
         return out
