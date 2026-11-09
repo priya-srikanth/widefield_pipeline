@@ -104,9 +104,30 @@ def subset_in(path) -> str:
     return il.ITI_SUBSET
 
 
+def subset_guard(z: bool = False) -> Path | None:
+    """Under a SUBSET ITI filter (il.ITI_SUBSET, WFIELD_ITI_FILTER), refuse any draw whose data are not the filtered
+    copy: main / --plot-only decode / read EVERY ITI lick (where_decoder.csv under OUT; no subset copy of that table
+    exists), and used to save that unfiltered figure into the subset folder (bug B1, Priya 11-09). --z reads the
+    subset r table of iti_dock_where_preds.py (<OUT_W>/zscore_check/where_decoder_z.csv) and is allowed only when that
+    copy exists under OUT_W. Returns the --z r-table path (None without a subset filter)."""
+    if not il.ITI_SUBSET:
+        return None
+    if not z:
+        raise SystemExit(f"iti_where_decoder: WFIELD_ITI_FILTER={il.ITI_SUBSET} is active, but main / --plot-only "
+                         "decode EVERY ITI lick (no subset copy of where_decoder.csv exists). Refusing to save an "
+                         "unfiltered figure into the subset folder. Run iti_dock_where_preds.py, then this script with "
+                         "--z (the subset r table), or unset WFIELD_ITI_FILTER.")
+    f = Path(il.OUT_W) / "zscore_check" / il.tagged("where_decoder_z.csv")
+    if not subset_in(f) or not f.exists():
+        raise SystemExit(f"iti_where_decoder --z: WFIELD_ITI_FILTER={il.ITI_SUBSET} is active but the subset r table "
+                         f"{f} is missing or not under the subset folder; run iti_dock_where_preds.py first.")
+    return f
+
+
 def trial_set_sentence(z: bool = False) -> str:
-    """This driver's lick set: ITI + cued licks, every ITI lick (main / --plot-only: no filter is applied), or under
-    --z the subset copy of the r table (iti_dock_where_preds.py) when a subset filter is active."""
+    """This driver's lick set: ITI + cued licks, every ITI lick (main / --plot-only: no filter; refused under a subset
+    filter, `subset_guard`), or under --z the subset copy of the r table (iti_dock_where_preds.py) when a subset filter
+    is active."""
     filt = subset_in((il.OUT_W if il.ITI_SUBSET else il.OUT) / "zscore_check" / "x") if z else ""
     return both_caption(filt, tracked="lateral + sagittal + outward + reach")
 
@@ -310,6 +331,7 @@ def decode(source: str) -> pd.DataFrame:
 
 
 def main() -> int:
+    subset_guard(False)
     import matplotlib
     matplotlib.use("Agg")
 
@@ -377,7 +399,9 @@ def _panel(ax, g, tt, colors, rng, title):
 
 def plot(R: pd.DataFrame, T: pd.DataFrame, tag: str = "") -> None:
     """tag "_z": within-session z-scored features (`iti_zscore_check.py`); writes lick_where_decoder_z.png only (the
-    basis figures need per-component session SDs, which do not exist)."""
+    basis figures need per-component session SDs, which do not exist). Under a subset filter only the "_z" draw of the
+    subset r table is allowed (`subset_guard`): the figure goes to the subset folder, so its data must be the subset's."""
+    subset_guard(bool(tag))
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
@@ -432,6 +456,7 @@ def plot(R: pd.DataFrame, T: pd.DataFrame, tag: str = "") -> None:
 
 
 if __name__ == "__main__":
+    subset_guard("--z" in sys.argv)          # subset filter: draw only the filtered r table, never the unfiltered one
     declare_trial_set("--z" in sys.argv)     # every figure of every path below carries the lick set (Priya 11-09)
     if "--z" in sys.argv:                   # redraw from the z-scored run (iti_zscore_check.py); Allen areas only
         Z = (il.OUT_W if il.ITI_SUBSET else il.OUT) / "zscore_check"   # subset: iti_dock_where_preds.py's r table
