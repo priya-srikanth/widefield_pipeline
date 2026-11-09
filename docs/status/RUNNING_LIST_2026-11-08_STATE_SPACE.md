@@ -63,6 +63,15 @@ merged to main (no conflicts); A5 applied to FINDINGS 0c item 4 and the page cap
 
 ## B. Findings (newest first; exploratory)
 
+33. **Motor-area balance (ALM + tjM1) as well (Priya 11-09 "for the orofacial balance figures, can we have motor version
+   as well (ALM, tjM1)"; `state_space_balance_cells.py --motor`, `state_space_balance_angle.py --collect --motor` then
+   `--motor`, tables `landing/*_motor.csv`; page v29 Figs 5.3-5.4).** Cue 0-1 s, Allen areas, same selections / models
+   as Figs 5.1-5.2. Matched target + landing, subacute / chronic: contralesional at contra-side and middle targets (far
+   contra +.23 / +.25, far mid +.09 / +.13, close mid +.11 / +.07, 4/4; close contra +.15 / +.12), ipsi-side targets not
+   different from pre (chronic far ipsi +.10, close ipsi -.03). Unlike orofacial: no acute ipsi-side reversal (far ipsi
+   -.11, close ipsi -.03, 2/4; orofacial -.39 / -.24, 0/4) and no spread compression (chronic -.06, 2/4, CI incl. 0;
+   orofacial -.27, 0/4). Pre motor spread smaller (.71-1.53 vs 1.24-2.46).
+
 32. **The tonic elevation is mostly REST MOVING (Priya 11-09 "should we check with raw (instead of RESTnl)";
    `scripts/state_space_shift_rawref.py`; page v28 Fig 10.26; B29 / B30 statements rewritten on the page).** Raw = dF/F
    scale, zero = the session's mean frame (wfield `svd_blockwise` subtracts / divides by `frames_average`; drift removal

@@ -48,6 +48,10 @@ running list `docs/status/RUNNING_LIST_2026-11-08_STATE_SPACE.md` sections A (de
   after the sweep.
 - **11-08 ~11:45:** page v15 has section 9 (maps, all baselines, why-cleaner). "Why cleaner" answered for the 15r
   activity maps (B19: window, not denoising); the residual-map half not done.
+- **11-09 ~08:15 (running list B33):** motor-area (ALM + tjM1) twins of the section-5 balance figures: `--motor` on
+  `state_space_balance_{cells,angle}.py` (tables `landing/*_motor.csv`), `state_space_page_figs.py --only balance_motor
+  cross_motor`; page v29 Figs 5.3-5.4 + take + summary row (page script `state_space_page/add_balance_motor.py`). Motor =
+  same contralesional shift at contra / middle targets, smaller; no acute ipsi-side reversal, no spread compression.
 - **11-09 ~05:30 (running list B32):** `scripts/state_space_shift_rawref.py`: the tonic pre-cue elevation vs RESTnl
   is mostly the rest level falling relative to the session mean (dF/F zero), and the aim coupling is the rest level's;
   the phasic post-lick increase survives the session-mean reference. Page v28 Fig 10.26 + rewritten 10.23 / 10.24 /
