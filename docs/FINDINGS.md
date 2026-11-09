@@ -1133,6 +1133,43 @@ August-only pre, every readout vs the animal's OWN pre; `*` = boot_delta, LMM as
    (0.1-0.5 s, the encoder's window). EXPLORATORY.
 10. **Pages: every caption carries its figure file name** (`scripts/page_file_names.py`, docs/templates/README.md rule).
 
+11. **Encoder vs state-space maps: the same questions, how they align (11-09, Priya "highlight the equivalent encoder vs
+   state-space maps ... add this to findings").** Encoder figures: `encoding_goal_page_src/` on the share (page figure
+   numbers of the encoding page); state-space: `state_space_recovery/page_figs/`.
+   (a) ACUTE FAR-CONTRA DROP. Encoder: frozen decomposition, evoked amplitude 0-1 s after the first lick, carried by the
+   LICK group (SSp-m lick part -19..-29 x1e3, target <= 3.8, contact opposes; with FR split lick / fr) -- Figs 17.1 /
+   17.3 (`fig4p_decomp_pooled`, `map_frozen_acute_lick`), ENCODING_FINDINGS 3.4 / 8.10. State space: spout-specific far
+   contra (9.3, `ss_cmap_spout_rest_*`), deficit over ipsilesional orofacial; bout-summary controls keep .73-.87, the
+   encoder's prediction keeps .35-.44 and the epoch-own coupling .42 (B40-B44, `ss_encoder_subtract`). ALIGN once movement
+   is modeled with lick-locked kernels; the earlier disagreement was the bout-summary model (B44). Remaining difference:
+   the spout-relative readout leaves ~1/3 in ipsilesional SSp-m (3/4), where the encoder's total-evoked residual is small.
+   (b) CHRONIC INCREASE. Encoder: frozen residual = cortex responds MORE than the pre mapping predicts for the same
+   behavior (SSp-m +9.5 / +10.6 cue with FR, 4/4; contralesional larger; Figs 18.1-18.3, 0.7: `fig7c_residual_allspouts_
+   32px`, `fig8_residual_per_animal_lick`, `fig12p_residual_trend_pooled`, `frozen_fr_compare_lines_lick`). State space:
+   the activity increase of 9.1 (`ss_cmap_full_rest_*`) kept under every movement model (.98-1.09). ALIGN: both say the
+   gain change is not movement. State space adds: the raw rest fall is the same change (B45) and the change runs opposite
+   to June -> August (B42). TENSION: the encoder drift check found the residual already rising WITHIN the August pre
+   weeks (late - early pre +, 3/4), while June -> August pre the response shrank -- a shrink-then-rebound course before
+   the stroke is possible; neither reference is a clean no-stroke control (learning, room / rig move).
+   (c) CHRONIC POSITION / BETWEEN-SPOUT CHANGE. Encoder (per-session refit): chronic position unique R2 rise lick +22 ->
+   +4 with FaceRhythm, pixel bins 69 / 99 -> 0 (Figs 21.1-21.3, `fig16_fr_cortex`, `fr_pixel_sig_lick`; 8.7); frozen frame:
+   not reproduced. State space: chronic spout differences kept .24 (KBs) / .03 (KBe). ALIGN: chronic between-spout
+   structure mostly follows how each spout is licked / the face.
+   (d) CONTRALESIONAL SSp-m. Encoder: landing-frame target unique +.010 / +.011 chronic, 4/4 (8.19B, Fig 1.5
+   `contest_landing_vs_target`). State space: contralesional SSp-m across-spout spread +.07 chronic, 4/4 under the
+   bout-summary controls (not yet under the encoder / KBe). Same direction; the only between-spout effect both frames
+   keep -- but the state-space side is now a lower-bound test and needs the stronger models.
+   (e) HEMISPHERIC BALANCE. Lick page (decoder arm): angle-matched contra:ipsi gain ratio 0.1-0.5 s after the first lick
+   tracks recovery (`iti_licks/<daqlk tag>/figures/lick_recovery_primary`, `lick_balance_explainer`; FINDINGS 0b).
+   State space Figs 5.3-5.8 (`ss_balance_target_vs_landing[_motor][_lick]`, `ss_balance_by_spout*`): contralesional shift
+   at matched target + landing, orofacial with an acute ipsi-side reversal and spread compression, motor smaller without
+   either. ALIGN in direction; different readouts (gain ratio vs state-space balance), not numerically comparable.
+   WHAT IT TELLS US: two frameworks with different models, windows and units converge on one picture -- a response-GAIN
+   change (cortex responds more to the same licking, chronic, anterolateral, contralesional-weighted) that is not movement,
+   and a between-spout / position structure that mostly follows behavior (acute: executed movement + the sensory
+   consequence of missing; chronic: how each spout is licked), with contralesional SSp-m the one candidate spatial change
+   beyond behavior. EXPLORATORY / PROVISIONAL.
+
 Open: close-spout PC2 transient (posterior-medial vs contralesional orofacial) unexplained; chronic - pre partly lies
 along the August pre drift (PS92-94) -- June reference (contact-only first licks, joint-LocaNMF basis, O2 job
 `ss_lnmf_20261108`, `state_space_june_drift.py`) runs when its outputs land; cohort 2 pre stays separate.
