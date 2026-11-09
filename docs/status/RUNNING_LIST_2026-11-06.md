@@ -703,3 +703,16 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
   fatal). Outputs figures_working/LP_licks_gateLP_<tag>. g6_grant_lp now waits only on g5_recovery_cue_r (RS lane).
 - 19:23 g5_epoch_lp_ENL EXIT 0 (3 h 20 min; cold cache: lane started on the pre-d8f4e900 csig). 21:13
   g5_cd_traj_orth_lp EXIT 0. 20:26 g5_restnl_maps_lp_r2 EXIT 0. 20:53 g5_rest_frozen_r EXIT 0.
+- 21:39 v9zx-CD DONE (cd_overlap_null_lp, g7_cd_geometry_lp -> LP epoch folder: Fig 9.1 on LP). 22:40 g5_recovery_cue_r
+  EXIT 0 -> 22:41 g6_grant_lp STARTED (b83f376d; live log: lick source lp, gate lp, store frozen_models_lpfinal, out
+  grant_figures/LP_licks_gateLP_<tag>). 23:05 g5_epoch_lp_cue EXIT 0 -> all 3 LP epoch arms done; 23:05
+  m_matchedpre_cue_lick_lp STARTED (LP env + LPfinal store, new LP inputs pickle). v9zq-SVD lane done. l_pht_run
+  (v8, 5db29b07) checked before it ran: no rest / working / lick-source code reached (only spelling + SVG changes since).
+- 23:11 LAUNCHED queue_daqlk9zz2.sh lane BAL (b83f376d; built by a helper from rerun_settings_check.md, reviewed): the
+  balance / ENL-slide chain, 59 steps, every name suffixed _r2 so the OLD waiting lanes (v8b / v9zd / v9zr / v9zc, pre-fix
+  code) are never released; done deps kept by name only where .done exists; l_ci_spout + l_enl_target were never done ->
+  in the chain as _r2; own marker ENL_SLIDE_FIX_r2 (enl_release_r2 over the _r2 names) so the old x_enlv_* stay parked;
+  l_enl_offset_r2 waits on l_precue_restw_r (rest-fix re-run).
+- After this everything in the trimmed plan is running or done, except the later lick decoders (pcd / nolick / precue
+  states / joint xsession on LP) and the figdata star redraws. Old waiting lanes on pre-fix code can be stopped (exact
+  PIDs) once the r2 chain is through.
