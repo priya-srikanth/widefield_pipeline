@@ -65,13 +65,15 @@ def excluded_pixels(animal, include_bulbs=True):
     throw away cortex that is perfectly good in three of the four -- the same reasoning
     `painted_exclusion` gives for the union being right for POOLED figures and wrong for per-animal
     ones.
+
+    RAISES on a missing / unreadable / mis-shaped mask (`paint_exclusion.load_mask`, 2026-11-09); it used to treat a
+    missing file as "no glue". All-False only for a cohort that opts out (configs/cohorts.yaml painted_exclusion: none).
     """
     from wfield_local import beta_maps as bm
-    from wfield_local.paint_exclusion import mask_path
+    from wfield_local.paint_exclusion import load_mask
 
     bulbs = bm.excluded_mask()
-    p = mask_path(animal)
-    glue = np.load(p).astype(bool) if p.exists() else np.zeros(bulbs.shape, bool)
+    glue = load_mask(animal, bulbs.shape)
     return (glue | bulbs) if include_bulbs else glue
 
 

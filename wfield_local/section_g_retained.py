@@ -262,15 +262,32 @@ def fig_retained(rows, out, *, suffix="", json_path=None, note=""):
     return q
 
 
+def trial_set_sentence(rec=None) -> str:
+    """The figure's trial set (Priya 11-09): both arms' within-session (`recoding_test`) rows, ALL and LICK-ONLY
+    (`section_g_figures.within_sentence`; camera grouping read off ``rec``)."""
+    from wfield_local import section_g_figures as sgf
+    from wfield_local import trial_set_text as tst
+    cam = sgf.camera_grouping(rec)
+    return tst.union(f"ALL arm: {sgf._core(sgf.within_sentence('all', cam))}",
+                     f"LICK-ONLY arm: {sgf._core(sgf.within_sentence('lickonly', cam))}", unit="trials")
+
+
 def render(rec, out, *, suffix="", json_path=None, note=""):
     """Table (printed + CSV sidecar) and figure. Returns [png]."""
+    from wfield_local import trial_set_text as tst
     from wfield_local.figure_layout import sidecar
     rows = retained_table(rec)
     if not rows:
         print("  retained: no within-session records", flush=True)
         return []
     print_animal_epoch_table(rows, header=f"[{note}]" if note else "")
-    q = fig_retained(rows, out, suffix=suffix, json_path=json_path, note=note)
+    try:
+        text = trial_set_sentence(rec)
+    except Exception as ex:                                            # noqa: BLE001 - a caption never kills a figure
+        print(f"  [trial set] no caption ({type(ex).__name__}: {ex})", flush=True)
+        text = None
+    with tst.active(None, text=text):
+        q = fig_retained(rows, out, suffix=suffix, json_path=json_path, note=note)
     write_csv(rows, sidecar(q, ".csv"))
     return [q]
 

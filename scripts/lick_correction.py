@@ -65,6 +65,8 @@ import pandas as pd
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import iti_licks as il  # noqa: E402
 
+from wfield_local import mask_keys  # noqa: E402
+
 ROOT = il.OUT_W
 OUT = ROOT / "lick_correction"
 SESS = OUT / "sessions"
@@ -108,6 +110,7 @@ def extract(label: str) -> dict:
     from wfield_local.paths import PathResolver
     f = SESS / f"{label}.npz"
     if f.exists():
+        mask_keys.check_npz(f)                    # stale-read guard (11-09)
         return {"label": label, "cached": True}
     t0 = time.time()
     V, ft, Ub, flat, parea, names, shape, pstat = ce.load_imaging(label)
@@ -141,7 +144,8 @@ def extract(label: str) -> dict:
     meta = {c: K[c].to_numpy() for c in ["trial_id", "lick_idx", "lick_uid", "side_ml", "reach_mm", "out_ap",
                                           "down_dv", "miss_mm", "lat_err_mm", "speed_peak", "daq_on_s"]}
     np.savez_compressed(f, cols=np.array(cols), X=X, t=t, lags=LAGS_X, contact=K.contact.astype(bool).to_numpy(),
-                        position=K.position.to_numpy(dtype=str), epoch=epochs.epoch_of(label), animal=an, **meta)
+                        position=K.position.to_numpy(dtype=str), epoch=epochs.epoch_of(label), animal=an, **meta,
+                        **mask_keys.stamp())
     return {"label": label, "n": len(t), "s": round(time.time() - t0, 1)}
 
 
@@ -471,6 +475,7 @@ def neural_session(item) -> dict:
     label, sgn, tgt = item
     f = SESS / f"{label}.npz"
     z = np.load(f, allow_pickle=True)
+    mask_keys.check_obj(z, f)                     # stale-read guard (11-09)
     an, ep = str(z["animal"]), str(z["epoch"])
     cols = list(z["cols"])
     L = pd.DataFrame({k: z[k] for k in ["trial_id", "lick_idx", "side_ml", "reach_mm", "t"]})
@@ -830,7 +835,21 @@ def plot(FB: dict, FN: dict) -> None:
     print("figures written", flush=True)
 
 
+def trial_set_sentence() -> str:
+    """The lick set of lick_correction (Priya 11-09): consecutive post-cue lick PAIRS k -> k+1 of one trial."""
+    from wfield_local import trial_set_text as tst
+    return tst.events(
+        "post-cue lick PAIRS k -> k+1 of the same trial (3-D lick table, context post_cue; order = lick_idx)",
+        keep=["both licks with a 3-D lick angle", f"peak-to-peak interval <= {ILI_MAX:g} s",
+              "miss_k = lick k without a DAQ spout contact (licks_all contact)",
+              "behavior: every curated session with 3-D licks; neural: the imaging sessions, EVERY post-cue lick (no "
+              f"{il.N_TRIAL_MAX} cap)", f"session cells need >= {MIN_CLASS} misses and >= {MIN_CLASS} hits"],
+        excluded=["ITI licks", "a trial's last lick (no k+1)", f"pairs > {ILI_MAX:g} s apart"])
+
+
 def main() -> int:
+    from wfield_local import trial_set_text as tst
+    tst.declare(text=trial_set_sentence())          # every figure states its lick set (Priya 11-09)
     if "--extract" in sys.argv:
         jobs = int(sys.argv[sys.argv.index("--jobs") + 1]) if "--jobs" in sys.argv else 4
         run_extract(min(jobs, 4))

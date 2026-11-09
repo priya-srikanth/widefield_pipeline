@@ -128,7 +128,9 @@ def main() -> int:
     except Exception as e:
         print(f"[{args.label}] torch not importable yet: {e}", flush=True)
 
-    from wfield.local_nmf import compute_locaNMF  # needs locanmf + torch installed
+    from wfield_local.wfield_import import no_style_leak
+    with no_style_leak():                     # wfield restyles matplotlib at import
+        from wfield.local_nmf import compute_locaNMF  # needs locanmf + torch installed
 
     # sNMF = whole-brain seed (no localization); LocaNMF = atlas-seeded localized.
     runs = []

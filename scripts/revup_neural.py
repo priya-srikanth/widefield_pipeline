@@ -86,7 +86,7 @@ import pandas as pd
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import iti_licks as il  # noqa: E402
 import restnl  # noqa: E402
-from wfield_local import enl_window  # noqa: E402
+from wfield_local import enl_window, mask_keys  # noqa: E402
 
 OUT = il.OUT_W / "revup"
 SESS = OUT / "sessions"
@@ -129,6 +129,7 @@ def _shift(x: str):
             _SHIFT[x] = False
         else:
             src = np.load(il.OUT_W / "precue_restw" / f"{x}.npz")
+            mask_keys.check_obj(src, il.OUT_W / "precue_restw" / f"{x}.npz")   # stale-read guard (11-09)
             sc = [str(c) for c in src["cols"]]
             _SHIFT[x] = (np.asarray(src["restw"], float)[[sc.index(c) for c in COLS]] - nl).astype(np.float32)
     return _SHIFT[x]
@@ -138,12 +139,13 @@ def _sess(x: str) -> dict | None:
     """The session cache with the traces on the active baseline (restw stored; restnl = + RESTW - RESTnl, exact).
     None = left out (restw_ok False, or no RESTnl level under the restnl variant)."""
     z = np.load(SESS / f"{x}.npz")
+    mask_keys.check_obj(z, SESS / f"{x}.npz")     # stale-read guard (11-09)
     if not bool(z["restw_ok"]):
         return None
     sh = _shift(x)
     if sh is False:
         return None
-    d = {k: z[k] for k in z.files}
+    d = {k: z[k] for k in z.files if k != mask_keys.FIELD}
     for k in ("Xc", "Xl", "Xs"):
         v = d[k].astype(np.float32)
         if sh is not None and v.size:
@@ -159,6 +161,7 @@ def session_worker(label: str) -> dict:
     if f.exists():
         z = np.load(f)
         if int(z["version"]) == VERSION:
+            mask_keys.check_obj(z, f)             # stale-read guard (11-09)
             return {"label": label, "cached": True}
     from wfield_local import combined_encoding as ce
     from wfield_local import config
@@ -166,6 +169,7 @@ def session_worker(label: str) -> dict:
     from wfield_local import orofacial_outputs as oo
     from wfield_local.paths import PathResolver
     src = np.load(il.OUT_W / "precue_restw" / f"{label}.npz")
+    mask_keys.check_obj(src, il.OUT_W / "precue_restw" / f"{label}.npz")   # stale-read guard (11-09)
     d = il._load(label)
     # == lick_precue_restw(_traces).session_worker's trace construction
     V, ft, Ub, flat, parea, names, shape, pstat = ce.load_imaging(label)
@@ -251,7 +255,7 @@ def session_worker(label: str) -> dict:
                         phase=np.asarray(phase, str), quiet=quiet, npre=npre, late_gap=late_gap, enl_lo=enl_lo,
                         Xc=Xc.astype(f16), Xl=Xl.astype(f16), Xs=Xs.astype(f16), sp_t=sp,
                         restw_ok=bool(src["restw_ok"]), animal=str(d["animal"]), epoch=str(d["epoch"]),
-                        maxdiff=maxdiff)
+                        maxdiff=maxdiff, **mask_keys.stamp())
     return {"label": label, "cached": False, "n": n, "n_in": int((phase == "in_window").sum()),
             "n_late": int((phase == "late").sum()), "n_spont": len(sp), "maxdiff": maxdiff}
 

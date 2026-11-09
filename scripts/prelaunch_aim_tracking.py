@@ -36,6 +36,7 @@ import numpy as np  # noqa: E402
 import pandas as pd  # noqa: E402
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+from wfield_local import mask_keys  # noqa: E402
 from wfield_local import run_mode as _rmode  # noqa: E402
 
 V36 = Path("M:/MICROSCOPE/Priya/Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v36")
@@ -161,6 +162,7 @@ def extract(item) -> dict:
     label, LS, IT, DA = item
     f = FEAT / f"{label}.npz"
     if f.exists() and "--redo" not in sys.argv:
+        mask_keys.check_npz(f)                    # stale-read guard (11-09)
         return {"label": label, "cached": True}
     t0 = time.time()
     for k, v in FR_ENV.items():
@@ -173,6 +175,7 @@ def extract(item) -> dict:
     from wfield_local.paths import PathResolver
     an, date = config.animal_of(label), "2026" + label.split("_")[-1]
     z = np.load(S25 / "sessions" / f"{label}.npz", allow_pickle=True)
+    mask_keys.check_obj(z, S25 / "sessions" / f"{label}.npz")   # stale-read guard (11-09)
     V, ft, Ub, flat, parea, names, shape, pstat = ce.load_imaging(label)
     V = V.astype(np.float64)
     Q = np.linalg.qr(ce._slow_basis(ft, ce.DRIFT_MIN_PERIOD_S))[0]
@@ -297,7 +300,7 @@ def extract(item) -> dict:
     summ["fr_ok_cued"] = float(np.isfinite(out["cued_fr"]).all((1, 2)).mean()) if len(meta["cued"]) else np.nan
     FEAT.mkdir(parents=True, exist_ok=True)
     tmp = FEAT / f"{label}.tmp.npz"
-    np.savez_compressed(tmp, **out)
+    np.savez_compressed(tmp, **out, **mask_keys.stamp())
     tmp.replace(f)
     return {**summ, "s": round(time.time() - t0, 1)}
 
@@ -470,6 +473,7 @@ def load_animal(an: str) -> dict:
         if not f.exists():
             raise FileNotFoundError(f"{lab}: not extracted")
         z = np.load(f, allow_pickle=False)
+        mask_keys.check_obj(z, f)                 # stale-read guard (11-09)
         blocks[lab] = (z["blocks"], z["block_n"], z["Ublk"])
         for s in SETS:
             n = len(z[f"{s}_m_t"])

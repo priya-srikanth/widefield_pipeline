@@ -57,6 +57,9 @@ from wfield_local import config
 FREEZE_VERSION = 2          # 2 = training-data fingerprint + selection + hemo variant in every spec (2026-11-03)
 #: LP_licks only: "lp" freezes LP-TRAINED sensitivity models under their own spec (see `load_or_fit`).
 LP_FROZEN_ENV = "WIDEFIELD_LP_FROZEN"
+#: "1" = LOAD ONLY: a miss raises instead of fitting (11-09, the LP `joint_xsession` run that must load the attempt-
+#: coding LP decoder, copy D, and nothing else). Unset = the normal load-or-fit.
+LOAD_ONLY_ENV = "WIDEFIELD_FROZEN_LOAD_ONLY"
 
 STATUS_NEW, STATUS_HIT, STATUS_SPEC_CHANGED = "frozen-new", "frozen-hit", "SPEC-CHANGED"
 
@@ -389,13 +392,39 @@ def find(spec):
     return None, None
 
 
+def _manifest_mask_sig():
+    """The analysis-mask digest a new manifest records (`mask_keys.signature`; None when it cannot be computed)."""
+    try:
+        from wfield_local import mask_keys
+        return mask_keys.signature()
+    except Exception:                                    # noqa: BLE001
+        return None
+
+
+def _daq_mask_mismatch(manifest) -> str | None:
+    """Why a stored DAQ-trained model may NOT serve the LP cross-check on mask grounds, or None (11-09).
+
+    THE CONSTANT DAQ_RUN_FP HOLE. `find_daq_trained` matches on every spec field except ``train_fp``, so the training
+    fingerprint -- the one field that sees the masks (features on the stat mask, CD's occluded-component drop) -- is
+    never compared: a DAQ model frozen in the rebuild before the glue-mask fix (glue IN) would serve a glue-out LP run.
+    The manifest (not the spec: ids stay byte-identical) records ``mask_sig`` since 11-09; it must equal the current
+    masks. A manifest without it is refused inside a rebuild root and accepted at the default root."""
+    from wfield_local import mask_keys
+    try:
+        mask_keys.check(manifest.get(mask_keys.FIELD), "manifest.json")
+    except RuntimeError:
+        have = manifest.get(mask_keys.FIELD)
+        return f"masks {have}" if have else "no mask_sig: frozen before the 11-09 glue-mask fix"
+    return None
+
+
 def find_daq_trained(spec):
     """``(dir, origin)`` of THE DAQ-trained model the LP arm's cross-check loads (``train_fp`` = DAQ_RUN_FP): the stored
     model whose spec equals ``spec`` on every field except `_DAQ_LOOKUP_IGNORES`. Raises if more than one distinct
     training fingerprint matches (ambiguous: two DAQ runs froze different training sets under the same identity)."""
     want = base_id(spec)
     prefix = _slug(spec).rsplit("_", 1)[0] + "_"
-    hits = {}
+    hits, stale = {}, []
     for root, origin in _roots():
         if root is None:
             continue
@@ -406,12 +435,21 @@ def find_daq_trained(spec):
             if ".SUPERSEDED_" in p.name or not (p / "manifest.json").exists():
                 continue
             try:
-                ms = json.loads((p / "manifest.json").read_text()).get("spec") or {}
+                man = json.loads((p / "manifest.json").read_text())
+                ms = man.get("spec") or {}
             except Exception:                            # noqa: BLE001
                 continue
             if ms.get("train_fp") in (None, DAQ_RUN_FP) or base_id(ms) != want:
                 continue
+            why = _daq_mask_mismatch(man)
+            if why:
+                stale.append(f"{p} ({why})")
+                continue
             hits.setdefault(ms["train_fp"], (p, origin))
+    if not hits and stale:
+        raise RuntimeError(f"[frozen] {spec['animal']} {spec['kind']}/{spec['align']}: the only DAQ-trained model(s) "
+                           f"matching the LP cross-check were trained on other analysis masks: {stale}. Re-freeze the "
+                           f"DAQ run first (GLUE_MASK_FIX 2026-11-09).")
     if len(hits) > 1:
         raise RuntimeError(f"[frozen] {spec['animal']} {spec['kind']}/{spec['align']}: {len(hits)} DAQ-trained models "
                            f"match the LP cross-check (training fingerprints {sorted(hits)}); point at one by id")
@@ -516,6 +554,10 @@ def load_or_fit(spec, fit, *, meta=None, refreeze=None, log=print):
         raise RuntimeError(f"[frozen] the LP arm's DAQ-trained cross-check ({LP_FROZEN_ENV}=daq) loads DAQ-frozen models, "
                            f"but none is stored for {_slug(spec)} ({spec['animal']}); run the DAQ path first, or unset "
                            f"{LP_FROZEN_ENV} for the LP-trained default")
+    # LOAD-ONLY RUNS (11-09): a run whose job is to SCORE with a stored model must never mint a new one on a miss.
+    if os.environ.get(LOAD_ONLY_ENV, "").strip().lower() in ("1", "true", "yes", "on"):
+        raise RuntimeError(f"[frozen] {LOAD_ONLY_ENV} is set and no stored model matches {_slug(spec)} "
+                           f"({spec['animal']}); refusing to fit a new one")
     prior = [s for s in siblings(spec) if s["dir"].name != _slug(spec)]
     if refreeze:
         for s in prior:
@@ -594,7 +636,8 @@ def _write(spec, payload, meta, log=print):
     # mid-write got a truncated file, and a manifest is what `find`/`listing` read to answer "what
     # was this trained on" -- the question the freeze exists to make answerable.
     man = json.dumps({"spec": spec, "spec_id": spec_id(spec),
-                      "frozen_utc": dt.datetime.utcnow().isoformat(), "meta": meta},
+                      "frozen_utc": dt.datetime.utcnow().isoformat(), "meta": meta,
+                      "mask_sig": _manifest_mask_sig()},  # provenance + the DAQ_RUN_FP lookup's mask check (11-09)
                      indent=2, default=str)
     for name, dump in (("model.joblib", lambda t: joblib.dump(payload, t)),
                        ("manifest.json", lambda t: t.write_text(man, encoding="utf-8"))):

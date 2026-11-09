@@ -27,6 +27,13 @@ from wfield_local.orofacial_cohort import POS_ORDER as SPOUTS  # canonical spout
 PARTS = ("data", "spout", "target", "exec_locked", "lick")
 
 
+def trial_set_sentence(tag: str, align: str) -> str:
+    """The trials of the per-spout maps (Priya 11-09): each spout's own modeled trials, cue- or first-lick-aligned
+    evoked response (pre sessions only, by construction of the figure)."""
+    from wfield_local import frozen_encoder as fe
+    return fe.trial_set_sentence("peth", tag=tag, align=align, spout="each")
+
+
 def main(argv=None) -> int:
     # coordinator 11-04: routed (outputs under the run tag), no longer refused in a tagged run
     import matplotlib
@@ -44,6 +51,8 @@ def main(argv=None) -> int:
     ap.add_argument("--align", default="lick", choices=("lick", "cue"))
     ap.add_argument("--contrast", action="store_true", help="subtract the six-spout mean per part")
     a = ap.parse_args(argv)
+    from wfield_local import trial_set_text as tst
+    tst.declare(text=trial_set_sentence(a.tag, a.align))
     from wfield_local import frozen_encoder as _fe   # the encoder's (tagged) run root, coordinator 11-04
     out = _fe.out_root() / f"frozen_encoder_{a.tag}"
     sess = sorted(js for js in (out / a.variant / "sessions").glob("*.json") if not config.early_pre(js.stem))

@@ -31,6 +31,13 @@ SHOW = ("data", "full", "lick", "spout", "target", "execution", "exec_locked", "
         "residual")
 
 
+def trial_set_sentence(tag: str, spout: str, align: str) -> str:
+    """The trials of one pixel-map figure (Priya 11-09): the frozen run's modeled trials at ``spout``, cue- or
+    first-lick-aligned evoked response (`frozen_encoder.trial_set_sentence`)."""
+    from wfield_local import frozen_encoder as fe
+    return fe.trial_set_sentence("peth", tag=tag, align=align, spout=spout)
+
+
 def main(argv=None) -> int:
     # coordinator 11-04: routed (outputs under the run tag), no longer refused in a tagged run
     import matplotlib
@@ -47,6 +54,8 @@ def main(argv=None) -> int:
     ap.add_argument("--variant", default="joint")
     ap.add_argument("--spout", default="far_contra")
     a = ap.parse_args(argv)
+    from wfield_local import trial_set_text as tst
+    tst.declare(text=tst.union(*(trial_set_sentence(a.tag, a.spout, al) for al in ("lick", "cue")), unit="trials"))
     from wfield_local import frozen_encoder as _fe   # the encoder's (tagged) run root, coordinator 11-04
     out = _fe.out_root() / f"frozen_encoder_{a.tag}"
     sess = sorted(js for js in (out / a.variant / "sessions").glob("*.json") if not config.early_pre(js.stem))
@@ -132,8 +141,9 @@ def main(argv=None) -> int:
                 fig.suptitle(f"Frozen encoder ({a.variant}, {kind} targets) PIXEL maps: {a.spout}, {ep} minus pre, "
                              f"{al}-aligned evoked response, per animal then mean. {nt}residual = data - full. "
                              f"ipsi (lesion) = image LEFT. PROVISIONAL", fontsize=8)
-                fig.savefig(fd / f"pixel_maps_{a.variant}_{a.spout}_{ep}_{al}{'_prenorm' if norm else ''}.png",
-                            dpi=120, bbox_inches="tight")
+                with tst.active(None, text=trial_set_sentence(a.tag, a.spout, al)):   # this figure's alignment
+                    fig.savefig(fd / f"pixel_maps_{a.variant}_{a.spout}_{ep}_{al}{'_prenorm' if norm else ''}.png",
+                                dpi=120, bbox_inches="tight")
                 plt.close(fig)
     print(f"-> {fd} (pixel_maps_{a.variant}_{a.spout}_*.png)")
     return 0

@@ -219,7 +219,9 @@ def extract(jobs: int, cache: Path | None) -> dict:
     import iti_where_decoder as wd
 
     from wfield_local import analysis_kit as ak
+    from wfield_local import mask_keys
     if cache is not None and (cache / "acad_extract.pkl").exists():
+        mask_keys.check_sidecar(cache / "acad_extract.pkl")   # stale-read guard (11-09)
         return pickle.loads((cache / "acad_extract.pkl").read_bytes())
     labs = wd.sess_labels()
     res, fails = ak.fan_sessions(labs, work, jobs=jobs, label="acad extract")
@@ -229,6 +231,7 @@ def extract(jobs: int, cache: Path | None) -> dict:
     if cache is not None:
         cache.mkdir(parents=True, exist_ok=True)
         (cache / "acad_extract.pkl").write_bytes(pickle.dumps(E, protocol=5))
+        mask_keys.write_sidecar(cache / "acad_extract.pkl")
     return E
 
 
@@ -453,12 +456,20 @@ def pix_r(pix: dict) -> dict:
 
 
 # ------------------------------------------------------------------------------------------------ main / plot
+def trial_set_sentence() -> str:
+    """The lick set of this driver's figures (Priya 11-09; `wfield_local.trial_set_text`): the licks `iti_lick_order.predictions` selects (CONTRIB_HOOK), = the KEY set."""
+    import lick_covariate_reference as cv
+    return cv.key_lick_set()
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--jobs", type=int, default=6)
     ap.add_argument("--cache", type=Path, default=None)
     ap.add_argument("--plot-only", action="store_true")
     a = ap.parse_args()
+    from wfield_local import trial_set_text as tst
+    tst.declare(text=trial_set_sentence())          # every figure states its lick set (Priya 11-09)
     pd.set_option("display.width", 250)
     if a.plot_only:
         plot()

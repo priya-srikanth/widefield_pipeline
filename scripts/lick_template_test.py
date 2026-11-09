@@ -136,8 +136,9 @@ OUT_ENV = "LICK_TEMPLATES_OUT"        # output folder, inherited by the session 
 def pass1_one(label: str) -> str:
     """Fit one PRE session's spout kernels; saved to <out>/sessions/<label>_tmpl.npz."""
     S = session_design(label)
+    from wfield_local import mask_keys
     np.savez(Path(os.environ[OUT_ENV]) / "sessions" / f"{label}_tmpl.npz", coef=fit_templates(S),
-             areas=np.array(S["areas"]))
+             areas=np.array(S["areas"]), **mask_keys.stamp())
     return label
 
 
@@ -148,6 +149,9 @@ def template_for(label: str, pre: list):
     if not srcs:
         return None, None
     Z = {k: np.load(d / f"{k}_tmpl.npz") for k in srcs}
+    from wfield_local import mask_keys
+    for k, z in Z.items():                        # stale-read guard (11-09)
+        mask_keys.check_obj(z, d / f"{k}_tmpl.npz")
     A = {k: list(Z[k]["areas"]) for k in srcs}
     common = [c for c in A[srcs[0]] if all(c in A[k] for k in srcs)]
     M = np.mean([Z[k]["coef"][:, [A[k].index(c) for c in common]] for k in srcs], 0)

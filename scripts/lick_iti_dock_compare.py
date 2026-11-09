@@ -302,7 +302,28 @@ def plot(F: dict) -> None:
     plt.close(fig)
 
 
+def trial_set_sentence() -> str:
+    """The ITI lick sets of lick_iti_dock_compare.png (Priya 11-09), each filter named with its definition: the sets
+    drawn (`plot`: SETS + the moving complements), panel a on every ITI lick of the set, b-e on its first licks after
+    >= il.GAP_MAIN s quiet."""
+    from wfield_local import trial_set_text as tst
+    lab = dict(SETS + EXTRA)
+    show = [k for k, _ in SETS] + ["notdock", "notdock_n"]
+    parts = []
+    for k in show:
+        d = "every ITI lick (no filter)" if k == "all" else tst.ITI_FILTER_TEXT.get(k, k)
+        how = ("decoder REFIT on the set" if k in tst.ITI_REFIT_FILTERS else
+               "" if "no refit" in d else "frozen all-ITI decoder, rows dropped" if k != "all" else "frozen all-ITI decoder")
+        parts.append(f"[{k}: {lab[k]}] {d}" + (f" ({how})" if how else ""))
+    return tst.events(tst.ITI_LICK_WHAT, keep=[
+        "sets shown: " + " | ".join(parts),
+        f"panel a: every ITI lick of the set; panels b-e: the set's ITI first licks after >= {il.GAP_MAIN:g} s quiet"],
+        excluded=["post-cue (trial) licks"])
+
+
 def main() -> int:
+    from wfield_local import trial_set_text as tst
+    tst.declare(text=trial_set_sentence())
     if "--prep" in sys.argv:
         return prep()
     if "--sspn" in sys.argv:

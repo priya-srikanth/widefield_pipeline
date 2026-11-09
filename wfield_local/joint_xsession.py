@@ -123,8 +123,9 @@ def joint_features(basis):
     return _feat
 
 
-def run_animal(animal, labels, align="cue", post_s=2.0, verbose=True):
-    """Joint-basis LOSO decoder + encoder for one animal. ``None`` if it has no basis / <2 sessions."""
+def run_animal(animal, labels, align="cue", post_s=2.0, verbose=True, encoder=True):
+    """Joint-basis LOSO decoder + encoder for one animal. ``None`` if it has no basis / <2 sessions.
+    ``encoder=False`` (`--decoder-only`) skips the frozen encoder, so no encoder model is loaded or fitted."""
     try:
         from wfield_local.locanmf_cue_lick_analysis import SESSIONS as _ALL
         basis = joint_locanmf.load(animal, sessions=_ALL)   # warns if it predates the inputs
@@ -134,11 +135,17 @@ def run_animal(animal, labels, align="cue", post_s=2.0, verbose=True):
     feat = joint_features(basis)
     # THE DECODER'S builder keeps the cue indices (main 26fd5b44), so its frozen model can be trained on the pre-stroke
     # camera working trials (`locanmf_frozen_decoder.pool_work`); the encoder keeps `joint_features`
+    from wfield_local import lp_licks
     from wfield_local.precue_engagement_states import features_with_indices
+    # THE LP RUN'S DECODER IS THE ATTEMPT-CODING LP MODEL (copy D, Priya 11-09), found by exact spec. Its lick-aligned
+    # pool was built with the no-lick reference at the would-be lick (`attempt_coding`), which moves the engaged rows'
+    # scaling by ~1e-4 and so the training fingerprint: under LP the lick unit uses the same reference, or it would miss
+    # D. The DAQ lane keeps the cue reference (its stored models, copy C, are unchanged).
+    nolick_ref = "would_be_lick" if (align == "lick" and lp_licks.is_lp()) else "cue"
     dec = pooled_frozen_loso(labels, source="locanmf", align=align, post_s=post_s,
-                             verbose=verbose, features=features_with_indices(basis))
-    enc = pooled_frozen_encoder(labels, source="locanmf", align=align, post_s=post_s,
-                                verbose=verbose, features=feat)
+                             verbose=verbose, features=features_with_indices(basis, nolick_ref=nolick_ref))
+    enc = (pooled_frozen_encoder(labels, source="locanmf", align=align, post_s=post_s, verbose=verbose, features=feat)
+           if encoder else None)
     if dec is None and enc is None:
         return None
     meta = {"basis_id": basis.basis_id, "ncomp": basis.ncomp,
@@ -203,7 +210,7 @@ def fig_basis_health(results, out, align="cue"):
     return p
 
 
-def _joint_one(unit, *, dates):
+def _joint_one(unit, *, dates, encoder=True):
     """One (animal, alignment). Module level, so spawn can pickle it by name."""
     an, align = unit
     # POOLED = pre + post, never the raw date list: PS92/PS93 0817 is a post-lesion attempt that
@@ -213,7 +220,7 @@ def _joint_one(unit, *, dates):
         print(f"[joint_xsession] {an}: <2 curated sessions -> skipped", flush=True)
         return None
     print(f"\n=== {an} [{align}]: {len(labs)} curated sessions ===", flush=True)
-    return run_animal(an, labs, align=align)
+    return run_animal(an, labs, align=align, encoder=encoder)
 
 
 def main(argv=None) -> int:
@@ -224,6 +231,11 @@ def main(argv=None) -> int:
     ap.add_argument("--output", type=Path, required=True)
     ap.add_argument("--align", nargs="+", default=["cue", "precue"], choices=("cue", "precue", "lick"))
     ap.add_argument("--animals", nargs="+", default=None)
+    # THE LP RUN (11-09, Priya): its decoder IS the attempt-coding LP-trained model (copy D, found by exact spec under
+    # WIDEFIELD_LICK_SOURCE=lp); no LP joint encoder is stored and the grant figures read only the decoder JSON, so the
+    # LP run passes --decoder-only (with WIDEFIELD_FROZEN_LOAD_ONLY=1) and fits nothing.
+    ap.add_argument("--decoder-only", action="store_true",
+                    help="skip the frozen encoder (no encoder model loaded or fitted; decoder JSON / figures only)")
     ap.add_argument("--from", dest="from_dates", default=None,
                     help="date spec for the pooled sessions (default: the curated set)")
     args = ap.parse_args(argv)
@@ -244,7 +256,8 @@ def main(argv=None) -> int:
     # the box: four would leave two thirds of it idle, the cohort being the cap.
     units = [(an, al) for al in args.align for an in animals]
     got, failures = parallel.fan_out(
-        units, functools.partial(_joint_one, dates=dates), jobs=args.jobs, label="animal/align")
+        units, functools.partial(_joint_one, dates=dates, encoder=not args.decoder_only), jobs=args.jobs,
+        label="animal/align")
     got = sorted(got, key=lambda kv: repr(kv[0]))  # completion order -> unit order (T10)
     if failures:
         rc = 1

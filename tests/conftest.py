@@ -229,3 +229,64 @@ def pinned_epoch_boundaries(monkeypatch):
     epochs.clear_resolved()
     yield
     epochs.clear_resolved()
+
+
+@pytest.fixture(autouse=True)
+def no_leaked_trial_set():
+    """A driver-level `trial_set_text.declare` (Priya 11-09) is PROCESS state: a test that calls a driver's main would
+    otherwise stamp every later test's figures (and break the byte-identical no-trial-set checks). Cleared around
+    every test, together with any context activation."""
+    from wfield_local import trial_set_text as tst
+    tst.declare()
+    tok = tst._ACTIVE.set(None)
+    yield
+    tst._ACTIVE.reset(tok)
+    tst.declare()
+
+
+@pytest.fixture(autouse=True)
+def fresh_loader_memos():
+    """Start and end every test with the per-process loader memos empty (profile 11-09): `config.load_sessions`,
+    `plot_spout_trial_averages._load_daq_events` (`session_memo.per_path`), the session-cache folder listing
+    `joint_locanmf._cache_glob` reads and the parsed paths.yaml. A test that patches the resolver, a root or a fixture
+    file must not see a previous test's answer."""
+    def clear():
+        from wfield_local import config, joint_locanmf, paths, plot_spout_trial_averages
+        config.load_sessions.cache_clear()
+        clr = getattr(plot_spout_trial_averages._load_daq_events, "cache_clear", None)
+        if clr is not None:                    # a test may have monkeypatched the loader itself
+            clr()
+        joint_locanmf._DIR_LISTING.clear()
+        paths._YAML_MEMO.clear()
+    clear()
+    yield
+    clear()
+
+
+@pytest.fixture(autouse=True)
+def one_iti_licks(monkeypatch):
+    """Every loaded script module sees the SAME `iti_licks` module object as `sys.modules` (11-09). A test that drops
+    `iti_licks` from `sys.modules` (to re-import it under another env) leaves drivers imported earlier (`import iti_licks
+    as il`) holding the OLD object; a later fixture that patches `iti_licks.OUT` then patches the NEW one and the driver
+    writes to the live share. Re-point stale references (or put the referenced object back) for the test's duration."""
+    import sys
+    scripts = str(pathlib.Path(__file__).resolve().parents[1] / "scripts").lower()
+    held = []
+    for _name, mod in list(sys.modules.items()):
+        f = str(getattr(mod, "__file__", "") or "").lower()
+        if not f.startswith(scripts):
+            continue
+        for attr, val in list(vars(mod).items()):
+            if getattr(val, "__name__", None) == "iti_licks" and isinstance(val, type(sys)):
+                held.append((mod, attr, val))
+    if not held:
+        yield
+        return
+    cur = sys.modules.get("iti_licks")
+    if cur is None:
+        monkeypatch.setitem(sys.modules, "iti_licks", held[0][2])
+        cur = held[0][2]
+    for mod, attr, val in held:
+        if val is not cur:
+            monkeypatch.setattr(mod, attr, cur)
+    yield

@@ -29,6 +29,8 @@ FIG = "lick_cued_spout_animal_panels.png"
 
 def compute() -> dict:
     """Per (animal, spout): {epoch: dict(map, n, r_pre)} + the imaging grid."""
+    from wfield_local import mask_keys
+    mask_keys.check_sidecar(il.OUT / "spout_pattern_sessions.pkl")   # stale-read guard (11-09)
     SM = pickle.loads((il.OUT / "spout_pattern_sessions.pkl").read_bytes())
     panels = {}
     for a, sp in [(a, sp) for a in AN for sp in SPOUTS]:
@@ -73,7 +75,15 @@ def plot(D: dict) -> None:
     plt.close(fig)
 
 
+def trial_set_sentence() -> str:
+    """Cued licks of the per-spout maps (spout_pattern_sessions.pkl = iti_spout_pattern_stats, cued; Priya 11-09)."""
+    from iti_spout_patterns import set_caption
+    return set_caption("trial")
+
+
 def main() -> int:
+    from wfield_local import trial_set_text as tst
+    tst.declare(text=trial_set_sentence())
     if plot_only():
         D = load_fd(FIG)
     else:

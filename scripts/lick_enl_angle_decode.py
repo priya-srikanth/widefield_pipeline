@@ -491,10 +491,36 @@ def prepare(T: pd.DataFrame) -> tuple[pd.DataFrame, list]:
     return T, [c[4:] for c in T.columns if c.startswith("w10:")]
 
 
+def lickfree_text(W: float, lf: str) -> str:
+    """The ENL lick-free rule ``lf`` of window ``W`` (`select` / `session_trials`) in words, from the constants."""
+    from wfield_local import enl_window
+    if lf == "slide":
+        import lick_cued_ramp as cr                       # cued_wide lag grid (the traces' -2 s edge)
+        return (f"ENL window: sliding lick-free {W:g} s window ending <= {-W_END:g} s before the cue: [cue - {W:g} s, cue "
+                f"{W_END:+g} s] when no licks_all onset (any context) falls in [cue - {W:g} s, cue), else the latest "
+                f"lick-free {W:g} s gap starting >= {enl_window.SETTLE_S:g} s after the spout strobe and >= "
+                f"{float(cr.LAGS_W[0]):g} s from the cue (enl_window.sliding_lags)")
+    L = {"W": W, "2s": LF_LONG}[lf]
+    return f"ENL window fixed [cue - {W:g} s, cue {W_END:+g} s]; no licks_all onset (any context) in [cue - {L:g} s, cue)"
+
+
+def trial_set_sentence(W: float = 1.0, lf: str = LF_PRIMARY) -> str:
+    """The trials of `select(T, W, lf)` (Priya 11-09: every figure states exactly which trials)."""
+    import lick_cued_ramp as cr
+    from wfield_local import trial_set_text as tst
+    return tst.events(cr.cued_first_what(), unit="trials",
+                      keep=[cr.first_window_text(), f"first lick matched to a 3-D bout-first post-cue lick (peak within -0.02..+{MATCH_S:g} s of "
+                            "the onset)", lickfree_text(W, lf)],
+                      excluded=["trials without a lick-free ENL window", "trials with a licks_all onset between the cue "
+                                "and the first-lick onset", "trials without a matched 3-D lick"])
+
+
 def main() -> int:
     from wfield_local import writeguard
     writeguard.assert_writable(OUT / "enl_angle_decode_pre.csv")
     il.split_only("lick_enl_angle_decode.py")
+    from wfield_local import trial_set_text as tst
+    tst.declare(text=trial_set_sentence(1.0, LF_PRIMARY))      # the figure draws W 1.0, LF_PRIMARY (figure())
     jobs = int(sys.argv[sys.argv.index("--jobs") + 1]) if "--jobs" in sys.argv else 6
     nshuf = int(sys.argv[sys.argv.index("--nshuf") + 1]) if "--nshuf" in sys.argv else 200
     T = extract(jobs) if (not TRIALS.exists() or "--extract" in sys.argv) else pd.read_csv(TRIALS)

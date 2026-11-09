@@ -133,9 +133,20 @@ def plot(S: pd.DataFrame, T: pd.DataFrame, angle: bool = False) -> None:
     plt.close(fig)
 
 
+def trial_set_sentence() -> str:
+    """Cued licks only, per spout cells of >= MIN licks per session (Priya 11-09; the ITI rows are never read, so no ITI
+    filter enters)."""
+    import iti_where_decoder as wd
+    return wd.cued_caption(tracked="lateral + sagittal + outward",
+                           spout="spout = the trial's target spout (one of the six)",
+                           extra=[f"cells with >= {MIN} licks per session x spout"])
+
+
 def main(argv=None) -> int:
+    from wfield_local import trial_set_text as tst
     angle = "--angle" in (argv if argv is not None else sys.argv[1:])
     sfx = "_angle" if angle else ""
+    tst.declare(text=trial_set_sentence())
     if plot_only():                       # redraw from figdata only: no data, no bootstrap
         F = load_fd(f"lick_cued_overcorrection{sfx}")
         plot(F["S"], F["T"], F["angle"])

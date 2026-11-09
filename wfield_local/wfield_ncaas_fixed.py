@@ -53,7 +53,9 @@ def _read_default_aws_credentials() -> dict[str, str]:
 
 def _patch_wfield_s3_connect() -> None:
     import boto3
-    import wfield.ncaas_utils as ncaas_utils
+
+    from wfield_local.wfield_import import import_wfield
+    ncaas_utils = import_wfield("wfield.ncaas_utils")   # no matplotlib style leak (wfield_import)
 
     def s3_connect_with_session_token():
         aws = _read_default_aws_credentials()
@@ -75,13 +77,14 @@ def main() -> None:
     QProgressBar.setValue = _set_value_int
     _patch_wfield_s3_connect()
 
-    import wfield.ncaas_gui as ncaas_gui
+    from wfield_local.wfield_import import import_wfield
+    ncaas_gui = import_wfield("wfield.ncaas_gui")
 
     ncaas_gui.QProgressBar.setValue = _set_value_int
 
     # ncaas_gui imports s3_connect into its module namespace via import *.
     # Patch that copy too so all GUI paths use the session-token-aware helper.
-    import wfield.ncaas_utils as ncaas_utils
+    ncaas_utils = import_wfield("wfield.ncaas_utils")
 
     ncaas_gui.s3_connect = ncaas_utils.s3_connect
 

@@ -184,13 +184,32 @@ def plot(D: dict, levels: bool = False) -> None:
     plt.close(fig)
 
 
+def trial_set_sentence(label: str | None = None) -> str:
+    """The licks of one map family (Priya 11-09): position = the held-out position patterns of
+    iti_decoder_pattern_stats (ITI + cued, lateral + sagittal tracked, sessions with >= 20 licks); spout / spout_iti =
+    the one-vs-rest spout maps of iti_spout_pattern_stats; None = all three."""
+    import iti_where_decoder as wd
+    from iti_spout_patterns import set_caption
+    from wfield_local import trial_set_text as tst
+    if label == "spout":
+        return set_caption("trial")
+    if label == "spout_iti":
+        return set_caption("iti")
+    pos = wd.both_caption("")
+    return pos if label == "position" else tst.union(pos, set_caption("trial"), set_caption("iti"))
+
+
 def plot_all(D: dict) -> None:
     """Main figure + the supplementary all-levels figure."""
-    plot(D)
-    plot(D, levels=True)
+    from wfield_local import trial_set_text as tst
+    with tst.active(None, text=trial_set_sentence(D.get("label"))):
+        plot(D)
+        plot(D, levels=True)
 
 
 def main() -> int:
+    from wfield_local import trial_set_text as tst
+    tst.declare(text=trial_set_sentence())
     if plot_only():
         for label, fn in FIG_NAME.items():
             if fd_path(fn).exists():
@@ -209,6 +228,8 @@ def main() -> int:
         if not f.exists():
             print(f"  (skip {label}: {fn} not built yet)")
             continue
+        from wfield_local import mask_keys
+        mask_keys.check_sidecar(f)               # stale-read guard (11-09)
         SM = pickle.loads(f.read_bytes())
         T = family(SM, groups or POS, label, A, keep, n_perm)
         T.to_csv(il.OUT / f"pattern_area_stats_{label}.csv", index=False)

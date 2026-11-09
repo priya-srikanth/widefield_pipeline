@@ -61,6 +61,28 @@ def _within(y: np.ndarray, pos: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     return out, keep
 
 
+def family_sentence(fam: str) -> str:
+    """The licks behind one map family of these per-session maps (Priya 11-09; read by iti_session_pattern_tests /
+    iti_session_cluster_tests, which draw them). fam: position | within_spout | spout_cued | spout_iti (or a map key
+    prefix "iti" / "trial")."""
+    import iti_where_decoder as wd
+    from wfield_local import trial_set_text as tst
+    kw = dict(tracked="the map's target coordinate", min_n=MIN_LICKS, unit=" (per map)")
+    if fam == "all":               # every family together (whole-map tests, similarity)
+        kw.update(tracked="", unit=" per map (position maps: target coordinate tracked; spout maps: licks at the six "
+                                   "spouts)")
+        ex = [f"within-spout and one-vs-rest spout maps: spouts with >= {MIN_SPOUT} licks in the session"]
+        return tst.union(wd.iti_caption("", extra=ex, **kw), wd.cued_caption(extra=ex, **kw))
+    if fam in ("spout_cued", "spout_iti"):
+        kw.update(tracked="", unit=" at the six spouts")
+        sp = [f"one-vs-rest map per spout with >= {MIN_SPOUT} licks of it"]
+        return (wd.cued_caption(extra=sp, **kw) if fam == "spout_cued"
+                else wd.iti_caption("", extra=sp, spout="spout = the previous trial's spout", **kw))
+    ex = ([f"within-spout target: spouts with >= {MIN_SPOUT} licks in the session (one of the six)"]
+          if fam == "within_spout" else [])
+    return tst.union(wd.iti_caption("", extra=ex, **kw), wd.cued_caption(extra=ex, **kw))
+
+
 def main() -> int:
     from recovery_timing import series
 

@@ -44,6 +44,8 @@ import iti_licks as il  # noqa: E402
 import lick_cued_ramp as cr  # noqa: E402
 from fr_musall import AN  # noqa: E402
 
+from wfield_local import mask_keys  # noqa: E402
+
 OROFACIAL = ["ALM", "tjM1", "SSp-m", "SSp-n"]
 PAIRS = [*OROFACIAL, "orofacial"]
 HEMI = ("right", "left")                     # right = contralesional, left = ipsilesional
@@ -83,6 +85,7 @@ def work(label: str) -> dict:
     from wfield_local.hemo_variants import functional_channel
     d = il._load(label)
     z = np.load(il.OUT_W / cr.WIDE / f"{label}.npz")
+    mask_keys.check_obj(z, il.OUT_W / cr.WIDE / f"{label}.npz")   # stale-read guard (11-09)
     tl, pos = _times(label), np.asarray(z["pos"], str)
     if len(tl) != len(pos):
         raise RuntimeError(f"{label}: {len(tl)} cached first-lick times vs {len(pos)} cued_wide rows")
@@ -391,11 +394,28 @@ def figure(D: pd.DataFrame, C: pd.DataFrame) -> None:
     print(f"== wrote {out}")
 
 
+def trial_set_sentence() -> str:
+    """The lick sets of the raw-balance imaging control (Priya 11-09; = lick_lateral_ratio's): the first cued lick of each
+    engaged trial (lick_cued_ramp cued_wide rows, `iti_licks.extract` first licks) and the ITI bout starts with no lick
+    in the preceding il.GAP_MAIN s, cells with >= cr.MIN_N licks."""
+    from wfield_local import trial_set_text as tst
+    a, b = float(il.LAGS_C[0]), float(il.LAGS_C[-1])
+    cell = f"cells with >= {cr.MIN_N} licks"
+    first = tst.events("FIRST behavior lick onset after the cue of each ENGAGED trial (orofacial_cohort.engagement_keep "
+                       "at extraction), before the trial's stop (cue + 3.5 s when none)",
+                       keep=[f"cue {a:+g}..{b:+g} s inside the imaging", cell],
+                       excluded=["later licks of the trial", "non-engaged trials", "ITI licks"])
+    bouts = tst.iti_bout_starts(il.GAP_MAIN, il.CUE_EXCL, extra=[cell])
+    return tst.union(first, bouts)
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--jobs", type=int, default=6)
     ap.add_argument("--summarise", action="store_true")
     a = ap.parse_args(argv)
+    from wfield_local import trial_set_text as tst
+    tst.declare(text=trial_set_sentence())          # every figure states its lick set (Priya 11-09)
     if not a.summarise or not SESS.exists():
         extract(min(a.jobs, 8))
     summarise()

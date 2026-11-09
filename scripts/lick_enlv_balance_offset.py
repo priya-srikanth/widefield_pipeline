@@ -105,6 +105,101 @@ VLAB = {"on1": "PRIMARY onset >= 1.0 s", "on1_clean": ">= 1.0 s, bout starts", "
         "on1_noncontact": ">= 1 s, non-contact only", "on1_nonearcue": ">= 1 s, minus non-contact < 2 s pre-cue",
         "on1_short": ">= 1 s, SHORT window 0.1-0.25 s", "on1_nocuerule": ">= 1 s, cue rule OFF"}
 MK = {"PS92": "o", "PS93": "s", "PS94": "^", "PS95": "D"}
+NEAR_CUE_S = 2.0     # on1_nonearcue: non-contact licks this close before the cue are dropped
+
+
+# ================================================================================================ trial-set captions
+# Priya 11-09: "EVERY figure must state EXACTLY which trials were included / excluded". ENLv lick sets, worded from
+# VARIANTS (`select`) and the lick table's own constants (enl_lick_audit); lick_enlv_curves / lick_enlv_target_code reuse
+# these.
+ENLV_WHAT = ("ENLv licks (ENL-violation, NOT ITI: cam4 licks_all context pre_cue, spout strobe <= onset < cue; spout in "
+             "place, no cue, no reward; imaging sessions)")
+
+
+def variant_keep(v: str) -> list[str]:
+    """The inclusion rules of ENLv variant ``v`` (`select`) as phrases."""
+    import enl_lick_audit as ela
+    kind, (lo, hi), clean, cue_end, sig, contact, nonear = VARIANTS[v]
+    out = [f"onset >= {lo:g} s after spout arrival (strobe)" if not np.isfinite(hi)
+           else f"onset {lo:g}-{hi:g} s after spout arrival (strobe)"]
+    if kind == "first":
+        out.append("the FIRST ENLv lick of each trial only")
+    elif kind == "later":
+        out.append("LATER ENLv licks only (not the trial's first)")
+    if clean:
+        out.append(f"bout starts only (clean_start: >= {ela.CLEAN_PRE_S:g} s since any lick, >= {ela.ARRIVAL_S:g} s "
+                   "after arrival)")
+    if cue_end is not None:
+        out.append(f"lick peak + {cue_end:g} s before the measured cue (analysis window ends before the cue)")
+    else:
+        out.append("no cue rule")
+    if contact is not None:
+        out.append("spout-contact licks only" if contact else "non-contact licks only")
+    if nonear:
+        out.append(f"minus non-contact licks < {NEAR_CUE_S:g} s before the cue")
+    if sig:                                           # same licks, other signal (names the variant; not a lick rule)
+        out.append({"_c": "arrival-corrected signals", "_s": "short balance window"}.get(sig, sig))
+    return out
+
+
+def variant_sentence(v: str = PRIMARY, extra=()) -> str:
+    from wfield_local import trial_set_text as tst
+    return tst.events(f"{ENLV_WHAT} [{v}: {VLAB.get(v, v)}]", keep=[*variant_keep(v), *extra],
+                      excluded=["ITI and post-cue licks"])
+
+
+def variants_sentence(vs) -> str:
+    """Several ENLv variants side by side (sweep figures): each named with its rules."""
+    from wfield_local import trial_set_text as tst
+    parts = [f"[{v}] " + ", ".join(variant_keep(v)) for v in vs]
+    return tst.events(ENLV_WHAT, keep=["variants shown: " + " | ".join(parts)], excluded=["ITI and post-cue licks"])
+
+
+def compare_sentence(sources=None) -> str:
+    """The lick sets of the ENLv-vs-cued / ITI comparison (`compare`; ``sources`` = the sources shown, None = all)."""
+    from wfield_local import trial_set_text as tst
+    show = set(sources) if sources else None
+    q = (f"same-place offset rows: every lick of the set; balance / matched-error / primary-balance / C-I rows: the "
+         f"FIRST post-cue lick (cued) or the ITI first lick after >= {il.GAP_MAIN:g} s quiet (ITI)")
+    parts = []
+    if show is None or "cued" in show:
+        parts.append(tst.cued_licks(extra=[q]))
+    iti = [("ITI all", ""), ("ITI docked", "dock"), ("ITI moving", "notdock")]
+    for k, f in iti:
+        if show is None or k in show:
+            parts.append(tst.iti_licks(filt=f, extra=[f"[{k}]", q]))
+    if show is None or any(str(x).startswith("ENLv") for x in show):
+        parts.append(variant_sentence(PRIMARY))
+        if show is None or any("bout" in str(x) for x in show):
+            parts.append(variant_sentence(BOUTS))
+    return tst.union(*parts)
+
+
+def figure_sentence(name: str) -> str:
+    """The set of figure ``name`` (a stem written by `draw`)."""
+    from wfield_local import trial_set_text as tst
+    if name == "lick_enlv_arrival":
+        return tst.union(variant_sentence("on0"), tst.frames(
+            "lick-free trials of the arrival check (strobe-aligned traces)",
+            keep=[f"no lick onset of any context from {ex.ARR_FREE_PRE_S:g} s before the strobe to the cue",
+                  f"cue >= {ex.ARR_MIN_SETTLE_S:g} s after the strobe", "samples after the cue masked"]), unit="events")
+    if name.startswith("lick_enlv_compare"):
+        return compare_sentence(("cued", "ITI all", "ENLv", "ENLv (iti reader)") if name.endswith("simple") else None)
+    if name.startswith("lick_enlv_sweep"):
+        return variants_sentence(SWEEP_SIMPLE_V if name.endswith("simple") else list(VARIANTS))
+    if name.startswith("lick_enlv_first_later"):
+        return variants_sentence(["first_on1", "later_on1"] if name.endswith("simple")
+                                 else ["first", "later", "first_corr", "later_corr", "first_on1", "later_on1"])
+    return variant_sentence(PRIMARY)
+
+
+def _trial_set_for(name: str):
+    import contextlib
+
+    from wfield_local import trial_set_text as tst
+    if tst.current() is None:
+        return contextlib.nullcontext()
+    return tst.active(None, text=figure_sentence(name))
 
 
 # ================================================================================================ per-lick table
@@ -129,6 +224,9 @@ def table() -> pd.DataFrame:
         if not f.exists():
             continue
         z, zr = np.load(f), np.load(ex.SESS_REG / f"{lab}.npz")
+        from wfield_local import mask_keys
+        mask_keys.check_obj(z, f)                 # stale-read guard (11-09)
+        mask_keys.check_obj(zr, ex.SESS_REG / f"{lab}.npz")
         if not (z["lick_uid"] == g.lick_uid.to_numpy()).all():
             raise RuntimeError(f"{lab}: lick order mismatch")
         cols = [str(c) for c in z["cols"]]
@@ -209,7 +307,7 @@ def select(L: pd.DataFrame, v: str) -> pd.Series:
     if contact is not None:
         m &= L.contact == contact
     if nonear:
-        m &= ~((~L.contact) & (L.t_to_cue < 2.0))
+        m &= ~((~L.contact) & (L.t_to_cue < NEAR_CUE_S))
     return m
 
 
@@ -429,6 +527,9 @@ def arrival(L: pd.DataFrame) -> dict:
     for f in sorted(ex.SESS_REG.glob("*.npz")):
         lab = f.stem
         zr, z = np.load(f), np.load(ex.SESS / f"{lab}.npz")
+        from wfield_local import mask_keys
+        mask_keys.check_obj(zr, f)                # stale-read guard (11-09)
+        mask_keys.check_obj(z, ex.SESS / f"{lab}.npz")
         cols = [str(c) for c in zr["cols"]]
         a, ep = lab[:4], str(epochs.epoch_of(lab))
         pool = {s: [cols.index(f"{x}_{h}") for x in ex.POOL] for s, h in (("c", "right"), ("i", "left"))}
@@ -796,14 +897,21 @@ def draw(F: dict) -> None:
     import matplotlib
     matplotlib.use("Agg")
     FIG.mkdir(parents=True, exist_ok=True)
-    fig_arrival(F["arrival"])
-    fig_compare(F["compare"])
-    fig_compare(F["compare"], ("cued", "ITI all", "ENLv", "ENLv (iti reader)"), "lick_enlv_compare_simple.png")
-    fig_perspout(F["TS"], F["AS"])
-    fig_sweep(F["T"])
-    fig_sweep(F["T"], SWEEP_SIMPLE_V, SWEEP_SIMPLE_M, "lick_enlv_sweep_simple.png")
-    fig_firstlater(F["T"])
-    fig_firstlater(F["T"], ["first_on1", "later_on1"], "lick_enlv_first_later_simple.png")
+    with _trial_set_for("lick_enlv_arrival"):
+        fig_arrival(F["arrival"])
+    with _trial_set_for("lick_enlv_compare"):
+        fig_compare(F["compare"])
+    with _trial_set_for("lick_enlv_compare_simple"):
+        fig_compare(F["compare"], ("cued", "ITI all", "ENLv", "ENLv (iti reader)"), "lick_enlv_compare_simple.png")
+    fig_perspout(F["TS"], F["AS"])                                  # PRIMARY (the process declaration)
+    with _trial_set_for("lick_enlv_sweep"):
+        fig_sweep(F["T"])
+    with _trial_set_for("lick_enlv_sweep_simple"):
+        fig_sweep(F["T"], SWEEP_SIMPLE_V, SWEEP_SIMPLE_M, "lick_enlv_sweep_simple.png")
+    with _trial_set_for("lick_enlv_first_later"):
+        fig_firstlater(F["T"])
+    with _trial_set_for("lick_enlv_first_later_simple"):
+        fig_firstlater(F["T"], ["first_on1", "later_on1"], "lick_enlv_first_later_simple.png")
 
 
 # ================================================================================================ main
@@ -873,7 +981,9 @@ def report(T, A, C, N, AR) -> None:
 
 
 def main() -> int:
+    from wfield_local import trial_set_text as tst
     OUT.mkdir(parents=True, exist_ok=True)
+    tst.declare(text=variant_sentence(PRIMARY))
     if "--table" in sys.argv:
         table()
         return 0

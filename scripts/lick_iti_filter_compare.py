@@ -83,7 +83,19 @@ def plot(F: dict) -> None:
     plt.close(fig)
 
 
+def trial_set_sentence() -> str:
+    """The ITI lick sets of lick_iti_filter_compare.png (Priya 11-09), each filter named with its definition."""
+    from wfield_local import trial_set_text as tst
+    parts = [f"[{lab}] " + (tst.ITI_FILTER_TEXT[tag[1:]] + " (decoder refit on the set)" if tag else "every ITI lick")
+             for tag, lab in SETS]
+    return tst.events(tst.ITI_LICK_WHAT, keep=["sets shown: " + " | ".join(parts),
+                                               "read-out over all spouts, all lick orders"],
+                      excluded=["post-cue (trial) licks"])
+
+
 def main() -> int:
+    from wfield_local import trial_set_text as tst
+    tst.declare(text=trial_set_sentence())
     if figdata.plot_only():
         F = figdata.load_fd(STEM)
     else:

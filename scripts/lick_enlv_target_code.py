@@ -233,7 +233,21 @@ def plot(F: dict) -> None:
     plt.close(fig)
 
 
+def trial_set_sentence() -> str:
+    """The lick sets of lick_enlv_target.png (Priya 11-09): the cued / ITI rows of lick_balance_target_model (cued first
+    post-cue lick, ITI first lick after >= il.GAP_MAIN s quiet) and the two ENLv sets (`ENLV_SETS`)."""
+    from wfield_local import trial_set_text as tst
+    have = "3-D angle, landing and pooled responses present"
+    parts = [tst.cued_licks(first_only=True, extra=[f"[cued: {tm.SETS['trial']}]"]),
+             tst.iti_licks(extra=[f"[ITI: {tm.SETS['iti']}]",
+                                  f"no lick onset in the preceding {il.GAP_MAIN:g} s"])]
+    parts += [bo.variant_sentence(v, extra=[f"spouts {', '.join(bo.POS)}", have]) for v in ENLV_SETS.values()]
+    return tst.union(*parts)
+
+
 def main() -> int:
+    from wfield_local import trial_set_text as tst
+    tst.declare(text=trial_set_sentence())
     if figdata.plot_only():
         F = figdata.load_fd("lick_enlv_target", bo.FD)
     else:

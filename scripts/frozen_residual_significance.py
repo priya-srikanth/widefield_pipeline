@@ -95,6 +95,13 @@ def run_tests(pre_by, post_by, n_boot=2000, n_perm=500, methods=("nested", "clus
     return out
 
 
+def trial_set_sentence(tag: str, spout: str, align: str) -> str:
+    """The trials of one residual-significance figure (Priya 11-09): the frozen run's modeled trials at ``spout`` (or
+    the mean over the session's spouts, "all"), cue- or first-lick-aligned evoked response."""
+    from wfield_local import frozen_encoder as fe
+    return fe.trial_set_sentence("peth", tag=tag, align=align, spout=spout)
+
+
 def main(argv=None) -> int:
     # coordinator 11-04: routed (outputs under the run tag), no longer refused in a tagged run
     import matplotlib
@@ -116,6 +123,8 @@ def main(argv=None) -> int:
     ap.add_argument("--bin", type=int, default=8, help="block size in px for the nested / per-animal bin tests (default 8; "
                     "Priya 11-05). Outputs of a non-default size carry _<bin>px; the cluster test is full resolution")
     a = ap.parse_args(argv)
+    from wfield_local import trial_set_text as tst
+    tst.declare(text=tst.union(*(trial_set_sentence(a.tag, a.spout, al) for al in a.aligns), unit="trials"))
     bx = "" if a.bin == 8 else f"_{a.bin}px"           # default 8 px keeps the original file names
     from wfield_local import frozen_encoder as _fe   # the encoder's (tagged) run root, coordinator 11-04
     out = _fe.out_root() / f"frozen_encoder_{a.tag}"
@@ -189,7 +198,8 @@ def main(argv=None) -> int:
                      f"residual,\npre-normalized, mean of animals. Contours: black = nested bootstrap on {a.bin} px blocks (primary), purple "
                      f"dashed = cluster.\nReference = all pre sessions (LOSO). Image left = ipsilesional.", fontsize=8)
         fig.tight_layout(rect=(0, 0, 1, 0.86))
-        fig.savefig(fd / f"residual_significance_{a.variant}_{a.spout}_{al}{bx}.png", dpi=130)
+        with tst.active(None, text=trial_set_sentence(a.tag, a.spout, al)):     # this figure's alignment
+            fig.savefig(fd / f"residual_significance_{a.variant}_{a.spout}_{al}{bx}.png", dpi=130)
         plt.close(fig)
     pd.DataFrame(rows).to_csv(out / f"residual_significance{'_per_animal' if a.per_animal else ''}{bx}.csv", index=False)
     print(f"-> {fd} (residual_significance_*.png), {out / 'residual_significance.csv'}")

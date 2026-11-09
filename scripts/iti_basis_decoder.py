@@ -37,6 +37,8 @@ import iti_licks as il  # noqa: E402
 import iti_where_decoder as wd  # noqa: E402
 from figdata import load_fd, save_fd  # noqa: E402
 
+from wfield_local import mask_keys  # noqa: E402
+
 FIG = "lick_basis_decoder"
 
 AN = ["PS92", "PS93", "PS94", "PS95"]
@@ -76,6 +78,8 @@ def extract(item) -> dict:
     label, source = item
     out = il.OUT / f"basis_{source}" / "sessions" / f"{label}.npz"
     if out.exists():
+        if source == "svdbasis":                  # stale-read guard (11-09): the svdbasis rows use the stat mask
+            mask_keys.check_npz(out)
         return {"label": label, "cached": True}
     d = il._load(label)
     R, ft = features(label, source)
@@ -87,7 +91,7 @@ def extract(item) -> dict:
         res[f"{st}_X"] = il._sample(R, ft, t[ok], LAGS).astype(np.float32)
         res[f"{st}_y"] = y[ok]
     out.parent.mkdir(parents=True, exist_ok=True)
-    np.savez_compressed(out, **res)
+    np.savez_compressed(out, **res, **mask_keys.stamp())
     return {"label": label, "n_feat": R.shape[1]}
 
 
@@ -108,6 +112,8 @@ def decode(source: str) -> pd.DataFrame:
                               z["tr_side"].astype(float))}
         else:
             z = np.load(sd / f"{x}.npz")
+            if wd.basis_dir(source) == "svdbasis":
+                mask_keys.check_obj(z, sd / f"{x}.npz")   # stale-read guard (11-09)
             k = wd.locanmf_keep(str(z["animal"])) if source == "locanmfM" else slice(None)   # masked LocaNMF
             D[x] = {"epoch": str(z["epoch"]), "animal": str(z["animal"]),
                     "iti": (z["iti_X"].astype(float)[..., k], z["iti_y"]),
@@ -221,6 +227,14 @@ def plot(D: dict) -> None:
     plt.close(fig)
 
 
+def trial_set_sentence() -> str:
+    """The lick set of lick_basis_decoder: the session files' ITI and post-cue licks (same licks in every basis),
+    sessions with >= 20 licks of the set (`decode`)."""
+    from wfield_local import trial_set_text as tst
+    ex = ["animals with >= 3 pre sessions"]
+    return tst.union(il.trial_set_iti(min_n=20, extra=ex), il.trial_set_cued(min_n=20, extra=ex))
+
+
 def main(argv=None) -> int:
     from wfield_local import analysis_kit as ak
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -230,6 +244,8 @@ def main(argv=None) -> int:
     ap.add_argument("--summarise", action="store_true")
     ap.add_argument("--plot-only", action="store_true", help="redraw the figure from its figure data alone")
     a = ap.parse_args(argv)
+    from wfield_local import trial_set_text as tst
+    tst.declare(text=trial_set_sentence())          # Priya 11-09: the figure states its lick set (replot too)
     if a.plot_only:
         plot(load_fd(FIG))
         return 0

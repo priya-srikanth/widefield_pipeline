@@ -28,8 +28,10 @@ READOUTS, per trial, from directions fitted on pre-stroke hits only (`position_c
                sum to ~0 (STATUS_2026-09-24_CD_TRAJECTORIES), so the other axes' mean is nearly a linear function of
                own and the index adds nothing (caught by the unit test, 10-24). A trial-wide state change is handled
                by the CONTRAST, not by the readout: every class is compared with `stopped` in the same sessions.
-  p_true, pred the STORED frozen pre-stroke position decoder (`locanmf_frozen_decoder.frozen_decoder_models`, the
-               DAQ-frozen model LP_licks reuses -- Priya 10-21): probability of the true spout and the decoded
+  p_true, pred the STORED LP-trained frozen pre-stroke position decoder (`locanmf_frozen_decoder.frozen_decoder_models`;
+               pre-stroke training trials chosen by LP video licks, pre-cue window 1.0 s, PS93_0813 not in the pool;
+               Priya 11-09: THE single LP frozen spout decoder, also loaded by the LP `joint_xsession` run, ids in
+               docs/status/DELETED_FROZEN_SPOUT_AB_2026-11-09.md): probability of the true spout and the decoded
                spout, per class (the "distance kept, side lost" confusion of the LP frozen decoders, now split by
                what the animal did). Pre-stroke rows use the stored leave-that-session-out model.
 Pre-stroke hits are scored LEAVE-ONE-SESSION-OUT (directions refitted without that day), so the 1.0 reference is not

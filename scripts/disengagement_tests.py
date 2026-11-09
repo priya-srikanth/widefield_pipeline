@@ -52,6 +52,8 @@ import pandas as pd  # noqa: E402
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from fr_musall import E  # noqa: E402
 
+from wfield_local import mask_keys  # noqa: E402
+
 #: which quit the tests use (Priya 11-05): "camera" (primary, `trial_classes.camera_quit`) | "daq" (the prereg's S28
 #: detector, labelled robustness row, written beside the primary)
 QUIT_ENV = "DISENGAGEMENT_QUIT"
@@ -293,6 +295,7 @@ def img_worker(lab: str) -> dict:
     if f.exists():
         z = np.load(f)
         if int(z["version"]) == VERSION:
+            mask_keys.check_obj(z, f)             # stale-read guard: built on the current analysis masks (11-09)
             return {"label": lab, "cached": True}
     import iti_licks as il
     import restnl
@@ -336,7 +339,7 @@ def img_worker(lab: str) -> dict:
     g1 = np.bincount(k[okk], weights=R0s[okk, 0], minlength=nb) / np.maximum(c1, 1)
     np.savez_compressed(f, version=VERSION, cue_s=cs, pre_b=pre_b, pre_0=pre_0, resp_b=resp_b, areas=np.array(AREAS),
                         lev=lev, lev_ok=ok, g1=np.where(c1 > 0, g1, np.nan), ft_first=ft[0] - cs[0],
-                        ft_last=ft[-1] - cs[0])
+                        ft_last=ft[-1] - cs[0], **mask_keys.stamp())
     return {"label": lab, "cached": False}
 
 
@@ -397,6 +400,8 @@ def _load_all():
         q = SESS / f"img_{lab}.npz"
         if q.exists():
             I[lab] = dict(np.load(q))
+            mask_keys.check_obj(I[lab], q)
+            I[lab].pop(mask_keys.FIELD, None)
     if daq_only:
         print(f"== quit = {QUIT}: no camera classes (no video) -> DAQ-only rows, left out here: {daq_only}", flush=True)
     return B, I
@@ -1404,8 +1409,11 @@ def _prep_imaging(B, I):
         im["lev_nl"] = lev
         im["sp2"], im["q"] = sp2, q
         # RESTW reference
+        rwf = il.OUT / "precue_restw" / f"{lab}.npz"
+        if rwf.exists():
+            mask_keys.check_npz(rwf)              # outside the try: a stale cache must stop the run, not read as NaN
         try:
-            z = np.load(il.OUT / "precue_restw" / f"{lab}.npz")
+            z = np.load(rwf)
             cs = [str(c) for c in z["cols"]]
             rw = np.array([float(z["restw"][cs.index(a)]) if a in cs else np.nan for a in AREAS])
             ok = bool(np.asarray(z["restw_ok"]).all()) if np.asarray(z["restw_ok"]).size else False

@@ -79,3 +79,44 @@ def verify(recorded: dict) -> dict:
         raise BundleMismatch("bundle settings do not reproduce the recorded run identity: "
                              + "; ".join(f"{k}: recorded {a!r} vs computed {b!r}" for k, (a, b) in bad.items()))
     return now
+
+
+# ------------------------------------------------------------------------------------------------ analysis masks (11-09)
+#: THE BUNDLE'S MASKS. `inputs/<label>.pkl` carries the imaging tuple (flat pixel index, stat mask, area masks), so its
+#: content depends on the brain / stat / painted masks, and `identity()` does not see them (the rebuild glue-mask bug,
+#: GLUE_MASK_FIX_2026-11-09). O2 has no share and cannot recompute the masks, so the digest
+#: (`mask_keys.signature()`) is computed at BUNDLE time and recorded twice: in bundle.json (``mask_sig``) and in every
+#: inputs pickle (``mask_sig``). The desktop compares bundle.json with its own current masks (`verify_masks`); the
+#: runner compares each pickle with bundle.json (`check_inputs`), i.e. against the bundle's own record.
+MASK_FIELD = "mask_sig"
+
+
+def verify_masks(meta: dict, now: str | None = None) -> None:
+    """DESKTOP side: REFUSE (BundleMismatch) a bundle whose recorded masks differ from this process's current masks, or
+    a bundle with no ``mask_sig`` recorded inside a rebuild root (every rebuild bundle before 11-09 was built with the
+    glue in). A legacy bundle at the default root (no rebuild_root recorded, none active) is accepted."""
+    from wfield_local import mask_keys, rebuild_root
+    have = meta.get(MASK_FIELD)
+    if not have:
+        if meta.get("rebuild_root") or rebuild_root.active():
+            raise BundleMismatch(f"bundle {meta.get('name', '')!r} records no {MASK_FIELD}: built before the 11-09 "
+                                 f"glue-mask fix inside a rebuild root (glue IN). Rebuild its inputs under a new name.")
+        return
+    now = mask_keys.signature() if now is None else now
+    if have != now:
+        raise BundleMismatch(f"bundle {meta.get('name', '')!r} was built on analysis masks {have}, current masks are "
+                             f"{now}. Rebuild its inputs under a new name.")
+
+
+def check_inputs(meta: dict, inputs: dict, label: str = "") -> None:
+    """RUNNER side (no share): REFUSE an inputs pickle whose ``mask_sig`` is not the bundle's recorded one. A bundle
+    with no record is refused when it was built inside a rebuild root, accepted otherwise (legacy default-root)."""
+    rec = meta.get(MASK_FIELD)
+    if not rec:
+        if meta.get("rebuild_root"):
+            raise BundleMismatch(f"{label}: bundle built in a rebuild root with no {MASK_FIELD} (before the 11-09 "
+                                 f"glue-mask fix: glue IN). Rebuild its inputs under a new name.")
+        return
+    have = inputs.get(MASK_FIELD) if isinstance(inputs, dict) else None
+    if have != rec:
+        raise BundleMismatch(f"{label}: inputs pickle built on analysis masks {have!r}, the bundle records {rec!r}.")

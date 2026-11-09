@@ -251,12 +251,23 @@ def plot(F: dict) -> None:
     plt.close(fig)
 
 
+def trial_set_sentence() -> str:
+    """The lick set of lick_behaviour_decoder (Priya 11-09): the refit decoders' licks, scored on ONE common set per
+    session (every cortical, FaceRhythm and kinematic feature finite), sessions with >= lr.MIN_LICKS common licks."""
+    import lick_area_importance as lai
+    common = (f"common set: every cortical, FaceRhythm ({len(il.FR_KEEP)} factors x 3 windows) and kinematic (reach, "
+              f"peak speed) feature finite; sessions with >= {lr.MIN_LICKS} common licks")
+    return lai.refit_lick_set(extra=[common])
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--plot-only", action="store_true")
     ap.add_argument("--animals", nargs="*")
     ap.add_argument("--jobs", type=int, default=None)
     a = ap.parse_args()
+    from wfield_local import trial_set_text as tst
+    tst.declare(text=trial_set_sentence())          # every figure states its lick set (Priya 11-09)
     il.split_only(STEM)
     if plot_only():
         plot(load_fd(STEM))

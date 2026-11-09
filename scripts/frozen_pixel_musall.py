@@ -102,6 +102,19 @@ def value(layout, q, v, e_q, e_joint, s):
     return (e_q - e_joint) / s
 
 
+def trial_set_sentence(tag: str, window: str, measures) -> str:
+    """The trials / frames of the figure (Priya 11-09): measure "all" = every modeled frame (`resid_mom`); PETH / trial
+    = the frozen Musall ``window`` from the basis moments (trials whose window runs past the recording excluded)."""
+    from wfield_local import frozen_encoder as fe
+    from wfield_local import trial_set_text as tst
+    out = []
+    if "all" in measures:
+        out.append(fe.trial_set_sentence("all", tag=tag))
+    if any(m != "all" for m in measures):
+        out.append(fe.trial_set_sentence("musall", tag=tag, align=window, pixel=True))
+    return out[0] if len(out) == 1 else tst.union(*out, unit="trials")
+
+
 def main(argv=None) -> int:
     import matplotlib
     matplotlib.use("Agg")
@@ -115,6 +128,8 @@ def main(argv=None) -> int:
     ap.add_argument("--measures", nargs="+", default=["avg", "trial"], choices=tuple(MLAB))
     ap.add_argument("--epochs", nargs="+", default=["acute", "chronic"], choices=EPS)
     a = ap.parse_args(argv)
+    from wfield_local import trial_set_text as tst
+    tst.declare(text=trial_set_sentence(a.tag, a.window, a.measures))
     run = E / f"frozen_encoder_{a.tag}"
     qs = [(q, v) for q, v in QS[a.layout] if v is None or (run / v / "sessions").is_dir()]
     missing = [v for _q, v in QS[a.layout] if v is not None and not (run / v / "sessions").is_dir()]
@@ -259,7 +274,8 @@ def main(argv=None) -> int:
     fig.subplots_adjust(left=0.05, right=0.995, top=1 - 1.0 / (2.6 * len(rws) + 1.3), bottom=0.05,
                         wspace=0.05, hspace=0.3)
     p = out / f"{stem}.png"
-    save_png_svg(fig, p, dpi=105)
+    with tst.active(None, text=trial_set_sentence(a.tag, a.window, meas)):     # the measures actually drawn
+        save_png_svg(fig, p, dpi=105)
     plt.close(fig)
     print("->", p)
     return 0

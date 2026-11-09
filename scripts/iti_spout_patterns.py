@@ -33,6 +33,17 @@ EP = ["pre", "acute", "subacute", "chronic"]
 COLS = [*EP, "chronic - pre"]
 FIG = "lick_cued_spout_patterns"
 POS = ["close_ipsi", "close_mid", "close_contra", "far_ipsi", "far_mid", "far_contra"]
+MIN_LICKS = 30      # a session enters the per-spout maps with >= this many licks at the six spouts
+
+
+def set_caption(st: str = "trial") -> str:
+    """The licks of the one-vs-rest spout maps (Priya 11-09; this script, iti_spout_pattern_stats, iti_spout_animal_panels,
+    iti_pattern_area_stats): cued licks by target spout, or (st "iti") ITI licks by the previous trial's spout."""
+    import iti_where_decoder as wd
+    kw = dict(tracked="", min_n=MIN_LICKS, unit=" at the six spouts")
+    if st == "iti":
+        return wd.iti_caption("", spout="spout = the previous trial's spout (one of the six)", **kw)
+    return wd.cued_caption(spout="spout = the trial's target spout (one of the six)", **kw)
 
 
 def compute():
@@ -48,7 +59,7 @@ def compute():
             X, _C = d["trial"]
             P = np.array([p if p in POS or "_" not in p else oc.pos_key(p, "L") for p in d["trial_pos"]])
             ok = np.isin(P, POS)
-            if ok.sum() >= 30:
+            if ok.sum() >= MIN_LICKS:
                 S[x] = (d["epoch"], X[ok], P[ok])
         by = {ep: sorted(x for x, v in S.items() if v[0] == ep) for ep in EP}
         if len(by["pre"]) < 3:
@@ -143,6 +154,8 @@ def plot(D: dict) -> None:
 
 
 def main() -> int:
+    from wfield_local import trial_set_text as tst
+    tst.declare(text=set_caption("trial"))
     if plot_only():                                       # redraw from the figure data alone
         plot(load_fd(FIG))
         return 0

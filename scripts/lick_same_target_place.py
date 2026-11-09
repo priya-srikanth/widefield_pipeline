@@ -177,11 +177,24 @@ def draw(D: dict) -> None:
     plt.close(fig)
 
 
+def trial_set_sentence(animals=None) -> str:
+    """THE lick set of the figure (Priya 11-09): KEY per-lick cache rows (run's ITI filter), finite landing and decoded
+    value; the same-target rows score only licks with a same-target same-place pre reference (coverage)."""
+    import lick_refit_decoders as rd
+    extra = ["finite landing and decoded position",
+             "same-target rows: only licks with a same-target same-place pre reference"]
+    if animals:
+        extra.append("animals " + ", ".join(animals) + " only")
+    return rd.key_sets(filt=None, extra=extra)
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--plot-only", action="store_true")
     ap.add_argument("--animals", nargs="*")
     a = ap.parse_args()
+    from wfield_local import trial_set_text as tst
+    tst.declare(text=trial_set_sentence(None if a.plot_only else a.animals))
     if plot_only():
         draw(load_fd(STEM))
         return 0

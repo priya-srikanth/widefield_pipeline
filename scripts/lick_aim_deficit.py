@@ -106,7 +106,21 @@ def plot(S: pd.DataFrame, rel: dict) -> None:
     plt.close(fig)
 
 
+def trial_set_sentence() -> str:
+    """The lick sets of the aim-deficit comparison (Priya 11-09): the cued decoding licks of the session files with a
+    3-D lateral + sagittal tip position at one of the six spouts (`iti_recovery_measure.aim_licks`); FIRST = lick_idx 0;
+    per spout >= MIN_LICKS licks of the set."""
+    import lick_covariate_reference as cv
+    from wfield_local import trial_set_text as tst
+    c = "3-D lateral + sagittal tip position"
+    first = cv.session_cued(first_only=True, coords=c, extra=[f">= {rm.MIN_LICKS['first']} per spout x session"])
+    allk = cv.session_cued(coords=c, extra=[f">= {rm.MIN_LICKS['all']} per spout x session"])
+    return tst.union(first, allk)
+
+
 def main() -> int:
+    from wfield_local import trial_set_text as tst
+    tst.declare(text=trial_set_sentence())          # every figure states its lick set (Priya 11-09)
     if "--plot-only" in sys.argv and FD.exists():
         S, rel = pickle.loads(FD.read_bytes())
     else:

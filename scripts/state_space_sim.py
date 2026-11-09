@@ -248,14 +248,54 @@ def _bin(z, keep, align):
     return np.concatenate(parts, axis=1)
 
 
+# MASK-KEYED BINNED CACHE (11-09, the rebuild glue-mask bug). The Allen-basis binned arrays are ROI means of the ITI
+# extracts, so they depend on the analysis masks; the path used not to. They now live under
+# <CACHE>/m<mask_keys.signature()>/<align>/ (the pre-fix <CACHE>/<align>/ folders are never read), and every extract read
+# is checked against the current masks: these are REBUILD-ROOT extracts named explicitly (ITI), so one without mask_sig
+# (built before the fix, glue IN) is refused whether or not the profile is active. The LocaNMF / SVD per-trial files
+# are not on the analysis masks (LocaNMF: components dropped at load by `_lnmf_keep`; SVD: `_check_svd_mask`).
+def _bcache():
+    """The binned-cache root of this basis: mask-keyed for the Allen extract."""
+    if BASIS != "allen":
+        return CACHE
+    from wfield_local import mask_keys
+    return CACHE / f"m{mask_keys.signature()}"
+
+
+def _check_extract(z, p):
+    """An Allen ITI extract (it has `cols`) must be on the current analysis masks; component files pass."""
+    if "cols" in z.files:
+        from wfield_local import mask_keys
+        mask_keys.check_obj(z, p, rebuild=True)
+
+
+_SVD_OK: list = []
+
+
+def _check_svd_mask():
+    """The cohort SVD basis was built on `mask.npy` (shipped = `beta_maps.brain_mask()` at bundle time): refuse it when
+    the current brain mask differs (a basis on other masks)."""
+    if BASIS != "svd" or _SVD_OK:
+        return
+    from wfield_local import beta_maps
+    f = SVD.parent / "basis" / "mask.npy"
+    m = np.load(f).ravel().astype(bool)                               # saved ravelled (o2_state_space_svd MASK)
+    bm = np.asarray(beta_maps.brain_mask(), bool).ravel()
+    if m.size != bm.size or not np.array_equal(m, bm):
+        raise RuntimeError(f"{f}: the SVD basis was built on another brain mask ({int(m.sum())} px) than the current "
+                           f"one ({int(bm.sum())} px); rebuild the basis.")
+    _SVD_OK.append(True)
+
+
 def fill_cache(paths, cache=None):
-    """One read of each extract -> binned arrays for EVERY alignment (<cache>/<align>/<label>.npz; default CACHE)."""
-    cache = Path(cache or CACHE)
+    """One read of each extract -> binned arrays for EVERY alignment (<cache>/<align>/<label>.npz; default `_bcache()`)."""
+    cache = Path(cache or _bcache())
     for p in paths:
         lab = Path(p).stem
         if all((cache / a / f"{lab}.npz").exists() for a in SEGMENTS):
             continue
         z = np.load(p, allow_pickle=True)
+        _check_extract(z, p)
         cols = _cols(z)
         keep = [i for i, c in enumerate(cols) if c != "cortex"]
         for a in SEGMENTS:
@@ -278,12 +318,13 @@ def _fill_one(item):
 def prefill(paths, jobs=3):
     """Bin every uncached file once, fanned over a few workers (rule 6: these read the share; few, it is a shared box).
     The atlas names are resolved first, in this process, so workers never race to write them."""
-    todo = [p for p in paths if not all((CACHE / a / f"{Path(p).stem}.npz").exists() for a in SEGMENTS)]
+    bc = _bcache()
+    todo = [p for p in paths if not all((bc / a / f"{Path(p).stem}.npz").exists() for a in SEGMENTS)]
     if not todo:
         return
     names = dict(_atlas_names()) if BASIS == "lnmf" else {}
     from wfield_local import analysis_kit as kit
-    _, fail = kit.fan_sessions([(p, str(CACHE), names) for p in todo], _fill_one, jobs=min(jobs, len(todo)), label="bin")
+    _, fail = kit.fan_sessions([(p, str(bc), names) for p in todo], _fill_one, jobs=min(jobs, len(todo)), label="bin")
     if fail:
         raise RuntimeError(f"binning failed for {len(fail)} file(s): {fail}")
 
@@ -305,7 +346,7 @@ def _pre_stats(an):
     """Per-animal (area SD, cortex-wide unit vector) from the animal's pre sessions in the current alignment's cache."""
     if an not in _XSTATS:
         rows = []
-        for f in sorted((CACHE / ALIGN).glob(f"{an}_*.npz")):
+        for f in sorted((_bcache() / ALIGN).glob(f"{an}_*.npz")):
             z = np.load(f)
             if str(z["epoch"]) == "pre":
                 xb = _mask_cols(z["xb"], [str(x) for x in z["cols"]], an)[0]   # the same columns `load` returns
@@ -332,10 +373,15 @@ def _xform(xb, pos, an):
 
 
 def _lnmf_keep(animal):
-    """bool (ncomp,): the pinned joint-LocaNMF components of ``animal`` NOT occluded by glue / bulb (cached in CACHE)."""
+    """bool (ncomp,): the pinned joint-LocaNMF components of ``animal`` NOT occluded by glue / bulb (cached in CACHE).
+
+    The file name carries the digest of the animal's `component_exclusion.excluded_pixels` content (11-09): before the
+    glue-mask fix that mask was bulbs-only under the rebuild profile, so the old ``lnmf_keep_<animal>_<bid>.npy`` files
+    may keep glue components and are never read."""
     from wfield_local import joint_locanmf as jl
+    from wfield_local import mask_keys
     bid = jl.pinned(animal)["id"]
-    f = CACHE / f"lnmf_keep_{animal}_{bid}.npy"
+    f = CACHE / f"lnmf_keep_{animal}_{bid}_x{mask_keys.exclusion_signature(animal)}.npy"
     if not f.exists():
         from wfield_local import component_exclusion as cx
         np.save(f, ~cx.occluded(jl.load(animal, bid=bid, warn_stale=False), animal))
@@ -353,7 +399,8 @@ def _mask_cols(xb, cols, animal):
 
 
 def load(path):
-    c = CACHE / ALIGN / f"{Path(path).stem}.npz"
+    _check_svd_mask()
+    c = _bcache() / ALIGN / f"{Path(path).stem}.npz"
     if BASIS != "allen" and not c.exists():
         fill_cache([path])                                             # compressed component files: bin once
     if c.exists():
@@ -364,6 +411,7 @@ def load(path):
     if XFORM:
         raise FileNotFoundError(f"WF_SS_XFORM needs the binned cache: {c}")
     z = np.load(path, allow_pickle=True)
+    _check_extract(z, path)
     cols = _cols(z)
     keep = [i for i, c in enumerate(cols) if c != "cortex"]
     xb = _bin(z, keep, ALIGN)                                          # trials x bins x areas

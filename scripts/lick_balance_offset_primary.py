@@ -28,7 +28,21 @@ PAIRS = [("cued first lick -> aim", "cued", "cued: first post-cue lick"),
 AN = ["PS92", "PS93", "PS94", "PS95"]
 
 
+def trial_set_sentence() -> str:
+    """The lick sets of lick_balance_offset_primary (Priya 11-09): the primary balance on the first post-cue lick and the
+    ITI first lick after quiet (recprim_sessions; and its inside-pre-range version), against the offset of ALL KEY-set
+    cued / ITI licks (balreg_sessions)."""
+    import lick_balance_subsets as lbs
+    import lick_covariate_reference as cv
+    from wfield_local import trial_set_text as tst
+    bal = lbs.set_sentence(("trial_1", "iti_q"), full=False, inside=False, subset=bool(il.ITI_SUBSET),
+                           extra=["balance axis (second version: post licks inside the pre 2.5-97.5 % angle range)"])
+    return tst.union(bal, cv.key_lick_set(iti_extra=["offset axis"], cued_extra=["offset axis"]))
+
+
 def main() -> int:
+    from wfield_local import trial_set_text as tst
+    tst.declare(text=trial_set_sentence())          # every figure states its lick set (Priya 11-09)
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt

@@ -44,6 +44,21 @@ AR = ALLEN[:5] + SPLIT[:4] + ALLEN[5:7] + SPLIT[4:]
 #: where the FROZEN_PIX_MUSALL basis re-runs live (`--pix-root` for a dry run); the basis itself stays in the original
 PIX = {k: f"{v}_basis_pixmusall" for k, v in RUNS.items()}
 PIX_ROOT = E
+#: the split rows' trial set beyond the area run's: the basis moments keep only trials whose window is fully recorded
+SPLIT_TRIALS = ("ALM / tjM1 / MOs_rest / MOp_rest rows (basis moments): trials whose window runs past the recording "
+                "also excluded")
+
+
+def trial_set_sentence(window: str | None = None) -> str:
+    """The trials / frames of a claims figure (Priya 11-09): the frozen Musall ``window`` of both frames (noFR and FR-A
+    model the same trials), or (``window`` None) the recovery-trend figure = the lick window + its behavior panel."""
+    from position_coding_trend_recovery import RESP_WIN
+    from wfield_local import frozen_encoder as fe
+    if window is not None:
+        return f"{fe.trial_set_sentence('musall', tag=RUNS['noFR'], align=window)}; {SPLIT_TRIALS}"
+    return (f"{fe.trial_set_sentence('musall', tag=RUNS['noFR'], align='lick')}; behavior panel: far-contra contact = "
+            f"share of post-cue cam4 licks (licks.csv, 0 .. {RESP_WIN:g} s after the cue) on the engaged trials at far "
+            "contra that touch the spout")
 
 
 def unique(folder: str, groups: dict, measure: str) -> pd.DataFrame:
@@ -80,6 +95,8 @@ def main(argv=None) -> int:
     ap.add_argument("--out", default=None, help="output folder (default <E>/frozen_fr_compare)")
     ap.add_argument("--pix-root", default=None, help="folder holding the *_basis_pixmusall runs (default <E>)")
     a = ap.parse_args(argv)
+    from wfield_local import trial_set_text as tst
+    tst.declare(text=tst.union(*(trial_set_sentence(w) for w in WINDOWS), unit="trials"))
     PIX_ROOT = Path(a.pix_root) if a.pix_root else E
     out = Path(a.out) if a.out else E / "frozen_fr_compare"
     (out / "figures").mkdir(parents=True, exist_ok=True)
@@ -168,7 +185,8 @@ def main(argv=None) -> int:
             from wfield_local.sig_marks import reserve_headroom
             reserve_headroom(fig)                # the `bars` stars sit in the top band (10-30), no top spine (11-03)
             fig.subplots_adjust(left=0.05, right=0.995, top=1 - 1.45 / (2.7 * len(rows_) + 1.3), bottom=0.05, hspace=0.75)
-            save_png_svg(fig, out / "figures" / f"frozen_claims_{name}_{w}.png", dpi=105)
+            with tst.active(None, text=trial_set_sentence(w)):                 # this figure's window
+                save_png_svg(fig, out / "figures" / f"frozen_claims_{name}_{w}.png", dpi=105)
             plt.close(fig)
     trend_figure(plt, C, beh, out)
     print("->", out)
@@ -208,7 +226,9 @@ def trend_figure(plt, C: pd.DataFrame, beh: pd.DataFrame, out: Path) -> Path:
                  "filled = epoch mean +- SEM over animals (each animal's sessions averaged first).", fontsize=10)
     fig.subplots_adjust(left=0.05, right=0.86, top=0.82, bottom=0.14, wspace=0.22)
     p = out / "figures" / "frozen_claims_trend.png"
-    save_png_svg(fig, p, dpi=105)
+    from wfield_local import trial_set_text as tst
+    with tst.active(None, text=trial_set_sentence(None)):
+        save_png_svg(fig, p, dpi=105)
     plt.close(fig)
     return p
 

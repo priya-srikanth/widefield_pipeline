@@ -54,6 +54,8 @@ import pandas as pd
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import iti_licks as il  # noqa: E402
 
+from wfield_local import mask_keys  # noqa: E402
+
 OUT = Path(il.OUT_W)
 if il.ITI_SUBSET:
     raise SystemExit("run without WFIELD_ITI_FILTER")
@@ -108,6 +110,7 @@ def extract(item) -> dict:
     label, cache = item
     f = Path(cache) / f"{label}.npz"
     if f.exists():
+        mask_keys.check_npz(f)                    # stale-read guard: built on the current analysis masks (11-09)
         return {"label": label, "cached": True}
     G = grid()
     V, ft, Ub, flat, parea, names, shape, pstat = ce.load_imaging(label)
@@ -139,7 +142,7 @@ def extract(item) -> dict:
             wnames.append(f"{a}|{hk}")
     acts = lbr.cv._acts(label)
     d = il._load(label)
-    out = {"U": U, "W": np.asarray(wrows, np.float32), "wnames": np.array(wnames)}
+    out = {"U": U, "W": np.asarray(wrows, np.float32), "wnames": np.array(wnames), **mask_keys.stamp()}
     for st, (tk, sk) in {"iti": ("iti_t", "iti_side"), "trial": ("tr_t", "tr_side")}.items():
         act = np.asarray(acts.get(st, []), float)
         C = np.full((len(act), V.shape[1]), np.nan, np.float32)
@@ -189,6 +192,7 @@ def _stats(L: pd.DataFrame, cache: Path) -> tuple[dict, pd.DataFrame, dict]:
     ST, val, W = {}, [], {}
     for lab, gl in L.groupby("label"):
         z = np.load(cache / f"{lab}.npz")
+        mask_keys.check_obj(z, cache / f"{lab}.npz")
         U = z["U"].astype(np.float64)
         W[lab] = (z["W"].astype(np.float64), list(z["wnames"]))
         for st, g in gl.groupby("set"):
@@ -358,6 +362,20 @@ def compute(cache: Path, jobs: int) -> dict:
 
 
 # ------------------------------------------------------------------------------------------------ figures
+def trial_set_sentence(st: str | None = None) -> str:
+    """THE lick set of a figure (Priya 11-09): ``st`` one of SETS (None = all three sets, the areas figure). The licks
+    of areatune_licks (lick_area_tuning / lick_balance_target_model: KEY per-lick cache rows, no ITI filter) that pass
+    the matched-angle rule of this script."""
+    import lick_refit_decoders as rd
+    keep = [f"lick angle inside the {Q[0]:g}-{Q[1]:g} % range of the animal's pre licks to the same spout",
+            f"sessions with >= {MIN_LICKS} kept licks"]
+    gap = f"first lick after >= {il.GAP_MAIN:g} s quiet (no lick onset in the preceding {il.GAP_MAIN:g} s)"
+    parts = {"trial": rd.cued_set(first_only=True, extra=[*rd.KEY_ROWS, *keep]),
+             "iti": rd.iti_set(filt="", extra=[*rd.KEY_ROWS, gap, *keep]),
+             "iti_far1": rd.iti_set(filt="far1", extra=[*rd.KEY_ROWS, gap, *keep])}
+    return parts[st] if st else rd._tst().union(*[parts[s] for s in SETS])
+
+
 def _wrap(s: str, w: int = 150) -> str:
     return "\n".join(textwrap.fill(p, w) for p in s.split("\n"))
 
@@ -369,7 +387,9 @@ def plot(D: dict) -> None:
     from frozen_area_maps import outline
     F, maps, ol = D["F"], D["maps"], outline(D["img"])
     m_all = D["masks"]["all"]
+    from wfield_local import trial_set_text as tst
     for st in SETS:
+        tst.activate(None, text=trial_set_sentence(st))           # this set's figures (Priya 11-09)
         pooled = {}
         for ep in POST:
             v = [maps[(st, an, ep)] for an in AN if (st, an, ep) in maps]
@@ -446,6 +466,7 @@ def plot(D: dict) -> None:
         fig.tight_layout(rect=(0, 0, 1, 0.95))
         save_png_svg(fig, FIG / f"lick_matched_pixel_animals_{st}.png", dpi=80)
         plt.close(fig)
+    tst.deactivate()                                              # the areas figure: every set (main's declaration)
     # a priori area test figure
     T = D["area_tests"]
     areas = ["POOL", *AREAS]
@@ -536,7 +557,9 @@ def plot_epochs(D: dict, E: dict) -> None:
     from wfield_local.orofacial_cohort import EPOCH_LINE
     F, maps, ol = D["F"], D["maps"], outline(D["img"])
     m_all, m_mir = D["masks"]["all"], D["masks"]["mirror"]
+    from wfield_local import trial_set_text as tst
     for st in EP_SETS:
+        tst.activate(None, text=trial_set_sentence(st))           # this set's figure (Priya 11-09)
         raw, nan_ = {}, {}
         for ep in EPS:
             v = [E["resp"][(st, an, ep)] for an in AN if (st, an, ep) in E["resp"]]
@@ -595,10 +618,14 @@ def plot_epochs(D: dict, E: dict) -> None:
         fig.subplots_adjust(left=0.01, right=0.95, bottom=0.01, top=0.9)
         save_png_svg(fig, FIG / f"lick_matched_pixel_{st}_epochs.png", dpi=90)
         plt.close(fig)
+    tst.deactivate()
 
 
 def main() -> int:
     from figdata import load_fd, save_fd
+
+    from wfield_local import trial_set_text as tst
+    tst.declare(text=trial_set_sentence())                        # per-set figures narrow it in plot / plot_epochs
     if "--epochs" in sys.argv:              # per-epoch raw maps (+ change maps), new files only
         ap = argparse.ArgumentParser()
         ap.add_argument("--epochs", action="store_true")

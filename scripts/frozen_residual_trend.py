@@ -77,6 +77,13 @@ def trend_test(pre_d, pre_y, post_d, post_y):
     return beta, pred, se_mean, se_pred, t, np.sqrt(s2)
 
 
+def trial_set_sentence(tag: str, w: str) -> str:
+    """The trials of the ``w``-window trend figure (Priya 11-09): far-contra trials of the frozen run, cue- or
+    first-lick-aligned PETH (the figure draws the far-contra residual)."""
+    from wfield_local import frozen_encoder as fe
+    return fe.trial_set_sentence("peth", tag=tag, align=w, spout="far_contra")
+
+
 def main(argv=None) -> int:
     # coordinator 11-04: routed (outputs under the run tag), no longer refused in a tagged run
     import matplotlib
@@ -88,6 +95,8 @@ def main(argv=None) -> int:
     ap.add_argument("--tag", default=_design_tag("gate-attempted_v7g3_t3d"))
     ap.add_argument("--variant", default="joint")
     a = ap.parse_args(argv)
+    from wfield_local import trial_set_text as tst
+    tst.declare(text=tst.union(*(trial_set_sentence(a.tag, w) for w in WINDOWS), unit="trials"))
     from wfield_local import frozen_encoder as _fe   # the encoder's (tagged) run root, coordinator 11-04
     run = _fe.out_root() / f"frozen_encoder_{a.tag}"
     assert_writable(run)
@@ -164,7 +173,8 @@ def main(argv=None) -> int:
                      f"sessions (LOSO) with 95 % prediction interval, {w} window. Pre span ~8 days -> wide interval when "
                      f"extrapolated.", fontsize=9)
         fig.tight_layout(rect=(0, 0, 1, 0.94))
-        fig.savefig(fd / f"residual_trend{sfx}_{w}.png", dpi=130)
+        with tst.active(None, text=trial_set_sentence(a.tag, w)):            # this figure's window
+            fig.savefig(fd / f"residual_trend{sfx}_{w}.png", dpi=130)
         plt.close(fig)
     print(f"-> {run / 'residual_trend.csv'}, {fd}/residual_trend_*.png")
     return 0

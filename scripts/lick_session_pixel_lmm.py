@@ -311,9 +311,26 @@ def _head(model: str, fam: str, n_perm: int, aim: str) -> str:
     return "\n".join(textwrap.fill(q, 160) for q in paras)
 
 
+def trial_set_sentence(fam: str | None = None, model: str | None = None, aim: str | None = None,
+                       animals=None) -> str:
+    """THE lick set of a figure (Priya 11-09): the session maps of lick_session_level_maps (fam lat = the lateral maps,
+    trial / iti = the per-spout maps of that set) + for the BEHAVIOR model the cued licks of the aim deficit."""
+    from wfield_local import trial_set_text as tst
+    s = lm.trial_set_sentence({"lat": None, "trial": "sp_trial", "iti": "sp_iti", None: None}[fam])
+    extra = []
+    if model in (None, "behaviour"):
+        extra.append(f"behavior model: aim deficit per session from the {aim or rm.AIM_LABEL[rm.AIM]} (weighted signed "
+                     "aim vs the animal's August-pre mean)")
+    if animals:
+        extra.append("animals " + ", ".join(animals) + " only")
+    return tst.union(s, *extra) if extra else s
+
+
 def plot(D: dict) -> None:
     """D = R (results of this figure's maps x terms), pre ({key: pre level image}), keys, model, fam, ol, n_perm, aim,
     out (png name)."""
+    from wfield_local import trial_set_text as tst
+    tst.activate(None, text=trial_set_sentence(D.get("fam"), D.get("model"), D.get("aim"), D.get("animals")))
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
@@ -385,6 +402,8 @@ def _arg(name: str, default=None):
 
 
 def main() -> int:
+    from wfield_local import trial_set_text as tst
+    tst.declare(text=trial_set_sentence())                      # plot() narrows it per figure
     if plot_only():
         for m, fam in FIGS:
             try:
@@ -455,7 +474,7 @@ def main() -> int:
         if not Rf:
             continue
         D = dict(R=Rf, pre={k: data[k]["pre"] for k in ks if k in data}, keys=ks, model=m, fam=fam, ol=ol,
-                 n_perm=n_perm, aim=rm.AIM_LABEL[rm.AIM], out=fig_name(m, fam),
+                 n_perm=n_perm, aim=rm.AIM_LABEL[rm.AIM], out=fig_name(m, fam), animals=animals,
                  npre={k: (int((data[k]["cov"].post == 0).sum()), data[k]["n_pre_an"]) for k in ks if k in data})
         save_fd(D["out"], D)
         plot(D)

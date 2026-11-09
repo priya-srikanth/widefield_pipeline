@@ -66,6 +66,12 @@ def per_animal_counts(pre_by: dict, post_by: dict, f: int, mask: np.ndarray, alp
     return up, dn, tested
 
 
+def trial_set_sentence(tag: str) -> str:
+    """The trials / frames of the unique-R2 maps (Priya 11-09): every modeled frame (`resid_mom` / `data_mom`)."""
+    from wfield_local import frozen_encoder as fe
+    return fe.trial_set_sentence("all", tag=tag)
+
+
 def main(argv=None) -> int:
     import matplotlib
     matplotlib.use("Agg")
@@ -79,6 +85,8 @@ def main(argv=None) -> int:
     ap.add_argument("--zscore", action="store_true")
     ap.add_argument("--n-null", type=int, default=20)
     a = ap.parse_args(argv)
+    from wfield_local import trial_set_text as tst
+    tst.declare(text=trial_set_sentence(a.tag))
     run = E / f"frozen_encoder_{a.tag}"
     qs = [q for q in QS if q[1] is None or (run / q[1] / "sessions").is_dir()]
     sess = sorted(js for js in (run / "joint" / "sessions").glob("*.json") if not config.early_pre(js.stem))

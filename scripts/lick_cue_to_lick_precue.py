@@ -78,6 +78,20 @@ def _w(a, b):
     return (LC >= a - 1e-9) & (LC <= b + 1e-9)
 
 
+MIN_SPOUT_N, MIN_ALL_N = 5, 10   # sessions(): trials per session x spout / per session (all spouts)
+
+
+def trial_set_sentence(var: str | None = None) -> str:
+    """The trials of this driver's figures (Priya 11-09), from its constants: every engaged trial of the cue-to-lick
+    cache, cue-aligned (no first-lick condition)."""
+    from wfield_local import trial_set_text as tst
+    var = var or VAR
+    return tst.events(cx.engaged_text(), unit="trials",
+                      keep=["every trial of the cue-to-lick cache, cue-aligned (any first-lick phase)", cx.rest_text(var),
+                            f"session x spout cells with >= {MIN_SPOUT_N} trials (all spouts: >= {MIN_ALL_N})"],
+                      excluded=["sessions without a rest level"])
+
+
 def sessions() -> tuple[pd.DataFrame, dict]:
     rows, tr = [], {}
     tsel = _w(TL[0], TL[-1])
@@ -91,7 +105,7 @@ def sessions() -> tuple[pd.DataFrame, dict]:
         rw = z["restw"].astype(np.float64)
         for sp in ["all"] + POS:
             m = np.ones(len(pos), bool) if sp == "all" else pos == sp
-            if m.sum() < (10 if sp == "all" else 5):
+            if m.sum() < (MIN_ALL_N if sp == "all" else MIN_SPOUT_N):
                 continue
             X = Xc[m]
             v = {k: np.nanmean(np.nanmean(X[:, _w(*w)], 1), 0) for k, w in WINS.items()}
@@ -314,6 +328,8 @@ def main() -> int:
     global SFX, VAR
     VAR = restnl.variant()
     SFX = restnl.SFX if VAR == "restnl" else ""
+    from wfield_local import trial_set_text as tst
+    tst.declare(text=trial_set_sentence(VAR))
     if plot_only():
         draw_traces("lick_cue_to_lick_D_raw_traces")
         draw_decomp("lick_cue_to_lick_D_decomposition")

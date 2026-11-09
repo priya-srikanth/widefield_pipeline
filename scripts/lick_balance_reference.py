@@ -156,7 +156,15 @@ def plot(F: dict) -> None:
     plt.close(fig)
 
 
+def trial_set_sentence() -> str:
+    """The lick set of this driver's figures (Priya 11-09; `wfield_local.trial_set_text`): the frozen KEY decoder's lick set (`iti_lick_order.preds_path`)."""
+    import lick_covariate_reference as cv
+    return cv.key_lick_set()
+
+
 def main() -> int:
+    from wfield_local import trial_set_text as tst
+    tst.declare(text=trial_set_sentence())          # every figure states its lick set (Priya 11-09)
     if plot_only():
         plot(load_fd("lick_balance_reference"))
         return 0

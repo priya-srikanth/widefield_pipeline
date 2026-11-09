@@ -166,7 +166,15 @@ def plot(F: dict) -> None:
     plt.close(fig)
 
 
+def trial_set_sentence() -> str:
+    """The lick set of the worked example (Priya 11-09): one animal's FIRST post-cue licks of the KEY set."""
+    return bs.set_sentence(("trial_1",), full=False, inside=False, subset=False,
+                           extra=[f"animal {EXAMPLE_ANIMAL} only", "lick angle finite"])
+
+
 def main() -> int:
+    from wfield_local import trial_set_text as tst
+    tst.declare(text=trial_set_sentence())          # every figure states its lick set (Priya 11-09)
     if plot_only():
         plot(load_fd("lick_balance_explainer"))
         return 0

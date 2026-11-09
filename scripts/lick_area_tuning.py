@@ -472,21 +472,41 @@ def plot_all() -> None:
     matplotlib.use("Agg")
     T = pd.read_csv(OUT / "areatune_tests.csv")
     M = pd.read_csv(OUT / "areatune_spoutmeans.csv")
+    from wfield_local import trial_set_text as tst
     for st in SETS:
-        plot_curves(M, st)
+        with tst.active(None, text=trial_set_sentence((st,))):      # one lick set per curves figure
+            plot_curves(M, st)
     plot_decomp(T)
-    plot_decomp(T, simple=True)
-    plot_decomp_dots(T)
+    with tst.active(None, text=trial_set_sentence(SIMPLE_SETS)):    # the _simple / dots figures: cued + ITI only
+        plot_decomp(T, simple=True)
+        plot_decomp_dots(T)
     plot_raw(T)
+
+
+def trial_set_sentence(sets=tuple(SETS)) -> str:
+    """The lick sets of lick_area_tuning (Priya 11-09): baltarget_licks (lick_balance_target_model) -- cued first lick,
+    ITI first lick after quiet, and its far1 subset -- kept only inside the animal's pre Q percentile angle range at the
+    same spout, sessions with >= MIN_LICKS kept licks."""
+    import lick_balance_target_model as tm
+    from wfield_local import trial_set_text as tst
+    keep = [f"kept only inside the animal's pre {Q[0]:g}-{Q[1]:g} percentile lick-angle range at the same spout",
+            f"sessions with >= {MIN_LICKS} kept licks"]
+    parts = {"trial": tm.lick_set_sentence(("trial",), cued_extra=keep),
+             "iti": tm.lick_set_sentence(("iti",), iti_extra=keep),
+             "iti_far1": tm.lick_set_sentence(("iti",), iti_extra=[tst.iti_filter_text("far1"), *keep])}
+    return tst.union(*[parts[s] for s in sets])
 
 
 def main() -> int:
     t0 = time.time()
     FIG.mkdir(parents=True, exist_ok=True)
+    from wfield_local import trial_set_text as tst
+    tst.declare(text=trial_set_sentence())          # every figure states its lick set (Priya 11-09)
     if "--dots-only" in sys.argv:
         import matplotlib
         matplotlib.use("Agg")
-        plot_decomp_dots(pd.read_csv(OUT / "areatune_tests.csv"))
+        with tst.active(None, text=trial_set_sentence(SIMPLE_SETS)):
+            plot_decomp_dots(pd.read_csv(OUT / "areatune_tests.csv"))
         return 0
     if "--plot-only" not in sys.argv:
         if "--reuse-licks" in sys.argv:

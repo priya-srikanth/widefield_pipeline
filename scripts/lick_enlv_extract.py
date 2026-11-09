@@ -37,12 +37,16 @@ import pandas as pd
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import iti_licks as il  # noqa: E402
 
+from wfield_local import mask_keys  # noqa: E402
+
 OUT = il.OUT_W / "enlv_licks"
 SESS = OUT / "sessions"
 POOL = ["ALM", "tjM1", "SSp-m", "SSp-n", "SSs"]          # lick_recovery_primary.POOL
 LAGS_A = np.round(np.arange(-1.0, 4.0001, 0.05), 3)       # arrival-aligned lags
 POS6 = ["close_ipsi", "close_mid", "close_contra", "far_ipsi", "far_mid", "far_contra"]
 VERSION = 1
+ARR_FREE_PRE_S = 1.0         # ARRIVAL check: no lick onset of any context from this long before the strobe to the cue
+ARR_MIN_SETTLE_S = 2.0       # ARRIVAL check: cue >= strobe + this
 
 
 def _wm(lo_, hi_):
@@ -65,6 +69,7 @@ def one(item) -> dict:
     label, L, T = item
     f = SESS / f"{label}.npz"
     if f.exists():
+        mask_keys.check_npz(f)                    # stale-read guard (11-09)
         return {"label": label, "cached": True}
     V, ft, Ub, flat, parea, names, shape, pstat = ce.load_imaging(label)
     M = il.roi_masks(parea, pstat, names, flat, shape)
@@ -89,8 +94,8 @@ def one(item) -> dict:
     # ARRIVAL: lick-free trials (no onset of any context in [strobe - 1, cue]), cue >= strobe + 2
     on = np.sort(A.daq_on_s.to_numpy(float)[np.isfinite(A.daq_on_s.to_numpy(float))])
     s, c = T.strobe_s.to_numpy(float), T.cue_s.to_numpy(float)
-    n_in = np.searchsorted(on, c, side="right") - np.searchsorted(on, s - 1.0)
-    free = np.isfinite(s) & np.isfinite(c) & (c - s >= 2.0) & (n_in == 0) & (s + LAGS_A[0] > ft[0]) & \
+    n_in = np.searchsorted(on, c, side="right") - np.searchsorted(on, s - ARR_FREE_PRE_S)
+    free = np.isfinite(s) & np.isfinite(c) & (c - s >= ARR_MIN_SETTLE_S) & (n_in == 0) & (s + LAGS_A[0] > ft[0]) & \
         (s + LAGS_A[-1] < ft[-1])
     # per spout (+ index 6 = all spouts): mean trace and trial count per lag; samples at / after the cue masked
     arr_mean = np.full((7, len(LAGS_A), len(cols)), np.nan)
@@ -112,7 +117,8 @@ def one(item) -> dict:
         Xbase=np.where(ok[:, None], X[:, W_BASE].mean(1), nan).astype(np.float32),
         cT=np.where(ok[:, None], pool["c"], nan).astype(np.float16),
         iT=np.where(ok[:, None], pool["i"], nan).astype(np.float16),
-        arr_mean=arr_mean.astype(np.float32), arr_n=arr_n, arr_trials=int(free.sum()))
+        arr_mean=arr_mean.astype(np.float32), arr_n=arr_n, arr_trials=int(free.sum()),
+        **mask_keys.stamp())
     return {"label": label, "n": int(ok.sum()), "n_free_trials": int(free.sum())}
 
 
@@ -157,6 +163,7 @@ def regress(item) -> dict:
     label, T = item
     f = SESS_REG / f"{label}.npz"
     if f.exists() and int(np.load(f)["version"]) == REG_VERSION:
+        mask_keys.check_npz(f)                    # stale-read guard (11-09)
         return {"label": label, "cached": True}
     R, ft, cols = _signals(label)
     an, date = config.animal_of(label), "2026" + label.split("_")[-1]
@@ -209,6 +216,7 @@ def regress(item) -> dict:
     sup = (np.abs(Xa).sum(1) > 0)[:, None]
     Rc = R - (Xa @ m.coef_[:, :na].T - sup * k_pre[None, :])
     z = np.load(SESS / f"{label}.npz")
+    mask_keys.check_obj(z, SESS / f"{label}.npz")  # stale-read guard (11-09)
     peak, ok = z["peak"], z["ok"]
     Xs = il._sample(Rc, ft, np.where(ok, peak, ft[0] + 2), il.LAGS_D)
     pool = {q: np.sum([Xs[:, :, cols.index(f"{a}_{h}")] for a in POOL], 0) for q, h in (("c", "right"), ("i", "left"))}
@@ -221,7 +229,7 @@ def regress(item) -> dict:
         Xpost_c=np.where(ok[:, None], Xs[:, W_POST].mean(1), nan).astype(np.float32),
         Xbase_c=np.where(ok[:, None], Xs[:, W_BASE].mean(1), nan).astype(np.float32),
         cT_c=np.where(ok[:, None], pool["c"], nan).astype(np.float16),
-        iT_c=np.where(ok[:, None], pool["i"], nan).astype(np.float16))
+        iT_c=np.where(ok[:, None], pool["i"], nan).astype(np.float16), **mask_keys.stamp())
     return {"label": label, "alpha": al, "cv_r2": cv_r2, "n_trials": len(tri)}
 
 

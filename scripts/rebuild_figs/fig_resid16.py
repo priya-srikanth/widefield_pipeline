@@ -98,11 +98,17 @@ def draw(fd: dict, OUT: Path) -> None:
         plt.close(fig)
 
 
+def trial_set_sentence() -> str:
+    """The trials of the frozen-encoder evoked residual maps: every spout, and the all-spout mean."""
+    return _common.evoked_trials("each spout (fig 7d) and the mean over spouts (fig 7c; sessions with >= 4 spouts)")
+
+
 def main(argv=None) -> int:
     ap = _common.parser(__doc__)
     ap.add_argument("--bin", type=int, default=16, help="F: the significance bin size, px")
     ap.add_argument("--encoder-tag", default=_design_tag("gate-attempted_v7g3_t3d_basis"), help="frozen_encoder_<tag> run of this run")
     a = ap.parse_args(argv)
+    _common.declare(trial_set_sentence())          # THE TRIAL SET of every figure (Priya 11-09)
     a.out.mkdir(parents=True, exist_ok=True)
     name = f"resid{a.bin}"
     fd = (_common.load_figdata(a.out, name) if a.plot_only

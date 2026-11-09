@@ -189,7 +189,24 @@ def plot(F: dict) -> None:
     plt.close(fig)
 
 
+def trial_set_sentence(beh: str = BEH) -> str:
+    """The licks of contact_check.csv's r_all (every ITI / cued lick of the session files, contact or not; sessions with
+    >= 20 licks of the set) + the behavior axis of WFIELD_MARKER_BEH (Priya 11-09)."""
+    import iti_recovery_link as rl
+    import iti_recovery_measure as rm
+    import iti_where_decoder as wd
+    if beh == "hit":
+        b = rl.behaviour_caption("hit")
+    else:
+        b = ("far-contra signed aim offset of " + rm.aim_short("first", "far-contra spout") if beh == "fc_aim" else
+             "weighted signed aim (far contra 3 : far mid 2 : others 1) of " + rm.aim_short("first"))
+    ck = ["contact and no-contact licks"]
+    return wd.both_caption("", tracked="lateral", iti_extra=ck, cued_extra=ck) + f"; behavior axis: {b}"
+
+
 def main() -> int:
+    from wfield_local import trial_set_text as tst
+    tst.declare(text=trial_set_sentence(BEH))
     if plot_only():                       # redraw from figdata only: no data, no permutations
         plot(load_fd(f"lick_recovery_marker{TAG}"))
         return 0

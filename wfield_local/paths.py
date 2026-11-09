@@ -160,13 +160,27 @@ def detect_machine() -> str:
     return "analysis"
 
 
+#: Parsed YAML per (file, size, mtime_ns) -- `PathResolver.__init__` re-parsed paths.yaml 2847 times in one grant unit
+#: (profile 11-09, 72 s). A rewritten file reparses; every resolver gets its own deep copy.
+_YAML_MEMO: dict = {}
+
+
+def _parsed_yaml(path) -> dict:
+    p = os.path.normcase(os.path.abspath(os.fspath(path)))
+    st = os.stat(p)
+    key = (p, st.st_size, st.st_mtime_ns)
+    if key not in _YAML_MEMO:
+        with open(path, encoding="utf-8") as fh:
+            _YAML_MEMO[key] = yaml.safe_load(fh)
+    return copy.deepcopy(_YAML_MEMO[key])
+
+
 class PathResolver:
     """Resolve logical roots from ``configs/paths.yaml`` to this machine's mounts."""
 
     def __init__(self, config_path: str | Path | None = None, machine: str | None = None):
         path = Path(config_path) if config_path else CONFIG_DIR / "paths.yaml"
-        with open(path, encoding="utf-8") as fh:
-            self._cfg = yaml.safe_load(fh)
+        self._cfg = _parsed_yaml(path)
         self.machine = machine or detect_machine()
         if self.machine not in MACHINES:
             raise ValueError(f"machine must be one of {MACHINES}, got {self.machine!r}")

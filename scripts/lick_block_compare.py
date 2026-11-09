@@ -287,7 +287,14 @@ def plot(F: dict) -> None:
     plt.close(fig)
 
 
+def trial_set_sentence() -> str:
+    """The lick set of lick_block_compare (Priya 11-09): the refit decoders' licks (`lick_area_importance`)."""
+    return lai.refit_lick_set()
+
+
 def main() -> int:
+    from wfield_local import trial_set_text as tst
+    tst.declare(text=trial_set_sentence())          # every figure states its lick set (Priya 11-09)
     if plot_only():
         plot(load_fd(f"lick_block_compare{SFX}"))
         return 0

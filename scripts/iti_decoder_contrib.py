@@ -128,7 +128,17 @@ def plot(D: dict) -> None:
     plt.close(fig)
 
 
+def trial_set_sentence() -> str:
+    """The lick set of lick_decoder_contrib (`contributions`): ITI and post-cue licks of the where-decoder load with a
+    lateral and a sagittal 3-D position, sessions with >= 20 of them, animals with >= 3 pre sessions."""
+    from wfield_local import trial_set_text as tst
+    ex = ["with a 3-D sagittal position too", "sessions with >= 20 such licks, animals with >= 3 pre sessions"]
+    return tst.union(il.trial_set_iti(extra=ex), il.trial_set_cued(extra=ex))
+
+
 def main() -> int:
+    from wfield_local import trial_set_text as tst
+    tst.declare(text=trial_set_sentence())                # Priya 11-09 (the --plot-only replot too)
     if plot_only():                                       # redraw from the figure data alone
         plot(load_fd(il.tagged(FIG)))
         return 0

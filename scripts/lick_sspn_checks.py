@@ -132,7 +132,15 @@ def check3() -> pd.DataFrame:
     return _track(S, ["ssp_n_diff", "sspn_resid"], "3: face-movement partialled")
 
 
+def trial_set_sentence() -> str:
+    """THE lick set of the figure (Priya 11-09): the KEY per-lick cache licks behind the offset terms (terms_*_<TAG>,
+    unfiltered) + the recovery axes."""
+    return rd.key_sets(filt="", more=[rd.recovery_axes()])
+
+
 def main() -> int:
+    from wfield_local import trial_set_text as tst
+    tst.declare(text=trial_set_sentence())
     out = []
     for k, f in (("3", check3), ("2", check2), ("1", check1)):
         R = f()

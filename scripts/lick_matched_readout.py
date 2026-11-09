@@ -456,8 +456,18 @@ def plot_animal(S: pd.DataFrame, T: pd.DataFrame) -> None:
     plt.close(fig)
 
 
+def trial_set_sentence() -> str:
+    """THE lick set of this driver's figures (Priya 11-09): ITI + cued licks of the KEY per-lick cache with the run's ITI
+    filter (refit filters through preds_path, subset filters through iti_subset_keep; both = WFIELD_ITI_FILTER)."""
+    import lick_refit_decoders as rd
+    return rd.key_sets(filt=None, extra=[f"animals {', '.join(ANIMALS)} only"] if ANIMALS else [])
+
+
 def main() -> int:
     from figdata import load_fd, plot_only, save_fd
+
+    from wfield_local import trial_set_text as tst
+    tst.declare(text=trial_set_sentence())
     if plot_only():                                    # figdata convention (10-28): redraw from the saved figure data
         D = load_fd(f"lick_matched{TAG}")
         plot(D["A"], D["S"], D["T"], D["BT"])
