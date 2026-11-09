@@ -393,11 +393,13 @@ def session_worker_enl(label: str) -> dict:
 
     from wfield_local import enl_window
     src = np.load(il.OUT_W / pr.enl_cache() / f"{label}.npz")
+    mask_keys.check_obj(src, il.OUT_W / pr.enl_cache() / f"{label}.npz")   # stale-read guard (11-09)
     f = il.OUT_W / enl_cache_t() / f"{label}.npz"
     if f.exists():
         z = np.load(f)
         if (int(z["version"]) == ENL_VERSION_T and str(z["meta"]) == str(src["meta"])
                 and np.array_equal(z["cue"], src["cue"])):
+            mask_keys.check_obj(z, f)             # stale-read guard (11-09)
             return {"label": label, "cached": True}
     Rs, cs, ft, _d = pr.area_series(label)
     if cs != [str(c) for c in src["cols"]]:
@@ -432,7 +434,7 @@ def session_worker_enl(label: str) -> dict:
                         lvl_all=sets["_lvl"], lvl_far=sets["_farcontra_lvl"], n_all=sets["_n"],
                         n_far=sets["_farcontra_n"], slid_all=sets["_slid"], slid_far=sets["_farcontra_slid"],
                         rt_all=sets["_rt"], rt_far=sets["_farcontra_rt"], maxdiff=maxdiff,
-                        **{k: src[k] for k in _REF_FIELDS})
+                        **{k: src[k] for k in _REF_FIELDS}, **mask_keys.stamp())
     return {"label": label, "cached": False, "maxdiff": maxdiff}
 
 
@@ -443,6 +445,7 @@ def long_table_enl(labels: list, key: str, ref: str) -> tuple[pd.DataFrame, pd.D
     rows, rts = [], []
     for x in labels:
         z = np.load(il.OUT_W / enl_cache_t() / f"{x}.npz")
+        mask_keys.check_obj(z, il.OUT_W / enl_cache_t() / f"{x}.npz")   # stale-read guard (11-09)
         base, ok = pr.ref_base(z, ref)
         A = z[key]
         if not ok or not np.isfinite(A).any():

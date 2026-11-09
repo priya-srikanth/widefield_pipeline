@@ -536,6 +536,7 @@ def _rest_levels(label: str, cs: list) -> dict:
     out["restw"], out["restw_ok"] = np.full(len(cs), np.nan), False
     if f.exists():
         z = np.load(f)
+        mask_keys.check_obj(z, f)                 # the old precue_restw cache is mask-dependent too (11-09)
         if [str(c) for c in z["cols"]] == list(cs):
             out["restw"], out["restw_ok"] = np.asarray(z["restw"], float), bool(z["restw_ok"])
     return out
@@ -549,6 +550,7 @@ def session_worker_enl(label: str) -> dict:
     if f.exists():
         z = np.load(f)
         if int(z["version"]) == ENL_VERSION and json.loads(str(z["meta"])) == meta:
+            mask_keys.check_obj(z, f)             # stale-read guard: built on the current analysis masks (11-09)
             return {"label": label, "cached": True}
     from wfield_local import enl_window
     Rs, cs, ft, d = area_series(label)
@@ -569,7 +571,7 @@ def session_worker_enl(label: str) -> dict:
     np.savez_compressed(f, version=ENL_VERSION, meta=json.dumps(meta), cols=np.array(cs), cue=cue[k], lo=lo[k],
                         hi=hi[k], stop=T.stop_s.to_numpy(float)[k], pos=np.asarray(T.pos.astype(str).to_numpy()[k], str),
                         p10=p10, p05=p05, animal=str(d["animal"]), epoch=str(d["epoch"]), **counts,
-                        **_rest_levels(label, cs))
+                        **_rest_levels(label, cs), **mask_keys.stamp())
     return {"label": label, "cached": False, **counts}
 
 
@@ -589,6 +591,7 @@ def session_tables_enl(labels: list, ref: str) -> tuple[dict, pd.DataFrame]:
     out, notes = {None: [], "far_contra": []}, []
     for x in labels:
         z = np.load(il.OUT_W / enl_cache() / f"{x}.npz")
+        mask_keys.check_obj(z, il.OUT_W / enl_cache() / f"{x}.npz")   # stale-read guard (11-09)
         cs = [str(c) for c in z["cols"]]
         base, ok = ref_base(z, ref)
         pos = z["pos"].astype(str)

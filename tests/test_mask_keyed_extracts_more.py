@@ -172,3 +172,51 @@ def test_readers_check(script):
                                     "partial_refit"])
 def test_pooled_caches_write_sidecars(script):
     assert "mask_keys.write_sidecar(" in (REPO / "scripts" / f"{script}.py").read_text(encoding="utf-8")
+
+
+# --------------------------------------------------------------------------- the ENL pre-cue caches (11-09)
+def test_precue_enl_level_cache(masks, tmp_path, monkeypatch):
+    import json
+
+    import lick_precue_restw as m
+    monkeypatch.setattr(m.il, "OUT_W", tmp_path)
+    monkeypatch.setattr(m, "enl_cache", lambda: "c")
+    monkeypatch.setattr(m, "_enl_meta", lambda: {"w": 1.0})
+    (tmp_path / "c").mkdir()
+    _stale_and_legacy(masks, tmp_path / "c" / "L.npz", lambda: m.session_worker_enl("L"), version=m.ENL_VERSION,
+                      meta=json.dumps({"w": 1.0}))
+
+
+def test_precue_enl_traces_cache(masks, tmp_path, monkeypatch):
+    import json
+
+    import lick_precue_restw as pr
+    import lick_precue_restw_traces as m
+    monkeypatch.setattr(m.il, "OUT_W", tmp_path)
+    monkeypatch.setattr(pr, "enl_cache", lambda: "src")
+    monkeypatch.setattr(m, "enl_cache_t", lambda: "c")
+    for d in ("src", "c"):
+        (tmp_path / d).mkdir()
+    meta, cue = json.dumps({"w": 1.0}), np.array([1.0, 2.0])
+    np.savez(tmp_path / "src" / "L.npz", mask_sig="glue_out", meta=meta, cue=cue)   # a current source entry
+    _stale_and_legacy(masks, tmp_path / "c" / "L.npz", lambda: m.session_worker_enl("L"), version=m.ENL_VERSION_T,
+                      meta=meta, cue=cue)
+
+
+def test_precue_enl_source_cache_refused(masks, tmp_path, monkeypatch):
+    """The traces worker refuses a stale level-script ENL cache before using its trials / windows."""
+    import lick_precue_restw as pr
+    import lick_precue_restw_traces as m
+    monkeypatch.setattr(m.il, "OUT_W", tmp_path)
+    monkeypatch.setattr(pr, "enl_cache", lambda: "src")
+    (tmp_path / "src").mkdir()
+    np.savez(tmp_path / "src" / "L.npz", mask_sig="glue_in", meta="{}", cue=np.zeros(1))
+    with pytest.raises(RuntimeError, match="masks"):
+        m.session_worker_enl("L")
+
+
+def test_precue_enl_readers_check():
+    for s, n_stamp, n_check in (("lick_precue_restw", 2, 6), ("lick_precue_restw_traces", 2, 6)):
+        src = (REPO / "scripts" / f"{s}.py").read_text(encoding="utf-8")
+        assert src.count("mask_keys.stamp()") >= n_stamp
+        assert src.count("mask_keys.check_obj(") >= n_check
