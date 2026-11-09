@@ -894,3 +894,11 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
   session mean, same corrected signal + encoder slow basis incl. constant). Absolute-level twins of the per-trial-baseline
   families + state-space response-size twins: YES, deferred to the page update. Hemisphere-difference balances: NO RESTnl
   needed if they compare lick-peak fluorescence not normalized within the trial (verify each). CD projections: HOLD (open).
+- Priya 11-09 ~07:45 on #7: wording OK -- "acute far-contra amplitude on working trials falls in 3/4 animals; PS95's single
+  acute session (PS95_0817) has only 40 far-contra working trials (1 hit + 39 incomplete; of 120 cues 53 jaw-only, 16 no
+  response, 11 stopped) and shows no drop on the trials it attempted." Its old "halved" came from averaging over trials
+  where it did not try. Working PERIOD (rest gate) = all cues first->last camera lick; working TRIALS = contact +
+  incomplete within it (11-03). Both 15rpa titles say "lick + miss-while-working" (stale wording).
+  NEW RULES: (a) EVERY figure states EXACTLY which trials were included / excluded; (b) map figures get a JAW-ONLY class
+  panel. Helper on feat/trial-set-captions-jaw-panel-1109 (wf_trialset): one shared trial-set sentence from the active
+  selection wired into the common save paths + a jaw_only map variant (new cache kind only), then the re-render plan.
