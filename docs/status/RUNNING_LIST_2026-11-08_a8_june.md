@@ -160,6 +160,11 @@ classes; 3 = FaceRhythm June face regions; 4 = FaceRhythm June O2 run. Backgroun
      the production params and seed rule (60 trials per session, as August), code deployed, `run_fitjune.sbatch` (5
      tasks: COHORT + 4 LOAO, 16 CPU / 96 GB) and `run_fitsession8_june.sbatch` (12 per-session own fits, as production
      own8), commands in the set folder's COMMANDS_JUNE_FIT.md. SUBMITTED by Priya 11-09 (queued behind frf_null). When done: rsync own_epoch_cohort/ + own8/ back, then angle June fit vs production COHORT pre / preEarly (drift_floor matching).
+     11-09: own8 (12 per-session June fits) DONE + copied (EVR own .82-.83 vs frozen .77-.79). frf_june (cohort) still queued.
+     Per-session floor test: scripts/face_rhythm_june_session_shape.py (June scored vs own Aug pre like the main test;
+     epoch vs June within-animal shuffle; -> readouts/master_pre_v1/june_reference/session_shape_june/). 200-perm smoke
+     run: lick_right spatial angle acute +14.6 / subacute +7.6 beyond June (+3.8), chronic +5.5 NOT; side_spec acute /
+     subacute beyond, chronic not; lick_left angles ~ June (June +8.9 itself). 10k run in progress.
 - **11-09 Priya: "can we also do the frozen pre-stroke analysis on june sessions (using august frozen reference) - for
   fr and other analyses".** FR: done (frozen projection + peak / composition / asymmetry readouts; per-session own fits
   queued above). Other arms with an August-frozen reference: imaging position decoder (5r / 5ro frozen-vs-refit),
