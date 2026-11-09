@@ -328,7 +328,9 @@ def build(animal, sessions, rank=None, seed=SEED, out_dir=None, verbose=True):
             print(f"[joint_locanmf] {animal}: reusing existing basis {bid}", flush=True)
         return Basis(root)
 
-    from wfield.local_nmf import compute_locaNMF
+    from wfield_local.wfield_import import no_style_leak
+    with no_style_leak():                     # wfield restyles matplotlib at import
+        from wfield.local_nmf import compute_locaNMF
     _seed_everything(seed)
     mcs = [s["mc"] for s in sessions]
     Uj, Vj, _sv = joint_basis.build_joint_basis(mcs, rank=rank, labels=labels, verbose=verbose)

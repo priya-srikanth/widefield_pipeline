@@ -35,12 +35,15 @@ import numpy as np
 from pandas import DataFrame
 from skimage.transform import estimate_transform
 
-from wfield.allen import (
-    allen_load_reference,
-    allen_landmarks_to_image_space,
-    allen_transform_regions,
-    save_allen_landmarks,
-)
+from wfield_local.wfield_import import no_style_leak
+
+with no_style_leak():   # wfield restyles matplotlib at import (wfield_import docstring)
+    from wfield.allen import (
+        allen_load_reference,
+        allen_landmarks_to_image_space,  # noqa: F401  (pre-existing; kept, see pyproject F401 note)
+        allen_transform_regions,
+        save_allen_landmarks,
+    )
 
 # wfield dorsal-cortex defaults + lateral border anchors (mm, Allen space)
 LM_NAMES = ["OB_center", "OB_left", "OB_right", "RSP_base",
