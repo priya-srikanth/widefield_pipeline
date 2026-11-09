@@ -44,7 +44,7 @@ def session_maps(st: str = "trial"):
     D = wd.load("svdbasis")
     out = {}
     for a in AN:
-        W = np.asarray(pickle.loads((SPATIAL / f"spatial_{a}.pkl").read_bytes())["P"], np.float32)
+        W = np.asarray(pickle.loads(il.te_basis_spatial(a, SPATIAL).read_bytes())["P"], np.float32)
         S = {}
         for x, d in sorted(D.items()):
             if d["animal"] != a:

@@ -123,8 +123,30 @@ classes; 3 = FaceRhythm June face regions; 4 = FaceRhythm June O2 run. Backgroun
   - **The contralesional lick deficit is NOT a training-stage difference:** lick_right composition June ~0 (-0.02 to
     +0.01) vs acute -0.49 to -0.83 and chronic -0.22 to -0.79. The chronic lick_fast_close and lick_ongoing_7Hz rises
     (+0.3 to +0.65) are also absent in June (-0.2 to +0.15).
-  - The composition numbers are a scratch analysis (per-animal means + sign counts, no bootstrap yet). If Priya wants
-    June on the page / deck (decision 3), add `--relative` with boot_delta to the script.
+  - The composition numbers are a scratch analysis (per-animal means + sign counts, no bootstrap yet). Superseded by
+    the drift-floor run below.
+- **June as a ~2-month DRIFT FLOOR (Priya 11-08: "only as drift maybe"; "ok" to the plan 11-09).**
+  `scripts/face_rhythm_june_drift.py` -> `june_reference/`: june_drift_{composition,asymmetry}.png,
+  data/june_drift_*.csv. Scale-free readouts only: factor composition, and the 5e contra / ipsi speed asymmetry (June
+  sessions through the same `asym_aligned.job`; production from its cached traces). Per cell: change vs own August
+  pre, then boot_delta(epoch, June). "Beyond floor" = that interval excludes 0 with the change's sign, and the change
+  itself passes (Holm).
+  - **Asymmetry: every contralesional-spout loss is beyond the June floor, acute AND chronic.** Cue and lick aligned,
+    close_R and far_R (chronic lick far_R -0.14, cue far_R -0.10, close_R -0.08 / -0.09; June -0.06 to +0.02). The
+    chronic GAIN at close_L (ipsilesional) is also beyond the floor (cue +0.03, lick +0.05). Bout-aligned changes are
+    not beyond the floor (June bout far_R -0.08 is wide).
+  - **Composition:**
+    - lick_right loss is beyond the floor at center and contra spouts in all three post epochs (chronic -0.74 /
+      -0.79; June ~0);
+    - chronic rises are beyond the floor: lick_fast_close (+0.35 to +0.65, all sides) and lick_ongoing_7Hz at center
+      (+0.43); also chronic nose_prelick_slow at center (-0.27);
+    - acute jaw / prep rises (run_onset_jaw, prep_jaw, +0.3 to +0.57) are beyond the floor;
+    - **chronic run_onset_jaw (-0.23 / -0.40) and ipsi sniff_prelick (+0.22) are NOT beyond the floor:** June moves
+      the same way by the same amount (-0.22 to -0.40; +0.29). So these chronic changes are inside the training-stage
+      range, matching the 3-D result that chronic jaw opening sits inside June's range.
+  - Proposed slide (hidden, supporting; not made): "Chronic contralesional face changes exceed a 2-month pre-stroke
+    drift floor; chronic jaw changes do not", with task 1's 3-D numbers in the same frame.
+  - Optional next: the June-only cohort factor fit on O2 for the lick_right SHAPE angle vs June (not prepared yet).
 - **SUPERSEDED (wrong June meshes, item 0):** June FaceRhythm O2 outputs: complete and clean except PS95's mesh rim (Priya copied out/ 11-08; `o2_face_rhythm.py
   collect` -> `face_rhythm/cam4/o2_fr_cam4_june_20261108_index.csv`; `qc --jobs 2` -> `o2_fr_cam4_june_20261108_qc.png`
   + data/ csv). Compared with each animal's August pre sessions of the production run:
