@@ -902,3 +902,11 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
   NEW RULES: (a) EVERY figure states EXACTLY which trials were included / excluded; (b) map figures get a JAW-ONLY class
   panel. Helper on feat/trial-set-captions-jaw-panel-1109 (wf_trialset): one shared trial-set sentence from the active
   selection wired into the common save paths + a jaw_only map variant (new cache kind only), then the re-render plan.
+- Priya 11-09: map trial sets = option (c): PRIMARY = working trials (contact + incomplete); SUPPLEMENT = every trial in
+  the working period (contact + incomplete + jaw-only + no response; stopped runs + quit tail excluded); PLUS a jaw-only
+  panel. Sent to the caption / jaw helper (one re-render per map family for all three).
+- 07:5x pushes unblocked: 10cdb08a (share writers classified: june_drift_summary_fig BEHAVIOUR, state_space_shift_movement
+  INDIRECT), f992cb8f (redraw-pass fixes), dff97e56 (interhemi RESTnl). Memos still blocked by 2 stale test_cohorts
+  expectations (cohort2 per-animal reference dates, c926d713) -> test-side fix proposed, Priya to decide. v13 queue
+  (wf_render_v13 @ dff97e56, csig 3d7bbe921e) running: RB encoding re-summaries (4/9 done) + matched-pre LP table; GR LP
+  grant re-render (~5.5 h) -- PROPOSED to stop it and re-render grant once after the caption branch (grant has no figdata).
