@@ -978,3 +978,8 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
       VIS). Helper on fix/xa-restnl-areas-1109 (wf_xafix). v12-IH lane halted at that step (mode stop).
   Stamp-test root cause: importing `wfield` restyles matplotlib globally (test-only fix 6bb2a103, queued in chain_v15).
   10:36 stopped the stamp helper's full-suite pytest (PID 39412, 13.7 GB; RAM was 1 GB free) -- pre-push hook covers it.
+- 11:05 Priya OK for all parked-item recs: (a) contactOnly arm after the grant + epoch re-renders; (b) CD projections
+  HOLD until the page update; (c) absolute-level twins with the page update; (d) hemisphere-balance check NOW (read-only
+  helper); (e) LP lick decoder thread check when idle; (g) D2 copy-back / C3-C4 later. (f) frozen spout decoder 3x:
+  Priya wants to discuss -> read-only trace helper (versions, input-set differences, users, does it move a number).
+  Map re-renders: RESTnl baselines attached 107/108 (PS93_0813 no LP licks, expected) ~11:00.
