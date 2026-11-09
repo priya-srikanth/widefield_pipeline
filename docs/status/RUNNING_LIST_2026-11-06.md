@@ -1029,3 +1029,7 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
   Style-affected families: anything that built Allen ROI masks cold in-process (iti_* / lick_balance_* / lick_cue_to_lick
   / lick_enlv / gain_bio / encoder area masks / cohort2 quiet_*) + alignment QC figs -> look changes on re-render.
   Push queued: chain_v16 after chain_v15 ALL PUSHED.
+- 12:35 PRIYA: balance = log2 gain ratio stays PRIMARY (option B). Captions state its per-lick baseline (-1.0..-0.5 s
+  before the lick, iti_licks.BASE_RESP); the raw 0..0.2 s decoder-window difference (14.17-14.19) = supplement. No
+  recompute for this decision (balance re-run needed anyway after the glue fix: SSs ~50 % glue). RAM 5 GB free 11:18+
+  (state-space replots of another window + our helpers + preview maps); queue waits, nothing killed.
