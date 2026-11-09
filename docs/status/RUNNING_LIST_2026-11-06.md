@@ -821,3 +821,17 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
   units 5c, 5d, 6, 6b, 6d, 7, 7b, 7d, 8, 8b, 8d, 8e, 8g, 9, 10, 10b, 11 (decoder-dependent: at least 5c / 5d / 9 / 10 /
   10b; confirm per family in the redraw pass). Keep on the list: 15-min thread-dependence diagnostic so future runs
   stop minting new ids. B = OK -> pushing perf/grant-loader-memos-1109 (7ac7850c).
+- 05:20 PARKED LANES (audit scratchpad/parked_lanes_audit.md): all 12 old lanes were parked forever (only child sleep 60,
+  no locks, deps either re-run under new names or never producible). STOPPED by exact PID (1255761 1243302 943032 942954
+  1221888 942383 943220 943734 1010593 943105 1008633 943159; all mine); removed 8 empty claim dirs + 4 lane subdirs
+  (RESERVED markers kept).
+- 05:24 LAUNCHED queue_daqlk11.sh (wf_render_v10, 90a5e25f): the 44 STILL-NEEDED steps that were stuck behind those
+  lanes (never run under any name; not in the trimmed plan but feed goal-page / imaging / kinematics figs + deck slides):
+  B5 encoder figs (b_rsplit_PS9x NEW producers, fig_rsplit, fig_resid_per_animal, exec_vs_*, z_fig_pooled), E5 ITI /
+  aim models (e_mm, e_lmm_*, e_iti_lick_rate, e_pat_*, e_fpa_*), L5R lick family (offset terms, nonlinear chain, key
+  figure, interhemi / xa / cv_sm, enlv target code, iti prelick, code subspace incl. NEW enlv producers, restnl rescue,
+  face offset partial, simple key figures). Names _r5; every dep resolves (.done or earlier in the file); encoder env kept.
+  Lanes v11-B5E5 + v11-L5R preflight OK.
+- OPEN for Priya: contact-only (DAQ) section G supplement (g5_section_g_contact_r4 + figs) -- audit dropped it (pre-fix
+  code, not in the plan); run on fixed main (~3 h) only if wanted. V8_NOTES caveats carried: l_nl_* commands marked
+  UNVERIFIED; l_interhemi* use restdock05 rest set (RNP 2a(d) decision pending).
