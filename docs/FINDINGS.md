@@ -58,6 +58,34 @@ consequence of missing. The movement -> cortex relation itself shifts: face coup
 lost and reach coupling grows (correlated covariates), and only the post-stroke coupling removes the between-spout
 change. EXPLORATORY / PROVISIONAL (n = 4).
 
+**Where things stand, restored / re-embedded / replaced (aligned frozen decoder, 11-09; `scripts/aligned_decoder.py`,
+plan + rule fixed before the run in RUNNING_LIST_2026-11-08_STATE_SPACE C; LocaNMF primary, SVD arm pending).** Lick
+arm of the frozen vs refit decoding (5r / 5rm trials: joint-LocaNMF components x 8 bins of 2 s after the first lick,
+LP licks + LP gate, August pre); k = 10 PCs of single-trial activity (5 / 20 alongside); 2-fold, alignment fitted on
+the calibration half only; frozen decoder trained on a pre set size-matched to the refit.
+
+| epoch | pre-fixed verdict | (b) Procrustes on per-spout trajectories: index dA / dG (per animal) | (a) covariance | reading (descriptive) |
+|---|---|---|---|---|
+| acute | UNINFORMATIVE (gate) | .79 [.56, 1.05] (.86 / .50 / .84 / .82); dR +.03 n.s. | .26; R grows | mostly RE-EMBEDDED |
+| subacute | UNINFORMATIVE (gate) | .40 [-.51, 1.13] (.38 / -.60 / 1.83 / .61) | .23 | undetermined |
+| chronic | UNINFORMATIVE (gate) | .43 [.23, .71] (.81 / .29 / .34 / .43); dR +.09 * | .03 | PARTIAL: ~40 % re-embedded, rest new |
+
+**The gate failed as written** (pre -> pre gap fraction >= .7): pre -> pre the size-matched frozen decoder is already
+near the refit (gap G .04-.11), so the fraction divides by ~0, and both alignments sit slightly BELOW frozen pre -> pre
+(nothing left to recover). Alignment EFFICIENCY pre -> pre (aligned / frozen above chance; the 10-30 prereg's G1)
+passes: covariance .89 / .91 / .96 / .89, Procrustes .71 / .93 / .73 / .68 (3/4 >= .7). Gate choice is open with
+Priya. Solid regardless: the frozen-to-refit gap opens in every epoch (G +.13 / +.10 / +.15 vs pre, 4/4) while refit
+accuracy is unchanged -> the spout information is there, the pre readout lost it. A per-spout ROTATION recovers most
+of the acute loss (k = 20: index 1.24 [.89, 1.81], 4/4) but under half of the chronic one; label-free covariance
+alignment recovers almost nothing (chronic .03); shuffled-label Procrustes stays at chance (.17) and rotation-only
+equals the scaled fit (it is a rotation). **Cortex (Procrustes map, change vs pre -> pre): within-hemisphere ROTATION
+dominates** (cosine aligned vs pre readout, ipsi / contra: acute -.30 / -.21, chronic -.16 / -.13, 4/4) with a small
+contralesional re-weighting from subacute (contra share +.05 subacute, +.04 chronic, 4/4; tjM1 contra +.017 chronic,
+4/4; SSp-m contra +.009 n.s.; ipsi tjM1 / SSp-m n.s.). Caveats: Procrustes uses calibration labels (rotation only,
+48 condition-average points; shuffle control at chance); pairwise single-pre references are too thin to give a usable
+lag-matched ceiling; n = 4. Outputs `<rebuild>/labcams/grant_figures/LP_licks_gateLP_..._inmem-epoch/epoch/data/
+aligned_decoder/`. EXPLORATORY.
+
 **Where things stand, face movement (FaceRhythm, updated 11-07; claim 5.10, DECISIONS 2026-11-07):** tested per
 session against each animal's own pre (within-animal shuffles, Holm across every epoch and measure, drift-controlled),
 both lateral lick factors CHANGE SHAPE after the stroke and lose side specificity at every epoch (lick_right spatial
