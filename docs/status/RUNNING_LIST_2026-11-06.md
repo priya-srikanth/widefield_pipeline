@@ -1058,3 +1058,8 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
   later ones are corrected to ~11:15-11:30. RAM fell to 1.9 GB at 11:32 (preview maps 12.0 + 11.4 GB): STOPPED the
   RESTnl preview map g5_restnl_maps_lp_ts (PID 36696, mine; glue-in stats, superseded) under the 6 GB floor rule ->
   19.9 GB free. LPfinal preview (40068) continues for the panel / caption review.
+- 11:40 l_restnl_rescue_r5 EXIT 1 (v11-L5R, code 90a5e25f): c2l_table "No objects to concatenate" -- no session got
+  c2l_raw although l_c2l_extract_restnl_r finished 02:00 exit 0. Suspect: restnl_rescue.py:74 reuses its own session
+  npz (VERSION match) built before the c2l extract, or cx.SESS_NL resolves under another tag root (same LP-prefix
+  issue the precue helper fixed in restnl.level). Area-ROI tree -> re-runs after the glue fix anyway; fix the input
+  check (raise if SESS_NL is empty / cache lacks c2l) in that pass. Not fixed now.
