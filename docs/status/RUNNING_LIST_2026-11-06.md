@@ -876,3 +876,13 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
   test_every_share_writer_is_routed_refusing_or_classified (unclassified: june_drift_summary_fig.py,
   state_space_shift_movement.py -- added by another window). Blocks every push that selects that test. Ask Priya (as d9 on
   11-08: classify on my branch).
+- 07:00 REDRAW PASS (fix/redraw-pass-1109, 208eddfd): 0 figures rewritten (figdata redraws pixel-identical / already
+  fixed); code fixes = lick-source label (grant_confusion), LP stamp band + crowded-tick thinning (grant_kit._save),
+  matched-pre --lick-dir. Needs re-render (Priya OK pending): LP grant set (95 PNGs, ~1 h 50, faster with memos);
+  encoding bar figs without figdata (posinfo, specificity, svf, matched_residual, partial_frA, fr_compare, spout maps)
+  via --plot-only re-summarise; matched-pre LP lick table to M:.
+- 07:00 TWO-REFS AUDIT -> docs/status/AMPLITUDE_TWO_REFS_AUDIT_2026-11-09.md. Decisions for Priya: D0 (map "raw" = slow
+  inter-trial trend zero, not strictly session mean; area traces = exactly session mean), S3-1 (per-trial-baseline
+  families: exempt + caption, or absolute twins of key ones e.g. 14.1), S3-2 (state-space response sizes twins), S3-3
+  (hemisphere-difference balances need RESTnl?), S3-4 (matched_residual / CD projections RESTnl twins). Recommended:
+  D0 yes + caption; S3-1 exempt + 14.1 twin; S3-2..4 defer; run the no-code / few-line gaps now.
