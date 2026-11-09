@@ -42,6 +42,11 @@ from wfield_local.epoch_kit import (  # noqa: F401
 )
 
 
+#: A session's position enters 1b / 1c with at least this many trials (the hit-rate floor; stated in the trial-set
+#: caption, `epoch_kit.behaviour_trial_text`).
+MIN_POSITION_TRIALS = 5
+
+
 def _licks_per_trial_by_day(short, keep):
     """``{position: {animal: {day: licks/trial}}}`` -- the OTHER half of the chronic rule.
 
@@ -91,7 +96,7 @@ def _licks_per_trial_by_day(short, keep):
                 m, v = met.get(p), vals.get(p)
                 # THE SAME >=5 ENGAGED-TRIAL FLOOR the hit-rate row uses, so the two rows describe
                 # the same session set and a point present in one is present in the other.
-                if v is None or not m or m[3] < 5:
+                if v is None or not m or m[3] < MIN_POSITION_TRIALS:
                     continue
                 if e == "pre":
                     s_, n_ = early.setdefault(short[p], {}).setdefault(an, [0.0, 0])
@@ -147,7 +152,7 @@ def fig_behaviour_timecourse(out_dir):
             met = _position_metrics(an, mmdd) or {}
             for p in CONF_LABELS:
                 m = met.get(p)
-                if m and m[3] >= 5:
+                if m and m[3] >= MIN_POSITION_TRIALS:
                     if e == "pre":
                         h, n = early.setdefault(short[p], {}).setdefault(an, [0.0, 0])
                         early[short[p]][an] = [h + m[0] * m[3], n + m[3]]
@@ -394,7 +399,7 @@ def fig_behaviour(out_dir, period="camera"):
             seen = False
             for p in CONF_LABELS:
                 m = met.get(p)
-                if m and m[3] >= 5:
+                if m and m[3] >= MIN_POSITION_TRIALS:
                     points[e][short[p]].append((an, float(m[0])))
                     seen = True
             if seen:
@@ -402,7 +407,7 @@ def fig_behaviour(out_dir, period="camera"):
                 counts[e][an] = counts[e].get(an, 0) + 1
             for p in CONF_LABELS:
                 m = met.get(p)
-                if m and m[3] >= 5:
+                if m and m[3] >= MIN_POSITION_TRIALS:
                     # hits and n, so a draw can re-weight by session exactly as the bars do
                     per_sess.setdefault(e, {}).setdefault(short[p], []).append(
                         (an, int(round(m[0] * m[3])), int(m[3])))
