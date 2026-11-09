@@ -531,7 +531,7 @@ def main():
                     help="skip the CD trajectory stage: the per-position coding directions "
                          "projected frame by frame, the trial-matched pre-to-pre null, and the "
                          "geometry, cross-animal delta and migration figures built from them. "
-                         "Covers BOTH gates: success only, and success + miss-while-working "
+                         "Covers BOTH gates: success only, and success + no-lick trials outside the terminal quit period "
                          "(pre-cue and cue; the lick alignment cannot take the second gate). "
                          "~90 min COLD for all four animals over three alignments, since every "
                          "session's projection has to be read off MICROSCOPE; minutes once the "

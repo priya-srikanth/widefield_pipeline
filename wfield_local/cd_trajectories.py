@@ -1941,9 +1941,10 @@ def main(argv=None) -> int:
                          "cross = the full 6x6, every position's trials on every position's CD")
     ap.add_argument("--gate", nargs="+", default=["lick"], choices=tuple(GATES),
                     help="which trials the direction is fitted on AND the trace is built from. "
-                         "`lick` = success only; `lick_or_working` = success + miss-while-working "
-                         "pooled at the trial level. Run both to see whether miss-while-working "
-                         "carries the same position code as licks.")
+                         "`lick` = success only; `lick_or_working` = success + no-lick trials outside "
+                         "the terminal quit period (DAQ quit-tail rule), pooled at the trial level. Run "
+                         "both to see whether those no-lick working trials carry the same position code "
+                         "as licks.")
     ap.add_argument("--method", default="dom", choices=("dom", "lr"))
     ap.add_argument("--reference", nargs="+", default=["contrast"], choices=REFERENCES,
                     help="what position P is contrasted AGAINST. `contrast` = the other five positions (the default everywhere else, and the one whose directions sum to ~0 and so force a shared signal to split sign). `rest` = the flat time-local rest baseline, identical for all six, so nothing cancels. `restw` = each position against ITS OWN rest frames -- conservative, since rest itself carries position information.")

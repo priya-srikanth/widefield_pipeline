@@ -9,7 +9,8 @@ PROVENANCE: recreated 2026-11-03 (cohort-1 rebuild, step 3) from the share-only
 
 INPUT (no decoding re-run): the per-session sidecar of the matched pooled-over-positions family (5rmo) written by
   wfield_local/epoch_accuracy.py::_frozen_vs_refit_overall(matched=True), cue window 0-2 s, working trials
-  (lick + miss-while-working; terminal quit excluded), the decoders of imaging Figs 4.1 / 4.2:
+  (camera gate: contact + incomplete inside the working period, stopped runs and quit tail removed), the decoders of
+  imaging Figs 4.1 / 4.2:
     labcams/grant_figures/epoch/data/epoch_5rmo_frozen_refit_overall_cue_working_sessions.csv
   Default = the original's hard-coded M: path (kept; --src overrides). Each session's value is TRIAL-POOLED over
   positions; gap = refit - frozen on the same trials. Pre = June + August (11 per animal). Cohort 1 only.

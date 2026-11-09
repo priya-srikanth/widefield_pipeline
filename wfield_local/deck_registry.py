@@ -224,7 +224,7 @@ _CD_MASK = (
     "reproduces the earlier arm.")
 
 _GATE = (
-    'THE GATE. These panels are fitted on, and built from, PRE-STROKE SUCCESS **plus MISS-WHILE-WORKING** trials -- the animal was engaged and attempting but did not lick in the response window. The trials are pooled at the TRIAL level, not averaged per class and combined: pre-stroke success runs 4-6k trials against 130-500 miss-while-working, so averaging class means would weight a 130-trial class equally with a 6000-trial one. Read against the success-only panels, this asks whether a trial the animal worked at but did not complete carries the same position code as one it licked at. THERE IS NO LICK-ALIGNED VERSION and there cannot be: a no-lick trial has no lick to align to, and placing it at an inferred time gives an x-axis that stretches with the latency -- worst exactly post-stroke, where latencies are long and variable.'
+    'THE GATE. These panels are fitted on, and built from, PRE-STROKE SUCCESS **plus NO-LICK trials outside the terminal quit period** (DAQ quit-tail rule) -- the animal was still working but did not lick in the response window. The trials are pooled at the TRIAL level, not averaged per class and combined: pre-stroke success runs 4-6k trials against 130-500 no-lick working trials, so averaging class means would weight a 130-trial class equally with a 6000-trial one. Read against the success-only panels, this asks whether a trial the animal worked at but did not complete carries the same position code as one it licked at. THERE IS NO LICK-ALIGNED VERSION and there cannot be: a no-lick trial has no lick to align to, and placing it at an inferred time gives an x-axis that stretches with the latency -- worst exactly post-stroke, where latencies are long and variable.'
 )
 
 CD_FIGURES = (
@@ -439,7 +439,9 @@ EPOCH_FIGURES = (
      "over trials -- raw confusion counts sum, so every trial counts once -- while dots are"
      "individual sessions. Intervals and marks as above. One figure per alignment window"
      "and trial class. FIVE ARMS as of 2026-09-12: the ENL (pre-cue) and post-cue windows each"
-     "render twice, once on lick plus miss-while-working and once on LICK TRIALS ONLY, and the"
+     "render twice, once on the WORKING set (camera gate: contact + incomplete trials inside the"
+     "working period, stopped runs and quit tail removed; each figure's caption names its set)"
+     "and once on LICK TRIALS ONLY, and the"
      "lick-aligned window admits lick trials only because a trial with no detected lick has no"
      "lick to align to. The lick-only pre-cue and post-cue arms are the SELECTION CONTROL for"
      "the post-lick result: they hold the trial set fixed and move only the window, so a"
