@@ -84,7 +84,12 @@ contralesional re-weighting from subacute (contra share +.05 subacute, +.04 chro
 4/4; SSp-m contra +.009 n.s.; ipsi tjM1 / SSp-m n.s.). Caveats: Procrustes uses calibration labels (rotation only,
 48 condition-average points; shuffle control at chance); pairwise single-pre references are too thin to give a usable
 lag-matched ceiling; n = 4. Outputs `<rebuild>/labcams/grant_figures/LP_licks_gateLP_..._inmem-epoch/epoch/data/
-aligned_decoder/`. EXPLORATORY.
+aligned_decoder/`. **SVD arm (cohort SVD basis, state-space first-lick trials, -0.1..+0.7 s; `--basis svd`,
+`state_space_recovery/aligned_decoder_svd/`) replicates:** Procrustes efficiency pre -> pre .87 / .87 / .85 / .87; G
++.16 / +.09 / +.14 (4/4); index acute .73 [.39, 1.02] (.74 / .41 / .82 / .85; dR n.s.), subacute .48 [.01, 1.17],
+chronic .49 [.31, .71] (.35 / .40 / .56 / .78; dR +.07 *); covariance ~0. Cortex: within-hemisphere cosine ipsi /
+contra -.25 / -.23 acute, -.14 / -.12 chronic (4/4); the contralesional re-weighting sits in SSp-m here (+.024 acute,
++.012 chronic, 4/4), not tjM1 (n.s.) -- the area of the small contra shift is basis-dependent. EXPLORATORY.
 
 **Where things stand, face movement (FaceRhythm, updated 11-07; claim 5.10, DECISIONS 2026-11-07):** tested per
 session against each animal's own pre (within-animal shuffles, Holm across every epoch and measure, drift-controlled),
