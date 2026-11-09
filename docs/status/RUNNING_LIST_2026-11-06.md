@@ -842,3 +842,8 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
   RESTnl (docked rest x lick-free mask: camera + DAQ licks); SUPPLEMENT = current restdock05 (DAQ licks only; the v11
   l_interhemi* / l_xa* / l_cv_sm* _r5 steps). Code change on feat/interhemi-restnl-1109 (helper). (3) l_nl_* "unverified"
   caveat resolved: iti_lick_order supports WFIELD_LICK_DECODER=nonlinear (own preds + _nonlinear-tagged outputs).
+- Priya correction 11-09: restdock05 is NOT "raw". For the interhemi / cross-area / coupling family rest enters ONLY as
+  metric 3 (lick - rest per session); metrics 1-2 per lick set use no rest. -> PRIMARY = lick - RESTnl rest; SUPPLEMENT
+  "raw" = lick-set metrics with NO rest reference (same run, labeled "raw (no rest reference)"; helper adding explicit
+  outputs). The v11 restdock05 chain (l_interhemi_rest_r5 ... l_cv_sm_plot_r5, 7 steps, not started, no outside
+  dependents) marked .done NOT RUN with the reason (delete the .done files to re-enable).
