@@ -30,7 +30,164 @@ from pathlib import Path
 
 from wfield_local import config
 from wfield_local import plot_poststroke as pp
+from wfield_local import trial_set_text as tst
 from wfield_local.paths import PathResolver
+
+
+# ------------------------------------------------------------------------------------------- the trial-set sentences
+# Priya 11-09: EVERY figure states exactly which trials it includes / excludes. Section G's figures draw DIFFERENT row
+# sets (read off `poststroke_compare`, which computed section_g.json): the frozen-decoder figures (matched, confusion,
+# G2b) use the camera WORKING rows for the pre band / lick-only arm under the camera grouping; the within-session
+# figures (grid, retained) and the pattern similarity use the lick-source ENGAGED rows (`recoding_test`,
+# `pattern_similarity`); the ALL arm's post side is every cued trial; the G1-G3 readouts train camera WORKING vs raw
+# NO RESPONSE (or DAQ lick vs no-lick). Each figure group is drawn inside `tst.active(None, text=...)` with its own
+# sentence, so the savefig hook stamps it.
+
+def _core(s: str) -> str:
+    """A `trial_set_text.sentence` without its leading "trials: "."""
+    return s.split(": ", 1)[1] if s.startswith("trials: ") else s
+
+
+def lick_rows() -> str:
+    """The pool's ENGAGED rows: a lick (the run's lick source) within max_rt of the cue (`tst.sentence("lick")`)."""
+    return _core(tst.sentence("lick")).split("; excluded:", 1)[0]
+
+
+def nolick_rows() -> str:
+    """The pool's NO-LICK rows (XU): no lick of the run's lick source within max_rt of the cue."""
+    return f"no-lick trials (no {tst.lick_text()} within {tst._max_rt_s()} of the cue)"
+
+
+def working_rows() -> str:
+    """The camera WORKING rows (`tst.sentence("working")`), in parentheses-ready form."""
+    return f"camera WORKING trials ({_core(tst.sentence('working'))})"
+
+
+#: the ALL arm's post side (`decode_matched` / `recoding_test` / `pattern_similarity` / `crossed_confusion`)
+def all_post() -> str:
+    return ("EVERY cued trial of the session at all six spouts (lick + no-lick trials; no camera-class, working-period "
+            "or quit-tail cut)")
+
+
+def _min_post() -> int:
+    try:
+        from wfield_local import poststroke_compare as pc
+        return int(pc.MIN_POST)
+    except Exception:                                                  # noqa: BLE001 - a caption never kills a figure
+        return 20
+
+
+def camera_grouping(sub=None) -> bool:
+    """Did the run that wrote these records use section G's CAMERA grouping (`poststroke_compare._camera_groups`)?
+    Read off the records themselves (decode_matched ``pre_band_rows``, crossed_confusion ``groups``), so a replot of an
+    older json captions what that json holds; else from the run's switches."""
+    for r in (sub or {}).values():
+        for a in ((r or {}).get("arms") or {}).values():
+            for v in (a or {}).values():
+                if isinstance(v, dict) and "pre_band_rows" in v:
+                    return str(v["pre_band_rows"]).startswith("camera")
+            for c in ((a or {}).get("confusion") or {}).values():
+                if isinstance(c, dict) and "groups" in c:
+                    return c["groups"] == "camera"
+    try:
+        from wfield_local import poststroke_compare as pc
+        from wfield_local import trial_classes as tc
+        from wfield_local import working_trials as wt
+        return (pc.section_g_groups() == "camera" and tc.camera_gate_on()
+                and wt.is_camera(tc.working_selection()))
+    except Exception:                                                  # noqa: BLE001
+        return False
+
+
+def _preserved(cam: bool) -> str:
+    return (f"the session's preserved spouts (>= {_min_post()} "
+            + ("camera WORKING trials there)" if cam else "lick trials there)"))
+
+
+def counts_sentence() -> str:
+    """G1 counts (`fig_behaviour`): every cued trial, split per spout into lick / no-lick trials."""
+    return (f"trials: every cued trial of each session, per spout, split into {lick_rows()} and {nolick_rows()}; "
+            "nothing excluded (no camera-class, working-period or quit-tail cut)")
+
+
+def matched_sentence(arm: str, cam: bool) -> str:
+    """G2 matched (`decode_matched`): the pre band and post rows per arm."""
+    pre = working_rows() if cam else lick_rows()
+    if arm == "all":
+        return f"trials: pre band = pre-stroke {pre} at all six spouts; post = {all_post()}"
+    return (f"trials: post-cue / pre-cue = {pre} at {_preserved(cam)}, pre band and post alike; post-lick = "
+            f"{lick_rows()} at the spouts with >= {_min_post()} lick trials, pre band and post alike; excluded: "
+            + ("every non-working trial" if cam else "no-lick trials") + " and every other spout")
+
+
+def similarity_sentence(arm: str, cam: bool) -> str:
+    """G5 pattern similarity (`pattern_similarity`): lick-source engaged rows pre; the arm's post rows."""
+    if arm == "all":
+        return f"trials: pre = pre-stroke {lick_rows()} per spout; post = {all_post()}"
+    return (f"trials: pre and post = {lick_rows()} at {_preserved(cam)}; excluded: no-lick trials and "
+            "every other spout")
+
+
+def confusion_sentence(arm: str, align: str, cam: bool) -> str:
+    """G3b confusion (`crossed_confusion`) panels: PRE, PRE no-lick, POST, POST no-lick (no no-lick panels post-lick;
+    the lick window has no camera grouping)."""
+    cam = cam and align != "lick"
+    rows = working_rows() if cam else lick_rows()
+    post = all_post() if arm == "all" else f"the session's {rows}, all six spouts"
+    parts = [f"PRE = pre-stroke {rows}, all six spouts"]
+    if align != "lick":
+        parts.append(f"PRE no-lick = pre-stroke {nolick_rows()}")
+    parts.append(f"POST = {post}")
+    if align != "lick":
+        parts.append(f"POST no-lick = the session's {nolick_rows()}")
+    return "trials: " + "; ".join(parts)
+
+
+def within_sentence(arm: str, cam: bool | None = None) -> str:
+    """Within-session decoding (`recoding_test`: grid G2c, retained): lick-source engaged rows for the pre band."""
+    cam = camera_grouping() if cam is None else cam
+    if arm == "all":
+        return f"trials: pre band = pre-stroke {lick_rows()} at all six spouts; post = {all_post()}"
+    return (f"trials: pre band and post = {lick_rows()} at {_preserved(cam)} (post-lick: spouts with >= "
+            f"{_min_post()} lick trials); excluded: no-lick trials and every other spout")
+
+
+def per_position_sentence(cam: bool) -> str:
+    """G2b (`per_position_table`: the confusion diagonals of the LICK-ONLY arm, plus the no-lick panels)."""
+    rows = working_rows() if cam else lick_rows()
+    return (f"trials: post-cue and pre-cue WITH lick = {rows} (pre-stroke sessions and the post session); post-lick = "
+            f"{lick_rows()}; pre-cue NO lick = {nolick_rows()} (pre-stroke and post)")
+
+
+def g13_sentence(records=None) -> str:
+    """G4 identity / G4b fits-engaged (`looks_like_which`, `fits_engaged_distribution`): the discriminator's classes
+    and the scored rows, from the records' ``train_classes`` (camera vs DAQ)."""
+    cam = any(((r or {}).get("train_classes") or {}).get("groups") == "camera" for r in (records or []))
+    if not records:
+        cam = camera_grouping()
+    if cam:
+        return (f"trials: discriminator trained on pre-stroke {working_rows()} vs camera NO RESPONSE trials (raw class "
+                "no_response: no lick seen on camera, within the working period), position-balanced at the session's "
+                "preserved spouts; scored: the post session's no-response trials; never trained on: unknown, "
+                "jaw-only, quit, stopped, stopped-licking")
+    return (f"trials: discriminator trained on pre-stroke {lick_rows()} vs {nolick_rows()}, position-balanced at the "
+            "session's preserved spouts; scored: the post session's no-lick trials")
+
+
+def nolick_readout_sentence() -> str:
+    """G6 (`impaired_nolick_readout`): the post session's no-lick trials, preserved vs impaired spouts."""
+    return (f"trials: the post session's {nolick_rows()}, split into preserved spouts and impaired spouts (the rest); "
+            "excluded: lick trials")
+
+
+def _act(text_fn, *a):
+    """`tst.active` with a sentence built by ``text_fn(*a)`` (a failure to build it never costs the figure)."""
+    try:
+        text = text_fn(*a)
+    except Exception as ex:                                            # noqa: BLE001
+        print(f"  [trial set] no caption ({type(ex).__name__}: {ex})", flush=True)
+        text = None
+    return tst.active(None, text=text) if text else tst.active(None)
 
 #: condition key in the JSON -> the align string the confusion figure expects
 #: The lick-aligned confusion exists on the LICK-ONLY arm only -- see the guard in
@@ -138,14 +295,16 @@ def _render_family(sub, out, prefix, label):
     made = []
     if not sub:
         return made
+    cam = camera_grouping(sub)
     counts = {k: v["counts"] for k, v in sub.items() if v.get("counts")}
     if counts:
-        made.extend(pp.fig_behaviour(
-            counts, out, name=f"{prefix}_counts.png",
-            suptitle=(f"{label}: which positions each session still attempts. A position with ZERO "
-                      f"engaged trials has no lick-only decoding number at all, and reading one as "
-                      f"a neural deficit is how the first pass went wrong. Pre-stroke bars are the "
-                      f"per-session MEAN; post bars are that single session.")))
+        with _act(counts_sentence):
+            made.extend(pp.fig_behaviour(
+                counts, out, name=f"{prefix}_counts.png",
+                suptitle=(f"{label}: which positions each session still attempts. A position with ZERO "
+                          f"engaged trials has no lick-only decoding number at all, and reading one as "
+                          f"a neural deficit is how the first pass went wrong. Pre-stroke bars are the "
+                          f"per-session MEAN; post bars are that single session.")))
 
     for arm, arm_name in ARMS:
         matched = {k: {c: v["arms"][arm][c] for c in ("post-cue", "post-lick", "pre-cue")
@@ -154,24 +313,26 @@ def _render_family(sub, out, prefix, label):
         matched = {k: v for k, v in matched.items() if v}
         if matched:
             chance = {k: sub[k]["arms"][arm].get("chance", 1 / 6) for k in matched}
-            made.append(pp.fig_matched(
-                matched, out, chance=chance, name=f"{prefix}_matched_{arm}.png",
-                suptitle=(f"{label} — FROZEN pre-stroke decoder, post arm = {arm_name}. One "
-                          f"panel per session, against that animal's own pre-stroke band. "
-                          + ("Six positions, chance 1/6 on every panel, so the panels ARE "
-                             "comparable." if arm == "all" else
-                             "Each session on ITS OWN preserved positions, so the chance line "
-                             "differs between panels and accuracies must NOT be compared across "
-                             "them."))))
+            with _act(matched_sentence, arm, cam):
+                made.append(pp.fig_matched(
+                    matched, out, chance=chance, name=f"{prefix}_matched_{arm}.png",
+                    suptitle=(f"{label} — FROZEN pre-stroke decoder, post arm = {arm_name}. One "
+                              f"panel per session, against that animal's own pre-stroke band. "
+                              + ("Six positions, chance 1/6 on every panel, so the panels ARE "
+                                 "comparable." if arm == "all" else
+                                 "Each session on ITS OWN preserved positions, so the chance line "
+                                 "differs between panels and accuracies must NOT be compared across "
+                                 "them."))))
 
         sim = {k: v["arms"][arm]["postcue_pattern_similarity"] for k, v in sub.items()
                if v.get("arms", {}).get(arm, {}).get("postcue_pattern_similarity")}
         if sim:
-            made.append(pp.fig_similarity(
-                sim, out, name=f"{prefix}_similarity_{arm}.png",
-                suptitle=(f"{label} — per-position correlation between the pre- and post-stroke "
-                          f"mean patterns, post arm = {arm_name}. Decoding accuracy alone cannot "
-                          f"separate a weakened code from a reorganized one; this can.")))
+            with _act(similarity_sentence, arm, cam):
+                made.append(pp.fig_similarity(
+                    sim, out, name=f"{prefix}_similarity_{arm}.png",
+                    suptitle=(f"{label} — per-position correlation between the pre- and post-stroke "
+                              f"mean patterns, post arm = {arm_name}. Decoding accuracy alone cannot "
+                              f"separate a weakened code from a reorganized one; this can.")))
 
         for cond, align in CONFUSION_ALIGNS:
             conf = {k: {align: v["arms"][arm]["confusion"][cond]} for k, v in sub.items()
@@ -180,11 +341,13 @@ def _render_family(sub, out, prefix, label):
                 # one figure per session now -- extend, not append
                 # arm_name is what LABELS the post panels. Passing only the filename left every
                 # LICK-ONLY figure captioned "ALL trials" (fixed 2026-08-24).
-                made += pp.fig_confusion_alltrials(
-                    conf, out, align=align, name=f"{prefix}_confusion_{align}_{arm}.png",
-                    arm_name=arm_name)
+                with _act(confusion_sentence, arm, align, cam):
+                    made += pp.fig_confusion_alltrials(
+                        conf, out, align=align, name=f"{prefix}_confusion_{align}_{arm}.png",
+                        arm_name=arm_name)
 
-        made.append(pp.fig_grid(sub, out, arm=arm, name=f"{prefix}_grid_{arm}.png"))
+        with _act(within_sentence, arm, cam):
+            made.append(pp.fig_grid(sub, out, arm=arm, name=f"{prefix}_grid_{arm}.png"))
     return made
 
 
@@ -208,10 +371,11 @@ def _render_readouts(sub, out, prefix, *, named_only=False):
     # figures below are kept as the robustness set.
     if any(v.get("g4_camclass_cue") or v.get("g4_camclass_precue") for v in sub.values()):
         from wfield_local import g4_figures
-        made.append(g4_figures.render(sub, out, prefix))
+        made.append(g4_figures.render(sub, out, prefix))     # its own sentence (`g4_figures.trial_set_sentence`)
     ident = {k: v["looks_like_which"] for k, v in sub.items() if v.get("looks_like_which")}
     if ident and not named_only:
-        made.append(pp.fig_identity(ident, out))
+        with _act(g13_sentence, list(ident.values())):
+            made.append(pp.fig_identity(ident, out))
     # fig_fits_engaged indexes fits[session][align] -- it was written when the readout was computed
     # per alignment. The runner stores the pre-cue record directly, so it is nested back here rather
     # than changing a figure that reads correctly. Silently producing NOTHING is the failure this
@@ -221,15 +385,17 @@ def _render_readouts(sub, out, prefix, *, named_only=False):
                 if v.get(f"fits_engaged_{align}")}
         if not fits:
             continue
-        f = pp.fig_fits_engaged(fits, out, align=align,
-                                name=f"{prefix}_fits_engaged_{align}.png")
+        with _act(g13_sentence, [r[align] for r in fits.values()]):
+            f = pp.fig_fits_engaged(fits, out, align=align,
+                                    name=f"{prefix}_fits_engaged_{align}.png")
         if f is None:
             print(f"  !! fits_engaged[{align}] produced no figure despite input for "
                   f"{sorted(fits)}", flush=True)
         made.append(f)
     rd = {k: v["impaired_nolick"] for k, v in sub.items() if v.get("impaired_nolick")}
     if rd and not named_only:
-        made.append(pp.fig_nolick_readout(rd, out))
+        with _act(nolick_readout_sentence):
+            made.append(pp.fig_nolick_readout(rd, out))
     return made
 
 
@@ -258,7 +424,8 @@ def render(rec, out, *, json_path=None, suffix="", note=""):
     # G2b: per-position recall in the four conditions, derived from the confusion diagonals.
     ptab = per_position_table(post)
     if ptab:
-        made.append(pp.fig_per_position(ptab, out, name=f"section_g_G2b_per_position{suffix}.png"))
+        with _act(per_position_sentence, camera_grouping(post)):
+            made.append(pp.fig_per_position(ptab, out, name=f"section_g_G2b_per_position{suffix}.png"))
 
     # G2c: the grid over BOTH families together. fig_grid colours on phase_tag == "excluded"
     # precisely so PS92/PS93's ineffective-lesion 8/17 sits as a grey square beside their effective
@@ -270,8 +437,9 @@ def render(rec, out, *, json_path=None, suffix="", note=""):
     both = {**post, **excluded}
     if both:
         for arm, _ in ARMS:
-            made.append(pp.fig_grid(both, out, arm=arm,
-                                    name=f"section_g_grid_withcontrol_{arm}{suffix}.png"))
+            with _act(within_sentence, arm, camera_grouping(both)):
+                made.append(pp.fig_grid(both, out, arm=arm,
+                                        name=f"section_g_grid_withcontrol_{arm}{suffix}.png"))
 
     # RETAINED ABOVE-CHANCE FRACTION (Priya 11-07): within-session accuracy as (post - c) / (pre - c)
     # against the animal's pre band on the SAME positions, so LICK-ONLY sessions scored 4-, 5- and

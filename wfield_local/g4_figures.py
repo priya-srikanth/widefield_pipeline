@@ -155,8 +155,43 @@ def draw(C, D, P, out_png, seed=0):
         pass
     if out_png is not None:
         Path(out_png).parent.mkdir(parents=True, exist_ok=True)
-        fig.savefig(out_png, dpi=200, bbox_inches="tight")
+        from wfield_local import trial_set_text as tst
+        try:
+            text = trial_set_sentence(C, D, groups=groups)
+        except Exception as ex:                                        # noqa: BLE001 - a caption never kills a figure
+            print(f"  [trial set] no caption ({type(ex).__name__}: {ex})", flush=True)
+            text = None
+        with tst.active(None, text=text):
+            fig.savefig(out_png, dpi=200, bbox_inches="tight")
     return fig
+
+
+def trial_set_sentence(C=None, D=None, groups=None) -> str:
+    """The G4 figure's trial set (Priya 11-09): the camera-class discriminator's training / scored rows (left) AND the
+    right panel's discriminator (camera WORKING vs NO RESPONSE since 11-08, else DAQ lick vs no-lick), joined with
+    `trial_set_text.union`. ``groups`` = the camera groups drawn (default `working_trials.G_ALL` + none's raw split);
+    the z-frame center from the records' ``frame`` (else the run's `poststroke_compare.g4_centre`)."""
+    from wfield_local import poststroke_compare as pc
+    from wfield_local import section_g_figures as sgf
+    from wfield_local import trial_set_text as tst
+    from wfield_local import working_trials as wt
+    labels = {**wt.G_LABELS, **pc.G4_SPLIT_LABELS}
+    if not groups:                       # the 11-09 order: "none" drawn as its raw split (`g4_order`)
+        groups = [x for g in wt.G_ALL for x in (pc.G13_NONE_SPLIT if g == "none" else (g,))]
+    fr = (C.frame.dropna().iloc[0] if C is not None and len(C) and "frame" in C and C.frame.notna().any()
+          else pc.g4_frame_tag())
+    centre = str(fr).split("/z-", 1)[1].split("/", 1)[0] if "/z-" in str(fr) else pc.g4_centre()
+    scored_only = [labels.get(g, g) for g in groups if g not in pc.G4_POS + pc.G4_NEG + ("none",)]
+    left = (f"G4 (left): every trial of the post session at its preserved spouts, scored per camera group "
+            f"({' / '.join(labels.get(g, g) for g in groups)}); discriminator trained on pre-stroke "
+            f"{sgf.working_rows()} vs camera NO RESPONSE trials (raw class no_response: no lick seen on camera, "
+            f"within the working period), spout-balanced, each session z-scored on its camera {centre} rows; "
+            f"never trained on: {' / '.join(scored_only)}")
+    if D is None or not len(D):
+        return f"trials: {left}"
+    cam = "train" in D and bool((D.train == "camera").any())
+    right = "right panel: " + sgf._core(sgf.g13_sentence([{"train_classes": {"groups": "camera" if cam else "daq"}}]))
+    return tst.union(left, right, unit="trials")
 
 
 def render(rec, out, prefix="section_g", figdata=None):
