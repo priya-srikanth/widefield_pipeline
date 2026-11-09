@@ -24,12 +24,12 @@ PROVENANCE: recreated 2026-11-03 (cohort-1 rebuild, step 3) from the session-scr
 INPUTS, under --enc-dir (default = the original's hard-coded
   M:/MICROSCOPE/Priya/Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding):
   attempt_coding/summary_{precue,cue,lick}.csv and attempt_coding/trials_{precue,cue,lick}_<animal>.csv.gz
-      (wfield_local/attempt_coding.py, WIDEFIELD_LICK_SOURCE=lp; method "dom"; the frozen decoder is the stored
-      DAQ-contact model) -> fig2
+      (wfield_local/attempt_coding.py, WIDEFIELD_LICK_SOURCE=lp; method "dom"; the decoder is the LP-trained
+      frozen decoder) -> fig2
   movement_first_subset-nokin_exec-polar_licks-combined_bins/tables/region_measures.csv (O2 encoding) -> fig1
   attempt_maps/hemispheres_lick.csv (wfield_local/attempt_maps.py) -> fig3
-REBUILD: re-run attempt_coding.py (decision D7: training rule of the LP-gated stored DAQ model), attempt_maps.py and
-  the O2 contest bundle, then point --enc-dir at the new imaging_encoding folder.
+REBUILD: re-run attempt_coding.py (decision D7; Priya 11-09: the LP-trained frozen decoder is THE LP model),
+  attempt_maps.py and the O2 contest bundle, then point --enc-dir at the new imaging_encoding folder.
 OUT: <out>/fig1_binned_contest.png, fig2_attempt_decoder.png, fig3_attempt_amplitude.png
 """
 from __future__ import annotations

@@ -33,7 +33,7 @@ DAQ = "licks: DAQ spout contact"
 LP = "licks: LP video (cam4 + cam1)"
 LP_REST = "licks: mixed - LP video gate; REST baseline DAQ contact"
 LP_DEC = "licks: mixed - LP video trials / window; frozen decoder trained on DAQ-contact trials"
-LP_ATT = "licks: mixed - LP video attempt classes / windows; frozen decoder trained on DAQ-contact trials"
+LP_ATT = "licks: LP video attempt classes / windows; LP-trained frozen decoder"
 
 S_WORK = "<b>Licks:</b> DAQ spout contact (it defines the working-trial classes)."
 S_REST_LP = ("<b>Licks:</b> LP video licks choose the trials{x}; the REST baseline&rsquo;s not-licking frames come from "
@@ -79,13 +79,14 @@ FIGS = {
     "j_drift": ("DAQ", DAQ, "<b>Licks:</b> DAQ spout contact (engaged licking trials).",
                 "june_august_drift.py on grant_kit._collect_7 (default DAQ, writeguard-checked untagged folder); "
                 "PS93_0813 present (it has no LP table)"),
-    "fig2_attempt_decoder": ("mixed", LP_ATT, "<b>Licks:</b> LP video (cam4, plus cam1 where it exists) defines the "
-                             "attempt classes, the 1 s lick-free pre-cue window and the lick alignment; the frozen "
-                             "decoder is the stored DAQ-contact model, reused.",
-                             "attempt_coding.py refuses to run unless WIDEFIELD_LICK_SOURCE=lp; uses DAQ-frozen decoder"),
-    "fig2b_attempt_decoder_epochs": ("mixed", LP_ATT, "<b>Licks:</b> as Fig 5.1: LP video attempt classes and lick "
-                                     "alignment; frozen decoder trained on DAQ-contact trials.",
-                                     "attempt_coding.py (LP only); DAQ-frozen decoder"),
+    "fig2_attempt_decoder": ("LP", LP_ATT, "<b>Licks:</b> LP video (cam4, plus cam1 where it exists) defines the "
+                             "attempt classes, the 1 s lick-free pre-cue window and the lick alignment; the decoder is "
+                             "the LP-trained frozen decoder (its pre-stroke training trials chosen by LP video licks).",
+                             "attempt_coding.py refuses to run unless WIDEFIELD_LICK_SOURCE=lp; LP-trained frozen "
+                             "decoder (spec carries lick_source=lp; ids in docs/status/DELETED_FROZEN_SPOUT_AB_2026-11-09.md)"),
+    "fig2b_attempt_decoder_epochs": ("LP", LP_ATT, "<b>Licks:</b> as Fig 5.1: LP video attempt classes and lick "
+                                     "alignment; LP-trained frozen decoder.",
+                                     "attempt_coding.py (LP only); LP-trained frozen decoder"),
     "e_amp": ("DAQ", DAQ, "<b>Licks:</b> DAQ spout contact (licking / working trials).", E_EPOCH),
     "e_ceiling": ("DAQ", DAQ, "<b>Licks:</b> DAQ spout contact (licking / working trials).", E_EPOCH),
     "e_captured": ("DAQ", DAQ, "<b>Licks:</b> DAQ spout contact (licking / working trials).", E_EPOCH),

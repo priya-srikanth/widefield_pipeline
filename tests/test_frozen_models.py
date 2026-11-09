@@ -90,6 +90,17 @@ def test_first_call_fits_and_stores_second_call_loads():
     assert calls["n"] == 1, "a stored model was refitted"
 
 
+def test_load_only_refuses_to_fit_on_a_miss_but_still_loads_a_hit(monkeypatch):
+    """WIDEFIELD_FROZEN_LOAD_ONLY=1 (11-09, the LP joint_xsession run): a stored model loads, a miss raises."""
+    F.load_or_fit(spec(), lambda: {"full": "STORED"}, log=lambda *a: None)
+    monkeypatch.setenv(F.LOAD_ONLY_ENV, "1")
+    got, status = F.load_or_fit(spec(), lambda: {"full": "SHOULD NOT HAPPEN"}, log=lambda *a: None)
+    assert status == F.STATUS_HIT and got == {"full": "STORED"}
+    with pytest.raises(RuntimeError, match="refusing to fit"):
+        F.load_or_fit(spec(align="lick"), lambda: {"full": "SHOULD NOT HAPPEN"}, log=lambda *a: None)
+    assert not list((F.local_dir()).rglob("decoder_lick_*")), "a load-only miss wrote a model"
+
+
 def test_a_post_stroke_session_cannot_change_the_model():
     """THE property the whole change is for. The spec is built from the PRE-STROKE labels, so pooling
     more post-stroke days leaves the id -- and therefore the stored weights -- untouched."""
