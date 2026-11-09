@@ -991,3 +991,21 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
   OK already (no per-lick baseline, a difference): the decoder-window family (lick_balance_reference / order / regions /
   maps / maps_svd / offset_lmm / recovery, recovery_markers part A, blind_decoder). A ratio needs a baseline (raw dF/F can
   be ~0 / negative). -> DECISION FOR PRIYA (asked 11:15). Full table: helper report in this session (scratchpad).
+- 11:35 GLUE MASK MISSING IN THE REBUILD (= state-space arm B12 / decision A9, open since 11-08; verified here):
+  under profile cohort1_rebuild_20261103 paint_exclusion.mask_dir -> <rebuild>/labcams/grant_figures (no masks there)
+  -> beta_maps.painted_exclusion() silently 0 px (canonical union = 40,663 px); stat_mask 166,974 vs 129,770 px.
+  Glue share per Allen area (union mask): VISp_L 98 %, SSs_R 54 %, SSs_L 46 %, VISl_R 81 %, VISrl_L 62 %, VISpm_L 48 %,
+  RSPagl_L 14 %, SSp-bfd_L 6 %, VISp_R 31 %, all AUD / TEa / VISpor / VISpl / VISli / VISal_L 100 %. NO glue in ALM, tjM1,
+  MOs, MOp, SSp-m, SSp-n, SSp-un, PL, ACAd, RSPd/v. LocaNMF glue-component drop was correct (no profile) -> LocaNMF
+  decoders unaffected. Affected: maps (stat mask / FDR pool), Allen area extract (area traces: SSs, VIS, RSPagl),
+  encoder pixel inputs (192,110 vs 151,447 px). xa crash fixed on fix/xa-restnl-areas-1109 e4b04637 (45-area set by
+  name; 62 -> 45 areas = the glue set; also scripts/coupling_vigour_sm.py:266 has the same crash). DECISION FOR PRIYA.
+  HOLD the approved grant + epoch caption re-renders until this is decided (else rendered twice).
+- 11:35 (f) FROZEN SPOUT DECODER traced: copies A (d_attempt_freeze, DAQ, pre-cue 1.0 s), B (g5_joint_xsession,
+  failed, orphan), C (g5_joint_xsession_r, DAQ, pre-cue 2.0 s), D (d_attempt_lp, LP-trained, 1.0 s; NOT on the old
+  list). Cue: all the same model (cos 1.0000). Only D matches the decided settings; attempt coding already used D
+  (captions / attempt_coding.py:31-32 / p_img_licksrc.py:85 wrongly say "DAQ-contact model, reused"). No LP
+  joint_xsession exists -> LP grant figs 2/2b/4 MISSING; LP-lane LOSO pre-cue / lick numbers from C are wrong window /
+  source. Pre-stroke acc D vs C: lick 0.01-0.05 lower; pre-cue 0.34-0.59 (1 s) vs 0.49-0.71 (2 s). Rec: D spec = the
+  one LP decoder; run LP joint_xsession (~35 min, LocaNMF -> not glue-affected); fix the wording; A (12) + B (6) models
+  = deletion candidates (Priya OK needed). Helper report: scratchpad/frozen_spout_trace/.
