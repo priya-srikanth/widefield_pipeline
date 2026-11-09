@@ -34,6 +34,7 @@ from __future__ import annotations
 import csv
 import json
 import os
+import re
 import textwrap
 import warnings
 from functools import lru_cache
@@ -412,6 +413,115 @@ def _fit_bottom(fig, pad=0.008):
         print(f"  [layout] bottom fit skipped ({type(exc).__name__})", flush=True)
 
 
+def _fit_stamp(fig, stamp_texts, pad=0.006):
+    """Give the run stamp (`lp_licks.stamp`, bottom right) its own band at the foot of the figure.
+
+    The LP_licks stamp is drawn last, at the very bottom, and grows to several lines under the camera gate (coverage
+    note, design note, excluded sessions). On the LP grant render (11-08, g6_grant_lp.log) it sat on top of the
+    "Post-stroke sessions used" footer in ~40 figures and on bottom legends / a color-bar label in others. Measured, as
+    `_fit_bottom` is: every figure text (not the suptitle) and figure legend whose foot lies inside the stamp's height is
+    lifted by the shortfall, then every axes is raised (and shortened) until its tight box clears the lifted band. The
+    top of the figure does not move, so the header `_fit_header` fitted stays fitted. A no-op when there is no stamp
+    (default run) or nothing collides.
+    """
+    stamp_texts = [t for t in stamp_texts if str(t.get_text()).strip()]
+    if not stamp_texts:
+        return
+    try:
+        fig.canvas.draw()
+        rend = fig.canvas.get_renderer()
+        inv = fig.transFigure.inverted()
+        sb = [inv.transform_bbox(t.get_window_extent(rend)) for t in stamp_texts]
+        s_top = max(b.y1 for b in sb)
+        sup = getattr(fig, "_suptitle", None)
+        texts = [t for t in fig.texts if t is not sup and t not in stamp_texts and str(t.get_text()).strip()]
+        tb = [(t, inv.transform_bbox(t.get_window_extent(rend))) for t in texts]
+        lb = [(g, inv.transform_bbox(g.get_window_extent(rend))) for g in fig.legends]
+        low = [(a, b) for a, b in tb + lb if b.y0 < s_top]
+
+        def _hits(b):
+            return any(min(b.x1, s.x1) - max(b.x0, s.x0) > 0 and min(b.y1, s.y1) - max(b.y0, s.y0) > 0 for s in sb)
+
+        lift = (s_top + pad - min(b.y0 for _, b in low)) if any(_hits(b) for _, b in low) else 0.0
+        for art, _b in low if lift > 0 else ():
+            if art in fig.legends:
+                anc = inv.transform_bbox(art.get_bbox_to_anchor())
+                art.set_bbox_to_anchor((anc.x0, anc.y0 + lift, anc.width, anc.height), transform=fig.transFigure)
+            else:
+                x, y = art.get_position()
+                if art.get_transform() == fig.transFigure:
+                    art.set_y(y + lift)
+                else:                                      # a text in another frame: move it in figure units
+                    xf, yf = inv.transform(art.get_transform().transform((x, y)))
+                    art.set_transform(fig.transFigure)
+                    art.set_position((xf, yf + lift))
+        fig.canvas.draw()
+        band = max([s_top] + [inv.transform_bbox(a.get_window_extent(rend)).y1 for a, _ in low]) + pad
+        axs = [a for a in fig.axes if a.get_visible()]
+        tight = [inv.transform_bbox(a.get_tightbbox(rend)) for a in axs]
+        hit = [(a, b) for a, b in zip(axs, tight) if b.y0 < band
+               and any(min(b.x1, s.x1) - max(b.x0, s.x0) > 0 for s in sb + [x for _, x in tb + lb])]
+        if not hit:
+            return
+        shift = band - min(b.y0 for _, b in hit)
+        top = max(a.get_position().y1 for a in axs)
+        lo = min(a.get_position().y0 for a in axs)
+        k = max(0.5, (top - lo - shift) / max(1e-9, top - lo))   # compress the axes block, keep its top fixed
+        for a in axs:
+            p = a.get_position()
+            a.set_position([p.x0, top - (top - p.y0) * k, p.width, p.height * k])
+    except Exception as exc:                                         # noqa: BLE001
+        print(f"  [layout] stamp fit skipped ({type(exc).__name__})", flush=True)
+
+
+#: A tick label that is a DAY (or a session count): "d15", "15", "-3". Only these are thinned by `_thin_crowded_ticks`;
+#: position labels ("cL", "close_L") and category labels ("ALL pre") are always kept.
+_DAY_TICK = re.compile(r"^\s*d?-?\d+\s*$")
+
+
+def _thin_crowded_ticks(fig, gap=0.18):
+    """Hide DAY tick labels that crowd their neighbor, never a tick and never a non-day label.
+
+    7b / 8b / 11 / 3b / 1b label every recorded post-stroke day; with the October sessions the late days (d11 d15 d18
+    d22 d25 ...) run together on the narrow per-animal panels (g6_grant_lp.log: 120 of its 139 "[layout]" lines).
+    Greedy left to right with the gap `_overlaps` demands (0.18 x the mean label width): a day label is shown only when
+    it clears the last shown label; the LAST day is always shown (the axis ends where the data ends), dropping the
+    shown label before it if they collide. The tick marks stay, so every session is still marked on the axis.
+    """
+    try:
+        fig.canvas.draw()
+        rend = fig.canvas.get_renderer()
+        for ax in fig.axes:
+            if not ax.get_visible():
+                continue
+            labs = [t for t in ax.get_xticklabels() if t.get_visible() and str(t.get_text()).strip()]
+            if len(labs) < 3 or not any(_DAY_TICK.match(str(t.get_text())) for t in labs):
+                continue
+            boxes = sorted(((t, t.get_window_extent(rend)) for t in labs), key=lambda r: r[1].x0)
+
+            def _clear(b1, b2):
+                return (b2.x0 - b1.x1) >= gap * (b1.width + b2.width) / 2
+
+            shown = []
+            for t, b in boxes:
+                if not shown or _clear(shown[-1][1], b):
+                    shown.append((t, b))
+                elif not _DAY_TICK.match(str(t.get_text())):     # a category label wins over a day label
+                    if _DAY_TICK.match(str(shown[-1][0].get_text())):
+                        shown[-1] = (t, b)
+            last = [r for r in boxes if _DAY_TICK.match(str(r[0].get_text()))]
+            if last and last[-1] not in shown:
+                while shown and not _clear(shown[-1][1], last[-1][1]) and _DAY_TICK.match(str(shown[-1][0].get_text())):
+                    shown.pop()
+                shown.append(last[-1])
+            keep = {id(t) for t, _ in shown}
+            for t, _ in boxes:
+                if id(t) not in keep:
+                    t.set_visible(False)
+    except Exception as exc:                                         # noqa: BLE001
+        print(f"  [layout] tick thinning skipped ({type(exc).__name__})", flush=True)
+
+
 def _twinned(axa, axb):
     """True when two axes are a twinx/twiny pair, which overlay each other BY CONSTRUCTION.
 
@@ -509,7 +619,7 @@ def _overlaps(fig):
     # function reported the figure clean.
     for i, ax in drawn:
         for getter, which in ((ax.get_xticklabels, "x"), (ax.get_yticklabels, "y")):
-            labs = [t for t in getter() if str(t.get_text()).strip()]
+            labs = [t for t in getter() if t.get_visible() and str(t.get_text()).strip()]
             boxes = []
             for t in labs:
                 try:
@@ -564,7 +674,10 @@ def _save(fig, path, **kw):
     _fit_header(fig)
     _fit_bottom(fig)
     from wfield_local import lp_licks
+    _before = set(map(id, fig.texts))
     lp_licks.stamp(fig)                         # LP_licks renders say so on the figure itself
+    _fit_stamp(fig, [t for t in fig.texts if id(t) not in _before])
+    _thin_crowded_ticks(fig)
     try:
         bad = _overlaps(fig)
     except Exception as ex:                                          # noqa: BLE001

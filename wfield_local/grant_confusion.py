@@ -748,10 +748,21 @@ def _stored_epoch_decoder(an, align, bd, tag="5c", XT=None, scaling=None, R=None
     from wfield_local import lp_licks as _lpl
     # review 8A NB-f: an engaged-trained model is the lick-arm (engaged) rows of THIS run's gate
     from wfield_local import trial_classes as _tcl
-    _sel = trials or f"engaged rows ({'camera gate' if _tcl.camera_gate_on() else 'DAQ gate'}: DAQ lick-arm trials)"
+    _sel = trials or (f"engaged rows ({'camera gate' if _tcl.camera_gate_on() else 'DAQ gate'}: "
+                      f"{engaged_selection_label()})")
     print(f"  [{tag}] {an} {align}: epoch_decoder {frozen_models._slug(spec)} {status} "
           f"(trained on pre trials: lick source {'lp' if _lpl.is_lp() else 'daq'}, selection {_sel})", flush=True)
     return payload
+
+
+def engaged_selection_label() -> str:
+    """What the "engaged" (lick-arm) training selection IS under this run's lick source, for logs / captions / figdata.
+
+    Computed, never hard-coded (redraw pass 11-09): the frozen-decoder log above used to print "DAQ lick-arm trials" on
+    LP runs too. Under the LP source the lick arm is every trial with a camera-seen lick; under DAQ it is the DAQ contact
+    trials. Kept here, not in `lp_licks`: that module's own source keys the LP lick-times sidecars."""
+    from wfield_local import lp_licks
+    return "LP-attempted trials: every camera-seen lick" if lp_licks.is_lp() else "DAQ contact trials"
 
 
 class PreRecords(list):
