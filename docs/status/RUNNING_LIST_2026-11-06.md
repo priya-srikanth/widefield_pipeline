@@ -1092,3 +1092,14 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
 - 12:08 PRIYA "ok to push": frozen spout D (wf_frozenD) + precue ENL (wf_precueenl) via chain_v17 (after chain_v16 =
   style-leak branch, which follows chain_v15 = wiring -> memos). Glue fix pushing in parallel (push_glue.sh).
   On main so far: caption branch 5a0612b4, stamp fix 7fd9f5f4. Mask-keys branch: push asked separately when complete.
+- 12:45 GLUE PUSH 1st try FAILED only on test_grant_stamp_fit (branch merged main at 11:46, one minute before the stamp
+  fix 7fd9f5f4 landed; 5747 passed) -> retry running (merges the stamp fix).
+- 12:45 MASK KEYS COMPLETE: fix/mask-keyed-caches-1109 (wf_maskkeys) + c275f111 (all per-session extract reads via
+  iti_licks._load; ~20 more extracts; pooled caches get <cache>.mask_sig sidecars) + 79c03cae (GLUE_MASK_FIX doc: full
+  move-aside list; scripts/scan_mask_stale.py read-only scan). 81 + 448 + 149 tests; csig 3d7bbe921e; sig 5f9eb36f36b2.
+  MOVE-ASIDE LIST (in the doc): ~23 x 107-session extract folders under the rebuild iti_licks W/X roots + 5 under E,
+  frozen_encoder fit pickles (54 in 20 runs), epoch_kernels stats 76, partial_refit fits.pkl x4, spout_unique_cache,
+  zscore SD tables, pattern pkls, O2 bundle enc_rebuild_20261104b; UNGUARDED pooled preds / balimg csvs + E/movement_first_*
+  / musall_* (move so they rebuild); orphaned state_space_recovery cache/{cue,cue25,lick,splice} + lnmf_keep. NOT to
+  move: rebuild frozen_models store (2,861 manifests lack mask_sig -> only the LP-arm DAQ cross-check refuses them;
+  re-freeze the DAQ run if that check is needed). Push of this branch: asking Priya.
