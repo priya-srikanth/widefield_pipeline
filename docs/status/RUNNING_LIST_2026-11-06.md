@@ -983,3 +983,11 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
   helper); (e) LP lick decoder thread check when idle; (g) D2 copy-back / C3-C4 later. (f) frozen spout decoder 3x:
   Priya wants to discuss -> read-only trace helper (versions, input-set differences, users, does it move a number).
   Map re-renders: RESTnl baselines attached 107/108 (PS93_0813 no LP licks, expected) ~11:00.
+- 11:15 (d) HEMISPHERE-BALANCE CHECK (read-only, verified at the key lines): the PRIMARY balance violates the 11-09 rule.
+  lick_recovery_primary CUED_WIN = ITI_WIN = "ratio_010_050" (Priya 10-28) = per-lick mean 0.1..0.5 s MINUS per-lick
+  baseline -1.0..-0.5 s (iti_licks.BASE_RESP :1489), then gain log ratio log2(obs_c/pred_c) - log2(obs_i/pred_i)
+  (lick_balance_subsets.py:39-42,288-293). ~25 scripts inherit it (balsub_*, recprim_sessions, baltarget_licks.csv.gz,
+  lateral_ratio AUC log2(c/i), ENLv balance, ci_spout_epoch, area_tuning, imaging_control, iti_prelick bs, xa w2).
+  OK already (no per-lick baseline, a difference): the decoder-window family (lick_balance_reference / order / regions /
+  maps / maps_svd / offset_lmm / recovery, recovery_markers part A, blind_decoder). A ratio needs a baseline (raw dF/F can
+  be ~0 / negative). -> DECISION FOR PRIYA (asked 11:15). Full table: helper report in this session (scratchpad).
