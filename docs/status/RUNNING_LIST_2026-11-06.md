@@ -886,3 +886,11 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
   families: exempt + caption, or absolute twins of key ones e.g. 14.1), S3-2 (state-space response sizes twins), S3-3
   (hemisphere-difference balances need RESTnl?), S3-4 (matched_residual / CD projections RESTnl twins). Recommended:
   D0 yes + caption; S3-1 exempt + 14.1 twin; S3-2..4 defer; run the no-code / few-line gaps now.
+- Priya 11-09 ~07:20 decisions: headline changes 1-6 + 8 OK for pages / decks; #7 (acute cue far-contra RESTW per animal
+  .50/.45/.53/.40 FINDINGS vs .38/.46/.67/.98 rebuild) -> look closer (old vs new figures). Register the 2 unclassified
+  share writers (push blocker) OK. Redraw re-renders OK (helper: classify -> push redraw + interhemi branches -> queue
+  v13: LP grant re-render, encoding bar re-summaries, matched-pre LP table; memo branch only if test_cohorts pass).
+  Two refs: D0 map "raw" accepted as the session-mean twin (caption: zero = slow inter-trial trend; area traces = exact
+  session mean, same corrected signal + encoder slow basis incl. constant). Absolute-level twins of the per-trial-baseline
+  families + state-space response-size twins: YES, deferred to the page update. Hemisphere-difference balances: NO RESTnl
+  needed if they compare lick-peak fluorescence not normalized within the trial (verify each). CD projections: HOLD (open).
