@@ -870,3 +870,9 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
   rest reference)", identical under every rest variant). Priya saw the helper's SYNTHETIC smoke-test figure
   (scratchpad/ihraw_smoke, random tables, n = 4, one pair) -- "mostly empty" = synthetic, not data; check the real raw
   figure for empty panels when it lands. chain_v12.sh pushing + launching queue_daqlk12.sh lane IH (7 _restnl steps).
+- 06:30 HEADLINE TABLE on corrected outputs -> docs/status/HEADLINE_TABLE_2026-11-09_CORRECTED.md (8 CONCLUSION-CHANGES,
+  6 changed-same-conclusion, 44 unchanged, 14 not yet available). For Priya BEFORE any page / deck text.
+- Interhemi RESTnl push BLOCKED: current origin/main itself fails tests/test_share_writers_mode_safe.py::
+  test_every_share_writer_is_routed_refusing_or_classified (unclassified: june_drift_summary_fig.py,
+  state_space_shift_movement.py -- added by another window). Blocks every push that selects that test. Ask Priya (as d9 on
+  11-08: classify on my branch).
