@@ -7,6 +7,7 @@ digest (`mask_keys.signature`), so nothing here reads the share.
 """
 from __future__ import annotations
 
+import os
 import json
 import sys
 from pathlib import Path
@@ -118,6 +119,9 @@ def test_lick_precue_restw(masks, tmp_path, monkeypatch, var):
 
 
 def test_disengagement_img_worker(masks, tmp_path, monkeypatch):
+    # the module sets WIDEFIELD_PRE_FROM at import (os.environ.setdefault): set it through monkeypatch FIRST so it is
+    # restored after this test -- otherwise every later test runs as a pre0801 tagged run (writeguard / rebuild_root)
+    monkeypatch.setenv("WIDEFIELD_PRE_FROM", os.environ.get("WIDEFIELD_PRE_FROM", "0801"))
     import disengagement_tests as m
     monkeypatch.setattr(m, "SESS", tmp_path)
     _stale_and_legacy(masks, tmp_path / "img_L.npz", lambda: m.img_worker("L"), version=m.VERSION)
