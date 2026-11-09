@@ -36,6 +36,8 @@ import lick_balance_reference as lbr  # noqa: E402
 import lick_balance_regions as lbg  # noqa: E402
 import lick_recovery_markers as lrm  # noqa: E402
 
+from wfield_local import mask_keys  # noqa: E402
+
 AREAS = ["ALM", "tjM1", "SSp-m", "SSp-n", "SSs", "SSp-un"]
 DEFS = {"ratio_020_035": ("bs", 0.2, 0.35), "ratio_010_020": ("bs", 0.1, 0.2),
         # Priya 10-28: "for ITI we may want it shifted sooner? what's the harm in 0-0.5"
@@ -175,6 +177,7 @@ def _full_session(label: str) -> pd.DataFrame:
     if not f.exists():
         return pd.DataFrame()
     z = np.load(f, allow_pickle=True)
+    mask_keys.check_obj(z, f)                     # stale-read guard (11-09)
     X = z["X"].astype(float)
     cx = list(z["cols"])
     if MO:

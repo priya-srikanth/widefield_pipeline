@@ -37,6 +37,8 @@ import pandas as pd
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import prelick_hemisphere_tuning as pht  # noqa: E402
 
+from wfield_local import mask_keys  # noqa: E402
+
 AN = pht.AN
 EPS = pht.EPS
 HEMI = pht.HEMI                       # {"c": "right", "i": "left"}
@@ -105,10 +107,12 @@ def extract(label: str) -> dict:
     the MOTOR area pool (from the area analysis's own traces)."""
     f = FEAT / f"{label}.npz"
     if f.exists() and "--redo" not in sys.argv:
+        mask_keys.check_npz(f)                    # stale-read guard (11-09)
         return {"label": label, "cached": True}
     t0 = time.time()
     from wfield_local import combined_encoding as ce
     z = np.load(SRC / f"{label}.npz", allow_pickle=True)
+    mask_keys.check_obj(z, SRC / f"{label}.npz")  # stale-read guard (11-09)
     t = z["first_t"].astype(float)
     n = len(t)
     pos = z["first_pos"].astype(str)
@@ -124,7 +128,7 @@ def extract(label: str) -> dict:
         for w, ws in WINS.items():
             out[f"motor_{hk}_{w}"] = mot[:, pht._bins_of(ws)].mean(1) - mot[:, bB].mean(1)
     if n < MIN_N:
-        np.savez_compressed(f, **out)
+        np.savez_compressed(f, **out, **mask_keys.stamp())
         return {**summ, "skipped": "n<MIN_N"}
     V, ft, Ub, flat, parea, names, shape, pstat = ce.load_imaging(label)
     M = pht._masks(parea, pstat, names, flat, shape)
@@ -159,7 +163,7 @@ def extract(label: str) -> dict:
         summ[f"n_blocks_{hk}"] = len(ub)
     FEAT.mkdir(parents=True, exist_ok=True)
     tmp = FEAT / f"{label}.tmp.npz"
-    np.savez_compressed(tmp, **out)
+    np.savez_compressed(tmp, **out, **mask_keys.stamp())
     tmp.replace(f)
     return {**summ, "s": round(time.time() - t0, 1)}
 
@@ -288,6 +292,7 @@ def _load_animal(an: str, labs: list[str]) -> dict:
     blocks = {}
     for lab in labs:
         z = np.load(FEAT / f"{lab}.npz", allow_pickle=True)
+        mask_keys.check_obj(z, FEAT / f"{lab}.npz")   # stale-read guard (11-09)
         n = int(z["n"])
         if n < MIN_N or "X_c_PRE" not in z:
             continue
@@ -474,6 +479,7 @@ def refit_session(label: str) -> list:
     alpha by 3-fold inner CV on the training trials."""
     from wfield_local import config, epochs
     z = np.load(FEAT / f"{label}.npz", allow_pickle=True)
+    mask_keys.check_obj(z, FEAT / f"{label}.npz")  # stale-read guard (11-09)
     if int(z["n"]) < MIN_N or "X_c_PRE" not in z:
         return []
     y, pos = z["y"].astype(float), z["pos"].astype(str)

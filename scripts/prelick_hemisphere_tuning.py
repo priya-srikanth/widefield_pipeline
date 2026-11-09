@@ -34,6 +34,8 @@ import pandas as pd
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import lick_correction as lc  # noqa: E402
 
+from wfield_local import mask_keys  # noqa: E402
+
 V36 = "lp_r4_heatmap_20261013__clean_v36"
 AN = ["PS92", "PS93", "PS94", "PS95"]
 EPS = ["pre", "acute", "subacute", "chronic"]
@@ -124,6 +126,7 @@ def extract(item) -> dict:
     label, sid, Ls, J = item
     f = SESS / f"{label}.npz"
     if f.exists() and "--redo" not in sys.argv:
+        mask_keys.check_npz(f)                    # stale-read guard (11-09)
         return {"label": label, "cached": True}
     t0 = time.time()
     import iti_licks as il
@@ -212,7 +215,7 @@ def extract(item) -> dict:
             out[f"{nm}_rt"] = (S.t - S.cue_s).to_numpy(float)
     SESS.mkdir(parents=True, exist_ok=True)
     tmp = SESS / f"{label}.tmp.npz"
-    np.savez_compressed(tmp, **out)
+    np.savez_compressed(tmp, **out, **mask_keys.stamp())
     tmp.replace(f)
     return {"label": label, **{f"n_{k}": v for k, v in n.items()}, "s": round(time.time() - t0, 1)}
 
@@ -296,6 +299,7 @@ def analyse(item) -> dict:
     """One session's npz -> long rows: tuning slopes (T), decode (Dc), time course (TC)."""
     label = item
     z = np.load(SESS / f"{label}.npz", allow_pickle=True)
+    mask_keys.check_obj(z, SESS / f"{label}.npz")  # stale-read guard (11-09)
     from wfield_local import config, epochs
     an, ep = config.animal_of(label), epochs.epoch_of(label)
     day = epochs.days_since_stroke(label)

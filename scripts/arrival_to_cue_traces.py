@@ -47,6 +47,8 @@ import iti_licks as il  # noqa: E402
 import restnl  # noqa: E402
 from figdata import plot_only  # noqa: E402
 
+from wfield_local import mask_keys  # noqa: E402
+
 # resolved at IMPORT from argv (`restnl.variant`), so a spawned worker -- which re-imports this module with the
 # parent's argv -- sees the same value; main() no longer sets it (Priya 11-03 / parallel rule: options reach the
 # workers)
@@ -110,8 +112,10 @@ def session_worker(item) -> dict:
     if f.exists():
         z = np.load(f, allow_pickle=False)
         if int(z["version"]) == VERSION:
+            mask_keys.check_obj(z, f)             # stale-read guard (11-09)
             return {"label": label, "cached": True}
     src = np.load(il.OUT_W / "precue_restw" / f"{label}.npz")
+    mask_keys.check_obj(src, il.OUT_W / "precue_restw" / f"{label}.npz")   # stale-read guard (11-09)
     restw_ok, animal, epoch = bool(src["restw_ok"]), str(src["animal"]), str(src["epoch"])
     T = T.sort_values("cue_s").reset_index(drop=True)
     E = T[T.engaged.astype(str).str.lower().eq("true") & np.isfinite(T.cue_s.to_numpy(float))].reset_index(drop=True)
@@ -143,7 +147,7 @@ def session_worker(item) -> dict:
                 lk_tr=lk_tr, lk_t=lk_t, lk_contact=lk_c)
     SESS.mkdir(parents=True, exist_ok=True)
     if not restw_ok:
-        np.savez_compressed(f, **meta)
+        np.savez_compressed(f, **meta, **mask_keys.stamp())
         return {"label": label, "cached": False, "n": n, "restw_ok": False}
     from wfield_local import combined_encoding as ce
     # imaging trace (== lick_precue_restw_traces.session_worker)
@@ -183,7 +187,7 @@ def session_worker(item) -> dict:
     Xh = samp(st, LAGS_H, R[:, [COLS.index(c) for c in HM_COLS]])
     Xh[LAGS_H[None, :] > (wait + 0.5)[:, None]] = np.nan
     np.savez_compressed(f, **meta, Xa=Xa.astype(np.float16), Xl=Xl.astype(np.float16), Xc=Xc.astype(np.float16),
-                        Xh=Xh.astype(np.float16))
+                        Xh=Xh.astype(np.float16), **mask_keys.stamp())
     return {"label": label, "cached": False, "n": n, "restw_ok": True}
 
 
@@ -194,6 +198,7 @@ def load_all(labels: list) -> dict:
     off = 0
     for x in labels:
         z = np.load(SESS / f"{x}.npz")
+        mask_keys.check_obj(z, SESS / f"{x}.npz")                     # stale-read guard (11-09)
         if not bool(z["restw_ok"]):
             continue
         shift = None
@@ -202,6 +207,7 @@ def load_all(labels: list) -> dict:
             if not ok:
                 continue
             src = np.load(il.OUT_W / "precue_restw" / f"{x}.npz")
+            mask_keys.check_obj(src, il.OUT_W / "precue_restw" / f"{x}.npz")   # stale-read guard (11-09)
             sc = [str(c) for c in src["cols"]]
             shift = np.asarray(src["restw"], float)[[sc.index(c) for c in COLS]] - nl
         D = pd.DataFrame({k[2:]: z[k] for k in z.files if k.startswith("t_")})

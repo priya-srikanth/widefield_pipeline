@@ -210,6 +210,8 @@ def _enlv_session(label: str):
     import lick_enlv_extract as ex
     names, SD = wd.area_meta(basis="split")
     z = np.load(ex.SESS / f"{label}.npz")
+    from wfield_local import mask_keys
+    mask_keys.check_obj(z, ex.SESS / f"{label}.npz")   # stale-read guard (11-09)
     cols = [str(c) for c in z["cols"]]
     Xd = il.area_features(z["Xdec"].astype(float), cols, label) / SD.loc[label, names].to_numpy(float)[None, :]
     return z["lick_uid"].astype(int), Xd, list(names)

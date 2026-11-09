@@ -22,6 +22,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import iti_licks as il  # noqa: E402
 import iti_lick_order as lo  # noqa: E402
 
+from wfield_local import mask_keys  # noqa: E402
+
 OUT = il.OUT_W / "firstlick_full"
 
 
@@ -33,6 +35,7 @@ def extract(label: str) -> dict:
     from wfield_local.paths import PathResolver
     f = OUT / f"{label}.npz"
     if f.exists():
+        mask_keys.check_npz(f)                    # stale-read guard (11-09)
         return {"label": label, "cached": True}
     V, ft, Ub, flat, parea, names, shape, pstat = ce.load_imaging(label)
     M = il.roi_masks(parea, pstat, names, flat, shape)
@@ -71,7 +74,8 @@ def extract(label: str) -> dict:
     OUT.mkdir(parents=True, exist_ok=True)
     np.savez_compressed(f, cols=np.array(cols), X=X, t=t, side_ml=first.side_ml.to_numpy(float),
                         reach_mm=first.reach_mm.to_numpy(float), speed_peak=first.speed_peak.to_numpy(float),
-                        elev_deg=elev, pos=first.position.to_numpy(dtype=str), epoch=epochs.epoch_of(label), animal=an)
+                        elev_deg=elev, pos=first.position.to_numpy(dtype=str), epoch=epochs.epoch_of(label), animal=an,
+                        **mask_keys.stamp())
     return {"label": label, "n_first_full": len(t), "n_first_in_capped": len(common), "max_abs_diff_vs_capped": dmax}
 
 

@@ -39,6 +39,9 @@ def main(argv=None) -> int:
     assert_writable(JUNE)
     (JUNE / il.SESS_NAME).mkdir(parents=True, exist_ok=True)
     todo = [(x, str(JUNE)) for x in LABELS if not (JUNE / il.SESS_NAME / f"{x}.npz").exists()]
+    for x in LABELS:                             # the filter skips il.extract's own check: stale-read guard (11-09)
+        if (JUNE / il.SESS_NAME / f"{x}.npz").exists():
+            il.check_extract_masks(JUNE / il.SESS_NAME / f"{x}.npz")
     got, fail = ak.fan_sessions(todo, il.extract, jobs=a.jobs, label="june")
     for it, err in fail:
         print(f"  !! {it[0]}: {err}", flush=True)
@@ -48,9 +51,12 @@ def main(argv=None) -> int:
         print(f"  !! sd {it[0]}: {err}", flush=True)
     S = pd.DataFrame({r["label"]: r["sd"] for _it, r in got}).T.sort_index()
     S.to_csv(JUNE / il.SD_NAME)
+    from wfield_local import mask_keys
+    mask_keys.write_sidecar(JUNE / il.SD_NAME)   # (11-09)
     from iti_area_split_sd import table
     SP = table(have, a.jobs)
     SP.to_csv(JUNE / il.SPLIT_NAME)
+    mask_keys.write_sidecar(JUNE / il.SPLIT_NAME)
     print(f"[june_ref] {len(have)} sessions, SDs for {len(S)}, split table for {len(SP)} -> {JUNE}")
     return 0
 
