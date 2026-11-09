@@ -48,6 +48,10 @@ running list `docs/status/RUNNING_LIST_2026-11-08_STATE_SPACE.md` sections A (de
   after the sweep.
 - **11-08 ~11:45:** page v15 has section 9 (maps, all baselines, why-cleaner). "Why cleaner" answered for the 15r
   activity maps (B19: window, not denoising); the residual-map half not done.
+- **11-09 ~05:30 (running list B32):** `scripts/state_space_shift_rawref.py`: the tonic pre-cue elevation vs RESTnl
+  is mostly the rest level falling relative to the session mean (dF/F zero), and the aim coupling is the rest level's;
+  the phasic post-lick increase survives the session-mean reference. Page v28 Fig 10.26 + rewritten 10.23 / 10.24 /
+  summary / open text (page script `state_space_page/add_shift_rawref.py`). Open: why rest falls; body / paws.
 - **11-09 ~04:30 (running list B31):** `scripts/state_space_shift_spout_timing.py`: the phasic post-lick
   orofacial increase is shared across spouts in size and timing; its late half (0.3..0.7 s) needs spout contact (lost on
   acute far-contra misses), its early half does not. Page v27 Fig 10.25 (page script
