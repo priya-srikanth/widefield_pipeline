@@ -1009,3 +1009,8 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
   source. Pre-stroke acc D vs C: lick 0.01-0.05 lower; pre-cue 0.34-0.59 (1 s) vs 0.49-0.71 (2 s). Rec: D spec = the
   one LP decoder; run LP joint_xsession (~35 min, LocaNMF -> not glue-affected); fix the wording; A (12) + B (6) models
   = deletion candidates (Priya OK needed). Helper report: scratchpad/frozen_spout_trace/.
+- 11:40 PRIYA: "yes do the shared fix and audit, hold re-renders until fix is in" (A9 decided). Helper on
+  fix/rebuild-glue-mask-1109 (wf_gluefix): canonical painted masks under any profile (fence-compliant) + raise when
+  missing + mask-dependent cache keys + impact audit / re-run plan. HOLD: grant + epoch caption re-renders, xa restnl
+  re-run, any map / area-extract / encoder re-render. v14a map re-renders (running) = PREVIEW ONLY (glue in).
+  Still open with Priya: balance A vs B; frozen spout recs (incl. deleting A 12 + B 6 models).
