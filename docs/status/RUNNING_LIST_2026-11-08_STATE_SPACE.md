@@ -63,6 +63,22 @@ merged to main (no conflicts); A5 applied to FINDINGS 0c item 4 and the page cap
 
 ## B. Findings (newest first; exploratory)
 
+34. **The post-lick change is NOT face movement (Priya 11-09 "combining state space fig 9.1 with FR ... to regress out
+   FR-explained variance", "directionless first, then all"; `WF_SS_FR=B|0|A` in `state_space_chronic_maps.py`; page v32
+   Figs 9.1b-c).** Per trial FaceRhythm `master_pre_v1` factors 0.0..0.5 s after the first lick (cue-time join; 0.5-1.9 %
+   of trials without FR dropped); per animal a PRE-ONLY lstsq fit of the response (100 SVD comps) on the centered
+   covariates (B: lick sum + 6 non-lick = 7; A: + left / right / close / far = 11), every trial minus fit x (cov - pre
+   mean), pre sessions leave-session-out. FR explains 13-23 % (B) / 16-25 % (A) of held-out pre trial variance
+   (`scratchpad fr_r2`), yet vs the same-trial control (0) the spout-mean change keeps 97 / 98 / 98 % (B) and 92 / 95 /
+   94 % (A) of its size, pattern r >= .987; far contra 86 / 79 % acute, 115 / 108 % chronic -- RMS ratios; CORRECTED
+   11-09 (Priya "the change is MORE?"): measured ALONG the control's change direction far contra keeps 86 / 76 % acute,
+   110 / 103 % chronic; the RMS gain is the face map's off-axis pattern (0.3 of the change) and the per-animal face part
+   along the change is mixed in sign (-.07 / +.03 / +.19 / -.12) -> not larger, same + noise. Spout mean along-axis
+   97 / 98 / 98 (B), 92 / 94 / 94 (A). Figs 9.1 / 9.1b / 9.1c on one scale (WF_SS_VMAX=0.9, WF_SS_PREMAX=2.3; page v33). Chronic areas (B): SSp-m
+   contra +.67, tjM1 contra +.64, SSp-m ipsi +.60, 4/4 (Fig 9.1 +.70 / +.66 / +.62). Also 11-09: Fig 9.1 pre-response
+   row (viridis); every map in the encoder design (white unanalyzed, full CCF outline incl. bulbs); quick-look-first +
+   response cache (`chronic_maps_resp/`) so a stats run never reloads.
+
 33. **Motor-area balance (ALM + tjM1) as well (Priya 11-09 "for the orofacial balance figures, can we have motor version
    as well (ALM, tjM1)"; `state_space_balance_cells.py --motor`, `state_space_balance_angle.py --collect --motor` then
    `--motor`, tables `landing/*_motor.csv`; page v29 Figs 5.3-5.4).** Cue 0-1 s, Allen areas, same selections / models
