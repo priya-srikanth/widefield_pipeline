@@ -48,6 +48,10 @@ running list `docs/status/RUNNING_LIST_2026-11-08_STATE_SPACE.md` sections A (de
   after the sweep.
 - **11-08 ~11:45:** page v15 has section 9 (maps, all baselines, why-cleaner). "Why cleaner" answered for the 15r
   activity maps (B19: window, not denoising); the residual-map half not done.
+- **11-09 ~01:15 (running list B26):** `WF_SS_SHIFTBASE=rest|enl` anchors the shared change to RESTnl / the trial's
+  ENL window: the shift's dips were the window-mean construction; it is an increase (post-lick posterior-medial
+  transient + sustained anterolateral orofacial increase). Page v22 (Figs 10.17-10.20; page scripts in the session
+  scratchpad `state_space_page/add_shift_ref.py`).
 - **11-09 ~00:45 (running list B25):** `scripts/state_space_shift_carried.py` = where x when the shared shift is
   carried (area x bin heat maps, per-bin energy, per-area enrichment; SVD raw + gsr, ~1 min each, local). Page v21
   Figs 10.13-10.16. Next analysis unchanged: is the shift timing / behavior (B24 NEXT).

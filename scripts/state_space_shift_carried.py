@@ -18,6 +18,16 @@ Change = epoch sessions vs the animal's pre (leave-one-out) sessions, animal-wei
 panel (centered draws / their SD; 95th percentile of the max |t|). Area / bin dots: * = 95 % CI excludes 0, uncorrected,
 k/4 = animals changing in the cohort direction. Pre sessions are themselves a leave-one-out change, so noise enters both
 arms; a pre-null enrichment is not exactly 1 (noise is not spread in proportion to size).
+
+REFERENCE (WF_SS_SHIFTBASE; Priya 11-09 "couldn't we use the rest or pre-cue lick-free ENL as a per session
+normalization?"). Without one (default ""), the shift has ZERO MEAN OVER THE WINDOW in every pixel by construction (the
+static level goes to the per-area offset), so "below pre before the lick" partly mirrors "above pre after it". With
+  rest  every trial minus its session's RESTnl level (`state_space_rest_baseline.py`, as Fig 9.1's maps)
+  enl   every trial minus ITS OWN lick-free (>= 1 s) pre-cue ENL window (`state_space_enl_baseline.py`, as Fig 9.5;
+        trials without one dropped; the window can reach past the cue on short-latency trials)
+subtracted BEFORE the templates (under the loader's WF_SS_XFORM, as `state_space_chronic_maps`), the readout is the
+SHARED CHANGE = per-area offset + shift = the spout-mean of the change beyond gain, which keeps its level: each bin is
+a change against the reference, not against the window mean. Sessions without the reference are dropped.
 Outputs: <state_space_recovery>/shift_carried{tag}/{area_bin,where,when}.csv,
 page_figs/ss_shift_{where_when,where,when}{tag}.png. EXPLORATORY.
 """
@@ -45,7 +55,11 @@ from wfield_local.figure_layout import save_png_svg  # noqa: E402
 from wfield_local.orofacial_cohort import EPOCH_LINE  # noqa: E402
 
 EPS = ["acute", "subacute", "chronic"]
-OUT = S.ROOT / f"shift_carried{S.tag()}"
+SHIFTBASE = __import__("os").environ.get("WF_SS_SHIFTBASE", "")
+if SHIFTBASE not in ("", "rest", "enl"):
+    raise ValueError(f"WF_SS_SHIFTBASE={SHIFTBASE!r}")
+BSUF = f"_b{SHIFTBASE}" if SHIFTBASE else ""
+OUT = S.ROOT / f"shift_carried{S.tag()}{BSUF}"
 FIGS = S.ROOT / "page_figs"
 ROIS = PM.ROIS
 WINS = {"all bins": (-1.0, 0.7), "before the lick (-1.0..-0.1 s)": (-1.0, -0.1),
@@ -63,6 +77,28 @@ def label(n):
     return f"{r} {'contra' if side == 'right' else 'ipsi'}"
 
 
+def rebase(an, sess):
+    """Sessions with every trial minus the WF_SS_SHIFTBASE reference (module docstring); sessions without it dropped."""
+    if not SHIFTBASE:
+        return sess
+    out = []
+    for lab, ep, day, Y, pos, *rest in sess:
+        if SHIFTBASE == "rest":
+            c = C._rest(lab, an) if (C.REST / f"{lab}.npz").exists() else None
+            if c is None:
+                continue
+            out.append((lab, ep, day, Y - c, pos, *rest))
+        else:
+            f = C.ENL / f"{lab}.npz"
+            E = np.load(f)["b"].astype(float) if f.exists() else None
+            if E is None or len(E) != len(pos):
+                continue
+            keep = np.isfinite(E).all(1)
+            E = C._xf_vectors(E[keep], pos[keep], an)
+            out.append((lab, ep, day, Y[keep] - E[:, None, :], pos[keep], *rest))
+    return out
+
+
 def session_rows(Uc, split, names, t):
     """Per session: dict of the three readouts. Pixel movie = shift (nb x K) @ Uc.T."""
     data, _ = S.load_sessions()
@@ -72,8 +108,8 @@ def session_rows(Uc, split, names, t):
     win_ix = {w: np.flatnonzero((t >= a - 1e-9) & (t < b - 1e-9)) for w, (a, b) in WINS.items()}
     rows = []
     for an, sess in sorted(data.items()):
-        for lab, ep, unit, _ok, pc in PM.session_parts(sess):
-            sh = pc["shift"] / unit                                              # nb x K
+        for lab, ep, unit, _ok, pc in PM.session_parts(rebase(an, sess)):
+            sh = (pc["shift"] + pc["off_a"] if SHIFTBASE else pc["shift"]) / unit                                             # nb x K
             mov = sh @ Uc.T                                                      # nb x pixels
             e_bin = (mov ** 2).mean(1)                                          # nb
             r = {"animal": an, "label": lab, "epoch": ep, "area_bin": sh @ W, "e_bin": e_bin,
@@ -131,8 +167,13 @@ def main():
     rng = np.random.default_rng(0)
     nb, na = len(t), len(names)
     xf = {"": "", "gsr": "; cortex-wide mode removed"}.get(S.XFORM, f"; {S.XFORM}")
-    sub = (f"first-lick-aligned, cohort SVD basis{xf}; shared shift = spout-independent, time-varying part of each "
-           f"session's change vs own pre (sequential fit as the part maps); change vs own pre (pre sessions "
+    what = ({"": "shared shift = spout-independent, time-varying part of each session's change vs own pre (sequential "
+                 "fit as the part maps; zero window mean per pixel)",
+             "rest": "SHARED CHANGE vs the session's RESTnl level = per-area offset + shift (spout-mean change beyond "
+                     "gain, level kept)",
+             "enl": "SHARED CHANGE vs each trial's lick-free pre-cue ENL window = per-area offset + shift (spout-mean "
+                    "change beyond gain, level kept)"}[SHIFTBASE])
+    sub = (f"first-lick-aligned, cohort SVD basis{xf}; {what}; change vs own pre (pre sessions "
            f"leave-one-out), mean of 4 animals, units of each animal's pre-template pixel RMS")
     OUT.mkdir(parents=True, exist_ok=True)
 
@@ -165,7 +206,7 @@ def main():
     fig.suptitle(C._wrap(f"WHERE x WHEN the shared shift is carried: split-basis area x time ({sub}; dot = cell whose "
                          f"nested-bootstrap change (animals -> sessions, 2,000) survives the max statistic over all "
                          f"cells of the panel)"), y=1.04, fontsize=9.5)
-    save_png_svg(fig, FIGS / f"ss_shift_where_when{S.tag()}.png", dpi=130, bbox_inches="tight")
+    save_png_svg(fig, FIGS / f"ss_shift_where_when{S.tag()}{BSUF}.png", dpi=130, bbox_inches="tight")
     plt.close(fig)
     pd.DataFrame(recs).to_csv(OUT / "area_bin.csv", index=False)
 
@@ -193,7 +234,7 @@ def main():
                          f"pixels (1 = in proportion to size), change vs own pre ({sub}; * = 95 % CI excludes 0, "
                          f"uncorrected)"), y=1.01, fontsize=9.5)
     sig_marks.reserve_headroom(fig)
-    save_png_svg(fig, FIGS / f"ss_shift_where{S.tag()}.png", dpi=130, bbox_inches="tight")
+    save_png_svg(fig, FIGS / f"ss_shift_where{S.tag()}{BSUF}.png", dpi=130, bbox_inches="tight")
     plt.close(fig)
     pd.DataFrame(recs).to_csv(OUT / "where.csv", index=False)
 
@@ -220,7 +261,7 @@ def main():
                          f"bin's share of the total ({sub}; band = 95 % CI; ticks on top = CI excludes 0, uncorrected)"),
                  y=1.05, fontsize=9.5)
     fig.tight_layout()
-    save_png_svg(fig, FIGS / f"ss_shift_when{S.tag()}.png", dpi=130, bbox_inches="tight")
+    save_png_svg(fig, FIGS / f"ss_shift_when{S.tag()}{BSUF}.png", dpi=130, bbox_inches="tight")
     plt.close(fig)
     pd.DataFrame(recs).to_csv(OUT / "when.csv", index=False)
     print(f"wrote {OUT}")

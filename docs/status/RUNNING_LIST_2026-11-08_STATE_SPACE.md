@@ -63,6 +63,20 @@ merged to main (no conflicts); A5 applied to FINDINGS 0c item 4 and the page cap
 
 ## B. Findings (newest first; exploratory)
 
+26. **The shared change against a real reference (Priya 11-09 "couldn't we use the rest or pre-cue lick-free ENL as a
+   per session normalization?"; `WF_SS_SHIFTBASE=rest|enl scripts/state_space_shift_carried.py`, SVD raw + gsr; page v22
+   Figs 10.17-10.20).** Every trial minus the session's RESTnl level, or minus its own pre-cue ENL window, before the
+   templates; readout = per-area offset + shift (spout-mean change beyond gain, level kept). RESULT: the dips before
+   and after the lick (B22 / B25) were the zero-window-mean construction -- against either reference the shared change
+   is an INCREASE with two components: (1) a post-lick transient (0..+0.3 s) over posterior-medial / trunk-limb cortex
+   (acute RSPd strongest, both sides; chronic vs ENL largest SSp-tr / SSp-ll); (2) a SUSTAINED anterolateral orofacial
+   increase (tjM1, SSp-m, SSp-n, ALM; contra first, both sides by chronic), present BEFORE the lick against rest
+   (chronic tjM1 / SSp-m contra + ipsi family-wise from -1.0 s) and growing to ~+1.0 after it. Only RSPd keeps a small
+   late decrease chronically. Minus cortex-wide vs rest: chronic orofacial areas take a larger share all window (to ~+2
+   late), ipsi SSp-tr / SSp-ll / VISa less (= Fig 9.2's pattern). Page take + Fig 10.6 caption + summary row rewritten
+   (not annotated). Caveats: RESTnl itself may move with epoch (Fig 9.4); the ENL window can reach past the cue on
+   short-latency trials (13 % pre vs 26 % acute).
+
 25. **Where and when the shared shift is carried (Priya 11-09 "did you do the 'where is the shift carried' analysis?"
    -> "spatial and temporal change"; `scripts/state_space_shift_carried.py`, cohort SVD, raw + gsr; page v21 Figs
    10.13-10.16).** Shift per session as the part maps (B22). WHEN: energy concentrated just after the first lick
