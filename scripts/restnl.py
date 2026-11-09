@@ -69,11 +69,13 @@ def variant() -> str:
     return v
 
 
-def level(label: str, cols=None, rule_: str | None = None) -> tuple[np.ndarray, bool]:
+def level(label: str, cols=None, rule_: str | None = None, src: Path | None = None) -> tuple[np.ndarray, bool]:
     """(RESTnl level per column, ok) under the active rule (or `rule_`). `cols` (optional) = column names to return,
-    in that order (NaN if absent)."""
+    in that order (NaN if absent). `src` = the restw_check sessions folder to read (default `SRC`, this run's); an LP
+    lick-source run passes the lick-source-free one (`lick_precue_restw.rest_root`), since the RESTnl mask already
+    removes every DAQ and cam4 lick whatever the run's lick source."""
     r = rule_ or RULE
-    z = np.load(SRC / f"{label}.npz")
+    z = np.load(Path(src or SRC) / f"{label}.npz")
     if int(z["version"]) != SRC_VERSION:
         raise RuntimeError(f"{label}: restw_check session version {int(z['version'])} != {SRC_VERSION}")
     cs = [str(c) for c in z["cols"]]

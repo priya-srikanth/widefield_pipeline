@@ -1,5 +1,20 @@
-"""CUE-ALIGNED TRACES MINUS RESTW (Priya 10-28: "plot pre-cue traces" normalized to restw) -- the time course behind the
-pre-cue-level maps of `lick_precue_restw.py`.
+"""CUE-ALIGNED TRACES against a rest reference (Priya 10-28: "plot pre-cue traces" normalized to restw) -- the time course
+behind the pre-cue-level maps of `lick_precue_restw.py`.
+
+DEFAULT SINCE 11-09 (Priya approved 11-09): THE TRIAL SET OF THE LICK-FREE ENL LEVEL, RESTnl PRIMARY + SESSION-MEAN TWIN.
+  trials  exactly the trials of `lick_precue_restw`'s ENL cache (<OUT_W>/precue_enl_<src><W>s/<label>.npz): camera
+          WORKING trials (contact + incomplete, working period, stopped runs and quit tail removed) that HAVE a lick-free
+          ENL window (`enl_window.sliding_lags`, W = `lp_licks.enl_post_s()`: 1.0 s under LP licks); the others dropped.
+  value   mean over those trials of the cue-aligned area trace (-2..+3 s, construction `lick_precue_restw.area_series`)
+          minus the reference: --rest-variant restnl (DEFAULT, RESTnl rule wr), session (NO subtraction: the dF/F is
+          session-mean referenced), restw (old RESTW, robustness). The per-trial ENL window is not a fixed band on
+          this time axis: the gray band marks the UNSLID window [-W, 0); the caption gives the share of slid trials.
+  sanity  per session the mean over trials of each trial's ENL-window mean of these traces equals the level script's
+          cache value (window_mean of the same samples; max |diff| printed) and its sessions csv.
+  cache   <OUT_W>/precue_enl_traces_<src><W>s/<label>.npz (raw traces + the reference levels: one entry serves all three
+          references); outputs precue_enl_traces_*<sfx>.csv, figures/lick_cued_precue_enl_traces[_farcontra][_change]
+          <sfx>.png, sfx = _restnl | _sessmean | _restw. Run lick_precue_restw.py first (same env).
+THE FIXED-WINDOW VERSION BELOW (engaged trials, restw / restnl) stays reachable with --precue-window fixed.
 
 DEFINITION (per session x area x lag, -2..+3 s around the cue on the 0.05 s grid LAGS):
   trace  = exactly the construction of `lick_precue_restw.session_worker` / `lick_cued_ramp.wide_session` (ROI v8 masks,
@@ -21,7 +36,8 @@ figures/lick_cued_precue_restw_traces[_farcontra][_change].png, figdata/<stem>.p
 RESTnl VARIANT (`--rest-variant restnl`, default restw unchanged): the same traces minus the LICK-FREE rest level and on
 the CURRENT engaged gate, both read from <OUT_W>/precue_restnl/<label>.npz (lick_precue_restw.py --rest-variant restnl);
 cache precue_restnl_traces/, every output file name with the suffix _restnl.
-Usage: python scripts/lick_precue_restw_traces.py [--jobs N] [--plot-only] [--rest-variant restnl]
+Usage: python scripts/lick_precue_restw_traces.py [--jobs N] [--plot-only] [--rest-variant restnl|session|restw]
+       python scripts/lick_precue_restw_traces.py --precue-window fixed [--rest-variant restnl]     (the old version)
 """
 from __future__ import annotations
 from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
@@ -182,11 +198,15 @@ def sanity(labels: list, var: str = "restw") -> None:
               f"for plotted areas {C[C.area.isin(G.area.unique())].shape[0]})")
 
 
-def compute(labels: list, var: str = "restw") -> None:
-    sfx = restnl.SFX if var == "restnl" else ""
+def compute(labels: list, var: str = "restw", enl: str | None = None) -> None:
+    """Tables + figdata + figures; ``enl`` = the ENL reference (restnl / session / restw) of the ENL path, None = the
+    fixed-window path (``var``)."""
+    import lick_precue_restw as pr
+    sfx = pr.ref_sfx(enl) if enl else (restnl.SFX if var == "restnl" else "")
+    prefix, stem0 = ("precue_enl_traces", ENL_STEM) if enl else ("precue_restw_traces", STEM)
     for sp, _mn, tag in SETS:
         key = "all" if sp is None else "far"
-        L, RT = long_table(labels, key, var)
+        L, RT = long_table_enl(labels, key, enl) if enl else long_table(labels, key, var)
         # rule 8 table: per animal x epoch level at -2..-1 and -0.5..0 s (contra + ipsi key areas)
         rec = []
         for (a, h), g in L.groupby(["area", "hemi"]):
@@ -195,11 +215,12 @@ def compute(labels: list, var: str = "restw") -> None:
                 for (an, ep), v in s.groupby(["animal", "epoch"]).mean().items():
                     rec.append({"area": f"{a}_{h}", "animal": an, "epoch": ep, "window": nm, "v": v})
         PA = pd.DataFrame(rec).pivot_table(index=["area", "animal"], columns=["window", "epoch"], values="v")
-        PA.to_csv(il.OUT_W / f"precue_restw_traces_levels_per_animal{tag}{sfx}.csv")
+        PA.to_csv(il.OUT_W / f"{prefix}_levels_per_animal{tag}{sfx}.csv")
         ks = [f"{a}_right" for a in AREAS[:4]]
         sub = PA.loc[PA.index.get_level_values("area").isin(ks)]
         cols = [(w, e) for w in ("lvl_m2_m1", "lvl_m05_0") for e in ("pre", "acute") if (w, e) in sub.columns]
-        print(f"== per animal (rule 8){tag}{sfx}: level above {'RESTnl' if sfx else 'restw'} (dF/F x1e3), contralesional "
+        print(f"== per animal (rule 8){tag}{sfx}: level vs {enl or ('RESTnl' if sfx else 'restw')} (dF/F x1e3), "
+              "contralesional "
               "key areas\n"
               + sub[cols].round(2).to_string())
         rt = RT.groupby(["animal", "epoch"]).rt.median().groupby("epoch").median().to_dict()   # per-epoch tick
@@ -214,21 +235,25 @@ def compute(labels: list, var: str = "restw") -> None:
                     S = il.sig_compute(g.rename(columns={"v": "val"}), value="val", tag={"area": a, "hemi": h})
                     sig[(a, h)] = S
                     recs += S["recs"]
-            stem = STEM + tag + ("_change" if change else "") + sfx
+            stem = stem0 + tag + ("_change" if change else "") + sfx
             if change:
-                pd.DataFrame(recs).to_csv(il.OUT_W / f"precue_restw_traces_sigbins{tag}{sfx}.csv", index=False)
+                pd.DataFrame(recs).to_csv(il.OUT_W / f"{prefix}_sigbins{tag}{sfx}.csv", index=False)
             n_sess = L.groupby("epoch").label.nunique().to_dict()
             n_an = L.groupby("epoch").animal.nunique().to_dict()
+            extra = {}
+            if enl:
+                extra = {"enl": enl, "win_s": pr.enl_win_s(),
+                         "slid_pct": 100.0 * RT.n_slid.sum() / max(int(RT.n.sum()), 1)}
             save_fd(stem, {"pan": pan, "sig": sig, "rt": rt, "change": change, "tag": tag, "n_sess": n_sess,
-                           "n_an": n_an, "sfx": sfx})
+                           "n_an": n_an, "sfx": sfx, **extra})
             draw(stem)
 
 
-def trial_set_sentence(spout: str | None = None, var: str = "restw") -> str:
-    """THE trial + frame set of a figure (Priya 11-09): `lick_precue_restw.trial_set_sentence` (the same engaged trials,
-    checked equal to its cache per session, and the same rest baseline)."""
+def trial_set_sentence(spout: str | None = None, var: str | None = None, window: str | None = None) -> str:
+    """THE trial + frame set of a figure (Priya 11-09): `lick_precue_restw.trial_set_sentence` (the same trials, read
+    from / checked equal to its cache per session, and the same reference)."""
     import lick_precue_restw as pr
-    return pr.trial_set_sentence(spout, var)
+    return pr.trial_set_sentence(spout, var, window)
 
 
 def draw(stem: str) -> None:
@@ -239,16 +264,22 @@ def draw(stem: str) -> None:
 
     from wfield_local import trial_set_text as tst
     F = load_fd(stem)
-    tst.activate(None, text=trial_set_sentence("far_contra" if F.get("tag") else None,
-                                               "restnl" if F.get("sfx") else "restw"))   # this figure's set (11-09)
+    enl = F.get("enl")                                          # the ENL reference (11-09), None = fixed window
+    if enl:
+        import lick_precue_restw as pr
+        tst.activate(None, text=pr.enl_trial_set_sentence("far_contra" if F.get("tag") else None, enl))
+    else:
+        tst.activate(None, text=trial_set_sentence("far_contra" if F.get("tag") else None,
+                                                   "restnl" if F.get("sfx") else "restw", "fixed"))  # (11-09)
     ch = F["change"]
-    rl = restnl.relabel if F.get("sfx") else (lambda t: t)
+    rl = restnl.relabel if (F.get("sfx") and not enl) else (lambda t: t)
+    win = (-float(F["win_s"]), 0.0) if enl else WIN
     fig, axs = plt.subplots(len(AREAS), 2, figsize=(11, 2.3 * len(AREAS)), sharex=True, squeeze=False,
                             layout="constrained")
     for i, a in enumerate(AREAS):
         for j, (h, hl) in enumerate(HEMI):
             ax = axs[i, j]
-            ax.axvspan(*WIN, color="0.88", zorder=0)
+            ax.axvspan(*win, color="0.88", zorder=0)
             ax.axvline(0, color="0.3", lw=0.8)
             ax.axhline(0, color="0.5", lw=0.6, ls="-")
             if (a, h) not in F["pan"]:
@@ -271,7 +302,9 @@ def draw(stem: str) -> None:
             ax.set_title(f"{a} {hl}" + ("  [reference]" if a in REF else ""), fontsize=9)
             ax.set_xlim(LAGS[0], LAGS[-1])
             if j == 0:
-                ax.set_ylabel("change from pre\n(dF/F x1e3)" if ch else rl("dF/F x1e3\nabove restw"), fontsize=8)
+                ax.set_ylabel("change from pre\n(dF/F x1e3)" if ch else
+                              (pr.ref_unit(enl).replace(" (", "\n(") if enl else rl("dF/F x1e3\nabove restw")),
+                              fontsize=8)
             ax.tick_params(labelsize=7)
     for ax in axs[-1]:
         ax.set_xlabel("time from cue (s)", fontsize=8)
@@ -284,6 +317,20 @@ def draw(stem: str) -> None:
             if ch else "level above the session's RESTW baseline (position-weighted flat rest median, restdock05, "
             "engagement-gated); per animal x epoch mean over sessions, then mean over animals, shade = SEM over animals")
     import textwrap
+    if enl:
+        lvl = ("" if ch else f"{pr.ref_text(enl)}; per animal x epoch mean over sessions, then mean over animals, shade "
+               "= SEM over animals")
+        body = (body if ch else lvl) + (f". Trials: camera WORKING trials with a {pr.enl_window_text()} "
+                                        f"({F.get('slid_pct', float('nan')):.0f}% of kept trials slid earlier); gray = "
+                                        "the unslid ENL window")
+        fig.suptitle(textwrap.fill(f"NEURAL: cue-aligned area traces, {what} -- {body}. Solid = all 4 animals "
+                                   f"contribute, dotted = fewer. Ticks at the bottom = median first-lick latency per "
+                                   f"epoch. Rows = areas (ALM / tjM1 split from MOs / MOp, ROI v8; last four = "
+                                   f"references; VISp has a contralesional ROI only). n: {ns}.", 150), fontsize=9)
+        (il.OUT_W / "figures").mkdir(parents=True, exist_ok=True)
+        save_png_svg(fig, il.OUT_W / "figures" / f"{stem}.png", dpi=110, bbox_inches="tight")
+        plt.close(fig)
+        return
     body = rl(body) + (" Trials = CURRENT engaged gate" if F.get("sfx") else "")
     fig.suptitle(textwrap.fill(rl("NEURAL: cue-aligned area traces minus RESTW") + f", ENGAGED trials, {what} -- {body}. Solid = all 4 "
                  f"animals contribute, dotted = fewer. Gray = -1..0 s window of the pre-cue maps; ticks at the bottom = "
@@ -294,12 +341,13 @@ def draw(stem: str) -> None:
     plt.close(fig)
 
 
-def main() -> int:
+def main_fixed() -> int:
+    """The FIXED-window version (--precue-window fixed): unchanged since 11-09 apart from this entry point."""
     from wfield_local import analysis_kit as ak
     var = restnl.variant()
     sfx = restnl.SFX if var == "restnl" else ""
     from wfield_local import trial_set_text as tst
-    tst.declare(text=trial_set_sentence(None, var))             # draw() narrows it per figure
+    tst.declare(text=trial_set_sentence(None, var, "fixed"))    # draw() narrows it per figure
     if plot_only():
         for _sp, _mn, tag in SETS:
             for c in ("", "_change"):
@@ -313,6 +361,144 @@ def main() -> int:
         raise SystemExit(f"{len(fails)} sessions failed: {fails}")
     sanity(labs, var)
     compute(labs, var)
+    return 0
+
+
+# ==================================================================================================================
+# THE LICK-FREE ENL TRIAL SET (default since 11-09, Priya approved): see the module docstring, first block.
+# ==================================================================================================================
+ENL_CACHE_T = "precue_enl_traces"
+ENL_VERSION_T = 1
+ENL_STEM = "lick_cued_precue_enl_traces"
+#: the reference levels copied from the level cache, so one traces entry serves every reference
+_REF_FIELDS = ("restnl_wr", "restnl_wr_ok", "restnl_strict", "restnl_strict_ok", "restw", "restw_ok")
+
+
+def enl_cache_t() -> str:
+    """precue_enl_traces_<src><W>s: the traces twin of `lick_precue_restw.enl_cache()`."""
+    import lick_precue_restw as pr
+    return ENL_CACHE_T + pr.enl_cache()[len(pr.ENL_CACHE):]
+
+
+def session_worker_enl(label: str) -> dict:
+    """One session (module-level for spawn) -> <OUT_W>/<enl_cache_t()>/<label>.npz, from the level script's ENL cache
+    (its trials, windows and reference levels)."""
+    import lick_precue_restw as pr
+
+    from wfield_local import enl_window
+    src = np.load(il.OUT_W / pr.enl_cache() / f"{label}.npz")
+    f = il.OUT_W / enl_cache_t() / f"{label}.npz"
+    if f.exists():
+        z = np.load(f)
+        if (int(z["version"]) == ENL_VERSION_T and str(z["meta"]) == str(src["meta"])
+                and np.array_equal(z["cue"], src["cue"])):
+            return {"label": label, "cached": True}
+    Rs, cs, ft, _d = pr.area_series(label)
+    if cs != [str(c) for c in src["cols"]]:
+        raise ValueError(f"{label}: columns differ from the {pr.enl_cache()} cache")
+    cue, lo, hi = src["cue"].astype(float), src["lo"].astype(float), src["hi"].astype(float)
+    pos, stop = src["pos"].astype(str), src["stop"].astype(float)
+    X = pr.sample_cues(Rs, ft, cue)
+    lv = enl_window.window_mean(X, LAGS, lo, hi)                # each trial's ENL-window level from these samples
+    maxdiff = float(np.nanmax(np.abs(lv - src["p10"]))) if len(cue) else np.nan
+    B = il._behaviour(label)                                    # first-lick latency (rule of il._first_lick_times)
+    bo = np.sort(np.asarray(B.lick_on_s, float)[np.isfinite(B.lick_on_s)])
+    rt = np.full(len(cue), np.nan)
+    for i, (c, s) in enumerate(zip(cue, stop)):
+        s = s if np.isfinite(s) else c + 3.5
+        j = np.searchsorted(bo, c)
+        if j < len(bo) and bo[j] <= s:
+            rt[i] = bo[j] - c
+    slid = np.abs(lo + float(pr.enl_win_s())) > 1e-3
+    sets = {}
+    for sp, mn, tag in SETS:
+        m = np.ones(len(pos), bool) if sp is None else pos == sp
+        n = int(m.sum())
+        ok = n >= mn
+        sets[tag] = np.nanmean(X[m], 0) if ok else np.full((len(LAGS), len(cs)), np.nan)
+        sets[tag + "_lvl"] = np.nanmean(lv[m], 0) if ok else np.full(len(cs), np.nan)
+        sets[tag + "_n"] = n
+        sets[tag + "_slid"] = int((slid & m).sum())
+        sets[tag + "_rt"] = float(np.nanmedian(rt[m])) if np.isfinite(rt[m]).any() else np.nan
+    f.parent.mkdir(parents=True, exist_ok=True)
+    np.savez_compressed(f, version=ENL_VERSION_T, meta=src["meta"], cue=cue, cols=np.array(cs), lags=LAGS,
+                        animal=str(src["animal"]), epoch=str(src["epoch"]), all=sets[""], far=sets["_farcontra"],
+                        lvl_all=sets["_lvl"], lvl_far=sets["_farcontra_lvl"], n_all=sets["_n"],
+                        n_far=sets["_farcontra_n"], slid_all=sets["_slid"], slid_far=sets["_farcontra_slid"],
+                        rt_all=sets["_rt"], rt_far=sets["_farcontra_rt"], maxdiff=maxdiff,
+                        **{k: src[k] for k in _REF_FIELDS})
+    return {"label": label, "cached": False, "maxdiff": maxdiff}
+
+
+def long_table_enl(labels: list, key: str, ref: str) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """`long_table` on the ENL traces: session x area x lag rows of (trace - reference) for sessions with a valid
+    reference and >= the set's trials, + per-session first-lick medians and kept / slid counts."""
+    import lick_precue_restw as pr
+    rows, rts = [], []
+    for x in labels:
+        z = np.load(il.OUT_W / enl_cache_t() / f"{x}.npz")
+        base, ok = pr.ref_base(z, ref)
+        A = z[key]
+        if not ok or not np.isfinite(A).any():
+            continue
+        A = A - base[None, :]
+        cs = [str(c) for c in z["cols"]]
+        an, ep = str(z["animal"]), str(z["epoch"])
+        rts.append({"label": x, "animal": an, "epoch": ep, "rt": float(z[f"rt_{key}"]), "n": int(z[f"n_{key}"]),
+                    "n_slid": int(z[f"slid_{key}"])})
+        for a in AREAS:
+            for h, _ in HEMI:
+                c = f"{a}_{h}"
+                if c not in cs:
+                    continue
+                rows.append(pd.DataFrame({"label": x, "animal": an, "epoch": ep, "area": a, "hemi": h, "lag": LAGS,
+                                          "v": A[:, cs.index(c)]}))
+    return pd.concat(rows, ignore_index=True), pd.DataFrame(rts)
+
+
+def sanity_enl(labels: list, ref: str) -> None:
+    """Per session x area: the mean over trials of each trial's ENL-window level (these traces) minus the reference
+    vs the level script's sessions csv; and the per-trial window means vs its cache."""
+    import lick_precue_restw as pr
+    sfx = pr.ref_sfx(ref)
+    md = [float(np.load(il.OUT_W / enl_cache_t() / f"{x}.npz")["maxdiff"]) for x in labels]
+    print(f"== sanity: per-trial ENL-window level from these traces vs the {pr.enl_cache()} cache: max |diff| = "
+          f"{np.nanmax(md):.2e} over {len(md)} sessions")
+    for sp, _mn, tag in SETS:
+        key = "all" if sp is None else "far"
+        rec = []
+        for x in labels:
+            z = np.load(il.OUT_W / enl_cache_t() / f"{x}.npz")
+            base, _ok = pr.ref_base(z, ref)
+            for c, v in zip([str(c) for c in z["cols"]], z[f"lvl_{key}"] - base):
+                rec.append({"label": x, "area": c, "v": v})
+        C = pd.read_csv(il.OUT_W / f"{pr.ENL_PREFIX}_sessions{tag}{sfx}.csv")
+        J = C.merge(pd.DataFrame(rec), on=["label", "area"])
+        print(f"== sanity{tag or ' (all spouts)'}: trace ENL levels vs {pr.ENL_PREFIX}_sessions{tag}{sfx}.csv: max |diff| "
+              f"= {(J.v - J.precue).abs().max():.2e} over {len(J)} session x area rows ({J.label.nunique()} sessions)")
+
+
+def main() -> int:
+    import lick_precue_restw as pr
+    if pr.window_mode() == "fixed":
+        return main_fixed()
+    from wfield_local import analysis_kit as ak
+    from wfield_local import trial_set_text as tst
+    ref = pr.reference("enl")
+    sfx = pr.ref_sfx(ref)
+    tst.declare(text=pr.enl_trial_set_sentence(None, ref))      # draw() narrows it per figure
+    if plot_only():
+        for _sp, _mn, tag in SETS:
+            for c in ("", "_change"):
+                draw(ENL_STEM + tag + c + sfx)
+        return 0
+    jobs = int(sys.argv[sys.argv.index("--jobs") + 1]) if "--jobs" in sys.argv else 4
+    labs = il.labels()
+    _res, fails = ak.fan_sessions(labs, session_worker_enl, jobs=min(jobs, 6))
+    if fails:
+        raise SystemExit(f"{len(fails)} sessions failed: {fails}")
+    sanity_enl(labs, ref)
+    compute(labs, enl=ref)
     return 0
 
 

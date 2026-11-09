@@ -67,9 +67,11 @@ MUST = {
     "lick_offset_where": ["sigma 0.1 mm", "post-cue licks"],
     "lick_path_softmax": ["pose3d_kin_licks_snapshot_20261023", ">= 8 tracked points"],
     "lick_position_per_spout": ["session x spout cells with >= 5 licks"],
-    "lick_precue_restw": ["trials: engaged cued trials", "no lick-free requirement", "RESTW rest frames",
-                          "restdock05", ">= 200 frames each", ">= 10 such trials"],
-    "lick_precue_restw_traces": ["trials: engaged cued trials", "RESTW rest frames"],
+    # the lick-free ENL window + RESTnl since 11-09 (the fixed window: test_precue_fixed_window_sentence)
+    "lick_precue_restw": ["trials: camera contact + incomplete (LP licks)", "1 s lick-free ENL window",
+                          "trials without a lick-free ENL window", "cues without an LP lick verdict dropped",
+                          "RESTnl", ">= 10 such trials"],
+    "lick_precue_restw_traces": ["trials: camera contact + incomplete (LP licks)", "lick-free ENL window", "RESTnl"],
     "lick_recovery_markers": ["ITI first after quiet", "cued first lick", "response-AUC", "recovery axes"],
     "lick_recovery_primary": ["FIRST post-cue lick", "preceding 2 s", "recovery axes"],
     "lick_refit_decoders": [">= 40 such licks per session", "every 3-D coordinate finite"],
@@ -222,17 +224,45 @@ def test_precue_draw_activates_its_figure_set(camera, monkeypatch, name, var):
     stem = "lick_cued_precue_restw_maps_farcontra" + fd["sfx"]
     with pytest.raises(KeyError):                         # the synthetic figure data stops it after the activation
         M.draw(stem)
-    assert _flat(tst.current_sentence()) == _flat(M.trial_set_sentence("far_contra", var))
+    assert _flat(tst.current_sentence()) == _flat(M.trial_set_sentence("far_contra", var, "fixed"))
+
+
+@pytest.mark.parametrize("name,ref", [("lick_precue_restw", "restnl"), ("lick_precue_restw", "session"),
+                                      ("lick_precue_restw_traces", "restnl"), ("lick_precue_restw_traces", "session")])
+def test_precue_enl_draw_activates_its_figure_set(camera, monkeypatch, name, ref):
+    """The ENL figures (11-09) narrow the declaration to their spout set and reference before drawing."""
+    import lick_precue_restw as pr
+    M = importlib.import_module(name)
+    fd = {"ref": ref, "enl": ref, "sfx": pr.ref_sfx(ref), "spout": "far_contra", "tag": "_farcontra"}
+    monkeypatch.setattr(M, "load_fd", lambda *a, **k: fd)
+    tst.declare(text="declared")
+    with pytest.raises(KeyError):
+        (M.draw_enl if name == "lick_precue_restw" else M.draw)("x_farcontra" + fd["sfx"])
+    assert _flat(tst.current_sentence()) == _flat(pr.enl_trial_set_sentence("far_contra", ref))
 
 
 @pytest.mark.parametrize("name", ["lick_precue_restw", "lick_precue_restw_traces"])
-def test_precue_main_declares(camera, monkeypatch, name):
+@pytest.mark.parametrize("extra,want", [([], ("restnl", "enl")), (["--rest-variant", "session"], ("session", "enl")),
+                                        (["--precue-window", "fixed"], ("restw", "fixed"))])
+def test_precue_main_declares(camera, monkeypatch, name, extra, want):
     M = importlib.import_module(name)
     monkeypatch.setattr(M, "plot_only", lambda: True)
     monkeypatch.setattr(M, "draw", lambda stem: None)
-    monkeypatch.setattr(sys, "argv", [name, "--plot-only"])
+    if hasattr(M, "draw_enl"):
+        monkeypatch.setattr(M, "draw_enl", lambda stem: None)
+    monkeypatch.setattr(sys, "argv", [name, "--plot-only", *extra])
     assert M.main() == 0
-    assert _flat(tst.current_sentence()) == _flat(M.trial_set_sentence(None, "restw"))
+    assert _flat(tst.current_sentence()) == _flat(M.trial_set_sentence(None, *want))
+
+
+def test_precue_fixed_window_sentence(camera):
+    """The old fixed-window sentence stays reachable (--precue-window fixed)."""
+    import lick_precue_restw as pr
+    s = pr.trial_set_sentence(None, "restw", "fixed")
+    for p in ("trials: engaged cued trials", "no lick-free requirement", "RESTW rest frames", "restdock05",
+              ">= 200 frames each", ">= 10 such trials"):
+        assert p in s, p
+    assert "baseline: none" in pr.trial_set_sentence(None, "session", "enl")
 
 
 def _declared_before_load(M, monkeypatch, argv, call):
