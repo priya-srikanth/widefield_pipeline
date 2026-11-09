@@ -39,6 +39,59 @@ for anything that loads imaging. E = `M:/MICROSCOPE/Priya/Widefield/LP_analysis/
 3. Then tell **sabatinilab-e3** (PI deck) the decoder figures are final: per figure the share PNG path, page Fig N.k,
    script + args, headline numbers, methods text (they asked 10-26 ~22:30; reply sent: not final yet).
 
+### 00-COMPACT-40 (11-09 ~07:50) -- READ FIRST; supersedes 39 for STATE (38 section 1 RULES still apply)
+
+**Where things are:** running list `docs/status/RUNNING_LIST_2026-11-06.md` (11-09 entries at the end);
+`docs/status/HEADLINE_TABLE_2026-11-09_CORRECTED.md` (8 conclusion changes; Priya approved 1-6 + 8 for pages / decks, #7
+resolved below); `docs/status/AMPLITUDE_TWO_REFS_AUDIT_2026-11-09.md` (two-reference gaps). Render folder
+`scratchpad/render_daqlk` (session f082ee0c), queues 9zw..14, `logs/CHAIN.log`; chain scripts `scratchpad/chain_v1*.sh`.
+
+#### 1. Decisions since block 39 (Priya 11-09)
+- G4 = camera working vs no_response (as G1-G3); re-run ONLY G4 (`poststroke_section_g --only g4`, backup first).
+- June camera trial tables = SIDE table + `WIDEFIELD_ATTEMPTS_SUPPLEMENT` for the LP drift step only (registered table
+  untouched; its mtime/size keys every LP cache).
+- Two LP lick epoch decoder sets (float-noise inputs) ACCEPTED for now (set 1 epoch arm lick figs; set 2 grant lick units).
+- contactOnly section G arm DEFERRED; when run it supersedes the mistaken r4 run, whose outputs may then be deleted.
+- Interhemi / cross-area / coupling: PRIMARY lick - RESTnl rest; SUPPLEMENT "raw" = lick-set metrics, no rest reference.
+  restdock05 is NOT raw (its _r5 chain marked NOT RUN). Session-wide event set dropped.
+- AMPLITUDE outputs need TWO references: RESTnl + session mean (memory amplitude-two-references). D0: map "raw" accepted
+  (caption: zero = slow inter-trial trend). Per-trial-baseline families: add absolute-level twins + state-space response-
+  size twins at the page update. Hemisphere-difference balances: no RESTnl if lick-peak fluorescence not normalized
+  within trial (verify). CD projections: HOLD.
+- Working period start = FIRST camera lick (settled). RESTnl boundary rule kept (rest periods need both bracketing
+  trials in the period).
+- #7 (acute cue far-contra map, RESTW per animal): wording "falls in 3/4; PS95's single acute session has only 40
+  far-contra working trials (1 hit + 39 incomplete; of 120 cues 53 jaw-only, 16 no response, 11 stopped) and shows no
+  drop on the trials it attempted" (old "halving" averaged non-attempts). EVERY figure must state EXACTLY which trials
+  were included / excluded (memory figure-provenance-in-captions). Map trial sets = option (c): primary working trials
+  (contact + incomplete), SUPPLEMENT = all trials in the working period (+ jaw-only + no response; stopped runs, quit
+  tail, unknown excluded), PLUS a jaw-only panel POOLED per animal x epoch (floor 20; pre-stroke jaw-only = PS95 only).
+- Grant: re-render ONCE after the caption wiring + grant memos (the 06:51 re-render was stopped).
+- test_cohorts: test-side fix of 2 stale expectations (cohort2 per-animal reference dates) OK.
+
+#### 2. On main since block 39
+d8f4e900 memo keeps csig; b83f376d G1-G3; 2944eca4 te-basis hardening; 3f1c5e90 June supplement; 90a5e25f G4 +
+--only g4; 10cdb08a share writers classified; f992cb8f redraw-pass fixes (lick-source label, grant stamp band + tick
+thinning, matched-pre --lick-dir); dff97e56 interhemi RESTnl + raw. PUSHING: feat/trial-set-captions-jaw-panel-1109
+(0899267d, via chain_v14), fix/test-cohorts-stale-refs-1109 then perf/grant-loader-memos-1109 (helper).
+NOT yet: feat/trial-set-wiring-1109 (helper wiring the trial-set sentence into grant, section G, other epoch families,
+cd chain, ITI / lick, encoding, interhemi + stale deck wording).
+
+#### 3. Render state (~07:50)
+DONE overnight (all on fixed code): section G LP (3 h 14) + G4-only (34 min) + G4 figure; LP epoch arms; LP cd chain (Fig
+9.1); matched-pre lick half + LP table; ITI chain; gain-bio; rest family; balance / ENL-slide / ENLv chain (4 missing
+producers added: ITI spout patterns, balance _inside, ENL-v regress, notdock dock steps); June LP drift; grant LP 96/96
+(old layout); encoding bar re-summaries (stars / order). 12 parked old lanes stopped (exact PIDs) + claims cleaned.
+RUNNING: v11 (44 previously stuck steps; B5 random splits now in 3 parallel lanes, ETA ~09:30; L5R lick family),
+v12 IH (interhemi RESTnl + raw), v14 MP + LF (LP restnl maps + LPfinal maps with option (c) + jaw panel, ~4-5 h each).
+NEXT: grant re-render (~2-3 h with memos) after wiring; caption replots for figdata families; then the PAGE / DECK
+UPDATE (headline table approved: 1-6, 8, #7 wording) -- ETA renders ~13:00-14:00, pages / decks this evening.
+
+**Lessons (11-09):** (1) before launching a chain, check every input FILE has a producer (4 missing-producer failures);
+(2) rename re-runs (_r2.._r5) when old lanes wait on the original names, and stop parked old lanes once audited;
+(3) a code edit in a digested module moves cache keys -- verify csig / map digests after every such edit; (4) parallelize
+independent per-animal steps with extra lanes on the same section (claims prevent duplicates).
+
 ### 00-COMPACT-39 (11-09 ~01:30) -- READ FIRST; supersedes 38 for STATE (38 section 1 RULES still apply verbatim)
 
 **Where things are:** running list `docs/status/RUNNING_LIST_2026-11-06.md` (sections 11-08 ~13:20 onward, newest at the

@@ -931,3 +931,5 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
   -> queue_daqlk14.sh lanes MP (g5_restnl_maps_lp_ts) + LF (g5_lpfinal_maps_ts) = primary + working-period supplement +
   jaw-only panel in one render each. DAQ epoch 15r re-render SKIPPED (cue = LPfinal all 6 refs; lick = successful-lick
   only; ENL 2 s retired).
+- 07:50 random splits parallelized: 2 extra v11 B5 lanes -> PS93 / PS94 / PS95 run at once (ETA ~09:30 instead of
+  ~12:20). Handoff block 00-COMPACT-40 written.
