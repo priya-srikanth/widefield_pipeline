@@ -63,6 +63,19 @@ merged to main (no conflicts); A5 applied to FINDINGS 0c item 4 and the page cap
 
 ## B. Findings (newest first; exploratory)
 
+32. **The tonic elevation is mostly REST MOVING (Priya 11-09 "should we check with raw (instead of RESTnl)";
+   `scripts/state_space_shift_rawref.py`; page v28 Fig 10.26; B29 / B30 statements rewritten on the page).** Raw = dF/F
+   scale, zero = the session's mean frame (wfield `svd_blockwise` subtracts / divides by `frames_average`; drift removal
+   incl. the constant). Orofacial contra raw RESTnl -.48 / -.53 / -.76 (4/4 chronic), raw pre-cue -.46 / -.35 / -.37 ->
+   pre-cue - RESTnl +.02 / +.17 / +.39. Post sessions animal-demeaned: 78 % of the tonic level's variation = rest
+   (r .81-.92 per animal), 22 % pre-cue (ipsi 77 / 23). Aim coupling (B29) is the rest level's: raw pre-lick vs aim slope
+   -.0004 / +.0017 per deg (p .88 / .50 contra / ipsi); raw RESTnl -.013 / -.021 (p .001 / <.001). Phasic post-lick
+   survives the session-mean reference: raw +.68 / +.72 / +.59 contra (ipsi +.42 / +.35 / +.30, CIs incl. 0).
+   Priya asked about absolute corrected 470 (not dF/F): no absolute level exists across days -- LED power is titrated by
+   hand each day (`crossday_intensity` / `hemispheric_intensity` docstrings), and 470/415 does not cancel two separately
+   set LEDs; within a session any reference gives the same differences. Possible next: an anatomical reference (orofacial
+   relative to other cortex at rest vs pre-cue).
+
 31. **The phasic post-lick increase is shared across spouts; its late half needs spout contact (Priya 11-09 "sure go
    ahead"; `scripts/state_space_shift_spout_timing.py`; page v27 Fig 10.25).** Region means minus RESTnl per spout, change
    vs the animal's own pre trace for that spout. Every spout up early and late in every epoch (contra late chronic +.96 to
