@@ -38,9 +38,20 @@ ALL_REFS = "mean rest restw precue raw restnl"
 LP_TEXT = "licks: LP video (cam4 + cam1)"
 DAQ_TEXT = "licks: DAQ spout contact"
 GATE_TEXT = "gate: engaged = DAQ contact OR LP attempt"
+#: (trial class, caption template). The caption is the DAQ-rule wording kept for reference; the render uses
+#: `_caption` = `trial_set_text.arm_caption` under the ACTIVE selection (Priya 11-09: "lick + miss-while-working" is
+#: stale under the camera gate).
 ALIGN_VARIANT = {"precue": ("working", "ENL (pre-cue) {w:g} s lick-free, lick + miss-while-working"),
                  "cue": ("working", "post-cue, lick + miss-while-working"),
                  "lick": ("lick", "post-lick (first LP lick), lick trials only")}
+
+
+def _caption(align, variant, w=None) -> str:
+    """The figure caption head of one arm from the ACTIVE selection, + the lick source and the trial gate."""
+    from wfield_local import lp_licks
+    from wfield_local import trial_set_text as tst
+    lick = LP_TEXT if lp_licks.is_lp() else DAQ_TEXT
+    return f"{tst.arm_caption(align, variant, enl_window=w)} | {lick} | {tst.gate_text()}"
 
 
 def root() -> Path:
@@ -172,10 +183,15 @@ def step_maps(aligns, plot_only=False):
     w = lp_licks.enl_window_s()
     for align in aligns:
         t0 = time.time()
-        variant, wtxt = ALIGN_VARIANT[align]
-        wname = f"{wtxt.format(w=w)} | {LP_TEXT} | {GATE_TEXT} | pre: August only"
-        for fn in (em._fig_15r_reference_maps, em._fig_15rpa_reference_by_animal):
-            for p in (fn(out, align, variant, wname) or []):
+        variant, _wtxt = ALIGN_VARIANT[align]
+        wname = f"{_caption(align, variant, w)} | pre: August only"
+        from wfield_local import trial_set_text
+        with trial_set_text.active(variant, align):            # every figure states its trial set (Priya 11-09)
+            for fn in (em._fig_15r_reference_maps, em._fig_15rpa_reference_by_animal):
+                for p in (fn(out, align, variant, wname) or []):
+                    print(f"  -> {p}", flush=True)
+        if variant == "working":                    # PERIOD SUPPLEMENT + JAW-ONLY panels (Priya 11-09)
+            for p in em.supplement_panels(out, align, lambda v, a=align: f"{_caption(a, v, w)} | pre: August only"):
                 print(f"  -> {p}", flush=True)
         store, _rel, _ntr = prm.maps_by_epoch(align, variant)
         A = amplitude_table(store, align, variant, refs=tuple(prm.render_references()))
@@ -241,7 +257,6 @@ def step_decoders(window, source, trained, plot_only=False):
     import pandas as pd
 
     from wfield_local import epoch_figures as ef
-    from wfield_local import lp_licks
     from wfield_local.epoch_accuracy import _epoch_arm, _per_position_accuracy
     from wfield_local.writeguard import assert_writable
     out = dec_out(trained)
@@ -266,11 +281,11 @@ def step_decoders(window, source, trained, plot_only=False):
     (out / "data").mkdir(exist_ok=True)
     T.to_csv(out / "data" / "lpfinal_enl_trials_acc_per_animal.csv", index=False)
     print(T[["animal", "epoch", "n_sessions", "n_trials", "n_far_R", "acc_far_R"]].round(3).to_string(), flush=True)
-    lick = LP_TEXT if lp_licks.is_lp() else DAQ_TEXT
-    gate = GATE_TEXT if lp_licks.is_lp() else "gate: DAQ contact"
-    wname = (f"ENL (pre-cue) {window:g} s lick-free ({'LP video' if lp_licks.is_lp() else 'DAQ contact'}), lick + "
-             f"miss-while-working | {lick} | {gate} | pre: August only | frozen decoder trained on {trained.upper()} pre trials")
-    p = _per_position_accuracy(per_animal, out, "ENL", "precue", "working", wname)
+    wname = (f"{_caption('precue', 'working', window)} | pre: August only | frozen decoder trained on "
+             f"{trained.upper()} pre trials")
+    from wfield_local import trial_set_text
+    with trial_set_text.active("working", "precue"):           # the figure states its trial set (Priya 11-09)
+        p = _per_position_accuracy(per_animal, out, "ENL", "precue", "working", wname)
     print(f"  -> {p}  ({(time.time() - t0) / 60:.1f} min)", flush=True)
     pd.DataFrame({"done": [time.strftime("%Y-%m-%d %H:%M")]}).to_csv(out / "data" / "lpfinal_decoders_done.csv")
 

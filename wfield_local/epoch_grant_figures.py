@@ -92,6 +92,7 @@ from wfield_local.epoch_maps import (  # noqa: F401
     _fig_15r_reference_maps,
     _fig_15rpa_reference_by_animal,
     _long_of,
+    supplement_panels,
     _n_stat_bins,
     _stats_sentence,
 )
@@ -125,6 +126,8 @@ from wfield_local.writeguard import assert_writable
 #: arm removes (Priya, 2026-09-11: "the stopped class should basically be another frozen decoder /
 #: encoder analysis set"). No lick-aligned stopped arm exists and none can -- a trial inside the
 #: quit period is a non-response by construction, so there is no lick to align to.
+#: THE CAPTION (4th field) IS THE DAQ-RULE WORDING; the arm loop replaces it with `trial_set_text.arm_caption` -- the
+#: ACTIVE selection's words (Priya 11-09: under the camera gate "lick + miss-while-working" is stale).
 ARMS = (("ENL", "precue", "working", "ENL (pre-cue), lick + miss-while-working"),
         ("cue", "cue", "working", "post-cue, lick + miss-while-working"),
         ("lick", "lick", "lick", "post-lick, lick trials only"),
@@ -468,9 +471,14 @@ def main(argv=None) -> int:
                 "15r", "mat", "scal"}
     arms = [a for a in ARMS if not args.arm or a[0] in set(args.arm)]
     print(f"[epoch] arms: {' '.join(a[0] for a in arms)}", flush=True)
+    from wfield_local import trial_set_text
     for disp, align, variant, wname in arms:
         if not (want & ARM_KEYS):
             break
+        # THE TRIAL SET OF EVERY FIGURE OF THIS ARM (Priya 11-09): the caption from the ACTIVE selection, and the full
+        # sentence stamped on each figure at save time (`trial_set_text`)
+        wname = trial_set_text.arm_caption(align, variant)
+        trial_set_text.activate(variant, align)
         try:
             per_animal = _epoch_arm(align, variant)
         except Exception as ex:                                        # noqa: BLE001
@@ -518,6 +526,9 @@ def main(argv=None) -> int:
                     _report(f"15r {align}/{variant}", p)
                 for p in (_fig_15rpa_reference_by_animal(out, align, variant, wname) or []):
                     _report(f"15rpa {align}/{variant}", p)
+                if variant == "working":   # PERIOD SUPPLEMENT + JAW-ONLY panels (Priya 11-09; camera gate only)
+                    for p in supplement_panels(out, align, lambda v, a=align: trial_set_text.arm_caption(a, v)):
+                        _report(f"15r supplement {align}", p)
             except Exception as ex:                                    # noqa: BLE001
                 print(f"  !! 15r {align}/{variant}: {type(ex).__name__} {str(ex)[:160]}",
                       flush=True)
@@ -605,6 +616,7 @@ def main(argv=None) -> int:
                 except Exception as ex:                                # noqa: BLE001
                     print(f"  !! {key} {align}/{variant}: {type(ex).__name__} "
                           f"{str(ex)[:160]}", flush=True)
+    trial_set_text.deactivate()
     return 0
 
 

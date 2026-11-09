@@ -63,6 +63,68 @@ merged to main (no conflicts); A5 applied to FINDINGS 0c item 4 and the page cap
 
 ## B. Findings (newest first; exploratory)
 
+37. **Spout-centered face covariates (no spout information): activity unchanged; acute far-contra loss untouched; chronic
+   far-contra loss PARTLY face (Priya 11-09 "add the covariate relative to spout's pre-stroke mean, and relabel frB").**
+   `WF_SS_FR=Bs|As` = B / A covariates minus the animal's pre mean at the trial's spout (training sessions only). WHY: raw
+   B / A covariates decode the spout on pre trials (B .40-.60, side .71-.86, ring .64-.86; A .61-.87; lick sum alone
+   .22-.27; chance .17 / .50 / .50) -- the non-lick factors follow the spout, so B was NOT target-free (B36's 9.3 reading
+   was partly circular). Results (kept along the control's direction, Bs / As; sig % of stat mask): 9.1 mean 0.96 / 0.83
+   acute, 0.99 / 0.90 chronic; 9.2 mean 0.95 / 0.98 (Bs acute / chronic); 9.3 acute far contra 1.08 (SSp-m ipsi -.64 ->
+   -.64, SSp-n -.56 -> -.59, tjM1 -.47 -> -.48, all *); 9.3 chronic far contra 0.57 / 0.76, contour 10 -> 0 / 1 %, area
+   level SSp-tr contra -.34 -> -.22 * and VISa contra -.23 -> -.14 * survive, SSp-ll contra -.31 -> -.19 n.s.; chronic
+   close ipsi 0.60 (35 -> 10 %). SIGN vs encoder: across-spout spread (SD over 6 spouts) of the spout-specific response
+   in contralesional SSp-m rises chronically 4/4 (+.07 control, +.06 Bs, +.07 As) = same direction as the encoder's
+   contralesional SSp-m position rise (8.19 B, landing frame, FR-A); far contra's -.12 there is one spout leaving the
+   others. Also: pre-stroke response row on EVERY cohort map (all versions / baselines; `--pre-map` merges per-version
+   pre rows into pre_maps.npz via the response cache), shared scales per family (full +-0.9 pre 0-2.3; nocw +-0.6 pre
+   -0.6-0.9; spout +-0.43 pre -0.4-0.45; WF_SS_PREMIN / PREMAX). Page v37 BUILT LOCALLY, NOT PUBLISHED (account switch:
+   the page belongs to the other claude.ai account): scratchpad state_space_page/index.html, page script
+   `rebuild_fr_section9.py` (9.1b-e, 9.2b-e, 9.3b-e = Bs / As / B relabeled / A).
+
+36. **The CHRONIC spout-specific change is mostly face movement; the ACUTE far-contra loss is not (Priya 11-09 "yes 1
+   and 2", "how do we reconcile the encoder map and state space map results"; `WF_SS_VERSIONS=nocw,spout WF_SS_FR=B|0|A`;
+   page v36 Figs 9.3b-c, section 9 take + summary row rewritten).** Along the control's own direction (B / A): chronic far
+   contra 0.46 / 0.52 kept, significant area 10 -> 1 / 4 % (only SSp-m contra -.12 significant, B); chronic close ipsi
+   0.58 / 0.70 (35 -> 10 / 12 %); acute far contra 0.99 / 0.90 kept, ipsilesional orofacial loss still significant (SSp-m
+   ipsi -.64 -> -.59 / -.43, SSp-n / SSp-ul / tjM1 ipsi too). 9.2 (nocw) like 9.1 (0.83-1.08). RECONCILES with the
+   encoder: activity change (9.1) not face; chronic spout differences = face-linked (encoder chronic position R2 rise +22
+   -> +4 with FR); acute ipsilesional SSp-m loss survives in both. BUGS FIXED 11-09 in `state_space_chronic_maps.py`: a
+   WF_SS_VERSIONS subset run (1) overwrote maps.npz / areas.csv (now merged) and (2) took its unit from the first version
+   run, not the FULL pre response (now always full; needs the full cache). The first 9.2/9.3 FR outputs were ~2.8x off in
+   units (ratios / retention unaffected); rerun from the response cache, full maps rebuilt.
+
+35. **Balance in the first-lick window (Priya 11-09 "yes 1 and 2"; `WF_SS_ALIGN=lick` balance scripts, tables
+   `landing_lick/` (cue tables untouched in `landing/`); page v35 Figs 5.5-5.8).** 0.1-0.5 s after the first lick minus
+   -1.0..-0.6 s. Same picture as the cue window. Orofacial matched: far contra +.30 / +.27 / +.29 (chronic 4/4), close
+   contra chronic +.22, far mid chronic +.11 (4/4); acute ipsi-side reversal (far ipsi -.22 0/4, close ipsi -.16 1/4);
+   spread -.28 / -.16 / -.13 (0/4 chronic). Motor matched: far contra +.29 / +.25 / +.25, far mid +.13 / +.10 / +.14, far
+   ipsi sub / chr +.14 / +.16 (4/4); no acute reversal (far ipsi +.01, close ipsi +.03), no spread compression (-.13 /
+   -.01 / +.01, CIs incl. 0). Also: every page caption now ends with its file name (`scripts/page_file_names.py`,
+   docs/templates/README.md rule). ENCODER COMPARISON (grant window's note, checked): the encoder's chronic position-R2
+   rise falls +22 -> +4 (n.s.) with FR in the model (ENCODING_FINDINGS), while Fig 9.1 activity keeps 94 % (FR-A) --
+   different readouts and controls (FR in-model per session vs frozen pre-only subtraction); 9.3 (spout-specific) with FR
+   is the like-for-like check (running 11-09).
+
+34. **The post-lick change is NOT face movement (Priya 11-09 "combining state space fig 9.1 with FR ... to regress out
+   FR-explained variance", "directionless first, then all"; `WF_SS_FR=B|0|A` in `state_space_chronic_maps.py`; page v32
+   Figs 9.1b-c).** Per trial FaceRhythm `master_pre_v1` factors 0.0..0.5 s after the first lick (cue-time join; 0.5-1.9 %
+   of trials without FR dropped); per animal a PRE-ONLY lstsq fit of the response (100 SVD comps) on the centered
+   covariates (B: lick sum + 6 non-lick = 7; A: + left / right / close / far = 11), every trial minus fit x (cov - pre
+   mean), pre sessions leave-session-out. FR explains 13-23 % (B) / 16-25 % (A) of held-out pre trial variance
+   (`scratchpad fr_r2`), yet vs the same-trial control (0) the spout-mean change keeps 97 / 98 / 98 % (B) and 92 / 95 /
+   94 % (A) of its size, pattern r >= .987; far contra 86 / 79 % acute, 115 / 108 % chronic -- RMS ratios; CORRECTED
+   11-09 (Priya "the change is MORE?"): measured ALONG the control's change direction far contra keeps 86 / 76 % acute,
+   110 / 103 % chronic; the RMS gain is the face map's off-axis pattern (0.3 of the change) and the per-animal face part
+   along the change is mixed in sign (-.07 / +.03 / +.19 / -.12) -> not larger, same + noise. Spout mean along-axis
+   97 / 98 / 98 (B), 92 / 94 / 94 (A). Figs 9.1 / 9.1b / 9.1c on one scale (WF_SS_VMAX=0.9, WF_SS_PREMAX=2.3; page v33).
+   CONTOURS (Priya 11-09 "areas of significance seem larger with FR regressed out"; page v34): chronic, B vs control,
+   significant stat-mask area far contra 28 -> 48 %, far mid 14 -> 25, far ipsi 19 -> 25, mean 46 -> 56 (pre session-to-
+   session SD x0.82-0.88, change along its direction 0.98-1.10: less noise, not more change); close ipsi 73 -> 51, close
+   mid 57 -> 41 (change kept 0.82 / 0.86, SD 1.03 / 0.98: ~15 % of the change goes with the face). Chronic areas (B): SSp-m
+   contra +.67, tjM1 contra +.64, SSp-m ipsi +.60, 4/4 (Fig 9.1 +.70 / +.66 / +.62). Also 11-09: Fig 9.1 pre-response
+   row (viridis); every map in the encoder design (white unanalyzed, full CCF outline incl. bulbs); quick-look-first +
+   response cache (`chronic_maps_resp/`) so a stats run never reloads.
+
 33. **Motor-area balance (ALM + tjM1) as well (Priya 11-09 "for the orofacial balance figures, can we have motor version
    as well (ALM, tjM1)"; `state_space_balance_cells.py --motor`, `state_space_balance_angle.py --collect --motor` then
    `--motor`, tables `landing/*_motor.csv`; page v29 Figs 5.3-5.4).** Cue 0-1 s, Allen areas, same selections / models

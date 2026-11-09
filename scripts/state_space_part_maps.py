@@ -103,7 +103,7 @@ def main():
     NPIX = Uc.shape[0]
     atlas = np.load(S.SVD.parents[1] / "atlas.npy")
     mask = np.load(C.BASIS_DIR / "mask.npy").reshape(atlas.shape)
-    edges = region_edges(np.where(mask, atlas, 0))
+    edges = region_edges(atlas)                       # the FULL CCF outline (bulbs + masked glue included), as the encoder maps
     brain = beta_maps.allen_mask()
     flat = np.flatnonzero(mask.ravel())
     split = area_basis.basis_masks(area_basis.roi_masks(atlas.ravel()[flat], beta_maps.stat_mask().ravel()[flat],
@@ -115,50 +115,56 @@ def main():
     t, _ = TR.times()
     win_idx = [np.flatnonzero((t >= a) & (t < b)) for a, b in WINDOWS]
     resp = np.flatnonzero((t >= RESP[0]) & (t < RESP[1]))
-    data, _ = S.load_sessions()
-    # per session panels (K vectors), in units of the animal's pre pixel RMS
-    panels = {}                                                         # (panel, epoch) -> {animal: [K vectors]}
+    replot = "--replot" in sys.argv                                    # maps only, from the saved maps.npz
+    if replot:
+        z = np.load(OUT / "maps.npz")
+        res = {tuple(k.split("__")): (z[k], z[f"{k}__sig"] if z[f"{k}__sig"].any() else None)
+               for k in z.files if not k.endswith("__sig")}
+    else:
+        data, _ = S.load_sessions()
+        # per session panels (K vectors), in units of the animal's pre pixel RMS
+        panels = {}                                                         # (panel, epoch) -> {animal: [K vectors]}
 
-    def put(key, ep, an, v):
-        panels.setdefault((key, ep), {}).setdefault(an, []).append(v)
-    for an, sess in sorted(data.items()):
-        for _lab, ep, unit, ok, pc in session_parts(sess):
-            sp = [p for i, p in enumerate(S.POS) if ok[i]]
-            put("gain", ep, an, pc["gain"][:, resp].mean(axis=(0, 1)) / unit)
-            put("off_a", ep, an, pc["off_a"] / unit)
-            for j, p in enumerate(sp):
-                put(f"off_s|{p}", ep, an, pc["off_s"][j] / unit)
-                put(f"rest|{p}", ep, an, pc["rest"][j][resp].mean(0) / unit)
-            for w, ix in zip(WINDOWS, win_idx):
-                put(f"shift|{w}", ep, an, pc["shift"][ix].mean(0) / unit)
-            put("shift_tc", ep, an, pc["shift"] / unit)                      # nb x K
-        print(f"  {an} done", flush=True)
+        def put(key, ep, an, v):
+            panels.setdefault((key, ep), {}).setdefault(an, []).append(v)
+        for an, sess in sorted(data.items()):
+            for _lab, ep, unit, ok, pc in session_parts(sess):
+                sp = [p for i, p in enumerate(S.POS) if ok[i]]
+                put("gain", ep, an, pc["gain"][:, resp].mean(axis=(0, 1)) / unit)
+                put("off_a", ep, an, pc["off_a"] / unit)
+                for j, p in enumerate(sp):
+                    put(f"off_s|{p}", ep, an, pc["off_s"][j] / unit)
+                    put(f"rest|{p}", ep, an, pc["rest"][j][resp].mean(0) / unit)
+                for w, ix in zip(WINDOWS, win_idx):
+                    put(f"shift|{w}", ep, an, pc["shift"][ix].mean(0) / unit)
+                put("shift_tc", ep, an, pc["shift"] / unit)                      # nb x K
+            print(f"  {an} done", flush=True)
 
-    def frame(v):
-        img = np.full(mask.shape, np.nan, np.float32)
-        img[mask] = v
-        return img
+        def frame(v):
+            img = np.full(mask.shape, np.nan, np.float32)
+            img[mask] = v
+            return img
 
-    store, res = {}, {}
-    for (key, ep), by in panels.items():
-        if ep == "pre" or key == "shift_tc":
-            continue
-        pre = panels.get((key, "pre"), {})
-        ans = sorted(a for a in by if pre.get(a))
-        M = np.mean([np.mean(by[a], 0) - np.mean(pre[a], 0) for a in ans], 0) @ Uc.T
-        cm, lab = beta_maps.significance_contour({a: [frame(v @ Uc.T) for v in pre[a]] for a in ans},
-                                                 {a: [frame(v @ Uc.T) for v in by[a]] for a in ans},
-                                                 n_boot=2000, normalise=False)
-        res[(key, ep)] = (M, cm)
-        store[f"{key}__{ep}"] = M.astype(np.float32)
-        store[f"{key}__{ep}__sig"] = np.zeros(mask.shape, bool) if cm is None else cm
-        print(f"  {key} {ep}: {lab or 'none'}", flush=True)
-    OUT.mkdir(parents=True, exist_ok=True)
-    np.savez_compressed(OUT / "maps.npz", **store)
+        store, res = {}, {}
+        for (key, ep), by in panels.items():
+            if ep == "pre" or key == "shift_tc":
+                continue
+            pre = panels.get((key, "pre"), {})
+            ans = sorted(a for a in by if pre.get(a))
+            M = np.mean([np.mean(by[a], 0) - np.mean(pre[a], 0) for a in ans], 0) @ Uc.T
+            cm, lab = beta_maps.significance_contour({a: [frame(v @ Uc.T) for v in pre[a]] for a in ans},
+                                                     {a: [frame(v @ Uc.T) for v in by[a]] for a in ans},
+                                                     n_boot=2000, normalise=False)
+            res[(key, ep)] = (M, cm)
+            store[f"{key}__{ep}"] = M.astype(np.float32)
+            store[f"{key}__{ep}__sig"] = np.zeros(mask.shape, bool) if cm is None else cm
+            print(f"  {key} {ep}: {lab or 'none'}", flush=True)
+        OUT.mkdir(parents=True, exist_ok=True)
+        np.savez_compressed(OUT / "maps.npz", **store)
     xf = {"": "", "gsr": "; cortex-wide mode removed"}.get(S.XFORM, f"; {S.XFORM}")
     sub = (f"first-lick-aligned, cohort SVD basis{xf}; change vs own pre, units of each animal's pre-template pixel RMS, "
            f"mean of 4 animals. Contour: nested bootstrap animals -> sessions (2,000), 8-px blocks, max-stat per panel. "
-           f"Image left = ipsilesional; dashed = ALM / tjM1; grey = brain not analyzed.")
+           f"Image left = ipsilesional; dashed = ALM / tjM1; white = not analyzed (glue, bulbs).")
 
     def grid(rows, cols, keyf, title, name, coltitle):
         fig, axs = plt.subplots(len(rows), len(cols), figsize=(2.3 * len(cols), 2.5 * len(rows) + 0.4), squeeze=False)
@@ -193,6 +199,8 @@ def main():
          "offset", "ss_part_maps_spout_offset", lambda c: c.replace("_", " "))
     grid(EPS, S.POS, lambda r, c: (f"rest|{c}", r), "REST: spout-specific, time-varying change beyond gain, offsets and "
          "shared shift (0.1..0.5 s)", "ss_part_maps_rest", lambda c: c.replace("_", " "))
+    if replot:                                                          # the time courses need the panels
+        return
     # shared-shift time courses in split-basis areas
     names = [n for n in split if n.rsplit("_", 1)[0] in ROIS]
     W = np.stack([Uc[split[n]].mean(0) for n in names], axis=1)        # K x areas

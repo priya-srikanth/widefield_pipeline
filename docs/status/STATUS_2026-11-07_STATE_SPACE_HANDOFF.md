@@ -48,6 +48,19 @@ running list `docs/status/RUNNING_LIST_2026-11-08_STATE_SPACE.md` sections A (de
   after the sweep.
 - **11-08 ~11:45:** page v15 has section 9 (maps, all baselines, why-cleaner). "Why cleaner" answered for the 15r
   activity maps (B19: window, not denoising); the residual-map half not done.
+- **11-09 ~11:30 (running list B37) -- PUBLISH PENDING:** spout-centered FR (`WF_SS_FR=Bs|As`) + pre rows on every map,
+  all figures on the share (page_figs, 11:15-11:18). Page v37 is built in the scratchpad (state_space_page/index.html;
+  v36 backup index_v36_backup.html) and must be published from the account that owns
+  https://claude.ai/artifact/9sGELLFEwADEt9k64fXTxe (files: every ss_cmap_*_rest*_lick_svd.png + the 7 other ss_cmap
+  configs; simplest = pass all PNGs in the page folder). Then re-run `scripts/page_file_names.py`.
+- **11-09 ~11:00 (running list B35-B36):** first-lick balance Figs 5.5-5.8 (`landing_lick/`); FR on 9.2 / 9.3: chronic
+  spout-specific change mostly face-linked, acute far-contra loss not (Figs 9.3b-c, v36); every caption carries its file
+  name (`scripts/page_file_names.py --prefix state_space_recovery/page_figs`, re-run after each page edit); maps share
+  scales via WF_SS_VMAX / WF_SS_PREMAX. Page scripts: `state_space_page/{add_balance_lick,add_fr_spout,add_file_names}.py`.
+- **11-09 ~10:30 (running list B34):** FR regressed out of Fig 9.1 (`WF_SS_FR=B|0|A`, full version only via
+  `WF_SS_VERSIONS=full`): the change survives (92-98 % retained, r >= .987). Fig 9.1 has a pre-response row; all maps
+  redrawn in the encoder design (`--replot`, part maps too). Page v32 Figs 9.1b-c (page scripts
+  `state_space_page/{edit_maps_white_pre,edit_maps_ccf,add_fr_maps}.py`). Not run: FR on the nocw / spout versions.
 - **11-09 ~08:15 (running list B33):** motor-area (ALM + tjM1) twins of the section-5 balance figures: `--motor` on
   `state_space_balance_{cells,angle}.py` (tables `landing/*_motor.csv`), `state_space_page_figs.py --only balance_motor
   cross_motor`; page v29 Figs 5.3-5.4 + take + summary row (page script `state_space_page/add_balance_motor.py`). Motor =
