@@ -36,6 +36,21 @@ def session_jsons() -> list:
 NAME = "softmax"
 
 
+def target_lick_counts(conf: dict) -> dict:
+    """{TARGET spout: n usable licks} from one session's ``bins["confusion"]``.
+
+    `combined_encoding` stores ``pd.crosstab(target (index), exec (columns)).to_dict()``, and DataFrame.to_dict() is
+    keyed by COLUMN first: ``{EXECUTED bin: {target: n}}``. So ``conf[t]`` holds the licks that LANDED in bin t (a column
+    sum), not the licks aimed at target t. Until 11-09 the session weight read ``sum(conf[t].values())`` -- the executed
+    count -- for target row t; the licks at a target are the ROW sum, summed here over every executed bin
+    (tests/test_fig_softmax_weight.py pins the orientation on a real crosstab)."""
+    out: dict = {}
+    for col in conf.values():
+        for t, n in (col or {}).items():
+            out[t] = out.get(t, 0) + n
+    return out
+
+
 def compute() -> dict:
     from wfield_local import run_mode
     E = run_mode.encoding_out_root()
@@ -51,11 +66,11 @@ def draw(fd: dict, OUT: str) -> None:
     for j in fd["sessions"]:
         b = j.get("bins") or {}
         sw = b.get("soft_weight") or {}
-        conf = b.get("confusion") or {}
+        n_tgt = target_lick_counts(b.get("confusion") or {})
         for t in SP:
             if t not in sw:
                 continue
-            n = sum(conf.get(t, {}).values()) or 1          # licks at that target (for weighting sessions)
+            n = n_tgt.get(t, 0) or 1                        # licks AIMED at that target (row sum; weights sessions)
             row = np.array([sw[t].get(e, 0.0) for e in SP]) * n
             k = (j["animal"], j["epoch"], t)
             a = acc.setdefault(k, [np.zeros(6), 0]); a[0] += row; a[1] += n
