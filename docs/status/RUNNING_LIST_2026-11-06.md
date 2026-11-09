@@ -727,3 +727,9 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
 3. te-basis hardening branch: OK -> pushing (fix/iti-te-basis-path-1108, wf_tebasis).
 - g5_section_g_lp DONE 21:26; g6_grant_lp started 22:41, 4/96 units at 00:34 (first units pay the cold LP collection;
   rate to be measured at later unit boundaries, not extrapolated).
+- 00:41 l_bal_offset_primary_r2 EXIT 1 = MISSING PRODUCER (2nd of the night): its "inside pre range" version reads
+  recprim_sessions_inside.csv <- lick_recovery_primary.py WFIELD_BAL_INSIDE=1 <- balsub_sessions_inside.csv <-
+  lick_balance_subsets.py WFIELD_BAL_INSIDE=1; no queue ever had these steps (nothing in BAL depends on it). 00:42
+  launched queue_daqlk9zz3.sh lane BI (b83f376d): l_bal_subsets_inside_r2 -> l_recov_primary_inside_r2 ->
+  l_bal_offset_primary_r3 (env mirrors the _r2 steps + WFIELD_BAL_INSIDE=1). Fig 12.19 area.
+- 00:4x te-basis hardening ON MAIN 2944eca4 (no cache key hashes frozen_encoder / iti_licks source: checked).
