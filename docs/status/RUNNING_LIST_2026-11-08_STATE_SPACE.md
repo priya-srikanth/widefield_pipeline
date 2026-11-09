@@ -63,6 +63,16 @@ merged to main (no conflicts); A5 applied to FINDINGS 0c item 4 and the page cap
 
 ## B. Findings (newest first; exploratory)
 
+30. **The pre-lick rise IS the pre-cue level: two components (Priya 11-09 "great keep going";
+   `scripts/state_space_shift_precue.py`; page v26 Fig 10.24).** Region means minus RESTnl in the trial's own pre-cue
+   ENL window, -1.0..-0.1 s before the first lick, 0..+0.7 s after. Orofacial chronic change: pre-cue +.39 contra /
+   +.31 ipsi, pre-lick +.37 / +.28 (4/4); pre-lick - pre-cue ~0 in every epoch (-.03..+.07); across post sessions
+   pre-cue vs pre-lick within-animal slope +.92..+.98 (r .76-1.0 per animal). Post-lick orofacial +1.16 / +1.25 / +1.35
+   contra, does NOT covary with the pre-cue level (slope +.21 p=.34 contra, +.09 p=.64 ipsi). Synthesis with B26-B29:
+   (1) TONIC orofacial elevation before the cue (vs rest), grows with far-contra aim recovery; (2) PHASIC post-lick
+   orofacial increase, ~3x larger, from acute on, not licking / jaw / face / running, not tracking aim. Caveat: the
+   tonic part is vs RESTnl; vs the session mean it reads as a decrease (Fig 9.9) -- may be partly rest moving.
+
 29. **Against behavioral recovery (Priya 11-09 "great keep going"; `scripts/state_space_shift_recovery.py`, on B27's
    sessions; page v25 Fig 10.23).** Per post-stroke session, change beyond licking (minus RESTnl) vs far-contra
    first-cued-lick aim (Fig 6.3 axis, aim_deficit_sessions farcontra_first). Orofacial BEFORE the lick rises with aim
