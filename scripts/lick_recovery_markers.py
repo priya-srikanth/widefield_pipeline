@@ -563,7 +563,27 @@ def plot(F: dict) -> None:
     plt.close(fig)
 
 
+def trial_set_sentence() -> str:
+    """THE lick sets of the figures (Priya 11-09): the four lick sets of `sessions` (KEY per-lick cache rows, refit ITI
+    filter of iti_lick_order), the response-AUC sets and the recovery axes."""
+    import lick_refit_decoders as rd
+    tst = rd._tst()
+    f = lo.ITI_FILTER
+    a, b = il.CUE_EXCL
+    return tst.union(
+        rd.iti_set(filt=f, extra=[*rd.KEY_ROWS, "set 'ITI' = all of them"]),
+        rd.iti_set(filt=f, extra=[*rd.KEY_ROWS, f"set '{QSET}' = no lick onset (licks_all.csv) in the preceding "
+                                                f"{il.GAP_MAIN:g} s"]),
+        rd.cued_set(extra=[*rd.KEY_ROWS, "set 'cued' = all of them"]),
+        rd.cued_set(first_only=True, extra=[*rd.KEY_ROWS, f"set '{C1SET}'"]),
+        f"response-AUC predictors: ITI bout starts (no lick onset in the preceding {il.GAP_MAIN:g} s, no cue / spout "
+        f"strobe within [{a:+g}, {b:+g}] s) and the first lick of each engaged cued trial ({rd.engaged_text()})",
+        rd.recovery_axes())
+
+
 def main() -> int:
+    from wfield_local import trial_set_text as tst
+    tst.declare(text=trial_set_sentence())
     if plot_only():
         plot(load_fd("lick_recovery_markers"))
         return 0

@@ -574,16 +574,41 @@ def plot_change(D: dict) -> None:
 FAMS = ["lat", "sag", "wlat", "sp_trial", "sp_iti"]
 
 
+def trial_set_sentence(fam: str | None = None) -> str:
+    """THE lick set of a map family's figures (Priya 11-09): the session files' ITI / cued decoding licks on the SVD-basis
+    edge rule; lat / sag / wlat maps on ALL licks and the FIRST subset, per-spout maps (sp_trial / sp_iti) on all licks
+    of one set. None = every family."""
+    import lick_refit_decoders as rd
+    from iti_basis_decoder import LAGS as LB
+    tst = rd._tst()
+    x = [f">= {MIN_LICKS} licks per session map (per-spout and within-spout maps: >= {MIN_SPOUT} licks of a spout)",
+         f"session maps kept only with in-sample decoder fit share >= {MIN_FIT:g}"]
+    first = {"iti": f"maps on ALL licks and on the FIRST subset (no lick onset of any context in the preceding "
+                    f"{GAP_FIRST:g} s, iti_timing_audit.csv)",
+             "trial": "maps on ALL licks and on the FIRST subset (lick_idx 0 = the first post-cue lick of the trial)"}
+    if fam in ("sp_trial", "sp_iti"):
+        st = fam[3:]
+        x = ["all licks", *x]
+        return rd.iti_set(filt="", lags=LB, extra=x) if st == "iti" else rd.cued_set(lags=LB, extra=x)
+    return tst.union(rd.iti_set(filt="", lags=LB, extra=[first["iti"], *x]),
+                     rd.cued_set(lags=LB, extra=[first["trial"], *x]))
+
+
 def draw(D_by_fam: dict) -> None:
+    from wfield_local import trial_set_text as tst
     for fam in FAMS:
+        tst.activate(None, text=trial_set_sentence(fam))       # this family's lick set (Priya 11-09)
         plot_levels(D_by_fam[(fam, "level")])
         plot_change(D_by_fam[(fam, "change")])
+    tst.deactivate()
 
 
 # ------------------------------------------------------------------------------------------------ main
 
 
 def main() -> int:
+    from wfield_local import trial_set_text as tst
+    tst.declare(text=trial_set_sentence())                      # draw() narrows it per map family
     if plot_only():
         draw({(fam, kd): load_fd((LEVEL_FIG if kd == "level" else CHANGE_FIG)[fam]) for fam in FAMS
               for kd in ("level", "change")})

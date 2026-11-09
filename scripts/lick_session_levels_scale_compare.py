@@ -241,7 +241,14 @@ def plot_global(F: dict) -> None:
     plt.close(fig)
 
 
+def trial_set_sentence(fam: str | None = None) -> str:
+    """THE lick set of a figure (Priya 11-09): the licks of the two lick_session_level_maps runs (same licks)."""
+    return lv.trial_set_sentence(fam)
+
+
 def main() -> int:
+    from wfield_local import trial_set_text as tst
+    tst.declare(text=trial_set_sentence())                      # the global figure: every map family
     if plot_only():
         F = load_fd(STEM)
     else:
@@ -249,7 +256,8 @@ def main() -> int:
         save_fd(STEM, F)
     R = _runs()
     for name, fam in FAMS.items():
-        plot_maps(F, R, name, fam)
+        with tst.active(None, text=trial_set_sentence(fam)):
+            plot_maps(F, R, name, fam)
     plot_global(F)
     return 0
 

@@ -89,6 +89,19 @@ def boot_change(S: dict, ep: str, nb=4000, seed=0):
     return obs, (lo > 0) | (hi < 0), agree, len(ans)
 
 
+def trial_set_sentence() -> str:
+    """THE lick set of the figures (Priya 11-09): the 3-D trial licks of the pose3d snapshot with a scorable path."""
+    from wfield_local import trial_set_text as tst
+    return tst.events("trial licks of the pose3d kinematics/licks snapshot (pose3d_kin_licks_snapshot_20261023) with a "
+                      "3-D peak time", keep=[
+                          "August-on sessions (June early pre dropped, config.early_pre)",
+                          "target spout one of the six", f"animals {', '.join(AN)}",
+                          f"path scored only with >= {MIN_PTS} tracked points of the {len(GRID)}-point grid "
+                          f"({-PRE_MS}..+{POST_MS} ms around the 3-D peak); pre licks scored against leave-one-session-out "
+                          "templates"],
+                      excluded=["June early-pre sessions", "licks without a 3-D peak"])
+
+
 def main(argv=None) -> int:
     import matplotlib
     matplotlib.use("Agg")
@@ -99,6 +112,8 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--jobs", type=int, default=10)
     a = ap.parse_args(argv)
+    from wfield_local import trial_set_text as tst
+    tst.declare(text=trial_set_sentence())
     K = pd.read_csv(I / "pose3d_kin_licks_snapshot_20261023.csv.gz",
                     usecols=["animal", "session", "epoch", "trial_id", "position", "t_peak_3d", "date"])
     K = K[~K.date.astype(str).map(config.early_pre) & K.t_peak_3d.notna()].copy()       # August-on (encoding rule)

@@ -131,8 +131,21 @@ def plot(F: dict) -> None:
     plt.close(fig)
 
 
+def trial_set_sentence() -> str:
+    """THE lick set of the figure (Priya 11-09): the polar where-decoder licks of iti_where_angle_reach.predictions
+    (where-decoder loader, every polar coordinate finite, >= 20 per session, animals with >= 3 pre sessions); the
+    GAUSSIAN panels score only licks with a same-place reference."""
+    import lick_refit_decoders as rd
+    return rd.where_sets(20, extra=["finite 3-D angle, reach, elevation and sagittal extension",
+                                    "animals with >= 3 pre sessions",
+                                    "GAUSSIAN-reference panels: only licks inside the animal's pre range with kernel "
+                                    "weight >= 3 (local-linear panels: every lick)"])
+
+
 def main() -> int:
     il.split_only("lick_matched_angle_reach")   # outputs not basis-tagged: split basis only (10-27 late)
+    from wfield_local import trial_set_text as tst
+    tst.declare(text=trial_set_sentence())
     if plot_only():
         plot(load_fd(STEM))
         return 0

@@ -253,7 +253,24 @@ def plot(F: dict) -> None:
         plt.close(fig)
 
 
+def trial_set_sentence() -> str:
+    """THE lick sets of the figures (Priya 11-09): cued FIRST licks of engaged trials (the cued_wide rows) and ITI bout
+    starts after >= il.GAP_MAIN s quiet, each matched to its kinematics; per-spout session cells >= MIN_SPOUT licks."""
+    import lick_refit_decoders as rd
+    tst = rd._tst()
+    cells = f"session x spout cells with >= {cr.MIN_SPOUT} licks"
+    kin = (f"kinematics matched (cam4 licks_all.csv + pose3d kinematics_all; ITI exact onset, cued nearest cam4 onset "
+           f"within {MATCH_S * 1e3:g} ms; adjusted rows need finite covariates)")
+    cued = tst.events("FIRST lick of each engaged cued trial (first behavior-table lick onset in cue..stop, "
+                      "iti_licks._first_lick_times)", keep=[rd.engaged_text(), kin, cells],
+                      excluded=["later licks of the trial", "ITI licks", "non-engaged trials"])
+    iti = tst.iti_bout_starts(il.GAP_MAIN, il.CUE_EXCL, filt="", extra=[rd.TRACKED, kin, cells])
+    return tst.union(cued, iti)
+
+
 def main() -> int:
+    from wfield_local import trial_set_text as tst
+    tst.declare(text=trial_set_sentence())
     if "--times-cache" in sys.argv:
         times_cache(int(sys.argv[sys.argv.index("--jobs") + 1]) if "--jobs" in sys.argv else 8)
         return 0

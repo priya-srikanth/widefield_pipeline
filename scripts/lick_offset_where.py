@@ -194,6 +194,16 @@ def _area_img():
     return img, nm
 
 
+def trial_set_sentence(st: str | None = None) -> str:
+    """THE lick set of the figures (Priya 11-09): the licks of lick_offset_contrib_map's lateral terms_<tag>.csv (KEY
+    per-lick cache, unfiltered runs of every basis in BASES). ``st`` = one set (None = both)."""
+    import lick_refit_decoders as rd
+    ref = (f"same-place reference = the animal's pre licks of the set with Gaussian weight > 1e-6 (sigma {lom.SIGMA:g} "
+           "mm)")
+    parts = {"iti": rd.iti_set(filt="", extra=[*rd.KEY_ROWS, ref]), "trial": rd.cued_set(extra=[*rd.KEY_ROWS, ref])}
+    return parts[st] if st else rd._tst().union(parts["iti"], parts["trial"])
+
+
 def plot(F: dict) -> None:
     import matplotlib
     matplotlib.use("Agg")
@@ -211,7 +221,9 @@ def plot(F: dict) -> None:
         return np.where(mask, out, np.nan)
 
     # 1) offset carried per AREA, painted (rows = basis, cols = epoch), per set
+    from wfield_local import trial_set_text as tst
     for st in ("iti", "trial"):
+        tst.activate(None, text=trial_set_sentence(st))           # this set's map figure (Priya 11-09)
         fig, axs = plt.subplots(len(BASES), 3, figsize=(12, 3.5 * len(BASES)), squeeze=False)
         r = R[R.set == st]
         A = r.groupby(["basis", "epoch", "area", "animal"]).carried.sum().groupby(["basis", "epoch", "area"]).mean()
@@ -237,6 +249,7 @@ def plot(F: dict) -> None:
         save_png_svg(fig, lom.FIG / f"lick_{'iti' if st == 'iti' else 'cued'}_offset_where_maps.png", dpi=90)
         plt.close(fig)
 
+    tst.deactivate()                                              # bars / weights: both sets (main's declaration)
     # 2) bars by area family x side, per set x epoch: bases side by side, animal SEM
     G = R.groupby(["basis", "set", "epoch", "animal", "fam", "side"]).carried.sum().reset_index()
     cats = [(f_, s_) for f_ in FAMS for s_ in (("",) if f_ == "outside" else ("ipsi", "contra"))]
@@ -291,6 +304,8 @@ def plot(F: dict) -> None:
 
 
 def main() -> int:
+    from wfield_local import trial_set_text as tst
+    tst.declare(text=trial_set_sentence())
     if plot_only():
         plot(load_fd("lick_offset_where"))
         return 0

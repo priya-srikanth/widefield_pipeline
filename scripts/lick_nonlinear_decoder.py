@@ -408,12 +408,23 @@ def check_linear(S: pd.DataFrame) -> float:
     return d
 
 
+def trial_set_sentence(animals=None) -> str:
+    """THE lick set of this driver's figure (Priya 11-09): the where-decoder licks of lick_refit_decoders.load_z
+    (every coordinate finite), sessions with >= lr.MIN_LICKS, animals with >= 3 such pre sessions."""
+    extra = ["every 3-D coordinate finite", "animals with >= 3 such pre sessions"]
+    if animals:
+        extra.append("animals " + ", ".join(animals) + " only")
+    return lr.where_sets(lr.MIN_LICKS, extra=extra)
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--plot-only", action="store_true")
     ap.add_argument("--animals", nargs="*")
     ap.add_argument("--jobs", type=int, default=None)
     a = ap.parse_args()
+    from wfield_local import trial_set_text as tst
+    tst.declare(text=trial_set_sentence(None if a.plot_only else a.animals))
     il.split_only(STEM)
     if plot_only():
         plot(load_fd(STEM))

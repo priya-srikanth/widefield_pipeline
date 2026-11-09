@@ -55,6 +55,8 @@ WIN = (-1.0, 0.0)
 WIN2 = (-0.5, 0.0)
 VALS = (("precue", "PRE-CUE LEVEL -1.0..0 s above restw"), ("precue05", "pre-cue level -0.5..0 s above restw"))
 KEY = ["ALM", "tjM1", "SSp-m", "SSp-n"]
+#: trial sets of the maps: target spout (None = all spouts) -> engaged trials a session needs (`session_tables`)
+SPOUT_MIN = {None: 10, "far_contra": 5}
 
 
 def session_worker(label: str) -> dict:
@@ -160,7 +162,7 @@ def session_tables(labels: list, var: str = "restw") -> tuple[dict, pd.DataFrame
         notes.append({"label": x, "animal": str(z["animal"]), "epoch": str(z["epoch"]), "restw_ok": ok,
                       "positions_used": " ".join(map(str, z["used"])), "n_rest_frames": int(z["n_rest"]),
                       "n_engaged": len(pos), "n_firstlick": len(z["f10"]), "maxdiff_vs_cued_wide": float(z["maxdiff"])})
-        for sp, mn in ((None, 10), ("far_contra", 5)):
+        for sp, mn in SPOUT_MIN.items():
             m = np.ones(len(pos), bool) if sp is None else pos == sp
             if m.sum() < mn:
                 continue
@@ -174,6 +176,31 @@ def session_tables(labels: list, var: str = "restw") -> tuple[dict, pd.DataFrame
                                 "precue": a10[j], "precue05": a05[j], "precue_fl": fl[j], "restw": z["restw"][j],
                                 "restw_ok": ok, "n": int(m.sum())})
     return {k: pd.DataFrame(v) for k, v in out.items()}, pd.DataFrame(notes)
+
+
+def trial_set_sentence(spout: str | None = None, var: str = "restw") -> str:
+    """THE trial + frame set of a figure (Priya 11-09): the engaged cued trials (all spouts, or one target spout) whose
+    pre-cue window is read, and the REST frames of the session baseline it is referenced to (RESTW, or RESTnl =
+    `restnl.DEF` under --rest-variant restnl)."""
+    import lick_refit_decoders as rd
+
+    from wfield_local import rest_by_position as rbp
+    from wfield_local import trial_set_text as tst
+    gate = rd.engaged_text() + (" (the gate stored in the precue_restw cache)" if var == "restw"
+                                else " (the CURRENT gate)")
+    what = "engaged cued trials with a finite cue" + ("" if spout is None else f", {spout.replace('_', '-')} target only")
+    trials = tst.events(what, unit="trials", keep=[
+        gate, f"sessions with >= {SPOUT_MIN[spout]} such trials",
+        f"pre-cue window {WIN[0]:g}..{WIN[1]:g} s (secondary {WIN2[0]:g}..{WIN2[1]:g} s), no lick-free requirement"],
+        excluded="non-engaged trials" + ("" if spout is None else ", other target spouts"))
+    if var == "restnl":
+        rest = tst.frames(restnl.DEF, excluded="sessions without a valid RESTnl level")
+    else:
+        rest = tst.frames(f"RESTW rest frames ({rd.rest_mask_text()}), terminal quit period excluded (engagement-gated)",
+                          keep=[f"per spout position the median over its rest frames, the 6 positions averaged with "
+                                f"equal weight (all 6 required, >= {rbp.MIN_FRAMES_PER_POSITION} frames each)"],
+                          excluded="sessions without a valid RESTW (restw_ok False)")
+    return f"{trials}  AND  {rest}"
 
 
 def per_animal(T: pd.DataFrame, val: str) -> pd.DataFrame:
@@ -224,6 +251,9 @@ def draw(stem: str) -> None:
     from frozen_area_maps import outline, paint
     F = load_fd(stem)
     sfx = F.get("sfx", "")
+    from wfield_local import trial_set_text as tst
+    tst.activate(None, text=trial_set_sentence("far_contra" if "_farcontra" in stem else None,
+                                               "restnl" if sfx else "restw"))       # this figure pair's set (11-09)
     rl = restnl.relabel if sfx else (lambda t: t)
     base = stem[:-len(sfx)] if sfx else stem
     nm = F["nm"]
@@ -288,6 +318,8 @@ def main() -> int:
     from wfield_local import analysis_kit as ak
     var = restnl.variant()
     sfx = restnl.SFX if var == "restnl" else ""
+    from wfield_local import trial_set_text as tst
+    tst.declare(text=trial_set_sentence(None, var))             # draw() narrows it per figure pair
     if plot_only():
         for st in ("lick_cued_precue_restw_maps", "lick_cued_precue_restw_maps_farcontra"):
             draw(st + sfx)
