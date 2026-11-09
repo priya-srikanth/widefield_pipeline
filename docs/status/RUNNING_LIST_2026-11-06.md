@@ -1160,3 +1160,10 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
   First heavy step g5_epoch_g (base DAQ-arm epoch render, as the original). ETA 2.5-3 days. Manual later: O2 re-bundle
   (new name) after the ITI inputs, then touch logs/O2_COLLECT_g.done + SECTIONS=O2 lane. State-space window: re-run
   state_space_sim after e_iti_main_g (its old caches moved aside).
+- 17:50 e_iti_split_sd_g EXIT 1 at 17:14 (missed by the monitor, armed a minute later): iti_area_split_sd.py (and
+  iti_zscore_check via il.labels()) list sessions from sessions_roi8fr, which the move-aside emptied -> empty table.
+  The extraction itself needs no SD table, so: queue_daqlk20b.sh (one step e_iti_extract_g = iti_licks.py --jobs 3,
+  same env token "frozen"; its summary may fail, cont) running since 17:47 (107 to extract); chain_v20c then checks
+  107 extracts, rmdirs the empty e_iti_split_sd_g.claim, renames its .failed, relaunches the ITI lane (split -> z ->
+  main summary). The ITI lane (L6) had halted (mode stop); other lanes unaffected (CD: g5_cd_traj_g EXIT 0 17:38).
+  LESSON for the producer check: a step that LISTS sessions from a folder depends on that folder's producer.
