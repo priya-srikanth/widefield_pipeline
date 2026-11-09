@@ -847,3 +847,12 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
   "raw" = lick-set metrics with NO rest reference (same run, labeled "raw (no rest reference)"; helper adding explicit
   outputs). The v11 restdock05 chain (l_interhemi_rest_r5 ... l_cv_sm_plot_r5, 7 steps, not started, no outside
   dependents) marked .done NOT RUN with the reason (delete the .done files to re-enable).
+- 06:3x Priya: start REDRAWS + HEADLINE TABLE. Two helpers: (1) redraw pass on fix/redraw-pass-1109 (wf_redraw): stale
+  "DAQ lick-arm trials" label computed from the lick source (not trial_classes: csig), grant layout overlaps (LP stamp vs
+  "Post-stroke session" on 9; crowded day ticks 7b / 8b / 11 / 8g), then figdata-only redraws of current outputs (stars,
+  POS_ORDER, layout), gb_fig_r, matched-pre figure with the LP lick half (working = figure, lick = table); inventory in
+  scratchpad/redraw_pass.md. (2) headline table on corrected outputs (read-only) -> scratchpad/headline_table_corrected.md,
+  CONCLUSION-CHANGES rows first, per-animal before pooled -> Priya before any page / deck text.
+- OPEN for Priya: interhemi supplement B = lick - session-wide windows (engaged period vs all frames) -- add or not.
+- Grant memo push blocked by pre-push full suite (3 failed / 5732 passed): 2 = known test_cohorts (fail on main), the
+  3rd being identified by a full run on the branch (scratchpad/grantmemo_fullsuite.txt). Not bypassed.
