@@ -48,6 +48,10 @@ running list `docs/status/RUNNING_LIST_2026-11-08_STATE_SPACE.md` sections A (de
   after the sweep.
 - **11-08 ~11:45:** page v15 has section 9 (maps, all baselines, why-cleaner). "Why cleaner" answered for the 15r
   activity maps (B19: window, not denoising); the residual-map half not done.
+- **11-09 ~04:30 (running list B31):** `scripts/state_space_shift_spout_timing.py`: the phasic post-lick
+  orofacial increase is shared across spouts in size and timing; its late half (0.3..0.7 s) needs spout contact (lost on
+  acute far-contra misses), its early half does not. Page v27 Fig 10.25 (page script
+  `state_space_page/add_shift_spout.py`). Open: tonic part vs rest moving (RESTnl vs session mean); body / paws.
 - **11-09 ~03:30 (running list B30):** `scripts/state_space_shift_precue.py`: the pre-lick orofacial rise is the
   pre-cue level (tonic, grows with recovery); the post-lick orofacial increase is a separate, ~3x larger phasic
   component (not movement, not aim). Page v26 Fig 10.24 (page script `state_space_page/add_shift_precue.py`). Open:

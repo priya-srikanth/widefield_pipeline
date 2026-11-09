@@ -63,6 +63,17 @@ merged to main (no conflicts); A5 applied to FINDINGS 0c item 4 and the page cap
 
 ## B. Findings (newest first; exploratory)
 
+31. **The phasic post-lick increase is shared across spouts; its late half needs spout contact (Priya 11-09 "sure go
+   ahead"; `scripts/state_space_shift_spout_timing.py`; page v27 Fig 10.25).** Region means minus RESTnl per spout, change
+   vs the animal's own pre trace for that spout. Every spout up early and late in every epoch (contra late chronic +.96 to
+   +1.65). Split-half cross-validated energy 0..0.7 s (trial noise removed; pre sessions vs a leave-session-out pre
+   trace): shared +1.59 / +1.75 / +1.97 contra (pre .18); spout-specific +.34 / +.16 / +.15 (pre .04; 4/4 up but ~10x
+   smaller after acute); specific timing +.60 acute, then +.06 / +.11. Acute spout-specific part = far contra (late contra
+   +.06, ipsi -1.50, 0/4) = CONTACT: ~90 % of acute far-contra first bouts miss; all spouts, contact trials carry the late
+   increase (+1.67 / +1.44 / +1.43 contra), no-contact trials lose it (-.41 contra, -1.54 ipsi 4/4 acute); the early part
+   (0..0.3 s) is there either way (+.98 vs +.89 acute contra). Note: a within-session spout-label shuffle was tried first
+   and dropped (the pre spout structure stays in the reference, so it is not a null).
+
 30. **The pre-lick rise IS the pre-cue level: two components (Priya 11-09 "great keep going";
    `scripts/state_space_shift_precue.py`; page v26 Fig 10.24).** Region means minus RESTnl in the trial's own pre-cue
    ENL window, -1.0..-0.1 s before the first lick, 0..+0.7 s after. Orofacial chronic change: pre-cue +.39 contra /
