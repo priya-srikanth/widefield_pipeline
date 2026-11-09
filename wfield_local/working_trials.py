@@ -257,10 +257,13 @@ def _group_table(path: str):
     return out
 
 
-def row_groups(kept, indices, GE, GU, YE=None, YU=None):
+def row_groups(kept, indices, GE, GU, YE=None, YU=None, with_raw=False):
     """``(grp_e, grp_u, jj_e, jj_u, have)``: section G's group (`g_group`) and ``jaw_judged`` of every ENGAGED and
     NO-LICK row of a pool ("" / True where the session has no camera classes or the cue no trial), and the set of
-    pooled session indices that HAVE camera classes. ``indices`` as in `row_masks`.
+    pooled session indices that HAVE camera classes. ``indices`` as in `row_masks`. ``with_raw`` (Priya 11-08, the
+    G1-G3 no_response split) appends ``(raw_e, raw_u)``: each row's RAW per-cue class (`trial_classes.cue_groups_for`:
+    contact / incomplete / jaw_only / no_response / unknown; "" where none), which tells no_response from unknown
+    inside the "none" group.
 
     REBUILD: the classes are LIVE (`trial_classes.cue_groups_for`, the same session-level rules as `cue_classes_for`),
     never main's s1 snapshot; ``YE`` / ``YU`` (spout codes) give each row's position for ``jaw_judged`` (close-mid
@@ -270,6 +273,7 @@ def row_groups(kept, indices, GE, GU, YE=None, YU=None):
     GE, GU = np.asarray(GE), np.asarray(GU)
     ge, gu = np.full(len(GE), "", dtype=object), np.full(len(GU), "", dtype=object)
     je, ju = np.ones(len(GE), bool), np.ones(len(GU), bool)
+    re_, ru_ = np.full(len(GE), "", dtype=object), np.full(len(GU), "", dtype=object)
     have = set()
     for i, lab in enumerate(kept):
         ie, inl = indices.get(lab, (np.zeros(0, int), np.zeros(0, int)))
@@ -284,15 +288,18 @@ def row_groups(kept, indices, GE, GU, YE=None, YU=None):
         # the final classes keep stopped_licking apart; the run / tail marker (`stop_kind_for`, cue70) routes stopped
         # trials to "stopped" (mid-session run) / "after_end" (quit tail)
         grp_all = g_group_final(tc.cue_classes_for(lab, cs), raw, ~after, stop_kind=tc.stop_kind_for(lab, cs))
-        for rows, idx, Y, g_, j_ in ((me, ie, YE, ge, je), (mu, inl, YU, gu, ju)):
+        for rows, idx, Y, g_, j_, r_ in ((me, ie, YE, ge, je, re_), (mu, inl, YU, gu, ju, ru_)):
             idx = np.asarray(idx, np.int64)
             ok = (idx >= 0) & (idx < len(raw))
             g_[rows[ok]] = grp_all[idx[ok]]
+            r_[rows[ok]] = np.asarray(raw, dtype=object)[idx[ok]]
             if Y is not None:
                 pos = np.array([POSITION_NAMES.get(int(v), str(v)) for v in np.asarray(Y)[rows[ok]]], dtype=object)
                 j_[rows[ok]] = g_jaw_judged(raw[idx[ok]], pos)
             else:
                 j_[rows[ok]] = raw[idx[ok]] != "unknown"
+    if with_raw:
+        return ge, gu, je, ju, have, re_, ru_
     return ge, gu, je, ju, have
 
 

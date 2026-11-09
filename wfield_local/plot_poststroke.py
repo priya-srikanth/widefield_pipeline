@@ -165,10 +165,12 @@ def _grid_shape(n, max_cols=4):
 
 def _disc_train_txt(records) -> str:
     """The G1-G3 discriminator's training classes in words, from the records' ``train_classes`` (11-08): camera
-    WORKING vs NO RESPONSE under section G's camera grouping (decision (f) 1), else the DAQ engaged-vs-undetected set."""
+    WORKING vs NO RESPONSE under section G's camera grouping (decision (f) 1; Priya 11-08: the raw no_response class,
+    unknown excluded, and the scored sets are camera-defined too), else the DAQ engaged-vs-undetected set."""
     cam = any(((r or {}).get("train_classes") or {}).get("groups") == "camera" for r in records)
-    return ("PRE-stroke camera WORKING (contact + incomplete) vs NO RESPONSE (jaw-only, quit and stopped trials never "
-            "trained on)" if cam else "PRE-stroke engaged-vs-undetected")
+    return ("PRE-stroke camera WORKING (contact + incomplete) vs NO RESPONSE (raw class; unknown, jaw-only, quit and "
+            "stopped trials never trained on). 'Engaged' = camera working trials, 'no-lick' / 'undetected' = camera "
+            "no-response trials (no lick seen on camera)" if cam else "PRE-stroke engaged-vs-undetected")
 
 
 def fig_identity(ident, out):
