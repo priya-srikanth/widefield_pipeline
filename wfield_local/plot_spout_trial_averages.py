@@ -12,7 +12,6 @@ import json
 from datetime import datetime, timedelta
 from pathlib import Path
 
-import h5py
 import matplotlib
 
 matplotlib.use("Agg")
@@ -20,7 +19,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from wfield_local import config, daq_io
-from scipy import ndimage
+from wfield_local.session_memo import per_path
 
 
 POSITION_NAMES = {
@@ -38,6 +37,7 @@ DISPLAY_ORDER = [1, 0, 2, 4, 3, 5]
 _rising_edges = daq_io.rising_edges
 
 
+@per_path  # one read per DAQ h5 per process, a deep copy per call (session_memo.per_path, profile 11-09)
 def _load_daq_events(h5_path: Path) -> dict:
     with daq_io.open_daq(h5_path) as f:
         sr, created_at = daq_io.session_attrs(f)

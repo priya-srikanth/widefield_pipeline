@@ -242,3 +242,22 @@ def no_leaked_trial_set():
     yield
     tst._ACTIVE.reset(tok)
     tst.declare()
+
+
+@pytest.fixture(autouse=True)
+def fresh_loader_memos():
+    """Start and end every test with the per-process loader memos empty (profile 11-09): `config.load_sessions`,
+    `plot_spout_trial_averages._load_daq_events` (`session_memo.per_path`), the session-cache folder listing
+    `joint_locanmf._cache_glob` reads and the parsed paths.yaml. A test that patches the resolver, a root or a fixture
+    file must not see a previous test's answer."""
+    def clear():
+        from wfield_local import config, joint_locanmf, paths, plot_spout_trial_averages
+        config.load_sessions.cache_clear()
+        clr = getattr(plot_spout_trial_averages._load_daq_events, "cache_clear", None)
+        if clr is not None:                    # a test may have monkeypatched the loader itself
+            clr()
+        joint_locanmf._DIR_LISTING.clear()
+        paths._YAML_MEMO.clear()
+    clear()
+    yield
+    clear()

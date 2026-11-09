@@ -539,6 +539,34 @@ def project_all(basis=None) -> bool:
     return config.hemo_variant() != built
 
 
+#: Per-process listing of a session-cache folder, re-read when the folder's mtime changes (`_cache_glob`).
+_DIR_LISTING: dict = {}
+
+
+def _cache_glob(folder, pattern: str) -> list:
+    """``Path(folder).glob(pattern)`` for a FLAT pattern, from a listing of ``folder`` made once per process.
+
+    Profile 11-09: `variance_captured` globbed the M: session cache 214 times in one grant unit (178 s). The listing is
+    re-read whenever the folder's mtime changes (a file added / removed in it), and matched with ``fnmatch`` (the
+    rule `glob` itself applies, case-insensitive on Windows), in listing order as `glob` returns it."""
+    import fnmatch
+    folder = Path(folder)
+    try:
+        mt = folder.stat().st_mtime_ns
+    except OSError:
+        return []
+    key = os.path.normcase(os.path.abspath(str(folder)))
+    hit = _DIR_LISTING.get(key)
+    if hit is None or hit[0] != mt:
+        try:
+            names = [e.name for e in os.scandir(folder)]
+        except OSError:
+            return []
+        hit = (mt, names)
+        _DIR_LISTING[key] = hit
+    return [folder / n for n in hit[1] if not n.startswith(".") and fnmatch.fnmatch(n, pattern)]
+
+
 class BasisSource:
     """Lazily project one session onto a fixed basis, remembering the projection diagnostic.
 
@@ -598,7 +626,7 @@ class BasisSource:
         if session_cache._disabled():
             return None
         fp = session_cache.CACHE_DIR / f"{self.label}__{session_cache.effective_kind(self._vc_kind)}__"
-        for p in session_cache.CACHE_DIR.glob(f"{fp.name}*.pkl"):
+        for p in _cache_glob(session_cache.CACHE_DIR, f"{fp.name}*.pkl"):
             try:
                 import pickle
                 with open(p, "rb") as fh:
