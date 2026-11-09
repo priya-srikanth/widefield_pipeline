@@ -63,6 +63,16 @@ merged to main (no conflicts); A5 applied to FINDINGS 0c item 4 and the page cap
 
 ## B. Findings (newest first; exploratory)
 
+29. **Against behavioral recovery (Priya 11-09 "great keep going"; `scripts/state_space_shift_recovery.py`, on B27's
+   sessions; page v25 Fig 10.23).** Per post-stroke session, change beyond licking (minus RESTnl) vs far-contra
+   first-cued-lick aim (Fig 6.3 axis, aim_deficit_sessions farcontra_first). Orofacial BEFORE the lick rises with aim
+   recovery in 4/4 (contra r .22-.74, ipsi .39-.82; within-animal slope +.023 / +.032 per deg, shuffle p < .001);
+   within epochs ipsi p = .016, contra p = .46 (contra = the epoch step). Post-lick orofacial does NOT track aim
+   consistently (late r PS92 +.64, PS94 -.64, PS95 -.47; within epochs worse aim -> slightly larger late increase,
+   p = .001 contra / .026 ipsi). Posterior-medial transient: no coupling (shuffle p .11-.29). Reading: the lasting
+   post-lick orofacial increase is present regardless of aim; the pre-lick rise grows with recovery (likely the same as
+   Fig 9.8's pre-cue rise vs rest -- not yet tested directly).
+
 28. **Nor face / jaw / body movement for the orofacial increase (Priya 11-09 "go ahead"; "don't use motion energy - we
    have FR and 3d keypoints"; `scripts/state_space_shift_movement.py`, on B27's trial table; page v24 Fig 10.22).**
    Nested pre-stroke models on the SAME trials (all covariates present; FaceRhythm sessions Aug-Oct, so pre = August):
