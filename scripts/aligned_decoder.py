@@ -46,8 +46,16 @@ VERDICT per epoch and alignment (stated before any post number was looked at): g
 in >= 3 / 4 animals; RESTORED = frozen and G not changed vs pre; RE-EMBEDDED = G changed, index >= 0.67 in >= 3 / 4
 animals and R not changed; REPLACED = G changed, index <= 0.33 in >= 3 / 4 and A not changed; else PARTIAL.
 
+SVD ARM (`--basis svd`, Priya 11-09: LocaNMF primary, SVD as the bridge to the state-space maps): the same pipeline on
+the state-space extract in the COHORT SVD basis (100 components shared by all animals, glue-free brain mask;
+`state_space_sim` with WF_SS_BASIS=svd, WF_SS_ALIGN=lick): first-lick trials, 8 bins of 0.1 s from -0.1 to +0.7 s
+after the first lick (the extract ends at +0.7 s), z-scored per feature per session like the decoder features; blocks
+= runs of one spout in trial order. Its trial set is the state-space one, not the decoder's. ROI loadings through
+U_cohort on the same pixel grid. Outputs <state_space_recovery>/aligned_decoder_svd/.
+
     python scripts/aligned_decoder.py                 # capture (cached) + score + summarise
     python scripts/aligned_decoder.py --summarise     # stats + figure from the rows already written
+    python scripts/aligned_decoder.py --basis svd     # the SVD arm
 Outputs (rebuild root, LP lick run folder): <epoch data>/aligned_decoder/{inputs_lick_lick.pkl, rois.npz, rows.csv,
 animals.csv, tests.csv, lag.csv, verdict.csv, figdata.pkl, aligned_decoder.png}. EXPLORATORY.
 """
@@ -117,6 +125,60 @@ def load_inputs(out: Path) -> list[dict]:
     return cap
 
 
+SVD_BINS = slice(9, 17)          # state-space lick bins are 0.1 s from -1.0 s: -0.1 .. +0.7 s after the first lick
+
+
+def svd_inputs() -> list[dict]:
+    """The state-space SVD extract as the capture's records (animal, label, pre, X bin-major, y, blk, epoch, day)."""
+    import state_space_sim as S
+    data, _cols = S.load_sessions()
+    out = []
+    for an in sorted(data):
+        for i, (lab, ep, _dss, Y, pos) in enumerate(data[an]):
+            if ep not in EPOCHS:
+                continue
+            X3 = np.asarray(Y, float)[:, SVD_BINS]
+            ok = np.isfinite(X3).all((1, 2)) & np.isin(pos, S.POS)
+            X3, p = X3[ok], np.asarray(pos)[ok]
+            if len(p) < 20:
+                continue
+            sd = X3.std(0)
+            X3 = (X3 - X3.mean(0)) / np.where(sd > 0, sd, 1.0)                  # session z, as the decoder features
+            y = np.array([S.POS.index(q) for q in p])
+            blk = np.concatenate([[0], np.cumsum(y[1:] != y[:-1])]) + i * 10_000_000   # unique within the animal
+            out.append(dict(animal=an, label=lab, pre=ep == "pre", X=X3.reshape(len(y), -1), y=y,
+                            blk=blk.astype(np.int64), epoch=ep, day=_day(lab)))
+    return out
+
+
+def svd_grams() -> dict:
+    """ROI Gram matrices of the cohort SVD basis (U_cohort on the brain-mask pixels; ROI v8 masks on the same grid)."""
+    import state_space_sim as S
+
+    from wfield_local import area_basis, beta_maps
+    Uc = np.asarray(np.load(S.SVD.parent / "basis" / "U_cohort.npy", mmap_mode="r"), np.float64)
+    atlas = np.load(S.SVD.parents[1] / "atlas.npy")
+    shape = atlas.shape
+    flat = np.flatnonzero(np.load(S.SVD.parent / "basis" / "mask.npy"))                # U_cohort rows (flat bool mask)
+    sm = beta_maps.stat_mask()
+    pstat = sm.ravel()[flat].astype(bool)
+    M = area_basis.roi_masks(atlas.ravel()[flat], pstat, S._atlas_names(), flat, shape)
+    return _grams_from(Uc, M, pstat)
+
+
+def _grams_from(F, M, pstat) -> dict:
+    left = np.zeros(len(pstat), bool)
+    right = np.zeros(len(pstat), bool)
+    for n, m in M.items():
+        if n in ("ALM_left", "ALM_right", "tjM1_left", "tjM1_right"):
+            continue
+        left |= m & n.endswith("_left")
+        right |= m & n.endswith("_right")
+    masks = {r: M[r] for r in ROIS}
+    masks.update(left=left, right=right, all=pstat.astype(bool))
+    return {r: F[m].T @ F[m] for r, m in masks.items()}
+
+
 def roi_grams(animal: str, ncomp: int) -> dict:
     """{roi: F_r' F_r (C x C)} with F = joint-basis footprints / footprint scale on the stat-mask pixels; ROIs = ROI v8
     tjM1 / SSp-m per hemisphere, the two hemispheres, and the whole brain."""
@@ -141,16 +203,7 @@ def roi_grams(animal: str, ncomp: int) -> dict:
     pstat = sm.ravel()[flat]
     M = area_basis.roi_masks(area.ravel()[flat], pstat, names, flat, (H, W))
     F = np.nan_to_num(A.reshape(-1, C)[flat]) / np.where(_footprint_scale(A, C) > 0, _footprint_scale(A, C), 1.0)
-    left = np.zeros(len(flat), bool)
-    right = np.zeros(len(flat), bool)
-    for n, m in M.items():
-        if n in ("ALM_left", "ALM_right", "tjM1_left", "tjM1_right"):
-            continue
-        left |= m & n.endswith("_left")
-        right |= m & n.endswith("_right")
-    masks = {r: M[r] for r in ROIS}
-    masks.update(left=left, right=right, all=pstat.astype(bool))
-    return {r: F[m].T @ F[m] for r, m in masks.items()}
+    return _grams_from(F, M, pstat)
 
 
 # ---------------------------------------------------------------------------------------------------------------- model
@@ -611,8 +664,14 @@ def main(argv=None) -> int:
     ap.add_argument("--summarise", action="store_true")
     ap.add_argument("--animals", nargs="*", default=None)
     ap.add_argument("--limit", type=int, default=None, help="score only the first N sessions per animal (timing)")
+    ap.add_argument("--basis", choices=("lnmf", "svd"), default="lnmf")
     a = ap.parse_args(argv)
-    out = setup_env()
+    if a.basis == "svd":
+        os.environ["WF_SS_BASIS"], os.environ["WF_SS_ALIGN"] = "svd", "lick"
+        import state_space_sim as S
+        out = S.ROOT / "aligned_decoder_svd"
+    else:
+        out = setup_env()
     from wfield_local import analysis_kit as ak
     from wfield_local import writeguard
     writeguard.assert_writable(out)
@@ -622,7 +681,7 @@ def main(argv=None) -> int:
         return 0
     import time
     t0 = time.time()
-    cap = [c for c in load_inputs(out) if c.get("epoch") in EPOCHS]
+    cap = [c for c in (svd_inputs() if a.basis == "svd" else load_inputs(out)) if c.get("epoch") in EPOCHS]
     cap = [c for c in cap if a.animals is None or c["animal"] in a.animals]
     B = 8
     print(f"inputs: {len(cap)} sessions ({time.time() - t0:.0f} s); "
@@ -636,7 +695,7 @@ def main(argv=None) -> int:
         if key in saved:
             grams[an] = saved[key].item()
         else:
-            grams[an] = roi_grams(an, C)
+            grams[an] = svd_grams() if a.basis == "svd" else roi_grams(an, C)
             saved[key] = np.array(grams[an], dtype=object)
     np.savez(gf, **saved)
     units = []
