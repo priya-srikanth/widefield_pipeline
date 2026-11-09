@@ -676,6 +676,8 @@ def _save(fig, path, **kw):
     from wfield_local import lp_licks
     _before = set(map(id, fig.texts))
     lp_licks.stamp(fig)                         # LP_licks renders say so on the figure itself
+    from wfield_local import trial_set_text     # the figure's trial set (Priya 11-09), in the same stamp band
+    trial_set_text.stamp(fig)
     _fit_stamp(fig, [t for t in fig.texts if id(t) not in _before])
     _thin_crowded_ticks(fig)
     try:

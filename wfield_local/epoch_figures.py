@@ -63,6 +63,9 @@ def _save_png_svg(fig, q, *, dpi=200):
     for t in fig.texts:
         if t.get_color() == "#8a2be2" and len(t.get_text()) > width and "\n" not in t.get_text():
             t.set_text("\n".join(textwrap.wrap(t.get_text(), width)))
+    # THE TRIAL SET (Priya 11-09): after the wrap, prepended to the run stamp (`trial_set_text.stamp`)
+    from wfield_local import trial_set_text
+    trial_set_text.stamp(fig)
     # PNG as before + SVG twin through the shared helper (2026-11-06: text kept as text, a failed SVG warns).
     save_png_svg(fig, q, dpi=dpi)
 
@@ -366,8 +369,10 @@ def save_map_bundle(q, cells, **kw):
         # nothing anywhere to say so.
         print(f"  !! map bundle {q.stem}: NOT serialisable, will be absent from any replot: "
               f"{', '.join(dropped)}", flush=True)
+    # THE TRIAL SET the figure was drawn on (Priya 11-09), so a figdata replot carries the same sentence
+    from wfield_local import trial_set_text
     meta = {"schema": 2, "shape": shape, "dtype": BUNDLE_DTYPE, "cells": meta_cells,
-            "dropped_kw": dropped,
+            "dropped_kw": dropped, "trial_set": trial_set_text.current_sentence(),
             "kw": {k: v for k, v in kw.items()
                    if k not in ("contours", "blank", "edges") and _jsonable(v)}}
     try:
@@ -471,7 +476,19 @@ def replot_map(bundle, out=None, *, relabel_rows=None, relabel_cols=None, **over
     # The caller must ASK for that by passing `name=` explicitly.
     if "name" not in overrides:
         kw["name"] = bundle.stem.replace("_bundle", "") + "_replot"
-    return map_grid(cells, out or bundle.parent, **kw)
+    # THE TRIAL SET (Priya 11-09): the sentence the bundle recorded; for a bundle written before it did, the run's
+    # active trial set, else the class named by the figure stem (`_<align>_<variant>`) under THIS process's
+    # selection -- and a stale "lick + miss-while-working" title is rewritten to that class.
+    from wfield_local import trial_set_text as _tst
+    _al, _var = _tst.variant_from_name(bundle.stem)
+    if _var and "title" not in overrides and kw.get("title"):
+        try:
+            kw["title"] = _tst.refresh_title(kw["title"], _var)
+        except Exception as ex:                                        # noqa: BLE001 - keep the recorded title
+            print(f"  !! replot {bundle.stem}: title kept ({type(ex).__name__}: {ex})", flush=True)
+    _txt = meta.get("trial_set") or _tst.current_sentence() or _tst.safe_sentence(_var)
+    with _tst.active(None, text=_txt):
+        return map_grid(cells, out or bundle.parent, **kw)
 
 
 def write_map_stats(rows, q):
@@ -3212,8 +3229,9 @@ def save_figdata(q, renderer: str, kwargs: dict):
     try:
         kw = dict(kwargs)
         kw.pop("out", None)
+        from wfield_local import trial_set_text      # the trial set it was drawn on (Priya 11-09), for the replot
         with open(p, "wb") as fh:
-            pickle.dump({"renderer": renderer, "kwargs": kw}, fh)
+            pickle.dump({"renderer": renderer, "kwargs": kw, "trial_set": trial_set_text.current_sentence()}, fh)
     except Exception as ex:                                            # noqa: BLE001
         print(f"  [figdata] {p.name}: failed ({type(ex).__name__})", flush=True)
     return p
@@ -3227,4 +3245,15 @@ def replot_figdata(pkl, out=None, **overrides):
     kw = {**d["kwargs"], **overrides}
     out = pathlib.Path(out) if out is not None else pkl.parent.parent
     fn = {"bar_row": bar_row, "contrast_panel": contrast_panel}[d["renderer"]]
-    return fn(kw.pop("values") if d["renderer"] == "bar_row" else kw.pop("rows"), out, **kw)
+    # THE TRIAL SET (Priya 11-09): as `replot_map` -- recorded sentence, else the active one, else the class named by
+    # the figure stem; a stale "lick + miss-while-working" title is rewritten to that class
+    from wfield_local import trial_set_text as _tst
+    _al, _var = _tst.variant_from_name(pkl.stem.replace("_figdata", ""))
+    if _var and "title" not in overrides and kw.get("title"):
+        try:
+            kw["title"] = _tst.refresh_title(kw["title"], _var)
+        except Exception as ex:                                        # noqa: BLE001 - keep the recorded title
+            print(f"  !! replot {pkl.stem}: title kept ({type(ex).__name__}: {ex})", flush=True)
+    _txt = d.get("trial_set") or _tst.current_sentence() or _tst.safe_sentence(_var)
+    with _tst.active(None, text=_txt):
+        return fn(kw.pop("values") if d["renderer"] == "bar_row" else kw.pop("rows"), out, **kw)

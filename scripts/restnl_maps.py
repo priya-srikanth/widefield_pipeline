@@ -26,6 +26,8 @@ from pathlib import Path
 ARMS = {"contact": {}, "lp": {"WIDEFIELD_LICK_SOURCE": "lp"}, "enl1s": {"WIDEFIELD_ENL_WINDOW_S": "1.0"}}
 GATE = {"contact": "trial gate: DAQ spout contact", "lp": "trial gate: LP video licks",
         "enl1s": "trial gate: DAQ spout contact, ENL 1 s"}
+#: (trial class, DAQ-rule caption). The render captions from `trial_set_text.arm_caption` (the ACTIVE selection; Priya
+#: 11-09: "lick + miss-while-working" is stale under the camera gate); the strings here are kept for reference.
 ALIGN_VARIANT = {"precue": ("working", "ENL (pre-cue), lick + miss-while-working"),
                  "cue": ("working", "post-cue, lick + miss-while-working"),
                  "lick": ("lick", "post-lick, lick trials only")}
@@ -89,10 +91,18 @@ def render(arm: str, aligns) -> list:
           f"pre from {os.environ.get('WIDEFIELD_PRE_FROM')}, refs {prm.render_references()} -> {out}", flush=True)
     made = []
     for align in aligns:
-        variant, wname = ALIGN_VARIANT[align]
-        wname = f"{wname} | {GATE[arm]} | pre: August only"
-        for fn in (em._fig_15r_reference_maps, em._fig_15rpa_reference_by_animal):
-            for p in (fn(out, align, variant, wname) or []):
+        from wfield_local import trial_set_text as tst
+        variant, _wname = ALIGN_VARIANT[align]
+        wname = f"{tst.arm_caption(align, variant)} | {GATE[arm].replace('trial gate', 'licks')}, {tst.gate_text()} | pre: August only"
+        with tst.active(variant, align):                        # every figure states its trial set (Priya 11-09)
+            for fn in (em._fig_15r_reference_maps, em._fig_15rpa_reference_by_animal):
+                for p in (fn(out, align, variant, wname) or []):
+                    print(f"  -> {p}", flush=True)
+                    made.append(p)
+        if variant == "working":                    # PERIOD SUPPLEMENT + JAW-ONLY panels (Priya 11-09)
+            lk = GATE[arm].replace("trial gate", "licks")
+            for p in em.supplement_panels(
+                    out, align, lambda v, a=align, lk=lk: f"{tst.arm_caption(a, v)} | {lk}, {tst.gate_text()} | pre: August only"):
                 print(f"  -> {p}", flush=True)
                 made.append(p)
         os.environ["WIDEFIELD_MAP_REFS"] = "restnl"
