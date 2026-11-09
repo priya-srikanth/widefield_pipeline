@@ -283,7 +283,8 @@ def plot(F: dict) -> None:
                      "(solid = all animals, dotted = 2-3 animals), band = SEM over animals. Descriptive; tests on the AUC ratio in lick_lateral_ratio_auc.png. "
                      "PROVISIONAL", fontsize=9.5)
         fig.tight_layout(rect=(0, 0.04, 1, 0.93))
-        save_png_svg(fig, out / f"lick_lateral_ratio_traces_{st}.png", dpi=95)
+        with _trial_set_for(out / f"lick_lateral_ratio_traces_{st}.png"):
+            save_png_svg(fig, out / f"lick_lateral_ratio_traces_{st}.png", dpi=95)
         plt.close(fig)
     # AUC summary: rows = sets, columns = pairs; x = spouts, one marker per epoch (+ the session dots, A13 11-07)
     from wfield_local import cat_points as cp
@@ -377,7 +378,8 @@ def plot_sides(F: dict) -> None:
                      f"ipsi curve is >= {RATIO_MIN:.0%} of its peak; mean over the animals defined (solid = all, dotted = 2-3), "
                      "band = SEM over animals. Descriptive. PROVISIONAL", fontsize=9.5)
         fig.tight_layout(rect=(0, 0.04, 1, 0.93))
-        save_png_svg(fig, out / f"lick_lateral_ratio_side_traces_{st}.png", dpi=100)
+        with _trial_set_for(out / f"lick_lateral_ratio_side_traces_{st}.png"):
+            save_png_svg(fig, out / f"lick_lateral_ratio_side_traces_{st}.png", dpi=100)
         plt.close(fig)
     for w0, w1 in WINDOWS:
         v = f"logr_{w0:g}-{w1:g}"
@@ -565,7 +567,35 @@ def plot_pooled(F: dict) -> None:
     plt.close(fig)
 
 
+def trial_set_sentence(st: str | None = None) -> str:
+    """The licks of this driver's figures (Priya 11-09): lick_cued_ramp's cued first licks (sets cued / cue, the same
+    trials) and ITI bout starts (set iti); ``st`` = one set (its trace figures), None = all three (AUC / ring / pooled)."""
+    from wfield_local import trial_set_text as tst
+    cells = (f"session x spout cells with >= {cr.MIN_SPOUT} licks (side groups and pooled: >= {cr.MIN_N}; rings = "
+             "mean over the ring's spout cells)")
+    cued = cr.cued_first_sentence(cells=cells)
+    iti = cr.iti_bout_sentence(cells=cells.replace("spout cells", "previous-trial spout cells"))
+    if st in ("cued", "cue"):
+        return cued
+    if st == "iti":
+        return iti
+    return tst.union(cued, iti)
+
+
+def _trial_set_for(path):
+    """Narrow the process declaration to the set of the figure at ``path`` while it is saved (no-op without one)."""
+    import contextlib
+
+    from wfield_local import trial_set_text as tst
+    if tst.current() is None:
+        return contextlib.nullcontext()
+    st = next((k for k in SETS if Path(path).stem.endswith(f"traces_{k}")), None)
+    return tst.active(None, text=trial_set_sentence(st))
+
+
 def main() -> int:
+    from wfield_local import trial_set_text as tst
+    tst.declare(text=trial_set_sentence())
     if plot_only():
         plot(load_fd("lick_lateral_ratio"))
         plot_pooled(load_fd("lick_lateral_ratio"))

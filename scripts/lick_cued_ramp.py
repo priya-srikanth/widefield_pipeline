@@ -143,6 +143,80 @@ WINDOWS = ((0.0, 0.3), (0.0, 0.5), (0.0, 1.0), (0.0, 1.5))
 RATIO_MIN = 0.2       # masked ratio: shown only where the pre curve is >= 20 % of its peak
 
 
+# ------------------------------------------------------------------------------------------------ trial-set captions
+# Priya 11-09: "EVERY figure must state EXACTLY which trials were included / excluded". Two event sets, both from the
+# session files of iti_licks.extract (re-sampled in cued_wide/): the FIRST lick of each engaged trial (lick- and
+# cue-aligned) and the ITI bout starts (gap >= il.GAP_MAIN; `_sessions`). Words from these constants
+# (wfield_local.trial_set_text); lick_iti_ramp_animals / lick_lateral_ratio reuse them.
+def cued_first_what() -> str:
+    import lick_cue_to_lick_extract as cx
+    return (f"cued FIRST licks, one per trial of {cx.engaged_text()} = the first behavior-table lick onset in "
+            "cue..trial stop (iti_licks.extract)")
+
+
+def first_window_text() -> str:
+    return (f"cue {il.LAGS_C[0]:+g}..{il.LAGS_C[-1]:+g} s and lick {il.LAGS_P[0]:+g}..{il.LAGS_P[-1]:+g} s windows "
+            "inside the imaging")
+
+
+def cued_first_sentence(min_n: int = MIN_N, *, per_spout: bool = False, cells: str | None = None) -> str:
+    """The cued FIRST licks of the session files (`iti_licks.extract`: one per engaged trial). ``cells`` replaces the
+    session-count rule (a caller with its own minimum per cell)."""
+    from wfield_local import trial_set_text as tst
+    return tst.events(
+        cued_first_what(),
+        keep=[first_window_text(), "lick-aligned and cue-aligned on the same trials",
+              cells or (f"session x target spout cells with >= {min_n} first licks" if per_spout
+                         else f"sessions with >= {min_n} first licks")],
+        excluded=["trials without a lick in cue..stop", "later licks of the trial", "ITI licks"])
+
+
+def iti_bout_sentence(min_n: int = MIN_N, *, per_spout: bool = False, isolated: bool = False,
+                      cells: str | None = None) -> str:
+    """The ITI bout starts of the session files with gap >= il.GAP_MAIN (+ the subset filter of a subset run)."""
+    from wfield_local import trial_set_text as tst
+    extra = ["3-D landing present", f"onset {il.LAGS_P[0]:+g}..{il.LAGS_P[-1]:+g} s inside the imaging",
+             cells or (f"session x previous-trial spout cells with >= {min_n} bout starts" if per_spout
+                       else f"sessions with >= {min_n} bout starts")]
+    if isolated:
+        extra.append("also their ISOLATED subset (no lick onset 0.05..0.75 s after the onset)")
+    return tst.iti_bout_starts(il.GAP_MAIN, il.CUE_EXCL, filt=il.ITI_SUBSET, extra=extra)
+
+
+def trial_set_sentence(which: str = "all") -> str:
+    """``which`` = "cued" | "iti" | "cued_spout" | "iti_spout" | "sens" (baseline sensitivity) | "all"."""
+    from wfield_local import trial_set_text as tst
+    if which in ("cued", "cued_spout"):
+        return cued_first_sentence(MIN_SPOUT if which == "cued_spout" else MIN_N, per_spout=which == "cued_spout")
+    if which in ("iti", "iti_spout"):
+        return iti_bout_sentence(MIN_SPOUT if which == "iti_spout" else MIN_N, per_spout=which == "iti_spout")
+    if which == "sens":
+        return tst.union(iti_bout_sentence(isolated=True), cued_first_sentence())
+    return tst.union(cued_first_sentence(), iti_bout_sentence())
+
+
+def _set_of(path) -> str:
+    n = Path(path).stem
+    sp = "_spout" if "perspout" in n else ""
+    if n == "lick_ramp_baseline_sens":
+        return "sens"
+    if n.startswith("lick_iti_") or n.endswith("_iti"):
+        return "iti" + sp
+    if n.startswith(("lick_cued_", "lick_cue_")) or n.endswith("_cued"):
+        return "cued" + sp
+    return "all"
+
+
+def _trial_set_for(path):
+    """Narrow the process declaration to the set of the figure at ``path`` while it is saved (no-op without one)."""
+    import contextlib
+
+    from wfield_local import trial_set_text as tst
+    if tst.current() is None:
+        return contextlib.nullcontext()
+    return tst.active(None, text=trial_set_sentence(_set_of(path)))
+
+
 def _auc(v: np.ndarray, lags: np.ndarray, t0: float, t1: float) -> float:
     m = (lags >= t0 - 1e-9) & (lags <= t1 + 1e-9)
     return float(np.trapezoid(v[m], lags[m]))
@@ -489,7 +563,8 @@ def _draw_spout_windows(F: dict, key: str, what: str, path: Path) -> None:
                  "PRE AUC at the same spout, change vs pre, mean of animals with 95% paired nested bootstrap CI.\nRows: "
                  "0..0.5 s, 0..1.0 s, and the late part 0.5..1.0 s alone. _right = contralesional. PROVISIONAL", fontsize=9.5)
     fig.tight_layout(rect=(0, 0.04, 1, 0.93))
-    save_png_svg(fig, path, dpi=100)
+    with _trial_set_for(path):
+        save_png_svg(fig, path, dpi=100)
     plt.close(fig)
 
 
@@ -561,7 +636,8 @@ def _draw_sessions(F: dict, xlab: str, title: str, path: Path, nlab: str) -> Non
     fig.suptitle(title + "\nRow 3 = DIFFERENCE from each animal's own pre curve, in units of that pre curve's peak (0..1.5 s); "
                  "0 = no change. " + il.SIG_NOTE.replace("\n", " "), fontsize=9.5)
     fig.tight_layout(rect=(0, 0, 1, 0.9))
-    save_png_svg(fig, path, dpi=105)
+    with _trial_set_for(path):
+        save_png_svg(fig, path, dpi=105)
     plt.close(fig)
 
 
@@ -602,7 +678,8 @@ def _draw_spout(F: dict, key: str, xlab: str, title: str, path: Path, nlab: str)
     fig.suptitle(title + "\n" + il.SIG_NOTE.replace("\n", " ") + " Tested per spout against the animal's pre curve at "
                  "that spout.", fontsize=9.5)
     fig.tight_layout(rect=(0, 0.06, 1, 0.92))
-    save_png_svg(fig, path, dpi=100)
+    with _trial_set_for(path):
+        save_png_svg(fig, path, dpi=100)
     plt.close(fig)
 
 
@@ -638,7 +715,8 @@ def _draw_ratio(F: dict, path: Path) -> None:
                  "Flat = the whole response scaled by one factor; a slope or bump = the SHAPE changed. Rows: first cued "
                  "lick, cue-aligned, ITI bout start. Descriptive.", fontsize=9.5)
     fig.tight_layout(rect=(0, 0, 1, 0.92))
-    save_png_svg(fig, path, dpi=100)
+    with _trial_set_for(path):
+        save_png_svg(fig, path, dpi=100)
     plt.close(fig)
 
 
@@ -667,7 +745,8 @@ def _draw_windows(F: dict, k: str, path: Path) -> None:
                  "mean of the same measure;\none dot per session, "
                  "black = mean +- SEM, * = nested-bootstrap change from pre (95% CI excludes 0).", fontsize=9.5)
     fig.tight_layout(rect=(0.01, 0, 0.99, 0.94))
-    save_png_svg(fig, path, dpi=100)
+    with _trial_set_for(path):
+        save_png_svg(fig, path, dpi=100)
     plt.close(fig)
 
 
@@ -730,7 +809,8 @@ def plot(F: dict) -> None:
                  "Baselines (10-28): lick response -1.0..-0.5 s, pre-lick window -1.5..-1.0 s before the lick, cue -1.0..-0.5 s before the cue. "
                  "* = change from pre with 95% nested-bootstrap CI (animals > sessions) excluding 0.", fontsize=9.5)
     fig.tight_layout(rect=(0.01, 0, 0.99, 0.94))
-    save_png_svg(fig, out / "lick_cued_ramp_summary.png", dpi=110)
+    with _trial_set_for(out / "lick_cued_ramp_summary.png"):
+        save_png_svg(fig, out / "lick_cued_ramp_summary.png", dpi=110)
     plt.close(fig)
     if "summary_iti" in F:      # ITI AUC summary on the wide traces (14.10 with the 0..1.0 s response window)
         fig, axs = plt.subplots(len(SPEC_ITI), len(ROIS), figsize=(21, 12.5))
@@ -749,7 +829,8 @@ def plot(F: dict) -> None:
                      "-1.5..-1.0 s), / the animal's pre 0..0.5 s response AUC (as before). * = change from pre with 95% "
                      "nested-bootstrap CI (animals > sessions) excluding 0.", fontsize=9.5)
         fig.tight_layout(rect=(0.01, 0, 0.99, 0.93))
-        save_png_svg(fig, out / "lick_iti_ramp_summary_wide.png", dpi=110)
+        with _trial_set_for(out / "lick_iti_ramp_summary_wide.png"):
+            save_png_svg(fig, out / "lick_iti_ramp_summary_wide.png", dpi=110)
         plt.close(fig)
 
 
@@ -834,11 +915,14 @@ def draw_baseline_sens(F: dict) -> None:
                  "ITI licks (iti_iso: no lick 0.05..0.75 s after; later licks can still fall in 0.75..1.5 s), first cued "
                  "licks.", fontsize=9.5)
     fig.tight_layout(rect=(0, 0, 1, 0.94))
-    save_png_svg(fig, il.OUT_W / "figures" / "lick_ramp_baseline_sens.png", dpi=95)
+    with _trial_set_for(il.OUT_W / "figures" / "lick_ramp_baseline_sens.png"):
+        save_png_svg(fig, il.OUT_W / "figures" / "lick_ramp_baseline_sens.png", dpi=95)
     plt.close(fig)
 
 
 def main() -> int:
+    from wfield_local import trial_set_text as tst
+    tst.declare(text=trial_set_sentence())
     if "--baseline-sens" in sys.argv:
         if plot_only():
             draw_baseline_sens(load_fd("lick_ramp_baseline_sens"))
