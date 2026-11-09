@@ -765,3 +765,9 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
   load per alignment. Helper implementing memos 1-4 (+5) on perf/grant-loader-memos-1109 (wf_grantmemo) and MEASURING
   the same unit + exact figure-data equality + csig check. Then: Priya decides keep running (~18 h at the current rate)
   vs restart the REMAINING grant families only (--only) on the fix.
+- (correction: the grant-profile entry above is ~03:00, not 03:2x.) Grant (LP) SPED UP: 25/96 at 03:03 (13 units in the
+  last hour -- workers now reuse their per-alignment bundles); ~5-6 h left at that pace, not ~18 h. Memo fix still being
+  measured; restart only if it saves hours (recommend letting this run finish otherwise).
+- 03:07 g5_section_g_g4only EXIT 0 (34 min vs ~3 h full): G4 = camera working vs no_response (neg-no_response models,
+  frozen-new), merged ONLY the G4 keys into the keyed LP section G json (backup first). 03:08 g5_g4_fig_redraw EXIT 0.
+  G4 deck slide + results-page panel -> replacement pass.
