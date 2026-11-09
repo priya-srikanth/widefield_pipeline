@@ -63,6 +63,18 @@ merged to main (no conflicts); A5 applied to FINDINGS 0c item 4 and the page cap
 
 ## B. Findings (newest first; exploratory)
 
+35. **Balance in the first-lick window (Priya 11-09 "yes 1 and 2"; `WF_SS_ALIGN=lick` balance scripts, tables
+   `landing_lick/` (cue tables untouched in `landing/`); page v35 Figs 5.5-5.8).** 0.1-0.5 s after the first lick minus
+   -1.0..-0.6 s. Same picture as the cue window. Orofacial matched: far contra +.30 / +.27 / +.29 (chronic 4/4), close
+   contra chronic +.22, far mid chronic +.11 (4/4); acute ipsi-side reversal (far ipsi -.22 0/4, close ipsi -.16 1/4);
+   spread -.28 / -.16 / -.13 (0/4 chronic). Motor matched: far contra +.29 / +.25 / +.25, far mid +.13 / +.10 / +.14, far
+   ipsi sub / chr +.14 / +.16 (4/4); no acute reversal (far ipsi +.01, close ipsi +.03), no spread compression (-.13 /
+   -.01 / +.01, CIs incl. 0). Also: every page caption now ends with its file name (`scripts/page_file_names.py`,
+   docs/templates/README.md rule). ENCODER COMPARISON (grant window's note, checked): the encoder's chronic position-R2
+   rise falls +22 -> +4 (n.s.) with FR in the model (ENCODING_FINDINGS), while Fig 9.1 activity keeps 94 % (FR-A) --
+   different readouts and controls (FR in-model per session vs frozen pre-only subtraction); 9.3 (spout-specific) with FR
+   is the like-for-like check (running 11-09).
+
 34. **The post-lick change is NOT face movement (Priya 11-09 "combining state space fig 9.1 with FR ... to regress out
    FR-explained variance", "directionless first, then all"; `WF_SS_FR=B|0|A` in `state_space_chronic_maps.py`; page v32
    Figs 9.1b-c).** Per trial FaceRhythm `master_pre_v1` factors 0.0..0.5 s after the first lick (cue-time join; 0.5-1.9 %

@@ -17,6 +17,10 @@ goal-question page, https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d). Conventi
 - **Captions carry the full method** (Priya 10-26): model / decoder (frozen or refit) or data source (pose model, camera),
   window / bins and baseline, variables included / excluded, trial / lick gate, sessions / animals, statistic, correction
   and n, and the script (`<b>Script:</b> <code>...</code>`).
+- **Every caption ends with the figure's FILE NAME** (Priya 11-09, all pages: "we should make including file names the
+  default for all pages"): `<span class="ffile"><b>File:</b> <code><share folder>/<image></code></span>` as the last item
+  of the `<figcaption>`, from the figure's current `<img src>`. Run `scripts/page_file_names.py <index.html> --prefix
+  <share folder>` after every build or figure swap (idempotent; first used on the state-space page v35).
 - **Tag each section** neural (`data-kind="n"`) or lick / behavior (`data-kind="l"`).
 - Each figure's caption says how to read it and gives the headline numbers; one `.take` box per section with the
   result; within a section the pooled / cohort (within-animal-normalized, with statistics) figures come BEFORE the
