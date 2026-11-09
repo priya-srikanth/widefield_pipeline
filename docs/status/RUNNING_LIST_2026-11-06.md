@@ -1071,3 +1071,12 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
   (4) RE-RUN PLAN APPROVED: after merge + mask keys + move-aside: CD chain + map statistics first (warm caches), then
   ITI chain || encoder chain, then downstream (ITI ~250 steps, encoder consumers, state_space_sim, O2 bundles); the
   grant + epoch caption re-renders, precue ENL full run, xa restnl, balance family fold into it (no double renders).
+- 12:00 FROZEN SPOUT D DONE: fix/frozen-spout-D-1109 (wf_frozenD, 5 commits on 2009bf45, not pushed). A (12) + B (6)
+  models DELETED after a kept list (docs/status/DELETED_FROZEN_SPOUT_AB_2026-11-09.md, 7d840b83; ~5.6 MB; no other
+  references). Gate source lp: D's training rows identical (spec a9addfabb37f either way). LP joint_xsession 11:44-11:58
+  from detached wf_render_jxlp @19c2325b: 12/12 frozen-hit = D ids, NO fit (new --decoder-only + WIDEFIELD_FROZEN_LOAD_ONLY
+  guard; LP lick unit now uses attempt coding's no-lick reference, 19c2325b). Outputs = the MISSING
+  joint_xsession_decoder_{cue,precue,lick}__LP_licks_gateLP_*.json -> g6_grant_lp can re-run. LOSO pre acc PS92/93/94/95:
+  precue .341/.393/.588/.438, cue .855/.734/.935/.923, lick .930/.797/.943/.928. Wording 88044176. Open: LP joint
+  encoders not fitted (grant reads only the decoder JSON) -- rec none; Fig 5.1 caption "engaged trials" should say camera
+  working trials for cue / pre-cue (caption pass). Worktree wf_render_jxlp can be removed.
