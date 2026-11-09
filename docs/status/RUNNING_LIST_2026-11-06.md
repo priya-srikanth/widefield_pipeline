@@ -1149,3 +1149,14 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
   sys.modules, so drivers imported before (`import iti_licks as il`) hold a stale copy the fixture never patches ->
   conftest autouse one_iti_licks re-points stale references for each test. 8aed3a7b; 131 caption + writeguard tests
   pass. Push 4 running (~20 min tests).
+- 17:10 INTEG ON MAIN 8aed3a7b (push 4; 6297 passed): glue fix, mask keys, frozen D, wiring, grant memos, style leak /
+  softmax / gate, precue ENL + stamp, star-band + test-isolation fixes. State-space window may push again.
+- 17:11 GLUE RE-RUN LAUNCHED. move_aside.py --do --orphans: 96 items moved to <root>/_superseded_glue_20261109/ (manifest
+  scratchpad/glue_rerun/move_aside_manifest_20261109_171046.csv, copies in each superseded folder; nothing deleted).
+  Detached worktree wf_render_v20 @ 8aed3a7b; queue_daqlk20.sh EXPECT_SHA 8aed3a7b; dry run = 376 steps (+10 O2 behind
+  the manual marker), identical to the prepared plan. HALT removed (HALT.removed_20261109_1715). SETTINGS CHECK under
+  the profile: union 40,663 / stat 129,770 / component exclusion PS92 50,885 (was 0 / 166,974 / 15,106 glue-in); csig
+  3d7bbe921e; preflight OK on every lane. 10 lanes: L1 CD, L2 MAPS, L3-L5 ENC, L6 ITI, L7 ITI+DOWN, L8-L9 DOWN, L10 FIG.
+  First heavy step g5_epoch_g (base DAQ-arm epoch render, as the original). ETA 2.5-3 days. Manual later: O2 re-bundle
+  (new name) after the ITI inputs, then touch logs/O2_COLLECT_g.done + SECTIONS=O2 lane. State-space window: re-run
+  state_space_sim after e_iti_main_g (its old caches moved aside).
