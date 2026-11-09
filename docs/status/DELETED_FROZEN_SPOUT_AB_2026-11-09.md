@@ -64,3 +64,30 @@ Total 18 folders, about 5.6 MB.
   PS94 573944df0b07 / 52202e05b8d8 / fb61dbd54bac; PS95 fab7df8581d6 / 90564a376277 / 14b3251439d9 (cue / precue / lick).
 - Every other folder in the store (ROI decoders, encoders, attempt axes, CD directions, ...) is untouched, as is
   `frozen_models_lpfinal`.
+
+## Done 11-09
+
+- **Deleted 11-09 ~11:42**: the 18 folders above, each re-verified (contents, spec id, kind, align, window, DAQ, freeze
+  date) immediately before `shutil.rmtree` on its literal path; none remains. Nothing else in the store was touched.
+- **Gate source does not change D's training rows.** PS92 cue, attempt-coding pool (27 sessions), current code, render
+  profile + `WIDEFIELD_LICK_SOURCE=lp`, with and without `WIDEFIELD_GATE_SOURCE=lp`: identical training arrays (2,863
+  rows; X / y / session all `array_equal`), identical selection tag, spec id a9addfabb37f = D's both ways. The camera
+  gate's working classes do not read the gate source, and frozen specs do not carry it.
+- **LP joint cross-session run loads D (no fit).** Under LP the `joint_xsession` decoder spec equals D's by exact
+  match (precue window 1.0 s comes from `make_spec` under LP; PS93_0813 drops out of the LP pool as in attempt coding,
+  "no LP lick tables"). One change was needed: the LP lick unit now builds its pool with the no-lick reference at the
+  would-be lick, as attempt coding does; with the cue reference the engaged rows differ by <= 1e-4 and the fingerprint
+  missed D (PS93 lick 362a5d6c2e1c vs 0e0719187108). The run used `--decoder-only` (no LP joint encoder is stored; the
+  grant figures read only the decoder JSON) and `WIDEFIELD_FROZEN_LOAD_ONLY=1` (a miss raises instead of fitting).
+  Run 11:44-11:58 (14.5 min, -j 4) from detached worktree wf_render_jxlp @ 19c2325b; log
+  `render_daqlk/logs/jx_lp.log`. All 12 units `frozen-hit`, `frozen_model_id` = the D ids above; outputs
+  `figures_working/LP_licks_gateLP_<tag>/joint_xsession_decoder_{cue,precue,lick}__LP_licks_gateLP_<tag>.json` (the
+  names `g6_grant_lp` reported MISSING). No new model in the store.
+
+Pre-stroke LOSO accuracy (pre-stroke band; chance 1/6), LP-trained D, LP gate:
+
+| align | PS92 | PS93 | PS94 | PS95 |
+|---|---|---|---|---|
+| pre-cue (1.0 s, working rows) | 0.341 | 0.393 | 0.588 | 0.438 |
+| cue (0-2 s, working rows) | 0.855 | 0.734 | 0.935 | 0.923 |
+| lick (0-2 s, engaged rows) | 0.930 | 0.797 | 0.943 | 0.928 |
