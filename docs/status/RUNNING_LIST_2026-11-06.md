@@ -698,3 +698,8 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
   xsession on LP; gb_fig_r redraw; figdata star redraws; then the replacement pass (headline table on corrected outputs ->
   Priya -> pages / decks; page repointing list in scratchpad/epoch_trim.md + rerun_settings_check.md).
 - OPEN for Priya: LP map-drift (June vs August) cannot be made -- keep DAQ "contact" drift labeled, or drop?
+- 21:26 g5_section_g_lp EXIT 0: 76/76 session units, MEASURED 3 h 14 min (18:12 -> 21:26) vs 13.1 h for r4 before the
+  memo; LP lick class, G1-G3 camera working vs no_response; PS93_0813 (no video) skipped as LPUnavailable (logged, not
+  fatal). Outputs figures_working/LP_licks_gateLP_<tag>. g6_grant_lp now waits only on g5_recovery_cue_r (RS lane).
+- 19:23 g5_epoch_lp_ENL EXIT 0 (3 h 20 min; cold cache: lane started on the pre-d8f4e900 csig). 21:13
+  g5_cd_traj_orth_lp EXIT 0. 20:26 g5_restnl_maps_lp_r2 EXIT 0. 20:53 g5_rest_frozen_r EXIT 0.
