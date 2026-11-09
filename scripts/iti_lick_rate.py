@@ -253,8 +253,29 @@ def plot(D: dict) -> None:
     plt.close(fig)
 
 
-if __name__ == "__main__":
+def trial_set_sentence() -> str:
+    """The lick set of lick_iti_rate (Priya 11-09): every cam4 ITI lick of licks_all.csv that follows a trial of the
+    camera working period (`session_row`), over the ITI time of those trials; sessions without camera classes out."""
+    from wfield_local import trial_classes as tc
+    from wfield_local import trial_set_text as tst
+    end = tst._END_TEXT.get(tc.end_anchor(), tc.end_anchor())
+    return tst.events(
+        "ITI licks (cam4 licks_all.csv, context iti: every camera-detected lick between trials; no 3-D requirement)",
+        keep=[f"only licks following a trial of the camera working period (first cue to the {end}, stopped runs "
+              f"({tst.stop_text()}) removed); ITI time = those trials' stop to the next spout arrival, each gap clipped "
+              f"to 0..{GAP_MAX:g} s"],
+        excluded=["post-cue licks", "ITI licks after the camera working period or inside stopped runs",
+                  "sessions without camera classes (no video)"])
+
+
+def cli() -> int:
+    from wfield_local import trial_set_text as tst
+    tst.declare(text=trial_set_sentence())                # declared before any draw: the --plot-only replot too
     if plot_only():                                       # redraw from the figure data alone
         plot(load_fd("lick_iti_rate"))
-        raise SystemExit(0)
-    raise SystemExit(main())
+        return 0
+    return main()
+
+
+if __name__ == "__main__":
+    raise SystemExit(cli())

@@ -731,7 +731,9 @@ def draw_f0(F: dict) -> None:
         fig.colorbar(im, ax=axs[i, :], fraction=0.02).set_label("F0 / pre - 1")
     _title(fig, "Raw fluorescence F0 (frames_average on the atlas grid, raw counts) per Allen area, change vs the "
            "animal's pre mean (mean of animals, paired nested bootstrap). Image left = ipsilesional.", 170)
-    _savefig(fig, "lick_iti_hemo_check_f0_areas.png", 105, tight_bbox=True)
+    from wfield_local import trial_set_text as tst
+    with tst.active(None, text=F0_SET):                 # no licks here: the session mean image (Priya 11-09)
+        _savefig(fig, "lick_iti_hemo_check_f0_areas.png", 105, tight_bbox=True)
 
 
 def fig_state_gap(G: pd.DataFrame, Hh: pd.DataFrame, colors: dict) -> None:
@@ -774,7 +776,20 @@ def plot_only(labels: list[str] | None = None) -> None:
         draw(load_fd(stem))
 
 
+#: the frame set of the F0 area map (it reads no lick): every frame of the session, both channels
+F0_SET = ("frames: every imaging frame of the session (the pipeline's per-pixel temporal mean frames_average, raw "
+          "counts, 470 and 415 nm), sessions with a cached hemo-check extract; no lick selection")
+
+
+def trial_set_sentence() -> str:
+    """The lick set of the hemo-check figures (variants, PETH, edge / vessel, state / gap): the SAME bout-start ITI licks
+    as the published response (`work`: session-file bout_t with bout_gap >= GAP_MAIN), >= 10 per session. The F0 area
+    map states F0_SET instead (`draw_f0`)."""
+    return il.trial_set_bouts(il.GAP_MAIN)
+
+
 def main(argv=None) -> int:
+    from wfield_local import trial_set_text as tst
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--labels", nargs="*")
     ap.add_argument("--jobs", type=int, default=3)
@@ -782,6 +797,7 @@ def main(argv=None) -> int:
     ap.add_argument("--plot-only", action="store_true",
                     help="re-render the figures from figdata/<figure>.pkl only; no csv, no cache, no bootstrap, no table rewrite")
     a = ap.parse_args(argv)
+    tst.declare(text=trial_set_sentence())              # Priya 11-09 (the --plot-only replot too)
     from wfield_local import analysis_kit as ak
     from wfield_local.writeguard import assert_writable
     assert_writable(HC)

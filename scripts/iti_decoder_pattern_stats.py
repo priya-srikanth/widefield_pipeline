@@ -319,6 +319,8 @@ def plot_all(D: dict) -> None:
 
 
 def main() -> int:
+    from wfield_local import trial_set_text as tst
+    tst.declare(text=dp.trial_set_sentence())             # the licks of iti_decoder_patterns (Priya 11-09)
     if plot_only():
         for ax_ in AXES:
             plot_all(load_fd(f"lick_decoder_pattern_stats_{ax_}"))

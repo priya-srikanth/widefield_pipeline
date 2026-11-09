@@ -173,7 +173,15 @@ def plot(S: pd.DataFrame, T: pd.DataFrame) -> None:
     plt.close(fig)
 
 
+def trial_set_sentence() -> str:
+    """The lick set of the decomposition figure: the lick-order prediction cache's licks (`iti_lick_order`), per spout
+    cell >= MIN licks."""
+    return lo.trial_set_sentence(extra=[f"spouts with >= {MIN} licks in the session, sessions with >= 4 such spouts"])
+
+
 def main() -> int:
+    from wfield_local import trial_set_text as tst
+    tst.declare(text=trial_set_sentence())          # Priya 11-09: every figure states its lick set
     P = il.subset_preds(pd.read_csv(lo.preds_path()))
     S = sessions(P)
     (WOUT / "figures").mkdir(parents=True, exist_ok=True)

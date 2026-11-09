@@ -221,6 +221,14 @@ def plot(D: dict) -> None:
     plt.close(fig)
 
 
+def trial_set_sentence() -> str:
+    """The lick set of lick_basis_decoder: the session files' ITI and post-cue licks (same licks in every basis),
+    sessions with >= 20 licks of the set (`decode`)."""
+    from wfield_local import trial_set_text as tst
+    ex = ["animals with >= 3 pre sessions"]
+    return tst.union(il.trial_set_iti(min_n=20, extra=ex), il.trial_set_cued(min_n=20, extra=ex))
+
+
 def main(argv=None) -> int:
     from wfield_local import analysis_kit as ak
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -230,6 +238,8 @@ def main(argv=None) -> int:
     ap.add_argument("--summarise", action="store_true")
     ap.add_argument("--plot-only", action="store_true", help="redraw the figure from its figure data alone")
     a = ap.parse_args(argv)
+    from wfield_local import trial_set_text as tst
+    tst.declare(text=trial_set_sentence())          # Priya 11-09: the figure states its lick set (replot too)
     if a.plot_only:
         plot(load_fd(FIG))
         return 0
