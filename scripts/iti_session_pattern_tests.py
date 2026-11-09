@@ -302,13 +302,27 @@ def plot_maplevel(D: dict) -> None:
     plt.close(fig)
 
 
+def trial_set_sentence(fam: str | None = None) -> str:
+    """The licks of one map family (``fam``), or of every family (the whole-map test / similarity figures) (Priya 11-09)."""
+    from iti_session_patterns import family_sentence
+    return family_sentence(fam or "all")
+
+
+def _plot_change(D: dict) -> None:
+    from wfield_local import trial_set_text as tst
+    with tst.active(None, text=trial_set_sentence(D["fam"])):
+        plot_change(D)
+
+
 def main() -> int:
+    from wfield_local import trial_set_text as tst
+    tst.declare(text=trial_set_sentence())
     if plot_only():                                               # redraw from figdata only: no permutation, no bootstrap
         plot_maplevel(load_fd("lick_session_pattern_maplevel"))
         plot_similarity(load_fd("lick_session_pattern_similarity"))
         for fam in FAMILIES:
             try:
-                plot_change(load_fd(CHANGE_FIG[fam]))
+                _plot_change(load_fd(CHANGE_FIG[fam]))
             except SystemExit as e:
                 print(e)
         return 0
@@ -346,7 +360,7 @@ def main() -> int:
     for (fam, keys), res in sorted(got):
         D = dict(res=res, keys=list(keys), fam=fam, T=T, grid=grid)
         save_fd(CHANGE_FIG[fam], D)
-        plot_change(D)
+        _plot_change(D)
     return 0
 
 

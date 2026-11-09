@@ -73,7 +73,15 @@ def plot(D: dict) -> None:
     plt.close(fig)
 
 
+def trial_set_sentence() -> str:
+    """Cued licks of the per-spout maps (spout_pattern_sessions.pkl = iti_spout_pattern_stats, cued; Priya 11-09)."""
+    from iti_spout_patterns import set_caption
+    return set_caption("trial")
+
+
 def main() -> int:
+    from wfield_local import trial_set_text as tst
+    tst.declare(text=trial_set_sentence())
     if plot_only():
         D = load_fd(FIG)
     else:

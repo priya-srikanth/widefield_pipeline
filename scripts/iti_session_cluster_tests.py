@@ -434,13 +434,31 @@ def plot_shape_days(D: dict) -> None:
         plt.close(fig)
 
 
+def trial_set_sentence(fig: str | None = None) -> str:
+    """The licks of one figure (Priya 11-09): a map family, "shape_d" (the per-spout maps of both sets), "cued" / "iti"
+    (the shape-over-days figure of that set), or None = every family."""
+    from iti_session_patterns import family_sentence
+    from wfield_local import trial_set_text as tst
+    if fig == "shape_d":
+        return tst.union(family_sentence("spout_cued"), family_sentence("spout_iti"))
+    return family_sentence({"cued": "spout_cued", "iti": "spout_iti", None: "all"}.get(fig, fig))
+
+
+def _draw(fn, D: dict, fig: str) -> None:
+    from wfield_local import trial_set_text as tst
+    with tst.active(None, text=trial_set_sentence(fig)):
+        fn(D)
+
+
 def main() -> int:
+    from wfield_local import trial_set_text as tst
+    tst.declare(text=trial_set_sentence())
     if plot_only():                                       # figure data only: no permutation, no imaging load
         for fam in FAMS:
-            plot_maps(load_fd(FIG_NAME[fam]))
-        plot_shape_d(load_fd("lick_session_shape_d"))
+            _draw(plot_maps, load_fd(FIG_NAME[fam]), fam)
+        _draw(plot_shape_d, load_fd("lick_session_shape_d"), "shape_d")
         for st in ("cued", "iti"):
-            plot_shape_days(load_fd(f"lick_{st}_session_shape_days"))
+            _draw(plot_shape_days, load_fd(f"lick_{st}_session_shape_days"), st)
         return 0
     n_perm = int(sys.argv[sys.argv.index("--perm") + 1]) if "--perm" in sys.argv else N_PERM
     OUTD.mkdir(exist_ok=True)
@@ -459,15 +477,15 @@ def main() -> int:
     for fam, keys in FAMS.items():
         D = dict(R={k: v for k, v in R.items() if k[0] in keys}, fam=fam, keys=list(keys), ol=ol, n_perm=n_perm)
         save_fd(FIG_NAME[fam], D)
-        plot_maps(D)
+        _draw(plot_maps, D, fam)
     D = dict(T=pd.read_csv(il.OUT / "session_pattern_maplevel.csv"))      # from iti_session_pattern_tests.py
     save_fd("lick_session_shape_d", D)
-    plot_shape_d(D)
+    _draw(plot_shape_d, D, "shape_d")
     S = pd.read_csv(il.OUT / "session_pattern_similarity.csv")
     for st in ("cued", "iti"):
         D = dict(S=S, st=st)
         save_fd(f"lick_{st}_session_shape_days", D)
-        plot_shape_days(D)
+        _draw(plot_shape_days, D, st)
     return 0
 
 

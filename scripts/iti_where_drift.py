@@ -40,6 +40,7 @@ from wfield_local import analysis_kit as ak  # noqa: E402
 AN = ["PS92", "PS93", "PS94", "PS95"]
 EP = ["acute", "subacute", "chronic"]
 AXES = {"lat": 0, "sag": 3}
+MIN_LICKS = 40      # a session enters the single-session decoders with >= this many tracked licks of the set
 
 
 def _day(label: str) -> int:
@@ -68,7 +69,7 @@ def pairs(june: bool = False) -> pd.DataFrame:
                     continue
                 X, C = d[st]
                 ok = np.isfinite(C[:, [0, 3]]).all(1)
-                if ok.sum() >= 40:
+                if ok.sum() >= MIN_LICKS:
                     ses[x] = (d["epoch"], X[ok] / S.loc[x, names].to_numpy(float)[None, :], C[ok])
             pre = [x for x, v in ses.items() if v[0] == "pre"]
             if len(pre) < 3:
@@ -221,10 +222,19 @@ def plot(F: dict) -> None:
     plt.close(fig)
 
 
+def trial_set_sentence(june: bool = False) -> str:
+    """ITI + cued licks of every session with >= MIN_LICKS tracked licks of the set (Priya 11-09); --june adds the June
+    6-8 pre sessions (iti_june_ref.py) as a no-stroke reference (decoders trained on them are tested on August pre only)."""
+    xs = ["+ June 6-8 pre sessions as a no-stroke reference (never trained into the August baseline)"] if june else []
+    return wd.both_caption("", min_n=MIN_LICKS, iti_extra=xs, cued_extra=xs)
+
+
 def main(argv=None) -> int:
+    from wfield_local import trial_set_text as tst
     il.split_only("iti_where_drift")   # outputs not basis-tagged: split basis only (10-27 late)
     argv = argv if argv is not None else sys.argv[1:]
     june = "--june" in argv
+    tst.declare(text=trial_set_sentence(june))
     stem = f"lick_where_drift{'_june' if june else ''}"
     if "--plot-only" in argv or plot_only():   # redraw from figdata only: no decoder fits, no bootstrap
         plot(load_fd(stem))

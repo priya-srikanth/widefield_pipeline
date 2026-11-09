@@ -136,10 +136,23 @@ def plot(T: pd.DataFrame, S: pd.DataFrame, tag: str) -> None:
 WOUT = il.OUT_W if il.ITI_SUBSET else il.OUT     # subset runs (dock, ...) write to their own folder (10-29)
 
 
+def trial_set_sentence(z: bool = False) -> str:
+    """ITI + cued licks per spout (Priya 11-09): cells of >= MIN_N licks per session x spout; the subset ITI filter only
+    when il.pred_file resolves to its filtered copy."""
+    import iti_where_decoder as wd
+    rel = "zscore_check/where_preds_z.csv" if z else "where_preds.csv"
+    cell = f"cells with >= {MIN_N} licks per session x spout"
+    return wd.both_caption(wd.subset_in(il.pred_file(rel)), tracked="lateral + sagittal + outward",
+                           spout="spout = the previous trial's spout (one of the six)", iti_extra=[cell],
+                           cued_extra=[cell])
+
+
 def main() -> int:
+    from wfield_local import trial_set_text as tst
     z = "--z" in sys.argv
     tag = "_z" if z else ""
-    if plot_only():                       # redraw from figdata only: no data, no bootstrap
+    tst.declare(text=trial_set_sentence(z))
+    if plot_only():                      # redraw from figdata only: no data, no bootstrap
         F = load_fd(f"lick_where_per_spout{tag}")
         plot(F["T"], F["S"], F["tag"])
         return 0
