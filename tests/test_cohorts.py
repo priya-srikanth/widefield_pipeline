@@ -73,9 +73,18 @@ def test_preprocess_discovery_sees_three_digit_ids_but_only_the_active_cohort(co
     assert kept == {"PS118", "PS122", None}
 
 
-def test_no_reference_yet_skips_cross_registration(cohort):
+def _without_animal_references(monkeypatch):
+    """Live animals dict with each animal's own reference cleared (None, not deleted, so `explicit` stays True):
+    lets a test exercise the cohort-level path independent of the per-animal references in animals.yaml."""
+    a = {k: {**(v or {}), "reference_date": None, "reference_landmarks": None} for k, v in config.animals().items()}
+    monkeypatch.setattr(config, "animals", lambda: a)
+    return a
+
+
+def test_no_reference_yet_skips_cross_registration(cohort, monkeypatch):
     from wfield_local import preprocess
     cohort("cohort2")
+    _without_animal_references(monkeypatch)
     params = config.defaults()["preprocess"]
     assert preprocess.reference_for("PS118", params, PathResolver(machine="analysis")) is None
 
@@ -125,10 +134,10 @@ def test_master_alignment_session_applies_to_every_animal_unless_overridden(coho
     cohort("cohort2")
     spec = dict(paths.cohort_spec(), reference_date="1105", reference_landmarks="v1")
     monkeypatch.setattr(paths, "cohort_spec", lambda name=None: spec)
+    a = _without_animal_references(monkeypatch)
     params = config.defaults()["preprocess"]
     assert preprocess.reference_spec("PS118", params) == ("1105", "v1", True)
-    a = dict(config.animals()); a["PS121"] = dict(a["PS121"], reference_date="1112")
-    monkeypatch.setattr(config, "animals", lambda: a)
+    a["PS121"] = dict(a["PS121"], reference_date="1112")
     assert preprocess.reference_spec("PS121", params)[0] == "1112"          # per-animal override wins
     assert preprocess.reference_spec("PS118", params)[0] == "1105"
 
