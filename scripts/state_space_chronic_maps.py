@@ -426,13 +426,17 @@ def pre_map(resp, unit, Uc):
 
 def fig_cohort(res, mask, edges, version, brain=None, pre=None, sfx=""):
     cols = list(range(7)) if version != "spout" else list(range(1, 7))
-    vmax = np.nanpercentile(np.abs(res["chronic"][0][cols]), 99)
+    # WF_SS_VMAX / WF_SS_PREMAX fix the color scales so figures compare (Priya 11-09 "can you put 9.1 and 9.1b on the
+    # same scale"); default = this figure's own 99th percentiles
+    vmax = float(_ENV["WF_SS_VMAX"]) if _ENV.get("WF_SS_VMAX") else np.nanpercentile(np.abs(res["chronic"][0][cols]), 99)
     top = int(pre is not None)                               # the pre-response row (viridis, own scale) on top
     nrow = len(EPS) + top
     fig, axs = plt.subplots(nrow, len(cols), figsize=(2.3 * len(cols), 2.5 * nrow + 0.6), squeeze=False)
     if top:
         lo, hi = np.nanpercentile(pre[cols], [1, 99])
         lo = min(lo, 0.0)
+        if _ENV.get("WF_SS_PREMAX"):
+            hi = float(_ENV["WF_SS_PREMAX"])
         for c, ci in enumerate(cols):
             ax = axs[0, c]
             draw(ax, pre[ci], mask, edges, None, None, brain, cmap="viridis", vlim=(lo, hi))
