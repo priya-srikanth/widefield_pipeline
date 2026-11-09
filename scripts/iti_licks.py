@@ -2201,7 +2201,7 @@ def binned_plot() -> None:
 # (Priya 11-09: "EVERY figure must state EXACTLY which trials were included / excluded"). The sentences are built from this
 # module's own constants (GAP_MAIN, BOUT_GAP, CUE_EXCL, N_TRIAL_MAX) through `wfield_local.trial_set_text`; the drivers of
 # the ITI family compose theirs from these helpers. Nothing is declared at import (127 scripts import this module): `main`
-# switches the per-figure captions on (`_TS_ON`), and every other driver declares its own set in its main.
+# switches the per-figure captions on (env `TS_ENV`), and every other driver declares its own set in its main.
 def trial_set_bouts(gap: float = GAP_MAIN, *, isolated: bool = False, min_n: int | None = 10, filt: str = "",
                     extra=()) -> str:
     """Bout-start ITI licks of the session files (`extract` (A)): no lick onset in the preceding ``gap`` s, no cue /
@@ -2268,14 +2268,15 @@ def trial_set_sentence(group: str) -> str | None:
     raise ValueError(f"iti_licks.trial_set_sentence: unknown figure group {group!r}")
 
 
-#: per-figure captions on (set by `main`): importers that call a draw function draw without one
-_TS_ON = False
+#: per-figure captions on (set by `main` in the ENVIRONMENT, so spawned workers see the same switch -- never a module
+#: global, which a spawned child would re-import as False): importers that call a draw function draw without one
+TS_ENV = "WFIELD_ITI_TRIAL_SET_CAPTIONS"
 
 
 def _ts(group: str):
     """The context that stamps figure group ``group``'s lick set on every save inside it (a no-op unless `main` ran)."""
     import contextlib
-    if not _TS_ON:
+    if os.environ.get(TS_ENV) != "1":
         return contextlib.nullcontext()
     from wfield_local import trial_set_text as tst
     txt = trial_set_sentence(group)
@@ -2303,8 +2304,7 @@ def main(argv=None) -> int:
                          "this script, or only the family of --rois-only / --ramp / --plot-direction / --plot-frozen-tc / "
                          "--key / --controls / --binned when one is given")
     a = ap.parse_args(argv)
-    global _TS_ON
-    _TS_ON = True                         # every figure below states its lick set (`trial_set_sentence`, Priya 11-09)
+    os.environ[TS_ENV] = "1"              # every figure below states its lick set (`trial_set_sentence`, Priya 11-09)
     if a.plot_only:
         fam = {"rois": a.rois_only, "ramp": a.ramp, "dir": a.plot_direction, "tc": a.plot_frozen_tc, "key": a.key,
                "ctrl": a.controls, "bin": a.binned}

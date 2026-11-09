@@ -89,7 +89,8 @@ def test_main_declares_the_driver_sentence(camera, monkeypatch, tmp_path, name, 
     mod = importlib.import_module(name)
     monkeypatch.setattr(sys, "argv", argv)
     for attr in ("OUT", "FIG"):                       # mains that make their output folder before declaring
-        if name in ("lick_enl_target_test", "lick_enlv_balance_offset") and hasattr(mod, attr):
+        if name in ("lick_enl_target_test", "lick_enlv_balance_offset", "lick_enl_angle_decode",
+                    "lick_enl_offset_explore") and hasattr(mod, attr):
             monkeypatch.setattr(mod, attr, tmp_path / attr)
     txt = _declared(monkeypatch, mod, mod.main)
     assert txt == expect(mod)

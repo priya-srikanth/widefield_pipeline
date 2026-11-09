@@ -37,7 +37,7 @@ def camera(monkeypatch):
 @pytest.fixture
 def il(monkeypatch, tmp_path):
     import iti_licks
-    monkeypatch.setattr(iti_licks, "_TS_ON", False)                  # restored after the test (main switches it on)
+    monkeypatch.delenv(iti_licks.TS_ENV, raising=False)             # restored after the test (main switches it on)
     monkeypatch.setattr(iti_licks, "OUT", tmp_path)
     monkeypatch.setattr(iti_licks, "OUT_W", tmp_path)
     (tmp_path / "figures").mkdir()
@@ -260,7 +260,7 @@ def test_iti_licks_figures_carry_their_group_set(camera, monkeypatch, il):
     monkeypatch.setattr(figdata, "load_fd", lambda stem, *a, **k: fds[stem])
     for fam in ("--plot-direction", "--ramp", "--rois-only"):
         assert il.main(["--plot-only", fam]) == 0
-    il.controls_plot(only=("fr_lick_variance",))                          # _TS_ON is still on (main ran)
+    il.controls_plot(only=("fr_lick_variance",))                          # TS_ENV is still on (main ran)
     assert got[il.tagged("lick_direction_decoding.png")] == [_flat(il.trial_set_sentence("direction"))]
     assert got["lick_iti_ramp_peth.png"] == [_flat(il.trial_set_sentence("ramp"))]
     assert got["lick_iti_ramp_peth_isolated.png"] == [_flat(il.trial_set_sentence("ramp_isolated"))]
