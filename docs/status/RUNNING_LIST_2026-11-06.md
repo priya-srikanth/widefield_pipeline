@@ -733,3 +733,12 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
   launched queue_daqlk9zz3.sh lane BI (b83f376d): l_bal_subsets_inside_r2 -> l_recov_primary_inside_r2 ->
   l_bal_offset_primary_r3 (env mirrors the _r2 steps + WFIELD_BAL_INSIDE=1). Fig 12.19 area.
 - 00:4x te-basis hardening ON MAIN 2944eca4 (no cache key hashes frozen_encoder / iti_licks source: checked).
+- 00:50 JUNE CAMERA TABLES (investigation: scratchpad/june_camera_tables.md): every input exists for the 12 June
+  sessions; the classes already cover June; only trial_attempts.csv lacks June (built under PRE_FROM 0801). Overwriting
+  it would change lp_licks.spec_token (mtime/size) -> every LP cache cold + June "pre" rows would leak into readers'
+  August baselines. Priya 11-09 OK: June-only SIDE table (--out, new --labels option) + opt-in lp_licks supplement
+  override that keeps every registered session's cache key unchanged (route 2b) + re-run g5_map_drift_lp only.
+  Helper implementing on feat/june-attempts-supplement-1109 (wf_june) incl. the side build + August-row invariance diff.
+- G4 -> no_response: helper still running (fix/g4-noresp-1109).
+- Grant (LP) at 00:46: 6/96 units (7b x4 done 00:15-16 after ~1 h 35 min cold collection; 8d x2 at 00:36-37);
+  if ~20 min per pair holds, ~3-4 h more. Profile only if later units stay slow (Priya asked; offered).
