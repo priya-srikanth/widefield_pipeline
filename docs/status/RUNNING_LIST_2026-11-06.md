@@ -856,3 +856,9 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
 - OPEN for Priya: interhemi supplement B = lick - session-wide windows (engaged period vs all frames) -- add or not.
 - Grant memo push blocked by pre-push full suite (3 failed / 5732 passed): 2 = known test_cohorts (fail on main), the
   3rd being identified by a full run on the branch (scratchpad/grantmemo_fullsuite.txt). Not bypassed.
+- Priya 11-09 RULE: every AMPLITUDE-based output must exist with TWO references: RESTnl (lick-free docked rest) AND
+  session mean (the dF/F as is; the SVD dF/F is relative to the session's mean frame, so "session mean" = no further
+  subtraction = "raw" in the map families). Coupling / correlation / decoding outputs need no second reference (a
+  constant baseline drops out); for them "raw" = the lick-set metrics alone. Supplement B (session-wide event set) dropped
+  -- not a reference. Read-only audit of every amplitude family for the two refs running
+  (scratchpad/amplitude_two_refs_audit.md); gaps go into the plan. Memory: amplitude-two-references.
