@@ -74,7 +74,11 @@ merged to main (no conflicts); A5 applied to FINDINGS 0c item 4 and the page cap
    11-09 (Priya "the change is MORE?"): measured ALONG the control's change direction far contra keeps 86 / 76 % acute,
    110 / 103 % chronic; the RMS gain is the face map's off-axis pattern (0.3 of the change) and the per-animal face part
    along the change is mixed in sign (-.07 / +.03 / +.19 / -.12) -> not larger, same + noise. Spout mean along-axis
-   97 / 98 / 98 (B), 92 / 94 / 94 (A). Figs 9.1 / 9.1b / 9.1c on one scale (WF_SS_VMAX=0.9, WF_SS_PREMAX=2.3; page v33). Chronic areas (B): SSp-m
+   97 / 98 / 98 (B), 92 / 94 / 94 (A). Figs 9.1 / 9.1b / 9.1c on one scale (WF_SS_VMAX=0.9, WF_SS_PREMAX=2.3; page v33).
+   CONTOURS (Priya 11-09 "areas of significance seem larger with FR regressed out"; page v34): chronic, B vs control,
+   significant stat-mask area far contra 28 -> 48 %, far mid 14 -> 25, far ipsi 19 -> 25, mean 46 -> 56 (pre session-to-
+   session SD x0.82-0.88, change along its direction 0.98-1.10: less noise, not more change); close ipsi 73 -> 51, close
+   mid 57 -> 41 (change kept 0.82 / 0.86, SD 1.03 / 0.98: ~15 % of the change goes with the face). Chronic areas (B): SSp-m
    contra +.67, tjM1 contra +.64, SSp-m ipsi +.60, 4/4 (Fig 9.1 +.70 / +.66 / +.62). Also 11-09: Fig 9.1 pre-response
    row (viridis); every map in the encoder design (white unanalyzed, full CCF outline incl. bulbs); quick-look-first +
    response cache (`chronic_maps_resp/`) so a stats run never reloads.
