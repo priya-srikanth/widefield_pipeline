@@ -1137,3 +1137,8 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
   autouse fixtures], style leak/softmax/gate, precue ENL+stamp). csig 3d7bbe921e, mask 5f9eb36f36b2, union 40,663 /
   stat 129,770 under the profile; 493 key tests pass. chain_v20 loop stopped (in-flight glue attempt finishes alone);
   push_integ.sh pushes the ONE branch after it (race retries). Re-run queue EXPECT_SHA = the integ commit once on main.
+- 14:30 INTEG PUSH 1 FAILED (31 of 6297 tests): a TEST LEAK -- test_mask_keyed_caches::test_disengagement_img_worker
+  imports scripts/disengagement_tests.py, which does os.environ.setdefault("WIDEFIELD_PRE_FROM", "0801") at import, so
+  every later test ran as a pre0801 tagged run (writeguard / rebuild_root / cohort tests). Fixed (monkeypatch first);
+  + main's own new break: pose_frame_pair.py (another window, 13:40) unclassified share writer -> BEHAVIOUR. 4abcea72;
+  the 31 failing files + leaker: pass. Priya paused the state-space window's pushes ~13:55. Push 2 running.
