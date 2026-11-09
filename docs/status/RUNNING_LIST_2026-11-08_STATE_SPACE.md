@@ -63,6 +63,17 @@ merged to main (no conflicts); A5 applied to FINDINGS 0c item 4 and the page cap
 
 ## B. Findings (newest first; exploratory)
 
+44. **It is the movement MODEL, not the window (Priya 11-09 "yes run"; `scripts/state_space_encoder_window_kbs.py`,
+   `encoder_subtract/window_kbs.csv`).** On the SAME trials, window (-0.1..+1.0 s after the first lick) and targets (the
+   frozen encoder's own per-trial Allen-area values, trials with the KBs covariates, joined on cue time), spout-specific
+   far contra, acute: kept along the data change -- encoder prediction removed .44 (PS92-95 .04 / .58 / .64 / .49), KBs
+   bout-summary regression removed .87 (.46 / .72 / 1.41 / .91). SSp-m ipsi -2.07 [-2.97, -1.19] (4/4) -> -0.64
+   [-1.26, -.05] (3/4, PS95 +.22) encoder vs -1.66 [-2.77, -.99] (4/4) KBs; SSp-n ipsi -1.79 -> -.44 (CI incl. 0) vs
+   -1.51. So the bout summaries under-model the movement that carries the acute far-contra difference; the lick-locked
+   kernels (with contact) capture it. Implication for Figs 9.1-9.3 b-d: they bound movement from BELOW -- "survives KBs"
+   is not evidence that a between-spout change is not movement. The activity result (9.1) is unaffected: it holds under
+   every model, including the epoch-own coupling (item 43). EXPLORATORY.
+
 43. **Letting the movement -> cortex coupling change with epoch removes most of the between-spout change; the activity
    increase stays (handoff item b, second half; `WF_SS_FR=KBw|KBe`, `chronic_maps_lick_svd_rest_fr{KBw,KBe}`, page_figs
    `ss_cmap_*_rest_fr{KBw,KBe}_lick_svd.png`).** Kept along the same-trials control's (K0) change, cohort mean of
